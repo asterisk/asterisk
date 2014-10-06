@@ -100,6 +100,10 @@ static pjsip_dialog *find_dialog(pjsip_rx_data *rdata)
 	pj_str_t *local_tag;
 	pj_str_t *remote_tag;
 
+	if (!rdata->msg_info.msg) {
+		return NULL;
+	}
+
 	if (rdata->msg_info.msg->type == PJSIP_REQUEST_MSG) {
 		local_tag = &rdata->msg_info.to->tag;
 		remote_tag = &rdata->msg_info.from->tag;

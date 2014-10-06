@@ -121,8 +121,12 @@ static pj_bool_t logging_on_rx_msg(pjsip_rx_data *rdata)
 		return PJ_SUCCESS;
 	}
 
-	pj_sockaddr_print(&rdata->tp_info.transport->local_addr, local_buf, sizeof(local_buf), 3);
-	pj_sockaddr_print(&rdata->pkt_info.src_addr, remote_buf, sizeof(remote_buf), 3);
+	if (rdata->tp_info.transport->addr_len) {
+		pj_sockaddr_print(&rdata->tp_info.transport->local_addr, local_buf, sizeof(local_buf), 3);
+	}
+	if (rdata->pkt_info.src_addr_len) {
+		pj_sockaddr_print(&rdata->pkt_info.src_addr, remote_buf, sizeof(remote_buf), 3);
+	}
 
 	uuid = assign_uuid(&rdata->msg_info.cid->id, &rdata->msg_info.to->tag, &rdata->msg_info.from->tag);
 	if (!uuid) {
