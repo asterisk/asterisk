@@ -121,6 +121,10 @@ static pj_bool_t logging_on_rx_msg(pjsip_rx_data *rdata)
 		return PJ_FALSE;
 	}
 
+	if (!rdata->msg_info.msg) {
+		return PJ_FALSE;
+	}
+
 	ast_verbose("<--- Received SIP %s (%d bytes) from %s:%s:%d --->\n%s\n",
 		    rdata->msg_info.msg->type == PJSIP_REQUEST_MSG ? "request" : "response",
 		    rdata->msg_info.len,
