@@ -1189,7 +1189,7 @@ static int action_messagesend(struct mansession *s, const struct message *m)
 
 	if (ast_strlen_zero(to)) {
 		astman_send_error(s, m, "No 'To' address specified.");
-		return -1;
+		return 0;
 	}
 
 	if (!ast_strlen_zero(base64body)) {
@@ -1204,13 +1204,13 @@ static int action_messagesend(struct mansession *s, const struct message *m)
 
 	if (!tech_holder) {
 		astman_send_error(s, m, "Message technology not found.");
-		return -1;
+		return 0;
 	}
 
 	if (!(msg = ast_msg_alloc())) {
 		ao2_ref(tech_holder, -1);
 		astman_send_error(s, m, "Internal failure\n");
-		return -1;
+		return 0;
 	}
 
 	data = astman_get_variables(m);
@@ -1235,7 +1235,7 @@ static int action_messagesend(struct mansession *s, const struct message *m)
 	} else {
 		astman_send_ack(s, m, "Message successfully sent");
 	}
-	return res;
+	return 0;
 }
 
 int ast_msg_send(struct ast_msg *msg, const char *to, const char *from)
