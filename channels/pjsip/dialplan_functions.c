@@ -707,7 +707,7 @@ int pjsip_acf_channel_read(struct ast_channel *chan, const char *cmd, char *data
 
 	/* Sanity check */
 	if (strcmp(ast_channel_tech(chan)->type, "PJSIP")) {
-		ast_log(LOG_ERROR, "Cannot call %s on a non-PJSIP channel\n", cmd);
+		ast_log(LOG_WARNING, "Cannot call %s on a non-PJSIP channel\n", cmd);
 		return 0;
 	}
 
@@ -866,6 +866,11 @@ int pjsip_acf_media_offer_read(struct ast_channel *chan, const char *cmd, char *
 		return -1;
 	}
 
+	if (strcmp(ast_channel_tech(chan)->type, "PJSIP")) {
+		ast_log(LOG_WARNING, "Cannot call %s on a non-PJSIP channel\n", cmd);
+		return -1;
+	}
+
 	channel = ast_channel_tech_pvt(chan);
 
 	if (!strcmp(data, "audio")) {
@@ -886,6 +891,11 @@ int pjsip_acf_media_offer_write(struct ast_channel *chan, const char *cmd, char 
 
 	if (!chan) {
 		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
+	if (strcmp(ast_channel_tech(chan)->type, "PJSIP")) {
+		ast_log(LOG_WARNING, "Cannot call %s on a non-PJSIP channel\n", cmd);
 		return -1;
 	}
 
