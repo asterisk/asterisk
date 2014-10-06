@@ -641,7 +641,7 @@ static pj_bool_t options_on_rx_request(pjsip_rx_data *rdata)
 
 	if (ast_shutting_down()) {
 		send_options_response(rdata, 503);
-	} else if (!ast_exists_extension(NULL, endpoint->context, exten, 1, NULL)) {
+	} else if (!ast_strlen_zero(exten) && !ast_exists_extension(NULL, endpoint->context, exten, 1, NULL)) {
 		send_options_response(rdata, 404);
 	} else {
 		send_options_response(rdata, 200);
