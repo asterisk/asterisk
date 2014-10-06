@@ -1038,8 +1038,10 @@ static void remove_subscription(struct sip_subscription_tree *obj)
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&subscriptions, i, next) {
 		if (i == obj) {
 			AST_RWLIST_REMOVE_CURRENT(next);
-			ast_debug(1, "Removing subscription to resource %s from list of subscriptions\n",
-					ast_sip_subscription_get_resource_name(i->root));
+			if (i->root) {
+				ast_debug(1, "Removing subscription to resource %s from list of subscriptions\n",
+						ast_sip_subscription_get_resource_name(i->root));
+			}
 			break;
 		}
 	}
@@ -1141,6 +1143,10 @@ static struct ast_sip_subscription *create_virtual_subscriptions(const struct as
 static void shutdown_subscriptions(struct ast_sip_subscription *sub)
 {
 	int i;
+
+	if (!sub) {
+		return;
+	}
 
 	if (AST_VECTOR_SIZE(&sub->children) > 0) {
 		for (i = 0; i < AST_VECTOR_SIZE(&sub->children); ++i) {
@@ -1357,6 +1363,11 @@ static int subscription_persistence_recreate(void *obj, void *arg, int flags)
 		ast_sip_pubsub_has_eventlist_support(&rdata));
 	if (PJSIP_IS_STATUS_IN_CLASS(resp, 200)) {
 		sub_tree = create_subscription_tree(handler, endpoint, &rdata, resource, generator, &tree);
+		if (!sub_tree) {
+			ast_sorcery_delete(ast_sip_get_sorcery(), persistence);
+			ast_log(LOG_WARNING, "Failed to re-create subscription for %s\n", persistence->endpoint);
+			return 0;
+		}
 		sub_tree->persistence = ao2_bump(persistence);
 		subscription_persistence_update(sub_tree, &rdata);
 	} else {
