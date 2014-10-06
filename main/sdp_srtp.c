@@ -232,12 +232,12 @@ int ast_sdp_crypto_process(struct ast_rtp_instance *rtp, struct ast_sdp_srtp *sr
 	session_params = strsep(&str, " ");
 
 	if (!tag || !suite) {
-		ast_log(LOG_WARNING, "Unrecognized a=%s", attr);
+		ast_log(LOG_WARNING, "Unrecognized crypto attribute a=%s\n", attr);
 		return -1;
 	}
 
 	if (!ast_strlen_zero(session_params)) {
-		ast_log(LOG_WARNING, "Unsupported crypto parameters: %s", session_params);
+		ast_log(LOG_WARNING, "Unsupported crypto parameters: %s\n", session_params);
 		return -1;
 	}
 
