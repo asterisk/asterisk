@@ -3146,7 +3146,7 @@ int ast_data_add_codecs(struct ast_data *root, const char *node_name, struct ast
 	}
 
 	count = ast_format_cap_count(cap);
-	for (i = 1; i <= count; ++i) {
+	for (i = 0; i < count; ++i) {
 		struct ast_format *fmt;
 
 		fmt = ast_format_cap_get_format(cap, i);
