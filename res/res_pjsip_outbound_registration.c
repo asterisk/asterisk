@@ -852,6 +852,7 @@ static int sip_outbound_registration_perform(void *data)
 	registration->state->client_state->max_retries = registration->max_retries;
 	registration->state->client_state->retries = 0;
 	registration->state->client_state->support_path = registration->support_path;
+	registration->state->client_state->auth_rejection_permanent = registration->auth_rejection_permanent;
 
 	pjsip_regc_update_expires(registration->state->client_state->client, registration->expiration);
 
