@@ -623,7 +623,7 @@ static void *internal_ao2_callback(struct ao2_container *c,
 		 * is destroyed, the container will be automatically
 		 * destroyed as well.
 		 */
-		if (!(multi_container = __ao2_container_alloc(1, NULL, NULL))) {
+		if (!(multi_container = ao2_container_alloc(1, NULL, NULL))) {
 			return NULL;
 		}
 		if (!(multi_iterator = ast_calloc(1, sizeof(*multi_iterator)))) {
