@@ -1027,7 +1027,7 @@ static void *internal_ao2_callback(struct ao2_container *c, enum search_flags fl
 		 * is destroyed, the container will be automatically
 		 * destroyed as well.
 		 */
-		multi_container = __ao2_container_alloc(AO2_ALLOC_OPT_LOCK_NOLOCK, 1, NULL, NULL);
+		multi_container = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, 1, NULL, NULL);
 		if (!multi_container) {
 			return NULL;
 		}
