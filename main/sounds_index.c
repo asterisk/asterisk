@@ -302,17 +302,21 @@ int ast_sounds_index_init(void)
 		return -1;
 	}
 
-	res |= stasis_message_router_add(
-		sounds_system_router,
-		ast_format_register_type(),
-		format_update_cb,
-		NULL);
+	if (ast_format_register_type()) {
+		res |= stasis_message_router_add(
+			sounds_system_router,
+			ast_format_register_type(),
+			format_update_cb,
+			NULL);
+	}
 
-	res |= stasis_message_router_add(
-		sounds_system_router,
-		ast_format_unregister_type(),
-		format_update_cb,
-		NULL);
+	if (ast_format_unregister_type()) {
+		res |= stasis_message_router_add(
+			sounds_system_router,
+			ast_format_unregister_type(),
+			format_update_cb,
+			NULL);
+	}
 
 	if (res) {
 		return -1;
