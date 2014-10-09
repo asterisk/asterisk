@@ -71,6 +71,8 @@
 ;   * Defines a permission list or references one stored in acl.conf
 ; * Registration "registration"
 ;   * Contains information about an outbound SIP registration
+; * Phone Provisioning "phoneprov"
+;   * Contains information needed by res_phoneprov for autoprovisioning
 
 ; The following sections show example configurations for various scenarios.
 ; Most require a couple or more configuration types configured in concert.
@@ -480,6 +482,104 @@
 ;NOTIFY requests being too large to send, consider breaking your lists into
 ;sub-lists.
 
+;============EXAMPLE PHONEPROV CONFIGURATION================================
+
+; Before configuring provisioning here, see the documentation for res_phoneprov
+; and configure phoneprov.conf appropriately.
+
+; For each user to be autoprovisioned, a [phoneprov] configuration section
+; must be created.  At a minimum, the 'type', 'PROFILE' and 'MAC' variables must
+; be set.  All other variables are optional.
+; Example:
+
+;[1000]
+;type=phoneprov               ; must be specified as 'phoneprov'
+;endpoint=1000                ; Required only if automatic setting of
+                              ; USERNAME, SECRET, DISPLAY_NAME and CALLERID
+                              ; are needed.
+;PROFILE=digium               ; required
+;MAC=deadbeef4dad             ; required
+;SERVER=myserver.example.com  ; A standard variable
+;TIMEZONE=America/Denver      ; A standard variable
+;MYVAR=somevalue              ; A user confdigured variable
+
+; If the phoneprov sections have common variables, it is best to create a
+; phoneprov template.  The example below will produce the same configuration
+; as the one specified above except that MYVAR will be overridden for
+; the specific user.
+; Example:
+
+;[phoneprov_defaults](!)
+;type=phoneprov               ; must be specified as 'phoneprov'
+;PROFILE=digium               ; required
+;SERVER=myserver.example.com  ; A standard variable
+;TIMEZONE=America/Denver      ; A standard variable
+;MYVAR=somevalue              ; A user configured variable
+
+;[1000](phoneprov_defaults)
+;endpoint=1000                ; Required only if automatic setting of
+                              ; USERNAME, SECRET, DISPLAY_NAME and CALLERID
+                              ; are needed.
+;MAC=deadbeef4dad             ; required
+;MYVAR=someOTHERvalue         ; A user confdigured variable
+
+; To have USERNAME and SECRET automatically set, the endpoint
+; specified here must in turn have an outbound_auth section defined.
+
+; Fuller example:
+
+;[1000]
+;type=endpoint
+;outbound_auth=1000-auth
+;callerid=My Name <8005551212>
+;transport=transport-udp-nat
+
+;[1000-auth]
+;type=auth
+;auth_type=userpass
+;username=myname
+;password=mysecret
+
+;[phoneprov_defaults](!)
+;type=phoneprov               ; must be specified as 'phoneprov'
+;PROFILE=someprofile          ; required
+;SERVER=myserver.example.com  ; A standard variable
+;TIMEZONE=America/Denver      ; A standard variable
+;MYVAR=somevalue              ; A user configured variable
+
+;[1000](phoneprov_defaults)
+;endpoint=1000                ; Required only if automatic setting of
+                              ; USERNAME, SECRET, DISPLAY_NAME and CALLERID
+                              ; are needed.
+;MAC=deadbeef4dad             ; required
+;MYVAR=someUSERvalue          ; A user confdigured variable
+;LABEL=1000                   ; A standard variable
+
+; The previous sections would produce a template substitution map as follows:
+
+;MAC=deadbeef4dad               ;added by pp1000
+;USERNAME=myname                ;automatically added by 1000-auth username
+;SECRET=mysecret                ;automatically added by 1000-auth password
+;PROFILE=someprofile            ;added by defaults
+;SERVER=myserver.example.com    ;added by defaults
+;SERVER_PORT=5060               ;added by defaults
+;MYVAR=someUSERvalue            ;added by defaults but overdidden by user
+;CALLERID=8005551212            ;automatically added by 1000 callerid
+;DISPLAY_NAME=My Name           ;automatically added by 1000 callerid
+;TIMEZONE=America/Denver        ;added by defaults
+;TZOFFSET=252100                ;automatically calculated by res_phoneprov
+;DST_ENABLE=1                   ;automatically calculated by res_phoneprov
+;DST_START_MONTH=3              ;automatically calculated by res_phoneprov
+;DST_START_MDAY=9               ;automatically calculated by res_phoneprov
+;DST_START_HOUR=3               ;automatically calculated by res_phoneprov
+;DST_END_MONTH=11               ;automatically calculated by res_phoneprov
+;DST_END_MDAY=2                 ;automatically calculated by res_phoneprov
+;DST_END_HOUR=1                 ;automatically calculated by res_phoneprov
+;ENDPOINT_ID=1000               ;automatically added by this module
+;AUTH_ID=1000-auth              ;automatically added by this module
+;TRANSPORT_ID=transport-udp-nat ;automatically added by this module
+;LABEL=1000                     ;added by user
+
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip
 ;==========================ENDPOINT SECTION OPTIONS=========================
 ;[endpoint]
@@ -800,3 +900,17 @@
 ;endpoint=      ; Name of Endpoint (default: "")
 ;match= ; IP addresses or networks to match against (default: "")
 ;type=  ; Must be of type identify (default: "")
+
+
+
+
+;========================PHONEPROV_USER SECTION OPTIONS=======================
+;[phoneprov]
+;  SYNOPSIS: Contains variables for autoprovisioning each user
+;endpoint=      ; The endpoint from which to gather username, secret, etc. (default: "")
+;PROFILE=       ; The name of a profile configured in phoneprov.conf (default: "")
+;MAC=           ; The mac address for this user (default: "")
+;OTHERVAR=      ; Any other name value pair to be used in templates (default: "")
+                ; Common variables include LINE, LINEKEYS, etc.
+                ; See phoneprov.conf.sample for others.
+;type=          ; Must be of type phoneprov (default: "")
