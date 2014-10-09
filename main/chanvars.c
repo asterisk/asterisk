@@ -91,4 +91,67 @@ const char *ast_var_value(const struct ast_var_t *var)
 	return (var ? var->value : NULL);
 }
 
+char *ast_var_find(const struct varshead *head, const char *name)
+{
+	struct ast_var_t *var;
 
+	AST_LIST_TRAVERSE(head, var, entries) {
+		if (!strcmp(name, var->name)) {
+			return var->value;
+		}
+	}
+	return NULL;
+}
+
+struct varshead *ast_var_list_create(void)
+{
+	struct varshead *head;
+
+	head = ast_calloc(1, sizeof(*head));
+	if (!head) {
+		return NULL;
+	}
+	AST_LIST_HEAD_INIT_NOLOCK(head);
+	return head;
+}
+
+void ast_var_list_destroy(struct varshead *head)
+{
+	struct ast_var_t *var;
+
+	if (!head) {
+		return;
+	}
+
+	while ((var = AST_LIST_REMOVE_HEAD(head, entries))) {
+		ast_var_delete(var);
+	}
+
+	ast_free(head);
+}
+
+struct varshead *ast_var_list_clone(struct varshead *head)
+{
+	struct varshead *clone;
+	struct ast_var_t *var, *newvar;
+
+	if (!head) {
+		return NULL;
+	}
+
+	clone = ast_var_list_create();
+	if (!clone) {
+		return NULL;
+	}
+
+	AST_VAR_LIST_TRAVERSE(head, var) {
+		newvar = ast_var_assign(var->name, var->value);
+		if (!newvar) {
+			ast_var_list_destroy(clone);
+			return NULL;
+		}
+		AST_VAR_LIST_INSERT_TAIL(clone, newvar);
+	}
+
+	return clone;
+}

@@ -33,6 +33,8 @@ struct ast_var_t {
 
 AST_LIST_HEAD_NOLOCK(varshead, ast_var_t);
 
+struct varshead *ast_var_list_create(void);
+void ast_var_list_destroy(struct varshead *head);
 #ifdef MALLOC_DEBUG
 struct ast_var_t *_ast_var_assign(const char *name, const char *value, const char *file, int lineno, const char *function);
 #define ast_var_assign(a,b)	_ast_var_assign(a,b,__FILE__,__LINE__,__PRETTY_FUNCTION__)
@@ -43,5 +45,21 @@ void ast_var_delete(struct ast_var_t *var);
 const char *ast_var_name(const struct ast_var_t *var);
 const char *ast_var_full_name(const struct ast_var_t *var);
 const char *ast_var_value(const struct ast_var_t *var);
+char *ast_var_find(const struct varshead *head, const char *name);
+struct varshead *ast_var_list_clone(struct varshead *head);
+
+#define AST_VAR_LIST_TRAVERSE(head, var) AST_LIST_TRAVERSE(head, var, entries)
+
+static inline void AST_VAR_LIST_INSERT_TAIL(struct varshead *head, struct ast_var_t *var) {
+	if (var) {
+		AST_LIST_INSERT_TAIL(head, var, entries);
+	}
+}
+
+static inline void AST_VAR_LIST_INSERT_HEAD(struct varshead *head, struct ast_var_t *var) {
+	if (var) {
+		AST_LIST_INSERT_HEAD(head, var, entries);
+	}
+}
 
 #endif /* _ASTERISK_CHANVARS_H */
