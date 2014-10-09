@@ -1,4 +1,7 @@
 [general]
+; This section applies only to the default sip.conf/users.conf config provider
+; embedded in res_phoneprov.  Other providers may provide their own default settings.
+
 ; The default behavior of res_phoneprov will be to set the SERVER template variable to
 ; the IP address that the phone uses to contact the provisioning server and the
 ; SERVER_PORT variable to the bindport setting in sip.conf.  Unless you have a very
@@ -15,7 +18,8 @@ default_profile=polycom ; The default profile to use if none specified in users.
 ; with the provisioning server.  You can define either static files, or dynamically
 ; generated files that can have dynamic names and point to templates that variables
 ; can be substituted into.  You can also set arbitrary variables for the profiles
-; templates to have access to.  Example:
+; templates to have access to.  Profiles are shared across all config providers.
+; Example:
 
 ;[example]
 ;mime_type => application/octet-stream
@@ -25,7 +29,9 @@ default_profile=polycom ; The default profile to use if none specified in users.
 ;setvar => DB_CIDNAME=${ODBC_CID_NAME_LOOKUP(${USERNAME})}
 
 ; Dynamically generated files have a filename registered with variable substitution
-; with variables obtained while reading users.conf.
+; with variables obtained from various config providers.  The default provider
+; embedded in res_phoneprov reads users.conf.  Other providers will have their own
+; sources for the variables and may provide additional variables not listed here.
 
 ; Built in variables and the options in users.conf that they come from
 ;   MAC (macaddress)
