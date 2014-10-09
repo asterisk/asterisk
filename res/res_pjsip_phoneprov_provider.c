@@ -258,10 +258,10 @@ static int load_endpoint(const char *id, const char *endpoint_name, struct varsh
 	}
 	snprintf(port_string, 6, "%d", pj_sockaddr_get_port(&transport->host));
 
-	if (!endpoint->inbound_auths.num) {
+	if (!AST_VECTOR_SIZE(&endpoint->inbound_auths)) {
 		return 0;
 	}
-	auth_name = endpoint->inbound_auths.names[0];
+	auth_name = AST_VECTOR_GET(&endpoint->inbound_auths, 0);
 
 	auth = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "auth", auth_name);
 	if (!auth) {
