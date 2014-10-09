@@ -643,7 +643,7 @@ static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 	pj_ice_sess_cand candidates[PJ_ICE_MAX_CAND];
 	struct ao2_iterator i;
 	struct ast_rtp_engine_ice_candidate *candidate;
-	int cand_cnt = 0;
+	int cand_cnt = 0, has_rtp = 0, has_rtcp = 0;
 
 	if (!rtp->ice || !rtp->ice_proposed_remote_candidates) {
 		return;
@@ -675,6 +675,10 @@ static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 	while ((candidate = ao2_iterator_next(&i)) && (cand_cnt < PJ_ICE_MAX_CAND)) {
 		pj_str_t address;
 
+		/* there needs to be at least one rtp and rtcp candidate in the list */
+		has_rtp |= candidate->id == AST_RTP_ICE_COMPONENT_RTP;
+		has_rtcp |= candidate->id == AST_RTP_ICE_COMPONENT_RTCP;
+
 		pj_strdup2(rtp->ice->pool, &candidates[cand_cnt].foundation, candidate->foundation);
 		candidates[cand_cnt].comp_id = candidate->id;
 		candidates[cand_cnt].prio = candidate->priority;
@@ -705,7 +709,9 @@ static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 
 	ao2_iterator_destroy(&i);
 
-	if (pj_ice_sess_create_check_list(rtp->ice, &ufrag, &passwd, ao2_container_count(rtp->ice_active_remote_candidates), &candidates[0]) == PJ_SUCCESS) {
+	if (has_rtp && has_rtcp &&
+	    pj_ice_sess_create_check_list(rtp->ice, &ufrag, &passwd, ao2_container_count(
+						  rtp->ice_active_remote_candidates), &candidates[0]) == PJ_SUCCESS) {
 		ast_test_suite_event_notify("ICECHECKLISTCREATE", "Result: SUCCESS");
 		pj_ice_sess_start_check(rtp->ice);
 		pj_timer_heap_poll(timer_heap, NULL);
