@@ -66,12 +66,17 @@ if test `id -u` != 0; then
 	message "safe_asterisk was started by `id -n` (uid `id -u`)."
 else
 	if `uname -s | grep Linux >/dev/null 2>&1`; then
-		# maximum number of open files is set to the system maximum divided by two if
-		# MAXFILES is not set.
+		# maximum number of open files is set to the system maximum
+		# divided by two if MAXFILES is not set.
 		if test -z "$MAXFILES"; then
 			# just check if file-max is readable
 			if test -r /proc/sys/fs/file-max; then
-				MAXFILES=$(( `cat /proc/sys/fs/file-max` / 2 ))
+				MAXFILES=$((`cat /proc/sys/fs/file-max` / 2))
+				# don't exceed upper limit of 2^20 for open
+				# files on systems where file-max is > 2^21
+				if test $MAXFILES -gt 1048576; then
+					MAXFILES=1048576
+				fi
 			fi
 		fi
 		SYSCTL_MAXFILES="fs.file-max"
