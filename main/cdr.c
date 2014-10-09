@@ -215,9 +215,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define CDR_DEBUG(mod_cfg, fmt, ...) \
 	do { \
-	if (ast_test_flag(&(mod_cfg)->general->settings, CDR_DEBUG)) { \
-		ast_verb(1, (fmt), ##__VA_ARGS__); \
-	} } while (0)
+		if (ast_test_flag(&(mod_cfg)->general->settings, CDR_DEBUG)) { \
+			ast_verbose((fmt), ##__VA_ARGS__); \
+		} \
+	} while (0)
 
 static void cdr_detach(struct ast_cdr *cdr);
 static void cdr_submit_batch(int shutdown);
