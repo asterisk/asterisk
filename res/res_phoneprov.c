@@ -1376,7 +1376,7 @@ static int load_module(void)
 	profiles = ao2_container_alloc(MAX_PROFILE_BUCKETS, phone_profile_hash_fn, phone_profile_cmp_fn);
 	if (!profiles) {
 		ast_log(LOG_ERROR, "Unable to allocate profiles container.\n");
-		return -1;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	http_routes = ao2_container_alloc(MAX_ROUTE_BUCKETS, http_route_hash_fn, http_route_cmp_fn);
@@ -1424,7 +1424,7 @@ error:
 	ao2_cleanup(users);
 	delete_providers();
 	ao2_cleanup(providers);
-	return -1;
+	return AST_MODULE_LOAD_DECLINE;
 
 }
 
