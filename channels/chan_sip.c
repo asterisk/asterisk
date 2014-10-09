@@ -24737,6 +24737,10 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 	} else {
 		transmit_response(p, "200 OK", req);
 	}
+	
+	/* Destroy any pending invites so we won't try to do another
+	 * scheduled reINVITE. */
+	AST_SCHED_DEL_UNREF(sched, p->waitid, dialog_unref(p, "decrement refcount from sip_destroy because waitid won't be scheduled"));
 
 	return 1;
 }
