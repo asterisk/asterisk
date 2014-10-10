@@ -4100,6 +4100,11 @@ static int retrans_pkt(const void *data)
 				append_history(pkt->owner, "DialogKill", "Killing this failed dialog immediately");
 			}
 		}
+	} else if (pkt->owner->pendinginvite == pkt->seqno) {
+	       ast_log(LOG_WARNING, "Timeout on %s on non-critical invite transaction.\n", pkt->owner->callid);
+	       pkt->owner->invitestate = INV_TERMINATED;
+	       pkt->owner->pendinginvite = 0;
+	       check_pendings(pkt->owner);
 	}
 
 	if (pkt->method == SIP_BYE) {
