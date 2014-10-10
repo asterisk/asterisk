@@ -1006,12 +1006,20 @@ int ast_is_shrinkable_phonenumber(const char *exten)
 	return ast_is_valid_string(exten, "0123456789*#+()-.");
 }
 
-int ast_callerid_parse(char *instr, char **name, char **location)
+int ast_callerid_parse(char *input_str, char **name, char **location)
 {
-	char *ls, *le, *name_start;
+	char *ls;
+	char *le;
+	char *name_start;
+	char *instr;
+	int quotes_stripped = 0;
 
 	/* Handle surrounding quotes */
-	instr = ast_strip_quoted(instr, "\"", "\"");
+	input_str = ast_strip(input_str);
+	instr = ast_strip_quoted(input_str, "\"", "\"");
+	if (instr != input_str) {
+		quotes_stripped = 1;
+	}
 
 	/* Try "name" <location> format or name <location> format or with a missing > */
 	if ((ls = strrchr(instr, '<'))) {
@@ -1027,7 +1035,7 @@ int ast_callerid_parse(char *instr, char **name, char **location)
 
 		ast_copy_string(tmp, instr, sizeof(tmp));
 		ast_shrink_phone_number(tmp);
-		if (ast_isphonenumber(tmp)) {	/* Assume it's just a location */
+		if (!quotes_stripped && ast_isphonenumber(tmp)) {	/* Assume it's just a location */
 			name_start = NULL;
 			strcpy(instr, tmp); /* safe, because tmp will always be the same size or smaller than instr */
 			*location = instr;
