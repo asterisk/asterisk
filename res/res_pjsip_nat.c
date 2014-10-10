@@ -62,7 +62,7 @@ static pj_bool_t handle_rx_message(struct ast_sip_endpoint *endpoint, pjsip_rx_d
 	}
 
 	if (endpoint->nat.force_rport) {
-		rdata->msg_info.via->rport_param = 0;
+		rdata->msg_info.via->rport_param = rdata->pkt_info.src_port;
 	}
 
 	return PJ_FALSE;
