@@ -212,10 +212,6 @@ static void native_rtp_bridge_stop(struct ast_bridge *bridge, struct ast_channel
 		return;
 	}
 
-	if (!c0 || !c1) {
-		return;
-	}
-
 	ast_channel_lock_both(c0->chan, c1->chan);
 	native_type = native_rtp_bridge_get(c0->chan, c1->chan, &glue0, &glue1, &instance0, &instance1, &vinstance0, &vinstance1);
 
@@ -457,44 +453,7 @@ static void native_rtp_bridge_unsuspend(struct ast_bridge *bridge, struct ast_br
 
 static void native_rtp_bridge_leave(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
-	struct ast_rtp_glue *glue;
-	RAII_VAR(struct ast_rtp_instance *, instance, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_rtp_instance *, vinstance, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_rtp_instance *, tinstance, NULL, ao2_cleanup);
-
 	native_rtp_bridge_framehook_detach(bridge_channel);
-
-	glue = ast_rtp_instance_get_glue(ast_channel_tech(bridge_channel->chan)->type);
-	if (!glue) {
-		return;
-	}
-
-	glue->get_rtp_info(bridge_channel->chan, &instance);
-
-	if (glue->get_vrtp_info) {
-		glue->get_vrtp_info(bridge_channel->chan, &vinstance);
-	}
-
-	if (glue->get_trtp_info) {
-		glue->get_trtp_info(bridge_channel->chan, &tinstance);
-	}
-
-	/* Tear down P2P bridges */
-	if (instance) {
-		ast_rtp_instance_set_bridged(instance, NULL);
-	}
-	if (vinstance) {
-		ast_rtp_instance_set_bridged(vinstance, NULL);
-	}
-	if (tinstance) {
-		ast_rtp_instance_set_bridged(tinstance, NULL);
-	}
-
-	if (ast_channel_is_leaving_bridge(bridge_channel->chan)) {
-		/* Direct RTP may have occurred, tear it down */
-		glue->update_peer(bridge_channel->chan, NULL, NULL, NULL, NULL, 0);
-	}
-
 	native_rtp_bridge_stop(bridge, NULL);
 }
 
