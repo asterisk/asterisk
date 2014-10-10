@@ -33,6 +33,7 @@
  */
 
 /*** MODULEINFO
+	<depend>pjproject</depend>
 	<depend>res_pjsip</depend>
 	<depend>res_phoneprov</depend>
 	<support_level>extended</support_level>
