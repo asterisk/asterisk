@@ -56,10 +56,14 @@ AST_TEST_DEFINE(parse_nominal)
 		{"\"\" <number>", NULL, "number"},
 		{"<number>", NULL, "number"},
 		{"name", "name", NULL},
+		{" name", "name", NULL},
 		{"\"name\"", "name", NULL},
+		{"\"*10\"", "*10", NULL},
+		{" \"*10\"", "*10", NULL},
 		{"\"name\" <>", "name", NULL},
 		{"name <>", "name", NULL},
 		{"1234", NULL, "1234"},
+		{" 1234", NULL, "1234"},
 		{"\"na\\\"me\" <number>", "na\"me", "number"},
 	};
 	char *name;
