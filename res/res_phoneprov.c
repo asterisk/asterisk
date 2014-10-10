@@ -1502,6 +1502,11 @@ int ast_phoneprov_provider_register(char *provider_name,
 		return -1;
 	}
 
+	if (!providers) {
+		ast_log(LOG_WARNING, "Provider '%s' cannot be registered: res_phoneprov not loaded.\n", provider_name);
+		return -1;
+	}
+
 	provider = find_provider(provider_name);
 	if (provider) {
 		ast_log(LOG_ERROR, "There is already a provider registered named '%s'.\n", provider_name);
