@@ -1129,28 +1129,55 @@ static int smart_bridge_operation(struct ast_bridge *bridge)
 		return -1;
 	}
 
+	/* To ensure that things are sane for the old technology move the channels it
+	 * expects to the dummy bridge
+	 */
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&bridge->channels, bridge_channel, entry) {
+		if (bridge_channel->just_joined) {
+			continue;
+		}
+		ast_debug(1, "Bridge %s: moving %p(%s) to dummy bridge temporarily\n",
+			bridge->uniqueid, bridge_channel, ast_channel_name(bridge_channel->chan));
+		AST_LIST_REMOVE_CURRENT(entry);
+		AST_LIST_INSERT_TAIL(&dummy_bridge.channels, bridge_channel, entry);
+		dummy_bridge.num_channels++;
+		if (ast_test_flag(&bridge_channel->features->feature_flags, AST_BRIDGE_CHANNEL_FLAG_LONELY)) {
+			dummy_bridge.num_lonely++;
+		}
+		if (!bridge_channel->suspended) {
+			dummy_bridge.num_active++;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+
+	/* Take all the channels out of the old technology */
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&dummy_bridge.channels, bridge_channel, entry) {
+		ast_debug(1, "Bridge %s: %p(%s) is leaving %s technology (dummy)\n",
+			dummy_bridge.uniqueid, bridge_channel, ast_channel_name(bridge_channel->chan),
+			old_technology->name);
+		if (old_technology->leave) {
+			old_technology->leave(&dummy_bridge, bridge_channel);
+		}
+		AST_LIST_REMOVE_CURRENT(entry);
+		AST_LIST_INSERT_TAIL(&bridge->channels, bridge_channel, entry);
+		dummy_bridge.num_channels--;
+		if (ast_test_flag(&bridge_channel->features->feature_flags, AST_BRIDGE_CHANNEL_FLAG_LONELY)) {
+			dummy_bridge.num_lonely--;
+		}
+		if (!bridge_channel->suspended) {
+			dummy_bridge.num_active--;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+
 	ast_debug(1, "Bridge %s: calling %s technology stop\n",
 		dummy_bridge.uniqueid, old_technology->name);
 	if (old_technology->stop) {
 		old_technology->stop(&dummy_bridge);
 	}
 
-	/*
-	 * Move existing channels over to the new technology and
-	 * complete joining any new channels to the bridge.
-	 */
+	/* Add any new channels or re-add existing channels to the bridge. */
 	AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
-		if (!bridge_channel->just_joined) {
-			/* Take existing channel from the old technology. */
-			ast_debug(1, "Bridge %s: %p(%s) is leaving %s technology (dummy)\n",
-				dummy_bridge.uniqueid, bridge_channel, ast_channel_name(bridge_channel->chan),
-				old_technology->name);
-			if (old_technology->leave) {
-				old_technology->leave(&dummy_bridge, bridge_channel);
-			}
-		}
-
-		/* Add any new channels or re-add an existing channel to the bridge. */
 		bridge_channel_complete_join(bridge, bridge_channel);
 	}
 
