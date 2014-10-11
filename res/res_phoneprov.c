@@ -1359,8 +1359,41 @@ static int load_common(void)
 	}
 	ast_config_destroy(phoneprov_cfg);
 
+	if (!ao2_container_count(profiles)) {
+		ast_log(LOG_ERROR, "There are no provisioning profiles in phoneprov.conf.\n");
+		return -1;
+	}
+
 	return 0;
 }
+
+static int unload_module(void)
+{
+	ast_http_uri_unlink(&phoneprovuri);
+	ast_custom_function_unregister(&pp_each_user_function);
+	ast_custom_function_unregister(&pp_each_extension_function);
+	ast_cli_unregister_multiple(pp_cli, ARRAY_LEN(pp_cli));
+
+	/* This cleans up the sip.conf/users.conf provider (called specifically for clarity) */
+	ast_phoneprov_provider_unregister(SIPUSERS_PROVIDER_NAME);
+
+	/* This cleans up the framework which also cleans up the providers. */
+	delete_profiles();
+	ao2_cleanup(profiles);
+	profiles = NULL;
+	delete_routes();
+	ao2_cleanup(http_routes);
+	http_routes = NULL;
+	delete_users();
+	ao2_cleanup(users);
+	users = NULL;
+	delete_providers();
+	ao2_cleanup(providers);
+	providers = NULL;
+
+	return 0;
+}
+
 /*!
  * \brief Load the module
  *
@@ -1413,42 +1446,11 @@ static int load_module(void)
 	ast_custom_function_register(&pp_each_extension_function);
 	ast_cli_register_multiple(pp_cli, ARRAY_LEN(pp_cli));
 
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 
 error:
-	delete_profiles();
-	ao2_cleanup(profiles);
-	delete_routes();
-	ao2_cleanup(http_routes);
-	delete_users();
-	ao2_cleanup(users);
-	delete_providers();
-	ao2_cleanup(providers);
+	unload_module();
 	return AST_MODULE_LOAD_DECLINE;
-
-}
-
-static int unload_module(void)
-{
-	ast_http_uri_unlink(&phoneprovuri);
-	ast_custom_function_unregister(&pp_each_user_function);
-	ast_custom_function_unregister(&pp_each_extension_function);
-	ast_cli_unregister_multiple(pp_cli, ARRAY_LEN(pp_cli));
-
-	/* This cleans up the sip.conf/users.conf provider (called specifically for clarity) */
-	ast_phoneprov_provider_unregister(SIPUSERS_PROVIDER_NAME);
-
-	/* This cleans up the framework which also cleans up the providers. */
-	delete_profiles();
-	ao2_cleanup(profiles);
-	delete_routes();
-	ao2_cleanup(http_routes);
-	delete_users();
-	ao2_cleanup(users);
-	delete_providers();
-	ao2_cleanup(providers);
-
-	return 0;
 }
 
 static int reload(void)
@@ -1464,7 +1466,8 @@ static int reload(void)
 	/* Reload the profiles */
 	if (load_common()) {
 		ast_log(LOG_ERROR, "Unable to reload provisioning profiles.\n");
-		return -1;
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	/* For each provider, reload the users */
@@ -1480,7 +1483,7 @@ static int reload(void)
 	ao2_iterator_destroy(&i);
 	ao2_unlock(providers);
 
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT | AST_MODFLAG_GLOBAL_SYMBOLS, "HTTP Phone Provisioning",
@@ -1576,6 +1579,10 @@ void ast_phoneprov_delete_extensions(char *provider_name)
 
 void ast_phoneprov_provider_unregister(char *provider_name)
 {
+	if (!providers) {
+		return;
+	}
+
 	ast_phoneprov_delete_extensions(provider_name);
 	ao2_find(providers, provider_name, OBJ_SEARCH_KEY | OBJ_NODATA | OBJ_UNLINK);
 	ast_log(LOG_VERBOSE, "Unegistered phoneprov provider '%s'.\n", provider_name);
