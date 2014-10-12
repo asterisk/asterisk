@@ -522,7 +522,7 @@ static void ast_rtp_ice_add_remote_candidate(struct ast_rtp_instance *instance, 
 	struct ast_rtp_engine_ice_candidate *remote_candidate;
 
 	/* ICE sessions only support UDP candidates */
-	if (strcmp(candidate->transport, "UDP")) {
+	if (strcasecmp(candidate->transport, "udp")) {
 		return;
 	}
 
