@@ -617,7 +617,7 @@ oldmodcheck:
 	fi
 
 badshell:
-ifneq ($(findstring ~,$(DESTDIR)),)
+ifneq ($(filter ~%,$(DESTDIR)),)
 	@echo "Your shell doesn't do ~ expansion when expected (specifically, when doing \"make install DESTDIR=~/path\")."
 	@echo "Try replacing ~ with \$$HOME, as in \"make install DESTDIR=\$$HOME/path\"."
 	@exit 1
