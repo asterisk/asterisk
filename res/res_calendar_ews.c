@@ -907,8 +907,17 @@ static void *ewscal_load_calendar(void *void_data)
 static int load_module(void)
 {
 	/* Actualy, 0.29.1 is required (because of NTLM authentication), but this
-	 * function does not support matching patch version. */
-	if (ne_version_match(0, 29)) {
+	 * function does not support matching patch version.
+	 *
+	 * The ne_version_match function returns non-zero if the library
+	 * version is not of major version major, or the minor version
+	 * is less than minor. For neon versions 0.x, every minor
+	 * version is assumed to be incompatible with every other minor
+	 * version.
+	 *
+	 * I.e. for version 1.2..1.9 we would do ne_version_match(1, 2)
+	 * but for version 0.29 and 0.30 we need two checks. */
+	if (ne_version_match(0, 29) && ne_version_match(0, 30)) {
 		ast_log(LOG_ERROR, "Exchange Web Service calendar module require neon >= 0.29.1, but %s is installed.\n", ne_version_string());
 		return AST_MODULE_LOAD_DECLINE;
 	}
