@@ -177,7 +177,7 @@ static void sorcery_realtime_retrieve_multiple(const struct ast_sorcery *sorcery
 	const char *family = data;
 	RAII_VAR(struct ast_config *, rows, NULL, ast_config_destroy);
 	RAII_VAR(struct ast_variable *, all, NULL, ast_variables_destroy);
-	char *row = NULL;
+	struct ast_category *row = NULL;
 
 	if (!fields) {
 		char field[strlen(UUID_FIELD) + 6], value[2];
@@ -197,9 +197,8 @@ static void sorcery_realtime_retrieve_multiple(const struct ast_sorcery *sorcery
 		return;
 	}
 
-	while ((row = ast_category_browse(rows, row))) {
-		struct ast_category *cat = ast_category_get(rows, row);
-		struct ast_variable *objectset = ast_category_detach_variables(cat);
+	while ((row = ast_category_browse_filtered(rows, NULL, row, NULL))) {
+		struct ast_variable *objectset = ast_category_detach_variables(row);
 		RAII_VAR(struct ast_variable *, id, NULL, ast_variables_destroy);
 		RAII_VAR(void *, object, NULL, ao2_cleanup);
 

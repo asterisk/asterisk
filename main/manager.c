@@ -354,10 +354,24 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="Category">
 				<para>Category in configuration file.</para>
 			</parameter>
+			<parameter name="Filter">
+				<para>A comma separated list of
+				<replaceable>name_regex</replaceable>=<replaceable>value_regex</replaceable>
+				expressions which will cause only categories whose variables match all expressions
+				to be considered.  The special variable name <literal>TEMPLATES</literal>
+				can be used to control whether templates are included.  Passing
+				<literal>include</literal> as the value will include templates
+				along with normal categories. Passing
+				<literal>restrict</literal> as the value will restrict the operation to
+				ONLY templates.  Not specifying a <literal>TEMPLATES</literal> expression
+				results in the default behavior which is to not include templates.</para>
+			</parameter>
 		</syntax>
 		<description>
 			<para>This action will dump the contents of a configuration
-			file by category and contents or optionally by specified category only.</para>
+			file by category and contents or optionally by specified category only.
+			In the case where a category name is non-unique, a filter may be specified
+			to match only categories with matching variable values.</para>
 		</description>
 	</manager>
 	<manager name="GetConfigJSON" language="en_US">
@@ -369,11 +383,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="Filename" required="true">
 				<para>Configuration filename (e.g. <filename>foo.conf</filename>).</para>
 			</parameter>
+			<parameter name="Category">
+				<para>Category in configuration file.</para>
+			</parameter>
+			<parameter name="Filter">
+				<xi:include xpointer="xpointer(/docs/manager[@name='GetConfig']/syntax/parameter[@name='Filter']/para[1])" />
+			</parameter>
 		</syntax>
 		<description>
 			<para>This action will dump the contents of a configuration file by category
-			and contents in JSON format. This only makes sense to be used using rawman over
-			the HTTP interface.</para>
+			and contents in JSON format or optionally by specified category only.
+			This only makes sense to be used using rawman over the HTTP interface.
+			In the case where a category name is non-unique, a filter may be specified
+			to match only categories with matching variable values.</para>
 		</description>
 	</manager>
 	<manager name="UpdateConfig" language="en_US">
@@ -391,9 +413,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="Reload">
 				<para>Whether or not a reload should take place (or name of specific module).</para>
 			</parameter>
-			<parameter name="Action-XXXXXX">
+			<parameter name="Action-000000">
 				<para>Action to take.</para>
-				<para>X's represent 6 digit number beginning with 000000.</para>
+				<para>0's represent 6 digit number beginning with 000000.</para>
 				<enumlist>
 					<enum name="NewCat" />
 					<enum name="RenameCat" />
@@ -405,25 +427,58 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name="Insert" />
 				</enumlist>
 			</parameter>
-			<parameter name="Cat-XXXXXX">
+			<parameter name="Cat-000000">
 				<para>Category to operate on.</para>
-				<xi:include xpointer="xpointer(/docs/manager[@name='UpdateConfig']/syntax/parameter[@name='Action-XXXXXX']/para[2])" />
+				<xi:include xpointer="xpointer(/docs/manager[@name='UpdateConfig']/syntax/parameter[@name='Action-000000']/para[2])" />
 			</parameter>
-			<parameter name="Var-XXXXXX">
+			<parameter name="Var-000000">
 				<para>Variable to work on.</para>
-				<xi:include xpointer="xpointer(/docs/manager[@name='UpdateConfig']/syntax/parameter[@name='Action-XXXXXX']/para[2])" />
+				<xi:include xpointer="xpointer(/docs/manager[@name='UpdateConfig']/syntax/parameter[@name='Action-000000']/para[2])" />
 			</parameter>
-			<parameter name="Value-XXXXXX">
+			<parameter name="Value-000000">
 				<para>Value to work on.</para>
-				<xi:include xpointer="xpointer(/docs/manager[@name='UpdateConfig']/syntax/parameter[@name='Action-XXXXXX']/para[2])" />
+				<xi:include xpointer="xpointer(/docs/manager[@name='UpdateConfig']/syntax/parameter[@name='Action-000000']/para[2])" />
 			</parameter>
-			<parameter name="Match-XXXXXX">
+			<parameter name="Match-000000">
 				<para>Extra match required to match line.</para>
-				<xi:include xpointer="xpointer(/docs/manager[@name='UpdateConfig']/syntax/parameter[@name='Action-XXXXXX']/para[2])" />
+				<xi:include xpointer="xpointer(/docs/manager[@name='UpdateConfig']/syntax/parameter[@name='Action-000000']/para[2])" />
 			</parameter>
-			<parameter name="Line-XXXXXX">
+			<parameter name="Line-000000">
 				<para>Line in category to operate on (used with delete and insert actions).</para>
-				<xi:include xpointer="xpointer(/docs/manager[@name='UpdateConfig']/syntax/parameter[@name='Action-XXXXXX']/para[2])" />
+				<xi:include xpointer="xpointer(/docs/manager[@name='UpdateConfig']/syntax/parameter[@name='Action-000000']/para[2])" />
+			</parameter>
+			<parameter name="Options-000000">
+				<para>A comma separated list of action-specific options.</para>
+					<enumlist>
+						<enum name="NewCat"><para>One or more of the following... </para>
+							<enumlist>
+								<enum name="allowdups"><para>Allow duplicate category names.</para></enum>
+								<enum name="template"><para>This category is a template.</para></enum>
+								<enum name="inherit=&quot;template[,...]&quot;"><para>Templates from which to inherit.</para></enum>
+							</enumlist>
+						</enum>
+					</enumlist>
+					<para> </para>
+						<para>The following actions share the same options...</para>
+					<enumlist>
+						<enum name="RenameCat"/>
+						<enum name="DelCat"/>
+						<enum name="EmptyCat"/>
+						<enum name="Update"/>
+						<enum name="Delete"/>
+						<enum name="Append"/>
+						<enum name="Insert"><para> </para>
+							<enumlist>
+								<enum name="catfilter=&quot;&lt;expression&gt;[,...]&quot;"><para> </para>
+									<xi:include xpointer="xpointer(/docs/manager[@name='GetConfig']/syntax/parameter[@name='Filter']/para[1])" />
+									<para><literal>catfilter</literal> is most useful when a file
+									contains multiple categories with the same name and you wish to
+									operate on specific ones instead of all of them.</para>
+								</enum>
+							</enumlist>
+						</enum>
+					</enumlist>
+				<xi:include xpointer="xpointer(/docs/manager[@name='UpdateConfig']/syntax/parameter[@name='Action-000000']/para[2])" />
 			</parameter>
 		</syntax>
 		<description>
@@ -1175,7 +1230,8 @@ enum error_type {
 	FAILURE_EMPTYCAT,
 	FAILURE_UPDATE,
 	FAILURE_DELETE,
-	FAILURE_APPEND
+	FAILURE_APPEND,
+	FAILURE_TEMPLATE
 };
 
 enum add_filter_result {
@@ -3157,9 +3213,11 @@ static int action_getconfig(struct mansession *s, const struct message *m)
 	struct ast_config *cfg;
 	const char *fn = astman_get_header(m, "Filename");
 	const char *category = astman_get_header(m, "Category");
+	const char *filter = astman_get_header(m, "Filter");
+	const char *category_name;
 	int catcount = 0;
 	int lineno = 0;
-	char *cur_category = NULL;
+	struct ast_category *cur_category = NULL;
 	struct ast_variable *v;
 	struct ast_flags config_flags = { CONFIG_FLAG_WITHCOMMENTS | CONFIG_FLAG_NOCACHE };
 
@@ -3167,6 +3225,7 @@ static int action_getconfig(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Filename not specified");
 		return 0;
 	}
+
 	cfg = ast_config_load2(fn, "manager", config_flags);
 	if (cfg == CONFIG_STATUS_FILEMISSING) {
 		astman_send_error(s, m, "Config file not found");
@@ -3177,19 +3236,34 @@ static int action_getconfig(struct mansession *s, const struct message *m)
 	}
 
 	astman_start_ack(s, m);
-	while ((cur_category = ast_category_browse(cfg, cur_category))) {
-		if (ast_strlen_zero(category) || (!ast_strlen_zero(category) && !strcmp(category, cur_category))) {
-			lineno = 0;
-			astman_append(s, "Category-%06d: %s\r\n", catcount, cur_category);
-			for (v = ast_variable_browse(cfg, cur_category); v; v = v->next) {
-				astman_append(s, "Line-%06d-%06d: %s=%s\r\n", catcount, lineno++, v->name, v->value);
-			}
-			catcount++;
+	while ((cur_category = ast_category_browse_filtered(cfg, category, cur_category, filter))) {
+		struct ast_str *templates;
+
+		category_name = ast_category_get_name(cur_category);
+		lineno = 0;
+		astman_append(s, "Category-%06d: %s\r\n", catcount, category_name);
+
+		if (ast_category_is_template(cur_category)) {
+			astman_append(s, "IsTemplate-%06d: %d\r\n", catcount, 1);
 		}
+
+		if ((templates = ast_category_get_templates(cur_category))
+			&& ast_str_strlen(templates) > 0) {
+			astman_append(s, "Templates-%06d: %s\r\n", catcount, ast_str_buffer(templates));
+			ast_free(templates);
+		}
+
+		for (v = ast_category_first(cur_category); v; v = v->next) {
+			astman_append(s, "Line-%06d-%06d: %s=%s\r\n", catcount, lineno++, v->name, v->value);
+		}
+
+		catcount++;
 	}
+
 	if (!ast_strlen_zero(category) && catcount == 0) { /* TODO: actually, a config with no categories doesn't even get loaded */
 		astman_append(s, "No categories found\r\n");
 	}
+
 	ast_config_destroy(cfg);
 	astman_append(s, "\r\n");
 
@@ -3200,7 +3274,8 @@ static int action_listcategories(struct mansession *s, const struct message *m)
 {
 	struct ast_config *cfg;
 	const char *fn = astman_get_header(m, "Filename");
-	char *category = NULL;
+	const char *match = astman_get_header(m, "Match");
+	struct ast_category *category = NULL;
 	struct ast_flags config_flags = { CONFIG_FLAG_WITHCOMMENTS | CONFIG_FLAG_NOCACHE };
 	int catcount = 0;
 
@@ -3208,6 +3283,7 @@ static int action_listcategories(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Filename not specified");
 		return 0;
 	}
+
 	if (!(cfg = ast_config_load2(fn, "manager", config_flags))) {
 		astman_send_error(s, m, "Config file not found");
 		return 0;
@@ -3215,22 +3291,22 @@ static int action_listcategories(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Config file has invalid format");
 		return 0;
 	}
+
 	astman_start_ack(s, m);
-	while ((category = ast_category_browse(cfg, category))) {
-		astman_append(s, "Category-%06d: %s\r\n", catcount, category);
+	while ((category = ast_category_browse_filtered(cfg, NULL, category, match))) {
+		astman_append(s, "Category-%06d: %s\r\n", catcount, ast_category_get_name(category));
 		catcount++;
 	}
+
 	if (catcount == 0) { /* TODO: actually, a config with no categories doesn't even get loaded */
 		astman_append(s, "Error: no categories found\r\n");
 	}
+
 	ast_config_destroy(cfg);
 	astman_append(s, "\r\n");
 
 	return 0;
 }
-
-
-
 
 /*! The amount of space in out must be at least ( 2 * strlen(in) + 1 ) */
 static void json_escape(char *out, const char *in)
@@ -3266,7 +3342,10 @@ static int action_getconfigjson(struct mansession *s, const struct message *m)
 {
 	struct ast_config *cfg;
 	const char *fn = astman_get_header(m, "Filename");
-	char *category = NULL;
+	const char *filter = astman_get_header(m, "Filter");
+	const char *category = astman_get_header(m, "Category");
+	struct ast_category *cur_category = NULL;
+	const char *category_name;
 	struct ast_variable *v;
 	int comma1 = 0;
 	struct ast_flags config_flags = { CONFIG_FLAG_WITHCOMMENTS | CONFIG_FLAG_NOCACHE };
@@ -3286,14 +3365,30 @@ static int action_getconfigjson(struct mansession *s, const struct message *m)
 
 	astman_start_ack(s, m);
 	astman_append(s, "JSON: {");
-	while ((category = ast_category_browse(cfg, category))) {
+	while ((cur_category = ast_category_browse_filtered(cfg, category, cur_category, filter))) {
 		int comma2 = 0;
+		struct ast_str *templates;
 
+		category_name = ast_category_get_name(cur_category);
 		astman_append(s, "%s\"", comma1 ? "," : "");
-		astman_append_json(s, category);
+		astman_append_json(s, category_name);
 		astman_append(s, "\":[");
 		comma1 = 1;
-		for (v = ast_variable_browse(cfg, category); v; v = v->next) {
+
+		if (ast_category_is_template(cur_category)) {
+			astman_append(s, "istemplate:1");
+			comma2 = 1;
+		}
+
+		if ((templates = ast_category_get_templates(cur_category))
+			&& ast_str_strlen(templates) > 0) {
+			astman_append(s, "%s", comma2 ? "," : "");
+			astman_append(s, "templates:\"%s\"", ast_str_buffer(templates));
+			ast_free(templates);
+			comma2 = 1;
+		}
+
+		for (v = ast_category_first(cur_category); v; v = v->next) {
 			astman_append(s, "%s\"", comma2 ? "," : "");
 			astman_append_json(s, v->name);
 			astman_append(s, "\":\"");
@@ -3301,6 +3396,7 @@ static int action_getconfigjson(struct mansession *s, const struct message *m)
 			astman_append(s, "\"");
 			comma2 = 1;
 		}
+
 		astman_append(s, "]");
 	}
 	astman_append(s, "}\r\n\r\n");
@@ -3315,19 +3411,28 @@ static enum error_type handle_updates(struct mansession *s, const struct message
 {
 	int x;
 	char hdr[40];
-	const char *action, *cat, *var, *value, *match, *line;
-	struct ast_category *category;
+	const char *action, *cat, *var, *value, *match, *line, *options;
 	struct ast_variable *v;
 	struct ast_str *str1 = ast_str_create(16), *str2 = ast_str_create(16);
 	enum error_type result = 0;
 
 	for (x = 0; x < 100000; x++) {	/* 100000 = the max number of allowed updates + 1 */
 		unsigned int object = 0;
+		char *dupoptions;
+		int allowdups = 0;
+		int istemplate = 0;
+		int ignoreerror = 0;
+		char *inherit = NULL;
+		char *catfilter = NULL;
+		char *token;
+		int foundvar = 0;
+		int foundcat = 0;
+		struct ast_category *category = NULL;
 
 		snprintf(hdr, sizeof(hdr), "Action-%06d", x);
 		action = astman_get_header(m, hdr);
 		if (ast_strlen_zero(action))		/* breaks the for loop if no action header */
-			break;                      	/* this could cause problems if actions come in misnumbered */
+			break;							/* this could cause problems if actions come in misnumbered */
 
 		snprintf(hdr, sizeof(hdr), "Cat-%06d", x);
 		cat = astman_get_header(m, hdr);
@@ -3353,22 +3458,90 @@ static enum error_type handle_updates(struct mansession *s, const struct message
 		snprintf(hdr, sizeof(hdr), "Line-%06d", x);
 		line = astman_get_header(m, hdr);
 
-		if (!strcasecmp(action, "newcat")) {
-			if (ast_category_get(cfg,cat)) {	/* check to make sure the cat doesn't */
-				result = FAILURE_NEWCAT;	/* already exist */
-				break;
+		snprintf(hdr, sizeof(hdr), "Options-%06d", x);
+		options = astman_get_header(m, hdr);
+		if (!ast_strlen_zero(options)) {
+			dupoptions = ast_strdupa(options);
+			while ((token = ast_strsep(&dupoptions, ',', AST_STRSEP_STRIP))) {
+				if (!strcasecmp("allowdups", token)) {
+					allowdups = 1;
+					continue;
+				}
+				if (!strcasecmp("template", token)) {
+					istemplate = 1;
+					continue;
+				}
+				if (!strcasecmp("ignoreerror", token)) {
+					ignoreerror = 1;
+					continue;
+				}
+				if (ast_begins_with(token, "inherit")) {
+					char *c = ast_strsep(&token, '=', AST_STRSEP_STRIP);
+					c = ast_strsep(&token, '=', AST_STRSEP_STRIP);
+					if (c) {
+						inherit = ast_strdupa(c);
+					}
+					continue;
+				}
+				if (ast_begins_with(token, "catfilter")) {
+					char *c = ast_strsep(&token, '=', AST_STRSEP_STRIP);
+					c = ast_strsep(&token, '=', AST_STRSEP_STRIP);
+					if (c) {
+						catfilter = ast_strdupa(c);
+					}
+					continue;
+				}
 			}
-			if (!(category = ast_category_new(cat, dfn, -1))) {
+		}
+
+		if (!strcasecmp(action, "newcat")) {
+			struct ast_category *template;
+			char *tmpl_name = NULL;
+
+			if (!allowdups) {
+				if (ast_category_get(cfg, cat, "TEMPLATES=include")) {
+					if (ignoreerror) {
+						continue;
+					} else {
+						result = FAILURE_NEWCAT;	/* already exist */
+						break;
+					}
+				}
+			}
+
+			if (istemplate) {
+				category = ast_category_new_template(cat, dfn, -1);
+			} else {
+				category = ast_category_new(cat, dfn, -1);
+			}
+
+			if (!category) {
 				result = FAILURE_ALLOCATION;
 				break;
 			}
-			if (ast_strlen_zero(match)) {
-				ast_category_append(cfg, category);
-			} else {
-				if (ast_category_insert(cfg, category, match)) {
-					result = FAILURE_NEWCAT;
-					ast_category_destroy(category);
-					break;
+
+			if (inherit) {
+				while ((tmpl_name = ast_strsep(&inherit, ',', AST_STRSEP_STRIP))) {
+					if ((template = ast_category_get(cfg, tmpl_name, "TEMPLATES=restrict"))) {
+						ast_category_inherit(category, template);
+					} else {
+						ast_category_destroy(category);
+						category = NULL;
+						result = FAILURE_TEMPLATE;	/* template not found */
+						break;
+					}
+				}
+			}
+
+			if (category != NULL) {
+				if (ast_strlen_zero(match)) {
+					ast_category_append(cfg, category);
+				} else {
+					if (ast_category_insert(cfg, category, match)) {
+						ast_category_destroy(category);
+						result = FAILURE_NEWCAT;
+						break;
+					}
 				}
 			}
 		} else if (!strcasecmp(action, "renamecat")) {
@@ -3376,19 +3549,37 @@ static enum error_type handle_updates(struct mansession *s, const struct message
 				result = UNSPECIFIED_ARGUMENT;
 				break;
 			}
-			if (!(category = ast_category_get(cfg, cat))) {
+
+			foundcat = 0;
+			while ((category = ast_category_browse_filtered(cfg, cat, category, catfilter))) {
+				ast_category_rename(category, value);
+				foundcat = 1;
+			}
+
+			if (!foundcat) {
 				result = UNKNOWN_CATEGORY;
 				break;
 			}
-			ast_category_rename(category, value);
 		} else if (!strcasecmp(action, "delcat")) {
-			if (ast_category_delete(cfg, cat)) {
-				result = FAILURE_DELCAT;
+			foundcat = 0;
+			while ((category = ast_category_browse_filtered(cfg, cat, category, catfilter))) {
+				category = ast_category_delete(cfg, category);
+				foundcat = 1;
+			}
+
+			if (!foundcat && !ignoreerror) {
+				result = UNKNOWN_CATEGORY;
 				break;
 			}
 		} else if (!strcasecmp(action, "emptycat")) {
-			if (ast_category_empty(cfg, cat)) {
-				result = FAILURE_EMPTYCAT;
+			foundcat = 0;
+			while ((category = ast_category_browse_filtered(cfg, cat, category, catfilter))) {
+				ast_category_empty(category);
+				foundcat = 1;
+			}
+
+			if (!foundcat) {
+				result = UNKNOWN_CATEGORY;
 				break;
 			}
 		} else if (!strcasecmp(action, "update")) {
@@ -3396,11 +3587,22 @@ static enum error_type handle_updates(struct mansession *s, const struct message
 				result = UNSPECIFIED_ARGUMENT;
 				break;
 			}
-			if (!(category = ast_category_get(cfg,cat))) {
+
+			foundcat = 0;
+			foundvar = 0;
+			while ((category = ast_category_browse_filtered(cfg, cat, category, catfilter))) {
+				if (!ast_variable_update(category, var, value, match, object)) {
+					foundvar = 1;
+				}
+				foundcat = 1;
+			}
+
+			if (!foundcat) {
 				result = UNKNOWN_CATEGORY;
 				break;
 			}
-			if (ast_variable_update(category, var, value, match, object)) {
+
+			if (!foundvar) {
 				result = FAILURE_UPDATE;
 				break;
 			}
@@ -3409,12 +3611,23 @@ static enum error_type handle_updates(struct mansession *s, const struct message
 				result = UNSPECIFIED_ARGUMENT;
 				break;
 			}
-			if (!(category = ast_category_get(cfg, cat))) {
+
+			foundcat = 0;
+			foundvar = 0;
+			while ((category = ast_category_browse_filtered(cfg, cat, category, catfilter))) {
+				if (!ast_variable_delete(category, var, match, line)) {
+					foundvar = 1;
+				}
+				foundcat = 1;
+			}
+
+			if (!foundcat) {
 				result = UNKNOWN_CATEGORY;
 				break;
 			}
-			if (ast_variable_delete(category, var, match, line)) {
-				result = FAILURE_DELETE;
+
+			if (!foundvar && !ignoreerror) {
+				result = FAILURE_UPDATE;
 				break;
 			}
 		} else if (!strcasecmp(action, "append")) {
@@ -3422,32 +3635,44 @@ static enum error_type handle_updates(struct mansession *s, const struct message
 				result = UNSPECIFIED_ARGUMENT;
 				break;
 			}
-			if (!(category = ast_category_get(cfg, cat))) {
+
+			foundcat = 0;
+			while ((category = ast_category_browse_filtered(cfg, cat, category, catfilter))) {
+				if (!(v = ast_variable_new(var, value, dfn))) {
+					result = FAILURE_ALLOCATION;
+					break;
+				}
+				if (object || (match && !strcasecmp(match, "object"))) {
+					v->object = 1;
+				}
+				ast_variable_append(category, v);
+				foundcat = 1;
+			}
+
+			if (!foundcat) {
 				result = UNKNOWN_CATEGORY;
 				break;
 			}
-			if (!(v = ast_variable_new(var, value, dfn))) {
-				result = FAILURE_ALLOCATION;
-				break;
-			}
-			if (object || (match && !strcasecmp(match, "object"))) {
-				v->object = 1;
-			}
-			ast_variable_append(category, v);
 		} else if (!strcasecmp(action, "insert")) {
 			if (ast_strlen_zero(var) || ast_strlen_zero(line)) {
 				result = UNSPECIFIED_ARGUMENT;
 				break;
 			}
-			if (!(category = ast_category_get(cfg, cat))) {
+
+			foundcat = 0;
+			while ((category = ast_category_browse_filtered(cfg, cat, category, catfilter))) {
+				if (!(v = ast_variable_new(var, value, dfn))) {
+					result = FAILURE_ALLOCATION;
+					break;
+				}
+				ast_variable_insert(category, v, line);
+				foundcat = 1;
+			}
+
+			if (!foundcat) {
 				result = UNKNOWN_CATEGORY;
 				break;
 			}
-			if (!(v = ast_variable_new(var, value, dfn))) {
-				result = FAILURE_ALLOCATION;
-				break;
-			}
-			ast_variable_insert(category, v, line);
 		}
 		else {
 			ast_log(LOG_WARNING, "Action-%06d: %s not handled\n", x, action);
@@ -3532,6 +3757,9 @@ static int action_updateconfig(struct mansession *s, const struct message *m)
 			break;
 		case FAILURE_APPEND:
 			astman_send_error(s, m, "Append did not complete successfully");
+			break;
+		case FAILURE_TEMPLATE:
+			astman_send_error(s, m, "Template category not found");
 			break;
 		}
 	}

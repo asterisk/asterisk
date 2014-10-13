@@ -206,7 +206,7 @@ static struct ast_variable *realtime_switch_common(const char *table, const char
 					match = ast_extension_match(cat, exten);
 				}
 				if (match) {
-					var = ast_category_detach_variables(ast_category_get(cfg, cat));
+					var = ast_category_detach_variables(ast_category_get(cfg, cat, NULL));
 					break;
 				}
 				cat = ast_category_browse(cfg, cat);
