@@ -234,6 +234,7 @@ static void sorcery_config_internal_load(void *data, const struct ast_sorcery *s
 	struct sorcery_config *config = data;
 	struct ast_flags flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	struct ast_config *cfg = ast_config_load2(config->filename, config->uuid, flags);
+	struct ast_category *category = NULL;
 	RAII_VAR(struct ao2_container *, objects, NULL, ao2_cleanup);
 	const char *id = NULL;
 
@@ -255,16 +256,17 @@ static void sorcery_config_internal_load(void *data, const struct ast_sorcery *s
 		return;
 	}
 
-	while ((id = ast_category_browse(cfg, id))) {
+	while ((category = ast_category_browse_filtered(cfg, NULL, category, NULL))) {
 		RAII_VAR(void *, obj, NULL, ao2_cleanup);
+		id = ast_category_get_name(category);
 
 		/* If given criteria has not been met skip the category, it is not applicable */
-		if (!sorcery_is_criteria_met(ast_variable_browse(cfg, id), config->criteria)) {
+		if (!sorcery_is_criteria_met(ast_category_first(category), config->criteria)) {
 			continue;
 		}
 
 		if (!(obj = ast_sorcery_alloc(sorcery, type, id)) ||
-		    ast_sorcery_objectset_apply(sorcery, obj, ast_variable_browse(cfg, id))) {
+		    ast_sorcery_objectset_apply(sorcery, obj, ast_category_first(category))) {
 
 			if (config->file_integrity) {
 				ast_log(LOG_ERROR, "Config file '%s' could not be loaded due to error with object '%s' of type '%s'\n",
