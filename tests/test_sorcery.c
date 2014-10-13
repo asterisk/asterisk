@@ -493,7 +493,7 @@ AST_TEST_DEFINE(apply_config)
 		return AST_TEST_NOT_RUN;
 	}
 
-	if (!ast_category_get(config, "test_sorcery_section")) {
+	if (!ast_category_get(config, "test_sorcery_section", NULL)) {
 		ast_test_status_update(test, "Sorcery configuration file does not have test_sorcery section\n");
 		ast_config_destroy(config);
 		return AST_TEST_NOT_RUN;
@@ -2226,7 +2226,7 @@ AST_TEST_DEFINE(caching_wizard_behavior)
 		return AST_TEST_NOT_RUN;
 	}
 
-	if (!ast_category_get(config, "test_sorcery_cache")) {
+	if (!ast_category_get(config, "test_sorcery_cache", NULL)) {
 		ast_test_status_update(test, "Sorcery configuration file does not contain 'test_sorcery_cache' section\n");
 		ast_config_destroy(config);
 		return AST_TEST_NOT_RUN;

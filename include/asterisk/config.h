@@ -203,10 +203,30 @@ void ast_config_sort_categories(struct ast_config *config, int descending,
 								int (*comparator)(struct ast_category *p, struct ast_category *q));
 
 /*!
- * \brief Goes through categories
+ * \brief Browse categories with filters
  *
  * \param config Which config structure you wish to "browse"
- * \param prev A pointer to a previous category.
+ * \param category_name An optional category name.
+ * Pass NULL to not restrict by category name.
+ * \param prev A pointer to the starting category structure.
+ * Pass NULL to start at the beginning.
+ * \param filter An optional comma-separated list of <name_regex>=<value_regex>
+ * pairs.  Only categories with matching variables will be returned.
+ * The special name 'TEMPLATES' can be used with the special values
+ * 'include' or 'restrict' to include templates in the result or
+ * restrict the result to only templates.
+ *
+ * \retval a category on success
+ * \retval NULL on failure/no-more-categories
+ */
+struct ast_category *ast_category_browse_filtered(struct ast_config *config,
+	const char *category_name, struct ast_category *prev, const char *filter);
+
+/*!
+ * \brief Browse categories
+ *
+ * \param config Which config structure you wish to "browse"
+ * \param prev_name A pointer to a previous category name.
  *
  * \details
  * This function is kind of non-intuitive in it's use.
@@ -216,13 +236,20 @@ void ast_config_sort_categories(struct ast_config *config, int descending,
  * as the second pointer, and it will return a pointer to the category name
  * afterwards.
  *
- * \retval a category on success
+ * \retval a category name on success
  * \retval NULL on failure/no-more-categories
  */
-char *ast_category_browse(struct ast_config *config, const char *prev);
+char *ast_category_browse(struct ast_config *config, const char *prev_name);
 
 /*!
- * \brief Goes through variables
+ * \brief Browse variables
+ * \param config Which config structure you wish to "browse"
+ * \param category_name Which category to "browse"
+ * \param filter an optional comma-separated list of <name_regex>=<value_regex>
+ * pairs.  Only categories with matching variables will be browsed.
+ * The special name 'TEMPLATES' can be used with the special values
+ * 'include' or 'restrict' to include templates in the result or
+ * restrict the result to only templates.
  *
  * \details
  * Somewhat similar in intent as the ast_category_browse.
@@ -231,7 +258,10 @@ char *ast_category_browse(struct ast_config *config, const char *prev);
  * \retval ast_variable list on success
  * \retval NULL on failure
  */
-struct ast_variable *ast_variable_browse(const struct ast_config *config, const char *category);
+struct ast_variable *ast_variable_browse_filtered(const struct ast_config *config,
+	const char *category_name, const char *filter);
+struct ast_variable *ast_variable_browse(const struct ast_config *config,
+	const char *category_name);
 
 /*!
  * \brief given a pointer to a category, return the root variable.
@@ -243,25 +273,50 @@ struct ast_variable *ast_variable_browse(const struct ast_config *config, const 
 struct ast_variable *ast_category_first(struct ast_category *cat);
 
 /*!
- * \brief Gets a variable
+ * \brief Gets a variable by context and variable names
  *
  * \param config which (opened) config to use
  * \param category category under which the variable lies
  * \param variable which variable you wish to get the data for
- *
- * \details
- * Goes through a given config file in the given category and searches for the given variable
+ * \param filter an optional comma-separated list of <name_regex>=<value_regex>
+ * pairs.  Only categories with matching variables will be searched.
+ * The special name 'TEMPLATES' can be used with the special values
+ * 'include' or 'restrict' to include templates in the result or
+ * restrict the result to only templates.
  *
  * \retval The variable value on success
  * \retval NULL if unable to find it.
  */
-const char *ast_variable_retrieve(const struct ast_config *config, const char *category, const char *variable);
+const char *ast_variable_retrieve_filtered(struct ast_config *config,
+	const char *category, const char *variable, const char *filter);
+const char *ast_variable_retrieve(struct ast_config *config,
+	const char *category, const char *variable);
+
+/*!
+ * \brief Gets a variable from a specific category structure
+ *
+ * \param category category structure under which the variable lies
+ * \param variable which variable you wish to get the data for
+ *
+ * \details
+ * Goes through a given category and searches for the given variable
+ *
+ * \retval The variable value on success
+ * \retval NULL if unable to find it.
+ */
+const char *ast_variable_find(const struct ast_category *category, const char *variable);
 
 /*!
  * \brief Retrieve a category if it exists
  *
  * \param config which config to use
  * \param category_name name of the category you're looking for
+ * \param filter If a config contains more than 1 category with the same name,
+ * you can specify a filter to narrow the search.  The filter is a comma-separated
+ * list of <name_regex>=<value_regex> pairs.  Only a category with matching
+ * variables will be returned. The special name 'TEMPLATES' can be used with the
+ * special values 'include' or 'restrict' to include templates in the result or
+ * restrict the result to only templates.
  *
  * \details
  * This will search through the categories within a given config file for a match.
@@ -269,20 +324,57 @@ const char *ast_variable_retrieve(const struct ast_config *config, const char *c
  * \retval pointer to category if found
  * \retval NULL if not.
  */
-struct ast_category *ast_category_get(const struct ast_config *config, const char *category_name);
+struct ast_category *ast_category_get(const struct ast_config *config,
+	const char *category_name, const char *filter);
+
+/*!
+ * \brief Return the name of the category
+ *
+ * \param category category structure
+ *
+ * \retval pointer to category name if found
+ * \retval NULL if not.
+ */
+const char *ast_category_get_name(const struct ast_category *category);
+
+/*!
+ * \brief Check if category is a template
+ *
+ * \param category category structure
+ *
+ * \retval 1 if a template.
+ * \retval 0 if not.
+ */
+int ast_category_is_template(const struct ast_category *category);
+
+/*!
+ * \brief Return the template names this category inherits from
+ *
+ * \param category category structure
+ *
+ * \return an ast_str (which must be freed after use) with a comma
+ * separated list of templates names or NULL if there were no templates.
+ */
+struct ast_str *ast_category_get_templates(const struct ast_category *category);
 
 /*!
  * \brief Check for category duplicates
  *
  * \param config which config to use
  * \param category_name name of the category you're looking for
+ * \param filter an optional comma-separated list of <name_regex>=<value_regex>
+ * pairs.  Only categories with matching variables will be returned.
+ * The special name 'TEMPLATES' can be used with the special values
+ * 'include' or 'restrict' to include templates in the result or
+ * restrict the result to only templates.
  *
  * \details
  * This will search through the categories within a given config file for a match.
  *
  * \return non-zero if found
  */
-int ast_category_exist(const struct ast_config *config, const char *category_name);
+int ast_category_exist(const struct ast_config *config, const char *category_name,
+	const char *filter);
 
 /*!
  * \brief Retrieve realtime configuration
@@ -661,9 +753,23 @@ void ast_config_set_current_category(struct ast_config *cfg, const struct ast_ca
  */
 const char *ast_config_option(struct ast_config *cfg, const char *cat, const char *var);
 
-/*! \brief Create a category structure */
+/*!
+ * \brief Create a category
+ *
+ * \param name name of new category
+ * \param in_file filename which contained the new config
+ * \param lineno line number
+ */
 struct ast_category *ast_category_new(const char *name, const char *in_file, int lineno);
-void ast_category_append(struct ast_config *config, struct ast_category *cat);
+
+/*!
+ * \brief Create a category making it a template
+ *
+ * \param name name of new template
+ * \param in_file filename which contained the new config
+ * \param lineno line number
+ */
+struct ast_category *ast_category_new_template(const char *name, const char *in_file, int lineno);
 
 /*!
  * \brief Inserts new category
@@ -677,17 +783,49 @@ void ast_category_append(struct ast_config *config, struct ast_category *cat);
  * matching the match parameter.
  *
  * \retval 0 if succeeded
- * \retval -1 if NULL parameters or match category was not found
+ * \retval -1 if the specified match category wasn't found
  */
 int ast_category_insert(struct ast_config *config, struct ast_category *cat, const char *match);
-int ast_category_delete(struct ast_config *cfg, const char *category);
 
 /*!
- * \brief Removes and destroys all variables within a category
- * \retval 0 if the category was found and emptied
- * \retval -1 if the category was not found
+ * \brief Delete a category
+ *
+ * \param config which config to use
+ * \param category category to delete
+ *
+ * \return the category after the deleted one which could be NULL.
  */
-int ast_category_empty(struct ast_config *cfg, const char *category);
+struct ast_category *ast_category_delete(struct ast_config *cfg, struct ast_category *category);
+
+/*!
+ * \brief Appends a category to a config
+ *
+ * \param config which config to use
+ * \param cat category to insert
+ */
+void ast_category_append(struct ast_config *config, struct ast_category *cat);
+
+/*!
+ * \brief Applies base (template) to category.
+ *
+ * \param existing existing category
+ * \param base base category
+ *
+ * \details
+ * This function is used to apply a base (template) to an existing category
+ */
+void ast_category_inherit(struct ast_category *existing, const struct ast_category *base);
+
+/*!
+ * \brief Removes and destroys all variables in a category
+ *
+ * \param category category to empty
+ *
+ * \retval 0 if succeeded
+ * \retval -1 if categopry is NULL
+ */
+int ast_category_empty(struct ast_category *category);
+
 void ast_category_destroy(struct ast_category *cat);
 struct ast_variable *ast_category_detach_variables(struct ast_category *cat);
 void ast_category_rename(struct ast_category *cat, const char *name);

@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/stat.h>
 
 #include <math.h>	/* HUGE_VAL */
+#include <regex.h>
 
 #define AST_INCLUDE_GLOB 1
 
@@ -71,6 +72,7 @@ static char *extconfig_conf = "extconfig.conf";
 static struct ao2_container *cfg_hooks;
 static void config_hook_exec(const char *filename, const char *module, const struct ast_config *cfg);
 inline struct ast_variable *variable_list_switch(struct ast_variable *l1, struct ast_variable *l2);
+static int does_category_match(struct ast_category *cat, const char *category_name, const char *match);
 
 /*! \brief Structure to keep comments for rewriting configuration files */
 struct ast_comment {
@@ -232,6 +234,8 @@ struct ast_category {
 	struct ast_variable *root;
 	/*! Last category variable in the list. */
 	struct ast_variable *last;
+	/*! Previous node in the list. */
+	struct ast_category *prev;
 	/*! Next node in the list. */
 	struct ast_category *next;
 };
@@ -599,16 +603,12 @@ void ast_variables_destroy(struct ast_variable *v)
 
 struct ast_variable *ast_variable_browse(const struct ast_config *config, const char *category)
 {
-	struct ast_category *cat = NULL;
-
-	if (!category) {
-		return NULL;
-	}
+	struct ast_category *cat;
 
 	if (config->last_browse && (config->last_browse->name == category)) {
 		cat = config->last_browse;
 	} else {
-		cat = ast_category_get(config, category);
+		cat = ast_category_get(config, category, NULL);
 	}
 
 	return (cat) ? cat->root : NULL;
@@ -677,29 +677,37 @@ const char *ast_config_option(struct ast_config *cfg, const char *cat, const cha
 	return tmp;
 }
 
-
-const char *ast_variable_retrieve(const struct ast_config *config, const char *category, const char *variable)
+const char *ast_variable_retrieve(struct ast_config *config,
+	const char *category, const char *variable)
 {
-	struct ast_variable *v;
+	return ast_variable_retrieve_filtered(config, category, variable, NULL);
+}
 
-	if (category) {
-		for (v = ast_variable_browse(config, category); v; v = v->next) {
-			if (!strcasecmp(variable, v->name)) {
-				return v->value;
-			}
-		}
-	} else {
-		struct ast_category *cat;
+const char *ast_variable_retrieve_filtered(struct ast_config *config,
+	const char *category, const char *variable, const char *filter)
+{
+	struct ast_category *cat = NULL;
+	const char *value;
 
-		for (cat = config->root; cat; cat = cat->next) {
-			for (v = cat->root; v; v = v->next) {
-				if (!strcasecmp(variable, v->name)) {
-					return v->value;
-				}
-			}
+	while ((cat = ast_category_browse_filtered(config, category, cat, filter))) {
+		value = ast_variable_find(cat, variable);
+		if (value) {
+			return value;
 		}
 	}
 
+	return NULL;
+}
+
+const char *ast_variable_find(const struct ast_category *category, const char *variable)
+{
+	struct ast_variable *v;
+
+	for (v = category->root; v; v = v->next) {
+		if (!strcasecmp(variable, v->name)) {
+			return v->value;
+		}
+	}
 	return NULL;
 }
 
@@ -726,7 +734,99 @@ static void move_variables(struct ast_category *old, struct ast_category *new)
 	ast_variable_append(new, var);
 }
 
-struct ast_category *ast_category_new(const char *name, const char *in_file, int lineno)
+/*! \brief Returns true if ALL of the regex expressions and category name match.
+ * Both can be NULL (I.E. no predicate) which results in a true return;
+ */
+static int does_category_match(struct ast_category *cat, const char *category_name, const char *match)
+{
+	char *dupmatch;
+	char *nvp = NULL;
+	int match_found = 0, match_expressions = 0;
+	int template_ok = 0;
+
+	/* Only match on category name if it's not a NULL or empty string */
+	if (!ast_strlen_zero(category_name) && strcasecmp(cat->name, category_name)) {
+		return 0;
+	}
+
+	/* If match is NULL or empty, automatically match if not a template */
+	if (ast_strlen_zero(match)) {
+		return !cat->ignored;
+	}
+
+	dupmatch = ast_strdupa(match);
+
+	while ((nvp = ast_strsep(&dupmatch, ',', AST_STRSEP_STRIP))) {
+		struct ast_variable *v;
+		char *match_name;
+		char *match_value = NULL;
+		char *regerr;
+		int rc;
+		regex_t r_name, r_value;
+
+		match_expressions++;
+
+		match_name = ast_strsep(&nvp, '=', AST_STRSEP_STRIP);
+		match_value = ast_strsep(&nvp, '=', AST_STRSEP_STRIP);
+
+		/* an empty match value is OK.  A NULL match value (no =) is NOT. */
+		if (match_value == NULL) {
+			break;
+		}
+
+		if (!strcmp("TEMPLATES", match_name)) {
+			if (!strcasecmp("include", match_value)) {
+				if (cat->ignored) {
+					template_ok = 1;
+				}
+				match_found++;
+			} else if (!strcasecmp("restrict", match_value)) {
+				if (cat->ignored) {
+					match_found++;
+					template_ok = 1;
+				} else {
+					break;
+				}
+			}
+			continue;
+		}
+
+		if ((rc = regcomp(&r_name, match_name, REG_EXTENDED | REG_NOSUB))) {
+			regerr = ast_alloca(128);
+			regerror(rc, &r_name, regerr, 128);
+			ast_log(LOG_ERROR, "Regular expression '%s' failed to compile: %s\n",
+				match_name, regerr);
+			regfree(&r_name);
+			return 0;
+		}
+		if ((rc = regcomp(&r_value, match_value, REG_EXTENDED | REG_NOSUB))) {
+			regerr = ast_alloca(128);
+			regerror(rc, &r_value, regerr, 128);
+			ast_log(LOG_ERROR, "Regular expression '%s' failed to compile: %s\n",
+				match_value, regerr);
+			regfree(&r_name);
+			regfree(&r_value);
+			return 0;
+		}
+
+		for (v = cat->root; v; v = v->next) {
+			if (!regexec(&r_name, v->name, 0, NULL, 0)
+				&& !regexec(&r_value, v->value, 0, NULL, 0)) {
+				match_found++;
+				break;
+			}
+		}
+		regfree(&r_name);
+		regfree(&r_value);
+	}
+	if (match_found == match_expressions && (!cat->ignored || template_ok)) {
+		return 1;
+	}
+	return 0;
+}
+
+
+static struct ast_category *new_category(const char *name, const char *in_file, int lineno, int template)
 {
 	struct ast_category *category;
 
@@ -741,44 +841,85 @@ struct ast_category *ast_category_new(const char *name, const char *in_file, int
 	}
 	ast_copy_string(category->name, name, sizeof(category->name));
 	category->lineno = lineno; /* if you don't know the lineno, set it to 999999 or something real big */
+	category->ignored = template;
 	return category;
 }
 
-static struct ast_category *category_get(const struct ast_config *config, const char *category_name, int ignored)
+struct ast_category *ast_category_new(const char *name, const char *in_file, int lineno)
+{
+	return new_category(name, in_file, lineno, 0);
+}
+
+struct ast_category *ast_category_new_template(const char *name, const char *in_file, int lineno)
+{
+	return new_category(name, in_file, lineno, 1);
+}
+
+struct ast_category *ast_category_get(const struct ast_config *config,
+	const char *category_name, const char *filter)
 {
 	struct ast_category *cat;
 
-	/* try exact match first, then case-insensitive match */
 	for (cat = config->root; cat; cat = cat->next) {
-		if (cat->name == category_name && (ignored || !cat->ignored))
+		if (does_category_match(cat, category_name, filter)) {
 			return cat;
-	}
-
-	for (cat = config->root; cat; cat = cat->next) {
-		if (!strcasecmp(cat->name, category_name) && (ignored || !cat->ignored))
-			return cat;
+		}
 	}
 
 	return NULL;
 }
 
-struct ast_category *ast_category_get(const struct ast_config *config, const char *category_name)
+const char *ast_category_get_name(const struct ast_category *category)
 {
-	return category_get(config, category_name, 0);
+	return category->name;
 }
 
-int ast_category_exist(const struct ast_config *config, const char *category_name)
+int ast_category_is_template(const struct ast_category *category)
 {
-	return !!ast_category_get(config, category_name);
+	return category->ignored;
+}
+
+struct ast_str *ast_category_get_templates(const struct ast_category *category)
+{
+	struct ast_category_template_instance *template;
+	struct ast_str *str;
+	int first = 1;
+
+	if (AST_LIST_EMPTY(&category->template_instances)) {
+		return NULL;
+	}
+
+	str = ast_str_create(128);
+	if (!str) {
+		return NULL;
+	}
+
+	AST_LIST_TRAVERSE(&category->template_instances, template, next) {
+		ast_str_append(&str, 0, "%s%s", first ? "" : ",", template->name);
+		first = 0;
+	}
+
+	return str;
+}
+
+int ast_category_exist(const struct ast_config *config, const char *category_name,
+	const char *filter)
+{
+	return !!ast_category_get(config, category_name, filter);
 }
 
 void ast_category_append(struct ast_config *config, struct ast_category *category)
 {
-	if (config->last)
+	if (config->last) {
 		config->last->next = category;
-	else
+		category->prev = config->last;
+	} else {
 		config->root = category;
+		category->prev = NULL;
+	}
+	category->next = NULL;
 	category->include_level = config->include_level;
+
 	config->last = category;
 	config->current = category;
 }
@@ -787,19 +928,26 @@ int ast_category_insert(struct ast_config *config, struct ast_category *cat, con
 {
 	struct ast_category *cur_category;
 
-	if (!config || !cat || !match) {
+	if (!config || !config->root || !cat || !match) {
 		return -1;
 	}
+
 	if (!strcasecmp(config->root->name, match)) {
 		cat->next = config->root;
+		cat->prev = NULL;
+		config->root->prev = cat;
 		config->root = cat;
 		return 0;
 	}
-	for (cur_category = config->root; cur_category && cur_category->next;
-		cur_category = cur_category->next) {
-		if (!strcasecmp(cur_category->next->name, match)) {
-			cat->next = cur_category->next;
-			cur_category->next = cat;
+
+	for (cur_category = config->root->next; cur_category; cur_category = cur_category->next) {
+		if (!strcasecmp(cur_category->name, match)) {
+			cat->prev = cur_category->prev;
+			cat->prev->next = cat;
+
+			cat->next = cur_category;
+			cur_category->prev = cat;
+
 			return 0;
 		}
 	}
@@ -841,9 +989,10 @@ static void ast_includes_destroy(struct ast_config_include *incls)
 	}
 }
 
-static struct ast_category *next_available_category(struct ast_category *cat)
+static struct ast_category *next_available_category(struct ast_category *cat,
+	const char *name, const char *filter)
 {
-	for (; cat && cat->ignored; cat = cat->next);
+	for (; cat && !does_category_match(cat, name, filter); cat = cat->next);
 
 	return cat;
 }
@@ -856,7 +1005,7 @@ struct ast_variable *ast_category_first(struct ast_category *cat)
 
 struct ast_variable *ast_category_root(struct ast_config *config, char *cat)
 {
-	struct ast_category *category = ast_category_get(config, cat);
+	struct ast_category *category = ast_category_get(config, cat, NULL);
 
 	if (category)
 		return category->root;
@@ -1021,10 +1170,27 @@ char *ast_category_browse(struct ast_config *config, const char *prev)
 	}
 
 	if (cat)
-		cat = next_available_category(cat);
+		cat = next_available_category(cat, NULL, NULL);
 
 	config->last_browse = cat;
 	return (cat) ? cat->name : NULL;
+}
+
+struct ast_category *ast_category_browse_filtered(struct ast_config *config,
+	const char *category_name, struct ast_category *prev, const char *filter)
+{
+	struct ast_category *cat;
+
+	if (!prev) {
+		prev = config->root;
+	} else {
+		prev = prev->next;
+	}
+
+	cat = next_available_category(prev, category_name, filter);
+	config->last_browse = cat;
+
+	return cat;
 }
 
 struct ast_variable *ast_category_detach_variables(struct ast_category *cat)
@@ -1043,7 +1209,7 @@ void ast_category_rename(struct ast_category *cat, const char *name)
 	ast_copy_string(cat->name, name, sizeof(cat->name));
 }
 
-static void inherit_category(struct ast_category *new, const struct ast_category *base)
+void ast_category_inherit(struct ast_category *new, const struct ast_category *base)
 {
 	struct ast_variable *var;
 	struct ast_category_template_instance *x;
@@ -1147,65 +1313,45 @@ int ast_variable_update(struct ast_category *category, const char *variable,
 	return -1;
 }
 
-int ast_category_delete(struct ast_config *cfg, const char *category)
+struct ast_category *ast_category_delete(struct ast_config *config,
+	struct ast_category *category)
 {
-	struct ast_category *prev=NULL, *cat;
+	struct ast_category *prev;
 
-	cat = cfg->root;
-	while (cat) {
-		if (cat->name == category) {
-			if (prev) {
-				prev->next = cat->next;
-				if (cat == cfg->last)
-					cfg->last = prev;
-			} else {
-				cfg->root = cat->next;
-				if (cat == cfg->last)
-					cfg->last = NULL;
-			}
-			ast_category_destroy(cat);
-			return 0;
-		}
-		prev = cat;
-		cat = cat->next;
+	if (!config || !category) {
+		return NULL;
 	}
 
-	prev = NULL;
-	cat = cfg->root;
-	while (cat) {
-		if (!strcasecmp(cat->name, category)) {
-			if (prev) {
-				prev->next = cat->next;
-				if (cat == cfg->last)
-					cfg->last = prev;
-			} else {
-				cfg->root = cat->next;
-				if (cat == cfg->last)
-					cfg->last = NULL;
-			}
-			ast_category_destroy(cat);
-			return 0;
-		}
-		prev = cat;
-		cat = cat->next;
+	if (category->prev) {
+		category->prev->next = category->next;
+	} else {
+		config->root = category->next;
 	}
-	return -1;
+
+	if (category->next) {
+		category->next->prev = category->prev;
+	} else {
+		config->last = category->prev;
+	}
+
+	prev = category->prev;
+
+	ast_category_destroy(category);
+
+	return prev;
 }
 
-int ast_category_empty(struct ast_config *cfg, const char *category)
+int ast_category_empty(struct ast_category *category)
 {
-	struct ast_category *cat;
-
-	for (cat = cfg->root; cat; cat = cat->next) {
-		if (strcasecmp(cat->name, category))
-			continue;
-		ast_variables_destroy(cat->root);
-		cat->root = NULL;
-		cat->last = NULL;
-		return 0;
+	if (!category) {
+		return -1;
 	}
 
-	return -1;
+	ast_variables_destroy(category->root);
+	category->root = NULL;
+	category->last = NULL;
+
+	return 0;
 }
 
 void ast_config_destroy(struct ast_config *cfg)
@@ -1489,7 +1635,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 				if (!strcasecmp(cur, "!")) {
 					(*cat)->ignored = 1;
 				} else if (!strcasecmp(cur, "+")) {
-					*cat = category_get(cfg, catname, 1);
+					*cat = ast_category_get(cfg, catname, NULL);
 					if (!(*cat)) {
 						if (newcat)
 							ast_category_destroy(newcat);
@@ -1504,12 +1650,12 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 				} else {
 					struct ast_category *base;
 
-					base = category_get(cfg, cur, 1);
+					base = ast_category_get(cfg, cur, "TEMPLATES=restrict");
 					if (!base) {
 						ast_log(LOG_WARNING, "Inheritance requested, but category '%s' does not exist, line %d of %s\n", cur, lineno, configfile);
 						return -1;
 					}
-					inherit_category(*cat, base);
+					ast_category_inherit(*cat, base);
 				}
 			}
 		}

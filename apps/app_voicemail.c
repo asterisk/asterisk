@@ -1821,7 +1821,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 						new = ast_alloca((strlen(value) + strlen(newpassword) + 1));
 						sprintf(new, "%s%s", newpassword, value);
 					}
-					if (!(cat = ast_category_get(cfg, category))) {
+					if (!(cat = ast_category_get(cfg, category, NULL))) {
 						ast_log(AST_LOG_WARNING, "Failed to get category structure.\n");
 						break;
 					}
@@ -1858,7 +1858,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 					}
 					new = ast_alloca(strlen(newpassword) + 1);
 					sprintf(new, "%s", newpassword);
-					if (!(cat = ast_category_get(cfg, category))) {
+					if (!(cat = ast_category_get(cfg, category, NULL))) {
 						ast_debug(4, "failed to get category!\n");
 						ast_free(var);
 						break;
@@ -7791,7 +7791,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 				char duration_buf[12];
 
 				*duration += prepend_duration;
-				msg_cat = ast_category_get(msg_cfg, "message");
+				msg_cat = ast_category_get(msg_cfg, "message", NULL);
 				snprintf(duration_buf, 11, "%ld", *duration);
 				if (!ast_variable_update(msg_cat, "duration", duration_buf, NULL, 0)) {
 					ast_config_text_file_save(textfile, msg_cfg, "app_voicemail");
@@ -11930,7 +11930,7 @@ static int add_message_id(struct ast_config *msg_cfg, char *dir, int msg, char *
 		return -1;
 	}
 
-	cat = ast_category_get(msg_cfg, "message");
+	cat = ast_category_get(msg_cfg, "message", NULL);
 	if (!cat) {
 		ast_log(LOG_ERROR, "Voicemail data file %s/%d.txt has no [message] category?\n", dir, msg);
 		ast_variables_destroy(var);

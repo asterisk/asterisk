@@ -528,7 +528,7 @@ static struct ast_config *realtime_directory(char *context)
 		}
 
 		/* Does the context exist within the config file? If not, make one */
-		if (!(cat = ast_category_get(cfg, ctx))) {
+		if (!(cat = ast_category_get(cfg, ctx, NULL))) {
 			if (!(cat = ast_category_new(ctx, "", 99999))) {
 				ast_log(LOG_WARNING, "Out of memory\n");
 				ast_config_destroy(cfg);

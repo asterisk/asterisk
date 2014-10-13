@@ -139,15 +139,15 @@ static struct ast_config *realtime_sorcery_multi(const char *database, const cha
 
 static int realtime_sorcery_update(const char *database, const char *table, const char *keyfield, const char *entity, const struct ast_variable *fields)
 {
-	struct ast_category *object;
+	struct ast_category *object, *found;
 
-	if (!ast_category_exist(realtime_objects, entity)) {
+	if (!(found = ast_category_get(realtime_objects, entity, NULL))) {
 		return 0;
 	} else if (!(object = ast_category_new(entity, "", 0))) {
 		return -1;
 	}
 
-	ast_category_delete(realtime_objects, entity);
+	ast_category_delete(realtime_objects, found);
 	ast_variable_append(object, ast_variables_dup((struct ast_variable*)fields));
 	ast_variable_append(object, ast_variable_new(keyfield, entity, ""));
 	ast_category_append(realtime_objects, object);
@@ -161,7 +161,7 @@ static int realtime_sorcery_store(const char *database, const char *table, const
 	const struct ast_variable *keyfield = realtime_find_variable(fields, "id");
 	struct ast_category *object;
 
-	if (!keyfield || ast_category_exist(realtime_objects, keyfield->value) || !(object = ast_category_new(keyfield->value, "", 0))) {
+	if (!keyfield || ast_category_exist(realtime_objects, keyfield->value, NULL) || !(object = ast_category_new(keyfield->value, "", 0))) {
 		return -1;
 	}
 
@@ -173,11 +173,12 @@ static int realtime_sorcery_store(const char *database, const char *table, const
 
 static int realtime_sorcery_destroy(const char *database, const char *table, const char *keyfield, const char *entity, const struct ast_variable *fields)
 {
-	if (!ast_category_exist(realtime_objects, entity)) {
+	struct ast_category *found;
+	if (!(found = ast_category_get(realtime_objects, entity, NULL))) {
 		return 0;
 	}
 
-	ast_category_delete(realtime_objects, entity);
+	ast_category_delete(realtime_objects, found);
 
 	return 1;
 }
@@ -570,7 +571,7 @@ AST_TEST_DEFINE(object_retrieve_regex)
 		ast_test_status_update(test, "Failed to retrieve a container of objects\n");
 		return AST_TEST_FAIL;
 	} else if (ao2_container_count(objects) != 2) {
-		ast_test_status_update(test, "Received a container with incorrect number of objects in it\n");
+		ast_test_status_update(test, "Received a container with incorrect number of objects in it: %d instead of 2\n", ao2_container_count(objects));
 		return AST_TEST_FAIL;
 	}
 
