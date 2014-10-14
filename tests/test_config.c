@@ -394,26 +394,6 @@ AST_TEST_DEFINE(config_basic_ops)
 		}
 	}
 
-	/* Now: test0 test1 test3 test4 test2 */
-	/* Test in-flight deletion using ast_category_browse */
-	/* Delete test1 and continue */
-	cat_name = NULL;
-	for(i = 0; i < 5; i++) {
-		if (i == 2) {  /* 2 was already deleted above */
-			continue;
-		}
-		snprintf(temp, sizeof(temp), "test%d", i);
-		cat_name = ast_category_browse(cfg, cat_name);
-		cat = ast_category_get(cfg, cat_name, NULL);
-		if (strcmp(cat_name, temp)) {
-			ast_test_status_update(test, "Should have returned %s instead of %s: %d\n", temp, cat_name, i);
-			goto out;
-		}
-		if (i == 1) {
-			ast_category_delete(cfg, cat);
-		}
-	}
-
 	/* Now: test0 test3 test4 test2 */
 	/* delete the head item */
 	cat = ast_category_browse_filtered(cfg, NULL, NULL, NULL);
@@ -428,7 +408,7 @@ AST_TEST_DEFINE(config_basic_ops)
 	/* make sure head got updated to the new first element */
 	cat = ast_category_browse_filtered(cfg, NULL, NULL, NULL);
 	cat_name = ast_category_get_name(cat);
-	if (strcmp(cat_name, "test3")) {
+	if (strcmp(cat_name, "test1")) {
 		ast_test_status_update(test, "Should have returned test3 instead of %s\n", cat_name);
 		goto out;
 	}
@@ -445,6 +425,13 @@ AST_TEST_DEFINE(config_basic_ops)
 
 	/* There should now only be 2 elements in the list */
 	cat = NULL;
+	cat = ast_category_browse_filtered(cfg, NULL, cat, NULL);
+	cat_name = ast_category_get_name(cat);
+	if (strcmp(cat_name, "test1")) {
+		ast_test_status_update(test, "Should have returned test1 instead of %s\n", cat_name);
+		goto out;
+	}
+
 	cat = ast_category_browse_filtered(cfg, NULL, cat, NULL);
 	cat_name = ast_category_get_name(cat);
 	if (strcmp(cat_name, "test3")) {

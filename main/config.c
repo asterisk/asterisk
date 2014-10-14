@@ -1336,6 +1336,10 @@ struct ast_category *ast_category_delete(struct ast_config *config,
 
 	prev = category->prev;
 
+	if (config->last_browse == category) {
+		config->last_browse = prev;
+	}
+
 	ast_category_destroy(category);
 
 	return prev;
