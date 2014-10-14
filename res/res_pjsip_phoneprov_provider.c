@@ -240,13 +240,13 @@ static int load_endpoint(const char *id, const char *endpoint_name, struct varsh
 	assign_and_insert("TRANSPORT_ID", endpoint->transport, vars);
 
 	if (endpoint->id.self.number.valid && !ast_strlen_zero(endpoint->id.self.number.str)) {
-		assign_and_insert(ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_CALLERID],
+		assign_and_insert(ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_CALLERID),
 			endpoint->id.self.number.str, vars);
 	}
 
 	if (endpoint->id.self.name.valid && !ast_strlen_zero(endpoint->id.self.name.str)) {
 		assign_and_insert(
-			ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_DISPLAY_NAME],
+			ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_DISPLAY_NAME),
 			endpoint->id.self.name.str, vars);
 	}
 
@@ -271,9 +271,9 @@ static int load_endpoint(const char *id, const char *endpoint_name, struct varsh
 	}
 
 	assign_and_insert("AUTH_ID", auth_name, vars);
-	assign_and_insert(ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_USERNAME],
+	assign_and_insert(ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_USERNAME),
 		auth->auth_user, vars);
-	assign_and_insert(ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_SECRET],
+	assign_and_insert(ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_SECRET),
 		auth->auth_pass, vars);
 	ao2_ref(auth, -1);
 
@@ -313,25 +313,25 @@ static int load_users(void)
 		}
 
 		if (!ast_var_find(pp->vars,
-			ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_USERNAME])) {
+			ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_USERNAME))) {
 			assign_and_insert(
-				ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_USERNAME], id,
+				ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_USERNAME), id,
 				pp->vars);
 		}
 
 		if (!ast_var_find(pp->vars,
-			ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_LABEL])) {
-			assign_and_insert(ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_LABEL],
+			ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_LABEL))) {
+			assign_and_insert(ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_LABEL),
 				id, pp->vars);
 		}
 
 		if (!ast_var_find(pp->vars,
-			ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_SERVER_PORT])) {
+			ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_SERVER_PORT))) {
 			assign_and_insert("SERVER_PORT", S_OR(port_string, "5060"), pp->vars);
 		}
 
 		if (!ast_var_find(pp->vars,
-			ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_PROFILE])) {
+			ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_PROFILE))) {
 			ast_log(LOG_ERROR, "phoneprov %s didn't contain a PROFILE entry.\n", id);
 		} else if (!ast_phoneprov_add_extension(AST_MODULE, pp->vars)) {
 			user_count++;
@@ -354,13 +354,13 @@ static int users_apply_handler(const struct ast_sorcery *sorcery, void *obj)
 	const char *id = ast_sorcery_object_get_id(pp);
 
 	if (!ast_var_find(pp->vars,
-		ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_MAC])) {
+		ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_MAC))) {
 		ast_log(LOG_ERROR, "phoneprov %s must contain a MAC entry.\n", id);
 		return -1;
 	}
 
 	if (!ast_var_find(pp->vars,
-		ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_PROFILE])) {
+		ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_PROFILE))) {
 		ast_log(LOG_ERROR, "phoneprov %s must contain a PROFILE entry.\n", id);
 		return -1;
 	}
