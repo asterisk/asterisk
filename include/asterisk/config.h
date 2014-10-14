@@ -257,6 +257,10 @@ char *ast_category_browse(struct ast_config *config, const char *prev_name);
  *
  * \retval ast_variable list on success
  * \retval NULL on failure
+ *
+ * \note ast_category_browse is not thread safe and it is not safe to call
+ * ast_category_delete while browsing using ast_category_browse.
+ * ast_category_browse_filtered does not have these restrictions.
  */
 struct ast_variable *ast_variable_browse_filtered(const struct ast_config *config,
 	const char *category_name, const char *filter);
@@ -794,6 +798,9 @@ int ast_category_insert(struct ast_config *config, struct ast_category *cat, con
  * \param category category to delete
  *
  * \return the category after the deleted one which could be NULL.
+ *
+ * \note It is not safe to call ast_category_delete while browsing with
+ * ast_category_browse.  It is safe with ast_category_browse_filtered.
  */
 struct ast_category *ast_category_delete(struct ast_config *cfg, struct ast_category *category);
 
