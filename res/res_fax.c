@@ -1216,6 +1216,7 @@ static struct ast_fax_session *fax_session_new(struct ast_fax_session_details *d
 	if (reserved) {
 		s = reserved;
 		ao2_ref(reserved, +1);
+		ao2_unlink(faxregistry.container, reserved);
 
 		/* NOTE: we don't consume the reference to the reserved
 		 * session. The session returned from fax_session_new() is a
