@@ -404,6 +404,7 @@ int ast_sched_add_variable(struct ast_sched_context *con, int when, ast_sched_cb
 		tmp->resched = when;
 		tmp->variable = variable;
 		tmp->when = ast_tv(0, 0);
+		tmp->deleted = 0;
 		if (sched_settime(&tmp->when, when)) {
 			sched_release(con, tmp);
 		} else {
