@@ -53,8 +53,13 @@ enum ast_phoneprov_std_variables {
 	AST_PHONEPROV_STD_VAR_LIST_LENGTH,	/* This entry must always be the last in the list */
 };
 
-/*! \brief Lookup table for the standard phoneprov variable names */
-extern const char *ast_phoneprov_std_variable_lookup[];
+/*!
+ * \brief Returns the string respresentation of a phoneprov standard variable.
+ * \param var One of enum ast_phoneprov_std_variables
+ *
+ * \return The string representation or NULL if not found.
+ */
+const char *ast_phoneprov_std_variable_lookup(enum ast_phoneprov_std_variables var);
 
 /*!
  * \brief Causes the provider to load its users.
