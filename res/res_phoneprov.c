@@ -180,7 +180,7 @@ static int fname(void *obj, void *arg, int flags) \
 	return CMP_MATCH; \
 }
 
-const char *ast_phoneprov_std_variable_lookup[] = {
+static const char *variable_lookup[] = {
 	[AST_PHONEPROV_STD_MAC] = "MAC",
 	[AST_PHONEPROV_STD_PROFILE] = "PROFILE",
 	[AST_PHONEPROV_STD_USERNAME] = "USERNAME",
@@ -207,7 +207,7 @@ const char *ast_phoneprov_std_variable_lookup[] = {
 };
 
 /* Translate the standard variables to their users.conf equivalents. */
-const char *pp_user_lookup[] = {
+static const char *pp_user_lookup[] = {
 	[AST_PHONEPROV_STD_MAC] = "macaddress",
 	[AST_PHONEPROV_STD_PROFILE] = "profile",
 	[AST_PHONEPROV_STD_USERNAME] = "username",
@@ -234,7 +234,7 @@ const char *pp_user_lookup[] = {
 };
 
 /* Translate the standard variables to their phoneprov.conf [general] equivalents. */
-const char *pp_general_lookup[] = {
+static const char *pp_general_lookup[] = {
 	[AST_PHONEPROV_STD_MAC] = NULL,
 	[AST_PHONEPROV_STD_PROFILE] = "default_profile",
 	[AST_PHONEPROV_STD_USERNAME] = NULL,
@@ -699,22 +699,22 @@ static struct extension *build_extension(const char *name, struct varshead *vars
 		return NULL;
 	}
 
-	tmp = ast_var_find(exten->headp, ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_LINENUMBER]);
+	tmp = ast_var_find(exten->headp, variable_lookup[AST_PHONEPROV_STD_LINENUMBER]);
 	if (!tmp) {
 		AST_VAR_LIST_INSERT_TAIL(exten->headp,
-			ast_var_assign(ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_LINENUMBER], "1"));
+			ast_var_assign(variable_lookup[AST_PHONEPROV_STD_LINENUMBER], "1"));
 		exten->index = 1;
 	} else {
 		sscanf(tmp, "%d", &exten->index);
 	}
 
-	if (!ast_var_find(exten->headp, ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_LINEKEYS])) {
+	if (!ast_var_find(exten->headp, variable_lookup[AST_PHONEPROV_STD_LINEKEYS])) {
 		AST_VAR_LIST_INSERT_TAIL(exten->headp,
-			ast_var_assign(ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_LINEKEYS], "1"));
+			ast_var_assign(variable_lookup[AST_PHONEPROV_STD_LINEKEYS], "1"));
 	}
 
 	set_timezone_variables(exten->headp,
-		ast_var_find(vars, ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_TIMEZONE]));
+		ast_var_find(vars, variable_lookup[AST_PHONEPROV_STD_TIMEZONE]));
 
 	return exten;
 }
@@ -935,7 +935,7 @@ static int phoneprov_callback(struct ast_tcptls_session_instance *ser, const str
 		 * the IP address we are listening on that the phone contacted for this config file */
 
 		server = ast_var_find(AST_LIST_FIRST(&route->user->extensions)->headp,
-			ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_SERVER]);
+			variable_lookup[AST_PHONEPROV_STD_SERVER]);
 
 		if (!server) {
 			union {
@@ -953,7 +953,7 @@ static int phoneprov_callback(struct ast_tcptls_session_instance *ser, const str
 
 				AST_LIST_TRAVERSE(&route->user->extensions, exten_iter, entry) {
 					AST_VAR_LIST_INSERT_TAIL(exten_iter->headp,
-						ast_var_assign(ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_SERVER], newserver));
+						ast_var_assign(variable_lookup[AST_PHONEPROV_STD_SERVER], newserver));
 				}
 			}
 		}
@@ -1221,7 +1221,7 @@ static struct varshead *get_defaults(void)
 		}
 	}
 	if (value) {
-		var = ast_var_assign(ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_SERVER], value);
+		var = ast_var_assign(variable_lookup[AST_PHONEPROV_STD_SERVER], value);
 		AST_VAR_LIST_INSERT_TAIL(defaults, var);
 	} else {
 		ast_log(LOG_WARNING, "Unable to find a valid server address or name.\n");
@@ -1234,7 +1234,7 @@ static struct varshead *get_defaults(void)
 			ast_config_destroy(cfg);
 		}
 	}
-	var = ast_var_assign(ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_SERVER_PORT], S_OR(value, "5060"));
+	var = ast_var_assign(variable_lookup[AST_PHONEPROV_STD_SERVER_PORT], S_OR(value, "5060"));
 	AST_VAR_LIST_INSERT_TAIL(defaults, var);
 
 	value = ast_variable_retrieve(phoneprov_cfg, "general", pp_general_lookup[AST_PHONEPROV_STD_PROFILE]);
@@ -1244,7 +1244,7 @@ static struct varshead *get_defaults(void)
 		ast_var_list_destroy(defaults);
 		return NULL;
 	}
-	var = ast_var_assign(ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_PROFILE], value);
+	var = ast_var_assign(variable_lookup[AST_PHONEPROV_STD_PROFILE], value);
 	AST_VAR_LIST_INSERT_TAIL(defaults, var);
 	ast_config_destroy(phoneprov_cfg);
 
@@ -1257,11 +1257,11 @@ static struct varshead *get_defaults(void)
 	/* Go ahead and load global variables from users.conf so we can append to profiles */
 	for (v = ast_variable_browse(cfg, "general"); v; v = v->next) {
 		if (!strcasecmp(v->name, pp_user_lookup[AST_PHONEPROV_STD_VOICEMAIL_EXTEN])) {
-			var = ast_var_assign(ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_VOICEMAIL_EXTEN], v->value);
+			var = ast_var_assign(variable_lookup[AST_PHONEPROV_STD_VOICEMAIL_EXTEN], v->value);
 			AST_VAR_LIST_INSERT_TAIL(defaults, var);
 		}
 		if (!strcasecmp(v->name, pp_user_lookup[AST_PHONEPROV_STD_EXTENSION_LENGTH])) {
-			var = ast_var_assign(ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_EXTENSION_LENGTH], v->value);
+			var = ast_var_assign(variable_lookup[AST_PHONEPROV_STD_EXTENSION_LENGTH], v->value);
 			AST_VAR_LIST_INSERT_TAIL(defaults, var);
 		}
 	}
@@ -1309,14 +1309,14 @@ static int load_users(void)
 				if (pp_user_lookup[i]) {
 					value = ast_variable_retrieve(cfg, cat, pp_user_lookup[i]);
 					if (value) {
-						varx = ast_var_assign(ast_phoneprov_std_variable_lookup[i],
+						varx = ast_var_assign(variable_lookup[i],
 							value);
 						AST_VAR_LIST_INSERT_TAIL(variables, varx);
 					}
 				}
 			}
 
-			if (!ast_var_find(variables, ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_MAC])) {
+			if (!ast_var_find(variables, variable_lookup[AST_PHONEPROV_STD_MAC])) {
 				ast_log(LOG_WARNING, "autoprov set for %s, but no mac address - skipping.\n", cat);
 				ast_var_list_destroy(variables);
 				continue;
@@ -1486,14 +1486,24 @@ static int reload(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT | AST_MODFLAG_GLOBAL_SYMBOLS, "HTTP Phone Provisioning",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "HTTP Phone Provisioning",
 		.support_level = AST_MODULE_SUPPORT_EXTENDED,
 		.load = load_module,
 		.unload = unload_module,
 		.reload = reload,
+		.load_pri = AST_MODPRI_CHANNEL_DEPEND,
 	);
 
 /****  Public API for register/unregister, set defaults, and add extension. ****/
+
+const char *ast_phoneprov_std_variable_lookup(enum ast_phoneprov_std_variables var)
+{
+	if (var >= AST_PHONEPROV_STD_VAR_LIST_LENGTH) {
+		return NULL;
+	}
+
+	return variable_lookup[var];
+}
 
 int ast_phoneprov_provider_register(char *provider_name,
 	ast_phoneprov_load_users_cb load_users)
@@ -1608,13 +1618,13 @@ int ast_phoneprov_add_extension(char *provider_name, struct varshead *vars)
 		return -1;
 	}
 
-	username = ast_var_find(vars, ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_USERNAME]);
+	username = ast_var_find(vars, variable_lookup[AST_PHONEPROV_STD_USERNAME]);
 	if (!username) {
 		ast_log(LOG_ERROR, "Extension name can't be empty.\n");
 		return -1;
 	}
 
-	mac = ast_var_find(vars, ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_MAC]);
+	mac = ast_var_find(vars, variable_lookup[AST_PHONEPROV_STD_MAC]);
 	if (!mac) {
 		ast_log(LOG_ERROR, "MAC Address can't be empty.\n");
 		return -1;
@@ -1627,7 +1637,7 @@ int ast_phoneprov_add_extension(char *provider_name, struct varshead *vars)
 	}
 
 	profile_name = ast_var_find(vars,
-		ast_phoneprov_std_variable_lookup[AST_PHONEPROV_STD_PROFILE]);
+		variable_lookup[AST_PHONEPROV_STD_PROFILE]);
 	if (!profile_name) {
 		ast_log(LOG_ERROR, "No profile could be found for user '%s' - skipping.\n", username);
 		return -1;
