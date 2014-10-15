@@ -2756,7 +2756,6 @@ static int load_module(void)
 	ast_format_cap_append_by_type(jingle_tech.capabilities, AST_MEDIA_TYPE_AUDIO);
 
 	if (aco_process_config(&cfg_info, 0)) {
-		ao2_ref(jingle_tech.capabilities, -1);
 		ast_log(LOG_ERROR, "Unable to read config file motif.conf. Module loaded but not running.\n");
 		aco_info_destroy(&cfg_info);
 		ao2_cleanup(jingle_tech.capabilities);
@@ -2784,7 +2783,6 @@ static int load_module(void)
 	return 0;
 
 end:
-	ao2_cleanup(jingle_tech.capabilities);
 	ast_rtp_glue_unregister(&jingle_rtp_glue);
 
 	if (sched) {
