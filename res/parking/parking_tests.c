@@ -36,6 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/time.h"
 #include "asterisk/causes.h"
 #include "asterisk/pbx.h"
+#include "asterisk/format_cache.h"
 
 #if defined(TEST_FRAMEWORK)
 
@@ -50,6 +51,44 @@ static const struct ast_party_caller alice_callerid = {
 	.id.number.valid = 1,
 };
 
+static int parking_test_write(struct ast_channel *chan, struct ast_frame *frame)
+{
+	return 0;
+}
+
+static struct ast_frame *parking_test_read(struct ast_channel *chan)
+{
+	return &ast_null_frame;
+}
+
+static const struct ast_channel_tech parking_test_tech = {
+	.type = CHANNEL_TECH_NAME,
+	.description = "Parking unit test technology",
+	.write = parking_test_write,
+	.read = parking_test_read,
+};
+
+/*! \brief Set ulaw format on the channel */
+static int set_test_formats(struct ast_channel *chan)
+{
+	struct ast_format_cap *caps;
+
+	caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!caps) {
+		return -1;
+	}
+
+	ast_format_cap_append(caps, ast_format_ulaw, 0);
+	ast_channel_nativeformats_set(chan, caps);
+	ast_channel_set_writeformat(chan, ast_format_ulaw);
+	ast_channel_set_rawwriteformat(chan, ast_format_ulaw);
+	ast_channel_set_readformat(chan, ast_format_ulaw);
+	ast_channel_set_rawreadformat(chan, ast_format_ulaw);
+	ao2_ref(caps, -1);
+
+	return 0;
+}
+
 /*! \brief Create a \ref test_cdr_chan_tech for Alice */
 static struct ast_channel *create_alice_channel(void)
 {
@@ -60,6 +99,14 @@ static struct ast_channel *create_alice_channel(void)
 	if (!alice) {
 		return NULL;
 	}
+
+	if (set_test_formats(alice)) {
+		ast_channel_unlock(alice);
+		ast_channel_release(alice);
+		return NULL;
+	}
+
+	ast_channel_tech_set(alice, &parking_test_tech);
 
 	ast_channel_set_caller(alice, &alice_callerid, NULL);
 
