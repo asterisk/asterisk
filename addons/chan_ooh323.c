@@ -2724,7 +2724,7 @@ int reload_config(int reload)
                                                       gContext);
 		} else if (!strcasecmp(v->name, "rtptimeout")) {
 			gRTPTimeout = atoi(v->value);
-			if (gRTPTimeout <= 0)
+			if (gRTPTimeout < 0)
 				gRTPTimeout = 60;
 		} else if (!strcasecmp(v->name, "tos")) {
 			if (sscanf(v->value, "%30i", &format) == 1)
