@@ -674,4 +674,13 @@ const char *ast_sip_subscription_get_body_type(struct ast_sip_subscription *sub)
  */
 const char *ast_sip_subscription_get_body_subtype(struct ast_sip_subscription *sub);
 
+/*! \brief Determines whether the res_pjsip_pubsub module is loaded */
+#define CHECK_PJSIP_PUBSUB_MODULE_LOADED()			\
+	do {							\
+		CHECK_PJSIP_MODULE_LOADED();			\
+		if (!ast_module_check("res_pjsip_pubsub.so")) {	\
+			return AST_MODULE_LOAD_DECLINE;		\
+		}						\
+	} while(0)
+
 #endif /* RES_PJSIP_PUBSUB_H */

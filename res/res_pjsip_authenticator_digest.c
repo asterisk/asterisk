@@ -466,6 +466,8 @@ static int reload_module(void)
 
 static int load_module(void)
 {
+	CHECK_PJSIP_MODULE_LOADED();
+
 	if (build_entity_id()) {
 		return AST_MODULE_LOAD_DECLINE;
 	}

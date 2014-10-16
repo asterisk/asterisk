@@ -224,6 +224,8 @@ static struct ast_sip_session_supplement path_session_supplement = {
 
 static int load_module(void)
 {
+	CHECK_PJSIP_SESSION_MODULE_LOADED();
+
 	if (ast_sip_register_supplement(&path_supplement)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}

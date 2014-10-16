@@ -108,6 +108,8 @@ static struct ast_sip_endpoint_identifier anonymous_identifier = {
 
 static int load_module(void)
 {
+	CHECK_PJSIP_MODULE_LOADED();
+
 	ast_sip_register_endpoint_identifier(&anonymous_identifier);
 	return AST_MODULE_LOAD_SUCCESS;
 }

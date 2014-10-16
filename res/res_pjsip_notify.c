@@ -987,6 +987,8 @@ static int manager_notify(struct mansession *s, const struct message *m)
 
 static int load_module(void)
 {
+	CHECK_PJSIP_MODULE_LOADED();
+
 	if (aco_info_init(&notify_cfg)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}

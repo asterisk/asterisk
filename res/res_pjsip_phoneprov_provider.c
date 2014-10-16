@@ -370,6 +370,8 @@ static int users_apply_handler(const struct ast_sorcery *sorcery, void *obj)
 
 static int load_module(void)
 {
+	CHECK_PJSIP_MODULE_LOADED();
+
 	if (!(sorcery = ast_sorcery_open())) {
 		ast_log(LOG_ERROR, "Unable to open a sorcery instance.\n");
 		return AST_MODULE_LOAD_DECLINE;
