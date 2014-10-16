@@ -94,6 +94,8 @@ static struct ast_sip_pubsub_body_generator mwi_generator = {
 
 static int load_module(void)
 {
+	CHECK_PJSIP_PUBSUB_MODULE_LOADED();
+
 	if (ast_sip_pubsub_register_body_generator(&mwi_generator)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}

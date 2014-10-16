@@ -638,4 +638,13 @@ struct ast_sip_session *ast_sip_dialog_get_session(pjsip_dialog *dlg);
  */
 void ast_sip_session_resume_reinvite(struct ast_sip_session *session);
 
+/*! \brief Determines whether the res_pjsip_session module is loaded */
+#define CHECK_PJSIP_SESSION_MODULE_LOADED()				\
+	do {								\
+		CHECK_PJSIP_MODULE_LOADED();				\
+		if (!ast_module_check("res_pjsip_session.so")) {	\
+			return AST_MODULE_LOAD_DECLINE;			\
+		}							\
+	} while(0)
+
 #endif /* _RES_PJSIP_SESSION_H */

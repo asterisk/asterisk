@@ -2405,6 +2405,8 @@ static int load_module(void)
 {
 	pjsip_endpoint *endpt;
 
+	CHECK_PJSIP_MODULE_LOADED();
+
 	if (!ast_sip_get_sorcery() || !ast_sip_get_pjsip_endpoint()) {
 		return AST_MODULE_LOAD_DECLINE;
 	}

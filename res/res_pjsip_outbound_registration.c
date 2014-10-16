@@ -1241,6 +1241,8 @@ static struct ast_sip_cli_formatter_entry *cli_formatter;
 
 static int load_module(void)
 {
+	CHECK_PJSIP_MODULE_LOADED();
+
 	ast_sorcery_apply_default(ast_sip_get_sorcery(), "registration", "config", "pjsip.conf,criteria=type=registration");
 
 	if (ast_sorcery_object_register(ast_sip_get_sorcery(), "registration", sip_outbound_registration_alloc, NULL, sip_outbound_registration_apply)) {

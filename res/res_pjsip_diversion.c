@@ -330,6 +330,8 @@ static struct ast_sip_session_supplement diversion_supplement = {
 
 static int load_module(void)
 {
+	CHECK_PJSIP_SESSION_MODULE_LOADED();
+
 	ast_sip_session_register_supplement(&diversion_supplement);
 	return AST_MODULE_LOAD_SUCCESS;
 }

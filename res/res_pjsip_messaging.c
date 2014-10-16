@@ -723,6 +723,8 @@ static pjsip_module messaging_module = {
 
 static int load_module(void)
 {
+	CHECK_PJSIP_SESSION_MODULE_LOADED();
+
 	if (ast_sip_register_service(&messaging_module) != PJ_SUCCESS) {
 		return AST_MODULE_LOAD_DECLINE;
 	}

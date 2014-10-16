@@ -528,6 +528,8 @@ static void to_ami(struct ast_sip_subscription *sub,
 
 static int load_module(void)
 {
+	CHECK_PJSIP_MODULE_LOADED();
+
 	if (ast_sip_register_subscription_handler(&presence_handler)) {
 		ast_log(LOG_WARNING, "Unable to register subscription handler %s\n",
 			presence_handler.event_name);

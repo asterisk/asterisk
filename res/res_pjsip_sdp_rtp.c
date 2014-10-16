@@ -1254,6 +1254,8 @@ static int unload_module(void)
  */
 static int load_module(void)
 {
+	CHECK_PJSIP_SESSION_MODULE_LOADED();
+
 	ast_sockaddr_parse(&address_ipv4, "0.0.0.0", 0);
 	ast_sockaddr_parse(&address_ipv6, "::", 0);
 

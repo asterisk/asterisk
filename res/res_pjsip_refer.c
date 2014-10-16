@@ -20,7 +20,6 @@
 	<depend>pjproject</depend>
 	<depend>res_pjsip</depend>
 	<depend>res_pjsip_session</depend>
-	<depend>res_pjsip_pubsub</depend>
 	<support_level>core</support_level>
  ***/
 
@@ -984,6 +983,8 @@ static struct ast_sip_session_supplement refer_supplement = {
 static int load_module(void)
 {
 	const pj_str_t str_norefersub = { "norefersub", 10 };
+
+	CHECK_PJSIP_SESSION_MODULE_LOADED();
 
 	pjsip_replaces_init_module(ast_sip_get_pjsip_endpoint());
 	pjsip_xfer_init_module(ast_sip_get_pjsip_endpoint());

@@ -410,6 +410,8 @@ static struct ast_sip_cli_formatter_entry *cli_formatter;
 
 static int load_module(void)
 {
+	CHECK_PJSIP_MODULE_LOADED();
+
 	ast_sorcery_apply_config(ast_sip_get_sorcery(), "res_pjsip_endpoint_identifier_ip");
 	ast_sorcery_apply_default(ast_sip_get_sorcery(), "identify", "config", "pjsip.conf,criteria=type=identify");
 

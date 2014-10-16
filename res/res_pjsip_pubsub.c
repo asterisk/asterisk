@@ -1867,7 +1867,11 @@ static int persistence_expires_struct2str(const void *obj, const intptr_t *args,
 static int load_module(void)
 {
 	static const pj_str_t str_PUBLISH = { "PUBLISH", 7 };
-	struct ast_sorcery *sorcery = ast_sip_get_sorcery();
+	struct ast_sorcery *sorcery;
+
+	CHECK_PJSIP_MODULE_LOADED();
+
+	sorcery = ast_sip_get_sorcery();
 
 	pjsip_evsub_init_module(ast_sip_get_pjsip_endpoint());
 

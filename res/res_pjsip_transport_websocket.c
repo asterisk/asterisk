@@ -361,6 +361,8 @@ static struct ast_sip_session_supplement websocket_supplement = {
 
 static int load_module(void)
 {
+	CHECK_PJSIP_MODULE_LOADED();
+
 	pjsip_transport_register_type(PJSIP_TRANSPORT_RELIABLE, "WS", 5060, &transport_type_ws);
 	pjsip_transport_register_type(PJSIP_TRANSPORT_RELIABLE, "WSS", 5060, &transport_type_wss);
 
