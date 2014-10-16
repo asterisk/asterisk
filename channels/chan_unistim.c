@@ -4841,17 +4841,19 @@ static int unistim_hangup(struct ast_channel *ast)
 	} else if (sub->subtype == SUB_RING) {
 		send_no_ring(s);
 		for (i = 0; i < FAVNUM; i++) {
-			if (!soft_key_visible(s->device, i))
+			if (!soft_key_visible(s->device, i)) {
 				continue;
-			if (d->ssub[i] != sub)
+			}
+			if (d->ssub[i] != sub) {
+				if (d->ssub[i] != NULL) { /* Found other subchannel active other then hangup'ed one */
+					end_call = 0;
+				}
 				continue;
+			}
 			if (is_key_line(d, i) && !strcmp(l->name, d->sline[i]->name)) {
 				send_favorite_short(i, FAV_LINE_ICON, s);
 				d->ssub[i] = NULL;
 				continue;
-			}
-			if (d->ssub[i] != NULL) { /* Found other subchannel active other then hangup'ed one */
-				end_call = 0;
 			}
 		}
 	}
