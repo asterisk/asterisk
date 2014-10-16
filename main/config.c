@@ -677,10 +677,29 @@ const char *ast_config_option(struct ast_config *cfg, const char *cat, const cha
 	return tmp;
 }
 
-const char *ast_variable_retrieve(struct ast_config *config,
-	const char *category, const char *variable)
+const char *ast_variable_retrieve(struct ast_config *config, const char *category, const char *variable)
 {
-	return ast_variable_retrieve_filtered(config, category, variable, NULL);
+	struct ast_variable *v;
+
+	if (category) {
+		for (v = ast_variable_browse(config, category); v; v = v->next) {
+			if (!strcasecmp(variable, v->name)) {
+				return v->value;
+			}
+		}
+	} else {
+		struct ast_category *cat;
+
+		for (cat = config->root; cat; cat = cat->next) {
+			for (v = cat->root; v; v = v->next) {
+				if (!strcasecmp(variable, v->name)) {
+					return v->value;
+				}
+			}
+		}
+	}
+
+	return NULL;
 }
 
 const char *ast_variable_retrieve_filtered(struct ast_config *config,
@@ -859,6 +878,12 @@ struct ast_category *ast_category_get(const struct ast_config *config,
 	const char *category_name, const char *filter)
 {
 	struct ast_category *cat;
+
+	for (cat = config->root; cat; cat = cat->next) {
+		if (cat->name == category_name && does_category_match(cat, category_name, filter)) {
+			return cat;
+		}
+	}
 
 	for (cat = config->root; cat; cat = cat->next) {
 		if (does_category_match(cat, category_name, filter)) {
@@ -1188,7 +1213,6 @@ struct ast_category *ast_category_browse_filtered(struct ast_config *config,
 	}
 
 	cat = next_available_category(prev, category_name, filter);
-	config->last_browse = cat;
 
 	return cat;
 }
