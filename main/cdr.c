@@ -3520,7 +3520,7 @@ static int submit_scheduled_batch(const void *data)
 	/* manually reschedule from this point in time */
 
 	ast_mutex_lock(&cdr_sched_lock);
-	cdr_sched = ast_sched_add(sched, mod_cfg->general->batch_settings.size * 1000, submit_scheduled_batch, NULL);
+	cdr_sched = ast_sched_add(sched, mod_cfg->general->batch_settings.time * 1000, submit_scheduled_batch, NULL);
 	ast_mutex_unlock(&cdr_sched_lock);
 	/* returning zero so the scheduler does not automatically reschedule */
 	return 0;
