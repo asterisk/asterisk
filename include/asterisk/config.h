@@ -238,6 +238,11 @@ struct ast_category *ast_category_browse_filtered(struct ast_config *config,
  *
  * \retval a category name on success
  * \retval NULL on failure/no-more-categories
+ *
+ * \note ast_category_browse maintains internal state.  Therefore is not thread
+ * safe, cannot be called recursively, and it is not safe to add or remove
+ * categories while browsing.
+ * ast_category_browse_filtered does not have these restrictions.
  */
 char *ast_category_browse(struct ast_config *config, const char *prev_name);
 
@@ -257,10 +262,6 @@ char *ast_category_browse(struct ast_config *config, const char *prev_name);
  *
  * \retval ast_variable list on success
  * \retval NULL on failure
- *
- * \note ast_category_browse is not thread safe and it is not safe to call
- * ast_category_delete while browsing using ast_category_browse.
- * ast_category_browse_filtered does not have these restrictions.
  */
 struct ast_variable *ast_variable_browse_filtered(const struct ast_config *config,
 	const char *category_name, const char *filter);

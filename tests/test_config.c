@@ -460,7 +460,7 @@ AST_TEST_DEFINE(config_basic_ops)
 	cat = ast_category_browse_filtered(cfg, NULL, NULL, NULL);
 	cat = ast_category_browse_filtered(cfg, NULL, cat, NULL);
 	cat_name = ast_category_get_name(cat);
-	var = ast_variable_new("aaa", "bbb", "dummy");
+	var = ast_variable_new("aaa", "bbb0", "dummy");
 	if (!var) {
 		ast_test_status_update(test, "Couldn't allocate variable.\n");
 		goto out;
@@ -469,15 +469,70 @@ AST_TEST_DEFINE(config_basic_ops)
 
 	/* Make sure we can retrieve with specific category name */
 	var_value = ast_variable_retrieve(cfg, cat_name, "aaa");
-	if (!var_value || strcmp(var_value, "bbb")) {
+	if (!var_value || strcmp(var_value, "bbb0")) {
 		ast_test_status_update(test, "Variable not found or wrong value.\n");
 		goto out;
 	}
 
 	/* Make sure we can retrieve with NULL category name */
 	var_value = ast_variable_retrieve(cfg, NULL, "aaa");
-	if (!var_value || strcmp(var_value, "bbb")) {
+	if (!var_value || strcmp(var_value, "bbb0")) {
 		ast_test_status_update(test, "Variable not found or wrong value.\n");
+		goto out;
+	}
+
+	/* Now test variable retrieve inside a browse loop
+	 * with multiple categories of the same name
+	 */
+	cat = ast_category_new("test3", "dummy", -1);
+	if (!cat) {
+		ast_test_status_update(test, "Couldn't allocate category.\n");
+		goto out;
+	}
+	var = ast_variable_new("aaa", "bbb1", "dummy");
+	if (!var) {
+		ast_test_status_update(test, "Couldn't allocate variable.\n");
+		goto out;
+	}
+	ast_variable_append(cat, var);
+	ast_category_append(cfg, cat);
+
+	cat = ast_category_new("test3", "dummy", -1);
+	if (!cat) {
+		ast_test_status_update(test, "Couldn't allocate category.\n");
+		goto out;
+	}
+	var = ast_variable_new("aaa", "bbb2", "dummy");
+	if (!var) {
+		ast_test_status_update(test, "Couldn't allocate variable.\n");
+		goto out;
+	}
+	ast_variable_append(cat, var);
+	ast_category_append(cfg, cat);
+
+	cat_name = NULL;
+	i = 0;
+	while ((cat_name = ast_category_browse(cfg, cat_name))) {
+		if (!strcmp(cat_name, "test3")) {
+			snprintf(temp, sizeof(temp), "bbb%d", i);
+
+			var_value = ast_variable_retrieve(cfg, cat_name, "aaa");
+			if (!var_value || strcmp(var_value, temp)) {
+				ast_test_status_update(test, "Variable not found or wrong value %s.\n", var_value);
+				goto out;
+			}
+
+			var = ast_variable_browse(cfg, cat_name);
+			if (!var->value || strcmp(var->value, temp)) {
+				ast_test_status_update(test, "Variable not found or wrong value %s.\n", var->value);
+				goto out;
+			}
+
+			i++;
+		}
+	}
+	if (i != 3) {
+		ast_test_status_update(test, "There should have been 3 matches instead of %d.\n", i);
 		goto out;
 	}
 
