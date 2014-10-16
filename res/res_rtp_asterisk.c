@@ -563,18 +563,6 @@ static void update_address_with_ice_candidate(struct ast_rtp *rtp, enum ast_rtp_
 	ast_sockaddr_set_port(cand_address, pj_sockaddr_get_port(&rtp->ice->comp[component - 1].valid_check->rcand->addr));
 }
 
-/*! \brief Helper function which sets up channel binding on a TURN session if applicable */
-static void turn_enable_bind_channel(struct ast_rtp *rtp, pj_turn_sock *turn, enum ast_rtp_ice_component_type component, int transport)
-{
-	if (!rtp->ice || !turn || (component < 1) || !rtp->ice->comp[component - 1].valid_check ||
-		(rtp->ice->comp[component - 1].valid_check->lcand->transport_id != transport)) {
-		return;
-	}
-
-	pj_turn_sock_bind_channel(turn, &rtp->ice->comp[component - 1].valid_check->rcand->addr,
-		sizeof(rtp->ice->comp[component - 1].valid_check->rcand->addr));
-}
-
 static int ice_create(struct ast_rtp_instance *instance, struct ast_sockaddr *addr,
 	int port, int replace);
 
@@ -597,6 +585,10 @@ static int ice_reset_session(struct ast_rtp_instance *instance)
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	pj_ice_sess_role role = rtp->ice->role;
 	int res;
+
+	if (!rtp->ice->is_nominating && !rtp->ice->is_complete) {
+		return 0;
+	}
 
 	ast_rtp_ice_stop(instance);
 
@@ -1608,11 +1600,9 @@ static void ast_rtp_on_ice_complete(pj_ice_sess *ice, pj_status_t status)
 
 		update_address_with_ice_candidate(rtp, AST_RTP_ICE_COMPONENT_RTP, &remote_address);
 		ast_rtp_instance_set_remote_address(instance, &remote_address);
-		turn_enable_bind_channel(rtp, rtp->turn_rtp, AST_RTP_ICE_COMPONENT_RTP, TRANSPORT_TURN_RTP);
 
 		if (rtp->rtcp) {
 			update_address_with_ice_candidate(rtp, AST_RTP_ICE_COMPONENT_RTCP, &rtp->rtcp->them);
-			turn_enable_bind_channel(rtp, rtp->turn_rtcp, AST_RTP_ICE_COMPONENT_RTCP, TRANSPORT_TURN_RTCP);
 		}
 	}
 
