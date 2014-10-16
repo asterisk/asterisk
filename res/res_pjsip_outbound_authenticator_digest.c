@@ -146,6 +146,8 @@ static struct ast_sip_outbound_authenticator digest_authenticator = {
 
 static int load_module(void)
 {
+	CHECK_PJSIP_MODULE_LOADED();
+
 	if (ast_sip_register_outbound_authenticator(&digest_authenticator)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}

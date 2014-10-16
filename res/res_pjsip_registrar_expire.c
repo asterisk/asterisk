@@ -177,6 +177,8 @@ static void contact_expiration_initialize_existing(void)
 
 static int load_module(void)
 {
+	CHECK_PJSIP_MODULE_LOADED();
+
 	if (!(contact_autoexpire = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, CONTACT_AUTOEXPIRE_BUCKETS,
 		contact_expiration_hash, contact_expiration_cmp))) {
 		ast_log(LOG_ERROR, "Could not create container for contact auto-expiration\n");

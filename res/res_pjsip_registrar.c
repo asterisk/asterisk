@@ -793,6 +793,8 @@ static int load_module(void)
 {
 	const pj_str_t STR_REGISTER = { "REGISTER", 8 };
 
+	CHECK_PJSIP_MODULE_LOADED();
+
 	if (!(serializers = ao2_container_alloc(
 		      SERIALIZER_BUCKETS, serializer_hash, serializer_cmp))) {
 		return AST_MODULE_LOAD_DECLINE;

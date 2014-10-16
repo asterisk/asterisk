@@ -1944,4 +1944,13 @@ void ast_sip_unregister_supplement(struct ast_sip_supplement *supplement);
  */
 char *ast_sip_get_debug(void);
 
+/*! \brief Determines whether the res_pjsip module is loaded */
+#define CHECK_PJSIP_MODULE_LOADED()				\
+	do {							\
+		if (!ast_module_check("res_pjsip.so")		\
+			|| !ast_sip_get_pjsip_endpoint()) {	\
+			return AST_MODULE_LOAD_DECLINE;		\
+		}						\
+	} while(0)
+
 #endif /* _RES_PJSIP_H */

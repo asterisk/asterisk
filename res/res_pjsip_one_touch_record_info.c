@@ -107,6 +107,8 @@ static struct ast_sip_session_supplement info_supplement = {
 
 static int load_module(void)
 {
+	CHECK_PJSIP_SESSION_MODULE_LOADED();
+
 	if (ast_sip_session_register_supplement(&info_supplement)) {
 		ast_log(LOG_ERROR, "Unable to register One Touch Recording supplement\n");
 		return AST_MODULE_LOAD_FAILURE;

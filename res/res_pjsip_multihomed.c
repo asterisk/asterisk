@@ -201,6 +201,8 @@ static int load_module(void)
 {
 	pj_sockaddr addr;
 
+	CHECK_PJSIP_MODULE_LOADED();
+
 	if (!pj_gethostip(pj_AF_INET(), &addr)) {
 		pj_sockaddr_print(&addr, host_ipv4, sizeof(host_ipv4), 2);
 	}

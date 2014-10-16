@@ -604,6 +604,8 @@ static struct ast_sip_session_supplement header_funcs_supplement = {
 
 static int load_module(void)
 {
+	CHECK_PJSIP_SESSION_MODULE_LOADED();
+
 	ast_sip_session_register_supplement(&header_funcs_supplement);
 	ast_custom_function_register(&pjsip_header_function);
 

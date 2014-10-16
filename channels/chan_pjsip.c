@@ -2214,6 +2214,8 @@ static int load_module(void)
 {
 	struct ao2_container *endpoints;
 
+	CHECK_PJSIP_SESSION_MODULE_LOADED();
+
 	if (!(chan_pjsip_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}

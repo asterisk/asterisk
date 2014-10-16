@@ -281,6 +281,8 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+	CHECK_PJSIP_SESSION_MODULE_LOADED();
+
 	if (ast_sip_register_service(&nat_module)) {
 		ast_log(LOG_ERROR, "Could not register NAT module for incoming and outgoing requests\n");
 		return AST_MODULE_LOAD_FAILURE;
