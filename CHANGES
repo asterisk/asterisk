@@ -21,6 +21,10 @@ chan_sip
    ipaddress to bind the rtpengine to. For example, chan_sip might bind
    to eth0 (10.0.0.2) but rtpengine to eth1 (192.168.1.10).
 
+chan_pjsip
+------------------
+ * New 'user_eq_phone' endpoint setting. This adds a 'user=phone' parameter
+   to the request URI and From URI if the user is determined to be a phone number.
 
 Functions
 ------------------
