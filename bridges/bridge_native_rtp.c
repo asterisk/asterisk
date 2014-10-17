@@ -127,8 +127,8 @@ static enum ast_rtp_glue_result native_rtp_bridge_get(struct ast_channel *c0, st
  */
 static void native_rtp_bridge_start(struct ast_bridge *bridge, struct ast_channel *target)
 {
-	struct ast_bridge_channel *c0 = AST_LIST_FIRST(&bridge->channels);
-	struct ast_bridge_channel *c1 = AST_LIST_LAST(&bridge->channels);
+	struct ast_bridge_channel *bc0 = AST_LIST_FIRST(&bridge->channels);
+	struct ast_bridge_channel *bc1 = AST_LIST_LAST(&bridge->channels);
 	enum ast_rtp_glue_result native_type;
 	struct ast_rtp_glue *glue0, *glue1;
 	RAII_VAR(struct ast_rtp_instance *, instance0, NULL, ao2_cleanup);
@@ -140,12 +140,12 @@ static void native_rtp_bridge_start(struct ast_bridge *bridge, struct ast_channe
 	RAII_VAR(struct ast_format_cap *, cap0, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT), ao2_cleanup);
 	RAII_VAR(struct ast_format_cap *, cap1, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT), ao2_cleanup);
 
-	if (c0 == c1) {
+	if (bc0 == bc1) {
 		return;
 	}
 
-	ast_channel_lock_both(c0->chan, c1->chan);
-	native_type = native_rtp_bridge_get(c0->chan, c1->chan, &glue0, &glue1, &instance0, &instance1, &vinstance0, &vinstance1);
+	ast_channel_lock_both(bc0->chan, bc1->chan);
+	native_type = native_rtp_bridge_get(bc0->chan, bc1->chan, &glue0, &glue1, &instance0, &instance1, &vinstance0, &vinstance1);
 
 	switch (native_type) {
 	case AST_RTP_GLUE_RESULT_LOCAL:
@@ -158,23 +158,23 @@ static void native_rtp_bridge_start(struct ast_bridge *bridge, struct ast_channe
 		ast_rtp_instance_set_bridged(instance0, instance1);
 		ast_rtp_instance_set_bridged(instance1, instance0);
 		ast_debug(2, "Locally RTP bridged '%s' and '%s' in stack\n",
-			ast_channel_name(c0->chan), ast_channel_name(c1->chan));
+			ast_channel_name(bc0->chan), ast_channel_name(bc1->chan));
 		break;
 
 	case AST_RTP_GLUE_RESULT_REMOTE:
 		if (glue0->get_codec) {
-			glue0->get_codec(c0->chan, cap0);
+			glue0->get_codec(bc0->chan, cap0);
 		}
 		if (glue1->get_codec) {
-			glue1->get_codec(c1->chan, cap1);
+			glue1->get_codec(bc1->chan, cap1);
 		}
 
 		/* If we have a target, it's the channel that received the UNHOLD or UPDATE_RTP_PEER frame and was told to resume */
 		if (!target) {
-			glue0->update_peer(c0->chan, instance1, vinstance1, tinstance1, cap1, 0);
-			glue1->update_peer(c1->chan, instance0, vinstance0, tinstance0, cap0, 0);
+			glue0->update_peer(bc0->chan, instance1, vinstance1, tinstance1, cap1, 0);
+			glue1->update_peer(bc1->chan, instance0, vinstance0, tinstance0, cap0, 0);
 			ast_debug(2, "Remotely bridged '%s' and '%s' - media will flow directly between them\n",
-				ast_channel_name(c0->chan), ast_channel_name(c1->chan));
+				ast_channel_name(bc0->chan), ast_channel_name(bc1->chan));
 		} else {
 			/*
 			 * If a target was provided, it is the recipient of an unhold or an update and needs to have
@@ -182,10 +182,10 @@ static void native_rtp_bridge_start(struct ast_bridge *bridge, struct ast_channe
 			 * already set up to handle the new media path or will have its own set of updates independent
 			 * of this pass.
 			 */
-			if (c0->chan == target) {
-				glue0->update_peer(c0->chan, instance1, vinstance1, tinstance1, cap1, 0);
+			if (bc0->chan == target) {
+				glue0->update_peer(bc0->chan, instance1, vinstance1, tinstance1, cap1, 0);
 			} else {
-				glue1->update_peer(c1->chan, instance0, vinstance0, tinstance0, cap0, 0);
+				glue1->update_peer(bc1->chan, instance0, vinstance0, tinstance0, cap0, 0);
 			}
 		}
 		break;
@@ -193,14 +193,14 @@ static void native_rtp_bridge_start(struct ast_bridge *bridge, struct ast_channe
 		break;
 	}
 
-	ast_channel_unlock(c0->chan);
-	ast_channel_unlock(c1->chan);
+	ast_channel_unlock(bc0->chan);
+	ast_channel_unlock(bc1->chan);
 }
 
 static void native_rtp_bridge_stop(struct ast_bridge *bridge, struct ast_channel *target)
 {
-	struct ast_bridge_channel *c0 = AST_LIST_FIRST(&bridge->channels);
-	struct ast_bridge_channel *c1 = AST_LIST_LAST(&bridge->channels);
+	struct ast_bridge_channel *bc0 = AST_LIST_FIRST(&bridge->channels);
+	struct ast_bridge_channel *bc1 = AST_LIST_LAST(&bridge->channels);
 	enum ast_rtp_glue_result native_type;
 	struct ast_rtp_glue *glue0, *glue1 = NULL;
 	RAII_VAR(struct ast_rtp_instance *, instance0, NULL, ao2_cleanup);
@@ -208,12 +208,12 @@ static void native_rtp_bridge_stop(struct ast_bridge *bridge, struct ast_channel
 	RAII_VAR(struct ast_rtp_instance *, vinstance0, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_rtp_instance *, vinstance1, NULL, ao2_cleanup);
 
-	if (c0 == c1) {
+	if (bc0 == bc1) {
 		return;
 	}
 
-	ast_channel_lock_both(c0->chan, c1->chan);
-	native_type = native_rtp_bridge_get(c0->chan, c1->chan, &glue0, &glue1, &instance0, &instance1, &vinstance0, &vinstance1);
+	ast_channel_lock_both(bc0->chan, bc1->chan);
+	native_type = native_rtp_bridge_get(bc0->chan, bc1->chan, &glue0, &glue1, &instance0, &instance1, &vinstance0, &vinstance1);
 
 	switch (native_type) {
 	case AST_RTP_GLUE_RESULT_LOCAL:
@@ -230,21 +230,17 @@ static void native_rtp_bridge_stop(struct ast_bridge *bridge, struct ast_channel
 		break;
 	case AST_RTP_GLUE_RESULT_REMOTE:
 		if (!target) {
-			if (ast_channel_is_leaving_bridge(c0->chan)) {
-				glue0->update_peer(c0->chan, NULL, NULL, NULL, NULL, 0);
-			}
-			if (glue1 && ast_channel_is_leaving_bridge(c1->chan)) {
-				glue1->update_peer(c1->chan, NULL, NULL, NULL, NULL, 0);
-			}
+			glue0->update_peer(bc0->chan, NULL, NULL, NULL, NULL, 0);
+			glue1->update_peer(bc1->chan, NULL, NULL, NULL, NULL, 0);
 		} else {
 			/*
 			 * If a target was provided, it is being put on hold and should expect to
-			 * receive mediafrom sterisk instead of what it was previously connected to.
+			 * receive media from Asterisk instead of what it was previously connected to.
 			 */
-			if (c0->chan == target) {
-				glue0->update_peer(c0->chan, NULL, NULL, NULL, NULL, 0);
-			} else if (glue1) {
-				glue1->update_peer(c1->chan, NULL, NULL, NULL, NULL, 0);
+			if (bc0->chan == target) {
+				glue0->update_peer(bc0->chan, NULL, NULL, NULL, NULL, 0);
+			} else {
+				glue1->update_peer(bc1->chan, NULL, NULL, NULL, NULL, 0);
 			}
 		}
 		break;
@@ -253,10 +249,10 @@ static void native_rtp_bridge_stop(struct ast_bridge *bridge, struct ast_channel
 	}
 
 	ast_debug(2, "Discontinued RTP bridging of '%s' and '%s' - media will flow through Asterisk core\n",
-		ast_channel_name(c0->chan), ast_channel_name(c1->chan));
+		ast_channel_name(bc0->chan), ast_channel_name(bc1->chan));
 
-	ast_channel_unlock(c0->chan);
-	ast_channel_unlock(c1->chan);
+	ast_channel_unlock(bc0->chan);
+	ast_channel_unlock(bc1->chan);
 }
 
 /*! \brief Frame hook that is called to intercept hold/unhold */
@@ -304,8 +300,8 @@ static int native_rtp_bridge_capable(struct ast_channel *chan)
 
 static int native_rtp_bridge_compatible(struct ast_bridge *bridge)
 {
-	struct ast_bridge_channel *c0 = AST_LIST_FIRST(&bridge->channels);
-	struct ast_bridge_channel *c1 = AST_LIST_LAST(&bridge->channels);
+	struct ast_bridge_channel *bc0 = AST_LIST_FIRST(&bridge->channels);
+	struct ast_bridge_channel *bc1 = AST_LIST_LAST(&bridge->channels);
 	enum ast_rtp_glue_result native_type;
 	struct ast_rtp_glue *glue0, *glue1;
 	RAII_VAR(struct ast_rtp_instance *, instance0, NULL, ao2_cleanup);
@@ -323,41 +319,41 @@ static int native_rtp_bridge_compatible(struct ast_bridge *bridge)
 		return 0;
 	}
 
-	if (!native_rtp_bridge_capable(c0->chan)) {
+	if (!native_rtp_bridge_capable(bc0->chan)) {
 		ast_debug(1, "Bridge '%s' can not use native RTP bridge as channel '%s' has features which prevent it\n",
-			bridge->uniqueid, ast_channel_name(c0->chan));
+			bridge->uniqueid, ast_channel_name(bc0->chan));
 		return 0;
 	}
 
-	if (!native_rtp_bridge_capable(c1->chan)) {
+	if (!native_rtp_bridge_capable(bc1->chan)) {
 		ast_debug(1, "Bridge '%s' can not use native RTP bridge as channel '%s' has features which prevent it\n",
-			bridge->uniqueid, ast_channel_name(c1->chan));
+			bridge->uniqueid, ast_channel_name(bc1->chan));
 		return 0;
 	}
 
-	if ((native_type = native_rtp_bridge_get(c0->chan, c1->chan, &glue0, &glue1, &instance0, &instance1, &vinstance0, &vinstance1))
+	if ((native_type = native_rtp_bridge_get(bc0->chan, bc1->chan, &glue0, &glue1, &instance0, &instance1, &vinstance0, &vinstance1))
 		== AST_RTP_GLUE_RESULT_FORBID) {
 		ast_debug(1, "Bridge '%s' can not use native RTP bridge as it was forbidden while getting details\n",
 			bridge->uniqueid);
 		return 0;
 	}
 
-	if (ao2_container_count(c0->features->dtmf_hooks) && ast_rtp_instance_dtmf_mode_get(instance0)) {
+	if (ao2_container_count(bc0->features->dtmf_hooks) && ast_rtp_instance_dtmf_mode_get(instance0)) {
 		ast_debug(1, "Bridge '%s' can not use native RTP bridge as channel '%s' has DTMF hooks\n",
-			bridge->uniqueid, ast_channel_name(c0->chan));
+			bridge->uniqueid, ast_channel_name(bc0->chan));
 		return 0;
 	}
 
-	if (ao2_container_count(c1->features->dtmf_hooks) && ast_rtp_instance_dtmf_mode_get(instance1)) {
+	if (ao2_container_count(bc1->features->dtmf_hooks) && ast_rtp_instance_dtmf_mode_get(instance1)) {
 		ast_debug(1, "Bridge '%s' can not use native RTP bridge as channel '%s' has DTMF hooks\n",
-			bridge->uniqueid, ast_channel_name(c1->chan));
+			bridge->uniqueid, ast_channel_name(bc1->chan));
 		return 0;
 	}
 
 	if ((native_type == AST_RTP_GLUE_RESULT_LOCAL) && ((ast_rtp_instance_get_engine(instance0)->local_bridge !=
 		ast_rtp_instance_get_engine(instance1)->local_bridge) ||
 		(ast_rtp_instance_get_engine(instance0)->dtmf_compatible &&
-			!ast_rtp_instance_get_engine(instance0)->dtmf_compatible(c0->chan, instance0, c1->chan, instance1)))) {
+			!ast_rtp_instance_get_engine(instance0)->dtmf_compatible(bc0->chan, instance0, bc1->chan, instance1)))) {
 		ast_debug(1, "Bridge '%s' can not use local native RTP bridge as local bridge or DTMF is not compatible\n",
 			bridge->uniqueid);
 		return 0;
@@ -365,10 +361,10 @@ static int native_rtp_bridge_compatible(struct ast_bridge *bridge)
 
 	/* Make sure that codecs match */
 	if (glue0->get_codec) {
-		glue0->get_codec(c0->chan, cap0);
+		glue0->get_codec(bc0->chan, cap0);
 	}
 	if (glue1->get_codec) {
-		glue1->get_codec(c1->chan, cap1);
+		glue1->get_codec(bc1->chan, cap1);
 	}
 	if (ast_format_cap_count(cap0) != 0 && ast_format_cap_count(cap1) != 0 && !ast_format_cap_iscompatible(cap0, cap1)) {
 		struct ast_str *codec_buf0 = ast_str_alloca(64);
@@ -378,10 +374,10 @@ static int native_rtp_bridge_compatible(struct ast_bridge *bridge)
 		return 0;
 	}
 
-	read_ptime0 = ast_format_cap_get_format_framing(cap0, ast_channel_rawreadformat(c0->chan));
-	read_ptime1 = ast_format_cap_get_format_framing(cap1, ast_channel_rawreadformat(c1->chan));
-	write_ptime0 = ast_format_cap_get_format_framing(cap0, ast_channel_rawwriteformat(c0->chan));
-	write_ptime1 = ast_format_cap_get_format_framing(cap1, ast_channel_rawwriteformat(c1->chan));
+	read_ptime0 = ast_format_cap_get_format_framing(cap0, ast_channel_rawreadformat(bc0->chan));
+	read_ptime1 = ast_format_cap_get_format_framing(cap1, ast_channel_rawreadformat(bc1->chan));
+	write_ptime0 = ast_format_cap_get_format_framing(cap0, ast_channel_rawwriteformat(bc0->chan));
+	write_ptime1 = ast_format_cap_get_format_framing(cap1, ast_channel_rawwriteformat(bc1->chan));
 
 	if (read_ptime0 != write_ptime1 || read_ptime1 != write_ptime0) {
 		ast_debug(1, "Packetization differs between RTP streams (%d != %d or %d != %d). Cannot native bridge in RTP\n",
