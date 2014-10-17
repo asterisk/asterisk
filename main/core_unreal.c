@@ -703,6 +703,8 @@ void ast_unreal_call_setup(struct ast_channel *semi1, struct ast_channel *semi2)
 		clone_var = ast_var_assign(varptr->name, varptr->value);
 		if (clone_var) {
 			AST_LIST_INSERT_TAIL(ast_channel_varshead(semi2), clone_var, entries);
+			ast_channel_publish_varset(semi2, ast_var_full_name(clone_var),
+				ast_var_value(clone_var));
 		}
 	}
 	ast_channel_datastore_inherit(semi1, semi2);
