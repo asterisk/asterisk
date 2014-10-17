@@ -29561,6 +29561,9 @@ static int sip_poke_peer(struct sip_peer *peer, int force)
 	ast_copy_flags(&p->flags[1], &peer->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
 	ast_copy_flags(&p->flags[2], &peer->flags[2], SIP_PAGE3_FLAGS_TO_COPY);
 
+	/* Get the outbound proxy information */
+	ref_proxy(p, obproxy_get(p, peer));
+
 	/* Send OPTIONs to peer's fullcontact */
 	if (!ast_strlen_zero(peer->fullcontact)) {
 		ast_string_field_set(p, fullcontact, peer->fullcontact);
