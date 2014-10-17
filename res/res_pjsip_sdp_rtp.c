@@ -231,7 +231,7 @@ static int set_caps(struct ast_sip_session *session, struct ast_sip_session_medi
 
 		ast_getformatname_multiple(usbuf, sizeof(usbuf), caps);
 		ast_getformatname_multiple(thembuf, sizeof(thembuf), peer);
-		ast_log(LOG_WARNING, "No joint capabilities between our configuration(%s) and incoming SDP(%s)\n", usbuf, thembuf);
+		ast_log(LOG_NOTICE, "No joint capabilities between our configuration(%s) and incoming SDP(%s)\n", usbuf, thembuf);
 		return -1;
 	}
 
@@ -529,12 +529,11 @@ static enum ast_sip_session_media_encryption check_endpoint_media_transport(
 	const struct pjmedia_sdp_media *stream)
 {
 	enum ast_sip_session_media_encryption incoming_encryption;
+	char transport_end = stream->desc.transport.ptr[stream->desc.transport.slen - 1];
 
-	if (endpoint->media.rtp.use_avpf) {
-		char transport_end = stream->desc.transport.ptr[stream->desc.transport.slen - 1];
-		if (transport_end != 'F') {
-			return AST_SIP_MEDIA_TRANSPORT_INVALID;
-		}
+	if ((transport_end == 'F' && !endpoint->media.rtp.use_avpf)
+		|| (transport_end != 'F' && endpoint->media.rtp.use_avpf)) {
+		return AST_SIP_MEDIA_TRANSPORT_INVALID;
 	}
 
 	incoming_encryption = get_media_encryption_type(stream->desc.transport);
@@ -735,8 +734,15 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 	RAII_VAR(struct ast_sockaddr *, addrs, NULL, ast_free_ptr);
 	enum ast_format_type media_type = stream_to_media_type(session_media->stream_type);
 
+	/* If port is 0, ignore this media stream */
+	if (!stream->desc.port) {
+		ast_debug(3, "Media stream '%s' is already declined\n", session_media->stream_type);
+		return 0;
+	}
+
 	/* If no type formats have been configured reject this stream */
 	if (!ast_format_cap_has_type(session->endpoint->media.codecs, media_type)) {
+		ast_debug(3, "Endpoint has no codecs for media type '%s', declining stream\n", session_media->stream_type);
 		return 0;
 	}
 
@@ -768,7 +774,7 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 	}
 
 	if (set_caps(session, session_media, stream)) {
-		return -1;
+		return 0;
 	}
 
 	if (media_type == AST_FORMAT_TYPE_AUDIO) {
@@ -1080,6 +1086,10 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 		return 1;
 	}
 
+	if (!local_stream->desc.port || !remote_stream->desc.port) {
+		return 1;
+	}
+
 	/* Ensure incoming transport is compatible with the endpoint's configuration */
 	if (!session->endpoint->media.rtp.use_received_transport &&
 		check_endpoint_media_transport(session->endpoint, remote_stream) == AST_SIP_MEDIA_TRANSPORT_INVALID) {
@@ -1108,7 +1118,7 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 	ast_rtp_instance_set_remote_address(session_media->rtp, addrs);
 
 	if (set_caps(session, session_media, local_stream)) {
-		return -1;
+		return 1;
 	}
 
 	if (media_type == AST_FORMAT_TYPE_AUDIO) {

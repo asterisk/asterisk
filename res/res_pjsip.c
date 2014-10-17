@@ -385,9 +385,8 @@
 						decline media offers not using the AVPF or SAVPF profile.
 					</para><para>
 						If set to <literal>no</literal>, res_pjsip will use the AVP or SAVP RTP
-						profile for all media offers on outbound calls and media updates, but will
-						accept either the AVP/AVPF or SAVP/SAVPF RTP profile for all inbound
-						media offers.
+						profile for all media offers on outbound calls and media updates, and will
+						decline media offers not using the AVP or SAVP profile.
 					</para></description>
 				</configOption>
 				<configOption name="force_avp" default="no">
