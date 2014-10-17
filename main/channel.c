@@ -6299,41 +6299,42 @@ void ast_change_name(struct ast_channel *chan, const char *newname)
 
 void ast_channel_inherit_variables(const struct ast_channel *parent, struct ast_channel *child)
 {
-	struct ast_var_t *current, *newvar;
+	struct ast_var_t *current;
+	struct ast_var_t *newvar;
 	const char *varname;
+	int vartype;
 
 	AST_LIST_TRAVERSE(ast_channel_varshead((struct ast_channel *) parent), current, entries) {
-		int vartype = 0;
-
 		varname = ast_var_full_name(current);
-		if (!varname)
+		if (!varname) {
 			continue;
+		}
 
+		vartype = 0;
 		if (varname[0] == '_') {
 			vartype = 1;
-			if (varname[1] == '_')
+			if (varname[1] == '_') {
 				vartype = 2;
+			}
 		}
 
 		switch (vartype) {
 		case 1:
 			newvar = ast_var_assign(&varname[1], ast_var_value(current));
-			if (newvar) {
-				AST_LIST_INSERT_TAIL(ast_channel_varshead(child), newvar, entries);
-				ast_debug(1, "Inheriting variable %s from %s to %s.\n",
-					ast_var_name(newvar), ast_channel_name(parent), ast_channel_name(child));
-			}
 			break;
 		case 2:
 			newvar = ast_var_assign(varname, ast_var_value(current));
-			if (newvar) {
-				AST_LIST_INSERT_TAIL(ast_channel_varshead(child), newvar, entries);
-				ast_debug(1, "Inheriting variable %s from %s to %s.\n",
-					ast_var_name(newvar), ast_channel_name(parent), ast_channel_name(child));
-			}
 			break;
 		default:
-			break;
+			continue;
+		}
+		if (newvar) {
+			ast_debug(1, "Inheriting variable %s from %s to %s.\n",
+				ast_var_full_name(newvar), ast_channel_name(parent),
+				ast_channel_name(child));
+			AST_LIST_INSERT_TAIL(ast_channel_varshead(child), newvar, entries);
+			ast_channel_publish_varset(child, ast_var_full_name(newvar),
+				ast_var_value(newvar));
 		}
 	}
 }
