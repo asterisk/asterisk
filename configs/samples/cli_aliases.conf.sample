@@ -28,7 +28,7 @@ originate=channel originate
 help=core show help
 pri intense debug span=pri set debug intense span
 reload=module reload
-pjsip reload=module reload res_pjsip.so
+pjsip reload=module reload res_pjsip.so res_pjsip_authenticator_digest.so res_pjsip_endpoint_identifier_ip.so res_pjsip_mwi.so res_pjsip_notify.so res_pjsip_outbound_publish.so res_pjsip_publish_asterisk.so res_pjsip_outbound_registration.so
 
 ; CLI Alias Templates
 ; -------------------
