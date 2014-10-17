@@ -1608,7 +1608,7 @@ AST_TEST_DEFINE(test_cel_dial_pickup)
 
 	ast_channel_publish_dial(chan_caller, chan_callee, NULL, "ANSWER");
 
-	HANGUP_CHANNEL(chan_caller, AST_CAUSE_NORMAL, "ANSWER");
+	HANGUP_CHANNEL(chan_caller, AST_CAUSE_NORMAL, "CANCEL");
 	HANGUP_CHANNEL(chan_callee, AST_CAUSE_NORMAL, "");
 
 	return AST_TEST_PASS;
