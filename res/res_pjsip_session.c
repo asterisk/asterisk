@@ -186,160 +186,10 @@ void ast_sip_session_unregister_sdp_handler(struct ast_sip_session_sdp_handler *
 	ao2_callback_data(sdp_handlers, OBJ_KEY | OBJ_UNLINK | OBJ_NODATA, remove_handler, (void *)stream_type, handler);
 }
 
-static int validate_port_hash(const void *obj, int flags)
-{
-	const int *port = obj;
-	return *port;
-}
-
-static int validate_port_cmp(void *obj, void *arg, int flags)
-{
-	int *port1 = obj;
-	int *port2 = arg;
-
-	return *port1 == *port2 ? CMP_MATCH | CMP_STOP : 0;
-}
-
-struct bundle_assoc {
-	int port;
-	char tag[1];
-};
-
-static int bundle_assoc_hash(const void *obj, int flags)
-{
-	const struct bundle_assoc *assoc = obj;
-	const char *tag = flags & OBJ_KEY ? obj : assoc->tag;
-
-	return ast_str_hash(tag);
-}
-
-static int bundle_assoc_cmp(void *obj, void *arg, int flags)
-{
-	struct bundle_assoc *assoc1 = obj;
-	struct bundle_assoc *assoc2 = arg;
-	const char *tag2 = flags & OBJ_KEY ? arg : assoc2->tag;
-
-	return strcmp(assoc1->tag, tag2) ? 0 : CMP_MATCH | CMP_STOP;
-}
-
-/* return must be ast_freed */
-static pjmedia_sdp_attr *media_get_mid(pjmedia_sdp_media *media)
-{
-	pjmedia_sdp_attr *attr = pjmedia_sdp_media_find_attr2(media, "mid", NULL);
-	if (!attr) {
-		return NULL;
-	}
-
-	return attr;
-}
-
-static int get_bundle_port(const pjmedia_sdp_session *sdp, const char *mid)
-{
-	int i;
-	for (i = 0; i < sdp->media_count; ++i) {
-		pjmedia_sdp_attr *mid_attr = media_get_mid(sdp->media[i]);
-		if (mid_attr && !pj_strcmp2(&mid_attr->value, mid)) {
-			return sdp->media[i]->desc.port;
-		}
-	}
-
-	return -1;
-}
-
-static int validate_incoming_sdp(const pjmedia_sdp_session *sdp)
-{
-	int i;
-	RAII_VAR(struct ao2_container *, portlist, ao2_container_alloc(5, validate_port_hash, validate_port_cmp), ao2_cleanup);
-	RAII_VAR(struct ao2_container *, bundle_assoc_list, ao2_container_alloc(5, bundle_assoc_hash, bundle_assoc_cmp), ao2_cleanup);
-
-	/* check for bundles (for websocket RTP multiplexing, there can be more than one) */
-	for (i = 0; i < sdp->attr_count; ++i) {
-		char *bundle_list;
-		int bundle_port = 0;
-		if (pj_stricmp2(&sdp->attr[i]->name, "group")) {
-			continue;
-		}
-
-		/* check to see if this group is a bundle */
-		if (7 >= sdp->attr[i]->value.slen || pj_strnicmp2(&sdp->attr[i]->value, "bundle ", 7)) {
-			continue;
-		}
-
-		bundle_list = ast_alloca(sdp->attr[i]->value.slen - 6);
-		strncpy(bundle_list, sdp->attr[i]->value.ptr + 7, sdp->attr[i]->value.slen - 7);
-		bundle_list[sdp->attr[i]->value.slen - 7] = '\0';
-		while (bundle_list) {
-			char *item;
-			RAII_VAR(struct bundle_assoc *, assoc, NULL, ao2_cleanup);
-			item = strsep(&bundle_list, " ,");
-			if (!bundle_port) {
-				RAII_VAR(int *, port, ao2_alloc(sizeof(int), NULL), ao2_cleanup);
-				RAII_VAR(int *, port_match, NULL, ao2_cleanup);
-				bundle_port = get_bundle_port(sdp, item);
-				if (bundle_port < 0) {
-					return -1;
-				}
-				port_match = ao2_find(portlist, &bundle_port, OBJ_KEY);
-				if (port_match) {
-					/* bundle port aready consumed by a different bundle */
-					return -1;
-				}
-				*port = bundle_port;
-				ao2_link(portlist, port);
-			}
-			assoc = ao2_alloc(sizeof(*assoc) + strlen(item), NULL);
-			if (!assoc) {
-				return -1;
-			}
-
-			/* safe use of strcpy */
-			strcpy(assoc->tag, item);
-			assoc->port = bundle_port;
-			ao2_link(bundle_assoc_list, assoc);
-		}
-	}
-
-	/* validate all streams */
-	for (i = 0; i < sdp->media_count; ++i) {
-		RAII_VAR(int *, port, ao2_alloc(sizeof(int), NULL), ao2_cleanup);
-		RAII_VAR(int *, port_match, NULL, ao2_cleanup);
-
-		*port = sdp->media[i]->desc.port;
-		port_match = ao2_find(portlist, port, OBJ_KEY);
-		if (port_match) {
-			RAII_VAR(struct bundle_assoc *, assoc, NULL, ao2_cleanup);
-			pjmedia_sdp_attr *mid = media_get_mid(sdp->media[i]);
-			char *mid_val;
-
-			if (!mid) {
-				/* not part of a bundle */
-				return -1;
-			}
-
-			mid_val = ast_alloca(mid->value.slen + 1);
-			strncpy(mid_val, mid->value.ptr, mid->value.slen);
-			mid_val[mid->value.slen] = '\0';
-
-			assoc = ao2_find(bundle_assoc_list, mid_val, OBJ_KEY);
-			if (!assoc || assoc->port != *port) {
-				/* This port already exists elsewhere in the SDP
-				 * and is not an appropriate bundle port, fail
-				 * catastrophically */
-				return -1;
-			}
-		}
-		ao2_link(portlist, port);
-	}
-	return 0;
-}
-
 static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sdp_session *sdp)
 {
 	int i;
-
-	if (validate_incoming_sdp(sdp)) {
-		return -1;
-	}
+	int handled = 0;
 
 	for (i = 0; i < sdp->media_count; ++i) {
 		/* See if there are registered handlers for this media stream type */
@@ -361,14 +211,22 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 
 		if (session_media->handler) {
 			handler = session_media->handler;
+			ast_debug(1, "Negotiating incoming SDP media stream '%s' using %s SDP handler\n",
+				session_media->stream_type,
+				session_media->handler->id);
 			res = handler->negotiate_incoming_sdp_stream(session, session_media, sdp,
 				sdp->media[i]);
-			if (res <= 0) {
-				/* Catastrophic failure or ignored by assigned handler. Abort! */
+			if (res < 0) {
+				/* Catastrophic failure. Abort! */
 				return -1;
+			} else if (res > 0) {
+				ast_debug(1, "Media stream '%s' handled by %s\n",
+					session_media->stream_type,
+					session_media->handler->id);
+				/* Handled by this handler. Move to the next stream */
+				handled = 1;
+				continue;
 			}
-			/* Handled by this handler. Move to the next stream */
-			continue;
 		}
 
 		handler_list = ao2_find(sdp_handlers, media, OBJ_KEY);
@@ -377,6 +235,9 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 			continue;
 		}
 		AST_LIST_TRAVERSE(&handler_list->list, handler, next) {
+			ast_debug(1, "Negotiating incoming SDP media stream '%s' using %s SDP handler\n",
+				session_media->stream_type,
+				handler->id);
 			res = handler->negotiate_incoming_sdp_stream(session, session_media, sdp,
 				sdp->media[i]);
 			if (res < 0) {
@@ -384,11 +245,18 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 				return -1;
 			}
 			if (res > 0) {
+				ast_debug(1, "Media stream '%s' handled by %s\n",
+					session_media->stream_type,
+					handler->id);
 				/* Handled by this handler. Move to the next stream */
 				session_media->handler = handler;
+				handled = 1;
 				break;
 			}
 		}
+	}
+	if (!handled) {
+		return -1;
 	}
 	return 0;
 }
@@ -429,9 +297,15 @@ static int handle_negotiated_sdp_session_media(void *obj, void *arg, int flags)
 
 		handler = session_media->handler;
 		if (handler) {
+			ast_debug(1, "Applying negotiated SDP media stream '%s' using %s SDP handler\n",
+				session_media->stream_type,
+				handler->id);
 			res = handler->apply_negotiated_sdp_stream(session, session_media, local,
 				local->media[i], remote, remote->media[i]);
 			if (res >= 0) {
+				ast_debug(1, "Applied negotiated SDP media stream '%s' using %s SDP handler\n",
+					session_media->stream_type,
+					handler->id);
 				return CMP_MATCH;
 			}
 			return 0;
@@ -443,6 +317,9 @@ static int handle_negotiated_sdp_session_media(void *obj, void *arg, int flags)
 			continue;
 		}
 		AST_LIST_TRAVERSE(&handler_list->list, handler, next) {
+			ast_debug(1, "Applying negotiated SDP media stream '%s' using %s SDP handler\n",
+				session_media->stream_type,
+				handler->id);
 			res = handler->apply_negotiated_sdp_stream(session, session_media, local,
 				local->media[i], remote, remote->media[i]);
 			if (res < 0) {
@@ -450,6 +327,9 @@ static int handle_negotiated_sdp_session_media(void *obj, void *arg, int flags)
 				return 0;
 			}
 			if (res > 0) {
+				ast_debug(1, "Applied negotiated SDP media stream '%s' using %s SDP handler\n",
+					session_media->stream_type,
+					handler->id);
 				/* Handled by this handler. Move to the next stream */
 				session_media->handler = handler;
 				return CMP_MATCH;
@@ -826,10 +706,6 @@ static pjsip_module session_module = {
 static int sdp_requires_deferral(struct ast_sip_session *session, const pjmedia_sdp_session *sdp)
 {
 	int i;
-
-	if (validate_incoming_sdp(sdp)) {
-		return 0;
-	}
 
 	for (i = 0; i < sdp->media_count; ++i) {
 		/* See if there are registered handlers for this media stream type */
