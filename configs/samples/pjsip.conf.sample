@@ -847,6 +847,9 @@
                                                         ; int")
 ;debug=no ; Enable/Disable SIP debug logging.  Valid options include yes|no
           ; or a host address (default: "no")
+;keep_alive_interval=20 ; The interval (in seconds) at which to send keepalive
+                        ; messages on all active connection-oriented transports
+                        ; (default: "0")
 
 
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_acl

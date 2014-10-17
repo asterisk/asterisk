@@ -42,6 +42,8 @@ struct global_config {
 	);
 	/* Value to put in Max-Forwards header */
 	unsigned int max_forwards;
+	/* The interval at which to send keep alive messages to active connection-oriented transports */
+	unsigned int keep_alive_interval;
 };
 
 static void global_destructor(void *obj)
@@ -114,6 +116,21 @@ char *ast_sip_get_debug(void)
 	return res;
 }
 
+unsigned int ast_sip_get_keep_alive_interval(void)
+{
+	unsigned int interval;
+	struct global_config *cfg = get_global_cfg();
+
+	if (!cfg) {
+		return 0;
+	}
+
+	interval = cfg->keep_alive_interval;
+	ao2_ref(cfg, -1);
+
+	return interval;
+}
+
 int ast_sip_initialize_sorcery_global(void)
 {
 	struct ast_sorcery *sorcery = ast_sip_get_sorcery();
@@ -135,6 +152,8 @@ int ast_sip_initialize_sorcery_global(void)
 			OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, default_outbound_endpoint));
 	ast_sorcery_object_field_register(sorcery, "global", "debug", "no",
 			OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, debug));
+	ast_sorcery_object_field_register(sorcery, "global", "keep_alive_interval", "",
+			OPT_UINT_T, 0, FLDSET(struct global_config, keep_alive_interval));
 
 	return 0;
 }
