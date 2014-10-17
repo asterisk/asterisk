@@ -29294,6 +29294,9 @@ static int sip_poke_peer(struct sip_peer *peer, int force)
 		__set_address_from_contact(sip_route_first_uri(&p->route), &p->sa, p->socket.type == AST_TRANSPORT_TLS ? 1 : 0);
 	}
 
+	/* Get the outbound proxy information */
+	ref_proxy(p, obproxy_get(p, peer));
+
 	/* Send OPTIONs to peer's fullcontact */
 	if (!ast_strlen_zero(peer->fullcontact)) {
 		ast_string_field_set(p, fullcontact, peer->fullcontact);
