@@ -912,15 +912,14 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	struct ast_format format;
 	RAII_VAR(struct ast_format_cap *, caps, NULL, ast_format_cap_destroy);
 	enum ast_format_type media_type = stream_to_media_type(session_media->stream_type);
-
 	int direct_media_enabled = !ast_sockaddr_isnull(&session_media->direct_media_addr) &&
 		!ast_format_cap_is_empty(session->direct_media_cap);
-
 	int use_override_prefs = session->override_prefs.formats[0].id;
 	struct ast_codec_pref *prefs = use_override_prefs ?
 		&session->override_prefs : &session->endpoint->media.prefs;
 
 	if ((use_override_prefs && !codec_pref_has_type(&session->override_prefs, media_type)) ||
+	    (!use_override_prefs && !ast_format_cap_has_type(session->req_caps, media_type)) ||
 	    (!use_override_prefs && !ast_format_cap_has_type(session->endpoint->media.codecs, media_type))) {
 		/* If no type formats are configured don't add a stream */
 		return 0;
