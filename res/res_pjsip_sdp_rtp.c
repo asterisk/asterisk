@@ -899,13 +899,11 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	int rtp_code;
 	RAII_VAR(struct ast_format_cap *, caps, NULL, ao2_cleanup);
 	enum ast_media_type media_type = stream_to_media_type(session_media->stream_type);
-	int use_override_prefs = ast_format_cap_count(session->req_caps);
-
 	int direct_media_enabled = !ast_sockaddr_isnull(&session_media->direct_media_addr) &&
 		ast_format_cap_count(session->direct_media_cap);
 
-	if ((use_override_prefs && !ast_format_cap_has_type(session->req_caps, media_type)) ||
-	    (!use_override_prefs && !ast_format_cap_has_type(session->endpoint->media.codecs, media_type))) {
+	if (!ast_format_cap_has_type(session->endpoint->media.codecs, media_type) ||
+	    !ast_format_cap_has_type(session->req_caps, media_type)) {
 		/* If no type formats are configured don't add a stream */
 		return 0;
 	} else if (!session_media->rtp && create_rtp(session, session_media, session->endpoint->media.rtp.ipv6)) {
