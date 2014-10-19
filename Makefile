@@ -104,7 +104,7 @@ export PYTHON
 
 # start the primary CFLAGS and LDFLAGS with any that were provided
 # to the configure script
-_ASTCFLAGS:=$(CONFIG_CFLAGS)
+_ASTCFLAGS:=$(CONFIG_CFLAGS) $(CONFIG_SIGNED_CHAR)
 _ASTLDFLAGS:=$(CONFIG_LDFLAGS)
 
 # Some build systems, such as the one in openwrt, like to pass custom target

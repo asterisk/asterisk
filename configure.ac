@@ -192,6 +192,25 @@ esac
 AC_SUBST(OSARCH)
 AC_SUBST(PBX_WINARCH)
 
+AC_MSG_CHECKING(whether char is unsigned)
+AC_COMPILE_IFELSE(
+	[
+		AC_LANG_SOURCE(
+#include <limits.h>
+#if CHAR_MIN == 0
+#error
+#endif
+		)
+	],[
+		AC_MSG_RESULT(no)
+		CONFIG_SIGNED_CHAR=""
+	],[
+		AC_MSG_RESULT(yes)
+		CONFIG_SIGNED_CHAR="-fsigned-char"
+	]
+)
+AC_SUBST(CONFIG_SIGNED_CHAR)
+
 #  check for uname
 AC_PATH_TOOL([UNAME], [uname], No)
 if test ! x"${UNAME}" = xNo; then
