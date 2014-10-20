@@ -1,3 +1,29 @@
+2014-10-20  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Certified Asterisk 11.6-cert7 Released.
+
+	* AST-2014-011: Fix POODLE security issues
+
+	  There are two aspects to the vulnerability:
+	  (1) res_jabber/res_xmpp use SSLv3 only. This patch updates the module
+	      to use TLSv1+. At this time, it does not refactor res_jabber/
+	      res_xmpp to use the TCP/TLS core, which should be done as an
+	      improvement at a latter date.
+	  (2) The TCP/TLS core, when tlsclientmethod/sslclientmethod is left
+	      unspecified, will default to the OpenSSL SSLv23_method. This
+	      method allows for all encryption methods, including SSLv2/SSLv3.
+	      A MITM can exploit this by forcing a fallback to SSLv3, which
+	      leaves the server vulnerable to POODLE. This patch adds WARNINGS
+	      if a user uses SSLv2/SSLv3 in their configuration, and explicitly
+	      disables SSLv2/SSLv3 if using SSLv23_method.
+
+	  For TLS clients, Asterisk will default to TLSv1+ and WARN if SSLv2 or
+	  SSLv3 is explicitly chosen. For TLS servers, Asterisk will no longer
+	  support SSLv2 or SSLv3.
+
+	  Much thanks to abelbeck for reporting the vulnerability and providing
+	  a patch for the res_jabber/res_xmpp modules.
+
 2014-09-18  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Certified Asterisk 11.6-cert6 Released.
