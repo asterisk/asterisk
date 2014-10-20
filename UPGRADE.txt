@@ -28,6 +28,17 @@ PJSIP:
    OpenSSL names are available on their system for the pjsip.conf cipher
    option.
 
+From 12.6.0 to 12.6.1:
+- Due to the POODLE vulnerability (see 
+  https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2014-3566), the
+  default TLS method for TLS clients will no longer allow SSLv3. As
+  SSLv2 was already deprecated, it is no longer allowed by default as
+  well. TLS servers no longer allow SSLv2 or SSLv3 connections. This
+  affects the chan_sip channel driver, AMI, and the Asterisk HTTP server.
+
+- The res_jabber resource module no longer uses SSLv3 to connect to an
+  XMPP server. It will now only use TLSv1 or later methods.
+
 From 12.5.0 to 12.6.0:
 
 ConfBridge:
