@@ -2637,6 +2637,7 @@ static int xmpp_client_requested_tls(struct ast_xmpp_client *client, struct ast_
 {
 #ifdef HAVE_OPENSSL
 	int sock;
+	long ssl_opts;
 #endif
 
 	if (!strcmp(iks_name(node), "success")) {
@@ -2655,10 +2656,13 @@ static int xmpp_client_requested_tls(struct ast_xmpp_client *client, struct ast_
 	ast_log(LOG_ERROR, "Somehow we managed to try to start TLS negotiation on client '%s' without OpenSSL support, disconnecting\n", client->name);
 	return -1;
 #else
-	client->ssl_method = SSLv3_method();
+	client->ssl_method = SSLv23_method();
 	if (!(client->ssl_context = SSL_CTX_new((SSL_METHOD *) client->ssl_method))) {
 		goto failure;
 	}
+
+	ssl_opts = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
+	SSL_CTX_set_options(client->ssl_context, ssl_opts);
 
 	if (!(client->ssl_session = SSL_new(client->ssl_context))) {
 		goto failure;
