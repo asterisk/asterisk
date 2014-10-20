@@ -736,6 +736,8 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 	cfg->enabled = 0;
 	return 0;
 #else
+	int disable_ssl = 0;
+
 	if (!cfg->enabled)
 		return 0;
 
@@ -750,22 +752,21 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 	if (client) {
 #ifndef OPENSSL_NO_SSL2
 		if (ast_test_flag(&cfg->flags, AST_SSL_SSLV2_CLIENT)) {
+			ast_log(LOG_WARNING, "Usage of SSLv2 is discouraged due to known vulnerabilities. Please use 'tlsv1' or leave the TLS method unspecified!\n");
 			cfg->ssl_ctx = SSL_CTX_new(SSLv2_client_method());
 		} else
 #endif
 		if (ast_test_flag(&cfg->flags, AST_SSL_SSLV3_CLIENT)) {
+			ast_log(LOG_WARNING, "Usage of SSLv3 is discouraged due to known vulnerabilities. Please use 'tlsv1' or leave the TLS method unspecified!\n");
 			cfg->ssl_ctx = SSL_CTX_new(SSLv3_client_method());
 		} else if (ast_test_flag(&cfg->flags, AST_SSL_TLSV1_CLIENT)) {
 			cfg->ssl_ctx = SSL_CTX_new(TLSv1_client_method());
 		} else {
-			/* SSLv23_client_method() sends SSLv2, this was the original
-			 * default for ssl clients before the option was given to
-			 * pick what protocol a client should use.  In order not
-			 * to break expected behavior it remains the default. */
+			disable_ssl = 1;
 			cfg->ssl_ctx = SSL_CTX_new(SSLv23_client_method());
 		}
 	} else {
-		/* SSLv23_server_method() supports TLSv1, SSLv2, and SSLv3 inbound connections. */
+		disable_ssl = 1;
 		cfg->ssl_ctx = SSL_CTX_new(SSLv23_server_method());
 	}
 
@@ -773,6 +774,17 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 		ast_debug(1, "Sorry, SSL_CTX_new call returned null...\n");
 		cfg->enabled = 0;
 		return 0;
+	}
+
+	/* Due to the POODLE vulnerability, completely disable
+	 * SSLv2 and SSLv3 if we are not explicitly told to use
+	 * them. SSLv23_*_method supports TLSv1+.
+	 */
+	if (disable_ssl) {
+		long ssl_opts;
+
+		ssl_opts = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
+		SSL_CTX_set_options(cfg->ssl_ctx, ssl_opts);
 	}
 
 	SSL_CTX_set_verify(cfg->ssl_ctx,

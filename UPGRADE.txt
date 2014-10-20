@@ -18,6 +18,18 @@
 ===
 ===========================================================
 
+from 1.8.28-cert1 to 1.8.28-cert2:
+
+* Due to the POODLE vulnerability (see 
+  https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2014-3566), the
+  default TLS method for TLS clients will no longer allow SSLv3. As
+  SSLv2 was already deprecated, it is no longer allowed by default as
+  well. TLS servers no longer allow SSLv2 or SSLv3 connections. This
+  affects the chan_sip channel driver, AMI, and the Asterisk HTTP server.
+
+* The res_jabber resource module no longer uses SSLv3 to connect to an
+  XMPP server. It will now only use TLSv1 or later methods.
+
 from 1.8.28-cert0 to 1.8.28-cert1
 * Added http.conf session_inactivity timer option to close HTTP connections
   that aren't doing anything.
