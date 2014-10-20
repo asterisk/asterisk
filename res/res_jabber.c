@@ -1287,14 +1287,17 @@ static int aji_tls_handshake(struct aji_client *client)
 {
 	int ret;
 	int sock;
+	long ssl_opts;
 
 	ast_debug(1, "Starting TLS handshake\n");
 
 	/* Choose an SSL/TLS protocol version, create SSL_CTX */
-	client->ssl_method = SSLv3_method();
+	client->ssl_method = SSLv23_method();
 	if (!(client->ssl_context = SSL_CTX_new((SSL_METHOD *) client->ssl_method))) {
 		return IKS_NET_TLSFAIL;
 	}
+	ssl_opts = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
+	SSL_CTX_set_options(client->ssl_context, ssl_opts);
 
 	/* Create new SSL session */
 	if (!(client->ssl_session = SSL_new(client->ssl_context))) {
