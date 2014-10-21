@@ -845,6 +845,7 @@ const char *ast_translate_path_to_str(struct ast_trans_pvt *p, struct ast_str **
 		return "";
 	}
 
+	ast_str_reset(*str);
 	codec_append_name(&p->t->src_codec, str);
 	while (p) {
 		ast_str_append(str, 0, "->");
