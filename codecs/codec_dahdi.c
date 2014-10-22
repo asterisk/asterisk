@@ -32,6 +32,7 @@
  ***/
 
 #include "asterisk.h"
+#include <stdbool.h>
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
@@ -152,71 +153,14 @@ static uint64_t bitfield_dahdi2ast(unsigned dahdi)
 
 /*!
  * \internal
- * \brief Convert old Asterisk format bitfield to DAHDI format bitfield.
+ * \brief Get the ast_codec by DAHDI format.
  * \since 13.0.0
  *
- * \param ast Old Asterisk bitfield to convert.
- *
- * \note They should be the same values but they don't have to be.
- *
- * \return DAHDI bitfield equivalent.
- */
-static unsigned bitfield_ast2dahdi(uint64_t ast)
-{
-	unsigned dahdi;
-
-	switch (ast) {
-	case AST_FORMAT_G723:
-		dahdi = DAHDI_FORMAT_G723_1;
-		break;
-	case AST_FORMAT_GSM:
-		dahdi = DAHDI_FORMAT_GSM;
-		break;
-	case AST_FORMAT_ULAW:
-		dahdi = DAHDI_FORMAT_ULAW;
-		break;
-	case AST_FORMAT_ALAW:
-		dahdi = DAHDI_FORMAT_ALAW;
-		break;
-	case AST_FORMAT_G726_AAL2:
-		dahdi = DAHDI_FORMAT_G726;
-		break;
-	case AST_FORMAT_ADPCM:
-		dahdi = DAHDI_FORMAT_ADPCM;
-		break;
-	case AST_FORMAT_SLIN:
-		dahdi = DAHDI_FORMAT_SLINEAR;
-		break;
-	case AST_FORMAT_LPC10:
-		dahdi = DAHDI_FORMAT_LPC10;
-		break;
-	case AST_FORMAT_G729:
-		dahdi = DAHDI_FORMAT_G729A;
-		break;
-	case AST_FORMAT_SPEEX:
-		dahdi = DAHDI_FORMAT_SPEEX;
-		break;
-	case AST_FORMAT_ILBC:
-		dahdi = DAHDI_FORMAT_ILBC;
-		break;
-	default:
-		dahdi = 0;
-		break;
-	}
-
-	return dahdi;
-}
-
-/*!
- * \internal
- * \brief Get the DAHDI codec by index.
- * \since 13.0.0
- *
- * \param idx Codex index (0-31).
+ * \param dahdi_fmt DAHDI specific codec identifier.
  *
  * \return Specified codec if exists otherwise NULL.
  */
-static const struct ast_codec *get_dahdi_codec(unsigned idx)
+static const struct ast_codec *get_dahdi_codec(uint32_t dahdi_fmt)
 {
 	const struct ast_codec *codec;
 
@@ -276,7 +220,7 @@ static const struct ast_codec *get_dahdi_codec(unsigned idx)
 		.sample_rate = 8000,
 	};
 
-	switch (1UL << idx) {
+	switch (dahdi_fmt) {
 	case DAHDI_FORMAT_G723_1:
 		codec = &dahdi_g723_1;
 		break;
@@ -324,16 +268,17 @@ static struct ast_cli_entry cli[] = {
 	AST_CLI_DEFINE(handle_cli_transcoder_show, "Display DAHDI transcoder utilization.")
 };
 
-struct format_map {
-	unsigned int map[32][32];
-};
-
-static struct format_map global_format_map = { { { 0 } } };
-
 struct translator {
 	struct ast_translator t;
+	uint32_t src_dahdi_fmt;
+	uint32_t dst_dahdi_fmt;
 	AST_LIST_ENTRY(translator) entry;
 };
+
+#ifndef container_of
+#define container_of(ptr, type, member) \
+	((type *)((char *)(ptr) - offsetof(type, member)))
+#endif
 
 static AST_LIST_HEAD_STATIC(translators, translator);
 
@@ -665,7 +610,7 @@ static struct ast_format *dahdi_format_to_cached(int format)
 	return NULL;
 }
 
-static int dahdi_translate(struct ast_trans_pvt *pvt, struct ast_codec *dst_codec, struct ast_codec *src_codec)
+static int dahdi_translate(struct ast_trans_pvt *pvt, uint32_t dst_dahdi_fmt, uint32_t src_dahdi_fmt)
 {
 	/* Request translation through zap if possible */
 	int fd;
@@ -679,13 +624,13 @@ static int dahdi_translate(struct ast_trans_pvt *pvt, struct ast_codec *dst_code
 		return -1;
 	}
 
-	dahdip->fmts.srcfmt = bitfield_ast2dahdi(ast_format_compatibility_codec2bitfield(src_codec));
-	dahdip->fmts.dstfmt = bitfield_ast2dahdi(ast_format_compatibility_codec2bitfield(dst_codec));
+	dahdip->fmts.srcfmt = src_dahdi_fmt;
+	dahdip->fmts.dstfmt = dst_dahdi_fmt;
 
 	ast_assert(pvt->f.subclass.format == NULL);
 	pvt->f.subclass.format = ao2_bump(dahdi_format_to_cached(dahdip->fmts.dstfmt));
 
-	ast_debug(1, "Opening transcoder channel from %s to %s.\n", src_codec->name, dst_codec->name);
+	ast_debug(1, "Opening transcoder channel from %s to %s.\n", pvt->t->src_codec.name, pvt->t->dst_codec.name);
 
 retry:
 	if (ioctl(fd, DAHDI_TC_ALLOCATE, &dahdip->fmts)) {
@@ -743,9 +688,9 @@ retry:
 
 static int dahdi_new(struct ast_trans_pvt *pvt)
 {
-	return dahdi_translate(pvt,
-		pvt->t->core_dst_codec,
-		pvt->t->core_src_codec);
+	struct translator *zt = container_of(pvt->t, struct translator, t);
+
+	return dahdi_translate(pvt, zt->dst_dahdi_fmt, zt->src_dahdi_fmt);
 }
 
 static struct ast_frame *fakesrc_sample(void)
@@ -760,26 +705,21 @@ static struct ast_frame *fakesrc_sample(void)
 	return &f;
 }
 
-static int is_encoder(struct translator *zt)
+static bool is_encoder(uint32_t src_dahdi_fmt)
 {
-	if ((zt->t.core_src_codec->id == ast_format_get_codec_id(ast_format_ulaw)) ||
-		(zt->t.core_src_codec->id == ast_format_get_codec_id(ast_format_alaw)) ||
-		(zt->t.core_src_codec->id == ast_format_get_codec_id(ast_format_slin))) {
-		return 1;
-	} else {
-		return 0;
-	}
+	return ((src_dahdi_fmt & (DAHDI_FORMAT_ULAW | DAHDI_FORMAT_ALAW | DAHDI_FORMAT_SLINEAR)) > 0);
 }
 
-static int register_translator(unsigned dst, unsigned src)
+/* Must be called with the translators list locked. */
+static int register_translator(uint32_t dst_dahdi_fmt, uint32_t src_dahdi_fmt)
 {
 	const struct ast_codec *dst_codec;
 	const struct ast_codec *src_codec;
 	struct translator *zt;
 	int res;
 
-	dst_codec = get_dahdi_codec(dst);
-	src_codec = get_dahdi_codec(src);
+	dst_codec = get_dahdi_codec(dst_dahdi_fmt);
+	src_codec = get_dahdi_codec(src_dahdi_fmt);
 	if (!dst_codec || !src_codec) {
 		return -1;
 	}
@@ -788,13 +728,16 @@ static int register_translator(unsigned dst, unsigned src)
 		return -1;
 	}
 
+	zt->src_dahdi_fmt = src_dahdi_fmt;
+	zt->dst_dahdi_fmt = dst_dahdi_fmt;
+
 	snprintf(zt->t.name, sizeof(zt->t.name), "dahdi_%s_to_%s",
 		src_codec->name, dst_codec->name);
 
 	memcpy(&zt->t.src_codec, src_codec, sizeof(*src_codec));
 	memcpy(&zt->t.dst_codec, dst_codec, sizeof(*dst_codec));
 	zt->t.buf_size = BUFFER_SIZE;
-	if (is_encoder(zt)) {
+	if (is_encoder(src_dahdi_fmt)) {
 		zt->t.framein = dahdi_encoder_framein;
 		zt->t.frameout = dahdi_encoder_frameout;
 	} else {
@@ -813,38 +756,9 @@ static int register_translator(unsigned dst, unsigned src)
 		return -1;
 	}
 
-	AST_LIST_LOCK(&translators);
 	AST_LIST_INSERT_HEAD(&translators, zt, entry);
-	AST_LIST_UNLOCK(&translators);
-
-	global_format_map.map[dst][src] = 1;
 
 	return res;
-}
-
-static void drop_translator(unsigned dst, unsigned src)
-{
-	struct translator *cur;
-
-	AST_LIST_LOCK(&translators);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&translators, cur, entry) {
-		if (bitfield_ast2dahdi(ast_format_compatibility_codec2bitfield(cur->t.core_src_codec))
-			!= (1U << src)) {
-			continue;
-		}
-		if (bitfield_ast2dahdi(ast_format_compatibility_codec2bitfield(cur->t.core_dst_codec))
-			!= (1U << dst)) {
-			continue;
-		}
-
-		AST_LIST_REMOVE_CURRENT(entry);
-		ast_unregister_translator(&cur->t);
-		ast_free(cur);
-		global_format_map.map[dst][src] = 0;
-		break;
-	}
-	AST_LIST_TRAVERSE_SAFE_END;
-	AST_LIST_UNLOCK(&translators);
 }
 
 static void unregister_translators(void)
@@ -859,33 +773,48 @@ static void unregister_translators(void)
 	AST_LIST_UNLOCK(&translators);
 }
 
-static void build_translators(struct format_map *map, unsigned int dstfmts, unsigned int srcfmts)
+/* Must be called with the translators list locked. */
+static bool is_already_registered(uint32_t dstfmt, uint32_t srcfmt)
 {
-	unsigned int src, dst;
+	bool res = false;
+	const struct translator *zt;
 
-	for (src = 0; src < 32; src++) {
-		for (dst = 0; dst < 32; dst++) {
-			if (!(srcfmts & (1 << src)))
-				continue;
-
-			if (!(dstfmts & (1 << dst)))
-				continue;
-
-			if (global_format_map.map[dst][src])
-				continue;
-
-			if (!register_translator(dst, src))
-				map->map[dst][src] = 1;
+	AST_LIST_TRAVERSE(&translators, zt, entry) {
+		if ((zt->src_dahdi_fmt == srcfmt) && (zt->dst_dahdi_fmt == dstfmt)) {
+			res = true;
+			break;
 		}
 	}
+
+	return res;
+}
+
+static void build_translators(uint32_t dstfmts, uint32_t srcfmts)
+{
+	uint32_t srcfmt;
+	uint32_t dstfmt;
+
+	AST_LIST_LOCK(&translators);
+
+	for (srcfmt = 1; srcfmt != 0; srcfmt <<= 1) {
+		for (dstfmt = 1; dstfmt != 0; dstfmt <<= 1) {
+			if (!(dstfmts & dstfmt) || !(srcfmts & srcfmt)) {
+				continue;
+			}
+			if (is_already_registered(dstfmt, srcfmt)) {
+				continue;
+			}
+			register_translator(dstfmt, srcfmt);
+		}
+	}
+
+	AST_LIST_UNLOCK(&translators);
 }
 
 static int find_transcoders(void)
 {
 	struct dahdi_transcoder_info info = { 0, };
-	struct format_map map = { { { 0 } } };
 	int fd;
-	unsigned int x, y;
 
 	if ((fd = open("/dev/dahdi/transcode", O_RDWR)) < 0) {
 		ast_log(LOG_ERROR, "Failed to open /dev/dahdi/transcode: %s\n", strerror(errno));
@@ -910,22 +839,14 @@ static int find_transcoders(void)
 			info.srcfmts &= ~(DAHDI_FORMAT_ULAW | DAHDI_FORMAT_ALAW);
 		}
 
-		build_translators(&map, info.dstfmts, info.srcfmts);
+		build_translators(info.dstfmts, info.srcfmts);
 		ast_atomic_fetchadd_int(&channels.total, info.numchannels / 2);
-
 	}
 
 	close(fd);
 
 	if (!info.tcnum) {
 		ast_verb(2, "No hardware transcoders found.\n");
-	}
-
-	for (x = 0; x < 32; x++) {
-		for (y = 0; y < 32; y++) {
-			if (!map.map[x][y] && global_format_map.map[x][y])
-				drop_translator(x, y);
-		}
 	}
 
 	return 0;
