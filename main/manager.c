@@ -1191,11 +1191,76 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a hint changes due to a device state change.</synopsis>
 			<syntax>
-				<parameter name="Exten" />
-				<parameter name="Context" />
-				<parameter name="Hint" />
-				<parameter name="Status" />
-				<parameter name="StatusText" />
+				<parameter name="Exten">
+					<para>Name of the extension.</para>
+				</parameter>
+				<parameter name="Context">
+					<para>Context that owns the extension.</para>
+				</parameter>
+				<parameter name="Hint">
+					<para>Hint set for the extension</para>
+				</parameter>
+				<parameter name="Status">
+					<para>Numerical value of the extension status. Extension
+					status is determined by the combined device state of all items
+					contained in the hint.</para>
+					<enumlist>
+						<enum name="-2">
+							<para>The extension was removed from the dialplan.</para>
+						</enum>
+						<enum name="-1">
+							<para>The extension's hint was removed from the dialplan.</para>
+						</enum>
+						<enum name="0">
+							<para><literal>Idle</literal> - Related device(s) are in an idle
+							state.</para>
+						</enum>
+						<enum name="1">
+							<para><literal>InUse</literal> - Related device(s) are in active
+							calls but may take more calls.</para>
+						</enum>
+						<enum name="2">
+							<para><literal>Busy</literal> - Related device(s) are in active
+							calls and may not take any more calls.</para>
+						</enum>
+						<enum name="4">
+							<para><literal>Unavailable</literal> - Related device(s) are
+							not reachable.</para>
+						</enum>
+						<enum name="8">
+							<para><literal>Ringing</literal> - Related device(s) are
+							currently ringing.</para>
+						</enum>
+						<enum name="9">
+							<para><literal>InUse&amp;Ringing</literal> - Related device(s)
+							are currently ringing and in active calls.</para>
+						</enum>
+						<enum name="16">
+							<para><literal>Hold</literal> - Related device(s) are
+							currently on hold.</para>
+						</enum>
+						<enum name="17">
+							<para><literal>InUse&amp;Hold</literal> - Related device(s)
+							are currently on hold and in active calls.</para>
+						</enum>
+					</enumlist>
+				</parameter>
+				<parameter name="StatusText">
+					<para>Text representation of <literal>Status</literal>.</para>
+					<enumlist>
+						<enum name="Idle" />
+						<enum name="InUse" />
+						<enum name="Busy" />
+						<enum name="Unavailable" />
+						<enum name="Ringing" />
+						<enum name="InUse&amp;Ringing" />
+						<enum name="Hold" />
+						<enum name="InUse&amp;Hold" />
+						<enum name="Unknown">
+							<para>Status does not match any of the above values.</para>
+						</enum>
+					</enumlist>
+				</parameter>
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
