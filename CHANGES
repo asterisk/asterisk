@@ -135,6 +135,13 @@ CHANNEL
  * Added CHANNEL(onhold) item that returns 1 (onhold) and 0 (not-onhold) for
    the hold status of a channel.
 
+CURL
+------------------
+ * The CURL function now supports a write option, which will save the retrieved
+   file to a location on disk. As an example:
+     same => n,Set(CURL(https://1.1.1.1/foo.wav)=/tmp/foo.wav)
+   will save 'foo.wav' to /tmp.
+
 DTMF Features
 ------------------
  * The transferdialattempts default value has been changed from 1 to 3. The
