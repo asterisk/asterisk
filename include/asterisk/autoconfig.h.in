@@ -551,6 +551,9 @@
 /* Define to 1 if CRYPTO has the OpenSSL SRTP Extension Support feature. */
 #undef HAVE_OPENSSL_SRTP
 
+/* Define to 1 if you have the Opus library. */
+#undef HAVE_OPUS
+
 /* Define this to indicate the ${OSPTK_DESCRIP} library */
 #undef HAVE_OSPTK
 

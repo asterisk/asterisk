@@ -448,6 +448,7 @@ AST_EXT_LIB_SETUP([NETSNMP], [Net-SNMP], [netsnmp])
 AST_EXT_LIB_SETUP([NEWT], [newt], [newt])
 AST_EXT_LIB_SETUP([OGG], [OGG], [ogg])
 AST_EXT_LIB_SETUP([OPENR2], [MFR2], [openr2])
+AST_EXT_LIB_SETUP([OPUS], [Opus], [opus])
 AST_EXT_LIB_SETUP([OSPTK], [OSP Toolkit], [osptk])
 AST_EXT_LIB_SETUP([OSS], [Open Sound System], [oss])
 AST_EXT_LIB_SETUP([PGSQL], [PostgreSQL], [postgres])
@@ -2126,6 +2127,8 @@ fi
 AST_EXT_LIB_CHECK([SS7], [ss7], [ss7_set_isup_timer], [libss7.h])
 
 AST_EXT_LIB_CHECK([OPENR2], [openr2], [openr2_chan_new], [openr2.h])
+
+AST_EXT_LIB_CHECK([OPUS], [opus], [opus_encoder_create], [opus/opus.h])
 
 if test "${USE_PWLIB}" != "no"; then
 	if test -n "${PWLIB_DIR}"; then
