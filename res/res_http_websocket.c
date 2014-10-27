@@ -410,27 +410,27 @@ static inline int ws_safe_read(struct ast_websocket *session, char *buf, int len
 	for (sanity = 10; sanity; sanity--) {
 		clearerr(session->f);
 		rlen = fread(rbuf, 1, xlen, session->f);
-		if (0 == rlen && ferror(session->f) && errno != EAGAIN) {
+		if (!rlen && ferror(session->f) && errno != EAGAIN) {
 			ast_log(LOG_ERROR, "Error reading from web socket: %s\n", strerror(errno));
-			(*opcode) = AST_WEBSOCKET_OPCODE_CLOSE;
+			*opcode = AST_WEBSOCKET_OPCODE_CLOSE;
 			session->closing = 1;
 			return -1;
 		}
-		xlen = (xlen - rlen);
+		xlen = xlen - rlen;
 		rbuf = rbuf + rlen;
-		if (0 == xlen) {
+		if (!xlen) {
 			break;
 		}
 		if (ast_wait_for_input(session->fd, 1000) < 0) {
 			ast_log(LOG_ERROR, "ast_wait_for_input returned err: %s\n", strerror(errno));
-			(*opcode) = AST_WEBSOCKET_OPCODE_CLOSE;
+			*opcode = AST_WEBSOCKET_OPCODE_CLOSE;
 			session->closing = 1;
 			return -1;
 		}
 	}
 	if (!sanity) {
 		ast_log(LOG_WARNING, "Websocket seems unresponsive, disconnecting ...\n");
-		(*opcode) = AST_WEBSOCKET_OPCODE_CLOSE;
+		*opcode = AST_WEBSOCKET_OPCODE_CLOSE;
 		session->closing = 1;
 		return -1;
 	}
@@ -496,7 +496,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 			return -1;
 		}
 
-		if (ws_safe_read(session, (*payload), (*payload_len), opcode)) {
+		if (ws_safe_read(session, *payload, *payload_len, opcode)) {
 			return 0;
 		}
 
@@ -832,7 +832,7 @@ static void websocket_echo_callback(struct ast_websocket *session, struct ast_va
 	}
 
 end:
-	ast_debug(1, "Exitting WebSocket echo loop\n");
+	ast_debug(1, "Exiting WebSocket echo loop\n");
 	ast_websocket_unref(session);
 }
 
