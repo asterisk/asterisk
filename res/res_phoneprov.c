@@ -758,7 +758,9 @@ static void user_destructor(void *obj)
 		user->profile = unref_profile(user->profile);
 	}
 
-	ao2_callback(http_routes, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, routes_delete_cb, (void *)user->macaddress);
+	if (http_routes) {
+		ao2_callback(http_routes, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, routes_delete_cb, (void *)user->macaddress);
+	}
 
 	ast_string_field_free_memory(user);
 }
@@ -1382,9 +1384,9 @@ static int unload_module(void)
 	ao2_cleanup(profiles);
 	profiles = NULL;
 	delete_routes();
+	delete_users();
 	ao2_cleanup(http_routes);
 	http_routes = NULL;
-	delete_users();
 	ao2_cleanup(users);
 	users = NULL;
 	delete_providers();
