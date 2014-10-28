@@ -3419,26 +3419,25 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 
 	/* in gateway mode, gateway some packets */
 	if (gateway->t38_state == T38_STATE_NEGOTIATED) {
+		struct ast_trans_pvt *readtrans;
 		/* framehooks are called in __ast_read() before frame format
 		 * translation is done, so we need to translate here */
-		if ((f->frametype == AST_FRAME_VOICE) && (ast_format_cmp(f->subclass.format, ast_format_slin) != AST_FORMAT_CMP_EQUAL)) {
-			if (ast_channel_readtrans(active) && (f = ast_translate(ast_channel_readtrans(active), f, 1)) == NULL) {
+		if ((f->frametype == AST_FRAME_VOICE) && (ast_format_cmp(f->subclass.format, ast_format_slin) != AST_FORMAT_CMP_EQUAL)
+			&& (readtrans = ast_channel_readtrans(active))) {
+			if ((f = ast_translate(readtrans, f, 1)) == NULL) {
 				f = &ast_null_frame;
 				return f;
 			}
+			/* XXX we ignore the return value here, perhaps we should
+			 * disable the gateway if a write fails. I am not sure how a
+			 * write would fail, or even if a failure would be fatal so for
+			 * now we'll just ignore the return value. */
+			gateway->s->tech->write(gateway->s, f);
+			ast_frfree(f);
+		} else {
+			gateway->s->tech->write(gateway->s, f);
 		}
 
-		/* XXX we ignore the return value here, perhaps we should
-		 * disable the gateway if a write fails. I am not sure how a
-		 * write would fail, or even if a failure would be fatal so for
-		 * now we'll just ignore the return value. */
-		gateway->s->tech->write(gateway->s, f);
-		if ((f->frametype == AST_FRAME_VOICE) && (ast_format_cmp(f->subclass.format, ast_format_slin) != AST_FORMAT_CMP_EQUAL) &&
-			ast_channel_readtrans(active)) {
-			/* Only free the frame if we translated / duplicated it - otherwise,
-			 * let whatever is outside the frame hook do it */
-			ast_frfree(f);
-		}
 		f = &ast_null_frame;
 		return f;
 	}
