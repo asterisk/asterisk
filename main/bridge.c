@@ -1677,6 +1677,7 @@ int ast_bridge_impart(struct ast_bridge *bridge,
 	if (ast_channel_pbx(chan)) {
 		ast_log(AST_LOG_WARNING, "Channel %s has a PBX thread and cannot be imparted into bridge %s\n",
 			ast_channel_name(chan), bridge->uniqueid);
+		ast_bridge_features_destroy(features);
 		return -1;
 	}
 
