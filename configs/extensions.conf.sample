@@ -553,7 +553,7 @@ exten => s,n,WaitExten			; Wait for an extension to be dialed.
 exten => 2,1,BackGround(demo-moreinfo)	; Give some more information.
 exten => 2,n,Goto(s,instruct)
 
-exten => 3,1,Set(LANGUAGE()=fr)		; Set language to french
+exten => 3,1,Set(CHANNEL(language)=fr)		; Set language to french
 exten => 3,n,Goto(s,restart)		; Start with the congratulations
 
 exten => 1000,1,Goto(default,s,1)
