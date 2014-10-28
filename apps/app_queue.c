@@ -3396,6 +3396,7 @@ static void update_realtime_members(struct call_queue *q)
 			}
 			ao2_ref(m, -1);
 		}
+		ao2_iterator_destroy(&mem_iter);
 		ast_debug(3, "Queue %s has no realtime members defined. No need for update\n", q->name);
 		ao2_unlock(q);
 		return;
