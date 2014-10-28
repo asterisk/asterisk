@@ -540,8 +540,7 @@ static int cdr_prop_write(struct ast_channel *chan, const char *cmd, char *parse
 		     const char *value)
 {
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
-	RAII_VAR(struct cdr_func_payload *, payload,
-		ao2_alloc(sizeof(*payload), NULL), ao2_cleanup);
+	RAII_VAR(struct cdr_func_payload *, payload, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message_router *, router, ast_cdr_message_router(), ao2_cleanup);
 
 	if (!chan) {
