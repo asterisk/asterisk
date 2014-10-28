@@ -8492,6 +8492,7 @@ static void manager_shutdown(void)
 	while ((user = AST_LIST_REMOVE_HEAD(&users, list))) {
 		manager_free_user(user);
 	}
+	acl_change_stasis_unsubscribe();
 }
 
 
