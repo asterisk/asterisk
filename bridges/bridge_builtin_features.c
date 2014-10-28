@@ -226,7 +226,9 @@ static int feature_automonitor(struct ast_bridge_channel *bridge_channel, void *
 	RAII_VAR(struct ast_channel *, peer_chan, NULL, ast_channel_cleanup);
 	RAII_VAR(struct ast_features_general_config *, features_cfg, NULL, ao2_cleanup);
 
+	ast_channel_lock(bridge_channel->chan);
 	features_cfg = ast_get_chan_features_general_config(bridge_channel->chan);
+	ast_channel_unlock(bridge_channel->chan);
 	ast_bridge_channel_lock_bridge(bridge_channel);
 	peer_chan = ast_bridge_peer_nolock(bridge_channel->bridge, bridge_channel->chan);
 	ast_bridge_unlock(bridge_channel->bridge);
@@ -412,7 +414,9 @@ static int feature_automixmonitor(struct ast_bridge_channel *bridge_channel, voi
 	RAII_VAR(struct ast_channel *, peer_chan, NULL, ast_channel_cleanup);
 	RAII_VAR(struct ast_features_general_config *, features_cfg, NULL, ao2_cleanup);
 
+	ast_channel_lock(bridge_channel->chan);
 	features_cfg = ast_get_chan_features_general_config(bridge_channel->chan);
+	ast_channel_unlock(bridge_channel->chan);
 	ast_bridge_channel_lock_bridge(bridge_channel);
 	peer_chan = ast_bridge_peer_nolock(bridge_channel->bridge, bridge_channel->chan);
 	ast_bridge_unlock(bridge_channel->bridge);
