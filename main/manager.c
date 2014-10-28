@@ -640,7 +640,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<synopsis>Raised in response to an Originate command.</synopsis>
 			<syntax>
 				<parameter name="ActionID" required="false"/>
-				<parameter name="Resonse">
+				<parameter name="Response">
 					<enumlist>
 						<enum name="Failure"/>
 						<enum name="Success"/>
