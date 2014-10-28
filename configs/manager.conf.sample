@@ -3,8 +3,6 @@
 ;
 ; Third party application call management support and PBX event supervision
 ;
-; This configuration file is read every time someone logs in
-;
 ; Use the "manager show commands" at the CLI to list available manager commands
 ; and their authorization levels.
 ;
