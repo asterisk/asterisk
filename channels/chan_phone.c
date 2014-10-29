@@ -827,7 +827,7 @@ static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
 		} else {
 			int swap = 0;
 #if __BYTE_ORDER == __BIG_ENDIAN
-			if (frame->subclass.format.id == AST_FORMAT_SLINEAR)
+			if (ast_format_cmp(frame->subclass.format, ast_format_slin) == AST_FORMAT_CMP_EQUAL)
 				swap = 1; /* Swap big-endian samples to little-endian as we copy */
 #endif
 			res = phone_write_buf(p, pos, expected, maxfr, swap);
