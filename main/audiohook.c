@@ -558,9 +558,11 @@ void ast_audiohook_detach_list(struct ast_audiohook_list *audiohook_list)
 	for (i = 0; i < 2; i++) {
 		if (audiohook_list->in_translate[i].trans_pvt) {
 			ast_translator_free_path(audiohook_list->in_translate[i].trans_pvt);
+			ao2_cleanup(audiohook_list->in_translate[i].format);
 		}
 		if (audiohook_list->out_translate[i].trans_pvt) {
 			ast_translator_free_path(audiohook_list->out_translate[i].trans_pvt);
+			ao2_cleanup(audiohook_list->in_translate[i].format);
 		}
 	}
 
