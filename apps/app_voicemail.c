@@ -706,7 +706,8 @@ struct vm_state {
 #ifdef IMAP_STORAGE
 	ast_mutex_t lock;
 	int updated;                         /*!< decremented on each mail check until 1 -allows delay */
-	long msgArray[VMSTATE_MAX_MSG_ARRAY];
+	long *msgArray;
+	unsigned msg_array_max;
 	MAILSTREAM *mailstream;
 	int vmArrayIndex;
 	char imapuser[80];                   /*!< IMAP server login */
@@ -2115,6 +2116,7 @@ static int __messagecount(const char *context, const char *mailbox, const char *
 		free_user(vmu);
 		return -1;
 	}
+	ast_assert(msgnum < vms->msg_array_max);
 
 	/* check if someone is accessing this box right now... */
 	vms_p = get_vm_state_by_imapuser(vmu->imapuser, 1);
@@ -2739,6 +2741,17 @@ static void update_messages_by_imapuser(const char *user, unsigned long number)
 	}
 
 	ast_debug(3, "saving mailbox message number %lu as message %d. Interactive set to %d\n", number, vms->vmArrayIndex, vms->interactive);
+
+	/* Ensure we have room for the next message. */
+	if (vms->vmArrayIndex >= vms->msg_array_max) {
+		long *new_mem = ast_realloc(vms->msgArray, 2 * vms->msg_array_max * sizeof(long));
+		if (!new_mem) {
+			return;
+		}
+		vms->msgArray = new_mem;
+		vms->msg_array_max *= 2;
+	}
+
 	vms->msgArray[vms->vmArrayIndex++] = number;
 }
 
@@ -3016,6 +3029,7 @@ static struct vm_state *create_vm_state_from_user(struct ast_vm_user *vmu)
 	}
 	if (option_debug > 4)
 		ast_log(AST_LOG_DEBUG, "Adding new vmstate for %s\n", vmu->imapuser);
+	/* XXX: Is this correctly freed always? */
 	if (!(vms_p = ast_calloc(1, sizeof(*vms_p))))
 		return NULL;
 	ast_copy_string(vms_p->imapuser, vmu->imapuser, sizeof(vms_p->imapuser));
@@ -3128,6 +3142,7 @@ static void vmstate_insert(struct vm_state *vms)
 			vms->newmessages = altvms->newmessages;
 			vms->oldmessages = altvms->oldmessages;
 			vms->vmArrayIndex = altvms->vmArrayIndex;
+			/* XXX: no msgArray copying? */
 			vms->lastmsg = altvms->lastmsg;
 			vms->curmsg = altvms->curmsg;
 			/* get a pointer to the persistent store */
@@ -3186,10 +3201,14 @@ static void vmstate_delete(struct vm_state *vms)
 	
 	if (vc) {
 		ast_mutex_destroy(&vc->vms->lock);
+		ast_free(vc->vms->msgArray);
+		vc->vms->msgArray = NULL;
+		vc->vms->msg_array_max = 0;
+		/* XXX: is no one supposed to free vms itself? */
 		ast_free(vc);
-	}
-	else
+	} else {
 		ast_log(AST_LOG_ERROR, "No vmstate found for user:%s, mailbox %s\n", vms->imapuser, vms->username);
+	}
 }
 
 static void set_update(MAILSTREAM * stream) 
@@ -3211,11 +3230,13 @@ static void set_update(MAILSTREAM * stream)
 
 static void init_vm_state(struct vm_state *vms) 
 {
-	int x;
-	vms->vmArrayIndex = 0;
-	for (x = 0; x < VMSTATE_MAX_MSG_ARRAY; x++) {
-		vms->msgArray[x] = 0;
+	vms->msg_array_max = VMSTATE_MAX_MSG_ARRAY;
+	vms->msgArray = ast_calloc(vms->msg_array_max, sizeof(long));
+	if (!vms->msgArray) {
+		/* Out of mem? This can't be good. */
+		vms->msg_array_max = 0;
 	}
+	vms->vmArrayIndex = 0;
 	ast_mutex_init(&vms->lock);
 }
 
