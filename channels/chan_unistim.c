@@ -2550,6 +2550,9 @@ static void *unistim_ss(void *data)
 	struct unistimsession *s = l->parent->session;
 	int res;
 
+	if (!s) {
+		return NULL;
+	}
 	ast_verb(3, "Starting switch on '%s@%s-%d' to %s\n", l->name, l->parent->name, sub->softkey, s->device->phone_number);
 	ast_channel_exten_set(chan, s->device->phone_number);
 	ast_copy_string(s->device->redial_number, s->device->phone_number,
@@ -3306,6 +3309,9 @@ static void key_call(struct unistimsession *pte, char keycode)
 	struct unistim_subchannel *sub = get_sub(pte->device, SUB_REAL);
 	struct unistim_subchannel *sub_3way = get_sub(pte->device, SUB_THREEWAY);
 
+	if (!sub) {
+		return;
+	}
 	if ((keycode >= KEY_0) && (keycode <= KEY_SHARP)) {
 		if (keycode == KEY_SHARP) {
 			keycode = '#';
@@ -3319,7 +3325,7 @@ static void key_call(struct unistimsession *pte, char keycode)
 	}
 	switch (keycode) {
 	case KEY_FUNC1:
-		if (ast_channel_state(sub->owner) == AST_STATE_UP) {
+		if (sub->owner && ast_channel_state(sub->owner) == AST_STATE_UP) {
 			if (sub_3way) {
 				close_call(pte);
 			}
@@ -3361,8 +3367,8 @@ static void key_call(struct unistimsession *pte, char keycode)
 							 MUTE_OFF);
 		break;
 	case KEY_MUTE:
-		if (!sub || !sub->owner) {
-			ast_log(LOG_WARNING, "Unable to find subchannel for music on hold\n");
+		if (!sub->owner) {
+			ast_log(LOG_WARNING, "Unable to find channel for music on hold\n");
 			return;
 		}
 		if (!sub->moh) {
