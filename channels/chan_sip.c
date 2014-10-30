@@ -25332,7 +25332,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 	int reinvite = 0;
 	struct ast_party_redirecting redirecting;
 	struct ast_set_party_redirecting update_redirecting;
-
+	int supported_start = 0;
+	int require_start = 0;
+	char unsupported[256] = { 0, };
 	struct {
 		char exten[AST_MAX_EXTENSION];
 		char context[AST_MAX_CONTEXT];
@@ -25344,30 +25346,36 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 
 	/* Find out what they support */
 	if (!p->sipoptions) {
-		const char *supported = sip_get_header(req, "Supported");
-		if (!ast_strlen_zero(supported)) {
-			p->sipoptions = parse_sip_options(supported, NULL, 0);
-		}
+		const char *supported = NULL;
+		do {
+			supported = __get_header(req, "Supported", &supported_start);
+			if (!ast_strlen_zero(supported)) {
+				p->sipoptions |= parse_sip_options(supported, NULL, 0);
+			}
+		} while (!ast_strlen_zero(supported));
 	}
 
 	/* Find out what they require */
-	required = sip_get_header(req, "Require");
-	if (!ast_strlen_zero(required)) {
-		char unsupported[256] = { 0, };
-		required_profile = parse_sip_options(required, unsupported, ARRAY_LEN(unsupported));
-
-		/* If there are any options required that we do not support,
-		 * then send a 420 with only those unsupported options listed */
-		if (!ast_strlen_zero(unsupported)) {
-			transmit_response_with_unsupported(p, "420 Bad extension (unsupported)", req, unsupported);
-			ast_log(LOG_WARNING, "Received SIP INVITE with unsupported required extension: required:%s unsupported:%s\n", required, unsupported);
-			p->invitestate = INV_COMPLETED;
-			if (!p->lastinvite)
-				sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
-			res = INV_REQ_ERROR;
-			goto request_invite_cleanup;
+	do {
+		required = __get_header(req, "Require", &require_start);
+		if (!ast_strlen_zero(required)) {
+			required_profile |= parse_sip_options(required, unsupported, ARRAY_LEN(unsupported));
 		}
+	} while (!ast_strlen_zero(required));
+
+	/* If there are any options required that we do not support,
+	 * then send a 420 with only those unsupported options listed */
+	if (!ast_strlen_zero(unsupported)) {
+		transmit_response_with_unsupported(p, "420 Bad extension (unsupported)", req, unsupported);
+		ast_log(LOG_WARNING, "Received SIP INVITE with unsupported required extension: required:%s unsupported:%s\n", required, unsupported);
+		p->invitestate = INV_COMPLETED;
+		if (!p->lastinvite) {
+			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+		}
+		res = -1;
+		goto request_invite_cleanup;
 	}
+
 
 	/* The option tags may be present in Supported: or Require: headers.
 	Include the Require: option tags for further processing as well */
