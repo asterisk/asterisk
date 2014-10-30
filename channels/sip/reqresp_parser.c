@@ -1595,10 +1595,6 @@ unsigned int parse_sip_options(const char *options, char *unsupported, size_t un
 	size_t outlen = unsupported_len;
 	char *cur_out = out;
 
-	if (out && (outlen > 0)) {
-		memset(out, 0, outlen);
-	}
-
 	if (ast_strlen_zero(options) )
 		return 0;
 
