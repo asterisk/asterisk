@@ -21065,6 +21065,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		}
 		break;
 
+	case 414: /* Bad request URI */
+	case 493: /* Undecipherable */
 	case 404: /* Not found */
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		if (p->owner && !req->ignore) {
@@ -21287,12 +21289,16 @@ static void handle_response_subscribe(struct sip_pvt *p, int resp, const char *r
 		ASTOBJ_UNREF(p->mwi, sip_subscribe_mwi_destroy);
 		pvt_set_needdestroy(p, "received 481 response");
 		break;
+
+	case 400: /* Bad Request */
+	case 414: /* Request URI too long */
+	case 493: /* Undecipherable */
 	case 500:
 	case 501:
 		ast_log(LOG_WARNING, "Subscription failed for MWI. The remote side may have suffered a heart attack.\n");
 		p->mwi->call = NULL;
 		ASTOBJ_UNREF(p->mwi, sip_subscribe_mwi_destroy);
-		pvt_set_needdestroy(p, "received 500/501 response");
+		pvt_set_needdestroy(p, "received serious error (500/501/493/414/400) response");
 		break;
 	}
 }
@@ -21466,11 +21472,14 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 		}
 		manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelType: SIP\r\nUsername: %s\r\nDomain: %s\r\nStatus: %s\r\n", r->username, r->hostname, regstate2str(r->regstate));
 		break;
-	case 479:	/* SER: Not able to process the URI - address is wrong in register*/
-		ast_log(LOG_WARNING, "Got error 479 on register to %s@%s, giving up (check config)\n", p->registry->username, p->registry->hostname);
-		pvt_set_needdestroy(p, "received 479 response");
+	case 400:	/* Bad request */
+	case 414:	/* Request URI too long */
+	case 493:	/* Undecipherable */
+	case 479:	/* Kamailio/OpenSIPS: Not able to process the URI - address is wrong in register*/
+		ast_log(LOG_WARNING, "Got error %d on register to %s@%s, giving up (check config)\n", resp, p->registry->username, p->registry->hostname);
+		pvt_set_needdestroy(p, "received 4xx response");
 		if (r->call)
-			r->call = dialog_unref(r->call, "unsetting registry->call pointer-- case 479");
+			r->call = dialog_unref(r->call, "unsetting registry->call pointer-- case 4xx");
 		r->regstate = REG_STATE_REJECTED;
 		AST_SCHED_DEL_UNREF(sched, r->timeout, registry_unref(r, "reg ptr unref from handle_response_register 479"));
 		break;
@@ -21886,6 +21895,9 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 				pvt_set_needdestroy(p, "received 403 response");
 			}
 			break;
+		case 400: /* Bad Request */
+		case 414: /* Request URI too long */
+		case 493: /* Undecipherable */
 		case 404: /* Not found */
 			if (p->registry && sipmethod == SIP_REGISTER)
 				handle_response_register(p, resp, rest, req, seqno);
