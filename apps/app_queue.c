@@ -114,9 +114,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/core_unreal.h"
 #include "asterisk/bridge_basic.h"
 
-/* Define, to debug reference counts on queues, without debugging reference counts on queue members */
-/* #define REF_DEBUG_ONLY_QUEUES */
-
 /*!
  * \par Please read before modifying this file.
  * There are three locks which are regularly used
@@ -1776,7 +1773,7 @@ static void queue_member_follower_removal(struct call_queue *queue, struct membe
 	ao2_callback(queue->members, OBJ_NODATA | OBJ_MULTIPLE, queue_member_decrement_followers, &pos);
 }
 
-#ifdef REF_DEBUG_ONLY_QUEUES
+#ifdef REF_DEBUG
 #define queue_ref(q)				_queue_ref(q, "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define queue_unref(q)				_queue_unref(q, "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define queue_t_ref(q, tag)			_queue_ref(q, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__)
@@ -7225,6 +7222,7 @@ static int set_member_value(const char *queuename, const char *interface, int pr
 					if ((q = find_load_queue_rt_friendly(name))) {
 						foundqueue++;
 						foundinterface += set_member_value_help_members(q, interface, property, value);
+						queue_unref(q);
 					}
 				}
 			}
@@ -7235,12 +7233,14 @@ static int set_member_value(const char *queuename, const char *interface, int pr
 		while ((q = ao2_t_iterator_next(&queue_iter, "Iterate through queues"))) {
 			foundqueue++;
 			foundinterface += set_member_value_help_members(q, interface, property, value);
+			queue_unref(q);
 		}
 		ao2_iterator_destroy(&queue_iter);
 	} else { /* We actually have a queuename, so we can just act on the single queue. */
 		if ((q = find_load_queue_rt_friendly(queuename))) {
 			foundqueue++;
 			foundinterface += set_member_value_help_members(q, interface, property, value);
+			queue_unref(q);
 		}
 	}
 
