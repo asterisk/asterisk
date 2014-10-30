@@ -85,6 +85,19 @@ static struct ast_sip_contact_status *find_or_create_contact_status(const struct
 	return status;
 }
 
+static void delete_contact_status(const struct ast_sip_contact *contact)
+{
+	struct ast_sip_contact_status *status = ast_sorcery_retrieve_by_id(
+		ast_sip_get_sorcery(), CONTACT_STATUS, ast_sorcery_object_get_id(contact));
+
+	if (!status) {
+		return;
+	}
+
+	ast_sorcery_delete(ast_sip_get_sorcery(), status);
+	ao2_ref(status, -1);
+}
+
 /*!
  * \internal
  * \brief Update an ast_sip_contact_status's elements.
@@ -470,6 +483,8 @@ static void qualify_and_schedule(struct ast_sip_contact *contact)
 		}
 
 		schedule_qualify(contact);
+	} else {
+		delete_contact_status(contact);
 	}
 }
 
