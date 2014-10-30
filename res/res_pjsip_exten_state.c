@@ -457,6 +457,10 @@ static void to_ami(struct ast_sip_subscription *sub,
 	struct exten_state_subscription *exten_state_sub =
 		get_exten_state_sub(sub);
 
+	if (!exten_state_sub) {
+		return;
+	}
+
 	ast_str_append(buf, 0, "SubscriptionType: extension_state\r\n"
 		       "Extension: %s\r\nExtensionStates: %s\r\n",
 		       exten_state_sub->exten, ast_extension_state2str(
