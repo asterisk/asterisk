@@ -138,6 +138,14 @@
 				<para>The outbound registration to unregister.</para>
 			</parameter>
 		</syntax>
+		<description>
+			<para>
+			Send a SIP REGISTER request to the specified outbound registration with an expiration of 0.
+			This will cause the contact added by this registration to be removed on the remote system.
+			Note: The specified outbound registration will attempt to re-register according to it's last
+			registration expiration.
+                        </para>
+		</description>
 	</manager>
 	<manager name="PJSIPShowRegistrationsOutbound" language="en_US">
 		<synopsis>
@@ -465,11 +473,17 @@ static int handle_registration_response(void *data)
 	}
 
 	if (PJSIP_IS_STATUS_IN_CLASS(response->code, 200)) {
-		/* If the registration went fine simply reschedule registration for the future */
-		ast_debug(1, "Outbound registration to '%s' with client '%s' successful\n", server_uri, client_uri);
-		response->client_state->status = SIP_REGISTRATION_REGISTERED;
-		response->client_state->retries = 0;
-		schedule_registration(response->client_state, response->expiration - REREGISTER_BUFFER_TIME);
+		/* Check if this is in regards to registering or unregistering */
+		if (response->expiration) {
+			/* If the registration went fine simply reschedule registration for the future */
+			ast_debug(1, "Outbound registration to '%s' with client '%s' successful\n", server_uri, client_uri);
+			response->client_state->status = SIP_REGISTRATION_REGISTERED;
+			response->client_state->retries = 0;
+			schedule_registration(response->client_state, response->expiration - REREGISTER_BUFFER_TIME);
+		} else {
+			ast_debug(1, "Outbound unregistration to '%s' with client '%s' successful\n", server_uri, client_uri);
+			response->client_state->status = SIP_REGISTRATION_UNREGISTERED;
+		}
 	} else if (response->retry_after) {
 		/* If we have been instructed to retry after a period of time, schedule it as such */
 		schedule_retry(response, response->retry_after, server_uri, client_uri);
@@ -999,7 +1013,9 @@ static char *cli_unregister(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 			"Usage: pjsip send unregister <registration>\n"
 			"       Send a SIP REGISTER request to the specified outbound "
 			"registration with an expiration of 0. This will cause the contact "
-			"added by this registration to be removed on the remote system.\n";
+			"added by this registration to be removed on the remote system. Note: "
+			"The specified outbound registration will attempt to re-register "
+			"according to its last registration expiration.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return cli_complete_registration(a->line, a->word, a->pos, a->n);
