@@ -821,6 +821,12 @@
 				</configOption>
 				<configOption name="cert_file">
 					<synopsis>Certificate file for endpoint (TLS ONLY)</synopsis>
+					<description><para>
+						A path to a .crt or .pem file can be provided.  However, only
+						the certificate is read from the file, not the private key.
+						The <literal>priv_key_file</literal> option must supply a
+						matching key file.
+					</para></description>
 				</configOption>
 				<configOption name="cipher">
 					<synopsis>Preferred cryptography cipher names (TLS ONLY)</synopsis>
