@@ -176,6 +176,11 @@ void sip_request_parser_unregister_tests(void);
  * \param option list
  * \param unsupported out buffer (optional)
  * \param unsupported out buffer length (optional)
+ *
+ * \note Because this function can be called multiple times, it will append
+ * whatever options are specified in \c options to \c unsupported. Callers
+ * of this function should make sure the unsupported buffer is clear before
+ * calling this function.
  */
 unsigned int parse_sip_options(const char *options, char *unsupported, size_t unsupported_len);
 
