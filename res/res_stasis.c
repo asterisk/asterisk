@@ -1204,6 +1204,10 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 	 */
 	remove_stasis_end_published(chan);
 
+	if (!apps_registry) {
+		return -1;
+	}
+
 	app = ao2_find(apps_registry, app_name, OBJ_SEARCH_KEY);
 	if (!app) {
 		ast_log(LOG_ERROR,
@@ -1364,6 +1368,10 @@ int stasis_app_send(const char *app_name, struct ast_json *message)
 {
 	RAII_VAR(struct stasis_app *, app, NULL, ao2_cleanup);
 
+	if (!apps_registry) {
+		return -1;
+	}
+
 	app = ao2_find(apps_registry, app_name, OBJ_SEARCH_KEY);
 	if (!app) {
 		/* XXX We can do a better job handling late binding, queueing up
@@ -1380,6 +1388,10 @@ int stasis_app_send(const char *app_name, struct ast_json *message)
 static struct stasis_app *find_app_by_name(const char *app_name)
 {
 	struct stasis_app *res = NULL;
+
+	if (!apps_registry) {
+		return NULL;
+	}
 
 	if (!ast_strlen_zero(app_name)) {
 		res = ao2_find(apps_registry, app_name, OBJ_SEARCH_KEY);
@@ -1405,6 +1417,10 @@ struct ao2_container *stasis_app_get_all(void)
 {
 	RAII_VAR(struct ao2_container *, apps, NULL, ao2_cleanup);
 
+	if (!apps_registry) {
+		return NULL;
+	}
+
 	apps = ast_str_container_alloc(1);
 	if (!apps) {
 		return NULL;
@@ -1419,8 +1435,11 @@ int stasis_app_register(const char *app_name, stasis_app_cb handler, void *data)
 {
 	RAII_VAR(struct stasis_app *, app, NULL, ao2_cleanup);
 
-	SCOPED_LOCK(apps_lock, apps_registry, ao2_lock, ao2_unlock);
+	if (!apps_registry) {
+		return -1;
+	}
 
+	ao2_lock(apps_registry);
 	app = ao2_find(apps_registry, app_name, OBJ_SEARCH_KEY | OBJ_NOLOCK);
 	if (app) {
 		app_update(app, handler, data);
@@ -1429,6 +1448,7 @@ int stasis_app_register(const char *app_name, stasis_app_cb handler, void *data)
 		if (app) {
 			ao2_link_flags(apps_registry, app, OBJ_NOLOCK);
 		} else {
+			ao2_unlock(apps_registry);
 			return -1;
 		}
 	}
@@ -1437,6 +1457,7 @@ int stasis_app_register(const char *app_name, stasis_app_cb handler, void *data)
 	 * prevent memory leaks, and we're lazy.
 	 */
 	cleanup();
+	ao2_unlock(apps_registry);
 	return 0;
 }
 
@@ -1445,6 +1466,10 @@ void stasis_app_unregister(const char *app_name)
 	RAII_VAR(struct stasis_app *, app, NULL, ao2_cleanup);
 
 	if (!app_name) {
+		return;
+	}
+
+	if (!apps_registry) {
 		return;
 	}
 
@@ -1837,6 +1862,7 @@ static int unload_module(void)
 
 	messaging_cleanup();
 
+	cleanup();
 	ao2_cleanup(apps_registry);
 	apps_registry = NULL;
 
