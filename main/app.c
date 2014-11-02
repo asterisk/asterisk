@@ -1782,17 +1782,19 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 			ast_truncstream(others[x]);
 			ast_closestream(others[x]);
 		}
-	}
-
-	if (prepend && outmsg) {
+	} else if (prepend && outmsg) {
 		struct ast_filestream *realfiles[AST_MAX_FORMATS];
 		struct ast_frame *fr;
 
 		for (x = 0; x < fmtcnt; x++) {
 			snprintf(comment, sizeof(comment), "Opening the real file %s.%s\n", recordfile, sfmt[x]);
 			realfiles[x] = ast_readfile(recordfile, sfmt[x], comment, O_RDONLY, 0, 0);
-			if (!others[x] || !realfiles[x]) {
+			if (!others[x]) {
 				break;
+			}
+			if (!realfiles[x]) {
+				ast_closestream(others[0]);
+				continue;
 			}
 			/*!\note Same logic as above. */
 			if (dspsilence) {
@@ -1810,7 +1812,15 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 			ast_verb(4, "Recording Format: sfmts=%s, prependfile %s, recordfile %s\n", sfmt[x], prependfile, recordfile);
 			ast_filedelete(prependfile, sfmt[x]);
 		}
+	} else {
+		for (x = 0; x < fmtcnt; x++) {
+			if (!others[x]) {
+				break;
+			}
+			ast_closestream(others[x]);
+		}
 	}
+
 	if (rfmt && ast_set_read_format(chan, rfmt)) {
 		ast_log(LOG_WARNING, "Unable to restore format %s to channel '%s'\n", ast_format_get_name(rfmt), ast_channel_name(chan));
 	}
