@@ -254,8 +254,14 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 		} else {
 			res = framedata->jb_impl->put(framedata->jb_obj, jbframe, now);
 		}
+
 		if (res == AST_JB_IMPL_OK) {
+			if (jbframe != frame) {
+				ast_frfree(frame);
+			}
 			frame = &ast_null_frame;
+		} else if (jbframe != frame) {
+			ast_frfree(jbframe);
 		}
 		putframe = 1;
 	}
@@ -282,6 +288,8 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 			}
 		}
 
+		ast_frfree(frame);
+		frame = &ast_null_frame;
 		res = framedata->jb_impl->get(framedata->jb_obj, &frame, now, framedata->timer_interval);
 		switch (res) {
 		case AST_JB_IMPL_OK:
@@ -294,6 +302,7 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 		case AST_JB_IMPL_INTERP:
 			if (framedata->last_format.id) {
 				struct ast_frame tmp = { 0, };
+
 				tmp.frametype = AST_FRAME_VOICE;
 				ast_format_copy(&tmp.subclass.format, &framedata->last_format);
 				/* example: 8000hz / (1000 / 20ms) = 160 samples */
@@ -301,11 +310,13 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 				tmp.delivery = ast_tvadd(framedata->start_tv, ast_samp2tv(next, 1000));
 				tmp.offset = AST_FRIENDLY_OFFSET;
 				tmp.src  = "func_jitterbuffer interpolation";
+				ast_frfree(frame);
 				frame = ast_frdup(&tmp);
 				break;
 			}
 			/* else fall through */
 		case AST_JB_IMPL_NOFRAME:
+			ast_frfree(frame);
 			frame = &ast_null_frame;
 			break;
 		}

@@ -647,7 +647,7 @@ static int jb_put_fixed(void *jb, struct ast_frame *fin, long now)
 static int jb_get_fixed(void *jb, struct ast_frame **fout, long now, long interpl)
 {
 	struct fixed_jb *fixedjb = (struct fixed_jb *) jb;
-	struct fixed_jb_frame frame;
+	struct fixed_jb_frame frame = { .data = &ast_null_frame };
 	int res;
 
 	res = fixed_jb_get(fixedjb, &frame, now, interpl);
@@ -743,7 +743,7 @@ static int jb_put_adaptive(void *jb, struct ast_frame *fin, long now)
 static int jb_get_adaptive(void *jb, struct ast_frame **fout, long now, long interpl)
 {
 	jitterbuf *adaptivejb = (jitterbuf *) jb;
-	jb_frame frame;
+	jb_frame frame = { .data = &ast_null_frame };
 	int res;
 
 	res = jb_get(adaptivejb, &frame, now, interpl);
