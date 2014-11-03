@@ -27,6 +27,9 @@ chan_pjsip
    to the request URI and From URI if the user is determined to be a phone number.
  * New 'moh_passthrough' endpoint setting. This will pass hold and unhold requests
    through using SIP re-invites with sendonly and sendrecv accordingly.
+ * Added the pjsip.conf system type disable_tcp_switch option.  The option
+   allows the user to disable switching from UDP to TCP transports described
+   by RFC 3261 section 18.1.1.
 
 Functions
 ------------------

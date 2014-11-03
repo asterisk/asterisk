@@ -49,6 +49,8 @@ struct system_config {
 		/*! Maxumum number of threads in the threadpool */
 		int max_size;
 	} threadpool;
+	/*! Nonzero to disable switching from UDP to TCP transport */
+	unsigned int disable_tcp_switch;
 };
 
 static struct ast_threadpool_options sip_threadpool_options = {
@@ -95,6 +97,7 @@ static int system_apply(const struct ast_sorcery *system_sorcery, void *obj)
 
 	if (system->compactheaders) {
 		extern pj_bool_t pjsip_use_compact_form;
+
 		pjsip_use_compact_form = PJ_TRUE;
 	}
 
@@ -102,6 +105,9 @@ static int system_apply(const struct ast_sorcery *system_sorcery, void *obj)
 	sip_threadpool_options.auto_increment = system->threadpool.auto_increment;
 	sip_threadpool_options.idle_timeout = system->threadpool.idle_timeout;
 	sip_threadpool_options.max_size = system->threadpool.max_size;
+
+	pjsip_cfg()->endpt.disable_tcp_switch =
+		system->disable_tcp_switch ? PJ_TRUE : PJ_FALSE;
 
 	return 0;
 }
@@ -141,6 +147,8 @@ int ast_sip_initialize_system(void)
 			OPT_UINT_T, 0, FLDSET(struct system_config, threadpool.idle_timeout));
 	ast_sorcery_object_field_register(system_sorcery, "system", "threadpool_max_size", "0",
 			OPT_UINT_T, 0, FLDSET(struct system_config, threadpool.max_size));
+	ast_sorcery_object_field_register(system_sorcery, "system", "disable_tcp_switch", "no",
+			OPT_BOOL_T, 1, FLDSET(struct system_config, disable_tcp_switch));
 
 	ast_sorcery_load(system_sorcery);
 
