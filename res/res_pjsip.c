@@ -576,6 +576,9 @@
 				<configOption name="user_eq_phone" default="no">
 					<synopsis>Determines whether a user=phone parameter is placed into the request URI if the user is determined to be a phone number</synopsis>
 				</configOption>
+				<configOption name="moh_passthrough" default="no">
+					<synopsis>Determines whether hold and unhold will be passed through using re-INVITEs with recvonly and sendrecv to the remote side</synopsis>
+				</configOption>
 				<configOption name="sdp_owner" default="-">
 					<synopsis>String placed as the username portion of an SDP origin (o=) line.</synopsis>
 				</configOption>
@@ -1559,6 +1562,9 @@
 				</parameter>
 				<parameter name="UserEqPhone">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='user_eq_phone']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="MohPassthrough">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='moh_passthrough']/synopsis/node())"/></para>
 				</parameter>
 				<parameter name="SdpOwner">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='sdp_owner']/synopsis/node())"/></para>

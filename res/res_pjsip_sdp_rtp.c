@@ -887,6 +887,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	static const pj_str_t STR_IP4 = { "IP4", 3};
 	static const pj_str_t STR_IP6 = { "IP6", 3};
 	static const pj_str_t STR_SENDRECV = { "sendrecv", 8 };
+	static const pj_str_t STR_SENDONLY = { "sendonly", 8 };
 	pjmedia_sdp_media *media;
 	char hostip[PJ_INET6_ADDRSTRLEN+2];
 	struct ast_sockaddr addr;
@@ -1046,7 +1047,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 
 	/* Add the sendrecv attribute - we purposely don't keep track because pjmedia-sdp will automatically change our offer for us */
 	attr = PJ_POOL_ZALLOC_T(pool, pjmedia_sdp_attr);
-	attr->name = STR_SENDRECV;
+	attr->name = !session_media->locally_held ? STR_SENDRECV : STR_SENDONLY;
 	media->attr[media->attr_count++] = attr;
 
 	/* Add the media stream to the SDP */
@@ -1122,18 +1123,18 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 	if (ast_sockaddr_isnull(addrs) ||
 		ast_sockaddr_is_any(addrs) ||
 		pjmedia_sdp_media_find_attr2(remote_stream, "sendonly", NULL)) {
-		if (!session_media->held) {
+		if (!session_media->remotely_held) {
 			/* The remote side has put us on hold */
 			ast_queue_hold(session->channel, session->endpoint->mohsuggest);
 			ast_rtp_instance_stop(session_media->rtp);
 			ast_queue_frame(session->channel, &ast_null_frame);
-			session_media->held = 1;
+			session_media->remotely_held = 1;
 		}
-	} else if (session_media->held) {
+	} else if (session_media->remotely_held) {
 		/* The remote side has taken us off hold */
 		ast_queue_unhold(session->channel);
 		ast_queue_frame(session->channel, &ast_null_frame);
-		session_media->held = 0;
+		session_media->remotely_held = 0;
 	}
 
 	return 1;

@@ -616,6 +616,8 @@
                         ; (default: "user")
 ;mailboxes=     ; Mailbox es to be associated with (default: "")
 ;moh_suggest=default    ; Default Music On Hold class (default: "default")
+;moh_passthrough=yes    ; Pass Music On Hold through using SIP re-invites with sendonly
+                        ; when placing on hold and sendrecv when taking off hold
 ;outbound_auth= ; Authentication object used for outbound requests (default:
                 ; "")
 ;outbound_proxy=        ; Proxy through which to send requests a full SIP URI

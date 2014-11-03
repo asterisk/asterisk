@@ -1097,6 +1097,39 @@ static int update_connected_line_information(void *data)
 	return 0;
 }
 
+/*! \brief Callback which changes the value of locally held on the media stream */
+static int local_hold_set_state(void *obj, void *arg, int flags)
+{
+	struct ast_sip_session_media *session_media = obj;
+	unsigned int *held = arg;
+
+	session_media->locally_held = *held;
+
+	return 0;
+}
+
+/*! \brief Update local hold state and send a re-INVITE with the new SDP */
+static int remote_send_hold_refresh(struct ast_sip_session *session, unsigned int held)
+{
+	ao2_callback(session->media, OBJ_NODATA, local_hold_set_state, &held);
+	ast_sip_session_refresh(session, NULL, NULL, NULL, AST_SIP_SESSION_REFRESH_METHOD_INVITE, 1);
+	ao2_ref(session, -1);
+
+	return 0;
+}
+
+/*! \brief Update local hold state to be held */
+static int remote_send_hold(void *data)
+{
+	return remote_send_hold_refresh(data, 1);
+}
+
+/*! \brief Update local hold state to be unheld */
+static int remote_send_unhold(void *data)
+{
+	return remote_send_hold_refresh(data, 0);
+}
+
 /*! \brief Function called by core to ask the channel to indicate some sort of condition */
 static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen)
 {
@@ -1219,7 +1252,15 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 		device_buf = alloca(device_buf_size);
 		ast_channel_get_device_name(ast, device_buf, device_buf_size);
 		ast_devstate_changed_literal(AST_DEVICE_ONHOLD, 1, device_buf);
-		ast_moh_start(ast, data, NULL);
+		if (!channel->session->endpoint->moh_passthrough) {
+			ast_moh_start(ast, data, NULL);
+		} else {
+			if (ast_sip_push_task(channel->session->serializer, remote_send_hold, ao2_bump(channel->session))) {
+				ast_log(LOG_WARNING, "Could not queue task to remotely put session '%s' on hold with endpoint '%s'\n",
+					ast_sorcery_object_get_id(channel->session), ast_sorcery_object_get_id(channel->session->endpoint));
+				ao2_ref(channel->session, -1);
+			}
+		}
 		break;
 	case AST_CONTROL_UNHOLD:
 		chan_pjsip_remove_hold(ast_channel_uniqueid(ast));
@@ -1227,7 +1268,15 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 		device_buf = alloca(device_buf_size);
 		ast_channel_get_device_name(ast, device_buf, device_buf_size);
 		ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, 1, device_buf);
-		ast_moh_stop(ast);
+		if (!channel->session->endpoint->moh_passthrough) {
+			ast_moh_stop(ast);
+		} else {
+			if (ast_sip_push_task(channel->session->serializer, remote_send_unhold, ao2_bump(channel->session))) {
+				ast_log(LOG_WARNING, "Could not queue task to remotely take session '%s' off hold with endpoint '%s'\n",
+					ast_sorcery_object_get_id(channel->session), ast_sorcery_object_get_id(channel->session->endpoint));
+				ao2_ref(channel->session, -1);
+			}
+		}
 		break;
 	case AST_CONTROL_SRCUPDATE:
 		break;

@@ -434,7 +434,7 @@ static int channel_read_rtp(struct ast_channel *chan, const char *type, const ch
 	} else if (!strcmp(type, "secure")) {
 		snprintf(buf, buflen, "%d", media->srtp ? 1 : 0);
 	} else if (!strcmp(type, "hold")) {
-		snprintf(buf, buflen, "%d", media->held ? 1 : 0);
+		snprintf(buf, buflen, "%d", media->remotely_held ? 1 : 0);
 	} else {
 		ast_log(AST_LOG_WARNING, "Unknown type field '%s' specified for 'rtp' information\n", type);
 		return -1;
