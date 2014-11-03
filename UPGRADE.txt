@@ -21,6 +21,14 @@
 === UPGRADE-12.txt  -- Upgrade info for 11 to 12
 ===========================================================
 
+From 13.0.0 to 13.1.0:
+
+PJSIP:
+ - Added the pjsip.conf system type disable_tcp_switch option.  The option
+   allows the user to disable switching from UDP to TCP transports described
+   by RFC 3261 section 18.1.1.
+
+From 12 to 13:
 General Asterisk Changes:
  - The asterisk command line -I option and the asterisk.conf internal_timing
    option are removed and always enabled if any timing module is loaded.
