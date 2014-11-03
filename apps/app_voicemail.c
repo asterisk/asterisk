@@ -6132,7 +6132,7 @@ static int msg_create_from_file(struct ast_vm_recording_data *recdata)
 			ast_getformatbyname(recdata->recording_ext, &result);
 			duration = (int) (framelength / ast_format_rate(&result));
 		}
-		ast_closeframe(recording_fs);
+		ast_closestream(recording_fs);
 	}
 
 	/* If the duration was below the minimum duration for the user, let's just drop the whole thing now */
