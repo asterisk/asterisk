@@ -28,6 +28,10 @@ PJSIP:
    OpenSSL names are available on their system for the pjsip.conf cipher
    option.
 
+ - Added the pjsip.conf system type disable_tcp_switch option.  The option
+   allows the user to disable switching from UDP to TCP transports described
+   by RFC 3261 section 18.1.1.
+
 From 12.6.0 to 12.6.1:
 - Due to the POODLE vulnerability (see 
   https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2014-3566), the
