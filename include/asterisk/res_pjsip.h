@@ -802,6 +802,8 @@ struct ast_sip_endpoint {
 	unsigned int send_connected_line;
 	/*! Ignore 183 if no SDP is present */
 	unsigned int ignore_183_without_sdp;
+	/*! Whether to pass through hold and unhold using re-invites with recvonly and sendrecv */
+	unsigned int moh_passthrough;
 };
 
 /*! URI parameter for symmetric transport */

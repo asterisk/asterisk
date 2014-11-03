@@ -81,8 +81,10 @@ struct ast_sip_session_media {
 	int keepalive_sched_id;
 	/*! \brief Scheduler ID for RTP timeout */
 	int timeout_sched_id;
-	/*! \brief Stream is on hold */
-	unsigned int held:1;
+	/*! \brief Stream is on hold by remote side */
+	unsigned int remotely_held:1;
+	/*! \brief Stream is on hold by local side */
+	unsigned int locally_held:1;
 	/*! \brief Does remote support rtcp_mux */
 	unsigned int remote_rtcp_mux:1;
 	/*! \brief Does remote support ice */

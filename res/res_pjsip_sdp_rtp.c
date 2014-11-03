@@ -1184,6 +1184,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	static const pj_str_t STR_IP4 = { "IP4", 3};
 	static const pj_str_t STR_IP6 = { "IP6", 3};
 	static const pj_str_t STR_SENDRECV = { "sendrecv", 8 };
+	static const pj_str_t STR_SENDONLY = { "sendonly", 8 };
 	pjmedia_sdp_media *media;
 	const char *hostip = NULL;
 	struct ast_sockaddr addr;
@@ -1369,7 +1370,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 
 	/* Add the sendrecv attribute - we purposely don't keep track because pjmedia-sdp will automatically change our offer for us */
 	attr = PJ_POOL_ZALLOC_T(pool, pjmedia_sdp_attr);
-	attr->name = STR_SENDRECV;
+	attr->name = !session_media->locally_held ? STR_SENDRECV : STR_SENDONLY;
 	media->attr[media->attr_count++] = attr;
 
 	/* If we've got rtcp-mux enabled, add it unless we received an offer without it */
@@ -1471,18 +1472,18 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 		ast_sockaddr_is_any(addrs) ||
 		pjmedia_sdp_media_find_attr2(remote_stream, "sendonly", NULL) ||
 		pjmedia_sdp_media_find_attr2(remote_stream, "inactive", NULL)) {
-		if (!session_media->held) {
+		if (!session_media->remotely_held) {
 			/* The remote side has put us on hold */
 			ast_queue_hold(session->channel, session->endpoint->mohsuggest);
 			ast_rtp_instance_stop(session_media->rtp);
 			ast_queue_frame(session->channel, &ast_null_frame);
-			session_media->held = 1;
+			session_media->remotely_held = 1;
 		}
-	} else if (session_media->held) {
+	} else if (session_media->remotely_held) {
 		/* The remote side has taken us off hold */
 		ast_queue_unhold(session->channel);
 		ast_queue_frame(session->channel, &ast_null_frame);
-		session_media->held = 0;
+		session_media->remotely_held = 0;
 	} else if ((pjmedia_sdp_neg_was_answer_remote(session->inv_session->neg) == PJ_FALSE)
 		&& (session->inv_session->state == PJSIP_INV_STATE_CONFIRMED)) {
 		ast_queue_control(session->channel, AST_CONTROL_UPDATE_RTP_PEER);
@@ -1513,9 +1514,9 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 	 * instance itself.
 	 */
 	ast_rtp_instance_set_timeout(session_media->rtp, 0);
-	if (session->endpoint->media.rtp.timeout && !session_media->held) {
+	if (session->endpoint->media.rtp.timeout && !session_media->remotely_held) {
 		ast_rtp_instance_set_timeout(session_media->rtp, session->endpoint->media.rtp.timeout);
-	} else if (session->endpoint->media.rtp.timeout_hold && session_media->held) {
+	} else if (session->endpoint->media.rtp.timeout_hold && session_media->remotely_held) {
 		ast_rtp_instance_set_timeout(session_media->rtp, session->endpoint->media.rtp.timeout_hold);
 	}
 
