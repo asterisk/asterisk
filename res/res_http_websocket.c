@@ -1292,7 +1292,7 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	ast_websocket_remove_protocol("echo", websocket_echo_callback);
+	websocket_remove_protocol_internal("echo", websocket_echo_callback);
 	ast_http_uri_unlink(&websocketuri);
 	ao2_ref(websocketuri.data, -1);
 	websocketuri.data = NULL;
