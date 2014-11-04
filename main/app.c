@@ -1793,7 +1793,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 				break;
 			}
 			if (!realfiles[x]) {
-				ast_closestream(others[0]);
+				ast_closestream(others[x]);
 				continue;
 			}
 			/*!\note Same logic as above. */
