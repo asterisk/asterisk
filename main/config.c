@@ -1678,7 +1678,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 				} else {
 					struct ast_category *base;
 
-					base = ast_category_get(cfg, cur, "TEMPLATES=restrict");
+					base = ast_category_get(cfg, cur, "TEMPLATES=include");
 					if (!base) {
 						ast_log(LOG_WARNING, "Inheritance requested, but category '%s' does not exist, line %d of %s\n", cur, lineno, configfile);
 						return -1;
