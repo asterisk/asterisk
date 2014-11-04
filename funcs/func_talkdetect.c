@@ -218,6 +218,7 @@ static int talk_detect_audiohook_cb(struct ast_audiohook *audiohook, struct ast_
 		                blob);
 		if (message) {
 			stasis_publish(ast_channel_topic(chan), message);
+			ao2_ref(message, -1);
 		}
 
 		ast_json_unref(blob);
