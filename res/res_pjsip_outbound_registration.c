@@ -114,6 +114,22 @@
 						<literal>pjsip.conf</literal>. As with other <literal>res_pjsip</literal> modules, this will use the first available transport of the appropriate type if unconfigured.</para></note>
 					</description>
 				</configOption>
+				<configOption name="line">
+					<synopsis>Whether to add a 'line' parameter to the Contact for inbound call matching</synopsis>
+					<description><para>
+						When enabled this option will cause a 'line' parameter to be added to the Contact
+						header placed into the outgoing registration request. If the remote server sends a call
+						this line parameter will be used to establish a relationship to the outbound registration,
+						ultimately causing the configured endpoint to be used.
+					</para></description>
+				</configOption>
+				<configOption name="endpoint">
+					<synopsis>Endpoint to use for incoming related calls</synopsis>
+					<description><para>
+						When line support is enabled this configured endpoint name is used for incoming calls
+						that are related to the outbound registration.
+					</para></description>
+				</configOption>
 				<configOption name="type">
 					<synopsis>Must be of type 'registration'.</synopsis>
 				</configOption>
@@ -166,6 +182,9 @@
 /*! \brief Amount of buffer time (in seconds) before expiration that we re-register at */
 #define REREGISTER_BUFFER_TIME 10
 
+/*! \brief Size of the buffer for creating a unique string for the line */
+#define LINE_PARAMETER_SIZE 8
+
 /*! \brief Various states that an outbound registration may be in */
 enum sip_outbound_registration_status {
 	/*! \brief Currently unregistered */
@@ -196,6 +215,8 @@ struct sip_outbound_registration_client_state {
 	pjsip_regc *client;
 	/*! \brief Timer entry for retrying on temporal responses */
 	pj_timer_entry timer;
+	/*! \brief Optional line parameter placed into Contact */
+	char line[LINE_PARAMETER_SIZE];
 	/*! \brief Current number of retries */
 	unsigned int retries;
 	/*! \brief Maximum number of retries permitted */
@@ -238,6 +259,8 @@ struct sip_outbound_registration {
 		AST_STRING_FIELD(transport);
 		/*! \brief Outbound proxy to use */
 		AST_STRING_FIELD(outbound_proxy);
+		/*! \brief Endpoint to use for related incoming calls */
+		AST_STRING_FIELD(endpoint);
 	);
 	/*! \brief Requested expiration time */
 	unsigned int expiration;
@@ -249,12 +272,62 @@ struct sip_outbound_registration {
 	unsigned int auth_rejection_permanent;
 	/*! \brief Maximum number of retries permitted */
 	unsigned int max_retries;
+	/*! \brief Whether to add a line parameter to the outbound Contact or not */
+	unsigned int line;
 	/*! \brief Outbound registration state */
 	struct sip_outbound_registration_state *state;
 	/*! \brief Configured authentication credentials */
 	struct ast_sip_auth_vector outbound_auths;
 	/*! \brief Whether Path support is enabled */
 	unsigned int support_path;
+};
+
+/*! \brief Callback function for matching an outbound registration based on line */
+static int line_identify_relationship(void *obj, void *arg, int flags)
+{
+	struct sip_outbound_registration *registration = obj;
+	pjsip_param *line = arg;
+
+	return !pj_strcmp2(&line->value, registration->state->client_state->line) ? CMP_MATCH | CMP_STOP : 0;
+}
+
+/*! \brief Endpoint identifier which uses the 'line' parameter to establish a relationship to an outgoing registration */
+static struct ast_sip_endpoint *line_identify(pjsip_rx_data *rdata)
+{
+	pjsip_sip_uri *uri;
+	static const pj_str_t LINE_STR = { "line", 4 };
+	pjsip_param *line;
+	RAII_VAR(struct ao2_container *, registrations, NULL, ao2_cleanup);
+	RAII_VAR(struct sip_outbound_registration *, registration, NULL, ao2_cleanup);
+
+	if (!PJSIP_URI_SCHEME_IS_SIP(rdata->msg_info.to->uri) && !PJSIP_URI_SCHEME_IS_SIPS(rdata->msg_info.to->uri)) {
+		return NULL;
+	}
+	uri = pjsip_uri_get_uri(rdata->msg_info.to->uri);
+
+	line = pjsip_param_find(&uri->other_param, &LINE_STR);
+	if (!line) {
+		return NULL;
+	}
+
+	registrations = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "registration", AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	if (!registrations) {
+		return NULL;
+	}
+
+	registration = ao2_callback(registrations, 0, line_identify_relationship, line);
+	if (!registration || ast_strlen_zero(registration->endpoint)) {
+		return NULL;
+	}
+
+	ast_debug(3, "Determined relationship to outbound registration '%s' based on line '%s', using configured endpoint '%s'\n",
+		ast_sorcery_object_get_id(registration), registration->state->client_state->line, registration->endpoint);
+
+	return ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", registration->endpoint);
+}
+
+static struct ast_sip_endpoint_identifier line_identifier = {
+	.identify_endpoint = line_identify,
 };
 
 /*! \brief Helper function which cancels the timer on a client */
@@ -626,7 +699,8 @@ static void *sip_outbound_registration_alloc(const char *name)
 }
 
 /*! \brief Helper function which populates a pj_str_t with a contact header */
-static int sip_dialog_create_contact(pj_pool_t *pool, pj_str_t *contact, const char *user, const pj_str_t *target, pjsip_tpselector *selector)
+static int sip_dialog_create_contact(pj_pool_t *pool, pj_str_t *contact, const char *user, const pj_str_t *target, pjsip_tpselector *selector,
+	const char *line)
 {
 	pj_str_t tmp, local_addr;
 	pjsip_uri *uri;
@@ -670,7 +744,7 @@ static int sip_dialog_create_contact(pj_pool_t *pool, pj_str_t *contact, const c
 
 	contact->ptr = pj_pool_alloc(pool, PJSIP_MAX_URL_SIZE);
 	contact->slen = pj_ansi_snprintf(contact->ptr, PJSIP_MAX_URL_SIZE,
-				      "<%s:%s@%s%.*s%s:%d%s%s>",
+				      "<%s:%s@%s%.*s%s:%d%s%s%s%s>",
 				      (pjsip_transport_get_flag_from_type(type) & PJSIP_TRANSPORT_SECURE) ? "sips" : "sip",
 				      user,
 				      (type & PJSIP_TRANSPORT_IPV6) ? "[" : "",
@@ -679,7 +753,9 @@ static int sip_dialog_create_contact(pj_pool_t *pool, pj_str_t *contact, const c
 				      (type & PJSIP_TRANSPORT_IPV6) ? "]" : "",
 				      local_port,
 				      (type != PJSIP_TRANSPORT_UDP && type != PJSIP_TRANSPORT_UDP6) ? ";transport=" : "",
-				      (type != PJSIP_TRANSPORT_UDP && type != PJSIP_TRANSPORT_UDP6) ? pjsip_transport_get_type_name(type) : "");
+				      (type != PJSIP_TRANSPORT_UDP && type != PJSIP_TRANSPORT_UDP6) ? pjsip_transport_get_type_name(type) : "",
+				      !ast_strlen_zero(line) ? ";line=" : "",
+				      S_OR(line, ""));
 
 	return 0;
 }
@@ -796,9 +872,14 @@ static int sip_outbound_registration_regc_alloc(void *data)
 		pjsip_regc_set_route_set(registration->state->client_state->client, &route_set);
 	}
 
+	if (registration->line) {
+		ast_generate_random_string(registration->state->client_state->line, sizeof(registration->state->client_state->line));
+	}
+
 	pj_cstr(&server_uri, registration->server_uri);
 
-	if (sip_dialog_create_contact(pjsip_regc_get_pool(registration->state->client_state->client), &contact_uri, S_OR(registration->contact_user, "s"), &server_uri, &selector)) {
+	if (sip_dialog_create_contact(pjsip_regc_get_pool(registration->state->client_state->client), &contact_uri, S_OR(registration->contact_user, "s"), &server_uri, &selector,
+		registration->state->client_state->line)) {
 		return -1;
 	}
 
@@ -823,6 +904,14 @@ static int sip_outbound_registration_apply(const struct ast_sorcery *sorcery, vo
 		return -1;
 	} else if (ast_strlen_zero(applied->client_uri)) {
 		ast_log(LOG_ERROR, "No client URI specified on outbound registration '%s'\n",
+			ast_sorcery_object_get_id(applied));
+		return -1;
+	} else if (applied->line && ast_strlen_zero(applied->endpoint)) {
+		ast_log(LOG_ERROR, "Line support has been enabled on outbound registration '%s' without providing an endpoint\n",
+			ast_sorcery_object_get_id(applied));
+		return -1;
+	} else if (!ast_strlen_zero(applied->endpoint) && !applied->line) {
+		ast_log(LOG_ERROR, "An endpoint has been specified on outbound registration '%s' without enabling line support\n",
 			ast_sorcery_object_get_id(applied));
 		return -1;
 	}
@@ -1276,6 +1365,9 @@ static int load_module(void)
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "auth_rejection_permanent", "yes", OPT_BOOL_T, 1, FLDSET(struct sip_outbound_registration, auth_rejection_permanent));
 	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "registration", "outbound_auth", "", outbound_auth_handler, outbound_auths_to_str, outbound_auths_to_var_list, 0, 0);
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "support_path", "no", OPT_BOOL_T, 1, FLDSET(struct sip_outbound_registration, support_path));
+	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "line", "no", OPT_BOOL_T, 1, FLDSET(struct sip_outbound_registration, line));
+	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "endpoint", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct sip_outbound_registration, endpoint));
+	ast_sip_register_endpoint_identifier(&line_identifier);
 	ast_sorcery_reload_object(ast_sip_get_sorcery(), "registration");
 	sip_outbound_registration_perform_all();
 
@@ -1310,6 +1402,7 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
+	ast_sip_unregister_endpoint_identifier(&line_identifier);
 	ast_cli_unregister_multiple(cli_outbound_registration, ARRAY_LEN(cli_outbound_registration));
 	ast_sip_unregister_cli_formatter(cli_formatter);
 	ast_manager_unregister("PJSIPShowRegistrationsOutbound");

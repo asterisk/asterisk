@@ -30,6 +30,11 @@ chan_pjsip
  * Added the pjsip.conf system type disable_tcp_switch option.  The option
    allows the user to disable switching from UDP to TCP transports described
    by RFC 3261 section 18.1.1.
+ * New 'line' and 'endpoint' options added on outbound registrations. This allows some
+   identifying information to be added to the Contact of the outbound registration.
+   If this information is present on messages received from the remote server
+   the message will automatically be associated with the configured endpoint on the
+   outbound registration.
 
 Functions
 ------------------
