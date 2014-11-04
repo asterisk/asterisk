@@ -2220,6 +2220,7 @@ pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
 
 	/* Add the user=phone parameter if applicable */
 	ast_sip_add_usereqphone(endpoint, dlg->pool, dlg->target);
+	ast_sip_add_usereqphone(endpoint, dlg->pool, dlg->remote.info->uri);
 
 	/* We have to temporarily bump up the sess_count here so the dialog is not prematurely destroyed */
 	dlg->sess_count++;
