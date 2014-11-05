@@ -2268,6 +2268,7 @@ int ast_config_text_file_save(const char *configfile, const struct ast_config *c
 			while (var) {
 				struct ast_category_template_instance *x;
 				int found = 0;
+
 				AST_LIST_TRAVERSE(&cat->template_instances, x, next) {
 					struct ast_variable *v;
 					for (v = x->inst->root; v; v = v->next) {
@@ -2313,10 +2314,22 @@ int ast_config_text_file_save(const char *configfile, const struct ast_config *c
 					if (cmt->cmt[0] != ';' || cmt->cmt[1] != '!')
 						fprintf(f,"%s", cmt->cmt);
 				}
-				if (var->sameline)
-					fprintf(f, "%s %s %s  %s", var->name, (var->object ? "=>" : "="), var->value, var->sameline->cmt);
-				else
-					fprintf(f, "%s %s %s\n", var->name, (var->object ? "=>" : "="), var->value);
+
+				{ /* Block for 'escaped' scope */
+					int escaped_len = 2 * strlen(var->value) + 1;
+					char escaped[escaped_len];
+
+					ast_escape_semicolons(var->value, escaped, escaped_len);
+
+					if (var->sameline) {
+						fprintf(f, "%s %s %s  %s", var->name, (var->object ? "=>" : "="),
+							escaped, var->sameline->cmt);
+					} else {
+						fprintf(f, "%s %s %s\n", var->name, (var->object ? "=>" : "="),
+							escaped);
+					}
+				}
+
 				for (cmt = var->trailing; cmt; cmt=cmt->next) {
 					if (cmt->cmt[0] != ';' || cmt->cmt[1] != '!')
 						fprintf(f,"%s", cmt->cmt);

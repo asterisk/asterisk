@@ -251,15 +251,86 @@ cleanup:
 	return res;
 }
 
+static int test_semi(char *string1, char *string2, int test_len)
+{
+	char *test2 = NULL;
+	if (test_len >= 0) {
+		test2 = ast_alloca(test_len);
+		*test2 = '\0';
+	}
+	ast_escape_semicolons(string1, test2, test_len);
+	if (test2 != NULL && strcmp(string2, test2) == 0) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+AST_TEST_DEFINE(escape_semicolons_test)
+{
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "escape_semicolons";
+		info->category = "/main/strings/";
+		info->summary = "Test ast_escape_semicolons";
+		info->description = "Test ast_escape_semicolons";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+
+	ast_test_validate(test, test_semi("this is a ;test", "this is a \\;test", 18));
+	ast_test_validate(test, test_semi(";", "\\;", 3));
+
+	/* The following tests should return empty because there's not enough room to output
+	 * an escaped ; or even a single character.
+	 */
+	ast_test_validate(test, test_semi(";", "", 0));
+	ast_test_validate(test, test_semi(";", "", 1));
+	ast_test_validate(test, test_semi(";", "", 2));
+	ast_test_validate(test, test_semi("x", "", 0));
+	ast_test_validate(test, test_semi("x", "", 1));
+
+	/* At least some output should be produced now. */
+	ast_test_validate(test, test_semi("xx;xx", "x", 2));
+	ast_test_validate(test, test_semi("xx;xx", "xx", 3));
+
+	/* There's still not enough room to output \; so
+	 * don't even print the \
+	 */
+	ast_test_validate(test, test_semi("xx;xx", "xx", 4));
+
+	ast_test_validate(test, test_semi("xx;xx", "xx\\;", 5));
+	ast_test_validate(test, test_semi("xx;xx", "xx\\;x", 6));
+	ast_test_validate(test, test_semi("xx;xx", "xx\\;xx", 7));
+	ast_test_validate(test, test_semi("xx;xx", "xx\\;xx", 8));
+
+	/* Random stuff */
+	ast_test_validate(test, test_semi("xx;xx;this is a test", "xx\\;xx\\;this is a test", 32));
+	ast_test_validate(test, test_semi(";;;;;", "\\;\\;\\;\\;\\;", 32));
+	ast_test_validate(test, test_semi(";;;;;", "\\;\\;\\;\\;", 10));
+	ast_test_validate(test, test_semi(";;;;;", "\\;\\;\\;\\;\\;", 11));
+	ast_test_validate(test, test_semi(";;\\;;;", "\\;\\;\\\\;\\;\\;", 32));
+
+	ast_test_status_update(test, "This test should produce 2 'ast_escape_semicolons: FRACK!, Failed assertion' messages.\n");
+	ast_test_validate(test, !test_semi(NULL, "xx\\;xx", 8));
+	ast_test_validate(test, !test_semi("xx;xx", "xx\\;xx", -1));
+
+	return AST_TEST_PASS;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(str_test);
+	AST_TEST_UNREGISTER(escape_semicolons_test);
 	return 0;
 }
 
 static int load_module(void)
 {
 	AST_TEST_REGISTER(str_test);
+	AST_TEST_REGISTER(escape_semicolons_test);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
