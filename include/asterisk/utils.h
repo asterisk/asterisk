@@ -319,6 +319,16 @@ int ast_xml_escape(const char *string, char *outbuf, size_t buflen);
 char *ast_escape_quoted(const char *string, char *outbuf, int buflen);
 
 /*!
+ * \brief Escape semicolons found in a string.
+ *
+ * \param string string to be escaped
+ * \param outbuf resulting escaped string
+ * \param buflen size of output buffer
+ * \return a pointer to the escaped string
+ */
+char *ast_escape_semicolons(const char *string, char *outbuf, int buflen);
+
+/*!
  * \brief Unescape quotes in a string
  *
  * \param quote_str The string with quotes to be unescaped
