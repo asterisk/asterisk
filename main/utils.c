@@ -484,6 +484,37 @@ char *ast_escape_quoted(const char *string, char *outbuf, int buflen)
 	return outbuf;
 }
 
+char *ast_escape_semicolons(const char *string, char *outbuf, int buflen)
+{
+	const char *ptr = string;
+	char *out = outbuf;
+
+	if (string == NULL || outbuf == NULL) {
+		ast_assert(string != NULL && outbuf != NULL);
+		return NULL;
+	}
+
+	while (*ptr && out - outbuf < buflen - 1) {
+		if (*ptr == ';') {
+			if (out - outbuf >= buflen - 2) {
+				break;
+			}
+			strcpy(out, "\\;");
+			out += 2;
+		} else {
+			*out = *ptr;
+			out++;
+		}
+		ptr++;
+	}
+
+	if (buflen) {
+		*out = '\0';
+	}
+
+	return outbuf;
+}
+
 void ast_unescape_quoted(char *quote_str)
 {
 	int esc_pos;
