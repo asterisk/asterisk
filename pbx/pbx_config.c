@@ -890,7 +890,11 @@ static char *handle_cli_dialplan_save(struct ast_cli_entry *e, int cmd, struct a
 	if ((v = ast_variable_browse(cfg, "globals"))) {
 		fprintf(output, "[globals]\n");
 		while(v) {
-			fprintf(output, "%s => %s\n", v->name, v->value);
+			int escaped_len = 2 * strlen(v->value) + 1;
+			char escaped[escaped_len];
+
+			ast_escape_semicolons(v->value, escaped, escaped_len);
+			fprintf(output, "%s => %s\n", v->name, escaped);
 			v = v->next;
 		}
 		fprintf(output, "\n");
@@ -951,20 +955,33 @@ static char *handle_cli_dialplan_save(struct ast_cli_entry *e, int cmd, struct a
 					const char *sep, *cid;
 					const char *el = ast_get_extension_label(p);
 					char label[128] = "";
- 
+					char *appdata = ast_get_extension_app_data(p);
+					char *escaped;
+
 					if (ast_get_extension_matchcid(p)) {
 						sep = "/";
 						cid = ast_get_extension_cidmatch(p);
-					} else
+					} else {
 						sep = cid = "";
-				
-					if (el && (snprintf(label, sizeof(label), "(%s)", el) != (strlen(el) + 2)))
+					}
+
+					if (el && (snprintf(label, sizeof(label), "(%s)", el) != (strlen(el) + 2))) {
 						incomplete = 1;	/* error encountered or label > 125 chars */
-					
+					}
+
+					if (!ast_strlen_zero(appdata)) {
+						int escaped_len = 2 * strlen(appdata) + 1;
+						char escaped[escaped_len];
+
+						ast_escape_semicolons(appdata, escaped, escaped_len);
+					} else {
+						escaped = "";
+					}
+
 					fprintf(output, "exten => %s%s%s,%d%s,%s(%s)\n",
 					    ast_get_extension_name(p), (ast_strlen_zero(sep) ? "" : sep), (ast_strlen_zero(cid) ? "" : cid),
 					    ast_get_extension_priority(p), label,
-					    ast_get_extension_app(p), (ast_strlen_zero(ast_get_extension_app_data(p)) ? "" : (const char *)ast_get_extension_app_data(p)));
+					    ast_get_extension_app(p), escaped);
 				}
 			}
 		}
