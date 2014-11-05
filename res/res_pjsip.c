@@ -1143,7 +1143,7 @@
 					<synopsis>Maximum number of threads in the res_pjsip threadpool.
 					A value of 0 indicates no maximum.</synopsis>
 				</configOption>
-				<configOption name="disable_tcp_switch" default="no">
+				<configOption name="disable_tcp_switch" default="yes">
 					<synopsis>Disable automatic switching from UDP to TCP transports.</synopsis>
 					<description><para>
 						Disable automatic switching from UDP to TCP transports if outgoing

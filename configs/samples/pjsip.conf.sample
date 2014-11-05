@@ -837,10 +837,12 @@
                                 ; should be disposed of (default: "60")
 ;threadpool_max_size=0  ; Maximum number of threads in the res_pjsip threadpool
                         ; A value of 0 indicates no maximum (default: "0")
-;disable_tcp_switch=no  ; Disable automatic switching from UDP to TCP transports
+;disable_tcp_switch=yes ; Disable automatic switching from UDP to TCP transports
                         ; if outgoing request is too large.
                         ; See RFC 3261 section 18.1.1.
-                        ; (default: "no")
+						; Disabling this option has been known to cause interoperability
+						; issues, so disable at your own risk.
+                        ; (default: "yes")
 ;type=  ; Must be of type system (default: "")
 
 ;==========================GLOBAL SECTION OPTIONS=========================
