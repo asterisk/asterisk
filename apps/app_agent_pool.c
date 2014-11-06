@@ -1733,7 +1733,10 @@ static void agent_alert(struct ast_bridge_channel *bridge_channel, const void *p
 {
 	const char *agent_id = payload;
 	const char *playfile;
-	RAII_VAR(struct agent_pvt *, agent, NULL, ao2_cleanup);
+	const char *dtmf_accept;
+	struct agent_pvt *agent;
+	int digit;
+	char dtmf[2];
 
 	agent = ao2_find(agents, agent_id, OBJ_KEY);
 	if (!agent) {
@@ -1748,30 +1751,56 @@ static void agent_alert(struct ast_bridge_channel *bridge_channel, const void *p
 	ast_bridge_channel_establish_roles(bridge_channel);
 	ast_bridge_unlock(bridge_channel->bridge);
 
-	/* Alert the agent. */
 	agent_lock(agent);
 	playfile = ast_strdupa(agent->cfg->beep_sound);
+
+	/* Determine which DTMF digits interrupt the alerting signal. */
+	if (ast_test_flag(agent, AGENT_FLAG_ACK_CALL)
+		? agent->override_ack_call : agent->cfg->ack_call) {
+		dtmf_accept = ast_test_flag(agent, AGENT_FLAG_DTMF_ACCEPT)
+			? agent->override_dtmf_accept : agent->cfg->dtmf_accept;
+
+		/* Only the first digit of the ack will stop playback. */
+		dtmf[0] = *dtmf_accept;
+		dtmf[1] = '\0';
+		dtmf_accept = dtmf;
+	} else {
+		dtmf_accept = NULL;
+	}
 	agent_unlock(agent);
-	ast_stream_and_wait(bridge_channel->chan, playfile, AST_DIGIT_NONE);
+
+	/* Alert the agent. */
+	digit = ast_stream_and_wait(bridge_channel->chan, playfile,
+		ast_strlen_zero(dtmf_accept) ? AST_DIGIT_ANY : dtmf_accept);
+	ast_stopstream(bridge_channel->chan);
 
 	agent_lock(agent);
 	switch (agent->state) {
 	case AGENT_STATE_CALL_PRESENT:
-		if (ast_test_flag(agent, AGENT_FLAG_ACK_CALL)
-			? agent->override_ack_call : agent->cfg->ack_call) {
+		if (!ast_strlen_zero(dtmf_accept)) {
 			agent->state = AGENT_STATE_CALL_WAIT_ACK;
 			agent->ack_time = ast_tvnow();
+
+			if (0 < digit) {
+				/* Playback was interrupted by a digit. */
+				agent_unlock(agent);
+				ao2_ref(agent, -1);
+				ast_bridge_channel_feature_digit(bridge_channel, digit);
+				return;
+			}
 			break;
 		}
 
 		/* Connect to caller now. */
 		ast_debug(1, "Agent %s: Immediately connecting to call.\n", agent->username);
 		agent_connect_caller(bridge_channel, agent);/* Will unlock agent. */
+		ao2_ref(agent, -1);
 		return;
 	default:
 		break;
 	}
 	agent_unlock(agent);
+	ao2_ref(agent, -1);
 }
 
 static int send_alert_to_agent(struct ast_bridge_channel *bridge_channel, const char *agent_id)
