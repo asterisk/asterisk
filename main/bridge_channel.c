@@ -1494,117 +1494,146 @@ static void testsuite_notify_feature_success(struct ast_channel *chan, const cha
 #endif /* TEST_FRAMEWORK */
 }
 
-/*!
- * \internal
- * \brief Internal function that executes a feature on a bridge channel
- * \note Neither the bridge nor the bridge_channel locks should be held when entering
- * this function.
- */
-static void bridge_channel_feature(struct ast_bridge_channel *bridge_channel, const char *starting_dtmf)
+void ast_bridge_channel_feature_digit(struct ast_bridge_channel *bridge_channel, int digit)
 {
 	struct ast_bridge_features *features = bridge_channel->features;
 	struct ast_bridge_hook_dtmf *hook = NULL;
-	char dtmf[MAXIMUM_DTMF_FEATURE_STRING];
 	size_t dtmf_len;
-	unsigned int digit_timeout;
-	RAII_VAR(struct ast_features_general_config *, gen_cfg, NULL, ao2_cleanup);
 
-	ast_channel_lock(bridge_channel->chan);
-	gen_cfg = ast_get_chan_features_general_config(bridge_channel->chan);
-	if (!gen_cfg) {
-		ast_log(LOG_ERROR, "Unable to retrieve features configuration.\n");
-		ast_channel_unlock(bridge_channel->chan);
+	struct sanity_check_of_dtmf_size {
+		char check[1 / (ARRAY_LEN(bridge_channel->dtmf_hook_state.collected) == ARRAY_LEN(hook->dtmf.code))];
+	};
+
+	dtmf_len = strlen(bridge_channel->dtmf_hook_state.collected);
+	if (!dtmf_len && !digit) {
+		/* Nothing to do */
 		return;
 	}
-	digit_timeout = gen_cfg->featuredigittimeout;
-	ast_channel_unlock(bridge_channel->chan);
 
-	if (ast_strlen_zero(starting_dtmf)) {
-		dtmf[0] = '\0';
-		dtmf_len = 0;
-	} else {
-		ast_copy_string(dtmf, starting_dtmf, sizeof(dtmf));
-		dtmf_len = strlen(dtmf);
-	}
+	if (digit) {
+		/* There should always be room for the new digit. */
+		ast_assert(dtmf_len < ARRAY_LEN(bridge_channel->dtmf_hook_state.collected) - 1);
 
-	/*
-	 * Check if any feature DTMF hooks match or could match and
-	 * try to collect more DTMF digits.
-	 */
-	for (;;) {
-		int res;
+		/* Add the new digit to the DTMF string so we can do our matching */
+		bridge_channel->dtmf_hook_state.collected[dtmf_len++] = digit;
+		bridge_channel->dtmf_hook_state.collected[dtmf_len] = '\0';
 
-		if (dtmf_len) {
-			ast_debug(1, "DTMF feature string on %p(%s) is now '%s'\n",
-				bridge_channel, ast_channel_name(bridge_channel->chan), dtmf);
+		ast_debug(1, "DTMF feature string on %p(%s) is now '%s'\n",
+			bridge_channel, ast_channel_name(bridge_channel->chan),
+			bridge_channel->dtmf_hook_state.collected);
 
-			/* See if a DTMF feature hook matches or can match */
-			hook = ao2_find(features->dtmf_hooks, dtmf, OBJ_PARTIAL_KEY);
-			if (!hook) {
-				ast_debug(1, "No DTMF feature hooks on %p(%s) match '%s'\n",
-					bridge_channel, ast_channel_name(bridge_channel->chan), dtmf);
-				break;
-			}
-			if (strlen(hook->dtmf.code) == dtmf_len) {
-				ast_debug(1, "DTMF feature hook %p matched DTMF string '%s' on %p(%s)\n",
-					hook, dtmf, bridge_channel, ast_channel_name(bridge_channel->chan));
-				break;
-			}
+		/* See if a DTMF feature hook matches or can match */
+		hook = ao2_find(features->dtmf_hooks, bridge_channel->dtmf_hook_state.collected,
+			OBJ_SEARCH_PARTIAL_KEY);
+		if (!hook) {
+			ast_debug(1, "No DTMF feature hooks on %p(%s) match '%s'\n",
+				bridge_channel, ast_channel_name(bridge_channel->chan),
+				bridge_channel->dtmf_hook_state.collected);
+		} else if (dtmf_len != strlen(hook->dtmf.code)) {
+			unsigned int digit_timeout;
+			struct ast_features_general_config *gen_cfg;
+
+			/* Need more digits to match */
 			ao2_ref(hook, -1);
-			hook = NULL;
 
-			if (ARRAY_LEN(dtmf) - 1 <= dtmf_len) {
-				/* We have reached the maximum length of a DTMF feature string. */
-				break;
+			/* Determine interdigit timeout */
+			ast_channel_lock(bridge_channel->chan);
+			gen_cfg = ast_get_chan_features_general_config(bridge_channel->chan);
+			ast_channel_unlock(bridge_channel->chan);
+			if (!gen_cfg) {
+				ast_log(LOG_ERROR, "Unable to retrieve features configuration.\n");
+				digit_timeout = 3000; /* Pick a reasonable failsafe timeout in ms */
+			} else {
+				digit_timeout = gen_cfg->featuredigittimeout;
+				ao2_ref(gen_cfg, -1);
 			}
-		}
 
-		res = ast_waitfordigit(bridge_channel->chan, digit_timeout);
-		if (!res) {
-			ast_debug(1, "DTMF feature string collection on %p(%s) timed out\n",
-				bridge_channel, ast_channel_name(bridge_channel->chan));
-			break;
-		}
-		if (res < 0) {
-			ast_debug(1, "DTMF feature string collection failed on %p(%s) for some reason\n",
-				bridge_channel, ast_channel_name(bridge_channel->chan));
-			break;
-		}
+			bridge_channel->dtmf_hook_state.interdigit_timeout =
+				ast_tvadd(ast_tvnow(), ast_samp2tv(digit_timeout, 1000));
+			return;
+		} else {
+			int remove_me;
+			int already_suspended;
 
-		/* Add the new DTMF into the DTMF string so we can do our matching */
-		dtmf[dtmf_len] = res;
-		dtmf[++dtmf_len] = '\0';
-	}
+			ast_debug(1, "DTMF feature hook %p matched DTMF string '%s' on %p(%s)\n",
+				hook, bridge_channel->dtmf_hook_state.collected, bridge_channel,
+				ast_channel_name(bridge_channel->chan));
 
-	if (hook) {
-		int remove_me;
+			/*
+			 * Clear the collected digits before executing the hook
+			 * in case the hook starts another sequence.
+			 */
+			bridge_channel->dtmf_hook_state.collected[0] = '\0';
 
-		/* Execute the matched hook on this channel. */
-		remove_me = hook->generic.callback(bridge_channel, hook->generic.hook_pvt);
-		if (remove_me) {
-			ast_debug(1, "DTMF hook %p is being removed from %p(%s)\n",
-				hook, bridge_channel, ast_channel_name(bridge_channel->chan));
-			ao2_unlink(features->dtmf_hooks, hook);
-		}
-		testsuite_notify_feature_success(bridge_channel->chan, hook->dtmf.code);
-		ao2_ref(hook, -1);
+			ast_bridge_channel_lock_bridge(bridge_channel);
+			already_suspended = bridge_channel->suspended;
+			if (!already_suspended) {
+				bridge_channel_internal_suspend_nolock(bridge_channel);
+			}
+			ast_bridge_unlock(bridge_channel->bridge);
+			ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 
-		/*
-		 * If we are handing the channel off to an external hook for
-		 * ownership, we are not guaranteed what kind of state it will
-		 * come back in.  If the channel hungup, we need to detect that
-		 * here if the hook did not already change the state.
-		 */
-		if (bridge_channel->chan && ast_check_hangup_locked(bridge_channel->chan)) {
-			ast_bridge_channel_kick(bridge_channel, 0);
+			/* Execute the matched hook on this channel. */
+			remove_me = hook->generic.callback(bridge_channel, hook->generic.hook_pvt);
+			if (remove_me) {
+				ast_debug(1, "DTMF hook %p is being removed from %p(%s)\n",
+					hook, bridge_channel, ast_channel_name(bridge_channel->chan));
+				ao2_unlink(features->dtmf_hooks, hook);
+			}
+			testsuite_notify_feature_success(bridge_channel->chan, hook->dtmf.code);
+			ao2_ref(hook, -1);
+
+			ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
+			if (!already_suspended) {
+				bridge_channel_unsuspend(bridge_channel);
+			}
+
+			/*
+			 * If we are handing the channel off to an external hook for
+			 * ownership, we are not guaranteed what kind of state it will
+			 * come back in.  If the channel hungup, we need to detect that
+			 * here if the hook did not already change the state.
+			 */
+			if (bridge_channel->chan && ast_check_hangup_locked(bridge_channel->chan)) {
+				ast_bridge_channel_kick(bridge_channel, 0);
+			}
+			return;
 		}
 	} else {
-		if (features->dtmf_passthrough) {
-			/* Stream any collected DTMF to the other channels. */
-			bridge_channel_write_dtmf_stream(bridge_channel, dtmf);
-		}
-		ast_test_suite_event_notify("FEATURE_DETECTION", "Result: fail");
+		ast_debug(1, "DTMF feature string collection on %p(%s) timed out\n",
+			bridge_channel, ast_channel_name(bridge_channel->chan));
 	}
+
+	/* Timeout or DTMF digit didn't allow a match with any hooks. */
+	if (features->dtmf_passthrough) {
+		/* Stream the collected DTMF to the other channels. */
+		bridge_channel_write_dtmf_stream(bridge_channel,
+			bridge_channel->dtmf_hook_state.collected);
+	}
+	bridge_channel->dtmf_hook_state.collected[0] = '\0';
+
+	ast_test_suite_event_notify("FEATURE_DETECTION", "Result: fail");
+}
+
+/*!
+ * \internal
+ * \brief Handle bridge channel DTMF feature timeout expiration.
+ * \since 12.8.0
+ *
+ * \param bridge_channel Channel to check expired interdigit timer on.
+ *
+ * \return Nothing
+ */
+static void bridge_channel_handle_feature_timeout(struct ast_bridge_channel *bridge_channel)
+{
+	if (!bridge_channel->dtmf_hook_state.collected[0]
+		|| 0 < ast_tvdiff_ms(bridge_channel->dtmf_hook_state.interdigit_timeout,
+			ast_tvnow())) {
+		/* Not within a sequence or not timed out. */
+		return;
+	}
+
+	ast_bridge_channel_feature_digit(bridge_channel, 0);
 }
 
 /*!
@@ -2061,6 +2090,25 @@ static void bridge_channel_handle_control(struct ast_bridge_channel *bridge_chan
 
 /*!
  * \internal
+ * \param bridge_channel Channel to read wr_queue alert pipe.
+ *
+ * \return Nothing
+ */
+static void bridge_channel_read_wr_queue_alert(struct ast_bridge_channel *bridge_channel)
+{
+	char nudge;
+
+	if (read(bridge_channel->alert_pipe[0], &nudge, sizeof(nudge)) < 0) {
+		if (errno != EINTR && errno != EAGAIN) {
+			ast_log(LOG_WARNING, "read() failed for alert pipe on %p(%s): %s\n",
+				bridge_channel, ast_channel_name(bridge_channel->chan),
+				strerror(errno));
+		}
+	}
+}
+
+/*!
+ * \internal
  * \brief Handle bridge channel write frame to channel.
  * \since 12.0.0
  *
@@ -2071,21 +2119,49 @@ static void bridge_channel_handle_control(struct ast_bridge_channel *bridge_chan
 static void bridge_channel_handle_write(struct ast_bridge_channel *bridge_channel)
 {
 	struct ast_frame *fr;
-	char nudge;
 	struct sync_payload *sync_payload;
 
 	ast_bridge_channel_lock(bridge_channel);
-	if (read(bridge_channel->alert_pipe[0], &nudge, sizeof(nudge)) < 0) {
-		if (errno != EINTR && errno != EAGAIN) {
-			ast_log(LOG_WARNING, "read() failed for alert pipe on %p(%s): %s\n",
-				bridge_channel, ast_channel_name(bridge_channel->chan), strerror(errno));
-		}
-	}
-	fr = AST_LIST_REMOVE_HEAD(&bridge_channel->wr_queue, frame_list);
-	ast_bridge_channel_unlock(bridge_channel);
-	if (!fr) {
+
+	/* It's not good to have unbalanced frames and alert_pipe alerts. */
+	ast_assert(!AST_LIST_EMPTY(&bridge_channel->wr_queue));
+	if (AST_LIST_EMPTY(&bridge_channel->wr_queue)) {
+		/* No frame, flush the alert pipe of excess alerts. */
+		ast_log(LOG_WARNING, "Weird.  No frame from bridge for %s to process?\n",
+			ast_channel_name(bridge_channel->chan));
+		bridge_channel_read_wr_queue_alert(bridge_channel);
+		ast_bridge_channel_unlock(bridge_channel);
 		return;
 	}
+
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&bridge_channel->wr_queue, fr, frame_list) {
+		if (bridge_channel->dtmf_hook_state.collected[0]) {
+			switch (fr->frametype) {
+			case AST_FRAME_BRIDGE_ACTION:
+			case AST_FRAME_BRIDGE_ACTION_SYNC:
+				/* Defer processing these frames while DTMF is collected. */
+				continue;
+			default:
+				break;
+			}
+		}
+		bridge_channel_read_wr_queue_alert(bridge_channel);
+		AST_LIST_REMOVE_CURRENT(frame_list);
+		break;
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+
+	ast_bridge_channel_unlock(bridge_channel);
+	if (!fr) {
+		/*
+		 * Wait some to reduce CPU usage from a tight loop
+		 * without any wait because we only have deferred
+		 * frames in the wr_queue.
+		 */
+		usleep(1);
+		return;
+	}
+
 	switch (fr->frametype) {
 	case AST_FRAME_BRIDGE_ACTION:
 		bridge_channel_handle_action(bridge_channel, fr->subclass.integer, fr->data.ptr);
@@ -2112,38 +2188,36 @@ static void bridge_channel_handle_write(struct ast_bridge_channel *bridge_channe
 static struct ast_frame *bridge_handle_dtmf(struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
 {
 	struct ast_bridge_features *features = bridge_channel->features;
-	struct ast_bridge_hook_dtmf *hook;
+	struct ast_bridge_hook_dtmf *hook = NULL;
 	char dtmf[2];
 
-	/* See if this DTMF matches the beginning of any feature hooks. */
+	/*
+	 * See if we are already matching a DTMF feature hook sequence or
+	 * if this DTMF matches the beginning of any DTMF feature hooks.
+	 */
 	dtmf[0] = frame->subclass.integer;
 	dtmf[1] = '\0';
-	hook = ao2_find(features->dtmf_hooks, dtmf, OBJ_PARTIAL_KEY);
-	if (hook) {
+	if (bridge_channel->dtmf_hook_state.collected[0]
+		|| (hook = ao2_find(features->dtmf_hooks, dtmf, OBJ_SEARCH_PARTIAL_KEY))) {
 		enum ast_frame_type frametype = frame->frametype;
 
 		bridge_frame_free(frame);
 		frame = NULL;
 
-		ao2_ref(hook, -1);
+		ao2_cleanup(hook);
 
-		/* Collect any more needed DTMF to execute a hook. */
-		bridge_channel_suspend(bridge_channel);
-		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
 		switch (frametype) {
 		case AST_FRAME_DTMF_BEGIN:
-			bridge_channel_feature(bridge_channel, NULL);
+			/* Just eat the frame. */
 			break;
 		case AST_FRAME_DTMF_END:
-			bridge_channel_feature(bridge_channel, dtmf);
+			ast_bridge_channel_feature_digit(bridge_channel, dtmf[0]);
 			break;
 		default:
 			/* Unexpected frame type. */
 			ast_assert(0);
 			break;
 		}
-		ast_indicate(bridge_channel->chan, AST_CONTROL_SRCUPDATE);
-		bridge_channel_unsuspend(bridge_channel);
 #ifdef TEST_FRAMEWORK
 	} else if (frame->frametype == AST_FRAME_DTMF_END) {
 		/* Only transmit this event on DTMF end or else every DTMF
@@ -2243,6 +2317,60 @@ static int bridge_channel_next_interval(struct ast_bridge_channel *bridge_channe
 
 /*!
  * \internal
+ * \brief Determine how long till the DTMF interdigit timeout.
+ * \since 12.8.0
+ *
+ * \param bridge_channel Channel to determine how long can wait.
+ *
+ * \retval ms Number of milliseconds to wait.
+ * \retval -1 to wait forever.
+ */
+static int bridge_channel_feature_timeout(struct ast_bridge_channel *bridge_channel)
+{
+	int ms;
+
+	if (bridge_channel->dtmf_hook_state.collected[0]) {
+		ms = ast_tvdiff_ms(bridge_channel->dtmf_hook_state.interdigit_timeout,
+			ast_tvnow());
+		if (ms < 0) {
+			/* Expire immediately. */
+			ms = 0;
+		}
+	} else {
+		/* Timer is not active so wait forever. */
+		ms = -1;
+	}
+
+	return ms;
+}
+
+/*!
+ * \internal
+ * \brief Determine how long till a timeout.
+ * \since 12.8.0
+ *
+ * \param bridge_channel Channel to determine how long can wait.
+ *
+ * \retval ms Number of milliseconds to wait.
+ * \retval -1 to wait forever.
+ */
+static int bridge_channel_next_timeout(struct ast_bridge_channel *bridge_channel)
+{
+	int ms_interval;
+	int ms;
+
+	ms_interval = bridge_channel_next_interval(bridge_channel);
+	ms = bridge_channel_feature_timeout(bridge_channel);
+	if (ms < 0 || (0 <= ms_interval && ms_interval < ms)) {
+		/* Interval hook timeout is next. */
+		ms = ms_interval;
+	}
+
+	return ms;
+}
+
+/*!
+ * \internal
  * \brief Wait for something to happen on the bridge channel and handle it.
  * \since 12.0.0
  *
@@ -2270,7 +2398,7 @@ static void bridge_channel_wait(struct ast_bridge_channel *bridge_channel)
 	} else {
 		ast_bridge_channel_unlock(bridge_channel);
 		outfd = -1;
-		ms = bridge_channel_next_interval(bridge_channel);
+		ms = bridge_channel_next_timeout(bridge_channel);
 		chan = ast_waitfor_nandfds(&bridge_channel->chan, 1,
 			&bridge_channel->alert_pipe[0], 1, NULL, &outfd, &ms);
 		if (ast_channel_unbridged(bridge_channel->chan)) {
@@ -2287,11 +2415,17 @@ static void bridge_channel_wait(struct ast_bridge_channel *bridge_channel)
 			&& bridge_channel->state == BRIDGE_CHANNEL_STATE_WAIT) {
 			if (chan) {
 				bridge_handle_trip(bridge_channel);
-			} else if (-1 < outfd) {
-				bridge_channel_handle_write(bridge_channel);
 			} else if (ms == 0) {
-				/* An interval expired. */
+				/* An interdigit timeout or interval expired. */
+				bridge_channel_handle_feature_timeout(bridge_channel);
 				bridge_channel_handle_interval(bridge_channel);
+			} else if (-1 < outfd) {
+				/*
+				 * Must do this after checking timeouts or may have
+				 * an infinite loop due to deferring write queue
+				 * actions while trying to match DTMF feature hooks.
+				 */
+				bridge_channel_handle_write(bridge_channel);
 			}
 		}
 		bridge_channel->activity = BRIDGE_CHANNEL_THREAD_IDLE;

@@ -53,6 +53,7 @@
 extern "C" {
 #endif
 
+#include "asterisk/bridge_features.h"
 #include "asterisk/bridge_technology.h"
 
 /*! \brief State information about a bridged channel */
@@ -162,6 +163,13 @@ struct ast_bridge_channel {
 		/*! Digit currently sending into the bridge. (zero if not sending) */
 		char dtmf_digit;
 	} owed;
+	/*! DTMF hook sequence state */
+	struct {
+		/*! Time at which the DTMF hooks should stop waiting for more digits to come. */
+		struct timeval interdigit_timeout;
+		/*! Collected DTMF digits for DTMF hooks. */
+		char collected[MAXIMUM_DTMF_FEATURE_STRING];
+	} dtmf_hook_state;
 };
 
 /*!
@@ -646,6 +654,23 @@ int ast_bridge_channel_write_park(struct ast_bridge_channel *bridge_channel, con
  * \return Nothing
  */
 void ast_bridge_channel_kick(struct ast_bridge_channel *bridge_channel, int cause);
+
+/*!
+ * \brief Add a DTMF digit to the collected digits to match against DTMF features.
+ * \since 12.8.0
+ *
+ * \param bridge_channel Channel that received a DTMF digit.
+ * \param digit DTMF digit to add to collected digits or 0 for timeout event.
+ *
+ * \note Neither the bridge nor the bridge_channel locks should be held
+ * when entering this function.
+ *
+ * \note This is intended to be called by bridge hooks and the
+ * bridge channel thread.
+ *
+ * \return Nothing
+ */
+void ast_bridge_channel_feature_digit(struct ast_bridge_channel *bridge_channel, int digit);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
