@@ -153,6 +153,14 @@ static pjsip_dialog *find_dialog(pjsip_rx_data *rdata)
 	return dlg;
 }
 
+static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata);
+
+static pjsip_module endpoint_mod = {
+	.name = {"Endpoint Identifier", 19},
+	.priority = PJSIP_MOD_PRIORITY_TSX_LAYER - 3,
+	.on_rx_request = endpoint_lookup,
+};
+
 static pj_bool_t distributor(pjsip_rx_data *rdata)
 {
 	pjsip_dialog *dlg = find_dialog(rdata);
@@ -178,7 +186,7 @@ static pj_bool_t distributor(pjsip_rx_data *rdata)
 	pjsip_rx_data_clone(rdata, 0, &clone);
 
 	if (dist) {
-		clone->endpt_info.mod_data[distributor_mod.id] = dist->endpoint;
+		clone->endpt_info.mod_data[endpoint_mod.id] = ao2_bump(dist->endpoint);
 	}
 
 	ast_sip_push_task(serializer, distribute, clone);
@@ -190,14 +198,6 @@ end:
 
 	return PJ_TRUE;
 }
-
-static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata);
-
-static pjsip_module endpoint_mod = {
-	.name = {"Endpoint Identifier", 19},
-	.priority = PJSIP_MOD_PRIORITY_TSX_LAYER - 3,
-	.on_rx_request = endpoint_lookup,
-};
 
 static struct ast_sip_auth *artificial_auth;
 
@@ -256,14 +256,12 @@ static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata)
 	struct ast_sip_endpoint *endpoint;
 	int is_ack = rdata->msg_info.msg->line.req.method.id == PJSIP_ACK_METHOD;
 
-	endpoint = rdata->endpt_info.mod_data[distributor_mod.id];
+	endpoint = rdata->endpt_info.mod_data[endpoint_mod.id];
 	if (endpoint) {
-		/* Bumping the refcount makes refcounting consistent whether an endpoint
-		 * is looked up or not */
-		ao2_ref(endpoint, +1);
-	} else {
-		endpoint = ast_sip_identify_endpoint(rdata);
+		return PJ_FALSE;
 	}
+
+	endpoint = ast_sip_identify_endpoint(rdata);
 
 	if (!endpoint && !is_ack) {
 		char name[AST_UUID_STR_LEN] = "";
