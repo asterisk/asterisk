@@ -319,14 +319,16 @@ void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
 	const char *__d__ = (data);											\
 	size_t __dlen__ = (__d__) ? strlen(__d__) + 1 : 1;								\
 	ast_string_field *__p__ = (ast_string_field *) (ptr);								\
+	ast_string_field target = *__p__;										\
 	if (__dlen__ == 1) {												\
 		__ast_string_field_release_active((x)->__field_mgr_pool, *__p__);					\
 		*__p__ = __ast_string_field_empty;									\
 	} else if ((__dlen__ <= AST_STRING_FIELD_ALLOCATION(*__p__)) ||							\
 		   (!__ast_string_field_ptr_grow(&(x)->__field_mgr, &(x)->__field_mgr_pool, __dlen__, __p__)) ||	\
-		   (*__p__ = __ast_string_field_alloc_space(&(x)->__field_mgr, &(x)->__field_mgr_pool, __dlen__))) {	\
-		if (*__p__ != (*ptr)) {											\
-			__ast_string_field_release_active((x)->__field_mgr_pool, (*ptr));				\
+		   (target = __ast_string_field_alloc_space(&(x)->__field_mgr, &(x)->__field_mgr_pool, __dlen__))) {	\
+		if (target != *__p__) {											\
+			__ast_string_field_release_active((x)->__field_mgr_pool, *__p__);				\
+			*__p__ = target;										\
 		}													\
 		memcpy(* (void **) __p__, __d__, __dlen__);								\
 	}														\
