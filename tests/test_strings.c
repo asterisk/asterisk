@@ -313,10 +313,6 @@ AST_TEST_DEFINE(escape_semicolons_test)
 	ast_test_validate(test, test_semi(";;;;;", "\\;\\;\\;\\;\\;", 11));
 	ast_test_validate(test, test_semi(";;\\;;;", "\\;\\;\\\\;\\;\\;", 32));
 
-	ast_test_status_update(test, "This test should produce 2 'ast_escape_semicolons: FRACK!, Failed assertion' messages.\n");
-	ast_test_validate(test, !test_semi(NULL, "xx\\;xx", 8));
-	ast_test_validate(test, !test_semi("xx;xx", "xx\\;xx", -1));
-
 	return AST_TEST_PASS;
 }
 
