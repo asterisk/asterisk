@@ -428,6 +428,7 @@ static struct ast_filestream *get_filestream(struct ast_format_def *fmt, FILE *b
 	int l = sizeof(*s) + fmt->buf_size + fmt->desc_size;	/* total allocation size */
 	if ( (s = ao2_alloc(l, filestream_destructor)) == NULL)
 		return NULL;
+	ast_module_ref(fmt->module);
 	s->fmt = fmt;
 	s->f = bfile;
 
@@ -456,8 +457,7 @@ static int fn_wrapper(struct ast_filestream *s, const char *comment, enum wrap_f
 	else if (mode == WRAP_REWRITE && f->rewrite && f->rewrite(s, comment))
 		ast_log(LOG_WARNING, "Unable to rewrite format %s\n", f->name);
 	else {
-		/* preliminary checks succeed. update usecount */
-		ast_module_ref(f->module);
+		/* preliminary checks succeed. */
 		ret = 0;
 	}
 	return ret;
