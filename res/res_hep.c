@@ -533,6 +533,7 @@ int hepv3_send_packet(struct hepv3_capture_info *capture_info)
 	int res;
 
 	if (!config || !config->general->enabled) {
+		ao2_ref(capture_info, -1);
 		return 0;
 	}
 
