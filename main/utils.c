@@ -1998,9 +1998,13 @@ void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
 	for (pool = pool_head, prev = NULL; pool; prev = pool, pool = pool->prev) {
 		if ((ptr >= pool->base) && (ptr <= (pool->base + pool->size))) {
 			pool->active -= AST_STRING_FIELD_ALLOCATION(ptr);
-			if ((pool->active == 0) && prev) {
-				prev->prev = pool->prev;
-				ast_free(pool);
+			if (pool->active == 0) {
+				if (prev) {
+					prev->prev = pool->prev;
+					ast_free(pool);
+				} else {
+					pool->used = 0;
+				}
 			}
 			break;
 		}
@@ -2047,6 +2051,11 @@ void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 
 	if (res < 0) {
 		/* Are we out of memory? */
+		return;
+	}
+	if (res == 0) {
+		__ast_string_field_release_active(*pool_head, *ptr);
+		*ptr = __ast_string_field_empty;
 		return;
 	}
 	needed = (size_t)res + 1; /* NUL byte */

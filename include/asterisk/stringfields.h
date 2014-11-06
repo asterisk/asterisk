@@ -315,21 +315,23 @@ void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
 */
 #define ast_string_field_ptr_set(x, ptr, data) ast_string_field_ptr_set_by_fields((x)->__field_mgr_pool, (x)->__field_mgr, ptr, data)
 
-#define ast_string_field_ptr_set_by_fields(field_mgr_pool, field_mgr, ptr, data) do {                                   \
-    const char *__d__ = (data);                                         \
-    size_t __dlen__ = (__d__) ? strlen(__d__) + 1 : 1;                              \
-    ast_string_field *__p__ = (ast_string_field *) (ptr);                               \
-    if (__dlen__ == 1) {                                                \
-        __ast_string_field_release_active(field_mgr_pool, *__p__);                  \
-        *__p__ = __ast_string_field_empty;                                  \
-    } else if ((__dlen__ <= AST_STRING_FIELD_ALLOCATION(*__p__)) ||                         \
-           (!__ast_string_field_ptr_grow(&field_mgr, &field_mgr_pool, __dlen__, __p__)) ||   \
-           (*__p__ = __ast_string_field_alloc_space(&field_mgr, &field_mgr_pool, __dlen__))) {   \
-        if (*__p__ != (*ptr)) {                                         \
-            __ast_string_field_release_active(field_mgr_pool, (*ptr));              \
-        }                                                   \
-        memcpy(* (void **) __p__, __d__, __dlen__);                             \
-    }                                                       \
+#define ast_string_field_ptr_set_by_fields(field_mgr_pool, field_mgr, ptr, data) do {            \
+    const char *__d__ = (data);                                                                  \
+    size_t __dlen__ = (__d__) ? strlen(__d__) + 1 : 1;                                           \
+    ast_string_field *__p__ = (ast_string_field *) (ptr);                                        \
+    ast_string_field target = *__p__;                                                            \
+    if (__dlen__ == 1) {                                                                         \
+        __ast_string_field_release_active(field_mgr_pool, *__p__);                               \
+        *__p__ = __ast_string_field_empty;                                                       \
+    } else if ((__dlen__ <= AST_STRING_FIELD_ALLOCATION(*__p__)) ||                              \
+           (!__ast_string_field_ptr_grow(&field_mgr, &field_mgr_pool, __dlen__, __p__)) ||       \
+           (target = __ast_string_field_alloc_space(&field_mgr, &field_mgr_pool, __dlen__))) {   \
+        if (target != (*__p__)) {                                                                \
+            __ast_string_field_release_active(field_mgr_pool, *__p__);                           \
+            *__p__ = target;                                                                     \
+        }                                                                                        \
+        memcpy(* (void **) __p__, __d__, __dlen__);                                              \
+    }                                                                                            \
     } while (0)
 
 /*!
