@@ -1,3 +1,21 @@
+2014-11-07  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 11.14.0-rc2 Released.
+
+2014-11-06 09:05 +0000 [r427381]  Corey Farrell <git@cfware.com>
+
+	* Fix unintential memory retention in stringfields.
+
+	  * Fix missing / unreachable calls to
+	    __ast_string_field_release_active.
+	  * Reset pool->used to zero when the current pool->active reaches
+	    zero.
+
+	ASTERISK-24307 #close
+	Reported by: Etienne Lessard
+	Tested by: ibercom, Etienne Lessard
+	Review: https://reviewboard.asterisk.org/r/4114/
+
 2014-11-03  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 11.14.0-rc1 Released.
