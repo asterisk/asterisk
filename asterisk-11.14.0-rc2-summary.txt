@@ -1,0 +1,93 @@
+                                Release Summary
+
+                              asterisk-11.14.0-rc2
+
+                                Date: 2014-11-07
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Other Changes
+    4. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-11.14.0-rc1.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   3 bebuild                
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author  | Summary                       | Issues Referenced |
+   |----------+---------+-------------------------------+-------------------|
+   | 427543   | bebuild | Create 11.14.0-rc2            |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 427546   | bebuild | Update version, remove old    |                   |
+   |          |         | summaries                     |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 427549   | bebuild | Merge 427381 for rc2; update  |                   |
+   |          |         | ChangeLog                     |                   |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .version                          |    2
+ ChangeLog                         |   18 +
+ asterisk-11.14.0-rc1-summary.html |  396 -------------------------------
+ asterisk-11.14.0-rc1-summary.txt  |  479 --------------------------------------
+ include/asterisk/stringfields.h   |   32 +-
+ main/utils.c                      |   15 -
+ 6 files changed, 48 insertions(+), 894 deletions(-)
+
+     ----------------------------------------------------------------------
