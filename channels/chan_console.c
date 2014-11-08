@@ -701,7 +701,7 @@ static struct console_pvt *get_active_pvt(void)
 static char *cli_console_autoanswer(struct ast_cli_entry *e, int cmd, 
 	struct ast_cli_args *a)
 {
-	struct console_pvt *pvt = get_active_pvt();
+	struct console_pvt *pvt;
 	char *res = CLI_SUCCESS;
 
 	switch (cmd) {
@@ -718,6 +718,7 @@ static char *cli_console_autoanswer(struct ast_cli_entry *e, int cmd,
 		return NULL;
 	}
 
+	pvt = get_active_pvt();
 	if (!pvt) {
 		ast_cli(a->fd, "No console device is set as active.\n");
 		return CLI_FAILURE;
@@ -748,7 +749,7 @@ static char *cli_console_autoanswer(struct ast_cli_entry *e, int cmd,
 
 static char *cli_console_flash(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct console_pvt *pvt = get_active_pvt();
+	struct console_pvt *pvt;
 
 	if (cmd == CLI_INIT) {
 		e->command = "console flash";
@@ -756,16 +757,19 @@ static char *cli_console_flash(struct ast_cli_entry *e, int cmd, struct ast_cli_
 			"Usage: console flash\n"
 			"       Flashes the call currently placed on the console.\n";
 		return NULL;
-	} else if (cmd == CLI_GENERATE)
+	} else if (cmd == CLI_GENERATE) {
 		return NULL;
+	}
 
+	if (a->argc != e->args) {
+		return CLI_SHOWUSAGE;
+	}
+
+	pvt = get_active_pvt();
 	if (!pvt) {
 		ast_cli(a->fd, "No console device is set as active\n");
 		return CLI_FAILURE;
 	}
-
-	if (a->argc != e->args)
-		return CLI_SHOWUSAGE;
 
 	if (!pvt->owner) {
 		ast_cli(a->fd, "No call to flash\n");
@@ -786,7 +790,7 @@ static char *cli_console_dial(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 {
 	char *s = NULL;
 	const char *mye = NULL, *myc = NULL; 
-	struct console_pvt *pvt = get_active_pvt();
+	struct console_pvt *pvt;
 
 	if (cmd == CLI_INIT) {
 		e->command = "console dial";
@@ -794,16 +798,19 @@ static char *cli_console_dial(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			"Usage: console dial [extension[@context]]\n"
 			"       Dials a given extension (and context if specified)\n";
 		return NULL;
-	} else if (cmd == CLI_GENERATE)
+	} else if (cmd == CLI_GENERATE) {
 		return NULL;
+	}
 
+	if (a->argc > e->args + 1) {
+		return CLI_SHOWUSAGE;
+	}
+
+	pvt = get_active_pvt();
 	if (!pvt) {
 		ast_cli(a->fd, "No console device is currently set as active\n");
 		return CLI_FAILURE;
 	}
-	
-	if (a->argc > e->args + 1)
-		return CLI_SHOWUSAGE;
 
 	if (pvt->owner) {	/* already in a call */
 		int i;
@@ -858,7 +865,7 @@ static char *cli_console_dial(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 
 static char *cli_console_hangup(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct console_pvt *pvt = get_active_pvt();
+	struct console_pvt *pvt;
 
 	if (cmd == CLI_INIT) {
 		e->command = "console hangup";
@@ -866,16 +873,19 @@ static char *cli_console_hangup(struct ast_cli_entry *e, int cmd, struct ast_cli
 			"Usage: console hangup\n"
 			"       Hangs up any call currently placed on the console.\n";
 		return NULL;
-	} else if (cmd == CLI_GENERATE)
+	} else if (cmd == CLI_GENERATE) {
 		return NULL;
+	}
 
+	if (a->argc != e->args) {
+		return CLI_SHOWUSAGE;
+	}
+
+	pvt = get_active_pvt();
 	if (!pvt) {
 		ast_cli(a->fd, "No console device is set as active\n");
 		return CLI_FAILURE;
 	}
-	
-	if (a->argc != e->args)
-		return CLI_SHOWUSAGE;
 
 	if (!pvt->owner && !pvt->hookstate) {
 		ast_cli(a->fd, "No call to hang up\n");
@@ -895,7 +905,7 @@ static char *cli_console_hangup(struct ast_cli_entry *e, int cmd, struct ast_cli
 static char *cli_console_mute(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	const char *s;
-	struct console_pvt *pvt = get_active_pvt();
+	struct console_pvt *pvt;
 	char *res = CLI_SUCCESS;
 
 	if (cmd == CLI_INIT) {
@@ -904,16 +914,19 @@ static char *cli_console_mute(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			"Usage: console {mute|unmute}\n"
 			"       Mute/unmute the microphone.\n";
 		return NULL;
-	} else if (cmd == CLI_GENERATE)
+	} else if (cmd == CLI_GENERATE) {
 		return NULL;
+	}
 
+	if (a->argc != e->args) {
+		return CLI_SHOWUSAGE;
+	}
+
+	pvt = get_active_pvt();
 	if (!pvt) {
 		ast_cli(a->fd, "No console device is set as active\n");
 		return CLI_FAILURE;
 	}
-
-	if (a->argc != e->args)
-		return CLI_SHOWUSAGE;
 
 	s = a->argv[e->args-1];
 	if (!strcasecmp(s, "mute"))
@@ -1042,7 +1055,7 @@ static char *cli_list_devices(struct ast_cli_entry *e, int cmd, struct ast_cli_a
  */
 static char *cli_console_answer(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct console_pvt *pvt = get_active_pvt();
+	struct console_pvt *pvt;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -1056,6 +1069,7 @@ static char *cli_console_answer(struct ast_cli_entry *e, int cmd, struct ast_cli
 		return NULL;	/* no completion */
 	}
 
+	pvt = get_active_pvt();
 	if (!pvt) {
 		ast_cli(a->fd, "No console device is set as active\n");
 		return CLI_FAILURE;
@@ -1092,7 +1106,7 @@ static char *cli_console_answer(struct ast_cli_entry *e, int cmd, struct ast_cli
 static char *cli_console_sendtext(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char buf[TEXT_SIZE];
-	struct console_pvt *pvt = get_active_pvt();
+	struct console_pvt *pvt;
 	struct ast_frame f = {
 		.frametype = AST_FRAME_TEXT,
 		.data.ptr = buf,
@@ -1106,9 +1120,11 @@ static char *cli_console_sendtext(struct ast_cli_entry *e, int cmd, struct ast_c
 			"Usage: console send text <message>\n"
 			"       Sends a text message for display on the remote terminal.\n";
 		return NULL;
-	} else if (cmd == CLI_GENERATE)
+	} else if (cmd == CLI_GENERATE) {
 		return NULL;
+	}
 
+	pvt = get_active_pvt();
 	if (!pvt) {
 		ast_cli(a->fd, "No console device is set as active\n");
 		return CLI_FAILURE;
