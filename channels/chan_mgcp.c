@@ -1808,17 +1808,12 @@ static struct mgcp_subchannel *find_subchannel_and_lock(char *name, int msgid, s
 			/* not dynamic, check if the name matches */
 			} else if (name) {
 				if (strcasecmp(g->name, at)) {
-					g = g->next;
 					continue;
 				}
 			/* not dynamic, no name, check if the addr matches */
 			} else if (!name && sin) {
 				if ((g->addr.sin_addr.s_addr != sin->sin_addr.s_addr) ||
 				    (g->addr.sin_port != sin->sin_port)) {
-					if(!g->next)
-						g = find_realtime_gw(name, at, sin);
-					else
-						g = g->next;
 					continue;
 				}
 			} else {
