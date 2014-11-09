@@ -229,10 +229,7 @@ static void native_rtp_bridge_stop(struct ast_bridge *bridge, struct ast_channel
 		}
 		break;
 	case AST_RTP_GLUE_RESULT_REMOTE:
-		if (!target) {
-			glue0->update_peer(bc0->chan, NULL, NULL, NULL, NULL, 0);
-			glue1->update_peer(bc1->chan, NULL, NULL, NULL, NULL, 0);
-		} else {
+		if (target) {
 			/*
 			 * If a target was provided, it is being put on hold and should expect to
 			 * receive media from Asterisk instead of what it was previously connected to.
@@ -246,6 +243,11 @@ static void native_rtp_bridge_stop(struct ast_bridge *bridge, struct ast_channel
 		break;
 	case AST_RTP_GLUE_RESULT_FORBID:
 		break;
+	}
+
+	if (!target && native_type != AST_RTP_GLUE_RESULT_FORBID) {
+		glue0->update_peer(bc0->chan, NULL, NULL, NULL, NULL, 0);
+		glue1->update_peer(bc1->chan, NULL, NULL, NULL, NULL, 0);
 	}
 
 	ast_debug(2, "Discontinued RTP bridging of '%s' and '%s' - media will flow through Asterisk core\n",
