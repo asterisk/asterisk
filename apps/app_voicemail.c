@@ -5063,7 +5063,7 @@ static void make_email_file(FILE *p,
 	fprintf(p, "To:");
 	first_line = 1;
 	while ((email = strsep(&emailsbuf, "|"))) {
-		char *next = strchr(S_OR(emailsbuf, ""), '|');
+		char *next = emailsbuf;
 		if (check_mime(vmu->fullname)) {
 			char *ptr;
 			ast_str_encode_mime(&str2, 0, vmu->fullname, first_line ? strlen("To: ") : 0, strlen(email) + 3 + (next ? strlen(",") : 0));
