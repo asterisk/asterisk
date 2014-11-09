@@ -7314,11 +7314,16 @@ generic_callback_out:
 	ast_free(http_header);
 	ast_free(out);
 
-	if (session && blastaway) {
-		session_destroy(session);
-	} else if (session && session->f) {
-		fclose(session->f);
-		session->f = NULL;
+	if (session) {
+		if (blastaway) {
+			session_destroy(session);
+		} else {
+			if (session->f) {
+				fclose(session->f);
+				session->f = NULL;
+			}
+			unref_mansession(session);
+		}
 	}
 
 	return 0;
