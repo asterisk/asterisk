@@ -1,0 +1,374 @@
+                                Release Summary
+
+                               asterisk-1.8.32.0
+
+                                Date: 2014-11-10
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release includes only bug fixes. The changes included were made only
+   to address problems that have been identified in this release series.
+   Users should be able to safely upgrade to this version if this release
+   series is already in use. Users considering upgrading from a previous
+   release series are strongly encouraged to review the UPGRADE.txt document
+   as well as the CHANGES document for information about upgrading to this
+   release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-1.8.31.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   8 wdoekes                1 abelbeck               3 coreyfarrell           
+   4 bebuild                1 Dmitry Melekhov        2 sharky                 
+   4 coreyfarrell           1 Etienne Lessard        2 tsearle                
+   4 mjordan                1 gtjoseph               2 tzafrir                
+   3 mdavenport             1 Nick Adams             1 abelbeck               
+   3 Torrey Searle          1 opsmonitor             1 boroda                 
+   2 Nitesh Bansal          1 Paolo Compagnini       1 damianivereigh         
+   2 tzafrir                1 Yuriy Gorlichenko      1 hexanol                
+   1 abelbeck                                        1 ibercom                
+   1 Damian Ivereigh                                 1 laimbock               
+   1 ibercom                                         1 looserouting           
+   1 Jeremy Laine                                    1 Narkov                 
+   1 Jeremy LainA(c)                                 1 nbansal                
+   1 kmoore                                          1 oej                    
+   1 may                                             1 slesru                 
+   1 Michael Myles                                   1 wdoekes                
+   1 oej                                             1 xdrive                 
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Category: Addons/chan_ooh323
+
+   ASTERISK-24393: rtptimeout=0 doesn't disable rtptimeout
+   Revision: 425547
+   Reporter: slesru
+   Testers: Dmitry Melekhov
+   Coders: may
+
+  Category: Applications/app_voicemail
+
+   ASTERISK-24190: IMAP voicemail causes segfault
+   Revision: 426691
+   Reporter: Narkov
+   Testers: Nick Adams
+   Coders: wdoekes
+
+   ASTERISK-24476: main/app.c / app_voicemail: ast_writestream leaks
+   Revision: 427023
+   Reporter: coreyfarrell
+   Coders: coreyfarrell
+
+  Category: Applications/app_voicemail/IMAP
+
+   ASTERISK-24190: IMAP voicemail causes segfault
+   Revision: 426691
+   Reporter: Narkov
+   Testers: Nick Adams
+   Coders: wdoekes
+
+  Category: Channels/chan_sip/General
+
+   ASTERISK-15879: [patch] Failure to receive an ACK to a SIP Re-INVITE
+   results in a SIP channel leak
+   Revision: 425068
+   Reporter: tsearle
+   Coders: Torrey Searle, Nitesh Bansal
+
+   ASTERISK-20784: Failure to receive an ACK to a SIP Re-INVITE results in a
+   SIP channel leak
+   Revision: 425068
+   Reporter: nbansal
+   Coders: Torrey Searle, Nitesh Bansal
+
+   ASTERISK-22791: asterisk sends Re-INVITE after receiving a BYE
+   Revision: 425296
+   Reporter: looserouting
+   Testers: Paolo Compagnini
+   Coders: wdoekes
+
+   ASTERISK-22945: [patch] Memory leaks in chan_sip.c with realtime peers
+   Revision: 424176
+   Reporter: ibercom
+   Testers: Yuriy Gorlichenko
+   Coders: ibercom
+
+   ASTERISK-24063: [patch]Asterisk does not respect outbound proxy when
+   sending qualify requests
+   Revision: 425818
+   Reporter: damianivereigh
+   Coders: Damian Ivereigh
+
+   ASTERISK-24335: [PATCH] Asterisk incorrectly responds 503 to INVITE
+   retransmissions of rejected calls
+   Revision: 423720
+   Reporter: tsearle
+   Coders: Torrey Searle
+
+  Category: Channels/chan_sip/Interoperability
+
+   ASTERISK-21721: SIP Failed to parse multiple Supported: headers
+   Revision: 426594
+   Reporter: oej
+   Coders: oej
+
+  Category: Channels/chan_sip/T.38
+
+   ASTERISK-22791: asterisk sends Re-INVITE after receiving a BYE
+   Revision: 425296
+   Reporter: looserouting
+   Testers: Paolo Compagnini
+   Coders: wdoekes
+
+  Category: Contrib/General
+
+   ASTERISK-24011: [patch]safe_asterisk tries to set ulimit -n too high on
+   linux systems with lots of RAM
+   Revision: 424875
+   Reporter: xdrive
+   Coders: Michael Myles
+
+   ASTERISK-24432: Install refcounter.py when REF_DEBUG is enabled
+   Revision: 426830
+   Reporter: coreyfarrell
+   Coders: coreyfarrell
+
+  Category: Core/AstMM
+
+   ASTERISK-24390: astobj2: REF_DEBUG reports false leaks with ao2_callback
+   with OBJ_MULTIPLE
+   Revision: 424786
+   Reporter: coreyfarrell
+   Coders: coreyfarrell
+
+  Category: Core/BuildSystem
+
+   ASTERISK-13797: [patch] relax badshell tilde test
+   Revision: 425291
+   Reporter: tzafrir
+   Coders: wdoekes
+
+  Category: Core/CallerID
+
+   ASTERISK-24406: Some caller ID strings are parsed differently since
+   11.13.0
+   Revision: 425152
+   Reporter: hexanol
+   Testers: Etienne Lessard
+   Coders: kmoore
+
+  Category: Core/General
+
+   ASTERISK-24348: Built-in editline tab complete segfault with MALLOC_DEBUG
+   Revision: 423657
+   Reporter: wdoekes
+   Coders: wdoekes
+
+   ASTERISK-24476: main/app.c / app_voicemail: ast_writestream leaks
+   Revision: 427023
+   Reporter: coreyfarrell
+   Coders: coreyfarrell
+
+  Category: Documentation
+
+   ASTERISK-23768: [patch] Asterisk man page contains a (new) unquoted minus
+   sign
+   Revision: 423915
+   Reporter: sharky
+   Coders: Jeremy LainA(c)
+
+  Category: Resources/res_calendar_ews
+
+   ASTERISK-24325: res_calendar_ews: cannot be used with neon 0.30
+   Revision: 425286
+   Reporter: tzafrir
+   Coders: wdoekes
+
+  Category: Resources/res_fax
+
+   ASTERISK-22791: asterisk sends Re-INVITE after receiving a BYE
+   Revision: 425296
+   Reporter: looserouting
+   Testers: Paolo Compagnini
+   Coders: wdoekes
+
+   ASTERISK-24357: [fax] Out of bounds error in update_modem_bits
+   Revision: 423979
+   Reporter: sharky
+   Coders: Jeremy Laine
+
+  Category: Resources/res_fax_spandsp
+
+   ASTERISK-18923: res_fax_spandsp usage counter is wrong
+   Revision: 425405
+   Reporter: boroda
+   Coders: coreyfarrell
+
+  Category: Resources/res_jabber
+
+   ASTERISK-24425: [patch] jabber/xmpp to use TLS instead of SSLv3, security
+   fix POODLE (CVE-2014-3566)
+   Revision: 425985
+   Reporter: abelbeck
+   Testers: abelbeck, opsmonitor, gtjoseph
+   Coders: abelbeck, mjordan
+
+  Category: Resources/res_srtp
+
+   ASTERISK-24436: Missing header in res/res_srtp.c when compiling against
+   libsrtp-1.5.0
+   Revision: 426140
+   Reporter: laimbock
+   Coders: mjordan
+
+  Category: Resources/res_xmpp
+
+   ASTERISK-24425: [patch] jabber/xmpp to use TLS instead of SSLv3, security
+   fix POODLE (CVE-2014-3566)
+   Revision: 425985
+   Reporter: abelbeck
+   Testers: abelbeck, opsmonitor, gtjoseph
+   Coders: abelbeck, mjordan
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author     | Summary                           | Issues     |
+   |          |            |                                   | Referenced |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | chan_sip: Unref outbound proxy    |            |
+   | 423800   | wdoekes    | structure on dialog/pvt           |            |
+   |          |            | destruction.                      |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | chan_sip: Simplify some unref     |            |
+   | 424181   | wdoekes    | code by removing                  |            |
+   |          |            | unlink_peer_from_tables.          |            |
+   |----------+------------+-----------------------------------+------------|
+   | 424876   | wdoekes    | Ouch! Accidental commit of wrong  |            |
+   |          |            | file in 424875.                   |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | ASTERISK-24419, fix incorrect     |            |
+   | 426295   | mdavenport | syntax for setting language in    |            |
+   |          |            | extensions.conf.sample            |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | ASTERISK-24323, fix bug in        |            |
+   | 426363   | mdavenport | documentation of AGI STREAM FILE  |            |
+   |          |            | CONTROL                           |            |
+   |----------+------------+-----------------------------------+------------|
+   |          |            | ASTERISK-23512, correct           |            |
+   | 426460   | mdavenport | inaccurate comment in             |            |
+   |          |            | manager.conf.sample               |            |
+   |----------+------------+-----------------------------------+------------|
+   | 426599   | mjordan    | channels/chan_sip: Add improved   |            |
+   |          |            | support for 4xx error codes       |            |
+   |----------+------------+-----------------------------------+------------|
+   | 426858   | mjordan    | channels/sip/reqresp_parser: Fix  |            |
+   |          |            | unit tests for r426594            |            |
+   |----------+------------+-----------------------------------+------------|
+   | 426926   | tzafrir    | install init.d files on           |            |
+   |          |            | GNU/kFreeBSD                      |            |
+   |----------+------------+-----------------------------------+------------|
+   | 426929   | tzafrir    | Fix syntax from r426926           |            |
+   |----------+------------+-----------------------------------+------------|
+   | 427542   | bebuild    | Create 1.8.32.0-rc2               |            |
+   |----------+------------+-----------------------------------+------------|
+   | 427545   | bebuild    | Update version, remove old        |            |
+   |          |            | summaries                         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 427548   | bebuild    | Merge 427380 for rc2; update      |            |
+   |          |            | ChangeLog                         |            |
+   |----------+------------+-----------------------------------+------------|
+   | 427551   | bebuild    | Importing release summary for     |            |
+   |          |            | 1.8.32.0-rc2 release.             |            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .version                              |    2
+ ChangeLog                             |   18 +
+ Makefile                              |    6
+ UPGRADE.txt                           |   12 +
+ addons/chan_ooh323.c                  |    2
+ apps/app_voicemail.c                  |   35 ++-
+ asterisk-1.8.32.0-rc1-summary.html    |  288 ---------------------------
+ asterisk-1.8.32.0-rc1-summary.txt     |  350 ----------------------------------
+ asterisk-1.8.32.0-rc2-summary.html    |   62 ++++++
+ asterisk-1.8.32.0-rc2-summary.txt     |   93 +++++++++
+ channels/chan_sip.c                   |  109 ++++++----
+ channels/sip/include/reqresp_parser.h |    5
+ channels/sip/reqresp_parser.c         |    6
+ configs/extensions.conf.sample        |    2
+ configs/manager.conf.sample           |    2
+ contrib/Makefile                      |   29 ++
+ contrib/scripts/safe_asterisk         |   11 -
+ doc/asterisk.8                        |    2
+ include/asterisk/stringfields.h       |    8
+ main/app.c                            |   18 +
+ main/astobj2.c                        |    2
+ main/callerid.c                       |   16 +
+ main/editline/readline.c              |    1
+ main/tcptls.c                         |   22 +-
+ main/utils.c                          |   15 +
+ res/res_agi.c                         |    4
+ res/res_calendar_ews.c                |   13 +
+ res/res_fax.c                         |    6
+ res/res_jabber.c                      |    5
+ res/res_srtp.c                        |    1
+ tests/test_callerid.c                 |    4
+ 31 files changed, 419 insertions(+), 730 deletions(-)
+
+     ----------------------------------------------------------------------
