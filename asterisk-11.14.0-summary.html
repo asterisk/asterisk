@@ -1,0 +1,414 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /><title>Release Summary - asterisk-11.14.0</title></head>
+<body>
+<h1 align="center"><a name="top">Release Summary</a></h1>
+<h3 align="center">asterisk-11.14.0</h3>
+<h3 align="center">Date: 2014-11-10</h3>
+<h3 align="center">&lt;asteriskteam@digium.com&gt;</h3>
+<hr/>
+<h2 align="center">Table of Contents</h2>
+<ol>
+   <li><a href="#summary">Summary</a></li>
+   <li><a href="#contributors">Contributors</a></li>
+   <li><a href="#issues">Closed Issues</a></li>
+   <li><a href="#commits">Other Changes</a></li>
+   <li><a href="#diffstat">Diffstat</a></li>
+</ol>
+<hr/>
+<a name="summary"><h2 align="center">Summary</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This release includes only bug fixes.  The changes included were made only to address problems that have been identified in this release series.  Users should be able to safely upgrade to this version if this release series is already in use.  Users considering upgrading from a previous release series are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p>
+<p>The data in this summary reflects changes that have been made since the previous release, asterisk-11.13.0.</p>
+<hr/>
+<a name="contributors"><h2 align="center">Contributors</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release.  For coders, the number is how many of their patches (of any size) were committed into this release.  For testers, the number is the number of times their name was listed as assisting with testing a patch.  Finally, for reporters, the number is the number of issues that they reported that were closed by commits that went into this release.</p>
+<table width="100%" border="0">
+<tr>
+<td width="33%"><h3>Coders</h3></td>
+<td width="33%"><h3>Testers</h3></td>
+<td width="33%"><h3>Reporters</h3></td>
+</tr>
+<tr valign="top">
+<td>
+13 coreyfarrell<br/>
+8 wdoekes<br/>
+6 mjordan<br/>
+4 bebuild<br/>
+3 file<br/>
+3 mdavenport<br/>
+3 Torrey Searle<br/>
+2 igorg<br/>
+2 Nitesh Bansal<br/>
+2 tzafrir<br/>
+1 abelbeck<br/>
+1 Damian Ivereigh<br/>
+1 ibercom<br/>
+1 jcolp<br/>
+1 Jeremy Laine<br/>
+1 Jeremy Lainé<br/>
+1 kharwell<br/>
+1 kmoore<br/>
+1 may<br/>
+1 Michael Myles<br/>
+1 oej<br/>
+1 Peter Katzmann<br/>
+</td>
+<td>
+1 abelbeck<br/>
+1 Dmitry Melekhov<br/>
+1 Etienne Lessard<br/>
+1 gtjoseph<br/>
+1 Nick Adams<br/>
+1 opsmonitor<br/>
+1 Paolo Compagnini<br/>
+1 Yuriy Gorlichenko<br/>
+</td>
+<td>
+10 coreyfarrell<br/>
+3 tzafrir<br/>
+2 sharky<br/>
+2 tsearle<br/>
+1 abelbeck<br/>
+1 boroda<br/>
+1 dafi<br/>
+1 damianivereigh<br/>
+1 dhanapathy<br/>
+1 hexanol<br/>
+1 ibercom<br/>
+1 jcolp<br/>
+1 kharwell<br/>
+1 laimbock<br/>
+1 looserouting<br/>
+1 Narkov<br/>
+1 nbansal<br/>
+1 oej<br/>
+1 pk16208<br/>
+1 rustamxp<br/>
+1 slesru<br/>
+1 wdoekes<br/>
+1 xdrive<br/>
+</td>
+</tr>
+</table>
+<hr/>
+<a name="issues"><h2 align="center">Closed Issues</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p>
+<h3>Category: Addons/chan_ooh323</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24393">ASTERISK-24393</a>: rtptimeout=0 doesn't disable rtptimeout<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=425548">425548</a><br/>
+Reporter: slesru<br/>
+Testers: Dmitry Melekhov<br/>
+Coders: may<br/>
+<br/>
+<h3>Category: Applications/app_queue</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24454">ASTERISK-24454</a>: app_queue: ao2_iterator not destroyed, causing leak<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=426255">426255</a><br/>
+Reporter: coreyfarrell<br/>
+Coders: coreyfarrell<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24466">ASTERISK-24466</a>: app_queue: fix a couple leaks to struct call_queue<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=426805">426805</a><br/>
+Reporter: coreyfarrell<br/>
+Coders: coreyfarrell<br/>
+<br/>
+<h3>Category: Applications/app_voicemail</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24190">ASTERISK-24190</a>: IMAP voicemail causes segfault<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=426692">426692</a><br/>
+Reporter: Narkov<br/>
+Testers: Nick Adams<br/>
+Coders: wdoekes<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24476">ASTERISK-24476</a>: main/app.c / app_voicemail: ast_writestream leaks<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=427024">427024</a><br/>
+Reporter: coreyfarrell<br/>
+Coders: coreyfarrell<br/>
+<br/>
+<h3>Category: Applications/app_voicemail/IMAP</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24190">ASTERISK-24190</a>: IMAP voicemail causes segfault<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=426692">426692</a><br/>
+Reporter: Narkov<br/>
+Testers: Nick Adams<br/>
+Coders: wdoekes<br/>
+<br/>
+<h3>Category: Channels/chan_motif</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24384">ASTERISK-24384</a>: chan_motif: format capabilities leak on module load error<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=424550">424550</a><br/>
+Reporter: coreyfarrell<br/>
+Coders: coreyfarrell<br/>
+<br/>
+<h3>Category: Channels/chan_sip/General</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-15879">ASTERISK-15879</a>: [patch] Failure to receive an ACK to a SIP Re-INVITE results in a SIP channel leak<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=425069">425069</a><br/>
+Reporter: tsearle<br/>
+Coders: Torrey Searle, Nitesh Bansal<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20784">ASTERISK-20784</a>: Failure to receive an ACK to a SIP Re-INVITE results in a SIP channel leak<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=425069">425069</a><br/>
+Reporter: nbansal<br/>
+Coders: Torrey Searle, Nitesh Bansal<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-22791">ASTERISK-22791</a>: asterisk sends Re-INVITE after receiving a BYE<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=425297">425297</a><br/>
+Reporter: looserouting<br/>
+Testers: Paolo Compagnini<br/>
+Coders: wdoekes<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-22945">ASTERISK-22945</a>: [patch] Memory leaks in chan_sip.c with realtime peers<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=424177">424177</a><br/>
+Reporter: ibercom<br/>
+Testers: Yuriy Gorlichenko<br/>
+Coders: ibercom<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24063">ASTERISK-24063</a>: [patch]Asterisk does not respect outbound proxy when sending qualify requests<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=425819">425819</a><br/>
+Reporter: damianivereigh<br/>
+Coders: Damian Ivereigh<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24335">ASTERISK-24335</a>: [PATCH] Asterisk incorrectly responds 503 to INVITE retransmissions of rejected calls<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=423721">423721</a><br/>
+Reporter: tsearle<br/>
+Coders: Torrey Searle<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24385">ASTERISK-24385</a>: chan_sip: process_sdp leaks on an error path<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=424569">424569</a><br/>
+Reporter: coreyfarrell<br/>
+Coders: coreyfarrell<br/>
+<br/>
+<h3>Category: Channels/chan_sip/Interoperability</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-21721">ASTERISK-21721</a>: SIP Failed to parse multiple Supported: headers<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=426595">426595</a><br/>
+Reporter: oej<br/>
+Coders: oej<br/>
+<br/>
+<h3>Category: Channels/chan_sip/T.38</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-22791">ASTERISK-22791</a>: asterisk sends Re-INVITE after receiving a BYE<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=425297">425297</a><br/>
+Reporter: looserouting<br/>
+Testers: Paolo Compagnini<br/>
+Coders: wdoekes<br/>
+<br/>
+<h3>Category: Channels/chan_unistim</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-23846">ASTERISK-23846</a>: Unistim multilines. Loss of voice after second call drops (on a second line).<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=425667">425667</a><br/>
+Reporter: rustamxp<br/>
+Coders: igorg<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24304">ASTERISK-24304</a>: asterisk crashing randomly because of unistim channel<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=426666">426666</a><br/>
+Reporter: dhanapathy<br/>
+Coders: igorg<br/>
+<br/>
+<h3>Category: Contrib/General</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24011">ASTERISK-24011</a>: [patch]safe_asterisk tries to set ulimit -n too high on linux systems with lots of RAM<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=424878">424878</a><br/>
+Reporter: xdrive<br/>
+Coders: Michael Myles<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24432">ASTERISK-24432</a>: Install refcounter.py when REF_DEBUG is enabled<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=426831">426831</a><br/>
+Reporter: coreyfarrell<br/>
+Coders: coreyfarrell<br/>
+<br/>
+<h3>Category: Core/AstMM</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24390">ASTERISK-24390</a>: astobj2: REF_DEBUG reports false leaks with ao2_callback with OBJ_MULTIPLE<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=424787">424787</a><br/>
+Reporter: coreyfarrell<br/>
+Coders: coreyfarrell<br/>
+<br/>
+<h3>Category: Core/BuildSystem</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-13797">ASTERISK-13797</a>: [patch] relax badshell tilde test<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=425292">425292</a><br/>
+Reporter: tzafrir<br/>
+Coders: wdoekes<br/>
+<br/>
+<h3>Category: Core/CallerID</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24406">ASTERISK-24406</a>: Some caller ID strings are parsed differently since 11.13.0<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=425153">425153</a><br/>
+Reporter: hexanol<br/>
+Testers: Etienne Lessard<br/>
+Coders: kmoore<br/>
+<br/>
+<h3>Category: Core/General</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24348">ASTERISK-24348</a>: Built-in editline tab complete segfault with MALLOC_DEBUG<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=423658">423658</a><br/>
+Reporter: wdoekes<br/>
+Coders: wdoekes<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24476">ASTERISK-24476</a>: main/app.c / app_voicemail: ast_writestream leaks<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=427024">427024</a><br/>
+Reporter: coreyfarrell<br/>
+Coders: coreyfarrell<br/>
+<br/>
+<h3>Category: Core/ManagerInterface</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24354">ASTERISK-24354</a>: AMI sendMessage closes AMI connection on error<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=424690">424690</a><br/>
+Reporter: pk16208<br/>
+Coders: Peter Katzmann<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24378">ASTERISK-24378</a>: Release AMI connections on shutdown<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=424578">424578</a><br/>
+Reporter: coreyfarrell<br/>
+Coders: coreyfarrell<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24430">ASTERISK-24430</a>: missing letter "p" in word response in OriginateResponse event documentation<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=426366">426366</a><br/>
+Reporter: dafi<br/>
+Coders: mjordan<br/>
+<br/>
+<h3>Category: Documentation</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-23768">ASTERISK-23768</a>: [patch] Asterisk man page contains a (new) unquoted minus sign<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=423916">423916</a><br/>
+Reporter: sharky<br/>
+Coders: Jeremy Lainé<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24430">ASTERISK-24430</a>: missing letter "p" in word response in OriginateResponse event documentation<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=426366">426366</a><br/>
+Reporter: dafi<br/>
+Coders: mjordan<br/>
+<br/>
+<h3>Category: General</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20567">ASTERISK-20567</a>: bashism in autosupport<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=424117">424117</a><br/>
+Reporter: tzafrir<br/>
+Coders: wdoekes<br/>
+<br/>
+<h3>Category: Resources/res_calendar_ews</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24325">ASTERISK-24325</a>: res_calendar_ews: cannot be used with neon 0.30<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=425287">425287</a><br/>
+Reporter: tzafrir<br/>
+Coders: wdoekes<br/>
+<br/>
+<h3>Category: Resources/res_fax</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-22791">ASTERISK-22791</a>: asterisk sends Re-INVITE after receiving a BYE<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=425297">425297</a><br/>
+Reporter: looserouting<br/>
+Testers: Paolo Compagnini<br/>
+Coders: wdoekes<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24357">ASTERISK-24357</a>: [fax] Out of bounds error in update_modem_bits<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=423983">423983</a><br/>
+Reporter: sharky<br/>
+Coders: Jeremy Laine<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24392">ASTERISK-24392</a>: res_fax: fax gateway sessions leak<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=425457">425457</a><br/>
+Reporter: coreyfarrell<br/>
+Coders: coreyfarrell<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24457">ASTERISK-24457</a>: res_fax: fax gateway frames leak<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=426527">426527</a><br/>
+Reporter: coreyfarrell<br/>
+Coders: coreyfarrell<br/>
+<br/>
+<h3>Category: Resources/res_fax_spandsp</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-18923">ASTERISK-18923</a>: res_fax_spandsp usage counter is wrong<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=425407">425407</a><br/>
+Reporter: boroda<br/>
+Coders: coreyfarrell<br/>
+<br/>
+<h3>Category: Resources/res_jabber</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24425">ASTERISK-24425</a>: [patch] jabber/xmpp to use TLS instead of SSLv3, security fix POODLE (CVE-2014-3566)<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=425986">425986</a><br/>
+Reporter: abelbeck<br/>
+Testers: abelbeck, opsmonitor, gtjoseph<br/>
+Coders: abelbeck, mjordan<br/>
+<br/>
+<h3>Category: Resources/res_rtp_asterisk</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24326">ASTERISK-24326</a>: res_rtp_asterisk: ICE-TCP candidates are incorrectly attempted<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=424852">424852</a><br/>
+Reporter: jcolp<br/>
+Coders: jcolp<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24383">ASTERISK-24383</a>: res_rtp_asterisk: Crash if no candidates received for component<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=425029">425029</a><br/>
+Reporter: kharwell<br/>
+Coders: kharwell<br/>
+<br/>
+<h3>Category: Resources/res_srtp</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24436">ASTERISK-24436</a>: Missing header in res/res_srtp.c when compiling against libsrtp-1.5.0<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=426141">426141</a><br/>
+Reporter: laimbock<br/>
+Coders: mjordan<br/>
+<br/>
+<h3>Category: Resources/res_xmpp</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24425">ASTERISK-24425</a>: [patch] jabber/xmpp to use TLS instead of SSLv3, security fix POODLE (CVE-2014-3566)<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=425986">425986</a><br/>
+Reporter: abelbeck<br/>
+Testers: abelbeck, opsmonitor, gtjoseph<br/>
+Coders: abelbeck, mjordan<br/>
+<br/>
+<hr/>
+<a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all changes that went into this release that did not directly close an issue from the issue tracker.  The commits may have been marked as being related to an issue.  If that is the case, the issue numbers are listed here, as well.</p>
+<table width="100%" border="1">
+<tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=423801">423801</a></td><td>wdoekes</td><td>chan_sip: Unref outbound proxy structure on dialog/pvt destruction.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=424151">424151</a></td><td>file</td><td>res_rtp_asterisk: Ensure that the base and mapped address for candidates is present in SDP.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=424182">424182</a></td><td>wdoekes</td><td>chan_sip: Simplify some unref code by removing unlink_peer_from_tables.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=425360">425360</a></td><td>file</td><td>res_rtp_asterisk: Make the ICE transport check case insensitive as some implementations use 'udp'.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=425644">425644</a></td><td>file</td><td>res_rtp_asterisk: Fix a bug where ICE state would get reset when it shouldn't.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=426209">426209</a></td><td>mjordan</td><td>res/res_http_websocket: Fix minor nits found by wdoekes on r409681</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=426291">426291</a></td><td>mdavenport</td><td>ASTERISK-24419, fix incorrect syntax for setting language in extensions.conf.sample</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=426359">426359</a></td><td>mdavenport</td><td>ASTERISK-24323, fix bug in documentation of AGI STREAM FILE CONTROL</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=426456">426456</a></td><td>mdavenport</td><td>ASTERISK-23512, correct inaccurate comment in manager.conf.sample</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=426600">426600</a></td><td>mjordan</td><td>channels/chan_sip: Add improved support for 4xx error codes</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=426860">426860</a></td><td>mjordan</td><td>channels/sip/reqresp_parser: Fix unit tests for r426594</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=426927">426927</a></td><td>tzafrir</td><td>install init.d files on GNU/kFreeBSD</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=426931">426931</a></td><td>tzafrir</td><td>Fix syntax from commit r426927</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=427019">427019</a></td><td>coreyfarrell</td><td>func_jitterbuffer: fix frame leaks.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=427087">427087</a></td><td>coreyfarrell</td><td>Fix compile error caused by review 4138</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=427543">427543</a></td><td>bebuild</td><td>Create 11.14.0-rc2</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=427546">427546</a></td><td>bebuild</td><td>Update version, remove old summaries</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=427549">427549</a></td><td>bebuild</td><td>Merge 427381 for rc2; update ChangeLog</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=427552">427552</a></td><td>bebuild</td><td>Importing release summary for 11.14.0-rc2 release.</td>
+<td></td></tr></table>
+<hr/>
+<a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p>
+<pre>
+.version                              |    2
+ChangeLog                             |   18 +
+Makefile                              |    6
+UPGRADE.txt                           |   12
+addons/chan_ooh323.c                  |    2
+apps/app_queue.c                      |    9
+apps/app_voicemail.c                  |   36 ++
+asterisk-11.14.0-rc1-summary.html     |  396 ----------------------------
+asterisk-11.14.0-rc1-summary.txt      |  479 ----------------------------------
+asterisk-11.14.0-rc2-summary.html     |   62 ++++
+asterisk-11.14.0-rc2-summary.txt      |   93 ++++++
+channels/chan_motif.c                 |    6
+channels/chan_sip.c                   |  117 +++++---
+channels/chan_unistim.c               |   24 +
+channels/sip/include/reqresp_parser.h |    5
+channels/sip/reqresp_parser.c         |    6
+configs/extensions.conf.sample        |    2
+configs/manager.conf.sample           |    2
+contrib/Makefile                      |   29 ++
+contrib/scripts/autosupport           |   12
+contrib/scripts/safe_asterisk         |   11
+doc/asterisk.8                        |    2
+funcs/func_jitterbuffer.c             |   11
+include/asterisk/stringfields.h       |   32 +-
+main/abstract_jb.c                    |    4
+main/app.c                            |   18 -
+main/astobj2.c                        |    2
+main/callerid.c                       |   16 -
+main/editline/readline.c              |    1
+main/manager.c                        |   14
+main/message.c                        |    8
+main/tcptls.c                         |   22 +
+main/utils.c                          |   15 -
+res/res_agi.c                         |    4
+res/res_calendar_ews.c                |   13
+res/res_fax.c                         |   31 +-
+res/res_http_websocket.c              |   16 -
+res/res_jabber.c                      |    5
+res/res_rtp_asterisk.c                |   37 +-
+res/res_srtp.c                        |    1
+res/res_xmpp.c                        |    6
+tests/test_callerid.c                 |    4
+42 files changed, 547 insertions(+), 1044 deletions(-)
+</pre><br/>
+<hr/>
+</body>
+</html>
