@@ -1852,7 +1852,7 @@ static struct ast_json *rtcp_report_to_json(struct stasis_message *msg,
 		return NULL;
 	}
 
-	for (i = 0; i < payload->report->reception_report_count; i++) {
+	for (i = 0; i < payload->report->reception_report_count && payload->report->report_block[i]; i++) {
 		struct ast_json *json_report_block;
 		char str_lsr[32];
 		snprintf(str_lsr, sizeof(str_lsr), "%u", payload->report->report_block[i]->lsr);
