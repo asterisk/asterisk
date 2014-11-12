@@ -844,6 +844,7 @@ static int action_bridge(struct mansession *s, const struct message *m)
 	}
 
 	astman_send_ack(s, m, "Channels have been bridged");
+	ao2_cleanup(bridge);
 
 	return 0;
 }
