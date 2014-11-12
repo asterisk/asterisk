@@ -9728,13 +9728,7 @@ static int add_priority(struct ast_context *con, struct ast_exten *tmp,
 					"Unable to register extension '%s' priority %d in '%s', already in use\n",
 					tmp->exten, tmp->priority, con->name);
 			}
-			if (tmp->datad) {
-				tmp->datad(tmp->data);
-				/* if you free this, null it out */
-				tmp->data = NULL;
-			}
 
-			ast_free(tmp);
 			return -1;
 		}
 		/* we are replacing e, so copy the link fields and then update
@@ -10018,6 +10012,26 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 	}
 	if (e && res == 0) { /* exact match, insert in the priority chain */
 		res = add_priority(con, tmp, el, e, replace);
+		if (res < 0) {
+			if (con->pattern_tree) {
+				struct match_char *x = add_exten_to_pattern_tree(con, tmp, 1);
+
+				if (x->exten) {
+					x->deleted = 1;
+					x->exten = 0;
+				}
+
+				ast_hashtab_remove_this_object(con->root_table, tmp);
+			}
+
+			if (tmp->datad) {
+				tmp->datad(tmp->data);
+				/* if you free this, null it out */
+				tmp->data = NULL;
+			}
+
+			ast_free(tmp);
+		}
 		if (lock_context) {
 			ast_unlock_context(con);
 		}
