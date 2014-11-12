@@ -50,8 +50,10 @@ else
 endif
 
 ifeq ($(AST_CODE_COVERAGE),yes)
-    _ASTCFLAGS+=-ftest-coverage -fprofile-arcs
+    _ASTCFLAGS_COVERAGE=-ftest-coverage -fprofile-arcs
     _ASTLDFLAGS+=-ftest-coverage -fprofile-arcs
+else
+    _ASTCFLAGS_COVERAGE=
 endif
 
 ifeq ($(findstring $(CONFIG_CFLAGS),$(_ASTCFLAGS)),)
@@ -95,41 +97,41 @@ endif
 ifeq ($(COMPILE_DOUBLE),yes)
 	$(CMD_PREFIX) $(CC) -o /dev/null -c $< $(CC_CFLAGS) $(OPTIMIZE)
 endif
-	$(CMD_PREFIX) $(CC) -o $@ -c $< $(CC_CFLAGS)
+	$(CMD_PREFIX) $(CC) -o $@ -c $< $(CC_CFLAGS) $(_ASTCFLAGS_COVERAGE)
 
 %.o: %.i
 	$(ECHO_PREFIX) echo "   [CCi] $< -> $@"
 ifeq ($(COMPILE_DOUBLE),yes)
 	$(CMD_PREFIX) $(CC) -o /dev/null -c $< $(CC_CFLAGS) $(OPTIMIZE)
 endif
-	$(CMD_PREFIX) $(CC) -o $@ -c $< $(CC_CFLAGS)
+	$(CMD_PREFIX) $(CC) -o $@ -c $< $(CC_CFLAGS) $(_ASTCFLAGS_COVERAGE)
 
 ifneq ($(COMPILE_DOUBLE),yes)
 %.o: %.c
 	$(ECHO_PREFIX) echo "   [CC] $< -> $@"
-	$(CMD_PREFIX) $(CC) -o $@ -c $< $(MAKE_DEPS) $(CC_CFLAGS)
+	$(CMD_PREFIX) $(CC) -o $@ -c $< $(MAKE_DEPS) $(CC_CFLAGS) $(_ASTCFLAGS_COVERAGE)
 endif
 
 %.i: %.c
 	$(ECHO_PREFIX) echo "   [CPP] $< -> $@"
-	$(CMD_PREFIX) $(CC) -o $@ -E $< $(MAKE_DEPS) $(CC_CFLAGS)
+	$(CMD_PREFIX) $(CC) -o $@ -E $< $(MAKE_DEPS) $(CC_CFLAGS) $(_ASTCFLAGS_COVERAGE)
 
 %.oo: %.ii
 	$(ECHO_PREFIX) echo "   [CXXi] $< -> $@"
 ifeq ($(COMPILE_DOUBLE),yes)
 	$(CMD_PREFIX) $(CXX) -o /dev/null -c $< $(CXX_CFLAGS) $(OPTIMIZE)
 endif
-	$(CMD_PREFIX) $(CXX) -o $@ -c $< $(CXX_CFLAGS)
+	$(CMD_PREFIX) $(CXX) -o $@ -c $< $(CXX_CFLAGS) $(_ASTCFLAGS_COVERAGE)
 
 ifneq ($(COMPILE_DOUBLE),yes)
 %.oo: %.cc
 	$(ECHO_PREFIX) echo "   [CXX] $< -> $@"
-	$(CMD_PREFIX) $(CXX) -o $@ -c $< $(MAKE_DEPS) $(CXX_CFLAGS)
+	$(CMD_PREFIX) $(CXX) -o $@ -c $< $(MAKE_DEPS) $(CXX_CFLAGS) $(_ASTCFLAGS_COVERAGE)
 endif
 
 %.ii: %.cc
 	$(ECHO_PREFIX) echo "   [CPP] $< -> $@"
-	$(CMD_PREFIX) $(CXX) -o $@ -E $< $(MAKE_DEPS) $(CXX_CFLAGS)
+	$(CMD_PREFIX) $(CXX) -o $@ -E $< $(MAKE_DEPS) $(CXX_CFLAGS) $(_ASTCFLAGS_COVERAGE)
 
 %.so: %.o
 ifeq ($(GNU_LD),1)
