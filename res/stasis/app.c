@@ -302,6 +302,10 @@ static void sub_default_handler(void *data, struct stasis_subscription *sub,
 		call_forwarded_handler(app, message);
 	}
 
+	if (stasis_message_type(message) == app_end_message_type()) {
+		app_end_message_handler(message);
+	}
+
 	/* By default, send any message that has a JSON representation */
 	json = stasis_message_to_json(message, stasis_app_get_sanitizer());
 	if (!json) {

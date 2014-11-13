@@ -221,6 +221,17 @@ struct stasis_message_sanitizer {
 	 * \retval zero if the channel should remain in the message
 	 */
 	int (*channel_snapshot)(const struct ast_channel_snapshot *snapshot);
+
+	/*!
+	 * \brief Callback which determines whether a channel should be sanitized from
+	 * a message based on the channel
+	 *
+	 * \param chan The channel to be checked
+	 *
+	 * \retval non-zero if the channel should be left out of the message
+	 * \retval zero if the channel should remain in the message
+	 */
+	int (*channel)(const struct ast_channel *chan);
 };
 
 /*!

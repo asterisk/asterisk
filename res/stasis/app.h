@@ -270,4 +270,27 @@ char *app_get_replace_channel_app(struct ast_channel *chan);
  */
 int app_replace_channel_forwards(struct stasis_app *app, const char *old_id, struct ast_channel *new_chan);
 
+/*!
+ * \brief Send StasisEnd message to the listening app
+ *
+ * \param app The app that owns the channel
+ * \param chan The channel for which the message is being sent
+ *
+ * \retval zero on success
+ * \return non-zero on failure
+ */
+int app_send_end_msg(struct stasis_app *app, struct ast_channel *chan);
+
+/*!
+ * \brief Handle cleanup related to StasisEnd messages
+ *
+ * \param message The message for which to clean up
+ */
+void app_end_message_handler(struct stasis_message *message);
+
+/*!
+ * \brief Accessor for the StasisEnd message type
+ */
+struct stasis_message_type *app_end_message_type(void);
+
 #endif /* _ASTERISK_RES_STASIS_APP_H */
