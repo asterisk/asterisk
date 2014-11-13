@@ -791,11 +791,6 @@ void stasis_app_unref(void);
 struct stasis_message_sanitizer *stasis_app_get_sanitizer(void);
 
 /*!
- * \brief Stasis message type for a StasisEnd event
- */
-struct stasis_message_type *ast_stasis_end_message_type(void);
-
-/*!
  * \brief Indicate that this channel has had a StasisEnd published for it
  *
  * \param The channel that is exiting Stasis.

@@ -164,7 +164,6 @@ static int bridge_stasis_moving(struct ast_bridge_channel *bridge_channel, void 
 {
 	if (src->v_table == &bridge_stasis_v_table &&
 			dst->v_table != &bridge_stasis_v_table) {
-		RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 		RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
 		struct ast_channel *chan;
 
@@ -176,11 +175,7 @@ static int bridge_stasis_moving(struct ast_bridge_channel *bridge_channel, void 
 			return -1;
 		}
 
-		blob = ast_json_pack("{s: s}", "app", app_name(control_app(control)));
-
-		stasis_app_channel_set_stasis_end_published(chan);
-
-		ast_channel_publish_blob(chan, ast_stasis_end_message_type(), blob);
+		app_send_end_msg(control_app(control), chan);
 	}
 
 	return -1;
