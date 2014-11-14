@@ -722,14 +722,13 @@ static void bridge_blind_transfer_handler(void *data, struct stasis_subscription
 {
 	struct stasis_app *app = data;
 	struct ast_blind_transfer_message *transfer_msg = stasis_message_data(message);
-	struct ast_bridge_snapshot *bridge = transfer_msg->to_transferee.bridge_snapshot;
+	struct ast_bridge_snapshot *bridge = transfer_msg->bridge;
 
 	if (transfer_msg->replace_channel) {
-		set_replacement_channel(transfer_msg->to_transferee.channel_snapshot,
-				transfer_msg->replace_channel);
+		set_replacement_channel(transfer_msg->transferer, transfer_msg->replace_channel);
 	}
 
-	if (bridge_app_subscribed(app, transfer_msg->to_transferee.channel_snapshot->uniqueid) ||
+	if (bridge_app_subscribed(app, transfer_msg->transferer->uniqueid) ||
 		(bridge && bridge_app_subscribed_involved(app, bridge))) {
 		stasis_publish(app->topic, message);
 	}

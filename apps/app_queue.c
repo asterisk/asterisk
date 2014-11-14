@@ -5772,7 +5772,7 @@ static void handle_blind_transfer(void *userdata, struct stasis_subscription *su
 	ao2_lock(queue_data);
 
 	if (ast_strlen_zero(queue_data->bridge_uniqueid) ||
-			strcmp(queue_data->bridge_uniqueid, transfer_msg->to_transferee.bridge_snapshot->uniqueid)) {
+			strcmp(queue_data->bridge_uniqueid, transfer_msg->bridge->uniqueid)) {
 		ao2_unlock(queue_data);
 		return;
 	}
