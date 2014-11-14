@@ -1646,12 +1646,13 @@ pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
 	return dlg;
 }
 
-pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata)
+pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata, pj_status_t *status)
 {
 	pjsip_dialog *dlg;
 	pj_str_t contact;
 	pjsip_transport_type_e type = rdata->tp_info.transport->key.type;
-	pj_status_t status;
+
+	ast_assert(status != NULL);
 
 	contact.ptr = pj_pool_alloc(rdata->tp_info.pool, PJSIP_MAX_URL_SIZE);
 	contact.slen = pj_ansi_snprintf(contact.ptr, PJSIP_MAX_URL_SIZE,
@@ -1664,11 +1665,11 @@ pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint,
 			(type != PJSIP_TRANSPORT_UDP && type != PJSIP_TRANSPORT_UDP6) ? ";transport=" : "",
 			(type != PJSIP_TRANSPORT_UDP && type != PJSIP_TRANSPORT_UDP6) ? pjsip_transport_get_type_name(type) : "");
 
-	status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact, &dlg);
-	if (status != PJ_SUCCESS) {
+	*status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact, &dlg);
+	if (*status != PJ_SUCCESS) {
 		char err[PJ_ERR_MSG_SIZE];
 
-		pj_strerror(status, err, sizeof(err));
+		pj_strerror(*status, err, sizeof(err));
 		ast_log(LOG_ERROR, "Could not create dialog with endpoint %s. %s\n",
 				ast_sorcery_object_get_id(endpoint), err);
 		return NULL;

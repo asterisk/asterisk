@@ -1406,6 +1406,7 @@ static pjsip_inv_session *pre_session_setup(pjsip_rx_data *rdata, const struct a
 	pjsip_dialog *dlg;
 	pjsip_inv_session *inv_session;
 	unsigned int options = endpoint->extensions.flags;
+	pj_status_t dlg_status;
 
 	if (pjsip_inv_verify_request(rdata, &options, NULL, NULL, ast_sip_get_pjsip_endpoint(), &tdata) != PJ_SUCCESS) {
 		if (tdata) {
@@ -1415,9 +1416,11 @@ static pjsip_inv_session *pre_session_setup(pjsip_rx_data *rdata, const struct a
 		}
 		return NULL;
 	}
-	dlg = ast_sip_create_dialog_uas(endpoint, rdata);
+	dlg = ast_sip_create_dialog_uas(endpoint, rdata, &dlg_status);
 	if (!dlg) {
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
+		if (dlg_status != PJ_EEXISTS) {
+			pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
+		}
 		return NULL;
 	}
 	if (pjsip_inv_create_uas(dlg, rdata, NULL, options, &inv_session) != PJ_SUCCESS) {

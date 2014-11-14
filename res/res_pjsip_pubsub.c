@@ -122,6 +122,7 @@ static struct pjsip_module pubsub_module = {
 
 #define MOD_DATA_BODY_GENERATOR "sub_body_generator"
 #define MOD_DATA_PERSISTENCE "sub_persistence"
+#define MOD_DATA_DLG_STATUS "dlg_status"
 
 static const pj_str_t str_event_name = { "Event", 5 };
 
@@ -721,6 +722,7 @@ struct ast_sip_subscription *ast_sip_create_subscription(const struct ast_sip_su
 	struct ast_sip_subscription *sub = ao2_alloc(sizeof(*sub), subscription_destructor);
 	pjsip_dialog *dlg;
 	struct subscription_persistence *persistence;
+	pj_status_t dlg_status;
 
 	if (!sub) {
 		return NULL;
@@ -739,7 +741,9 @@ struct ast_sip_subscription *ast_sip_create_subscription(const struct ast_sip_su
 			pubsub_module.id, MOD_DATA_BODY_GENERATOR);
 	sub->role = role;
 	if (role == AST_SIP_NOTIFIER) {
-		dlg = ast_sip_create_dialog_uas(endpoint, rdata);
+		dlg = ast_sip_create_dialog_uas(endpoint, rdata, &dlg_status);
+		ast_sip_mod_data_set(rdata->tp_info.pool, rdata->endpt_info.mod_data,
+				pubsub_module.id, MOD_DATA_DLG_STATUS, (void *) dlg_status);
 	} else {
 		RAII_VAR(struct ast_sip_contact *, contact, NULL, ao2_cleanup);
 
@@ -1173,7 +1177,10 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 			}
 			pjsip_dlg_send_response(dlg, trans, tdata);
 		} else {
-			pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
+			long dlg_status = (long) ast_sip_mod_data_get(rdata->endpt_info.mod_data, pubsub_module.id, MOD_DATA_DLG_STATUS);
+			if (dlg_status != PJ_EEXISTS) {
+				pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
+			}
 		}
 	} else {
 		sub->persistence = subscription_persistence_create(sub);
