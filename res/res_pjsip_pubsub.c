@@ -743,7 +743,7 @@ struct ast_sip_subscription *ast_sip_create_subscription(const struct ast_sip_su
 	if (role == AST_SIP_NOTIFIER) {
 		dlg = ast_sip_create_dialog_uas(endpoint, rdata, &dlg_status);
 		ast_sip_mod_data_set(rdata->tp_info.pool, rdata->endpt_info.mod_data,
-				pubsub_module.id, MOD_DATA_DLG_STATUS, (void *) dlg_status);
+				pubsub_module.id, MOD_DATA_DLG_STATUS, (void*)(long)dlg_status);
 	} else {
 		RAII_VAR(struct ast_sip_contact *, contact, NULL, ao2_cleanup);
 
