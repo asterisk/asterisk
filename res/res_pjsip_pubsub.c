@@ -1230,6 +1230,7 @@ static struct sip_subscription_tree *allocate_subscription_tree(struct ast_sip_e
  * \param resource The requested resource in the SUBSCRIBE request
  * \param generator The body generator to use in leaf subscriptions
  * \param tree The resource tree on which the subscription tree is based
+ * \param dlg_status[out] The result of attempting to create a dialog.
  *
  * \retval NULL Could not create the subscription tree
  * \retval non-NULL The root of the created subscription tree
@@ -1237,7 +1238,8 @@ static struct sip_subscription_tree *allocate_subscription_tree(struct ast_sip_e
 
 static struct sip_subscription_tree *create_subscription_tree(const struct ast_sip_subscription_handler *handler,
 		struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata, const char *resource,
-		struct ast_sip_pubsub_body_generator *generator, struct resource_tree *tree)
+		struct ast_sip_pubsub_body_generator *generator, struct resource_tree *tree,
+		pj_status_t *dlg_status)
 {
 	struct sip_subscription_tree *sub_tree;
 	pjsip_dialog *dlg;
@@ -1245,13 +1247,16 @@ static struct sip_subscription_tree *create_subscription_tree(const struct ast_s
 
 	sub_tree = allocate_subscription_tree(endpoint);
 	if (!sub_tree) {
+		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
 		return NULL;
 	}
 	sub_tree->role = AST_SIP_NOTIFIER;
 
-	dlg = ast_sip_create_dialog_uas(endpoint, rdata);
+	dlg = ast_sip_create_dialog_uas(endpoint, rdata, dlg_status);
 	if (!dlg) {
-		ast_log(LOG_WARNING, "Unable to create dialog for SIP subscription\n");
+		if (*dlg_status != PJ_EEXISTS) {
+			ast_log(LOG_WARNING, "Unable to create dialog for SIP subscription\n");
+		}
 		ao2_ref(sub_tree, -1);
 		return NULL;
 	}
@@ -1362,7 +1367,9 @@ static int subscription_persistence_recreate(void *obj, void *arg, int flags)
 	resp = build_resource_tree(endpoint, handler, resource, &tree,
 		ast_sip_pubsub_has_eventlist_support(&rdata));
 	if (PJSIP_IS_STATUS_IN_CLASS(resp, 200)) {
-		sub_tree = create_subscription_tree(handler, endpoint, &rdata, resource, generator, &tree);
+		pj_status_t dlg_status;
+
+		sub_tree = create_subscription_tree(handler, endpoint, &rdata, resource, generator, &tree, &dlg_status);
 		if (!sub_tree) {
 			ast_sorcery_delete(ast_sip_get_sorcery(), persistence);
 			ast_log(LOG_WARNING, "Failed to re-create subscription for %s\n", persistence->endpoint);
@@ -2506,6 +2513,7 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 	size_t resource_size;
 	int resp;
 	struct resource_tree tree;
+	pj_status_t dlg_status;
 
 	endpoint = ast_pjsip_rdata_get_endpoint(rdata);
 	ast_assert(endpoint != NULL);
@@ -2570,9 +2578,11 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 		return PJ_TRUE;
 	}
 
-	sub_tree = create_subscription_tree(handler, endpoint, rdata, resource, generator, &tree);
+	sub_tree = create_subscription_tree(handler, endpoint, rdata, resource, generator, &tree, &dlg_status);
 	if (!sub_tree) {
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
+		if (dlg_status != PJ_EEXISTS) {
+			pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
+		}
 	} else {
 		sub_tree->persistence = subscription_persistence_create(sub_tree);
 		subscription_persistence_update(sub_tree, rdata);
