@@ -1243,9 +1243,9 @@ AST_TEST_DEFINE(test_cel_blind_transfer)
 	RAII_VAR(struct ast_channel *, chan_alice, NULL, safe_channel_release);
 	RAII_VAR(struct ast_channel *, chan_bob, NULL, safe_channel_release);
 	RAII_VAR(struct ast_bridge *, bridge, NULL, safe_bridge_destroy);
+	RAII_VAR(struct ast_blind_transfer_message *, transfer_msg, NULL, ao2_cleanup);
 	struct ast_party_caller alice_caller = ALICE_CALLERID;
 	struct ast_party_caller bob_caller = BOB_CALLERID;
-	struct ast_bridge_channel_pair pair;
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -1271,12 +1271,21 @@ AST_TEST_DEFINE(test_cel_blind_transfer)
 	BRIDGE_ENTER(chan_bob, bridge);
 	BRIDGE_ENTER(chan_alice, bridge);
 
-	pair.bridge = bridge;
-	pair.channel = chan_alice;
 	ast_bridge_lock(bridge);
-	ast_bridge_publish_blind_transfer(1, AST_BRIDGE_TRANSFER_SUCCESS,
-		&pair, "transfer_context", "transfer_extension", NULL, NULL);
+	transfer_msg = ast_blind_transfer_message_create(1, chan_alice,
+			"transfer_extension", "transfer_context");
+	if (!transfer_msg) {
+		ast_test_status_update(test, "Failed to create transfer Stasis message\n");
+		return AST_TEST_FAIL;
+	}
+	transfer_msg->bridge = ast_bridge_snapshot_create(bridge);
+	if (!transfer_msg->bridge) {
+		ast_test_status_update(test, "Failed to create bridge snapshot\n");
+		return AST_TEST_FAIL;
+	}
 	ast_bridge_unlock(bridge);
+	transfer_msg->result = AST_BRIDGE_TRANSFER_SUCCESS;
+	ast_bridge_publish_blind_transfer(transfer_msg);
 	BLINDTRANSFER_EVENT(chan_alice, bridge, "transfer_extension", "transfer_context");
 
 	BRIDGE_EXIT(chan_alice, bridge);
