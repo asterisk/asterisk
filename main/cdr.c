@@ -98,19 +98,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					</description>
 				</configOption>
 				<configOption name="unanswered">
-					<synopsis>Log calls that are never answered.</synopsis>
-					<description><para>Define whether or not to log unanswered calls. Setting this to "yes" will
-					report every attempt to ring a phone in dialing attempts, when it was not
-					answered. For example, if you try to dial 3 extensions, and this option is "yes",
-					you will get 3 CDR's, one for each phone that was rung. Some find this information horribly
-					useless. Others find it very valuable. Note, in "yes" mode, you will see one CDR, with one of
-					the call targets on one side, and the originating channel on the other, and then one CDR for
-					each channel attempted. This may seem redundant, but cannot be helped.</para>
-					<para>In brief, this option controls the reporting of unanswered calls which only have an A
-					party. Calls which get offered to an outgoing line, but are unanswered, are still
-					logged, and that is the intended behavior. (It also results in some B side CDRs being
-					output, as they have the B side channel as their source channel, and no destination
-					channel.)</para>
+					<synopsis>Log calls that are never answered and don't set an outgoing party.</synopsis>
+					<description><para>
+					Define whether or not to log unanswered calls that don't involve an outgoing party. Setting
+					this to "yes" will make calls to extensions that don't answer and don't set a side B channel
+					(such as by using the Dial application) receive CDR log entries. If this option is set to
+					"no", then those log entries will not be created. Unanswered calls which get offered to an
+					outgoing line will always receive log entries regardless of this option, and that is the
+					intended behavior.
+					</para>
 					</description>
 				</configOption>
 				<configOption name="congestion">
