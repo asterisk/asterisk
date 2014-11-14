@@ -1605,33 +1605,21 @@ static void get_transfer_parties(struct ast_channel *transferer, struct ast_brid
 static void publish_transfer_success(struct attended_transfer_properties *props,
 		struct ast_channel *transferee_channel, struct ast_channel *target_channel)
 {
-	struct ast_bridge_channel_pair transferee = {
-		.channel = props->transferer,
-		.bridge = props->transferee_bridge,
-	};
-	struct ast_bridge_channel_pair transfer_target = {
-		.channel = props->transferer,
-		.bridge = props->target_bridge,
-	};
+	struct ast_attended_transfer_message *transfer_msg;
 
-	if (transferee.bridge && transfer_target.bridge) {
-		ast_bridge_lock_both(transferee.bridge, transfer_target.bridge);
-	} else if (transferee.bridge) {
-		ast_bridge_lock(transferee.bridge);
-	} else if (transfer_target.bridge) {
-		ast_bridge_lock(transfer_target.bridge);
+	transfer_msg = ast_attended_transfer_message_create(0, props->transferer,
+			props->transferee_bridge, props->transferer, props->target_bridge,
+			transferee_channel, target_channel);
+
+	if (!transfer_msg) {
+		ast_log(LOG_ERROR, "Unable to publish successful attended transfer from %s\n",
+				ast_channel_name(props->transferer));
+		return;
 	}
 
-	ast_bridge_publish_attended_transfer_bridge_merge(0, AST_BRIDGE_TRANSFER_SUCCESS,
-			&transferee, &transfer_target, props->transferee_bridge, transferee_channel,
-			target_channel);
-
-	if (transferee.bridge) {
-		ast_bridge_unlock(transferee.bridge);
-	}
-	if (transfer_target.bridge) {
-		ast_bridge_unlock(transfer_target.bridge);
-	}
+	ast_attended_transfer_message_add_merge(transfer_msg, props->transferee_bridge);
+	ast_bridge_publish_attended_transfer(transfer_msg);
+	ao2_cleanup(transfer_msg);
 }
 
 /*!
@@ -1640,37 +1628,22 @@ static void publish_transfer_success(struct attended_transfer_properties *props,
 static void publish_transfer_threeway(struct attended_transfer_properties *props,
 		struct ast_channel *transferee_channel, struct ast_channel *target_channel)
 {
-	struct ast_bridge_channel_pair transferee = {
-		.channel = props->transferer,
-		.bridge = props->transferee_bridge,
-	};
-	struct ast_bridge_channel_pair transfer_target = {
-		.channel = props->transferer,
-		.bridge = props->target_bridge,
-	};
-	struct ast_bridge_channel_pair threeway = {
-		.channel = props->transferer,
-		.bridge = props->transferee_bridge,
-	};
+	struct ast_attended_transfer_message *transfer_msg;
 
-	if (transferee.bridge && transfer_target.bridge) {
-		ast_bridge_lock_both(transferee.bridge, transfer_target.bridge);
-	} else if (transferee.bridge) {
-		ast_bridge_lock(transferee.bridge);
-	} else if (transfer_target.bridge) {
-		ast_bridge_lock(transfer_target.bridge);
+	transfer_msg = ast_attended_transfer_message_create(0, props->transferer,
+			props->transferee_bridge, props->transferer, props->target_bridge,
+			transferee_channel, target_channel);
+
+	if (!transfer_msg) {
+		ast_log(LOG_ERROR, "Unable to publish successful three-way transfer from %s\n",
+				ast_channel_name(props->transferer));
+		return;
 	}
 
-	ast_bridge_publish_attended_transfer_threeway(0, AST_BRIDGE_TRANSFER_SUCCESS,
-			&transferee, &transfer_target, &threeway, transferee_channel,
-			target_channel);
-
-	if (transferee.bridge) {
-		ast_bridge_unlock(transferee.bridge);
-	}
-	if (transfer_target.bridge) {
-		ast_bridge_unlock(transfer_target.bridge);
-	}
+	ast_attended_transfer_message_add_threeway(transfer_msg, props->transferer,
+			props->transferee_bridge);
+	ast_bridge_publish_attended_transfer(transfer_msg);
+	ao2_cleanup(transfer_msg);
 }
 
 /*!
@@ -1678,38 +1651,21 @@ static void publish_transfer_threeway(struct attended_transfer_properties *props
  */
 static void publish_transfer_fail(struct attended_transfer_properties *props)
 {
-	struct ast_bridge_channel_pair transferee = {
-		.channel = props->transferer,
-		.bridge = props->transferee_bridge,
-	};
-	struct ast_bridge_channel_pair transfer_target = {
-		.channel = props->transferer,
-		.bridge = props->target_bridge,
-	};
-	struct ast_channel *transferee_channel;
-	struct ast_channel *target_channel;
+	struct ast_attended_transfer_message *transfer_msg;
 
-	if (transferee.bridge && transfer_target.bridge) {
-		ast_bridge_lock_both(transferee.bridge, transfer_target.bridge);
-	} else if (transferee.bridge) {
-		ast_bridge_lock(transferee.bridge);
-	} else if (transfer_target.bridge) {
-		ast_bridge_lock(transfer_target.bridge);
+	transfer_msg = ast_attended_transfer_message_create(0, props->transferer,
+			props->transferee_bridge, props->transferer, props->target_bridge,
+			NULL, NULL);
+
+	if (!transfer_msg) {
+		ast_log(LOG_ERROR, "Unable to publish failed transfer from %s\n",
+				ast_channel_name(props->transferer));
+		return;
 	}
 
-	get_transfer_parties(props->transferer, props->transferee_bridge, props->target_bridge,
-			&transferee_channel, &target_channel);
-	ast_bridge_publish_attended_transfer_fail(0, AST_BRIDGE_TRANSFER_FAIL,
-			&transferee, &transfer_target, transferee_channel, target_channel);
-	ast_channel_cleanup(transferee_channel);
-	ast_channel_cleanup(target_channel);
-
-	if (transferee.bridge) {
-		ast_bridge_unlock(transferee.bridge);
-	}
-	if (transfer_target.bridge) {
-		ast_bridge_unlock(transfer_target.bridge);
-	}
+	transfer_msg->result = AST_BRIDGE_TRANSFER_FAIL;
+	ast_bridge_publish_attended_transfer(transfer_msg);
+	ao2_cleanup(transfer_msg);
 }
 
 /*!

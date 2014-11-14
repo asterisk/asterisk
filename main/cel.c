@@ -1355,8 +1355,8 @@ static void cel_blind_transfer_cb(
 	struct stasis_message *message)
 {
 	struct ast_blind_transfer_message *transfer_msg = stasis_message_data(message);
-	struct ast_channel_snapshot *chan_snapshot = transfer_msg->to_transferee.channel_snapshot;
-	struct ast_bridge_snapshot *bridge_snapshot = transfer_msg->to_transferee.bridge_snapshot;
+	struct ast_channel_snapshot *chan_snapshot = transfer_msg->transferer;
+	struct ast_bridge_snapshot *bridge_snapshot = transfer_msg->bridge;
 	struct ast_json *extra;
 
 	if (transfer_msg->result != AST_BRIDGE_TRANSFER_SUCCESS) {
