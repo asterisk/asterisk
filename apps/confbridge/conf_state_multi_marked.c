@@ -107,12 +107,6 @@ static void leave_marked(struct confbridge_user *user)
 				user_iter->conference->activeusers--;
 				AST_LIST_INSERT_TAIL(&user_iter->conference->waiting_list, user_iter, list);
 				user_iter->conference->waitingusers++;
-
-				/* Handle moh of user_iter if necessary */
-				if (ast_test_flag(&user_iter->u_profile, USER_OPT_MUSICONHOLD)) {
-					conf_moh_start(user_iter);
-				}
-				conf_update_user_mute(user_iter);
 			}
 		}
 		AST_LIST_TRAVERSE_SAFE_END;
@@ -167,6 +161,18 @@ static void leave_marked(struct confbridge_user *user)
 				conf_get_sound(CONF_SOUND_LEADER_HAS_LEFT, user->b_profile.sounds));
 			ast_autoservice_stop(user->chan);
 			ao2_lock(user->conference);
+		}
+
+		AST_LIST_TRAVERSE(&user->conference->waiting_list, user_iter, list) {
+			if (user_iter->kicked) {
+				continue;
+			}
+
+			if (ast_test_flag(&user_iter->u_profile, USER_OPT_MUSICONHOLD)) {
+				conf_moh_start(user_iter);
+			}
+
+			conf_update_user_mute(user_iter);
 		}
 	}
 }
