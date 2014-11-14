@@ -1275,11 +1275,13 @@ AST_TEST_DEFINE(test_cel_blind_transfer)
 	transfer_msg = ast_blind_transfer_message_create(1, chan_alice,
 			"transfer_extension", "transfer_context");
 	if (!transfer_msg) {
+		ast_bridge_unlock(bridge);
 		ast_test_status_update(test, "Failed to create transfer Stasis message\n");
 		return AST_TEST_FAIL;
 	}
 	transfer_msg->bridge = ast_bridge_snapshot_create(bridge);
 	if (!transfer_msg->bridge) {
+		ast_bridge_unlock(bridge);
 		ast_test_status_update(test, "Failed to create bridge snapshot\n");
 		return AST_TEST_FAIL;
 	}
