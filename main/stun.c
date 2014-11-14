@@ -201,12 +201,15 @@ static int stun_process_attr(struct stun_state *state, struct stun_attr *attr)
 /*! \brief append a string to an STUN message */
 static void append_attr_string(struct stun_attr **attr, int attrval, const char *s, int *len, int *left)
 {
-	int size = sizeof(**attr) + strlen(s);
+	int str_length = strlen(s);
+	int attr_length = str_length + ((~(str_length - 1)) & 0x3);
+	int size = sizeof(**attr) + attr_length;
 	if (*left > size) {
 		(*attr)->attr = htons(attrval);
-		(*attr)->len = htons(strlen(s));
-		memcpy((*attr)->value, s, strlen(s));
-		(*attr) = (struct stun_attr *)((*attr)->value + strlen(s));
+		(*attr)->len = htons(attr_length);
+		memcpy((*attr)->value, s, str_length);
+		memset((*attr)->value + str_length, 0, attr_length - str_length);
+		(*attr) = (struct stun_attr *)((*attr)->value + attr_length);
 		*len += size;
 		*left -= size;
 	}
