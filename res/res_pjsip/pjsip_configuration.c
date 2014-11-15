@@ -955,6 +955,14 @@ static int sip_endpoint_apply_handler(const struct ast_sorcery *sorcery, void *o
 		ast_log(LOG_ERROR, "Invalid outbound proxy '%s' specified on endpoint '%s'\n",
 			endpoint->outbound_proxy, ast_sorcery_object_get_id(endpoint));
 		return -1;
+	} else if (endpoint->extensions.timer.min_se < 90) {
+		ast_log(LOG_ERROR, "Session timer minimum expires time must be 90 or greater on endpoint '%s'\n",
+			ast_sorcery_object_get_id(endpoint));
+		return -1;
+	} else if (endpoint->extensions.timer.sess_expires < endpoint->extensions.timer.min_se) {
+		ast_log(LOG_ERROR, "Session timer expires must be greater than minimum session expires time on endpoint '%s'\n",
+			ast_sorcery_object_get_id(endpoint));
+		return -1;
 	}
 
 	return 0;
