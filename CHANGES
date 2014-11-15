@@ -20,6 +20,9 @@ chan_sip
  * New 'rtpbindaddr' global setting. This allows a user to define which
    ipaddress to bind the rtpengine to. For example, chan_sip might bind
    to eth0 (10.0.0.2) but rtpengine to eth1 (192.168.1.10).
+ * DTLS related configuration options can now be set at a general level.
+   Enabling DTLS support, though, requires enabling it at the user
+   or peer level.
 
 chan_pjsip
 ------------------

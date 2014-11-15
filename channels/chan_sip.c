@@ -2305,6 +2305,9 @@ static struct ast_tls_config sip_tls_cfg;
 /*! \brief Default TLS connection configuration */
 static struct ast_tls_config default_tls_cfg;
 
+/*! \brief Default DTLS connection configuration */
+static struct ast_rtp_dtls_cfg default_dtls_cfg;
+
 /*! \brief The TCP server definition */
 static struct ast_tcptls_session_args sip_tcp_desc = {
 	.accept_fd = -1,
@@ -30398,6 +30401,10 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	peer->named_callgroups = ast_unref_namedgroups(peer->named_callgroups);
 	peer->named_pickupgroups = ast_unref_namedgroups(peer->named_pickupgroups);
 
+	/* Set the default DTLS settings from default_tls_cfg */
+	ast_rtp_dtls_cfg_free(&peer->dtls_cfg);
+	ast_rtp_dtls_cfg_copy(&default_dtls_cfg, &peer->dtls_cfg);
+
 	for (; v || ((v = alt) && !(alt=NULL)); v = v->next) {
 		if (!devstate_only) {
 			if (handle_common_options(&peerflags[0], &mask[0], v)) {
@@ -31172,6 +31179,7 @@ static int reload_config(enum channelreloadreason reason)
 	sip_cfg.contact_acl = ast_free_acl_list(sip_cfg.contact_acl);
 
 	default_tls_cfg.enabled = FALSE;		/* Default: Disable TLS */
+	default_dtls_cfg.enabled = FALSE;		/* Default: Disable DTLS too */
 
 	if (reason != CHANNEL_MODULE_LOAD) {
 		ast_debug(4, "--------------- SIP reload started\n");
@@ -31190,19 +31198,26 @@ static int reload_config(enum channelreloadreason reason)
 		ao2_t_callback(peers, OBJ_NODATA, peer_markall_func, NULL, "callback to mark all peers");
 	}
 
-	/* Reset certificate handling for TLS sessions */
+	/* Reset certificate handling for TLS and DTLS sessions */
 	if (reason != CHANNEL_MODULE_LOAD) {
 		ast_free(default_tls_cfg.certfile);
 		ast_free(default_tls_cfg.pvtfile);
 		ast_free(default_tls_cfg.cipher);
 		ast_free(default_tls_cfg.cafile);
 		ast_free(default_tls_cfg.capath);
+		ast_rtp_dtls_cfg_free(&default_dtls_cfg);
 	}
 	default_tls_cfg.certfile = ast_strdup(AST_CERTFILE); /*XXX Not sure if this is useful */
 	default_tls_cfg.pvtfile = ast_strdup("");
 	default_tls_cfg.cipher = ast_strdup("");
 	default_tls_cfg.cafile = ast_strdup("");
 	default_tls_cfg.capath = ast_strdup("");
+	/* Using the same idea fro DTLS as the code block above for TLS */
+	default_dtls_cfg.certfile = ast_strdup("");
+	default_dtls_cfg.pvtfile = ast_strdup("");
+	default_dtls_cfg.cipher = ast_strdup("");
+	default_dtls_cfg.cafile = ast_strdup("");
+	default_dtls_cfg.capath = ast_strdup("");
 
 	/* Initialize copy of current sip_cfg.regcontext for later use in removing stale contexts */
 	ast_copy_string(oldcontexts, sip_cfg.regcontext, sizeof(oldcontexts));
@@ -31372,6 +31387,9 @@ static int reload_config(enum channelreloadreason reason)
 		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value)) {
 			continue;
 		}
+
+		/* Load default dtls configuration */
+		ast_rtp_dtls_cfg_parse(&default_dtls_cfg, v->name, v->value);
 
 		/* handle tls conf, don't allow setting of tlsverifyclient as it isn't supported by chan_sip */
 		if (!strcasecmp(v->name, "tlsverifyclient")) {
@@ -34577,6 +34595,8 @@ static int unload_module(void)
 	ast_free(default_tls_cfg.cipher);
 	ast_free(default_tls_cfg.cafile);
 	ast_free(default_tls_cfg.capath);
+
+	ast_rtp_dtls_cfg_free(&default_dtls_cfg);
 
 	cleanup_all_regs();
 	ao2_cleanup(registry_list);
