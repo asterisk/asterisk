@@ -2785,7 +2785,11 @@ end:
 /*! \brief Reload module */
 static int reload(void)
 {
-	return aco_process_config(&cfg_info, 1);
+	if (aco_process_config(&cfg_info, 1) == ACO_PROCESS_ERROR) {
+		return -1;
+	}
+
+	return 0;
 }
 
 /*! \brief Unload the jingle channel from Asterisk */
