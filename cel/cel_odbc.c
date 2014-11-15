@@ -435,7 +435,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 				   This should be ok, however, as nobody is going to store just event
 				   date or just time for CDR purposes.
 				 */
-				ast_strftime(colbuf, sizeof(colbuf), "%Y-%m-%d %H:%M:%S.%q", &tm);
+				ast_strftime(colbuf, sizeof(colbuf), "%Y-%m-%d %H:%M:%S.%6q", &tm);
 				colptr = colbuf;
 			} else {
 				if (strcmp(entry->celname, "userdeftype") == 0) {
@@ -614,7 +614,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 					if (ast_strlen_zero(colptr)) {
 						continue;
 					} else {
-						int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0;
+						int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0, fraction = 0;
 						if (strcasecmp(entry->name, "eventdate") == 0) {
 							struct ast_tm tm;
 							ast_localtime(&record.event_time, &tm, tableptr->usegmtime ? "UTC" : NULL);
@@ -624,17 +624,18 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 							hour = tm.tm_hour;
 							minute = tm.tm_min;
 							second = (tableptr->allowleapsec || tm.tm_sec < 60) ? tm.tm_sec : 59;
+							fraction = tm.tm_usec;
 						} else {
-							int count = sscanf(colptr, "%4d-%2d-%2d %2d:%2d:%2d", &year, &month, &day, &hour, &minute, &second);
+							int count = sscanf(colptr, "%4d-%2d-%2d %2d:%2d:%2d.%6d", &year, &month, &day, &hour, &minute, &second, &fraction);
 
-							if ((count != 3 && count != 5 && count != 6) || year <= 0 ||
+							if ((count != 3 && count != 5 && count != 6 && count != 7) || year <= 0 ||
 								month <= 0 || month > 12 || day < 0 || day > 31 ||
 								((month == 4 || month == 6 || month == 9 || month == 11) && day == 31) ||
 								(month == 2 && year % 400 == 0 && day > 29) ||
 								(month == 2 && year % 100 == 0 && day > 28) ||
 								(month == 2 && year % 4 == 0 && day > 29) ||
 								(month == 2 && year % 4 != 0 && day > 28) ||
-								hour > 23 || minute > 59 || second > (tableptr->allowleapsec ? 60 : 59) || hour < 0 || minute < 0 || second < 0) {
+								hour > 23 || minute > 59 || second > (tableptr->allowleapsec ? 60 : 59) || hour < 0 || minute < 0 || second < 0 || fraction < 0) {
 								ast_log(LOG_WARNING, "CEL variable %s is not a valid timestamp ('%s').\n", entry->name, colptr);
 								continue;
 							}
@@ -646,7 +647,7 @@ static void odbc_log(const struct ast_event *event, void *userdata)
 
 						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 						LENGTHEN_BUF2(27);
-						ast_str_append(&sql2, 0, "%s{ts '%04d-%02d-%02d %02d:%02d:%02d'}", first ? "" : ",", year, month, day, hour, minute, second);
+						ast_str_append(&sql2, 0, "%s{ts '%04d-%02d-%02d %02d:%02d:%02d.%d'}", first ? "" : ",", year, month, day, hour, minute, second, fraction);
 					}
 					break;
 				case SQL_INTEGER:
