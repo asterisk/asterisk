@@ -30404,6 +30404,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	/* Set the default DTLS settings from default_tls_cfg */
 	ast_rtp_dtls_cfg_free(&peer->dtls_cfg);
 	ast_rtp_dtls_cfg_copy(&default_dtls_cfg, &peer->dtls_cfg);
+	peer->dtls_cfg.enabled = FALSE;
 
 	for (; v || ((v = alt) && !(alt=NULL)); v = v->next) {
 		if (!devstate_only) {
