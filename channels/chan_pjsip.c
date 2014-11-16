@@ -1792,7 +1792,6 @@ static int request(void *obj)
 	struct ast_sip_session *session = NULL;
 	char *tmp = ast_strdupa(req_data->dest), *endpoint_name = NULL, *request_user = NULL;
 	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
-	struct ast_sip_aor *aor = NULL;
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(endpoint);
@@ -1822,13 +1821,7 @@ static int request(void *obj)
 		ast_log(LOG_ERROR, "Unable to create PJSIP channel - endpoint '%s' was not found\n", endpoint_name);
 		req_data->cause = AST_CAUSE_NO_ROUTE_DESTINATION;
 		return -1;
-	} else if (!ast_strlen_zero(args.aor) && (!(aor = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "aor", args.aor)))) {
-		ast_log(LOG_ERROR, "Unable to create PJSIP channel - AOR '%s' was not found\n", args.aor);
-		req_data->cause = AST_CAUSE_NO_ROUTE_DESTINATION;
-		return -1;
 	}
-
-	ao2_cleanup(aor);
 
 	if (!(session = ast_sip_session_create_outgoing(endpoint, NULL, args.aor, request_user, req_data->caps))) {
 		ast_log(LOG_ERROR, "Failed to create outgoing session to endpoint '%s'\n", endpoint_name);
