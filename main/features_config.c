@@ -132,6 +132,15 @@
 				<configOption name="pickupfailsound">
 					<synopsis>Sound to play to picker when a call cannot be picked up</synopsis>
 				</configOption>
+				<configOption name="transferdialattempts" default="3">
+					<synopsis>Number of dial attempts allowed when attempting a transfer</synopsis>
+				</configOption>
+				<configOption name="transferretrysound" default="pbx-invalid">
+					<synopsis>Sound that is played when an incorrect extension is dialed and the transferer should try again.</synopsis>
+				</configOption>
+				<configOption name="transferinvalidsound" default="privacy-incorrect">
+					<synopsis>Sound that is played when an incorrect extension is dialed and the transferer has no attempts remaining.</synopsis>
+				</configOption>
 			</configObject>
 			<configObject name="featuremap">
 				<synopsis>DTMF options that can be triggered during bridged calls</synopsis>
@@ -306,6 +315,9 @@
 					<enum name="pickupfailsound"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='pickupfailsound']/synopsis/text())" /></para></enum>
 					<enum name="courtesytone"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='courtesytone']/synopsis/text())" /></para></enum>
 					<enum name="recordingfailsound"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='recordingfailsound']/synopsis/text())" /></para></enum>
+					<enum name="transferdialattempts"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='transferdialattempts']/synopsis/text())" /></para></enum>
+					<enum name="transferretrysound"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='transferretrysound']/synopsis/text())" /></para></enum>
+					<enum name="transferinvalidsound"><para><xi:include xpointer="xpointer(/docs/configInfo[@name='features']/configFile[@name='features.conf']/configObject[@name='globals']/configOption[@name='transferinvalidsound']/synopsis/text())" /></para></enum>
 				</enumlist>
 			</parameter>
 		</syntax>
@@ -366,6 +378,9 @@
 #define DEFAULT_ATXFER_COMPLETE                     "*2"
 #define DEFAULT_ATXFER_THREEWAY                     "*3"
 #define DEFAULT_ATXFER_SWAP                         "*4"
+#define DEFAULT_TRANSFER_DIAL_ATTEMPTS              1
+#define DEFAULT_TRANSFER_RETRY_SOUND                "pbx-invalid"
+#define DEFAULT_TRANSFER_INVALID_SOUND              "pbx-invalid"
 
 /*! Default pickup options */
 #define DEFAULT_PICKUPEXTEN                         "*8"
@@ -773,6 +788,7 @@ static void xfer_copy(struct ast_features_xfer_config *dest, const struct ast_fe
 	dest->atxferloopdelay = src->atxferloopdelay;
 	dest->atxfercallbackretries = src->atxfercallbackretries;
 	dest->atxferdropcall = src->atxferdropcall;
+	dest->transferdialattempts = src->transferdialattempts;
 }
 
 static void pickup_copy(struct ast_features_pickup_config *dest, const struct ast_features_pickup_config *src)
@@ -882,6 +898,12 @@ static int xfer_set(struct ast_features_xfer_config *xfer, const char *name,
 		ast_string_field_set(xfer, atxferthreeway, value);
 	} else if (!strcasecmp(name, "atxferswap")) {
 		ast_string_field_set(xfer, atxferswap, value);
+	} else if (!strcasecmp(name, "transferdialattempts")) {
+		res = ast_parse_arg(value, PARSE_INT32, &xfer->transferdialattempts);
+	} else if (!strcasecmp(name, "transferretrysound")) {
+		ast_string_field_set(xfer, transferretrysound, value);
+	} else if (!strcasecmp(name, "transferinvalidsound")) {
+		ast_string_field_set(xfer, transferinvalidsound, value);
 	} else {
 		/* Unrecognized option */
 		res = -1;
@@ -917,6 +939,12 @@ static int xfer_get(struct ast_features_xfer_config *xfer, const char *field,
 		ast_copy_string(buf, xfer->atxferthreeway, len);
 	} else if (!strcasecmp(field, "atxferswap")) {
 		ast_copy_string(buf, xfer->atxferswap, len);
+	} else if (!strcasecmp(field, "transferdialattempts")) {
+		snprintf(buf, len, "%u", xfer->transferdialattempts);
+	} else if (!strcasecmp(field, "transferretrysound")) {
+		ast_copy_string(buf, xfer->transferretrysound, len);
+	} else if (!strcasecmp(field, "transferinvalidsound")) {
+		ast_copy_string(buf, xfer->transferinvalidsound, len);
 	} else {
 		/* Unrecognized option */
 		res = -1;
@@ -1731,6 +1759,12 @@ static int load_config(void)
 			DEFAULT_ATXFER_THREEWAY, xfer_handler, 0);
 	aco_option_register_custom(&cfg_info, "atxferswap", ACO_EXACT, global_options,
 			DEFAULT_ATXFER_SWAP, xfer_handler, 0);
+	aco_option_register_custom(&cfg_info, "transferdialattempts", ACO_EXACT, global_options,
+			__stringify(DEFAULT_TRANSFER_DIAL_ATTEMPTS), xfer_handler, 0);
+	aco_option_register_custom(&cfg_info, "transferretrysound", ACO_EXACT, global_options,
+			DEFAULT_TRANSFER_RETRY_SOUND, xfer_handler, 0);
+	aco_option_register_custom(&cfg_info, "transferinvalidsound", ACO_EXACT, global_options,
+			DEFAULT_TRANSFER_INVALID_SOUND, xfer_handler, 0);
 
 	aco_option_register_custom(&cfg_info, "pickupexten", ACO_EXACT, global_options,
 			DEFAULT_PICKUPEXTEN, pickup_handler, 0);

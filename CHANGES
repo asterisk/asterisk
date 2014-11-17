@@ -7,6 +7,19 @@
 === and the other UPGRADE files for older releases.
 ===
 ==============================================================================
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.0.0 to Asterisk 13.1.0 ------------
+------------------------------------------------------------------------------
+
+Transfers
+-----------------
+
+The features.conf general section has three new configurable options:
+    * transferdialattempts
+	* transferretrysound
+	* transferinvalidsound
+For more information on what these options do, see the Asterisk wiki:
+	https://wiki.asterisk.org/wiki/x/W4fAAQ
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 12 to Asterisk 13 --------------------

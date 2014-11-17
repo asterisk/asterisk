@@ -68,6 +68,10 @@ struct ast_features_xfer_config {
 		AST_STRING_FIELD(atxferthreeway);
 		/*! DTMF sequence used to swap which party the transferer is talking to */
 		AST_STRING_FIELD(atxferswap);
+		/*! Sound played when an invalid extension is dialed, and the transferer should retry. */
+		AST_STRING_FIELD(transferretrysound);
+		/*! Sound played when an invalid extension is dialed, and the transferer is being returned to the call. */
+		AST_STRING_FIELD(transferinvalidsound);
 	);
 	/*! Seconds allowed between digit presses when dialing transfer destination */
 	unsigned int transferdigittimeout;
@@ -79,6 +83,8 @@ struct ast_features_xfer_config {
 	unsigned int atxfercallbackretries;
 	/*! Determines if the call is dropped on attended transfer failure */
 	unsigned int atxferdropcall;
+	/*! Number of dial attempts allowed for blind/attended transfers */
+	unsigned int transferdialattempts;
 };
 
 /*!
