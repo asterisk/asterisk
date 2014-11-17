@@ -1297,6 +1297,7 @@ static int dialog_find_multiple(void *obj, void *arg, int flags);
 static struct ast_channel *sip_pvt_lock_full(struct sip_pvt *pvt);
 /* static int sip_addrcmp(char *name, struct sockaddr_in *sin);	Support for peer matching */
 static int sip_refer_alloc(struct sip_pvt *p);
+static void sip_refer_destroy(struct sip_pvt *p);
 static int sip_notify_alloc(struct sip_pvt *p);
 static int do_magic_pickup(struct ast_channel *channel, const char *extension, const char *context);
 static void set_peer_nat(const struct sip_pvt *p, struct sip_peer *peer);
@@ -6530,11 +6531,7 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		ast_udptl_destroy(p->udptl);
 		p->udptl = NULL;
 	}
-	if (p->refer) {
-		ast_string_field_free_memory(p->refer);
-		ast_free(p->refer);
-		p->refer = NULL;
-	}
+	sip_refer_destroy(p);
 	if (p->route) {
 		free_old_route(p->route);
 		p->route = NULL;
@@ -15546,8 +15543,19 @@ static int transmit_message(struct sip_pvt *p, int init, int auth)
 /*! \brief Allocate SIP refer structure */
 static int sip_refer_alloc(struct sip_pvt *p)
 {
+	sip_refer_destroy(p);
 	p->refer = ast_calloc_with_stringfields(1, struct sip_refer, 512);
 	return p->refer ? 1 : 0;
+}
+
+/*! \brief Destroy SIP refer structure */
+static void sip_refer_destroy(struct sip_pvt *p)
+{
+	if (p->refer) {
+		ast_string_field_free_memory(p->refer);
+		ast_free(p->refer);
+		p->refer = NULL;
+	}
 }
 
 /*! \brief Allocate SIP refer structure */
@@ -18278,8 +18286,9 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 	struct sip_refer *refer = NULL;
 	const char *transfer_context = NULL;
 
-	if (!p->refer && !sip_refer_alloc(p))
+	if (!sip_refer_alloc(p)) {
 		return -1;
+	}
 
 	refer = p->refer;
 
@@ -25494,7 +25503,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 		replace_id = ast_strdupa(p_replaces);
 		ast_uri_decode(replace_id, ast_uri_sip_user);
 
-		if (!p->refer && !sip_refer_alloc(p)) {
+		if (!sip_refer_alloc(p)) {
 			transmit_response_reliable(p, "500 Server Internal Error", req);
 			append_history(p, "Xfer", "INVITE/Replace Failed. Out of memory.");
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
@@ -26351,7 +26360,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, uint
 	}
 
 	/* Allocate memory for call transfer data */
-	if (!p->refer && !sip_refer_alloc(p)) {
+	if (!sip_refer_alloc(p)) {
 		transmit_response(p, "500 Internal Server Error", req);
 		append_history(p, "Xfer", "Refer failed. Memory allocation error.");
 		return -3;
