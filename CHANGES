@@ -47,6 +47,12 @@ CHANNEL
  * Added CHANNEL(onhold) item that returns 1 (onhold) and 0 (not-onhold) for
    the hold status of a channel.
 
+DTMF Features
+------------------
+ * The transferdialattempts default value has been changed from 1 to 3. The
+   transferinvalidsound has been changed from "pbx-invalid" to "privacy-incorrect".
+   These were changed to make DTMF transfers be more user-friendly by default.
+
 
 Resources
 ------------------
@@ -58,6 +64,20 @@ res_musiconhold
  * Added preferchannelclass=no option to prefer the application-passed class
    over the channel-set musicclass. This allows separate hold-music from
    application (e.g. Queue or Dial) specified music.
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.0.0 to Asterisk 13.1.0 ------------
+------------------------------------------------------------------------------
+
+Transfers
+-----------------
+
+The features.conf general section has three new configurable options:
+    * transferdialattempts
+	* transferretrysound
+	* transferinvalidsound
+For more information on what these options do, see the Asterisk wiki:
+	https://wiki.asterisk.org/wiki/x/W4fAAQ
 
 
 ------------------------------------------------------------------------------

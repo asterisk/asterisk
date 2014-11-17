@@ -47,6 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_bridges.h"
 #include "asterisk/features.h"
 #include "asterisk/format_cache.h"
+#include "asterisk/test.h"
 
 #define NORMAL_FLAGS	(AST_BRIDGE_FLAG_DISSOLVE_HANGUP | AST_BRIDGE_FLAG_DISSOLVE_EMPTY \
 			| AST_BRIDGE_FLAG_SMART)
@@ -2977,7 +2978,11 @@ static int grab_transfer(struct ast_channel *chan, char *exten, size_t exten_len
 {
 	int res;
 	int digit_timeout;
+	int attempts = 0;
+	int max_attempts;
 	RAII_VAR(struct ast_features_xfer_config *, xfer_cfg, NULL, ao2_cleanup);
+	char *retry_sound;
+	char *invalid_sound;
 
 	ast_channel_lock(chan);
 	xfer_cfg = ast_get_chan_features_xfer_config(chan);
@@ -2987,6 +2992,9 @@ static int grab_transfer(struct ast_channel *chan, char *exten, size_t exten_len
 		return -1;
 	}
 	digit_timeout = xfer_cfg->transferdigittimeout * 1000;
+	max_attempts = xfer_cfg->transferdialattempts;
+	retry_sound = ast_strdupa(xfer_cfg->transferretrysound);
+	invalid_sound = ast_strdupa(xfer_cfg->transferinvalidsound);
 	ast_channel_unlock(chan);
 
 	/* Play the simple "transfer" prompt out and wait */
@@ -3002,24 +3010,48 @@ static int grab_transfer(struct ast_channel *chan, char *exten, size_t exten_len
 	}
 
 	/* Drop to dialtone so they can enter the extension they want to transfer to */
-	res = ast_app_dtget(chan, context, exten, exten_len, exten_len - 1, digit_timeout);
-	if (res < 0) {
-		/* Hangup or error */
-		res = -1;
-	} else if (!res) {
-		/* 0 for invalid extension dialed. */
-		if (ast_strlen_zero(exten)) {
-			ast_debug(1, "%s dialed no digits.\n", ast_channel_name(chan));
+	do {
+		++attempts;
+		memset(exten, 0, exten_len);
+		ast_test_suite_event_notify("TRANSFER_BEGIN_DIAL",
+				"Channel: %s\r\n"
+				"Attempt: %d",
+				ast_channel_name(chan), attempts);
+		res = ast_app_dtget(chan, context, exten, exten_len, exten_len - 1, digit_timeout);
+		if (res < 0) {
+			/* Hangup or error */
+			res = -1;
+		} else if (!res) {
+			/* 0 for invalid extension dialed. */
+			if (ast_strlen_zero(exten)) {
+				ast_debug(1, "%s dialed no digits.\n", ast_channel_name(chan));
+			} else {
+				ast_debug(1, "%s dialed '%s@%s' does not exist.\n",
+					ast_channel_name(chan), exten, context);
+			}
+			if (attempts < max_attempts) {
+				ast_stream_and_wait(chan, retry_sound, AST_DIGIT_NONE);
+			} else {
+				ast_stream_and_wait(chan, invalid_sound, AST_DIGIT_NONE);
+			}
+			res = -1;
 		} else {
-			ast_debug(1, "%s dialed '%s@%s' does not exist.\n",
-				ast_channel_name(chan), exten, context);
+			/* Dialed extension is valid. */
+			res = 0;
 		}
-		ast_stream_and_wait(chan, "pbx-invalid", AST_DIGIT_NONE);
-		res = -1;
-	} else {
-		/* Dialed extension is valid. */
-		res = 0;
-	}
+		ast_test_suite_event_notify("TRANSFER_DIALLED",
+				"Channel: %s\r\n"
+				"Attempt: %d\r\n"
+				"Dialled: %s\r\n"
+				"Result: %s",
+				ast_channel_name(chan), attempts, exten, res == 0 ? "Success" : "Failure");
+	} while (res < 0 && attempts < max_attempts);
+
+	ast_test_suite_event_notify("TRANSFER_DIAL_FINAL",
+			"Channel: %s\r\n"
+			"Result: %s",
+			ast_channel_name(chan), res == 0 ? "Success" : "Failure");
+
 	return res;
 }
 

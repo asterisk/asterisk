@@ -24,6 +24,10 @@
 ;atxferloopdelay = 10           ; Number of seconds to sleep between retries (if atxferdropcall = no)
 ;atxfercallbackretries = 2      ; Number of times to attempt to send the call back to the transferer.
                                 ; By default, this is 2.
+;transferdialattempts = 3       ; Number of times that a transferer may attempt to dial an extension before
+                                ; being kicked back to the original call.
+;transferretrysound = "beep"    ; Sound to play when a transferer fails to dial a valid extension.
+;transferinvalidsound = "beeperr" ; Sound to play when a transferer fails to dial a valid extension and is out of retries.
 
 
 ; Note that the DTMF features listed below only work when two channels have answered and are bridged together.
