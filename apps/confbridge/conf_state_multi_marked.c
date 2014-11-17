@@ -85,8 +85,6 @@ static void leave_marked(struct confbridge_user *user)
 	conf_remove_user_marked(user->conference, user);
 
 	if (user->conference->markedusers == 0) {
-		need_prompt = 1;
-
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&user->conference->active_list, user_iter, list) {
 			/* Kick ENDMARKED cbu_iters */
 			if (ast_test_flag(&user_iter->u_profile, USER_OPT_ENDMARKED) && !user_iter->kicked) {
@@ -101,6 +99,8 @@ static void leave_marked(struct confbridge_user *user)
 				ast_bridge_remove(user_iter->conference->bridge, user_iter->chan);
 			} else if (ast_test_flag(&user_iter->u_profile, USER_OPT_WAITMARKED)
 				&& !ast_test_flag(&user_iter->u_profile, USER_OPT_MARKEDUSER)) {
+				need_prompt = 1;
+
 				AST_LIST_REMOVE_CURRENT(list);
 				user_iter->conference->activeusers--;
 				AST_LIST_INSERT_TAIL(&user_iter->conference->waiting_list, user_iter, list);
