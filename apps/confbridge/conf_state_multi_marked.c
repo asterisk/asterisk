@@ -105,6 +105,11 @@ static void leave_marked(struct confbridge_user *user)
 				user_iter->conference->activeusers--;
 				AST_LIST_INSERT_TAIL(&user_iter->conference->waiting_list, user_iter, list);
 				user_iter->conference->waitingusers++;
+			} else {
+				/* User is neither wait_marked nor end_marked; however, they
+				 * should still hear the prompt.
+				 */
+				need_prompt = 1;
 			}
 		}
 		AST_LIST_TRAVERSE_SAFE_END;
