@@ -763,7 +763,7 @@ AST_TEST_DEFINE(dynamic_parking_variables)
 	pbx_builtin_setvar_helper(chan_alice, "PARKINGDYNEXTEN", "750");
 	pbx_builtin_setvar_helper(chan_alice, "PARKINGDYNPOS", "751-760");
 
-	ast_test_status_update(test, "Generating dynamic parking lot based on Alice's channel variables.");
+	ast_test_status_update(test, "Generating dynamic parking lot based on Alice's channel variables.\n");
 
 	dynamic_lot = parking_create_dynamic_lot_forced("unit_tests_res_parking_test_lot_dynamic", chan_alice);
 
