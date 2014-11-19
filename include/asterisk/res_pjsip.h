@@ -483,6 +483,8 @@ struct ast_sip_media_rtp_configuration {
 	unsigned int srtp_tag_32;
 	/*! Do we use media encryption? what type? */
 	enum ast_sip_session_media_encryption encryption;
+	/*! Do we want to optimistically support encryption if possible? */
+	unsigned int encryption_optimistic;
 };
 
 /*!

@@ -1000,6 +1000,7 @@ static int add_session_media(void *obj, void *arg, int flags)
 	if (!session_media) {
 		return CMP_STOP;
 	}
+	session_media->encryption = session->endpoint->media.rtp.encryption;
 	/* Safe use of strcpy */
 	strcpy(session_media->stream_type, handler_list->stream_type);
 	ao2_link(session->media, session_media);
@@ -1046,6 +1047,8 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 		return NULL;
 	}
 
+	session->endpoint = ao2_bump(endpoint);
+
 	session->media = ao2_container_alloc(MEDIA_BUCKETS, session_media_hash, session_media_cmp);
 	if (!session->media) {
 		return NULL;
@@ -1061,7 +1064,6 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	ast_sip_dialog_set_endpoint(inv_session->dlg, endpoint);
 	pjsip_dlg_inc_session(inv_session->dlg, &session_module);
 	inv_session->mod_data[session_module.id] = ao2_bump(session);
-	session->endpoint = ao2_bump(endpoint);
 	session->contact = ao2_bump(contact);
 	session->inv_session = inv_session;
 	session->req_caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
