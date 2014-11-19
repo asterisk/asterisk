@@ -848,14 +848,14 @@ end:
 static int refer_incoming_refer_request(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
 {
 	pjsip_generic_string_hdr *refer_to;
-	pjsip_fromto_hdr *target;
+	char *uri;
+	pjsip_uri *target;
 	pjsip_sip_uri *target_uri;
 	RAII_VAR(struct refer_progress *, progress, NULL, ao2_cleanup);
 	pjsip_param *replaces;
 	int response;
 
 	static const pj_str_t str_refer_to = { "Refer-To", 8 };
-	static const pj_str_t str_to = { "To", 2 };
 	static const pj_str_t str_replaces = { "Replaces", 8 };
 
 	if (!session->endpoint->allowtransfer) {
@@ -874,12 +874,16 @@ static int refer_incoming_refer_request(struct ast_sip_session *session, struct 
 		return 0;
 	}
 
-	/* Parse the provided URI string as a To header so we can get the target */
-	target = pjsip_parse_hdr(rdata->tp_info.pool, &str_to,
-		(char *) pj_strbuf(&refer_to->hvalue), pj_strlen(&refer_to->hvalue), NULL);
+	/* This is done on purpose (and is safe) - it's done so that the value passed to
+	 * pjsip_parse_uri is NULL terminated as required
+	 */
+	uri = refer_to->hvalue.ptr;
+	uri[refer_to->hvalue.slen] = '\0';
+
+	target = pjsip_parse_uri(rdata->tp_info.pool, refer_to->hvalue.ptr, refer_to->hvalue.slen, 0);
 	if (!target
-		|| (!PJSIP_URI_SCHEME_IS_SIP(target->uri)
-			&& !PJSIP_URI_SCHEME_IS_SIPS(target->uri))) {
+		|| (!PJSIP_URI_SCHEME_IS_SIP(target)
+			&& !PJSIP_URI_SCHEME_IS_SIPS(target))) {
 		size_t uri_size = pj_strlen(&refer_to->hvalue) + 1;
 		char *uri = ast_alloca(uri_size);
 
@@ -890,7 +894,7 @@ static int refer_incoming_refer_request(struct ast_sip_session *session, struct 
 			uri, ast_channel_name(session->channel), ast_sorcery_object_get_id(session->endpoint));
 		return 0;
 	}
-	target_uri = pjsip_uri_get_uri(target->uri);
+	target_uri = pjsip_uri_get_uri(target);
 
 	/* Set up REFER progress subscription if requested/possible */
 	if (refer_progress_alloc(session, rdata, &progress)) {
