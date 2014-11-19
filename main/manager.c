@@ -2139,6 +2139,7 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	struct manager_action *cur;
 	struct ast_str *authority;
 	int num, l, which;
+	const char *auth_str;
 	char *ret = NULL;
 #ifdef AST_XML_DOCS
 	char syntax_title[64], description_title[64], synopsis_title[64], seealso_title[64];
@@ -2186,7 +2187,7 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	AST_RWLIST_TRAVERSE(&actions, cur, list) {
 		for (num = 3; num < a->argc; num++) {
 			if (!strcasecmp(cur->action, a->argv[num])) {
-				authority_to_str(cur->authority, &authority);
+				auth_str = authority_to_str(cur->authority, &authority);
 
 #ifdef AST_XML_DOCS
 				if (cur->docsrc == AST_XML_DOC) {
@@ -2195,7 +2196,7 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 					char *description = ast_xmldoc_printable(S_OR(cur->description, "Not available"), 1);
 					char *arguments = ast_xmldoc_printable(S_OR(cur->arguments, "Not available"), 1);
 					char *seealso = ast_xmldoc_printable(S_OR(cur->seealso, "Not available"), 1);
-					char *privilege = ast_xmldoc_printable(S_OR(authority->str, "Not available"), 1);
+					char *privilege = ast_xmldoc_printable(S_OR(auth_str, "Not available"), 1);
 					char *responses = ast_xmldoc_printable("None", 1);
 					ast_cli(a->fd, "%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s",
 						syntax_title, syntax,
@@ -2229,7 +2230,7 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 				{
 					ast_cli(a->fd, "Action: %s\nSynopsis: %s\nPrivilege: %s\n%s\n",
 						cur->action, cur->synopsis,
-						authority->str,
+						auth_str,
 						S_OR(cur->description, ""));
 				}
 			}

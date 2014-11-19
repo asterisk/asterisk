@@ -9580,7 +9580,7 @@ static unsigned int set_pvt_allowed_methods(struct sip_pvt *pvt, struct sip_requ
 	This is enabled if pedanticsipchecking is enabled */
 static void lws2sws(struct ast_str *data)
 {
-	char *msgbuf = data->str;
+	char *msgbuf = ast_str_buffer(data);
 	int len = ast_str_strlen(data);
 	int h = 0, t = 0;
 	int lws = 0;
@@ -9621,7 +9621,7 @@ static void lws2sws(struct ast_str *data)
 			lws = 0;
 	}
 	msgbuf[t] = '\0';
-	data->used = t;
+	ast_str_update(data);
 }
 
 /*! \brief Parse a SIP message
@@ -9629,7 +9629,7 @@ static void lws2sws(struct ast_str *data)
 */
 static int parse_request(struct sip_request *req)
 {
-	char *c = req->data->str;
+	char *c = ast_str_buffer(req->data);
 	ptrdiff_t *dst = req->header;
 	int i = 0, lim = SIP_MAX_HEADERS - 1;
 	unsigned int skipping_headers = 0;
@@ -13706,12 +13706,12 @@ static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, const 
 /*! \brief Parse first line of incoming SIP request */
 static int determine_firstline_parts(struct sip_request *req)
 {
-	char *e = ast_skip_blanks(req->data->str);	/* there shouldn't be any */
+	char *e = ast_skip_blanks(ast_str_buffer(req->data));	/* there shouldn't be any */
 	char *local_rlpart1;
 
 	if (!*e)
 		return -1;
-	req->rlpart1 = e - req->data->str;	/* method or protocol */
+	req->rlpart1 = e - ast_str_buffer(req->data);	/* method or protocol */
 	local_rlpart1 = e;
 	e = ast_skip_nonblanks(e);
 	if (*e)
@@ -13725,7 +13725,7 @@ static int determine_firstline_parts(struct sip_request *req)
 	if (!strcasecmp(local_rlpart1, "SIP/2.0") ) { /* We have a response */
 		if (strlen(e) < 3)	/* status code is 3 digits */
 			return -1;
-		req->rlpart2 = e - req->data->str;
+		req->rlpart2 = e - ast_str_buffer(req->data);
 	} else { /* We have a request */
 		if ( *e == '<' ) { /* XXX the spec says it must not be in <> ! */
 			ast_debug(3, "Oops. Bogus uri in <> %s\n", e);
@@ -13733,7 +13733,7 @@ static int determine_firstline_parts(struct sip_request *req)
 			if (!*e)
 				return -1;
 		}
-		req->rlpart2 = e - req->data->str;	/* URI */
+		req->rlpart2 = e - ast_str_buffer(req->data);	/* URI */
 		e = ast_skip_nonblanks(e);
 		if (*e)
 			*e++ = '\0';
@@ -16545,7 +16545,7 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 		return AUTH_SECRET_FAILED; /*! XXX \todo need a better return code here */
 	}
 
-	c = buf->str;
+	c = ast_str_buffer(buf);
 
 	sip_digest_parser(c, keys);
 
@@ -16884,7 +16884,7 @@ static void transmit_fake_auth_response(struct sip_pvt *p, struct sip_request *r
 		return;
 	}
 
-	c = buf->str;
+	c = ast_str_buffer(buf);
 
 	while (c && *(c = ast_skip_blanks(c))) { /* lookup for keys */
 		for (i = keys; i->key != NULL; i++) {
