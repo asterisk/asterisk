@@ -438,10 +438,11 @@ void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
 	int __len__ = ((void *)&(copy)->__field_mgr - (void *)&(copy)->__field_mgr_pool)/__ptr_size__ - 1; \
 	int __len2__ = ((void *)&(orig)->__field_mgr - (void *)&(orig)->__field_mgr_pool)/__ptr_size__ - 1; \
 	if (__len__ == __len2__) { \
-		char **__copy_head__ = (void *)&(copy)->__field_mgr_pool + __ptr_size__; \
-		char **__orig_head__ = (void *)&(orig)->__field_mgr_pool + __ptr_size__; \
+		ast_string_field *__copy_head__ = (void *)&(copy)->__field_mgr_pool + __ptr_size__; \
+		ast_string_field *__orig_head__ = (void *)&(orig)->__field_mgr_pool + __ptr_size__; \
 		for (__len2__ -= 1; __len2__ >= 0; __len2__--) { \
 			__ast_string_field_release_active((copy)->__field_mgr_pool, __copy_head__[__len2__]); \
+			__copy_head__[__len2__] = __ast_string_field_empty; \
 		} \
 		for (__len__ -= 1; __len__ >= 0; __len__--) { \
 			if (ast_string_field_ptr_set((copy), &__copy_head__[__len__], __orig_head__[__len__])) { \
