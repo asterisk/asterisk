@@ -1,14 +1,14 @@
-"""Add moh_passthrough option to pjsip
+"""add moh passthrough option to pjsip
 
-Revision ID: 339e1dfa644d
-Revises: 1443687dda65
-Create Date: 2014-10-21 14:55:34.197448
+Revision ID: 15b1430ad6f1
+Revises: 371a3bf4143e
+Create Date: 2014-11-19 07:44:51.225703
 
 """
 
 # revision identifiers, used by Alembic.
-revision = '339e1dfa644d'
-down_revision = '1443687dda65'
+revision = '15b1430ad6f1'
+down_revision = '371a3bf4143e'
 
 from alembic import op
 import sqlalchemy as sa
