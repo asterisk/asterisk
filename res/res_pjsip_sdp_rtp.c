@@ -494,13 +494,40 @@ static void process_ice_attributes(struct ast_sip_session *session, struct ast_s
 	ice->start(session_media->rtp);
 }
 
+/*! \brief figure out if media stream has crypto lines for sdes */
+static int media_stream_has_crypto(const struct pjmedia_sdp_media *stream)
+{
+	int i;
+
+	for (i = 0; i < stream->attr_count; i++) {
+		pjmedia_sdp_attr *attr;
+
+		/* check the stream for the required crypto attribute */
+		attr = stream->attr[i];
+		if (pj_strcmp2(&attr->name, "crypto")) {
+			continue;
+		}
+
+		return 1;
+	}
+
+	return 0;
+}
+
 /*! \brief figure out media transport encryption type from the media transport string */
-static enum ast_sip_session_media_encryption get_media_encryption_type(pj_str_t transport)
+static enum ast_sip_session_media_encryption get_media_encryption_type(pj_str_t transport,
+	const struct pjmedia_sdp_media *stream, unsigned int *optimistic)
 {
 	RAII_VAR(char *, transport_str, ast_strndup(transport.ptr, transport.slen), ast_free);
+
+	*optimistic = 0;
+
 	if (strstr(transport_str, "UDP/TLS")) {
 		return AST_SIP_MEDIA_ENCRYPT_DTLS;
 	} else if (strstr(transport_str, "SAVP")) {
+		return AST_SIP_MEDIA_ENCRYPT_SDES;
+	} else if (media_stream_has_crypto(stream)) {
+		*optimistic = 1;
 		return AST_SIP_MEDIA_ENCRYPT_SDES;
 	} else {
 		return AST_SIP_MEDIA_ENCRYPT_NONE;
@@ -523,20 +550,29 @@ static enum ast_sip_session_media_encryption check_endpoint_media_transport(
 {
 	enum ast_sip_session_media_encryption incoming_encryption;
 	char transport_end = stream->desc.transport.ptr[stream->desc.transport.slen - 1];
+	unsigned int optimistic;
 
 	if ((transport_end == 'F' && !endpoint->media.rtp.use_avpf)
 		|| (transport_end != 'F' && endpoint->media.rtp.use_avpf)) {
 		return AST_SIP_MEDIA_TRANSPORT_INVALID;
 	}
 
-	incoming_encryption = get_media_encryption_type(stream->desc.transport);
+	incoming_encryption = get_media_encryption_type(stream->desc.transport, stream, &optimistic);
 
 	if (incoming_encryption == endpoint->media.rtp.encryption) {
 		return incoming_encryption;
 	}
 
-	if (endpoint->media.rtp.force_avp) {
+	if (endpoint->media.rtp.force_avp ||
+		endpoint->media.rtp.encryption_optimistic) {
 		return incoming_encryption;
+	}
+
+	/* If an optimistic offer has been made but encryption is not enabled consider it as having
+	 * no offer of crypto at all instead of invalid so the session proceeds.
+	 */
+	if (optimistic) {
+		return AST_SIP_MEDIA_ENCRYPT_NONE;
 	}
 
 	return AST_SIP_MEDIA_TRANSPORT_INVALID;
@@ -697,7 +733,7 @@ static int setup_media_encryption(struct ast_sip_session *session,
 	const struct pjmedia_sdp_session *sdp,
 	const struct pjmedia_sdp_media *stream)
 {
-	switch (session->endpoint->media.rtp.encryption) {
+	switch (session_media->encryption) {
 	case AST_SIP_MEDIA_ENCRYPT_SDES:
 		if (setup_sdes_srtp(session_media, stream)) {
 			return -1;
@@ -726,6 +762,8 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 	char host[NI_MAXHOST];
 	RAII_VAR(struct ast_sockaddr *, addrs, NULL, ast_free_ptr);
 	enum ast_media_type media_type = stream_to_media_type(session_media->stream_type);
+	enum ast_sip_session_media_encryption encryption = AST_SIP_MEDIA_ENCRYPT_NONE;
+	int res;
 
 	/* If port is 0, ignore this media stream */
 	if (!stream->desc.port) {
@@ -740,9 +778,12 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 	}
 
 	/* Ensure incoming transport is compatible with the endpoint's configuration */
-	if (!session->endpoint->media.rtp.use_received_transport &&
-		check_endpoint_media_transport(session->endpoint, stream) == AST_SIP_MEDIA_TRANSPORT_INVALID) {
-		return -1;
+	if (!session->endpoint->media.rtp.use_received_transport) {
+		encryption = check_endpoint_media_transport(session->endpoint, stream);
+
+		if (encryption == AST_SIP_MEDIA_TRANSPORT_INVALID) {
+			return -1;
+		}
 	}
 
 	ast_copy_pj_str(host, stream->conn ? &stream->conn->addr : &sdp->conn->addr, sizeof(host));
@@ -758,13 +799,27 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 		return -1;
 	}
 
-	if (session->endpoint->media.rtp.use_received_transport) {
-		pj_strdup(session->inv_session->pool, &session_media->transport, &stream->desc.transport);
-	}
+	res = setup_media_encryption(session, session_media, sdp, stream);
+	if (res) {
+		if (!session->endpoint->media.rtp.encryption_optimistic) {
+			/* If optimistic encryption is disabled and crypto should have been enabled
+			 * but was not this session must fail.
+			 */
+			return -1;
+		}
+		/* There is no encryption, sad. */
+		session_media->encryption = AST_SIP_MEDIA_ENCRYPT_NONE;
+ 	}
 
-	if (setup_media_encryption(session, session_media, sdp, stream)) {
-		return -1;
-	}
+	/* If we've been explicitly configured to use the received transport OR if
+	 * encryption is on and crypto is present use the received transport.
+	 * This is done in case of optimistic because it may come in as RTP/AVP or RTP/SAVP depending
+	 * on the configuration of the remote endpoint (optimistic themselves or mandatory).
+	 */
+	if ((session->endpoint->media.rtp.use_received_transport) ||
+		((encryption == AST_SIP_MEDIA_ENCRYPT_SDES) && !res)) {
+		pj_strdup(session->inv_session->pool, &session_media->transport, &stream->desc.transport);
+ 	}
 
 	if (set_caps(session, session_media, stream)) {
 		return 0;
@@ -788,7 +843,7 @@ static int add_crypto_to_stream(struct ast_sip_session *session,
 	static const pj_str_t STR_ACTPASS = { "actpass", 7 };
 	static const pj_str_t STR_HOLDCONN = { "holdconn", 8 };
 
-	switch (session->endpoint->media.rtp.encryption) {
+	switch (session_media->encryption) {
 	case AST_SIP_MEDIA_ENCRYPT_NONE:
 	case AST_SIP_MEDIA_TRANSPORT_INVALID:
 		break;
@@ -922,11 +977,14 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	}
 
 	media->desc.media = pj_str(session_media->stream_type);
-	if (session->endpoint->media.rtp.use_received_transport && pj_strlen(&session_media->transport)) {
+	if (pj_strlen(&session_media->transport)) {
+		/* If a transport has already been specified use it */
 		media->desc.transport = session_media->transport;
 	} else {
 		media->desc.transport = pj_str(ast_sdp_get_rtp_profile(
-			session->endpoint->media.rtp.encryption == AST_SIP_MEDIA_ENCRYPT_SDES,
+			/* Optimistic encryption places crypto in the normal RTP/AVP profile */
+			!session->endpoint->media.rtp.encryption_optimistic &&
+				(session_media->encryption == AST_SIP_MEDIA_ENCRYPT_SDES),
 			session_media->rtp, session->endpoint->media.rtp.use_avpf,
 			session->endpoint->media.rtp.force_avp));
 	}
@@ -1062,7 +1120,7 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 	RAII_VAR(struct ast_sockaddr *, addrs, NULL, ast_free_ptr);
 	enum ast_media_type media_type = stream_to_media_type(session_media->stream_type);
 	char host[NI_MAXHOST];
-	int fdno;
+	int fdno, res;
 
 	if (!session->channel) {
 		return 1;
@@ -1083,8 +1141,16 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 		return -1;
 	}
 
-	if (setup_media_encryption(session, session_media, remote, remote_stream)) {
+	res = setup_media_encryption(session, session_media, remote, remote_stream);
+	if (!session->endpoint->media.rtp.encryption_optimistic && res) {
+		/* If optimistic encryption is disabled and crypto should have been enabled but was not
+		 * this session must fail.
+		 */
 		return -1;
+	}
+
+	if (!remote_stream->conn && !remote->conn) {
+		return 1;
 	}
 
 	ast_copy_pj_str(host, remote_stream->conn ? &remote_stream->conn->addr : &remote->conn->addr, sizeof(host));
@@ -1135,6 +1201,9 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 		ast_queue_frame(session->channel, &ast_null_frame);
 		session_media->held = 0;
 	}
+
+	/* This purposely resets the encryption to the configured in case it gets added later */
+	session_media->encryption = session->endpoint->media.rtp.encryption;
 
 	return 1;
 }

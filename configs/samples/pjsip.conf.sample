@@ -646,6 +646,8 @@
 ;media_encryption=no    ; Determines whether res_pjsip will use and enforce
                         ; usage of media encryption for this endpoint (default:
                         ; "no")
+;media_encryption_optimistic=no ; Use encryption if possible but don't fail the call
+								; if not possible.
 ;inband_progress=no     ; Determines whether chan_pjsip will indicate ringing
                         ; using inband progress (default: "no")
 ;call_group=    ; The numeric pickup groups for a channel (default: "")

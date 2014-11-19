@@ -430,6 +430,14 @@
 						</enumlist>
 					</description>
 				</configOption>
+				<configOption name="media_encryption_optimistic" default="no">
+					<synopsis>Determines whether encryption should be used if possible but does not terminate the
+					session if not achieved.</synopsis>
+					<description><para>
+						This option only applies if <replaceable>media_encryption</replaceable> is
+						set to <literal>sdes</literal> or <literal>dtls</literal>.
+					</para></description>
+				</configOption>
 				<configOption name="inband_progress" default="no">
 					<synopsis>Determines whether chan_pjsip will indicate ringing using inband
 					    progress.</synopsis>
@@ -1493,6 +1501,9 @@
 				</parameter>
 				<parameter name="MediaEncryption">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='media_encryption']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="MediaEncryptionOptimistic">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='media_encryption_optimistic']/synopsis/node())"/></para>
 				</parameter>
 				<parameter name="UseAvpf">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='use_avpf']/synopsis/node())"/></para>

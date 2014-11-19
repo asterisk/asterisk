@@ -73,6 +73,8 @@ struct ast_sip_session_media {
 	struct ast_sip_session_sdp_handler *handler;
 	/*! \brief Holds SRTP information */
 	struct ast_sdp_srtp *srtp;
+	/*! \brief What type of encryption is in use on this stream */
+	enum ast_sip_session_media_encryption encryption;
 	/*! \brief The media transport in use for this stream */
 	pj_str_t transport;
 	/*! \brief Stream is on hold */
