@@ -11,6 +11,22 @@
 	  ASTERISK-24469 #close
 	  Reported by Matt Jordan
 
+	* AST-2014-014: Fix race condition where channels may get stuck in
+	  ConfBridge under load.
+
+	  Under load it was possible for the bridging API, and thus ConfBridge,
+	  to get channels that may have hung up stuck in it. This is because
+	  handling of state transitions for a bridged channel within a bridge
+	  was not protected and simply set the new state without regard to the
+	  existing state. If the existing state had been hung up this would get
+	  overwritten.
+
+	  This change adds locking to protect changing of the state and also
+	  takes into consideration the existing state.
+
+	  ASTERISK-24440 #close
+	  Reported by: Ben Klang
+
 	* AST-2014-018 - func_db: DB Dialplan function permission escalation
 	  via AMI.
 
