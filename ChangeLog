@@ -53,6 +53,25 @@
 	  ASTERISK-24528 #close
 	  Reported by: Joshua Colp
 
+	* AST-2014-017 - app_confbridge: permission escalation/ class
+	  authorization.
+
+	  Confbridge dialplan function permission escalation via AMI and
+	  inappropriate class authorization on the ConfbridgeStartRecord action.
+	  The CONFBRIDGE dialplan function when executed from an external
+	  protocol (for instance AMI), could result in a privilege escalation.
+	  Also, the AMI action “ConfbridgeStartRecord” could also be used to
+	  execute arbitrary system commands without first checking for system
+	  access.
+
+	  Asterisk now inhibits the CONFBRIDGE function from being executed
+	  from an external interface if the live_dangerously option is set to
+	  no. Also, the “ConfbridgeStartRecord” AMI action is now only allowed
+	  to execute under a user with system level access.
+
+	  ASTERISK-24490
+	  Reported by: Gareth Palmer
+
 	* AST-2014-018 - func_db: DB Dialplan function permission escalation
 	  via AMI.
 
