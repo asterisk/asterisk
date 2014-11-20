@@ -11,6 +11,19 @@
 	  ASTERISK-24469 #close
 	  Reported by Matt Jordan
 
+	* AST-2014-018 - func_db: DB Dialplan function permission escalation
+	  via AMI.
+
+	  The DB dialplan function when executed from an external protocol
+	  (for instance AMI), could result in a privilege escalation.
+
+	  Asterisk now inhibits the DB function from being executed from an
+	  external interface if the live_dangerously option is set to no.
+
+	  ASTERISK-24534
+	  Reported by: Gareth Palmer
+	  patches: submitted by Gareth Palmer (license 5169)
+
 2014-11-10  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 11.14.0 Released.
