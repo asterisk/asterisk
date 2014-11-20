@@ -3410,7 +3410,7 @@ static int load_module(void)
 
 	res |= ast_register_application_xml(app, confbridge_exec);
 
-	res |= ast_custom_function_register(&confbridge_function);
+	res |= ast_custom_function_register_escalating(&confbridge_function, AST_CFE_WRITE);
 	res |= ast_custom_function_register(&confbridge_info_function);
 
 	res |= ast_cli_register_multiple(cli_confbridge, ARRAY_LEN(cli_confbridge));
@@ -3422,7 +3422,7 @@ static int load_module(void)
 	res |= ast_manager_register_xml("ConfbridgeKick", EVENT_FLAG_CALL, action_confbridgekick);
 	res |= ast_manager_register_xml("ConfbridgeUnlock", EVENT_FLAG_CALL, action_confbridgeunlock);
 	res |= ast_manager_register_xml("ConfbridgeLock", EVENT_FLAG_CALL, action_confbridgelock);
-	res |= ast_manager_register_xml("ConfbridgeStartRecord", EVENT_FLAG_CALL, action_confbridgestartrecord);
+	res |= ast_manager_register_xml("ConfbridgeStartRecord", EVENT_FLAG_SYSTEM, action_confbridgestartrecord);
 	res |= ast_manager_register_xml("ConfbridgeStopRecord", EVENT_FLAG_CALL, action_confbridgestoprecord);
 	res |= ast_manager_register_xml("ConfbridgeSetSingleVideoSrc", EVENT_FLAG_CALL, action_confbridgesetsinglevideosrc);
 	if (res) {
