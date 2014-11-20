@@ -120,8 +120,22 @@ int ast_bridge_technology_unregister(struct ast_bridge_technology *technology)
 
 void ast_bridge_change_state(struct ast_bridge_channel *bridge_channel, enum ast_bridge_channel_state new_state)
 {
-	/* Change the state on the bridge channel */
-	bridge_channel->state = new_state;
+	/* Change the state on the bridge channel with some manner of intelligence. */
+	ao2_lock(bridge_channel);
+	switch (bridge_channel->state) {
+	case AST_BRIDGE_CHANNEL_STATE_DEPART:
+		break;
+	case AST_BRIDGE_CHANNEL_STATE_END:
+	case AST_BRIDGE_CHANNEL_STATE_HANGUP:
+		if (new_state != AST_BRIDGE_CHANNEL_STATE_DEPART) {
+			break;
+		}
+		/* Fall through */
+	default:
+		bridge_channel->state = new_state;
+		break;
+	}
+	ao2_unlock(bridge_channel);
 
 	/* Only poke the channel's thread if it is not us */
 	if (!pthread_equal(pthread_self(), bridge_channel->thread)) {
@@ -130,8 +144,6 @@ void ast_bridge_change_state(struct ast_bridge_channel *bridge_channel, enum ast
 		ast_cond_signal(&bridge_channel->cond);
 		ao2_unlock(bridge_channel);
 	}
-
-	return;
 }
 
 /*! \brief Helper function to poke the bridge thread */
@@ -1147,8 +1159,12 @@ static void *bridge_channel_thread(void *data)
 	state = bridge_channel_join(bridge_channel);
 
 	/* If no other thread is going to take the channel then hang it up, or else we would have to service it until something else came along */
-	if (bridge_channel->allow_impart_hangup && (state == AST_BRIDGE_CHANNEL_STATE_END || state == AST_BRIDGE_CHANNEL_STATE_HANGUP)) {
+	if (bridge_channel->allow_impart_hangup
+		&& state != AST_BRIDGE_CHANNEL_STATE_DEPART) {
 		ast_hangup(bridge_channel->chan);
+
+		/* nobody is waiting to join me. */
+		pthread_detach(pthread_self());
 	}
 
 	/* cleanup */
