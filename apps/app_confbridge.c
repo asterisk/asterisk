@@ -3102,7 +3102,7 @@ static int load_module(void)
 		ast_log(LOG_ERROR, "Unable to load config. Not loading module.\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	if ((ast_custom_function_register(&confbridge_function))) {
+	if ((ast_custom_function_register_escalating(&confbridge_function, AST_CFE_WRITE))) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	if ((ast_custom_function_register(&confbridge_info_function))) {
@@ -3133,7 +3133,7 @@ static int load_module(void)
 	res |= ast_manager_register_xml("ConfbridgeKick", EVENT_FLAG_CALL, action_confbridgekick);
 	res |= ast_manager_register_xml("ConfbridgeUnlock", EVENT_FLAG_CALL, action_confbridgeunlock);
 	res |= ast_manager_register_xml("ConfbridgeLock", EVENT_FLAG_CALL, action_confbridgelock);
-	res |= ast_manager_register_xml("ConfbridgeStartRecord", EVENT_FLAG_CALL, action_confbridgestartrecord);
+	res |= ast_manager_register_xml("ConfbridgeStartRecord", EVENT_FLAG_SYSTEM, action_confbridgestartrecord);
 	res |= ast_manager_register_xml("ConfbridgeStopRecord", EVENT_FLAG_CALL, action_confbridgestoprecord);
 	res |= ast_manager_register_xml("ConfbridgeSetSingleVideoSrc", EVENT_FLAG_CALL, action_confbridgesetsinglevideosrc);
 	if (res) {
