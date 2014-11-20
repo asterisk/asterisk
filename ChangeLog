@@ -22,6 +22,21 @@
 	  ASTERISK-24531 #close
 	  Reported by: Matt Jordan
 
+	* AST-2014-015: Fix race condition in chan_pjsip when sending responses
+	  after a CANCEL has been received.
+
+	  Due to the serialized architecture of chan_pjsip there exists a race
+	  condition where a CANCEL may be received and processed before
+	  responses (such as 180 Ringing, 183 Session Progress, and 200 OK)
+	  are sent. Since the session is in an unexpected state PJSIP will
+	  assert when this is attempted.
+
+	  This change makes it so that these responses are not sent on
+	  disconnected sessions.
+
+	  ASTERISK-24471 #close
+	  Reported by: yaron nahum
+
 	* AST-2014-018 - func_db: DB Dialplan function permission escalation
 	  via AMI.
 
