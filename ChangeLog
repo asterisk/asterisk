@@ -11,6 +11,17 @@
 	  ASTERISK-24469 #close
 	  Reported by Matt Jordan
 
+	* AST-2014-013: Fix PJSIP ACLs not loading on startup and apply/ACL
+	  issues on contact
+
+	  The biggest problem this patch fixes is that ACLs weren't previously
+	  being loaded when the res_pjsip_acl module was loaded. In addition,
+	  the ACL options contact_permit and contact_acl were effectively
+	  interpreted as contact_deny and this patch fixes that as well.
+
+	  ASTERISK-24531 #close
+	  Reported by: Matt Jordan
+
 	* AST-2014-018 - func_db: DB Dialplan function permission escalation
 	  via AMI.
 

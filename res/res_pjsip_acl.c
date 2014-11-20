@@ -233,8 +233,9 @@ static int acl_handler(const struct aco_option *opt, struct ast_variable *var, v
 	struct ast_sip_acl *sip_acl = obj;
 	int error = 0;
 	int ignore;
-	if (!strncmp(var->name, "contact", 7)) {
-		ast_append_acl(var->name + 7, var->value, &sip_acl->contact_acl, &error, &ignore);
+
+	if (!strncmp(var->name, "contact_", 8)) {
+		ast_append_acl(var->name + 8, var->value, &sip_acl->contact_acl, &error, &ignore);
 	} else {
 		ast_append_acl(var->name, var->value, &sip_acl->acl, &error, &ignore);
 	}
@@ -286,6 +287,8 @@ static int load_module(void)
 	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "contact_permit", "", acl_handler, NULL, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "contact_deny", "", acl_handler, NULL, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE, "contact_acl", "", acl_handler, NULL, NULL, 0, 0);
+
+	ast_sorcery_load_object(ast_sip_get_sorcery(), SIP_SORCERY_ACL_TYPE);
 
 	ast_sip_register_service(&acl_module);
 	return AST_MODULE_LOAD_SUCCESS;
