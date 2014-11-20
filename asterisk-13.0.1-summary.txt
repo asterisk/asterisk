@@ -1,0 +1,113 @@
+                                Release Summary
+
+                                asterisk-13.0.1
+
+                                Date: 2014-11-20
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Other Changes
+    4. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release has been made to address one or more security vulnerabilities
+   that have been identified. A security advisory document has been published
+   for each vulnerability that includes additional information. Users of
+   versions of Asterisk that are affected are strongly encouraged to review
+   the advisories and determine what action they should take to protect their
+   systems from these issues.
+
+   Security Advisories: AST-2014-012, AST-2014-013, AST-2014-015,
+   AST-2014-016, AST-2014-017, AST-2014-018
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-13.0.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   8 bebuild                
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author  | Summary                       | Issues Referenced |
+   |----------+---------+-------------------------------+-------------------|
+   | 428338   | bebuild | Create 13.0.1                 |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 428377   | bebuild | Update .version, remove       |                   |
+   |          |         | summaries                     |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 428429   | bebuild | Merge 428425 for AST-2014-012 |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 428435   | bebuild | Merge r428413 for             |                   |
+   |          |         | AST-2014-018                  |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 428439   | bebuild | Merge r428343 for             |                   |
+   |          |         | AST-2014-013                  |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 428443   | bebuild | Merge r428302 for             |                   |
+   |          |         | AST-2014-015                  |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 428445   | bebuild | Merge r428305 for             |                   |
+   |          |         | AST-2014-016                  |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 428449   | bebuild | Merge r428339 for             |                   |
+   |          |         | AST-2014-017                  |                   |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .version                     |    2
+ ChangeLog                    |   87
+ apps/app_confbridge.c        |    4
+ asterisk-13.0.0-summary.html | 6034 -------------------------------
+ asterisk-13.0.0-summary.txt  | 8206 -------------------------------------------
+ channels/chan_pjsip.c        |   12
+ funcs/func_db.c              |    2
+ main/acl.c                   |    2
+ res/res_pjsip_acl.c          |    7
+ res/res_pjsip_refer.c        |   26
+ 10 files changed, 127 insertions(+), 14255 deletions(-)
+
+     ----------------------------------------------------------------------
