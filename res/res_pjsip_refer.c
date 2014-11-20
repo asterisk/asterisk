@@ -785,6 +785,12 @@ static int refer_incoming_invite_request(struct ast_sip_session *session, struct
 	other_session = ast_sip_dialog_get_session(other_dlg);
 	pjsip_dlg_dec_lock(other_dlg);
 
+	/* Don't accept an in-dialog INVITE with Replaces as it does not make much sense */
+	if (session->inv_session->dlg->state == PJSIP_DIALOG_STATE_ESTABLISHED) {
+		response = 488;
+		goto end;
+	}
+
 	if (!other_session) {
 		response = 481;
 		ast_debug(3, "INVITE with Replaces received on channel '%s' from endpoint '%s', but requested session does not exist\n",
@@ -831,14 +837,20 @@ static int refer_incoming_invite_request(struct ast_sip_session *session, struct
 
 end:
 	if (response) {
-		ast_debug(3, "INVITE with Replaces failed on channel '%s', sending response of '%d'\n",
-			ast_channel_name(session->channel), response);
-		session->defer_terminate = 1;
-		ast_hangup(session->channel);
-		session->channel = NULL;
+		if (session->inv_session->dlg->state != PJSIP_DIALOG_STATE_ESTABLISHED) {
+			ast_debug(3, "INVITE with Replaces failed on channel '%s', sending response of '%d'\n",
+				ast_channel_name(session->channel), response);
+			session->defer_terminate = 1;
+			ast_hangup(session->channel);
+			session->channel = NULL;
 
-		if (pjsip_inv_end_session(session->inv_session, response, NULL, &packet) == PJ_SUCCESS) {
-			ast_sip_session_send_response(session, packet);
+			if (pjsip_inv_end_session(session->inv_session, response, NULL, &packet) == PJ_SUCCESS) {
+				ast_sip_session_send_response(session, packet);
+			}
+		} else {
+			ast_debug(3, "INVITE with Replaces in-dialog on channel '%s', hanging up\n",
+				ast_channel_name(session->channel));
+			ast_queue_hangup(session->channel);
 		}
 	}
 
