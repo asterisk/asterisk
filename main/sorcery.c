@@ -140,6 +140,9 @@ struct ast_sorcery_object_field {
 	/*! \brief Name of the field */
 	char name[MAX_OBJECT_FIELD];
 
+	/*! \brief The compiled name regex if name is a regex */
+	regex_t *name_regex;
+
 	/*! \brief Callback function for translation of a single value */
 	sorcery_field_handler handler;
 
@@ -869,17 +872,40 @@ void ast_sorcery_object_set_diff_handler(struct ast_sorcery *sorcery, const char
 	object_type->diff = diff;
 }
 
+static void sorcery_object_field_destructor(void *obj)
+{
+	struct ast_sorcery_object_field *object_field = obj;
+
+	if (object_field->name_regex) {
+		regfree(object_field->name_regex);
+	}
+}
+
 int ast_sorcery_object_fields_register(struct ast_sorcery *sorcery, const char *type, const char *regex, aco_option_handler config_handler, sorcery_fields_handler sorcery_handler)
 {
+#define MAX_REGEX_ERROR_LEN 128
 	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
 	RAII_VAR(struct ast_sorcery_object_field *, object_field, NULL, ao2_cleanup);
+	int rc;
 
-	if (!object_type || !object_type->type.item_alloc || !config_handler || !(object_field = ao2_alloc(sizeof(*object_field), NULL))) {
+	if (!object_type || !object_type->type.item_alloc || !config_handler
+		|| !(object_field = ao2_alloc(sizeof(*object_field), sorcery_object_field_destructor))) {
 		return -1;
 	}
 
 	ast_copy_string(object_field->name, regex, sizeof(object_field->name));
 	object_field->multiple_handler = sorcery_handler;
+
+	if (!(object_field->name_regex = ast_calloc(1, sizeof(regex_t)))) {
+		return -1;
+	}
+
+	if ((rc = regcomp(object_field->name_regex, regex, REG_EXTENDED | REG_NOSUB))) {
+		char *regerr = ast_alloca(MAX_REGEX_ERROR_LEN);
+		regerror(rc, object_field->name_regex, regerr, MAX_REGEX_ERROR_LEN);
+		ast_log(LOG_ERROR, "Regular expression '%s' failed to compile: %s\n", regex, regerr);
+		return -1;
+	}
 
 	ao2_link(object_type->fields, object_field);
 	__aco_option_register(object_type->info, regex, ACO_REGEX, object_type->file->types, "", OPT_CUSTOM_T, config_handler, 0, 1, 0);
@@ -1926,6 +1952,20 @@ struct ast_sorcery_object_type *ast_sorcery_get_object_type(const struct ast_sor
 	return ao2_find(sorcery->types, type, OBJ_SEARCH_KEY);
 }
 
+static int is_registered_cb(void *obj, void *arg, int flags)
+{
+	struct ast_sorcery_object_field *object_field = obj;
+	char *name = arg;
+	int rc = 0;
+
+	if (object_field->name_regex
+		&& !regexec(object_field->name_regex, name, 0, NULL, 0)) {
+		rc = CMP_MATCH | CMP_STOP;
+	}
+
+	return rc;
+}
+
 int ast_sorcery_is_object_field_registered(const struct ast_sorcery_object_type *object_type,
 		const char *field_name)
 {
@@ -1935,6 +1975,11 @@ int ast_sorcery_is_object_field_registered(const struct ast_sorcery_object_type 
 	ast_assert(object_type != NULL);
 
 	object_field = ao2_find(object_type->fields, field_name, OBJ_SEARCH_KEY);
+
+	if (!object_field) {
+		object_field = ao2_callback(object_type->fields, 0, is_registered_cb, (char *)field_name);
+	}
+
 	if (!object_field) {
 		res = 0;
 	}
