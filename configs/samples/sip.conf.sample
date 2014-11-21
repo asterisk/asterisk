@@ -953,6 +953,10 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; the media_address configuration option. This is only applicable to the general section and
 ; can not be set per-user or per-peer.
 ;
+; Note that this does not change the listen address for RTP, it only changes the
+; advertised address in the SDP. The Asterisk RTP engine will still listen on 
+; the standard IP address.
+;
 ; media_address = 172.16.42.1
 ;
 ; Through the use of the res_stun_monitor module, Asterisk has the ability to detect when the
