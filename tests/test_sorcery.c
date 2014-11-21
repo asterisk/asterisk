@@ -2995,6 +2995,48 @@ AST_TEST_DEFINE(dialplan_function)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(object_field_registered)
+{
+	RAII_VAR(struct ast_sorcery *, sorcery, NULL, ast_sorcery_unref);
+	RAII_VAR(struct ast_sorcery_object_type *, object_type, NULL, ao2_cleanup);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "object_field_registered";
+		info->category = "/main/sorcery/";
+		info->summary = "ast_sorcery_is_object_field_registered unit test";
+		info->description =
+			"Test ast_sorcery_is_object_field_registered in sorcery";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(sorcery = alloc_and_initialize_sorcery())) {
+		ast_test_status_update(test, "Failed to open sorcery structure\n");
+		return AST_TEST_FAIL;
+	}
+
+	object_type = ast_sorcery_get_object_type(sorcery, "test");
+
+	ast_sorcery_object_fields_register(sorcery, "test", "^prefix/.", test_sorcery_regex_handler, test_sorcery_regex_fields);
+
+	ast_test_validate(test, ast_sorcery_is_object_field_registered(object_type, "joe"));
+	ast_test_validate(test, ast_sorcery_is_object_field_registered(object_type, "bob"));
+	ast_test_validate(test, ast_sorcery_is_object_field_registered(object_type, "@joebob"));
+	ast_test_validate(test, ast_sorcery_is_object_field_registered(object_type, "prefix/goober"));
+
+	ast_test_validate(test, !ast_sorcery_is_object_field_registered(object_type, "joebob"));
+	ast_test_validate(test, !ast_sorcery_is_object_field_registered(object_type, "prefix/"));
+	ast_test_validate(test, !ast_sorcery_is_object_field_registered(object_type, "goober"));
+
+	ast_sorcery_object_fields_register(sorcery, "test", "^", test_sorcery_regex_handler, test_sorcery_regex_fields);
+
+	ast_test_validate(test, ast_sorcery_is_object_field_registered(object_type, "goober"));
+
+	return AST_TEST_PASS;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(wizard_registration);
@@ -3041,6 +3083,8 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(configuration_file_wizard_retrieve_multiple);
 	AST_TEST_UNREGISTER(configuration_file_wizard_retrieve_multiple_all);
 	AST_TEST_UNREGISTER(dialplan_function);
+	AST_TEST_UNREGISTER(object_field_registered);
+
 	return 0;
 }
 
@@ -3090,6 +3134,8 @@ static int load_module(void)
 	AST_TEST_REGISTER(configuration_file_wizard_retrieve_multiple);
 	AST_TEST_REGISTER(configuration_file_wizard_retrieve_multiple_all);
 	AST_TEST_REGISTER(dialplan_function);
+	AST_TEST_REGISTER(object_field_registered);
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

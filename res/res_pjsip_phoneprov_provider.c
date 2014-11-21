@@ -289,7 +289,7 @@ static int load_users(void)
 	int user_count = 0;
 	char port_string[6];
 
-	c = ast_sorcery_retrieve_by_regex(sorcery, "phoneprov", "");
+	c = ast_sorcery_retrieve_by_fields(sorcery, "phoneprov", AST_RETRIEVE_FLAG_MULTIPLE, NULL);
 	if (!c) {
 		ast_log(LOG_ERROR, "Retrieve by regex failed to allocate a container.\n");
 		return -1;
@@ -377,12 +377,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	if (ast_sorcery_apply_default(sorcery, "phoneprov", "config",
-		"pjsip.conf,criteria=type=phoneprov")) {
-		ast_log(LOG_ERROR, "Unable to register object phoneprov.\n");
-		ast_sorcery_unref(sorcery);
-		return AST_MODULE_LOAD_DECLINE;
-	}
+	ast_sorcery_apply_default(sorcery, "phoneprov", "config", "pjsip.conf,criteria=type=phoneprov");
 
 	ast_sorcery_object_register(sorcery, "phoneprov", phoneprov_alloc, NULL,
 		users_apply_handler);
