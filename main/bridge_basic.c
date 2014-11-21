@@ -3012,12 +3012,18 @@ static int grab_transfer(struct ast_channel *chan, char *exten, size_t exten_len
 	/* Drop to dialtone so they can enter the extension they want to transfer to */
 	do {
 		++attempts;
-		memset(exten, 0, exten_len);
+
 		ast_test_suite_event_notify("TRANSFER_BEGIN_DIAL",
 				"Channel: %s\r\n"
 				"Attempt: %d",
 				ast_channel_name(chan), attempts);
 		res = ast_app_dtget(chan, context, exten, exten_len, exten_len - 1, digit_timeout);
+		ast_test_suite_event_notify("TRANSFER_DIALLED",
+				"Channel: %s\r\n"
+				"Attempt: %d\r\n"
+				"Dialled: %s\r\n"
+				"Result: %s",
+				ast_channel_name(chan), attempts, exten, res > 0 ? "Success" : "Failure");
 		if (res < 0) {
 			/* Hangup or error */
 			res = -1;
@@ -3034,25 +3040,20 @@ static int grab_transfer(struct ast_channel *chan, char *exten, size_t exten_len
 			} else {
 				ast_stream_and_wait(chan, invalid_sound, AST_DIGIT_NONE);
 			}
-			res = -1;
+			memset(exten, 0, exten_len);
+			res = 1;
 		} else {
 			/* Dialed extension is valid. */
 			res = 0;
 		}
-		ast_test_suite_event_notify("TRANSFER_DIALLED",
-				"Channel: %s\r\n"
-				"Attempt: %d\r\n"
-				"Dialled: %s\r\n"
-				"Result: %s",
-				ast_channel_name(chan), attempts, exten, res == 0 ? "Success" : "Failure");
-	} while (res < 0 && attempts < max_attempts);
+	} while (res > 0 && attempts < max_attempts);
 
 	ast_test_suite_event_notify("TRANSFER_DIAL_FINAL",
 			"Channel: %s\r\n"
 			"Result: %s",
 			ast_channel_name(chan), res == 0 ? "Success" : "Failure");
 
-	return res;
+	return res ? -1 : 0;
 }
 
 static void copy_caller_data(struct ast_channel *dest, struct ast_channel *caller)
