@@ -1700,6 +1700,9 @@ static const struct permalias {
 	{ 0, "none" },
 };
 
+/*! Maximum string length of the AMI authority permission string buildable from perms[]. */
+#define MAX_AUTH_PERM_STRING	150
+
 /*! \brief Checks to see if a string which can be used to evaluate functions should be rejected */
 static int function_capable_string_allowed_with_auths(const char *evaluating, int writepermlist)
 {
@@ -1728,8 +1731,10 @@ static const char *user_authority_to_str(int authority, struct ast_str **res)
 		}
 	}
 
-	if (ast_str_strlen(*res) == 0)	/* replace empty string with something sensible */
+	if (ast_str_strlen(*res) == 0) {
+		/* replace empty string with something sensible */
 		ast_str_append(res, 0, "<none>");
+	}
 
 	return ast_str_buffer(*res);
 }
@@ -1743,15 +1748,19 @@ static const char *authority_to_str(int authority, struct ast_str **res)
 	char *sep = "";
 
 	ast_str_reset(*res);
-	for (i = 0; i < ARRAY_LEN(perms) - 1; i++) {
-		if (authority & perms[i].num) {
-			ast_str_append(res, 0, "%s%s", sep, perms[i].label);
-			sep = ",";
+	if (authority != EVENT_FLAG_SHUTDOWN) {
+		for (i = 0; i < ARRAY_LEN(perms) - 1; i++) {
+			if (authority & perms[i].num) {
+				ast_str_append(res, 0, "%s%s", sep, perms[i].label);
+				sep = ",";
+			}
 		}
 	}
 
-	if (ast_str_strlen(*res) == 0)	/* replace empty string with something sensible */
+	if (ast_str_strlen(*res) == 0) {
+		/* replace empty string with something sensible */
 		ast_str_append(res, 0, "<none>");
+	}
 
 	return ast_str_buffer(*res);
 }
@@ -2017,7 +2026,7 @@ static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		AST_RWLIST_UNLOCK(&actions);
 		return ret;
 	}
-	authority = ast_str_alloca(80);
+	authority = ast_str_alloca(MAX_AUTH_PERM_STRING);
 	if (a->argc < 4) {
 		return CLI_SHOWUSAGE;
 	}
@@ -2099,8 +2108,8 @@ static char *handle_showmanager(struct ast_cli_entry *e, int cmd, struct ast_cli
 	struct ast_manager_user *user = NULL;
 	int l, which;
 	char *ret = NULL;
-	struct ast_str *rauthority = ast_str_alloca(128);
-	struct ast_str *wauthority = ast_str_alloca(128);
+	struct ast_str *rauthority = ast_str_alloca(MAX_AUTH_PERM_STRING);
+	struct ast_str *wauthority = ast_str_alloca(MAX_AUTH_PERM_STRING);
 	struct ast_variable *v;
 
 	switch (cmd) {
@@ -3788,7 +3797,7 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 static int action_listcommands(struct mansession *s, const struct message *m)
 {
 	struct manager_action *cur;
-	struct ast_str *temp = ast_str_alloca(256);
+	struct ast_str *temp = ast_str_alloca(MAX_AUTH_PERM_STRING);
 
 	astman_start_ack(s, m);
 	AST_RWLIST_RDLOCK(&actions);
@@ -3877,8 +3886,9 @@ static int action_login(struct mansession *s, const struct message *m)
 	if ((s->session->send_events & EVENT_FLAG_SYSTEM)
 		&& (s->session->readperm & EVENT_FLAG_SYSTEM)
 		&& ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)) {
-		struct ast_str *auth = ast_str_alloca(80);
+		struct ast_str *auth = ast_str_alloca(MAX_AUTH_PERM_STRING);
 		const char *cat_str = authority_to_str(EVENT_FLAG_SYSTEM, &auth);
+
 		astman_append(s, "Event: FullyBooted\r\n"
 			"Privilege: %s\r\n"
 			"Status: Fully Booted\r\n\r\n", cat_str);
@@ -6355,7 +6365,7 @@ int __ast_manager_event_multichan(int category, const char *event, int chancount
 	RAII_VAR(struct ao2_container *, sessions, ao2_global_obj_ref(mgr_sessions), ao2_cleanup);
 	struct mansession_session *session;
 	struct manager_custom_hook *hook;
-	struct ast_str *auth = ast_str_alloca(80);
+	struct ast_str *auth = ast_str_alloca(MAX_AUTH_PERM_STRING);
 	const char *cat_str;
 	va_list ap;
 	struct timeval now;
