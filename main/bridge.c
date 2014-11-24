@@ -1764,8 +1764,8 @@ int ast_bridge_depart(struct ast_channel *chan)
 	}
 
 	/*
-	 * We are claiming the reference held by the depart bridge
-	 * channel thread.
+	 * We are claiming the bridge_channel reference held by
+	 * bridge_channel_depart_thread().
 	 */
 
 	ast_bridge_channel_leave_bridge(bridge_channel,
