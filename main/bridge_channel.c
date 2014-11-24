@@ -2540,10 +2540,15 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 
 		ast_bridge_unlock(bridge_channel->bridge);
 		bridge_channel_event_join_leave(bridge_channel, AST_BRIDGE_HOOK_TYPE_JOIN);
+
 		while (bridge_channel->state == BRIDGE_CHANNEL_STATE_WAIT) {
 			/* Wait for something to do. */
 			bridge_channel_wait(bridge_channel);
 		}
+
+		/* Force a timeout on any accumulated DTMF hook digits. */
+		ast_bridge_channel_feature_digit(bridge_channel, 0);
+
 		bridge_channel_event_join_leave(bridge_channel, AST_BRIDGE_HOOK_TYPE_LEAVE);
 		ast_bridge_channel_lock_bridge(bridge_channel);
 	}
