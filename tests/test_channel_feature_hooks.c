@@ -76,12 +76,10 @@ static void wait_for_bridged(struct ast_channel *channel)
 /*! \brief Wait until a channel is not bridged */
 static void wait_for_unbridged(struct ast_channel *channel)
 {
-	struct timespec short_sleep = {0, 1000000};
 	ast_channel_lock(channel);
 	while (ast_channel_is_bridged(channel)) {
 		ast_channel_unlock(channel);
-		while ((nanosleep(&short_sleep, &short_sleep) == -1) && (errno == EINTR)) {
-		}
+		test_nanosleep(0, 1000000);
 		ast_channel_lock(channel);
 	}
 	ast_channel_unlock(channel);
@@ -128,6 +126,29 @@ static int feature_callback(struct ast_bridge_channel *bridge_channel, void *obj
 	int *callback_executed = obj;
 	(*callback_executed)++;
 	return 0;
+}
+
+/* Need to post null frames periodically so DTMF emulation can work. */
+static void stream_periodic_frames(struct ast_channel *chan, int ms, int interval_ms)
+{
+	long nanosecs;
+
+	ast_assert(chan != NULL);
+	ast_assert(0 < ms);
+	ast_assert(0 < interval_ms);
+
+	nanosecs = interval_ms * 1000000L;
+	while (0 < ms) {
+		ast_queue_frame(chan, &ast_null_frame);
+
+		if (interval_ms < ms) {
+			ms -= interval_ms;
+		} else {
+			nanosecs = ms * 1000000L;
+			ms = 0;
+		}
+		test_nanosleep(0, nanosecs);
+	}
 }
 
 AST_TEST_DEFINE(test_features_channel_dtmf)
@@ -185,7 +206,7 @@ AST_TEST_DEFINE(test_features_channel_dtmf)
 	ast_queue_frame(chan_alice, &f);
 	ast_queue_frame(chan_alice, &f);
 
-	test_nanosleep(1, 0);
+	stream_periodic_frames(chan_alice, 1000, 20);
 
 	/* Remove the channels from the bridge */
 	ast_test_validate(test, !ast_bridge_depart(chan_alice));
@@ -208,7 +229,7 @@ AST_TEST_DEFINE(test_features_channel_dtmf)
 	ast_queue_frame(chan_alice, &f);
 	ast_queue_frame(chan_alice, &f);
 
-	test_nanosleep(1, 0);
+	stream_periodic_frames(chan_alice, 1000, 20);
 
 	/* Remove the channels from the bridge */
 	ast_test_validate(test, !ast_bridge_depart(chan_alice));
