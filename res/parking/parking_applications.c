@@ -832,7 +832,7 @@ static int park_and_announce_app_exec(struct ast_channel *chan, const char *data
 		return -1;
 	}
 
-	if (!(parking_subscription = stasis_subscribe(ast_parking_topic(), park_announce_update_cb, pa_data))) {
+	if (!(parking_subscription = stasis_subscribe_pool(ast_parking_topic(), park_announce_update_cb, pa_data))) {
 		/* Failed to create subscription */
 		park_announce_subscription_data_destroy(pa_data);
 		return -1;

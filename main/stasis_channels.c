@@ -361,7 +361,7 @@ static void ast_channel_publish_dial_internal(struct ast_channel *caller,
 	}
 
 	if (forwarded) {
-		struct stasis_subscription *subscription = stasis_subscribe(ast_channel_topic(peer), dummy_event_cb, NULL);
+		struct stasis_subscription *subscription = stasis_subscribe_pool(ast_channel_topic(peer), dummy_event_cb, NULL);
 
 		stasis_publish(ast_channel_topic(peer), msg);
 		stasis_unsubscribe_and_join(subscription);

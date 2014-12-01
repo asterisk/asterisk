@@ -21,6 +21,16 @@
 ===
 ===========================================================
 
+From 12.7.0 to 12.8.0:
+
+Core:
+ - The core of Asterisk uses a message bus called "Stasis" to distribute
+   information to internal components. For performance reasons, the message
+   distribution was modified to make use of a thread pool instead of a
+   dedicated thread per consumer in certain cases. The initial settings for
+   the thread pool can now be configured using 'stasis.conf'. A sample
+   configuration file is provided in the samples directory.
+
 From 12.6.0 to 12.7.0:
 
 PJSIP:

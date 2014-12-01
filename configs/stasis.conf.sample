@@ -1,0 +1,9 @@
+[threadpool]
+;initial_size = 5          ; Initial size of the threadpool.
+;                          ; 0 means the threadpool has no threads initially
+;                          ; until a task needs a thread.
+;idle_timeout_sec = 20     ; Number of seconds a thread should be idle before
+;                          ; dying. 0 means threads never time out.
+;max_size = 50             ; Maximum number of threads in the Stasis threadpool.
+;                          ; 0 means no limit to the number of threads in the
+;                          ; threadpool.

@@ -550,7 +550,7 @@ static void refer_blind_callback(struct ast_channel *chan, struct transfer_chann
 		/* We also will need to detect if the transferee enters a bridge. This is currently the only reliable way to
 		 * detect if the transfer target has answered the call
 		 */
-		refer->progress->bridge_sub = stasis_subscribe(ast_bridge_topic_all(), refer_progress_bridge, refer->progress);
+		refer->progress->bridge_sub = stasis_subscribe_pool(ast_bridge_topic_all(), refer_progress_bridge, refer->progress);
 		if (!refer->progress->bridge_sub) {
 			struct refer_progress_notification *notification = refer_progress_notification_alloc(refer->progress, 200,
 				PJSIP_EVSUB_STATE_TERMINATED);

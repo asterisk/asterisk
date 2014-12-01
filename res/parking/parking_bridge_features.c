@@ -192,7 +192,7 @@ static int create_parked_subscription_full(struct ast_channel *chan, const char 
 	strcpy(subscription_data->parkee_uuid, parkee_uuid);
 	strcpy(subscription_data->parker_uuid, parker_uuid);
 
-	if (!(parked_datastore->parked_subscription = stasis_subscribe(ast_parking_topic(), parker_update_cb, subscription_data))) {
+	if (!(parked_datastore->parked_subscription = stasis_subscribe_pool(ast_parking_topic(), parker_update_cb, subscription_data))) {
 		return -1;
 	}
 

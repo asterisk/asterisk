@@ -27504,7 +27504,7 @@ static void add_peer_mwi_subs(struct sip_peer *peer)
 			if (!peer_name) {
 				return;
 			}
-			mailbox->event_sub = stasis_subscribe(mailbox_specific_topic, mwi_event_cb, peer_name);
+			mailbox->event_sub = stasis_subscribe_pool(mailbox_specific_topic, mwi_event_cb, peer_name);
 		}
 	}
 }

@@ -35,12 +35,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #include "asterisk/stasis_internal.h"
 #include "asterisk/stasis.h"
 #include "asterisk/taskprocessor.h"
+#include "asterisk/threadpool.h"
 #include "asterisk/utils.h"
 #include "asterisk/uuid.h"
 #include "asterisk/vector.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stasis_bridges.h"
 #include "asterisk/stasis_endpoints.h"
+#include "asterisk/config_options.h"
 
 /*** DOCUMENTATION
 	<managerEvent language="en_US" name="UserEvent">
@@ -60,6 +62,22 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 			</see-also>
 		</managerEventInstance>
 	</managerEvent>
+	<configInfo name="stasis" language="en_US">
+		<configFile name="stasis.conf">
+			<configObject name="threadpool">
+				<synopsis>Settings that configure the threadpool Stasis uses to deliver some messages.</synopsis>
+				<configOption name="initial_size" default="5">
+					<synopsis>Initial number of threads in the message bus threadpool.</synopsis>
+				</configOption>
+				<configOption name="idle_timeout_sec" default="20">
+					<synopsis>Number of seconds before an idle thread is disposed of.</synopsis>
+				</configOption>
+				<configOption name="max_size" default="50">
+					<synopsis>Maximum number of threads in the threadpool.</synopsis>
+				</configOption>
+			</configObject>
+		</configFile>
+	</configInfo>
 ***/
 
 /*!
@@ -156,6 +174,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 
 /*! The number of buckets to use for topic pools */
 #define TOPIC_POOL_BUCKETS 57
+
+/*! Thread pool for topics that don't want a dedicated taskprocessor */
+static struct ast_threadpool *pool;
 
 STASIS_MESSAGE_TYPE_DEFN(stasis_subscription_change_type);
 
@@ -302,7 +323,8 @@ struct stasis_subscription *internal_stasis_subscribe(
 	struct stasis_topic *topic,
 	stasis_subscription_cb callback,
 	void *data,
-	int needs_mailbox)
+	int needs_mailbox,
+	int use_thread_pool)
 {
 	RAII_VAR(struct stasis_subscription *, sub, NULL, ao2_cleanup);
 
@@ -315,19 +337,19 @@ struct stasis_subscription *internal_stasis_subscribe(
 	if (!sub) {
 		return NULL;
 	}
-
 	ast_uuid_generate_str(sub->uniqueid, sizeof(sub->uniqueid));
 
 	if (needs_mailbox) {
 		/* With a small number of subscribers, a thread-per-sub is
-		 * acceptable. If our usage changes so that we have larger
-		 * numbers of subscribers, we'll probably want to consider
-		 * a threadpool. We had that originally, but with so few
-		 * subscribers it was actually a performance loss instead of
-		 * a gain.
+		 * acceptable. For larger number of subscribers, a thread
+		 * pool should be used.
 		 */
-		sub->mailbox = ast_taskprocessor_get(sub->uniqueid,
-			TPS_REF_DEFAULT);
+		if (use_thread_pool) {
+			sub->mailbox = ast_threadpool_serializer(sub->uniqueid, pool);
+		} else {
+			sub->mailbox = ast_taskprocessor_get(sub->uniqueid,
+				TPS_REF_DEFAULT);
+		}
 		if (!sub->mailbox) {
 			return NULL;
 		}
@@ -356,7 +378,15 @@ struct stasis_subscription *stasis_subscribe(
 	stasis_subscription_cb callback,
 	void *data)
 {
-	return internal_stasis_subscribe(topic, callback, data, 1);
+	return internal_stasis_subscribe(topic, callback, data, 1, 0);
+}
+
+struct stasis_subscription *stasis_subscribe_pool(
+	struct stasis_topic *topic,
+	stasis_subscription_cb callback,
+	void *data)
+{
+	return internal_stasis_subscribe(topic, callback, data, 1, 1);
 }
 
 static int sub_cleanup(void *data)
@@ -1215,6 +1245,68 @@ static struct ast_manager_event_blob *multi_user_event_to_ami(
 		ast_str_buffer(body));
 }
 
+/*! \brief Threadpool configuration options */
+struct stasis_threadpool_conf {
+	/*! Initial size of the thread pool */
+	int initial_size;
+	/*! Time, in seconds, before we expire a thread */
+	int idle_timeout_sec;
+	/*! Maximum number of thread to allow */
+	int max_size;
+};
+
+/*! \brief Configuration for stasis */
+struct stasis_config {
+	/*! Thread pool configuration options */
+	struct stasis_threadpool_conf *threadpool_options;
+};
+
+static struct aco_type threadpool_option = {
+	.type = ACO_GLOBAL,
+	.name = "threadpool",
+	.item_offset = offsetof(struct stasis_config, threadpool_options),
+	.category = "^threadpool$",
+	.category_match = ACO_WHITELIST,
+};
+
+static struct aco_type *threadpool_options[] = ACO_TYPES(&threadpool_option);
+
+struct aco_file stasis_conf = {
+	.filename = "stasis.conf",
+	.types = ACO_TYPES(&threadpool_option),
+};
+
+static void stasis_config_destructor(void *obj)
+{
+	struct stasis_config *cfg = obj;
+
+	ast_free(cfg->threadpool_options);
+}
+
+static void *stasis_config_alloc(void)
+{
+	struct stasis_config *cfg;
+
+	cfg = ao2_alloc(sizeof(*cfg), stasis_config_destructor);
+	if (!cfg) {
+		return NULL;
+	}
+
+	cfg->threadpool_options = ast_calloc(1, sizeof(*cfg->threadpool_options));
+	if (!cfg->threadpool_options) {
+		ao2_ref(cfg, -1);
+		return NULL;
+	}
+
+	return cfg;
+}
+
+static AO2_GLOBAL_OBJ_STATIC(globals);
+
+/*! \brief Register information about the configs being processed by this module */
+CONFIG_INFO_CORE("stasis", cfg_info, globals, stasis_config_alloc,
+        .files = ACO_FILES(&stasis_conf),
+);
 
 /*!
  * @{ \brief Define multi user event message type(s).
@@ -1227,19 +1319,83 @@ STASIS_MESSAGE_TYPE_DEFN(ast_multi_user_event_type,
 
 /*! @} */
 
+/*! \brief Shutdown function */
+static void stasis_exit(void)
+{
+	ast_threadpool_shutdown(pool);
+	pool = NULL;
+}
+
 /*! \brief Cleanup function for graceful shutdowns */
 static void stasis_cleanup(void)
 {
 	STASIS_MESSAGE_TYPE_CLEANUP(stasis_subscription_change_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_multi_user_event_type);
+	aco_info_destroy(&cfg_info);
+	ao2_global_obj_release(globals);
 }
 
 int stasis_init(void)
 {
+	RAII_VAR(struct stasis_config *, cfg, NULL, ao2_cleanup);
 	int cache_init;
+	struct ast_threadpool_options threadpool_opts = { 0, };
 
 	/* Be sure the types are cleaned up after the message bus */
 	ast_register_cleanup(stasis_cleanup);
+	ast_register_atexit(stasis_exit);
+
+	if (aco_info_init(&cfg_info)) {
+		return -1;
+	}
+
+	aco_option_register(&cfg_info, "initial_size", ACO_EXACT,
+		threadpool_options, "5", OPT_INT_T, PARSE_IN_RANGE,
+		FLDSET(struct stasis_threadpool_conf, initial_size), 0,
+		INT_MAX);
+	aco_option_register(&cfg_info, "idle_timeout_sec", ACO_EXACT,
+		threadpool_options, "20", OPT_INT_T, PARSE_IN_RANGE,
+		FLDSET(struct stasis_threadpool_conf, idle_timeout_sec), 0,
+		INT_MAX);
+	aco_option_register(&cfg_info, "max_size", ACO_EXACT,
+		threadpool_options, "50", OPT_INT_T, PARSE_IN_RANGE,
+		FLDSET(struct stasis_threadpool_conf, max_size), 0,
+		INT_MAX);
+
+	if (aco_process_config(&cfg_info, 0) == ACO_PROCESS_ERROR) {
+		struct stasis_config *default_cfg = stasis_config_alloc();
+
+		if (!default_cfg) {
+			return -1;
+		}
+
+		if (aco_set_defaults(&threadpool_option, "threadpool", default_cfg->threadpool_options)) {
+			ast_log(LOG_ERROR, "Failed to initialize defaults on Stasis configuration object\n");
+			ao2_ref(default_cfg, -1);
+			return -1;
+		}
+
+		ast_log(LOG_NOTICE, "Could not load Stasis configuration; using defaults\n");
+		ao2_global_obj_replace_unref(globals, default_cfg);
+		cfg = default_cfg;
+	} else {
+		cfg = ao2_global_obj_ref(globals);
+		if (!cfg) {
+			ast_log(LOG_ERROR, "Failed to obtain Stasis configuration object\n");
+			return -1;
+		}
+	}
+
+	threadpool_opts.version = AST_THREADPOOL_OPTIONS_VERSION;
+	threadpool_opts.initial_size = cfg->threadpool_options->initial_size;
+	threadpool_opts.auto_increment = 1;
+	threadpool_opts.max_size = cfg->threadpool_options->max_size;
+	threadpool_opts.idle_timeout = cfg->threadpool_options->idle_timeout_sec;
+	pool = ast_threadpool_create("stasis-core", NULL, &threadpool_opts);
+	if (!pool) {
+		ast_log(LOG_ERROR, "Failed to create 'stasis-core' threadpool\n");
+		return -1;
+	}
 
 	cache_init = stasis_cache_init();
 	if (cache_init != 0) {

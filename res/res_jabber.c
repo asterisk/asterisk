@@ -3300,7 +3300,7 @@ static int cached_devstate_cb(void *obj, void *arg, int flags)
 static void aji_init_event_distribution(struct aji_client *client)
 {
 	if (!mwi_sub) {
-		mwi_sub = stasis_subscribe(ast_mwi_topic_all(), aji_mwi_cb, client);
+		mwi_sub = stasis_subscribe_pool(ast_mwi_topic_all(), aji_mwi_cb, client);
 	}
 	if (!device_state_sub) {
 		RAII_VAR(struct ao2_container *, cached, NULL, ao2_cleanup);
