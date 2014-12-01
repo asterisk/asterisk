@@ -411,8 +411,13 @@ static int record_exec(struct ast_channel *chan, const char *data)
 	if (gotsilence) {
 		ast_stream_rewind(s, silence - 1000);
 		ast_truncstream(s);
-	} else if (!gottimeout) {
-		/* Strip off the last 1/4 second of it */
+	} else if (!gottimeout && f) {
+		/*
+		 * Strip off the last 1/4 second of it, if we didn't end because of a timeout,
+		 * or a hangup.  This must mean we ended because of a DTMF tone and while this
+		 * 1/4 second stripping is very old code the most likely explanation is that it
+		 * relates to stripping a partial DTMF tone.
+		 */
 		ast_stream_rewind(s, 250);
 		ast_truncstream(s);
 	}
