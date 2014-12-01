@@ -4237,7 +4237,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 
 					mailbox_specific_topic = ast_mwi_topic(e->mailbox);
 					if (mailbox_specific_topic) {
-						e->mwi_event_sub = stasis_subscribe(mailbox_specific_topic, mwi_event_cb, NULL);
+						e->mwi_event_sub = stasis_subscribe_pool(mailbox_specific_topic, mwi_event_cb, NULL);
 					}
 				}
 				snprintf(e->rqnt_ident, sizeof(e->rqnt_ident), "%08lx", (unsigned long)ast_random());

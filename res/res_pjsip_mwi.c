@@ -138,7 +138,7 @@ static struct mwi_stasis_subscription *mwi_stasis_subscription_alloc(const char 
 	strcpy(mwi_stasis_sub->mailbox, mailbox);
 	ao2_ref(mwi_sub, +1);
 	ast_debug(3, "Creating stasis MWI subscription to mailbox %s for endpoint %s\n", mailbox, mwi_sub->id);
-	mwi_stasis_sub->stasis_sub = stasis_subscribe(topic, mwi_stasis_cb, mwi_sub);
+	mwi_stasis_sub->stasis_sub = stasis_subscribe_pool(topic, mwi_stasis_cb, mwi_sub);
 	return mwi_stasis_sub;
 }
 

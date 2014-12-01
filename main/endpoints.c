@@ -310,7 +310,7 @@ static struct ast_endpoint *endpoint_internal_create(const char *tech, const cha
 	}
 
 	if (!ast_strlen_zero(resource)) {
-		endpoint->router = stasis_message_router_create(ast_endpoint_topic(endpoint));
+		endpoint->router = stasis_message_router_create_pool(ast_endpoint_topic(endpoint));
 		if (!endpoint->router) {
 			return NULL;
 		}

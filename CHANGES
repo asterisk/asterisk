@@ -39,6 +39,16 @@ chan_pjsip
    the message will automatically be associated with the configured endpoint on the
    outbound registration.
 
+
+Core
+------------------
+ * The core of Asterisk uses a message bus called "Stasis" to distribute
+   information to internal components. For performance reasons, the message
+   distribution was modified to make use of a thread pool instead of a
+   dedicated thread per consumer in certain cases. The initial settings for
+   the thread pool can now be configured in 'stasis.conf'.
+
+
 Functions
 ------------------
 
@@ -355,7 +365,7 @@ AMI
  * AMI action PJSIPNotify may now send to a URI instead of only to a PJSIP
    endpoint as long as a default outbound endpoint is set. This also applies
    to the equivalent CLI command (pjsip send notify)
- 
+
  * The AMI action PJSIPShowEndpoint now includes ContactStatusDetail sections
    that give information on Asterisk's attempts to qualify the endpoint.
 

@@ -9174,7 +9174,7 @@ int sig_pri_start_pri(struct sig_pri_span *pri)
 
 		mailbox_specific_topic = ast_mwi_topic(mbox_id);
 		if (mailbox_specific_topic) {
-			pri->mbox[i].sub = stasis_subscribe(mailbox_specific_topic, sig_pri_mwi_event_cb, pri);
+			pri->mbox[i].sub = stasis_subscribe_pool(mailbox_specific_topic, sig_pri_mwi_event_cb, pri);
 		}
 		if (!pri->mbox[i].sub) {
 			ast_log(LOG_ERROR, "%s span %d could not subscribe to MWI events for %s(%s).\n",
