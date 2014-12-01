@@ -144,6 +144,11 @@ char *ast_sip_cli_traverse_objects(struct ast_cli_entry *e, int cmd, struct ast_
 	if (!ast_ends_with(cmd2, "s")) {
 		ast_copy_string(formatter_type, cmd2, sizeof(formatter_type));
 		is_container = 0;
+	} else if (ast_ends_with(cmd2, "ies")) {
+		/* Take the plural "ies" off of the object name and re[place with "y". */
+		int l = strlen(cmd2);
+		snprintf(formatter_type, 64, "%*.*sy", l - 3, l - 3, cmd2);
+		is_container = 1;
 	} else {
 		/* Take the plural "s" off of the object name. */
 		ast_copy_string(formatter_type, cmd2, strlen(cmd2));
