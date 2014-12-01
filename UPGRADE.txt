@@ -23,6 +23,13 @@
 
 From 13.0.0 to 13.1.0:
 
+Core:
+ - The core of Asterisk uses a message bus called "Stasis" to distribute
+   information to internal components. For performance reasons, the message
+   distribution was modified to make use of a thread pool instead of a
+   dedicated thread per consumer in certain cases. The initial settings for
+   the thread pool can now be configured in 'stasis.conf'.
+
 PJSIP:
  - Added the pjsip.conf system type disable_tcp_switch option.  The option
    allows the user to disable switching from UDP to TCP transports described

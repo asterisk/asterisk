@@ -6056,7 +6056,7 @@ static int setup_stasis_subs(struct queue_ent *qe, struct ast_channel *peer, str
 		return -1;
 	}
 
-	queue_data->bridge_router = stasis_message_router_create(ast_bridge_topic_all());
+	queue_data->bridge_router = stasis_message_router_create_pool(ast_bridge_topic_all());
 	if (!queue_data->bridge_router) {
 		ao2_ref(queue_data, -1);
 		return -1;
@@ -6071,7 +6071,7 @@ static int setup_stasis_subs(struct queue_ent *qe, struct ast_channel *peer, str
 	stasis_message_router_set_default(queue_data->bridge_router,
 			queue_bridge_cb, queue_data);
 
-	queue_data->channel_router = stasis_message_router_create(ast_channel_topic_all());
+	queue_data->channel_router = stasis_message_router_create_pool(ast_channel_topic_all());
 	if (!queue_data->channel_router) {
 		/* Unsubscribing from the bridge router will remove the only ref of queue_data,
 		 * thus beginning the destruction process

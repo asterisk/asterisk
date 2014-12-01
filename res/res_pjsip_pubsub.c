@@ -4257,7 +4257,7 @@ static int load_module(void)
 	if (ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)) {
 		ast_sip_push_task(NULL, subscription_persistence_load, NULL);
 	} else {
-		stasis_subscribe(ast_manager_get_topic(), subscription_persistence_event_cb, NULL);
+		stasis_subscribe_pool(ast_manager_get_topic(), subscription_persistence_event_cb, NULL);
 	}
 
 	ast_manager_register_xml(AMI_SHOW_SUBSCRIPTIONS_INBOUND, EVENT_FLAG_SYSTEM,

@@ -8295,7 +8295,7 @@ static struct skinny_line *config_line(const char *lname, struct ast_variable *v
 
 		mailbox_specific_topic = ast_mwi_topic(l->mailbox);
 		if (mailbox_specific_topic) {
-			l->mwi_event_sub = stasis_subscribe(mailbox_specific_topic, mwi_event_cb, l);
+			l->mwi_event_sub = stasis_subscribe_pool(mailbox_specific_topic, mwi_event_cb, l);
 		}
 	}
 

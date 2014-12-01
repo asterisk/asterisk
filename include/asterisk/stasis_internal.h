@@ -52,8 +52,10 @@
  * \param callback Callback function for subscription messages.
  * \param data Data to be passed to the callback, in addition to the message.
  * \param needs_mailbox Determines whether or not the subscription requires a mailbox.
- *  Subscriptions with mailboxes will be delivered on a thread in the Stasis threadpool;
+ *  Subscriptions with mailboxes will be delivered on some non-publisher thread;
  *  subscriptions without mailboxes will be delivered on the publisher thread.
+ * \param use_thread_pool Use the thread pool for the subscription. This is only
+ *  relevant if \c needs_mailbox is non-zero.
  * \return New \ref stasis_subscription object.
  * \return \c NULL on error.
  * \since 12
@@ -62,6 +64,7 @@ struct stasis_subscription *internal_stasis_subscribe(
 	struct stasis_topic *topic,
 	stasis_subscription_cb callback,
 	void *data,
-	int needs_mailbox);
+	int needs_mailbox,
+	int use_thread_pool);
 
 #endif /* STASIS_INTERNAL_H_ */

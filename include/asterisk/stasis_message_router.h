@@ -59,6 +59,22 @@ struct stasis_message_router *stasis_message_router_create(
 	struct stasis_topic *topic);
 
 /*!
+ * \brief Create a new message router object.
+ *
+ * The subscription created for this message router will dispatch
+ * callbacks on a thread pool.
+ *
+ * \param topic Topic to subscribe route to.
+ *
+ * \return New \ref stasis_message_router.
+ * \return \c NULL on error.
+ *
+ * \since 12.8.0
+ */
+struct stasis_message_router *stasis_message_router_create_pool(
+	struct stasis_topic *topic);
+
+/*!
  * \brief Unsubscribe the router from the upstream topic.
  *
  * \param router Router to unsubscribe.

@@ -894,7 +894,7 @@ struct stasis_caching_topic *stasis_caching_topic_create(struct stasis_topic *or
 	ao2_ref(cache, +1);
 	caching_topic->cache = cache;
 
-	sub = internal_stasis_subscribe(original_topic, caching_topic_exec, caching_topic, 0);
+	sub = internal_stasis_subscribe(original_topic, caching_topic_exec, caching_topic, 0, 0);
 	if (sub == NULL) {
 		return NULL;
 	}

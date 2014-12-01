@@ -206,8 +206,8 @@ static void router_dispatch(void *data,
 	}
 }
 
-struct stasis_message_router *stasis_message_router_create(
-	struct stasis_topic *topic)
+static struct stasis_message_router *stasis_message_router_create_internal(
+	struct stasis_topic *topic, int use_thread_pool)
 {
 	int res;
 	RAII_VAR(struct stasis_message_router *, router, NULL, ao2_cleanup);
@@ -224,13 +224,29 @@ struct stasis_message_router *stasis_message_router_create(
 		return NULL;
 	}
 
-	router->subscription = stasis_subscribe(topic, router_dispatch, router);
+	if (use_thread_pool) {
+		router->subscription = stasis_subscribe_pool(topic, router_dispatch, router);
+	} else {
+		router->subscription = stasis_subscribe(topic, router_dispatch, router);
+	}
 	if (!router->subscription) {
 		return NULL;
 	}
 
 	ao2_ref(router, +1);
 	return router;
+}
+
+struct stasis_message_router *stasis_message_router_create(
+	struct stasis_topic *topic)
+{
+	return stasis_message_router_create_internal(topic, 0);
+}
+
+struct stasis_message_router *stasis_message_router_create_pool(
+	struct stasis_topic *topic)
+{
+	return stasis_message_router_create_internal(topic, 1);
 }
 
 void stasis_message_router_unsubscribe(struct stasis_message_router *router)
