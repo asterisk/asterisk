@@ -2090,6 +2090,13 @@ int ast_rtp_engine_init()
 	set_next_mime_type(ast_format_slin, 0, "audio", "L16", 8000);
 	set_next_mime_type(ast_format_slin16, 0, "audio", "L16", 16000);
 	set_next_mime_type(ast_format_slin16, 0, "audio", "L16-256", 16000);
+	set_next_mime_type(ast_format_slin12, 0, "audio", "L16", 12000);
+	set_next_mime_type(ast_format_slin24, 0, "audio", "L16", 24000);
+	set_next_mime_type(ast_format_slin32, 0, "audio", "L16", 32000);
+	set_next_mime_type(ast_format_slin44, 0, "audio", "L16", 44000);
+	set_next_mime_type(ast_format_slin48, 0, "audio", "L16", 48000);
+	set_next_mime_type(ast_format_slin96, 0, "audio", "L16", 96000);
+	set_next_mime_type(ast_format_slin192, 0, "audio", "L16", 192000);
 	set_next_mime_type(ast_format_lpc10, 0, "audio", "LPC", 8000);
 	set_next_mime_type(ast_format_g729, 0, "audio", "G729", 8000);
 	set_next_mime_type(ast_format_g729, 0, "audio", "G729A", 8000);
@@ -2160,6 +2167,13 @@ int ast_rtp_engine_init()
 	add_static_payload(118, ast_format_slin16, 0); /* 16 Khz signed linear */
 	add_static_payload(119, ast_format_speex32, 0);
 	add_static_payload(121, NULL, AST_RTP_CISCO_DTMF);   /* Must be type 121 */
+	add_static_payload(122, ast_format_slin12, 0);
+	add_static_payload(123, ast_format_slin24, 0);
+	add_static_payload(124, ast_format_slin32, 0);
+	add_static_payload(125, ast_format_slin44, 0);
+	add_static_payload(126, ast_format_slin48, 0);
+	add_static_payload(127, ast_format_slin96, 0);
+	add_static_payload(128, ast_format_slin192, 0);
 	/* Opus and VP8 */
 	add_static_payload(100, ast_format_vp8, 0);
 	add_static_payload(107, ast_format_opus, 0);
