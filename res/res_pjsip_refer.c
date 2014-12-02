@@ -149,6 +149,7 @@ static void refer_progress_bridge(void *data, struct stasis_subscription *sub,
 	struct refer_progress *progress = data;
 	struct ast_bridge_blob *enter_blob;
 	struct refer_progress_notification *notification;
+	struct ast_channel *chan;
 
 	if (stasis_subscription_final_message(sub, message)) {
 		ao2_ref(progress, -1);
@@ -180,6 +181,20 @@ static void refer_progress_bridge(void *data, struct stasis_subscription *sub,
 		}
 		progress->bridge_sub = stasis_unsubscribe(progress->bridge_sub);
 	}
+
+	chan = ast_channel_get_by_name(progress->transferee);
+	if (!chan) {
+		/* The channel is already gone */
+		return;
+	}
+
+	ast_channel_lock(chan);
+	ast_debug(3, "Detaching REFER progress monitoring hook from '%s' as it has joined a bridge\n",
+		ast_channel_name(chan));
+	ast_framehook_detach(chan, progress->framehook);
+	ast_channel_unlock(chan);
+
+	ast_channel_unref(chan);
 }
 
 /*! \brief Progress monitoring frame hook - examines frames to determine state of transfer */
