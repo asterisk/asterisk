@@ -720,9 +720,14 @@ const char *ast_variable_retrieve_filtered(struct ast_config *config,
 
 const char *ast_variable_find(const struct ast_category *category, const char *variable)
 {
-	struct ast_variable *v;
+	return ast_variable_find_in_list(category->root, variable);
+}
 
-	for (v = category->root; v; v = v->next) {
+const char *ast_variable_find_in_list(const struct ast_variable *list, const char *variable)
+{
+	const struct ast_variable *v;
+
+	for (v = list; v; v = v->next) {
 		if (!strcasecmp(variable, v->name)) {
 			return v->value;
 		}
