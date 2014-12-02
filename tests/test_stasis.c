@@ -546,7 +546,7 @@ AST_TEST_DEFINE(publish_pool)
 
 	test_data = ao2_alloc(1, NULL);
 	ast_test_validate(test, NULL != test_data);
-	test_message_type = stasis_message_type_create("TestMessage", NULL);
+	ast_test_validate(test, stasis_message_type_create("TestMessage", NULL, &test_message_type) == STASIS_MESSAGE_TYPE_SUCCESS);
 	test_message = stasis_message_create(test_message_type, test_data);
 
 	stasis_publish(topic, test_message);
@@ -794,7 +794,7 @@ AST_TEST_DEFINE(subscription_interleaving)
 		break;
 	}
 
-	test_message_type = stasis_message_type_create("test", NULL);
+	ast_test_validate(test, stasis_message_type_create("test", NULL, &test_message_type) == STASIS_MESSAGE_TYPE_SUCCESS);
 	ast_test_validate(test, NULL != test_message_type);
 
 	test_data = ao2_alloc(1, NULL);
@@ -1633,11 +1633,11 @@ AST_TEST_DEFINE(router_pool)
 	consumer3 = consumer_create(1);
 	ast_test_validate(test, NULL != consumer3);
 
-	test_message_type1 = stasis_message_type_create("TestMessage1", NULL);
+	ast_test_validate(test, stasis_message_type_create("TestMessage1", NULL, &test_message_type1) == STASIS_MESSAGE_TYPE_SUCCESS);
 	ast_test_validate(test, NULL != test_message_type1);
-	test_message_type2 = stasis_message_type_create("TestMessage2", NULL);
+	ast_test_validate(test, stasis_message_type_create("TestMessage2", NULL, &test_message_type2) == STASIS_MESSAGE_TYPE_SUCCESS);
 	ast_test_validate(test, NULL != test_message_type2);
-	test_message_type3 = stasis_message_type_create("TestMessage3", NULL);
+	ast_test_validate(test, stasis_message_type_create("TestMessage3", NULL, &test_message_type3) == STASIS_MESSAGE_TYPE_SUCCESS);
 	ast_test_validate(test, NULL != test_message_type3);
 
 	uut = stasis_message_router_create_pool(topic);
