@@ -53,16 +53,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
    to modify the target extension, context, and priority in any way desired.
    If there is a match at the far end, execution jumps through the 'tunnel'
    to the matched context, extension, and priority.
- 
-   Global variables as well as ${CONTEXT}, ${EXTEN}, and ${PRIORITY} are 
+
+   Global variables as well as ${CONTEXT}, ${EXTEN}, and ${PRIORITY} are
    available for substitution.  After substitution Loopback expects to get
    a string of the form:
 
 	[exten]@context[:priority][/extramatch]
-   
+
    Where exten, context, and priority are another extension, context, and priority
    to lookup and "extramatch" is a dialplan extension pattern which the *original*
-   number must match.  If exten or priority are empty, the original values are 
+   number must match.  If exten or priority are empty, the original values are
    used.
 
    Note that the search context MUST be a different context from the current
@@ -80,7 +80,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	char *newpattern=NULL; \
 	loopback_subst(buf, sizeof(buf), exten, context, priority, data); \
 	loopback_parse(&newexten, &newcontext, &newpriority, &newpattern, buf); \
-	ast_debug(1, "Parsed into %s @ %s priority %d\n", newexten, newcontext, newpriority); \
+	ast_debug(1, "Parsed into %s @ %s priority %d pattern %s\n", newexten, newcontext, newpriority, newpattern); \
 	if (!strcasecmp(newcontext, context)) return -1
 
 static char *loopback_subst(char *buf, int buflen, const char *exten, const char *context, int priority, const char *data)
@@ -132,18 +132,20 @@ static void loopback_parse(char **newexten, char **newcontext, int *priority, ch
 static int loopback_exists(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	LOOPBACK_COMMON;
-	res = ast_exists_extension(chan, newcontext, newexten, newpriority, callerid);
 	if (newpattern && !ast_extension_match(newpattern, exten))
 		res = 0;
+	else
+		res = ast_exists_extension(chan, newcontext, newexten, newpriority, callerid);
 	return res;
 }
 
 static int loopback_canmatch(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	LOOPBACK_COMMON;
-	res = ast_canmatch_extension(chan, newcontext, newexten, newpriority, callerid);
 	if (newpattern && !ast_extension_match(newpattern, exten))
 		res = 0;
+	else
+		res = ast_canmatch_extension(chan, newcontext, newexten, newpriority, callerid);
 	return res;
 }
 
@@ -158,9 +160,10 @@ static int loopback_exec(struct ast_channel *chan, const char *context, const ch
 static int loopback_matchmore(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	LOOPBACK_COMMON;
-	res = ast_matchmore_extension(chan, newcontext, newexten, newpriority, callerid);
 	if (newpattern && !ast_extension_match(newpattern, exten))
 		res = 0;
+	else
+		res = ast_matchmore_extension(chan, newcontext, newexten, newpriority, callerid);
 	return res;
 }
 
