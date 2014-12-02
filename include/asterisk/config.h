@@ -312,6 +312,20 @@ const char *ast_variable_retrieve(struct ast_config *config,
 const char *ast_variable_find(const struct ast_category *category, const char *variable);
 
 /*!
+ * \brief Gets a variable from a variable list
+ *
+ * \param list variable list to search
+ * \param variable which variable you wish to get the data for
+ *
+ * \details
+ * Goes through a given variable list and searches for the given variable
+ *
+ * \retval The variable value on success
+ * \retval NULL if unable to find it.
+ */
+const char *ast_variable_find_in_list(const struct ast_variable *list, const char *variable);
+
+/*!
  * \brief Retrieve a category if it exists
  *
  * \param config which config to use
