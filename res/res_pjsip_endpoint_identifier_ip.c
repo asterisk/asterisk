@@ -323,6 +323,7 @@ static int cli_iterator(void *container, ao2_callback_fn callback, void *args)
 	}
 
 	ao2_callback(identifies, OBJ_NODATA, callback, args);
+	ao2_cleanup(identifies);
 
 	return 0;
 }
@@ -379,13 +380,25 @@ static int cli_print_header(void *obj, void *arg, int flags)
 {
 	struct ast_sip_cli_context *context = arg;
 	int indent = CLI_INDENT_TO_SPACES(context->indent_level);
-	int filler = CLI_MAX_WIDTH - indent - 14;
+	int filler = CLI_MAX_WIDTH - indent - 22;
 
 	ast_assert(context->output_buffer != NULL);
 
 	ast_str_append(&context->output_buffer, 0,
-		"%*s:  <MatchList%*.*s>\n",
+		"%*s:  <Identify/Endpoint%*.*s>\n",
 		indent, "Identify", filler, filler, CLI_HEADER_FILLER);
+
+	if (context->recurse) {
+		context->indent_level++;
+		indent = CLI_INDENT_TO_SPACES(context->indent_level);
+		filler = CLI_LAST_TABSTOP - indent - 24;
+
+		ast_str_append(&context->output_buffer, 0,
+			"%*s:  <ip/cidr%*.*s>\n",
+			indent, "Match", filler, filler, CLI_HEADER_FILLER);
+
+		context->indent_level--;
+	}
 
 	return 0;
 }
@@ -395,16 +408,70 @@ static int cli_print_body(void *obj, void *arg, int flags)
 	RAII_VAR(struct ast_str *, str, ast_str_create(MAX_OBJECT_FIELD), ast_free);
 	struct ip_identify_match *ident = obj;
 	struct ast_sip_cli_context *context = arg;
+	struct ast_ha *match;
+	int indent;
 
 	ast_assert(context->output_buffer != NULL);
 
-	ast_str_append(&context->output_buffer, 0, "%*s:  ",
-		CLI_INDENT_TO_SPACES(context->indent_level), "Identify");
-	ast_ha_join_cidr(ident->matches, &str);
-	ast_str_append(&context->output_buffer, 0, "%s\n", ast_str_buffer(str));
+	ast_str_append(&context->output_buffer, 0, "%*s:  %s/%s\n",
+		CLI_INDENT_TO_SPACES(context->indent_level), "Identify",
+		ast_sorcery_object_get_id(ident), ident->endpoint_name);
+
+	if (context->recurse) {
+		context->indent_level++;
+		indent = CLI_INDENT_TO_SPACES(context->indent_level);
+
+		for (match = ident->matches; match; match = match->next) {
+			const char *addr = ast_sockaddr_stringify_addr(&match->addr);
+
+			ast_str_append(&context->output_buffer, 0, "%*s: %s%s/%d\n",
+				indent,
+				"Match",
+				match->sense == AST_SENSE_ALLOW ? "!" : "",
+				addr, ast_sockaddr_cidr_bits(&match->netmask));
+		}
+
+		context->indent_level--;
+
+		if (context->indent_level == 0) {
+			ast_str_append(&context->output_buffer, 0, "\n");
+		}
+	}
+
+	if (context->show_details
+		|| (context->show_details_only_level_0 && context->indent_level == 0)) {
+		ast_str_append(&context->output_buffer, 0, "\n");
+		ast_sip_cli_print_sorcery_objectset(ident, context, 0);
+	}
 
 	return 0;
 }
+
+/*
+ * A function pointer to callback needs to be within the
+ * module in order to avoid problems with an undefined
+ * symbol when the module is loaded.
+ */
+static char *my_cli_traverse_objects(struct ast_cli_entry *e, int cmd,
+	struct ast_cli_args *a)
+{
+	return ast_sip_cli_traverse_objects(e, cmd, a);
+}
+
+static struct ast_cli_entry cli_identify[] = {
+AST_CLI_DEFINE(my_cli_traverse_objects, "List PJSIP Identifies",
+	.command = "pjsip list identifies",
+	.usage = "Usage: pjsip list identifies\n"
+	"       List the configured PJSIP Identifies\n"),
+AST_CLI_DEFINE(my_cli_traverse_objects, "Show PJSIP Identifies",
+	.command = "pjsip show identifies",
+	.usage = "Usage: pjsip show identifies\n"
+	"       Show the configured PJSIP Identifies\n"),
+AST_CLI_DEFINE(my_cli_traverse_objects, "Show PJSIP Identify",
+	.command = "pjsip show identify",
+	.usage = "Usage: pjsip show identify <id>\n"
+	"       Show the configured PJSIP Identify\n"),
+};
 
 static struct ast_sip_cli_formatter_entry *cli_formatter;
 
@@ -430,7 +497,7 @@ static int load_module(void)
 	cli_formatter = ao2_alloc(sizeof(struct ast_sip_cli_formatter_entry), NULL);
 	if (!cli_formatter) {
 		ast_log(LOG_ERROR, "Unable to allocate memory for cli formatter\n");
-		return -1;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	cli_formatter->name = "identify";
 	cli_formatter->print_header = cli_print_header;
@@ -441,6 +508,7 @@ static int load_module(void)
 	cli_formatter->retrieve_by_id = cli_retrieve_by_id;
 
 	ast_sip_register_cli_formatter(cli_formatter);
+	ast_cli_register_multiple(cli_identify, ARRAY_LEN(cli_identify));
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
@@ -454,6 +522,7 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
+	ast_cli_unregister_multiple(cli_identify, ARRAY_LEN(cli_identify));
 	ast_sip_unregister_cli_formatter(cli_formatter);
 	ast_sip_unregister_endpoint_formatter(&endpoint_identify_formatter);
 	ast_sip_unregister_endpoint_identifier(&ip_identifier);
