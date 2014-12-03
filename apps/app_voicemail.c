@@ -509,6 +509,9 @@ static int expungeonhangup = 1;
 static int imapgreetings = 0;
 static char delimiter = '\0';
 
+/* mail_open cannot be protected on a stream basis */
+ast_mutex_t mail_open_lock;
+
 struct vm_state;
 struct ast_vm_user;
 
@@ -2936,7 +2939,9 @@ static int init_mailstream(struct vm_state *vms, int box)
 		/* Connect to INBOX first to get folders delimiter */
 		imap_mailbox_name(tmp, sizeof(tmp), vms, 0, 1);
 		ast_mutex_lock(&vms->lock);
+		ast_mutex_lock(&mail_open_lock);
 		stream = mail_open (stream, tmp, debug ? OP_DEBUG : NIL);
+		ast_mutex_unlock(&mail_open_lock);
 		ast_mutex_unlock(&vms->lock);
 		if (stream == NIL) {
 			ast_log(LOG_ERROR, "Can't connect to imap server %s\n", tmp);
@@ -2952,7 +2957,9 @@ static int init_mailstream(struct vm_state *vms, int box)
 	imap_mailbox_name(tmp, sizeof(tmp), vms, box, 1);
 	ast_debug(3, "Before mail_open, server: %s, box:%d\n", tmp, box);
 	ast_mutex_lock(&vms->lock);
+	ast_mutex_lock(&mail_open_lock);
 	vms->mailstream = mail_open (stream, tmp, debug ? OP_DEBUG : NIL);
+	ast_mutex_unlock(&mail_open_lock);
 	ast_mutex_unlock(&vms->lock);
 	if (vms->mailstream == NIL) {
 		return -1;
