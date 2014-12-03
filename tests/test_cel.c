@@ -310,7 +310,9 @@ static int append_expected_event_snapshot(
 	struct ast_json *extra,
 	const char *peer);
 
+#ifdef RACEY_TESTS
 static int append_dummy_event(void);
+#endif
 
 static struct ast_str *__test_cel_generate_peer_str(struct ast_channel_snapshot *chan, struct ast_bridge_snapshot *bridge)
 {
@@ -1469,6 +1471,10 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_merge)
 	return AST_TEST_PASS;
 }
 
+/* XXX Validation needs to take into account the BRIDGE_EXIT for David and the
+ * ATTENDEDTRANSFER message are not guaranteed to be ordered
+ */
+#ifdef RACEY_TESTS
 AST_TEST_DEFINE(test_cel_attended_transfer_bridges_link)
 {
 	RAII_VAR(struct ast_channel *, chan_alice, NULL, safe_channel_release);
@@ -1553,6 +1559,7 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_link)
 
 	return AST_TEST_PASS;
 }
+#endif
 
 AST_TEST_DEFINE(test_cel_dial_pickup)
 {
@@ -1734,6 +1741,7 @@ static int append_event(struct ast_event *ev)
 	return 0;
 }
 
+#ifdef RACEY_TESTS
 static int append_dummy_event(void)
 {
 	RAII_VAR(struct ast_event *, ev, NULL, ast_free);
@@ -1746,6 +1754,7 @@ static int append_dummy_event(void)
 
 	return append_event(ev);
 }
+#endif
 
 static int append_expected_event_snapshot(
 	struct ast_channel_snapshot *snapshot,
@@ -2121,11 +2130,11 @@ static int unload_module(void)
 #ifdef RACEY_TESTS
 	AST_TEST_UNREGISTER(test_cel_dial_answer_multiparty);
 	AST_TEST_UNREGISTER(test_cel_attended_transfer_bridges_swap);
+	AST_TEST_UNREGISTER(test_cel_attended_transfer_bridges_link);
 #endif
 
 	AST_TEST_UNREGISTER(test_cel_blind_transfer);
 	AST_TEST_UNREGISTER(test_cel_attended_transfer_bridges_merge);
-	AST_TEST_UNREGISTER(test_cel_attended_transfer_bridges_link);
 
 	AST_TEST_UNREGISTER(test_cel_dial_pickup);
 
@@ -2196,11 +2205,11 @@ static int load_module(void)
 #ifdef RACEY_TESTS
 	AST_TEST_REGISTER(test_cel_dial_answer_multiparty);
 	AST_TEST_REGISTER(test_cel_attended_transfer_bridges_swap);
+	AST_TEST_REGISTER(test_cel_attended_transfer_bridges_link);
 #endif
 
 	AST_TEST_REGISTER(test_cel_blind_transfer);
 	AST_TEST_REGISTER(test_cel_attended_transfer_bridges_merge);
-	AST_TEST_REGISTER(test_cel_attended_transfer_bridges_link);
 
 	AST_TEST_REGISTER(test_cel_dial_pickup);
 
