@@ -1279,6 +1279,10 @@ AST_TEST_DEFINE(test_cel_blind_transfer)
 	return AST_TEST_PASS;
 }
 
+/* XXX Validation needs to take into account the BRIDGE_EXIT for Alice and the
+ * ATTENDEDTRANSFER message are not guaranteed to be ordered
+ */
+#ifdef RACEY_TESTS
 AST_TEST_DEFINE(test_cel_attended_transfer_bridges_swap)
 {
 	RAII_VAR(struct ast_channel *, chan_alice, NULL, safe_channel_release);
@@ -1338,8 +1342,8 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_swap)
 	BRIDGE_ENTER_EVENT_PEER(chan_bob, bridge2, "CELTestChannel/David,CELTestChannel/Charlie");
 
 	BRIDGE_EXIT_EVENT(chan_david, bridge2);
-	ATTENDEDTRANSFER_BRIDGE(chan_alice, bridge1, chan_david, bridge2, chan_charlie, chan_bob);
 	BRIDGE_EXIT_EVENT(chan_alice, bridge1);
+	ATTENDEDTRANSFER_BRIDGE(chan_alice, bridge1, chan_david, bridge2, chan_charlie, chan_bob);
 
 	do_sleep();
 	BRIDGE_EXIT(chan_bob, bridge2);
@@ -1355,6 +1359,7 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_swap)
 
 	return AST_TEST_PASS;
 }
+#endif
 
 AST_TEST_DEFINE(test_cel_attended_transfer_bridges_merge)
 {
@@ -1497,23 +1502,10 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_link)
 	BRIDGE_ENTER(chan_david, bridge2);
 
 	/* Perform attended transfer */
-
-	/* The following events can not be matched directly since nothing is known
-	 * about the linking local channel.
-	 * ;1 and ;2 CHAN_START and ;2 ANSWER */
-	APPEND_DUMMY_EVENT();
-	APPEND_DUMMY_EVENT();
-	APPEND_DUMMY_EVENT();
-
 	ATTENDEDTRANSFER_BRIDGE(chan_alice, bridge1, chan_david, bridge2, chan_charlie, chan_bob);
 
 	ast_bridge_transfer_attended(chan_alice, chan_david);
 	do_sleep();
-
-	/* ;1 and ;2 BRIDGE_ENTER and ;1 ANSWER */
-	APPEND_DUMMY_EVENT();
-	APPEND_DUMMY_EVENT();
-	APPEND_DUMMY_EVENT();
 
 	/* BRIDGE_EXIT alice and david */
 	APPEND_DUMMY_EVENT();
@@ -1531,14 +1523,6 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_link)
 	do_sleep();
 	HANGUP_CHANNEL(chan_charlie, AST_CAUSE_NORMAL, "");
 	do_sleep();
-
-	/* ;1 and ;2 BRIDGE_EXIT, HANGUP, and CHAN_END */
-	APPEND_DUMMY_EVENT();
-	APPEND_DUMMY_EVENT();
-	APPEND_DUMMY_EVENT();
-	APPEND_DUMMY_EVENT();
-	APPEND_DUMMY_EVENT();
-	APPEND_DUMMY_EVENT();
 
 	return AST_TEST_PASS;
 }
@@ -1773,9 +1757,15 @@ static int append_expected_event(
 static void test_sub(struct ast_event *event)
 {
 	struct ast_event *event_dup = ao2_dup_event(event);
+	const char *chan_name;
 	SCOPED_MUTEX(mid_test_lock, &mid_test_sync_lock);
 
 	if (!event_dup) {
+		return;
+	}
+
+	chan_name = ast_event_get_ie_str(event_dup, AST_EVENT_IE_CEL_CHANNAME);
+	if (chan_name && strncmp(chan_name, CHANNEL_TECH_NAME, 14)) {
 		return;
 	}
 
@@ -2103,10 +2093,10 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(test_cel_dial_answer_twoparty_bridge_b);
 #ifdef RACEY_TESTS
 	AST_TEST_UNREGISTER(test_cel_dial_answer_multiparty);
+	AST_TEST_UNREGISTER(test_cel_attended_transfer_bridges_swap);
 #endif
 
 	AST_TEST_UNREGISTER(test_cel_blind_transfer);
-	AST_TEST_UNREGISTER(test_cel_attended_transfer_bridges_swap);
 	AST_TEST_UNREGISTER(test_cel_attended_transfer_bridges_merge);
 	AST_TEST_UNREGISTER(test_cel_attended_transfer_bridges_link);
 
@@ -2178,10 +2168,10 @@ static int load_module(void)
 	AST_TEST_REGISTER(test_cel_dial_answer_twoparty_bridge_b);
 #ifdef RACEY_TESTS
 	AST_TEST_REGISTER(test_cel_dial_answer_multiparty);
+	AST_TEST_REGISTER(test_cel_attended_transfer_bridges_swap);
 #endif
 
 	AST_TEST_REGISTER(test_cel_blind_transfer);
-	AST_TEST_REGISTER(test_cel_attended_transfer_bridges_swap);
 	AST_TEST_REGISTER(test_cel_attended_transfer_bridges_merge);
 	AST_TEST_REGISTER(test_cel_attended_transfer_bridges_link);
 
