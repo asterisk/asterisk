@@ -1035,7 +1035,7 @@ static struct ast_manager_event_blob *test_suite_event_to_ami(struct stasis_mess
 		ast_json_string_get(ast_json_object_get(blob, "appfile")));
 	ast_str_append(&packet_string, 0, "AppFunction: %s\r\n",
 		ast_json_string_get(ast_json_object_get(blob, "appfunction")));
-	ast_str_append(&packet_string, 0, "AppLine: %ld\r\n",
+	ast_str_append(&packet_string, 0, "AppLine: %jd\r\n",
 		ast_json_integer_get(ast_json_object_get(blob, "line")));
 	ast_str_append(&packet_string, 0, "%s\r\n",
 		ast_json_string_get(ast_json_object_get(blob, "data")));
