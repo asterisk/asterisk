@@ -1367,7 +1367,8 @@ static struct stasis_forward *rtp_topic_forwarder;
 static struct stasis_forward *security_topic_forwarder;
 
 #ifdef TEST_FRAMEWORK
-struct stasis_subscription *test_suite_sub;
+/*! \brief The \ref stasis_subscription for forwarding the Test topic to the AMI topic */
+static struct stasis_forward *test_suite_forwarder;
 #endif
 
 #define MGR_SHOW_TERMINAL_WIDTH 80
@@ -8341,49 +8342,6 @@ static void load_channelvars(struct ast_variable *var)
 	ast_channel_set_manager_vars(args.argc, args.vars);
 }
 
-#ifdef TEST_FRAMEWORK
-
-static void test_suite_event_cb(void *data, struct stasis_subscription *sub,
-		struct stasis_message *message)
-{
-	struct ast_test_suite_message_payload *payload;
-	struct ast_json *blob;
-	const char *type;
-
-	if (stasis_message_type(message) != ast_test_suite_message_type()) {
-		return;
-	}
-
-	payload = stasis_message_data(message);
-	if (!payload) {
-		return;
-	}
-	blob = ast_test_suite_get_blob(payload);
-	if (!blob) {
-		return;
-	}
-
-	type = ast_json_string_get(ast_json_object_get(blob, "type"));
-	if (ast_strlen_zero(type) || strcmp("testevent", type)) {
-		return;
-	}
-
-	manager_event(EVENT_FLAG_TEST, "TestEvent",
-		"Type: StateChange\r\n"
-		"State: %s\r\n"
-		"AppFile: %s\r\n"
-		"AppFunction: %s\r\n"
-		"AppLine: %jd\r\n"
-		"%s\r\n",
-		ast_json_string_get(ast_json_object_get(blob, "state")),
-		ast_json_string_get(ast_json_object_get(blob, "appfile")),
-		ast_json_string_get(ast_json_object_get(blob, "appfunction")),
-		ast_json_integer_get(ast_json_object_get(blob, "line")),
-		ast_json_string_get(ast_json_object_get(blob, "data")));
-}
-
-#endif
-
 /*!
  * \internal
  * \brief Free a user record.  Should already be removed from the list
@@ -8459,7 +8417,8 @@ static void manager_shutdown(void)
 #endif
 
 #ifdef TEST_FRAMEWORK
-	stasis_unsubscribe(test_suite_sub);
+	stasis_forward_cancel(test_suite_forwarder);
+	test_suite_forwarder = NULL;
 #endif
 
 	if (stasis_router) {
@@ -8655,7 +8614,7 @@ static int __init_manager(int reload, int by_external_config)
 		ast_manager_register_xml_core("BlindTransfer", EVENT_FLAG_CALL, action_blind_transfer);
 
 #ifdef TEST_FRAMEWORK
-		test_suite_sub = stasis_subscribe(ast_test_suite_topic(), test_suite_event_cb, NULL);
+		test_suite_forwarder = stasis_forward_all(ast_test_suite_topic(), manager_topic);
 #endif
 
 		ast_cli_register_multiple(cli_manager, ARRAY_LEN(cli_manager));

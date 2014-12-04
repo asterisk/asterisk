@@ -56,11 +56,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
  */
 struct stasis_topic *test_suite_topic;
 
-/*! \since 12
- * \brief The message type for test suite messages
- */
-STASIS_MESSAGE_TYPE_DEFN(ast_test_suite_message_type);
-
 /*! This array corresponds to the values defined in the ast_test_state enum */
 static const char * const test_result2str[] = {
 	[AST_TEST_NOT_RUN] = "NOT RUN",
@@ -1011,6 +1006,51 @@ struct ast_json *ast_test_suite_get_blob(struct ast_test_suite_message_payload *
 {
 	return payload->blob;
 }
+
+static struct ast_manager_event_blob *test_suite_event_to_ami(struct stasis_message *msg)
+{
+	RAII_VAR(struct ast_str *, packet_string, ast_str_create(128), ast_free);
+	struct ast_test_suite_message_payload *payload;
+	struct ast_json *blob;
+	const char *type;
+
+	payload = stasis_message_data(msg);
+	if (!payload) {
+		return NULL;
+	}
+	blob = ast_test_suite_get_blob(payload);
+	if (!blob) {
+		return NULL;
+	}
+
+	type = ast_json_string_get(ast_json_object_get(blob, "type"));
+	if (ast_strlen_zero(type) || strcmp("testevent", type)) {
+		return NULL;
+	}
+
+	ast_str_append(&packet_string, 0, "Type: StateChange\r\n");
+	ast_str_append(&packet_string, 0, "State: %s\r\n",
+		ast_json_string_get(ast_json_object_get(blob, "state")));
+	ast_str_append(&packet_string, 0, "AppFile: %s\r\n",
+		ast_json_string_get(ast_json_object_get(blob, "appfile")));
+	ast_str_append(&packet_string, 0, "AppFunction: %s\r\n",
+		ast_json_string_get(ast_json_object_get(blob, "appfunction")));
+	ast_str_append(&packet_string, 0, "AppLine: %ld\r\n",
+		ast_json_integer_get(ast_json_object_get(blob, "line")));
+	ast_str_append(&packet_string, 0, "%s\r\n",
+		ast_json_string_get(ast_json_object_get(blob, "data")));
+
+	return ast_manager_event_blob_create(EVENT_FLAG_REPORTING,
+		"TestEvent",
+		"%s",
+		ast_str_buffer(packet_string));
+}
+
+/*! \since 12
+ * \brief The message type for test suite messages
+ */
+STASIS_MESSAGE_TYPE_DEFN(ast_test_suite_message_type,
+	.to_ami = test_suite_event_to_ami);
 
 void __ast_test_suite_event_notify(const char *file, const char *func, int line, const char *state, const char *fmt, ...)
 {
