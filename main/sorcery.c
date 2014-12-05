@@ -61,6 +61,29 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! \brief Number of buckets for object fields (should be prime for performance reasons) */
 #define OBJECT_FIELD_BUCKETS 29
 
+#define NOTIFY_GENERIC_OBSERVERS(container, type, callback, ...) ({ \
+	struct ao2_iterator i = ao2_iterator_init(container, 0); \
+	struct type *observer; \
+	ao2_rdlock(container); \
+	while ((observer = ao2_iterator_next(&i))) { \
+		if (observer->callbacks->callback) { \
+			observer->callbacks->callback(__VA_ARGS__); \
+		} \
+		ao2_cleanup(observer); \
+	} \
+	ao2_unlock(container); \
+	ao2_iterator_cleanup(&i); \
+})
+
+#define NOTIFY_GLOBAL_OBSERVERS(container, callback, ...) \
+	NOTIFY_GENERIC_OBSERVERS(container, sorcery_global_observer, callback, __VA_ARGS__)
+
+#define NOTIFY_INSTANCE_OBSERVERS(container, callback, ...) \
+	NOTIFY_GENERIC_OBSERVERS(container, sorcery_instance_observer, callback, __VA_ARGS__)
+
+#define NOTIFY_WIZARD_OBSERVERS(container, callback, ...) \
+	NOTIFY_GENERIC_OBSERVERS(container, sorcery_wizard_observer, callback, __VA_ARGS__)
+
 /*! \brief Thread pool for observers */
 static struct ast_threadpool *threadpool;
 
@@ -154,10 +177,19 @@ struct ast_sorcery_object_field {
 	intptr_t args[];
 };
 
+/*! \brief Structure for an internal wizard instance */
+struct ast_sorcery_internal_wizard {
+	/*! \brief Wizard interface itself */
+	struct ast_sorcery_wizard callbacks;
+
+	/*! \brief Observers */
+	struct ao2_container *observers;
+};
+
 /*! \brief Structure for a wizard instance which operates on objects */
 struct ast_sorcery_object_wizard {
 	/*! \brief Wizard interface itself */
-	struct ast_sorcery_wizard *wizard;
+	struct ast_sorcery_internal_wizard *wizard;
 
 	/*! \brief Unique data for the wizard */
 	void *data;
@@ -170,6 +202,10 @@ struct ast_sorcery_object_wizard {
 struct ast_sorcery {
 	/*! \brief Container for known object types */
 	struct ao2_container *types;
+
+	/*! \brief Observers */
+	struct ao2_container *observers;
+
 	/*! \brief The name of the module owning this sorcery instance */
 	char module_name[0];
 };
@@ -188,6 +224,30 @@ struct sorcery_load_details {
 
 /*! \brief Registered sorcery wizards */
 static struct ao2_container *wizards;
+
+/* The following 3 observer wrappers must name their
+ * external observer 'callbacks' and it must be
+ * the first member of the structure.  Common macros
+ * and container callbacks depend on it.
+ */
+
+/*! \brief A global observer wrapper */
+struct sorcery_global_observer {
+	const struct ast_sorcery_global_observer *callbacks;
+};
+
+/*! \brief An instance observer wrapper */
+struct sorcery_instance_observer {
+	const struct ast_sorcery_instance_observer *callbacks;
+};
+
+/*! \brief A wizard observer wrapper */
+struct sorcery_wizard_observer {
+	const struct ast_sorcery_wizard_observer *callbacks;
+};
+
+/*! \brief Registered global observers */
+struct ao2_container *observers;
 
 /*! \brief Registered sorcery instances */
 static struct ao2_container *instances;
@@ -264,7 +324,7 @@ static sorcery_field_handler sorcery_field_default_handler(enum aco_option_type 
 /*! \brief Hashing function for sorcery wizards */
 static int sorcery_wizard_hash(const void *obj, const int flags)
 {
-	const struct ast_sorcery_wizard *object;
+	const struct ast_sorcery_internal_wizard *object;
 	const char *key;
 
 	switch (flags & OBJ_SEARCH_MASK) {
@@ -273,7 +333,7 @@ static int sorcery_wizard_hash(const void *obj, const int flags)
 		break;
 	case OBJ_SEARCH_OBJECT:
 		object = obj;
-		key = object->name;
+		key = object->callbacks.name;
 		break;
 	default:
 		ast_assert(0);
@@ -285,20 +345,20 @@ static int sorcery_wizard_hash(const void *obj, const int flags)
 /*! \brief Comparator function for sorcery wizards */
 static int sorcery_wizard_cmp(void *obj, void *arg, int flags)
 {
-	const struct ast_sorcery_wizard *object_left = obj;
-	const struct ast_sorcery_wizard *object_right = arg;
+	const struct ast_sorcery_internal_wizard *object_left = obj;
+	const struct ast_sorcery_internal_wizard *object_right = arg;
 	const char *right_key = arg;
 	int cmp;
 
 	switch (flags & OBJ_SEARCH_MASK) {
 	case OBJ_SEARCH_OBJECT:
-		right_key = object_right->name;
+		right_key = object_right->callbacks.name;
 		/* Fall through */
 	case OBJ_SEARCH_KEY:
-		cmp = strcmp(object_left->name, right_key);
+		cmp = strcmp(object_left->callbacks.name, right_key);
 		break;
 	case OBJ_SEARCH_PARTIAL_KEY:
-		cmp = strncmp(object_left->name, right_key, strlen(right_key));
+		cmp = strncmp(object_left->callbacks.name, right_key, strlen(right_key));
 		break;
 	default:
 		cmp = 0;
@@ -370,6 +430,8 @@ static void sorcery_cleanup(void)
 {
 	ao2_cleanup(wizards);
 	wizards = NULL;
+	ao2_cleanup(observers);
+	observers = NULL;
 	ao2_cleanup(instances);
 	instances = NULL;
 }
@@ -444,6 +506,13 @@ int ast_sorcery_init(void)
 		return -1;
 	}
 
+	observers = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_RWLOCK, 0, NULL, NULL);
+	if (!observers) {
+		sorcery_cleanup();
+		sorcery_exit();
+		return -1;
+	}
+
 	instances = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK, INSTANCE_BUCKETS,
 		sorcery_instance_hash, sorcery_instance_cmp);
 	if (!instances) {
@@ -458,9 +527,16 @@ int ast_sorcery_init(void)
 	return 0;
 }
 
+static void sorcery_internal_wizard_destructor(void *obj)
+{
+	struct ast_sorcery_internal_wizard *wizard = obj;
+
+	ao2_cleanup(wizard->observers);
+}
+
 int __ast_sorcery_wizard_register(const struct ast_sorcery_wizard *interface, struct ast_module *module)
 {
-	struct ast_sorcery_wizard *wizard;
+	struct ast_sorcery_internal_wizard *wizard;
 	int res = -1;
 
 	ast_assert(!ast_strlen_zero(interface->name));
@@ -473,17 +549,25 @@ int __ast_sorcery_wizard_register(const struct ast_sorcery_wizard *interface, st
 		goto done;
 	}
 
-	if (!(wizard = ao2_alloc(sizeof(*wizard), NULL))) {
+	if (!(wizard = ao2_alloc(sizeof(*wizard), sorcery_internal_wizard_destructor))) {
 		goto done;
 	}
 
-	*wizard = *interface;
-	wizard->module = module;
+	wizard->callbacks = *interface;
+	wizard->callbacks.module = module;
+
+	wizard->observers = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_RWLOCK, 0, NULL, NULL);
+	if (!wizard->observers) {
+		goto done;
+	}
 
 	ao2_link_flags(wizards, wizard, OBJ_NOLOCK);
 	res = 0;
 
 	ast_verb(2, "Sorcery registered wizard '%s'\n", interface->name);
+
+	NOTIFY_GLOBAL_OBSERVERS(observers, wizard_registered,
+		interface->name, interface);
 
 done:
 	ao2_cleanup(wizard);
@@ -494,13 +578,107 @@ done:
 
 int ast_sorcery_wizard_unregister(const struct ast_sorcery_wizard *interface)
 {
-	RAII_VAR(struct ast_sorcery_wizard *, wizard, ao2_find(wizards, interface->name, OBJ_KEY | OBJ_UNLINK), ao2_cleanup);
+	struct ast_sorcery_internal_wizard *wizard =
+		interface ? ao2_find(wizards, interface->name, OBJ_SEARCH_KEY) : NULL;
 
 	if (wizard) {
+		NOTIFY_GLOBAL_OBSERVERS(observers, wizard_unregistering, wizard->callbacks.name, &wizard->callbacks);
+		ao2_unlink(wizards, wizard);
+		ao2_ref(wizard, -1);
 		ast_verb(2, "Sorcery unregistered wizard '%s'\n", interface->name);
 		return 0;
 	} else {
 		return -1;
+	}
+}
+
+/*! \brief Internal callback function for removing a generic observer */
+static int sorcery_generic_observer_remove(void *obj, void *arg, int flags)
+{
+	const struct sorcery_global_observer *observer = obj;
+
+	return (observer->callbacks == arg) ? CMP_MATCH | CMP_STOP : 0;
+}
+
+int ast_sorcery_global_observer_add(const struct ast_sorcery_global_observer *callbacks)
+{
+	struct sorcery_global_observer *cb;
+
+	cb = ao2_alloc(sizeof(*cb), NULL);
+	if (!cb) {
+		return -1;
+	}
+
+	cb->callbacks = callbacks;
+	ao2_link(observers, cb);
+	ao2_ref(cb, -1);
+
+	return 0;
+}
+
+void ast_sorcery_global_observer_remove(
+	const struct ast_sorcery_global_observer *callbacks)
+{
+	ao2_callback(observers, OBJ_NODATA | OBJ_UNLINK, sorcery_generic_observer_remove, (void *)callbacks);
+}
+
+int ast_sorcery_instance_observer_add(struct ast_sorcery *sorcery,
+	const struct ast_sorcery_instance_observer *callbacks)
+{
+	struct sorcery_instance_observer *cb;
+
+	cb = ao2_alloc(sizeof(*cb), NULL);
+	if (!cb) {
+		return -1;
+	}
+
+	cb->callbacks = callbacks;
+	ao2_link(sorcery->observers, cb);
+	ao2_ref(cb, -1);
+
+	return 0;
+}
+
+void ast_sorcery_instance_observer_remove(struct ast_sorcery *sorcery,
+	const struct ast_sorcery_instance_observer *callbacks)
+{
+	ao2_callback(sorcery->observers, OBJ_NODATA | OBJ_UNLINK, sorcery_generic_observer_remove, (void *)callbacks);
+}
+
+int ast_sorcery_wizard_observer_add(struct ast_sorcery_wizard *interface,
+	const struct ast_sorcery_wizard_observer *callbacks)
+{
+	RAII_VAR(struct ast_sorcery_internal_wizard *, wizard,
+		interface ? ao2_find(wizards, interface->name, OBJ_SEARCH_KEY) : NULL,
+			ao2_cleanup);
+
+	if (wizard) {
+		struct sorcery_wizard_observer *cb;
+
+		cb = ao2_alloc(sizeof(*cb), NULL);
+		if (!cb) {
+			return -1;
+		}
+
+		cb->callbacks = callbacks;
+		ao2_link(wizard->observers, cb);
+		ao2_ref(cb, -1);
+
+		return 0;
+	}
+
+	return -1;
+}
+
+void ast_sorcery_wizard_observer_remove(struct ast_sorcery_wizard *interface,
+	const struct ast_sorcery_wizard_observer *callbacks)
+{
+	RAII_VAR(struct ast_sorcery_internal_wizard *, wizard,
+		interface ? ao2_find(wizards, interface->name, OBJ_SEARCH_KEY) : NULL,
+			ao2_cleanup);
+
+	if (wizard) {
+		ao2_callback(wizard->observers, OBJ_NODATA | OBJ_UNLINK, sorcery_generic_observer_remove, (void *)callbacks);
 	}
 }
 
@@ -509,6 +687,10 @@ static void sorcery_destructor(void *obj)
 {
 	struct ast_sorcery *sorcery = obj;
 
+	if (sorcery->observers) {
+		NOTIFY_GLOBAL_OBSERVERS(observers, instance_destroying, sorcery->module_name, sorcery);
+	}
+	ao2_cleanup(sorcery->observers);
 	ao2_cleanup(sorcery->types);
 }
 
@@ -582,6 +764,12 @@ struct ast_sorcery *__ast_sorcery_open(const char *module_name)
 		goto done;
 	}
 
+	if (!(sorcery->observers = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_RWLOCK, 0, NULL, NULL))) {
+		ao2_ref(sorcery, -1);
+		sorcery = NULL;
+		goto done;
+	}
+
 	strcpy(sorcery->module_name, module_name); /* Safe */
 
 	if (__ast_sorcery_apply_config(sorcery, module_name, module_name) == AST_SORCERY_APPLY_FAIL) {
@@ -592,6 +780,8 @@ struct ast_sorcery *__ast_sorcery_open(const char *module_name)
 	}
 
 	ao2_link_flags(instances, sorcery, OBJ_NOLOCK);
+
+	NOTIFY_GLOBAL_OBSERVERS(observers, instance_created, module_name, sorcery);
 
 done:
 	ao2_unlock(instances);
@@ -685,22 +875,22 @@ static void sorcery_object_wizard_destructor(void *obj)
 	struct ast_sorcery_object_wizard *object_wizard = obj;
 
 	if (object_wizard->data) {
-		object_wizard->wizard->close(object_wizard->data);
+		object_wizard->wizard->callbacks.close(object_wizard->data);
 	}
 
 	if (object_wizard->wizard) {
-		ast_module_unref(object_wizard->wizard->module);
+		ast_module_unref(object_wizard->wizard->callbacks.module);
 	}
 
 	ao2_cleanup(object_wizard->wizard);
 }
 
 /*! \brief Internal function which creates an object type and adds a wizard mapping */
-static enum ast_sorcery_apply_result sorcery_apply_wizard_mapping(struct ast_sorcery *sorcery,
+enum ast_sorcery_apply_result __ast_sorcery_apply_wizard_mapping(struct ast_sorcery *sorcery,
 		const char *type, const char *module, const char *name, const char *data, unsigned int caching)
 {
 	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
-	RAII_VAR(struct ast_sorcery_wizard *, wizard, ao2_find(wizards, name, OBJ_KEY), ao2_cleanup);
+	RAII_VAR(struct ast_sorcery_internal_wizard *, wizard, ao2_find(wizards, name, OBJ_KEY), ao2_cleanup);
 	RAII_VAR(struct ast_sorcery_object_wizard *, object_wizard, ao2_alloc(sizeof(*object_wizard), sorcery_object_wizard_destructor), ao2_cleanup);
 	int created = 0;
 
@@ -721,17 +911,17 @@ static enum ast_sorcery_apply_result sorcery_apply_wizard_mapping(struct ast_sor
 		found = ao2_find(object_type->wizards, wizard, OBJ_SEARCH_OBJECT);
 		if (found) {
 			ast_debug(1, "Wizard %s already applied to object type %s\n",
-					wizard->name, object_type->name);
+					wizard->callbacks.name, object_type->name);
 			ao2_cleanup(found);
 			return AST_SORCERY_APPLY_DUPLICATE;
 		}
 	}
 
-	if (wizard->open && !(object_wizard->data = wizard->open(data))) {
+	if (wizard->callbacks.open && !(object_wizard->data = wizard->callbacks.open(data))) {
 		return AST_SORCERY_APPLY_FAIL;
 	}
 
-	ast_module_ref(wizard->module);
+	ast_module_ref(wizard->callbacks.module);
 
 	object_wizard->wizard = ao2_bump(wizard);
 	object_wizard->caching = caching;
@@ -741,6 +931,9 @@ static enum ast_sorcery_apply_result sorcery_apply_wizard_mapping(struct ast_sor
 	if (created) {
 		ao2_link(sorcery->types, object_type);
 	}
+
+	NOTIFY_INSTANCE_OBSERVERS(sorcery->observers, wizard_mapped,
+		sorcery->module_name, sorcery, type, &wizard->callbacks, data, object_wizard->data);
 
 	return AST_SORCERY_APPLY_SUCCESS;
 }
@@ -780,7 +973,7 @@ enum ast_sorcery_apply_result  __ast_sorcery_apply_config(struct ast_sorcery *so
 		}
 
 		/* Any error immediately causes us to stop */
-		if (sorcery_apply_wizard_mapping(sorcery, type, module, wizard, data, caching) == AST_SORCERY_APPLY_FAIL) {
+		if (__ast_sorcery_apply_wizard_mapping(sorcery, type, module, wizard, data, caching) == AST_SORCERY_APPLY_FAIL) {
 			res = AST_SORCERY_APPLY_FAIL;
 			break;
 		}
@@ -800,7 +993,7 @@ enum ast_sorcery_apply_result __ast_sorcery_apply_default(struct ast_sorcery *so
 		return AST_SORCERY_APPLY_DEFAULT_UNNECESSARY;
 	}
 
-	return sorcery_apply_wizard_mapping(sorcery, type, module, name, data, 0);
+	return __ast_sorcery_apply_wizard_mapping(sorcery, type, module, name, data, 0);
 }
 
 static int sorcery_extended_config_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
@@ -848,6 +1041,9 @@ int __ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type,
 	if (ast_sorcery_object_fields_register(sorcery, type, "^@", sorcery_extended_config_handler, sorcery_extended_fields_handler)) {
 		return -1;
 	}
+
+	NOTIFY_INSTANCE_OBSERVERS(sorcery->observers, object_type_registered,
+		sorcery->module_name, sorcery, type);
 
 	return 0;
 }
@@ -988,10 +1184,16 @@ static int sorcery_wizard_load(void *obj, void *arg, int flags)
 		return 0;
 	}
 
-	load = !details->reload ? wizard->wizard->load : wizard->wizard->reload;
+	load = !details->reload ? wizard->wizard->callbacks.load : wizard->wizard->callbacks.reload;
 
 	if (load) {
+		NOTIFY_WIZARD_OBSERVERS(wizard->wizard->observers, wizard_loading,
+			wizard->wizard->callbacks.name, &wizard->wizard->callbacks, details->type, details->reload);
+
 		load(wizard->data, details->sorcery, details->type);
+
+		NOTIFY_WIZARD_OBSERVERS(wizard->wizard->observers, wizard_loaded,
+			wizard->wizard->callbacks.name, &wizard->wizard->callbacks, details->type, details->reload);
 	}
 
 	return 0;
@@ -1055,6 +1257,10 @@ static int sorcery_object_load(void *obj, void *arg, int flags)
 	struct sorcery_load_details *details = arg;
 
 	details->type = type->name;
+
+	NOTIFY_INSTANCE_OBSERVERS(details->sorcery->observers, object_type_loading,
+		details->sorcery->module_name, details->sorcery, type->name, details->reload);
+
 	ao2_callback(type->wizards, OBJ_NODATA, sorcery_wizard_load, details);
 
 	if (ao2_container_count(type->observers)) {
@@ -1064,6 +1270,9 @@ static int sorcery_object_load(void *obj, void *arg, int flags)
 			ao2_cleanup(invocation);
 		}
 	}
+
+	NOTIFY_INSTANCE_OBSERVERS(details->sorcery->observers, object_type_loaded,
+		details->sorcery->module_name, details->sorcery, type->name, details->reload);
 
 	return 0;
 }
@@ -1075,7 +1284,13 @@ void ast_sorcery_load(const struct ast_sorcery *sorcery)
 		.reload = 0,
 	};
 
+	NOTIFY_INSTANCE_OBSERVERS(sorcery->observers, instance_loading,
+		sorcery->module_name, sorcery, 0);
+
 	ao2_callback(sorcery->types, OBJ_NODATA, sorcery_object_load, &details);
+
+	NOTIFY_INSTANCE_OBSERVERS(sorcery->observers, instance_loaded,
+		sorcery->module_name, sorcery, 0);
 }
 
 void ast_sorcery_load_object(const struct ast_sorcery *sorcery, const char *type)
@@ -1100,7 +1315,14 @@ void ast_sorcery_reload(const struct ast_sorcery *sorcery)
 		.reload = 1,
 	};
 
+	NOTIFY_INSTANCE_OBSERVERS(sorcery->observers, instance_loading,
+		sorcery->module_name, sorcery, 1);
+
 	ao2_callback(sorcery->types, OBJ_NODATA, sorcery_object_load, &details);
+
+	NOTIFY_INSTANCE_OBSERVERS(sorcery->observers, instance_loaded,
+		sorcery->module_name, sorcery, 1);
+
 }
 
 void ast_sorcery_reload_object(const struct ast_sorcery *sorcery, const char *type)
@@ -1304,20 +1526,6 @@ int ast_sorcery_objectset_apply(const struct ast_sorcery *sorcery, void *object,
 	return res;
 }
 
-static const struct ast_variable *sorcery_find_field(const struct ast_variable *fields, const char *name)
-{
-	const struct ast_variable *field;
-
-	/* Search the linked list of fields to find the correct one */
-	for (field = fields; field; field = field->next) {
-		if (!strcmp(field->name, name)) {
-			return field;
-		}
-	}
-
-	return NULL;
-}
-
 int ast_sorcery_changeset_create(const struct ast_variable *original, const struct ast_variable *modified, struct ast_variable **changes)
 {
 	const struct ast_variable *field;
@@ -1331,9 +1539,9 @@ int ast_sorcery_changeset_create(const struct ast_variable *original, const stru
 	}
 
 	for (field = modified; field; field = field->next) {
-		const struct ast_variable *old = sorcery_find_field(original, field->name);
+		const char *old_value = ast_variable_find_in_list(original, field->name);
 
-		if (!old || strcmp(old->value, field->value)) {
+		if (!old_value || strcmp(old_value, field->value)) {
 			struct ast_variable *tmp;
 
 			if (!(tmp = ast_variable_new(field->name, field->value, ""))) {
@@ -1477,11 +1685,11 @@ static int sorcery_cache_create(void *obj, void *arg, int flags)
 	const struct ast_sorcery_object_wizard *object_wizard = obj;
 	const struct sorcery_details *details = arg;
 
-	if (!object_wizard->caching || !object_wizard->wizard->create) {
+	if (!object_wizard->caching || !object_wizard->wizard->callbacks.create) {
 		return 0;
 	}
 
-	object_wizard->wizard->create(details->sorcery, object_wizard->data, details->obj);
+	object_wizard->wizard->callbacks.create(details->sorcery, object_wizard->data, details->obj);
 
 	return 0;
 }
@@ -1500,8 +1708,8 @@ void *ast_sorcery_retrieve_by_id(const struct ast_sorcery *sorcery, const char *
 
 	i = ao2_iterator_init(object_type->wizards, 0);
 	for (; (wizard = ao2_iterator_next(&i)); ao2_ref(wizard, -1)) {
-		if (wizard->wizard->retrieve_id &&
-			!(object = wizard->wizard->retrieve_id(sorcery, wizard->data, object_type->name, id))) {
+		if (wizard->wizard->callbacks.retrieve_id &&
+			!(object = wizard->wizard->callbacks.retrieve_id(sorcery, wizard->data, object_type->name, id))) {
 			continue;
 		}
 
@@ -1542,12 +1750,12 @@ void *ast_sorcery_retrieve_by_fields(const struct ast_sorcery *sorcery, const ch
 	i = ao2_iterator_init(object_type->wizards, 0);
 	for (; (wizard = ao2_iterator_next(&i)); ao2_ref(wizard, -1)) {
 		if ((flags & AST_RETRIEVE_FLAG_MULTIPLE)) {
-			if (wizard->wizard->retrieve_multiple) {
-				wizard->wizard->retrieve_multiple(sorcery, wizard->data, object_type->name, object, fields);
+			if (wizard->wizard->callbacks.retrieve_multiple) {
+				wizard->wizard->callbacks.retrieve_multiple(sorcery, wizard->data, object_type->name, object, fields);
 			}
-		} else if (fields && wizard->wizard->retrieve_fields) {
-			if (wizard->wizard->retrieve_fields) {
-				object = wizard->wizard->retrieve_fields(sorcery, wizard->data, object_type->name, fields);
+		} else if (fields && wizard->wizard->callbacks.retrieve_fields) {
+			if (wizard->wizard->callbacks.retrieve_fields) {
+				object = wizard->wizard->callbacks.retrieve_fields(sorcery, wizard->data, object_type->name, fields);
 			}
 		}
 
@@ -1583,11 +1791,11 @@ struct ao2_container *ast_sorcery_retrieve_by_regex(const struct ast_sorcery *so
 
 	i = ao2_iterator_init(object_type->wizards, 0);
 	for (; (wizard = ao2_iterator_next(&i)); ao2_ref(wizard, -1)) {
-		if (!wizard->wizard->retrieve_regex) {
+		if (!wizard->wizard->callbacks.retrieve_regex) {
 			continue;
 		}
 
-		wizard->wizard->retrieve_regex(sorcery, wizard->data, object_type->name, objects, regex);
+		wizard->wizard->callbacks.retrieve_regex(sorcery, wizard->data, object_type->name, objects, regex);
 	}
 	ao2_iterator_destroy(&i);
 
@@ -1600,13 +1808,13 @@ static int sorcery_wizard_create(void *obj, void *arg, int flags)
 	const struct ast_sorcery_object_wizard *object_wizard = obj;
 	const struct sorcery_details *details = arg;
 
-	if (!object_wizard->wizard->create) {
+	if (!object_wizard->wizard->callbacks.create) {
 		ast_assert(0);
 		ast_log(LOG_ERROR, "Sorcery wizard '%s' doesn't contain a 'create' virtual function.\n",
-			object_wizard->wizard->name);
+			object_wizard->wizard->callbacks.name);
 		return 0;
 	}
-	return (!object_wizard->caching && !object_wizard->wizard->create(details->sorcery, object_wizard->data, details->obj)) ? CMP_MATCH | CMP_STOP : 0;
+	return (!object_wizard->caching && !object_wizard->wizard->callbacks.create(details->sorcery, object_wizard->data, details->obj)) ? CMP_MATCH | CMP_STOP : 0;
 }
 
 /*! \brief Internal callback function which notifies an individual observer that an object has been created */
@@ -1687,7 +1895,7 @@ static int sorcery_wizard_update(void *obj, void *arg, int flags)
 	const struct ast_sorcery_object_wizard *object_wizard = obj;
 	const struct sorcery_details *details = arg;
 
-	return (object_wizard->wizard->update && !object_wizard->wizard->update(details->sorcery, object_wizard->data, details->obj) &&
+	return (object_wizard->wizard->callbacks.update && !object_wizard->wizard->callbacks.update(details->sorcery, object_wizard->data, details->obj) &&
 		!object_wizard->caching) ? CMP_MATCH | CMP_STOP : 0;
 }
 
@@ -1746,7 +1954,7 @@ static int sorcery_wizard_delete(void *obj, void *arg, int flags)
 	const struct ast_sorcery_object_wizard *object_wizard = obj;
 	const struct sorcery_details *details = arg;
 
-	return (object_wizard->wizard->delete && !object_wizard->wizard->delete(details->sorcery, object_wizard->data, details->obj) &&
+	return (object_wizard->wizard->callbacks.delete && !object_wizard->wizard->callbacks.delete(details->sorcery, object_wizard->data, details->obj) &&
 		!object_wizard->caching) ? CMP_MATCH | CMP_STOP : 0;
 }
 

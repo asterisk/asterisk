@@ -381,10 +381,10 @@ int __ast_test_status_update(const char *file, const char *func, int line, struc
  * \param test Currently executing test
  * \param condition Boolean condition to check.
  */
-#define ast_test_validate(test, condition)				\
+#define ast_test_validate(test, condition, ...)				\
 	do {								\
 		if (!(condition)) {					\
-			__ast_test_status_update(__FILE__, __PRETTY_FUNCTION__, __LINE__, (test), "Condition failed: %s\n", #condition); \
+			__ast_test_status_update(__FILE__, __PRETTY_FUNCTION__, __LINE__, (test), "%s: %s\n", strlen(#__VA_ARGS__) ? #__VA_ARGS__ : "Condition failed", #condition); \
 			return AST_TEST_FAIL;				\
 		}							\
 	} while(0)

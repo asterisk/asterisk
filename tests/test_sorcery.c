@@ -3037,6 +3037,309 @@ AST_TEST_DEFINE(object_field_registered)
 	return AST_TEST_PASS;
 }
 
+static int event_observed;
+
+static void wizard_observer(const char *name, const struct ast_sorcery_wizard *wizard)
+{
+	if (!strcmp(wizard->name, "test")) {
+		event_observed = 1;
+	}
+}
+
+static void instance_observer(const char *name, struct ast_sorcery *sorcery)
+{
+	if (!strcmp(name, "test_sorcery")) {
+		event_observed = 1;
+	}
+}
+
+AST_TEST_DEFINE(global_observation)
+{
+	RAII_VAR(struct ast_sorcery_wizard *, wizard, &test_wizard, ast_sorcery_wizard_unregister);
+	RAII_VAR(struct ast_sorcery *, sorcery, NULL, ast_sorcery_unref);
+	const struct ast_sorcery_global_observer observer = {
+		.wizard_registered = wizard_observer,
+		.instance_created = instance_observer,
+		.wizard_unregistering = wizard_observer,
+		.instance_destroying = instance_observer,
+	};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "global_observation";
+		info->category = "/main/sorcery/";
+		info->summary = "global sorcery observation test";
+		info->description =
+			"Test observation of sorcery (global)";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	ast_sorcery_global_observer_add(&observer);
+
+	event_observed = 0;
+	ast_sorcery_wizard_register(wizard);
+	ast_test_validate(test, (event_observed == 1), "Wizard registered failed");
+
+	event_observed = 0;
+	ast_sorcery_wizard_unregister(wizard);
+	ast_test_validate(test, (event_observed == 1), "Wizard unregistered failed");
+
+	event_observed = 0;
+	sorcery = ast_sorcery_open();
+	ast_test_validate(test, (event_observed == 1), "Instance created failed");
+
+	event_observed = 0;
+	ast_sorcery_unref(sorcery);
+	sorcery = NULL;
+	ast_test_validate(test, (event_observed == 1), "Instance destroyed failed");
+
+	ast_sorcery_global_observer_remove(&observer);
+	event_observed = 0;
+	ast_sorcery_wizard_register(&test_wizard);
+	ast_test_validate(test, (event_observed == 0), "Observer removed failed");
+
+	return AST_TEST_PASS;
+}
+
+static void instance_loaded_observer(const char *name, const struct ast_sorcery *sorcery,
+	int reloaded)
+{
+	if (!strcmp(name, "test_sorcery") && !reloaded) {
+		event_observed++;
+	}
+}
+
+static void instance_reloaded_observer(const char *name,
+	const struct ast_sorcery *sorcery, int reloaded)
+{
+	if (!strcmp(name, "test_sorcery") && reloaded) {
+		event_observed++;
+	}
+}
+
+static void wizard_mapped_observer(const char *name, struct ast_sorcery *sorcery,
+	const char *object_type, struct ast_sorcery_wizard *wizard,
+	const char *wizard_args, void *wizard_data)
+{
+	if (!strcmp(name, "test_sorcery") && !strcmp(object_type, "test_object_type")
+		&& !strcmp(wizard->name, "memory") && !strcmp(wizard_args, "memwiz")) {
+		event_observed++;
+	}
+}
+
+static void object_type_registered_observer(const char *name,
+	struct ast_sorcery *sorcery, const char *object_type)
+{
+	if (!strcmp(name, "test_sorcery") && !strcmp(object_type, "test_object_type")) {
+		event_observed++;
+	}
+}
+
+static void object_type_loaded_observer(const char *name,
+	const struct ast_sorcery *sorcery, const char *object_type, int reloaded)
+{
+	if (!strcmp(name, "test_sorcery") && !strcmp(object_type, "test_object_type")
+		&& !reloaded) {
+		event_observed++;
+	}
+}
+
+static void object_type_reloaded_observer(const char *name,
+	const struct ast_sorcery *sorcery, const char *object_type, int reloaded)
+{
+	if (!strcmp(name, "test_sorcery") && !strcmp(object_type, "test_object_type")
+		&& reloaded) {
+		event_observed++;
+	}
+}
+
+AST_TEST_DEFINE(instance_observation)
+{
+	RAII_VAR(struct ast_sorcery *, sorcery, NULL, ast_sorcery_unref);
+	struct ast_sorcery_instance_observer observer = {
+		.wizard_mapped = wizard_mapped_observer,
+		.object_type_registered = object_type_registered_observer,
+	};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "instance_observation";
+		info->category = "/main/sorcery/";
+		info->summary = "sorcery instance observation test";
+		info->description =
+			"Test observation of sorcery (instance)";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	/* Test instance load */
+	if (!(sorcery = ast_sorcery_open())) {
+		ast_test_status_update(test, "Failed to open a sorcery instance\n");
+		return AST_TEST_FAIL;
+	}
+	observer.instance_loading = instance_loaded_observer;
+	observer.instance_loaded = instance_loaded_observer;
+	ast_sorcery_instance_observer_add(sorcery, &observer);
+	event_observed = 0;
+	ast_sorcery_load(sorcery);
+	ast_test_validate(test, (event_observed == 2), "Instance loaded failed");
+	event_observed = 0;
+	ast_sorcery_reload(sorcery);
+	ast_test_validate(test, (event_observed == 0), "Instance reloaded failed");
+
+	/* Test instance reload */
+	ast_sorcery_instance_observer_remove(sorcery, &observer);
+	observer.instance_loading = instance_reloaded_observer;
+	observer.instance_loaded = instance_reloaded_observer;
+	ast_sorcery_instance_observer_add(sorcery, &observer);
+	event_observed = 0;
+	ast_sorcery_load(sorcery);
+	ast_test_validate(test, (event_observed == 0), "Instance loaded failed");
+	event_observed = 0;
+	ast_sorcery_reload(sorcery);
+	ast_test_validate(test, (event_observed == 2), "Instance reloaded failed");
+
+	/* Test wizard mapping */
+	event_observed = 0;
+	ast_sorcery_apply_default(sorcery, "test_object_type", "memory", "memwiz");
+	ast_test_validate(test, (event_observed == 1), "Wizard mapping failed");
+
+	/* Test object type register */
+	event_observed = 0;
+	ast_sorcery_internal_object_register(sorcery, "test_object_type",
+		test_sorcery_object_alloc, NULL, NULL);
+	ast_test_validate(test, (event_observed == 1), "Object type registered failed");
+
+	/* Test object type load */
+	ast_sorcery_instance_observer_remove(sorcery, &observer);
+	observer.object_type_loading = object_type_loaded_observer;
+	observer.object_type_loaded = object_type_loaded_observer;
+	ast_sorcery_instance_observer_add(sorcery, &observer);
+	event_observed = 0;
+	ast_sorcery_load_object(sorcery, "test_object_type");
+	ast_test_validate(test, (event_observed == 2), "Object type loaded failed");
+	event_observed = 0;
+	ast_sorcery_reload_object(sorcery, "test_object_type");
+	ast_test_validate(test, (event_observed == 0), "Object type reloaded failed");
+
+	/* Test object type reload */
+	ast_sorcery_instance_observer_remove(sorcery, &observer);
+	observer.object_type_loading = object_type_reloaded_observer;
+	observer.object_type_loaded = object_type_reloaded_observer;
+	ast_sorcery_instance_observer_add(sorcery, &observer);
+	event_observed = 0;
+	ast_sorcery_load_object(sorcery, "test_object_type");
+	ast_test_validate(test, (event_observed == 0), "Object type loaded failed");
+	event_observed = 0;
+	ast_sorcery_reload_object(sorcery, "test_object_type");
+	ast_test_validate(test, (event_observed == 2), "Object type reloaded failed");
+
+	ast_sorcery_instance_observer_remove(sorcery, &observer);
+	event_observed = 0;
+	ast_sorcery_apply_default(sorcery, "test_object_type", "memory", "memwiz");
+	ast_test_validate(test, (event_observed == 0), "Observer remove failed");
+
+	return AST_TEST_PASS;
+}
+
+static void wizard_loaded_observer(const char *name,
+	const struct ast_sorcery_wizard *wizard, const char *object_type, int reloaded)
+{
+	if (!strcmp(name, "test") && !strcmp(object_type, "test_object_type")
+		&& !reloaded) {
+		event_observed++;
+	}
+}
+
+static void sorcery_test_load(void *data, const struct ast_sorcery *sorcery, const char *type)
+{
+	return;
+}
+
+static void wizard_reloaded_observer(const char *name,
+	const struct ast_sorcery_wizard *wizard, const char *object_type, int reloaded)
+{
+	if (!strcmp(name, "test") && !strcmp(object_type, "test_object_type")
+		&& reloaded) {
+		event_observed++;
+	}
+}
+
+AST_TEST_DEFINE(wizard_observation)
+{
+	RAII_VAR(struct ast_sorcery *, sorcery, NULL, ast_sorcery_unref);
+	RAII_VAR(struct ast_sorcery_wizard *, wizard, &test_wizard, ast_sorcery_wizard_unregister);
+	struct ast_sorcery_wizard_observer observer = {
+		.wizard_loading = wizard_loaded_observer,
+		.wizard_loaded = wizard_loaded_observer,
+	};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "wizard_observation";
+		info->category = "/main/sorcery/";
+		info->summary = "sorcery wizard observation test";
+		info->description =
+			"Test observation of sorcery (wizard)";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	wizard->load = sorcery_test_load;
+	wizard->reload = sorcery_test_load;
+
+	/* Test wizard observer remove and wizard unregister */
+	ast_sorcery_wizard_register(wizard);
+	ast_sorcery_wizard_observer_add(wizard, &observer);
+	ast_sorcery_wizard_observer_remove(wizard, &observer);
+	event_observed = 0;
+	ast_sorcery_wizard_unregister(wizard);
+	ast_test_validate(test, (event_observed == 0), "Wizard observer removed failed");
+
+	/* Setup for test loaded and reloaded */
+	if (!(sorcery = ast_sorcery_open())) {
+		ast_test_status_update(test, "Failed to open a sorcery instance\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_sorcery_wizard_register(wizard);
+	ast_sorcery_apply_default(sorcery, "test_object_type", "test", NULL);
+	ast_sorcery_internal_object_register(sorcery, "test_object_type",
+		test_sorcery_object_alloc, NULL, NULL);
+
+	/* Test wizard loading and loaded */
+	ast_sorcery_wizard_observer_add(wizard, &observer);
+
+	event_observed = 0;
+	ast_sorcery_load_object(sorcery, "test_object_type");
+	ast_test_validate(test, (event_observed == 2), "Wizard loaded failed");
+
+	event_observed = 0;
+	ast_sorcery_reload_object(sorcery, "test_object_type");
+	ast_sorcery_wizard_observer_remove(wizard, &observer);
+	ast_test_validate(test, (event_observed == 0), "Wizard reloaded failed");
+
+	/* Test wizard reloading and reloaded */
+	observer.wizard_loading = wizard_reloaded_observer;
+	observer.wizard_loaded = wizard_reloaded_observer;
+	ast_sorcery_wizard_observer_add(wizard, &observer);
+
+	event_observed = 0;
+	ast_sorcery_load_object(sorcery, "test_object_type");
+	ast_test_validate(test, (event_observed == 0), "Wizard loaded failed");
+
+	event_observed = 0;
+	ast_sorcery_reload_object(sorcery, "test_object_type");
+	ast_sorcery_wizard_observer_remove(wizard, &observer);
+	ast_test_validate(test, (event_observed == 2), "Wizard reloaded failed");
+
+	return AST_TEST_PASS;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(wizard_registration);
@@ -3084,6 +3387,9 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(configuration_file_wizard_retrieve_multiple_all);
 	AST_TEST_UNREGISTER(dialplan_function);
 	AST_TEST_UNREGISTER(object_field_registered);
+	AST_TEST_UNREGISTER(global_observation);
+	AST_TEST_UNREGISTER(instance_observation);
+	AST_TEST_UNREGISTER(wizard_observation);
 
 	return 0;
 }
@@ -3135,6 +3441,9 @@ static int load_module(void)
 	AST_TEST_REGISTER(configuration_file_wizard_retrieve_multiple_all);
 	AST_TEST_REGISTER(dialplan_function);
 	AST_TEST_REGISTER(object_field_registered);
+	AST_TEST_REGISTER(global_observation);
+	AST_TEST_REGISTER(instance_observation);
+	AST_TEST_REGISTER(wizard_observation);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
