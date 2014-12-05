@@ -141,8 +141,9 @@ enum ast_sorcery_field_handler_flags {
 };
 
 
-/*! \brief Forward declaration for the sorcery main structure */
+/*! \brief Forward declaration for the sorcery main structure and wizard structure */
 struct ast_sorcery;
+struct ast_sorcery_wizard;
 
 /*!
  * \brief A callback function for translating a value into a string
@@ -214,6 +215,62 @@ typedef int (*sorcery_copy_handler)(const void *src, void *dst);
  * \param -1 failure
  */
 typedef int (*sorcery_diff_handler)(const void *original, const void *modified, struct ast_variable **changes);
+
+/*! \brief Interface for the global sorcery observer */
+struct ast_sorcery_global_observer {
+	/*! \brief Callback after an instance is created */
+	void (*instance_created)(const char *name, struct ast_sorcery *sorcery);
+
+	/*! \brief Callback after an wizard is registered */
+	void (*wizard_registered)(const char *name,
+		const struct ast_sorcery_wizard *wizard);
+
+	/*! \brief Callback before an instance is destroyed */
+	void (*instance_destroying)(const char *name, struct ast_sorcery *sorcery);
+
+	/*! \brief Callback before a wizard is unregistered */
+	void (*wizard_unregistering)(const char *name,
+		const struct ast_sorcery_wizard *wizard);
+};
+
+/*! \brief Interface for the sorcery instance observer */
+struct ast_sorcery_instance_observer {
+	/*! \brief Callback before instance is loaded/reloaded */
+	void (*instance_loading)(const char *name, const struct ast_sorcery *sorcery,
+		int reloaded);
+
+	/*! \brief Callback after instance is loaded/reloaded */
+	void (*instance_loaded)(const char *name, const struct ast_sorcery *sorcery,
+		int reloaded);
+
+	/*! \brief Callback after a wizard is mapped to an object_type */
+	void (*wizard_mapped)(const char *name, struct ast_sorcery *sorcery,
+		const char *object_type, struct ast_sorcery_wizard *wizard,
+		const char *wizard_args, void *wizard_data);
+
+	/*! \brief Callback after any object_type is registered */
+	void (*object_type_registered)(const char *name, struct ast_sorcery *sorcery,
+		const char *object_type);
+
+	/*! \brief Callback before any object_type is loaded/reloaded */
+	void (*object_type_loading)(const char *name, const struct ast_sorcery *sorcery,
+		const char *object_type, int reloaded);
+
+	/*! \brief Callback after any object_type is loaded/reloaded */
+	void (*object_type_loaded)(const char *name, const struct ast_sorcery *sorcery,
+		const char *object_type, int reloaded);
+};
+
+/*! \brief Interface for the sorcery wizard observer */
+struct ast_sorcery_wizard_observer {
+	/*! \brief Callback before a wizard is loaded/reloaded for any type */
+	void (*wizard_loading)(const char *name, const struct ast_sorcery_wizard *wizard,
+		const char *object_type, int reloaded);
+
+	/*! \brief Callback after a wizard is loaded/reloaded for any type */
+	void (*wizard_loaded)(const char *name, const struct ast_sorcery_wizard *wizard,
+		const char *object_type, int reloaded);
+};
 
 /*! \brief Interface for a sorcery wizard */
 struct ast_sorcery_wizard {
@@ -405,6 +462,40 @@ enum ast_sorcery_apply_result __ast_sorcery_apply_default(struct ast_sorcery *so
 
 #define ast_sorcery_apply_default(sorcery, type, name, data) \
 	__ast_sorcery_apply_default((sorcery), (type), AST_MODULE, (name), (data))
+
+
+/*!
+ * \brief Apply additional object wizard mappings
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param type Type of object to apply to
+ * \param module The name of the module, typically AST_MODULE
+ * \param name Name of the wizard to use
+ * \param data Data to be passed to wizard
+ * \param caching Wizard should cache
+ *
+ * \return What occurred when applying the mapping
+ *
+ * \note This should be called *after* applying default mappings
+ */
+enum ast_sorcery_apply_result __ast_sorcery_apply_wizard_mapping(struct ast_sorcery *sorcery,
+		const char *type, const char *module, const char *name, const char *data, unsigned int caching);
+
+/*!
+ * \brief Apply additional object wizard mappings
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param type Type of object to apply to
+ * \param module The name of the module, typically AST_MODULE
+ * \param name Name of the wizard to use
+ * \param data Data to be passed to wizard
+ *
+ * \return What occurred when applying the mapping
+ *
+ * \note This should be called *after* applying default mappings
+ */
+#define ast_sorcery_apply_wizard_mapping(sorcery, type, name, data, caching) \
+	__ast_sorcery_apply_wizard_mapping((sorcery), (type), AST_MODULE, (name), (data), (caching));
 
 /*!
  * \brief Register an object type
@@ -792,6 +883,89 @@ void *ast_sorcery_copy(const struct ast_sorcery *sorcery, const void *object);
  * \note While the objects must be of the same type they do not have to be the same object
  */
 int ast_sorcery_diff(const struct ast_sorcery *sorcery, const void *original, const void *modified, struct ast_variable **changes);
+
+/*!
+ * \brief Add a global observer to sorcery
+ *
+ * \param callbacks Implementation of the global observer interface
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ *
+ * \note You must be ready to accept observer invocations before this function is called
+ */
+int ast_sorcery_global_observer_add(const struct ast_sorcery_global_observer *callbacks);
+
+/*!
+ * \brief Remove a global observer from sorcery.
+ *
+ * A global observer is notified...
+ * After a new wizard is registered.
+ * After a new sorcery instance is opened.
+ * Before an instance is destroyed.
+ * Before a wizard is unregistered.
+ *
+ * \param callbacks Implementation of the global observer interface
+ */
+void ast_sorcery_global_observer_remove(const struct ast_sorcery_global_observer *callbacks);
+
+/*!
+ * \brief Add an observer to a sorcery instance
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param callbacks Implementation of the instance observer interface
+ *
+ * An instance observer is notified...
+ * Before an instance is loaded or reloaded.
+ * After an instance is loaded or reloaded.
+ * After a wizard is mapped to an object type.
+ * After an object type is registered.
+ * Before an object type is loaded or reloaded.
+ * After an object type is loaded or reloaded.
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ *
+ * \note You must be ready to accept observer invocations before this function is called
+ */
+int ast_sorcery_instance_observer_add(struct ast_sorcery *sorcery,
+	const struct ast_sorcery_instance_observer *callbacks);
+
+/*!
+ * \brief Remove an observer from a sorcery instance
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param callbacks Implementation of the instance observer interface
+ */
+void ast_sorcery_instance_observer_remove(struct ast_sorcery *sorcery,
+	const struct ast_sorcery_instance_observer *callbacks);
+
+/*!
+ * \brief Add an observer to a sorcery wizard
+ *
+ * \param sorcery Pointer to a previously registered wizard structure
+ * \param callbacks Implementation of the wizard observer interface
+ *
+ * A wizard observer is notified...
+ * Before a wizard is loaded or reloaded.
+ * After a wizard is loaded or reloaded.
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ *
+ * \note You must be ready to accept observer invocations before this function is called
+ */
+int ast_sorcery_wizard_observer_add(struct ast_sorcery_wizard *wizard,
+	const struct ast_sorcery_wizard_observer *callbacks);
+
+/*!
+ * \brief Remove an observer from a sorcery wizard.
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param callbacks Implementation of the wizard observer interface
+ */
+void ast_sorcery_wizard_observer_remove(struct ast_sorcery_wizard *wizard,
+	const struct ast_sorcery_wizard_observer *callbacks);
 
 /*!
  * \brief Add an observer to a specific object type
