@@ -5775,21 +5775,8 @@ static enum ast_device_state meetmestate(const char *data)
 	return AST_DEVICE_INUSE;
 }
 
-static void load_config_meetme(void)
+static void meetme_set_defaults(void)
 {
-	struct ast_config *cfg;
-	struct ast_flags config_flags = { 0 };
-	const char *val;
-
-	if (!(cfg = ast_config_load(CONFIG_FILE_NAME, config_flags))) {
-		return;
-	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
-		ast_log(LOG_ERROR, "Config file " CONFIG_FILE_NAME " is in an invalid format.  Aborting.\n");
-		return;
-	}
-
-	audio_buffers = DEFAULT_AUDIO_BUFFERS;
-
 	/*  Scheduling support is off by default */
 	rt_schedule = 0;
 	fuzzystart = 0;
@@ -5798,7 +5785,29 @@ static void load_config_meetme(void)
 	extendby = 0;
 
 	/*  Logging of participants defaults to ON for compatibility reasons */
-	rt_log_members = 1;  
+	rt_log_members = 1;
+}
+
+static void load_config_meetme(int reload)
+{
+	struct ast_config *cfg;
+	struct ast_flags config_flags = { 0 };
+	const char *val;
+
+	if (!reload) {
+		meetme_set_defaults();
+	}
+
+	if (!(cfg = ast_config_load(CONFIG_FILE_NAME, config_flags))) {
+		return;
+	} else if (cfg == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Config file " CONFIG_FILE_NAME " is in an invalid format.  Aborting.\n");
+		return;
+	}
+
+	if (reload) {
+		meetme_set_defaults();
+	}
 
 	if ((val = ast_variable_retrieve(cfg, "general", "audiobuffers"))) {
 		if ((sscanf(val, "%30d", &audio_buffers) != 1)) {
@@ -8005,7 +8014,7 @@ static struct ast_custom_function meetme_info_acf = {
 
 static int load_config(int reload)
 {
-	load_config_meetme();
+	load_config_meetme(reload);
 	return sla_load_config(reload);
 }
 
