@@ -938,6 +938,16 @@ int ast_channel_snapshot_caller_id_equal(
 		strcmp(old_snapshot->caller_name, new_snapshot->caller_name) == 0;
 }
 
+int ast_channel_snapshot_connected_line_equal(
+	const struct ast_channel_snapshot *old_snapshot,
+	const struct ast_channel_snapshot *new_snapshot)
+{
+	ast_assert(old_snapshot != NULL);
+	ast_assert(new_snapshot != NULL);
+	return strcmp(old_snapshot->connected_number, new_snapshot->connected_number) == 0 &&
+		strcmp(old_snapshot->connected_name, new_snapshot->connected_name) == 0;
+}
+
 static struct ast_json *channel_blob_to_json(
 	struct stasis_message *message,
 	const char *type,

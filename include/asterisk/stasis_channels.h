@@ -611,6 +611,20 @@ int ast_channel_snapshot_caller_id_equal(
 	const struct ast_channel_snapshot *new_snapshot);
 
 /*!
+ * \brief Compares the connected line info of two snapshots.
+ * \since 13.1.0
+ *
+ * \param old_snapshot Old snapshot
+ * \param new_snapshot New snapshot
+ *
+ * \return True (non-zero) if callerid are identical.
+ * \return False (zero) if callerid changed.
+ */
+int ast_channel_snapshot_connected_line_equal(
+	const struct ast_channel_snapshot *old_snapshot,
+	const struct ast_channel_snapshot *new_snapshot);
+
+/*!
  * \brief Initialize the stasis channel topic and message types
  * \return 0 on success
  * \return Non-zero on error

@@ -2505,6 +2505,85 @@ ari_validator ast_ari_validate_channel_caller_id_fn(void)
 	return ast_ari_validate_channel_caller_id;
 }
 
+int ast_ari_validate_channel_connected_line(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_type = 0;
+	int has_application = 0;
+	int has_channel = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_type = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelConnectedLine field type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("application", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_application = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelConnectedLine field application failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelConnectedLine field timestamp failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("channel", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_channel = 1;
+			prop_is_valid = ast_ari_validate_channel(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ChannelConnectedLine field channel failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI ChannelConnectedLine has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_type) {
+		ast_log(LOG_ERROR, "ARI ChannelConnectedLine missing required field type\n");
+		res = 0;
+	}
+
+	if (!has_application) {
+		ast_log(LOG_ERROR, "ARI ChannelConnectedLine missing required field application\n");
+		res = 0;
+	}
+
+	if (!has_channel) {
+		ast_log(LOG_ERROR, "ARI ChannelConnectedLine missing required field channel\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_channel_connected_line_fn(void)
+{
+	return ast_ari_validate_channel_connected_line;
+}
+
 int ast_ari_validate_channel_created(struct ast_json *json)
 {
 	int res = 1;
@@ -4003,6 +4082,9 @@ int ast_ari_validate_event(struct ast_json *json)
 	if (strcmp("ChannelCallerId", discriminator) == 0) {
 		return ast_ari_validate_channel_caller_id(json);
 	} else
+	if (strcmp("ChannelConnectedLine", discriminator) == 0) {
+		return ast_ari_validate_channel_connected_line(json);
+	} else
 	if (strcmp("ChannelCreated", discriminator) == 0) {
 		return ast_ari_validate_channel_created(json);
 	} else
@@ -4170,6 +4252,9 @@ int ast_ari_validate_message(struct ast_json *json)
 	} else
 	if (strcmp("ChannelCallerId", discriminator) == 0) {
 		return ast_ari_validate_channel_caller_id(json);
+	} else
+	if (strcmp("ChannelConnectedLine", discriminator) == 0) {
+		return ast_ari_validate_channel_connected_line(json);
 	} else
 	if (strcmp("ChannelCreated", discriminator) == 0) {
 		return ast_ari_validate_channel_created(json);

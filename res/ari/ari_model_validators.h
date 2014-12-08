@@ -681,6 +681,24 @@ int ast_ari_validate_channel_caller_id(struct ast_json *json);
 ari_validator ast_ari_validate_channel_caller_id_fn(void);
 
 /*!
+ * \brief Validator for ChannelConnectedLine.
+ *
+ * Channel changed Connected Line.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_channel_connected_line(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_channel_connected_line().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_channel_connected_line_fn(void);
+
+/*!
  * \brief Validator for ChannelCreated.
  *
  * Notification that a channel has been created.
@@ -1329,6 +1347,11 @@ ari_validator ast_ari_validate_application_fn(void);
  * - timestamp: Date
  * - caller_presentation: int (required)
  * - caller_presentation_txt: string (required)
+ * - channel: Channel (required)
+ * ChannelConnectedLine
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date
  * - channel: Channel (required)
  * ChannelCreated
  * - type: string (required)

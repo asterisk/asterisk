@@ -450,10 +450,38 @@ static struct ast_json *channel_callerid(
 		"channel", json_channel);
 }
 
+static struct ast_json *channel_connected_line(
+	struct ast_channel_snapshot *old_snapshot,
+	struct ast_channel_snapshot *new_snapshot,
+	const struct timeval *tv)
+{
+	struct ast_json *json_channel;
+
+	/* No ChannelConnectedLine event on cache clear or first event */
+	if (!old_snapshot || !new_snapshot) {
+		return NULL;
+	}
+
+	if (ast_channel_snapshot_connected_line_equal(old_snapshot, new_snapshot)) {
+		return NULL;
+	}
+
+	json_channel = ast_channel_snapshot_to_json(new_snapshot, stasis_app_get_sanitizer());
+	if (!json_channel) {
+		return NULL;
+	}
+
+	return ast_json_pack("{s: s, s: o, s: o}",
+		"type", "ChannelConnectedLine",
+		"timestamp", ast_json_timeval(*tv, NULL),
+		"channel", json_channel);
+}
+
 static channel_snapshot_monitor channel_monitors[] = {
 	channel_state,
 	channel_dialplan,
 	channel_callerid,
+	channel_connected_line,
 };
 
 static void sub_channel_update_handler(void *data,
