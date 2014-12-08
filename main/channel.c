@@ -6519,6 +6519,9 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	 */
 	ast_channel_internal_swap_uniqueid_and_linkedid(clonechan, original);
 
+	/* Make sure the Stasis topic on the channel is updated appropriately */
+	ast_channel_internal_swap_topics(clonechan, original);
+
 	/* Swap channel names. This uses ast_channel_name_set directly, so we
 	 * don't get any spurious rename events.
 	 */

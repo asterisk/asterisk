@@ -302,10 +302,6 @@ static void sub_default_handler(void *data, struct stasis_subscription *sub,
 		call_forwarded_handler(app, message);
 	}
 
-	if (stasis_message_type(message) == app_end_message_type()) {
-		app_end_message_handler(message);
-	}
-
 	/* By default, send any message that has a JSON representation */
 	json = stasis_message_to_json(message, stasis_app_get_sanitizer());
 	if (!json) {
@@ -1126,30 +1122,6 @@ int app_is_subscribed_channel_id(struct stasis_app *app, const char *channel_id)
 	RAII_VAR(struct app_forwards *, forwards, NULL, ao2_cleanup);
 	forwards = ao2_find(app->forwards, channel_id, OBJ_SEARCH_KEY);
 	return forwards != NULL;
-}
-
-int app_replace_channel_forwards(struct stasis_app *app, const char *old_id, struct ast_channel *new_chan)
-{
-	RAII_VAR(struct app_forwards *, old_forwards, NULL, ao2_cleanup);
-	struct app_forwards *new_forwards;
-
-	old_forwards = ao2_find(app->forwards, old_id, OBJ_SEARCH_KEY | OBJ_UNLINK);
-	if (!old_forwards) {
-		return -1;
-	}
-
-	new_forwards = forwards_create_channel(app, new_chan);
-	if (!new_forwards) {
-		return -1;
-	}
-
-	new_forwards->interested = old_forwards->interested;
-	ao2_link_flags(app->forwards, new_forwards, 0);
-	ao2_cleanup(new_forwards);
-
-	/* Clean up old forwards */
-	forwards_unsubscribe(old_forwards);
-	return 0;
 }
 
 static void *channel_find(const struct stasis_app *app, const char *id)
