@@ -2464,6 +2464,17 @@ void ast_channel_internal_copy_linkedid(struct ast_channel *dest, struct ast_cha
 void ast_channel_internal_swap_uniqueid_and_linkedid(struct ast_channel *a, struct ast_channel *b);
 
 /*!
+ * \brief Swap topics beteween two channels
+ * \param a First channel
+ * \param b Second channel
+ * \return void
+ *
+ * \note
+ * This is used in masquerade to exchange topics for message routing
+ */
+void ast_channel_internal_swap_topics(struct ast_channel *a, struct ast_channel *b);
+
+/*!
  * \brief Set uniqueid and linkedid string value only (not time)
  * \param chan The channel to set the uniqueid to
  * \param uniqueid The uniqueid to set

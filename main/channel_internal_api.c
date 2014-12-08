@@ -1514,6 +1514,15 @@ void ast_channel_internal_swap_uniqueid_and_linkedid(struct ast_channel *a, stru
 	b->linkedid = temp;
 }
 
+void ast_channel_internal_swap_topics(struct ast_channel *a, struct ast_channel *b)
+{
+	struct stasis_cp_single *temp;
+
+	temp = a->topics;
+	a->topics = b->topics;
+	b->topics = temp;
+}
+
 void ast_channel_internal_set_fake_ids(struct ast_channel *chan, const char *uniqueid, const char *linkedid)
 {
 	ast_copy_string(chan->uniqueid.unique_id, uniqueid, sizeof(chan->uniqueid.unique_id));
