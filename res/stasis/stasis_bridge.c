@@ -175,6 +175,7 @@ static int bridge_stasis_moving(struct ast_bridge_channel *bridge_channel, void 
 			return -1;
 		}
 
+		stasis_app_channel_set_stasis_end_published(chan);
 		app_send_end_msg(control_app(control), chan);
 	}
 
