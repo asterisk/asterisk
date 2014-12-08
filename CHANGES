@@ -79,7 +79,17 @@ res_musiconhold
 --- Functionality changes from Asterisk 13.0.0 to Asterisk 13.1.0 ------------
 ------------------------------------------------------------------------------
 
-Transfers
+AMI
+------------------
+ * Event NewConnectedLine is emitted when the connected line information on
+   a channel changes.
+
+ARI
+------------------
+ * Event ChannelConnectedLine is emitted when the connected line information
+   on a channel changes.
+
+Core Transfers
 -----------------
 
 The features.conf general section has three new configurable options:
@@ -454,17 +464,6 @@ res_pjsip_publish_asterisk
    Asterisk information to other Asterisk servers. This module is intended only
    for Asterisk to Asterisk exchanges of information. Currently, this includes
    both mailbox state and device state information.
-
-
-AMI
-------------------
- * Event NewConnectedLine is emitted when the connected line information on
-   a channel changes.
-
-ARI
-------------------
- * Event ChannelConnectedLine is emitted when the connected line information
-   on a channel changes.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 12.4.0 to Asterisk 12.5.0 ------------
