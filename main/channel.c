@@ -7960,6 +7960,7 @@ void ast_channel_set_connected_line(struct ast_channel *chan, const struct ast_p
 
 	ast_channel_lock(chan);
 	ast_party_connected_line_set(ast_channel_connected(chan), connected, update);
+	ast_channel_publish_snapshot(chan);
 	ast_channel_unlock(chan);
 }
 

@@ -388,6 +388,16 @@ res_pjsip_publish_asterisk
    both mailbox state and device state information.
 
 
+AMI
+------------------
+ * Event NewConnectedLine is emitted when the connected line information on
+   a channel changes.
+
+ARI
+------------------
+ * Event ChannelConnectedLine is emitted when the connected line information
+   on a channel changes.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 12.4.0 to Asterisk 12.5.0 ------------
 ------------------------------------------------------------------------------

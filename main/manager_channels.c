@@ -570,6 +570,23 @@ static struct ast_manager_event_blob *channel_new_callerid(
 		ast_describe_caller_presentation(new_snapshot->caller_pres));
 }
 
+static struct ast_manager_event_blob *channel_new_connected_line(
+	struct ast_channel_snapshot *old_snapshot,
+	struct ast_channel_snapshot *new_snapshot)
+{
+	/* No NewConnectedLine event on cache clear or first event */
+	if (!old_snapshot || !new_snapshot) {
+		return NULL;
+	}
+
+	if (ast_channel_snapshot_connected_line_equal(old_snapshot, new_snapshot)) {
+		return NULL;
+	}
+
+	return ast_manager_event_blob_create(
+		EVENT_FLAG_CALL, "NewConnectedLine", "%s", "");
+}
+
 static struct ast_manager_event_blob *channel_new_accountcode(
 	struct ast_channel_snapshot *old_snapshot,
 	struct ast_channel_snapshot *new_snapshot)
@@ -591,7 +608,8 @@ channel_snapshot_monitor channel_monitors[] = {
 	channel_state_change,
 	channel_newexten,
 	channel_new_callerid,
-	channel_new_accountcode
+	channel_new_accountcode,
+	channel_new_connected_line,
 };
 
 static void channel_snapshot_update(void *data, struct stasis_subscription *sub,

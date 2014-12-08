@@ -165,7 +165,8 @@
 				"Dial",
 				"StasisEnd",
 				"StasisStart",
-				"TextMessageReceived"
+				"TextMessageReceived",
+				"ChannelConnectedLine"
 			]
 		},
 		"DeviceStateChanged": {
@@ -710,6 +711,17 @@
 				"endpoint": {
 					"required": false,
 					"type": "Endpoint"
+				}
+			}
+		},
+		"ChannelConnectedLine": {
+			"id": "ChannelConnectedLine",
+			"description": "Channel changed Connected Line.",
+			"properties": {
+				"channel": {
+					"required": true,
+					"type": "Channel",
+					"description": "The channel whose connected line has changed."
 				}
 			}
 		}
