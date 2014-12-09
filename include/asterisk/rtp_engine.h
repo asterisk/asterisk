@@ -855,6 +855,40 @@ int ast_rtp_instance_write(struct ast_rtp_instance *instance, struct ast_frame *
 struct ast_frame *ast_rtp_instance_read(struct ast_rtp_instance *instance, int rtcp);
 
 /*!
+ * \brief Set the incoming source address of the remote endpoint that we are sending RTP to
+ *
+ * This sets the incoming source address the engine is sending RTP to. Usually this
+ * will be the same as the requested target address, however in the case where
+ * the engine "learns" the address (for instance, symmetric RTP enabled) this
+ * will then contain the learned address.
+ *
+ * \param instance The RTP instance to change the address on
+ * \param address Address to set it to
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_rtp_instance_set_incoming_source_address(struct ast_rtp_instance *instance,
+						 const struct ast_sockaddr *address);
+
+/*!
+ * \brief Set the requested target address of the remote endpoint
+ *
+ * This should always be the address of the remote endpoint. Consequently, this can differ
+ * from the address the engine is sending RTP to.  However, usually they will be the same
+ * except in some circumstances (for instance when the engine "learns" the address if
+ * symmetric RTP is enabled).
+ *
+ * \param instance The RTP instance to change the address on
+ * \param address Address to set it to
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_rtp_instance_set_requested_target_address(struct ast_rtp_instance *instance,
+						  const struct ast_sockaddr *address);
+
+/*!
  * \brief Set the address of the remote endpoint that we are sending RTP to
  *
  * \param instance The RTP instance to change the address on
@@ -874,7 +908,8 @@ struct ast_frame *ast_rtp_instance_read(struct ast_rtp_instance *instance, int r
  *
  * \since 1.8
  */
-int ast_rtp_instance_set_remote_address(struct ast_rtp_instance *instance, const struct ast_sockaddr *address);
+#define ast_rtp_instance_set_remote_address(instance, address) \
+	ast_rtp_instance_set_requested_target_address((instance), (address));
 
 /*!
  * \brief Set the address that we are expecting to receive RTP on
@@ -942,6 +977,32 @@ void ast_rtp_instance_get_local_address(struct ast_rtp_instance *instance, struc
 int ast_rtp_instance_get_and_cmp_local_address(struct ast_rtp_instance *instance, struct ast_sockaddr *address);
 
 /*!
+ * \brief Get the incoming source address of the remote endpoint
+ *
+ * This returns the remote address the engine is sending RTP to. Usually this
+ * will be the same as the requested target address, however in the case where
+ * the engine "learns" the address (for instance, symmetric RTP enabled) this
+ * will then contain the learned address.
+ *
+ * \param instance The instance that we want to get the incoming source address for
+ * \param address A structure to put the address into
+ */
+void ast_rtp_instance_get_incoming_source_address(struct ast_rtp_instance *instance, struct ast_sockaddr *address);
+
+/*!
+ * \brief Get the requested target address of the remote endpoint
+ *
+ * This returns the explicitly set address of a remote endpoint. Meaning this won't change unless
+ * specifically told to change. In most cases this should be the same as the incoming source
+ * address, except in cases where the engine "learns" the address in which case this and the
+ * incoming source address might differ.
+ *
+ * \param instance The instance that we want to get the requested target address for
+ * \param address A structure to put the address into
+ */
+void ast_rtp_instance_get_requested_target_address(struct ast_rtp_instance *instance, struct ast_sockaddr *address);
+
+/*!
  * \brief Get the address of the remote endpoint that we are sending RTP to
  *
  * \param instance The instance that we want to get the remote address for
@@ -959,7 +1020,20 @@ int ast_rtp_instance_get_and_cmp_local_address(struct ast_rtp_instance *instance
  *
  * \since 1.8
  */
-void ast_rtp_instance_get_remote_address(struct ast_rtp_instance *instance, struct ast_sockaddr *address);
+#define ast_rtp_instance_get_remote_address(instance, address) \
+	ast_rtp_instance_get_incoming_source_address((instance), (address));
+
+/*!
+ * \brief Get the requested target address of the remote endpoint and
+ *        compare it to the given address
+ *
+ * \param instance The instance that we want to get the remote address for
+ * \param address An initialized address that may be overwritten addresses differ
+ *
+ * \retval 0 address was not changed
+ * \retval 1 address was changed
+ */
+int ast_rtp_instance_get_and_cmp_requested_target_address(struct ast_rtp_instance *instance, struct ast_sockaddr *address);
 
 /*!
  * \brief Get the address of the remote endpoint that we are sending RTP to, comparing its address to another
@@ -982,8 +1056,8 @@ void ast_rtp_instance_get_remote_address(struct ast_rtp_instance *instance, stru
  *
  * \since 1.8
  */
-
-int ast_rtp_instance_get_and_cmp_remote_address(struct ast_rtp_instance *instance, struct ast_sockaddr *address);
+#define ast_rtp_instance_get_and_cmp_remote_address(instance, address) \
+	ast_rtp_instance_get_and_cmp_requested_target_address((instance), (address));
 
 /*!
  * \brief Set the value of an RTP instance extended property

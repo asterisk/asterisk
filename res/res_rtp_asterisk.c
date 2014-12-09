@@ -4321,7 +4321,8 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 	/* If symmetric RTP is enabled see if the remote side is not what we expected and change where we are sending audio */
 	if (ast_rtp_instance_get_prop(instance, AST_RTP_PROPERTY_NAT)) {
 		if (ast_sockaddr_cmp(&remote_address, &addr)) {
-			ast_rtp_instance_set_remote_address(instance, &addr);
+			/* do not update the originally given address, but only the remote */
+			ast_rtp_instance_set_incoming_source_address(instance, &addr);
 			ast_sockaddr_copy(&remote_address, &addr);
 			if (rtp->rtcp) {
 				ast_sockaddr_copy(&rtp->rtcp->them, &addr);

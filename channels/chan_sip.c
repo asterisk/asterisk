@@ -23323,7 +23323,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		} else if (!reinvite) {
 			struct ast_sockaddr remote_address = {{0,}};
 
-			ast_rtp_instance_get_remote_address(p->rtp, &remote_address);
+			ast_rtp_instance_get_requested_target_address(p->rtp, &remote_address);
 			if (ast_sockaddr_isnull(&remote_address) || (!ast_strlen_zero(p->theirprovtag) && strcmp(p->theirtag, p->theirprovtag))) {
 				ast_log(LOG_WARNING, "Received response: \"200 OK\" from '%s' without SDP\n", p->relatedpeer->name);
 				ast_set_flag(&p->flags[0], SIP_PENDINGBYE);
@@ -32550,7 +32550,7 @@ static int sip_allow_anyrtp_remote(struct ast_channel *chan1, struct ast_rtp_ins
 	if (ast_test_flag(&p->flags[0], SIP_DIRECT_MEDIA)) {
 		struct ast_sockaddr us = { { 0, }, }, them = { { 0, }, };
 
-		ast_rtp_instance_get_remote_address(instance, &them);
+		ast_rtp_instance_get_requested_target_address(instance, &them);
 		ast_rtp_instance_get_local_address(instance, &us);
 
 		if (ast_apply_acl(acl, &them, "SIP Direct Media ACL: ") == AST_SENSE_DENY) {

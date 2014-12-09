@@ -170,8 +170,10 @@ struct ast_rtp_instance {
 	int properties[AST_RTP_PROPERTY_MAX];
 	/*! Address that we are expecting RTP to come in to */
 	struct ast_sockaddr local_address;
+	/*! The original source address */
+	struct ast_sockaddr requested_target_address;
 	/*! Address that we are sending RTP to */
-	struct ast_sockaddr remote_address;
+	struct ast_sockaddr incoming_source_address;
 	/*! Instance that we are bridged to if doing remote or local bridging */
 	struct ast_rtp_instance *bridged;
 	/*! Payload and packetization information */
@@ -443,18 +445,26 @@ int ast_rtp_instance_set_local_address(struct ast_rtp_instance *instance,
 	return 0;
 }
 
-int ast_rtp_instance_set_remote_address(struct ast_rtp_instance *instance,
-		const struct ast_sockaddr *address)
+int ast_rtp_instance_set_incoming_source_address(struct ast_rtp_instance *instance,
+						 const struct ast_sockaddr *address)
 {
-	ast_sockaddr_copy(&instance->remote_address, address);
+	ast_sockaddr_copy(&instance->incoming_source_address, address);
 
 	/* moo */
 
 	if (instance->engine->remote_address_set) {
-		instance->engine->remote_address_set(instance, &instance->remote_address);
+		instance->engine->remote_address_set(instance, &instance->incoming_source_address);
 	}
 
 	return 0;
+}
+
+int ast_rtp_instance_set_requested_target_address(struct ast_rtp_instance *instance,
+						  const struct ast_sockaddr *address)
+{
+	ast_sockaddr_copy(&instance->requested_target_address, address);
+
+	return ast_rtp_instance_set_incoming_source_address(instance, address);
 }
 
 int ast_rtp_instance_get_and_cmp_local_address(struct ast_rtp_instance *instance,
@@ -474,21 +484,27 @@ void ast_rtp_instance_get_local_address(struct ast_rtp_instance *instance,
 	ast_sockaddr_copy(address, &instance->local_address);
 }
 
-int ast_rtp_instance_get_and_cmp_remote_address(struct ast_rtp_instance *instance,
+int ast_rtp_instance_get_and_cmp_requested_target_address(struct ast_rtp_instance *instance,
 		struct ast_sockaddr *address)
 {
-	if (ast_sockaddr_cmp(address, &instance->remote_address) != 0) {
-		ast_sockaddr_copy(address, &instance->remote_address);
+	if (ast_sockaddr_cmp(address, &instance->requested_target_address) != 0) {
+		ast_sockaddr_copy(address, &instance->requested_target_address);
 		return 1;
 	}
 
 	return 0;
 }
 
-void ast_rtp_instance_get_remote_address(struct ast_rtp_instance *instance,
-		struct ast_sockaddr *address)
+void ast_rtp_instance_get_incoming_source_address(struct ast_rtp_instance *instance,
+						  struct ast_sockaddr *address)
 {
-	ast_sockaddr_copy(address, &instance->remote_address);
+	ast_sockaddr_copy(address, &instance->incoming_source_address);
+}
+
+void ast_rtp_instance_get_requested_target_address(struct ast_rtp_instance *instance,
+						   struct ast_sockaddr *address)
+{
+	ast_sockaddr_copy(address, &instance->requested_target_address);
 }
 
 void ast_rtp_instance_set_extended_prop(struct ast_rtp_instance *instance, int property, void *value)
