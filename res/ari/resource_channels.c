@@ -44,6 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/causes.h"
 #include "asterisk/format_cache.h"
 #include "asterisk/core_local.h"
+#include "asterisk/dial.h"
 #include "resource_channels.h"
 
 #include <limits.h>
@@ -723,6 +724,69 @@ void ast_ari_channels_list(struct ast_variable *headers,
 	ast_ari_response_ok(response, ast_json_ref(json));
 }
 
+/*! \brief Structure used for origination */
+struct ari_origination {
+	/*! \brief Dialplan context */
+	char context[AST_MAX_CONTEXT];
+	/*! \brief Dialplan extension */
+	char exten[AST_MAX_EXTENSION];
+	/*! \brief Dialplan priority */
+	int priority;
+	/*! \brief Application data to pass to Stasis application */
+	char appdata[0];
+};
+
+/*! \brief Thread which dials and executes upon answer */
+static void *ari_originate_dial(void *data)
+{
+	struct ast_dial *dial = data;
+	struct ari_origination *origination = ast_dial_get_user_data(dial);
+	enum ast_dial_result res;
+
+	res = ast_dial_run(dial, NULL, 0);
+	if (res != AST_DIAL_RESULT_ANSWERED) {
+		goto end;
+	}
+
+	if (!ast_strlen_zero(origination->appdata)) {
+		struct ast_app *app = pbx_findapp("Stasis");
+
+		if (app) {
+			ast_verb(4, "Launching Stasis(%s) on %s\n", origination->appdata,
+				ast_channel_name(ast_dial_answered(dial)));
+			pbx_exec(ast_dial_answered(dial), app, origination->appdata);
+		} else {
+			ast_log(LOG_WARNING, "No such application 'Stasis'\n");
+		}
+	} else {
+		struct ast_channel *answered = ast_dial_answered(dial);
+
+		if (!ast_strlen_zero(origination->context)) {
+			ast_channel_context_set(answered, origination->context);
+		}
+
+		if (!ast_strlen_zero(origination->exten)) {
+			ast_channel_exten_set(answered, origination->exten);
+		}
+
+		if (origination->priority > 0) {
+			ast_channel_priority_set(answered, origination->priority);
+		}
+
+		if (ast_pbx_run(answered)) {
+			ast_log(LOG_ERROR, "Failed to start PBX on %s\n", ast_channel_name(answered));
+		} else {
+			/* PBX will have taken care of hanging up, so we steal the answered channel so dial doesn't do it */
+			ast_dial_answered_steal(dial);
+		}
+	}
+
+end:
+	ast_dial_destroy(dial);
+	ast_free(origination);
+	return NULL;
+}
+
 static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 	const char *args_extension,
 	const char *args_context,
@@ -734,23 +798,27 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 	struct ast_variable *variables,
 	const char *args_channel_id,
 	const char *args_other_channel_id,
+	const char *args_originator,
 	struct ast_ari_response *response)
 {
 	char *dialtech;
 	char dialdevice[AST_CHANNEL_NAME];
+	struct ast_dial *dial;
 	char *caller_id = NULL;
 	char *cid_num = NULL;
 	char *cid_name = NULL;
-	int timeout = 30000;
 	RAII_VAR(struct ast_format_cap *, cap,
 		ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT), ao2_cleanup);
 	char *stuff;
+	struct ast_channel *other = NULL;
 	struct ast_channel *chan;
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
 	struct ast_assigned_ids assignedids = {
 		.uniqueid = args_channel_id,
 		.uniqueid2 = args_other_channel_id,
 	};
+	struct ari_origination *origination;
+	pthread_t thread;
 
 	if (!cap) {
 		ast_ari_response_alloc_failed(response);
@@ -783,24 +851,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 		return;
 	}
 
-	if (args_timeout > 0) {
-		timeout = args_timeout * 1000;
-	} else if (args_timeout == -1) {
-		timeout = -1;
-	}
-
-	if (!ast_strlen_zero(args_caller_id)) {
-		caller_id = ast_strdupa(args_caller_id);
-		ast_callerid_parse(caller_id, &cid_name, &cid_num);
-
-		if (ast_is_shrinkable_phonenumber(cid_num)) {
-			ast_shrink_phone_number(cid_num);
-		}
-	}
-
 	if (!ast_strlen_zero(args_app)) {
-		const char *app = "Stasis";
-
 		RAII_VAR(struct ast_str *, appdata, ast_str_create(64), ast_free);
 
 		if (!appdata) {
@@ -813,22 +864,124 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 			ast_str_append(&appdata, 0, ",%s", args_app_args);
 		}
 
-		/* originate a channel, putting it into an application */
-		if (ast_pbx_outgoing_app(dialtech, cap, dialdevice, timeout, app, ast_str_buffer(appdata), NULL, 0, cid_num, cid_name, variables, NULL, &chan, &assignedids)) {
+		origination = ast_calloc(1, sizeof(*origination) + ast_str_size(appdata) + 1);
+		if (!origination) {
 			ast_ari_response_alloc_failed(response);
 			return;
 		}
+
+		strcpy(origination->appdata, ast_str_buffer(appdata));
 	} else if (!ast_strlen_zero(args_extension)) {
-		/* originate a channel, sending it to an extension */
-		if (ast_pbx_outgoing_exten(dialtech, cap, dialdevice, timeout, S_OR(args_context, "default"), args_extension, args_priority ? args_priority : 1, NULL, 0, cid_num, cid_name, variables, NULL, &chan, 0, &assignedids)) {
+		origination = ast_calloc(1, sizeof(*origination) + 1);
+		if (!origination) {
 			ast_ari_response_alloc_failed(response);
 			return;
 		}
+
+		ast_copy_string(origination->context, S_OR(args_context, "default"), sizeof(origination->context));
+		ast_copy_string(origination->exten, args_extension, sizeof(origination->exten));
+		origination->priority = args_priority ? args_priority : 1;
+		origination->appdata[0] = '\0';
 	} else {
 		ast_ari_response_error(response, 400, "Bad Request",
 			"Application or extension must be specified");
 		return;
 	}
+
+	dial = ast_dial_create();
+	if (!dial) {
+		ast_ari_response_alloc_failed(response);
+		ast_free(origination);
+		return;
+	}
+	ast_dial_set_user_data(dial, origination);
+
+	if (ast_dial_append(dial, dialtech, dialdevice, &assignedids)) {
+		ast_ari_response_alloc_failed(response);
+		ast_dial_destroy(dial);
+		ast_free(origination);
+		return;
+	}
+
+	if (args_timeout > 0) {
+		ast_dial_set_global_timeout(dial, args_timeout * 1000);
+	} else if (args_timeout == -1) {
+		ast_dial_set_global_timeout(dial, -1);
+	} else {
+		ast_dial_set_global_timeout(dial, 30000);
+	}
+
+	if (!ast_strlen_zero(args_caller_id)) {
+		caller_id = ast_strdupa(args_caller_id);
+		ast_callerid_parse(caller_id, &cid_name, &cid_num);
+
+		if (ast_is_shrinkable_phonenumber(cid_num)) {
+			ast_shrink_phone_number(cid_num);
+		}
+	}
+
+	if (!ast_strlen_zero(args_originator)) {
+		other = ast_channel_get_by_name(args_originator);
+		if (!other) {
+			ast_ari_response_error(
+				response, 400, "Bad Request",
+				"Provided originator channel was not found");
+			ast_dial_destroy(dial);
+			ast_free(origination);
+			return;
+		}
+	}
+
+	if (ast_dial_prerun(dial, other, cap)) {
+		ast_ari_response_alloc_failed(response);
+		ast_dial_destroy(dial);
+		ast_free(origination);
+		ast_channel_cleanup(other);
+		return;
+	}
+
+	ast_channel_cleanup(other);
+
+	chan = ast_dial_get_channel(dial, 0);
+	if (!chan) {
+		ast_ari_response_alloc_failed(response);
+		ast_dial_destroy(dial);
+		ast_free(origination);
+		return;
+	}
+
+	if (!ast_strlen_zero(cid_num) || !ast_strlen_zero(cid_name)) {
+		struct ast_party_connected_line connected;
+
+		/*
+		 * It seems strange to set the CallerID on an outgoing call leg
+		 * to whom we are calling, but this function's callers are doing
+		 * various Originate methods.  This call leg goes to the local
+		 * user.  Once the called party answers, the dialplan needs to
+		 * be able to access the CallerID from the CALLERID function as
+		 * if the called party had placed this call.
+		 */
+		ast_set_callerid(chan, cid_num, cid_name, cid_num);
+
+		ast_party_connected_line_set_init(&connected, ast_channel_connected(chan));
+		if (!ast_strlen_zero(cid_num)) {
+			connected.id.number.valid = 1;
+			connected.id.number.str = (char *) cid_num;
+			connected.id.number.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
+		}
+		if (!ast_strlen_zero(cid_name)) {
+			connected.id.name.valid = 1;
+			connected.id.name.str = (char *) cid_name;
+			connected.id.name.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
+		}
+		ast_channel_set_connected_line(chan, &connected, NULL);
+	}
+
+	ast_channel_lock(chan);
+	if (variables) {
+		ast_set_variables(chan, variables);
+	}
+	ast_set_flag(ast_channel_flags(chan), AST_FLAG_ORIGINATED);
 
 	if (!ast_strlen_zero(args_app)) {
 		struct ast_channel *local_peer;
@@ -846,8 +999,21 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 	snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(chan));
 	ast_channel_unlock(chan);
 
-	ast_ari_response_ok(response, ast_channel_snapshot_to_json(snapshot, NULL));
+	/* Before starting the async dial bump the ref in case the dial quickly goes away and takes
+	 * the reference with it
+	 */
+	ast_channel_ref(chan);
+
+	if (ast_pthread_create_detached(&thread, NULL, ari_originate_dial, dial)) {
+		ast_ari_response_alloc_failed(response);
+		ast_dial_destroy(dial);
+		ast_free(origination);
+	} else {
+		ast_ari_response_ok(response, ast_channel_snapshot_to_json(snapshot, NULL));
+	}
+
 	ast_channel_unref(chan);
+	return;
 }
 
 void ast_ari_channels_originate_with_id(struct ast_variable *headers,
@@ -883,6 +1049,7 @@ void ast_ari_channels_originate_with_id(struct ast_variable *headers,
 		variables,
 		args->channel_id,
 		args->other_channel_id,
+		args->originator,
 		response);
 }
 
@@ -919,6 +1086,7 @@ void ast_ari_channels_originate(struct ast_variable *headers,
 		variables,
 		args->channel_id,
 		args->other_channel_id,
+		args->originator,
 		response);
 }
 

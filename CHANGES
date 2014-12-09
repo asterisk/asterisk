@@ -76,6 +76,17 @@ res_musiconhold
    application (e.g. Queue or Dial) specified music.
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.1.0 to Asterisk 13.2.0 ------------
+------------------------------------------------------------------------------
+
+ARI
+------------------
+ * The Originate operation now takes in an originator channel. The linked ID of
+   this originator channel is applied to the newly originated outgoing channel.
+   If using CEL this allows an association to be established between the two so
+   it can be recognized that the originator is dialing the originated channel.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.0.0 to Asterisk 13.1.0 ------------
 ------------------------------------------------------------------------------
 
