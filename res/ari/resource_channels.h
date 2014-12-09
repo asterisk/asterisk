@@ -74,6 +74,8 @@ struct ast_ari_channels_originate_args {
 	const char *channel_id;
 	/*! The unique id to assign the second channel when using local channels. */
 	const char *other_channel_id;
+	/*! The unique id of the channel which is originating this one. */
+	const char *originator;
 };
 /*!
  * \brief Body parsing function for /channels.
@@ -133,6 +135,8 @@ struct ast_ari_channels_originate_with_id_args {
 	struct ast_json *variables;
 	/*! The unique id to assign the second channel when using local channels. */
 	const char *other_channel_id;
+	/*! The unique id of the channel which is originating this one. */
+	const char *originator;
 };
 /*!
  * \brief Body parsing function for /channels/{channelId}.
