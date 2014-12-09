@@ -1224,6 +1224,7 @@ ari_validator ast_ari_validate_application_fn(void);
  * - creationtime: Date (required)
  * - dialplan: DialplanCEP (required)
  * - id: string (required)
+ * - language: string (required)
  * - name: string (required)
  * - state: string (required)
  * Dialed

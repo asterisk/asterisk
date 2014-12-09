@@ -786,6 +786,7 @@ int ast_ari_validate_channel(struct ast_json *json)
 	int has_creationtime = 0;
 	int has_dialplan = 0;
 	int has_id = 0;
+	int has_language = 0;
 	int has_name = 0;
 	int has_state = 0;
 
@@ -850,6 +851,16 @@ int ast_ari_validate_channel(struct ast_json *json)
 				res = 0;
 			}
 		} else
+		if (strcmp("language", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_language = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Channel field language failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("name", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_name = 1;
@@ -905,6 +916,11 @@ int ast_ari_validate_channel(struct ast_json *json)
 
 	if (!has_id) {
 		ast_log(LOG_ERROR, "ARI Channel missing required field id\n");
+		res = 0;
+	}
+
+	if (!has_language) {
+		ast_log(LOG_ERROR, "ARI Channel missing required field language\n");
 		res = 0;
 	}
 

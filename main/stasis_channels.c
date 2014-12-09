@@ -878,7 +878,7 @@ struct ast_json *ast_channel_snapshot_to_json(
 		/* Broken up into groups of three for readability */
 		"{ s: s, s: s, s: s,"
 		"  s: o, s: o, s: s,"
-		"  s: o, s: o }",
+		"  s: o, s: o, s: s }",
 		/* First line */
 		"id", snapshot->uniqueid,
 		"name", snapshot->name,
@@ -892,7 +892,8 @@ struct ast_json *ast_channel_snapshot_to_json(
 		/* Third line */
 		"dialplan", ast_json_dialplan_cep(
 			snapshot->context, snapshot->exten, snapshot->priority),
-		"creationtime", ast_json_timeval(snapshot->creationtime, NULL));
+		"creationtime", ast_json_timeval(snapshot->creationtime, NULL),
+		"language", snapshot->language);
 
 	return ast_json_ref(json_chan);
 }
