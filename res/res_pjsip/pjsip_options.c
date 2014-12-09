@@ -418,14 +418,14 @@ static int qualify_contact_sched(const void *obj)
 	 * up the data object ref between self deletion and an external
 	 * deletion.
 	 */
-	return 1;
+	return data->contact->qualify_frequency * 1000;
 }
 
 /*!
  * \internal
  * \brief Set up a scheduled qualify contact check.
  */
-static void schedule_qualify(struct ast_sip_contact *contact)
+static void schedule_qualify(struct ast_sip_contact *contact, int initial_interval)
 {
 	struct sched_data *data;
 
@@ -437,8 +437,8 @@ static void schedule_qualify(struct ast_sip_contact *contact)
 	ast_assert(contact->qualify_frequency != 0);
 
 	ao2_t_ref(data, +1, "Ref for qualify_contact_sched() scheduler entry");
-	data->id = ast_sched_add_variable(sched, contact->qualify_frequency * 1000,
-		qualify_contact_sched, data, 0);
+	data->id = ast_sched_add_variable(sched, initial_interval,
+		qualify_contact_sched, data, 1);
 	if (data->id < 0) {
 		ao2_t_ref(data, -1, "Cleanup failed scheduler add");
 		ast_log(LOG_ERROR, "Unable to schedule qualify for contact %s\n",
@@ -482,7 +482,7 @@ static void qualify_and_schedule(struct ast_sip_contact *contact)
 			ao2_ref(contact, -1);
 		}
 
-		schedule_qualify(contact);
+		schedule_qualify(contact, contact->qualify_frequency * 1000);
 	} else {
 		delete_contact_status(contact);
 	}
@@ -951,11 +951,16 @@ static int qualify_and_schedule_cb(void *obj, void *arg, int flags)
 {
 	struct ast_sip_contact *contact = obj;
 	struct ast_sip_aor *aor = arg;
+	int initial_interval;
 
 	contact->qualify_frequency = aor->qualify_frequency;
 	contact->authenticate_qualify = aor->authenticate_qualify;
 
-	qualify_and_schedule(contact);
+	/* Delay initial qualification by a random fraction of the specified interval */
+	initial_interval = contact->qualify_frequency * 1000;
+	initial_interval = (int)(initial_interval * ast_random_double());
+
+	schedule_qualify(contact, initial_interval);
 
 	return 0;
 }
