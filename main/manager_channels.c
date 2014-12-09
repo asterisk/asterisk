@@ -426,6 +426,7 @@ struct ast_str *ast_manager_build_channel_state_string_prefix(
 		"%sCallerIDName: %s\r\n"
 		"%sConnectedLineNum: %s\r\n"
 		"%sConnectedLineName: %s\r\n"
+		"%sLanguage: %s\r\n"
 		"%sAccountCode: %s\r\n"
 		"%sContext: %s\r\n"
 		"%sExten: %s\r\n"
@@ -438,6 +439,7 @@ struct ast_str *ast_manager_build_channel_state_string_prefix(
 		prefix, S_OR(snapshot->caller_name, "<unknown>"),
 		prefix, S_OR(snapshot->connected_number, "<unknown>"),
 		prefix, S_OR(snapshot->connected_name, "<unknown>"),
+		prefix, snapshot->language,
 		prefix, snapshot->accountcode,
 		prefix, snapshot->context,
 		prefix, snapshot->exten,
