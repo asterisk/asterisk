@@ -513,14 +513,6 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 			}
 		}
 
-		if (!(new_payload = ast_realloc(session->payload, (session->payload_len + *payload_len)))) {
-			ast_log(LOG_WARNING, "Failed allocation: %p, %zu, %"PRIu64"\n",
-				session->payload, session->payload_len, *payload_len);
-			*payload_len = 0;
-			ast_websocket_close(session, 1009);
-			return 0;
-		}
-
 		/* Per the RFC for PING we need to send back an opcode with the application data as received */
 		if ((*opcode == AST_WEBSOCKET_OPCODE_PING) && (ast_websocket_write(session, AST_WEBSOCKET_OPCODE_PONG, *payload, *payload_len))) {
 			*payload_len = 0;
@@ -528,9 +520,22 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 			return 0;
 		}
 
-		session->payload = new_payload;
-		memcpy((session->payload + session->payload_len), (*payload), (*payload_len));
-		session->payload_len += *payload_len;
+		if (*payload_len) {
+			if (!(new_payload = ast_realloc(session->payload, (session->payload_len + *payload_len)))) {
+				ast_log(LOG_WARNING, "Failed allocation: %p, %zu, %"PRIu64"\n",
+					session->payload, session->payload_len, *payload_len);
+				*payload_len = 0;
+				ast_websocket_close(session, 1009);
+				return 0;
+			}
+
+			session->payload = new_payload;
+			memcpy((session->payload + session->payload_len), (*payload), (*payload_len));
+			session->payload_len += *payload_len;
+		} else if (!session->payload_len && session->payload) {
+			ast_free(session->payload);
+			session->payload = NULL;
+		}
 
 		if (!fin && session->reconstruct && (session->payload_len < session->reconstruct)) {
 			/* If this is not a final message we need to defer returning it until later */
