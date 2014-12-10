@@ -1,3 +1,25 @@
+2014-12-10  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 12.7.2 Released.
+
+	* AST-2014-019: Fix crash when receiving a WebSocket packet with a
+	  payload length of zero.
+
+	  Frames with a payload length of 0 were incorrectly handled in
+	  res_http_websocket. Provided a frame with a payload had been
+	  received prior it was possible for a double free to occur. The
+	  realloc operation would succeed (thus freeing the payload) but be
+	  treated as an error. When the session was then torn down the payload
+	  would be freed again causing a crash. The read function now takes
+	  this into account.
+
+	  This change also fixes assumptions made by users of
+	  res_http_websocket. There is no guarantee that a frame received from
+	  it will be NULL terminated.
+
+	  ASTERISK-24472 #close
+	  Reported by: Badalian Vyacheslav
+
 2014-11-20  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 12.7.1 Released.

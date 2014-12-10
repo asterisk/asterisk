@@ -200,7 +200,8 @@ static int transport_read(void *data)
 
 	pj_gettimeofday(&rdata->pkt_info.timestamp);
 
-	pj_memcpy(rdata->pkt_info.packet, read_data->payload, sizeof(rdata->pkt_info.packet));
+	pj_memcpy(rdata->pkt_info.packet, read_data->payload,
+		PJSIP_MAX_PKT_LEN < read_data->payload_len ? PJSIP_MAX_PKT_LEN : read_data->payload_len);
 	rdata->pkt_info.len = read_data->payload_len;
 	rdata->pkt_info.zero = 0;
 
