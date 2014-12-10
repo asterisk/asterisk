@@ -9,6 +9,20 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 12.8.0 to Asterisk 12.9.0 ------------
+------------------------------------------------------------------------------
+
+AMI
+------------------
+ * "Language" (the default spoken language for the channel) is now included in
+   the standard channel state output for suitable events.
+
+ARI
+------------------
+ * "language" (the default spoken language for the channel) is now included in
+   the standard channel state output for suitable events.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 12.7.0 to Asterisk 12.8.0 ------------
 ------------------------------------------------------------------------------
 
