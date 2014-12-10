@@ -2643,12 +2643,16 @@ static void sip_websocket_callback(struct ast_websocket *session, struct ast_var
 
 		if (opcode == AST_WEBSOCKET_OPCODE_TEXT || opcode == AST_WEBSOCKET_OPCODE_BINARY) {
 			struct sip_request req = { 0, };
+			char data[payload_len + 1];
 
 			if (!(req.data = ast_str_create(payload_len + 1))) {
 				goto end;
 			}
 
-			if (ast_str_set(&req.data, -1, "%s", payload) == AST_DYNSTR_BUILD_FAILED) {
+			strncpy(data, payload, payload_len);
+			data[payload_len] = '\0';
+
+			if (ast_str_set(&req.data, -1, "%s", data) == AST_DYNSTR_BUILD_FAILED) {
 				deinit_req(&req);
 				goto end;
 			}
