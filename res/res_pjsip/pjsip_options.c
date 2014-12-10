@@ -960,7 +960,9 @@ static int qualify_and_schedule_cb(void *obj, void *arg, int flags)
 	initial_interval = contact->qualify_frequency * 1000;
 	initial_interval = (int)(initial_interval * ast_random_double());
 
-	schedule_qualify(contact, initial_interval);
+	if (contact->qualify_frequency) {
+		schedule_qualify(contact, initial_interval);
+	}
 
 	return 0;
 }
