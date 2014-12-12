@@ -490,7 +490,6 @@ static int answer(void *data)
 	struct ast_sip_session *session = data;
 
 	if (session->inv_session->state == PJSIP_INV_STATE_DISCONNECTED) {
-		ao2_ref(session, -1);
 		return 0;
 	}
 
@@ -507,8 +506,6 @@ static int answer(void *data)
 		ast_sip_session_send_response(session, packet);
 	}
 
-	ao2_ref(session, -1);
-
 	return (status == PJ_SUCCESS) ? 0 : -1;
 }
 
@@ -516,19 +513,27 @@ static int answer(void *data)
 static int chan_pjsip_answer(struct ast_channel *ast)
 {
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
+	struct ast_sip_session *session;
 
 	if (ast_channel_state(ast) == AST_STATE_UP) {
 		return 0;
 	}
 
 	ast_setstate(ast, AST_STATE_UP);
+	session = ao2_bump(channel->session);
 
-	ao2_ref(channel->session, +1);
-	if (ast_sip_push_task(channel->session->serializer, answer, channel->session)) {
+	/* the answer task needs to be pushed synchronously otherwise a race condition
+	   can occur between this thread and bridging (specifically when native bridging
+	   attempts to do direct media) */
+	ast_channel_unlock(ast);
+	if (ast_sip_push_task_synchronous(session->serializer, answer, session)) {
 		ast_log(LOG_WARNING, "Unable to push answer task to the threadpool. Cannot answer call\n");
-		ao2_cleanup(channel->session);
+		ao2_ref(session, -1);
+		ast_channel_lock(ast);
 		return -1;
 	}
+	ao2_ref(session, -1);
+	ast_channel_lock(ast);
 
 	return 0;
 }
