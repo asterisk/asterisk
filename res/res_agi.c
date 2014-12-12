@@ -2014,8 +2014,9 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, const
 	if ((vfs = ast_openvstream(chan, argv[2], ast_channel_language(chan)))) {
 		ast_debug(1, "Ooh, found a video stream, too\n");
 	}
-
-	ast_verb(3, "Playing '%s' (escape_digits=%s) (sample_offset %ld)\n", argv[2], edigits, sample_offset);
+	ast_verb(3, "<%s> Playing '%s.%s' (escape_digits=%s) (sample_offset %ld) (language '%s')\n",
+		ast_channel_name(chan), argv[2], ast_getformatname(ast_channel_writeformat(chan)),
+		edigits, sample_offset, S_OR(ast_channel_language(chan), "default"));
 
 	ast_seekstream(fs, 0, SEEK_END);
 	max_length = ast_tellstream(fs);
