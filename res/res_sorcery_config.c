@@ -284,6 +284,8 @@ static void sorcery_config_internal_load(void *data, const struct ast_sorcery *s
 			if (!(obj = sorcery_config_retrieve_id(sorcery, data, type, id))) {
 				continue;
 			}
+
+			ast_log(LOG_NOTICE, "Retaining existing configuration for object of type '%s' with id '%s'\n", type, id);
 		}
 
 		ao2_link_flags(objects, obj, OBJ_NOLOCK);
