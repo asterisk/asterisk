@@ -1687,22 +1687,7 @@ static int hangup(void *data)
 	struct ast_sip_session *session = channel->session;
 	int cause = h_data->cause;
 
-	if (!session->defer_terminate) {
-		pj_status_t status;
-		pjsip_tx_data *packet = NULL;
-
-		if (session->inv_session->state == PJSIP_INV_STATE_NULL) {
-			pjsip_inv_terminate(session->inv_session, cause ? cause : 603, PJ_TRUE);
-		} else if (((status = pjsip_inv_end_session(session->inv_session, cause ? cause : 603, NULL, &packet)) == PJ_SUCCESS)
-			&& packet) {
-			if (packet->msg->type == PJSIP_RESPONSE_MSG) {
-				ast_sip_session_send_response(session, packet);
-			} else {
-				ast_sip_session_send_request(session, packet);
-			}
-		}
-	}
-
+	ast_sip_session_terminate(session, cause);
 	clear_session_and_channel(session, ast, pvt);
 	ao2_cleanup(channel);
 	ao2_cleanup(h_data);

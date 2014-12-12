@@ -434,6 +434,14 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 	struct ast_format_cap *req_caps);
 
 /*!
+ * \brief Terminate a session and, if possible, send the provided response code
+ *
+ * \param session The session to terminate
+ * \param response The response code to use for termination if possible
+ */
+void ast_sip_session_terminate(struct ast_sip_session *session, int response);
+
+/*!
  * \brief Defer local termination of a session until remote side terminates, or an amount of time passes
  *
  * \param session The session to defer termination on

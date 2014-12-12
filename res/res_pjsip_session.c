@@ -528,6 +528,8 @@ static int send_delayed_request(struct ast_sip_session *session, struct ast_sip_
 	} else if (!strcmp(delay->method, "UPDATE")) {
 		ast_sip_session_refresh(session, delay->on_request_creation,
 				delay->on_sdp_creation, delay->on_response, AST_SIP_SESSION_REFRESH_METHOD_UPDATE, delay->generate_new_sdp);
+	} else if (!strcmp(delay->method, "BYE")) {
+		ast_sip_session_terminate(session, 0);
 	} else {
 		ast_log(LOG_WARNING, "Unexpected delayed %s request with no existing request structure\n", delay->method);
 		return -1;
@@ -1290,6 +1292,38 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 
 	ao2_ref(session, +1);
 	return session;
+}
+
+void ast_sip_session_terminate(struct ast_sip_session *session, int response)
+{
+	pj_status_t status;
+	pjsip_tx_data *packet = NULL;
+
+	if (session->defer_terminate) {
+		return;
+	}
+
+	if (!response) {
+		response = 603;
+	}
+
+	if ((session->inv_session->state == PJSIP_INV_STATE_CONFIRMED) && session->inv_session->invite_tsx) {
+		ast_debug(3, "Delaying sending BYE to %s because of outstanding transaction...\n",
+				ast_sorcery_object_get_id(session->endpoint));
+		/* If this is delayed the only thing that will happen is a BYE request so we don't
+		 * actually need to store the response code for when it happens.
+		 */
+		delay_request(session, NULL, NULL, NULL, 0, "BYE");
+	} else if (session->inv_session->state == PJSIP_INV_STATE_NULL) {
+		pjsip_inv_terminate(session->inv_session, response, PJ_TRUE);
+	} else if (((status = pjsip_inv_end_session(session->inv_session, response, NULL, &packet)) == PJ_SUCCESS)
+		&& packet) {
+		if (packet->msg->type == PJSIP_RESPONSE_MSG) {
+			ast_sip_session_send_response(session, packet);
+		} else {
+			ast_sip_session_send_request(session, packet);
+		}
+	}
 }
 
 static int session_termination_task(void *data)

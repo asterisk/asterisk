@@ -1,5 +1,6 @@
 {
 	global:
+		LINKER_SYMBOL_PREFIXast_sip_session_terminate;
 		LINKER_SYMBOL_PREFIXast_sip_session_defer_termination;
 		LINKER_SYMBOL_PREFIXast_sip_session_register_sdp_handler;
 		LINKER_SYMBOL_PREFIXast_sip_session_unregister_sdp_handler;
