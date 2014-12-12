@@ -1144,7 +1144,8 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 
 	if (ast_sockaddr_isnull(addrs) ||
 		ast_sockaddr_is_any(addrs) ||
-		pjmedia_sdp_media_find_attr2(remote_stream, "sendonly", NULL)) {
+		pjmedia_sdp_media_find_attr2(remote_stream, "sendonly", NULL) ||
+		pjmedia_sdp_media_find_attr2(remote_stream, "inactive", NULL)) {
 		if (!session_media->held) {
 			/* The remote side has put us on hold */
 			ast_queue_hold(session->channel, session->endpoint->mohsuggest);
