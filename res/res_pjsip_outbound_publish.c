@@ -1087,6 +1087,8 @@ static int outbound_auth_handler(const struct aco_option *opt, struct ast_variab
 
 static int load_module(void)
 {
+	CHECK_PJSIP_MODULE_LOADED();
+
 	ast_sorcery_apply_config(ast_sip_get_sorcery(), "res_pjsip_outbound_publish");
 	ast_sorcery_apply_default(ast_sip_get_sorcery(), "outbound-publish", "config", "pjsip.conf,criteria=type=outbound-publish");
 
