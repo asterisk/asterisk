@@ -18,7 +18,7 @@
 
 /*! \file
  * \brief Asterisk locking-related definitions:
- * - ast_mutext_t, ast_rwlock_t and related functions;
+ * - ast_mutex_t, ast_rwlock_t and related functions;
  * - atomic arithmetic instructions;
  * - wrappers for channel locking.
  *
@@ -101,6 +101,12 @@
 
 struct ast_channel;
 
+/*!
+ * \brief Lock tracking information.
+ *
+ * \note Any changes to this struct MUST be reflected in the
+ * lock.c:restore_lock_tracking() function.
+ */
 struct ast_lock_track {
 	const char *file[AST_MAX_REENTRANCY];
 	int lineno[AST_MAX_REENTRANCY];
@@ -433,45 +439,6 @@ static inline void ast_reentrancy_unlock(struct ast_lock_track *lt)
 #if defined(DO_CRASH) || defined(THREAD_CRASH)
 		abort();
 #endif
-	}
-}
-
-static inline void ast_reentrancy_init(struct ast_lock_track **plt)
-{
-	int i;
-	pthread_mutexattr_t reentr_attr;
-	struct ast_lock_track *lt = *plt;
-
-	if (!lt) {
-		lt = *plt = (struct ast_lock_track *) calloc(1, sizeof(*lt));
-	}
-
-	for (i = 0; i < AST_MAX_REENTRANCY; i++) {
-		lt->file[i] = NULL;
-		lt->lineno[i] = 0;
-		lt->func[i] = NULL;
-		lt->thread[i] = 0;
-#ifdef HAVE_BKTR
-		memset(&lt->backtrace[i], 0, sizeof(lt->backtrace[i]));
-#endif
-	}
-
-	lt->reentrancy = 0;
-
-	pthread_mutexattr_init(&reentr_attr);
-	pthread_mutexattr_settype(&reentr_attr, AST_MUTEX_KIND);
-	pthread_mutex_init(&lt->reentr_mutex, &reentr_attr);
-	pthread_mutexattr_destroy(&reentr_attr);
-}
-
-static inline void delete_reentrancy_cs(struct ast_lock_track **plt)
-{
-	struct ast_lock_track *lt;
-	if (*plt) {
-		lt = *plt;
-		pthread_mutex_destroy(&lt->reentr_mutex);
-		free(lt);
-		*plt = NULL;
 	}
 }
 
