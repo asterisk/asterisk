@@ -35,6 +35,38 @@
 				<synopsis>Options that apply to every parking lot</synopsis>
 				<configOption name="parkeddynamic">
 					<synopsis>Enables dynamically created parkinglots.</synopsis>
+					<description>
+						<para>If the option is enabled then the following variables can
+							be used to dynamically create new parking lots.
+						</para>
+						<para>The <variable>PARKINGDYNAMIC</variable> variable specifies the
+							parking lot to use as a template to create a dynamic parking lot. It
+							is an error to specify a non-existent parking lot for the template.
+							If not set then the default parking lot is used as the template.
+						</para>
+						<para>The <variable>PARKINGDYNCONTEXT</variable> variable specifies the
+							dialplan context to use for the newly created dynamic parking lot. If
+							not set then the context from the parking lot template is used. The
+							context is created if it does not already exist and the new parking lot
+							needs to create extensions.
+						</para>
+						<para>The <variable>PARKINGDYNEXTEN</variable> variable specifies the
+							<literal>parkext</literal> to use for the newly created dynamic
+							parking lot. If not set then the <literal>parkext</literal> is used from
+							the parking lot template. If the template does not specify a
+							<literal>parkext</literal> then no extensions are created for the newly
+							created parking lot. The dynamic parking lot cannot be created if it
+							needs to create extensions that overlap existing parking lot extensions.
+							The only exception to this is for the <literal>parkext</literal>
+							extension and only if neither of the overlaping parking lot's
+							<literal>parkext</literal> is exclusive.
+						</para>
+						<para>The <variable>PARKINGDYNPOS</variable> variable specifies the
+							parking positions to use for the newly created dynamic parking lot. If
+							not set then the <literal>parkpos</literal> from the parking lot template
+							is used.
+						</para>
+					</description>
 				</configOption>
 			</configObject>
 			<configObject name="parking_lot">
@@ -45,19 +77,35 @@
 				</configOption>
 				<configOption name="parkext">
 					<synopsis>Extension to park calls to this parking lot.</synopsis>
-					<description><para>If this option is used, this extension will automatically be created to place calls into
-                        parking lots. In addition, if parkext_exclusive is set for this parking lot, the name of the parking lot
-                        will be included in the application's arguments so that it only parks to this parking lot. The extension
-                        will be created in <literal>context</literal>. Using this option also creates extensions for retrieving
-                        parked calls from the parking spaces in the same context.</para></description>
+					<description>
+						<para>If this option is used, this extension will automatically
+							be created to place calls into parking lots. In addition, if
+							<literal>parkext_exclusive</literal> is set for this parking
+							lot, the name of the parking lot will be included in the
+							application's arguments so that it only parks to this parking
+							lot. The extension will be created in <literal>context</literal>.
+							Using this option also creates extensions for retrieving
+							parked calls from the parking spaces in the same context.
+						</para>
+						<note>
+							<para>Generated parking extensions cannot overlap.
+								The only exception is if neither overlapping
+								<literal>parkext</literal> is exclusive.
+							</para>
+						</note>
+					</description>
 				</configOption>
 				<configOption name="parkext_exclusive" default="no">
 					<synopsis>If yes, the extension registered as parkext will park exclusively to this parking lot.</synopsis>
 				</configOption>
 				<configOption name="parkpos" default="701-750">
 					<synopsis>Numerical range of parking spaces which can be used to retrieve parked calls.</synopsis>
-					<description><para>If parkext is set, these extensions will automatically be mapped in <literal>context</literal>
-						in order to pick up calls parked to these parking spaces.</para></description>
+					<description>
+						<para>If <literal>parkext</literal> is set, these extensions
+							will automatically be mapped in <literal>context</literal>
+							in order to pick up calls parked to these parking spaces.
+						</para>
+					</description>
 				</configOption>
 				<configOption name="parkinghints" default="no">
 					<synopsis>If yes, this parking lot will add hints automatically for parking spaces.</synopsis>
@@ -177,9 +225,6 @@
 							</para></enum>
 						</enumlist>
 					</description>
-				</configOption>
-				<configOption name="courtesytone">
-					<synopsis>If set, the sound set will be played to whomever is set by parkedplay</synopsis>
 				</configOption>
 			</configObject>
 		</configFile>
