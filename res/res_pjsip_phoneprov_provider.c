@@ -135,6 +135,11 @@ struct phoneprov {
 static void phoneprov_destroy(void *obj)
 {
 	struct phoneprov *pp = obj;
+	char *mac = ast_var_find(pp->vars, "MAC");
+
+	if (mac) {
+		ast_phoneprov_delete_extension(AST_MODULE, mac);
+	}
 
 	ast_var_list_destroy(pp->vars);
 }
@@ -196,7 +201,7 @@ static int fields_handler(const void *obj, struct ast_variable **fields)
 	struct ast_variable *var;
 
 	AST_VAR_LIST_TRAVERSE(pp->vars, pvar) {
-		var = ast_variable_new(pvar->name, pvar->value, NULL);
+		var = ast_variable_new(pvar->name, pvar->value, "");
 		if (!var) {
 			ast_variables_destroy(head);
 			return -1;
@@ -228,7 +233,7 @@ static int load_endpoint(const char *id, const char *endpoint_name, struct varsh
 	/* We need to use res_pjsip's sorcery instance instead of our own to
 	 * get endpoint and auth.
 	 */
-	endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint",
+	endpoint = ast_sorcery_retrieve_by_id(sorcery, "endpoint",
 		endpoint_name);
 	if (!endpoint) {
 		ast_log(LOG_ERROR, "phoneprov %s contained invalid endpoint %s.\n", id,
@@ -250,7 +255,7 @@ static int load_endpoint(const char *id, const char *endpoint_name, struct varsh
 			endpoint->id.self.name.str, vars);
 	}
 
-	transport = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport",
+	transport = ast_sorcery_retrieve_by_id(sorcery, "transport",
 		endpoint->transport);
 	if (!transport) {
 		ast_log(LOG_ERROR, "Endpoint %s contained invalid transport %s.\n", endpoint_name,
@@ -264,7 +269,7 @@ static int load_endpoint(const char *id, const char *endpoint_name, struct varsh
 	}
 	auth_name = AST_VECTOR_GET(&endpoint->inbound_auths, 0);
 
-	auth = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "auth", auth_name);
+	auth = ast_sorcery_retrieve_by_id(sorcery, "auth", auth_name);
 	if (!auth) {
 		ast_log(LOG_ERROR, "phoneprov %s contained invalid auth %s.\n", id, auth_name);
 		return -1;
@@ -283,68 +288,8 @@ static int load_endpoint(const char *id, const char *endpoint_name, struct varsh
 /*! \brief Callback that loads the users from phoneprov sections */
 static int load_users(void)
 {
-	struct phoneprov *pp;
-	struct ao2_container *c;
-	struct ao2_iterator i;
-	int user_count = 0;
-	char port_string[6];
-
-	c = ast_sorcery_retrieve_by_fields(sorcery, "phoneprov", AST_RETRIEVE_FLAG_MULTIPLE, NULL);
-	if (!c) {
-		ast_log(LOG_ERROR, "Retrieve by regex failed to allocate a container.\n");
-		return -1;
-	}
-	if (ao2_container_count(c) == 0) {
-		ast_log(LOG_ERROR, "Unable to find any phoneprov users.\n");
-		ao2_cleanup(c);
-		return -1;
-	}
-
-	i = ao2_iterator_init(c, 0);
-	while ((pp = ao2_iterator_next(&i))) {
-		const char *endpoint_name;
-		const char *id = ast_sorcery_object_get_id(pp);
-
-		endpoint_name = ast_var_find(pp->vars, "endpoint");
-		if (endpoint_name) {
-			if (load_endpoint(id, endpoint_name, pp->vars, port_string)) {
-				goto cleanup;
-			}
-		}
-
-		if (!ast_var_find(pp->vars,
-			ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_USERNAME))) {
-			assign_and_insert(
-				ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_USERNAME), id,
-				pp->vars);
-		}
-
-		if (!ast_var_find(pp->vars,
-			ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_LABEL))) {
-			assign_and_insert(ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_LABEL),
-				id, pp->vars);
-		}
-
-		if (!ast_var_find(pp->vars,
-			ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_SERVER_PORT))) {
-			assign_and_insert("SERVER_PORT", S_OR(port_string, "5060"), pp->vars);
-		}
-
-		if (!ast_var_find(pp->vars,
-			ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_PROFILE))) {
-			ast_log(LOG_ERROR, "phoneprov %s didn't contain a PROFILE entry.\n", id);
-		} else if (!ast_phoneprov_add_extension(AST_MODULE, pp->vars)) {
-			user_count++;
-		}
-		ao2_ref(pp, -1);
-	}
-
-cleanup:
-	ao2_iterator_destroy(&i);
-	ao2_cleanup(pp);
-	ao2_cleanup(c);
-
-	return user_count > 0 ? 0 : -1;
+	ast_sorcery_reload_object(sorcery, "phoneprov");
+	return 0;
 }
 
 /*! \brief Callback that validates the phoneprov object */
@@ -352,6 +297,8 @@ static int users_apply_handler(const struct ast_sorcery *sorcery, void *obj)
 {
 	struct phoneprov *pp = obj;
 	const char *id = ast_sorcery_object_get_id(pp);
+	const char *endpoint_name;
+	char port_string[6];
 
 	if (!ast_var_find(pp->vars,
 		ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_MAC))) {
@@ -365,30 +312,63 @@ static int users_apply_handler(const struct ast_sorcery *sorcery, void *obj)
 		return -1;
 	}
 
-	return 0;
+	endpoint_name = ast_var_find(pp->vars, "endpoint");
+	if (endpoint_name) {
+		if (load_endpoint(id, endpoint_name, pp->vars, port_string)) {
+			return -1;
+		}
+	}
+
+	if (!ast_var_find(pp->vars,
+		ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_USERNAME))) {
+		assign_and_insert(
+			ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_USERNAME), id,
+			pp->vars);
+	}
+
+	if (!ast_var_find(pp->vars,
+		ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_LABEL))) {
+		assign_and_insert(ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_LABEL),
+			id, pp->vars);
+	}
+
+	if (!ast_var_find(pp->vars,
+		ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_SERVER_PORT))) {
+		assign_and_insert("SERVER_PORT", S_OR(port_string, "5060"), pp->vars);
+	}
+
+	if (!ast_var_find(pp->vars,
+		ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_PROFILE))) {
+		ast_log(LOG_ERROR, "phoneprov %s didn't contain a PROFILE entry.\n", id);
+	}
+
+	if (!ast_phoneprov_add_extension(AST_MODULE, pp->vars)) {
+		return 0;
+	}
+
+	return -1;
 }
 
 static int load_module(void)
 {
 	CHECK_PJSIP_MODULE_LOADED();
 
-	if (!(sorcery = ast_sorcery_open())) {
-		ast_log(LOG_ERROR, "Unable to open a sorcery instance.\n");
-		return AST_MODULE_LOAD_DECLINE;
-	}
+	sorcery = ast_sip_get_sorcery();
 
-	ast_sorcery_apply_default(sorcery, "phoneprov", "config", "pjsip.conf,criteria=type=phoneprov");
+	ast_sorcery_apply_config(sorcery, "res_pjsip_phoneprov_provider");
+	ast_sorcery_apply_default(sorcery, "phoneprov", "config",
+		"pjsip.conf,criteria=type=phoneprov");
 
 	ast_sorcery_object_register(sorcery, "phoneprov", phoneprov_alloc, NULL,
 		users_apply_handler);
-	ast_sorcery_object_field_register(sorcery, "phoneprov", "type", "", OPT_NOOP_T, 0, 0);
+
+	ast_sorcery_object_field_register(sorcery, "phoneprov", "type", "", OPT_NOOP_T, 0,
+		0);
 	ast_sorcery_object_fields_register(sorcery, "phoneprov", "^", aco_handler,
 		fields_handler);
-	ast_sorcery_reload_object(sorcery, "phoneprov");
 
 	if (ast_phoneprov_provider_register(AST_MODULE, load_users)) {
 		ast_log(LOG_ERROR, "Unable to register pjsip phoneprov provider.\n");
-		ast_sorcery_unref(sorcery);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -398,15 +378,18 @@ static int load_module(void)
 static int unload_module(void)
 {
 	ast_phoneprov_provider_unregister(AST_MODULE);
-	ast_sorcery_unref(sorcery);
 
 	return 0;
 }
 
 static int reload_module(void)
 {
-	unload_module();
-	load_module();
+	ast_phoneprov_provider_unregister(AST_MODULE);
+
+	if (ast_phoneprov_provider_register(AST_MODULE, load_users)) {
+		ast_log(LOG_ERROR, "Unable to register pjsip phoneprov provider.\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}
 
 	return 0;
 }
