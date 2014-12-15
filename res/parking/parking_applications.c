@@ -90,6 +90,47 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				call on that extension. If the extension is already in use then execution
 				will continue at the next priority.
 			</para>
+			<para>If the <literal>parkeddynamic</literal> option is enabled in
+				<filename>res_parking.conf</filename> the following variables can be
+				used to dynamically create new parking lots. When using dynamic parking
+				lots, be aware of the conditions as explained in the notes section
+				below.
+			</para>
+			<para>The <variable>PARKINGDYNAMIC</variable> variable specifies the
+				parking lot to use as a template to create a dynamic parking lot. It
+				is an error to specify a non-existent parking lot for the template.
+				If not set then the default parking lot is used as the template.
+			</para>
+			<para>The <variable>PARKINGDYNCONTEXT</variable> variable specifies the
+				dialplan context to use for the newly created dynamic parking lot. If
+				not set then the context from the parking lot template is used. The
+				context is created if it does not already exist and the new parking lot
+				needs to create extensions.
+			</para>
+			<para>The <variable>PARKINGDYNEXTEN</variable> variable specifies the
+				<literal>parkext</literal> to use for the newly created dynamic
+				parking lot. If not set then the <literal>parkext</literal> is used from
+				the parking lot template. If the template does not specify a
+				<literal>parkext</literal> then no extensions are created for the newly
+				created parking lot. The dynamic parking lot cannot be created if it
+				needs to create extensions that overlap existing parking lot extensions.
+				The only exception to this is for the <literal>parkext</literal>
+				extension and only if neither of the overlaping parking lot's
+				<literal>parkext</literal> is exclusive.
+			</para>
+			<para>The <variable>PARKINGDYNPOS</variable> variable specifies the
+				parking positions to use for the newly created dynamic parking lot. If
+				not set then the <literal>parkpos</literal> from the parking lot template
+				is used.
+			</para>
+			<note>
+				<para>This application must be used as the first extension priority
+					to be recognized as a parking access extension for blind transfers.
+					Blind transfers and the DTMF one-touch parking feature need this
+					distinction to operate properly. The parking access extension in
+					this case is treated like a dialplan hint.
+				</para>
+			</note>
 		</description>
 		<see-also>
 			<ref type="application">ParkedCall</ref>
