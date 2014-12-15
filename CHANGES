@@ -11,6 +11,14 @@
 --- Functionality changes from Asterisk 13.1.0 to Asterisk 13.2.0 ------------
 ------------------------------------------------------------------------------
 
+res_pjsip_config_wizard
+------------------
+ * This is a new module that adds streamlined configuration capability for
+   chan_pjsip.  It's targetted at users who have lots of basic configuration
+   scenarios like 'phone' or 'agent' or 'trunk'.  Additional information
+   can be found in the sample configuration file at
+   config/samples/pjsip_wizard.conf.sample.
+
 ARI
 ------------------
  * The Originate operation now takes in an originator channel. The linked ID of

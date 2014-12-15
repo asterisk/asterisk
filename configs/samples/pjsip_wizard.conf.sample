@@ -1,0 +1,127 @@
+; PJSIP Wizard Configuration Samples and Quick Reference
+;
+; This file has several very basic configuration examples, to serve as a quick
+; reference to jog your memory when you need to write up a new configuration.
+; It is not intended to teach PJSIP configuration or serve as an exhaustive
+; reference of options and potential scenarios.
+;
+; This file has two main sections.
+; First, manually written examples to serve as a handy reference.
+; Second, a list of all possible PJSIP config options by section. This is
+; pulled from the XML config help. It only shows the synopsis for every item.
+; If you want to see more detail please check the documentation sources
+; mentioned at the top of this file.
+
+; Documentation
+;
+; The official documentation is at http://wiki.asterisk.org
+; You can read the XML configuration help via Asterisk command line with
+; "config show help res_pjsip_config_wizard", then you can drill down through
+; the various sections and their options.
+;
+
+
+;============EXAMPLE WIZARD CONFIGURATION FOR A PHONE=======================
+
+; This config would create an endpoint, aor with dynamic contact, inbound
+; auth and a phoneprov object.
+
+;[myphone]
+;type = wizard
+;accepts_auth = yes
+;accepts_registrations = yes
+;has_phoneprov = yes
+;transport = ipv4
+;inbound_auth/username = testname
+;inbound_auth/password = test password
+;endpoint/allow = ulaw
+;endpoint/context = default
+;phoneprov/MAC = 001122aa4455
+;phoneprov/PROFILE = profile1
+
+
+;============EXAMPLE WIZARD CONFIGURATION FOR AN ITSP TRUNK=================
+
+; This ITSP has 2 servers available and requires registration.
+
+; This config would create an endpoint, an aor with 2 static contacts, an
+; outbound auth, an identify with 2 matches, and 2 registrations.
+
+;[mytrunk]
+;type = wizard
+;sends_auth = yes
+;sends_registrations = yes
+;transport = ipv4
+;remote_hosts = sip1.myitsp.com:5060,sip2.myitsp.com:5060
+;outbound_auth/username = testname
+;outbound_auth/password = test password
+;endpoint/allow = ulaw
+;endpoint/context = default
+
+
+;========================WIZARD SECTION OPTIONS===============================
+;[wizard]
+;  SYNOPSIS: Provides configuration wizard for common scenarios.
+;sends_auth=    ; Will create an outbound auth object for the endpoint and
+                ; registration.
+                ; If yes, outbound/username must be specified.
+                ; (default = "no")
+
+;accepts_auth=  ; Will create an inbound auth object for the endpoint.
+                ; If yes, inbound/username must be specified.
+                ; (default = "no")
+
+;sends_registrations=    ; Will create an outbound registration object and an
+                         ; identify match for each host in remote_hosts (which
+                         ; must be specified).
+                         ; sends_auth must also be specified.
+                         ; (default: "no")
+
+;accepts_registrations=  ; Will create an aor with dynamic contacts which will
+                         ; accept registrations.
+                         ; accepts_auth must also be specified.
+                         ; (default: "no")
+
+;remote_hosts=   ; A comma separated list of remote hosts in the form of
+                 ; <ipaddress | hostname>[:port] [,<ipaddress | hostname>[:port] ] ...
+                 ; If specified, a static contact for each host will be created
+                 ; in the aor.  If accepts_registrations is no, an identify
+                 ; object is also created with a match line for each remote host.
+                 ; If an aor/contact or match/identify is explicitly supplied,
+                 ; remote_hosts will not be used to automatically create contacts
+                 ; or matches respectively.
+                 ; Hostnames must resolve to A, AAAA or CNAME records.
+                 ; SRV records are not currently supported.
+                 ; (default: "")
+
+;transport=      ; The transport to use for the endpoint and registrations
+                 ; (default: the pjsip default)
+
+;server_uri_pattern= ; The pattern used to construct the registration
+                     ; server_uri. The replaceable parameter ${REMOTE_HOST} isa
+                     ; available for use.
+                     ; (default: "sip:${REMOTE_HOST}")
+
+;client_uri_pattern= ; The pattern used to construct the registration client_uri.
+                     ; The replaceable parameters ${REMOTE_HOST} and ${USERNAME}
+                     ; are available for use.
+                     ; (default: "sip:${USERNAME}@${REMOTE_HOST}")
+
+;contact_pattern=    ; The pattern used to construct the aor contact.
+                     ; The replaceable parameter ${REMOTE_HOST} is available
+                     ; for use.
+                     ; (default: "sip:${REMOTE_HOST}")
+
+;has_phoneprov=      ; Will create a phoneprov object.
+                     ; If yes, phoneprov/MAC must be specified.
+                     ; (default: "no")
+
+;endpoint/<param>      ; Any parameters to be passed directly to and validated
+;aor/<param>           ; by their respective objects.
+;inbound_auth/<param>
+;outbound_auth/<param>
+;identify/<param>
+;registration/<param>
+;phoneprov/<param>
+
+;type=          ; Must be of type wizard (default: "")
