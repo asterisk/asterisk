@@ -1,5 +1,43 @@
 [general]
 ;parkeddynamic = yes            ; Enables dynamically created parkinglots. (default is no)
+                                ; If the option is enabled then the following
+                                ; variables can be used to dynamically create
+                                ; new parking lots.
+                                ;
+                                ; The PARKINGDYNAMIC variable specifies the
+                                ; parking lot to use as a template to create
+                                ; a dynamic parking lot.  It is an error to
+                                ; specify a non-existent parking lot for the
+                                ; template.  If not set then the default
+                                ; parking lot is used as the template.
+                                ;
+                                ; The PARKINGDYNCONTEXT variable specifies
+                                ; the dialplan context to use for the newly
+                                ; created dynamic parking lot.  If not set
+                                ; then the context from the parking lot
+                                ; template is used.  The context is created
+                                ; if it does not already exist and the new
+                                ; parking lot needs to create extensions.
+                                ;
+                                ; The PARKINGDYNEXTEN variable specifies the
+                                ; parkext to use for the newly created dynamic
+                                ; parking lot.  If not set then the parkext
+                                ; is used from the parking lot template.  If
+                                ; the template does not specify a parkext
+                                ; then no extensions are created for the
+                                ; newly created parking lot.  The dynamic
+                                ; parking lot cannot be created if it needs
+                                ; to create extensions that overlap existing
+                                ; parking lot extensions.  The only exception
+                                ; to this is for the parkext extension and
+                                ; only if neither of the overlaping parking
+                                ; lot's parkext is exclusive.
+                                ;
+                                ; The PARKINGDYNPOS variable specifies the
+                                ; parking positions to use for the newly
+                                ; created dynamic parking lot.  If not set
+                                ; then the parkpos from the parking lot
+                                ; template is used.
 
 ; A parking lot named 'default' will automatically be used when no other
 ; named parking lot is indicated for use by the park application or a
@@ -11,6 +49,10 @@
 parkext => 700                  ; What extension to dial to park. (optional; if
                                 ; specified, extensions will be created for parkext and
                                 ; the whole range of parkpos)
+                                ;
+                                ; Note: Generated parking extensions cannot overlap.
+                                ; The only exception is if neither overlapping parkext
+                                ; is exclusive.
 
 ;parkext_exclusive=yes          ; Specify that the parkext created for this parking lot
                                 ; will only access this parking lot. (default is no)
