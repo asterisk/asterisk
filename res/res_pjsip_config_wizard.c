@@ -801,7 +801,7 @@ static void object_type_loaded_observer(const char *name,
 	struct ast_category *category = NULL;
 	struct object_type_wizard *otw = NULL;
 	char *filename = "pjsip_wizard.conf";
-	struct ast_flags flags = { reloaded ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	struct ast_flags flags = { CONFIG_FLAG_NOCACHE };
 	struct ast_config *cfg;
 
 	if (!strstr("auth aor endpoint identify registration phoneprov", object_type)) {
@@ -813,6 +813,10 @@ static void object_type_loaded_observer(const char *name,
 	if (!otw) {
 		ast_log(LOG_ERROR, "There was no wizard for object type '%s'\n", object_type);
 		return;
+	}
+
+	if (reloaded) {
+		flags.flags |= CONFIG_FLAG_FILEUNCHANGED;
 	}
 
 	cfg = ast_config_load2(filename, object_type, flags);
@@ -938,7 +942,7 @@ static void instance_created_observer(const char *name, struct ast_sorcery *sorc
 
 static int load_module(void)
 {
-	struct ast_sorcery *sorcery = ast_sip_get_sorcery();
+	struct ast_sorcery *sorcery = NULL;
 	int i;
 
 	AST_VECTOR_INIT(&object_type_wizards, 12);
@@ -948,16 +952,20 @@ static int load_module(void)
 	 * and map the wizards because the observers will never get triggered.
 	 * The we neeed to schedule a reload.
 	 */
-	if (sorcery) {
-		/* CLean up and add the observer. */
-		ast_sorcery_instance_observer_remove(sorcery, &observer);
-		ast_sorcery_instance_observer_add(sorcery, &observer);
+	if (ast_module_check("res_pjsip.so") && ast_sip_get_pjsip_endpoint()) {
+		sorcery = ast_sip_get_sorcery();
+		if (sorcery) {
+			/* Clean up and add the observer. */
+			ast_sorcery_instance_observer_remove(sorcery, &observer);
+			ast_sorcery_instance_observer_add(sorcery, &observer);
 
-		for (i = 0; object_types[i]; i++) {
-			ast_sorcery_apply_wizard_mapping(sorcery, object_types[i], "memory", "pjsip_wizard", 0);
+			for (i = 0; object_types[i]; i++) {
+				ast_sorcery_apply_wizard_mapping(sorcery, object_types[i], "memory",
+					"pjsip_wizard", 0);
+			}
+
+			ast_module_reload("res_pjsip.so");
 		}
-
-		ast_module_reload("res_pjsip");
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
