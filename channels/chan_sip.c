@@ -10405,6 +10405,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		goto process_sdp_cleanup;
 	}
 
+	if (p->srtp && p->udptl && udptlportno != -1) {
+		ast_debug(1, "Terminating SRTP due to T.38 UDPTL\n");
+		sip_srtp_destroy(p->srtp);
+		p->srtp = NULL;
+        }
+
 	if (secure_audio && !(p->srtp && (ast_test_flag(p->srtp, SRTP_CRYPTO_OFFER_OK)))) {
 		ast_log(LOG_WARNING, "Can't provide secure audio requested in SDP offer\n");
 		res = -1;
@@ -10429,7 +10435,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		goto process_sdp_cleanup;
 	}
 
-	if (!(secure_audio || secure_video) && ast_test_flag(&p->flags[1], SIP_PAGE2_USE_SRTP)) {
+	if (!(secure_audio || secure_video || (p->udptl && udptlportno != -1)) && ast_test_flag(&p->flags[1], SIP_PAGE2_USE_SRTP)) {
 		ast_log(LOG_WARNING, "Matched device setup to use SRTP, but request was not!\n");
 		res = -1;
 		goto process_sdp_cleanup;
