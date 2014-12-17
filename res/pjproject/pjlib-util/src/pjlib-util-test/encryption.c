@@ -53,7 +53,7 @@ static void digest_to_hex(const pj_uint8_t digest[PJ_SHA1_DIGEST_SIZE],
     
     for (i = 0; i < PJ_SHA1_DIGEST_SIZE/4; i++) {
         for (j = 0; j < 4; j++) {
-            sprintf(c,"%02X", digest[i*4+j]);
+            sprintf(c,"%02hhX", digest[i*4+j]);
             c += 2;
         }
         sprintf(c, " ");

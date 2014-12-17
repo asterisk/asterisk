@@ -2559,7 +2559,7 @@ static char *print_binary(const pj_uint8_t *data, unsigned data_len)
     buffer += 7;
 
     for (i=0; i<data_len; ++i) {
-	pj_ansi_sprintf(buffer, "%02x", (*data) & 0xFF);
+	pj_ansi_sprintf(buffer, "%02hhx", (*data) & 0xFF);
 	buffer += 2;
 	data++;
     }

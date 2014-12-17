@@ -567,7 +567,7 @@ static char* print_binary(const pj_uint8_t *data, unsigned data_len)
 	p += 12;
 
 	for (j=0; j<20 && i<data_len && p<(buf+length-10); ++j, ++i) {
-	    pj_ansi_sprintf(p, "%02x ", (*data) & 0xFF);
+	    pj_ansi_sprintf(p, "%02hhx ", (*data) & 0xFF);
 	    p += 3;
 	    data++;
 	}
@@ -924,7 +924,7 @@ static int handle_unknown_non_mandatory(void)
 	unsigned i;
 	puts("");
 	printf("{ ");
-	for (i=0; i<len; ++i) printf("0x%02x, ", packet[i]);
+	for (i=0; i<len; ++i) printf("0x%02hhx, ", packet[i]);
 	puts(" }");
     }
 #endif

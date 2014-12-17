@@ -782,7 +782,7 @@ static void sms_log(sms_t * h, char status)
 		unsigned char n;
 
 		if (h->mr >= 0) {
-			snprintf(mrs, sizeof(mrs), "%02X", (unsigned)h->mr);
+			snprintf(mrs, sizeof(mrs), "%02hhX", (unsigned char)h->mr);
 		}
 		snprintf(line, sizeof(line), "%s %c%c%c%s %s %s %s ",
 			isodate(time(NULL), buf, sizeof(buf)),
@@ -1015,7 +1015,7 @@ static void sms_writefile(sms_t * h)
 		unsigned int p;
 		fprintf(o, "udh#");
 		for (p = 0; p < h->udhl; p++) {
-			fprintf(o, "%02X", (unsigned)h->udh[p]);
+			fprintf(o, "%02hhX", (unsigned char)h->udh[p]);
 		}
 		fprintf(o, "\n");
 	}
@@ -1048,7 +1048,7 @@ static void sms_writefile(sms_t * h)
 			if (p == h->udl) {              /* can write in ucs-1 hex */
 				fprintf(o, "ud#");
 				for (p = 0; p < h->udl; p++) {
-					fprintf(o, "%02X", (unsigned)h->ud[p]);
+					fprintf(o, "%02hhX", (unsigned char)h->ud[p]);
 				}
 				fprintf(o, "\n");
 			} else {                        /* write in UCS-2 */
@@ -1139,7 +1139,7 @@ static unsigned char sms_handleincoming (sms_t * h)
 				return 0xFF;		  /* duh! */
 			}
 		} else {
-			ast_log(LOG_WARNING, "Unknown message type %02X\n", (unsigned)h->imsg[2]);
+			ast_log(LOG_WARNING, "Unknown message type %02hhX\n", h->imsg[2]);
 			return 0xFF;
 		}
 	} else {                                /* client */
@@ -1162,7 +1162,7 @@ static unsigned char sms_handleincoming (sms_t * h)
 				return 0xFF;                /* duh! */
 			}
 		} else {
-			ast_log(LOG_WARNING, "Unknown message type %02X\n", (unsigned)h->imsg[2]);
+			ast_log(LOG_WARNING, "Unknown message type %02hhX\n", h->imsg[2]);
 			return 0xFF;
 		}
 	}
@@ -1244,7 +1244,7 @@ static char *sms_hexdump(unsigned char buf[], int size, char *s /* destination *
 	int f;
 
 	for (p = s, f = 0; f < size && f < MAX_DEBUG_LEN; f++, p += 3) {
-		sprintf(p, "%02X ", (unsigned)buf[f]);
+		sprintf(p, "%02hhX ", (unsigned char)buf[f]);
 	}
 	return(s);
 }
@@ -1482,7 +1482,7 @@ static void sms_debug (int dir, sms_t *h)
 	int n = (dir == DIR_RX) ? h->ibytep : msg[1] + 2;
 	int q = 0;
 	while (q < n && q < 30) {
-		sprintf(p, " %02X", (unsigned)msg[q++]);
+		sprintf(p, " %02hhX", msg[q++]);
 		p += 3;
 	}
 	if (q < n) {

@@ -654,7 +654,7 @@ static int oh323_call(struct ast_channel *c, const char *dest, int timeout)
 	/* indicate that this is an outgoing call */
 	pvt->outgoing = 1;
 
-	ast_verb(3, "Requested transfer capability: 0x%.2x - %s\n", ast_channel_transfercapability(c), ast_transfercapability2str(ast_channel_transfercapability(c)));
+	ast_verb(3, "Requested transfer capability: 0x%02hx - %s\n", ast_channel_transfercapability(c), ast_transfercapability2str(ast_channel_transfercapability(c)));
 	if (h323debug)
 		ast_debug(1, "Placing outgoing call to %s, %d/%d\n", called_addr, pvt->options.dtmfcodec[0], pvt->options.dtmfcodec[1]);
 	ast_mutex_unlock(&pvt->lock);

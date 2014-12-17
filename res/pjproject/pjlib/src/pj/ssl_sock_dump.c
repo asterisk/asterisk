@@ -63,7 +63,7 @@ PJ_DEF(pj_ssize_t) pj_ssl_cert_info_dump(const pj_ssl_cert_info *ci,
 
     for (i = 0; i < sizeof(ci->serial_no) && !ci->serial_no[i]; ++i);
     for (; i < sizeof(ci->serial_no); ++i) {
-	len = pj_ansi_snprintf(p, end-p, "%02X ", ci->serial_no[i]);
+	len = pj_ansi_snprintf(p, end-p, "%02hhX ", ci->serial_no[i]);
 	CHECK_BUF_LEN();
     }
     *(p-1) = '\n';

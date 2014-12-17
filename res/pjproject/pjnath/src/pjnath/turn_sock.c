@@ -561,7 +561,7 @@ static pj_bool_t on_data_read(pj_activesock_t *asock,
 	    //const pj_uint8_t *pkt = (const pj_uint8_t*)data;
 
 	    //PJ_LOG(5,(turn_sock->pool->obj_name, 
-	    //	      "Packet start: %02X %02X %02X %02X", 
+	    //	      "Packet start: %02hhX %02hhX %02hhX %02hhX", 
 	    //	      pkt[0], pkt[1], pkt[2], pkt[3]));
 
 	    //PJ_LOG(5,(turn_sock->pool->obj_name, 

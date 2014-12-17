@@ -7500,7 +7500,7 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 		ast_debug(1, "write2mISDN %p %d bytes: ", p, frame->samples);
 
 		for (i = 0; i < max; i++) {
-			ast_debug(1, "%2.2x ", ((char *) frame->data.ptr)[i]);
+			ast_debug(1, "%02hhx ", ((unsigned char *) frame->data.ptr)[i]);
 		}
 	}
 #endif

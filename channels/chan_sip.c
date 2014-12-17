@@ -8215,7 +8215,7 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 				}
 				ast_str_append(&out, 0, " -> ");
 				for (i = 0; i < f->datalen; i++) {
-					ast_str_append(&out, 0, "%02X ", (unsigned)arr[i]);
+					ast_str_append(&out, 0, "%02hhX ", arr[i]);
 				}
 				ast_verb(0, "%s\n", ast_str_buffer(out));
 				ast_free(out);
@@ -23381,7 +23381,7 @@ static void handle_response_refer(struct sip_pvt *p, int resp, const char *rest,
 		   theoretically possible. */
 
 		if (resp < 299) { /* 1xx cases don't get here */
-			ast_log(LOG_WARNING, "SIP transfer to %s had unxpected 2xx response (%d), confusion is possible. \n", p->refer->refer_to, resp);
+			ast_log(LOG_WARNING, "SIP transfer to %s had unexpected 2xx response (%d), confusion is possible. \n", p->refer->refer_to, resp);
 		} else {
 			ast_log(LOG_WARNING, "SIP transfer to %s with response (%d). \n", p->refer->refer_to, resp);
 		}
@@ -25787,7 +25787,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 		} else {
 			/* Go and take over the target call */
 			if (sipdebug)
-				ast_debug(4, "Sending this call to the invite/replcaes handler %s\n", p->callid);
+				ast_debug(4, "Sending this call to the invite/replaces handler %s\n", p->callid);
 			res = handle_invite_replaces(p, req, addr, seqno, nounlock);
 			refer_locked = 0;
 			goto request_invite_cleanup;

@@ -215,10 +215,10 @@ char *ast_eid_to_str(char *s, int maxlen, struct ast_eid *eid)
 			*s = '\0';
 	} else {
 		for (x = 0; x < 5; x++) {
-			sprintf(s, "%02x:", (unsigned)eid->eid[x]);
+			sprintf(s, "%02hhx:", eid->eid[x]);
 			s += 3;
 		}
-		sprintf(s, "%02x", (unsigned)eid->eid[5]);
+		sprintf(s, "%02hhx", eid->eid[5]);
 	}
 	return os;
 }

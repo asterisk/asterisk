@@ -690,15 +690,15 @@ static void sig_pri_set_subaddress(struct ast_party_subaddress *ast_subaddress, 
 		ptr = cnum;
 		len = pri_subaddress->length - 1; /* -1 account for zero based indexing */
 		for (x = 0; x < len; ++x) {
-			ptr += sprintf(ptr, "%02x", (unsigned)pri_subaddress->data[x]);
+			ptr += sprintf(ptr, "%02hhx", (unsigned char)pri_subaddress->data[x]);
 		}
 
 		if (pri_subaddress->odd_even_indicator) {
 			/* ODD */
-			sprintf(ptr, "%01x", (unsigned)((pri_subaddress->data[len]) >> 4));
+			sprintf(ptr, "%01hhx", (unsigned char)((pri_subaddress->data[len]) >> 4));
 		} else {
 			/* EVEN */
-			sprintf(ptr, "%02x", (unsigned)pri_subaddress->data[len]);
+			sprintf(ptr, "%02hhx", (unsigned char)pri_subaddress->data[len]);
 		}
 		ast_subaddress->str = cnum;
 	}
@@ -7911,7 +7911,7 @@ int sig_pri_call(struct sig_pri_chan *p, struct ast_channel *ast, const char *rd
 	if (p->pri->facilityenable)
 		pri_facility_enable(p->pri->pri);
 
-	ast_verb(3, "Requested transfer capability: 0x%.2x - %s\n", (unsigned)ast_channel_transfercapability(ast), ast_transfercapability2str(ast_channel_transfercapability(ast)));
+	ast_verb(3, "Requested transfer capability: 0x%02hx - %s\n", ast_channel_transfercapability(ast), ast_transfercapability2str(ast_channel_transfercapability(ast)));
 	dp_strip = 0;
 	pridialplan = p->pri->dialplan - 1;
 	if (pridialplan == -2 || pridialplan == -3) { /* compute dynamically */
