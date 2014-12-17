@@ -532,7 +532,7 @@ static void md52sum(char *sum, unsigned char *md5)
 {
 	int x;
 	for (x = 0; x < 16; x++) {
-		sum += sprintf(sum, "%02x", (unsigned)*(md5++));
+		sum += sprintf(sum, "%02hhx", *(md5++));
 	}
 }
 

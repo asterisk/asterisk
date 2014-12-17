@@ -209,9 +209,9 @@ void dump_buf(struct fbuf_t *b)
 			if (i != 0)
 				ast_log(LOG_WARNING, "%s\n", buf);
 			memset(buf, '\0', sizeof(buf));
-			sprintf(buf, "%04x: ", i);
+			sprintf(buf, "%04x: ", (unsigned)i);
 		}
-		sprintf(buf + 6 + x*3, "%02x ", b->data[i]);
+		sprintf(buf + 6 + x*3, "%02hhx ", b->data[i]);
 		if (i > 31 && i < last2lines)
 			i = last2lines - 1;
 	}
@@ -1056,7 +1056,7 @@ static int h264_decap(struct fbuf_t *b, uint8_t *data, int len)
 	}
 	/* first of all, check if the packet has F == 0 */
 	if (data[0] & 0x80) {
-		ast_log(LOG_WARNING, "--- forbidden packet; nal: %02x\n",
+		ast_log(LOG_WARNING, "--- forbidden packet; nal: %02hhx\n",
 			data[0]);
 		return 1;
 	}

@@ -61,7 +61,7 @@ char *dundi_eid_to_str_short(char *s, int maxlen, dundi_eid *eid)
 			*s = '\0';
 	} else {
 		for (x=0;x<6;x++) {
-			sprintf(s, "%02X", (unsigned)eid->eid[x]);
+			sprintf(s, "%02hhX", (unsigned char)eid->eid[x]);
 			s += 2;
 		}
 	}
@@ -320,7 +320,7 @@ static void dump_encrypted(char *output, int maxlen, void *value, int len)
 	if ((len > 16) && !(len % 16)) {
 		/* Build up IV */
 		for (x=0;x<16;x++) {
-			snprintf(iv + (x << 1), 3, "%02x", (unsigned)((unsigned char *)value)[x]);
+			snprintf(iv + (x << 1), 3, "%02hhx", ((unsigned char *)value)[x]);
 		}
 		snprintf(output, maxlen, "[IV %s] %d encrypted blocks\n", iv, len / 16);
 	} else
@@ -334,7 +334,7 @@ static void dump_raw(char *output, int maxlen, void *value, int len)
 	output[maxlen - 1] = '\0';
 	strcpy(output, "[ ");
 	for (x=0;x<len;x++) {
-		snprintf(output + strlen(output), maxlen - strlen(output) - 1, "%02x ", (unsigned)u[x]);
+		snprintf(output + strlen(output), maxlen - strlen(output) - 1, "%02hhx ", u[x]);
 	}
 	strncat(output + strlen(output), "]", maxlen - strlen(output) - 1);
 }
@@ -464,7 +464,7 @@ void dundi_showframe(struct dundi_hdr *fhi, int rx, struct sockaddr_in *sin, int
 	} else {
 		class = commands[(int)(fhi->cmdresp & 0x3f)];
 	}
-	snprintf(subclass2, (int)sizeof(subclass2), "%02x", (unsigned)fhi->cmdflags);
+	snprintf(subclass2, (int)sizeof(subclass2), "%02hhx", (unsigned char)fhi->cmdflags);
 	subclass = subclass2;
 	snprintf(tmp, (int)sizeof(tmp), 
 		"%s-Frame -- OSeqno: %3.3d ISeqno: %3.3d Type: %s (%s)\n",

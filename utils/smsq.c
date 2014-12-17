@@ -390,14 +390,14 @@ static void rxqcheck (char *dir, char *queue, char *process)
             {
                for (n = 0, x = 0; x < udl; x++)
                {
-                  sprintf (tmp + n, "%02X", ud[x]);
+                  sprintf (tmp + n, "%02hX", ud[x]);
                   n += 2;
                }
                setenv ("ud8", tmp, 1);
             }
             for (n = 0, x = 0; x < udl; x++)
             {
-               sprintf (tmp + n, "%04X", ud[x]);
+               sprintf (tmp + n, "%04hX", ud[x]);
                n += 4;
             }
             setenv ("ud16", tmp, 1);
@@ -730,13 +730,13 @@ main (int argc, const char *argv[])
             {                   /* use one byte hex */
                fprintf (f, "ud#");
                for (p = 0; p < udl; p++)
-                  fprintf (f, "%02X", ud[p]);
+                  fprintf (f, "%02hX", ud[p]);
             }
          } else
          {                      /* use two byte hex */
             fprintf (f, "ud##");
             for (p = 0; p < udl; p++)
-               fprintf (f, "%04X", ud[p]);
+               fprintf (f, "%04hX", ud[p]);
          }
          fprintf (f, "\n");
       }

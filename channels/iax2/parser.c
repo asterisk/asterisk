@@ -111,7 +111,7 @@ static void dump_string_hex(char *output, int maxlen, void *value, int len)
 	int i = 0;
 
 	while (len-- && (i + 1) * 4 < maxlen) {
-		sprintf(output + (4 * i), "\\x%2.2x", (unsigned)*((unsigned char *)value + i));
+		sprintf(output + (4 * i), "\\x%02hhx", *((unsigned char *)value + i));
 		i++;
 	}
 }
