@@ -799,9 +799,9 @@ static void *do_pktccops(void *data)
 				if ((idx = ast_poll_fd_index(pfds, nfds, cmts->sfd)) > -1 && (pfds[idx].revents & POLLIN)) {
 					len = cops_getmsg(cmts->sfd, recmsg);
 					if (len > 0) {
-						ast_debug(3, "COPS: got from %s:\n Header: versflag=0x%.2x opcode=%i clienttype=0x%.4x msglength=%u\n",
-							cmts->name, (unsigned)recmsg->verflag,
-							recmsg->opcode, (unsigned)recmsg->clienttype, recmsg->length);
+						ast_debug(3, "COPS: got from %s:\n Header: versflag=0x%02hhx opcode=%i clienttype=0x%04hx msglength=%u\n",
+							cmts->name, recmsg->verflag,
+							recmsg->opcode, recmsg->clienttype, recmsg->length);
 						if (recmsg->object != NULL) {
 							pobject = recmsg->object;
 							while (pobject != NULL) {

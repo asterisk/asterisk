@@ -268,7 +268,7 @@ static const char* octStrToString
       if (bufsiz > 1) buffer[1] = '\0';
       for (i = 0; i < numocts; i++) {
          if (i < bufsiz - 1) {
-            sprintf (lbuf, "%02x", (unsigned)data[i]);
+            sprintf (lbuf, "%02hhx", (unsigned char)data[i]);
             strcat (&buffer[(i*2)+1], lbuf);
          }
          else break;

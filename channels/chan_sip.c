@@ -8369,7 +8369,7 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 				}
 				ast_str_append(&out, 0, " -> ");
 				for (i = 0; i < f->datalen; i++) {
-					ast_str_append(&out, 0, "%02X ", (unsigned)arr[i]);
+					ast_str_append(&out, 0, "%02hhX ", arr[i]);
 				}
 				ast_verb(0, "%s\n", ast_str_buffer(out));
 				ast_free(out);
@@ -23591,7 +23591,7 @@ static void handle_response_refer(struct sip_pvt *p, int resp, const char *rest,
 		   theoretically possible. */
 
 		if (resp < 299) { /* 1xx cases don't get here */
-			ast_log(LOG_WARNING, "SIP transfer to %s had unxpected 2xx response (%d), confusion is possible. \n", p->refer->refer_to, resp);
+			ast_log(LOG_WARNING, "SIP transfer to %s had unexpected 2xx response (%d), confusion is possible. \n", p->refer->refer_to, resp);
 		} else {
 			ast_log(LOG_WARNING, "SIP transfer to %s with response (%d). \n", p->refer->refer_to, resp);
 		}

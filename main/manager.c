@@ -3204,7 +3204,7 @@ static int authenticate(struct mansession *s, const struct message *m)
 			MD5Update(&md5, (unsigned char *) user->secret, strlen(user->secret));
 			MD5Final(digest, &md5);
 			for (x = 0; x < 16; x++)
-				len += sprintf(md5key + len, "%2.2x", (unsigned)digest[x]);
+				len += sprintf(md5key + len, "%02hhx", digest[x]);
 			if (!strcmp(md5key, key)) {
 				error = 0;
 			} else {

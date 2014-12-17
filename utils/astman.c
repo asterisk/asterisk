@@ -723,7 +723,7 @@ static int manager_login(char *hostname)
 				MD5Update(&md5, (unsigned char *)pass, strlen(pass));
 				MD5Final(digest, &md5);
 				for (x=0; x<16; x++)
-					len += sprintf(md5key + len, "%2.2x", digest[x]);
+					len += sprintf(md5key + len, "%02hhx", digest[x]);
 				manager_action("Login",
 						"AuthType: MD5\r\n"
 						"Username: %s\r\n"

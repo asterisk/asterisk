@@ -520,7 +520,7 @@ static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, unsigned int len)
 #if 0
 			fprintf(stderr, "FEC: ");
 			for (j = 0; j < s->rx[x].fec_len[i]; j++)
-				fprintf(stderr, "%02X ", data[j]);
+				fprintf(stderr, "%02hhX ", data[j]);
 			fprintf(stderr, "\n");
 #endif
 		}

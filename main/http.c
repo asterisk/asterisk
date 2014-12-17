@@ -1030,8 +1030,8 @@ static int http_body_check_chunk_sync(struct ast_tcptls_session_instance *ser)
 		return -1;
 	}
 	if (chunk_sync[0] != 0x0D || chunk_sync[1] != 0x0A) {
-		ast_log(LOG_WARNING, "HTTP chunk sync bytes wrong (0x%02X, 0x%02X)\n",
-			(unsigned) chunk_sync[0], (unsigned) chunk_sync[1]);
+		ast_log(LOG_WARNING, "HTTP chunk sync bytes wrong (0x%02hhX, 0x%02hhX)\n",
+			(unsigned char) chunk_sync[0], (unsigned char) chunk_sync[1]);
 		return -1;
 	}
 

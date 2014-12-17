@@ -387,7 +387,7 @@ static int (*iax2_regfunk)(const char *username, int onoff) = NULL;
 			break; \
 		\
 		for (idx = 0; idx < 16; idx++) \
-			sprintf(digest + (idx << 1), "%2.2x", (unsigned) key[idx]); \
+			sprintf(digest + (idx << 1), "%02hhx", (unsigned char) key[idx]); \
 		\
 		ast_log(LOG_NOTICE, msg " IAX_COMMAND_RTKEY to rotate key to '%s'\n", digest); \
 	} while(0)
@@ -6442,7 +6442,7 @@ static int decode_frame(ast_aes_decrypt_key *dcx, struct ast_iax2_full_hdr *fh, 
 
 		padding = 16 + (workspace[15] & 0x0f);
 		if (iaxdebug)
-			ast_debug(1, "Decoding full frame with length %d (padding = %d) (15=%02x)\n", *datalen, padding, (unsigned)workspace[15]);
+			ast_debug(1, "Decoding full frame with length %d (padding = %d) (15=%02hhx)\n", *datalen, padding, workspace[15]);
 		if (*datalen < padding + sizeof(struct ast_iax2_full_hdr))
 			return -1;
 
@@ -6489,7 +6489,7 @@ static int encrypt_frame(ast_aes_encrypt_key *ecx, struct ast_iax2_full_hdr *fh,
 		workspace[15] &= 0xf0;
 		workspace[15] |= (padding & 0xf);
 		if (iaxdebug)
-			ast_debug(1, "Encoding full frame %d/%d with length %d + %d padding (15=%02x)\n", fh->type, fh->csub, *datalen, padding, (unsigned)workspace[15]);
+			ast_debug(1, "Encoding full frame %d/%d with length %d + %d padding (15=%02hhx)\n", fh->type, fh->csub, *datalen, padding, workspace[15]);
 		*datalen += padding;
 		memcpy_encrypt(efh->encdata, workspace, *datalen - sizeof(struct ast_iax2_full_enc_hdr), ecx);
 		if (*datalen >= 32 + sizeof(struct ast_iax2_full_enc_hdr))
@@ -8207,7 +8207,7 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 			MD5Final(digest, &md5);
 			/* If they support md5, authenticate with it.  */
 			for (x=0;x<16;x++)
-				sprintf(requeststr + (x << 1), "%2.2x", (unsigned)digest[x]); /* safe */
+				sprintf(requeststr + (x << 1), "%02hhx", digest[x]); /* safe */
 			if (!strcasecmp(requeststr, md5secret)) {
 				res = 0;
 				break;
@@ -8339,7 +8339,7 @@ static int register_verify(int callno, struct ast_sockaddr *addr, struct iax_ies
 			MD5Update(&md5, (unsigned char *)tmppw, strlen(tmppw));
 			MD5Final(digest, &md5);
 			for (x=0;x<16;x++)
-				sprintf(requeststr + (x << 1), "%2.2x", (unsigned)digest[x]); /* safe */
+				sprintf(requeststr + (x << 1), "%02hhx", digest[x]); /* safe */
 			if (!strcasecmp(requeststr, md5secret))
 				break;
 		}
@@ -8423,7 +8423,7 @@ static int authenticate(const char *challenge, const char *secret, const char *k
 			MD5Final(digest, &md5);
 			/* If they support md5, authenticate with it.  */
 			for (x=0;x<16;x++)
-				sprintf(digres + (x << 1),  "%2.2x", (unsigned)digest[x]); /* safe */
+				sprintf(digres + (x << 1),  "%02hhx", digest[x]); /* safe */
 			if (pvt) {
 				build_encryption_keys(digest, pvt);
 			}

@@ -109,7 +109,7 @@ static void generate_uuid(struct ast_uuid *uuid)
 	 * or /dev/urandom not existing on systems in this age is next to none.
 	 */
 
-	/* XXX Currently, we only protect this call if the user has no /dev/urandon on their system.
+	/* XXX Currently, we only protect this call if the user has no /dev/urandom on their system.
 	 * If it turns out that there are issues with UUID generation despite the presence of
 	 * /dev/urandom, then we may need to make the locking/unlocking unconditional.
 	 */
