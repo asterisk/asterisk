@@ -801,7 +801,7 @@ static void object_type_loaded_observer(const char *name,
 	struct ast_category *category = NULL;
 	struct object_type_wizard *otw = NULL;
 	char *filename = "pjsip_wizard.conf";
-	struct ast_flags flags = { CONFIG_FLAG_NOCACHE };
+	struct ast_flags flags = { 0 };
 	struct ast_config *cfg;
 
 	if (!strstr("auth aor endpoint identify registration phoneprov", object_type)) {
@@ -815,8 +815,8 @@ static void object_type_loaded_observer(const char *name,
 		return;
 	}
 
-	if (reloaded) {
-		flags.flags |= CONFIG_FLAG_FILEUNCHANGED;
+	if (reloaded && otw->last_config) {
+		flags.flags = CONFIG_FLAG_FILEUNCHANGED;
 	}
 
 	cfg = ast_config_load2(filename, object_type, flags);
