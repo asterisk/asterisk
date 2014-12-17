@@ -1344,7 +1344,7 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 		}
 
 		for (i = 0; i < size; i++) {
-			sprintf(local_fingerprint, "%.2X:", (unsigned)fingerprint[i]);
+			sprintf(local_fingerprint, "%02hhX:", fingerprint[i]);
 			local_fingerprint += 3;
 		}
 
@@ -1506,7 +1506,7 @@ static void ast_rtp_dtls_set_fingerprint(struct ast_rtp_instance *instance, enum
 	rtp->remote_hash = hash;
 
 	while ((value = strsep(&tmp, ":")) && (pos != (EVP_MAX_MD_SIZE - 1))) {
-		sscanf(value, "%02x", (unsigned int*)&rtp->remote_fingerprint[pos++]);
+		sscanf(value, "%02hhx", &rtp->remote_fingerprint[pos++]);
 	}
 }
 

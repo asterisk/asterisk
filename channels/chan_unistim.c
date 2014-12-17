@@ -900,7 +900,7 @@ static void send_raw_client(int size, const unsigned char *data, struct sockaddr
 					ast_inet_ntoa(addr_ourip->sin_addr), (int) size,
 					ast_inet_ntoa(addr_to->sin_addr));
 		for (tmp = 0; tmp < size; tmp++)
-			ast_verb(0, "%.2x ", (unsigned char) data[tmp]);
+			ast_verb(0, "%02hhx ", data[tmp]);
 		ast_verb(0, "\n******************************************\n");
 
 	}
@@ -939,7 +939,7 @@ static void send_client(int size, const unsigned char *data, struct unistimsessi
 
 /*#ifdef DUMP_PACKET */
 	if (unistimdebug) {
-		ast_verb(6, "Sending datas with seq #0x%.4x Using slot #%d :\n", (unsigned)pte->seq_server, buf_pos);
+		ast_verb(6, "Sending datas with seq #0x%04x Using slot #%d :\n", (unsigned)pte->seq_server, buf_pos);
 	}
 /*#endif */
 	send_raw_client(pte->wsabufsend[buf_pos].len, pte->wsabufsend[buf_pos].buf, &(pte->sin),
@@ -1095,7 +1095,7 @@ static void send_icon(unsigned char pos, unsigned char status, struct unistimses
 {
 	BUFFSEND;
 	if (unistimdebug) {
-		ast_verb(0, "Sending icon pos %d with status 0x%.2x\n", pos, (unsigned)status);
+		ast_verb(0, "Sending icon pos %d with status 0x%02hhx\n", pos, status);
 	}
 	memcpy(buffsend + SIZE_HEADER, packet_send_icon, sizeof(packet_send_icon));
 	buffsend[9] = pos;
@@ -1167,7 +1167,7 @@ send_favorite(unsigned char pos, unsigned char status, struct unistimsession *pt
 	int i;
 
 	if (unistimdebug) {
-		ast_verb(0, "Sending favorite pos %d with status 0x%.2x\n", pos, (unsigned)status);
+		ast_verb(0, "Sending favorite pos %d with status 0x%02hhx\n", pos, status);
 	}
 	memcpy(buffsend + SIZE_HEADER, packet_send_favorite, sizeof(packet_send_favorite));
 	buffsend[10] = pos;
@@ -1432,7 +1432,7 @@ static int send_retransmit(struct unistimsession *pte)
 		 i < pte->last_buf_available; i++) {
 		if (i < 0) {
 			ast_log(LOG_WARNING,
-					"Asked to retransmit an ACKed slot ! last_buf_available=%d, seq_server = #0x%.4x last_seq_ack = #0x%.4x\n",
+					"Asked to retransmit an ACKed slot ! last_buf_available=%d, seq_server = #0x%04x last_seq_ack = #0x%04x\n",
 					pte->last_buf_available, (unsigned)pte->seq_server, (unsigned)pte->last_seq_ack);
 			continue;
 		}
@@ -1442,7 +1442,7 @@ static int send_retransmit(struct unistimsession *pte)
 			unsigned short seq;
 
 			seq = ntohs(sbuf[1]);
-			ast_verb(0, "Retransmit slot #%d (seq=#0x%.4x), last ack was #0x%.4x\n", i,
+			ast_verb(0, "Retransmit slot #%d (seq=#0x%04x), last ack was #0x%04x\n", i,
 						(unsigned)seq, (unsigned)pte->last_seq_ack);
 		}
 		send_raw_client(pte->wsabufsend[i].len, pte->wsabufsend[i].buf, &pte->sin,
@@ -1944,7 +1944,7 @@ static void rcv_mac_addr(struct unistimsession *pte, const unsigned char *buf)
 	char addrmac[19];
 	int res = 0;
 	for (tmp = 15; tmp < 15 + SIZE_HEADER; tmp++) {
-		sprintf(&addrmac[i], "%.2x", (unsigned) buf[tmp]);
+		sprintf(&addrmac[i], "%02hhx", buf[tmp]);
 		i += 2;
 	}
 	if (unistimdebug) {
@@ -4364,7 +4364,7 @@ static void process_request(int size, unsigned char *buf, struct unistimsession 
 		char keycode = buf[13];
 
 		if (unistimdebug) {
-			ast_verb(0, "Key pressed: keycode = 0x%.2x - current state: %s\n", (unsigned)keycode,
+			ast_verb(0, "Key pressed: keycode = 0x%02hhx - current state: %s\n", (unsigned char)keycode,
 						ptestate_tostr(pte->state));
 		}
 		switch (pte->state) {
@@ -4529,15 +4529,14 @@ static void parsing(int size, unsigned char *buf, struct unistimsession *pte,
 		return;
 	}
 	if (buf[5] != 2) {
-		ast_log(LOG_NOTICE, "%s Wrong direction : got 0x%.2x expected 0x02\n", tmpbuf,
-				(unsigned)buf[5]);
+		ast_log(LOG_NOTICE, "%s Wrong direction : got 0x%02hhx expected 0x02\n", tmpbuf, buf[5]);
 		return;
 	}
 	seq = ntohs(sbuf[1]);
 	if (buf[4] == 1) {
 		ast_mutex_lock(&pte->lock);
 		if (unistimdebug) {
-			ast_verb(6, "ACK received for packet #0x%.4x\n", (unsigned)seq);
+			ast_verb(6, "ACK received for packet #0x%04x\n", (unsigned)seq);
 		}
 		pte->nb_retransmit = 0;
 
@@ -4553,7 +4552,7 @@ static void parsing(int size, unsigned char *buf, struct unistimsession *pte,
 				pte->last_seq_ack = 0;
 			} else {
 				ast_log(LOG_NOTICE,
-						"%s Warning : ACK received for an already ACKed packet : #0x%.4x we are at #0x%.4x\n",
+						"%s Warning : ACK received for an already ACKed packet : #0x%04x we are at #0x%04x\n",
 						tmpbuf, (unsigned)seq, (unsigned)pte->last_seq_ack);
 			}
 			ast_mutex_unlock(&pte->lock);
@@ -4561,13 +4560,13 @@ static void parsing(int size, unsigned char *buf, struct unistimsession *pte,
 		}
 		if (pte->seq_server < seq) {
 			ast_log(LOG_NOTICE,
-					"%s Error : ACK received for a non-existent packet : #0x%.4x\n",
+					"%s Error : ACK received for a non-existent packet : #0x%04x\n",
 					tmpbuf, (unsigned)pte->seq_server);
 			ast_mutex_unlock(&pte->lock);
 			return;
 		}
 		if (unistimdebug) {
-			ast_verb(0, "%s ACK gap : Received ACK #0x%.4x, previous was #0x%.4x\n",
+			ast_verb(0, "%s ACK gap : Received ACK #0x%04x, previous was #0x%04x\n",
 						tmpbuf, (unsigned)seq, (unsigned)pte->last_seq_ack);
 		}
 		pte->last_seq_ack = seq;
@@ -4591,7 +4590,7 @@ static void parsing(int size, unsigned char *buf, struct unistimsession *pte,
 		}
 		if (pte->seq_phone > seq) {
 			ast_log(LOG_NOTICE,
-					"%s Warning : received a retransmitted packet : #0x%.4x (we are at #0x%.4x)\n",
+					"%s Warning : received a retransmitted packet : #0x%04x (we are at #0x%04x)\n",
 					tmpbuf, (unsigned)seq, (unsigned)pte->seq_phone);
 			/* BUG ? pte->device->seq_phone = seq; */
 			/* Send ACK */
@@ -4601,29 +4600,28 @@ static void parsing(int size, unsigned char *buf, struct unistimsession *pte,
 			return;
 		}
 		ast_log(LOG_NOTICE,
-				"%s Warning : we lost a packet : received #0x%.4x (we are at #0x%.4x)\n",
+				"%s Warning : we lost a packet : received #0x%04x (we are at #0x%04x)\n",
 				tmpbuf, (unsigned)seq, (unsigned)pte->seq_phone);
 		return;
 	}
 	if (buf[4] == 0) {
-		ast_log(LOG_NOTICE, "%s Retransmit request for packet #0x%.4x\n", tmpbuf, (unsigned)seq);
+		ast_log(LOG_NOTICE, "%s Retransmit request for packet #0x%04x\n", tmpbuf, (unsigned)seq);
 		if (pte->last_seq_ack > seq) {
 			ast_log(LOG_NOTICE,
-					"%s Error : received a request for an already ACKed packet : #0x%.4x\n",
+					"%s Error : received a request for an already ACKed packet : #0x%04x\n",
 					tmpbuf, (unsigned)pte->last_seq_ack);
 			return;
 		}
 		if (pte->seq_server < seq) {
 			ast_log(LOG_NOTICE,
-					"%s Error : received a request for a non-existent packet : #0x%.4x\n",
+					"%s Error : received a request for a non-existent packet : #0x%04x\n",
 					tmpbuf, (unsigned)pte->seq_server);
 			return;
 		}
 		send_retransmit(pte);
 		return;
 	}
-	ast_log(LOG_NOTICE, "%s Unknown request : got 0x%.2x expected 0x00,0x01 or 0x02\n",
-			tmpbuf, (unsigned)buf[4]);
+	ast_log(LOG_NOTICE, "%s Unknown request : got 0x%02hhx expected 0x00,0x01 or 0x02\n", tmpbuf, buf[4]);
 	return;
 }
 
@@ -4965,7 +4963,7 @@ static int unistimsock_read(int *id, int fd, short events, void *ignore)
 					dw_num_bytes_rcvd, ast_inet_ntoa(addr_from.sin_addr), tmp);
 	for (dw_num_bytes_rcvdd = 0; dw_num_bytes_rcvdd < dw_num_bytes_rcvd;
 		 dw_num_bytes_rcvdd++)
-		ast_verb(0, "%.2x ", (unsigned char) buff[dw_num_bytes_rcvdd]);
+		ast_verb(0, "%02hhx ", buff[dw_num_bytes_rcvdd]);
 	ast_verb(0, "\n******************************************\n");
 #endif
 

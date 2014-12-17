@@ -293,7 +293,7 @@ static void enc_ie_call_id(unsigned char **ntmode, msg_t *msg, char *callid, int
 	i = 0;
 	while(i < callid_len)
 	{
-		if (MISDN_IE_DEBG) printf(debug+(i*3), " %02x", callid[i]);
+		if (MISDN_IE_DEBG) printf(debug+(i*3), " %02hhx", (unsigned char)callid[i]);
 		i++;
 	}
 
@@ -339,7 +339,7 @@ static void dec_ie_call_id(unsigned char *p, Q931_info_t *qi, char *callid, int 
 	i = 0;
 	while(i < *callid_len)
 	{
-		if (MISDN_IE_DEBG) printf(debug+(i*3), " %02x", callid[i]);
+		if (MISDN_IE_DEBG) printf(debug+(i*3), " %02hhx", (unsigned char)callid[i]);
 		i++;
 	}
 
@@ -745,7 +745,7 @@ static void enc_ie_channel_id(unsigned char **ntmode, msg_t *msg, int exclusive,
 			p[0] = IE_CHANNEL_ID;
 			p[1] = l;
 			p[2] = 0x80 + 0x20 + 0x03;
-/* 			if (MISDN_IE_DEBG) printf("%02x\n", p[2]); */
+/* 			if (MISDN_IE_DEBG) printf("%02hhx\n", p[2]); */
 			return; /* end */
 		}
 		l = 3;
@@ -759,7 +759,7 @@ static void enc_ie_channel_id(unsigned char **ntmode, msg_t *msg, int exclusive,
 		p[2] = 0x80 + 0x20 + (exclusive<<3) + 0x01;
 		p[3] = 0x80 + 3; /* CCITT, Number, B-type */
 		p[4] = 0x80 + channel;
-/* 		if (MISDN_IE_DEBG) printf("%02x %02x %02x\n", p[2], p[3], p[4]); */
+/* 		if (MISDN_IE_DEBG) printf("%02hhx %02hhx %02hhx\n", p[2], p[3], p[4]); */
 	}
 }
 
@@ -849,7 +849,7 @@ static void dec_ie_channel_id(unsigned char *p, Q931_info_t *qi, int *exclusive,
 			printf("%s: ERROR: PRI interface channel out of range (%d).\n", __FUNCTION__, *channel);
 			return;
 		}
-/* 		if (MISDN_IE_DEBG) printf("%02x %02x %02x\n", p[1], p[2], p[3]); */
+/* 		if (MISDN_IE_DEBG) printf("%02hhx %02hhx %02hhx\n", p[1], p[2], p[3]); */
 	}
 
 	if (MISDN_IE_DEBG) printf("    exclusive=%d channel=%d\n", *exclusive, *channel);
@@ -1342,7 +1342,7 @@ static void enc_ie_useruser(unsigned char **ntmode, msg_t *msg, int protocol, ch
 		char debug[768];
 
 		for (i = 0; i < user_len; ++i) {
-			sprintf(debug + (i * 3), " %02x", user[i]);
+			sprintf(debug + (i * 3), " %02hhx", (unsigned char)user[i]);
 		}
 		debug[i * 3] = 0;
 		printf("    protocol=%d user-user%s\n", protocol, debug);
@@ -1387,7 +1387,7 @@ static void dec_ie_useruser(unsigned char *p, Q931_info_t *qi, int *protocol, ch
 		char debug[768];
 
 		for (i = 0; i < *user_len; ++i) {
-			sprintf(debug + (i * 3), " %02x", user[i]);
+			sprintf(debug + (i * 3), " %02hhx", (unsigned char)user[i]);
 		}
 		debug[i * 3] = 0;
 		printf("    protocol=%d user-user%s\n", *protocol, debug);

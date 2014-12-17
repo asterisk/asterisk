@@ -333,7 +333,7 @@ static int printdigest(const unsigned char *d)
 	char buf[256]; /* large enough so we don't have to worry */
 
 	for (pos = 0, x = 0; x < 16; x++)
-		pos += sprintf(buf + pos, " %02x", (unsigned)*d++);
+		pos += sprintf(buf + pos, " %02hhx", *d++);
 
 	ast_debug(1, "Unexpected signature:%s\n", buf);
 
