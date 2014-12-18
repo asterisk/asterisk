@@ -8787,11 +8787,13 @@ static int dahdi_write(struct ast_channel *ast, struct ast_frame *frame)
 		return 0;
 	}
 	if (p->dialing) {
-		ast_debug(5, "Dropping frame since I'm still dialing on %s...\n",ast_channel_name(ast));
+		ast_debug(5, "Dropping frame since I'm still dialing on %s...\n",
+			ast_channel_name(ast));
 		return 0;
 	}
 	if (!p->owner) {
-		ast_debug(5, "Dropping frame since there is no active owner on %s...\n",ast_channel_name(ast));
+		ast_debug(5, "Dropping frame since there is no active owner on %s...\n",
+			ast_channel_name(ast));
 		return 0;
 	}
 	if (p->cidspill) {
