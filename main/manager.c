@@ -4526,6 +4526,8 @@ static int action_redirect(struct mansession *s, const struct message *m)
 	int pi = 0;
 	int pi2 = 0;
 	int res;
+	int chan1_wait = 0;
+	int chan2_wait = 0;
 
 	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "Channel not specified");
@@ -4610,16 +4612,20 @@ static int action_redirect(struct mansession *s, const struct message *m)
 	}
 
 	/* Dual channel redirect in progress. */
-	if (ast_channel_pbx(chan)) {
-		ast_channel_lock(chan);
+	ast_channel_lock(chan);
+	if (ast_channel_is_bridged(chan)) {
 		ast_set_flag(ast_channel_flags(chan), AST_FLAG_BRIDGE_DUAL_REDIRECT_WAIT);
-		ast_channel_unlock(chan);
+		chan1_wait = 1;
 	}
-	if (ast_channel_pbx(chan2)) {
-		ast_channel_lock(chan2);
+	ast_channel_unlock(chan);
+
+	ast_channel_lock(chan2);
+	if (ast_channel_is_bridged(chan2)) {
 		ast_set_flag(ast_channel_flags(chan2), AST_FLAG_BRIDGE_DUAL_REDIRECT_WAIT);
-		ast_channel_unlock(chan2);
+		chan2_wait = 1;
 	}
+	ast_channel_unlock(chan2);
+
 	res = ast_async_goto(chan, context, exten, pi);
 	if (!res) {
 		if (!ast_strlen_zero(context2)) {
@@ -4637,12 +4643,12 @@ static int action_redirect(struct mansession *s, const struct message *m)
 	}
 
 	/* Release the bridge wait. */
-	if (ast_channel_pbx(chan)) {
+	if (chan1_wait) {
 		ast_channel_lock(chan);
 		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BRIDGE_DUAL_REDIRECT_WAIT);
 		ast_channel_unlock(chan);
 	}
-	if (ast_channel_pbx(chan2)) {
+	if (chan2_wait) {
 		ast_channel_lock(chan2);
 		ast_clear_flag(ast_channel_flags(chan2), AST_FLAG_BRIDGE_DUAL_REDIRECT_WAIT);
 		ast_channel_unlock(chan2);
