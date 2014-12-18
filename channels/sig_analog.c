@@ -1963,6 +1963,8 @@ static void *__analog_ss_thread(void *data)
 		if ((p->sig == ANALOG_SIG_FEATDMF) || (p->sig == ANALOG_SIG_FEATDMF_TA)) {
 			if (exten[0] == '*') {
 				char *stringp=NULL;
+				struct ast_party_caller *caller;
+
 				ast_copy_string(exten2, exten, sizeof(exten2));
 				/* Parse out extension and callerid */
 				stringp=exten2 +1;
@@ -1980,6 +1982,11 @@ static void *__analog_ss_thread(void *data)
 				} else {
 					ast_copy_string(exten, s1 + 2, sizeof(exten));
 				}
+
+				/* The first two digits are ani2 information. */
+				caller = ast_channel_caller(chan);
+				s1[2] = '\0';
+				caller->ani2 = atoi(s1);
 			} else {
 				ast_log(LOG_WARNING, "Got a non-Feature Group D input on channel %d.  Assuming E&M Wink instead\n", p->channel);
 			}

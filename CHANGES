@@ -15,6 +15,11 @@
 Channel Drivers
 ------------------
 
+chan_dahdi
+------------------
+ * The CALLERID(ani2) value for incoming calls is now populated in featdmf
+   signaling mode.  The information was previously discarded.
+
 chan_sip
 ------------------
  * New 'rtpbindaddr' global setting. This allows a user to define which
