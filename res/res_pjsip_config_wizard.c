@@ -983,12 +983,13 @@ static int unload_module(void)
 			ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, NULL, NULL), ao2_cleanup);
 
 		otw = find_wizard(object_types[i]);
-		if (otw->sorcery) {
-			ast_sorcery_instance_observer_remove(otw->sorcery, &observer);
+		if (otw) {
+			if (otw->sorcery) {
+				ast_sorcery_instance_observer_remove(otw->sorcery, &observer);
+			}
+			otw->wizard->retrieve_multiple(otw->sorcery, otw->wizard_data, object_types[i], existing, NULL);
+			ao2_callback(existing, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, delete_existing_cb, otw);
 		}
-
-		otw->wizard->retrieve_multiple(otw->sorcery, otw->wizard_data, object_types[i], existing, NULL);
-		ao2_callback(existing, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, delete_existing_cb, otw);
 	}
 
 	AST_VECTOR_REMOVE_CMP_UNORDERED(&object_type_wizards, NULL, NOT_EQUALS, OTW_DELETE_CB);
