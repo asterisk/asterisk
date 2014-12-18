@@ -272,6 +272,8 @@ struct sip_outbound_registration_client_state {
 	struct ast_sip_auth_vector outbound_auths;
 	/*! \brief Registration should be destroyed after completion of transaction */
 	unsigned int destroy:1;
+	/*! \brief Non-zero if we have attempted sending a REGISTER with authentication */
+	unsigned int auth_attempted:1;
 };
 
 /*! \brief Outbound registration state information (persists for lifetime that registration should exist) */
@@ -627,18 +629,23 @@ static int handle_registration_response(void *data)
 	ast_copy_pj_str(server_uri, &info.server_uri, sizeof(server_uri));
 	ast_copy_pj_str(client_uri, &info.client_uri, sizeof(client_uri));
 
-	if (response->code == 401 || response->code == 407) {
+	if (!response->client_state->auth_attempted &&
+			(response->code == 401 || response->code == 407)) {
 		pjsip_tx_data *tdata;
 		if (!ast_sip_create_request_with_auth(&response->client_state->outbound_auths,
 				response->rdata, response->tsx, &tdata)) {
 			ao2_ref(response->client_state, +1);
+			response->client_state->auth_attempted = 1;
 			if (pjsip_regc_send(response->client_state->client, tdata) != PJ_SUCCESS) {
+				response->client_state->auth_attempted = 0;
 				ao2_cleanup(response->client_state);
 			}
 			return 0;
 		}
 		/* Otherwise, fall through so the failure is processed appropriately */
 	}
+
+	response->client_state->auth_attempted = 0;
 
 	if (PJSIP_IS_STATUS_IN_CLASS(response->code, 200)) {
 		/* Check if this is in regards to registering or unregistering */
