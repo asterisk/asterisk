@@ -21,6 +21,12 @@
 === UPGRADE-12.txt  -- Upgrade info for 11 to 12
 ===========================================================
 
+From 13.1.0 to 13.2.0:
+
+chan_dahdi:
+ - The CALLERID(ani2) value for incoming calls is now populated in featdmf
+   signaling mode.  The information was previously discarded.
+
 From 13.0.0 to 13.1.0:
 
 ARI:
