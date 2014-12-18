@@ -20,6 +20,11 @@
 ===
 ===========================================================
 
+from 11.15 to 11.16
+chan_dahdi:
+ - The CALLERID(ani2) value for incoming calls is now populated in featdmf
+   signaling mode.  The information was previously discarded.
+
 from 11.13.0 to 11.13.1:
 
 * Due to the POODLE vulnerability (see 
