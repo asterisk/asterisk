@@ -119,16 +119,13 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 	ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_RTCP, 1);
 	ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_NAT, session->endpoint->media.rtp.symmetric);
 
-	if (session->endpoint->dtmf == AST_SIP_DTMF_INBAND) {
-		ast_rtp_instance_dtmf_mode_set(session_media->rtp, AST_RTP_DTMF_MODE_INBAND);
-	}
-
 	if (!session->endpoint->media.rtp.ice_support && (ice = ast_rtp_instance_get_ice(session_media->rtp))) {
 		ice->stop(session_media->rtp);
 	}
 
 	if (session->endpoint->dtmf == AST_SIP_DTMF_RFC_4733) {
 		ast_rtp_instance_dtmf_mode_set(session_media->rtp, AST_RTP_DTMF_MODE_RFC2833);
+		ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_DTMF, 1);
 	} else if (session->endpoint->dtmf == AST_SIP_DTMF_INBAND) {
 		ast_rtp_instance_dtmf_mode_set(session_media->rtp, AST_RTP_DTMF_MODE_INBAND);
 	}
