@@ -580,7 +580,11 @@ static int channel_read_pjsip(struct ast_channel *chan, const char *type, const 
 	dlg = channel->session->inv_session->dlg;
 
 	if (!strcmp(type, "secure")) {
-		snprintf(buf, buflen, "%d", dlg->secure ? 1 : 0);
+		pjsip_host_info dest;
+		pj_pool_t *pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "secure-check", 128, 128);
+		pjsip_get_dest_info(dlg->target, NULL, pool, &dest);
+		snprintf(buf, buflen, "%d", dest.flag & PJSIP_TRANSPORT_SECURE ? 1 : 0);
+		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
 	} else if (!strcmp(type, "target_uri")) {
 		pjsip_uri_print(PJSIP_URI_IN_REQ_URI, dlg->target, buf, buflen);
 		buf_copy = ast_strdupa(buf);
