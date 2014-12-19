@@ -355,10 +355,7 @@ unsigned int ast_codec_samples_count(struct ast_frame *frame)
 		return 0;
 	}
 
-	/* BUGBUG - why not just get the codec pointer off the format?
-	This is a bit roundabout
-	*/
-	codec = ast_codec_get_by_id(ast_format_get_codec_id(frame->subclass.format));
+	codec = ast_format_get_codec(frame->subclass.format);
 
 	if (codec->samples_count) {
 		samples = codec->samples_count(frame);

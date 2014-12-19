@@ -323,6 +323,11 @@ void ast_format_generate_sdp_fmtp(const struct ast_format *format, unsigned int 
 	format->interface->format_generate_sdp_fmtp(format, payload, str);
 }
 
+struct ast_codec *ast_format_get_codec(const struct ast_format *format)
+{
+	return ao2_bump(format->codec);
+}
+
 unsigned int ast_format_get_codec_id(const struct ast_format *format)
 {
 	return format->codec->id;

@@ -276,6 +276,17 @@ void ast_format_set_attribute_data(struct ast_format *format, void *attribute_da
 const char *ast_format_get_name(const struct ast_format *format);
 
 /*!
+ * \brief Get the codec associated with a format
+ *
+ * \param format The media format
+ *
+ * \return The codec
+ *
+ * \note The reference count of the returned codec is increased by 1 and must be decremented
+ */
+struct ast_codec *ast_format_get_codec(const struct ast_format *format);
+
+/*!
  * \brief Get the codec identifier associated with a format
  *
  * \param format The media format
