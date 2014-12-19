@@ -273,7 +273,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_write)(struct ast_websocket *session, en
 {
 	size_t header_size = 2; /* The minimum size of a websocket frame is 2 bytes */
 	char *frame;
-	uint64_t length = 0;
+	uint64_t length;
 
 	if (actual_length < 126) {
 		length = actual_length;
@@ -288,7 +288,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_write)(struct ast_websocket *session, en
 	}
 
 	frame = ast_alloca(header_size);
-	memset(frame, 0, sizeof(*frame));
+	memset(frame, 0, header_size);
 
 	frame[0] = opcode | 0x80;
 	frame[1] = length;
