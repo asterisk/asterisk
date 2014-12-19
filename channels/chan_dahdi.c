@@ -18702,12 +18702,6 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 			ast_log(LOG_WARNING, "Ignoring any changes to '%s' (on reload) at line %d.\n", v->name, v->lineno);
 	}
 
-	/* Since confp has already filled invidual dahdi_pvt objects with channels at this point, clear the variables in confp's pvt. */
-	if (confp->chan.vars) {
-		ast_variables_destroy(confp->chan.vars);
-		confp->chan.vars = NULL;
-	}
-
 	if (dahdichan) {
 		/* Process the deferred dahdichan value. */
 		if (build_channels(confp, dahdichan->value, reload, dahdichan->lineno,
@@ -18720,6 +18714,15 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				return -1;
 			}
 		}
+	}
+
+	/*
+	 * Since confp has already filled individual dahdi_pvt objects with channels
+	 * at this point, clear the variables in confp's pvt.
+	 */
+	if (confp->chan.vars) {
+		ast_variables_destroy(confp->chan.vars);
+		confp->chan.vars = NULL;
 	}
 
 	/* mark the first channels of each DAHDI span to watch for their span alarms */
