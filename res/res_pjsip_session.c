@@ -2073,9 +2073,9 @@ static int add_sdp_streams(void *obj, void *arg, void *data, int flags)
 	int res;
 
 	if (handler) {
-		/* if an already assigned handler does not handle the session_media or reports a catastrophic error, fail */
+		/* if an already assigned handler reports a catastrophic error, fail */
 		res = handler->create_outgoing_sdp_stream(session, session_media, answer);
-		if (res <= 0) {
+		if (res < 0) {
 			return 0;
 		}
 		return CMP_MATCH;
