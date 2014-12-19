@@ -2263,7 +2263,8 @@ static int blond_nonfinal_enter(struct attended_transfer_properties *props)
 	props->superstate = SUPERSTATE_RECALL;
 	props->recall_target = ast_channel_ref(props->transfer_target);
 	res = blond_enter(props);
-	props->transfer_target = ast_channel_unref(props->transfer_target);
+	/* transfer properties holds a separate reference to transfer_target, don't set it to NULL here */
+	ast_channel_unref(props->transfer_target);
 	return res;
 }
 
