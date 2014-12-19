@@ -1449,6 +1449,11 @@
 					"required": true,
 					"type": "Date",
 					"description": "Timestamp when channel was created"
+				},
+				"language": {
+					"required": true,
+					"type": "string",
+					"description": "The default spoken language"
 				}
 			}
 		}
