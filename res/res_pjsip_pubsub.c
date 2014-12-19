@@ -1289,6 +1289,9 @@ static struct sip_subscription_tree *create_subscription_tree(const struct ast_s
 	return sub_tree;
 }
 
+static int generate_initial_notify(struct ast_sip_subscription *sub);
+static int send_notify(struct sip_subscription_tree *sub_tree, unsigned int force_full_state);
+
 /*! \brief Callback function to perform the actual recreation of a subscription */
 static int subscription_persistence_recreate(void *obj, void *arg, int flags)
 {
@@ -1377,6 +1380,10 @@ static int subscription_persistence_recreate(void *obj, void *arg, int flags)
 		}
 		sub_tree->persistence = ao2_bump(persistence);
 		subscription_persistence_update(sub_tree, &rdata);
+		if (generate_initial_notify(sub_tree->root)) {
+			pjsip_evsub_terminate(sub_tree->evsub, PJ_TRUE);
+		}
+		send_notify(sub_tree, 1);
 	} else {
 		ast_sorcery_delete(ast_sip_get_sorcery(), persistence);
 	}
