@@ -112,6 +112,14 @@
 							"required": false,
 							"allowMultiple": false,
 							"dataType": "string"
+						},
+						{
+							"name": "originator",
+							"description": "The unique id of the channel which is originating this one.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
 						}
 					],
 					"errorResponses": [
@@ -240,6 +248,14 @@
 						{
 							"name": "otherChannelId",
 							"description": "The unique id to assign the second channel when using local channels.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "originator",
+							"description": "The unique id of the channel which is originating this one.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
