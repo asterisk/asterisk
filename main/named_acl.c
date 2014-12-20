@@ -590,10 +590,7 @@ int ast_named_acl_init()
 	aco_option_register(&cfg_info, "permit", ACO_EXACT, named_acl_types, NULL, OPT_ACL_T, 1, FLDSET(struct named_acl, ha));
 	aco_option_register(&cfg_info, "deny", ACO_EXACT, named_acl_types, NULL, OPT_ACL_T, 0, FLDSET(struct named_acl, ha));
 
-	if (aco_process_config(&cfg_info, 0)) {
-		aco_info_destroy(&cfg_info);
-		return 0;
-	}
+	aco_process_config(&cfg_info, 0);
 
 	return 0;
 }
