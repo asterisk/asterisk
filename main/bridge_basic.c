@@ -45,6 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/dial.h"
 #include "asterisk/stasis_bridges.h"
+#include "asterisk/stasis_channels.h"
 #include "asterisk/features.h"
 #include "asterisk/format_cache.h"
 #include "asterisk/test.h"
@@ -1347,6 +1348,8 @@ struct attended_transfer_properties {
 	struct ast_dial *dial;
 	/*! The bridging features the transferer has available */
 	struct ast_flags transferer_features;
+	/*! Saved transferer connected line data for recalling the transferer. */
+	struct ast_party_connected_line original_transferer_colp;
 };
 
 static void attended_transfer_properties_destructor(void *obj)
@@ -1361,6 +1364,7 @@ static void attended_transfer_properties_destructor(void *obj)
 	ast_channel_cleanup(props->transferer);
 	ast_channel_cleanup(props->transfer_target);
 	ast_channel_cleanup(props->recall_target);
+	ast_party_connected_line_free(&props->original_transferer_colp);
 	ast_string_field_free_memory(props);
 	ast_cond_destroy(&props->cond);
 }
@@ -1428,6 +1432,7 @@ static struct attended_transfer_properties *attended_transfer_properties_alloc(
 	xfer_cfg = ast_get_chan_features_xfer_config(props->transferer);
 	if (!xfer_cfg) {
 		ast_log(LOG_ERROR, "Unable to get transfer configuration from channel %s\n", ast_channel_name(props->transferer));
+		ast_channel_unlock(props->transferer);
 		ao2_ref(props, -1);
 		return NULL;
 	}
@@ -1443,11 +1448,20 @@ static struct attended_transfer_properties *attended_transfer_properties_alloc(
 	ast_string_field_set(props, failsound, xfer_cfg->xferfailsound);
 	ast_string_field_set(props, xfersound, xfer_cfg->xfersound);
 
+	/*
+	 * Save the transferee's party information for any recall calls.
+	 * This is the only piece of information needed that gets overwritten
+	 * on the transferer channel by the inital call to the transfer target.
+	 */
+	ast_party_connected_line_copy(&props->original_transferer_colp,
+		ast_channel_connected(props->transferer));
+
 	tech = ast_strdupa(ast_channel_name(props->transferer));
 	addr = strchr(tech, '/');
 	if (!addr) {
 		ast_log(LOG_ERROR, "Transferer channel name does not follow typical channel naming format (tech/address)\n");
-		ast_channel_unref(props->transferer);
+		ast_channel_unlock(props->transferer);
+		ao2_ref(props, -1);
 		return NULL;
 	}
 	*addr++ = '\0';
@@ -2330,10 +2344,50 @@ static void recall_callback(struct ast_dial *dial)
 	}
 }
 
+/*!
+ * \internal
+ * \brief Setup common things to transferrer and transfer_target recall channels.
+ *
+ * \param recall Channel for recalling a party.
+ * \param transferer Channel supplying recall information.
+ *
+ * \details
+ * Setup callid, variables, datastores, accountcode, and peeraccount.
+ *
+ * \pre Both channels are locked on entry.
+ *
+ * \pre COLP and CLID on the recall channel are setup by the caller but not
+ * explicitly published yet.
+ *
+ * \return Nothing
+ */
+static void common_recall_channel_setup(struct ast_channel *recall, struct ast_channel *transferer)
+{
+	struct ast_callid *callid;
+
+	callid = ast_read_threadstorage_callid();
+	if (callid) {
+		ast_channel_callid_set(recall, callid);
+		ast_callid_unref(callid);
+	}
+
+	ast_channel_inherit_variables(transferer, recall);
+	ast_channel_datastore_inherit(transferer, recall);
+
+	/*
+	 * Stage a snapshot to ensure that a snapshot is always done
+	 * on the recall channel so earler COLP and CLID setup will
+	 * get published.
+	 */
+	ast_channel_stage_snapshot(recall);
+	ast_channel_req_accountcodes(recall, transferer, AST_CHANNEL_REQUESTOR_REPLACEMENT);
+	ast_channel_stage_snapshot_done(recall);
+}
 
 static int recalling_enter(struct attended_transfer_properties *props)
 {
 	RAII_VAR(struct ast_format_cap *, cap, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT), ao2_cleanup);
+	struct ast_channel *recall;
 
 	if (!cap) {
 		return -1;
@@ -2359,7 +2413,26 @@ static int recalling_enter(struct attended_transfer_properties *props)
 		return -1;
 	}
 
-	ast_dial_set_state_callback(props->dial, &recall_callback);
+	/*
+	 * Setup callid, variables, datastores, accountcode, peeraccount,
+	 * COLP, and CLID on the recalled transferrer.
+	 */
+	recall = ast_dial_get_channel(props->dial, 0);
+	if (!recall) {
+		return -1;
+	}
+	ast_channel_lock_both(recall, props->transferer);
+
+	ast_party_caller_copy(ast_channel_caller(recall),
+		ast_channel_caller(props->transferer));
+	ast_party_connected_line_copy(ast_channel_connected(recall),
+		&props->original_transferer_colp);
+
+	common_recall_channel_setup(recall, props->transferer);
+	ast_channel_unlock(recall);
+	ast_channel_unlock(props->transferer);
+
+	ast_dial_set_state_callback(props->dial, recall_callback);
 
 	ao2_ref(props, +1);
 	ast_dial_set_user_data(props->dial, props);
@@ -2485,6 +2558,20 @@ static int retransfer_enter(struct attended_transfer_properties *props)
 		props->recall_target = NULL;
 		return -1;
 	}
+
+	/*
+	 * Setup callid, variables, datastores, accountcode, peeraccount,
+	 * and COLP on the recalled transfer target.
+	 */
+	ast_channel_lock_both(props->recall_target, props->transferer);
+
+	ast_party_connected_line_copy(ast_channel_connected(props->recall_target),
+		&props->original_transferer_colp);
+	ast_party_id_reset(&ast_channel_connected(props->recall_target)->priv);
+
+	common_recall_channel_setup(props->recall_target, props->recall_target);
+	ast_channel_unlock(props->recall_target);
+	ast_channel_unlock(props->transferer);
 
 	if (ast_call(props->recall_target, destination, 0)) {
 		ast_log(LOG_ERROR, "Unable to place outbound call to recall target\n");
@@ -2880,6 +2967,18 @@ static enum attended_transfer_stimulus wait_for_stimulus(struct attended_transfe
 static void *attended_transfer_monitor_thread(void *data)
 {
 	struct attended_transfer_properties *props = data;
+	struct ast_callid *callid;
+
+	/*
+	 * Set thread callid to the transferer's callid because we
+	 * are doing all this on that channel's behalf.
+	 */
+	ast_channel_lock(props->transferer);
+	callid = ast_channel_callid(props->transferer);
+	ast_channel_unlock(props->transferer);
+	if (callid) {
+		ast_callid_threadassoc_add(callid);
+	}
 
 	for (;;) {
 		enum attended_transfer_stimulus stimulus;
@@ -2911,6 +3010,11 @@ static void *attended_transfer_monitor_thread(void *data)
 	}
 
 	attended_transfer_properties_shutdown(props);
+
+	if (callid) {
+		ast_callid_unref(callid);
+		ast_callid_threadassoc_remove();
+	}
 
 	return NULL;
 }
