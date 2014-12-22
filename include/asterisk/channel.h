@@ -631,6 +631,7 @@ struct ast_channel_tech {
 	struct ast_channel *(* const requester)(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *addr, int *cause);
 
 	int (* const devicestate)(const char *device_number);	/*!< Devicestate call back */
+	int (* const presencestate)(const char *presence_provider, char **subtype, char **message); /*!< Presencestate callback */
 
 	/*!
 	 * \brief Start sending a literal DTMF digit

@@ -1157,10 +1157,14 @@ static int add_hintdevice(struct ast_hint *hint, const char *devicelist)
 		return -1;
 	}
 	ast_str_set(&str, 0, "%s", devicelist);
-	parse = parse_hint_device(str);
+	parse = ast_str_buffer(str);
 
-	while ((cur = strsep(&parse, "&"))) {
+	/* Spit on '&' and ',' to handle presence hints as well */
+	while ((cur = strsep(&parse, "&,"))) {
 		devicelength = strlen(cur);
+		if (!devicelength) {
+			continue;
+		}
 		device = ao2_t_alloc(sizeof(*device) + devicelength, hintdevice_destroy,
 			"allocating a hintdevice structure");
 		if (!device) {
@@ -11828,15 +11832,24 @@ static int pbx_builtin_sayphonetic(struct ast_channel *chan, const char *data)
 
 static void presence_state_cb(void *unused, struct stasis_subscription *sub, struct stasis_message *msg)
 {
-	struct ast_presence_state_message *presence_state = stasis_message_data(msg);
+	struct ast_presence_state_message *presence_state;
 	struct ast_hint *hint;
 	struct ast_str *hint_app = NULL;
-	struct ao2_iterator hint_iter;
+	struct ast_hintdevice *device;
+	struct ast_hintdevice *cmpdevice;
+	struct ao2_iterator *dev_iter;
 	struct ao2_iterator cb_iter;
 	char context_name[AST_MAX_CONTEXT];
 	char exten_name[AST_MAX_EXTENSION];
 
 	if (stasis_message_type(msg) != ast_presence_state_message_type()) {
+		return;
+	}
+
+	presence_state = stasis_message_data(msg);
+
+	if (ao2_container_count(hintdevices) == 0) {
+		/* There are no hints monitoring devices. */
 		return;
 	}
 
@@ -11846,32 +11859,35 @@ static void presence_state_cb(void *unused, struct stasis_subscription *sub, str
 	}
 
 	ast_mutex_lock(&context_merge_lock);/* Hold off ast_merge_contexts_and_delete */
-	hint_iter = ao2_iterator_init(hints, 0);
-	for (; (hint = ao2_iterator_next(&hint_iter)); ao2_cleanup(hint)) {
-		struct ast_state_cb *state_cb;
-		const char *app;
-		char *parse;
-		SCOPED_AO2LOCK(lock, hint);
 
+	cmpdevice = ast_alloca(sizeof(*cmpdevice) + strlen(presence_state->provider));
+	strcpy(cmpdevice->hintdevice, presence_state->provider);
+
+	ast_mutex_lock(&context_merge_lock);/* Hold off ast_merge_contexts_and_delete */
+	dev_iter = ao2_t_callback(hintdevices,
+		OBJ_POINTER | OBJ_MULTIPLE,
+		hintdevice_cmp_multiple,
+		cmpdevice,
+		"find devices in container");
+	if (!dev_iter) {
+		ast_mutex_unlock(&context_merge_lock);
+		ast_free(hint_app);
+		return;
+	}
+
+	for (; (device = ao2_iterator_next(dev_iter)); ao2_t_ref(device, -1, "Next device")) {
+		struct ast_state_cb *state_cb;
+
+		if (!device->hint) {
+			/* Should never happen. */
+			continue;
+		}
+		hint = device->hint;
+
+		ao2_lock(hint);
 		if (!hint->exten) {
 			/* The extension has already been destroyed */
-			continue;
-		}
-
-		/* Does this hint monitor the device that changed state? */
-		app = ast_get_extension_app(hint->exten);
-		if (ast_strlen_zero(app)) {
-			/* The hint does not monitor presence at all. */
-			continue;
-		}
-
-		ast_str_set(&hint_app, 0, "%s", app);
-		parse = parse_hint_presence(hint_app);
-		if (ast_strlen_zero(parse)) {
-			continue;
-		}
-		if (strcasecmp(parse, presence_state->provider)) {
-			/* The hint does not monitor the presence provider. */
+			ao2_unlock(hint);
 			continue;
 		}
 
@@ -11885,6 +11901,7 @@ static void presence_state_cb(void *unused, struct stasis_subscription *sub, str
 		ast_copy_string(exten_name, ast_get_extension_name(hint->exten),
 			sizeof(exten_name));
 		ast_str_set(&hint_app, 0, "%s", ast_get_extension_app(hint->exten));
+		ao2_unlock(hint);
 
 		/* Check to see if update is necessary */
 		if ((hint->last_presence_state == presence_state->state) &&
@@ -11928,7 +11945,7 @@ static void presence_state_cb(void *unused, struct stasis_subscription *sub, str
 		}
 		ao2_iterator_destroy(&cb_iter);
 	}
-	ao2_iterator_destroy(&hint_iter);
+	ao2_iterator_destroy(dev_iter);
 	ast_mutex_unlock(&context_merge_lock);
 
 	ast_free(hint_app);

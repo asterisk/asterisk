@@ -66,6 +66,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/presencestate.h"
 #include "asterisk/pbx.h"
 #include "asterisk/app.h"
+#include "asterisk/test.h"
 
 /*! \brief Device state strings for printing */
 static const struct {
@@ -146,42 +147,74 @@ static enum ast_presence_state presence_state_cached(const char *presence_provid
 
 static enum ast_presence_state ast_presence_state_helper(const char *presence_provider, char **subtype, char **message, int check_cache)
 {
-	struct presence_state_provider *provider;
-	char *address;
-	char *label = ast_strdupa(presence_provider);
-	int res = AST_PRESENCE_INVALID;
+	char *labels = ast_strdupa(presence_provider);
+	char *label;
+	enum ast_presence_state state = AST_PRESENCE_INVALID;
+	enum ast_presence_state state_order[] = {
+		[AST_PRESENCE_INVALID]     = 0,
+		[AST_PRESENCE_NOT_SET]     = 1,
+		[AST_PRESENCE_AVAILABLE]   = 2,
+		[AST_PRESENCE_UNAVAILABLE] = 3,
+		[AST_PRESENCE_CHAT]        = 4,
+		[AST_PRESENCE_AWAY]        = 5,
+		[AST_PRESENCE_XA]          = 6,
+		[AST_PRESENCE_DND]         = 7
+	};
 
-	if (check_cache) {
-		res = presence_state_cached(presence_provider, subtype, message);
-		if (res != AST_PRESENCE_INVALID) {
-			return res;
+	while ((label = strsep(&labels, "&"))) {
+		enum ast_presence_state next_state = AST_PRESENCE_INVALID;
+		char *next_subtype = NULL;
+		char *next_message = NULL;
+
+		if (check_cache) {
+			next_state = presence_state_cached(label, &next_subtype, &next_message);
+		}
+
+		if (next_state == AST_PRESENCE_INVALID) {
+			struct presence_state_provider *provider;
+			const struct ast_channel_tech *chan_tech;
+			char *address;
+
+			if ((address = strchr(label, '/'))) {
+				*address++ = '\0';
+
+				if ((chan_tech = ast_get_channel_tech(label)) && chan_tech->presencestate) {
+					next_state = chan_tech->presencestate(address, &next_subtype, &next_message);
+				}
+			} else if ((address = strchr(label, ':'))) {
+				*address++ = '\0';
+
+				AST_RWLIST_RDLOCK(&presence_state_providers);
+				AST_RWLIST_TRAVERSE(&presence_state_providers, provider, list) {
+					ast_debug(5, "Checking provider %s with %s\n", provider->label, label);
+
+					if (!strcasecmp(provider->label, label)) {
+						next_state = provider->callback(address, &next_subtype, &next_message);
+						break;
+					}
+				}
+				AST_RWLIST_UNLOCK(&presence_state_providers);
+
+				if (!provider) {
+					ast_log(LOG_WARNING, "No provider found for label: %s\n", label);
+				}
+			} else {
+				ast_log(LOG_WARNING, "No label found for presence state provider: %s\n", label);
+			}
+		}
+
+		if (state_order[next_state] > state_order[state]) {
+			state = next_state;
+
+			ast_free(*subtype);
+			ast_free(*message);
+
+			*subtype = next_subtype;
+			*message = next_message;
 		}
 	}
 
-	if ((address = strchr(label, ':'))) {
-		*address = '\0';
-		address++;
-	} else {
-		ast_log(LOG_WARNING, "No label found for presence state provider: %s\n", presence_provider);
-		return res;
-	}
-
-	AST_RWLIST_RDLOCK(&presence_state_providers);
-	AST_RWLIST_TRAVERSE(&presence_state_providers, provider, list) {
-		ast_debug(5, "Checking provider %s with %s\n", provider->label, label);
-
-		if (!strcasecmp(provider->label, label)) {
-			res = provider->callback(address, subtype, message);
-			break;
-		}
-	}
-	AST_RWLIST_UNLOCK(&presence_state_providers);
-
-	if (!provider) {
-		ast_log(LOG_WARNING, "No provider found for label %s\n", label);
-	}
-
-	return res;
+	return state;
 }
 
 enum ast_presence_state ast_presence_state(const char *presence_provider, char **subtype, char **message)
@@ -354,6 +387,99 @@ static const char *presence_state_get_id(struct stasis_message *msg)
 	return presence_state->provider;
 }
 
+#if defined(TEST_FRAMEWORK)
+
+#define TEST_CATEGORY "/main/presence"
+
+static int presence_test_alice_state = AST_PRESENCE_UNAVAILABLE;
+static int presence_test_bob_state = AST_PRESENCE_UNAVAILABLE;
+
+static int presence_test_presencestate(const char *label, char **subtype, char **message)
+{
+	if (!strcmp(label, "Alice")) {
+		return presence_test_alice_state;
+	} else if (!strcmp(label, "Bob")) {
+		return presence_test_bob_state;
+	} else {
+		return AST_PRESENCE_UNAVAILABLE;
+	}
+}
+
+static struct ast_channel_tech presence_test_tech = {
+	.type = "PresenceTestChannel",
+	.description = "Presence test technology",
+	.presencestate = presence_test_presencestate,
+};
+
+AST_TEST_DEFINE(test_presence_chan)
+{
+	int res = AST_TEST_FAIL;
+	char provider[80];
+	enum ast_presence_state state;
+	char *subtype = NULL, *message = NULL;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "channel_presence";
+		info->category = TEST_CATEGORY;
+		info->summary = "Channel presence state tests";
+		info->description = "Creates test channel technology and then test the presence state callback";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (ast_channel_register(&presence_test_tech)) {
+		ast_log(LOG_WARNING, "Unable to register channel type '%s'\n", presence_test_tech.type);
+		goto presence_test_cleanup;
+	}
+
+	/* Check Alice's state */
+	snprintf(provider, sizeof(provider), "%s/Alice", presence_test_tech.type);
+
+	presence_test_alice_state = AST_PRESENCE_AVAILABLE;
+	state = ast_presence_state_nocache(provider, &subtype, &message);
+
+	if (state != presence_test_alice_state) {
+		ast_log(LOG_WARNING, "Presence state of '%s' returned '%s' instead of the expected value '%s'\n",
+			provider, ast_presence_state2str(state), ast_presence_state2str(presence_test_alice_state));
+		goto presence_test_cleanup;
+	}
+
+	/* Check Alice's and Bob's state, Alice's should win as DND > AVAILABLE */
+	snprintf(provider, sizeof(provider), "%s/Alice&%s/Bob", presence_test_tech.type, presence_test_tech.type);
+
+	presence_test_alice_state = AST_PRESENCE_DND;
+	presence_test_bob_state = AST_PRESENCE_UNAVAILABLE;
+	state = ast_presence_state_nocache(provider, &subtype, &message);
+
+	if (state != presence_test_alice_state) {
+		ast_log(LOG_WARNING, "Presence state of '%s' returned '%s' instead of the expected value '%s'\n",
+			provider, ast_presence_state2str(state), ast_presence_state2str(presence_test_alice_state));
+		goto presence_test_cleanup;
+        }
+
+	/* Check Alice's and Bob's state, Bob's should now win as AVAILABLE < UNAVAILABLE */
+	presence_test_alice_state = AST_PRESENCE_AVAILABLE;
+	state = ast_presence_state_nocache(provider, &subtype, &message);
+
+	if (state != presence_test_bob_state) {
+		ast_log(LOG_WARNING, "Presence state of '%s' returned '%s' instead of the expected value '%s'\n",
+			provider, ast_presence_state2str(state), ast_presence_state2str(presence_test_bob_state));
+		goto presence_test_cleanup;
+	}
+
+	res = AST_TEST_PASS;
+
+presence_test_cleanup:
+	ast_channel_unregister(&presence_test_tech);
+	ast_free(subtype);
+	ast_free(message);
+
+	return res;
+}
+#endif
+
 static void presence_state_engine_cleanup(void)
 {
 	ao2_cleanup(presence_state_topic_all);
@@ -362,6 +488,7 @@ static void presence_state_engine_cleanup(void)
 	presence_state_cache = NULL;
 	presence_state_topic_cached = stasis_caching_unsubscribe_and_join(presence_state_topic_cached);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_presence_state_message_type);
+	AST_TEST_UNREGISTER(test_presence_chan);
 }
 
 int ast_presence_state_engine_init(void)
@@ -386,6 +513,8 @@ int ast_presence_state_engine_init(void)
 	if (!presence_state_topic_cached) {
 		return -1;
 	}
+
+	AST_TEST_REGISTER(test_presence_chan);
 
 	return 0;
 }

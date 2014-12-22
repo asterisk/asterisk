@@ -275,7 +275,7 @@ static const char *party_number_plan2str(int plan)
 /*! \brief Show channel types - CLI command */
 static char *handle_cli_core_show_channeltypes(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-#define FORMAT  "%-15.15s  %-40.40s %-12.12s %-12.12s %-12.12s\n"
+#define FORMAT  "%-15.15s  %-40.40s %-13.13s %-13.13s %-13.13s %-13.13s\n"
 	struct chanlist *cl;
 	int count_chan = 0;
 
@@ -294,13 +294,14 @@ static char *handle_cli_core_show_channeltypes(struct ast_cli_entry *e, int cmd,
 	if (a->argc != 3)
 		return CLI_SHOWUSAGE;
 
-	ast_cli(a->fd, FORMAT, "Type", "Description",       "Devicestate", "Indications", "Transfer");
-	ast_cli(a->fd, FORMAT, "-----------", "-----------", "-----------", "-----------", "-----------");
+	ast_cli(a->fd, FORMAT, "Type", "Description", "Devicestate", "Presencestate", "Indications", "Transfer");
+	ast_cli(a->fd, FORMAT, "-------------", "-------------", "-------------", "-------------", "-------------", "-------------");
 
 	AST_RWLIST_RDLOCK(&backends);
 	AST_RWLIST_TRAVERSE(&backends, cl, list) {
 		ast_cli(a->fd, FORMAT, cl->tech->type, cl->tech->description,
 			(cl->tech->devicestate) ? "yes" : "no",
+			(cl->tech->presencestate) ? "yes" : "no",
 			(cl->tech->indicate) ? "yes" : "no",
 			(cl->tech->transfer) ? "yes" : "no");
 		count_chan++;
@@ -375,6 +376,7 @@ static char *handle_cli_core_show_channeltype(struct ast_cli_entry *e, int cmd, 
 	ast_cli(a->fd,
 		"-- Info about channel driver: %s --\n"
 		"  Device State: %s\n"
+		"Presence State: %s\n"
 		"    Indication: %s\n"
 		"     Transfer : %s\n"
 		"  Capabilities: %s\n"
@@ -385,6 +387,7 @@ static char *handle_cli_core_show_channeltype(struct ast_cli_entry *e, int cmd, 
 		"  Text Support: %s\n",
 		cl->tech->type,
 		(cl->tech->devicestate) ? "yes" : "no",
+		(cl->tech->presencestate) ? "yes" : "no",
 		(cl->tech->indicate) ? "yes" : "no",
 		(cl->tech->transfer) ? "yes" : "no",
 		ast_format_cap_get_names(cl->tech->capabilities, &codec_buf),
@@ -7415,6 +7418,7 @@ static int data_channeltypes_provider_handler(const struct ast_data_search *sear
 		ast_data_add_str(data_type, "name", cl->tech->type);
 		ast_data_add_str(data_type, "description", cl->tech->description);
 		ast_data_add_bool(data_type, "devicestate", cl->tech->devicestate ? 1 : 0);
+		ast_data_add_bool(data_type, "presencestate", cl->tech->presencestate ? 1 : 0);
 		ast_data_add_bool(data_type, "indications", cl->tech->indicate ? 1 : 0);
 		ast_data_add_bool(data_type, "transfer", cl->tech->transfer ? 1 : 0);
 		ast_data_add_bool(data_type, "send_digit_begin", cl->tech->send_digit_begin ? 1 : 0);
