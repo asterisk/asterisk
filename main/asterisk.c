@@ -4592,6 +4592,8 @@ int main(int argc, char *argv[])
 
 	ast_verb(0, COLORIZE_FMT "\n", COLORIZE(COLOR_BRGREEN, 0, "Asterisk Ready."));
 
+	logger_queue_start();
+
 	if (ast_opt_console) {
 		/* Console stuff now... */
 		/* Register our quit function */
