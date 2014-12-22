@@ -235,8 +235,6 @@ AST_THREADSTORAGE(verbose_buf);
 AST_THREADSTORAGE(log_buf);
 #define LOG_BUF_INIT_SIZE       256
 
-static void logger_queue_init(void);
-
 static void make_components(struct logchannel *chan)
 {
 	char *w;
@@ -539,20 +537,8 @@ void ast_queue_log(const char *queuename, const char *callid, const char *agent,
 		return;
 	}
 	if (!queuelog_init) {
-		AST_RWLIST_WRLOCK(&logchannels);
-		if (!queuelog_init) {
-			/*
-			 * We have delayed initializing the queue logging system so
-			 * preloaded realtime modules can get up.  We must initialize
-			 * now since someone is trying to log something.
-			 */
-			logger_queue_init();
-			queuelog_init = 1;
-			AST_RWLIST_UNLOCK(&logchannels);
-			ast_queue_log("NONE", "NONE", "NONE", "QUEUESTART", "%s", "");
-		} else {
-			AST_RWLIST_UNLOCK(&logchannels);
-		}
+		/* We must initialize now since someone is trying to log something. */
+		logger_queue_start();
 	}
 
 	if (ast_check_realtime("queue_log")) {
@@ -1220,6 +1206,30 @@ static void logger_queue_init(void)
 		if (!qlog) {
 			ast_log(LOG_ERROR, "Unable to create queue log: %s\n", strerror(errno));
 		}
+	}
+}
+
+/*!
+ * \brief Start the ast_queue_log() logger.
+ *
+ * \note Called when the system is fully booted after startup
+ * so preloaded realtime modules can get up.
+ *
+ * \return Nothing
+ */
+void logger_queue_start(void)
+{
+	/* Must not be called before the logger is initialized. */
+	ast_assert(logger_initialized);
+
+	AST_RWLIST_WRLOCK(&logchannels);
+	if (!queuelog_init) {
+		logger_queue_init();
+		queuelog_init = 1;
+		AST_RWLIST_UNLOCK(&logchannels);
+		ast_queue_log("NONE", "NONE", "NONE", "QUEUESTART", "%s", "");
+	} else {
+		AST_RWLIST_UNLOCK(&logchannels);
 	}
 }
 

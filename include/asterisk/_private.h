@@ -19,6 +19,7 @@ int load_modules(unsigned int);		/*!< Provided by loader.c */
 int load_pbx(void);			/*!< Provided by pbx.c */
 int init_logger(void);			/*!< Provided by logger.c */
 void close_logger(void);		/*!< Provided by logger.c */
+void logger_queue_start(void);		/*!< Provided by logger.c */
 void clean_time_zones(void);			/*!< Provided by localtime.c */
 int init_framer(void);			/*!< Provided by frame.c */
 int ast_term_init(void);		/*!< Provided by term.c */
