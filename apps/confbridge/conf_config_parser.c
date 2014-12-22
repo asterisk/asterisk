@@ -315,7 +315,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					</para></description>
 				</configOption>
 				<configOption name="record_file_timestamp" default="yes">
-					<synopsis>Append the start time to the <replaceable>record_file</replaceable> name so that it is unique.</synopsis>
+					<synopsis>Append the start time to the record_file name so that it is unique.</synopsis>
 					<description><para>
 						When <replaceable>record_file_timestamp</replaceable> is set to yes, the start time is appended to
 						<replaceable>record_file</replaceable> so that the filename is unique. This allows you to specify
