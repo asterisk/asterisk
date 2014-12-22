@@ -11832,13 +11832,15 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, ui
 
 	add_header(req, "Via", p->via);
 	/*
-	 * Use the learned route set unless this is a CANCEL on an ACK for a non-2xx
+	 * Use the learned route set unless this is a CANCEL or an ACK for a non-2xx
 	 * final response. For a CANCEL or ACK, we have to send to the same destination
 	 * as the original INVITE.
+	 * Send UPDATE to the same destination as CANCEL, if call is not in final state.
 	 */
 	if (p->route &&
 			!(sipmethod == SIP_CANCEL ||
-				(sipmethod == SIP_ACK && (p->invitestate == INV_COMPLETED || p->invitestate == INV_CANCELLED)))) {
+				(sipmethod == SIP_ACK && (p->invitestate == INV_COMPLETED || p->invitestate == INV_CANCELLED)) ||
+				(sipmethod == SIP_UPDATE && (p->invitestate == INV_PROCEEDING || p->invitestate == INV_EARLY_MEDIA)))) {
 		set_destination(p, p->route->hop);
 		add_route(req, is_strict ? p->route->next : p->route);
 	}
