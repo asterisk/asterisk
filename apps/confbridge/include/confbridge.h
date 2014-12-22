@@ -68,6 +68,7 @@ enum bridge_profile_flags {
 	BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED = (1 << 2), /*!< Set if conference should feed video of first marked user to all participants. */
 	BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER = (1 << 3), /*!< Set if conference set the video feed to follow the loudest talker.  */
 	BRIDGE_OPT_RECORD_FILE_APPEND = (1 << 4), /*!< Set if the record file should be appended to between start/stops.  */
+	BRIDGE_OPT_RECORD_FILE_TIMESTAMP = (1 << 5), /*< Set if the record file should have a timestamp appended */
 };
 
 enum conf_menu_action_id {
@@ -198,6 +199,8 @@ struct bridge_profile {
 	char name[64];
 	char language[MAX_LANGUAGE];		  /*!< Language used for playback_chan */
 	char rec_file[PATH_MAX];
+	char rec_options[128];
+	char rec_command[128];
 	unsigned int flags;
 	unsigned int max_members;          /*!< The maximum number of participants allowed in the conference */
 	unsigned int internal_sample_rate; /*!< The internal sample rate of the bridge. 0 when set to auto adjust mode. */

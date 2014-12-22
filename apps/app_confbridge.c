@@ -569,7 +569,7 @@ static void set_rec_filename(struct confbridge_conference *conference, struct as
 	ast_str_reset(*filename);
 	if (ast_strlen_zero(rec_file)) {
 		ast_str_set(filename, 0, "confbridge-%s-%u.wav", conference->name, (unsigned int)now);
-	} else {
+	} else if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_RECORD_FILE_TIMESTAMP)) {
 		/* insert time before file extension */
 		ext = strrchr(rec_file, '.');
 		if (ext) {
@@ -578,11 +578,14 @@ static void set_rec_filename(struct confbridge_conference *conference, struct as
 		} else {
 			ast_str_set(filename, 0, "%s-%u", rec_file, (unsigned int)now);
 		}
+	} else {
+		ast_str_set(filename, 0, "%s", rec_file);
 	}
 
-	if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_RECORD_FILE_APPEND)) {
-		ast_str_append(filename, 0, ",a");
-	}
+	ast_str_append(filename, 0, ",%s%s,%s",
+		ast_test_flag(&conference->b_profile, BRIDGE_OPT_RECORD_FILE_APPEND) ? "a" : "",
+		conference->b_profile.rec_options,
+		conference->b_profile.rec_command);
 }
 
 static int is_new_rec_file(const char *rec_file, struct ast_str **orig_rec_file)

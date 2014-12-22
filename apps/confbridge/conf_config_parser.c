@@ -306,12 +306,34 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					</para></description>
 				</configOption>
 				<configOption name="record_file_append" default="yes">
-					<synopsis>Append record file when starting/stopping on same conference recording</synopsis>
+					<synopsis>Append to record file when starting/stopping on same conference recording</synopsis>
 					<description><para>
 						When <replaceable>record_file_append</replaceable> is set to yes, stopping and starting recording on a
 						conference adds the new portion to end of current record_file. When this is
 						set to no, a new <replaceable>record_file</replaceable> is generated every time you start then stop recording
 						on a conference.
+					</para></description>
+				</configOption>
+				<configOption name="record_file_timestamp" default="yes">
+					<synopsis>Append the start time to the <replaceable>record_file</replaceable> name so that it is unique.</synopsis>
+					<description><para>
+						When <replaceable>record_file_timestamp</replaceable> is set to yes, the start time is appended to
+						<replaceable>record_file</replaceable> so that the filename is unique. This allows you to specify
+						a <replaceable>record_file</replaceable> but not overwrite existing recordings.
+					</para></description>
+				</configOption>
+				<configOption name="record_options" default="">
+					<synopsis>Pass additional options to MixMonitor when recording</synopsis>
+					<description><para>
+						Pass additional options to MixMonitor when <replaceable>record_conference</replaceable> is set to yes.
+						See <literal>MixMonitor</literal> for available options.
+					</para></description>
+				</configOption>
+				<configOption name="record_command" default="">
+					<synopsis>Execute a command after recording ends</synopsis>
+					<description><para>
+						Executes the specified command when recording ends. Any strings matching <literal>^{X}</literal> will be
+						unescaped to <variable>X</variable>. All variables will be evaluated at the time ConfBridge is called.
 					</para></description>
 				</configOption>
 				<configOption name="video_mode">
@@ -1524,9 +1546,19 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 		b_profile.flags & BRIDGE_OPT_RECORD_FILE_APPEND ?
 		"yes" : "no");
 
+	ast_cli(a->fd,"Record File Timestamp: %s\n",
+		b_profile.flags & BRIDGE_OPT_RECORD_FILE_TIMESTAMP ?
+		"yes" : "no");
+
 	ast_cli(a->fd,"Record File:          %s\n",
 		ast_strlen_zero(b_profile.rec_file) ? "Auto Generated" :
 		b_profile.rec_file);
+
+	ast_cli(a->fd,"Record Options:       %s\n",
+		b_profile.rec_options);
+
+	ast_cli(a->fd,"Record Command:       %s\n",
+		b_profile.rec_command);
 
 	if (b_profile.max_members) {
 		ast_cli(a->fd,"Max Members:          %u\n", b_profile.max_members);
@@ -2096,8 +2128,11 @@ int conf_load_config(void)
 	aco_option_register(&cfg_info, "record_conference", ACO_EXACT, bridge_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct bridge_profile, flags), BRIDGE_OPT_RECORD_CONFERENCE);
 	aco_option_register_custom(&cfg_info, "video_mode", ACO_EXACT, bridge_types, NULL, video_mode_handler, 0);
 	aco_option_register(&cfg_info, "record_file_append", ACO_EXACT, bridge_types, "yes", OPT_BOOLFLAG_T, 1, FLDSET(struct bridge_profile, flags), BRIDGE_OPT_RECORD_FILE_APPEND);
+	aco_option_register(&cfg_info, "record_file_timestamp", ACO_EXACT, bridge_types, "yes", OPT_BOOLFLAG_T, 1, FLDSET(struct bridge_profile, flags), BRIDGE_OPT_RECORD_FILE_TIMESTAMP);
 	aco_option_register(&cfg_info, "max_members", ACO_EXACT, bridge_types, "0", OPT_UINT_T, 0, FLDSET(struct bridge_profile, max_members));
 	aco_option_register(&cfg_info, "record_file", ACO_EXACT, bridge_types, NULL, OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct bridge_profile, rec_file));
+	aco_option_register(&cfg_info, "record_options", ACO_EXACT, bridge_types, NULL, OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct bridge_profile, rec_options));
+	aco_option_register(&cfg_info, "record_command", ACO_EXACT, bridge_types, NULL, OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct bridge_profile, rec_command));
 	aco_option_register(&cfg_info, "language", ACO_EXACT, bridge_types, "en", OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct bridge_profile, language));
 	aco_option_register_custom(&cfg_info, "^sound_", ACO_REGEX, bridge_types, NULL, sound_option_handler, 0);
 	/* This option should only be used with the CONFBRIDGE dialplan function */

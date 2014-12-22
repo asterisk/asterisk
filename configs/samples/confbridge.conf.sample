@@ -163,6 +163,12 @@ type=bridge
                                ; By default, the record_file is stored in Asterisk's spool/monitor directory
                                ; with a unique filename starting with the 'confbridge' prefix.
 
+;record_file_append=yes        ; Append record file when starting/stopping on same conference recording.
+;record_file_timestamp=yes     ; Append the start time to the record file name.
+
+;record_options=               ; Pass additional options to MixMonitor.
+;record_command=</path/to/command> ; Command to execute when recording finishes.
+
 ;internal_sample_rate=auto     ; Sets the internal native sample rate the
                                ; conference is mixed at.  This is set to automatically
                                ; adjust the sample rate to the best quality by default.

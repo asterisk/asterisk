@@ -12,6 +12,21 @@
 --- Functionality changes from Asterisk 13 to Asterisk 14 --------------------
 ------------------------------------------------------------------------------
 
+Applications
+------------------
+
+ConfBridge
+------------------
+ * Added the ability to pass options to MixMonitor when recording is used with
+   ConfBridge. This includes the addition of the following configuration
+   parameters for the 'bridge' object:
+   - record_file_timestamp: whether or not to append the start time to the
+     recorded file name
+   - record_options: the options to pass to the MixMonitor application
+   - record_command: a command to execute when recording is finished
+   Note that these options may also be with the CONFBRIDGE function.
+
+
 Channel Drivers
 ------------------
 
