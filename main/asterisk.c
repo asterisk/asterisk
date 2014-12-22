@@ -4380,6 +4380,8 @@ int main(int argc, char *argv[])
 
 	run_startup_commands();
 
+	logger_queue_start();
+
 	if (ast_opt_console) {
 		/* Console stuff now... */
 		/* Register our quit function */
