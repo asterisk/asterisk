@@ -1006,9 +1006,24 @@ static int qualify_and_schedule_all_cb(void *obj, void *arg, int flags)
 	return 0;
 }
 
+/*!
+ * \internal
+ * \brief Unschedule all existing contacts
+ */
+static int unschedule_all_cb(void *obj, void *arg, int flags)
+{
+	struct sched_data *data = obj;
+
+	AST_SCHED_DEL_UNREF(sched, data->id, ao2_ref(data, -1));
+
+	return CMP_MATCH;
+}
+
 static void qualify_and_schedule_all(void)
 {
 	struct ao2_container *endpoints = ast_sip_get_endpoints();
+
+	ao2_callback(sched_qualifies, OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK, unschedule_all_cb, NULL);
 
 	if (!endpoints) {
 		return;
