@@ -2026,7 +2026,7 @@ AST_TEST_DEFINE(astobj2_test_perf)
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "astobj2_test_perf";
-		info->category = "/main/astobj2/perf";
+		info->category = "/main/astobj2/perf/";
 		info->summary = "Test container performance";
 		info->description =
 			"Runs container traversal tests.";
