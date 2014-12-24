@@ -1967,4 +1967,11 @@ char *ast_sip_get_debug(void);
 		}						\
 	} while(0)
 
+/*!
+ * \brief Retrieve the system keep alive interval setting.
+ *
+ * \retval the keep alive interval.
+ */
+unsigned int ast_sip_get_keep_alive_interval(void);
+
 #endif /* _RES_PJSIP_H */
