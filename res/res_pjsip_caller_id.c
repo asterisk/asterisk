@@ -669,11 +669,7 @@ static void caller_id_outgoing_request(struct ast_sip_session *session, pjsip_tx
 	ast_party_id_copy(&connected_id, &effective_id);
 	ast_channel_unlock(session->channel);
 
-	if (session->inv_session->state < PJSIP_INV_STATE_CONFIRMED &&
-			ast_strlen_zero(session->endpoint->fromuser) &&
-			(session->endpoint->id.trust_outbound ||
-			((connected_id.name.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED &&
-			(connected_id.number.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED))) {
+	if (session->inv_session->state < PJSIP_INV_STATE_CONFIRMED) {
 		/* Only change the From header on the initial outbound INVITE. Switching it
 		 * mid-call might confuse some UAs.
 		 */
@@ -683,8 +679,16 @@ static void caller_id_outgoing_request(struct ast_sip_session *session, pjsip_tx
 		from = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_FROM, tdata->msg->hdr.next);
 		dlg = session->inv_session->dlg;
 
-		modify_id_header(tdata->pool, from, &connected_id);
-		modify_id_header(dlg->pool, dlg->local.info, &connected_id);
+		if (ast_strlen_zero(session->endpoint->fromuser) &&
+			(session->endpoint->id.trust_outbound ||
+			((connected_id.name.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED &&
+			(connected_id.number.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED))) {
+			modify_id_header(tdata->pool, from, &connected_id);
+			modify_id_header(dlg->pool, dlg->local.info, &connected_id);
+		}
+
+		ast_sip_add_usereqphone(session->endpoint, tdata->pool, from->uri);
+		ast_sip_add_usereqphone(session->endpoint, dlg->pool, dlg->local.info->uri);
 	}
 	add_id_headers(session, tdata, &connected_id);
 	ast_party_id_free(&connected_id);
