@@ -224,8 +224,13 @@ monitor-type = MixMonitor
 ;
 ;maxlen = 0
 ;
+; Note: for below queue channel options (setinterfacevar, setqueueentryvar,
+; setqueuevar) if the caller channel is a local channel and optimizations
+; is enabled then after optimization has occurred only the queue member
+; channel will contain the variables.
+;
 ; If set to yes, just prior to the caller being bridged with a queue member
-; the following variables will be set
+; the following variables will be set on the caller and queue member channels:
 ; MEMBERINTERFACE is the interface name (eg. Agent/1234)
 ; MEMBERNAME is the member name (eg. Joe Soap)
 ; MEMBERCALLS is the number of calls that interface has taken,
@@ -237,15 +242,16 @@ monitor-type = MixMonitor
 ;setinterfacevar=no
 ;
 ; If set to yes, just prior to the caller being bridged with a queue member
-; the following variables will be set:
+; the following variables will be set on the caller and queue member channels:
 ; QEHOLDTIME callers hold time
 ; QEORIGINALPOS original position of the caller in the queue
 ;
 ;setqueueentryvar=no
 ;
 ; If set to yes, the following variables will be set
-; just prior to the caller being bridged with a queue member
-; and just prior to the caller leaving the queue
+; just prior to the caller being bridged with a queue member (set on the
+; caller and queue member channels) and just prior to the caller
+; leaving the queue
 ; QUEUENAME name of the queue
 ; QUEUEMAX maxmimum number of calls allowed
 ; QUEUESTRATEGY the strategy of the queue;
