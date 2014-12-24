@@ -1168,6 +1168,9 @@
 				<configOption name="max_forwards" default="70">
 					<synopsis>Value used in Max-Forwards header for SIP requests.</synopsis>
 				</configOption>
+				<configOption name="keep_alive_interval" default="0">
+					<synopsis>The interval (in seconds) to send keepalives to active connection-oriented transports.</synopsis>
+				</configOption>
 				<configOption name="type">
 					<synopsis>Must be of type 'global'.</synopsis>
 				</configOption>
