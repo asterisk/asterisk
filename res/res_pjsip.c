@@ -35,6 +35,7 @@
 #include "asterisk/taskprocessor.h"
 #include "asterisk/uuid.h"
 #include "asterisk/sorcery.h"
+#include "asterisk/file.h"
 
 /*** MODULEINFO
 	<depend>pjproject</depend>
@@ -579,6 +580,9 @@
 				</configOption>
 				<configOption name="allow_transfer" default="yes">
 					<synopsis>Determines whether SIP REFER transfers are allowed for this endpoint</synopsis>
+				</configOption>
+				<configOption name="user_eq_phone" default="no">
+					<synopsis>Determines whether a user=phone parameter is placed into the request URI if the user is determined to be a phone number</synopsis>
 				</configOption>
 				<configOption name="sdp_owner" default="-">
 					<synopsis>String placed as the username portion of an SDP origin (o=) line.</synopsis>
@@ -1568,6 +1572,9 @@
 				<parameter name="AllowTransfer">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='allow_transfer']/synopsis/node())"/></para>
 				</parameter>
+				<parameter name="UserEqPhone">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='user_eq_phone']/synopsis/node())"/></para>
+				</parameter>
 				<parameter name="SdpOwner">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='sdp_owner']/synopsis/node())"/></para>
 				</parameter>
@@ -2127,6 +2134,41 @@ static int sip_get_tpselector_from_endpoint(const struct ast_sip_endpoint *endpo
 	return 0;
 }
 
+void ast_sip_add_usereqphone(const struct ast_sip_endpoint *endpoint, pj_pool_t *pool, pjsip_uri *uri)
+{
+	pjsip_sip_uri *sip_uri;
+	int i = 0;
+	pjsip_param *param;
+	const pj_str_t STR_USER = { "user", 4 };
+	const pj_str_t STR_PHONE = { "phone", 5 };
+
+	if (!endpoint || !endpoint->usereqphone || (!PJSIP_URI_SCHEME_IS_SIP(uri) && !PJSIP_URI_SCHEME_IS_SIPS(uri))) {
+		return;
+	}
+
+	sip_uri = pjsip_uri_get_uri(uri);
+
+	if (!pj_strlen(&sip_uri->user)) {
+		return;
+	}
+
+	/* Test URI user against allowed characters in AST_DIGIT_ANY */
+	for (; i < pj_strlen(&sip_uri->user); i++) {
+		if (!strchr(AST_DIGIT_ANYNUM, pj_strbuf(&sip_uri->user)[i])) {
+			break;
+		}
+	}
+
+	if (i < pj_strlen(&sip_uri->user)) {
+		return;
+	}
+
+	param = PJ_POOL_ALLOC_T(pool, pjsip_param);
+	param->name = STR_USER;
+	param->value = STR_PHONE;
+	pj_list_insert_before(&sip_uri->other_param, param);
+}
+
 pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint, const char *uri, const char *request_user)
 {
 	char enclosed_uri[PJSIP_MAX_URL_SIZE];
@@ -2173,6 +2215,9 @@ pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
 			pj_strdup2(dlg->pool, &sip_uri->user, request_user);
 		}
 	}
+
+	/* Add the user=phone parameter if applicable */
+	ast_sip_add_usereqphone(endpoint, dlg->pool, dlg->target);
 
 	/* We have to temporarily bump up the sess_count here so the dialog is not prematurely destroyed */
 	dlg->sess_count++;
@@ -2373,6 +2418,9 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
 		return -1;
 	}
+
+	/* Add the user=phone parameter if applicable */
+	ast_sip_add_usereqphone(endpoint, (*tdata)->pool, (*tdata)->msg->line.req.uri);
 
 	/* If an outbound proxy is specified on the endpoint apply it to this request */
 	if (endpoint && !ast_strlen_zero(endpoint->outbound_proxy) &&

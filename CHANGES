@@ -11,6 +11,11 @@
 --- Functionality changes from Asterisk 13.1.0 to Asterisk 13.1-cert1 --------
 ------------------------------------------------------------------------------
 
+chan_pjsip
+------------------
+ * New 'user_eq_phone' endpoint setting. This adds a 'user=phone' parameter
+   to the request URI and From URI if the user is determined to be a phone number.
+
 ARI
 ------------------
  * The Originate operation now takes in an originator channel. The linked ID of
@@ -105,7 +110,6 @@ included in Asterisk 13.
 
 Finally, all users upgrading to Asterisk 13 should read the UPGRADE.txt file
 delivered with this release.
-
 
 Build System
 ------------------
