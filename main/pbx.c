@@ -11858,8 +11858,6 @@ static void presence_state_cb(void *unused, struct stasis_subscription *sub, str
 		return;
 	}
 
-	ast_mutex_lock(&context_merge_lock);/* Hold off ast_merge_contexts_and_delete */
-
 	cmpdevice = ast_alloca(sizeof(*cmpdevice) + strlen(presence_state->provider));
 	strcpy(cmpdevice->hintdevice, presence_state->provider);
 
