@@ -2155,6 +2155,10 @@ void ast_sip_add_usereqphone(const struct ast_sip_endpoint *endpoint, pj_pool_t 
 		return;
 	}
 
+	if (pj_strbuf(&sip_uri->user)[0] == '+') {
+		i = 1;
+	}
+
 	/* Test URI user against allowed characters in AST_DIGIT_ANY */
 	for (; i < pj_strlen(&sip_uri->user); i++) {
 		if (!strchr(AST_DIGIT_ANYNUM, pj_strbuf(&sip_uri->user)[i])) {
@@ -2221,6 +2225,7 @@ pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
 
 	/* Add the user=phone parameter if applicable */
 	ast_sip_add_usereqphone(endpoint, dlg->pool, dlg->target);
+	ast_sip_add_usereqphone(endpoint, dlg->pool, dlg->remote.info->uri);
 
 	/* We have to temporarily bump up the sess_count here so the dialog is not prematurely destroyed */
 	dlg->sess_count++;
