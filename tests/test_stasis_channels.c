@@ -278,6 +278,7 @@ AST_TEST_DEFINE(channel_snapshot_json)
 				 "  s: { s: s, s: s, s: i },"
 				 "  s: { s: s, s: s },"
 				 "  s: { s: s, s: s },"
+				 "  s: s"
 				 "  s: o"
 				 "}",
 				 "name", "TEST/name",
@@ -294,6 +295,7 @@ AST_TEST_DEFINE(channel_snapshot_json)
 				 "connected",
 				 "name", "",
 				 "number", "",
+				 "language", "en",
 				 "creationtime",
 				 ast_json_timeval(
 					 ast_channel_creationtime(chan), NULL));
