@@ -872,8 +872,12 @@
 					<synopsis>Method of SSL transport (TLS ONLY)</synopsis>
 					<description>
 						<enumlist>
-							<enum name="default" />
-							<enum name="unspecified" />
+							<enum name="default">
+								<para>The default as defined by PJSIP. This is currently TLSv1, but may change with future releases.</para>
+							</enum>
+							<enum name="unspecified">
+								<para>This option is equivalent to setting 'default'</para>
+							</enum>
 							<enum name="tlsv1" />
 							<enum name="sslv2" />
 							<enum name="sslv3" />
