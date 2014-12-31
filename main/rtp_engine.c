@@ -2189,7 +2189,8 @@ int ast_rtp_engine_init()
 	add_static_payload(125, ast_format_slin44, 0);
 	add_static_payload(126, ast_format_slin48, 0);
 	add_static_payload(127, ast_format_slin96, 0);
-	add_static_payload(128, ast_format_slin192, 0);
+	/* payload types above 127 are not valid */
+	add_static_payload(96, ast_format_slin192, 0);
 	/* Opus and VP8 */
 	add_static_payload(100, ast_format_vp8, 0);
 	add_static_payload(107, ast_format_opus, 0);
