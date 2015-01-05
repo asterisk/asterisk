@@ -298,6 +298,18 @@
 			Use the <replaceable>PJSIP_ENDPOINT</replaceable> function to obtain
 			further endpoint related information.</para>
 		</enum>
+		<enum name="contact">
+			<para>R/O The name of the contact associated with this channel.
+			Use the <replaceable>PJSIP_CONTACT</replaceable> function to obtain
+			further contact related information. Note this may not be present and if so
+			is only available on outgoing legs.</para>
+		</enum>
+		<enum name="aor">
+			<para>R/O The name of the AOR associated with this channel.
+			Use the <replaceable>PJSIP_AOR</replaceable> function to obtain
+			further AOR related information. Note this may not be present and if so
+			is only available on outgoing legs.</para>
+		</enum>
 		<enum name="pjsip">
 			<para>R/O Obtain information about the current PJSIP channel and its
 			session.</para>
@@ -671,6 +683,28 @@ static int read_pjsip(void *data)
 			return -1;
 		}
 		snprintf(func_args->buf, func_args->len, "%s", ast_sorcery_object_get_id(pvt->session->endpoint));
+	} else if (!strcmp(func_args->param, "contact")) {
+		struct ast_sip_channel_pvt *pvt = ast_channel_tech_pvt(func_args->chan);
+
+		if (!pvt) {
+			ast_log(AST_LOG_WARNING, "Channel %s has no pvt!\n", ast_channel_name(func_args->chan));
+			return -1;
+		}
+		if (!pvt->session || !pvt->session->contact) {
+			return 0;
+		}
+		snprintf(func_args->buf, func_args->len, "%s", ast_sorcery_object_get_id(pvt->session->contact));
+	} else if (!strcmp(func_args->param, "aor")) {
+		struct ast_sip_channel_pvt *pvt = ast_channel_tech_pvt(func_args->chan);
+
+		if (!pvt) {
+			ast_log(AST_LOG_WARNING, "Channel %s has no pvt!\n", ast_channel_name(func_args->chan));
+			return -1;
+		}
+		if (!pvt->session || !pvt->session->aor) {
+			return 0;
+		}
+		snprintf(func_args->buf, func_args->len, "%s", ast_sorcery_object_get_id(pvt->session->aor));
 	} else if (!strcmp(func_args->param, "pjsip")) {
 		func_args->ret = channel_read_pjsip(func_args->chan, func_args->type,
 		                                    func_args->field, func_args->buf,

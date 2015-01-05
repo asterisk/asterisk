@@ -107,6 +107,8 @@ struct ast_sip_session {
 	char exten[AST_MAX_EXTENSION];
 	/*! The endpoint with which Asterisk is communicating */
 	struct ast_sip_endpoint *endpoint;
+	/*! The AOR associated with this session */
+	struct ast_sip_aor *aor;
 	/*! The contact associated with this session */
 	struct ast_sip_contact *contact;
 	/*! The PJSIP details of the session, which includes the dialog */
