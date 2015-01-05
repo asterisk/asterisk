@@ -59,7 +59,6 @@ chan_pjsip
    the message will automatically be associated with the configured endpoint on the
    outbound registration.
 
-
 Core
 ------------------
  * The core of Asterisk uses a message bus called "Stasis" to distribute
@@ -98,6 +97,10 @@ res_musiconhold
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.1.0 to Asterisk 13.2.0 ------------
 ------------------------------------------------------------------------------
+
+=======
+ * New 'PJSIP_AOR' and 'PJSIP_CONTACT' dialplan functions have been added which
+   allow examining PJSIP AORs or contacts from the dialplan.
 
 res_pjsip_config_wizard
 ------------------
