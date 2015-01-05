@@ -20,6 +20,9 @@ chan_pjsip
    will cause keep alive messages to be sent periodically over connection
    oriented transports.
 
+ * New 'PJSIP_AOR' and 'PJSIP_CONTACT' dialplan functions have been added which
+   allow examining PJSIP AORs or contacts from the dialplan.
+
 res_pjsip_config_wizard
 ------------------
  * This is a new module that adds streamlined configuration capability for
