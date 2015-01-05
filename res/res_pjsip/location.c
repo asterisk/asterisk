@@ -144,30 +144,46 @@ struct ao2_container *ast_sip_location_retrieve_aor_contacts(const struct ast_si
 	return contacts;
 }
 
-struct ast_sip_contact *ast_sip_location_retrieve_contact_from_aor_list(const char *aor_list)
+void ast_sip_location_retrieve_contact_and_aor_from_list(const char *aor_list, struct ast_sip_aor **aor,
+	struct ast_sip_contact **contact)
 {
 	char *aor_name;
 	char *rest;
-	struct ast_sip_contact *contact = NULL;
 
 	/* If the location is still empty we have nowhere to go */
 	if (ast_strlen_zero(aor_list) || !(rest = ast_strdupa(aor_list))) {
 		ast_log(LOG_WARNING, "Unable to determine contacts from empty aor list\n");
-		return NULL;
+		return;
 	}
+
+	*aor = NULL;
+	*contact = NULL;
 
 	while ((aor_name = strsep(&rest, ","))) {
-		RAII_VAR(struct ast_sip_aor *, aor, ast_sip_location_retrieve_aor(aor_name), ao2_cleanup);
+		*aor = ast_sip_location_retrieve_aor(aor_name);
 
-		if (!aor) {
+		if (!(*aor)) {
 			continue;
 		}
-		contact = ast_sip_location_retrieve_first_aor_contact(aor);
+		*contact = ast_sip_location_retrieve_first_aor_contact(*aor);
 		/* If a valid contact is available use its URI for dialing */
-		if (contact) {
+		if (*contact) {
 			break;
 		}
+
+		ao2_ref(*aor, -1);
+		*aor = NULL;
 	}
+}
+
+struct ast_sip_contact *ast_sip_location_retrieve_contact_from_aor_list(const char *aor_list)
+{
+	struct ast_sip_aor *aor;
+	struct ast_sip_contact *contact;
+
+	ast_sip_location_retrieve_contact_and_aor_from_list(aor_list, &aor, &contact);
+
+	ao2_cleanup(aor);
 
 	return contact;
 }

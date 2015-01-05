@@ -956,6 +956,7 @@ static void session_destructor(void *obj)
 	}
 	ast_party_id_free(&session->id);
 	ao2_cleanup(session->endpoint);
+	ao2_cleanup(session->aor);
 	ao2_cleanup(session->contact);
 	ao2_cleanup(session->req_caps);
 	ao2_cleanup(session->direct_media_cap);
@@ -1213,6 +1214,7 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 	struct ast_format_cap *req_caps)
 {
 	const char *uri = NULL;
+	RAII_VAR(struct ast_sip_aor *, found_aor, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_sip_contact *, found_contact, NULL, ao2_cleanup);
 	pjsip_timer_setting timer;
 	pjsip_dialog *dlg;
@@ -1223,7 +1225,7 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 	if (location || !contact) {
 		location = S_OR(location, endpoint->aors);
 
-		found_contact = ast_sip_location_retrieve_contact_from_aor_list(location);
+		ast_sip_location_retrieve_contact_and_aor_from_list(location, &found_aor, &found_contact);
 		if (!found_contact || ast_strlen_zero(found_contact->uri)) {
 			uri = location;
 		} else {
@@ -1264,6 +1266,7 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 		pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
 		return NULL;
 	}
+	session->aor = ao2_bump(found_aor);
 	ast_party_id_copy(&session->id, &endpoint->id.self);
 
 	if (ast_format_cap_count(req_caps)) {

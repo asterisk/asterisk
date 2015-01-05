@@ -916,6 +916,16 @@ struct ao2_container *ast_sip_location_retrieve_aor_contacts(const struct ast_si
 struct ast_sip_contact *ast_sip_location_retrieve_contact_from_aor_list(const char *aor_list);
 
 /*!
+ * \brief Retrieve the first bound contact AND the AOR chosen from a list of AORs
+ *
+ * \param aor_list A comma-separated list of AOR names
+ * \param aor The chosen AOR
+ * \param contact The chosen contact
+ */
+ void ast_sip_location_retrieve_contact_and_aor_from_list(const char *aor_list, struct ast_sip_aor **aor,
+	struct ast_sip_contact **contact);
+
+/*!
  * \brief Retrieve a named contact
  *
  * \param contact_name Name of the contact
