@@ -11,6 +11,14 @@
 --- Functionality changes from Asterisk 13.1.0 to Asterisk 13.2.0 ------------
 ------------------------------------------------------------------------------
 
+res_pjsip_outbound_registration
+------------------
+ * The 'pjsip send unregister' command now stops further registrations.
+
+ * A new command 'pjsip send register' has been added which allows you to
+   start or restart periodic registration.  It can be used after a
+   'send unregister' or after a 401 permanent error.
+
 chan_pjsip
 ------------------
  * New 'user_eq_phone' endpoint setting. This adds a 'user=phone' parameter
