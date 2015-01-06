@@ -102,10 +102,18 @@ res_musiconhold
  * New 'PJSIP_AOR' and 'PJSIP_CONTACT' dialplan functions have been added which
    allow examining PJSIP AORs or contacts from the dialplan.
 
+res_pjsip_outbound_registration
+------------------
+ * The 'pjsip send unregister' command now stops further registrations.
+
+ * A new command 'pjsip send register' has been added which allows you to
+   start or restart periodic registration.  It can be used after a
+   'send unregister' or after a 401 permanent error.
+
 res_pjsip_config_wizard
 ------------------
  * This is a new module that adds streamlined configuration capability for
-   chan_pjsip.  It's targetted at users who have lots of basic configuration
+   chan_pjsip.  It's targeted at users who have lots of basic configuration
    scenarios like 'phone' or 'agent' or 'trunk'.  Additional information
    can be found in the sample configuration file at
    config/samples/pjsip_wizard.conf.sample.

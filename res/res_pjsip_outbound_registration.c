@@ -156,11 +156,27 @@
 		</syntax>
 		<description>
 			<para>
-			Send a SIP REGISTER request to the specified outbound registration with an expiration of 0.
-			This will cause the contact added by this registration to be removed on the remote system.
-			Note: The specified outbound registration will attempt to re-register according to it's last
-			registration expiration.
-                        </para>
+			Unregisters the specified outbound registration and stops future registration attempts.
+			Call PJSIPRegister to start registration and schedule re-registrations according to configuration.
+            </para>
+		</description>
+	</manager>
+	<manager name="PJSIPRegister" language="en_US">
+		<synopsis>
+			Register an outbound registration.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Registration" required="true">
+				<para>The outbound registration to register.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>
+			Unregisters the specified outbound registration then starts registration and schedules re-registrations
+			according to configuration.
+			future registrations.
+            </para>
 		</description>
 	</manager>
 	<manager name="PJSIPShowRegistrationsOutbound" language="en_US">
@@ -1124,6 +1140,8 @@ static int unregister_task(void *obj)
 	struct pjsip_regc *client = state->client_state->client;
 	pjsip_tx_data *tdata;
 
+	cancel_registration(state->client_state);
+
 	if (pjsip_regc_unregister(client, &tdata) != PJ_SUCCESS) {
 		return 0;
 	}
@@ -1143,6 +1161,18 @@ static int queue_unregister(struct sip_outbound_registration_state *state)
 		ao2_ref(state, -1);
 		return -1;
 	}
+
+	return 0;
+}
+
+static int queue_register(struct sip_outbound_registration_state *state)
+{
+	ao2_ref(state, +1);
+	if (ast_sip_push_task(state->client_state->serializer, sip_outbound_registration_perform, state)) {
+		ao2_ref(state, -1);
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -1193,11 +1223,7 @@ static char *cli_unregister(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		e->command = "pjsip send unregister";
 		e->usage =
 			"Usage: pjsip send unregister <registration>\n"
-			"       Send a SIP REGISTER request to the specified outbound "
-			"registration with an expiration of 0. This will cause the contact "
-			"added by this registration to be removed on the remote system. Note: "
-			"The specified outbound registration will attempt to re-register "
-			"according to its last registration expiration.\n";
+			"       Unregisters the specified outbound registration and stops future registration attempts.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return cli_complete_registration(a->line, a->word, a->pos, a->n);
@@ -1217,6 +1243,50 @@ static char *cli_unregister(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 	if (queue_unregister(state)) {
 		ast_cli(a->fd, "Failed to queue unregistration");
+		return 0;
+	}
+
+	return CLI_SUCCESS;
+}
+
+static char *cli_register(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	RAII_VAR(struct sip_outbound_registration_state *, state, NULL, ao2_cleanup);
+	const char *registration_name;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "pjsip send register";
+		e->usage =
+			"Usage: pjsip send register <registration>\n"
+			"       Unregisters the specified outbound "
+			"registration then re-registers and re-schedules it.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return cli_complete_registration(a->line, a->word, a->pos, a->n);
+	}
+
+	if (a->argc != 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	registration_name = a->argv[3];
+
+	state = get_state(registration_name);
+	if (!state) {
+		ast_cli(a->fd, "Unable to retrieve registration %s\n", registration_name);
+		return CLI_FAILURE;
+	}
+
+	/* We need to serialize the unregister and register so they need
+	 * to be queued as separate tasks.
+	 */
+	if (queue_unregister(state)) {
+		ast_cli(a->fd, "Failed to queue unregistration");
+		return 0;
+	}
+	if (queue_register(state)) {
+		ast_cli(a->fd, "Failed to queue registration");
 		return 0;
 	}
 
@@ -1245,6 +1315,38 @@ static int ami_unregister(struct mansession *s, const struct message *m)
 	}
 
 	astman_send_ack(s, m, "Unregistration sent");
+	return 0;
+}
+
+static int ami_register(struct mansession *s, const struct message *m)
+{
+	const char *registration_name = astman_get_header(m, "Registration");
+	RAII_VAR(struct sip_outbound_registration_state *, state, NULL, ao2_cleanup);
+
+	if (ast_strlen_zero(registration_name)) {
+		astman_send_error(s, m, "Registration parameter missing.");
+		return 0;
+	}
+
+	state = get_state(registration_name);
+	if (!state) {
+		astman_send_error(s, m, "Unable to retrieve registration entry\n");
+		return 0;
+	}
+
+	/* We need to serialize the unregister and register so they need
+	 * to be queued as separate tasks.
+	 */
+	if (queue_unregister(state)) {
+		astman_send_ack(s, m, "Failed to queue unregistration");
+		return 0;
+	}
+	if (queue_register(state)) {
+		astman_send_ack(s, m, "Failed to queue unregistration");
+		return 0;
+	}
+
+	astman_send_ack(s, m, "Reregistration sent");
 	return 0;
 }
 
@@ -1426,7 +1528,8 @@ static char *my_cli_traverse_objects(struct ast_cli_entry *e, int cmd, struct as
 }
 
 static struct ast_cli_entry cli_outbound_registration[] = {
-	AST_CLI_DEFINE(cli_unregister, "Send a REGISTER request to an outbound registration target with a expiration of 0"),
+	AST_CLI_DEFINE(cli_unregister, "Unregisters outbound registration target"),
+	AST_CLI_DEFINE(cli_register, "Registers an outbound registration target"),
 	AST_CLI_DEFINE(my_cli_traverse_objects, "List PJSIP Registrations",
 		.command = "pjsip list registrations",
 		.usage = "Usage: pjsip list registrations\n"
@@ -1450,6 +1553,7 @@ static int unload_module(void)
 	ast_sip_unregister_cli_formatter(cli_formatter);
 	ast_manager_unregister("PJSIPShowRegistrationsOutbound");
 	ast_manager_unregister("PJSIPUnregister");
+	ast_manager_unregister("PJSIPRegister");
 
 	ao2_global_obj_release(current_states);
 
@@ -1486,6 +1590,7 @@ static int load_module(void)
 	ast_sip_register_endpoint_identifier(&line_identifier);
 
 	ast_manager_register_xml("PJSIPUnregister", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_unregister);
+	ast_manager_register_xml("PJSIPRegister", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_register);
 	ast_manager_register_xml("PJSIPShowRegistrationsOutbound", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_show_outbound_registrations);
 
 	cli_formatter = ao2_alloc(sizeof(struct ast_sip_cli_formatter_entry), NULL);
