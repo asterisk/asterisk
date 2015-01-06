@@ -157,7 +157,7 @@ static void native_rtp_bridge_start(struct ast_bridge *bridge, struct ast_channe
 		}
 		ast_rtp_instance_set_bridged(instance0, instance1);
 		ast_rtp_instance_set_bridged(instance1, instance0);
-		ast_debug(2, "Locally RTP bridged '%s' and '%s' in stack\n",
+		ast_verb(4, "Locally RTP bridged '%s' and '%s' in stack\n",
 			ast_channel_name(bc0->chan), ast_channel_name(bc1->chan));
 		break;
 
@@ -173,7 +173,7 @@ static void native_rtp_bridge_start(struct ast_bridge *bridge, struct ast_channe
 		if (!target) {
 			glue0->update_peer(bc0->chan, instance1, vinstance1, tinstance1, cap1, 0);
 			glue1->update_peer(bc1->chan, instance0, vinstance0, tinstance0, cap0, 0);
-			ast_debug(2, "Remotely bridged '%s' and '%s' - media will flow directly between them\n",
+			ast_verb(4, "Remotely bridged '%s' and '%s' - media will flow directly between them\n",
 				ast_channel_name(bc0->chan), ast_channel_name(bc1->chan));
 		} else {
 			/*
