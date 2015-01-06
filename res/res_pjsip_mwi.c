@@ -424,7 +424,7 @@ static void send_unsolicited_mwi_notify(struct mwi_subscription *sub,
 
 		contacts = ast_sip_location_retrieve_aor_contacts(aor);
 		if (!contacts || (ao2_container_count(contacts) == 0)) {
-			ast_log(LOG_WARNING, "No contacts bound to AOR %s. Cannot send unsolicited MWI.\n", aor_name);
+			ast_log(LOG_NOTICE, "No contacts bound to AOR %s. Cannot send unsolicited MWI until a contact registers.\n", aor_name);
 			continue;
 		}
 
