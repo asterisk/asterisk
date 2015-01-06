@@ -643,18 +643,6 @@ static int cli_contact_compare(void *obj, void *arg, int flags)
 	return cmp;
 }
 
-static int cli_contact_hash(const void *obj, int flags)
-{
-	const struct ast_sip_contact_wrapper *wrapper = obj;
-	if (flags & OBJ_SEARCH_OBJECT) {
-		return ast_str_hash(wrapper->contact_id);
-	} else if (flags & OBJ_SEARCH_KEY) {
-		return ast_str_hash(obj);
-	}
-
-	return -1;
-}
-
 static int cli_contact_iterate(void *container, ao2_callback_fn callback, void *args)
 {
 	return ast_sip_for_each_contact(container, callback, args);
@@ -670,8 +658,8 @@ static struct ao2_container *cli_contact_get_container(void)
 		return NULL;
 	}
 
-	child_container = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, 17,
-		cli_contact_hash, cli_contact_sort, cli_contact_compare);
+	child_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
+		cli_contact_sort, cli_contact_compare);
 	if (!child_container) {
 		return NULL;
 	}
