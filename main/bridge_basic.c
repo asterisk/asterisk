@@ -1322,7 +1322,10 @@ struct attended_transfer_properties {
 	struct ast_channel *transfer_target;
 	/*! The party that is currently being recalled. Depending on
 	 * the current state, this may be either the party that originally
-	 * was the transferer or the original transfer target
+	 * was the transferer or the original transfer target.  This is
+	 * set with reference when entering the BLOND_NONFINAL, RECALLING,
+	 * and RETRANSFER states, and the reference released on state exit
+	 * if continuing with recall or retransfer to avoid leak.
 	 */
 	struct ast_channel *recall_target;
 	/*! The absolute starting time for running timers */
@@ -2275,6 +2278,7 @@ static int blond_nonfinal_enter(struct attended_transfer_properties *props)
 {
 	int res;
 	props->superstate = SUPERSTATE_RECALL;
+	/* move the transfer target to the recall target along with its reference */
 	props->recall_target = ast_channel_ref(props->transfer_target);
 	res = blond_enter(props);
 	props->transfer_target = ast_channel_unref(props->transfer_target);
@@ -2291,8 +2295,8 @@ static enum attended_transfer_state blond_nonfinal_exit(struct attended_transfer
 		return TRANSFER_RESUME;
 	case STIMULUS_TIMEOUT:
 		ast_softhangup(props->recall_target, AST_SOFTHANGUP_EXPLICIT);
-		props->recall_target = ast_channel_unref(props->recall_target);
 	case STIMULUS_RECALL_TARGET_HANGUP:
+		props->recall_target = ast_channel_unref(props->recall_target);
 		return TRANSFER_RECALLING;
 	case STIMULUS_NONE:
 	case STIMULUS_DTMF_ATXFER_ABORT:
@@ -2479,6 +2483,7 @@ static enum attended_transfer_state recalling_exit(struct attended_transfer_prop
 		if (ast_bridge_impart(props->transferee_bridge, props->recall_target, NULL, NULL,
 			AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
 			ast_hangup(props->recall_target);
+			ast_channel_unref(props->recall_target);
 			return TRANSFER_FAIL;
 		}
 		return TRANSFER_RESUME;
@@ -2585,6 +2590,7 @@ static int retransfer_enter(struct attended_transfer_properties *props)
 		AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
 		ast_log(LOG_ERROR, "Unable to place recall target into bridge\n");
 		ast_hangup(props->recall_target);
+		ast_channel_unref(props->recall_target);
 		return -1;
 	}
 
