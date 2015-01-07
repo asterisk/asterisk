@@ -1373,13 +1373,26 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 	control_unlink(control);
 	control = NULL;
 
-	if (!ast_check_hangup_locked(chan) && !ast_channel_pbx(chan)) {
-		struct ast_pbx_args pbx_args;
+	if (!ast_channel_pbx(chan)) {
+		int chan_hungup;
 
-		memset(&pbx_args, 0, sizeof(pbx_args));
-		pbx_args.no_hangup_chan = 1;
+		/* The ASYNCGOTO softhangup flag may have broken the channel out of
+		 * its bridge to run dialplan, so if there's no pbx on the channel
+		 * let it run dialplan here. Otherwise, it will run when this
+		 * application exits. */
+		ast_channel_lock(chan);
+		ast_channel_clear_softhangup(chan, AST_SOFTHANGUP_ASYNCGOTO);
+		chan_hungup = ast_check_hangup(chan);
+		ast_channel_unlock(chan);
 
-		res = ast_pbx_run_args(chan, &pbx_args);
+		if (!chan_hungup) {
+			struct ast_pbx_args pbx_args;
+
+			memset(&pbx_args, 0, sizeof(pbx_args));
+			pbx_args.no_hangup_chan = 1;
+
+			res = ast_pbx_run_args(chan, &pbx_args);
+		}
 	}
 
 	return res;
