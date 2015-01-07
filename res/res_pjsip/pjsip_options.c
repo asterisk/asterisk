@@ -261,7 +261,7 @@ static void qualify_contact_cb(void *token, pjsip_event *e)
 
 	switch(e->body.tsx_state.type) {
 	default:
-		ast_log(LOG_ERROR, "Unexpected PJSIP event %d\n", e->body.tsx_state.type);
+		ast_log(LOG_ERROR, "Unexpected PJSIP event %u\n", e->body.tsx_state.type);
 		/* Fall through */
 	case PJSIP_EVENT_TRANSPORT_ERROR:
 	case PJSIP_EVENT_TIMER:

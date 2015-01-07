@@ -2687,7 +2687,7 @@ static void send_request_cb(void *token, pjsip_event *e)
 		}
 		break;
 	default:
-		ast_log(LOG_ERROR, "Unexpected PJSIP event %d\n", e->body.tsx_state.type);
+		ast_log(LOG_ERROR, "Unexpected PJSIP event %u\n", e->body.tsx_state.type);
 		break;
 	}
 
