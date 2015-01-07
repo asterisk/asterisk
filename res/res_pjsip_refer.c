@@ -599,9 +599,16 @@ static void refer_blind_callback(struct ast_channel *chan, struct transfer_chann
 
 	if (refer->replaces) {
 		char replaces[512];
+		char *replaces_val = NULL;
+		int len;
 
-		pjsip_hdr_print_on(refer->replaces, replaces, sizeof(replaces));
-		pbx_builtin_setvar_helper(chan, "__SIPREPLACESHDR", S_OR(replaces, NULL));
+		len = pjsip_hdr_print_on(refer->replaces, replaces, sizeof(replaces) - 1);
+		if (len != -1) {
+			/* pjsip_hdr_print_on does not NULL terminate the buffer */
+			replaces[len] = '\0';
+			replaces_val = replaces + sizeof("Replaces:");
+		}
+		pbx_builtin_setvar_helper(chan, "__SIPREPLACESHDR", replaces_val);
 	} else {
 		pbx_builtin_setvar_helper(chan, "SIPREPLACESHDR", NULL);
 	}
@@ -674,8 +681,8 @@ static int refer_incoming_attended_request(struct ast_sip_session *session, pjsi
 		}
 
 		if (!ast_exists_extension(NULL, context, "external_replaces", 1, NULL)) {
-			ast_log(LOG_ERROR, "Received REFER for remote session on channel '%s' from endpoint '%s' but 'external_replaces' context does not exist for handling\n",
-				ast_channel_name(session->channel), ast_sorcery_object_get_id(session->endpoint));
+			ast_log(LOG_ERROR, "Received REFER for remote session on channel '%s' from endpoint '%s' but 'external_replaces' extension not found in context %s\n",
+				ast_channel_name(session->channel), ast_sorcery_object_get_id(session->endpoint), context);
 			return 404;
 		}
 
