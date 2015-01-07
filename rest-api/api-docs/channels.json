@@ -57,6 +57,14 @@
 							"dataType": "long"
 						},
 						{
+							"name": "label",
+							"description": "The label to dial after the endpoint answers. Will supersede 'priority' if provided.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
 							"name": "app",
 							"description": "The application that is subscribed to the originated channel, and passed to the Stasis application.",
 							"paramType": "query",
@@ -203,6 +211,14 @@
 							"required": false,
 							"allowMultiple": false,
 							"dataType": "long"
+						},
+						{
+							"name": "label",
+							"description": "The label to dial after the endpoint answers. Will supersede priority, if provided",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
 						},
 						{
 							"name": "app",
@@ -356,6 +372,14 @@
 							"required": false,
 							"allowMultiple": false,
 							"dataType": "int"
+						},
+						{
+							"name": "label",
+							"description": "The label to continue to - will supersede 'priority' if both are provided.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
 						}
 					],
 					"errorResponses": [

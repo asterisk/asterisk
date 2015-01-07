@@ -91,6 +91,10 @@ void ast_ari_channels_continue_in_dialplan(
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
+	int ipri;
+	const char *context;
+	const char *exten;
 
 	ast_assert(response != NULL);
 
@@ -99,7 +103,52 @@ void ast_ari_channels_continue_in_dialplan(
 		return;
 	}
 
-	if (stasis_app_control_continue(control, args->context, args->extension, args->priority)) {
+	snapshot = stasis_app_control_get_snapshot(control);
+	if (!snapshot) {
+		return;
+	}
+
+	if (ast_strlen_zero(args->context)) {
+		context = snapshot->context;
+		exten = S_OR(args->extension, snapshot->exten);
+	} else {
+		context = args->context;
+		exten = S_OR(args->extension, "s");
+	}
+
+	if (!ast_strlen_zero(args->label)) {
+		/* A label was provided in the request, use that */
+
+		if (sscanf(args->label, "%30d", &ipri) != 1) {
+			ipri = ast_findlabel_extension(NULL, context, exten, args->label, NULL);
+			if (ipri == -1) {
+				ast_log(AST_LOG_ERROR, "Requested label: %s can not be found in context: %s\n", args->label, context);
+				ast_ari_response_error(response, 404, "Not Found", "Requested label can not be found");
+				return;
+			}
+		} else {
+			ast_debug(3, "Numeric value provided for label, jumping to that priority\n");
+		}
+
+		if (ipri == 0) {
+			ast_log(AST_LOG_ERROR, "Invalid priority label '%s' specified for extension %s in context: %s\n",
+					args->label, exten, context);
+			ast_ari_response_error(response, 400, "Bad Request", "Requested priority is illegal");
+			return;
+		}
+
+	} else if (args->priority) {
+		/* No label provided, use provided priority */
+		ipri = args->priority;
+	} else if (ast_strlen_zero(args->context) && ast_strlen_zero(args->extension)) {
+		/* Special case. No exten, context, or priority provided, then move on to the next priority */
+		ipri = snapshot->priority + 1;
+	} else {
+		ipri = 1;
+	}
+
+
+	if (stasis_app_control_continue(control, context, exten, ipri)) {
 		ast_ari_response_alloc_failed(response);
 		return;
 	}
@@ -791,6 +840,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 	const char *args_extension,
 	const char *args_context,
 	long args_priority,
+	const char *args_label,
 	const char *args_app,
 	const char *args_app_args,
 	const char *args_caller_id,
@@ -811,7 +861,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 		ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT), ao2_cleanup);
 	char *stuff;
 	struct ast_channel *other = NULL;
-	struct ast_channel *chan;
+	struct ast_channel *chan = NULL;
 	RAII_VAR(struct ast_channel_snapshot *, snapshot, NULL, ao2_cleanup);
 	struct ast_assigned_ids assignedids = {
 		.uniqueid = args_channel_id,
@@ -880,7 +930,36 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 
 		ast_copy_string(origination->context, S_OR(args_context, "default"), sizeof(origination->context));
 		ast_copy_string(origination->exten, args_extension, sizeof(origination->exten));
-		origination->priority = args_priority ? args_priority : 1;
+
+		if (!ast_strlen_zero(args_label)) {
+			/* A label was provided in the request, use that */
+			int ipri = 1;
+			if (sscanf(args_label, "%30d", &ipri) != 1) {
+				ipri = ast_findlabel_extension(chan, origination->context, origination->exten, args_label, args_caller_id);
+
+				if (ipri == -1) {
+					ast_log(AST_LOG_ERROR, "Requested label: %s can not be found in context: %s\n", args_label, args_context);
+					ast_ari_response_error(response, 404, "Not Found", "Requested label can not be found");
+					return;
+				}
+			} else {
+				ast_debug(3, "Numeric value provided for label, jumping to that priority\n");
+			}
+
+			if (ipri == 0) {
+				ast_log(AST_LOG_ERROR, "Invalid priority label '%s' specified for extension %s in context: %s\n",
+						args_label, args_extension, args_context);
+				ast_ari_response_error(response, 400, "Bad Request", "Requested priority is illegal");
+				return;
+			}
+
+			/* Our priority was provided by a label */
+			origination->priority =  ipri;
+		} else {
+			/* No label provided, use provided priority */
+			origination->priority = args_priority ? args_priority : 1;
+		}
+
 		origination->appdata[0] = '\0';
 	} else {
 		ast_ari_response_error(response, 400, "Bad Request",
@@ -1042,6 +1121,7 @@ void ast_ari_channels_originate_with_id(struct ast_variable *headers,
 		args->extension,
 		args->context,
 		args->priority,
+		args->label,
 		args->app,
 		args->app_args,
 		args->caller_id,
@@ -1079,6 +1159,7 @@ void ast_ari_channels_originate(struct ast_variable *headers,
 		args->extension,
 		args->context,
 		args->priority,
+		args->label,
 		args->app,
 		args->app_args,
 		args->caller_id,

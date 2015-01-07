@@ -124,6 +124,10 @@ int ast_ari_channels_originate_parse_body(
 	if (field) {
 		args->priority = ast_json_integer_get(field);
 	}
+	field = ast_json_object_get(body, "label");
+	if (field) {
+		args->label = ast_json_string_get(field);
+	}
 	field = ast_json_object_get(body, "app");
 	if (field) {
 		args->app = ast_json_string_get(field);
@@ -187,6 +191,9 @@ static void ast_ari_channels_originate_cb(
 		} else
 		if (strcmp(i->name, "priority") == 0) {
 			args.priority = atol(i->value);
+		} else
+		if (strcmp(i->name, "label") == 0) {
+			args.label = (i->value);
 		} else
 		if (strcmp(i->name, "app") == 0) {
 			args.app = (i->value);
@@ -341,6 +348,10 @@ int ast_ari_channels_originate_with_id_parse_body(
 	if (field) {
 		args->priority = ast_json_integer_get(field);
 	}
+	field = ast_json_object_get(body, "label");
+	if (field) {
+		args->label = ast_json_string_get(field);
+	}
 	field = ast_json_object_get(body, "app");
 	if (field) {
 		args->app = ast_json_string_get(field);
@@ -400,6 +411,9 @@ static void ast_ari_channels_originate_with_id_cb(
 		} else
 		if (strcmp(i->name, "priority") == 0) {
 			args.priority = atol(i->value);
+		} else
+		if (strcmp(i->name, "label") == 0) {
+			args.label = (i->value);
 		} else
 		if (strcmp(i->name, "app") == 0) {
 			args.app = (i->value);
@@ -592,6 +606,10 @@ int ast_ari_channels_continue_in_dialplan_parse_body(
 	if (field) {
 		args->priority = ast_json_integer_get(field);
 	}
+	field = ast_json_object_get(body, "label");
+	if (field) {
+		args->label = ast_json_string_get(field);
+	}
 	return 0;
 }
 
@@ -624,6 +642,9 @@ static void ast_ari_channels_continue_in_dialplan_cb(
 		} else
 		if (strcmp(i->name, "priority") == 0) {
 			args.priority = atoi(i->value);
+		} else
+		if (strcmp(i->name, "label") == 0) {
+			args.label = (i->value);
 		} else
 		{}
 	}

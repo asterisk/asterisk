@@ -60,6 +60,8 @@ struct ast_ari_channels_originate_args {
 	const char *context;
 	/*! The priority to dial after the endpoint answers. If omitted, uses 1 */
 	long priority;
+	/*! The label to dial after the endpoint answers. Will supersede 'priority' if provided. */
+	const char *label;
 	/*! The application that is subscribed to the originated channel, and passed to the Stasis application. */
 	const char *app;
 	/*! The application arguments to pass to the Stasis application. */
@@ -123,6 +125,8 @@ struct ast_ari_channels_originate_with_id_args {
 	const char *context;
 	/*! The priority to dial after the endpoint answers. If omitted, uses 1 */
 	long priority;
+	/*! The label to dial after the endpoint answers. Will supersede priority, if provided */
+	const char *label;
 	/*! The application that is subscribed to the originated channel, and passed to the Stasis application. */
 	const char *app;
 	/*! The application arguments to pass to the Stasis application. */
@@ -195,6 +199,8 @@ struct ast_ari_channels_continue_in_dialplan_args {
 	const char *extension;
 	/*! The priority to continue to. */
 	int priority;
+	/*! The label to continue to - will supersede 'priority' if both are provided. */
+	const char *label;
 };
 /*!
  * \brief Body parsing function for /channels/{channelId}/continue.
