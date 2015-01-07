@@ -676,7 +676,7 @@ static int mwi_new_subscribe(struct ast_sip_endpoint *endpoint,
 	}
 
 	if (ast_strlen_zero(aor->mailboxes)) {
-		ast_log(LOG_WARNING, "AOR %s has no configured mailboxes. "
+		ast_log(LOG_NOTICE, "AOR %s has no configured mailboxes. "
 			"MWI subscription failed\n", resource);
 		return 404;
 	}
