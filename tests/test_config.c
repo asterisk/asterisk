@@ -42,6 +42,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 #include "asterisk/config_options.h"
 #include "asterisk/netsock2.h"
 #include "asterisk/acl.h"
+#include "asterisk/pbx.h"
 #include "asterisk/frame.h"
 #include "asterisk/utils.h"
 #include "asterisk/logger.h"
@@ -1504,6 +1505,156 @@ AST_TEST_DEFINE(config_options_test)
 	return res;
 }
 
+AST_TEST_DEFINE(config_dialplan_function)
+{
+	enum ast_test_result_state res = AST_TEST_PASS;
+	FILE *config_file;
+	char filename[PATH_MAX];
+	struct ast_str *buf;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "config_dialplan_function";
+		info->category = "/main/config/";
+		info->summary = "Test AST_CONFIG dialplan function";
+		info->description = "Test AST_CONFIG dialplan function";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	snprintf(filename, sizeof(filename), "%s/%s",
+			ast_config_AST_CONFIG_DIR, CONFIG_FILE);
+	config_file = fopen(filename, "w");
+
+	if (!config_file) {
+		return AST_TEST_FAIL;
+	}
+
+	fputs(
+		"[c1t](!)\n"
+		"var1=val1\n"
+		"var1=val2\n"
+		"var2=val21\n"
+		"\n"
+		"[c1](c1t)\n"
+		"var1=val3\n"
+		"var1=val4\n"
+		, config_file);
+
+	fclose(config_file);
+
+	if (!(buf = ast_str_create(32))) {
+		ast_test_status_update(test, "Failed to allocate return buffer\n");
+		res = AST_TEST_FAIL;
+		goto out;
+	}
+
+	if (ast_func_read2(NULL, "AST_CONFIG("CONFIG_FILE",c1,var1)", &buf, 32)) {
+		ast_test_status_update(test, "Failed to retrieve field 'var1'\n");
+		res = AST_TEST_FAIL;
+		goto out;
+	}
+	if (strcmp(ast_str_buffer(buf), "val1")) {
+		ast_test_status_update(test, "Got '%s', should be '%s'\n",
+			ast_str_buffer(buf), "val1");
+		res = AST_TEST_FAIL;
+		goto out;
+	}
+
+	ast_str_reset(buf);
+	if (ast_func_read2(NULL, "AST_CONFIG("CONFIG_FILE",c1,var1,0)", &buf, 32)) {
+		ast_test_status_update(test, "Failed to retrieve field 'var1'\n");
+		res = AST_TEST_FAIL;
+		goto out;
+	}
+	if (strcmp(ast_str_buffer(buf), "val1")) {
+		ast_test_status_update(test, "Got '%s', should be '%s'\n",
+			ast_str_buffer(buf), "val1");
+		res = AST_TEST_FAIL;
+		goto out;
+	}
+
+	ast_str_reset(buf);
+	if (ast_func_read2(NULL, "AST_CONFIG("CONFIG_FILE",c1,var1,1)", &buf, 32)) {
+		ast_test_status_update(test, "Failed to retrieve field 'var1'\n");
+		res = AST_TEST_FAIL;
+		goto out;
+	}
+	if (strcmp(ast_str_buffer(buf), "val2")) {
+		ast_test_status_update(test, "Got '%s', should be '%s'\n",
+			ast_str_buffer(buf), "val2");
+		res = AST_TEST_FAIL;
+		goto out;
+	}
+
+	ast_str_reset(buf);
+	if (ast_func_read2(NULL, "AST_CONFIG("CONFIG_FILE",c1,var1,2)", &buf, 32)) {
+		ast_test_status_update(test, "Failed to retrieve field 'var1'\n");
+		res = AST_TEST_FAIL;
+		goto out;
+	}
+	if (strcmp(ast_str_buffer(buf), "val3")) {
+		ast_test_status_update(test, "Got '%s', should be '%s'\n",
+			ast_str_buffer(buf), "val3");
+		res = AST_TEST_FAIL;
+		goto out;
+	}
+
+	ast_str_reset(buf);
+	if (ast_func_read2(NULL, "AST_CONFIG("CONFIG_FILE",c1,var1,3)", &buf, 32)) {
+		ast_test_status_update(test, "Failed to retrieve field 'var1'\n");
+		res = AST_TEST_FAIL;
+		goto out;
+	}
+	if (strcmp(ast_str_buffer(buf), "val4")) {
+		ast_test_status_update(test, "Got '%s', should be '%s'\n",
+			ast_str_buffer(buf), "val4");
+		res = AST_TEST_FAIL;
+		goto out;
+	}
+
+	ast_str_reset(buf);
+	if (ast_func_read2(NULL, "AST_CONFIG("CONFIG_FILE",c1,var1,-1)", &buf, 32)) {
+		ast_test_status_update(test, "Failed to retrieve field 'var1'\n");
+		res = AST_TEST_FAIL;
+		goto out;
+	}
+	if (strcmp(ast_str_buffer(buf), "val4")) {
+		ast_test_status_update(test, "Got '%s', should be '%s'\n",
+			ast_str_buffer(buf), "val4");
+		res = AST_TEST_FAIL;
+		goto out;
+	}
+
+	ast_str_reset(buf);
+	if (ast_func_read2(NULL, "AST_CONFIG("CONFIG_FILE",c1,var2,-1)", &buf, 32)) {
+		ast_test_status_update(test, "Failed to retrieve field 'var2'\n");
+		res = AST_TEST_FAIL;
+		goto out;
+	}
+	if (strcmp(ast_str_buffer(buf), "val21")) {
+		ast_test_status_update(test, "Got '%s', should be '%s'\n",
+			ast_str_buffer(buf), "val21");
+		res = AST_TEST_FAIL;
+		goto out;
+	}
+
+	ast_str_reset(buf);
+	if (!ast_func_read2(NULL, "AST_CONFIG("CONFIG_FILE",c1,var1,5)", &buf, 32)) {
+		ast_test_status_update(test, "Should not have retrieved a value\n");
+		res = AST_TEST_FAIL;
+		goto out;
+	}
+
+out:
+	if (buf) {
+		ast_free(buf);
+	}
+	delete_config_file();
+	return res;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(config_basic_ops);
@@ -1513,6 +1664,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(config_hook);
 	AST_TEST_UNREGISTER(ast_parse_arg_test);
 	AST_TEST_UNREGISTER(config_options_test);
+	AST_TEST_UNREGISTER(config_dialplan_function);
 	return 0;
 }
 
@@ -1525,6 +1677,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(config_hook);
 	AST_TEST_REGISTER(ast_parse_arg_test);
 	AST_TEST_REGISTER(config_options_test);
+	AST_TEST_REGISTER(config_dialplan_function);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

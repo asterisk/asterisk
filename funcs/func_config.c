@@ -49,6 +49,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="config_file" required="true" />
 			<parameter name="category" required="true" />
 			<parameter name="variable_name" required="true" />
+			<parameter name="index" required="false">
+				<para>If there are multiple variables with the same name, you can specify
+				<literal>0</literal> for the first item (default), <literal>-1</literal> for the last
+				item, or any other number for that specific item.  <literal>-1</literal> is useful
+				when the variable is derived from a template and you want the effective value (the last
+				occurrence), not the value from the template (the first occurrence).</para>
+			</parameter>
 		</syntax>
 		<description>
 			<para>This function reads a variable from an Asterisk configuration file.</para>
@@ -65,14 +72,17 @@ struct config_item {
 
 static AST_RWLIST_HEAD_STATIC(configs, config_item);
 
-static int config_function_read(struct ast_channel *chan, const char *cmd, char *data, 
-	char *buf, size_t len) 
+static int config_function_read(struct ast_channel *chan, const char *cmd, char *data,
+	char *buf, size_t len)
 {
 	struct ast_config *cfg;
 	struct ast_flags cfg_flags = { CONFIG_FLAG_FILEUNCHANGED };
-	const char *val;
 	char *parse;
 	struct config_item *cur;
+	int index = 0;
+	struct ast_variable *var;
+	struct ast_variable *found = NULL;
+	int ix = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(filename);
 		AST_APP_ARG(category);
@@ -101,6 +111,13 @@ static int config_function_read(struct ast_channel *chan, const char *cmd, char 
 	if (ast_strlen_zero(args.variable)) {
 		ast_log(LOG_ERROR, "AST_CONFIG() requires a variable\n");
 		return -1;
+	}
+
+	if (!ast_strlen_zero(args.index)) {
+		if (!sscanf(args.index, "%d", &index)) {
+			ast_log(LOG_ERROR, "AST_CONFIG() index must be an integer\n");
+			return -1;
+		}
 	}
 
 	if (!(cfg = ast_config_load(args.filename, cfg_flags)) || cfg == CONFIG_STATUS_FILEINVALID) {
@@ -164,14 +181,29 @@ static int config_function_read(struct ast_channel *chan, const char *cmd, char 
 		}
 	}
 
-	if (!(val = ast_variable_retrieve(cfg, args.category, args.variable))) {
-		ast_debug(1, "'%s' not found in [%s] of '%s'\n", args.variable,
-			args.category, args.filename);
+	for (var = ast_category_root(cfg, args.category); var; var = var->next) {
+		if (strcasecmp(args.variable, var->name)) {
+			continue;
+		}
+		found = var;
+		if (index == -1) {
+			continue;
+		}
+		if (ix == index) {
+			break;
+		}
+		found = NULL;
+		ix++;
+	}
+
+	if (!found) {
+		ast_debug(1, "'%s' not found at index %d in [%s] of '%s'.  Maximum index found: %d\n",
+			args.variable, index, args.category, args.filename, ix);
 		AST_RWLIST_UNLOCK(&configs);
 		return -1;
 	}
 
-	ast_copy_string(buf, val, len);
+	ast_copy_string(buf, found->value, len);
 
 	/* Unlock down here, so there's no chance the struct goes away while we're using it. */
 	AST_RWLIST_UNLOCK(&configs);
