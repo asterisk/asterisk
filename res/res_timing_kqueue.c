@@ -28,6 +28,7 @@
 /*** MODULEINFO
 	<depend>kqueue</depend>
 	<conflict>launchd</conflict>
+	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
  ***/
 

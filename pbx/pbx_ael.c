@@ -24,6 +24,7 @@
 
 /*** MODULEINFO
 	<depend>res_ael_share</depend>
+	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
  ***/
 

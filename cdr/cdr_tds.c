@@ -59,6 +59,7 @@ CREATE TABLE [dbo].[cdr] (
 
 /*** MODULEINFO
 	<depend>freetds</depend>
+	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
  ***/
 
