@@ -1250,8 +1250,11 @@ void ast_category_inherit(struct ast_category *new, const struct ast_category *b
 	strcpy(x->name, base->name);
 	x->inst = base;
 	AST_LIST_INSERT_TAIL(&new->template_instances, x, next);
-	for (var = base->root; var; var = var->next)
-		ast_variable_append(new, variable_clone(var));
+	for (var = base->root; var; var = var->next) {
+		struct ast_variable *cloned = variable_clone(var);
+		cloned->inherited = 1;
+		ast_variable_append(new, cloned);
+	}
 }
 
 struct ast_config *ast_config_new(void)
@@ -2358,10 +2361,15 @@ static void insert_leading_blank_lines(FILE *fp, struct inclfile *fi, struct ast
 
 int config_text_file_save(const char *configfile, const struct ast_config *cfg, const char *generator)
 {
-	return ast_config_text_file_save(configfile, cfg, generator);
+	return ast_config_text_file_save2(configfile, cfg, generator, CONFIG_SAVE_FLAG_PRESERVE_EFFECTIVE_CONTEXT);
 }
 
 int ast_config_text_file_save(const char *configfile, const struct ast_config *cfg, const char *generator)
+{
+	return ast_config_text_file_save2(configfile, cfg, generator, CONFIG_SAVE_FLAG_PRESERVE_EFFECTIVE_CONTEXT);
+}
+
+int ast_config_text_file_save2(const char *configfile, const struct ast_config *cfg, const char *generator, uint32_t flags)
 {
 	FILE *f;
 	char fn[PATH_MAX];
@@ -2522,13 +2530,27 @@ int ast_config_text_file_save(const char *configfile, const struct ast_config *c
 				AST_LIST_TRAVERSE(&cat->template_instances, x, next) {
 					struct ast_variable *v;
 					for (v = x->inst->root; v; v = v->next) {
-						if (!strcasecmp(var->name, v->name) && !strcmp(var->value, v->value)) {
-							found = 1;
-							break;
+
+						if (flags & CONFIG_SAVE_FLAG_PRESERVE_EFFECTIVE_CONTEXT) {
+							if (!strcasecmp(var->name, v->name) && !strcmp(var->value, v->value)) {
+								found = 1;
+								break;
+							}
+						} else {
+							if (var->inherited) {
+								found = 1;
+								break;
+							} else {
+								if (!strcasecmp(var->name, v->name) && !strcmp(var->value, v->value)) {
+									found = 1;
+									break;
+								}
+							}
 						}
 					}
-					if (found)
+					if (found) {
 						break;
+					}
 				}
 				if (found) {
 					var = var->next;

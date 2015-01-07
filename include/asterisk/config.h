@@ -47,6 +47,14 @@ enum {
 	CONFIG_FLAG_NOREALTIME    = (1 << 3),
 };
 
+/*! Flags for ast_config_text_file_save2()
+ */
+enum config_save_flags {
+	CONFIG_SAVE_FLAG_NONE = (0),
+	/*! Insure a context doesn't effectively change if a template changes (pre 13.2 behavior) */
+	CONFIG_SAVE_FLAG_PRESERVE_EFFECTIVE_CONTEXT = (1 << 0),
+};
+
 #define	CONFIG_STATUS_FILEMISSING	(void *)0
 #define	CONFIG_STATUS_FILEUNCHANGED	(void *)-1
 #define	CONFIG_STATUS_FILEINVALID	(void *)-2
@@ -86,7 +94,8 @@ struct ast_variable {
 
 	int lineno;
 	int object;		/*!< 0 for variable, 1 for object */
-	int blanklines; 	/*!< Number of blanklines following entry */
+	int blanklines;		/*!< Number of blanklines following entry */
+	int inherited;		/*!< 1 for inherited from template or other base */
 	struct ast_comment *precomments;
 	struct ast_comment *sameline;
 	struct ast_comment *trailing; /*!< the last object in the list will get assigned any trailing comments when EOF is hit */
@@ -907,6 +916,28 @@ struct ast_variable *ast_variable_list_append_hint(struct ast_variable **head, s
 int ast_variable_update(struct ast_category *category, const char *variable,
 						const char *value, const char *match, unsigned int object);
 
+/*!
+ * \brief Save a config text file
+ * \since 13.2.0
+ *
+ * \param filename Filename
+ * \param cfg ast_config
+ * \param generator generator
+ * \param flags List of config_save_flags
+ *
+ * \return 0 on success or -1 on failure.
+ */
+int ast_config_text_file_save2(const char *filename, const struct ast_config *cfg, const char *generator, uint32_t flags);
+
+/*!
+ * \brief Save a config text file preserving the pre 13.2 behavior
+ *
+ * \param filename Filename
+ * \param cfg ast_config
+ * \param generator generator
+ *
+ * \return 0 on success or -1 on failure.
+ */
 int ast_config_text_file_save(const char *filename, const struct ast_config *cfg, const char *generator);
 int config_text_file_save(const char *filename, const struct ast_config *cfg, const char *generator) __attribute__((deprecated));
 

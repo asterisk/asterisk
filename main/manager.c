@@ -412,6 +412,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<parameter name="Reload">
 				<para>Whether or not a reload should take place (or name of specific module).</para>
 			</parameter>
+			<parameter name="PreserveEffectiveContext">
+				<para>Whether the effective category contents should be preserved on template change. Default is true (pre 13.2 behavior).</para>
+			</parameter>
 			<parameter name="Action-000000">
 				<para>Action to take.</para>
 				<para>0's represent 6 digit number beginning with 000000.</para>
@@ -3767,6 +3770,8 @@ static int action_updateconfig(struct mansession *s, const struct message *m)
 	const char *dfn = astman_get_header(m, "DstFilename");
 	int res;
 	const char *rld = astman_get_header(m, "Reload");
+	int preserve_effective_context = CONFIG_SAVE_FLAG_PRESERVE_EFFECTIVE_CONTEXT;
+	const char *preserve_effective_context_string = astman_get_header(m, "PreserveEffectiveContext");
 	struct ast_flags config_flags = { CONFIG_FLAG_WITHCOMMENTS | CONFIG_FLAG_NOCACHE };
 	enum error_type result;
 
@@ -3784,7 +3789,10 @@ static int action_updateconfig(struct mansession *s, const struct message *m)
 	result = handle_updates(s, m, cfg, dfn);
 	if (!result) {
 		ast_include_rename(cfg, sfn, dfn); /* change the include references from dfn to sfn, so things match up */
-		res = ast_config_text_file_save(dfn, cfg, "Manager");
+		if (!ast_strlen_zero(preserve_effective_context_string) && !ast_true(preserve_effective_context_string)) {
+			preserve_effective_context = CONFIG_SAVE_FLAG_NONE;
+		}
+		res = ast_config_text_file_save2(dfn, cfg, "Manager", preserve_effective_context);
 		ast_config_destroy(cfg);
 		if (res) {
 			astman_send_error(s, m, "Save of config failed");
