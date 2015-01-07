@@ -49,6 +49,11 @@ ARI
  * "language" (the default spoken language for the channel) is now included in
    the standard channel state output for suitable events.
 
+ * The POST channels/{id} operation and the POST channels/{id}/continue operation
+   now have a new "label" parameter. This allows for origination or continuation
+   to a labeled priority in the dialplan instead of requiring a specific priority
+   number. The ARI version has been bumped to 1.7.0 as a result.
+
 AMI
 ------------------
  * "Language" (the default spoken language for the channel) is now included in
