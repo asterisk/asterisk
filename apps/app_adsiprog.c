@@ -36,6 +36,7 @@
 
 /*** MODULEINFO
 	<depend>res_adsi</depend>
+	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
  ***/
 
