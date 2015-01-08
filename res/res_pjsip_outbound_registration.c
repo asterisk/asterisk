@@ -822,25 +822,27 @@ static int sip_dialog_create_contact(pj_pool_t *pool, pj_str_t *contact, const c
  * \param existing The pre-existing outbound registration
  * \param applied The newly-created registration
  */
-static int can_reuse_registration(struct sip_outbound_registration *existing, struct sip_outbound_registration *applied)
+static int can_reuse_registration(struct sip_outbound_registration *existing,
+	struct sip_outbound_registration *applied)
 {
-	int i;
+	int rc = 1;
+	struct ast_sorcery *sorcery = ast_sip_get_sorcery();
+	struct ast_variable *ve = ast_sorcery_objectset_create(sorcery, existing);
+	struct ast_variable *va = ast_sorcery_objectset_create(sorcery, applied);
+	struct ast_variable *vc = NULL;
 
-	if (strcmp(existing->server_uri, applied->server_uri) || strcmp(existing->client_uri, applied->client_uri) ||
-		strcmp(existing->transport, applied->transport) || strcmp(existing->contact_user, applied->contact_user) ||
-		strcmp(existing->outbound_proxy, applied->outbound_proxy) ||
-		AST_VECTOR_SIZE(&existing->outbound_auths) != AST_VECTOR_SIZE(&applied->outbound_auths) ||
-		existing->auth_rejection_permanent != applied->auth_rejection_permanent) {
-		return 0;
+	if (ast_sorcery_changeset_create(ve, va, &vc) || vc != NULL) {
+		rc = 0;
+		ast_debug(4, "Registration '%s' changed.  Can't re-use.\n", ast_sorcery_object_get_id(existing));
+	} else {
+		ast_debug(4, "Registration '%s' didn't change.  Can re-use\n", ast_sorcery_object_get_id(existing));
 	}
 
-	for (i = 0; i < AST_VECTOR_SIZE(&existing->outbound_auths); ++i) {
-		if (strcmp(AST_VECTOR_GET(&existing->outbound_auths, i), AST_VECTOR_GET(&applied->outbound_auths, i))) {
-			return 0;
-		}
-	}
+	ast_variables_destroy(ve);
+	ast_variables_destroy(va);
+	ast_variables_destroy(vc);
 
-	return 1;
+	return rc;
 }
 
 /*! \brief Helper function that allocates a pjsip registration client and configures it */
@@ -978,6 +980,8 @@ static int sip_outbound_registration_apply(const struct ast_sorcery *sorcery, vo
 	RAII_VAR(struct sip_outbound_registration_state *, new_state, NULL, ao2_cleanup);
 	struct sip_outbound_registration *applied = obj;
 
+	ast_debug(4, "Applying configuration to outbound registration '%s'\n", ast_sorcery_object_get_id(applied));
+
 	if (ast_strlen_zero(applied->server_uri)) {
 		ast_log(LOG_ERROR, "No server URI specified on outbound registration '%s'",
 			ast_sorcery_object_get_id(applied));
@@ -989,6 +993,9 @@ static int sip_outbound_registration_apply(const struct ast_sorcery *sorcery, vo
 	}
 
 	if (state && can_reuse_registration(state->registration, applied)) {
+		ast_debug(4,
+			"No change between old configuration and new configuration on outbound registration '%s'. Using previous state\n",
+			ast_sorcery_object_get_id(applied));
 		ao2_replace(state->registration, applied);
 		return 0;
 	}
@@ -1465,8 +1472,49 @@ static struct ast_cli_entry cli_outbound_registration[] = {
 
 static struct ast_sip_cli_formatter_entry *cli_formatter;
 
+static void auth_observer(const char *type)
+{
+	struct sip_outbound_registration *registration;
+	struct sip_outbound_registration_state *state;
+	struct ao2_container *regs;
+	const char *registration_id;
+	struct ao2_iterator i;
+
+	ast_debug(4, "Auths updated. Checking for any outbound registrations that are in permanent rejected state so they can be retried\n");
+
+	regs = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "registration",
+		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	if (!regs || ao2_container_count(regs) == 0) {
+		ao2_cleanup(regs);
+		return;
+	}
+
+	i = ao2_iterator_init(regs, 0);
+	for (; (registration = ao2_iterator_next(&i)); ao2_ref(registration, -1)) {
+		registration_id = ast_sorcery_object_get_id(registration);
+		state = get_state(registration_id);
+		if (state && state->client_state->status == SIP_REGISTRATION_REJECTED_PERMANENT) {
+			ast_debug(4, "Trying outbound registration '%s' again\n", registration_id);
+
+			if (ast_sip_push_task(state->client_state->serializer,
+					      sip_outbound_registration_perform, ao2_bump(state))) {
+				ast_log(LOG_ERROR, "Failed to perform outbound registration on '%s'\n", registration_id);
+				ao2_ref(state, -1);
+			}
+		}
+		ao2_cleanup(state);
+	}
+	ao2_iterator_destroy(&i);
+	ao2_cleanup(regs);
+}
+
+const struct ast_sorcery_observer observer_callbacks = {
+	.loaded = auth_observer,
+};
+
 static int unload_module(void)
 {
+	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "auth", &observer_callbacks);
 	ast_cli_unregister_multiple(cli_outbound_registration, ARRAY_LEN(cli_outbound_registration));
 	ast_sip_unregister_cli_formatter(cli_formatter);
 	ast_manager_unregister("PJSIPShowRegistrationsOutbound");
@@ -1540,6 +1588,8 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	ao2_ref(registrations, -1);
+
+	ast_sorcery_observer_add(ast_sip_get_sorcery(), "auth", &observer_callbacks);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
