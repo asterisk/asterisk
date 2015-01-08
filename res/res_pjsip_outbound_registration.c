@@ -398,7 +398,7 @@ static int handle_client_registration(void *data)
 	pjsip_regc_info info;
 	char server_uri[PJSIP_MAX_URL_SIZE], client_uri[PJSIP_MAX_URL_SIZE];
 
-	cancel_registration(client_state);
+	ao2_ref(client_state, -1);
 
 	if ((client_state->status == SIP_REGISTRATION_STOPPED) ||
 		(pjsip_regc_register(client_state->client, PJ_FALSE, &tdata) != PJ_SUCCESS)) {
