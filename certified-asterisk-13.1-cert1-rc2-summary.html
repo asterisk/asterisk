@@ -1,0 +1,297 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /><title>Release Summary - certified-asterisk-13.1-cert1-rc2</title></head>
+<body>
+<h1 align="center"><a name="top">Release Summary</a></h1>
+<h3 align="center">certified-asterisk-13.1-cert1-rc2</h3>
+<h3 align="center">Date: 2015-01-08</h3>
+<h3 align="center">&lt;asteriskteam@digium.com&gt;</h3>
+<hr/>
+<h2 align="center">Table of Contents</h2>
+<ol>
+   <li><a href="#summary">Summary</a></li>
+   <li><a href="#contributors">Contributors</a></li>
+   <li><a href="#issues">Closed Issues</a></li>
+   <li><a href="#commits">Other Changes</a></li>
+   <li><a href="#diffstat">Diffstat</a></li>
+</ol>
+<hr/>
+<a name="summary"><h2 align="center">Summary</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This release includes new features.  For a list of new features that have been included with this release, please see the CHANGES file inside the source package.  Since this is new major release, users are encouraged to do extended testing before upgrading to this version in a production environment.</p>
+<p>The data in this summary reflects changes that have been made since the previous release, certified-asterisk-13.1.0.</p>
+<hr/>
+<a name="contributors"><h2 align="center">Contributors</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release.  For coders, the number is how many of their patches (of any size) were committed into this release.  For testers, the number is the number of times their name was listed as assisting with testing a patch.  Finally, for reporters, the number is the number of issues that they reported that were closed by commits that went into this release.</p>
+<table width="100%" border="0">
+<tr>
+<td width="33%"><h3>Coders</h3></td>
+<td width="33%"><h3>Testers</h3></td>
+<td width="33%"><h3>Reporters</h3></td>
+</tr>
+<tr valign="top">
+<td>
+16 bebuild<br/>
+7 mjordan<br/>
+1 rmudgett<br/>
+1 sgriepentrog<br/>
+</td>
+<td>
+</td>
+<td>
+6 mjordan<br/>
+3 rmudgett<br/>
+2 kharwell<br/>
+1 mmichelson<br/>
+1 pnlarsson<br/>
+</td>
+</tr>
+</table>
+<hr/>
+<a name="issues"><h2 align="center">Closed Issues</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p>
+<h3>Category: Channels/chan_pjsip</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24536">ASTERISK-24536</a>: AMI redirect with PJSIP fails to move extra channel<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=430007">430007</a><br/>
+Reporter: pnlarsson<br/>
+Coders: bebuild<br/>
+<br/>
+<h3>Category: Core/Bridging</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24536">ASTERISK-24536</a>: AMI redirect with PJSIP fails to move extra channel<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=430007">430007</a><br/>
+Reporter: pnlarsson<br/>
+Coders: bebuild<br/>
+<br/>
+<h3>Category: Core/Bridging/bridge_basic</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24513">ASTERISK-24513</a>: Local channel apparently leaked in off-nominal DTMF attended transfer<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=430245">430245</a><br/>
+Reporter: mmichelson<br/>
+Coders: sgriepentrog<br/>
+<br/>
+<h3>Category: Core/CodecInterface</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24604">ASTERISK-24604</a>: res_rtp_asterisk: Crash during restart due to race condition in accessing codec in stored ast_frame and codec core<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=429871">429871</a><br/>
+Reporter: mjordan<br/>
+Coders: bebuild<br/>
+<br/>
+<h3>Category: Core/General</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24614">ASTERISK-24614</a>: Deadlock when DEBUG_THREADS compiler flag enabled<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=429859">429859</a><br/>
+Reporter: rmudgett<br/>
+Coders: bebuild<br/>
+<br/>
+<h3>Category: Core/ManagerInterface</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24536">ASTERISK-24536</a>: AMI redirect with PJSIP fails to move extra channel<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=430007">430007</a><br/>
+Reporter: pnlarsson<br/>
+Coders: bebuild<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24553">ASTERISK-24553</a>: ARI/AMI: Include language in standard channel snapshot output<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=429891">429891</a><br/>
+Reporter: mjordan<br/>
+Coders: bebuild<br/>
+<br/>
+<h3>Category: Features</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-23841">ASTERISK-23841</a>: DTMF atxfer doesn't set CallerID for the recall calls to the transferrer.<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=430046">430046</a><br/>
+Reporter: rmudgett<br/>
+Coders: rmudgett<br/>
+<br/>
+<h3>Category: Resources/res_ari</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24552">ASTERISK-24552</a>: ARI: Allow associating a channel as an initiator of an Origination for record keeping purposes<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=429892">429892</a><br/>
+Reporter: mjordan<br/>
+Coders: bebuild<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24553">ASTERISK-24553</a>: ARI/AMI: Include language in standard channel snapshot output<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=429891">429891</a><br/>
+Reporter: mjordan<br/>
+Coders: bebuild<br/>
+<br/>
+<h3>Category: Resources/res_ari_channels</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24552">ASTERISK-24552</a>: ARI: Allow associating a channel as an initiator of an Origination for record keeping purposes<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=429892">429892</a><br/>
+Reporter: mjordan<br/>
+Coders: bebuild<br/>
+<br/>
+<h3>Category: Resources/res_pjsip</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24342">ASTERISK-24342</a>: PJSIP: Qualifying endpoints attempts to do them all at the same time.<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=430008">430008</a><br/>
+Reporter: rmudgett<br/>
+Coders: bebuild<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24643">ASTERISK-24643</a>: res_pjsip: Add user=phone option<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=430085">430085</a><br/>
+Reporter: mjordan<br/>
+Coders: mjordan<br/>
+<br/>
+<h3>Category: Resources/res_pjsip_keepalive</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24644">ASTERISK-24644</a>: res_pjsip_keepalive: Add keepalive module for connection-oriented transports.<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=430086">430086</a><br/>
+Reporter: mjordan<br/>
+Coders: mjordan<br/>
+<br/>
+<h3>Category: Resources/res_pjsip_outbound_registration</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24514">ASTERISK-24514</a>: res_pjsip_outbound_registration: stack overflow when using non-default sorcery wizard<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=429866">429866</a><br/>
+Reporter: kharwell<br/>
+Coders: bebuild<br/>
+<br/>
+<h3>Category: Resources/res_pjsip_session</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24607">ASTERISK-24607</a>: res_pjsip_session: re-INVITE with declined media streams results in 488<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=429890">429890</a><br/>
+Reporter: mjordan<br/>
+Coders: bebuild<br/>
+<br/>
+<h3>Category: Resources/res_rtp_asterisk</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24604">ASTERISK-24604</a>: res_rtp_asterisk: Crash during restart due to race condition in accessing codec in stored ast_frame and codec core<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=429871">429871</a><br/>
+Reporter: mjordan<br/>
+Coders: bebuild<br/>
+<br/>
+<hr/>
+<a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all changes that went into this release that did not directly close an issue from the issue tracker.  The commits may have been marked as being related to an issue.  If that is the case, the issue numbers are listed here, as well.</p>
+<table width="100%" border="1">
+<tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=429855">429855</a></td><td>bebuild</td><td>Create Certified Asterisk 13.1 branch</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=429856">429856</a></td><td>bebuild</td><td>Update properties; remove old summaries</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=429858">429858</a></td><td>bebuild</td><td>Activate persistent subscriptions when they are recreated.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=429862">429862</a></td><td>bebuild</td><td>Direct Media calls within private network sometimes get one way audio</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=429864">429864</a></td><td>bebuild</td><td>res_pjsip_session: Delay sending BYE if a re-INVITE transaction is in progress.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=429865">429865</a></td><td>bebuild</td><td>PJSIP: Allow use of 'inactive' streams for hold</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=429869">429869</a></td><td>bebuild</td><td>Prevent potential infinite outbound authentication loops in registration.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=430090">430090</a></td><td>mjordan</td><td>Stasis: Update unittest for channel snapshots</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=430093">430093</a></td><td>mjordan</td><td>res_pjsip: Backport missing commits for user_eq_phone</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=430094">430094</a></td><td>mjordan</td><td>res/res_agi: Make Verbose message for 'stream file' match other playbacks</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=430253">430253</a></td><td>mjordan</td><td>contrib/ast-db-manage: Correct down_revision path for user_eq_phone</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/certified/branches/13.1?view=revision&revision=430293">430293</a></td><td>mjordan</td><td>Disable extended support modules</td>
+<td></td></tr></table>
+<hr/>
+<a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p>
+<pre>
+.version                                                                                |    2
+CHANGES                                                                                 |   21
+ChangeLog                                                                               |    4
+agi/eagi-test.c                                                                         |    1
+apps/app_adsiprog.c                                                                     |    1
+apps/app_alarmreceiver.c                                                                |    1
+apps/app_amd.c                                                                          |    1
+apps/app_dahdiras.c                                                                     |    1
+apps/app_dictate.c                                                                      |    1
+apps/app_externalivr.c                                                                  |    1
+apps/app_festival.c                                                                     |    1
+apps/app_getcpeid.c                                                                     |    1
+apps/app_ices.c                                                                         |    1
+apps/app_image.c                                                                        |    1
+apps/app_jack.c                                                                         |    1
+apps/app_minivm.c                                                                       |    1
+apps/app_morsecode.c                                                                    |    1
+apps/app_mp3.c                                                                          |    1
+apps/app_nbscat.c                                                                       |    1
+apps/app_osplookup.c                                                                    |    1
+apps/app_sms.c                                                                          |    1
+apps/app_talkdetect.c                                                                   |    1
+apps/app_test.c                                                                         |    1
+apps/app_url.c                                                                          |    1
+apps/app_waitforring.c                                                                  |    1
+apps/app_waitforsilence.c                                                               |    1
+apps/app_zapateller.c                                                                   |    1
+asterisk-13.1.0-rc2-summary.html                                                        |   64 -
+asterisk-13.1.0-rc2-summary.txt                                                         |   95 -
+cdr/cdr_csv.c                                                                           |    1
+cdr/cdr_odbc.c                                                                          |    1
+cdr/cdr_pgsql.c                                                                         |    1
+cdr/cdr_radius.c                                                                        |    1
+cdr/cdr_sqlite3_custom.c                                                                |    1
+cdr/cdr_tds.c                                                                           |    1
+cel/cel_pgsql.c                                                                         |    1
+cel/cel_radius.c                                                                        |    1
+cel/cel_sqlite3_custom.c                                                                |    1
+cel/cel_tds.c                                                                           |    1
+channels/chan_alsa.c                                                                    |    1
+channels/chan_console.c                                                                 |    1
+channels/chan_dahdi.c                                                                   |   15
+channels/chan_mgcp.c                                                                    |    1
+channels/chan_misdn.c                                                                   |    1
+channels/chan_nbs.c                                                                     |    1
+channels/chan_oss.c                                                                     |    1
+channels/chan_phone.c                                                                   |    1
+channels/chan_pjsip.c                                                                   |   34
+channels/chan_sip.c                                                                     |    5
+channels/chan_skinny.c                                                                  |    1
+channels/chan_unistim.c                                                                 |    1
+channels/pjsip/dialplan_functions.c                                                     |    6
+configs/samples/pjsip.conf.sample                                                       |    3
+contrib/ast-db-manage/config/versions/371a3bf4143e_add_user_eq_phone_option_to_pjsip.py |   30
+formats/format_jpeg.c                                                                   |    1
+formats/format_vox.c                                                                    |    1
+funcs/func_audiohookinherit.c                                                           |    1
+funcs/func_frame_trace.c                                                                |    1
+funcs/func_pitchshift.c                                                                 |    1
+include/asterisk/_private.h                                                             |    1
+include/asterisk/format.h                                                               |   11
+include/asterisk/lock.h                                                                 |   47
+include/asterisk/res_pjsip.h                                                            |   18
+include/asterisk/res_pjsip_session.h                                                    |    8
+include/asterisk/rtp_engine.h                                                           |   82 +
+main/asterisk.c                                                                         |    2
+main/bridge_basic.c                                                                     |  118 ++
+main/codec.c                                                                            |    5
+main/format.c                                                                           |    5
+main/lock.c                                                                             |  570 ++++------
+main/logger.c                                                                           |   42
+main/manager.c                                                                          |   22
+main/manager_channels.c                                                                 |    2
+main/rtp_engine.c                                                                       |   38
+main/stasis_channels.c                                                                  |    5
+pbx/pbx_ael.c                                                                           |    1
+pbx/pbx_dundi.c                                                                         |    1
+pbx/pbx_lua.c                                                                           |    1
+pbx/pbx_realtime.c                                                                      |    1
+res/ari/ari_model_validators.c                                                          |   16
+res/ari/ari_model_validators.h                                                          |    1
+res/ari/resource_channels.c                                                             |  214 +++
+res/ari/resource_channels.h                                                             |    4
+res/res_ael_share.c                                                                     |    1
+res/res_agi.c                                                                           |    5
+res/res_ari_channels.c                                                                  |   14
+res/res_config_ldap.c                                                                   |    1
+res/res_config_pgsql.c                                                                  |    1
+res/res_config_sqlite.c                                                                 |    1
+res/res_hep.c                                                                           |    1
+res/res_hep_pjsip.c                                                                     |    1
+res/res_hep_rtcp.c                                                                      |    1
+res/res_phoneprov.c                                                                     |    1
+res/res_pjsip.c                                                                         |   56
+res/res_pjsip/config_global.c                                                           |   19
+res/res_pjsip/pjsip_configuration.c                                                     |    1
+res/res_pjsip/pjsip_options.c                                                           |   19
+res/res_pjsip_caller_id.c                                                               |   18
+res/res_pjsip_keepalive.c                                                               |  267 ++++
+res/res_pjsip_outbound_publish.c                                                        |  563 ++++++---
+res/res_pjsip_outbound_registration.c                                                   |    9
+res/res_pjsip_phoneprov_provider.c                                                      |    1
+res/res_pjsip_pubsub.c                                                                  |    7
+res/res_pjsip_sdp_rtp.c                                                                 |    3
+res/res_pjsip_session.c                                                                 |   38
+res/res_pjsip_session.exports.in                                                        |    1
+res/res_rtp_asterisk.c                                                                  |    3
+res/res_snmp.c                                                                          |    1
+res/res_statsd.c                                                                        |    1
+res/res_timing_kqueue.c                                                                 |    1
+res/res_timing_pthread.c                                                                |    1
+rest-api/api-docs/channels.json                                                         |   21
+tests/test_stasis_channels.c                                                            |    2
+utils/astman.c                                                                          |    1
+utils/check_expr.c                                                                      |    1
+utils/conf2ael.c                                                                        |    1
+utils/extconf.c                                                                         |    1
+utils/muted.c                                                                           |    1
+utils/smsq.c                                                                            |    1
+utils/stereorize.c                                                                      |    1
+utils/streamplayer.c                                                                    |    1
+121 files changed, 1745 insertions(+), 864 deletions(-)
+</pre><br/>
+<hr/>
+</body>
+</html>
