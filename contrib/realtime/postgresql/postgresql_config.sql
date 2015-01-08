@@ -733,7 +733,11 @@ DROP TYPE sip_directmedia_values;
 
 ALTER TABLE ps_endpoints ADD COLUMN media_encryption_optimistic yesno_values;
 
-INSERT INTO alembic_version (version_num) VALUES ('eb88a14f2a');
+-- Running upgrade eb88a14f2a -> 371a3bf4143e
+
+ALTER TABLE ps_endpoints ADD COLUMN user_eq_phone yesno_values;
+
+INSERT INTO alembic_version (version_num) VALUES ('371a3bf4143e');
 
 COMMIT;
 

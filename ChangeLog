@@ -1,3 +1,431 @@
+2015-01-08  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Certified Asterisk 13.1-cert1-rc2 Released.
+
+2015-01-07 03:29 +0000 [r430253-430293]  Matthew Jordan <mjordan@digium.com>
+
+	* apps/app_mp3.c, channels/chan_alsa.c, res/res_timing_kqueue.c,
+	  channels/chan_unistim.c, res/res_config_pgsql.c,
+	  res/res_phoneprov.c, utils/smsq.c, apps/app_morsecode.c,
+	  cdr/cdr_pgsql.c, res/res_config_sqlite.c,
+	  res/res_pjsip_phoneprov_provider.c, pbx/pbx_ael.c,
+	  res/res_statsd.c, apps/app_sms.c, formats/format_jpeg.c,
+	  utils/streamplayer.c, utils/check_expr.c, apps/app_jack.c,
+	  apps/app_adsiprog.c, cel/cel_radius.c, channels/chan_sip.c,
+	  cel/cel_tds.c, apps/app_festival.c, agi/eagi-test.c,
+	  res/res_hep_pjsip.c, channels/chan_console.c, cdr/cdr_radius.c,
+	  apps/app_getcpeid.c, apps/app_talkdetect.c, channels/chan_oss.c,
+	  utils/stereorize.c, apps/app_osplookup.c, channels/chan_misdn.c,
+	  channels/chan_skinny.c, funcs/func_frame_trace.c, apps/app_amd.c,
+	  pbx/pbx_realtime.c, pbx/pbx_dundi.c, apps/app_url.c,
+	  channels/chan_nbs.c, utils/extconf.c, apps/app_externalivr.c,
+	  apps/app_zapateller.c, cdr/cdr_odbc.c, channels/chan_mgcp.c,
+	  cel/cel_pgsql.c, utils/muted.c, apps/app_test.c, utils/astman.c,
+	  apps/app_ices.c, utils/conf2ael.c, cdr/cdr_csv.c,
+	  channels/chan_phone.c, funcs/func_pitchshift.c,
+	  apps/app_waitforring.c, funcs/func_audiohookinherit.c,
+	  formats/format_vox.c, res/res_timing_pthread.c,
+	  apps/app_minivm.c, cel/cel_sqlite3_custom.c, res/res_hep_rtcp.c,
+	  res/res_config_ldap.c, apps/app_nbscat.c,
+	  cdr/cdr_sqlite3_custom.c, res/res_hep.c, res/res_snmp.c,
+	  apps/app_dictate.c, apps/app_waitforsilence.c,
+	  apps/app_dahdiras.c, pbx/pbx_lua.c, apps/app_alarmreceiver.c,
+	  res/res_ael_share.c, apps/app_image.c, cdr/cdr_tds.c: Disable
+	  extended support modules
+
+	* /,
+	  contrib/ast-db-manage/config/versions/371a3bf4143e_add_user_eq_phone_option_to_pjsip.py:
+	  contrib/ast-db-manage: Correct down_revision path for
+	  user_eq_phone When the user_eq_phone patch was backported to 13,
+	  it referenced the downward revision that the PJSIP optimistic
+	  encryption option also references. This creates a multi-path
+	  upgrade Exception when generating the SQL files. This patch
+	  corrects this in the 13 branch. Note that trunk, which already
+	  contained both of these features, is unaffected by this problem.
+	  ........ Merged revisions 430252 from
+	  http://svn.asterisk.org/svn/asterisk/branches/13
+
+2015-01-06 19:53 +0000 [r430245]  Scott Griepentrog <sgriepentrog@digium.com>
+
+	* /, main/bridge_basic.c: bridge: avoid leaking channel during
+	  blond transfer pt2 A blond transfer to a failed destination, when
+	  followed by a recall attempt, lead to a leak of the reference to
+	  the destination channel. In addition to correcting the regression
+	  on the previous attempt (r429826) this fixes the leak and two
+	  additional reference leaks on failures of bridge_import.
+	  ASTERISK-24513 #close Review:
+	  https://reviewboard.asterisk.org/r/4302/ ........ Merged
+	  revisions 430199 from
+	  http://svn.asterisk.org/svn/asterisk/branches/12 ........ Merged
+	  revisions 430200 from
+	  http://svn.asterisk.org/svn/asterisk/branches/13
+
+2014-12-24 15:27 +0000 [r430085-430094]  Matthew Jordan <mjordan@digium.com>
+
+	* res/res_agi.c, /: res/res_agi: Make Verbose message for 'stream
+	  file' match other playbacks The Verbose message displayed when a
+	  file is played back via 'stream file' was formatted differently
+	  than other playbacks: * It didn't include the channel name * It
+	  didn't include the channel language It does, however, include the
+	  playback offset as well as any escape digits. That information
+	  was kept; however, this patch updates the formatting to more
+	  closely match the Verbose messages displayed when a file is
+	  played back by 'control stream file', Playback, ControlPlayback,
+	  or any other file playback operation. ........ Merged revisions
+	  429519 from http://svn.asterisk.org/svn/asterisk/branches/13
+
+	* res/res_pjsip.c,
+	  contrib/ast-db-manage/config/versions/371a3bf4143e_add_user_eq_phone_option_to_pjsip.py
+	  (added), /: res_pjsip: Backport missing commits for user_eq_phone
+	  This backports the following from trunk, which were missed:
+	  r427257 | file | 2014-11-04 16:31:16 -0600 (Tue, 04 Nov 2014) | 2
+	  lines res_pjsip: Allow + at the beginning of a phone number when
+	  user_eq_phone is enabled. r427259 | file | 2014-11-04 16:51:32
+	  -0600 (Tue, 04 Nov 2014) | 2 lines res_pjsip: Apply the
+	  'user_eq_phone' setting to the To header as well. It also adds
+	  the Alembic script for the option. ASTERISK-24643 ........ Merged
+	  revisions 430092 from
+	  http://svn.asterisk.org/svn/asterisk/branches/13
+
+	* /, tests/test_stasis_channels.c: Stasis: Update unittest for
+	  channel snapshots This adjusts the unit test for channel
+	  snapshots to take the new language key into account. ........
+	  Merged revisions 429352 from
+	  http://svn.asterisk.org/svn/asterisk/branches/13
+
+	* /, configs/samples/pjsip.conf.sample, CHANGES, res/res_pjsip.c,
+	  include/asterisk/res_pjsip.h, res/res_pjsip_keepalive.c (added),
+	  res/res_pjsip/config_global.c: res_pjsip_keepalive: Add runtime
+	  configurable keepalive module for connection-oriented transports.
+	  Note that this is backport from trunk of r425825. This change
+	  adds a module which is configurable using the keep_alive_interval
+	  setting in the global section that will send a CRLF keep alive to
+	  all active connection-oriented transports at the provided
+	  interval. This is useful because it can help keep connections
+	  open through NATs. This functionality also exists within PJSIP
+	  but can not be controlled at runtime and requires recompiling it.
+	  Review: https://reviewboard.asterisk.org/r/4084/ ASTERISK-24644
+	  #close ........ Merged revisions 430084 from
+	  http://svn.asterisk.org/svn/asterisk/branches/13
+
+	* /, res/res_pjsip/pjsip_configuration.c,
+	  res/res_pjsip_caller_id.c, CHANGES, res/res_pjsip.c,
+	  include/asterisk/res_pjsip.h: res_pjsip: Add 'user_eq_phone'
+	  option to add a 'user=phone' parameter when applicable. Note that
+	  this is a backport of r425804 from trunk. This change adds a
+	  configuration option which adds a 'user=phone' parameter if the
+	  user portion of the request URI or the From URI is determined to
+	  be a number. Review: https://reviewboard.asterisk.org/r/4073/
+	  ASTERISK-24643 #close ........ Merged revisions 430083 from
+	  http://svn.asterisk.org/svn/asterisk/branches/13
+
+2014-12-22 21:22 +0000 [r430030-430046]  Richard Mudgett <rmudgett@digium.com>
+
+	* /, main/bridge_basic.c: DTMF atxfer: Setup recall channels as if
+	  the transferee initiated the call. After the initial DTMF atxfer
+	  call attempt to the transfer target fails to answer during a
+	  blonde transfer, the recall callback channels do not get setup
+	  with information from the initial transferrer channel. As a
+	  result, the recall callback to the transferrer does not have
+	  callid, channel variables, datastores, accountcode, peeraccount,
+	  COLP, and CLID setup. A similar situation happens with the recall
+	  callback to the transfer target but it is less visible. The
+	  recall callback to the transfer target does not have callid,
+	  channel variables, datastores, accountcode, peeraccount, and COLP
+	  setup. * Added missing information to the recall callback
+	  channels before initiating the call. callid, channel variables,
+	  datastores, accountcode, peeraccount, COLP, and CLID * Set callid
+	  of the transferrer channel on the DTMF atxfer controller thread
+	  attended_transfer_monitor_thread(). * Added missing channel
+	  unlocks and props unref to off nominal paths in
+	  attended_transfer_properties_alloc(). ASTERISK-23841 #close
+	  Reported by: Richard Mudgett Review:
+	  https://reviewboard.asterisk.org/r/4259/ ........ Merged
+	  revisions 430034 from
+	  http://svn.asterisk.org/svn/asterisk/branches/13
+
+	* main/logger.c, include/asterisk/_private.h, main/asterisk.c, /:
+	  queue_log: Post QUEUESTART entry when Asterisk fully boots. The
+	  QUEUESTART log entry has historically acted like a fully booted
+	  event for the queue_log file. When the QUEUESTART entry was
+	  posted to the log was broken by the change made by
+	  ASTERISK-15863. * Made post the QUEUESTART queue_log entry when
+	  Asterisk fully boots. This restores the intent of that log entry
+	  and happens after realtime has had a chance to load. AST-1444
+	  #close Reported by: Denis Martinez Review:
+	  https://reviewboard.asterisk.org/r/4282/ ........ Merged
+	  revisions 430009 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11 ........ Merged
+	  revisions 430010 from
+	  http://svn.asterisk.org/svn/asterisk/branches/13
+
+2014-12-22 18:35 +0000 [r430007-430008]  bebuild <bebuild@localhost>:
+
+	* /, res/res_pjsip/pjsip_options.c: Multiple revisions
+	  429128,429246 ........ r429128 | kmoore | 2014-12-09 08:00:50
+	  -0600 (Tue, 09 Dec 2014) | 12 lines PJSIP: Stagger outbound
+	  qualifies This change staggers initiation of outbound qualify
+	  (OPTIONS) attempts to reduce instantaneous server load and
+	  prevent network congestion. Review:
+	  https://reviewboard.asterisk.org/r/4246/ ASTERISK-24342 #close
+	  Reported by: Richard Mudgett ........ Merged revisions 429127
+	  from http://svn.asterisk.org/svn/asterisk/branches/12 ........
+	  r429246 | kmoore | 2014-12-10 07:14:56 -0600 (Wed, 10 Dec 2014) |
+	  8 lines PJSIP: Fix assert on initial mass qualify This fixes the
+	  MWI test regressions caused by r429127 and ensures that contacts
+	  have non-zero qualify_frequency before attempting scheduling.
+	  ........ Merged revisions 429245 from
+	  http://svn.asterisk.org/svn/asterisk/branches/12 ........ Merged
+	  revisions 429128,429246 from
+	  http://svn.asterisk.org/svn/asterisk/branches/13
+
+	* main/manager.c, /: Prevent possible race condition on dual
+	  redirect of channels in the same bridge. The
+	  AST_FLAG_BRIDGE_DUAL_REDIRECT_WAIT flag was created to prevent
+	  bridges from prematurely acting on orphaned channels in bridges.
+	  The problem with the AMI redirect action was that it was setting
+	  this flag on channels based on the presence of a PBX, not whether
+	  the channel was in a bridge. Whether a channel has a PBX is
+	  irrelevant, so the condition has been altered to check if the
+	  channel is in a bridge. ASTERISK-24536 #close Reported by Niklas
+	  Larsson Review: https://reviewboard.asterisk.org/r/4268 ........
+	  Merged revisions 429741 from
+	  http://svn.asterisk.org/svn/asterisk/branches/13
+
+2014-12-19 21:52 +0000 [r429855-429892]  bebuild <bebuild@localhost>:
+
+	* /, rest-api/api-docs/channels.json, res/ari/resource_channels.c,
+	  CHANGES, res/res_ari_channels.c, res/ari/resource_channels.h:
+	  ari: Add support for specifying an originator channel when
+	  originating. If an originator channel is specified when
+	  originating a channel the linked ID of it will be applied to the
+	  newly originated outgoing channel. This allows an association to
+	  be made between the two so it is known that the originator has
+	  dialed the originated channel. ASTERISK-24552 #close Reported by:
+	  Matt Jordan Review: https://reviewboard.asterisk.org/r/4243/
+	  ........ Merged revisions 429153 from
+	  http://svn.asterisk.org/svn/asterisk/branches/13
+
+	* /, main/stasis_channels.c, rest-api/api-docs/channels.json,
+	  res/ari/ari_model_validators.c, main/manager_channels.c,
+	  res/ari/ari_model_validators.h: ARI/AMI: Include language in
+	  standard channel snapshot output The channel "language" was
+	  already part of a channel snapshot, however is was not sent out
+	  over AMI or ARI. This patch makes it so the channel "language" is
+	  included in the appropriate AMI or ARI events. ASTERISK-24553
+	  #close Reported by: Matt Jordan Review:
+	  https://reviewboard.asterisk.org/r/4245/ ........ Merged
+	  revisions 429204 from
+	  http://svn.asterisk.org/svn/asterisk/branches/12 ........ Merged
+	  revisions 429206 from
+	  http://svn.asterisk.org/svn/asterisk/branches/13
+
+	* /, res/res_pjsip_session.c: res_pjsip_session: Fix issue where a
+	  declined media stream in a re-INVITE would fail SDP negotiation.
+	  In the past the SDP negotiation within res_pjsip_session was made
+	  more tolerant of certain situations. The only case where SDP
+	  negotiation will fail is when a major error occurs during
+	  negotiation. Receiving an already declined media stream is not
+	  considered a major error. When producing the local SDP the logic
+	  took this into account so on the initial INVITE the declined
+	  media stream did not cause an SDP negotiation failure.
+	  Unfortunately the logic for handling media streams with a handler
+	  did not mirror this logic and considered an already declined
+	  media stream an error and thus failed the SDP negotiation. This
+	  change makes the logic between both situations match so only
+	  under major errors will the SDP negotiation fail. ASTERISK-24607
+	  #close Reported by: Matt Jordan Review:
+	  https://reviewboard.asterisk.org/r/4254/ ........ Merged
+	  revisions 429407 from
+	  http://svn.asterisk.org/svn/asterisk/branches/13
+
+	* main/format.c, /, main/codec.c, include/asterisk/format.h: media:
+	  Fix crash when determining sample count of a frame during
+	  shutdown. When shutting down Asterisk the codecs are cleaned up.
+	  As a result anything attempting to get a codec based on ID or
+	  details will find that no codec exists. This currently occurs
+	  when determining the sample count of a frame. This code did not
+	  take this situation into account. This change fixes this by
+	  getting the codec directly from the format and eliminates the
+	  lookup. This is both faster and also provides a guarantee that
+	  the codec will exist and will be valid. ASTERISK-24604 #close
+	  Reported by: Matt Jordan Review:
+	  https://reviewboard.asterisk.org/r/4260/ ........ Merged
+	  revisions 429497 from
+	  http://svn.asterisk.org/svn/asterisk/branches/13
+
+	* /, res/res_pjsip_outbound_registration.c: Prevent potential
+	  infinite outbound authentication loops in registration. Prior to
+	  this patch, Asterisk would always respond to 401 responses to
+	  registration attempts by trying to provide a registration with
+	  authentication credentials. Even if subsequent attempts were
+	  rejected with 401 responses, Asterisk would continue this
+	  behavior. If authentication credentials were incorrect, this
+	  could continue forever. With this patch, we keep track of whether
+	  we have attempted authentication on an outbound registration
+	  attempt. If we already have, we don not try again until the next
+	  attempt. This prevents the infinite loop scenario. Review:
+	  https://reviewboard.asterisk.org/r/4273 ........ Merged revisions
+	  429761 from http://svn.asterisk.org/svn/asterisk/branches/13
+
+	* res/res_pjsip_outbound_publish.c, /: res_pjsip_outbound_publish:
+	  stack overflow when using non-default sorcery wizard When using a
+	  non-default sorcery wizard (in this instance realtime) for
+	  outbound publishes Asterisk will crash after a stack overflow
+	  occurs due to the code infinitely recursing. The fix entails
+	  removing the outbound publish state dependency from the outbound
+	  publish sorcery object and instead keeping an in memory container
+	  that can be used to lookup the state when needed. ASTERISK-24514
+	  #close Reported by: Mark Michelson Review:
+	  https://reviewboard.asterisk.org/r/4178/ ........ Merged
+	  revisions 429175 from
+	  http://svn.asterisk.org/svn/asterisk/branches/13
+
+	* /, res/res_pjsip_sdp_rtp.c: PJSIP: Allow use of 'inactive'
+	  streams for hold This allows use of the 'inactive' stream
+	  direction identifier to be used for hold where 'sendonly' is
+	  normally used. Some Seimens phones use 'inactive' and this change
+	  allows music on hold to operate properly. Review:
+	  https://reviewboard.asterisk.org/r/4252/ Reported by: Steve Pitts
+	  ........ Merged revisions 429432 from
+	  http://svn.asterisk.org/svn/asterisk/branches/12 ........ Merged
+	  revisions 429433 from
+	  http://svn.asterisk.org/svn/asterisk/branches/13
+
+	* channels/chan_pjsip.c, res/res_pjsip_session.c,
+	  include/asterisk/res_pjsip_session.h, /,
+	  res/res_pjsip_session.exports.in: res_pjsip_session: Delay
+	  sending BYE if a re-INVITE transaction is in progress. Given the
+	  scenario where a PJSIP channel is in a native RTP bridge with
+	  direct media and the channel is then hung up the code will
+	  currently re-INVITE the channel back to Asterisk and send a BYE
+	  at the same time. Many SIP implementations dislike this greatly.
+	  This change makes it so that if a re-INVITE transaction is in
+	  progress the BYE is queued to occur after the completion of the
+	  transaction (be it through normal means or a timeout). Review:
+	  https://reviewboard.asterisk.org/r/4248/ ........ Merged
+	  revisions 429409 from
+	  http://svn.asterisk.org/svn/asterisk/branches/13
+
+	* /, channels/chan_pjsip.c: chan_pjsip: Race between channel answer
+	  and bridge setup when using direct media When direct media is
+	  enabled and a pjsip channel is answered a race would occur
+	  between the handling of the answer and bridge setup. Sometimes
+	  the media negotiation would take place after the native bridge
+	  was setup. This resulted in a NULL media address, which in turn
+	  resulted in Asterisk using its address as the remote media
+	  address when sending a reinvite. This patch makes the chan_pjsip
+	  answer handler synchronous thus alleviating the race condition
+	  (the bridge won't start setting things up until after it
+	  returns). ASTERISK-24563 #close Reported by: Steve Pitts Review:
+	  https://reviewboard.asterisk.org/r/4257/ ........ Merged
+	  revisions 429477 from
+	  http://svn.asterisk.org/svn/asterisk/branches/13
+
+	* res/res_rtp_asterisk.c, main/rtp_engine.c, /,
+	  channels/chan_sip.c, include/asterisk/rtp_engine.h: Direct Media
+	  calls within private network sometimes get one way audio When
+	  endpoints with direct_media enabled, behind a firewall (Asterisk
+	  on a separate network) and were bridged sometimes Asterisk would
+	  send the ip address of the firewall in the sdp to one of the
+	  phones in the reinvite resulting in one way audio. When sending
+	  the reinvite Asterisk will retrieve the media address from the
+	  associated rtp instance, but if frames were being read this can
+	  be overwritten with another address (in this case the
+	  firewall's). This patch ensures that Asterisk uses the original
+	  device address when using direct media. ASTERISK-24563 Reported
+	  by: Steve Pitts Review: https://reviewboard.asterisk.org/r/4216/
+	  ........ Merged revisions 429195 from
+	  http://svn.asterisk.org/svn/asterisk/branches/12 ........ Merged
+	  revisions 429196 from
+	  http://svn.asterisk.org/svn/asterisk/branches/13
+
+	* /, channels/pjsip/dialplan_functions.c: Ensure the correct value
+	  is returned for CHANNEL(pjsip, secure) Prior to this patch, we
+	  were using the PJSIP dialog's secure flag to determine if a
+	  secure transport was being used. Unfortunately, the dialog's
+	  secure flag was only set if a SIPS URI were in use, as required
+	  by RFC 3261 sections 12.1.1 and 12.1.2. What we're interested in
+	  is not dialog security, but transport security. This code change
+	  switches to a model where we use the dialog's target URI to
+	  determine what transport would be used to communicate, and then
+	  check if that transport is secure. AST-1450 #close Reported by
+	  John Bigelow Review: https://reviewboard.asterisk.org/r/4277
+	  ........ Merged revisions 429739 from
+	  http://svn.asterisk.org/svn/asterisk/branches/13
+
+	* channels/chan_dahdi.c, /: chan_dahdi: Don't ignore setvar when
+	  using configuration section scheme. When the configuration
+	  section scheme of chan_dahdi.conf is used (keyword dahdichan
+	  instead of channel) all setvar= options are completely ignored.
+	  No variable defined this way appears in the created DAHDI
+	  channels. * Move the clearing of setvar values to after the
+	  deferred processing of dahdichan. AST-1378 #close Reported by:
+	  Guenther Kelleter Patch by: Guenther Kelleter ........ Merged
+	  revisions 429825 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11 ........ Merged
+	  revisions 429829 from
+	  http://svn.asterisk.org/svn/asterisk/branches/13
+
+	* include/asterisk/lock.h, main/lock.c, /: DEBUG_THREADS: Fix
+	  regression and lock tracking initialization problems. This patch
+	  started with David Lee's patch at
+	  https://reviewboard.asterisk.org/r/2826/ and includes a
+	  regression fix introduced by the ASTERISK-22455 patch. The
+	  initialization of a mutex's lock tracking structure was not
+	  protected in a critical section. This is fine for any mutex that
+	  is explicitly initialized, but a static mutex may have its lock
+	  tracking double initialized if multiple threads attempt the first
+	  lock simultaneously. * Added a global mutex to properly serialize
+	  initialization of the lock tracking structure. The painful global
+	  lock can be mitigated by adding a double checked lock flag as
+	  discussed on the original review request. * Defer lock tracking
+	  initialization until first use. * Don't be "helpful" and
+	  initialize an uninitialized lock when DEBUG_THREADS is enabled.
+	  Debug code is not supposed to fix or change normal code behavior.
+	  We don't need a lock initialization race that would force a
+	  re-setup of lock tracking. Lock tracking already handles
+	  initialization on first use. * Properly handle allocation
+	  failures of the lock tracking structure. * No need to initialize
+	  tracking data in __ast_pthread_mutex_destroy() just to turn
+	  around and destroy it. The regression introduced by
+	  ASTERISK-22455 is the result of manipulating a pthread_mutex_t
+	  struct outside of the pthread library code. The pthread_mutex_t
+	  struct seems to have a global linked list pointer member that can
+	  get changed by other threads. Therefore, saving and restoring the
+	  contents of a pthread_mutex_t struct is a bad thing. Thanks to
+	  Thomas Airmont for finding this obscure regression. * Don't
+	  overwrite the struct ast_lock_track.reentr_mutex member to
+	  restore tracking data in __ast_cond_wait() and
+	  __ast_cond_timedwait(). The pthread_mutex_t struct must be
+	  treated as a read-only opaque variable. Miscellaneous other items
+	  fixed by this patch: * Match ast_suspend_lock_info() with
+	  ast_restore_lock_info() in __ast_cond_timedwait(). * Made some
+	  uninitialized lock sanity checks return EINVAL and try a
+	  DO_THREAD_CRASH. * Fix bad canlog initialization expressions.
+	  ASTERISK-24614 #close Reported by: Thomas Airmont Review:
+	  https://reviewboard.asterisk.org/r/4247/ Review:
+	  https://reviewboard.asterisk.org/r/2826/ ........ Merged
+	  revisions 429539 from
+	  http://svn.asterisk.org/svn/asterisk/branches/11 ........ Merged
+	  revisions 429540 from
+	  http://svn.asterisk.org/svn/asterisk/branches/13
+
+	* /, res/res_pjsip_pubsub.c: Activate persistent subscriptions when
+	  they are recreated. Prior to this change, recreating persistent
+	  subscriptions would create the subscription but would not
+	  activate it. This led to subscriptions being listed in the "NULL"
+	  state by diagnostics and not sending NOTIFYs when expected.
+	  Review: https://reviewboard.asterisk.org/r/4261 ........ Merged
+	  revisions 429571 from
+	  http://svn.asterisk.org/svn/asterisk/branches/13
+
+	* asterisk-13.1.0-summary.txt (removed), /,
+	  asterisk-13.1.0-summary.html (removed): Update properties; remove
+	  old summaries
+
+	* / (added): Create Certified Asterisk 13.1 branch
+
 2014-12-15  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 13.1.0 Released.
