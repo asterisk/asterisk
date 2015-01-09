@@ -174,6 +174,8 @@ struct ast_fax_session_details {
 	struct ast_fax_t38_parameters our_t38_parameters;
 	/*! the other endpoint's T.38 session parameters, if any */
 	struct ast_fax_t38_parameters their_t38_parameters;
+	/*! T.38 negotiation in ms */
+	unsigned int t38timeout;
 	/*! the id of the t.38 gateway framehook for this channel */
 	int gateway_id;
 	/*! the timeout for this gateway in seconds */

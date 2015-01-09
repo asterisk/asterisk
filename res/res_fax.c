@@ -213,6 +213,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name="statusstr">
 						<para>R/O Verbose Result Status of the FAX transmission.</para>
 					</enum>
+					<enum name="t38timeout">
+						<para>R/W The timeout used for T.38 negotiation.</para>
+					</enum>
 				</enumlist>
 			</parameter>
 		</syntax>
@@ -327,6 +330,7 @@ static AST_RWLIST_HEAD_STATIC(faxmodules, fax_module);
 #define RES_FAX_MAXRATE 14400
 #define RES_FAX_STATUSEVENTS 0
 #define RES_FAX_MODEM (AST_FAX_MODEM_V17 | AST_FAX_MODEM_V27 | AST_FAX_MODEM_V29)
+#define RES_FAX_T38TIMEOUT 5000
 
 struct fax_options {
 	enum ast_fax_modems modems;
@@ -334,6 +338,7 @@ struct fax_options {
 	uint32_t ecm:1;
 	unsigned int minrate;
 	unsigned int maxrate;
+	unsigned int t38timeout;
 };
 
 static struct fax_options general_options;
@@ -344,6 +349,7 @@ static const struct fax_options default_options = {
 	.statusevents = RES_FAX_STATUSEVENTS,
 	.modems = RES_FAX_MODEM,
 	.ecm = AST_FAX_OPTFLAG_TRUE,
+	.t38timeout = RES_FAX_T38TIMEOUT,
 };
 
 AST_RWLOCK_DEFINE_STATIC(options_lock);
@@ -489,6 +495,7 @@ static struct ast_fax_session_details *session_details_new(void)
 	d->modems = options.modems;
 	d->minrate = options.minrate;
 	d->maxrate = options.maxrate;
+	d->t38timeout = options.t38timeout;
 	d->gateway_id = -1;
 	d->faxdetect_id = -1;
 	d->gateway_timeout = 0;
@@ -1469,7 +1476,10 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 					break;
 				}
 				if (t38negotiated && !was_t38) {
-					fax->tech->switch_to_t38(fax);
+					if (fax->tech->switch_to_t38(fax)) {
+						GENERIC_FAX_EXEC_ERROR(fax, chan, "UNKNOWN", "T.38 switch failed");
+						break;
+					}
 					details->caps &= ~AST_FAX_TECH_AUDIO;
 					expected_frametype = AST_FRAME_MODEM;
 					expected_framesubclass.integer = AST_MODEM_T38;
@@ -1655,8 +1665,8 @@ static int receivefax_t38_init(struct ast_channel *chan, struct ast_fax_session_
 	/* request T.38 */
 	ast_debug(1, "Negotiating T.38 for receive on %s\n", ast_channel_name(chan));
 
-	/* wait up to five seconds for negotiation to complete */
-	timeout_ms = 5000;
+	/* wait for negotiation to complete */
+	timeout_ms = details->t38timeout;
 
 	/* set parameters based on the session's parameters */
 	t38_parameters_fax_to_ast(&t38_parameters, &details->our_t38_parameters);
@@ -3631,6 +3641,7 @@ static char *cli_fax_show_settings(struct ast_cli_entry *e, int cmd, struct ast_
 	ast_cli(a->fd, "\tMaximum Bit Rate: %u\n", options.maxrate);
 	ast_fax_modem_to_str(options.modems, modems, sizeof(modems));
 	ast_cli(a->fd, "\tModem Modulations Allowed: %s\n", modems);
+	ast_cli(a->fd, "\tT.38 Negotiation Timeout: %u\n", options.t38timeout);
 	ast_cli(a->fd, "\n\nFAX Technology Modules:\n\n");
 	AST_RWLIST_RDLOCK(&faxmodules);
 	AST_RWLIST_TRAVERSE(&faxmodules, fax, list) {
@@ -3810,6 +3821,23 @@ static void get_general_options(struct fax_options *options)
 	ast_rwlock_unlock(&options_lock);
 }
 
+static int set_t38timeout(const char *value, unsigned int *t38timeout)
+{
+	unsigned int timeout;
+
+	if (sscanf(value, "%u", &timeout) != 1) {
+		ast_log(LOG_ERROR, "Unable to get timeout from '%s'\n", value);
+		return -1;
+	} else if (timeout) {
+		*t38timeout = timeout;
+	} else {
+		ast_log(LOG_ERROR, "T.38 negotiation timeout must be non-zero\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 /*! \brief configure res_fax */
 static int set_config(int reload)
 {
@@ -3879,6 +3907,11 @@ static int set_config(int reload)
 		} else if ((!strcasecmp(v->name, "modem")) || (!strcasecmp(v->name, "modems"))) {
 			options.modems = 0;
 			update_modem_bits(&options.modems, v->value);
+		} else if (!strcasecmp(v->name, "t38timeout")) {
+			if (set_t38timeout(v->value, &options.t38timeout)) {
+				res = -1;
+				goto end;
+			}
 		}
 	}
 
@@ -3978,6 +4011,8 @@ static int acf_faxopt_read(struct ast_channel *chan, const char *cmd, char *data
 		ast_copy_string(buf, details->resultstr, len);
 	} else if ((!strcasecmp(data, "modem")) || (!strcasecmp(data, "modems"))) {
 		ast_fax_modem_to_str(details->modems, buf, len);
+	} else if (!strcasecmp(data, "t38timeout")) {
+		snprintf(buf, len, "%u", details->t38timeout);
 	} else {
 		ast_log(LOG_WARNING, "channel '%s' can't read FAXOPT(%s) because it is unhandled!\n", ast_channel_name(chan), data);
 		res = -1;
@@ -4103,6 +4138,10 @@ static int acf_faxopt_write(struct ast_channel *chan, const char *cmd, char *dat
 		details->minrate = fax_rate_str_to_int(value);
 		if (!details->minrate) {
 			details->minrate = ast_fax_minrate();
+		}
+	} else if (!strcasecmp(data, "t38timeout")) {
+		if (set_t38timeout(value, &details->t38timeout)) {
+			res = -1;
 		}
 	} else if ((!strcasecmp(data, "modem")) || (!strcasecmp(data, "modems"))) {
 		update_modem_bits(&details->modems, value);

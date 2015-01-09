@@ -9,6 +9,17 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes since Asterisk 11.15 --------------------------------
+------------------------------------------------------------------------------
+
+res_fax
+-----------
+ * The T.38 negotiation timeout was previously hard coded at 5000 milliseconds
+   and is now configurable via the 't38timeout' configuration option in
+   res_fax.conf and via the fax options dialplan function 'FAXOPT(t38timeout)'.
+   The default remains at 5000 milliseconds.
+
+------------------------------------------------------------------------------
 --- Functionality changes since Asterisk 11.8 --------------------------------
 ------------------------------------------------------------------------------
 
