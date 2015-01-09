@@ -1420,8 +1420,7 @@ static int ami_show_outbound_registrations(struct mansession *s,
 		return -1;
 	}
 
-	astman_send_listack(s, m, "Following are Events for each Outbound registration",
-		"start");
+	astman_send_listack(s, m, "Following are Events for each Outbound registration");
 
 	ao2_callback(regs, OBJ_NODATA, ami_outbound_registration_detail, &ami_outbound);
 

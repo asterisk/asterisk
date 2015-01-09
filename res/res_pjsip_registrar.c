@@ -767,8 +767,7 @@ static int ami_show_registrations(struct mansession *s, const struct message *m)
 	int count = 0;
 	struct ast_sip_ami ami = { .s = s, .m = m, .arg = &count, .action_id = astman_get_header(m, "ActionID"), };
 
-	astman_send_listack(s, m, "Following are Events for each Inbound "
-			    "registration", "start");
+	astman_send_listack(s, m, "Following are Events for each Inbound registration");
 
 	ami_registrations_endpoints(&ami);
 

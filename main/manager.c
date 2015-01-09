@@ -2919,7 +2919,7 @@ static void astman_start_ack(struct mansession *s, const struct message *m)
 	astman_send_response_full(s, m, "Success", MSG_MOREDATA, NULL);
 }
 
-void astman_send_listack(struct mansession *s, const struct message *m, char *msg, char *listflag)
+void astman_send_listack(struct mansession *s, const struct message *m, char *msg)
 {
 	astman_send_response_full(s, m, "Success", msg, "Start");
 }
@@ -4203,7 +4203,7 @@ static int action_hangup(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	astman_send_listack(s, m, "Channels hung up will follow", "start");
+	astman_send_listack(s, m, "Channels hung up will follow");
 
 	iter = ast_channel_iterator_all_new();
 	if (iter) {
@@ -4481,7 +4481,7 @@ static int action_status(struct mansession *s, const struct message *m)
 		}
 	}
 
-	astman_send_listack(s, m, "Channel status will follow", "start");
+	astman_send_listack(s, m, "Channel status will follow");
 
 	if (!ast_strlen_zero(id)) {
 		snprintf(id_text, sizeof(id_text), "ActionID: %s\r\n", id);
@@ -5908,7 +5908,7 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 		return 0;
 	}
 
-	astman_send_listack(s, m, "Channels will follow", "start");
+	astman_send_listack(s, m, "Channels will follow");
 
 	it_chans = ao2_iterator_init(channels, 0);
 	for (; (msg = ao2_iterator_next(&it_chans)); ao2_ref(msg, -1)) {

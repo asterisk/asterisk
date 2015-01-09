@@ -255,7 +255,7 @@ static void manager_parking_status_single_lot(struct mansession *s, const struct
 		return;
 	}
 
-	astman_send_listack(s, m, "Parked calls will follow", "start");
+	astman_send_listack(s, m, "Parked calls will follow");
 
 	iter_users = ao2_iterator_init(curlot->parked_users, 0);
 	while ((curuser = ao2_iterator_next(&iter_users))) {
@@ -308,7 +308,7 @@ static void manager_parking_status_all_lots(struct mansession *s, const struct m
 		return;
 	}
 
-	astman_send_listack(s, m, "Parked calls will follow", "start");
+	astman_send_listack(s, m, "Parked calls will follow");
 
 	iter_lots = ao2_iterator_init(lot_container, 0);
 	while ((curlot = ao2_iterator_next(&iter_lots))) {
@@ -422,7 +422,7 @@ static int manager_parking_lot_list(struct mansession *s, const struct message *
 		return 0;
 	}
 
-	astman_send_listack(s, m, "Parking lots will follow", "start");
+	astman_send_listack(s, m, "Parking lots will follow");
 
 	list_data.id_text = id_text;
 	list_data.count = 0;

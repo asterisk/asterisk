@@ -864,7 +864,7 @@ static int manager_dbget(struct mansession *s, const struct message *m)
 	if (res) {
 		astman_send_error(s, m, "Database entry not found");
 	} else {
-		astman_send_listack(s, m, "Result will follow", "start");
+		astman_send_listack(s, m, "Result will follow");
 
 		astman_append(s, "Event: DBGetResponse\r\n"
 				"Family: %s\r\n"

@@ -1162,8 +1162,7 @@ static int ami_show_endpoint(struct mansession *s, const struct message *m)
 		return -1;
 	}
 
-	astman_send_listack(s, m, "Following are Events for each object "
-			    "associated with the the Endpoint", "start");
+	astman_send_listack(s, m, "Following are Events for each object associated with the the Endpoint");
 
 	/* the endpoint detail needs to always come first so apply as such */
 	if (format_ami_endpoint(endpoint, &ami) ||
@@ -1246,8 +1245,7 @@ static int ami_show_endpoints(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	astman_send_listack(s, m, "A listing of Endpoints follows, "
-			    "presented as EndpointList events", "start");
+	astman_send_listack(s, m, "A listing of Endpoints follows, presented as EndpointList events");
 
 	ao2_callback(endpoints, OBJ_NODATA, format_ami_endpoints, &ami);
 

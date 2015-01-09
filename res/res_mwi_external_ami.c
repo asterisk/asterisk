@@ -197,7 +197,7 @@ static int mwi_mailbox_get(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	astman_send_listack(s, m, "Mailboxes will follow", "start");
+	astman_send_listack(s, m, "Mailboxes will follow");
 
 	id = astman_get_header(m, "ActionID");
 	if (!ast_strlen_zero(id)) {

@@ -4200,7 +4200,7 @@ static int manager_fax_sessions(struct mansession *s, const struct message *m)
 		snprintf(id_text, sizeof(id_text), "ActionID: %s\r\n", action_id);
 	}
 
-	astman_send_listack(s, m, "FAXSessionsEntry event list will follow", "Start");
+	astman_send_listack(s, m, "FAXSessionsEntry event list will follow");
 
 	iter = ao2_iterator_init(faxregistry.container, 0);
 	while ((session = ao2_iterator_next(&iter))) {

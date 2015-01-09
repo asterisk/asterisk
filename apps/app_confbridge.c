@@ -2883,7 +2883,7 @@ static int action_confbridgelist(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	astman_send_listack(s, m, "Confbridge user list will follow", "start");
+	astman_send_listack(s, m, "Confbridge user list will follow");
 
 	ao2_lock(conference);
 	AST_LIST_TRAVERSE(&conference->active_list, user, list) {
@@ -2920,7 +2920,7 @@ static int action_confbridgelistrooms(struct mansession *s, const struct message
 		return 0;
 	}
 
-	astman_send_listack(s, m, "Confbridge conferences will follow", "start");
+	astman_send_listack(s, m, "Confbridge conferences will follow");
 
 	/* Traverse the conference list */
 	iter = ao2_iterator_init(conference_bridges, 0);

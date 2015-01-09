@@ -85,7 +85,7 @@ static int action_presencestatelist(struct mansession *s, const struct message *
 		return 0;
 	}
 
-	astman_send_listack(s, m, "Presence State Changes will follow", "start");
+	astman_send_listack(s, m, "Presence State Changes will follow");
 
 	it_states = ao2_iterator_init(presence_states, 0);
 	for (; (msg = ao2_iterator_next(&it_states)); ao2_ref(msg, -1)) {

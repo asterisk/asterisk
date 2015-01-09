@@ -19223,7 +19223,7 @@ static int manager_show_registry(struct mansession *s, const struct message *m)
 	if (!ast_strlen_zero(id))
 		snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
 
-	astman_send_listack(s, m, "Registrations will follow", "start");
+	astman_send_listack(s, m, "Registrations will follow");
 
 	iter = ao2_iterator_init(registry_list, 0);
 	while ((iterator = ao2_t_iterator_next(&iter, "manager_show_registry iter"))) {
@@ -19275,7 +19275,7 @@ static int manager_sip_show_peers(struct mansession *s, const struct message *m)
 	if (!ast_strlen_zero(id))
 		snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
 
-	astman_send_listack(s, m, "Peer status list will follow", "start");
+	astman_send_listack(s, m, "Peer status list will follow");
 
 	/* List the peers in separate manager events */
 	_sip_show_peers(-1, &total, s, m, 3, a);
@@ -20067,7 +20067,7 @@ static int manager_sip_peer_status(struct mansession *s, const struct message *m
 		}
 	}
 
-	astman_send_listack(s, m, "Peer status will follow", "start");
+	astman_send_listack(s, m, "Peer status will follow");
 
 	if (!peer) {
 		struct ao2_iterator i = ao2_iterator_init(peers, 0);

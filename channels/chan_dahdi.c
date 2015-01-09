@@ -16082,7 +16082,7 @@ static int action_dahdishowchannels(struct mansession *s, const struct message *
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 	}
 
-	astman_send_listack(s, m, "DAHDI channel status will follow", "start");
+	astman_send_listack(s, m, "DAHDI channel status will follow");
 
 	ast_mutex_lock(&iflock);
 
@@ -16176,7 +16176,7 @@ static int action_prishowspans(struct mansession *s, const struct message *m)
 		action_id[0] = '\0';
 	}
 
-	astman_send_listack(s, m, "Span status will follow", "start");
+	astman_send_listack(s, m, "Span status will follow");
 
 	count = 0;
 	for (idx = 0; idx < ARRAY_LEN(pris); ++idx) {

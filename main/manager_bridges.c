@@ -414,7 +414,7 @@ static int manager_bridges_list(struct mansession *s, const struct message *m)
 		return -1;
 	}
 
-	astman_send_listack(s, m, "Bridge listing will follow", "start");
+	astman_send_listack(s, m, "Bridge listing will follow");
 
 	if (!ast_strlen_zero(type_filter)) {
 		char *type_filter_dup = ast_strdupa(type_filter);
@@ -506,7 +506,7 @@ static int manager_bridge_info(struct mansession *s, const struct message *m)
 		return -1;
 	}
 
-	astman_send_listack(s, m, "Bridge channel listing will follow", "start");
+	astman_send_listack(s, m, "Bridge channel listing will follow");
 
 	list_data.id_text = ast_str_buffer(id_text);
 	list_data.count = 0;

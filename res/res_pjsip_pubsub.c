@@ -3262,8 +3262,7 @@ static int ami_show_subscriptions_inbound(struct mansession *s, const struct mes
 	struct ast_sip_ami ami = { .s = s, .m = m, .action_id = astman_get_header(m, "ActionID"), };
 	int num;
 
-	astman_send_listack(s, m, "Following are Events for "
-			    "each inbound Subscription", "start");
+	astman_send_listack(s, m, "Following are Events for each inbound Subscription");
 
 	num = for_each_subscription(ami_subscription_detail_inbound, &ami);
 
@@ -3277,8 +3276,7 @@ static int ami_show_subscriptions_outbound(struct mansession *s, const struct me
 	struct ast_sip_ami ami = { .s = s, .m = m, .action_id = astman_get_header(m, "ActionID"), };
 	int num;
 
-	astman_send_listack(s, m, "Following are Events for "
-			    "each outbound Subscription", "start");
+	astman_send_listack(s, m, "Following are Events for each outbound Subscription");
 
 	num = for_each_subscription(ami_subscription_detail_outbound, &ami);
 
@@ -3322,8 +3320,7 @@ static int ami_show_resource_lists(struct mansession *s, const struct message *m
 		return 0;
 	}
 
-	astman_send_listack(s, m, "A listing of resource lists follows, "
-			    "presented as ResourceListDetail events", "start");
+	astman_send_listack(s, m, "A listing of resource lists follows, presented as ResourceListDetail events");
 
 	ao2_callback(lists, OBJ_NODATA, format_ami_resource_lists, &ami);
 
