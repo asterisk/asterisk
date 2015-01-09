@@ -8329,14 +8329,13 @@ static int manager_show_dialplan(struct mansession *s, const struct message *m)
 		manager_dpsendack(s, m);
 	}
 
-	astman_append(s, "Event: ShowDialPlanComplete\r\n"
-		"EventList: Complete\r\n"
-		"ListItems: %d\r\n"
+	astman_send_list_complete_start(s, m, "ShowDialPlanComplete", counters.total_items);
+	astman_append(s,
 		"ListExtensions: %d\r\n"
 		"ListPriorities: %d\r\n"
-		"ListContexts: %d\r\n"
-		"%s"
-		"\r\n", counters.total_items, counters.total_exten, counters.total_prio, counters.total_context, idtext);
+		"ListContexts: %d\r\n",
+		counters.total_exten, counters.total_prio, counters.total_context);
+	astman_send_list_complete_end(s);
 
 	/* everything ok */
 	return 0;
@@ -12032,15 +12031,12 @@ static int action_extensionstatelist(struct mansession *s, const struct message 
 		   ast_extension_state2str(hint->laststate));
 		ao2_unlock(hint);
 	}
-	astman_append(s, "Event: ExtensionStateListComplete\r\n");
-	if (!ast_strlen_zero(action_id)) {
-		astman_append(s, "ActionID: %s\r\n", action_id);
-	}
-	astman_append(s, "EventList: Complete\r\n"
-		"ListItems: %d\r\n\r\n", hint_count);
 
 	ao2_iterator_destroy(&it_hints);
 	ao2_unlock(hints);
+
+	astman_send_list_complete_start(s, m, "ExtensionStateListComplete", hint_count);
+	astman_send_list_complete_end(s);
 
 	return 0;
 }

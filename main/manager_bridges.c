@@ -364,12 +364,17 @@ static int filter_bridge_type_cb(void *obj, void *arg, int flags)
 	return strcmp(bridge_type, snapshot->technology) ? CMP_MATCH : 0;
 }
 
+struct bridge_list_data {
+	const char *id_text;
+	int count;
+};
+
 static int send_bridge_list_item_cb(void *obj, void *arg, void *data, int flags)
 {
 	struct ast_bridge_snapshot *snapshot = stasis_message_data(obj);
 	struct mansession *s = arg;
-	char *id_text = data;
-	RAII_VAR(struct ast_str *, bridge_info, ast_manager_build_bridge_state_string(snapshot), ast_free_ptr);
+	struct bridge_list_data *list_data = data;
+	RAII_VAR(struct ast_str *, bridge_info, ast_manager_build_bridge_state_string(snapshot), ast_free);
 
 	if (!bridge_info) {
 		return 0;
@@ -380,8 +385,9 @@ static int send_bridge_list_item_cb(void *obj, void *arg, void *data, int flags)
 		"%s"
 		"%s"
 		"\r\n",
-		ast_str_buffer(bridge_info),
-		id_text);
+		list_data->id_text,
+		ast_str_buffer(bridge_info));
+	++list_data->count;
 	return 0;
 }
 
@@ -391,6 +397,7 @@ static int manager_bridges_list(struct mansession *s, const struct message *m)
 	const char *type_filter = astman_get_header(m, "BridgeType");
 	RAII_VAR(struct ast_str *, id_text, ast_str_create(128), ast_free);
 	RAII_VAR(struct ao2_container *, bridges, NULL, ao2_cleanup);
+	struct bridge_list_data list_data;
 
 	if (!id_text) {
 		astman_send_error(s, m, "Internal error");
@@ -407,20 +414,21 @@ static int manager_bridges_list(struct mansession *s, const struct message *m)
 		return -1;
 	}
 
-	astman_send_ack(s, m, "Bridge listing will follow");
+	astman_send_listack(s, m, "Bridge listing will follow", "start");
 
 	if (!ast_strlen_zero(type_filter)) {
 		char *type_filter_dup = ast_strdupa(type_filter);
-		ao2_callback(bridges, OBJ_MULTIPLE | OBJ_NODATA | OBJ_UNLINK, filter_bridge_type_cb, type_filter_dup);
+
+		ao2_callback(bridges, OBJ_MULTIPLE | OBJ_NODATA | OBJ_UNLINK,
+			filter_bridge_type_cb, type_filter_dup);
 	}
 
-	ao2_callback_data(bridges, OBJ_NODATA, send_bridge_list_item_cb, s, ast_str_buffer(id_text));
+	list_data.id_text = ast_str_buffer(id_text);
+	list_data.count = 0;
+	ao2_callback_data(bridges, OBJ_NODATA, send_bridge_list_item_cb, s, &list_data);
 
-	astman_append(s,
-		"Event: BridgeListComplete\r\n"
-		"%s"
-		"\r\n",
-		ast_str_buffer(id_text));
+	astman_send_list_complete_start(s, m, "BridgeListComplete", list_data.count);
+	astman_send_list_complete_end(s);
 
 	return 0;
 }
@@ -429,13 +437,13 @@ static int send_bridge_info_item_cb(void *obj, void *arg, void *data, int flags)
 {
 	char *uniqueid = obj;
 	struct mansession *s = arg;
-	char *id_text = data;
+	struct bridge_list_data *list_data = data;
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 	struct ast_channel_snapshot *snapshot;
 	RAII_VAR(struct ast_str *, channel_text, NULL, ast_free);
+
 	msg = stasis_cache_get(ast_channel_cache(),
 		ast_channel_snapshot_type(), uniqueid);
-
 	if (!msg) {
 		return 0;
 	}
@@ -455,8 +463,9 @@ static int send_bridge_info_item_cb(void *obj, void *arg, void *data, int flags)
 		"%s"
 		"%s"
 		"\r\n",
-		ast_str_buffer(channel_text),
-		id_text);
+		list_data->id_text,
+		ast_str_buffer(channel_text));
+	++list_data->count;
 	return 0;
 }
 
@@ -468,6 +477,7 @@ static int manager_bridge_info(struct mansession *s, const struct message *m)
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_str *, bridge_info, NULL, ast_free);
 	struct ast_bridge_snapshot *snapshot;
+	struct bridge_list_data list_data;
 
 	if (!id_text) {
 		astman_send_error(s, m, "Internal error");
@@ -489,20 +499,24 @@ static int manager_bridge_info(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	astman_send_ack(s, m, "Bridge channel listing will follow");
-
 	snapshot = stasis_message_data(msg);
 	bridge_info = ast_manager_build_bridge_state_string(snapshot);
+	if (!bridge_info) {
+		astman_send_error(s, m, "Internal error");
+		return -1;
+	}
 
-	ao2_callback_data(snapshot->channels, OBJ_NODATA, send_bridge_info_item_cb, s, ast_str_buffer(id_text));
+	astman_send_listack(s, m, "Bridge channel listing will follow", "start");
 
-	astman_append(s,
-		"Event: BridgeInfoComplete\r\n"
-		"%s"
-		"%s"
-		"\r\n",
-		S_COR(bridge_info, ast_str_buffer(bridge_info), ""),
-		ast_str_buffer(id_text));
+	list_data.id_text = ast_str_buffer(id_text);
+	list_data.count = 0;
+	ao2_callback_data(snapshot->channels, OBJ_NODATA, send_bridge_info_item_cb, s, &list_data);
+
+	astman_send_list_complete_start(s, m, "BridgeInfoComplete", list_data.count);
+	if (!ast_strlen_zero(ast_str_buffer(bridge_info))) {
+		astman_append(s, "%s", ast_str_buffer(bridge_info));
+	}
+	astman_send_list_complete_end(s);
 
 	return 0;
 }

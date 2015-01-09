@@ -106,12 +106,8 @@ static int action_devicestatelist(struct mansession *s, const struct message *m)
 	}
 	ao2_iterator_destroy(&it_states);
 
-	astman_append(s, "Event: DeviceStateListComplete\r\n");
-	if (!ast_strlen_zero(action_id)) {
-		astman_append(s, "ActionID: %s\r\n", action_id);
-	}
-	astman_append(s, "EventList: Complete\r\n"
-		"ListItems: %d\r\n\r\n", count);
+	astman_send_list_complete_start(s, m, "DeviceStateListComplete", count);
+	astman_send_list_complete_end(s);
 
 	return 0;
 }

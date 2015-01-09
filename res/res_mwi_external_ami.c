@@ -226,12 +226,8 @@ static int mwi_mailbox_get(struct mansession *s, const struct message *m)
 	ao2_iterator_destroy(&iter);
 	ao2_ref(mailboxes, -1);
 
-	astman_append(s,
-		"Event: MWIGetComplete\r\n"
-		"EventList: Complete\r\n"
-		"ListItems: %u\r\n"
-		"%s"
-		"\r\n", count, id_text);
+	astman_send_list_complete_start(s, m, "MWIGetComplete", count);
+	astman_send_list_complete_end(s);
 
 	return 0;
 }

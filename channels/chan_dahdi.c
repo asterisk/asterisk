@@ -16068,7 +16068,7 @@ static int action_dahdishowchannels(struct mansession *s, const struct message *
 	struct dahdi_pvt *tmp = NULL;
 	const char *id = astman_get_header(m, "ActionID");
 	const char *dahdichannel = astman_get_header(m, "DAHDIChannel");
-	char idText[256] = "";
+	char idText[256];
 	int channels = 0;
 	int dahdichanquery;
 
@@ -16077,9 +16077,12 @@ static int action_dahdishowchannels(struct mansession *s, const struct message *
 		dahdichanquery = -1;
 	}
 
-	astman_send_ack(s, m, "DAHDI channel status will follow");
-	if (!ast_strlen_zero(id))
+	idText[0] = '\0';
+	if (!ast_strlen_zero(id)) {
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
+	}
+
+	astman_send_listack(s, m, "DAHDI channel status will follow", "start");
 
 	ast_mutex_lock(&iflock);
 
@@ -16142,13 +16145,9 @@ static int action_dahdishowchannels(struct mansession *s, const struct message *
 
 	ast_mutex_unlock(&iflock);
 
-	astman_append(s,
-		"Event: DAHDIShowChannelsComplete\r\n"
-		"%s"
-		"Items: %d\r\n"
-		"\r\n",
-		idText,
-		channels);
+	astman_send_list_complete_start(s, m, "DAHDIShowChannelsComplete", channels);
+	astman_append(s, "Items: %d\r\n", channels);
+	astman_send_list_complete_end(s);
 	return 0;
 }
 
@@ -16177,7 +16176,7 @@ static int action_prishowspans(struct mansession *s, const struct message *m)
 		action_id[0] = '\0';
 	}
 
-	astman_send_ack(s, m, "Span status will follow");
+	astman_send_listack(s, m, "Span status will follow", "start");
 
 	count = 0;
 	for (idx = 0; idx < ARRAY_LEN(pris); ++idx) {
@@ -16194,14 +16193,9 @@ static int action_prishowspans(struct mansession *s, const struct message *m)
 		}
 	}
 
-	astman_append(s,
-		"Event: %sComplete\r\n"
-		"Items: %d\r\n"
-		"%s"
-		"\r\n",
-		show_cmd,
-		count,
-		action_id);
+	astman_send_list_complete_start(s, m, "PRIShowSpansComplete", count);
+	astman_append(s, "Items: %d\r\n", count);
+	astman_send_list_complete_end(s);
 	return 0;
 }
 #endif	/* defined(HAVE_PRI) */

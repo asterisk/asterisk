@@ -4135,24 +4135,17 @@ static char *_skinny_show_devices(int fd, int *total, struct mansession *s, cons
 /*    Inspired from chan_sip */
 static int manager_skinny_show_devices(struct mansession *s, const struct message *m)
 {
-	const char *id = astman_get_header(m, "ActionID");
 	const char *a[] = {"skinny", "show", "devices"};
-	char idtext[256] = "";
 	int total = 0;
 
-	if (!ast_strlen_zero(id))
-		snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
-
 	astman_send_listack(s, m, "Device status list will follow", "start");
+
 	/* List the devices in separate manager events */
 	_skinny_show_devices(-1, &total, s, m, 3, a);
+
 	/* Send final confirmation */
-	astman_append(s,
-	"Event: DevicelistComplete\r\n"
-	"EventList: Complete\r\n"
-	"ListItems: %d\r\n"
-	"%s"
-	"\r\n", total, idtext);
+	astman_send_list_complete_start(s, m, "DevicelistComplete", total);
+	astman_send_list_complete_end(s);
 	return 0;
 }
 
@@ -4384,24 +4377,17 @@ static char *_skinny_show_lines(int fd, int *total, struct mansession *s, const 
 /*    Inspired from chan_sip */
 static int manager_skinny_show_lines(struct mansession *s, const struct message *m)
 {
-	const char *id = astman_get_header(m, "ActionID");
 	const char *a[] = {"skinny", "show", "lines"};
-	char idtext[256] = "";
 	int total = 0;
 
-	if (!ast_strlen_zero(id))
-		snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
-
 	astman_send_listack(s, m, "Line status list will follow", "start");
+
 	/* List the lines in separate manager events */
 	_skinny_show_lines(-1, &total, s, m, 3, a);
+
 	/* Send final confirmation */
-	astman_append(s,
-	"Event: LinelistComplete\r\n"
-	"EventList: Complete\r\n"
-	"ListItems: %d\r\n"
-	"%s"
-	"\r\n", total, idtext);
+	astman_send_list_complete_start(s, m, "LinelistComplete", total);
+	astman_send_list_complete_end(s);
 	return 0;
 }
 

@@ -3232,15 +3232,16 @@ static int ami_subscription_detail(struct sip_subscription_tree *sub_tree,
 				   struct ast_sip_ami *ami,
 				   const char *event)
 {
-	RAII_VAR(struct ast_str *, buf,
-		 ast_sip_create_ami_event(event, ami), ast_free);
+	struct ast_str *buf;
 
+	buf = ast_sip_create_ami_event(event, ami);
 	if (!buf) {
 		return -1;
 	}
 
 	sip_subscription_to_ami(sub_tree, &buf);
 	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
+	ast_free(buf);
 	return 0;
 }
 
@@ -3266,12 +3267,8 @@ static int ami_show_subscriptions_inbound(struct mansession *s, const struct mes
 
 	num = for_each_subscription(ami_subscription_detail_inbound, &ami);
 
-	astman_append(s, "Event: InboundSubscriptionDetailComplete\r\n");
-	if (!ast_strlen_zero(ami.action_id)) {
-		astman_append(s, "ActionID: %s\r\n", ami.action_id);
-	}
-	astman_append(s, "EventList: Complete\r\n"
-		      "ListItems: %d\r\n\r\n", num);
+	astman_send_list_complete_start(s, m, "InboundSubscriptionDetailComplete", num);
+	astman_send_list_complete_end(s);
 	return 0;
 }
 
@@ -3285,12 +3282,8 @@ static int ami_show_subscriptions_outbound(struct mansession *s, const struct me
 
 	num = for_each_subscription(ami_subscription_detail_outbound, &ami);
 
-	astman_append(s, "Event: OutboundSubscriptionDetailComplete\r\n");
-	if (!ast_strlen_zero(ami.action_id)) {
-		astman_append(s, "ActionID: %s\r\n", ami.action_id);
-	}
-	astman_append(s, "EventList: Complete\r\n"
-		      "ListItems: %d\r\n\r\n", num);
+	astman_send_list_complete_start(s, m, "OutboundSubscriptionDetailComplete", num);
+	astman_send_list_complete_end(s);
 	return 0;
 }
 
@@ -3317,7 +3310,7 @@ static int format_ami_resource_lists(void *obj, void *arg, int flags)
 
 static int ami_show_resource_lists(struct mansession *s, const struct message *m)
 {
-	struct ast_sip_ami ami = { .s = s, .m = m };
+	struct ast_sip_ami ami = { .s = s, .m = m, .action_id = astman_get_header(m, "ActionID"), };
 	int num;
 	struct ao2_container *lists;
 
@@ -3334,10 +3327,8 @@ static int ami_show_resource_lists(struct mansession *s, const struct message *m
 
 	ao2_callback(lists, OBJ_NODATA, format_ami_resource_lists, &ami);
 
-	astman_append(s,
-		      "Event: ResourceListDetailComplete\r\n"
-		      "EventList: Complete\r\n"
-		      "ListItems: %d\r\n\r\n", num);
+	astman_send_list_complete_start(s, m, "ResourceListDetailComplete", num);
+	astman_send_list_complete_end(s);
 	return 0;
 }
 

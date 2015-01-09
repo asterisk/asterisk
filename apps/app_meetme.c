@@ -5577,13 +5577,10 @@ static int action_meetmelist(struct mansession *s, const struct message *m)
 		ao2_iterator_destroy(&user_iter);
 	}
 	AST_LIST_UNLOCK(&confs);
+
 	/* Send final confirmation */
-	astman_append(s,
-	"Event: MeetmeListComplete\r\n"
-	"EventList: Complete\r\n"
-	"ListItems: %d\r\n"
-	"%s"
-	"\r\n", total, idText);
+	astman_send_list_complete_start(s, m, "MeetmeListComplete", total);
+	astman_send_list_complete_end(s);
 	return 0;
 }
 
@@ -5645,12 +5642,8 @@ static int action_meetmelistrooms(struct mansession *s, const struct message *m)
 	AST_LIST_UNLOCK(&confs);
 
 	/* Send final confirmation */
-	astman_append(s,
-	"Event: MeetmeListRoomsComplete\r\n"
-	"EventList: Complete\r\n"
-	"ListItems: %d\r\n"
-	"%s"
-	"\r\n", totalitems, idText);
+	astman_send_list_complete_start(s, m, "MeetmeListRoomsComplete", totalitems);
+	astman_send_list_complete_end(s);
 	return 0;
 }
 

@@ -841,7 +841,7 @@ static int manager_dbput(struct mansession *s, const struct message *m)
 static int manager_dbget(struct mansession *s, const struct message *m)
 {
 	const char *id = astman_get_header(m,"ActionID");
-	char idText[256] = "";
+	char idText[256];
 	const char *family = astman_get_header(m, "Family");
 	const char *key = astman_get_header(m, "Key");
 	char tmp[MAX_DB_FIELD];
@@ -856,6 +856,7 @@ static int manager_dbget(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
+	idText[0] = '\0';
 	if (!ast_strlen_zero(id))
 		snprintf(idText, sizeof(idText) ,"ActionID: %s\r\n", id);
 
@@ -863,7 +864,8 @@ static int manager_dbget(struct mansession *s, const struct message *m)
 	if (res) {
 		astman_send_error(s, m, "Database entry not found");
 	} else {
-		astman_send_ack(s, m, "Result will follow");
+		astman_send_listack(s, m, "Result will follow", "start");
+
 		astman_append(s, "Event: DBGetResponse\r\n"
 				"Family: %s\r\n"
 				"Key: %s\r\n"
@@ -871,10 +873,9 @@ static int manager_dbget(struct mansession *s, const struct message *m)
 				"%s"
 				"\r\n",
 				family, key, tmp, idText);
-		astman_append(s, "Event: DBGetComplete\r\n"
-				"%s"
-				"\r\n",
-				idText);
+
+		astman_send_list_complete_start(s, m, "DBGetComplete", 1);
+		astman_send_list_complete_end(s);
 	}
 	return 0;
 }

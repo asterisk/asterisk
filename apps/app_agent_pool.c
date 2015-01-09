@@ -2525,13 +2525,14 @@ static int action_agents(struct mansession *s, const struct message *m)
 	struct ao2_iterator iter;
 	struct agent_pvt *agent;
 	struct ast_str *out = ast_str_alloca(4096);
+	int num_agents = 0;
 
 	if (!ast_strlen_zero(id)) {
 		snprintf(id_text, sizeof(id_text), "ActionID: %s\r\n", id);
 	} else {
 		id_text[0] = '\0';
 	}
-	astman_send_ack(s, m, "Agents will follow");
+	astman_send_listack(s, m, "Agents will follow", "start");
 
 	iter = ao2_iterator_init(agents, 0);
 	for (; (agent = ao2_iterator_next(&iter)); ao2_ref(agent, -1)) {
@@ -2586,12 +2587,12 @@ static int action_agents(struct mansession *s, const struct message *m)
 		astman_append(s, "Event: Agents\r\n"
 			"%s%s\r\n",
 			ast_str_buffer(out), id_text);
+		++num_agents;
 	}
 	ao2_iterator_destroy(&iter);
 
-	astman_append(s, "Event: AgentsComplete\r\n"
-		"%s"
-		"\r\n", id_text);
+	astman_send_list_complete_start(s, m, "AgentsComplete", num_agents);
+	astman_send_list_complete_end(s);
 	return 0;
 }
 

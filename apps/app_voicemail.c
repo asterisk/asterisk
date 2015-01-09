@@ -13049,10 +13049,13 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 {
 	struct ast_vm_user *vmu = NULL;
 	const char *id = astman_get_header(m, "ActionID");
-	char actionid[128] = "";
+	char actionid[128];
+	int num_users = 0;
 
-	if (!ast_strlen_zero(id))
+	actionid[0] = '\0';
+	if (!ast_strlen_zero(id)) {
 		snprintf(actionid, sizeof(actionid), "ActionID: %s\r\n", id);
+	}
 
 	AST_LIST_LOCK(&users);
 
@@ -13062,20 +13065,20 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 		return RESULT_SUCCESS;
 	}
 	
-	astman_send_ack(s, m, "Voicemail user list will follow");
+	astman_send_listack(s, m, "Voicemail user list will follow", "start");
 	
 	AST_LIST_TRAVERSE(&users, vmu, list) {
 		char dirname[256];
-
 #ifdef IMAP_STORAGE
 		int new, old;
+
 		inboxcount(vmu->mailbox, &new, &old);
 #endif
 		
 		make_dir(dirname, sizeof(dirname), vmu->context, vmu->mailbox, "INBOX");
 		astman_append(s,
-			"%s"
 			"Event: VoicemailUserEntry\r\n"
+			"%s"
 			"VMContext: %s\r\n"
 			"VoiceMailbox: %s\r\n"
 			"Fullname: %s\r\n"
@@ -13144,8 +13147,11 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 			count_messages(vmu, dirname)
 #endif
 			);
+		++num_users;
 	}		
-	astman_append(s, "Event: VoicemailUserEntryComplete\r\n%s\r\n", actionid);
+
+	astman_send_list_complete_start(s, m, "VoicemailUserEntryComplete", num_users);
+	astman_send_list_complete_end(s);
 
 	AST_LIST_UNLOCK(&users);
 
