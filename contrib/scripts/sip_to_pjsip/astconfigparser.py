@@ -1,4 +1,5 @@
 import re
+import itertools
 
 from astdicts import OrderedDict
 from astdicts import MultiOrderedDict
@@ -331,7 +332,9 @@ class MultiOrderedConfigParser:
         res = sections[key] if key in sections else []
         searched.append(self)
         if self._includes:
-            res += self._includes.get_sections(key, attr, searched)
+            res.extend(list(itertools.chain(*[
+                incl.get_sections(key, attr, searched)
+                for incl in self._includes.itervalues()])))
         if self._parent:
             res += self._parent.get_sections(key, attr, searched)
         return res
@@ -415,15 +418,15 @@ class MultiOrderedConfigParser:
         else:
             self.defaults(section)[0][key] = val
 
-    def read(self, filename):
+    def read(self, filename, sect=None):
         """Parse configuration information from a file"""
         try:
             with open(filename, 'rt') as config_file:
-                self._read(config_file)
+                self._read(config_file, sect)
         except IOError:
             print "Could not open file ", filename, " for reading"
 
-    def _read(self, config_file):
+    def _read(self, config_file, sect):
         """Parse configuration information from the config_file"""
         is_comment = False  # used for multi-lined comments
         for line in config_file:
@@ -435,7 +438,7 @@ class MultiOrderedConfigParser:
             include_name = try_include(line)
             if include_name:
                 parser = self.add_include(include_name)
-                parser.read(include_name)
+                parser.read(include_name, sect)
                 continue
 
             section, is_template, templates = try_section(line)
@@ -447,6 +450,8 @@ class MultiOrderedConfigParser:
                 continue
 
             key, val = try_option(line)
+            if sect is None:
+                raise Exception("Section not defined before assignment")
             sect[key] = val
 
     def write(self, config_file):
