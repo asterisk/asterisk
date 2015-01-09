@@ -26,3 +26,7 @@ statusevents=yes
 ; Enable/disable T.30 ECM (error correction mode) by default.
 ; Default: Enabled
 ;ecm=yes
+
+; T.38 Negotiation Timeout in milliseconds
+; Default: 5000
+t38timeout=5000

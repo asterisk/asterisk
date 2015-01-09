@@ -39,6 +39,13 @@ res_pjsip_config_wizard
    can be found in the sample configuration file at
    config/samples/pjsip_wizard.conf.sample.
 
+res_fax
+-----------
+ * The T.38 negotiation timeout was previously hard coded at 5000 milliseconds
+   and is now configurable via the 't38timeout' configuration option in
+   res_fax.conf and via the fax options dialplan function 'FAXOPT(t38timeout)'.
+   The default remains at 5000 milliseconds.
+
 ARI
 ------------------
  * The Originate operation now takes in an originator channel. The linked ID of
