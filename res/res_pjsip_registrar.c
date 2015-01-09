@@ -766,17 +766,14 @@ static int ami_show_registrations(struct mansession *s, const struct message *m)
 {
 	int count = 0;
 	struct ast_sip_ami ami = { .s = s, .m = m, .arg = &count, .action_id = astman_get_header(m, "ActionID"), };
+
 	astman_send_listack(s, m, "Following are Events for each Inbound "
 			    "registration", "start");
 
 	ami_registrations_endpoints(&ami);
 
-	astman_append(s, "Event: InboundRegistrationDetailComplete\r\n");
-	if (!ast_strlen_zero(ami.action_id)) {
-		astman_append(s, "ActionID: %s\r\n", ami.action_id);
-	}
-	astman_append(s, "EventList: Complete\r\n"
-		      "ListItems: %d\r\n\r\n", count);
+	astman_send_list_complete_start(s, m, "InboundRegistrationDetailComplete", count);
+	astman_send_list_complete_end(s);
 	return 0;
 }
 

@@ -9462,19 +9462,21 @@ static int manager_queues_summary(struct mansession *s, const struct message *m)
 	int qmemavail = 0;
 	int qchancount = 0;
 	int qlongestholdtime = 0;
+	int qsummaries = 0;
 	const char *id = astman_get_header(m, "ActionID");
 	const char *queuefilter = astman_get_header(m, "Queue");
-	char idText[256] = "";
+	char idText[256];
 	struct call_queue *q;
 	struct queue_ent *qe;
 	struct member *mem;
 	struct ao2_iterator queue_iter;
 	struct ao2_iterator mem_iter;
 
-	astman_send_ack(s, m, "Queue summary will follow");
+	astman_send_listack(s, m, "Queue summary will follow", "start");
 	time(&now);
+	idText[0] = '\0';
 	if (!ast_strlen_zero(id)) {
-		snprintf(idText, 256, "ActionID: %s\r\n", id);
+		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 	}
 	queue_iter = ao2_iterator_init(queues, 0);
 	while ((q = ao2_t_iterator_next(&queue_iter, "Iterate through queues"))) {
@@ -9517,15 +9519,15 @@ static int manager_queues_summary(struct mansession *s, const struct message *m)
 				"%s"
 				"\r\n",
 				q->name, qmemcount, qmemavail, qchancount, q->holdtime, q->talktime, qlongestholdtime, idText);
+			++qsummaries;
 		}
 		ao2_unlock(q);
 		queue_t_unref(q, "Done with iterator");
 	}
 	ao2_iterator_destroy(&queue_iter);
-	astman_append(s,
-		"Event: QueueSummaryComplete\r\n"
-		"%s"
-		"\r\n", idText);
+
+	astman_send_list_complete_start(s, m, "QueueSummaryComplete", qsummaries);
+	astman_send_list_complete_end(s);
 
 	return RESULT_SUCCESS;
 }
@@ -9535,10 +9537,11 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 {
 	time_t now;
 	int pos;
+	int q_items = 0;
 	const char *id = astman_get_header(m,"ActionID");
 	const char *queuefilter = astman_get_header(m,"Queue");
 	const char *memberfilter = astman_get_header(m,"Member");
-	char idText[256] = "";
+	char idText[256];
 	struct call_queue *q;
 	struct queue_ent *qe;
 	float sl = 0;
@@ -9546,8 +9549,9 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 	struct ao2_iterator queue_iter;
 	struct ao2_iterator mem_iter;
 
-	astman_send_ack(s, m, "Queue status will follow");
+	astman_send_listack(s, m, "Queue status will follow", "start");
 	time(&now);
+	idText[0] = '\0';
 	if (!ast_strlen_zero(id)) {
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 	}
@@ -9575,6 +9579,8 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 				"\r\n",
 				q->name, q->maxlen, int2strat(q->strategy), q->count, q->holdtime, q->talktime, q->callscompleted,
 				q->callsabandoned, q->servicelevel, sl, q->weight, idText);
+			++q_items;
+
 			/* List Queue Members */
 			mem_iter = ao2_iterator_init(q->members, 0);
 			while ((mem = ao2_iterator_next(&mem_iter))) {
@@ -9594,10 +9600,12 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 						"\r\n",
 						q->name, mem->membername, mem->interface, mem->state_interface, mem->dynamic ? "dynamic" : "static",
 						mem->penalty, mem->calls, (int)mem->lastcall, mem->status, mem->paused, idText);
+					++q_items;
 				}
 				ao2_ref(mem, -1);
 			}
 			ao2_iterator_destroy(&mem_iter);
+
 			/* List Queue Entries */
 			pos = 1;
 			for (qe = q->head; qe; qe = qe->next) {
@@ -9619,6 +9627,7 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 					S_COR(ast_channel_connected(qe->chan)->id.number.valid, ast_channel_connected(qe->chan)->id.number.str, "unknown"),
 					S_COR(ast_channel_connected(qe->chan)->id.name.valid, ast_channel_connected(qe->chan)->id.name.str, "unknown"),
 					(long) (now - qe->start), idText);
+				++q_items;
 			}
 		}
 		ao2_unlock(q);
@@ -9626,10 +9635,8 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 	}
 	ao2_iterator_destroy(&queue_iter);
 
-	astman_append(s,
-		"Event: QueueStatusComplete\r\n"
-		"%s"
-		"\r\n",idText);
+	astman_send_list_complete_start(s, m, "QueueStatusComplete", q_items);
+	astman_send_list_complete_end(s);
 
 	return RESULT_SUCCESS;
 }

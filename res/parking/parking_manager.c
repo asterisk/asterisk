@@ -210,11 +210,16 @@ static struct ast_str *manager_build_parked_call_string(const struct ast_parked_
 
 	parkee_string = ast_manager_build_channel_state_string_prefix(payload->parkee, "Parkee");
 	if (!parkee_string) {
+		ast_free(out);
 		return NULL;
 	}
 
 	if (payload->retriever) {
 		retriever_string = ast_manager_build_channel_state_string_prefix(payload->retriever, "Retriever");
+		if (!retriever_string) {
+			ast_free(out);
+			return NULL;
+		}
 	}
 
 	ast_str_set(&out, 0,
@@ -250,7 +255,7 @@ static void manager_parking_status_single_lot(struct mansession *s, const struct
 		return;
 	}
 
-	astman_send_ack(s, m, "Parked calls will follow");
+	astman_send_listack(s, m, "Parked calls will follow", "start");
 
 	iter_users = ao2_iterator_init(curlot->parked_users, 0);
 	while ((curuser = ao2_iterator_next(&iter_users))) {
@@ -260,17 +265,13 @@ static void manager_parking_status_single_lot(struct mansession *s, const struct
 		payload = parked_call_payload_from_parked_user(curuser, PARKED_CALL);
 		if (!payload) {
 			ao2_ref(curuser, -1);
-			ao2_iterator_destroy(&iter_users);
-			astman_send_error(s, m, "Failed to retrieve parking data about a parked user.");
-			return;
+			break;
 		}
 
 		parked_call_string = manager_build_parked_call_string(payload);
 		if (!parked_call_string) {
 			ao2_ref(curuser, -1);
-			ao2_iterator_destroy(&iter_users);
-			astman_send_error(s, m, "Failed to retrieve parking data about a parked user.");
-			return;
+			break;
 		}
 
 		total++;
@@ -286,12 +287,9 @@ static void manager_parking_status_single_lot(struct mansession *s, const struct
 	}
 	ao2_iterator_destroy(&iter_users);
 
-	astman_append(s,
-		"Event: ParkedCallsComplete\r\n"
-		"Total: %d\r\n"
-		"%s"
-		"\r\n",
-		total, id_text);
+	astman_send_list_complete_start(s, m, "ParkedCallsComplete", total);
+	astman_append(s, "Total: %d\r\n", total);
+	astman_send_list_complete_end(s);
 }
 
 static void manager_parking_status_all_lots(struct mansession *s, const struct message *m, const char *id_text)
@@ -310,7 +308,7 @@ static void manager_parking_status_all_lots(struct mansession *s, const struct m
 		return;
 	}
 
-	astman_send_ack(s, m, "Parked calls will follow");
+	astman_send_listack(s, m, "Parked calls will follow", "start");
 
 	iter_lots = ao2_iterator_init(lot_container, 0);
 	while ((curlot = ao2_iterator_next(&iter_lots))) {
@@ -324,8 +322,7 @@ static void manager_parking_status_all_lots(struct mansession *s, const struct m
 				ao2_ref(curuser, -1);
 				ao2_iterator_destroy(&iter_users);
 				ao2_ref(curlot, -1);
-				ao2_iterator_destroy(&iter_lots);
-				return;
+				goto abort_list;
 			}
 
 			parked_call_string = manager_build_parked_call_string(payload);
@@ -333,8 +330,7 @@ static void manager_parking_status_all_lots(struct mansession *s, const struct m
 				ao2_ref(curuser, -1);
 				ao2_iterator_destroy(&iter_users);
 				ao2_ref(curlot, -1);
-				ao2_iterator_destroy(&iter_lots);
-				return;
+				goto abort_list;
 			}
 
 			total++;
@@ -351,22 +347,21 @@ static void manager_parking_status_all_lots(struct mansession *s, const struct m
 		ao2_iterator_destroy(&iter_users);
 		ao2_ref(curlot, -1);
 	}
+abort_list:
 	ao2_iterator_destroy(&iter_lots);
 
-	astman_append(s,
-		"Event: ParkedCallsComplete\r\n"
-		"Total: %d\r\n"
-		"%s"
-		"\r\n",
-		total, id_text);
+	astman_send_list_complete_start(s, m, "ParkedCallsComplete", total);
+	astman_append(s, "Total: %d\r\n", total);
+	astman_send_list_complete_end(s);
 }
 
 static int manager_parking_status(struct mansession *s, const struct message *m)
 {
 	const char *id = astman_get_header(m, "ActionID");
 	const char *lot_name = astman_get_header(m, "ParkingLot");
-	char id_text[256] = "";
+	char id_text[256];
 
+	id_text[0] = '\0';
 	if (!ast_strlen_zero(id)) {
 		snprintf(id_text, sizeof(id_text), "ActionID: %s\r\n", id);
 	}
@@ -380,24 +375,30 @@ static int manager_parking_status(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+struct park_list_data {
+	const char *id_text;
+	int count;
+};
+
 static int manager_append_event_parking_lot_data_cb(void *obj, void *arg, void *data, int flags)
 {
 	struct parking_lot *curlot = obj;
 	struct mansession *s = arg;
-	char *id_text = data;
+	struct park_list_data *list_data = data;
 
 	astman_append(s, "Event: Parkinglot\r\n"
+		"%s" /* The Action ID */
 		"Name: %s\r\n"
 		"StartSpace: %d\r\n"
 		"StopSpace: %d\r\n"
 		"Timeout: %u\r\n"
-		"%s" /* The Action ID */
 		"\r\n",
+		list_data->id_text,
 		curlot->name,
 		curlot->cfg->parking_start,
 		curlot->cfg->parking_stop,
-		curlot->cfg->parkingtime,
-		id_text);
+		curlot->cfg->parkingtime);
+	++list_data->count;
 
 	return 0;
 }
@@ -405,9 +406,11 @@ static int manager_append_event_parking_lot_data_cb(void *obj, void *arg, void *
 static int manager_parking_lot_list(struct mansession *s, const struct message *m)
 {
 	const char *id = astman_get_header(m, "ActionID");
-	char id_text[256] = "";
 	struct ao2_container *lot_container;
+	char id_text[256];
+	struct park_list_data list_data;
 
+	id_text[0] = '\0';
 	if (!ast_strlen_zero(id)) {
 		snprintf(id_text, sizeof(id_text), "ActionID: %s\r\n", id);
 	}
@@ -419,14 +422,15 @@ static int manager_parking_lot_list(struct mansession *s, const struct message *
 		return 0;
 	}
 
-	astman_send_ack(s, m, "Parking lots will follow");
+	astman_send_listack(s, m, "Parking lots will follow", "start");
 
-	ao2_callback_data(lot_container, OBJ_MULTIPLE | OBJ_NODATA, manager_append_event_parking_lot_data_cb, s, id_text);
+	list_data.id_text = id_text;
+	list_data.count = 0;
+	ao2_callback_data(lot_container, OBJ_MULTIPLE | OBJ_NODATA,
+		manager_append_event_parking_lot_data_cb, s, &list_data);
 
-	astman_append(s,
-		"Event: ParkinglotsComplete\r\n"
-		"%s"
-		"\r\n",id_text);
+	astman_send_list_complete_start(s, m, "ParkinglotsComplete", list_data.count);
+	astman_send_list_complete_end(s);
 
 	return 0;
 }

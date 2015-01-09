@@ -2921,7 +2921,26 @@ static void astman_start_ack(struct mansession *s, const struct message *m)
 
 void astman_send_listack(struct mansession *s, const struct message *m, char *msg, char *listflag)
 {
-	astman_send_response_full(s, m, "Success", msg, listflag);
+	astman_send_response_full(s, m, "Success", msg, "Start");
+}
+
+void astman_send_list_complete_start(struct mansession *s, const struct message *m, const char *event_name, int count)
+{
+	const char *id = astman_get_header(m, "ActionID");
+
+	astman_append(s, "Event: %s\r\n", event_name);
+	if (!ast_strlen_zero(id)) {
+		astman_append(s, "ActionID: %s\r\n", id);
+	}
+	astman_append(s,
+		"EventList: Complete\r\n"
+		"ListItems: %d\r\n",
+		count);
+}
+
+void astman_send_list_complete_end(struct mansession *s)
+{
+	astman_append(s, "\r\n");
 }
 
 /*! \brief Lock the 'mansession' structure. */
@@ -3347,7 +3366,7 @@ static int action_getconfig(struct mansession *s, const struct message *m)
 	}
 
 	if (!ast_strlen_zero(category) && catcount == 0) { /* TODO: actually, a config with no categories doesn't even get loaded */
-		astman_append(s, "No categories found\r\n");
+		astman_append(s, "Error: No categories found\r\n");
 	}
 
 	ast_config_destroy(cfg);
@@ -3385,7 +3404,7 @@ static int action_listcategories(struct mansession *s, const struct message *m)
 	}
 
 	if (catcount == 0) { /* TODO: actually, a config with no categories doesn't even get loaded */
-		astman_append(s, "Error: no categories found\r\n");
+		astman_append(s, "Error: No categories found\r\n");
 	}
 
 	ast_config_destroy(cfg);
@@ -4214,12 +4233,8 @@ static int action_hangup(struct mansession *s, const struct message *m)
 	regfree(&regexbuf);
 	ast_free(regex_string);
 
-	astman_append(s,
-		"Event: ChannelsHungupListComplete\r\n"
-		"EventList: Complete\r\n"
-		"ListItems: %d\r\n"
-		"%s"
-		"\r\n", channels_matched, idText);
+	astman_send_list_complete_start(s, m, "ChannelsHungupListComplete", channels_matched);
+	astman_send_list_complete_end(s);
 
 	return 0;
 }
@@ -4309,7 +4324,7 @@ static int action_getvar(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static void generate_status(struct mansession *s, struct ast_channel *chan, char **vars, int varc, int all_variables, char *id_text)
+static void generate_status(struct mansession *s, struct ast_channel *chan, char **vars, int varc, int all_variables, char *id_text, int *count)
 {
 	struct timeval now;
 	long elapsed_seconds;
@@ -4339,7 +4354,6 @@ static void generate_status(struct mansession *s, struct ast_channel *chan, char
 	} else {
 		variable_str = ast_str_create(1024);
 	}
-
 	if (!variable_str) {
 		return;
 	}
@@ -4421,6 +4435,7 @@ static void generate_status(struct mansession *s, struct ast_channel *chan, char
 		(long)elapsed_seconds,
 		ast_str_buffer(variable_str),
 		id_text);
+	++*count;
 
 	ao2_cleanup(bridge);
 }
@@ -4466,7 +4481,7 @@ static int action_status(struct mansession *s, const struct message *m)
 		}
 	}
 
-	astman_send_ack(s, m, "Channel status will follow");
+	astman_send_listack(s, m, "Channel status will follow", "start");
 
 	if (!ast_strlen_zero(id)) {
 		snprintf(id_text, sizeof(id_text), "ActionID: %s\r\n", id);
@@ -4482,8 +4497,7 @@ static int action_status(struct mansession *s, const struct message *m)
 	for (; chan; all ? chan = ast_channel_iterator_next(it_chans) : 0) {
 		ast_channel_lock(chan);
 
-		generate_status(s, chan, vars.name, vars.argc, all_variables, id_text);
-		channels++;
+		generate_status(s, chan, vars.name, vars.argc, all_variables, id_text, &channels);
 
 		ast_channel_unlock(chan);
 		chan = ast_channel_unref(chan);
@@ -4493,11 +4507,9 @@ static int action_status(struct mansession *s, const struct message *m)
 		ast_channel_iterator_destroy(it_chans);
 	}
 
-	astman_append(s,
-		"Event: StatusComplete\r\n"
-		"%s"
-		"Items: %d\r\n"
-		"\r\n", id_text, channels);
+	astman_send_list_complete_start(s, m, "StatusComplete", channels);
+	astman_append(s, "Items: %d\r\n", channels);
+	astman_send_list_complete_end(s);
 
 	return 0;
 }
@@ -5940,12 +5952,8 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 	}
 	ao2_iterator_destroy(&it_chans);
 
-	astman_append(s,
-		"Event: CoreShowChannelsComplete\r\n"
-		"EventList: Complete\r\n"
-		"ListItems: %d\r\n"
-		"%s"
-		"\r\n", numchans, idText);
+	astman_send_list_complete_start(s, m, "CoreShowChannelsComplete", numchans);
+	astman_send_list_complete_end(s);
 
 	return 0;
 }

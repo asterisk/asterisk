@@ -19257,12 +19257,8 @@ static int manager_show_registry(struct mansession *s, const struct message *m)
 	}
 	ao2_iterator_destroy(&iter);
 
-	astman_append(s,
-		"Event: RegistrationsComplete\r\n"
-		"EventList: Complete\r\n"
-		"ListItems: %d\r\n"
-		"%s"
-		"\r\n", total, idtext);
+	astman_send_list_complete_start(s, m, "RegistrationsComplete", total);
+	astman_send_list_complete_end(s);
 
 	return 0;
 }
@@ -19280,15 +19276,13 @@ static int manager_sip_show_peers(struct mansession *s, const struct message *m)
 		snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
 
 	astman_send_listack(s, m, "Peer status list will follow", "start");
+
 	/* List the peers in separate manager events */
 	_sip_show_peers(-1, &total, s, m, 3, a);
+
 	/* Send final confirmation */
-	astman_append(s,
-	"Event: PeerlistComplete\r\n"
-	"EventList: Complete\r\n"
-	"ListItems: %d\r\n"
-	"%s"
-	"\r\n", total, idtext);
+	astman_send_list_complete_start(s, m, "PeerlistComplete", total);
+	astman_send_list_complete_end(s);
 	return 0;
 }
 
@@ -20051,9 +20045,11 @@ static int manager_sip_peer_status(struct mansession *s, const struct message *m
 {
 	const char *id = astman_get_header(m,"ActionID");
 	const char *peer_name = astman_get_header(m,"Peer");
-	char idText[256] = "";
+	char idText[256];
 	struct sip_peer *peer = NULL;
+	int num_peers = 0;
 
+	idText[0] = '\0';
 	if (!ast_strlen_zero(id)) {
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 	}
@@ -20071,15 +20067,17 @@ static int manager_sip_peer_status(struct mansession *s, const struct message *m
 		}
 	}
 
-	astman_send_ack(s, m, "Peer status will follow");
+	astman_send_listack(s, m, "Peer status will follow", "start");
 
 	if (!peer) {
 		struct ao2_iterator i = ao2_iterator_init(peers, 0);
+
 		while ((peer = ao2_t_iterator_next(&i, "iterate thru peers table for SIPpeerstatus"))) {
 			ao2_lock(peer);
 			send_manager_peer_status(s, peer, idText);
 			ao2_unlock(peer);
 			sip_unref_peer(peer, "unref peer for SIPpeerstatus");
+			++num_peers;
 		}
 		ao2_iterator_destroy(&i);
 	} else {
@@ -20087,14 +20085,11 @@ static int manager_sip_peer_status(struct mansession *s, const struct message *m
 		send_manager_peer_status(s, peer, idText);
 		ao2_unlock(peer);
 		sip_unref_peer(peer, "unref peer for SIPpeerstatus");
+		++num_peers;
 	}
 
-
-	astman_append(s,
-	"Event: SIPpeerstatusComplete\r\n"
-	"%s"
-	"\r\n",
-	idText);
+	astman_send_list_complete_start(s, m, "SIPpeerstatusComplete", num_peers);
+	astman_send_list_complete_end(s);
 
 	return 0;
 }

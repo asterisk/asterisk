@@ -1172,12 +1172,8 @@ static int ami_show_endpoint(struct mansession *s, const struct message *m)
 			endpoint_name);
 	}
 
-	astman_append(s, "Event: EndpointDetailComplete\r\n");
-	if (!ast_strlen_zero(ami.action_id)) {
-		astman_append(s, "ActionID: %s\r\n", ami.action_id);
-	}
-	astman_append(s, "EventList: Complete\r\n"
-		      "ListItems: %d\r\n\r\n", ami.count + 1);
+	astman_send_list_complete_start(s, m, "EndpointDetailComplete", ami.count + 1);
+	astman_send_list_complete_end(s);
 
 	return 0;
 }
@@ -1255,12 +1251,8 @@ static int ami_show_endpoints(struct mansession *s, const struct message *m)
 
 	ao2_callback(endpoints, OBJ_NODATA, format_ami_endpoints, &ami);
 
-	astman_append(s, "Event: EndpointListComplete\r\n");
-	if (!ast_strlen_zero(ami.action_id)) {
-		astman_append(s, "ActionID: %s\r\n", ami.action_id);
-	}
-	astman_append(s, "EventList: Complete\r\n"
-		      "ListItems: %d\r\n\r\n", num);
+	astman_send_list_complete_start(s, m, "EndpointListComplete", num);
+	astman_send_list_complete_end(s);
 	return 0;
 }
 

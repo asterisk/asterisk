@@ -5198,6 +5198,7 @@ static int manager_bridge_tech_list(struct mansession *s, const struct message *
 	const char *id = astman_get_header(m, "ActionID");
 	RAII_VAR(struct ast_str *, id_text, ast_str_create(128), ast_free);
 	struct ast_bridge_technology *cur;
+	int num_items = 0;
 
 	if (!id_text) {
 		astman_send_error(s, m, "Internal error");
@@ -5208,7 +5209,7 @@ static int manager_bridge_tech_list(struct mansession *s, const struct message *
 		ast_str_set(&id_text, 0, "ActionID: %s\r\n", id);
 	}
 
-	astman_send_ack(s, m, "Bridge technology listing will follow");
+	astman_send_listack(s, m, "Bridge technology listing will follow", "start");
 
 	AST_RWLIST_RDLOCK(&bridge_technologies);
 	AST_RWLIST_TRAVERSE(&bridge_technologies, cur, entry) {
@@ -5226,14 +5227,12 @@ static int manager_bridge_tech_list(struct mansession *s, const struct message *
 			"\r\n",
 			cur->name, type, cur->preference, AST_YESNO(cur->suspended),
 			ast_str_buffer(id_text));
+		++num_items;
 	}
 	AST_RWLIST_UNLOCK(&bridge_technologies);
 
-	astman_append(s,
-		"Event: BridgeTechnologyListComplete\r\n"
-		"%s"
-		"\r\n",
-		ast_str_buffer(id_text));
+	astman_send_list_complete_start(s, m, "BridgeTechnologyListComplete", num_items);
+	astman_send_list_complete_end(s);
 
 	return 0;
 }

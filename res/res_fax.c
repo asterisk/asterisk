@@ -4190,16 +4190,17 @@ static int manager_fax_sessions_entry(struct mansession *s,
 static int manager_fax_sessions(struct mansession *s, const struct message *m)
 {
 	const char *action_id = astman_get_header(m, "ActionID");
-	char id_text[256] = "";
+	char id_text[256];
 	struct ast_fax_session *session;
 	struct ao2_iterator iter;
 	int session_count = 0;
 
-	astman_send_listack(s, m, "FAXSessionsEntry event list will follow", "Start");
-
+	id_text[0] = '\0';
 	if (!ast_strlen_zero(action_id)) {
 		snprintf(id_text, sizeof(id_text), "ActionID: %s\r\n", action_id);
 	}
+
+	astman_send_listack(s, m, "FAXSessionsEntry event list will follow", "Start");
 
 	iter = ao2_iterator_init(faxregistry.container, 0);
 	while ((session = ao2_iterator_next(&iter))) {
@@ -4210,13 +4211,9 @@ static int manager_fax_sessions(struct mansession *s, const struct message *m)
 	}
 	ao2_iterator_destroy(&iter);
 
-	astman_append(s, "Event: FAXSessionsComplete\r\n"
-		"%s"
-		"EventList: Complete\r\n"
-		"Total: %d\r\n"
-		"\r\n",
-		id_text,
-		session_count);
+	astman_send_list_complete_start(s, m, "FAXSessionsComplete", session_count);
+	astman_append(s, "Total: %d\r\n", session_count);
+	astman_send_list_complete_end(s);
 
 	return 0;
 }

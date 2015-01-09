@@ -1367,10 +1367,10 @@ struct sip_ami_outbound {
 static int ami_outbound_registration_task(void *obj)
 {
 	struct sip_ami_outbound *ami = obj;
-	RAII_VAR(struct ast_str *, buf,
-		 ast_sip_create_ami_event("OutboundRegistrationDetail", ami->ami), ast_free);
+	RAII_VAR(struct ast_str *, buf, NULL, ast_free);
 	struct sip_outbound_registration_state *state;
 
+	buf = ast_sip_create_ami_event("OutboundRegistrationDetail", ami->ami);
 	if (!buf) {
 		return -1;
 	}
@@ -1379,18 +1379,18 @@ static int ami_outbound_registration_task(void *obj)
 
 	if ((state = get_state(ast_sorcery_object_get_id(ami->registration)))) {
 		pjsip_regc_info info;
+
 		if (state->client_state->status == SIP_REGISTRATION_REGISTERED) {
 			++ami->registered;
 		} else {
 			++ami->not_registered;
 		}
 
-		ast_str_append(&buf, 0, "Status: %s%s",
-			       sip_outbound_registration_status_str[
-				       state->client_state->status], "\r\n");
+		ast_str_append(&buf, 0, "Status: %s\r\n",
+			sip_outbound_registration_status_str[state->client_state->status]);
 
 		pjsip_regc_get_info(state->client_state->client, &info);
-		ast_str_append(&buf, 0, "NextReg: %d%s", info.next_reg, "\r\n");
+		ast_str_append(&buf, 0, "NextReg: %d\r\n", info.next_reg);
 		ao2_ref(state, -1);
 	}
 
@@ -1420,20 +1420,19 @@ static int ami_show_outbound_registrations(struct mansession *s,
 		return -1;
 	}
 
-	astman_send_listack(s, m, "Following are Events for each Outbound "
-			    "registration", "start");
+	astman_send_listack(s, m, "Following are Events for each Outbound registration",
+		"start");
 
 	ao2_callback(regs, OBJ_NODATA, ami_outbound_registration_detail, &ami_outbound);
 
-	astman_append(s, "Event: OutboundRegistrationDetailComplete\r\n");
-	if (!ast_strlen_zero(ami.action_id)) {
-		astman_append(s, "ActionID: %s\r\n", ami.action_id);
-	}
-	astman_append(s, "EventList: Complete\r\n"
-		      "Registered: %d\r\n"
-		      "NotRegistered: %d\r\n\r\n",
-		      ami_outbound.registered,
-		      ami_outbound.not_registered);
+	astman_send_list_complete_start(s, m, "OutboundRegistrationDetailComplete",
+		ami_outbound.registered + ami_outbound.not_registered);
+	astman_append(s,
+		"Registered: %d\r\n"
+		"NotRegistered: %d\r\n",
+		ami_outbound.registered,
+		ami_outbound.not_registered);
+	astman_send_list_complete_end(s);
 	return 0;
 }
 

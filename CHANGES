@@ -98,7 +98,6 @@ res_musiconhold
 --- Functionality changes from Asterisk 13.1.0 to Asterisk 13.2.0 ------------
 ------------------------------------------------------------------------------
 
-=======
  * New 'PJSIP_AOR' and 'PJSIP_CONTACT' dialplan functions have been added which
    allow examining PJSIP AORs or contacts from the dialplan.
 
@@ -144,6 +143,10 @@ AMI
 ------------------
  * "Language" (the default spoken language for the channel) is now included in
    the standard channel state output for suitable events.
+
+ * AMI actions that return a list of events have been made to return consistent
+   headers for the action response event starting the list and the list complete
+   event.  The AMI version has been bumped to 2.7.0 as a result.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.0.0 to Asterisk 13.1.0 ------------

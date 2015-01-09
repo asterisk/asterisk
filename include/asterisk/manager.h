@@ -54,7 +54,7 @@
 - \ref manager.c Main manager code file
  */
 
-#define AMI_VERSION                     "2.6.0"
+#define AMI_VERSION                     "2.7.0"
 #define DEFAULT_MANAGER_PORT 5038	/* Default port for Asterisk management via TCP */
 #define DEFAULT_MANAGER_TLS_PORT 5039	/* Default port for Asterisk management via TCP */
 
@@ -299,8 +299,57 @@ void astman_send_response(struct mansession *s, const struct message *m, char *r
 /*! \brief Send ack in manager transaction */
 void astman_send_ack(struct mansession *s, const struct message *m, char *msg);
 
-/*! \brief Send ack in manager list transaction */
+/*!
+ * \brief Send ack in manager transaction to begin a list.
+ *
+ * \param s - AMI session control struct.
+ * \param m - AMI action request that started the list.
+ * \param msg - Message contents describing the list to follow.
+ * \param listflag - Not used.  Historically always set to "start".
+ *
+ * \note You need to call astman_send_list_complete_start() and
+ * astman_send_list_complete_end() to send the AMI list completion event.
+ *
+ * \return Nothing
+ */
 void astman_send_listack(struct mansession *s, const struct message *m, char *msg, char *listflag);
+
+/*!
+ * \brief Start the list complete event.
+ * \since 13.2.0
+ *
+ * \param s - AMI session control struct.
+ * \param m - AMI action request that started the list.
+ * \param event_name - AMI list complete event name.
+ * \param count - Number of items in the list.
+ *
+ * \note You need to call astman_send_list_complete_end() to end
+ * the AMI list completion event.
+ *
+ * \note Between calling astman_send_list_complete_start() and
+ * astman_send_list_complete_end() you can add additonal headers
+ * using astman_append().
+ *
+ * \return Nothing
+ */
+void astman_send_list_complete_start(struct mansession *s, const struct message *m, const char *event_name, int count);
+
+/*!
+ * \brief End the list complete event.
+ * \since 13.2.0
+ *
+ * \param s - AMI session control struct.
+ *
+ * \note You need to call astman_send_list_complete_start() to start
+ * the AMI list completion event.
+ *
+ * \note Between calling astman_send_list_complete_start() and
+ * astman_send_list_complete_end() you can add additonal headers
+ * using astman_append().
+ *
+ * \return Nothing
+ */
+void astman_send_list_complete_end(struct mansession *s);
 
 void __attribute__((format(printf, 2, 3))) astman_append(struct mansession *s, const char *fmt, ...);
 

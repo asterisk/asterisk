@@ -2897,12 +2897,8 @@ static int action_confbridgelist(struct mansession *s, const struct message *m)
 	ao2_unlock(conference);
 	ao2_ref(conference, -1);
 
-	astman_append(s,
-	"Event: ConfbridgeListComplete\r\n"
-	"EventList: Complete\r\n"
-	"ListItems: %d\r\n"
-	"%s"
-	"\r\n", total, id_text);
+	astman_send_list_complete_start(s, m, "ConfbridgeListComplete", total);
+	astman_send_list_complete_end(s);
 
 	return 0;
 }
@@ -2952,12 +2948,8 @@ static int action_confbridgelistrooms(struct mansession *s, const struct message
 	ao2_iterator_destroy(&iter);
 
 	/* Send final confirmation */
-	astman_append(s,
-	"Event: ConfbridgeListRoomsComplete\r\n"
-	"EventList: Complete\r\n"
-	"ListItems: %d\r\n"
-	"%s"
-	"\r\n", totalitems, id_text);
+	astman_send_list_complete_start(s, m, "ConfbridgeListRoomsComplete", totalitems);
+	astman_send_list_complete_end(s);
 	return 0;
 }
 
