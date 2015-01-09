@@ -587,7 +587,11 @@ def create_udp(sip, pjsip, nmapped):
     externhost
     """
 
-    bind = sip.multi_get('general', ['udpbindaddr', 'bindaddr'])[0]
+    try:
+        bind = sip.multi_get('general', ['udpbindaddr', 'bindaddr'])[0]
+    except LookupError:
+        bind = ''
+
     bind = build_host(sip, bind, 'general', 'bindport')
 
     try:
@@ -974,11 +978,12 @@ class Registration:
 
         auth_section = 'auth_reg_' + self.host
 
-        if self.secret:
+        if hasattr(self, 'secret') and self.secret:
             set_value('password', self.secret, auth_section, pjsip, nmapped,
                       'auth')
-            set_value('username', self.authuser or self.user, auth_section,
-                      pjsip, nmapped, 'auth')
+            if hasattr(self, 'authuser'):
+                set_value('username', self.authuser or self.user, auth_section,
+                          pjsip, nmapped, 'auth')
             set_value('outbound_auth', auth_section, section, pjsip, nmapped,
                       'registration')
 
@@ -988,7 +993,7 @@ class Registration:
         else:
             client_uri += self.host
 
-        if self.domainport:
+        if hasattr(self, 'domainport') and self.domainport:
             client_uri += ":" + self.domainport
         elif self.port:
             client_uri += ":" + self.port
@@ -1136,8 +1141,9 @@ def cli_options():
     """
     global PREFIX
     usage = "usage: %prog [options] [input-file [output-file]]\n\n" \
-        "input-file defaults to 'sip.conf'\n" \
-        "output-file defaults to 'pjsip.conf'"
+		"Converts the chan_sip configuration input-file to the chan_pjsip output-file.\n"\
+        "The input-file defaults to 'sip.conf'.\n" \
+        "The output-file defaults to 'pjsip.conf'."
     parser = optparse.OptionParser(usage=usage)
     parser.add_option('-p', '--prefix', dest='prefix', default=PREFIX,
                       help='output prefix for include files')
@@ -1154,6 +1160,9 @@ if __name__ == "__main__":
     sip_filename, pjsip_filename = cli_options()
     # configuration parser for sip.conf
     sip = astconfigparser.MultiOrderedConfigParser()
+    print 'Reading', sip_filename
     sip.read(sip_filename)
+    print 'Converting to PJSIP...'
     pjsip, non_mappings = convert(sip, pjsip_filename, dict(), False)
+    print 'Writing', pjsip_filename
     write_pjsip(pjsip_filename, pjsip, non_mappings)
