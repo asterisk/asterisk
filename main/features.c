@@ -1099,7 +1099,7 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 		extension = ast_strdupa(ast_channel_exten(current_dest_chan));
 		priority = ast_channel_priority(current_dest_chan);
 		ast_channel_unlock(current_dest_chan);
-		ast_bridge_set_after_goto(current_dest_chan, context, extension, priority);
+		ast_bridge_set_after_go_on(current_dest_chan, context, extension, priority, NULL);
 	}
 
 	if (ast_bridge_features_init(&chan_features)) {
