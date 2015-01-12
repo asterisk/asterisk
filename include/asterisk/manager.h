@@ -305,7 +305,7 @@ void astman_send_ack(struct mansession *s, const struct message *m, char *msg);
  * \param s - AMI session control struct.
  * \param m - AMI action request that started the list.
  * \param msg - Message contents describing the list to follow.
- * \param listflag - Not used.  Historically always set to "start".
+ * \param listflag - Should always be set to "start".
  *
  * \note You need to call astman_send_list_complete_start() and
  * astman_send_list_complete_end() to send the AMI list completion event.
