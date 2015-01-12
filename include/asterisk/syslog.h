@@ -28,6 +28,8 @@
 extern "C" {
 #endif
 
+#define ASTNUMLOGLEVELS 32
+
 /*!
  * \since 1.8
  * \brief Maps a syslog facility name from a string to a syslog facility
