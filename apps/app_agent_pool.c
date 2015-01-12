@@ -2532,7 +2532,7 @@ static int action_agents(struct mansession *s, const struct message *m)
 	} else {
 		id_text[0] = '\0';
 	}
-	astman_send_listack(s, m, "Agents will follow");
+	astman_send_listack(s, m, "Agents will follow", "start");
 
 	iter = ao2_iterator_init(agents, 0);
 	for (; (agent = ao2_iterator_next(&iter)); ao2_ref(agent, -1)) {

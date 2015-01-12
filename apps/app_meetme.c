@@ -5530,7 +5530,7 @@ static int action_meetmelist(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	astman_send_listack(s, m, "Meetme user list will follow");
+	astman_send_listack(s, m, "Meetme user list will follow", "start");
 
 	/* Find the right conference */
 	AST_LIST_LOCK(&confs);
@@ -5603,7 +5603,7 @@ static int action_meetmelistrooms(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	astman_send_listack(s, m, "Meetme conferences will follow");
+	astman_send_listack(s, m, "Meetme conferences will follow", "start");
 
 	now = time(NULL);
 

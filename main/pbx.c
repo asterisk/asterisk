@@ -8147,7 +8147,7 @@ static char *handle_debug_dialplan(struct ast_cli_entry *e, int cmd, struct ast_
 /*! \brief Send ack once */
 static void manager_dpsendack(struct mansession *s, const struct message *m)
 {
-	astman_send_listack(s, m, "DialPlan list will follow");
+	astman_send_listack(s, m, "DialPlan list will follow", "start");
 }
 
 /*! \brief Show dialplan extensions
@@ -12010,7 +12010,7 @@ static int action_extensionstatelist(struct mansession *s, const struct message 
 		return 0;
 	}
 
-	astman_send_listack(s, m, "Extension Statuses will follow");
+	astman_send_listack(s, m, "Extension Statuses will follow", "start");
 
 	ao2_lock(hints);
 	it_hints = ao2_iterator_init(hints, 0);

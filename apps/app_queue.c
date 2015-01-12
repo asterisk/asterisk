@@ -9472,7 +9472,7 @@ static int manager_queues_summary(struct mansession *s, const struct message *m)
 	struct ao2_iterator queue_iter;
 	struct ao2_iterator mem_iter;
 
-	astman_send_listack(s, m, "Queue summary will follow");
+	astman_send_listack(s, m, "Queue summary will follow", "start");
 	time(&now);
 	idText[0] = '\0';
 	if (!ast_strlen_zero(id)) {
@@ -9549,7 +9549,7 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 	struct ao2_iterator queue_iter;
 	struct ao2_iterator mem_iter;
 
-	astman_send_listack(s, m, "Queue status will follow");
+	astman_send_listack(s, m, "Queue status will follow", "start");
 	time(&now);
 	idText[0] = '\0';
 	if (!ast_strlen_zero(id)) {

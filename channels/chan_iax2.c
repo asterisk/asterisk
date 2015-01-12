@@ -7252,7 +7252,7 @@ static int manager_iax2_show_peers(struct mansession *s, const struct message *m
 	if (!ast_strlen_zero(id))
 		snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
 
-	astman_send_listack(s, m, "Peer status list will follow");
+	astman_send_listack(s, m, "Peer status list will follow", "start");
 
 	/* List the peers in separate manager events */
 	__iax2_show_peers(-1, &total, s, 3, a);
@@ -7288,7 +7288,7 @@ static int manager_iax2_show_peer_list(struct mansession *s, const struct messag
 		snprintf(cont.idtext, sizeof(cont.idtext), "ActionID: %s\r\n", id);
 	}
 
-	astman_send_listack(s, m, "IAX Peer status list will follow");
+	astman_send_listack(s, m, "IAX Peer status list will follow", "start");
 
 	i = ao2_iterator_init(peers, 0);
 	for (; (peer = ao2_iterator_next(&i)); peer_unref(peer)) {
@@ -7378,7 +7378,7 @@ static int manager_iax2_show_registry(struct mansession *s, const struct message
 	if (!ast_strlen_zero(id))
 		snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
 
-	astman_send_listack(s, m, "Registrations will follow");
+	astman_send_listack(s, m, "Registrations will follow", "start");
 
 	AST_LIST_LOCK(&registrations);
 	AST_LIST_TRAVERSE(&registrations, reg, entry) {

@@ -85,7 +85,7 @@ static int action_devicestatelist(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	astman_send_listack(s, m, "Device State Changes will follow");
+	astman_send_listack(s, m, "Device State Changes will follow", "start");
 
 	it_states = ao2_iterator_init(device_states, 0);
 	for (; (msg = ao2_iterator_next(&it_states)); ao2_ref(msg, -1)) {

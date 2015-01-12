@@ -4138,7 +4138,7 @@ static int manager_skinny_show_devices(struct mansession *s, const struct messag
 	const char *a[] = {"skinny", "show", "devices"};
 	int total = 0;
 
-	astman_send_listack(s, m, "Device status list will follow");
+	astman_send_listack(s, m, "Device status list will follow", "start");
 
 	/* List the devices in separate manager events */
 	_skinny_show_devices(-1, &total, s, m, 3, a);
@@ -4380,7 +4380,7 @@ static int manager_skinny_show_lines(struct mansession *s, const struct message 
 	const char *a[] = {"skinny", "show", "lines"};
 	int total = 0;
 
-	astman_send_listack(s, m, "Line status list will follow");
+	astman_send_listack(s, m, "Line status list will follow", "start");
 
 	/* List the lines in separate manager events */
 	_skinny_show_lines(-1, &total, s, m, 3, a);

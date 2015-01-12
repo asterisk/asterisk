@@ -5209,7 +5209,7 @@ static int manager_bridge_tech_list(struct mansession *s, const struct message *
 		ast_str_set(&id_text, 0, "ActionID: %s\r\n", id);
 	}
 
-	astman_send_listack(s, m, "Bridge technology listing will follow");
+	astman_send_listack(s, m, "Bridge technology listing will follow", "start");
 
 	AST_RWLIST_RDLOCK(&bridge_technologies);
 	AST_RWLIST_TRAVERSE(&bridge_technologies, cur, entry) {
