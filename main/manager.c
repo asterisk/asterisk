@@ -2921,7 +2921,7 @@ static void astman_start_ack(struct mansession *s, const struct message *m)
 
 void astman_send_listack(struct mansession *s, const struct message *m, char *msg, char *listflag)
 {
-	astman_send_response_full(s, m, "Success", msg, "Start");
+	astman_send_response_full(s, m, "Success", msg, listflag);
 }
 
 void astman_send_list_complete_start(struct mansession *s, const struct message *m, const char *event_name, int count)
@@ -3366,7 +3366,7 @@ static int action_getconfig(struct mansession *s, const struct message *m)
 	}
 
 	if (!ast_strlen_zero(category) && catcount == 0) { /* TODO: actually, a config with no categories doesn't even get loaded */
-		astman_append(s, "Error: No categories found\r\n");
+		astman_append(s, "No categories found\r\n");
 	}
 
 	ast_config_destroy(cfg);
@@ -3404,7 +3404,7 @@ static int action_listcategories(struct mansession *s, const struct message *m)
 	}
 
 	if (catcount == 0) { /* TODO: actually, a config with no categories doesn't even get loaded */
-		astman_append(s, "Error: No categories found\r\n");
+		astman_append(s, "Error: no categories found\r\n");
 	}
 
 	ast_config_destroy(cfg);
