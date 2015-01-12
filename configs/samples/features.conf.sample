@@ -28,7 +28,10 @@
                                 ; being kicked back to the original call.
 ;transferretrysound = "beep"    ; Sound to play when a transferer fails to dial a valid extension.
 ;transferinvalidsound = "beeperr" ; Sound to play when a transferer fails to dial a valid extension and is out of retries.
-
+;atxferabort = *1               ; cancel the attended transfer
+;atxfercomplete = *2            ; complete the attended transfer, dropping out of the call
+;atxferthreeway = *3            ; complete the attended transfer, but stay in the call. This will turn the call into a multi-party bridge
+;atxferswap = *4                ; swap to the other party. Once an attended transfer has begun, this options may be used multiple times
 
 ; Note that the DTMF features listed below only work when two channels have answered and are bridged together.
 ; They can not be used while the remote party is ringing or in progress. If you require this feature you can use
