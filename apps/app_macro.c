@@ -376,9 +376,10 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 		pbx_builtin_setvar_helper(chan, varname, cur);
 		argc++;
 	}
-	ast_channel_unlock(chan);
 	autoloopflag = ast_test_flag(ast_channel_flags(chan), AST_FLAG_IN_AUTOLOOP);
 	ast_set_flag(ast_channel_flags(chan), AST_FLAG_IN_AUTOLOOP);
+	ast_channel_unlock(chan);
+
 	while (ast_exists_extension(chan, ast_channel_context(chan), ast_channel_exten(chan), ast_channel_priority(chan),
 		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 		struct ast_context *c;
@@ -503,7 +504,10 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 
 		/* don't stop executing extensions when we're in "h" */
 		if (ast_check_hangup(chan) && !inhangup) {
-			ast_debug(1, "Extension %s, macroexten %s, priority %d returned normally even though call was hung up\n", ast_channel_exten(chan), ast_channel_macroexten(chan), ast_channel_priority(chan));
+			ast_debug(1, "Extension %s, macroexten %s, priority %d returned normally even though call was hung up\n",
+				ast_channel_exten(chan),
+				ast_channel_macroexten(chan),
+				ast_channel_priority(chan));
 			goto out;
 		}
 		ast_channel_priority_set(chan, ast_channel_priority(chan) + 1);
@@ -522,24 +526,17 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
   	for (x = 1; x < argc; x++) {
   		/* Restore old arguments and delete ours */
 		snprintf(varname, sizeof(varname), "ARG%d", x);
-  		if (oldargs[x]) {
-			pbx_builtin_setvar_helper(chan, varname, oldargs[x]);
-			ast_free(oldargs[x]);
-		} else {
-			pbx_builtin_setvar_helper(chan, varname, NULL);
-		}
+		pbx_builtin_setvar_helper(chan, varname, oldargs[x]);
+		ast_free(oldargs[x]);
   	}
 
 	/* Restore macro variables */
 	pbx_builtin_setvar_helper(chan, "MACRO_EXTEN", save_macro_exten);
 	pbx_builtin_setvar_helper(chan, "MACRO_CONTEXT", save_macro_context);
 	pbx_builtin_setvar_helper(chan, "MACRO_PRIORITY", save_macro_priority);
-	if (save_macro_exten)
-		ast_free(save_macro_exten);
-	if (save_macro_context)
-		ast_free(save_macro_context);
-	if (save_macro_priority)
-		ast_free(save_macro_priority);
+	ast_free(save_macro_exten);
+	ast_free(save_macro_context);
+	ast_free(save_macro_priority);
 
 	if (setmacrocontext) {
 		ast_channel_macrocontext_set(chan, "");
@@ -547,7 +544,8 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 		ast_channel_macropriority_set(chan, 0);
 	}
 
-	if (!strcasecmp(ast_channel_context(chan), fullmacro)) {
+	if (!strcasecmp(ast_channel_context(chan), fullmacro)
+		&& !(ast_channel_softhangup_internal_flag(chan) & AST_SOFTHANGUP_ASYNCGOTO)) {
 		const char *offsets;
 
   		/* If we're leaving the macro normally, restore original information */
@@ -568,8 +566,7 @@ static int _macro_exec(struct ast_channel *chan, const char *data, int exclusive
 	}
 
 	pbx_builtin_setvar_helper(chan, "MACRO_OFFSET", save_macro_offset);
-	if (save_macro_offset)
-		ast_free(save_macro_offset);
+	ast_free(save_macro_offset);
 
 	/* Unlock the macro */
 	if (exclusive) {
