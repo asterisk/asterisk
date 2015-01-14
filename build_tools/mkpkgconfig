@@ -21,13 +21,12 @@ else
 fi
 
 ## Clean out CFLAGS for the spec file.
-
-LOCAL_CFLAGS=`echo $CFLAGS | ${EXTREGEX} 's/\s*-pipe\s*//g' | ${EXTREGEX} 's/-[Wmp]\S*\s*//g' | \
-  ${EXTREGEX} 's/-I(include|\.\.\/include) //g' | \
+LOCAL_CFLAGS=`echo $CFLAGS | ${EXTREGEX} 's/-pipe\s*//g' | ${EXTREGEX} 's/-[Wmp]\S*\s*//g' | \
+  ${EXTREGEX} 's/\s+-I(include|\.\.\/include)\s+/ /g' | \
   ${EXTREGEX} 's/-DINSTALL_PREFIX=\S* //g' | \
   ${EXTREGEX} 's/-DASTERISK_VERSION=\S* //g' | \
-  ${EXTREGEX} 's/-DAST(ETCDIR|LIBDIR|VARLIBDIR|VARRUNDIR|SPOOLDIR|LOGDIR|CONFPATH|MODDIR|AGIDIR)=\S* //g'`
-
+  ${EXTREGEX} 's/-DAST(ETCDIR|LIBDIR|VARLIBDIR|VARRUNDIR|SPOOLDIR|LOGDIR|CONFPATH|MODDIR|AGIDIR)=\S* //g' | \
+  ${EXTREGEX} 's/^\s|\s$//g'`
 
 cat <<EOF > "$PPATH/asterisk.pc"
 install_prefix=$INSTALL_PREFIX
