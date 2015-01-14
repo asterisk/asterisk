@@ -57,7 +57,15 @@ int ast_res_pjsip_init_contact_transports(void);
  * \retval 0 Success
  * \retval non-zero Failure
  */
-int ast_sip_initialize_outbound_authentication(void);
+int internal_sip_initialize_outbound_authentication(void);
+
+/*!
+ * \brief Destroy outbound authentication support
+ *
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+void internal_sip_destroy_outbound_authentication(void);
 
 /*!
  * \brief Initialize system configuration
@@ -111,5 +119,25 @@ char *ast_sip_global_default_outbound_endpoint(void);
  */
 int ast_sip_initialize_cli(void);
 void ast_sip_destroy_cli(void);
+
+/*!
+ * \internal \brief Used by res_pjsip.so to register a service without adding a self reference
+ */
+int internal_sip_register_service(pjsip_module *module);
+
+/*!
+ * \internal \brief Used by res_pjsip.so to unregister a service without removing a self reference
+ */
+int internal_sip_unregister_service(pjsip_module *module);
+
+/*!
+ * \internal \brief Used by res_pjsip.so to register an endpoint formatter without adding a self reference
+ */
+void internal_sip_register_endpoint_formatter(struct ast_sip_endpoint_formatter *obj);
+
+/*!
+ * \internal \brief Used by res_pjsip.so to unregister a endpoint formatter without removing a self reference
+ */
+int internal_sip_unregister_endpoint_formatter(struct ast_sip_endpoint_formatter *obj);
 
 #endif /* RES_PJSIP_PRIVATE_H_ */

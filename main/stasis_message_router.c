@@ -255,7 +255,7 @@ void stasis_message_router_unsubscribe(struct stasis_message_router *router)
 		return;
 	}
 
-	stasis_unsubscribe(router->subscription);
+	router->subscription = stasis_unsubscribe(router->subscription);
 }
 
 void stasis_message_router_unsubscribe_and_join(
