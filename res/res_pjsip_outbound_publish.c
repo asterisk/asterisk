@@ -662,25 +662,40 @@ static void sip_outbound_publish_client_destroy(void *obj)
 	}
 }
 
+static int explicit_publish_destroy(void *data)
+{
+	struct ast_sip_outbound_publish_client *client = data;
+
+	pjsip_publishc_destroy(client->client);
+	ao2_ref(client, -1);
+
+	return 0;
+}
+
 /*! \brief Helper function which cancels and un-publishes a no longer used client */
 static int cancel_and_unpublish(struct ast_sip_outbound_publish_client *client)
 {
+	struct ast_sip_event_publisher_handler *handler;
 	SCOPED_AO2LOCK(lock, client);
 
-	/* If this publish client is currently publishing stop and terminate any refresh timer */
-	if (client->started) {
-		struct ast_sip_event_publisher_handler *handler = find_publisher_handler_for_event_name(client->publish->event);
+	if (!client->started) {
+		/* If the client was never started, there's nothing to unpublish, so just
+		 * destroy the publication and remove its reference to the client.
+		 */
+		ast_sip_push_task(NULL, explicit_publish_destroy, client);
+		return 0;
+	}
 
-		if (handler) {
-			handler->stop_publishing(client);
-		}
+	handler = find_publisher_handler_for_event_name(client->publish->event);
+	if (handler) {
+		handler->stop_publishing(client);
+	}
 
-		client->started = 0;
-		if (ast_sip_push_task(NULL, cancel_refresh_timer_task, ao2_bump(client))) {
-			ast_log(LOG_WARNING, "Could not stop refresh timer on outbound publish '%s'\n",
-				ast_sorcery_object_get_id(client->publish));
-			ao2_ref(client, -1);
-		}
+	client->started = 0;
+	if (ast_sip_push_task(NULL, cancel_refresh_timer_task, ao2_bump(client))) {
+		ast_log(LOG_WARNING, "Could not stop refresh timer on outbound publish '%s'\n",
+			ast_sorcery_object_get_id(client->publish));
+		ao2_ref(client, -1);
 	}
 
 	/* If nothing is being sent right now send the unpublish - the destroy will happen in the subsequent callback */
