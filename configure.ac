@@ -884,7 +884,10 @@ AC_RUN_IFELSE(
 		[sem_t sem; return sem_init(&sem, 0, 0);])],
 	AC_MSG_RESULT(yes)
 	AC_DEFINE([HAS_WORKING_SEMAPHORE], 1, [Define to 1 if anonymous semaphores work.]),
-	AC_MSG_RESULT(no)
+	AC_MSG_RESULT(no),
+	AC_MSG_RESULT(cross-compile)
+	AC_MSG_NOTICE([WARNING: result yes guessed because of cross compilation])
+	AC_DEFINE([HAS_WORKING_SEMAPHORE], 1, [Define to 1 if anonymous semaphores work.])
 )
 
 LIBS="$save_LIBS"
