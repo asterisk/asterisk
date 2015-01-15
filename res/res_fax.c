@@ -615,6 +615,7 @@ static int update_modem_bits(enum ast_fax_modems *bits, const char *value)
 	}
 	return 0;
 }
+
 static char *ast_fax_caps_to_str(enum ast_fax_capabilities caps, char *buf, size_t bufsize)
 {
 	char *out = buf;
@@ -1097,8 +1098,8 @@ static void get_manager_event_info(struct ast_channel *chan, struct manager_even
 	pbx_substitute_variables_helper(chan, "${CALLERID(num)}", info->cid, sizeof(info->cid));
 }
 
-
-/* \brief Generate a string of filenames using the given prefix and separator.
+/*!
+ * \brief Generate a string of filenames using the given prefix and separator.
  * \param details the fax session details
  * \param prefix the prefix to each filename
  * \param separator the separator between filenames
@@ -2934,7 +2935,8 @@ static struct ast_frame *fax_gateway_detect_t38(struct fax_gateway *gateway, str
 
 /*! \brief Destroy the gateway data structure when the framehook is detached
  * \param data framehook data (gateway data)*/
-static void fax_gateway_framehook_destroy(void *data) {
+static void fax_gateway_framehook_destroy(void *data)
+{
 	struct fax_gateway *gateway = data;
 
 	if (gateway->s) {
@@ -2968,7 +2970,8 @@ static void fax_gateway_framehook_destroy(void *data) {
  *
  * \return processed frame or NULL when f is NULL or a null frame
  */
-static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct ast_frame *f, enum ast_framehook_event event, void *data) {
+static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct ast_frame *f, enum ast_framehook_event event, void *data)
+{
 	struct fax_gateway *gateway = data;
 	struct ast_channel *peer, *active;
 	struct ast_fax_session_details *details;
@@ -3289,7 +3292,8 @@ static struct fax_detect *fax_detect_new(struct ast_channel *chan, int timeout, 
 
 /*! \brief Deref the faxdetect data structure when the faxdetect framehook is detached
  * \param data framehook data (faxdetect data)*/
-static void fax_detect_framehook_destroy(void *data) {
+static void fax_detect_framehook_destroy(void *data)
+{
 	struct fax_detect *faxdetect = data;
 
 	ao2_ref(faxdetect, -1);
@@ -3306,7 +3310,8 @@ static void fax_detect_framehook_destroy(void *data) {
  *
  * \return processed frame or NULL when f is NULL or a null frame
  */
-static struct ast_frame *fax_detect_framehook(struct ast_channel *chan, struct ast_frame *f, enum ast_framehook_event event, void *data) {
+static struct ast_frame *fax_detect_framehook(struct ast_channel *chan, struct ast_frame *f, enum ast_framehook_event event, void *data)
+{
 	struct fax_detect *faxdetect = data;
 	struct ast_fax_session_details *details;
 	struct ast_control_t38_parameters *control_params;
