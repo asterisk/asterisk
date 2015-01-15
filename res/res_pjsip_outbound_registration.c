@@ -1503,6 +1503,10 @@ static int cli_print_body(void *obj, void *arg, int flags)
 
 	ast_assert(context->output_buffer != NULL);
 
+	if (!state) {
+		return 0;
+	}
+
 	ast_str_append(&context->output_buffer, 0, " %-s/%-*.*s  %-16s  %-16s\n",
 		id,
 		(int) (REGISTRATION_URI_FIELD_LEN - strlen(id)),
