@@ -1626,21 +1626,15 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 		orig_write_format = ao2_bump(ast_channel_writeformat(chan));
 		if (ast_set_write_format(chan, ast_format_slin) < 0) {
 			ast_log(LOG_ERROR, "channel '%s' failed to set write format to signed linear'.\n", ast_channel_name(chan));
- 			ao2_lock(faxregistry.container);
- 			ao2_unlink(faxregistry.container, fax);
- 			ao2_unlock(faxregistry.container);
- 			ao2_ref(fax, -1);
-			ast_channel_unlock(chan);
+			ao2_unlink(faxregistry.container, fax);
+			ao2_ref(fax, -1);
 			return -1;
 		}
 		orig_read_format = ao2_bump(ast_channel_readformat(chan));
 		if (ast_set_read_format(chan, ast_format_slin) < 0) {
 			ast_log(LOG_ERROR, "channel '%s' failed to set read format to signed linear.\n", ast_channel_name(chan));
- 			ao2_lock(faxregistry.container);
- 			ao2_unlink(faxregistry.container, fax);
- 			ao2_unlock(faxregistry.container);
- 			ao2_ref(fax, -1);
-			ast_channel_unlock(chan);
+			ao2_unlink(faxregistry.container, fax);
+			ao2_ref(fax, -1);
 			return -1;
 		}
 		if (fax->smoother) {
@@ -1818,9 +1812,7 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 	}
 
 	if (fax) {
-		ao2_lock(faxregistry.container);
 		ao2_unlink(faxregistry.container, fax);
-		ao2_unlock(faxregistry.container);
 		ao2_ref(fax, -1);
 	}
 
@@ -2806,18 +2798,14 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 static void destroy_v21_sessions(struct fax_gateway *gateway)
 {
 	if (gateway->chan_v21_session) {
-		ao2_lock(faxregistry.container);
 		ao2_unlink(faxregistry.container, gateway->chan_v21_session);
-		ao2_unlock(faxregistry.container);
 
 		ao2_ref(gateway->chan_v21_session, -1);
 		gateway->chan_v21_session = NULL;
 	}
 
 	if (gateway->peer_v21_session) {
-		ao2_lock(faxregistry.container);
 		ao2_unlink(faxregistry.container, gateway->peer_v21_session);
-		ao2_unlock(faxregistry.container);
 
 		ao2_ref(gateway->peer_v21_session, -1);
 		gateway->peer_v21_session = NULL;
@@ -2835,9 +2823,7 @@ static void destroy_gateway(void *data)
 		fax_session_release(gateway->s, gateway->token);
 		gateway->token = NULL;
 
-		ao2_lock(faxregistry.container);
 		ao2_unlink(faxregistry.container, gateway->s);
-		ao2_unlock(faxregistry.container);
 
 		ao2_ref(gateway->s, -1);
 		gateway->s = NULL;
