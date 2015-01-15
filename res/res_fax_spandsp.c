@@ -836,8 +836,8 @@ static int spandsp_fax_gateway_start(struct ast_fax_session *s)
 
 	p->ist38 = 1;
 	p->ast_t38_state = ast_channel_get_t38_state(s->chan);
-	if (!(peer = ast_channel_bridge_peer(s->chan))) {
-		ast_channel_unlock(s->chan);
+	peer = ast_channel_bridge_peer(s->chan);
+	if (!peer) {
 		return -1;
 	}
 
