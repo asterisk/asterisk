@@ -591,8 +591,10 @@ e_return:
 	return NULL;
 }
 
-static void spandsp_v21_cleanup(struct ast_fax_session *s) {
+static void spandsp_v21_cleanup(struct ast_fax_session *s)
+{
 	struct spandsp_pvt *p = s->tech_pvt;
+
 	modem_connect_tones_rx_free(p->tone_state);
 }
 
@@ -668,7 +670,8 @@ static void spandsp_v21_tone(void *data, int code, int level, int delay)
 	}
 }
 
-static int spandsp_v21_detect(struct ast_fax_session *s, const struct ast_frame *f) {
+static int spandsp_v21_detect(struct ast_fax_session *s, const struct ast_frame *f)
+{
 	struct spandsp_pvt *p = s->tech_pvt;
 	int16_t *slndata;
 	g711_state_t *decoder;
@@ -793,19 +796,22 @@ static int spandsp_fax_gw_t30_gen(struct ast_channel *chan, void *data, int len,
  * \param chan channel
  * \param params generator data
  * \return data to use in generator call*/
-static void *spandsp_fax_gw_gen_alloc(struct ast_channel *chan, void *params) {
+static void *spandsp_fax_gw_gen_alloc(struct ast_channel *chan, void *params)
+{
 	ao2_ref(params, +1);
 	return params;
 }
 
-static void spandsp_fax_gw_gen_release(struct ast_channel *chan, void *data) {
+static void spandsp_fax_gw_gen_release(struct ast_channel *chan, void *data)
+{
 	ao2_ref(data, -1);
 }
 
 /*! \brief activate a spandsp gateway based on the information in the given fax session
  * \param s fax session
  * \return -1 on error 0 on sucess*/
-static int spandsp_fax_gateway_start(struct ast_fax_session *s) {
+static int spandsp_fax_gateway_start(struct ast_fax_session *s)
+{
 	struct spandsp_pvt *p = s->tech_pvt;
 	struct ast_fax_t38_parameters *t38_param;
 	int i;
