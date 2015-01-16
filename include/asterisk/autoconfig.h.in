@@ -584,6 +584,10 @@
 /* Define if your system has the PJSIP_REPLACE_MEDIA_STREAM headers. */
 #undef HAVE_PJSIP_REPLACE_MEDIA_STREAM
 
+/* Define to 1 if PJPROJECT has the pj_ssl_cert_load_from_files2 support
+   feature. */
+#undef HAVE_PJ_SSL_CERT_LOAD_FROM_FILES2
+
 /* Define to 1 if PJPROJECT has the PJSIP Transaction Group Lock Support
    feature. */
 #undef HAVE_PJ_TRANSACTION_GRP_LOCK
@@ -1294,11 +1298,6 @@
 
 /* Define to 1 if running on Darwin. */
 #undef _DARWIN_UNLIMITED_SELECT
-
-/* Enable large inode numbers on Mac OS X 10.5.  */
-#ifndef _DARWIN_USE_64_BIT_INODE
-# define _DARWIN_USE_64_BIT_INODE 1
-#endif
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 #undef _FILE_OFFSET_BITS
