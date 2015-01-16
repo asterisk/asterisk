@@ -2063,6 +2063,21 @@ static int chan_pjsip_incoming_request(struct ast_sip_session *session, struct p
 		return 0;
 	}
 
+	if (session->inv_session->state >= PJSIP_INV_STATE_CONFIRMED) {
+		/* Weird case. We've received a reinvite but we don't have a channel. The most
+		 * typical case for this happening is that a blind transfer fails, and so the
+		 * transferer attempts to reinvite himself back into the call. We already got
+		 * rid of that channel, and the other side of the call is unrecoverable.
+		 *
+		 * We treat this as a failure, so our best bet is to just hang this call
+		 * up and not create a new channel. Clearing defer_terminate here ensures that
+		 * calling ast_sip_session_terminate() can result in a BYE being sent ASAP.
+		 */
+		session->defer_terminate = 0;
+		ast_sip_session_terminate(session, 400);
+		return -1;
+	}
+
 	datastore = ast_sip_session_alloc_datastore(&transport_info, "transport_info");
 	if (!datastore) {
 		return -1;
