@@ -832,6 +832,9 @@
 				<configOption name="ca_list_file">
 					<synopsis>File containing a list of certificates to read (TLS ONLY)</synopsis>
 				</configOption>
+				<configOption name="ca_list_path">
+					<synopsis>Path to directory containing a list of certificates to read (TLS ONLY)</synopsis>
+				</configOption>
 				<configOption name="cert_file">
 					<synopsis>Certificate file for endpoint (TLS ONLY)</synopsis>
 					<description><para>
@@ -1339,6 +1342,9 @@
 				</parameter>
 				<parameter name="CaListFile">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='ca_list_file']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="CaListPath">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='ca_list_path']/synopsis/node())"/></para>
 				</parameter>
 				<parameter name="CertFile">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='transport']/configOption[@name='cert_file']/synopsis/node())"/></para>

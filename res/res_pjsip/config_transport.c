@@ -217,6 +217,14 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		res = pjsip_tcp_transport_start3(ast_sip_get_pjsip_endpoint(), &cfg, &transport->state->factory);
 	} else if (transport->type == AST_TRANSPORT_TLS) {
 		transport->tls.ca_list_file = pj_str((char*)transport->ca_list_file);
+#ifdef HAVE_PJ_SSL_CERT_LOAD_FROM_FILES2
+		transport->tls.ca_list_path = pj_str((char*)transport->ca_list_path);
+#else
+		if (!ast_strlen_zero(transport->ca_list_path)) {
+			ast_log(LOG_WARNING, "Asterisk has been built against a version of pjproject that does not "
+					"support the 'ca_list_path' option. Please upgrade to version 2.4 or later.\n");
+		}
+#endif
 		transport->tls.cert_file = pj_str((char*)transport->cert_file);
 		transport->tls.privkey_file = pj_str((char*)transport->privkey_file);
 		transport->tls.password = pj_str((char*)transport->password);
@@ -743,6 +751,7 @@ int ast_sip_initialize_sorcery_transport(void)
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "bind", "", transport_bind_handler, transport_bind_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "transport", "async_operations", "1", OPT_UINT_T, 0, FLDSET(struct ast_sip_transport, async_operations));
 	ast_sorcery_object_field_register(sorcery, "transport", "ca_list_file", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_transport, ca_list_file));
+	ast_sorcery_object_field_register(sorcery, "transport", "ca_list_path", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_transport, ca_list_path));
 	ast_sorcery_object_field_register(sorcery, "transport", "cert_file", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_transport, cert_file));
 	ast_sorcery_object_field_register(sorcery, "transport", "priv_key_file", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_transport, privkey_file));
 	ast_sorcery_object_field_register(sorcery, "transport", "password", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_transport, password));

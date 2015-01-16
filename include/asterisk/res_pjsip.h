@@ -91,6 +91,8 @@ struct ast_sip_transport {
 	AST_DECLARE_STRING_FIELDS(
 		/*! Certificate of authority list file */
 		AST_STRING_FIELD(ca_list_file);
+		/*! Certificate of authority list path */
+		AST_STRING_FIELD(ca_list_path);
 		/*! Public certificate file */
 		AST_STRING_FIELD(cert_file);
 		/*! Optional private key of the certificate file */

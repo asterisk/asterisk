@@ -124,6 +124,12 @@ res_fax
    res_fax.conf and via the fax options dialplan function 'FAXOPT(t38timeout)'.
    The default remains at 5000 milliseconds.
 
+PJSIP Transports
+----------
+ * The ca_list_path transport parameter has been added for TLS transports. This
+   option behaves similarly to the old sip.conf option "tlscapath". In order to
+   use this, you must be using PJProject version ?.? or higher.
+
 ARI
 ------------------
  * The Originate operation now takes in an originator channel. The linked ID of

@@ -758,6 +758,10 @@
         ; "")
 ;ca_list_file=  ; File containing a list of certificates to read TLS ONLY
                 ; (default: "")
+;ca_list_path=  ; Path to directory containing certificates to read TLS ONLY.
+                ; PJProject version 2.4 or higher is required for this option to
+				; be used.
+                ; (default: "")
 ;cert_file=     ; Certificate file for endpoint TLS ONLY
                 ; Will read .crt or .pem file but only uses cert,
                 ; a .key file must be specified via priv_key_file
