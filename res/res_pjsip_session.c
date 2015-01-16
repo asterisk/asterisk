@@ -779,7 +779,8 @@ static pj_bool_t session_reinvite_on_rx_request(pjsip_rx_data *rdata)
 
 	if (rdata->msg_info.msg->line.req.method.id != PJSIP_INVITE_METHOD ||
 		!(dlg = pjsip_ua_find_dialog(&rdata->msg_info.cid->id, &rdata->msg_info.to->tag, &rdata->msg_info.from->tag, PJ_FALSE)) ||
-		!(session = ast_sip_dialog_get_session(dlg))) {
+		!(session = ast_sip_dialog_get_session(dlg)) ||
+		!session->channel) {
 		return PJ_FALSE;
 	}
 
