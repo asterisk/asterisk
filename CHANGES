@@ -50,7 +50,7 @@ PJSIP Transports
 ----------
  * The ca_list_path transport parameter has been added for TLS transports. This
    option behaves similarly to the old sip.conf option "tlscapath". In order to
-   use this, you must be using PJProject version ?.? or higher.
+   use this, you must be using PJProject version 2.4 or higher.
 
 ARI
 ------------------
