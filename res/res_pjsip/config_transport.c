@@ -769,7 +769,7 @@ int ast_sip_initialize_sorcery_transport(void)
 	ast_sorcery_object_field_register(sorcery, "transport", "cos", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_transport, cos));
 	ast_sorcery_object_field_register(sorcery, "transport", "websocket_write_timeout", AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT_STR, OPT_INT_T, PARSE_IN_RANGE, FLDSET(struct ast_sip_transport, write_timeout), 1, INT_MAX);
 
-	internal_sip_register_endpoint_formatter(&endpoint_transport_formatter);
+	ast_sip_register_endpoint_formatter(&endpoint_transport_formatter);
 
 	cli_formatter = ao2_alloc(sizeof(struct ast_sip_cli_formatter_entry), NULL);
 	if (!cli_formatter) {
@@ -794,8 +794,6 @@ int ast_sip_destroy_sorcery_transport(void)
 {
 	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
 	ast_sip_unregister_cli_formatter(cli_formatter);
-
-	internal_sip_unregister_endpoint_formatter(&endpoint_transport_formatter);
 
 	return 0;
 }
