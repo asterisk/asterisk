@@ -1670,9 +1670,7 @@ int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_mod
 		return -1;
 	}
 
-	if (ast_sorcery_internal_object_register(sip_sorcery, "nat_hook", sip_nat_hook_alloc, NULL, NULL)) {
-		ast_log(LOG_ERROR, "Failed to register nat_hook\n");
-	}
+	ast_sorcery_internal_object_register(sip_sorcery, "nat_hook", sip_nat_hook_alloc, NULL, NULL);
 
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "type", "", OPT_NOOP_T, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "context", "default", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, context));
@@ -1851,7 +1849,6 @@ void ast_res_pjsip_destroy_configuration(void)
 	ast_sip_unregister_cli_formatter(endpoint_formatter);
 	ast_sip_unregister_cli_formatter(channel_formatter);
 	ast_sorcery_unref(sip_sorcery);
-	ao2_cleanup(persistent_endpoints);
 }
 
 int ast_res_pjsip_reload_configuration(void)

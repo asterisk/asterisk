@@ -40,8 +40,6 @@
 /*** MODULEINFO
 	<depend>pjproject</depend>
 	<depend>res_sorcery_config</depend>
-	<depend>res_sorcery_memory</depend>
-	<depend>res_sorcery_astdb</depend>
 	<support_level>core</support_level>
  ***/
 
@@ -1813,7 +1811,7 @@ static pjsip_endpoint *ast_pjsip_endpoint;
 
 static struct ast_threadpool *sip_threadpool;
 
-static int register_service_noref(void *data)
+static int register_service(void *data)
 {
 	pjsip_module **module = data;
 	if (!ast_pjsip_endpoint) {
@@ -1825,23 +1823,8 @@ static int register_service_noref(void *data)
 		return -1;
 	}
 	ast_debug(1, "Registered SIP service %.*s (%p)\n", (int) pj_strlen(&(*module)->name), pj_strbuf(&(*module)->name), *module);
+	ast_module_ref(ast_module_info->self);
 	return 0;
-}
-
-static int register_service(void *data)
-{
-	int res;
-
-	if (!(res = register_service_noref(data))) {
-		ast_module_ref(ast_module_info->self);
-	}
-
-	return res;
-}
-
-int internal_sip_register_service(pjsip_module *module)
-{
-	return ast_sip_push_task_synchronous(NULL, register_service_noref, &module);
 }
 
 int ast_sip_register_service(pjsip_module *module)
@@ -1849,31 +1832,16 @@ int ast_sip_register_service(pjsip_module *module)
 	return ast_sip_push_task_synchronous(NULL, register_service, &module);
 }
 
-static int unregister_service_noref(void *data)
+static int unregister_service(void *data)
 {
 	pjsip_module **module = data;
+	ast_module_unref(ast_module_info->self);
 	if (!ast_pjsip_endpoint) {
 		return -1;
 	}
 	pjsip_endpt_unregister_module(ast_pjsip_endpoint, *module);
 	ast_debug(1, "Unregistered SIP service %.*s\n", (int) pj_strlen(&(*module)->name), pj_strbuf(&(*module)->name));
 	return 0;
-}
-
-static int unregister_service(void *data)
-{
-	int res;
-
-	if (!(res = unregister_service_noref(data))) {
-		ast_module_unref(ast_module_info->self);
-	}
-
-	return res;
-}
-
-int internal_sip_unregister_service(pjsip_module *module)
-{
-	return ast_sip_push_task_synchronous(NULL, unregister_service_noref, &module);
 }
 
 void ast_sip_unregister_service(pjsip_module *module)
@@ -2022,38 +1990,26 @@ struct ast_sip_endpoint *ast_sip_identify_endpoint(pjsip_rx_data *rdata)
 
 AST_RWLIST_HEAD_STATIC(endpoint_formatters, ast_sip_endpoint_formatter);
 
-void internal_sip_register_endpoint_formatter(struct ast_sip_endpoint_formatter *obj)
+int ast_sip_register_endpoint_formatter(struct ast_sip_endpoint_formatter *obj)
 {
 	SCOPED_LOCK(lock, &endpoint_formatters, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
 	AST_RWLIST_INSERT_TAIL(&endpoint_formatters, obj, next);
-}
-
-int ast_sip_register_endpoint_formatter(struct ast_sip_endpoint_formatter *obj)
-{
-	internal_sip_register_endpoint_formatter(obj);
 	ast_module_ref(ast_module_info->self);
 	return 0;
 }
 
-int internal_sip_unregister_endpoint_formatter(struct ast_sip_endpoint_formatter *obj)
+void ast_sip_unregister_endpoint_formatter(struct ast_sip_endpoint_formatter *obj)
 {
 	struct ast_sip_endpoint_formatter *i;
 	SCOPED_LOCK(lock, &endpoint_formatters, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&endpoint_formatters, i, next) {
 		if (i == obj) {
 			AST_RWLIST_REMOVE_CURRENT(next);
+			ast_module_unref(ast_module_info->self);
 			break;
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
-	return i == obj ? 0 : -1;
-}
-
-void ast_sip_unregister_endpoint_formatter(struct ast_sip_endpoint_formatter *obj)
-{
-	if (!internal_sip_unregister_endpoint_formatter(obj)) {
-		ast_module_unref(ast_module_info->self);
-	}
 }
 
 int ast_sip_format_endpoint_ami(struct ast_sip_endpoint *endpoint,
@@ -3262,7 +3218,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	if (internal_sip_register_service(&supplement_module)) {
+	if (ast_sip_register_service(&supplement_module)) {
 		ast_log(LOG_ERROR, "Failed to initialize supplement hooks. Aborting load\n");
 		ast_sip_destroy_distributor();
 		ast_res_pjsip_destroy_configuration();
@@ -3277,9 +3233,9 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	if (internal_sip_initialize_outbound_authentication()) {
+	if (ast_sip_initialize_outbound_authentication()) {
 		ast_log(LOG_ERROR, "Failed to initialize outbound authentication. Aborting load\n");
-		internal_sip_unregister_service(&supplement_module);
+		ast_sip_unregister_service(&supplement_module);
 		ast_sip_destroy_distributor();
 		ast_res_pjsip_destroy_configuration();
 		ast_sip_destroy_global_headers();
@@ -3295,6 +3251,8 @@ static int load_module(void)
 
 	ast_res_pjsip_init_options_handling(0);
 
+	ast_module_ref(ast_module_info->self);
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
@@ -3308,41 +3266,9 @@ static int reload_module(void)
 	return 0;
 }
 
-static int unload_pjsip(void *data)
-{
-	if (memory_pool) {
-		pj_pool_release(memory_pool);
-		memory_pool = NULL;
-	}
-	if (ast_pjsip_endpoint) {
-		pjsip_endpt_destroy(ast_pjsip_endpoint);
-		ast_pjsip_endpoint = NULL;
-	}
-	pj_caching_pool_destroy(&caching_pool);
-	pj_shutdown();
-	return 0;
-}
-
 static int unload_module(void)
 {
-	ast_res_pjsip_cleanup_options_handling();
-	internal_sip_destroy_outbound_authentication();
-	ast_sip_destroy_distributor();
-	ast_res_pjsip_destroy_configuration();
-	ast_sip_destroy_system();
-	ast_sip_destroy_global_headers();
-	internal_sip_unregister_service(&supplement_module);
-	if (monitor_thread) {
-		stop_monitor_thread();
-	}
-	/* The thread this is called from cannot call PJSIP/PJLIB functions,
-	 * so we have to push the work to the threadpool to handle
-	 */
-	ast_sip_push_task_synchronous(NULL, unload_pjsip, NULL);
-
-	ast_threadpool_shutdown(sip_threadpool);
-
-	ast_sip_destroy_cli();
+	/* This will never get called as this module can't be unloaded */
 	return 0;
 }
 

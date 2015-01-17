@@ -91,11 +91,6 @@ int ast_sip_dialog_setup_outbound_authentication(pjsip_dialog *dlg, const struct
 	return 0;
 }
 
-int internal_sip_initialize_outbound_authentication(void) {
-	return internal_sip_register_service(&outbound_auth_mod);
-}
-
-
-void internal_sip_destroy_outbound_authentication(void) {
-	internal_sip_unregister_service(&outbound_auth_mod);
+int ast_sip_initialize_outbound_authentication(void) {
+	return ast_sip_register_service(&outbound_auth_mod);
 }

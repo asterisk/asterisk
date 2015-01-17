@@ -21,7 +21,6 @@
 #include <pjsip.h>
 
 #include "asterisk/res_pjsip.h"
-#include "include/res_pjsip_private.h"
 
 static int distribute(void *data);
 static pj_bool_t distributor(pjsip_rx_data *rdata);
@@ -223,7 +222,7 @@ struct ast_sip_auth *ast_sip_get_artificial_auth(void)
 	return artificial_auth;
 }
 
-static struct ast_sip_endpoint *artificial_endpoint = NULL;
+static struct ast_sip_endpoint *artificial_endpoint;
 
 static int create_artificial_endpoint(void)
 {
@@ -237,7 +236,7 @@ static int create_artificial_endpoint(void)
 	 * the proper size of the vector is returned. This value is
 	 * not actually used anywhere
 	 */
-	AST_VECTOR_APPEND(&artificial_endpoint->inbound_auths, ast_strdup("artificial-auth"));
+	AST_VECTOR_APPEND(&artificial_endpoint->inbound_auths, "artificial-auth");
 	return 0;
 }
 
@@ -374,13 +373,13 @@ int ast_sip_initialize_distributor(void)
 		return -1;
 	}
 
-	if (internal_sip_register_service(&distributor_mod)) {
+	if (ast_sip_register_service(&distributor_mod)) {
 		return -1;
 	}
-	if (internal_sip_register_service(&endpoint_mod)) {
+	if (ast_sip_register_service(&endpoint_mod)) {
 		return -1;
 	}
-	if (internal_sip_register_service(&auth_mod)) {
+	if (ast_sip_register_service(&auth_mod)) {
 		return -1;
 	}
 
@@ -389,9 +388,9 @@ int ast_sip_initialize_distributor(void)
 
 void ast_sip_destroy_distributor(void)
 {
-	internal_sip_unregister_service(&distributor_mod);
-	internal_sip_unregister_service(&endpoint_mod);
-	internal_sip_unregister_service(&auth_mod);
+	ast_sip_unregister_service(&distributor_mod);
+	ast_sip_unregister_service(&endpoint_mod);
+	ast_sip_unregister_service(&auth_mod);
 
 	ao2_cleanup(artificial_auth);
 	ao2_cleanup(artificial_endpoint);
