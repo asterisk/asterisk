@@ -5833,6 +5833,24 @@ static int ast_add_hint(struct ast_exten *e)
 			ast_get_context_name(ast_get_extension_context(e)));
 	}
 
+	/* if not dynamic */
+	if (!(strstr(e->app, "${") && e->exten[0] == '_')) {
+		struct ast_state_cb *state_cb;
+		struct ao2_iterator cb_iter;
+
+		/* For general callbacks */
+		cb_iter = ao2_iterator_init(statecbs, 0);
+		for (; (state_cb = ao2_iterator_next(&cb_iter)); ao2_ref(state_cb, -1)) {
+			execute_state_callback(state_cb->change_cb,
+					ast_get_context_name(ast_get_extension_context(e)),
+					ast_get_extension_name(e),
+					state_cb->data,
+					AST_HINT_UPDATE_DEVICE,
+					hint_new,
+					NULL);
+		}
+		ao2_iterator_destroy(&cb_iter);
+	}
 	ao2_unlock(hints);
 	ao2_ref(hint_new, -1);
 
