@@ -2270,17 +2270,29 @@ pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint,
 	pjsip_dialog *dlg;
 	pj_str_t contact;
 	pjsip_transport_type_e type = rdata->tp_info.transport->key.type;
+	pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
+	pjsip_transport *transport;
 
 	ast_assert(status != NULL);
+
+	if (sip_get_tpselector_from_endpoint(endpoint, &selector)) {
+		return NULL;
+	}
+
+	transport = rdata->tp_info.transport;
+	if (selector.type == PJSIP_TPSELECTOR_TRANSPORT) {
+		transport = selector.u.transport;
+	}
+	type = transport->key.type;
 
 	contact.ptr = pj_pool_alloc(rdata->tp_info.pool, PJSIP_MAX_URL_SIZE);
 	contact.slen = pj_ansi_snprintf(contact.ptr, PJSIP_MAX_URL_SIZE,
 			"<sip:%s%.*s%s:%d%s%s>",
 			(type & PJSIP_TRANSPORT_IPV6) ? "[" : "",
-			(int)rdata->tp_info.transport->local_name.host.slen,
-			rdata->tp_info.transport->local_name.host.ptr,
+			(int)transport->local_name.host.slen,
+			transport->local_name.host.ptr,
 			(type & PJSIP_TRANSPORT_IPV6) ? "]" : "",
-			rdata->tp_info.transport->local_name.port,
+			transport->local_name.port,
 			(type != PJSIP_TRANSPORT_UDP && type != PJSIP_TRANSPORT_UDP6) ? ";transport=" : "",
 			(type != PJSIP_TRANSPORT_UDP && type != PJSIP_TRANSPORT_UDP6) ? pjsip_transport_get_type_name(type) : "");
 
@@ -2293,6 +2305,10 @@ pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint,
 				ast_sorcery_object_get_id(endpoint), err);
 		return NULL;
 	}
+
+	dlg->sess_count++;
+	pjsip_dlg_set_transport(dlg, &selector);
+	dlg->sess_count--;
 
 	return dlg;
 }
