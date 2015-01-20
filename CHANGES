@@ -35,6 +35,12 @@ chan_dahdi
  * The CALLERID(ani2) value for incoming calls is now populated in featdmf
    signaling mode.  The information was previously discarded.
 
+chan_iax2
+------------------
+ * The iax.conf forcejitterbuffer option has been removed.  It is now always
+   forced if you set iax.conf jitterbuffer=yes.  If you put a jitter buffer
+   on a channel it will be on the channel.
+
 chan_sip
 ------------------
  * New 'rtpbindaddr' global setting. This allows a user to define which

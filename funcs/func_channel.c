@@ -514,22 +514,34 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 		}
 		ast_channel_unlock(chan);
 	} else if (!strcasecmp(data, "peer")) {
-		RAII_VAR(struct ast_channel *, p, NULL, ast_channel_cleanup);
+		struct ast_channel *peer;
 
-		ast_channel_lock(chan);
-		p = ast_channel_bridge_peer(chan);
-		if (p || ast_channel_tech(chan)) /* dummy channel? if so, we hid the peer name in the language */
-			ast_copy_string(buf, (p ? ast_channel_name(p) : ""), len);
-		else {
-			/* a dummy channel can still pass along bridged peer info via
-                           the BRIDGEPEER variable */
-			const char *pname = pbx_builtin_getvar_helper(chan, "BRIDGEPEER");
-			if (!ast_strlen_zero(pname))
-				ast_copy_string(buf, pname, len); /* a horrible kludge, but... how else? */
-			else
-				buf[0] = 0;
+		peer = ast_channel_bridge_peer(chan);
+		if (peer) {
+			/* Only real channels could have a bridge peer this way. */
+			ast_channel_lock(peer);
+			ast_copy_string(buf, ast_channel_name(peer), len);
+			ast_channel_unlock(peer);
+			ast_channel_unref(peer);
+		} else {
+			buf[0] = '\0';
+			ast_channel_lock(chan);
+			if (!ast_channel_tech(chan)) {
+				const char *pname;
+
+				/*
+				 * A dummy channel can still pass along bridged peer info
+				 * via the BRIDGEPEER variable.
+				 *
+				 * A horrible kludge, but... how else?
+				 */
+				pname = pbx_builtin_getvar_helper(chan, "BRIDGEPEER");
+				if (!ast_strlen_zero(pname)) {
+					ast_copy_string(buf, pname, len);
+				}
+			}
+			ast_channel_unlock(chan);
 		}
-		ast_channel_unlock(chan);
 	} else if (!strcasecmp(data, "uniqueid")) {
 		locked_copy_string(chan, buf, ast_channel_uniqueid(chan), len);
 	} else if (!strcasecmp(data, "transfercapability")) {

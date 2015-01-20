@@ -2888,6 +2888,7 @@ static struct fax_gateway *fax_gateway_new(struct ast_channel *chan, struct ast_
 static int fax_gateway_start(struct fax_gateway *gateway, struct ast_fax_session_details *details, struct ast_channel *chan)
 {
 	struct ast_fax_session *s;
+	int start_res;
 
 	/* create the FAX session */
 	if (!(s = fax_session_new(details, chan, gateway->s, gateway->token))) {
@@ -2908,7 +2909,10 @@ static int fax_gateway_start(struct fax_gateway *gateway, struct ast_fax_session
 	gateway->s = s;
 	gateway->token = NULL;
 
-	if (gateway->s->tech->start_session(gateway->s) < 0) {
+	ast_channel_unlock(chan);
+	start_res = gateway->s->tech->start_session(gateway->s);
+	ast_channel_lock(chan);
+	if (start_res < 0) {
 		ast_string_field_set(details, result, "FAILED");
 		ast_string_field_set(details, resultstr, "error starting gateway session");
 		ast_string_field_set(details, error, "INIT_ERROR");
