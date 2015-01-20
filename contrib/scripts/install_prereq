@@ -71,7 +71,8 @@ check_installed_debs() {
 		tocheck="${tocheck} ^${pack}$"
 	done
 	aptitude -F '%c %p' search ${tocheck} 2>/dev/null \
- 	| awk '/^p/{print $2}'
+		| awk '/^p/{print $2}' \
+		| grep -v ':i386$'
 }
 
 # parsing the output of yum is close to impossible.
