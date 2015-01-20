@@ -170,12 +170,6 @@ disallow=lpc10
 ; jitterbuffer=yes|no: global default as to whether you want
 ; the jitter buffer at all.
 ;
-; forcejitterbuffer=yes|no: in the ideal world, when we bridge VoIP channels
-; we don't want to do jitterbuffering on the switch, since the endpoints
-; can each handle this.  However, some endpoints may have poor jitterbuffers
-; themselves, so this option will force * to always jitterbuffer, even in this
-; case.
-;
 ; maxjitterbuffer: a maximum size for the jitter buffer.
 ; Setting a reasonable maximum here will prevent the call delay
 ; from rising to silly values in extreme situations; you'll hear
@@ -202,7 +196,6 @@ disallow=lpc10
 ;
 
 jitterbuffer=no
-forcejitterbuffer=no
 ;maxjitterbuffer=1000
 ;maxjitterinterps=10
 ;resyncthreshold=1000

@@ -298,12 +298,18 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		}
 		break;
 	case ASTCHANBRIDGE:
-		if ((bridge = ast_channel_bridge_peer(chan)) != NULL) {
+		ast_channel_unlock(chan);
+		bridge = ast_channel_bridge_peer(chan);
+		if (bridge) {
+			ast_channel_lock(bridge);
 			ast_copy_string(string_ret, ast_channel_name(bridge), sizeof(string_ret));
+			ast_channel_unlock(bridge);
+			ast_channel_unref(bridge);
+
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
-			ast_channel_unref(bridge);
 		}
+		ast_channel_lock(chan);
 		break;
 	case ASTCHANMASQ:
 		if (ast_channel_masq(chan) && !ast_strlen_zero(ast_channel_name(ast_channel_masq(chan)))) {
