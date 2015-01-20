@@ -14767,6 +14767,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 				} else {
 					ast_play_and_wait(chan, "vm-deleted");
 					DELETE(tempfile, -1, tempfile, vmu);
+					DISPOSE(tempfile, -1);
 					cmd = '0';
 				}
 			}
