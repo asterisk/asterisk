@@ -33,6 +33,166 @@
 	<support_level>core</support_level>
  ***/
 
+/*** DOCUMENTATION
+	<managerEvent language="en_US" name="CEL">
+		<managerEventInstance class="EVENT_FLAG_CEL">
+			<synopsis>Raised when a Channel Event Log is generated for a channel.</synopsis>
+			<syntax>
+				<parameter name="EventName">
+					<para>
+						The name of the CEL event being raised. This can include
+						both the system defined CEL events, as well as user defined
+						events.
+					</para>
+					<note>
+						<para>All events listed here may not be raised, depending
+						on the configuration in <filename>cel.conf</filename>.</para>
+					</note>
+					<enumlist>
+						<enum name="CHAN_START">
+							<para>A channel was created.</para>
+						</enum>
+						<enum name="CHAN_END">
+							<para>A channel was terminated.</para>
+						</enum>
+						<enum name="ANSWER">
+							<para>A channel answered.</para>
+						</enum>
+						<enum name="HANGUP">
+							<para>A channel was hung up.</para>
+						</enum>
+						<enum name="BRIDGE_ENTER">
+							<para>A channel entered a bridge.</para>
+						</enum>
+						<enum name="BRIDGE_EXIT">
+							<para>A channel left a bridge.</para>
+						</enum>
+						<enum name="APP_START">
+							<para>A channel entered into a tracked application.</para>
+						</enum>
+						<enum name="APP_END">
+							<para>A channel left a tracked application.</para>
+						</enum>
+						<enum name="PARK_START">
+							<para>A channel was parked.</para>
+						</enum>
+						<enum name="PARK_END">
+							<para>A channel was unparked.</para>
+						</enum>
+						<enum name="BLINDTRANSFER">
+							<para>A channel initiated a blind transfer.</para>
+						</enum>
+						<enum name="ATTENDEDTRANSFER">
+							<para>A channel initiated an attended transfer.</para>
+						</enum>
+						<enum name="PICKUP">
+							<para>A channel initated a call pickup.</para>
+						</enum>
+						<enum name="FORWARD">
+							<para>A channel is being forwarded to another destination.</para>
+						</enum>
+						<enum name="LINKEDID_END">
+							<para>The linked ID associated with this channel is being retired.</para>
+						</enum>
+						<enum name="LOCAL_OPTIMIZE">
+							<para>A Local channel optimization has occurred.</para>
+						</enum>
+						<enum name="USER_DEFINED">
+							<para>A user defined type.</para>
+							<note>
+								<para>
+									This event is only present if <literal>show_user_defined</literal>
+									in <filename>cel.conf</filename> is <literal>True</literal>. Otherwise,
+									the user defined event will be placed directly in the
+									<replaceable>EventName</replaceable> field.
+								</para>
+							</note>
+						</enum>
+					</enumlist>
+				</parameter>
+				<parameter name="AccountCode">
+					<para>The channel's account code.</para>
+				</parameter>
+				<parameter name="CallerIDnum">
+					<para>The Caller ID number.</para>
+				</parameter>
+				<parameter name="CallerIDname">
+					<para>The Caller ID name.</para>
+				</parameter>
+				<parameter name="CallerIDani">
+					<para>The Caller ID Automatic Number Identification.</para>
+				</parameter>
+				<parameter name="CallerIDrdnis">
+					<para>The Caller ID Redirected Dialed Number Identification Service.</para>
+				</parameter>
+				<parameter name="CallerIDdnid">
+					<para>The Caller ID Dialed Number Identifier.</para>
+				</parameter>
+				<parameter name="Exten">
+					<para>The dialplan extension the channel is currently executing in.</para>
+				</parameter>
+				<parameter name="Context">
+					<para>The dialplan context the channel is currently executing in.</para>
+				</parameter>
+				<parameter name="Application">
+					<para>The dialplan application the channel is currently executing.</para>
+				</parameter>
+				<parameter name="AppData">
+					<para>The arguments passed to the dialplan <replaceable>Application</replaceable>.</para>
+				</parameter>
+				<parameter name="EventTime">
+					<para>The time the CEL event occurred.</para>
+				</parameter>
+				<parameter name="AMAFlags">
+					<para>A flag that informs a billing system how to treat the CEL.</para>
+					<enumlist>
+						<enum name="OMIT">
+							<para>This event should be ignored.</para>
+						</enum>
+						<enum name="BILLING">
+							<para>This event contains valid billing data.</para>
+						</enum>
+						<enum name="DOCUMENTATION">
+							<para>This event is for documentation purposes.</para>
+						</enum>
+					</enumlist>
+				</parameter>
+				<parameter name="UniqueID">
+					<para>The unique ID of the channel.</para>
+				</parameter>
+				<parameter name="LinkedID">
+					<para>The linked ID of the channel, which ties this event to other related channel's events.</para>
+				</parameter>
+				<parameter name="UserField">
+					<para>
+						A user defined field set on a channel, containing arbitrary
+						application specific data.
+					</para>
+				</parameter>
+				<parameter name="Peer">
+					<para>
+						If this channel is in a bridge, the channel that it is in
+						a bridge with.
+					</para>
+				</parameter>
+				<parameter name="PeerAccount">
+					<para>
+						If this channel is in a bridge, the accountcode of the
+						channel it is in a bridge with.
+					</para>
+				</parameter>
+				<parameter name="Extra">
+					<para>
+						Some events will have event specific data that accompanies the CEL record.
+						This extra data is JSON encoded, and is dependent on the event in
+						question.
+					</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
+ ***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")

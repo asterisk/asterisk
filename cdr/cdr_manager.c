@@ -38,6 +38,132 @@
 	<support_level>core</support_level>
  ***/
 
+/*** DOCUMENTATION
+	<managerEvent language="en_US" name="Cdr">
+		<managerEventInstance class="EVENT_FLAG_CDR">
+			<synopsis>Raised when a CDR is generated.</synopsis>
+			<syntax>
+				<parameter name="AccountCode">
+					<para>The account code of the Party A channel.</para>
+				</parameter>
+				<parameter name="Source">
+					<para>The Caller ID number associated with the Party A in the CDR.</para>
+				</parameter>
+				<parameter name="Destination">
+					<para>The dialplan extension the Party A was executing.</para>
+				</parameter>
+				<parameter name="DestinationContext">
+					<para>The dialplan context the Party A was executing.</para>
+				</parameter>
+				<parameter name="CallerID">
+					<para>The Caller ID name associated with the Party A in the CDR.</para>
+				</parameter>
+				<parameter name="Channel">
+					<para>The channel name of the Party A.</para>
+				</parameter>
+				<parameter name="DestinationChannel">
+					<para>The channel name of the Party B.</para>
+				</parameter>
+				<parameter name="LastApplication">
+					<para>The last dialplan application the Party A executed.</para>
+				</parameter>
+				<parameter name="LastData">
+					<para>
+						The parameters passed to the last dialplan application the
+						Party A executed.
+					</para>
+				</parameter>
+				<parameter name="StartTime">
+					<para>The time the CDR was created.</para>
+				</parameter>
+				<parameter name="AnswerTime">
+					<para>
+						The earliest of either the time when Party A answered, or
+						the start time of this CDR.
+					</para>
+				</parameter>
+				<parameter name="EndTime">
+					<para>
+						The time when the CDR was finished. This occurs when the
+						Party A hangs up or when the bridge between Party A and
+						Party B is broken.
+					</para>
+				</parameter>
+				<parameter name="Duration">
+					<para>The time, in seconds, of <replaceable>EndTime</replaceable> - <replaceable>StartTime</replaceable>.</para>
+				</parameter>
+				<parameter name="BillableSeconds">
+					<para>The time, in seconds, of <replaceable>AnswerTime</replaceable> - <replaceable>StartTime</replaceable>.</para>
+				</parameter>
+				<parameter name="Disposition">
+					<para>The final known disposition of the CDR.</para>
+					<enumlist>
+						<enum name="NO ANSWER">
+							<para>The channel was not answered. This is the default disposition.</para>
+						</enum>
+						<enum name="FAILED">
+							<para>The channel attempted to dial but the call failed.</para>
+							<note>
+								<para>The congestion setting in <filename>cdr.conf</filename> can result
+								in the <literal>AST_CAUSE_CONGESTION</literal> hang up cause or the
+								<literal>CONGESTION</literal> dial status to map to this disposition.
+								</para>
+							</note>
+						</enum>
+						<enum name="BUSY">
+							<para>The channel attempted to dial but the remote party was busy.</para>
+						</enum>
+						<enum name="ANSWERED">
+							<para>The channel was answered. The hang up cause will no longer
+							impact the disposition of the CDR.</para>
+						</enum>
+						<enum name="CONGESTION">
+							<para>The channel attempted to dial but the remote party was congested.</para>
+						</enum>
+					</enumlist>
+				</parameter>
+				<parameter name="AMAFlags">
+					<para>A flag that informs a billing system how to treat the CDR.</para>
+					<enumlist>
+						<enum name="OMIT">
+							<para>This CDR should be ignored.</para>
+						</enum>
+						<enum name="BILLING">
+							<para>This CDR contains valid billing data.</para>
+						</enum>
+						<enum name="DOCUMENTATION">
+							<para>This CDR is for documentation purposes.</para>
+						</enum>
+					</enumlist>
+				</parameter>
+				<parameter name="UniqueID">
+					<para>A unique identifier for the Party A channel.</para>
+				</parameter>
+				<parameter name="UserField">
+					<para>
+						A user defined field set on the channels. If set on both the Party A
+						and Party B channel, the userfields of both are concatenated and
+						separated by a <literal>;</literal>.
+					</para>
+				</parameter>
+			</syntax>
+			<description>
+				<para>
+					The <replaceable>Cdr</replaceable> event is only raised when the
+					<filename>cdr_manager</filename> backend is loaded and registered with
+					the CDR engine.
+				</para>
+				<note>
+					<para>
+						This event can contain additional fields depending on the configuration
+						provided by <filename>cdr_manager.conf</filename>.
+					</para>
+				</note>
+			</description>
+		</managerEventInstance>
+	</managerEvent>
+ ***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
