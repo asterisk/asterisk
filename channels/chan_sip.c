@@ -31073,38 +31073,37 @@ static void display_nat_warning(const char *cat, int reason, struct ast_flags *f
 	}
 }
 
+static int cleanup_registration(void *obj, void *arg, int flags)
+{
+	struct sip_registry *reg = obj;
+	ao2_lock(reg);
+
+	if (reg->call) {
+		ast_debug(3, "Destroying active SIP dialog for registry %s@%s\n", reg->username, reg->hostname);
+		/* This will also remove references to the registry */
+		dialog_unlink_all(reg->call);
+		reg->call = dialog_unref(reg->call, "remove iterator->call from registry traversal");
+	}
+	if (reg->expire > -1) {
+		AST_SCHED_DEL_UNREF(sched, reg->expire, ao2_t_ref(reg, -1, "reg ptr unref from reload config"));
+	}
+	if (reg->timeout > -1) {
+		AST_SCHED_DEL_UNREF(sched, reg->timeout, ao2_t_ref(reg, -1, "reg ptr unref from reload config"));
+	}
+	if (reg->dnsmgr) {
+		ast_dnsmgr_release(reg->dnsmgr);
+		reg->dnsmgr = NULL;
+		ao2_t_ref(reg, -1, "reg ptr unref from dnsmgr");
+	}
+
+	ao2_unlock(reg);
+	return CMP_MATCH;
+}
+
 static void cleanup_all_regs(void)
 {
-	struct ao2_iterator iter;
-	struct sip_registry *iterator;
-	/* First, destroy all outstanding registry calls */
-	/* This is needed, since otherwise active registry entries will not be destroyed */
-	iter = ao2_iterator_init(registry_list, 0);
-	while ((iterator = ao2_t_iterator_next(&iter, "cleanup_all_regs iter"))) {
-		ao2_lock(iterator);
-
-		if (iterator->call) {
-			ast_debug(3, "Destroying active SIP dialog for registry %s@%s\n", iterator->username, iterator->hostname);
-			/* This will also remove references to the registry */
-			dialog_unlink_all(iterator->call);
-			iterator->call = dialog_unref(iterator->call, "remove iterator->call from registry traversal");
-		}
-		if (iterator->expire > -1) {
-			AST_SCHED_DEL_UNREF(sched, iterator->expire, ao2_t_ref(iterator, -1, "reg ptr unref from reload config"));
-		}
-		if (iterator->timeout > -1) {
-			AST_SCHED_DEL_UNREF(sched, iterator->timeout, ao2_t_ref(iterator, -1, "reg ptr unref from reload config"));
-		}
-		if (iterator->dnsmgr) {
-			ast_dnsmgr_release(iterator->dnsmgr);
-			iterator->dnsmgr = NULL;
-			ao2_t_ref(iterator, -1, "reg ptr unref from dnsmgr");
-		}
-
-		ao2_unlock(iterator);
-		ao2_t_ref(iterator, -1, "cleanup_all_regs iter");
-	}
-	ao2_iterator_destroy(&iter);
+	ao2_t_callback(registry_list, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE,
+		cleanup_registration, NULL, "remove all SIP registry items");
 }
 
 /*! \brief Re-read SIP.conf config file
