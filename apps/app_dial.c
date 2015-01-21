@@ -2702,6 +2702,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		}
 	} else {
 		const char *number;
+		int dial_end_raised = 0;
 
 		if (ast_test_flag64(&opts, OPT_CALLER_ANSWER))
 			ast_answer(chan);
@@ -2840,6 +2841,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 
 		if (ast_test_flag64(&opts, OPT_CALLEE_MACRO) && !ast_strlen_zero(opt_args[OPT_ARG_CALLEE_MACRO])) {
 			const char *macro_result_peer;
+			int macro_res;
 
 			/* Set peer->exten and peer->context so that MACRO_EXTEN and MACRO_CONTEXT get set */
 			ast_channel_lock_both(chan, peer);
@@ -2848,11 +2850,11 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			ast_channel_unlock(peer);
 			ast_channel_unlock(chan);
 			ast_replace_subargument_delimiter(opt_args[OPT_ARG_CALLEE_MACRO]);
-			res = ast_app_exec_macro(chan, peer, opt_args[OPT_ARG_CALLEE_MACRO]);
+			macro_res = ast_app_exec_macro(chan, peer, opt_args[OPT_ARG_CALLEE_MACRO]);
 
 			ast_channel_lock(peer);
 
-			if (!res && (macro_result_peer = pbx_builtin_getvar_helper(peer, "MACRO_RESULT"))) {
+			if (!macro_res && (macro_result_peer = pbx_builtin_getvar_helper(peer, "MACRO_RESULT"))) {
 				char *macro_result = ast_strdupa(macro_result_peer);
 				char *macro_transfer_dest;
 
@@ -2861,24 +2863,24 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 				if (!strcasecmp(macro_result, "BUSY")) {
 					ast_copy_string(pa.status, macro_result, sizeof(pa.status));
 					ast_set_flag64(peerflags, OPT_GO_ON);
-					res = -1;
+					macro_res = -1;
 				} else if (!strcasecmp(macro_result, "CONGESTION") || !strcasecmp(macro_result, "CHANUNAVAIL")) {
 					ast_copy_string(pa.status, macro_result, sizeof(pa.status));
 					ast_set_flag64(peerflags, OPT_GO_ON);
-					res = -1;
+					macro_res = -1;
 				} else if (!strcasecmp(macro_result, "CONTINUE")) {
 					/* hangup peer and keep chan alive assuming the macro has changed
 					   the context / exten / priority or perhaps
 					   the next priority in the current exten is desired.
 					*/
 					ast_set_flag64(peerflags, OPT_GO_ON);
-					res = -1;
+					macro_res = -1;
 				} else if (!strcasecmp(macro_result, "ABORT")) {
 					/* Hangup both ends unless the caller has the g flag */
-					res = -1;
+					macro_res = -1;
 				} else if (!strncasecmp(macro_result, "GOTO:", 5)) {
 					macro_transfer_dest = macro_result + 5;
-					res = -1;
+					macro_res = -1;
 					/* perform a transfer to a new extension */
 					if (strchr(macro_transfer_dest, '^')) { /* context^exten^priority*/
 						ast_replace_subargument_delimiter(macro_transfer_dest);
@@ -2887,17 +2889,21 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 						ast_set_flag64(peerflags, OPT_GO_ON);
 					}
 				}
-				ast_channel_publish_dial(chan, peer, NULL, macro_result);
+				if (macro_res && !dial_end_raised) {
+					ast_channel_publish_dial(chan, peer, NULL, macro_result);
+					dial_end_raised = 1;
+				}
 			} else {
 				ast_channel_unlock(peer);
 			}
+			res = macro_res;
 		}
 
 		if (ast_test_flag64(&opts, OPT_CALLEE_GOSUB) && !ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GOSUB])) {
 			const char *gosub_result_peer;
 			char *gosub_argstart;
 			char *gosub_args = NULL;
-			int res9 = -1;
+			int gosub_res = -1;
 
 			ast_replace_subargument_delimiter(opt_args[OPT_ARG_CALLEE_GOSUB]);
 			gosub_argstart = strchr(opt_args[OPT_ARG_CALLEE_GOSUB], ',');
@@ -2923,7 +2929,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 				}
 			}
 			if (gosub_args) {
-				res9 = ast_app_exec_sub(chan, peer, gosub_args, 0);
+				gosub_res = ast_app_exec_sub(chan, peer, gosub_args, 0);
 				ast_free(gosub_args);
 			} else {
 				ast_log(LOG_ERROR, "Could not Allocate string for Gosub arguments -- Gosub Call Aborted!\n");
@@ -2931,7 +2937,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 
 			ast_channel_lock_both(chan, peer);
 
-			if (!res9 && (gosub_result_peer = pbx_builtin_getvar_helper(peer, "GOSUB_RESULT"))) {
+			if (!gosub_res && (gosub_result_peer = pbx_builtin_getvar_helper(peer, "GOSUB_RESULT"))) {
 				char *gosub_transfer_dest;
 				char *gosub_result = ast_strdupa(gosub_result_peer);
 				const char *gosub_retval = pbx_builtin_getvar_helper(peer, "GOSUB_RETVAL");
@@ -2947,21 +2953,21 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 				if (!strcasecmp(gosub_result, "BUSY")) {
 					ast_copy_string(pa.status, gosub_result, sizeof(pa.status));
 					ast_set_flag64(peerflags, OPT_GO_ON);
-					res = -1;
+					gosub_res = -1;
 				} else if (!strcasecmp(gosub_result, "CONGESTION") || !strcasecmp(gosub_result, "CHANUNAVAIL")) {
 					ast_copy_string(pa.status, gosub_result, sizeof(pa.status));
 					ast_set_flag64(peerflags, OPT_GO_ON);
-					res = -1;
+					gosub_res = -1;
 				} else if (!strcasecmp(gosub_result, "CONTINUE")) {
 					/* Hangup peer and continue with the next extension priority. */
 					ast_set_flag64(peerflags, OPT_GO_ON);
-					res = -1;
+					gosub_res = -1;
 				} else if (!strcasecmp(gosub_result, "ABORT")) {
 					/* Hangup both ends unless the caller has the g flag */
-					res = -1;
+					gosub_res = -1;
 				} else if (!strncasecmp(gosub_result, "GOTO:", 5)) {
 					gosub_transfer_dest = gosub_result + 5;
-					res = -1;
+					gosub_res = -1;
 					/* perform a transfer to a new extension */
 					if (strchr(gosub_transfer_dest, '^')) { /* context^exten^priority*/
 						ast_replace_subargument_delimiter(gosub_transfer_dest);
@@ -2970,7 +2976,13 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 						ast_set_flag64(peerflags, OPT_GO_ON);
 					}
 				}
-				ast_channel_publish_dial(chan, peer, NULL, gosub_result);
+				if (gosub_res) {
+					res = gosub_res;
+					if (!dial_end_raised) {
+						ast_channel_publish_dial(chan, peer, NULL, gosub_result);
+						dial_end_raised = 1;
+					}
+				}
 			} else {
 				ast_channel_unlock(peer);
 				ast_channel_unlock(chan);
@@ -2982,7 +2994,10 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			/* None of the Dial options changed our status; inform
 			 * everyone that this channel answered
 			 */
-			ast_channel_publish_dial(chan, peer, NULL, "ANSWER");
+			if (!dial_end_raised) {
+				ast_channel_publish_dial(chan, peer, NULL, "ANSWER");
+				dial_end_raised = 1;
+			}
 
 			if (!ast_tvzero(calldurationlimit)) {
 				struct timeval whentohangup = ast_tvadd(ast_tvnow(), calldurationlimit);
