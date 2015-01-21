@@ -398,8 +398,6 @@ static int handle_client_registration(void *data)
 	pjsip_regc_info info;
 	char server_uri[PJSIP_MAX_URL_SIZE], client_uri[PJSIP_MAX_URL_SIZE];
 
-	ao2_ref(client_state, -1);
-
 	if ((client_state->status == SIP_REGISTRATION_STOPPED) ||
 		(pjsip_regc_register(client_state->client, PJ_FALSE, &tdata) != PJ_SUCCESS)) {
 		return 0;
@@ -448,6 +446,7 @@ static void sip_outbound_registration_timer_cb(pj_timer_heap_t *timer_heap, stru
 		ast_log(LOG_WARNING, "Failed to pass outbound registration to threadpool\n");
 		ao2_ref(client_state, -1);
 	}
+	ao2_ref(client_state, -1);
 
 	entry->id = 0;
 }
