@@ -724,33 +724,12 @@ static int bridge_app_subscribed_involved(struct stasis_app *app, struct ast_bri
 	return subscribed;
 }
 
-static void set_replacement_channel(struct ast_channel_snapshot *to_be_replaced,
-		struct ast_channel_snapshot *replacing)
-{
-	struct stasis_app_control *control = stasis_app_control_find_by_channel_id(
-		to_be_replaced->uniqueid);
-	struct ast_channel *chan = ast_channel_get_by_name(replacing->uniqueid);
-
-	if (control && chan) {
-		ast_channel_lock(chan);
-		app_set_replace_channel_app(chan, app_name(control_app(control)));
-		app_set_replace_channel_snapshot(chan, to_be_replaced);
-		ast_channel_unlock(chan);
-	}
-	ast_channel_cleanup(chan);
-	ao2_cleanup(control);
-}
-
 static void bridge_blind_transfer_handler(void *data, struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
 	struct stasis_app *app = data;
 	struct ast_blind_transfer_message *transfer_msg = stasis_message_data(message);
 	struct ast_bridge_snapshot *bridge = transfer_msg->bridge;
-
-	if (transfer_msg->replace_channel) {
-		set_replacement_channel(transfer_msg->transferer, transfer_msg->replace_channel);
-	}
 
 	if (bridge_app_subscribed(app, transfer_msg->transferer->uniqueid) ||
 		(bridge && bridge_app_subscribed_involved(app, bridge))) {
@@ -801,18 +780,6 @@ static void bridge_attended_transfer_handler(void *data, struct stasis_subscript
 
 	if (subscribed) {
 		stasis_publish(app->topic, message);
-	}
-
-	if (transfer_msg->replace_channel) {
-		set_replacement_channel(transfer_msg->to_transferee.channel_snapshot,
-				transfer_msg->replace_channel);
-	}
-
-	if (transfer_msg->dest_type == AST_ATTENDED_TRANSFER_DEST_LINK) {
-		set_replacement_channel(transfer_msg->to_transferee.channel_snapshot,
-				transfer_msg->dest.links[0]);
-		set_replacement_channel(transfer_msg->to_transfer_target.channel_snapshot,
-				transfer_msg->dest.links[1]);
 	}
 }
 
