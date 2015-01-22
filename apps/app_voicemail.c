@@ -1045,6 +1045,8 @@ static void read_password_from_file(const char *secretfn, char *password, int pa
 static int write_password_to_file(const char *secretfn, const char *password);
 static const char *substitute_escapes(const char *value);
 static int message_range_and_existence_check(struct vm_state *vms, const char *msg_ids [], size_t num_msgs, int *msg_nums, struct ast_vm_user *vmu);
+static void notify_new_state(struct ast_vm_user *vmu);
+
 /*!
  * Place a message in the indicated folder
  *
@@ -6256,6 +6258,7 @@ static int msg_create_from_file(struct ast_vm_recording_data *recdata)
 		}
 
 		STORE(dir, recipient->mailbox, recipient->context, msgnum, NULL, recipient, fmt, 0, vms, "", msg_id);
+		notify_new_state(recipient);
 	}
 
 	free_user(recipient);
