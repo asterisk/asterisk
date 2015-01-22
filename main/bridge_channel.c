@@ -2490,11 +2490,11 @@ static void bridge_channel_event_join_leave(struct ast_bridge_channel *bridge_ch
 	ao2_iterator_destroy(&iter);
 }
 
-/*! \brief Join a channel to a bridge and handle anything the bridge may want us to do */
 int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 {
 	int res = 0;
 	struct ast_bridge_features *channel_features;
+	struct ast_channel *swap;
 
 	ast_debug(1, "Bridge %s: %p(%s) is joining\n",
 		bridge_channel->bridge->uniqueid,
@@ -2538,6 +2538,9 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 		bridge_channel->bridge->callid = ast_read_threadstorage_callid();
 	}
 
+	/* Take the swap channel ref from the bridge_channel struct. */
+	swap = bridge_channel->swap;
+
 	if (bridge_channel_internal_push(bridge_channel)) {
 		int cause = bridge_channel->bridge->cause;
 
@@ -2563,6 +2566,11 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 		}
 
 		ast_bridge_unlock(bridge_channel->bridge);
+
+		/* Must release any swap ref after unlocking the bridge. */
+		ao2_t_cleanup(swap, "Bridge push with swap successful");
+		swap = NULL;
+
 		bridge_channel_event_join_leave(bridge_channel, AST_BRIDGE_HOOK_TYPE_JOIN);
 
 		while (bridge_channel->state == BRIDGE_CHANNEL_STATE_WAIT) {
@@ -2582,6 +2590,9 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 	bridge_reconfigured(bridge_channel->bridge, 1);
 
 	ast_bridge_unlock(bridge_channel->bridge);
+
+	/* Must release any swap ref after unlocking the bridge. */
+	ao2_t_cleanup(swap, "Bridge push with swap failed or exited immediately");
 
 	/* Complete any active hold before exiting the bridge. */
 	if (ast_channel_hold_state(bridge_channel->chan) == AST_CONTROL_HOLD) {

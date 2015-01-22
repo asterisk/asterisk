@@ -1560,6 +1560,7 @@ int ast_bridge_join(struct ast_bridge *bridge,
 		ao2_ref(bridge, -1);
 	}
 	if (!bridge_channel) {
+		ao2_t_cleanup(swap, "Error exit: bridge_channel alloc failed");
 		res = -1;
 		goto join_exit;
 	}
@@ -1567,6 +1568,7 @@ int ast_bridge_join(struct ast_bridge *bridge,
 	ast_assert(features != NULL);
 	if (!features) {
 		ao2_ref(bridge_channel, -1);
+		ao2_t_cleanup(swap, "Error exit: features is NULL");
 		res = -1;
 		goto join_exit;
 	}
@@ -1596,6 +1598,8 @@ int ast_bridge_join(struct ast_bridge *bridge,
 	ast_channel_internal_bridge_channel_set(chan, NULL);
 	ast_channel_unlock(chan);
 	bridge_channel->chan = NULL;
+	/* If bridge_channel->swap is not NULL then the join failed. */
+	ao2_t_cleanup(bridge_channel->swap, "Bridge complete: join failed");
 	bridge_channel->swap = NULL;
 	bridge_channel->features = NULL;
 
@@ -1624,7 +1628,12 @@ static void *bridge_channel_depart_thread(void *data)
 
 	bridge_channel_internal_join(bridge_channel);
 
-	/* cleanup */
+	/*
+	 * cleanup
+	 *
+	 * If bridge_channel->swap is not NULL then the join failed.
+	 */
+	ao2_t_cleanup(bridge_channel->swap, "Bridge complete: Departable impart join failed");
 	bridge_channel->swap = NULL;
 	ast_bridge_features_destroy(bridge_channel->features);
 	bridge_channel->features = NULL;
@@ -1653,6 +1662,8 @@ static void *bridge_channel_ind_thread(void *data)
 	ast_channel_internal_bridge_channel_set(chan, NULL);
 	ast_channel_unlock(chan);
 	bridge_channel->chan = NULL;
+	/* If bridge_channel->swap is not NULL then the join failed. */
+	ao2_t_cleanup(bridge_channel->swap, "Bridge complete: Independent impart join failed");
 	bridge_channel->swap = NULL;
 	ast_bridge_features_destroy(bridge_channel->features);
 	bridge_channel->features = NULL;
@@ -1706,7 +1717,7 @@ int ast_bridge_impart(struct ast_bridge *bridge,
 	}
 	ast_channel_unlock(chan);
 	bridge_channel->chan = chan;
-	bridge_channel->swap = swap;
+	bridge_channel->swap = ao2_t_bump(swap, "Setting up bridge impart");
 	bridge_channel->features = features;
 	bridge_channel->inhibit_colp = !!(flags & AST_BRIDGE_IMPART_INHIBIT_JOIN_COLP);
 	bridge_channel->depart_wait =
@@ -1730,6 +1741,7 @@ int ast_bridge_impart(struct ast_bridge *bridge,
 		ast_channel_internal_bridge_channel_set(chan, NULL);
 		ast_channel_unlock(chan);
 		bridge_channel->chan = NULL;
+		ao2_t_cleanup(bridge_channel->swap, "Bridge complete: Impart failed");
 		bridge_channel->swap = NULL;
 		ast_bridge_features_destroy(bridge_channel->features);
 		bridge_channel->features = NULL;
@@ -2171,7 +2183,11 @@ int bridge_do_move(struct ast_bridge *dst_bridge, struct ast_bridge_channel *bri
 		/*
 		 * The channel died as a result of being pulled.  Leave it
 		 * pointing to the original bridge.
+		 *
+		 * Clear out the swap channel pointer.  A ref is not held
+		 * by bridge_channel->swap at this point.
 		 */
+		bridge_channel->swap = NULL;
 		bridge_reconfigured(orig_bridge, 0);
 		return -1;
 	}
