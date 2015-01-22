@@ -103,6 +103,9 @@ void bridge_channel_settle_owed_events(struct ast_bridge *orig_bridge, struct as
  *
  * \param bridge_channel Channel to push.
  *
+ * \note A ref is not held by bridge_channel->swap when calling because the
+ * push with swap happens immediately.
+ *
  * \note On entry, bridge_channel->bridge is already locked.
  *
  * \retval 0 on success.
@@ -128,16 +131,22 @@ void bridge_channel_internal_pull(struct ast_bridge_channel *bridge_channel);
 
 /*!
  * \internal
- * \brief Join the bridge_channel to the bridge
+ * \brief Join the bridge_channel to the bridge (blocking)
  *
  * \param bridge_channel The Channel in the bridge
  *
+ * \note The bridge_channel->swap holds a channel reference for the swap
+ * channel going into the bridging system.  The ref ensures that the swap
+ * pointer is valid for the bridge subclass push callbacks.  The pointer
+ * will be NULL on return if the ref was consumed.
+ *
+ * \details
+ * This API call puts the bridge_channel into the bridge and handles the
+ * bridge_channel's processing of events while it is in the bridge.  It
+ * will return when the channel has been instructed to leave the bridge.
+ *
  * \retval 0 bridge channel successfully joined the bridge
  * \retval -1 bridge channel failed to join the bridge
- *
- * \note This API call starts the bridge_channel's processing of events while
- * it is in the bridge. It will return when the channel has been instructed to
- * leave the bridge.
  */
 int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel);
 

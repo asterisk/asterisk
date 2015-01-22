@@ -117,6 +117,9 @@ struct ast_bridge *bridge_base_init(struct ast_bridge *self, uint32_t capabiliti
  * \param attempt_recovery TRUE if failure attempts to push channel back into original bridge.
  * \param optimized Indicates whether the move is part of an unreal channel optimization.
  *
+ * \note A ref is not held by bridge_channel->swap when calling because the
+ * move with swap happens immediately.
+ *
  * \note The dst_bridge and bridge_channel->bridge are assumed already locked.
  *
  * \retval 0 on success.
