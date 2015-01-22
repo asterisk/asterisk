@@ -660,8 +660,14 @@ static int handle_registration_response(void *data)
 static void sip_outbound_registration_response_cb(struct pjsip_regc_cbparam *param)
 {
 	RAII_VAR(struct sip_outbound_registration_client_state *, client_state, param->token, ao2_cleanup);
-	struct registration_response *response = ao2_alloc(sizeof(*response), registration_response_destroy);
+	struct registration_response *response;
 
+	ast_assert(client_state != NULL);
+
+	response = ao2_alloc(sizeof(*response), registration_response_destroy);
+	if (!response) {
+		return;
+	}
 	response->code = param->code;
 	response->expiration = param->expiration;
 	response->client_state = client_state;
@@ -689,10 +695,11 @@ static void sip_outbound_registration_state_destroy(void *obj)
 	ao2_cleanup(state->registration);
 
 	if (!state->client_state) {
-		return;
-	}
-
-	if (state->client_state->serializer && ast_sip_push_task(state->client_state->serializer, handle_client_state_destruction, state->client_state)) {
+		/* Nothing to do */
+	} else if (!state->client_state->serializer) {
+		ao2_ref(state->client_state, -1);
+	} else if (ast_sip_push_task(state->client_state->serializer,
+		handle_client_state_destruction, state->client_state)) {
 		ast_log(LOG_WARNING, "Failed to pass outbound registration client destruction to threadpool\n");
 		ao2_ref(state->client_state, -1);
 	}
@@ -709,19 +716,24 @@ static void sip_outbound_registration_client_state_destroy(void *obj)
 /*! \brief Allocator function for registration state */
 static struct sip_outbound_registration_state *sip_outbound_registration_state_alloc(struct sip_outbound_registration *registration)
 {
-	struct sip_outbound_registration_state *state = ao2_alloc(sizeof(*state), sip_outbound_registration_state_destroy);
+	struct sip_outbound_registration_state *state;
 
-	if (!state || !(state->client_state = ao2_alloc(sizeof(*state->client_state), sip_outbound_registration_client_state_destroy))) {
+	state = ao2_alloc(sizeof(*state), sip_outbound_registration_state_destroy);
+	if (!state) {
+		return NULL;
+	}
+	state->client_state = ao2_alloc(sizeof(*state->client_state),
+		sip_outbound_registration_client_state_destroy);
+	if (!state->client_state) {
 		ao2_cleanup(state);
 		return NULL;
 	}
 
-	if (!(state->client_state->serializer = ast_sip_create_serializer())) {
-		ao2_cleanup(state->client_state);
+	state->client_state->serializer = ast_sip_create_serializer();
+	if (!state->client_state->serializer) {
 		ao2_cleanup(state);
 		return NULL;
 	}
-
 	state->client_state->status = SIP_REGISTRATION_UNREGISTERED;
 	state->client_state->timer.user_data = state->client_state;
 	state->client_state->timer.cb = sip_outbound_registration_timer_cb;
@@ -903,9 +915,10 @@ static int sip_outbound_registration_regc_alloc(void *data)
 		}
 	}
 
-	if (!state->client_state->client &&
-		pjsip_regc_create(ast_sip_get_pjsip_endpoint(), state->client_state, sip_outbound_registration_response_cb,
-		&state->client_state->client) != PJ_SUCCESS) {
+	if (!state->client_state->client
+		&& pjsip_regc_create(ast_sip_get_pjsip_endpoint(), state->client_state,
+			sip_outbound_registration_response_cb,
+			&state->client_state->client) != PJ_SUCCESS) {
 		return -1;
 	}
 
