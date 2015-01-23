@@ -1909,7 +1909,7 @@ int ooOnReceivedOpenLogicalChannelAck(OOH323CallData *call,
                                      T_H245TransportAddress_unicastAddress)
    	{
       	 OOTRACEERR3("Error: Processing OpenLogicalChannelAck - media control "
-                  "channel addres type is not unicast (%s, %s)\n", 
+                  "channel address type is not unicast (%s, %s)\n", 
                    call->callType, call->callToken);
       	 return OO_FAILED;
    	}

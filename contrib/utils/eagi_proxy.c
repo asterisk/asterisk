@@ -223,7 +223,7 @@ int connect_to_host(char* name, int port)
 	struct sockaddr_in host;
 	
 
-	/* get adress */	
+	/* get address */	
 	if(!strcmp(name,"localhost"))
 		address=htonl(2130706433); /*127.0.0.1*/
 	else

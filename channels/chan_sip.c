@@ -8817,7 +8817,7 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
  * This function will update the destination of the response according to the
  * Via header in the request and RFC 3261 section 18.2.2. We do not have a
  * transport layer so we ignore certain values like the 'received' param (we
- * set the destination address to the addres the request came from in the
+ * set the destination address to the address the request came from in the
  * respprep() function).
  *
  * \retval -1 error

@@ -233,7 +233,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>FAXOPT can be used to override the settings for a FAX session listed in <filename>res_fax.conf</filename>,
-		   	it can also be used to retreive information about a FAX session that has finished eg. pages/status.</para>
+		   	it can also be used to retrieve information about a FAX session that has finished eg. pages/status.</para>
 		</description>
 		<see-also>
 			<ref type="application">ReceiveFax</ref>
