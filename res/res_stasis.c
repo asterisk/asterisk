@@ -1817,6 +1817,8 @@ enum stasis_app_user_event_res stasis_app_user_event(const char *app_name,
 	blob = json_variables;
 	if (!blob) {
 		blob = ast_json_pack("{}");
+	} else {
+		ast_json_ref(blob);
 	}
 	json_value = ast_json_string_create(event_name);
 	if (!json_value) {

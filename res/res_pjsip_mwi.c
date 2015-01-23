@@ -658,7 +658,7 @@ static struct mwi_subscription *mwi_subscribe_all(
 static int mwi_new_subscribe(struct ast_sip_endpoint *endpoint,
 		const char *resource)
 {
-	struct ast_sip_aor *aor;
+	RAII_VAR(struct ast_sip_aor *, aor, NULL, ao2_cleanup);
 
 	if (ast_strlen_zero(resource)) {
 		if (ast_sip_for_each_aor(endpoint->aors, mwi_validate_for_aor, endpoint)) {

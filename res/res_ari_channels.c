@@ -233,7 +233,7 @@ static void ast_ari_channels_originate_cb(
 			goto fin;
 		}
 	}
-	args.variables = ast_json_ref(body);
+	args.variables = body;
 	ast_ari_channels_originate(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
@@ -456,7 +456,7 @@ static void ast_ari_channels_originate_with_id_cb(
 			goto fin;
 		}
 	}
-	args.variables = ast_json_ref(body);
+	args.variables = body;
 	ast_ari_channels_originate_with_id(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
