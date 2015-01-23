@@ -418,10 +418,11 @@ static struct ast_channel *rec_request(const char *type, struct ast_format_cap *
 static void set_rec_filename(struct conference_bridge *bridge, struct ast_str **filename, int is_new)
 {
 	char *rec_file = bridge->b_profile.rec_file;
-	time_t now;
 	char *ext;
+	time_t now;
 
-	if (ast_str_strlen(*filename) && !is_new) {
+	if (ast_str_strlen(*filename)
+		&& !is_new) {
 		return;
 	}
 
@@ -429,15 +430,16 @@ static void set_rec_filename(struct conference_bridge *bridge, struct ast_str **
 
 	ast_str_reset(*filename);
 	if (ast_strlen_zero(rec_file)) {
-		ast_str_set(filename, 0, "confbridge-%s-%u.wav", bridge->name, (unsigned int)now);
+		ast_str_set(filename, 0, "confbridge-%s-%u.wav", bridge->name,
+			(unsigned int) now);
 	} else {
 		/* insert time before file extension */
 		ext = strrchr(rec_file, '.');
 		if (ext) {
 			ast_str_set_substr(filename, 0, rec_file, ext - rec_file);
-			ast_str_append(filename, 0, "-%u%s", (unsigned int)now, ext);
+			ast_str_append(filename, 0, "-%u%s", (unsigned int) now, ext);
 		} else {
-			ast_str_set(filename, 0, "%s-%u", rec_file, (unsigned int)now);
+			ast_str_set(filename, 0, "%s-%u", rec_file, (unsigned int) now);
 		}
 	}
 	ast_str_append(filename, 0, ",a");
