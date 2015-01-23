@@ -3970,7 +3970,7 @@ void ast_channel_internal_bridged_channel_set(struct ast_channel *chan, struct a
 
 /*!
  * \since 11
- * \brief Retreive a comma-separated list of channels for which dialed cause information is available
+ * \brief Retrieve a comma-separated list of channels for which dialed cause information is available
  *
  * \details
  * This function makes use of datastore operations on the channel, so
@@ -3984,7 +3984,7 @@ struct ast_str *ast_channel_dialed_causes_channels(const struct ast_channel *cha
 
 /*!
  * \since 11
- * \brief Retreive a ref-counted cause code information structure
+ * \brief Retrieve a ref-counted cause code information structure
  *
  * \details
  * This function makes use of datastore operations on the channel, so
