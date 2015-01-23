@@ -1433,7 +1433,7 @@ H323Connection::CallEndReason MyH323Connection::SendSignalSetup(const PString & 
 			// save the transaction for use by the call
 			ospTransaction = transaction;
 
-			// retreive the call information
+			// retrieve the call information
 			gatekeeperRoute = destInfo.destinationAddress;
 			newAliasAddresses.Append(new H225_AliasAddress(destInfo.calledNumber));
 

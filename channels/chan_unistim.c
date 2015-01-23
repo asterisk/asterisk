@@ -445,7 +445,7 @@ static struct unistimsession {
 	int state;				      /*!< state of the phone (see phone_state) */
 	int size_buff_entry;	    /*!< size of the buffer used to enter datas */
 	char buff_entry[16];	    /*!< Buffer for temporary datas */
-	char macaddr[18];		       /*!< mac adress of the phone (not always available) */
+	char macaddr[18];		       /*!< mac address of the phone (not always available) */
 	struct wsabuf wsabufsend[MAX_BUF_NUMBER];      /*!< Size of each paquet stored in the buffer array & pointer to this buffer */
 	unsigned char buf[MAX_BUF_NUMBER][MAX_BUF_SIZE];	/*!< Buffer array used to keep the lastest non-acked paquets */
 	struct unistim_device *device;

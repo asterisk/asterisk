@@ -3643,7 +3643,7 @@ static void odbc_update_msg_id(char *dir, int msg_num, char *msg_id)
 
 /*!
  * \brief Retrieves a file from an ODBC data store.
- * \param dir the path to the file to be retreived.
+ * \param dir the path to the file to be retrieved.
  * \param msgnum the message number, such as within a mailbox folder.
  * 
  * This method is used by the RETRIEVE macro when mailboxes are stored in an ODBC back end.
@@ -7900,7 +7900,7 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
  *   - attempt to determine the context and and mailbox, and then invoke leave_message() function to record and store the message.
  *
  * When in the forward message mode (is_new_message == 0):
- *   - retreives the current message to be forwarded
+ *   - retrieves the current message to be forwarded
  *   - copies the original message to a temporary file, so updates to the envelope can be done.
  *   - determines the target mailbox and folders
  *   - copies the message into the target mailbox, using copy_message() or by generating the message into an email attachment if using imap folders.

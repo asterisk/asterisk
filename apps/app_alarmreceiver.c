@@ -165,7 +165,7 @@ static void make_tone_burst(unsigned char *data, float freq, float loudness, int
 }
 
 /*
-* Send a single tone burst for a specifed duration and frequency.
+* Send a single tone burst for a specified duration and frequency.
 * Returns 0 if successful
 */
 static int send_tone_burst(struct ast_channel *chan, float freq, int duration, int tldn)

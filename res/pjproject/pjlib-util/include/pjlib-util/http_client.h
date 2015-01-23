@@ -211,7 +211,7 @@ typedef struct pj_http_req_param
 
     /**
      * Max number of retries if binding to a port fails.
-     * Note that this does not adress the scenario where a request times out
+     * Note that this does not address the scenario where a request times out
      * or errors. This needs to be taken care of by the on_complete callback.
      *
      * Default is 3
@@ -402,7 +402,7 @@ PJ_DECL(pj_status_t) pj_http_req_parse_url(const pj_str_t *url,
  * @param timer	        The timer to use.
  * @param ioqueue	The ioqueue to use.
  * @param param		Optional parameters. When this parameter is not 
- *                      specifed (NULL), the default values will be used.
+ *                      specified (NULL), the default values will be used.
  * @param hcb		Pointer to structure containing application
  *			callbacks.
  * @param http_req	Pointer to receive the http request instance.

@@ -3976,7 +3976,7 @@ void ast_channel_internal_bridged_channel_set(struct ast_channel *chan, struct a
  * This function makes use of datastore operations on the channel, so
  * it is important to lock the channel before calling this function.
  *
- * \param chan The channel from which to retreive information
+ * \param chan The channel from which to retrieve information
  * \retval NULL on allocation failure
  * \retval Pointer to an ast_str object containing the desired information which must be freed
  */
@@ -3993,8 +3993,8 @@ struct ast_str *ast_channel_dialed_causes_channels(const struct ast_channel *cha
  * calling function must decrease the reference count when it is finished
  * with the object.
  *
- * \param chan The channel from which to retreive information
- * \param chan_name The name of the channel about which to retreive information
+ * \param chan The channel from which to retrieve information
+ * \param chan_name The name of the channel about which to retrieve information
  * \retval NULL on search failure
  * \retval Pointer to a ref-counted ast_control_pvt_cause_code object containing the desired information
  */

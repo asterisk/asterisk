@@ -270,7 +270,7 @@ static void usage(void)
     puts  ("  --local-port=port   Set TCP/UDP port. This implicitly enables both ");
     puts  ("                      TCP and UDP transports on the specified port, unless");
     puts  ("                      if TCP or UDP is disabled.");
-    puts  ("  --ip-addr=IP        Use the specifed address as SIP and RTP addresses.");
+    puts  ("  --ip-addr=IP        Use the specified address as SIP and RTP addresses.");
     puts  ("                      (Hint: the IP may be the public IP of the NAT/router)");
     puts  ("  --bound-addr=IP     Bind transports to this IP interface");
     puts  ("  --no-tcp            Disable TCP transport.");

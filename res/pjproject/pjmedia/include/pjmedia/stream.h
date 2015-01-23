@@ -207,7 +207,7 @@ PJ_DECL(pj_status_t) pjmedia_stream_destroy(pjmedia_stream *stream);
 
 
 /**
- * Get the last frame type retreived from the jitter buffer.
+ * Get the last frame type retrieved from the jitter buffer.
  *
  * @param stream	The media stream.
  *

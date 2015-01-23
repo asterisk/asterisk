@@ -9446,11 +9446,11 @@ static void misdn_facility_ie_handler(enum event_e event, struct misdn_bchannel 
 		break;
 #endif	/* We don't handle this yet */
 	case Fac_SubaddressTransfer:
-		/* We do not have anything to do for this message since we do not handle subaddreses. */
+		/* We do not have anything to do for this message since we do not handle subaddresses. */
 		break;
 	case Fac_RequestSubaddress:
 		/*
-		 * We do not have anything to do for this message since we do not handle subaddreses.
+		 * We do not have anything to do for this message since we do not handle subaddresses.
 		 * However, we do care about some other ie's that should be present.
 		 */
 		if (bc->redirecting.to_changed) {

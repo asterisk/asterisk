@@ -685,7 +685,7 @@ static void sess_on_request_complete(pj_stun_session *sess,
 		     pj_sockaddr_cmp(&stun_sock->mapped_addr, 
 				     &mapped_attr->sockaddr) != 0;
     if (mapped_changed) {
-	/* Print mapped adress */
+	/* Print mapped address */
 	{
 	    char addrinfo[PJ_INET6_ADDRSTRLEN+10];
 	    PJ_LOG(4,(stun_sock->obj_name, 

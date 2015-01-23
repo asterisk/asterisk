@@ -103,7 +103,7 @@ typedef struct pjsip_tcp_transport_cfg
 
 /**
  * Initialize pjsip_tcp_transport_cfg structure with default values for
- * the specifed address family.
+ * the specified address family.
  *
  * @param cfg		The structure to initialize.
  * @param af		Address family to be used.

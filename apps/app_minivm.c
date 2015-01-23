@@ -1350,7 +1350,7 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	prep_email_sub_vars(ast, vmu, cidnum, cidname, dur, date, counter);
 
 	/* Find email address to use */
-	/* If there's a server e-mail adress in the account, user that, othterwise template */
+	/* If there's a server e-mail address in the account, user that, othterwise template */
 	fromemail = ast_strlen_zero(vmu->serveremail) ?  template->serveremail : vmu->serveremail;
 
 	/* Find name to user for server e-mail */

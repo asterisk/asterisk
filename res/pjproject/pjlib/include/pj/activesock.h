@@ -239,7 +239,7 @@ PJ_DECL(void) pj_activesock_cfg_default(pj_activesock_cfg *cfg);
  *			information to handle connection closure for
  *			connection oriented sockets.
  * @param ioqueue	The ioqueue to use.
- * @param opt		Optional settings. When this setting is not specifed,
+ * @param opt		Optional settings. When this setting is not specified,
  *			the default values will be used.
  * @param cb		Pointer to structure containing application
  *			callbacks.
@@ -268,7 +268,7 @@ PJ_DECL(pj_status_t) pj_activesock_create(pj_pool_t *pool,
  *			address where the socket should be bound to. If
  *			this argument is NULL, then AF_INET is assumed and
  *			the socket will be bound to any addresses and port.
- * @param opt		Optional settings. When this setting is not specifed,
+ * @param opt		Optional settings. When this setting is not specified,
  *			the default values will be used.
  * @param cb		Pointer to structure containing application
  *			callbacks.
