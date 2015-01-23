@@ -1346,7 +1346,7 @@ static int ami_show_outbound_registrations(struct mansession *s,
 	RAII_VAR(struct ao2_container *, regs, get_registrations(), ao2_cleanup);
 
 	if (!regs) {
-		astman_send_error(s, m, "Unable to retreive "
+		astman_send_error(s, m, "Unable to retrieve "
 				  "outbound registrations\n");
 		return -1;
 	}

@@ -48,7 +48,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<parameter name="channel" required="true">
-				<para>The name of the channel for which to retreive cause information.</para>
+				<para>The name of the channel for which to retrieve cause information.</para>
 			</parameter>
 			<parameter name="type" required="true">
 				<para>Parameter describing which type of information is requested. Types are:</para>

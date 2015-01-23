@@ -94,7 +94,7 @@ static struct stasis_message_router *bridge_state_router;
 		<syntax>
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
 			<parameter name="BridgeUniqueid" required="true">
-				<para>The unique ID of the bridge about which to retreive information.</para>
+				<para>The unique ID of the bridge about which to retrieve information.</para>
 			</parameter>
 		</syntax>
 		<description>

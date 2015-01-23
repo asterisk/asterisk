@@ -484,7 +484,7 @@ static int ademco_verify_checksum(char *event, int expected)
 }
 
 /*!
- * \brief Send a single tone burst for a specifed duration and frequency.
+ * \brief Send a single tone burst for a specified duration and frequency.
  * \since 11.0
  *
  * \param chan Asterisk Channel
