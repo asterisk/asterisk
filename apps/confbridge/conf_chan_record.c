@@ -38,6 +38,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /* ------------------------------------------------------------------- */
 
+static unsigned int name_sequence = 0;
+
 static int rec_call(struct ast_channel *chan, const char *addr, int timeout)
 {
 	/* Make sure anyone calling ast_call() for this channel driver is going to fail. */
@@ -59,6 +61,7 @@ static struct ast_channel *rec_request(const char *type, struct ast_format_cap *
 	struct ast_channel *chan;
 	const char *conf_name = data;
 	RAII_VAR(struct ast_format_cap *, capabilities, NULL, ao2_cleanup);
+	int generated_seqno = ast_atomic_fetchadd_int((int *) &name_sequence, +1);
 
 	capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!capabilities) {
@@ -67,8 +70,8 @@ static struct ast_channel *rec_request(const char *type, struct ast_format_cap *
 	ast_format_cap_append_by_type(capabilities, AST_MEDIA_TYPE_UNKNOWN);
 
 	chan = ast_channel_alloc(1, AST_STATE_UP, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0,
-		"CBRec/conf-%s-uid-%d",
-		conf_name, (int) ast_random());
+		"CBRec/conf-%s-uid-%08x",
+		conf_name, (unsigned) generated_seqno);
 	if (!chan) {
 		return NULL;
 	}
