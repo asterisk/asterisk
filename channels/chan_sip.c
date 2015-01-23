@@ -30578,7 +30578,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				if (peer->callingpres == -1) {
 					peer->callingpres = atoi(v->value);
 				}
-			} else if (!strcasecmp(v->name, "username") || !strcmp(v->name, "defaultuser")) {	/* "username" is deprecated */
+			} else if (!strcasecmp(v->name, "username") || !strcasecmp(v->name, "defaultuser")) {	/* "username" is deprecated */
 				ast_string_field_set(peer, username, v->value);
 				if (!strcasecmp(v->name, "username")) {
 					if (deprecation_warning) {
