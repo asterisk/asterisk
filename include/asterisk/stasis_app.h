@@ -245,8 +245,7 @@ enum stasis_app_user_event_res {
  * \param event_name Name of the Userevent.
  * \param source_uris URIs for the source objects to attach to event.
  * \param sources_count Array size of source_uris.
- * \param userevent_data Custom parameters for the user event
- * \param userevents_count Array size of userevent_data
+ * \param json_variables event blob variables.
  *
  * \return \ref stasis_app_user_event_res return code.
  */

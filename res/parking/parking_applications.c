@@ -610,6 +610,7 @@ static int parked_call_app_exec(struct ast_channel *chan, const char *data)
 	}
 
 	/* The parked call needs to know who is retrieving it before we move it out of the parking bridge */
+	ast_assert(pu->retriever == NULL);
 	pu->retriever = ast_channel_snapshot_create(chan);
 
 	/* Create bridge */

@@ -170,7 +170,7 @@ static void ast_ari_endpoints_send_message_cb(
 			goto fin;
 		}
 	}
-	args.variables = ast_json_ref(body);
+	args.variables = body;
 	ast_ari_endpoints_send_message(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
@@ -396,7 +396,7 @@ static void ast_ari_endpoints_send_message_to_endpoint_cb(
 			goto fin;
 		}
 	}
-	args.variables = ast_json_ref(body);
+	args.variables = body;
 	ast_ari_endpoints_send_message_to_endpoint(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;

@@ -949,7 +949,7 @@ static void resource_tree_destroy(struct resource_tree *tree)
 static int build_resource_tree(struct ast_sip_endpoint *endpoint, const struct ast_sip_subscription_handler *handler,
 		const char *resource, struct resource_tree *tree, int has_eventlist_support)
 {
-	struct resource_list *list;
+	RAII_VAR(struct resource_list *, list, NULL, ao2_cleanup);
 	struct resources visited;
 
 	if (!has_eventlist_support || !(list = retrieve_resource_list(resource, handler->event_name))) {
@@ -975,7 +975,6 @@ static int build_resource_tree(struct ast_sip_endpoint *endpoint, const struct a
 
 	build_node_children(endpoint, handler, list, tree->root, &visited);
 	AST_VECTOR_FREE(&visited);
-	ao2_cleanup(list);
 
 	if (AST_VECTOR_SIZE(&tree->root->children) > 0) {
 		return 200;
@@ -3183,7 +3182,6 @@ static int serialized_pubsub_on_client_refresh(void *userdata)
 		pjsip_evsub_send_request(sub_tree->evsub, tdata);
 	} else {
 		pjsip_evsub_terminate(sub_tree->evsub, PJ_TRUE);
-		return 0;
 	}
 	ao2_cleanup(sub_tree);
 	return 0;
