@@ -70,7 +70,7 @@ static struct ast_channel *rec_request(const char *type, struct ast_format_cap *
 	ast_format_cap_append_by_type(capabilities, AST_MEDIA_TYPE_UNKNOWN);
 
 	chan = ast_channel_alloc(1, AST_STATE_UP, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0,
-		"CBRec/conf-%s-uid-%08x",
+		"CBRec/%s-%08x",
 		conf_name, (unsigned) generated_seqno);
 	if (!chan) {
 		return NULL;
