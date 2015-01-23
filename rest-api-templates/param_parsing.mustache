@@ -101,7 +101,7 @@
 		}
 	}
 {{#body_parameter}}
-	args.{{c_name}} = ast_json_ref(body);
+	args.{{c_name}} = body;
 {{/body_parameter}}
 {{^body_parameter}}
 	if (ast_ari_{{c_name}}_{{c_nickname}}_parse_body(body, &args)) {

@@ -111,6 +111,7 @@ static void remove_header(struct header_list *headers, const char *to_remove)
 	AST_LIST_TRAVERSE_SAFE_BEGIN(headers, iter, next) {
 		if (!strcasecmp(iter->name, to_remove)) {
 			AST_LIST_REMOVE_CURRENT(next);
+			destroy_header(iter);
 			break;
 		}
 	}

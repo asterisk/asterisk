@@ -4406,7 +4406,7 @@ static struct iax2_peer *realtime_peer(const char *peername, struct ast_sockaddr
 		if (var && !ast_sockaddr_isnull(addr)) {
 			for (tmp = var; tmp; tmp = tmp->next) {
 				if (!strcasecmp(tmp->name, "host")) {
-					struct ast_sockaddr *hostaddr;
+					struct ast_sockaddr *hostaddr = NULL;
 
 					if (!ast_sockaddr_resolve(&hostaddr, tmp->value, PARSE_PORT_FORBID, AST_AF_UNSPEC)
 						|| ast_sockaddr_cmp_addr(hostaddr, addr)) {
@@ -4414,6 +4414,7 @@ static struct iax2_peer *realtime_peer(const char *peername, struct ast_sockaddr
 						ast_variables_destroy(var);
 						var = NULL;
 					}
+					ast_free(hostaddr);
 					break;
 				}
 			}
@@ -4528,7 +4529,7 @@ static struct iax2_user *realtime_user(const char *username, struct ast_sockaddr
 		if (var) {
 			for (tmp = var; tmp; tmp = tmp->next) {
 				if (!strcasecmp(tmp->name, "host")) {
-					struct ast_sockaddr *hostaddr;
+					struct ast_sockaddr *hostaddr = NULL;
 
 					if (!ast_sockaddr_resolve(&hostaddr, tmp->value, PARSE_PORT_FORBID, AST_AF_UNSPEC)
 						|| ast_sockaddr_cmp_addr(hostaddr, addr)) {
@@ -4536,6 +4537,7 @@ static struct iax2_user *realtime_user(const char *username, struct ast_sockaddr
 						ast_variables_destroy(var);
 						var = NULL;
 					}
+					ast_free(hostaddr);
 					break;
 				}
 			}

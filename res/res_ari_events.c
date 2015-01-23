@@ -281,7 +281,7 @@ static void ast_ari_events_user_event_cb(
 			goto fin;
 		}
 	}
-	args.variables = ast_json_ref(body);
+	args.variables = body;
 	ast_ari_events_user_event(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
