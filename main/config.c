@@ -3351,7 +3351,7 @@ int ast_update2_realtime(const char *family, ...)
 	va_end(ap);
 
 	va_start(ap, family);
-	realtime_arguments_to_fields2(ap, 1, &lookup_fields);
+	realtime_arguments_to_fields2(ap, 1, &update_fields);
 	va_end(ap);
 
 	if (!lookup_fields || !update_fields) {
