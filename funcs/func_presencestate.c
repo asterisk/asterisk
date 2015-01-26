@@ -41,7 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #ifdef TEST_FRAMEWORK
 #include "asterisk/test.h"
-#include <semaphore.h>
+#include "asterisk/sem.h"
 #endif
 
 /*** DOCUMENTATION
@@ -664,7 +664,7 @@ AST_TEST_DEFINE(test_invalid_parse_data)
 struct test_cb_data {
 	struct ast_presence_state_message *presence_state;
 	/* That's right. I'm using a semaphore */
-	sem_t sem;
+	struct ast_sem sem;
 };
 
 static struct test_cb_data *test_cb_data_alloc(void)
@@ -675,7 +675,7 @@ static struct test_cb_data *test_cb_data_alloc(void)
 		return NULL;
 	}
 
-	if (sem_init(&cb_data->sem, 0, 0)) {
+	if (ast_sem_init(&cb_data->sem, 0, 0)) {
 		ast_free(cb_data);
 		return NULL;
 	}
@@ -686,7 +686,7 @@ static struct test_cb_data *test_cb_data_alloc(void)
 static void test_cb_data_destroy(struct test_cb_data *cb_data)
 {
 	ao2_cleanup(cb_data->presence_state);
-	sem_destroy(&cb_data->sem);
+	ast_sem_destroy(&cb_data->sem);
 	ast_free(cb_data);
 }
 
@@ -699,7 +699,7 @@ static void test_cb(void *userdata, struct stasis_subscription *sub, struct stas
 	cb_data->presence_state = stasis_message_data(msg);
 	ao2_ref(cb_data->presence_state, +1);
 
-	sem_post(&cb_data->sem);
+	ast_sem_post(&cb_data->sem);
 }
 
 static enum ast_test_result_state presence_change_common(struct ast_test *test,
@@ -727,7 +727,7 @@ static enum ast_test_result_state presence_change_common(struct ast_test *test,
 		return AST_TEST_FAIL;
 	}
 
-	sem_wait(&cb_data->sem);
+	ast_sem_wait(&cb_data->sem);
 
 	ast_copy_string(out_state, ast_presence_state2str(cb_data->presence_state->state), out_state_size);
 	ast_copy_string(out_subtype, cb_data->presence_state->subtype, out_subtype_size);

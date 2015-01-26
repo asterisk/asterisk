@@ -324,7 +324,7 @@
 /* Define to 1 if you have the Hoard Memory Allocator library. */
 #undef HAVE_HOARD
 
-/* Define to 1 if you have the `htonll' function. */
+/* Define to 1 if arpa/inet.h includes a htonll definition. */
 #undef HAVE_HTONLL
 
 /* Define to 1 if you have the iCal library. */
@@ -524,7 +524,7 @@
 /* Define to 1 if you have the newt library. */
 #undef HAVE_NEWT
 
-/* Define to 1 if you have the `ntohll' function. */
+/* Define to 1 if arpa/inet.h includes a ntohll definition. */
 #undef HAVE_NTOHLL
 
 /* Define to 1 if your C library can safely print NULL to string formats. */
@@ -1298,6 +1298,11 @@
 
 /* Define to 1 if running on Darwin. */
 #undef _DARWIN_UNLIMITED_SELECT
+
+/* Enable large inode numbers on Mac OS X 10.5.  */
+#ifndef _DARWIN_USE_64_BIT_INODE
+# define _DARWIN_USE_64_BIT_INODE 1
+#endif
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 #undef _FILE_OFFSET_BITS

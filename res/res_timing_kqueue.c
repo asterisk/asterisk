@@ -91,12 +91,12 @@ static void *kqueue_timer_open(void)
 
 	if (!(timer = ao2_alloc(sizeof(*timer), timer_destroy))) {
 		ast_log(LOG_ERROR, "Could not allocate memory for kqueue_timer structure\n");
-		return -1;
+		return NULL;
 	}
 	if ((timer->handle = kqueue()) < 0) {
 		ast_log(LOG_ERROR, "Failed to create kqueue timer: %s\n", strerror(errno));
 		ao2_ref(timer, -1);
-		return -1;
+		return NULL;
 	}
 
 	return timer;
@@ -201,6 +201,8 @@ static enum ast_timer_event kqueue_timer_get_event(void *data)
 	if (timer->unacked == 0) {
 		if (kevent(timer->handle, NULL, 0, &kev, 1, &sixty_seconds) > 0) {
 			timer->unacked += kev.data;
+		} else {
+			perror("kevent");
 		}
 	}
 
@@ -250,7 +252,7 @@ AST_TEST_DEFINE(test_kqueue_timing)
 	}
 
 	do {
-		pfd.fd = ast_timer_fd(kt);
+		pfd.fd = kqueue_timer_fd(kt);
 		if (kqueue_timer_set_rate(kt, 1000)) {
 			ast_test_status_update(test, "Cannot set timer rate to 1000/s\n");
 			res = AST_TEST_FAIL;
@@ -271,13 +273,12 @@ AST_TEST_DEFINE(test_kqueue_timing)
 			res = AST_TEST_FAIL;
 			break;
 		}
-#if 0
 		if (kt->unacked == 0) {
 			ast_test_status_update(test, "Unacked events is 0, but there should be at least 1.\n");
 			res = AST_TEST_FAIL;
 			break;
 		}
-#endif
+
 		kqueue_timer_enable_continuous(kt);
 		start = ast_tvnow();
 		for (i = 0; i < 100; i++) {
