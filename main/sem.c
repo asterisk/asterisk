@@ -85,6 +85,7 @@ int ast_sem_post(struct ast_sem *sem)
 
 int ast_sem_wait(struct ast_sem *sem)
 {
+	int res;
 	SCOPED_MUTEX(lock, &sem->mutex);
 
 	ast_assert(sem->count >= 0);
@@ -92,7 +93,37 @@ int ast_sem_wait(struct ast_sem *sem)
 	/* Wait for a non-zero count */
 	++sem->waiters;
 	while (sem->count == 0) {
-		ast_cond_wait(&sem->cond, &sem->mutex);
+		res = ast_cond_wait(&sem->cond, &sem->mutex);
+		/* Give up on error */
+		if (res != 0) {
+			--sem->waiters;
+			return res;
+		}
+	}
+	--sem->waiters;
+
+	/* Take it! */
+	--sem->count;
+
+	return 0;
+}
+
+int ast_sem_timedwait(struct ast_sem *sem, const struct timespec *abs_timeout)
+{
+	int res;
+	SCOPED_MUTEX(lock, &sem->mutex);
+
+	ast_assert(sem->count >= 0);
+
+	/* Wait for a non-zero count */
+	++sem->waiters;
+	while (sem->count == 0) {
+		res = ast_cond_timedwait(&sem->cond, &sem->mutex, abs_timeout);
+		/* Give up on error */
+		if (res != 0) {
+			--sem->waiters;
+			return res;
+		}
 	}
 	--sem->waiters;
 

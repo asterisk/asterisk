@@ -660,7 +660,25 @@ AC_FUNC_STRNLEN
 AC_FUNC_STRTOD
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS([asprintf atexit closefrom dup2 eaccess endpwent euidaccess ffsll ftruncate getcwd gethostbyname gethostname getloadavg gettimeofday glob htonll ioperm inet_ntoa isascii memchr memmove memset mkdir mkdtemp munmap ntohll newlocale ppoll putenv re_comp regcomp select setenv socket strcasecmp strcasestr strchr strcspn strdup strerror strlcat strlcpy strncasecmp strndup strnlen strrchr strsep strspn strstr strtod strtol strtold strtoq unsetenv utime vasprintf getpeereid sysctl swapctl])
+AC_CHECK_FUNCS([asprintf atexit closefrom dup2 eaccess endpwent euidaccess ffsll ftruncate getcwd gethostbyname gethostname getloadavg gettimeofday glob ioperm inet_ntoa isascii memchr memmove memset mkdir mkdtemp munmap newlocale ppoll putenv re_comp regcomp select setenv socket strcasecmp strcasestr strchr strcspn strdup strerror strlcat strlcpy strncasecmp strndup strnlen strrchr strsep strspn strstr strtod strtol strtold strtoq unsetenv utime vasprintf getpeereid sysctl swapctl])
+
+AC_MSG_CHECKING(for htonll)
+AC_LINK_IFELSE(
+	[AC_LANG_PROGRAM([#include <arpa/inet.h>],
+		[return htonll(0);])],
+	AC_MSG_RESULT(yes)
+	AC_DEFINE(HAVE_HTONLL, 1, [Define to 1 if arpa/inet.h includes a htonll definition.]),
+	AC_MSG_RESULT(no)
+)
+
+AC_MSG_CHECKING(for ntohll)
+AC_LINK_IFELSE(
+	[AC_LANG_PROGRAM([#include <arpa/inet.h>],
+		[return ntohll(0);])],
+	AC_MSG_RESULT(yes)
+	AC_DEFINE(HAVE_NTOHLL, 1, [Define to 1 if arpa/inet.h includes a ntohll definition.]),
+	AC_MSG_RESULT(no)
+)
 
 # NOTE: we use AC_CHECK_LIB to get -lm into the arguments for later checks,
 # so that AC_CHECK_FUNCS can detect functions in that library.
@@ -2432,10 +2450,9 @@ AST_EXT_LIB_CHECK([X11], [X11], [XOpenDisplay], [X11/Xlib.h],, [-I/usr/X11R6/inc
 PBX_LAUNCHD=0
 if test "${cross_compiling}" = "no";
 then
-  AC_CHECK_FILE(/sbin/launchd, AC_DEFINE([HAVE_SBIN_LAUNCHD], 1, [Define to 1 if your system has /sbin/launchd.]))
-  if test "${HAVE_SBIN_LAUNCHD}" = 1; then
-    PBX_LAUNCHD=1
-  fi
+  AC_CHECK_FILE(/sbin/launchd,
+    [PBX_LAUNCHD=1]
+    AC_DEFINE([HAVE_SBIN_LAUNCHD], 1, [Define to 1 if your system has /sbin/launchd.]))
 fi
 AC_SUBST(PBX_LAUNCHD)
 

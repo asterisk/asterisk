@@ -59,6 +59,11 @@ static force_inline int ast_sem_wait(struct ast_sem *sem)
 	return sem_wait(&sem->real_sem);
 }
 
+static force_inline int ast_sem_timedwait(struct ast_sem *sem, const struct timespec *abs_timeout)
+{
+	return sem_timedwait(&sem->real_sem, abs_timeout);
+}
+
 static force_inline int ast_sem_getvalue(struct ast_sem *sem, int *sval)
 {
 	return sem_getvalue(&sem->real_sem, sval);
@@ -135,6 +140,20 @@ int ast_sem_post(struct ast_sem *sem);
  * \return -1 on error, errno set to indicate error.
  */
 int ast_sem_wait(struct ast_sem *sem);
+
+/*!
+ * \brief Decrements the semaphore, waiting until abs_timeout.
+ *
+ * If the semaphore's current value is zero, this function blocks until another
+ * thread posts (ast_sem_post()) to the semaphore (or is interrupted by a signal
+ * handler, which sets errno to EINTR).
+ *
+ * \param sem Semaphore to decrement.
+ *
+ * \return 0 on success.
+ * \return -1 on error, errno set to indicate error.
+ */
+int ast_sem_timedwait(struct ast_sem *sem, const struct timespec *abs_timeout);
 
 /*!
  * \brief Gets the current value of the semaphore.

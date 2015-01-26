@@ -2911,7 +2911,9 @@ int ast_safe_fork(int stop_reaper)
 		ast_replace_sigchld();
 	}
 
-	sigfillset(&signal_set);
+	/* GCC 4.9 gives a bogus "right-hand operand of comma expression has
+	 * no effect" warning */
+	(void) sigfillset(&signal_set);
 	pthread_sigmask(SIG_BLOCK, &signal_set, &old_set);
 
 	pid = fork();

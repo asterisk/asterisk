@@ -35,7 +35,6 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <signal.h>
-#include <semaphore.h>
 
 #include "asterisk/heap.h"
 #include "asterisk/astobj2.h"
@@ -56,6 +55,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/parking.h"
 #include "asterisk/causes.h"
 #include "asterisk/test.h"
+#include "asterisk/sem.h"
 
 /*!
  * \brief Used to queue an action frame onto a bridge channel and write an action frame into a bridge.
@@ -101,7 +101,7 @@ struct bridge_sync {
 	/*! Unique ID of this synchronization object. Corresponds with ID in synchronous frame payload */
 	unsigned int id;
 	/*! Semaphore used for synchronization */
-	sem_t sem;
+	struct ast_sem sem;
 	/*! Pointer to next entry in the list */
 	AST_LIST_ENTRY(bridge_sync) list;
 };
@@ -124,7 +124,7 @@ static void bridge_sync_init(struct bridge_sync *sync_struct, unsigned int id)
 {
 	memset(sync_struct, 0, sizeof(*sync_struct));
 	sync_struct->id = id;
-	sem_init(&sync_struct->sem, 0, 0);
+	ast_sem_init(&sync_struct->sem, 0, 0);
 
 	AST_RWLIST_WRLOCK(&sync_structs);
 	AST_RWLIST_INSERT_TAIL(&sync_structs, sync_struct, list);
@@ -157,7 +157,7 @@ static void bridge_sync_cleanup(struct bridge_sync *sync_struct)
 	AST_LIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&sync_structs);
 
-	sem_destroy(&sync_struct->sem);
+	ast_sem_destroy(&sync_struct->sem);
 }
 
 /*!
@@ -189,7 +189,7 @@ static void bridge_sync_wait(struct bridge_sync *sync_struct)
 		.tv_nsec = timeout_val.tv_usec * 1000,
 	};
 
-	sem_timedwait(&sync_struct->sem, &timeout_spec);
+	ast_sem_timedwait(&sync_struct->sem, &timeout_spec);
 }
 
 /*!
@@ -204,7 +204,7 @@ static void bridge_sync_wait(struct bridge_sync *sync_struct)
  */
 static void bridge_sync_signal(struct bridge_sync *sync_struct)
 {
-	sem_post(&sync_struct->sem);
+	ast_sem_post(&sync_struct->sem);
 }
 
 void ast_bridge_channel_lock_bridge(struct ast_bridge_channel *bridge_channel)

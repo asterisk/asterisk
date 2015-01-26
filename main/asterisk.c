@@ -4366,12 +4366,14 @@ int main(int argc, char *argv[])
 	}
 
 	ast_makesocket();
-	sigemptyset(&sigs);
-	sigaddset(&sigs, SIGHUP);
-	sigaddset(&sigs, SIGTERM);
-	sigaddset(&sigs, SIGINT);
-	sigaddset(&sigs, SIGPIPE);
-	sigaddset(&sigs, SIGWINCH);
+	/* GCC 4.9 gives a bogus "right-hand operand of comma expression has
+	 * no effect" warning */
+	(void) sigemptyset(&sigs);
+	(void) sigaddset(&sigs, SIGHUP);
+	(void) sigaddset(&sigs, SIGTERM);
+	(void) sigaddset(&sigs, SIGINT);
+	(void) sigaddset(&sigs, SIGPIPE);
+	(void) sigaddset(&sigs, SIGWINCH);
 	pthread_sigmask(SIG_BLOCK, &sigs, NULL);
 	sigaction(SIGURG, &urg_handler, NULL);
 	signal(SIGINT, __quit_handler);
