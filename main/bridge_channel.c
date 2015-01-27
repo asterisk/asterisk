@@ -1994,6 +1994,19 @@ int bridge_channel_internal_push(struct ast_bridge_channel *bridge_channel)
 			bridge->uniqueid, bridge_channel, ast_channel_name(bridge_channel->chan));
 		return -1;
 	}
+
+	if (swap) {
+		int dissolve = ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_DISSOLVE_EMPTY);
+
+		/* This flag is cleared so the act of this channel leaving does not cause it to dissolve if need be */
+		ast_clear_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_DISSOLVE_EMPTY);
+
+		ast_bridge_channel_leave_bridge(swap, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, 0);
+		bridge_channel_internal_pull(swap);
+
+		ast_set2_flag(&bridge->feature_flags, dissolve, AST_BRIDGE_FLAG_DISSOLVE_EMPTY);
+	}
+
 	bridge_channel->in_bridge = 1;
 	bridge_channel->just_joined = 1;
 	AST_LIST_INSERT_TAIL(&bridge->channels, bridge_channel, entry);
@@ -2015,10 +2028,6 @@ int bridge_channel_internal_push(struct ast_bridge_channel *bridge_channel)
 		bridge->uniqueid);
 
 	ast_bridge_publish_enter(bridge, bridge_channel->chan, swap ? swap->chan : NULL);
-	if (swap) {
-		ast_bridge_channel_leave_bridge(swap, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, 0);
-		bridge_channel_internal_pull(swap);
-	}
 
 	/* Clear any BLINDTRANSFER and ATTENDEDTRANSFER since the transfer has completed. */
 	pbx_builtin_setvar_helper(bridge_channel->chan, "BLINDTRANSFER", NULL);
