@@ -6025,14 +6025,31 @@ static int manager_moduleload(struct mansession *s, const struct message *m)
 			astman_send_ack(s, m, "Module unloaded.");
 		}
 	} else if (!strcasecmp(loadtype, "reload")) {
+		/* TODO: Unify the ack/error messages here with action_reload */
 		if (!ast_strlen_zero(module)) {
-			res = ast_module_reload(module);
-			if (res == 0) {
+			enum ast_module_reload_result reload_res = ast_module_reload(module);
+
+			switch (reload_res) {
+			case AST_MODULE_RELOAD_NOT_FOUND:
 				astman_send_error(s, m, "No such module.");
-			} else if (res == 1) {
+				break;
+			case AST_MODULE_RELOAD_NOT_IMPLEMENTED:
 				astman_send_error(s, m, "Module does not support reload action.");
-			} else {
+				break;
+			case AST_MODULE_RELOAD_ERROR:
+				astman_send_error(s, m, "An unknown error occurred");
+				break;
+			case AST_MODULE_RELOAD_IN_PROGRESS:
+				astman_send_error(s, m, "A reload is in progress");
+				break;
+			case AST_MODULE_RELOAD_UNINITIALIZED:
+				astman_send_error(s, m, "Module not initialized");
+				break;
+			case AST_MODULE_RELOAD_QUEUED:
+			case AST_MODULE_RELOAD_SUCCESS:
+				/* Treat a queued request as success */
 				astman_send_ack(s, m, "Module reloaded.");
+				break;
 			}
 		} else {
 			ast_module_reload(NULL);	/* Reload all modules */
