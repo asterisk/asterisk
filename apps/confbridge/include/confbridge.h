@@ -34,6 +34,8 @@
 #define MAX_CONF_NAME AST_MAX_EXTENSION
 /* Maximum length of a conference pin */
 #define MAX_PIN     80
+/* Maximum length of bridge/user/menu profile names */
+#define MAX_PROFILE_NAME 128
 
 #define DEFAULT_USER_PROFILE "default_user"
 #define DEFAULT_BRIDGE_PROFILE "default_bridge"
@@ -123,12 +125,12 @@ struct conf_menu_entry {
  * of DTMF sequences coupled with the actions those
  * sequences invoke.*/
 struct conf_menu {
-	char name[128];
+	char name[MAX_PROFILE_NAME];
 	AST_LIST_HEAD_NOLOCK(, conf_menu_entry) entries;
 };
 
 struct user_profile {
-	char name[128];
+	char name[MAX_PROFILE_NAME];
 	char pin[MAX_PIN];
 	char moh_class[128];
 	char announcement[PATH_MAX];
@@ -195,7 +197,7 @@ struct bridge_profile_sounds {
 };
 
 struct bridge_profile {
-	char name[64];
+	char name[MAX_PROFILE_NAME];
 	char language[MAX_LANGUAGE];		  /*!< Language used for playback_chan */
 	char rec_file[PATH_MAX];
 	unsigned int flags;
@@ -239,7 +241,7 @@ struct confbridge_user {
 	struct confbridge_conference *conference;    /*!< Conference bridge they are participating in */
 	struct bridge_profile b_profile;             /*!< The Bridge Configuration Profile */
 	struct user_profile u_profile;               /*!< The User Configuration Profile */
-	char menu_name[64];                          /*!< The name of the DTMF menu assigned to this user */
+	char menu_name[MAX_PROFILE_NAME];            /*!< The name of the DTMF menu assigned to this user */
 	char name_rec_location[PATH_MAX];            /*!< Location of the User's name recorded file if it exists */
 	struct ast_channel *chan;                    /*!< Asterisk channel participating */
 	struct ast_bridge_features features;         /*!< Bridge features structure */

@@ -2277,7 +2277,7 @@ int conf_find_menu_entry_by_sequence(const char *dtmf_sequence, struct conf_menu
 	return 0;
 }
 
-static int apply_menu_hooks(struct confbridge_user *user, struct conf_menu *menu)
+static int apply_menu_to_user(struct confbridge_user *user, struct conf_menu *menu)
 {
 	struct conf_menu_entry *menu_entry;
 
@@ -2301,6 +2301,7 @@ static int apply_menu_hooks(struct confbridge_user *user, struct conf_menu *menu
 			menu_hook_destroy(pvt);
 		}
 	}
+	strcpy(user->menu_name, menu->name); /* Safe */
 
 	return 0;
 }
@@ -2322,7 +2323,7 @@ int conf_set_menu_to_user(struct ast_channel *chan, struct confbridge_user *user
 			b_data = datastore->data;
 			if (b_data->m_usable) {
 				menu = ao2_bump(b_data->menu);
-				return apply_menu_hooks(user, menu);
+				return apply_menu_to_user(user, menu);
 			}
 		}
 	}
@@ -2340,7 +2341,7 @@ int conf_set_menu_to_user(struct ast_channel *chan, struct confbridge_user *user
 		return -1;
 	}
 
-	return apply_menu_hooks(user, menu);
+	return apply_menu_to_user(user, menu);
 }
 
 void conf_destroy_config(void)
