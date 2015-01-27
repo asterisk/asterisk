@@ -9233,7 +9233,8 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 		}
 	}
 
-	if (!sip_cfg.pedanticsipchecking) {
+	/* match on callid only for REGISTERs */
+	if (!sip_cfg.pedanticsipchecking || req->method == SIP_REGISTER) {
 		struct sip_pvt tmp_dialog = {
 			.callid = callid,
 		};
