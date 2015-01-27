@@ -80,8 +80,8 @@ int ast_ari_bridges_create_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_bridges_create(struct ast_variable *headers, struct ast_ari_bridges_create_args *args, struct ast_ari_response *response);
-/*! Argument struct for ast_ari_bridges_create_or_update_with_id() */
-struct ast_ari_bridges_create_or_update_with_id_args {
+/*! Argument struct for ast_ari_bridges_create_with_id() */
+struct ast_ari_bridges_create_with_id_args {
 	/*! Comma separated list of bridge type attributes (mixing, holding, dtmf_events, proxy_media) to set. */
 	const char *type;
 	/*! Unique ID to give to the bridge being created. */
@@ -96,9 +96,9 @@ struct ast_ari_bridges_create_or_update_with_id_args {
  * \retval zero on success
  * \retval non-zero on failure
  */
-int ast_ari_bridges_create_or_update_with_id_parse_body(
+int ast_ari_bridges_create_with_id_parse_body(
 	struct ast_json *body,
-	struct ast_ari_bridges_create_or_update_with_id_args *args);
+	struct ast_ari_bridges_create_with_id_args *args);
 
 /*!
  * \brief Create a new bridge or updates an existing one.
@@ -109,7 +109,7 @@ int ast_ari_bridges_create_or_update_with_id_parse_body(
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
-void ast_ari_bridges_create_or_update_with_id(struct ast_variable *headers, struct ast_ari_bridges_create_or_update_with_id_args *args, struct ast_ari_response *response);
+void ast_ari_bridges_create_with_id(struct ast_variable *headers, struct ast_ari_bridges_create_with_id_args *args, struct ast_ari_response *response);
 /*! Argument struct for ast_ari_bridges_get() */
 struct ast_ari_bridges_get_args {
 	/*! Bridge's id */
@@ -306,7 +306,7 @@ int ast_ari_bridges_play_with_id_parse_body(
 /*!
  * \brief Start playback of media on a bridge.
  *
- * The media URI may be any of a number of URI's. Currently sound: and recording: URI's are supported. This operation creates a playback resource that can be used to control the playback of media (pause, rewind, fast forward, etc.)
+ * The media URI may be any of a number of URI's. Currently sound:, recording:, number:, digits:, characters:, and tone: URI's are supported. This operation creates a playback resource that can be used to control the playback of media (pause, rewind, fast forward, etc.)
  *
  * \param headers HTTP headers
  * \param args Swagger parameters

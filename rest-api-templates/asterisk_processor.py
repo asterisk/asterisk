@@ -223,6 +223,10 @@ class AsteriskProcessor(SwaggerPostProcessor):
         else:
             parameter.c_space = ' '
         parameter.wiki_description = wikify(parameter.description)
+        if parameter.allowable_values:
+            parameter.wiki_allowable_values = parameter.allowable_values.to_wiki()
+        else:
+            parameter.wiki_allowable_values = None
 
     def process_model(self, model, context):
         model.description_dox = model.description.replace('\n', '\n * ')

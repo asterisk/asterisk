@@ -206,9 +206,9 @@ static void ast_ari_bridges_create_cb(
 fin: __attribute__((unused))
 	return;
 }
-int ast_ari_bridges_create_or_update_with_id_parse_body(
+int ast_ari_bridges_create_with_id_parse_body(
 	struct ast_json *body,
-	struct ast_ari_bridges_create_or_update_with_id_args *args)
+	struct ast_ari_bridges_create_with_id_args *args)
 {
 	struct ast_json *field;
 	/* Parse query parameters out of it */
@@ -230,12 +230,12 @@ int ast_ari_bridges_create_or_update_with_id_parse_body(
  * \param headers HTTP headers.
  * \param[out] response Response to the HTTP request.
  */
-static void ast_ari_bridges_create_or_update_with_id_cb(
+static void ast_ari_bridges_create_with_id_cb(
 	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
 	struct ast_variable *headers, struct ast_ari_response *response)
 {
-	struct ast_ari_bridges_create_or_update_with_id_args args = {};
+	struct ast_ari_bridges_create_with_id_args args = {};
 	struct ast_variable *i;
 	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
@@ -273,11 +273,11 @@ static void ast_ari_bridges_create_or_update_with_id_cb(
 			goto fin;
 		}
 	}
-	if (ast_ari_bridges_create_or_update_with_id_parse_body(body, &args)) {
+	if (ast_ari_bridges_create_with_id_parse_body(body, &args)) {
 		ast_ari_response_alloc_failed(response);
 		goto fin;
 	}
-	ast_ari_bridges_create_or_update_with_id(headers, &args, response);
+	ast_ari_bridges_create_with_id(headers, &args, response);
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -1378,7 +1378,7 @@ static struct stasis_rest_handlers bridges_bridgeId = {
 	.path_segment = "bridgeId",
 	.is_wildcard = 1,
 	.callbacks = {
-		[AST_HTTP_POST] = ast_ari_bridges_create_or_update_with_id_cb,
+		[AST_HTTP_POST] = ast_ari_bridges_create_with_id_cb,
 		[AST_HTTP_GET] = ast_ari_bridges_get_cb,
 		[AST_HTTP_DELETE] = ast_ari_bridges_destroy_cb,
 	},

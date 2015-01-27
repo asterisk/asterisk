@@ -220,6 +220,9 @@ class AllowableRange(Stringify):
         self.min_value = min_value
         self.max_value = max_value
 
+    def to_wiki(self):
+        return "Allowed range: Min: {0}; Max: {1}".format(self.min_value, self.max_value)
+
 
 class AllowableList(Stringify):
     """Model of a allowableValues of type LIST
@@ -228,6 +231,9 @@ class AllowableList(Stringify):
     """
     def __init__(self, values):
         self.values = values
+
+    def to_wiki(self):
+        return "Allowed values: {0}".format(", ".join(self.values))
 
 
 def load_allowable_values(json, context):

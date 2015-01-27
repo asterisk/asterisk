@@ -940,8 +940,8 @@ void ast_ari_bridges_create(struct ast_variable *headers,
 		ast_bridge_snapshot_to_json(snapshot, stasis_app_get_sanitizer()));
 }
 
-void ast_ari_bridges_create_or_update_with_id(struct ast_variable *headers,
-	struct ast_ari_bridges_create_or_update_with_id_args *args,
+void ast_ari_bridges_create_with_id(struct ast_variable *headers,
+	struct ast_ari_bridges_create_with_id_args *args,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct ast_bridge *, bridge, find_bridge(response, args->bridge_id), ao2_cleanup);
