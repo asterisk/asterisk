@@ -213,13 +213,11 @@ struct conference_bridge {
 	unsigned int waitingusers;                                        /*!< Number of waiting users present */
 	unsigned int locked:1;                                            /*!< Is this conference bridge locked? */
 	unsigned int muted:1;                                             /*!< Is this conference bridge muted? */
-	unsigned int record_state:2;                                      /*!< Whether recording is started, stopped, or should exit */
 	struct ast_channel *playback_chan;                                /*!< Channel used for playback into the conference bridge */
 	struct ast_channel *record_chan;                                  /*!< Channel used for recording the conference */
-	pthread_t record_thread;                                          /*!< The thread the recording chan lives in */
+	struct ast_str *record_filename;                                  /*!< Recording filename. */
+	struct ast_str *orig_rec_file;                                    /*!< Previous b_profile.rec_file. */
 	ast_mutex_t playback_lock;                                        /*!< Lock used for playback channel */
-	ast_mutex_t record_lock;                                          /*!< Lock used for the record thread */
-	ast_cond_t record_cond;                                           /*!< Recording condition variable */
 	AST_LIST_HEAD_NOLOCK(, conference_bridge_user) active_list;       /*!< List of users participating in the conference bridge */
 	AST_LIST_HEAD_NOLOCK(, conference_bridge_user) waiting_list;      /*!< List of users waiting to join the conference bridge */
 };
