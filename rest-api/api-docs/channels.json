@@ -34,7 +34,7 @@
 						},
 						{
 							"name": "extension",
-							"description": "The extension to dial after the endpoint answers",
+							"description": "The extension to dial after the endpoint answers. Mutually exclusive with 'app'.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
@@ -42,7 +42,7 @@
 						},
 						{
 							"name": "context",
-							"description": "The context to dial after the endpoint answers. If omitted, uses 'default'",
+							"description": "The context to dial after the endpoint answers. If omitted, uses 'default'. Mutually exclusive with 'app'.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
@@ -50,7 +50,7 @@
 						},
 						{
 							"name": "priority",
-							"description": "The priority to dial after the endpoint answers. If omitted, uses 1",
+							"description": "The priority to dial after the endpoint answers. If omitted, uses 1. Mutually exclusive with 'app'.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
@@ -58,7 +58,7 @@
 						},
 						{
 							"name": "label",
-							"description": "The label to dial after the endpoint answers. Will supersede 'priority' if provided.",
+							"description": "The label to dial after the endpoint answers. Will supersede 'priority' if provided. Mutually exclusive with 'app'.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
@@ -66,7 +66,7 @@
 						},
 						{
 							"name": "app",
-							"description": "The application that is subscribed to the originated channel, and passed to the Stasis application.",
+							"description": "The application that is subscribed to the originated channel. When the channel is answered, it will be passed to this Stasis application. Mutually exclusive with 'context', 'extension', 'priority', and 'label'.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
@@ -74,7 +74,7 @@
 						},
 						{
 							"name": "appArgs",
-							"description": "The application arguments to pass to the Stasis application.",
+							"description": "The application arguments to pass to the Stasis application provided by 'app'. Mutually exclusive with 'context', 'extension', 'priority', and 'label'.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
@@ -190,7 +190,7 @@
 						},
 						{
 							"name": "extension",
-							"description": "The extension to dial after the endpoint answers",
+							"description": "The extension to dial after the endpoint answers. Mutually exclusive with 'app'.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
@@ -198,7 +198,7 @@
 						},
 						{
 							"name": "context",
-							"description": "The context to dial after the endpoint answers. If omitted, uses 'default'",
+							"description": "The context to dial after the endpoint answers. If omitted, uses 'default'. Mutually exclusive with 'app'.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
@@ -206,7 +206,7 @@
 						},
 						{
 							"name": "priority",
-							"description": "The priority to dial after the endpoint answers. If omitted, uses 1",
+							"description": "The priority to dial after the endpoint answers. If omitted, uses 1. Mutually exclusive with 'app'.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
@@ -214,7 +214,7 @@
 						},
 						{
 							"name": "label",
-							"description": "The label to dial after the endpoint answers. Will supersede priority, if provided",
+							"description": "The label to dial after the endpoint answers. Will supersede 'priority' if provided. Mutually exclusive with 'app'.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
@@ -222,7 +222,7 @@
 						},
 						{
 							"name": "app",
-							"description": "The application that is subscribed to the originated channel, and passed to the Stasis application.",
+							"description": "The application that is subscribed to the originated channel. When the channel is answered, it will be passed to this Stasis application. Mutually exclusive with 'context', 'extension', 'priority', and 'label'.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
@@ -230,7 +230,7 @@
 						},
 						{
 							"name": "appArgs",
-							"description": "The application arguments to pass to the Stasis application.",
+							"description": "The application arguments to pass to the Stasis application provided by 'app'. Mutually exclusive with 'context', 'extension', 'priority', and 'label'.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
@@ -922,7 +922,7 @@
 				{
 					"httpMethod": "POST",
 					"summary": "Start playback of media and specify the playbackId.",
-					"notes": "The media URI may be any of a number of URI's. Currently sound: and recording: URI's are supported. This operation creates a playback resource that can be used to control the playback of media (pause, rewind, fast forward, etc.)",
+					"notes": "The media URI may be any of a number of URI's. Currently sound:, recording:, number:, digits:, characters:, and tone: URI's are supported. This operation creates a playback resource that can be used to control the playback of media (pause, rewind, fast forward, etc.)",
 					"nickname": "playWithId",
 					"responseClass": "Playback",
 					"parameters": [

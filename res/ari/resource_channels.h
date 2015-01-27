@@ -54,17 +54,17 @@ void ast_ari_channels_list(struct ast_variable *headers, struct ast_ari_channels
 struct ast_ari_channels_originate_args {
 	/*! Endpoint to call. */
 	const char *endpoint;
-	/*! The extension to dial after the endpoint answers */
+	/*! The extension to dial after the endpoint answers. Mutually exclusive with 'app'. */
 	const char *extension;
-	/*! The context to dial after the endpoint answers. If omitted, uses 'default' */
+	/*! The context to dial after the endpoint answers. If omitted, uses 'default'. Mutually exclusive with 'app'. */
 	const char *context;
-	/*! The priority to dial after the endpoint answers. If omitted, uses 1 */
+	/*! The priority to dial after the endpoint answers. If omitted, uses 1. Mutually exclusive with 'app'. */
 	long priority;
-	/*! The label to dial after the endpoint answers. Will supersede 'priority' if provided. */
+	/*! The label to dial after the endpoint answers. Will supersede 'priority' if provided. Mutually exclusive with 'app'. */
 	const char *label;
-	/*! The application that is subscribed to the originated channel, and passed to the Stasis application. */
+	/*! The application that is subscribed to the originated channel. When the channel is answered, it will be passed to this Stasis application. Mutually exclusive with 'context', 'extension', 'priority', and 'label'. */
 	const char *app;
-	/*! The application arguments to pass to the Stasis application. */
+	/*! The application arguments to pass to the Stasis application provided by 'app'. Mutually exclusive with 'context', 'extension', 'priority', and 'label'. */
 	const char *app_args;
 	/*! CallerID to use when dialing the endpoint or extension. */
 	const char *caller_id;
@@ -119,17 +119,17 @@ struct ast_ari_channels_originate_with_id_args {
 	const char *channel_id;
 	/*! Endpoint to call. */
 	const char *endpoint;
-	/*! The extension to dial after the endpoint answers */
+	/*! The extension to dial after the endpoint answers. Mutually exclusive with 'app'. */
 	const char *extension;
-	/*! The context to dial after the endpoint answers. If omitted, uses 'default' */
+	/*! The context to dial after the endpoint answers. If omitted, uses 'default'. Mutually exclusive with 'app'. */
 	const char *context;
-	/*! The priority to dial after the endpoint answers. If omitted, uses 1 */
+	/*! The priority to dial after the endpoint answers. If omitted, uses 1. Mutually exclusive with 'app'. */
 	long priority;
-	/*! The label to dial after the endpoint answers. Will supersede priority, if provided */
+	/*! The label to dial after the endpoint answers. Will supersede 'priority' if provided. Mutually exclusive with 'app'. */
 	const char *label;
-	/*! The application that is subscribed to the originated channel, and passed to the Stasis application. */
+	/*! The application that is subscribed to the originated channel. When the channel is answered, it will be passed to this Stasis application. Mutually exclusive with 'context', 'extension', 'priority', and 'label'. */
 	const char *app;
-	/*! The application arguments to pass to the Stasis application. */
+	/*! The application arguments to pass to the Stasis application provided by 'app'. Mutually exclusive with 'context', 'extension', 'priority', and 'label'. */
 	const char *app_args;
 	/*! CallerID to use when dialing the endpoint or extension. */
 	const char *caller_id;
@@ -506,7 +506,7 @@ int ast_ari_channels_play_with_id_parse_body(
 /*!
  * \brief Start playback of media and specify the playbackId.
  *
- * The media URI may be any of a number of URI's. Currently sound: and recording: URI's are supported. This operation creates a playback resource that can be used to control the playback of media (pause, rewind, fast forward, etc.)
+ * The media URI may be any of a number of URI's. Currently sound:, recording:, number:, digits:, characters:, and tone: URI's are supported. This operation creates a playback resource that can be used to control the playback of media (pause, rewind, fast forward, etc.)
  *
  * \param headers HTTP headers
  * \param args Swagger parameters

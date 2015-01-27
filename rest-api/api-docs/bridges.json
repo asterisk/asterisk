@@ -60,7 +60,7 @@
 					"httpMethod": "POST",
 					"summary": "Create a new bridge or updates an existing one.",
 					"notes": "This bridge persists until it has been shut down, or Asterisk has been shut down.",
-					"nickname": "create_or_update_with_id",
+					"nickname": "createWithId",
 					"responseClass": "Bridge",
 					"parameters": [
 						{
@@ -398,7 +398,7 @@
 				{
 					"httpMethod": "POST",
 					"summary": "Start playback of media on a bridge.",
-					"notes": "The media URI may be any of a number of URI's. Currently sound: and recording: URI's are supported. This operation creates a playback resource that can be used to control the playback of media (pause, rewind, fast forward, etc.)",
+					"notes": "The media URI may be any of a number of URI's. Currently sound:, recording:, number:, digits:, characters:, and tone: URI's are supported. This operation creates a playback resource that can be used to control the playback of media (pause, rewind, fast forward, etc.)",
 					"nickname": "playWithId",
 					"responseClass": "Playback",
 					"parameters": [

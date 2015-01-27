@@ -11,21 +11,33 @@ h1. {{name_title}}
 {{#operations}}
 
 {anchor:{{nickname}}}
-h2. {{http_method}} {{wiki_path}}
+h2. {{nickname}}: {{http_method}} {{wiki_path}}
 
 {{{wiki_summary}}}{{#wiki_notes}} {{{wiki_notes}}}{{/wiki_notes}}
 {{#has_path_parameters}}
 
 h3. Path parameters
 {{#path_parameters}}
-* {{name}}: {{data_type}}{{#default_value}} = {{default_value}}{{/default_value}} - {{{wiki_description}}}
+* {{name}}: _{{data_type}}_ - {{{wiki_description}}}
+{{#default_value}}
+** Default: {{default_value}}
+{{/default_value}}
+{{#wiki_allowable_values}}
+** {{wiki_allowable_values}}
+{{/wiki_allowable_values}}
 {{/path_parameters}}
 {{/has_path_parameters}}
 {{#has_query_parameters}}
 
 h3. Query parameters
 {{#query_parameters}}
-* {{name}}: {{data_type}}{{#default_value}} = {{default_value}}{{/default_value}} -{{#required}} *(required)*{{/required}} {{{wiki_description}}}
+* {{name}}: _{{data_type}}_ -{{#required}} *(required)*{{/required}} {{{wiki_description}}}
+{{#default_value}}
+** Default: {{default_value}}
+{{/default_value}}
+{{#wiki_allowable_values}}
+** {{wiki_allowable_values}}
+{{/wiki_allowable_values}}
 {{#allow_multiple}}
 ** Allows comma separated values.
 {{/allow_multiple}}
