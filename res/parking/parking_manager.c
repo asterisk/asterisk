@@ -685,7 +685,7 @@ int load_parking_manager(void)
 
 static void parking_manager_disable_stasis(void)
 {
-	parking_sub = stasis_unsubscribe(parking_sub);
+	parking_sub = stasis_unsubscribe_and_join(parking_sub);
 }
 
 void unload_parking_manager(void)
