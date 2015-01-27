@@ -1182,6 +1182,10 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 
 	/* audio stream handles music on hold */
 	if (media_type != AST_MEDIA_TYPE_AUDIO) {
+		if ((pjmedia_sdp_neg_was_answer_remote(session->inv_session->neg) == PJ_FALSE)
+			&& (session->inv_session->state == PJSIP_INV_STATE_CONFIRMED)) {
+			ast_queue_control(session->channel, AST_CONTROL_UPDATE_RTP_PEER);
+		}
 		return 1;
 	}
 
@@ -1201,6 +1205,9 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 		ast_queue_unhold(session->channel);
 		ast_queue_frame(session->channel, &ast_null_frame);
 		session_media->held = 0;
+	} else if ((pjmedia_sdp_neg_was_answer_remote(session->inv_session->neg) == PJ_FALSE)
+		&& (session->inv_session->state == PJSIP_INV_STATE_CONFIRMED)) {
+		ast_queue_control(session->channel, AST_CONTROL_UPDATE_RTP_PEER);
 	}
 
 	/* This purposely resets the encryption to the configured in case it gets added later */
