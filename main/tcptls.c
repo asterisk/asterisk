@@ -707,8 +707,9 @@ void *ast_tcptls_server_root(void *data)
 		}
 		fd = ast_accept(desc->accept_fd, &addr);
 		if (fd < 0) {
-			if ((errno != EAGAIN) && (errno != EINTR)) {
+			if ((errno != EAGAIN) && (errno != EWOULDBLOCK) && (errno != EINTR) && (errno != ECONNABORTED)) {
 				ast_log(LOG_WARNING, "Accept failed: %s\n", strerror(errno));
+				break;
 			}
 			continue;
 		}
