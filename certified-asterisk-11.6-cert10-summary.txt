@@ -49,7 +49,7 @@
    release.
 
      Coders                   Testers                  Reporters              
-   2 bebuild                
+   4 bebuild                
 
      ----------------------------------------------------------------------
 
@@ -69,6 +69,11 @@
    |----------+---------+-------------------------------+-------------------|
    | 431293   | bebuild | Update .version; remove old   |                   |
    |          |         | summaries                     |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 431339   | bebuild | Importing release summary for |                   |
+   |          |         | 11.6-cert10 release.          |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 431340   | bebuild | Merge r431330 for 11.6-cert10 |                   |
    +------------------------------------------------------------------------+
 
      ----------------------------------------------------------------------
@@ -80,9 +85,13 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .version                                   |    2
- certified-asterisk-11.6-cert9-summary.html |   63 -------------------
- certified-asterisk-11.6-cert9-summary.txt  |   94 -----------------------------
- 3 files changed, 1 insertion(+), 158 deletions(-)
+ .version                                    |    2
+ ChangeLog                                   |   22 ++++++
+ certified-asterisk-11.6-cert10-summary.html |   59 +++++++++++++++++
+ certified-asterisk-11.6-cert10-summary.txt  |   88 ++++++++++++++++++++++++++
+ certified-asterisk-11.6-cert9-summary.html  |   63 ------------------
+ certified-asterisk-11.6-cert9-summary.txt   |   94 ----------------------------
+ funcs/func_curl.c                           |   83 ++++++++++++++++++++++++
+ 7 files changed, 253 insertions(+), 158 deletions(-)
 
      ----------------------------------------------------------------------
