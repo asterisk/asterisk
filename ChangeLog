@@ -1,3 +1,25 @@
+2015-01-28  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Certified Asterisk 1.8.28-cert4 Released.
+
+	* Mitigate possible HTTP injection attacks using CURL() function in
+	  Asterisk.
+
+	  CVE-2014-8150 disclosed a vulnerability in libcURL where HTTP request
+	  injection can be performed given properly-crafted URLs.
+
+	  Since Asterisk makes use of libcURL, and it is possible that users of
+	  Asterisk may get cURL URLs from user input or remote sources, we have
+	  made a patch to Asterisk to prevent such HTTP injection attacks from
+	  originating from Asterisk.
+
+	  ASTERISK-24676 #close
+	  Reported by: Matt Jordan, Olle Johansson
+
+	  Review: https://reviewboard.asterisk.org/r/4364
+
+	  AST-2015-002
+
 2014-11-20  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Certified Asterisk 1.8.28-cert3 Released.
