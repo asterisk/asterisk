@@ -816,6 +816,7 @@ static void stream_destroy(struct ast_sip_session_media *session_media)
 	if (session_media->udptl) {
 		ast_udptl_destroy(session_media->udptl);
 	}
+	session_media->udptl = NULL;
 }
 
 /*! \brief SDP handler for 'image' media stream */

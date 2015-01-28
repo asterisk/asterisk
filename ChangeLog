@@ -1,3 +1,38 @@
+2015-01-28  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 12.8.1 Released.
+
+	* Mitigate possible HTTP injection attacks using CURL() function in
+	  Asterisk.
+
+	  CVE-2014-8150 disclosed a vulnerability in libcURL where HTTP request
+	  injection can be performed given properly-crafted URLs.
+
+	  Since Asterisk makes use of libcURL, and it is possible that users of
+	  Asterisk may get cURL URLs from user input or remote sources, we have
+	  made a patch to Asterisk to prevent such HTTP injection attacks from
+	  originating from Asterisk.
+
+	  ASTERISK-24676 #close
+	  Reported by: Matt Jordan, Olle Johansson
+
+	  Review: https://reviewboard.asterisk.org/r/4364
+
+	  AST-2015-002
+
+	* Fix file descriptor leak in RTP code.
+
+	  SIP requests that offered codecs incompatible with configured values
+	  could result in the allocation of RTP and RTCP ports that would not
+	  get reclaimed later.
+
+	  ASTERISK-24666 #close
+	  Reported by Y Ateya
+
+	  Review: https://reviewboard.asterisk.org/r/4323
+
+	  AST-2015-001
+
 2014-12-15  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 12.8.0 Released.
