@@ -1,0 +1,65 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /><title>Release Summary - asterisk-12.8.1</title></head>
+<body>
+<h1 align="center"><a name="top">Release Summary</a></h1>
+<h3 align="center">asterisk-12.8.1</h3>
+<h3 align="center">Date: 2015-01-28</h3>
+<h3 align="center">&lt;asteriskteam@digium.com&gt;</h3>
+<hr/>
+<h2 align="center">Table of Contents</h2>
+<ol>
+   <li><a href="#summary">Summary</a></li>
+   <li><a href="#contributors">Contributors</a></li>
+   <li><a href="#commits">Other Changes</a></li>
+   <li><a href="#diffstat">Diffstat</a></li>
+</ol>
+<hr/>
+<a name="summary"><h2 align="center">Summary</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This release has been made to address one or more security vulnerabilities that have been identified.  A security advisory document has been published for each vulnerability that includes additional information.  Users of versions of Asterisk that are affected are strongly encouraged to review the advisories and determine what action they should take to protect their systems from these issues.</p>
+<p>Security Advisories: <a href="http://downloads.asterisk.org/pub/security/AST-2015-001.html">AST-2015-001</a>, <a href="http://downloads.asterisk.org/pub/security/AST-2015-002.html">AST-2015-002</a></p>
+<p>The data in this summary reflects changes that have been made since the previous release, asterisk-12.8.0.</p>
+<hr/>
+<a name="contributors"><h2 align="center">Contributors</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release.  For coders, the number is how many of their patches (of any size) were committed into this release.  For testers, the number is the number of times their name was listed as assisting with testing a patch.  Finally, for reporters, the number is the number of issues that they reported that were closed by commits that went into this release.</p>
+<table width="100%" border="0">
+<tr>
+<td width="33%"><h3>Coders</h3></td>
+<td width="33%"><h3>Testers</h3></td>
+<td width="33%"><h3>Reporters</h3></td>
+</tr>
+<tr valign="top">
+<td>
+3 bebuild<br/>
+</td>
+<td>
+</td>
+<td>
+</td>
+</tr>
+</table>
+<hr/>
+<a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all changes that went into this release that did not directly close an issue from the issue tracker.  The commits may have been marked as being related to an issue.  If that is the case, the issue numbers are listed here, as well.</p>
+<table width="100%" border="1">
+<tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/tags/12.8.1?view=revision&revision=431289">431289</a></td><td>bebuild</td><td>Create 12.8.1 tag</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/tags/12.8.1?view=revision&revision=431295">431295</a></td><td>bebuild</td><td>Update .version; remove old summaries</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/tags/12.8.1?view=revision&revision=431328">431328</a></td><td>bebuild</td><td>Merge r431299-431300 for 12.8.1</td>
+<td></td></tr></table>
+<hr/>
+<a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p>
+<pre>
+.version                     |    2
+ChangeLog                    |   35 ++
+asterisk-12.8.0-summary.html |  515 ---------------------------------
+asterisk-12.8.0-summary.txt  |  657 -------------------------------------------
+funcs/func_curl.c            |   83 +++++
+res/res_pjsip_sdp_rtp.c      |    1
+res/res_pjsip_session.c      |   60 +++
+res/res_pjsip_t38.c          |    1
+8 files changed, 173 insertions(+), 1181 deletions(-)
+</pre><br/>
+<hr/>
+</body>
+</html>
