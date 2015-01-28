@@ -632,7 +632,7 @@ static int acf_curl_helper(struct ast_channel *chan, const char *cmd, char *info
 	AST_STANDARD_APP_ARGS(args, info);
 
 	if (url_is_vulnerable(args.url)) {
-		ast_log(LOG_ERROR, "URL '%s' is vulnerable to HTTP injection attacks. Aborting CURL() call.\n");
+		ast_log(LOG_ERROR, "URL '%s' is vulnerable to HTTP injection attacks. Aborting CURL() call.\n", args.url);
 		return -1;
 	}
 
