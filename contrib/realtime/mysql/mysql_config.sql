@@ -703,3 +703,9 @@ ALTER TABLE ps_endpoints ADD COLUMN media_encryption_optimistic ENUM('yes','no')
 
 UPDATE alembic_version SET version_num='eb88a14f2a';
 
+-- Running upgrade eb88a14f2a -> 371a3bf4143e
+
+ALTER TABLE ps_endpoints ADD COLUMN user_eq_phone ENUM('yes','no');
+
+UPDATE alembic_version SET version_num='371a3bf4143e';
+
