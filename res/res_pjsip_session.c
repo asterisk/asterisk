@@ -186,6 +186,26 @@ void ast_sip_session_unregister_sdp_handler(struct ast_sip_session_sdp_handler *
 	ao2_callback_data(sdp_handlers, OBJ_KEY | OBJ_UNLINK | OBJ_NODATA, remove_handler, (void *)stream_type, handler);
 }
 
+/*!
+ * \brief Set an SDP stream handler for a corresponding session media.
+ *
+ * \note Always use this function to set the SDP handler for a session media.
+ *
+ * This function will properly free resources on the SDP handler currently being
+ * used by the session media, then set the session media to use the new SDP
+ * handler.
+ */
+static void session_media_set_handler(struct ast_sip_session_media *session_media,
+		struct ast_sip_session_sdp_handler *handler)
+{
+	ast_assert(session_media->handler != handler);
+
+	if (session_media->handler) {
+		session_media->handler->stream_destroy(session_media);
+	}
+	session_media->handler = handler;
+}
+
 static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sdp_session *sdp)
 {
 	int i;
@@ -235,6 +255,9 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 			continue;
 		}
 		AST_LIST_TRAVERSE(&handler_list->list, handler, next) {
+			if (handler == session_media->handler) {
+				continue;
+			}
 			ast_debug(1, "Negotiating incoming SDP media stream '%s' using %s SDP handler\n",
 				session_media->stream_type,
 				handler->id);
@@ -249,7 +272,7 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 					session_media->stream_type,
 					handler->id);
 				/* Handled by this handler. Move to the next stream */
-				session_media->handler = handler;
+				session_media_set_handler(session_media, handler);
 				handled = 1;
 				break;
 			}
@@ -317,6 +340,9 @@ static int handle_negotiated_sdp_session_media(void *obj, void *arg, int flags)
 			continue;
 		}
 		AST_LIST_TRAVERSE(&handler_list->list, handler, next) {
+			if (handler == session_media->handler) {
+				continue;
+			}
 			ast_debug(1, "Applying negotiated SDP media stream '%s' using %s SDP handler\n",
 				session_media->stream_type,
 				handler->id);
@@ -331,7 +357,7 @@ static int handle_negotiated_sdp_session_media(void *obj, void *arg, int flags)
 					session_media->stream_type,
 					handler->id);
 				/* Handled by this handler. Move to the next stream */
-				session_media->handler = handler;
+				session_media_set_handler(session_media, handler);
 				return CMP_MATCH;
 			}
 		}
@@ -744,6 +770,9 @@ static int sdp_requires_deferral(struct ast_sip_session *session, const pjmedia_
 			continue;
 		}
 		AST_LIST_TRAVERSE(&handler_list->list, handler, next) {
+			if (handler == session_media->handler) {
+				continue;
+			}
 			if (!handler->defer_incoming_sdp_stream) {
 				continue;
 			}
@@ -753,15 +782,15 @@ static int sdp_requires_deferral(struct ast_sip_session *session, const pjmedia_
 			case AST_SIP_SESSION_SDP_DEFER_NOT_HANDLED:
 				continue;
 			case AST_SIP_SESSION_SDP_DEFER_ERROR:
-				session_media->handler = handler;
+				session_media_set_handler(session_media, handler);
 				return 0;
 			case AST_SIP_SESSION_SDP_DEFER_NOT_NEEDED:
 				/* Handled by this handler. */
-				session_media->handler = handler;
+				session_media_set_handler(session_media, handler);
 				break;
 			case AST_SIP_SESSION_SDP_DEFER_NEEDED:
 				/* Handled by this handler. */
-				session_media->handler = handler;
+				session_media_set_handler(session_media, handler);
 				return 1;
 			}
 			/* Move to the next stream */
@@ -923,9 +952,21 @@ static int datastore_cmp(void *obj, void *arg, int flags)
 static void session_media_dtor(void *obj)
 {
 	struct ast_sip_session_media *session_media = obj;
-	if (session_media->handler) {
-		session_media->handler->stream_destroy(session_media);
+	struct sdp_handler_list *handler_list;
+	/* It is possible for SDP handlers to allocate memory on a session_media but
+	 * not end up getting set as the handler for this session_media. This traversal
+	 * ensures that all memory allocated by SDP handlers on the session_media is
+	 * cleared (as well as file descriptors, etc.).
+	 */
+	handler_list = ao2_find(sdp_handlers, session_media->stream_type, OBJ_KEY);
+	if (handler_list) {
+		struct ast_sip_session_sdp_handler *handler;
+
+		AST_LIST_TRAVERSE(&handler_list->list, handler, next) {
+			handler->stream_destroy(session_media);
+		}
 	}
+	ao2_cleanup(handler_list);
 	if (session_media->srtp) {
 		ast_sdp_srtp_destroy(session_media->srtp);
 	}
@@ -2092,6 +2133,9 @@ static int add_sdp_streams(void *obj, void *arg, void *data, int flags)
 
 	/* no handler for this stream type and we have a list to search */
 	AST_LIST_TRAVERSE(&handler_list->list, handler, next) {
+		if (handler == session_media->handler) {
+			continue;
+		}
 		res = handler->create_outgoing_sdp_stream(session, session_media, answer);
 		if (res < 0) {
 			/* catastrophic error */
@@ -2099,7 +2143,7 @@ static int add_sdp_streams(void *obj, void *arg, void *data, int flags)
 		}
 		if (res > 0) {
 			/* Handled by this handler. Move to the next stream */
-			session_media->handler = handler;
+			session_media_set_handler(session_media, handler);
 			return CMP_MATCH;
 		}
 	}
