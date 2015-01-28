@@ -50,6 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/utils.h"
 #include "asterisk/threadstorage.h"
+#include "asterisk/test.h"
 
 /*** DOCUMENTATION
 	<function name="CURL" language="en_US">
@@ -567,6 +568,31 @@ static void curl_instance_cleanup(void *data)
 AST_THREADSTORAGE_CUSTOM(curl_instance, curl_instance_init, curl_instance_cleanup);
 AST_THREADSTORAGE(thread_escapebuf);
 
+/*!
+ * \brief Check for potential HTTP injection risk.
+ *
+ * CVE-2014-8150 brought up the fact that HTTP proxies are subject to injection
+ * attacks. An HTTP URL sent to a proxy contains a carriage-return linefeed combination,
+ * followed by a complete HTTP request. Proxies will handle this as two separate HTTP
+ * requests rather than as a malformed URL.
+ *
+ * libcURL patched this vulnerability in version 7.40.0, but we have no guarantee that
+ * Asterisk systems will be using an up-to-date cURL library. Therefore, we implement
+ * the same fix as libcURL for determining if a URL is vulnerable to an injection attack.
+ *
+ * \param url The URL to check for vulnerability
+ * \retval 0 The URL is not vulnerable
+ * \retval 1 The URL is vulnerable.
+ */
+static int url_is_vulnerable(const char *url)
+{
+	if (strpbrk(url, "\r\n")) {
+		return 1;
+	}
+
+	return 0;
+}
+
 static int acf_curl_helper(struct ast_channel *chan, const char *cmd, char *info, char *buf, struct ast_str **input_str, ssize_t len)
 {
 	struct ast_str *escapebuf = ast_str_thread_get(&thread_escapebuf, 16);
@@ -603,6 +629,11 @@ static int acf_curl_helper(struct ast_channel *chan, const char *cmd, char *info
 	}
 
 	AST_STANDARD_APP_ARGS(args, info);
+
+	if (url_is_vulnerable(args.url)) {
+		ast_log(LOG_ERROR, "URL '%s' is vulnerable to HTTP injection attacks. Aborting CURL() call.\n", args.url);
+		return -1;
+	}
 
 	if (chan) {
 		ast_autoservice_start(chan);
@@ -762,12 +793,62 @@ static struct ast_custom_function acf_curlopt = {
 	.write = acf_curlopt_write,
 };
 
+AST_TEST_DEFINE(vulnerable_url)
+{
+	const char *bad_urls [] = {
+		"http://example.com\r\nDELETE http://example.com/everything",
+		"http://example.com\rDELETE http://example.com/everything",
+		"http://example.com\nDELETE http://example.com/everything",
+		"\r\nhttp://example.com",
+		"\rhttp://example.com",
+		"\nhttp://example.com",
+		"http://example.com\r\n",
+		"http://example.com\r",
+		"http://example.com\n",
+	};
+	const char *good_urls [] = {
+		"http://example.com",
+		"http://example.com/%5Cr%5Cn",
+	};
+	int i;
+	enum ast_test_result_state res = AST_TEST_PASS;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "vulnerable_url";
+		info->category = "/funcs/func_curl/";
+		info->summary = "cURL vulnerable URL test";
+		info->description =
+			"Ensure that any combination of '\\r' or '\\n' in a URL invalidates the URL";
+	case TEST_EXECUTE:
+		break;
+	}
+
+	for (i = 0; i < ARRAY_LEN(bad_urls); ++i) {
+		if (!url_is_vulnerable(bad_urls[i])) {
+			ast_test_status_update(test, "String '%s' detected as valid when it should be invalid\n", bad_urls[i]);
+			res = AST_TEST_FAIL;
+		}
+	}
+
+	for (i = 0; i < ARRAY_LEN(good_urls); ++i) {
+		if (url_is_vulnerable(good_urls[i])) {
+			ast_test_status_update(test, "String '%s' detected as invalid when it should be valid\n", good_urls[i]);
+			res = AST_TEST_FAIL;
+		}
+	}
+
+	return res;
+}
+
 static int unload_module(void)
 {
 	int res;
 
 	res = ast_custom_function_unregister(&acf_curl);
 	res |= ast_custom_function_unregister(&acf_curlopt);
+
+	AST_TEST_UNREGISTER(vulnerable_url);
 
 	return res;
 }
@@ -785,6 +866,8 @@ static int load_module(void)
 
 	res = ast_custom_function_register(&acf_curl);
 	res |= ast_custom_function_register(&acf_curlopt);
+
+	AST_TEST_REGISTER(vulnerable_url);
 
 	return res;
 }
