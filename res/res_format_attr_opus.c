@@ -51,6 +51,12 @@ struct opus_attr {
 	unsigned int spropstereo;	        /* Default 0 */
 };
 
+static struct opus_attr default_opus_attr = {
+	.fec    = 0,
+	.dtx    = 0,
+	.stereo = 0,
+};
+
 static void opus_destroy(struct ast_format *format)
 {
 	struct opus_attr *attr = ast_format_get_attribute_data(format);
@@ -120,7 +126,7 @@ static struct ast_format *opus_parse_sdp_fmtp(const struct ast_format *format, c
 		attr->dtx = val;
 	}
 
-	return 0;
+	return cloned;
 }
 
 static void opus_generate_sdp_fmtp(const struct ast_format *format, unsigned int payload, struct ast_str **str)
@@ -162,6 +168,14 @@ static struct ast_format *opus_getjoint(const struct ast_format *format1, const 
 	struct opus_attr *attr2 = ast_format_get_attribute_data(format2);
 	struct ast_format *jointformat;
 	struct opus_attr *attr_res;
+
+	if (!attr1) {
+		attr1 = &default_opus_attr;
+	}
+
+	if (!attr2) {
+		attr2 = &default_opus_attr;
+	}
 
 	jointformat = ast_format_clone(format1);
 	if (!jointformat) {
