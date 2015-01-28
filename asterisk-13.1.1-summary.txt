@@ -1,0 +1,96 @@
+                                Release Summary
+
+                                asterisk-13.1.1
+
+                                Date: 2015-01-28
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Other Changes
+    4. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release has been made to address one or more security vulnerabilities
+   that have been identified. A security advisory document has been published
+   for each vulnerability that includes additional information. Users of
+   versions of Asterisk that are affected are strongly encouraged to review
+   the advisories and determine what action they should take to protect their
+   systems from these issues.
+
+   Security Advisories: AST-2015-001, AST-2015-002
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-13.1.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were closed by commits that went into this
+   release.
+
+     Coders                   Testers                  Reporters              
+   3 bebuild                
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   directly close an issue from the issue tracker. The commits may have been
+   marked as being related to an issue. If that is the case, the issue
+   numbers are listed here, as well.
+
+   +------------------------------------------------------------------------+
+   | Revision | Author  | Summary                       | Issues Referenced |
+   |----------+---------+-------------------------------+-------------------|
+   | 431290   | bebuild | Create 13.1.1 tag             |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 431296   | bebuild | Update .version; remove old   |                   |
+   |          |         | summaries                     |                   |
+   |----------+---------+-------------------------------+-------------------|
+   | 431327   | bebuild | Merge r431301, 431303 for     |                   |
+   |          |         | 13.1.1                        |                   |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .version                     |    2
+ ChangeLog                    |   35 +
+ asterisk-13.1.0-summary.html |  747 ---------------------------------
+ asterisk-13.1.0-summary.txt  |  947 -------------------------------------------
+ funcs/func_curl.c            |   83 +++
+ res/res_pjsip_sdp_rtp.c      |    1
+ res/res_pjsip_session.c      |   60 ++
+ res/res_pjsip_t38.c          |    1
+ 8 files changed, 173 insertions(+), 1703 deletions(-)
+
+     ----------------------------------------------------------------------
