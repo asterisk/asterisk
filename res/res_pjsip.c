@@ -3310,7 +3310,11 @@ static int load_module(void)
 
 static int reload_module(void)
 {
-	if (ast_sip_push_task(NULL, reload_configuration_task, NULL)) {
+	/*
+	 * We must wait for the reload to complete so multiple
+	 * reloads cannot happen at the same time.
+	 */
+	if (ast_sip_push_task_synchronous(NULL, reload_configuration_task, NULL)) {
 		ast_log(LOG_WARNING, "Failed to reload PJSIP\n");
 		return -1;
 	}
