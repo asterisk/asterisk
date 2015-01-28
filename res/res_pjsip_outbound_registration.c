@@ -361,37 +361,12 @@ static struct sip_outbound_registration_state *get_state(const char *id)
 	return states ? ao2_find(states, id, OBJ_SEARCH_KEY) : NULL;
 }
 
-static int registration_state_add(void *obj, void *arg, int flags)
-{
-	struct sip_outbound_registration_state *state =
-		get_state(ast_sorcery_object_get_id(obj));
-
-	if (state) {
-		ao2_link(arg, state);
-		ao2_ref(state, -1);
-	}
-
-	return 0;
-}
-
 static struct ao2_container *get_registrations(void)
 {
-	RAII_VAR(struct ao2_container *, new_states, NULL, ao2_cleanup);
 	struct ao2_container *registrations = ast_sorcery_retrieve_by_fields(
 		ast_sip_get_sorcery(), "registration",
 		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
 
-	if (!(new_states = ao2_container_alloc(DEFAULT_STATE_BUCKETS,
-		      registration_state_hash, registration_state_cmp))) {
-		ast_log(LOG_ERROR, "Unable to allocate registration states container\n");
-		return NULL;
-	}
-
-	if (registrations && ao2_container_count(registrations)) {
-		ao2_callback(registrations, OBJ_NODATA, registration_state_add, new_states);
-	}
-
-	ao2_global_obj_replace_unref(current_states, new_states);
 	return registrations;
 }
 
@@ -1060,10 +1035,15 @@ static int sip_outbound_registration_perform(void *data)
 static int sip_outbound_registration_apply(const struct ast_sorcery *sorcery, void *obj)
 {
 	RAII_VAR(struct ao2_container *, states, ao2_global_obj_ref(current_states), ao2_cleanup);
-	RAII_VAR(struct sip_outbound_registration_state *, state,
-		 ao2_find(states, ast_sorcery_object_get_id(obj), OBJ_SEARCH_KEY), ao2_cleanup);
+	RAII_VAR(struct sip_outbound_registration_state *, state, NULL, ao2_cleanup);
 	RAII_VAR(struct sip_outbound_registration_state *, new_state, NULL, ao2_cleanup);
 	struct sip_outbound_registration *applied = obj;
+
+	if (!states) {
+		/* Global container has gone.  Likely shutting down. */
+		return -1;
+	}
+	state = ao2_find(states, ast_sorcery_object_get_id(applied), OBJ_SEARCH_KEY);
 
 	ast_debug(4, "Applying configuration to outbound registration '%s'\n", ast_sorcery_object_get_id(applied));
 
@@ -1089,7 +1069,15 @@ static int sip_outbound_registration_apply(const struct ast_sorcery *sorcery, vo
 		ast_debug(4,
 			"No change between old configuration and new configuration on outbound registration '%s'. Using previous state\n",
 			ast_sorcery_object_get_id(applied));
+
+		/*
+		 * This is OK to replace without relinking the state in the
+		 * current_states container since state->registration and
+		 * applied have the same key.
+		 */
+		ao2_lock(states);
 		ao2_replace(state->registration, applied);
+		ao2_unlock(states);
 		return 0;
 	}
 
@@ -1485,9 +1473,11 @@ static void *cli_retrieve_by_id(const char *id)
 
 	if (!obj) {
 		/* if the object no longer exists then remove its state  */
-		ao2_find((states = ao2_global_obj_ref(current_states)),
-			 id, OBJ_SEARCH_KEY | OBJ_UNLINK | OBJ_NODATA);
-		ao2_ref(states, -1);
+		states = ao2_global_obj_ref(current_states);
+		if (states) {
+			ao2_find(states, id, OBJ_SEARCH_KEY | OBJ_UNLINK | OBJ_NODATA);
+			ao2_ref(states, -1);
+		}
 	}
 
 	return obj;
@@ -1604,14 +1594,66 @@ static void auth_observer(const char *type)
 	ao2_cleanup(regs);
 }
 
-const struct ast_sorcery_observer observer_callbacks = {
+static const struct ast_sorcery_observer observer_callbacks_auth = {
 	.loaded = auth_observer,
+};
+
+static int check_state(void *obj, void *arg, int flags)
+{
+	struct sip_outbound_registration_state *state = obj;
+	struct sip_outbound_registration *registration;
+
+	registration = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "registration",
+		ast_sorcery_object_get_id(state->registration));
+	if (!registration) {
+		/* This is a dead registration */
+		return CMP_MATCH;
+	}
+
+	ao2_ref(registration, -1);
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Observer to purge dead registration states.
+ *
+ * \param name Module name owning the sorcery instance.
+ * \param sorcery Instance being observed.
+ * \param object_type Name of object being observed.
+ * \param reloaded Non-zero if the object is being reloaded.
+ *
+ * \return Nothing
+ */
+static void registration_loaded_observer(const char *name, const struct ast_sorcery *sorcery, const char *object_type, int reloaded)
+{
+	struct ao2_container *states;
+
+	if (strcmp(object_type, "registration")) {
+		/* Not interested */
+		return;
+	}
+
+	states = ao2_global_obj_ref(current_states);
+	if (!states) {
+		/* Global container has gone.  Likely shutting down. */
+		return;
+	}
+
+	/* Now to purge dead registrations. */
+	ao2_callback(states, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, check_state, NULL);
+	ao2_ref(states, -1);
+}
+
+static const struct ast_sorcery_instance_observer observer_callbacks_registrations = {
+	.object_type_loaded = registration_loaded_observer,
 };
 
 static int unload_module(void)
 {
 	ast_sip_unregister_endpoint_identifier(&line_identifier);
-	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "auth", &observer_callbacks);
+	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "auth", &observer_callbacks_auth);
+	ast_sorcery_instance_observer_remove(ast_sip_get_sorcery(), &observer_callbacks_registrations);
 	ast_cli_unregister_multiple(cli_outbound_registration, ARRAY_LEN(cli_outbound_registration));
 	ast_sip_unregister_cli_formatter(cli_formatter);
 	ast_manager_unregister("PJSIPShowRegistrationsOutbound");
@@ -1625,7 +1667,8 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	struct ao2_container *registrations, *new_states;
+	struct ao2_container *new_states;
+
 	CHECK_PJSIP_MODULE_LOADED();
 
 	ast_sorcery_apply_config(ast_sip_get_sorcery(), "res_pjsip_outbound_registration");
@@ -1660,7 +1703,7 @@ static int load_module(void)
 	if (!cli_formatter) {
 		ast_log(LOG_ERROR, "Unable to allocate memory for cli formatter\n");
 		unload_module();
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 	cli_formatter->name = "registration";
 	cli_formatter->print_header = cli_print_header;
@@ -1682,14 +1725,15 @@ static int load_module(void)
 	ao2_global_obj_replace_unref(current_states, new_states);
 	ao2_ref(new_states, -1);
 
-	ast_sorcery_reload_object(ast_sip_get_sorcery(), "registration");
-	if (!(registrations = get_registrations())) {
+	if (ast_sorcery_instance_observer_add(ast_sip_get_sorcery(),
+		&observer_callbacks_registrations)) {
 		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
-	ao2_ref(registrations, -1);
 
-	ast_sorcery_observer_add(ast_sip_get_sorcery(), "auth", &observer_callbacks);
+	ast_sorcery_load_object(ast_sip_get_sorcery(), "registration");
+
+	ast_sorcery_observer_add(ast_sip_get_sorcery(), "auth", &observer_callbacks_auth);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
@@ -1697,7 +1741,6 @@ static int load_module(void)
 static int reload_module(void)
 {
 	ast_sorcery_reload_object(ast_sip_get_sorcery(), "registration");
-	ao2_cleanup(get_registrations());
 	return 0;
 }
 
