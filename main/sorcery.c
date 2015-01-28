@@ -1176,12 +1176,6 @@ static int sorcery_wizard_load(void *obj, void *arg, int flags)
 	struct sorcery_load_details *details = arg;
 	void (*load)(void *data, const struct ast_sorcery *sorcery, const char *type);
 
-	if (details->reload && !sorcery_reloadable(details->sorcery, details->type)) {
-		ast_log(LOG_NOTICE, "Type '%s' is not reloadable, "
-			"maintaining previous values\n", details->type);
-		return 0;
-	}
-
 	load = !details->reload ? wizard->wizard->callbacks.load : wizard->wizard->callbacks.reload;
 
 	if (load) {
@@ -1256,21 +1250,30 @@ static int sorcery_object_load(void *obj, void *arg, int flags)
 
 	details->type = type->name;
 
+	if (details->reload && !sorcery_reloadable(details->sorcery, details->type)) {
+		ast_log(LOG_NOTICE, "Type '%s' is not reloadable, maintaining previous values\n",
+			details->type);
+		return 0;
+	}
+
 	NOTIFY_INSTANCE_OBSERVERS(details->sorcery->observers, object_type_loading,
 		details->sorcery->module_name, details->sorcery, type->name, details->reload);
 
 	ao2_callback(type->wizards, OBJ_NODATA, sorcery_wizard_load, details);
 
-	if (ao2_container_count(type->observers)) {
-		struct sorcery_observer_invocation *invocation = sorcery_observer_invocation_alloc(type, NULL);
+	NOTIFY_INSTANCE_OBSERVERS(details->sorcery->observers, object_type_loaded,
+		details->sorcery->module_name, details->sorcery, type->name, details->reload);
 
-		if (invocation && ast_taskprocessor_push(type->serializer, sorcery_observers_notify_loaded, invocation)) {
+	if (ao2_container_count(type->observers)) {
+		struct sorcery_observer_invocation *invocation;
+
+		invocation = sorcery_observer_invocation_alloc(type, NULL);
+		if (invocation
+			&& ast_taskprocessor_push(type->serializer, sorcery_observers_notify_loaded,
+				invocation)) {
 			ao2_cleanup(invocation);
 		}
 	}
-
-	NOTIFY_INSTANCE_OBSERVERS(details->sorcery->observers, object_type_loaded,
-		details->sorcery->module_name, details->sorcery, type->name, details->reload);
 
 	return 0;
 }
