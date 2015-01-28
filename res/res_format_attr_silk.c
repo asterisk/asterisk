@@ -94,7 +94,7 @@ static struct ast_format *silk_parse_sdp_fmtp(const struct ast_format *format, c
 		attr->fec = val;
 	}
 
-	return 0;
+	return cloned;
 }
 
 static void silk_generate_sdp_fmtp(const struct ast_format *format, unsigned int payload, struct ast_str **str)
