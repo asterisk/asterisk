@@ -241,6 +241,8 @@ struct ast_bridge_methods {
 	ast_bridge_notify_masquerade_fn notify_masquerade;
 	/*! Get the bridge merge priority. */
 	ast_bridge_merge_priority_fn get_merge_priority;
+	/*! Peek at swap channel before it can hang up, prior to push. */
+	ast_bridge_push_channel_fn push_peek;
 };
 
 /*! Softmix technology parameters. */

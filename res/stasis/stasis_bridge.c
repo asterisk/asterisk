@@ -99,6 +99,56 @@ static void bridge_stasis_queue_join_action(struct ast_bridge *self,
 
 /*!
  * \internal
+ * \brief Peek at channel before it is pushed into bridge
+ * \since 13.2.0
+ *
+ * \param self Bridge to operate upon.
+ * \param bridge_channel Bridge channel to push.
+ * \param swap Bridge channel to swap places with if not NULL.
+ *
+ * \note On entry, self is already locked.
+ *
+ * \retval 0 on success.
+ * \retval -1 on failure.  The channel should not be pushed.
+ */
+static int bridge_stasis_push_peek(struct ast_bridge *self, struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap)
+{
+	struct stasis_app_control *swap_control;
+	struct ast_channel_snapshot *to_be_replaced;
+
+	if (!swap) {
+		goto done;
+	}
+
+	swap_control = stasis_app_control_find_by_channel(swap->chan);
+	if (!swap_control) {
+		ast_log(LOG_ERROR,"Failed to find stasis app control for swapped channel %s\n", ast_channel_name(swap->chan));
+		return -1;
+	}
+	to_be_replaced = ast_channel_snapshot_get_latest(ast_channel_uniqueid(swap->chan));
+
+	ast_debug(3, "Copying stasis app name %s from %s to %s\n", app_name(control_app(swap_control)),
+		ast_channel_name(swap->chan), ast_channel_name(bridge_channel->chan));
+
+	ast_channel_lock(bridge_channel->chan);
+
+	/* copy the app name from the swap channel */
+	app_set_replace_channel_app(bridge_channel->chan, app_name(control_app(swap_control)));
+
+	/* set the replace channel snapshot */
+	app_set_replace_channel_snapshot(bridge_channel->chan, to_be_replaced);
+
+	ast_channel_unlock(bridge_channel->chan);
+
+	ao2_ref(swap_control, -1);
+	ao2_cleanup(to_be_replaced);
+
+done:
+	return ast_bridge_base_v_table.push_peek(self, bridge_channel, swap);
+}
+
+/*!
+ * \internal
  * \brief Push this channel into the Stasis bridge.
  * \since 12.5.0
  *
@@ -114,27 +164,6 @@ static void bridge_stasis_queue_join_action(struct ast_bridge *self,
 static int bridge_stasis_push(struct ast_bridge *self, struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap)
 {
 	struct stasis_app_control *control = stasis_app_control_find_by_channel(bridge_channel->chan);
-
-	if (swap) {
-		struct ast_channel_snapshot *to_be_replaced = ast_channel_snapshot_get_latest(ast_channel_uniqueid(swap->chan));
-		struct stasis_app_control *swap_control = stasis_app_control_find_by_channel(swap->chan);
-
-		/* set the replace channel snapshot */
-		ast_channel_lock(bridge_channel->chan);
-		app_set_replace_channel_snapshot(bridge_channel->chan, to_be_replaced);
-
-		/* copy the app name from the swap channel */
-		if (swap_control) {
-			ast_debug(3, "Copying stasis app name %s from %s to %s\n",
-				app_name(control_app(swap_control)),
-				ast_channel_name(swap->chan),
-				ast_channel_name(bridge_channel->chan));
-			app_set_replace_channel_app(bridge_channel->chan, app_name(control_app(swap_control)));
-		}
-		ast_channel_unlock(bridge_channel->chan);
-		ao2_cleanup(to_be_replaced);
-		ao2_cleanup(swap_control);
-	}
 
 	if (!control && !stasis_app_channel_is_internal(bridge_channel->chan)) {
 		/* channel not in Stasis(), get it there */
@@ -256,4 +285,5 @@ void bridge_stasis_init(void)
 	bridge_stasis_v_table.name = "stasis";
 	bridge_stasis_v_table.push = bridge_stasis_push;
 	bridge_stasis_v_table.pull = bridge_stasis_pull;
+	bridge_stasis_v_table.push_peek = bridge_stasis_push_peek;
 }
