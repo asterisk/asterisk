@@ -1447,7 +1447,7 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, const st
 static void set_destination(struct sip_pvt *p, const char *uri);
 static void add_date(struct sip_request *req);
 static void add_expires(struct sip_request *req, int expires);
-static void build_contact(struct sip_pvt *p);
+static void build_contact(struct sip_pvt *p, struct sip_request *req, int incoming);
 
 /*------Request handling functions */
 static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, int *recount, int *nounlock);
@@ -13847,22 +13847,110 @@ static void extract_uri(struct sip_pvt *p, struct sip_request *req)
 	if (!ast_strlen_zero(c)) {
 		ast_string_field_set(p, uri, c);
 	}
-
 }
 
-/*! \brief Build contact header - the contact header we send out */
-static void build_contact(struct sip_pvt *p)
+/*!
+ * \brief Determine if, as a UAS, we need to use a SIPS Contact.
+ *
+ * This uses the rules defined in RFC 3261 section 12.1.1 to
+ * determine if a SIPS URI should be used as the Contact header
+ * when responding to incoming SIP requests.
+ *
+ * \param req The incoming SIP request
+ * \retval 0 SIPS is not required
+ * \retval 1 SIPS is required
+ */
+static int uas_sips_contact(struct sip_request *req)
+{
+	const char *record_route = sip_get_header(req, "Record-Route");
+
+	if (!strncmp(REQ_OFFSET_TO_STR(req, rlpart2), "sips:", 5)) {
+		return 1;
+	}
+
+	if (record_route) {
+		char *record_route_uri = get_in_brackets(ast_strdupa(record_route));
+
+		if (!strncmp(record_route_uri, "sips:", 5)) {
+			return 1;
+		}
+	} else {
+		const char *contact = sip_get_header(req, "Contact");
+		char *contact_uri = get_in_brackets(ast_strdupa(contact));
+
+		if (!strncmp(contact_uri, "sips:", 5)) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+/*!
+ * \brief Determine if, as a UAC, we need to use a SIPS Contact.
+ *
+ * This uses the rules defined in RFC 3621 section 8.1.1.8 to
+ * determine if a SIPS URI should be used as the Contact header
+ * on our outgoing request.
+ *
+ * \param req The outgoing SIP request
+ * \retval 0 SIPS is not required
+ * \retval 1 SIPS is required
+ */
+static int uac_sips_contact(struct sip_request *req)
+{
+	const char *route = sip_get_header(req, "Route");
+
+	if (!strncmp(REQ_OFFSET_TO_STR(req, rlpart2), "sips:", 5)) {
+		return 1;
+	}
+
+	if (route) {
+		char *route_uri = get_in_brackets(ast_strdupa(route));
+
+		if (!strncmp(route_uri, "sips:", 5)) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+/*!
+ * \brief Build contact header
+ *
+ * This is the Contact header that we send out in SIP requests and responses
+ * involving this sip_pvt.
+ *
+ * The incoming parameter is used to tell if we are building the request parameter
+ * is an incoming SIP request that we are building the Contact header in response to,
+ * or if the req parameter is an outbound SIP request that we will later be adding
+ * the Contact header to.
+ *
+ * \param p The sip_pvt where the built Contact will be saved.
+ * \param req The request that triggered the creation of a Contact header.
+ * \param incoming Indicates if the Contact header is being created for a response to an incoming request
+ */
+static void build_contact(struct sip_pvt *p, struct sip_request *req, int incoming)
 {
 	char tmp[SIPBUFSIZE];
 	char *user = ast_uri_encode(p->exten, tmp, sizeof(tmp), ast_uri_sip_user);
+	int use_sips;
+
+	if (incoming) {
+		use_sips = uas_sips_contact(req);
+	} else {
+		use_sips = uac_sips_contact(req);
+	}
 
 	if (p->socket.type == AST_TRANSPORT_UDP) {
-		ast_string_field_build(p, our_contact, "<sip:%s%s%s>", user,
-			ast_strlen_zero(user) ? "" : "@", ast_sockaddr_stringify_remote(&p->ourip));
+		ast_string_field_build(p, our_contact, "<%s:%s%s%s>", use_sips ? "sips" : "sip",
+			user, ast_strlen_zero(user) ? "" : "@",
+			ast_sockaddr_stringify_remote(&p->ourip));
 	} else {
-		ast_string_field_build(p, our_contact, "<sip:%s%s%s;transport=%s>", user,
-			ast_strlen_zero(user) ? "" : "@", ast_sockaddr_stringify_remote(&p->ourip),
-			sip_get_transport(p->socket.type));
+		ast_string_field_build(p, our_contact, "<%s:%s%s%s;transport=%s>",
+			use_sips ? "sips" : "sip", user, ast_strlen_zero(user) ? "" : "@",
+			ast_sockaddr_stringify_remote(&p->ourip), sip_get_transport(p->socket.type));
 	}
 }
 
@@ -14058,7 +14146,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	add_header(req, "From", from);
 	add_header(req, "To", to);
 	ast_string_field_set(p, exten, l);
-	build_contact(p);
+	build_contact(p, req, 0);
 	add_header(req, "Contact", p->our_contact);
 	add_header(req, "Call-ID", p->callid);
 	add_header(req, "CSeq", tmp_n);
@@ -14487,7 +14575,6 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi)
 	set_socket_transport(&mwi->call->socket, mwi->transport);
 	mwi->call->socket.port = htons(mwi->portno);
 	ast_sip_ouraddrfor(&mwi->call->sa, &mwi->call->ourip, mwi->call);
-	build_contact(mwi->call);
 	build_via(mwi->call);
 
 	/* Change the dialog callid. */
@@ -15455,7 +15542,6 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		  internal network so we can register through nat
 		 */
 		ast_sip_ouraddrfor(&p->sa, &p->ourip, p);
-		build_contact(p);
 	}
 
 	/* set up a timeout */
@@ -15535,6 +15621,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 	}
 
 	add_expires(&req, r->expiry);
+	build_contact(p, &req, 0);
 	add_header(&req, "Contact", p->our_contact);
 
 	initialize_initreq(p, &req);
@@ -17064,7 +17151,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 	}
 
 	ast_string_field_set(p, exten, name);
-	build_contact(p);
+	build_contact(p, req, 1);
 	if (req->ignore) {
 		/* Expires is a special case, where we only want to load the peer if this isn't a deregistration attempt */
 		const char *expires = sip_get_header(req, "Expires");
@@ -18610,8 +18697,9 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 		if (t)
 			*t = '\0';
 
-		if (ast_strlen_zero(p->our_contact))
-			build_contact(p);
+		if (ast_strlen_zero(p->our_contact)) {
+			build_contact(p, req, 1);
+		}
 	}
 
 	of = get_in_brackets(of);
@@ -24760,7 +24848,7 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req, st
 
 	/* must go through authentication before getting here */
 	gotdest = get_destination(p, req, NULL);
-	build_contact(p);
+	build_contact(p, req, 1);
 
 	if (ast_strlen_zero(p->context))
 		ast_string_field_set(p, context, sip_cfg.default_context);
@@ -25526,8 +25614,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 			goto request_invite_cleanup;
 		}
 		gotdest = get_destination(p, NULL, &cc_recall_core_id);	/* Get destination right away */
-		extract_uri(p, req);			/* Get the Contact URI */
-		build_contact(p);			/* Build our contact header */
+		extract_uri(p, req);        /* Get the Contact URI */
+		build_contact(p, req, 1);   /* Build our contact header */
 
 		if (p->rtp) {
 			ast_rtp_instance_set_prop(p->rtp, AST_RTP_PROPERTY_DTMF, ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833);
@@ -27435,7 +27523,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 
 	/* Get full contact header - this needs to be used as a request URI in NOTIFY's */
 	parse_ok_contact(p, req);
-	build_contact(p);
+	build_contact(p, req, 1);
 
 	/* Initialize tag for new subscriptions */
 	if (ast_strlen_zero(p->tag)) {
