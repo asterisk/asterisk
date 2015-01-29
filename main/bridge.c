@@ -904,6 +904,26 @@ static int bridge_base_get_merge_priority(struct ast_bridge *self)
 	return 0;
 }
 
+/*!
+ * \internal
+ * \brief ast_bridge base push_peek method.
+ * \since 13.2.0
+ *
+ * \param self Bridge to operate upon.
+ * \param bridge_channel Bridge channel to push.
+ * \param swap Bridge channel to swap places with if not NULL.
+ *
+ * \note On entry, self is already locked.
+ * \note Stub because of nothing to do.
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+static int bridge_base_push_peek(struct ast_bridge *self, struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap)
+{
+	return 0;
+}
+
 struct ast_bridge_methods ast_bridge_base_v_table = {
 	.name = "base",
 	.destroy = bridge_base_destroy,
@@ -912,6 +932,7 @@ struct ast_bridge_methods ast_bridge_base_v_table = {
 	.pull = bridge_base_pull,
 	.notify_masquerade = bridge_base_notify_masquerade,
 	.get_merge_priority = bridge_base_get_merge_priority,
+	.push_peek = bridge_base_push_peek,
 };
 
 struct ast_bridge *ast_bridge_base_new(uint32_t capabilities, unsigned int flags, const char *creator, const char *name, const char *id)
@@ -1589,6 +1610,18 @@ int ast_bridge_join(struct ast_bridge *bridge,
 	bridge_channel->features = features;
 	bridge_channel->inhibit_colp = !!(flags & AST_BRIDGE_JOIN_INHIBIT_JOIN_COLP);
 
+	/* allow subclass to peek at upcoming push operation */
+	if (bridge->v_table->push_peek && !res) {
+		struct ast_bridge_channel *bcswap = NULL;
+
+		ast_bridge_lock(bridge);
+		if (bridge_channel->swap) {
+			bcswap = bridge_find_channel(bridge, bridge_channel->swap);
+		}
+		res = bridge->v_table->push_peek(bridge, bridge_channel, bcswap);
+		ast_bridge_unlock(bridge);
+	}
+
 	if (!res) {
 		res = bridge_channel_internal_join(bridge_channel);
 	}
@@ -1723,6 +1756,18 @@ int ast_bridge_impart(struct ast_bridge *bridge,
 	bridge_channel->depart_wait =
 		(flags & AST_BRIDGE_IMPART_CHAN_MASK) == AST_BRIDGE_IMPART_CHAN_DEPARTABLE;
 	bridge_channel->callid = ast_read_threadstorage_callid();
+
+	/* allow subclass to peek at swap channel before it can hangup */
+	if (bridge->v_table->push_peek && !res) {
+		struct ast_bridge_channel *bcswap = NULL;
+
+		ast_bridge_lock(bridge);
+		if (bridge_channel->swap) {
+			bcswap = bridge_find_channel(bridge, bridge_channel->swap);
+		}
+		res = bridge->v_table->push_peek(bridge, bridge_channel, bcswap);
+		ast_bridge_unlock(bridge);
+	}
 
 	/* Actually create the thread that will handle the channel */
 	if (!res) {
