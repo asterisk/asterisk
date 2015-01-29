@@ -2315,6 +2315,42 @@ pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
 	return dlg;
 }
 
+/*!
+ * \brief Determine if a SIPS Contact header is required.
+ *
+ * This uses the guideline provided in RFC 3261 Section 12.1.1 to
+ * determine if the Contact header must be a sips: URI.
+ *
+ * \param rdata The incoming dialog-starting request
+ * \retval 0 SIPS not required
+ * \retval 1 SIPS required
+ */
+static int uas_use_sips_contact(pjsip_rx_data *rdata)
+{
+	pjsip_rr_hdr *record_route;
+
+	if (PJSIP_URI_SCHEME_IS_SIPS(rdata->msg_info.msg->line.req.uri)) {
+		return 1;
+	}
+
+	record_route = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_RECORD_ROUTE, NULL);
+	if (record_route) {
+		if (PJSIP_URI_SCHEME_IS_SIPS(&record_route->name_addr)) {
+			return 1;
+		}
+	} else {
+		pjsip_contact_hdr *contact;
+
+		contact = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, NULL);
+		ast_assert(contact != NULL);
+		if (PJSIP_URI_SCHEME_IS_SIPS(contact->uri)) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata, pj_status_t *status)
 {
 	pjsip_dialog *dlg;
@@ -2337,7 +2373,8 @@ pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint,
 
 	contact.ptr = pj_pool_alloc(rdata->tp_info.pool, PJSIP_MAX_URL_SIZE);
 	contact.slen = pj_ansi_snprintf(contact.ptr, PJSIP_MAX_URL_SIZE,
-			"<sip:%s%.*s%s:%d%s%s>",
+			"<%s:%s%.*s%s:%d%s%s>",
+			uas_use_sips_contact(rdata) ? "sips" : "sip",
 			(type & PJSIP_TRANSPORT_IPV6) ? "[" : "",
 			(int)transport->local_name.host.slen,
 			transport->local_name.host.ptr,
