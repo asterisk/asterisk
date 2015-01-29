@@ -144,7 +144,7 @@ static int prack_handler(const struct aco_option *opt, struct ast_variable *var,
 	if (ast_true(var->value)) {
 		endpoint->extensions.flags |= PJSIP_INV_SUPPORT_100REL;
 	} else if (ast_false(var->value)) {
-		endpoint->extensions.flags &= PJSIP_INV_SUPPORT_100REL;
+		endpoint->extensions.flags &= ~PJSIP_INV_SUPPORT_100REL;
 	} else if (!strcasecmp(var->value, "required")) {
 		endpoint->extensions.flags |= PJSIP_INV_REQUIRE_100REL;
 	} else {
