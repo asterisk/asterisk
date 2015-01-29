@@ -212,7 +212,7 @@ static struct notify_task_data *alloc_notify_task_data(char *exten, struct exten
 
 	if ((info->exten_state == AST_EXTENSION_DEACTIVATED) ||
 	    (info->exten_state == AST_EXTENSION_REMOVED)) {
-		ast_log(LOG_WARNING, "Watcher for hint %s %s\n", exten, info->exten_state
+		ast_verb(2, "Watcher for hint %s %s\n", exten, info->exten_state
 			 == AST_EXTENSION_REMOVED ? "removed" : "deactivated");
 		task_data->terminate = 1;
 	}
