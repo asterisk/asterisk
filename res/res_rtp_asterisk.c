@@ -1281,6 +1281,8 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 		return -1;
 	}
 
+	SSL_CTX_set_read_ahead(rtp->ssl_ctx, 1);
+
 	rtp->dtls_verify = dtls_cfg->verify;
 
 	SSL_CTX_set_verify(rtp->ssl_ctx, (rtp->dtls_verify & AST_RTP_DTLS_VERIFY_FINGERPRINT) || (rtp->dtls_verify & AST_RTP_DTLS_VERIFY_CERTIFICATE) ?
