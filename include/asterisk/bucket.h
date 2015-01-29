@@ -23,7 +23,7 @@
  */
 
 /*!
- * \page AstBucket Bucket File API
+ * \page bucket AstBucket Bucket File API
  *
  * Bucket is an API which provides directory and file access in a generic fashion. It is
  * implemented as a thin wrapper over the sorcery data access layer API and is written in
