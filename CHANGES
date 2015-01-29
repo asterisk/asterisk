@@ -152,6 +152,12 @@ DTMF Features
 Resources
 ------------------
 
+res_http_media_cache
+------------------
+ * A backend for the core media cache, this module retrieves media files from
+   a remote HTTP(S) server and stores them in the core media cache for later
+   playback.
+
 res_musiconhold
 ------------------
  * Added sort=randstart to the sort options. It sorts the files by name and
