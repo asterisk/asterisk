@@ -273,18 +273,15 @@ static void cancel_publish_refresh(struct ast_sip_outbound_publish_client *clien
 }
 
 /*! \brief Helper function which sets up the timer to send publication */
-static void schedule_publish_refresh(struct ast_sip_outbound_publish_client *client, pjsip_rx_data *rdata)
+static void schedule_publish_refresh(struct ast_sip_outbound_publish_client *client, int expiration)
 {
 	struct ast_sip_outbound_publish *publish = ao2_bump(client->publish);
 	pj_time_val delay = { .sec = 0, };
-	pjsip_expires_hdr *expires;
 
 	cancel_publish_refresh(client);
 
-	/* Determine when we should refresh - we favor the Expires header if possible */
-	expires = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_EXPIRES, NULL);
-	if (expires) {
-		delay.sec = expires->ivalue - PJSIP_PUBLISHC_DELAY_BEFORE_REFRESH;
+	if (expiration > 0) {
+		delay.sec = expiration - PJSIP_PUBLISHC_DELAY_BEFORE_REFRESH;
 	}
 	if (publish->expiration && ((delay.sec > publish->expiration) || !delay.sec)) {
 		delay.sec = publish->expiration;
@@ -922,10 +919,14 @@ static void sip_outbound_publish_callback(struct pjsip_publishc_cbparam *param)
 		AST_LIST_REMOVE_HEAD(&client->queue, entry);
 		ast_free(client->sending);
 		client->sending = NULL;
+		if (!param->rdata) {
+			ast_log(LOG_NOTICE, "No response received for outbound publish '%s'\n",
+				ast_sorcery_object_get_id(publish));
+		}
 	}
 
 	if (AST_LIST_EMPTY(&client->queue)) {
-		schedule_publish_refresh(client, param->rdata);
+		schedule_publish_refresh(client, param->expiration);
 	}
 
 end:
