@@ -8827,7 +8827,7 @@ static void context_merge(struct ast_context **extcontexts, struct ast_hashtab *
 				dupdstr = ast_strdup(prio_item->data);
 
 				res1 = ast_add_extension2(new, 0, prio_item->exten, prio_item->priority, prio_item->label,
-										  prio_item->matchcid ? prio_item->cidmatch : NULL, prio_item->app, dupdstr, prio_item->datad, prio_item->registrar);
+										  prio_item->matchcid ? prio_item->cidmatch : NULL, prio_item->app, dupdstr, ast_free_ptr, prio_item->registrar);
 				if (!res1 && new_exten_item && new_prio_item){
 					ast_verb(3,"Dropping old dialplan item %s/%s/%d [%s(%s)] (registrar=%s) due to conflict with new dialplan\n",
 							context->name, prio_item->exten, prio_item->priority, prio_item->app, (char*)prio_item->data, prio_item->registrar);

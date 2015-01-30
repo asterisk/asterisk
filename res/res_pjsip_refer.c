@@ -242,15 +242,15 @@ static struct ast_frame *refer_progress_framehook(struct ast_channel *chan, stru
 
 	/* If a notification is due to be sent push it to the thread pool */
 	if (notification) {
-		if (ast_sip_push_task(progress->serializer, refer_progress_notify, notification)) {
-			ao2_cleanup(notification);
-		}
-
 		/* If the subscription is being terminated we don't need the frame hook any longer */
 		if (notification->state == PJSIP_EVSUB_STATE_TERMINATED) {
 			ast_debug(3, "Detaching REFER progress monitoring hook from '%s' as subscription is being terminated\n",
 				ast_channel_name(chan));
 			ast_framehook_detach(chan, progress->framehook);
+		}
+
+		if (ast_sip_push_task(progress->serializer, refer_progress_notify, notification)) {
+			ao2_cleanup(notification);
 		}
 	}
 
@@ -420,6 +420,7 @@ static void refer_attended_destroy(void *obj)
 	ao2_cleanup(attended->transferer);
 	ast_channel_unref(attended->transferer_chan);
 	ao2_cleanup(attended->transferer_second);
+	ao2_cleanup(attended->progress);
 }
 
 /*! \brief Allocator for attended transfer task */
