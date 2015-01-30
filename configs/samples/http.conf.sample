@@ -13,6 +13,16 @@
 ;
 [general]
 ;
+; The name of the server, advertised in both the Server field in HTTP
+; response message headers, as well as the <address /> element in certain HTTP
+; response message bodies. If not furnished here, "Asterisk/{version}" will be
+; used as a default value for the Server header field and the <address />
+; element. Setting this property to a blank value will result in the omission
+; of the Server header field from HTTP response message headers and the
+; <address /> element from HTTP response message bodies.
+;
+servername=Asterisk
+;
 ; Whether HTTP/HTTPS interface is enabled or not.  Default is no.
 ; This also affects manager/rawman/mxml access (see manager.conf)
 ;

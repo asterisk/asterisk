@@ -200,6 +200,28 @@ void ast_http_send(struct ast_tcptls_session_instance *ser, enum ast_http_method
 	int status_code, const char *status_title, struct ast_str *http_header,
 	struct ast_str *out, int fd, unsigned int static_content);
 
+/*!
+ * \brief Creates and sends a formatted http response message.
+ * \param ser                   TCP/TLS session object
+ * \param status_code           HTTP response code (200/401/403/404/500)
+ * \param status_title          English equivalent to the status_code parameter
+ * \param http_header_data      The formatted text to use in the http header
+ * \param text                  Additional informational text to use in the
+ *                              response
+ *
+ * \note Function constructs response headers from the status_code, status_title and
+ * http_header_data parameters.
+ *
+ * The response body is created as HTML content, from the status_code,
+ * status_title, and the text parameters.
+ *
+ * The http_header_data parameter will be freed as a result of calling function.
+ *
+ * \since 13.2.0
+ */
+void ast_http_create_response(struct ast_tcptls_session_instance *ser, int status_code,
+	const char *status_title, struct ast_str *http_header_data, const char *text);
+
 /*! \brief Send http "401 Unauthorized" response and close socket */
 void ast_http_auth(struct ast_tcptls_session_instance *ser, const char *realm, const unsigned long nonce, const unsigned long opaque, int stale, const char *text);
 

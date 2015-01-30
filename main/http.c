@@ -77,6 +77,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define MIN_INITIAL_REQUEST_TIMEOUT	10000
 /*! (ms) Idle time between HTTP requests */
 #define DEFAULT_SESSION_KEEP_ALIVE 15000
+/*! Max size for the http server name */
+#define	MAX_SERVER_NAME_LENGTH 128
+/*! Max size for the http response header */
+#define	DEFAULT_RESPONSE_HEADER_LENGTH 512
 
 /*! Maximum application/json or application/x-www-form-urlencoded body content length. */
 #if !defined(LOW_MEMORY)
@@ -91,6 +95,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #else
 #define MAX_HTTP_LINE_LENGTH 1024
 #endif	/* !defined(LOW_MEMORY) */
+
+static char http_server_name[MAX_SERVER_NAME_LENGTH];
 
 static int session_limit = DEFAULT_SESSION_LIMIT;
 static int session_inactivity = DEFAULT_SESSION_INACTIVITY;
@@ -375,6 +381,7 @@ static int httpstatus_callback(struct ast_tcptls_session_instance *ser,
 		"<table bgcolor=\"#f1f1f1\" align=\"center\"><tr><td bgcolor=\"#e0e0ff\" colspan=\"2\" width=\"500\">\r\n"
 		"<h2>&nbsp;&nbsp;Asterisk&trade; HTTP Status</h2></td></tr>\r\n");
 
+	ast_str_append(&out, 0, "<tr><td><i>Server</i></td><td><b>%s</b></td></tr>\r\n", http_server_name);
 	ast_str_append(&out, 0, "<tr><td><i>Prefix</i></td><td><b>%s</b></td></tr>\r\n", prefix);
 	ast_str_append(&out, 0, "<tr><td><i>Bind Address</i></td><td><b>%s</b></td></tr>\r\n",
 		       ast_sockaddr_stringify_addr(&http_desc.old_address));
@@ -446,12 +453,21 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 	char timebuf[80];
 	int content_length = 0;
 	int close_connection;
+	struct ast_str *server_header_field = ast_str_create(MAX_SERVER_NAME_LENGTH);
 
-	if (!ser || !ser->f) {
+	if (!ser || !ser->f || !server_header_field) {
 		/* The connection is not open. */
 		ast_free(http_header);
 		ast_free(out);
+		ast_free(server_header_field);
 		return;
+	}
+
+	if(!ast_strlen_zero(http_server_name)) {
+		ast_str_set(&server_header_field,
+	                0,
+	                "Server: %s\r\n",
+	                http_server_name);
 	}
 
 	/*
@@ -491,7 +507,7 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 	/* send http header */
 	fprintf(ser->f,
 		"HTTP/1.1 %d %s\r\n"
-		"Server: Asterisk/%s\r\n"
+		"%s"
 		"Date: %s\r\n"
 		"%s"
 		"%s"
@@ -499,7 +515,7 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 		"Content-Length: %d\r\n"
 		"\r\n",
 		status_code, status_title ? status_title : "OK",
-		ast_get_version(),
+		ast_str_buffer(server_header_field),
 		timebuf,
 		close_connection ? "Connection: close\r\n" : "",
 		static_content ? "" : "Cache-Control: no-cache, no-store\r\n",
@@ -532,6 +548,7 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 
 	ast_free(http_header);
 	ast_free(out);
+	ast_free(server_header_field);
 
 	if (close_connection) {
 		ast_debug(1, "HTTP closing session.  status_code:%d\n", status_code);
@@ -541,76 +558,101 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 	}
 }
 
+void ast_http_create_response(struct ast_tcptls_session_instance *ser, int status_code,
+	const char *status_title, struct ast_str *http_header_data, const char *text)
+{
+	char server_name[MAX_SERVER_NAME_LENGTH];
+	struct ast_str *server_address = ast_str_create(MAX_SERVER_NAME_LENGTH);
+	struct ast_str *out = ast_str_create(MAX_CONTENT_LENGTH);
+
+	if (!http_header_data || !server_address || !out) {
+		ast_free(http_header_data);
+		ast_free(server_address);
+		ast_free(out);
+		if (ser && ser->f) {
+			ast_debug(1, "HTTP closing session. OOM.\n");
+			ast_tcptls_close_session_file(ser);
+		}
+		return;
+	}
+
+	if(!ast_strlen_zero(http_server_name)) {
+		ast_xml_escape(http_server_name, server_name, sizeof(server_name));
+		ast_str_set(&server_address,
+	                0,
+	                "<address>%s</address>\r\n",
+	                server_name);
+	}
+
+	ast_str_set(&out,
+	            0,
+	            "<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\r\n"
+	            "<html><head>\r\n"
+	            "<title>%d %s</title>\r\n"
+	            "</head><body>\r\n"
+	            "<h1>%s</h1>\r\n"
+	            "<p>%s</p>\r\n"
+	            "<hr />\r\n"
+	            "%s"
+	            "</body></html>\r\n",
+	            status_code,
+	            status_title,
+	            status_title,
+	            text ? text : "",
+	            ast_str_buffer(server_address));
+
+	ast_free(server_address);
+
+	ast_http_send(ser,
+	              AST_HTTP_UNKNOWN,
+	              status_code,
+	              status_title,
+	              http_header_data,
+	              out,
+	              0,
+	              0);
+}
+
 void ast_http_auth(struct ast_tcptls_session_instance *ser, const char *realm,
 	const unsigned long nonce, const unsigned long opaque, int stale,
 	const char *text)
 {
-	struct ast_str *http_headers = ast_str_create(128);
-	struct ast_str *out = ast_str_create(512);
+	int status_code = 401;
+	char *status_title = "Unauthorized";
+	struct ast_str *http_header_data = ast_str_create(DEFAULT_RESPONSE_HEADER_LENGTH);
 
-	if (!http_headers || !out) {
-		ast_free(http_headers);
-		ast_free(out);
-		if (ser && ser->f) {
-			ast_debug(1, "HTTP closing session.  Auth OOM\n");
-			ast_tcptls_close_session_file(ser);
-		}
-		return;
+	if (http_header_data) {
+		ast_str_set(&http_header_data,
+		            0,
+		            "WWW-authenticate: Digest algorithm=MD5, realm=\"%s\", nonce=\"%08lx\", qop=\"auth\", opaque=\"%08lx\"%s\r\n"
+		            "Content-type: text/html\r\n",
+		            realm ? realm : "Asterisk",
+		            nonce,
+		            opaque,
+		            stale ? ", stale=true" : "");
 	}
 
-	ast_str_set(&http_headers, 0,
-		"WWW-authenticate: Digest algorithm=MD5, realm=\"%s\", nonce=\"%08lx\", qop=\"auth\", opaque=\"%08lx\"%s\r\n"
-		"Content-type: text/html\r\n",
-		realm ? realm : "Asterisk",
-		nonce,
-		opaque,
-		stale ? ", stale=true" : "");
-
-	ast_str_set(&out, 0,
-		"<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\r\n"
-		"<html><head>\r\n"
-		"<title>401 Unauthorized</title>\r\n"
-		"</head><body>\r\n"
-		"<h1>401 Unauthorized</h1>\r\n"
-		"<p>%s</p>\r\n"
-		"<hr />\r\n"
-		"<address>Asterisk Server</address>\r\n"
-		"</body></html>\r\n",
-		text ? text : "");
-
-	ast_http_send(ser, AST_HTTP_UNKNOWN, 401, "Unauthorized", http_headers, out, 0, 0);
+	ast_http_create_response(ser,
+	                         status_code,
+	                         status_title,
+	                         http_header_data,
+	                         text);
 }
 
-void ast_http_error(struct ast_tcptls_session_instance *ser, int status_code, const char *status_title, const char *text)
+void ast_http_error(struct ast_tcptls_session_instance *ser, int status_code,
+	const char *status_title, const char *text)
 {
-	struct ast_str *http_headers = ast_str_create(40);
-	struct ast_str *out = ast_str_create(256);
+	struct ast_str *http_header_data = ast_str_create(DEFAULT_RESPONSE_HEADER_LENGTH);
 
-	if (!http_headers || !out) {
-		ast_free(http_headers);
-		ast_free(out);
-		if (ser && ser->f) {
-			ast_debug(1, "HTTP closing session.  error OOM\n");
-			ast_tcptls_close_session_file(ser);
-		}
-		return;
+	if (http_header_data) {
+		ast_str_set(&http_header_data, 0, "Content-type: text/html\r\n");
 	}
 
-	ast_str_set(&http_headers, 0, "Content-type: text/html\r\n");
-
-	ast_str_set(&out, 0,
-		"<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\r\n"
-		"<html><head>\r\n"
-		"<title>%d %s</title>\r\n"
-		"</head><body>\r\n"
-		"<h1>%s</h1>\r\n"
-		"<p>%s</p>\r\n"
-		"<hr />\r\n"
-		"<address>Asterisk Server</address>\r\n"
-		"</body></html>\r\n",
-		status_code, status_title, status_title, text);
-
-	ast_http_send(ser, AST_HTTP_UNKNOWN, status_code, status_title, http_headers, out, 0, 0);
+	ast_http_create_response(ser,
+	                         status_code,
+	                         status_title,
+	                         http_header_data,
+	                         text);
 }
 
 /*!
@@ -2029,6 +2071,7 @@ static int __ast_http_load(int reload)
 	int enabled=0;
 	int newenablestatic=0;
 	char newprefix[MAX_PREFIX] = "";
+	char server_name[MAX_SERVER_NAME_LENGTH];
 	struct http_uri_redirect *redirect;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	uint32_t bindport = DEFAULT_PORT;
@@ -2071,6 +2114,8 @@ static int __ast_http_load(int reload)
 	session_inactivity = DEFAULT_SESSION_INACTIVITY;
 	session_keep_alive = DEFAULT_SESSION_KEEP_ALIVE;
 
+	snprintf(server_name, sizeof(server_name), "Asterisk/%s", ast_get_version());
+
 	v = ast_variable_browse(cfg, "general");
 	for (; v; v = v->next) {
 		/* read tls config options while preventing unsupported options from being set */
@@ -2087,7 +2132,13 @@ static int __ast_http_load(int reload)
 			continue;
 		}
 
-		if (!strcasecmp(v->name, "enabled")) {
+		if (!strcasecmp(v->name, "servername")) {
+			if (!ast_strlen_zero(v->value)) {
+				ast_copy_string(server_name, v->value, sizeof(server_name));
+			} else {
+				server_name[0] = '\0';
+			}
+		} else if (!strcasecmp(v->name, "enabled")) {
 			enabled = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "enablestatic")) {
 			newenablestatic = ast_true(v->value);
@@ -2139,6 +2190,8 @@ static int __ast_http_load(int reload)
 	if (strcmp(prefix, newprefix)) {
 		ast_copy_string(prefix, newprefix, sizeof(prefix));
 	}
+
+	ast_copy_string(http_server_name, server_name, sizeof(http_server_name));
 	enablestatic = newenablestatic;
 
 	if (num_addrs && enabled) {
@@ -2209,6 +2262,7 @@ static char *handle_show_http(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	}
 	ast_cli(a->fd, "HTTP Server Status:\n");
 	ast_cli(a->fd, "Prefix: %s\n", prefix);
+	ast_cli(a->fd, "Server: %s\n", http_server_name);
 	if (ast_sockaddr_isnull(&http_desc.old_address)) {
 		ast_cli(a->fd, "Server Disabled\n\n");
 	} else {
