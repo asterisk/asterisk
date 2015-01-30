@@ -2043,7 +2043,7 @@ static int chan_pjsip_incoming_request(struct ast_sip_session *session, struct p
 
 static int call_pickup_incoming_request(struct ast_sip_session *session, pjsip_rx_data *rdata)
 {
-	struct ast_features_pickup_config *pickup_cfg = ast_get_chan_features_pickup_config(session->channel);
+	struct ast_features_pickup_config *pickup_cfg;
 	struct ast_channel *chan;
 
 	/* We don't care about reinvites */
@@ -2051,6 +2051,7 @@ static int call_pickup_incoming_request(struct ast_sip_session *session, pjsip_r
 		return 0;
 	}
 
+	pickup_cfg = ast_get_chan_features_pickup_config(session->channel);
 	if (!pickup_cfg) {
 		ast_log(LOG_ERROR, "Unable to retrieve pickup configuration options. Unable to detect call pickup extension.\n");
 		return 0;

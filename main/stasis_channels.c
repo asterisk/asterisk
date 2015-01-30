@@ -1004,13 +1004,14 @@ static struct ast_json *dtmf_end_to_json(
 	const char *direction =
 		ast_json_string_get(ast_json_object_get(blob, "direction"));
 	const struct timeval *tv = stasis_message_timestamp(message);
-	struct ast_json *json_channel = ast_channel_snapshot_to_json(snapshot, sanitize);
+	struct ast_json *json_channel;
 
 	/* Only present received DTMF end events as JSON */
 	if (strcasecmp("Received", direction) != 0) {
 		return NULL;
 	}
 
+	json_channel = ast_channel_snapshot_to_json(snapshot, sanitize);
 	if (!json_channel) {
 		return NULL;
 	}
