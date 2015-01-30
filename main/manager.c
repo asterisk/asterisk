@@ -4970,8 +4970,6 @@ static void *fast_originate(void *data)
 			S_OR(in->cid_name, NULL),
 			in->vars, in->account, &chan, in->early_media, &assignedids);
 	}
-	/* Any vars memory was passed to the ast_pbx_outgoing_xxx() calls. */
-	in->vars = NULL;
 
 	if (!chan) {
 		snprintf(requested_channel, AST_CHANNEL_NAME, "%s/%s", in->tech, in->data);
@@ -5418,11 +5416,11 @@ static int action_originate(struct mansession *s, const struct message *m)
 		}
 	} else if (!ast_strlen_zero(app)) {
 		res = ast_pbx_outgoing_app(tech, cap, data, to, app, appdata, &reason, 1, l, n, vars, account, NULL, assignedids.uniqueid ? &assignedids : NULL);
-		/* Any vars memory was passed to ast_pbx_outgoing_app(). */
+		ast_variables_destroy(vars);
 	} else {
 		if (exten && context && pi) {
 			res = ast_pbx_outgoing_exten(tech, cap, data, to, context, exten, pi, &reason, 1, l, n, vars, account, NULL, bridge_early, assignedids.uniqueid ? &assignedids : NULL);
-			/* Any vars memory was passed to ast_pbx_outgoing_exten(). */
+			ast_variables_destroy(vars);
 		} else {
 			astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");
 			ast_variables_destroy(vars);

@@ -2533,7 +2533,8 @@ static struct ast_xml_doc_item *xmldoc_build_list_responses(struct ast_xml_node 
 	/* Iterate over managerEvent nodes */
 	for (event = ast_xml_node_get_children(list_elements); event; event = ast_xml_node_get_next(event)) {
 		struct ast_xml_node *event_instance;
-		const char *name = ast_xml_get_attribute(event, "name");
+		RAII_VAR(const char *, name, ast_xml_get_attribute(event, "name"),
+			ast_xml_free_attr);
 		struct ast_xml_doc_item *new_item;
 
 		if (!name || strcmp(ast_xml_node_get_name(event), "managerEvent")) {
@@ -2607,10 +2608,16 @@ static struct ast_xml_doc_item *xmldoc_build_final_response(struct ast_xml_node 
 		"managerEventInstance", NULL, NULL);
 	if (!event_instance) {
 		return NULL;
+	} else {
+		const char *name;
+		struct ast_xml_doc_item *res;
+
+		name = ast_xml_get_attribute(final_response_event, "name");
+		res = xmldoc_build_documentation_item(event_instance, name, "managerEvent");
+		ast_xml_free_attr(name);
+		return res;
 	}
 
-	return xmldoc_build_documentation_item(event_instance,
-		ast_xml_get_attribute(final_response_event, "name"), "managerEvent");
 }
 
 struct ast_xml_doc_item *ast_xmldoc_build_final_response(const char *type, const char *name, const char *module)
