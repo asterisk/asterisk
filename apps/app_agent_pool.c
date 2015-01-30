@@ -552,14 +552,10 @@ static int load_config(void)
 	aco_option_register(&cfg_info, "fullname", ACO_EXACT, agent_types, NULL, OPT_STRINGFIELD_T, 0, STRFLDSET(struct agent_cfg, full_name));
 
 	if (aco_process_config(&cfg_info, 0) == ACO_PROCESS_ERROR) {
-		goto error;
+		return -1;
 	}
 
 	return 0;
-
-error:
-	destroy_config();
-	return -1;
 }
 
 enum agent_state {
@@ -730,12 +726,17 @@ static struct ast_channel *agent_lock_logged(struct agent_pvt *agent)
  */
 static enum ast_device_state agent_pvt_devstate_get(const char *agent_id)
 {
-	RAII_VAR(struct agent_pvt *, agent, ao2_find(agents, agent_id, OBJ_KEY), ao2_cleanup);
+	enum ast_device_state dev_state = AST_DEVICE_INVALID;
+	struct agent_pvt *agent;
 
+	agent = ao2_find(agents, agent_id, OBJ_KEY);
 	if (agent) {
-		return agent->devstate;
+		agent_lock(agent);
+		dev_state = agent->devstate;
+		agent_unlock(agent);
+		ao2_ref(agent, -1);
 	}
-	return AST_DEVICE_INVALID;
+	return dev_state;
 }
 
 /*!
@@ -2641,7 +2642,7 @@ static int unload_module(void)
 	}
 
 	destroy_config();
-	ao2_ref(agents, -1);
+	ao2_cleanup(agents);
 	agents = NULL;
 	return 0;
 }
@@ -2654,12 +2655,6 @@ static int load_module(void)
 		AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE, agent_pvt_sort_cmp, agent_pvt_cmp);
 	if (!agents) {
 		return AST_MODULE_LOAD_FAILURE;
-	}
-	if (load_config()) {
-		ast_log(LOG_ERROR, "Unable to load config. Not loading module.\n");
-		ao2_ref(agents, -1);
-		agents = NULL;
-		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	/* Init agent holding bridge v_table. */
@@ -2686,6 +2681,13 @@ static int load_module(void)
 		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
+
+	if (load_config()) {
+		ast_log(LOG_ERROR, "Unable to load config. Not loading module.\n");
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
