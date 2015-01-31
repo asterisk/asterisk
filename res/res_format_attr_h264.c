@@ -153,13 +153,13 @@ static struct ast_format *h264_getjoint(const struct ast_format *format1, const 
 	if (attr1 && !ast_strlen_zero(attr1->SPS)) {
 		ast_copy_string(attr->SPS, attr1->SPS, sizeof(attr->SPS));
 	} else if (attr2 && !ast_strlen_zero(attr2->SPS)) {
-		ast_copy_string(attr->SPS, attr1->SPS, sizeof(attr->SPS));
+		ast_copy_string(attr->SPS, attr2->SPS, sizeof(attr->SPS));
 	}
 
 	if (attr1 && !ast_strlen_zero(attr1->PPS)) {
 		ast_copy_string(attr->PPS, attr1->PPS, sizeof(attr->PPS));
 	} else if (attr2 && !ast_strlen_zero(attr2->PPS)) {
-		ast_copy_string(attr->PPS, attr1->PPS, sizeof(attr->PPS));
+		ast_copy_string(attr->PPS, attr2->PPS, sizeof(attr->PPS));
 	}
 
 	return cloned;
