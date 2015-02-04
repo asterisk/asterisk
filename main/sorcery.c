@@ -1248,6 +1248,10 @@ static int sorcery_object_load(void *obj, void *arg, int flags)
 	struct ast_sorcery_object_type *type = obj;
 	struct sorcery_load_details *details = arg;
 
+	if (!type->type.item_alloc) {
+		return 0;
+	}
+
 	details->type = type->name;
 
 	if (details->reload && !sorcery_reloadable(details->sorcery, details->type)) {
