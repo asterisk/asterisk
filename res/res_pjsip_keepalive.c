@@ -240,6 +240,8 @@ static struct ast_sorcery_observer keepalive_global_observer = {
 
 static int load_module(void)
 {
+	CHECK_PJSIP_MODULE_LOADED();
+
 	ast_sorcery_observer_add(ast_sip_get_sorcery(), "global", &keepalive_global_observer);
 	ast_sorcery_reload_object(ast_sip_get_sorcery(), "global");
 	ast_module_ref(ast_module_info->self);
