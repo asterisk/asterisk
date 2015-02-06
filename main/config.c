@@ -3360,6 +3360,9 @@ static void config_shutdown(void)
 	AST_LIST_UNLOCK(&cfmtime_head);
 
 	ast_cli_unregister_multiple(cli_config, ARRAY_LEN(cli_config));
+
+	ao2_cleanup(cfg_hooks);
+	cfg_hooks = NULL;
 }
 
 int register_config_cli(void)
@@ -3448,5 +3451,6 @@ int ast_config_hook_register(const char *name,
 	hook->module = ast_strdup(module);
 
 	ao2_link(cfg_hooks, hook);
+	ao2_ref(hook, -1);
 	return 0;
 }
