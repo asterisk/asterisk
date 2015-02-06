@@ -1,0 +1,307 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /><title>Release Summary - asterisk-11.16.0</title></head>
+<body>
+<h1 align="center"><a name="top">Release Summary</a></h1>
+<h3 align="center">asterisk-11.16.0</h3>
+<h3 align="center">Date: 2015-02-06</h3>
+<h3 align="center">&lt;asteriskteam@digium.com&gt;</h3>
+<hr/>
+<h2 align="center">Table of Contents</h2>
+<ol>
+   <li><a href="#summary">Summary</a></li>
+   <li><a href="#contributors">Contributors</a></li>
+   <li><a href="#issues">Closed Issues</a></li>
+   <li><a href="#commits">Other Changes</a></li>
+   <li><a href="#diffstat">Diffstat</a></li>
+</ol>
+<hr/>
+<a name="summary"><h2 align="center">Summary</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This release includes only bug fixes.  The changes included were made only to address problems that have been identified in this release series.  Users should be able to safely upgrade to this version if this release series is already in use.  Users considering upgrading from a previous release series are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p>
+<p>The data in this summary reflects changes that have been made since the previous release, asterisk-11.15.0.</p>
+<hr/>
+<a name="contributors"><h2 align="center">Contributors</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release.  For coders, the number is how many of their patches (of any size) were committed into this release.  For testers, the number is the number of times their name was listed as assisting with testing a patch.  Finally, for reporters, the number is the number of issues that they reported that were closed by commits that went into this release.</p>
+<table width="100%" border="0">
+<tr>
+<td width="33%"><h3>Coders</h3></td>
+<td width="33%"><h3>Testers</h3></td>
+<td width="33%"><h3>Reporters</h3></td>
+</tr>
+<tr valign="top">
+<td>
+6 rmudgett<br/>
+4 jcolp<br/>
+4 mmichelson<br/>
+3 kharwell<br/>
+3 wdoekes<br/>
+1 Ben Klang<br/>
+1 Diederik de Groot<br/>
+1 elguero<br/>
+1 Gareth Palmer<br/>
+1 HZMI8gkCvPpom0tM<br/>
+1 Karsten Wemheuer<br/>
+1 kmoore<br/>
+1 Kristian Hogh<br/>
+1 LEI FU<br/>
+1 mjordan<br/>
+</td>
+<td>
+1 Ben Klang<br/>
+1 elguero<br/>
+1 Jacek Konieczny<br/>
+1 mjordan<br/>
+</td>
+<td>
+2 kharwell<br/>
+2 rmudgett<br/>
+1 anstein<br/>
+1 bklang<br/>
+1 dkdegroot<br/>
+1 eisvogel<br/>
+1 gareth<br/>
+1 jared.biel@bolderthinking.com<br/>
+1 kenner<br/>
+1 kfhdk<br/>
+1 kwemheuer<br/>
+1 lei.fu<br/>
+1 mjordan<br/>
+1 mkeuter<br/>
+1 rnewton<br/>
+1 slavon<br/>
+1 tm1000<br/>
+1 wdoekes<br/>
+1 y2fbo4IevYm5Ve9u<br/>
+</td>
+</tr>
+</table>
+<hr/>
+<a name="issues"><h2 align="center">Closed Issues</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p>
+<h3>Category: Applications/app_confbridge</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24719">ASTERISK-24719</a>: ConfBridge recording channels get stuck when recording started/stopped more than once<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=431135">431135</a><br/>
+Reporter: rmudgett<br/>
+Coders: rmudgett<br/>
+<br/>
+<h3>Category: Applications/app_voicemail</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24709">ASTERISK-24709</a>: [patch] msg_create_from_file used by MixMonitor m() option does not queue an MWI event<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=430920">430920</a><br/>
+Reporter: gareth<br/>
+Coders: Gareth Palmer<br/>
+<br/>
+<h3>Category: Applications/app_voicemail/IMAP</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24288">ASTERISK-24288</a>: [patch] - ODBC usage with app_voicemail - voicemail is not deleted after review, hangup<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=430795">430795</a><br/>
+Reporter: lei.fu<br/>
+Coders: LEI FU<br/>
+<br/>
+<h3>Category: Applications/app_voicemail/ODBC</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24288">ASTERISK-24288</a>: [patch] - ODBC usage with app_voicemail - voicemail is not deleted after review, hangup<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=430795">430795</a><br/>
+Reporter: lei.fu<br/>
+Coders: LEI FU<br/>
+<br/>
+<h3>Category: Channels/chan_sip/General</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24355">ASTERISK-24355</a>: [patch] chan_sip realtime uses case sensitive column comparison for 'defaultuser'<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=430993">430993</a><br/>
+Reporter: y2fbo4IevYm5Ve9u<br/>
+Coders: HZMI8gkCvPpom0tM<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24628">ASTERISK-24628</a>: [patch] chan_sip - CANCEL is sent to wrong destination when 'sendrpid=yes' (in proxy environment)<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=429982">429982</a><br/>
+Reporter: kwemheuer<br/>
+Coders: Karsten Wemheuer<br/>
+<br/>
+<h3>Category: Channels/chan_sip/Interoperability</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24646">ASTERISK-24646</a>: PJSIP changeset 4899 breaks TLS<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=431423">431423</a><br/>
+Reporter: eisvogel<br/>
+Coders: mmichelson<br/>
+<br/>
+<h3>Category: Channels/chan_sip/Registration</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24715">ASTERISK-24715</a>: chan_sip: stale nonce causes failure<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=431187">431187</a><br/>
+Reporter: kharwell<br/>
+Coders: kharwell<br/>
+<br/>
+<h3>Category: Channels/chan_sip/T.38</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24449">ASTERISK-24449</a>: Reinvite for T.38 UDPTL fails if SRTP is enabled<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=429632">429632</a><br/>
+Reporter: anstein<br/>
+Coders: jcolp<br/>
+<br/>
+<h3>Category: Channels/chan_sip/Transfers</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24628">ASTERISK-24628</a>: [patch] chan_sip - CANCEL is sent to wrong destination when 'sendrpid=yes' (in proxy environment)<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=429982">429982</a><br/>
+Reporter: kwemheuer<br/>
+Coders: Karsten Wemheuer<br/>
+<br/>
+<h3>Category: Contrib/General</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24048">ASTERISK-24048</a>: [patch] contrib/scripts/install_prereq selects 32-bit packages on 64-bit hosts<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=430798">430798</a><br/>
+Reporter: bklang<br/>
+Testers: Ben Klang, mjordan<br/>
+Coders: Ben Klang<br/>
+<br/>
+<h3>Category: Core/BuildSystem</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-23991">ASTERISK-23991</a>: [patch]asterisk.pc file contains a small error in the CFlags returned<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=430589">430589</a><br/>
+Reporter: dkdegroot<br/>
+Coders: Diederik de Groot<br/>
+<br/>
+<h3>Category: Core/Configuration</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-23733">ASTERISK-23733</a>: 'reload acl' fails if acl.conf is not present on startup<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=429893">429893</a><br/>
+Reporter: kenner<br/>
+Coders: jcolp<br/>
+<br/>
+<h3>Category: Core/General</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24614">ASTERISK-24614</a>: Deadlock when DEBUG_THREADS compiler flag enabled<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=429539">429539</a><br/>
+Reporter: rmudgett<br/>
+Coders: rmudgett<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24619">ASTERISK-24619</a>: [patch]Gcc 4.10 fixes in r413589 (1.8) wrongly casts char to unsigned int<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=429673">429673</a><br/>
+Reporter: wdoekes<br/>
+Coders: wdoekes<br/>
+<br/>
+<h3>Category: Functions/func_curl</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24672">ASTERISK-24672</a>: [PATCH] Memory leak in func_curl CURLOPT<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=430487">430487</a><br/>
+Reporter: kfhdk<br/>
+Coders: Kristian Hogh<br/>
+<br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24676">ASTERISK-24676</a>: Security Vulnerability: URL request injection in libCURL (CVE-2014-8150)<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=431297">431297</a><br/>
+Reporter: mjordan<br/>
+Coders: mmichelson<br/>
+<br/>
+<h3>Category: Resources/res_config_curl</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24676">ASTERISK-24676</a>: Security Vulnerability: URL request injection in libCURL (CVE-2014-8150)<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=431297">431297</a><br/>
+Reporter: mjordan<br/>
+Coders: mmichelson<br/>
+<br/>
+<h3>Category: Resources/res_http_websocket</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24472">ASTERISK-24472</a>: Asterisk Crash in OpenSSL when calling over WSS from JSSIP<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=429270">429270</a><br/>
+Reporter: slavon<br/>
+Coders: jcolp<br/>
+<br/>
+<h3>Category: Resources/res_parking</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-23850">ASTERISK-23850</a>: Park Application does not respect Return Context Priority<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=430564">430564</a><br/>
+Reporter: tm1000<br/>
+Coders: rmudgett<br/>
+<br/>
+<h3>Category: Resources/res_rtp_asterisk</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-24337">ASTERISK-24337</a>: Spammy DEBUG message needs to be at a higher level - 'Remote address is null, most likely RTP has been stopped'<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=429804">429804</a><br/>
+Reporter: rnewton<br/>
+Coders: rmudgett<br/>
+<br/>
+<h3>Category: Resources/res_security_log</h3><br/>
+<a href="https://issues.asterisk.org/jira/browse/ASTERISK-20744">ASTERISK-20744</a>: [patch] Security event logging does not work over syslog<br/>
+Revision: <a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=430506">430506</a><br/>
+Reporter: mkeuter<br/>
+Testers: elguero, Jacek Konieczny<br/>
+Coders: elguero<br/>
+<br/>
+<hr/>
+<a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a list of all changes that went into this release that did not directly close an issue from the issue tracker.  The commits may have been marked as being related to an issue.  If that is the case, the issue numbers are listed here, as well.</p>
+<table width="100%" border="1">
+<tr><td><b>Revision</b></td><td><b>Author</b></td><td><b>Summary</b></td><td><b>Issues Referenced</b></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=429517">429517</a></td><td>mjordan</td><td>res/res_agi: Make Verbose message for 'stream file' match other playbacks</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=429867">429867</a></td><td>rmudgett</td><td>res_http_websocket.c: Fix incorrect use of sizeof in ast_websocket_write().</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=430126">430126</a></td><td>kharwell</td><td>app_queue: Update sample conf documenation</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=430415">430415</a></td><td>kmoore</td><td>res_fax: Add T.38 negotiation timeout option</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=430996">430996</a></td><td>wdoekes</td><td>Fix typo's (retrieve, specified, address).</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=430997">430997</a></td><td>wdoekes</td><td>Typo's (missed a spot in r430996).</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=431049">431049</a></td><td>rmudgett</td><td>app_confbridge: Whitespace</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=431298">431298</a></td><td>mmichelson</td><td>Fix compilation error from previous patch.</td>
+<td></td></tr><tr><td><a href="http://svn.digium.com/view/asterisk/branches/11?view=revision&revision=431472">431472</a></td><td>mmichelson</td><td>Backport memory leak fix in pbx.c from branch 13 revision 431468</td>
+<td></td></tr></table>
+<hr/>
+<a name="diffstat"><h2 align="center">Diffstat Results</h2></a>
+<center><a href="#top">[Back to Top]</a></center><br/><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p>
+<pre>
+CHANGES                                                   |   11
+UPGRADE.txt                                               |    5
+addons/ooh323c/src/ooh245.c                               |    2
+addons/ooh323c/src/printHandler.c                         |    2
+apps/app_adsiprog.c                                       |    2
+apps/app_alarmreceiver.c                                  |    2
+apps/app_confbridge.c                                     |  225 ++---
+apps/app_getcpeid.c                                       |   10
+apps/app_macro.c                                          |   33
+apps/app_minivm.c                                         |    2
+apps/app_osplookup.c                                      |    4
+apps/app_sms.c                                            |   14
+apps/app_voicemail.c                                      |    8
+apps/confbridge/include/confbridge.h                      |    6
+build_tools/mkpkgconfig                                   |    9
+channels/chan_dahdi.c                                     |   23
+channels/chan_h323.c                                      |    2
+channels/chan_iax2.c                                      |   12
+channels/chan_misdn.c                                     |    6
+channels/chan_sip.c                                       |  157 +++
+channels/chan_unistim.c                                   |   44 -
+channels/h323/ast_h323.cxx                                |    2
+channels/iax2-parser.c                                    |    2
+channels/misdn/ie.c                                       |   14
+channels/sig_analog.c                                     |    7
+channels/sig_pri.c                                        |    8
+channels/vcodecs.c                                        |    6
+configs/queues.conf.sample                                |   14
+configs/res_fax.conf.sample                               |    4
+contrib/scripts/install_prereq                            |    3
+contrib/utils/eagi_proxy.c                                |    2
+funcs/func_curl.c                                         |   84 ++
+funcs/func_groupcount.c                                   |    2
+funcs/func_hangupcause.c                                  |    2
+include/asterisk/_private.h                               |    1
+include/asterisk/channel.h                                |   10
+include/asterisk/lock.h                                   |   47 -
+include/asterisk/res_fax.h                                |    2
+include/asterisk/syslog.h                                 |    2
+main/asterisk.c                                           |    2
+main/loader.c                                             |    2
+main/lock.c                                               |  570 +++++---------
+main/logger.c                                             |   42 -
+main/manager.c                                            |    2
+main/named_acl.c                                          |    5
+main/netsock.c                                            |    4
+main/pbx.c                                                |    2
+main/syslog.c                                             |    8
+main/tcptls.c                                             |    3
+main/udptl.c                                              |    2
+main/utils.c                                              |    6
+pbx/dundi-parser.c                                        |    8
+res/pjproject/pjlib-util/include/pjlib-util/http_client.h |    4
+res/pjproject/pjlib-util/src/pjlib-util-test/encryption.c |    2
+res/pjproject/pjlib/include/pj/activesock.h               |    4
+res/pjproject/pjlib/src/pj/ssl_sock_dump.c                |    2
+res/pjproject/pjmedia/include/pjmedia/stream.h            |    2
+res/pjproject/pjmedia/src/pjmedia/stream.c                |    2
+res/pjproject/pjnath/src/pjnath-test/stun.c               |    4
+res/pjproject/pjnath/src/pjnath/stun_msg.c                |    2
+res/pjproject/pjnath/src/pjnath/stun_msg_dump.c           |    2
+res/pjproject/pjnath/src/pjnath/stun_sock.c               |    2
+res/pjproject/pjnath/src/pjnath/turn_sock.c               |    2
+res/pjproject/pjsip-apps/src/pjsua/pjsua_app.c            |    2
+res/pjproject/pjsip/include/pjsip/sip_transport_tcp.h     |    2
+res/res_agi.c                                             |    5
+res/res_crypto.c                                          |    2
+res/res_fax.c                                             |   47 +
+res/res_http_websocket.c                                  |   31
+res/res_pktccops.c                                        |    6
+res/res_rtp_asterisk.c                                    |    8
+utils/astman.c                                            |    2
+utils/smsq.c                                              |    8
+73 files changed, 843 insertions(+), 745 deletions(-)
+</pre><br/>
+<hr/>
+</body>
+</html>
