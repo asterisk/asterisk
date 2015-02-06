@@ -2971,13 +2971,16 @@ struct sync_task_data {
 static int sync_task(void *data)
 {
 	struct sync_task_data *std = data;
+	int ret;
+
 	std->fail = std->task(std->task_data);
 
 	ast_mutex_lock(&std->lock);
 	std->complete = 1;
 	ast_cond_signal(&std->cond);
+	ret = std->fail;
 	ast_mutex_unlock(&std->lock);
-	return std->fail;
+	return ret;
 }
 
 int ast_sip_push_task_synchronous(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data)

@@ -1856,7 +1856,7 @@ void ast_join_delim(char *s, size_t len, const char * const w[], unsigned int si
 	/* Join words into a string */
 	if (!s)
 		return;
-	for (x = 0; ofs < len && w[x] && x < size; x++) {
+	for (x = 0; ofs < len && x < size && w[x] ; x++) {
 		if (x > 0)
 			s[ofs++] = delim;
 		for (src = w[x]; *src && ofs < len; src++)
