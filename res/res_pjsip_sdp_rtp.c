@@ -396,6 +396,7 @@ static void add_ice_to_stream(struct ast_sip_session *session, struct ast_sip_se
 	}
 
 	ao2_iterator_destroy(&it_candidates);
+	ao2_ref(candidates, -1);
 }
 
 /*! \brief Function which processes ICE attributes in an audio stream */
