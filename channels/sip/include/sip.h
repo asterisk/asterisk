@@ -1100,6 +1100,7 @@ struct sip_pvt {
 	                                       */
 	unsigned short req_secure_signaling:1;/*!< Whether we are required to have secure signaling or not */
 	unsigned short natdetected:1;         /*!< Whether we detected a NAT when processing the Via */
+	unsigned short invitereplaces:1;      /*!< Whether we are doing an Invite: Replaces */
 	int timer_t1;                     /*!< SIP timer T1, ms rtt */
 	int timer_b;                      /*!< SIP timer B, ms */
 	unsigned int sipoptions;          /*!< Supported SIP options on the other end */

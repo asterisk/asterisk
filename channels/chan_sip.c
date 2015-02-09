@@ -7044,7 +7044,7 @@ static int sip_hangup(struct ast_channel *ast)
 				}
 
 				/* Send a hangup */
-				if (ast_channel_state(oldowner) == AST_STATE_UP) {
+				if (ast_channel_state(oldowner) == AST_STATE_UP || p->invitereplaces) {
 					transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
 				}
 
@@ -8591,6 +8591,7 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
 	make_our_tag(p);
 	p->ocseq = INITIAL_CSEQ;
 	p->allowed_methods = UINT_MAX;
+	p->invitereplaces = 0;
 
 	if (sip_methods[intended_method].need_rtp) {
 		p->maxcallbitrate = default_maxcallbitrate;
@@ -24917,6 +24918,8 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, st
 	struct ast_channel *replacecall = p->refer->refer_call->owner;	/* The channel we're about to take over */
 	struct ast_channel *targetcall;		/* The bridge to the take-over target */
 
+	p->refer->refer_call->invitereplaces = 1;
+
 	/* Check if we're in ring state */
 	if (ast_channel_state(replacecall) == AST_STATE_RING)
 		earlyreplace = 1;
@@ -25025,6 +25028,11 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, st
 		ast_channel_hangupcause_set(c, AST_CAUSE_SWITCH_CONGESTION);
 		ast_channel_unlock(c);
 	}
+
+	/* Clear SIP_DEFER_BYE_ON_TRANSFER after the masq to avoid delay hanging up replaced channel */
+	sip_pvt_lock(p);
+	ast_clear_flag(&p->refer->refer_call->flags[0], SIP_DEFER_BYE_ON_TRANSFER);
+	sip_pvt_unlock(p);
 
 	/* c and c's tech pvt must be unlocked at this point for ast_hangup */
 	ast_hangup(c);
