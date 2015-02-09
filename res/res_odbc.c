@@ -453,7 +453,7 @@ struct odbc_cache_tables *ast_odbc_find_table(const char *database, const char *
 	SQLLEN sqlptr;
 	SQLHSTMT stmt = NULL;
 	int res = 0, error = 0, try = 0;
-	struct odbc_obj *obj = ast_odbc_request_obj(database, 0);
+	struct odbc_obj *obj;
 
 	AST_RWLIST_RDLOCK(&odbc_tables);
 	AST_RWLIST_TRAVERSE(&odbc_tables, tableptr, list) {
@@ -464,13 +464,10 @@ struct odbc_cache_tables *ast_odbc_find_table(const char *database, const char *
 	if (tableptr) {
 		AST_RWLIST_RDLOCK(&tableptr->columns);
 		AST_RWLIST_UNLOCK(&odbc_tables);
-		if (obj) {
-			ast_odbc_release_obj(obj);
-		}
 		return tableptr;
 	}
 
-	if (!obj) {
+	if (!(obj = ast_odbc_request_obj(database, 0))) {
 		ast_log(LOG_WARNING, "Unable to retrieve database handle for table description '%s@%s'\n", tablename, database);
 		AST_RWLIST_UNLOCK(&odbc_tables);
 		return NULL;
@@ -556,9 +553,7 @@ struct odbc_cache_tables *ast_odbc_find_table(const char *database, const char *
 		destroy_table_cache(tableptr);
 		tableptr = NULL;
 	}
-	if (obj) {
-		ast_odbc_release_obj(obj);
-	}
+	ast_odbc_release_obj(obj);
 	return tableptr;
 }
 
