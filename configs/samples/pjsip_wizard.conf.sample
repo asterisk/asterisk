@@ -24,7 +24,7 @@
 ;============EXAMPLE WIZARD CONFIGURATION FOR A PHONE=======================
 
 ; This config would create an endpoint, aor with dynamic contact, inbound
-; auth and a phoneprov object.
+; auth, a phoneprov object and a dialplan hint for extension 1000.
 
 ;[myphone]
 ;type = wizard
@@ -32,6 +32,8 @@
 ;accepts_registrations = yes
 ;has_phoneprov = yes
 ;transport = ipv4
+;has_hint = yes
+;hint_exten = 1000
 ;inbound_auth/username = testname
 ;inbound_auth/password = test password
 ;endpoint/allow = ulaw
@@ -115,6 +117,24 @@
 ;has_phoneprov=      ; Will create a phoneprov object.
                      ; If yes, phoneprov/MAC must be specified.
                      ; (default: "no")
+
+;has_hint=           ; Create hint and optionally a default application.
+                     ; (default: "no")
+
+;hint_context        ; Any hints created for this wizard will be placed in this
+                     ; context.
+                     ; (default: endpoint/context)
+
+;hint_exten          ; If specified, a PJSIP/<wizard_id> hint will be created
+                     ; for this extension in 'hint_context'.
+                     ; context.
+                     ; (default: none)
+
+;hint_application    ; If specified, an extension will be placed in 'hint_context'
+                     ; at priority 1 that calls this application.  Could be any
+                     ; valid dialplan expression like
+                     ; "Gosub(stdexten,${EXTEN},1(${HINT}))"
+                     ; (default: "Dial(${HINT})")
 
 ;endpoint/<param>      ; Any parameters to be passed directly to and validated
 ;aor/<param>           ; by their respective objects.

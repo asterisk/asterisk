@@ -64,7 +64,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 			<para>For example, the following configuration snippet would create the
 			endpoint, aor, contact, auth and phoneprov objects necessary for a phone to
-			get phone provisioning information, register, and make and receive calls.</para>
+			get phone provisioning information, register, and make and receive calls.
+			A hint is also created in the default context for extension 1000.</para>
 			<para> </para>
 
 			<para>[myphone]</para>
@@ -75,6 +76,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>accepts_registrations = yes</para>
 			<para>has_phoneprov = yes</para>
 			<para>transport = ipv4</para>
+			<para>has_hint = yes</para>
+			<para>hint_exten = 1000</para>
 			<para>inbound_auth/username = testname</para>
 			<para>inbound_auth/password = test password</para>
 			<para>endpoint/allow = ulaw</para>
@@ -83,7 +86,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>phoneprov/PROFILE = profile1</para>
 			<para> </para>
 
-			<para>The first 7 items are specific to the wizard.  The rest of the items
+			<para>The first 8 items are specific to the wizard.  The rest of the items
 			are passed verbatim to the underlying objects.</para>
 			<para> </para>
 
@@ -108,11 +111,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 			<para>Of course, any of the items in either example could be placed into
 			templates and shared among wizard objects.</para>
+
+			<para> </para>
+			<para>For more information, visit:</para>
+			<para><literal>https://wiki.asterisk.org/wiki/display/AST/PJSIP+Configuration+Wizard</literal></para>
 		</description>
 
 		<configFile name="pjsip_wizard.conf">
 			<configObject name="wizard">
 				<synopsis>Provides config wizard.</synopsis>
+				<description>
+				<para>For more information, visit:</para>
+				<para><literal>https://wiki.asterisk.org/wiki/display/AST/PJSIP+Configuration+Wizard</literal></para>
+				</description>
 				<configOption name="type">
 					<synopsis>Must be 'wizard'.</synopsis>
 				</configOption>
@@ -171,6 +182,52 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					The literal <literal>${REMOTE_HOST}</literal> will be substituted with the
 					appropriate remote_host for each contact.</para></description>
 				</configOption>
+				<configOption name="has_hint" default="no">
+					<synopsis>Create hint and optionally a default application.</synopsis>
+					<description><para>Create hint and optionally a default application.</para></description>
+				</configOption>
+				<configOption name="hint_context" default="endpoint/context or 'default'">
+					<synopsis>The context in which to place hints.</synopsis>
+					<description>
+					<para>Ignored if <literal>hint_exten</literal> is not specified otherwise specifies the
+					context into which the dialplan hints will be placed.  If not specified,
+					defaults to the endpoint's context or <literal>default</literal> if that isn't
+					found.
+					</para></description>
+				</configOption>
+				<configOption name="hint_exten">
+					<synopsis>Extension to map a PJSIP hint to.</synopsis>
+					<description>
+					<para>Will create the following entry in <literal>hint_context</literal>:</para>
+					<para>   <literal>exten =&gt; &lt;hint_exten&gt;,hint,PJSIP/&lt;wizard_id&gt;</literal></para>
+					<para> </para>
+					<para>Normal dialplan precedence rules apply so if there's already a hint for
+					this extension in <literal>hint_context</literal>, this one will be ignored.
+					For more information, visit: </para>
+					<para><literal>https://wiki.asterisk.org/wiki/display/AST/PJSIP+Configuration+Wizard</literal></para>
+					</description>
+				</configOption>
+				<configOption name="hint_application">
+					<synopsis>Application to call when 'hint_exten' is dialed.</synopsis>
+					<description>
+					<para>Ignored if <literal>hint_exten</literal> isn't specified otherwise
+					will create the following priority 1 extension in <literal>hint_context</literal>:</para>
+					<para>   <literal>exten =&gt; &lt;hint_exten&gt;,1,&lt;hint_application&gt;</literal></para>
+					<para> </para>
+					<para>You can specify any valid extensions.conf application expression.</para>
+					<para>Examples: </para>
+					<para>   <literal>Dial(${HINT})</literal></para>
+					<para>   <literal>Gosub(stdexten,${EXTEN},1(${HINT}))</literal></para>
+					<para> </para>
+					<para>Any extensions.conf style variables specified are passed directly to the
+					dialplan.</para>
+					<para> </para>
+					<para>Normal dialplan precedence rules apply so if there's already a priority 1
+					application for this specific extension in <literal>hint_context</literal>,
+					this one will be ignored. For more information, visit: </para>
+					<para><literal>https://wiki.asterisk.org/wiki/display/AST/PJSIP+Configuration+Wizard</literal></para>
+					</description>
+				</configOption>
 				<configOption name="endpoint&#47;*">
 					<synopsis>Variables to be passed directly to the endpoint.</synopsis>
 				</configOption>
@@ -205,6 +262,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
  /*! \brief Defines the maximum number of characters that can be added to a wizard id. */
 #define MAX_ID_SUFFIX 20
+
+#define BASE_REGISTRAR "res_pjsip_config_wizard"
 
 /*! \brief A generic char * vector definition. */
 AST_VECTOR(string_vector, char *);
@@ -327,6 +386,134 @@ static struct ast_variable *get_object_variables(struct ast_variable *vars, char
 	}
 
 	return return_vars;
+}
+
+/* Don't call while holding context locks. */
+static int delete_extens(const char *context, const char *exten)
+{
+	struct pbx_find_info find_info = { .stacklen = 0 }; /* the rest is reset in pbx_find_extension */
+
+	if (pbx_find_extension(NULL, NULL, &find_info, context, exten, PRIORITY_HINT, NULL, NULL, E_MATCH)) {
+		ast_context_remove_extension(context, exten, PRIORITY_HINT, BASE_REGISTRAR);
+	}
+
+	if (pbx_find_extension(NULL, NULL, &find_info, context, exten, 1, NULL, NULL, E_MATCH)) {
+		ast_context_remove_extension(context, exten, 1, BASE_REGISTRAR);
+	}
+
+	return 0;
+}
+
+static int add_extension(struct ast_context *context, const char *exten,
+	int priority, const char *application)
+{
+	struct pbx_find_info find_info = { .stacklen = 0 }; /* the rest is reset in pbx_find_extension */
+	struct ast_exten *existing_exten;
+	char *data = NULL;
+	char *app = NULL;
+	void *free_ptr = NULL;
+	char *paren;
+	const char *context_name;
+
+	if (!context || ast_strlen_zero(exten) || ast_strlen_zero(application)) {
+		return -1;
+	}
+
+	/* The incoming application has to be split into the app name and the
+	 * arguments (data).  The app name can be any storage type as add_extension
+	 * copies it into its own buffer.  Data however, needs to be dynamically
+	 * allocated and a free function provided.
+	 */
+
+	paren = strchr(application, '(');
+	if (!paren) {
+		app = (char *)application;
+	} else {
+		app = ast_strdupa(application);
+		app[paren - application] = '\0';
+		data = ast_strdup(paren + 1);
+		if (!data) {
+			return -1;
+		}
+		data[strlen(data) - 1] = '\0';
+		free_ptr = ast_free_ptr;
+		if (ast_strlen_zero(app) || ast_strlen_zero(data)) {
+			ast_free(data);
+			return -1;
+		}
+	}
+
+	/* Don't disturb existing, exact-match, entries. */
+	context_name = ast_get_context_name(context);
+	if ((existing_exten = pbx_find_extension(NULL, NULL, &find_info, context_name, exten,
+		priority, NULL, NULL, E_MATCH))) {
+		const char *existing_app = ast_get_extension_app(existing_exten);
+		const char *existing_data = ast_get_extension_app_data(existing_exten);
+		if (!strcmp(existing_app, app)
+			&& !strcmp(existing_data ? existing_data : "", data ? data : "")) {
+			ast_free(data);
+			return 0;
+		}
+
+		ast_context_remove_extension2(context, exten, priority, BASE_REGISTRAR, 1);
+	}
+
+	if (ast_add_extension2_nolock(context, 0, exten, priority, NULL, NULL,
+			app, data, free_ptr, BASE_REGISTRAR)) {
+		ast_free(data);
+		return -1;
+	}
+
+	return 0;
+}
+
+static int add_hints(const char *context, const char *exten, const char *application, const char *id)
+{
+	struct ast_context *hint_context;
+	char *hint_device;
+
+	hint_device = ast_alloca(strlen("PJSIP/") + strlen(id) + 1);
+	sprintf(hint_device, "PJSIP/%s", id);
+
+	/* We need the contexts list locked to safely be able to both read and lock the specific context within */
+	if (ast_wrlock_contexts()) {
+		ast_log(LOG_ERROR, "Failed to lock the contexts list.\n");
+		return -1;
+	}
+
+	if (!(hint_context = ast_context_find_or_create(NULL, NULL, context, BASE_REGISTRAR))) {
+		ast_log(LOG_ERROR, "Unable to find or create hint context '%s'\n", context);
+		if (ast_unlock_contexts()) {
+			ast_assert(0);
+		}
+		return -1;
+	}
+
+	/* Transfer the all-contexts lock to the specific context */
+	if (ast_wrlock_context(hint_context)) {
+		ast_unlock_contexts();
+		ast_log(LOG_ERROR, "failed to obtain write lock on context\n");
+		return -1;
+	}
+	ast_unlock_contexts();
+
+	if (add_extension(hint_context, exten, PRIORITY_HINT, hint_device)) {
+		ast_log(LOG_ERROR, "Failed to add hint '%s@%s' to the PBX.\n",
+		        exten, context);
+	}
+
+	if (!ast_strlen_zero(application)) {
+		if (add_extension(hint_context, exten, 1, application)) {
+			ast_log(LOG_ERROR, "Failed to add hint '%s@%s' to the PBX.\n",
+			        exten, context);
+		}
+	} else {
+		ast_context_remove_extension2(hint_context, exten, 1, BASE_REGISTRAR, 1);
+	}
+
+	ast_unlock_context(hint_context);
+
+	return 0;
 }
 
 static int handle_auth(const struct ast_sorcery *sorcery, struct object_type_wizard *otw,
@@ -459,11 +646,28 @@ static int handle_endpoint(const struct ast_sorcery *sorcery, struct object_type
 	struct ast_sorcery_object *obj = NULL;
 	const char *id = ast_category_get_name(wiz);
 	const char *transport = ast_variable_find_in_list(wizvars, "transport");
+	const char *hint_context = hint_context = ast_variable_find_in_list(wizvars, "hint_context");
+	const char *hint_exten = ast_variable_find_in_list(wizvars, "hint_exten");
+	const char *hint_application= ast_variable_find_in_list(wizvars, "hint_application");
 	char new_id[strlen(id) + MAX_ID_SUFFIX];
 	RAII_VAR(struct ast_variable *, vars, get_object_variables(wizvars, "endpoint/"), ast_variables_destroy);
 
 	variable_list_append_return(&vars, "@pjsip_wizard", id);
 	variable_list_append_return(&vars, "aors", id);
+
+	if (ast_strlen_zero(hint_context)) {
+		hint_context = ast_variable_find_in_list(vars, "context");
+	}
+
+	if (ast_strlen_zero(hint_context)) {
+		hint_context = "default";
+	}
+
+	if (!ast_strlen_zero(hint_exten)) {
+		/* These are added so we can find and delete the hints when the endpoint gets deleted */
+		variable_list_append_return(&vars, "@hint_context", hint_context);
+		variable_list_append_return(&vars, "@hint_exten", hint_exten);
+	}
 
 	if (!ast_strlen_zero(transport)) {
 		variable_list_append_return(&vars, "transport", transport);
@@ -488,6 +692,14 @@ static int handle_endpoint(const struct ast_sorcery *sorcery, struct object_type
 		otw->wizard->create(sorcery, otw->wizard_data, obj);
 	}
 	ao2_ref(obj, -1);
+
+	if (!ast_strlen_zero(hint_exten)) {
+		if (is_variable_true(wizvars, "has_hint")) {
+			add_hints(hint_context, hint_exten, hint_application, id);
+		} else {
+			delete_extens(hint_context, hint_exten);
+		}
+	}
 
 	return 0;
 }
@@ -600,6 +812,14 @@ static int handle_phoneprov(const struct ast_sorcery *sorcery, struct object_typ
 static int delete_existing_cb(void *obj, void *arg, int flags)
 {
 	struct object_type_wizard *otw = arg;
+
+	if (!strcmp(otw->object_type, "endpoint")) {
+		const char *context = ast_sorcery_object_get_extended(obj, "hint_context");
+		const char *exten = ast_sorcery_object_get_extended(obj, "hint_exten");
+		if (!ast_strlen_zero(context) && !ast_strlen_zero(exten)) {
+			delete_extens(context, exten);
+		}
+	}
 
 	otw->wizard->delete(otw->sorcery, otw->wizard_data, obj);
 
