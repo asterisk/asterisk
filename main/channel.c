@@ -100,9 +100,6 @@ struct ast_epoll_data {
 #define MONITOR_DELAY	150 * 8		/*!< 150 ms of MONITORING DELAY */
 #endif
 
-/*! \brief Prevent new channel allocation if shutting down. */
-static int shutting_down;
-
 static int chancount;
 
 unsigned long global_fin, global_fout;
@@ -507,13 +504,9 @@ static int ast_channel_softhangup_cb(void *obj, void *arg, int flags)
 	return 0;
 }
 
-void ast_begin_shutdown(int hangup)
+void ast_softhangup_all(void)
 {
-	shutting_down = 1;
-
-	if (hangup) {
-		ao2_callback(channels, OBJ_NODATA | OBJ_MULTIPLE, ast_channel_softhangup_cb, NULL);
-	}
+	ao2_callback(channels, OBJ_NODATA | OBJ_MULTIPLE, ast_channel_softhangup_cb, NULL);
 }
 
 /*! \brief returns number of active/allocated channels */
@@ -525,18 +518,6 @@ int ast_active_channels(void)
 int ast_undestroyed_channels(void)
 {
 	return ast_atomic_fetchadd_int(&chancount, 0);
-}
-
-/*! \brief Cancel a shutdown in progress */
-void ast_cancel_shutdown(void)
-{
-	shutting_down = 0;
-}
-
-/*! \brief Returns non-zero if Asterisk is being shut down */
-int ast_shutting_down(void)
-{
-	return shutting_down;
 }
 
 /*! \brief Set when to hangup channel */
