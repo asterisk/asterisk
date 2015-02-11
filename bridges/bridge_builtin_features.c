@@ -248,6 +248,10 @@ static int feature_hangup(struct ast_bridge *bridge, struct ast_bridge_channel *
 
 static int unload_module(void)
 {
+	ast_bridge_features_unregister(AST_BRIDGE_BUILTIN_HANGUP);
+	ast_bridge_features_unregister(AST_BRIDGE_BUILTIN_ATTENDEDTRANSFER);
+	ast_bridge_features_unregister(AST_BRIDGE_BUILTIN_BLINDTRANSFER);
+
 	return 0;
 }
 
@@ -257,8 +261,8 @@ static int load_module(void)
 	ast_bridge_features_register(AST_BRIDGE_BUILTIN_ATTENDEDTRANSFER, feature_attended_transfer, NULL);
 	ast_bridge_features_register(AST_BRIDGE_BUILTIN_HANGUP, feature_hangup, NULL);
 
-	/* Bump up our reference count so we can't be unloaded */
-	ast_module_ref(ast_module_info->self);
+	/* This module cannot be unloaded until shutdown */
+	ast_module_shutdown_ref(ast_module_info->self);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
