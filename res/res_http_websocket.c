@@ -307,11 +307,15 @@ int AST_OPTIONAL_API_NAME(ast_websocket_write)(struct ast_websocket *session, en
 	}
 	if (ast_careful_fwrite(session->f, session->fd, frame, header_size, session->timeout)) {
 		ao2_unlock(session);
+		/* 1011 - server terminating connection due to not being able to fulfill the request */
+		ast_websocket_close(session, 1011);
 		return -1;
 	}
 
 	if (ast_careful_fwrite(session->f, session->fd, payload, actual_length, session->timeout)) {
 		ao2_unlock(session);
+		/* 1011 - server terminating connection due to not being able to fulfill the request */
+		ast_websocket_close(session, 1011);
 		return -1;
 	}
 	fflush(session->f);
