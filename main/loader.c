@@ -117,12 +117,17 @@ static unsigned int embedding = 1; /* we always start out by registering embedde
 
 struct ast_module {
 	const struct ast_module_info *info;
+#ifdef REF_DEBUG
+	/* Used to get module references into REF_DEBUG logs */
+	void *ref_debug;
+#endif
 	void *lib;					/* the shared lib, or NULL if embedded */
 	int usecount;					/* the number of 'users' currently in this module */
 	struct module_user_list users;			/* the list of users in the module */
 	struct {
 		unsigned int running:1;
 		unsigned int declined:1;
+		unsigned int keepuntilshutdown:1;
 	} flags;
 	AST_LIST_ENTRY(ast_module) list_entry;
 	AST_DLLIST_ENTRY(ast_module) entry;
@@ -189,6 +194,9 @@ void ast_module_register(const struct ast_module_info *info)
 	ast_debug(5, "Registering module %s\n", info->name);
 
 	mod->info = info;
+#ifdef REF_DEBUG
+	mod->ref_debug = ao2_t_alloc(0, NULL, info->name);
+#endif
 	AST_LIST_HEAD_INIT(&mod->users);
 
 	/* during startup, before the loader has been initialized,
@@ -235,6 +243,9 @@ void ast_module_unregister(const struct ast_module_info *info)
 	if (mod) {
 		ast_debug(5, "Unregistering module %s\n", info->name);
 		AST_LIST_HEAD_DESTROY(&mod->users);
+#ifdef REF_DEBUG
+		ao2_cleanup(mod->ref_debug);
+#endif
 		ast_free(mod);
 	}
 }
@@ -253,6 +264,10 @@ struct ast_module_user *__ast_module_user_add(struct ast_module *mod, struct ast
 	AST_LIST_LOCK(&mod->users);
 	AST_LIST_INSERT_HEAD(&mod->users, u, entry);
 	AST_LIST_UNLOCK(&mod->users);
+
+#ifdef REF_DEBUG
+	ao2_ref(mod->ref_debug, +1);
+#endif
 
 	ast_atomic_fetchadd_int(&mod->usecount, +1);
 
@@ -278,6 +293,10 @@ void __ast_module_user_remove(struct ast_module *mod, struct ast_module_user *u)
 		return;
 	}
 
+#ifdef REF_DEBUG
+	ao2_ref(mod->ref_debug, -1);
+#endif
+
 	ast_atomic_fetchadd_int(&mod->usecount, -1);
 	ast_free(u);
 
@@ -293,6 +312,11 @@ void __ast_module_user_hangup_all(struct ast_module *mod)
 		if (u->chan) {
 			ast_softhangup(u->chan, AST_SOFTHANGUP_APPUNLOAD);
 		}
+
+#ifdef REF_DEBUG
+		ao2_ref(mod->ref_debug, -1);
+#endif
+
 		ast_atomic_fetchadd_int(&mod->usecount, -1);
 		ast_free(u);
 	}
@@ -610,10 +634,22 @@ void ast_module_shutdown(void)
 				mod->info->unload();
 			}
 			AST_LIST_HEAD_DESTROY(&mod->users);
+#ifdef REF_DEBUG
+			ao2_cleanup(mod->ref_debug);
+#endif
 			free(mod);
 			somethingchanged = 1;
 		}
 		AST_DLLIST_TRAVERSE_BACKWARDS_SAFE_END;
+		if (!somethingchanged) {
+			AST_DLLIST_TRAVERSE(&module_list, mod, entry) {
+				if (mod->flags.keepuntilshutdown) {
+					ast_module_unref(mod);
+					mod->flags.keepuntilshutdown = 0;
+					somethingchanged = 1;
+				}
+			}
+		}
 	} while (somethingchanged && !final);
 
 	AST_DLLIST_UNLOCK(&module_list);
@@ -1430,11 +1466,15 @@ int ast_loader_unregister(int (*v)(void))
 	return cur ? 0 : -1;
 }
 
-struct ast_module *ast_module_ref(struct ast_module *mod)
+struct ast_module *__ast_module_ref(struct ast_module *mod, const char *file, int line, const char *func)
 {
 	if (!mod) {
 		return NULL;
 	}
+
+#ifdef REF_DEBUG
+	__ao2_ref_debug(mod->ref_debug, +1, "", file, line, func);
+#endif
 
 	ast_atomic_fetchadd_int(&mod->usecount, +1);
 	ast_update_use_count();
@@ -1442,11 +1482,23 @@ struct ast_module *ast_module_ref(struct ast_module *mod)
 	return mod;
 }
 
-void ast_module_unref(struct ast_module *mod)
+void __ast_module_shutdown_ref(struct ast_module *mod, const char *file, int line, const char *func)
+{
+	if (!mod->flags.keepuntilshutdown) {
+		__ast_module_ref(mod, file, line, func);
+		mod->flags.keepuntilshutdown = 1;
+	}
+}
+
+void __ast_module_unref(struct ast_module *mod, const char *file, int line, const char *func)
 {
 	if (!mod) {
 		return;
 	}
+
+#ifdef REF_DEBUG
+	__ao2_ref_debug(mod->ref_debug, -1, "", file, line, func);
+#endif
 
 	ast_atomic_fetchadd_int(&mod->usecount, -1);
 	ast_update_use_count();
@@ -1462,4 +1514,23 @@ const char *support_level_map [] = {
 const char *ast_module_support_level_to_string(enum ast_module_support_level support_level)
 {
 	return support_level_map[support_level];
+}
+
+
+
+/* The following exists for ABI compatibility */
+#undef ast_module_ref
+#undef ast_module_unref
+
+struct ast_module *ast_module_ref(struct ast_module *mod);
+void ast_module_unref(struct ast_module *mod);
+
+struct ast_module *ast_module_ref(struct ast_module *mod)
+{
+	return __ast_module_ref(mod, __FILE__, __LINE__, __PRETTY_FUNCTION__);
+}
+
+void ast_module_unref(struct ast_module *mod)
+{
+	__ast_module_unref(mod, __FILE__, __LINE__, __PRETTY_FUNCTION__);
 }
