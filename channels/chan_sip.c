@@ -24841,6 +24841,10 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req, st
 		ast_string_field_set(p, context, sip_cfg.default_context);
 
 	if (ast_shutting_down()) {
+		/*
+		 * Not taking any new calls at this time.
+		 * Likely a server availability OPTIONS poll.
+		 */
 		msg = "503 Unavailable";
 	} else {
 		msg = "404 Not Found";

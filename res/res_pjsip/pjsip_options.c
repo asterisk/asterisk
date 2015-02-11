@@ -655,6 +655,10 @@ static pj_bool_t options_on_rx_request(pjsip_rx_data *rdata)
 	ast_copy_pj_str(exten, &sip_ruri->user, sizeof(exten));
 
 	if (ast_shutting_down()) {
+		/*
+		 * Not taking any new calls at this time.
+		 * Likely a server availability OPTIONS poll.
+		 */
 		send_options_response(rdata, 503);
 	} else if (!ast_strlen_zero(exten) && !ast_exists_extension(NULL, endpoint->context, exten, 1, NULL)) {
 		send_options_response(rdata, 404);

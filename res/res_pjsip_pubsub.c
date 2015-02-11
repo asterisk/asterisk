@@ -2059,7 +2059,7 @@ static int send_notify(struct sip_subscription_tree *sub_tree, unsigned int forc
 	pjsip_evsub *evsub = sub_tree->evsub;
 	pjsip_tx_data *tdata;
 
-	if (ast_shutting_down()
+	if (ast_shutdown_final()
 		&& sub_tree->root->subscription_state == PJSIP_EVSUB_STATE_TERMINATED
 		&& sub_tree->persistence) {
 		return 0;
