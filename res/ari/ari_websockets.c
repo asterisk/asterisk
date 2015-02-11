@@ -104,12 +104,6 @@ struct ast_json *ast_ari_websocket_session_read(
 		return NULL;
 	}
 
-
-	if (ast_websocket_fd(session->ws_session) <= 0) {
-		return NULL;
-	}
-
-
 	while (!message) {
 		int res;
 		char *payload;
