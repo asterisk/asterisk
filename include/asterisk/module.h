@@ -316,8 +316,31 @@ void __ast_module_user_hangup_all(struct ast_module *);
 #define ast_module_user_remove(user) __ast_module_user_remove(ast_module_info->self, user)
 #define ast_module_user_hangup_all() __ast_module_user_hangup_all(ast_module_info->self)
 
-struct ast_module *ast_module_ref(struct ast_module *);
-void ast_module_unref(struct ast_module *);
+struct ast_module *__ast_module_ref(struct ast_module *mod, const char *file, int line, const char *func);
+void __ast_module_shutdown_ref(struct ast_module *mod, const char *file, int line, const char *func);
+void __ast_module_unref(struct ast_module *mod, const char *file, int line, const char *func);
+
+/*!
+ * \brief Hold a reference to the module
+ * \param mod Module to reference
+ * \return mod
+ *
+ * \note A module reference will prevent the module
+ * from being unloaded.
+ */
+#define ast_module_ref(mod)           __ast_module_ref(mod, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+/*!
+ * \brief Prevent unload of the module before shutdown
+ * \param mod Module to hold
+ *
+ * \note This should not be balanced by a call to ast_module_unref.
+ */
+#define ast_module_shutdown_ref(mod)  __ast_module_shutdown_ref(mod, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+/*!
+ * \brief Release a reference to the module
+ * \param mod Module to release
+ */
+#define ast_module_unref(mod)         __ast_module_unref(mod, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #if defined(__cplusplus) || defined(c_plusplus)
 #define AST_MODULE_INFO(keystr, flags_to_set, desc, load_func, unload_func, reload_func, load_pri, support_level)	\
