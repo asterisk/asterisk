@@ -1831,6 +1831,11 @@ static int httpd_process_request(struct ast_tcptls_session_instance *ser)
 		return -1;
 	}
 
+	if (ast_shutdown_final()) {
+		ast_http_error(ser, 503, "Service Unavailable", "Shutdown in progress");
+		return -1;
+	}
+
 	/* process "Request Headers" lines */
 	if (http_request_headers_get(ser, &headers)) {
 		return -1;

@@ -1510,6 +1510,14 @@ const struct ast_channel_tech *ast_get_channel_tech(const char *name);
 void ast_hangup(struct ast_channel *chan);
 
 /*!
+ * \brief Soft hangup all active channels.
+ * \since 13.3.0
+ *
+ * \return Nothing
+ */
+void ast_softhangup_all(void);
+
+/*!
  * \brief Softly hangup up a channel
  *
  * \param chan channel to be soft-hung-up
@@ -2202,22 +2210,11 @@ int ast_channel_defer_dtmf(struct ast_channel *chan);
 /*! Undo defer.  ast_read will return any DTMF characters that were queued */
 void ast_channel_undefer_dtmf(struct ast_channel *chan);
 
-/*! Initiate system shutdown -- prevents new channels from being allocated.
- * \param hangup  If "hangup" is non-zero, all existing channels will receive soft
- *  hangups */
-void ast_begin_shutdown(int hangup);
-
-/*! Cancels an existing shutdown and returns to normal operation */
-void ast_cancel_shutdown(void);
-
 /*! \return number of channels available for lookup */
 int ast_active_channels(void);
 
 /*! \return the number of channels not yet destroyed */
 int ast_undestroyed_channels(void);
-
-/*! \return non-zero if Asterisk is being shut down */
-int ast_shutting_down(void);
 
 /*! Activate a given generator */
 int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, void *params);

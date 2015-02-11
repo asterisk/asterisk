@@ -1752,6 +1752,12 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 
 	/* if we're shutting down, don't attempt to do further processing */
 	if (ast_shutting_down()) {
+		/*
+		 * Not taking any new calls at this time.  We cannot create
+		 * the announcer channel if this is the first channel into
+		 * the conference and we certainly cannot create any
+		 * recording channel.
+		 */
 		leave_conference(&user);
 		conference = NULL;
 		goto confbridge_cleanup;

@@ -5262,7 +5262,7 @@ static void bridge_prnt_obj(void *v_obj, void *where, ao2_prnt_fn *prnt)
 
 /*!
  * \internal
- * \brief Shutdown the bridging system.
+ * \brief Shutdown the bridging system.  Stuff to always do.
  * \since 12.0.0
  *
  * \return Nothing
@@ -5274,6 +5274,17 @@ static void bridge_shutdown(void)
 	ast_manager_unregister("BridgeTechnologyUnsuspend");
 	ast_cli_unregister_multiple(bridge_cli, ARRAY_LEN(bridge_cli));
 	ao2_container_unregister("bridges");
+}
+
+/*!
+ * \internal
+ * \brief Shutdown the bridging system.  More stuff to do on graceful shutdown.
+ * \since 13.3.0
+ *
+ * \return Nothing
+ */
+static void bridge_cleanup(void)
+{
 	ao2_cleanup(bridges);
 	bridges = NULL;
 	ao2_cleanup(bridge_manager);
@@ -5282,6 +5293,7 @@ static void bridge_shutdown(void)
 
 int ast_bridging_init(void)
 {
+	ast_register_cleanup(bridge_cleanup);
 	ast_register_atexit(bridge_shutdown);
 
 	if (ast_stasis_bridging_init()) {

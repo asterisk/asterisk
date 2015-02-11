@@ -432,16 +432,34 @@ static char ast_config_AST_CTL[PATH_MAX] = "asterisk.ctl";
 extern unsigned int ast_FD_SETSIZE;
 
 static char *_argv[256];
+
 typedef enum {
-	NOT_SHUTTING_DOWN = -2,
-	SHUTTING_DOWN = -1,
-	/* Valid values for quit_handler niceness below: */
+	/*! Normal operation */
+	NOT_SHUTTING_DOWN,
+	/*! Committed to shutting down.  Final phase */
+	SHUTTING_DOWN_FINAL,
+	/*! Committed to shutting down.  Initial phase */
+	SHUTTING_DOWN,
+	/*!
+	 * Valid values for quit_handler() niceness below.
+	 * These shutdown/restart levels can be cancelled.
+	 *
+	 * Remote console exit right now
+	 */
 	SHUTDOWN_FAST,
+	/*! core stop/restart now */
 	SHUTDOWN_NORMAL,
+	/*! core stop/restart gracefully */
 	SHUTDOWN_NICE,
+	/*! core stop/restart when convenient */
 	SHUTDOWN_REALLY_NICE
 } shutdown_nice_t;
+
 static shutdown_nice_t shuttingdown = NOT_SHUTTING_DOWN;
+
+/*! Prevent new channel allocation for shutdown. */
+static int shutdown_pending;
+
 static int restartnow;
 static pthread_t consolethread = AST_PTHREADT_NULL;
 static pthread_t mon_sig_flags;
@@ -1867,6 +1885,43 @@ int ast_set_priority(int pri)
 	return 0;
 }
 
+int ast_shutdown_final(void)
+{
+	return shuttingdown == SHUTTING_DOWN_FINAL;
+}
+
+int ast_shutting_down(void)
+{
+	return shutdown_pending;
+}
+
+int ast_cancel_shutdown(void)
+{
+	int shutdown_aborted = 0;
+
+	ast_mutex_lock(&safe_system_lock);
+	if (shuttingdown >= SHUTDOWN_FAST) {
+		shuttingdown = NOT_SHUTTING_DOWN;
+		shutdown_pending = 0;
+		shutdown_aborted = 1;
+	}
+	ast_mutex_unlock(&safe_system_lock);
+	return shutdown_aborted;
+}
+
+/*!
+ * \internal
+ * \brief Initiate system shutdown -- prevents new channels from being allocated.
+ */
+static void ast_begin_shutdown(void)
+{
+	ast_mutex_lock(&safe_system_lock);
+	if (shuttingdown != NOT_SHUTTING_DOWN) {
+		shutdown_pending = 1;
+	}
+	ast_mutex_unlock(&safe_system_lock);
+}
+
 static int can_safely_quit(shutdown_nice_t niceness, int restart);
 static void really_quit(int num, shutdown_nice_t niceness, int restart);
 
@@ -1879,8 +1934,53 @@ static void quit_handler(int num, shutdown_nice_t niceness, int restart)
 	/* It wasn't our time. */
 }
 
+#define SHUTDOWN_TIMEOUT	15	/* Seconds */
+
+/*!
+ * \internal
+ * \brief Wait for all channels to die, a timeout, or shutdown cancelled.
+ * \since 13.3.0
+ *
+ * \param niceness Shutdown niceness in effect
+ * \param seconds Number of seconds to wait or less than zero if indefinitely.
+ *
+ * \retval zero if waiting wasn't necessary.  We were idle.
+ * \retval non-zero if we had to wait.
+ */
+static int wait_for_channels_to_die(shutdown_nice_t niceness, int seconds)
+{
+	time_t start;
+	time_t now;
+	int waited = 0;
+
+	time(&start);
+	for (;;) {
+		if (!ast_undestroyed_channels() || shuttingdown != niceness) {
+			break;
+		}
+		if (seconds < 0) {
+			/* No timeout so just poll every second */
+			sleep(1);
+		} else {
+			time(&now);
+
+			/* Wait up to the given seconds for all channels to go away */
+			if (seconds < (now - start)) {
+				break;
+			}
+
+			/* Sleep 1/10 of a second */
+			usleep(100000);
+		}
+		waited = 1;
+	}
+	return waited;
+}
+
 static int can_safely_quit(shutdown_nice_t niceness, int restart)
 {
+	int waited = 0;
+
 	/* Check if someone else isn't already doing this. */
 	ast_mutex_lock(&safe_system_lock);
 	if (shuttingdown != NOT_SHUTTING_DOWN && niceness >= shuttingdown) {
@@ -1897,40 +1997,30 @@ static int can_safely_quit(shutdown_nice_t niceness, int restart)
 	 * the atexit handlers, otherwise this would be a bit early. */
 	ast_cdr_engine_term();
 
-	/* Shutdown the message queue for the technology agnostic message channel.
-	 * This has to occur before we pause shutdown pending ast_undestroyed_channels. */
+	/*
+	 * Shutdown the message queue for the technology agnostic message channel.
+	 * This has to occur before we pause shutdown pending ast_undestroyed_channels.
+	 *
+	 * XXX This is not reversed on shutdown cancel.
+	 */
 	ast_msg_shutdown();
 
 	if (niceness == SHUTDOWN_NORMAL) {
-		time_t s, e;
 		/* Begin shutdown routine, hanging up active channels */
-		ast_begin_shutdown(1);
+		ast_begin_shutdown();
 		if (ast_opt_console) {
 			ast_verb(0, "Beginning asterisk %s....\n", restart ? "restart" : "shutdown");
 		}
-		time(&s);
-		for (;;) {
-			time(&e);
-			/* Wait up to 15 seconds for all channels to go away */
-			if ((e - s) > 15 || !ast_undestroyed_channels() || shuttingdown != niceness) {
-				break;
-			}
-			/* Sleep 1/10 of a second */
-			usleep(100000);
-		}
+		ast_softhangup_all();
+		waited |= wait_for_channels_to_die(niceness, SHUTDOWN_TIMEOUT);
 	} else if (niceness >= SHUTDOWN_NICE) {
 		if (niceness != SHUTDOWN_REALLY_NICE) {
-			ast_begin_shutdown(0);
+			ast_begin_shutdown();
 		}
 		if (ast_opt_console) {
 			ast_verb(0, "Waiting for inactivity to perform %s...\n", restart ? "restart" : "halt");
 		}
-		for (;;) {
-			if (!ast_undestroyed_channels() || shuttingdown != niceness) {
-				break;
-			}
-			sleep(1);
-		}
+		waited |= wait_for_channels_to_die(niceness, -1);
 	}
 
 	/* Re-acquire lock and check if someone changed the niceness, in which
@@ -1944,9 +2034,28 @@ static int can_safely_quit(shutdown_nice_t niceness, int restart)
 		ast_mutex_unlock(&safe_system_lock);
 		return 0;
 	}
-	shuttingdown = SHUTTING_DOWN;
+
+	if (niceness >= SHUTDOWN_REALLY_NICE) {
+		shuttingdown = SHUTTING_DOWN;
+		ast_mutex_unlock(&safe_system_lock);
+
+		/* No more Mr. Nice guy.  We are committed to shutting down now. */
+		ast_begin_shutdown();
+		ast_softhangup_all();
+		waited |= wait_for_channels_to_die(SHUTTING_DOWN, SHUTDOWN_TIMEOUT);
+
+		ast_mutex_lock(&safe_system_lock);
+	}
+	shuttingdown = SHUTTING_DOWN_FINAL;
 	ast_mutex_unlock(&safe_system_lock);
 
+	if (niceness >= SHUTDOWN_NORMAL && waited) {
+		/*
+		 * We were not idle.  Give things in progress a chance to
+		 * recognize the final shutdown phase.
+		 */
+		sleep(1);
+	}
 	return 1;
 }
 
@@ -2454,8 +2563,6 @@ static char *handle_restart_when_convenient(struct ast_cli_entry *e, int cmd, st
 
 static char *handle_abort_shutdown(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	int aborting_shutdown = 0;
-
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "core abort shutdown";
@@ -2471,16 +2578,8 @@ static char *handle_abort_shutdown(struct ast_cli_entry *e, int cmd, struct ast_
 	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
 
-	ast_mutex_lock(&safe_system_lock);
-	if (shuttingdown >= SHUTDOWN_FAST) {
-		aborting_shutdown = 1;
-		shuttingdown = NOT_SHUTTING_DOWN;
-	}
-	ast_mutex_unlock(&safe_system_lock);
+	ast_cancel_shutdown();
 
-	if (aborting_shutdown) {
-		ast_cancel_shutdown();
-	}
 	return CLI_SUCCESS;
 }
 
