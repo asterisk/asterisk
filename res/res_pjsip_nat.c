@@ -52,6 +52,8 @@ static pj_bool_t handle_rx_message(struct ast_sip_endpoint *endpoint, pjsip_rx_d
 			uri->transport_param.slen = 0;
 		}
 		uri->port = rdata->pkt_info.src_port;
+		ast_debug(4, "Re-wrote Contact URI host/port to %.*s:%d\n",
+			(int)pj_strlen(&uri->host), pj_strbuf(&uri->host), uri->port);
 
 		/* rewrite the session target since it may have already been pulled from the contact header */
 		if (dlg && (!dlg->remote.contact
@@ -205,6 +207,7 @@ static pj_status_t nat_on_tx_message(pjsip_tx_data *tdata)
 		pj_strdup2(tdata->pool, &uri->host, ast_sockaddr_stringify_host(&transport->external_address));
 		if (transport->external_signaling_port) {
 			uri->port = transport->external_signaling_port;
+			ast_debug(4, "Re-wrote Contact URI port to %d\n", uri->port);
 		}
 	}
 

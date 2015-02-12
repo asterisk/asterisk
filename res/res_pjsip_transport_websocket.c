@@ -329,6 +329,8 @@ static pj_bool_t websocket_on_rx_msg(pjsip_rx_data *rdata)
 
 		pj_cstr(&uri->host, rdata->pkt_info.src_name);
 		uri->port = rdata->pkt_info.src_port;
+		ast_debug(4, "Re-wrote Contact URI host/port to %.*s:%d\n",
+			(int)pj_strlen(&uri->host), pj_strbuf(&uri->host), uri->port);
 		pj_strdup(rdata->tp_info.pool, &uri->transport_param, (type == (long)transport_type_ws) ? &STR_WS : &STR_WSS);
 	}
 

@@ -156,6 +156,64 @@ void ast_ari_channels_continue_in_dialplan(
 	ast_ari_response_no_content(response);
 }
 
+void ast_ari_channels_redirect(struct ast_variable *headers,
+	struct ast_ari_channels_redirect_args *args,
+	struct ast_ari_response *response)
+{
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel_snapshot *, chan_snapshot, NULL, ao2_cleanup);
+	char *tech;
+	char *resource;
+	int tech_len;
+
+	control = find_control(response, args->channel_id);
+	if (!control) {
+		return;
+	}
+
+	if (ast_strlen_zero(args->endpoint)) {
+		ast_ari_response_error(response, 400, "Not Found",
+			"Required parameter 'endpoint' not provided.");
+		return;
+	}
+
+	tech = ast_strdupa(args->endpoint);
+	if (!(resource = strchr(tech, '/')) || !(tech_len = resource - tech)) {
+		ast_ari_response_error(response, 422, "Unprocessable Entity",
+			"Endpoint parameter '%s' does not contain tech/resource", args->endpoint);
+		return;
+	}
+
+	*resource++ = '\0';
+	if (ast_strlen_zero(resource)) {
+		ast_ari_response_error(response, 422, "Unprocessable Entity",
+			"No resource provided in endpoint parameter '%s'", args->endpoint);
+		return;
+	}
+
+	chan_snapshot = ast_channel_snapshot_get_latest(args->channel_id);
+	if (!chan_snapshot) {
+		ast_ari_response_error(response, 500, "Internal Server Error",
+			"Unable to find channel snapshot for '%s'", args->channel_id);
+		return;
+	}
+
+	if (strncasecmp(chan_snapshot->type, tech, tech_len)) {
+		ast_ari_response_error(response, 422, "Unprocessable Entity",
+			"Endpoint technology '%s' does not match channel technology '%s'",
+			tech, chan_snapshot->type);
+		return;
+	}
+
+	if (stasis_app_control_redirect(control, resource)) {
+		ast_ari_response_error(response, 500, "Internal Server Error",
+			"Failed to redirect channel");
+		return;
+	}
+
+	ast_ari_response_no_content(response);
+}
+
 void ast_ari_channels_answer(struct ast_variable *headers,
 	struct ast_ari_channels_answer_args *args,
 	struct ast_ari_response *response)

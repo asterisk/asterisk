@@ -397,6 +397,54 @@
 			]
 		},
 		{
+			"path": "/channels/{channelId}/redirect",
+			"description": "Inform the channel that it should redirect itself to a different location. Note that this will almost certainly cause the channel to exit the application.",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Redirect the channel to a different location.",
+					"nickname": "redirect",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "endpoint",
+							"description": "The endpoint to redirect the channel to",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 400,
+							"reason": "Endpoint parameter not provided"
+						},
+						{
+							"code": 404,
+							"reason": "Channel or endpoint not found"
+						},
+						{
+							"code": 409,
+							"reason": "Channel not in a Stasis application"
+						},
+						{
+							"code": 422,
+							"reason": "Endpoint is not the same type as the channel"
+						}
+					]
+				}
+			]
+		},
+		{
 			"path": "/channels/{channelId}/answer",
 			"description": "Answer a channel",
 			"operations": [
