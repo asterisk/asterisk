@@ -486,6 +486,17 @@ void stasis_app_control_clear_roles(struct stasis_app_control *control);
 int stasis_app_control_continue(struct stasis_app_control *control, const char *context, const char *extension, int priority);
 
 /*!
+ * \brief Redirect a channel in \c res_stasis to a particular endpoint
+ *
+ * \param control Control for \c res_stasis
+ * \param endpoint The endpoint transfer string where the channel should be sent to
+ *
+ * \return 0 for success
+ * \return -1 for error
+ */
+int stasis_app_control_redirect(struct stasis_app_control *control, const char *endpoint);
+
+/*!
  * \brief Indicate ringing to the channel associated with this control.
  *
  * \param control Control for \c res_stasis.

@@ -428,6 +428,38 @@ int stasis_app_control_continue(struct stasis_app_control *control, const char *
 	return 0;
 }
 
+static int app_control_redirect(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
+{
+	char *endpoint = data;
+	int res;
+
+	ast_assert(control->channel != NULL);
+	ast_assert(endpoint != NULL);
+
+	res = ast_transfer(control->channel, endpoint);
+	if (!res) {
+		ast_log(LOG_NOTICE, "Unsupported transfer requested on channel '%s'\n",
+			ast_channel_name(control->channel));
+		return 0;
+	}
+
+	return 0;
+}
+
+int stasis_app_control_redirect(struct stasis_app_control *control, const char *endpoint)
+{
+	char *endpoint_data = ast_strdup(endpoint);
+
+	if (!endpoint_data) {
+		return -1;
+	}
+
+	stasis_app_send_command_async(control, app_control_redirect, endpoint_data, ast_free_ptr);
+
+	return 0;
+}
+
 struct stasis_app_control_dtmf_data {
 	int before;
 	int between;

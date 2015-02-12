@@ -221,6 +221,32 @@ int ast_ari_channels_continue_in_dialplan_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_continue_in_dialplan(struct ast_variable *headers, struct ast_ari_channels_continue_in_dialplan_args *args, struct ast_ari_response *response);
+/*! Argument struct for ast_ari_channels_redirect() */
+struct ast_ari_channels_redirect_args {
+	/*! Channel's id */
+	const char *channel_id;
+	/*! The endpoint to redirect the channel to */
+	const char *endpoint;
+};
+/*!
+ * \brief Body parsing function for /channels/{channelId}/redirect.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_channels_redirect_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_redirect_args *args);
+
+/*!
+ * \brief Redirect the channel to a different location.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_channels_redirect(struct ast_variable *headers, struct ast_ari_channels_redirect_args *args, struct ast_ari_response *response);
 /*! Argument struct for ast_ari_channels_answer() */
 struct ast_ari_channels_answer_args {
 	/*! Channel's id */

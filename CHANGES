@@ -101,6 +101,24 @@ res_musiconhold
    application (e.g. Queue or Dial) specified music.
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.2.0 to Asterisk 13.3.0 ------------
+------------------------------------------------------------------------------
+
+chan_pjsip/app_transfer
+------------------
+ * The Transfer application, when used with chan_pjsip, now supports using
+   a PJSIP endpoint as the transfer destination. This is in addition to
+   explicitly specifying a SIP URI to transfer to.
+
+res_ari_channels
+------------------
+ * The ARI /channels resource now supports a new operation, 'redirect'. The
+   redirect operation will perform a technology and state specific redirection
+   on the channel to a specified endpoint or destination. In the case of SIP
+   technologies, this is either a 302 Redirect response to an on-going INVITE
+   dialog or a SIP REFER request.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.1.0 to Asterisk 13.2.0 ------------
 ------------------------------------------------------------------------------
 

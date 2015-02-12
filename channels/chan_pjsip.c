@@ -1378,6 +1378,8 @@ static void transfer_redirect(struct ast_sip_session *session, const char *targe
 	pj_str_t tmp;
 
 	if (pjsip_inv_end_session(session->inv_session, 302, NULL, &packet) != PJ_SUCCESS) {
+		ast_log(LOG_WARNING, "Failed to redirect PJSIP session for channel %s\n",
+			ast_channel_name(session->channel));
 		message = AST_TRANSFER_FAILED;
 		ast_queue_control_data(session->channel, AST_CONTROL_TRANSFER, &message, sizeof(message));
 
@@ -1390,6 +1392,8 @@ static void transfer_redirect(struct ast_sip_session *session, const char *targe
 
 	pj_strdup2_with_null(packet->pool, &tmp, target);
 	if (!(contact->uri = pjsip_parse_uri(packet->pool, tmp.ptr, tmp.slen, PJSIP_PARSE_URI_AS_NAMEADDR))) {
+		ast_log(LOG_WARNING, "Failed to parse destination URI '%s' for channel %s\n",
+			target, ast_channel_name(session->channel));
 		message = AST_TRANSFER_FAILED;
 		ast_queue_control_data(session->channel, AST_CONTROL_TRANSFER, &message, sizeof(message));
 		pjsip_tx_data_dec_ref(packet);
@@ -1431,14 +1435,28 @@ static void transfer_refer(struct ast_sip_session *session, const char *target)
 static int transfer(void *data)
 {
 	struct transfer_data *trnf_data = data;
+	struct ast_sip_endpoint *endpoint = NULL;
+	struct ast_sip_contact *contact = NULL;
+	const char *target = trnf_data->target;
+
+	/* See if we have an endpoint; if so, use its contact */
+	endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", target);
+	if (endpoint) {
+		contact = ast_sip_location_retrieve_contact_from_aor_list(endpoint->aors);
+		if (contact && !ast_strlen_zero(contact->uri)) {
+			target = contact->uri;
+		}
+	}
 
 	if (ast_channel_state(trnf_data->session->channel) == AST_STATE_RING) {
-		transfer_redirect(trnf_data->session, trnf_data->target);
+		transfer_redirect(trnf_data->session, target);
 	} else {
-		transfer_refer(trnf_data->session, trnf_data->target);
+		transfer_refer(trnf_data->session, target);
 	}
 
 	ao2_ref(trnf_data, -1);
+	ao2_cleanup(endpoint);
+	ao2_cleanup(contact);
 	return 0;
 }
 
