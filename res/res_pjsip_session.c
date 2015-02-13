@@ -505,6 +505,40 @@ void ast_sip_session_remove_datastore(struct ast_sip_session *session, const cha
 	ao2_callback(session->datastores, OBJ_KEY | OBJ_UNLINK | OBJ_NODATA, NULL, (void *) name);
 }
 
+enum delayed_method {
+	DELAYED_METHOD_INVITE,
+	DELAYED_METHOD_UPDATE,
+	DELAYED_METHOD_BYE,
+};
+
+/*!
+ * \internal
+ * \brief Convert delayed method enum value to to a string.
+ * \since 13.3.0
+ *
+ * \param method Delayed method enum value to convert to a string.
+ *
+ * \return String value of delayed method.
+ */
+static const char *delayed_method2str(enum delayed_method method)
+{
+	const char *str = "<unknown>";
+
+	switch (method) {
+	case DELAYED_METHOD_INVITE:
+		str = "INVITE";
+		break;
+	case DELAYED_METHOD_UPDATE:
+		str = "UPDATE";
+		break;
+	case DELAYED_METHOD_BYE:
+		str = "BYE";
+		break;
+	}
+
+	return str;
+}
+
 /*!
  * \brief Structure used for sending delayed requests
  *
@@ -514,7 +548,7 @@ void ast_sip_session_remove_datastore(struct ast_sip_session *session, const cha
  */
 struct ast_sip_session_delayed_request {
 	/*! Method of the request */
-	char method[15];
+	enum delayed_method method;
 	/*! Callback to call when the delayed request is created. */
 	ast_sip_session_request_creation_cb on_request_creation;
 	/*! Callback to call when the delayed request SDP is created */
@@ -526,17 +560,19 @@ struct ast_sip_session_delayed_request {
 	AST_LIST_ENTRY(ast_sip_session_delayed_request) next;
 };
 
-static struct ast_sip_session_delayed_request *delayed_request_alloc(const char *method,
-		ast_sip_session_request_creation_cb on_request_creation,
-		ast_sip_session_sdp_creation_cb on_sdp_creation,
-		ast_sip_session_response_cb on_response,
-		int generate_new_sdp)
+static struct ast_sip_session_delayed_request *delayed_request_alloc(
+	enum delayed_method method,
+	ast_sip_session_request_creation_cb on_request_creation,
+	ast_sip_session_sdp_creation_cb on_sdp_creation,
+	ast_sip_session_response_cb on_response,
+	int generate_new_sdp)
 {
 	struct ast_sip_session_delayed_request *delay = ast_calloc(1, sizeof(*delay));
+
 	if (!delay) {
 		return NULL;
 	}
-	ast_copy_string(delay->method, method, sizeof(delay->method));
+	delay->method = method;
 	delay->on_request_creation = on_request_creation;
 	delay->on_sdp_creation = on_sdp_creation;
 	delay->on_response = on_response;
@@ -546,53 +582,187 @@ static struct ast_sip_session_delayed_request *delayed_request_alloc(const char 
 
 static int send_delayed_request(struct ast_sip_session *session, struct ast_sip_session_delayed_request *delay)
 {
-	ast_debug(3, "Sending delayed %s request to %s\n", delay->method, ast_sorcery_object_get_id(session->endpoint));
+	ast_debug(3, "Endpoint '%s(%s)' sending delayed %s request.\n",
+		ast_sorcery_object_get_id(session->endpoint),
+		session->channel ? ast_channel_name(session->channel) : "",
+		delayed_method2str(delay->method));
 
-	if (!strcmp(delay->method, "INVITE")) {
+	switch (delay->method) {
+	case DELAYED_METHOD_INVITE:
 		ast_sip_session_refresh(session, delay->on_request_creation,
-				delay->on_sdp_creation, delay->on_response, AST_SIP_SESSION_REFRESH_METHOD_INVITE, delay->generate_new_sdp);
-	} else if (!strcmp(delay->method, "UPDATE")) {
+			delay->on_sdp_creation, delay->on_response,
+			AST_SIP_SESSION_REFRESH_METHOD_INVITE, delay->generate_new_sdp);
+		return 0;
+	case DELAYED_METHOD_UPDATE:
 		ast_sip_session_refresh(session, delay->on_request_creation,
-				delay->on_sdp_creation, delay->on_response, AST_SIP_SESSION_REFRESH_METHOD_UPDATE, delay->generate_new_sdp);
-	} else if (!strcmp(delay->method, "BYE")) {
+			delay->on_sdp_creation, delay->on_response,
+			AST_SIP_SESSION_REFRESH_METHOD_UPDATE, delay->generate_new_sdp);
+		return 0;
+	case DELAYED_METHOD_BYE:
 		ast_sip_session_terminate(session, 0);
-	} else {
-		ast_log(LOG_WARNING, "Unexpected delayed %s request with no existing request structure\n", delay->method);
-		return -1;
-	}
-	return 0;
-}
-
-static int queued_delayed_request_send(void *data)
-{
-	RAII_VAR(struct ast_sip_session *, session, data, ao2_cleanup);
-	RAII_VAR(struct ast_sip_session_delayed_request *, delay, NULL, ast_free_ptr);
-
-	delay = AST_LIST_REMOVE_HEAD(&session->delayed_requests, next);
-	if (!delay) {
 		return 0;
 	}
-
-	return send_delayed_request(session, delay);
+	ast_log(LOG_WARNING, "Don't know how to send delayed %s(%d) request.\n",
+		delayed_method2str(delay->method), delay->method);
+	return -1;
 }
 
-static void queue_delayed_request(struct ast_sip_session *session)
+/*!
+ * \internal
+ * \brief The current INVITE transaction is in the PROCEEDING state.
+ * \since 13.3.0
+ *
+ * \param vsession Session object.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int invite_proceeding(void *vsession)
 {
-	if (AST_LIST_EMPTY(&session->delayed_requests)) {
-		/* No delayed request to send, so just return */
-		return;
+	struct ast_sip_session *session = vsession;
+	struct ast_sip_session_delayed_request *delay;
+	int found = 0;
+	int res = 0;
+
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&session->delayed_requests, delay, next) {
+		switch (delay->method) {
+		case DELAYED_METHOD_INVITE:
+			break;
+		case DELAYED_METHOD_UPDATE:
+			AST_LIST_REMOVE_CURRENT(next);
+			res = send_delayed_request(session, delay);
+			ast_free(delay);
+			found = 1;
+			break;
+		case DELAYED_METHOD_BYE:
+			/* A BYE is pending so don't bother anymore. */
+			found = 1;
+			break;
+		}
+		if (found) {
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+
+	ao2_ref(session, -1);
+	return res;
+}
+
+/*!
+ * \internal
+ * \brief The current INVITE transaction is in the TERMINATED state.
+ * \since 13.3.0
+ *
+ * \param vsession Session object.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int invite_terminated(void *vsession)
+{
+	struct ast_sip_session *session = vsession;
+	struct ast_sip_session_delayed_request *delay;
+	int found = 0;
+	int res = 0;
+	int timer_running;
+
+	/* re-INVITE collision timer running? */
+	timer_running = pj_timer_entry_running(&session->rescheduled_reinvite);
+
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&session->delayed_requests, delay, next) {
+		switch (delay->method) {
+		case DELAYED_METHOD_INVITE:
+			if (!timer_running) {
+				found = 1;
+			}
+			break;
+		case DELAYED_METHOD_UPDATE:
+		case DELAYED_METHOD_BYE:
+			found = 1;
+			break;
+		}
+		if (found) {
+			AST_LIST_REMOVE_CURRENT(next);
+			res = send_delayed_request(session, delay);
+			ast_free(delay);
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+
+	ao2_ref(session, -1);
+	return res;
+}
+
+/*!
+ * \internal
+ * \brief INVITE collision timeout.
+ * \since 13.3.0
+ *
+ * \param vsession Session object.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int invite_collision_timeout(void *vsession)
+{
+	struct ast_sip_session *session = vsession;
+	int res;
+
+	if (session->inv_session->invite_tsx) {
+		/*
+		 * INVITE transaction still active.  Let it send
+		 * the collision re-INVITE when it terminates.
+		 */
+		ao2_ref(session, -1);
+		res = 0;
+	} else {
+		res = invite_terminated(session);
 	}
 
-	ast_debug(3, "Queuing delayed request to run for %s\n",
-			ast_sorcery_object_get_id(session->endpoint));
-
-	ao2_ref(session, +1);
-	ast_sip_push_task(session->serializer, queued_delayed_request_send, session);
+	return res;
 }
 
-static int delay_request(struct ast_sip_session *session, ast_sip_session_request_creation_cb on_request,
-		ast_sip_session_sdp_creation_cb on_sdp_creation, ast_sip_session_response_cb on_response,
-		int generate_new_sdp, const char *method)
+/*!
+ * \internal
+ * \brief The current UPDATE transaction is in the COMPLETED state.
+ * \since 13.3.0
+ *
+ * \param vsession Session object.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int update_completed(void *vsession)
+{
+	struct ast_sip_session *session = vsession;
+	int res;
+
+	if (session->inv_session->invite_tsx) {
+		res = invite_proceeding(session);
+	} else {
+		res = invite_terminated(session);
+	}
+
+	return res;
+}
+
+static void check_delayed_requests(struct ast_sip_session *session,
+	int (*cb)(void *vsession))
+{
+	ao2_ref(session, +1);
+	if (ast_sip_push_task(session->serializer, cb, session)) {
+		ao2_ref(session, -1);
+	}
+}
+
+static int delay_request(struct ast_sip_session *session,
+	ast_sip_session_request_creation_cb on_request,
+	ast_sip_session_sdp_creation_cb on_sdp_creation,
+	ast_sip_session_response_cb on_response,
+	int generate_new_sdp,
+	enum delayed_method method)
 {
 	struct ast_sip_session_delayed_request *delay = delayed_request_alloc(method,
 			on_request, on_sdp_creation, on_response, generate_new_sdp);
@@ -601,7 +771,12 @@ static int delay_request(struct ast_sip_session *session, ast_sip_session_reques
 		return -1;
 	}
 
-	AST_LIST_INSERT_TAIL(&session->delayed_requests, delay, next);
+	if (method == DELAYED_METHOD_BYE) {
+		/* Send BYE as early as possible */
+		AST_LIST_INSERT_HEAD(&session->delayed_requests, delay, next);
+	} else {
+		AST_LIST_INSERT_TAIL(&session->delayed_requests, delay, next);
+	}
 	return 0;
 }
 
@@ -637,19 +812,21 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
 
 	/* If the dialog has not yet been established we have to defer until it has */
 	if (inv_session->dlg->state != PJSIP_DIALOG_STATE_ESTABLISHED) {
-		ast_debug(3, "Delaying sending request to %s because dialog has not been established...\n",
+		ast_debug(3, "Delay sending request to %s because dialog has not been established...\n",
 			ast_sorcery_object_get_id(session->endpoint));
-		return delay_request(session, on_request_creation, on_sdp_creation, on_response, generate_new_sdp,
-			method == AST_SIP_SESSION_REFRESH_METHOD_INVITE ? "INVITE" : "UPDATE");
+		return delay_request(session, on_request_creation, on_sdp_creation, on_response,
+			generate_new_sdp,
+			method == AST_SIP_SESSION_REFRESH_METHOD_INVITE
+				? DELAYED_METHOD_INVITE : DELAYED_METHOD_UPDATE);
 	}
 
 	if (method == AST_SIP_SESSION_REFRESH_METHOD_INVITE) {
 		if (inv_session->invite_tsx) {
 			/* We can't send a reinvite yet, so delay it */
-			ast_debug(3, "Delaying sending reinvite to %s because of outstanding transaction...\n",
+			ast_debug(3, "Delay sending reinvite to %s because of outstanding transaction...\n",
 					ast_sorcery_object_get_id(session->endpoint));
-			return delay_request(session, on_request_creation, on_sdp_creation, on_response,
-				generate_new_sdp, "INVITE");
+			return delay_request(session, on_request_creation, on_sdp_creation,
+				on_response, generate_new_sdp, DELAYED_METHOD_INVITE);
 		} else if (inv_session->state != PJSIP_INV_STATE_CONFIRMED) {
 			/* Initial INVITE transaction failed to progress us to a confirmed state
 			 * which means re-invites are not possible
@@ -663,10 +840,12 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
 	if (generate_new_sdp) {
 		/* SDP can only be generated if current negotiation has already completed */
 		if (pjmedia_sdp_neg_get_state(inv_session->neg) != PJMEDIA_SDP_NEG_STATE_DONE) {
-			ast_debug(3, "Delaying session refresh with new SDP to %s because SDP negotiation is not yet done...\n",
+			ast_debug(3, "Delay session refresh with new SDP to %s because SDP negotiation is not yet done...\n",
 				ast_sorcery_object_get_id(session->endpoint));
-			return delay_request(session, on_request_creation, on_sdp_creation, on_response, generate_new_sdp,
-				method == AST_SIP_SESSION_REFRESH_METHOD_INVITE ? "INVITE" : "UPDATE");
+			return delay_request(session, on_request_creation, on_sdp_creation,
+				on_response, generate_new_sdp,
+				method == AST_SIP_SESSION_REFRESH_METHOD_INVITE
+					? DELAYED_METHOD_INVITE : DELAYED_METHOD_UPDATE);
 		}
 
 		new_sdp = generate_session_refresh_sdp(session);
@@ -1353,16 +1532,23 @@ void ast_sip_session_terminate(struct ast_sip_session *session, int response)
 	}
 
 	if ((session->inv_session->state == PJSIP_INV_STATE_CONFIRMED) && session->inv_session->invite_tsx) {
-		ast_debug(3, "Delaying sending BYE to %s because of outstanding transaction...\n",
+		ast_debug(3, "Delay sending BYE to %s because of outstanding transaction...\n",
 				ast_sorcery_object_get_id(session->endpoint));
 		/* If this is delayed the only thing that will happen is a BYE request so we don't
 		 * actually need to store the response code for when it happens.
 		 */
-		delay_request(session, NULL, NULL, NULL, 0, "BYE");
+		delay_request(session, NULL, NULL, NULL, 0, DELAYED_METHOD_BYE);
 	} else if (session->inv_session->state == PJSIP_INV_STATE_NULL) {
 		pjsip_inv_terminate(session->inv_session, response, PJ_TRUE);
 	} else if (((status = pjsip_inv_end_session(session->inv_session, response, NULL, &packet)) == PJ_SUCCESS)
 		&& packet) {
+		struct ast_sip_session_delayed_request *delay;
+
+		/* Flush any delayed requests so they cannot overlap this transaction. */
+		while ((delay = AST_LIST_REMOVE_HEAD(&session->delayed_requests, next))) {
+			ast_free(delay);
+		}
+
 		if (packet->msg->type == PJSIP_RESPONSE_MSG) {
 			ast_sip_session_send_response(session, packet);
 		} else {
@@ -1759,54 +1945,44 @@ static pj_bool_t session_on_rx_request(pjsip_rx_data *rdata)
 	return handled;
 }
 
-struct reschedule_reinvite_data {
-	struct ast_sip_session *session;
-	struct ast_sip_session_delayed_request *delay;
-};
-
-static struct reschedule_reinvite_data *reschedule_reinvite_data_alloc(
-		struct ast_sip_session *session, struct ast_sip_session_delayed_request *delay)
-{
-	struct reschedule_reinvite_data *rrd = ast_malloc(sizeof(*rrd));
-	if (!rrd) {
-		return NULL;
-	}
-	ao2_ref(session, +1);
-	rrd->session = session;
-	rrd->delay = delay;
-	return rrd;
-}
-
-static void reschedule_reinvite_data_destroy(struct reschedule_reinvite_data *rrd)
-{
-	ao2_cleanup(rrd->session);
-	ast_free(rrd->delay);
-	ast_free(rrd);
-}
-
-static int really_resend_reinvite(void *data)
-{
-	RAII_VAR(struct reschedule_reinvite_data *, rrd, data, reschedule_reinvite_data_destroy);
-
-	return send_delayed_request(rrd->session, rrd->delay);
-}
-
 static void resend_reinvite(pj_timer_heap_t *timer, pj_timer_entry *entry)
 {
-	struct reschedule_reinvite_data *rrd = entry->user_data;
+	struct ast_sip_session *session = entry->user_data;
 
-	ast_sip_push_task(rrd->session->serializer, really_resend_reinvite, entry->user_data);
+	ast_debug(3, "Endpoint '%s(%s)' re-INVITE collision timer expired.\n",
+		ast_sorcery_object_get_id(session->endpoint),
+		session->channel ? ast_channel_name(session->channel) : "");
+
+	if (AST_LIST_EMPTY(&session->delayed_requests)) {
+		/* No delayed request pending, so just return */
+		ao2_ref(session, -1);
+		return;
+	}
+	if (ast_sip_push_task(session->serializer, invite_collision_timeout, session)) {
+		/*
+		 * Uh oh.  We now have nothing in the foreseeable future
+		 * to trigger sending the delayed requests.
+		 */
+		ao2_ref(session, -1);
+	}
 }
 
 static void reschedule_reinvite(struct ast_sip_session *session, ast_sip_session_response_cb on_response)
 {
-	struct ast_sip_session_delayed_request *delay = delayed_request_alloc("INVITE",
-			NULL, NULL, on_response, 1);
 	pjsip_inv_session *inv = session->inv_session;
-	struct reschedule_reinvite_data *rrd = reschedule_reinvite_data_alloc(session, delay);
 	pj_time_val tv;
 
-	if (!rrd || !delay) {
+	ast_debug(3, "Endpoint '%s(%s)' re-INVITE collision.\n",
+		ast_sorcery_object_get_id(session->endpoint),
+		session->channel ? ast_channel_name(session->channel) : "");
+	if (delay_request(session, NULL, NULL, on_response, 1, DELAYED_METHOD_INVITE)) {
+		return;
+	}
+	if (pj_timer_entry_running(&session->rescheduled_reinvite)) {
+		/* Timer already running.  Something weird is going on. */
+		ast_debug(1, "Endpoint '%s(%s)' re-INVITE collision while timer running!!!\n",
+			ast_sorcery_object_get_id(session->endpoint),
+			session->channel ? ast_channel_name(session->channel) : "");
 		return;
 	}
 
@@ -1816,41 +1992,59 @@ static void reschedule_reinvite(struct ast_sip_session *session, ast_sip_session
 	} else {
 		tv.msec = ast_random() % 2000;
 	}
+	pj_timer_entry_init(&session->rescheduled_reinvite, 0, session, resend_reinvite);
 
-	pj_timer_entry_init(&session->rescheduled_reinvite, 0, rrd, resend_reinvite);
-
-	pjsip_endpt_schedule_timer(ast_sip_get_pjsip_endpoint(), &session->rescheduled_reinvite, &tv);
+	ao2_ref(session, +1);
+	if (pjsip_endpt_schedule_timer(ast_sip_get_pjsip_endpoint(),
+		&session->rescheduled_reinvite, &tv) != PJ_SUCCESS) {
+		ao2_ref(session, -1);
+	}
 }
 
 static void __print_debug_details(const char *function, pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e)
 {
 	struct ast_sip_session *session;
-	ast_debug(5, "Function %s called on event %s\n", function, pjsip_event_str(e->type));
+
+	if (!DEBUG_ATLEAST(5)) {
+		/* Debug not spamy enough */
+		return;
+	}
+
+	ast_log(LOG_DEBUG, "Function %s called on event %s\n",
+		function, pjsip_event_str(e->type));
 	if (!inv) {
-		ast_debug(5, "Transaction %p does not belong to an inv_session?\n", tsx);
-		ast_debug(5, "The transaction state is %s\n", pjsip_tsx_state_str(tsx->state));
+		ast_log(LOG_DEBUG, "Transaction %p does not belong to an inv_session?\n", tsx);
+		ast_log(LOG_DEBUG, "The transaction state is %s\n",
+			pjsip_tsx_state_str(tsx->state));
 		return;
 	}
 	session = inv->mod_data[session_module.id];
 	if (!session) {
-		ast_debug(5, "inv_session %p has no ast session\n", inv);
+		ast_log(LOG_DEBUG, "inv_session %p has no ast session\n", inv);
 	} else {
-		ast_debug(5, "The state change pertains to the session with %s\n",
-				ast_sorcery_object_get_id(session->endpoint));
+		ast_log(LOG_DEBUG, "The state change pertains to the endpoint '%s(%s)'\n",
+			ast_sorcery_object_get_id(session->endpoint),
+			session->channel ? ast_channel_name(session->channel) : "");
 	}
 	if (inv->invite_tsx) {
-		ast_debug(5, "The inv session still has an invite_tsx (%p)\n", inv->invite_tsx);
+		ast_log(LOG_DEBUG, "The inv session still has an invite_tsx (%p)\n",
+			inv->invite_tsx);
 	} else {
-		ast_debug(5, "The inv session does NOT have an invite_tsx\n");
+		ast_log(LOG_DEBUG, "The inv session does NOT have an invite_tsx\n");
 	}
 	if (tsx) {
-		ast_debug(5, "The transaction involved in this state change is %p\n", tsx);
-		ast_debug(5, "The current transaction state is %s\n", pjsip_tsx_state_str(tsx->state));
-		ast_debug(5, "The transaction state change event is %s\n", pjsip_event_str(e->body.tsx_state.type));
+		ast_log(LOG_DEBUG, "The %s %.*s transaction involved in this state change is %p\n",
+			pjsip_role_name(tsx->role),
+			(int) pj_strlen(&tsx->method.name), pj_strbuf(&tsx->method.name),
+			tsx);
+		ast_log(LOG_DEBUG, "The current transaction state is %s\n",
+			pjsip_tsx_state_str(tsx->state));
+		ast_log(LOG_DEBUG, "The transaction state change event is %s\n",
+			pjsip_event_str(e->body.tsx_state.type));
 	} else {
-		ast_debug(5, "There is no transaction involved in this state change\n");
+		ast_log(LOG_DEBUG, "There is no transaction involved in this state change\n");
 	}
-	ast_debug(5, "The current inv state is %s\n", pjsip_inv_state_name(inv->state));
+	ast_log(LOG_DEBUG, "The current inv state is %s\n", pjsip_inv_state_name(inv->state));
 }
 
 #define print_debug_details(inv, tsx, e) __print_debug_details(__PRETTY_FUNCTION__, (inv), (tsx), (e))
@@ -2033,6 +2227,7 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 {
 	ast_sip_session_response_cb cb;
 	struct ast_sip_session *session = inv->mod_data[session_module.id];
+
 	print_debug_details(inv, tsx, e);
 	if (!session) {
 		/* Transaction likely timed out after the call was hung up. Just
@@ -2089,6 +2284,7 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 		if (cb) {
 			cb(session, e->body.tsx_state.src.rdata);
 		}
+		break;
 	case PJSIP_EVENT_TRANSPORT_ERROR:
 	case PJSIP_EVENT_TIMER:
 	case PJSIP_EVENT_USER:
@@ -2098,13 +2294,38 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 		break;
 	}
 
-	/* Terminated INVITE transactions always should result in queuing delayed requests,
-	 * no matter what event caused the transaction to terminate
-	 */
-	if (tsx->method.id == PJSIP_INVITE_METHOD &&
-		((tsx->state == PJSIP_TSX_STATE_TERMINATED) ||
-		(tsx->state == PJSIP_TSX_STATE_PROCEEDING))) {
-		queue_delayed_request(session);
+	if (AST_LIST_EMPTY(&session->delayed_requests)) {
+		/* No delayed request pending, so just return */
+		return;
+	}
+
+	if (tsx->method.id == PJSIP_INVITE_METHOD) {
+		if (tsx->state == PJSIP_TSX_STATE_PROCEEDING) {
+			ast_debug(3, "Endpoint '%s(%s)' INVITE delay check. tsx-state:%s\n",
+				ast_sorcery_object_get_id(session->endpoint),
+				session->channel ? ast_channel_name(session->channel) : "",
+				pjsip_tsx_state_str(tsx->state));
+			check_delayed_requests(session, invite_proceeding);
+		} else if (tsx->state == PJSIP_TSX_STATE_TERMINATED) {
+			/*
+			 * Terminated INVITE transactions always should result in
+			 * queuing delayed requests, no matter what event caused
+			 * the transaction to terminate.
+			 */
+			ast_debug(3, "Endpoint '%s(%s)' INVITE delay check. tsx-state:%s\n",
+				ast_sorcery_object_get_id(session->endpoint),
+				session->channel ? ast_channel_name(session->channel) : "",
+				pjsip_tsx_state_str(tsx->state));
+			check_delayed_requests(session, invite_terminated);
+		}
+	} else if (tsx->role == PJSIP_ROLE_UAC
+		&& tsx->state == PJSIP_TSX_STATE_COMPLETED
+		&& !pj_strcmp2(&tsx->method.name, "UPDATE")) {
+		ast_debug(3, "Endpoint '%s(%s)' UPDATE delay check. tsx-state:%s\n",
+			ast_sorcery_object_get_id(session->endpoint),
+			session->channel ? ast_channel_name(session->channel) : "",
+			pjsip_tsx_state_str(tsx->state));
+		check_delayed_requests(session, update_completed);
 	}
 }
 
