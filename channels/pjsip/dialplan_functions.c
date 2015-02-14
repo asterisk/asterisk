@@ -592,7 +592,7 @@ static int channel_read_pjsip(struct ast_channel *chan, const char *type, const 
 	dlg = channel->session->inv_session->dlg;
 
 	if (ast_strlen_zero(type)) {
-		ast_log(LOG_WARNING, "You must supply a type field for 'pjsip' informatio\n");
+		ast_log(LOG_WARNING, "You must supply a type field for 'pjsip' information\n");
 		return -1;
 	} else if (!strcmp(type, "secure")) {
 #ifdef HAVE_PJSIP_GET_DEST_INFO
