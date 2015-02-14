@@ -334,7 +334,8 @@ static int new_subscribe(struct ast_sip_endpoint *endpoint,
 		const char *resource)
 {
 	if (!ast_exists_extension(NULL, endpoint->context, resource, PRIORITY_HINT, NULL)) {
-		ast_log(LOG_NOTICE, "Extension %s does not exist or has no associated hint\n", resource);
+		ast_log(LOG_NOTICE, "Extension state subscription failed: Extension %s does not exist in context '%s' or has no associated hint\n",
+			endpoint->context, resource);
 		return 404;
 	}
 
