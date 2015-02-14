@@ -892,7 +892,11 @@ enum ast_sorcery_apply_result __ast_sorcery_apply_wizard_mapping(struct ast_sorc
 	RAII_VAR(struct ast_sorcery_object_wizard *, object_wizard, ao2_alloc(sizeof(*object_wizard), sorcery_object_wizard_destructor), ao2_cleanup);
 	int created = 0;
 
-	if (!wizard || !object_wizard) {
+	if (!wizard) {
+		ast_log(LOG_ERROR, "Wizard '%s' could not be applied to object type '%s' as it was not found\n",
+			name, type);
+		return AST_SORCERY_APPLY_FAIL;
+	} else if (!object_wizard) {
 		return AST_SORCERY_APPLY_FAIL;
 	}
 
