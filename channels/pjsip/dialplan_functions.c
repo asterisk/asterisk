@@ -591,7 +591,10 @@ static int channel_read_pjsip(struct ast_channel *chan, const char *type, const 
 
 	dlg = channel->session->inv_session->dlg;
 
-	if (!strcmp(type, "secure")) {
+	if (ast_strlen_zero(type)) {
+		ast_log(LOG_WARNING, "You must supply a type field for 'pjsip' information\n");
+		return -1;
+	} else if (!strcmp(type, "secure")) {
 #ifdef HAVE_PJSIP_GET_DEST_INFO
 		pjsip_host_info dest;
 		pj_pool_t *pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "secure-check", 128, 128);
