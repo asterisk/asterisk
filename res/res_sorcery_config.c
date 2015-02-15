@@ -39,9 +39,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 #include "asterisk/config.h"
 #include "asterisk/uuid.h"
-
-/*! \brief Default number of buckets for sorcery objects */
-#define DEFAULT_OBJECT_BUCKETS 53
+#include "asterisk/hashtab.h"
 
 /*! \brief Structure for storing configuration file sourced objects */
 struct sorcery_config {
@@ -183,7 +181,7 @@ static void *sorcery_config_retrieve_id(const struct ast_sorcery *sorcery, void 
 	struct sorcery_config *config = data;
 	RAII_VAR(struct ao2_container *, objects, ao2_global_obj_ref(config->objects), ao2_cleanup);
 
-	return objects ? ao2_find(objects, id, OBJ_KEY | OBJ_NOLOCK) : NULL;
+	return objects ? ao2_find(objects, id, OBJ_KEY) : NULL;
 }
 
 static void sorcery_config_retrieve_multiple(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects, const struct ast_variable *fields)
@@ -237,6 +235,7 @@ static void sorcery_config_internal_load(void *data, const struct ast_sorcery *s
 	struct ast_category *category = NULL;
 	RAII_VAR(struct ao2_container *, objects, NULL, ao2_cleanup);
 	const char *id = NULL;
+	unsigned int buckets = 0;
 
 	if (!cfg) {
 		ast_log(LOG_ERROR, "Unable to load config file '%s'\n", config->filename);
@@ -249,7 +248,37 @@ static void sorcery_config_internal_load(void *data, const struct ast_sorcery *s
 		return;
 	}
 
-	if (!(objects = ao2_container_alloc(config->buckets, sorcery_config_hash, sorcery_config_cmp))) {
+	if (!config->buckets) {
+		while ((category = ast_category_browse_filtered(cfg, NULL, category, NULL))) {
+
+			/* If given criteria has not been met skip the category, it is not applicable */
+			if (!sorcery_is_criteria_met(ast_category_first(category), config->criteria)) {
+				continue;
+			}
+
+			buckets++;
+		}
+
+		/* Determine the optimal number of buckets */
+		while (buckets && !ast_is_prime(buckets)) {
+			/* This purposely goes backwards to ensure that the container doesn't have a ton of
+			 * empty buckets for objects that will never get added.
+			 */
+			buckets--;
+		}
+
+		if (!buckets) {
+			buckets = 1;
+		}
+	} else {
+		buckets = config->buckets;
+	}
+
+	ast_debug(2, "Using bucket size of '%d' for objects of type '%s' from '%s'\n",
+		buckets, type, config->filename);
+
+	if (!(objects = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, buckets,
+		sorcery_config_hash, sorcery_config_cmp))) {
 		ast_log(LOG_ERROR, "Could not create bucket for new objects from '%s', keeping existing objects\n",
 			config->filename);
 		ast_config_destroy(cfg);
@@ -288,7 +317,7 @@ static void sorcery_config_internal_load(void *data, const struct ast_sorcery *s
 			ast_log(LOG_NOTICE, "Retaining existing configuration for object of type '%s' with id '%s'\n", type, id);
 		}
 
-		ao2_link_flags(objects, obj, OBJ_NOLOCK);
+		ao2_link(objects, obj);
 	}
 
 	ao2_global_obj_replace_unref(config->objects, objects);
@@ -317,7 +346,6 @@ static void *sorcery_config_open(const char *data)
 	ast_uuid_generate_str(config->uuid, sizeof(config->uuid));
 
 	ast_rwlock_init(&config->objects.lock);
-	config->buckets = DEFAULT_OBJECT_BUCKETS;
 	strcpy(config->filename, filename);
 
 	while ((option = strsep(&tmp, ","))) {
@@ -325,8 +353,8 @@ static void *sorcery_config_open(const char *data)
 
 		if (!strcasecmp(name, "buckets")) {
 			if (sscanf(value, "%30u", &config->buckets) != 1) {
-				ast_log(LOG_ERROR, "Unsupported bucket size of '%s' used for configuration file '%s', defaulting to '%d'\n",
-					value, filename, DEFAULT_OBJECT_BUCKETS);
+				ast_log(LOG_ERROR, "Unsupported bucket size of '%s' used for configuration file '%s', defaulting to automatic determination\n",
+					value, filename);
 			}
 		} else if (!strcasecmp(name, "integrity")) {
 			if (!strcasecmp(value, "file")) {
