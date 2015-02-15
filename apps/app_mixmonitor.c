@@ -694,12 +694,6 @@ static void *mixmonitor_thread(void *obj)
 		ast_audiohook_lock(&mixmonitor->audiohook);
 	}
 
-	/* Test Event */
-	ast_test_suite_event_notify("MIXMONITOR_END", "Channel: %s\r\n"
-									"File: %s\r\n",
-									ast_channel_name(mixmonitor->autochan->chan),
-									mixmonitor->filename);
-
 	ast_audiohook_unlock(&mixmonitor->audiohook);
 
 	ast_autochan_destroy(mixmonitor->autochan);
@@ -721,6 +715,7 @@ static void *mixmonitor_thread(void *obj)
 	}
 
 	ast_verb(2, "End MixMonitor Recording %s\n", mixmonitor->name);
+	ast_test_suite_event_notify("MIXMONITOR_END", "File: %s\r\n", mixmonitor->filename);
 
 	if (!AST_LIST_EMPTY(&mixmonitor->recipient_list)) {
 		if (ast_strlen_zero(fs_ext)) {
