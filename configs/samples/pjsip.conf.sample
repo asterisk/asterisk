@@ -786,17 +786,6 @@
                                 ; information. Value is in milliseconds; default
                                 ; is 100 ms.
 
-;==========================CONTACT SECTION OPTIONS=========================
-;[contact]
-;  SYNOPSIS: A way of creating an aliased name to a SIP URI
-;type=  ; Must be of type contact (default: "")
-;uri=   ; SIP URI to contact peer (default: "")
-;expiration_time=       ; Time to keep alive a contact (default: "")
-;qualify_frequency=0    ; Interval at which to qualify a contact (default: "0")
-;outbound_proxy=        ; Outbound proxy used when sending OPTIONS request
-                        ; (default: "")
-
-
 ;==========================AOR SECTION OPTIONS=========================
 ;[aor]
 ;  SYNOPSIS: The configuration for a location of an endpoint
