@@ -163,7 +163,7 @@ install_unpackaged() {
 			cd pjproject
 			git pull
 		fi
-		./configure --enable-shared --with-external-speex --with-external-gsm --with-external-srtp --disable-sound --disable-resample && make && make install
+		./configure CFLAGS="-DNDEBUG -DPJ_HAS_IPV6=1" --enable-shared --with-external-speex --with-external-gsm --with-external-srtp --disable-sound --disable-resample && make && make install
 		cd ..
 		echo "/usr/local/lib" > /etc/ld.so.conf.d/usr_local.conf
 		/sbin/ldconfig
