@@ -328,6 +328,28 @@ int ast_sip_unregister_cli_formatter(struct ast_sip_cli_formatter_entry *formatt
 	return 0;
 }
 
+static char *handle_pjsip_show_version(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch(cmd) {
+	case CLI_INIT:
+		e->command = "pjsip show version";
+		e->usage =
+			"Usage: pjsip show version\n"
+			"       Show the version of pjproject that res_pjsip is running against\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	ast_cli(a->fd, "PJPROJECT version currently running against: %s\n", pj_get_version());
+
+	return CLI_SUCCESS;
+}
+
+static struct ast_cli_entry pjsip_cli[] = {
+	AST_CLI_DEFINE(handle_pjsip_show_version, "Show the version of pjproject in use"),
+};
+
 int ast_sip_initialize_cli(void)
 {
 	formatter_registry = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, 17,
@@ -338,10 +360,13 @@ int ast_sip_initialize_cli(void)
 		return -1;
 	}
 
+	ast_cli_register_multiple(pjsip_cli, ARRAY_LEN(pjsip_cli));
+
 	return 0;
 }
 
 void ast_sip_destroy_cli(void)
 {
+	ast_cli_unregister_multiple(pjsip_cli, ARRAY_LEN(pjsip_cli));
 	ao2_ref(formatter_registry, -1);
 }
