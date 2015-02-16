@@ -3056,14 +3056,16 @@ static int ast_rtcp_write_report(struct ast_rtp_instance *instance, int sr)
 			ast_verbose("  Sent packets: %u\n", rtcp_report->sender_information.packet_count);
 			ast_verbose("  Sent octets: %u\n", rtcp_report->sender_information.octet_count);
 		}
-		ast_verbose("  Report block:\n");
-		ast_verbose("    Their SSRC: %u\n", report_block->source_ssrc);
-		ast_verbose("    Fraction lost: %d\n", report_block->lost_count.fraction);
-		ast_verbose("    Cumulative loss: %u\n", report_block->lost_count.packets);
-		ast_verbose("    Highest seq no: %u\n", report_block->highest_seq_no);
-		ast_verbose("    IA jitter: %.4f\n", (double)report_block->ia_jitter / rate);
-		ast_verbose("    Their last SR: %u\n", report_block->lsr);
-		ast_verbose("    DLSR: %4.4f (sec)\n\n", (double)(report_block->dlsr / 65536.0));
+		if (report_block) {
+			ast_verbose("  Report block:\n");
+			ast_verbose("    Their SSRC: %u\n", report_block->source_ssrc);
+			ast_verbose("    Fraction lost: %d\n", report_block->lost_count.fraction);
+			ast_verbose("    Cumulative loss: %u\n", report_block->lost_count.packets);
+			ast_verbose("    Highest seq no: %u\n", report_block->highest_seq_no);
+			ast_verbose("    IA jitter: %.4f\n", (double)report_block->ia_jitter / rate);
+			ast_verbose("    Their last SR: %u\n", report_block->lsr);
+			ast_verbose("    DLSR: %4.4f (sec)\n\n", (double)(report_block->dlsr / 65536.0));
+		}
 	}
 
 	ast_rtp_instance_get_local_address(instance, &local_address);
