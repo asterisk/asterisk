@@ -692,9 +692,13 @@ static int incoming_in_dialog_request(struct ast_sip_session *session, struct pj
 	char buf[MAX_BODY_SIZE];
 	enum pjsip_status_code code;
 	struct ast_frame f;
-
 	pjsip_dialog *dlg = session->inv_session->dlg;
 	pjsip_transaction *tsx = pjsip_rdata_get_tsx(rdata);
+
+	if (!session->channel) {
+		send_response(rdata, PJSIP_SC_NOT_FOUND, dlg, tsx);
+		return 0;
+	}
 
 	if ((code = check_content_type(rdata)) != PJSIP_SC_OK) {
 		send_response(rdata, code, dlg, tsx);
@@ -703,6 +707,7 @@ static int incoming_in_dialog_request(struct ast_sip_session *session, struct pj
 
 	if (print_body(rdata, buf, sizeof(buf)-1) < 1) {
 		/* invalid body size */
+		send_response(rdata, PJSIP_SC_REQUEST_ENTITY_TOO_LARGE, dlg, tsx);
 		return 0;
 	}
 
