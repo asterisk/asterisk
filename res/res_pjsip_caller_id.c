@@ -361,7 +361,7 @@ static int caller_id_incoming_request(struct ast_sip_session *session, pjsip_rx_
 		if (!session->endpoint->id.self.number.valid) {
 			set_id_from_from(rdata, &session->id);
 		}
-	} else {
+	} else if (session->channel) {
 		/* Reinvite. Check for changes to the ID and queue a connected line
 		 * update if necessary
 		 */

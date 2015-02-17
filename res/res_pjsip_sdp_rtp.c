@@ -1269,14 +1269,17 @@ static struct ast_sip_session_sdp_handler video_sdp_handler = {
 
 static int video_info_incoming_request(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
 {
-	struct pjsip_transaction *tsx = pjsip_rdata_get_tsx(rdata);
+	struct pjsip_transaction *tsx;
 	pjsip_tx_data *tdata;
 
-	if (!ast_sip_is_content_type(&rdata->msg_info.msg->body->content_type,
-				     "application",
-				     "media_control+xml")) {
+	if (!session->channel
+		|| !ast_sip_is_content_type(&rdata->msg_info.msg->body->content_type,
+			"application",
+			"media_control+xml")) {
 		return 0;
 	}
+
+	tsx = pjsip_rdata_get_tsx(rdata);
 
 	ast_queue_control(session->channel, AST_CONTROL_VIDUPDATE);
 

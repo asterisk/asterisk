@@ -119,13 +119,17 @@ static int has_call_feature(pjsip_rx_data *rdata)
 
 static int handle_incoming_request(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
 {
-
 	struct ast_datastore *sip_session_datastore;
 	struct ast_channel *other_party;
+	int has_feature;
+	int has_reason;
 
-	int has_feature = has_call_feature(rdata);
-	int has_reason = has_diversion_reason(rdata);
+	if (!session->channel) {
+		return 0;
+	}
 
+	has_feature = has_call_feature(rdata);
+	has_reason = has_diversion_reason(rdata);
 	if (!has_feature && !has_reason) {
 		/* If we don't have a call feature or diversion reason or if
 		   it's not a feature this module is related to then there

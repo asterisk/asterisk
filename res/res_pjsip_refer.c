@@ -418,7 +418,7 @@ static void refer_attended_destroy(void *obj)
 	struct refer_attended *attended = obj;
 
 	ao2_cleanup(attended->transferer);
-	ast_channel_unref(attended->transferer_chan);
+	ast_channel_cleanup(attended->transferer_chan);
 	ao2_cleanup(attended->transferer_second);
 	ao2_cleanup(attended->progress);
 }
@@ -674,7 +674,7 @@ static int refer_incoming_attended_request(struct ast_sip_session *session, pjsi
 
 		return 200;
 	} else {
-		const char *context = (session->channel ? pbx_builtin_getvar_helper(session->channel, "TRANSFER_CONTEXT") : "");
+		const char *context = pbx_builtin_getvar_helper(session->channel, "TRANSFER_CONTEXT");
 		struct refer_blind refer = { 0, };
 
 		if (ast_strlen_zero(context)) {
@@ -717,10 +717,6 @@ static int refer_incoming_blind_request(struct ast_sip_session *session, pjsip_r
 	const char *context;
 	char exten[AST_MAX_EXTENSION];
 	struct refer_blind refer = { 0, };
-
-	if (!session->channel) {
-		return 404;
-	}
 
 	/* If no explicit transfer context has been provided use their configured context */
 	context = pbx_builtin_getvar_helper(session->channel, "TRANSFER_CONTEXT");
@@ -892,6 +888,14 @@ static int refer_incoming_refer_request(struct ast_sip_session *session, struct 
 
 	static const pj_str_t str_refer_to = { "Refer-To", 8 };
 	static const pj_str_t str_replaces = { "Replaces", 8 };
+
+	if (!session->channel) {
+		/* No channel to refer.  Likely because the call was just hung up. */
+		pjsip_dlg_respond(session->inv_session->dlg, rdata, 404, NULL, NULL, NULL);
+		ast_debug(3, "Received a REFER on a session with no channel from endpoint '%s'.\n",
+			ast_sorcery_object_get_id(session->endpoint));
+		return 0;
+	}
 
 	if (!session->endpoint->allowtransfer) {
 		pjsip_dlg_respond(session->inv_session->dlg, rdata, 603, NULL, NULL, NULL);
