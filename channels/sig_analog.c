@@ -1703,7 +1703,6 @@ static void *__analog_ss_thread(void *data)
 	char dtmfbuf[300];
 	char namebuf[ANALOG_MAX_CID];
 	char numbuf[ANALOG_MAX_CID];
-	struct callerid_state *cs = NULL;
 	char *name = NULL, *number = NULL;
 	int flags = 0;
 	struct ast_smdi_md_message *smdi_msg = NULL;
@@ -2391,7 +2390,6 @@ static void *__analog_ss_thread(void *data)
 				int timeout_ms;
 				int ms;
 				struct timeval start = ast_tvnow();
-				cs = NULL;
 				ast_debug(1, "Receiving DTMF cid on channel %s\n", ast_channel_name(chan));
 
 				oldlinearity = analog_set_linear_mode(p, idx, 0);
@@ -2609,18 +2607,12 @@ static void *__analog_ss_thread(void *data)
 			} else {
 				ast_log(LOG_WARNING, "Unable to get caller ID space\n");
 			}
-		} else {
-			cs = NULL;
 		}
 
 		if (number) {
 			ast_shrink_phone_number(number);
 		}
 		ast_set_callerid(chan, number, name, number);
-
-		if (cs) {
-			callerid_free(cs);
-		}
 
 		analog_handle_notify_message(chan, p, flags, -1);
 
