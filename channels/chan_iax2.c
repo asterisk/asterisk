@@ -14837,18 +14837,21 @@ static int __unload_module(void)
 	ao2_ref(users, -1);
 	ao2_ref(iax_peercallno_pvts, -1);
 	ao2_ref(iax_transfercallno_pvts, -1);
-	ao2_ref(peercnts, -1);
 	ao2_ref(callno_limits, -1);
 	ao2_ref(calltoken_ignores, -1);
-	ao2_ref(callno_pool, -1);
-	ao2_ref(callno_pool_trunk, -1);
 	if (timer) {
 		ast_timer_close(timer);
 		timer = NULL;
 	}
 	transmit_processor = ast_taskprocessor_unreference(transmit_processor);
+
+	ast_sched_clean_by_callback(sched, peercnt_remove_cb, peercnt_remove_cb);
+	ast_sched_clean_by_callback(sched, replace_callno, replace_callno);
 	ast_sched_context_destroy(sched);
 	sched = NULL;
+	ao2_ref(peercnts, -1);
+	ao2_ref(callno_pool, -1);
+	ao2_ref(callno_pool_trunk, -1);
 
 	con = ast_context_find(regcontext);
 	if (con)

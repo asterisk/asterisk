@@ -295,6 +295,31 @@ static void sched_release(struct ast_sched_context *con, struct sched *tmp)
 		ast_free(tmp);
 }
 
+void ast_sched_clean_by_callback(struct ast_sched_context *con, ast_sched_cb match, ast_sched_cb cleanup_cb)
+{
+	int i = 1;
+	struct sched *current;
+
+	ast_mutex_lock(&con->lock);
+	while ((current = ast_heap_peek(con->sched_heap, i))) {
+		if (current->callback != match) {
+			i++;
+			continue;
+		}
+
+		ast_heap_remove(con->sched_heap, current);
+		if (!ast_hashtab_remove_this_object(con->schedq_ht, current)) {
+			ast_log(LOG_ERROR,"Sched entry %d was in the schedq list but not in the hashtab???\n", current->id);
+		}
+
+		con->schedcnt--;
+
+		cleanup_cb(current->data);
+		sched_release(con, current);
+	}
+	ast_mutex_unlock(&con->lock);
+}
+
 /*! \brief
  * Return the number of milliseconds
  * until the next scheduled event
