@@ -1883,7 +1883,8 @@ static int my_distinctive_ring(struct ast_channel *chan, void *pvt, int idx, int
 
 		for (;;) {
 			i = DAHDI_IOMUX_READ | DAHDI_IOMUX_SIGEVENT;
-			if ((res = ioctl(p->subs[idx].dfd, DAHDI_IOMUX, &i))) {
+			res = ioctl(p->subs[idx].dfd, DAHDI_IOMUX, &i);
+			if (res) {
 				ast_log(LOG_WARNING, "I/O MUX failed: %s\n", strerror(errno));
 				ast_hangup(chan);
 				return 1;
@@ -1918,7 +1919,6 @@ static int my_distinctive_ring(struct ast_channel *chan, void *pvt, int idx, int
 				}
 				if (analog_p->ringt > 0) {
 					if (!(--analog_p->ringt)) {
-						res = -1;
 						break;
 					}
 				}
