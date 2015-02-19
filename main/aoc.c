@@ -1793,24 +1793,87 @@ static struct ast_json *e_to_json(const struct ast_aoc_decoded *decoded)
 			     "Charge", charge_to_json(decoded));
 }
 
+struct aoc_event_blob {
+	/*! Channel AOC event is associated with (NULL for unassociated) */
+	struct ast_channel_snapshot *snapshot;
+	/*! AOC JSON blob of data */
+	struct ast_json *blob;
+};
+
+static void aoc_event_blob_dtor(void *obj)
+{
+	struct aoc_event_blob *aoc_event = obj;
+
+	ao2_cleanup(aoc_event->snapshot);
+	ast_json_unref(aoc_event->blob);
+}
+
+/*!
+ * \internal
+ * \brief Publish an AOC event.
+ * \since 13.3.0
+ *
+ * \param chan Channel associated with the AOC event. (May be NULL if no channel)
+ * \param msg_type What kind of AOC event.
+ * \param blob AOC data blob to publish.
+ *
+ * \return Nothing
+ */
+static void aoc_publish_blob(struct ast_channel *chan, struct stasis_message_type *msg_type, struct ast_json *blob)
+{
+	struct stasis_message *msg;
+	struct aoc_event_blob *aoc_event;
+
+	if (!blob || ast_json_is_null(blob)) {
+		/* No AOC blob information?  Nothing to send an event about. */
+		return;
+	}
+
+	aoc_event = ao2_alloc_options(sizeof(*aoc_event), aoc_event_blob_dtor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!aoc_event) {
+		return;
+	}
+
+	if (chan) {
+		aoc_event->snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(chan));
+		if (!aoc_event->snapshot) {
+			ao2_ref(aoc_event, -1);
+			return;
+		}
+	}
+	aoc_event->blob = ast_json_ref(blob);
+
+	msg = stasis_message_create(msg_type, aoc_event);
+	ao2_ref(aoc_event, -1);
+
+	stasis_publish(ast_manager_get_topic(), msg);
+}
+
 static struct ast_manager_event_blob *aoc_to_ami(struct stasis_message *message,
 						 const char *event_name)
 {
-	struct ast_channel_blob *obj = stasis_message_data(message);
-	RAII_VAR(struct ast_str *, channel, NULL, ast_free);
-	RAII_VAR(struct ast_str *, aoc, NULL, ast_free);
+	struct aoc_event_blob *aoc_event = stasis_message_data(message);
+	struct ast_str *channel = NULL;
+	struct ast_str *aoc;
+	struct ast_manager_event_blob *ev = NULL;
 
-	if (!(channel = ast_manager_build_channel_state_string(
-		      obj->snapshot))) {
-		return NULL;
+	if (aoc_event->snapshot) {
+		channel = ast_manager_build_channel_state_string(aoc_event->snapshot);
+		if (!channel) {
+			return NULL;
+		}
 	}
 
-	if (!(aoc = ast_manager_str_from_json_object(obj->blob, NULL))) {
-		return NULL;
+	aoc = ast_manager_str_from_json_object(aoc_event->blob, NULL);
+	if (aoc && !ast_strlen_zero(ast_str_buffer(aoc))) {
+		ev = ast_manager_event_blob_create(EVENT_FLAG_AOC, event_name, "%s%s",
+			AS_OR(channel, ""), ast_str_buffer(aoc));
 	}
 
-	return ast_manager_event_blob_create(EVENT_FLAG_AOC, event_name, "%s%s",
-					     AS_OR(channel, ""), ast_str_buffer(aoc));
+	ast_free(aoc);
+	ast_free(channel);
+	return ev;
 }
 
 static struct ast_manager_event_blob *aoc_s_to_ami(struct stasis_message *message)
@@ -1846,7 +1909,7 @@ STASIS_MESSAGE_TYPE_DEFN(
 
 int ast_aoc_manager_event(const struct ast_aoc_decoded *decoded, struct ast_channel *chan)
 {
-	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+	struct ast_json *blob;
 	struct stasis_message_type *msg_type;
 
 	if (!decoded) {
@@ -1871,7 +1934,8 @@ int ast_aoc_manager_event(const struct ast_aoc_decoded *decoded, struct ast_chan
 		return 0;
 	}
 
-	ast_channel_publish_cached_blob(chan, msg_type, blob);
+	aoc_publish_blob(chan, msg_type, blob);
+	ast_json_unref(blob);
 	return 0;
 }
 
