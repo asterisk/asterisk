@@ -769,10 +769,13 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 			cfg->ssl_ctx = SSL_CTX_new(SSLv2_client_method());
 		} else
 #endif
+#ifndef OPENSSL_NO_SSL3_METHOD
 		if (ast_test_flag(&cfg->flags, AST_SSL_SSLV3_CLIENT)) {
 			ast_log(LOG_WARNING, "Usage of SSLv3 is discouraged due to known vulnerabilities. Please use 'tlsv1' or leave the TLS method unspecified!\n");
 			cfg->ssl_ctx = SSL_CTX_new(SSLv3_client_method());
-		} else if (ast_test_flag(&cfg->flags, AST_SSL_TLSV1_CLIENT)) {
+		} else
+#endif
+		if (ast_test_flag(&cfg->flags, AST_SSL_TLSV1_CLIENT)) {
 			cfg->ssl_ctx = SSL_CTX_new(TLSv1_client_method());
 		} else {
 			disable_ssl = 1;
