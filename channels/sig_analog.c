@@ -2419,8 +2419,8 @@ static void *__analog_ss_thread(void *data)
 						 * or AST_FLAG_END_DTMF_ONLY flag settings since we
 						 * are hanging up the channel.
 						 */
-						ast_log(LOG_WARNING, "DTMFCID timed out waiting for ring. "
-							"Exiting simple switch\n");
+						ast_log(LOG_WARNING,
+							"DTMFCID timed out waiting for ring. Exiting simple switch\n");
 						ast_hangup(chan);
 						goto quit;
 					}
@@ -2514,8 +2514,8 @@ static void *__analog_ss_thread(void *data)
 
 						res = ast_waitfor(chan, ms);
 						if (res <= 0) {
-							ast_log(LOG_WARNING, "CID timed out waiting for ring. "
-								"Exiting simple switch\n");
+							ast_log(LOG_WARNING,
+								"CID timed out waiting for ring. Exiting simple switch\n");
 							ast_hangup(chan);
 							goto quit;
 						}
@@ -2541,10 +2541,8 @@ static void *__analog_ss_thread(void *data)
 					ast_log(LOG_WARNING, "Unable to get caller ID space\n");
 				}
 			} else {
-				ast_log(LOG_WARNING, "Channel %s in prering "
-					"state, but I have nothing to do. "
-					"Terminating simple switch, should be "
-					"restarted by the actual ring.\n",
+				ast_log(LOG_WARNING,
+					"Channel %s in prering state, but I have nothing to do. Terminating simple switch, should be restarted by the actual ring.\n",
 					ast_channel_name(chan));
 				ast_hangup(chan);
 				goto quit;
@@ -3870,8 +3868,7 @@ void *analog_handle_init_event(struct analog_pvt *i, int event)
 			}
 			if (i->cid_start == ANALOG_CID_START_POLARITY || i->cid_start == ANALOG_CID_START_POLARITY_IN) {
 				i->polarity = POLARITY_REV;
-				ast_verb(2, "Starting post polarity "
-					"CID detection on channel %d\n",
+				ast_verb(2, "Starting post polarity CID detection on channel %d\n",
 					i->channel);
 				chan = analog_new_ast_channel(i, AST_STATE_PRERING, 0, ANALOG_SUB_REAL, NULL);
 				i->ss_astchan = chan;
@@ -3885,9 +3882,9 @@ void *analog_handle_init_event(struct analog_pvt *i, int event)
 			ast_callid_threadstorage_auto_clean(callid, callid_created);
 			break;
 		default:
-			ast_log(LOG_WARNING, "handle_init_event detected "
-				"polarity reversal on non-FXO (ANALOG_SIG_FXS) "
-				"interface %d\n", i->channel);
+			ast_log(LOG_WARNING,
+				"handle_init_event detected polarity reversal on non-FXO (ANALOG_SIG_FXS) interface %d\n",
+				i->channel);
 			break;
 		}
 		break;
@@ -3912,9 +3909,9 @@ void *analog_handle_init_event(struct analog_pvt *i, int event)
 			ast_callid_threadstorage_auto_clean(callid, callid_created);
 			break;
 		default:
-			ast_log(LOG_WARNING, "handle_init_event detected "
-				"dtmfcid generation event on non-FXO (ANALOG_SIG_FXS) "
-				"interface %d\n", i->channel);
+			ast_log(LOG_WARNING,
+				"handle_init_event detected dtmfcid generation event on non-FXO (ANALOG_SIG_FXS) interface %d\n",
+				i->channel);
 			break;
 		}
 		break;
