@@ -3334,7 +3334,7 @@ static char *get_header_by_tag(char *header, char *tag, char *buf, size_t len)
 	if (taglen < 1)
 		return NULL;
 
-	if (!(start = strstr(header, tag)))
+	if (!(start = strcasestr(header, tag)))
 		return NULL;
 
 	/* Since we can be called multiple times we should clear our buffer */
