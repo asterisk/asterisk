@@ -858,6 +858,7 @@ static int load_module(void)
 {
 	CHECK_PJSIP_PUBSUB_MODULE_LOADED();
 
+	ast_sorcery_apply_config(ast_sip_get_sorcery(), "asterisk-publication");
 	ast_sorcery_apply_default(ast_sip_get_sorcery(), "asterisk-publication", "config", "pjsip.conf,criteria=type=asterisk-publication");
 
 	if (ast_sorcery_object_register(ast_sip_get_sorcery(), "asterisk-publication", asterisk_publication_config_alloc, NULL, NULL)) {
