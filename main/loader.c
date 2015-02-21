@@ -1378,10 +1378,12 @@ struct ast_module *__ast_module_ref(struct ast_module *mod, const char *file, in
 
 void __ast_module_shutdown_ref(struct ast_module *mod, const char *file, int line, const char *func)
 {
-	if (!mod->flags.keepuntilshutdown) {
-		__ast_module_ref(mod, file, line, func);
-		mod->flags.keepuntilshutdown = 1;
+	if (!mod || mod->flags.keepuntilshutdown) {
+		return;
 	}
+
+	__ast_module_ref(mod, file, line, func);
+	mod->flags.keepuntilshutdown = 1;
 }
 
 void __ast_module_unref(struct ast_module *mod, const char *file, int line, const char *func)
