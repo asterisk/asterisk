@@ -2173,7 +2173,7 @@ static void ast_ari_channels_get_channel_var_cb(
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
 	case 400: /* Missing variable parameter. */
-	case 404: /* Channel not found */
+	case 404: /* Channel or variable not found */
 	case 409: /* Channel not in a Stasis application */
 		is_valid = 1;
 		break;

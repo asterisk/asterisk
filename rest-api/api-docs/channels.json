@@ -1199,7 +1199,7 @@
 						},
 						{
 							"code": 404,
-							"reason": "Channel not found"
+							"reason": "Channel or variable not found"
 						},
 						{
 							"code": 409,

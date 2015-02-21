@@ -1242,6 +1242,11 @@ void ast_ari_channels_get_channel_var(struct ast_variable *headers,
 
 	ast_assert(response != NULL);
 
+	if (!value) {
+		ast_ari_response_alloc_failed(response);
+		return;
+	}
+
 	if (ast_strlen_zero(args->variable)) {
 		ast_ari_response_error(
 			response, 400, "Bad Request",
@@ -1280,7 +1285,9 @@ void ast_ari_channels_get_channel_var(struct ast_variable *headers,
 		}
 	} else {
 		if (!ast_str_retrieve_variable(&value, 0, channel, NULL, args->variable)) {
-			ast_ari_response_alloc_failed(response);
+			ast_ari_response_error(
+				response, 404, "Variable Not Found",
+				"Provided variable was not found");
 			return;
 		}
 	}
