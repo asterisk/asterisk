@@ -577,6 +577,7 @@ AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
 AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
 {
 	return OSAtomicAdd64(v, (int64_t *) p) - v;
+})
 #elif defined (__i386__) || defined(__x86_64__)
 #ifdef sun
 AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
@@ -623,6 +624,7 @@ AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
 AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
 {
 	return OSAtomicAdd64( -1, (int64_t *) p) == 0;
+})
 #else
 AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
 {
