@@ -2234,6 +2234,7 @@ pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
 {
 	char enclosed_uri[PJSIP_MAX_URL_SIZE];
 	pj_str_t local_uri = { "sip:temp@temp", 13 }, remote_uri, target_uri;
+	pj_status_t res;
 	pjsip_dialog *dlg = NULL;
 	const char *outbound_proxy = endpoint->outbound_proxy;
 	pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
@@ -2244,7 +2245,12 @@ pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
 
 	pj_cstr(&target_uri, uri);
 
-	if (pjsip_dlg_create_uac(pjsip_ua_instance(), &local_uri, NULL, &remote_uri, &target_uri, &dlg) != PJ_SUCCESS) {
+	res = pjsip_dlg_create_uac(pjsip_ua_instance(), &local_uri, NULL, &remote_uri, &target_uri, &dlg);
+	if (res != PJ_SUCCESS) {
+		if (res == PJSIP_EINVALIDURI) {
+			ast_log(LOG_ERROR, "Could not create dialog to endpoint '%s' as URI '%s' is not valid\n",
+				ast_sorcery_object_get_id(endpoint), uri);
+		}
 		return NULL;
 	}
 
