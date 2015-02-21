@@ -57,7 +57,7 @@ static int registrar_get_expiration(const struct ast_sip_aor *aor, const pjsip_c
 	pjsip_expires_hdr *expires;
 	int expiration = aor->default_expiration;
 
-	if (contact->expires != -1) {
+	if (contact && contact->expires != -1) {
 		/* Expiration was provided with the contact itself */
 		expiration = contact->expires;
 	} else if ((expires = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_EXPIRES, NULL))) {
@@ -424,6 +424,7 @@ static int rx_task(void *data)
 	struct ast_sip_contact *response_contact;
 	char *user_agent = NULL;
 	pjsip_user_agent_hdr *user_agent_hdr;
+	pjsip_expires_hdr *expires_hdr;
 
 	/* Retrieve the current contacts, we'll need to know whether to update or not */
 	contacts = ast_sip_location_retrieve_aor_contacts(task_data->aor);
@@ -596,6 +597,11 @@ static int rx_task(void *data)
 	registrar_add_date_header(tdata);
 
 	ao2_callback(contacts, 0, registrar_add_contact, tdata);
+
+	if ((expires_hdr = pjsip_msg_find_hdr(task_data->rdata->msg_info.msg, PJSIP_H_EXPIRES, NULL))) {
+		expires_hdr = pjsip_expires_hdr_create(tdata->pool, registrar_get_expiration(task_data->aor, NULL, task_data->rdata));
+		pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr*)expires_hdr);
+	}
 
 	if (pjsip_get_response_addr(tdata->pool, task_data->rdata, &addr) == PJ_SUCCESS) {
 		ast_sip_send_response(&addr, tdata, task_data->endpoint);
