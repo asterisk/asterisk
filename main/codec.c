@@ -296,8 +296,8 @@ int __ast_codec_register(struct ast_codec *codec, struct ast_module *mod)
 
 	ao2_link_flags(codecs, codec_new, OBJ_NOLOCK);
 
-	/* Once registered a codec can not be unregistered, and the module must persist */
-	ast_module_ref(mod);
+	/* Once registered a codec can not be unregistered, and the module must persist until shutdown */
+	ast_module_shutdown_ref(mod);
 
 	ast_verb(2, "Registered '%s' codec '%s' at sample rate '%u' with id '%u'\n",
 		ast_codec_media_type2str(codec->type), codec->name, codec->sample_rate, codec_new->id);
