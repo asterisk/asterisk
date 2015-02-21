@@ -376,7 +376,7 @@ static int httpstatus_callback(struct ast_tcptls_session_instance *ser,
 	}
 
 	ast_str_append(&out, 0,
-		"<title>Asterisk HTTP Status</title>\r\n"
+		"<html><title>Asterisk HTTP Status</title>\r\n"
 		"<body bgcolor=\"#ffffff\">\r\n"
 		"<table bgcolor=\"#f1f1f1\" align=\"center\"><tr><td bgcolor=\"#e0e0ff\" colspan=\"2\" width=\"500\">\r\n"
 		"<h2>&nbsp;&nbsp;Asterisk&trade; HTTP Status</h2></td></tr>\r\n");
@@ -403,7 +403,7 @@ static int httpstatus_callback(struct ast_tcptls_session_instance *ser,
 	}
 	ast_variables_destroy(cookies);
 
-	ast_str_append(&out, 0, "</table><center><font size=\"-1\"><i>Asterisk and Digium are registered trademarks of Digium, Inc.</i></font></center></body>\r\n");
+	ast_str_append(&out, 0, "</table><center><font size=\"-1\"><i>Asterisk and Digium are registered trademarks of Digium, Inc.</i></font></center></body></html>\r\n");
 	ast_http_send(ser, method, 200, NULL, NULL, out, 0, 0);
 	return 0;
 }
