@@ -2430,7 +2430,7 @@ static int __messagecount(const char *context, const char *mailbox, const char *
 	/* We have to get the user before we can open the stream! */
 	vmu = find_user(&vmus, context, mailbox);
 	if (!vmu) {
-		ast_log(AST_LOG_ERROR, "Couldn't find mailbox %s in context %s\n", mailbox, context);
+		ast_log(AST_LOG_WARNING, "Couldn't find mailbox %s in context %s\n", mailbox, context);
 		return -1;
 	} else {
 		/* No IMAP account available */
