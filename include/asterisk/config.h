@@ -863,7 +863,7 @@ void ast_category_rename(struct ast_category *cat, const char *name);
 
 #ifdef MALLOC_DEBUG
 struct ast_variable *_ast_variable_new(const char *name, const char *value, const char *filename, const char *file, const char *function, int lineno);
-#define ast_variable_new(a, b, c) _ast_variable_new(a, b, c, __FILE__, __PRETTY_FUNCTION__, __LINE__)
+#define ast_variable_new(name, value, filename) _ast_variable_new(name, value, filename, __FILE__, __PRETTY_FUNCTION__, __LINE__)
 #else
 struct ast_variable *ast_variable_new(const char *name, const char *value, const char *filename);
 #endif
