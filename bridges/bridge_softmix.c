@@ -163,6 +163,9 @@ static struct softmix_translate_helper_entry *softmix_translate_helper_entry_all
 		return NULL;
 	}
 	ast_format_copy(&entry->dst_format, dst);
+	/* initialize this to one so that the first time through the cleanup code after
+	   allocation it won't be removed from the entry list */
+	entry->num_times_requested = 1;
 	return entry;
 }
 
@@ -250,11 +253,24 @@ static void softmix_process_write_audio(struct softmix_translate_helper *trans_h
 		for (i = 0; i < sc->write_frame.samples; i++) {
 			ast_slinear_saturated_subtract(&sc->final_buf[i], &sc->our_buf[i]);
 		}
+		/* check to see if any entries exist for the format. if not we'll want
+		   to remove it during cleanup */
+		AST_LIST_TRAVERSE(&trans_helper->entries, entry, entry) {
+			if (ast_format_cmp(&entry->dst_format, raw_write_fmt) == AST_FORMAT_CMP_EQUAL) {
+				++entry->num_times_requested;
+				break;
+			}
+		}
 		/* do not do any special write translate optimization if we had to make
 		 * a special mix for them to remove their own audio. */
 		return;
 	}
 
+	/* Attempt to optimize channels using the same translation path/codec. Build a list of entries
+	   of translation paths and track the number of references for each type. Each one of the same
+	   type should be able to use the same out_frame. Since the optimization is only necessary for
+	   multiple channels (>=2) using the same codec make sure resources are allocated only when
+	   needed and released when not (see also softmix_translate_helper_cleanup */
 	AST_LIST_TRAVERSE(&trans_helper->entries, entry, entry) {
 		if (ast_format_cmp(&entry->dst_format, raw_write_fmt) == AST_FORMAT_CMP_EQUAL) {
 			entry->num_times_requested++;
@@ -285,13 +301,32 @@ static void softmix_process_write_audio(struct softmix_translate_helper *trans_h
 static void softmix_translate_helper_cleanup(struct softmix_translate_helper *trans_helper)
 {
 	struct softmix_translate_helper_entry *entry = NULL;
-	AST_LIST_TRAVERSE(&trans_helper->entries, entry, entry) {
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&trans_helper->entries, entry, entry) {
+		/* if it hasn't been requested then remove it */
+		if (!entry->num_times_requested) {
+			AST_LIST_REMOVE_CURRENT(entry);
+			softmix_translate_helper_free_entry(entry);
+			continue;
+		}
+
 		if (entry->out_frame) {
 			ast_frfree(entry->out_frame);
 			entry->out_frame = NULL;
 		}
+
+		/* nothing is optimized for a single path reference, so there is
+		   no reason to continue to hold onto the codec */
+		if (entry->num_times_requested == 1 && entry->trans_pvt) {
+			ast_translator_free_path(entry->trans_pvt);
+			entry->trans_pvt = NULL;
+		}
+
+		/* for each iteration (a mixing run) in the bridge softmix thread the number
+		   of references to a given entry is recalculated, so reset the number of
+		   times requested */
 		entry->num_times_requested = 0;
 	}
+	AST_LIST_TRAVERSE_SAFE_END;
 }
 
 static void softmix_bridge_data_destroy(void *obj)
