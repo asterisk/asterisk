@@ -5883,9 +5883,10 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
 			return NULL;
 
 		/* XXX Only the audio format calculated as being the best for translation
-		 * purposes is used for the request. This needs to be re-evaluated.  It may be
-		 * a better choice to send all the audio formats capable of being translated
-		 * during the request and allow the channel drivers to pick the best one. */
+		 * purposes is used for the request. This is because we don't have the ability
+		 * to signal to the initiator which one of their codecs that was offered is
+		 * the one that was selected, particularly in a chain of Local channels.
+		 */
 		joint_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 		if (!joint_cap) {
 			return NULL;

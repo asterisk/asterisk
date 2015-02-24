@@ -418,12 +418,13 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 	ast_channel_nativeformats_set(chan, caps);
 
 	if (!ast_format_cap_empty(caps)) {
-		/*
-		 * XXX Probably should pick the first audio codec instead
-		 * of simply the first codec.  The first codec may be video.
-		 */
-		struct ast_format *fmt = ast_format_cap_get_format(caps, 0);
+		struct ast_format *fmt;
 
+		fmt = ast_format_cap_get_best_by_type(caps, AST_MEDIA_TYPE_AUDIO);
+		if (!fmt) {
+			/* Since our capabilities aren't empty, this will succeed */
+			fmt = ast_format_cap_get_format(caps, 0);
+		}
 		ast_channel_set_writeformat(chan, fmt);
 		ast_channel_set_rawwriteformat(chan, fmt);
 		ast_channel_set_readformat(chan, fmt);

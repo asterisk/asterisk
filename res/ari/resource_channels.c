@@ -917,8 +917,6 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 	char *caller_id = NULL;
 	char *cid_num = NULL;
 	char *cid_name = NULL;
-	RAII_VAR(struct ast_format_cap *, cap,
-		ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT), ao2_cleanup);
 	char *stuff;
 	struct ast_channel *other = NULL;
 	struct ast_channel *chan = NULL;
@@ -929,12 +927,6 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 	};
 	struct ari_origination *origination;
 	pthread_t thread;
-
-	if (!cap) {
-		ast_ari_response_alloc_failed(response);
-		return;
-	}
-	ast_format_cap_append(cap, ast_format_slin, 0);
 
 	if ((assignedids.uniqueid && AST_MAX_PUBLIC_UNIQUEID < strlen(assignedids.uniqueid))
 		|| (assignedids.uniqueid2 && AST_MAX_PUBLIC_UNIQUEID < strlen(assignedids.uniqueid2))) {
@@ -1071,7 +1063,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 		}
 	}
 
-	if (ast_dial_prerun(dial, other, cap)) {
+	if (ast_dial_prerun(dial, other, NULL)) {
 		ast_ari_response_alloc_failed(response);
 		ast_dial_destroy(dial);
 		ast_free(origination);
