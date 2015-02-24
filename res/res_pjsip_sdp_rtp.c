@@ -243,8 +243,8 @@ static int set_caps(struct ast_sip_session *session, struct ast_sip_session_medi
 	/* get the joint capabilities between peer and endpoint */
 	ast_format_cap_get_compatible(caps, peer, joint);
 	if (!ast_format_cap_count(joint)) {
-		struct ast_str *usbuf = ast_str_alloca(64);
-		struct ast_str *thembuf = ast_str_alloca(64);
+		struct ast_str *usbuf = ast_str_alloca(256);
+		struct ast_str *thembuf = ast_str_alloca(256);
 
 		ast_rtp_codecs_payloads_destroy(&codecs);
 		ast_log(LOG_NOTICE, "No joint capabilities for '%s' media stream between our configuration(%s) and incoming SDP(%s)\n",
@@ -260,36 +260,17 @@ static int set_caps(struct ast_sip_session *session, struct ast_sip_session_medi
 	ast_format_cap_append_from_cap(session->req_caps, joint, AST_MEDIA_TYPE_UNKNOWN);
 
 	if (session->channel) {
-		struct ast_format *fmt;
 
 		ast_channel_lock(session->channel);
-		ast_format_cap_remove_by_type(caps, AST_MEDIA_TYPE_UNKNOWN);
-		ast_format_cap_append_from_cap(caps, ast_channel_nativeformats(session->channel), AST_MEDIA_TYPE_UNKNOWN);
-		ast_format_cap_remove_by_type(caps, media_type);
-
-		/*
-		 * XXX Historically we picked the "best" joint format to use
-		 * and stuck with it.  It would be nice to just append the
-		 * determined joint media capabilities to give translation
-		 * more formats to choose from when necessary.  Unfortunately,
-		 * there are some areas of the system where this doesn't work
-		 * very well. (The softmix bridge in particular is reluctant
-		 * to pick higher fidelity formats and has a problem with
-		 * asymmetric sample rates.)
-		 */
-		fmt = ast_format_cap_get_format(joint, 0);
-		ast_format_cap_append(caps, fmt, 0);
 
 		/*
 		 * Apply the new formats to the channel, potentially changing
 		 * raw read/write formats and translation path while doing so.
 		 */
-		ast_channel_nativeformats_set(session->channel, caps);
+		ast_channel_nativeformats_set(session->channel, joint);
 		ast_set_read_format(session->channel, ast_channel_readformat(session->channel));
 		ast_set_write_format(session->channel, ast_channel_writeformat(session->channel));
 		ast_channel_unlock(session->channel);
-
-		ao2_ref(fmt, -1);
 	}
 
 	ast_rtp_codecs_payloads_destroy(&codecs);
