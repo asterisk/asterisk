@@ -10540,7 +10540,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	}
 
 	if (!secure_audio && p->srtp) {
-		ast_log(LOG_WARNING, "We are requesting SRTP for audio, but they responded without it!\n");
+		ast_log(LOG_WARNING, "Failed to receive SDP offer/answer with required SRTP crypto attributes for audio\n");
 		res = -1;
 		goto process_sdp_cleanup;
 	}
@@ -10552,7 +10552,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	}
 
 	if (!p->novideo && !secure_video && p->vsrtp) {
-		ast_log(LOG_WARNING, "We are requesting SRTP for video, but they responded without it!\n");
+		ast_log(LOG_WARNING, "Failed to receive SDP offer/answer with required SRTP crypto attributes for video\n");
 		res = -1;
 		goto process_sdp_cleanup;
 	}
