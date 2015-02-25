@@ -52,7 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define MAX_PROTOCOL_BUCKETS 7
 
 /*! \brief Size of the pre-determined buffer for WebSocket frames */
-#define MAXIMUM_FRAME_SIZE 8192
+#define MAXIMUM_FRAME_SIZE 16384
 
 /*! \brief Default reconstruction size for multi-frame payload reconstruction. If exceeded the next frame will start a
  *         payload.
@@ -413,18 +413,35 @@ int AST_OPTIONAL_API_NAME(ast_websocket_set_timeout)(struct ast_websocket *sessi
  */
 static inline int ws_safe_read(struct ast_websocket *session, char *buf, int len, enum ast_websocket_opcode *opcode)
 {
-	int sanity;
 	size_t rlen;
 	int xlen = len;
 	char *rbuf = buf;
-	for (sanity = 10; sanity; sanity--) {
+	int sanity = 10;
+
+	for (;;) {
 		clearerr(session->f);
 		rlen = fread(rbuf, 1, xlen, session->f);
-		if (!rlen && ferror(session->f) && errno != EAGAIN) {
-			ast_log(LOG_ERROR, "Error reading from web socket: %s\n", strerror(errno));
-			*opcode = AST_WEBSOCKET_OPCODE_CLOSE;
-			session->closing = 1;
-			return -1;
+		if (!rlen) {
+			if (feof(session->f)) {
+				ast_log(LOG_WARNING, "Web socket closed abruptly\n");
+				*opcode = AST_WEBSOCKET_OPCODE_CLOSE;
+				session->closing = 1;
+				return -1;
+			}
+
+			if (ferror(session->f) && errno != EAGAIN) {
+				ast_log(LOG_ERROR, "Error reading from web socket: %s\n", strerror(errno));
+				*opcode = AST_WEBSOCKET_OPCODE_CLOSE;
+				session->closing = 1;
+				return -1;
+			}
+
+			if (!--sanity) {
+				ast_log(LOG_WARNING, "Websocket seems unresponsive, disconnecting ...\n");
+				*opcode = AST_WEBSOCKET_OPCODE_CLOSE;
+				session->closing = 1;
+				return -1;
+			}
 		}
 		xlen = xlen - rlen;
 		rbuf = rbuf + rlen;
@@ -437,12 +454,6 @@ static inline int ws_safe_read(struct ast_websocket *session, char *buf, int len
 			session->closing = 1;
 			return -1;
 		}
-	}
-	if (!sanity) {
-		ast_log(LOG_WARNING, "Websocket seems unresponsive, disconnecting ...\n");
-		*opcode = AST_WEBSOCKET_OPCODE_CLOSE;
-		session->closing = 1;
-		return -1;
 	}
 	return 0;
 }
