@@ -34,6 +34,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include <math.h>
 #include "asterisk/options.h"
 #include "asterisk/utils.h"
 #include "asterisk/sdp_srtp.h"
@@ -68,7 +69,7 @@ void ast_sdp_srtp_destroy(struct ast_sdp_srtp *srtp)
 struct ast_sdp_crypto {
 	char *a_crypto;
 	unsigned char local_key[SRTP_MASTER_LEN];
-	char *tag;
+	int tag;
 	char local_key64[SRTP_MASTER_LEN64];
 	unsigned char remote_key[SRTP_MASTER_LEN];
 };
@@ -79,8 +80,6 @@ void ast_sdp_crypto_destroy(struct ast_sdp_crypto *crypto)
 {
 	ast_free(crypto->a_crypto);
 	crypto->a_crypto = NULL;
-	ast_free(crypto->tag);
-	crypto->tag = NULL;
 	ast_free(crypto);
 }
 
@@ -97,6 +96,7 @@ struct ast_sdp_crypto *ast_sdp_crypto_alloc(void)
 	if (!(p = ast_calloc(1, sizeof(*p)))) {
 		return NULL;
 	}
+	p->tag = 1;
 
 	if (res_srtp->get_random(p->local_key, sizeof(p->local_key)) < 0) {
 		ast_sdp_crypto_destroy(p);
@@ -109,13 +109,13 @@ struct ast_sdp_crypto *ast_sdp_crypto_alloc(void)
 
 	if (key_len != SRTP_MASTER_LEN) {
 		ast_log(LOG_ERROR, "base64 encode/decode bad len %d != %d\n", key_len, SRTP_MASTER_LEN);
-		ast_free(p);
+		ast_sdp_crypto_destroy(p);
 		return NULL;
 	}
 
 	if (memcmp(remote_key, p->local_key, SRTP_MASTER_LEN)) {
 		ast_log(LOG_ERROR, "base64 encode/decode bad key\n");
-		ast_free(p);
+		ast_sdp_crypto_destroy(p);
 		return NULL;
 	}
 
@@ -211,13 +211,15 @@ int ast_sdp_crypto_process(struct ast_rtp_instance *rtp, struct ast_sdp_srtp *sr
 	char *key_params = NULL;
 	char *key_param = NULL;
 	char *session_params = NULL;
-	char *key_salt = NULL;
-	char *lifetime = NULL;
+	char *key_salt = NULL;       /* The actual master key and key salt */
+	char *lifetime = NULL;       /* Key lifetime (# of RTP packets) */
+	char *mki = NULL;            /* Master Key Index */
 	int found = 0;
 	int key_len = 0;
 	int suite_val = 0;
 	unsigned char remote_key[SRTP_MASTER_LEN];
 	int taglen = 0;
+	double sdes_lifetime;
 	struct ast_sdp_crypto *crypto = srtp->crypto;
 
 	if (!ast_rtp_engine_srtp_is_registered()) {
@@ -233,6 +235,11 @@ int ast_sdp_crypto_process(struct ast_rtp_instance *rtp, struct ast_sdp_srtp *sr
 
 	if (!tag || !suite) {
 		ast_log(LOG_WARNING, "Unrecognized crypto attribute a=%s\n", attr);
+		return -1;
+	}
+
+	if (sscanf(tag, "%30d", &crypto->tag) != 1 || crypto->tag <= 0 || crypto->tag > 9) {
+		ast_log(LOG_WARNING, "Unacceptable a=crypto tag: %s\n", tag);
 		return -1;
 	}
 
@@ -255,33 +262,88 @@ int ast_sdp_crypto_process(struct ast_rtp_instance *rtp, struct ast_sdp_srtp *sr
 	}
 
 	while ((key_param = strsep(&key_params, ";"))) {
+		unsigned int n_lifetime;
 		char *method = NULL;
 		char *info = NULL;
 
 		method = strsep(&key_param, ":");
 		info = strsep(&key_param, ";");
+		sdes_lifetime = 0;
 
-		if (!strcmp(method, "inline")) {
-			key_salt = strsep(&info, "|");
-			lifetime = strsep(&info, "|");
+		if (strcmp(method, "inline")) {
+			continue;
+		}
 
-			if (lifetime) {
-				ast_log(LOG_NOTICE, "Crypto life time unsupported: %s\n", attr);
-				continue;
-			}
+		key_salt = strsep(&info, "|");
 
+		/* The next parameter can be either lifetime or MKI */
+		lifetime = strsep(&info, "|");
+		if (!lifetime) {
 			found = 1;
 			break;
 		}
+
+		mki = strchr(lifetime, ':');
+		if (mki) {
+			mki = lifetime;
+			lifetime = NULL;
+		} else {
+			mki = strsep(&info, "|");
+		}
+
+		if (mki && *mki != '1') {
+			ast_log(LOG_NOTICE, "Crypto MKI handling is not supported: ignoring attribute %s\n", attr);
+			continue;
+		}
+
+		if (lifetime) {
+			if (!strncmp(lifetime, "2^", 2)) {
+				char *lifetime_val = lifetime + 2;
+
+				/* Exponential lifetime */
+				if (sscanf(lifetime_val, "%30u", &n_lifetime) != 1) {
+					ast_log(LOG_NOTICE, "Failed to parse lifetime value in crypto attribute: %s\n", attr);
+					continue;
+				}
+
+				if (n_lifetime > 48) {
+					/* Yeah... that's a bit big. */
+					ast_log(LOG_NOTICE, "Crypto lifetime exponent of '%u' is a bit large; using 48\n", n_lifetime);
+					n_lifetime = 48;
+				}
+				sdes_lifetime = pow(2, n_lifetime);
+			} else {
+				/* Decimal lifetime */
+				if (sscanf(lifetime, "%30u", &n_lifetime) != 1) {
+					ast_log(LOG_NOTICE, "Failed to parse lifetime value in crypto attribute: %s\n", attr);
+					continue;
+				}
+				sdes_lifetime = n_lifetime;
+			}
+
+			/* Accept anything above 10 hours. Less than 10; reject. */
+			if (sdes_lifetime < 1800000) {
+				ast_log(LOG_NOTICE, "Rejecting crypto attribute '%s': lifetime '%f' too short\n", attr, sdes_lifetime);
+				continue;
+			}
+		}
+
+		ast_debug(2, "Crypto attribute '%s' accepted with lifetime '%f', MKI '%s'\n",
+			attr, sdes_lifetime, mki ? mki : "-");
+
+		found = 1;
+		break;
 	}
 
 	if (!found) {
-		ast_log(LOG_NOTICE, "SRTP crypto offer not acceptable\n");
+		ast_log(LOG_NOTICE, "SRTP crypto offer not acceptable: '%s'\n", attr);
 		return -1;
 	}
 
-	if ((key_len = ast_base64decode(remote_key, key_salt, sizeof(remote_key))) != SRTP_MASTER_LEN) {
-		ast_log(LOG_WARNING, "SRTP descriptions key %d != %d\n", key_len, SRTP_MASTER_LEN);
+	key_len = ast_base64decode(remote_key, key_salt, sizeof(remote_key));
+	if (key_len != SRTP_MASTER_LEN) {
+		ast_log(LOG_WARNING, "SRTP descriptions key length '%d' != master length '%d'\n",
+			key_len, SRTP_MASTER_LEN);
 		return -1;
 	}
 
@@ -294,15 +356,6 @@ int ast_sdp_crypto_process(struct ast_rtp_instance *rtp, struct ast_sdp_srtp *sr
 
 	if (crypto_activate(crypto, suite_val, remote_key, rtp) < 0) {
 		return -1;
-	}
-
-	if (!crypto->tag) {
-		ast_debug(1, "Accepting crypto tag %s\n", tag);
-		crypto->tag = ast_strdup(tag);
-		if (!crypto->tag) {
-			ast_log(LOG_ERROR, "Could not allocate memory for tag\n");
-			return -1;
-		}
 	}
 
 	/* Finally, rebuild the crypto line */
@@ -321,8 +374,8 @@ int ast_sdp_crypto_build_offer(struct ast_sdp_crypto *p, int taglen)
 		ast_free(p->a_crypto);
 	}
 
-	if (ast_asprintf(&p->a_crypto, "%s AES_CM_128_HMAC_SHA1_%i inline:%s",
-			 p->tag ? p->tag : "1", taglen, p->local_key64) == -1) {
+	if (ast_asprintf(&p->a_crypto, "%d AES_CM_128_HMAC_SHA1_%i inline:%s",
+			 p->tag, taglen, p->local_key64) == -1) {
 			ast_log(LOG_ERROR, "Could not allocate memory for crypto line\n");
 		return -1;
 	}
