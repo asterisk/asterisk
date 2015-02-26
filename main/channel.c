@@ -2824,14 +2824,14 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay)
 				}
 			}
 
-			if (res == 0) {
-				ast_channel_lock(chan);
-				while ((cur = AST_LIST_REMOVE_HEAD(&frames, frame_list))) {
+			ast_channel_lock(chan);
+			while ((cur = AST_LIST_REMOVE_HEAD(&frames, frame_list))) {
+				if (res == 0) {
 					ast_queue_frame_head(chan, cur);
-					ast_frfree(cur);
 				}
-				ast_channel_unlock(chan);
+				ast_frfree(cur);
 			}
+			ast_channel_unlock(chan);
 		} while (0);
 		break;
 	default:
