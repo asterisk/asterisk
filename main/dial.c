@@ -206,6 +206,7 @@ static const struct ast_option_types option_types[] = {
 	{ AST_DIAL_OPTION_DISABLE_CALL_FORWARDING, NULL, NULL },                  /*!< Disable call forwarding on channels */
 	{ AST_DIAL_OPTION_PREDIAL, predial_enable, predial_disable },             /*!< Execute a subroutine on the outbound channels prior to dialing */
 	{ AST_DIAL_OPTION_DIAL_REPLACES_SELF, NULL, NULL },                       /*!< The dial operation is a replacement for the requester */
+	{ AST_DIAL_OPTION_SELF_DESTROY, NULL, NULL},                              /*!< Destroy self at end of ast_dial_run */
 	{ AST_DIAL_OPTION_MAX, NULL, NULL },                                      /*!< Terminator of list */
 };
 
@@ -887,6 +888,13 @@ static enum ast_dial_result monitor_dial(struct ast_dial *dial, struct ast_chann
 			channel->owner = NULL;
 		}
 		AST_LIST_UNLOCK(&dial->channels);
+	}
+
+	if (dial->options[AST_DIAL_OPTION_SELF_DESTROY]) {
+		enum ast_dial_result state = dial->state;
+
+		ast_dial_destroy(dial);
+		return state;
 	}
 
 	return dial->state;
