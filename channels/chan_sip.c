@@ -25806,11 +25806,13 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 
 				switch(result) {
 				case AST_PBX_FAILED:
+					sip_alreadygone(p);
 					ast_log(LOG_WARNING, "Failed to start PBX :(\n");
 					p->invitestate = INV_COMPLETED;
 					transmit_response_reliable(p, "503 Unavailable", req);
 					break;
 				case AST_PBX_CALL_LIMIT:
+					sip_alreadygone(p);
 					ast_log(LOG_WARNING, "Failed to start PBX (call limit reached) \n");
 					p->invitestate = INV_COMPLETED;
 					transmit_response_reliable(p, "480 Temporarily Unavailable", req);
