@@ -20,7 +20,7 @@ all: _all
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
 ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
-  LIBS+= -lres_monitor.so -lres_features.so
+  LIBS+= -lres_monitor.so
 endif
 
 clean::
