@@ -882,32 +882,47 @@ struct ast_json *ast_json_party_id(struct ast_party_id *party)
 	return ast_json_ref(json_party_id);
 }
 
-int ast_json_to_ast_variables(struct ast_json *json_variables, struct ast_variable **variables)
+enum ast_json_to_ast_vars_code ast_json_to_ast_variables(struct ast_json *json_variables, struct ast_variable **variables)
 {
 	struct ast_json_iter *it_json_var;
 
 	*variables = NULL;
 
 	for (it_json_var = ast_json_object_iter(json_variables); it_json_var;
-		 it_json_var = ast_json_object_iter_next(json_variables, it_json_var)) {
+		it_json_var = ast_json_object_iter_next(json_variables, it_json_var)) {
 		struct ast_variable *new_var;
 		const char *key = ast_json_object_iter_key(it_json_var);
+		const char *value;
+		struct ast_json *json_value;
 
 		if (ast_strlen_zero(key)) {
 			continue;
 		}
 
-		new_var = ast_variable_new(key,
-		                           ast_json_string_get(ast_json_object_iter_value(it_json_var)),
-		                           "");
-		if (!new_var) {
+		json_value = ast_json_object_iter_value(it_json_var);
+		if (ast_json_typeof(json_value) != AST_JSON_STRING) {
+			/* Error: Only strings allowed */
 			ast_variables_destroy(*variables);
 			*variables = NULL;
-			return -1;
+			return AST_JSON_TO_AST_VARS_CODE_INVALID_TYPE;
+		}
+		value = ast_json_string_get(json_value);
+		/* Should never be NULL.  Otherwise, how could it be a string type? */
+		ast_assert(value != NULL);
+		if (!value) {
+			/* To be safe. */
+			continue;
+		}
+		new_var = ast_variable_new(key, value, "");
+		if (!new_var) {
+			/* Error: OOM */
+			ast_variables_destroy(*variables);
+			*variables = NULL;
+			return AST_JSON_TO_AST_VARS_CODE_OOM;
 		}
 
 		ast_variable_list_append(variables, new_var);
 	}
 
-	return 0;
+	return AST_JSON_TO_AST_VARS_CODE_SUCCESS;
 }

@@ -181,6 +181,7 @@ static void ast_ari_endpoints_send_message_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 400: /* Invalid parameters for sending a message. */
 	case 404: /* Endpoint not found */
 		is_valid = 1;
 		break;

@@ -64,6 +64,10 @@
 					],
 					"errorResponses": [
 						{
+							"code": 400,
+							"reason": "Invalid parameters for sending a message."
+						},
+						{
 							"code": 404,
 							"reason": "Endpoint not found"
 						}
