@@ -1147,11 +1147,44 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 	return;
 }
 
+/*!
+ * \internal
+ * \brief Convert a \c ast_json list of key/value pair tuples into a \c ast_variable list
+ * \since 13.3.0
+ *
+ * \param[out] response HTTP response if error
+ * \param json_variables The JSON blob containing the variable
+ * \param[out] variables An out reference to the variables to populate.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int json_to_ast_variables(struct ast_ari_response *response, struct ast_json *json_variables, struct ast_variable **variables)
+{
+	enum ast_json_to_ast_vars_code res;
+
+	res = ast_json_to_ast_variables(json_variables, variables);
+	switch (res) {
+	case AST_JSON_TO_AST_VARS_CODE_SUCCESS:
+		return 0;
+	case AST_JSON_TO_AST_VARS_CODE_INVALID_TYPE:
+		ast_ari_response_error(response, 400, "Bad Request",
+			"Only string values in the 'variables' object allowed");
+		break;
+	case AST_JSON_TO_AST_VARS_CODE_OOM:
+		ast_ari_response_alloc_failed(response);
+		break;
+	}
+	ast_log(AST_LOG_ERROR, "Unable to convert 'variables' in JSON body to channel variables\n");
+
+	return -1;
+}
+
 void ast_ari_channels_originate_with_id(struct ast_variable *headers,
 	struct ast_ari_channels_originate_with_id_args *args,
 	struct ast_ari_response *response)
 {
-	RAII_VAR(struct ast_variable *, variables, NULL, ast_variables_destroy);
+	struct ast_variable *variables = NULL;
 
 	/* Parse any query parameters out of the body parameter */
 	if (args->variables) {
@@ -1159,12 +1192,9 @@ void ast_ari_channels_originate_with_id(struct ast_variable *headers,
 
 		ast_ari_channels_originate_with_id_parse_body(args->variables, args);
 		json_variables = ast_json_object_get(args->variables, "variables");
-		if (json_variables) {
-			if (ast_json_to_ast_variables(json_variables, &variables)) {
-				ast_log(AST_LOG_ERROR, "Unable to convert 'variables' in JSON body to channel variables\n");
-				ast_ari_response_alloc_failed(response);
-				return;
-			}
+		if (json_variables
+			&& json_to_ast_variables(response, json_variables, &variables)) {
+			return;
 		}
 	}
 
@@ -1183,13 +1213,14 @@ void ast_ari_channels_originate_with_id(struct ast_variable *headers,
 		args->other_channel_id,
 		args->originator,
 		response);
+	ast_variables_destroy(variables);
 }
 
 void ast_ari_channels_originate(struct ast_variable *headers,
 	struct ast_ari_channels_originate_args *args,
 	struct ast_ari_response *response)
 {
-	RAII_VAR(struct ast_variable *, variables, NULL, ast_variables_destroy);
+	struct ast_variable *variables = NULL;
 
 	/* Parse any query parameters out of the body parameter */
 	if (args->variables) {
@@ -1197,12 +1228,9 @@ void ast_ari_channels_originate(struct ast_variable *headers,
 
 		ast_ari_channels_originate_parse_body(args->variables, args);
 		json_variables = ast_json_object_get(args->variables, "variables");
-		if (json_variables) {
-			if (ast_json_to_ast_variables(json_variables, &variables)) {
-				ast_log(AST_LOG_ERROR, "Unable to convert 'variables' in JSON body to channel variables\n");
-				ast_ari_response_alloc_failed(response);
-				return;
-			}
+		if (json_variables
+			&& json_to_ast_variables(response, json_variables, &variables)) {
+			return;
 		}
 	}
 
@@ -1221,6 +1249,7 @@ void ast_ari_channels_originate(struct ast_variable *headers,
 		args->other_channel_id,
 		args->originator,
 		response);
+	ast_variables_destroy(variables);
 }
 
 void ast_ari_channels_get_channel_var(struct ast_variable *headers,
