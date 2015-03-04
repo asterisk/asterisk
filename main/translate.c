@@ -1484,7 +1484,9 @@ static void translate_shutdown(void)
 		ast_free(__matrix[x]);
 	}
 	ast_free(__matrix);
+	__matrix = NULL;
 	ast_free(__indextable);
+	__indextable = NULL;
 	ast_rwlock_unlock(&tablelock);
 	ast_rwlock_destroy(&tablelock);
 }
@@ -1495,6 +1497,6 @@ int ast_translate_init(void)
 	ast_rwlock_init(&tablelock);
 	res = matrix_resize(1);
 	res |= ast_cli_register_multiple(cli_translate, ARRAY_LEN(cli_translate));
-	ast_register_atexit(translate_shutdown);
+	ast_register_cleanup(translate_shutdown);
 	return res;
 }
