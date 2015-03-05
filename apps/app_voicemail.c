@@ -2358,7 +2358,6 @@ static int __messagecount(const char *context, const char *mailbox, const char *
 		free_user(vmu);
 		return -1;
 	}
-	ast_assert(msgnum < vms->msg_array_max);
 
 	/* check if someone is accessing this box right now... */
 	vms_p = get_vm_state_by_imapuser(vmu->imapuser, 1);
