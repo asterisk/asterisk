@@ -408,7 +408,7 @@ struct refer_attended {
 	/*! \brief Transferer channel */
 	struct ast_channel *transferer_chan;
 	/*! \brief Second transferer session */
-	struct ast_sip_session *transferer_second	;
+	struct ast_sip_session *transferer_second;
 	/*! \brief Optional refer progress structure */
 	struct refer_progress *progress;
 };
@@ -425,11 +425,14 @@ static void refer_attended_destroy(void *obj)
 }
 
 /*! \brief Allocator for attended transfer task */
-static struct refer_attended *refer_attended_alloc(struct ast_sip_session *transferer, struct ast_sip_session *transferer_second,
+static struct refer_attended *refer_attended_alloc(struct ast_sip_session *transferer,
+	struct ast_sip_session *transferer_second,
 	struct refer_progress *progress)
 {
-	struct refer_attended *attended = ao2_alloc(sizeof(*attended), refer_attended_destroy);
+	struct refer_attended *attended;
 
+	attended = ao2_alloc_options(sizeof(*attended), refer_attended_destroy,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!attended) {
 		return NULL;
 	}
