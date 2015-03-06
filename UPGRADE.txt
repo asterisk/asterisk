@@ -20,6 +20,14 @@
 ===
 ===========================================================
 
+from 11.16 to 11.17
+chan_dahdi:
+ - For users using the FXO port (FXS signaling) distinctive ring detection
+   feature, you will need to adjust the dringX count values.  The count
+   values now only record ring end events instead of any DAHDI event.  A
+   ring-ring-ring pattern would exceed the pattern limits and stop
+   Caller-ID detection.
+
 from 11.15 to 11.16
 chan_dahdi:
  - The CALLERID(ani2) value for incoming calls is now populated in featdmf
