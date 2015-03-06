@@ -1636,6 +1636,9 @@ static void analog_decrease_ss_count(void)
 
 static int analog_distinctive_ring(struct ast_channel *chan, struct analog_pvt *p, int idx, int *ringdata)
 {
+	if (!p->usedistinctiveringdetection) {
+		return 0;
+	}
 	if (analog_callbacks.distinctive_ring) {
 		return analog_callbacks.distinctive_ring(chan, p->chan_pvt, idx, ringdata);
 	}
@@ -2453,50 +2456,53 @@ static void *__analog_ss_thread(void *data)
 
 			/* If set to use V23 Signalling, launch our FSK gubbins and listen for it */
 			} else if ((p->cid_signalling == CID_SIG_V23) || (p->cid_signalling == CID_SIG_V23_JP)) {
-				int timeout = 10000;  /* Ten seconds */
-				struct timeval start = ast_tvnow();
-				enum analog_event ev;
-
 				namebuf[0] = 0;
 				numbuf[0] = 0;
 
 				if (!analog_start_cid_detect(p, p->cid_signalling)) {
+					int timeout = 10000;  /* Ten seconds */
+					struct timeval start = ast_tvnow();
+					enum analog_event ev;
 					int off_ms;
 					int ms;
 					struct timeval off_start;
-					while (1) {
-						res = analog_get_callerid(p, namebuf, numbuf, &ev, timeout - ast_tvdiff_ms(ast_tvnow(), start));
 
+					if (!p->usedistinctiveringdetection) {
+						/* Disable distinctive ring timeout count */
+						analog_set_ringtimeout(p, 0);
+					}
+					while ((ms = ast_remaining_ms(start, timeout))) {
+						res = analog_get_callerid(p, namebuf, numbuf, &ev, ms);
+						if (res < 0) {
+							ast_log(LOG_WARNING,
+								"CallerID returned with error on channel '%s'\n",
+								ast_channel_name(chan));
+							break;
+						}
 						if (res == 0) {
 							break;
 						}
-
-						if (res == 1) {
-							if (ev == ANALOG_EVENT_NOALARM) {
-								analog_set_alarm(p, 0);
-							}
-							if (p->cid_signalling == CID_SIG_V23_JP) {
-								if (ev == ANALOG_EVENT_RINGBEGIN) {
-									analog_off_hook(p);
-									usleep(1);
-								}
-							} else {
-								ev = ANALOG_EVENT_NONE;
-								break;
-							}
+						if (res != 1) {
+							continue;
 						}
-
-						if (ast_tvdiff_ms(ast_tvnow(), start) > timeout)
+						if (ev == ANALOG_EVENT_NOALARM) {
+							analog_set_alarm(p, 0);
+						}
+						if (p->cid_signalling == CID_SIG_V23_JP) {
+							if (ev == ANALOG_EVENT_RINGBEGIN) {
+								analog_off_hook(p);
+								usleep(1);
+							}
+						} else {
 							break;
-
+						}
 					}
+
 					name = namebuf;
 					number = numbuf;
 
-					analog_stop_cid_detect(p);
-
 					if (p->cid_signalling == CID_SIG_V23_JP) {
-						res = analog_on_hook(p);
+						analog_on_hook(p);
 						usleep(1);
 					}
 
@@ -2510,11 +2516,13 @@ static void *__analog_ss_thread(void *data)
 						if (res <= 0) {
 							ast_log(LOG_WARNING,
 								"CID timed out waiting for ring. Exiting simple switch\n");
+							analog_stop_cid_detect(p);
 							ast_hangup(chan);
 							goto quit;
 						}
 						if (!(f = ast_read(chan))) {
 							ast_log(LOG_WARNING, "Hangup received waiting for ring. Exiting simple switch\n");
+							analog_stop_cid_detect(p);
 							ast_hangup(chan);
 							goto quit;
 						}
@@ -2524,12 +2532,10 @@ static void *__analog_ss_thread(void *data)
 							break; /* Got ring */
 					}
 
-					if (analog_distinctive_ring(chan, p, idx, NULL)) {
+					res = analog_distinctive_ring(chan, p, idx, NULL);
+					analog_stop_cid_detect(p);
+					if (res) {
 						goto quit;
-					}
-
-					if (res < 0) {
-						ast_log(LOG_WARNING, "CallerID returned with error on channel '%s'\n", ast_channel_name(chan));
 					}
 				} else {
 					ast_log(LOG_WARNING, "Unable to get caller ID space\n");
@@ -2542,65 +2548,66 @@ static void *__analog_ss_thread(void *data)
 				goto quit;
 			}
 		} else if (p->use_callerid && p->cid_start == ANALOG_CID_START_RING) {
-			int timeout = 10000;  /* Ten seconds */
-			struct timeval start = ast_tvnow();
-			enum analog_event ev;
-			int curRingData[RING_PATTERNS] = { 0 };
-			int receivedRingT = 0;
-
 			namebuf[0] = 0;
 			numbuf[0] = 0;
 
 			if (!analog_start_cid_detect(p, p->cid_signalling)) {
-				while (1) {
-					res = analog_get_callerid(p, namebuf, numbuf, &ev, timeout - ast_tvdiff_ms(ast_tvnow(), start));
+				int timeout = 10000;  /* Ten seconds */
+				struct timeval start = ast_tvnow();
+				enum analog_event ev;
+				int ring_data[RING_PATTERNS] = { 0 };
+				int ring_data_idx = 0;
+				int ms;
 
+				if (!p->usedistinctiveringdetection) {
+					/* Disable distinctive ring timeout count */
+					analog_set_ringtimeout(p, 0);
+				}
+				while ((ms = ast_remaining_ms(start, timeout))) {
+					res = analog_get_callerid(p, namebuf, numbuf, &ev, ms);
+					if (res < 0) {
+						ast_log(LOG_WARNING,
+							"CallerID returned with error on channel '%s'\n",
+							ast_channel_name(chan));
+						break;
+					}
 					if (res == 0) {
 						break;
 					}
-
-					if (res == 1 || res == 2) {
-						if (ev == ANALOG_EVENT_NOALARM) {
-							analog_set_alarm(p, 0);
-						} else if (ev == ANALOG_EVENT_POLARITY && p->hanguponpolarityswitch && p->polarity == POLARITY_REV) {
-							ast_debug(1, "Hanging up due to polarity reversal on channel %d while detecting callerid\n", p->channel);
-							p->polarity = POLARITY_IDLE;
-							ast_hangup(chan);
-							goto quit;
-						} else if (ev != ANALOG_EVENT_NONE && ev != ANALOG_EVENT_RINGBEGIN && ev != ANALOG_EVENT_RINGOFFHOOK) {
-							break;
-						}
-						if (res != 2) {
-							/* Let us detect callerid when the telco uses distinctive ring */
-							curRingData[receivedRingT] = p->ringt;
-
-							if (p->ringt < p->ringt_base/2) {
-								break;
-							}
-							/* Increment the ringT counter so we can match it against
-							   values in chan_dahdi.conf for distinctive ring */
-							if (++receivedRingT == RING_PATTERNS) {
-								break;
-							}
-						}
+					if (res != 1) {
+						continue;
 					}
-
-					if (ast_tvdiff_ms(ast_tvnow(), start) > timeout) {
-						break;
+					if (ev == ANALOG_EVENT_NOALARM) {
+						analog_set_alarm(p, 0);
+					} else if (ev == ANALOG_EVENT_POLARITY
+						&& p->hanguponpolarityswitch
+						&& p->polarity == POLARITY_REV) {
+						ast_debug(1,
+							"Hanging up due to polarity reversal on channel %d while detecting callerid\n",
+							p->channel);
+						p->polarity = POLARITY_IDLE;
+						analog_stop_cid_detect(p);
+						ast_hangup(chan);
+						goto quit;
+					} else if (ev == ANALOG_EVENT_RINGOFFHOOK
+						&& p->usedistinctiveringdetection
+						&& ring_data_idx < RING_PATTERNS) {
+						/*
+						 * Detect callerid while collecting possible
+						 * distinctive ring pattern.
+						 */
+						ring_data[ring_data_idx] = p->ringt;
+						++ring_data_idx;
 					}
-
 				}
+
 				name = namebuf;
 				number = numbuf;
 
+				res = analog_distinctive_ring(chan, p, idx, ring_data);
 				analog_stop_cid_detect(p);
-
-				if (analog_distinctive_ring(chan, p, idx, curRingData)) {
+				if (res) {
 					goto quit;
-				}
-
-				if (res < 0) {
-					ast_log(LOG_WARNING, "CallerID returned with error on channel '%s'\n", ast_channel_name(chan));
 				}
 			} else {
 				ast_log(LOG_WARNING, "Unable to get caller ID space\n");

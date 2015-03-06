@@ -22,6 +22,14 @@
 === UPGRADE-13.txt  -- Upgrade info for 12 to 13
 ===========================================================
 
+Channel Drivers:
+
+chan_dahdi:
+ - For users using the FXO port (FXS signaling) distinctive ring detection
+   feature, you will need to adjust the dringX count values.  The count
+   values now only record ring end events instead of any DAHDI event.  A
+   ring-ring-ring pattern would exceed the pattern limits and stop
+   Caller-ID detection.
 
 ===========================================================
 ===========================================================

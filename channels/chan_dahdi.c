@@ -1301,13 +1301,21 @@ static int my_start_cid_detect(void *pvt, int cid_signalling)
 	return 0;
 }
 
+static int restore_gains(struct dahdi_pvt *p);
+
 static int my_stop_cid_detect(void *pvt)
 {
 	struct dahdi_pvt *p = pvt;
 	int index = SUB_REAL;
-	if (p->cs)
+
+	if (p->cs) {
 		callerid_free(p->cs);
+	}
+
+	/* Restore linear mode after Caller*ID processing */
 	dahdi_setlinear(p->subs[index].dfd, p->subs[index].linear);
+	restore_gains(p);
+
 	return 0;
 }
 
@@ -1383,7 +1391,6 @@ static int my_get_callerid(void *pvt, char *namebuf, char *numbuf, enum analog_e
 }
 
 static const char *event2str(int event);
-static int restore_gains(struct dahdi_pvt *p);
 
 static int my_distinctive_ring(struct ast_channel *chan, void *pvt, int idx, int *ringdata)
 {
@@ -1396,7 +1403,7 @@ static int my_distinctive_ring(struct ast_channel *chan, void *pvt, int idx, int
 	int i;
 	int res;
 	int checkaftercid = 0;
-
+	const char *matched_context;
 	struct dahdi_pvt *p = pvt;
 	struct analog_pvt *analog_p = p->sig_pvt;
 
@@ -1406,19 +1413,15 @@ static int my_distinctive_ring(struct ast_channel *chan, void *pvt, int idx, int
 		checkaftercid = 1;
 	}
 
-	/* We must have a ring by now, so, if configured, lets try to listen for
-	 * distinctive ringing */
+	/* We must have a ring by now so lets try to listen for distinctive ringing */
 	if ((checkaftercid && distinctiveringaftercid) || !checkaftercid) {
 		/* Clear the current ring data array so we don't have old data in it. */
 		for (receivedRingT = 0; receivedRingT < RING_PATTERNS; receivedRingT++)
 			ringdata[receivedRingT] = 0;
 		receivedRingT = 0;
-		if (checkaftercid && distinctiveringaftercid)
+
+		if (checkaftercid && distinctiveringaftercid) {
 			ast_verb(3, "Detecting post-CID distinctive ring\n");
-		/* Check to see if context is what it should be, if not set to be. */
-		else if (strcmp(p->context,p->defcontext) != 0) {
-			ast_copy_string(p->context, p->defcontext, sizeof(p->context));
-			ast_channel_context_set(chan, p->defcontext);
 		}
 
 		for (;;) {
@@ -1431,22 +1434,23 @@ static int my_distinctive_ring(struct ast_channel *chan, void *pvt, int idx, int
 			}
 			if (i & DAHDI_IOMUX_SIGEVENT) {
 				res = dahdi_get_event(p->subs[idx].dfd);
+				ast_debug(3, "Got event %d (%s)...\n", res, event2str(res));
 				if (res == DAHDI_EVENT_NOALARM) {
 					p->inalarm = 0;
 					analog_p->inalarm = 0;
+				} else if (res == DAHDI_EVENT_RINGOFFHOOK) {
+					/* Let us detect distinctive ring */
+					ringdata[receivedRingT] = analog_p->ringt;
+
+					if (analog_p->ringt < analog_p->ringt_base / 2) {
+						break;
+					}
+					/* Increment the ringT counter so we can match it against
+					   values in chan_dahdi.conf for distinctive ring */
+					if (++receivedRingT == RING_PATTERNS) {
+						break;
+					}
 				}
-				ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
-				res = 0;
-				/* Let us detect distinctive ring */
-
-				ringdata[receivedRingT] = analog_p->ringt;
-
-				if (analog_p->ringt < analog_p->ringt_base/2)
-					break;
-				/* Increment the ringT counter so we can match it against
-				   values in chan_dahdi.conf for distinctive ring */
-				if (++receivedRingT == RING_PATTERNS)
-					break;
 			} else if (i & DAHDI_IOMUX_READ) {
 				res = read(p->subs[idx].dfd, buf, sizeof(buf));
 				if (res < 0) {
@@ -1465,44 +1469,49 @@ static int my_distinctive_ring(struct ast_channel *chan, void *pvt, int idx, int
 			}
 		}
 	}
-	if ((checkaftercid && usedistinctiveringdetection) || !checkaftercid) {
-		/* this only shows up if you have n of the dring patterns filled in */
-		ast_verb(3, "Detected ring pattern: %d,%d,%d\n",ringdata[0],ringdata[1],ringdata[2]);
-		for (counter = 0; counter < 3; counter++) {
-		/* Check to see if the rings we received match any of the ones in chan_dahdi.conf for this channel */
-			distMatches = 0;
-			/* this only shows up if you have n of the dring patterns filled in */
-			ast_verb(3, "Checking %d,%d,%d\n",
-					p->drings.ringnum[counter].ring[0],
-					p->drings.ringnum[counter].ring[1],
-					p->drings.ringnum[counter].ring[2]);
-			for (counter1 = 0; counter1 < 3; counter1++) {
-				ast_verb(3, "Ring pattern check range: %d\n", p->drings.ringnum[counter].range);
-				if (p->drings.ringnum[counter].ring[counter1] == -1) {
-					ast_verb(3, "Pattern ignore (-1) detected, so matching pattern %d regardless.\n",
-					ringdata[counter1]);
-					distMatches++;
-				} else if (ringdata[counter1] <= (p->drings.ringnum[counter].ring[counter1] + p->drings.ringnum[counter].range) &&
-										ringdata[counter1] >= (p->drings.ringnum[counter].ring[counter1] - p->drings.ringnum[counter].range)) {
-					ast_verb(3, "Ring pattern matched in range: %d to %d\n",
-					(p->drings.ringnum[counter].ring[counter1] - p->drings.ringnum[counter].range),
-					(p->drings.ringnum[counter].ring[counter1] + p->drings.ringnum[counter].range));
-					distMatches++;
-				}
-			}
 
-			if (distMatches == 3) {
-				/* The ring matches, set the context to whatever is for distinctive ring.. */
-				ast_copy_string(p->context, S_OR(p->drings.ringContext[counter].contextData, p->defcontext), sizeof(p->context));
-				ast_channel_context_set(chan, S_OR(p->drings.ringContext[counter].contextData, p->defcontext));
-				ast_verb(3, "Distinctive Ring matched context %s\n",p->context);
+	/* Check to see if the rings we received match any of the ones in chan_dahdi.conf for this channel */
+	ast_verb(3, "Detected ring pattern: %d,%d,%d\n", ringdata[0], ringdata[1], ringdata[2]);
+	matched_context = p->defcontext;
+	for (counter = 0; counter < 3; counter++) {
+		int range = p->drings.ringnum[counter].range;
+
+		distMatches = 0;
+		ast_verb(3, "Checking %d,%d,%d with +/- %d range\n",
+			p->drings.ringnum[counter].ring[0],
+			p->drings.ringnum[counter].ring[1],
+			p->drings.ringnum[counter].ring[2],
+			range);
+		for (counter1 = 0; counter1 < 3; counter1++) {
+			int ring = p->drings.ringnum[counter].ring[counter1];
+
+			if (ring == -1) {
+				ast_verb(3, "Pattern ignore (-1) detected, so matching pattern %d regardless.\n",
+					ringdata[counter1]);
+				distMatches++;
+			} else if (ring - range <= ringdata[counter1] && ringdata[counter1] <= ring + range) {
+				ast_verb(3, "Ring pattern %d is in range: %d to %d\n",
+					ringdata[counter1], ring - range, ring + range);
+				distMatches++;
+			} else {
+				/* The current dring pattern cannot match. */
 				break;
 			}
 		}
+
+		if (distMatches == 3) {
+			/* The ring matches, set the context to whatever is for distinctive ring.. */
+			matched_context = S_OR(p->drings.ringContext[counter].contextData, p->defcontext);
+			ast_verb(3, "Matched Distinctive Ring context %s\n", matched_context);
+			break;
+		}
 	}
-	/* Restore linear mode (if appropriate) for Caller*ID processing */
-	dahdi_setlinear(p->subs[idx].dfd, p->subs[idx].linear);
-	restore_gains(p);
+
+	/* Set selected distinctive ring context if not already set. */
+	if (strcmp(p->context, matched_context) != 0) {
+		ast_copy_string(p->context, matched_context, sizeof(p->context));
+		ast_channel_context_set(chan, matched_context);
+	}
 
 	return 0;
 }
@@ -12788,6 +12797,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 				analog_p->transfer = conf->chan.transfer;
 				analog_p->transfertobusy = conf->chan.transfertobusy;
 				analog_p->use_callerid = tmp->use_callerid;
+				analog_p->usedistinctiveringdetection = tmp->usedistinctiveringdetection;
 				analog_p->use_smdi = tmp->use_smdi;
 				analog_p->smdi_iface = tmp->smdi_iface;
 				analog_p->outsigmod = ANALOG_SIG_NONE;

@@ -447,7 +447,7 @@ struct dahdi_pvt {
 	 */
 	char description[32];
 	/*!
-	 * \brief Saved context string.
+	 * \brief Default distinctive ring context.
 	 */
 	char defcontext[AST_MAX_CONTEXT];
 	/*! \brief Extension to use in the dialplan. */
