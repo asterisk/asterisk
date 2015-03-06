@@ -16020,6 +16020,17 @@ static int sip_poke_peer_s(const void *data)
 	return 0;
 }
 
+static int sip_poke_peer_now(const void *data)
+{
+	struct sip_peer *peer = (struct sip_peer *) data;
+
+	peer->pokeexpire = -1;
+	sip_poke_peer(peer, 0);
+	sip_unref_peer(peer, "removing poke peer ref");
+
+	return 0;
+}
+
 /*! \brief Get registration details from Asterisk DB */
 static void reg_source_db(struct sip_peer *peer)
 {
@@ -20697,24 +20708,33 @@ static char *sip_show_user(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 static char *sip_show_sched(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_str *cbuf;
-	struct ast_cb_names cbnames = {9, { "retrans_pkt",
-                                        "__sip_autodestruct",
-                                        "expire_register",
-                                        "auto_congest",
-                                        "sip_reg_timeout",
-                                        "sip_poke_peer_s",
-                                        "sip_poke_noanswer",
-                                        "sip_reregister",
-                                        "sip_reinvite_retry"},
-								   { retrans_pkt,
-                                     __sip_autodestruct,
-                                     expire_register,
-                                     auto_congest,
-                                     sip_reg_timeout,
-                                     sip_poke_peer_s,
-                                     sip_poke_noanswer,
-                                     sip_reregister,
-                                     sip_reinvite_retry}};
+	struct ast_cb_names cbnames = {
+		10,
+		{
+			"retrans_pkt",
+			"__sip_autodestruct",
+			"expire_register",
+			"auto_congest",
+			"sip_reg_timeout",
+			"sip_poke_peer_s",
+			"sip_poke_peer_now",
+			"sip_poke_noanswer",
+			"sip_reregister",
+			"sip_reinvite_retry"
+		},
+		{
+			retrans_pkt,
+			__sip_autodestruct,
+			expire_register,
+			auto_congest,
+			sip_reg_timeout,
+			sip_poke_peer_s,
+			sip_poke_peer_now,
+			sip_poke_noanswer,
+			sip_reregister,
+			sip_reinvite_retry
+		}
+	};
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -31102,7 +31122,17 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 
 		/* Startup regular pokes */
 		if (!devstate_only && enablepoke) {
-			sip_poke_peer(peer, 0);
+			/*
+			 * We cannot poke the peer now in this thread without
+			 * a lock inversion so pass it off to the scheduler
+			 * thread.
+			 */
+			AST_SCHED_REPLACE_UNREF(peer->pokeexpire, sched,
+				0, /* Poke the peer ASAP */
+				sip_poke_peer_now, peer,
+				sip_unref_peer(_data, "removing poke peer ref"),
+				sip_unref_peer(peer, "removing poke peer ref"),
+				sip_ref_peer(peer, "adding poke peer ref"));
 		}
 	}
 
