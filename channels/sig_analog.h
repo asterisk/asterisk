@@ -281,6 +281,7 @@ struct analog_pvt {
 	unsigned int transfer:1;
 	unsigned int transfertobusy:1;			/*!< allow flash-transfers to busy channels */
 	unsigned int use_callerid:1;			/*!< Whether or not to use caller id on this channel */
+	unsigned int usedistinctiveringdetection:1;
 	unsigned int callwaitingcallerid:1;		/*!< TRUE if send caller ID for Call Waiting */
 	/*!
 	 * \brief TRUE if SMDI (Simplified Message Desk Interface) is enabled
