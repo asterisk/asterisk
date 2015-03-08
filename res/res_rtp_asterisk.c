@@ -4994,7 +4994,7 @@ static int ast_rtp_activate(struct ast_rtp_instance *instance)
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
 	/* If ICE negotiation is enabled the DTLS Handshake will be performed upon completion of it */
-#ifdef USE_PJPROJECT
+#ifdef HAVE_PJPROJECT
 	if (rtp->ice) {
 		return 0;
 	}
