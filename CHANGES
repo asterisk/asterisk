@@ -26,6 +26,13 @@ res_ari_channels
    technologies, this is either a 302 Redirect response to an on-going INVITE
    dialog or a SIP REFER request.
 
+res_pjsip
+------------------
+ * A new 'endpoint_identifier_order' option has been added that allows one to
+   set the order by which endpoint identifiers are processed and checked. This
+   option is specified under the 'global' type configuration section.
+
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.1.0 to Asterisk 13.2.0 ------------
 ------------------------------------------------------------------------------
