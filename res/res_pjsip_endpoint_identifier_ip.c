@@ -150,6 +150,7 @@ static struct ast_sip_endpoint *ip_identify(pjsip_rx_data *rdata)
 }
 
 static struct ast_sip_endpoint_identifier ip_identifier = {
+	.name = "ip",
 	.identify_endpoint = ip_identify,
 };
 

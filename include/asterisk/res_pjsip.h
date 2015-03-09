@@ -699,6 +699,8 @@ struct ast_sip_outbound_authenticator {
  * \brief An entity responsible for identifying the source of a SIP message
  */
 struct ast_sip_endpoint_identifier {
+    /*! Name of the endpoint identifier */
+    const char *name;
     /*!
      * \brief Callback used to identify the source of a message.
      * See ast_sip_identify_endpoint for more details
@@ -1971,6 +1973,15 @@ void ast_sip_unregister_supplement(struct ast_sip_supplement *supplement);
  * \retval the system debug setting.
  */
 char *ast_sip_get_debug(void);
+
+/*!
+ * \brief Retrieve the global endpoint_identifier_order setting.
+ *
+ * Specifies the order by which endpoint identifiers should be regarded.
+ *
+ * \retval the global endpoint_identifier_order value
+ */
+char *ast_sip_get_endpoint_identifier_order(void);
 
 /*! \brief Determines whether the res_pjsip module is loaded */
 #define CHECK_PJSIP_MODULE_LOADED()				\
