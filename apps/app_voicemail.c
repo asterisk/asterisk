@@ -2085,6 +2085,8 @@ static int imap_retrieve_greeting(const char *dir, const int msgnum, struct ast_
 	char *attachment;
 	int i;
 	BODY *body;
+	int ret = 0;
+	int curr_mbox;
 
 	/* This function is only used for retrieval of IMAP greetings
 	 * regular messages are not retrieved this way, nor are greetings
@@ -2118,6 +2120,10 @@ static int imap_retrieve_greeting(const char *dir, const int msgnum, struct ast_
 	*vms_p->introfn = '\0';
 
 	ast_mutex_lock(&vms_p->lock);
+
+	/* get the current mailbox so that we can point the mailstream back to it later */
+	curr_mbox = get_folder_by_name(vms_p->curbox);
+
 	if (init_mailstream(vms_p, GREETINGS_FOLDER) || !vms_p->mailstream) {
 		ast_log(AST_LOG_ERROR, "IMAP mailstream is NULL or can't init_mailstream\n");
 		ast_mutex_unlock(&vms_p->lock);
@@ -2132,21 +2138,28 @@ static int imap_retrieve_greeting(const char *dir, const int msgnum, struct ast_
 			attachment = ast_strdupa(body->nested.part->next->body.parameter->value);
 		} else {
 			ast_log(AST_LOG_ERROR, "There is no file attached to this IMAP message.\n");
-			ast_mutex_unlock(&vms_p->lock);
-			return -1;
+			ret = -1;
+			break;
 		}
 		filename = strsep(&attachment, ".");
 		if (!strcmp(filename, file)) {
 			ast_copy_string(vms_p->fn, dir, sizeof(vms_p->fn));
 			vms_p->msgArray[vms_p->curmsg] = i + 1;
 			save_body(body, vms_p, "2", attachment, 0);
-			ast_mutex_unlock(&vms_p->lock);
-			return 0;
+			ret = 0;
+			break;
+		}
+	}
+
+	if (curr_mbox != -1) {
+		/* restore previous mbox stream */
+		if (init_mailstream(vms_p, curr_mbox) || !vms_p->mailstream) {
+			ast_log(AST_LOG_ERROR, "IMAP mailstream is NULL or can't init_mailstream\n");
+			ret = -1;
 		}
 	}
 	ast_mutex_unlock(&vms_p->lock);
-
-	return -1;
+	return ret;
 }
 
 static int imap_retrieve_file(const char *dir, const int msgnum, const char *mailbox, const char *context)
@@ -2160,12 +2173,13 @@ static int imap_retrieve_file(const char *dir, const int msgnum, const char *mai
 	FILE *text_file_ptr;
 	int res = 0;
 	struct ast_vm_user *vmu;
+	int curr_mbox;
 
 	if (!(vmu = find_user(NULL, context, mailbox))) {
 		ast_log(LOG_WARNING, "Couldn't find user with mailbox %s@%s\n", mailbox, context);
 		return -1;
 	}
-	
+
 	if (msgnum < 0) {
 		if (imapgreetings) {
 			res = imap_retrieve_greeting(dir, msgnum, vmu);
@@ -2188,6 +2202,19 @@ static int imap_retrieve_file(const char *dir, const int msgnum, const char *mai
 		 * and should have its msgArray properly set up.
 		 */
 		ast_log(LOG_ERROR, "Couldn't find a vm_state for mailbox %s!!! Oh no!\n", vmu->mailbox);
+		res = -1;
+		goto exit;
+	}
+
+	/* Ensure we have the correct mailbox open and have a valid mailstream for it */
+	curr_mbox = get_folder_by_name(vms->curbox);
+	if (curr_mbox < 0) {
+		ast_debug(3, "Mailbox folder curbox not set, defaulting to Inbox\n");
+		curr_mbox = 0;
+	}
+	init_mailstream(vms, curr_mbox);
+	if (!vms->mailstream) {
+		ast_log(AST_LOG_ERROR, "IMAP mailstream for %s is NULL\n", vmu->mailbox);
 		res = -1;
 		goto exit;
 	}
