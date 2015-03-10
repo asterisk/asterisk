@@ -467,9 +467,10 @@ struct ast_endpoint_snapshot *ast_endpoint_snapshot_create(
 
 	channel_count = ao2_container_count(endpoint->channel_ids);
 
-	snapshot = ao2_alloc(
+	snapshot = ao2_alloc_options(
 		sizeof(*snapshot) + channel_count * sizeof(char *),
-		endpoint_snapshot_dtor);
+		endpoint_snapshot_dtor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
 
 	if (ast_string_field_init(snapshot, 80) != 0) {
 		return NULL;

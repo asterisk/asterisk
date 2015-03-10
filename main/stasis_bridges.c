@@ -232,7 +232,8 @@ struct ast_bridge_snapshot *ast_bridge_snapshot_create(struct ast_bridge *bridge
 	RAII_VAR(struct ast_bridge_snapshot *, snapshot, NULL, ao2_cleanup);
 	struct ast_bridge_channel *bridge_channel;
 
-	snapshot = ao2_alloc(sizeof(*snapshot), bridge_snapshot_dtor);
+	snapshot = ao2_alloc_options(sizeof(*snapshot), bridge_snapshot_dtor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!snapshot || ast_string_field_init(snapshot, 128)) {
 		return NULL;
 	}
