@@ -209,7 +209,8 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *cha
 		return NULL;
 	}
 
-	snapshot = ao2_alloc(sizeof(*snapshot), channel_snapshot_dtor);
+	snapshot = ao2_alloc_options(sizeof(*snapshot), channel_snapshot_dtor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!snapshot || ast_string_field_init(snapshot, 1024)) {
 		ao2_cleanup(snapshot);
 		return NULL;
@@ -617,7 +618,8 @@ void ast_multi_channel_blob_add_channel(struct ast_multi_channel_blob *obj, cons
 		return;
 	}
 
-	role_snapshot = ao2_alloc(sizeof(*role_snapshot) + role_len, channel_role_snapshot_dtor);
+	role_snapshot = ao2_alloc_options(sizeof(*role_snapshot) + role_len, channel_role_snapshot_dtor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!role_snapshot) {
 		return;
 	}
