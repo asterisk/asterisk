@@ -141,6 +141,8 @@ struct ast_sip_session {
 	struct ast_dsp *dsp;
 	/*! Whether the termination of the session should be deferred */
 	unsigned int defer_terminate:1;
+	/*! Termination requested while termination deferred */
+	unsigned int terminate_while_deferred:1;
 	/*! Deferred incoming re-invite */
 	pjsip_rx_data *deferred_reinvite;
 	/*! Current T.38 state */
@@ -449,8 +451,18 @@ void ast_sip_session_terminate(struct ast_sip_session *session, int response);
  * \brief Defer local termination of a session until remote side terminates, or an amount of time passes
  *
  * \param session The session to defer termination on
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
  */
-void ast_sip_session_defer_termination(struct ast_sip_session *session);
+int ast_sip_session_defer_termination(struct ast_sip_session *session);
+
+/*!
+ * \brief Cancel a pending deferred termination.
+ *
+ * \param session The session to cancel a deferred termination on.
+ */
+void ast_sip_session_defer_termination_cancel(struct ast_sip_session *session);
 
 /*!
  * \brief Register an SDP handler
