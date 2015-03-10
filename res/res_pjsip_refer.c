@@ -452,20 +452,30 @@ static struct refer_attended *refer_attended_alloc(struct ast_sip_session *trans
 	return attended;
 }
 
-/*! \brief Task for attended transfer */
-static int refer_attended(void *data)
+static int defer_termination_cancel(void *data)
 {
-	RAII_VAR(struct refer_attended *, attended, data, ao2_cleanup);
-	int response = 0;
+	struct ast_sip_session *session = data;
 
-	if (!attended->transferer_second->channel) {
-		return -1;
-	}
+	ast_sip_session_defer_termination_cancel(session);
+	ao2_ref(session, -1);
+	return 0;
+}
 
-	ast_debug(3, "Performing a REFER attended transfer - Transferer #1: %s Transferer #2: %s\n",
-		ast_channel_name(attended->transferer_chan), ast_channel_name(attended->transferer_second->channel));
+/*!
+ * \internal
+ * \brief Convert transfer enum to SIP response code.
+ * \since 13.3.0
+ *
+ * \param xfer_code Core transfer function enum result.
+ *
+ * \return SIP response code
+ */
+static int xfer_response_code2sip(enum ast_transfer_result xfer_code)
+{
+	int response;
 
-	switch (ast_bridge_transfer_attended(attended->transferer_chan, attended->transferer_second->channel)) {
+	response = 503;
+	switch (xfer_code) {
 	case AST_BRIDGE_TRANSFER_INVALID:
 		response = 400;
 		break;
@@ -477,21 +487,55 @@ static int refer_attended(void *data)
 		break;
 	case AST_BRIDGE_TRANSFER_SUCCESS:
 		response = 200;
-		ast_sip_session_defer_termination(attended->transferer);
 		break;
 	}
+	return response;
+}
 
-	ast_debug(3, "Final response for REFER attended transfer - Transferer #1: %s Transferer #2: %s is '%d'\n",
-		ast_channel_name(attended->transferer_chan), ast_channel_name(attended->transferer_second->channel), response);
+/*! \brief Task for attended transfer executed by attended->transferer_second serializer */
+static int refer_attended_task(void *data)
+{
+	struct refer_attended *attended = data;
+	int response;
 
-	if (attended->progress && response) {
-		struct refer_progress_notification *notification = refer_progress_notification_alloc(attended->progress, response, PJSIP_EVSUB_STATE_TERMINATED);
+	if (attended->transferer_second->channel) {
+		ast_debug(3, "Performing a REFER attended transfer - Transferer #1: %s Transferer #2: %s\n",
+			ast_channel_name(attended->transferer_chan),
+			ast_channel_name(attended->transferer_second->channel));
 
+		response = xfer_response_code2sip(ast_bridge_transfer_attended(
+			attended->transferer_chan,
+			attended->transferer_second->channel));
+
+		ast_debug(3, "Final response for REFER attended transfer - Transferer #1: %s Transferer #2: %s is '%d'\n",
+			ast_channel_name(attended->transferer_chan),
+			ast_channel_name(attended->transferer_second->channel),
+			response);
+	} else {
+		ast_debug(3, "Received REFER request on channel '%s' but other channel has gone.\n",
+			ast_channel_name(attended->transferer_chan));
+		response = 603;
+	}
+
+	if (attended->progress) {
+		struct refer_progress_notification *notification;
+
+		notification = refer_progress_notification_alloc(attended->progress, response,
+			PJSIP_EVSUB_STATE_TERMINATED);
 		if (notification) {
 			refer_progress_notify(notification);
 		}
 	}
 
+	if (response != 200) {
+		if (!ast_sip_push_task(attended->transferer->serializer,
+			defer_termination_cancel, attended->transferer)) {
+			/* Gave the ref to the pushed task. */
+			attended->transferer = NULL;
+		}
+	}
+
+	ao2_ref(attended, -1);
 	return 0;
 }
 
@@ -687,8 +731,16 @@ static int refer_incoming_attended_request(struct ast_sip_session *session, pjsi
 			return 500;
 		}
 
+		if (ast_sip_session_defer_termination(session)) {
+			ast_log(LOG_ERROR, "Received REFER request on channel '%s' from endpoint '%s' for local dialog but could not defer termination, rejecting\n",
+				ast_channel_name(session->channel), ast_sorcery_object_get_id(session->endpoint));
+			ao2_cleanup(attended);
+			return 500;
+		}
+
 		/* Push it to the other session, which will have both channels with minimal locking */
-		if (ast_sip_push_task(other_session->serializer, refer_attended, attended)) {
+		if (ast_sip_push_task(other_session->serializer, refer_attended_task, attended)) {
+			ast_sip_session_defer_termination_cancel(session);
 			ao2_cleanup(attended);
 			return 500;
 		}
@@ -700,6 +752,7 @@ static int refer_incoming_attended_request(struct ast_sip_session *session, pjsi
 	} else {
 		const char *context;
 		struct refer_blind refer = { 0, };
+		int response;
 
 		DETERMINE_TRANSFER_CONTEXT(context, session);
 
@@ -715,19 +768,19 @@ static int refer_incoming_attended_request(struct ast_sip_session *session, pjsi
 		refer.replaces = replaces;
 		refer.refer_to = target_uri;
 
-		switch (ast_bridge_transfer_blind(1, session->channel, "external_replaces", context, refer_blind_callback, &refer)) {
-		case AST_BRIDGE_TRANSFER_INVALID:
-			return 400;
-		case AST_BRIDGE_TRANSFER_NOT_PERMITTED:
-			return 403;
-		case AST_BRIDGE_TRANSFER_FAIL:
+		if (ast_sip_session_defer_termination(session)) {
+			ast_log(LOG_ERROR, "Received REFER for remote session on channel '%s' from endpoint '%s' but could not defer termination, rejecting\n",
+				ast_channel_name(session->channel),
+				ast_sorcery_object_get_id(session->endpoint));
 			return 500;
-		case AST_BRIDGE_TRANSFER_SUCCESS:
-			ast_sip_session_defer_termination(session);
-			return 200;
 		}
 
-		return 503;
+		response = xfer_response_code2sip(ast_bridge_transfer_blind(1, session->channel,
+			"external_replaces", context, refer_blind_callback, &refer));
+		if (response != 200) {
+			ast_sip_session_defer_termination_cancel(session);
+		}
+		return response;
 	}
 }
 
@@ -737,6 +790,7 @@ static int refer_incoming_blind_request(struct ast_sip_session *session, pjsip_r
 	const char *context;
 	char exten[AST_MAX_EXTENSION];
 	struct refer_blind refer = { 0, };
+	int response;
 
 	/* If no explicit transfer context has been provided use their configured context */
 	DETERMINE_TRANSFER_CONTEXT(context, session);
@@ -754,19 +808,19 @@ static int refer_incoming_blind_request(struct ast_sip_session *session, pjsip_r
 	refer.rdata = rdata;
 	refer.refer_to = target;
 
-	switch (ast_bridge_transfer_blind(1, session->channel, exten, context, refer_blind_callback, &refer)) {
-	case AST_BRIDGE_TRANSFER_INVALID:
-		return 400;
-	case AST_BRIDGE_TRANSFER_NOT_PERMITTED:
-		return 403;
-	case AST_BRIDGE_TRANSFER_FAIL:
+	if (ast_sip_session_defer_termination(session)) {
+		ast_log(LOG_ERROR, "Channel '%s' from endpoint '%s' attempted blind transfer but could not defer termination, rejecting\n",
+			ast_channel_name(session->channel),
+			ast_sorcery_object_get_id(session->endpoint));
 		return 500;
-	case AST_BRIDGE_TRANSFER_SUCCESS:
-		ast_sip_session_defer_termination(session);
-		return 200;
 	}
 
-	return 503;
+	response = xfer_response_code2sip(ast_bridge_transfer_blind(1, session->channel,
+		exten, context, refer_blind_callback, &refer));
+	if (response != 200) {
+		ast_sip_session_defer_termination_cancel(session);
+	}
+	return response;
 }
 
 /*! \brief Structure used to retrieve channel from another session */

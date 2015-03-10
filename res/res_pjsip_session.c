@@ -1524,6 +1524,7 @@ void ast_sip_session_terminate(struct ast_sip_session *session, int response)
 	pjsip_tx_data *packet = NULL;
 
 	if (session->defer_terminate) {
+		session->terminate_while_deferred = 1;
 		return;
 	}
 
@@ -1559,17 +1560,16 @@ void ast_sip_session_terminate(struct ast_sip_session *session, int response)
 
 static int session_termination_task(void *data)
 {
-	RAII_VAR(struct ast_sip_session *, session, data, ao2_cleanup);
-	pjsip_tx_data *packet = NULL;
+	struct ast_sip_session *session = data;
 
-	if (!session->inv_session) {
-		return 0;
+	if (session->defer_terminate) {
+		session->defer_terminate = 0;
+		if (session->inv_session) {
+			ast_sip_session_terminate(session, 0);
+		}
 	}
 
-	if (pjsip_inv_end_session(session->inv_session, 603, NULL, &packet) == PJ_SUCCESS) {
-		ast_sip_session_send_request(session, packet);
-	}
-
+	ao2_ref(session, -1);
 	return 0;
 }
 
@@ -1582,9 +1582,13 @@ static void session_termination_cb(pj_timer_heap_t *timer_heap, struct pj_timer_
 	}
 }
 
-void ast_sip_session_defer_termination(struct ast_sip_session *session)
+int ast_sip_session_defer_termination(struct ast_sip_session *session)
 {
 	pj_time_val delay = { .sec = 60, };
+	int res;
+
+	/* The session should not have an active deferred termination request. */
+	ast_assert(!session->defer_terminate);
 
 	session->defer_terminate = 1;
 
@@ -1593,7 +1597,31 @@ void ast_sip_session_defer_termination(struct ast_sip_session *session)
 	session->scheduled_termination.user_data = session;
 	session->scheduled_termination.cb = session_termination_cb;
 
-	if (pjsip_endpt_schedule_timer(ast_sip_get_pjsip_endpoint(), &session->scheduled_termination, &delay) != PJ_SUCCESS) {
+	res = (pjsip_endpt_schedule_timer(ast_sip_get_pjsip_endpoint(),
+		&session->scheduled_termination, &delay) != PJ_SUCCESS) ? -1 : 0;
+	if (res) {
+		session->defer_terminate = 0;
+		ao2_ref(session, -1);
+	}
+	return res;
+}
+
+void ast_sip_session_defer_termination_cancel(struct ast_sip_session *session)
+{
+	if (!session->defer_terminate) {
+		/* Already canceled or timer fired. */
+		return;
+	}
+	session->defer_terminate = 0;
+
+	if (session->terminate_while_deferred) {
+		/* Complete the termination started by the upper layer. */
+		ast_sip_session_terminate(session, 0);
+	}
+
+	/* Stop the termination timer if it is still running. */
+	if (pj_timer_heap_cancel(pjsip_endpt_get_timer_heap(ast_sip_get_pjsip_endpoint()),
+		&session->scheduled_termination)) {
 		ao2_ref(session, -1);
 	}
 }
