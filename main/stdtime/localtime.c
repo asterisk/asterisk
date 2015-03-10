@@ -187,6 +187,60 @@ struct state {
 	AST_LIST_ENTRY(state) list;
 };
 
+/* extra initialisation for sstate_alloc() */
+#define SP_STACK_FLAG INT_MIN
+#ifdef HAVE_INOTIFY
+#	define SP_STACK_INIT(sp) do { \
+		(sp).wd[0] = SP_STACK_FLAG; \
+	} while (0)
+#	define SP_STACK_CHECK(sp) ((sp)->wd[0] == SP_STACK_FLAG)
+#	define SP_HEAP_INIT(sp) do { \
+		(sp)->wd[0] = -1; \
+		(sp)->wd[1] = -1; \
+	} while (0)
+#	define SP_HEAP_FREE(sp) do {} while (0)
+
+#elif defined(HAVE_KQUEUE)
+#	define SP_STACK_INIT(sp) do { \
+		(sp).fd = SP_STACK_FLAG; \
+	} while (0)
+#	define SP_STACK_CHECK(sp) ((sp)->fd == SP_STACK_FLAG)
+#ifdef HAVE_O_SYMLINK
+#	define SP_HEAP_INIT(sp) do { \
+		(sp)->fd = -1; \
+		(sp)->fds = -1; \
+	} while (0)
+#	define SP_HEAP_FREE(sp) do { \
+	if ( (sp) ) { \
+		kqueue_daemon_freestate(sp); \
+		if ((sp)->fd > -1) { close((sp)->fd); (sp)->fd = -1; } \
+		if ((sp)->fds > -1) { close((sp)->fds); (sp)->fds = -1; } \
+	} \
+	} while (0)
+
+#else  /* HAVE_O_SYMLINK */
+#	define SP_HEAP_INIT(sp) do { \
+		(sp)->fd = -1; \
+		(sp)->dir = NULL; \
+	} while (0)
+#	define SP_HEAP_FREE(sp) do { \
+	if ( (sp) ) { \
+		kqueue_daemon_freestate(sp); \
+		if ((sp)->fd > -1) { close((sp)->fd); (sp)->fd = -1; } \
+		if ((sp)->dir != NULL) { closedir((sp)->dir); (sp)->dir = NULL; } \
+	} \
+	} while (0)
+
+#endif /* HAVE_O_SYMLINK */
+
+#else  /* defined(HAVE_KQUEUE) */
+#	define SP_STACK_INIT(sp) do {} while (0)
+#	define SP_STACK_CHECK(sp) (0)
+#	define SP_HEAP_INIT(sp) do {} while (0)
+#	define SP_HEAP_FREE(sp) do {} while (0)
+
+#endif
+
 struct locale_entry {
 	AST_LIST_ENTRY(locale_entry) list;
 	locale_t locale;
@@ -253,6 +307,9 @@ static int		tzload P((const char * name, struct state * sp,
 				int doextend));
 static int		tzparse P((const char * name, struct state * sp,
 				int lastditch));
+/* struct state allocator with additional setup as needed */
+static struct state *	sstate_alloc(void);
+static void		sstate_free(struct state *p);
 
 static AST_LIST_HEAD_STATIC(zonelist, state);
 #ifdef HAVE_NEWLOCALE
@@ -274,7 +331,20 @@ static void common_startup(void) {
 	struct state *sp;
 	AST_LIST_LOCK(&zonelist);
 	AST_LIST_TRAVERSE(&zonelist, sp, list) {
-		add_notify(sp, sp->name);
+		/* ensure sp->name is not relative -- it
+		 * often is -- otherwise add_notify() fails
+		 */
+		char name[FILENAME_MAX + 1];
+
+		if (sp->name[0] == '/') {
+			snprintf(name, sizeof(name), "%s", sp->name);
+		} else if (!strcmp(sp->name, TZDEFAULT)) {
+			snprintf(name, sizeof(name), "/etc/%s", sp->name);
+		} else {
+			snprintf(name, sizeof(name), "%s/%s", TZDIR, sp->name);
+		}
+
+		add_notify(sp, name);
 	}
 	AST_LIST_UNLOCK(&zonelist);
 }
@@ -327,7 +397,7 @@ static void *inotify_daemon(void *data)
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&zonelist, cur, list) {
 			if (cur->wd[0] == buf.iev.wd || cur->wd[1] == buf.iev.wd) {
 				AST_LIST_REMOVE_CURRENT(list);
-				ast_free(cur);
+				sstate_free(cur);
 				break;
 			}
 		}
@@ -342,6 +412,13 @@ static void *inotify_daemon(void *data)
 
 static void add_notify(struct state *sp, const char *path)
 {
+	/* watch for flag indicating stack automatic sp,
+	 * should not be added to watch
+	 */
+	if (SP_STACK_CHECK(sp)) {
+		return;
+	}
+
 	if (inotify_thread == AST_PTHREADT_NULL) {
 		ast_cond_init(&initialization, NULL);
 		ast_mutex_init(&initialization_lock);
@@ -376,14 +453,35 @@ static void add_notify(struct state *sp, const char *path)
 #elif defined(HAVE_KQUEUE)
 static int queue_fd = -1;
 
+/*
+ * static struct state *psx_sp and associated code will guard againt
+ * add_notify() called repeatedly for /usr/share/zoneinfo/posixrules
+ * without zonelist check as a result of some errors
+ * (any code where tzparse() is called if tzload() fails --
+ * tzparse() re-calls tzload() for /usr/share/zoneinfo/posixrules)
+ * the pointer itself is guarded by the zonelist lock
+ */
+static struct state *psx_sp = NULL;
+
+/* collect EVFILT_VNODE fflags in macro;
+ */
+#ifdef NOTE_TRUNCATE
+#	define EVVN_NOTES_BITS \
+	(NOTE_DELETE|NOTE_WRITE|NOTE_EXTEND|NOTE_REVOKE|NOTE_ATTRIB \
+	|NOTE_RENAME|NOTE_LINK|NOTE_TRUNCATE)
+#else
+#	define EVVN_NOTES_BITS \
+	(NOTE_DELETE|NOTE_WRITE|NOTE_EXTEND|NOTE_REVOKE|NOTE_ATTRIB \
+	|NOTE_RENAME|NOTE_LINK)
+#endif
+
 static void *kqueue_daemon(void *data)
 {
 	struct kevent kev;
 	struct state *sp;
-	struct timespec no_wait = { 0, 1 };
 
 	ast_mutex_lock(&initialization_lock);
-	if ((queue_fd = kqueue()) < 0) {
+	if (queue_fd < 0 && (queue_fd = kqueue()) < 0) {
 		/* ast_log uses us to format messages, so if we called ast_log, we'd be
 		 * in for a nasty loop (seen already in testing) */
 		fprintf(stderr, "Unable to initialize kqueue(): %s\n", strerror(errno));
@@ -410,55 +508,104 @@ static void *kqueue_daemon(void *data)
 
 		sp = kev.udata;
 
-		/*!\note
-		 * If the file event fired, then the file was removed, so we'll need
-		 * to reparse the entry.  The directory event is a bit more
-		 * interesting.  Unfortunately, the queue doesn't contain information
-		 * about the file that changed (only the directory itself), so unless
-		 * we kept a record of the directory state before, it's not really
-		 * possible to know what change occurred.  But if we act paranoid and
-		 * just purge the associated file, then it will get reparsed, and
-		 * everything works fine.  It may be more work, but it's a vast
-		 * improvement over the alternative implementation, which is to stat
-		 * the file repeatedly in what is essentially a busy loop. */
 		AST_LIST_LOCK(&zonelist);
-		AST_LIST_REMOVE(&zonelist, sp, list);
-		AST_LIST_UNLOCK(&zonelist);
+		/* see comment near psx_sp in add_notify() */
+		if (sp == psx_sp) {
+			psx_sp = NULL;
 
-		/* If the directory event fired, remove the file event */
-		EV_SET(&kev, sp->fd, EVFILT_VNODE, EV_DELETE, 0, 0, NULL);
-		kevent(queue_fd, &kev, 1, NULL, 0, &no_wait);
-		close(sp->fd);
+			sstate_free(sp);
 
-#ifdef HAVE_O_SYMLINK
-		if (sp->fds > -1) {
-			/* If the file event fired, remove the symlink event */
-			EV_SET(&kev, sp->fds, EVFILT_VNODE, EV_DELETE, 0, 0, NULL);
-			kevent(queue_fd, &kev, 1, NULL, 0, &no_wait);
-			close(sp->fds);
+			while ((sp = AST_LIST_REMOVE_HEAD(&zonelist, list))) {
+				sstate_free(sp);
+			}
+		} else {
+			AST_LIST_REMOVE(&zonelist, sp, list);
+			sstate_free(sp);
 		}
-#else
-		if (sp->dir) {
-			/* If the file event fired, remove the directory event */
-			EV_SET(&kev, dirfd(sp->dir), EVFILT_VNODE, EV_DELETE, 0, 0, NULL);
-			kevent(queue_fd, &kev, 1, NULL, 0, &no_wait);
-			closedir(sp->dir);
-		}
-#endif
-		ast_free(sp);
 
 		/* Just in case the signal was sent late */
-		AST_LIST_LOCK(&zonelist);
 		ast_cond_broadcast(&initialization);
 		AST_LIST_UNLOCK(&zonelist);
 	}
+
+	inotify_thread = AST_PTHREADT_NULL;
+	return NULL;
+}
+
+static void kqueue_daemon_freestate(struct state *sp)
+{
+	struct kevent kev;
+	struct timespec no_wait = { 0, 1 };
+
+	/*!\note
+	 * If the file event fired, then the file was removed, so we'll need
+	 * to reparse the entry.  The directory event is a bit more
+	 * interesting.  Unfortunately, the queue doesn't contain information
+	 * about the file that changed (only the directory itself), so unless
+	 * we kept a record of the directory state before, it's not really
+	 * possible to know what change occurred.  But if we act paranoid and
+	 * just purge the associated file, then it will get reparsed, and
+	 * everything works fine.  It may be more work, but it's a vast
+	 * improvement over the alternative implementation, which is to stat
+	 * the file repeatedly in what is essentially a busy loop. */
+
+	if (sp->fd > -1) {
+		/* If the directory event fired, remove the file event */
+		EV_SET(&kev, sp->fd, EVFILT_VNODE, EV_DELETE, 0, 0, NULL);
+		kevent(queue_fd, &kev, 1, NULL, 0, &no_wait);
+	}
+
+#ifdef HAVE_O_SYMLINK
+	if (sp->fds > -1) {
+		/* If the file event fired, remove the symlink event */
+		EV_SET(&kev, sp->fds, EVFILT_VNODE, EV_DELETE, 0, 0, NULL);
+		kevent(queue_fd, &kev, 1, NULL, 0, &no_wait);
+	}
+#else
+	if (sp->dir) {
+		/* If the file event fired, remove the directory event */
+		EV_SET(&kev, dirfd(sp->dir), EVFILT_VNODE, EV_DELETE, 0, 0, NULL);
+		kevent(queue_fd, &kev, 1, NULL, 0, &no_wait);
+	}
+#endif
 }
 
 static void add_notify(struct state *sp, const char *path)
 {
 	struct kevent kev;
 	struct timespec no_wait = { 0, 1 };
-	char watchdir[PATH_MAX + 1] = "";
+	char   watchdir[PATH_MAX + 1] = "";
+
+	/* watch for flag indicating stack automatic sp,
+	 * should not be added to watch
+	 */
+	if (SP_STACK_CHECK(sp) || sp->fd != -1) {
+		return;
+	}
+
+	/* some errors might cause repeated calls to tzload()
+	 * for TZDEFRULES more than once if errors repeat,
+	 * so psx_sp is used to keep just one
+	 */
+	if (!strcmp(path, TZDEFRULES) ||
+	    !strcmp(path, TZDIR "/" TZDEFRULES)) {
+		int lckgot = AST_LIST_TRYLOCK(&zonelist);
+
+		if (lckgot) {
+			return;
+		}
+
+		if (psx_sp != NULL ||
+		   (psx_sp = sstate_alloc()) == NULL) {
+			AST_LIST_UNLOCK(&zonelist);
+			return;
+		}
+
+		ast_copy_string(psx_sp->name, TZDIR "/" TZDEFRULES,
+			sizeof(psx_sp->name));
+		sp = psx_sp;
+		AST_LIST_UNLOCK(&zonelist);
+	}
 
 	if (inotify_thread == AST_PTHREADT_NULL) {
 		ast_cond_init(&initialization, NULL);
@@ -482,7 +629,8 @@ static void add_notify(struct state *sp, const char *path)
 			| O_EVTONLY
 # endif
 			)) >= 0) {
-		EV_SET(&kev, sp->fds, EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_ONESHOT, NOTE_WRITE | NOTE_EXTEND | NOTE_DELETE | NOTE_REVOKE | NOTE_ATTRIB, 0, sp);
+		EV_SET(&kev, sp->fds, EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_ONESHOT, EVVN_NOTES_BITS, 0, sp);
+		errno = 0;
 		if (kevent(queue_fd, &kev, 1, NULL, 0, &no_wait) < 0 && errno != 0) {
 			/* According to the API docs, we may get -1 return value, due to the
 			 * NULL space for a returned event, but errno should be 0 unless
@@ -518,7 +666,8 @@ static void add_notify(struct state *sp, const char *path)
 		 * Likewise, there's no potential leak of a descriptor.
 		 */
 		EV_SET(&kev, dirfd(sp->dir), EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_ONESHOT,
-				NOTE_DELETE | NOTE_WRITE | NOTE_EXTEND | NOTE_REVOKE | NOTE_ATTRIB, 0, sp);
+				EVVN_NOTES_BITS, 0, sp);
+		errno = 0;
 		if (kevent(queue_fd, &kev, 1, NULL, 0, &no_wait) < 0 && errno != 0) {
 			fprintf(stderr, "Unable to watch '%s': %s\n", watchdir, strerror(errno));
 			closedir(sp->dir);
@@ -538,7 +687,8 @@ watch_file:
 		return;
 	}
 
-	EV_SET(&kev, sp->fd, EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_ONESHOT, NOTE_WRITE | NOTE_EXTEND | NOTE_DELETE | NOTE_REVOKE | NOTE_ATTRIB, 0, sp);
+	EV_SET(&kev, sp->fd, EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_ONESHOT, EVVN_NOTES_BITS, 0, sp);
+	errno = 0;
 	if (kevent(queue_fd, &kev, 1, NULL, 0, &no_wait) < 0 && errno != 0) {
 		/* According to the API docs, we may get -1 return value, due to the
 		 * NULL space for a returned event, but errno should be 0 unless
@@ -550,6 +700,7 @@ watch_file:
 	}
 }
 #else
+
 static void *notify_daemon(void *data)
 {
 	struct stat st, lst;
@@ -589,7 +740,7 @@ static void *notify_daemon(void *data)
 					ast_log(LOG_NOTICE, "Removing cached TZ entry '%s' because underlying file changed.\n", name);
 				}
 				AST_LIST_REMOVE_CURRENT(list);
-				ast_free(cur);
+				sstate_free(cur);
 				continue;
 			}
 		}
@@ -622,6 +773,26 @@ static void add_notify(struct state *sp, const char *path)
 	sp->mtime[1] = st.st_mtime;
 }
 #endif
+
+/*
+ * struct state allocator with additional setup as needed
+ */
+static struct state *sstate_alloc(void)
+{
+	struct state *p = ast_calloc(1, sizeof(*p));
+
+	if (p != NULL) {
+		SP_HEAP_INIT(p);
+	}
+
+	return p;
+}
+
+static void sstate_free(struct state *p)
+{
+	SP_HEAP_FREE(p);
+	ast_free(p);
+}
 
 void ast_localtime_wakeup_monitor(struct ast_test *info)
 {
@@ -737,7 +908,8 @@ static int tzload(const char *name, struct state * const sp, const int doextend)
 		}
 	}
 	nread = read(fid, u.buf, sizeof u.buf);
-	if (close(fid) < 0 || nread <= 0)
+	/* comp nread < sizeof u.tzhead against unexpected short files */
+	if (close(fid) < 0 || nread < sizeof u.tzhead)
 		return -1;
 	for (stored = 4; stored <= 8; stored *= 2) {
 		int		ttisstdcnt;
@@ -864,6 +1036,11 @@ static int tzload(const char *name, struct state * const sp, const int doextend)
 		nread -= p - u.buf;
 		for (i = 0; i < nread; ++i)
 			u.buf[i] = p[i];
+		/* next loop iter. will assume at least
+		   sizeof(struct tzhead) bytes */
+		if (nread < sizeof(u.tzhead)) {
+			break;
+		}
 		/*
 		** If this is a narrow integer time_t system, we're done.
 		*/
@@ -875,6 +1052,12 @@ static int tzload(const char *name, struct state * const sp, const int doextend)
 		sp->typecnt + 2 <= TZ_MAX_TYPES) {
 			struct state	ts;
 			int	result;
+
+			/* for temporary struct state --
+			 * macro flags the the struct as a stack temp.
+			 * to prevent use within add_notify()
+			 */
+			SP_STACK_INIT(ts);
 
 			u.buf[nread - 1] = '\0';
 			result = tzparse(&u.buf[1], &ts, FALSE);
@@ -1443,7 +1626,7 @@ void clean_time_zones(void)
 
 	AST_LIST_LOCK(&zonelist);
 	while ((sp = AST_LIST_REMOVE_HEAD(&zonelist, list))) {
-		ast_free(sp);
+		sstate_free(sp);
 	}
 	AST_LIST_UNLOCK(&zonelist);
 }
@@ -1470,17 +1653,17 @@ static const struct state *ast_tzset(const char *zone)
 			return sp;
 		}
 	}
-	AST_LIST_UNLOCK(&zonelist);
 
-	if (!(sp = ast_calloc(1, sizeof *sp)))
+	if (!(sp = sstate_alloc())) {
+		AST_LIST_UNLOCK(&zonelist);
 		return NULL;
+	}
 
 	if (tzload(zone, sp, TRUE) != 0) {
 		if (zone[0] == ':' || tzparse(zone, sp, FALSE) != 0)
 			(void) gmtload(sp);
 	}
 	ast_copy_string(sp->name, zone, sizeof(sp->name));
-	AST_LIST_LOCK(&zonelist);
 	AST_LIST_INSERT_TAIL(&zonelist, sp, list);
 	AST_LIST_UNLOCK(&zonelist);
 	return sp;
@@ -1724,8 +1907,10 @@ static struct ast_tm *gmtsub(const struct timeval *timep, const long offset, str
 	}
 
 	if (!sp) {
-		if (!(sp = (struct state *) ast_calloc(1, sizeof *sp)))
+		if (!(sp = sstate_alloc())) {
+			AST_LIST_UNLOCK(&zonelist);
 			return NULL;
+		}
 		gmtload(sp);
 		AST_LIST_INSERT_TAIL(&zonelist, sp, list);
 	}
