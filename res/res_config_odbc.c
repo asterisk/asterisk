@@ -198,11 +198,11 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 
 	op = !strchr(field->name, ' ') ? " =" : "";
 	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s%s ?%s", table, field->name, op,
-		strcasestr(field->name, "LIKE") && !ast_odbc_backslash_is_escape(obj) ? " ESCAPE '\\'" : "");
+		strcasestr(field->name, "LIKE") && !ast_odbc_backslash_is_escape(obj) ? " ESCAPE '\\\\'" : "");
 	while ((field = field->next)) {
 		op = !strchr(field->name, ' ') ? " =" : "";
 		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " AND %s%s ?%s", field->name, op,
-			strcasestr(field->name, "LIKE") && !ast_odbc_backslash_is_escape(obj) ? " ESCAPE '\\'" : "");
+			strcasestr(field->name, "LIKE") && !ast_odbc_backslash_is_escape(obj) ? " ESCAPE '\\\\'" : "");
 	}
 
 	if (ast_string_field_init(&cps, 256)) {
@@ -360,11 +360,11 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 
 	op = !strchr(field->name, ' ') ? " =" : "";
 	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s%s ?%s", table, field->name, op,
-		strcasestr(field->name, "LIKE") && !ast_odbc_backslash_is_escape(obj) ? " ESCAPE '\\'" : "");
+		strcasestr(field->name, "LIKE") && !ast_odbc_backslash_is_escape(obj) ? " ESCAPE '\\\\'" : "");
 	while ((field = field->next)) {
 		op = !strchr(field->name, ' ') ? " =" : "";
 		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " AND %s%s ?%s", field->name, op,
-			strcasestr(field->name, "LIKE") && !ast_odbc_backslash_is_escape(obj) ? " ESCAPE '\\'" : "");
+			strcasestr(field->name, "LIKE") && !ast_odbc_backslash_is_escape(obj) ? " ESCAPE '\\\\'" : "");
 	}
 
 	snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " ORDER BY %s", initfield);
