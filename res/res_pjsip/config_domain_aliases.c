@@ -21,6 +21,7 @@
 #include "pjsip.h"
 #include "pjlib.h"
 #include "asterisk/res_pjsip.h"
+#include "include/res_pjsip_private.h"
 #include "asterisk/logger.h"
 #include "asterisk/sorcery.h"
 

@@ -844,46 +844,6 @@ pjsip_endpoint *ast_sip_get_pjsip_endpoint(void);
 struct ast_sorcery *ast_sip_get_sorcery(void);
 
 /*!
- * \brief Initialize transport support on a sorcery instance
- *
- * \retval -1 failure
- * \retval 0 success
- */
-int ast_sip_initialize_sorcery_transport(void);
-
-/*!
- * \brief Destroy transport support on a sorcery instance
- *
- * \retval -1 failure
- * \retval 0 success
- */
-int ast_sip_destroy_sorcery_transport(void);
-
-/*!
- * \brief Initialize qualify support on a sorcery instance
- *
- * \retval -1 failure
- * \retval 0 success
- */
-int ast_sip_initialize_sorcery_qualify(void);
-
-/*!
- * \brief Initialize location support on a sorcery instance
- *
- * \retval -1 failure
- * \retval 0 success
- */
-int ast_sip_initialize_sorcery_location(void);
-
-/*!
- * \brief Destroy location support on a sorcery instance
- *
- * \retval -1 failure
- * \retval 0 success
- */
-int ast_sip_destroy_sorcery_location(void);
-
-/*!
  * \brief Retrieve a named AOR
  *
  * \param aor_name Name of the AOR
@@ -977,30 +937,6 @@ int ast_sip_location_update_contact(struct ast_sip_contact *contact);
 int ast_sip_location_delete_contact(struct ast_sip_contact *contact);
 
 /*!
- * \brief Initialize domain aliases support on a sorcery instance
- *
- * \retval -1 failure
- * \retval 0 success
- */
-int ast_sip_initialize_sorcery_domain_alias(void);
-
-/*!
- * \brief Initialize authentication support on a sorcery instance
- *
- * \retval -1 failure
- * \retval 0 success
- */
-int ast_sip_initialize_sorcery_auth(void);
-
-/*!
- * \brief Destroy authentication support on a sorcery instance
- *
- * \retval -1 failure
- * \retval 0 success
- */
-int ast_sip_destroy_sorcery_auth(void);
-
-/*!
  * \brief Callback called when an outbound request with authentication credentials is to be sent in dialog
  *
  * This callback will have the created request on it. The callback's purpose is to do any extra
@@ -1034,26 +970,6 @@ typedef int (*ast_sip_dialog_outbound_auth_cb)(pjsip_dialog *dlg, pjsip_tx_data 
  */
 int ast_sip_dialog_setup_outbound_authentication(pjsip_dialog *dlg, const struct ast_sip_endpoint *endpoint,
 		ast_sip_dialog_outbound_auth_cb cb, void *user_data);
-
-/*!
- * \brief Initialize the distributor module
- *
- * The distributor module is responsible for taking an incoming
- * SIP message and placing it into the threadpool. Once in the threadpool,
- * the distributor will perform endpoint lookups and authentication, and
- * then distribute the message up the stack to any further modules.
- *
- * \retval -1 Failure
- * \retval 0 Success
- */
-int ast_sip_initialize_distributor(void);
-
-/*!
- * \brief Destruct the distributor module.
- *
- * Unregisters pjsip modules and cleans up any allocated resources.
- */
-void ast_sip_destroy_distributor(void);
 
 /*!
  * \brief Retrieves a reference to the artificial auth.
@@ -1621,28 +1537,8 @@ void ast_sip_report_req_no_support(struct ast_sip_endpoint *endpoint, pjsip_rx_d
  */
 void ast_sip_report_mem_limit(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata);
 
-void ast_sip_initialize_global_headers(void);
-void ast_sip_destroy_global_headers(void);
-
 int ast_sip_add_global_request_header(const char *name, const char *value, int replace);
 int ast_sip_add_global_response_header(const char *name, const char *value, int replace);
-
-/*!
- * \brief Initialize global type on a sorcery instance
- *
- * \retval -1 failure
- * \retval 0 success
- */
-int ast_sip_initialize_sorcery_global(void);
-
-/*!
- * \brief Destroy global type on a sorcery instance
- * \since 13.3.0
- *
- * \retval -1 failure
- * \retval 0 success
- */
-int ast_sip_destroy_sorcery_global(void);
 
 /*!
  * \brief Retrieves the value associated with the given key.
