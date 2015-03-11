@@ -1627,7 +1627,22 @@ void ast_sip_destroy_global_headers(void);
 int ast_sip_add_global_request_header(const char *name, const char *value, int replace);
 int ast_sip_add_global_response_header(const char *name, const char *value, int replace);
 
+/*!
+ * \brief Initialize global type on a sorcery instance
+ *
+ * \retval -1 failure
+ * \retval 0 success
+ */
 int ast_sip_initialize_sorcery_global(void);
+
+/*!
+ * \brief Destroy global type on a sorcery instance
+ * \since 13.3.0
+ *
+ * \retval -1 failure
+ * \retval 0 success
+ */
+int ast_sip_destroy_sorcery_global(void);
 
 /*!
  * \brief Retrieves the value associated with the given key.

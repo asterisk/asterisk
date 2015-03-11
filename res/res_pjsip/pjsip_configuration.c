@@ -1842,6 +1842,7 @@ int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_mod
 
 void ast_res_pjsip_destroy_configuration(void)
 {
+	ast_sip_destroy_sorcery_global();
 	ast_sip_destroy_sorcery_location();
 	ast_sip_destroy_sorcery_auth();
 	ast_sip_destroy_sorcery_transport();

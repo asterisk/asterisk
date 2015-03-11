@@ -27,10 +27,13 @@
 #include "asterisk/ast_version.h"
 
 #define DEFAULT_MAX_FORWARDS 70
+#define DEFAULT_KEEPALIVE_INTERVAL 0
 #define DEFAULT_USERAGENT_PREFIX "Asterisk PBX"
 #define DEFAULT_OUTBOUND_ENDPOINT "default_outbound_endpoint"
+#define DEFAULT_DEBUG "no"
+#define DEFAULT_ENDPOINT_IDENTIFIER_ORDER "ip,username,anonymous"
 
-static char default_useragent[128];
+static char default_useragent[256];
 
 struct global_config {
 	SORCERY_OBJECT(details);
@@ -57,9 +60,11 @@ static void global_destructor(void *obj)
 
 static void *global_alloc(const char *name)
 {
-	struct global_config *cfg = ast_sorcery_generic_alloc(sizeof(*cfg), global_destructor);
+	struct global_config *cfg;
 
+	cfg = ast_sorcery_generic_alloc(sizeof(*cfg), global_destructor);
 	if (!cfg || ast_string_field_init(cfg, 100)) {
+		ao2_cleanup(cfg);
 		return NULL;
 	}
 
@@ -81,78 +86,148 @@ static int global_apply(const struct ast_sorcery *sorcery, void *obj)
 
 static struct global_config *get_global_cfg(void)
 {
-	RAII_VAR(struct ao2_container *, globals, ast_sorcery_retrieve_by_fields(
-			 ast_sip_get_sorcery(), "global", AST_RETRIEVE_FLAG_MULTIPLE,
-			 NULL), ao2_cleanup);
+	struct global_config *cfg;
+	struct ao2_container *globals;
 
+	globals = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "global",
+		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
 	if (!globals) {
 		return NULL;
 	}
 
-	return ao2_find(globals, NULL, 0);
+	cfg = ao2_find(globals, NULL, 0);
+	ao2_ref(globals, -1);
+	return cfg;
 }
 
 char *ast_sip_global_default_outbound_endpoint(void)
 {
-	RAII_VAR(struct global_config *, cfg, get_global_cfg(), ao2_cleanup);
+	char *str;
+	struct global_config *cfg;
 
+	cfg = get_global_cfg();
 	if (!cfg) {
-		return NULL;
+		return ast_strdup(DEFAULT_OUTBOUND_ENDPOINT);
 	}
 
-	return ast_strdup(cfg->default_outbound_endpoint);
+	str = ast_strdup(cfg->default_outbound_endpoint);
+	ao2_ref(cfg, -1);
+	return str;
 }
 
 char *ast_sip_get_debug(void)
 {
 	char *res;
-	struct global_config *cfg = get_global_cfg();
+	struct global_config *cfg;
 
+	cfg = get_global_cfg();
 	if (!cfg) {
-		return ast_strdup("no");
+		return ast_strdup(DEFAULT_DEBUG);
 	}
 
 	res = ast_strdup(cfg->debug);
 	ao2_ref(cfg, -1);
-
 	return res;
 }
 
 char *ast_sip_get_endpoint_identifier_order(void)
 {
 	char *res;
-	struct global_config *cfg = get_global_cfg();
+	struct global_config *cfg;
 
+	cfg = get_global_cfg();
 	if (!cfg) {
-		return ast_strdup("ip,username,anonymous");
+		return ast_strdup(DEFAULT_ENDPOINT_IDENTIFIER_ORDER);
 	}
 
 	res = ast_strdup(cfg->endpoint_identifier_order);
 	ao2_ref(cfg, -1);
-
 	return res;
 }
 
 unsigned int ast_sip_get_keep_alive_interval(void)
 {
 	unsigned int interval;
-	struct global_config *cfg = get_global_cfg();
+	struct global_config *cfg;
 
+	cfg = get_global_cfg();
 	if (!cfg) {
-		return 0;
+		return DEFAULT_KEEPALIVE_INTERVAL;
 	}
 
 	interval = cfg->keep_alive_interval;
 	ao2_ref(cfg, -1);
-
 	return interval;
+}
+
+/*!
+ * \internal
+ * \brief Observer to set default global object if none exist.
+ *
+ * \param name Module name owning the sorcery instance.
+ * \param sorcery Instance being observed.
+ * \param object_type Name of object being observed.
+ * \param reloaded Non-zero if the object is being reloaded.
+ *
+ * \return Nothing
+ */
+static void global_loaded_observer(const char *name, const struct ast_sorcery *sorcery, const char *object_type, int reloaded)
+{
+	struct ao2_container *globals;
+	struct global_config *cfg;
+
+	if (strcmp(object_type, "global")) {
+		/* Not interested */
+		return;
+	}
+
+	globals = ast_sorcery_retrieve_by_fields(sorcery, "global",
+		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	if (globals) {
+		int count;
+
+		count = ao2_container_count(globals);
+		ao2_ref(globals, -1);
+
+		if (1 < count) {
+			ast_log(LOG_ERROR,
+				"At most one pjsip.conf type=global object can be defined.  You have %d defined.\n",
+				count);
+			return;
+		}
+		if (count) {
+			return;
+		}
+	}
+
+	ast_debug(1, "No pjsip.conf type=global object exists so applying defaults.\n");
+	cfg = ast_sorcery_alloc(sorcery, "global", NULL);
+	if (!cfg) {
+		return;
+	}
+	global_apply(sorcery, cfg);
+	ao2_ref(cfg, -1);
+}
+
+static const struct ast_sorcery_instance_observer observer_callbacks_global = {
+	.object_type_loaded = global_loaded_observer,
+};
+
+int ast_sip_destroy_sorcery_global(void)
+{
+	struct ast_sorcery *sorcery = ast_sip_get_sorcery();
+
+	ast_sorcery_instance_observer_remove(sorcery, &observer_callbacks_global);
+
+	return 0;
 }
 
 int ast_sip_initialize_sorcery_global(void)
 {
 	struct ast_sorcery *sorcery = ast_sip_get_sorcery();
 
-	snprintf(default_useragent, sizeof(default_useragent), "%s %s", DEFAULT_USERAGENT_PREFIX, ast_get_version());
+	snprintf(default_useragent, sizeof(default_useragent), "%s %s",
+		DEFAULT_USERAGENT_PREFIX, ast_get_version());
 
 	ast_sorcery_apply_default(sorcery, "global", "config", "pjsip.conf,criteria=type=global");
 
@@ -161,18 +236,26 @@ int ast_sip_initialize_sorcery_global(void)
 	}
 
 	ast_sorcery_object_field_register(sorcery, "global", "type", "", OPT_NOOP_T, 0, 0);
-	ast_sorcery_object_field_register(sorcery, "global", "max_forwards", __stringify(DEFAULT_MAX_FORWARDS),
-			OPT_UINT_T, 0, FLDSET(struct global_config, max_forwards));
+	ast_sorcery_object_field_register(sorcery, "global", "max_forwards",
+		__stringify(DEFAULT_MAX_FORWARDS),
+		OPT_UINT_T, 0, FLDSET(struct global_config, max_forwards));
 	ast_sorcery_object_field_register(sorcery, "global", "user_agent", default_useragent,
-			OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, useragent));
-	ast_sorcery_object_field_register(sorcery, "global", "default_outbound_endpoint", DEFAULT_OUTBOUND_ENDPOINT,
-			OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, default_outbound_endpoint));
-	ast_sorcery_object_field_register(sorcery, "global", "debug", "no",
-			OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, debug));
-	ast_sorcery_object_field_register(sorcery, "global", "endpoint_identifier_order", "ip,username,anonymous",
-			OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, endpoint_identifier_order));
-	ast_sorcery_object_field_register(sorcery, "global", "keep_alive_interval", "",
-			OPT_UINT_T, 0, FLDSET(struct global_config, keep_alive_interval));
+		OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, useragent));
+	ast_sorcery_object_field_register(sorcery, "global", "default_outbound_endpoint",
+		DEFAULT_OUTBOUND_ENDPOINT,
+		OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, default_outbound_endpoint));
+	ast_sorcery_object_field_register(sorcery, "global", "debug", DEFAULT_DEBUG,
+		OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, debug));
+	ast_sorcery_object_field_register(sorcery, "global", "endpoint_identifier_order",
+		DEFAULT_ENDPOINT_IDENTIFIER_ORDER,
+		OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, endpoint_identifier_order));
+	ast_sorcery_object_field_register(sorcery, "global", "keep_alive_interval",
+		__stringify(DEFAULT_KEEPALIVE_INTERVAL),
+		OPT_UINT_T, 0, FLDSET(struct global_config, keep_alive_interval));
+
+	if (ast_sorcery_instance_observer_add(sorcery, &observer_callbacks_global)) {
+		return -1;
+	}
 
 	return 0;
 }
