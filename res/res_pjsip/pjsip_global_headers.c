@@ -121,18 +121,22 @@ static void remove_header(struct header_list *headers, const char *to_remove)
 
 static int add_header(struct header_list *headers, const char *name, const char *value, int replace)
 {
-	struct header *to_add;
+	struct header *to_add = NULL;
 
-	to_add = alloc_header(name, value);
-	if (!to_add) {
-		return -1;
+	if (!ast_strlen_zero(value)) {
+		to_add = alloc_header(name, value);
+		if (!to_add) {
+			return -1;
+		}
 	}
 
 	AST_RWLIST_WRLOCK(headers);
 	if (replace) { 
 		remove_header(headers, name);
 	}
-	AST_LIST_INSERT_TAIL(headers, to_add, next);
+	if (to_add) {
+		AST_LIST_INSERT_TAIL(headers, to_add, next);
+	}
 	AST_RWLIST_UNLOCK(headers);
 
 	return 0;
