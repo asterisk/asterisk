@@ -40,6 +40,7 @@ AST_LIBS+=$(JANSSON_LIB)
 AST_LIBS+=$(URIPARSER_LIB)
 AST_LIBS+=$(UUID_LIB)
 AST_LIBS+=$(CRYPT_LIB)
+AST_LIBS+=$(AST_CLANG_BLOCKS_LIBS)
 
 ifneq ($(findstring $(OSARCH), linux-gnu uclinux linux-uclibc kfreebsd-gnu),)
   ifneq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)
