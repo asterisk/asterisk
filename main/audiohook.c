@@ -360,21 +360,12 @@ static struct ast_frame *audiohook_read_frame_helper(struct ast_audiohook *audio
 {
 	struct ast_frame *read_frame = NULL, *final_frame = NULL;
 	struct ast_format *slin;
-	int samples_converted;
 
-	/* the number of samples requested is based on the format they are requesting.  Inorder
-	 * to process this correctly samples must be converted to our internal sample rate */
-	if (audiohook->hook_internal_samp_rate == ast_format_get_sample_rate(format)) {
-		samples_converted = samples;
-	} else if (audiohook->hook_internal_samp_rate > ast_format_get_sample_rate(format)) {
-		samples_converted = samples * (audiohook->hook_internal_samp_rate / (float) ast_format_get_sample_rate(format));
-	} else {
-		samples_converted = samples * (ast_format_get_sample_rate(format) / (float) audiohook->hook_internal_samp_rate);
-	}
+	audiohook_set_internal_rate(audiohook, ast_format_get_sample_rate(format), 1);
 
 	if (!(read_frame = (direction == AST_AUDIOHOOK_DIRECTION_BOTH ?
-		audiohook_read_frame_both(audiohook, samples_converted, read_reference, write_reference) :
-		audiohook_read_frame_single(audiohook, samples_converted, direction)))) {
+		audiohook_read_frame_both(audiohook, samples, read_reference, write_reference) :
+		audiohook_read_frame_single(audiohook, samples, direction)))) {
 		return NULL;
 	}
 
