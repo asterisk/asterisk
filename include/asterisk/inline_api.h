@@ -25,12 +25,14 @@
   Small API functions that are candidates for inlining need to be specially
   declared and defined, to ensure that the 'right thing' always happens.
   For example:
-  	- there must _always_ be a non-inlined version of the function
+	- there must _always_ be a non-inlined version of the function
 	available for modules compiled out of the tree to link to
 	- references to a function that cannot be inlined (for any
 	reason that the compiler deems proper) must devolve into an
 	'extern' reference, instead of 'static', so that multiple
-	copies of the function body are not built in different modules
+	copies of the function body are not built in different modules.
+	However, since this doesn't work for clang, we go with 'static'
+	anyway and hope for the best!
 	- when LOW_MEMORY is defined, inlining should be disabled
 	completely, even if the compiler is configured to support it
 
@@ -46,8 +48,12 @@
 #if !defined(LOW_MEMORY)
 
 #if !defined(AST_API_MODULE)
+#if defined(__clang__)
+#define AST_INLINE_API(hdr, body) static hdr; static inline hdr body
+#else /* if defined(__clang__) */
 #define AST_INLINE_API(hdr, body) hdr; extern inline hdr body
-#else
+#endif
+#else /* if !defined(AST_API_MODULE) */
 #define AST_INLINE_API(hdr, body) hdr; hdr body
 #endif
 
