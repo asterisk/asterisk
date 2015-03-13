@@ -1159,7 +1159,7 @@ static int ami_show_endpoint(struct mansession *s, const struct message *m)
 		      ast_sip_get_sorcery(), "endpoint", endpoint_name))) {
 		astman_send_error_va(s, m, "Unable to retrieve endpoint %s\n",
 			endpoint_name);
-		return -1;
+		return 0;
 	}
 
 	astman_send_listack(s, m, "Following are Events for each object "
@@ -1199,7 +1199,7 @@ static int format_ami_endpoints(void *obj, void *arg, int flags)
 		 ast_sip_create_ami_event("EndpointList", ami), ast_free);
 
 	if (!buf) {
-		return -1;
+		return CMP_STOP;
 	}
 
 	sip_sorcery_object_ami_set_type_name(endpoint, &buf);
@@ -1238,7 +1238,8 @@ static int ami_show_endpoints(struct mansession *s, const struct message *m)
 
 	endpoints = ast_sip_get_endpoints();
 	if (!endpoints) {
-		return -1;
+		astman_send_error(s, m, "Could not get endpoints\n");
+		return 0;
 	}
 
 	if (!(num = ao2_container_count(endpoints))) {
