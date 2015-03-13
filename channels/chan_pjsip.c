@@ -219,10 +219,13 @@ static void chan_pjsip_get_codec(struct ast_channel *chan, struct ast_format_cap
 
 static int send_direct_media_request(void *data)
 {
-	RAII_VAR(struct ast_sip_session *, session, data, ao2_cleanup);
+	struct ast_sip_session *session = data;
+	int res;
 
-	return ast_sip_session_refresh(session, NULL, NULL, NULL,
-			session->endpoint->media.direct_media.method, 1);
+	res = ast_sip_session_refresh(session, NULL, NULL, NULL,
+		session->endpoint->media.direct_media.method, 1);
+	ao2_ref(session, -1);
+	return res;
 }
 
 /*! \brief Destructor function for \ref transport_info_data */
@@ -1057,17 +1060,66 @@ static int transmit_info_with_vidupdate(void *data)
 	return 0;
 }
 
+/*!
+ * \internal
+ * \brief TRUE if a COLP update can be sent to the peer.
+ * \since 13.3.0
+ *
+ * \param session The session to see if the COLP update is allowed.
+ *
+ * \retval 0 Update is not allowed.
+ * \retval 1 Update is allowed.
+ */
+static int is_colp_update_allowed(struct ast_sip_session *session)
+{
+	struct ast_party_id connected_id;
+	int update_allowed = 0;
+
+	if (!session->endpoint->id.send_pai && !session->endpoint->id.send_rpid) {
+		return 0;
+	}
+
+	/*
+	 * Check if privacy allows the update.  Check while the channel
+	 * is locked so we can work with the shallow connected_id copy.
+	 */
+	ast_channel_lock(session->channel);
+	connected_id = ast_channel_connected_effective_id(session->channel);
+	if (connected_id.number.valid
+		&& (session->endpoint->id.trust_outbound
+			|| (ast_party_id_presentation(&connected_id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED)) {
+		update_allowed = 1;
+	}
+	ast_channel_unlock(session->channel);
+
+	return update_allowed;
+}
+
 /*! \brief Update connected line information */
 static int update_connected_line_information(void *data)
 {
-	RAII_VAR(struct ast_sip_session *, session, data, ao2_cleanup);
+	struct ast_sip_session *session = data;
 
-	if ((ast_channel_state(session->channel) != AST_STATE_UP) && (session->inv_session->role == PJSIP_UAS_ROLE)) {
-		int response_code = 0;
+	if (ast_channel_state(session->channel) == AST_STATE_UP
+		|| session->inv_session->role == PJSIP_ROLE_UAC) {
+		if (is_colp_update_allowed(session)) {
+			enum ast_sip_session_refresh_method method;
+			int generate_new_sdp;
 
-		if (session->inv_session->state == PJSIP_INV_STATE_DISCONNECTED) {
-			return 0;
+			method = session->endpoint->id.refresh_method;
+			if (session->inv_session->invite_tsx
+				&& (session->inv_session->options & PJSIP_INV_SUPPORT_UPDATE)) {
+				method = AST_SIP_SESSION_REFRESH_METHOD_UPDATE;
+			}
+
+			/* Only the INVITE method actually needs SDP, UPDATE can do without */
+			generate_new_sdp = (method == AST_SIP_SESSION_REFRESH_METHOD_INVITE);
+
+			ast_sip_session_refresh(session, NULL, NULL, NULL, method, generate_new_sdp);
 		}
+	} else if (session->inv_session->state != PJSIP_INV_STATE_DISCONNECTED
+		&& is_colp_update_allowed(session)) {
+		int response_code = 0;
 
 		if (ast_channel_state(session->channel) == AST_STATE_RING) {
 			response_code = !session->endpoint->inband_progress ? 180 : 183;
@@ -1082,34 +1134,9 @@ static int update_connected_line_information(void *data)
 				ast_sip_session_send_response(session, packet);
 			}
 		}
-	} else {
-		enum ast_sip_session_refresh_method method = session->endpoint->id.refresh_method;
-		int generate_new_sdp;
-		struct ast_party_id connected_id;
-
-		if (session->inv_session->invite_tsx && (session->inv_session->options & PJSIP_INV_SUPPORT_UPDATE)) {
-			method = AST_SIP_SESSION_REFRESH_METHOD_UPDATE;
-		}
-
-		/* Only the INVITE method actually needs SDP, UPDATE can do without */
-		generate_new_sdp = (method == AST_SIP_SESSION_REFRESH_METHOD_INVITE);
-
-		/*
-		 * We can get away with a shallow copy here because we are
-		 * not looking at strings.
-		 */
-		ast_channel_lock(session->channel);
-		connected_id = ast_channel_connected_effective_id(session->channel);
-		ast_channel_unlock(session->channel);
-
-		if ((session->endpoint->id.send_pai || session->endpoint->id.send_rpid) &&
-		    (session->endpoint->id.trust_outbound ||
-		     ((connected_id.name.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED &&
-		      (connected_id.number.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED))) {
-			ast_sip_session_refresh(session, NULL, NULL, NULL, method, generate_new_sdp);
-		}
 	}
 
+	ao2_ref(session, -1);
 	return 0;
 }
 
