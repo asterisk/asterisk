@@ -2232,13 +2232,13 @@ static void my_swap_subchannels(void *pvt, enum analog_sub a, struct ast_channel
  *
  * \param callid_created value returned from ast_callid_threadstorage_auto()
  */
-static struct ast_channel *dahdi_new_callid_clean(struct dahdi_pvt *i, int state, int startpbx, int idx, int law, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, struct ast_callid *callid, int callid_created);
+static struct ast_channel *dahdi_new_callid_clean(struct dahdi_pvt *i, int state, int startpbx, int idx, int law, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, ast_callid callid, int callid_created);
 
-static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpbx, int idx, int law, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, struct ast_callid *callid);
+static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpbx, int idx, int law, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, ast_callid callid);
 
 static struct ast_channel *my_new_analog_ast_channel(void *pvt, int state, int startpbx, enum analog_sub sub, const struct ast_channel *requestor)
 {
-	struct ast_callid *callid = NULL;
+	ast_callid callid = 0;
 	int callid_created = ast_callid_threadstorage_auto(&callid);
 	struct dahdi_pvt *p = pvt;
 	int dsub = analogsub_to_dahdisub(sub);
@@ -2265,7 +2265,7 @@ static struct ast_channel *my_new_pri_ast_channel(void *pvt, int state,
 	struct dahdi_pvt *p = pvt;
 	int audio;
 	int newlaw = -1;
-	struct ast_callid *callid = NULL;
+	ast_callid callid = 0;
 	int callid_created = ast_callid_threadstorage_auto(&callid);
 
 	switch (p->sig) {
@@ -3193,7 +3193,7 @@ static struct ast_channel *my_new_ss7_ast_channel(void *pvt, int state, enum sig
 	struct dahdi_pvt *p = pvt;
 	int audio;
 	int newlaw;
-	struct ast_callid *callid = NULL;
+	ast_callid callid = 0;
 	int callid_created = ast_callid_threadstorage_auto(&callid);
 
 	/* Set to audio mode at this point */
@@ -3677,7 +3677,7 @@ static void dahdi_r2_on_call_offered(openr2_chan_t *r2chan, const char *ani, con
 {
 	struct dahdi_pvt *p;
 	struct ast_channel *c;
-	struct ast_callid *callid = NULL;
+	ast_callid callid = 0;
 	int callid_created = ast_callid_threadstorage_auto(&callid);
 	ast_verbose("MFC/R2 call offered on chan %d. ANI = %s, DNIS = %s, Category = %s\n",
 			openr2_chan_get_number(r2chan), ani ? ani : "(restricted)", dnis,
@@ -3746,7 +3746,7 @@ static void dahdi_r2_on_call_accepted(openr2_chan_t *r2chan, openr2_call_mode_t 
 {
 	struct dahdi_pvt *p = NULL;
 	struct ast_channel *c = NULL;
-	struct ast_callid *callid = NULL;
+	ast_callid callid = 0;
 	int callid_created = ast_callid_threadstorage_auto(&callid);
 	p = openr2_chan_get_client_data(r2chan);
 	dahdi_ec_enable(p);
@@ -7901,7 +7901,7 @@ static struct ast_frame *dahdi_handle_event(struct ast_channel *ast)
 					p->subs[SUB_REAL].needflash = 1;
 					goto winkflashdone;
 				} else if (!check_for_conference(p)) {
-					struct ast_callid *callid = NULL;
+					ast_callid callid = 0;
 					int callid_created;
 					char cid_num[256];
 					char cid_name[256];
@@ -9013,7 +9013,7 @@ static struct ast_str *create_channel_name(struct dahdi_pvt *i)
 	return chan_name;
 }
 
-static struct ast_channel *dahdi_new_callid_clean(struct dahdi_pvt *i, int state, int startpbx, int idx, int law, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, struct ast_callid *callid, int callid_created)
+static struct ast_channel *dahdi_new_callid_clean(struct dahdi_pvt *i, int state, int startpbx, int idx, int law, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, ast_callid callid, int callid_created)
 {
 	struct ast_channel *new_channel = dahdi_new(i, state, startpbx, idx, law, assignedids, requestor, callid);
 
@@ -9022,7 +9022,7 @@ static struct ast_channel *dahdi_new_callid_clean(struct dahdi_pvt *i, int state
 	return new_channel;
 }
 
-static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpbx, int idx, int law, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, struct ast_callid *callid)
+static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpbx, int idx, int law, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, ast_callid callid)
 {
 	struct ast_channel *tmp;
 	struct ast_format_cap *caps;
@@ -10620,7 +10620,7 @@ static void *mwi_thread(void *data)
 
 		if (i & DAHDI_IOMUX_SIGEVENT) {
 			struct ast_channel *chan;
-			struct ast_callid *callid = NULL;
+			ast_callid callid = 0;
 			int callid_created;
 
 			/* If we get an event, screen out events that we do not act on.
@@ -11054,7 +11054,7 @@ static struct dahdi_pvt *handle_init_event(struct dahdi_pvt *i, int event)
 	int res;
 	pthread_t threadid;
 	struct ast_channel *chan;
-	struct ast_callid *callid = NULL;
+	ast_callid callid = 0;
 	int callid_created;
 
 	/* Handle an event on a given channel for the monitor thread. */
@@ -11540,7 +11540,7 @@ static void *do_monitor(void *data)
 										doomed = analog_handle_init_event(i->sig_pvt, ANALOG_EVENT_DTMFCID);
 										i->dtmfcid_holdoff_state = 1;
 									} else {
-										struct ast_callid *callid = NULL;
+										ast_callid callid = 0;
 										int callid_created = ast_callid_threadstorage_auto(&callid);
 										chan = dahdi_new(i, AST_STATE_PRERING, 0, SUB_REAL, 0, NULL, NULL, callid);
 										if (!chan) {
@@ -13342,7 +13342,7 @@ static struct ast_channel *dahdi_request(const char *type, struct ast_format_cap
 	int transcapdigital = 0;
 #endif	/* defined(HAVE_PRI) || defined(HAVE_SS7) */
 	struct dahdi_starting_point start;
-	struct ast_callid *callid = NULL;
+	ast_callid callid = 0;
 	int callid_created = ast_callid_threadstorage_auto(&callid);
 
 	ast_mutex_lock(&iflock);
@@ -13664,12 +13664,12 @@ static void dahdi_ss7_message(struct ss7 *ss7, char *s)
 	if (ss7) {
 		for (i = 0; i < NUM_SPANS; i++) {
 			if (linksets[i].ss7.ss7 == ss7) {
-				ast_verbose_callid(NULL, "[%d] %s", i + 1, s);
+				ast_verbose_callid(0, "[%d] %s", i + 1, s);
 				return;
 			}
 		}
 	}
-	ast_verbose_callid(NULL, "%s", s);
+	ast_verbose_callid(0, "%s", s);
 }
 #endif	/* defined(HAVE_SS7) */
 
@@ -13681,12 +13681,12 @@ static void dahdi_ss7_error(struct ss7 *ss7, char *s)
 	if (ss7) {
 		for (i = 0; i < NUM_SPANS; i++) {
 			if (linksets[i].ss7.ss7 == ss7) {
-				ast_log_callid(LOG_ERROR, NULL, "[%d] %s", i + 1, s);
+				ast_log_callid(LOG_ERROR, 0, "[%d] %s", i + 1, s);
 				return;
 			}
 		}
 	}
-	ast_log_callid(LOG_ERROR, NULL, "%s", s);
+	ast_log_callid(LOG_ERROR, 0, "%s", s);
 }
 #endif	/* defined(HAVE_SS7) */
 
@@ -13796,22 +13796,22 @@ static void dahdi_pri_message(struct pri *pri, char *s)
 		}
 		if (-1 < span) {
 			if (1 < dchancount) {
-				ast_verbose_callid(NULL, "[PRI Span: %d D-Channel: %d] %s", span + 1, dchan, s);
+				ast_verbose_callid(0, "[PRI Span: %d D-Channel: %d] %s", span + 1, dchan, s);
 			} else {
-				ast_verbose_callid(NULL, "PRI Span: %d %s", span + 1, s);
+				ast_verbose_callid(0, "PRI Span: %d %s", span + 1, s);
 			}
 		} else {
-			ast_verbose_callid(NULL, "PRI Span: ? %s", s);
+			ast_verbose_callid(0, "PRI Span: ? %s", s);
 		}
 	} else {
-		ast_verbose_callid(NULL, "PRI Span: ? %s", s);
+		ast_verbose_callid(0, "PRI Span: ? %s", s);
 	}
 
 	ast_mutex_lock(&pridebugfdlock);
 
 	if (pridebugfd >= 0) {
 		if (write(pridebugfd, s, strlen(s)) < 0) {
-			ast_log_callid(LOG_WARNING, NULL, "write() failed: %s\n", strerror(errno));
+			ast_log_callid(LOG_WARNING, 0, "write() failed: %s\n", strerror(errno));
 		}
 	}
 
@@ -13847,22 +13847,22 @@ static void dahdi_pri_error(struct pri *pri, char *s)
 		}
 		if (-1 < span) {
 			if (1 < dchancount) {
-				ast_log_callid(LOG_ERROR, NULL, "[PRI Span: %d D-Channel: %d] %s", span + 1, dchan, s);
+				ast_log_callid(LOG_ERROR, 0, "[PRI Span: %d D-Channel: %d] %s", span + 1, dchan, s);
 			} else {
-				ast_log_callid(LOG_ERROR, NULL, "PRI Span: %d %s", span + 1, s);
+				ast_log_callid(LOG_ERROR, 0, "PRI Span: %d %s", span + 1, s);
 			}
 		} else {
-			ast_log_callid(LOG_ERROR, NULL, "PRI Span: ? %s", s);
+			ast_log_callid(LOG_ERROR, 0, "PRI Span: ? %s", s);
 		}
 	} else {
-		ast_log_callid(LOG_ERROR, NULL, "PRI Span: ? %s", s);
+		ast_log_callid(LOG_ERROR, 0, "PRI Span: ? %s", s);
 	}
 
 	ast_mutex_lock(&pridebugfdlock);
 
 	if (pridebugfd >= 0) {
 		if (write(pridebugfd, s, strlen(s)) < 0) {
-			ast_log_callid(LOG_WARNING, NULL, "write() failed: %s\n", strerror(errno));
+			ast_log_callid(LOG_WARNING, 0, "write() failed: %s\n", strerror(errno));
 		}
 	}
 

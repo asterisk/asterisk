@@ -118,8 +118,8 @@ static struct ast_channel *media_request_helper(struct ast_format_cap *cap, cons
 	const struct ast_channel *requestor, const char *data, struct ast_channel_tech *tech, const char *role)
 {
 	struct ast_channel *chan;
+	ast_callid callid;
 
-	RAII_VAR(struct ast_callid *, callid, NULL, ast_callid_cleanup);
 	RAII_VAR(struct ast_unreal_pvt *, pvt, NULL, ao2_cleanup);
 
 	if (!(pvt = ast_unreal_alloc(sizeof(*pvt), ast_unreal_destructor, cap))) {

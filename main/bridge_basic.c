@@ -2367,12 +2367,11 @@ static void recall_callback(struct ast_dial *dial)
  */
 static void common_recall_channel_setup(struct ast_channel *recall, struct ast_channel *transferer)
 {
-	struct ast_callid *callid;
+	ast_callid callid;
 
 	callid = ast_read_threadstorage_callid();
 	if (callid) {
 		ast_channel_callid_set(recall, callid);
-		ast_callid_unref(callid);
 	}
 
 	ast_channel_inherit_variables(transferer, recall);
@@ -2973,7 +2972,7 @@ static enum attended_transfer_stimulus wait_for_stimulus(struct attended_transfe
 static void *attended_transfer_monitor_thread(void *data)
 {
 	struct attended_transfer_properties *props = data;
-	struct ast_callid *callid;
+	ast_callid callid;
 
 	/*
 	 * Set thread callid to the transferer's callid because we
@@ -3018,7 +3017,6 @@ static void *attended_transfer_monitor_thread(void *data)
 	attended_transfer_properties_shutdown(props);
 
 	if (callid) {
-		ast_callid_unref(callid);
 		ast_callid_threadassoc_remove();
 	}
 

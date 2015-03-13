@@ -683,7 +683,7 @@ struct chan_iax2_pvt {
 	/*! Socket to send/receive on for this call */
 	int sockfd;
 	/*! ast_callid bound to dialog */
-	struct ast_callid *callid;
+	ast_callid callid;
 	/*! Last received voice format */
 	iax2_format voiceformat;
 	/*! Last received video format */
@@ -1107,30 +1107,22 @@ static void signal_condition(ast_mutex_t *lock, ast_cond_t *cond)
  */
 static struct chan_iax2_pvt *iaxs[IAX_MAX_CALLS];
 
-static struct ast_callid *iax_pvt_callid_get(int callno)
+static ast_callid iax_pvt_callid_get(int callno)
 {
-	if (iaxs[callno]->callid) {
-		return ast_callid_ref(iaxs[callno]->callid);
-	}
-	return NULL;
+	return iaxs[callno]->callid;
 }
 
-static void iax_pvt_callid_set(int callno, struct ast_callid *callid)
+static void iax_pvt_callid_set(int callno, ast_callid callid)
 {
-	if (iaxs[callno]->callid) {
-		ast_callid_unref(iaxs[callno]->callid);
-	}
-	ast_callid_ref(callid);
 	iaxs[callno]->callid = callid;
 }
 
 static void iax_pvt_callid_new(int callno)
 {
-	struct ast_callid *callid = ast_create_callid();
+	ast_callid callid = ast_create_callid();
 	char buffer[AST_CALLID_BUFFER_LENGTH];
 	ast_callid_strnprint(buffer, sizeof(buffer), callid);
 	iax_pvt_callid_set(callno, callid);
-	ast_callid_unref(callid);
 }
 
 /*!
@@ -2204,11 +2196,6 @@ static void pvt_destructor(void *obj)
 		jb_destroy(pvt->jb);
 		ast_string_field_free_memory(pvt);
 	}
-
-	if (pvt->callid) {
-		ast_callid_unref(pvt->callid);
-	}
-
 }
 
 static struct chan_iax2_pvt *new_iax(struct ast_sockaddr *addr, const char *host)
@@ -5797,7 +5784,7 @@ static struct ast_channel *ast_iax2_new(int callno, int state, iax2_format capab
 	struct ast_variable *v = NULL;
 	struct ast_format_cap *native;
 	struct ast_format *tmpfmt;
-	struct ast_callid *callid;
+	ast_callid callid;
 	char *peer_name = NULL;
 
 	if (!(i = iaxs[callno])) {
@@ -10218,12 +10205,11 @@ static int socket_process_helper(struct iax2_thread *thread)
 	}
 
 	if (fr->callno > 0) {
-		struct ast_callid *mount_callid;
+		ast_callid mount_callid;
 		ast_mutex_lock(&iaxsl[fr->callno]);
 		if (iaxs[fr->callno] && ((mount_callid = iax_pvt_callid_get(fr->callno)))) {
 			/* Bind to thread */
 			ast_callid_threadassoc_add(mount_callid);
-			ast_callid_unref(mount_callid);
 		}
 	}
 
@@ -11920,11 +11906,9 @@ immediatedial:
 
 static int socket_process(struct iax2_thread *thread)
 {
-	struct ast_callid *callid;
 	int res = socket_process_helper(thread);
-	if ((callid = ast_read_threadstorage_callid())) {
+	if (ast_read_threadstorage_callid()) {
 		ast_callid_threadassoc_remove();
-		callid = ast_callid_unref(callid);
 	}
 	return res;
 }
@@ -12405,7 +12389,7 @@ static struct ast_channel *iax2_request(const char *type, struct ast_format_cap 
 	struct parsed_dial_string pds;
 	struct create_addr_info cai;
 	char *tmpstr;
-	struct ast_callid *callid;
+	ast_callid callid;
 
 	memset(&pds, 0, sizeof(pds));
 	tmpstr = ast_strdupa(data);
@@ -12508,9 +12492,6 @@ static struct ast_channel *iax2_request(const char *type, struct ast_format_cap 
 		ao2_ref(format, -1);
 	}
 
-	if (callid) {
-		ast_callid_unref(callid);
-	}
 	return c;
 }
 

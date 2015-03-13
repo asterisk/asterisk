@@ -96,7 +96,7 @@ struct ast_channel {
 	struct ast_tone_zone *zone;			/*!< Tone zone as set in indications.conf or
 							 *   in the CHANNEL dialplan function */
 	struct ast_channel_monitor *monitor;		/*!< Channel monitoring */
-	struct ast_callid *callid;			/*!< Bound call identifier pointer */
+	ast_callid callid;			/*!< Bound call identifier pointer */
 #ifdef HAVE_EPOLL
 	struct ast_epoll_data *epfd_data[AST_MAX_FDS];
 #endif
@@ -914,15 +914,11 @@ enum ast_channel_state ast_channel_state(const struct ast_channel *chan)
 {
 	return chan->state;
 }
-struct ast_callid *ast_channel_callid(const struct ast_channel *chan)
+ast_callid ast_channel_callid(const struct ast_channel *chan)
 {
-	if (chan->callid) {
-		ast_callid_ref(chan->callid);
-		return chan->callid;
-	}
-	return NULL;
+	return chan->callid;
 }
-void ast_channel_callid_set(struct ast_channel *chan, struct ast_callid *callid)
+void ast_channel_callid_set(struct ast_channel *chan, ast_callid callid)
 {
 	char call_identifier_from[AST_CALLID_BUFFER_LENGTH];
 	char call_identifier_to[AST_CALLID_BUFFER_LENGTH];
@@ -931,11 +927,9 @@ void ast_channel_callid_set(struct ast_channel *chan, struct ast_callid *callid)
 	if (chan->callid) {
 		ast_callid_strnprint(call_identifier_from, sizeof(call_identifier_from), chan->callid);
 		ast_debug(3, "Channel Call ID changing from %s to %s\n", call_identifier_from, call_identifier_to);
-		/* unbind if already set */
-		ast_callid_unref(chan->callid);
 	}
 
-	chan->callid = ast_callid_ref(callid);
+	chan->callid = callid;
 
 	ast_test_suite_event_notify("CallIDChange",
 		"State: CallIDChange\r\n"
@@ -1165,9 +1159,7 @@ void ast_channel_set_unbridged(struct ast_channel *chan, int value)
 
 void ast_channel_callid_cleanup(struct ast_channel *chan)
 {
-	if (chan->callid) {
-		chan->callid = ast_callid_unref(chan->callid);
-	}
+	chan->callid = 0;
 }
 
 /* Typedef accessors */

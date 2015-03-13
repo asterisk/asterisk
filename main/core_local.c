@@ -885,7 +885,7 @@ static struct ast_channel *local_request(const char *type, struct ast_format_cap
 {
 	struct local_pvt *p;
 	struct ast_channel *chan;
-	struct ast_callid *callid;
+	ast_callid callid;
 
 	/* Allocate a new private structure and then Asterisk channels */
 	p = local_alloc(data, cap);
@@ -897,9 +897,6 @@ static struct ast_channel *local_request(const char *type, struct ast_format_cap
 		p->exten, p->context, assignedids, requestor, callid);
 	if (chan) {
 		ao2_link(locals, p);
-	}
-	if (callid) {
-		ast_callid_unref(callid);
 	}
 	ao2_ref(p, -1); /* kill the ref from the alloc */
 

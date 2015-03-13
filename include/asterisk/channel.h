@@ -4046,12 +4046,12 @@ void ast_channel_tech_set(struct ast_channel *chan, const struct ast_channel_tec
 enum ast_channel_adsicpe ast_channel_adsicpe(const struct ast_channel *chan);
 void ast_channel_adsicpe_set(struct ast_channel *chan, enum ast_channel_adsicpe value);
 enum ast_channel_state ast_channel_state(const struct ast_channel *chan);
-struct ast_callid *ast_channel_callid(const struct ast_channel *chan);
+ast_callid ast_channel_callid(const struct ast_channel *chan);
 
 /*!
  * \pre chan is locked
  */
-void ast_channel_callid_set(struct ast_channel *chan, struct ast_callid *value);
+void ast_channel_callid_set(struct ast_channel *chan, ast_callid value);
 
 /* XXX Internal use only, make sure to move later */
 void ast_channel_state_set(struct ast_channel *chan, enum ast_channel_state);

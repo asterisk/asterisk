@@ -317,7 +317,7 @@ struct jingle_session {
 	struct ast_format_cap *peercap;       /*!< Peer codec capabilities */
 	unsigned int outgoing:1;              /*!< Whether this is an outgoing leg or not */
 	unsigned int gone:1;                  /*!< In the eyes of Jingle this session is already gone */
-	struct ast_callid *callid;            /*!< Bound session call-id */
+	ast_callid callid;                    /*!< Bound session call-id */
 };
 
 static const char desc[] = "Motif Jingle Channel";
@@ -585,10 +585,6 @@ static void jingle_session_destructor(void *obj)
 	ao2_cleanup(session->jointcap);
 	ao2_cleanup(session->peercap);
 
-	if (session->callid) {
-		ast_callid_unref(session->callid);
-	}
-
 	ast_string_field_free_memory(session);
 }
 
@@ -704,7 +700,7 @@ static void jingle_enable_video(struct jingle_session *session)
 static struct jingle_session *jingle_alloc(struct jingle_endpoint *endpoint, const char *from, const char *sid)
 {
 	struct jingle_session *session;
-	struct ast_callid *callid;
+	ast_callid callid;
 	struct ast_sockaddr tmp;
 
 	if (!(session = ao2_alloc(sizeof(*session), jingle_session_destructor))) {

@@ -1715,7 +1715,7 @@ static void *__analog_ss_thread(void *data)
 	int len = 0;
 	int res;
 	int idx;
-	struct ast_callid *callid;
+	ast_callid callid;
 	RAII_VAR(struct ast_features_pickup_config *, pickup_cfg, NULL, ao2_cleanup);
 	const char *pickupexten;
 
@@ -1730,7 +1730,6 @@ static void *__analog_ss_thread(void *data)
 
 	if ((callid = ast_channel_callid(chan))) {
 		ast_callid_threadassoc_add(callid);
-		ast_callid_unref(callid);
 	}
 
 	/* in the bizarre case where the channel has become a zombie before we
@@ -3194,7 +3193,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 					ast_queue_control(p->subs[ANALOG_SUB_REAL].owner, AST_CONTROL_FLASH);
 					goto winkflashdone;
 				} else if (!analog_check_for_conference(p)) {
-					struct ast_callid *callid = NULL;
+					ast_callid callid = 0;
 					int callid_created;
 					char cid_num[256];
 					char cid_name[256];
@@ -3657,7 +3656,7 @@ void *analog_handle_init_event(struct analog_pvt *i, int event)
 	int res;
 	pthread_t threadid;
 	struct ast_channel *chan;
-	struct ast_callid *callid = NULL;
+	ast_callid callid = 0;
 	int callid_created;
 
 	ast_debug(1, "channel (%d) - signaling (%d) - event (%s)\n",

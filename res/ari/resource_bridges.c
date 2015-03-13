@@ -284,8 +284,7 @@ static void *bridge_channel_control_thread(void *data)
 	struct ast_channel *bridge_channel = thread_data->bridge_channel;
 	struct stasis_app_control *control = thread_data->control;
 	struct stasis_forward *forward = thread_data->forward;
-
-	RAII_VAR(struct ast_callid *, callid, ast_channel_callid(bridge_channel), ast_callid_cleanup);
+	ast_callid callid = ast_channel_callid(bridge_channel);
 
 	if (callid) {
 		ast_callid_threadassoc_add(callid);

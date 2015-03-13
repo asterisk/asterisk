@@ -991,7 +991,7 @@ struct sip_msg_hdr {
 struct sip_pvt {
 	struct sip_pvt *next;                   /*!< Next dialog in chain */
 	enum invitestates invitestate;          /*!< Track state of SIP_INVITEs */
-	struct ast_callid *logger_callid;		/*!< Identifier for call used in log messages */
+	ast_callid logger_callid;               /*!< Identifier for call used in log messages */
 	int method;                             /*!< SIP method that opened this dialog */
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(callid);       /*!< Global CallID */

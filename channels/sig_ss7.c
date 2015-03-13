@@ -976,7 +976,7 @@ static void ss7_start_call(struct sig_ss7_chan *p, struct sig_ss7_linkset *links
 	struct ast_channel *c;
 	char tmp[256];
 	char *strp;
-	struct ast_callid *callid = NULL;
+	ast_callid callid = 0;
 	int callid_created = ast_callid_threadstorage_auto(&callid);
 
 	if (!(linkset->flags & LINKSET_FLAG_EXPLICITACM)) {
@@ -1315,14 +1315,13 @@ static int ss7_pres_scr2cid_pres(char presentation_ind, char screening_ind)
  * \note Assumes the ss7->lock is already obtained.
  * \note Assumes the sig_ss7_lock_private(ss7->pvts[chanpos]) is already obtained.
  *
- * \return a reference to the callid bound to the channel which has also
- *         been bound to threadstorage if it exists. If this returns non-NULL,
- *         the callid must be unreffed and the threadstorage should be unbound
+ * \return The callid bound to the channel which has also been bound to threadstorage
+ *         if it exists. If this returns non-zero, the threadstorage should be unbound
  *         before the while loop wraps in ss7_linkset.
  */
-static struct ast_callid *func_ss7_linkset_callid(struct sig_ss7_linkset *linkset, int chanpos)
+static ast_callid func_ss7_linkset_callid(struct sig_ss7_linkset *linkset, int chanpos)
 {
-	struct ast_callid *callid = NULL;
+	ast_callid callid = 0;
 	sig_ss7_lock_owner(linkset, chanpos);
 	if (linkset->pvts[chanpos]->owner) {
 		callid = ast_channel_callid(linkset->pvts[chanpos]->owner);
@@ -1460,7 +1459,7 @@ void *ss7_linkset(void *data)
 		}
 
 		while ((e = ss7_check_event(ss7))) {
-			struct ast_callid *callid = NULL;
+			ast_callid callid = 0;
 			int chanpos = -1;
 			char cause_str[30];
 
@@ -2342,7 +2341,6 @@ void *ss7_linkset(void *data)
 
 			/* Call ID stuff needs to be cleaned up here */
 			if (callid) {
-				callid = ast_callid_unref(callid);
 				ast_callid_threadassoc_remove();
 			}
 		}

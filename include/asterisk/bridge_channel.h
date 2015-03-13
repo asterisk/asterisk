@@ -138,7 +138,7 @@ struct ast_bridge_channel {
 	/*! Copy of write format used by chan before join */
 	struct ast_format *write_format;
 	/*! Call ID associated with bridge channel */
-	struct ast_callid *callid;
+	ast_callid callid;
 	/*! A clone of the roles living on chan when the bridge channel joins the bridge. This may require some opacification */
 	struct bridge_roles_datastore *bridge_roles;
 	/*! Linked list information */

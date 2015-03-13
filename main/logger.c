@@ -82,15 +82,10 @@ static int filesize_reload_needed;
 static unsigned int global_logmask = 0xFFFF;
 static int queuelog_init;
 static int logger_initialized;
-static volatile int next_unique_callid; /* Used to assign unique call_ids to calls */
+static volatile int next_unique_callid = 1; /* Used to assign unique call_ids to calls */
 static int display_callids;
-static void unique_callid_cleanup(void *data);
 
-struct ast_callid {
-	int call_identifier; /* Numerical value of the call displayed in the logs */
-};
-
-AST_THREADSTORAGE_CUSTOM(unique_callid, NULL, unique_callid_cleanup);
+AST_THREADSTORAGE_CUSTOM(unique_callid, NULL, ast_free);
 
 static enum rotatestrategy {
 	NONE = 0,                /* Do not rotate log files at all, instead rely on external mechanisms */
@@ -151,7 +146,7 @@ struct logmsg {
 	int level;
 	int line;
 	int lwp;
-	struct ast_callid *callid;
+	ast_callid callid;
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(date);
 		AST_STRING_FIELD(file);
@@ -164,9 +159,6 @@ struct logmsg {
 
 static void logmsg_free(struct logmsg *msg)
 {
-	if (msg->callid) {
-		ast_callid_unref(msg->callid);
-	}
 	ast_free(msg);
 }
 
@@ -1145,7 +1137,7 @@ static void ast_log_vsyslog(struct logmsg *msg)
 	char call_identifier_str[13];
 
 	if (msg->callid) {
-		snprintf(call_identifier_str, sizeof(call_identifier_str), "[C-%08x]", (unsigned)msg->callid->call_identifier);
+		snprintf(call_identifier_str, sizeof(call_identifier_str), "[C-%08x]", msg->callid);
 	} else {
 		call_identifier_str[0] = '\0';
 	}
@@ -1224,7 +1216,7 @@ static void logger_print_normal(struct logmsg *logmsg)
 			char call_identifier_str[13];
 
 			if (logmsg->callid) {
-				snprintf(call_identifier_str, sizeof(call_identifier_str), "[C-%08x]", (unsigned)logmsg->callid->call_identifier);
+				snprintf(call_identifier_str, sizeof(call_identifier_str), "[C-%08x]", logmsg->callid);
 			} else {
 				call_identifier_str[0] = '\0';
 			}
@@ -1485,45 +1477,35 @@ void close_logger(void)
 	AST_RWLIST_UNLOCK(&logchannels);
 }
 
-void ast_callid_strnprint(char *buffer, size_t buffer_size, struct ast_callid *callid)
+void ast_callid_strnprint(char *buffer, size_t buffer_size, ast_callid callid)
 {
-	snprintf(buffer, buffer_size, "[C-%08x]", (unsigned)callid->call_identifier);
+	snprintf(buffer, buffer_size, "[C-%08x]", callid);
 }
 
-struct ast_callid *ast_create_callid(void)
+ast_callid ast_create_callid(void)
 {
-	struct ast_callid *call;
+	ast_callid call;
 
-	call = ao2_alloc_options(sizeof(*call), NULL, AO2_ALLOC_OPT_LOCK_NOLOCK);
-	if (!call) {
-		ast_log(LOG_ERROR, "Could not allocate callid struct.\n");
-		return NULL;
-	}
-
-	call->call_identifier = ast_atomic_fetchadd_int(&next_unique_callid, +1);
+	call = ast_atomic_fetchadd_int(&next_unique_callid, +1);
 #ifdef TEST_FRAMEWORK
-	ast_debug(3, "CALL_ID [C-%08x] created by thread.\n", (unsigned)call->call_identifier);
+	ast_debug(3, "CALL_ID [C-%08x] created by thread.\n", call);
 #endif
 	return call;
 }
 
-struct ast_callid *ast_read_threadstorage_callid(void)
+ast_callid ast_read_threadstorage_callid(void)
 {
-	struct ast_callid **callid;
+	ast_callid *callid;
 
 	callid = ast_threadstorage_get(&unique_callid, sizeof(*callid));
-	if (callid && *callid) {
-		ast_callid_ref(*callid);
-		return *callid;
-	}
 
-	return NULL;
+	return callid ? *callid : 0;
 
 }
 
-int ast_callid_threadassoc_change(struct ast_callid *callid)
+int ast_callid_threadassoc_change(ast_callid callid)
 {
-	struct ast_callid **id = ast_threadstorage_get(&unique_callid, sizeof(*id));
+	ast_callid *id = ast_threadstorage_get(&unique_callid, sizeof(*id));
 
 	if (!id) {
 		ast_log(LOG_ERROR, "Failed to allocate thread storage.\n");
@@ -1532,27 +1514,24 @@ int ast_callid_threadassoc_change(struct ast_callid *callid)
 
 	if (*id && (*id != callid)) {
 #ifdef TEST_FRAMEWORK
-		ast_debug(3, "CALL_ID [C-%08x] being removed from thread.\n", (unsigned)(*id)->call_identifier);
+		ast_debug(3, "CALL_ID [C-%08x] being removed from thread.\n", *id);
 #endif
-		*id = ast_callid_unref(*id);
-		*id = NULL;
+		*id = 0;
 	}
 
 	if (!(*id) && callid) {
-		/* callid will be unreffed at thread destruction */
-		ast_callid_ref(callid);
 		*id = callid;
 #ifdef TEST_FRAMEWORK
-		ast_debug(3, "CALL_ID [C-%08x] bound to thread.\n", (unsigned)callid->call_identifier);
+		ast_debug(3, "CALL_ID [C-%08x] bound to thread.\n", callid);
 #endif
 	}
 
 	return 0;
 }
 
-int ast_callid_threadassoc_add(struct ast_callid *callid)
+int ast_callid_threadassoc_add(ast_callid callid)
 {
-	struct ast_callid **pointing;
+	ast_callid *pointing;
 
 	pointing = ast_threadstorage_get(&unique_callid, sizeof(*pointing));
 	if (!(pointing)) {
@@ -1561,11 +1540,9 @@ int ast_callid_threadassoc_add(struct ast_callid *callid)
 	}
 
 	if (!(*pointing)) {
-		/* callid will be unreffed at thread destruction */
-		ast_callid_ref(callid);
 		*pointing = callid;
 #ifdef TEST_FRAMEWORK
-		ast_debug(3, "CALL_ID [C-%08x] bound to thread.\n", (unsigned)callid->call_identifier);
+		ast_debug(3, "CALL_ID [C-%08x] bound to thread.\n", callid);
 #endif
 	} else {
 		ast_log(LOG_WARNING, "Attempted to ast_callid_threadassoc_add on thread already associated with a callid.\n");
@@ -1577,7 +1554,7 @@ int ast_callid_threadassoc_add(struct ast_callid *callid)
 
 int ast_callid_threadassoc_remove(void)
 {
-	struct ast_callid **pointing;
+	ast_callid *pointing;
 
 	pointing = ast_threadstorage_get(&unique_callid, sizeof(*pointing));
 	if (!(pointing)) {
@@ -1590,16 +1567,16 @@ int ast_callid_threadassoc_remove(void)
 		return -1;
 	} else {
 #ifdef TEST_FRAMEWORK
-		ast_debug(3, "CALL_ID [C-%08x] being removed from thread.\n", (unsigned)(*pointing)->call_identifier);
+		ast_debug(3, "CALL_ID [C-%08x] being removed from thread.\n", *pointing);
 #endif
-		*pointing = ast_callid_unref(*pointing);
+		*pointing = 0;
 		return 0;
 	}
 }
 
-int ast_callid_threadstorage_auto(struct ast_callid **callid)
+int ast_callid_threadstorage_auto(ast_callid *callid)
 {
-	struct ast_callid *tmp;
+	ast_callid tmp;
 
 	/* Start by trying to see if a callid is available from thread storage */
 	tmp = ast_read_threadstorage_callid();
@@ -1609,10 +1586,9 @@ int ast_callid_threadstorage_auto(struct ast_callid **callid)
 	}
 
 	/* If that failed, try to create a new one and bind it. */
-	tmp = ast_create_callid();
-	if (tmp) {
-		ast_callid_threadassoc_add(tmp);
-		*callid = tmp;
+	*callid = ast_create_callid();
+	if (*callid) {
+		ast_callid_threadassoc_add(*callid);
 		return 1;
 	}
 
@@ -1620,36 +1596,18 @@ int ast_callid_threadstorage_auto(struct ast_callid **callid)
 	return -1;
 }
 
-void ast_callid_threadstorage_auto_clean(struct ast_callid *callid, int callid_created)
+void ast_callid_threadstorage_auto_clean(ast_callid callid, int callid_created)
 {
-	if (callid) {
+	if (callid && callid_created) {
 		/* If the callid was created rather than simply grabbed from the thread storage, we need to unbind here. */
-		if (callid_created == 1) {
-			ast_callid_threadassoc_remove();
-		}
-		callid = ast_callid_unref(callid);
+		ast_callid_threadassoc_remove();
 	}
-}
-
-/*!
- * \internal
- * \brief thread storage cleanup function for unique_callid
- */
-static void unique_callid_cleanup(void *data)
-{
-	struct ast_callid **callid = data;
-
-	if (*callid) {
-		ast_callid_unref(*callid);
-	}
-
-	ast_free(data);
 }
 
 /*!
  * \brief send log messages to syslog and/or the console
  */
-static void __attribute__((format(printf, 6, 0))) ast_log_full(int level, const char *file, int line, const char *function, struct ast_callid *callid, const char *fmt, va_list ap)
+static void __attribute__((format(printf, 6, 0))) ast_log_full(int level, const char *file, int line, const char *function, ast_callid callid, const char *fmt, va_list ap)
 {
 	struct logmsg *logmsg = NULL;
 	struct ast_str *buf = NULL;
@@ -1701,8 +1659,7 @@ static void __attribute__((format(printf, 6, 0))) ast_log_full(int level, const 
 	}
 
 	if (display_callids && callid) {
-		logmsg->callid = ast_callid_ref(callid);
-		/* callid will be unreffed at logmsg destruction */
+		logmsg->callid = callid;
 	}
 
 	/* Create our date/time */
@@ -1737,7 +1694,7 @@ static void __attribute__((format(printf, 6, 0))) ast_log_full(int level, const 
 
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
 {
-	struct ast_callid *callid;
+	ast_callid callid;
 	va_list ap;
 
 	callid = ast_read_threadstorage_callid();
@@ -1749,13 +1706,9 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		ast_log_full(level, file, line, function, callid, fmt, ap);
 	}
 	va_end(ap);
-
-	if (callid) {
-		ast_callid_unref(callid);
-	}
 }
 
-void ast_log_callid(int level, const char *file, int line, const char *function, struct ast_callid *callid, const char *fmt, ...)
+void ast_log_callid(int level, const char *file, int line, const char *function, ast_callid callid, const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
@@ -1792,7 +1745,7 @@ void ast_log_backtrace(void)
 #endif /* defined(HAVE_BKTR) */
 }
 
-void __ast_verbose_ap(const char *file, int line, const char *func, int level, struct ast_callid *callid, const char *fmt, va_list ap)
+void __ast_verbose_ap(const char *file, int line, const char *func, int level, ast_callid callid, const char *fmt, va_list ap)
 {
 	const char *p;
 	struct ast_str *prefixed, *buf;
@@ -1845,7 +1798,7 @@ void __ast_verbose_ap(const char *file, int line, const char *func, int level, s
 
 void __ast_verbose(const char *file, int line, const char *func, int level, const char *fmt, ...)
 {
-	struct ast_callid *callid;
+	ast_callid callid;
 	va_list ap;
 
 	callid = ast_read_threadstorage_callid();
@@ -1853,13 +1806,9 @@ void __ast_verbose(const char *file, int line, const char *func, int level, cons
 	va_start(ap, fmt);
 	__ast_verbose_ap(file, line, func, level, callid, fmt, ap);
 	va_end(ap);
-
-	if (callid) {
-		ast_callid_unref(callid);
-	}
 }
 
-void __ast_verbose_callid(const char *file, int line, const char *func, int level, struct ast_callid *callid, const char *fmt, ...)
+void __ast_verbose_callid(const char *file, int line, const char *func, int level, ast_callid callid, const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
@@ -1872,7 +1821,7 @@ void __ast_verbose_callid(const char *file, int line, const char *func, int leve
 void __attribute__((format(printf, 1,2))) ast_verbose(const char *fmt, ...);
 void ast_verbose(const char *fmt, ...)
 {
-	struct ast_callid *callid;
+	ast_callid callid;
 	va_list ap;
 
 	callid = ast_read_threadstorage_callid();
@@ -1880,10 +1829,6 @@ void ast_verbose(const char *fmt, ...)
 	va_start(ap, fmt);
 	__ast_verbose_ap("", 0, "", 0, callid, fmt, ap);
 	va_end(ap);
-
-	if (callid) {
-		ast_callid_unref(callid);
-	}
 }
 
 /*! Console verbosity level node. */

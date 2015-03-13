@@ -1528,7 +1528,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	struct ast_str *read_transpath = ast_str_alloca(256);
 	struct ast_str *codec_buf = ast_str_alloca(64);
 	struct ast_bridge *bridge;
-	struct ast_callid *callid;
+	ast_callid callid;
 	char callid_buf[32];
 
 	switch (cmd) {
@@ -1583,7 +1583,6 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	callid = ast_channel_callid(chan);
 	if (callid) {
 		ast_callid_strnprint(callid_buf, sizeof(callid_buf), callid);
-		ast_callid_unref(callid);
 	}
 
 	ast_str_append(&output, 0,

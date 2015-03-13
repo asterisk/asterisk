@@ -717,12 +717,11 @@ int ast_unreal_channel_push_to_bridge(struct ast_channel *ast, struct ast_bridge
 	struct ast_bridge_features *features;
 	struct ast_channel *chan;
 	struct ast_channel *owner;
+	ast_callid bridge_callid;
 	RAII_VAR(struct ast_unreal_pvt *, p, NULL, ao2_cleanup);
 
-	RAII_VAR(struct ast_callid *, bridge_callid, NULL, ast_callid_cleanup);
-
 	ast_bridge_lock(bridge);
-	bridge_callid = bridge->callid ? ast_callid_ref(bridge->callid) : NULL;
+	bridge_callid = bridge->callid;
 	ast_bridge_unlock(bridge);
 
 	{
@@ -751,8 +750,8 @@ int ast_unreal_channel_push_to_bridge(struct ast_channel *ast, struct ast_bridge
 	}
 
 	if (bridge_callid) {
-		struct ast_callid *chan_callid;
-		struct ast_callid *owner_callid;
+		ast_callid chan_callid;
+		ast_callid owner_callid;
 
 		/* chan side call ID setting */
 		ast_channel_lock(chan);
@@ -762,7 +761,6 @@ int ast_unreal_channel_push_to_bridge(struct ast_channel *ast, struct ast_bridge
 			ast_channel_callid_set(chan, bridge_callid);
 		}
 		ast_channel_unlock(chan);
-		ast_callid_cleanup(chan_callid);
 
 		/* owner side call ID setting */
 		ast_channel_lock(owner);
@@ -773,7 +771,6 @@ int ast_unreal_channel_push_to_bridge(struct ast_channel *ast, struct ast_bridge
 		}
 
 		ast_channel_unlock(owner);
-		ast_callid_cleanup(owner_callid);
 	}
 
 	/* We are done with the owner now that its call ID matches the bridge */
@@ -923,7 +920,7 @@ struct ast_unreal_pvt *ast_unreal_alloc(size_t size, ao2_destructor_fn destructo
 struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 	const struct ast_channel_tech *tech, int semi1_state, int semi2_state,
 	const char *exten, const char *context, const struct ast_assigned_ids *assignedids,
-	const struct ast_channel *requestor, struct ast_callid *callid)
+	const struct ast_channel *requestor, ast_callid callid)
 {
 	struct ast_channel *owner;
 	struct ast_channel *chan;

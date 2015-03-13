@@ -40,7 +40,6 @@ extern "C" {
 
 /* Forward declare some struct names */
 struct ast_format_cap;
-struct ast_callid;
 
 /* ------------------------------------------------------------------- */
 
@@ -207,7 +206,7 @@ struct ast_unreal_pvt *ast_unreal_alloc(size_t size, ao2_destructor_fn destructo
 struct ast_channel *ast_unreal_new_channels(struct ast_unreal_pvt *p,
 	const struct ast_channel_tech *tech, int semi1_state, int semi2_state,
 	const char *exten, const char *context, const struct ast_assigned_ids *assignedids, 
-	const struct ast_channel *requestor, struct ast_callid *callid);
+	const struct ast_channel *requestor, ast_callid callid);
 
 /*!
  * \brief Setup unreal owner and chan channels before initiating call.

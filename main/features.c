@@ -314,7 +314,6 @@ struct ast_bridge_thread_obj
 	struct ast_bridge_config bconfig;
 	struct ast_channel *chan;
 	struct ast_channel *peer;
-	struct ast_callid *callid;                             /*<! callid pointer (Only used to bind thread) */
 	unsigned int return_to_pbx:1;
 };
 

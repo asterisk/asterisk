@@ -681,9 +681,7 @@ static void destroy_bridge(void *obj)
 		bridge->technology = NULL;
 	}
 
-	if (bridge->callid) {
-		bridge->callid = ast_callid_unref(bridge->callid);
-	}
+	bridge->callid = 0;
 
 	cleanup_video_mode(bridge);
 

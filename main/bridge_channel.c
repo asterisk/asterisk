@@ -2755,7 +2755,7 @@ static void bridge_channel_destroy(void *obj)
 	struct ast_frame *fr;
 
 	if (bridge_channel->callid) {
-		bridge_channel->callid = ast_callid_unref(bridge_channel->callid);
+		bridge_channel->callid = 0;
 	}
 
 	if (bridge_channel->bridge) {

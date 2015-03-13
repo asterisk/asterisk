@@ -31,5 +31,11 @@ chan_dahdi:
    ring-ring-ring pattern would exceed the pattern limits and stop
    Caller-ID detection.
 
+Core:
+
+Logging:
+ - The first callid created is now 1 instead of 0.  The value 0
+   is now reserved to represent a lack of callid.
+
 ===========================================================
 ===========================================================

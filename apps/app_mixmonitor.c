@@ -295,12 +295,12 @@ struct vm_recipient {
 
 struct mixmonitor {
 	struct ast_audiohook audiohook;
-	struct ast_callid *callid;
 	char *filename;
 	char *filename_read;
 	char *filename_write;
 	char *post_process;
 	char *name;
+	ast_callid callid;
 	unsigned int flags;
 	struct ast_autochan *autochan;
 	struct mixmonitor_ds *mixmonitor_ds;
@@ -545,9 +545,6 @@ static void mixmonitor_free(struct mixmonitor *mixmonitor)
 		/* clean stringfields */
 		ast_string_field_free_memory(mixmonitor);
 
-		if (mixmonitor->callid) {
-			ast_callid_unref(mixmonitor->callid);
-		}
 		ast_free(mixmonitor);
 	}
 }

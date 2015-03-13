@@ -2174,7 +2174,7 @@ static void ast_channel_destructor(void *obj)
 	struct varshead *headp;
 	struct ast_datastore *datastore;
 	char device_name[AST_CHANNEL_NAME];
-	struct ast_callid *callid;
+	ast_callid callid;
 
 	/* Stop monitoring */
 	if (ast_channel_monitor(chan)) {
@@ -2311,9 +2311,6 @@ static void ast_channel_destructor(void *obj)
 	}
 
 	ast_channel_nativeformats_set(chan, NULL);
-	if (callid) {
-		ast_callid_unref(callid);
-	}
 
 	ast_channel_named_callgroups_set(chan, NULL);
 	ast_channel_named_pickupgroups_set(chan, NULL);
@@ -5904,7 +5901,7 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
 		}
 
 		if (requestor) {
-			struct ast_callid *callid;
+			ast_callid callid;
 
 			ast_channel_lock_both(c, (struct ast_channel *) requestor);
 
@@ -5912,7 +5909,6 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
 			callid = ast_channel_callid(requestor);
 			if (callid) {
 				ast_channel_callid_set(c, callid);
-				callid = ast_callid_unref(callid);
 			}
 
 			ast_channel_unlock(c);

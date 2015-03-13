@@ -103,7 +103,7 @@ static struct ast_channel *announce_request(const char *type, struct ast_format_
 	ao2_ref(pvt->bridge, +1);
 
 	chan = ast_unreal_new_channels(&pvt->base, conf_announce_get_tech(),
-		AST_STATE_UP, AST_STATE_UP, NULL, NULL, assignedids, requestor, NULL);
+		AST_STATE_UP, AST_STATE_UP, NULL, NULL, assignedids, requestor, 0);
 	if (chan) {
 		ast_answer(pvt->base.owner);
 		ast_answer(pvt->base.chan);

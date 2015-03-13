@@ -280,7 +280,7 @@ struct ast_bridge {
 	/*! Per-bridge topics */
 	struct stasis_cp_single *topics;
 	/*! Call ID associated with the bridge */
-	struct ast_callid *callid;
+	ast_callid callid;
 	/*! Linked list of channels participating in the bridge */
 	AST_LIST_HEAD_NOLOCK(, ast_bridge_channel) channels;
 	/*! Queue of actions to perform on the bridge. */

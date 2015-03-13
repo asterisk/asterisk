@@ -35,7 +35,7 @@ struct sip_pvt *dialog_ref_debug(struct sip_pvt *p, const char *tag, char *file,
 struct sip_pvt *dialog_unref_debug(struct sip_pvt *p, const char *tag, char *file, int line, const char *func);
 
 struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *sin,
-				 int useglobal_nat, const int intended_method, struct sip_request *req, struct ast_callid *logger_callid);
+				 int useglobal_nat, const int intended_method, struct sip_request *req, ast_callid logger_callid);
 void sip_scheddestroy_final(struct sip_pvt *p, int ms);
 void sip_scheddestroy(struct sip_pvt *p, int ms);
 int sip_cancel_destroy(struct sip_pvt *p);

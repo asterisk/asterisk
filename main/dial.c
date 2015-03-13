@@ -56,7 +56,7 @@ struct ast_dial {
 	void *user_data;                                   /*!< Attached user data */
 	AST_LIST_HEAD(, ast_dial_channel) channels; /*!< Channels being dialed */
 	pthread_t thread;                                  /*!< Thread (if running in async) */
-	struct ast_callid *callid;                         /*!< callid pointer (if running in async) */
+	ast_callid callid;                                 /*!< callid (if running in async) */
 	ast_mutex_t lock;                                  /*! Lock to protect the thread information above */
 };
 
@@ -1117,11 +1117,6 @@ int ast_dial_destroy(struct ast_dial *dial)
 
 	/* Lock be gone! */
 	ast_mutex_destroy(&dial->lock);
-
-	/* Get rid of the reference to the ast_callid */
-	if (dial->callid) {
-		ast_callid_unref(dial->callid);
-	}
 
 	/* Free structure */
 	ast_free(dial);

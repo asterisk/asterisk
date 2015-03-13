@@ -6318,7 +6318,7 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 	int autoloopflag;
 	int error = 0;		/* set an error conditions */
 	struct ast_pbx *pbx;
-	struct ast_callid *callid;
+	ast_callid callid;
 
 	/* A little initial setup here */
 	if (ast_channel_pbx(c)) {
@@ -6346,10 +6346,7 @@ static enum ast_pbx_result __ast_pbx_run(struct ast_channel *c,
 			}
 		}
 		ast_callid_threadassoc_add(callid);
-		callid = ast_callid_unref(callid);
-	} else {
-		/* Nothing to do here, The thread is already bound to a callid.  Let's just get rid of the reference. */
-		ast_callid_unref(callid);
+		callid = 0;
 	}
 
 	ast_channel_pbx_set(c, pbx);
