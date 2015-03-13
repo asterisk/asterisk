@@ -85,7 +85,7 @@ static int logger_initialized;
 static volatile int next_unique_callid = 1; /* Used to assign unique call_ids to calls */
 static int display_callids;
 
-AST_THREADSTORAGE_CUSTOM(unique_callid, NULL, ast_free);
+AST_THREADSTORAGE(unique_callid);
 
 static enum rotatestrategy {
 	NONE = 0,                /* Do not rotate log files at all, instead rely on external mechanisms */
