@@ -863,10 +863,6 @@
 ;keep_alive_interval=20 ; The interval (in seconds) at which to send keepalive
                         ; messages on all active connection-oriented transports
                         ; (default: "0")
-;endpoint_identifier_order=ip,username,anonymous
-            ; The order by which endpoint identifiers are given priority.
-            ; Identifier names are derived from res_pjsip_endpoint_identifier_*
-            ; modules. (default: ip,username,anonymous)
 
 
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_acl

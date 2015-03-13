@@ -103,7 +103,6 @@ done:
 }
 
 static struct ast_sip_endpoint_identifier anonymous_identifier = {
-	.name = "anonymous",
 	.identify_endpoint = anonymous_identify,
 };
 
