@@ -131,12 +131,12 @@ static int set_id_from_pai(pjsip_rx_data *rdata, struct ast_party_id *id)
 	}
 
 	privacy = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &privacy_str, NULL);
-	if (!privacy) {
-		return 0;
-	}
-	if (!pj_stricmp2(&privacy->hvalue, "id")) {
+	if (privacy && !pj_stricmp2(&privacy->hvalue, "id")) {
 		id->number.presentation = AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
 		id->name.presentation = AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
+	} else {
+		id->number.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
+		id->name.presentation = AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED;
 	}
 
 	return 0;
@@ -176,12 +176,18 @@ static int set_id_from_rpid(pjsip_rx_data *rdata, struct ast_party_id *id)
 	privacy = pjsip_param_find(&rpid_hdr->other_param, &privacy_str);
 	screen = pjsip_param_find(&rpid_hdr->other_param, &screen_str);
 	if (privacy && !pj_stricmp2(&privacy->value, "full")) {
-		id->number.presentation |= AST_PRES_RESTRICTED;
-		id->name.presentation |= AST_PRES_RESTRICTED;
+		id->number.presentation = AST_PRES_RESTRICTED;
+		id->name.presentation = AST_PRES_RESTRICTED;
+	} else {
+		id->number.presentation = AST_PRES_ALLOWED;
+		id->name.presentation = AST_PRES_ALLOWED;
 	}
 	if (screen && !pj_stricmp2(&screen->value, "yes")) {
 		id->number.presentation |= AST_PRES_USER_NUMBER_PASSED_SCREEN;
 		id->name.presentation |= AST_PRES_USER_NUMBER_PASSED_SCREEN;
+	} else {
+		id->number.presentation |= AST_PRES_USER_NUMBER_UNSCREENED;
+		id->name.presentation |= AST_PRES_USER_NUMBER_UNSCREENED;
 	}
 
 	return 0;
@@ -475,8 +481,7 @@ static void add_privacy_header(pjsip_tx_data *tdata, const struct ast_party_id *
 
 	old_privacy = pjsip_msg_find_hdr_by_name(tdata->msg, &pj_privacy_name, NULL);
 
-	if ((id->name.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED &&
-			(id->number.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
+	if ((ast_party_id_presentation(id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
 		if (old_privacy) {
 			pj_list_erase(old_privacy);
 		}
@@ -498,10 +503,6 @@ static void add_pai_header(pjsip_tx_data *tdata, const struct ast_party_id *id)
 	static const pj_str_t pj_pai_name = { "P-Asserted-Identity", 19 };
 	pjsip_fromto_hdr *pai_hdr;
 	pjsip_fromto_hdr *old_pai;
-
-	if (!id->number.valid) {
-		return;
-	}
 
 	/* Since inv_session reuses responses, we have to make sure there's not already
 	 * a P-Asserted-Identity present. If there is, we just modify the old one.
@@ -546,6 +547,7 @@ static void add_privacy_params(pjsip_tx_data *tdata, pjsip_fromto_hdr *hdr, cons
 	pjsip_param *old_screen;
 	pjsip_param *privacy;
 	pjsip_param *screen;
+	int presentation;
 
 	old_privacy = pjsip_param_find(&hdr->other_param, &privacy_str);
 	old_screen = pjsip_param_find(&hdr->other_param, &screen_str);
@@ -566,15 +568,13 @@ static void add_privacy_params(pjsip_tx_data *tdata, pjsip_fromto_hdr *hdr, cons
 		screen = old_screen;
 	}
 
-	if ((id->name.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED &&
-			(id->name.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
+	presentation = ast_party_id_presentation(id);
+	if ((presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
 		privacy->value = privacy_off_str;
 	} else {
 		privacy->value = privacy_full_str;
 	}
-
-	if ((id->name.presentation & AST_PRES_NUMBER_TYPE) == AST_PRES_USER_NUMBER_PASSED_SCREEN &&
-			(id->number.presentation & AST_PRES_NUMBER_TYPE) == AST_PRES_USER_NUMBER_PASSED_SCREEN) {
+	if ((presentation & AST_PRES_NUMBER_TYPE) == AST_PRES_USER_NUMBER_PASSED_SCREEN) {
 		screen->value = screen_yes_str;
 	} else {
 		screen->value = screen_no_str;
@@ -592,10 +592,6 @@ static void add_rpid_header(pjsip_tx_data *tdata, const struct ast_party_id *id)
 	static const pj_str_t pj_rpid_name = { "Remote-Party-ID", 15 };
 	pjsip_fromto_hdr *rpid_hdr;
 	pjsip_fromto_hdr *old_rpid;
-
-	if (!id->number.valid) {
-		return;
-	}
 
 	/* Since inv_session reuses responses, we have to make sure there's not already
 	 * a P-Asserted-Identity present. If there is, we just modify the old one.
@@ -628,9 +624,9 @@ static void add_rpid_header(pjsip_tx_data *tdata, const struct ast_party_id *id)
  */
 static void add_id_headers(const struct ast_sip_session *session, pjsip_tx_data *tdata, const struct ast_party_id *id)
 {
-	if (((id->name.presentation & AST_PRES_RESTRICTION) == AST_PRES_RESTRICTED ||
-			(id->number.presentation & AST_PRES_RESTRICTION) == AST_PRES_RESTRICTED) &&
-			!session->endpoint->id.trust_outbound) {
+	if (!id->number.valid
+		|| (!session->endpoint->id.trust_outbound
+			&& (ast_party_id_presentation(id) & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED)) {
 		return;
 	}
 	if (session->endpoint->id.send_pai) {
@@ -679,10 +675,9 @@ static void caller_id_outgoing_request(struct ast_sip_session *session, pjsip_tx
 		from = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_FROM, tdata->msg->hdr.next);
 		dlg = session->inv_session->dlg;
 
-		if (ast_strlen_zero(session->endpoint->fromuser) &&
-			(session->endpoint->id.trust_outbound ||
-			((connected_id.name.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED &&
-			(connected_id.number.presentation & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED))) {
+		if (ast_strlen_zero(session->endpoint->fromuser)
+			&& (session->endpoint->id.trust_outbound
+				|| (ast_party_id_presentation(&connected_id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED)) {
 			modify_id_header(tdata->pool, from, &connected_id);
 			modify_id_header(dlg->pool, dlg->local.info, &connected_id);
 		}
