@@ -36,7 +36,6 @@
 #include "asterisk/uuid.h"
 #include "asterisk/sorcery.h"
 #include "asterisk/file.h"
-#include "asterisk/cli.h"
 
 /*** MODULEINFO
 	<depend>pjproject</depend>
@@ -1185,11 +1184,6 @@
 					<synopsis>Enable/Disable SIP debug logging.  Valid options include yes|no or
                                         a host address</synopsis>
 				</configOption>
-				<configOption name="endpoint_identifier_order" default="ip,username,anonymous">
-					<synopsis>The order by which endpoint identifiers are processed and checked.
-                                        Identifier names are usually derived from and can be found in the endpoint
-                                        identifier module itself (res_pjsip_endpoint_identifier_*)</synopsis>
-				</configOption>
 			</configObject>
 		</configFile>
 	</configInfo>
@@ -1922,7 +1916,6 @@ int ast_sip_create_request_with_auth(const struct ast_sip_auth_vector *auths, pj
 }
 
 struct endpoint_identifier_list {
-	unsigned int priority;
 	struct ast_sip_endpoint_identifier *identifier;
 	AST_RWLIST_ENTRY(endpoint_identifier_list) list;
 };
@@ -1931,8 +1924,7 @@ static AST_RWLIST_HEAD_STATIC(endpoint_identifiers, endpoint_identifier_list);
 
 int ast_sip_register_endpoint_identifier(struct ast_sip_endpoint_identifier *identifier)
 {
-	char *prev, *current, *identifier_order;
-	struct endpoint_identifier_list *iter, *id_list_item;
+	struct endpoint_identifier_list *id_list_item;
 	SCOPED_LOCK(lock, &endpoint_identifiers, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
 
 	id_list_item = ast_calloc(1, sizeof(*id_list_item));
@@ -1942,67 +1934,10 @@ int ast_sip_register_endpoint_identifier(struct ast_sip_endpoint_identifier *ide
 	}
 	id_list_item->identifier = identifier;
 
-	ast_debug(1, "Register endpoint identifier %s (%p)\n", identifier->name, identifier);
-
-	if (ast_strlen_zero(identifier->name)) {
-		/* if an identifier has no name then place in front */
-		AST_RWLIST_INSERT_HEAD(&endpoint_identifiers, id_list_item, list);
-		ast_module_ref(ast_module_info->self);
-		return 0;
-	}
-
-	/* see if the name of the identifier is in the global endpoint_identifier_order list */
-	identifier_order = prev = current = ast_sip_get_endpoint_identifier_order();
-
-	if (ast_strlen_zero(identifier_order)) {
-		AST_RWLIST_INSERT_TAIL(&endpoint_identifiers, id_list_item, list);
-		ast_module_ref(ast_module_info->self);
-		ast_free(identifier_order);
-		return 0;
-	}
-
-	id_list_item->priority = 0;
-	while ((current = strchr(current, ','))) {
-		++id_list_item->priority;
-		if (!strncmp(prev, identifier->name, current - prev)) {
-			break;
-		}
-		prev = ++current;
-	}
-
-	if (!current) {
-		/* check to see if it the only or last item */
-		if (!strcmp(prev, identifier->name)) {
-			++id_list_item->priority;
-		} else {
-			id_list_item->priority = UINT_MAX;
-		}
-	}
-
-	if (id_list_item->priority == UINT_MAX || AST_RWLIST_EMPTY(&endpoint_identifiers)) {
-		/* if not in the endpoint_identifier_order list then consider it less in
-		   priority and add it to the end */
-		AST_RWLIST_INSERT_TAIL(&endpoint_identifiers, id_list_item, list);
-		ast_module_ref(ast_module_info->self);
-		ast_free(identifier_order);
-		return 0;
-	}
-
-	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&endpoint_identifiers, iter, list) {
-		if (id_list_item->priority < iter->priority) {
-			AST_RWLIST_INSERT_BEFORE_CURRENT(id_list_item, list);
-			break;
-		}
-
-		if (!AST_RWLIST_NEXT(iter, list)) {
-			AST_RWLIST_INSERT_AFTER(&endpoint_identifiers, iter, id_list_item, list);
-			break;
-		}
-	}
-	AST_RWLIST_TRAVERSE_SAFE_END;
+	AST_RWLIST_INSERT_TAIL(&endpoint_identifiers, id_list_item, list);
+	ast_debug(1, "Registered endpoint identifier %p\n", identifier);
 
 	ast_module_ref(ast_module_info->self);
-	ast_free(identifier_order);
 	return 0;
 }
 
@@ -2036,41 +1971,6 @@ struct ast_sip_endpoint *ast_sip_identify_endpoint(pjsip_rx_data *rdata)
 	}
 	return endpoint;
 }
-
-static char *cli_show_endpoint_identifiers(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-#define ENDPOINT_IDENTIFIER_FORMAT "%-20.20s\n"
-	struct endpoint_identifier_list *iter;
-
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "pjsip show identifiers";
-		e->usage = "Usage: pjsip show identifiers\n"
-		            "      List all registered endpoint identifiers\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-
-	if (a->argc != 3) {
-                return CLI_SHOWUSAGE;
-        }
-
-	ast_cli(a->fd, ENDPOINT_IDENTIFIER_FORMAT, "Identifier Names:");
-	{
-		SCOPED_LOCK(lock, &endpoint_identifiers, AST_RWLIST_RDLOCK, AST_RWLIST_UNLOCK);
-		AST_RWLIST_TRAVERSE(&endpoint_identifiers, iter, list) {
-			ast_cli(a->fd, ENDPOINT_IDENTIFIER_FORMAT,
-				iter->identifier->name ? iter->identifier->name : "name not specified");
-		}
-	}
-	return CLI_SUCCESS;
-#undef ENDPOINT_IDENTIFIER_FORMAT
-}
-
-static struct ast_cli_entry cli_commands[] = {
-        AST_CLI_DEFINE(cli_show_endpoint_identifiers, "List registered endpoint identifiers")
-};
 
 AST_RWLIST_HEAD_STATIC(endpoint_formatters, ast_sip_endpoint_formatter);
 
@@ -3334,7 +3234,6 @@ static int load_module(void)
 	}
 
 	ast_res_pjsip_init_options_handling(0);
-	ast_cli_register_multiple(cli_commands, ARRAY_LEN(cli_commands));
 
 	ast_module_ref(ast_module_info->self);
 
@@ -3357,7 +3256,6 @@ static int reload_module(void)
 
 static int unload_module(void)
 {
-	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
 	/* This will never get called as this module can't be unloaded */
 	return 0;
 }
