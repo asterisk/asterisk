@@ -109,7 +109,6 @@ done:
 }
 
 static struct ast_sip_endpoint_identifier username_identifier = {
-	.name = "username",
 	.identify_endpoint = username_identify,
 };
 
