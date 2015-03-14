@@ -26,6 +26,12 @@ ConfBridge
    - record_command: a command to execute when recording is finished
    Note that these options may also be with the CONFBRIDGE function.
 
+SMS
+------------------
+ * Added the 'n' option, which prevents the SMS from being written to the log
+   file. This is needed for those countries with privacy laws that require
+   providers to not log SMS content.
+
 
 Channel Drivers
 ------------------

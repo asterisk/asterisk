@@ -88,6 +88,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="o">
 						<para>The body should be coded as octets not 7-bit symbols.</para>
 					</option>
+					<option name="n">
+						<para>Do not log any SMS content to log file (privacy).</para>
+					</option>
 				</optionlist>
 			</parameter>
 			<parameter name="addr" />
@@ -220,6 +223,7 @@ typedef struct sms_s {
 	unsigned char sent_rel:1;     /*!< have sent REL message... */
 	unsigned char smsc:1;        /*!< we are SMSC */
 	unsigned char rx:1;          /*!< this is a received message */
+	unsigned char nolog:1;       /*!< do not log plain text SMS content (privacy) */
 	char queue[30];              /*!< queue name */
 	char oa[20];                 /*!< originating address */
 	char da[20];                 /*!< destination address */
@@ -790,20 +794,25 @@ static void sms_log(sms_t * h, char status)
 			status, h->rx ? 'I' : 'O', h->smsc ? 'S' : 'M', mrs, h->queue,
 			S_OR(h->oa, "-"), S_OR(h->da, "-") );
 		p = line + strlen(line);
-		for (n = 0; n < h->udl; n++) {
-			if (h->ud[n] == '\\') {
-				*p++ = '\\';
-				*p++ = '\\';
-			} else if (h->ud[n] == '\n') {
-				*p++ = '\\';
-				*p++ = 'n';
-			} else if (h->ud[n] == '\r') {
-				*p++ = '\\';
-				*p++ = 'r';
-			} else if (h->ud[n] < 32 || h->ud[n] == 127) {
-				*p++ = 191;
-			} else {
-				*p++ = h->ud[n];
+
+		if (h->nolog) {
+			p += snprintf(p, 1000 - strlen(line), "udl=%d", h->udl);
+		} else {
+			for (n = 0; n < h->udl; n++) {
+				if (h->ud[n] == '\\') {
+					*p++ = '\\';
+					*p++ = '\\';
+				} else if (h->ud[n] == '\n') {
+					*p++ = '\\';
+					*p++ = 'n';
+				} else if (h->ud[n] == '\r') {
+					*p++ = '\\';
+					*p++ = 'r';
+				} else if (h->ud[n] < 32 || h->ud[n] == 127) {
+					*p++ = 191;
+				} else {
+					*p++ = h->ud[n];
+				}
 			}
 		}
 		*p++ = '\n';
@@ -1853,6 +1862,7 @@ enum sms_flags {
 	OPTION_PAUSE	= (1 << 3),             /* pause before sending data, in ms */
 	OPTION_SRR	= (1 << 4),                 /* set srr */
 	OPTION_DCS	= (1 << 5),                 /* set dcs */
+	OPTIONS_NO_LOG	= (1 << 6),             /* Don't log SMS content */
 };
 
 enum sms_opt_args {
@@ -1866,6 +1876,7 @@ AST_APP_OPTIONS(sms_options, {
 	AST_APP_OPTION('t', OPTION_TWO),
 	AST_APP_OPTION('r', OPTION_SRR),
 	AST_APP_OPTION('o', OPTION_DCS),
+	AST_APP_OPTION('n', OPTIONS_NO_LOG),
 	AST_APP_OPTION_ARG('p', OPTION_PAUSE, OPTION_ARG_PAUSE),
 	} );
 
@@ -1926,6 +1937,7 @@ static int sms_exec(struct ast_channel *chan, const char *data)
 
 	h.smsc = ast_test_flag(&flags, OPTION_BE_SMSC);
 	h.protocol = ast_test_flag(&flags, OPTION_TWO) ? 2 : 1;
+	h.nolog = ast_test_flag(&flags, OPTIONS_NO_LOG) ? 1 : 0;
 	if (!ast_strlen_zero(sms_opts[OPTION_ARG_PAUSE])) {
 		h.opause_0 = atoi(sms_opts[OPTION_ARG_PAUSE]);
 	}
