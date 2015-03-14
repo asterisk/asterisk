@@ -15,4 +15,5 @@ between_words_silence = 50	; Minimum duration of silence after a word to conside
 				; the audio what follows as a new word
 maximum_number_of_words = 3	; Maximum number of words in the greeting.
 				; If exceeded then MACHINE
+maximum_word_length = 5000      ; Maximum duration of a single Voice utterance allowed.
 silence_threshold = 256
