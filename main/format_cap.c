@@ -319,6 +319,10 @@ int ast_format_cap_update_by_allow_disallow(struct ast_format_cap *cap, const ch
 	int res = 0, all = 0, iter_allowing;
 	char *parse = NULL, *this = NULL, *psize = NULL;
 
+	if (!allowing && ast_strlen_zero(list)) {
+		return 0;
+	}
+
 	parse = ast_strdupa(list);
 	while ((this = strsep(&parse, ","))) {
 		int framems = 0;
