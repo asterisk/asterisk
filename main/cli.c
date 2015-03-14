@@ -459,7 +459,7 @@ static char *handle_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 				return ast_strdup("atleast");
 			}
 #if !defined(LOW_MEMORY)
-		} else if ((a->pos == 4 && !atleast && strcasecmp(argv3, "off"))
+		} else if ((a->pos == 4 && !atleast && strcasecmp(argv3, "off") && strcasecmp(argv3, "channel"))
 			|| (a->pos == 5 && atleast)) {
 			const char *pos = S_OR(a->argv[a->pos], "");
 
