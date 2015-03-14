@@ -561,7 +561,7 @@ static int file_read(struct ast_channel *chan, const char *cmd, char *data, stru
 
 			/* Don't go past the length requested */
 			if (off_i + toappend > offset + length) {
-				toappend = length - off_i;
+				toappend = offset + length - off_i;
 			}
 
 			ast_str_append_substr(buf, len, fbuf, toappend);
