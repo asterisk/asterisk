@@ -654,6 +654,7 @@ static int acf_curl_helper(struct ast_channel *chan, const char *cmd, char *info
 			curl_easy_setopt(*curl, cur->key, cur->value);
 		}
 	}
+	AST_LIST_UNLOCK(&global_curl_info);
 
 	if (chan && (store = ast_channel_datastore_find(chan, &curl_info, NULL))) {
 		list = store->data;
@@ -692,7 +693,6 @@ static int acf_curl_helper(struct ast_channel *chan, const char *cmd, char *info
 	if (store) {
 		AST_LIST_UNLOCK(list);
 	}
-	AST_LIST_UNLOCK(&global_curl_info);
 
 	if (args.postdata) {
 		curl_easy_setopt(*curl, CURLOPT_POST, 0);
