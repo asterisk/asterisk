@@ -114,6 +114,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						Voice Duration - Greeting.
 					</value>
 					<value name="MAXWORDLENGTH">
+						Word Length - max length of a single word.
+					</value>
+					<value name="MAXWORDS">
 						Word Count - maximum number of words.
 					</value>	
 				</variable>
