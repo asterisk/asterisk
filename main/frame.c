@@ -797,6 +797,10 @@ int ast_parse_allow_disallow(struct ast_codec_pref *pref, struct ast_format_cap 
 	char *parse = NULL, *this = NULL, *psize = NULL;
 	struct ast_format format;
 
+	if (!allowing && ast_strlen_zero(list)) {
+		return 0;
+	}
+
 	parse = ast_strdupa(list);
 	while ((this = strsep(&parse, ","))) {
 		iter_allowing = allowing;
