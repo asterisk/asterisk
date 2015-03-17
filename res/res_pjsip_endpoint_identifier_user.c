@@ -116,7 +116,7 @@ static int load_module(void)
 {
 	CHECK_PJSIP_MODULE_LOADED();
 
-	ast_sip_register_endpoint_identifier_by_name(&username_identifier, "username");
+	ast_sip_register_endpoint_identifier_with_name(&username_identifier, "username");
 	return AST_MODULE_LOAD_SUCCESS;
 }
 

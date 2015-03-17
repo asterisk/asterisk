@@ -1930,7 +1930,7 @@ struct endpoint_identifier_list {
 
 static AST_RWLIST_HEAD_STATIC(endpoint_identifiers, endpoint_identifier_list);
 
-int ast_sip_register_endpoint_identifier_by_name(struct ast_sip_endpoint_identifier *identifier,
+int ast_sip_register_endpoint_identifier_with_name(struct ast_sip_endpoint_identifier *identifier,
 						 const char *name)
 {
 	char *prev, *current, *identifier_order;
@@ -2012,7 +2012,7 @@ int ast_sip_register_endpoint_identifier_by_name(struct ast_sip_endpoint_identif
 
 int ast_sip_register_endpoint_identifier(struct ast_sip_endpoint_identifier *identifier)
 {
-	return ast_sip_register_endpoint_identifier_by_name(identifier, NULL);
+	return ast_sip_register_endpoint_identifier_with_name(identifier, NULL);
 }
 
 void ast_sip_unregister_endpoint_identifier(struct ast_sip_endpoint_identifier *identifier)

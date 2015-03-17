@@ -110,7 +110,7 @@ static int load_module(void)
 {
 	CHECK_PJSIP_MODULE_LOADED();
 
-	ast_sip_register_endpoint_identifier_by_name(&anonymous_identifier, "anonymous");
+	ast_sip_register_endpoint_identifier_with_name(&anonymous_identifier, "anonymous");
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
