@@ -791,8 +791,8 @@ void ast_sip_unregister_outbound_authenticator(struct ast_sip_outbound_authentic
  * \retval 0 Success
  * \retval -1 Failure
  */
-int ast_sip_register_endpoint_identifier_by_name(struct ast_sip_endpoint_identifier *identifier,
-						 const char *name);
+int ast_sip_register_endpoint_identifier_with_name(struct ast_sip_endpoint_identifier *identifier,
+						   const char *name);
 
 /*!
  * \brief Register a SIP endpoint identifier
@@ -810,6 +810,10 @@ int ast_sip_register_endpoint_identifier_by_name(struct ast_sip_endpoint_identif
  * If the order in which endpoint identifiers is run is important to you, then
  * be sure to load individual endpoint identifier modules in the order you wish
  * for them to be run in modules.conf
+ *
+ * \note endpoint identifiers registered using this method (no name specified)
+ *       are placed at the front of the endpoint identifiers list ahead of any
+ *       named identifiers.
  *
  * \param identifier The SIP endpoint identifier to register
  * \retval 0 Success
