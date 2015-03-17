@@ -491,7 +491,7 @@ static int load_module(void)
 	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "identify", "match", "", ip_identify_match_handler, match_to_str, match_to_var_list, 0, 0);
 	ast_sorcery_reload_object(ast_sip_get_sorcery(), "identify");
 
-	ast_sip_register_endpoint_identifier(&ip_identifier);
+	ast_sip_register_endpoint_identifier_by_name(&ip_identifier, "ip");
 	ast_sip_register_endpoint_formatter(&endpoint_identify_formatter);
 
 	cli_formatter = ao2_alloc(sizeof(struct ast_sip_cli_formatter_entry), NULL);
