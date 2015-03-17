@@ -844,8 +844,11 @@ void ast_category_append(struct ast_config *config, struct ast_category *cat);
  *
  * \details
  * This function is used to apply a base (template) to an existing category
+ *
+ * \retval 0 if succeeded
+ * \retval -1 if the memory allocation failed
  */
-void ast_category_inherit(struct ast_category *existing, const struct ast_category *base);
+int ast_category_inherit(struct ast_category *existing, const struct ast_category *base);
 
 /*!
  * \brief Removes and destroys all variables in a category

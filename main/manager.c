@@ -3620,7 +3620,10 @@ static enum error_type handle_updates(struct mansession *s, const struct message
 			if (inherit) {
 				while ((tmpl_name = ast_strsep(&inherit, ',', AST_STRSEP_STRIP))) {
 					if ((template = ast_category_get(cfg, tmpl_name, "TEMPLATES=restrict"))) {
-						ast_category_inherit(category, template);
+						if (ast_category_inherit(category, template)) {
+							result = FAILURE_ALLOCATION;
+							break;
+						}
 					} else {
 						ast_category_destroy(category);
 						category = NULL;

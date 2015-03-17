@@ -1238,23 +1238,27 @@ void ast_category_rename(struct ast_category *cat, const char *name)
 	ast_copy_string(cat->name, name, sizeof(cat->name));
 }
 
-void ast_category_inherit(struct ast_category *new, const struct ast_category *base)
+int ast_category_inherit(struct ast_category *new, const struct ast_category *base)
 {
 	struct ast_variable *var;
 	struct ast_category_template_instance *x;
 
 	x = ast_calloc(1, sizeof(*x));
 	if (!x) {
-		return;
+		return -1;
 	}
 	strcpy(x->name, base->name);
 	x->inst = base;
 	AST_LIST_INSERT_TAIL(&new->template_instances, x, next);
 	for (var = base->root; var; var = var->next) {
 		struct ast_variable *cloned = variable_clone(var);
+		if (!cloned) {
+			return -1;
+		}
 		cloned->inherited = 1;
 		ast_variable_append(new, cloned);
 	}
+	return 0;
 }
 
 struct ast_config *ast_config_new(void)
@@ -1691,7 +1695,10 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 						ast_log(LOG_WARNING, "Inheritance requested, but category '%s' does not exist, line %d of %s\n", cur, lineno, configfile);
 						return -1;
 					}
-					ast_category_inherit(*cat, base);
+					if (ast_category_inherit(*cat, base)) {
+						ast_log(LOG_ERROR, "Inheritence requested, but allocation failed\n");
+						return -1;
+					}
 				}
 			}
 		}
