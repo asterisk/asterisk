@@ -519,6 +519,8 @@ static int app_exec(struct ast_channel *chan, const char *data)
 			break;
 		}
 
+		ast_free(addrs);
+
 		if (i == num_addrs) {
 			ast_chan_log(LOG_ERROR, chan, "Could not connect to any host.  ExternalIVR failed.\n");
 			goto exit;

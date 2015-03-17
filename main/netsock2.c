@@ -253,11 +253,13 @@ int ast_sockaddr_resolve(struct ast_sockaddr **addrs, const char *str,
 	int	e, i, res_cnt;
 
 	if (!str) {
+		*addrs = NULL;
 		return 0;
 	}
 
 	s = ast_strdupa(str);
 	if (!ast_sockaddr_split_hostport(s, &host, &port, flags)) {
+		*addrs = NULL;
 		return 0;
 	}
 
@@ -268,6 +270,7 @@ int ast_sockaddr_resolve(struct ast_sockaddr **addrs, const char *str,
 	if ((e = getaddrinfo(host, port, &hints, &res))) {
 		ast_log(LOG_ERROR, "getaddrinfo(\"%s\", \"%s\", ...): %s\n",
 			host, S_OR(port, "(null)"), gai_strerror(e));
+		*addrs = NULL;
 		return 0;
 	}
 
@@ -277,6 +280,7 @@ int ast_sockaddr_resolve(struct ast_sockaddr **addrs, const char *str,
 	}
 
 	if (res_cnt == 0) {
+		*addrs = NULL;
 		goto cleanup;
 	}
 
