@@ -776,7 +776,7 @@ static struct ast_codec t140 = {
 		struct ast_codec *__codec_ ## __LINE__; \
 		res |= __ast_codec_register(&(codec), NULL); \
 		__codec_ ## __LINE__ = ast_codec_get((codec).name, (codec).type, (codec).sample_rate); \
-		__fmt_ ## __LINE__ = ast_format_create(__codec_ ## __LINE__); \
+		__fmt_ ## __LINE__ = __codec_ ## __LINE__ ? ast_format_create(__codec_ ## __LINE__) : NULL; \
 		res |= ast_format_cache_set(__fmt_ ## __LINE__); \
 		ao2_ref(__fmt_ ## __LINE__, -1); \
 		ao2_ref(__codec_ ## __LINE__, -1); \

@@ -4377,34 +4377,34 @@ int main(int argc, char *argv[])
 	ast_builtins_init();
 
 	if (ast_utils_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_utils_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_tps_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_tps_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_fd_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_fd_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_pbx_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_pbx_init\n%s", term_quit());
 		exit(1);
 	}
 
 #ifdef TEST_FRAMEWORK
 	if (ast_test_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_test_init\n%s", term_quit());
 		exit(1);
 	}
 #endif
 
 	if (ast_translate_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_translate_init\n%s", term_quit());
 		exit(1);
 	}
 
@@ -4412,27 +4412,27 @@ int main(int argc, char *argv[])
 	ast_uuid_init();
 
 	if (ast_sorcery_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_sorcery_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_codec_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_codec_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_format_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_format_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_format_cache_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_format_cache_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_codec_builtin_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_codec_builtin_init\n%s", term_quit());
 		exit(1);
 	}
 
@@ -4444,7 +4444,7 @@ int main(int argc, char *argv[])
 	aco_init();
 
 	if (ast_bucket_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_bucket_init\n%s", term_quit());
 		exit(1);
 	}
 
@@ -4486,26 +4486,26 @@ int main(int argc, char *argv[])
 	initstate((unsigned int) getpid() * 65536 + (unsigned int) time(NULL), randompool, sizeof(randompool));
 
 	if (init_logger()) {		/* Start logging subsystem */
-		printf("%s", term_quit());
+		printf("Failed: init_logger\n%s", term_quit());
 		exit(1);
 	}
 
 	threadstorage_init();
 
 	if (ast_rtp_engine_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_rtp_engine_init\n%s", term_quit());
 		exit(1);
 	}
 
 	ast_autoservice_init();
 
 	if (ast_timing_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_timing_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_ssl_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_ssl_init\n%s", term_quit());
 		exit(1);
 	}
 
@@ -4520,87 +4520,87 @@ int main(int argc, char *argv[])
 	}
 
 	if (astdb_init()) {
-		printf("%s", term_quit());
+		printf("Failed: astdb_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_msg_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_msg_init\n%s", term_quit());
 		exit(1);
 	}
 
 	/* initialize the data retrieval API */
 	if (ast_data_init()) {
-		printf ("%s", term_quit());
+		printf ("Failed: ast_data_init\n%s", term_quit());
 		exit(1);
 	}
 
 	ast_channels_init();
 
 	if (ast_endpoint_init()) {
-		printf ("%s", term_quit());
+		printf ("Failed: ast_endpoint_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_pickup_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_pickup_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_bridging_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_bridging_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_parking_stasis_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_parking_stasis_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_device_state_engine_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_device_state_engine_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_presence_state_engine_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_presence_state_engine_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if ((moduleresult = load_modules(1))) {		/* Load modules, pre-load only */
-		printf("%s", term_quit());
+		printf("Failed: load_modules\n%s", term_quit());
 		exit(moduleresult == -2 ? 2 : 1);
 	}
 
 	if (ast_features_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_features_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if (dnsmgr_init()) {		/* Initialize the DNS manager */
-		printf("%s", term_quit());
+		printf("Failed: dnsmgr_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_security_stasis_init()) {		/* Initialize Security Stasis Topic and Events */
-		printf("%s", term_quit());
+		printf("Failed: ast_security_stasis_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_named_acl_init()) { /* Initialize the Named ACL system */
-		printf("%s", term_quit());
+		printf("Failed: ast_named_acl_init\n%s", term_quit());
 		exit(1);
 	}
 
 	ast_http_init();		/* Start the HTTP server, if needed */
 
 	if (ast_indications_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_indications_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_cdr_engine_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_cdr_engine_init\n%s", term_quit());
 		exit(1);
 	}
 
@@ -4608,47 +4608,47 @@ int main(int argc, char *argv[])
 	ast_udptl_init();
 
 	if (ast_image_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_image_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_file_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_file_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if (load_pbx()) {
-		printf("%s", term_quit());
+		printf("Failed: load_pbx\n%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_local_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_local_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_cel_engine_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_cel_engine_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if (init_manager()) {
-		printf("%s", term_quit());
+		printf("Failed: init_manager\n%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_enum_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_enum_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_cc_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_cc_init\n%s", term_quit());
 		exit(1);
 	}
 
 	if (ast_sounds_index_init()) {
-		printf("%s", term_quit());
+		printf("Failed: ast_sounds_index_init\n%s", term_quit());
 		exit(1);
 	}
 

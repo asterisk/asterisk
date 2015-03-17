@@ -472,7 +472,8 @@ struct ast_endpoint_snapshot *ast_endpoint_snapshot_create(
 		endpoint_snapshot_dtor,
 		AO2_ALLOC_OPT_LOCK_NOLOCK);
 
-	if (ast_string_field_init(snapshot, 80) != 0) {
+	if (!snapshot || ast_string_field_init(snapshot, 80) != 0) {
+		ao2_cleanup(snapshot);
 		return NULL;
 	}
 

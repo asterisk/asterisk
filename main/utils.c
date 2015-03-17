@@ -611,7 +611,7 @@ const char *ast_inet_ntoa(struct in_addr ia)
 	return inet_ntop(AF_INET, &ia, buf, INET_ADDRSTRLEN);
 }
 
-static int dev_urandom_fd;
+static int dev_urandom_fd = -1;
 
 #ifndef __linux__
 #undef pthread_create /* For ast_pthread_create function only */
