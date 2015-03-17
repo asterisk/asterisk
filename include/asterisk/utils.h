@@ -485,6 +485,32 @@ long int ast_random(void);
  */
 #define ast_random_double() (((double)ast_random()) / RAND_MAX)
 
+/*!
+ * \brief DEBUG_CHAOS returns failure randomly
+ *
+ * DEBUG_CHAOS_RETURN(failure); can be used to fake
+ * failure of functions such as memory allocation,
+ * for the purposes of testing failure handling.
+ */
+#ifdef DEBUG_CHAOS
+#ifndef DEBUG_CHAOS_ALLOC_CHANCE
+#define DEBUG_CHAOS_ALLOC_CHANCE 100000
+#endif
+/* Could #define DEBUG_CHAOS_ENABLE ast_fully_booted */
+#ifndef DEBUG_CHAOS_ENABLE
+#define DEBUG_CHAOS_ENABLE 1
+#endif
+#define DEBUG_CHAOS_RETURN(CHANCE, FAILURE) \
+	do { \
+		if ((DEBUG_CHAOS_ENABLE) && (ast_random() % CHANCE == 0)) { \
+			return FAILURE; \
+		} \
+	} while (0)
+#else
+#define DEBUG_CHAOS_RETURN(c,f)
+#endif
+
+
 #ifndef __AST_DEBUG_MALLOC
 #define ast_std_malloc malloc
 #define ast_std_calloc calloc
@@ -537,6 +563,8 @@ void * attribute_malloc _ast_malloc(size_t len, const char *file, int lineno, co
 {
 	void *p;
 
+	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, NULL);
+
 	if (!(p = malloc(len))) {
 		MALLOC_FAILURE_MSG;
 	}
@@ -560,6 +588,8 @@ AST_INLINE_API(
 void * attribute_malloc _ast_calloc(size_t num, size_t len, const char *file, int lineno, const char *func),
 {
 	void *p;
+
+	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, NULL);
 
 	if (!(p = calloc(num, len))) {
 		MALLOC_FAILURE_MSG;
@@ -598,6 +628,8 @@ void * attribute_malloc _ast_realloc(void *p, size_t len, const char *file, int 
 {
 	void *newp;
 
+	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, NULL);
+
 	if (!(newp = realloc(p, len))) {
 		MALLOC_FAILURE_MSG;
 	}
@@ -625,6 +657,8 @@ AST_INLINE_API(
 char * attribute_malloc _ast_strdup(const char *str, const char *file, int lineno, const char *func),
 {
 	char *newstr = NULL;
+
+	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, NULL);
 
 	if (str) {
 		if (!(newstr = strdup(str))) {
@@ -655,6 +689,8 @@ AST_INLINE_API(
 char * attribute_malloc _ast_strndup(const char *str, size_t len, const char *file, int lineno, const char *func),
 {
 	char *newstr = NULL;
+
+	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, NULL);
 
 	if (str) {
 		if (!(newstr = strndup(str, len))) {
@@ -696,6 +732,8 @@ __attribute__((format(printf, 5, 0)))
 int _ast_vasprintf(char **ret, const char *file, int lineno, const char *func, const char *fmt, va_list ap),
 {
 	int res;
+
+	DEBUG_CHAOS_RETURN(DEBUG_CHAOS_ALLOC_CHANCE, -1);
 
 	if ((res = vasprintf(ret, fmt, ap)) == -1) {
 		MALLOC_FAILURE_MSG;

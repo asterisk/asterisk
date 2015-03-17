@@ -79,6 +79,10 @@
 		<member name="MALLOC_DEBUG" displayname="Keep Track of Memory Allocations">
 			<support_level>core</support_level>
 		</member>
+		<member name="DEBUG_CHAOS" displayname="Randomly FAIL memory allocations or other operations">
+			<conflict>MALLOC_DEBUG</conflict>
+			<support_level>core</support_level>
+		</member>
 		<member name="BUSYDETECT_TONEONLY" displayname="Enable additional comparision of only the tone duration not the silence part">
 			<conflict>BUSYDETECT_COMPARE_TONE_AND_SILENCE</conflict>
 			<defaultenabled>no</defaultenabled>
