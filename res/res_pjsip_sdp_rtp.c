@@ -760,7 +760,7 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 					 const struct pjmedia_sdp_session *sdp, const struct pjmedia_sdp_media *stream)
 {
 	char host[NI_MAXHOST];
-	RAII_VAR(struct ast_sockaddr *, addrs, NULL, ast_free_ptr);
+	RAII_VAR(struct ast_sockaddr *, addrs, NULL, ast_free);
 	enum ast_media_type media_type = stream_to_media_type(session_media->stream_type);
 	enum ast_sip_session_media_encryption encryption = AST_SIP_MEDIA_ENCRYPT_NONE;
 	int res;
@@ -1117,7 +1117,7 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 				       const struct pjmedia_sdp_session *local, const struct pjmedia_sdp_media *local_stream,
 				       const struct pjmedia_sdp_session *remote, const struct pjmedia_sdp_media *remote_stream)
 {
-	RAII_VAR(struct ast_sockaddr *, addrs, NULL, ast_free_ptr);
+	RAII_VAR(struct ast_sockaddr *, addrs, NULL, ast_free);
 	enum ast_media_type media_type = stream_to_media_type(session_media->stream_type);
 	char host[NI_MAXHOST];
 	int fdno, res;

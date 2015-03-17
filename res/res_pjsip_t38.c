@@ -617,7 +617,7 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 {
 	struct t38_state *state;
 	char host[NI_MAXHOST];
-	RAII_VAR(struct ast_sockaddr *, addrs, NULL, ast_free_ptr);
+	RAII_VAR(struct ast_sockaddr *, addrs, NULL, ast_free);
 
 	if (!session->endpoint->media.t38.enabled) {
 		return -1;
@@ -760,7 +760,7 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 				       const struct pjmedia_sdp_session *local, const struct pjmedia_sdp_media *local_stream,
 				       const struct pjmedia_sdp_session *remote, const struct pjmedia_sdp_media *remote_stream)
 {
-	RAII_VAR(struct ast_sockaddr *, addrs, NULL, ast_free_ptr);
+	RAII_VAR(struct ast_sockaddr *, addrs, NULL, ast_free);
 	char host[NI_MAXHOST];
 	struct t38_state *state;
 
