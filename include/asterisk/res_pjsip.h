@@ -778,6 +778,23 @@ int ast_sip_register_outbound_authenticator(struct ast_sip_outbound_authenticato
 void ast_sip_unregister_outbound_authenticator(struct ast_sip_outbound_authenticator *auth);
 
 /*!
+ * \brief Register a SIP endpoint identifier with a name.
+ *
+ * An endpoint identifier's purpose is to determine which endpoint a given SIP
+ * message has come from.
+ *
+ * Multiple endpoint identifiers may be registered so that if an endpoint
+ * cannot be identified by one identifier, it may be identified by another.
+ *
+ * \param identifier The SIP endpoint identifier to register
+ * \param name The name of the endpoint identifier
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+int ast_sip_register_endpoint_identifier_by_name(struct ast_sip_endpoint_identifier *identifier,
+						 const char *name);
+
+/*!
  * \brief Register a SIP endpoint identifier
  *
  * An endpoint identifier's purpose is to determine which endpoint a given SIP
@@ -1880,6 +1897,15 @@ void ast_sip_unregister_supplement(struct ast_sip_supplement *supplement);
  * \retval the system debug setting.
  */
 char *ast_sip_get_debug(void);
+
+/*!
+ * \brief Retrieve the global endpoint_identifier_order setting.
+ *
+ * Specifies the order by which endpoint identifiers should be regarded.
+ *
+ * \retval the global endpoint_identifier_order value
+ */
+char *ast_sip_get_endpoint_identifier_order(void);
 
 /*! \brief Determines whether the res_pjsip module is loaded */
 #define CHECK_PJSIP_MODULE_LOADED()				\
