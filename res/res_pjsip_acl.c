@@ -139,9 +139,11 @@ static int extract_contact_addr(pjsip_contact_hdr *contact, struct ast_sockaddr 
 	char host[256];
 
 	if (!contact || contact->star) {
+		*addrs = NULL;
 		return 0;
 	}
 	if (!PJSIP_URI_SCHEME_IS_SIP(contact->uri) && !PJSIP_URI_SCHEME_IS_SIPS(contact->uri)) {
+		*addrs = NULL;
 		return 0;
 	}
 	sip_uri = pjsip_uri_get_uri(contact->uri);
