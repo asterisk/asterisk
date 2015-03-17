@@ -2975,6 +2975,12 @@ static int sync_task(void *data)
 
 	std->fail = std->task(std->task_data);
 
+	/*
+	 * Once we unlock std->lock after signaling, we cannot access
+	 * std again.  The thread waiting within
+	 * ast_sip_push_task_synchronous() is free to continue and
+	 * release its local variable (std).
+	 */
 	ast_mutex_lock(&std->lock);
 	std->complete = 1;
 	ast_cond_signal(&std->cond);
