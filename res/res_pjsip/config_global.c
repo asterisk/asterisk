@@ -29,6 +29,7 @@
 #define DEFAULT_MAX_FORWARDS 70
 #define DEFAULT_USERAGENT_PREFIX "Asterisk PBX"
 #define DEFAULT_OUTBOUND_ENDPOINT "default_outbound_endpoint"
+#define DEFAULT_ENDPOINT_IDENTIFIER_ORDER "ip,username,anonymous"
 
 static char default_useragent[128];
 
@@ -39,6 +40,8 @@ struct global_config {
 		AST_STRING_FIELD(default_outbound_endpoint);
 		/*! Debug logging yes|no|host */
 		AST_STRING_FIELD(debug);
+		/*! Order by which endpoint identifiers are checked (comma separated list) */
+		AST_STRING_FIELD(endpoint_identifier_order);
 	);
 	/* Value to put in Max-Forwards header */
 	unsigned int max_forwards;
@@ -116,6 +119,21 @@ char *ast_sip_get_debug(void)
 	return res;
 }
 
+char *ast_sip_get_endpoint_identifier_order(void)
+{
+	char *res;
+	struct global_config *cfg;
+
+	cfg = get_global_cfg();
+	if (!cfg) {
+		return ast_strdup(DEFAULT_ENDPOINT_IDENTIFIER_ORDER);
+	}
+
+	res = ast_strdup(cfg->endpoint_identifier_order);
+	ao2_ref(cfg, -1);
+	return res;
+}
+
 unsigned int ast_sip_get_keep_alive_interval(void)
 {
 	unsigned int interval;
@@ -152,8 +170,9 @@ int ast_sip_initialize_sorcery_global(void)
 			OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, default_outbound_endpoint));
 	ast_sorcery_object_field_register(sorcery, "global", "debug", "no",
 			OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, debug));
+	ast_sorcery_object_field_register(sorcery, "global", "endpoint_identifier_order", DEFAULT_ENDPOINT_IDENTIFIER_ORDER,
+			OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, endpoint_identifier_order));
 	ast_sorcery_object_field_register(sorcery, "global", "keep_alive_interval", "",
 			OPT_UINT_T, 0, FLDSET(struct global_config, keep_alive_interval));
-
 	return 0;
 }
