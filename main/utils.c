@@ -622,7 +622,7 @@ const char *ast_inet_ntoa(struct in_addr ia)
 }
 
 #ifdef HAVE_DEV_URANDOM
-static int dev_urandom_fd;
+static int dev_urandom_fd = -1;
 #endif
 
 #ifndef __linux__

@@ -1974,6 +1974,9 @@ static struct ast_str *xmldoc_get_formatted(struct ast_xml_node *node, int raw_o
 		ast_xml_free_text(tmpstr);
 	} else {
 		ret = ast_str_create(128);
+		if (!ret) {
+			return NULL;
+		}
 		for (tmp = ast_xml_node_get_children(node); tmp; tmp = ast_xml_node_get_next(tmp)) {
 			/* if found, parse a <para> element. */
 			if (xmldoc_parse_common_elements(tmp, "", "\n", &ret)) {
@@ -2014,7 +2017,7 @@ static char *_xmldoc_build_field(struct ast_xml_node *node, const char *var, int
 	}
 
 	formatted = xmldoc_get_formatted(node, raw, raw);
-	if (ast_str_strlen(formatted) > 0) {
+	if (formatted && ast_str_strlen(formatted) > 0) {
 		ret = ast_strdup(ast_str_buffer(formatted));
 	}
 	ast_free(formatted);
