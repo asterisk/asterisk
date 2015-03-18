@@ -1869,7 +1869,7 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 			ast_pjsip_rdata_get_endpoint(rdata), ao2_cleanup);
 	pjsip_tx_data *tdata = NULL;
 	pjsip_inv_session *inv_session = NULL;
-	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
+	struct ast_sip_session *session;
 	struct new_invite *invite;
 
 	ast_assert(endpoint != NULL);
@@ -1897,10 +1897,9 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 		} else {
 			pjsip_inv_send_msg(inv_session, tdata);
 		}
-		ao2_ref(session, -1);
 		ao2_cleanup(invite);
-		return;
 	}
+	ao2_ref(session, -1);
 }
 
 static pj_bool_t does_method_match(const pj_str_t *message_method, const char *supplement_method)
