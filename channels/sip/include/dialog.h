@@ -29,13 +29,16 @@
  * functions so we keep track of the refcounts.
  * To simplify the code, we allow a NULL to be passed to dialog_unref().
  */
-#define dialog_ref(arg1,arg2) dialog_ref_debug((arg1),(arg2), __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define dialog_unref(arg1,arg2) dialog_unref_debug((arg1),(arg2), __FILE__, __LINE__, __PRETTY_FUNCTION__)
-struct sip_pvt *dialog_ref_debug(struct sip_pvt *p, const char *tag, char *file, int line, const char *func);
-struct sip_pvt *dialog_unref_debug(struct sip_pvt *p, const char *tag, char *file, int line, const char *func);
+#define dialog_ref(dialog, tag) ao2_t_bump(dialog, tag)
+#define dialog_unref(dialog, tag) ({ ao2_t_cleanup(dialog, tag); (NULL); })
 
-struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *sin,
-				 int useglobal_nat, const int intended_method, struct sip_request *req, ast_callid logger_callid);
+struct sip_pvt *__sip_alloc(ast_string_field callid, struct ast_sockaddr *sin,
+				 int useglobal_nat, const int intended_method, struct sip_request *req, ast_callid logger_callid,
+				 const char *file, int line, const char *func);
+
+#define sip_alloc(callid, addr, useglobal_nat, intended_method, req, logger_callid) \
+	__sip_alloc(callid, addr, useglobal_nat, intended_method, req, logger_callid, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
 void sip_scheddestroy_final(struct sip_pvt *p, int ms);
 void sip_scheddestroy(struct sip_pvt *p, int ms);
 int sip_cancel_destroy(struct sip_pvt *p);
