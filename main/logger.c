@@ -360,7 +360,14 @@ static struct logchannel *make_logchannel(const char *channel, const char *compo
 	return chan;
 }
 
-static void init_logger_chain(int locked, const char *altconf)
+/* \brief Read config, setup channels.
+ * \param locked The logchannels list is locked and this is a reload
+ * \param altconf Alternate configuration file to read.
+ *
+ * \retval 0 Success
+ * \retval -1 No config found or Failed
+ */
+static int init_logger_chain(int locked, const char *altconf)
 {
 	struct logchannel *chan;
 	struct ast_config *cfg;
@@ -371,7 +378,7 @@ static void init_logger_chain(int locked, const char *altconf)
 	display_callids = 1;
 
 	if (!(cfg = ast_config_load2(S_OR(altconf, "logger.conf"), "logger", config_flags)) || cfg == CONFIG_STATUS_FILEINVALID) {
-		return;
+		cfg = NULL;
 	}
 
 	/* delete our list of log channels */
@@ -392,16 +399,13 @@ static void init_logger_chain(int locked, const char *altconf)
 
 	/* If no config file, we're fine, set default options. */
 	if (!cfg) {
-		if (errno) {
-			fprintf(stderr, "Unable to open logger.conf: %s; default settings will be used.\n", strerror(errno));
-		} else {
-			fprintf(stderr, "Errors detected in logger.conf: see above; default settings will be used.\n");
-		}
 		if (!(chan = ast_calloc(1, sizeof(*chan)))) {
-			return;
+			fprintf(stderr, "Failed to initialize default logging\n");
+			return -1;
 		}
 		chan->type = LOGTYPE_CONSOLE;
 		chan->logmask = __LOG_WARNING | __LOG_NOTICE | __LOG_ERROR;
+
 		if (!locked) {
 			AST_RWLIST_WRLOCK(&logchannels);
 		}
@@ -410,7 +414,8 @@ static void init_logger_chain(int locked, const char *altconf)
 		if (!locked) {
 			AST_RWLIST_UNLOCK(&logchannels);
 		}
-		return;
+
+		return -1;
 	}
 
 	if ((s = ast_variable_retrieve(cfg, "general", "appendhostname"))) {
@@ -486,6 +491,8 @@ static void init_logger_chain(int locked, const char *altconf)
 	}
 
 	ast_config_destroy(cfg);
+
+	return 0;
 }
 
 void ast_child_verbose(int level, const char *fmt, ...)
@@ -1277,6 +1284,7 @@ void logger_queue_start(void)
 
 int init_logger(void)
 {
+	int res;
 	/* auto rotate if sig SIGXFSZ comes a-knockin */
 	sigaction(SIGXFSZ, &handle_SIGXFSZ, NULL);
 
@@ -1302,9 +1310,12 @@ int init_logger(void)
 	ast_mkdir(ast_config_AST_LOG_DIR, 0777);
 
 	/* create log channels */
-	init_logger_chain(0 /* locked */, NULL);
+	res = init_logger_chain(0 /* locked */, NULL);
 	ast_verb_update();
 	logger_initialized = 1;
+	if (res) {
+		ast_log(LOG_ERROR, "Errors detected in logger.conf.  Default console logging is being used.\n");
+	}
 
 	return 0;
 }
