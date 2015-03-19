@@ -1180,7 +1180,11 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only);
 static int __sip_autodestruct(const void *data);
 static int update_call_counter(struct sip_pvt *fup, int event);
 static int auto_congest(const void *arg);
-static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *addr, const int intended_method);
+static struct sip_pvt *__find_call(struct sip_request *req, struct ast_sockaddr *addr, const int intended_method,
+	const char *file, int line, const char *func);
+#define find_call(req, addr, intended_method) \
+	__find_call(req, addr, intended_method, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
 static void build_route(struct sip_pvt *p, struct sip_request *req, int backwards, int resp);
 static int build_path(struct sip_pvt *p, struct sip_peer *peer, struct sip_request *req, const char *pathbuf);
 static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sockaddr *addr,
@@ -2331,30 +2335,6 @@ static struct ast_tcptls_session_args sip_tls_desc = {
 	\return Always returns 0 */
 #define append_history(p, event, fmt , args... )	append_history_full(p, "%-15s " fmt, event, ## args)
 
-struct sip_pvt *dialog_ref_debug(struct sip_pvt *p, const char *tag, char *file, int line, const char *func)
-{
-	if (p)
-#ifdef REF_DEBUG
-		__ao2_ref_debug(p, 1, tag, file, line, func);
-#else
-		ao2_ref(p, 1);
-#endif
-	else
-		ast_log(LOG_ERROR, "Attempt to Ref a null pointer\n");
-	return p;
-}
-
-struct sip_pvt *dialog_unref_debug(struct sip_pvt *p, const char *tag, char *file, int line, const char *func)
-{
-	if (p)
-#ifdef REF_DEBUG
-		__ao2_ref_debug(p, -1, tag, file, line, func);
-#else
-		ao2_ref(p, -1);
-#endif
-	return NULL;
-}
-
 /*! \brief map from an integer value to a string.
  * If no match is found, return errorstring
  */
@@ -3153,41 +3133,6 @@ cleanup:
 	}
 	return NULL;
 }
-
-#ifdef REF_DEBUG
-struct sip_peer *_ref_peer(struct sip_peer *peer, char *tag, char *file, int line, const char *func)
-{
-	if (peer)
-		__ao2_ref_debug(peer, 1, tag, file, line, func);
-	else
-		ast_log(LOG_ERROR, "Attempt to Ref a null peer pointer\n");
-	return peer;
-}
-
-void *_unref_peer(struct sip_peer *peer, char *tag, char *file, int line, const char *func)
-{
-	if (peer)
-		__ao2_ref_debug(peer, -1, tag, file, line, func);
-	return NULL;
-}
-#else
-/*!
- * helper functions to unreference various types of objects.
- * By handling them this way, we don't have to declare the
- * destructor on each call, which removes the chance of errors.
- */
-void *sip_unref_peer(struct sip_peer *peer, char *tag)
-{
-	ao2_t_ref(peer, -1, tag);
-	return NULL;
-}
-
-struct sip_peer *sip_ref_peer(struct sip_peer *peer, char *tag)
-{
-	ao2_t_ref(peer, 1, tag);
-	return peer;
-}
-#endif /* REF_DEBUG */
 
 static void peer_sched_cleanup(struct sip_peer *peer)
 {
@@ -8648,13 +8593,18 @@ static void sip_pvt_callid_set(struct sip_pvt *pvt, struct ast_callid *callid)
  * Returns a reference to the object so whoever uses it later must
  * remember to release the reference.
  */
-struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
-				 int useglobal_nat, const int intended_method, struct sip_request *req, struct ast_callid *logger_callid)
+struct sip_pvt *__sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
+				 int useglobal_nat, const int intended_method, struct sip_request *req, struct ast_callid *logger_callid,
+				 const char *file, int line, const char *func)
 {
 	struct sip_pvt *p;
 
-	if (!(p = ao2_t_alloc(sizeof(*p), sip_destroy_fn, "allocate a dialog(pvt) struct")))
+	p = __ao2_alloc_debug(sizeof(*p), sip_destroy_fn,
+		AO2_ALLOC_OPT_LOCK_MUTEX, "allocate a dialog(pvt) struct",
+		file, line, func, 1);
+	if (!p) {
 		return NULL;
+	}
 
 	if (ast_string_field_init(p, 512)) {
 		ao2_t_ref(p, -1, "failed to string_field_init, drop p");
@@ -9176,7 +9126,8 @@ static void sip_set_owner(struct sip_pvt *p, struct ast_channel *chan)
  * Returns a reference to the sip_pvt object, remember to give it back once done.
  *     Called by handle_request_do
  */
-static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *addr, const int intended_method)
+static struct sip_pvt *__find_call(struct sip_request *req, struct ast_sockaddr *addr, const int intended_method,
+	const char *file, int line, const char *func)
 {
 	char totag[128];
 	char fromtag[128];
@@ -9233,7 +9184,8 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 		struct sip_pvt tmp_dialog = {
 			.callid = callid,
 		};
-		sip_pvt_ptr = ao2_t_find(dialogs, &tmp_dialog, OBJ_POINTER, "ao2_find in dialogs");
+		sip_pvt_ptr = __ao2_find_debug(dialogs, &tmp_dialog, OBJ_POINTER,
+			"find_call in dialogs", file, line, func);
 		if (sip_pvt_ptr) {  /* well, if we don't find it-- what IS in there? */
 			/* Found the call */
 			return sip_pvt_ptr;
@@ -9247,11 +9199,12 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 		struct sip_pvt *fork_pvt = NULL;
 		struct match_req_args args = { 0, };
 		int found;
-		struct ao2_iterator *iterator = ao2_t_callback(dialogs,
+		struct ao2_iterator *iterator = __ao2_callback_debug(dialogs,
 			OBJ_POINTER | OBJ_MULTIPLE,
 			dialog_find_multiple,
 			&tmp_dialog,
-			"pedantic ao2_find in dialogs");
+			"pedantic ao2_find in dialogs",
+			file, line, func);
 		struct sip_via *via = NULL;
 
 		args.method = req->method;
@@ -9296,7 +9249,8 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 				/* This is likely a forked Request that somehow resulted in us receiving multiple parts of the fork.
 			 	* RFC 3261 section 8.2.2.2, Indicate that we want to merge requests by sending a 482 response. */
 				transmit_response_using_temp(callid, addr, 1, intended_method, req, "482 (Loop Detected)");
-				dialog_unref(sip_pvt_ptr, "pvt did not match incoming SIP msg, unref from search.");
+				__ao2_ref_debug(sip_pvt_ptr, -1, "pvt did not match incoming SIP msg, unref from search.",
+					file, line, func);
 				ao2_iterator_destroy(iterator);
 				dialog_unref(fork_pvt, "unref fork_pvt");
 				free_via(via);
@@ -9307,7 +9261,8 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 				/* fall through */
 			case SIP_REQ_NOT_MATCH:
 			default:
-				dialog_unref(sip_pvt_ptr, "pvt did not match incoming SIP msg, unref from search");
+				__ao2_ref_debug(sip_pvt_ptr, -1, "pvt did not match incoming SIP msg, unref from search",
+					file, line, func);
 				break;
 			}
 		}
