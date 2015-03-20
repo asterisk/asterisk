@@ -1239,7 +1239,7 @@ static char *xmldoc_get_syntax_config_option(struct ast_xml_node *fixnode, const
 	regex = ast_xml_get_attribute(fixnode, "regex");
 	ast_str_set(&syntax, 0, "%s = [%s] (Default: %s) (Regex: %s)\n",
 		name,
-		type,
+		type ?: "",
 		default_value ?: "n/a",
 		regex ?: "False");
 

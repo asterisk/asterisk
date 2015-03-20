@@ -1078,6 +1078,7 @@ static void sorcery_object_field_destructor(void *obj)
 
 	if (object_field->name_regex) {
 		regfree(object_field->name_regex);
+		ast_free(object_field->name_regex);
 	}
 }
 
