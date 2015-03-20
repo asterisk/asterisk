@@ -72,8 +72,13 @@ static pj_bool_t handle_rx_message(struct ast_sip_endpoint *endpoint, pjsip_rx_d
 
 static pj_bool_t nat_on_rx_message(pjsip_rx_data *rdata)
 {
-	RAII_VAR(struct ast_sip_endpoint *, endpoint, ast_pjsip_rdata_get_endpoint(rdata), ao2_cleanup);
-	return handle_rx_message(endpoint, rdata);
+	pj_bool_t res;
+	struct ast_sip_endpoint *endpoint;
+
+	endpoint = ast_pjsip_rdata_get_endpoint(rdata);
+	res = handle_rx_message(endpoint, rdata);
+	ao2_cleanup(endpoint);
+	return res;
 }
 
 /*! \brief Structure which contains information about a transport */
