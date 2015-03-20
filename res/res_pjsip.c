@@ -3144,8 +3144,13 @@ static pj_bool_t supplement_on_rx_request(pjsip_rx_data *rdata)
 
 	AST_RWLIST_RDLOCK(&supplements);
 	AST_LIST_TRAVERSE(&supplements, supplement, next) {
-		if (supplement->incoming_request && does_method_match(&rdata->msg_info.msg->line.req.method.name, supplement->method)) {
-			supplement->incoming_request(ast_pjsip_rdata_get_endpoint(rdata), rdata);
+		if (supplement->incoming_request
+			&& does_method_match(&rdata->msg_info.msg->line.req.method.name, supplement->method)) {
+			struct ast_sip_endpoint *endpoint;
+
+			endpoint = ast_pjsip_rdata_get_endpoint(rdata);
+			supplement->incoming_request(endpoint, rdata);
+			ao2_cleanup(endpoint);
 		}
 	}
 	AST_RWLIST_UNLOCK(&supplements);
@@ -3161,7 +3166,8 @@ int ast_sip_send_response(pjsip_response_addr *res_addr, pjsip_tx_data *tdata, s
 
 	AST_RWLIST_RDLOCK(&supplements);
 	AST_LIST_TRAVERSE(&supplements, supplement, next) {
-		if (supplement->outgoing_response && does_method_match(&cseq->method.name, supplement->method)) {
+		if (supplement->outgoing_response
+			&& does_method_match(&cseq->method.name, supplement->method)) {
 			supplement->outgoing_response(sip_endpoint, contact, tdata);
 		}
 	}
