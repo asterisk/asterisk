@@ -180,7 +180,11 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 		}
 
 		if ((pjmedia_sdp_attr_get_fmtp(attr, &fmtp)) == PJ_SUCCESS) {
-			sscanf(pj_strbuf(&fmtp.fmt), "%d", &num);
+			ast_copy_pj_str(fmt_param, &fmtp.fmt, sizeof(fmt_param));
+			if (sscanf(fmt_param, "%30d", &num) != 1) {
+				continue;
+			}
+
 			if ((format = ast_rtp_codecs_get_payload_format(codecs, num))) {
 				struct ast_format *format_parsed;
 
