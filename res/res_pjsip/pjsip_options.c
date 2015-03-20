@@ -609,17 +609,20 @@ static pj_status_t send_options_response(pjsip_rx_data *rdata, int code)
 	if (dlg && trans) {
 		status = pjsip_dlg_send_response(dlg, trans, tdata);
 	} else {
-		/* Get where to send request. */
-		if ((status = pjsip_get_response_addr(
-			     tdata->pool, rdata, &res_addr)) != PJ_SUCCESS) {
-			ast_log(LOG_ERROR, "Unable to get response address (%d)\n",
-				status);
+		struct ast_sip_endpoint *endpoint;
+
+		/* Get where to send response. */
+		status = pjsip_get_response_addr(tdata->pool, rdata, &res_addr);
+		if (status != PJ_SUCCESS) {
+			ast_log(LOG_ERROR, "Unable to get response address (%d)\n", status);
 
 			pjsip_tx_data_dec_ref(tdata);
 			return status;
 		}
-		status = ast_sip_send_response(&res_addr, tdata,
-						   ast_pjsip_rdata_get_endpoint(rdata));
+
+		endpoint = ast_pjsip_rdata_get_endpoint(rdata);
+		status = ast_sip_send_response(&res_addr, tdata, endpoint);
+		ao2_cleanup(endpoint);
 	}
 
 	if (status != PJ_SUCCESS) {
@@ -648,7 +651,7 @@ static pj_bool_t options_on_rx_request(pjsip_rx_data *rdata)
 	ruri = rdata->msg_info.msg->line.req.uri;
 	if (!PJSIP_URI_SCHEME_IS_SIP(ruri) && !PJSIP_URI_SCHEME_IS_SIPS(ruri)) {
 		send_options_response(rdata, 416);
-		return -1;
+		return PJ_TRUE;
 	}
 
 	sip_ruri = pjsip_uri_get_uri(ruri);

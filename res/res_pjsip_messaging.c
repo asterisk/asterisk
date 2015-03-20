@@ -427,13 +427,13 @@ static char *sip_to_pjsip(char *buf, int size, int capacity)
  */
 static enum pjsip_status_code rx_data_to_ast_msg(pjsip_rx_data *rdata, struct ast_msg *msg)
 {
-	struct ast_sip_endpoint *endpt = ast_pjsip_rdata_get_endpoint(rdata);
+	RAII_VAR(struct ast_sip_endpoint *, endpt, NULL, ao2_cleanup);
 	pjsip_uri *ruri = rdata->msg_info.msg->line.req.uri;
 	pjsip_sip_uri *sip_ruri;
 	pjsip_name_addr *name_addr;
 	char buf[MAX_BODY_SIZE];
 	const char *field;
-	const char *context = S_OR(endpt->message_context, endpt->context);
+	const char *context;
 	char exten[AST_MAX_EXTENSION];
 	int res = 0;
 	int size;
@@ -445,6 +445,10 @@ static enum pjsip_status_code rx_data_to_ast_msg(pjsip_rx_data *rdata, struct as
 	sip_ruri = pjsip_uri_get_uri(ruri);
 	ast_copy_pj_str(exten, &sip_ruri->user, AST_MAX_EXTENSION);
 
+	endpt = ast_pjsip_rdata_get_endpoint(rdata);
+	ast_assert(endpt != NULL);
+
+	context = S_OR(endpt->message_context, endpt->context);
 	res |= ast_msg_set_context(msg, "%s", context);
 	res |= ast_msg_set_exten(msg, "%s", exten);
 
@@ -617,13 +621,18 @@ static pj_status_t send_response(pjsip_rx_data *rdata, enum pjsip_status_code co
 	if (dlg && tsx) {
 		status = pjsip_dlg_send_response(dlg, tsx, tdata);
 	} else {
-		/* Get where to send request. */
+		struct ast_sip_endpoint *endpoint;
+
+		/* Get where to send response. */
 		status = pjsip_get_response_addr(tdata->pool, rdata, &res_addr);
 		if (status != PJ_SUCCESS) {
 			ast_log(LOG_ERROR, "Unable to get response address (%d)\n", status);
 			return status;
 		}
-		status = ast_sip_send_response(&res_addr, tdata, ast_pjsip_rdata_get_endpoint(rdata));
+
+		endpoint = ast_pjsip_rdata_get_endpoint(rdata);
+		status = ast_sip_send_response(&res_addr, tdata, endpoint);
+		ao2_cleanup(endpoint);
 	}
 
 	if (status != PJ_SUCCESS) {
