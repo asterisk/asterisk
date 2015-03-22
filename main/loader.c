@@ -483,7 +483,9 @@ static int is_module_loaded(const char *resource_name)
 
 static void unload_dynamic_module(struct ast_module *mod)
 {
+#if defined(HAVE_RTLD_NOLOAD)
 	char *name = ast_strdupa(ast_module_name(mod));
+#endif
 	void *lib = mod->lib;
 
 	/* WARNING: the structure pointed to by mod is going to
