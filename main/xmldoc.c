@@ -2979,7 +2979,7 @@ int ast_xmldoc_load_documentation(void)
 	globret = glob(xmlpattern, MY_GLOB_FLAGS, NULL, &globbuf);
 #endif
 
-	ast_debug(3, "gl_pathc %zu\n", globbuf.gl_pathc);
+	ast_debug(3, "gl_pathc %zu\n", (size_t)globbuf.gl_pathc);
 	if (globret == GLOB_NOSPACE) {
 		ast_log(LOG_WARNING, "XML load failure, glob expansion of pattern '%s' failed: Not enough memory\n", xmlpattern);
 		ast_free(xmlpattern);
