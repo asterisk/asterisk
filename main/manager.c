@@ -4464,7 +4464,7 @@ static int action_status(struct mansession *s, const struct message *m)
 			S_OR(ast_channel_dialed(chan)->number.str, ""),
 			S_COR(ast_channel_connected_effective_id(chan).number.valid, ast_channel_connected_effective_id(chan).number.str, "<unknown>"),
 			S_COR(ast_channel_connected_effective_id(chan).name.valid, ast_channel_connected_effective_id(chan).name.str, "<unknown>"),
-			ast_channel_whentohangup(chan)->tv_sec,
+			(long)ast_channel_whentohangup(chan)->tv_sec,
 			bridge ? bridge->uniqueid : "",
 			ast_channel_linkedid(chan),
 			ast_channel_appl(chan),

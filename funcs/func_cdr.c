@@ -284,14 +284,16 @@ static void cdr_read_callback(void *data, struct stasis_subscription *sub, struc
 			struct timeval fmt_time;
 			struct ast_tm tm;
 			/* tv_usec is suseconds_t, which could be int or long */
+			long int tv_sec;
 			long int tv_usec;
 
-			if (sscanf(tempbuf, "%ld.%ld", &fmt_time.tv_sec, &tv_usec) != 2) {
+			if (sscanf(tempbuf, "%ld.%ld", &tv_sec, &tv_usec) != 2) {
 				ast_log(AST_LOG_WARNING, "Unable to parse %s (%s) from the CDR for channel %s\n",
 					args.variable, tempbuf, ast_channel_name(payload->chan));
 				return;
 			}
-			if (fmt_time.tv_sec) {
+			if (tv_sec) {
+				fmt_time.tv_sec = tv_sec;
 				fmt_time.tv_usec = tv_usec;
 				ast_localtime(&fmt_time, &tm, NULL);
 				ast_strftime(tempbuf, sizeof(tempbuf), "%Y-%m-%d %T", &tm);

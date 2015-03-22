@@ -1947,7 +1947,7 @@ static struct ast_json *rtcp_report_to_json(struct stasis_message *msg,
 	if (payload->report->type == AST_RTP_RTCP_SR) {
 		char sec[32];
 		char usec[32];
-		snprintf(sec, sizeof(sec), "%lu", payload->report->sender_information.ntp_timestamp.tv_sec);
+		snprintf(sec, sizeof(sec), "%lu", (unsigned long)payload->report->sender_information.ntp_timestamp.tv_sec);
 		snprintf(usec, sizeof(usec), "%lu", (unsigned long)payload->report->sender_information.ntp_timestamp.tv_usec);
 		json_rtcp_sender_info = ast_json_pack("{s: s, s: s, s: i, s: i, s: i}",
 				"ntp_timestamp_sec", sec,
