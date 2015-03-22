@@ -87,11 +87,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #elif defined(HAVE_SYSCTL)
 #include <sys/param.h>
 #include <sys/sysctl.h>
-#if !defined(__OpenBSD__)
 #include <sys/vmmeter.h>
 #if defined(__FreeBSD__)
 #include <vm/vm_param.h>
-#endif
 #endif
 #if defined(HAVE_SWAPCTL)
 #include <sys/swap.h>
