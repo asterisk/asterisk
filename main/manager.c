@@ -4423,7 +4423,7 @@ static void generate_status(struct mansession *s, struct ast_channel *chan, char
 		S_OR(ast_channel_dialed(chan)->number.str, ""),
 		S_COR(effective_id.number.valid, effective_id.number.str, "<unknown>"),
 		S_COR(effective_id.name.valid, effective_id.name.str, "<unknown>"),
-		ast_channel_whentohangup(chan)->tv_sec,
+		(long)ast_channel_whentohangup(chan)->tv_sec,
 		bridge ? bridge->uniqueid : "",
 		ast_channel_linkedid(chan),
 		ast_channel_appl(chan),

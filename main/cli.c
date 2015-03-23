@@ -1644,7 +1644,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		ast_str_buffer(write_transpath),
 		ast_str_strlen(read_transpath) ? "Yes" : "No",
 		ast_str_buffer(read_transpath),
-		ast_channel_whentohangup(chan)->tv_sec,
+		(long)ast_channel_whentohangup(chan)->tv_sec,
 		cdrtime,
 		bridge ? bridge->uniqueid : "(Not bridged)",
 		ast_channel_context(chan),

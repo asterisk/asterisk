@@ -1257,11 +1257,11 @@ static void cdr_object_finalize(struct cdr_object *cdr)
 	/* tv_usec is suseconds_t, which could be int or long */
 	ast_debug(1, "Finalized CDR for %s - start %ld.%06ld answer %ld.%06ld end %ld.%06ld dispo %s\n",
 			cdr->party_a.snapshot->name,
-			cdr->start.tv_sec,
+			(long)cdr->start.tv_sec,
 			(long)cdr->start.tv_usec,
-			cdr->answer.tv_sec,
+			(long)cdr->answer.tv_sec,
 			(long)cdr->answer.tv_usec,
-			cdr->end.tv_sec,
+			(long)cdr->end.tv_sec,
 			(long)cdr->end.tv_usec,
 			ast_cdr_disp2str(cdr->disposition));
 }
@@ -1296,7 +1296,7 @@ static void cdr_object_check_party_a_answer(struct cdr_object *cdr) {
 		cdr->answer = ast_tvnow();
 		/* tv_usec is suseconds_t, which could be int or long */
 		CDR_DEBUG(mod_cfg, "%p - Set answered time to %ld.%06ld\n", cdr,
-			cdr->answer.tv_sec,
+			(long)cdr->answer.tv_sec,
 			(long)cdr->answer.tv_usec);
 	}
 }
