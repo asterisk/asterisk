@@ -199,7 +199,7 @@
 						<para>This setting allows to choose the DTMF mode for endpoint communication.</para>
 						<enumlist>
 							<enum name="rfc4733">
-								<para>DTMF is sent out of band of the main audio stream.This
+								<para>DTMF is sent out of band of the main audio stream.  This
 								supercedes the older <emphasis>RFC-2833</emphasis> used within
 								the older <literal>chan_sip</literal>.</para>
 							</enum>
@@ -315,6 +315,27 @@
 				</configOption>
 				<configOption name="send_rpid" default="no">
 					<synopsis>Send the Remote-Party-ID header</synopsis>
+				</configOption>
+				<configOption name="rpid_immediate" default="no">
+					<synopsis>Immediately send connected line updates on unanswered incoming calls.</synopsis>
+					<description>
+						<para>When enabled, immediately send <emphasis>180 Ringing</emphasis>
+						or <emphasis>183 Progress</emphasis> response messages to the
+						caller if the connected line information is updated before
+						the call is answered.  This can send a <emphasis>180 Ringing</emphasis>
+						response before the call has even reached the far end.  The
+						caller can start hearing ringback before the far end even gets
+						the call.  Many phones tend to grab the first connected line
+						information and refuse to update the display if it changes.  The
+						first information is not likely to be correct if the call
+						goes to an endpoint not under the control of this Asterisk
+						box.</para>
+						<para>When disabled, a connected line update must wait for
+						another reason to send a message with the connected line
+						information to the caller before the call is answered.  You can
+						trigger the sending of the information by using an appropriate
+						dialplan application such as <emphasis>Ringing</emphasis>.</para>
+					</description>
 				</configOption>
 				<configOption name="timers_min_se" default="90">
 					<synopsis>Minimum session timers expiration period</synopsis>

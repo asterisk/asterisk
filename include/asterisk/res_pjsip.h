@@ -415,6 +415,8 @@ struct ast_sip_endpoint_id_configuration {
 	unsigned int send_pai;
 	/*! Do we send Remote-Party-ID headers to this endpoint? */
 	unsigned int send_rpid;
+	/*! Do we send messages for connected line updates for unanswered incoming calls immediately to this endpoint? */
+	unsigned int rpid_immediate;
 	/*! Do we add Diversion headers to applicable outgoing requests/responses? */
 	unsigned int send_diversion;
 	/*! When performing connected line update, which method should be used */
