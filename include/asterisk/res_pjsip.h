@@ -613,6 +613,8 @@ struct ast_sip_endpoint {
 	struct ast_variable *channel_vars;
 	/*! Whether to place a 'user=phone' parameter into the request URI if user is a number */
 	unsigned int usereqphone;
+	/*! Do we send messages for connected line updates for unanswered incoming calls immediately to this endpoint? */
+	unsigned int rpid_immediate;
 };
 
 /*!

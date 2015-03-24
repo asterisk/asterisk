@@ -1117,7 +1117,8 @@ static int update_connected_line_information(void *data)
 
 			ast_sip_session_refresh(session, NULL, NULL, NULL, method, generate_new_sdp);
 		}
-	} else if (session->inv_session->state != PJSIP_INV_STATE_DISCONNECTED
+	} else if (session->endpoint->rpid_immediate
+		&& session->inv_session->state != PJSIP_INV_STATE_DISCONNECTED
 		&& is_colp_update_allowed(session)) {
 		int response_code = 0;
 

@@ -628,6 +628,7 @@
                         ; information to the called user agent (default: "yes")
 ;send_pai=no    ; Send the P Asserted Identity header (default: "no")
 ;send_rpid=no   ; Send the Remote Party ID header (default: "no")
+;rpid_immediate=no      ; Send connected line updates on unanswered incoming calls immediately. (default: "no")
 ;timers_min_se=90       ; Minimum session timers expiration period (default:
                         ; "90")
 ;timers=yes     ; Session timers for SIP packets (default: "yes")

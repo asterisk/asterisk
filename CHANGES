@@ -9,6 +9,18 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.3.0 to Asterisk 13.4.0 ------------
+------------------------------------------------------------------------------
+
+chan_pjsip
+------------------
+ * New 'rpid_immediate' option to control if connected line update information
+   goes to the caller immediately or waits for another reason to send the
+   connected line information update.  See the online option documentation for
+   more information.  Defaults to 'no' as setting it to 'yes' can result in
+   many unnecessary messages being sent to the caller.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.2.0 to Asterisk 13.3.0 ------------
 ------------------------------------------------------------------------------
 
