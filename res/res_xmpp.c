@@ -342,6 +342,7 @@ struct ast_xmpp_client_config {
 	int message_timeout;            /*!< Timeout for messages */
 	int priority;                   /*!< Resource priority */
 	struct ast_flags flags;         /*!< Various options that have been set */
+	struct ast_flags mod_flags;     /*!< Global options that have been modified */
 	enum ikshowtype status;         /*!< Presence status */
 	struct ast_xmpp_client *client; /*!< Pointer to the client */
 	struct ao2_container *buddies;  /*!< Configured buddies */
@@ -589,8 +590,6 @@ static void *xmpp_config_alloc(void)
 	if (!(cfg->global = ao2_alloc(sizeof(*cfg->global), NULL))) {
 		goto error;
 	}
-
-	ast_set_flag(&cfg->global->general, XMPP_AUTOREGISTER | XMPP_AUTOACCEPT | XMPP_USETLS | XMPP_USESASL | XMPP_KEEPALIVE);
 
 	if (!(cfg->clients = ao2_container_alloc(1, xmpp_config_hash, xmpp_config_cmp))) {
 		goto error;
@@ -3673,6 +3672,10 @@ static int xmpp_client_config_merge_buddies(void *obj, void *arg, int flags)
 static int xmpp_client_config_post_apply(void *obj, void *arg, int flags)
 {
 	struct ast_xmpp_client_config *cfg = obj;
+	RAII_VAR(struct xmpp_config *, gcfg, ao2_global_obj_ref(globals), ao2_cleanup);
+
+	/* Merge global options that have not been modified */
+	ast_copy_flags(&cfg->flags, &gcfg->global->general, ~(cfg->mod_flags.flags) & (XMPP_AUTOPRUNE | XMPP_AUTOREGISTER | XMPP_AUTOACCEPT));
 
 	/* Merge buddies as need be */
 	ao2_callback(cfg->buddies, OBJ_MULTIPLE | OBJ_UNLINK, xmpp_client_config_merge_buddies, cfg->client->buddies);
@@ -4349,10 +4352,13 @@ static int client_bitfield_handler(const struct aco_option *opt, struct ast_vari
 		ast_set2_flag(&cfg->flags, ast_true(var->value), XMPP_KEEPALIVE);
 	} else if (!strcasecmp(var->name, "autoprune")) {
 		ast_set2_flag(&cfg->flags, ast_true(var->value), XMPP_AUTOPRUNE);
+		ast_set2_flag(&cfg->mod_flags, 1, XMPP_AUTOPRUNE);
 	} else if (!strcasecmp(var->name, "autoregister")) {
 		ast_set2_flag(&cfg->flags, ast_true(var->value), XMPP_AUTOREGISTER);
+		ast_set2_flag(&cfg->mod_flags, 1, XMPP_AUTOREGISTER);
 	} else if (!strcasecmp(var->name, "auth_policy")) {
 		ast_set2_flag(&cfg->flags, !strcasecmp(var->value, "accept") ? 1 : 0, XMPP_AUTOACCEPT);
+		ast_set2_flag(&cfg->mod_flags, 1, XMPP_AUTOACCEPT);
 	} else if (!strcasecmp(var->name, "sendtodialplan")) {
 		ast_set2_flag(&cfg->flags, ast_true(var->value), XMPP_SEND_TO_DIALPLAN);
 	} else {
@@ -4433,6 +4439,11 @@ static int load_module(void)
 	aco_option_register(&cfg_info, "port", ACO_EXACT, client_options, "5222", OPT_UINT_T, 0, FLDSET(struct ast_xmpp_client_config, port));
 	aco_option_register(&cfg_info, "timeout", ACO_EXACT, client_options, "5", OPT_UINT_T, 0, FLDSET(struct ast_xmpp_client_config, message_timeout));
 
+	/* Global options that can be overridden per client must not specify a default */
+	aco_option_register_custom(&cfg_info, "autoprune", ACO_EXACT, client_options, NULL, client_bitfield_handler, 0);
+	aco_option_register_custom(&cfg_info, "autoregister", ACO_EXACT, client_options, NULL, client_bitfield_handler, 0);
+	aco_option_register_custom(&cfg_info, "auth_policy", ACO_EXACT, client_options, NULL, client_bitfield_handler, 0);
+
 	aco_option_register_custom(&cfg_info, "debug", ACO_EXACT, client_options, "no", client_bitfield_handler, 0);
 	aco_option_register_custom(&cfg_info, "type", ACO_EXACT, client_options, "client", client_bitfield_handler, 0);
 	aco_option_register_custom(&cfg_info, "distribute_events", ACO_EXACT, client_options, "no", client_bitfield_handler, 0);
@@ -4440,9 +4451,6 @@ static int load_module(void)
 	aco_option_register_custom(&cfg_info, "usesasl", ACO_EXACT, client_options, "yes", client_bitfield_handler, 0);
 	aco_option_register_custom(&cfg_info, "forceoldssl", ACO_EXACT, client_options, "no", client_bitfield_handler, 0);
 	aco_option_register_custom(&cfg_info, "keepalive", ACO_EXACT, client_options, "yes", client_bitfield_handler, 0);
-	aco_option_register_custom(&cfg_info, "autoprune", ACO_EXACT, client_options, "no", client_bitfield_handler, 0);
-	aco_option_register_custom(&cfg_info, "autoregister", ACO_EXACT, client_options, "yes", client_bitfield_handler, 0);
-	aco_option_register_custom(&cfg_info, "auth_policy", ACO_EXACT, client_options, "accept", client_bitfield_handler, 0);
 	aco_option_register_custom(&cfg_info, "sendtodialplan", ACO_EXACT, client_options, "no", client_bitfield_handler, 0);
 	aco_option_register_custom(&cfg_info, "status", ACO_EXACT, client_options, "available", client_status_handler, 0);
 	aco_option_register_custom(&cfg_info, "buddy", ACO_EXACT, client_options, NULL, client_buddy_handler, 0);
