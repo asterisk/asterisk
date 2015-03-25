@@ -1,0 +1,24 @@
+; Unbound DNS Resolver Configuration
+;
+; This file serves as a reference for the configurable options within the
+; unbound DNS resolver.
+
+[general]
+;hosts = /etc/hosts        ; Full path to a hosts file which contains a mapping of
+;                          ; hostnames to addresses. If "system" is specified then
+;                          ; the system specific hosts file will be used. (default: system)
+;resolv = /etc/resolv.conf ; Full path to a resolv.conf which contains the nameservers
+;                          ; to use for resolution. If "system" is specified then the
+;                          ; system specific resolv.conf file will be used. (default: system)
+;nameserver = 127.0.0.1    ; An explicit nameserver to use for queries. If this option
+;                          ; is specified multiple times the first configured one will
+;                          ; be treated as the primary with each subsequent one being
+;                          ; a backup. If the resolv options is also specified the
+;                          ; nameservers from it will be tried after all nameserver
+;                          ; options.
+;debug = 99                ; The debug level to run the unbound resolver at. While
+;                          ; there is no explicit range the higher the number the more
+;                          ; debug is output.
+;ta_file = /etc/asterisk/dnssec_keys ; Full path to a trusted anchors key file. These keys are
+;                                    ; used to verify DNSSEC signed results.
+

@@ -507,6 +507,7 @@ AST_EXT_LIB_SETUP([TERMCAP], [Termcap], [termcap])
 AST_EXT_LIB_SETUP([TIMERFD], [timerfd], [timerfd])
 AST_EXT_LIB_SETUP([TINFO], [Term Info], [tinfo])
 AST_EXT_LIB_SETUP([TONEZONE], [tonezone], [tonezone])
+AST_EXT_LIB_SETUP([UNBOUND], [unbound], [unbound])
 AST_EXT_LIB_SETUP([UNIXODBC], [unixODBC], [unixodbc])
 AST_EXT_LIB_SETUP([VORBIS], [Vorbis], [vorbis])
 AST_EXT_LIB_SETUP([VPB], [Voicetronix API], [vpb])
@@ -2031,6 +2032,8 @@ AST_EXT_TOOL_CHECK([NETSNMP], [net-snmp-config], , [--agent-libs],
 [int callback = snmp_register_callback(0, 0, NULL, NULL)])
 
 AST_EXT_LIB_CHECK([NEWT], [newt], [newtBell], [newt.h])
+
+AST_EXT_LIB_CHECK([UNBOUND], [unbound], [ub_ctx_create], [unbound.h], [])
 
 AST_EXT_LIB_CHECK([UNIXODBC], [odbc], [SQLConnect], [sql.h], [])
 

@@ -1065,6 +1065,9 @@
 /* Define to 1 if you have the `truncl' function. */
 #undef HAVE_TRUNCL
 
+/* Define to 1 if you have the unbound library. */
+#undef HAVE_UNBOUND
+
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
