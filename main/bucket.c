@@ -882,9 +882,8 @@ static int bucket_scheme_cmp(void *obj, void *arg, int flags)
 /*! \brief Cleanup function for graceful shutdowns */
 static void bucket_cleanup(void)
 {
-	if (bucket_sorcery) {
-		ast_sorcery_unref(bucket_sorcery);
-	}
+	ast_sorcery_unref(bucket_sorcery);
+	bucket_sorcery = NULL;
 
 	ast_sorcery_wizard_unregister(&bucket_wizard);
 	ast_sorcery_wizard_unregister(&bucket_file_wizard);
