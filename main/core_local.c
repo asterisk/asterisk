@@ -998,9 +998,6 @@ static int locals_cmp_cb(void *obj, void *arg, int flags)
  */
 static void local_shutdown(void)
 {
-	struct local_pvt *p;
-	struct ao2_iterator it;
-
 	/* First, take us out of the channel loop */
 	ast_cli_unregister_multiple(cli_local, ARRAY_LEN(cli_local));
 	ast_manager_unregister("LocalOptimizeAway");
