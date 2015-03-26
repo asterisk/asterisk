@@ -567,7 +567,7 @@ int ast_named_acl_init()
 {
 	ast_cli_register_multiple(cli_named_acl, ARRAY_LEN(cli_named_acl));
 
-	ast_register_atexit(named_acl_cleanup);
+	ast_register_cleanup(named_acl_cleanup);
 
 	if (aco_info_init(&cfg_info)) {
 		return 0;

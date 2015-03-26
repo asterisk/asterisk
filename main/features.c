@@ -9108,7 +9108,7 @@ int ast_features_init(void)
 	res |= AST_TEST_REGISTER(features_test);
 #endif	/* defined(TEST_FRAMEWORK) */
 
-	ast_register_atexit(features_shutdown);
+	ast_register_cleanup(features_shutdown);
 
 	return res;
 }

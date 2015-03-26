@@ -892,7 +892,7 @@ int ast_cel_engine_init(void)
 		return -1;
 	}
 
-	ast_register_atexit(ast_cel_engine_term);
+	ast_register_cleanup(ast_cel_engine_term);
 
 	return 0;
 }

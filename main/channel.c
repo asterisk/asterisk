@@ -8666,7 +8666,7 @@ void ast_channels_init(void)
 
 	ast_plc_reload();
 
-	ast_register_atexit(channels_shutdown);
+	ast_register_cleanup(channels_shutdown);
 }
 
 /*! \brief Print call group and pickup group ---*/

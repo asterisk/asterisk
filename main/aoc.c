@@ -1611,6 +1611,6 @@ static void aoc_shutdown(void)
 }
 int ast_aoc_cli_init(void)
 {
-	ast_register_atexit(aoc_shutdown);
+	ast_register_cleanup(aoc_shutdown);
 	return ast_cli_register_multiple(aoc_cli, ARRAY_LEN(aoc_cli));
 }

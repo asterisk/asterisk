@@ -1184,7 +1184,7 @@ int ast_indications_init(void)
 
 	ast_cli_register_multiple(cli_indications, ARRAY_LEN(cli_indications));
 
-	ast_register_atexit(indications_shutdown);
+	ast_register_cleanup(indications_shutdown);
 	return 0;
 }
 

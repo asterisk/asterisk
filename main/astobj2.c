@@ -1748,7 +1748,7 @@ int astobj2_init(void)
 	ast_cli_register_multiple(cli_astobj2, ARRAY_LEN(cli_astobj2));
 #endif
 
-	ast_register_atexit(astobj2_cleanup);
+	ast_register_cleanup(astobj2_cleanup);
 
 	return 0;
 }

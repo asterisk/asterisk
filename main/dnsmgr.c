@@ -427,7 +427,7 @@ int dnsmgr_init(void)
 	ast_cli_register(&cli_status);
 	ast_cli_register(&cli_refresh);
 
-	ast_register_atexit(dnsmgr_shutdown);
+	ast_register_cleanup(dnsmgr_shutdown);
 
 	return do_reload(1);
 }

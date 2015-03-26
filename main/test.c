@@ -943,7 +943,7 @@ int ast_test_init()
 #ifdef TEST_FRAMEWORK
 	/* Register cli commands */
 	ast_cli_register_multiple(test_cli, ARRAY_LEN(test_cli));
-	ast_register_atexit(test_shutdown);
+	ast_register_cleanup(test_shutdown);
 #endif
 
 	return 0;

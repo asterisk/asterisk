@@ -1594,6 +1594,6 @@ static void file_shutdown(void)
 int ast_file_init(void)
 {
 	ast_cli_register_multiple(cli_file, ARRAY_LEN(cli_file));
-	ast_register_atexit(file_shutdown);
+	ast_register_cleanup(file_shutdown);
 	return 0;
 }

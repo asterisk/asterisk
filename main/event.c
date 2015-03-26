@@ -1882,7 +1882,7 @@ int ast_event_init(void)
 
 	ast_cli_register_multiple(event_cli, ARRAY_LEN(event_cli));
 
-	ast_register_atexit(event_shutdown);
+	ast_register_cleanup(event_shutdown);
 
 	return 0;
 

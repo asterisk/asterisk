@@ -1524,5 +1524,5 @@ void ast_udptl_init(void)
 
 	ast_cli_register_multiple(cli_udptl, ARRAY_LEN(cli_udptl));
 
-	ast_register_atexit(udptl_shutdown);
+	ast_register_cleanup(udptl_shutdown);
 }

@@ -7635,7 +7635,7 @@ static int __init_manager(int reload, int by_external_config)
 		struct ao2_container *temp_event_docs;
 #endif
 
-		ast_register_atexit(manager_shutdown);
+		ast_register_cleanup(manager_shutdown);
 
 		/* Register default actions */
 		ast_manager_register_xml_core("Ping", 0, action_ping);

@@ -3343,7 +3343,7 @@ int ast_data_init(void)
 
 	AST_TEST_REGISTER(test_data_get);
 
-	ast_register_atexit(data_shutdown);
+	ast_register_cleanup(data_shutdown);
 
 	return res;
 }

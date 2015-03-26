@@ -1113,7 +1113,7 @@ int ast_format_list_init(void)
 		goto init_list_cleanup;
 	}
 
-	ast_register_atexit(format_list_shutdown);
+	ast_register_cleanup(format_list_shutdown);
 	return 0;
 init_list_cleanup:
 

@@ -4583,7 +4583,7 @@ int ast_cc_init(void)
 	initialize_cc_devstate_map();
 	res |= ast_devstate_prov_add("ccss", ccss_device_state);
 
-	ast_register_atexit(cc_shutdown);
+	ast_register_cleanup(cc_shutdown);
 
 	return res;
 }

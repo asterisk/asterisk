@@ -1379,7 +1379,7 @@ int ast_msg_init(void)
 	res |= ast_register_application2(app_msg_send, msg_send_exec, NULL, NULL, NULL);
 	res |= ast_manager_register_xml_core("MessageSend", EVENT_FLAG_MESSAGE, action_messagesend);
 
-	ast_register_atexit(message_shutdown);
+	ast_register_cleanup(message_shutdown);
 
 	return res;
 }

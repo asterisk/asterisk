@@ -1420,6 +1420,6 @@ int ast_translate_init(void)
 	ast_rwlock_init(&tablelock);
 	res = matrix_resize(1);
 	res |= ast_cli_register_multiple(cli_translate, ARRAY_LEN(cli_translate));
-	ast_register_atexit(translate_shutdown);
+	ast_register_cleanup(translate_shutdown);
 	return res;
 }

@@ -12054,7 +12054,7 @@ int load_pbx(void)
 {
 	int x;
 
-	ast_register_atexit(unload_pbx);
+	ast_register_cleanup(unload_pbx);
 
 	/* Initialize the PBX */
 	ast_verb(1, "Asterisk PBX Core Initializing\n");
@@ -12480,7 +12480,7 @@ int ast_pbx_init(void)
 	hintdevices = ao2_container_alloc(HASH_EXTENHINT_SIZE, hintdevice_hash_cb, hintdevice_cmp_multiple);
 	statecbs = ao2_container_alloc(1, NULL, statecbs_cmp);
 
-	ast_register_atexit(pbx_shutdown);
+	ast_register_cleanup(pbx_shutdown);
 
 	return (hints && hintdevices && statecbs) ? 0 : -1;
 }
