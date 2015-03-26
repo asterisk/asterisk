@@ -4286,6 +4286,7 @@ static int unload_module(void)
 	ast_manager_unregister(AMI_SHOW_SUBSCRIPTIONS_INBOUND);
 	ast_manager_unregister("PJSIPShowResourceLists");
 
+	ast_sip_unregister_service(&pubsub_module);
 	if (sched) {
 		ast_sched_context_destroy(sched);
 	}

@@ -3520,21 +3520,6 @@ static int reload_module(void)
 static int unload_pjsip(void *data)
 {
 	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
-	if (memory_pool) {
-		pj_pool_release(memory_pool);
-		memory_pool = NULL;
-	}
-	if (ast_pjsip_endpoint) {
-		pjsip_endpt_destroy(ast_pjsip_endpoint);
-		ast_pjsip_endpoint = NULL;
-	}
-	pj_caching_pool_destroy(&caching_pool);
-	pj_shutdown();
-	return 0;
-}
-
-static int unload_module(void)
-{
 	ast_res_pjsip_cleanup_options_handling();
 	internal_sip_destroy_outbound_authentication();
 	ast_sip_destroy_distributor();
@@ -3545,6 +3530,18 @@ static int unload_module(void)
 	if (monitor_thread) {
 		stop_monitor_thread();
 	}
+	if (memory_pool) {
+		pj_pool_release(memory_pool);
+		memory_pool = NULL;
+	}
+	ast_pjsip_endpoint = NULL;
+	pj_caching_pool_destroy(&caching_pool);
+	pj_shutdown();
+	return 0;
+}
+
+static int unload_module(void)
+{
 	/* The thread this is called from cannot call PJSIP/PJLIB functions,
 	 * so we have to push the work to the threadpool to handle
 	 */
