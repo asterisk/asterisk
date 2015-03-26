@@ -322,7 +322,7 @@ int ast_sounds_index_init(void)
 		return -1;
 	}
 
-	ast_register_atexit(sounds_cleanup);
+	ast_register_cleanup(sounds_cleanup);
 	return 0;
 }
 

@@ -1136,7 +1136,7 @@ int manager_channels_init(void)
 		return -1;
 	}
 
-	ast_register_atexit(manager_channels_shutdown);
+	ast_register_cleanup(manager_channels_shutdown);
 
 	ret |= stasis_message_router_add_cache_update(message_router,
 		ast_channel_snapshot_type(), channel_snapshot_update, NULL);

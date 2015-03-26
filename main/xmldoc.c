@@ -2962,7 +2962,7 @@ int ast_xmldoc_load_documentation(void)
 
 	ast_cli_register(&cli_dump_xmldocs);
 	/* register function to be run when asterisk finish. */
-	ast_register_atexit(xmldoc_unload_documentation);
+	ast_register_cleanup(xmldoc_unload_documentation);
 
 	globbuf.gl_offs = 0;    /* slots to reserve in gl_pathv */
 

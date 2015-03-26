@@ -8621,7 +8621,7 @@ static int __init_manager(int reload, int by_external_config)
 #endif
 		int res;
 
-		ast_register_atexit(manager_shutdown);
+		ast_register_cleanup(manager_shutdown);
 
 		res = STASIS_MESSAGE_TYPE_INIT(ast_manager_get_generic_type);
 		if (res != 0) {

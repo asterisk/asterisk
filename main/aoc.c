@@ -2011,6 +2011,6 @@ int ast_aoc_cli_init(void)
 	STASIS_MESSAGE_TYPE_INIT(aoc_d_type);
 	STASIS_MESSAGE_TYPE_INIT(aoc_e_type);
 
-	ast_register_atexit(aoc_shutdown);
+	ast_register_cleanup(aoc_shutdown);
 	return ast_cli_register_multiple(aoc_cli, ARRAY_LEN(aoc_cli));
 }

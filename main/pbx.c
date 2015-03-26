@@ -12102,7 +12102,7 @@ int load_pbx(void)
 	int res = 0;
 	int x;
 
-	ast_register_atexit(unload_pbx);
+	ast_register_cleanup(unload_pbx);
 
 	/* Initialize the PBX */
 	ast_verb(1, "Asterisk PBX Core Initializing\n");

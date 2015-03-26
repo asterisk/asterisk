@@ -2476,7 +2476,7 @@ int ast_utils_init(void)
 	ast_cli_register_multiple(utils_cli, ARRAY_LEN(utils_cli));
 #endif
 #endif
-	ast_register_atexit(utils_shutdown);
+	ast_register_cleanup(utils_shutdown);
 	return 0;
 }
 

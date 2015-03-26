@@ -1533,16 +1533,11 @@ STASIS_MESSAGE_TYPE_DEFN(ast_multi_user_event_type,
 
 /*! @} */
 
-/*! \brief Shutdown function */
-static void stasis_exit(void)
-{
-	ast_threadpool_shutdown(pool);
-	pool = NULL;
-}
-
 /*! \brief Cleanup function for graceful shutdowns */
 static void stasis_cleanup(void)
 {
+	ast_threadpool_shutdown(pool);
+	pool = NULL;
 	STASIS_MESSAGE_TYPE_CLEANUP(stasis_subscription_change_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_multi_user_event_type);
 	aco_info_destroy(&cfg_info);
@@ -1557,7 +1552,6 @@ int stasis_init(void)
 
 	/* Be sure the types are cleaned up after the message bus */
 	ast_register_cleanup(stasis_cleanup);
-	ast_register_atexit(stasis_exit);
 
 	if (aco_info_init(&cfg_info)) {
 		return -1;
