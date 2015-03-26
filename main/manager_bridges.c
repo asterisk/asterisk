@@ -577,10 +577,7 @@ static void manager_bridging_cleanup(void)
 {
 	stasis_forward_cancel(topic_forwarder);
 	topic_forwarder = NULL;
-}
 
-static void manager_bridging_shutdown(void)
-{
 	ast_manager_unregister("BridgeList");
 	ast_manager_unregister("BridgeInfo");
 	ast_manager_unregister("BridgeDestroy");
@@ -598,7 +595,6 @@ int manager_bridging_init(void)
 		return 0;
 	}
 
-	ast_register_atexit(manager_bridging_shutdown);
 	ast_register_cleanup(manager_bridging_cleanup);
 
 	manager_topic = ast_manager_get_topic();
@@ -642,7 +638,7 @@ int manager_bridging_init(void)
 	 * thing and fail it.
 	 */
 	if (ret) {
-		manager_bridging_shutdown();
+		manager_bridging_cleanup();
 		return -1;
 	}
 

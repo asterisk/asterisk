@@ -2027,7 +2027,7 @@ static void cli_shutdown(void)
 void ast_builtins_init(void)
 {
 	ast_cli_register_multiple(cli_cli, ARRAY_LEN(cli_cli));
-	ast_register_atexit(cli_shutdown);
+	ast_register_cleanup(cli_shutdown);
 }
 
 /*!

@@ -1281,7 +1281,7 @@ static void aco_deinit(void)
 int aco_init(void)
 {
 #ifdef AST_XML_DOCS
-	ast_register_atexit(aco_deinit);
+	ast_register_cleanup(aco_deinit);
 	if (!(xmldocs = ast_xmldoc_build_documentation("configInfo"))) {
 		ast_log(LOG_ERROR, "Couldn't build config documentation\n");
 		return -1;

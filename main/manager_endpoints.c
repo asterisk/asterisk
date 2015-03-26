@@ -61,7 +61,7 @@ int manager_endpoints_init(void)
 		return 0;
 	}
 
-	ast_register_atexit(manager_endpoints_shutdown);
+	ast_register_cleanup(manager_endpoints_shutdown);
 
 	endpoint_topic = ast_endpoint_topic_all_cached();
 	if (!endpoint_topic) {

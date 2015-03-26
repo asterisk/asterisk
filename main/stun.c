@@ -516,5 +516,5 @@ static void stun_shutdown(void)
 void ast_stun_init(void)
 {
 	ast_cli_register_multiple(cli_stun, sizeof(cli_stun) / sizeof(struct ast_cli_entry));
-	ast_register_atexit(stun_shutdown);
+	ast_register_cleanup(stun_shutdown);
 }

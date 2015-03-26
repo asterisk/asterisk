@@ -86,6 +86,11 @@ int ast_pbx_init(void);				/*!< Provided by pbx.c */
  *
  * \retval 0 on success.
  * \retval -1 on error.
+ *
+ * \note This function should be rarely used in situations where
+ * something must be shutdown to avoid corruption, excessive data
+ * loss, or when external programs must be stopped.  All other
+ * cleanup in the core should use ast_register_cleanup.
  */
 int ast_register_atexit(void (*func)(void));
 

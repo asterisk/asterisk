@@ -416,16 +416,11 @@ static int object_type_field_cmp(void *obj, void *arg, int flags)
 	return CMP_MATCH;
 }
 
-/*! \brief Cleanup function */
-static void sorcery_exit(void)
-{
-	ast_threadpool_shutdown(threadpool);
-	threadpool = NULL;
-}
-
 /*! \brief Cleanup function for graceful shutdowns */
 static void sorcery_cleanup(void)
 {
+	ast_threadpool_shutdown(threadpool);
+	threadpool = NULL;
 	ao2_cleanup(wizards);
 	wizards = NULL;
 	ao2_cleanup(observers);
@@ -507,7 +502,6 @@ int ast_sorcery_init(void)
 	observers = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_RWLOCK, 0, NULL, NULL);
 	if (!observers) {
 		sorcery_cleanup();
-		sorcery_exit();
 		return -1;
 	}
 
@@ -515,12 +509,10 @@ int ast_sorcery_init(void)
 		sorcery_instance_hash, sorcery_instance_cmp);
 	if (!instances) {
 		sorcery_cleanup();
-		sorcery_exit();
 		return -1;
 	}
 
 	ast_register_cleanup(sorcery_cleanup);
-	ast_register_atexit(sorcery_exit);
 
 	return 0;
 }
