@@ -1510,6 +1510,51 @@ static void testsuite_notify_feature_success(struct ast_channel *chan, const cha
 #endif /* TEST_FRAMEWORK */
 }
 
+static int bridge_channel_feature_digit_add(
+	struct ast_bridge_channel *bridge_channel, int digit, size_t dtmf_len)
+{
+	if (dtmf_len < ARRAY_LEN(bridge_channel->dtmf_hook_state.collected) - 1) {
+		/* Add the new digit to the DTMF string so we can do our matching */
+		bridge_channel->dtmf_hook_state.collected[dtmf_len++] = digit;
+		bridge_channel->dtmf_hook_state.collected[dtmf_len] = '\0';
+
+		ast_debug(1, "DTMF feature string on %p(%s) is now '%s'\n",
+			  bridge_channel, ast_channel_name(bridge_channel->chan),
+			  bridge_channel->dtmf_hook_state.collected);
+	}
+
+	return dtmf_len;
+}
+
+static unsigned int bridge_channel_feature_digit_timeout(struct ast_bridge_channel *bridge_channel)
+{
+	unsigned int digit_timeout;
+	struct ast_features_general_config *gen_cfg;
+
+	/* Determine interdigit timeout */
+	ast_channel_lock(bridge_channel->chan);
+	gen_cfg = ast_get_chan_features_general_config(bridge_channel->chan);
+	ast_channel_unlock(bridge_channel->chan);
+
+	if (!gen_cfg) {
+		ast_log(LOG_ERROR, "Unable to retrieve features configuration.\n");
+		return 3000; /* Pick a reasonable failsafe timeout in ms */
+	}
+
+	digit_timeout = gen_cfg->featuredigittimeout;
+	ao2_ref(gen_cfg, -1);
+
+	return digit_timeout;
+}
+
+void ast_bridge_channel_feature_digit_add(struct ast_bridge_channel *bridge_channel, int digit)
+{
+	if (digit) {
+		bridge_channel_feature_digit_add(
+			bridge_channel, digit, strlen(bridge_channel->dtmf_hook_state.collected));
+	}
+}
+
 void ast_bridge_channel_feature_digit(struct ast_bridge_channel *bridge_channel, int digit)
 {
 	struct ast_bridge_features *features = bridge_channel->features;
@@ -1527,17 +1572,10 @@ void ast_bridge_channel_feature_digit(struct ast_bridge_channel *bridge_channel,
 	}
 
 	if (digit) {
-		/* There should always be room for the new digit. */
-		ast_assert(dtmf_len < ARRAY_LEN(bridge_channel->dtmf_hook_state.collected) - 1);
+		dtmf_len = bridge_channel_feature_digit_add(bridge_channel, digit, dtmf_len);
+	}
 
-		/* Add the new digit to the DTMF string so we can do our matching */
-		bridge_channel->dtmf_hook_state.collected[dtmf_len++] = digit;
-		bridge_channel->dtmf_hook_state.collected[dtmf_len] = '\0';
-
-		ast_debug(1, "DTMF feature string on %p(%s) is now '%s'\n",
-			bridge_channel, ast_channel_name(bridge_channel->chan),
-			bridge_channel->dtmf_hook_state.collected);
-
+	while (digit) {
 		/* See if a DTMF feature hook matches or can match */
 		hook = ao2_find(features->dtmf_hooks, bridge_channel->dtmf_hook_state.collected,
 			OBJ_SEARCH_PARTIAL_KEY);
@@ -1545,25 +1583,12 @@ void ast_bridge_channel_feature_digit(struct ast_bridge_channel *bridge_channel,
 			ast_debug(1, "No DTMF feature hooks on %p(%s) match '%s'\n",
 				bridge_channel, ast_channel_name(bridge_channel->chan),
 				bridge_channel->dtmf_hook_state.collected);
+			break;
 		} else if (dtmf_len != strlen(hook->dtmf.code)) {
 			unsigned int digit_timeout;
-			struct ast_features_general_config *gen_cfg;
-
 			/* Need more digits to match */
 			ao2_ref(hook, -1);
-
-			/* Determine interdigit timeout */
-			ast_channel_lock(bridge_channel->chan);
-			gen_cfg = ast_get_chan_features_general_config(bridge_channel->chan);
-			ast_channel_unlock(bridge_channel->chan);
-			if (!gen_cfg) {
-				ast_log(LOG_ERROR, "Unable to retrieve features configuration.\n");
-				digit_timeout = 3000; /* Pick a reasonable failsafe timeout in ms */
-			} else {
-				digit_timeout = gen_cfg->featuredigittimeout;
-				ao2_ref(gen_cfg, -1);
-			}
-
+			digit_timeout = bridge_channel_feature_digit_timeout(bridge_channel);
 			bridge_channel->dtmf_hook_state.interdigit_timeout =
 				ast_tvadd(ast_tvnow(), ast_samp2tv(digit_timeout, 1000));
 			return;
@@ -1612,10 +1637,21 @@ void ast_bridge_channel_feature_digit(struct ast_bridge_channel *bridge_channel,
 			 */
 			if (bridge_channel->chan && ast_check_hangup_locked(bridge_channel->chan)) {
 				ast_bridge_channel_kick(bridge_channel, 0);
+				bridge_channel->dtmf_hook_state.collected[0] = '\0';
+				return;
 			}
-			return;
+
+			/* if there is dtmf that has been collected then loop back through,
+			   but set digit to -1 so it doesn't try to do an add since the dtmf
+			   is already in the buffer */
+			dtmf_len = strlen(bridge_channel->dtmf_hook_state.collected);
+			if (!dtmf_len) {
+				return;
+			}
 		}
-	} else {
+	}
+
+	if (!digit) {
 		ast_debug(1, "DTMF feature string collection on %p(%s) timed out\n",
 			bridge_channel, ast_channel_name(bridge_channel->chan));
 	}
