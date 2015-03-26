@@ -2641,14 +2641,18 @@ static int load_module(void)
 	}
 	ast_sip_register_service(&session_reinvite_module);
 
-	ast_module_ref(ast_module_info->self);
+	ast_module_shutdown_ref(ast_module_info->self);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
-	/* This will never get called as this module can't be unloaded */
+	ast_sip_unregister_service(&session_reinvite_module);
+	ast_sip_unregister_service(&session_module);
+	ast_sorcery_delete(ast_sip_get_sorcery(), nat_hook);
+	ao2_cleanup(nat_hook);
+	ao2_cleanup(sdp_handlers);
 	return 0;
 }
 

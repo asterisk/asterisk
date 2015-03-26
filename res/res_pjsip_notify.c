@@ -1021,6 +1021,7 @@ static int unload_module(void)
 	ast_manager_unregister("PJSIPNotify");
 	ast_cli_unregister_multiple(cli_options, ARRAY_LEN(cli_options));
 	aco_info_destroy(&notify_cfg);
+	ao2_global_obj_release(globals);
 
 	return 0;
 }

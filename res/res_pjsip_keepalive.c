@@ -244,7 +244,7 @@ static int load_module(void)
 
 	ast_sorcery_observer_add(ast_sip_get_sorcery(), "global", &keepalive_global_observer);
 	ast_sorcery_reload_object(ast_sip_get_sorcery(), "global");
-	ast_module_ref(ast_module_info->self);
+	ast_module_shutdown_ref(ast_module_info->self);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
