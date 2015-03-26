@@ -126,7 +126,7 @@ int ast_format_init(void)
 		return -1;
 	}
 
-	ast_register_atexit(format_shutdown);
+	ast_register_cleanup(format_shutdown);
 
 	return 0;
 }

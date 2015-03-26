@@ -1185,7 +1185,7 @@ int ast_features_init(void)
 	if (res) {
 		features_shutdown();
 	} else {
-		ast_register_atexit(features_shutdown);
+		ast_register_cleanup(features_shutdown);
 	}
 
 	return res;

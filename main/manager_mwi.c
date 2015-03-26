@@ -176,7 +176,7 @@ int manager_mwi_init(void)
 		return -1;
 	}
 
-	ast_register_atexit(manager_mwi_shutdown);
+	ast_register_cleanup(manager_mwi_shutdown);
 
 	ret |= stasis_message_router_add(message_router,
 					 ast_mwi_state_type(),

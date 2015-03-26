@@ -3836,7 +3836,7 @@ static void config_shutdown(void)
 int register_config_cli(void)
 {
 	ast_cli_register_multiple(cli_config, ARRAY_LEN(cli_config));
-	ast_register_atexit(config_shutdown);
+	ast_register_cleanup(config_shutdown);
 	return 0;
 }
 

@@ -278,7 +278,7 @@ int ast_tps_init(void)
 
 	ast_cli_register_multiple(taskprocessor_clis, ARRAY_LEN(taskprocessor_clis));
 
-	ast_register_atexit(tps_shutdown);
+	ast_register_cleanup(tps_shutdown);
 
 	return 0;
 }

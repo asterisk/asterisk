@@ -341,7 +341,7 @@ int ast_format_cache_init(void)
 		return -1;
 	}
 
-	ast_register_atexit(format_cache_shutdown);
+	ast_register_cleanup(format_cache_shutdown);
 
 	return 0;
 }

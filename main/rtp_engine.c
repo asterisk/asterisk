@@ -2092,7 +2092,7 @@ int ast_rtp_engine_init()
 	}
 	STASIS_MESSAGE_TYPE_INIT(ast_rtp_rtcp_sent_type);
 	STASIS_MESSAGE_TYPE_INIT(ast_rtp_rtcp_received_type);
-	ast_register_atexit(rtp_engine_shutdown);
+	ast_register_cleanup(rtp_engine_shutdown);
 
 	/* Define all the RTP mime types available */
 	set_next_mime_type(ast_format_g723, 0, "audio", "G723", 8000);

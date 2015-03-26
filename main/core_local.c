@@ -1009,14 +1009,6 @@ static void local_shutdown(void)
 	ast_manager_unregister("LocalOptimizeAway");
 	ast_channel_unregister(&local_tech);
 
-	it = ao2_iterator_init(locals, 0);
-	while ((p = ao2_iterator_next(&it))) {
-		if (p->base.owner) {
-			ast_softhangup(p->base.owner, AST_SOFTHANGUP_APPUNLOAD);
-		}
-		ao2_ref(p, -1);
-	}
-	ao2_iterator_destroy(&it);
 	ao2_ref(locals, -1);
 	locals = NULL;
 
@@ -1066,6 +1058,6 @@ int ast_local_init(void)
 	ast_cli_register_multiple(cli_local, ARRAY_LEN(cli_local));
 	ast_manager_register_xml_core("LocalOptimizeAway", EVENT_FLAG_SYSTEM|EVENT_FLAG_CALL, manager_optimize_away);
 
-	ast_register_atexit(local_shutdown);
+	ast_register_cleanup(local_shutdown);
 	return 0;
 }

@@ -4685,7 +4685,7 @@ int main(int argc, char *argv[])
 	ast_lastreloadtime = ast_startuptime = ast_tvnow();
 	ast_cli_register_multiple(cli_asterisk_shutdown, ARRAY_LEN(cli_asterisk_shutdown));
 	ast_cli_register_multiple(cli_asterisk, ARRAY_LEN(cli_asterisk));
-	ast_register_atexit(main_atexit);
+	ast_register_cleanup(main_atexit);
 
 	run_startup_commands();
 
