@@ -656,17 +656,36 @@ int ast_bridge_channel_write_park(struct ast_bridge_channel *bridge_channel, con
 void ast_bridge_channel_kick(struct ast_bridge_channel *bridge_channel, int cause);
 
 /*!
+ * \brief Add a DTMF digit to the collected digits.
+ * \since 13.3.0
+ *
+ * \param bridge_channel Channel that received a DTMF digit.
+ * \param digit DTMF digit to add to collected digits
+ *
+ * \note Neither the bridge nor the bridge_channel locks should be held
+ * when entering this function.
+ *
+ * \note This is can only be called from within DTMF bridge hooks.
+ */
+void ast_bridge_channel_feature_digit_add(struct ast_bridge_channel *bridge_channel, int digit);
+
+/*!
  * \brief Add a DTMF digit to the collected digits to match against DTMF features.
  * \since 12.8.0
  *
  * \param bridge_channel Channel that received a DTMF digit.
  * \param digit DTMF digit to add to collected digits or 0 for timeout event.
+ * \param clear_digits clear the digits array prior to calling hooks
  *
  * \note Neither the bridge nor the bridge_channel locks should be held
  * when entering this function.
  *
  * \note This is intended to be called by bridge hooks and the
  * bridge channel thread.
+ *
+ * \note This is intended to be called by non-DTMF bridge hooks and the bridge
+ * channel thread.  Calling from a DTMF bridge hook can potentially cause
+ * unbounded recursion.
  *
  * \return Nothing
  */

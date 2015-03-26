@@ -723,6 +723,52 @@ static int conf_start_record(struct confbridge_conference *conference)
 	return 0;
 }
 
+/* \brief Playback the given filename and monitor for any dtmf interrupts.
+ *
+ * This function is used to playback sound files on a given channel and optionally
+ * allow dtmf interrupts to occur.
+ *
+ * If the optional bridge_channel parameter is given then sound file playback
+ * is played on that channel and dtmf interruptions are allowed. However, if
+ * bridge_channel is not set then the channel parameter is expected to be set
+ * instead and non interruptible playback is played on that channel.
+ *
+ * \param bridge_channel Bridge channel to play file on
+ * \param channel Optional channel to play file on if bridge_channel not given
+ * \param filename The file name to playback
+ *
+ * \retval -1 failure during playback, 0 on file was fully played, 1 on dtmf interrupt.
+ */
+static int play_file(struct ast_bridge_channel *bridge_channel, struct ast_channel *channel,
+		     const char *filename)
+{
+	struct ast_channel *chan;
+	const char *stop_digits;
+	int digit;
+
+	if (bridge_channel) {
+		chan = bridge_channel->chan;
+		stop_digits = AST_DIGIT_ANY;
+	} else {
+		chan = channel;
+		stop_digits = AST_DIGIT_NONE;
+	}
+
+	digit = ast_stream_and_wait(chan, filename, stop_digits);
+	if (digit < 0) {
+		ast_log(LOG_WARNING, "Failed to playback file '%s' to channel\n", filename);
+		return -1;
+	}
+
+	if (digit > 0) {
+		ast_stopstream(bridge_channel->chan);
+		ast_bridge_channel_feature_digit_add(bridge_channel, digit);
+		return 1;
+	}
+
+	return 0;
+}
+
 /*!
  * \internal
  * \brief Complain if the given sound file does not exist.
@@ -745,11 +791,13 @@ static int sound_file_exists(const char *filename)
  *
  * \param conference Conference bridge to peek at
  * \param user Optional Caller
+ * \param bridge_channel The bridged channel involved
  *
  * \note if caller is NULL, the announcment will be sent to all participants in the conference.
  * \return Returns 0 on success, -1 if the user hung up
  */
-static int announce_user_count(struct confbridge_conference *conference, struct confbridge_user *user)
+static int announce_user_count(struct confbridge_conference *conference, struct confbridge_user *user,
+			       struct ast_bridge_channel *bridge_channel)
 {
 	const char *other_in_party = conf_get_sound(CONF_SOUND_OTHER_IN_PARTY, conference->b_profile.sounds);
 	const char *only_one = conf_get_sound(CONF_SOUND_ONLY_ONE, conference->b_profile.sounds);
@@ -761,9 +809,7 @@ static int announce_user_count(struct confbridge_conference *conference, struct 
 	} else if (conference->activeusers == 2) {
 		if (user) {
 			/* Eep, there is one other person */
-			if (ast_stream_and_wait(user->chan,
-				only_one,
-				"")) {
+			if (play_file(bridge_channel, user->chan, only_one) < 0) {
 				return -1;
 			}
 		} else {
@@ -780,9 +826,7 @@ static int announce_user_count(struct confbridge_conference *conference, struct 
 			if (ast_say_number(user->chan, conference->activeusers - 1, "", ast_channel_language(user->chan), NULL)) {
 				return -1;
 			}
-			if (ast_stream_and_wait(user->chan,
-				other_in_party,
-				"")) {
+			if (play_file(bridge_channel, user->chan, other_in_party) < 0) {
 				return -1;
 			}
 		} else if (sound_file_exists(there_are) && sound_file_exists(other_in_party)) {
@@ -1301,7 +1345,7 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 
 	/* Announce number of users if need be */
 	if (ast_test_flag(&user->u_profile, USER_OPT_ANNOUNCEUSERCOUNT)) {
-		if (announce_user_count(conference, user)) {
+		if (announce_user_count(conference, user, NULL)) {
 			leave_conference(user);
 			return NULL;
 		}
@@ -1316,7 +1360,7 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 		 * joined the conference yet.
 		 */
 		ast_autoservice_start(user->chan);
-		user_count_res = announce_user_count(conference, NULL);
+		user_count_res = announce_user_count(conference, NULL, NULL);
 		ast_autoservice_stop(user->chan);
 		if (user_count_res) {
 			leave_conference(user);
@@ -1818,7 +1862,8 @@ confbridge_cleanup:
 }
 
 static int action_toggle_mute(struct confbridge_conference *conference,
-	struct confbridge_user *user)
+			      struct confbridge_user *user,
+			      struct ast_bridge_channel *bridge_channel)
 {
 	int mute;
 
@@ -1841,10 +1886,9 @@ static int action_toggle_mute(struct confbridge_conference *conference,
 		send_unmute_event(user, conference);
 	}
 
-	return ast_stream_and_wait(user->chan, (mute ?
+	return play_file(bridge_channel, NULL, (mute ?
 		conf_get_sound(CONF_SOUND_MUTED, user->b_profile.sounds) :
-		conf_get_sound(CONF_SOUND_UNMUTED, user->b_profile.sounds)),
-		"");
+		conf_get_sound(CONF_SOUND_UNMUTED, user->b_profile.sounds))) < 0;
 }
 
 static int action_toggle_mute_participants(struct confbridge_conference *conference, struct confbridge_user *user)
@@ -1976,9 +2020,8 @@ static int action_kick_last(struct confbridge_conference *conference,
 	int isadmin = ast_test_flag(&user->u_profile, USER_OPT_ADMIN);
 
 	if (!isadmin) {
-		ast_stream_and_wait(bridge_channel->chan,
-			conf_get_sound(CONF_SOUND_ERROR_MENU, user->b_profile.sounds),
-			"");
+		play_file(bridge_channel, NULL,
+			  conf_get_sound(CONF_SOUND_ERROR_MENU, user->b_profile.sounds));
 		ast_log(LOG_WARNING, "Only admin users can use the kick_last menu action. Channel %s of conf %s is not an admin.\n",
 			ast_channel_name(bridge_channel->chan),
 			conference->name);
@@ -1989,9 +2032,8 @@ static int action_kick_last(struct confbridge_conference *conference,
 	if (((last_user = AST_LIST_LAST(&conference->active_list)) == user)
 		|| (ast_test_flag(&last_user->u_profile, USER_OPT_ADMIN))) {
 		ao2_unlock(conference);
-		ast_stream_and_wait(bridge_channel->chan,
-			conf_get_sound(CONF_SOUND_ERROR_MENU, user->b_profile.sounds),
-			"");
+		play_file(bridge_channel, NULL,
+			  conf_get_sound(CONF_SOUND_ERROR_MENU, user->b_profile.sounds));
 	} else if (last_user && !last_user->kicked) {
 		last_user->kicked = 1;
 		pbx_builtin_setvar_helper(last_user->chan, "CONFBRIDGE_RESULT", "KICKED");
@@ -2059,7 +2101,7 @@ static int execute_menu_entry(struct confbridge_conference *conference,
 	AST_LIST_TRAVERSE(&menu_entry->actions, menu_action, action) {
 		switch (menu_action->id) {
 		case MENU_ACTION_TOGGLE_MUTE:
-			res |= action_toggle_mute(conference, user);
+			res |= action_toggle_mute(conference, user, bridge_channel);
 			break;
 		case MENU_ACTION_ADMIN_TOGGLE_MUTE_PARTICIPANTS:
 			if (!isadmin) {
@@ -2068,7 +2110,7 @@ static int execute_menu_entry(struct confbridge_conference *conference,
 			action_toggle_mute_participants(conference, user);
 			break;
 		case MENU_ACTION_PARTICIPANT_COUNT:
-			announce_user_count(conference, user);
+			announce_user_count(conference, user, bridge_channel);
 			break;
 		case MENU_ACTION_PLAYBACK:
 			if (!stop_prompts) {
@@ -2119,12 +2161,10 @@ static int execute_menu_entry(struct confbridge_conference *conference,
 				break;
 			}
 			conference->locked = (!conference->locked ? 1 : 0);
-			res |= ast_stream_and_wait(bridge_channel->chan,
+			res |= play_file(bridge_channel, NULL,
 				(conference->locked ?
 				conf_get_sound(CONF_SOUND_LOCKED_NOW, user->b_profile.sounds) :
-				conf_get_sound(CONF_SOUND_UNLOCKED_NOW, user->b_profile.sounds)),
-				"");
-
+				conf_get_sound(CONF_SOUND_UNLOCKED_NOW, user->b_profile.sounds))) < 0;
 			break;
 		case MENU_ACTION_ADMIN_KICK_LAST:
 			res |= action_kick_last(conference, bridge_channel, user);
