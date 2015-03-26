@@ -14,6 +14,13 @@ int ast_register_atexit(void (*func)(void))
 {
 	return 0;
 }
+
+int ast_register_cleanup(void (*func)(void));
+int ast_register_cleanup(void (*func)(void))
+{
+	return 0;
+}
+
 int ast_cli_register_multiple(struct ast_cli_entry *e, int len);
 int ast_cli_register_multiple(struct ast_cli_entry *e, int len)
 {
