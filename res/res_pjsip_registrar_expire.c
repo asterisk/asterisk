@@ -175,56 +175,66 @@ static void contact_expiration_initialize_existing(void)
 	ao2_callback(contacts, OBJ_NODATA, contact_expiration_setup, NULL);
 }
 
+static int unload_observer_delete(void *obj, void *arg, int flags)
+{
+	struct contact_expiration *expiration = obj;
+
+	AST_SCHED_DEL_UNREF(sched, expiration->sched, ao2_cleanup(expiration));
+	return CMP_MATCH;
+}
+
+static int unload_module(void)
+{
+	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "contact", &contact_expiration_observer);
+	if (sched) {
+		ao2_callback(contact_autoexpire, OBJ_MULTIPLE | OBJ_NODATA | OBJ_UNLINK,
+			unload_observer_delete, NULL);
+		ast_sched_context_destroy(sched);
+		sched = NULL;
+	}
+	ao2_cleanup(contact_autoexpire);
+	contact_autoexpire = NULL;
+
+	return 0;
+}
+
 static int load_module(void)
 {
 	CHECK_PJSIP_MODULE_LOADED();
 
-	if (!(contact_autoexpire = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, CONTACT_AUTOEXPIRE_BUCKETS,
-		contact_expiration_hash, contact_expiration_cmp))) {
+	contact_autoexpire = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK,
+		CONTACT_AUTOEXPIRE_BUCKETS, contact_expiration_hash, contact_expiration_cmp);
+	if (!contact_autoexpire) {
 		ast_log(LOG_ERROR, "Could not create container for contact auto-expiration\n");
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (!(sched = ast_sched_context_create())) {
 		ast_log(LOG_ERROR, "Could not create scheduler for contact auto-expiration\n");
-		goto error;
+		unload_module();
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (ast_sched_start_thread(sched)) {
 		ast_log(LOG_ERROR, "Could not start scheduler thread for contact auto-expiration\n");
-		goto error;
+		unload_module();
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	contact_expiration_initialize_existing();
 
 	if (ast_sorcery_observer_add(ast_sip_get_sorcery(), "contact", &contact_expiration_observer)) {
 		ast_log(LOG_ERROR, "Could not add observer for notifications about contacts for contact auto-expiration\n");
-		goto error;
+		unload_module();
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
-
-error:
-	if (sched) {
-		ast_sched_context_destroy(sched);
-	}
-
-	ao2_cleanup(contact_autoexpire);
-	return AST_MODULE_LOAD_FAILURE;
-}
-
-static int unload_module(void)
-{
-	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "contact", &contact_expiration_observer);
-	ast_sched_context_destroy(sched);
-	ao2_cleanup(contact_autoexpire);
-
-	return 0;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP Contact Auto-Expiration",
-		.support_level = AST_MODULE_SUPPORT_CORE,
-		.load = load_module,
-		.unload = unload_module,
-		.load_pri = AST_MODPRI_APP_DEPEND,
-	       );
+	.support_level = AST_MODULE_SUPPORT_CORE,
+	.load = load_module,
+	.unload = unload_module,
+	.load_pri = AST_MODPRI_APP_DEPEND,
+	);
