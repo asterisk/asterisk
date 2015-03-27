@@ -577,7 +577,6 @@ static pj_status_t send_options_response(pjsip_rx_data *rdata, int code)
 	pjsip_transaction *trans = pjsip_rdata_get_tsx(rdata);
 	pjsip_tx_data *tdata;
 	const pjsip_hdr *hdr;
-	pjsip_response_addr res_addr;
 	pj_status_t status;
 
 	/* Make the response object */
@@ -611,17 +610,8 @@ static pj_status_t send_options_response(pjsip_rx_data *rdata, int code)
 	} else {
 		struct ast_sip_endpoint *endpoint;
 
-		/* Get where to send response. */
-		status = pjsip_get_response_addr(tdata->pool, rdata, &res_addr);
-		if (status != PJ_SUCCESS) {
-			ast_log(LOG_ERROR, "Unable to get response address (%d)\n", status);
-
-			pjsip_tx_data_dec_ref(tdata);
-			return status;
-		}
-
 		endpoint = ast_pjsip_rdata_get_endpoint(rdata);
-		status = ast_sip_send_response(&res_addr, tdata, endpoint);
+		status = ast_sip_send_stateful_response(rdata, tdata, endpoint);
 		ao2_cleanup(endpoint);
 	}
 
