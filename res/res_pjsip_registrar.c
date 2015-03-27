@@ -418,7 +418,6 @@ static int rx_task(void *data)
 	pjsip_contact_hdr *contact_hdr = NULL;
 	struct registrar_contact_details details = { 0, };
 	pjsip_tx_data *tdata;
-	pjsip_response_addr addr;
 	const char *aor_name = ast_sorcery_object_get_id(task_data->aor);
 	RAII_VAR(struct ast_str *, path_str, NULL, ast_free);
 	struct ast_sip_contact *response_contact;
@@ -597,11 +596,7 @@ static int rx_task(void *data)
 
 	ao2_callback(contacts, 0, registrar_add_contact, tdata);
 
-	if (pjsip_get_response_addr(tdata->pool, task_data->rdata, &addr) == PJ_SUCCESS) {
-		ast_sip_send_response(&addr, tdata, task_data->endpoint);
-	} else {
-		pjsip_tx_data_dec_ref(tdata);
-	}
+	ast_sip_send_stateful_response(task_data->rdata, tdata, task_data->endpoint);
 
 	return PJ_TRUE;
 }

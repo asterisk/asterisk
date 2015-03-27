@@ -1349,6 +1349,11 @@ int ast_sip_create_response(const pjsip_rx_data *rdata, int st_code,
 /*!
  * \brief Send a response to an out of dialog request
  *
+ * Use this function sparingly, since this does not create a transaction
+ * within PJSIP. This means that if the request is retransmitted, it is
+ * your responsibility to detect this and not process the same request
+ * twice, and to send the same response for each retransmission.
+ *
  * \param res_addr The response address for this response
  * \param tdata The response to send
  * \param endpoint The ast_sip_endpoint associated with this response
@@ -1357,6 +1362,24 @@ int ast_sip_create_response(const pjsip_rx_data *rdata, int st_code,
  * \retval -1 Failure
  */
 int ast_sip_send_response(pjsip_response_addr *res_addr, pjsip_tx_data *tdata, struct ast_sip_endpoint *sip_endpoint);
+
+/*!
+ * \brief Send a stateful response to an out of dialog request
+ *
+ * This creates a transaction within PJSIP, meaning that if the request
+ * that we are responding to is retransmitted, we will not attempt to
+ * re-handle the request.
+ *
+ * \param rdata The request that is being responded to
+ * \param tdata The response to send
+ * \param endpoint The ast_sip_endpoint associated with this response
+ *
+ * \since 13.4.0
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+int ast_sip_send_stateful_response(pjsip_rx_data *rdata, pjsip_tx_data *tdata, struct ast_sip_endpoint *sip_endpoint);
 
 /*!
  * \brief Determine if an incoming request requires authentication
