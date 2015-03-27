@@ -525,8 +525,13 @@ long int ast_random(void);
 #define ast_free free
 #define ast_free_ptr ast_free
 
+#if !defined(STANDALONE)
 #define MALLOC_FAILURE_MSG \
 	ast_log_safe(LOG_ERROR, "Memory Allocation Failure in function %s at line %d of %s\n", func, lineno, file)
+#else
+#define MALLOC_FAILURE_MSG \
+	ast_log(LOG_ERROR, "Memory Allocation Failure in function %s at line %d of %s\n", func, lineno, file)
+#endif
 
 /*!
  * \brief A wrapper for malloc()
