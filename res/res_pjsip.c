@@ -3292,7 +3292,7 @@ static pj_bool_t supplement_on_rx_request(pjsip_rx_data *rdata)
 	return PJ_FALSE;
 }
 
-int ast_sip_send_response(pjsip_response_addr *res_addr, pjsip_tx_data *tdata, struct ast_sip_endpoint *sip_endpoint)
+static void supplement_outgoing_response(pjsip_tx_data *tdata, struct ast_sip_endpoint *sip_endpoint)
 {
 	struct ast_sip_supplement *supplement;
 	pjsip_cseq_hdr *cseq = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CSEQ, NULL);
@@ -3300,8 +3300,7 @@ int ast_sip_send_response(pjsip_response_addr *res_addr, pjsip_tx_data *tdata, s
 
 	AST_RWLIST_RDLOCK(&supplements);
 	AST_LIST_TRAVERSE(&supplements, supplement, next) {
-		if (supplement->outgoing_response
-			&& does_method_match(&cseq->method.name, supplement->method)) {
+		if (supplement->outgoing_response && does_method_match(&cseq->method.name, supplement->method)) {
 			supplement->outgoing_response(sip_endpoint, contact, tdata);
 		}
 	}
@@ -3309,8 +3308,33 @@ int ast_sip_send_response(pjsip_response_addr *res_addr, pjsip_tx_data *tdata, s
 
 	ast_sip_mod_data_set(tdata->pool, tdata->mod_data, supplement_module.id, MOD_DATA_CONTACT, NULL);
 	ao2_cleanup(contact);
+}
+
+int ast_sip_send_response(pjsip_response_addr *res_addr, pjsip_tx_data *tdata, struct ast_sip_endpoint *sip_endpoint)
+{
+	supplement_outgoing_response(tdata, sip_endpoint);
 
 	return pjsip_endpt_send_response(ast_sip_get_pjsip_endpoint(), res_addr, tdata, NULL, NULL);
+}
+
+int ast_sip_send_stateful_response(pjsip_rx_data *rdata, pjsip_tx_data *tdata, struct ast_sip_endpoint *sip_endpoint)
+{
+	pjsip_transaction *tsx;
+
+	if (pjsip_tsx_create_uas(NULL, rdata, &tsx) != PJ_SUCCESS) {
+		pjsip_tx_data_dec_ref(tdata);
+		return -1;
+	}
+	pjsip_tsx_recv_msg(tsx, rdata);
+
+	supplement_outgoing_response(tdata, sip_endpoint);
+
+	if (pjsip_tsx_send_msg(tsx, tdata) != PJ_SUCCESS) {
+		pjsip_tx_data_dec_ref(tdata);
+		return -1;
+	}
+
+	return 0;
 }
 
 int ast_sip_create_response(const pjsip_rx_data *rdata, int st_code,
