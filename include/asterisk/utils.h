@@ -25,7 +25,6 @@
 
 #include "asterisk/network.h"
 
-#include <execinfo.h>
 #include <time.h>	/* we want to override localtime_r */
 #include <unistd.h>
 #include <string.h>
@@ -526,26 +525,8 @@ long int ast_random(void);
 #define ast_free free
 #define ast_free_ptr ast_free
 
-/*
- * This buffer is in static memory. We never intend to read it,
- * nor do we care about multiple threads writing to it at the
- * same time. We only want to know if we're recursing too deep
- * already. 60 entries should be more than enough.  Function
- * call depth rarely exceeds 20 or so.
- */
-#define _AST_MEM_BACKTRACE_BUFLEN 60
-extern void *_ast_mem_backtrace_buffer[_AST_MEM_BACKTRACE_BUFLEN];
-
-/*
- * Ok, this sucks. But if we're already out of mem, we don't
- * want the logger to create infinite recursion (and a crash).
- */
 #define MALLOC_FAILURE_MSG \
-	do { \
-		if (backtrace(_ast_mem_backtrace_buffer, _AST_MEM_BACKTRACE_BUFLEN) < _AST_MEM_BACKTRACE_BUFLEN) { \
-			ast_log(LOG_ERROR, "Memory Allocation Failure in function %s at line %d of %s\n", func, lineno, file); \
-		} \
-	} while (0)
+	ast_log_safe(LOG_ERROR, "Memory Allocation Failure in function %s at line %d of %s\n", func, lineno, file)
 
 /*!
  * \brief A wrapper for malloc()

@@ -36,6 +36,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/paths.h"
 
+/* Use ast_log_safe in place of ast_log. */
+#define ast_log ast_log_safe
+
 static FILE *ref_log;
 
 /*!

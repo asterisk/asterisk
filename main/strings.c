@@ -87,9 +87,6 @@ int __ast_str_helper(struct ast_str **buf, ssize_t max_len,
 			} else if (max_len == 0) {	/* if unbounded, give more room for next time */
 				need += 16 + need / 4;
 			}
-			if (0) {	/* debugging */
-				ast_verbose("extend from %d to %d\n", len, need);
-			}
 			if (
 #if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
 					_ast_str_make_space(buf, need, file, lineno, function)
@@ -97,7 +94,7 @@ int __ast_str_helper(struct ast_str **buf, ssize_t max_len,
 					ast_str_make_space(buf, need)
 #endif
 				) {
-				ast_verbose("failed to extend from %d to %d\n", len, need);
+				ast_log_safe(LOG_VERBOSE, "failed to extend from %d to %d\n", len, need);
 				va_end(aq);
 				return AST_DYNSTR_BUILD_FAILED;
 			}
