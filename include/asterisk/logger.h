@@ -62,6 +62,17 @@ extern "C" {
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
 	__attribute__((format(printf, 5, 6)));
 
+/*!
+ * \brief Used for sending a log message with protection against recursion.
+ *
+ * \note This function should be used by all error messages that might be directly
+ * or indirectly caused by logging.
+ *
+ * \see ast_log for documentation on the parameters.
+ */
+void ast_log_safe(int level, const char *file, int line, const char *function, const char *fmt, ...)
+	__attribute__((format(printf, 5, 6)));
+
 /* XXX needs documentation */
 struct ast_callid;
 

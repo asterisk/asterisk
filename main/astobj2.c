@@ -33,6 +33,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/paths.h"
 
+/* Use ast_log_safe in place of ast_log. */
+#define ast_log ast_log_safe
+
 #if defined(TEST_FRAMEWORK)
 /* We are building with the test framework enabled so enable AO2 debug tests as well. */
 #define AO2_DEBUG 1

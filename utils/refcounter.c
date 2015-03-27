@@ -259,6 +259,18 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	va_end(vars);
 }
 
+void ast_log_safe(int level, const char *file, int line, const char *function, const char *fmt, ...)
+{
+	va_list vars;
+	va_start(vars,fmt);
+	printf("LOG: lev:%d file:%s  line:%d func: %s  ",
+		   level, file, line, function);
+	vprintf(fmt, vars);
+	fflush(stdout);
+	va_end(vars);
+}
+
+
 void __ast_verbose(const char *file, int line, const char *func, int level, const char *fmt, ...)
 {
         va_list vars;
