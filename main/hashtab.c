@@ -43,10 +43,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/hashtab.h"
 
 
-#ifndef __AST_DEBUG_MALLOC
-void *_ast_mem_backtrace_buffer[_AST_MEM_BACKTRACE_BUFLEN];
-#endif
-
 #if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
 static void _ast_hashtab_resize(struct ast_hashtab *tab, const char *file, int lineno, const char *func);
 #define ast_hashtab_resize(a)	_ast_hashtab_resize(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)

@@ -84,6 +84,8 @@ void __ast_threadstorage_object_replace(void *key_old, void *key_new, size_t len
 	AST_THREADSTORAGE_CUSTOM_SCOPE(name, NULL, ast_free_ptr,) 
 #define AST_THREADSTORAGE_EXTERNAL(name) \
 	extern struct ast_threadstorage name
+#define AST_THREADSTORAGE_RAW(name) \
+	AST_THREADSTORAGE_CUSTOM_SCOPE(name, NULL, NULL,)
 
 /*!
  * \brief Define a thread storage variable, with custom initialization and cleanup
@@ -215,5 +217,43 @@ void *__ast_threadstorage_get(struct ast_threadstorage *ts, size_t init_size, co
 
 #define ast_threadstorage_get(ts, init_size) __ast_threadstorage_get(ts, init_size, __FILE__, __PRETTY_FUNCTION__, __LINE__)
 #endif /* defined(DEBUG_THREADLOCALS) */
+
+/*!
+ * \brief Retrieve a raw pointer from threadstorage.
+ * \param ts Threadstorage object to operate on.
+ *
+ * \return A pointer associated with the current thread, NULL
+ * if no pointer is associated yet.
+ *
+ * \note This should only be used on threadstorage declared
+ * by AST_THREADSTORAGE_RAW unless you really know what
+ * you are doing.
+ */
+AST_INLINE_API(
+void *ast_threadstorage_get_ptr(struct ast_threadstorage *ts),
+{
+	pthread_once(&ts->once, ts->key_init);
+	return pthread_getspecific(ts->key);
+}
+)
+
+/*!
+ * \brief Set a raw pointer from threadstorage.
+ * \param ts Threadstorage object to operate on.
+ *
+ * \retval 0 Success
+ * \retval non-zero Failure
+ *
+ * \note This should only be used on threadstorage declared
+ * by AST_THREADSTORAGE_RAW unless you really know what
+ * you are doing.
+ */
+AST_INLINE_API(
+int ast_threadstorage_set_ptr(struct ast_threadstorage *ts, void *ptr),
+{
+	pthread_once(&ts->once, ts->key_init);
+	return pthread_setspecific(ts->key, ptr);
+}
+)
 
 #endif /* ASTERISK_THREADSTORAGE_H */

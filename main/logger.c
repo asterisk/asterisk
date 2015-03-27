@@ -107,6 +107,7 @@ static struct {
 } logfiles = { 1 };
 
 static char hostname[MAXHOSTNAMELEN];
+AST_THREADSTORAGE_RAW(in_safe_log);
 
 enum logtypes {
 	LOGTYPE_SYSLOG,
@@ -1764,6 +1765,36 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	if (callid) {
 		ast_callid_unref(callid);
 	}
+}
+
+void ast_log_safe(int level, const char *file, int line, const char *function, const char *fmt, ...)
+{
+	va_list ap;
+	void *recursed = ast_threadstorage_get_ptr(&in_safe_log);
+	struct ast_callid *callid;
+
+	if (recursed) {
+		return;
+	}
+
+	if (ast_threadstorage_set_ptr(&in_safe_log, (void*)1)) {
+		/* We've failed to set the flag that protects against
+		 * recursion, so bail. */
+		return;
+	}
+
+	callid = ast_read_threadstorage_callid();
+
+	va_start(ap, fmt);
+	ast_log_full(level, file, line, function, callid, fmt, ap);
+	va_end(ap);
+
+	if (callid) {
+		ast_callid_unref(callid);
+	}
+
+	/* Clear flag so the next allocation failure can be logged. */
+	ast_threadstorage_set_ptr(&in_safe_log, NULL);
 }
 
 void ast_log_callid(int level, const char *file, int line, const char *function, struct ast_callid *callid, const char *fmt, ...)
