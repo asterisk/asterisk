@@ -11890,7 +11890,7 @@ immediatedial:
 		if (iaxdebug && iaxs[fr->callno]) {
 			ast_debug(1, "Received out of order packet... (type=%u, subclass %d, ts = %u, last = %u)\n", f.frametype, f.subclass.integer, fr->ts, iaxs[fr->callno]->last);
 		}
-		fr->outoforder = -1;
+		fr->outoforder = 1;
 	}
 	fr->cacheable = ((f.frametype == AST_FRAME_VOICE) || (f.frametype == AST_FRAME_VIDEO));
 	if (iaxs[fr->callno]) {
