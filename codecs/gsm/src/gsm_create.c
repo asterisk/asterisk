@@ -4,8 +4,6 @@
  * details.  THERE IS ABSOLUTELY NO WARRANTY FOR THIS SOFTWARE.
  */
 
-static char const	ident[] = "$Header$";
-
 #include	"config.h"
 
 #ifdef	HAS_STRING_H

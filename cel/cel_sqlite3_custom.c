@@ -61,7 +61,6 @@ AST_MUTEX_DEFINE_STATIC(lock);
 
 static const char config_file[] = "cel_sqlite3_custom.conf";
 
-static const char name[] = "cel_sqlite3_custom";
 static sqlite3 *db = NULL;
 
 static char table[80];
