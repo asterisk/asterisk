@@ -9099,7 +9099,7 @@ static int vm_intro_gr(struct ast_channel *chan, struct vm_state *vms)
 		if (!res) 
 			res = ast_say_number(chan, vms->newmessages, AST_DIGIT_ANY, ast_channel_language(chan), NULL);
 		if (!res) {
-			if ((vms->newmessages == 1)) {
+			if (vms->newmessages == 1) {
 				res = ast_play_and_wait(chan, "vm-INBOX");
 				if (!res)
 					res = ast_play_and_wait(chan, "vm-message");
@@ -9113,7 +9113,7 @@ static int vm_intro_gr(struct ast_channel *chan, struct vm_state *vms)
 		res = ast_play_and_wait(chan, "vm-youhave");
 		if (!res)
 			res = ast_say_number(chan, vms->oldmessages, AST_DIGIT_ANY, ast_channel_language(chan), NULL);
-		if ((vms->oldmessages == 1)){
+		if (vms->oldmessages == 1){
 			res = ast_play_and_wait(chan, "vm-Old");
 			if (!res)
 				res = ast_play_and_wait(chan, "vm-message");
@@ -9344,7 +9344,7 @@ static int vm_intro_en(struct ast_channel *chan, struct vm_state *vms)
 			if ((vms->oldmessages || vms->newmessages) && !res) {
 				res = ast_play_and_wait(chan, "vm-and");
 			} else if (!res) {
-				if ((vms->urgentmessages == 1))
+				if (vms->urgentmessages == 1)
 					res = ast_play_and_wait(chan, "vm-message");
 				else
 					res = ast_play_and_wait(chan, "vm-messages");
@@ -9357,7 +9357,7 @@ static int vm_intro_en(struct ast_channel *chan, struct vm_state *vms)
 			if (vms->oldmessages && !res)
 				res = ast_play_and_wait(chan, "vm-and");
 			else if (!res) {
-				if ((vms->newmessages == 1))
+				if (vms->newmessages == 1)
 					res = ast_play_and_wait(chan, "vm-message");
 				else
 					res = ast_play_and_wait(chan, "vm-messages");
@@ -9509,7 +9509,7 @@ static int vm_intro_se(struct ast_channel *chan, struct vm_state *vms)
 	}
 
 	if (vms->newmessages) {
-		if ((vms->newmessages == 1)) {
+		if (vms->newmessages == 1) {
 			res = ast_play_and_wait(chan, "digits/ett");
 			res = res ? res : ast_play_and_wait(chan, "vm-nytt");
 			res = res ? res : ast_play_and_wait(chan, "vm-message");
@@ -9553,7 +9553,7 @@ static int vm_intro_no(struct ast_channel *chan, struct vm_state *vms)
 	}
 
 	if (vms->newmessages) {
-		if ((vms->newmessages == 1)) {
+		if (vms->newmessages == 1) {
 			res = ast_play_and_wait(chan, "digits/1");
 			res = res ? res : ast_play_and_wait(chan, "vm-ny");
 			res = res ? res : ast_play_and_wait(chan, "vm-message");
@@ -9588,7 +9588,7 @@ static int vm_intro_de(struct ast_channel *chan, struct vm_state *vms)
 	res = ast_play_and_wait(chan, "vm-youhave");
 	if (!res) {
 		if (vms->newmessages) {
-			if ((vms->newmessages == 1))
+			if (vms->newmessages == 1)
 				res = ast_play_and_wait(chan, "digits/1F");
 			else
 				res = say_and_wait(chan, vms->newmessages, ast_channel_language(chan));
@@ -9597,7 +9597,7 @@ static int vm_intro_de(struct ast_channel *chan, struct vm_state *vms)
 			if (vms->oldmessages && !res)
 				res = ast_play_and_wait(chan, "vm-and");
 			else if (!res) {
-				if ((vms->newmessages == 1))
+				if (vms->newmessages == 1)
 					res = ast_play_and_wait(chan, "vm-message");
 				else
 					res = ast_play_and_wait(chan, "vm-messages");
@@ -9644,7 +9644,7 @@ static int vm_intro_es(struct ast_channel *chan, struct vm_state *vms)
 	if (!res) {
 		if (vms->newmessages) {
 			if (!res) {
-				if ((vms->newmessages == 1)) {
+				if (vms->newmessages == 1) {
 					res = ast_play_and_wait(chan, "digits/1M");
 					if (!res)
 						res = ast_play_and_wait(chan, "vm-message");
@@ -9695,7 +9695,7 @@ static int vm_intro_pt_BR(struct ast_channel *chan, struct vm_state *vms) {
 	if (vms->newmessages) {
 		if (!res)
 			res = ast_say_number(chan, vms->newmessages, AST_DIGIT_ANY, ast_channel_language(chan), "f");
-		if ((vms->newmessages == 1)) {
+		if (vms->newmessages == 1) {
 			if (!res)
 				res = ast_play_and_wait(chan, "vm-message");
 			if (!res)
@@ -9741,7 +9741,7 @@ static int vm_intro_fr(struct ast_channel *chan, struct vm_state *vms)
 			if (vms->oldmessages && !res)
 				res = ast_play_and_wait(chan, "vm-and");
 			else if (!res) {
-				if ((vms->newmessages == 1))
+				if (vms->newmessages == 1)
 					res = ast_play_and_wait(chan, "vm-message");
 				else
 					res = ast_play_and_wait(chan, "vm-messages");
@@ -9788,7 +9788,7 @@ static int vm_intro_nl(struct ast_channel *chan, struct vm_state *vms)
 			if (vms->oldmessages && !res)
 				res = ast_play_and_wait(chan, "vm-and");
 			else if (!res) {
-				if ((vms->newmessages == 1))
+				if (vms->newmessages == 1)
 					res = ast_play_and_wait(chan, "vm-message");
 				else
 					res = ast_play_and_wait(chan, "vm-messages");
@@ -9831,7 +9831,7 @@ static int vm_intro_pt(struct ast_channel *chan, struct vm_state *vms)
 		if (vms->newmessages) {
 			res = ast_say_number(chan, vms->newmessages, AST_DIGIT_ANY, ast_channel_language(chan), "f");
 			if (!res) {
-				if ((vms->newmessages == 1)) {
+				if (vms->newmessages == 1) {
 					res = ast_play_and_wait(chan, "vm-message");
 					if (!res)
 						res = ast_play_and_wait(chan, "vm-INBOXs");
@@ -9897,7 +9897,7 @@ static int vm_intro_cs(struct ast_channel *chan, struct vm_state *vms)
 				res = say_and_wait(chan, vms->newmessages, ast_channel_language(chan));
 			}
 			if (!res) {
-				if ((vms->newmessages == 1))
+				if (vms->newmessages == 1)
 					res = ast_play_and_wait(chan, "vm-novou");
 				if ((vms->newmessages) > 1 && (vms->newmessages < 5))
 					res = ast_play_and_wait(chan, "vm-nove");
@@ -9907,7 +9907,7 @@ static int vm_intro_cs(struct ast_channel *chan, struct vm_state *vms)
 			if (vms->oldmessages && !res)
 				res = ast_play_and_wait(chan, "vm-and");
 			else if (!res) {
-				if ((vms->newmessages == 1))
+				if (vms->newmessages == 1)
 					res = ast_play_and_wait(chan, "vm-zpravu");
 				if ((vms->newmessages) > 1 && (vms->newmessages < 5))
 					res = ast_play_and_wait(chan, "vm-zpravy");
@@ -9918,7 +9918,7 @@ static int vm_intro_cs(struct ast_channel *chan, struct vm_state *vms)
 		if (!res && vms->oldmessages) {
 			res = say_and_wait(chan, vms->oldmessages, ast_channel_language(chan));
 			if (!res) {
-				if ((vms->oldmessages == 1))
+				if (vms->oldmessages == 1)
 					res = ast_play_and_wait(chan, "vm-starou");
 				if ((vms->oldmessages) > 1 && (vms->oldmessages < 5))
 					res = ast_play_and_wait(chan, "vm-stare");
@@ -9926,7 +9926,7 @@ static int vm_intro_cs(struct ast_channel *chan, struct vm_state *vms)
 					res = ast_play_and_wait(chan, "vm-starych");
 			}
 			if (!res) {
-				if ((vms->oldmessages == 1))
+				if (vms->oldmessages == 1)
 					res = ast_play_and_wait(chan, "vm-zpravu");
 				if ((vms->oldmessages) > 1 && (vms->oldmessages < 5))
 					res = ast_play_and_wait(chan, "vm-zpravy");
