@@ -377,7 +377,6 @@ static int transport_tls_method_handler(const struct aco_option *opt, struct ast
 }
 
 static const char *tls_method_map[] = {
-	[PJSIP_SSL_DEFAULT_METHOD] = "default",
 	[PJSIP_SSL_UNSPECIFIED_METHOD] = "unspecified",
 	[PJSIP_TLSV1_METHOD] = "tlsv1",
 	[PJSIP_SSLV2_METHOD] = "sslv2",
