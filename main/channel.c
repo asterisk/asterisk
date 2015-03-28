@@ -4112,14 +4112,14 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					ast_frfree(f);
 					f = &ast_null_frame;
 				}
-			} else if ((f->frametype == AST_FRAME_VOICE) && ast_format_cap_iscompatible_format(ast_channel_nativeformats(chan), f->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
+			} else if (f->frametype == AST_FRAME_VOICE && ast_format_cap_iscompatible_format(ast_channel_nativeformats(chan), f->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
 				/* This frame is not one of the current native formats -- drop it on the floor */
 				struct ast_str *codec_buf = ast_str_alloca(64);
 				ast_log(LOG_NOTICE, "Dropping incompatible voice frame on %s of format %s since our native format has changed to %s\n",
 					ast_channel_name(chan), ast_format_get_name(f->subclass.format), ast_format_cap_get_names(ast_channel_nativeformats(chan), &codec_buf));
 				ast_frfree(f);
 				f = &ast_null_frame;
-			} else if ((f->frametype == AST_FRAME_VOICE)) {
+			} else if (f->frametype == AST_FRAME_VOICE) {
 				/* Send frame to audiohooks if present */
 				if (ast_channel_audiohooks(chan)) {
 					struct ast_frame *old_frame = f;
