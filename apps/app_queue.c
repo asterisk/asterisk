@@ -10346,15 +10346,6 @@ static char *handle_queue_reload(struct ast_cli_entry *e, int cmd, struct ast_cl
 	return CLI_SUCCESS;
 }
 
-static const char qpm_cmd_usage[] =
-"Usage: queue pause member <channel> in <queue> reason <reason>\n";
-
-static const char qum_cmd_usage[] =
-"Usage: queue unpause member <channel> in <queue> reason <reason>\n";
-
-static const char qsmp_cmd_usage[] =
-"Usage: queue set member penalty <channel> from <queue> <penalty>\n";
-
 static struct ast_cli_entry cli_queue[] = {
 	AST_CLI_DEFINE(queue_show, "Show status of a specified queue"),
 	AST_CLI_DEFINE(handle_queue_rule_show, "Show the rules defined in queuerules.conf"),

@@ -318,11 +318,6 @@ struct ast_bridge_thread_obj
 	unsigned int return_to_pbx:1;
 };
 
-static const struct ast_datastore_info channel_app_data_datastore = {
-	.type = "Channel appdata datastore",
-	.destroy = ast_free_ptr,
-};
-
 static void set_config_flags(struct ast_channel *chan, struct ast_bridge_config *config)
 {
 	ast_clear_flag(config, AST_FLAGS_ALL);

@@ -73,7 +73,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 AST_THREADSTORAGE(uniqueid_threadbuf);
 #define UNIQUEID_BUFSIZE 256
 
-static const char desc[] = "PJSIP Channel";
 static const char channel_type[] = "PJSIP";
 
 static unsigned int chan_idx;

@@ -725,7 +725,7 @@ static int file_read(struct ast_channel *chan, const char *cmd, char *data, stru
 				}
 			}
 			ast_debug(3, "length_offset=%" PRId64 ", length_offset - i=%" PRId64 "\n", length_offset, length_offset - i);
-			ast_str_append_substr(buf, len, fbuf, length_offset >= 0 ? length_offset - i : flength > i + sizeof(fbuf)) ? sizeof(fbuf) : flength - i;
+			ast_str_append_substr(buf, len, fbuf, (length_offset >= 0) ? length_offset - i : (flength > i + sizeof(fbuf)) ? sizeof(fbuf) : flength - i);
 
 			if (length_offset >= 0) {
 				break;
