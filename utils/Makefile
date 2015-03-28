@@ -138,6 +138,9 @@ aelbison.c: $(ASTTOPDIR)/res/ael/ael.tab.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
 aelbison.o: _ASTCFLAGS+=-I$(ASTTOPDIR)/res/ael -DYYENABLE_NLS=0
+	ifneq ($(AST_CLANG_BLOCKS),)
+		_ASTCFLAGS+=-Wno-parentheses-equality
+	endif
 
 pbx_ael.c: $(ASTTOPDIR)/pbx/pbx_ael.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"

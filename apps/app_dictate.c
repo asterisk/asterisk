@@ -174,7 +174,7 @@ static int dictate_exec(struct ast_channel *chan, const char *data)
 				ast_queue_frame(chan, &fr);
 				digit = 0;
 			}
-			if ((f->frametype == AST_FRAME_DTMF)) {
+			if (f->frametype == AST_FRAME_DTMF) {
 				int got = 1;
 				switch(mode) {
 				case DMODE_PLAY:

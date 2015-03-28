@@ -4302,7 +4302,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					ast_channel_name(chan), ast_getformatname(&f->subclass.format), ast_getformatname_multiple(to, sizeof(to), ast_channel_nativeformats(chan)));
 				ast_frfree(f);
 				f = &ast_null_frame;
-			} else if ((f->frametype == AST_FRAME_VOICE)) {
+			} else if (f->frametype == AST_FRAME_VOICE) {
 				/* Send frame to audiohooks if present */
 				if (ast_channel_audiohooks(chan)) {
 					struct ast_frame *old_frame = f;
