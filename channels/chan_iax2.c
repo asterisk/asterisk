@@ -2014,11 +2014,6 @@ static struct iax2_user *find_user(const char *name)
 {
 	return ao2_find(users, name, OBJ_KEY);
 }
-static inline struct iax2_user *user_ref(struct iax2_user *user)
-{
-	ao2_ref(user, +1);
-	return user;
-}
 
 static inline struct iax2_user *user_unref(struct iax2_user *user)
 {

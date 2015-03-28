@@ -339,16 +339,6 @@ static inline void goertzel_sample(goertzel_state_t *s, short sample)
 	}
 }
 
-static inline void goertzel_update(goertzel_state_t *s, short *samps, int count)
-{
-	int i;
-
-	for (i = 0; i < count; i++) {
-		goertzel_sample(s, samps[i]);
-	}
-}
-
-
 static inline float goertzel_result(goertzel_state_t *s)
 {
 	goertzel_result_t r;
