@@ -73,14 +73,14 @@ struct wavg_desc {
 #define ltohs(b) (b)
 #else
 #if __BYTE_ORDER == __BIG_ENDIAN
-#define htoll(b)  \
-          (((((b)      ) & 0xFF) << 24) | \
-	       ((((b) >>  8) & 0xFF) << 16) | \
-		   ((((b) >> 16) & 0xFF) <<  8) | \
-		   ((((b) >> 24) & 0xFF)      ))
+#define htoll(b) \
+	(((((b)      ) & 0xFF) << 24) | \
+	((( (b) >>  8) & 0xFF) << 16) | \
+	((( (b) >> 16) & 0xFF) <<  8) | \
+	((( (b) >> 24) & 0xFF)      ))
 #define htols(b) \
-          (((((b)      ) & 0xFF) << 8) | \
-		   ((((b) >> 8) & 0xFF)      ))
+	(((((b)      ) & 0xFF) <<  8) | \
+	((( (b) >>  8) & 0xFF)      ))
 #define ltohl(b) htoll(b)
 #define ltohs(b) htols(b)
 #else
@@ -104,7 +104,9 @@ static int check_header(FILE *f)
 		ast_log(LOG_WARNING, "Read failed (size)\n");
 		return -1;
 	}
+#if __BYTE_ORDER == __BIG_ENDIAN
 	size = ltohl(size);
+#endif
 	if (fread(&formtype, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Read failed (formtype)\n");
 		return -1;

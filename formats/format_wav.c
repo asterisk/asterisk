@@ -61,14 +61,14 @@ struct wav_desc {	/* format-specific parameters */
 #define ltohs(b) (b)
 #else
 #if __BYTE_ORDER == __BIG_ENDIAN
-#define htoll(b)  \
-          (((((b)      ) & 0xFF) << 24) | \
-	       ((((b) >>  8) & 0xFF) << 16) | \
-		   ((((b) >> 16) & 0xFF) <<  8) | \
-		   ((((b) >> 24) & 0xFF)      ))
+#define htoll(b) \
+	(((((b)      ) & 0xFF) << 24) | \
+	((( (b) >>  8) & 0xFF) << 16) | \
+	((( (b) >> 16) & 0xFF) <<  8) | \
+	((( (b) >> 24) & 0xFF)      ))
 #define htols(b) \
-          (((((b)      ) & 0xFF) << 8) | \
-		   ((((b) >> 8) & 0xFF)      ))
+	(((((b)      ) & 0xFF) <<  8) | \
+	((( (b) >>  8) & 0xFF)      ))
 #define ltohl(b) htoll(b)
 #define ltohs(b) htols(b)
 #else
@@ -107,8 +107,8 @@ static int check_header_fmt(FILE *f, int hsize, int hz)
 		return -1;
 	}
 	if (((ltohl(freq) != 8000) && (ltohl(freq) != 16000)) ||
-	    ((ltohl(freq) == 8000) && (hz != 8000)) ||
-	    ((ltohl(freq) == 16000) && (hz != 16000))) {
+		((ltohl(freq) == 8000) && (hz != 8000)) ||
+		((ltohl(freq) == 16000) && (hz != 16000))) {
 		ast_log(LOG_WARNING, "Unexpected frequency mismatch %d (expecting %d)\n", ltohl(freq),hz);
 		return -1;
 	}
@@ -150,7 +150,9 @@ static int check_header(FILE *f, int hz)
 		ast_log(LOG_WARNING, "Read failed (size)\n");
 		return -1;
 	}
+#if __BYTE_ORDER == __BIG_ENDIAN
 	size = ltohl(size);
+#endif
 	if (fread(&formtype, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Read failed (formtype)\n");
 		return -1;
@@ -167,30 +169,32 @@ static int check_header(FILE *f, int hz)
 	for(;;)
 	{ 
 		char buf[4];
-	    
-	    /* Begin data chunk */
-	    if (fread(&buf, 1, 4, f) != 4) {
+		
+		/* Begin data chunk */
+		if (fread(&buf, 1, 4, f) != 4) {
 			ast_log(LOG_WARNING, "Read failed (block header format)\n");
 			return -1;
-	    }
-	    /* Data has the actual length of data in it */
-	    if (fread(&data, 1, 4, f) != 4) {
+		}
+		/* Data has the actual length of data in it */
+		if (fread(&data, 1, 4, f) != 4) {
 			ast_log(LOG_WARNING, "Read failed (block '%.4s' header length)\n", buf);
 			return -1;
-	    }
-	    data = ltohl(data);
+		}
+#if __BYTE_ORDER == __BIG_ENDIAN
+		data = ltohl(data);
+#endif
 		if (memcmp(&buf, "fmt ", 4) == 0) {
 			if (check_header_fmt(f, data, hz))
 				return -1;
 			continue;
 		}
-	    if(memcmp(buf, "data", 4) == 0 ) 
+		if(memcmp(buf, "data", 4) == 0 ) 
 			break;
 		ast_log(LOG_DEBUG, "Skipping unknown block '%.4s'\n", buf);
-	    if (fseek(f,data,SEEK_CUR) == -1 ) {
+		if (fseek(f,data,SEEK_CUR) == -1 ) {
 			ast_log(LOG_WARNING, "Failed to skip '%.4s' block: %d\n", buf, data);
 			return -1;
-	    }
+		}
 	}
 #if 0
 	curpos = lseek(fd, 0, SEEK_CUR);
@@ -473,13 +477,14 @@ static int wav_seek(struct ast_filestream *fs, off_t sample_offset, int whence)
 		return -1;
 	}
 
-	if (whence == SEEK_SET)
+	if (whence == SEEK_SET) {
 		offset = samples + min;
-	else if (whence == SEEK_CUR || whence == SEEK_FORCECUR)
+	} else if (whence == SEEK_CUR || whence == SEEK_FORCECUR) {
 		offset = samples + cur;
-	else if (whence == SEEK_END)
+	} else if (whence == SEEK_END) {
 		offset = max - samples;
-        if (whence != SEEK_FORCECUR) {
+	}
+	if (whence != SEEK_FORCECUR) {
 		offset = (offset > max)?max:offset;
 	}
 	/* always protect the header space. */
