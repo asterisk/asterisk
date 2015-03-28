@@ -71,7 +71,7 @@ static char *extconfig_conf = "extconfig.conf";
 
 static struct ao2_container *cfg_hooks;
 static void config_hook_exec(const char *filename, const char *module, const struct ast_config *cfg);
-inline struct ast_variable *variable_list_switch(struct ast_variable *l1, struct ast_variable *l2);
+static inline struct ast_variable *variable_list_switch(struct ast_variable *l1, struct ast_variable *l2);
 static int does_category_match(struct ast_category *cat, const char *category_name, const char *match);
 
 /*! \brief Structure to keep comments for rewriting configuration files */
@@ -614,7 +614,7 @@ struct ast_variable *ast_variable_browse(const struct ast_config *config, const 
 	return (cat) ? cat->root : NULL;
 }
 
-inline struct ast_variable *variable_list_switch(struct ast_variable *l1, struct ast_variable *l2)
+static inline struct ast_variable *variable_list_switch(struct ast_variable *l1, struct ast_variable *l2)
 {
     l1->next = l2->next;
     l2->next = l1;
