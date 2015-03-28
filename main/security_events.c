@@ -374,7 +374,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/json.h"
 #include "asterisk/astobj2.h"
 
-static const size_t TIMESTAMP_STR_LEN = 32;
 static const size_t SECURITY_EVENT_BUF_INIT_LEN = 256;
 
 /*! \brief Security Topic */
