@@ -1233,7 +1233,8 @@ static force_inline char *attribute_pure ast_str_to_upper(char *str)
  * \retval AO2 container for strings
  * \retval NULL if allocation failed
  */
-struct ao2_container *ast_str_container_alloc_options(enum ao2_container_opts opts, int buckets);
+//struct ao2_container *ast_str_container_alloc_options(enum ao2_container_opts opts, int buckets);
+struct ao2_container *ast_str_container_alloc_options(enum ao2_alloc_opts opts, int buckets);
 
 /*!
  * \since 12
