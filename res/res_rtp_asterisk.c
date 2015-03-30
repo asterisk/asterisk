@@ -3147,10 +3147,10 @@ static int ast_rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame
 		if (ast_tvzero(frame->delivery)) {
 			/* If this isn't an absolute delivery time, Check if it is close to our prediction,
 			   and if so, go with our prediction */
-			if (abs(rtp->lastts - pred) < MAX_TIMESTAMP_SKEW) {
+			if (abs((int)rtp->lastts - pred) < MAX_TIMESTAMP_SKEW) {
 				rtp->lastts = pred;
 			} else {
-				ast_debug(3, "Difference is %d, ms is %u\n", abs(rtp->lastts - pred), ms);
+				ast_debug(3, "Difference is %d, ms is %u\n", abs((int)rtp->lastts - pred), ms);
 				mark = 1;
 			}
 		}
@@ -3161,11 +3161,11 @@ static int ast_rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame
 		rtp->lastts = rtp->lastts + ms * 90;
 		/* If it's close to our prediction, go for it */
 		if (ast_tvzero(frame->delivery)) {
-			if (abs(rtp->lastts - pred) < 7200) {
+			if (abs((int)rtp->lastts - pred) < 7200) {
 				rtp->lastts = pred;
 				rtp->lastovidtimestamp += frame->samples;
 			} else {
-				ast_debug(3, "Difference is %d, ms is %u (%u), pred/ts/samples %u/%d/%d\n", abs(rtp->lastts - pred), ms, ms * 90, rtp->lastts, pred, frame->samples);
+				ast_debug(3, "Difference is %d, ms is %u (%u), pred/ts/samples %u/%d/%d\n", abs((int)rtp->lastts - pred), ms, ms * 90, rtp->lastts, pred, frame->samples);
 				rtp->lastovidtimestamp = rtp->lastts;
 			}
 		}
@@ -3175,11 +3175,11 @@ static int ast_rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame
 		rtp->lastts = rtp->lastts + ms;
 		/* If it's close to our prediction, go for it */
 		if (ast_tvzero(frame->delivery)) {
-			if (abs(rtp->lastts - pred) < 7200) {
+			if (abs((int)rtp->lastts - pred) < 7200) {
 				rtp->lastts = pred;
 				rtp->lastotexttimestamp += frame->samples;
 			} else {
-				ast_debug(3, "Difference is %d, ms is %u, pred/ts/samples %u/%d/%d\n", abs(rtp->lastts - pred), ms, rtp->lastts, pred, frame->samples);
+				ast_debug(3, "Difference is %d, ms is %u, pred/ts/samples %u/%d/%d\n", abs((int)rtp->lastts - pred), ms, rtp->lastts, pred, frame->samples);
 				rtp->lastotexttimestamp = rtp->lastts;
 			}
 		}

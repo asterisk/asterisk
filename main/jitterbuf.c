@@ -139,7 +139,7 @@ static int check_resync(jitterbuf *jb, long ts, long now, long ms, const enum jb
 
 	/* check for drastic change in delay */
 	if (jb->info.conf.resync_threshold != -1) {
-		if (abs(*delay - jb->info.last_delay) > threshold) {
+		if (labs(*delay - jb->info.last_delay) > threshold) {
 			jb->info.cnt_delay_discont++;
 			/* resync the jitterbuffer on 3 consecutive discontinuities,
 			 * or immediately if a control frame */
