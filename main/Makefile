@@ -186,7 +186,7 @@ ifneq ($(findstring ENABLE_UPLOADS,$(MENUSELECT_CFLAGS)),)
 GMIMELDFLAGS+=$(GMIME_LIB)
 endif
 
-$(OBJS): _ASTCFLAGS+=-DAST_MODULE=\"core\"
+$(OBJS): _ASTCFLAGS+=-DAST_MODULE=\"core\" -DAST_IN_CORE
 
 libasteriskssl.o: _ASTCFLAGS+=$(OPENSSL_INCLUDE)
 
