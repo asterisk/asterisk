@@ -377,7 +377,7 @@ static void *inotify_daemon(void *data)
 
 	for (;/*ever*/;) {
 		/* This read should block, most of the time. */
-		if ((res = read(inotify_fd, &iev, real_sizeof_iev)) < sizeof(*iev) && res > 0) {
+		if ((res = read(inotify_fd, iev, real_sizeof_iev)) < sizeof(*iev) && res > 0) {
 			/* This should never happen */
 			ast_log(LOG_ERROR, "Inotify read less than a full event (%zd < %zu)?!!\n", res, sizeof(*iev));
 			break;
