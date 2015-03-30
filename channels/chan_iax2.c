@@ -6062,7 +6062,7 @@ static unsigned int calc_txpeerstamp(struct iax2_trunk_peer *tpeer, int sampms, 
 	ms = ast_tvdiff_ms(*now, tpeer->txtrunktime);
 	/* Predict from last value */
 	pred = tpeer->lastsent + sampms;
-	if (abs(ms - pred) < MAX_TIMESTAMP_SKEW)
+	if (labs(ms - pred) < MAX_TIMESTAMP_SKEW)
 		ms = pred;
 	
 	/* We never send the same timestamp twice, so fudge a little if we must */
@@ -6134,7 +6134,8 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 			ms = 0;
 		if (voice) {
 			/* On a voice frame, use predicted values if appropriate */
-			if (p->notsilenttx && abs(ms - p->nextpred) <= MAX_TIMESTAMP_SKEW) {
+			adjust = (ms - p->nextpred);
+			if (p->notsilenttx && abs(adjust) <= MAX_TIMESTAMP_SKEW) {
 				/* Adjust our txcore, keeping voice and non-voice synchronized */
 				/* AN EXPLANATION:
 				   When we send voice, we usually send "calculated" timestamps worked out
@@ -6153,7 +6154,6 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 				   changing at all.  But if a consistent different starts to develop it
 				   will be eliminated over the course of 10 frames (200-300msecs) 
 				*/
-				adjust = (ms - p->nextpred);
 				if (adjust < 0)
 					p->offset = ast_tvsub(p->offset, ast_samp2tv(abs(adjust), 10000));
 				else if (adjust > 0)
@@ -6175,9 +6175,9 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 				* silent periods are multiples of
 				* frame size too) */
 
-				if (iaxdebug && abs(ms - p->nextpred) > MAX_TIMESTAMP_SKEW )
+				if (iaxdebug && abs(adjust) > MAX_TIMESTAMP_SKEW )
 					ast_debug(1, "predicted timestamp skew (%d) > max (%d), using real ts instead.\n",
-						abs(ms - p->nextpred), MAX_TIMESTAMP_SKEW);
+						abs(adjust), MAX_TIMESTAMP_SKEW);
 
 				if (f->samples >= rate) /* check to make sure we don't core dump */
 				{
@@ -6203,11 +6203,12 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 		} else {
 			/* On a dataframe, use last value + 3 (to accomodate jitter buffer shrinking) if appropriate unless
 			   it's a genuine frame */
+			adjust = (ms - p->lastsent);
 			if (genuine) {
 				/* genuine (IAX LAGRQ etc) must keep their clock-based stamps */
 				if (ms <= p->lastsent)
 					ms = p->lastsent + 3;
-			} else if (abs(ms - p->lastsent) <= MAX_TIMESTAMP_SKEW) {
+			} else if (abs(adjust) <= MAX_TIMESTAMP_SKEW) {
 				/* non-genuine frames (!?) (DTMF, CONTROL) should be pulled into the predicted stream stamps */
 				ms = p->lastsent + 3;
 			}

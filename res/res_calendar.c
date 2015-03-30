@@ -1080,8 +1080,8 @@ static struct ast_custom_function calendar_busy_function = {
 static int add_event_to_list(struct eventlist *events, struct ast_calendar_event *event, time_t start, time_t end)
 {
 	struct evententry *entry, *iter;
-	int event_startdiff = abs(start - event->start);
-	int event_enddiff = abs(end - event->end);
+	long event_startdiff = labs(start - event->start);
+	long event_enddiff = labs(end - event->end);
 	int i = 0;
 
 	if (!(entry = ast_calloc(1, sizeof(*entry)))) {
@@ -1094,16 +1094,16 @@ static int add_event_to_list(struct eventlist *events, struct ast_calendar_event
 
 	if (start == end) {
 		AST_LIST_TRAVERSE_SAFE_BEGIN(events, iter, list) {
-			int startdiff = abs(iter->event->start - start);
+			long startdiff = labs(iter->event->start - start);
 
-			ast_debug(10, "Comparing %s with startdiff %d to %s with startdiff %d\n", event->summary, event_startdiff, iter->event->summary, startdiff);
+			ast_debug(10, "Comparing %s with startdiff %ld to %s with startdiff %ld\n", event->summary, event_startdiff, iter->event->summary, startdiff);
 			++i;
 			if (startdiff > event_startdiff) {
 				AST_LIST_INSERT_BEFORE_CURRENT(entry, list);
 				return i;
 			}
 			if (startdiff == event_startdiff) {
-				int enddiff = abs(iter->event->end - end);
+				long enddiff = labs(iter->event->end - end);
 
 				if (enddiff > event_enddiff) {
 					AST_LIST_INSERT_BEFORE_CURRENT(entry, list);
