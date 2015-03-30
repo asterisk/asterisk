@@ -1492,7 +1492,7 @@ static int  proc_session_timer(const void *vp);
 static void stop_session_timer(struct sip_pvt *p);
 static void start_session_timer(struct sip_pvt *p);
 static void restart_session_timer(struct sip_pvt *p);
-static const char *strefresherparam2str(enum st_refresher r);
+static const char *strefresherparam2str(enum st_refresher_param r);
 static int parse_session_expires(const char *p_hdrval, int *const p_interval, enum st_refresher_param *const p_ref);
 static int parse_minse(const char *p_hdrval, int *const p_interval);
 static int st_get_se(struct sip_pvt *, int max);
@@ -19089,12 +19089,12 @@ static const struct _map_x_s strefreshers[] = {
         { -1,                           NULL   },
 };
 
-static const char *strefresherparam2str(enum st_refresher r)
+static const char *strefresherparam2str(enum st_refresher_param r)
 {
 	return map_x_s(strefresher_params, r, "Unknown");
 }
 
-static enum st_refresher str2strefresherparam(const char *s)
+static enum st_refresher_param str2strefresherparam(const char *s)
 {
 	return map_s_x(strefresher_params, s, -1);
 }
@@ -21539,7 +21539,7 @@ static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
  					ast_cli(a->fd, "  S-Timer Peer Sts:       %s\n", cur->stimer->st_active_peer_ua ? "Active" : "Inactive");
  					ast_cli(a->fd, "  S-Timer Cached Min-SE:  %d\n", cur->stimer->st_cached_min_se);
  					ast_cli(a->fd, "  S-Timer Cached SE:      %d\n", cur->stimer->st_cached_max_se);
- 					ast_cli(a->fd, "  S-Timer Cached Ref:     %s\n", strefresherparam2str(cur->stimer->st_cached_ref));
+ 					ast_cli(a->fd, "  S-Timer Cached Ref:     %s\n", strefresher2str(cur->stimer->st_cached_ref));
  					ast_cli(a->fd, "  S-Timer Cached Mode:    %s\n", stmode2str(cur->stimer->st_cached_mode));
  				}
 			}

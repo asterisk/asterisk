@@ -1800,7 +1800,7 @@ enum stasis_app_user_event_res stasis_app_user_event(const char *app_name,
 	RAII_VAR(struct ast_multi_object_blob *, multi, NULL, ao2_cleanup);
 	RAII_VAR(void *, obj, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
-	enum stasis_app_subscribe_res res = STASIS_APP_USER_INTERNAL_ERROR;
+	enum stasis_app_user_event_res res = STASIS_APP_USER_INTERNAL_ERROR;
 	struct ast_json *json_value;
 	int have_channel = 0;
 	int i;

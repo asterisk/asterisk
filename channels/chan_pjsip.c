@@ -919,7 +919,7 @@ static int chan_pjsip_queryoption(struct ast_channel *ast, int option, void *dat
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
 	struct ast_sip_session *session = channel->session;
 	int res = -1;
-	enum ast_sip_session_t38state state = T38_STATE_UNAVAILABLE;
+	enum ast_t38_state state = T38_STATE_UNAVAILABLE;
 
 	switch (option) {
 	case AST_OPTION_T38_STATE:
