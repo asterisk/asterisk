@@ -101,10 +101,17 @@ endif
 
 %.o: %.i
 	$(ECHO_PREFIX) echo "   [CCi] $< -> $@"
+ifneq ($(AST_CLANG_BLOCKS),)
+ifeq ($(COMPILE_DOUBLE),yes)
+	$(CMD_PREFIX) $(CC) -o /dev/null -c $< $(CC_CFLAGS) $(OPTIMIZE) -Wno-unused-command-line-argument
+endif
+	$(CMD_PREFIX) $(CC) -o $@ -c $< $(CC_CFLAGS) $(_ASTCFLAGS_COVERAGE) -Wno-unused-command-line-argument
+else
 ifeq ($(COMPILE_DOUBLE),yes)
 	$(CMD_PREFIX) $(CC) -o /dev/null -c $< $(CC_CFLAGS) $(OPTIMIZE)
 endif
 	$(CMD_PREFIX) $(CC) -o $@ -c $< $(CC_CFLAGS) $(_ASTCFLAGS_COVERAGE)
+endif
 
 ifneq ($(COMPILE_DOUBLE),yes)
 %.o: %.c
