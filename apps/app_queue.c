@@ -3724,7 +3724,8 @@ static int valid_exit(struct queue_ent *qe, char digit)
 
 static int say_position(struct queue_ent *qe, int ringing)
 {
-	int res = 0, avgholdmins, avgholdsecs, announceposition = 0;
+	int res = 0, announceposition = 0;
+	long avgholdmins, avgholdsecs;
 	int say_thanks = 1;
 	time_t now;
 
@@ -3798,23 +3799,23 @@ static int say_position(struct queue_ent *qe, int ringing)
 		}
 	}
 	/* Round hold time to nearest minute */
-	avgholdmins = abs(((qe->parent->holdtime + 30) - (now - qe->start)) / 60);
+	avgholdmins = labs(((qe->parent->holdtime + 30) - (now - qe->start)) / 60);
 
 	/* If they have specified a rounding then round the seconds as well */
 	if (qe->parent->roundingseconds) {
-		avgholdsecs = (abs(((qe->parent->holdtime + 30) - (now - qe->start))) - 60 * avgholdmins) / qe->parent->roundingseconds;
+		avgholdsecs = (labs(((qe->parent->holdtime + 30) - (now - qe->start))) - 60 * avgholdmins) / qe->parent->roundingseconds;
 		avgholdsecs *= qe->parent->roundingseconds;
 	} else {
 		avgholdsecs = 0;
 	}
 
-	ast_verb(3, "Hold time for %s is %d minute(s) %d seconds\n", qe->parent->name, avgholdmins, avgholdsecs);
+	ast_verb(3, "Hold time for %s is %ld minute(s) %ld seconds\n", qe->parent->name, avgholdmins, avgholdsecs);
 
 	/* If the hold time is >1 min, if it's enabled, and if it's not
 	   supposed to be only once and we have already said it, say it */
-    if ((avgholdmins+avgholdsecs) > 0 && qe->parent->announceholdtime &&
-        ((qe->parent->announceholdtime == ANNOUNCEHOLDTIME_ONCE && !qe->last_pos) ||
-        !(qe->parent->announceholdtime == ANNOUNCEHOLDTIME_ONCE))) {
+	if ((avgholdmins+avgholdsecs) > 0 && qe->parent->announceholdtime &&
+		((qe->parent->announceholdtime == ANNOUNCEHOLDTIME_ONCE && !qe->last_pos) ||
+		!(qe->parent->announceholdtime == ANNOUNCEHOLDTIME_ONCE))) {
 		res = play_file(qe->chan, qe->parent->sound_holdtime);
 		if (res) {
 			goto playout;
@@ -6618,11 +6619,11 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 				}
 				if (!res2 && qe->parent->reportholdtime) {
 					if (!play_file(peer, qe->parent->sound_reporthold)) {
-						int holdtime, holdtimesecs;
+						long holdtime, holdtimesecs;
 
 						time(&now);
-						holdtime = abs((now - qe->start) / 60);
-						holdtimesecs = abs((now - qe->start) % 60);
+						holdtime = labs((now - qe->start) / 60);
+						holdtimesecs = labs((now - qe->start) % 60);
 						if (holdtime > 0) {
 							ast_say_number(peer, holdtime, AST_DIGIT_ANY, ast_channel_language(peer), NULL);
 							if (play_file(peer, qe->parent->sound_minutes) < 0) {
