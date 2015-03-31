@@ -75,6 +75,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static char base64[64];
 static char b2a[256];
 
+/* This is for binary compatibility with modules built before
+ * ast_log_safe existed. */
+#define _AST_MEM_BACKTRACE_BUFLEN 60
+void *_ast_mem_backtrace_buffer[_AST_MEM_BACKTRACE_BUFLEN];
+
 AST_THREADSTORAGE(inet_ntoa_buf);
 
 #if !defined(HAVE_GETHOSTBYNAME_R_5) && !defined(HAVE_GETHOSTBYNAME_R_6)
