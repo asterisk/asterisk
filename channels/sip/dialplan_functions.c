@@ -384,7 +384,7 @@ AST_TEST_DEFINE(test_sip_rtpqos_1)
 			for (j = 1.0; j < 10.0; j += 0.3) {
 				*lookup[i].d8 = j;
 				ast_str_substitute_variables(&buffer, 0, chan, ast_str_buffer(varstr));
-				if (sscanf(ast_str_buffer(buffer), "%lf", &cmpdbl) != 1 || abs(j - cmpdbl > .05)) {
+				if (sscanf(ast_str_buffer(buffer), "%lf", &cmpdbl) != 1 || fabs(j - cmpdbl) > .05) {
 					res = AST_TEST_FAIL;
 					ast_test_status_update(test, "%s != %f != %s\n", ast_str_buffer(varstr), j, ast_str_buffer(buffer));
 					break;
