@@ -36,6 +36,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config_options.h"
 #include "asterisk/test.h"
 
+#ifdef TEST_FRAMEWORK
+#include "asterisk/dns_srv.h"
+#endif
+
 /*** DOCUMENTATION
 	<configInfo name="res_resolver_unbound" language="en_US">
 		<configFile name="resolver_unbound.conf">
@@ -1181,6 +1185,74 @@ AST_TEST_DEFINE(resolve_cancel_off_nominal)
 
 	return AST_TEST_PASS;
 }
+
+AST_TEST_DEFINE(resolve_srv)
+{
+	RAII_VAR(struct unbound_resolver *, resolver, NULL, ao2_cleanup);
+	RAII_VAR(struct unbound_config *, cfg, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_dns_result *, result, NULL, ast_dns_result_free);
+	const struct ast_dns_record *record;
+	static const char *DOMAIN1 = "taco.bananas";
+	static const char *DOMAIN1_SRV = "taco.bananas 12345 IN SRV 10 20 5060 sip.taco.bananas";
+	enum ast_test_result_state res = AST_TEST_PASS;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "resolve_srv";
+		info->category = "/res/res_resolver_unbound/";
+		info->summary = "Test synchronous SRV resolution using libunbound\n";
+		info->description = "This test performs the following:\n"
+			"\t* Set one SRV record on one domain\n"
+			"\t* Perform an SRV lookup on the domain\n"
+			"\t* Ensure that the SRV record returned matches the expected value\n";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	cfg = ao2_global_obj_ref(globals);
+	resolver = ao2_bump(cfg->global->state->resolver);
+
+	ub_ctx_zone_add(resolver->context, DOMAIN1, "static");
+	ub_ctx_data_add(resolver->context, DOMAIN1_SRV);
+
+	if (ast_dns_resolve(DOMAIN1, ns_t_srv, ns_c_in, &result)) {
+		ast_test_status_update(test, "Failed to synchronously resolve SRV for domain '%s'\n", DOMAIN1);
+		res = AST_TEST_FAIL;
+		goto cleanup;
+	}
+
+	record = ast_dns_result_get_records(result);
+	if (ast_dns_srv_get_priority(record) != 10) {
+		ast_test_status_update(test, "SRV Record returned priority '%d' when we expected 10\n", ast_dns_srv_get_priority(record));
+		res = AST_TEST_FAIL;
+		goto cleanup;
+	}
+
+	if (ast_dns_srv_get_weight(record) != 20) {
+		ast_test_status_update(test, "SRV Record returned weight '%d' when we expected 20\n", ast_dns_srv_get_weight(record));
+		res = AST_TEST_FAIL;
+		goto cleanup;
+	}
+
+	if (ast_dns_srv_get_port(record) != 5060) {
+		ast_test_status_update(test, "SRV Record returned port '%d' when we expected 5060\n", ast_dns_srv_get_port(record));
+		res = AST_TEST_FAIL;
+		goto cleanup;
+	}
+
+	if (strcmp(ast_dns_srv_get_host(record), "sip.taco.bananas")) {
+		ast_test_status_update(test, "SRV Record returned host '%s' when we expected sip.taco.bananas\n", ast_dns_srv_get_host(record));
+		res = AST_TEST_FAIL;
+		goto cleanup;
+	}
+
+cleanup:
+	ub_ctx_data_remove(resolver->context, DOMAIN1_SRV);
+	ub_ctx_zone_remove(resolver->context, DOMAIN1);
+
+	return res;
+}
 #endif
 
 static int reload_module(void)
@@ -1202,6 +1274,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(resolve_sync_off_nominal);
 	AST_TEST_UNREGISTER(resolve_sync_off_nominal);
 	AST_TEST_UNREGISTER(resolve_cancel_off_nominal);
+	AST_TEST_UNREGISTER(resolve_srv);
 	return 0;
 }
 
@@ -1258,6 +1331,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(resolve_sync_off_nominal);
 	AST_TEST_REGISTER(resolve_async_off_nominal);
 	AST_TEST_REGISTER(resolve_cancel_off_nominal);
+	AST_TEST_REGISTER(resolve_srv);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }

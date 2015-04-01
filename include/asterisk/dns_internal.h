@@ -35,6 +35,7 @@ struct ast_dns_record {
 	size_t data_len;
 	/*! \brief Linked list information */
 	AST_LIST_ENTRY(ast_dns_record) list;
+	char *data_ptr;
 	/*! \brief The raw DNS record */
 	char data[0];
 };
@@ -51,6 +52,10 @@ struct ast_dns_srv_record {
 	unsigned short weight;
 	/*! \brief The port in the SRV record */
 	unsigned short port;
+	/*! \brief The running weight sum */
+	unsigned int weight_sum;
+	/*! \brief Additional data */
+	char data[0];
 };
 
 /*! \brief A NAPTR record */
@@ -80,11 +85,13 @@ struct ast_dns_result {
 	/*! \brief Optional rcode, set if an error occurred */
 	unsigned int rcode;
 	/*! \brief Records returned */
-	AST_LIST_HEAD_NOLOCK(, ast_dns_record) records;
+	AST_LIST_HEAD_NOLOCK(dns_records, ast_dns_record) records;
 	/*! \brief The canonical name */
 	const char *canonical;
 	/*! \brief The raw DNS answer */
 	const char *answer;
+	/*! \brief The size of the raw DNS answer */
+	size_t answer_size;
 	/*! \brief Buffer for dynamic data */
 	char buf[0];
 };
@@ -143,3 +150,24 @@ struct ast_sched_context;
  * \return scheduler context
  */
 struct ast_sched_context *ast_dns_get_sched(void);
+
+/*!
+ * \brief Allocate and parse a DNS SRV record
+ *
+ * \param query The DNS query
+ * \param data This specific SRV record
+ * \param size The size of the SRV record
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ */
+struct ast_dns_record *ast_dns_srv_alloc(struct ast_dns_query *query, const char *data, const size_t size);
+
+/*!
+ * \brief Sort the SRV records on a result
+ *
+ * \param result The DNS result
+ */
+void ast_dns_srv_sort(struct ast_dns_result *result);
+
+

@@ -43,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/dns_resolver.h"
 #include "asterisk/dns_internal.h"
 
+#include <netinet/in.h>
 #include <arpa/nameser.h>
 
 AST_RWLIST_HEAD_STATIC(resolvers, ast_dns_resolver);
@@ -159,7 +160,7 @@ int ast_dns_record_get_ttl(const struct ast_dns_record *record)
 
 const char *ast_dns_record_get_data(const struct ast_dns_record *record)
 {
-	return record->data;
+	return record->data_ptr;
 }
 
 const struct ast_dns_record *ast_dns_record_get_next(const struct ast_dns_record *record)
@@ -406,8 +407,23 @@ int ast_dns_resolver_set_result(struct ast_dns_query *query, unsigned int secure
 	buf_ptr += strlen(canonical) + 1;
 	memcpy(buf_ptr, answer, answer_size); /* SAFE */
 	query->result->answer = buf_ptr;
+	query->result->answer_size = answer_size;
 
 	return 0;
+}
+
+static struct ast_dns_record *generic_record_alloc(struct ast_dns_query *query, const char *data, const size_t size)
+{
+	struct ast_dns_record *record;
+
+	record = ast_calloc(1, sizeof(*record) + size);
+	if (!record) {
+		return NULL;
+	}
+
+	record->data_ptr = record->data;
+
+	return record;
 }
 
 int ast_dns_resolver_add_record(struct ast_dns_query *query, int rr_type, int rr_class, int ttl, const char *data, const size_t size)
@@ -444,7 +460,12 @@ int ast_dns_resolver_add_record(struct ast_dns_query *query, int rr_type, int rr
 		return -1;
 	}
 
-	record = ast_calloc(1, sizeof(*record) + size);
+	if (rr_type == ns_t_srv) {
+		record = ast_dns_srv_alloc(query, data, size);
+	} else {
+		record = generic_record_alloc(query, data, size);
+	}
+
 	if (!record) {
 		return -1;
 	}
@@ -452,8 +473,8 @@ int ast_dns_resolver_add_record(struct ast_dns_query *query, int rr_type, int rr
 	record->rr_type = rr_type;
 	record->rr_class = rr_class;
 	record->ttl = ttl;
-	memcpy(record->data, data, size);
 	record->data_len = size;
+	memcpy(record->data_ptr, data, size);
 
 	AST_LIST_INSERT_TAIL(&query->result->records, record, list);
 
@@ -462,6 +483,10 @@ int ast_dns_resolver_add_record(struct ast_dns_query *query, int rr_type, int rr
 
 void ast_dns_resolver_completed(struct ast_dns_query *query)
 {
+	if (ast_dns_query_get_rr_type(query) == ns_t_srv) {
+		ast_dns_srv_sort(query->result);
+	}
+
 	query->callback(query);
 }
 
