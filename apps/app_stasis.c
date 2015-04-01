@@ -51,29 +51,27 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</parameter>
 		</syntax>
 		<description>
-			<para>
-				Invoke a Stasis application.
-			</para>
-		</description>
-		<para>This application will set the following channel variable upon
-		completion:</para>
+			<para>Invoke a Stasis application.</para>
+			<para>This application will set the following channel variable upon
+			completion:</para>
 			<variablelist>
 				<variable name="STASISSTATUS">
 					<para>This indicates the status of the execution of the
 					Stasis application.</para>
 					<value name="SUCCESS">
-					The channel has exited Stasis without any failures in Stasis
+						The channel has exited Stasis without any failures in
+						Stasis.
 					</value>
 					<value name="FAILED">
-					A failure occurred when executing the Stasis application.
-					Some (not all) possible reasons for this:
-					    <para>The app registry is not instantiated</para>
-					    <para>The app requested is not registered</para>
-					    <para>The app requested is not active</para>
-					    <para>Stasis couldn't send a start message</para>
+						A failure occurred when executing the Stasis
+						The app registry is not instantiated; The app
+						application. Some (not all) possible reasons for this:
+						requested is not registered; The app requested is not
+						active; Stasis couldn't send a start message.
 					</value>
 				</variable>
 			</variablelist>
+		</description>
 	</application>
  ***/
 
