@@ -3056,7 +3056,7 @@ static int ast_el_read_history(char *filename)
 
 static void ast_remotecontrol(char *data)
 {
-	char buf[80];
+	char buf[256] = "";
 	int res;
 	char filename[80] = "";
 	char *hostname;
@@ -3073,7 +3073,7 @@ static void ast_remotecontrol(char *data)
 	signal(SIGTERM, __remote_quit_handler);
 	signal(SIGHUP, __remote_quit_handler);
 
-	if (read(ast_consock, buf, sizeof(buf)) < 0) {
+	if (read(ast_consock, buf, sizeof(buf) - 1) < 0) {
 		ast_log(LOG_ERROR, "read() failed: %s\n", strerror(errno));
 		return;
 	}
