@@ -107,8 +107,6 @@ struct ast_sip_session {
 	char exten[AST_MAX_EXTENSION];
 	/*! The endpoint with which Asterisk is communicating */
 	struct ast_sip_endpoint *endpoint;
-	/*! The AOR associated with this session */
-	struct ast_sip_aor *aor;
 	/*! The contact associated with this session */
 	struct ast_sip_contact *contact;
 	/*! The PJSIP details of the session, which includes the dialog */
@@ -147,6 +145,8 @@ struct ast_sip_session {
 	pjsip_rx_data *deferred_reinvite;
 	/*! Current T.38 state */
 	enum ast_sip_session_t38state t38state;
+	/*! The AOR associated with this session */
+	struct ast_sip_aor *aor;
 };
 
 typedef int (*ast_sip_session_request_creation_cb)(struct ast_sip_session *session, pjsip_tx_data *tdata);
