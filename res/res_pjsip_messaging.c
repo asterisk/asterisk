@@ -42,12 +42,15 @@
 #include "asterisk/pbx.h"
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_session.h"
+#include "asterisk/taskprocessor.h"
 
 const pjsip_method pjsip_message_method = {PJSIP_OTHER_METHOD, {"MESSAGE", 7} };
 
 #define MAX_HDR_SIZE 512
 #define MAX_BODY_SIZE 1024
 #define MAX_USER_SIZE 128
+
+static struct ast_taskprocessor *message_serializer;
 
 /*!
  * \internal
@@ -593,7 +596,7 @@ static int sip_msg_send(const struct ast_msg *msg, const char *to, const char *f
 	}
 
 	if (!(mdata = msg_data_create(msg, to, from)) ||
-	    ast_sip_push_task(NULL, msg_send, mdata)) {
+	    ast_sip_push_task(message_serializer, msg_send, mdata)) {
 		ao2_ref(mdata, -1);
 		return -1;
 	}
@@ -743,6 +746,13 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
+	message_serializer = ast_sip_create_serializer();
+	if (!message_serializer) {
+		ast_sip_unregister_service(&messaging_module);
+		ast_msg_tech_unregister(&msg_tech);
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
 	ast_sip_session_register_supplement(&messaging_supplement);
 	return AST_MODULE_LOAD_SUCCESS;
 }
@@ -752,6 +762,7 @@ static int unload_module(void)
 	ast_sip_session_unregister_supplement(&messaging_supplement);
 	ast_msg_tech_unregister(&msg_tech);
 	ast_sip_unregister_service(&messaging_module);
+	ast_taskprocessor_unreference(message_serializer);
 	return 0;
 }
 
