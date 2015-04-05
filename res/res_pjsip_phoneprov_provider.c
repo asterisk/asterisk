@@ -353,7 +353,7 @@ static int load_users(void)
 		return 0;
 	}
 
-	ao2_callback(users, OBJ_MULTIPLE, users_apply_handler, sorcery);
+	ao2_callback(users, OBJ_MULTIPLE | OBJ_NODATA, users_apply_handler, sorcery);
 	ao2_ref(users, -1);
 
 	return 0;
