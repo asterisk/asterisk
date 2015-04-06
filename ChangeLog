@@ -1,3 +1,15 @@
+2015-04-06  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 13.3.1 Released.
+
+	* pjsip: resolve ABI compatibility problem with external modules
+
+	  A change in r430179 inserted a variable near the top of a
+	  structure in ast_sip_session caused a problem when running external
+	  modules, such as the DPMA, in a version of Asterisk compiled across
+	  the change. This patch moves the new variable to the end of the
+	  structure, eliminating the problem.
+
 2015-04-01  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 13.3.0 Released.
