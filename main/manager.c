@@ -4785,7 +4785,7 @@ static int action_atxfer(struct mansession *s, const struct message *m)
 static int check_blacklist(const char *cmd)
 {
 	char *cmd_copy, *cur_cmd;
-	char *cmd_words[MAX_BLACKLIST_CMD_LEN] = { NULL, };
+	char *cmd_words[AST_MAX_CMD_LEN] = { NULL, };
 	int i;
 
 	cmd_copy = ast_strdupa(cmd);
