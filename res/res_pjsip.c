@@ -347,10 +347,11 @@
 					<synopsis>Session timers for SIP packets</synopsis>
 					<description>
 						<enumlist>
-							<enum name="forced" />
 							<enum name="no" />
-							<enum name="required" />
 							<enum name="yes" />
+							<enum name="required" />
+							<enum name="always" />
+							<enum name="forced"><para>Alias of always</para></enum>
 						</enumlist>
 					</description>
 				</configOption>
