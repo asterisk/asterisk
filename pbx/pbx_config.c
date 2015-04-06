@@ -956,7 +956,9 @@ static char *handle_cli_dialplan_save(struct ast_cli_entry *e, int cmd, struct a
 					const char *el = ast_get_extension_label(p);
 					char label[128] = "";
 					char *appdata = ast_get_extension_app_data(p);
-					char *escaped;
+
+					int escaped_len = (!ast_strlen_zero(appdata)) ? 2 * strlen(appdata) + 1 : 1;
+					char escaped[escaped_len];
 
 					if (ast_get_extension_matchcid(p)) {
 						sep = "/";
@@ -970,12 +972,9 @@ static char *handle_cli_dialplan_save(struct ast_cli_entry *e, int cmd, struct a
 					}
 
 					if (!ast_strlen_zero(appdata)) {
-						int escaped_len = 2 * strlen(appdata) + 1;
-						char escaped[escaped_len];
-
 						ast_escape_semicolons(appdata, escaped, escaped_len);
 					} else {
-						escaped = "";
+						escaped[0] = '\0';
 					}
 
 					fprintf(output, "exten => %s%s%s,%d%s,%s(%s)\n",
