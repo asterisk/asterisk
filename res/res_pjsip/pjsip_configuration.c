@@ -141,13 +141,14 @@ static int prack_handler(const struct aco_option *opt, struct ast_variable *var,
 {
 	struct ast_sip_endpoint *endpoint = obj;
 
+	/* clear all */
+	endpoint->extensions.flags &= ~(PJSIP_INV_SUPPORT_100REL | PJSIP_INV_REQUIRE_100REL);
+
 	if (ast_true(var->value)) {
 		endpoint->extensions.flags |= PJSIP_INV_SUPPORT_100REL;
-	} else if (ast_false(var->value)) {
-		endpoint->extensions.flags &= ~PJSIP_INV_SUPPORT_100REL;
 	} else if (!strcasecmp(var->value, "required")) {
 		endpoint->extensions.flags |= PJSIP_INV_REQUIRE_100REL;
-	} else {
+	} else if (!ast_false(var->value)){
 		return -1;
 	}
 
@@ -174,15 +175,18 @@ static int timers_handler(const struct aco_option *opt, struct ast_variable *var
 {
 	struct ast_sip_endpoint *endpoint = obj;
 
+	/* clear all */
+	endpoint->extensions.flags &= ~(PJSIP_INV_SUPPORT_TIMER | PJSIP_INV_REQUIRE_TIMER
+					| PJSIP_INV_ALWAYS_USE_TIMER);
+
+	/* set only the specified flag and let pjsip normalize if needed */
 	if (ast_true(var->value)) {
 		endpoint->extensions.flags |= PJSIP_INV_SUPPORT_TIMER;
-	} else if (ast_false(var->value)) {
-		endpoint->extensions.flags &= PJSIP_INV_SUPPORT_TIMER;
 	} else if (!strcasecmp(var->value, "required")) {
 		endpoint->extensions.flags |= PJSIP_INV_REQUIRE_TIMER;
-	} else if (!strcasecmp(var->value, "always")) {
+	} else if (!strcasecmp(var->value, "always") || !strcasecmp(var->value, "forced")) {
 		endpoint->extensions.flags |= PJSIP_INV_ALWAYS_USE_TIMER;
-	} else {
+	} else if (!ast_false(var->value)) {
 		return -1;
 	}
 
