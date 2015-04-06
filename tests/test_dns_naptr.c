@@ -389,7 +389,7 @@ AST_TEST_DEFINE(naptr_resolve_nominal)
 		{ 400, 100, {3, "A32"}, {4, "BLAH"}, {0, ""}, "goose.down" },
 		/* Records with valid but unusual services */
 		{ 100, 700, {0, ""}, {0, ""}, {0, ""}, "goose.down" },
-		//{ 500, 100, {1, "A"}, {42, "A+B12+C+D+EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"}, {0, ""}, "goose.down" },
+		{ 500, 102, {1, "A"}, {42, "A+B12+C+D+EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"}, {0, ""}, "goose.down" },
 		{ 500, 100, {1, "A"}, {14, "A+B12+C+D+EEEE"}, {0, ""}, "goose.down" },
 		/* Records with valid regexes (regexes are always unusual) */
 		{ 500, 101, {1, "A"}, {4, "BLAH"}, {15, "!.*!horse.mane!"}, "" },
@@ -398,7 +398,7 @@ AST_TEST_DEFINE(naptr_resolve_nominal)
 		{ 700, 999, {1, "A"}, {4, "BLAH"}, {30, "!(.)(.)(.)(.)!\\1.m.\\2.n\\3.o\\4!"}, "" },
 	};
 
-	int naptr_record_order[] = { 9, 3, 5, 0, 2, 1, 4, 8, 6, 7, 10};
+	int naptr_record_order[] = { 10, 3, 5, 0, 2, 1, 4, 9, 7, 8, 6, 11};
 	enum ast_test_result_state res = AST_TEST_PASS;
 	int i;
 
