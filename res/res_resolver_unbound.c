@@ -303,7 +303,6 @@ static int unbound_resolver_resolve(struct ast_dns_query *query)
 
 	ao2_ref(data, -1);
 	ao2_ref(cfg, -1);
-
 	return res;
 }
 
@@ -492,6 +491,8 @@ static int unbound_config_preapply_callback(void)
 }
 
 #ifdef TEST_FRAMEWORK
+
+#include "asterisk/dns_naptr.h"
 
 /*!
  * \brief A DNS record to be used during a test
@@ -1186,6 +1187,123 @@ AST_TEST_DEFINE(resolve_cancel_off_nominal)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(resolve_naptr)
+{
+	RAII_VAR(struct unbound_resolver *, resolver, NULL, ao2_cleanup);
+	RAII_VAR(struct unbound_config *, cfg, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_dns_result *, result, NULL, ast_dns_result_free);
+
+	const struct ast_dns_record *record;
+
+	static const char * DOMAIN1 = "goose.feathers";
+	int i;
+	enum ast_test_result_state res = AST_TEST_PASS;
+
+	struct naptr_record {
+		const char *zone_entry;
+		uint16_t order;
+		uint16_t preference;
+		const char *flags;
+		const char *services;
+		const char *regexp;
+		const char *replacement;
+		int visited;
+	} records [] = {
+		{ "goose.feathers 12345 IN NAPTR 100 100 A SIP+D2U \"\" goose.down", 100, 100, "A", "SIP+D2U", "", "goose.down", 0},
+		{ "goose.feathers 12345 IN NAPTR 100 200 A SIP+D2T \"\" duck.down", 100, 200, "A", "SIP+D2T", "", "duck.down", 0},
+		{ "goose.feathers 12345 IN NAPTR 200 100 A SIPS+D2U \"\" pheasant.down", 200, 100, "A", "SIPS+D2U", "", "pheasant.down", 0},
+		{ "goose.feathers 12345 IN NAPTR 200 200 A SIPS+D2T \"\" platypus.fur", 200, 200, "A", "SIPS+D2T", "", "platypus.fur", 0},
+	};
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "resolve_naptr";
+		info->category = "/res/res_resolver_unbound/";
+		info->summary = "Attempt resolution of NAPTR record\n";
+		info->description = "This test performs a NAPTR lookup and ensures that\n"
+			"the returned record has the appropriate values set\n";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	cfg = ao2_global_obj_ref(globals);
+	resolver = ao2_bump(cfg->global->state->resolver);
+
+	ub_ctx_zone_add(resolver->context, DOMAIN1, "static");
+
+	for (i = 0; i < ARRAY_LEN(records); ++i) {
+		ub_ctx_data_add(resolver->context, records[i].zone_entry);
+	}
+
+	if (ast_dns_resolve(DOMAIN1, ns_t_naptr, ns_c_in, &result)) {
+		ast_test_status_update(test, "Failed to resolve domain\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!result) {
+		ast_test_status_update(test, "Successful resolution set a NULL result\n");
+		return AST_TEST_FAIL;
+	}
+
+	record = ast_dns_result_get_records(result);
+	if (!record) {
+		ast_test_status_update(test, "Failed to get any DNS records from the result\n");
+		return AST_TEST_FAIL;
+	}
+
+	i = 0;
+	for (record = ast_dns_result_get_records(result); record; record = ast_dns_record_get_next(record)) {
+		if (ast_dns_naptr_get_order(record) != records[i].order) {
+			ast_test_status_update(test, "Expected order %hu, got order %hu from NAPTR record\n",
+					records[i].order, ast_dns_naptr_get_order(record));
+			res = AST_TEST_FAIL;
+		}
+		if (ast_dns_naptr_get_preference(record) != records[i].preference) {
+			ast_test_status_update(test, "Expected preference %hu, got preference %hu from NAPTR record\n",
+					records[i].preference, ast_dns_naptr_get_preference(record));
+			res = AST_TEST_FAIL;
+		}
+		if (strcmp(ast_dns_naptr_get_flags(record), records[i].flags)) {
+			ast_test_status_update(test, "Expected flags %s, got flags %s from NAPTR record\n",
+					records[i].flags, ast_dns_naptr_get_flags(record));
+			res = AST_TEST_FAIL;
+		}
+		if (strcmp(ast_dns_naptr_get_service(record), records[i].services)) {
+			ast_test_status_update(test, "Expected services %s, got services %s from NAPTR record\n",
+					records[i].services, ast_dns_naptr_get_service(record));
+			res = AST_TEST_FAIL;
+		}
+		if (strcmp(ast_dns_naptr_get_regexp(record), records[i].regexp)) {
+			ast_test_status_update(test, "Expected regexp %s, got regexp %s from NAPTR record\n",
+					records[i].regexp, ast_dns_naptr_get_regexp(record));
+			res = AST_TEST_FAIL;
+		}
+		if (strcmp(ast_dns_naptr_get_replacement(record), records[i].replacement)) {
+			ast_test_status_update(test, "Expected replacement %s, got replacement %s from NAPTR record\n",
+					records[i].replacement, ast_dns_naptr_get_replacement(record));
+			res = AST_TEST_FAIL;
+		}
+		records[i].visited = 1;
+		++i;
+	}
+
+	if (i != ARRAY_LEN(records)) {
+		ast_test_status_update(test, "Unexpected number of records visited\n");
+		res = AST_TEST_FAIL;
+	}
+
+	for (i = 0; i < ARRAY_LEN(records); ++i) {
+		if (!records[i].visited) {
+			ast_test_status_update(test, "Did not visit all expected NAPTR records\n");
+			res = AST_TEST_FAIL;
+		}
+	}
+
+	return res;
+
+}
+
 AST_TEST_DEFINE(resolve_srv)
 {
 	RAII_VAR(struct unbound_resolver *, resolver, NULL, ao2_cleanup);
@@ -1274,6 +1392,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(resolve_sync_off_nominal);
 	AST_TEST_UNREGISTER(resolve_sync_off_nominal);
 	AST_TEST_UNREGISTER(resolve_cancel_off_nominal);
+	AST_TEST_UNREGISTER(resolve_naptr);
 	AST_TEST_UNREGISTER(resolve_srv);
 	return 0;
 }
@@ -1331,6 +1450,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(resolve_sync_off_nominal);
 	AST_TEST_REGISTER(resolve_async_off_nominal);
 	AST_TEST_REGISTER(resolve_cancel_off_nominal);
+	AST_TEST_REGISTER(resolve_naptr);
 	AST_TEST_REGISTER(resolve_srv);
 
 	return AST_MODULE_LOAD_SUCCESS;

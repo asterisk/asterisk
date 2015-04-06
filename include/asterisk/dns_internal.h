@@ -35,6 +35,14 @@ struct ast_dns_record {
 	size_t data_len;
 	/*! \brief Linked list information */
 	AST_LIST_ENTRY(ast_dns_record) list;
+	/*! \brief pointer to record-specific data.
+	 *
+	 * For certain "subclasses" of DNS records, the
+	 * location of the raw DNS data will differ from
+	 * the generic case. This pointer will reliably
+	 * be set to point to the raw DNS data, no matter
+	 * where in the structure it may lie.
+	 */
 	char *data_ptr;
 	/*! \brief The raw DNS record */
 	char data[0];
@@ -74,6 +82,13 @@ struct ast_dns_naptr_record {
 	unsigned short order;
 	/*! \brief The preference of the NAPTR record */
 	unsigned short preference;
+	/*! \brief Buffer for NAPTR-specific data
+	 *
+	 * This includes the raw NAPTR record, as well as
+	 * the area where the flags, service, regexp, and
+	 * replacement strings are stored.
+	 */
+	char data[0];
 };
 
 /*! \brief The result of a DNS query */
@@ -152,6 +167,25 @@ struct ast_sched_context;
 struct ast_sched_context *ast_dns_get_sched(void);
 
 /*!
+ * \brief Allocate and parse a DNS NAPTR record
+ *
+ * \param query The DNS query
+ * \param data This specific NAPTR record
+ * \param size The size of the NAPTR record
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ */
+struct ast_dns_record *dns_naptr_alloc(struct ast_dns_query *query, const char *data, const size_t size);
+
+/*!
+ * \brief Sort the NAPTR records on a result
+ *
+ * \param result The DNS result
+ */
+void dns_naptr_sort(struct ast_dns_result *result);
+
+/*!
  * \brief Allocate and parse a DNS SRV record
  *
  * \param query The DNS query
@@ -169,5 +203,4 @@ struct ast_dns_record *ast_dns_srv_alloc(struct ast_dns_query *query, const char
  * \param result The DNS result
  */
 void ast_dns_srv_sort(struct ast_dns_result *result);
-
 
