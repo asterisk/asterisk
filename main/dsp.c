@@ -102,9 +102,11 @@ static struct progalias {
 	{ "uk", PROG_MODE_UK },
 };
 
+#define FREQ_ARRAY_SIZE 7
+
 static struct progress {
 	enum gsamp_size size;
-	int freqs[7];
+	int freqs[FREQ_ARRAY_SIZE];
 } modes[] = {
 	{ GSAMP_SIZE_NA, { 350, 440, 480, 620, 950, 1400, 1800 } },	/*!< North America */
 	{ GSAMP_SIZE_CR, { 425 } },					/*!< Costa Rica, Brazil */
@@ -381,7 +383,7 @@ struct ast_dsp {
 	struct ast_dsp_busy_pattern busy_cadence;
 	int historicnoise[DSP_HISTORY];
 	int historicsilence[DSP_HISTORY];
-	goertzel_state_t freqs[7];
+	goertzel_state_t freqs[FREQ_ARRAY_SIZE];
 	int freqcount;
 	int gsamps;
 	enum gsamp_size gsamp_size;
@@ -1026,6 +1028,8 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 	int pass;
 	int newstate = DSP_TONE_STATE_SILENCE;
 	int res = 0;
+	int freqcount = dsp->freqcount > FREQ_ARRAY_SIZE ? FREQ_ARRAY_SIZE : dsp->freqcount;
+
 	while (len) {
 		/* Take the lesser of the number of samples we need and what we have */
 		pass = len;
@@ -1033,7 +1037,7 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 			pass = dsp->gsamp_size - dsp->gsamps;
 		}
 		for (x = 0; x < pass; x++) {
-			for (y = 0; y < dsp->freqcount; y++) {
+			for (y = 0; y < freqcount; y++) {
 				goertzel_sample(&dsp->freqs[y], s[x]);
 			}
 			dsp->genergy += s[x] * s[x];
@@ -1042,8 +1046,8 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 		dsp->gsamps += pass;
 		len -= pass;
 		if (dsp->gsamps == dsp->gsamp_size) {
-			float hz[7];
-			for (y = 0; y < 7; y++) {
+			float hz[FREQ_ARRAY_SIZE];
+			for (y = 0; y < FREQ_ARRAY_SIZE; y++) {
 				hz[y] = goertzel_result(&dsp->freqs[y]);
 			}
 			switch (dsp->progmode) {
@@ -1642,7 +1646,7 @@ static void ast_dsp_prog_reset(struct ast_dsp *dsp)
 
 	dsp->gsamp_size = modes[dsp->progmode].size;
 	dsp->gsamps = 0;
-	for (x = 0; x < ARRAY_LEN(modes[dsp->progmode].freqs); x++) {
+	for (x = 0; x < FREQ_ARRAY_SIZE; x++) {
 		if (modes[dsp->progmode].freqs[x]) {
 			goertzel_init(&dsp->freqs[x], (float)modes[dsp->progmode].freqs[x], dsp->gsamp_size, dsp->sample_rate);
 			max = x + 1;
@@ -1668,6 +1672,7 @@ static struct ast_dsp *__ast_dsp_new(unsigned int sample_rate)
 		dsp->digitmode = DSP_DIGITMODE_DTMF;
 		dsp->faxmode = DSP_FAXMODE_DETECT_CNG;
 		dsp->sample_rate = sample_rate;
+		dsp->freqcount = 0;
 		/* Initialize digit detector */
 		ast_digit_detect_init(&dsp->digit_state, dsp->digitmode & DSP_DIGITMODE_MF, dsp->sample_rate);
 		dsp->display_inband_dtmf_warning = 1;
