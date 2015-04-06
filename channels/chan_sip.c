@@ -9585,7 +9585,8 @@ static int parse_request(struct sip_request *req)
 {
 	char *c = ast_str_buffer(req->data);
 	ptrdiff_t *dst = req->header;
-	int i = 0, lim = SIP_MAX_HEADERS - 1;
+	int i = 0;
+	unsigned int lim = SIP_MAX_HEADERS - 1;
 	unsigned int skipping_headers = 0;
 	ptrdiff_t current_header_offset = 0;
 	char *previous_header = "";

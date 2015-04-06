@@ -825,7 +825,7 @@ int ast_cc_set_param(struct ast_cc_config_params *params, const char * const nam
 		return 0;
 	}
 
-	if (!sscanf(value, "%30u", &value_as_uint) == 1) {
+	if (sscanf(value, "%30u", &value_as_uint) != 1) {
 		return -1;
 	}
 
