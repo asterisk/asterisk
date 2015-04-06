@@ -647,7 +647,10 @@ static int parked_call_app_exec(struct ast_channel *chan, const char *data)
 
 	ast_bridge_features_cleanup(&chan_features);
 
-	return 0;
+	/* Return -1 so that call does not continue in the dialplan. This is to make
+	 * behavior consistent with Asterisk versions prior to 12.
+	 */
+	return -1;
 }
 
 struct park_announce_subscription_data {
