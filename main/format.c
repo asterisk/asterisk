@@ -375,7 +375,7 @@ unsigned int ast_format_get_minimum_bytes(const struct ast_format *format)
 
 unsigned int ast_format_get_sample_rate(const struct ast_format *format)
 {
-	return format->codec->sample_rate;
+	return format->codec->sample_rate ?: 8000;
 }
 
 unsigned int ast_format_determine_length(const struct ast_format *format, unsigned int samples)
