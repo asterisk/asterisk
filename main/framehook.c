@@ -97,7 +97,7 @@ int ast_framehook_attach(struct ast_channel *chan, struct ast_framehook_interfac
 	struct ast_framehook_list *fh_list;
 	struct ast_frame *frame;
 	if (i->version != AST_FRAMEHOOK_INTERFACE_VERSION) {
-		ast_log(LOG_ERROR, "Version '%hu' of framehook interface not what we compiled against (%hu)\n",
+		ast_log(LOG_ERROR, "Version '%hu' of framehook interface not what we compiled against (%i)\n",
 			i->version, AST_FRAMEHOOK_INTERFACE_VERSION);
 		return -1;
 	}
