@@ -471,151 +471,6 @@ static inline int __ast_pthread_mutex_unlock(const char *filename, int lineno, c
 	return res;
 }
 
-static inline int __ast_cond_init(const char *filename, int lineno, const char *func,
-				  const char *cond_name, ast_cond_t *cond, pthread_condattr_t *cond_attr)
-{
-	return pthread_cond_init(cond, cond_attr);
-}
-
-static inline int __ast_cond_signal(const char *filename, int lineno, const char *func,
-				    const char *cond_name, ast_cond_t *cond)
-{
-	return pthread_cond_signal(cond);
-}
-
-static inline int __ast_cond_broadcast(const char *filename, int lineno, const char *func,
-				       const char *cond_name, ast_cond_t *cond)
-{
-	return pthread_cond_broadcast(cond);
-}
-
-static inline int __ast_cond_destroy(const char *filename, int lineno, const char *func,
-				     const char *cond_name, ast_cond_t *cond)
-{
-	return pthread_cond_destroy(cond);
-}
-
-static inline int __ast_cond_wait(const char *filename, int lineno, const char *func,
-				  const char *cond_name, const char *mutex_name,
-				  ast_cond_t *cond, ast_mutex_t *t)
-{
-	int res;
-	int canlog = strcmp(filename, "logger.c");
-
-#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
-	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
-		__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
-				   filename, lineno, func, mutex_name);
-	}
-#endif
-
-	if (t->reentrancy && (t->thread[t->reentrancy-1] != pthread_self())) {
-		__ast_mutex_logger("%s line %d (%s): attempted unlock mutex '%s' without owning it!\n",
-				   filename, lineno, func, mutex_name);
-		__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
-				   t->file[t->reentrancy-1], t->lineno[t->reentrancy-1], t->func[t->reentrancy-1], mutex_name);
-		DO_THREAD_CRASH;
-	}
-
-	if (--t->reentrancy < 0) {
-		__ast_mutex_logger("%s line %d (%s): mutex '%s' freed more times than we've locked!\n",
-				   filename, lineno, func, mutex_name);
-		t->reentrancy = 0;
-	}
-
-	if (t->reentrancy < AST_MAX_REENTRANCY) {
-		t->file[t->reentrancy] = NULL;
-		t->lineno[t->reentrancy] = 0;
-		t->func[t->reentrancy] = NULL;
-		t->thread[t->reentrancy] = 0;
-	}
-
-	if ((res = pthread_cond_wait(cond, &t->mutex))) {
-		__ast_mutex_logger("%s line %d (%s): Error waiting on condition mutex '%s'\n", 
-				   filename, lineno, func, strerror(res));
-		DO_THREAD_CRASH;
-	} else {
-		if (t->reentrancy < AST_MAX_REENTRANCY) {
-			t->file[t->reentrancy] = filename;
-			t->lineno[t->reentrancy] = lineno;
-			t->func[t->reentrancy] = func;
-			t->thread[t->reentrancy] = pthread_self();
-			t->reentrancy++;
-		} else {
-			__ast_mutex_logger("%s line %d (%s): '%s' really deep reentrancy!\n",
-							   filename, lineno, func, mutex_name);
-		}
-	}
-
-	return res;
-}
-
-static inline int __ast_cond_timedwait(const char *filename, int lineno, const char *func,
-				       const char *cond_name, const char *mutex_name, ast_cond_t *cond,
-				       ast_mutex_t *t, const struct timespec *abstime)
-{
-	int res;
-	int canlog = strcmp(filename, "logger.c");
-
-#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
-	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
-		__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
-				   filename, lineno, func, mutex_name);
-	}
-#endif
-
-	if (t->reentrancy && (t->thread[t->reentrancy-1] != pthread_self())) {
-		__ast_mutex_logger("%s line %d (%s): attempted unlock mutex '%s' without owning it!\n",
-				   filename, lineno, func, mutex_name);
-		__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
-				   t->file[t->reentrancy-1], t->lineno[t->reentrancy-1], t->func[t->reentrancy-1], mutex_name);
-		DO_THREAD_CRASH;
-	}
-
-	if (--t->reentrancy < 0) {
-		__ast_mutex_logger("%s line %d (%s): mutex '%s' freed more times than we've locked!\n",
-				   filename, lineno, func, mutex_name);
-		t->reentrancy = 0;
-	}
-
-	if (t->reentrancy < AST_MAX_REENTRANCY) {
-		t->file[t->reentrancy] = NULL;
-		t->lineno[t->reentrancy] = 0;
-		t->func[t->reentrancy] = NULL;
-		t->thread[t->reentrancy] = 0;
-	}
-
-	if ((res = pthread_cond_timedwait(cond, &t->mutex, abstime)) && (res != ETIMEDOUT)) {
-		__ast_mutex_logger("%s line %d (%s): Error waiting on condition mutex '%s'\n", 
-				   filename, lineno, func, strerror(res));
-		DO_THREAD_CRASH;
-	} else {
-		if (t->reentrancy < AST_MAX_REENTRANCY) {
-			t->file[t->reentrancy] = filename;
-			t->lineno[t->reentrancy] = lineno;
-			t->func[t->reentrancy] = func;
-			t->thread[t->reentrancy] = pthread_self();
-			t->reentrancy++;
-		} else {
-			__ast_mutex_logger("%s line %d (%s): '%s' really deep reentrancy!\n",
-							   filename, lineno, func, mutex_name);
-		}
-	}
-
-	return res;
-}
-
-#define ast_mutex_destroy(a) __ast_pthread_mutex_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
-#define ast_mutex_lock(a) __ast_pthread_mutex_lock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
-#define ast_mutex_unlock(a) __ast_pthread_mutex_unlock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
-#define ast_mutex_trylock(a) __ast_pthread_mutex_trylock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
-#define ast_cond_init(cond, attr) __ast_cond_init(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond, attr)
-#define ast_cond_destroy(cond) __ast_cond_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
-#define ast_cond_signal(cond) __ast_cond_signal(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
-#define ast_cond_broadcast(cond) __ast_cond_broadcast(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
-#define ast_cond_wait(cond, mutex) __ast_cond_wait(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, #mutex, cond, mutex)
-#define ast_cond_timedwait(cond, mutex, time) __ast_cond_timedwait(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, #mutex, cond, mutex, time)
-
 #else /* !DEBUG_THREADS */
 
 
@@ -635,57 +490,7 @@ static inline int ast_mutex_init(ast_mutex_t *pmutex)
 
 #define ast_pthread_mutex_init(pmutex,a) pthread_mutex_init(pmutex,a)
 
-static inline int ast_mutex_unlock(ast_mutex_t *pmutex)
-{
-	return pthread_mutex_unlock(pmutex);
-}
-
-static inline int ast_mutex_destroy(ast_mutex_t *pmutex)
-{
-	return pthread_mutex_destroy(pmutex);
-}
-
-static inline int ast_mutex_lock(ast_mutex_t *pmutex)
-{
-	__MTX_PROF(pmutex);
-}
-
-static inline int ast_mutex_trylock(ast_mutex_t *pmutex)
-{
-	return pthread_mutex_trylock(pmutex);
-}
-
 typedef pthread_cond_t ast_cond_t;
-
-static inline int ast_cond_init(ast_cond_t *cond, pthread_condattr_t *cond_attr)
-{
-	return pthread_cond_init(cond, cond_attr);
-}
-
-static inline int ast_cond_signal(ast_cond_t *cond)
-{
-	return pthread_cond_signal(cond);
-}
-
-static inline int ast_cond_broadcast(ast_cond_t *cond)
-{
-	return pthread_cond_broadcast(cond);
-}
-
-static inline int ast_cond_destroy(ast_cond_t *cond)
-{
-	return pthread_cond_destroy(cond);
-}
-
-static inline int ast_cond_wait(ast_cond_t *cond, ast_mutex_t *t)
-{
-	return pthread_cond_wait(cond, t);
-}
-
-static inline int ast_cond_timedwait(ast_cond_t *cond, ast_mutex_t *t, const struct timespec *abstime)
-{
-	return pthread_cond_timedwait(cond, t, abstime);
-}
 
 #endif /* !DEBUG_THREADS */
 
@@ -698,10 +503,6 @@ static void  __attribute__((constructor)) init_##mutex(void) \
 { \
 	ast_mutex_init(&mutex); \
 } \
-static void  __attribute__((destructor)) fini_##mutex(void) \
-{ \
-	ast_mutex_destroy(&mutex); \
-}
 #else /* !AST_MUTEX_INIT_W_CONSTRUCTORS */
 /* By default, use static initialization of mutexes. */ 
 #define __AST_MUTEX_DEFINE(scope, mutex) \
@@ -709,18 +510,8 @@ static void  __attribute__((destructor)) fini_##mutex(void) \
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
 #define pthread_mutex_t use_ast_mutex_t_instead_of_pthread_mutex_t
-#define pthread_mutex_lock use_ast_mutex_lock_instead_of_pthread_mutex_lock
-#define pthread_mutex_unlock use_ast_mutex_unlock_instead_of_pthread_mutex_unlock
-#define pthread_mutex_trylock use_ast_mutex_trylock_instead_of_pthread_mutex_trylock
 #define pthread_mutex_init use_ast_mutex_init_instead_of_pthread_mutex_init
-#define pthread_mutex_destroy use_ast_mutex_destroy_instead_of_pthread_mutex_destroy
 #define pthread_cond_t use_ast_cond_t_instead_of_pthread_cond_t
-#define pthread_cond_init use_ast_cond_init_instead_of_pthread_cond_init
-#define pthread_cond_destroy use_ast_cond_destroy_instead_of_pthread_cond_destroy
-#define pthread_cond_signal use_ast_cond_signal_instead_of_pthread_cond_signal
-#define pthread_cond_broadcast use_ast_cond_broadcast_instead_of_pthread_cond_broadcast
-#define pthread_cond_wait use_ast_cond_wait_instead_of_pthread_cond_wait
-#define pthread_cond_timedwait use_ast_cond_timedwait_instead_of_pthread_cond_timedwait
 
 #define AST_MUTEX_DEFINE_STATIC(mutex) __AST_MUTEX_DEFINE(static, mutex)
 
@@ -762,19 +553,9 @@ static inline int ast_rwlock_rdlock(ast_rwlock_t *prwlock)
 	return pthread_rwlock_rdlock(prwlock);
 }
 
-static inline int ast_rwlock_tryrdlock(ast_rwlock_t *prwlock)
-{
-	return pthread_rwlock_tryrdlock(prwlock);
-}
-
 static inline int ast_rwlock_wrlock(ast_rwlock_t *prwlock)
 {
 	return pthread_rwlock_wrlock(prwlock);
-}
-
-static inline int ast_rwlock_trywrlock(ast_rwlock_t *prwlock)
-{
-	return pthread_rwlock_trywrlock(prwlock);
 }
 
 /* Statically declared read/write locks */
@@ -880,18 +661,7 @@ AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
 })
 #endif
 
-#ifndef DEBUG_CHANNEL_LOCKS
-/*! \brief Lock a channel. If DEBUG_CHANNEL_LOCKS is defined 
-	in the Makefile, print relevant output for debugging */
-#define ast_channel_lock(x)		ast_mutex_lock(&x->lock)
-/*! \brief Unlock a channel. If DEBUG_CHANNEL_LOCKS is defined 
-	in the Makefile, print relevant output for debugging */
-#define ast_channel_unlock(x)		ast_mutex_unlock(&x->lock)
-/*! \brief Try locking a channel. If DEBUG_CHANNEL_LOCKS is defined 
-	in the Makefile, print relevant output for debugging */
-#define ast_channel_trylock(x)		ast_mutex_trylock(&x->lock)
-#else
-
+#ifdef DEBUG_CHANNEL_LOCKS
 /*! \brief Lock AST channel (and print debugging output)
 \note You need to enable DEBUG_CHANNEL_LOCKS for this function */
 int ast_channel_lock(struct ast_channel *chan);
@@ -951,22 +721,19 @@ int ast_channel_trylock(struct ast_channel *chan);
 #define ast_vasprintf(ret, fmt, ap) \
 	_ast_vasprintf((ret), __FILE__, __LINE__, __PRETTY_FUNCTION__, (fmt), (ap))
 
-
-static unsigned int __unsigned_int_flags_dummy;
-
 struct ast_flags {  /* stolen from utils.h */
 	unsigned int flags;
 };
 #define ast_test_flag(p,flag) 		({ \
 					typeof ((p)->flags) __p = (p)->flags; \
-					typeof (__unsigned_int_flags_dummy) __x = 0; \
+					unsigned int __x = 0; \
 					(void) (&__p == &__x); \
 					((p)->flags & (flag)); \
 					})
 
 #define ast_set2_flag(p,value,flag)	do { \
 					typeof ((p)->flags) __p = (p)->flags; \
-					typeof (__unsigned_int_flags_dummy) __x = 0; \
+					unsigned int __x = 0; \
 					(void) (&__p == &__x); \
 					if (value) \
 						(p)->flags |= (flag); \
@@ -1906,9 +1673,6 @@ extern int ast_language_is_prefix;
 
 /* linkedlists.h */
 
-#define AST_LIST_LOCK(head)						\
-	ast_mutex_lock(&(head)->lock) 
-
 /*!
   \brief Write locks a list.
   \param head This is a pointer to the list head structure
@@ -1931,50 +1695,6 @@ extern int ast_language_is_prefix;
 #define AST_RWLIST_RDLOCK(head)                                         \
         ast_rwlock_rdlock(&(head)->lock)
 	
-/*!
-  \brief Locks a list, without blocking if the list is locked.
-  \param head This is a pointer to the list head structure
-
-  This macro attempts to place an exclusive lock in the
-  list head structure pointed to by head.
-  Returns non-zero on success, 0 on failure
-*/
-#define AST_LIST_TRYLOCK(head)						\
-	ast_mutex_trylock(&(head)->lock) 
-
-/*!
-  \brief Write locks a list, without blocking if the list is locked.
-  \param head This is a pointer to the list head structure
-
-  This macro attempts to place an exclusive write lock in the
-  list head structure pointed to by head.
-  Returns non-zero on success, 0 on failure
-*/
-#define AST_RWLIST_TRYWRLOCK(head)                                      \
-        ast_rwlock_trywrlock(&(head)->lock)
-
-/*!
-  \brief Read locks a list, without blocking if the list is locked.
-  \param head This is a pointer to the list head structure
-
-  This macro attempts to place a read lock in the
-  list head structure pointed to by head.
-  Returns non-zero on success, 0 on failure
-*/
-#define AST_RWLIST_TRYRDLOCK(head)                                      \
-        ast_rwlock_tryrdlock(&(head)->lock)
-	
-/*!
-  \brief Attempts to unlock a list.
-  \param head This is a pointer to the list head structure
-
-  This macro attempts to remove an exclusive lock from the
-  list head structure pointed to by head. If the list
-  was not locked by this thread, this macro has no effect.
-*/
-#define AST_LIST_UNLOCK(head) 						\
-	ast_mutex_unlock(&(head)->lock)
-
 /*!
   \brief Attempts to unlock a read/write based list.
   \param head This is a pointer to the list head structure
@@ -2450,20 +2170,6 @@ struct {								\
         (head)->first = NULL;                                           \
         (head)->last = NULL;                                            \
         ast_rwlock_init(&(head)->lock);                                 \
-}
-
-/*!
-  \brief Destroys a list head structure.
-  \param head This is a pointer to the list head structure
-
-  This macro destroys a list head structure by setting the head
-  entry to \a NULL (empty list) and destroying the embedded lock.
-  It does not free the structure from memory.
-*/
-#define AST_LIST_HEAD_DESTROY(head) {					\
-	(head)->first = NULL;						\
-	(head)->last = NULL;						\
-	ast_mutex_destroy(&(head)->lock);				\
 }
 
 /*!
@@ -3016,29 +2722,6 @@ AST_LIST_HEAD(store_hints, store_hint);
 #define STATUS_NO_PRIORITY	3
 #define STATUS_NO_LABEL		4
 #define STATUS_SUCCESS		5
-
-
-#if defined ( __i386__) && (defined(__FreeBSD__) || defined(linux))
-#if defined(__FreeBSD__)
-#include <machine/cpufunc.h>
-#elif defined(linux)
-static __inline uint64_t
-rdtsc(void)
-{ 
-	uint64_t rv;
-
-	__asm __volatile(".byte 0x0f, 0x31" : "=A" (rv));
-	return (rv);
-}
-#endif
-#else	/* supply a dummy function on other platforms */
-static __inline uint64_t
-rdtsc(void)
-{
-	return 0;
-}
-#endif
-
 
 static struct ast_var_t *ast_var_assign(const char *name, const char *value)
 {	
