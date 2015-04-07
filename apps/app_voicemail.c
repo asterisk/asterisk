@@ -8802,7 +8802,7 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 		} else if ((!strcasecmp(vms->curbox, "INBOX") || !strcasecmp(vms->curbox, "Urgent")) && vms->heard[x] && ast_test_flag(vmu, VM_MOVEHEARD) && !vms->deleted[x]) {
 			/* Move to old folder before deleting */
 			res = save_to_folder(vmu, vms, x, 1, NULL, 0);
-			if (res == ERROR_LOCK_PATH) {
+			if (res) {
 				/* If save failed do not delete the message */
 				ast_log(AST_LOG_WARNING, "Save failed.  Not moving message: %s.\n", res == ERROR_LOCK_PATH ? "unable to lock path" : "destination folder full");
 				vms->deleted[x] = 0;
@@ -8812,7 +8812,7 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 		} else if (vms->deleted[x] && vmu->maxdeletedmsg) {
 			/* Move to deleted folder */
 			res = save_to_folder(vmu, vms, x, 10, NULL, 0);
-			if (res == ERROR_LOCK_PATH) {
+			if (res) {
 				/* If save failed do not delete the message */
 				vms->deleted[x] = 0;
 				vms->heard[x] = 0;
