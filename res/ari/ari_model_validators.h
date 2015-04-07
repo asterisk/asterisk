@@ -809,6 +809,24 @@ int ast_ari_validate_channel_hangup_request(struct ast_json *json);
 ari_validator ast_ari_validate_channel_hangup_request_fn(void);
 
 /*!
+ * \brief Validator for ChannelHold.
+ *
+ * A channel initiated a media hold.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_channel_hold(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_channel_hold().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_channel_hold_fn(void);
+
+/*!
  * \brief Validator for ChannelLeftBridge.
  *
  * Notification that a channel has left a bridge.
@@ -879,6 +897,24 @@ int ast_ari_validate_channel_talking_started(struct ast_json *json);
  * See \ref ast_ari_model_validators.h for more details.
  */
 ari_validator ast_ari_validate_channel_talking_started_fn(void);
+
+/*!
+ * \brief Validator for ChannelUnhold.
+ *
+ * A channel initiated a media unhold.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_channel_unhold(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_channel_unhold().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_channel_unhold_fn(void);
 
 /*!
  * \brief Validator for ChannelUserevent.
@@ -1393,6 +1429,11 @@ ari_validator ast_ari_validate_application_fn(void);
  * - cause: int
  * - channel: Channel (required)
  * - soft: boolean
+ * ChannelHold
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date
+ * - channel: Channel (required)
  * ChannelLeftBridge
  * - type: string (required)
  * - application: string (required)
@@ -1411,6 +1452,11 @@ ari_validator ast_ari_validate_application_fn(void);
  * - channel: Channel (required)
  * - duration: int (required)
  * ChannelTalkingStarted
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date
+ * - channel: Channel (required)
+ * ChannelUnhold
  * - type: string (required)
  * - application: string (required)
  * - timestamp: Date

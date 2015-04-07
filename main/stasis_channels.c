@@ -1136,6 +1136,47 @@ static struct ast_json *talking_stop_to_json(struct stasis_message *message,
 	return channel_blob_to_json(message, "ChannelTalkingFinished", sanitize);
 }
 
+static struct ast_json *hold_to_json(struct stasis_message *message,
+	const struct stasis_message_sanitizer *sanitize)
+{
+	struct ast_channel_blob *channel_blob = stasis_message_data(message);
+	struct ast_json *blob = channel_blob->blob;
+	struct ast_channel_snapshot *snapshot = channel_blob->snapshot;
+	const char *musicclass = ast_json_string_get(ast_json_object_get(blob, "musicclass"));
+	const struct timeval *tv = stasis_message_timestamp(message);
+	struct ast_json *json_channel;
+
+	json_channel = ast_channel_snapshot_to_json(snapshot, sanitize);
+	if (!json_channel) {
+		return NULL;
+	}
+
+	return ast_json_pack("{s: s, s: o, s: s, s: o}",
+		"type", "ChannelHold",
+		"timestamp", ast_json_timeval(*tv, NULL),
+		"musicclass", S_OR(musicclass, "N/A"),
+		"channel", json_channel);
+}
+
+static struct ast_json *unhold_to_json(struct stasis_message *message,
+	const struct stasis_message_sanitizer *sanitize)
+{
+	struct ast_channel_blob *channel_blob = stasis_message_data(message);
+	struct ast_channel_snapshot *snapshot = channel_blob->snapshot;
+	const struct timeval *tv = stasis_message_timestamp(message);
+	struct ast_json *json_channel;
+
+	json_channel = ast_channel_snapshot_to_json(snapshot, sanitize);
+	if (!json_channel) {
+		return NULL;
+	}
+
+	return ast_json_pack("{s: s, s: o, s: o}",
+		"type", "ChannelUnhold",
+		"timestamp", ast_json_timeval(*tv, NULL),
+		"channel", json_channel);
+}
+
 /*!
  * @{ \brief Define channel message types.
  */
@@ -1154,8 +1195,12 @@ STASIS_MESSAGE_TYPE_DEFN(ast_channel_dtmf_begin_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_dtmf_end_type,
 	.to_json = dtmf_end_to_json,
 	);
-STASIS_MESSAGE_TYPE_DEFN(ast_channel_hold_type);
-STASIS_MESSAGE_TYPE_DEFN(ast_channel_unhold_type);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_hold_type,
+	.to_json = hold_to_json,
+	);
+STASIS_MESSAGE_TYPE_DEFN(ast_channel_unhold_type,
+	.to_json = unhold_to_json,
+	);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_chanspy_start_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_chanspy_stop_type);
 STASIS_MESSAGE_TYPE_DEFN(ast_channel_fax_type);

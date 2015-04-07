@@ -1196,8 +1196,8 @@ int ast_queue_hangup_with_cause(struct ast_channel *chan, int cause)
 
 int ast_queue_hold(struct ast_channel *chan, const char *musicclass)
 {
-	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 	struct ast_frame f = { AST_FRAME_CONTROL, .subclass.integer = AST_CONTROL_HOLD };
+	struct ast_json *blob = NULL;
 	int res;
 
 	if (!ast_strlen_zero(musicclass)) {
@@ -1211,6 +1211,8 @@ int ast_queue_hold(struct ast_channel *chan, const char *musicclass)
 	ast_channel_publish_cached_blob(chan, ast_channel_hold_type(), blob);
 
 	res = ast_queue_frame(chan, &f);
+
+	ast_json_unref(blob);
 
 	return res;
 }

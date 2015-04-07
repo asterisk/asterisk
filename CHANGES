@@ -118,6 +118,22 @@ chan_pjsip
    more information.  Defaults to 'no' as setting it to 'yes' can result in
    many unnecessary messages being sent to the caller.
 
+res_ari_channels
+------------------
+ * Two new events, 'ChannelHold' and 'ChannelUnhold', have been added to the
+   events data model. These events are raised when a channel indicates a hold
+   or unhold, respectively.
+
+func_holdintercept
+------------------
+ * A new dialplan function, HOLD_INTERCEPT, has been added. This function, when
+   placed on a channel, intercepts hold/unhold indications signalled by the
+   channel and prevents them from moving on to other channels in a bridge with
+   the hold initiator. Instead, AMI or ARI events are raised indicating that
+   the channel wanted to place someone on hold. This allows external
+   applications to implement their own custom hold/unhold logic.
+
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.2.0 to Asterisk 13.3.0 ------------
 ------------------------------------------------------------------------------
