@@ -2185,13 +2185,13 @@ static void cleanup_stale_contexts(char *new, char *old)
 	char *oldcontext, *newcontext, *stalecontext, *stringp, newlist[AST_MAX_CONTEXT];
 
 	while ((oldcontext = strsep(&old, "&"))) {
-		stalecontext = '\0';
+		stalecontext = NULL;
 		ast_copy_string(newlist, new, sizeof(newlist));
 		stringp = newlist;
 		while ((newcontext = strsep(&stringp, "&"))) {
 			if (strcmp(newcontext, oldcontext) == 0) {
 				/* This is not the context you're looking for */
-				stalecontext = '\0';
+				stalecontext = NULL;
 				break;
 			} else if (strcmp(newcontext, oldcontext)) {
 				stalecontext = oldcontext;

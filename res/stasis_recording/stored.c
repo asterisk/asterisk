@@ -470,7 +470,7 @@ int stasis_app_stored_recording_copy(struct stasis_app_stored_recording *src_rec
 	/* Drop the extension if specified, core will do this for us */
 	format = strrchr(dst_file, '.');
 	if (format) {
-		format = '\0';
+		*format = '\0';
 	}
 
 	/* See if any intermediary directories need to be made */
