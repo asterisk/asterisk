@@ -482,13 +482,11 @@ AST_TEST_DEFINE(test_MATH_function)
 
 	ast_test_status_update(test, "Testing MATH() substitution ...\n");
 
-	if (!(expr = ast_str_create(16)) || !(result = ast_str_create(16))) {
-		if (expr) {
-			ast_free(expr);
-		}
-		if (result) {
-			ast_free(result);
-		}
+	if (!(expr = ast_str_create(16))) {
+		return AST_TEST_FAIL;
+	}
+	if (!(result = ast_str_create(16))) {
+		ast_free(expr);
 		return AST_TEST_FAIL;
 	}
 
