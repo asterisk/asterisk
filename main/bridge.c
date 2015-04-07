@@ -4540,6 +4540,7 @@ enum ast_transfer_result ast_bridge_transfer_attended(struct ast_channel *to_tra
 		ast_bridge_unlock(to_transferee_bridge);
 		ast_bridge_unlock(to_target_bridge);
 
+		ast_softhangup(to_transfer_target, AST_SOFTHANGUP_DEV);
 		goto end;
 	}
 
