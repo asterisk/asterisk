@@ -673,9 +673,16 @@ static pj_bool_t module_on_rx_request(pjsip_rx_data *rdata)
 		return PJ_TRUE;
 	}
 
-	/* send it to the messaging core */
-	ast_msg_queue(msg);
-	send_response(rdata, PJSIP_SC_ACCEPTED, NULL, NULL);
+	/* Send it to the messaging core.
+	 *
+	 * If we are unable to send a response, the most likely reason is that we
+	 * are handling a retransmission of an incoming MESSAGE and were unable to
+	 * create a transaction due to a duplicate key. If we are unable to send
+	 * a response, we should not queue the message to the dialplan
+	 */
+	if (!send_response(rdata, PJSIP_SC_ACCEPTED, NULL, NULL)) {
+		ast_msg_queue(msg);
+	}
 
 	return PJ_TRUE;
 }
