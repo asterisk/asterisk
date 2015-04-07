@@ -1061,20 +1061,22 @@ static void channel_hold_cb(void *data, struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
 	struct ast_channel_blob *obj = stasis_message_data(message);
-	const char *musicclass;
-	RAII_VAR(struct ast_str *, musicclass_string, NULL, ast_free);
-	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
+	struct ast_str *musicclass_string = ast_str_create(32);
+	struct ast_str *channel_event_string;
 
-	if (!(musicclass_string = ast_str_create(32))) {
+	if (!musicclass_string) {
 		return;
 	}
 
 	channel_event_string = ast_manager_build_channel_state_string(obj->snapshot);
 	if (!channel_event_string) {
+		ast_free(musicclass_string);
 		return;
 	}
 
 	if (obj->blob) {
+		const char *musicclass;
+
 		musicclass = ast_json_string_get(ast_json_object_get(obj->blob, "musicclass"));
 
 		if (!ast_strlen_zero(musicclass)) {
@@ -1087,13 +1089,16 @@ static void channel_hold_cb(void *data, struct stasis_subscription *sub,
 		"%s",
 		ast_str_buffer(channel_event_string),
 		ast_str_buffer(musicclass_string));
+
+	ast_free(musicclass_string);
+	ast_free(channel_event_string);
 }
 
 static void channel_unhold_cb(void *data, struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
 	struct ast_channel_blob *obj = stasis_message_data(message);
-	RAII_VAR(struct ast_str *, channel_event_string, NULL, ast_free);
+	struct ast_str *channel_event_string;
 
 	channel_event_string = ast_manager_build_channel_state_string(obj->snapshot);
 	if (!channel_event_string) {
@@ -1103,6 +1108,8 @@ static void channel_unhold_cb(void *data, struct stasis_subscription *sub,
 	manager_event(EVENT_FLAG_CALL, "Unhold",
 		"%s",
 		ast_str_buffer(channel_event_string));
+
+	ast_free(channel_event_string);
 }
 
 static void manager_channels_shutdown(void)

@@ -161,6 +161,8 @@
 				"ChannelVarset",
 				"ChannelTalkingStarted",
 				"ChannelTalkingFinished",
+				"ChannelHold",
+				"ChannelUnhold",
 				"EndpointStateChange",
 				"Dial",
 				"StasisEnd",
@@ -595,6 +597,28 @@
 					"required": false,
 					"type": "Channel",
 					"description": "The channel on which the variable was set.\n\nIf missing, the variable is a global variable."
+				}
+			}
+		},
+		"ChannelHold": {
+			"id": "ChannelHold",
+			"description": "A channel initiated a media hold.",
+			"properties": {
+				"channel": {
+					"required": true,
+					"type": "Channel",
+					"description": "The channel that initiated the hold event."
+				}
+			}
+		},
+		"ChannelUnhold": {
+			"id": "ChannelUnhold",
+			"description": "A channel initiated a media unhold.",
+			"properties": {
+				"channel": {
+					"required": true,
+					"type": "Channel",
+					"description": "The channel that initiated the unhold event."
 				}
 			}
 		},

@@ -979,7 +979,8 @@ int ast_bridge_channel_write_control_data(struct ast_bridge_channel *bridge_chan
 
 int ast_bridge_channel_write_hold(struct ast_bridge_channel *bridge_channel, const char *moh_class)
 {
-	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+	struct ast_json *blob;
+	int res;
 	size_t datalen;
 
 	if (!ast_strlen_zero(moh_class)) {
@@ -990,12 +991,16 @@ int ast_bridge_channel_write_hold(struct ast_bridge_channel *bridge_channel, con
 	} else {
 		moh_class = NULL;
 		datalen = 0;
+		blob = NULL;
 	}
 
 	ast_channel_publish_cached_blob(bridge_channel->chan, ast_channel_hold_type(), blob);
 
-	return ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_HOLD,
+	res = ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_HOLD,
 		moh_class, datalen);
+
+	ast_json_unref(blob);
+	return res;
 }
 
 int ast_bridge_channel_write_unhold(struct ast_bridge_channel *bridge_channel)
