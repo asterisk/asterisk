@@ -1194,18 +1194,17 @@ static struct ast_bridge_technology softmix_bridge = {
 
 static int unload_module(void)
 {
-	ao2_cleanup(softmix_bridge.format_capabilities);
-	softmix_bridge.format_capabilities = NULL;
-	return ast_bridge_technology_unregister(&softmix_bridge);
+	ast_bridge_technology_unregister(&softmix_bridge);
+	return 0;
 }
 
 static int load_module(void)
 {
-	if (!(softmix_bridge.format_capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
+	if (ast_bridge_technology_register(&softmix_bridge)) {
+		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	ast_format_cap_append(softmix_bridge.format_capabilities, ast_format_slin, 0);
-	return ast_bridge_technology_register(&softmix_bridge);
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Multi-party software based channel mixing");

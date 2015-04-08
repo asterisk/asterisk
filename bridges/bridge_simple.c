@@ -76,21 +76,17 @@ static struct ast_bridge_technology simple_bridge = {
 
 static int unload_module(void)
 {
-	ao2_cleanup(simple_bridge.format_capabilities);
-	simple_bridge.format_capabilities = NULL;
-	return ast_bridge_technology_unregister(&simple_bridge);
+	ast_bridge_technology_unregister(&simple_bridge);
+	return 0;
 }
 
 static int load_module(void)
 {
-	if (!(simple_bridge.format_capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
+	if (ast_bridge_technology_register(&simple_bridge)) {
+		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	ast_format_cap_append_by_type(simple_bridge.format_capabilities, AST_MEDIA_TYPE_AUDIO);
-	ast_format_cap_append_by_type(simple_bridge.format_capabilities, AST_MEDIA_TYPE_VIDEO);
-	ast_format_cap_append_by_type(simple_bridge.format_capabilities, AST_MEDIA_TYPE_TEXT);
-
-	return ast_bridge_technology_register(&simple_bridge);
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Simple two channel bridging module");

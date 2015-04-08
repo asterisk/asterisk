@@ -428,21 +428,17 @@ static void deferred_action(struct ast_bridge_channel *bridge_channel, const voi
 
 static int unload_module(void)
 {
-	ao2_cleanup(holding_bridge.format_capabilities);
-	holding_bridge.format_capabilities = NULL;
-	return ast_bridge_technology_unregister(&holding_bridge);
+	ast_bridge_technology_unregister(&holding_bridge);
+	return 0;
 }
 
 static int load_module(void)
 {
-	if (!(holding_bridge.format_capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
+	if (ast_bridge_technology_register(&holding_bridge)) {
+		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	ast_format_cap_append_by_type(holding_bridge.format_capabilities, AST_MEDIA_TYPE_AUDIO);
-	ast_format_cap_append_by_type(holding_bridge.format_capabilities, AST_MEDIA_TYPE_VIDEO);
-	ast_format_cap_append_by_type(holding_bridge.format_capabilities, AST_MEDIA_TYPE_TEXT);
-
-	return ast_bridge_technology_register(&holding_bridge);
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Holding bridge module");
