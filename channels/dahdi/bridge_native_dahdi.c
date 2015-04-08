@@ -893,7 +893,6 @@ static struct ast_bridge_technology native_bridge = {
 void dahdi_native_unload(void)
 {
 	ast_bridge_technology_unregister(&native_bridge);
-	ao2_cleanup(native_bridge.format_capabilities);
 }
 
 /*!
@@ -908,18 +907,10 @@ int dahdi_native_load(struct ast_module *mod, const struct ast_channel_tech *tec
 {
 	dahdi_tech = tech;
 
-	native_bridge.format_capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
-	if (!native_bridge.format_capabilities) {
+	if (__ast_bridge_technology_register(&native_bridge, mod)) {
+		dahdi_native_unload();
 		return -1;
 	}
 
-	/*
-	 * This is used to make channels compatible with the bridge
-	 * itself not with each other.
-	 */
-	ast_format_cap_append(native_bridge.format_capabilities, ast_format_slin, 0);
-	ast_format_cap_append(native_bridge.format_capabilities, ast_format_ulaw, 0);
-	ast_format_cap_append(native_bridge.format_capabilities, ast_format_alaw, 0);
-
-	return __ast_bridge_technology_register(&native_bridge, mod);
+	return 0;
 }

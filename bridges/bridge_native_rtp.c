@@ -474,20 +474,17 @@ static struct ast_bridge_technology native_rtp_bridge = {
 
 static int unload_module(void)
 {
-	ao2_t_ref(native_rtp_bridge.format_capabilities, -1, "Dispose of capabilities in module unload");
-	return ast_bridge_technology_unregister(&native_rtp_bridge);
+	ast_bridge_technology_unregister(&native_rtp_bridge);
+	return 0;
 }
 
 static int load_module(void)
 {
-	if (!(native_rtp_bridge.format_capabilities = ast_format_cap_alloc(0))) {
+	if (ast_bridge_technology_register(&native_rtp_bridge)) {
+		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	ast_format_cap_append_by_type(native_rtp_bridge.format_capabilities, AST_MEDIA_TYPE_AUDIO);
-	ast_format_cap_append_by_type(native_rtp_bridge.format_capabilities, AST_MEDIA_TYPE_VIDEO);
-	ast_format_cap_append_by_type(native_rtp_bridge.format_capabilities, AST_MEDIA_TYPE_TEXT);
-
-	return ast_bridge_technology_register(&native_rtp_bridge);
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Native RTP bridging module");

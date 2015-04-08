@@ -152,7 +152,10 @@ struct ast_bridge_technology {
 	 * \note On entry, bridge is already locked.
 	 */
 	int (*write)(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel, struct ast_frame *frame);
-	/*! Formats that the bridge technology supports */
+	/*!
+	 * \brief Formats that the bridge technology supports
+	 * \note This is no longer used.  It remains for ABI compatibility.
+	 */
 	struct ast_format_cap *format_capabilities;
 	/*! TRUE if the bridge technology is currently suspended. */
 	unsigned int suspended:1;
