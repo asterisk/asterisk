@@ -451,9 +451,15 @@ static void t38_masq(void *data, int framehook_id,
 	ast_framehook_detach(new_chan, framehook_id);
 }
 
+static const struct ast_datastore_info t38_framehook_datastore = {
+	.type = "T38 framehook",
+};
+
 /*! \brief Function called to attach T.38 framehook to channel when appropriate */
 static void t38_attach_framehook(struct ast_sip_session *session)
 {
+	int framehook_id;
+	struct ast_datastore *datastore = NULL;
 	static struct ast_framehook_interface hook = {
 		.version = AST_FRAMEHOOK_INTERFACE_VERSION,
 		.event_cb = t38_framehook,
@@ -461,17 +467,38 @@ static void t38_attach_framehook(struct ast_sip_session *session)
 		.chan_breakdown_cb = t38_masq,
 	};
 
-	/* Only attach the framehook on the first outgoing INVITE or the first incoming INVITE */
-	if ((session->inv_session->state != PJSIP_INV_STATE_NULL &&
-		session->inv_session->state != PJSIP_INV_STATE_INCOMING) ||
-		!session->endpoint->media.t38.enabled) {
+	/* Only attach the framehook if t38 is enabled for the endpoint */
+	if (!session->endpoint->media.t38.enabled) {
 		return;
 	}
 
-	if (ast_framehook_attach(session->channel, &hook) < 0) {
+	/* Skip attaching the framehook if the T.38 datastore already exists for the channel */
+	ast_channel_lock(session->channel);
+	if ((datastore = ast_channel_datastore_find(session->channel, &t38_framehook_datastore, NULL))) {
+		ast_channel_unlock(session->channel);
+		return;
+	}
+	ast_channel_unlock(session->channel);
+
+	framehook_id = ast_framehook_attach(session->channel, &hook);
+	if (framehook_id < 0) {
 		ast_log(LOG_WARNING, "Could not attach T.38 Frame hook to channel, T.38 will be unavailable on '%s'\n",
 			ast_channel_name(session->channel));
+		return;
 	}
+
+	ast_channel_lock(session->channel);
+	datastore = ast_datastore_alloc(&t38_framehook_datastore, NULL);
+	if (!datastore) {
+		ast_log(LOG_ERROR, "Could not attach T.38 Frame hook to channel, T.38 will be unavailable on '%s'\n",
+			ast_channel_name(session->channel));
+		ast_framehook_detach(session->channel, framehook_id);
+		ast_channel_unlock(session->channel);
+		return;
+	}
+
+	ast_channel_datastore_add(session->channel, datastore);
+	ast_channel_unlock(session->channel);
 }
 
 /*! \brief Function called when an INVITE goes out */
