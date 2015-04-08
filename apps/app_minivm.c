@@ -1838,7 +1838,8 @@ static int notify_new_message(struct ast_channel *chan, const char *templatename
 		etemplate = message_template_find(vmu->ptemplate);
 		if (!etemplate)
 			etemplate = message_template_find("pager-default");
-		if (etemplate->locale) {
+
+		if (!ast_strlen_zero(etemplate->locale)) {
 			ast_copy_string(oldlocale, setlocale(LC_TIME, ""), sizeof(oldlocale));
 			setlocale(LC_TIME, etemplate->locale);
 		}
@@ -1867,9 +1868,8 @@ static int notify_new_message(struct ast_channel *chan, const char *templatename
 
 notify_cleanup:
 	run_externnotify(chan, vmu);		/* Run external notification */
-
-	if (etemplate->locale) {
-		setlocale(LC_TIME, oldlocale); /* Rest to old locale */
+	if (!ast_strlen_zero(etemplate->locale)) {
+		setlocale(LC_TIME, oldlocale);	/* Reset to old locale */
 	}
 	return res;
 }

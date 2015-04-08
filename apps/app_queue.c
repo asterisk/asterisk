@@ -6684,7 +6684,7 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 		ast_channel_unlock(qe->chan);
 
 		/* Begin Monitoring */
-		if (qe->parent->monfmt && *qe->parent->monfmt) {
+		if (*qe->parent->monfmt) {
 			if (!qe->parent->montype) {
 				const char *monexec;
 				ast_debug(1, "Starting Monitor as requested.\n");
@@ -9088,7 +9088,7 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
 				ast_str_set(&out, 0, "      %s", mem->membername);
 				if (strcasecmp(mem->membername, mem->interface)) {
 					ast_str_append(&out, 0, " (%s", mem->interface);
-					if (mem->state_interface) {
+					if (!ast_strlen_zero(mem->state_interface)) {
 						ast_str_append(&out, 0, " from %s", mem->state_interface);
 					}
 					ast_str_append(&out, 0, ")");

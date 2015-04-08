@@ -1892,12 +1892,6 @@ static int sendtext(void *obj)
 		.body_text = data->text
 	};
 
-	/* NOT ast_strlen_zero, because a zero-length message is specifically
-	 * allowed by RFC 3428 (See section 10, Examples) */
-	if (!data->text) {
-		return 0;
-	}
-
 	ast_debug(3, "Sending in dialog SIP message\n");
 
 	ast_sip_create_request("MESSAGE", data->session->inv_session->dlg, data->session->endpoint, NULL, NULL, &tdata);

@@ -873,10 +873,10 @@ static int smdi_md_q_cmp_fn(void *obj, void *arg, int flags)
 
 	switch (flags & OBJ_SEARCH_MASK) {
 	case OBJ_SEARCH_OBJECT:
-		if (search_msg->mesg_desk_num) {
+		if (!ast_strlen_zero(search_msg->mesg_desk_num)) {
 			cmp = strcmp(msg->mesg_desk_num, search_msg->mesg_desk_num);
 		}
-		if (search_msg->mesg_desk_term) {
+		if (!ast_strlen_zero(search_msg->mesg_desk_term)) {
 			cmp |= strcmp(msg->mesg_desk_term, search_msg->mesg_desk_term);
 		}
 		break;
