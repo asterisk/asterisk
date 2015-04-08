@@ -59,6 +59,9 @@
 ;
 ;show_user_defined=yes
 
+; Log date/time in GMT. The default of this option is 'no'.
+;usegmtime=yes
+
 ;hostname=localhost
 ;port=5432
 ;dbname=asterisk

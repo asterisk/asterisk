@@ -72,6 +72,7 @@ static char *table;
 
 static int connected = 0;
 static int maxsize = 512, maxsize2 = 512;
+static int usegmtime = 0;
 
 /*! \brief show_user_def is off by default */
 #define CEL_SHOW_USERDEF_DEFAULT	0
@@ -166,7 +167,7 @@ static void pgsql_log(struct ast_event *event)
 
 	ast_mutex_lock(&pgsql_lock);
 
-	ast_localtime(&record.event_time, &tm, NULL);
+	ast_localtime(&record.event_time, &tm, usegmtime ? "GMT" : NULL);
 	ast_strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
 
 	if ((!connected) && pghostname && pgdbuser && pgpassword && pgdbname) {
@@ -215,7 +216,7 @@ static void pgsql_log(struct ast_event *event)
 				} else {
 					/* char, hopefully */
 					LENGTHEN_BUF2(31);
-					ast_localtime(&record.event_time, &tm, NULL);
+					ast_localtime(&record.event_time, &tm, usegmtime ? "GMT" : NULL);
 					ast_strftime(buf, sizeof(buf), DATE_FORMAT, &tm);
 					ast_str_append(&sql2, 0, "%s'%s'", SEP, buf);
 				}
@@ -514,6 +515,11 @@ static int process_my_load_module(struct ast_config *cfg)
 	cel_show_user_def = CEL_SHOW_USERDEF_DEFAULT;
 	if ((tmp = ast_variable_retrieve(cfg, "global", "show_user_defined"))) {
 		cel_show_user_def = ast_true(tmp) ? 1 : 0;
+	}
+	if ((tmp = ast_variable_retrieve(cfg, "global", "usegmtime"))) {
+		usegmtime = ast_true(tmp);
+	} else {
+		usegmtime = 0;
 	}
 	if (option_debug) {
 		if (ast_strlen_zero(pghostname)) {

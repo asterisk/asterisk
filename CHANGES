@@ -106,6 +106,15 @@ res_musiconhold
    over the channel-set musicclass. This allows separate hold-music from
    application (e.g. Queue or Dial) specified music.
 
+
+CEL Backends
+------------------
+
+cel_pgsql
+------------------
+* Added a new option, 'usegmtime', which causes timestamps in CEL events
+  to be logged in GMT.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.3.0 to Asterisk 13.4.0 ------------
 ------------------------------------------------------------------------------
