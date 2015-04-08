@@ -639,9 +639,15 @@ static void *handle_tcptls_connection(void *data)
 							break;
 						}
 						str = X509_NAME_ENTRY_get_data(X509_NAME_get_entry(name, pos));
-						ASN1_STRING_to_UTF8(&str2, str);
+						ret = ASN1_STRING_to_UTF8(&str2, str);
+						if (ret < 0) {
+							continue;
+						}
+
 						if (str2) {
-							if (!strcasecmp(tcptls_session->parent->hostname, (char *) str2)) {
+							if (strlen((char *) str2) != ret) {
+								ast_log(LOG_WARNING, "Invalid certificate common name length (contains NULL bytes?)\n");
+							} else if (!strcasecmp(tcptls_session->parent->hostname, (char *) str2)) {
 								found = 1;
 							}
 							ast_debug(3, "SSL Common Name compare s1='%s' s2='%s'\n", tcptls_session->parent->hostname, str2);
