@@ -3801,7 +3801,7 @@ static void ast_sip_ouraddrfor(const struct ast_sockaddr *them, struct ast_socka
 	ast_ouraddrfor(them, us);
 	ast_sockaddr_copy(&theirs, them);
 
-	if (ast_sockaddr_is_ipv6(&theirs)) {
+	if (ast_sockaddr_is_ipv6(&theirs) && !ast_sockaddr_is_ipv4_mapped(&theirs)) {
 		if (localaddr && !ast_sockaddr_isnull(&externaddr) && !ast_sockaddr_is_any(&bindaddr)) {
 			ast_log(LOG_WARNING, "Address remapping activated in sip.conf "
 				"but we're using IPv6, which doesn't need it. Please "
