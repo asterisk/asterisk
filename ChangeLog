@@ -1,3 +1,28 @@
+2015-04-08  Asterisk Development Team <asteriskteam@digium.com>
+
+	* Asterisk 11.17.1 Released.
+
+	* Mitigate MitM attack potential from certificate with NULL byte in CN.
+
+	  When registering to a SIP server with TLS, Asterisk will accept CA
+	  signed certificates with a common name that was signed for a domain
+	  other	than the one requested if it contains a null character in the
+	  common name portion of the cert. This patch fixes that by checking
+	  that the common name length matches the the length of the content we
+	  actually read from the common	name segment. Some certificate
+	  authorities automatically sign CA requests when the requesting CN
+	  isn't already taken, so an attacker could potentially register a CN
+	  with something like www.google.com\x00www.secretlyevil.net and have
+	  their certificate signed and Asterisk would accept that certificate
+	  as though it had been for www.google.com.
+
+	  ASTERISK-24847 #close
+	  Reported by: Maciej Szmigiero
+	  patches:
+	    asterisk-null-in-cn.patch uploaded by mhej (license 6085)
+
+	  AST-2015-003
+
 2015-04-01  Asterisk Development Team <asteriskteam@digium.com>
 
 	* Asterisk 11.17.0 Released.
