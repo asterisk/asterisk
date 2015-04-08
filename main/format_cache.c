@@ -500,6 +500,7 @@ struct ast_format *ast_format_cache_get_slin_by_rate(unsigned int rate)
 int ast_format_cache_is_slinear(struct ast_format *format)
 {
 	if ((ast_format_cmp(format, ast_format_slin) == AST_FORMAT_CMP_EQUAL)
+		|| (ast_format_cmp(format, ast_format_slin12) == AST_FORMAT_CMP_EQUAL)
 		|| (ast_format_cmp(format, ast_format_slin16) == AST_FORMAT_CMP_EQUAL)
 		|| (ast_format_cmp(format, ast_format_slin24) == AST_FORMAT_CMP_EQUAL)
 		|| (ast_format_cmp(format, ast_format_slin32) == AST_FORMAT_CMP_EQUAL)
