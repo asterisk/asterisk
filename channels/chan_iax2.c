@@ -12350,14 +12350,15 @@ static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
 	/* And send the poke */
 	ast_mutex_lock(&iaxsl[callno]);
 	if (iaxs[callno]) {
-		/* Speed up retransmission times for this qualify call */
-		iaxs[callno]->pingtime = peer->maxms / 4 + 1;
-		iaxs[callno]->peerpoke = peer;
-
 		struct iax_ie_data ied = {
 			.buf = { 0 },
 			.pos = 0,
 		};
+
+		/* Speed up retransmission times for this qualify call */
+		iaxs[callno]->pingtime = peer->maxms / 4 + 1;
+		iaxs[callno]->peerpoke = peer;
+
 		add_empty_calltoken_ie(iaxs[callno], &ied); /* this _MUST_ be the last ie added */
 		send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_POKE, 0, ied.buf, ied.pos, -1);
 	}
