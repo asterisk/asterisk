@@ -12480,16 +12480,18 @@ static struct ast_channel *iax2_request(const char *type, struct ast_format_cap 
 		if (!ast_format_cap_count(joint)) {
 			struct ast_format *best_fmt_cap = NULL;
 			struct ast_format *best_fmt_native = NULL;
+
 			res = ast_translator_best_choice(cap, ast_channel_nativeformats(c), &best_fmt_cap, &best_fmt_native);
 			if (res < 0) {
-				struct ast_str *native_cap_buf = ast_str_alloca(64);
-				struct ast_str *cap_buf = ast_str_alloca(64);
+				struct ast_str *native_cap_buf = ast_str_alloca(256);
+				struct ast_str *cap_buf = ast_str_alloca(256);
 
 				ast_log(LOG_WARNING, "Unable to create translator path for %s to %s on %s\n",
 					ast_format_cap_get_names(ast_channel_nativeformats(c), &native_cap_buf),
 					ast_format_cap_get_names(cap, &cap_buf),
 					ast_channel_name(c));
 				ast_hangup(c);
+				ao2_ref(joint, -1);
 				return NULL;
 			}
 			ast_format_cap_append(joint, best_fmt_native, 0);
