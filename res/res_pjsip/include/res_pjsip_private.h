@@ -19,6 +19,7 @@
 
 struct ao2_container;
 struct ast_threadpool_options;
+struct ast_sip_cli_context;
 
 /*!
  * \internal
@@ -269,6 +270,24 @@ char *ast_sip_global_default_outbound_endpoint(void);
  */
 int ast_sip_initialize_cli(void);
 void ast_sip_destroy_cli(void);
+
+/*!
+ * \internal
+ * \brief Add res_pjsip global configuration options to the cli context.
+ *
+ * \param context context to add options to
+ * \retval 0 Success, -1 on failure
+ */
+int sip_cli_print_global(struct ast_sip_cli_context *context);
+
+/*!
+ * \internal
+ * \brief Add res_pjsip system configuration options to the cli context.
+ *
+ * \param context context to add options to
+ * \retval 0 Success, -1 on failure
+ */
+int sip_cli_print_system(struct ast_sip_cli_context *context);
 
 /*!
  * \internal

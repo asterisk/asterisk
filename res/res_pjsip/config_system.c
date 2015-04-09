@@ -26,6 +26,7 @@
 #include "include/res_pjsip_private.h"
 #include "asterisk/threadpool.h"
 #include "asterisk/dns.h"
+#include "asterisk/res_pjsip_cli.h"
 
 #define TIMER_T1_MIN 100
 #define DEFAULT_TIMER_T1 500
@@ -109,6 +110,40 @@ static int system_apply(const struct ast_sorcery *system_sorcery, void *obj)
 	pjsip_cfg()->endpt.disable_tcp_switch =
 		system->disable_tcp_switch ? PJ_TRUE : PJ_FALSE;
 
+	return 0;
+}
+
+static struct system_config *get_system_cfg(void)
+{
+	struct system_config *cfg;
+	struct ao2_container *systems;
+	systems = ast_sorcery_retrieve_by_fields(system_sorcery, "system",
+		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+
+	if (!systems) {
+		return NULL;
+	}
+
+	cfg = ao2_find(systems, NULL, 0);
+	ao2_ref(systems, -1);
+	return cfg;
+}
+
+int sip_cli_print_system(struct ast_sip_cli_context *context)
+{
+	struct system_config *cfg = get_system_cfg();
+
+	if (!cfg) {
+		cfg = ast_sorcery_alloc(system_sorcery, "system", NULL);
+		if (!cfg) {
+			return -1;
+		}
+	}
+
+	ast_str_append(&context->output_buffer, 0, "\nSystem Settings:\n\n");
+	ast_sip_cli_print_sorcery_objectset(cfg, context, 0);
+
+	ao2_ref(cfg, -1);
 	return 0;
 }
 
