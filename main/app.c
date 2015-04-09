@@ -1515,6 +1515,9 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 	case AST_RECORD_IF_EXISTS_APPEND:
 		ioflags |= O_APPEND;
 		break;
+	case AST_RECORD_IF_EXISTS_ERROR:
+		ast_assert(0);
+		break;
 	}
 
 	if (silencethreshold < 0) {

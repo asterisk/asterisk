@@ -985,6 +985,8 @@ int ast_play_and_wait(struct ast_channel *chan, const char *fn);
  * \since 12
  */
 enum ast_record_if_exists {
+	/*! Return an Error State for IF_Exists */
+	AST_RECORD_IF_EXISTS_ERROR = -1,
 	/*! Fail the recording. */
 	AST_RECORD_IF_EXISTS_FAIL,
 	/*! Overwrite the existing recording. */

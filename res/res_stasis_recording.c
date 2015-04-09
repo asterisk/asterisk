@@ -212,7 +212,7 @@ enum ast_record_if_exists stasis_app_recording_if_exists_parse(
 		return AST_RECORD_IF_EXISTS_APPEND;
 	}
 
-	return -1;
+	return AST_RECORD_IF_EXISTS_ERROR;
 }
 
 static void recording_publish(struct stasis_app_recording *recording, const char *cause)
@@ -595,13 +595,13 @@ enum stasis_app_recording_oper_results stasis_app_recording_operation(
 	recording_operation_cb cb;
 	SCOPED_AO2LOCK(lock, recording);
 
-	if (recording->state < 0 || recording->state >= STASIS_APP_RECORDING_STATE_MAX) {
+	if (recording->state >= STASIS_APP_RECORDING_STATE_MAX) {
 		ast_log(LOG_WARNING, "Invalid recording state %u\n",
 			recording->state);
 		return -1;
 	}
 
-	if (operation < 0 || operation >= STASIS_APP_RECORDING_OPER_MAX) {
+	if (operation >= STASIS_APP_RECORDING_OPER_MAX) {
 		ast_log(LOG_WARNING, "Invalid recording operation %u\n",
 			operation);
 		return -1;

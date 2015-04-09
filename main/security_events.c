@@ -886,7 +886,7 @@ const char *ast_security_event_severity_get_name(
 
 static int check_event_type(const enum ast_security_event_type event_type)
 {
-	if (event_type < 0 || event_type >= AST_SECURITY_EVENT_NUM_TYPES) {
+	if (event_type >= AST_SECURITY_EVENT_NUM_TYPES) {
 		ast_log(LOG_ERROR, "Invalid security event type %u\n", event_type);
 		return -1;
 	}
@@ -1172,7 +1172,7 @@ return_error:
 
 int ast_security_event_report(const struct ast_security_event_common *sec)
 {
-	if (sec->event_type < 0 || sec->event_type >= AST_SECURITY_EVENT_NUM_TYPES) {
+	if (sec->event_type >= AST_SECURITY_EVENT_NUM_TYPES) {
 		ast_log(LOG_ERROR, "Invalid security event type\n");
 		return -1;
 	}

@@ -626,7 +626,7 @@ void ast_ari_channels_record(struct ast_variable *headers,
 		return;
 	}
 
-	if (options->if_exists == -1) {
+	if (options->if_exists == AST_RECORD_IF_EXISTS_ERROR) {
 		ast_ari_response_error(
 			response, 400, "Bad Request",
 			"ifExists invalid");

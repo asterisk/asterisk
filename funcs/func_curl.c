@@ -171,7 +171,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define CURLVERSION_ATLEAST(a,b,c) \
 	((LIBCURL_VERSION_MAJOR > (a)) || ((LIBCURL_VERSION_MAJOR == (a)) && (LIBCURL_VERSION_MINOR > (b))) || ((LIBCURL_VERSION_MAJOR == (a)) && (LIBCURL_VERSION_MINOR == (b)) && (LIBCURL_VERSION_PATCH >= (c))))
 
-#define CURLOPT_SPECIAL_HASHCOMPAT -500
+#define CURLOPT_SPECIAL_HASHCOMPAT ((CURLoption) -500)
 
 static void curlds_free(void *data);
 

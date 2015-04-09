@@ -866,11 +866,11 @@ static int media_offer_read_av(struct ast_sip_session *session, char *buf,
 
 		/* add one since we'll include a comma */
 		size = strlen(ast_format_get_name(fmt)) + 1;
-		len -= size;
-		if ((len) < 0) {
+		if (len < size) {
 			ao2_ref(fmt, -1);
 			break;
 		}
+		len -= size;
 
 		/* no reason to use strncat here since we have already ensured buf has
                    enough space, so strcat can be safely used */

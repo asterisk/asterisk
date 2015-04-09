@@ -359,14 +359,13 @@ int ast_playtones_start(struct ast_channel *chan, int vol, const char *playlst, 
 
 		if (tone_data.midinote) {
 			/* midi notes must be between 0 and 127 */
-
-			if (tone_data.freq1 >= 0 && tone_data.freq1 <= 127) {
+			if (tone_data.freq1 <= 127) {
 				tone_data.freq1 = midi_tohz[tone_data.freq1];
 			} else {
 				tone_data.freq1 = 0;
 			}
 
-			if (tone_data.freq2 >= 0 && tone_data.freq2 <= 127) {
+			if (tone_data.freq2 <= 127) {
 				tone_data.freq2 = midi_tohz[tone_data.freq2];
 			} else {
 				tone_data.freq2 = 0;
