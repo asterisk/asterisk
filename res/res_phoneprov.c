@@ -1581,12 +1581,20 @@ static int extension_delete_cb(void *obj, void *arg, void *data, int flags)
 
 void ast_phoneprov_delete_extension(char *provider_name, char *macaddress)
 {
+	if (!users) {
+		return;
+	}
+
 	ao2_callback_data(users, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE | OBJ_SEARCH_KEY,
 		extension_delete_cb, macaddress, provider_name);
 }
 
 void ast_phoneprov_delete_extensions(char *provider_name)
 {
+	if (!users) {
+		return;
+	}
+
 	ao2_callback(users, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, extensions_delete_cb, provider_name);
 }
 
