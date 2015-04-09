@@ -3357,6 +3357,7 @@ static void leave_queue(struct queue_ent *qe)
 			while ((pr_iter = AST_LIST_REMOVE_HEAD(&qe->qe_rules, list))) {
 				ast_free(pr_iter);
 			}
+			qe->pr = NULL;
 			snprintf(posstr, sizeof(posstr), "%d", qe->pos);
 			pbx_builtin_setvar_helper(qe->chan, "QUEUEPOSITION", posstr);
 		} else {
