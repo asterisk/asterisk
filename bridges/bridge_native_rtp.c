@@ -310,8 +310,8 @@ static int native_rtp_bridge_compatible(struct ast_bridge *bridge)
 	RAII_VAR(struct ast_rtp_instance *, instance1, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_rtp_instance *, vinstance0, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_rtp_instance *, vinstance1, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_format_cap *, cap0, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT), ao2_cleanup);
-	RAII_VAR(struct ast_format_cap *, cap1, ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT), ao2_cleanup);
+	RAII_VAR(struct ast_format_cap *, cap0, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_format_cap *, cap1, NULL, ao2_cleanup);
 	int read_ptime0, read_ptime1, write_ptime0, write_ptime1;
 
 	/* We require two channels before even considering native bridging */
@@ -358,6 +358,12 @@ static int native_rtp_bridge_compatible(struct ast_bridge *bridge)
 			!ast_rtp_instance_get_engine(instance0)->dtmf_compatible(bc0->chan, instance0, bc1->chan, instance1)))) {
 		ast_debug(1, "Bridge '%s' can not use local native RTP bridge as local bridge or DTMF is not compatible\n",
 			bridge->uniqueid);
+		return 0;
+	}
+
+	cap0 = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	cap1 = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!cap0 || !cap1) {
 		return 0;
 	}
 
