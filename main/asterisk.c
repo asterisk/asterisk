@@ -4670,10 +4670,10 @@ int main(int argc, char *argv[])
 		sig_alert_pipe[0] = sig_alert_pipe[1] = -1;
 	}
 
+	ast_process_pending_reloads();
+
 	ast_set_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED);
 	publish_fully_booted();
-
-	ast_process_pending_reloads();
 
 	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
 
