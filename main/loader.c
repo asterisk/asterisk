@@ -115,6 +115,11 @@ static unsigned int embedding = 1; /* we always start out by registering embedde
 				      since they are here before we dlopen() any
 				   */
 
+/*!
+ * \brief Internal flag to indicate all modules have been initially loaded.
+ */
+static int modules_loaded;
+
 struct ast_module {
 	const struct ast_module_info *info;
 #ifdef REF_DEBUG
@@ -767,9 +772,7 @@ void ast_process_pending_reloads(void)
 {
 	struct reload_queue_item *item;
 
-	if (!ast_fully_booted) {
-		return;
-	}
+	modules_loaded = 1;
 
 	AST_LIST_LOCK(&reload_queue);
 
@@ -879,7 +882,7 @@ enum ast_module_reload_result ast_module_reload(const char *name)
 
 	/* If we aren't fully booted, we just pretend we reloaded but we queue this
 	   up to run once we are booted up. */
-	if (!ast_fully_booted) {
+	if (!modules_loaded) {
 		queue_reload_request(name);
 		res = AST_MODULE_RELOAD_QUEUED;
 		goto module_reload_exit;
