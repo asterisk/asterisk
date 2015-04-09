@@ -37,6 +37,7 @@
 #include "asterisk/sorcery.h"
 #include "asterisk/file.h"
 #include "asterisk/cli.h"
+#include "asterisk/res_pjsip_cli.h"
 
 /*** MODULEINFO
 	<depend>pjproject</depend>
@@ -2147,7 +2148,39 @@ static char *cli_show_endpoint_identifiers(struct ast_cli_entry *e, int cmd, str
 #undef ENDPOINT_IDENTIFIER_FORMAT
 }
 
+static char *cli_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ast_sip_cli_context context;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "pjsip show settings";
+		e->usage = "Usage: pjsip show settings\n"
+		            "      Show global and system configuration options\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	context.output_buffer = ast_str_create(256);
+	if (!context.output_buffer) {
+		ast_cli(a->fd, "Could not allocate output buffer.\n");
+		return CLI_FAILURE;
+	}
+
+	if (sip_cli_print_global(&context) || sip_cli_print_system(&context)) {
+		ast_free(context.output_buffer);
+		ast_cli(a->fd, "Error retrieving settings.\n");
+		return CLI_FAILURE;
+	}
+
+	ast_cli(a->fd, "%s", ast_str_buffer(context.output_buffer));
+	ast_free(context.output_buffer);
+	return CLI_SUCCESS;
+}
+
 static struct ast_cli_entry cli_commands[] = {
+        AST_CLI_DEFINE(cli_show_settings, "Show global and system configuration options"),
         AST_CLI_DEFINE(cli_show_endpoint_identifiers, "List registered endpoint identifiers")
 };
 

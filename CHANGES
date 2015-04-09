@@ -127,6 +127,11 @@ chan_pjsip
    more information.  Defaults to 'no' as setting it to 'yes' can result in
    many unnecessary messages being sent to the caller.
 
+res_pjsip
+------------------
+ * A new CLI command has been added: "pjsip show settings", which shows
+   both the global and system configuration settings.
+
 res_ari_channels
 ------------------
  * Two new events, 'ChannelHold' and 'ChannelUnhold', have been added to the
@@ -141,7 +146,6 @@ func_holdintercept
    the hold initiator. Instead, AMI or ARI events are raised indicating that
    the channel wanted to place someone on hold. This allows external
    applications to implement their own custom hold/unhold logic.
-
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.2.0 to Asterisk 13.3.0 ------------

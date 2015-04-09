@@ -25,6 +25,7 @@
 #include "include/res_pjsip_private.h"
 #include "asterisk/sorcery.h"
 #include "asterisk/ast_version.h"
+#include "asterisk/res_pjsip_cli.h"
 
 #define DEFAULT_MAX_FORWARDS 70
 #define DEFAULT_KEEPALIVE_INTERVAL 0
@@ -212,6 +213,24 @@ static void global_loaded_observer(const char *name, const struct ast_sorcery *s
 static const struct ast_sorcery_instance_observer observer_callbacks_global = {
 	.object_type_loaded = global_loaded_observer,
 };
+
+int sip_cli_print_global(struct ast_sip_cli_context *context)
+{
+	struct global_config *cfg = get_global_cfg();
+
+	if (!cfg) {
+		cfg = ast_sorcery_alloc(ast_sip_get_sorcery(), "global", NULL);
+		if (!cfg) {
+			return -1;
+		}
+	}
+
+	ast_str_append(&context->output_buffer, 0, "\nGlobal Settings:\n\n");
+	ast_sip_cli_print_sorcery_objectset(cfg, context, 0);
+
+	ao2_ref(cfg, -1);
+	return 0;
+}
 
 int ast_sip_destroy_sorcery_global(void)
 {
