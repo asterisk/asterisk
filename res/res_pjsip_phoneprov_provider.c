@@ -286,9 +286,8 @@ static int load_endpoint(const char *id, const char *endpoint_name, struct varsh
 }
 
 /*! \brief Callback that validates the phoneprov object */
-static int users_apply_handler(void *obj, void *arg, int flags)
+static void users_apply_handler(struct phoneprov *pp)
 {
-	struct phoneprov *pp = obj;
 	const char *id = ast_sorcery_object_get_id(pp);
 	const char *endpoint_name;
 	char port_string[6];
@@ -296,19 +295,19 @@ static int users_apply_handler(void *obj, void *arg, int flags)
 	if (!ast_var_find(pp->vars,
 		ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_MAC))) {
 		ast_log(LOG_ERROR, "phoneprov %s must contain a MAC entry.\n", id);
-		return 0;
+		return;
 	}
 
 	if (!ast_var_find(pp->vars,
 		ast_phoneprov_std_variable_lookup(AST_PHONEPROV_STD_PROFILE))) {
 		ast_log(LOG_ERROR, "phoneprov %s must contain a PROFILE entry.\n", id);
-		return 0;
+		return;
 	}
 
 	endpoint_name = ast_var_find(pp->vars, "endpoint");
 	if (endpoint_name) {
 		if (load_endpoint(id, endpoint_name, pp->vars, port_string)) {
-			return 0;
+			return;
 		}
 	}
 
@@ -337,13 +336,15 @@ static int users_apply_handler(void *obj, void *arg, int flags)
 
 	ast_phoneprov_add_extension(AST_MODULE, pp->vars);
 
-	return CMP_MATCH;
+	return;
 }
 
 /*! \brief Callback that loads the users from phoneprov sections */
 static int load_users(void)
 {
 	struct ao2_container *users;
+	struct ao2_iterator i;
+	struct phoneprov *pp;
 
 	ast_sorcery_reload_object(sorcery, "phoneprov");
 
@@ -353,12 +354,16 @@ static int load_users(void)
 		return 0;
 	}
 
-	ao2_callback(users, OBJ_MULTIPLE, users_apply_handler, sorcery);
+	i = ao2_iterator_init(users, 0);
+	while ((pp = ao2_iterator_next(&i))) {
+		users_apply_handler(pp);
+		ao2_ref(pp, -1);
+	}
+	ao2_iterator_destroy(&i);
 	ao2_ref(users, -1);
 
 	return 0;
 }
-
 
 static int load_module(void)
 {
