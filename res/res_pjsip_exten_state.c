@@ -401,6 +401,7 @@ static struct ast_sip_exten_state_data *exten_state_data_alloc(struct ast_sip_su
 	struct ast_sip_exten_state_data *exten_state_data;
 	char *subtype = NULL;
 	char *message = NULL;
+	int presence_state;
 
 	exten_state_data = ao2_alloc(sizeof(*exten_state_data), exten_state_data_destructor);
 	if (!exten_state_data) {
@@ -408,11 +409,12 @@ static struct ast_sip_exten_state_data *exten_state_data_alloc(struct ast_sip_su
 	}
 
 	exten_state_data->exten = exten_state_sub->exten;
-	if ((exten_state_data->presence_state = ast_hint_presence_state(NULL, exten_state_sub->context,
-			exten_state_sub->exten, &subtype, &message)) == -1) {
+	presence_state = ast_hint_presence_state(NULL, exten_state_sub->context, exten_state_sub->exten, &subtype, &message);
+	if (presence_state  == -1 || presence_state == AST_PRESENCE_INVALID) {
 		ao2_cleanup(exten_state_data);
 		return NULL;
 	}
+	exten_state_data->presence_state = presence_state;
 	exten_state_data->presence_subtype = subtype;
 	exten_state_data->presence_message = message;
 	exten_state_data->user_agent = exten_state_sub->user_agent;

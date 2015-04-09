@@ -816,7 +816,7 @@ int ast_safe_mkdir(const char *base_path, const char *path, int mode);
  * \param a the array to bound check
  * \return 0 if value out of bounds, otherwise true (non-zero)
  */
-#define ARRAY_IN_BOUNDS(v, a) IN_BOUNDS(v, 0, ARRAY_LEN(a) - 1)
+#define ARRAY_IN_BOUNDS(v, a) IN_BOUNDS((int) (v), 0, ARRAY_LEN(a) - 1)
 
 /* Definition for Digest authorization */
 struct ast_http_digest {

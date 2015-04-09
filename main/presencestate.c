@@ -323,7 +323,7 @@ static void do_presence_state_change(const char *provider)
 
 	state = ast_presence_state_helper(provider, &subtype, &message, 0);
 
-	if (state < 0) {
+	if (state == AST_PRESENCE_INVALID) {
 		return;
 	}
 

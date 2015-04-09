@@ -39,6 +39,8 @@ extern "C" {
  * \brief CEL event types
  */
 enum ast_cel_event_type {
+	AST_CEL_INVALID_VALUE = -1,
+	AST_CEL_ALL = 0,
 	/*! \brief channel birth */
 	AST_CEL_CHANNEL_START = 1,
 	/*! \brief channel end */
@@ -75,7 +77,7 @@ enum ast_cel_event_type {
 	AST_CEL_LOCAL_OPTIMIZE = 17,
 };
 
-/*! 
+/*!
  * \brief Check to see if CEL is enabled
  *
  * \since 1.8

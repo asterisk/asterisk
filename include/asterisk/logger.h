@@ -371,7 +371,7 @@ void ast_callid_strnprint(char *buffer, size_t buffer_size, ast_callid callid);
 
 #define DEBUG_ATLEAST(level) \
 	(option_debug >= (level) \
-		|| (ast_opt_dbg_module && ast_debug_get_by_module(AST_MODULE) >= (level)))
+		|| (ast_opt_dbg_module && (int)ast_debug_get_by_module(AST_MODULE) >= (level)))
 
 /*!
  * \brief Log a DEBUG message
