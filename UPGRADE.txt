@@ -21,8 +21,12 @@
 === UPGRADE-12.txt  -- Upgrade info for 11 to 12
 ===========================================================
 
-
 From 13.1-cert2 to 13.1-cert3:
+
+res_pjsip_dlg_options:
+ - A new module, this handles OPTIONS requests sent in-dialog. This module
+   should have no adverse effects for those upgrading; this note merely
+   serves as an indication that a new module exists.
 
 Source Control:
  - Asterisk has moved from Subversion to Git. As a result, several changes
