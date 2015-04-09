@@ -263,9 +263,6 @@ static void matrix_clear(void)
  */
 static struct translator_path *matrix_get(unsigned int x, unsigned int y)
 {
-	if (!(x >= 0 && y >= 0)) {
-		return NULL;
-	}
 	return __matrix[x] + y;
 }
 

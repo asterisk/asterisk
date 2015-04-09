@@ -295,7 +295,7 @@ const char *ast_event_get_type_name(const struct ast_event *event)
 
 	type = ast_event_get_type(event);
 
-	if (type < 0 || type >= ARRAY_LEN(event_names)) {
+	if (type >= ARRAY_LEN(event_names)) {
 		ast_log(LOG_ERROR, "Invalid event type - '%u'\n", type);
 		return "";
 	}
@@ -725,6 +725,7 @@ void ast_event_report_subs(const struct ast_event_sub *event_sub)
 	struct ast_event *event;
 	struct ast_event_sub *sub;
 	enum ast_event_type event_type = -1;
+	int found = 0;
 	struct ast_event_ie_val *ie_val;
 
 	if (event_sub->type != AST_EVENT_SUB)
@@ -733,12 +734,14 @@ void ast_event_report_subs(const struct ast_event_sub *event_sub)
 	AST_LIST_TRAVERSE(&event_sub->ie_vals, ie_val, entry) {
 		if (ie_val->ie_type == AST_EVENT_IE_EVENTTYPE) {
 			event_type = ie_val->payload.uint;
+			found = 1;
 			break;
 		}
 	}
 
-	if (event_type == -1)
+	if (!found) {
 		return;
+	}
 
 	AST_RWDLLIST_RDLOCK(&ast_event_subs[event_type]);
 	AST_RWDLLIST_TRAVERSE(&ast_event_subs[event_type], sub, entry) {
@@ -763,7 +766,7 @@ struct ast_event_sub *ast_event_subscribe_new(enum ast_event_type type,
 {
 	struct ast_event_sub *sub;
 
-	if (type < 0 || type >= AST_EVENT_TOTAL) {
+	if (type >= AST_EVENT_TOTAL) {
 		ast_log(LOG_ERROR, "%u is an invalid type!\n", type);
 		return NULL;
 	}

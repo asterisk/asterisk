@@ -123,7 +123,7 @@ static char cel_dateformat[256];
  * \brief Map of ast_cel_event_type to strings
  */
 static const char * const cel_event_types[CEL_MAX_EVENT_IDS] = {
-	[0]                        = "ALL",
+	[AST_CEL_ALL]              = "ALL",
 	[AST_CEL_CHANNEL_START]    = "CHAN_START",
 	[AST_CEL_CHANNEL_END]      = "CHAN_END",
 	[AST_CEL_ANSWER]           = "ANSWER",
@@ -256,15 +256,12 @@ enum ast_cel_event_type ast_cel_str_to_event_type(const char *name)
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_LEN(cel_event_types); i++) {
-		if (!cel_event_types[i]) {
-			continue;
-		}
-
-		if (!strcasecmp(name, cel_event_types[i])) {
+		if (cel_event_types[i] && !strcasecmp(name, cel_event_types[i])) {
 			return i;
 		}
 	}
 
+	ast_log(LOG_ERROR, "Unknown event name '%s'\n", name);
 	return -1;
 }
 
@@ -288,10 +285,10 @@ static void parse_events(const char *val)
 
 		event_type = ast_cel_str_to_event_type(cur_event);
 
-		if (event_type == 0) {
+		if (event_type == AST_CEL_ALL) {
 			/* All events */
 			eventset = (int64_t) -1;
-		} else if (event_type == -1) {
+		} else if (event_type == AST_CEL_INVALID_VALUE) {
 			ast_log(LOG_WARNING, "Unknown event name '%s'\n",
 					cur_event);
 		} else {
@@ -416,7 +413,7 @@ const char *ast_cel_get_type_name(enum ast_cel_event_type type)
 
 const char *ast_cel_get_ama_flag_name(enum ast_cel_ama_flag flag)
 {
-	if (flag < 0 || flag >= ARRAY_LEN(cel_ama_flags)) {
+	if (flag >= ARRAY_LEN(cel_ama_flags)) {
 		ast_log(LOG_WARNING, "Invalid AMA flag: %u\n", flag);
 		return "Unknown";
 	}

@@ -320,8 +320,7 @@ static int encode_open_type(const struct ast_udptl *udptl, uint8_t *buf, unsigne
 	}
 	/* Encode the open type */
 	for (octet_idx = 0; ; num_octets -= enclen, octet_idx += enclen) {
-		if ((enclen = encode_length(buf, len, num_octets)) < 0)
-			return -1;
+		enclen = encode_length(buf, len, num_octets);
 		if (enclen + *len > buflen) {
 			ast_log(LOG_ERROR, "UDPTL (%s): Buffer overflow detected (%u + %u > %u)\n",
 				LOG_TAG(udptl), enclen, *len, buflen);
@@ -604,8 +603,7 @@ static int udptl_build_packet(struct ast_udptl *s, uint8_t *buf, unsigned int bu
 		buf[len++] = 0x00;
 		/* The number of entries will always be zero, so it is pointless allowing
 		   for the fragmented case here. */
-		if (encode_length(buf, &len, 0) < 0)
-			return -1;
+		encode_length(buf, &len, 0);
 		break;
 	case UDPTL_ERROR_CORRECTION_REDUNDANCY:
 		/* Encode the error recovery type */
@@ -616,8 +614,7 @@ static int udptl_build_packet(struct ast_udptl *s, uint8_t *buf, unsigned int bu
 			entries = s->tx_seq_no;
 		/* The number of entries will always be small, so it is pointless allowing
 		   for the fragmented case here. */
-		if (encode_length(buf, &len, entries) < 0)
-			return -1;
+		encode_length(buf, &len, entries);
 		/* Encode the elements */
 		for (i = 0; i < entries; i++) {
 			j = (entry - i - 1) & UDPTL_BUF_MASK;

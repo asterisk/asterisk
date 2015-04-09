@@ -2229,6 +2229,7 @@ static char *callstate2str(int ind)
 static int transmit_response_bysession(struct skinnysession *s, struct skinny_req *req)
 {
 	int res = 0;
+	unsigned long len;
 
 	if (!s) {
 		ast_log(LOG_WARNING, "Asked to transmit to a non-existent session!\n");
@@ -2237,7 +2238,13 @@ static int transmit_response_bysession(struct skinnysession *s, struct skinny_re
 
 	ast_mutex_lock(&s->lock);
 
-	if ((letohl(req->len) > SKINNY_MAX_PACKET) || (letohl(req->len) < 0)) {
+	/* Don't optimize out assigning letohl() to len. It is necessary to guarantee that
+	 * the comparison will always catch invalid values.
+         * letohl() may or may not return a signed value depending upon which definition
+	 * is used.
+	 */
+	len = letohl(req->len);
+	if (SKINNY_MAX_PACKET < len) {
 		ast_log(LOG_WARNING, "transmit_response: the length of the request (%d) is out of bounds (%d)\n", letohl(req->len), SKINNY_MAX_PACKET);
 		ast_mutex_unlock(&s->lock);
 		return -1;
