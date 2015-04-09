@@ -392,54 +392,10 @@ struct ast_dns_record *dns_naptr_alloc(struct ast_dns_query *query, const char *
 	char *regexp;
 	char replacement[256] = "";
 	int replacement_size;
-	char *naptr_offset;
-	char *naptr_search_base = (char *)query->result->answer;
-	size_t remaining_size = query->result->answer_size;
-	char *end_of_record;
+	const char *end_of_record;
 	enum flags_result flags_res;
 
-	/*
-	 * This is bordering on the hackiest thing I've ever written.
-	 * Part of parsing a NAPTR record is to parse a potential replacement
-	 * domain name. Decoding this domain name requires the use of the
-	 * dn_expand() function. This function requires that the domain you
-	 * pass in be a pointer to within the full DNS answer. Unfortunately,
-	 * libunbound gives its RRs back as copies of data from the DNS answer
-	 * instead of pointers to within the DNS answer. This means that in order
-	 * to be able to parse the domain name correctly, I need to find the
-	 * current NAPTR record inside the DNS answer and operate on it. This
-	 * loop is designed to find the current NAPTR record within the full
-	 * DNS answer and set the "ptr" variable to the beginning of the
-	 * NAPTR RDATA
-	 */
-	while (1) {
-		naptr_offset = memchr(naptr_search_base, data[0], remaining_size);
-
-		/* Since the NAPTR record we have been given came from the DNS answer,
-		 * we should never run into a situation where we can't find ourself
-		 * in the answer
-		 */
-		ast_assert(naptr_offset != NULL);
-		ast_assert(naptr_search_base + remaining_size - naptr_offset >= size);
-
-		/* ... but just to be on the safe side, let's be sure we can break
-		 * out if the assertion doesn't hold
-		 */
-		if (!naptr_offset || naptr_search_base + remaining_size - naptr_offset < size) {
-			ast_log(LOG_ERROR, "Failed to locate NAPTR record within DNS result\n");
-			return NULL;
-		}
-
-		if (!memcmp(naptr_offset, data, size)) {
-			/* BAM! FOUND IT! */
-			ptr = naptr_offset;
-			break;
-		}
-		/* Data didn't match us, so keep looking */
-		remaining_size -= naptr_offset - naptr_search_base;
-		naptr_search_base = naptr_offset + 1;
-	}
-
+	ptr = dns_find_record(data, size, query->result->answer, query->result->answer_size);
 	ast_assert(ptr != NULL);
 
 	end_of_record = ptr + size;
@@ -451,53 +407,31 @@ struct ast_dns_record *dns_naptr_alloc(struct ast_dns_query *query, const char *
 	 * See http://commandcenter.blogspot.com/2012/04/byte-order-fallacy.html for
 	 * more information
 	 */
-	order = ((unsigned char)(ptr[1]) << 0) | ((unsigned char)(ptr[0]) << 8);
-	ptr += 2;
-
+	ptr += dns_parse_short((unsigned char *) ptr, &order);
 	if (PAST_END_OF_RECORD) {
 		return NULL;
 	}
 
 	/* PREFERENCE */
-	preference = ((unsigned char) (ptr[1]) << 0) | ((unsigned char)(ptr[0]) << 8);
-	ptr += 2;
-
+	ptr += dns_parse_short((unsigned char *) ptr, &preference);
 	if (PAST_END_OF_RECORD) {
 		return NULL;
 	}
 
 	/* FLAGS */
-	flags_size = *ptr;
-	++ptr;
-	if (PAST_END_OF_RECORD) {
-		return NULL;
-	}
-	flags = ptr;
-	ptr += flags_size;
+	ptr += dns_parse_string(ptr, &flags_size, &flags);
 	if (PAST_END_OF_RECORD) {
 		return NULL;
 	}
 
 	/* SERVICES */
-	services_size = *ptr;
-	++ptr;
-	if (PAST_END_OF_RECORD) {
-		return NULL;
-	}
-	services = ptr;
-	ptr += services_size;
+	ptr += dns_parse_string(ptr, &services_size, &services);
 	if (PAST_END_OF_RECORD) {
 		return NULL;
 	}
 
 	/* REGEXP */
-	regexp_size = *ptr;
-	++ptr;
-	if (PAST_END_OF_RECORD) {
-		return NULL;
-	}
-	regexp = ptr;
-	ptr += regexp_size;
+	ptr += dns_parse_string(ptr, &regexp_size, &regexp);
 	if (PAST_END_OF_RECORD) {
 		return NULL;
 	}

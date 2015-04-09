@@ -195,12 +195,49 @@ void dns_naptr_sort(struct ast_dns_result *result);
  * \retval non-NULL success
  * \retval NULL failure
  */
-struct ast_dns_record *ast_dns_srv_alloc(struct ast_dns_query *query, const char *data, const size_t size);
+struct ast_dns_record *dns_srv_alloc(struct ast_dns_query *query, const char *data, const size_t size);
 
 /*!
  * \brief Sort the SRV records on a result
  *
  * \param result The DNS result
  */
-void ast_dns_srv_sort(struct ast_dns_result *result);
+void dns_srv_sort(struct ast_dns_result *result);
 
+/*!
+ * \brief Find the location of a DNS record within the entire DNS answer
+ *
+ * The DNS record that has been returned by the resolver may be a copy of the record that was
+ * found in the complete DNS response. If so, then some DNS record types (specifically those that
+ * parse domains) will need to locate the DNS record within the complete DNS response. This is so
+ * that if the domain contains pointers to other sections of the DNS response, then the referenced
+ * domains may be located.
+ *
+ * \param record The DNS record returned by a resolver implementation
+ * \param record_size The size of the DNS record in bytes
+ * \param response The complete DNS answer
+ * \param response_size The size of the complete DNS response
+ */
+char *dns_find_record(const char *record, size_t record_size, const char *response, size_t response_size);
+
+/*!
+ * \brief Parse a 16-bit unsigned value from a DNS record
+ *
+ * \param cur Pointer to the location of the 16-bit value in the DNS record
+ * \param[out] val The parsed 16-bit unsigned integer
+ * \return The number of bytes consumed while parsing
+ */
+int dns_parse_short(unsigned char *cur, uint16_t *val);
+
+/*!
+ * \brief Parse a DNS string from a DNS record
+ *
+ * A DNS string consists of an 8-bit size, followed by the
+ * string value (not NULL-terminated).
+ *
+ * \param cur Pointer to the location of the DNS string
+ * \param[out] size The parsed size of the DNS string
+ * \param[out] val The contained string (not NULL-terminated)
+ * \return The number of bytes consumed while parsing
+ */
+int dns_parse_string(char *cur, uint8_t *size, char **val);

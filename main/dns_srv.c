@@ -41,59 +41,36 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/dns_internal.h"
 #include "asterisk/utils.h"
 
-struct ast_dns_record *ast_dns_srv_alloc(struct ast_dns_query *query, const char *data, const size_t size)
+struct ast_dns_record *dns_srv_alloc(struct ast_dns_query *query, const char *data, const size_t size)
 {
 	uint16_t priority;
 	uint16_t weight;
 	uint16_t port;
 	const char *ptr;
-	char *srv_offset;
-	char *srv_search_base = (char *)query->result->answer;
-	size_t remaining_size = query->result->answer_size;
 	const char *end_of_record;
 	struct ast_dns_srv_record *srv;
 	int host_size;
 	char host[NI_MAXHOST] = "";
 
-	while (1) {
-		srv_offset = memchr(srv_search_base, data[0], remaining_size);
-
-		ast_assert(srv_offset != NULL);
-		ast_assert(srv_search_base + remaining_size - srv_offset >= size);
-
-		if (!memcmp(srv_offset, data, size)) {
-			ptr = srv_offset;
-			break;
-		}
-
-		remaining_size -= srv_offset - srv_search_base;
-		srv_search_base = srv_offset + 1;
-	}
-
+	ptr = dns_find_record(data, size, query->result->answer, query->result->answer_size);
 	ast_assert(ptr != NULL);
 
 	end_of_record = ptr + size;
 
 	/* PRIORITY */
-	priority = ((unsigned char)(ptr[1]) << 0) | ((unsigned char)(ptr[0]) << 8);
-	ptr += 2;
-
+	ptr += dns_parse_short((unsigned char *) ptr, &priority);
 	if (ptr >= end_of_record) {
 		return NULL;
 	}
 
 	/* WEIGHT */
-	weight = ((unsigned char)(ptr[1]) << 0) | ((unsigned char)(ptr[0]) << 8);
-	ptr += 2;
-
+	ptr += dns_parse_short((unsigned char *) ptr, &weight);
 	if (ptr >= end_of_record) {
 		return NULL;
 	}
 
 	/* PORT */
-	port = ((unsigned char)(ptr[1]) << 0) | ((unsigned char)(ptr[0]) << 8);
-	ptr += 2;
-
+	ptr += dns_parse_short((unsigned char *) ptr, &port);
 	if (ptr >= end_of_record) {
 		return NULL;
 	}
@@ -129,7 +106,7 @@ struct ast_dns_record *ast_dns_srv_alloc(struct ast_dns_query *query, const char
 /* This implementation was taken from the existing srv.c which, after reading the RFC, implements it
  * as it should.
  */
-void ast_dns_srv_sort(struct ast_dns_result *result)
+void dns_srv_sort(struct ast_dns_result *result)
 {
 	struct ast_dns_record *current;
 	struct dns_records newlist = AST_LIST_HEAD_NOLOCK_INIT_VALUE;

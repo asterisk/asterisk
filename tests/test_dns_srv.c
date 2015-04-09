@@ -31,104 +31,7 @@
 #include "asterisk/dns_core.h"
 #include "asterisk/dns_resolver.h"
 #include "asterisk/dns_srv.h"
-
-#define DNS_HEADER_SIZE 96
-
-const char DNS_HEADER[] = {
-	/* ID  == 0 */
-	0x00, 0x00,
-	/* QR == 1, Opcode == 0, AA == 1, TC == 0, RD == 1 */
-	0x85,
-	/* RA == 1, Z == 0, RCODE == 0 */
-	0x80,
-	/* QDCOUNT == 1 */
-	0x00, 0x01,
-	/* ANCOUNT == 1 */
-	0x00, 0x00,
-	/* NSCOUNT == 0 */
-	0x00, 0x00,
-	/* ARCOUNT == 0 */
-	0x00, 0x00,
-};
-
-static int generate_dns_header(unsigned short num_records, char *buf)
-{
-	unsigned short net_num_records = htons(num_records);
-
-	memcpy(buf, DNS_HEADER, ARRAY_LEN(DNS_HEADER));
-	/* Overwrite the ANCOUNT with the actual number of answers */
-	memcpy(&buf[6], &net_num_records, sizeof(num_records));
-
-	return ARRAY_LEN(DNS_HEADER);
-}
-
-const char DNS_QUESTION [] = {
-	/* goose */
-	0x05, 0x67, 0x6f, 0x6f, 0x73, 0x65,
-	/* feathers */
-	0x08, 0x66, 0x65, 0x61, 0x74, 0x68, 0x65, 0x72, 0x73,
-	/* end label */
-	0x00,
-	/* SRV type */
-	0x00, 0x23,
-	/* IN class */
-	0x00, 0x01,
-};
-
-static int generate_dns_question(char *buf)
-{
-	memcpy(buf, DNS_QUESTION, ARRAY_LEN(DNS_QUESTION));
-	return ARRAY_LEN(DNS_QUESTION);
-}
-
-const char SRV_ANSWER [] = {
-	/* Domain points to name from question */
-	0xc0, 0x0c,
-	/* NAPTR type */
-	0x00, 0x23,
-	/* IN Class */
-	0x00, 0x01,
-	/* TTL (12345 by default) */
-	0x00, 0x00, 0x30, 0x39,
-};
-
-static int generate_dns_answer(int ttl, char *buf)
-{
-	int net_ttl = htonl(ttl);
-
-	memcpy(buf, SRV_ANSWER, ARRAY_LEN(SRV_ANSWER));
-	/* Overwrite TTL if one is provided */
-	if (ttl) {
-		memcpy(&buf[6], &net_ttl, sizeof(int));
-	}
-
-	return ARRAY_LEN(SRV_ANSWER);
-}
-
-static int write_dns_string(const char *string, char *buf)
-{
-	uint8_t len = strlen(string);
-	buf[0] = len;
-	if (len) {
-		memcpy(&buf[1], string, len);
-	}
-
-	return len + 1;
-}
-
-static int write_dns_domain(const char *string, char *buf)
-{
-	char *copy = ast_strdupa(string);
-	char *part;
-	char *ptr = buf;
-
-	while ((part = strsep(&copy, "."))) {
-		ptr += write_dns_string(part, ptr);
-	}
-	ptr += write_dns_string("", ptr);
-
-	return ptr - buf;
-}
+#include "asterisk/dns_test.h"
 
 struct srv_record {
 	uint16_t priority;
@@ -141,8 +44,9 @@ struct srv_record {
 	unsigned int ignore_host;
 };
 
-static int generate_srv_record(struct srv_record *record, char *buf)
+static int generate_srv_record(void *dns_record, char *buf)
 {
+	struct srv_record *record = dns_record;
 	uint16_t priority = htons(record->priority);
 	uint16_t weight = htons(record->weight);
 	uint16_t port = htons(record->port);
@@ -164,7 +68,7 @@ static int generate_srv_record(struct srv_record *record, char *buf)
 	}
 
 	if (!record->ignore_host) {
-		ptr += write_dns_domain(record->host, ptr);
+		ptr += ast_dns_test_write_domain(record->host, ptr);
 	}
 
 	return ptr - buf;
@@ -178,31 +82,19 @@ static void *srv_thread(void *dns_query)
 {
 	struct ast_dns_query *query = dns_query;
 	int i;
-	char *ptr = ans_buffer;
+	int ans_size;
 
-	ptr += generate_dns_header(num_test_records, ptr);
-	ptr += generate_dns_question(ptr);
+	ans_size = ast_dns_test_generate_result(query, test_records, num_test_records,
+			sizeof(struct srv_record), generate_srv_record, ans_buffer);
 
-	for (i = 0; i < num_test_records; ++i) {
-		unsigned short rdlength;
-		unsigned short net_rdlength;
-
-		ptr += generate_dns_answer(0, ptr);
-		rdlength = generate_srv_record(&test_records[i], ptr + 2);
-		net_rdlength = htons(rdlength);
-		memcpy(ptr, &net_rdlength, 2);
-		ptr += 2;
-		ptr += rdlength;
-	}
-
-	ast_dns_resolver_set_result(query, 0, 0, ns_r_noerror, "goose.feathers", ans_buffer, ptr - ans_buffer);
+	ast_dns_resolver_set_result(query, 0, 0, ns_r_noerror, "goose.feathers", ans_buffer, ans_size);
 
 	for (i = 0; i < num_test_records; ++i) {
 		char record[128];
-		ptr = record;
+		int srv_size;
 
-		ptr += generate_srv_record(&test_records[i], ptr);
-		ast_dns_resolver_add_record(query, ns_t_srv, ns_c_in, 12345, record, ptr - record);
+		srv_size = generate_srv_record(&test_records[i], record);
+		ast_dns_resolver_add_record(query, ns_t_srv, ns_c_in, 12345, record, srv_size);
 	}
 
 	ast_dns_resolver_completed(query);

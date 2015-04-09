@@ -426,6 +426,20 @@ static struct ast_dns_record *generic_record_alloc(struct ast_dns_query *query, 
 	return record;
 }
 
+typedef struct ast_dns_record *(*dns_alloc_fn)(struct ast_dns_query *query, const char *data, const size_t size);
+
+static dns_alloc_fn dns_alloc_table [] = {
+	[ns_t_naptr] = dns_naptr_alloc,
+	[ns_t_srv] = dns_srv_alloc,
+};
+
+static struct ast_dns_record *allocate_dns_record(int rr_type, struct ast_dns_query *query, const char *data, const size_t size)
+{
+	dns_alloc_fn allocator = dns_alloc_table[rr_type] ?: generic_record_alloc;
+
+	return allocator(query, data, size);
+}
+
 int ast_dns_resolver_add_record(struct ast_dns_query *query, int rr_type, int rr_class, int ttl, const char *data, const size_t size)
 {
 	struct ast_dns_record *record;
@@ -460,14 +474,7 @@ int ast_dns_resolver_add_record(struct ast_dns_query *query, int rr_type, int rr
 		return -1;
 	}
 
-	if (rr_type == ns_t_naptr) {
-		record = dns_naptr_alloc(query, data, size);
-	} else if (rr_type == ns_t_srv) {
-		record = ast_dns_srv_alloc(query, data, size);
-	} else {
-		record = generic_record_alloc(query, data, size);
-	}
-
+	record = allocate_dns_record(rr_type, query, data, size);
 	if (!record) {
 		return -1;
 	}
@@ -483,13 +490,23 @@ int ast_dns_resolver_add_record(struct ast_dns_query *query, int rr_type, int rr
 	return 0;
 }
 
+typedef void (*dns_sort_fn)(struct ast_dns_result *result);
+
+static dns_sort_fn dns_sort_table [] = {
+	[ns_t_naptr] = dns_naptr_sort,
+	[ns_t_srv] = dns_srv_sort,
+};
+
+static void sort_result(int rr_type, struct ast_dns_result *result)
+{
+	if (dns_sort_table[rr_type]) {
+		dns_sort_table[rr_type](result);
+	}
+}
+
 void ast_dns_resolver_completed(struct ast_dns_query *query)
 {
-	if (ast_dns_query_get_rr_type(query) == ns_t_naptr) {
-		dns_naptr_sort(query->result);
-	} else if (ast_dns_query_get_rr_type(query) == ns_t_srv) {
-		ast_dns_srv_sort(query->result);
-	}
+	sort_result(ast_dns_query_get_rr_type(query), query->result);
 
 	query->callback(query);
 }
@@ -592,4 +609,44 @@ void ast_dns_resolver_unregister(struct ast_dns_resolver *resolver)
 	AST_RWLIST_UNLOCK(&resolvers);
 
 	ast_verb(2, "Unregistered DNS resolver '%s'\n", resolver->name);
+}
+
+char *dns_find_record(const char *record, size_t record_size, const char *response, size_t response_size)
+{
+	size_t remaining_size = response_size;
+	const char *search_base = response;
+	char *record_offset;
+
+	while (1) {
+		record_offset = memchr(search_base, record[0], remaining_size);
+
+		ast_assert(record_offset != NULL);
+		ast_assert(search_base + remaining_size - record_offset >= record_size);
+
+		if (!memcmp(record_offset, record, record_size)) {
+			return record_offset;
+		}
+
+		remaining_size -= record_offset - search_base;
+		search_base = record_offset + 1;
+	}
+}
+
+int dns_parse_short(unsigned char *cur, uint16_t *val)
+{
+	/* This assignment takes a big-endian 16-bit value and stores it in the
+	 * machine's native byte order. Using this method allows us to avoid potential
+	 * alignment issues in case the order is not on a short-addressable boundary.
+	 * See http://commandcenter.blogspot.com/2012/04/byte-order-fallacy.html for
+	 * more information
+	 */
+	*val = (cur[1] << 0) | (cur[0] << 8);
+	return sizeof(*val);
+}
+
+int dns_parse_string(char *cur, uint8_t *size, char **val)
+{
+	*size = *cur++;
+	*val = cur;
+	return *size + 1;
 }
