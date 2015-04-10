@@ -144,11 +144,11 @@ struct softmix_stats {
 	unsigned int sample_rates[16];
 	/*! Each index represents the number of channels using the same index in the sample_rates array.  */
 	unsigned int num_channels[16];
-	/*! the number of channels above the internal sample rate */
+	/*! The number of channels above the internal sample rate */
 	unsigned int num_above_internal_rate;
-	/*! the number of channels at the internal sample rate */
+	/*! The number of channels at the internal sample rate */
 	unsigned int num_at_internal_rate;
-	/*! the absolute highest sample rate supported by any channel in the bridge */
+	/*! The absolute highest sample rate preferred by any channel in the bridge */
 	unsigned int highest_supported_rate;
 	/*! Is the sample rate locked by the bridge, if so what is that rate.*/
 	unsigned int locked_rate;
@@ -753,6 +753,7 @@ static void gather_softmix_stats(struct softmix_stats *stats,
 		stats->num_at_internal_rate++;
 	}
 }
+
 /*!
  * \internal
  * \brief Analyse mixing statistics and change bridges internal rate
@@ -764,7 +765,9 @@ static void gather_softmix_stats(struct softmix_stats *stats,
 static unsigned int analyse_softmix_stats(struct softmix_stats *stats, struct softmix_bridge_data *softmix_data)
 {
 	int i;
-	/* Re-adjust the internal bridge sample rate if
+
+	/*
+	 * Re-adjust the internal bridge sample rate if
 	 * 1. The bridge's internal sample rate is locked in at a sample
 	 *    rate other than the current sample rate being used.
 	 * 2. two or more channels support a higher sample rate
@@ -774,9 +777,9 @@ static unsigned int analyse_softmix_stats(struct softmix_stats *stats, struct so
 		/* if the rate is locked by the bridge, only update it if it differs
 		 * from the current rate we are using. */
 		if (softmix_data->internal_rate != stats->locked_rate) {
+			ast_debug(1, "Locking at new rate.  Bridge changed from %u to %u.\n",
+				softmix_data->internal_rate, stats->locked_rate);
 			softmix_data->internal_rate = stats->locked_rate;
-			ast_debug(1, "Bridge is locked in at sample rate %u\n",
-				softmix_data->internal_rate);
 			return 1;
 		}
 	} else if (stats->num_above_internal_rate >= 2) {
@@ -788,42 +791,47 @@ static unsigned int analyse_softmix_stats(struct softmix_stats *stats, struct so
 			if (stats->num_channels[i]) {
 				break;
 			}
-			/* best_rate starts out being the first sample rate
-			 * greater than the internal sample rate that 2 or
-			 * more channels support. */
-			if (stats->num_channels[i] >= 2 && (best_index == -1)) {
-				best_rate = stats->sample_rates[i];
-				best_index = i;
-			/* If it has been detected that multiple rates above
-			 * the internal rate are present, compare those rates
-			 * to each other and pick the highest one two or more
-			 * channels support. */
-			} else if (((best_index != -1) &&
-				(stats->num_channels[i] >= 2) &&
-				(stats->sample_rates[best_index] < stats->sample_rates[i]))) {
-				best_rate = stats->sample_rates[i];
-				best_index = i;
-			/* It is possible that multiple channels exist with native sample
-			 * rates above the internal sample rate, but none of those channels
-			 * have the same rate in common.  In this case, the lowest sample
-			 * rate among those channels is picked. Over time as additional
-			 * statistic runs are made the internal sample rate number will
-			 * adjust to the most optimal sample rate, but it may take multiple
-			 * iterations. */
+			if (2 <= stats->num_channels[i]) {
+				/* Two or more channels support this rate. */
+				if (best_index == -1
+					|| stats->sample_rates[best_index] < stats->sample_rates[i]) {
+					/*
+					 * best_rate starts out being the first sample rate
+					 * greater than the internal sample rate that two or
+					 * more channels support.
+					 *
+					 * or
+					 *
+					 * There are multiple rates above the internal rate
+					 * and this rate is higher than the previous rate two
+					 * or more channels support.
+					 */
+					best_rate = stats->sample_rates[i];
+					best_index = i;
+				}
 			} else if (best_index == -1) {
+				/*
+				 * It is possible that multiple channels exist with native sample
+				 * rates above the internal sample rate, but none of those channels
+				 * have the same rate in common.  In this case, the lowest sample
+				 * rate among those channels is picked. Over time as additional
+				 * statistic runs are made the internal sample rate number will
+				 * adjust to the most optimal sample rate, but it may take multiple
+				 * iterations.
+				 */
 				best_rate = MIN(best_rate, stats->sample_rates[i]);
 			}
 		}
 
-		ast_debug(1, "Bridge changed from %u To %u\n",
+		ast_debug(1, "Multiple above internal rate.  Bridge changed from %u to %u.\n",
 			softmix_data->internal_rate, best_rate);
 		softmix_data->internal_rate = best_rate;
 		return 1;
 	} else if (!stats->num_at_internal_rate && !stats->num_above_internal_rate) {
 		/* In this case, the highest supported rate is actually lower than the internal rate */
-		softmix_data->internal_rate = stats->highest_supported_rate;
-		ast_debug(1, "Bridge changed from %u to %u\n",
+		ast_debug(1, "All below internal rate.  Bridge changed from %u to %u.\n",
 			softmix_data->internal_rate, stats->highest_supported_rate);
+		softmix_data->internal_rate = stats->highest_supported_rate;
 		return 1;
 	}
 	return 0;
