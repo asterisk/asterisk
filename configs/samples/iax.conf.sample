@@ -431,6 +431,10 @@ autokill=yes
 ;
 ;requirecalltoken=no
 ;
+; Maximum time allowed for call token authentication handshaking. Default is 10 seconds.
+; Use higher values in lagged or high packet loss networks.
+;
+;calltokenexpiration=10
 
 ;
 ; These options are used to limit the amount of call numbers allocated to a

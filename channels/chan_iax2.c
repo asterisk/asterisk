@@ -918,7 +918,7 @@ static struct ast_taskprocessor *transmit_processor;
 
 static int randomcalltokendata;
 
-static const time_t MAX_CALLTOKEN_DELAY = 10;
+static time_t max_calltoken_delay = 10;
 
 /*!
  * This module will get much higher performance when doing a lot of
@@ -4934,7 +4934,7 @@ static int handle_call_token(struct ast_iax2_full_hdr *fh, struct iax_ies *ies,
 		if (strcmp(hash, rec_hash)) {
 			ast_log(LOG_WARNING, "Address %s failed CallToken hash inspection\n", ast_sockaddr_stringify(addr));
 			goto reject; /* received hash does not match ours, reject */
-		} else if ((t < rec_time) || ((t - rec_time) >= MAX_CALLTOKEN_DELAY)) {
+		} else if ((t < rec_time) || ((t - rec_time) >= max_calltoken_delay)) {
 			ast_log(LOG_WARNING, "Too much delay in IAX2 calltoken timestamp from address %s\n", ast_sockaddr_stringify(addr));
 			goto reject; /* too much delay, reject */
 		}
@@ -13734,7 +13734,15 @@ static int set_config(const char *config_file, int reload, int forced)
 			if (add_calltoken_ignore(v->value)) {
 				ast_log(LOG_WARNING, "Invalid calltokenoptional address range - '%s' line %d\n", v->value, v->lineno);
 			}
-		} else if (!strcasecmp(v->name, "subscribe_network_change_event")) {
+		} else if (!strcasecmp(v->name, "calltokenexpiration")) {
+			int temp = -1;
+			sscanf(v->value, "%u", &temp);
+			if( temp <= 0 ){
+				ast_log(LOG_WARNING, "Invalid calltokenexpiration value %s. Should be integer greater than 0.\n", v->value);
+			} else {
+				max_calltoken_delay = temp;
+			}
+		}  else if (!strcasecmp(v->name, "subscribe_network_change_event")) {
 			if (ast_true(v->value)) {
 				subscribe_network_change = 1;
 			} else if (ast_false(v->value)) {

@@ -46,6 +46,10 @@ chan_iax2
  * The iax.conf forcejitterbuffer option has been removed.  It is now always
    forced if you set iax.conf jitterbuffer=yes.  If you put a jitter buffer
    on a channel it will be on the channel.
+ * A new configuration parameters, 'calltokenexpiration', has been added that
+   controls the duration before a call token expires. Default duration is 10
+   seconds. Setting this to a higher value may help in lagged networks or those
+   experiencing high packet loss.
 
 chan_sip
 ------------------
