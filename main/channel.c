@@ -5337,15 +5337,16 @@ static int set_format(struct ast_channel *chan, struct ast_format_cap *cap_set, 
 		res = ast_translator_best_choice(cap_native, cap_set, &best_native_fmt, &best_set_fmt);
 	}
 	if (res < 0) {
-		struct ast_str *codec_from = ast_str_alloca(64);
-		struct ast_str *codec_to = ast_str_alloca(64);
+		struct ast_str *codec_native = ast_str_alloca(256);
+		struct ast_str *codec_set = ast_str_alloca(256);
 
-		ast_format_cap_get_names(cap_native, &codec_from);
+		ast_format_cap_get_names(cap_native, &codec_native);
 		ast_channel_unlock(chan);
-		ast_format_cap_get_names(cap_set, &codec_to);
+		ast_format_cap_get_names(cap_set, &codec_set);
 
-		ast_log(LOG_WARNING, "Unable to find a codec translation path from %s to %s\n",
-			ast_str_buffer(codec_from), ast_str_buffer(codec_to));
+		ast_log(LOG_WARNING, "Unable to find a codec translation path: %s -> %s\n",
+			ast_str_buffer(direction ? codec_set : codec_native),
+			ast_str_buffer(direction ? codec_native : codec_set));
 		return -1;
 	}
 
@@ -5389,10 +5390,11 @@ static int set_format(struct ast_channel *chan, struct ast_format_cap *cap_set, 
 		access->set_format(chan, best_set_fmt);
 		access->set_rawformat(chan, best_native_fmt);
 
-		ast_debug(1, "Set channel %s to %s format %s\n",
+		ast_debug(1, "Channel %s setting %s format path: %s -> %s\n",
 			ast_channel_name(chan),
 			access->direction,
-			ast_format_get_name(best_set_fmt));
+			ast_format_get_name(direction ? best_set_fmt : best_native_fmt),
+			ast_format_get_name(direction ? best_native_fmt : best_set_fmt));
 	}
 
 	ast_channel_unlock(chan);
