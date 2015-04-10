@@ -608,6 +608,11 @@
 					"required": true,
 					"type": "Channel",
 					"description": "The channel that initiated the hold event."
+				},
+				"musicclass": {
+					"required": false,
+					"type": "string",
+					"description": "The music on hold class that the initiator requested."
 				}
 			}
 		},

@@ -1434,6 +1434,7 @@ ari_validator ast_ari_validate_application_fn(void);
  * - application: string (required)
  * - timestamp: Date
  * - channel: Channel (required)
+ * - musicclass: string
  * ChannelLeftBridge
  * - type: string (required)
  * - application: string (required)
