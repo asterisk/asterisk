@@ -548,7 +548,7 @@ static struct ast_frame *chan_pjsip_cng_tone_detected(struct ast_sip_session *se
 	int exists;
 
 	/* If we only needed this DSP for fax detection purposes we can just drop it now */
-	if (session->endpoint->dtmf == AST_SIP_DTMF_INBAND) {
+	if (session->endpoint->dtmf == AST_SIP_DTMF_INBAND || session->endpoint->dtmf == AST_SIP_DTMF_AUTO) {
 		ast_dsp_set_features(session->dsp, DSP_FEATURE_DIGIT_DETECT);
 	} else {
 		ast_dsp_free(session->dsp);
@@ -1522,6 +1522,14 @@ static int chan_pjsip_digit_begin(struct ast_channel *chan, char digit)
 		}
 
 		ast_rtp_instance_dtmf_begin(media->rtp, digit);
+                break;
+	case AST_SIP_DTMF_AUTO:
+                       if (!media || !media->rtp || (ast_rtp_instance_dtmf_mode_get(media->rtp) == AST_RTP_DTMF_MODE_INBAND)) {
+                        return -1;
+                }
+
+                ast_rtp_instance_dtmf_begin(media->rtp, digit);
+                break;
 	case AST_SIP_DTMF_NONE:
 		break;
 	case AST_SIP_DTMF_INBAND:
@@ -1625,6 +1633,15 @@ static int chan_pjsip_digit_end(struct ast_channel *ast, char digit, unsigned in
 		}
 
 		ast_rtp_instance_dtmf_end_with_duration(media->rtp, digit, duration);
+                break;
+        case AST_SIP_DTMF_AUTO:
+                if (!media || !media->rtp || (ast_rtp_instance_dtmf_mode_get(media->rtp) == AST_RTP_DTMF_MODE_INBAND)) {
+                        return -1;
+                }
+
+                ast_rtp_instance_dtmf_end_with_duration(media->rtp, digit, duration);
+                break;
+
 	case AST_SIP_DTMF_NONE:
 		break;
 	case AST_SIP_DTMF_INBAND:

@@ -50,6 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/sched.h"
 #include "asterisk/acl.h"
 #include "asterisk/sdp_srtp.h"
+#include "asterisk/dsp.h"
 
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_session.h"
@@ -123,7 +124,7 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 		ice->stop(session_media->rtp);
 	}
 
-	if (session->endpoint->dtmf == AST_SIP_DTMF_RFC_4733) {
+	if (session->endpoint->dtmf == AST_SIP_DTMF_RFC_4733 || session->endpoint->dtmf == AST_SIP_DTMF_AUTO) {
 		ast_rtp_instance_dtmf_mode_set(session_media->rtp, AST_RTP_DTMF_MODE_RFC2833);
 		ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_DTMF, 1);
 	} else if (session->endpoint->dtmf == AST_SIP_DTMF_INBAND) {
@@ -143,13 +144,14 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 	return 0;
 }
 
-static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp_media *stream, struct ast_rtp_codecs *codecs)
+static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp_media *stream, struct ast_rtp_codecs *codecs,
+       struct ast_sip_session_media *session_media)
 {
 	pjmedia_sdp_attr *attr;
 	pjmedia_sdp_rtpmap *rtpmap;
 	pjmedia_sdp_fmtp fmtp;
 	struct ast_format *format;
-	int i, num = 0;
+	int i, num = 0, tel_event = 0;
 	char name[256];
 	char media[20];
 	char fmt_param[256];
@@ -171,6 +173,9 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 		}
 
 		ast_copy_pj_str(name, &rtpmap->enc_name, sizeof(name));
+                if (strcmp(name,"telephone-event") == 0) {
+                        tel_event++;
+                }
 		ast_copy_pj_str(media, (pj_str_t*)&stream->desc.media, sizeof(media));
 		ast_rtp_codecs_payloads_set_rtpmap_type_rate(codecs, NULL, pj_strtoul(&stream->desc.fmt[i]),
 							     media, name, 0, rtpmap->clock_rate);
@@ -200,7 +205,9 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 			}
 		}
 	}
-
+	if ((tel_event==0) && (session->endpoint->dtmf == AST_SIP_DTMF_AUTO)) {
+                ast_rtp_instance_dtmf_mode_set(session_media->rtp, AST_RTP_DTMF_MODE_INBAND);
+	}
 	/* Get the packetization, if it exists */
 	if ((attr = pjmedia_sdp_media_find_attr2(stream, "ptime", NULL))) {
 		unsigned long framing = pj_strtoul(pj_strltrim(&attr->value));
@@ -221,6 +228,7 @@ static int set_caps(struct ast_sip_session *session, struct ast_sip_session_medi
 	int fmts = 0;
 	int direct_media_enabled = !ast_sockaddr_isnull(&session_media->direct_media_addr) &&
 		ast_format_cap_count(session->direct_media_cap);
+	int dsp_features = 0;
 
 	if (!(caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT)) ||
 	    !(peer = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT)) ||
@@ -238,7 +246,7 @@ static int set_caps(struct ast_sip_session *session, struct ast_sip_session_medi
 	}
 
 	/* get the capabilities on the peer */
-	get_codecs(session, stream, &codecs);
+	get_codecs(session, stream, &codecs,  session_media);
 	ast_rtp_codecs_payload_formats(&codecs, peer, &fmts);
 
 	/* get the joint capabilities between peer and endpoint */
@@ -288,6 +296,18 @@ static int set_caps(struct ast_sip_session *session, struct ast_sip_session_medi
 		ast_channel_nativeformats_set(session->channel, caps);
 		ast_set_read_format(session->channel, ast_channel_readformat(session->channel));
 		ast_set_write_format(session->channel, ast_channel_writeformat(session->channel));
+		if ((session->endpoint->dtmf == AST_SIP_DTMF_AUTO)
+		    && (ast_rtp_instance_dtmf_mode_get(session_media->rtp) == AST_RTP_DTMF_MODE_RFC2833)
+		    && (session->dsp)) {
+			dsp_features = ast_dsp_get_features(session->dsp);
+			dsp_features &= ~DSP_FEATURE_DIGIT_DETECT;
+			if (dsp_features) {
+				ast_dsp_set_features(session->dsp, dsp_features);
+			} else {
+				ast_dsp_free(session->dsp);
+				session->dsp = NULL;
+			}
+		}
 		ast_channel_unlock(session->channel);
 
 		ao2_ref(fmt, -1);
@@ -952,7 +972,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	pj_str_t stmp;
 	pjmedia_sdp_attr *attr;
 	int index = 0;
-	int noncodec = (session->endpoint->dtmf == AST_SIP_DTMF_RFC_4733) ? AST_RTP_DTMF : 0;
+	int noncodec = (session->endpoint->dtmf == AST_SIP_DTMF_RFC_4733 || session->endpoint->dtmf == AST_SIP_DTMF_AUTO) ? AST_RTP_DTMF : 0;
 	int min_packet_size = 0, max_packet_size = 0;
 	int rtp_code;
 	RAII_VAR(struct ast_format_cap *, caps, NULL, ao2_cleanup);

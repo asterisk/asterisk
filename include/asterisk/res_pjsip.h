@@ -252,6 +252,8 @@ enum ast_sip_dtmf_mode {
 	AST_SIP_DTMF_INBAND,
 	/*! Use SIP INFO DTMF (blech) */
 	AST_SIP_DTMF_INFO,
+	/*! Use SIP 4733 if supported by the other side or INBAND if not */
+	AST_SIP_DTMF_AUTO,
 };
 
 /*!
