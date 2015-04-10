@@ -1271,9 +1271,12 @@ int ast_translator_best_choice(struct ast_format_cap *dst_cap,
 {
 	unsigned int besttablecost = INT_MAX;
 	unsigned int beststeps = INT_MAX;
+	struct ast_format *fmt;
+	struct ast_format *dst;
+	struct ast_format *src;
 	RAII_VAR(struct ast_format *, best, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_format *, bestdst, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_format_cap *, joint_cap, NULL, ao2_cleanup);
+	struct ast_format_cap *joint_cap;
 	int i;
 	int j;
 
@@ -1282,80 +1285,71 @@ int ast_translator_best_choice(struct ast_format_cap *dst_cap,
 		return -1;
 	}
 
-	if (!(joint_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
+	joint_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!joint_cap) {
 		return -1;
 	}
 	ast_format_cap_get_compatible(dst_cap, src_cap, joint_cap);
 
-	for (i = 0; i < ast_format_cap_count(joint_cap); ++i) {
-		struct ast_format *fmt =
-			ast_format_cap_get_format(joint_cap, i);
-
-		if (!fmt) {
+	for (i = 0; i < ast_format_cap_count(joint_cap); ++i, ao2_cleanup(fmt)) {
+		fmt = ast_format_cap_get_format(joint_cap, i);
+		if (!fmt
+			|| ast_format_get_type(fmt) != AST_MEDIA_TYPE_AUDIO) {
 			continue;
 		}
 
-		if (!best) {
-			/* No ao2_ref operations needed, we're done with fmt */
-			best = fmt;
-			continue;
-		}
-
-		if (ast_format_get_sample_rate(best) <
-		    ast_format_get_sample_rate(fmt)) {
+		if (!best
+			|| ast_format_get_sample_rate(best) < ast_format_get_sample_rate(fmt)) {
 			ao2_replace(best, fmt);
 		}
-		ao2_ref(fmt, -1);
 	}
+	ao2_ref(joint_cap, -1);
 
 	if (best) {
 		ao2_replace(*dst_fmt_out, best);
 		ao2_replace(*src_fmt_out, best);
 		return 0;
 	}
+
 	/* need to translate */
 	AST_RWLIST_RDLOCK(&translators);
-
-	for (i = 0; i < ast_format_cap_count(dst_cap); ++i) {
-		struct ast_format *dst =
-			ast_format_cap_get_format(dst_cap, i);
-
-		if (!dst) {
+	for (i = 0; i < ast_format_cap_count(dst_cap); ++i, ao2_cleanup(dst)) {
+		dst = ast_format_cap_get_format(dst_cap, i);
+		if (!dst
+			|| ast_format_get_type(dst) != AST_MEDIA_TYPE_AUDIO) {
 			continue;
 		}
 
-		for (j = 0; j < ast_format_cap_count(src_cap); ++j) {
-			struct ast_format *src =
-				ast_format_cap_get_format(src_cap, j);
-			int x, y;
+		for (j = 0; j < ast_format_cap_count(src_cap); ++j, ao2_cleanup(src)) {
+			int x;
+			int y;
 
-			if (!src) {
+			src = ast_format_cap_get_format(src_cap, j);
+			if (!src
+				|| ast_format_get_type(src) != AST_MEDIA_TYPE_AUDIO) {
 				continue;
 			}
 
 			x = format2index(src);
 			y = format2index(dst);
 			if (x < 0 || y < 0) {
-				ao2_ref(src, -1);
 				continue;
 			}
 			if (!matrix_get(x, y) || !(matrix_get(x, y)->step)) {
-				ao2_ref(src, -1);
 				continue;
 			}
-			if (((matrix_get(x, y)->table_cost < besttablecost) ||
-			     (matrix_get(x, y)->multistep < beststeps))) {
+			if (matrix_get(x, y)->table_cost < besttablecost
+				|| matrix_get(x, y)->multistep < beststeps) {
 				/* better than what we have so far */
 				ao2_replace(best, src);
 				ao2_replace(bestdst, dst);
 				besttablecost = matrix_get(x, y)->table_cost;
 				beststeps = matrix_get(x, y)->multistep;
 			}
-			ao2_ref(src, -1);
 		}
-		ao2_ref(dst, -1);
 	}
 	AST_RWLIST_UNLOCK(&translators);
+
 	if (!best) {
 		return -1;
 	}

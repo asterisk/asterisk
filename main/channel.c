@@ -5268,7 +5268,14 @@ static int set_format(struct ast_channel *chan, struct ast_format_cap *cap_set, 
 		access = &set_format_access_write;
 	}
 
-	best_set_fmt = ast_format_cap_get_format(cap_set, 0);
+	best_set_fmt = ast_format_cap_get_best_by_type(cap_set, AST_MEDIA_TYPE_AUDIO);
+	if (!best_set_fmt) {
+		/*
+		 * Not setting any audio formats?
+		 * Assume a call without any sounds (video, text)
+		 */
+		return 0;
+	}
 
 	/* See if the underlying channel driver is capable of performing transcoding for us */
 	res = ast_channel_setoption(chan, access->setoption,
