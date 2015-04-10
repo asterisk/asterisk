@@ -138,6 +138,9 @@ void ast_dsp_digitreset(struct ast_dsp *dsp);
 /*! \brief Select feature set */
 void ast_dsp_set_features(struct ast_dsp *dsp, int features);
 
+/*! \brief Get features */
+int ast_dsp_get_features(struct ast_dsp *dsp);
+
 /*! \brief Get pending DTMF/MF digits */
 int ast_dsp_getdigits(struct ast_dsp *dsp, char *buf, int max);
 

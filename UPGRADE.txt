@@ -23,6 +23,11 @@
 
 From 13.3.0 to 13.4.0:
 
+res_pjsip:
+ - The dtmf_mode now supports a new option, 'auto'. This mode will attempt to
+   detect if the device supports RFC4733 DTMF. If so, it will choose that
+   DTMF type; if not, it will choose 'inband' DTMF.
+
 res_pjsip_dlg_options:
  - A new module, this handles OPTIONS requests sent in-dialog. This module
    should have no adverse effects for those upgrading; this note merely

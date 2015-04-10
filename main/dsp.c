@@ -1702,6 +1702,13 @@ void ast_dsp_set_features(struct ast_dsp *dsp, int features)
 	}
 }
 
+
+int ast_dsp_get_features(struct ast_dsp *dsp)
+{
+        return (dsp->features);
+}
+
+
 void ast_dsp_free(struct ast_dsp *dsp)
 {
 	ast_free(dsp);
