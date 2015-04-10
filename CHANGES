@@ -131,6 +131,9 @@ chan_pjsip
    more information.  Defaults to 'no' as setting it to 'yes' can result in
    many unnecessary messages being sent to the caller.
 
+ * The configuration setting 'progressinband' now defaults to 'no', which
+   matches the actual behavior of previous versions.
+
 res_pjsip
 ------------------
  * A new CLI command has been added: "pjsip show settings", which shows

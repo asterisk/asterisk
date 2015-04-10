@@ -29943,8 +29943,8 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 		ast_clear_flag(&flags[0], SIP_PROG_INBAND);
 		if (ast_true(v->value))
 			ast_set_flag(&flags[0], SIP_PROG_INBAND_YES);
-		else if (strcasecmp(v->value, "never"))
-			ast_set_flag(&flags[0], SIP_PROG_INBAND_NO);
+		else if (!strcasecmp(v->value, "never"))
+			ast_set_flag(&flags[0], SIP_PROG_INBAND_NEVER);
 	} else if (!strcasecmp(v->name, "promiscredir")) {
 		ast_set_flag(&mask[0], SIP_PROMISCREDIR);
 		ast_set2_flag(&flags[0], ast_true(v->value), SIP_PROMISCREDIR);

@@ -291,8 +291,8 @@
 
 /* Sending PROGRESS in-band settings */
 #define SIP_PROG_INBAND        (3 << 25) /*!< DP: three settings, uses two bits */
-#define SIP_PROG_INBAND_NEVER  (0 << 25)
-#define SIP_PROG_INBAND_NO     (1 << 25)
+#define SIP_PROG_INBAND_NO     (0 << 25)
+#define SIP_PROG_INBAND_NEVER  (1 << 25)
 #define SIP_PROG_INBAND_YES    (2 << 25)
 
 #define SIP_USEPATH          (1 << 27) /*!< GDP: Trust and use incoming Path headers? */
