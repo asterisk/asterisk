@@ -12421,6 +12421,7 @@ static int iax2_poke_peer_cb(void *obj, void *arg, int flags)
 static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
 {
 	int callno;
+	int poke_timeout;
 	struct sockaddr_in peer_addr;
 
 	if (!peer->maxms || (!ast_sockaddr_ipv4(&peer->addr) && !peer->dnsmgr)) {
@@ -12459,12 +12460,24 @@ static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
 		}
 	}
 
+	if (peer->lastms < 0){
+		/* If the host is already unreachable then use time less than the unreachable
+		 * interval. 5/6 is arbitrary multiplier to get value less than
+		 * peer->pokefreqnotok. Value less than peer->pokefreqnotok is used to expire
+		 * current POKE before starting new POKE (which is scheduled after
+		 * peer->pokefreqnotok). */
+		poke_timeout = peer->pokefreqnotok * 5  / 6;
+	} else {
+		/* If the host is reachable, use timeout large enough to allow for multiple
+		 * POKE retries. Limit this value to less than peer->pokefreqok. 5/6 is arbitrary
+		 * multiplier to get value less than peer->pokefreqok. Value less than
+		 * peer->pokefreqok is used to expire current POKE before starting new POKE
+		 * (which is scheduled after peer->pokefreqok). */
+		poke_timeout = MIN(MAX_RETRY_TIME * 2 + peer->maxms, peer->pokefreqok * 5  / 6);
+	}
+
 	/* Queue up a new task to handle no reply */
-	/* If the host is already unreachable then use the unreachable interval instead */
-	if (peer->lastms < 0)
-		peer->pokeexpire = iax2_sched_add(sched, peer->pokefreqnotok, iax2_poke_noanswer, peer_ref(peer));
-	else
-		peer->pokeexpire = iax2_sched_add(sched, DEFAULT_MAXMS * 2, iax2_poke_noanswer, peer_ref(peer));
+	peer->pokeexpire = iax2_sched_add(sched, poke_timeout, iax2_poke_noanswer, peer_ref(peer));
 
 	if (peer->pokeexpire == -1)
 		peer_unref(peer);
@@ -12478,7 +12491,7 @@ static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
 		};
 
 		/* Speed up retransmission times for this qualify call */
-		iaxs[callno]->pingtime = peer->maxms / 4 + 1;
+		iaxs[callno]->pingtime = peer->maxms / 8;
 		iaxs[callno]->peerpoke = peer;
 
 		add_empty_calltoken_ie(iaxs[callno], &ied); /* this _MUST_ be the last ie added */
