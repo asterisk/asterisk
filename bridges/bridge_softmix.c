@@ -57,6 +57,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define MAX_DATALEN 8096
 
+/*! The minimum sample rate of the bridge. */
+#define SOFTMIX_MIN_SAMPLE_RATE 8000	/* 8 kHz sample rate */
+
 /*! \brief Interval at which mixing will take place. Valid options are 10, 20, and 40. */
 #define DEFAULT_SOFTMIX_INTERVAL 20
 
@@ -96,8 +99,8 @@ struct softmix_channel {
 	struct ast_slinfactory factory;
 	/*! Frame that contains mixed audio to be written out to the channel */
 	struct ast_frame write_frame;
-	/*! Frame that contains mixed audio read from the channel */
-	struct ast_frame read_frame;
+	/*! Current expected read slinear format. */
+	struct ast_format *read_slin_format;
 	/*! DSP for detecting silence */
 	struct ast_dsp *dsp;
 	/*!
@@ -353,7 +356,9 @@ static void softmix_translate_helper_cleanup(struct softmix_translate_helper *tr
 static void set_softmix_bridge_data(int rate, int interval, struct ast_bridge_channel *bridge_channel, int reset)
 {
 	struct softmix_channel *sc = bridge_channel->tech_pvt;
-	unsigned int channel_read_rate = ast_format_get_sample_rate(ast_channel_rawreadformat(bridge_channel->chan));
+	struct ast_format *slin_format;
+
+	slin_format = ast_format_cache_get_slin_by_rate(rate);
 
 	ast_mutex_lock(&sc->lock);
 	if (reset) {
@@ -369,31 +374,29 @@ static void set_softmix_bridge_data(int rate, int interval, struct ast_bridge_ch
 	 * for the channel.  The translated format may not be a
 	 * static cached format.
 	 */
-	ao2_replace(sc->write_frame.subclass.format, ast_format_cache_get_slin_by_rate(rate));
+	ao2_replace(sc->write_frame.subclass.format, slin_format);
 	sc->write_frame.data.ptr = sc->final_buf;
 	sc->write_frame.datalen = SOFTMIX_DATALEN(rate, interval);
 	sc->write_frame.samples = SOFTMIX_SAMPLES(rate, interval);
 
-	/* Setup read frame parameters */
-	sc->read_frame.frametype = AST_FRAME_VOICE;
 	/*
-	 * NOTE: The read_frame format does not hold a reference because it
+	 * NOTE: The read_slin_format does not hold a reference because it
 	 * will always be a signed linear format.
 	 */
-	sc->read_frame.subclass.format = ast_format_cache_get_slin_by_rate(channel_read_rate);
-	sc->read_frame.data.ptr = sc->our_buf;
-	sc->read_frame.datalen = SOFTMIX_DATALEN(channel_read_rate, interval);
-	sc->read_frame.samples = SOFTMIX_SAMPLES(channel_read_rate, interval);
+	sc->read_slin_format = slin_format;
 
 	/* Setup smoother */
-	ast_slinfactory_init_with_format(&sc->factory, sc->write_frame.subclass.format);
+	ast_slinfactory_init_with_format(&sc->factory, slin_format);
 
 	/* set new read and write formats on channel. */
-	ast_set_read_format(bridge_channel->chan, sc->read_frame.subclass.format);
-	ast_set_write_format(bridge_channel->chan, sc->write_frame.subclass.format);
+	ast_channel_lock(bridge_channel->chan);
+	ast_set_read_format_path(bridge_channel->chan,
+		ast_channel_rawreadformat(bridge_channel->chan), slin_format);
+	ast_channel_unlock(bridge_channel->chan);
+	ast_set_write_format(bridge_channel->chan, slin_format);
 
 	/* set up new DSP.  This is on the read side only right before the read frame enters the smoother.  */
-	sc->dsp = ast_dsp_new_with_rate(channel_read_rate);
+	sc->dsp = ast_dsp_new_with_rate(rate);
 	/* we want to aggressively detect silence to avoid feedback */
 	if (bridge_channel->tech_args.talking_threshold) {
 		ast_dsp_set_threshold(sc->dsp, bridge_channel->tech_args.talking_threshold);
@@ -591,6 +594,28 @@ static void softmix_bridge_write_voice(struct ast_bridge *bridge, struct ast_bri
 
 	/* Write the frame into the conference */
 	ast_mutex_lock(&sc->lock);
+
+	if (ast_format_cmp(frame->subclass.format, sc->read_slin_format) != AST_FORMAT_CMP_EQUAL) {
+		/*
+		 * The incoming frame is not the expected format.  Update
+		 * the channel's translation path to get us slinear from
+		 * the new format for the next frame.
+		 *
+		 * There is the possibility that this frame is an old slinear
+		 * rate frame that was in flight when the softmix bridge
+		 * changed rates.  If so it will self correct on subsequent
+		 * frames.
+		 */
+		ast_channel_lock(bridge_channel->chan);
+		ast_debug(1, "Channel %s wrote unexpected format into bridge.  Got %s, expected %s.\n",
+			ast_channel_name(bridge_channel->chan),
+			ast_format_get_name(frame->subclass.format),
+			ast_format_get_name(sc->read_slin_format));
+		ast_set_read_format_path(bridge_channel->chan, frame->subclass.format,
+			sc->read_slin_format);
+		ast_channel_unlock(bridge_channel->chan);
+	}
+
 	ast_dsp_silence_with_energy(sc->dsp, frame, &totalsilence, &cur_energy);
 
 	if (bridge->softmix.video_mode.mode == AST_BRIDGE_VIDEO_MODE_TALKER_SRC) {
@@ -729,15 +754,19 @@ static void gather_softmix_stats(struct softmix_stats *stats,
 	struct ast_bridge_channel *bridge_channel)
 {
 	int channel_native_rate;
-	int i;
-	/* Gather stats about channel sample rates. */
-	channel_native_rate = MAX(ast_format_get_sample_rate(ast_channel_rawwriteformat(bridge_channel->chan)),
-		ast_format_get_sample_rate(ast_channel_rawreadformat(bridge_channel->chan)));
 
-	if (channel_native_rate > stats->highest_supported_rate) {
+	/* Gather stats about channel sample rates. */
+	ast_channel_lock(bridge_channel->chan);
+	channel_native_rate = MAX(SOFTMIX_MIN_SAMPLE_RATE,
+		ast_format_get_sample_rate(ast_channel_rawreadformat(bridge_channel->chan)));
+	ast_channel_unlock(bridge_channel->chan);
+
+	if (stats->highest_supported_rate < channel_native_rate) {
 		stats->highest_supported_rate = channel_native_rate;
 	}
-	if (channel_native_rate > softmix_data->internal_rate) {
+	if (softmix_data->internal_rate < channel_native_rate) {
+		int i;
+
 		for (i = 0; i < ARRAY_LEN(stats->sample_rates); i++) {
 			if (stats->sample_rates[i] == channel_native_rate) {
 				stats->num_channels[i]++;
@@ -749,7 +778,7 @@ static void gather_softmix_stats(struct softmix_stats *stats,
 			}
 		}
 		stats->num_above_internal_rate++;
-	} else if (channel_native_rate == softmix_data->internal_rate) {
+	} else if (softmix_data->internal_rate == channel_native_rate) {
 		stats->num_at_internal_rate++;
 	}
 }
@@ -1119,8 +1148,8 @@ static int softmix_bridge_create(struct ast_bridge *bridge)
 		softmix_bridge_data_destroy(softmix_data);
 		return -1;
 	}
-	/* start at 8khz, let it grow from there */
-	softmix_data->internal_rate = 8000;
+	/* start at minimum rate, let it grow from there */
+	softmix_data->internal_rate = SOFTMIX_MIN_SAMPLE_RATE;
 	softmix_data->internal_mixing_interval = DEFAULT_SOFTMIX_INTERVAL;
 
 	bridge->tech_pvt = softmix_data;

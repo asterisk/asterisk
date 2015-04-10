@@ -629,22 +629,6 @@ static struct ast_frame *chan_pjsip_read(struct ast_channel *ast)
 		return f;
 	}
 
-	if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), f->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
-		struct ast_format_cap *caps;
-
-		ast_debug(1, "Oooh, format changed to %s\n", ast_format_get_name(f->subclass.format));
-
-		caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
-		if (caps) {
-			ast_format_cap_append(caps, f->subclass.format, 0);
-			ast_channel_nativeformats_set(ast, caps);
-			ao2_ref(caps, -1);
-		}
-
-		ast_set_read_format(ast, ast_channel_readformat(ast));
-		ast_set_write_format(ast, ast_channel_writeformat(ast));
-	}
-
 	if (channel->session->dsp) {
 		f = ast_dsp_process(ast, channel->session->dsp, f);
 
