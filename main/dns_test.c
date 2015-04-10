@@ -246,7 +246,7 @@ int ast_dns_test_generate_result(struct ast_dns_query *query, void *records, siz
 
 #else /* TEST_FRAMEWORK */
 
-int ast_dns_test_write_string(struct ast_dns_test_string *string, char *buf)
+int ast_dns_test_write_string(const struct ast_dns_test_string *string, char *buf)
 {
 	return 0;
 }
