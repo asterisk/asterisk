@@ -379,10 +379,10 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; In order for "noanswer" applications to work, you need to run
                                 ; the progress() application in the priority before the app.
 
-;progressinband=never           ; If we should generate in-band ringing always
+;progressinband=no              ; If we should generate in-band ringing. Always
                                 ; use 'never' to never use in-band signalling, even in cases
                                 ; where some buggy devices might not render it
-                                ; Valid values: yes, no, never Default: never
+                                ; Valid values: yes, no, never Default: no
 ;useragent=Asterisk PBX         ; Allows you to change the user agent string
                                 ; The default user agent string also contains the Asterisk
                                 ; version. If you don't want to expose this, change the
