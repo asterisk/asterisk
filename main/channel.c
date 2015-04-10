@@ -5313,6 +5313,14 @@ static int set_format(struct ast_channel *chan,
 	int res;
 	char from[200], to[200];
 
+	if (!ast_format_cap_has_type(cap_set, AST_FORMAT_TYPE_AUDIO)) {
+		/*
+		 * Not setting any audio formats?
+		 * Assume a call without any sounds (video, text)
+		 */
+		return 0;
+	}
+
 	ast_best_codec(cap_set, &best_set_fmt);
 
 	/* See if the underlying channel driver is capable of performing transcoding for us */

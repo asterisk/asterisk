@@ -1192,72 +1192,87 @@ int ast_translator_best_choice(struct ast_format_cap *dst_cap,
 {
 	unsigned int besttablecost = INT_MAX;
 	unsigned int beststeps = INT_MAX;
+	struct ast_format cur_dst;
+	struct ast_format cur_src;
 	struct ast_format best;
 	struct ast_format bestdst;
-	struct ast_format_cap *joint_cap = ast_format_cap_joint(dst_cap, src_cap);
-	ast_format_clear(&best);
-	ast_format_clear(&bestdst);
+	struct ast_format_cap *joint_cap;
 
+	ast_format_clear(&best);
+
+	joint_cap = ast_format_cap_joint(dst_cap, src_cap);
 	if (joint_cap) { /* yes, pick one and return */
 		struct ast_format tmp_fmt;
+
 		ast_format_cap_iter_start(joint_cap);
 		while (!ast_format_cap_iter_next(joint_cap, &tmp_fmt)) {
-			/* We are guaranteed to find one common format. */
-			if (!best.id) {
-				ast_format_copy(&best, &tmp_fmt);
-				continue;
-			}
-			/* If there are multiple common formats, pick the one with the highest sample rate */
-			if (ast_format_rate(&best) < ast_format_rate(&tmp_fmt)) {
-				ast_format_copy(&best, &tmp_fmt);
+			if (AST_FORMAT_GET_TYPE(tmp_fmt.id) != AST_FORMAT_TYPE_AUDIO) {
 				continue;
 			}
 
+			if (!best.id
+				|| ast_format_rate(&best) < ast_format_rate(&tmp_fmt)) {
+				ast_format_copy(&best, &tmp_fmt);
+			}
 		}
 		ast_format_cap_iter_end(joint_cap);
-
-		/* We are done, this is a common format to both. */
-		ast_format_copy(dst_fmt_out, &best);
-		ast_format_copy(src_fmt_out, &best);
 		ast_format_cap_destroy(joint_cap);
-		return 0;
-	} else {      /* No, we will need to translate */
-		struct ast_format cur_dst;
-		struct ast_format cur_src;
-		AST_RWLIST_RDLOCK(&translators);
 
-		ast_format_cap_iter_start(dst_cap);
-		while (!ast_format_cap_iter_next(dst_cap, &cur_dst)) {
-			ast_format_cap_iter_start(src_cap);
-			while (!ast_format_cap_iter_next(src_cap, &cur_src)) {
-				int x = format2index(cur_src.id);
-				int y = format2index(cur_dst.id);
-				if (x < 0 || y < 0) {
-					continue;
-				}
-				if (!matrix_get(x, y) || !(matrix_get(x, y)->step)) {
-					continue;
-				}
-				if (((matrix_get(x, y)->table_cost < besttablecost) || (matrix_get(x, y)->multistep < beststeps))) {
-					/* better than what we have so far */
-					ast_format_copy(&best, &cur_src);
-					ast_format_copy(&bestdst, &cur_dst);
-					besttablecost = matrix_get(x, y)->table_cost;
-					beststeps = matrix_get(x, y)->multistep;
-				}
-			}
-			ast_format_cap_iter_end(src_cap);
-		}
-
-		ast_format_cap_iter_end(dst_cap);
-		AST_RWLIST_UNLOCK(&translators);
 		if (best.id) {
-			ast_format_copy(dst_fmt_out, &bestdst);
+			/* We are done, this is a common format to both. */
+			ast_format_copy(dst_fmt_out, &best);
 			ast_format_copy(src_fmt_out, &best);
 			return 0;
 		}
+	}
+
+	/* No, we will need to translate */
+	ast_format_clear(&bestdst);
+
+	AST_RWLIST_RDLOCK(&translators);
+	ast_format_cap_iter_start(dst_cap);
+	while (!ast_format_cap_iter_next(dst_cap, &cur_dst)) {
+		if (AST_FORMAT_GET_TYPE(cur_dst.id) != AST_FORMAT_TYPE_AUDIO) {
+			continue;
+		}
+
+		ast_format_cap_iter_start(src_cap);
+		while (!ast_format_cap_iter_next(src_cap, &cur_src)) {
+			int x;
+			int y;
+
+			if (AST_FORMAT_GET_TYPE(cur_src.id) != AST_FORMAT_TYPE_AUDIO) {
+				continue;
+			}
+
+			x = format2index(cur_src.id);
+			y = format2index(cur_dst.id);
+			if (x < 0 || y < 0) {
+				continue;
+			}
+			if (!matrix_get(x, y) || !(matrix_get(x, y)->step)) {
+				continue;
+			}
+			if (matrix_get(x, y)->table_cost < besttablecost
+				|| matrix_get(x, y)->multistep < beststeps) {
+				/* better than what we have so far */
+				ast_format_copy(&best, &cur_src);
+				ast_format_copy(&bestdst, &cur_dst);
+				besttablecost = matrix_get(x, y)->table_cost;
+				beststeps = matrix_get(x, y)->multistep;
+			}
+		}
+		ast_format_cap_iter_end(src_cap);
+	}
+	ast_format_cap_iter_end(dst_cap);
+	AST_RWLIST_UNLOCK(&translators);
+
+	if (!best.id) {
 		return -1;
 	}
+	ast_format_copy(dst_fmt_out, &bestdst);
+	ast_format_copy(src_fmt_out, &best);
+	return 0;
 }
 
 unsigned int ast_translate_path_steps(struct ast_format *dst_format, struct ast_format *src_format)
