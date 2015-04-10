@@ -997,6 +997,7 @@ static int wizard_apply_handler(const struct ast_sorcery *sorcery, struct object
  * Everything below are the sorcery observers.
  */
 static void instance_created_observer(const char *name, struct ast_sorcery *sorcery);
+static void instance_destroying_observer(const char *name, struct ast_sorcery *sorcery);
 static void object_type_loaded_observer(const char *name,
 	const struct ast_sorcery *sorcery, const char *object_type, int reloaded);
 static void wizard_mapped_observer(const char *name, struct ast_sorcery *sorcery,
@@ -1007,6 +1008,7 @@ static void object_type_registered_observer(const char *name,
 
 const static struct ast_sorcery_global_observer global_observer = {
 	.instance_created = instance_created_observer,
+	.instance_destroying = instance_destroying_observer,
 };
 
 struct ast_sorcery_instance_observer observer = {
@@ -1150,69 +1152,42 @@ static void object_type_registered_observer(const char *name,
 }
 
 /*! \brief When the res_pjsip instance is created, add an observer to it and initialize the wizard vector.
- * Since you can't unload res_pjsip, this will only ever be called once.
+ * Also, bump the module's ref count so it can't be unloaded before the sorcery instance is
+ * destroyed.
  */
 static void instance_created_observer(const char *name, struct ast_sorcery *sorcery)
 {
 	if (strcmp(name, "res_pjsip")) {
 		return;
 	}
-
+	ast_module_ref(ast_module_info->self);
 	ast_sorcery_instance_observer_add(sorcery, &observer);
+}
+
+/*! \brief When the res_pjsip instance is destroyed, remove the observer
+ * and unref the module.  This should then allow this module to unload cleanly.
+ */
+static void instance_destroying_observer(const char *name, struct ast_sorcery *sorcery)
+{
+	if (strcmp(name, "res_pjsip")) {
+		return;
+	}
+
+	ast_sorcery_instance_observer_remove(sorcery, &observer);
+	ast_module_unref(ast_module_info->self);
 }
 
 static int load_module(void)
 {
-	struct ast_sorcery *sorcery = NULL;
-	int i;
-
 	AST_VECTOR_INIT(&object_type_wizards, 12);
 	ast_sorcery_global_observer_add(&global_observer);
-
-	/* If this module is loading AFTER res_pjsip, we need to manually add the instance observer
-	 * and map the wizards because the observers will never get triggered.
-	 * The we neeed to schedule a reload.
-	 */
-	if (ast_module_check("res_pjsip.so") && ast_sip_get_pjsip_endpoint()) {
-		sorcery = ast_sip_get_sorcery();
-		if (sorcery) {
-			/* Clean up and add the observer. */
-			ast_sorcery_instance_observer_remove(sorcery, &observer);
-			ast_sorcery_instance_observer_add(sorcery, &observer);
-
-			for (i = 0; object_types[i]; i++) {
-				ast_sorcery_apply_wizard_mapping(sorcery, object_types[i], "memory",
-					"pjsip_wizard", 0);
-			}
-
-			ast_module_reload("res_pjsip.so");
-		}
-	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
-	struct object_type_wizard *otw;
-	int i;
-
 	ast_sorcery_global_observer_remove(&global_observer);
-
-	for (i = 0; object_types[i]; i++) {
-		RAII_VAR(struct ao2_container *, existing,
-			ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, NULL, NULL), ao2_cleanup);
-
-		otw = find_wizard(object_types[i]);
-		if (otw) {
-			if (otw->sorcery) {
-				ast_sorcery_instance_observer_remove(otw->sorcery, &observer);
-			}
-			otw->wizard->retrieve_multiple(otw->sorcery, otw->wizard_data, object_types[i], existing, NULL);
-			ao2_callback(existing, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, delete_existing_cb, otw);
-		}
-	}
-
 	AST_VECTOR_REMOVE_CMP_UNORDERED(&object_type_wizards, NULL, NOT_EQUALS, OTW_DELETE_CB);
 	AST_VECTOR_FREE(&object_type_wizards);
 
@@ -1220,6 +1195,7 @@ static int unload_module(void)
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "PJSIP Config Wizard",
+		.support_level = AST_MODULE_SUPPORT_CORE,
 		.load = load_module,
 		.unload = unload_module,
 		.load_pri = AST_MODPRI_REALTIME_DRIVER,
