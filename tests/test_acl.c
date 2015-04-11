@@ -122,6 +122,22 @@ struct acl {
 #define TACL_A AST_SENSE_ALLOW
 #define TACL_D AST_SENSE_DENY
 
+static int build_ha(const struct acl *acl, size_t len, struct ast_ha **ha, const char *acl_name, int *err, struct ast_test *test, enum ast_test_result_state *res) 
+{
+	size_t i;
+
+	for (i = 0; i < len; ++i) {
+		if (!(*ha = ast_append_ha(acl[i].access, acl[i].host, *ha, err))) {
+			ast_test_status_update(test, "Failed to add rule %s with access %s to %s\n",
+					       acl[i].host, acl[i].access, acl_name);
+			*res = AST_TEST_FAIL;
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 AST_TEST_DEFINE(acl)
 {
 	struct acl permitallv4 = { "0.0.0.0/0", "permit" };
@@ -211,21 +227,6 @@ AST_TEST_DEFINE(acl)
 	int err = 0;
 	int i;
 
-	auto int build_ha(const struct acl *acl, size_t len, struct ast_ha **ha, const char *acl_name);
-	auto int build_ha(const struct acl *acl, size_t len, struct ast_ha **ha, const char *acl_name) {
-		size_t i;
-
-		for (i = 0; i < len; ++i) {
-			if (!(*ha = ast_append_ha(acl[i].access, acl[i].host, *ha, &err))) {
-				ast_test_status_update(test, "Failed to add rule %s with access %s to %s\n",
-						       acl[i].host, acl[i].access, acl_name);
-				res = AST_TEST_FAIL;
-				return -1;
-			}
-		}
-
-		return 0;
-	}
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -263,31 +264,31 @@ AST_TEST_DEFINE(acl)
 		goto acl_cleanup;
 	}
 
-	if (build_ha(acl1, ARRAY_LEN(acl1), &ha1, "ha1") != 0) {
+	if (build_ha(acl1, ARRAY_LEN(acl1), &ha1, "ha1", &err, test, &res) != 0) {
 		goto acl_cleanup;
 	}
 
-	if (build_ha(acl2, ARRAY_LEN(acl2), &ha2, "ha2") != 0) {
+	if (build_ha(acl2, ARRAY_LEN(acl2), &ha2, "ha2", &err, test, &res) != 0) {
 		goto acl_cleanup;
 	}
 
-	if (build_ha(acl3, ARRAY_LEN(acl3), &ha3, "ha3") != 0) {
+	if (build_ha(acl3, ARRAY_LEN(acl3), &ha3, "ha3", &err, test, &res) != 0) {
 		goto acl_cleanup;
 	}
 
-	if (build_ha(acl4, ARRAY_LEN(acl4), &ha4, "ha4") != 0) {
+	if (build_ha(acl4, ARRAY_LEN(acl4), &ha4, "ha4", &err, test, &res) != 0) {
 		goto acl_cleanup;
 	}
 
-	if (build_ha(acl5, ARRAY_LEN(acl5), &ha5, "ha5") != 0) {
+	if (build_ha(acl5, ARRAY_LEN(acl5), &ha5, "ha5", &err, test, &res) != 0) {
 		goto acl_cleanup;
 	}
 
-	if (build_ha(acl6, ARRAY_LEN(acl6), &ha6, "ha6") != 0) {
+	if (build_ha(acl6, ARRAY_LEN(acl6), &ha6, "ha6", &err, test, &res) != 0) {
 		goto acl_cleanup;
 	}
 
-	if (build_ha(acl7, ARRAY_LEN(acl7), &ha7, "ha7") != 0) {
+	if (build_ha(acl7, ARRAY_LEN(acl7), &ha7, "ha7", &err, test, &res) != 0) {
 		goto acl_cleanup;
 	}
 

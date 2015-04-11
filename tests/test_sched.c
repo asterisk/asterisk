@@ -202,7 +202,7 @@ static char *handle_cli_sched_bench(struct ast_cli_entry *e, int cmd, struct ast
 	start = ast_tvnow();
 
 	for (i = 0; i < num; i++) {
-		int when = abs(ast_random()) % 60000;
+		long when = labs(ast_random()) % 60000;
 		if ((sched_ids[i] = ast_sched_add(con, when, sched_cb, NULL)) == -1) {
 			ast_cli(a->fd, "Test failed - sched_add returned -1\n");
 			goto return_cleanup;
