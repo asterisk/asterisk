@@ -160,6 +160,16 @@ const char *ast_endpoint_get_resource(const struct ast_endpoint *endpoint);
 const char *ast_endpoint_get_id(const struct ast_endpoint *endpoint);
 
 /*!
+ * \brief Gets the state of the given endpoint.
+ *
+ * \param endpoint The endpoint.
+ * \return state.
+ * \return \c AST_ENDPOINT_UNKNOWN if endpoint is \c NULL.
+ * \since 13.4
+ */
+enum ast_endpoint_state ast_endpoint_get_state(const struct ast_endpoint *endpoint);
+
+/*!
  * \brief Updates the state of the given endpoint.
  *
  * \param endpoint Endpoint to modify.
