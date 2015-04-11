@@ -1,0 +1,4 @@
+[gerrit]
+host=gerrit.asterisk.org
+port=29418
+project=asterisk.git
