@@ -1006,6 +1006,14 @@
 						If <literal>0</literal> never qualify. Time in seconds.
 					</para></description>
 				</configOption>
+				<configOption name="qualify_timeout" default="3">
+					<synopsis>Timeout for qualify</synopsis>
+					<description><para>
+						If the contact doesn't repond to the OPTIONS request before the timeout,
+						the contact is marked unavailable.
+						If <literal>0</literal> no timeout. Time in seconds.
+					</para></description>
+				</configOption>
 				<configOption name="outbound_proxy">
 					<synopsis>Outbound proxy used when sending OPTIONS request</synopsis>
 					<description><para>
@@ -1118,6 +1126,14 @@
 					<description><para>
 						Interval between attempts to qualify the AoR for reachability.
 						If <literal>0</literal> never qualify. Time in seconds.
+					</para></description>
+				</configOption>
+				<configOption name="qualify_timeout" default="3">
+					<synopsis>Timeout for qualify</synopsis>
+					<description><para>
+						If the contact doesn't repond to the OPTIONS request before the timeout,
+						the contact is marked unavailable.
+						If <literal>0</literal> no timeout. Time in seconds.
 					</para></description>
 				</configOption>
 				<configOption name="authenticate_qualify" default="no">
