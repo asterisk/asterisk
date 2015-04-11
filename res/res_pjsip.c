@@ -1226,6 +1226,9 @@
 				<configOption name="keep_alive_interval" default="0">
 					<synopsis>The interval (in seconds) to send keepalives to active connection-oriented transports.</synopsis>
 				</configOption>
+				<configOption name="max_initial_qualify_time" default="0">
+					<synopsis>The maximum amount of time from startup that qualifies should be attempted on all contacts.</synopsis>
+				</configOption>
 				<configOption name="type">
 					<synopsis>Must be of type 'global'.</synopsis>
 				</configOption>
