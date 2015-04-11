@@ -803,6 +803,7 @@
                         ; (default: "no")
 ;type=  ; Must be of type aor (default: "")
 ;qualify_frequency=0    ; Interval at which to qualify an AoR (default: "0")
+;qualify_timeout=3      ; Qualify timeout in seconds (default: "3")
 ;authenticate_qualify=no        ; Authenticates a qualify request if needed
                                 ; (default: "no")
 ;outbound_proxy=        ; Outbound proxy used when sending OPTIONS request
