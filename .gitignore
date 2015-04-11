@@ -1,0 +1,68 @@
+# git ls-files --others --exclude-from=.git/info/exclude
+# Lines that start with '#' are comments.
+# For a project mostly in C, the following would be a good set of
+# exclude patterns (uncomment them if you want to use them):
+# *.[oa]
+# *~
+
+*~
+*.[oadi]
+*.ii
+*.oo
+*.eo
+*.so
+*.exports
+*.moduleinfo
+*.makeopts
+*.makedeps
+makeopts
+
+.lastclean
+addons/mp3
+agi/eagi-sphinx-test
+agi/eagi-test
+agi/strcompat.c
+build_tools/menuselect-deps
+config.log
+config.status
+defaults.h
+doc/core-en_US.xml
+include/asterisk/autoconfig.h
+include/asterisk/build.h
+include/asterisk/buildopts.h
+main/asterisk
+main/libasteriskssl.so.1
+main/version.c
+makeopts.embed_rules
+menuselect-tree
+menuselect/autoconfig.h
+menuselect/cmenuselect
+menuselect/config.log
+menuselect/config.status
+menuselect/menuselect
+res/ael/ael.output
+utils/aelbison.c
+utils/aelparse
+utils/aelparse.c
+utils/ast_expr2.c
+utils/ast_expr2f.c
+utils/astman
+utils/astcanary
+utils/astdb2bdb
+utils/astdb2sqlite3
+utils/check_expr
+utils/check_expr2
+utils/conf2ael
+utils/db1-ast/libdb1.a
+utils/hashtab.c
+utils/lock.c
+utils/md5.c
+utils/muted
+utils/pbx_ael.c
+utils/pval.c
+utils/smsq
+utils/stereorize
+utils/strcompat.c
+utils/streamplayer
+utils/threadstorage.c
+
