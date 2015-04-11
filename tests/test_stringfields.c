@@ -212,7 +212,7 @@ AST_TEST_DEFINE(string_field_test)
 	}
 
 	if (AST_STRING_FIELD_ALLOCATION(test_struct.string2) != strlen("hippopotamus face") + 1) {
-		ast_test_status_update(test, "The allocation amount is incorrect for string2. We expect %lu but it has %hu\n",
+		ast_test_status_update(test, "The allocation amount is incorrect for string2. We expect %lu but it has %d\n",
 				(unsigned long) strlen("hippopotamus face"), AST_STRING_FIELD_ALLOCATION(test_struct.string2) + 1);
 		goto error;
 	} else {
