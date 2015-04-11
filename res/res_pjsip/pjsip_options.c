@@ -28,6 +28,7 @@
 #include "asterisk/astobj2.h"
 #include "asterisk/cli.h"
 #include "asterisk/time.h"
+#include "asterisk/test.h"
 #include "include/res_pjsip_private.h"
 
 #define DEFAULT_LANGUAGE "en"
@@ -110,18 +111,20 @@ static void update_contact_status(const struct ast_sip_contact *contact,
 
 	status = find_or_create_contact_status(contact);
 	if (!status) {
+		ast_log(LOG_ERROR, "Unable to find ast_sip_contact_status for contact %s\n",
+			contact->uri);
 		return;
 	}
 
 	update = ast_sorcery_alloc(ast_sip_get_sorcery(), CONTACT_STATUS,
 		ast_sorcery_object_get_id(status));
 	if (!update) {
-		ast_log(LOG_ERROR, "Unable to create update ast_sip_contact_status for contact %s\n",
+		ast_log(LOG_ERROR, "Unable to allocate ast_sip_contact_status for contact %s\n",
 			contact->uri);
-		ao2_ref(status, -1);
 		return;
 	}
 
+	update->last_status = status->status;
 	update->status = value;
 
 	/* if the contact is available calculate the rtt as
@@ -131,13 +134,21 @@ static void update_contact_status(const struct ast_sip_contact *contact,
 
 	update->rtt_start = ast_tv(0, 0);
 
+	ast_test_suite_event_notify("AOR_CONTACT_QUALIFY_RESULT",
+		"Contact: %s\r\n"
+			"Status: %s\r\n"
+			"RTT: %ld",
+		ast_sorcery_object_get_id(update),
+		(update->status == AVAILABLE ? "Available" : "Unavailable"),
+		update->rtt);
+
 	if (ast_sorcery_update(ast_sip_get_sorcery(), update)) {
 		ast_log(LOG_ERROR, "Unable to update ast_sip_contact_status for contact %s\n",
 			contact->uri);
 	}
 
-	ao2_ref(update, -1);
 	ao2_ref(status, -1);
+	ao2_ref(update, -1);
 }
 
 /*!
@@ -152,18 +163,22 @@ static void init_start_time(const struct ast_sip_contact *contact)
 
 	status = find_or_create_contact_status(contact);
 	if (!status) {
+		ast_log(LOG_ERROR, "Unable to find ast_sip_contact_status for contact %s\n",
+			contact->uri);
 		return;
 	}
 
 	update = ast_sorcery_alloc(ast_sip_get_sorcery(), CONTACT_STATUS,
 		ast_sorcery_object_get_id(status));
 	if (!update) {
-		ast_log(LOG_ERROR, "Unable to create update ast_sip_contact_status for contact %s\n",
+		ast_log(LOG_ERROR, "Unable to copy ast_sip_contact_status for contact %s\n",
 			contact->uri);
-		ao2_ref(status, -1);
 		return;
 	}
 
+	update->status = status->status;
+	update->last_status = status->last_status;
+	update->rtt = status->rtt;
 	update->rtt_start = ast_tvnow();
 
 	if (ast_sorcery_update(ast_sip_get_sorcery(), update)) {
@@ -171,8 +186,8 @@ static void init_start_time(const struct ast_sip_contact *contact)
 			contact->uri);
 	}
 
-	ao2_ref(update, -1);
 	ao2_ref(status, -1);
+	ao2_ref(update, -1);
 }
 
 /*!
@@ -320,7 +335,7 @@ static int qualify_contact(struct ast_sip_endpoint *endpoint, struct ast_sip_con
 	init_start_time(contact);
 
 	ao2_ref(contact, +1);
-	if (ast_sip_send_request(tdata, NULL, endpoint_local, contact, qualify_contact_cb)
+	if (ast_sip_send_out_of_dialog_request(tdata, endpoint_local, (int)(contact->qualify_timeout * 1000), contact, qualify_contact_cb)
 		!= PJ_SUCCESS) {
 		ast_log(LOG_ERROR, "Unable to send request to qualify contact %s\n",
 			contact->uri);
@@ -923,6 +938,32 @@ static int sched_qualifies_cmp_fn(void *obj, void *arg, int flags)
 	return CMP_MATCH;
 }
 
+static int rtt_start_handler(const struct aco_option *opt,
+	struct ast_variable *var, void *obj)
+{
+	struct ast_sip_contact_status *status = obj;
+	long int sec, usec;
+
+	if (sscanf(var->value, "%ld.%06ld", &sec, &usec) != 2) {
+		return -1;
+	}
+
+	status->rtt_start = ast_tv(sec, usec);
+
+	return 0;
+}
+
+static int rtt_start_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_contact_status *status = obj;
+
+	if (ast_asprintf(buf, "%ld.%06ld", status->rtt_start.tv_sec, status->rtt_start.tv_usec) == -1) {
+		return -1;
+	}
+
+	return 0;
+}
+
 int ast_sip_initialize_sorcery_qualify(void)
 {
 	struct ast_sorcery *sorcery = ast_sip_get_sorcery();
@@ -936,10 +977,14 @@ int ast_sip_initialize_sorcery_qualify(void)
 		return -1;
 	}
 
-	ast_sorcery_object_field_register_nodoc(sorcery, CONTACT_STATUS, "rtt", "0", OPT_UINT_T,
-					  1, FLDSET(struct ast_sip_contact_status, status));
-	ast_sorcery_object_field_register_nodoc(sorcery, CONTACT_STATUS, "rtt", "0", OPT_UINT_T,
-					  1, FLDSET(struct ast_sip_contact_status, rtt));
+	ast_sorcery_object_field_register_nodoc(sorcery, CONTACT_STATUS, "last_status",
+		"0", OPT_UINT_T, 1, FLDSET(struct ast_sip_contact_status, last_status));
+	ast_sorcery_object_field_register_nodoc(sorcery, CONTACT_STATUS, "status",
+		"0", OPT_UINT_T, 1, FLDSET(struct ast_sip_contact_status, status));
+	ast_sorcery_object_field_register_custom_nodoc(sorcery, CONTACT_STATUS, "rtt_start",
+		"0.0", rtt_start_handler, rtt_start_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register_nodoc(sorcery, CONTACT_STATUS, "rtt",
+		"0", OPT_UINT_T, 1, FLDSET(struct ast_sip_contact_status, rtt));
 
 	return 0;
 }
@@ -951,6 +996,7 @@ static int qualify_and_schedule_cb(void *obj, void *arg, int flags)
 	int initial_interval;
 
 	contact->qualify_frequency = aor->qualify_frequency;
+	contact->qualify_timeout = aor->qualify_timeout;
 	contact->authenticate_qualify = aor->authenticate_qualify;
 
 	/* Delay initial qualification by a random fraction of the specified interval */
