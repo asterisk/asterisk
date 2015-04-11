@@ -415,6 +415,14 @@ const char *ast_endpoint_get_id(const struct ast_endpoint *endpoint)
 	return endpoint->id;
 }
 
+enum ast_endpoint_state ast_endpoint_get_state(const struct ast_endpoint *endpoint)
+{
+	if (!endpoint) {
+		return AST_ENDPOINT_UNKNOWN;
+	}
+	return endpoint->state;
+}
+
 void ast_endpoint_set_state(struct ast_endpoint *endpoint,
 	enum ast_endpoint_state state)
 {

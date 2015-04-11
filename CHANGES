@@ -139,6 +139,14 @@ res_pjsip
  * A new CLI command has been added: "pjsip show settings", which shows
    both the global and system configuration settings.
 
+ * A new aor option has been added: "qualify_timeout", which sets the timeout
+   in seconds for a qualify.  The default is 3 seconds.  This overrides the 
+   hard coded 32 seconds in pjproject.
+
+ * Endpoint status will now change to "Unreachable" when all contacts are
+   unavailable.  When any contact becomes available, the endpoint will status
+   will change back to "Reachable".
+
 res_ari_channels
 ------------------
  * Two new events, 'ChannelHold' and 'ChannelUnhold', have been added to the
