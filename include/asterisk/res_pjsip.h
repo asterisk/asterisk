@@ -166,6 +166,8 @@ struct ast_sip_contact {
 	unsigned int qualify_frequency;
 	/*! If true authenticate the qualify if needed */
 	int authenticate_qualify;
+	/*! Qualify timeout. 0 is diabled. */
+	unsigned int qualify_timeout;
 };
 
 #define CONTACT_STATUS "contact_status"
@@ -192,6 +194,8 @@ struct ast_sip_contact_status {
 	struct timeval rtt_start;
 	/*! The round trip time in microseconds */
 	int64_t rtt;
+	/*! Last status for a contact (default - unavailable) */
+	enum ast_sip_contact_status_type last_status;
 };
 
 /*!
@@ -224,6 +228,8 @@ struct ast_sip_aor {
 	struct ao2_container *permanent_contacts;
 	/*! Determines whether SIP Path headers are supported */
 	unsigned int support_path;
+	/*! Qualify timeout. 0 is diabled. */
+	unsigned int qualify_timeout;
 };
 
 /*!
@@ -901,6 +907,15 @@ struct ao2_container *ast_sip_location_retrieve_aor_contacts(const struct ast_si
  * \retval non-NULL if contacts available
  */
 struct ast_sip_contact *ast_sip_location_retrieve_contact_from_aor_list(const char *aor_list);
+
+/*!
+ * \brief Retrieve all contacts from a list of AORs
+ *
+ * \param aor_list A comma-separated list of AOR names
+ * \retval NULL if no contacts available
+ * \retval non-NULL container (which must be freed) if contacts available
+ */
+struct ao2_container *ast_sip_location_retrieve_contacts_from_aor_list(const char *aor_list);
 
 /*!
  * \brief Retrieve the first bound contact AND the AOR chosen from a list of AORs
