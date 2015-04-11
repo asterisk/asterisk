@@ -19,6 +19,7 @@
 #include "asterisk/utils.h"
 #include "asterisk/sorcery.h"
 #include "asterisk/callerid.h"
+#include "asterisk/test.h"
 
 /*! \brief Number of buckets for persistent endpoint information */
 #define PERSISTENT_BUCKETS 53
@@ -59,31 +60,66 @@ static int persistent_endpoint_cmp(void *obj, void *arg, int flags)
 static int persistent_endpoint_update_state(void *obj, void *arg, int flags)
 {
 	struct sip_persistent_endpoint *persistent = obj;
+	struct ast_endpoint *endpoint = persistent->endpoint;
 	char *aor = arg;
-	RAII_VAR(struct ast_sip_contact *, contact, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+	struct ao2_container *contacts;
+	struct ast_json *blob;
+	struct ao2_iterator i;
+	struct ast_sip_contact *contact;
+	enum ast_endpoint_state state = AST_ENDPOINT_OFFLINE;
 
 	if (!ast_strlen_zero(aor) && !strstr(persistent->aors, aor)) {
 		return 0;
 	}
 
-	if ((contact = ast_sip_location_retrieve_contact_from_aor_list(persistent->aors))) {
-		ast_endpoint_set_state(persistent->endpoint, AST_ENDPOINT_ONLINE);
-		blob = ast_json_pack("{s: s}", "peer_status", "Reachable");
-	} else {
-		ast_endpoint_set_state(persistent->endpoint, AST_ENDPOINT_OFFLINE);
-		blob = ast_json_pack("{s: s}", "peer_status", "Unreachable");
+	/* Find all the contacts for this endpoint.  If ANY are available,
+	 * mark the endpoint as ONLINE.
+	 */
+	contacts = ast_sip_location_retrieve_contacts_from_aor_list(persistent->aors);
+	if (contacts) {
+		i = ao2_iterator_init(contacts, 0);
+		while ((contact = ao2_iterator_next(&i))
+			&& state == AST_ENDPOINT_OFFLINE) {
+			struct ast_sip_contact_status *contact_status;
+			const char *contact_id = ast_sorcery_object_get_id(contact);
+
+			contact_status = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(),
+				CONTACT_STATUS, contact_id);
+
+			if (contact_status && contact_status->status == AVAILABLE) {
+				state = AST_ENDPOINT_ONLINE;
+			}
+			ao2_cleanup(contact_status);
+			ao2_ref(contact, -1);
+		}
+		ao2_iterator_destroy(&i);
+		ao2_ref(contacts, -1);
 	}
 
-	ast_endpoint_blob_publish(persistent->endpoint, ast_endpoint_state_type(), blob);
+	/* If there was no state change, don't publish anything. */
+	if (ast_endpoint_get_state(endpoint) == state) {
+		return 0;
+	}
 
-	ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, "PJSIP/%s", ast_endpoint_get_resource(persistent->endpoint));
+	if (state == AST_ENDPOINT_ONLINE) {
+		ast_endpoint_set_state(endpoint, AST_ENDPOINT_ONLINE);
+		blob = ast_json_pack("{s: s}", "peer_status", "Reachable");
+		ast_verb(1, "Endpoint %s is now Reachable\n", ast_endpoint_get_resource(endpoint));
+	} else {
+		ast_endpoint_set_state(endpoint, AST_ENDPOINT_OFFLINE);
+		blob = ast_json_pack("{s: s}", "peer_status", "Unreachable");
+		ast_verb(1, "Endpoint %s is now Unreachable\n", ast_endpoint_get_resource(endpoint));
+	}
+
+	ast_endpoint_blob_publish(endpoint, ast_endpoint_state_type(), blob);
+	ast_json_unref(blob);
+	ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, "PJSIP/%s", ast_endpoint_get_resource(endpoint));
 
 	return 0;
 }
 
 /*! \brief Function called when stuff relating to a contact happens (created/deleted) */
-static void persistent_endpoint_contact_observer(const void *object)
+static void persistent_endpoint_contact_created_observer(const void *object)
 {
 	char *id = ast_strdupa(ast_sorcery_object_get_id(object)), *aor = NULL;
 
@@ -92,12 +128,74 @@ static void persistent_endpoint_contact_observer(const void *object)
 	ao2_callback(persistent_endpoints, OBJ_NODATA, persistent_endpoint_update_state, aor);
 }
 
+/*! \brief Function called when stuff relating to a contact happens (created/deleted) */
+static void persistent_endpoint_contact_deleted_observer(const void *object)
+{
+	char *id = ast_strdupa(ast_sorcery_object_get_id(object));
+	char *aor = NULL;
+	char *contact = NULL;
+
+	aor = id;
+	/* Dynamic contacts are delimited with ";@" and static ones with "@@" */
+	if ((contact = strstr(id, ";@")) || (contact = strstr(id, "@@"))) {
+		*contact = '\0';
+		contact += 2;
+	} else {
+		contact = id;
+	}
+
+	ast_verb(1, "Contact %s/%s is now Unavailable\n", aor, contact);
+
+	ao2_callback(persistent_endpoints, OBJ_NODATA, persistent_endpoint_update_state, aor);
+}
+
 /*! \brief Observer for contacts so state can be updated on respective endpoints */
 static const struct ast_sorcery_observer state_contact_observer = {
-	.created = persistent_endpoint_contact_observer,
-	.deleted = persistent_endpoint_contact_observer,
+	.created = persistent_endpoint_contact_created_observer,
+	.deleted = persistent_endpoint_contact_deleted_observer,
 };
 
+/*! \brief Function called when stuff relating to a contact status happens (updated) */
+static void persistent_endpoint_contact_status_observer(const void *object)
+{
+	const struct ast_sip_contact_status *contact_status = object;
+	char *id = ast_strdupa(ast_sorcery_object_get_id(object));
+	char *aor = NULL;
+	char *contact = NULL;
+
+	/* If rtt_start is set (this is the outgoing OPTIONS) or
+	 * there's no status change, ignore.
+	 */
+	if (contact_status->rtt_start.tv_sec > 0
+		|| contact_status->status == contact_status->last_status) {
+		return;
+	}
+
+	aor = id;
+	/* Dynamic contacts are delimited with ";@" and static ones with "@@" */
+	if ((contact = strstr(id, ";@")) || (contact = strstr(id, "@@"))) {
+		*contact = '\0';
+		contact += 2;
+	} else {
+		contact = id;
+	}
+
+	ast_test_suite_event_notify("AOR_CONTACT_UPDATE",
+		"Contact: %s\r\n"
+			"Status: %s",
+		ast_sorcery_object_get_id(contact_status),
+		(contact_status->status == AVAILABLE ? "Available" : "Unavailable"));
+
+	ast_verb(1, "Contact %s/%s is now %s\n", aor, contact,
+		contact_status->status == AVAILABLE ? "Available" : "Unavailable");
+
+	ao2_callback(persistent_endpoints, OBJ_NODATA, persistent_endpoint_update_state, aor);
+}
+
+/*! \brief Observer for contacts so state can be updated on respective endpoints */
+static const struct ast_sorcery_observer state_contact_status_observer = {
+	.updated = persistent_endpoint_contact_status_observer,
+};
 
 static int dtmf_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
@@ -1796,6 +1894,7 @@ int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_mod
 	}
 
 	ast_sorcery_observer_add(sip_sorcery, "contact", &state_contact_observer);
+	ast_sorcery_observer_add(sip_sorcery, CONTACT_STATUS, &state_contact_status_observer);
 
 	if (ast_sip_initialize_sorcery_domain_alias()) {
 		ast_log(LOG_ERROR, "Failed to register SIP domain aliases support with sorcery\n");
@@ -1852,6 +1951,8 @@ int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_mod
 
 void ast_res_pjsip_destroy_configuration(void)
 {
+	ast_sorcery_observer_remove(sip_sorcery, CONTACT_STATUS, &state_contact_status_observer);
+	ast_sorcery_observer_remove(sip_sorcery, "contact", &state_contact_observer);
 	ast_sip_destroy_sorcery_global();
 	ast_sip_destroy_sorcery_location();
 	ast_sip_destroy_sorcery_auth();
