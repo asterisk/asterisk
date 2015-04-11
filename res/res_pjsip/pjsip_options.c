@@ -949,13 +949,19 @@ static int qualify_and_schedule_cb(void *obj, void *arg, int flags)
 	struct ast_sip_contact *contact = obj;
 	struct ast_sip_aor *aor = arg;
 	int initial_interval;
+	int max_time = ast_sip_get_max_initial_qualify_time();
 
 	contact->qualify_frequency = aor->qualify_frequency;
 	contact->authenticate_qualify = aor->authenticate_qualify;
 
 	/* Delay initial qualification by a random fraction of the specified interval */
-	initial_interval = contact->qualify_frequency * 1000;
-	initial_interval = (int)(initial_interval * ast_random_double());
+	if (max_time && max_time < contact->qualify_frequency) {
+		initial_interval = max_time;
+	} else {
+		initial_interval = contact->qualify_frequency;
+	}
+
+	initial_interval = (int)((initial_interval * 1000) * ast_random_double());
 
 	if (contact->qualify_frequency) {
 		schedule_qualify(contact, initial_interval);
