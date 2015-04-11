@@ -1260,6 +1260,30 @@ int ast_sip_send_request(pjsip_tx_data *tdata, struct pjsip_dialog *dlg,
 	void (*callback)(void *token, pjsip_event *e));
 
 /*!
+ * \brief General purpose method for sending an Out-Of-Dialog SIP request
+ *
+ * This is a companion function for \ref ast_sip_create_request. The request
+ * created there can be passed to this function, though any request may be
+ * passed in.
+ *
+ * This will automatically set up handling outbound authentication challenges if
+ * they arrive.
+ *
+ * \param tdata The request to send
+ * \param endpoint Optional. If specified, the out-of-dialog request is sent to the endpoint.
+ * \param timeout.  If non-zero, after the timeout the transaction will be terminated
+ * and the callback will be called with the PJSIP_EVENT_TIMER type.
+ * \param token Data to be passed to the callback upon receipt of out-of-dialog response.
+ * \param callback Callback to be called upon receipt of out-of-dialog response.
+ *
+ * \retval 0 Success
+ * \retval -1 Failure (out-of-dialog callback will not be called.)
+ */
+int ast_sip_send_out_of_dialog_request(pjsip_tx_data *tdata,
+	struct ast_sip_endpoint *endpoint, int timeout, void *token,
+	void (*callback)(void *token, pjsip_event *e));
+
+/*!
  * \brief General purpose method for creating a SIP response
  *
  * Its typical use would be to create responses for out of dialog
