@@ -147,6 +147,10 @@ res_pjsip
    unavailable.  When any contact becomes available, the endpoint will status
    will change back to "Reachable".
 
+ * A new global option has been added: "max_initial_qualify_time", which
+   sets the maximum amount of time from startup that qualifies should be
+   attempted on all contacts.
+
 res_ari_channels
 ------------------
  * Two new events, 'ChannelHold' and 'ChannelUnhold', have been added to the
