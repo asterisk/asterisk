@@ -28,6 +28,10 @@ res_pjsip
  * A new CLI command has been added: "pjsip show settings", which shows
    both the global and system configuration settings.
 
+ * A new global option has been added: "max_initial_qualify_time", which
+   sets the The maximum amount of time from startup that qualifies should be
+   attempted on all contacts.
+
 res_ari_channels
 ------------------
  * Two new events, 'ChannelHold' and 'ChannelUnhold', have been added to the

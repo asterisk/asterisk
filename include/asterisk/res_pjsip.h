@@ -1954,4 +1954,12 @@ char *ast_sip_get_endpoint_identifier_order(void);
  */
 unsigned int ast_sip_get_keep_alive_interval(void);
 
+/*!
+ * \brief Retrieve the system max initial qualify time.
+ *
+ * \retval the maximum initial qualify time.
+ */
+unsigned int ast_sip_get_max_initial_qualify_time(void);
+
+
 #endif /* _RES_PJSIP_H */
