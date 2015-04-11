@@ -724,7 +724,7 @@ void ast_event_report_subs(const struct ast_event_sub *event_sub)
 {
 	struct ast_event *event;
 	struct ast_event_sub *sub;
-	enum ast_event_type event_type = -1;
+	enum ast_event_type event_type;
 	int found = 0;
 	struct ast_event_ie_val *ie_val;
 
