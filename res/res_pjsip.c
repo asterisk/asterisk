@@ -21,6 +21,8 @@
 #include <pjsip.h>
 /* Needed for SUBSCRIBE, NOTIFY, and PUBLISH method definitions */
 #include <pjsip_simple.h>
+#include <pjsip/sip_transaction.h>
+#include <pj/timer.h>
 #include <pjlib.h>
 
 #include "asterisk/res_pjsip.h"
@@ -2809,6 +2811,142 @@ static pj_bool_t does_method_match(const pj_str_t *message_method, const char *s
 
 /*! Maximum number of challenges before assuming that we are in a loop */
 #define MAX_RX_CHALLENGES	10
+#define TIMER_INACTIVE		0
+#define TIMEOUT_TIMER		2
+#define TIMEOUT_TIMER2		5
+
+struct tsx_data {
+    void *token;
+    void (*cb)(void*, pjsip_event*);
+	pjsip_transaction *tsx;
+	pj_timer_entry *timeout_timer;
+};
+
+static void send_tsx_on_tsx_state(pjsip_transaction *tsx, pjsip_event *event);
+
+pjsip_module send_tsx_module = {
+    .name = { "send_tsx_module", 23 },
+    .id = -1,
+    .priority = PJSIP_MOD_PRIORITY_APPLICATION,
+    .on_tsx_state = &send_tsx_on_tsx_state,
+};
+
+/*! \brief This is the pjsip_tsx_send_msg callback */
+static void send_tsx_on_tsx_state(pjsip_transaction *tsx, pjsip_event *event)
+{
+	struct tsx_data *tsx_data;
+
+	if (send_tsx_module.id < 0 || event->type != PJSIP_EVENT_TSX_STATE) {
+		return;
+	}
+
+	tsx_data = (struct tsx_data*) tsx->mod_data[send_tsx_module.id];
+	if (tsx_data == NULL) {
+		return;
+	}
+
+	if (tsx->status_code < 200) {
+		return;
+	}
+
+	if (event->body.tsx_state.type == PJSIP_EVENT_TIMER) {
+		ast_debug(1, "PJSIP tsx timer expired\n");
+	}
+
+	if (tsx_data->timeout_timer && tsx_data->timeout_timer->id != TIMER_INACTIVE) {
+		pj_mutex_lock(tsx->mutex_b);
+		pj_timer_heap_cancel_if_active(pjsip_endpt_get_timer_heap(tsx->endpt),
+			tsx_data->timeout_timer, TIMER_INACTIVE);
+		pj_mutex_unlock(tsx->mutex_b);
+	}
+
+	/* Call the callback, if any, and prevent the callback from being called again
+	 * by clearing the transaction's module_data.
+	 */
+	tsx->mod_data[send_tsx_module.id] = NULL;
+
+	if (tsx_data->cb) {
+		(*tsx_data->cb)(tsx_data->token, event);
+	}
+}
+
+static void tsx_timer_callback(pj_timer_heap_t *theap, pj_timer_entry *entry)
+{
+	struct tsx_data *tsx_data = entry->user_data;
+	entry->id = TIMER_INACTIVE;
+
+	ast_debug(1, "Internal tsx timer expired\n");
+	pjsip_tsx_terminate(tsx_data->tsx, PJSIP_SC_TSX_TIMEOUT);
+}
+
+static pj_status_t endpt_send_transaction(pjsip_endpoint *endpt,
+	pjsip_tx_data *tdata, int timeout, void *token,
+	pjsip_endpt_send_callback cb, pjsip_transaction **p_tsx)
+{
+	pjsip_transaction *tsx;
+	struct tsx_data *tsx_data;
+	pj_status_t status;
+	pjsip_event event;
+
+	ast_assert(endpt && tdata);
+
+	status = pjsip_tsx_create_uac(&send_tsx_module, tdata, &tsx);
+	if (status != PJ_SUCCESS) {
+		pjsip_tx_data_dec_ref(tdata);
+		ast_log(LOG_ERROR, "Unable to create pjsip uac\n");
+		return status;
+	}
+
+	tsx_data = PJ_POOL_ALLOC_T(tsx->pool, struct tsx_data);
+	tsx_data->token = token;
+	tsx_data->cb = cb;
+	tsx_data->tsx = tsx;
+	if (timeout > 0) {
+		tsx_data->timeout_timer = PJ_POOL_ALLOC_T(tsx->pool, pj_timer_entry);
+	} else {
+		tsx_data->timeout_timer = NULL;
+	}
+	tsx->mod_data[send_tsx_module.id] = tsx_data;
+
+	/* We have to have the group lock so the state_handler and
+	 * our timer schedule happen together.
+	 * This is what pjsip_tsx_send_msg does (except for our timer bit).
+	 */
+	PJSIP_EVENT_INIT_TX_MSG(event, tdata);
+
+	pj_grp_lock_acquire(tsx->grp_lock);
+
+	pjsip_tx_data_set_transport(tdata, &tsx->tp_sel);
+	status = (*tsx->state_handler)(tsx, &event);
+	pjsip_tx_data_dec_ref(tdata);
+	if (status != PJ_SUCCESS) {
+		pj_grp_lock_release(tsx->grp_lock);
+		ast_log(LOG_ERROR, "Unable to send message\n");
+		return status;
+	}
+
+	if (timeout > 0) {
+		pj_time_val timeout_timer_val = { timeout / 1000, timeout % 1000 };
+
+		pj_timer_entry_init(tsx_data->timeout_timer, TIMEOUT_TIMER2,
+			tsx_data, &tsx_timer_callback);
+		pj_mutex_lock(tsx->mutex_b);
+		pj_timer_heap_cancel_if_active(pjsip_endpt_get_timer_heap(tsx->endpt),
+			tsx_data->timeout_timer, TIMER_INACTIVE);
+		pj_timer_heap_schedule_w_grp_lock(pjsip_endpt_get_timer_heap(tsx->endpt),
+			tsx_data->timeout_timer, &timeout_timer_val, TIMEOUT_TIMER2,
+			tsx->grp_lock);
+		pj_mutex_unlock(tsx->mutex_b);
+	}
+
+	pj_grp_lock_release(tsx->grp_lock);
+
+	if (p_tsx) {
+		*p_tsx = tsx;
+	}
+
+	return status;
+}
 
 /*! \brief Structure to hold information about an outbound request */
 struct send_request_data {
@@ -2868,7 +3006,8 @@ static void endpt_send_request_wrapper(void *token, pjsip_event *e)
 }
 
 static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
-	pjsip_tx_data *tdata, pj_int32_t timeout, void *token, pjsip_endpt_send_callback cb)
+	pjsip_tx_data *tdata, int timeout, void *token, pjsip_endpt_send_callback cb,
+	pjsip_transaction **p_tsx)
 {
 	struct send_request_wrapper *req_wrapper;
 	pj_status_t ret_val;
@@ -2884,8 +3023,8 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 	req_wrapper->callback = cb;
 
 	ao2_ref(req_wrapper, +1);
-	ret_val = pjsip_endpt_send_request(ast_sip_get_pjsip_endpoint(), tdata, timeout,
-		req_wrapper, endpt_send_request_wrapper);
+	ret_val = endpt_send_transaction(ast_sip_get_pjsip_endpoint(), tdata, timeout,
+		req_wrapper, endpt_send_request_wrapper, p_tsx);
 	if (ret_val != PJ_SUCCESS) {
 		char errmsg[PJ_ERR_MSG_SIZE];
 
@@ -2924,6 +3063,10 @@ static void send_request_cb(void *token, pjsip_event *e)
 	int res;
 
 	switch(e->body.tsx_state.type) {
+	case PJSIP_EVENT_USER:
+		/* Map USER (transaction cancelled by timeout) to TIMER */
+		e->body.tsx_state.type = PJSIP_EVENT_TIMER;
+		break;
 	case PJSIP_EVENT_TRANSPORT_ERROR:
 	case PJSIP_EVENT_TIMER:
 		break;
@@ -2952,7 +3095,7 @@ static void send_request_cb(void *token, pjsip_event *e)
 			&& ++req_data->challenge_count < MAX_RX_CHALLENGES /* Not in a challenge loop */
 			&& !ast_sip_create_request_with_auth(&endpoint->outbound_auths,
 				challenge, tsx, &tdata)
-			&& endpt_send_request(endpoint, tdata, -1, req_data, send_request_cb)
+			&& endpt_send_request(endpoint, tdata, -1, req_data, send_request_cb, NULL)
 				== PJ_SUCCESS;
 		ao2_cleanup(endpoint);
 		if (res) {
@@ -2974,8 +3117,9 @@ static void send_request_cb(void *token, pjsip_event *e)
 	ao2_ref(req_data, -1);
 }
 
-static int send_out_of_dialog_request(pjsip_tx_data *tdata, struct ast_sip_endpoint *endpoint,
-	void *token, void (*callback)(void *token, pjsip_event *e))
+int ast_sip_send_out_of_dialog_request(pjsip_tx_data *tdata,
+	struct ast_sip_endpoint *endpoint, int timeout, void *token,
+	void (*callback)(void *token, pjsip_event *e), pjsip_transaction **p_tsx)
 {
 	struct ast_sip_supplement *supplement;
 	struct send_request_data *req_data;
@@ -3001,7 +3145,7 @@ static int send_out_of_dialog_request(pjsip_tx_data *tdata, struct ast_sip_endpo
 	ast_sip_mod_data_set(tdata->pool, tdata->mod_data, supplement_module.id, MOD_DATA_CONTACT, NULL);
 	ao2_cleanup(contact);
 
-	if (endpt_send_request(endpoint, tdata, -1, req_data, send_request_cb)
+	if (endpt_send_request(endpoint, tdata, timeout, req_data, send_request_cb, p_tsx)
 		!= PJ_SUCCESS) {
 		ao2_cleanup(req_data);
 		return -1;
@@ -3019,7 +3163,7 @@ int ast_sip_send_request(pjsip_tx_data *tdata, struct pjsip_dialog *dlg,
 	if (dlg) {
 		return send_in_dialog_request(tdata, dlg);
 	} else {
-		return send_out_of_dialog_request(tdata, endpoint, token, callback);
+		return ast_sip_send_out_of_dialog_request(tdata, endpoint, -1, token, callback, NULL);
 	}
 }
 
@@ -3537,8 +3681,25 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
+	if (internal_sip_register_service(&send_tsx_module)) {
+		ast_log(LOG_ERROR, "Failed to initialize send request module. Aborting load\n");
+		internal_sip_unregister_service(&supplement_module);
+		ast_sip_destroy_distributor();
+		ast_res_pjsip_destroy_configuration();
+		ast_sip_destroy_global_headers();
+		stop_monitor_thread();
+		ast_sip_destroy_system();
+		pj_pool_release(memory_pool);
+		memory_pool = NULL;
+		pjsip_endpt_destroy(ast_pjsip_endpoint);
+		ast_pjsip_endpoint = NULL;
+		pj_caching_pool_destroy(&caching_pool);
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
 	if (internal_sip_initialize_outbound_authentication()) {
 		ast_log(LOG_ERROR, "Failed to initialize outbound authentication. Aborting load\n");
+		internal_sip_unregister_service(&send_tsx_module);
 		internal_sip_unregister_service(&supplement_module);
 		ast_sip_destroy_distributor();
 		ast_res_pjsip_destroy_configuration();
@@ -3582,6 +3743,7 @@ static int unload_pjsip(void *data)
 	ast_res_pjsip_destroy_configuration();
 	ast_sip_destroy_system();
 	ast_sip_destroy_global_headers();
+	internal_sip_unregister_service(&send_tsx_module);
 	internal_sip_unregister_service(&supplement_module);
 	if (monitor_thread) {
 		stop_monitor_thread();
