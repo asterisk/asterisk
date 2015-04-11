@@ -255,6 +255,7 @@ static int t38_initialize_session(struct ast_sip_session *session, struct ast_si
 	ast_channel_set_fd(session->channel, 5, ast_udptl_fd(session_media->udptl));
 	ast_udptl_set_error_correction_scheme(session_media->udptl, session->endpoint->media.t38.error_correction);
 	ast_udptl_setnat(session_media->udptl, session->endpoint->media.t38.nat);
+	ast_udptl_set_far_max_datagram(session_media->udptl, session->endpoint->media.t38.maxdatagram);
 
 	return 0;
 }
@@ -578,9 +579,7 @@ static void t38_interpret_sdp(struct t38_state *state, struct ast_sip_session *s
 		} else if (!pj_stricmp2(&attr->name, "t38faxversion")) {
 			state->their_parms.version = pj_strtoul(&attr->value);
 		} else if (!pj_stricmp2(&attr->name, "t38faxmaxdatagram") || !pj_stricmp2(&attr->name, "t38maxdatagram")) {
-			if (session->endpoint->media.t38.maxdatagram) {
-				ast_udptl_set_far_max_datagram(session_media->udptl, session->endpoint->media.t38.maxdatagram);
-			} else {
+			if (!session->endpoint->media.t38.maxdatagram) {
 				ast_udptl_set_far_max_datagram(session_media->udptl, pj_strtoul(&attr->value));
 			}
 		} else if (!pj_stricmp2(&attr->name, "t38faxfillbitremoval")) {
