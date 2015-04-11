@@ -390,9 +390,12 @@ AST_TEST_DEFINE(strsep_test)
 static int test_semi(char *string1, char *string2, int test_len)
 {
 	char *test2 = NULL;
-	if (test_len >= 0) {
+
+	if (test_len > 0) {
 		test2 = ast_alloca(test_len);
 		*test2 = '\0';
+	} else if (test_len == 0) {
+		test2 = "";
 	}
 	ast_escape_semicolons(string1, test2, test_len);
 	if (test2 != NULL && strcmp(string2, test2) == 0) {
