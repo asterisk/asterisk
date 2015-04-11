@@ -164,6 +164,8 @@ struct ast_sip_contact {
 	struct timeval expiration_time;
 	/*! Frequency to send OPTIONS requests to contact. 0 is disabled. */
 	unsigned int qualify_frequency;
+	/*! Qualify timeout. 0 is diabled. */
+	unsigned int qualify_timeout;
 	/*! If true authenticate the qualify if needed */
 	int authenticate_qualify;
 };
@@ -188,6 +190,8 @@ struct ast_sip_contact_status {
 	SORCERY_OBJECT(details);
 	/*! Current status for a contact (default - unavailable) */
 	enum ast_sip_contact_status_type status;
+	/*! Last status for a contact (default - unavailable) */
+	enum ast_sip_contact_status_type last_status;
 	/*! The round trip start time set before sending a qualify request */
 	struct timeval rtt_start;
 	/*! The round trip time in microseconds */
@@ -214,6 +218,8 @@ struct ast_sip_aor {
 	unsigned int default_expiration;
 	/*! Frequency to send OPTIONS requests to AOR contacts. 0 is disabled. */
 	unsigned int qualify_frequency;
+	/*! Qualify timeout. 0 is diabled. */
+	unsigned int qualify_timeout;
 	/*! If true authenticate the qualify if needed */
 	int authenticate_qualify;
 	/*! Maximum number of external contacts, 0 to disable */
@@ -231,12 +237,12 @@ struct ast_sip_aor {
  * a consistent contact id.  Used by ast_sip_for_each_contact.
  */
 struct ast_sip_contact_wrapper {
+	/*! Pointer to the actual contact. */
+	struct ast_sip_contact *contact;
 	/*! The id of the parent aor. */
 	char *aor_id;
 	/*! The id of contact in form of aor_id/contact_uri. */
 	char *contact_id;
-	/*! Pointer to the actual contact. */
-	struct ast_sip_contact *contact;
 };
 
 /*!
@@ -903,6 +909,15 @@ struct ao2_container *ast_sip_location_retrieve_aor_contacts(const struct ast_si
  * \retval non-NULL if contacts available
  */
 struct ast_sip_contact *ast_sip_location_retrieve_contact_from_aor_list(const char *aor_list);
+
+/*!
+ * \brief Retrieve all contacts from a list of AORs
+ *
+ * \param aor_list A comma-separated list of AOR names
+ * \retval NULL if no contacts available
+ * \retval non-NULL if contacts available
+ */
+struct ao2_container *ast_sip_location_retrieve_contacts_from_aor_list(char *aor_list);
 
 /*!
  * \brief Retrieve the first bound contact AND the AOR chosen from a list of AORs
