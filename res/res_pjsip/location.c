@@ -188,6 +188,37 @@ struct ast_sip_contact *ast_sip_location_retrieve_contact_from_aor_list(const ch
 	return contact;
 }
 
+static int permanent_uri_sort_fn(const void *obj_left, const void *obj_right, int flags);
+static int cli_contact_populate_container(void *obj, void *arg, int flags);
+
+static int gather_contacts_for_aor(void *obj, void *arg, int flags)
+{
+	struct ao2_container *aor_contacts;
+	struct ast_sip_aor *aor = obj;
+	struct ao2_container *container = arg;
+
+	aor_contacts = ast_sip_location_retrieve_aor_contacts(aor);
+	ao2_callback(aor_contacts, OBJ_MULTIPLE | OBJ_NODATA, cli_contact_populate_container,
+		container);
+	ao2_ref(aor_contacts, -1);
+	return CMP_MATCH;
+}
+
+struct ao2_container *ast_sip_location_retrieve_contacts_from_aor_list(const char *aor_list)
+{
+	struct ao2_container *contacts;
+
+	contacts = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK,
+		AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT, permanent_uri_sort_fn, NULL);
+	if (!contacts) {
+		return NULL;
+	}
+
+	ast_sip_for_each_aor(aor_list, gather_contacts_for_aor, contacts);
+
+	return contacts;
+}
+
 struct ast_sip_contact *ast_sip_location_retrieve_contact(const char *contact_name)
 {
 	return ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "contact", contact_name);
@@ -208,6 +239,7 @@ int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri,
 	ast_string_field_set(contact, uri, uri);
 	contact->expiration_time = expiration_time;
 	contact->qualify_frequency = aor->qualify_frequency;
+	contact->qualify_timeout = aor->qualify_timeout;
 	contact->authenticate_qualify = aor->authenticate_qualify;
 	if (path_info && aor->support_path) {
 		ast_string_field_set(contact, path, path_info);
@@ -853,7 +885,8 @@ int ast_sip_initialize_sorcery_location(void)
 	ast_sorcery_object_field_register(sorcery, "contact", "path", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_contact, path));
 	ast_sorcery_object_field_register_custom(sorcery, "contact", "expiration_time", "", expiration_str2struct, expiration_struct2str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "contact", "qualify_frequency", 0, OPT_UINT_T,
-					  PARSE_IN_RANGE, FLDSET(struct ast_sip_contact, qualify_frequency), 0, 86400);
+		PARSE_IN_RANGE, FLDSET(struct ast_sip_contact, qualify_frequency), 0, 86400);
+	ast_sorcery_object_field_register(sorcery, "contact", "qualify_timeout", "3.0", OPT_DOUBLE_T, 0, FLDSET(struct ast_sip_contact, qualify_timeout));
 	ast_sorcery_object_field_register(sorcery, "contact", "outbound_proxy", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_contact, outbound_proxy));
 	ast_sorcery_object_field_register(sorcery, "contact", "user_agent", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_contact, user_agent));
 
@@ -862,6 +895,7 @@ int ast_sip_initialize_sorcery_location(void)
 	ast_sorcery_object_field_register(sorcery, "aor", "maximum_expiration", "7200", OPT_UINT_T, 0, FLDSET(struct ast_sip_aor, maximum_expiration));
 	ast_sorcery_object_field_register(sorcery, "aor", "default_expiration", "3600", OPT_UINT_T, 0, FLDSET(struct ast_sip_aor, default_expiration));
 	ast_sorcery_object_field_register(sorcery, "aor", "qualify_frequency", 0, OPT_UINT_T, PARSE_IN_RANGE, FLDSET(struct ast_sip_aor, qualify_frequency), 0, 86400);
+	ast_sorcery_object_field_register(sorcery, "aor", "qualify_timeout", "3.0", OPT_DOUBLE_T, 0, FLDSET(struct ast_sip_aor, qualify_timeout));
 	ast_sorcery_object_field_register(sorcery, "aor", "authenticate_qualify", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_aor, authenticate_qualify));
 	ast_sorcery_object_field_register(sorcery, "aor", "max_contacts", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_aor, max_contacts));
 	ast_sorcery_object_field_register(sorcery, "aor", "remove_existing", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_aor, remove_existing));
