@@ -20,7 +20,7 @@
 
 #include "asterisk.h"
 
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+ASTERISK_REGISTER_FILE()
 
 /*
  * There is some collision collision between netsmp and asterisk names,

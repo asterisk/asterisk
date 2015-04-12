@@ -33,7 +33,7 @@
 
 #include "asterisk.h"
 
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+ASTERISK_REGISTER_FILE()
 
 #include "asterisk/paths.h"	/* use ast_config_AST_KEY_DIR */
 #include <openssl/ssl.h>
