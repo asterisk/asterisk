@@ -188,7 +188,7 @@
 
 #include "asterisk.h"
 
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+ASTERISK_REGISTER_FILE(__FILE__)
 
 #include "parking/res_parking.h"
 #include "asterisk/config.h"

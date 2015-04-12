@@ -28,7 +28,7 @@
  ***/
 
 #include "asterisk.h"
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+ASTERISK_REGISTER_FILE(__FILE__)
 
 #include "asterisk/paths.h"	/* CONFIG_DIR */
 #include <locale.h>
@@ -79,13 +79,13 @@ char ast_config_AST_SYSTEM_NAME[20] = ""; */
 int option_debug = 0;
 int option_verbose = 0;
 
-void ast_register_file_version(const char *file, const char *version);
-void ast_register_file_version(const char *file, const char *version)
+void ast_register_file(const char *file, const char *version);
+void ast_register_file(const char *file, const char *version)
 {
 }
 
-void ast_unregister_file_version(const char *file);
-void ast_unregister_file_version(const char *file)
+void ast_unregister_file(const char *file);
+void ast_unregister_file(const char *file)
 {
 }
 #if !defined(LOW_MEMORY)

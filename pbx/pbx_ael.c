@@ -30,7 +30,7 @@
 #include "asterisk.h"
 
 #if !defined(STANDALONE)
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+ASTERISK_REGISTER_FILE(__FILE__)
 #endif
 
 #include <ctype.h>

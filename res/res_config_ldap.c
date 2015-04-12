@@ -53,7 +53,7 @@
 #include <stdio.h>
 #include <ldap.h>
 
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+ASTERISK_REGISTER_FILE(__FILE__)
 
 #include "asterisk/channel.h"
 #include "asterisk/logger.h"

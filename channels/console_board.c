@@ -42,7 +42,7 @@
  ***/
 
 #include "asterisk.h"	/* ast_strdupa */
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+ASTERISK_REGISTER_FILE(__FILE__)
 #include "asterisk/utils.h"	/* ast_strdupa */
 #include "console_video.h"	/* ast_strdupa */
 

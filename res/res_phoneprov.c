@@ -52,7 +52,7 @@
 #ifdef SOLARIS
 #include <sys/sockio.h>
 #endif
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+ASTERISK_REGISTER_FILE(__FILE__)
 
 #include "asterisk/channel.h"
 #include "asterisk/file.h"

@@ -31,7 +31,7 @@
 
 #ifdef DEBUG_FD_LEAKS
 
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+ASTERISK_REGISTER_FILE(__FILE__)
 
 #include <stdio.h>
 #include <string.h>

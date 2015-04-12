@@ -26,7 +26,7 @@
 #include "asterisk.h"
 #include "asterisk/stasis_app_mailbox.h"
 
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+ASTERISK_REGISTER_FILE(__FILE__)
 
 #include "resource_mailboxes.h"
 
