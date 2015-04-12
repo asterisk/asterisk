@@ -124,7 +124,7 @@ static char *handle_cdr_pgsql_status(struct ast_cli_entry *e, int cmd, struct as
 		return NULL;
 	}
 
-	if (a->argc != 3)
+	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
 
 	if (connected) {
