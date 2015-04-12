@@ -102,6 +102,8 @@ void ast_unregister_atexit(void (*func)(void));
  * \param version the version string (typically a SVN revision keyword string)
  * \return nothing
  *
+ * \note As of 11.18.0, the \c version parameter is ignored.
+ *
  * This function should not be called directly, but instead the
  * ASTERISK_FILE_VERSION macro should be used to register a file with the core.
  */
@@ -118,12 +120,29 @@ void ast_register_file_version(const char *file, const char *version);
  */
 void ast_unregister_file_version(const char *file);
 
-/*! \brief Find version for given module name
+/*!
+ * \brief Find version for given module name
  * \param file Module name (i.e. chan_sip.so)
- * \return version string or NULL if the module is not found
+ *
+ * \note As of 11.18.0, the file version is no longer tracked. As such,
+ * if the file exists, the Asterisk version will be returned.
+ *
+ * \retval NULL if the file doesn't exist.
+ * \retval The Asterisk version if the file does exist.
  */
 const char *ast_file_version_find(const char *file);
 
+/*!
+ * \brief Complete a source file name
+ * \param partial The partial name of the file to look up.
+ * \param n The n-th match to return.
+ *
+ * \retval NULL if there is no match for partial at the n-th position
+ * \retval Matching source file name
+ *
+ * \note A matching source file is allocataed on the heap, and must be
+ * free'd by the caller.
+ */
 char *ast_complete_source_filename(const char *partial, int n);
 
 /*!
