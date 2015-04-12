@@ -369,7 +369,7 @@
 #include <pjlib.h>
 #include <pjsip_ua.h>
 
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+ASTERISK_REGISTER_FILE()
 
 #include "asterisk/astobj2.h"
 #include "asterisk/module.h"
