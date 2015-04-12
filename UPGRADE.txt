@@ -33,6 +33,15 @@ res_pjsip_dlg_options:
    should have no adverse effects for those upgrading; this note merely
    serves as an indication that a new module exists.
 
+AMI:
+ - The 'ModuleCheck' Action's Version key will no longer show the module
+   version. The value will always be blank.
+
+CLI:
+ - The 'core show file version' command has been removed. When Asterisk
+   moved to Git, the source control version support was removed. As a
+   result, the CLi command was no longer useful and was removed as well.
+
 From 13.2.0 to 13.3.0:
 
 chan_dahdi:
