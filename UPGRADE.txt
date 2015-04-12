@@ -33,6 +33,15 @@ chan_dahdi:
 
 Core:
 
+AMI:
+ - The 'ModuleCheck' Action's Version key will no longer show the module
+   version. The value will always be blank.
+
+CLI:
+ - The 'core show file version' command has been removed. When Asterisk
+   moved to Git, the source control version support was removed. As a
+   result, the CLi command was no longer useful and was removed as well.
+
 Logging:
  - The first callid created is now 1 instead of 0.  The value 0
    is now reserved to represent a lack of callid.
