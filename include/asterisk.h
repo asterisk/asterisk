@@ -156,13 +156,12 @@ int ast_shutdown_final(void);
 /*!
  * \brief Register the version of a source code file with the core.
  * \param file the source file name
- * \param version the version string (typically a SVN revision keyword string)
  * \return nothing
  *
  * This function should not be called directly, but instead the
- * ASTERISK_FILE_VERSION macro should be used to register a file with the core.
+ * ASTERISK_REGISTER_FILE macro should be used to register a file with the core.
  */
-void ast_register_file_version(const char *file, const char *version);
+void __ast_register_file(const char *file);
 
 /*!
  * \brief Unregister a source code file from the core.
@@ -170,66 +169,64 @@ void ast_register_file_version(const char *file, const char *version);
  * \return nothing
  *
  * This function should not be called directly, but instead the
- * ASTERISK_FILE_VERSION macro should be used to automatically unregister
+ * ASTERISK_REGISTER_FILE macro should be used to automatically unregister
  * the file when the module is unloaded.
  */
-void ast_unregister_file_version(const char *file);
+void __ast_unregister_file(const char *file);
 
-/*! \brief Find version for given module name
- * \param file Module name (i.e. chan_sip.so)
- * \return version string or NULL if the module is not found
+/*!
+ * \brief Complete a source file name
+ * \param partial The partial name of the file to look up.
+ * \param n The n-th match to return.
+ *
+ * \retval NULL if there is no match for partial at the n-th position
+ * \retval Matching source file name
+ *
+ * \note A matching source file is allocataed on the heap, and must be
+ * free'd by the caller.
  */
-const char *ast_file_version_find(const char *file);
-
 char *ast_complete_source_filename(const char *partial, int n);
 
 /*!
  * \brief Register/unregister a source code file with the core.
- * \param file the source file name
- * \param version the version string (typically a SVN revision keyword string)
  *
  * This macro will place a file-scope constructor and destructor into the
- * source of the module using it; this will cause the version of this file
- * to registered with the Asterisk core (and unregistered) at the appropriate
+ * source of the module using it; this will cause the file to be
+ * registered with the Asterisk core (and unregistered) at the appropriate
  * times.
  *
  * Example:
  *
  * \code
- * ASTERISK_FILE_VERSION(__FILE__, "\$Revision\$")
+ * ASTERISK_REGISTER_FILE()
  * \endcode
- *
- * \note The dollar signs above have been protected with backslashes to keep
- * SVN from modifying them in this file; under normal circumstances they would
- * not be present and SVN would expand the Revision keyword into the file's
- * revision number.
  */
 #ifdef MTX_PROFILE
 #define	HAVE_MTX_PROFILE	/* used in lock.h */
-#define ASTERISK_FILE_VERSION(file, version) \
+#define ASTERISK_REGISTER_FILE() \
 	static int mtx_prof = -1;       /* profile mutex */	\
 	static void __attribute__((constructor)) __register_file_version(void) \
 	{ \
-		mtx_prof = ast_add_profile("mtx_lock_" file, 0);	\
-		ast_register_file_version(file, version); \
+		mtx_prof = ast_add_profile("mtx_lock_" __FILE__, 0);	\
+		__ast_register_file(__FILE__); \
 	} \
 	static void __attribute__((destructor)) __unregister_file_version(void) \
 	{ \
-		ast_unregister_file_version(file); \
+		__ast_unregister_file(__FILE__); \
 	}
 #else /* !MTX_PROFILE */
-#define ASTERISK_FILE_VERSION(file, version) \
+#define ASTERISK_REGISTER_FILE() \
 	static void __attribute__((constructor)) __register_file_version(void) \
 	{ \
-		ast_register_file_version(file, version); \
+		__ast_register_file(__FILE__); \
 	} \
 	static void __attribute__((destructor)) __unregister_file_version(void) \
 	{ \
-		ast_unregister_file_version(file); \
+		__ast_unregister_file(__FILE__); \
 	}
 #endif /* !MTX_PROFILE */
 #else /* LOW_MEMORY */
-#define ASTERISK_FILE_VERSION(file, x)
+#define ASTERISK_REGISTER_FILE()
 #endif /* LOW_MEMORY */
 
 #if !defined(LOW_MEMORY)
