@@ -23,6 +23,23 @@
 
 From 13.3.0 to 13.4.0:
 
+Source Control:
+ - Asterisk has moved from Subversion to Git. As a result, several changes
+   were required in functionality. These are listed individually in the
+   notes below.
+
+AMI:
+ - The 'ModuleCheck' Action's Version key will now always report the
+   current version of Asterisk.
+
+CLI:
+ - The 'core show file version' command has been altered. In the past,
+   this command would show the SVN revision of the source files compiled
+   in Asterisk. However, when Asterisk moved to Git, the source control
+   version support was removed. As a result, the version information shown
+   by the CLI command is always the Asterisk version. This CLI command
+   will be removed in Asterisk 14.
+
 res_pjsip:
  - The dtmf_mode now supports a new option, 'auto'. This mode will attempt to
    detect if the device supports RFC4733 DTMF. If so, it will choose that
