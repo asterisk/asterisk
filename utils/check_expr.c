@@ -21,7 +21,7 @@
  ***/
 
 #include "asterisk.h"
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+ASTERISK_REGISTER_FILE(__FILE__)
 
 #include "asterisk/ast_expr.h"
 
@@ -152,8 +152,8 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	fflush(stdout);
 	va_end(vars);
 }
-//void ast_register_file_version(const char *file, const char *version);
-//void ast_unregister_file_version(const char *file);
+//void ast_register_file(const char *file, const char *version);
+//void ast_unregister_file(const char *file);
 
 char *find_var(const char *varname);
 void set_var(const char *varname, const char *varval);
@@ -161,8 +161,8 @@ unsigned int check_expr(char* buffer, char* error_report);
 int check_eval(char *buffer, char *error_report);
 void parse_file(const char *fname);
 
-void ast_register_file_version(const char *file, const char *version);  
-void ast_register_file_version(const char *file, const char *version) { }
+void ast_register_file(const char *file, const char *version);  
+void ast_register_file(const char *file, const char *version) { }
 #if !defined(LOW_MEMORY)
 int ast_add_profile(const char *x, uint64_t scale) { return 0;} 
 #endif
@@ -174,8 +174,8 @@ int ast_atomic_fetchadd_int_slow(volatile int *p, int v)
         return ret;
 }
 
-void ast_unregister_file_version(const char *file);
-void ast_unregister_file_version(const char *file)
+void ast_unregister_file(const char *file);
+void ast_unregister_file(const char *file)
 {
 }
 

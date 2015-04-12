@@ -156,13 +156,12 @@ int ast_shutdown_final(void);
 /*!
  * \brief Register the version of a source code file with the core.
  * \param file the source file name
- * \param version the version string (typically a SVN revision keyword string)
  * \return nothing
  *
  * This function should not be called directly, but instead the
- * ASTERISK_FILE_VERSION macro should be used to register a file with the core.
+ * ASTERISK_REGISTER_FILE macro should be used to register a file with the core.
  */
-void ast_register_file_version(const char *file, const char *version);
+void ast_register_file(const char *file);
 
 /*!
  * \brief Unregister a source code file from the core.
@@ -170,17 +169,22 @@ void ast_register_file_version(const char *file, const char *version);
  * \return nothing
  *
  * This function should not be called directly, but instead the
- * ASTERISK_FILE_VERSION macro should be used to automatically unregister
+ * ASTERISK_REGISTER_FILE macro should be used to automatically unregister
  * the file when the module is unloaded.
  */
-void ast_unregister_file_version(const char *file);
+void ast_unregister_file(const char *file);
 
-/*! \brief Find version for given module name
- * \param file Module name (i.e. chan_sip.so)
- * \return version string or NULL if the module is not found
+/*!
+ * \brief Complete a source file name
+ * \param partial The partial name of the file to look up.
+ * \param n The n-th match to return.
+ *
+ * \retval NULL if there is no match for partial at the n-th position
+ * \retval Matching source file name
+ *
+ * \note A matching source file is allocataed on the heap, and must be
+ * free'd by the caller.
  */
-const char *ast_file_version_find(const char *file);
-
 char *ast_complete_source_filename(const char *partial, int n);
 
 /*!
@@ -196,7 +200,7 @@ char *ast_complete_source_filename(const char *partial, int n);
  * Example:
  *
  * \code
- * ASTERISK_FILE_VERSION(__FILE__, "\$Revision\$")
+ * ASTERISK_REGISTER_FILE(__FILE__, "\$Revision\$")
  * \endcode
  *
  * \note The dollar signs above have been protected with backslashes to keep
@@ -206,30 +210,30 @@ char *ast_complete_source_filename(const char *partial, int n);
  */
 #ifdef MTX_PROFILE
 #define	HAVE_MTX_PROFILE	/* used in lock.h */
-#define ASTERISK_FILE_VERSION(file, version) \
+#define ASTERISK_REGISTER_FILE(file) \
 	static int mtx_prof = -1;       /* profile mutex */	\
 	static void __attribute__((constructor)) __register_file_version(void) \
 	{ \
-		mtx_prof = ast_add_profile("mtx_lock_" file, 0);	\
-		ast_register_file_version(file, version); \
+		mtx_prof = ast_add_profile("mtx_lock_" file_name, 0);	\
+		ast_register_file(file); \
 	} \
 	static void __attribute__((destructor)) __unregister_file_version(void) \
 	{ \
-		ast_unregister_file_version(file); \
+		ast_unregister_file(file); \
 	}
 #else /* !MTX_PROFILE */
-#define ASTERISK_FILE_VERSION(file, version) \
+#define ASTERISK_REGISTER_FILE(file) \
 	static void __attribute__((constructor)) __register_file_version(void) \
 	{ \
-		ast_register_file_version(file, version); \
+		ast_register_file(file); \
 	} \
 	static void __attribute__((destructor)) __unregister_file_version(void) \
 	{ \
-		ast_unregister_file_version(file); \
+		ast_unregister_file(file); \
 	}
 #endif /* !MTX_PROFILE */
 #else /* LOW_MEMORY */
-#define ASTERISK_FILE_VERSION(file, x)
+#define ASTERISK_REGISTER_FILE(file)
 #endif /* LOW_MEMORY */
 
 #if !defined(LOW_MEMORY)

@@ -18,7 +18,7 @@
 #include <regex.h>
 #include <limits.h>
 
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+ASTERISK_REGISTER_FILE(__FILE__)
 
 #include "asterisk/backtrace.h"
 #include "asterisk/channel.h"
@@ -33,8 +33,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 int option_debug = 0;
 int option_verbose = 0;
 #if !defined(LOW_MEMORY)
-void ast_register_file_version(const char *file, const char *version) { }
-void ast_unregister_file_version(const char *file) { }
+void ast_register_file(const char *file, const char *version) { }
+void ast_unregister_file(const char *file) { }
 #endif
 
 /*** MODULEINFO
