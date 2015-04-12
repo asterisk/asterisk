@@ -1,0 +1,13 @@
+*.o_a
+Makefile
+common.h
+config.cache
+config.h
+editline.c
+emacs.h
+fcns.c
+fcns.h
+help.c
+help.h
+makelist
+vi.h
