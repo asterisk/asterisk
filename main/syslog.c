@@ -30,7 +30,7 @@
 #include "asterisk/utils.h"
 #include "asterisk/syslog.h"
 
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+ASTERISK_REGISTER_FILE()
 
 #include <syslog.h>
 
