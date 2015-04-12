@@ -326,84 +326,67 @@ static struct {
 } sig_flags;
 
 #if !defined(LOW_MEMORY)
-struct file_version {
-	AST_RWLIST_ENTRY(file_version) list;
+struct registered_file {
+	AST_RWLIST_ENTRY(registered_file) list;
 	const char *file;
-	char *version;
 };
 
-static AST_RWLIST_HEAD_STATIC(file_versions, file_version);
+static AST_RWLIST_HEAD_STATIC(registered_files, registered_file);
 
 void ast_register_file_version(const char *file, const char *version)
 {
-	struct file_version *new;
-	char *work;
-	size_t version_length;
+	struct registered_file *reg;
 
-	work = ast_strdupa(version);
-	work = ast_strip(ast_strip_quoted(work, "$", "$"));
-	version_length = strlen(work) + 1;
-
-	if (!(new = ast_calloc(1, sizeof(*new) + version_length)))
+	reg = ast_calloc(1, sizeof(*reg));
+	if (!reg) {
 		return;
+	}
 
-	new->file = file;
-	new->version = (char *) new + sizeof(*new);
-	memcpy(new->version, work, version_length);
-	AST_RWLIST_WRLOCK(&file_versions);
-	AST_RWLIST_INSERT_HEAD(&file_versions, new, list);
-	AST_RWLIST_UNLOCK(&file_versions);
+	reg->file = file;
+	AST_RWLIST_WRLOCK(&registered_files);
+	AST_RWLIST_INSERT_HEAD(&registered_files, reg, list);
+	AST_RWLIST_UNLOCK(&registered_files);
 }
 
 void ast_unregister_file_version(const char *file)
 {
-	struct file_version *find;
+	struct registered_file *find;
 
-	AST_RWLIST_WRLOCK(&file_versions);
-	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&file_versions, find, list) {
+	AST_RWLIST_WRLOCK(&registered_files);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&registered_files, find, list) {
 		if (!strcasecmp(find->file, file)) {
 			AST_RWLIST_REMOVE_CURRENT(list);
 			break;
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
-	AST_RWLIST_UNLOCK(&file_versions);
+	AST_RWLIST_UNLOCK(&registered_files);
 
-	if (find)
+	if (find) {
 		ast_free(find);
+	}
 }
 
 char *ast_complete_source_filename(const char *partial, int n)
 {
-	struct file_version *find;
+	struct registered_file *find;
 	size_t len = strlen(partial);
 	int count = 0;
 	char *res = NULL;
 
-	AST_RWLIST_RDLOCK(&file_versions);
-	AST_RWLIST_TRAVERSE(&file_versions, find, list) {
+	AST_RWLIST_RDLOCK(&registered_files);
+	AST_RWLIST_TRAVERSE(&registered_files, find, list) {
 		if (!strncasecmp(find->file, partial, len) && ++count > n) {
 			res = ast_strdup(find->file);
 			break;
 		}
 	}
-	AST_RWLIST_UNLOCK(&file_versions);
+	AST_RWLIST_UNLOCK(&registered_files);
 	return res;
 }
 
-/*! \brief Find version for given module name */
 const char *ast_file_version_find(const char *file)
 {
-	struct file_version *iterator;
-
-	AST_RWLIST_WRLOCK(&file_versions);
-	AST_RWLIST_TRAVERSE(&file_versions, iterator, list) {
-		if (!strcasecmp(iterator->file, file))
-			break;
-	}
-	AST_RWLIST_UNLOCK(&file_versions);
-	if (iterator)
-		return iterator->version;
 	return NULL;
 }
 
@@ -883,88 +866,6 @@ static char *handle_clear_profile(struct ast_cli_entry *e, int cmd, struct ast_c
 	return CLI_SUCCESS;
 }
 #undef DEFINE_PROFILE_MIN_MAX_VALUES
-
-/*! \brief CLI command to list module versions */
-static char *handle_show_version_files(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-#define FORMAT "%-25.25s %-40.40s\n"
-	struct file_version *iterator;
-	regex_t regexbuf;
-	int havepattern = 0;
-	int havename = 0;
-	int count_files = 0;
-	char *ret = NULL;
-	int matchlen, which = 0;
-	struct file_version *find;
-
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "core show file version [like]";
-		e->usage =
-			"Usage: core show file version [like <pattern>]\n"
-			"       Lists the revision numbers of the files used to build this copy of Asterisk.\n"
-			"       Optional regular expression pattern is used to filter the file list.\n";
-		return NULL;
-	case CLI_GENERATE:
-		matchlen = strlen(a->word);
-		if (a->pos != 3)
-			return NULL;
-		AST_RWLIST_RDLOCK(&file_versions);
-		AST_RWLIST_TRAVERSE(&file_versions, find, list) {
-			if (!strncasecmp(a->word, find->file, matchlen) && ++which > a->n) {
-				ret = ast_strdup(find->file);
-				break;
-			}
-		}
-		AST_RWLIST_UNLOCK(&file_versions);
-		return ret;
-	}
-
-
-	switch (a->argc) {
-	case 6:
-		if (!strcasecmp(a->argv[4], "like")) {
-			if (regcomp(&regexbuf, a->argv[5], REG_EXTENDED | REG_NOSUB))
-				return CLI_SHOWUSAGE;
-			havepattern = 1;
-		} else
-			return CLI_SHOWUSAGE;
-		break;
-	case 5:
-		havename = 1;
-		break;
-	case 4:
-		break;
-	default:
-		return CLI_SHOWUSAGE;
-	}
-
-	ast_cli(a->fd, FORMAT, "File", "Revision");
-	ast_cli(a->fd, FORMAT, "----", "--------");
-	AST_RWLIST_RDLOCK(&file_versions);
-	AST_RWLIST_TRAVERSE(&file_versions, iterator, list) {
-		if (havename && strcasecmp(iterator->file, a->argv[4]))
-			continue;
-
-		if (havepattern && regexec(&regexbuf, iterator->file, 0, NULL, 0))
-			continue;
-
-		ast_cli(a->fd, FORMAT, iterator->file, iterator->version);
-		count_files++;
-		if (havename)
-			break;
-	}
-	AST_RWLIST_UNLOCK(&file_versions);
-	if (!havename) {
-		ast_cli(a->fd, "%d files listed.\n", count_files);
-	}
-
-	if (havepattern)
-		regfree(&regexbuf);
-
-	return CLI_SUCCESS;
-#undef FORMAT
-}
 
 #endif /* ! LOW_MEMORY */
 
@@ -2471,7 +2372,6 @@ static struct ast_cli_entry cli_asterisk[] = {
 	AST_CLI_DEFINE(handle_version, "Display version info"),
 	AST_CLI_DEFINE(handle_bang, "Execute a shell command"),
 #if !defined(LOW_MEMORY)
-	AST_CLI_DEFINE(handle_show_version_files, "List versions of files used to build Asterisk"),
 	AST_CLI_DEFINE(handle_show_threads, "Show running threads"),
 #if defined(HAVE_SYSINFO) || defined(HAVE_SYSCTL)
 	AST_CLI_DEFINE(handle_show_sysinfo, "Show System Information"),
