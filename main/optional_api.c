@@ -18,7 +18,7 @@
 
 #include "asterisk.h"
 
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+ASTERISK_REGISTER_FILE()
 
 #include "asterisk/optional_api.h"
 #include "asterisk/utils.h"

@@ -49,7 +49,7 @@
  ***/
 
 #include "asterisk.h"
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+ASTERISK_REGISTER_FILE()
 #include <sys/ioctl.h>
 #include "asterisk/file.h"
 #include "asterisk/utils.h"	/* ast_calloc */

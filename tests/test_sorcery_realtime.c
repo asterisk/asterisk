@@ -31,7 +31,7 @@
 
 #include "asterisk.h"
 
-ASTERISK_FILE_VERSION(__FILE__, "")
+ASTERISK_REGISTER_FILE()
 
 #include "asterisk/test.h"
 #include "asterisk/module.h"

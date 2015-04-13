@@ -40,7 +40,7 @@
 
 #include "asterisk.h"
 
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+ASTERISK_REGISTER_FILE()
 
 /* When we include logger.h again it will trample on some stuff in syslog.h, but
  * nothing we care about in here. */
