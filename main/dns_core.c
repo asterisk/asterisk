@@ -32,7 +32,6 @@
 ASTERISK_REGISTER_FILE()
 
 #include "asterisk/linkedlists.h"
-#include "asterisk/vector.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/strings.h"
 #include "asterisk/sched.h"
@@ -163,6 +162,11 @@ const char *ast_dns_record_get_data(const struct ast_dns_record *record)
 	return record->data_ptr;
 }
 
+size_t ast_dns_record_get_data_size(const struct ast_dns_record *record)
+{
+	return record->data_len;
+}
+
 const struct ast_dns_record *ast_dns_record_get_next(const struct ast_dns_record *record)
 {
 	return AST_LIST_NEXT(record, list);
@@ -186,9 +190,9 @@ static void dns_query_destroy(void *data)
 	ast_dns_result_free(query->result);
 }
 
-struct ast_dns_query_active *ast_dns_resolve_async(const char *name, int rr_type, int rr_class, ast_dns_resolve_callback callback, void *data)
+struct ast_dns_query *dns_query_alloc(const char *name, int rr_type, int rr_class, ast_dns_resolve_callback callback, void *data)
 {
-	struct ast_dns_query_active *active;
+	struct ast_dns_query *query;
 
 	if (ast_strlen_zero(name)) {
 		ast_log(LOG_WARNING, "Could not perform asynchronous resolution, no name provided\n");
@@ -215,30 +219,42 @@ struct ast_dns_query_active *ast_dns_resolve_async(const char *name, int rr_type
 		return NULL;
 	}
 
+	query = ao2_alloc_options(sizeof(*query) + strlen(name) + 1, dns_query_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!query) {
+		return NULL;
+	}
+
+	query->callback = callback;
+	query->user_data = ao2_bump(data);
+	query->rr_type = rr_type;
+	query->rr_class = rr_class;
+	strcpy(query->name, name); /* SAFE */
+
+	AST_RWLIST_RDLOCK(&resolvers);
+	query->resolver = AST_RWLIST_FIRST(&resolvers);
+	AST_RWLIST_UNLOCK(&resolvers);
+
+	if (!query->resolver) {
+		ast_log(LOG_ERROR, "Attempted to do a DNS query for '%s' of class '%d' and type '%d' but no resolver is available\n",
+			name, rr_class, rr_type);
+		ao2_ref(query, -1);
+		return NULL;
+	}
+
+	return query;
+}
+
+struct ast_dns_query_active *ast_dns_resolve_async(const char *name, int rr_type, int rr_class, ast_dns_resolve_callback callback, void *data)
+{
+	struct ast_dns_query_active *active;
+
 	active = ao2_alloc_options(sizeof(*active), dns_query_active_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!active) {
 		return NULL;
 	}
 
-	active->query = ao2_alloc_options(sizeof(*active->query) + strlen(name) + 1, dns_query_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	active->query = dns_query_alloc(name, rr_type, rr_class, callback, data);
 	if (!active->query) {
-		ao2_ref(active, -1);
-		return NULL;
-	}
-
-	active->query->callback = callback;
-	active->query->user_data = ao2_bump(data);
-	active->query->rr_type = rr_type;
-	active->query->rr_class = rr_class;
-	strcpy(active->query->name, name); /* SAFE */
-
-	AST_RWLIST_RDLOCK(&resolvers);
-	active->query->resolver = AST_RWLIST_FIRST(&resolvers);
-	AST_RWLIST_UNLOCK(&resolvers);
-
-	if (!active->query->resolver) {
-		ast_log(LOG_ERROR, "Attempted to do a DNS query for '%s' of class '%d' and type '%d' but no resolver is available\n",
-			name, rr_class, rr_type);
 		ao2_ref(active, -1);
 		return NULL;
 	}

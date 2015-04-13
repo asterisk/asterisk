@@ -43,6 +43,8 @@ typedef void (*ast_dns_query_set_callback)(const struct ast_dns_query_set *query
  *
  * \retval non-NULL success
  * \retval NULL failure
+ *
+ * \note The query set must be released upon cancellation or completion using ao2_ref
  */
 struct ast_dns_query_set *ast_dns_query_set_create(void);
 
@@ -76,6 +78,8 @@ size_t ast_dns_query_set_num_queries(const struct ast_dns_query_set *query_set);
  *
  * \retval non-NULL success
  * \retval NULL failure
+ *
+ * \note The returned query is only valid for the lifetime of the query set itself
  */
 struct ast_dns_query *ast_dns_query_set_get(const struct ast_dns_query_set *query_set, unsigned int index);
 
@@ -106,28 +110,24 @@ void ast_dns_query_set_resolve_async(struct ast_dns_query_set *query_set, ast_dn
  *
  * \param query_set The query set
  *
+ * \retval 0 success
+ * \retval -1 failure
+ *
  * \note This function will return when all queries have been completed
  */
-void ast_query_set_resolve(struct ast_dns_query_set *query_set);
+int ast_query_set_resolve(struct ast_dns_query_set *query_set);
 
 /*!
  * \brief Cancel an asynchronous DNS query set resolution
  *
  * \param query_set The DNS query set
  *
- * \retval 0 success
- * \retval -1 failure
+ * \retval 0 success (all queries have been cancelled)
+ * \retval -1 failure (some queries could not be cancelled)
  *
  * \note If successfully cancelled the callback will not be invoked
  */
 int ast_dns_query_set_resolve_cancel(struct ast_dns_query_set *query_set);
-
-/*!
- * \brief Free a query set
- *
- * \param query_set A DNS query set
- */
-void ast_dns_query_set_free(struct ast_dns_query_set *query_set);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
