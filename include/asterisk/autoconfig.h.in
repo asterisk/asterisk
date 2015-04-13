@@ -578,6 +578,10 @@
 /* Define if your system has the PJPROJECT libraries. */
 #undef HAVE_PJPROJECT
 
+/* Define to 1 if PJPROJECT has the PJSIP External Resolver Support feature.
+   */
+#undef HAVE_PJSIP_EXTERNAL_RESOLVER
+
 /* Define to 1 if PJPROJECT has the pjsip_get_dest_info support feature. */
 #undef HAVE_PJSIP_GET_DEST_INFO
 

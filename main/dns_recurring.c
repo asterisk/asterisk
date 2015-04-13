@@ -33,10 +33,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/astobj2.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/vector.h"
 #include "asterisk/sched.h"
 #include "asterisk/strings.h"
 #include "asterisk/dns_core.h"
 #include "asterisk/dns_recurring.h"
+#include "asterisk/dns_query_set.h"
 #include "asterisk/dns_internal.h"
 
 #include <arpa/nameser.h>
