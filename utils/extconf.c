@@ -487,7 +487,7 @@ typedef pthread_cond_t ast_cond_t;
 static void  __attribute__((constructor)) init_##mutex(void) \
 { \
 	ast_mutex_init(&mutex); \
-} \
+}
 #else /* !AST_MUTEX_INIT_W_CONSTRUCTORS */
 /* By default, use static initialization of mutexes. */ 
 #define __AST_MUTEX_DEFINE(scope, mutex) \
