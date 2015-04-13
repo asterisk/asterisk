@@ -6239,9 +6239,11 @@ static int get_input(struct mansession *s, char *output)
 		return 1;
 	}
 	if (s->session->inlen >= maxlen) {
-		/* no crlf found, and buffer full - sorry, too long for us */
+		/* no crlf found, and buffer full - sorry, too long for us
+		 * keep the last character in case we are in the middle of a CRLF. */
 		ast_log(LOG_WARNING, "Discarding message from %s. Line too long: %.25s...\n", ast_sockaddr_stringify_addr(&s->session->addr), src);
-		s->session->inlen = 0;
+		src[0] = src[s->session->inlen - 1];
+		s->session->inlen = 1;
 		s->parsing = MESSAGE_LINE_TOO_LONG;
 	}
 	res = 0;
