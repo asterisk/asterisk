@@ -23,6 +23,12 @@
  * \author Joshua Colp <jcolp@digium.com>
  */
 
+/*! \brief For AST_VECTOR */
+#include "asterisk/vector.h"
+
+/*! \brief For ast_dns_query_set_callback */
+#include "asterisk/dns_query_set.h"
+
 /*! \brief Generic DNS record information */
 struct ast_dns_record {
 	/*! \brief Resource record type */
@@ -151,6 +157,30 @@ struct ast_dns_query_recurring {
 	char name[0];
 };
 
+/*! \brief A DNS query set query, which includes its state */
+struct dns_query_set_query {
+	/*! \brief Whether the query started successfully or not */
+	unsigned int started;
+	/*! \brief THe query itself */
+	struct ast_dns_query *query;
+};
+
+/*! \brief A set of DNS queries */
+struct ast_dns_query_set {
+	/*! \brief DNS queries */
+	AST_VECTOR(, struct dns_query_set_query) queries;
+	/* \brief Whether the query set is in progress or not */
+	int in_progress;
+	/*! \brief The total number of completed queries */
+	int queries_completed;
+	/*! \brief The total number of cancelled queries */
+	int queries_cancelled;
+	/*! \brief Callback to invoke upon completion */
+	ast_dns_query_set_callback callback;
+	/*! \brief User-specific data */
+	void *user_data;
+};
+
 /*! \brief An active DNS query */
 struct ast_dns_query_active {
 	/*! \brief The underlying DNS query */
@@ -241,3 +271,25 @@ int dns_parse_short(unsigned char *cur, uint16_t *val);
  * \return The number of bytes consumed while parsing
  */
 int dns_parse_string(char *cur, uint8_t *size, char **val);
+
+/*!
+ * \brief Allocate a DNS query (but do not start resolution)
+ *
+ * \param name The name of what to resolve
+ * \param rr_type Resource record type
+ * \param rr_class Resource record class
+ * \param callback The callback to invoke upon completion
+ * \param data User data to make available on the query
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ *
+ * \note The result passed to the callback does not need to be freed
+ *
+ * \note The user data MUST be an ao2 object
+ *
+ * \note This function increments the reference count of the user data, it does NOT steal
+ *
+ * \note The query must be released upon completion or cancellation using ao2_ref
+ */
+struct ast_dns_query *dns_query_alloc(const char *name, int rr_type, int rr_class, ast_dns_resolve_callback callback, void *data);
