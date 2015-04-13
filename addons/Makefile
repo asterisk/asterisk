@@ -14,15 +14,17 @@
 MENUSELECT_CATEGORY=ADDONS
 MENUSELECT_DESCRIPTION=Add-ons (See README-addons.txt)
 
-H323OBJS:=ooCmdChannel.o ooLogChan.o ooUtils.o ooGkClient.o context.o \
-	ooDateTime.o decode.o dlist.o encode.o errmgmt.o \
-	memheap.o ootrace.o oochannels.o ooh245.o ooports.o \
-	ooq931.o ooCapability.o ooSocket.o perutil.o eventHandler.o \
-	ooCalls.o ooStackCmds.o ooh323.o ooh323ep.o printHandler.o \
-	rtctype.o ooTimer.o h323/H235-SECURITY-MESSAGESDec.o \
-	h323/H235-SECURITY-MESSAGESEnc.o h323/H323-MESSAGES.o h323/H323-MESSAGESDec.o \
-	h323/H323-MESSAGESEnc.o h323/MULTIMEDIA-SYSTEM-CONTROL.o \
-	h323/MULTIMEDIA-SYSTEM-CONTROLDec.o h323/MULTIMEDIA-SYSTEM-CONTROLEnc.o
+OOH323C:=ooCmdChannel.c ooLogChan.c ooUtils.c ooGkClient.c context.c \
+	ooDateTime.c decode.c dlist.c encode.c errmgmt.c \
+	memheap.c ootrace.c oochannels.c ooh245.c ooports.c \
+	ooq931.c ooCapability.c ooSocket.c perutil.c eventHandler.c \
+	ooCalls.c ooStackCmds.c ooh323.c ooh323ep.c printHandler.c \
+	rtctype.c ooTimer.c h323/H235-SECURITY-MESSAGESDec.c \
+	h323/H235-SECURITY-MESSAGESEnc.c h323/H323-MESSAGES.c h323/H323-MESSAGESDec.c \
+	h323/H323-MESSAGESEnc.c h323/MULTIMEDIA-SYSTEM-CONTROL.c \
+	h323/MULTIMEDIA-SYSTEM-CONTROLDec.c h323/MULTIMEDIA-SYSTEM-CONTROLEnc.c
+
+H323SOURCE:=$(addprefix ooh323c/src/,$(OOH323C)) ooh323cDriver.c
 
 H323CFLAGS:=-Iooh323c/src -Iooh323c/src/h323
 
@@ -57,16 +59,9 @@ endif
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
-clean::
-	if [ -f mp3/Makefile ] ; then $(MAKE) -C mp3 clean ; fi
-	rm -f $(addprefix ooh323c/src/,$(H323OBJS))
-
-$(if $(filter format_mp3,$(EMBEDDED_MODS)),modules.link,format_mp3.so): mp3/common.o mp3/dct64_i386.o mp3/decode_ntom.o mp3/layer3.o mp3/tabinit.o mp3/interface.o
-
-chan_ooh323.o: _ASTCFLAGS+=$(H323CFLAGS)
-
 $(if $(filter chan_ooh323,$(EMBEDDED_MODS)),modules.link,chan_ooh323.so): _ASTCFLAGS+=$(H323CFLAGS)
-$(if $(filter chan_ooh323,$(EMBEDDED_MODS)),modules.link,chan_ooh323.so): $(addprefix ooh323c/src/,$(H323OBJS)) chan_ooh323.o ooh323cDriver.o
-$(addprefix ooh323c/src/,$(H323OBJS)) chan_ooh323.o ooh323cDriver.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,chan_ooh323)
+$(call MOD_ADD_C,chan_ooh323,$(H323SOURCE))
+
+$(call MOD_ADD_C,format_mp3,mp3/common.c mp3/dct64_i386.c mp3/decode_ntom.c mp3/layer3.c mp3/tabinit.c mp3/interface.c)
 
 .PHONY: check_mp3
