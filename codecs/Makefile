@@ -53,8 +53,6 @@ clean::
 	for dir in $(SUB_DIRS); do \
 		$(MAKE) -C $$dir clean; \
 	done
-	rm -f g722/*.[oai]
-	rm -f speex/*.[oai]
 
 .PHONY: $(SUB_DIRS)
 
@@ -81,9 +79,8 @@ $(SUB_ILBC):
 	@$(MAKE) -C $(SUB_ILBC) all _ASTCFLAGS="$(filter-out -Wmissing-prototypes -Wmissing-declarations -Wshadow,$(_ASTCFLAGS)) $(AST_NO_STRICT_OVERFLOW)"
 
 
-$(if $(filter codec_g722,$(EMBEDDED_MODS)),modules.link,codec_g722.so): g722/g722_encode.o g722/g722_decode.o
 
-g722/g722_encode.o g722/g722_decode.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,codec_g722)
+$(call MOD_ADD_C,codec_g722,g722/g722_encode.c g722/g722_decode.c)
 
 
 ifeq ($(BUILD_CPU),x86_64)
@@ -92,6 +89,5 @@ else
 SPEEX_RESAMPLE_CFLAGS:=
 endif
 
-$(if $(filter codec_resample,$(EMBEDDED_MODS)),modules.link,codec_resample.so): speex/resample.o
-
-speex/resample.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,codec_resample) $(SPEEX_RESAMPLE_CFLAGS)
+$(call MOD_ADD_C,codec_resample,speex/resample.c)
+speex/resample.o: _ASTCFLAGS+=$(SPEEX_RESAMPLE_CFLAGS)
