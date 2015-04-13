@@ -178,10 +178,7 @@ void ast_optional_api_unuse(const char *symname, ast_optional_fn *optional_ref,
 
 #define AST_OPTIONAL_API_NAME(name) __##name
 
-#if defined(AST_API_MODULE)
-/* Module defining the API */
-
-#define AST_OPTIONAL_API_IMPL_INIT(name)				\
+#define AST_OPTIONAL_API_INIT_IMPL(name)				\
 	static void __attribute__((constructor)) __init__##name##_impl(void) { \
 		ast_optional_api_provide(#name,				\
 			(ast_optional_fn)AST_OPTIONAL_API_NAME(name));	\
@@ -191,22 +188,7 @@ void ast_optional_api_unuse(const char *symname, ast_optional_fn *optional_ref,
 			(ast_optional_fn)AST_OPTIONAL_API_NAME(name));	\
 	}
 
-#define AST_OPTIONAL_API(result, name, proto, stub)			\
-	result AST_OPTIONAL_API_NAME(name) proto;			\
-	static attribute_unused typeof(AST_OPTIONAL_API_NAME(name)) * const \
-	     name = AST_OPTIONAL_API_NAME(name);			\
-	AST_OPTIONAL_API_IMPL_INIT(name)
-
-#define AST_OPTIONAL_API_ATTR(result, attr, name, proto, stub)		\
-	result  __attribute__((attr)) AST_OPTIONAL_API_NAME(name) proto; \
-	static attribute_unused typeof(AST_OPTIONAL_API_NAME(name)) * const \
-	     name = AST_OPTIONAL_API_NAME(name);			\
-	AST_OPTIONAL_API_IMPL_INIT(name)
-
-#else
-/* Module using the API */
-
-#define AST_OPTIONAL_API_INIT(name)					\
+#define AST_OPTIONAL_API_INIT_USER(name)				\
 	static void __attribute__((constructor)) __init__##name(void) {	\
 		ast_optional_api_use(#name, (ast_optional_fn *)&name,	\
 			(ast_optional_fn)__stub__##name,		\
@@ -217,19 +199,31 @@ void ast_optional_api_unuse(const char *symname, ast_optional_fn *optional_ref,
 			AST_MODULE);					\
 	}
 
-#define AST_OPTIONAL_API(result, name, proto, stub)			\
+#define AST_OPTIONAL_API_IMPL(result, name, proto, stub)			\
+	result AST_OPTIONAL_API_NAME(name) proto;			\
+	static attribute_unused typeof(AST_OPTIONAL_API_NAME(name)) * const \
+	     name = AST_OPTIONAL_API_NAME(name);			\
+	AST_OPTIONAL_API_INIT_IMPL(name)
+
+#define AST_OPTIONAL_API_USER(result, name, proto, stub)			\
 	static result __stub__##name proto stub;			\
 	static attribute_unused						\
 		typeof(__stub__##name) * name;				\
-	AST_OPTIONAL_API_INIT(name)
+	AST_OPTIONAL_API_INIT_USER(name)
 
-#define AST_OPTIONAL_API_ATTR(result, attr, name, proto, stub)		\
+
+/* AST_OPTIONAL_API_ATTR */
+#define AST_OPTIONAL_API_ATTR_IMPL(result, attr, name, proto, stub)		\
+	result  __attribute__((attr)) AST_OPTIONAL_API_NAME(name) proto; \
+	static attribute_unused typeof(AST_OPTIONAL_API_NAME(name)) * const \
+	     name = AST_OPTIONAL_API_NAME(name);			\
+	AST_OPTIONAL_API_INIT_IMPL(name)
+
+#define AST_OPTIONAL_API_ATTR_USER(result, attr, name, proto, stub)		\
 	static __attribute__((attr)) result __stub__##name proto stub;	\
 	static attribute_unused	__attribute__((attr))			\
 		typeof(__stub__##name) * name;				\
-	AST_OPTIONAL_API_INIT(name)
-
-#endif /* defined(AST_API_MODULE) */
+	AST_OPTIONAL_API_INIT_USER(name)
 
 #else /* defined(OPTIONAL_API) */
 
@@ -245,6 +239,38 @@ void ast_optional_api_unuse(const char *symname, ast_optional_fn *optional_ref,
 
 #endif /* defined(OPTIONAL_API) */
 
-#undef AST_API_MODULE
-
 #endif /* __ASTERISK_OPTIONAL_API_H */
+
+/*
+ * Some Asterisk sources are both consumer and provider of optional API's.  The
+ * following definitons are intentionally outside the include protected portion
+ * of this header so AST_OPTIONAL_API and AST_OPTIONAL_API_ATTR can be redefined
+ * each time the header is included.  This also ensures that AST_API_MODULE is
+ * undefined after every include of this header.
+ */
+#if defined(OPTIONAL_API)
+
+#undef AST_OPTIONAL_API
+#undef AST_OPTIONAL_API_ATTR
+
+#if defined(AST_API_MODULE)
+
+#define AST_OPTIONAL_API(result, name, proto, stub) \
+	AST_OPTIONAL_API_IMPL(result, name, proto, stub)
+
+#define AST_OPTIONAL_API_ATTR(result, attr, name, proto, stub) \
+	AST_OPTIONAL_API_ATTR_IMPL(result, attr, name, proto, stub)
+
+#else
+
+#define AST_OPTIONAL_API(result, name, proto, stub) \
+	AST_OPTIONAL_API_USER(result, name, proto, stub)
+
+#define AST_OPTIONAL_API_ATTR(result, attr, name, proto, stub) \
+	AST_OPTIONAL_API_ATTR_USER(result, attr, name, proto, stub)
+
+#endif /* defined(AST_API_MODULE) */
+
+#endif /* defined(OPTIONAL_API) */
+
+#undef AST_API_MODULE
