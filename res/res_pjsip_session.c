@@ -1077,6 +1077,7 @@ void ast_sip_session_send_request_with_cb(struct ast_sip_session *session, pjsip
 	}
 
 	handle_outgoing_request(session, tdata);
+
 	pjsip_inv_send_msg(session->inv_session, tdata);
 	return;
 }
