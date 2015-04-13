@@ -3,6 +3,7 @@
 AWK=${AWK:-awk}
 GIT=${GIT:-git}
 GREP=${GREP:-grep}
+MAINLINE_BRANCH=13
 
 if [ -f ${1}/.version ]; then
     cat ${1}/.version
@@ -98,16 +99,16 @@ elif [ -d ${1}/.git ]; then
     MODIFIED=""
     SVN_REV=`${GIT} log --pretty=full -1 | ${GREP} -F "git-svn-id:" | sed -e "s/.*\@\([^\s]*\)\s.*/\1/g"`
     if [ -z "$SVN_REV" ]; then
-        VERSION=GIT-`${GIT} describe --long --always --tags --dirty=M 2> /dev/null`
+        VERSION=`${GIT} describe --long --always --tags --dirty=M 2> /dev/null`
         if [ $? -ne 0 ]; then
             if [ "`${GIT} ls-files -m | wc -l`" != "0" ]; then
                 MODIFIED="M"
             fi
             # Some older versions of git do not support all the above
             # options.
-            VERSION=GIT-`${GIT} rev-parse --short --verify HEAD`${MODIFIED}
+            VERSION=`${GIT} rev-parse --short --verify HEAD`${MODIFIED}
         fi
-        echo ${VERSION}
+        echo GIT-${MAINLINE_BRANCH}-${VERSION}
     else
         PARTS=`LANG=C ${GIT} log --pretty=full | ${GREP} -F "git-svn-id:" | head -1 | ${AWK} '{print $2;}' | sed -e s:^.*/svn/$2/:: | sed -e 's:/: :g' | sed -e 's/@.*$//g'`
         BRANCH=0
