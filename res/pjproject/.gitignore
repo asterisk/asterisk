@@ -1,0 +1,14 @@
+build.mak
+build/cc-auto.mak
+build/os-auto.mak
+pjlib-util/build/os-auto.mak
+pjlib/build/os-auto.mak
+pjlib/include/pj/compat/m_auto.h
+pjlib/include/pj/compat/os_auto.h
+pjmedia/build/os-auto.mak
+pjmedia/include/pjmedia-codec/config_auto.h
+pjmedia/include/pjmedia/config_auto.h
+pjsip/build/os-auto.mak
+pjsip/include/pjsip/sip_autoconf.h
+third_party/build/os-auto.mak
+third_party/build/portaudio/os-auto.mak
