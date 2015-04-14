@@ -19,8 +19,5 @@
 #
 
 {{#apis}}
-res_ari_{{c_name}}.so: ari/resource_{{c_name}}.o
-
-ari/resource_{{c_name}}.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_{{c_name}})
-
+$(call MOD_ADD_C,res_ari_{{c_name}},ari/resource_{{c_name}}.c)
 {{/apis}}
