@@ -27,6 +27,11 @@ Source Control:
    were required in functionality. These are listed individually in the
    notes below.
 
+Build System:
+ - The menuselect utility has been pulled into the Asterisk repository. As a
+   result, the libxml2 development library is now a required dependency for
+   Asterisk.
+
 AMI:
  - The 'ModuleCheck' Action's Version key will now always report the
    current version of Asterisk.
