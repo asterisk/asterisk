@@ -1,0 +1,178 @@
+MENUSELECT
+Copyright (C) 2005-2006, Digium, Inc.
+Russell Bryant <russell@digium.com>
+-------------------------------------------------------------------------------
+
+
+ABOUT
+
+Menuselect is a tool designed to be used in conjunction with GNU make. It
+allows for an XML specification of Makefile variables and optional space
+delimited values of these variables. These values can then be used in the
+Makefile to make various decisions during the build process.
+
+Menuselect also provides a mechanism for dependency checking for each possible
+member (value) of each category (Makefile variable). These dependencies are
+generally checked by using autoconf and the results provided to menuselect. If
+dependencies for a member are not met, the user will not be allowed to make
+that selection. In the same way the menuselect does dependency checking, it
+also does conflict checking. If a listed conflict for a member is met, then
+the user will not be allowed to select it.
+
+For use with automated builds or when the user has no desire to make selections
+different than the defined defaults, menuselect can generate a default output
+file for use in the build.
+
+Menuselect can also do a sanity check on existing input files. If any member
+has been selected that has conflicts or unmet dependencies, then menuselect
+will exit with an error and output to notify the user of the situation. This is
+typically done at the beginning of the build process to ensure that given all
+of the known information, the build is going to be successful.
+
+
+MENUSELECT DEPENDENCIES
+
+libncurses -- This is needed for the curses frontend.
+libnewt -- This is needed for the newt frontend (optional).
+libxml2 -- This library, the XML C parser and toolkit of Gnome, is used for
+           XML parsing. 
+           (http://xmlsoft.org/)
+
+ENVIRONMENT SETUP
+
+The file menuselect.h contains a couple of defines which specify locations for
+various files.  These locations are relative to the directory from which
+menuselect will be executed.
+
+#define OUTPUT_MAKEOPTS_DEFAULT "menuselect.makeopts"
+This is the location where the menuselect output will be saved.
+
+#define MENUSELECT_DEPS         "build_tools/menuselect-deps"
+This is the location where menuselect will expect to find the input file that
+provides dependency and conflict information. More information on the format of
+this file can be found in the section about dependency and conflict checking.
+
+
+DEPENDENCY AND CONFLICT CHECKING
+
+Members may have as many conflicts and dependencies specified as needed. An
+example of the MENUSELECT_DEPS file would look like this:
+
+DEPENDENCY1=1
+DEPENDENCY2=0
+CONFLICT1=0
+
+In this case, "DEPENDENCY1" has been met, "DEPENDENCY2" has not been met, and
+"CONFLICT1" is not present.
+
+To ask menuselect to do a background sanity check on dependencies and
+conflicts, it can be called like this:
+
+./menuselect --check-deps <input_file1> [input_file2] [...]
+
+The format of the input files must be of the same format menuselect uses to
+create the OUPUT_MAKEOPTS_DEFAULT.
+
+
+ENABLING AND DISABLING OPTIONS FROM THE COMMAND LINE
+
+If you would like menuselect to update choices via the command line, it can be
+done with the following syntax:
+
+Enable an option:
+   $ menuselect/menuselect --enable TEST_FRAMEWORK menuselect.makeopts
+
+Enable all options in a category:
+   $ menuselect/menuselect --enable-category MENUSELECT_TEST menuselect.makeopts
+
+Disable an option:
+   $ menuselect/menuselect --disable TEST_FRAMEWORK menuselect.makeopts
+
+Disable all options in a category:
+   $ menuselect/menuselect --disable-category MENUSELECT_TEST menuselect.makeopts
+
+
+SETTING UP AVAILABLE OPTIONS
+
+The XML specification for the menu lives in the file "menuselect-tree" and should
+be in the same directory that menuselect will be executed from. An example
+menuselect-tree file as used in the Asterisk project (http://www.asterisk.org) is
+provided in example_menuselect-tree
+
+Menu:
+   The top level tag in menuselect-tree is the <menu> tag. All of the categories
+   reside inside of the <menu> ... </menu> block.
+
+Menu Attributes:
+   name="Asterisk Module Selection"
+   This specifies the title of the menu. It is displayed at the top of the
+   screen when using the curses frontend
+
+Categories:
+   A <category> contains members. The category tag can contain a number of
+   different attributes to specify different behavior.
+
+Category Attributes:
+   name="MENUSELECT_APPS"
+   The name attribute is required. This is the name of the variable that will
+   be in the output from menuselect.
+	
+   displayname="Applications"
+   If this is specfied, this is what will be shown in the menu to the user.
+
+   positive_output="yes"
+   The default for menuselect is to output all of the members of a category
+   that are *not* selected. This is because it is often convenient to be able
+   to define a full list in the Makefile and then filter out the results from
+   menuselect. Using GNU make, an example of this would be:
+   APPS:=$(filter-out $(MENUSELECT_APPS),$(APPS)) 
+
+   remove_on_change=".lastclean"
+   This attribute can contain a space delimited list of files to be deleted
+   when it is time to build an output file if any of the members of this
+   category have changed values from their values for existing input when the
+   application was started.
+
+Members:
+   A <member> contains conflicts and dependencies. The member tag can contain a
+   number of different attributes to specify different behavior.
+
+Member Attributes:
+   name="app_meetme"
+   The name attribute is required. This is the value that will be added to the 
+   variable specified by the category when selected (or not selected) depending
+   on the setting of the positive_output attribute of the category.
+	
+   displayname="Call Conferencing Application"
+   If this is specified, this will be provided as a description of this member
+   when the cursor is on it in the menu.
+
+   remove_on_change="apps/app_meetme.o apps/app_meetme.so"
+   This attribute can contain a space delimeted list of files to be deleted
+   when it is time to build an output file if the value of this member has
+   changed from its value in any existing input when the application was
+   started.
+
+Dependencies:
+   A dependency for a <member> is specified using a <depend> tag. The name of
+   the dependency corresponds to names in the MENUSELECT_DEPS file. This is an
+   example of specifying a dependency for a member:
+      <member name="app_meetme">
+         <depend>zaptel</depend>
+      </member>   
+
+Conflicts:
+   A conflict for a <member> is specified using a <conflict> tag. The name of
+   the conflict corresponds to names in the MENUSELECT_DEPS file. This is an
+   example of specifying a dependency for a member:
+      <member name="res_musiconhold">
+         <conflict>win32</conflict>
+      </member>
+
+
+REPORTING BUGS
+
+Any bug reports or feature enhancement submissions to menuselect should be
+submitted at https://issues.asterisk.org/
+
+Thank you!
