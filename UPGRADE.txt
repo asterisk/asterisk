@@ -18,8 +18,12 @@
 ===
 ===========================================================
 
-from 1.8.31.0 to 1.8.31.1:
+from 1.8.32.3 to 1.8.33:
+*  The menuselect utility has been pulled into the Asterisk repository. As a
+   result, the libxml2 development library is now a required dependency for
+   Asterisk.
 
+from 1.8.31.0 to 1.8.31.1:
 * Due to the POODLE vulnerability (see 
   https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2014-3566), the
   default TLS method for TLS clients will no longer allow SSLv3. As
