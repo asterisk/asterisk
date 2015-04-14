@@ -27,6 +27,9 @@ Source Control:
    were required in functionality. These are listed individually in the
    notes below.
 
+Build:
+ - libxml2 is now required to build and use menuselect.
+
 AMI:
  - The 'ModuleCheck' Action's Version key will now always report the
    current version of Asterisk.
