@@ -18,6 +18,8 @@
 *.moduleinfo
 *.makeopts
 *.makedeps
+aclocal.m4
+autom4te.cache
 makeopts
 .lastclean
 config.log
