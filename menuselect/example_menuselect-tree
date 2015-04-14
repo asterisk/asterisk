@@ -1,0 +1,487 @@
+<?xml version="1.0"?>
+
+<menu name="Asterisk Module Selection">
+	<category name="MENUSELECT_APPS" displayname="Applications">
+		<member name="app_adsiprog" displayname="Asterisk ADSI Programming Application" remove_on_change="apps/app_adsiprog.o apps/app_adsiprog.so">
+		</member>
+		<member name="app_alarmreceiver" displayname="Alarm Receiver for Asterisk" remove_on_change="apps/app_alarmreceiver.o apps/app_alarmreceiver.so">
+		</member>
+		<member name="app_amd" displayname="Answering Machine Detection Application" remove_on_change="apps/app_amd.o apps/app_amd.so">
+		</member>
+		<member name="app_authenticate" displayname="Authentication Application" remove_on_change="apps/app_authenticate.o apps/app_authenticate.so">
+		</member>
+		<member name="app_cdr" displayname="Tell Asterisk to not maintain a CDR for the current call" remove_on_change="apps/app_cdr.o apps/app_cdr.so">
+		</member>
+		<member name="app_chanisavail" displayname="Check channel availability" remove_on_change="apps/app_chanisavail.o apps/app_chanisavail.so">
+		</member>
+		<member name="app_channelredirect" displayname="Channel Redirect" remove_on_change="apps/app_channelredirect.o apps/app_channelredirect.so">
+		</member>
+		<member name="app_chanspy" displayname="Listen to the audio of an active channel" remove_on_change="apps/app_chanspy.o apps/app_chanspy.so">
+		</member>
+		<member name="app_controlplayback" displayname="Control Playback Application" remove_on_change="apps/app_controlplayback.o apps/app_controlplayback.so">
+		</member>
+		<member name="app_db" displayname="Database Access Functions" remove_on_change="apps/app_db.o apps/app_db.so">
+		</member>
+		<member name="app_dial" displayname="Dialing Application" remove_on_change="apps/app_dial.o apps/app_dial.so">
+		</member>
+		<member name="app_dictate" displayname="Virtual Dictation Machine" remove_on_change="apps/app_dictate.o apps/app_dictate.so">
+		</member>
+		<member name="app_directed_pickup" displayname="Directed Call Pickup Application" remove_on_change="apps/app_directed_pickup.o apps/app_directed_pickup.so">
+		</member>
+		<member name="app_directory" displayname="Extension Directory" remove_on_change="apps/app_directory.o apps/app_directory.so">
+		</member>
+		<member name="app_disa" displayname="DISA (Direct Inward System Access) Application" remove_on_change="apps/app_disa.o apps/app_disa.so">
+		</member>
+		<member name="app_dumpchan" displayname="Dump Info About The Calling Channel" remove_on_change="apps/app_dumpchan.o apps/app_dumpchan.so">
+		</member>
+		<member name="app_echo" displayname="Simple Echo Application" remove_on_change="apps/app_echo.o apps/app_echo.so">
+		</member>
+		<member name="app_exec" displayname="Executes dialplan applications" remove_on_change="apps/app_exec.o apps/app_exec.so">
+		</member>
+		<member name="app_externalivr" displayname="External IVR Interface Application" remove_on_change="apps/app_externalivr.o apps/app_externalivr.so">
+		</member>
+		<member name="app_festival" displayname="Simple Festival Interface" remove_on_change="apps/app_festival.o apps/app_festival.so">
+		</member>
+		<member name="app_flash" displayname="Flash zap trunk application" remove_on_change="apps/app_flash.o apps/app_flash.so">
+	<depend>zaptel</depend>
+		</member>
+		<member name="app_followme" displayname="Find-Me/Follow-Me Application" remove_on_change="apps/app_followme.o apps/app_followme.so">
+		</member>
+		<member name="app_forkcdr" displayname="Fork The CDR into 2 separate entities." remove_on_change="apps/app_forkcdr.o apps/app_forkcdr.so">
+		</member>
+		<member name="app_getcpeid" displayname="Get ADSI CPE ID" remove_on_change="apps/app_getcpeid.o apps/app_getcpeid.so">
+		</member>
+		<member name="app_hasnewvoicemail" displayname="Indicator for whether a voice mailbox has messages in a given folder." remove_on_change="apps/app_hasnewvoicemail.o apps/app_hasnewvoicemail.so">
+		</member>
+		<member name="app_ices" displayname="Encode and Stream via icecast and ices" remove_on_change="apps/app_ices.o apps/app_ices.so">
+		</member>
+		<member name="app_image" displayname="Image Transmission Application" remove_on_change="apps/app_image.o apps/app_image.so">
+		</member>
+		<member name="app_ivrdemo" displayname="IVR Demo Application" remove_on_change="apps/app_ivrdemo.o apps/app_ivrdemo.so">
+	<defaultenabled>no</defaultenabled>
+		</member>
+		<member name="app_lookupblacklist" displayname="Look up Caller*ID name/number from blacklist database" remove_on_change="apps/app_lookupblacklist.o apps/app_lookupblacklist.so">
+		</member>
+		<member name="app_lookupcidname" displayname="Look up CallerID Name from local database" remove_on_change="apps/app_lookupcidname.o apps/app_lookupcidname.so">
+		</member>
+		<member name="app_macro" displayname="Extension Macros" remove_on_change="apps/app_macro.o apps/app_macro.so">
+		</member>
+		<member name="app_meetme" displayname="MeetMe conference bridge" remove_on_change="apps/app_meetme.o apps/app_meetme.so">
+	<depend>zaptel</depend>
+		</member>
+		<member name="app_milliwatt" displayname="Digital Milliwatt (mu-law) Test Application" remove_on_change="apps/app_milliwatt.o apps/app_milliwatt.so">
+		</member>
+		<member name="app_mixmonitor" displayname="Mixed Audio Monitoring Application" remove_on_change="apps/app_mixmonitor.o apps/app_mixmonitor.so">
+		</member>
+		<member name="app_morsecode" displayname="Morse code" remove_on_change="apps/app_morsecode.o apps/app_morsecode.so">
+		</member>
+		<member name="app_mp3" displayname="Silly MP3 Application" remove_on_change="apps/app_mp3.o apps/app_mp3.so">
+		</member>
+		<member name="app_nbscat" displayname="Silly NBS Stream Application" remove_on_change="apps/app_nbscat.o apps/app_nbscat.so">
+		</member>
+		<member name="app_osplookup" displayname="Open Settlement Protocol Applications" remove_on_change="apps/app_osplookup.o apps/app_osplookup.so">
+	<depend>libosptk</depend>
+	<depend>ssl</depend>
+		</member>
+		<member name="app_page" displayname="Page Multiple Phones" remove_on_change="apps/app_page.o apps/app_page.so">
+	<depend>zaptel</depend>
+		</member>
+		<member name="app_parkandannounce" displayname="Call Parking and Announce Application" remove_on_change="apps/app_parkandannounce.o apps/app_parkandannounce.so">
+		</member>
+		<member name="app_playback" displayname="Sound File Playback Application" remove_on_change="apps/app_playback.o apps/app_playback.so">
+		</member>
+		<member name="app_privacy" displayname="Require phone number to be entered, if no CallerID sent" remove_on_change="apps/app_privacy.o apps/app_privacy.so">
+		</member>
+		<member name="app_queue" displayname="True Call Queueing" remove_on_change="apps/app_queue.o apps/app_queue.so">
+		</member>
+		<member name="app_random" displayname="Random goto" remove_on_change="apps/app_random.o apps/app_random.so">
+		</member>
+		<member name="app_read" displayname="Read Variable Application" remove_on_change="apps/app_read.o apps/app_read.so">
+		</member>
+		<member name="app_readfile" displayname="Stores output of file into a variable" remove_on_change="apps/app_readfile.o apps/app_readfile.so">
+		</member>
+		<member name="app_realtime" displayname="Realtime Data Lookup/Rewrite" remove_on_change="apps/app_realtime.o apps/app_realtime.so">
+		</member>
+		<member name="app_record" displayname="Trivial Record Application" remove_on_change="apps/app_record.o apps/app_record.so">
+		</member>
+		<member name="app_rpt" displayname="Radio Repeater / Remote Base  version 0.48  06/13/2006" remove_on_change="apps/app_rpt.o apps/app_rpt.so">
+	<depend>zaptel</depend>
+	<defaultenabled>no</defaultenabled>
+		</member>
+		<member name="app_sayunixtime" displayname="Say time" remove_on_change="apps/app_sayunixtime.o apps/app_sayunixtime.so">
+		</member>
+		<member name="app_senddtmf" displayname="Send DTMF digits Application" remove_on_change="apps/app_senddtmf.o apps/app_senddtmf.so">
+		</member>
+		<member name="app_sendtext" displayname="Send Text Applications" remove_on_change="apps/app_sendtext.o apps/app_sendtext.so">
+		</member>
+		<member name="app_setcallerid" displayname="Set CallerID Application" remove_on_change="apps/app_setcallerid.o apps/app_setcallerid.so">
+		</member>
+		<member name="app_setcdruserfield" displayname="CDR user field apps" remove_on_change="apps/app_setcdruserfield.o apps/app_setcdruserfield.so">
+		</member>
+		<member name="app_settransfercapability" displayname="Set ISDN Transfer Capability" remove_on_change="apps/app_settransfercapability.o apps/app_settransfercapability.so">
+		</member>
+		<member name="app_skel" displayname="Trivial skeleton Application" remove_on_change="apps/app_skel.o apps/app_skel.so">
+	<defaultenabled>no</defaultenabled>
+		</member>
+		<member name="app_sms" displayname="SMS/PSTN handler" remove_on_change="apps/app_sms.o apps/app_sms.so">
+		</member>
+		<member name="app_softhangup" displayname="Hangs up the requested channel" remove_on_change="apps/app_softhangup.o apps/app_softhangup.so">
+		</member>
+		<member name="app_speech_utils" displayname="Dialplan Speech Applications" remove_on_change="apps/app_speech_utils.o apps/app_speech_utils.so">
+		</member>
+		<member name="app_stack" displayname="Stack Routines" remove_on_change="apps/app_stack.o apps/app_stack.so">
+		</member>
+		<member name="app_system" displayname="Generic System() application" remove_on_change="apps/app_system.o apps/app_system.so">
+		</member>
+		<member name="app_talkdetect" displayname="Playback with Talk Detection" remove_on_change="apps/app_talkdetect.o apps/app_talkdetect.so">
+		</member>
+		<member name="app_test" displayname="Interface Test Application" remove_on_change="apps/app_test.o apps/app_test.so">
+		</member>
+		<member name="app_transfer" displayname="Transfer" remove_on_change="apps/app_transfer.o apps/app_transfer.so">
+		</member>
+		<member name="app_url" displayname="Send URL Applications" remove_on_change="apps/app_url.o apps/app_url.so">
+		</member>
+		<member name="app_userevent" displayname="Custom User Event Application" remove_on_change="apps/app_userevent.o apps/app_userevent.so">
+		</member>
+		<member name="app_verbose" displayname="Send verbose output" remove_on_change="apps/app_verbose.o apps/app_verbose.so">
+		</member>
+		<member name="app_voicemail" displayname="Comedian Mail (Voicemail System)" remove_on_change="apps/app_voicemail.o apps/app_voicemail.so">
+		</member>
+		<member name="app_waitforring" displayname="Waits until first ring after time" remove_on_change="apps/app_waitforring.o apps/app_waitforring.so">
+		</member>
+		<member name="app_waitforsilence" displayname="Wait For Silence" remove_on_change="apps/app_waitforsilence.o apps/app_waitforsilence.so">
+		</member>
+		<member name="app_while" displayname="While Loops and Conditional Execution" remove_on_change="apps/app_while.o apps/app_while.so">
+		</member>
+		<member name="app_zapateller" displayname="Block Telemarketers with Special Information Tone" remove_on_change="apps/app_zapateller.o apps/app_zapateller.so">
+		</member>
+		<member name="app_zapbarge" displayname="Barge in on Zap channel application" remove_on_change="apps/app_zapbarge.o apps/app_zapbarge.so">
+	<depend>zaptel</depend>
+		</member>
+		<member name="app_zapras" displayname="Zap RAS Application" remove_on_change="apps/app_zapras.o apps/app_zapras.so">
+	<depend>zaptel</depend>
+		</member>
+		<member name="app_zapscan" displayname="Scan Zap channels application" remove_on_change="apps/app_zapscan.o apps/app_zapscan.so">
+	<depend>zaptel</depend>
+		</member>
+	</category>
+	<category name="MENUSELECT_CDR" displayname="Call Detail Recording">
+		<member name="cdr_csv" displayname="Comma Separated Values CDR Backend" remove_on_change="cdr/cdr_csv.o cdr/cdr_csv.so">
+		</member>
+		<member name="cdr_custom" displayname="Customizable Comma Separated Values CDR Backend" remove_on_change="cdr/cdr_custom.o cdr/cdr_custom.so">
+		</member>
+		<member name="cdr_manager" displayname="Asterisk Call Manager CDR Backend" remove_on_change="cdr/cdr_manager.o cdr/cdr_manager.so">
+		</member>
+		<member name="cdr_odbc" displayname="ODBC CDR Backend" remove_on_change="cdr/cdr_odbc.o cdr/cdr_odbc.so">
+	<depend>unixodbc</depend>
+		</member>
+		<member name="cdr_pgsql" displayname="PostgreSQL CDR Backend" remove_on_change="cdr/cdr_pgsql.o cdr/cdr_pgsql.so">
+	<depend>pgsql</depend>
+		</member>
+		<member name="cdr_radius" displayname="RADIUS CDR Backend" remove_on_change="cdr/cdr_radius.o cdr/cdr_radius.so">
+	<depend>radiusclient</depend>
+		</member>
+		<member name="cdr_sqlite" displayname="SQLite CDR Backend" remove_on_change="cdr/cdr_sqlite.o cdr/cdr_sqlite.so">
+	<depend>sqlite</depend>
+		</member>
+		<member name="cdr_tds" displayname="MSSQL CDR Backend" remove_on_change="cdr/cdr_tds.o cdr/cdr_tds.so">
+	<depend>freetds</depend>
+		</member>
+	</category>
+	<category name="MENUSELECT_CHANNELS" displayname="Channel Drivers">
+		<member name="chan_agent" displayname="Agent Proxy Channel" remove_on_change="channels/chan_agent.o channels/chan_agent.so">
+		</member>
+		<member name="chan_alsa" displayname="ALSA Console Channel Driver" remove_on_change="channels/chan_alsa.o channels/chan_alsa.so">
+	<depend>asound</depend>
+		</member>
+		<member name="chan_features" displayname="Feature Proxy Channel" remove_on_change="channels/chan_features.o channels/chan_features.so">
+		</member>
+		<member name="chan_h323" displayname="The NuFone Network's Open H.323 Channel Driver" remove_on_change="channels/chan_h323.o channels/chan_h323.so">
+	<depend>h323</depend>
+		</member>
+		<member name="chan_iax2" displayname="Inter Asterisk eXchange (Ver 2)" remove_on_change="channels/chan_iax2.o channels/chan_iax2.so">
+		</member>
+		<member name="chan_jingle" displayname="Jingle Channel Driver" remove_on_change="channels/chan_jingle.o channels/chan_jingle.so">
+	<depend>iksemel</depend>
+		</member>
+		<member name="chan_local" displayname="Local Proxy Channel" remove_on_change="channels/chan_local.o channels/chan_local.so">
+		</member>
+		<member name="chan_mgcp" displayname="Media Gateway Control Protocol (MGCP)" remove_on_change="channels/chan_mgcp.o channels/chan_mgcp.so">
+		</member>
+		<member name="chan_misdn" displayname="Channel driver for mISDN Support (Bri/Pri)" remove_on_change="channels/chan_misdn.o channels/chan_misdn.so">
+		</member>
+		<member name="chan_nbs" displayname="Network Broadcast Sound Driver" remove_on_change="channels/chan_nbs.o channels/chan_nbs.so">
+	<depend>nbs</depend>
+		</member>
+		<member name="chan_oss" displayname="OSS Console Channel Driver" remove_on_change="channels/chan_oss.o channels/chan_oss.so">
+	<depend>ossaudio</depend>
+		</member>
+		<member name="chan_phone" displayname="Standard Linux Telephony API Driver" remove_on_change="channels/chan_phone.o channels/chan_phone.so">
+	<depend>ixjuser</depend>
+		</member>
+		<member name="chan_sip" displayname="Session Initiation Protocol (SIP)" remove_on_change="channels/chan_sip.o channels/chan_sip.so">
+		</member>
+		<member name="chan_skinny" displayname="Skinny Client Control Protocol (Skinny)" remove_on_change="channels/chan_skinny.o channels/chan_skinny.so">
+		</member>
+		<member name="chan_vpb" displayname="Standard VoiceTronix API Driver" remove_on_change="channels/chan_vpb.o channels/chan_vpb.so">
+	<depend>vpbapi</depend>
+		</member>
+		<member name="chan_zap" displayname="Zapata Telephony" remove_on_change="channels/chan_zap.o channels/chan_zap.so">
+	<depend>zaptel</depend>
+		</member>
+	</category>
+	<category name="MENUSELECT_CODECS" displayname="Codec Translators">
+		<member name="codec_a_mu" displayname="A-law and Mulaw direct Coder/Decoder" remove_on_change="codecs/codec_a_mu.o codecs/codec_a_mu.so">
+		</member>
+		<member name="codec_adpcm" displayname="Adaptive Differential PCM Coder/Decoder" remove_on_change="codecs/codec_adpcm.o codecs/codec_adpcm.so">
+		</member>
+		<member name="codec_alaw" displayname="A-law Coder/Decoder" remove_on_change="codecs/codec_alaw.o codecs/codec_alaw.so">
+		</member>
+		<member name="codec_g723_1" displayname="" remove_on_change="codecs/codec_g723_1.o codecs/codec_g723_1.so">
+	<defaultenabled>no</defaultenabled>
+		</member>
+		<member name="codec_g726" displayname="ITU G.726-32kbps G726 Transcoder" remove_on_change="codecs/codec_g726.o codecs/codec_g726.so">
+		</member>
+		<member name="codec_gsm" displayname="GSM/PCM16 (signed linear) Codec Translator" remove_on_change="codecs/codec_gsm.o codecs/codec_gsm.so">
+	<depend>libgsm</depend>
+		</member>
+		<member name="codec_ilbc" displayname="iLBC/PCM16 (signed linear) Codec Translator" remove_on_change="codecs/codec_ilbc.o codecs/codec_ilbc.so">
+		</member>
+		<member name="codec_lpc10" displayname="LPC10 2.4kbps (signed linear) Voice Coder" remove_on_change="codecs/codec_lpc10.o codecs/codec_lpc10.so">
+		</member>
+		<member name="codec_speex" displayname="Speex/PCM16 (signed linear) Codec Translator" remove_on_change="codecs/codec_speex.o codecs/codec_speex.so">
+	<depend>libspeex</depend>
+		</member>
+		<member name="codec_ulaw" displayname="Mu-law Coder/Decoder" remove_on_change="codecs/codec_ulaw.o codecs/codec_ulaw.so">
+		</member>
+		<member name="codec_zap" displayname="Generic Zaptel Transcoder Codec Translator" remove_on_change="codecs/codec_zap.o codecs/codec_zap.so">
+	<depend>zaptel</depend>
+		</member>
+	</category>
+	<category name="MENUSELECT_FORMATS" displayname="Format Interpreters">
+		<member name="format_g723" displayname="G.723.1 Simple Timestamp File Format" remove_on_change="formats/format_g723.o formats/format_g723.so">
+		</member>
+		<member name="format_g726" displayname="Raw G.726 (16/24/32/40kbps) data" remove_on_change="formats/format_g726.o formats/format_g726.so">
+		</member>
+		<member name="format_g729" displayname="Raw G729 data" remove_on_change="formats/format_g729.o formats/format_g729.so">
+		</member>
+		<member name="format_gsm" displayname="Raw GSM data" remove_on_change="formats/format_gsm.o formats/format_gsm.so">
+		</member>
+		<member name="format_h263" displayname="Raw h263 data" remove_on_change="formats/format_h263.o formats/format_h263.so">
+		</member>
+		<member name="format_h264" displayname="Raw h264 data" remove_on_change="formats/format_h264.o formats/format_h264.so">
+		</member>
+		<member name="format_ilbc" displayname="Raw iLBC data" remove_on_change="formats/format_ilbc.o formats/format_ilbc.so">
+		</member>
+		<member name="format_jpeg" displayname="JPEG (Joint Picture Experts Group) Image Format" remove_on_change="formats/format_jpeg.o formats/format_jpeg.so">
+		</member>
+		<member name="format_ogg_vorbis" displayname="OGG/Vorbis audio" remove_on_change="formats/format_ogg_vorbis.o formats/format_ogg_vorbis.so">
+	<depend>libvorbis</depend>
+	<depend>ogg</depend>
+		</member>
+		<member name="format_pcm" displayname="Raw/Sun uLaw/ALaw 8khz Audio support (PCM,PCMA,AU)" remove_on_change="formats/format_pcm.o formats/format_pcm.so">
+		</member>
+		<member name="format_sln" displayname="Raw Signed Linear Audio support (SLN)" remove_on_change="formats/format_sln.o formats/format_sln.so">
+		</member>
+		<member name="format_vox" displayname="Dialogic VOX (ADPCM) File Format" remove_on_change="formats/format_vox.o formats/format_vox.so">
+		</member>
+		<member name="format_wav" displayname="Microsoft WAV format (8000hz Signed Linear)" remove_on_change="formats/format_wav.o formats/format_wav.so">
+		</member>
+		<member name="format_wav_gsm" displayname="Microsoft WAV format (Proprietary GSM)" remove_on_change="formats/format_wav_gsm.o formats/format_wav_gsm.so">
+		</member>
+	</category>
+	<category name="MENUSELECT_FUNCS" displayname="Dialplan Functions">
+		<member name="func_base64" displayname="base64 encode/decode dialplan functions" remove_on_change="funcs/func_base64.o funcs/func_base64.so">
+		</member>
+		<member name="func_callerid" displayname="Caller ID related dialplan function" remove_on_change="funcs/func_callerid.o funcs/func_callerid.so">
+		</member>
+		<member name="func_cdr" displayname="CDR dialplan function" remove_on_change="funcs/func_cdr.o funcs/func_cdr.so">
+		</member>
+		<member name="func_channel" displayname="Channel information dialplan function" remove_on_change="funcs/func_channel.o funcs/func_channel.so">
+		</member>
+		<member name="func_curl" displayname="Load external URL" remove_on_change="funcs/func_curl.o funcs/func_curl.so">
+	<depend>curl</depend>
+		</member>
+		<member name="func_cut" displayname="Cut out information from a string" remove_on_change="funcs/func_cut.o funcs/func_cut.so">
+		</member>
+		<member name="func_db" displayname="Database (astdb) related dialplan functions" remove_on_change="funcs/func_db.o funcs/func_db.so">
+		</member>
+		<member name="func_enum" displayname="ENUM related dialplan functions" remove_on_change="funcs/func_enum.o funcs/func_enum.so">
+		</member>
+		<member name="func_env" displayname="Environment/filesystem dialplan functions" remove_on_change="funcs/func_env.o funcs/func_env.so">
+		</member>
+		<member name="func_global" displayname="Global variable dialplan functions" remove_on_change="funcs/func_global.o funcs/func_global.so">
+		</member>
+		<member name="func_groupcount" displayname="Channel group dialplan functions" remove_on_change="funcs/func_groupcount.o funcs/func_groupcount.so">
+		</member>
+		<member name="func_language" displayname="Channel language dialplan function" remove_on_change="funcs/func_language.o funcs/func_language.so">
+		</member>
+		<member name="func_logic" displayname="Logical dialplan functions" remove_on_change="funcs/func_logic.o funcs/func_logic.so">
+		</member>
+		<member name="func_math" displayname="Mathematical dialplan function" remove_on_change="funcs/func_math.o funcs/func_math.so">
+		</member>
+		<member name="func_md5" displayname="MD5 digest dialplan functions" remove_on_change="funcs/func_md5.o funcs/func_md5.so">
+		</member>
+		<member name="func_moh" displayname="Music-on-hold dialplan function" remove_on_change="funcs/func_moh.o funcs/func_moh.so">
+		</member>
+		<member name="func_odbc" displayname="ODBC lookups" remove_on_change="funcs/func_odbc.o funcs/func_odbc.so">
+	<depend>unixodbc</depend>
+		</member>
+		<member name="func_rand" displayname="Random number dialplan function" remove_on_change="funcs/func_rand.o funcs/func_rand.so">
+		</member>
+		<member name="func_realtime" displayname="Read/Write values from a RealTime repository" remove_on_change="funcs/func_realtime.o funcs/func_realtime.so">
+		</member>
+		<member name="func_sha1" displayname="SHA-1 computation dialplan function" remove_on_change="funcs/func_sha1.o funcs/func_sha1.so">
+		</member>
+		<member name="func_strings" displayname="String handling dialplan functions" remove_on_change="funcs/func_strings.o funcs/func_strings.so">
+		</member>
+		<member name="func_timeout" displayname="Channel timeout dialplan functions" remove_on_change="funcs/func_timeout.o funcs/func_timeout.so">
+		</member>
+		<member name="func_uri" displayname="URI encode/decode dialplan functions" remove_on_change="funcs/func_uri.o funcs/func_uri.so">
+		</member>
+	</category>
+	<category name="MENUSELECT_PBX" displayname="PBX Modules">
+		<member name="pbx_ael" displayname="Asterisk Extension Language Compiler v2" remove_on_change="pbx/pbx_ael.o pbx/pbx_ael.so">
+		</member>
+		<member name="pbx_config" displayname="Text Extension Configuration" remove_on_change="pbx/pbx_config.o pbx/pbx_config.so">
+		</member>
+		<member name="pbx_dundi" displayname="Distributed Universal Number Discovery (DUNDi)" remove_on_change="pbx/pbx_dundi.o pbx/pbx_dundi.so">
+	<depend>zlib</depend>
+		</member>
+		<member name="pbx_gtkconsole" displayname="Asterisk PBX Console (GTK Version)" remove_on_change="pbx/pbx_gtkconsole.o pbx/pbx_gtkconsole.so">
+	<depend>gtk</depend>
+	<defaultenabled>no</defaultenabled>
+		</member>
+		<member name="pbx_loopback" displayname="Loopback Switch" remove_on_change="pbx/pbx_loopback.o pbx/pbx_loopback.so">
+		</member>
+		<member name="pbx_realtime" displayname="Realtime Switch" remove_on_change="pbx/pbx_realtime.o pbx/pbx_realtime.so">
+		</member>
+		<member name="pbx_spool" displayname="Outgoing Spool Support" remove_on_change="pbx/pbx_spool.o pbx/pbx_spool.so">
+		</member>
+	</category>
+	<category name="MENUSELECT_RES" displayname="Resource Modules">
+		<member name="res_adsi" displayname="ADSI Resource" remove_on_change="res/res_adsi.o res/res_adsi.so">
+		</member>
+		<member name="res_agi" displayname="Asterisk Gateway Interface (AGI)" remove_on_change="res/res_agi.o res/res_agi.so">
+		</member>
+		<member name="res_clioriginate" displayname="Call origination from the CLI" remove_on_change="res/res_clioriginate.o res/res_clioriginate.so">
+		</member>
+		<member name="res_config_odbc" displayname="ODBC Configuration" remove_on_change="res/res_config_odbc.o res/res_config_odbc.so">
+	<depend>unixodbc</depend>
+		</member>
+		<member name="res_config_pgsql" displayname="Postgresql RealTime Configuration Driver" remove_on_change="res/res_config_pgsql.o res/res_config_pgsql.so">
+	<depend>pgsql</depend>
+		</member>
+		<member name="res_convert" displayname="File format conversion CLI command" remove_on_change="res/res_convert.o res/res_convert.so">
+		</member>
+		<member name="res_crypto" displayname="Cryptographic Digital Signatures" remove_on_change="res/res_crypto.o res/res_crypto.so">
+	<depend>ssl</depend>
+		</member>
+		<member name="res_features" displayname="Call Features Resource" remove_on_change="res/res_features.o res/res_features.so">
+		</member>
+		<member name="res_indications" displayname="Indications Configuration" remove_on_change="res/res_indications.o res/res_indications.so">
+		</member>
+		<member name="res_jabber" displayname="AJI - Asterisk JABBER Interface" remove_on_change="res/res_jabber.o res/res_jabber.so">
+	<depend>iksemel</depend>
+		</member>
+		<member name="res_monitor" displayname="Call Monitoring Resource" remove_on_change="res/res_monitor.o res/res_monitor.so">
+		</member>
+		<member name="res_musiconhold" displayname="Music On Hold Resource" remove_on_change="res/res_musiconhold.o res/res_musiconhold.so">
+	<conflict>win32</conflict>
+		</member>
+		<member name="res_odbc" displayname="ODBC Resource" remove_on_change="res/res_odbc.o res/res_odbc.so">
+	<depend>unixodbc</depend>
+		</member>
+		<member name="res_osp" displayname="Open Settlement Protocol Support" remove_on_change="res/res_osp.o res/res_osp.so">
+	<depend>libosptk</depend>
+	<depend>ssl</depend>
+		</member>
+		<member name="res_smdi" displayname="Asterisk Simplified Message Desk Interface (SMDI) Module" remove_on_change="res/res_smdi.o res/res_smdi.so">
+		</member>
+		<member name="res_snmp" displayname="SNMP [Sub]Agent for Asterisk" remove_on_change="res/res_snmp.o res/res_snmp.so">
+	<depend>netsnmp</depend>
+	<defaultenabled>no</defaultenabled>
+		</member>
+		<member name="res_speech" displayname="Generic Speech Recognition API" remove_on_change="res/res_speech.o res/res_speech.so">
+		</member>
+	</category>
+	<category name="MENUSELECT_CFLAGS" displayname="Compiler Flags" positive_output="yes" remove_on_change=".lastclean">
+		<member name="DEBUG_CHANNEL_LOCKS" displayname="Debug Channel Locking">
+		</member>
+		<member name="DEBUG_SCHEDULER" displayname="Enable Scheduler Debugging Output">
+		</member>
+		<member name="DEBUG_THREADS" displayname="Enable Thread Debugging">
+		</member>
+		<member name="DETECT_DEADLOCKS" displayname="Detect Deadlocks">
+		</member>
+		<member name="DONT_OPTIMIZE" displayname="Disable Optimizations from the Compiler">
+		</member>
+		<member name="DUMP_SCHEDULER" displayname="Dump Scheduler Contents for Debugging">
+		</member>
+		<member name="LOW_MEMORY" displayname="Optimize for Low Memory Usage">
+		</member>
+		<member name="MALLOC_DEBUG" displayname="Keep Track of Memory Allocations">
+		</member>
+		<member name="MTX_PROFILE" displayname="Enable Code Profiling Using TSC Counters">
+		</member>
+		<member name="RADIO_RELAX" displayname="Relax DTMF for Radio Applications">
+		</member>
+		<member name="TRACE_FRAMES" displayname="Trace Frame Allocations">
+		</member>
+	</category>
+	<category name="MENUSELECT_CORE_SOUNDS" displayname="Core Sound Packages" positive_output="yes">
+		<member name="CORE-SOUNDS-EN-WAV" displayname="English, WAV format">
+		</member>
+		<member name="CORE-SOUNDS-EN-ULAW" displayname="English, mu-Law format">
+		</member>
+		<member name="CORE-SOUNDS-EN-ALAW" displayname="English, a-Law format">
+		</member>
+		<member name="CORE-SOUNDS-EN-GSM" displayname="English, GSM format" >
+			<defaultenabled>yes</defaultenabled>
+		</member>
+		<member name="CORE-SOUNDS-EN-G729" displayname="English, G.729 format">
+		</member>
+		<member name="CORE-SOUNDS-ES-WAV" displayname="Spanish, WAV format">
+		</member>
+		<member name="CORE-SOUNDS-ES-ULAW" displayname="Spanish, mu-Law format">
+		</member>
+		<member name="CORE-SOUNDS-ES-ALAW" displayname="Spanish, a-Law format">
+		</member>
+		<member name="CORE-SOUNDS-ES-GSM" displayname="Spanish, GSM format">
+		</member>
+		<member name="CORE-SOUNDS-ES-G729" displayname="Spanish, G.729 format">
+		</member>
+		<member name="CORE-SOUNDS-FR-WAV" displayname="French, WAV format">
+		</member>
+		<member name="CORE-SOUNDS-FR-ULAW" displayname="French, mu-Law format">
+		</member>
+		<member name="CORE-SOUNDS-FR-ALAW" displayname="French, a-Law format">
+		</member>
+		<member name="CORE-SOUNDS-FR-GSM" displayname="French, GSM format">
+		</member>
+		<member name="CORE-SOUNDS-FR-G729" displayname="French, G.729 format">
+		</member>
+	</category>
+	<category name="MENUSELECT_EXTRA_SOUNDS" displayname="Extras Sound Packages" positive_output="yes">
+		<member name="EXTRA-SOUNDS-EN-WAV" displayname="English, WAV format">
+		</member>
+		<member name="EXTRA-SOUNDS-EN-ULAW" displayname="English, mu-Law format">
+		</member>
+		<member name="EXTRA-SOUNDS-EN-ALAW" displayname="English, a-Law format">
+		</member>
+		<member name="EXTRA-SOUNDS-EN-GSM" displayname="English, GSM format" >
+		</member>
+		<member name="EXTRA-SOUNDS-EN-G729" displayname="English, G.729 format">
+		</member>
+	</category>
+<category name="MENUSELECT_app_voicemail" displayname="Voicemail Build Options" positive_output="yes" remove_on_change="apps/app_voicemail.o">
+	<member name="ODBC_STORAGE" displayname="Storage of Voicemail using ODBC">
+		<depend>unixodbc</depend>
+		<defaultenabled>no</defaultenabled>
+	</member>
+	<member name="EXTENDED_ODBC_STORAGE" displayname="Storage of Voicemail using ODBC (extended)">
+		<depend>unixodbc</depend>
+		<defaultenabled>no</defaultenabled>
+	</member>
+</category>
+</menu>
