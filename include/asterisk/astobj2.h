@@ -19,6 +19,7 @@
 
 #include "asterisk/compat.h"
 #include "asterisk/lock.h"
+#include "asterisk/linkedlists.h"
 
 /*! \file
  * \ref AstObj2
@@ -577,6 +578,155 @@ int __ao2_ref(void *o, int delta);
 	ao2_t_replace((dst), (src), "")
 
 /*! @} */
+
+/*! \brief ao2_weakproxy
+ *
+ * @{
+ */
+struct ao2_weakproxy_notification;
+typedef void (*ao2_weakproxy_notification_cb)(void *weakproxy, void *data);
+
+/*! \brief This struct should be opaque, but it's size is needed. */
+struct ao2_weakproxy {
+	AST_LIST_HEAD_NOLOCK(, ao2_weakproxy_notification) destroyed_cb;
+};
+
+/*! \brief Macro which must be used at the beginning of weakproxy capable objects.
+ *
+ * \note The primary purpose of user defined fields on weakproxy objects is to hold
+ *       immutable container keys for the real object.
+ */
+#define AO2_WEAKPROXY() struct ao2_weakproxy __weakproxy##__LINE__
+
+/*!
+ * \since 14.0.0
+ * \brief Allocate an ao2_weakproxy object
+ *
+ * \param data_size The sizeof() of the user-defined structure.
+ * \param destructor_fn The destructor function (can be NULL)
+ *
+ * \note "struct ao2_weakproxy" must be the first field of any object.
+ *       This can be done by using AO2_WEAKPROXY to declare your structure.
+ */
+void *__ao2_weakproxy_alloc(size_t data_size, ao2_destructor_fn destructor_fn,
+	const char *tag, const char *file, int line, const char *func) attribute_warn_unused_result;
+
+#define ao2_weakproxy_alloc(data_size, destructor_fn) \
+	__ao2_weakproxy_alloc(data_size, destructor_fn, "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+#define ao2_t_weakproxy_alloc(data_size, destructor_fn, tag) \
+	__ao2_weakproxy_alloc(data_size, destructor_fn, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+/*!
+ * \since 14.0.0
+ * \brief Associate weakproxy with obj.
+ *
+ * \param weakproxy An object created by ao2_weakproxy_alloc.
+ * \param obj An ao2 object not created by ao2_weakproxy_alloc.
+ * \param flags OBJ_NOLOCK to avoid locking weakproxy.
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ *
+ * \note obj must be newly created, this procedure is not thread safe
+ *       if any other code can reach obj before this procedure ends.
+ *
+ * \note weakproxy may be previously existing, but must not currently
+ *       have an object set.
+ *
+ * \note The only way to unset an object is for it to be destroyed.
+ *       Any call to this function while an object is already set will fail.
+ */
+int __ao2_weakproxy_set_object(void *weakproxy, void *obj, int flags,
+	const char *tag, const char *file, int line, const char *func);
+
+#define ao2_weakproxy_set_object(weakproxy, obj, flags) \
+	__ao2_weakproxy_set_object(weakproxy, obj, flags, "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+#define ao2_t_weakproxy_set_object(weakproxy, obj, flags, tag) \
+	__ao2_weakproxy_set_object(weakproxy, obj, flags, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+/*!
+ * \since 14.0.0
+ * \brief Get the object associated with weakproxy.
+ *
+ * \param weakproxy The weakproxy to read from.
+ * \param flags OBJ_NOLOCK to avoid locking weakproxy.
+ *
+ * \return A reference to the object previously set by ao2_weakproxy_set_object.
+ * \retval NULL Either no object was set or the previously set object has been freed.
+ */
+void *__ao2_weakproxy_get_object(void *weakproxy, int flags,
+	const char *tag, const char *file, int line, const char *func) attribute_warn_unused_result;
+
+#define ao2_weakproxy_get_object(weakproxy, flags) \
+	__ao2_weakproxy_get_object(weakproxy, flags, "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+#define ao2_t_weakproxy_get_object(weakproxy, flags, tag) \
+	__ao2_weakproxy_get_object(weakproxy, flags, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+/*!
+ * \since 14.0.0
+ * \brief Request notification when weakproxy points to NULL.
+ *
+ * \param weakproxy The weak object
+ * \param cb Procedure to call when no real object is associated
+ * \param data Passed to cb
+ * \param flags OBJ_NOLOCK to avoid locking weakproxy.
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ *
+ * \note This procedure will allow the same cb / data pair to be added to
+ *       the same weakproxy multiple times.
+ *
+ * \note It is the caller's responsibility to ensure that *data is valid
+ *       until after cb() is run or ao2_weakproxy_unsubscribe is called.
+ *
+ * \note If the weakproxy currently points to NULL the callback will be run immediately,
+ *       without being added to the subscriber list.
+ */
+int ao2_weakproxy_subscribe(void *weakproxy, ao2_weakproxy_notification_cb cb, void *data, int flags);
+
+/*!
+ * \since 14.0.0
+ * \brief Remove notification of real object destruction.
+ *
+ * \param weakproxy The weak object
+ * \param cb Callback to remove from destroy notification list
+ * \param data Data pointer to match
+ * \param flags OBJ_NOLOCK to avoid locking weakproxy.
+ *              OBJ_MULTIPLE to remove all copies of the same cb / data pair.
+ *
+ * \return The number of subscriptions removed.
+ * \retval 0 cb / data pair not found, nothing removed.
+ * \retval -1 Failure due to invalid parameters.
+ *
+ * \note Unless flags includes OBJ_MULTIPLE, this will only remove a single copy
+ *       of the cb / data pair.  If it was subscribed multiple times it must be
+ *       unsubscribed as many times.  The OBJ_MULTIPLE flag can be used to remove
+ *       matching subscriptions.
+ */
+int ao2_weakproxy_unsubscribe(void *weakproxy, ao2_weakproxy_notification_cb cb, void *data, int flags);
+
+/*!
+ * \since 14.0.0
+ * \brief Get the weakproxy attached to obj
+ *
+ * \param obj The object to retreive a weakproxy from
+ *
+ * \return The weakproxy object
+ */
+void *__ao2_get_weakproxy(void *obj,
+	const char *tag, const char *file, int line, const char *func) attribute_warn_unused_result;
+
+#define ao2_get_weakproxy(obj) \
+	__ao2_get_weakproxy(obj, "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+#define ao2_t_get_weakproxy(obj, tag) \
+	__ao2_get_weakproxy(obj, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+/*! @} */
+
 
 /*! \brief Which lock to request. */
 enum ao2_lock_req {
