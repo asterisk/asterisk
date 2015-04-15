@@ -98,7 +98,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/strings.h"
-#include "asterisk/global_datastores.h"
 #include "asterisk/taskprocessor.h"
 #include "asterisk/aoc.h"
 #include "asterisk/callerid.h"
@@ -113,6 +112,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/mixmonitor.h"
 #include "asterisk/core_unreal.h"
 #include "asterisk/bridge_basic.h"
+#include "asterisk/max_forwards.h"
 
 /*!
  * \par Please read before modifying this file.
@@ -4260,6 +4260,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	/* Inherit specially named variables from parent channel */
 	ast_channel_inherit_variables(qe->chan, tmp->chan);
 	ast_channel_datastore_inherit(qe->chan, tmp->chan);
+	ast_max_forwards_decrement(tmp->chan);
 
 	/* Presense of ADSI CPE on outgoing channel follows ours */
 	ast_channel_adsicpe_set(tmp->chan, ast_channel_adsicpe(qe->chan));
@@ -4753,6 +4754,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						ast_channel_lock_both(o->chan, in);
 						ast_channel_inherit_variables(in, o->chan);
 						ast_channel_datastore_inherit(in, o->chan);
+						ast_max_forwards_decrement(o->chan);
 
 						if (o->pending_connected_update) {
 							/*
@@ -6234,10 +6236,7 @@ static void setup_mixmonitor(struct queue_ent *qe, const char *filename)
  *
  * Here is the process of this function
  * 1. Process any options passed to the Queue() application. Options here mean the third argument to Queue()
- * 2. Iterate trough the members of the queue, creating a callattempt corresponding to each member. During this
- *    iteration, we also check the dialed_interfaces datastore to see if we have already attempted calling this
- *    member. If we have, we do not create a callattempt. This is in place to prevent call forwarding loops. Also
- *    during each iteration, we call calc_metric to determine which members should be rung when.
+ * 2. Iterate trough the members of the queue, creating a callattempt corresponding to each member.
  * 3. Call ring_one to place a call to the appropriate member(s)
  * 4. Call wait_for_answer to wait for an answer. If no one answers, return.
  * 5. Take care of any holdtime announcements, member delays, or other options which occur after a call has been answered.
@@ -6290,12 +6289,7 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 	int block_connected_line = 0;
 	int callcompletedinsl;
 	struct ao2_iterator memi;
-	struct ast_datastore *datastore;
 	struct queue_end_bridge *queue_end_bridge = NULL;
-
-	ast_channel_lock(qe->chan);
-	datastore = ast_channel_datastore_find(qe->chan, &dialed_interface_info, NULL);
-	ast_channel_unlock(qe->chan);
 
 	memset(&bridge_config, 0, sizeof(bridge_config));
 	tmpid[0] = 0;
@@ -6383,72 +6377,11 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 	memi = ao2_iterator_init(qe->parent->members, 0);
 	while ((cur = ao2_iterator_next(&memi))) {
 		struct callattempt *tmp = ast_calloc(1, sizeof(*tmp));
-		struct ast_dialed_interface *di;
-		AST_LIST_HEAD(,ast_dialed_interface) *dialed_interfaces;
 		if (!tmp) {
 			ao2_ref(cur, -1);
 			ao2_iterator_destroy(&memi);
 			ao2_unlock(qe->parent);
 			goto out;
-		}
-		if (!datastore) {
-			if (!(datastore = ast_datastore_alloc(&dialed_interface_info, NULL))) {
-				callattempt_free(tmp);
-				ao2_ref(cur, -1);
-				ao2_iterator_destroy(&memi);
-				ao2_unlock(qe->parent);
-				goto out;
-			}
-			datastore->inheritance = DATASTORE_INHERIT_FOREVER;
-			if (!(dialed_interfaces = ast_calloc(1, sizeof(*dialed_interfaces)))) {
-				callattempt_free(tmp);
-				ao2_ref(cur, -1);
-				ao2_iterator_destroy(&memi);
-				ao2_unlock(qe->parent);
-				goto out;
-			}
-			datastore->data = dialed_interfaces;
-			AST_LIST_HEAD_INIT(dialed_interfaces);
-
-			ast_channel_lock(qe->chan);
-			ast_channel_datastore_add(qe->chan, datastore);
-			ast_channel_unlock(qe->chan);
-		} else
-			dialed_interfaces = datastore->data;
-
-		AST_LIST_LOCK(dialed_interfaces);
-		AST_LIST_TRAVERSE(dialed_interfaces, di, list) {
-			if (!strcasecmp(cur->interface, di->interface)) {
-				ast_debug(1, "Skipping dialing interface '%s' since it has already been dialed\n",
-					di->interface);
-				break;
-			}
-		}
-		AST_LIST_UNLOCK(dialed_interfaces);
-
-		if (di) {
-			callattempt_free(tmp);
-			ao2_ref(cur, -1);
-			continue;
-		}
-
-		/* It is always ok to dial a Local interface.  We only keep track of
-		 * which "real" interfaces have been dialed.  The Local channel will
-		 * inherit this list so that if it ends up dialing a real interface,
-		 * it won't call one that has already been called. */
-		if (strncasecmp(cur->interface, "Local/", 6)) {
-			if (!(di = ast_calloc(1, sizeof(*di) + strlen(cur->interface)))) {
-				callattempt_free(tmp);
-				ao2_ref(cur, -1);
-				ao2_iterator_destroy(&memi);
-				ao2_unlock(qe->parent);
-				goto out;
-			}
-			strcpy(di->interface, cur->interface);
-
-			AST_LIST_LOCK(dialed_interfaces);
-			AST_LIST_INSERT_TAIL(dialed_interfaces, di, list);
-			AST_LIST_UNLOCK(dialed_interfaces);
 		}
 
 		/*
@@ -6508,16 +6441,7 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 	lpeer = wait_for_answer(qe, outgoing, &to, &digit, numbusies,
 		ast_test_flag(&(bridge_config.features_caller), AST_FEATURE_DISCONNECT),
 		forwardsallowed, ringing);
-	/* The ast_channel_datastore_remove() function could fail here if the
-	 * datastore was moved to another channel during a masquerade. If this is
-	 * the case, don't free the datastore here because later, when the channel
-	 * to which the datastore was moved hangs up, it will attempt to free this
-	 * datastore again, causing a crash
-	 */
-	ast_channel_lock(qe->chan);
-	if (datastore && !ast_channel_datastore_remove(qe->chan, datastore)) {
-		ast_datastore_free(datastore);
-	}
+
 	ast_channel_unlock(qe->chan);
 	ao2_lock(qe->parent);
 	if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY || qe->parent->strategy == QUEUE_STRATEGY_RRORDERED) {
@@ -7709,9 +7633,19 @@ static int queue_exec(struct ast_channel *chan, const char *data)
 	struct queue_ent qe = { 0 };
 	struct ast_flags opts = { 0, };
 	char *opt_args[OPT_ARG_ARRAY_SIZE];
+	int max_forwards;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Queue requires an argument: queuename[,options[,URL[,announceoverride[,timeout[,agi[,macro[,gosub[,rule[,position]]]]]]]]]\n");
+		return -1;
+	}
+
+	ast_channel_lock(chan);
+	max_forwards = ast_max_forwards_get(chan);
+	ast_channel_unlock(chan);
+
+	if (max_forwards <= 0) {
+		ast_log(LOG_WARNING, "Channel '%s' cannot enter queue. Max forwards exceeded\n", ast_channel_name(chan));
 		return -1;
 	}
 

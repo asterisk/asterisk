@@ -2237,9 +2237,7 @@ static void call_destructor_with_no_monitor(const char * const monitor_type, voi
  * Note that it is not necessarily erroneous to add the same
  * device to the tree twice. If the same device is called by
  * two different extension during the same call, then
- * that is a legitimate situation. Of course, I'm pretty sure
- * the dialed_interfaces global datastore will not allow that
- * to happen anyway.
+ * that is a legitimate situation.
  *
  * \param device_name The name of the device being added to the tree
  * \param dialstring The dialstring used to dial the device being added
