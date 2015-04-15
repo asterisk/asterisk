@@ -27,3 +27,5 @@ defaults.h
 makeopts
 makeopts.embed_rules
 menuselect-tree
+*.sha1
+*.pyc
