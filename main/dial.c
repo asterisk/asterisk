@@ -44,6 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/causes.h"
 #include "asterisk/stasis_channels.h"
+#include "asterisk/max_forwards.h"
 
 /*! \brief Main dialing structure. Contains global options, channels being dialed, and more! */
 struct ast_dial {
@@ -299,6 +300,19 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 		.uniqueid2 = channel->assignedid2,
 	};
 
+	if (chan) {
+		int max_forwards;
+
+		ast_channel_lock(chan);
+		max_forwards = ast_max_forwards_get(chan);
+		ast_channel_unlock(chan);
+
+		if (max_forwards <= 0) {
+			ast_log(LOG_WARNING, "Cannot dial from channel '%s'. Max forwards exceeded\n",
+					ast_channel_name(chan));
+		}
+	}
+
 	/* Copy device string over */
 	ast_copy_string(numsubst, channel->device, sizeof(numsubst));
 
@@ -337,6 +351,7 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 	if (chan) {
 		ast_channel_inherit_variables(chan, channel->owner);
 		ast_channel_datastore_inherit(chan, channel->owner);
+		ast_max_forwards_decrement(channel->owner);
 
 		/* Copy over callerid information */
 		ast_party_redirecting_copy(ast_channel_redirecting(channel->owner), ast_channel_redirecting(chan));
