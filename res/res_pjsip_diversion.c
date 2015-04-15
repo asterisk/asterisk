@@ -248,6 +248,7 @@ static void add_diversion_header(pjsip_tx_data *tdata, struct ast_party_redirect
 	pjsip_name_addr *name_addr;
 	pjsip_sip_uri *uri;
 	pjsip_param *param;
+	pjsip_fromto_hdr *old_hdr;
 
 	struct ast_party_id *id = &data->from;
 	pjsip_uri *base = PJSIP_MSG_FROM_HDR(tdata->msg)->uri;
@@ -273,6 +274,10 @@ static void add_diversion_header(pjsip_tx_data *tdata, struct ast_party_redirect
 	pj_list_insert_before(&hdr->other_param, param);
 
 	hdr->uri = (pjsip_uri *) name_addr;
+	old_hdr = pjsip_msg_find_hdr_by_name(tdata->msg, &diversion_name, NULL);
+	if (old_hdr) {
+		pj_list_erase(old_hdr);
+	}
 	pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *)hdr);
 }
 
