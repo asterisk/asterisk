@@ -58,7 +58,6 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/manager.h"
 #include "asterisk/privacy.h"
 #include "asterisk/stringfields.h"
-#include "asterisk/global_datastores.h"
 #include "asterisk/dsp.h"
 #include "asterisk/aoc.h"
 #include "asterisk/ccss.h"
@@ -68,6 +67,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/stasis_channels.h"
 #include "asterisk/bridge_after.h"
 #include "asterisk/features_config.h"
+#include "asterisk/max_forwards.h"
 
 /*** DOCUMENTATION
 	<application name="Dial" language="en_US">
@@ -881,6 +881,7 @@ static void do_forward(struct chanlist *o, struct cause_args *num,
 			ast_channel_lock_both(in, o->chan);
 			ast_channel_inherit_variables(in, o->chan);
 			ast_channel_datastore_inherit(in, o->chan);
+			ast_max_forwards_decrement(o->chan);
 			ast_channel_unlock(in);
 			ast_channel_unlock(o->chan);
 			/* When a call is forwarded, we don't want to track new interfaces
@@ -2074,7 +2075,6 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	);
 	struct ast_flags64 opts = { 0, };
 	char *opt_args[OPT_ARG_ARRAY_SIZE];
-	struct ast_datastore *datastore = NULL;
 	int fulldial = 0, num_dialed = 0;
 	int ignore_cc = 0;
 	char device_name[AST_CHANNEL_NAME];
@@ -2101,6 +2101,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	 * \note This will not have any malloced strings so do not free it.
 	 */
 	struct ast_party_caller caller;
+	int max_forwards;
 
 	/* Reset all DIAL variables back to blank, to prevent confusion (in case we don't reset all of them). */
 	ast_channel_lock(chan);
@@ -2111,7 +2112,15 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	pbx_builtin_setvar_helper(chan, "ANSWEREDTIME", "");
 	pbx_builtin_setvar_helper(chan, "DIALEDTIME", "");
 	ast_channel_stage_snapshot_done(chan);
+	max_forwards = ast_max_forwards_get(chan);
 	ast_channel_unlock(chan);
+
+	if (max_forwards <= 0) {
+		ast_log(LOG_WARNING, "Cannot place outbound call from channel '%s'. Max forwards exceeded\n",
+				ast_channel_name(chan));
+		pbx_builtin_setvar_helper(chan, "DIALSTATUS", "BUSY");
+		return -1;
+	}
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Dial requires an argument (technology/resource)\n");
@@ -2314,9 +2323,6 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		char *tech = strsep(&number, "/");
 		size_t tech_len;
 		size_t number_len;
-		/* find if we already dialed this interface */
-		struct ast_dialed_interface *di;
-		AST_LIST_HEAD(,ast_dialed_interface) *dialed_interfaces;
 
 		num_dialed++;
 		if (ast_strlen_zero(number)) {
@@ -2360,7 +2366,6 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		/* Request the peer */
 
 		ast_channel_lock(chan);
-		datastore = ast_channel_datastore_find(chan, &dialed_interface_info, NULL);
 		/*
 		 * Seed the chanlist's connected line information with previously
 		 * acquired connected line info from the incoming channel.  The
@@ -2369,61 +2374,6 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		 */
 		ast_party_connected_line_copy(&tmp->connected, ast_channel_connected(chan));
 		ast_channel_unlock(chan);
-
-		if (datastore)
-			dialed_interfaces = datastore->data;
-		else {
-			if (!(datastore = ast_datastore_alloc(&dialed_interface_info, NULL))) {
-				ast_log(LOG_WARNING, "Unable to create channel datastore for dialed interfaces. Aborting!\n");
-				chanlist_free(tmp);
-				goto out;
-			}
-			datastore->inheritance = DATASTORE_INHERIT_FOREVER;
-
-			if (!(dialed_interfaces = ast_calloc(1, sizeof(*dialed_interfaces)))) {
-				ast_datastore_free(datastore);
-				chanlist_free(tmp);
-				goto out;
-			}
-
-			datastore->data = dialed_interfaces;
-			AST_LIST_HEAD_INIT(dialed_interfaces);
-
-			ast_channel_lock(chan);
-			ast_channel_datastore_add(chan, datastore);
-			ast_channel_unlock(chan);
-		}
-
-		AST_LIST_LOCK(dialed_interfaces);
-		AST_LIST_TRAVERSE(dialed_interfaces, di, list) {
-			if (!strcasecmp(di->interface, tmp->interface)) {
-				ast_log(LOG_WARNING, "Skipping dialing interface '%s' again since it has already been dialed\n",
-					di->interface);
-				break;
-			}
-		}
-		AST_LIST_UNLOCK(dialed_interfaces);
-		if (di) {
-			fulldial++;
-			chanlist_free(tmp);
-			continue;
-		}
-
-		/* It is always ok to dial a Local interface.  We only keep track of
-		 * which "real" interfaces have been dialed.  The Local channel will
-		 * inherit this list so that if it ends up dialing a real interface,
-		 * it won't call one that has already been called. */
-		if (strcasecmp(tmp->tech, "Local")) {
-			if (!(di = ast_calloc(1, sizeof(*di) + strlen(tmp->interface)))) {
-				chanlist_free(tmp);
-				goto out;
-			}
-			strcpy(di->interface, tmp->interface);
-
-			AST_LIST_LOCK(dialed_interfaces);
-			AST_LIST_INSERT_TAIL(dialed_interfaces, di, list);
-			AST_LIST_UNLOCK(dialed_interfaces);
-		}
 
 		tc = ast_request(tmp->tech, ast_channel_nativeformats(chan), NULL, chan, tmp->number, &cause);
 		if (!tc) {
@@ -2465,6 +2415,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		/* Inherit specially named variables from parent channel */
 		ast_channel_inherit_variables(chan, tc);
 		ast_channel_datastore_inherit(chan, tc);
+		ast_max_forwards_decrement(tc);
 
 		ast_channel_appl_set(tc, "AppDial");
 		ast_channel_data_set(tc, "(Outgoing Line)");
@@ -2680,18 +2631,6 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 	peer = wait_for_answer(chan, &out_chans, &to, peerflags, opt_args, &pa, &num, &result,
 		dtmf_progress, ignore_cc, &forced_clid, &stored_clid);
 
-	/* The ast_channel_datastore_remove() function could fail here if the
-	 * datastore was moved to another channel during a masquerade. If this is
-	 * the case, don't free the datastore here because later, when the channel
-	 * to which the datastore was moved hangs up, it will attempt to free this
-	 * datastore again, causing a crash
-	 */
-	ast_channel_lock(chan);
-	datastore = ast_channel_datastore_find(chan, &dialed_interface_info, NULL); /* make sure we weren't cleaned up already */
-	if (datastore && !ast_channel_datastore_remove(chan, datastore)) {
-		ast_datastore_free(datastore);
-	}
-	ast_channel_unlock(chan);
 	if (!peer) {
 		if (result) {
 			res = result;

@@ -75,6 +75,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/bridge.h"
 #include "asterisk/test.h"
 #include "asterisk/stasis_channels.h"
+#include "asterisk/max_forwards.h"
 
 /*** DOCUMENTATION
  ***/
@@ -5621,6 +5622,7 @@ static void call_forward_inherit(struct ast_channel *new_chan, struct ast_channe
 	ast_channel_lock_both(parent, new_chan);
 	ast_channel_inherit_variables(parent, new_chan);
 	ast_channel_datastore_inherit(parent, new_chan);
+	ast_max_forwards_decrement(new_chan);
 	ast_channel_unlock(new_chan);
 	ast_channel_unlock(parent);
 }
@@ -5740,6 +5742,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, struct ast_format_c
 			ast_channel_lock_both(oh->parent_channel, chan);
 			ast_channel_inherit_variables(oh->parent_channel, chan);
 			ast_channel_datastore_inherit(oh->parent_channel, chan);
+			ast_max_forwards_decrement(chan);
 			ast_channel_unlock(oh->parent_channel);
 			ast_channel_unlock(chan);
 		}
