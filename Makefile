@@ -149,14 +149,21 @@ LINKER_SYMBOL_PREFIX=
 # Uncomment this to use the older DSP routines
 #_ASTCFLAGS+=-DOLD_DSP_ROUTINES
 
-# If the file .asterisk.makeopts is present in your home directory, you can
-# include all of your favorite menuselect options so that every time you download
-# a new version of Asterisk, you don't have to run menuselect to set them.
-# The file /etc/asterisk.makeopts will also be included but can be overridden
-# by the file in your home directory.
+# This Makefile previously contained a note about the ability to use .asterisk.makeopts
+# from your home directory or /etc/asterisk.makeopts to set defaults for menuselect.
+# These files have never worked in this branch of Asterisk.  The work around is to
+# manually copy the file containing defaults before running 'make menuselect':
+#
+# cp ${HOME}/.asterisk.makeopts menuselect.makeopts
+#   or
+# cp /etc/asterisk.makeopts menuselect.makeopts
+#
+# As an alternative, menuselect/menuselect can be used by a script to enable or disable
+# individual options or entire categories.  To use this feature you must first
+# compile menuselect using 'make menuselect.makeopts'.  For information about parameters
+# supported run:
+# menuselect/menuselect --help
 
-GLOBAL_MAKEOPTS=$(wildcard /etc/asterisk.makeopts)
-USER_MAKEOPTS=$(wildcard ~/.asterisk.makeopts)
 
 MOD_SUBDIR_CFLAGS="-I$(ASTTOPDIR)/include"
 OTHER_SUBDIR_CFLAGS="-I$(ASTTOPDIR)/include"
@@ -333,10 +340,10 @@ makeopts: configure
 	@echo "****"
 	@exit 1
 
-menuselect.makeopts: menuselect/menuselect menuselect-tree makeopts build_tools/menuselect-deps $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS)
+menuselect.makeopts: menuselect/menuselect menuselect-tree makeopts build_tools/menuselect-deps
 ifeq ($(filter %menuselect,$(MAKECMDGOALS)),)
 	menuselect/menuselect --check-deps $@
-	menuselect/menuselect --check-deps $@ $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS)
+	menuselect/menuselect --check-deps $@
 endif
 
 $(MOD_SUBDIRS_EMBED_LDSCRIPT):
