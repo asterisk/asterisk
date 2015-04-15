@@ -64,6 +64,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/dsp.h"
 #include "asterisk/app.h"
 #include "asterisk/stasis_channels.h"
+#include "asterisk/max_forwards.h"
 
 /*** DOCUMENTATION
 	<application name="FollowMe" language="en_US">
@@ -1069,6 +1070,7 @@ static struct ast_channel *findmeexec(struct fm_args *tpargs, struct ast_channel
 			ast_connected_line_copy_from_caller(ast_channel_connected(outbound), ast_channel_caller(caller));
 			ast_channel_inherit_variables(caller, outbound);
 			ast_channel_datastore_inherit(caller, outbound);
+			ast_max_forwards_decrement(outbound);
 			ast_channel_language_set(outbound, ast_channel_language(caller));
 			ast_channel_req_accountcodes(outbound, caller, AST_CHANNEL_REQUESTOR_BRIDGE_PEER);
 			ast_channel_musicclass_set(outbound, ast_channel_musicclass(caller));
@@ -1304,9 +1306,20 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(options);
 	);
 	char *opt_args[FOLLOWMEFLAG_ARG_ARRAY_SIZE];
+	int max_forwards;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "%s requires an argument (followmeid)\n", app);
+		return -1;
+	}
+
+	ast_channel_lock(chan);
+	max_forwards = ast_max_forwards_get(chan);
+	ast_channel_unlock(chan);
+
+	if (max_forwards <= 0) {
+		ast_log(LOG_WARNING, "Unable to execute FollowMe on channel %s. Max forwards exceeded\n",
+				ast_channel_name(chan));
 		return -1;
 	}
 
