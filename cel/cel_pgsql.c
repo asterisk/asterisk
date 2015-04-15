@@ -101,7 +101,7 @@ static AST_RWLIST_HEAD_STATIC(psql_columns, columns);
 		/* Lengthen buffer, if necessary */ \
 		if (ast_str_strlen(sql) + size + 1 > ast_str_size(sql)) { \
 			if (ast_str_make_space(&sql, ((ast_str_size(sql) + size + 3) / 512 + 1) * 512) != 0) { \
-				ast_log(LOG_ERROR, "Unable to allocate sufficient memory.  Insert CDR failed.\n"); \
+				ast_log(LOG_ERROR, "Unable to allocate sufficient memory.  Insert CEL '%s:%s' failed.\n", pghostname, table); \
 				ast_free(sql); \
 				ast_free(sql2); \
 				AST_RWLIST_UNLOCK(&psql_columns); \
@@ -114,7 +114,7 @@ static AST_RWLIST_HEAD_STATIC(psql_columns, columns);
 	do { \
 		if (ast_str_strlen(sql2) + size + 1 > ast_str_size(sql2)) { \
 			if (ast_str_make_space(&sql2, ((ast_str_size(sql2) + size + 3) / 512 + 1) * 512) != 0) { \
-				ast_log(LOG_ERROR, "Unable to allocate sufficient memory.  Insert CDR failed.\n"); \
+				ast_log(LOG_ERROR, "Unable to allocate sufficient memory.  Insert CEL '%s:%s' failed.\n", pghostname, table); \
 				ast_free(sql); \
 				ast_free(sql2); \
 				AST_RWLIST_UNLOCK(&psql_columns); \
