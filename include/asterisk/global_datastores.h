@@ -26,13 +26,7 @@
 
 #include "asterisk/channel.h"
 
-extern const struct ast_datastore_info dialed_interface_info;
 extern const struct ast_datastore_info secure_call_info;
-
-struct ast_dialed_interface {
-	AST_LIST_ENTRY(ast_dialed_interface) list;
-	char interface[1];
-};
 
 struct ast_secure_call_store {
 	unsigned int signaling:1;
