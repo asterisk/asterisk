@@ -50,6 +50,11 @@ res_pjsip_dlg_options:
    should have no adverse effects for those upgrading; this note merely
    serves as an indication that a new module exists.
 
+cdr_odbc:
+ - Now support to record new columns added on CDR 1.8 Asterisk Version, the
+   fields  add are: peeraccount, linkedid and sequence. This feature is
+   configurable by newcdrcolumns on cdr_odbc.conf.
+
 From 13.2.0 to 13.3.0:
 
 chan_dahdi:
