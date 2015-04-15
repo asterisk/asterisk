@@ -538,23 +538,61 @@ static int process_my_load_module(struct ast_config *cfg)
 
 	pgsql_reconnect();
 	if (PQstatus(conn) != CONNECTION_BAD) {
-		char sqlcmd[512];
+		char sqlcmd[768];
 		char *fname, *ftype, *flen, *fnotnull, *fdef;
 		char *tableptr;
-		int i, rows;
+		int i, rows, version;
 
 		ast_debug(1, "Successfully connected to PostgreSQL database.\n");
 		connected = 1;
 
-		/* Remove any schema name from the table */
-		if ((tableptr = strrchr(table, '.'))) {
-			tableptr++;
-		} else {
-			tableptr = table;
-		}
+		version = PQserverVersion(conn);
 
+		if (version >= 70300) {
+			char *schemaname, *tablename;
+			if (strchr(table, '.')) {
+				schemaname = ast_strdupa(table);
+				tablename = strchr(schemaname, '.');
+				*tablename++ = '\0';
+			} else {
+				schemaname = "";
+				tablename = table;
+			}
+
+			/* Escape special characters in schemaname */
+			if (strchr(schemaname, '\\') || strchr(schemaname, '\'')) {
+				char *tmp = schemaname, *ptr;
+
+				ptr = schemaname = ast_alloca(strlen(tmp) * 2 + 1);
+				for (; *tmp; tmp++) {
+					if (strchr("\\'", *tmp)) {
+						*ptr++ = *tmp;
+					}
+					*ptr++ = *tmp;
+				}
+				*ptr = '\0';
+			}
+			/* Escape special characters in tablename */
+			if (strchr(tablename, '\\') || strchr(tablename, '\'')) {
+				char *tmp = tablename, *ptr;
+
+				ptr = tablename = ast_alloca(strlen(tmp) * 2 + 1);
+				for (; *tmp; tmp++) {
+					if (strchr("\\'", *tmp)) {
+						*ptr++ = *tmp;
+					}
+					*ptr++ = *tmp;
+				}
+				*ptr = '\0';
+			}
+
+			snprintf(sqlcmd, sizeof(sqlcmd), "SELECT a.attname, t.typname, a.attlen, a.attnotnull, d.adsrc, a.atttypmod FROM (((pg_catalog.pg_class c INNER JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace AND c.relname = '%s' AND n.nspname = %s%s%s) INNER JOIN pg_catalog.pg_attribute a ON (NOT a.attisdropped) AND a.attnum > 0 AND a.attrelid = c.oid) INNER JOIN pg_catalog.pg_type t ON t.oid = a.atttypid) LEFT OUTER JOIN pg_attrdef d ON a.atthasdef AND d.adrelid = a.attrelid AND d.adnum = a.attnum ORDER BY n.nspname, c.relname, attnum",
+				tablename,
+				ast_strlen_zero(schemaname) ? "" : "'", ast_strlen_zero(schemaname) ? "current_schema()" : schemaname, ast_strlen_zero(schemaname) ? "" : "'");
+		} else {
+			snprintf(sqlcmd, sizeof(sqlcmd), "SELECT a.attname, t.typname, a.attlen, a.attnotnull, d.adsrc, a.atttypmod FROM pg_class c, pg_type t, pg_attribute a LEFT OUTER JOIN pg_attrdef d ON a.atthasdef AND d.adrelid = a.attrelid AND d.adnum = a.attnum WHERE c.oid = a.attrelid AND a.atttypid = t.oid AND (a.attnum > 0) AND c.relname = '%s' ORDER BY c.relname, attnum", table);
+		}
 		/* Query the columns */
-		snprintf(sqlcmd, sizeof(sqlcmd), "select a.attname, t.typname, a.attlen, a.attnotnull, d.adsrc from pg_class c, pg_type t, pg_attribute a left outer join pg_attrdef d on a.atthasdef and d.adrelid = a.attrelid and d.adnum = a.attnum where c.oid = a.attrelid and a.atttypid = t.oid and (a.attnum > 0) and c.relname = '%s' order by c.relname, attnum", tableptr);
 		result = PQexec(conn, sqlcmd);
 		if (PQresultStatus(result) != PGRES_TUPLES_OK) {
 			pgerror = PQresultErrorMessage(result);
@@ -571,6 +609,10 @@ static int process_my_load_module(struct ast_config *cfg)
 			flen = PQgetvalue(result, i, 2);
 			fnotnull = PQgetvalue(result, i, 3);
 			fdef = PQgetvalue(result, i, 4);
+			if (atoi(flen) == -1) {
+				/* For varchar columns, the maximum length is encoded in a different field */
+				flen = PQgetvalue(result, i, 5);
+			}
 			ast_verb(4, "Found column '%s' of type '%s'\n", fname, ftype);
 			cur = ast_calloc(1, sizeof(*cur) + strlen(fname) + strlen(ftype) + 2);
 			if (cur) {
