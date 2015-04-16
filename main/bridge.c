@@ -4476,6 +4476,13 @@ enum ast_transfer_result ast_bridge_transfer_attended(struct ast_channel *to_tra
 	chan_bridged = to_transferee_bridge ? to_transferee : to_transfer_target;
 	chan_unbridged = to_transferee_bridge ? to_transfer_target : to_transferee;
 
+	/*
+	 * Since there is a race condition that makes it possible for the app to be NULL,
+	 * when retrieved later, get the app prior to transferring. It should have an
+	 * associated app when getting it here, but if it doesn't just use "unknown".
+	 */
+	app = ast_strdupa(ast_channel_appl(chan_unbridged) ?: "unknown");
+
 	{
 		int chan_count;
 		SCOPED_LOCK(lock, the_bridge, ast_bridge_lock, ast_bridge_unlock);
@@ -4517,7 +4524,6 @@ enum ast_transfer_result ast_bridge_transfer_attended(struct ast_channel *to_tra
 		goto end;
 	}
 
-	app = ast_strdupa(ast_channel_appl(chan_unbridged));
 	if (bridge_channel_internal_queue_attended_transfer(transferee, chan_unbridged)) {
 		res = AST_BRIDGE_TRANSFER_FAIL;
 		goto end;
