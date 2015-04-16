@@ -160,8 +160,14 @@ DAHDI_UDEV_HOOK_DIR = /usr/share/dahdi/span_config.d
 # The file /etc/asterisk.makeopts will also be included but can be overridden
 # by the file in your home directory.
 
-GLOBAL_MAKEOPTS=$(wildcard /etc/asterisk.makeopts)
-USER_MAKEOPTS=$(wildcard ~/.asterisk.makeopts)
+ifeq ($(wildcard menuselect.makeopts),)
+	USER_MAKEOPTS=$(wildcard ~/.asterisk.makeopts)
+	GLOBAL_MAKEOPTS=$(wildcard /etc/asterisk.makeopts)
+else
+	USER_MAKEOPTS=
+	GLOBAL_MAKEOPTS=
+endif
+
 
 MOD_SUBDIR_CFLAGS="-I$(ASTTOPDIR)/include"
 OTHER_SUBDIR_CFLAGS="-I$(ASTTOPDIR)/include"
@@ -333,7 +339,7 @@ makeopts: configure
 	@exit 1
 
 menuselect.makeopts: menuselect/menuselect menuselect-tree makeopts build_tools/menuselect-deps $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS)
-ifeq ($(filter %menuselect,$(MAKECMDGOALS)),)
+ifeq ($(filter %.menuselect,$(MAKECMDGOALS)),)
 	menuselect/menuselect --check-deps $@
 	menuselect/menuselect --check-deps $@ $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS)
 endif
