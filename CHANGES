@@ -83,6 +83,10 @@ Core
    dedicated thread per consumer in certain cases. The initial settings for
    the thread pool can now be configured in 'stasis.conf'.
 
+ * A new core DNS API has been implemented which provides a common interface
+   for DNS functionality. Modules that use this functionality will require that
+   a DNS resolver module is loaded and available.
+
 
 Functions
 ------------------
@@ -110,6 +114,19 @@ res_musiconhold
    over the channel-set musicclass. This allows separate hold-music from
    application (e.g. Queue or Dial) specified music.
 
+res_resolver_unbound
+------------------
+ * Added a res_resolver_unbound module which uses the libunbound resolver library
+   to perform DNS resolution. This module requires the libunbound library to be
+   installed in order to be used.
+
+res_pjsip
+------------------
+ * A new SIP resolver using the core DNS API has been implemented. This relies on
+   external SIP resolver support in PJSIP which is only available as of PJSIP
+   2.4. If this support is unavailable the existing built-in PJSIP SIP resolver
+   will be used instead. The new SIP resolver provides NAPTR support, improved
+   SRV support, and AAAA record support.
 
 CEL Backends
 ------------------

@@ -205,6 +205,15 @@ int ast_dns_record_get_ttl(const struct ast_dns_record *record);
 const char *ast_dns_record_get_data(const struct ast_dns_record *record);
 
 /*!
+ * \brief Retrieve the size of the raw DNS record
+ *
+ * \param record The DNS record
+ *
+ * \return the size of the raw DNS record
+ */
+size_t ast_dns_record_get_data_size(const struct ast_dns_record *record);
+
+/*!
  * \brief Get the next DNS record
  *
  * \param record The current DNS record
