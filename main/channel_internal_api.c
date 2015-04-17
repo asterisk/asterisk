@@ -1439,15 +1439,9 @@ static int pvt_cause_cmp_fn(void *obj, void *vstr, int flags)
 struct ast_channel *__ast_channel_internal_alloc(void (*destructor)(void *obj), const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *file, int line, const char *function)
 {
 	struct ast_channel *tmp;
-#if defined(REF_DEBUG)
-	tmp = __ao2_alloc_debug(sizeof(*tmp), destructor,
-		AO2_ALLOC_OPT_LOCK_MUTEX, "", file, line, function, 1);
-#elif defined(__AST_DEBUG_MALLOC)
-	tmp = __ao2_alloc_debug(sizeof(*tmp), destructor,
-		AO2_ALLOC_OPT_LOCK_MUTEX, "", file, line, function, 0);
-#else
-	tmp = ao2_alloc(sizeof(*tmp), destructor);
-#endif
+
+	tmp = __ao2_alloc(sizeof(*tmp), destructor,
+		AO2_ALLOC_OPT_LOCK_MUTEX, "", file, line, function);
 
 	if ((ast_string_field_init(tmp, 128))) {
 		return ast_channel_unref(tmp);

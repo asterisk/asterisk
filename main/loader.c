@@ -1478,7 +1478,7 @@ struct ast_module *__ast_module_ref(struct ast_module *mod, const char *file, in
 	}
 
 #ifdef REF_DEBUG
-	__ao2_ref_debug(mod->ref_debug, +1, "", file, line, func);
+	__ao2_ref(mod->ref_debug, +1, "", file, line, func);
 #endif
 
 	ast_atomic_fetchadd_int(&mod->usecount, +1);
@@ -1504,7 +1504,7 @@ void __ast_module_unref(struct ast_module *mod, const char *file, int line, cons
 	}
 
 #ifdef REF_DEBUG
-	__ao2_ref_debug(mod->ref_debug, -1, "", file, line, func);
+	__ao2_ref(mod->ref_debug, -1, "", file, line, func);
 #endif
 
 	ast_atomic_fetchadd_int(&mod->usecount, -1);

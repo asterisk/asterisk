@@ -43,7 +43,21 @@ struct ao2_stats {
 extern struct ao2_stats ao2;
 #endif	/* defined(AO2_DEBUG) */
 
-int is_ao2_object(void *user_data);
+void log_bad_ao2(void *user_data, const char *file, int line, const char *func);
+int __is_ao2_object(void *user_data);
+
+#define is_ao2_object(user_data, file, line, func) \
+	({ \
+		int ret ## __LINE__ = 0; \
+		if (user_data) { \
+			ret ## __LINE__ = __is_ao2_object(user_data); \
+		} \
+		if (!ret ## __LINE__) { \
+			log_bad_ao2(user_data, file, line, func); \
+		} \
+		(ret ## __LINE__); \
+	})
+
 enum ao2_lock_req __adjust_lock(void *user_data, enum ao2_lock_req lock_how, int keep_stronger);
 
 #endif /* ASTOBJ2_PRIVATE_H_ */
