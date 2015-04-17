@@ -64,6 +64,9 @@ struct ast_threadstorage {
 void __ast_threadstorage_object_add(void *key, size_t len, const char *file, const char *function, unsigned int line);
 void __ast_threadstorage_object_remove(void *key);
 void __ast_threadstorage_object_replace(void *key_old, void *key_new, size_t len);
+#define THREADSTORAGE_RAW_CLEANUP(v) {}
+#else
+#define THREADSTORAGE_RAW_CLEANUP NULL
 #endif /* defined(DEBUG_THREADLOCALS) */
 
 /*!
@@ -85,7 +88,7 @@ void __ast_threadstorage_object_replace(void *key_old, void *key_new, size_t len
 #define AST_THREADSTORAGE_EXTERNAL(name) \
 	extern struct ast_threadstorage name
 #define AST_THREADSTORAGE_RAW(name) \
-	AST_THREADSTORAGE_CUSTOM_SCOPE(name, NULL, NULL,)
+	AST_THREADSTORAGE_CUSTOM_SCOPE(name, NULL, THREADSTORAGE_RAW_CLEANUP,)
 
 /*!
  * \brief Define a thread storage variable, with custom initialization and cleanup
