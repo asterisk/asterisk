@@ -3291,13 +3291,13 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 
 		if (gateway->bridged) {
 			ast_set_read_format(chan, gateway->chan_read_format);
-			ast_set_read_format(chan, gateway->chan_write_format);
+			ast_set_write_format(chan, gateway->chan_write_format);
 
 			ast_channel_unlock(chan);
 			peer = ast_channel_bridge_peer(chan);
 			if (peer) {
 				ast_set_read_format(peer, gateway->peer_read_format);
-				ast_set_read_format(peer, gateway->peer_write_format);
+				ast_set_write_format(peer, gateway->peer_write_format);
 				ast_channel_make_compatible(chan, peer);
 			}
 			ast_channel_lock(chan);
@@ -3340,23 +3340,25 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 			gateway->timeout_start = ast_tvnow();
 		}
 
+		ast_channel_unlock(chan);
+		ast_channel_lock_both(chan, peer);
+
 		/* we are bridged, change r/w formats to SLIN for v21 preamble
 		 * detection and T.30 */
 		ao2_replace(gateway->chan_read_format, ast_channel_readformat(chan));
-		ao2_replace(gateway->chan_write_format, ast_channel_readformat(chan));
+		ao2_replace(gateway->chan_write_format, ast_channel_writeformat(chan));
 
 		ao2_replace(gateway->peer_read_format, ast_channel_readformat(peer));
-		ao2_replace(gateway->peer_write_format, ast_channel_readformat(peer));
+		ao2_replace(gateway->peer_write_format, ast_channel_writeformat(peer));
 
 		ast_set_read_format(chan, ast_format_slin);
 		ast_set_write_format(chan, ast_format_slin);
 
-		ast_channel_unlock(chan);
 		ast_set_read_format(peer, ast_format_slin);
 		ast_set_write_format(peer, ast_format_slin);
 
-		ast_channel_make_compatible(chan, peer);
-		ast_channel_lock(chan);
+		ast_channel_unlock(peer);
+
 		gateway->bridged = 1;
 	}
 
