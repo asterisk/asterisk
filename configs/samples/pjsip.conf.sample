@@ -812,6 +812,7 @@
                         ; (default: "no")
 ;type=  ; Must be of type aor (default: "")
 ;qualify_frequency=0    ; Interval at which to qualify an AoR (default: "0")
+;qualify_timeout=3.0      ; Qualify timeout in fractional seconds (default: "3.0")
 ;authenticate_qualify=no        ; Authenticates a qualify request if needed
                                 ; (default: "no")
 ;outbound_proxy=        ; Outbound proxy used when sending OPTIONS request
@@ -868,7 +869,10 @@
             ; The order by which endpoint identifiers are given priority.
             ; Identifier names are derived from res_pjsip_endpoint_identifier_*
             ; modules. (default: ip,username,anonymous)
-
+;max_initial_qualify_time=4 ; The maximum amount of time (in seconds) from
+                              startup that qualifies should be attempted on all
+                              contacts.  If greater than the qualify_frequency
+                              for an aor, qualify_frequency will be used instead.
 
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_acl
 ;==========================ACL SECTION OPTIONS=========================

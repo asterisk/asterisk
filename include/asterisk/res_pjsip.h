@@ -166,6 +166,8 @@ struct ast_sip_contact {
 	unsigned int qualify_frequency;
 	/*! If true authenticate the qualify if needed */
 	int authenticate_qualify;
+	/*! Qualify timeout. 0 is diabled. */
+	double qualify_timeout;
 };
 
 #define CONTACT_STATUS "contact_status"
@@ -192,6 +194,8 @@ struct ast_sip_contact_status {
 	struct timeval rtt_start;
 	/*! The round trip time in microseconds */
 	int64_t rtt;
+	/*! Last status for a contact (default - unavailable) */
+	enum ast_sip_contact_status_type last_status;
 };
 
 /*!
@@ -224,6 +228,8 @@ struct ast_sip_aor {
 	struct ao2_container *permanent_contacts;
 	/*! Determines whether SIP Path headers are supported */
 	unsigned int support_path;
+	/*! Qualify timeout. 0 is diabled. */
+	double qualify_timeout;
 };
 
 /*!
@@ -905,6 +911,15 @@ struct ao2_container *ast_sip_location_retrieve_aor_contacts(const struct ast_si
 struct ast_sip_contact *ast_sip_location_retrieve_contact_from_aor_list(const char *aor_list);
 
 /*!
+ * \brief Retrieve all contacts from a list of AORs
+ *
+ * \param aor_list A comma-separated list of AOR names
+ * \retval NULL if no contacts available
+ * \retval non-NULL container (which must be freed) if contacts available
+ */
+struct ao2_container *ast_sip_location_retrieve_contacts_from_aor_list(const char *aor_list);
+
+/*!
  * \brief Retrieve the first bound contact AND the AOR chosen from a list of AORs
  *
  * \param aor_list A comma-separated list of AOR names
@@ -1257,6 +1272,30 @@ int ast_sip_create_request(const char *method, struct pjsip_dialog *dlg,
  */
 int ast_sip_send_request(pjsip_tx_data *tdata, struct pjsip_dialog *dlg,
 	struct ast_sip_endpoint *endpoint, void *token,
+	void (*callback)(void *token, pjsip_event *e));
+
+/*!
+ * \brief General purpose method for sending an Out-Of-Dialog SIP request
+ *
+ * This is a companion function for \ref ast_sip_create_request. The request
+ * created there can be passed to this function, though any request may be
+ * passed in.
+ *
+ * This will automatically set up handling outbound authentication challenges if
+ * they arrive.
+ *
+ * \param tdata The request to send
+ * \param endpoint Optional. If specified, the out-of-dialog request is sent to the endpoint.
+ * \param timeout.  If non-zero, after the timeout the transaction will be terminated
+ * and the callback will be called with the PJSIP_EVENT_TIMER type.
+ * \param token Data to be passed to the callback upon receipt of out-of-dialog response.
+ * \param callback Callback to be called upon receipt of out-of-dialog response.
+ *
+ * \retval 0 Success
+ * \retval -1 Failure (out-of-dialog callback will not be called.)
+ */
+int ast_sip_send_out_of_dialog_request(pjsip_tx_data *tdata,
+	struct ast_sip_endpoint *endpoint, int timeout, void *token,
 	void (*callback)(void *token, pjsip_event *e));
 
 /*!
@@ -1955,5 +1994,13 @@ char *ast_sip_get_endpoint_identifier_order(void);
  * \retval the keep alive interval.
  */
 unsigned int ast_sip_get_keep_alive_interval(void);
+
+/*!
+ * \brief Retrieve the system max initial qualify time.
+ *
+ * \retval the maximum initial qualify time.
+ */
+unsigned int ast_sip_get_max_initial_qualify_time(void);
+
 
 #endif /* _RES_PJSIP_H */
