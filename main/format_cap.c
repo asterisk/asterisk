@@ -121,7 +121,7 @@ struct ast_format_cap *__ast_format_cap_alloc_debug(enum ast_format_cap_flags fl
 {
 	struct ast_format_cap *cap;
 
-	cap = __ao2_alloc_debug(sizeof(*cap), format_cap_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK, S_OR(tag, "ast_format_cap_alloc"), file, line, func, 1);
+	cap = __ao2_alloc(sizeof(*cap), format_cap_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK, S_OR(tag, "ast_format_cap_alloc"), file, line, func);
 	if (!cap) {
 		return NULL;
 	}
@@ -221,7 +221,7 @@ int __ast_format_cap_append_debug(struct ast_format_cap *cap, struct ast_format 
 		return -1;
 	}
 
-	__ao2_ref_debug(format, +1, S_OR(tag, "ast_format_cap_append"), file, line, func);
+	__ao2_ref(format, +1, S_OR(tag, "ast_format_cap_append"), file, line, func);
 	framed->format = format;
 
 	return format_cap_framed_init(framed, cap, format, framing);
