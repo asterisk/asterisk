@@ -2601,11 +2601,12 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 		sip_subscription_accept(sub_tree, rdata, resp);
 		if (generate_initial_notify(sub_tree->root)) {
 			pjsip_evsub_terminate(sub_tree->evsub, PJ_TRUE);
+		} else {
+			send_notify(sub_tree, 1);
+			ast_test_suite_event_notify("SUBSCRIPTION_ESTABLISHED",
+					"Resource: %s",
+					sub_tree->root->resource);
 		}
-		send_notify(sub_tree, 1);
-		ast_test_suite_event_notify("SUBSCRIPTION_ESTABLISHED",
-				"Resource: %s",
-				sub_tree->root->resource);
 	}
 
 	resource_tree_destroy(&tree);
