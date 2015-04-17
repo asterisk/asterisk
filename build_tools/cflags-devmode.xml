@@ -15,9 +15,6 @@
 		<member name="DUMP_SCHEDULER" displayname="Dump Scheduler Contents for Debugging">
 			<support_level>extended</support_level>
 		</member>
-		<member name="TRACE_FRAMES" displayname="Trace Frame Allocations">
-			<support_level>extended</support_level>
-		</member>
 		<member name="DO_CRASH" displayname="Crash on fatal errors">
 			<support_level>extended</support_level>
 		</member>

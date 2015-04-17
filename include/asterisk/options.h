@@ -96,6 +96,8 @@ enum ast_option_flags {
 	AST_OPT_FLAG_LOCK_CONFIG_DIR = (1 << 29),
 	/*! Generic PLC */
 	AST_OPT_FLAG_GENERIC_PLC = (1 << 30),
+	/*! Reference Debugging */
+	AST_OPT_FLAG_REF_DEBUG = (1 << 31),
 };
 
 /*! These are the options that set by default when Asterisk starts */
@@ -131,6 +133,7 @@ enum ast_option_flags {
 #define ast_opt_hide_connect		ast_test_flag(&ast_options, AST_OPT_FLAG_HIDE_CONSOLE_CONNECT)
 #define ast_opt_lock_confdir		ast_test_flag(&ast_options, AST_OPT_FLAG_LOCK_CONFIG_DIR)
 #define ast_opt_generic_plc         ast_test_flag(&ast_options, AST_OPT_FLAG_GENERIC_PLC)
+#define ast_opt_ref_debug           ast_test_flag(&ast_options, AST_OPT_FLAG_REF_DEBUG)
 
 extern struct ast_flags ast_options;
 
