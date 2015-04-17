@@ -210,7 +210,7 @@ static int reload(void);
 
 #define mohclass_ref(class,string)   (ao2_t_ref((class), +1, (string)), class)
 
-#ifndef REF_DEBUG
+#ifndef AST_DEVMODE
 #define mohclass_unref(class,string) ({ ao2_t_ref((class), -1, (string)); (struct mohclass *) NULL; })
 #else
 #define mohclass_unref(class,string) _mohclass_unref(class, string, __FILE__,__LINE__,__PRETTY_FUNCTION__)
@@ -219,14 +219,14 @@ static struct mohclass *_mohclass_unref(struct mohclass *class, const char *tag,
 	struct mohclass *dup = ao2_callback(mohclasses, OBJ_POINTER, ao2_match_by_addr, class);
 
 	if (dup) {
-		if (__ao2_ref_debug(dup, -1, (char *) tag, (char *) file, line, funcname) == 2) {
+		if (__ao2_ref(dup, -1, tag, file, line, funcname) == 2) {
 			ast_log(LOG_WARNING, "Attempt to unref mohclass %p (%s) when only 1 ref remained, and class is still in a container! (at %s:%d (%s))\n",
 				class, class->name, file, line, funcname);
 		} else {
 			ao2_ref(class, -1);
 		}
 	} else {
-		__ao2_ref_debug(class, -1, (char *) tag, (char *) file, line, funcname);
+		__ao2_ref(class, -1, tag, file, line, funcname);
 	}
 	return NULL;
 }
@@ -877,12 +877,8 @@ static struct mohclass *_get_mohbyname(const char *name, int warn, int flags, co
 
 	ast_copy_string(tmp_class.name, name, sizeof(tmp_class.name));
 
-#ifdef REF_DEBUG
-	moh = __ao2_find_debug(mohclasses, &tmp_class, flags,
+	moh = __ao2_find(mohclasses, &tmp_class, flags,
 		"get_mohbyname", file, lineno, funcname);
-#else
-	moh = __ao2_find(mohclasses, &tmp_class, flags);
-#endif
 
 	if (!moh && warn) {
 		ast_debug(1, "Music on Hold class '%s' not found in memory\n", name);
@@ -1373,17 +1369,9 @@ static struct mohclass *_moh_class_malloc(const char *file, int line, const char
 {
 	struct mohclass *class;
 
-	if ((class =
-#ifdef REF_DEBUG
-			__ao2_alloc_debug(sizeof(*class), moh_class_destructor,
-				AO2_ALLOC_OPT_LOCK_MUTEX, "Allocating new moh class", file, line, funcname, 1)
-#elif defined(__AST_DEBUG_MALLOC)
-			__ao2_alloc_debug(sizeof(*class), moh_class_destructor,
-				AO2_ALLOC_OPT_LOCK_MUTEX, "Allocating new moh class", file, line, funcname, 0)
-#else
-			ao2_alloc(sizeof(*class), moh_class_destructor)
-#endif
-		)) {
+	class = __ao2_alloc(sizeof(*class), moh_class_destructor, AO2_ALLOC_OPT_LOCK_MUTEX,
+		"Allocating new moh class", file, line, funcname);
+	if (class) {
 		class->format = ao2_bump(ast_format_slin);
 		class->srcfd = -1;
 	}

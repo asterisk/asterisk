@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """Process a ref debug log
 
- This file will process a log file created by the REF_DEBUG
- build option in Asterisk.
+ This file will process a log file created by enabling
+ the refdebug config option in asterisk.conf.
 
  See http://www.asterisk.org for more information about
  the Asterisk project. Please do not directly contact

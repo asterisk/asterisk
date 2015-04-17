@@ -14,6 +14,7 @@ astsbindir => /usr/sbin
 [options]
 ;verbose = 3
 ;debug = 3
+;refdebug = yes			; Enable reference count debug logging.
 ;alwaysfork = yes		; Same as -F at startup.
 ;nofork = yes			; Same as -f at startup.
 ;quiet = yes			; Same as -q at startup.

@@ -545,47 +545,27 @@ static void rb_rotate_right(struct ao2_container_rbtree *self, struct rbtree_nod
 
 /*!
  * \internal
- * \brief Create an empty copy of this container.
- * \since 12.0.0
- *
- * \param self Container to operate upon.
- *
- * \retval empty-clone-container on success.
- * \retval NULL on error.
- */
-static struct ao2_container *rb_ao2_alloc_empty_clone(struct ao2_container_rbtree *self)
-{
-	if (!is_ao2_object(self)) {
-		return NULL;
-	}
-
-	return ao2_t_container_alloc_rbtree(ao2_options_get(self), self->common.options,
-		self->common.sort_fn, self->common.cmp_fn, "Clone rbtree container");
-}
-
-/*!
- * \internal
  * \brief Create an empty copy of this container. (Debug version)
- * \since 12.0.0
+ * \since 14.0.0
  *
  * \param self Container to operate upon.
  * \param tag used for debugging.
  * \param file Debug file name invoked from
  * \param line Debug line invoked from
  * \param func Debug function name invoked from
- * \param ref_debug TRUE if to output a debug reference message.
  *
  * \retval empty-clone-container on success.
  * \retval NULL on error.
  */
-static struct ao2_container *rb_ao2_alloc_empty_clone_debug(struct ao2_container_rbtree *self, const char *tag, const char *file, int line, const char *func, int ref_debug)
+static struct ao2_container *rb_ao2_alloc_empty_clone(struct ao2_container_rbtree *self,
+	const char *tag, const char *file, int line, const char *func)
 {
-	if (!is_ao2_object(self)) {
+	if (!__is_ao2_object(self, file, line, func)) {
 		return NULL;
 	}
 
-	return __ao2_container_alloc_rbtree_debug(ao2_options_get(self), self->common.options,
-		self->common.sort_fn, self->common.cmp_fn, tag, file, line, func, ref_debug);
+	return __ao2_container_alloc_rbtree(ao2_options_get(self), self->common.options,
+		self->common.sort_fn, self->common.cmp_fn, tag, file, line, func);
 }
 
 /*!
@@ -925,16 +905,12 @@ static struct rbtree_node *rb_ao2_new_node(struct ao2_container_rbtree *self, vo
 {
 	struct rbtree_node *node;
 
-	node = __ao2_alloc(sizeof(*node), rb_ao2_node_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	node = ao2_t_alloc_options(sizeof(*node), rb_ao2_node_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK, NULL);
 	if (!node) {
 		return NULL;
 	}
 
-	if (tag) {
-		__ao2_ref_debug(obj_new, +1, tag, file, line, func);
-	} else {
-		ao2_t_ref(obj_new, +1, "Container node creation");
-	}
+	__ao2_ref(obj_new, +1, tag ?: "Container node creation", file, line, func);
 	node->common.obj = obj_new;
 	node->common.my_container = (struct ao2_container *) self;
 
@@ -1337,7 +1313,7 @@ static struct rbtree_node *rb_ao2_find_next(struct ao2_container_rbtree *self, s
 		}
 
 		/* We have the next traversal node */
-		__ao2_ref(node, +1);
+		ao2_t_ref(node, +1, NULL);
 
 		/*
 		 * Dereferencing the prev node may result in our next node
@@ -1345,7 +1321,7 @@ static struct rbtree_node *rb_ao2_find_next(struct ao2_container_rbtree *self, s
 		 * the container uses RW locks and the container was read
 		 * locked.
 		 */
-		__ao2_ref(prev, -1);
+		ao2_t_ref(prev, -1, NULL);
 		if (node->common.obj) {
 			return node;
 		}
@@ -1353,7 +1329,7 @@ static struct rbtree_node *rb_ao2_find_next(struct ao2_container_rbtree *self, s
 	}
 
 	/* No more nodes in the container left to traverse. */
-	__ao2_ref(prev, -1);
+	ao2_t_ref(prev, -1, NULL);
 	return NULL;
 }
 
@@ -1636,7 +1612,7 @@ static struct rbtree_node *rb_ao2_find_first(struct ao2_container_rbtree *self, 
 	}
 
 	/* We have the first traversal node */
-	__ao2_ref(node, +1);
+	ao2_t_ref(node, +1, NULL);
 	return node;
 }
 
@@ -2018,8 +1994,6 @@ static int rb_ao2_integrity(struct ao2_container_rbtree *self)
 /*! rbtree container virtual method table. */
 static const struct ao2_container_methods v_table_rbtree = {
 	.alloc_empty_clone = (ao2_container_alloc_empty_clone_fn) rb_ao2_alloc_empty_clone,
-	.alloc_empty_clone_debug =
-		(ao2_container_alloc_empty_clone_debug_fn) rb_ao2_alloc_empty_clone_debug,
 	.new_node = (ao2_container_new_node_fn) rb_ao2_new_node,
 	.insert = (ao2_container_insert_fn) rb_ao2_insert_node,
 	.traverse_first = (ao2_container_find_first_fn) rb_ao2_find_first,
@@ -2063,24 +2037,8 @@ static struct ao2_container *rb_ao2_container_init(struct ao2_container_rbtree *
 }
 
 struct ao2_container *__ao2_container_alloc_rbtree(unsigned int ao2_options, unsigned int container_options,
-	ao2_sort_fn *sort_fn, ao2_callback_fn *cmp_fn)
-{
-	struct ao2_container_rbtree *self;
-
-	if (!sort_fn) {
-		/* Sanity checks. */
-		ast_log(LOG_ERROR, "Missing sort_fn()!\n");
-		return NULL;
-	}
-
-	self = ao2_t_alloc_options(sizeof(*self), container_destruct, ao2_options,
-		"New rbtree container");
-	return rb_ao2_container_init(self, container_options, sort_fn, cmp_fn);
-}
-
-struct ao2_container *__ao2_container_alloc_rbtree_debug(unsigned int ao2_options, unsigned int container_options,
 	ao2_sort_fn *sort_fn, ao2_callback_fn *cmp_fn,
-	const char *tag, const char *file, int line, const char *func, int ref_debug)
+	const char *tag, const char *file, int line, const char *func)
 {
 	struct ao2_container_rbtree *self;
 
@@ -2090,9 +2048,9 @@ struct ao2_container *__ao2_container_alloc_rbtree_debug(unsigned int ao2_option
 		return NULL;
 	}
 
-	self = __ao2_alloc_debug(sizeof(*self),
-		ref_debug ? container_destruct_debug : container_destruct, ao2_options,
-		tag, file, line, func, ref_debug);
+	self = __ao2_alloc(sizeof(*self),
+		tag ? container_destruct_debug : container_destruct, ao2_options,
+		tag, file, line, func);
 	return rb_ao2_container_init(self, container_options, sort_fn, cmp_fn);
 }
 
