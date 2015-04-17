@@ -4839,11 +4839,10 @@ static int check_blacklist(const char *cmd)
 static int action_command(struct mansession *s, const struct message *m)
 {
 	const char *cmd = astman_get_header(m, "Command");
-	const char *id = astman_get_header(m, "ActionID");
-	char *buf = NULL, *final_buf = NULL;
+	char *buf = NULL, *final_buf = NULL, *delim, *output;
 	char template[] = "/tmp/ast-ami-XXXXXX";	/* template for temporary file */
-	int fd;
-	off_t l;
+	int fd, ret;
+	off_t len;
 
 	if (ast_strlen_zero(cmd)) {
 		astman_send_error(s, m, "No command provided");
@@ -4856,52 +4855,59 @@ static int action_command(struct mansession *s, const struct message *m)
 	}
 
 	if ((fd = mkstemp(template)) < 0) {
-		ast_log(AST_LOG_WARNING, "Failed to create temporary file for command: %s\n", strerror(errno));
-		astman_send_error(s, m, "Command response construction error");
+		astman_send_error_va(s, m, "Failed to create temporary file: %s", strerror(errno));
 		return 0;
 	}
 
-	astman_append(s, "Response: Follows\r\nPrivilege: Command\r\n");
-	if (!ast_strlen_zero(id)) {
-		astman_append(s, "ActionID: %s\r\n", id);
-	}
-	/* FIXME: Wedge a ActionID response in here, waiting for later changes */
-	ast_cli_command(fd, cmd);	/* XXX need to change this to use a FILE * */
+	ret = ast_cli_command(fd, cmd);
+	astman_send_response_full(s, m, ret == RESULT_SUCCESS ? "Success" : "Error", MSG_MOREDATA, NULL);
+
 	/* Determine number of characters available */
-	if ((l = lseek(fd, 0, SEEK_END)) < 0) {
-		ast_log(LOG_WARNING, "Failed to determine number of characters for command: %s\n", strerror(errno));
+	if ((len = lseek(fd, 0, SEEK_END)) < 0) {
+		astman_append(s, "Message: Failed to determine number of characters: %s\r\n", strerror(errno));
 		goto action_command_cleanup;
 	}
 
 	/* This has a potential to overflow the stack.  Hence, use the heap. */
-	buf = ast_malloc(l + 1);
-	final_buf = ast_malloc(l + 1);
+	buf = ast_malloc(len + 1);
+	final_buf = ast_malloc(len + 1);
 
 	if (!buf || !final_buf) {
-		ast_log(LOG_WARNING, "Failed to allocate memory for temporary buffer\n");
+		astman_append(s, "Message: Memory allocation failure\r\n");
 		goto action_command_cleanup;
 	}
 
 	if (lseek(fd, 0, SEEK_SET) < 0) {
-		ast_log(LOG_WARNING, "Failed to set position on temporary file for command: %s\n", strerror(errno));
+		astman_append(s, "Message: Failed to set position on temporary file: %s\r\n", strerror(errno));
 		goto action_command_cleanup;
 	}
 
-	if (read(fd, buf, l) < 0) {
-		ast_log(LOG_WARNING, "read() failed: %s\n", strerror(errno));
+	if (read(fd, buf, len) < 0) {
+		astman_append(s, "Message: Failed to read from temporary file: %s\r\n", strerror(errno));
 		goto action_command_cleanup;
 	}
 
-	buf[l] = '\0';
-	term_strip(final_buf, buf, l);
-	final_buf[l] = '\0';
-	astman_append(s, "%s", final_buf);
+	buf[len] = '\0';
+	term_strip(final_buf, buf, len);
+	final_buf[len] = '\0';
+
+	/* Trim trailing newline */
+	if (len && final_buf[len - 1] == '\n') {
+		final_buf[len - 1] = '\0';
+	}
+
+	astman_append(s, "Message: Command output follows\r\n");
+
+	delim = final_buf;
+	while ((output = strsep(&delim, "\n"))) {
+		astman_append(s, "Output: %s\r\n", output);
+	}
 
 action_command_cleanup:
+	astman_append(s, "\r\n");
 
 	close(fd);
 	unlink(template);
-	astman_append(s, "--END COMMAND--\r\n\r\n");
 
 	ast_free(buf);
 	ast_free(final_buf);
