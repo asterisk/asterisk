@@ -54,7 +54,7 @@
 - \ref manager.c Main manager code file
  */
 
-#define AMI_VERSION                     "2.7.0"
+#define AMI_VERSION                     "2.8.0"
 #define DEFAULT_MANAGER_PORT 5038	/* Default port for Asterisk management via TCP */
 #define DEFAULT_MANAGER_TLS_PORT 5039	/* Default port for Asterisk management via TCP */
 
