@@ -1824,14 +1824,14 @@ static void queue_member_follower_removal(struct call_queue *queue, struct membe
 
 static inline struct call_queue *_queue_ref(struct call_queue *q, const char *tag, const char *file, int line, const char *filename)
 {
-	__ao2_ref_debug(q, 1, tag, file, line, filename);
+	__ao2_ref(q, 1, tag, file, line, filename);
 	return q;
 }
 
 static inline struct call_queue *_queue_unref(struct call_queue *q, const char *tag, const char *file, int line, const char *filename)
 {
 	if (q) {
-		__ao2_ref_debug(q, -1, tag, file, line, filename);
+		__ao2_ref(q, -1, tag, file, line, filename);
 	}
 	return NULL;
 }

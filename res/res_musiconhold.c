@@ -219,14 +219,14 @@ static struct mohclass *_mohclass_unref(struct mohclass *class, const char *tag,
 	struct mohclass *dup = ao2_callback(mohclasses, OBJ_POINTER, ao2_match_by_addr, class);
 
 	if (dup) {
-		if (__ao2_ref_debug(dup, -1, (char *) tag, (char *) file, line, funcname) == 2) {
+		if (__ao2_ref(dup, -1, tag, file, line, funcname) == 2) {
 			ast_log(LOG_WARNING, "Attempt to unref mohclass %p (%s) when only 1 ref remained, and class is still in a container! (at %s:%d (%s))\n",
 				class, class->name, file, line, funcname);
 		} else {
 			ao2_ref(class, -1);
 		}
 	} else {
-		__ao2_ref_debug(class, -1, (char *) tag, (char *) file, line, funcname);
+		__ao2_ref(class, -1, tag, file, line, funcname);
 	}
 	return NULL;
 }
@@ -1373,17 +1373,9 @@ static struct mohclass *_moh_class_malloc(const char *file, int line, const char
 {
 	struct mohclass *class;
 
-	if ((class =
-#ifdef REF_DEBUG
-			__ao2_alloc_debug(sizeof(*class), moh_class_destructor,
-				AO2_ALLOC_OPT_LOCK_MUTEX, "Allocating new moh class", file, line, funcname, 1)
-#elif defined(__AST_DEBUG_MALLOC)
-			__ao2_alloc_debug(sizeof(*class), moh_class_destructor,
-				AO2_ALLOC_OPT_LOCK_MUTEX, "Allocating new moh class", file, line, funcname, 0)
-#else
-			ao2_alloc(sizeof(*class), moh_class_destructor)
-#endif
-		)) {
+	class = __ao2_alloc(sizeof(*class), moh_class_destructor, AO2_ALLOC_OPT_LOCK_MUTEX,
+		"Allocating new moh class", file, line, funcname);
+	if (class) {
 		class->format = ao2_bump(ast_format_slin);
 		class->srcfd = -1;
 	}

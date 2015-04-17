@@ -49,11 +49,7 @@ int __container_unlink_node_debug(struct ao2_container_node *node, uint32_t flag
 
 	if ((flags & AO2_UNLINK_NODE_UNLINK_OBJECT)
 		&& !(flags & AO2_UNLINK_NODE_NOUNREF_OBJECT)) {
-		if (tag) {
-			__ao2_ref_debug(node->obj, -1, tag, file, line, func);
-		} else {
-			ao2_t_ref(node->obj, -1, "Remove obj from container");
-		}
+		__ao2_ref(node->obj, -1, tag ?: "Remove obj from container", file, line, func);
 	}
 
 	node->obj = NULL;
@@ -76,7 +72,7 @@ int __container_unlink_node_debug(struct ao2_container_node *node, uint32_t flag
 
 	if (flags & AO2_UNLINK_NODE_UNREF_NODE) {
 		/* Remove node from container */
-		__ao2_ref(node, -1);
+		ao2_t_ref(node, -1, NULL);
 	}
 
 	return 1;
@@ -103,7 +99,8 @@ static int internal_ao2_link(struct ao2_container *self, void *obj_new, int flag
 	enum ao2_lock_req orig_lock;
 	struct ao2_container_node *node;
 
-	if (!is_ao2_object(obj_new) || !is_ao2_object(self)
+	if (!__is_ao2_object(obj_new, file, line, func)
+		|| !__is_ao2_object(self, file, line, func)
 		|| !self->v_table || !self->v_table->new_node || !self->v_table->insert) {
 		/* Sanity checks. */
 		ast_assert(0);
@@ -147,7 +144,7 @@ static int internal_ao2_link(struct ao2_container *self, void *obj_new, int flag
 			res = 1;
 			break;
 		case AO2_CONTAINER_INSERT_NODE_REJECTED:
-			__ao2_ref(node, -1);
+			ao2_t_ref(node, -1, NULL);
 			break;
 		}
 	}
@@ -186,7 +183,7 @@ int ao2_match_by_addr(void *user_data, void *arg, int flags)
 void *__ao2_unlink_debug(struct ao2_container *c, void *user_data, int flags,
 	const char *tag, const char *file, int line, const char *func)
 {
-	if (!is_ao2_object(user_data)) {
+	if (!__is_ao2_object(user_data, file, line, func)) {
 		/* Sanity checks. */
 		ast_assert(0);
 		return NULL;
@@ -268,8 +265,8 @@ static void *internal_ao2_traverse(struct ao2_container *self, enum search_flags
 	struct ao2_container *multi_container = NULL;
 	struct ao2_iterator *multi_iterator = NULL;
 
-	if (!is_ao2_object(self) || !self->v_table || !self->v_table->traverse_first
-		|| !self->v_table->traverse_next) {
+	if (!__is_ao2_object(self, file, line, func) || !self->v_table
+		|| !self->v_table->traverse_first || !self->v_table->traverse_next) {
 		/* Sanity checks. */
 		ast_assert(0);
 		return NULL;
@@ -390,11 +387,7 @@ static void *internal_ao2_traverse(struct ao2_container *self, enum search_flags
 						 * Bump the ref count since we are not going to unlink and
 						 * transfer the container's object ref to the returned object.
 						 */
-						if (tag) {
-							__ao2_ref_debug(ret, 1, tag, file, line, func);
-						} else {
-							ao2_t_ref(ret, 1, "Traversal found object");
-						}
+						__ao2_ref(ret, 1, tag ?: "Traversal found object", file, line, func);
 					}
 				}
 			}
@@ -418,7 +411,7 @@ static void *internal_ao2_traverse(struct ao2_container *self, enum search_flags
 	}
 	if (node) {
 		/* Unref the node from self->v_table->traverse_first/traverse_next() */
-		__ao2_ref(node, -1);
+		ao2_t_ref(node, -1, NULL);
 	}
 
 	if (flags & OBJ_NOLOCK) {
@@ -526,7 +519,7 @@ void ao2_iterator_restart(struct ao2_iterator *iter)
 			ao2_rdlock(iter->c);
 		}
 
-		__ao2_ref(iter->last_node, -1);
+		ao2_t_ref(iter->last_node, -1, NULL);
 		iter->last_node = NULL;
 
 		if (iter->flags & AO2_ITERATOR_DONTLOCK) {
@@ -571,7 +564,8 @@ static void *internal_ao2_iterator_next(struct ao2_iterator *iter, const char *t
 	struct ao2_container_node *node;
 	void *ret;
 
-	if (!is_ao2_object(iter->c) || !iter->c->v_table || !iter->c->v_table->iterator_next) {
+	if (!__is_ao2_object(iter->c, file, line, func)
+		|| !iter->c->v_table || !iter->c->v_table->iterator_next) {
 		/* Sanity checks. */
 		ast_assert(0);
 		return NULL;
@@ -608,14 +602,10 @@ static void *internal_ao2_iterator_next(struct ao2_iterator *iter, const char *t
 			/* Transfer the container's node ref to the iterator. */
 		} else {
 			/* Bump ref of returned object */
-			if (tag) {
-				__ao2_ref_debug(ret, +1, tag, file, line, func);
-			} else {
-				ao2_t_ref(ret, +1, "Next iterator object.");
-			}
+			__ao2_ref(ret, +1, tag ?: "Next iterator object.", file, line, func);
 
 			/* Bump the container's node ref for the iterator. */
-			__ao2_ref(node, +1);
+			ao2_t_ref(node, +1, NULL);
 		}
 	} else {
 		/* The iteration has completed. */
@@ -625,7 +615,7 @@ static void *internal_ao2_iterator_next(struct ao2_iterator *iter, const char *t
 
 	/* Replace the iterator's node */
 	if (iter->last_node) {
-		__ao2_ref(iter->last_node, -1);
+		ao2_t_ref(iter->last_node, -1, NULL);
 	}
 	iter->last_node = node;
 
@@ -742,7 +732,8 @@ struct ao2_container *__ao2_container_clone(struct ao2_container *orig, enum sea
 	int failed;
 
 	/* Create the clone container with the same properties as the original. */
-	if (!is_ao2_object(orig) || !orig->v_table || !orig->v_table->alloc_empty_clone) {
+	if (!is_ao2_object(orig)
+		|| !orig->v_table || !orig->v_table->alloc_empty_clone) {
 		/* Sanity checks. */
 		ast_assert(0);
 		return NULL;
@@ -773,7 +764,8 @@ struct ao2_container *__ao2_container_clone_debug(struct ao2_container *orig, en
 	int failed;
 
 	/* Create the clone container with the same properties as the original. */
-	if (!is_ao2_object(orig) || !orig->v_table || !orig->v_table->alloc_empty_clone_debug) {
+	if (!__is_ao2_object(orig, file, line, func)
+		|| !orig->v_table || !orig->v_table->alloc_empty_clone_debug) {
 		/* Sanity checks. */
 		ast_assert(0);
 		return NULL;
@@ -793,7 +785,7 @@ struct ao2_container *__ao2_container_clone_debug(struct ao2_container *orig, en
 	if (failed) {
 		/* Object copy into the clone container failed. */
 		if (ref_debug) {
-			__ao2_ref_debug(clone, -1, tag, file, line, func);
+			__ao2_ref(clone, -1, tag, file, line, func);
 		} else {
 			ao2_t_ref(clone, -1, "Clone creation failed.");
 		}
