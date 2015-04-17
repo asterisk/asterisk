@@ -1814,49 +1814,26 @@ static void queue_member_follower_removal(struct call_queue *queue, struct membe
 	ao2_callback(queue->members, OBJ_NODATA | OBJ_MULTIPLE, queue_member_decrement_followers, &pos);
 }
 
-#ifdef REF_DEBUG
 #define queue_ref(q)				_queue_ref(q, "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define queue_unref(q)				_queue_unref(q, "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define queue_t_ref(q, tag)			_queue_ref(q, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define queue_t_unref(q, tag)		_queue_unref(q, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define queues_t_link(c, q, tag)	__ao2_link_debug(c, q, 0, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define queues_t_unlink(c, q, tag)	__ao2_unlink_debug(c, q, 0, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define queues_t_link(c, q, tag)	ao2_t_link(c, q, tag)
+#define queues_t_unlink(c, q, tag)	ao2_t_unlink(c, q, tag)
 
 static inline struct call_queue *_queue_ref(struct call_queue *q, const char *tag, const char *file, int line, const char *filename)
 {
-	__ao2_ref_debug(q, 1, tag, file, line, filename);
+	__ao2_ref(q, 1, tag, file, line, filename);
 	return q;
 }
 
 static inline struct call_queue *_queue_unref(struct call_queue *q, const char *tag, const char *file, int line, const char *filename)
 {
 	if (q) {
-		__ao2_ref_debug(q, -1, tag, file, line, filename);
+		__ao2_ref(q, -1, tag, file, line, filename);
 	}
 	return NULL;
 }
-
-#else
-
-#define queue_t_ref(q, tag)			queue_ref(q)
-#define queue_t_unref(q, tag)		queue_unref(q)
-#define queues_t_link(c, q, tag)	ao2_t_link(c, q, tag)
-#define queues_t_unlink(c, q, tag)	ao2_t_unlink(c, q, tag)
-
-static inline struct call_queue *queue_ref(struct call_queue *q)
-{
-	ao2_ref(q, 1);
-	return q;
-}
-
-static inline struct call_queue *queue_unref(struct call_queue *q)
-{
-	if (q) {
-		ao2_ref(q, -1);
-	}
-	return NULL;
-}
-#endif
 
 /*! \brief Set variables of queue */
 static void set_queue_variables(struct call_queue *q, struct ast_channel *chan)

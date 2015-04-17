@@ -122,10 +122,8 @@ static int modules_loaded;
 
 struct ast_module {
 	const struct ast_module_info *info;
-#ifdef REF_DEBUG
-	/* Used to get module references into REF_DEBUG logs */
+	/* Used to get module references into refs log */
 	void *ref_debug;
-#endif
 	void *lib;					/* the shared lib, or NULL if embedded */
 	int usecount;					/* the number of 'users' currently in this module */
 	struct module_user_list users;			/* the list of users in the module */
@@ -199,9 +197,9 @@ void ast_module_register(const struct ast_module_info *info)
 	ast_debug(5, "Registering module %s\n", info->name);
 
 	mod->info = info;
-#ifdef REF_DEBUG
-	mod->ref_debug = ao2_t_alloc(0, NULL, info->name);
-#endif
+	if (ast_opt_ref_debug) {
+		mod->ref_debug = ao2_t_alloc(0, NULL, info->name);
+	}
 	AST_LIST_HEAD_INIT(&mod->users);
 
 	/* during startup, before the loader has been initialized,
@@ -248,9 +246,7 @@ void ast_module_unregister(const struct ast_module_info *info)
 	if (mod) {
 		ast_debug(5, "Unregistering module %s\n", info->name);
 		AST_LIST_HEAD_DESTROY(&mod->users);
-#ifdef REF_DEBUG
 		ao2_cleanup(mod->ref_debug);
-#endif
 		ast_free(mod);
 	}
 }
@@ -270,9 +266,9 @@ struct ast_module_user *__ast_module_user_add(struct ast_module *mod, struct ast
 	AST_LIST_INSERT_HEAD(&mod->users, u, entry);
 	AST_LIST_UNLOCK(&mod->users);
 
-#ifdef REF_DEBUG
-	ao2_ref(mod->ref_debug, +1);
-#endif
+	if (mod->ref_debug) {
+		ao2_ref(mod->ref_debug, +1);
+	}
 
 	ast_atomic_fetchadd_int(&mod->usecount, +1);
 
@@ -298,9 +294,9 @@ void __ast_module_user_remove(struct ast_module *mod, struct ast_module_user *u)
 		return;
 	}
 
-#ifdef REF_DEBUG
-	ao2_ref(mod->ref_debug, -1);
-#endif
+	if (mod->ref_debug) {
+		ao2_ref(mod->ref_debug, -1);
+	}
 
 	ast_atomic_fetchadd_int(&mod->usecount, -1);
 	ast_free(u);
@@ -318,9 +314,9 @@ void __ast_module_user_hangup_all(struct ast_module *mod)
 			ast_softhangup(u->chan, AST_SOFTHANGUP_APPUNLOAD);
 		}
 
-#ifdef REF_DEBUG
-		ao2_ref(mod->ref_debug, -1);
-#endif
+		if (mod->ref_debug) {
+			ao2_ref(mod->ref_debug, -1);
+		}
 
 		ast_atomic_fetchadd_int(&mod->usecount, -1);
 		ast_free(u);
@@ -641,9 +637,7 @@ void ast_module_shutdown(void)
 				mod->info->unload();
 			}
 			AST_LIST_HEAD_DESTROY(&mod->users);
-#ifdef REF_DEBUG
 			ao2_cleanup(mod->ref_debug);
-#endif
 			ast_free(mod);
 			somethingchanged = 1;
 		}
@@ -1477,9 +1471,9 @@ struct ast_module *__ast_module_ref(struct ast_module *mod, const char *file, in
 		return NULL;
 	}
 
-#ifdef REF_DEBUG
-	__ao2_ref_debug(mod->ref_debug, +1, "", file, line, func);
-#endif
+	if (mod->ref_debug) {
+		__ao2_ref(mod->ref_debug, +1, "", file, line, func);
+	}
 
 	ast_atomic_fetchadd_int(&mod->usecount, +1);
 	ast_update_use_count();
@@ -1503,9 +1497,9 @@ void __ast_module_unref(struct ast_module *mod, const char *file, int line, cons
 		return;
 	}
 
-#ifdef REF_DEBUG
-	__ao2_ref_debug(mod->ref_debug, -1, "", file, line, func);
-#endif
+	if (mod->ref_debug) {
+		__ao2_ref(mod->ref_debug, -1, "", file, line, func);
+	}
 
 	ast_atomic_fetchadd_int(&mod->usecount, -1);
 	ast_update_use_count();

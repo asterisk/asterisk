@@ -5,7 +5,7 @@
 		<member name="DEBUG_THREADS" displayname="Enable Thread Debugging">
 			<support_level>core</support_level>
 		</member>
-		<member name="REF_DEBUG" displayname="Enable reference count debugging">
+		<member name="REF_DEBUG" displayname="Enable reference count debugging by default">
 			<support_level>extended</support_level>
 		</member>
 		<member name="AO2_DEBUG" displayname="Enable internal Astobj2 debugging">

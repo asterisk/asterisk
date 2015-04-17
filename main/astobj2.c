@@ -118,36 +118,28 @@ struct ao2_stats ao2;
 #define INTERNAL_OBJ_RWLOCK(user_data) \
 	((struct astobj2_rwlock *) (((char *) (user_data)) - sizeof(struct astobj2_rwlock)))
 
+#define INTERNAL_OBJ(user_data) \
+	(struct astobj2 *) ((char *) user_data - sizeof(struct astobj2))
+
 /*!
  * \brief convert from a pointer _p to a user-defined object
  *
  * \return the pointer to the astobj2 structure
  */
-static struct astobj2 *INTERNAL_OBJ(void *user_data)
-{
-	struct astobj2 *p;
+#define __INTERNAL_OBJ_CHECK(user_data, file, line, func) \
+	({ \
+		struct astobj2 *p ## __LINE__; \
+		if (!user_data \
+			|| !(p ## __LINE__ = INTERNAL_OBJ(user_data)) \
+			|| IS_AO2_MAGIC_BAD(p ## __LINE__)) { \
+			log_bad_ao2(user_data, file, line, func); \
+			p ## __LINE__ = NULL; \
+		} \
+		(p ## __LINE__); \
+	})
 
-	if (!user_data) {
-		ast_log(LOG_ERROR, "user_data is NULL\n");
-		return NULL;
-	}
-
-	p = (struct astobj2 *) ((char *) user_data - sizeof(*p));
-	if (IS_AO2_MAGIC_BAD(p)) {
-		if (p->priv_data.magic) {
-			ast_log(LOG_ERROR, "bad magic number 0x%x for object %p\n",
-				p->priv_data.magic, user_data);
-		} else {
-			ast_log(LOG_ERROR,
-				"bad magic number for object %p. Object is likely destroyed.\n",
-				user_data);
-		}
-		ast_assert(0);
-		return NULL;
-	}
-
-	return p;
-}
+#define INTERNAL_OBJ_CHECK(user_data) \
+	__INTERNAL_OBJ_CHECK(user_data, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
  * \brief convert from a pointer _p to an astobj2 object
@@ -156,14 +148,43 @@ static struct astobj2 *INTERNAL_OBJ(void *user_data)
  */
 #define EXTERNAL_OBJ(_p)	((_p) == NULL ? NULL : (_p)->user_data)
 
-int is_ao2_object(void *user_data)
+int internal_is_ao2_object(void *user_data)
 {
-	return (INTERNAL_OBJ(user_data) != NULL);
+	struct astobj2 *p;
+
+	if (!user_data) {
+		return 0;
+	}
+
+	p = INTERNAL_OBJ(user_data);
+
+	return !p || IS_AO2_MAGIC_BAD(p) ? 0 : 1;
+}
+
+void log_bad_ao2(void *user_data, const char *file, int line, const char *func)
+{
+	struct astobj2 *p;
+
+	if (!user_data) {
+		ast_log(__LOG_ERROR, file, line, func, "user_data is NULL\n");
+		return;
+	}
+
+	p = INTERNAL_OBJ(user_data);
+	if (p->priv_data.magic) {
+		ast_log(__LOG_ERROR, file, line, func,
+			"bad magic number 0x%x for object %p\n",
+			p->priv_data.magic, user_data);
+	} else {
+		ast_log(__LOG_ERROR, file, line, func,
+			"bad magic number for object %p. Object is likely destroyed.\n",
+			user_data);
+	}
 }
 
 int __ao2_lock(void *user_data, enum ao2_lock_req lock_how, const char *file, const char *func, int line, const char *var)
 {
-	struct astobj2 *obj = INTERNAL_OBJ(user_data);
+	struct astobj2 *obj = __INTERNAL_OBJ_CHECK(user_data, file, line, func);
 	struct astobj2_lock *obj_mutex;
 	struct astobj2_rwlock *obj_rwlock;
 	int res = 0;
@@ -221,7 +242,7 @@ int __ao2_lock(void *user_data, enum ao2_lock_req lock_how, const char *file, co
 
 int __ao2_unlock(void *user_data, const char *file, const char *func, int line, const char *var)
 {
-	struct astobj2 *obj = INTERNAL_OBJ(user_data);
+	struct astobj2 *obj = __INTERNAL_OBJ_CHECK(user_data, file, line, func);
 	struct astobj2_lock *obj_mutex;
 	struct astobj2_rwlock *obj_rwlock;
 	int res = 0;
@@ -271,7 +292,7 @@ int __ao2_unlock(void *user_data, const char *file, const char *func, int line, 
 
 int __ao2_trylock(void *user_data, enum ao2_lock_req lock_how, const char *file, const char *func, int line, const char *var)
 {
-	struct astobj2 *obj = INTERNAL_OBJ(user_data);
+	struct astobj2 *obj = __INTERNAL_OBJ_CHECK(user_data, file, line, func);
 	struct astobj2_lock *obj_mutex;
 	struct astobj2_rwlock *obj_rwlock;
 	int res = 0;
@@ -393,8 +414,10 @@ enum ao2_lock_req __adjust_lock(void *user_data, enum ao2_lock_req lock_how, int
 
 void *ao2_object_get_lockaddr(void *user_data)
 {
-	struct astobj2 *obj = INTERNAL_OBJ(user_data);
+	struct astobj2 *obj;
 	struct astobj2_lock *obj_mutex;
+
+	obj = INTERNAL_OBJ_CHECK(user_data);
 
 	if (obj == NULL) {
 		ast_assert(0);
@@ -412,9 +435,10 @@ void *ao2_object_get_lockaddr(void *user_data)
 	return NULL;
 }
 
-static int internal_ao2_ref(void *user_data, int delta, const char *file, int line, const char *func)
+int __ao2_ref(void *user_data, int delta,
+	const char *tag, const char *file, int line, const char *func)
 {
-	struct astobj2 *obj = INTERNAL_OBJ(user_data);
+	struct astobj2 *obj = __INTERNAL_OBJ_CHECK(user_data, file, line, func);
 	struct astobj2_lock *obj_mutex;
 	struct astobj2_rwlock *obj_rwlock;
 	int current_value;
@@ -422,6 +446,11 @@ static int internal_ao2_ref(void *user_data, int delta, const char *file, int li
 	void *weakproxy = NULL;
 
 	if (obj == NULL) {
+		if (ref_log && user_data) {
+			fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**invalid**,%s\n",
+				user_data, delta, ast_get_tid(), file, line, func, tag ?: "");
+			fflush(ref_log);
+		}
 		ast_assert(0);
 		return -1;
 	}
@@ -446,7 +475,9 @@ static int internal_ao2_ref(void *user_data, int delta, const char *file, int li
 	if (weakproxy) {
 		if (current_value == 1) {
 			/* The only remaining reference is the one owned by the weak object */
-			struct astobj2 *internal_weakproxy = INTERNAL_OBJ(weakproxy);
+			struct astobj2 *internal_weakproxy;
+
+			internal_weakproxy = INTERNAL_OBJ_CHECK(weakproxy);
 
 			/* Unlink the obj from the weak proxy */
 			internal_weakproxy->priv_data.weakptr = NULL;
@@ -468,6 +499,12 @@ static int internal_ao2_ref(void *user_data, int delta, const char *file, int li
 
 	if (0 < current_value) {
 		/* The object still lives. */
+		if (ref_log && tag) {
+			fprintf(ref_log, "%p,%s%d,%d,%s,%d,%s,%d,%s\n", user_data,
+				(delta < 0 ? "" : "+"), delta, ast_get_tid(),
+				file, line, func, ret, tag);
+			fflush(ref_log);
+		}
 		return ret;
 	}
 
@@ -475,6 +512,12 @@ static int internal_ao2_ref(void *user_data, int delta, const char *file, int li
 	if (current_value < 0) {
 		ast_log(__LOG_ERROR, file, line, func,
 			"Invalid refcount %d on ao2 object %p\n", current_value, user_data);
+		if (ref_log) {
+			/* Log to ref_log invalid even if (tag == NULL) */
+			fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**invalid**,%s\n",
+				user_data, delta, ast_get_tid(), file, line, func, tag ?: "");
+			fflush(ref_log);
+		}
 		ast_assert(0);
 		/* stop here even if assert doesn't DO_CRASH */
 		return -1;
@@ -515,51 +558,19 @@ static int internal_ao2_ref(void *user_data, int delta, const char *file, int li
 		break;
 	}
 
+	if (ref_log && tag) {
+		fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**destructor**,%s\n",
+			user_data, delta, ast_get_tid(), file, line, func, tag);
+		fflush(ref_log);
+	}
+
 	return ret;
-}
-
-int __ao2_ref_debug(void *user_data, int delta, const char *tag, const char *file, int line, const char *func)
-{
-	struct astobj2 *obj = INTERNAL_OBJ(user_data);
-	int old_refcount = -1;
-
-	if (obj) {
-		old_refcount = internal_ao2_ref(user_data, delta, file, line, func);
-	}
-
-	if (ref_log && user_data) {
-		if (!obj) {
-			/* Invalid object: Bad magic number. */
-			fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**invalid**,%s\n",
-				user_data, delta, ast_get_tid(), file, line, func, tag);
-			fflush(ref_log);
-		} else if (old_refcount + delta == 0) {
-			fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**destructor**,%s\n",
-				user_data, delta, ast_get_tid(), file, line, func, tag);
-			fflush(ref_log);
-		} else if (delta != 0) {
-			fprintf(ref_log, "%p,%s%d,%d,%s,%d,%s,%d,%s\n", user_data, (delta < 0 ? "" : "+"),
-				delta, ast_get_tid(), file, line, func, old_refcount, tag);
-			fflush(ref_log);
-		}
-	}
-
-	if (obj == NULL) {
-		ast_assert(0);
-	}
-
-	return old_refcount;
-}
-
-int __ao2_ref(void *user_data, int delta)
-{
-	return internal_ao2_ref(user_data, delta, __FILE__, __LINE__, __FUNCTION__);
 }
 
 void __ao2_cleanup_debug(void *obj, const char *tag, const char *file, int line, const char *function)
 {
 	if (obj) {
-		__ao2_ref_debug(obj, -1, tag, file, line, function);
+		__ao2_ref(obj, -1, tag, file, line, function);
 	}
 }
 
@@ -570,7 +581,8 @@ void __ao2_cleanup(void *obj)
 	}
 }
 
-static void *internal_ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, unsigned int options, const char *file, int line, const char *func)
+void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, unsigned int options,
+	const char *tag, const char *file, int line, const char *func)
 {
 	/* allocation */
 	struct astobj2 *obj;
@@ -633,41 +645,25 @@ static void *internal_ao2_alloc(size_t data_size, ao2_destructor_fn destructor_f
 	ast_atomic_fetchadd_int(&ao2.total_refs, 1);
 #endif
 
+	if (ref_log && tag) {
+		fprintf(ref_log, "%p,+1,%d,%s,%d,%s,**constructor**,%s\n",
+			EXTERNAL_OBJ(obj), ast_get_tid(), file, line, func, tag);
+		fflush(ref_log);
+	}
+
 	/* return a pointer to the user data */
 	return EXTERNAL_OBJ(obj);
 }
 
 unsigned int ao2_options_get(void *obj)
 {
-	struct astobj2 *orig_obj = INTERNAL_OBJ(obj);
+	struct astobj2 *orig_obj;
+
+	orig_obj = INTERNAL_OBJ_CHECK(obj);
 	if (!orig_obj) {
 		return 0;
 	}
 	return orig_obj->priv_data.options;
-}
-
-void *__ao2_alloc_debug(size_t data_size, ao2_destructor_fn destructor_fn, unsigned int options, const char *tag,
-	const char *file, int line, const char *func, int ref_debug)
-{
-	/* allocation */
-	void *obj;
-
-	if ((obj = internal_ao2_alloc(data_size, destructor_fn, options, file, line, func)) == NULL) {
-		return NULL;
-	}
-
-	if (ref_log) {
-		fprintf(ref_log, "%p,+1,%d,%s,%d,%s,**constructor**,%s\n", obj, ast_get_tid(), file, line, func, tag);
-		fflush(ref_log);
-	}
-
-	/* return a pointer to the user data */
-	return obj;
-}
-
-void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, unsigned int options)
-{
-	return internal_ao2_alloc(data_size, destructor_fn, options, __FILE__, __LINE__, __FUNCTION__);
 }
 
 
@@ -687,11 +683,7 @@ void __ao2_global_obj_release(struct ao2_global_obj *holder, const char *tag, co
 
 	/* Release the held ao2 object. */
 	if (holder->obj) {
-		if (tag) {
-			__ao2_ref_debug(holder->obj, -1, tag, file, line, func);
-		} else {
-			__ao2_ref(holder->obj, -1);
-		}
+		__ao2_ref(holder->obj, -1, tag, file, line, func);
 		holder->obj = NULL;
 	}
 
@@ -715,11 +707,7 @@ void *__ao2_global_obj_replace(struct ao2_global_obj *holder, void *obj, const c
 	}
 
 	if (obj) {
-		if (tag) {
-			__ao2_ref_debug(obj, +1, tag, file, line, func);
-		} else {
-			__ao2_ref(obj, +1);
-		}
+		__ao2_ref(obj, +1, tag, file, line, func);
 	}
 	obj_old = holder->obj;
 	holder->obj = obj;
@@ -735,11 +723,7 @@ int __ao2_global_obj_replace_unref(struct ao2_global_obj *holder, void *obj, con
 
 	obj_old = __ao2_global_obj_replace(holder, obj, tag, file, line, func, name);
 	if (obj_old) {
-		if (tag) {
-			__ao2_ref_debug(obj_old, -1, tag, file, line, func);
-		} else {
-			__ao2_ref(obj_old, -1);
-		}
+		__ao2_ref(obj_old, -1, tag, file, line, func);
 		return 1;
 	}
 	return 0;
@@ -764,11 +748,7 @@ void *__ao2_global_obj_ref(struct ao2_global_obj *holder, const char *tag, const
 
 	obj = holder->obj;
 	if (obj) {
-		if (tag) {
-			__ao2_ref_debug(obj, +1, tag, file, line, func);
-		} else {
-			__ao2_ref(obj, +1);
-		}
+		__ao2_ref(obj, +1, tag, file, line, func);
 	}
 
 	__ast_rwlock_unlock(file, line, func, &holder->lock, name);
@@ -798,12 +778,14 @@ void *__ao2_weakproxy_alloc(size_t data_size, ao2_destructor_fn destructor_fn,
 		return NULL;
 	}
 
-	weakproxy = __ao2_alloc_debug(data_size, destructor_fn, AO2_ALLOC_OPT_LOCK_MUTEX,
-		tag, file, line, func, 1);
+	weakproxy = __ao2_alloc(data_size, destructor_fn, AO2_ALLOC_OPT_LOCK_MUTEX,
+		tag, file, line, func);
 
 	if (weakproxy) {
-		struct astobj2 *weakproxy_internal = INTERNAL_OBJ(weakproxy);
+		struct astobj2 *weakproxy_internal;
 
+		/* Just created weakproxy, no need to check if it's valid. */
+		weakproxy_internal = INTERNAL_OBJ(weakproxy);
 		weakproxy_internal->priv_data.magic = AO2_WEAK;
 	}
 
@@ -813,8 +795,8 @@ void *__ao2_weakproxy_alloc(size_t data_size, ao2_destructor_fn destructor_fn,
 int __ao2_weakproxy_set_object(void *weakproxy, void *obj, int flags,
 	const char *tag, const char *file, int line, const char *func)
 {
-	struct astobj2 *weakproxy_internal = INTERNAL_OBJ(weakproxy);
-	struct astobj2 *obj_internal = INTERNAL_OBJ(obj);
+	struct astobj2 *weakproxy_internal = __INTERNAL_OBJ_CHECK(weakproxy, file, line, func);
+	struct astobj2 *obj_internal = __INTERNAL_OBJ_CHECK(obj, file, line, func);
 	int ret = -1;
 
 	if (!weakproxy_internal
@@ -833,8 +815,8 @@ int __ao2_weakproxy_set_object(void *weakproxy, void *obj, int flags,
 	}
 
 	if (!weakproxy_internal->priv_data.weakptr) {
-		__ao2_ref_debug(obj, +1, tag, file, line, func);
-		__ao2_ref_debug(weakproxy, +1, tag, file, line, func);
+		__ao2_ref(obj, +1, tag, file, line, func);
+		__ao2_ref(weakproxy, +1, tag, file, line, func);
 
 		weakproxy_internal->priv_data.weakptr = obj;
 		obj_internal->priv_data.weakptr = weakproxy;
@@ -857,7 +839,7 @@ int __ao2_weakproxy_set_object(void *weakproxy, void *obj, int flags,
 void *__ao2_weakproxy_get_object(void *weakproxy, int flags,
 	const char *tag, const char *file, int line, const char *func)
 {
-	struct astobj2 *internal = INTERNAL_OBJ(weakproxy);
+	struct astobj2 *internal = __INTERNAL_OBJ_CHECK(weakproxy, file, line, func);
 	void *obj;
 
 	if (!internal || internal->priv_data.magic != AO2_WEAK) {
@@ -872,7 +854,7 @@ void *__ao2_weakproxy_get_object(void *weakproxy, int flags,
 
 	obj = internal->priv_data.weakptr;
 	if (obj) {
-		__ao2_ref_debug(obj, +1, tag, file, line, func);
+		__ao2_ref(obj, +1, tag, file, line, func);
 	}
 
 	if (!(flags & OBJ_NOLOCK)) {
@@ -884,7 +866,7 @@ void *__ao2_weakproxy_get_object(void *weakproxy, int flags,
 
 void *__ao2_get_weakproxy(void *obj, const char *tag, const char *file, int line, const char *func)
 {
-	struct astobj2 *obj_internal = INTERNAL_OBJ(obj);
+	struct astobj2 *obj_internal = __INTERNAL_OBJ_CHECK(obj, file, line, func);
 
 	if (!obj_internal || obj_internal->priv_data.magic != AO2_MAGIC) {
 		/* This method is meant to be run on normal ao2 objects! */
@@ -895,13 +877,13 @@ void *__ao2_get_weakproxy(void *obj, const char *tag, const char *file, int line
 		return NULL;
 	}
 
-	__ao2_ref_debug(obj_internal->priv_data.weakptr, +1, tag, file, line, func);
+	__ao2_ref(obj_internal->priv_data.weakptr, +1, tag, file, line, func);
 	return obj_internal->priv_data.weakptr;
 }
 
 int ao2_weakproxy_subscribe(void *weakproxy, ao2_weakproxy_notification_cb cb, void *data, int flags)
 {
-	struct astobj2 *weakproxy_internal = INTERNAL_OBJ(weakproxy);
+	struct astobj2 *weakproxy_internal = INTERNAL_OBJ_CHECK(weakproxy);
 	int ret = -1;
 
 	if (!weakproxy_internal || weakproxy_internal->priv_data.magic != AO2_WEAK) {
@@ -936,7 +918,7 @@ int ao2_weakproxy_subscribe(void *weakproxy, ao2_weakproxy_notification_cb cb, v
 
 int ao2_weakproxy_unsubscribe(void *weakproxy, ao2_weakproxy_notification_cb destroyed_cb, void *data, int flags)
 {
-	struct astobj2 *internal_weakproxy = INTERNAL_OBJ(weakproxy);
+	struct astobj2 *internal_weakproxy = INTERNAL_OBJ_CHECK(weakproxy);
 	struct ao2_weakproxy *weak;
 	struct ao2_weakproxy_notification *sub;
 	int ret = 0;
@@ -1123,29 +1105,28 @@ static void astobj2_cleanup(void)
 #if defined(AO2_DEBUG)
 	ast_cli_unregister_multiple(cli_astobj2, ARRAY_LEN(cli_astobj2));
 #endif
-#ifdef REF_DEBUG
-	fclose(ref_log);
-	ref_log = NULL;
-#endif
+
+	if (ast_opt_ref_debug) {
+		fclose(ref_log);
+		ref_log = NULL;
+	}
 }
 
 int astobj2_init(void)
 {
-#ifdef REF_DEBUG
 	char ref_filename[1024];
-#endif
 
 	if (container_init() != 0) {
 		return -1;
 	}
 
-#ifdef REF_DEBUG
-	snprintf(ref_filename, sizeof(ref_filename), "%s/refs", ast_config_AST_LOG_DIR);
-	ref_log = fopen(ref_filename, "w");
-	if (!ref_log) {
-		ast_log(LOG_ERROR, "Could not open ref debug log file: %s\n", ref_filename);
+	if (ast_opt_ref_debug) {
+		snprintf(ref_filename, sizeof(ref_filename), "%s/refs", ast_config_AST_LOG_DIR);
+		ref_log = fopen(ref_filename, "w");
+		if (!ref_log) {
+			ast_log(LOG_ERROR, "Could not open ref debug log file: %s\n", ref_filename);
+		}
 	}
-#endif
 
 #if defined(AO2_DEBUG)
 	ast_cli_register_multiple(cli_astobj2, ARRAY_LEN(cli_astobj2));

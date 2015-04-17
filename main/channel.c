@@ -795,7 +795,9 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		return NULL;
 	}
 
-	if (!(tmp = ast_channel_internal_alloc(ast_channel_destructor, assignedids, requestor))) {
+	tmp = __ast_channel_internal_alloc(ast_channel_destructor, assignedids, requestor,
+		file, line, function);
+	if (!tmp) {
 		/* Channel structure allocation failure. */
 		return NULL;
 	}
@@ -987,16 +989,14 @@ struct ast_channel *__ast_channel_alloc(int needqueue, int state, const char *ci
 
 /* only do the minimum amount of work needed here to make a channel
  * structure that can be used to expand channel vars */
-#if defined(REF_DEBUG) || defined(__AST_DEBUG_MALLOC)
 struct ast_channel *__ast_dummy_channel_alloc(const char *file, int line, const char *function)
-#else
-struct ast_channel *ast_dummy_channel_alloc(void)
-#endif
 {
 	struct ast_channel *tmp;
 	struct varshead *headp;
 
-	if (!(tmp = ast_channel_internal_alloc(ast_dummy_channel_destructor, NULL, NULL))) {
+	tmp = __ast_channel_internal_alloc(ast_dummy_channel_destructor, NULL, NULL,
+		file, line, function);
+	if (!tmp) {
 		/* Dummy channel structure allocation failure. */
 		return NULL;
 	}
