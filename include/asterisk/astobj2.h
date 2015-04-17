@@ -439,50 +439,23 @@ enum ao2_alloc_opts {
  * - the returned pointer cannot be free()'d or realloc()'ed;
  *   rather, we just call ao2_ref(o, -1);
  *
+ * \note REF_DEBUG logging is skipped if debug_msg is NULL
+ *
  * @{
  */
 
-#if defined(REF_DEBUG)
-
 #define ao2_t_alloc_options(data_size, destructor_fn, options, debug_msg) \
-	__ao2_alloc_debug((data_size), (destructor_fn), (options), (debug_msg),  __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
+	__ao2_alloc((data_size), (destructor_fn), (options), (debug_msg),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ao2_alloc_options(data_size, destructor_fn, options) \
-	__ao2_alloc_debug((data_size), (destructor_fn), (options), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
+	__ao2_alloc((data_size), (destructor_fn), (options), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #define ao2_t_alloc(data_size, destructor_fn, debug_msg) \
-	__ao2_alloc_debug((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX, (debug_msg),  __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
+	__ao2_alloc((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX, (debug_msg),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ao2_alloc(data_size, destructor_fn) \
-	__ao2_alloc_debug((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX, "",  __FILE__, __LINE__, __PRETTY_FUNCTION__, 1)
+	__ao2_alloc((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX, "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
-#elif defined(__AST_DEBUG_MALLOC)
-
-#define ao2_t_alloc_options(data_size, destructor_fn, options, debug_msg) \
-	__ao2_alloc_debug((data_size), (destructor_fn), (options), (debug_msg),  __FILE__, __LINE__, __PRETTY_FUNCTION__, 0)
-#define ao2_alloc_options(data_size, destructor_fn, options) \
-	__ao2_alloc_debug((data_size), (destructor_fn), (options), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__, 0)
-
-#define ao2_t_alloc(data_size, destructor_fn, debug_msg) \
-	__ao2_alloc_debug((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX, (debug_msg),  __FILE__, __LINE__, __PRETTY_FUNCTION__, 0)
-#define ao2_alloc(data_size, destructor_fn) \
-	__ao2_alloc_debug((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX, "",  __FILE__, __LINE__, __PRETTY_FUNCTION__, 0)
-
-#else
-
-#define ao2_t_alloc_options(data_size, destructor_fn, options, debug_msg) \
-	__ao2_alloc((data_size), (destructor_fn), (options))
-#define ao2_alloc_options(data_size, destructor_fn, options) \
-	__ao2_alloc((data_size), (destructor_fn), (options))
-
-#define ao2_t_alloc(data_size, destructor_fn, debug_msg) \
-	__ao2_alloc((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX)
-#define ao2_alloc(data_size, destructor_fn) \
-	__ao2_alloc((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX)
-
-#endif
-
-void *__ao2_alloc_debug(size_t data_size, ao2_destructor_fn destructor_fn, unsigned int options, const char *tag,
-	const char *file, int line, const char *func, int ref_debug) attribute_warn_unused_result;
-void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, unsigned int options) attribute_warn_unused_result;
+void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, unsigned int options,
+	const char *tag, const char *file, int line, const char *func) attribute_warn_unused_result;
 
 /*! @} */
 
@@ -507,20 +480,12 @@ void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, unsigned in
  * can go away is when we release our reference, and it is
  * the last one in existence.
  *
+ * \note REF_DEBUG logging is skipped if tag is NULL
  * @{
  */
 
-#ifdef REF_DEBUG
-
-#define ao2_t_ref(o,delta,tag) __ao2_ref_debug((o), (delta), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
-#define ao2_ref(o,delta)       __ao2_ref_debug((o), (delta), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
-
-#else
-
-#define ao2_t_ref(o,delta,tag) __ao2_ref((o), (delta))
-#define ao2_ref(o,delta)       __ao2_ref((o), (delta))
-
-#endif
+#define ao2_t_ref(o,delta,tag) __ao2_ref((o), (delta), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define ao2_ref(o,delta)       __ao2_ref((o), (delta), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
  * \brief Retrieve the ao2 options used to create the object.
@@ -550,8 +515,7 @@ unsigned int ao2_options_get(void *obj);
 #define ao2_bump(obj) \
 	ao2_t_bump((obj), "")
 
-int __ao2_ref_debug(void *o, int delta, const char *tag, const char *file, int line, const char *func);
-int __ao2_ref(void *o, int delta);
+int __ao2_ref(void *o, int delta, const char *tag, const char *file, int line, const char *func);
 
 /*!
  * \since 12.4.0

@@ -138,7 +138,7 @@ static struct ao2_container *hash_ao2_alloc_empty_clone(struct ao2_container_has
  */
 static struct ao2_container *hash_ao2_alloc_empty_clone_debug(struct ao2_container_hash *self, const char *tag, const char *file, int line, const char *func, int ref_debug)
 {
-	if (!is_ao2_object(self)) {
+	if (!__is_ao2_object(self, file, line, func)) {
 		return NULL;
 	}
 
@@ -228,7 +228,7 @@ static struct hash_bucket_node *hash_ao2_new_node(struct ao2_container_hash *sel
 	struct hash_bucket_node *node;
 	int i;
 
-	node = __ao2_alloc(sizeof(*node), hash_ao2_node_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	node = ao2_t_alloc_options(sizeof(*node), hash_ao2_node_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK, NULL);
 	if (!node) {
 		return NULL;
 	}
@@ -236,11 +236,7 @@ static struct hash_bucket_node *hash_ao2_new_node(struct ao2_container_hash *sel
 	i = abs(self->hash_fn(obj_new, OBJ_SEARCH_OBJECT));
 	i %= self->n_buckets;
 
-	if (tag) {
-		__ao2_ref_debug(obj_new, +1, tag, file, line, func);
-	} else {
-		ao2_t_ref(obj_new, +1, "Container node creation");
-	}
+	__ao2_ref(obj_new, +1, tag ?: "Container node creation", file, line, func);
 	node->common.obj = obj_new;
 	node->common.my_container = (struct ao2_container *) self;
 	node->my_bucket = i;
@@ -438,7 +434,7 @@ static struct hash_bucket_node *hash_ao2_find_first(struct ao2_container_hash *s
 				}
 
 				/* We have the first traversal node */
-				__ao2_ref(node, +1);
+				ao2_t_ref(node, +1, NULL);
 				return node;
 			}
 		}
@@ -480,7 +476,7 @@ static struct hash_bucket_node *hash_ao2_find_first(struct ao2_container_hash *s
 				}
 
 				/* We have the first traversal node */
-				__ao2_ref(node, +1);
+				ao2_t_ref(node, +1, NULL);
 				return node;
 			}
 		}
@@ -549,7 +545,7 @@ static struct hash_bucket_node *hash_ao2_find_next(struct ao2_container_hash *se
 				}
 
 				/* We have the next traversal node */
-				__ao2_ref(node, +1);
+				ao2_t_ref(node, +1, NULL);
 
 				/*
 				 * Dereferencing the prev node may result in our next node
@@ -557,7 +553,7 @@ static struct hash_bucket_node *hash_ao2_find_next(struct ao2_container_hash *se
 				 * the container uses RW locks and the container was read
 				 * locked.
 				 */
-				__ao2_ref(prev, -1);
+				ao2_t_ref(prev, -1, NULL);
 				if (node->common.obj) {
 					return node;
 				}
@@ -593,7 +589,7 @@ hash_descending_resume:;
 				}
 
 				/* We have the next traversal node */
-				__ao2_ref(node, +1);
+				ao2_t_ref(node, +1, NULL);
 
 				/*
 				 * Dereferencing the prev node may result in our next node
@@ -601,7 +597,7 @@ hash_descending_resume:;
 				 * the container uses RW locks and the container was read
 				 * locked.
 				 */
-				__ao2_ref(prev, -1);
+				ao2_t_ref(prev, -1, NULL);
 				if (node->common.obj) {
 					return node;
 				}
@@ -613,7 +609,7 @@ hash_ascending_resume:;
 	}
 
 	/* No more nodes in the container left to traverse. */
-	__ao2_ref(prev, -1);
+	ao2_t_ref(prev, -1, NULL);
 	return NULL;
 }
 
@@ -1129,9 +1125,9 @@ struct ao2_container *__ao2_container_alloc_hash_debug(unsigned int ao2_options,
 	num_buckets = hash_fn ? n_buckets : 1;
 	container_size = sizeof(struct ao2_container_hash) + num_buckets * sizeof(struct hash_bucket);
 
-	self = __ao2_alloc_debug(container_size,
+	self = __ao2_alloc(container_size,
 		ref_debug ? container_destruct_debug : container_destruct, ao2_options,
-		tag, file, line, func, ref_debug);
+		tag, file, line, func);
 	return hash_ao2_container_init(self, container_options, num_buckets, hash_fn,
 		sort_fn, cmp_fn);
 }
