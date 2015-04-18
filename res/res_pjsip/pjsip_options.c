@@ -86,19 +86,6 @@ static struct ast_sip_contact_status *find_or_create_contact_status(const struct
 	return status;
 }
 
-static void delete_contact_status(const struct ast_sip_contact *contact)
-{
-	struct ast_sip_contact_status *status = ast_sorcery_retrieve_by_id(
-		ast_sip_get_sorcery(), CONTACT_STATUS, ast_sorcery_object_get_id(contact));
-
-	if (!status) {
-		return;
-	}
-
-	ast_sorcery_delete(ast_sip_get_sorcery(), status);
-	ao2_ref(status, -1);
-}
-
 /*!
  * \internal
  * \brief Update an ast_sip_contact_status's elements.
@@ -129,7 +116,7 @@ static void update_contact_status(const struct ast_sip_contact *contact,
 
 	/* if the contact is available calculate the rtt as
 	   the diff between the last start time and "now" */
-	update->rtt = update->status == AVAILABLE ?
+	update->rtt = update->status == AVAILABLE && status->rtt_start.tv_sec > 0 ?
 		ast_tvdiff_us(ast_tvnow(), status->rtt_start) : 0;
 
 	update->rtt_start = ast_tv(0, 0);
@@ -499,7 +486,7 @@ static void qualify_and_schedule(struct ast_sip_contact *contact)
 
 		schedule_qualify(contact, contact->qualify_frequency * 1000);
 	} else {
-		delete_contact_status(contact);
+		update_contact_status(contact, AVAILABLE);
 	}
 }
 
@@ -1011,6 +998,8 @@ static int qualify_and_schedule_cb(void *obj, void *arg, int flags)
 
 	if (contact->qualify_frequency) {
 		schedule_qualify(contact, initial_interval);
+	} else {
+		update_contact_status(contact, AVAILABLE);
 	}
 
 	return 0;
