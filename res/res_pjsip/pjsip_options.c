@@ -86,19 +86,6 @@ static struct ast_sip_contact_status *find_or_create_contact_status(const struct
 	return status;
 }
 
-static void delete_contact_status(const struct ast_sip_contact *contact)
-{
-	struct ast_sip_contact_status *status = ast_sorcery_retrieve_by_id(
-		ast_sip_get_sorcery(), CONTACT_STATUS, ast_sorcery_object_get_id(contact));
-
-	if (!status) {
-		return;
-	}
-
-	ast_sorcery_delete(ast_sip_get_sorcery(), status);
-	ao2_ref(status, -1);
-}
-
 /*!
  * \internal
  * \brief Update an ast_sip_contact_status's elements.
@@ -489,6 +476,8 @@ static void unschedule_qualify(struct ast_sip_contact *contact)
  */
 static void qualify_and_schedule(struct ast_sip_contact *contact)
 {
+	struct ast_sip_contact_status *status;
+
 	unschedule_qualify(contact);
 
 	if (contact->qualify_frequency) {
@@ -499,7 +488,13 @@ static void qualify_and_schedule(struct ast_sip_contact *contact)
 
 		schedule_qualify(contact, contact->qualify_frequency * 1000);
 	} else {
-		delete_contact_status(contact);
+		status = find_or_create_contact_status(contact);
+		status->status = AVAILABLE;
+		status->rtt = 0;
+		if (ast_sorcery_update(ast_sip_get_sorcery(), status)) {
+			ast_log(LOG_ERROR, "Unable to update ast_sip_contact_status for contact %s\n",
+				contact->uri);
+		}
 	}
 }
 
@@ -992,6 +987,7 @@ int ast_sip_initialize_sorcery_qualify(void)
 static int qualify_and_schedule_cb(void *obj, void *arg, int flags)
 {
 	struct ast_sip_contact *contact = obj;
+	struct ast_sip_contact_status *status;
 	struct ast_sip_aor *aor = arg;
 	int initial_interval;
 	int max_time = ast_sip_get_max_initial_qualify_time();
@@ -1011,6 +1007,14 @@ static int qualify_and_schedule_cb(void *obj, void *arg, int flags)
 
 	if (contact->qualify_frequency) {
 		schedule_qualify(contact, initial_interval);
+	} else {
+		status = find_or_create_contact_status(contact);
+		status->status = AVAILABLE;
+		status->rtt = 0;
+		if (ast_sorcery_update(ast_sip_get_sorcery(), status)) {
+			ast_log(LOG_ERROR, "Unable to update ast_sip_contact_status for contact %s\n",
+				contact->uri);
+		}
 	}
 
 	return 0;
