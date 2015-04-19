@@ -18,7 +18,7 @@
 ===
 ===========================================================
 
-from 1.8.32.3 to 1.8.33:
+from 1.8.32.3 to 1.8.32.4:
 *  The menuselect utility has been pulled into the Asterisk repository. As a
    result, the libxml2 development library is now a required dependency for
    Asterisk.
