@@ -21,7 +21,7 @@
 ===
 ===========================================================
 
-From 12.8.0 to 12.9.0:
+From 12.8.2 to 12.8.3:
 
 Build System:
  - The menuselect utility has been pulled into the Asterisk repository. As a
