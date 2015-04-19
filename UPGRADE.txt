@@ -20,7 +20,7 @@
 ===
 ===========================================================
 
-from 11.16 to 11.17
+from 11.17 to 11.18
 
 Source Control:
  - Asterisk has moved from Subversion to Git. As a result, several changes
