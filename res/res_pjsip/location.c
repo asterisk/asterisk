@@ -747,8 +747,8 @@ static int cli_contact_print_body(void *obj, void *arg, int flags)
 		"Contact",
 		flexwidth, flexwidth,
 		wrapper->contact_id,
-		(status ? (status->status == AVAILABLE ? "Avail" : "Unavail") : "Unknown"),
-		(status ? ((long long) status->rtt) / 1000.0 : NAN));
+		ast_sip_get_contact_short_status_label(status->status),
+		(status->status != UNKNOWN ? ((long long) status->rtt) / 1000.0 : NAN));
 
 	return 0;
 }

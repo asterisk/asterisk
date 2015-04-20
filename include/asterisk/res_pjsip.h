@@ -177,7 +177,8 @@ struct ast_sip_contact {
  */
 enum ast_sip_contact_status_type {
 	UNAVAILABLE,
-	AVAILABLE
+	AVAILABLE,
+	UNKNOWN
 };
 
 /*!
@@ -2002,5 +2003,13 @@ unsigned int ast_sip_get_keep_alive_interval(void);
  */
 unsigned int ast_sip_get_max_initial_qualify_time(void);
 
+/*!
+ * \brief translate ast_sip_contact_status_type to character string.
+ *
+ * \retval the character string equivalent.
+ */
+
+const char *ast_sip_get_contact_status_label(const enum ast_sip_contact_status_type status);
+const char *ast_sip_get_contact_short_status_label(const enum ast_sip_contact_status_type status);
 
 #endif /* _RES_PJSIP_H */
