@@ -86,7 +86,7 @@ static int persistent_endpoint_update_state(void *obj, void *arg, int flags)
 			contact_status = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(),
 				CONTACT_STATUS, contact_id);
 
-			if (contact_status && contact_status->status == AVAILABLE) {
+			if (contact_status && contact_status->status != UNAVAILABLE) {
 				state = AST_ENDPOINT_ONLINE;
 			}
 			ao2_cleanup(contact_status);
@@ -184,10 +184,10 @@ static void persistent_endpoint_contact_status_observer(const void *object)
 		"Contact: %s\r\n"
 			"Status: %s",
 		ast_sorcery_object_get_id(contact_status),
-		(contact_status->status == AVAILABLE ? "Available" : "Unavailable"));
+		ast_sip_get_contact_status_label(contact_status->status));
 
 	ast_verb(1, "Contact %s/%s is now %s\n", aor, contact,
-		contact_status->status == AVAILABLE ? "Available" : "Unavailable");
+		ast_sip_get_contact_status_label(contact_status->status));
 
 	ao2_callback(persistent_endpoints, OBJ_NODATA, persistent_endpoint_update_state, aor);
 }

@@ -35,6 +35,28 @@
 #define DEFAULT_ENCODING "text/plain"
 #define QUALIFIED_BUCKETS 211
 
+static const char *status_map [] = {
+	[UNAVAILABLE] = "Unreachable",
+	[AVAILABLE] = "Reachable",
+	[UNKNOWN] = "Unknown",
+};
+
+static const char *short_status_map [] = {
+	[UNAVAILABLE] = "Unavail",
+	[AVAILABLE] = "Avail",
+	[UNKNOWN] = "Unknown",
+};
+
+const char *ast_sip_get_contact_status_label(const enum ast_sip_contact_status_type status)
+{
+	return status_map[status];
+}
+
+const char *ast_sip_get_contact_short_status_label(const enum ast_sip_contact_status_type status)
+{
+	return short_status_map[status];
+}
+
 /*!
  * \internal
  * \brief Create a ast_sip_contact_status object.
@@ -48,7 +70,7 @@ static void *contact_status_alloc(const char *name)
 		return NULL;
 	}
 
-	status->status = UNAVAILABLE;
+	status->status = UNKNOWN;
 
 	return status;
 }
@@ -86,19 +108,6 @@ static struct ast_sip_contact_status *find_or_create_contact_status(const struct
 	return status;
 }
 
-static void delete_contact_status(const struct ast_sip_contact *contact)
-{
-	struct ast_sip_contact_status *status = ast_sorcery_retrieve_by_id(
-		ast_sip_get_sorcery(), CONTACT_STATUS, ast_sorcery_object_get_id(contact));
-
-	if (!status) {
-		return;
-	}
-
-	ast_sorcery_delete(ast_sip_get_sorcery(), status);
-	ao2_ref(status, -1);
-}
-
 /*!
  * \internal
  * \brief Update an ast_sip_contact_status's elements.
@@ -129,17 +138,19 @@ static void update_contact_status(const struct ast_sip_contact *contact,
 
 	/* if the contact is available calculate the rtt as
 	   the diff between the last start time and "now" */
-	update->rtt = update->status == AVAILABLE ?
+	update->rtt = update->status == AVAILABLE && status->rtt_start.tv_sec > 0 ?
 		ast_tvdiff_us(ast_tvnow(), status->rtt_start) : 0;
 
 	update->rtt_start = ast_tv(0, 0);
+
+
 
 	ast_test_suite_event_notify("AOR_CONTACT_QUALIFY_RESULT",
 		"Contact: %s\r\n"
 			"Status: %s\r\n"
 			"RTT: %" PRId64,
 		ast_sorcery_object_get_id(update),
-		(update->status == AVAILABLE ? "Available" : "Unavailable"),
+		ast_sip_get_contact_status_label(update->status),
 		update->rtt);
 
 	if (ast_sorcery_update(ast_sip_get_sorcery(), update)) {
@@ -499,7 +510,7 @@ static void qualify_and_schedule(struct ast_sip_contact *contact)
 
 		schedule_qualify(contact, contact->qualify_frequency * 1000);
 	} else {
-		delete_contact_status(contact);
+		update_contact_status(contact, UNKNOWN);
 	}
 }
 
@@ -1011,6 +1022,8 @@ static int qualify_and_schedule_cb(void *obj, void *arg, int flags)
 
 	if (contact->qualify_frequency) {
 		schedule_qualify(contact, initial_interval);
+	} else {
+		update_contact_status(contact, UNKNOWN);
 	}
 
 	return 0;
@@ -1082,11 +1095,6 @@ static void qualify_and_schedule_all(void)
 	ao2_ref(endpoints, -1);
 }
 
-static const char *status_map [] = {
-	[UNAVAILABLE] = "Unreachable",
-	[AVAILABLE] = "Reachable",
-};
-
 static int format_contact_status(void *obj, void *arg, int flags)
 {
 	struct ast_sip_contact_wrapper *wrapper = obj;
@@ -1107,12 +1115,11 @@ static int format_contact_status(void *obj, void *arg, int flags)
 
 	ast_str_append(&buf, 0, "AOR: %s\r\n", wrapper->aor_id);
 	ast_str_append(&buf, 0, "URI: %s\r\n", contact->uri);
-	if (status) {
-		ast_str_append(&buf, 0, "Status: %s\r\n", status_map[status->status]);
-		ast_str_append(&buf, 0, "RoundtripUsec: %" PRId64 "\r\n", status->rtt);
-	} else {
-		ast_str_append(&buf, 0, "Status: Unknown\r\n");
+	ast_str_append(&buf, 0, "Status: %s\r\n", ast_sip_get_contact_status_label(status->status));
+	if (status->status == UNKNOWN) {
 		ast_str_append(&buf, 0, "RoundtripUsec: N/A\r\n");
+	} else {
+		ast_str_append(&buf, 0, "RoundtripUsec: %" PRId64 "\r\n", status->rtt);
 	}
 	ast_str_append(&buf, 0, "EndpointName: %s\r\n",
 			ast_sorcery_object_get_id(endpoint));

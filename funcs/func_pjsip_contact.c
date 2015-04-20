@@ -147,15 +147,9 @@ static int pjsip_contact_function_read(struct ast_channel *chan,
 	contact_status = ast_sorcery_retrieve_by_id(pjsip_sorcery, CONTACT_STATUS, ast_sorcery_object_get_id(contact_obj));
 
 	if (!strcmp(args.field_name, "status")) {
-		if (!contact_status) {
-			ast_str_set(buf, len, "%s", "Unknown");
-		} else if (contact_status->status == UNAVAILABLE) {
-			ast_str_set(buf, len, "%s", "Unreachable");
-		} else if (contact_status->status == AVAILABLE) {
-			ast_str_set(buf, len, "%s", "Reachable");
-		}
+		ast_str_set(buf, len, "%s", ast_sip_get_contact_status_label(contact_status->status));
 	} else if (!strcmp(args.field_name, "rtt")) {
-		if (!contact_status) {
+		if (contact_status->status == UNKNOWN) {
 			ast_str_set(buf, len, "%s", "N/A");
 		} else {
 			ast_str_set(buf, len, "%" PRId64, contact_status->rtt);
