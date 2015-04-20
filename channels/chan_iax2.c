@@ -2056,6 +2056,9 @@ static int iax2_getpeername(struct ast_sockaddr addr, char *host, int len)
  * iax2_destroy_helper() is called. */
 static void iax2_destroy_helper(struct chan_iax2_pvt *pvt)
 {
+	int pingid = pvt->pingid;
+	int lagid = pvt->lagid;
+
 	/* Decrement AUTHREQ count if needed */
 	if (ast_test_flag64(pvt, IAX_MAXAUTHREQ)) {
 		struct iax2_user *user;
@@ -2068,11 +2071,19 @@ static void iax2_destroy_helper(struct chan_iax2_pvt *pvt)
 
 		ast_clear_flag64(pvt, IAX_MAXAUTHREQ);
 	}
-	/* No more pings or lagrq's */
-	AST_SCHED_DEL_SPINLOCK(sched, pvt->pingid, &iaxsl[pvt->callno]);
+
 	pvt->pingid = DONT_RESCHEDULE;
-	AST_SCHED_DEL_SPINLOCK(sched, pvt->lagid, &iaxsl[pvt->callno]);
 	pvt->lagid = DONT_RESCHEDULE;
+
+	/* Unlock callno to prevent dead lock while deleting ping or lag if they are already in running state started. */
+	ast_mutex_unlock(&iaxsl[pvt->callno]);
+
+	/* No more pings or lagrq's: Delete them from scheduler. */
+	AST_SCHED_DEL(sched, pingid);
+	AST_SCHED_DEL(sched, lagid);
+
+	ast_mutex_lock(&iaxsl[pvt->callno]);
+
 	AST_SCHED_DEL(sched, pvt->autoid);
 	AST_SCHED_DEL(sched, pvt->authid);
 	AST_SCHED_DEL(sched, pvt->initid);

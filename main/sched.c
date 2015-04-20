@@ -492,12 +492,26 @@ int _ast_sched_del(struct ast_sched_context *con, int id, const char *file, int 
 		}
 		sched_release(con, s);
 	} else if (con->currently_executing && (id == con->currently_executing->id)) {
+		int ret;
+		struct timespec ts = {0};
+		struct timeval tv;
+		const struct timeval sleeptv = {.tv_sec= 0, .tv_usec= 1000};
+
 		s = con->currently_executing;
 		s->deleted = 1;
+
 		/* Wait for executing task to complete so that caller of ast_sched_del() does not
 		 * free memory out from under the task.
 		 */
-		ast_cond_wait(&s->cond, &con->lock);
+		do {
+			ast_log(LOG_WARNING, "Waiting for sched task %d to finish to delete it.\n", id);
+			tv = ast_tvadd(ast_tvnow(), sleeptv);
+			ts.tv_sec = tv.tv_sec;
+			ts.tv_nsec = tv.tv_usec * 1000;
+			/* Wait for 1ms before trying again. This is ONLY used to print warning that scheduler is stuck 
+			   until this task is finished. */
+			ret = ast_cond_timedwait(&s->cond, &con->lock, &ts);
+		} while(ret != 0);
 		/* Do not sched_release() here because ast_sched_runq() will do it */
 	}
 
