@@ -10734,6 +10734,16 @@ void __ast_context_destroy(struct ast_context *list, struct ast_hashtab *context
 				exten_iter = ast_hashtab_start_traversal(tmp->root_table);
 				while ((exten_item=ast_hashtab_next(exten_iter))) {
 					int end_traversal = 1;
+
+					/*
+					 * If the extension could not be removed from the root_table due to
+					 * a loaded PBX app, it can exist here but have its peer_table be
+					 * destroyed due to a previous pass through this function.
+					 */
+					if (!exten_item->peer_table) {
+						continue;
+					}
+
 					prio_iter = ast_hashtab_start_traversal(exten_item->peer_table);
 					while ((prio_item=ast_hashtab_next(prio_iter))) {
 						char extension[AST_MAX_EXTENSION];
