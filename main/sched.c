@@ -513,16 +513,8 @@ int _ast_sched_del(struct ast_sched_context *con, int id, const char *file, int 
 
 	if (!s && *last_id != id) {
 		ast_debug(1, "Attempted to delete nonexistent schedule entry %d!\n", id);
-#ifndef AST_DEVMODE
-		ast_assert(s != NULL);
-#else
-		{
-			char buf[100];
-
-			snprintf(buf, sizeof(buf), "s != NULL, id=%d", id);
-			_ast_assert(0, buf, file, line, function);
-		}
-#endif
+		/* Removing nonexistent schedule entry shouldn't trigger assert (it was enabled in DEV_MODE);
+		 * because in many places entries is deleted without having valid id. */
 		*last_id = id;
 		return -1;
 	} else if (!s) {
