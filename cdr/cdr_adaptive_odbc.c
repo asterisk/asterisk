@@ -484,7 +484,6 @@ static int odbc_log(struct ast_cdr *cdr)
 						}
 					}
 
-					ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 					LENGTHEN_BUF2(strlen(colptr));
 
 					/* Encode value, with escaping */
@@ -520,7 +519,6 @@ static int odbc_log(struct ast_cdr *cdr)
 							year += 2000;
 						}
 
-						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 						LENGTHEN_BUF2(17);
 						ast_str_append(&sql2, 0, "%s{ d '%04d-%02d-%02d' }", first ? "" : ",", year, month, day);
 					}
@@ -537,7 +535,6 @@ static int odbc_log(struct ast_cdr *cdr)
 							continue;
 						}
 
-						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 						LENGTHEN_BUF2(15);
 						ast_str_append(&sql2, 0, "%s{ t '%02d:%02d:%02d' }", first ? "" : ",", hour, minute, second);
 					}
@@ -566,7 +563,6 @@ static int odbc_log(struct ast_cdr *cdr)
 							year += 2000;
 						}
 
-						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 						LENGTHEN_BUF2(26);
 						ast_str_append(&sql2, 0, "%s{ ts '%04d-%02d-%02d %02d:%02d:%02d' }", first ? "" : ",", year, month, day, hour, minute, second);
 					}
@@ -581,7 +577,6 @@ static int odbc_log(struct ast_cdr *cdr)
 							continue;
 						}
 
-						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 						LENGTHEN_BUF2(12);
 						ast_str_append(&sql2, 0, "%s%d", first ? "" : ",", integer);
 					}
@@ -596,7 +591,6 @@ static int odbc_log(struct ast_cdr *cdr)
 							continue;
 						}
 
-						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 						LENGTHEN_BUF2(24);
 						ast_str_append(&sql2, 0, "%s%lld", first ? "" : ",", integer);
 					}
@@ -611,7 +605,6 @@ static int odbc_log(struct ast_cdr *cdr)
 							continue;
 						}
 
-						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 						LENGTHEN_BUF2(6);
 						ast_str_append(&sql2, 0, "%s%d", first ? "" : ",", integer);
 					}
@@ -626,7 +619,6 @@ static int odbc_log(struct ast_cdr *cdr)
 							continue;
 						}
 
-						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 						LENGTHEN_BUF2(4);
 						ast_str_append(&sql2, 0, "%s%d", first ? "" : ",", integer);
 					}
@@ -643,7 +635,6 @@ static int odbc_log(struct ast_cdr *cdr)
 						if (integer != 0)
 							integer = 1;
 
-						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 						LENGTHEN_BUF2(2);
 						ast_str_append(&sql2, 0, "%s%d", first ? "" : ",", integer);
 					}
@@ -676,7 +667,6 @@ static int odbc_log(struct ast_cdr *cdr)
 							continue;
 						}
 
-						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 						LENGTHEN_BUF2(entry->decimals);
 						ast_str_append(&sql2, 0, "%s%*.*lf", first ? "" : ",", entry->decimals, entry->radix, number);
 					}
@@ -710,7 +700,6 @@ static int odbc_log(struct ast_cdr *cdr)
 							continue;
 						}
 
-						ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 						LENGTHEN_BUF2(entry->decimals);
 						ast_str_append(&sql2, 0, "%s%lf", first ? "" : ",", number);
 					}
@@ -719,6 +708,7 @@ static int odbc_log(struct ast_cdr *cdr)
 					ast_log(LOG_WARNING, "Column type %d (field '%s:%s:%s') is unsupported at this time.\n", entry->type, tableptr->connection, tableptr->table, entry->name);
 					continue;
 				}
+				ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
 				first = 0;
 			} else if (entry->filtervalue
 				&& ((!entry->negatefiltervalue && entry->filtervalue[0] != '\0')
