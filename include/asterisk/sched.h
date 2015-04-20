@@ -272,6 +272,15 @@ int ast_sched_replace_variable(int old_id, struct ast_sched_context *con, int wh
 const void *ast_sched_find_data(struct ast_sched_context *con, int id);
 
 /*!
+ * \brief Deletes an event if it is still scheduled.
+ *
+ * \param con scheduling context to delete item from
+ * \param id ID of the scheduled item to delete
+ *
+ */
+void ast_sched_del_if_exist(struct ast_sched_context *con, int id);
+
+/*!
  * \brief Deletes a scheduled event
  *
  * Remove this event from being run.  A procedure should not remove its own

@@ -463,6 +463,21 @@ const void *ast_sched_find_data(struct ast_sched_context *con, int id)
 }
 
 /*! \brief
+ * Delete the schedule entry with number "id" if it is not executed yet.
+ */
+void ast_sched_del_if_exist(struct ast_sched_context *con, int id)
+{
+	ast_mutex_lock(&con->lock);
+
+	/* If entry is still found in scheduler (not executed yet), delete it. */
+	if (id > -1 && sched_find(con, id)) {
+		AST_SCHED_DEL(con, id);
+	}
+
+	ast_mutex_unlock(&con->lock);
+}
+
+/*! \brief
  * Delete the schedule entry with number
  * "id".  It's nearly impossible that there
  * would be two or more in the list with that

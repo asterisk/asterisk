@@ -395,8 +395,6 @@ static int (*iax2_regfunk)(const char *username, int onoff) = NULL;
 static struct io_context *io;
 static struct ast_sched_context *sched;
 
-#define DONT_RESCHEDULE -2
-
 static iax2_format iax2_capability = IAX_CAPABILITY_FULLBANDWIDTH;
 
 static int iaxdebug = 0;
@@ -864,6 +862,8 @@ struct chan_iax2_pvt {
 	int frames_dropped;
 	/*! received frame count: (just for stats) */
 	int frames_received;
+	/*! Destroying this call initiated. */
+	int destroy_initiated;
 	/*! num bytes used for calltoken ie, even an empty ie should contain 2 */
 	unsigned char calltoken_ie_len;
 	/*! hold all signaling frames from the pbx thread until we have a destination callno */
@@ -1671,23 +1671,48 @@ static int iax2_sched_add(struct ast_sched_context *con, int when,
 	return ast_sched_add(con, when, callback, data);
 }
 
+/*
+ * \brief Acquire the iaxsl[callno] if call exists and not having ongoing hangup.
+ * \param callno Call number to lock.
+ * \return 0 If call disappeared or has ongoing hangup procedure. 1 If call found and mutex is locked.
+ */
+static int iax2_lock_callno_unless_destroyed(int callno)
+{
+	ast_mutex_lock(&iaxsl[callno]);
+
+	/* We acquired the lock; but the call was already destroyed (we came after full hang up procedures)
+	 * or destroy initiated (in middle of hang up procedure. */
+	if (!iaxs[callno] || iaxs[callno]->destroy_initiated) {
+		ast_debug(3, "I wanted to lock callno %d, but it is dead or going to die.\n", callno);
+		ast_mutex_unlock(&iaxsl[callno]);
+		return 0;
+	}
+
+	/* Lock acquired, and callno is alive and kicking. */
+	return 1;
+}
+
 static int send_ping(const void *data);
 
 static void __send_ping(const void *data)
 {
-	int callno = (long) data;
+	int callno = PTR_TO_CALLNO(data);
 
-	ast_mutex_lock(&iaxsl[callno]);
+	if (iax2_lock_callno_unless_destroyed(callno) == 0) {
+		ast_debug(3, "Hangup initiated on call %d, aborting __send_ping\n", callno);
+		return;
+	}
 
-	if (iaxs[callno]) {
-		if (iaxs[callno]->peercallno) {
-			send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_PING, 0, NULL, 0, -1);
-			if (iaxs[callno]->pingid != DONT_RESCHEDULE) {
-				iaxs[callno]->pingid = iax2_sched_add(sched, ping_time * 1000, send_ping, data);
-			}
-		}
-	} else {
-		ast_debug(1, "I was supposed to send a PING with callno %d, but no such call exists.\n", callno);
+	/* Mark pingid as invalid scheduler id. */
+	iaxs[callno]->pingid = -1;
+
+	/* callno is now locked. */
+	if (iaxs[callno]->peercallno) {
+		/* Send PING packet. */
+		send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_PING, 0, NULL, 0, -1);
+
+		/* Schedule sending next ping. */
+		iaxs[callno]->pingid = iax2_sched_add(sched, ping_time * 1000, send_ping, data);
 	}
 
 	ast_mutex_unlock(&iaxsl[callno]);
@@ -1695,13 +1720,6 @@ static void __send_ping(const void *data)
 
 static int send_ping(const void *data)
 {
-	int callno = (long) data;
-	ast_mutex_lock(&iaxsl[callno]);
-	if (iaxs[callno] && iaxs[callno]->pingid != DONT_RESCHEDULE) {
-		iaxs[callno]->pingid = -1;
-	}
-	ast_mutex_unlock(&iaxsl[callno]);
-
 #ifdef SCHED_MULTITHREADED
 	if (schedule_action(__send_ping, data))
 #endif
@@ -1742,19 +1760,23 @@ static int send_lagrq(const void *data);
 
 static void __send_lagrq(const void *data)
 {
-	int callno = (long) data;
+	int callno = PTR_TO_CALLNO(data);
 
-	ast_mutex_lock(&iaxsl[callno]);
+	if (iax2_lock_callno_unless_destroyed(callno) == 0) {
+		ast_debug(3, "Hangup initiated on call %d, aborting __send_lagrq\n", callno);
+		return;
+	}
 
-	if (iaxs[callno]) {
-		if (iaxs[callno]->peercallno) {
-			send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_LAGRQ, 0, NULL, 0, -1);
-			if (iaxs[callno]->lagid != DONT_RESCHEDULE) {
-				iaxs[callno]->lagid = iax2_sched_add(sched, lagrq_time * 1000, send_lagrq, data);
-			}
-		}
-	} else {
-		ast_debug(1, "I was supposed to send a LAGRQ with callno %d, but no such call exists.\n", callno);
+	/* Mark lagid as invalid scheduler id. */
+	iaxs[callno]->lagid = -1;
+
+	/* callno is now locked. */
+	if (iaxs[callno]->peercallno) {
+		/* Send LAGRQ packet. */
+		send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_LAGRQ, 0, NULL, 0, -1);
+
+		/* Schedule sending next lagrq. */
+		iaxs[callno]->lagid = iax2_sched_add(sched, lagrq_time * 1000, send_lagrq, data);
 	}
 
 	ast_mutex_unlock(&iaxsl[callno]);
@@ -1762,13 +1784,6 @@ static void __send_lagrq(const void *data)
 
 static int send_lagrq(const void *data)
 {
-	int callno = (long) data;
-	ast_mutex_lock(&iaxsl[callno]);
-	if (iaxs[callno] && iaxs[callno]->lagid != DONT_RESCHEDULE) {
-		iaxs[callno]->lagid = -1;
-	}
-	ast_mutex_unlock(&iaxsl[callno]);
-
 #ifdef SCHED_MULTITHREADED
 	if (schedule_action(__send_lagrq, data))
 #endif
@@ -2052,6 +2067,17 @@ static int iax2_getpeername(struct ast_sockaddr addr, char *host, int len)
 	return res;
 }
 
+/* Call AST_SCHED_DEL on a scheduled task if it is found in scheduler. */
+static int iax2_delete_from_sched(const void* data)
+{
+	int sched_id = (int)((long)(data));
+
+	/* If call is still found in scheduler (not executed yet), delete it. */
+	ast_sched_del_if_exist(sched, sched_id);
+
+	return 0;
+}
+
 /*!\note Assumes the lock on the pvt is already held, when
  * iax2_destroy_helper() is called. */
 static void iax2_destroy_helper(struct chan_iax2_pvt *pvt)
@@ -2068,11 +2094,27 @@ static void iax2_destroy_helper(struct chan_iax2_pvt *pvt)
 
 		ast_clear_flag64(pvt, IAX_MAXAUTHREQ);
 	}
-	/* No more pings or lagrq's */
-	AST_SCHED_DEL_SPINLOCK(sched, pvt->pingid, &iaxsl[pvt->callno]);
-	pvt->pingid = DONT_RESCHEDULE;
-	AST_SCHED_DEL_SPINLOCK(sched, pvt->lagid, &iaxsl[pvt->callno]);
-	pvt->lagid = DONT_RESCHEDULE;
+
+
+	/* Mark call destroy initiated flag. */
+	pvt->destroy_initiated = 1;
+
+	/*
+	 * Schedule deleting the scheduled (but didn't run yet) PINGs or LAGRQs.
+	 * Already running tasks will be terminated because of destroy_initiated.
+	 *
+	 * Don't call AST_SCHED_DEL from this thread for pingid and lagid because
+	 * it leads to a deadlock between the scheduler thread callback locking
+	 * the callno mutex and this thread which holds the callno mutex one or
+	 * more times.  It is better to have another thread delete the scheduled
+	 * callbacks which doesn't lock the callno mutex.
+	 */
+	iax2_sched_add(sched, 0, iax2_delete_from_sched, (void*)(long)pvt->pingid);
+	iax2_sched_add(sched, 0, iax2_delete_from_sched, (void*)(long)pvt->lagid);
+
+	pvt->pingid = -1;
+	pvt->lagid = -1;
+
 	AST_SCHED_DEL(sched, pvt->autoid);
 	AST_SCHED_DEL(sched, pvt->authid);
 	AST_SCHED_DEL(sched, pvt->initid);
@@ -2311,9 +2353,11 @@ static int make_trunk(unsigned short callno, int locked)
 	 * \note We delete these before switching the slot, because if
 	 * they fire in the meantime, they will generate a warning.
 	 */
-	AST_SCHED_DEL(sched, iaxs[callno]->pingid);
-	AST_SCHED_DEL(sched, iaxs[callno]->lagid);
-	iaxs[callno]->lagid = iaxs[callno]->pingid = -1;
+	iax2_delete_from_sched((void*)(long)iaxs[callno]->lagid);
+	iax2_delete_from_sched((void*)(long)iaxs[callno]->pingid);
+	iaxs[callno]->lagid = -1;
+	iaxs[callno]->pingid = -1;
+
 	iaxs[x] = iaxs[callno];
 	iaxs[x]->callno = x;
 
