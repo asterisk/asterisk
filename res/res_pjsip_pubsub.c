@@ -1019,6 +1019,7 @@ static int subscription_remove_serializer(void *obj)
 	 * remove the serializer will be successful.
 	 */
 	ast_sip_dialog_set_serializer(sub_tree->dlg, NULL);
+	ast_sip_dialog_set_endpoint(sub_tree->dlg, NULL);
 	pjsip_dlg_dec_session(sub_tree->dlg, &pubsub_module);
 
 	return 0;
@@ -1188,6 +1189,7 @@ static void subscription_setup_dialog(struct sip_subscription_tree *sub_tree, pj
 	pjsip_dlg_inc_session(dlg, &pubsub_module);
 	sub_tree->dlg = dlg;
 	ast_sip_dialog_set_serializer(dlg, sub_tree->serializer);
+	ast_sip_dialog_set_endpoint(dlg, sub_tree->endpoint);
 	pjsip_evsub_set_mod_data(sub_tree->evsub, pubsub_module.id, sub_tree);
 }
 
