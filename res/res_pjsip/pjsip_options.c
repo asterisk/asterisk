@@ -137,7 +137,7 @@ static void update_contact_status(const struct ast_sip_contact *contact,
 	ast_test_suite_event_notify("AOR_CONTACT_QUALIFY_RESULT",
 		"Contact: %s\r\n"
 			"Status: %s\r\n"
-			"RTT: %ld",
+			"RTT: %" PRId64,
 		ast_sorcery_object_get_id(update),
 		(update->status == AVAILABLE ? "Available" : "Unavailable"),
 		update->rtt);
