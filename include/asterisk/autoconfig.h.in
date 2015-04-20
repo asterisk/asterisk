@@ -1307,6 +1307,14 @@
 /* Number of bits in a file offset, on hosts where this is settable. */
 #undef _FILE_OFFSET_BITS
 
+/* Prevent clang array-bounds warning by not using strcmp from bits/string2.h
+   */
+#undef _HAVE_STRING_ARCH_strcmp
+
+/* Prevent clang array-bounds warning by not using strsep from bits/string2.h
+   */
+#undef _HAVE_STRING_ARCH_strsep
+
 /* Define to 1 to make fseeko visible on some hosts (e.g. glibc 2.2). */
 #undef _LARGEFILE_SOURCE
 
