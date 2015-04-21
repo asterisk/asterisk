@@ -1246,6 +1246,13 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 
 	ast_assert(ao2_ref(class, 0) > 1);
 
+	/* Dont connect while server is marked as unreachable via negative_connection_cache */
+	long int negative_cache_expiration = class->last_negative_connect.tv_sec + class->negative_connection_cache.tv_sec; 
+	if (time(NULL) < negative_cache_expiration) {
+		ast_log(LOG_WARNING, "Not connecting to %s. Negative connection cache for %ld seconds\n", name, negative_cache_expiration - time(NULL));
+		return NULL;
+	}
+
 	if (class->haspool) {
 		/* Recycle connections before building another */
 		obj = ao2_callback(class->obj_container, 0, aoro2_obj_cb, EOR_TX);
@@ -1253,8 +1260,7 @@ struct odbc_obj *_ast_odbc_request_obj2(const char *name, struct ast_flags flags
 		if (obj) {
 			ast_assert(ao2_ref(obj, 0) > 1);
 		}
-		if (!obj && (ast_atomic_fetchadd_int(&class->count, +1) < class->limit) &&
-				(time(NULL) > class->last_negative_connect.tv_sec + class->negative_connection_cache.tv_sec)) {
+		if (!obj && (ast_atomic_fetchadd_int(&class->count, +1) < class->limit)) {
 			obj = ao2_alloc(sizeof(*obj), odbc_obj_destructor);
 			if (!obj) {
 				class->count--;
