@@ -82,6 +82,7 @@ struct tables {
 	char *connection;
 	char *table;
 	char *schema;
+	char *quoted_identifiers;
 	unsigned int usegmtime:1;
 	AST_LIST_HEAD_NOLOCK(odbc_columns, columns) columns;
 	AST_RWLIST_ENTRY(tables) list;
@@ -101,7 +102,8 @@ static int load_config(void)
 	char connection[40];
 	char table[40];
 	char schema[40];
-	int lenconnection, lentable, lenschema, usegmtime = 0;
+	char quoted_identifiers[3];
+	int lenconnection, lentable, lenschema, lenquoted_identifiers, usegmtime = 0;
 	SQLLEN sqlptr;
 	int res = 0;
 	SQLHSTMT stmt = NULL;
@@ -149,6 +151,12 @@ static int load_config(void)
 		ast_copy_string(schema, tmp, sizeof(schema));
 		lenschema = strlen(schema);
 
+		if (ast_strlen_zero(tmp = ast_variable_retrieve(cfg, catg, "quoted_identifiers"))) {
+			tmp = "";
+		}
+		ast_copy_string(quoted_identifiers, tmp, sizeof(quoted_identifiers));
+		lenquoted_identifiers = strlen(quoted_identifiers);
+
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Alloc Handle failed on connection '%s'!\n", connection);
@@ -164,7 +172,7 @@ static int load_config(void)
 			continue;
 		}
 
-		tableptr = ast_calloc(sizeof(char), sizeof(*tableptr) + lenconnection + 1 + lentable + 1 + lenschema + 1);
+		tableptr = ast_calloc(sizeof(char), sizeof(*tableptr) + lenconnection + 1 + lentable + 1 + lenschema + 1 + lenquoted_identifiers + 1);
 		if (!tableptr) {
 			ast_log(LOG_ERROR, "Out of memory creating entry for table '%s' on connection '%s'%s%s%s\n", table, connection,
 				lenschema ? " (schema '" : "", lenschema ? schema : "", lenschema ? "')" : "");
@@ -178,9 +186,11 @@ static int load_config(void)
 		tableptr->connection = (char *)tableptr + sizeof(*tableptr);
 		tableptr->table = (char *)tableptr + sizeof(*tableptr) + lenconnection + 1;
 		tableptr->schema = (char *)tableptr + sizeof(*tableptr) + lenconnection + 1 + lentable + 1;
+		tableptr->quoted_identifiers = (char *)tableptr + sizeof(*tableptr) + lenconnection + 1 + lentable + 1 + lenschema + 1;
 		ast_copy_string(tableptr->connection, connection, lenconnection + 1);
 		ast_copy_string(tableptr->table, table, lentable + 1);
 		ast_copy_string(tableptr->schema, schema, lenschema + 1);
+		ast_copy_string(tableptr->quoted_identifiers, quoted_identifiers, lenquoted_identifiers + 1);
 
 		ast_verb(3, "Found adaptive CDR table %s@%s.\n", tableptr->table, tableptr->connection);
 
@@ -400,10 +410,19 @@ static int odbc_log(struct ast_cdr *cdr)
 
 	AST_LIST_TRAVERSE(&odbc_tables, tableptr, list) {
 		int first = 1;
+		int quoted = 0;
+
+		if (!ast_strlen_zero(tableptr->quoted_identifiers)){
+			quoted = 1;
+		}
+
 		if (ast_strlen_zero(tableptr->schema)) {
-			ast_str_set(&sql, 0, "INSERT INTO %s (", tableptr->table);
+			ast_str_set(&sql, 0, "INSERT INTO %s%s%s (", quoted ? tableptr->quoted_identifiers : "",
+				tableptr->table, quoted ? tableptr->quoted_identifiers : "" );
 		} else {
-			ast_str_set(&sql, 0, "INSERT INTO %s.%s (", tableptr->schema, tableptr->table);
+			ast_str_set(&sql, 0, "INSERT INTO %s%s%s.%s%s%s (",
+					quoted ? tableptr->quoted_identifiers : "", tableptr->schema, quoted ? tableptr->quoted_identifiers : "",
+					quoted ? tableptr->quoted_identifiers : "", tableptr->table, quoted ? tableptr->quoted_identifiers : "" );
 		}
 		ast_str_set(&sql2, 0, " VALUES (");
 
@@ -708,7 +727,11 @@ static int odbc_log(struct ast_cdr *cdr)
 					ast_log(LOG_WARNING, "Column type %d (field '%s:%s:%s') is unsupported at this time.\n", entry->type, tableptr->connection, tableptr->table, entry->name);
 					continue;
 				}
-				ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
+				if (ast_strlen_zero(tableptr->quoted_identifiers)) {
+					ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
+				} else {
+					ast_str_append(&sql, 0, "%s%s%s%s", first ? "" : ",", tableptr->quoted_identifiers, entry->name, tableptr->quoted_identifiers);
+				}
 				first = 0;
 			} else if (entry->filtervalue
 				&& ((!entry->negatefiltervalue && entry->filtervalue[0] != '\0')
