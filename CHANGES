@@ -136,6 +136,17 @@ cel_pgsql
 * Added a new option, 'usegmtime', which causes timestamps in CEL events
   to be logged in GMT.
 
+CDR Backends
+------------------
+
+cdr_adaptive_odbc
+------------------
+ * Added the ability to set the character to quote identifiers. This
+   allows adding the character at the start and end of table and column
+   names. This setting is configurable for cdr_adaptive_odbc via the
+   quoted_identifiers in configuration file cdr_adaptive_odbc.conf.
+
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.3.0 to Asterisk 13.4.0 ------------
 ------------------------------------------------------------------------------

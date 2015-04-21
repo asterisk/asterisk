@@ -57,4 +57,7 @@
 ; for this is to allow different sections to specify different values for
 ; a certain named column, presumably separated by filters.
 ;static "Some Special Value" => identifier_code
+;
+; Add quoted indentifiers for table and columns names.
+;quoted_identifiers=" ; Default to null
 
