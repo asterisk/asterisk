@@ -1458,11 +1458,12 @@ int ast_waitstream_exten(struct ast_channel *c, const char *context)
  * Return 0 if success, -1 if error, digit if interrupted by a digit.
  * If digits == "" then we can simply check for non-zero.
  */
-int ast_stream_and_wait(struct ast_channel *chan, const char *file, const char *digits)
+int ast_stream_and_wait_with_language(struct ast_channel *chan, const char *file,
+				      const char *digits, const char *language)
 {
 	int res = 0;
 	if (!ast_strlen_zero(file)) {
-		res = ast_streamfile(chan, file, ast_channel_language(chan));
+		res = ast_streamfile(chan, file, language ?: ast_channel_language(chan));
 		if (!res) {
 			res = ast_waitstream(chan, digits);
 		}

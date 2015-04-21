@@ -661,8 +661,12 @@ int ast_control_streamfile_w_cb(struct ast_channel *chan,
 	long *offsetms,
 	ast_waitstream_fr_cb cb);
 
+/*! \brief Play a stream and wait for a digit, returning the digit that was pressed. Use
+           the given language parameter to optionally override the channel's language */
+int ast_play_and_wait_with_language(struct ast_channel *chan, const char *fn, const char *language);
+
 /*! \brief Play a stream and wait for a digit, returning the digit that was pressed */
-int ast_play_and_wait(struct ast_channel *chan, const char *fn);
+#define ast_play_and_wait(chan, fn) ast_play_and_wait_with_language(chan, fn, NULL)
 
 /*!
  * \brief Record a file based on input from a channel
@@ -690,6 +694,30 @@ int ast_play_and_record_full(struct ast_channel *chan, const char *playfile, con
 
 /*!
  * \brief Record a file based on input from a channel. Use default accept and cancel DTMF.
+ *        This function will play "auth-thankyou" upon successful recording. Override the
+ *        Channel's language with the given one.
+ *
+ * \param chan the channel being recorded
+ * \param playfile Filename of sound to play before recording begins
+ * \param recordfile Filename to save the recording
+ * \param maxtime_sec Longest possible message length in seconds
+ * \param fmt string containing all formats to be recorded delimited by '|'
+ * \param duration pointer to integer for storing length of the recording
+ * \param sound_duration pointer to integer for storing length of the recording minus all silence
+ * \param silencethreshold tolerance of noise levels that can be considered silence for the purpose of silence timeout, -1 for default
+ * \param maxsilence_ms length of time in milliseconds which will trigger a timeout from silence, -1 for default
+ * \param path Optional filesystem path to unlock
+ * \param language Optional language to use (default: Channel's language)
+ *
+ * \retval -1 failure or hangup
+ * \retval 'S' Recording ended from silence timeout
+ * \retval 't' Recording ended from the message exceeding the maximum duration
+ * \retval dtmfchar Recording ended via the return value's DTMF character for either cancel or accept.
+ */
+int ast_play_and_record_with_language(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime_sec, const char *fmt, int *duration, int *sound_duration, int silencethreshold, int maxsilence_ms, const char *path, const char *language);
+
+/*!
+ * \brief Record a file based on input from a channel. Use default accept and cancel DTMF.
  *        This function will play "auth-thankyou" upon successful recording.
  *
  * \param chan the channel being recorded
@@ -708,7 +736,8 @@ int ast_play_and_record_full(struct ast_channel *chan, const char *playfile, con
  * \retval 't' Recording ended from the message exceeding the maximum duration
  * \retval dtmfchar Recording ended via the return value's DTMF character for either cancel or accept.
  */
-int ast_play_and_record(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime_sec, const char *fmt, int *duration, int *sound_duration, int silencethreshold, int maxsilence_ms, const char *path);
+#define ast_play_and_record(chan, playfile, recordfile, maxtime, fmt, duration, sound_duration, silence_threshold, maxsilence, path) \
+	ast_play_and_record_with_language(chan, playfile, recordfile, maxtime, fmt, duration, sound_duration, silence_threshold, maxsilence, path, NULL)
 
 /*!
  * \brief Record a file based on input frm a channel. Recording is performed in 'prepend' mode which works a little differently from normal recordings

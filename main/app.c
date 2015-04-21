@@ -1081,11 +1081,11 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 	return control_streamfile(chan, file, fwd, rev, stop, suspend, restart, skipms, offsetms, NULL);
 }
 
-int ast_play_and_wait(struct ast_channel *chan, const char *fn)
+int ast_play_and_wait_with_language(struct ast_channel *chan, const char *fn, const char *language)
 {
 	int d = 0;
 
-	if ((d = ast_streamfile(chan, fn, ast_channel_language(chan)))) {
+	if ((d = ast_streamfile(chan, fn, language ?: ast_channel_language(chan)))) {
 		return d;
 	}
 
@@ -1115,13 +1115,14 @@ static int global_maxsilence = 0;
  * \param acceptdtmf DTMF digits that will end the recording.
  * \param canceldtmf DTMF digits that will cancel the recording.
  * \param skip_confirmation_sound If true, don't play auth-thankyou at end. Nice for custom recording prompts in apps.
+ * \param language Optional language to use for playback (default: channel's language)
  *
  * \retval -1 failure or hangup
  * \retval 'S' Recording ended from silence timeout
  * \retval 't' Recording ended from the message exceeding the maximum duration, or via DTMF in prepend mode
  * \retval dtmfchar Recording ended via the return value's DTMF character for either cancel or accept.
  */
-static int __ast_play_and_record(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, int *sound_duration, int beep, int silencethreshold, int maxsilence, const char *path, int prepend, const char *acceptdtmf, const char *canceldtmf, int skip_confirmation_sound)
+static int __ast_play_and_record(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, int *sound_duration, int beep, int silencethreshold, int maxsilence, const char *path, int prepend, const char *acceptdtmf, const char *canceldtmf, int skip_confirmation_sound, const char *language)
 {
 	int d = 0;
 	char *fmts;
@@ -1159,10 +1160,10 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 
 	if (playfile || beep) {
 		if (!beep) {
-			d = ast_play_and_wait(chan, playfile);
+			d = ast_play_and_wait_with_language(chan, playfile, language);
 		}
 		if (d > -1) {
-			d = ast_stream_and_wait(chan, "beep", "");
+			d = ast_stream_and_wait_with_language(chan, "beep", "", language);
 		}
 		if (d < 0) {
 			return -1;
@@ -1428,7 +1429,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 		ast_log(LOG_WARNING, "Unable to restore format %s to channel '%s'\n", ast_getformatname(&rfmt), ast_channel_name(chan));
 	}
 	if ((outmsg == 2) && (!skip_confirmation_sound)) {
-		ast_stream_and_wait(chan, "auth-thankyou", "");
+		ast_stream_and_wait_with_language(chan, "auth-thankyou", "", language);
 	}
 	if (sildet) {
 		ast_dsp_free(sildet);
@@ -1441,17 +1442,16 @@ static const char default_canceldtmf[] = "";
 
 int ast_play_and_record_full(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, int *sound_duration, int silencethreshold, int maxsilence, const char *path, const char *acceptdtmf, const char *canceldtmf)
 {
-	return __ast_play_and_record(chan, playfile, recordfile, maxtime, fmt, duration, sound_duration, 0, silencethreshold, maxsilence, path, 0, S_OR(acceptdtmf, default_acceptdtmf), S_OR(canceldtmf, default_canceldtmf), 0);
+	return __ast_play_and_record(chan, playfile, recordfile, maxtime, fmt, duration, sound_duration, 0, silencethreshold, maxsilence, path, 0, S_OR(acceptdtmf, default_acceptdtmf), S_OR(canceldtmf, default_canceldtmf), 0, NULL);
 }
 
-int ast_play_and_record(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, int *sound_duration, int silencethreshold, int maxsilence, const char *path)
-{
-	return __ast_play_and_record(chan, playfile, recordfile, maxtime, fmt, duration, sound_duration, 0, silencethreshold, maxsilence, path, 0, default_acceptdtmf, default_canceldtmf, 0);
+int ast_play_and_record_with_language(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, int *sound_duration, int silencethreshold, int maxsilence, const char *path, const char *language) {
+	return __ast_play_and_record(chan, playfile, recordfile, maxtime, fmt, duration, sound_duration, 0, silencethreshold, maxsilence, path, 0, default_acceptdtmf, default_canceldtmf, 0, language);
 }
 
 int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int *duration, int *sound_duration, int beep, int silencethreshold, int maxsilence)
 {
-	return __ast_play_and_record(chan, playfile, recordfile, maxtime, fmt, duration, sound_duration, beep, silencethreshold, maxsilence, NULL, 1, default_acceptdtmf, default_canceldtmf, 1);
+	return __ast_play_and_record(chan, playfile, recordfile, maxtime, fmt, duration, sound_duration, beep, silencethreshold, maxsilence, NULL, 1, default_acceptdtmf, default_canceldtmf, 1, NULL);
 }
 
 /* Channel group core functions */
