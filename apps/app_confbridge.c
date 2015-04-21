@@ -733,11 +733,12 @@ static int conf_start_record(struct confbridge_conference *conference)
  * \param bridge_channel Bridge channel to play file on
  * \param channel Optional channel to play file on if bridge_channel not given
  * \param filename The file name to playback
+ * \param language The playback language to use
  *
  * \retval -1 failure during playback, 0 on file was fully played, 1 on dtmf interrupt.
  */
 static int play_file(struct ast_bridge_channel *bridge_channel, struct ast_channel *channel,
-		     const char *filename)
+		     const char *filename, const char *language)
 {
 	struct ast_channel *chan;
 	const char *stop_digits;
@@ -751,7 +752,7 @@ static int play_file(struct ast_bridge_channel *bridge_channel, struct ast_chann
 		stop_digits = AST_DIGIT_NONE;
 	}
 
-	digit = ast_stream_and_wait(chan, filename, stop_digits);
+	digit = ast_stream_and_wait_with_language(chan, filename, stop_digits, language);
 	if (digit < 0) {
 		ast_log(LOG_WARNING, "Failed to playback file '%s' to channel\n", filename);
 		return -1;
@@ -806,7 +807,7 @@ static int announce_user_count(struct confbridge_conference *conference, struct 
 	} else if (conference->activeusers == 2) {
 		if (user) {
 			/* Eep, there is one other person */
-			if (play_file(bridge_channel, user->chan, only_one) < 0) {
+			if (play_file(bridge_channel, user->chan, only_one, user->b_profile.language) < 0) {
 				return -1;
 			}
 		} else {
@@ -815,15 +816,15 @@ static int announce_user_count(struct confbridge_conference *conference, struct 
 	} else {
 		/* Alas multiple others in here */
 		if (user) {
-			if (ast_stream_and_wait(user->chan,
+			if (ast_stream_and_wait_with_language(user->chan,
 				there_are,
-				"")) {
+				"", user->b_profile.language)) {
 				return -1;
 			}
 			if (ast_say_number(user->chan, conference->activeusers - 1, "", ast_channel_language(user->chan), NULL)) {
 				return -1;
 			}
-			if (play_file(bridge_channel, user->chan, other_in_party) < 0) {
+			if (play_file(bridge_channel, user->chan, other_in_party, user->b_profile.language) < 0) {
 				return -1;
 			}
 		} else if (sound_file_exists(there_are) && sound_file_exists(other_in_party)) {
@@ -848,7 +849,7 @@ static int announce_user_count(struct confbridge_conference *conference, struct 
  */
 static int play_prompt_to_user(struct confbridge_user *user, const char *filename)
 {
-	return ast_stream_and_wait(user->chan, filename, "");
+	return ast_stream_and_wait_with_language(user->chan, filename, "", user->b_profile.language);
 }
 
 static void handle_video_on_join(struct confbridge_conference *conference, struct ast_channel *chan, int marked)
@@ -1228,9 +1229,9 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 		ao2_unlock(conference_bridges);
 		ao2_ref(conference, -1);
 		ast_debug(1, "Conference '%s' is locked and caller is not an admin\n", conference_name);
-		ast_stream_and_wait(user->chan,
+		ast_stream_and_wait_with_language(user->chan,
 				conf_get_sound(CONF_SOUND_LOCKED, user->b_profile.sounds),
-				"");
+				"", user->b_profile.language);
 		return NULL;
 	}
 
@@ -1559,7 +1560,7 @@ static int conf_rec_name(struct confbridge_user *user, const char *conf_name)
 		 conf_name, ast_channel_uniqueid(user->chan));
 
 	if (!(ast_test_flag(&user->u_profile, USER_OPT_ANNOUNCE_JOIN_LEAVE_REVIEW))) {
-		res = ast_play_and_record(user->chan,
+		res = ast_play_and_record_with_language(user->chan,
 			"vm-rec-name",
 			user->name_rec_location,
 			10,
@@ -1568,7 +1569,8 @@ static int conf_rec_name(struct confbridge_user *user, const char *conf_name)
 			NULL,
 			ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE),
 			0,
-			NULL);
+			NULL,
+			user->b_profile.language);
 	} else {
 		res = ast_record_review(user->chan,
 			"vm-rec-name",
@@ -1576,7 +1578,8 @@ static int conf_rec_name(struct confbridge_user *user, const char *conf_name)
 			10,
 			"sln",
 			&duration,
-			NULL);
+			NULL,
+			user->b_profile.language);
 	}
 
 	if (res == -1) {
@@ -1770,7 +1773,7 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	if (!quiet) {
 		const char *join_sound = conf_get_sound(CONF_SOUND_JOIN, user.b_profile.sounds);
 
-		ast_stream_and_wait(chan, join_sound, "");
+		ast_stream_and_wait_with_language(chan, join_sound, "", user.b_profile.language);
 		ast_autoservice_start(chan);
 		play_sound_file(conference, join_sound);
 		ast_autoservice_stop(chan);
@@ -1835,9 +1838,9 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 
 	/* If the user was kicked from the conference play back the audio prompt for it */
 	if (!quiet && user.kicked) {
-		res = ast_stream_and_wait(chan,
+		res = ast_stream_and_wait_with_language(chan,
 			conf_get_sound(CONF_SOUND_KICKED, user.b_profile.sounds),
-			"");
+			"", user.b_profile.language);
 	}
 
 	/* Restore volume adjustments to previous values in case they were changed */
@@ -1885,7 +1888,7 @@ static int action_toggle_mute(struct confbridge_conference *conference,
 
 	return play_file(bridge_channel, NULL, (mute ?
 		conf_get_sound(CONF_SOUND_MUTED, user->b_profile.sounds) :
-		conf_get_sound(CONF_SOUND_UNMUTED, user->b_profile.sounds))) < 0;
+		conf_get_sound(CONF_SOUND_UNMUTED, user->b_profile.sounds)), user->b_profile.language) < 0;
 }
 
 static int action_toggle_mute_participants(struct confbridge_conference *conference, struct confbridge_user *user)
@@ -1914,7 +1917,7 @@ static int action_toggle_mute_participants(struct confbridge_conference *confere
 		user->b_profile.sounds);
 
 	/* The host needs to hear it seperately, as they don't get the audio from play_sound_helper */
-	ast_stream_and_wait(user->chan, sound_to_play, "");
+	ast_stream_and_wait_with_language(user->chan, sound_to_play, "", user->b_profile.language);
 
 	/* Announce to the group that all participants are muted */
 	ast_autoservice_start(user->chan);
@@ -1924,13 +1927,13 @@ static int action_toggle_mute_participants(struct confbridge_conference *confere
 	return 0;
 }
 
-static int action_playback(struct ast_bridge_channel *bridge_channel, const char *playback_file)
+static int action_playback(struct confbridge_user *user, const char *playback_file)
 {
 	char *file_copy = ast_strdupa(playback_file);
 	char *file = NULL;
 
 	while ((file = strsep(&file_copy, "&"))) {
-		if (ast_stream_and_wait(bridge_channel->chan, file, "")) {
+		if (ast_stream_and_wait_with_language(user->chan, file, "", user->b_profile.language)) {
 			ast_log(LOG_WARNING, "Failed to playback file %s to channel\n", file);
 			return -1;
 		}
@@ -2018,7 +2021,7 @@ static int action_kick_last(struct confbridge_conference *conference,
 
 	if (!isadmin) {
 		play_file(bridge_channel, NULL,
-			  conf_get_sound(CONF_SOUND_ERROR_MENU, user->b_profile.sounds));
+			  conf_get_sound(CONF_SOUND_ERROR_MENU, user->b_profile.sounds), user->b_profile.language);
 		ast_log(LOG_WARNING, "Only admin users can use the kick_last menu action. Channel %s of conf %s is not an admin.\n",
 			ast_channel_name(bridge_channel->chan),
 			conference->name);
@@ -2030,7 +2033,7 @@ static int action_kick_last(struct confbridge_conference *conference,
 		|| (ast_test_flag(&last_user->u_profile, USER_OPT_ADMIN))) {
 		ao2_unlock(conference);
 		play_file(bridge_channel, NULL,
-			  conf_get_sound(CONF_SOUND_ERROR_MENU, user->b_profile.sounds));
+			  conf_get_sound(CONF_SOUND_ERROR_MENU, user->b_profile.sounds), user->b_profile.language);
 	} else if (last_user && !last_user->kicked) {
 		last_user->kicked = 1;
 		pbx_builtin_setvar_helper(last_user->chan, "CONFBRIDGE_RESULT", "KICKED");
@@ -2111,7 +2114,7 @@ static int execute_menu_entry(struct confbridge_conference *conference,
 			break;
 		case MENU_ACTION_PLAYBACK:
 			if (!stop_prompts) {
-				res |= action_playback(bridge_channel, menu_action->data.playback_file);
+				res |= action_playback(user, menu_action->data.playback_file);
 				ast_test_suite_event_notify("CONF_MENU_PLAYBACK",
 					"Message: %s\r\nChannel: %s",
 					menu_action->data.playback_file, ast_channel_name(bridge_channel->chan));
@@ -2161,7 +2164,8 @@ static int execute_menu_entry(struct confbridge_conference *conference,
 			res |= play_file(bridge_channel, NULL,
 				(conference->locked ?
 				conf_get_sound(CONF_SOUND_LOCKED_NOW, user->b_profile.sounds) :
-				conf_get_sound(CONF_SOUND_UNLOCKED_NOW, user->b_profile.sounds))) < 0;
+				conf_get_sound(CONF_SOUND_UNLOCKED_NOW, user->b_profile.sounds)),
+				user->b_profile.language) < 0;
 			break;
 		case MENU_ACTION_ADMIN_KICK_LAST:
 			res |= action_kick_last(conference, bridge_channel, user);

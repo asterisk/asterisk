@@ -77,6 +77,20 @@ typedef void (ast_waitstream_fr_cb)(struct ast_channel *chan, long ms, enum ast_
 int ast_streamfile(struct ast_channel *c, const char *filename, const char *preflang);
 
 /*!
+ * \brief Stream a file until digit
+ *
+ * If the file name is non-empty, try to play it. If the language is NULL
+ * default to using the channel's.
+ *
+ * \note If digits == "" then we can simply check for non-zero.
+ * \return 0 if success.
+ * \retval -1 if error.
+ * \retval digit if interrupted by a digit.
+ */
+int ast_stream_and_wait_with_language(struct ast_channel *chan, const char *file,
+				      const char *digits, const char *language);
+
+/*!
  * \brief stream file until digit
  * If the file name is non-empty, try to play it.
  * \note If digits == "" then we can simply check for non-zero.
@@ -84,7 +98,8 @@ int ast_streamfile(struct ast_channel *c, const char *filename, const char *pref
  * \retval -1 if error.
  * \retval digit if interrupted by a digit.
  */
-int ast_stream_and_wait(struct ast_channel *chan, const char *file, const char *digits);
+#define ast_stream_and_wait(chan, file, digits) \
+	ast_stream_and_wait_with_language(chan, file, digits, NULL)
 
 /*!
  * \brief Stops a stream
