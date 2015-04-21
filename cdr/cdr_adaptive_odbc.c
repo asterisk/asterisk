@@ -436,6 +436,11 @@ static int odbc_log(struct ast_cdr *cdr)
 				ast_cdr_format_var(cdr, entry->cdrname, &colptr, colbuf, sizeof(colbuf), datefield ? 0 : 1);
 			}
 
+			/* If column on table is not nulleable set empty value */
+			if (entry->nullable == 0 && colptr == NULL)  {
+				colptr = "";
+			}
+
 			if (colptr) {
 				/* Check first if the column filters this entry.  Note that this
 				 * is very specifically NOT ast_strlen_zero(), because the filter
