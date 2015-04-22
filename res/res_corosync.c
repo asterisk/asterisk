@@ -770,19 +770,10 @@ static int load_general_config(struct ast_config *cfg)
 	return res;
 }
 
-static int load_config(unsigned int reload)
+static int load_config(struct ast_config *cfg, unsigned int reload)
 {
-	static const char filename[] = "res_corosync.conf";
-	struct ast_config *cfg;
 	const char *cat = NULL;
-	struct ast_flags config_flags = { 0 };
 	int res = 0;
-
-	cfg = ast_config_load(filename, config_flags);
-
-	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEINVALID) {
-		return -1;
-	}
 
 	while ((cat = ast_category_browse(cfg, cat))) {
 		if (!strcasecmp(cat, "general")) {
@@ -791,8 +782,6 @@ static int load_config(unsigned int reload)
 			ast_log(LOG_WARNING, "Unknown configuration section '%s'\n", cat);
 		}
 	}
-
-	ast_config_destroy(cfg);
 
 	return res;
 }
@@ -865,6 +854,15 @@ static int load_module(void)
 	cs_error_t cs_err;
 	enum ast_module_load_result res = AST_MODULE_LOAD_FAILURE;
 	struct cpg_name name;
+	static const char filename[] = "res_corosync.conf";
+	struct ast_config *cfg;
+	struct ast_flags config_flags = { 0 };
+
+	cfg = ast_config_load(filename, config_flags);
+
+	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEINVALID) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
 
 	corosync_aggregate_topic = stasis_topic_create("corosync_aggregate_topic");
 	if (!corosync_aggregate_topic) {
@@ -913,17 +911,19 @@ static int load_module(void)
 		goto failed;
 	}
 
-	if (load_config(0)) {
+	if (load_config(cfg, 0)) {
 		/* simply not configured is not a fatal error */
 		res = AST_MODULE_LOAD_DECLINE;
 		goto failed;
 	}
+	ast_config_destroy(cfg);
 
 	ast_cli_register_multiple(corosync_cli, ARRAY_LEN(corosync_cli));
 
 	return AST_MODULE_LOAD_SUCCESS;
 
 failed:
+	ast_config_destroy(cfg);
 	cleanup_module();
 
 	return res;
