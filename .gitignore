@@ -18,10 +18,14 @@
 *.moduleinfo
 *.makeopts
 *.makedeps
-makeopts
 .lastclean
+aclocal.m4
+autom4te.cache
 config.log
 config.status
 defaults.h
+makeopts
 makeopts.embed_rules
 menuselect-tree
+*.sha1
+*.pyc
