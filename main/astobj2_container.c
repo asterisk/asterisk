@@ -510,6 +510,11 @@ struct ao2_iterator ao2_iterator_init(struct ao2_container *c, int flags)
 
 void ao2_iterator_restart(struct ao2_iterator *iter)
 {
+	if (!is_ao2_object(iter->c)) {
+		ast_assert(0);
+		return;
+	}
+
 	/* Release the last container node reference if we have one. */
 	if (iter->last_node) {
 		enum ao2_lock_req orig_lock;
