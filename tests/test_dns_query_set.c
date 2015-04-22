@@ -131,8 +131,13 @@ static int query_set_resolve(struct ast_dns_query *query)
 static int query_set_cancel(struct ast_dns_query *query)
 {
 	struct ast_dns_query_set *query_set = ast_dns_query_get_data(query);
-	struct query_set_data *qsdata = query_set->user_data;
+	struct query_set_data *qsdata;
 	int res = -1;
+
+	if (!query_set) {
+		return -1;
+	}
+	qsdata = query_set->user_data;
 
 	if (qsdata->cancel++ < qsdata->cancel_allowed) {
 		res = 0;
