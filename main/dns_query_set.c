@@ -43,9 +43,10 @@ ASTERISK_REGISTER_FILE()
 /*! \brief The default number of expected queries to be added to the query set */
 #define DNS_QUERY_SET_EXPECTED_QUERY_COUNT 5
 
-/*! \brief Release all queries held in a query set */
-static void dns_query_set_release(struct ast_dns_query_set *query_set)
+/*! \brief Destructor for DNS query set */
+static void dns_query_set_destroy(void *data)
 {
+	struct ast_dns_query_set *query_set = data;
 	int idx;
 
 	for (idx = 0; idx < AST_VECTOR_SIZE(&query_set->queries); ++idx) {
@@ -53,16 +54,8 @@ static void dns_query_set_release(struct ast_dns_query_set *query_set)
 
 		ao2_ref(query->query, -1);
 	}
-
 	AST_VECTOR_FREE(&query_set->queries);
-}
 
-/*! \brief Destructor for DNS query set */
-static void dns_query_set_destroy(void *data)
-{
-	struct ast_dns_query_set *query_set = data;
-
-	dns_query_set_release(query_set);
 	ao2_cleanup(query_set->user_data);
 }
 
@@ -88,7 +81,15 @@ static void dns_query_set_callback(const struct ast_dns_query *query)
 {
 	struct ast_dns_query_set *query_set = ast_dns_query_get_data(query);
 
+	/* The reference count of the query set is bumped here in case this query holds the last reference */
+	ao2_ref(query_set, +1);
+
+	/* Drop the query set from the query so the query set can be destroyed if this is the last one */
+	ao2_cleanup(((struct ast_dns_query *)query)->user_data);
+	((struct ast_dns_query *)query)->user_data = NULL;
+
 	if (ast_atomic_fetchadd_int(&query_set->queries_completed, +1) != (AST_VECTOR_SIZE(&query_set->queries) - 1)) {
+		ao2_ref(query_set, -1);
 		return;
 	}
 
@@ -100,7 +101,7 @@ static void dns_query_set_callback(const struct ast_dns_query *query)
 	ao2_cleanup(query_set->user_data);
 	query_set->user_data = NULL;
 
-	dns_query_set_release(query_set);
+	ao2_ref(query_set, -1);
 }
 
 int ast_dns_query_set_add(struct ast_dns_query_set *query_set, const char *name, int rr_type, int rr_class)
@@ -116,7 +117,7 @@ int ast_dns_query_set_add(struct ast_dns_query_set *query_set, const char *name,
 		return -1;
 	}
 
-	query.query = dns_query_alloc(name, rr_type, rr_class, dns_query_set_callback, query_set);
+	query.query = dns_query_alloc(name, rr_type, rr_class, dns_query_set_callback, NULL);
 	if (!query.query) {
 		return -1;
 	}
@@ -168,6 +169,8 @@ void ast_dns_query_set_resolve_async(struct ast_dns_query_set *query_set, ast_dn
 
 	for (idx = 0; idx < AST_VECTOR_SIZE(&query_set->queries); ++idx) {
 		struct dns_query_set_query *query = AST_VECTOR_GET_ADDR(&query_set->queries, idx);
+
+		query->query->user_data = ao2_bump(query_set);
 
 		if (!query->query->resolver->resolve(query->query)) {
 			query->started = 1;
