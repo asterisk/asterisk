@@ -5942,9 +5942,6 @@ static int manager_modulecheck(struct mansession *s, const struct message *m)
 	const char *module = astman_get_header(m, "Module");
 	const char *id = astman_get_header(m, "ActionID");
 	char idText[256];
-#if !defined(LOW_MEMORY)
-	const char *version;
-#endif
 	char filename[PATH_MAX];
 	char *cut;
 
@@ -5961,11 +5958,6 @@ static int manager_modulecheck(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Module not loaded");
 		return 0;
 	}
-	snprintf(cut, (sizeof(filename) - strlen(filename)) - 1, ".c");
-	ast_debug(1, "**** ModuleCheck .c file %s\n", filename);
-#if !defined(LOW_MEMORY)
-	version = ast_file_version_find(filename);
-#endif
 
 	if (!ast_strlen_zero(id)) {
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
@@ -5974,7 +5966,7 @@ static int manager_modulecheck(struct mansession *s, const struct message *m)
 	}
 	astman_append(s, "Response: Success\r\n%s", idText);
 #if !defined(LOW_MEMORY)
-	astman_append(s, "Version: %s\r\n\r\n", version ? version : "");
+	astman_append(s, "Version: %s\r\n\r\n", ast_get_version());
 #endif
 	return 0;
 }
