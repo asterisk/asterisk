@@ -44,6 +44,7 @@ extern struct ao2_stats ao2;
 #endif	/* defined(AO2_DEBUG) */
 
 int is_ao2_object(void *user_data);
+
 enum ao2_lock_req __adjust_lock(void *user_data, enum ao2_lock_req lock_how, int keep_stronger);
 
 #endif /* ASTOBJ2_PRIVATE_H_ */
