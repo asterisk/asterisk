@@ -863,7 +863,6 @@ static void cleanup_module(void)
 static int load_module(void)
 {
 	cs_error_t cs_err;
-	enum ast_module_load_result res = AST_MODULE_LOAD_FAILURE;
 	struct cpg_name name;
 
 	corosync_aggregate_topic = stasis_topic_create("corosync_aggregate_topic");
@@ -880,6 +879,11 @@ static int load_module(void)
 
 	if (STASIS_MESSAGE_TYPE_INIT(corosync_ping_message_type) != 0) {
 		ast_log(AST_LOG_ERROR, "Failed to initialize corosync ping message type\n");
+		goto failed;
+	}
+
+	if (load_config(0)) {
+		/* simply not configured is not a fatal error */
 		goto failed;
 	}
 
@@ -913,12 +917,6 @@ static int load_module(void)
 		goto failed;
 	}
 
-	if (load_config(0)) {
-		/* simply not configured is not a fatal error */
-		res = AST_MODULE_LOAD_DECLINE;
-		goto failed;
-	}
-
 	ast_cli_register_multiple(corosync_cli, ARRAY_LEN(corosync_cli));
 
 	return AST_MODULE_LOAD_SUCCESS;
@@ -926,7 +924,7 @@ static int load_module(void)
 failed:
 	cleanup_module();
 
-	return res;
+	return AST_MODULE_LOAD_DECLINE;
 }
 
 static int unload_module(void)
