@@ -883,6 +883,12 @@ static int load_module(void)
 		goto failed;
 	}
 
+	if (load_config(0)) {
+		/* simply not configured is not a fatal error */
+		res = AST_MODULE_LOAD_DECLINE;
+		goto failed;
+	}
+
 	if ((cs_err = corosync_cfg_initialize(&cfg_handle, &cfg_callbacks)) != CS_OK) {
 		ast_log(LOG_ERROR, "Failed to initialize cfg: (%d)\n", (int) cs_err);
 		goto failed;
@@ -910,12 +916,6 @@ static int load_module(void)
 	if (ast_pthread_create_background(&dispatch_thread.id, NULL,
 			dispatch_thread_handler, NULL)) {
 		ast_log(LOG_ERROR, "Error starting CPG dispatch thread.\n");
-		goto failed;
-	}
-
-	if (load_config(0)) {
-		/* simply not configured is not a fatal error */
-		res = AST_MODULE_LOAD_DECLINE;
 		goto failed;
 	}
 
