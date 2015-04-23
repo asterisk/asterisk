@@ -946,7 +946,7 @@ int func_confbridge_helper(struct ast_channel *chan, const char *cmd, char *data
 	struct ast_datastore *datastore;
 	struct func_confbridge_data *b_data;
 	char *parse;
-	struct ast_variable tmpvar = { 0, };
+	struct ast_variable tmpvar = { .file = "CONFBRIDGE" };
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(type);
 		AST_APP_ARG(option);
@@ -993,6 +993,18 @@ int func_confbridge_helper(struct ast_channel *chan, const char *cmd, char *data
 			ast_datastore_free(datastore);
 			return 0;
 		}
+
+		if (strcmp(args.option, "template")) {
+			tmpvar.name = "template";
+			if (!strcasecmp(args.type, "bridge")) {
+				tmpvar.value = DEFAULT_BRIDGE_PROFILE;
+				aco_process_var(&bridge_type, "dialplan", &tmpvar, &b_data->b_profile);
+			} else if (!strcasecmp(args.type, "user")) {
+				tmpvar.value = DEFAULT_USER_PROFILE;
+				aco_process_var(&user_type, "dialplan", &tmpvar, &b_data->u_profile);
+			}
+		}
+
 		ast_channel_datastore_add(chan, datastore);
 	} else {
 		b_data = datastore->data;
@@ -1005,7 +1017,6 @@ int func_confbridge_helper(struct ast_channel *chan, const char *cmd, char *data
 	}
 	tmpvar.name = args.option;
 	tmpvar.value = value;
-	tmpvar.file = "CONFBRIDGE";
 	if (!strcasecmp(args.type, "bridge")) {
 		if (!strcasecmp(args.option, "clear")) {
 			b_data->b_usable = 0;
