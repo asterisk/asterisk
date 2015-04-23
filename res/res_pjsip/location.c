@@ -290,6 +290,8 @@ static int permanent_contact_validate(void *data)
 	pj_pool_t *pool;
 	pj_str_t contact_uri;
 	static const pj_str_t HCONTACT = { "Contact", 7 };
+	pjsip_contact_hdr *contact_hdr;
+	int rc = 0;
 
 	pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "Permanent Contact Validation", 256, 256);
 	if (!pool) {
@@ -297,13 +299,14 @@ static int permanent_contact_validate(void *data)
 	}
 
 	pj_strdup2_with_null(pool, &contact_uri, value);
-	if (!pjsip_parse_hdr(pool, &HCONTACT, contact_uri.ptr, contact_uri.slen, NULL)) {
-		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
-		return -1;
+	if (!(contact_hdr = pjsip_parse_hdr(pool, &HCONTACT, contact_uri.ptr, contact_uri.slen, NULL))
+		|| !(PJSIP_URI_SCHEME_IS_SIP(contact_hdr->uri)
+			|| PJSIP_URI_SCHEME_IS_SIPS(contact_hdr->uri))) {
+		rc = -1;
 	}
 
 	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
-	return 0;
+	return rc;
 }
 
 static int permanent_uri_sort_fn(const void *obj_left, const void *obj_right, int flags)

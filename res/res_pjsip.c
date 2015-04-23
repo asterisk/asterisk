@@ -2723,7 +2723,8 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 	if (sip_dialog_create_from(pool, &from, endpoint ? endpoint->fromuser : NULL,
 				endpoint ? endpoint->fromdomain : NULL, &remote_uri, &selector)) {
 		ast_log(LOG_ERROR, "Unable to create From header for %.*s request to endpoint %s\n",
-				(int) pj_strlen(&method->name), pj_strbuf(&method->name), ast_sorcery_object_get_id(endpoint));
+				(int) pj_strlen(&method->name), pj_strbuf(&method->name),
+				endpoint ? ast_sorcery_object_get_id(endpoint) : "<none>");
 		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
 		return -1;
 	}
@@ -2731,7 +2732,8 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 	if (pjsip_endpt_create_request(ast_sip_get_pjsip_endpoint(), method, &remote_uri,
 			&from, &remote_uri, &from, NULL, -1, NULL, tdata) != PJ_SUCCESS) {
 		ast_log(LOG_ERROR, "Unable to create outbound %.*s request to endpoint %s\n",
-				(int) pj_strlen(&method->name), pj_strbuf(&method->name), ast_sorcery_object_get_id(endpoint));
+				(int) pj_strlen(&method->name), pj_strbuf(&method->name),
+				endpoint ? ast_sorcery_object_get_id(endpoint) : "<none>");
 		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
 		return -1;
 	}
