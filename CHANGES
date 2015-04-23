@@ -35,6 +35,7 @@ SMS
 
 Channel Drivers
 ------------------
+ * Deleted non-standard and buggy channel driver (IAX2)
 
 chan_dahdi
 ------------------
