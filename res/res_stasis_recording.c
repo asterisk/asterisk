@@ -595,13 +595,13 @@ enum stasis_app_recording_oper_results stasis_app_recording_operation(
 	recording_operation_cb cb;
 	SCOPED_AO2LOCK(lock, recording);
 
-	if (recording->state >= STASIS_APP_RECORDING_STATE_MAX) {
+	if ((unsigned int)recording->state >= STASIS_APP_RECORDING_STATE_MAX) {
 		ast_log(LOG_WARNING, "Invalid recording state %u\n",
 			recording->state);
 		return -1;
 	}
 
-	if (operation >= STASIS_APP_RECORDING_OPER_MAX) {
+	if ((unsigned int)operation >= STASIS_APP_RECORDING_OPER_MAX) {
 		ast_log(LOG_WARNING, "Invalid recording operation %u\n",
 			operation);
 		return -1;
