@@ -629,7 +629,7 @@ enum stasis_playback_oper_results stasis_app_playback_operation(
 	playback_opreation_cb cb;
 	SCOPED_AO2LOCK(lock, playback);
 
-	ast_assert(playback->state < STASIS_PLAYBACK_STATE_MAX);
+	ast_assert((unsigned int)playback->state < STASIS_PLAYBACK_STATE_MAX);
 
 	if (operation >= STASIS_PLAYBACK_MEDIA_OP_MAX) {
 		ast_log(LOG_ERROR, "Invalid playback operation %u\n", operation);
