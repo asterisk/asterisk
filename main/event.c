@@ -198,6 +198,7 @@ const char *ast_event_get_type_name(const struct ast_event *event)
 	enum ast_event_type type;
 
 	type = ast_event_get_type(event);
+	ast_assert((unsigned int) type < AST_EVENT_TOTAL);
 
 	if (type >= ARRAY_LEN(event_names)) {
 		ast_log(LOG_ERROR, "Invalid event type - '%u'\n", type);
