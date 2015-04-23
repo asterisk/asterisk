@@ -343,6 +343,22 @@ static const struct ast_datastore_info confbridge_datastore = {
 	.type = "confbridge",
 	.destroy = func_confbridge_destroy_cb
 };
+
+static void set_template_defaults(struct func_confbridge_data *b_data)
+{
+	struct ast_variable var = {
+		.name = "template",
+		.file = "CONFBRIDGE"
+	};
+
+	if (b_data) {
+		var.value = DEFAULT_BRIDGE_PROFILE;
+		aco_process_var(&bridge_type, "dialplan", &var, &b_data->b_profile);
+		var.value = DEFAULT_USER_PROFILE;
+		aco_process_var(&user_type, "dialplan", &var, &b_data->u_profile);
+	}
+}
+
 int func_confbridge_helper(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
 	struct ast_datastore *datastore;
@@ -405,11 +421,19 @@ int func_confbridge_helper(struct ast_channel *chan, const char *cmd, char *data
 	tmpvar.value = value;
 	tmpvar.file = "CONFBRIDGE";
 	if (!strcasecmp(args.type, "bridge")) {
+		if (!b_data->b_usable) {
+			set_template_defaults(b_data);
+		}
+
 		if (!aco_process_var(&bridge_type, "dialplan", &tmpvar, &b_data->b_profile)) {
 			b_data->b_usable = 1;
 			return 0;
 		}
 	} else if (!strcasecmp(args.type, "user")) {
+		if (!b_data->u_usable) {
+			set_template_defaults(b_data);
+		}
+
 		if (!aco_process_var(&user_type, "dialplan", &tmpvar, &b_data->u_profile)) {
 			b_data->u_usable = 1;
 			return 0;
