@@ -287,9 +287,18 @@ static int expiration_struct2str(const void *obj, const intptr_t *args, char **b
 static int permanent_contact_validate(void *data)
 {
 	const char *value = data;
+	char *contact_uri_lc;
 	pj_pool_t *pool;
 	pj_str_t contact_uri;
 	static const pj_str_t HCONTACT = { "Contact", 7 };
+
+	contact_uri_lc = ast_strdupa(value);
+	contact_uri_lc = ast_str_to_lower(contact_uri_lc);
+
+	if (!(ast_begins_with(contact_uri_lc, "sip:")
+		|| ast_begins_with(contact_uri_lc, "sips:"))) {
+		return -1;
+	}
 
 	pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "Permanent Contact Validation", 256, 256);
 	if (!pool) {
