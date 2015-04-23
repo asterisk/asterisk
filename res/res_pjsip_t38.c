@@ -467,6 +467,11 @@ static void t38_attach_framehook(struct ast_sip_session *session)
 		.chan_breakdown_cb = t38_masq,
 	};
 
+	/* If the channel's already gone, bail */
+	if (!session->channel) {
+		return;
+	}
+
 	/* Only attach the framehook if t38 is enabled for the endpoint */
 	if (!session->endpoint->media.t38.enabled) {
 		return;
@@ -501,14 +506,14 @@ static void t38_attach_framehook(struct ast_sip_session *session)
 	ast_channel_unlock(session->channel);
 }
 
-/*! \brief Function called when an INVITE goes out */
+/*! \brief Function called when an INVITE arrives */
 static int t38_incoming_invite_request(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
 {
 	t38_attach_framehook(session);
 	return 0;
 }
 
-/*! \brief Function called when an INVITE comes in */
+/*! \brief Function called when an INVITE is sent */
 static void t38_outgoing_invite_request(struct ast_sip_session *session, struct pjsip_tx_data *tdata)
 {
 	t38_attach_framehook(session);
