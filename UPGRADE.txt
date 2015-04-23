@@ -46,5 +46,13 @@ Logging:
  - The first callid created is now 1 instead of 0.  The value 0
    is now reserved to represent a lack of callid.
 
+AMI:
+ - The Command action now sends the output from the CLI command as a series
+   of Output headers for each line instead of as a block of text with the
+   --END COMMAND-- delimiter to match the output from other actions.
+
+   Commands that fail to execute (no such command, invalid syntax etc.) now
+   return an Error response instead of Success.
+
 ===========================================================
 ===========================================================

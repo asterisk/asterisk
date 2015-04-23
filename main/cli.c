@@ -2681,12 +2681,12 @@ int ast_cli_command_full(int uid, int gid, int fd, const char *s)
 	int x;
 	char *duplicate = parse_args(s, &x, args + 1, AST_MAX_ARGS, NULL);
 	char tmp[AST_MAX_ARGS + 1];
-	char *retval = NULL;
+	char *retval = CLI_FAILURE;
 	struct ast_cli_args a = {
 		.fd = fd, .argc = x, .argv = args+1 };
 
 	if (duplicate == NULL)
-		return -1;
+		return RESULT_FAILURE;
 
 	if (x < 1)	/* We need at least one entry, otherwise ignore */
 		goto done;
@@ -2705,8 +2705,7 @@ int ast_cli_command_full(int uid, int gid, int fd, const char *s)
 	/* Check if the user has rights to run this command. */
 	if (!cli_has_permissions(uid, gid, tmp)) {
 		ast_cli(fd, "You don't have permissions to run '%s' command\n", tmp);
-		ast_free(duplicate);
-		return 0;
+		goto done;
 	}
 
 	/*
@@ -2719,14 +2718,13 @@ int ast_cli_command_full(int uid, int gid, int fd, const char *s)
 
 	if (retval == CLI_SHOWUSAGE) {
 		ast_cli(fd, "%s", S_OR(e->usage, "Invalid usage, but no usage information available.\n"));
-	} else {
-		if (retval == CLI_FAILURE)
-			ast_cli(fd, "Command '%s' failed.\n", s);
+	} else if (retval == CLI_FAILURE) {
+		ast_cli(fd, "Command '%s' failed.\n", s);
 	}
 	ast_atomic_fetchadd_int(&e->inuse, -1);
 done:
 	ast_free(duplicate);
-	return 0;
+	return retval == CLI_SUCCESS ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 
 int ast_cli_command_multiple_full(int uid, int gid, int fd, size_t size, const char *s)
