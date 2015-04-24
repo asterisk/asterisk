@@ -294,6 +294,14 @@ static void sorcery_config_internal_load(void *data, const struct ast_sorcery *s
 			continue;
 		}
 
+		/* Confirm an object with this id does not already exist in the bucket. If so, the configuration is invalid so, destroy it and stop processing. */
+		if ((obj = ao2_find(objects, id, OBJ_KEY))) {
+			ast_log(LOG_ERROR, "Config file '%s' could not be loaded; configuration contains a duplicate object: '%s' of type '%s'\n",
+				config->filename, id, type);
+			ast_config_destroy(cfg);
+			return;
+		}
+
 		if (!(obj = ast_sorcery_alloc(sorcery, type, id)) ||
 		    ast_sorcery_objectset_apply(sorcery, obj, ast_category_first(category))) {
 
