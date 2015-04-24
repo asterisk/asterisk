@@ -941,12 +941,17 @@ static const struct ast_datastore_info confbridge_datastore = {
 	.type = "confbridge",
 	.destroy = func_confbridge_destroy_cb
 };
+
 int func_confbridge_helper(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
 	struct ast_datastore *datastore;
 	struct func_confbridge_data *b_data;
 	char *parse;
 	struct ast_variable tmpvar = { 0, };
+	struct ast_variable template = {
+		.name = "template",
+		.file = "CONFBRIDGE"
+	};
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(type);
 		AST_APP_ARG(option);
@@ -1019,7 +1024,14 @@ int func_confbridge_helper(struct ast_channel *chan, const char *cmd, char *data
 				ast_datastore_free(datastore);
 			}
 			return 0;
-		} else if (!aco_process_var(&bridge_type, "dialplan", &tmpvar, &b_data->b_profile)) {
+		}
+
+		if (b_data && !b_data->b_usable && strcasecmp(args.option, "template")) {
+			template.value = DEFAULT_BRIDGE_PROFILE;
+			aco_process_var(&bridge_type, "dialplan", &template, &b_data->b_profile);
+		}
+
+		if (!aco_process_var(&bridge_type, "dialplan", &tmpvar, &b_data->b_profile)) {
 			b_data->b_usable = 1;
 			return 0;
 		}
@@ -1029,7 +1041,14 @@ int func_confbridge_helper(struct ast_channel *chan, const char *cmd, char *data
 			user_profile_destructor(&b_data->u_profile);
 			memset(&b_data->u_profile, 0, sizeof(b_data->u_profile));
 			return 0;
-		} else if (!aco_process_var(&user_type, "dialplan", &tmpvar, &b_data->u_profile)) {
+		}
+
+		if (b_data && !b_data->u_usable && strcasecmp(args.option, "template")) {
+			template.value = DEFAULT_USER_PROFILE;
+			aco_process_var(&user_type, "dialplan", &template, &b_data->u_profile);
+		}
+
+		if (!aco_process_var(&user_type, "dialplan", &tmpvar, &b_data->u_profile)) {
 			b_data->u_usable = 1;
 			return 0;
 		}
@@ -1045,7 +1064,14 @@ int func_confbridge_helper(struct ast_channel *chan, const char *cmd, char *data
 				ast_datastore_free(datastore);
 			}
 			return 0;
-		} else if (!aco_process_var(&menu_type, "dialplan", &tmpvar, b_data->menu)) {
+		}
+
+		if (b_data && !b_data->m_usable && strcasecmp(args.option, "template")) {
+			template.value = DEFAULT_MENU_PROFILE;
+			aco_process_var(&menu_type, "dialplan", &template, &b_data->menu);
+		}
+
+		if (!aco_process_var(&menu_type, "dialplan", &tmpvar, b_data->menu)) {
 			b_data->m_usable = 1;
 			return 0;
 		}
