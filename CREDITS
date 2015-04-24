@@ -154,6 +154,7 @@
 		(dialog-info), QUEUE_EXISTS function, device state provider
 		architecture, multiparking (together with mvanbaak), meetme and
 		parking device states, MiniVM - the small voicemail system,
+		RTP improvements, RTCP enhancements, DTMF timing fixes,
 		many documentation updates/corrections, and many bug fixes.
 		oej(AT)edvina.net, http://edvina.net
 
