@@ -98,7 +98,7 @@ static void security_event_stasis_cb(struct ast_json *json)
 	event_type_json = ast_json_object_get(json, "SecurityEvent");
 	event_type = ast_json_integer_get(event_type_json);
 
-	ast_assert(event_type >= 0 && event_type < AST_SECURITY_EVENT_NUM_TYPES);
+	ast_assert((unsigned int)event_type < AST_SECURITY_EVENT_NUM_TYPES);
 
 	if (!(str = ast_str_thread_get(&security_event_buf,
 			SECURITY_EVENT_BUF_INIT_LEN))) {
