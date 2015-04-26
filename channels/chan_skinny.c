@@ -7488,6 +7488,7 @@ static void *skinny_session(void *data)
 	struct skinnysession *s = data;
 
 	int dlen = 0;
+	int eventmessage = 0;
 	struct pollfd fds[1];
 
 	if (!s) {
@@ -7544,7 +7545,8 @@ static void *skinny_session(void *data)
 				break;
 			}
 
-			if (letohl(req->e) < 0) {
+			eventmessage = letohl(req-e);
+			if (eventmessage < 0) {
 				ast_log(LOG_ERROR, "Event Message is NULL from socket %d, This is bad\n", s->fd);
 				break;
 			}
