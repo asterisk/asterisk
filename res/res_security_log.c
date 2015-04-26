@@ -120,7 +120,7 @@ static void security_event_cb(const struct ast_event *event, void *data)
 
 	/* Note that the event type is guaranteed to be valid here. */
 	event_type = ast_event_get_ie_uint(event, AST_EVENT_IE_SECURITY_EVENT);
-	ast_assert(event_type >= 0 && event_type < AST_SECURITY_EVENT_NUM_TYPES);
+	ast_assert((unsigned int)event_type >= 0 && event_type < AST_SECURITY_EVENT_NUM_TYPES);
 
 	ast_str_set(&str, 0, "%s=\"%s\"",
 			ast_event_get_ie_type_name(AST_EVENT_IE_SECURITY_EVENT),
