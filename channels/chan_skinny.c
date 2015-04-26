@@ -7545,7 +7545,7 @@ static void *skinny_session(void *data)
 				break;
 			}
 
-			eventmessage = letohl(req-e);
+			eventmessage = letohl(req->e);
 			if (eventmessage < 0) {
 				ast_log(LOG_ERROR, "Event Message is NULL from socket %d, This is bad\n", s->fd);
 				break;
