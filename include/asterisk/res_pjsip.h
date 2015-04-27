@@ -689,6 +689,18 @@ struct ast_sip_outbound_authenticator {
 	 */
 	int (*create_request_with_auth)(const struct ast_sip_auth_vector *auths, struct pjsip_rx_data *challenge,
 			struct pjsip_transaction *tsx, struct pjsip_tx_data **new_request);
+	/*!
+	 * \brief Create a new request with authentication credentials based on old request
+	 *
+	 * \param auths A vector of IDs of auth sorcery objects
+	 * \param challenge The SIP response with authentication challenge(s)
+	 * \param old_request The request that resulted in challenge(s)
+	 * \param new_request The new SIP request with challenge response(s)
+	 * \retval 0 Successfully created new request
+	 * \retval -1 Failed to create a new request
+	 */
+	int (*create_request_with_auth_from_old)(const struct ast_sip_auth_vector *auths, struct pjsip_rx_data *challenge,
+			struct pjsip_tx_data *old_request, struct pjsip_tx_data **new_request);
 };
 
 /*!
@@ -1423,6 +1435,17 @@ enum ast_sip_check_auth_result ast_sip_check_authentication(struct ast_sip_endpo
  */
 int ast_sip_create_request_with_auth(const struct ast_sip_auth_vector *auths, pjsip_rx_data *challenge,
 		pjsip_transaction *tsx, pjsip_tx_data **new_request);
+
+/*!
+ * \brief Create a response to an authentication challenge
+ *
+ * This will call into an outbound authenticator's create_request_with_auth callback
+ * to create a new request with authentication credentials. See the create_request_with_auth_from_old
+ * callback in the \ref ast_sip_outbound_authenticator structure for details about
+ * the parameters and return values.
+ */
+int ast_sip_create_request_with_auth_from_old(const struct ast_sip_auth_vector *auths, pjsip_rx_data *challenge,
+		pjsip_tx_data *old_request, pjsip_tx_data **new_request);
 
 /*!
  * \brief Determine the endpoint that has sent a SIP message
