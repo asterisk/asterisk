@@ -101,13 +101,13 @@ cleanup:
 	return res;
 }
 
-static int digest_create_request_with_auth(const struct ast_sip_auth_vector *auths, pjsip_rx_data *challenge,
-		pjsip_transaction *tsx, pjsip_tx_data **new_request)
+static int digest_create_request_with_auth_from_old(const struct ast_sip_auth_vector *auths, pjsip_rx_data *challenge,
+		pjsip_tx_data *old_request, pjsip_tx_data **new_request)
 {
 	pjsip_auth_clt_sess auth_sess;
 
 	if (pjsip_auth_clt_init(&auth_sess, ast_sip_get_pjsip_endpoint(),
-				tsx->pool, 0) != PJ_SUCCESS) {
+				old_request->pool, 0) != PJ_SUCCESS) {
 		ast_log(LOG_WARNING, "Failed to initialize client authentication session\n");
 		return -1;
 	}
@@ -118,7 +118,7 @@ static int digest_create_request_with_auth(const struct ast_sip_auth_vector *aut
 	}
 
 	switch (pjsip_auth_clt_reinit_req(&auth_sess, challenge,
-				tsx->last_tx, new_request)) {
+				old_request, new_request)) {
 	case PJ_SUCCESS:
 		return 0;
 	case PJSIP_ENOCREDENTIAL:
@@ -138,6 +138,12 @@ static int digest_create_request_with_auth(const struct ast_sip_auth_vector *aut
 	}
 
 	return -1;
+}
+
+static int digest_create_request_with_auth(const struct ast_sip_auth_vector *auths, pjsip_rx_data *challenge,
+		pjsip_transaction *tsx, pjsip_tx_data **new_request)
+{
+	return digest_create_request_with_auth_from_old(auths, challenge, tsx->last_tx, new_request);
 }
 
 static struct ast_sip_outbound_authenticator digest_authenticator = {
