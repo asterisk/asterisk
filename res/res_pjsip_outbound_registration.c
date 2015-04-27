@@ -565,6 +565,8 @@ struct registration_response {
 	pjsip_rx_data *rdata;
 	/*! \brief The response transaction */
 	pjsip_transaction *tsx;
+	/*! \brief Request for which the response was received */
+	pjsip_tx_data *old_request;
 };
 
 /*! \brief Registration response structure destructor */
@@ -574,6 +576,14 @@ static void registration_response_destroy(void *obj)
 
 	if (response->rdata) {
 		pjsip_rx_data_free_cloned(response->rdata);
+	}
+
+	if (response->tsx) {
+		pj_grp_lock_dec_ref(response->tsx->grp_lock);
+	}
+
+	if (response->old_request) {
+		pjsip_tx_data_dec_ref(response->old_request);
 	}
 
 	ao2_cleanup(response->client_state);
@@ -640,7 +650,7 @@ static int handle_registration_response(void *data)
 			(response->code == 401 || response->code == 407)) {
 		pjsip_tx_data *tdata;
 		if (!ast_sip_create_request_with_auth(&response->client_state->outbound_auths,
-				response->rdata, response->tsx, &tdata)) {
+				response->rdata, response->old_request, &tdata)) {
 			ao2_ref(response->client_state, +1);
 			response->client_state->auth_attempted = 1;
 			ast_debug(1, "Sending authenticated REGISTER to '%s'\n", server_uri);
@@ -743,6 +753,9 @@ static void sip_outbound_registration_response_cb(struct pjsip_regc_cbparam *par
 
 		response->retry_after = retry_after ? retry_after->ivalue : 0;
 		response->tsx = pjsip_rdata_get_tsx(param->rdata);
+		response->old_request = response->tsx->last_tx;
+		pjsip_tx_data_add_ref(response->old_request);
+		pj_grp_lock_add_ref(response->tsx->grp_lock);
 		pjsip_rx_data_clone(param->rdata, 0, &response->rdata);
 	}
 
