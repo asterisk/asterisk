@@ -376,6 +376,11 @@ static int permanent_uri_handler(const struct aco_option *opt, struct ast_variab
 			return -1;
 		}
 
+		if (!ast_res_pjsip_find_or_create_contact_status(contact)) {
+			ao2_ref(contact, -1);
+			return -1;
+		}
+
 		ast_string_field_set(contact, uri, contact_uri);
 		ao2_link(aor->permanent_contacts, contact);
 		ao2_ref(contact, -1);
@@ -750,8 +755,8 @@ static int cli_contact_print_body(void *obj, void *arg, int flags)
 		"Contact",
 		flexwidth, flexwidth,
 		wrapper->contact_id,
-		ast_sip_get_contact_short_status_label(status->status),
-		(status->status != UNKNOWN ? ((long long) status->rtt) / 1000.0 : NAN));
+		ast_sip_get_contact_short_status_label(status ? status->status : UNKNOWN),
+		(status && (status->status != UNKNOWN) ? ((long long) status->rtt) / 1000.0 : NAN));
 
 	return 0;
 }
@@ -874,6 +879,17 @@ static struct ast_cli_entry cli_commands[] = {
 struct ast_sip_cli_formatter_entry *contact_formatter;
 struct ast_sip_cli_formatter_entry *aor_formatter;
 
+/*! \brief Always create a contact_status for each contact */
+static int contact_apply_handler(const struct ast_sorcery *sorcery, void *object)
+{
+	struct ast_sip_contact_status *status;
+	struct ast_sip_contact *contact = object;
+
+	status = ast_res_pjsip_find_or_create_contact_status(contact);
+
+	return status ? 0 : -1;
+}
+
 /*! \brief Initialize sorcery with location support */
 int ast_sip_initialize_sorcery_location(void)
 {
@@ -881,7 +897,7 @@ int ast_sip_initialize_sorcery_location(void)
 	ast_sorcery_apply_default(sorcery, "contact", "astdb", "registrar");
 	ast_sorcery_apply_default(sorcery, "aor", "config", "pjsip.conf,criteria=type=aor");
 
-	if (ast_sorcery_object_register(sorcery, "contact", contact_alloc, NULL, NULL) ||
+	if (ast_sorcery_object_register(sorcery, "contact", contact_alloc, NULL, contact_apply_handler) ||
 		ast_sorcery_object_register(sorcery, "aor", aor_alloc, NULL, NULL)) {
 		return -1;
 	}

@@ -319,4 +319,9 @@ void internal_sip_register_endpoint_formatter(struct ast_sip_endpoint_formatter 
  */
 int internal_sip_unregister_endpoint_formatter(struct ast_sip_endpoint_formatter *obj);
 
+/*!
+ * \internal
+ * \brief Finds or creates contact_status for a contact
+ */
+struct ast_sip_contact_status *ast_res_pjsip_find_or_create_contact_status(const struct ast_sip_contact *contact);
 #endif /* RES_PJSIP_PRIVATE_H_ */
