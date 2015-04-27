@@ -867,8 +867,10 @@ static void sip_outbound_publish_callback(struct pjsip_publishc_cbparam *param)
 	}
 
 	if (param->code == 401 || param->code == 407) {
+		pjsip_transaction *tsx = pjsip_rdata_get_tsx(param->rdata);
+
 		if (!ast_sip_create_request_with_auth(&publish->outbound_auths,
-				param->rdata, pjsip_rdata_get_tsx(param->rdata), &tdata)) {
+				param->rdata, tsx->last_tx, &tdata)) {
 			pjsip_publishc_send(client->client, tdata);
 		}
 		client->auth_attempts++;

@@ -563,8 +563,8 @@ struct registration_response {
 	struct sip_outbound_registration_client_state *client_state;
 	/*! \brief The response message */
 	pjsip_rx_data *rdata;
-	/*! \brief The response transaction */
-	pjsip_transaction *tsx;
+	/*! \brief Request for which the response was received */
+	pjsip_tx_data *old_request;
 };
 
 /*! \brief Registration response structure destructor */
@@ -574,6 +574,10 @@ static void registration_response_destroy(void *obj)
 
 	if (response->rdata) {
 		pjsip_rx_data_free_cloned(response->rdata);
+	}
+
+	if (response->old_request) {
+		pjsip_tx_data_dec_ref(response->old_request);
 	}
 
 	ao2_cleanup(response->client_state);
@@ -628,19 +632,19 @@ static int handle_registration_response(void *data)
 	ast_copy_pj_str(client_uri, &info.client_uri, sizeof(client_uri));
 
 	if (response->client_state->status == SIP_REGISTRATION_STOPPED) {
-		ast_debug(1, "Not handling registration response from '%s' (transaction %s). Registration already stopped\n",
-				server_uri, response->tsx ? response->tsx->obj_name : "<none>");
+		ast_debug(1, "Not handling registration response from server '%s' for client '%s'. Registration already stopped\n",
+				server_uri, client_uri);
 		return 0;
 	}
 
-	ast_debug(1, "Processing REGISTER response %d from '%s' (transaction %s)\n",
-			response->code, server_uri, response->tsx ? response->tsx->obj_name : "<none>");
+	ast_debug(1, "Processing REGISTER response %d from server '%s' for client '%s'\n",
+			response->code, server_uri, client_uri);
 
 	if (!response->client_state->auth_attempted &&
 			(response->code == 401 || response->code == 407)) {
 		pjsip_tx_data *tdata;
 		if (!ast_sip_create_request_with_auth(&response->client_state->outbound_auths,
-				response->rdata, response->tsx, &tdata)) {
+				response->rdata, response->old_request, &tdata)) {
 			ao2_ref(response->client_state, +1);
 			response->client_state->auth_attempted = 1;
 			ast_debug(1, "Sending authenticated REGISTER to '%s'\n", server_uri);
@@ -740,9 +744,12 @@ static void sip_outbound_registration_response_cb(struct pjsip_regc_cbparam *par
 
 	if (param->rdata) {
 		struct pjsip_retry_after_hdr *retry_after = pjsip_msg_find_hdr(param->rdata->msg_info.msg, PJSIP_H_RETRY_AFTER, NULL);
+		pjsip_transaction *tsx;
 
 		response->retry_after = retry_after ? retry_after->ivalue : 0;
-		response->tsx = pjsip_rdata_get_tsx(param->rdata);
+		tsx = pjsip_rdata_get_tsx(param->rdata);
+		response->old_request = tsx->last_tx;
+		pjsip_tx_data_add_ref(response->old_request);
 		pjsip_rx_data_clone(param->rdata, 0, &response->rdata);
 	}
 
