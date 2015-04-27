@@ -2009,13 +2009,13 @@ void ast_sip_unregister_outbound_authenticator(struct ast_sip_outbound_authentic
 }
 
 int ast_sip_create_request_with_auth(const struct ast_sip_auth_vector *auths, pjsip_rx_data *challenge,
-		pjsip_transaction *tsx, pjsip_tx_data **new_request)
+		pjsip_tx_data *old_request, pjsip_tx_data **new_request)
 {
 	if (!registered_outbound_authenticator) {
 		ast_log(LOG_WARNING, "No SIP outbound authenticator registered. Cannot respond to authentication challenge\n");
 		return -1;
 	}
-	return registered_outbound_authenticator->create_request_with_auth(auths, challenge, tsx, new_request);
+	return registered_outbound_authenticator->create_request_with_auth(auths, challenge, old_request, new_request);
 }
 
 struct endpoint_identifier_list {
@@ -3107,7 +3107,7 @@ static void send_request_cb(void *token, pjsip_event *e)
 			&& endpoint
 			&& ++req_data->challenge_count < MAX_RX_CHALLENGES /* Not in a challenge loop */
 			&& !ast_sip_create_request_with_auth(&endpoint->outbound_auths,
-				challenge, tsx, &tdata)
+				challenge, tsx->last_tx, &tdata)
 			&& endpt_send_request(endpoint, tdata, -1, req_data, send_request_cb)
 				== PJ_SUCCESS;
 		ao2_cleanup(endpoint);
