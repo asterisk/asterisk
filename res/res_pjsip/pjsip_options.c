@@ -76,11 +76,10 @@ static void *contact_status_alloc(const char *name)
 }
 
 /*!
- * \internal
  * \brief Retrieve a ast_sip_contact_status object from sorcery creating
  *        one if not found.
  */
-static struct ast_sip_contact_status *find_or_create_contact_status(const struct ast_sip_contact *contact)
+struct ast_sip_contact_status *ast_res_pjsip_find_or_create_contact_status(const struct ast_sip_contact *contact)
 {
 	struct ast_sip_contact_status *status;
 
@@ -97,6 +96,10 @@ static struct ast_sip_contact_status *find_or_create_contact_status(const struct
 			contact->uri);
 		return NULL;
 	}
+
+	status->status = UNKNOWN;
+	status->rtt_start = ast_tv(0, 0);
+	status->rtt = 0;
 
 	if (ast_sorcery_create(ast_sip_get_sorcery(), status)) {
 		ast_log(LOG_ERROR, "Unable to persist ast_sip_contact_status for contact %s\n",
@@ -118,7 +121,7 @@ static void update_contact_status(const struct ast_sip_contact *contact,
 	struct ast_sip_contact_status *status;
 	struct ast_sip_contact_status *update;
 
-	status = find_or_create_contact_status(contact);
+	status = ast_res_pjsip_find_or_create_contact_status(contact);
 	if (!status) {
 		ast_log(LOG_ERROR, "Unable to find ast_sip_contact_status for contact %s\n",
 			contact->uri);
@@ -142,8 +145,6 @@ static void update_contact_status(const struct ast_sip_contact *contact,
 		ast_tvdiff_us(ast_tvnow(), status->rtt_start) : 0;
 
 	update->rtt_start = ast_tv(0, 0);
-
-
 
 	ast_test_suite_event_notify("AOR_CONTACT_QUALIFY_RESULT",
 		"Contact: %s\r\n"
@@ -172,7 +173,7 @@ static void init_start_time(const struct ast_sip_contact *contact)
 	struct ast_sip_contact_status *status;
 	struct ast_sip_contact_status *update;
 
-	status = find_or_create_contact_status(contact);
+	status = ast_res_pjsip_find_or_create_contact_status(contact);
 	if (!status) {
 		ast_log(LOG_ERROR, "Unable to find ast_sip_contact_status for contact %s\n",
 			contact->uri);
