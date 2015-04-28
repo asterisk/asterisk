@@ -51,6 +51,11 @@ chan_dahdi:
    ring-ring-ring pattern would exceed the pattern limits and stop
    Caller-ID detection.
 
+cdr_odbc:
+ - Added support for post-1.8 CDR columns 'peeraccount', 'linkedid', and
+   'sequence'. Support for the new columns can be enabled via the newcdrcolumns
+   option in cdr_odbc.conf.
+
 from 11.15 to 11.16
 chan_dahdi:
  - The CALLERID(ani2) value for incoming calls is now populated in featdmf
