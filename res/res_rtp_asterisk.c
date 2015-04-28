@@ -1869,6 +1869,7 @@ static int dtls_srtp_setup(struct ast_rtp *rtp, struct ast_srtp *srtp, struct as
 	unsigned char *local_key, *local_salt, *remote_key, *remote_salt;
 	struct ast_srtp_policy *local_policy, *remote_policy = NULL;
 	struct ast_rtp_instance_stats stats = { 0, };
+	int res = -1;
 
 	/* If a fingerprint is present in the SDP make sure that the peer certificate matches it */
 	if (rtp->dtls_verify & AST_RTP_DTLS_VERIFY_FINGERPRINT) {
@@ -1983,16 +1984,17 @@ static int dtls_srtp_setup(struct ast_rtp *rtp, struct ast_srtp *srtp, struct as
 		}
 	}
 
-	return 0;
+	res = 0;
 
 error:
+	/* policy->destroy() called even on success to release local reference to these resources */
 	res_srtp_policy->destroy(local_policy);
 
 	if (remote_policy) {
 		res_srtp_policy->destroy(remote_policy);
 	}
 
-	return -1;
+	return res;
 }
 #endif
 
