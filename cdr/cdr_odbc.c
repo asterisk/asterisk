@@ -64,6 +64,7 @@ enum {
 	CONFIG_DISPOSITIONSTRING = 1 << 2,
 	CONFIG_HRTIME =            1 << 3,
 	CONFIG_REGISTERED =        1 << 4,
+	CONFIG_NEWCDRCOLUMNS =     1 << 5,
 };
 
 static struct ast_flags config = { 0 };
@@ -72,23 +73,29 @@ static SQLHSTMT execute_cb(struct odbc_obj *obj, void *data)
 {
 	struct ast_cdr *cdr = data;
 	SQLRETURN ODBC_res;
-	char sqlcmd[2048] = "", timestr[128];
+	char sqlcmd[2048] = "", timestr[128], new_columns[120] = "", new_values[7] = "";
 	struct ast_tm tm;
 	SQLHSTMT stmt;
+	int i = 0;
 
 	ast_localtime(&cdr->start, &tm, ast_test_flag(&config, CONFIG_USEGMTIME) ? "GMT" : NULL);
 	ast_strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
 
+	if (ast_test_flag(&config, CONFIG_NEWCDRCOLUMNS)) {
+		snprintf(new_columns, sizeof(new_columns), "%s", ",peeraccount,linkedid,sequence");
+		snprintf(new_values, sizeof(new_values), "%s", ",?,?,?");
+	}
+
 	if (ast_test_flag(&config, CONFIG_LOGUNIQUEID)) {
 		snprintf(sqlcmd,sizeof(sqlcmd),"INSERT INTO %s "
 		"(calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,"
-		"lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid,userfield) "
-		"VALUES ({ts '%s'},?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", table, timestr);
+		"lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid,userfield%s) "
+		"VALUES ({ts '%s'},?,?,?,?,?,?,?,?,?,?,?,?,?,?,? %s)", table, new_columns, timestr, new_values);
 	} else {
 		snprintf(sqlcmd,sizeof(sqlcmd),"INSERT INTO %s "
 		"(calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,"
-		"duration,billsec,disposition,amaflags,accountcode) "
-		"VALUES ({ts '%s'},?,?,?,?,?,?,?,?,?,?,?,?,?)", table, timestr);
+		"duration,billsec,disposition,amaflags,accountcode%s) "
+		"VALUES ({ts '%s'},?,?,?,?,?,?,?,?,?,?,?,?,?%s)", table, new_columns, timestr, new_values);
 	}
 
 	ODBC_res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
@@ -134,9 +141,17 @@ static SQLHSTMT execute_cb(struct odbc_obj *obj, void *data)
 	SQLBindParameter(stmt, 12, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->amaflags, 0, NULL);
 	SQLBindParameter(stmt, 13, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->accountcode), 0, cdr->accountcode, 0, NULL);
 
+	i = 14;
 	if (ast_test_flag(&config, CONFIG_LOGUNIQUEID)) {
 		SQLBindParameter(stmt, 14, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->uniqueid), 0, cdr->uniqueid, 0, NULL);
 		SQLBindParameter(stmt, 15, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->userfield), 0, cdr->userfield, 0, NULL);
+		i = 16;
+	}
+
+	if (ast_test_flag(&config, CONFIG_NEWCDRCOLUMNS)) {
+		SQLBindParameter(stmt, i, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->peeraccount), 0, cdr->peeraccount, 0, NULL);
+		SQLBindParameter(stmt, i + 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->linkedid), 0, cdr->linkedid, 0, NULL);
+		SQLBindParameter(stmt, i + 2, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->sequence, 0, NULL);
 	}
 
 	ODBC_res = SQLExecDirect(stmt, (unsigned char *)sqlcmd, SQL_NTS);
@@ -259,6 +274,13 @@ static int odbc_load_module(int reload)
 			} else {
 				ast_set_flag(&config, CONFIG_REGISTERED);
 			}
+		}
+		if (((tmp = ast_variable_retrieve(cfg, "global", "newcdrcolumns"))) && ast_true(tmp)) {
+			ast_set_flag(&config, CONFIG_NEWCDRCOLUMNS);
+			ast_debug(1, "cdr_odbc: Add new cdr fields\n");
+		} else {
+			ast_clear_flag(&config, CONFIG_NEWCDRCOLUMNS);
+			ast_debug(1, "cdr_odbc: Not add new cdr fields\n");
 		}
 	} while (0);
 
