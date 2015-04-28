@@ -1974,6 +1974,8 @@ static int dtls_srtp_setup(struct ast_rtp *rtp, struct ast_srtp *srtp, struct as
 		ast_log(LOG_WARNING, "Could not set policies when setting up DTLS-SRTP on '%p'\n", rtp);
 		goto error;
 	}
+	ao2_t_ref(local_policy, -1, "Drop local_policy alloc ref, now has table ref");
+	ao2_t_ref(remote_policy, -1, "Drop remote_policy alloc ref, now has table ref");
 
 	if (rtp->rekey) {
 		ao2_ref(instance, +1);
