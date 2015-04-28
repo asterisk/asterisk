@@ -1659,6 +1659,8 @@ int ast_rtp_dtls_cfg_parse(struct ast_rtp_dtls_cfg *dtls_cfg, const char *name, 
 
 void ast_rtp_dtls_cfg_copy(const struct ast_rtp_dtls_cfg *src_cfg, struct ast_rtp_dtls_cfg *dst_cfg)
 {
+	ast_rtp_dtls_cfg_free(dst_cfg);         /* Prevent a double-call leaking memory via ast_strdup */
+
 	dst_cfg->enabled = src_cfg->enabled;
 	dst_cfg->verify = src_cfg->verify;
 	dst_cfg->rekey = src_cfg->rekey;
