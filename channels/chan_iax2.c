@@ -435,37 +435,37 @@ struct iax2_context {
 };
 
 
-#define	IAX_HASCALLERID         (uint64_t)(1 << 0)    /*!< CallerID has been specified */
-#define IAX_DELME               (uint64_t)(1 << 1)    /*!< Needs to be deleted */
-#define IAX_TEMPONLY            (uint64_t)(1 << 2)    /*!< Temporary (realtime) */
-#define IAX_TRUNK               (uint64_t)(1 << 3)    /*!< Treat as a trunk */
-#define IAX_NOTRANSFER          (uint64_t)(1 << 4)    /*!< Don't native bridge */
-#define IAX_USEJITTERBUF        (uint64_t)(1 << 5)    /*!< Use jitter buffer */
-#define IAX_DYNAMIC             (uint64_t)(1 << 6)    /*!< dynamic peer */
-#define IAX_SENDANI             (uint64_t)(1 << 7)    /*!< Send ANI along with CallerID */
-#define IAX_RTSAVE_SYSNAME      (uint64_t)(1 << 8)    /*!< Save Systname on Realtime Updates */
-#define IAX_ALREADYGONE         (uint64_t)(1 << 9)    /*!< Already disconnected */
-#define IAX_PROVISION           (uint64_t)(1 << 10)   /*!< This is a provisioning request */
-#define IAX_QUELCH              (uint64_t)(1 << 11)   /*!< Whether or not we quelch audio */
-#define IAX_ENCRYPTED           (uint64_t)(1 << 12)   /*!< Whether we should assume encrypted tx/rx */
-#define IAX_KEYPOPULATED        (uint64_t)(1 << 13)   /*!< Whether we have a key populated */
-#define IAX_CODEC_USER_FIRST    (uint64_t)(1 << 14)   /*!< are we willing to let the other guy choose the codec? */
-#define IAX_CODEC_NOPREFS       (uint64_t)(1 << 15)   /*!< Force old behaviour by turning off prefs */
-#define IAX_CODEC_NOCAP         (uint64_t)(1 << 16)   /*!< only consider requested format and ignore capabilities*/
-#define IAX_RTCACHEFRIENDS      (uint64_t)(1 << 17)   /*!< let realtime stay till your reload */
-#define IAX_RTUPDATE            (uint64_t)(1 << 18)   /*!< Send a realtime update */
-#define IAX_RTAUTOCLEAR         (uint64_t)(1 << 19)   /*!< erase me on expire */
-#define IAX_RTIGNOREREGEXPIRE   (uint64_t)(1 << 21)   /*!< When using realtime, ignore registration expiration */
-#define IAX_TRUNKTIMESTAMPS     (uint64_t)(1 << 22)   /*!< Send trunk timestamps */
-#define IAX_TRANSFERMEDIA       (uint64_t)(1 << 23)   /*!< When doing IAX2 transfers, transfer media only */
-#define IAX_MAXAUTHREQ          (uint64_t)(1 << 24)   /*!< Maximum outstanding AUTHREQ restriction is in place */
-#define IAX_DELAYPBXSTART       (uint64_t)(1 << 25)   /*!< Don't start a PBX on the channel until the peer sends us a response, so that we've achieved a three-way handshake with them before sending voice or anything else */
-#define IAX_ALLOWFWDOWNLOAD     (uint64_t)(1 << 26)   /*!< Allow the FWDOWNL command? */
-#define IAX_IMMEDIATE           (uint64_t)(1 << 27)   /*!< Allow immediate off-hook to extension s */
-#define IAX_SENDCONNECTEDLINE   (uint64_t)(1 << 28)   /*!< Allow sending of connected line updates */
-#define IAX_RECVCONNECTEDLINE   (uint64_t)(1 << 29)   /*!< Allow receiving of connected line updates */
-#define IAX_FORCE_ENCRYPT       (uint64_t)(1 << 30)   /*!< Forces call encryption, if encryption not possible hangup */
-#define IAX_SHRINKCALLERID      (uint64_t)(1 << 31)   /*!< Turn on and off caller id shrinking */
+#define	IAX_HASCALLERID         (uint64_t)(1LLU << 0)    /*!< CallerID has been specified */
+#define IAX_DELME               (uint64_t)(1LLU << 1)    /*!< Needs to be deleted */
+#define IAX_TEMPONLY            (uint64_t)(1LLU << 2)    /*!< Temporary (realtime) */
+#define IAX_TRUNK               (uint64_t)(1LLU << 3)    /*!< Treat as a trunk */
+#define IAX_NOTRANSFER          (uint64_t)(1LLU << 4)    /*!< Don't native bridge */
+#define IAX_USEJITTERBUF        (uint64_t)(1LLU << 5)    /*!< Use jitter buffer */
+#define IAX_DYNAMIC             (uint64_t)(1LLU << 6)    /*!< dynamic peer */
+#define IAX_SENDANI             (uint64_t)(1LLU << 7)    /*!< Send ANI along with CallerID */
+#define IAX_RTSAVE_SYSNAME      (uint64_t)(1LLU << 8)    /*!< Save Systname on Realtime Updates */
+#define IAX_ALREADYGONE         (uint64_t)(1LLU << 9)    /*!< Already disconnected */
+#define IAX_PROVISION           (uint64_t)(1LLU << 10)   /*!< This is a provisioning request */
+#define IAX_QUELCH              (uint64_t)(1LLU << 11)   /*!< Whether or not we quelch audio */
+#define IAX_ENCRYPTED           (uint64_t)(1LLU << 12)   /*!< Whether we should assume encrypted tx/rx */
+#define IAX_KEYPOPULATED        (uint64_t)(1LLU << 13)   /*!< Whether we have a key populated */
+#define IAX_CODEC_USER_FIRST    (uint64_t)(1LLU << 14)   /*!< are we willing to let the other guy choose the codec? */
+#define IAX_CODEC_NOPREFS       (uint64_t)(1LLU << 15)   /*!< Force old behaviour by turning off prefs */
+#define IAX_CODEC_NOCAP         (uint64_t)(1LLU << 16)   /*!< only consider requested format and ignore capabilities*/
+#define IAX_RTCACHEFRIENDS      (uint64_t)(1LLU << 17)   /*!< let realtime stay till your reload */
+#define IAX_RTUPDATE            (uint64_t)(1LLU << 18)   /*!< Send a realtime update */
+#define IAX_RTAUTOCLEAR         (uint64_t)(1LLU << 19)   /*!< erase me on expire */
+#define IAX_RTIGNOREREGEXPIRE   (uint64_t)(1LLU << 21)   /*!< When using realtime, ignore registration expiration */
+#define IAX_TRUNKTIMESTAMPS     (uint64_t)(1LLU << 22)   /*!< Send trunk timestamps */
+#define IAX_TRANSFERMEDIA       (uint64_t)(1LLU << 23)   /*!< When doing IAX2 transfers, transfer media only */
+#define IAX_MAXAUTHREQ          (uint64_t)(1LLU << 24)   /*!< Maximum outstanding AUTHREQ restriction is in place */
+#define IAX_DELAYPBXSTART       (uint64_t)(1LLU << 25)   /*!< Don't start a PBX on the channel until the peer sends us a response, so that we've achieved a three-way handshake with them before sending voice or anything else */
+#define IAX_ALLOWFWDOWNLOAD     (uint64_t)(1LLU << 26)   /*!< Allow the FWDOWNL command? */
+#define IAX_IMMEDIATE           (uint64_t)(1LLU << 27)   /*!< Allow immediate off-hook to extension s */
+#define IAX_SENDCONNECTEDLINE   (uint64_t)(1LLU << 28)   /*!< Allow sending of connected line updates */
+#define IAX_RECVCONNECTEDLINE   (uint64_t)(1LLU << 29)   /*!< Allow receiving of connected line updates */
+#define IAX_FORCE_ENCRYPT       (uint64_t)(1LLU << 30)   /*!< Forces call encryption, if encryption not possible hangup */
+#define IAX_SHRINKCALLERID      (uint64_t)(1LLU << 31)   /*!< Turn on and off caller id shrinking */
 static int global_rtautoclear = 120;
 
 static int reload_config(int forced_reload);
