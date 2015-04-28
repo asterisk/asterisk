@@ -8044,7 +8044,14 @@ static void config_parse_variables(int type, void *item, struct ast_variable *vp
 			}
 		} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
 			if (type & (TYPE_DEVICE)) {
-				CDEV->ha = ast_append_ha(v->name, v->value, CDEV->ha, NULL);
+				int acl_error = 0;
+
+				CDEV->ha = ast_append_ha(v->name, v->value, CDEV->ha, &acl_error);
+				if (acl_error) {
+					ast_log(LOG_ERROR, "Invalid ACL '%s' on line '%d'. Deleting device\n",
+							v->value, v->lineno);
+					CDEV->prune = 1;
+				}
 				continue;
 			}
 		} else if (!strcasecmp(v->name, "allow")) {

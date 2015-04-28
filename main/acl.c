@@ -479,7 +479,7 @@ void ast_append_acl(const char *sense, const char *stuff, struct ast_acl_list **
 		AST_LIST_TRAVERSE(working_list, current, list) {
 			if (!strcasecmp(current->name, tmp)) { /* ACL= */
 				/* Inclusion of the same ACL multiple times isn't a catastrophic error, but it will raise the error flag and skip the entry. */
-				ast_log(LOG_ERROR, "Named ACL '%s' is already included in the ast_acl container.", tmp);
+				ast_log(LOG_ERROR, "Named ACL '%s' occurs multiple times in ACL definition. Please update your ACL configuration.", tmp);
 				if (error) {
 					*error = 1;
 				}

@@ -4104,7 +4104,19 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 			ast_sockaddr_to_sin(&tmp, &gw->defaddr);
 		} else if (!strcasecmp(v->name, "permit") ||
 			!strcasecmp(v->name, "deny")) {
-			gw->ha = ast_append_ha(v->name, v->value, gw->ha, NULL);
+			int acl_error = 0;
+			gw->ha = ast_append_ha(v->name, v->value, gw->ha, &acl_error);
+			if (acl_error) {
+				ast_log(LOG_ERROR, "Invalid ACL '%s' specified for MGCP gateway '%s' on line %d. Not creating.\n",
+						v->value, cat, v->lineno);
+				if (!gw_reload) {
+					ast_mutex_destroy(&gw->msgs_lock);
+					ast_free(gw);
+				} else {
+					gw->delme = 1;
+				}
+				return NULL;
+			}
 		} else if (!strcasecmp(v->name, "port")) {
 			gw->addr.sin_port = htons(atoi(v->value));
 		} else if (!strcasecmp(v->name, "context")) {

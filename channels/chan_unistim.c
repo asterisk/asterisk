@@ -6395,6 +6395,89 @@ static struct unistim_line *find_line_by_number(struct unistim_device *d, const 
 	return ret;
 }
 
+static void delete_device(struct unistim_device *d)
+{
+	struct unistim_line *l;
+	struct unistim_subchannel *sub;
+
+	if (unistimdebug) {
+		ast_verb(0, "Removing device '%s'\n", d->name);
+	}
+	AST_LIST_LOCK(&d->subs);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&d->subs, sub, list){
+		if (sub->subtype == SUB_REAL) {
+			if (!sub) {
+				ast_log(LOG_ERROR, "Device '%s' without a subchannel !, aborting\n",
+						d->name);
+				ast_config_destroy(cfg);
+				return 0;
+			}
+			if (sub->owner) {
+				ast_log(LOG_WARNING,
+						"Device '%s' was not deleted : a call is in progress. Try again later.\n",
+						d->name);
+				d = d->next;
+				continue;
+			}
+		}
+		if (sub->subtype == SUB_THREEWAY) {
+			ast_log(LOG_WARNING,
+					"Device '%s' with threeway call subchannels allocated, aborting.\n",
+					d->name);
+			break;
+		}
+		AST_LIST_REMOVE_CURRENT(list);
+		ast_mutex_destroy(&sub->lock);
+		ast_free(sub);
+	}
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&d->subs);
+
+
+	AST_LIST_LOCK(&d->lines);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&d->lines, l, list){
+		AST_LIST_REMOVE_CURRENT(list);
+		ast_mutex_destroy(&l->lock);
+		unistim_line_destroy(l);
+	}
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&d->lines);
+
+	if (d->session) {
+		if (sessions == d->session) {
+			sessions = d->session->next;
+		} else {
+			s = sessions;
+			while (s) {
+				if (s->next == d->session) {
+					s->next = d->session->next;
+					break;
+				}
+				s = s->next;
+			}
+		}
+		ast_mutex_destroy(&d->session->lock);
+		ast_free(d->session);
+	}
+	if (devices == d) {
+		devices = d->next;
+	} else {
+		struct unistim_device *d2 = devices;
+		while (d2) {
+			if (d2->next == d) {
+				d2->next = d->next;
+				break;
+			}
+			d2 = d2->next;
+		}
+	}
+	if (d->tz) {
+		d->tz = ast_tone_zone_unref(d->tz);
+	}
+	ast_mutex_destroy(&d->lock);
+	ast_free(d);
+}
+
 static struct unistim_device *build_device(const char *cat, const struct ast_variable *v)
 {
 	struct unistim_device *d;
@@ -6486,7 +6569,14 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 		} else if (!strcasecmp(v->name, "tn")) {
 			ast_copy_string(d->extension_number, v->value, sizeof(d->extension_number));
 		} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
-			d->ha = ast_append_ha(v->name, v->value, d->ha, NULL);
+			int acl_error = 0;
+			d->ha = ast_append_ha(v->name, v->value, d->ha, &acl_error);
+			if (acl_error) {
+				ast_log(LOG_ERROR, "Invalid ACL '%s' specified for device '%s' on line %d. Deleting device\n",
+						v->value, cat, v->lineno);
+				delete_device(d);
+				return NULL;
+			}
 		} else if (!strcasecmp(v->name, "context")) {
 			ast_copy_string(d->context, v->value, sizeof(d->context));
 		} else if (!strcasecmp(v->name, "maintext0")) {
@@ -6853,85 +6943,7 @@ static int reload_config(void)
 	d = devices;
 	while (d) {
 		if (d->to_delete) {
-			struct unistim_line *l;
-			struct unistim_subchannel *sub;
-
-			if (unistimdebug) {
-				ast_verb(0, "Removing device '%s'\n", d->name);
-			}
-			AST_LIST_LOCK(&d->subs);
-			AST_LIST_TRAVERSE_SAFE_BEGIN(&d->subs, sub, list){
-				if (sub->subtype == SUB_REAL) {
-					if (!sub) {
-						ast_log(LOG_ERROR, "Device '%s' without a subchannel !, aborting\n",
-								d->name);
-						ast_config_destroy(cfg);
-						return 0;
-					}
-					if (sub->owner) {
-						ast_log(LOG_WARNING,
-								"Device '%s' was not deleted : a call is in progress. Try again later.\n",
-								d->name);
-						d = d->next;
-						continue;
-					}
-				}
-				if (sub->subtype == SUB_THREEWAY) {
-					ast_log(LOG_WARNING,
-							"Device '%s' with threeway call subchannels allocated, aborting.\n",
-							d->name);
-					break;
-				}
-				AST_LIST_REMOVE_CURRENT(list);
-				ast_mutex_destroy(&sub->lock);
-				ast_free(sub);
-			}
-			AST_LIST_TRAVERSE_SAFE_END
-			AST_LIST_UNLOCK(&d->subs);
-
-
-			AST_LIST_LOCK(&d->lines);
-			AST_LIST_TRAVERSE_SAFE_BEGIN(&d->lines, l, list){
-				AST_LIST_REMOVE_CURRENT(list);
-				ast_mutex_destroy(&l->lock);
-				unistim_line_destroy(l);
-			}
-			AST_LIST_TRAVERSE_SAFE_END
-			AST_LIST_UNLOCK(&d->lines);
-
-			if (d->session) {
-				if (sessions == d->session) {
-					sessions = d->session->next;
-				} else {
-					s = sessions;
-					while (s) {
-						if (s->next == d->session) {
-							s->next = d->session->next;
-							break;
-						}
-						s = s->next;
-					}
-				}
-				ast_mutex_destroy(&d->session->lock);
-				ast_free(d->session);
-			}
-			if (devices == d) {
-				devices = d->next;
-			} else {
-				struct unistim_device *d2 = devices;
-				while (d2) {
-					if (d2->next == d) {
-						d2->next = d->next;
-						break;
-					}
-					d2 = d2->next;
-				}
-			}
-			if (d->tz) {
-				d->tz = ast_tone_zone_unref(d->tz);
-			}
-			ast_mutex_destroy(&d->lock);
-			ast_free(d);
+			delete_device(d);
 			d = devices;
 			continue;
 		}

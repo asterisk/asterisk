@@ -238,8 +238,21 @@ static int acl_handler(const struct aco_option *opt, struct ast_variable *var, v
 
 	if (!strncmp(var->name, "contact_", 8)) {
 		ast_append_acl(var->name + 8, var->value, &sip_acl->contact_acl, &error, &ignore);
+		if (error) {
+			ast_log(LOG_ERROR, "Bad contact ACL '%s' at line '%d' of pjsip.conf\n",
+					var->value, var->lineno);
+		}
 	} else {
 		ast_append_acl(var->name, var->value, &sip_acl->acl, &error, &ignore);
+		if (error) {
+			ast_log(LOG_ERROR, "Bad ACL '%s' at line '%d' of pjsip.conf\n",
+					var->value, var->lineno);
+		}
+	}
+
+	if (error) {
+		ast_log(LOG_ERROR, "There is an error in ACL configuration. Blocking ALL SIP traffic.\n");
+		ast_append_acl("deny", "0.0.0.0/0.0.0.0", &sip_acl->acl, NULL, &ignore);
 	}
 
 	return error;
