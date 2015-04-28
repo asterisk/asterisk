@@ -1186,8 +1186,6 @@ struct ast_channel * attribute_malloc __attribute__((format(printf, 15, 16)))
 	__ast_channel_alloc((needqueue), (state), (cid_num), (cid_name), (acctcode), (exten), (context), (assignedids), (requestor), (amaflag), (endpoint), \
 		__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 
-
-#if defined(REF_DEBUG) || defined(__AST_DEBUG_MALLOC)
 /*!
  * \brief Create a fake channel structure
  *
@@ -1206,25 +1204,6 @@ struct ast_channel * attribute_malloc __attribute__((format(printf, 15, 16)))
  */
 #define ast_dummy_channel_alloc()	__ast_dummy_channel_alloc(__FILE__, __LINE__, __PRETTY_FUNCTION__)
 struct ast_channel *__ast_dummy_channel_alloc(const char *file, int line, const char *function);
-#else
-/*!
- * \brief Create a fake channel structure
- *
- * \retval NULL failure
- * \retval non-NULL successfully allocated channel
- *
- * \note This function should ONLY be used to create a fake channel
- *       that can then be populated with data for use in variable
- *       substitution when a real channel does not exist.
- *
- * \note The created dummy channel should be destroyed by
- * ast_channel_unref().  Using ast_channel_release() needlessly
- * grabs the channel container lock and can cause a deadlock as
- * a result.  Also grabbing the channel container lock reduces
- * system performance.
- */
-struct ast_channel *ast_dummy_channel_alloc(void);
-#endif
 
 /*!
  * \brief Queue one or more frames to a channel's frame queue

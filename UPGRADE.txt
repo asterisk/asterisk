@@ -32,6 +32,9 @@ chan_dahdi:
    Caller-ID detection.
 
 Core:
+ - The REF_DEBUG compiler flag is now used to enable refdebug by default.
+   The setting can be overridden in asterisk.conf by setting refdebug in
+   the options category.  No recompile is required to enable/disable it.
 
 AMI:
  - The 'ModuleCheck' Action's Version key will no longer show the module

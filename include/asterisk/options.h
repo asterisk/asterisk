@@ -76,6 +76,8 @@ enum ast_option_flags {
 	AST_OPT_FLAG_DONT_WARN = (1 << 18),
 	/*! End CDRs before the 'h' extension */
 	AST_OPT_FLAG_END_CDR_BEFORE_H_EXTEN = (1 << 19),
+	/*! Reference Debugging */
+	AST_OPT_FLAG_REF_DEBUG = (1 << 20),
 	/*! Always fork, even if verbose or debug settings are non-zero */
 	AST_OPT_FLAG_ALWAYS_FORK = (1 << 21),
 	/*! Disable log/verbose output to remote consoles */
@@ -131,6 +133,7 @@ enum ast_option_flags {
 #define ast_opt_hide_connect		ast_test_flag(&ast_options, AST_OPT_FLAG_HIDE_CONSOLE_CONNECT)
 #define ast_opt_lock_confdir		ast_test_flag(&ast_options, AST_OPT_FLAG_LOCK_CONFIG_DIR)
 #define ast_opt_generic_plc         ast_test_flag(&ast_options, AST_OPT_FLAG_GENERIC_PLC)
+#define ast_opt_ref_debug           ast_test_flag(&ast_options, AST_OPT_FLAG_REF_DEBUG)
 
 extern struct ast_flags ast_options;
 

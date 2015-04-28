@@ -8599,9 +8599,9 @@ struct sip_pvt *__sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
 {
 	struct sip_pvt *p;
 
-	p = __ao2_alloc_debug(sizeof(*p), sip_destroy_fn,
+	p = __ao2_alloc(sizeof(*p), sip_destroy_fn,
 		AO2_ALLOC_OPT_LOCK_MUTEX, "allocate a dialog(pvt) struct",
-		file, line, func, 1);
+		file, line, func);
 	if (!p) {
 		return NULL;
 	}
@@ -9178,7 +9178,7 @@ static struct sip_pvt *__find_call(struct sip_request *req, struct ast_sockaddr 
 		struct sip_pvt tmp_dialog = {
 			.callid = callid,
 		};
-		sip_pvt_ptr = __ao2_find_debug(dialogs, &tmp_dialog, OBJ_POINTER,
+		sip_pvt_ptr = __ao2_find(dialogs, &tmp_dialog, OBJ_POINTER,
 			"find_call in dialogs", file, line, func);
 		if (sip_pvt_ptr) {  /* well, if we don't find it-- what IS in there? */
 			/* Found the call */
@@ -9193,7 +9193,7 @@ static struct sip_pvt *__find_call(struct sip_request *req, struct ast_sockaddr 
 		struct sip_pvt *fork_pvt = NULL;
 		struct match_req_args args = { 0, };
 		int found;
-		struct ao2_iterator *iterator = __ao2_callback_debug(dialogs,
+		struct ao2_iterator *iterator = __ao2_callback(dialogs,
 			OBJ_POINTER | OBJ_MULTIPLE,
 			dialog_find_multiple,
 			&tmp_dialog,
@@ -9243,7 +9243,7 @@ static struct sip_pvt *__find_call(struct sip_request *req, struct ast_sockaddr 
 				/* This is likely a forked Request that somehow resulted in us receiving multiple parts of the fork.
 			 	* RFC 3261 section 8.2.2.2, Indicate that we want to merge requests by sending a 482 response. */
 				transmit_response_using_temp(callid, addr, 1, intended_method, req, "482 (Loop Detected)");
-				__ao2_ref_debug(sip_pvt_ptr, -1, "pvt did not match incoming SIP msg, unref from search.",
+				__ao2_ref(sip_pvt_ptr, -1, "pvt did not match incoming SIP msg, unref from search.",
 					file, line, func);
 				ao2_iterator_destroy(iterator);
 				dialog_unref(fork_pvt, "unref fork_pvt");
@@ -9255,7 +9255,7 @@ static struct sip_pvt *__find_call(struct sip_request *req, struct ast_sockaddr 
 				/* fall through */
 			case SIP_REQ_NOT_MATCH:
 			default:
-				__ao2_ref_debug(sip_pvt_ptr, -1, "pvt did not match incoming SIP msg, unref from search",
+				__ao2_ref(sip_pvt_ptr, -1, "pvt did not match incoming SIP msg, unref from search",
 					file, line, func);
 				break;
 			}

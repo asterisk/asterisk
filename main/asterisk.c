@@ -3424,6 +3424,12 @@ static void ast_readconfig(void)
 	ast_copy_string(cfg_paths.socket_path, DEFAULT_SOCKET, sizeof(cfg_paths.socket_path));
 	ast_copy_string(cfg_paths.run_dir, DEFAULT_RUN_DIR, sizeof(cfg_paths.run_dir));
 
+#ifdef REF_DEBUG
+	/* The REF_DEBUG compiler flag is now only used to enable refdebug by default.
+	 * Support for debugging reference counts is always compiled in. */
+	ast_set2_flag(&ast_options, 1, AST_OPT_FLAG_REF_DEBUG);
+#endif
+
 	ast_set_default_eid(&ast_eid_default);
 
 	/* no asterisk.conf? no problem, use buildtime config! */
@@ -3494,6 +3500,8 @@ static void ast_readconfig(void)
 			if (sscanf(v->value, "%30d", &option_debug) != 1) {
 				option_debug = ast_true(v->value);
 			}
+		} else if (!strcasecmp(v->name, "refdebug")) {
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_REF_DEBUG);
 #if HAVE_WORKING_FORK
 		/* Disable forking (-f at startup) */
 		} else if (!strcasecmp(v->name, "nofork")) {

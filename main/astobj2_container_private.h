@@ -87,26 +87,15 @@ typedef void (*ao2_container_destroy_fn)(struct ao2_container *self);
  * \brief Create an empty copy of this container.
  *
  * \param self Container to operate upon.
- *
- * \retval empty-container on success.
- * \retval NULL on error.
- */
-typedef struct ao2_container *(*ao2_container_alloc_empty_clone_fn)(struct ao2_container *self);
-
-/*!
- * \brief Create an empty copy of this container. (Debug version)
- *
- * \param self Container to operate upon.
  * \param tag used for debugging.
  * \param file Debug file name invoked from
  * \param line Debug line invoked from
  * \param func Debug function name invoked from
- * \param ref_debug TRUE if to output a debug reference message.
  *
  * \retval empty-container on success.
  * \retval NULL on error.
  */
-typedef struct ao2_container *(*ao2_container_alloc_empty_clone_debug_fn)(struct ao2_container *self, const char *tag, const char *file, int line, const char *func, int ref_debug);
+typedef struct ao2_container *(*ao2_container_alloc_empty_clone_fn)(struct ao2_container *self, const char *tag, const char *file, int line, const char *func);
 
 /*!
  * \brief Create a new container node.
@@ -250,8 +239,6 @@ struct ao2_container_methods {
 	ao2_container_destroy_fn destroy;
 	/*! \brief Create an empty copy of this container. */
 	ao2_container_alloc_empty_clone_fn alloc_empty_clone;
-	/*! \brief Create an empty copy of this container. (Debug version) */
-	ao2_container_alloc_empty_clone_debug_fn alloc_empty_clone_debug;
 	/*! Create a new container node. */
 	ao2_container_new_node_fn new_node;
 	/*! Insert a node into this container. */
@@ -336,10 +323,9 @@ int __container_unlink_node_debug(struct ao2_container_node *node, uint32_t flag
 	const char *tag, const char *file, int line, const char *func);
 
 #define __container_unlink_node(node, flags) \
-	__container_unlink_node_debug(node, flags, NULL, NULL, 0, NULL)
+	__container_unlink_node_debug(node, flags, NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 void container_destruct(void *_c);
-void container_destruct_debug(void *_c);
 int container_init(void);
 
 #endif /* ASTOBJ2_CONTAINER_PRIVATE_H_ */
