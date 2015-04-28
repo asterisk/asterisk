@@ -58,6 +58,7 @@ static int accountlogs = 1;
 static int loguniqueid = 0;
 static int loguserfield = 0;
 static int loaded = 0;
+static int newcdrcolumns = 0;
 static const char config[] = "cdr.conf";
 
 /* #define CSV_LOGUNIQUEID 1 */
@@ -113,6 +114,7 @@ static int load_config(int reload)
 	usegmtime = 0;
 	loguniqueid = 0;
 	loguserfield = 0;
+	newcdrcolumns = 0;
 
 	if (!(v = ast_variable_browse(cfg, "csv"))) {
 		ast_config_destroy(cfg);
@@ -129,7 +131,10 @@ static int load_config(int reload)
 			loguniqueid = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "loguserfield")) {
 			loguserfield = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "newcdrcolumns")) {
+			newcdrcolumns = ast_true(v->value);
 		}
+
 	}
 	ast_config_destroy(cfg);
 	return 1;
@@ -241,6 +246,11 @@ static int build_csv_record(char *buf, size_t bufsize, struct ast_cdr *cdr)
 	/* append the user field */
 	if(loguserfield)
 		append_string(buf, cdr->userfield, bufsize);
+	if (newcdrcolumns) {
+		append_string(buf, cdr->peeraccount, bufsize);
+		append_string(buf, cdr->linkedid, bufsize);
+		append_int(buf, cdr->sequence, bufsize);
+	}
 	/* If we hit the end of our buffer, log an error */
 	if (strlen(buf) < bufsize - 5) {
 		/* Trim off trailing comma */
