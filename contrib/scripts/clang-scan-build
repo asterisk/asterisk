@@ -1,0 +1,136 @@
+#!/bin/bash
+#
+# clang-scan-build: configure and compile asterisk using the llvm static analyzer
+
+# Options/Flags:
+# -c|--compiler	: either [clang|gcc]
+# --cflags	: cflags you would like to add to the default set
+# --configure	: configure flags you would like to use instead off the default set
+# --make	: make flags you would like to use instead off the default set
+# --scanbuild	: scanbuild flags you would like to use instead of the default set
+# --outputdir	: directory where scan-build should create the html files
+# -h|--help	: this help
+
+# Usage:
+# contrib/scripts/clang-scan-build
+# This script will use clang if available and no compiler has been specified
+#
+# Example usage:
+#
+#   contrib/scripts/clang-scan-build
+#   contrib/scripts/clang-scan-build -c gcc
+#   contrib/scripts/clang-scan-build --compiler clang --configure "--enable-dev-mode" --outputdir="/tmp/scan-build_output"
+#   contrib/scripts/clang-scan-build --make "-j2"
+#
+# scan-build will generate html files during the make process, which will be stored in the specified outputdir or ./scan-build_output" by default
+
+# Copyright (C) 2015 Diederik de Groot <dddegroot@users.sf.net>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
+# USA
+
+COMPILER=clang
+SCANBUILD="`which scan-build`"
+CFLAGS=""
+CONFIGURE_FLAGS="--enable-coverage --disable-xmldoc"
+MAKE_FLAGS=""
+SCANBUILD_FLAGS="-maxloop 10 -disable-checker deadcode.DeadStores -enable-checker alpha.core.BoolAssignment -enable-checker alpha.core.CallAndMessageUnInitRefArg -enable-checker alpha.core.CastSize -enable-checker alpha.core.CastToStruct -enable-checker alpha.core.IdenticalExpr -enable-checker alpha.core.PointerArithm -enable-checker alpha.core.PointerSub -enable-checker alpha.core.SizeofPtr -enable-checker alpha.core.TestAfterDivZero -enable-checker alpha.security.ArrayBound -enable-checker alpha.security.ArrayBoundV2 -enable-checker alpha.security.MallocOverflow -enable-checker alpha.security.ReturnPtrRange -enable-checker alpha.security.taint.TaintPropagation -enable-checker alpha.unix.MallocWithAnnotations -enable-checker alpha.unix.PthreadLock -enable-checker alpha.unix.SimpleStream -enable-checker alpha.unix.Stream -enable-checker alpha.unix.cstring.BufferOverlap -enable-checker alpha.unix.cstring.NotNullTerminated -enable-checker alpha.unix.cstring.OutOfBounds"
+OUTPUTDIR="scan-build_output"
+
+function print_usage {
+cat << EOF
+$0 Usage:
+
+Options/Flags:
+-c|--compiler	: either [clang|gcc]
+--cflags	: cflags you would like to add to the default set:
+		  "${CFLAGS}"
+
+--configure	: configure flags you would like to use instead off the default set:
+		  "${CONFIGURE_FLAGS}"
+
+--make		: make flags you would like to use instead off the default set:
+		  "${MAKE_FLAGS}"
+
+--scanbuild	: scanbuild flags you would like to use instead of the default set:
+		  "${SCANBUILD_FLAGS}"
+
+--outputdir	: directory where scan-build should create the html files. default:
+		  "`pwd`/${OUTPUTDIR}"
+
+-h|--help	: this help
+EOF
+}
+
+for i in "$@"
+do
+	case $i in
+		-c=*|--compiler=*)
+			COMPILER="${i#*=}"
+			shift
+		;;
+		--cflags=*)
+			CFLAGS="${i#*=}"
+			shift
+		;;
+		--configure=*)
+			CONFIGURE_FLAGS="${i#*=}"
+			shift
+		;;
+		--make=*)
+			MAKE_FLAGS="${i#*=}"
+			shift
+		;;
+		--scanbuild=*)
+			SCANBUILD_FLAGS="${i#*=}"
+			shift
+		;;
+		--outputdir=*)
+			OUTPUTDIR="${i#*=}"
+			shift
+		;;
+		-h|--help)
+			print_usage
+			exit
+		;;
+	esac
+done
+
+if [ "${COMPILER}" == "clang" ] && [ ! -z "`which clang`" ]; then
+	CCC_CC="`which`clang"
+	CCC_CXX="`which clang++`"
+	CFLAGS="-fblocks ${CFLAGS}"
+elif [ "${COMPILER}" == "gcc" ] && [ ! -z "`which gcc`" ]; then
+	CCC_CC="`which gcc`"
+	CCC_CXX="`which g++`"
+	CFLAGS="${CFLAGS}"
+else
+	echo "Unknown compiler: $2, needs to be either clang or gcc"
+	exit
+fi
+
+if [ ! -f config.status ]; then
+	echo "Running ./configure ${CONFIGURE_FLAGS} ..."
+	${SCANBUILD} ${SCANBUILD_FLAGS} -o ${OUTPUTDIR} ./configure ${CONFIGURE_FLAGS}
+	if [ $? != 0 ]; then
+		echo "Configure error occurred, see output / config.log"
+		exit
+	fi
+	make clean
+fi
+if [ -f config.status ]; then
+	echo "Running scan-build make ${MAKE_FLAGS} ..."
+	${SCANBUILD} ${SCANBUILD_FLAGS} -o ${OUTPUTDIR} make ${MAKE_FLAGS}
+fi
