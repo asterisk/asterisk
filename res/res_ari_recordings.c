@@ -33,6 +33,7 @@
 
 /*** MODULEINFO
 	<depend type="module">res_ari</depend>
+	<depend type="module">res_ari_model</depend>
 	<depend type="module">res_stasis</depend>
 	<support_level>core</support_level>
  ***/
