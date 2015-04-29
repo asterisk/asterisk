@@ -240,7 +240,7 @@ static int build_csv_record(char *buf, size_t bufsize, struct ast_cdr *cdr)
 		append_string(buf, cdr->uniqueid, bufsize);
 	/* append the user field */
 	if(loguserfield)
-		append_string(buf, cdr->userfield,bufsize);
+		append_string(buf, cdr->userfield, bufsize);
 	/* If we hit the end of our buffer, log an error */
 	if (strlen(buf) < bufsize - 5) {
 		/* Trim off trailing comma */
