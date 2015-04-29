@@ -983,6 +983,7 @@ ifeq ($(PYTHON),:)
 	@echo "--------------------------------------------------------------------------"
 	@false
 else
+	@$(INSTALL) -d doc/rest-api
 	$(PYTHON) rest-api-templates/make_ari_stubs.py \
 		rest-api/resources.json .
 endif

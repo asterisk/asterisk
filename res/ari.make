@@ -18,46 +18,57 @@
 #
 
 res_ari_asterisk.so: ari/resource_asterisk.o
+.res_ari_asterisk.moduleinfo: ari/resource_asterisk.c
 
 ari/resource_asterisk.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_asterisk)
 
 res_ari_endpoints.so: ari/resource_endpoints.o
+.res_ari_endpoints.moduleinfo: ari/resource_endpoints.c
 
 ari/resource_endpoints.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_endpoints)
 
 res_ari_channels.so: ari/resource_channels.o
+.res_ari_channels.moduleinfo: ari/resource_channels.c
 
 ari/resource_channels.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_channels)
 
 res_ari_bridges.so: ari/resource_bridges.o
+.res_ari_bridges.moduleinfo: ari/resource_bridges.c
 
 ari/resource_bridges.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_bridges)
 
 res_ari_recordings.so: ari/resource_recordings.o
+.res_ari_recordings.moduleinfo: ari/resource_recordings.c
 
 ari/resource_recordings.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_recordings)
 
 res_ari_sounds.so: ari/resource_sounds.o
+.res_ari_sounds.moduleinfo: ari/resource_sounds.c
 
 ari/resource_sounds.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_sounds)
 
 res_ari_playbacks.so: ari/resource_playbacks.o
+.res_ari_playbacks.moduleinfo: ari/resource_playbacks.c
 
 ari/resource_playbacks.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_playbacks)
 
 res_ari_device_states.so: ari/resource_device_states.o
+.res_ari_device_states.moduleinfo: ari/resource_device_states.c
 
 ari/resource_device_states.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_device_states)
 
 res_ari_mailboxes.so: ari/resource_mailboxes.o
+.res_ari_mailboxes.moduleinfo: ari/resource_mailboxes.c
 
 ari/resource_mailboxes.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_mailboxes)
 
 res_ari_events.so: ari/resource_events.o
+.res_ari_events.moduleinfo: ari/resource_events.c
 
 ari/resource_events.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_events)
 
 res_ari_applications.so: ari/resource_applications.o
+.res_ari_applications.moduleinfo: ari/resource_applications.c
 
 ari/resource_applications.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_applications)
 
