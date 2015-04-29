@@ -48,6 +48,9 @@ chan_dahdi
 ------------------
  * The CALLERID(ani2) value for incoming calls is now populated in featdmf
    signaling mode.  The information was previously discarded.
+ * Added the force_restart_unavailable_chans compatibility option.  When
+   enabled it causes Asterisk to restart the ISDN B channel if an outgoing
+   call receives cause 44 (Requested channel not available).
 
 chan_iax2
 ------------------
