@@ -808,23 +808,11 @@ static int test_cleanup_cb(struct ast_test_info *info, struct ast_test *test)
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	AST_TEST_UNREGISTER(test_message_msg_tech_registration);
-	AST_TEST_UNREGISTER(test_message_msg_handler_registration);
-	AST_TEST_UNREGISTER(test_message_manipulation);
-	AST_TEST_UNREGISTER(test_message_queue_dialplan_nominal);
-	AST_TEST_UNREGISTER(test_message_queue_handler_nominal);
-	AST_TEST_UNREGISTER(test_message_queue_both_nominal);
-	AST_TEST_UNREGISTER(test_message_has_destination_dialplan);
-	AST_TEST_UNREGISTER(test_message_has_destination_handler);
-	AST_TEST_UNREGISTER(test_message_msg_send);
-
 	ast_context_destroy(NULL, AST_MODULE);
 
 	ast_manager_unregister_hook(&user_event_hook);
-
-	return 0;
 }
 
 static int create_test_dialplan(void)

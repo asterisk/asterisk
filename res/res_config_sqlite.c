@@ -81,6 +81,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>realtime_driver</load_priority>
 	<depend>sqlite</depend>
 	<support_level>extended</support_level>
  ***/
@@ -449,9 +450,6 @@ static int use_cdr;
 
 /*! Set to 1 if the CDR callback function was registered. */
 static int cdr_registered;
-
-/*! Set to 1 if the CLI status command callback function was registered. */
-static int cli_status_registered;
 
 /*! The path of the database file. */
 static char *dbfile;
@@ -1625,24 +1623,17 @@ static char *handle_cli_sqlite_show_tables(struct ast_cli_entry *e, int cmd, str
 	return CLI_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	if (cdr_registered && ast_cdr_unregister(RES_CONFIG_SQLITE_NAME)) {
-		return -1;
+		ast_module_block_unload(AST_MODULE_SELF);
+		return;
 	}
-
-	if (cli_status_registered) {
-		ast_cli_unregister_multiple(cli_status, ARRAY_LEN(cli_status));
-	}
-
-	ast_config_engine_deregister(&sqlite_engine);
 
 	if (db)
 		sqlite_close(db);
 
 	unload_config();
-
-	return 0;
 }
 
 /*!
@@ -1662,7 +1653,6 @@ static int load_module(void)
 
 	db = NULL;
 	cdr_registered = 0;
-	cli_status_registered = 0;
 	dbfile = NULL;
 	config_table = NULL;
 	cdr_table = NULL;
@@ -1674,7 +1664,6 @@ static int load_module(void)
 	if (!(db = sqlite_open(dbfile, 0660, &errormsg))) {
 		ast_log(LOG_ERROR, "%s\n", S_OR(errormsg, sqlite_error_string(error)));
 		sqlite_freemem(errormsg);
-		unload_module();
 		return 1;
 	}
 
@@ -1694,7 +1683,6 @@ static int load_module(void)
 
 		if (!query) {
 			ast_log(LOG_ERROR, "Unable to allocate SQL query\n");
-			unload_module();
 			return 1;
 		}
 
@@ -1713,7 +1701,6 @@ static int load_module(void)
 			if (error != SQLITE_ERROR) {
 				ast_log(LOG_ERROR, "%s\n", S_OR(errormsg, sqlite_error_string(error)));
 				sqlite_freemem(errormsg);
-				unload_module();
 				return 1;
 			}
 
@@ -1723,7 +1710,6 @@ static int load_module(void)
 
 			if (!query) {
 				ast_log(LOG_ERROR, "Unable to allocate SQL query\n");
-				unload_module();
 				return 1;
 			}
 
@@ -1738,7 +1724,6 @@ static int load_module(void)
 			if (error) {
 				ast_log(LOG_ERROR, "%s\n", S_OR(errormsg, sqlite_error_string(error)));
 				sqlite_freemem(errormsg);
-				unload_module();
 				return 1;
 			}
 		}
@@ -1748,7 +1733,6 @@ static int load_module(void)
 		error = ast_cdr_register(RES_CONFIG_SQLITE_NAME, RES_CONFIG_SQLITE_DESCRIPTION, cdr_handler);
 
 		if (error) {
-			unload_module();
 			return 1;
 		}
 
@@ -1758,18 +1742,10 @@ static int load_module(void)
 	error = ast_cli_register_multiple(cli_status, ARRAY_LEN(cli_status));
 
 	if (error) {
-		unload_module();
 		return 1;
 	}
-
-	cli_status_registered = 1;
 
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Realtime SQLite configuration",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_REALTIME_DRIVER,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Realtime SQLite configuration");

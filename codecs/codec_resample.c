@@ -135,17 +135,9 @@ static int resamp_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	int res = 0;
-	int idx;
-
-	for (idx = 0; idx < trans_size; idx++) {
-		res |= ast_unregister_translator(&translators[idx]);
-	}
 	ast_free(translators);
-
-	return res;
 }
 
 static int load_module(void)
@@ -178,10 +170,7 @@ static int load_module(void)
 		}
 
 	}
-	/* in case ast_register_translator() failed, we call unload_module() and
-	ast_unregister_translator won't fail.*/
 	if (res) {
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 

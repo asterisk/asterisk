@@ -1,4 +1,6 @@
 /\/\*\*\* +MODULEINFO/ {printit=1; next}
 /<support_level>/ {if (gotsupportlevel) { next }; gotsupportlevel=1}
+/<export_globals\/>/ {next}
+/<load_priority>/ {next}
 /\*\*\*\// {printit=0}
 /.*/ {if (printit) print}

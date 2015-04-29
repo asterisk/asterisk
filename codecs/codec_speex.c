@@ -580,26 +580,11 @@ static int parse_config(int reload)
 	return 0;
 }
 
-static int reload(void) 
+static int reload_module(void)
 {
 	if (parse_config(1))
 		return AST_MODULE_LOAD_DECLINE;
 	return AST_MODULE_LOAD_SUCCESS;
-}
-
-static int unload_module(void)
-{
-	int res = 0;
-
-	res |= ast_unregister_translator(&speextolin);
-	res |= ast_unregister_translator(&lintospeex);
-	res |= ast_unregister_translator(&speexwbtolin16);
-	res |= ast_unregister_translator(&lin16tospeexwb);
-	res |= ast_unregister_translator(&speexuwbtolin32);
-	res |= ast_unregister_translator(&lin32tospeexuwb);
-
-
-	return res;
 }
 
 static int load_module(void)
@@ -617,16 +602,10 @@ static int load_module(void)
 	res |= ast_register_translator(&lin32tospeexuwb);
 
 	if (res) {
-		unload_module();
 		return res;
 	}
 
 	return res;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Speex Coder/Decoder",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-);
+AST_MODULE_INFO_AUTOCLEAN_RELOADABLE(ASTERISK_GPL_KEY, "Speex Coder/Decoder");

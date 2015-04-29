@@ -1603,26 +1603,6 @@ end:
 	return res;
 }
 
-static int unload_module(void)
-{
-	ast_test_unregister(threadpool_push);
-	ast_test_unregister(threadpool_initial_threads);
-	ast_test_unregister(threadpool_thread_creation);
-	ast_test_unregister(threadpool_thread_destruction);
-	ast_test_unregister(threadpool_thread_timeout);
-	ast_test_unregister(threadpool_one_task_one_thread);
-	ast_test_unregister(threadpool_one_thread_one_task);
-	ast_test_unregister(threadpool_one_thread_multiple_tasks);
-	ast_test_unregister(threadpool_auto_increment);
-	ast_test_unregister(threadpool_max_size);
-	ast_test_unregister(threadpool_reactivation);
-	ast_test_unregister(threadpool_task_distribution);
-	ast_test_unregister(threadpool_more_destruction);
-	ast_test_unregister(threadpool_serializer);
-	ast_test_unregister(threadpool_serializer_dupe);
-	return 0;
-}
-
 static int load_module(void)
 {
 	ast_test_register(threadpool_push);
@@ -1643,4 +1623,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "threadpool test module");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "threadpool test module");

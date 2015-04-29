@@ -367,6 +367,5 @@ int ast_sip_initialize_cli(void)
 
 void ast_sip_destroy_cli(void)
 {
-	ast_cli_unregister_multiple(pjsip_cli, ARRAY_LEN(pjsip_cli));
 	ao2_ref(formatter_registry, -1);
 }

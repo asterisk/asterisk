@@ -74,19 +74,12 @@ static struct ast_bridge_technology simple_bridge = {
 	.write = simple_bridge_write,
 };
 
-static int unload_module(void)
-{
-	ast_bridge_technology_unregister(&simple_bridge);
-	return 0;
-}
-
 static int load_module(void)
 {
 	if (ast_bridge_technology_register(&simple_bridge)) {
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Simple two channel bridging module");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Simple two channel bridging module");

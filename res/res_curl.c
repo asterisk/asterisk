@@ -36,6 +36,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>realtime_depend</load_priority>
 	<depend>curl</depend>
 	<support_level>core</support_level>
  ***/
@@ -48,30 +49,9 @@ ASTERISK_REGISTER_FILE()
 
 #include "asterisk/module.h"
 
-static const char *dependents[] = {
-	"func_curl.so",
-	"res_config_curl.so",
-};
-
-static int unload_module(void)
+static void unload_module(void)
 {
-	int res = 0;
-	size_t i;
-
-	/* If the dependent modules are still in memory, forbid unload */
-	for (i = 0; i < ARRAY_LEN(dependents); i++) {
-		if (ast_module_check(dependents[i])) {
-			ast_log(LOG_ERROR, "%s (dependent module) is still loaded.  Cannot unload res_curl.so\n", dependents[i]);
-			res = -1;
-		}
-	}
-
-	if (res)
-		return -1;
-
 	curl_global_cleanup();
-
-	return res;
 }
 
 /*!
@@ -96,9 +76,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "cURL Resource Module",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_REALTIME_DEPEND,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "cURL Resource Module");

@@ -17,7 +17,8 @@
  */
 
 /*** MODULEINFO
-	<depend type="module">res_stasis</depend>
+	<export_globals/>
+	<use type="module">res_stasis</use>
 	<support_level>core</support_level>
  ***/
 
@@ -401,18 +402,11 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	ast_devstate_prov_del(DEVICE_STATE_PROVIDER_STASIS);
 	stasis_app_unregister_event_source(&device_state_event_source);
 	ao2_cleanup(device_state_subscriptions);
 	device_state_subscriptions = NULL;
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Stasis application device state support",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.nonoptreq = "res_stasis"
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Stasis application device state support");

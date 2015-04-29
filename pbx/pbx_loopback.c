@@ -177,17 +177,11 @@ static struct ast_switch loopback_switch =
 	.matchmore		= loopback_matchmore,
 };
 
-static int unload_module(void)
-{
-	ast_unregister_switch(&loopback_switch);
-	return 0;
-}
-
 static int load_module(void)
 {
-	if (ast_register_switch(&loopback_switch))
+	if (ast_switch_register(&loopback_switch))
 		return AST_MODULE_LOAD_FAILURE;
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Loopback Switch");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Loopback Switch");

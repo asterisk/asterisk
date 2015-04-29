@@ -28,7 +28,7 @@
  */
 
 /*** MODULEINFO
-	<depend>res_odbc</depend>
+	<use type="module">res_odbc</use>
 	<support_level>core</support_level>
  ***/
 
@@ -1507,22 +1507,15 @@ static int load_module(void)
 	return res;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	struct acf_odbc_query *query;
-	int res = 0;
 
 	AST_RWLIST_WRLOCK(&queries);
 	while (!AST_RWLIST_EMPTY(&queries)) {
 		query = AST_RWLIST_REMOVE_HEAD(&queries, list);
-		ast_custom_function_unregister(query->acf);
 		free_acf_query(query);
 	}
-
-	res |= ast_custom_function_unregister(&escape_function);
-	res |= ast_custom_function_unregister(&fetch_function);
-	res |= ast_unregister_application(app_odbcfinish);
-	ast_cli_unregister_multiple(cli_func_odbc, ARRAY_LEN(cli_func_odbc));
 
 	/* Allow any threads waiting for this lock to pass (avoids a race) */
 	AST_RWLIST_UNLOCK(&queries);
@@ -1530,10 +1523,9 @@ static int unload_module(void)
 	AST_RWLIST_WRLOCK(&queries);
 
 	AST_RWLIST_UNLOCK(&queries);
-	return res;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	int res = 0;
 	struct ast_config *cfg;
@@ -1578,11 +1570,4 @@ reload_out:
 }
 
 /* XXX need to revise usecount - set if query_lock is set */
-
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "ODBC lookups",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-);
-
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "ODBC lookups");

@@ -25,7 +25,7 @@
 
 /*** MODULEINFO
 	<depend>TEST_FRAMEWORK</depend>
-	<depend>res_ari_model</depend>
+	<use type="module">res_ari_model</use>
 	<support_level>core</support_level>
  ***/
 
@@ -430,18 +430,6 @@ AST_TEST_DEFINE(validate_list)
 	return AST_TEST_PASS;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(validate_byte);
-	AST_TEST_UNREGISTER(validate_boolean);
-	AST_TEST_UNREGISTER(validate_int);
-	AST_TEST_UNREGISTER(validate_long);
-	AST_TEST_UNREGISTER(validate_string);
-	AST_TEST_UNREGISTER(validate_date);
-	AST_TEST_UNREGISTER(validate_list);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(validate_byte);
@@ -454,4 +442,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Skeleton (sample) Test");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Skeleton (sample) Test");

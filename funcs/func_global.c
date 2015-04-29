@@ -310,16 +310,6 @@ static struct ast_custom_function shared_function = {
 	.write = shared_write,
 };
 
-static int unload_module(void)
-{
-	int res = 0;
-
-	res |= ast_custom_function_unregister(&global_function);
-	res |= ast_custom_function_unregister(&shared_function);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res = 0;
@@ -330,4 +320,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Variable dialplan functions");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Variable dialplan functions");

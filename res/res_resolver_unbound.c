@@ -19,6 +19,7 @@
 /*** MODULEINFO
 	<depend>unbound</depend>
 	<support_level>core</support_level>
+	<load_priority>channel_depend</load_priority>
  ***/
 
 #include "asterisk.h"
@@ -1383,19 +1384,10 @@ static int reload_module(void)
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	aco_info_destroy(&cfg_info);
 	ao2_global_obj_release(globals);
-
-	AST_TEST_UNREGISTER(resolve_sync);
-	AST_TEST_UNREGISTER(resolve_async);
-	AST_TEST_UNREGISTER(resolve_sync_off_nominal);
-	AST_TEST_UNREGISTER(resolve_sync_off_nominal);
-	AST_TEST_UNREGISTER(resolve_cancel_off_nominal);
-	AST_TEST_UNREGISTER(resolve_naptr);
-	AST_TEST_UNREGISTER(resolve_srv);
-	return 0;
 }
 
 static int custom_nameserver_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
@@ -1431,20 +1423,18 @@ static int load_module(void)
 	cfg = ast_config_load(resolver_unbound_conf.filename, cfg_flags);
 	if (!cfg) {
 		if (unbound_config_apply_default()) {
-			unload_module();
 			return AST_MODULE_LOAD_DECLINE;
 		}
 	} else {
 		ast_config_destroy(cfg);
 		if (aco_process_config(&cfg_info, 0) == ACO_PROCESS_ERROR) {
-			unload_module();
 			return AST_MODULE_LOAD_DECLINE;
 		}
 	}
 
 	ast_dns_resolver_register(&unbound_resolver);
 
-	ast_module_shutdown_ref(ast_module_info->self);
+	ast_module_block_unload(AST_MODULE_SELF);
 
 	AST_TEST_REGISTER(resolve_sync);
 	AST_TEST_REGISTER(resolve_async);
@@ -1457,10 +1447,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Unbound DNS Resolver Support",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND - 4,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Unbound DNS Resolver Support");

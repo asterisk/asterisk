@@ -94,16 +94,9 @@ static struct ast_custom_function acf_rand = {
 	.read_max = 12,
 };
 
-static int unload_module(void)
-{
-	ast_custom_function_unregister(&acf_rand);
-
-	return 0;
-}
-
 static int load_module(void)
 {
 	return ast_custom_function_register(&acf_rand);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Random number dialplan function");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Random number dialplan function");

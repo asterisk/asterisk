@@ -150,7 +150,7 @@ struct data_provider {
 	/*! \brief node content handler. */
 	const struct ast_data_handler *handler;
 	/*! \brief Module providing this handler. */
-	struct ast_module *module;
+	struct ast_module_lib *lib;
 	/*! \brief children nodes. */
 	struct ao2_container *children;
 	/*! \brief Who registered this node. */
@@ -294,6 +294,7 @@ static void data_provider_destructor(void *obj)
 	struct data_provider *provider = obj;
 
 	ao2_ref(provider->children, -1);
+	ao2_cleanup(provider->lib);
 }
 
 /*!
@@ -554,7 +555,7 @@ int __ast_data_register(const char *path, const struct ast_data_handler *handler
 
 	/* add handler to that node. */
 	node->handler = handler;
-	node->module = mod;
+	node->lib = mod ? ast_module_get_lib_running(mod) : NULL;
 
 	ao2_ref(node, -1);
 
@@ -1893,6 +1894,7 @@ static struct ast_data *data_result_generate_node(const struct ast_data_query *q
 	struct data_provider *provider;
 	struct ast_data_search *search_child = NULL;
 	struct data_filter *filter_child;
+	struct ast_module_instance *instance;
 
 	node = data_result_create(parent_node_name);
 	if (!node) {
@@ -1900,22 +1902,15 @@ static struct ast_data *data_result_generate_node(const struct ast_data_query *q
 		return NULL;
 	}
 
-	if (root_provider->module) {
-		ast_module_ref(root_provider->module);
-	}
-
-	/* if this is a terminal node, just run the callback function. */
-	if (root_provider->handler && root_provider->handler->get) {
-		node->filter = filter;
-		root_provider->handler->get(search, node);
-		if (root_provider->module) {
-			ast_module_unref(root_provider->module);
+	if ((instance = ast_module_lib_get_instance(root_provider->lib))) {
+		/* if this is a terminal node, just run the callback function. */
+		if (root_provider->handler && root_provider->handler->get) {
+			node->filter = filter;
+			root_provider->handler->get(search, node);
+			ao2_cleanup(instance);
+			return node;
 		}
-		return node;
-	}
-
-	if (root_provider->module) {
-		ast_module_unref(root_provider->module);
+		ao2_cleanup(instance);
 	}
 
 	/* if this is not a terminal node, generate every child node. */

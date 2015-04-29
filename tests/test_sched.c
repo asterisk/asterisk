@@ -238,13 +238,6 @@ static struct ast_cli_entry cli_sched[] = {
 	AST_CLI_DEFINE(handle_cli_sched_bench, "Benchmark ast_sched add/del performance"),
 };
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(sched_test_order);
-	ast_cli_unregister_multiple(cli_sched, ARRAY_LEN(cli_sched));
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(sched_test_order);
@@ -252,4 +245,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "ast_sched performance test module");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "ast_sched performance test module");

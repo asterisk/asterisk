@@ -35,6 +35,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_driver</load_priority>
 	<depend>bluetooth</depend>
 	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
@@ -4628,18 +4629,10 @@ static inline void set_unloading()
 	ast_mutex_unlock(&unload_mutex);
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	struct mbl_pvt *pvt;
 	struct adapter_pvt *adapter;
-
-	/* First, take us out of the channel loop */
-	ast_channel_unregister(&mbl_tech);
-
-	/* Unregister the CLI & APP */
-	ast_cli_unregister_multiple(mbl_cli, sizeof(mbl_cli) / sizeof(mbl_cli[0]));
-	ast_unregister_application(app_mblstatus);
-	ast_unregister_application(app_mblsendsms);
 
 	/* signal everyone we are unloading */
 	set_unloading();
@@ -4698,7 +4691,6 @@ static int unload_module(void)
 
 	ao2_ref(mbl_tech.capabilities, -1);
 	mbl_tech.capabilities = NULL;
-	return 0;
 }
 
 static int load_module(void)
@@ -4753,9 +4745,4 @@ e_cleanup:
 	return AST_MODULE_LOAD_FAILURE;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Bluetooth Mobile Device Channel Driver",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DRIVER,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Bluetooth Mobile Device Channel Driver");

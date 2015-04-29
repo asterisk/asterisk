@@ -177,16 +177,10 @@ AST_TEST_DEFINE(expr_test)
 	return res;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(expr_test);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(expr_test);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Expression evaluation tests");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Expression evaluation tests");

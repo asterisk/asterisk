@@ -139,8 +139,6 @@ static int load_module(void)
 	}
 
 	if (!(security_stasis_sub = stasis_subscribe(ast_security_topic(), security_stasis_cb, NULL))) {
-		ast_logger_unregister_level(LOG_SECURITY_NAME);
-		LOG_SECURITY = -1;
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -149,7 +147,7 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	if (security_stasis_sub) {
 		security_stasis_sub = stasis_unsubscribe_and_join(security_stasis_sub);
@@ -158,8 +156,6 @@ static int unload_module(void)
 	ast_logger_unregister_level(LOG_SECURITY_NAME);
 
 	ast_verb(3, "Security Logging Disabled\n");
-
-	return 0;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Security Event Logging");

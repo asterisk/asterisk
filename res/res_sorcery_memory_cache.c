@@ -25,6 +25,8 @@
  */
 
 /*** MODULEINFO
+	<load_priority>realtime_driver</load_priority>
+	<export_globals/>
 	<support_level>core</support_level>
  ***/
 
@@ -1464,7 +1466,7 @@ cleanup:
 
 #endif
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	if (sched) {
 		ast_sched_context_destroy(sched);
@@ -1472,18 +1474,6 @@ static int unload_module(void)
 	}
 
 	ao2_cleanup(caches);
-
-	ast_sorcery_wizard_unregister(&memory_cache_object_wizard);
-
-	AST_TEST_UNREGISTER(open_with_valid_options);
-	AST_TEST_UNREGISTER(open_with_invalid_options);
-	AST_TEST_UNREGISTER(create_and_retrieve);
-	AST_TEST_UNREGISTER(update);
-	AST_TEST_UNREGISTER(delete);
-	AST_TEST_UNREGISTER(maximum_objects);
-	AST_TEST_UNREGISTER(expiration);
-
-	return 0;
 }
 
 static int load_module(void)
@@ -1491,13 +1481,11 @@ static int load_module(void)
 	sched = ast_sched_context_create();
 	if (!sched) {
 		ast_log(LOG_ERROR, "Failed to create scheduler for cache management\n");
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (ast_sched_start_thread(sched)) {
 		ast_log(LOG_ERROR, "Failed to create scheduler thread for cache management\n");
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -1505,12 +1493,10 @@ static int load_module(void)
 		sorcery_memory_cache_cmp);
 	if (!caches) {
 		ast_log(LOG_ERROR, "Failed to create container for configured caches\n");
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (ast_sorcery_wizard_register(&memory_cache_object_wizard)) {
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -1525,9 +1511,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Sorcery Memory Cache Object Wizard",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_REALTIME_DRIVER,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Sorcery Memory Cache Object Wizard");

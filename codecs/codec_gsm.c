@@ -211,16 +211,6 @@ static struct ast_translator lintogsm = {
 	.buf_size = (BUFFER_SAMPLES * GSM_FRAME_LEN + GSM_SAMPLES - 1)/GSM_SAMPLES,
 };
 
-static int unload_module(void)
-{
-	int res;
-
-	res = ast_unregister_translator(&lintogsm);
-	res |= ast_unregister_translator(&gsmtolin);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res;
@@ -229,15 +219,10 @@ static int load_module(void)
 	res |= ast_register_translator(&lintogsm);
 
 	if (res) {
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "GSM Coder/Decoder",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "GSM Coder/Decoder");

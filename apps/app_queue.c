@@ -63,6 +63,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>devstate_consumer</load_priority>
 	<use type="module">res_monitor</use>
 	<support_level>core</support_level>
  ***/
@@ -6729,6 +6730,7 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 			if (application) {
 				agiexec = ast_strdupa(agi);
 				pbx_exec(qe->chan, application, agiexec);
+				ao2_ref(application, -1);
 			} else {
 				ast_log(LOG_WARNING, "Asked to execute an AGI on this channel, but could not find application (agi)!\n");
 			}
@@ -10670,7 +10672,7 @@ static const struct ast_data_entry queue_data_providers[] = {
 static struct stasis_message_router *agent_router;
 static struct stasis_forward *topic_forwarder;
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	stasis_message_router_unsubscribe_and_join(agent_router);
 	agent_router = NULL;
@@ -10694,34 +10696,6 @@ static int unload_module(void)
 	STASIS_MESSAGE_TYPE_CLEANUP(queue_agent_dump_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(queue_agent_ringnoanswer_type);
 
-	ast_cli_unregister_multiple(cli_queue, ARRAY_LEN(cli_queue));
-	ast_manager_unregister("QueueStatus");
-	ast_manager_unregister("Queues");
-	ast_manager_unregister("QueueRule");
-	ast_manager_unregister("QueueSummary");
-	ast_manager_unregister("QueueAdd");
-	ast_manager_unregister("QueueRemove");
-	ast_manager_unregister("QueuePause");
-	ast_manager_unregister("QueueLog");
-	ast_manager_unregister("QueuePenalty");
-	ast_manager_unregister("QueueReload");
-	ast_manager_unregister("QueueReset");
-	ast_manager_unregister("QueueMemberRingInUse");
-	ast_unregister_application(app_aqm);
-	ast_unregister_application(app_rqm);
-	ast_unregister_application(app_pqm);
-	ast_unregister_application(app_upqm);
-	ast_unregister_application(app_ql);
-	ast_unregister_application(app);
-	ast_custom_function_unregister(&queueexists_function);
-	ast_custom_function_unregister(&queuevar_function);
-	ast_custom_function_unregister(&queuemembercount_function);
-	ast_custom_function_unregister(&queuemembercount_dep);
-	ast_custom_function_unregister(&queuememberlist_function);
-	ast_custom_function_unregister(&queuegetchannel_function);
-	ast_custom_function_unregister(&queuewaitingcount_function);
-	ast_custom_function_unregister(&queuememberpenalty_function);
-
 	ast_data_unregister(NULL);
 
 	device_state_sub = stasis_unsubscribe_and_join(device_state_sub);
@@ -10731,7 +10705,6 @@ static int unload_module(void)
 	ast_unload_realtime("queue_members");
 	ao2_cleanup(queues);
 	queues = NULL;
-	return 0;
 }
 
 /*!
@@ -10760,7 +10733,6 @@ static int load_module(void)
 	use_weight = 0;
 
 	if (reload_handler(0, &mask, NULL)) {
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -10832,23 +10804,19 @@ static int load_module(void)
 	manager_topic = ast_manager_get_topic();
 	queue_topic = ast_queue_topic_all();
 	if (!manager_topic || !queue_topic) {
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	topic_forwarder = stasis_forward_all(queue_topic, manager_topic);
 	if (!topic_forwarder) {
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (!ast_channel_agent_login_type()
 		|| !ast_channel_agent_logoff_type()) {
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	agent_router = stasis_message_router_create(ast_channel_topic_all());
 	if (!agent_router) {
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	err |= stasis_message_router_add(agent_router,
@@ -10880,13 +10848,12 @@ static int load_module(void)
 	ast_extension_state_add(NULL, NULL, extension_state_cb, NULL);
 
 	if (err) {
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	struct ast_flags mask = {AST_FLAGS_ALL & ~QUEUE_RESET_STATS,};
 	ast_unload_realtime("queue_members");
@@ -10911,12 +10878,4 @@ static struct member *find_member_by_queuename_and_interface(const char *queuena
 	return mem;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "True Call Queueing",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_DEVSTATE_CONSUMER,
-	.nonoptreq = "res_monitor",
-);
-
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "True Call Queueing");

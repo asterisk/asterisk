@@ -23,6 +23,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>devstate_provider</load_priority>
 	<support_level>core</support_level>
  ***/
 
@@ -823,20 +824,9 @@ AST_TEST_DEFINE(test_presence_state_base64_encode)
 
 #endif
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	int res = 0;
-
-	res |= ast_custom_function_unregister(&presence_function);
-	res |= ast_presence_state_prov_del("CustomPresence");
-	res |= ast_cli_unregister_multiple(cli_funcpresencestate, ARRAY_LEN(cli_funcpresencestate));
-#ifdef TEST_FRAMEWORK
-	AST_TEST_UNREGISTER(test_valid_parse_data);
-	AST_TEST_UNREGISTER(test_invalid_parse_data);
-	AST_TEST_UNREGISTER(test_presence_state_change);
-	AST_TEST_UNREGISTER(test_presence_state_base64_encode);
-#endif
-	return res;
+	ast_presence_state_prov_del("CustomPresence");
 }
 
 static int load_module(void)
@@ -876,10 +866,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Gets or sets a presence state in the dialplan",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_DEVSTATE_PROVIDER,
-);
-
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Gets or sets a presence state in the dialplan");

@@ -17,10 +17,11 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_depend</load_priority>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
-	<depend>res_pjsip_pubsub</depend>
-	<depend>res_pjsip_exten_state</depend>
+	<use type="module">res_pjsip</use>
+	<use type="module">res_pjsip_pubsub</use>
+	<use type="module">res_pjsip_exten_state</use>
 	<support_level>core</support_level>
  ***/
 
@@ -150,32 +151,20 @@ static void unregister_all(void)
 
 static int load_module(void)
 {
-	CHECK_PJSIP_PUBSUB_MODULE_LOADED();
-
 	if (ast_sip_pubsub_register_body_generator(&xpidf_body_generator)) {
-		goto fail;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (ast_sip_pubsub_register_body_generator(&cpim_pidf_body_generator)) {
-		goto fail;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
-
-fail:
-	unregister_all();
-	return AST_MODULE_LOAD_DECLINE;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	unregister_all();
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP Extension State PIDF Provider",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "PJSIP Extension State PIDF Provider");

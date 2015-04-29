@@ -1529,30 +1529,6 @@ AST_TEST_DEFINE(voicemail_api_off_nominal_msg_playback)
 	return AST_TEST_PASS;
 }
 
-static int unload_module(void)
-{
-	/* Snapshot tests */
-	AST_TEST_UNREGISTER(voicemail_api_nominal_snapshot);
-	AST_TEST_UNREGISTER(voicemail_api_off_nominal_snapshot);
-
-	/* Move Tests */
-	AST_TEST_UNREGISTER(voicemail_api_nominal_move);
-	AST_TEST_UNREGISTER(voicemail_api_off_nominal_move);
-
-	/* Remove Tests */
-	AST_TEST_UNREGISTER(voicemail_api_nominal_remove);
-	AST_TEST_UNREGISTER(voicemail_api_off_nominal_remove);
-
-	/* Forward Tests */
-	AST_TEST_UNREGISTER(voicemail_api_nominal_forward);
-	AST_TEST_UNREGISTER(voicemail_api_off_nominal_forward);
-
-	/* Message Playback Tests */
-	AST_TEST_UNREGISTER(voicemail_api_nominal_msg_playback);
-	AST_TEST_UNREGISTER(voicemail_api_off_nominal_msg_playback);
-	return 0;
-}
-
 static int load_module(void)
 {
 	/* Snapshot tests */
@@ -1578,4 +1554,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Core Voicemail API Tests");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Core Voicemail API Tests");

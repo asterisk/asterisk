@@ -1424,31 +1424,6 @@ AST_TEST_DEFINE(format_cap_replace_from_cap)
 	return AST_TEST_PASS;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(format_cap_alloc);
-	AST_TEST_UNREGISTER(format_cap_append_single);
-	AST_TEST_UNREGISTER(format_cap_append_multiple);
-	AST_TEST_UNREGISTER(format_cap_append_all_unknown);
-	AST_TEST_UNREGISTER(format_cap_append_all_audio);
-	AST_TEST_UNREGISTER(format_cap_append_duplicate);
-	AST_TEST_UNREGISTER(format_cap_append_from_cap);
-	AST_TEST_UNREGISTER(format_cap_append_from_cap_duplicate);
-	AST_TEST_UNREGISTER(format_cap_set_framing);
-	AST_TEST_UNREGISTER(format_cap_remove_single);
-	AST_TEST_UNREGISTER(format_cap_remove_multiple);
-	AST_TEST_UNREGISTER(format_cap_remove_bytype);
-	AST_TEST_UNREGISTER(format_cap_remove_all);
-	AST_TEST_UNREGISTER(format_cap_get_names);
-	AST_TEST_UNREGISTER(format_cap_get_compatible_format);
-	AST_TEST_UNREGISTER(format_cap_iscompatible_format);
-	AST_TEST_UNREGISTER(format_cap_get_compatible);
-	AST_TEST_UNREGISTER(format_cap_iscompatible);
-	AST_TEST_UNREGISTER(format_cap_best_by_type);
-	AST_TEST_UNREGISTER(format_cap_replace_from_cap);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(format_cap_alloc);
@@ -1476,4 +1451,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Format capabilities API test module");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Format capabilities API test module");

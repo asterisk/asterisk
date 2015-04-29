@@ -222,128 +222,6 @@ static int cli_has_permissions(int uid, int gid, const char *command)
 
 static AST_RWLIST_HEAD_STATIC(helpers, ast_cli_entry);
 
-static char *complete_fn(const char *word, int state)
-{
-	char *c, *d;
-	char filename[PATH_MAX];
-
-	if (word[0] == '/')
-		ast_copy_string(filename, word, sizeof(filename));
-	else
-		snprintf(filename, sizeof(filename), "%s/%s", ast_config_AST_MODULE_DIR, word);
-
-	c = d = filename_completion_function(filename, state);
-
-	if (c && word[0] != '/')
-		c += (strlen(ast_config_AST_MODULE_DIR) + 1);
-	if (c)
-		c = ast_strdup(c);
-
-	ast_std_free(d);
-
-	return c;
-}
-
-static char *handle_load(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	/* "module load <mod>" */
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "module load";
-		e->usage =
-			"Usage: module load <module name>\n"
-			"       Loads the specified module into Asterisk.\n";
-		return NULL;
-
-	case CLI_GENERATE:
-		if (a->pos != e->args)
-			return NULL;
-		return complete_fn(a->word, a->n);
-	}
-	if (a->argc != e->args + 1)
-		return CLI_SHOWUSAGE;
-	if (ast_load_resource(a->argv[e->args])) {
-		ast_cli(a->fd, "Unable to load module %s\n", a->argv[e->args]);
-		return CLI_FAILURE;
-	}
-	ast_cli(a->fd, "Loaded %s\n", a->argv[e->args]);
-	return CLI_SUCCESS;
-}
-
-static char *handle_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	int x;
-
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "module reload";
-		e->usage =
-			"Usage: module reload [module ...]\n"
-			"       Reloads configuration files for all listed modules which support\n"
-			"       reloading, or for all supported modules if none are listed.\n";
-		return NULL;
-
-	case CLI_GENERATE:
-		return ast_module_helper(a->line, a->word, a->pos, a->n, a->pos, 1);
-	}
-	if (a->argc == e->args) {
-		ast_module_reload(NULL);
-		return CLI_SUCCESS;
-	}
-	for (x = e->args; x < a->argc; x++) {
-		enum ast_module_reload_result res = ast_module_reload(a->argv[x]);
-		switch (res) {
-		case AST_MODULE_RELOAD_NOT_FOUND:
-			ast_cli(a->fd, "No such module '%s'\n", a->argv[x]);
-			break;
-		case AST_MODULE_RELOAD_NOT_IMPLEMENTED:
-			ast_cli(a->fd, "The module '%s' does not support reloads\n", a->argv[x]);
-			break;
-		case AST_MODULE_RELOAD_QUEUED:
-			ast_cli(a->fd, "Asterisk cannot reload a module yet; request queued\n");
-			break;
-		case AST_MODULE_RELOAD_ERROR:
-			ast_cli(a->fd, "The module '%s' reported a reload failure\n", a->argv[x]);
-			break;
-		case AST_MODULE_RELOAD_IN_PROGRESS:
-			ast_cli(a->fd, "A module reload request is already in progress; please be patient\n");
-			break;
-		case AST_MODULE_RELOAD_UNINITIALIZED:
-			ast_cli(a->fd, "The module '%s' was not properly initialized. Before reloading"
-					" the module, you must run \"module load %s\" and fix whatever is"
-					" preventing the module from being initialized.\n", a->argv[x], a->argv[x]);
-			break;
-		case AST_MODULE_RELOAD_SUCCESS:
-			ast_cli(a->fd, "Module '%s' reloaded successfully.\n", a->argv[x]);
-			break;
-		}
-	}
-	return CLI_SUCCESS;
-}
-
-static char *handle_core_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "core reload";
-		e->usage =
-			"Usage: core reload\n"
-			"       Execute a global reload.\n";
-		return NULL;
-
-	case CLI_GENERATE:
-		return NULL;
-	}
-
-	if (a->argc != e->args) {
-		return CLI_SHOWUSAGE;
-	}
-
-	ast_module_reload(NULL);
-
-	return CLI_SUCCESS;
-}
-
 /*!
  * \brief Find the module level setting
  *
@@ -723,74 +601,6 @@ static char *handle_logger_mute(struct ast_cli_entry *e, int cmd, struct ast_cli
 	return CLI_SUCCESS;
 }
 
-static char *handle_unload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	/* "module unload mod_1 [mod_2 .. mod_N]" */
-	int x;
-	int force = AST_FORCE_SOFT;
-	const char *s;
-
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "module unload";
-		e->usage =
-			"Usage: module unload [-f|-h] <module_1> [<module_2> ... ]\n"
-			"       Unloads the specified module from Asterisk. The -f\n"
-			"       option causes the module to be unloaded even if it is\n"
-			"       in use (may cause a crash) and the -h module causes the\n"
-			"       module to be unloaded even if the module says it cannot, \n"
-			"       which almost always will cause a crash.\n";
-		return NULL;
-
-	case CLI_GENERATE:
-		return ast_module_helper(a->line, a->word, a->pos, a->n, a->pos, 0);
-	}
-	if (a->argc < e->args + 1)
-		return CLI_SHOWUSAGE;
-	x = e->args;	/* first argument */
-	s = a->argv[x];
-	if (s[0] == '-') {
-		if (s[1] == 'f')
-			force = AST_FORCE_FIRM;
-		else if (s[1] == 'h')
-			force = AST_FORCE_HARD;
-		else
-			return CLI_SHOWUSAGE;
-		if (a->argc < e->args + 2)	/* need at least one module name */
-			return CLI_SHOWUSAGE;
-		x++;	/* skip this argument */
-	}
-
-	for (; x < a->argc; x++) {
-		if (ast_unload_resource(a->argv[x], force)) {
-			ast_cli(a->fd, "Unable to unload resource %s\n", a->argv[x]);
-			return CLI_FAILURE;
-		}
-		ast_cli(a->fd, "Unloaded %s\n", a->argv[x]);
-	}
-
-	return CLI_SUCCESS;
-}
-
-#define MODLIST_FORMAT  "%-30s %-40.40s %-10d %-11s %13s\n"
-#define MODLIST_FORMAT2 "%-30s %-40.40s %-10s %-11s %13s\n"
-
-AST_MUTEX_DEFINE_STATIC(climodentrylock);
-static int climodentryfd = -1;
-
-static int modlist_modentry(const char *module, const char *description,
-		int usecnt, const char *status, const char *like,
-		enum ast_module_support_level support_level)
-{
-	/* Comparing the like with the module */
-	if (strcasestr(module, like) ) {
-		ast_cli(climodentryfd, MODLIST_FORMAT, module, description, usecnt,
-				status, ast_module_support_level_to_string(support_level));
-		return 1;
-	}
-	return 0;
-}
-
 static void print_uptimestr(int fd, struct timeval timeval, const char *prefix, int printsec)
 {
 	int x; /* the main part - years, weeks, etc. */
@@ -881,45 +691,6 @@ static char * handle_showuptime(struct ast_cli_entry *e, int cmd, struct ast_cli
 		print_uptimestr(a->fd, ast_tvsub(curtime, ast_lastreloadtime), "Last reload", printsec);
 	return CLI_SUCCESS;
 }
-
-static char *handle_modlist(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	const char *like;
-
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "module show [like]";
-		e->usage =
-			"Usage: module show [like keyword]\n"
-			"       Shows Asterisk modules currently in use, and usage statistics.\n";
-		return NULL;
-
-	case CLI_GENERATE:
-		if (a->pos == e->args)
-			return ast_module_helper(a->line, a->word, a->pos, a->n, a->pos, 0);
-		else
-			return NULL;
-	}
-	/* all the above return, so we proceed with the handler.
-	 * we are guaranteed to have argc >= e->args
-	 */
-	if (a->argc == e->args - 1)
-		like = "";
-	else if (a->argc == e->args + 1 && !strcasecmp(a->argv[e->args-1], "like") )
-		like = a->argv[e->args];
-	else
-		return CLI_SHOWUSAGE;
-
-	ast_mutex_lock(&climodentrylock);
-	climodentryfd = a->fd; /* global, protected by climodentrylock */
-	ast_cli(a->fd, MODLIST_FORMAT2, "Module", "Description", "Use Count", "Status", "Support Level");
-	ast_cli(a->fd,"%d modules loaded\n", ast_update_module_list(modlist_modentry, like));
-	climodentryfd = -1;
-	ast_mutex_unlock(&climodentrylock);
-	return CLI_SUCCESS;
-}
-#undef MODLIST_FORMAT
-#undef MODLIST_FORMAT2
 
 static char *handle_showcalls(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -1828,16 +1599,6 @@ static struct ast_cli_entry cli_cli[] = {
 
 	AST_CLI_DEFINE(handle_logger_mute, "Toggle logging output to a console"),
 
-	AST_CLI_DEFINE(handle_modlist, "List modules and info"),
-
-	AST_CLI_DEFINE(handle_load, "Load a module by name"),
-
-	AST_CLI_DEFINE(handle_reload, "Reload configuration for a module"),
-
-	AST_CLI_DEFINE(handle_core_reload, "Global reload"),
-
-	AST_CLI_DEFINE(handle_unload, "Unload a module by name"),
-
 	AST_CLI_DEFINE(handle_showuptime, "Show uptime information"),
 
 	AST_CLI_DEFINE(handle_softhangup, "Request a hangup on a given channel"),
@@ -2203,9 +1964,15 @@ static int cli_is_registered(struct ast_cli_entry *e)
 	return 0;
 }
 
+static void module_cli_unregister(void *weakproxy, void *data)
+{
+	ast_cli_unregister(data);
+}
+
 int ast_cli_unregister(struct ast_cli_entry *e)
 {
 	if (e->inuse) {
+		/* This should never happen for any module CLI entry. */
 		ast_log(LOG_WARNING, "Can't remove command that is in use\n");
 	} else {
 		AST_RWLIST_WRLOCK(&helpers);
@@ -2220,6 +1987,11 @@ int ast_cli_unregister(struct ast_cli_entry *e)
 			ast_free(e->command);
 			e->command = NULL;
 			e->usage = NULL;
+		}
+		if (e->lib) {
+			ast_module_lib_unsubscribe_stop(e->lib, module_cli_unregister, e);
+			ao2_cleanup(e->lib);
+			e->lib = NULL;
 		}
 	}
 	return 0;
@@ -2245,7 +2017,10 @@ int __ast_cli_register(struct ast_cli_entry *e, struct ast_module *module)
 
 	memset(&a, '\0', sizeof(a));
 
-	e->module = module;
+	if (module) {
+		e->lib = ast_module_get_lib_running(module);
+		ast_assert(!!e->lib);
+	}
 	/* No module reference needed here, the module called us. */
 	e->handler(e, CLI_INIT, &a);
 
@@ -2291,9 +2066,13 @@ int __ast_cli_register(struct ast_cli_entry *e, struct ast_module *module)
 
 done:
 	AST_RWLIST_UNLOCK(&helpers);
+
 	if (ret) {
 		ast_free(e->command);
 		e->command = NULL;
+		ao2_cleanup(e->lib);
+	} else if (e->lib) {
+		ast_module_lib_subscribe_stop(e->lib, module_cli_unregister, e);
 	}
 
 	return ret;
@@ -2644,15 +2423,19 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 			 * Run the generator if one is available. In any case we are done.
 			 */
 			if (e->handler) {	/* new style command */
-				struct ast_cli_args a = {
-					.line = matchstr, .word = word,
-					.pos = argindex,
-					.n = state - matchnum,
-					.argv = argv,
-					.argc = x};
-				ast_module_ref(e->module);
-				ret = e->handler(e, CLI_GENERATE, &a);
-				ast_module_unref(e->module);
+				struct ast_module_instance *instance = NULL;
+
+				if (!e->lib || (instance = ast_module_lib_get_instance(e->lib))) {
+					struct ast_cli_args a = {
+						.line = matchstr, .word = word,
+						.pos = argindex,
+						.n = state - matchnum,
+						.argv = argv,
+						.argc = x
+					};
+					ret = e->handler(e, CLI_GENERATE, &a);
+					ao2_cleanup(instance);
+				}
 			}
 			if (ret)
 				break;
@@ -2672,11 +2455,12 @@ char *ast_cli_generator(const char *text, const char *word, int state)
 int ast_cli_command_full(int uid, int gid, int fd, const char *s)
 {
 	const char *args[AST_MAX_ARGS + 1];
-	struct ast_cli_entry *e;
+	struct ast_cli_entry *e = NULL;
 	int x;
 	char *duplicate = parse_args(s, &x, args + 1, AST_MAX_ARGS, NULL);
 	char tmp[AST_MAX_ARGS + 1];
 	char *retval = CLI_FAILURE;
+	struct ast_module_instance *instance = NULL;
 	struct ast_cli_args a = {
 		.fd = fd, .argc = x, .argv = args+1 };
 
@@ -2688,8 +2472,13 @@ int ast_cli_command_full(int uid, int gid, int fd, const char *s)
 
 	AST_RWLIST_RDLOCK(&helpers);
 	e = find_cli(args + 1, 0);
-	if (e)
-		ast_atomic_fetchadd_int(&e->inuse, 1);
+	if (e) {
+		if (!e->lib || (instance = ast_module_lib_get_instance(e->lib))) {
+			ast_atomic_fetchadd_int(&e->inuse, 1);
+		} else {
+			e = NULL;
+		}
+	}
 	AST_RWLIST_UNLOCK(&helpers);
 	if (e == NULL) {
 		ast_cli(fd, "No such command '%s' (type 'core show help %s' for other possible commands)\n", s, find_best(args + 1));
@@ -2709,9 +2498,7 @@ int ast_cli_command_full(int uid, int gid, int fd, const char *s)
 	 */
 	args[0] = (char *)e;
 
-	ast_module_ref(e->module);
 	retval = e->handler(e, CLI_HANDLER, &a);
-	ast_module_unref(e->module);
 
 	if (retval == CLI_SHOWUSAGE) {
 		ast_cli(fd, "%s", S_OR(e->usage, "Invalid usage, but no usage information available.\n"));
@@ -2720,6 +2507,7 @@ int ast_cli_command_full(int uid, int gid, int fd, const char *s)
 	}
 	ast_atomic_fetchadd_int(&e->inuse, -1);
 done:
+	ao2_cleanup(instance);
 	ast_free(duplicate);
 	return retval == CLI_SUCCESS ? RESULT_SUCCESS : RESULT_FAILURE;
 }

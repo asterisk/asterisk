@@ -264,11 +264,6 @@ static int auth_exec(struct ast_channel *chan, const char *data)
 	return res;
 }
 
-static int unload_module(void)
-{
-	return ast_unregister_application(app);
-}
-
 static int load_module(void)
 {
 	if (ast_register_application_xml(app, auth_exec))
@@ -276,4 +271,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Authentication Application");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Authentication Application");

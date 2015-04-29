@@ -497,6 +497,7 @@ static void bridge_check_monitor(struct ast_channel *chan, struct ast_channel *p
 		monitor_app = pbx_findapp("Monitor");
 		if (monitor_app) {
 			pbx_exec(monitor_chan, monitor_app, monitor_args);
+			ao2_ref(monitor_app, -1);
 		}
 	}
 }

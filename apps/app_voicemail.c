@@ -8141,6 +8141,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 				/* call the the Directory, changes the channel */
 				snprintf(vmcontext, sizeof(vmcontext), "%s,,v", context ? context : "default");
 				res = pbx_exec(chan, directory_app, vmcontext);
+				ao2_ref(directory_app, -1);
 
 				ast_copy_string(username, ast_channel_exten(chan), sizeof(username));
 
@@ -14649,35 +14650,16 @@ static const struct ast_vm_greeter_functions vm_greeter_table = {
 	.sayname = vm_sayname,
 };
 
-static int reload(void)
+static int reload_module(void)
 {
 	return load_config(1);
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	int res;
-
-	res = ast_unregister_application(app);
-	res |= ast_unregister_application(app2);
-	res |= ast_unregister_application(app3);
-	res |= ast_unregister_application(app4);
-	res |= ast_unregister_application(playmsg_app);
-	res |= ast_unregister_application(sayname_app);
-	res |= ast_custom_function_unregister(&mailbox_exists_acf);
-	res |= ast_custom_function_unregister(&vm_info_acf);
-	res |= ast_manager_unregister("VoicemailUsersList");
-	res |= ast_manager_unregister("VoicemailRefresh");
-	res |= ast_data_unregister(NULL);
-#ifdef TEST_FRAMEWORK
-	res |= AST_TEST_UNREGISTER(test_voicemail_vmsayname);
-	res |= AST_TEST_UNREGISTER(test_voicemail_msgcount);
-	res |= AST_TEST_UNREGISTER(test_voicemail_vmuser);
-	res |= AST_TEST_UNREGISTER(test_voicemail_notify_endl);
-	res |= AST_TEST_UNREGISTER(test_voicemail_load_config);
-	res |= AST_TEST_UNREGISTER(test_voicemail_vm_info);
-#endif
-	ast_cli_unregister_multiple(cli_voicemail, ARRAY_LEN(cli_voicemail));
+	if (ast_data_unregister(NULL)) {
+		ast_module_block_unload(AST_MODULE_SELF);
+	}
 	ast_vm_unregister(vm_table.module_name);
 	ast_vm_greeter_unregister(vm_greeter_table.module_name);
 #ifdef TEST_FRAMEWORK
@@ -14694,7 +14676,6 @@ static int unload_module(void)
 
 	free_vm_users();
 	free_vm_zones();
-	return res;
 }
 
 /*!
@@ -16113,13 +16094,6 @@ play2_msg_cleanup:
 }
 
 /* This is a workaround so that menuselect displays a proper description
- * AST_MODULE_INFO(, , "Comedian Mail (Voicemail System)"
+ * AST_MODULE_INFO(, "Comedian Mail (Voicemail System)"
  */
-
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, tdesc,
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.nonoptreq = "res_adsi,res_smdi",
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, tdesc);

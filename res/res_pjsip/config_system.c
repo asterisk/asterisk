@@ -162,8 +162,6 @@ int ast_sip_initialize_system(void)
 
 	if (ast_sorcery_object_register_no_reload(system_sorcery, "system", system_alloc, NULL, system_apply)) {
 		ast_log(LOG_ERROR, "Failed to register with sorcery (is res_sorcery_config loaded?)\n");
-		ast_sorcery_unref(system_sorcery);
-		system_sorcery = NULL;
 		return -1;
 	}
 
@@ -198,13 +196,11 @@ int ast_sip_initialize_system(void)
 	system = ast_sorcery_alloc(system_sorcery, "system", NULL);
 	if (!system) {
 		ast_log(LOG_ERROR, "Unable to allocate default system config.\n");
-		ast_sorcery_unref(system_sorcery);
 		return -1;
 	}
 
 	if (system_apply(system_sorcery, system)) {
 		ast_log(LOG_ERROR, "Failed to apply default system config.\n");
-		ast_sorcery_unref(system_sorcery);
 		return -1;
 	}
 

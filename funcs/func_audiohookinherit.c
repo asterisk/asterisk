@@ -73,11 +73,6 @@ static struct ast_custom_function inheritance_function = {
 	.write = func_inheritance_write,
 };
 
-static int unload_module(void)
-{
-	return ast_custom_function_unregister(&inheritance_function);
-}
-
 static int load_module(void)
 {
 	if (ast_custom_function_register(&inheritance_function)) {
@@ -86,5 +81,5 @@ static int load_module(void)
 		return AST_MODULE_LOAD_SUCCESS;
 	}
 }
-AST_MODULE_INFO_STANDARD_DEPRECATED(ASTERISK_GPL_KEY, "Audiohook inheritance placeholder function");
 
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Audiohook inheritance placeholder function");

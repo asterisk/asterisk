@@ -38,7 +38,8 @@
  */
 
 /*** MODULEINFO
-	<depend>res_odbc</depend>
+	<load_priority>cdr_driver</load_priority>
+	<use type="module">res_odbc</use>
 	<support_level>extended</support_level>
  ***/
 
@@ -268,7 +269,7 @@ static int odbc_load_module(int reload)
 		}
 
 		if (!ast_test_flag(&config, CONFIG_REGISTERED)) {
-			res = ast_cdr_register(name, ast_module_info->description, odbc_log);
+			res = ast_cdr_register(name, ast_module_description(AST_MODULE_SELF), odbc_log);
 			if (res) {
 				ast_log(LOG_ERROR, "cdr_odbc: Unable to register ODBC CDR handling\n");
 			} else {
@@ -302,10 +303,11 @@ static int load_module(void)
 	return odbc_load_module(0);
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	if (ast_cdr_unregister(name)) {
-		return -1;
+		ast_module_block_unload(AST_MODULE_SELF);
+		return;
 	}
 
 	if (dsn) {
@@ -314,19 +316,11 @@ static int unload_module(void)
 	if (table) {
 		ast_free(table);
 	}
-
-	return 0;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	return odbc_load_module(1);
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "ODBC CDR Backend",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CDR_DRIVER,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "ODBC CDR Backend");

@@ -33,6 +33,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>cdr_driver</load_priority>
 	<depend>radius</depend>
 	<support_level>extended</support_level>
  ***/
@@ -236,17 +237,17 @@ return_cleanup:
 	return result;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	if (ast_cdr_unregister(name)) {
-		return -1;
+		ast_module_block_unload(AST_MODULE_SELF);
+		return;
 	}
 
 	if (rh) {
 		rc_destroy(rh);
 		rh = NULL;
 	}
-	return 0;
 }
 
 static int load_module(void)
@@ -300,9 +301,4 @@ static int load_module(void)
 	}
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "RADIUS CDR Backend",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_CDR_DRIVER,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "RADIUS CDR Backend");

@@ -155,7 +155,7 @@ struct ast_bridge_technology {
 	/*! TRUE if the bridge technology is currently suspended. */
 	unsigned int suspended:1;
 	/*! Module this bridge technology belongs to. It is used for reference counting bridges using the technology. */
-	struct ast_module *mod;
+	struct ast_module_lib *lib;
 	/*! Linked list information */
 	AST_RWLIST_ENTRY(ast_bridge_technology) entry;
 };

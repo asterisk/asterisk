@@ -60,9 +60,4 @@ void sip_parse_nat_option(const char *value, struct ast_flags *mask, struct ast_
  */
 void sip_config_parser_register_tests(void);
 
-/*!
- * \brief unregister config parsing tests
- */
-void sip_config_parser_unregister_tests(void);
-
 #endif

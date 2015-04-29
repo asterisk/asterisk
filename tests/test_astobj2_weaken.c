@@ -264,13 +264,6 @@ fail_cleanup:
 	return AST_TEST_FAIL;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(astobj2_weak1);
-
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(astobj2_weak1);
@@ -278,4 +271,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "ASTOBJ2 Weak Reference Unit Tests");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "ASTOBJ2 Weak Reference Unit Tests");

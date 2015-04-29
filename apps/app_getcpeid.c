@@ -128,19 +128,9 @@ static int cpeid_exec(struct ast_channel *chan, const char *idata)
 	return res;
 }
 
-static int unload_module(void)
-{
-	return ast_unregister_application(app);
-}
-
 static int load_module(void)
 {
 	return ast_register_application_xml(app, cpeid_exec);
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Get ADSI CPE ID",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.nonoptreq = "res_adsi",
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Get ADSI CPE ID");

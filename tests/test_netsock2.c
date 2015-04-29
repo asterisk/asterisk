@@ -181,13 +181,6 @@ AST_TEST_DEFINE(split_hostport)
 	return res;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(parsing);
-	AST_TEST_UNREGISTER(split_hostport);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(parsing);
@@ -195,4 +188,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Netsock2 test module");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Netsock2 test module");

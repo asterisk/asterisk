@@ -350,6 +350,7 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 					}
 				}
 				res = pbx_exec(chan, a, appdata);
+				ao2_ref(a, -1);
 			} else
 				ast_log(LOG_NOTICE, "No such application '%s' for extension '%s' in context '%s'\n", app, exten, context);
 		} else {
@@ -379,15 +380,13 @@ static struct ast_switch realtime_switch =
 	.matchmore		= realtime_matchmore,
 };
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	ast_unregister_switch(&realtime_switch);
 	pthread_cancel(cleanup_thread);
 	pthread_kill(cleanup_thread, SIGURG);
 	pthread_join(cleanup_thread, NULL);
 	/* Destroy all remaining entries */
 	ao2_ref(cache, -1);
-	return 0;
 }
 
 static int load_module(void)
@@ -400,10 +399,9 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	if (ast_register_switch(&realtime_switch))
+	if (ast_switch_register(&realtime_switch))
 		return AST_MODULE_LOAD_FAILURE;
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Realtime Switch");
-
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Realtime Switch");

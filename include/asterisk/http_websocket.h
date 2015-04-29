@@ -20,7 +20,6 @@
 #define _ASTERISK_HTTP_WEBSOCKET_H
 
 #include "asterisk/http.h"
-#include "asterisk/optional_api.h"
 
 #include <errno.h>
 
@@ -131,7 +130,7 @@ struct ast_websocket_protocol {
  * \retval \c NULL on error
  * \since 12
  */
-AST_OPTIONAL_API(struct ast_websocket_server *, ast_websocket_server_create, (void), { return NULL; });
+struct ast_websocket_server *ast_websocket_server_create(void);
 
 /*!
  * \brief Callback suitable for use with a \ref ast_http_uri.
@@ -139,7 +138,7 @@ AST_OPTIONAL_API(struct ast_websocket_server *, ast_websocket_server_create, (vo
  * Set the data field of the ast_http_uri to \ref ast_websocket_server.
  * \since 12
  */
-AST_OPTIONAL_API(int, ast_websocket_uri_cb, (struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *get_vars, struct ast_variable *headers), { return -1; });
+int ast_websocket_uri_cb(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *get_vars, struct ast_variable *headers);
 
 /*!
  * \brief Allocate a websocket sub-protocol instance
@@ -148,7 +147,7 @@ AST_OPTIONAL_API(int, ast_websocket_uri_cb, (struct ast_tcptls_session_instance 
  * \retval NULL on error
  * \since 13.5.0
  */
-AST_OPTIONAL_API(struct ast_websocket_protocol *, ast_websocket_sub_protocol_alloc, (const char *name), {return NULL;});
+struct ast_websocket_protocol *ast_websocket_sub_protocol_alloc(const char *name);
 
 /*!
  * \brief Add a sub-protocol handler to the default /ws server
@@ -159,7 +158,7 @@ AST_OPTIONAL_API(struct ast_websocket_protocol *, ast_websocket_sub_protocol_all
  * \retval 0 success
  * \retval -1 if sub-protocol handler could not be registered
  */
-AST_OPTIONAL_API(int, ast_websocket_add_protocol, (const char *name, ast_websocket_callback callback), {return -1;});
+int ast_websocket_add_protocol(const char *name, ast_websocket_callback callback);
 
 /*!
  * \brief Add a sub-protocol handler to the default /ws server
@@ -174,7 +173,7 @@ AST_OPTIONAL_API(int, ast_websocket_add_protocol, (const char *name, ast_websock
  * \retval -1 if sub-protocol handler could not be registered
  * \since 13.5.0
  */
-AST_OPTIONAL_API(int, ast_websocket_add_protocol2, (struct ast_websocket_protocol *protocol), {return -1;});
+int ast_websocket_add_protocol2(struct ast_websocket_protocol *protocol);
 
 /*!
  * \brief Remove a sub-protocol handler from the default /ws server.
@@ -185,7 +184,7 @@ AST_OPTIONAL_API(int, ast_websocket_add_protocol2, (struct ast_websocket_protoco
  * \retval 0 success
  * \retval -1 if sub-protocol was not found or if callback did not match
  */
-AST_OPTIONAL_API(int, ast_websocket_remove_protocol, (const char *name, ast_websocket_callback callback), {return -1;});
+int ast_websocket_remove_protocol(const char *name, ast_websocket_callback callback);
 
 /*!
  * \brief Add a sub-protocol handler to the given server.
@@ -197,7 +196,7 @@ AST_OPTIONAL_API(int, ast_websocket_remove_protocol, (const char *name, ast_webs
  * \retval -1 if sub-protocol handler could not be registered
  * \since 12
  */
-AST_OPTIONAL_API(int, ast_websocket_server_add_protocol, (struct ast_websocket_server *server, const char *name, ast_websocket_callback callback), {return -1;});
+int ast_websocket_server_add_protocol(struct ast_websocket_server *server, const char *name, ast_websocket_callback callback);
 
 /*!
  * \brief Add a sub-protocol handler to the given server.
@@ -213,7 +212,7 @@ AST_OPTIONAL_API(int, ast_websocket_server_add_protocol, (struct ast_websocket_s
  * \retval -1 if sub-protocol handler could not be registered
  * \since 13.5.0
  */
-AST_OPTIONAL_API(int, ast_websocket_server_add_protocol2, (struct ast_websocket_server *server, struct ast_websocket_protocol *protocol), {return -1;});
+int ast_websocket_server_add_protocol2(struct ast_websocket_server *server, struct ast_websocket_protocol *protocol);
 
 /*!
  * \brief Remove a sub-protocol handler from the given server.
@@ -225,7 +224,7 @@ AST_OPTIONAL_API(int, ast_websocket_server_add_protocol2, (struct ast_websocket_
  * \retval -1 if sub-protocol was not found or if callback did not match
  * \since 12
  */
-AST_OPTIONAL_API(int, ast_websocket_server_remove_protocol, (struct ast_websocket_server *server, const char *name, ast_websocket_callback callback), {return -1;});
+int ast_websocket_server_remove_protocol(struct ast_websocket_server *server, const char *name, ast_websocket_callback callback);
 
 /*!
  * \brief Read a WebSocket frame and handle it
@@ -241,7 +240,7 @@ AST_OPTIONAL_API(int, ast_websocket_server_remove_protocol, (struct ast_websocke
  *
  * \note Once an AST_WEBSOCKET_OPCODE_CLOSE opcode is received the socket will be closed
  */
-AST_OPTIONAL_API(int, ast_websocket_read, (struct ast_websocket *session, char **payload, uint64_t *payload_len, enum ast_websocket_opcode *opcode, int *fragmented), { errno = ENOSYS; return -1;});
+int ast_websocket_read(struct ast_websocket *session, char **payload, uint64_t *payload_len, enum ast_websocket_opcode *opcode, int *fragmented);
 
 /*!
  * \brief Read a WebSocket frame containing string data.
@@ -255,9 +254,7 @@ AST_OPTIONAL_API(int, ast_websocket_read, (struct ast_websocket *session, char *
  *
  * \note Once an AST_WEBSOCKET_OPCODE_CLOSE opcode is received the socket will be closed
  */
-AST_OPTIONAL_API(int, ast_websocket_read_string,
-		 (struct ast_websocket *ws, char **buf),
-		 { errno = ENOSYS; return -1;});
+int ast_websocket_read_string(struct ast_websocket *ws, char **buf);
 
 /*!
  * \brief Construct and transmit a WebSocket frame
@@ -270,7 +267,7 @@ AST_OPTIONAL_API(int, ast_websocket_read_string,
  * \retval 0 if successfully written
  * \retval -1 if error occurred
  */
-AST_OPTIONAL_API(int, ast_websocket_write, (struct ast_websocket *session, enum ast_websocket_opcode opcode, char *payload, uint64_t actual_length), { errno = ENOSYS; return -1;});
+int ast_websocket_write(struct ast_websocket *session, enum ast_websocket_opcode opcode, char *payload, uint64_t actual_length);
 
 /*!
  * \brief Construct and transmit a WebSocket frame containing string data.
@@ -280,9 +277,8 @@ AST_OPTIONAL_API(int, ast_websocket_write, (struct ast_websocket *session, enum 
  * \retval 0 if successfully written
  * \retval -1 if error occurred
  */
-AST_OPTIONAL_API(int, ast_websocket_write_string,
-		 (struct ast_websocket *ws, const char *buf),
-		 { errno = ENOSYS; return -1;});
+int ast_websocket_write_string(struct ast_websocket *ws, const char *buf);
+
 /*!
  * \brief Close a WebSocket session by sending a message with the CLOSE opcode and an optional code
  *
@@ -292,7 +288,7 @@ AST_OPTIONAL_API(int, ast_websocket_write_string,
  * \retval 0 if successfully written
  * \retval -1 if error occurred
  */
-AST_OPTIONAL_API(int, ast_websocket_close, (struct ast_websocket *session, uint16_t reason), { errno = ENOSYS; return -1;});
+int ast_websocket_close(struct ast_websocket *session, uint16_t reason);
 
 /*!
  * \brief Enable multi-frame reconstruction up to a certain number of bytes
@@ -301,7 +297,7 @@ AST_OPTIONAL_API(int, ast_websocket_close, (struct ast_websocket *session, uint1
  * \param bytes If a reconstructed payload exceeds the specified number of bytes the payload will be returned
  *              and upon reception of the next multi-frame a new reconstructed payload will begin.
  */
-AST_OPTIONAL_API(void, ast_websocket_reconstruct_enable, (struct ast_websocket *session, size_t bytes), {return;});
+void ast_websocket_reconstruct_enable(struct ast_websocket *session, size_t bytes);
 
 /*!
  * \brief Disable multi-frame reconstruction
@@ -311,21 +307,21 @@ AST_OPTIONAL_API(void, ast_websocket_reconstruct_enable, (struct ast_websocket *
  * \note If reconstruction is disabled each message that is part of a multi-frame message will be sent up to
  *       the user when ast_websocket_read is called.
  */
-AST_OPTIONAL_API(void, ast_websocket_reconstruct_disable, (struct ast_websocket *session), {return;});
+void ast_websocket_reconstruct_disable(struct ast_websocket *session);
 
 /*!
  * \brief Increase the reference count for a WebSocket session
  *
  * \param session Pointer to the WebSocket session
  */
-AST_OPTIONAL_API(void, ast_websocket_ref, (struct ast_websocket *session), {return;});
+void ast_websocket_ref(struct ast_websocket *session);
 
 /*!
  * \brief Decrease the reference count for a WebSocket session
  *
  * \param session Pointer to the WebSocket session
  */
-AST_OPTIONAL_API(void, ast_websocket_unref, (struct ast_websocket *session), {return;});
+void ast_websocket_unref(struct ast_websocket *session);
 
 /*!
  * \brief Get the file descriptor for a WebSocket session.
@@ -334,14 +330,14 @@ AST_OPTIONAL_API(void, ast_websocket_unref, (struct ast_websocket *session), {re
  *
  * \note You must *not* directly read from or write to this file descriptor. It should only be used for polling.
  */
-AST_OPTIONAL_API(int, ast_websocket_fd, (struct ast_websocket *session), { errno = ENOSYS; return -1;});
+int ast_websocket_fd(struct ast_websocket *session);
 
 /*!
  * \brief Get the remote address for a WebSocket connected session.
  *
  * \retval ast_sockaddr Remote address
  */
-AST_OPTIONAL_API(struct ast_sockaddr *, ast_websocket_remote_address, (struct ast_websocket *session), {return NULL;});
+struct ast_sockaddr *ast_websocket_remote_address(struct ast_websocket *session);
 
 /*!
  * \brief Get whether the WebSocket session is using a secure transport or not.
@@ -349,7 +345,7 @@ AST_OPTIONAL_API(struct ast_sockaddr *, ast_websocket_remote_address, (struct as
  * \retval 0 if unsecure
  * \retval 1 if secure
  */
-AST_OPTIONAL_API(int, ast_websocket_is_secure, (struct ast_websocket *session), { errno = ENOSYS; return -1;});
+int ast_websocket_is_secure(struct ast_websocket *session);
 
 /*!
  * \brief Set the socket of a WebSocket session to be non-blocking.
@@ -357,7 +353,7 @@ AST_OPTIONAL_API(int, ast_websocket_is_secure, (struct ast_websocket *session), 
  * \retval 0 on success
  * \retval -1 on failure
  */
-AST_OPTIONAL_API(int, ast_websocket_set_nonblock, (struct ast_websocket *session), { errno = ENOSYS; return -1;});
+int ast_websocket_set_nonblock(struct ast_websocket *session);
 
 /*!
  * \brief Result code for a websocket client.
@@ -400,10 +396,8 @@ enum ast_websocket_result {
  * \retval NULL if object could not be created or connected
  * \since 13
  */
-AST_OPTIONAL_API(struct ast_websocket *, ast_websocket_client_create,
-		 (const char *uri, const char *protocols,
-		  struct ast_tls_config *tls_cfg,
-		  enum ast_websocket_result *result), { return NULL;});
+struct ast_websocket *ast_websocket_client_create(const char *uri, const char *protocols,
+	struct ast_tls_config *tls_cfg, enum ast_websocket_result *result);
 
 /*!
  * \brief Retrieve the server accepted sub-protocol on the client.
@@ -412,8 +406,7 @@ AST_OPTIONAL_API(struct ast_websocket *, ast_websocket_client_create,
  * \retval the accepted client sub-protocol.
  * \since 13
  */
-AST_OPTIONAL_API(const char *, ast_websocket_client_accept_protocol,
-		 (struct ast_websocket *ws), { return NULL;});
+const char *ast_websocket_client_accept_protocol(struct ast_websocket *ws);
 
 /*!
  * \brief Set the timeout on a non-blocking WebSocket session.
@@ -424,6 +417,6 @@ AST_OPTIONAL_API(const char *, ast_websocket_client_accept_protocol,
  * \retval 0 on success
  * \retval -1 on failure
  */
-AST_OPTIONAL_API(int, ast_websocket_set_timeout, (struct ast_websocket *session, int timeout), {return -1;});
+int ast_websocket_set_timeout(struct ast_websocket *session, int timeout);
 
 #endif

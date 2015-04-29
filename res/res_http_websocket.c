@@ -24,6 +24,8 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_depend</load_priority>
+	<export_globals/>
 	<support_level>extended</support_level>
  ***/
 
@@ -39,7 +41,6 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/unaligned.h"
 #include "asterisk/uri.h"
 
-#define AST_API_MODULE
 #include "asterisk/http_websocket.h"
 
 /*! \brief GUID used to compute the accept key, defined in the specifications */
@@ -128,7 +129,6 @@ static void websocket_server_internal_dtor(void *obj)
 static void websocket_server_dtor(void *obj)
 {
 	websocket_server_internal_dtor(obj);
-	ast_module_unref(ast_module_info->self);
 }
 
 static struct ast_websocket_server *websocket_server_create_impl(void (*dtor)(void *))
@@ -154,9 +154,8 @@ static struct ast_websocket_server *websocket_server_internal_create(void)
 	return websocket_server_create_impl(websocket_server_internal_dtor);
 }
 
-struct ast_websocket_server *AST_OPTIONAL_API_NAME(ast_websocket_server_create)(void)
+struct ast_websocket_server *ast_websocket_server_create(void)
 {
-	ast_module_ref(ast_module_info->self);
 	return websocket_server_create_impl(websocket_server_dtor);
 }
 
@@ -176,7 +175,7 @@ static void session_destroy_fn(void *obj)
 	ast_free(session->payload);
 }
 
-struct ast_websocket_protocol *AST_OPTIONAL_API_NAME(ast_websocket_sub_protocol_alloc)(const char *name)
+struct ast_websocket_protocol *ast_websocket_sub_protocol_alloc(const char *name)
 {
 	struct ast_websocket_protocol *protocol;
 
@@ -195,7 +194,7 @@ struct ast_websocket_protocol *AST_OPTIONAL_API_NAME(ast_websocket_sub_protocol_
 	return protocol;
 }
 
-int AST_OPTIONAL_API_NAME(ast_websocket_server_add_protocol)(struct ast_websocket_server *server, const char *name, ast_websocket_callback callback)
+int ast_websocket_server_add_protocol(struct ast_websocket_server *server, const char *name, ast_websocket_callback callback)
 {
 	struct ast_websocket_protocol *protocol;
 
@@ -218,7 +217,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_server_add_protocol)(struct ast_websocke
 	return 0;
 }
 
-int AST_OPTIONAL_API_NAME(ast_websocket_server_add_protocol2)(struct ast_websocket_server *server, struct ast_websocket_protocol *protocol)
+int ast_websocket_server_add_protocol2(struct ast_websocket_server *server, struct ast_websocket_protocol *protocol)
 {
 	struct ast_websocket_protocol *existing;
 
@@ -252,7 +251,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_server_add_protocol2)(struct ast_websock
 	return 0;
 }
 
-int AST_OPTIONAL_API_NAME(ast_websocket_server_remove_protocol)(struct ast_websocket_server *server, const char *name, ast_websocket_callback callback)
+int ast_websocket_server_remove_protocol(struct ast_websocket_server *server, const char *name, ast_websocket_callback callback)
 {
 	struct ast_websocket_protocol *protocol;
 
@@ -274,7 +273,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_server_remove_protocol)(struct ast_webso
 }
 
 /*! \brief Close function for websocket session */
-int AST_OPTIONAL_API_NAME(ast_websocket_close)(struct ast_websocket *session, uint16_t reason)
+int ast_websocket_close(struct ast_websocket *session, uint16_t reason)
 {
 	char frame[4] = { 0, }; /* The header is 2 bytes and the reason code takes up another 2 bytes */
 	int res;
@@ -300,7 +299,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_close)(struct ast_websocket *session, ui
 
 
 /*! \brief Write function for websocket traffic */
-int AST_OPTIONAL_API_NAME(ast_websocket_write)(struct ast_websocket *session, enum ast_websocket_opcode opcode, char *payload, uint64_t actual_length)
+int ast_websocket_write(struct ast_websocket *session, enum ast_websocket_opcode opcode, char *payload, uint64_t actual_length)
 {
 	size_t header_size = 2; /* The minimum size of a websocket frame is 2 bytes */
 	char *frame;
@@ -355,42 +354,42 @@ int AST_OPTIONAL_API_NAME(ast_websocket_write)(struct ast_websocket *session, en
 	return 0;
 }
 
-void AST_OPTIONAL_API_NAME(ast_websocket_reconstruct_enable)(struct ast_websocket *session, size_t bytes)
+void ast_websocket_reconstruct_enable(struct ast_websocket *session, size_t bytes)
 {
 	session->reconstruct = MIN(bytes, MAXIMUM_RECONSTRUCTION_CEILING);
 }
 
-void AST_OPTIONAL_API_NAME(ast_websocket_reconstruct_disable)(struct ast_websocket *session)
+void ast_websocket_reconstruct_disable(struct ast_websocket *session)
 {
 	session->reconstruct = 0;
 }
 
-void AST_OPTIONAL_API_NAME(ast_websocket_ref)(struct ast_websocket *session)
+void ast_websocket_ref(struct ast_websocket *session)
 {
 	ao2_ref(session, +1);
 }
 
-void AST_OPTIONAL_API_NAME(ast_websocket_unref)(struct ast_websocket *session)
+void ast_websocket_unref(struct ast_websocket *session)
 {
 	ao2_cleanup(session);
 }
 
-int AST_OPTIONAL_API_NAME(ast_websocket_fd)(struct ast_websocket *session)
+int ast_websocket_fd(struct ast_websocket *session)
 {
 	return session->closing ? -1 : session->fd;
 }
 
-struct ast_sockaddr * AST_OPTIONAL_API_NAME(ast_websocket_remote_address)(struct ast_websocket *session)
+struct ast_sockaddr *ast_websocket_remote_address(struct ast_websocket *session)
 {
 	return &session->address;
 }
 
-int AST_OPTIONAL_API_NAME(ast_websocket_is_secure)(struct ast_websocket *session)
+int ast_websocket_is_secure(struct ast_websocket *session)
 {
 	return session->secure;
 }
 
-int AST_OPTIONAL_API_NAME(ast_websocket_set_nonblock)(struct ast_websocket *session)
+int ast_websocket_set_nonblock(struct ast_websocket *session)
 {
 	int flags;
 
@@ -407,7 +406,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_set_nonblock)(struct ast_websocket *sess
 	return 0;
 }
 
-int AST_OPTIONAL_API_NAME(ast_websocket_set_timeout)(struct ast_websocket *session, int timeout)
+int ast_websocket_set_timeout(struct ast_websocket *session, int timeout)
 {
 	session->timeout = timeout;
 
@@ -489,7 +488,7 @@ static inline int ws_safe_read(struct ast_websocket *session, char *buf, int len
 	return 0;
 }
 
-int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, char **payload, uint64_t *payload_len, enum ast_websocket_opcode *opcode, int *fragmented)
+int ast_websocket_read(struct ast_websocket *session, char **payload, uint64_t *payload_len, enum ast_websocket_opcode *opcode, int *fragmented)
 {
 	char buf[MAXIMUM_FRAME_SIZE] = "";
 	int fin = 0;
@@ -669,7 +668,7 @@ static void websocket_bad_request(struct ast_tcptls_session_instance *ser)
 	ast_http_send(ser, AST_HTTP_UNKNOWN, 400, "Bad Request", http_header, NULL, 0, 0);
 }
 
-int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *get_vars, struct ast_variable *headers)
+int ast_websocket_uri_cb(struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *get_vars, struct ast_variable *headers)
 {
 	struct ast_variable *v;
 	char *upgrade = NULL, *key = NULL, *key1 = NULL, *key2 = NULL, *protos = NULL, *requested_protocols = NULL, *protocol = NULL;
@@ -677,8 +676,6 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 	struct ast_websocket_protocol *protocol_handler = NULL;
 	struct ast_websocket *session;
 	struct ast_websocket_server *server;
-
-	SCOPED_MODULE_USE(ast_module_info->self);
 
 	/* Upgrade requests are only permitted on GET methods */
 	if (method != AST_HTTP_GET) {
@@ -851,7 +848,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 }
 
 static struct ast_http_uri websocketuri = {
-	.callback = AST_OPTIONAL_API_NAME(ast_websocket_uri_cb),
+	.callback = ast_websocket_uri_cb,
 	.description = "Asterisk HTTP WebSocket",
 	.uri = "ws",
 	.has_subtree = 0,
@@ -911,16 +908,12 @@ static int websocket_add_protocol_internal(const char *name, ast_websocket_callb
 	return ast_websocket_server_add_protocol(ws_server, name, callback);
 }
 
-int AST_OPTIONAL_API_NAME(ast_websocket_add_protocol)(const char *name, ast_websocket_callback callback)
+int ast_websocket_add_protocol(const char *name, ast_websocket_callback callback)
 {
-	int res = websocket_add_protocol_internal(name, callback);
-	if (res == 0) {
-		ast_module_ref(ast_module_info->self);
-	}
-	return res;
+	return websocket_add_protocol_internal(name, callback);
 }
 
-int AST_OPTIONAL_API_NAME(ast_websocket_add_protocol2)(struct ast_websocket_protocol *protocol)
+int ast_websocket_add_protocol2(struct ast_websocket_protocol *protocol)
 {
 	struct ast_websocket_server *ws_server = websocketuri.data;
 
@@ -932,7 +925,6 @@ int AST_OPTIONAL_API_NAME(ast_websocket_add_protocol2)(struct ast_websocket_prot
 		return -1;
 	}
 
-	ast_module_ref(ast_module_info->self);
 	return 0;
 }
 
@@ -945,13 +937,9 @@ static int websocket_remove_protocol_internal(const char *name, ast_websocket_ca
 	return ast_websocket_server_remove_protocol(ws_server, name, callback);
 }
 
-int AST_OPTIONAL_API_NAME(ast_websocket_remove_protocol)(const char *name, ast_websocket_callback callback)
+int ast_websocket_remove_protocol(const char *name, ast_websocket_callback callback)
 {
-	int res = websocket_remove_protocol_internal(name, callback);
-	if (res == 0) {
-		ast_module_unref(ast_module_info->self);
-	}
-	return res;
+	return websocket_remove_protocol_internal(name, callback);
 }
 
 /*! \brief Parse the given uri into a path and remote address.
@@ -1137,8 +1125,7 @@ static struct ast_websocket * websocket_client_create(
 	return ws;
 }
 
-const char * AST_OPTIONAL_API_NAME(
-	ast_websocket_client_accept_protocol)(struct ast_websocket *ws)
+const char *ast_websocket_client_accept_protocol(struct ast_websocket *ws)
 {
 	return ws->client->accept_protocol;
 }
@@ -1288,9 +1275,8 @@ static enum ast_websocket_result websocket_client_connect(struct ast_websocket *
 	return WS_OK;
 }
 
-struct ast_websocket *AST_OPTIONAL_API_NAME(ast_websocket_client_create)
-	(const char *uri, const char *protocols, struct ast_tls_config *tls_cfg,
-	 enum ast_websocket_result *result)
+struct ast_websocket *ast_websocket_client_create(const char *uri, const char *protocols,
+	struct ast_tls_config *tls_cfg, enum ast_websocket_result *result)
 {
 	struct ast_websocket *ws = websocket_client_create(
 		uri, protocols, tls_cfg, result);
@@ -1307,8 +1293,7 @@ struct ast_websocket *AST_OPTIONAL_API_NAME(ast_websocket_client_create)
 	return ws;
 }
 
-int AST_OPTIONAL_API_NAME(ast_websocket_read_string)
-	(struct ast_websocket *ws, char **buf)
+int ast_websocket_read_string(struct ast_websocket *ws, char **buf)
 {
 	char *payload;
 	uint64_t payload_len;
@@ -1346,8 +1331,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read_string)
 	return payload_len + 1;
 }
 
-int AST_OPTIONAL_API_NAME(ast_websocket_write_string)
-	(struct ast_websocket *ws, const char *buf)
+int ast_websocket_write_string(struct ast_websocket *ws, const char *buf)
 {
 	return ast_websocket_write(ws, AST_WEBSOCKET_OPCODE_TEXT,
 				   (char *)buf, strlen(buf));
@@ -1361,23 +1345,18 @@ static int load_module(void)
 	}
 	ast_http_uri_link(&websocketuri);
 	websocket_add_protocol_internal("echo", websocket_echo_callback);
+	/* BUGBUG: investigate options.. */
+	ast_module_block_unload(AST_MODULE_SELF);
 
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	websocket_remove_protocol_internal("echo", websocket_echo_callback);
 	ast_http_uri_unlink(&websocketuri);
 	ao2_ref(websocketuri.data, -1);
 	websocketuri.data = NULL;
-
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "HTTP WebSocket Support",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "HTTP WebSocket Support");

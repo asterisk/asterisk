@@ -340,19 +340,6 @@ AST_TEST_DEFINE(codec_get_id)
 	return AST_TEST_PASS;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(codec_register);
-	AST_TEST_UNREGISTER(codec_register_twice);
-	AST_TEST_UNREGISTER(codec_register_unknown);
-	AST_TEST_UNREGISTER(codec_register_audio_no_sample_rate);
-	AST_TEST_UNREGISTER(codec_get);
-	AST_TEST_UNREGISTER(codec_get_unregistered);
-	AST_TEST_UNREGISTER(codec_get_unknown);
-	AST_TEST_UNREGISTER(codec_get_id);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(codec_register);
@@ -366,4 +353,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Core codec API test module");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Core codec API test module");

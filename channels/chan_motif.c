@@ -36,8 +36,9 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_driver</load_priority>
 	<depend>iksemel</depend>
-	<depend>res_xmpp</depend>
+	<use type="module">res_xmpp</use>
 	<use type="external">openssl</use>
 	<support_level>core</support_level>
  ***/
@@ -2730,7 +2731,7 @@ static int load_module(void)
 
 	if (aco_info_init(&cfg_info)) {
 		ast_log(LOG_ERROR, "Unable to intialize configuration for chan_motif.\n");
-		goto end;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	aco_option_register(&cfg_info, "context", ACO_EXACT, endpoint_options, "default", OPT_STRINGFIELD_T, 0, STRFLDSET(struct jingle_endpoint, context));
@@ -2753,49 +2754,31 @@ static int load_module(void)
 
 	if (aco_process_config(&cfg_info, 0)) {
 		ast_log(LOG_ERROR, "Unable to read config file motif.conf. Module loaded but not running.\n");
-		aco_info_destroy(&cfg_info);
-		ao2_cleanup(jingle_tech.capabilities);
-		jingle_tech.capabilities = NULL;
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (!(sched = ast_sched_context_create())) {
 		ast_log(LOG_ERROR, "Unable to create scheduler context.\n");
-		goto end;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (ast_sched_start_thread(sched)) {
 		ast_log(LOG_ERROR, "Unable to create scheduler context thread.\n");
-		goto end;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	ast_rtp_glue_register(&jingle_rtp_glue);
 
 	if (ast_channel_register(&jingle_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", channel_type);
-		goto end;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	return 0;
-
-end:
-	ast_rtp_glue_unregister(&jingle_rtp_glue);
-
-	if (sched) {
-		ast_sched_context_destroy(sched);
-	}
-
-	aco_info_destroy(&cfg_info);
-	ao2_global_obj_release(globals);
-
-	ao2_cleanup(jingle_tech.capabilities);
-	jingle_tech.capabilities = NULL;
-
-	return AST_MODULE_LOAD_FAILURE;
 }
 
 /*! \brief Reload module */
-static int reload(void)
+static int reload_module(void)
 {
 	if (aco_process_config(&cfg_info, 1) == ACO_PROCESS_ERROR) {
 		return -1;
@@ -2805,23 +2788,13 @@ static int reload(void)
 }
 
 /*! \brief Unload the jingle channel from Asterisk */
-static int unload_module(void)
+static void unload_module(void)
 {
-	ast_channel_unregister(&jingle_tech);
 	ao2_cleanup(jingle_tech.capabilities);
 	jingle_tech.capabilities = NULL;
-	ast_rtp_glue_unregister(&jingle_rtp_glue);
 	ast_sched_context_destroy(sched);
 	aco_info_destroy(&cfg_info);
 	ao2_global_obj_release(globals);
-
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Motif Jingle Channel Driver",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CHANNEL_DRIVER,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Motif Jingle Channel Driver");

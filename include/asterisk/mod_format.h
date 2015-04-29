@@ -89,7 +89,7 @@ struct ast_format_def {
 	int buf_size;			/*!< size of frame buffer, if any, aligned to 8 bytes. */
 	int desc_size;			/*!< size of private descriptor, if any */
 
-	struct ast_module *module;
+	struct ast_module_lib *lib;
 };
 
 /*! \brief

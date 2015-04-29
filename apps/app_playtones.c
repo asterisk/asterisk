@@ -110,16 +110,6 @@ static int handle_stopplaytones(struct ast_channel *chan, const char *data)
 	return 0;
 }
 
-static int unload_module(void)
-{
-	int res;
-
-	res = ast_unregister_application(playtones_app);
-	res |= ast_unregister_application(stopplaytones_app);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res;
@@ -130,4 +120,4 @@ static int load_module(void)
 	return res ? AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Playtones Application");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Playtones Application");

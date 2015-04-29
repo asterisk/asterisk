@@ -35,7 +35,7 @@
  */
 
 /*** MODULEINFO
-	<depend>res_adsi</depend>
+	<use type="module">res_adsi</use>
 	<support_level>extended</support_level>
  ***/
 
@@ -1589,11 +1589,6 @@ static int adsi_exec(struct ast_channel *chan, const char *data)
 	return res;
 }
 
-static int unload_module(void)
-{
-	return ast_unregister_application(app);
-}
-
 /*!
  * \brief Load the module
  *
@@ -1611,9 +1606,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Asterisk ADSI Programming Application",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.nonoptreq = "res_adsi",
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Asterisk ADSI Programming Application");

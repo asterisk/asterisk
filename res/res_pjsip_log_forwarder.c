@@ -33,6 +33,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_depend</load_priority>
 	<depend>pjproject</depend>
 	<support_level>core</support_level>
  ***/
@@ -105,21 +106,13 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	pj_log_set_log_func(log_cb_orig);
 	pj_log_set_decor(decor_orig);
 
 	pj_shutdown();
-
-	return 0;
 }
 
-/* While we don't really export global symbols, we want to load before other
- * modules that do */
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "PJSIP Log Forwarder",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND - 6,
-);
+/* BUGBUG: we want to load before other modules that do, without being a dependency. */
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "PJSIP Log Forwarder");

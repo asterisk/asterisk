@@ -115,8 +115,6 @@ struct stasis_message_type *ast_parked_call_type(void);
 
 #define PARKING_MODULE_VERSION 1
 
-struct ast_module_info;
-
 /*!
  * \brief A function table providing parking functionality to the \ref AstBridging
  * Bridging API and other consumers
@@ -195,8 +193,8 @@ struct ast_parking_bridge_feature_fn_table {
 	 */
 	int (* parking_park_bridge_channel)(struct ast_bridge_channel *parkee, const char *parkee_uuid, const char *parker_uuid, const char *app_data);
 
-	/*! \brief The module info for the module registering this parking provider */
-	struct ast_module *module;
+	/*! \brief The module registering this parking provider */
+	struct ast_module_lib *lib;
 };
 
 /*!

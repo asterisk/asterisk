@@ -24,10 +24,10 @@
  */
 
 /*** MODULEINFO
-	<depend type="module">res_stasis_answer</depend>
-	<depend type="module">res_stasis_playback</depend>
-	<depend type="module">res_stasis_recording</depend>
-	<depend type="module">res_stasis_snoop</depend>
+	<use type="module">res_stasis_answer</use>
+	<use type="module">res_stasis_playback</use>
+	<use type="module">res_stasis_recording</use>
+	<use type="module">res_stasis_snoop</use>
 	<support_level>core</support_level>
  ***/
 
@@ -867,6 +867,7 @@ static void *ari_originate_dial(void *data)
 			ast_verb(4, "Launching Stasis(%s) on %s\n", origination->appdata,
 				ast_channel_name(ast_dial_answered(dial)));
 			pbx_exec(ast_dial_answered(dial), app, origination->appdata);
+			ao2_ref(app, -1);
 		} else {
 			ast_log(LOG_WARNING, "No such application 'Stasis'\n");
 		}

@@ -215,6 +215,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/ast_expr.h"
 #include "asterisk/logger.h"
 #if !defined(STANDALONE) && !defined(STANDALONE2)
+#include "asterisk/api_registry.h"
 #include "asterisk/pbx.h"
 #endif
 
@@ -1045,12 +1046,16 @@ static struct val *op_func(struct val *funcname, struct expr_node *arglist, stru
 		} else {
 			/* is this a custom function we should execute and collect the results of? */
 #if !defined(STANDALONE) && !defined(STANDALONE2)
-			struct ast_custom_function *f = ast_custom_function_find(funcname->u.s);
-			if (!chan)
+			AST_API_HOLDER_SCOPED(ast_custom_function, f, ast_custom_function_use_by_name(funcname->u.s));
+
+			if (!chan) {
 				ast_log(LOG_WARNING,"Hey! chan is NULL.\n");
-			if (!f)
+			}
+
+			if (!f) {
 				ast_log(LOG_WARNING,"Hey! could not find func %s.\n", funcname->u.s);
-			
+			}
+
 			if (f && chan) {
 				if (f->read) {
 					char workspace[512];

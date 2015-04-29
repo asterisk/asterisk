@@ -290,7 +290,8 @@ int ast_test_unregister(ast_test_cb_t *cb);
  * \retval 0 success
  * \retval -1 failure
  */
-int ast_test_register(ast_test_cb_t *cb);
+#define ast_test_register(cb) __ast_test_register(cb, AST_MODULE_SELF)
+int __ast_test_register(ast_test_cb_t *cb, struct ast_module *module);
 
 /*!
  * \since 12

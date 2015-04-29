@@ -382,16 +382,6 @@ static struct ast_custom_function talk_detect_function = {
 	.write = talk_detect_fn_write,
 };
 
-/*! \internal \brief Unload the module */
-static int unload_module(void)
-{
-	int res = 0;
-
-	res |= ast_custom_function_unregister(&talk_detect_function);
-
-	return res;
-}
-
 /*! \internal \brief Load the module */
 static int load_module(void)
 {
@@ -402,4 +392,4 @@ static int load_module(void)
 	return res ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Talk detection dialplan function");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Talk detection dialplan function");

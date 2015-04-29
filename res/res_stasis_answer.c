@@ -24,7 +24,8 @@
  */
 
 /*** MODULEINFO
-	<depend type="module">res_stasis</depend>
+	<export_globals/>
+	<use type="module">res_stasis</use>
 	<support_level>core</support_level>
  ***/
 
@@ -61,19 +62,4 @@ int stasis_app_control_answer(struct stasis_app_control *control)
 	return 0;
 }
 
-static int load_module(void)
-{
-	return AST_MODULE_LOAD_SUCCESS;
-}
-
-static int unload_module(void)
-{
-	return 0;
-}
-
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Stasis application answer support",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.nonoptreq = "res_stasis"
-);
+AST_MODULE_INFO_SYMBOLS_ONLY(ASTERISK_GPL_KEY, "Stasis application answer support");

@@ -625,16 +625,6 @@ cleanup:
 	return res;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(recurring_query);
-	AST_TEST_UNREGISTER(recurring_query_off_nominal);
-	AST_TEST_UNREGISTER(recurring_query_cancel_between);
-	AST_TEST_UNREGISTER(recurring_query_cancel_during);
-
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(recurring_query);
@@ -645,4 +635,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Recurring DNS query tests");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Recurring DNS query tests");

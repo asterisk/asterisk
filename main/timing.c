@@ -40,159 +40,143 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/cli.h"
 #include "asterisk/utils.h"
 #include "asterisk/time.h"
-#include "asterisk/heap.h"
 #include "asterisk/module.h"
 #include "asterisk/poll-compat.h"
+#include "asterisk/api_registry.h"
 
-struct timing_holder {
-	/*! Do _not_ move this from the beginning of the struct. */
-	ssize_t __heap_index;
-	struct ast_module *mod;
-	struct ast_timing_interface *iface;
+
+static int timing_interface_initialize(void *interface, struct ast_module *module)
+{
+	struct ast_timing_interface *funcs = interface;
+
+	if (!funcs->timer_open
+		|| !funcs->timer_close
+		|| !funcs->timer_set_rate
+		|| !funcs->timer_ack
+		|| !funcs->timer_get_event
+		|| !funcs->timer_get_max_rate
+		|| !funcs->timer_enable_continuous
+		|| !funcs->timer_disable_continuous
+		|| !funcs->timer_fd) {
+		return -1;
+	}
+
+	return 0;
+}
+
+static int timing_interface_cmp(struct ast_api_holder *h1, struct ast_api_holder *h2)
+{
+	struct ast_timing_interface *i1 = ast_api_get_interface(ast_timing_interface, h1);
+	struct ast_timing_interface *i2 = ast_api_get_interface(ast_timing_interface, h2);
+
+	if (i1->priority > i2->priority) {
+		return 1;
+	}
+
+	if (i1->priority == i2->priority) {
+		return 0;
+	}
+
+	return -1;
+}
+
+struct ast_api_registry ast_timing_interface = {
+	.label = "Timing Interface",
+	.initialize_interface = timing_interface_initialize,
+	.holders_sort = timing_interface_cmp,
+	.namecmp = strcasecmp,
 };
-
-static struct ast_heap *timing_interfaces;
+AST_API_FN_REGISTER(ast_timing_interface, __ast_timing_interface)
 
 struct ast_timer {
 	void *data;
-	struct timing_holder *holder;
+	AST_API_HOLDER(ast_timing_interface, interface);
 };
 
-static int timing_holder_cmp(void *_h1, void *_h2)
+static void timer_destructor(void *obj)
 {
-	struct timing_holder *h1 = _h1;
-	struct timing_holder *h2 = _h2;
+	struct ast_timer *t = obj;
 
-	if (h1->iface->priority > h2->iface->priority) {
-		return 1;
-	} else if (h1->iface->priority == h2->iface->priority) {
-		return 0;
-	} else {
-		return -1;
-	}
-}
-
-void *_ast_register_timing_interface(struct ast_timing_interface *funcs,
-				     struct ast_module *mod)
-{
-	struct timing_holder *h;
-
-	if (!funcs->timer_open ||
-	    !funcs->timer_close ||
-	    !funcs->timer_set_rate ||
-	    !funcs->timer_ack ||
-	    !funcs->timer_get_event ||
-	    !funcs->timer_get_max_rate ||
-	    !funcs->timer_enable_continuous ||
-	    !funcs->timer_disable_continuous ||
-	    !funcs->timer_fd) {
-		return NULL;
-	}
-
-	if (!(h = ast_calloc(1, sizeof(*h)))) {
-		return NULL;
-	}
-
-	h->iface = funcs;
-	h->mod = mod;
-
-	ast_heap_wrlock(timing_interfaces);
-	ast_heap_push(timing_interfaces, h);
-	ast_heap_unlock(timing_interfaces);
-
-	return h;
-}
-
-int ast_unregister_timing_interface(void *handle)
-{
-	struct timing_holder *h = handle;
-	int res = -1;
-
-	ast_heap_wrlock(timing_interfaces);
-	h = ast_heap_remove(timing_interfaces, h);
-	ast_heap_unlock(timing_interfaces);
-
-	if (h) {
-		ast_free(h);
-		h = NULL;
-		res = 0;
-	}
-
-	return res;
+	AST_API_HOLDER_CLEANUP(t->interface);
 }
 
 struct ast_timer *ast_timer_open(void)
 {
-	void *data = NULL;
-	struct timing_holder *h;
 	struct ast_timer *t = NULL;
 
-	ast_heap_rdlock(timing_interfaces);
-
-	if ((h = ast_heap_peek(timing_interfaces, 1))) {
-		data = h->iface->timer_open();
-		ast_module_ref(h->mod);
+	t = ao2_alloc(sizeof(*t), timer_destructor);
+	if (!t) {
+		ast_log(LOG_ERROR, "Failed to allocate timer\n");
+		return NULL;
 	}
 
-	if (data) {
-		if (!(t = ast_calloc(1, sizeof(*t)))) {
-			h->iface->timer_close(data);
-		} else {
-			t->data = data;
-			t->holder = h;
-		}
+	AST_API_HOLDER_SET(ast_timing_interface, t->interface,
+		ast_api_registry_use_head(&ast_timing_interface));
+
+	if (!t->interface) {
+		ast_log(LOG_ERROR, "Failed to use timer module\n");
+		goto returnerror;
 	}
 
-	ast_heap_unlock(timing_interfaces);
+	t->data = t->interface->timer_open();
+	if (!t->data) {
+		ast_log(LOG_ERROR, "Failed to open timer\n");
+		goto returnerror;
+	}
+
+	ast_log(LOG_NOTICE, "Opened timer provided by %s\n", t->interface->name);
 
 	return t;
+
+returnerror:
+	ao2_ref(t, -1);
+	return NULL;
 }
 
 void ast_timer_close(struct ast_timer *handle)
 {
-	handle->holder->iface->timer_close(handle->data);
-	ast_module_unref(handle->holder->mod);
-	ast_free(handle);
+	handle->interface->timer_close(handle->data);
+	ao2_ref(handle, -1);
 }
 
 int ast_timer_fd(const struct ast_timer *handle)
 {
-	return handle->holder->iface->timer_fd(handle->data);
+	return handle->interface->timer_fd(handle->data);
 }
 
 int ast_timer_set_rate(const struct ast_timer *handle, unsigned int rate)
 {
-	return handle->holder->iface->timer_set_rate(handle->data, rate);
+	return handle->interface->timer_set_rate(handle->data, rate);
 }
 
 int ast_timer_ack(const struct ast_timer *handle, unsigned int quantity)
 {
-	return handle->holder->iface->timer_ack(handle->data, quantity);
+	return handle->interface->timer_ack(handle->data, quantity);
 }
 
 int ast_timer_enable_continuous(const struct ast_timer *handle)
 {
-	return handle->holder->iface->timer_enable_continuous(handle->data);
+	return handle->interface->timer_enable_continuous(handle->data);
 }
 
 int ast_timer_disable_continuous(const struct ast_timer *handle)
 {
-	return handle->holder->iface->timer_disable_continuous(handle->data);
+	return handle->interface->timer_disable_continuous(handle->data);
 }
 
 enum ast_timer_event ast_timer_get_event(const struct ast_timer *handle)
 {
-	return handle->holder->iface->timer_get_event(handle->data);
+	return handle->interface->timer_get_event(handle->data);
 }
 
 unsigned int ast_timer_get_max_rate(const struct ast_timer *handle)
 {
-	return handle->holder->iface->timer_get_max_rate(handle->data);
+	return handle->interface->timer_get_max_rate(handle->data);
 }
 
 const char *ast_timer_get_name(const struct ast_timer *handle)
 {
-	return handle->holder->iface->name;
+	return handle->interface->name;
 }
 
 static char *timing_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -233,7 +217,7 @@ static char *timing_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 		return CLI_FAILURE;
 	}
 
-	ast_cli(a->fd, "Using the '%s' timing module for this test.\n", timer->holder->iface->name);
+	ast_cli(a->fd, "Using the '%s' timing module for this test.\n", timer->interface->name);
 
 	start = ast_tvnow();
 
@@ -278,14 +262,12 @@ static struct ast_cli_entry cli_timing[] = {
 static void timing_shutdown(void)
 {
 	ast_cli_unregister_multiple(cli_timing, ARRAY_LEN(cli_timing));
-
-	ast_heap_destroy(timing_interfaces);
-	timing_interfaces = NULL;
+	ast_api_registry_cleanup(&ast_timing_interface);
 }
 
 int ast_timing_init(void)
 {
-	if (!(timing_interfaces = ast_heap_create(2, timing_holder_cmp, 0))) {
+	if (ast_api_registry_init(&ast_timing_interface, 2)) {
 		return -1;
 	}
 

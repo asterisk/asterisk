@@ -21,9 +21,10 @@
  */
 
 /*** MODULEINFO
+	<load_priority>app_depend</load_priority>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
-	<depend>res_http_websocket</depend>
+	<use type="module">res_pjsip</use>
+	<use type="module">res_http_websocket</use>
 	<support_level>core</support_level>
  ***/
 
@@ -365,41 +366,22 @@ static struct ast_sip_session_supplement websocket_supplement = {
 
 static int load_module(void)
 {
-	CHECK_PJSIP_MODULE_LOADED();
+	int res = 0;
 
 	pjsip_transport_register_type(PJSIP_TRANSPORT_RELIABLE, "WS", 5060, &transport_type_ws);
 	pjsip_transport_register_type(PJSIP_TRANSPORT_RELIABLE, "WSS", 5060, &transport_type_wss);
 
-	if (ast_sip_register_service(&websocket_module) != PJ_SUCCESS) {
-		return AST_MODULE_LOAD_DECLINE;
-	}
+	res |= (ast_sip_register_service(&websocket_module) != PJ_SUCCESS);
+	res |= ast_sip_session_register_supplement(&websocket_supplement);
+	res |= ast_websocket_add_protocol("sip", websocket_cb);
 
-	if (ast_sip_session_register_supplement(&websocket_supplement)) {
-		ast_sip_unregister_service(&websocket_module);
-		return AST_MODULE_LOAD_DECLINE;
-	}
-
-	if (ast_websocket_add_protocol("sip", websocket_cb)) {
-		ast_sip_session_unregister_supplement(&websocket_supplement);
-		ast_sip_unregister_service(&websocket_module);
-		return AST_MODULE_LOAD_DECLINE;
-	}
-
-	return AST_MODULE_LOAD_SUCCESS;
+	return res ? AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	ast_sip_unregister_service(&websocket_module);
 	ast_sip_session_unregister_supplement(&websocket_supplement);
 	ast_websocket_remove_protocol("sip", websocket_cb);
-
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP WebSocket Transport Support",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_APP_DEPEND,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "PJSIP WebSocket Transport Support");

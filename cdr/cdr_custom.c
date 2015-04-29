@@ -40,6 +40,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>cdr_driver</load_priority>
 	<support_level>core</support_level>
  ***/
 
@@ -182,21 +183,22 @@ static int custom_log(struct ast_cdr *cdr)
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	if (ast_cdr_unregister(name)) {
-		return -1;
+		ast_module_block_unload(AST_MODULE_SELF);
+		return;
 	}
 
 	if (AST_RWLIST_WRLOCK(&sinks)) {
-		ast_cdr_register(name, ast_module_info->description, custom_log);
+		ast_cdr_register(name, ast_module_description(AST_MODULE_SELF), custom_log);
 		ast_log(LOG_ERROR, "Unable to lock sink list.  Unload failed.\n");
-		return -1;
+		ast_module_block_unload(AST_MODULE_SELF);
+		return;
 	}
 
 	free_config();
 	AST_RWLIST_UNLOCK(&sinks);
-	return 0;
 }
 
 static enum ast_module_load_result load_module(void)
@@ -208,11 +210,11 @@ static enum ast_module_load_result load_module(void)
 
 	load_config();
 	AST_RWLIST_UNLOCK(&sinks);
-	ast_cdr_register(name, ast_module_info->description, custom_log);
+	ast_cdr_register(name, ast_module_description(AST_MODULE_SELF), custom_log);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	if (AST_RWLIST_WRLOCK(&sinks)) {
 		ast_log(LOG_ERROR, "Unable to lock sink list.  Load failed.\n");
@@ -225,11 +227,4 @@ static int reload(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Customizable Comma Separated Values CDR Backend",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CDR_DRIVER,
-);
-
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Customizable Comma Separated Values CDR Backend");

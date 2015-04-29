@@ -34,11 +34,13 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/astobj2.h"
 #include "asterisk/stasis.h"
 #include "asterisk/utils.h"
+#include "asterisk/module.h"
 
 /*! \internal */
 struct stasis_message_type {
 	struct stasis_message_vtable *vtable;
 	char *name;
+	struct ast_module_lib *lib;
 };
 
 static struct stasis_message_vtable null_vtable = {};
@@ -46,13 +48,16 @@ static struct stasis_message_vtable null_vtable = {};
 static void message_type_dtor(void *obj)
 {
 	struct stasis_message_type *type = obj;
+
 	ast_free(type->name);
 	type->name = NULL;
+	ao2_cleanup(type->lib);
 }
 
-int stasis_message_type_create(const char *name,
+int __stasis_message_type_create(const char *name,
 	struct stasis_message_vtable *vtable,
-	struct stasis_message_type **result)
+	struct stasis_message_type **result,
+	struct ast_module *module)
 {
 	struct stasis_message_type *type;
 
@@ -77,6 +82,11 @@ int stasis_message_type_create(const char *name,
 	}
 	type->vtable = vtable;
 	*result = type;
+
+	if (module) {
+		type->lib = ast_module_get_lib_running(module);
+		ast_assert(!!type->lib);
+	}
 
 	return STASIS_MESSAGE_TYPE_SUCCESS;
 }

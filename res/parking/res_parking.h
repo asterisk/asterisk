@@ -486,24 +486,12 @@ int load_parking_applications(void);
 
 /*!
  * \since 12.0.0
- * \brief Unregister parking applications
- */
-void unload_parking_applications(void);
-
-/*!
- * \since 12.0.0
  * \brief Register CLI commands
  *
  * \retval 0 if successful
  * \retval -1 on failure
  */
 int load_parking_ui(void);
-
-/*!
- * \since 12.0.0
- * \brief Unregister CLI commands
- */
-void unload_parking_ui(void);
 
 /*!
  * \since 12.0.0
@@ -540,23 +528,9 @@ int load_parking_devstate(void);
 
 /*!
  * \since 12.0.0
- * \brief Unregister Parking devstate handler
- */
-void unload_parking_devstate(void);
-
-/*!
- * \since 12.0.0
  * \brief Register parking unit tests
  *
  * \retval 0 on success
  * \retval nonzero on failure
  */
 int load_parking_tests(void);
-
-/*!
- * \since 12.0.0
- * \brief Unregister parking unit tests
- *
- * \return Nothing
- */
-void unload_parking_tests(void);

@@ -29,6 +29,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_depend</load_priority>
 	<use type="external">pjproject</use>
 	<support_level>core</support_level>
  ***/
@@ -5302,12 +5303,10 @@ static int load_module(void)
 	}
 
 	if (pjlib_util_init() != PJ_SUCCESS) {
-		rtp_terminate_pjproject();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (pjnath_init() != PJ_SUCCESS) {
-		rtp_terminate_pjproject();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -5316,36 +5315,26 @@ static int load_module(void)
 	pool = pj_pool_create(&cachingpool.factory, "timer", 512, 512, NULL);
 
 	if (pj_timer_heap_create(pool, 100, &timer_heap) != PJ_SUCCESS) {
-		rtp_terminate_pjproject();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (pj_lock_create_recursive_mutex(pool, "rtp%p", &lock) != PJ_SUCCESS) {
-		rtp_terminate_pjproject();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	pj_timer_heap_set_lock(timer_heap, lock, PJ_TRUE);
 
 	if (pj_thread_create(pool, "timer", &timer_worker_thread, NULL, 0, 0, &timer_thread) != PJ_SUCCESS) {
-		rtp_terminate_pjproject();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 #endif
 
 	if (ast_rtp_engine_register(&asterisk_rtp_engine)) {
-#ifdef HAVE_PJPROJECT
-		rtp_terminate_pjproject();
-#endif
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (ast_cli_register_multiple(cli_rtp, ARRAY_LEN(cli_rtp))) {
-#ifdef HAVE_PJPROJECT
-		ast_rtp_engine_unregister(&asterisk_rtp_engine);
-		rtp_terminate_pjproject();
-#endif
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -5354,23 +5343,12 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	ast_rtp_engine_unregister(&asterisk_rtp_engine);
-	ast_cli_unregister_multiple(cli_rtp, ARRAY_LEN(cli_rtp));
-
 #ifdef HAVE_PJPROJECT
 	pj_thread_register_check();
 	rtp_terminate_pjproject();
 #endif
-
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Asterisk RTP Stack",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Asterisk RTP Stack");

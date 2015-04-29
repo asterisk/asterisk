@@ -131,15 +131,9 @@ static struct ast_custom_function iconv_function = {
 	.read = iconv_read
 };
 
-static int unload_module(void)
-{
-	return ast_custom_function_unregister(&iconv_function);
-}
-
 static int load_module(void)
 {
 	return ast_custom_function_register(&iconv_function);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Charset conversions");
-
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Charset conversions");

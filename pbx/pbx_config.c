@@ -1598,18 +1598,12 @@ static struct ast_cli_entry cli_dialplan_save =
 /*!
  * Standard module functions ...
  */
-static int unload_module(void)
+static void unload_module(void)
 {
-	if (static_config && !write_protect_config)
-		ast_cli_unregister(&cli_dialplan_save);
 	if (overrideswitch_config) {
 		ast_free(overrideswitch_config);
 	}
-	ast_cli_unregister_multiple(cli_pbx_config, ARRAY_LEN(cli_pbx_config));
-	ast_manager_unregister(AMI_EXTENSION_ADD);
-	ast_manager_unregister(AMI_EXTENSION_REMOVE);
 	ast_context_destroy(NULL, registrar);
-	return 0;
 }
 
 /*!\note Protect against misparsing based upon commas in the middle of fields
@@ -2086,7 +2080,6 @@ static int load_module(void)
 		EVENT_FLAG_SYSTEM, manager_dialplan_extension_remove);
 
 	if (res) {
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -2096,16 +2089,11 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	if (clearglobalvars_config)
 		pbx_builtin_clear_globals();
 	return pbx_load_module();
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Text Extension Configuration",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Text Extension Configuration");

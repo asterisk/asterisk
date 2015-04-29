@@ -110,16 +110,10 @@ static struct ast_custom_function urlencode_function = {
 	.read = uriencode,
 };
 
-static int unload_module(void)
-{
-	return ast_custom_function_unregister(&urldecode_function)
-		|| ast_custom_function_unregister(&urlencode_function);
-}
-
 static int load_module(void)
 {
 	return ast_custom_function_register(&urldecode_function)
 		|| ast_custom_function_register(&urlencode_function);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "URI encode/decode dialplan functions");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "URI encode/decode dialplan functions");

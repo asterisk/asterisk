@@ -180,7 +180,7 @@ struct ast_translator {
 	int desc_size;                         /*!< size of private descriptor in pvt->pvt, if any */
 	int native_plc;                        /*!< true if the translator can do native plc */
 
-	struct ast_module *module;             /*!< opaque reference to the parent module */
+	struct ast_module_lib *lib;            /*!< opaque reference to the parent module */
 
 	int active;                            /*!< Whether this translator should be used or not */
 	int src_fmt_index;                     /*!< index of the source format in the matrix table */

@@ -472,14 +472,12 @@ static int __ast_http_post_load(int reload)
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_http_uri_unlink_all_with_key(__FILE__);
-
-	return 0;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	__ast_http_post_load(1);
 
@@ -495,9 +493,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "HTTP POST support",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "HTTP POST support");

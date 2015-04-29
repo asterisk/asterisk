@@ -515,6 +515,8 @@ long int ast_random(void);
 #define ast_std_calloc calloc
 #define ast_std_realloc realloc
 #define ast_std_free free
+#define ast_std_strdup strdup
+#define ast_std_strndup strndup
 
 /*!
  * \brief free() wrapper

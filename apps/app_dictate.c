@@ -343,17 +343,9 @@ static int dictate_exec(struct ast_channel *chan, const char *data)
 	return 0;
 }
 
-static int unload_module(void)
-{
-	int res;
-	res = ast_unregister_application(app);
-	return res;
-}
-
 static int load_module(void)
 {
 	return ast_register_application_xml(app, dictate_exec);
 }
 
-AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Virtual Dictation Machine");
-
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Virtual Dictation Machine");

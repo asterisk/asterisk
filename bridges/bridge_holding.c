@@ -426,20 +426,12 @@ static void deferred_action(struct ast_bridge_channel *bridge_channel, const voi
 	ast_bridge_unlock(bridge_channel->bridge);
 }
 
-static int unload_module(void)
-{
-	ast_bridge_technology_unregister(&holding_bridge);
-	return 0;
-}
-
 static int load_module(void)
 {
 	if (ast_bridge_technology_register(&holding_bridge)) {
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Holding bridge module");
-
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Holding bridge module");

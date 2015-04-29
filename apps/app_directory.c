@@ -966,16 +966,9 @@ static int directory_exec(struct ast_channel *chan, const char *data)
 	return res < 0 ? -1 : 0;
 }
 
-static int unload_module(void)
-{
-	int res;
-	res = ast_unregister_application(app);
-	return res;
-}
-
 static int load_module(void)
 {
 	return ast_register_application_xml(app, directory_exec);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Extension Directory");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Extension Directory");

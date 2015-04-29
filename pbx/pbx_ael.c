@@ -23,7 +23,7 @@
  */
 
 /*** MODULEINFO
-	<depend>res_ael_share</depend>
+	<use type="module">res_ael_share</use>
 	<support_level>extended</support_level>
  ***/
 
@@ -136,6 +136,7 @@ static int aelsub_exec(struct ast_channel *chan, const char *vdata)
 {
 	char buf[256], *data = ast_strdupa(vdata);
 	struct ast_app *gosub = pbx_findapp("Gosub");
+	int ret = -1;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(name);
 		AST_APP_ARG(args);
@@ -144,9 +145,10 @@ static int aelsub_exec(struct ast_channel *chan, const char *vdata)
 	if (gosub) {
 		AST_STANDARD_RAW_ARGS(args, data);
 		snprintf(buf, sizeof(buf), "%s,~~s~~,1(%s)", args.name, args.args);
-		return pbx_exec(chan, gosub, buf);
+		ret = pbx_exec(chan, gosub, buf);
+		ao2_ref(gosub, -1);
 	}
-	return -1;
+	return ret;
 }
 #endif
 
@@ -262,14 +264,9 @@ static struct ast_cli_entry cli_ael[] = {
 	AST_CLI_DEFINE(handle_cli_ael_set_debug, "Enable AEL debugging flags")
 };
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_context_destroy(NULL, registrar);
-	ast_cli_unregister_multiple(cli_ael, ARRAY_LEN(cli_ael));
-#ifndef STANDALONE
-	ast_unregister_application(aelsub);
-#endif
-	return 0;
 }
 
 static int load_module(void)
@@ -281,7 +278,7 @@ static int load_module(void)
 	return (pbx_load_module());
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	return pbx_load_module();
 }
@@ -296,12 +293,7 @@ int ael_external_load_module(void)
 }
 #endif
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Asterisk Extension Language Compiler",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Asterisk Extension Language Compiler");
 
 #ifdef AAL_ARGCHECK
 static const char * const ael_funclist[] =

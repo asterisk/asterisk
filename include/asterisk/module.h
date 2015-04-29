@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2008, Digium, Inc.
+ * Copyright (C) 1999 - 2015, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  * Kevin P. Fleming <kpfleming@digium.com>
@@ -37,6 +37,7 @@
 #define _ASTERISK_MODULE_H
 
 #include "asterisk/utils.h"
+#include "asterisk/vector.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -56,20 +57,11 @@ different terms. Any use of Digium, Inc. trademarks or \
 logos (including \"Asterisk\" or \"Digium\") without \
 express written permission of Digium, Inc. is prohibited.\n"
 
-#define AST_MODULE_CONFIG "modules.conf" /*!< \brief Module configuration file */
-
-enum ast_module_unload_mode {
-	AST_FORCE_SOFT = 0, /*!< Softly unload a module, only if not in use */
-	AST_FORCE_FIRM = 1, /*!< Firmly unload a module, even if in use */
-	AST_FORCE_HARD = 2, /*!< as FIRM, plus dlclose() on the module. Not recommended
-				as it may cause crashes */
-};
+struct ast_module_instance;
 
 enum ast_module_load_result {
 	AST_MODULE_LOAD_SUCCESS = 0,    /*!< Module loaded and configured */
 	AST_MODULE_LOAD_DECLINE = 1,    /*!< Module is not configured */
-	AST_MODULE_LOAD_SKIP = 2,       /*!< Module was skipped for some reason */
-	AST_MODULE_LOAD_PRIORITY = 3,   /*!< Module is not loaded yet, but is added to prioity heap */
 	AST_MODULE_LOAD_FAILURE = -1,   /*!< Module could not be loaded properly */
 };
 
@@ -94,109 +86,24 @@ enum ast_module_support_level {
 	AST_MODULE_SUPPORT_DEPRECATED,
 };
 
-/*! 
- * \brief Load a module.
- * \param resource_name The name of the module to load.
- *
- * This function is run by the PBX to load the modules.  It performs
- * all loading and initialization tasks.   Basically, to load a module, just
- * give it the name of the module and it will do the rest.
- *
- * \return See possible enum values for ast_module_load_result.
- */
-enum ast_module_load_result ast_load_resource(const char *resource_name);
-
-/*! 
- * \brief Unload a module.
- * \param resource_name The name of the module to unload.
- * \param ast_module_unload_mode The force flag. This should be set using one of the AST_FORCE flags.
- *
- * This function unloads a module.  It will only unload modules that are not in
- * use (usecount not zero), unless #AST_FORCE_FIRM or #AST_FORCE_HARD is 
- * specified.  Setting #AST_FORCE_FIRM or #AST_FORCE_HARD will unload the
- * module regardless of consequences (NOT RECOMMENDED).
- *
- * \retval 0 on success.
- * \retval -1 on error.
- */
-int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode);
-
-/*!
- * \brief Reload asterisk modules.
- * \param name the name of the module to reload
- *
- * This function reloads the specified module, or if no modules are specified,
- * it will reload all loaded modules.
- *
- * \note Modules are reloaded using their reload() functions, not unloading
- * them and loading them again.
- *
- * \retval The \ref ast_module_reload_result status of the module load request
- */
-enum ast_module_reload_result ast_module_reload(const char *name);
-
-/*! 
- * \brief Notify when usecount has been changed.
- *
- * This function calulates use counts and notifies anyone trying to keep track
- * of them.  It should be called whenever your module's usecount changes.
- *
- * \note The ast_module_user_* functions take care of calling this function for you.
- */
-void ast_update_use_count(void);
-
-/*!
- * \brief Ask for a list of modules, descriptions, use counts and status.
- * \param modentry A callback to an updater function.
- * \param like
- *
- * For each of the modules loaded, modentry will be executed with the resource,
- * description, and usecount values of each particular module.
- *
- * \return the number of modules loaded
- */
-int ast_update_module_list(int (*modentry)(const char *module, const char *description,
-                                           int usecnt, const char *status, const char *like,
-                                           enum ast_module_support_level support_level),
-                           const char *like);
-
-/*!
- * \brief Check if module with the name given is loaded
- * \param name Module name, like "chan_sip.so"
- * \retval 1 if true 
- * \retval 0 if false
- */
-int ast_module_check(const char *name);
-
-/*! 
- * \brief Add a procedure to be run when modules have been updated.
- * \param updater The function to run when modules have been updated.
- *
- * This function adds the given function to a linked list of functions to be
- * run when the modules are updated. 
- *
- * \retval 0 on success 
- * \retval -1 on failure.
- */
-int ast_loader_register(int (*updater)(void));
-
-/*! 
- * \brief Remove a procedure to be run when modules are updated.
- * \param updater The updater function to unregister.
- *
- * This removes the given function from the updater list.
- * 
- * \retval 0 on success
- * \retval -1 on failure.
- */
-int ast_loader_unregister(int (*updater)(void));
-
 /*!
  * \brief Run the unload() callback for all loaded modules
  *
  * This function should be called when Asterisk is shutting down gracefully.
  */
 void ast_module_shutdown(void);
+
+AST_VECTOR(ast_string_vector, char *);
+
+enum ast_module_complete_filter {
+	AST_MODULE_COMPLETE_NONE = 0,
+	AST_MODULE_COMPLETE_UNLOADED = 0x01,
+	AST_MODULE_COMPLETE_LOADED = 0x02,
+	AST_MODULE_COMPLETE_RELOADABLE = 0x04,
+	AST_MODULE_COMPLETE_ADMINLOADED = 0x08,
+	AST_MODULE_COMPLETE_CANLOAD = 0x10,
+	AST_MODULE_COMPLETE_ALL = 0x1F,
+};
 
 /*! 
  * \brief Match modules names for the Asterisk cli.
@@ -214,37 +121,16 @@ void ast_module_shutdown(void);
  * \retval A possible completion of the partial match.
  * \retval NULL if no matches were found.
  */
-char *ast_module_helper(const char *line, const char *word, int pos, int state, int rpos, int needsreload);
-
-/* Opaque type for module handles generated by the loader */
-
-struct ast_module;
+char *ast_module_complete(const char *line, const char *word, int pos, int state, int rpos,
+	enum ast_module_complete_filter filter);
 
 /*!
  * \brief Get the name of a module.
- * \param mod A pointer to the module.
+ * \param module A pointer to the module.
  * \return the name of the module
- * \retval NULL if mod or mod->info is NULL
+ * \retval NULL if module is NULL
  */
-const char *ast_module_name(const struct ast_module *mod);
-
-/* User count routines keep track of which channels are using a given module
-   resource.  They can help make removing modules safer, particularly if
-   they're in use at the time they have been requested to be removed */
-
-struct ast_module_user;
-struct ast_module_user_list;
-
-/*! \page ModMngmnt The Asterisk Module management interface
- *
- * All modules must implement the module API (load, unload...)
- */
-
-enum ast_module_flags {
-	AST_MODFLAG_DEFAULT = 0,
-	AST_MODFLAG_GLOBAL_SYMBOLS = (1 << 0),
-	AST_MODFLAG_LOAD_ORDER = (1 << 1),
-};
+const char *ast_module_name(const struct ast_module *module);
 
 enum ast_module_load_priority {
 	AST_MODPRI_REALTIME_DEPEND =    10,  /*!< Dependency for a realtime driver */
@@ -261,265 +147,122 @@ enum ast_module_load_priority {
 	AST_MODPRI_DEVSTATE_CONSUMER = 150,  /*!< Certain modules, which consume devstate, need to load after all others (e.g. app_queue) */
 };
 
-struct ast_module_info {
+/*! Make the module crash safe before the instance is made available. */
+typedef int (*ast_module_init_fn)(void);
 
-	/*!
-	 * The 'self' pointer for a module; it will be set by the loader before
-	 * it calls the module's load_module() entrypoint, and used by various
-	 * other macros that need to identify the module.
-	 */
+/*! Error returns should be avoided here, the instance is already available. */
+typedef int (*ast_module_start_fn)(void);
 
-	struct ast_module *self;
-	enum ast_module_load_result (*load)(void);	/*!< register stuff etc. Optional. */
-	int (*reload)(void);			/*!< config etc. Optional. */
-	int (*unload)(void);			/*!< unload. called with the module locked */
-	int (*backup_globals)(void);		/*!< for embedded modules, backup global data */
-	void (*restore_globals)(void);		/*!< for embedded modules, restore global data */
-	const char *name;			/*!< name of the module for loader reference and CLI commands */
-	const char *description;		/*!< user friendly description of the module. */
+/*! Module reload callback. */
+typedef int (*ast_module_reload_fn)(void);
 
-	/*! 
-	 * This holds the ASTERISK_GPL_KEY, signifiying that you agree to the terms of
-	 * the Asterisk license as stated in the ASTERISK_GPL_KEY.  Your module will not
-	 * load if it does not return the EXACT key string.
-	 */
-
-	const char *key;
-	unsigned int flags;
-
-	/*! The value of AST_BUILDOPT_SUM when this module was compiled */
-	const char buildopt_sum[33];
-
-	/*! This value represents the order in which a module's load() function is initialized.
-	 *  The lower this value, the higher the priority.  The value is only checked if the
-	 *  AST_MODFLAG_LOAD_ORDER flag is set.  If the AST_MODFLAG_LOAD_ORDER flag is not set,
-	 *  this value will never be read and the module will be given the lowest possible priority
-	 *  on load. */
-	unsigned char load_pri;
-
-	/*! Modules which should be loaded first, in comma-separated string format.
-	 * These are only required for loading, when the optional_api header file
-	 * detects that the compiler does not support the optional API featureset. */
-	const char *nonoptreq;
-	/*! The support level for the given module */
-	enum ast_module_support_level support_level;
-};
-
-void ast_module_register(const struct ast_module_info *);
-void ast_module_unregister(const struct ast_module_info *);
-
-struct ast_module_user *__ast_module_user_add(struct ast_module *, struct ast_channel *);
-void __ast_module_user_remove(struct ast_module *, struct ast_module_user *);
-void __ast_module_user_hangup_all(struct ast_module *);
-
-#define ast_module_user_add(chan) __ast_module_user_add(AST_MODULE_SELF, chan)
-#define ast_module_user_remove(user) __ast_module_user_remove(AST_MODULE_SELF, user)
-#define ast_module_user_hangup_all() __ast_module_user_hangup_all(AST_MODULE_SELF)
-
-struct ast_module *__ast_module_ref(struct ast_module *mod, const char *file, int line, const char *func);
-void __ast_module_shutdown_ref(struct ast_module *mod, const char *file, int line, const char *func);
-void __ast_module_unref(struct ast_module *mod, const char *file, int line, const char *func);
+/*! Called when the module is stopping, before dlclose is run. */
+typedef void (*ast_module_stop_fn)(void);
 
 /*!
- * \brief Hold a reference to the module
- * \param mod Module to reference
- * \return mod
+ * \brief Called by module to try clearing a disposer.
  *
- * \note A module reference will prevent the module
- * from being unloaded.
+ * \retval 0 Remove the disposer from the list (does not release the alloc reference).
+ * \retval non-zero Leave the disposer in the users list.
+ *
+ * \note It's safe to return 0 even if \ref ast_module_disposer_destroy will be called
+ * later.  Returning 0 will prevent the callback from being used again.
  */
-#define ast_module_ref(mod)           __ast_module_ref(mod, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+typedef int (*ast_module_dispose_cb)(void *userdata, int level);
+
+/*! Opaque */
+struct ast_module_disposer;
+
+/*! Shared type for disposer vector. */
+AST_VECTOR_RW(ast_module_disposers_rw, struct ast_module_disposer *);
+
+/*!
+ * \brief Allocate and register a disposer callback with a module instance.
+ *
+ * \param instance Module instance to accept dispose requests for.
+ * \param userdata Pointer passed to the callback.
+ * \param cb Function to be called when the module wants to unload.
+ *
+ * \return Reference counted disposer object.
+ *
+ * \note This should be matched with a call to ast_module_disposer_destroy.  This
+ * clears the allocation reference and removes the item from the list.
+ */
+struct ast_module_disposer *ast_module_disposer_alloc(struct ast_module_instance *instance, void *userdata, ast_module_dispose_cb cb);
+
+/*! Release the allocation reference, remove from users vector if still listed. */
+void ast_module_disposer_destroy(struct ast_module_disposer *disposer);
+
 /*!
  * \brief Prevent unload of the module before shutdown
  * \param mod Module to hold
- *
- * \note This should not be balanced by a call to ast_module_unref.
  */
-#define ast_module_shutdown_ref(mod)  __ast_module_shutdown_ref(mod, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+void ast_module_block_unload(struct ast_module *module);
+
+int ast_module_instance_refs(struct ast_module *module);
+
 /*!
- * \brief Release a reference to the module
- * \param mod Module to release
+ * \internal Used by AST_MODULE_INFO macros for module initialization.
+ *
+ * \note None of these symbols should be directly used.
+ * @{
  */
-#define ast_module_unref(mod)         __ast_module_unref(mod, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define MODULE_INFO_INIT_FN0 NULL
+#define MODULE_INFO_INIT_FN1 init_module
+#define MODULE_INFO_START_FN0 NULL
+#define MODULE_INFO_START_FN1 load_module
+#define MODULE_INFO_RELOAD_FN0 NULL
+#define MODULE_INFO_RELOAD_FN1 reload_module
+#define MODULE_INFO_STOP_FN0 NULL
+#define MODULE_INFO_STOP_FN1 unload_module
 
-#if defined(__cplusplus) || defined(c_plusplus)
-#define AST_MODULE_INFO(keystr, flags_to_set, desc, load_func, unload_func, reload_func, load_pri, support_level)	\
-	static struct ast_module_info __mod_info = {	\
-		NULL,                                                          \
-		load_func,                                                     \
-		reload_func,                                                   \
-		unload_func,                                                   \
-		NULL,                                                          \
-		NULL,                                                          \
-		AST_MODULE,                                                    \
-		desc,                                                          \
-		keystr,                                                        \
-		flags_to_set,                                                  \
-		AST_BUILDOPT_SUM,                                              \
-		load_pri,                                                      \
-		NULL,                                                          \
-		support_level,                                                 \
-	};                                                                 \
-	static void  __attribute__((constructor)) __reg_module(void)       \
-	{                                                                  \
-		ast_module_register(&__mod_info);                              \
-	}                                                                  \
-	static void  __attribute__((destructor)) __unreg_module(void)      \
-	{                                                                  \
-		ast_module_unregister(&__mod_info);                            \
-	}                                                                  \
-	struct ast_module *AST_MODULE_SELF_SYM(void)                       \
-	{                                                                  \
-		return __mod_info.self;                                        \
-	}                                                                  \
-	static const __attribute__((unused)) struct ast_module_info *ast_module_info = &__mod_info
+int __ast_module_register(struct ast_module **self, const char *name,
+	const char *buildopt_sum, const char *manifest_checksum,
+	const char *keystr, const char *desc,
+	ast_module_init_fn init_fn,
+	ast_module_start_fn start_fn,
+	ast_module_reload_fn reload_fn,
+	ast_module_stop_fn stop_fn
+);
 
+void __ast_module_unregister(struct ast_module **self);
 
-#define AST_MODULE_INFO_STANDARD(keystr, desc)              \
-	AST_MODULE_INFO(keystr, AST_MODFLAG_LOAD_ORDER, desc,   \
-			load_module,                                    \
-			unload_module,                                  \
-			NULL,                                           \
-			AST_MODPRI_DEFAULT,                             \
-			AST_MODULE_SUPPORT_CORE                         \
-		       )
-
-#define AST_MODULE_INFO_STANDARD_EXTENDED(keystr, desc)     \
-	AST_MODULE_INFO(keystr, AST_MODFLAG_LOAD_ORDER, desc,   \
-			load_module,                                    \
-			unload_module,                                  \
-			NULL,                                           \
-			AST_MODPRI_DEFAULT,                             \
-			AST_MODULE_SUPPORT_EXTENDED                     \
-		       )
-#define AST_MODULE_INFO_STANDARD_DEPRECATED(keystr, desc)   \
-	AST_MODULE_INFO(keystr, AST_MODFLAG_LOAD_ORDER, desc,   \
-			load_module,                                    \
-			unload_module,                                  \
-			NULL,                                           \
-			AST_MODPRI_DEFAULT,                             \
-			AST_MODULE_SUPPORT_DEPRECATED                   \
-		       )
-
-#else /* plain C */
-
-/* forward declare this pointer in modules, so that macro/function
-   calls that need it can get it, since it will actually be declared
-   and populated at the end of the module's source file... */
-#if !defined(AST_IN_CORE)
-static const __attribute__((unused)) struct ast_module_info *ast_module_info;
-#endif
-
-#if !defined(EMBEDDED_MODULE)
-#define __MODULE_INFO_SECTION
-#define __MODULE_INFO_GLOBALS
-#else
-/*
- * For embedded modules we need additional information to backup and
- * restore the global variables in the module itself, so we can unload
- * reload the module.
- * EMBEDDED_MODULE is defined as the module name, so the calls to make_var()
- * below will actually define different symbols for each module.
- */
-#define __MODULE_INFO_SECTION	__attribute__((section(".embed_module")))
-#define __MODULE_INFO_GLOBALS	.backup_globals = __backup_globals, .restore_globals = __restore_globals,
-
-#define make_var_sub(mod, type) __ ## mod ## _ ## type
-#define make_var(mod, type) make_var_sub(mod, type)
-
-extern void make_var(EMBEDDED_MODULE, bss_start);
-extern void make_var(EMBEDDED_MODULE, bss_end);
-extern void make_var(EMBEDDED_MODULE, data_start);
-extern void make_var(EMBEDDED_MODULE, data_end);
-
-static void * __attribute__((section(".embed_module"))) __global_backup;
-
-static int __backup_globals(void)
-{
-	size_t data_size = & make_var(EMBEDDED_MODULE, data_end) - & make_var(EMBEDDED_MODULE, data_start);
-
-	if (__global_backup)
-		return 0;
-
-	if (!data_size)
-		return 0;
-
-	if (!(__global_backup = ast_malloc(data_size)))
-		return -1;
-
-	memcpy(__global_backup, & make_var(EMBEDDED_MODULE, data_start), data_size);
-
-	return 0;
-}
-
-static void __restore_globals(void)
-{
-	size_t data_size = & make_var(EMBEDDED_MODULE, data_end) - & make_var(EMBEDDED_MODULE, data_start);
-	size_t bss_size = & make_var(EMBEDDED_MODULE, bss_end) - & make_var(EMBEDDED_MODULE, bss_start);
-
-	if (bss_size)
-		memset(& make_var(EMBEDDED_MODULE, bss_start), 0, bss_size);
-
-	if (!data_size || !__global_backup)
-		return;
-
-	memcpy(& make_var(EMBEDDED_MODULE, data_start), __global_backup, data_size);
-}
-#undef make_var
-#undef make_var_sub
-#endif /* EMBEDDED_MODULE */
-
-#define AST_MODULE_INFO(keystr, flags_to_set, desc, fields...)	\
-	static struct ast_module_info 				\
-		__MODULE_INFO_SECTION				\
-		__mod_info = {					\
-		__MODULE_INFO_GLOBALS				\
-		.name = AST_MODULE,				\
-		.flags = flags_to_set,				\
-		.description = desc,				\
-		.key = keystr,					\
-		.buildopt_sum = AST_BUILDOPT_SUM,		\
-		fields						\
-	};							\
-	static void  __attribute__((constructor)) __reg_module(void) \
+#define AST_MODULE_INFO(keystr, desc, has_init, has_start, has_reload, has_stop) \
+	static struct ast_module *__module_self = NULL; \
+	struct ast_module *AST_MODULE_SELF_SYM(void) \
 	{ \
-		ast_module_register(&__mod_info); \
+		return __module_self; \
 	} \
-	static void  __attribute__((destructor)) __unreg_module(void) \
+	static void __attribute__((constructor)) __module_reg(void) \
 	{ \
-		ast_module_unregister(&__mod_info); \
+		__ast_module_register(&__module_self, \
+			AST_MODULE, AST_BUILDOPT_SUM, AST_MODULE_CHECKSUM, keystr, desc, \
+			MODULE_INFO_INIT_FN ## has_init, \
+			MODULE_INFO_START_FN ## has_start, \
+			MODULE_INFO_RELOAD_FN ## has_reload, \
+			MODULE_INFO_STOP_FN ## has_stop); \
 	} \
-	struct ast_module *AST_MODULE_SELF_SYM(void)                       \
-	{                                                                  \
-		return __mod_info.self;                                        \
-	}                                                                  \
-	static const struct ast_module_info *ast_module_info = &__mod_info
+	static void __attribute__((destructor)) __module_unreg(void) \
+	{ \
+		__ast_module_unregister(&__module_self); \
+	}
+/*! @} */
 
-#define AST_MODULE_INFO_STANDARD(keystr, desc)              \
-	AST_MODULE_INFO(keystr, AST_MODFLAG_LOAD_ORDER, desc,   \
-			.load = load_module,                            \
-			.unload = unload_module,                        \
-			.load_pri = AST_MODPRI_DEFAULT,                 \
-			.support_level = AST_MODULE_SUPPORT_CORE,       \
-		       )
+#define AST_MODULE_INFO_SYMBOLS_ONLY(keystr, desc) \
+	AST_MODULE_INFO(keystr, desc, 0, 0, 0, 0)
 
-#define AST_MODULE_INFO_STANDARD_EXTENDED(keystr, desc)     \
-	AST_MODULE_INFO(keystr, AST_MODFLAG_LOAD_ORDER, desc,   \
-			.load = load_module,                            \
-			.unload = unload_module,                        \
-			.load_pri = AST_MODPRI_DEFAULT,                 \
-			.support_level = AST_MODULE_SUPPORT_EXTENDED,   \
-		       )
+#define AST_MODULE_INFO_AUTOCLEAN(keystr, desc) \
+	AST_MODULE_INFO(keystr, desc, 0, 1, 0, 0)
 
-#define AST_MODULE_INFO_STANDARD_DEPRECATED(keystr, desc)   \
-	AST_MODULE_INFO(keystr, AST_MODFLAG_LOAD_ORDER, desc,   \
-			.load = load_module,                            \
-			.unload = unload_module,                        \
-			.load_pri = AST_MODPRI_DEFAULT,                 \
-			.support_level = AST_MODULE_SUPPORT_DEPRECATED, \
-		       )
+#define AST_MODULE_INFO_STANDARD(keystr, desc) \
+	AST_MODULE_INFO(keystr, desc, 0, 1, 0, 1)
 
-#endif	/* plain C */
+#define AST_MODULE_INFO_RELOADABLE(keystr, desc) \
+	AST_MODULE_INFO(keystr, desc, 0, 1, 1, 1)
+
+#define AST_MODULE_INFO_AUTOCLEAN_RELOADABLE(keystr, desc) \
+	AST_MODULE_INFO(keystr, desc, 0, 1, 1, 0)
+
 
 /*! 
  * \brief Register an application.
@@ -556,7 +299,6 @@ static void __restore_globals(void)
  */
 #define ast_register_application_xml(app, execute) ast_register_application(app, execute, NULL, NULL)
 
-
 /*!
  * \brief Register an application.
  *
@@ -576,7 +318,7 @@ static void __restore_globals(void)
  * \retval -1 failure.
  */
 int ast_register_application2(const char *app, int (*execute)(struct ast_channel *, const char *),
-				     const char *synopsis, const char *description, void *mod);
+				     const char *synopsis, const char *description, struct ast_module *module);
 
 /*! 
  * \brief Unregister an application
@@ -590,14 +332,199 @@ int ast_register_application2(const char *app, int (*execute)(struct ast_channel
  */
 int ast_unregister_application(const char *app);
 
-const char *ast_module_support_level_to_string(enum ast_module_support_level support_level);
+const char *ast_module_support_level_to_string(const struct ast_module *module);
 
-/*! Macro to safely ref and unref the self module for the current scope */
-#define SCOPED_MODULE_USE(module) \
-	RAII_VAR(struct ast_module *, __self__ ## __LINE__, ast_module_ref(module), ast_module_unref)
+/*!
+ * \brief Find an ast_module by name.
+ *
+ * \return A reference to the module or NULL.
+ */
+#define ast_module_find(name) \
+	__ast_module_find(name, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+struct ast_module *__ast_module_find(const char *name,
+	const char *file, int line, const char *func);
+
+/*!
+ * \brief Find the ast_module that provides an API.
+ *
+ * \param type The type of API to find, for example "application" for dialplan apps.
+ * \param id The name of the item to find, for example "Gosub".
+ *
+ * \return A reference to the module that provides the API or NULL.
+ */
+#define ast_module_find_provider(type, id) \
+	__ast_module_find_provider(type, id, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+struct ast_module *__ast_module_find_provider(const char *type, const char *id,
+	const char *file, int line, const char *func);
+
+
+
+const char *ast_module_description(const struct ast_module *module);
+enum ast_module_support_level ast_module_support_level(const struct ast_module *module);
+enum ast_module_load_priority ast_module_load_priority(const struct ast_module *module);
+
+/*! Check if a module exports global symbols.  This does not require a lock. */
+int ast_module_exports_globals(const struct ast_module *module);
+
+/*! Check if the module is blocked from unload. */
+int ast_module_unload_is_blocked(const struct ast_module *module);
+
+/*!
+ * \brief Check if a module is "currently" running.
+ *
+ * \note The value returned may be lagged if the module is currently starting or
+ * stopping.  This should not be used for logic, it is meant for output to users
+ * or monitoring systems.
+ */
+int ast_module_is_running(struct ast_module *module);
+
+/*!
+ * \brief Manipulate the reference count of an instance using it's module.
+ *
+ * \param module The module
+ * \param delta Number of references to add/subtract from the instance.
+ *
+ * \retval -2 Invalid module object.
+ * \retval -1 The module is not running.
+ * \retval >1 Number of references to the instance before this operation.
+ *
+ * A delta of 0 can be used to check the reference count.
+ */
+#define ast_module_ref_instance(module, delta) \
+	__ast_module_ref_instance(module, delta, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+int __ast_module_ref_instance(struct ast_module *module, int delta, const char *file, int line, const char *func);
+
+/*! Get a reference the module's instance. */
+#define ast_module_get_instance(module) \
+	__ast_module_get_instance(module, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+struct ast_module_instance *__ast_module_get_instance(struct ast_module *module, const char *file, int line, const char *func);
+
+/*! Get a reference the module's lib. */
+#define ast_module_get_lib_loaded(module) \
+	__ast_module_get_lib_loaded(module, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+struct ast_module_lib *__ast_module_get_lib_loaded(struct ast_module *module, const char *file, int line, const char *func);
+
+/*! Get a reference the module's lib if it's running. */
+#define ast_module_get_lib_running(module) \
+	__ast_module_get_lib_running(module, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+struct ast_module_lib *__ast_module_get_lib_running(struct ast_module *module, const char *file, int line, const char *func);
+
+/*! Get a reference the module's instance from it's lib. */
+#define ast_module_lib_get_instance(lib) \
+	__ast_module_lib_get_instance(lib, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+struct ast_module_instance *__ast_module_lib_get_instance(struct ast_module_lib *lib, const char *file, int line, const char *func);
+
+/*! Manipulate the reference count of an instance using it's lib. */
+#define ast_module_lib_ref_instance(lib, delta) \
+	__ast_module_lib_ref_instance(lib, delta, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+int __ast_module_lib_ref_instance(struct ast_module_lib *lib, int delta, const char *file, int line, const char *func);
+
+/*!
+ * \brief Subscribe to notification that the module is not running.
+ *
+ * \param lib ast_module_lib for the running module.
+ * \param callback ao2_weakproxy_notification_cb to be called when the module will stop.
+ * \param userdata Any pointer, passed to the callback.
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ *
+ * \note callback will run immediately if the module is not currently running, even if it
+ * is loaded.
+ *
+ * \note callback is run once and discarded.  See ao2_weakproxy_subscribe for details.
+ *
+ * \warning lib will be locked.  It is only safe to run this with the instance locked
+ * if the lib was already locked first.
+ */
+#define ast_module_lib_subscribe_stop(lib, callback, userdata) ({ \
+	struct ast_module_lib *__lib = (lib); \
+	ao2_weakproxy_subscribe(__lib, (callback), (userdata), 0); \
+})
+
+/*!
+ * \brief Unsubscribe to notification that the module is not running.
+ *
+ * Parameters should be identical to those used with ast_module_lib_subscribe_stop.
+ *
+ * \retval 1 Success (1 subscription removed)
+ * \retval 0 Subscription not found
+ * \retval -1 Failure
+ *
+ * \warning lib will be locked.  It is only safe to run this with the instance locked
+ * if the lib was already locked first.
+ */
+#define ast_module_lib_unsubscribe_stop(lib, callback, userdata) ({ \
+	struct ast_module_lib *__lib = (lib); \
+	ao2_weakproxy_unsubscribe(__lib, (callback), (userdata), 0); \
+})
+
+/*!
+ * \brief Subscribe to notification that the module is going to unload.
+ *
+ * \param module The module
+ * \param callback ao2_weakproxy_notification_cb to be called before unloading the module.
+ * \param userdata Any pointer, passed to the callback.
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ *
+ * \note callback will run immediately if the module is not currently loaded.
+ *
+ * \note callback is run once and discarded.  See ao2_weakproxy_subscribe for details.
+ *
+ * \warning module will be locked.  It is only safe to run this with the lib or instance
+ * locked if the module was already locked first.
+ */
+#define ast_module_subscribe_unload(module, callback, userdata) ({ \
+	struct ast_module *__module = (module); \
+	ao2_weakproxy_subscribe(__module, (callback), (userdata), 0); \
+})
+
+/*!
+ * \brief Unsubscribe to notification that the module is going to unload.
+ *
+ * Parameters should be identical to those used with ast_module_subscribe_unload.
+ *
+ * \retval 1 Success (1 subscription removed)
+ * \retval 0 Subscription not found
+ * \retval -1 Failure
+ *
+ * \warning module will be locked.  It is only safe to run this with the lib or instance
+ * locked if the module was already locked first.
+ */
+#define ast_module_unsubscribe_unload(module, callback, userdata) ({ \
+	struct ast_module *__module = (module); \
+	ao2_weakproxy_unsubscribe(__module, (callback), (userdata), 0); \
+}) \
+
+/* These 3 do not bump the returned reference. */
+struct ast_module *ast_module_from_lib(struct ast_module_lib *lib);
+struct ast_module *ast_module_from_instance(struct ast_module_instance *instance);
+struct ast_module_lib *ast_module_lib_from_instance(struct ast_module_instance *instance);
+
+int ast_module_count_running(void);
+
+int ast_module_load(struct ast_module *module);
+void ast_module_unload(struct ast_module *module, int force);
+
+/*!
+ * \brief Reload asterisk modules.
+ * \param name the name of the module to reload
+ *
+ * This function reloads the specified module, or if no modules are specified,
+ * it will reload all loaded modules.
+ *
+ * \note Modules are reloaded using their reload() functions, not unloading
+ * them and loading them again.
+ *
+ * \retval The \ref ast_module_reload_result status of the module load request
+ */
+enum ast_module_reload_result ast_module_reload(struct ast_module *module);
+
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
 
-#endif /* _ASTERISK_MODULE_H */
+#endif

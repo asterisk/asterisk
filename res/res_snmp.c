@@ -127,16 +127,14 @@ static int load_module(void)
 		return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_verb(1, "Unloading [Sub]Agent Module\n");
 
 	res_snmp_dont_stop = 0;
-	return ((thread != AST_PTHREADT_NULL) ? pthread_join(thread, NULL) : 0);
+	if ((thread != AST_PTHREADT_NULL) ? pthread_join(thread, NULL) : 0) {
+		ast_module_block_unload(AST_MODULE_SELF);
+	}
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "SNMP [Sub]Agent for Asterisk",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "SNMP [Sub]Agent for Asterisk");

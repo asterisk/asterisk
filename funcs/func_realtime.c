@@ -518,17 +518,6 @@ static struct ast_custom_function realtime_destroy_function = {
 	.write = function_realtime_writedestroy,
 };
 
-static int unload_module(void)
-{
-	int res = 0;
-	res |= ast_custom_function_unregister(&realtime_function);
-	res |= ast_custom_function_unregister(&realtime_store_function);
-	res |= ast_custom_function_unregister(&realtime_destroy_function);
-	res |= ast_custom_function_unregister(&realtimefield_function);
-	res |= ast_custom_function_unregister(&realtimehash_function);
-	return res;
-}
-
 static int load_module(void)
 {
 	int res = 0;
@@ -540,4 +529,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Read/Write/Store/Destroy values from a RealTime repository");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Read/Write/Store/Destroy values from a RealTime repository");

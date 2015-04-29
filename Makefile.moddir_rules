@@ -60,19 +60,23 @@ endif
 # is used to collect the required flags for a module... which can
 # then be used any place they are required.
 
+MOD_CHECKSUM=$(filter-out -,$(shell cat $(1).c $(MOD_SOURCES_$(1))|$(MD5)))
 MOD_ASTCFLAGS=\
 	-DAST_MODULE=\"$(1)\" \
 	-DAST_MODULE_SELF_SYM=__internal_$(1)_self \
+	-DAST_MODULE_CHECKSUM=\"$(call MOD_CHECKSUM,$(1))\" \
 	$(MENUSELECT_OPTS_$(1):%=-D%) \
 	$(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$(value $(dep)_INCLUDE))
 
 define MOD_ADD_SOURCE
+MOD_SOURCES_$(1)+=$(2)
 $$(if $$(filter $(1),$$(EMBEDDED_MODS)),modules.link,$(1).so): $$(subst $(3),$(5),$(2))
 $$(subst $(3),$(5),$(2)): _ASTCFLAGS+=$$(call MOD_ASTCFLAGS,$(1))
 .$(1).moduleinfo: MODULEINFO_EXTRA_OUTPUT=" $$(addprefix $$(SUBDIR)/,$$(subst $(3),$(5),$(2)) $$(subst $(3),$(4),$(2)))"
 # The use of wildcard ensures that 'make menuselect' will not fail for modules that
 # require additional source downloads.
 .$(1).moduleinfo: $(wildcard $(2))
+$(1).manifest: $(2)
 
 clean:: clean-$(1)$(3)
 
@@ -98,6 +102,8 @@ $(LOADABLE_MODS:%=%.so): _ASTLDFLAGS+=$(foreach dep,$(MENUSELECT_DEPENDS_$*),$(v
 
 $(EMBEDDED_MODS:%=%.o): _ASTCFLAGS+=-DEMBEDDED_MODULE=$*
 
+$(LOADABLE_MODS:%=%.i) $(EMBEDDED_MODS:%=%.i): %.i: %.manifest
+$(LOADABLE_MODS:%=%.o) $(EMBEDDED_MODS:%=%.o): %.o: %.manifest
 $(addsuffix .so,$(filter $(LOADABLE_MODS),$(C_MODS))): %.so: %.o
 $(addsuffix .so,$(filter $(LOADABLE_MODS),$(CC_MODS))): %.so: %.oo
 
@@ -106,7 +112,7 @@ modules.link: $(addsuffix .eo,$(filter $(EMBEDDED_MODS),$(C_MODS)))
 .PHONY: clean uninstall _all moduleinfo makeopts
 
 ifneq ($(LOADABLE_MODS),)
-_all: $(LOADABLE_MODS:%=%.so)
+_all: $(LOADABLE_MODS:%=%.manifest) $(EMBEDDED_MODS:%=%.manifest) $(LOADABLE_MODS:%=%.so)
 ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
   # linker options and extra libraries for cygwin
   SOLINK=-Wl,--out-implib=lib$@.a -shared
@@ -139,12 +145,13 @@ modules.link:
 clean::
 	rm -f *.so *.o *.oo *.eo *.i *.ii
 	rm -f .*.d
-	rm -f *.s *.i
+	rm -f *.s *.i *.manifest
 	rm -f modules.link
 
 install:: all
 	@echo "Installing modules from `basename $(CURDIR)`..."
 	@for x in $(LOADABLE_MODS:%=%.so); do $(INSTALL) -m 755 $$x "$(DESTDIR)$(ASTMODDIR)" ; done
+	@for x in $(LOADABLE_MODS:%=%.manifest); do $(INSTALL) -m 644 $$x "$(DESTDIR)$(ASTMODDIR)" ; done
 
 uninstall::
 
@@ -170,6 +177,12 @@ dist-clean::
 
 moduleinfo: .moduleinfo
 	@cat $<
+
+%.manifest: %.c
+	@$(AWK) -f $(ASTTOPDIR)/build_tools/get_module_manifest -v AST_MODULE=$* -v AST_MODULE_CHECKSUM=$(call MOD_CHECKSUM,$*) $^ > $@
+
+%.manifest: %.cc
+	@$(AWK) -f $(ASTTOPDIR)/build_tools/get_module_manifest -v AST_MODULE=$* -v AST_MODULE_CHECKSUM=$(call MOD_CHECKSUM,$*) $^ > $@
 
 .%.makeopts: %.c
 	@$(AWK) -f $(ASTTOPDIR)/build_tools/get_makeopts $< > $@

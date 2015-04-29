@@ -220,18 +220,6 @@ static struct ast_translator lin16tog722 = {
 	.buf_size = BUFFER_SAMPLES,
 };
 
-static int unload_module(void)
-{
-	int res = 0;
-
-	res |= ast_unregister_translator(&g722tolin);
-	res |= ast_unregister_translator(&lintog722);
-	res |= ast_unregister_translator(&g722tolin16);
-	res |= ast_unregister_translator(&lin16tog722);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res = 0;
@@ -242,15 +230,10 @@ static int load_module(void)
 	res |= ast_register_translator(&lin16tog722);
 
 	if (res) {
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}	
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "ITU G.722-64kbps G722 Transcoder",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "ITU G.722-64kbps G722 Transcoder");

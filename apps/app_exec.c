@@ -156,6 +156,7 @@ static int exec_exec(struct ast_channel *chan, const char *data)
 		app = pbx_findapp(appname);
 		if (app) {
 			res = pbx_exec(chan, app, args ? ast_str_buffer(args) : NULL);
+			ao2_ref(app, -1);
 		} else {
 			ast_log(LOG_WARNING, "Could not find application (%s)\n", appname);
 			res = -1;
@@ -190,6 +191,7 @@ static int tryexec_exec(struct ast_channel *chan, const char *data)
 		app = pbx_findapp(appname);
 		if (app) {
 			res = pbx_exec(chan, app, args ? ast_str_buffer(args) : NULL);
+			ao2_ref(app, -1);
 			pbx_builtin_setvar_helper(chan, "TRYSTATUS", res ? "FAILED" : "SUCCESS");
 		} else {
 			ast_log(LOG_WARNING, "Could not find application (%s)\n", appname);
@@ -264,6 +266,7 @@ static int execif_exec(struct ast_channel *chan, const char *data)
 	if (pbx_checkcondition(expr.expr)) {
 		if (!ast_strlen_zero(apps.t) && (app = pbx_findapp(apps.t))) {
 			res = pbx_exec(chan, app, S_OR(truedata, ""));
+			ao2_ref(app, -1);
 		} else {
 			ast_log(LOG_WARNING, "Could not find application! (%s)\n", apps.t);
 			res = -1;
@@ -271,22 +274,12 @@ static int execif_exec(struct ast_channel *chan, const char *data)
 	} else if (!ast_strlen_zero(apps.f)) {
 		if ((app = pbx_findapp(apps.f))) {
 			res = pbx_exec(chan, app, S_OR(falsedata, ""));
+			ao2_ref(app, -1);
 		} else {
 			ast_log(LOG_WARNING, "Could not find application! (%s)\n", apps.f);
 			res = -1;
 		}
 	}
-
-	return res;
-}
-
-static int unload_module(void)
-{
-	int res;
-
-	res = ast_unregister_application(app_exec);
-	res |= ast_unregister_application(app_tryexec);
-	res |= ast_unregister_application(app_execif);
 
 	return res;
 }
@@ -299,4 +292,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Executes dialplan applications");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Executes dialplan applications");

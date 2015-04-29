@@ -150,16 +150,6 @@ static int log_exec(struct ast_channel *chan, const char *data)
 	return 0;
 }
 
-static int unload_module(void)
-{
-	int res;
-
-	res = ast_unregister_application(app_verbose);
-	res |= ast_unregister_application(app_log);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res;
@@ -170,4 +160,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Send verbose output");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Send verbose output");

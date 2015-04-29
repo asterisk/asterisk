@@ -731,17 +731,14 @@ struct ast_sip_endpoint_identifier {
  * \param module The module that is to be registered with PJSIP
  * \retval 0 Success
  * \retval -1 Failure
- */
-int ast_sip_register_service(pjsip_module *module);
-
-/*!
- * This is the opposite of ast_sip_register_service().  Unregistering a
- * service means that PJSIP will no longer call into the module any more.
- * This will likely occur when an Asterisk module is unloaded.
  *
- * \param module The PJSIP module to unregister
+ * \note This results in an automatic unregister just before running the
+ * unload_module function.
  */
-void ast_sip_unregister_service(pjsip_module *module);
+#define ast_sip_register_service(module) \
+	__ast_sip_register_service(module, AST_MODULE_SELF)
+
+int __ast_sip_register_service(pjsip_module *module, struct ast_module *mod);
 
 /*!
  * \brief Register a SIP authenticator
@@ -1988,15 +1985,6 @@ char *ast_sip_get_debug(void);
  * \retval the global endpoint_identifier_order value
  */
 char *ast_sip_get_endpoint_identifier_order(void);
-
-/*! \brief Determines whether the res_pjsip module is loaded */
-#define CHECK_PJSIP_MODULE_LOADED()				\
-	do {							\
-		if (!ast_module_check("res_pjsip.so")		\
-			|| !ast_sip_get_pjsip_endpoint()) {	\
-			return AST_MODULE_LOAD_DECLINE;		\
-		}						\
-	} while(0)
 
 /*!
  * \brief Retrieve the system keep alive interval setting.

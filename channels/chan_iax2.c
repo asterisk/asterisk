@@ -52,6 +52,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_driver</load_priority>
 	<use type="external">crypto</use>
 	<support_level>core</support_level>
  ***/
@@ -341,6 +342,7 @@ static int max_reg_expire;
 
 static int srvlookup = 0;
 
+AST_MUTEX_DEFINE_STATIC(timer_lock);
 static struct ast_timer *timer;				/* Timer for trunking */
 
 static struct ast_netsock_list *netsock;
@@ -3395,7 +3397,6 @@ static int iax2_predestroy(int callno)
 		ast_channel_tech_pvt_set(c, NULL);
 		iax2_queue_hangup(callno);
 		pvt->owner = NULL;
-		ast_module_unref(ast_module_info->self);
 	}
 
 	return 0;
@@ -5956,7 +5957,6 @@ static struct ast_channel *ast_iax2_new(int callno, int state, iax2_format capab
 		}
 	}
 
-	ast_module_ref(ast_module_info->self);
 	return tmp;
 }
 
@@ -9395,12 +9395,15 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 		ast_verbose("Beginning trunk processing. Trunk queue ceiling is %d bytes per host\n", trunkmaxsize);
 	}
 
+	ast_mutex_lock(&timer_lock);
 	if (timer) {
 		if (ast_timer_ack(timer, 1) < 0) {
+			ast_mutex_unlock(&timer_lock);
 			ast_log(LOG_ERROR, "Timer failed acknowledge\n");
 			return 0;
 		}
 	}
+	ast_mutex_unlock(&timer_lock);
 
 	/* For each peer that supports trunking... */
 	AST_LIST_LOCK(&tpeers);
@@ -13959,7 +13962,7 @@ static char *handle_cli_iax2_reload(struct ast_cli_entry *e, int cmd, struct ast
 	return CLI_SUCCESS;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	return reload_config(0);
 }
@@ -14254,8 +14257,10 @@ static int iax2_exec(struct ast_channel *chan, const char *context, const char *
 		const char *dialstatus = pbx_builtin_getvar_helper(chan, "DIALSTATUS");
 		if (dialstatus) {
 			dial = pbx_findapp(dialstatus);
-			if (dial)
+			if (dial) {
 				pbx_exec(chan, dial, "");
+				ao2_ref(dial, -1);
+			}
 		}
 		return -1;
 	} else if (priority != 1)
@@ -14282,10 +14287,13 @@ static int iax2_exec(struct ast_channel *chan, const char *context, const char *
 	}
 	AST_LIST_UNLOCK(&dpcache);
 
-	if ((dial = pbx_findapp("Dial")))
-		return pbx_exec(chan, dial, req);
-	else
+	if ((dial = pbx_findapp("Dial"))) {
+		int ret = pbx_exec(chan, dial, req);
+		ao2_ref(dial, -1);
+		return ret;
+	} else {
 		ast_log(LOG_WARNING, "No dial application registered\n");
+	}
 
 	return -1;
 }
@@ -14624,22 +14632,13 @@ static void cleanup_thread_list(void *head)
 	AST_LIST_UNLOCK(list_head);
 }
 
-static int __unload_module(void)
+static void unload_module(void)
 {
 	struct ast_context *con;
 	int x;
 
 	network_change_stasis_unsubscribe();
 	acl_change_stasis_unsubscribe();
-
-	ast_manager_unregister("IAXpeers");
-	ast_manager_unregister("IAXpeerlist");
-	ast_manager_unregister("IAXnetstats");
-	ast_manager_unregister("IAXregistry");
-	ast_unregister_application(papp);
-	ast_cli_unregister_multiple(cli_iax2, ARRAY_LEN(cli_iax2));
-	ast_unregister_switch(&iax2_switch);
-	ast_channel_unregister(&iax2_tech);
 
 	if (netthreadid != AST_PTHREADT_NULL) {
 		pthread_cancel(netthreadid);
@@ -14665,19 +14664,7 @@ static int __unload_module(void)
 			iax2_destroy(x);
 		}
 	}
-	ast_manager_unregister( "IAXpeers" );
-	ast_manager_unregister( "IAXpeerlist" );
-	ast_manager_unregister( "IAXnetstats" );
-	ast_manager_unregister( "IAXregistry" );
-	ast_unregister_application(papp);
-#ifdef TEST_FRAMEWORK
-	AST_TEST_UNREGISTER(test_iax2_peers_get);
-	AST_TEST_UNREGISTER(test_iax2_users_get);
-#endif
 	ast_data_unregister(NULL);
-	ast_cli_unregister_multiple(cli_iax2, ARRAY_LEN(cli_iax2));
-	ast_unregister_switch(&iax2_switch);
-	ast_channel_unregister(&iax2_tech);
 	delete_users();
 	iax_provision_unload();
 	iax_firmware_unload();
@@ -14693,8 +14680,10 @@ static int __unload_module(void)
 	ao2_ref(callno_limits, -1);
 	ao2_ref(calltoken_ignores, -1);
 	if (timer) {
+		ast_mutex_lock(&timer_lock);
 		ast_timer_close(timer);
 		timer = NULL;
+		ast_mutex_unlock(&timer_lock);
 	}
 	transmit_processor = ast_taskprocessor_unreference(transmit_processor);
 
@@ -14710,14 +14699,6 @@ static int __unload_module(void)
 
 	ao2_ref(iax2_tech.capabilities, -1);
 	iax2_tech.capabilities = NULL;
-	return 0;
-}
-
-static int unload_module(void)
-{
-	ast_custom_function_unregister(&iaxpeer_function);
-	ast_custom_function_unregister(&iaxvar_function);
-	return __unload_module();
 }
 
 static int peer_set_sock_cb(void *obj, void *arg, int flags)
@@ -15040,23 +15021,16 @@ static int load_module(void)
 	}
 
 	if (ast_sched_start_thread(sched)) {
-		ast_sched_context_destroy(sched);
-		sched = NULL;
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (!(io = io_context_create())) {
 		ast_log(LOG_ERROR, "Failed to create I/O context\n");
-		ast_sched_context_destroy(sched);
-		sched = NULL;
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (!(netsock = ast_netsock_list_alloc())) {
 		ast_log(LOG_ERROR, "Failed to create netsock list\n");
-		io_context_destroy(io);
-		ast_sched_context_destroy(sched);
-		sched = NULL;
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	ast_netsock_init(netsock);
@@ -15064,9 +15038,6 @@ static int load_module(void)
 	outsock = ast_netsock_list_alloc();
 	if (!outsock) {
 		ast_log(LOG_ERROR, "Could not allocate outsock list.\n");
-		io_context_destroy(io);
-		ast_sched_context_destroy(sched);
-		sched = NULL;
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	ast_netsock_init(outsock);
@@ -15082,10 +15053,6 @@ static int load_module(void)
 	}
 
 	if (set_config(config, 0, 0) == -1) {
-		if (timer) {
-			ast_timer_close(timer);
-			timer = NULL;
-		}
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -15110,17 +15077,15 @@ static int load_module(void)
 
  	if (ast_channel_register(&iax2_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", "IAX2");
-		__unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	if (ast_register_switch(&iax2_switch)) {
+	if (ast_switch_register(&iax2_switch)) {
 		ast_log(LOG_ERROR, "Unable to register IAX switch\n");
 	}
 
 	if (start_network_thread()) {
 		ast_log(LOG_ERROR, "Unable to start network thread\n");
-		__unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	} else {
 		ast_verb(2, "IAX Ready and Listening\n");
@@ -15145,11 +15110,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Inter Asterisk eXchange (Ver 2)",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CHANNEL_DRIVER,
-	.nonoptreq = "res_crypto",
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Inter Asterisk eXchange (Ver 2)");

@@ -29,7 +29,8 @@
  */
 
 /*** MODULEINFO
-	<depend>res_odbc</depend>
+	<load_priority>realtime_driver</load_priority>
+	<use type="module">res_odbc</use>
 	<support_level>core</support_level>
  ***/
 
@@ -1201,13 +1202,6 @@ static struct ast_config_engine odbc_engine = {
 	.unload_func = unload_odbc,
 };
 
-static int unload_module (void)
-{
-	ast_config_engine_deregister(&odbc_engine);
-
-	return 0;
-}
-
 static int load_module (void)
 {
 	ast_config_engine_register(&odbc_engine);
@@ -1220,10 +1214,4 @@ static int reload_module(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Realtime ODBC configuration",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload_module,
-	.load_pri = AST_MODPRI_REALTIME_DRIVER,
-);
+AST_MODULE_INFO_AUTOCLEAN_RELOADABLE(ASTERISK_GPL_KEY, "Realtime ODBC configuration");

@@ -882,10 +882,3 @@ int load_parking_applications(void)
 
 	return 0;
 }
-
-void unload_parking_applications(void)
-{
-	ast_unregister_application(PARK_APPLICATION);
-	ast_unregister_application(PARKED_CALL_APPLICATION);
-	ast_unregister_application(PARK_AND_ANNOUNCE_APPLICATION);
-}

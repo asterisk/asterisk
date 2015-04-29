@@ -298,7 +298,7 @@ static void destroy(struct ast_trans_pvt *pvt)
 	}
 	ao2_cleanup(pvt->f.subclass.format);
 	ast_free(pvt);
-	ast_module_unref(t->module);
+	ast_module_lib_ref_instance(t->lib, -1);
 }
 
 /*!
@@ -310,6 +310,12 @@ static struct ast_trans_pvt *newpvt(struct ast_translator *t)
 	struct ast_trans_pvt *pvt;
 	int len;
 	char *ofs;
+	struct ast_module_instance *instance;
+
+	instance = ast_module_lib_get_instance(t->lib);
+	if (!instance) {
+		return NULL;
+	}
 
 	/*
 	 * compute the required size adding private descriptor,
@@ -332,12 +338,10 @@ static struct ast_trans_pvt *newpvt(struct ast_translator *t)
 		pvt->outbuf.c = ofs + AST_FRIENDLY_OFFSET;
 	}
 
-	ast_module_ref(t->module);
-
 	/* call local init routine, if present */
 	if (t->newpvt && t->newpvt(pvt)) {
 		ast_free(pvt);
-		ast_module_unref(t->module);
+		ao2_ref(instance, -1);
 		return NULL;
 	}
 
@@ -373,6 +377,7 @@ static struct ast_trans_pvt *newpvt(struct ast_translator *t)
 		}
 	}
 
+	/* The reference to 'instance' now belongs to pvt, will be cleared by destroy(pvt). */
 	return pvt;
 }
 
@@ -1105,10 +1110,16 @@ static struct ast_cli_entry cli_translate[] = {
 	AST_CLI_DEFINE(handle_cli_core_show_translation, "Display translation matrix")
 };
 
+static void module_translator_unregister(void *weakproxy, void *data)
+{
+	ast_unregister_translator(data);
+}
+
 /*! \brief register codec translator */
 int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 {
 	struct ast_translator *u;
+	struct ast_translator *regt = NULL;
 	char tmp[80];
 	RAII_VAR(struct ast_codec *, src_codec, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_codec *, dst_codec, NULL, ao2_cleanup);
@@ -1150,7 +1161,6 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 		return -1;
 	}
 
-	t->module = mod;
 	t->src_fmt_index = codec2index(src_codec);
 	t->dst_fmt_index = codec2index(dst_codec);
 	t->active = 1;
@@ -1184,6 +1194,9 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 		t->frameout = default_frameout;
 	}
 
+	t->lib = ast_module_get_lib_running(mod);
+	ast_assert(!!t->lib);
+
 	generate_computational_cost(t, 1);
 
 	ast_verb(2, "Registered translator '%s' from codec %s to %s, table cost, %d, computational cost %d\n",
@@ -1199,6 +1212,7 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 		    (u->dst_fmt_index == t->dst_fmt_index) &&
 		    (u->comp_cost > t->comp_cost)) {
 			AST_RWLIST_INSERT_BEFORE_CURRENT(t, list);
+			regt = t;
 			t = NULL;
 			break;
 		}
@@ -1209,11 +1223,15 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 	   add it to the beginning of the list */
 	if (t) {
 		AST_RWLIST_INSERT_HEAD(&translators, t, list);
+		regt = t;
 	}
 
 	matrix_rebuild(0);
 
 	AST_RWLIST_UNLOCK(&translators);
+
+	/* Outside AST_RWLIST_WRLOCK to avoid recursion if mod is already being unloaded. */
+	ast_module_lib_subscribe_stop(regt->lib, module_translator_unregister, regt);
 
 	return 0;
 }
@@ -1229,6 +1247,9 @@ int ast_unregister_translator(struct ast_translator *t)
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&translators, u, list) {
 		if (u == t) {
 			AST_RWLIST_REMOVE_CURRENT(list);
+			ast_module_lib_unsubscribe_stop(t->lib, module_translator_unregister, t);
+			ao2_ref(t->lib, -1);
+			t->lib = NULL;
 			ast_verb(2, "Unregistered translator '%s' from codec %s to %s\n",
 				term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)),
 				t->src_codec.name, t->dst_codec.name);

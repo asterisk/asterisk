@@ -42,10 +42,12 @@
 #include "asterisk/res_pjsip_cli.h"
 
 /*** MODULEINFO
+	<load_priority>channel_depend</load_priority>
+	<export_globals/>
 	<depend>pjproject</depend>
-	<depend>res_sorcery_config</depend>
-	<depend>res_sorcery_memory</depend>
-	<depend>res_sorcery_astdb</depend>
+	<use type="module">res_sorcery_config</use>
+	<use type="module">res_sorcery_memory</use>
+	<use type="module">res_sorcery_astdb</use>
 	<support_level>core</support_level>
  ***/
 
@@ -1868,7 +1870,7 @@ static pjsip_endpoint *ast_pjsip_endpoint;
 
 static struct ast_threadpool *sip_threadpool;
 
-static int register_service_noref(void *data)
+static int register_service(void *data)
 {
 	pjsip_module **module = data;
 	if (!ast_pjsip_endpoint) {
@@ -1883,57 +1885,41 @@ static int register_service_noref(void *data)
 	return 0;
 }
 
-static int register_service(void *data)
-{
-	int res;
-
-	if (!(res = register_service_noref(data))) {
-		ast_module_ref(ast_module_info->self);
-	}
-
-	return res;
-}
-
-int internal_sip_register_service(pjsip_module *module)
-{
-	return ast_sip_push_task_synchronous(NULL, register_service_noref, &module);
-}
-
-int ast_sip_register_service(pjsip_module *module)
-{
-	return ast_sip_push_task_synchronous(NULL, register_service, &module);
-}
-
-static int unregister_service_noref(void *data)
+static int unregister_service(void *data)
 {
 	pjsip_module **module = data;
 	if (!ast_pjsip_endpoint) {
 		return -1;
 	}
-	pjsip_endpt_unregister_module(ast_pjsip_endpoint, *module);
-	ast_debug(1, "Unregistered SIP service %.*s\n", (int) pj_strlen(&(*module)->name), pj_strbuf(&(*module)->name));
+	if (pjsip_endpt_unregister_module(ast_pjsip_endpoint, *module) != PJ_SUCCESS) {
+		ast_log(LOG_ERROR, "Failed to unregister SIP service %.*s\n",
+			(int) pj_strlen(&(*module)->name), pj_strbuf(&(*module)->name));
+	} else {
+		ast_debug(1, "Unregistered SIP service %.*s\n",
+			(int) pj_strlen(&(*module)->name), pj_strbuf(&(*module)->name));
+	}
 	return 0;
 }
 
-static int unregister_service(void *data)
+static void module_unregister_service(void *weakproxy, void *data)
 {
-	int res;
+	pjsip_module *module = data;
 
-	if (!(res = unregister_service_noref(data))) {
-		ast_module_unref(ast_module_info->self);
+	ast_sip_push_task_synchronous(NULL, unregister_service, &module);
+}
+
+int __ast_sip_register_service(pjsip_module *module, struct ast_module *mod)
+{
+	if (!ast_sip_push_task_synchronous(NULL, register_service, &module)) {
+		struct ast_module_lib *lib = ast_module_get_lib_running(mod);
+
+		ast_module_lib_subscribe_stop(lib, module_unregister_service, module);
+		ast_module_block_unload(mod);
+		ao2_cleanup(lib);
+		return 0;
 	}
 
-	return res;
-}
-
-int internal_sip_unregister_service(pjsip_module *module)
-{
-	return ast_sip_push_task_synchronous(NULL, unregister_service_noref, &module);
-}
-
-void ast_sip_unregister_service(pjsip_module *module)
-{
-	ast_sip_push_task_synchronous(NULL, unregister_service, &module);
+	return -1;
 }
 
 static struct ast_sip_authenticator *registered_authenticator;
@@ -1946,7 +1932,6 @@ int ast_sip_register_authenticator(struct ast_sip_authenticator *auth)
 	}
 	registered_authenticator = auth;
 	ast_debug(1, "Registered SIP authenticator module %p\n", auth);
-	ast_module_ref(ast_module_info->self);
 	return 0;
 }
 
@@ -1959,7 +1944,6 @@ void ast_sip_unregister_authenticator(struct ast_sip_authenticator *auth)
 	}
 	registered_authenticator = NULL;
 	ast_debug(1, "Unregistered SIP authenticator %p\n", auth);
-	ast_module_unref(ast_module_info->self);
 }
 
 int ast_sip_requires_authentication(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata)
@@ -1992,7 +1976,6 @@ int ast_sip_register_outbound_authenticator(struct ast_sip_outbound_authenticato
 	}
 	registered_outbound_authenticator = auth;
 	ast_debug(1, "Registered SIP outbound authenticator module %p\n", auth);
-	ast_module_ref(ast_module_info->self);
 	return 0;
 }
 
@@ -2005,7 +1988,6 @@ void ast_sip_unregister_outbound_authenticator(struct ast_sip_outbound_authentic
 	}
 	registered_outbound_authenticator = NULL;
 	ast_debug(1, "Unregistered SIP outbound authenticator %p\n", auth);
-	ast_module_unref(ast_module_info->self);
 }
 
 int ast_sip_create_request_with_auth(const struct ast_sip_auth_vector *auths, pjsip_rx_data *challenge,
@@ -2047,7 +2029,6 @@ int ast_sip_register_endpoint_identifier_with_name(struct ast_sip_endpoint_ident
 	if (ast_strlen_zero(name)) {
 		/* if an identifier has no name then place in front */
 		AST_RWLIST_INSERT_HEAD(&endpoint_identifiers, id_list_item, list);
-		ast_module_ref(ast_module_info->self);
 		return 0;
 	}
 
@@ -2057,7 +2038,6 @@ int ast_sip_register_endpoint_identifier_with_name(struct ast_sip_endpoint_ident
 	if (ast_strlen_zero(identifier_order)) {
 		id_list_item->priority = UINT_MAX;
 		AST_RWLIST_INSERT_TAIL(&endpoint_identifiers, id_list_item, list);
-		ast_module_ref(ast_module_info->self);
 		ast_free(identifier_order);
 		return 0;
 	}
@@ -2084,7 +2064,6 @@ int ast_sip_register_endpoint_identifier_with_name(struct ast_sip_endpoint_ident
 		/* if not in the endpoint_identifier_order list then consider it less in
 		   priority and add it to the end */
 		AST_RWLIST_INSERT_TAIL(&endpoint_identifiers, id_list_item, list);
-		ast_module_ref(ast_module_info->self);
 		ast_free(identifier_order);
 		return 0;
 	}
@@ -2102,7 +2081,6 @@ int ast_sip_register_endpoint_identifier_with_name(struct ast_sip_endpoint_ident
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
 
-	ast_module_ref(ast_module_info->self);
 	ast_free(identifier_order);
 	return 0;
 }
@@ -2121,7 +2099,6 @@ void ast_sip_unregister_endpoint_identifier(struct ast_sip_endpoint_identifier *
 			AST_RWLIST_REMOVE_CURRENT(list);
 			ast_free(iter);
 			ast_debug(1, "Unregistered endpoint identifier %p\n", identifier);
-			ast_module_unref(ast_module_info->self);
 			break;
 		}
 	}
@@ -2212,20 +2189,15 @@ static struct ast_cli_entry cli_commands[] = {
 
 AST_RWLIST_HEAD_STATIC(endpoint_formatters, ast_sip_endpoint_formatter);
 
-void internal_sip_register_endpoint_formatter(struct ast_sip_endpoint_formatter *obj)
+int ast_sip_register_endpoint_formatter(struct ast_sip_endpoint_formatter *obj)
 {
 	SCOPED_LOCK(lock, &endpoint_formatters, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
 	AST_RWLIST_INSERT_TAIL(&endpoint_formatters, obj, next);
-}
 
-int ast_sip_register_endpoint_formatter(struct ast_sip_endpoint_formatter *obj)
-{
-	internal_sip_register_endpoint_formatter(obj);
-	ast_module_ref(ast_module_info->self);
 	return 0;
 }
 
-int internal_sip_unregister_endpoint_formatter(struct ast_sip_endpoint_formatter *obj)
+void ast_sip_unregister_endpoint_formatter(struct ast_sip_endpoint_formatter *obj)
 {
 	struct ast_sip_endpoint_formatter *i;
 	SCOPED_LOCK(lock, &endpoint_formatters, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
@@ -2236,14 +2208,6 @@ int internal_sip_unregister_endpoint_formatter(struct ast_sip_endpoint_formatter
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
-	return i == obj ? 0 : -1;
-}
-
-void ast_sip_unregister_endpoint_formatter(struct ast_sip_endpoint_formatter *obj)
-{
-	if (!internal_sip_unregister_endpoint_formatter(obj)) {
-		ast_module_unref(ast_module_info->self);
-	}
 }
 
 int ast_sip_format_endpoint_ami(struct ast_sip_endpoint *endpoint,
@@ -2797,7 +2761,6 @@ int ast_sip_register_supplement(struct ast_sip_supplement *supplement)
 	if (!inserted) {
 		AST_RWLIST_INSERT_TAIL(&supplements, supplement, next);
 	}
-	ast_module_ref(ast_module_info->self);
 	return 0;
 }
 
@@ -2808,7 +2771,6 @@ void ast_sip_unregister_supplement(struct ast_sip_supplement *supplement)
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&supplements, iter, next) {
 		if (supplement == iter) {
 			AST_RWLIST_REMOVE_CURRENT(next);
-			ast_module_unref(ast_module_info->self);
 			break;
 		}
 	}
@@ -3630,14 +3592,12 @@ static int load_module(void)
 	}
 
 	if (pjlib_util_init() != PJ_SUCCESS) {
-		pj_shutdown();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	pj_caching_pool_init(&caching_pool, NULL, 1024 * 1024);
 	if (pjsip_endpt_create(&caching_pool.factory, "SIP", &ast_pjsip_endpoint) != PJ_SUCCESS) {
 		ast_log(LOG_ERROR, "Failed to create PJSIP endpoint structure. Aborting load\n");
-		pj_caching_pool_destroy(&caching_pool);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -3649,19 +3609,11 @@ static int load_module(void)
 	memory_pool = pj_pool_create(&caching_pool.factory, "SIP", 1024, 1024, NULL);
 	if (!memory_pool) {
 		ast_log(LOG_ERROR, "Failed to create memory pool for SIP. Aborting load\n");
-		pjsip_endpt_destroy(ast_pjsip_endpoint);
-		ast_pjsip_endpoint = NULL;
-		pj_caching_pool_destroy(&caching_pool);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (ast_sip_initialize_system()) {
 		ast_log(LOG_ERROR, "Failed to initialize SIP 'system' configuration section. Aborting load\n");
-		pj_pool_release(memory_pool);
-		memory_pool = NULL;
-		pjsip_endpt_destroy(ast_pjsip_endpoint);
-		ast_pjsip_endpoint = NULL;
-		pj_caching_pool_destroy(&caching_pool);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -3670,12 +3622,6 @@ static int load_module(void)
 	sip_threadpool = ast_threadpool_create("SIP", NULL, &options);
 	if (!sip_threadpool) {
 		ast_log(LOG_ERROR, "Failed to create SIP threadpool. Aborting load\n");
-		ast_sip_destroy_system();
-		pj_pool_release(memory_pool);
-		memory_pool = NULL;
-		pjsip_endpt_destroy(ast_pjsip_endpoint);
-		ast_pjsip_endpoint = NULL;
-		pj_caching_pool_destroy(&caching_pool);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -3687,12 +3633,6 @@ static int load_module(void)
 			NULL, PJ_THREAD_DEFAULT_STACK_SIZE * 2, 0, &monitor_thread);
 	if (status != PJ_SUCCESS) {
 		ast_log(LOG_ERROR, "Failed to start SIP monitor thread. Aborting load\n");
-		ast_sip_destroy_system();
-		pj_pool_release(memory_pool);
-		memory_pool = NULL;
-		pjsip_endpt_destroy(ast_pjsip_endpoint);
-		ast_pjsip_endpoint = NULL;
-		pj_caching_pool_destroy(&caching_pool);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -3700,14 +3640,6 @@ static int load_module(void)
 
 	if (ast_res_pjsip_initialize_configuration()) {
 		ast_log(LOG_ERROR, "Failed to initialize SIP configuration. Aborting load\n");
-		ast_sip_destroy_global_headers();
-		stop_monitor_thread();
-		ast_sip_destroy_system();
-		pj_pool_release(memory_pool);
-		memory_pool = NULL;
-		pjsip_endpt_destroy(ast_pjsip_endpoint);
-		ast_pjsip_endpoint = NULL;
-		pj_caching_pool_destroy(&caching_pool);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -3716,46 +3648,16 @@ static int load_module(void)
 
 	if (ast_sip_initialize_distributor()) {
 		ast_log(LOG_ERROR, "Failed to register distributor module. Aborting load\n");
-		ast_res_pjsip_destroy_configuration();
-		ast_sip_destroy_global_headers();
-		stop_monitor_thread();
-		ast_sip_destroy_system();
-		pj_pool_release(memory_pool);
-		memory_pool = NULL;
-		pjsip_endpt_destroy(ast_pjsip_endpoint);
-		ast_pjsip_endpoint = NULL;
-		pj_caching_pool_destroy(&caching_pool);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	if (internal_sip_register_service(&supplement_module)) {
+	if (ast_sip_register_service(&supplement_module)) {
 		ast_log(LOG_ERROR, "Failed to initialize supplement hooks. Aborting load\n");
-		ast_sip_destroy_distributor();
-		ast_res_pjsip_destroy_configuration();
-		ast_sip_destroy_global_headers();
-		stop_monitor_thread();
-		ast_sip_destroy_system();
-		pj_pool_release(memory_pool);
-		memory_pool = NULL;
-		pjsip_endpt_destroy(ast_pjsip_endpoint);
-		ast_pjsip_endpoint = NULL;
-		pj_caching_pool_destroy(&caching_pool);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (internal_sip_initialize_outbound_authentication()) {
 		ast_log(LOG_ERROR, "Failed to initialize outbound authentication. Aborting load\n");
-		internal_sip_unregister_service(&supplement_module);
-		ast_sip_destroy_distributor();
-		ast_res_pjsip_destroy_configuration();
-		ast_sip_destroy_global_headers();
-		stop_monitor_thread();
-		ast_sip_destroy_system();
-		pj_pool_release(memory_pool);
-		memory_pool = NULL;
-		pjsip_endpt_destroy(ast_pjsip_endpoint);
-		ast_pjsip_endpoint = NULL;
-		pj_caching_pool_destroy(&caching_pool);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -3781,14 +3683,11 @@ static int reload_module(void)
 
 static int unload_pjsip(void *data)
 {
-	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
 	ast_res_pjsip_cleanup_options_handling();
-	internal_sip_destroy_outbound_authentication();
 	ast_sip_destroy_distributor();
 	ast_res_pjsip_destroy_configuration();
 	ast_sip_destroy_system();
 	ast_sip_destroy_global_headers();
-	internal_sip_unregister_service(&supplement_module);
 	if (monitor_thread) {
 		stop_monitor_thread();
 	}
@@ -3802,7 +3701,7 @@ static int unload_pjsip(void *data)
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	/* The thread this is called from cannot call PJSIP/PJLIB functions,
 	 * so we have to push the work to the threadpool to handle
@@ -3812,13 +3711,6 @@ static int unload_module(void)
 	ast_threadpool_shutdown(sip_threadpool);
 
 	ast_sip_destroy_cli();
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Basic SIP resource",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND - 5,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Basic SIP resource");

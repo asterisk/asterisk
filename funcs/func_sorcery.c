@@ -207,15 +207,9 @@ static struct ast_custom_function sorcery_function = {
 	.read2 = sorcery_function_read,
 };
 
-static int unload_module(void)
-{
-	return ast_custom_function_unregister(&sorcery_function);
-}
-
 static int load_module(void)
 {
 	return ast_custom_function_register(&sorcery_function);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Get a field from a sorcery object");
-
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Get a field from a sorcery object");

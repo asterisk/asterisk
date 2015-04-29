@@ -17,8 +17,9 @@
  */
 
 /*** MODULEINFO
+	<load_priority>app_depend</load_priority>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
+	<use type="module">res_pjsip</use>
 	<support_level>core</support_level>
  ***/
 
@@ -82,16 +83,8 @@ static pjsip_module sips_contact_module = {
 	.on_tx_request = sips_contact_on_tx_request,
 };
 
-static int unload_module(void)
-{
-	ast_sip_unregister_service(&sips_contact_module);
-	return 0;
-}
-
 static int load_module(void)
 {
-	CHECK_PJSIP_MODULE_LOADED();
-
 	if (ast_sip_register_service(&sips_contact_module)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -99,9 +92,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "UAC SIPS Contact support",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_APP_DEPEND,
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "UAC SIPS Contact support");

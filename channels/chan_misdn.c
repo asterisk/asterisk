@@ -73,6 +73,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_driver</load_priority>
 	<depend>isdnnet</depend>
 	<depend>misdn</depend>
 	<depend>suppserv</depend>
@@ -11260,29 +11261,13 @@ static struct ast_custom_function misdn_cc_function = {
 
 
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	/* First, take us out of the channel loop */
-	ast_verb(0, "-- Unregistering mISDN Channel Driver --\n");
-
 	misdn_tasks_destroy();
 
 	if (!g_config_initialized) {
-		return 0;
+		return;
 	}
-
-	ast_cli_unregister_multiple(chan_misdn_clis, sizeof(chan_misdn_clis) / sizeof(struct ast_cli_entry));
-
-	/* ast_unregister_application("misdn_crypt"); */
-	ast_unregister_application("misdn_set_opt");
-	ast_unregister_application("misdn_facility");
-	ast_unregister_application("misdn_check_l2l1");
-#if defined(AST_MISDN_ENHANCEMENTS)
-	ast_unregister_application(misdn_command_name);
-	ast_custom_function_unregister(&misdn_cc_function);
-#endif	/* defined(AST_MISDN_ENHANCEMENTS) */
-
-	ast_channel_unregister(&misdn_tech);
 
 	free_robin_list();
 	misdn_cfg_destroy();
@@ -11299,8 +11284,6 @@ static int unload_module(void)
 #endif	/* defined(AST_MISDN_ENHANCEMENTS) */
 	ao2_cleanup(misdn_tech.capabilities);
 	misdn_tech.capabilities = NULL;
-
-	return 0;
 }
 
 /*!
@@ -11424,7 +11407,6 @@ static int load_module(void)
 
 	if (ast_channel_register(&misdn_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", misdn_type);
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -11536,7 +11518,7 @@ static int load_module(void)
 
 
 
-static int reload(void)
+static int reload_module(void)
 {
 	reload_config();
 
@@ -12830,10 +12812,4 @@ static void chan_misdn_log(int level, int port, char *tmpl, ...)
 	}
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Channel driver for mISDN Support (BRI/PRI)",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CHANNEL_DRIVER,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Channel driver for mISDN Support (BRI/PRI)");

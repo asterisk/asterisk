@@ -204,15 +204,10 @@ static char *handle_cli_ulimit(struct ast_cli_entry *e, int cmd, struct ast_cli_
 static struct ast_cli_entry cli_ulimit =
 	AST_CLI_DEFINE(handle_cli_ulimit, "Set or show process resource limits");
 
-static int unload_module(void)
-{
-	return ast_cli_unregister(&cli_ulimit);
-}
-
 static int load_module(void)
 {
 	return ast_cli_register(&cli_ulimit) ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Resource limits");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Resource limits");
 

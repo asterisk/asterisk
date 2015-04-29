@@ -287,11 +287,9 @@ static struct ast_custom_function dialgroup_function = {
 	.write = dialgroup_write,
 };
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	int res = ast_custom_function_unregister(&dialgroup_function);
 	ao2_ref(group_container, -1);
-	return res;
 }
 
 static int load_module(void)

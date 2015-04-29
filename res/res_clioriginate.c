@@ -232,11 +232,6 @@ static struct ast_cli_entry cli_cliorig[] = {
 	AST_CLI_DEFINE(handle_redirect, "Redirect a call"),
 };
 
-static int unload_module(void)
-{
-	return ast_cli_unregister_multiple(cli_cliorig, ARRAY_LEN(cli_cliorig));
-}
-
 static int load_module(void)
 {
 	int res;
@@ -244,4 +239,4 @@ static int load_module(void)
 	return res ? AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Call origination and redirection from the CLI");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Call origination and redirection from the CLI");

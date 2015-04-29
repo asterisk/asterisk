@@ -167,14 +167,9 @@ static int milliwatt_exec(struct ast_channel *chan, const char *data)
 	return res;
 }
 
-static int unload_module(void)
-{
-	return ast_unregister_application(app);
-}
-
 static int load_module(void)
 {
 	return ast_register_application_xml(app, milliwatt_exec);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Digital Milliwatt (mu-law) Test Application");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Digital Milliwatt (mu-law) Test Application");

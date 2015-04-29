@@ -23,6 +23,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>realtime_driver</load_priority>
 	<depend>mysqlclient</depend>
 	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
@@ -1356,13 +1357,11 @@ static int load_module(void)
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	struct mysql_conn *cur;
 	struct tables *table;
 
-	ast_cli_unregister_multiple(cli_realtime_mysql_status, sizeof(cli_realtime_mysql_status) / sizeof(struct ast_cli_entry));
-	ast_config_engine_deregister(&mysql_engine);
 	ast_verb(2, "MySQL RealTime unloaded.\n");
 
 	AST_RWLIST_WRLOCK(&databases);
@@ -1379,11 +1378,9 @@ static int unload_module(void)
 		destroy_table(table);
 	}
 	AST_LIST_UNLOCK(&mysql_tables);
-
-	return 0;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	parse_config(1);
 	ast_verb(2, "MySQL RealTime reloaded.\n");
@@ -1753,11 +1750,4 @@ static char *handle_cli_realtime_mysql_status(struct ast_cli_entry *e, int cmd, 
 	return CLI_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "MySQL RealTime Configuration Driver",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_REALTIME_DRIVER,
-);
-
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "MySQL RealTime Configuration Driver");

@@ -395,7 +395,7 @@ static int phone_hangup(struct ast_channel *ast)
 	p->dialtone = 0;
 	memset(p->ext, 0, sizeof(p->ext));
 	((struct phone_pvt *)(ast_channel_tech_pvt(ast)))->owner = NULL;
-	ast_module_unref(ast_module_info->self);
+	/* BUGBUG: ast_module_unref(AST_MODULE_SELF); */
 	ast_verb(3, "Hungup '%s'\n", ast_channel_name(ast));
 	ast_channel_tech_pvt_set(ast, NULL);
 	ast_setstate(ast, AST_STATE_DOWN);
@@ -904,7 +904,7 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *cntx,
 		}
 
 		i->owner = tmp;
-		ast_module_ref(ast_module_info->self);
+		/* BUGBUG: ast_module_ref(AST_MODULE_SELF, 0); */
 		ast_channel_unlock(tmp);
 		if (state != AST_STATE_DOWN) {
 			if (state == AST_STATE_RING) {
@@ -986,7 +986,7 @@ static void phone_check_exception(struct phone_pvt *i)
 			if (i->mode == MODE_IMMEDIATE) {
 				phone_new(i, AST_STATE_RING, i->context, NULL, NULL);
 			} else if (i->mode == MODE_DIALTONE) {
-				ast_module_ref(ast_module_info->self);
+				/* BUGBUG: ast_module_ref(AST_MODULE_SELF, 0); */
 				/* Reset the extension */
 				i->ext[0] = '\0';
 				/* Play the dialtone */
@@ -997,7 +997,7 @@ static void phone_check_exception(struct phone_pvt *i)
 				ao2_cleanup(i->lastformat);
 				i->lastformat = NULL;
 			} else if (i->mode == MODE_SIGMA) {
-				ast_module_ref(ast_module_info->self);
+				/* BUGBUG ast_module_ref(AST_MODULE_SELF, 0); */
 				/* Reset the extension */
 				i->ext[0] = '\0';
 				/* Play the dialtone */
@@ -1005,8 +1005,9 @@ static void phone_check_exception(struct phone_pvt *i)
 				ioctl(i->fd, PHONE_DIALTONE);
 			}
 		} else {
-			if (i->dialtone)
-				ast_module_unref(ast_module_info->self);
+			if (i->dialtone) {
+				/* BUGBUG: ast_module_unref(AST_MODULE_SELF); */
+			}
 			memset(i->ext, 0, sizeof(i->ext));
 			if (i->cpt)
 			{
@@ -1314,12 +1315,10 @@ static int parse_gain_value(const char *gain_type, const char *value)
 	return (int)gain;
 }
 
-static int __unload_module(void)
+static void unload_module(void)
 {
 	struct phone_pvt *p, *pl;
-	/* First, take us out of the channel loop */
-	if (cur_tech)
-		ast_channel_unregister(cur_tech);
+
 	if (!ast_mutex_lock(&iflock)) {
 		/* Hangup all interfaces if they have an owner */
 		p = iflist;
@@ -1332,7 +1331,8 @@ static int __unload_module(void)
 		ast_mutex_unlock(&iflock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
-		return -1;
+		ast_module_block_unload(AST_MODULE_SELF);
+		return;
 	}
 	if (!ast_mutex_lock(&monlock)) {
 		if (monitor_thread > AST_PTHREADT_NULL) {
@@ -1345,7 +1345,8 @@ static int __unload_module(void)
 		ast_mutex_unlock(&monlock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
-		return -1;
+		ast_module_block_unload(AST_MODULE_SELF);
+		return;
 	}
 
 	if (!ast_mutex_lock(&iflock)) {
@@ -1364,19 +1365,13 @@ static int __unload_module(void)
 		ast_mutex_unlock(&iflock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
-		return -1;
+		ast_module_block_unload(AST_MODULE_SELF);
+		return;
 	}
 
 	ao2_ref(phone_tech.capabilities, -1);
 	ao2_ref(phone_tech_fxs.capabilities, -1);
 	ao2_ref(prefcap, -1);
-
-	return 0;
-}
-
-static int unload_module(void)
-{
-	return __unload_module();
 }
 
 static int load_module(void)
@@ -1433,7 +1428,6 @@ static int load_module(void)
 					ast_log(LOG_ERROR, "Unable to register channel '%s'\n", v->value);
 					ast_config_destroy(cfg);
 					ast_mutex_unlock(&iflock);
-					__unload_module();
 					return AST_MODULE_LOAD_FAILURE;
 				}
 		} else if (!strcasecmp(v->name, "silencesupression")) {
@@ -1509,7 +1503,6 @@ static int load_module(void)
 	if (ast_channel_register(cur_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'Phone'\n");
 		ast_config_destroy(cfg);
-		__unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	ast_config_destroy(cfg);
@@ -1518,5 +1511,5 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Linux Telephony API Support");
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Linux Telephony API Support");
 

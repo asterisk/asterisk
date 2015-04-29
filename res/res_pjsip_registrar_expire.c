@@ -17,8 +17,9 @@
  */
 
 /*** MODULEINFO
+	<load_priority>app_depend</load_priority>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
+	<use type="module">res_pjsip</use>
 	<support_level>core</support_level>
  ***/
 
@@ -239,7 +240,7 @@ static int unload_observer_delete(void *obj, void *arg, int flags)
 	return CMP_MATCH;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "contact", &contact_expiration_observer);
 	if (sched) {
@@ -250,14 +251,10 @@ static int unload_module(void)
 	}
 	ao2_cleanup(contact_autoexpire);
 	contact_autoexpire = NULL;
-
-	return 0;
 }
 
 static int load_module(void)
 {
-	CHECK_PJSIP_MODULE_LOADED();
-
 	contact_autoexpire = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK,
 		CONTACT_AUTOEXPIRE_BUCKETS, contact_expiration_hash, contact_expiration_cmp);
 	if (!contact_autoexpire) {
@@ -267,13 +264,11 @@ static int load_module(void)
 
 	if (!(sched = ast_sched_context_create())) {
 		ast_log(LOG_ERROR, "Could not create scheduler for contact auto-expiration\n");
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (ast_sched_start_thread(sched)) {
 		ast_log(LOG_ERROR, "Could not start scheduler thread for contact auto-expiration\n");
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
@@ -281,16 +276,10 @@ static int load_module(void)
 
 	if (ast_sorcery_observer_add(ast_sip_get_sorcery(), "contact", &contact_expiration_observer)) {
 		ast_log(LOG_ERROR, "Could not add observer for notifications about contacts for contact auto-expiration\n");
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP Contact Auto-Expiration",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_APP_DEPEND,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "PJSIP Contact Auto-Expiration");

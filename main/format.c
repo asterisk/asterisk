@@ -158,7 +158,7 @@ int __ast_format_interface_register(const char *codec, const struct ast_format_i
 	strcpy(format_interface->codec, codec); /* Safe */
 
 	/* Once registered a format interface cannot be unregistered. */
-	ast_module_shutdown_ref(mod);
+	ast_module_block_unload(mod);
 	ao2_link_flags(interfaces, format_interface, OBJ_NOLOCK);
 	ao2_ref(format_interface, -1);
 

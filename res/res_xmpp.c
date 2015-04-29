@@ -41,6 +41,8 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_depend</load_priority>
+	<export_globals/>
 	<depend>iksemel</depend>
 	<use type="external">openssl</use>
 	<support_level>core</support_level>
@@ -2231,7 +2233,7 @@ static int xmpp_send_cb(const struct ast_msg *msg, const char *to, const char *f
 	return res == IKS_OK ? 0 : -1;
 }
 
-static const struct ast_msg_tech msg_tech = {
+static struct ast_msg_tech msg_tech = {
 	.name = "xmpp",
 	.msg_send = xmpp_send_cb,
 };
@@ -4450,25 +4452,13 @@ static struct ast_cli_entry xmpp_cli[] = {
 	AST_CLI_DEFINE(xmpp_cli_purge_pubsub_nodes, "Purges PubSub nodes"),
 };
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	ast_msg_tech_unregister(&msg_tech);
-	ast_cli_unregister_multiple(xmpp_cli, ARRAY_LEN(xmpp_cli));
-	ast_unregister_application(app_ajisend);
-	ast_unregister_application(app_ajisendgroup);
-	ast_unregister_application(app_ajistatus);
-	ast_unregister_application(app_ajijoin);
-	ast_unregister_application(app_ajileave);
-	ast_manager_unregister("JabberSend");
-	ast_custom_function_unregister(&jabberstatus_function);
-	ast_custom_function_unregister(&jabberreceive_function);
 	aco_info_destroy(&cfg_info);
 	ao2_global_obj_release(globals);
 
 	ast_cond_destroy(&message_received_condition);
 	ast_mutex_destroy(&messagelock);
-
-	return 0;
 }
 
 static int global_bitfield_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
@@ -4628,7 +4618,6 @@ static int load_module(void)
 	aco_option_register_custom(&cfg_info, "buddy", ACO_EXACT, client_options, NULL, client_buddy_handler, 0);
 
 	if (aco_process_config(&cfg_info, 0) == ACO_PROCESS_ERROR) {
-		aco_info_destroy(&cfg_info);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -4651,7 +4640,7 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	if (aco_process_config(&cfg_info, 1) == ACO_PROCESS_ERROR) {
 		return AST_MODULE_LOAD_DECLINE;
@@ -4660,10 +4649,4 @@ static int reload(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Asterisk XMPP Interface",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Asterisk XMPP Interface");

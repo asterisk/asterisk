@@ -257,16 +257,10 @@ static struct ast_cli_entry cli_realtime[] = {
 	AST_CLI_DEFINE(cli_realtime_destroy, "Delete a row from a RealTime database"),
 };
 
-static int unload_module(void)
-{
-	ast_cli_unregister_multiple(cli_realtime, ARRAY_LEN(cli_realtime));
-	return 0;
-}
-
 static int load_module(void)
 {
 	ast_cli_register_multiple(cli_realtime, ARRAY_LEN(cli_realtime));
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Realtime Data Lookup/Rewrite");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Realtime Data Lookup/Rewrite");

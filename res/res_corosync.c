@@ -797,7 +797,7 @@ static int load_config(unsigned int reload)
 	return res;
 }
 
-static void cleanup_module(void)
+static void unload_module(void)
 {
 	cs_error_t cs_err;
 	unsigned int i;
@@ -869,34 +869,33 @@ static int load_module(void)
 	corosync_aggregate_topic = stasis_topic_create("corosync_aggregate_topic");
 	if (!corosync_aggregate_topic) {
 		ast_log(AST_LOG_ERROR, "Failed to create stasis topic for corosync\n");
-		goto failed;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	stasis_router = stasis_message_router_create(corosync_aggregate_topic);
 	if (!stasis_router) {
 		ast_log(AST_LOG_ERROR, "Failed to create message router for corosync topic\n");
-		goto failed;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (STASIS_MESSAGE_TYPE_INIT(corosync_ping_message_type) != 0) {
 		ast_log(AST_LOG_ERROR, "Failed to initialize corosync ping message type\n");
-		goto failed;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (load_config(0)) {
 		/* simply not configured is not a fatal error */
-		res = AST_MODULE_LOAD_DECLINE;
-		goto failed;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if ((cs_err = corosync_cfg_initialize(&cfg_handle, &cfg_callbacks)) != CS_OK) {
 		ast_log(LOG_ERROR, "Failed to initialize cfg: (%d)\n", (int) cs_err);
-		goto failed;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if ((cs_err = cpg_initialize(&cpg_handle, &cpg_callbacks)) != CS_OK) {
 		ast_log(LOG_ERROR, "Failed to initialize cpg: (%d)\n", (int) cs_err);
-		goto failed;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	ast_copy_string(name.value, "asterisk", sizeof(name.value));
@@ -904,39 +903,24 @@ static int load_module(void)
 
 	if ((cs_err = cpg_join(cpg_handle, &name)) != CS_OK) {
 		ast_log(LOG_ERROR, "Failed to join: (%d)\n", (int) cs_err);
-		goto failed;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (pipe(dispatch_thread.alert_pipe) == -1) {
 		ast_log(LOG_ERROR, "Failed to create alert pipe: %s (%d)\n",
 				strerror(errno), errno);
-		goto failed;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (ast_pthread_create_background(&dispatch_thread.id, NULL,
 			dispatch_thread_handler, NULL)) {
 		ast_log(LOG_ERROR, "Error starting CPG dispatch thread.\n");
-		goto failed;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	ast_cli_register_multiple(corosync_cli, ARRAY_LEN(corosync_cli));
 
 	return AST_MODULE_LOAD_SUCCESS;
-
-failed:
-	cleanup_module();
-
-	return res;
 }
 
-static int unload_module(void)
-{
-	ast_cli_unregister_multiple(corosync_cli, ARRAY_LEN(corosync_cli));
-
-	cleanup_module();
-
-	return 0;
-}
-
-AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Corosync");
-
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Corosync");

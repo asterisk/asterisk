@@ -113,16 +113,10 @@ AST_TEST_DEFINE(test_timezone_watch)
 	return res;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(test_timezone_watch);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(test_timezone_watch);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Time Tests");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Time Tests");

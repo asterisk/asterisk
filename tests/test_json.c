@@ -1690,62 +1690,6 @@ AST_TEST_DEFINE(json_test_cep)
 	return AST_TEST_PASS;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(json_test_false);
-	AST_TEST_UNREGISTER(json_test_true);
-	AST_TEST_UNREGISTER(json_test_bool0);
-	AST_TEST_UNREGISTER(json_test_bool1);
-	AST_TEST_UNREGISTER(json_test_null);
-	AST_TEST_UNREGISTER(json_test_null_val);
-	AST_TEST_UNREGISTER(json_test_string);
-	AST_TEST_UNREGISTER(json_test_string_null);
-	AST_TEST_UNREGISTER(json_test_stringf);
-	AST_TEST_UNREGISTER(json_test_int);
-	AST_TEST_UNREGISTER(json_test_non_int);
-	AST_TEST_UNREGISTER(json_test_array_create);
-	AST_TEST_UNREGISTER(json_test_array_append);
-	AST_TEST_UNREGISTER(json_test_array_inset);
-	AST_TEST_UNREGISTER(json_test_array_set);
-	AST_TEST_UNREGISTER(json_test_array_remove);
-	AST_TEST_UNREGISTER(json_test_array_clear);
-	AST_TEST_UNREGISTER(json_test_array_extend);
-	AST_TEST_UNREGISTER(json_test_array_null);
-	AST_TEST_UNREGISTER(json_test_object_alloc);
-	AST_TEST_UNREGISTER(json_test_object_set);
-	AST_TEST_UNREGISTER(json_test_object_set_overwrite);
-	AST_TEST_UNREGISTER(json_test_object_get);
-	AST_TEST_UNREGISTER(json_test_object_del);
-	AST_TEST_UNREGISTER(json_test_object_clear);
-	AST_TEST_UNREGISTER(json_test_object_merge_all);
-	AST_TEST_UNREGISTER(json_test_object_merge_existing);
-	AST_TEST_UNREGISTER(json_test_object_merge_missing);
-	AST_TEST_UNREGISTER(json_test_object_null);
-	AST_TEST_UNREGISTER(json_test_object_iter);
-	AST_TEST_UNREGISTER(json_test_object_iter_null);
-	AST_TEST_UNREGISTER(json_test_dump_load_string);
-	AST_TEST_UNREGISTER(json_test_dump_load_str);
-	AST_TEST_UNREGISTER(json_test_dump_str_fail);
-	AST_TEST_UNREGISTER(json_test_load_buffer);
-	AST_TEST_UNREGISTER(json_test_dump_load_file);
-	AST_TEST_UNREGISTER(json_test_dump_load_new_file);
-	AST_TEST_UNREGISTER(json_test_dump_load_null);
-	AST_TEST_UNREGISTER(json_test_parse_errors);
-	AST_TEST_UNREGISTER(json_test_pack);
-	AST_TEST_UNREGISTER(json_test_pack_ownership);
-	AST_TEST_UNREGISTER(json_test_pack_errors);
-	AST_TEST_UNREGISTER(json_test_copy);
-	AST_TEST_UNREGISTER(json_test_deep_copy);
-	AST_TEST_UNREGISTER(json_test_copy_null);
-	AST_TEST_UNREGISTER(json_test_circular_object);
-	AST_TEST_UNREGISTER(json_test_circular_array);
-	AST_TEST_UNREGISTER(json_test_clever_circle);
-	AST_TEST_UNREGISTER(json_test_name_number);
-	AST_TEST_UNREGISTER(json_test_timeval);
-	AST_TEST_UNREGISTER(json_test_cep);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(json_test_false);
@@ -1806,7 +1750,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, 0, "JSON testing",
-	.load = load_module,
-	.unload = unload_module
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "JSON testing");

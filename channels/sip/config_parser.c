@@ -909,11 +909,3 @@ void sip_config_parser_register_tests(void)
 	AST_TEST_REGISTER(sip_parse_nat_test);
 }
 
-/*! \brief SIP test registration */
-void sip_config_parser_unregister_tests(void)
-{
-	AST_TEST_UNREGISTER(sip_parse_register_line_test);
-	AST_TEST_UNREGISTER(sip_parse_host_line_test);
-	AST_TEST_UNREGISTER(sip_parse_nat_test);
-}
-

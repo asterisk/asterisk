@@ -1,6 +1,7 @@
 {
 	global:
 		LINKER_SYMBOL_PREFIXast_ari_*;
+		LINKER_SYMBOL_PREFIX__ast_ari_*;
 	local:
 		*;
 };

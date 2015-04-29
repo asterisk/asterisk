@@ -39,6 +39,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>realtime_driver</load_priority>
 	<depend>sqlite3</depend>
 	<support_level>core</support_level>
  ***/
@@ -1154,22 +1155,19 @@ static int parse_config(int reload)
 	return 0;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	parse_config(1);
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_mutex_lock(&config_lock);
 	ao2_callback(databases, OBJ_MULTIPLE | OBJ_NODATA | OBJ_UNLINK, stop_batch_cb, NULL);
 	ao2_ref(databases, -1);
 	databases = NULL;
-	ast_config_engine_deregister(&sqlite3_config_engine);
 	ast_mutex_unlock(&config_lock);
-
-	return 0;
 }
 
 /*!
@@ -1189,23 +1187,15 @@ static int load_module(void)
 	}
 
 	if (parse_config(0)) {
-		ao2_ref(databases, -1);
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	if (!(ast_config_engine_register(&sqlite3_config_engine))) {
+	if (ast_config_engine_register(&sqlite3_config_engine)) {
 		ast_log(LOG_ERROR, "The config API must have changed, this shouldn't happen.\n");
-		ao2_ref(databases, -1);
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "SQLite 3 realtime config engine",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_REALTIME_DRIVER,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "SQLite 3 realtime config engine");
