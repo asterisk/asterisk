@@ -16,14 +16,6 @@
  * at the top of the source tree.
  */
 
-/*** MODULEINFO
-	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
-	<depend>res_pjsip_pubsub</depend>
-	<depend>res_pjsip_exten_state</depend>
-	<support_level>core</support_level>
- ***/
-
 #include "asterisk.h"
 
 #include <pjsip.h>
@@ -31,10 +23,8 @@
 #include <pjlib.h>
 
 #include "asterisk/module.h"
-#include "asterisk/res_pjsip.h"
-#include "asterisk/res_pjsip_pubsub.h"
+#include "asterisk/pbx.h"
 #include "asterisk/res_pjsip_presence_xml.h"
-#include "asterisk/res_pjsip_body_generator_types.h"
 
 void ast_sip_sanitize_xml(const char *input, char *output, size_t len)
 {
