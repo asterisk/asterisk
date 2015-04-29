@@ -223,7 +223,29 @@ AST_TEST_DEFINE(astobj2_weak1)
 		goto fail_cleanup;
 	}
 
+	if (ao2_t_weakproxy_ref_object(obj3, +1, 0, "ao2_ref should never see this") != -2) {
+		ast_test_status_update(test,
+			"Expected -2 from ao2_t_weakproxy_ref_object against normal ao2 object.\n");
+		goto fail_cleanup;
+	}
+
+	if (ao2_t_weakproxy_ref_object(weakref2, +1, 0, "weakref2 ref_object") != 2) {
+		ast_test_status_update(test, "Expected 2 from weakref2 ref_object.\n");
+		goto fail_cleanup;
+	}
+
+	if (ao2_t_ref(obj3, -1, "balance weakref2 ref_object") != 3) {
+		ast_test_status_update(test, "Expected 3 from obj3 ao2_t_ref.\n");
+		goto fail_cleanup;
+	}
+
 	ao2_ref(obj3, -1);
+
+	if (ao2_weakproxy_ref_object(weakref2, +1, 0) != -1) {
+		ast_test_status_update(test, "Expected -1 from weakref2 ref_object because obj3 is gone.\n");
+		goto fail_cleanup;
+	}
+
 	ao2_t_ref(weakref2, -1, "weakref2");
 
 	if (!weakproxydestroyed) {

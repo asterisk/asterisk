@@ -836,6 +836,33 @@ int __ao2_weakproxy_set_object(void *weakproxy, void *obj, int flags,
 	return ret;
 }
 
+int __ao2_weakproxy_ref_object(void *weakproxy, int delta, int flags,
+	const char *tag, const char *file, int line, const char *func)
+{
+	struct astobj2 *internal = __INTERNAL_OBJ_CHECK(weakproxy, file, line, func);
+	int ret = -1;
+
+	if (!internal || internal->priv_data.magic != AO2_WEAK) {
+		/* This method is meant to be run on weakproxy objects! */
+		return -2;
+	}
+
+	/* We have a weak object, grab lock. */
+	if (!(flags & OBJ_NOLOCK)) {
+		ao2_lock(weakproxy);
+	}
+
+	if (internal->priv_data.weakptr) {
+		ret = __ao2_ref(internal->priv_data.weakptr, delta, tag, file, line, func);
+	}
+
+	if (!(flags & OBJ_NOLOCK)) {
+		ao2_unlock(weakproxy);
+	}
+
+	return ret;
+}
+
 void *__ao2_weakproxy_get_object(void *weakproxy, int flags,
 	const char *tag, const char *file, int line, const char *func)
 {
