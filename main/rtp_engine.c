@@ -1677,10 +1677,15 @@ void ast_rtp_dtls_cfg_copy(const struct ast_rtp_dtls_cfg *src_cfg, struct ast_rt
 void ast_rtp_dtls_cfg_free(struct ast_rtp_dtls_cfg *dtls_cfg)
 {
 	ast_free(dtls_cfg->certfile);
+	dtls_cfg->certfile = NULL;
 	ast_free(dtls_cfg->pvtfile);
+	dtls_cfg->pvtfile = NULL;
 	ast_free(dtls_cfg->cipher);
+	dtls_cfg->cipher = NULL;
 	ast_free(dtls_cfg->cafile);
+	dtls_cfg->cafile = NULL;
 	ast_free(dtls_cfg->capath);
+	dtls_cfg->capath = NULL;
 }
 
 /*! \internal
