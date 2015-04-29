@@ -10,27 +10,37 @@ cat << END
  */
 
 END
+
+if ${GREP} "AST_DEVMODE" makeopts | ${GREP} -q "yes"
+then
+	echo "#define AST_DEVMODE 1"
+	BUILDOPTS="AST_DEVMODE"
+fi
+
 TMP=`${GREP} -e "^MENUSELECT_CFLAGS" menuselect.makeopts | sed 's/MENUSELECT_CFLAGS\=//g' | sed 's/-D//g'`
 for x in ${TMP}; do
 	echo "#define ${x} 1"
+	if test "${x}" = "DONT_OPTIMIZE" \
+			-o "${x}" = "BETTER_BACKTRACES" \
+			-o "${x}" = "LOTS_OF_SPANS" \
+			-o "${x}" = "BUILD_NATIVE" \
+			-o "${x}" = "AO2_DEBUG" \
+			-o "${x}" = "REBUILD_PARSERS" \
+			-o "${x}" = "RADIO_RELAX" \
+			-o "${x}" = "DEBUG_SCHEDULER" \
+			-o "${x}" = "DETECT_DEADLOCKS" \
+			-o "${x}" = "DUMP_SCHEDULER" ; then
+		# These aren't ABI affecting options, keep them out of AST_BUILDOPTS
+		continue
+	fi
 	if test "x${BUILDOPTS}" != "x" ; then
 		BUILDOPTS="${BUILDOPTS}, ${x}"
 	else
 		BUILDOPTS="${x}"
 	fi
 done
-TMP=`${GREP} -e "^MENUSELECT_BUILD_DEPS" menuselect.makeopts | sed 's/MENUSELECT_BUILD_DEPS\=//g'`
-for x in ${TMP}; do
-	x2=`echo ${x} | tr a-z A-Z`
-	echo "#define AST_MODULE_${x2} 1"
-done
-if ${GREP} "AST_DEVMODE" makeopts | ${GREP} -q "yes"
-then
-	echo "#define AST_DEVMODE 1"
-	TMP="${TMP} AST_DEVMODE"
-fi
 
-BUILDSUM=`echo ${TMP} | ${MD5} | cut -c1-32`
+BUILDSUM=`echo ${BUILDOPTS} | ${MD5} | cut -c1-32`
 
 echo "#define AST_BUILDOPT_SUM \"${BUILDSUM}\""
 echo "#define AST_BUILDOPTS \"${BUILDOPTS}\""
