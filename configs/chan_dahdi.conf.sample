@@ -196,6 +196,20 @@ context=public
 ;
 ;resetinterval = 3600
 ;
+; Enable per span to force a RESTART on a channel that returns a cause
+; code of PRI_CAUSE_REQUESTED_CHAN_UNAVAIL(44).  If the cause is because
+; of a stuck channel on the peer and the channel is always the next
+; channel we pick for an outgoing call then this might help.
+;
+; NOTE: Sending a RESTART in response to a cause 44 is not required
+; (nor prohibited) by the standards and is likely a primitive chan_dahdi
+; response to call collisions (glare) and buggy peers.  However, there
+; are telco switches out there that ignore the RESTART and continue to
+; send calls to the channel in the restarting state.
+; Default yes in current release branches for backward compatibility.
+;
+;force_restart_unavailable_chans=yes
+;
 ; Assume inband audio may be present when a SETUP ACK message is received.
 ; Q.931 Section 5.1.3 says that in scenarios with overlap dialing, when a
 ; dialtone is sent from the network side, progress indicator 8 "Inband info
