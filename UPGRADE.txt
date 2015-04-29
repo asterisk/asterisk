@@ -40,6 +40,13 @@ CLI:
    by the CLI command is always the Asterisk version. This CLI command
    will be removed in Asterisk 14.
 
+chan_dahdi:
+ - Added the force_restart_unavailable_chans compatibility option.  When
+   enabled it causes Asterisk to restart the ISDN B channel if an outgoing
+   call receives cause 44 (Requested channel not available).  The new option
+   is enabled by default in current release branches for backward
+   compatibility.
+
 res_pjsip:
  - The dtmf_mode now supports a new option, 'auto'. This mode will attempt to
    detect if the device supports RFC4733 DTMF. If so, it will choose that
