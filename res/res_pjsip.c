@@ -2012,6 +2012,16 @@ int ast_sip_create_request_with_auth(const struct ast_sip_auth_vector *auths, pj
 	return registered_outbound_authenticator->create_request_with_auth(auths, challenge, tsx, new_request);
 }
 
+int ast_sip_create_request_with_auth_from_old(const struct ast_sip_auth_vector *auths, pjsip_rx_data *challenge,
+		pjsip_tx_data *old_request, pjsip_tx_data **new_request)
+{
+	if (!registered_outbound_authenticator) {
+		ast_log(LOG_WARNING, "No SIP outbound authenticator registered. Cannot respond to authentication challenge\n");
+		return -1;
+	}
+	return registered_outbound_authenticator->create_request_with_auth_from_old(auths, challenge, old_request, new_request);
+}
+
 struct endpoint_identifier_list {
 	const char *name;
 	unsigned int priority;
