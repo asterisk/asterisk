@@ -44,6 +44,13 @@ CLI:
    by the CLI command is always the Asterisk version. This CLI command
    will be removed in Asterisk 14.
 
+chan_dahdi:
+ - Added the force_restart_unavailable_chans compatibility option.  When
+   enabled it causes Asterisk to restart the ISDN B channel if an outgoing
+   call receives cause 44 (Requested channel not available).  The new option
+   is enabled by default in current release branches for backward
+   compatibility.
+
 cdr_odbc:
  - Added support for post-1.8 CDR columns 'peeraccount', 'linkedid', and
    'sequence'. Support for the new columns can be enabled via the newcdrcolumns
