@@ -66,6 +66,7 @@ define MOD_ADD_SOURCE
 $$(if $$(filter $(1),$$(EMBEDDED_MODS)),modules.link,$(1).so): $$(subst $(3),$(5),$(2))
 $$(subst $(3),$(5),$(2)): _ASTCFLAGS+=$$(call MOD_ASTCFLAGS,$(1))
 .$(1).moduleinfo: MODULEINFO_EXTRA_OUTPUT=" $$(addprefix $$(SUBDIR)/,$$(subst $(3),$(5),$(2)) $$(subst $(3),$(4),$(2)))"
+.$(1).moduleinfo: $(2)
 
 clean:: clean-$(1)$(3)
 
@@ -148,12 +149,12 @@ dist-clean::
 
 .%.moduleinfo: %.c
 	@echo "<member name=\"$*\" displayname=\"$(shell $(GREP) -e AST_MODULE_INFO $< | head -n 1 | cut -d '"' -f 2)\" remove_on_change=\"$(SUBDIR)/$*.o $(SUBDIR)/$*.i $(SUBDIR)/$*.so$(MODULEINFO_EXTRA_OUTPUT)\">" > $@
-	$(AWK) -f $(ASTTOPDIR)/build_tools/get_moduleinfo $< >> $@
+	$(AWK) -f $(ASTTOPDIR)/build_tools/get_moduleinfo $^ >> $@
 	echo "</member>" >> $@
 
 .%.moduleinfo: %.cc
 	@echo "<member name=\"$*\" displayname=\"$(shell $(GREP) -e AST_MODULE_INFO $< | head -n 1 | cut -d '"' -f 2)\" remove_on_change=\"$(SUBDIR)/$*.oo $(SUBDIR)/$*.ii $(SUBDIR)/$*.so$(MODULEINFO_EXTRA_OUTPUT)\">" > $@
-	$(AWK) -f $(ASTTOPDIR)/build_tools/get_moduleinfo $< >> $@
+	$(AWK) -f $(ASTTOPDIR)/build_tools/get_moduleinfo $^ >> $@
 	echo "</member>" >> $@
 
 .moduleinfo:: $(addsuffix .moduleinfo,$(addprefix .,$(sort $(ALL_C_MODS) $(ALL_CC_MODS))))
