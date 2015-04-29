@@ -936,22 +936,14 @@ static int check_modem_rate(enum ast_fax_modems modems, unsigned int rate)
 {
 	switch (rate) {
 	case 2400:
-		if (!(modems & (AST_FAX_MODEM_V34))) {
-			return 1;
-		}
-		break;
 	case 4800:
 		if (!(modems & (AST_FAX_MODEM_V27 | AST_FAX_MODEM_V34))) {
 			return 1;
 		}
 		break;
 	case 7200:
-		if (!(modems & (AST_FAX_MODEM_V17 | AST_FAX_MODEM_V29 | AST_FAX_MODEM_V34))) {
-			return 1;
-		}
-		break;
 	case 9600:
-		if (!(modems & (AST_FAX_MODEM_V17 | AST_FAX_MODEM_V27 | AST_FAX_MODEM_V29 | AST_FAX_MODEM_V34))) {
+		if (!(modems & (AST_FAX_MODEM_V17 | AST_FAX_MODEM_V29 | AST_FAX_MODEM_V34))) {
 			return 1;
 		}
 		break;
