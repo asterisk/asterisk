@@ -297,7 +297,7 @@ static void sorcery_config_internal_load(void *data, const struct ast_sorcery *s
 		/*  Confirm an object with this id does not already exist in the bucket.
 		 *  If it exists, however, the configuration is invalid so stop
 		 *  processing and destroy it. */
-		obj = ao2_find(objects, id, OBJ_KEY;
+		obj = ao2_find(objects, id, OBJ_KEY);
 
 		if (obj) {
 			ast_log(LOG_ERROR, "Config file '%s' could not be loaded; configuration contains a duplicate object: '%s' of type '%s'\n",
