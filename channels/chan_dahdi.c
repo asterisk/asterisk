@@ -12346,6 +12346,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 #if defined(HAVE_PRI_MCID)
 						pris[span].pri.mcid_send = conf->pri.pri.mcid_send;
 #endif	/* defined(HAVE_PRI_MCID) */
+						pris[span].pri.force_restart_unavailable_chans = conf->pri.pri.force_restart_unavailable_chans;
 #if defined(HAVE_PRI_DATETIME_SEND)
 						pris[span].pri.datetime_send = conf->pri.pri.datetime_send;
 #endif	/* defined(HAVE_PRI_DATETIME_SEND) */
@@ -18258,6 +18259,8 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				else
 					ast_log(LOG_WARNING, "'%s' is not a valid reset interval, should be >= 60 seconds or 'never' at line %d.\n",
 						v->value, v->lineno);
+			} else if (!strcasecmp(v->name, "force_restart_unavailable_chans")) {
+				confp->pri.pri.force_restart_unavailable_chans = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "minunused")) {
 				confp->pri.pri.minunused = atoi(v->value);
 			} else if (!strcasecmp(v->name, "minidle")) {
