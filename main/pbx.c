@@ -72,6 +72,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/taskprocessor.h"
 #include "asterisk/xmldoc.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/vector.h"
 
 /*!
  * \note I M P O R T A N T :
@@ -988,8 +989,9 @@ struct ast_hint {
 
 	char context_name[AST_MAX_CONTEXT];/*!< Context of destroyed hint extension. */
 	char exten_name[AST_MAX_EXTENSION];/*!< Extension of destroyed hint extension. */
-};
 
+	AST_VECTOR(, char *) devices; /*!< Devices associated with the hint */
+};
 
 #define HINTDEVICE_DATA_LENGTH 16
 AST_THREADSTORAGE(hintdevice_data);
@@ -1019,15 +1021,28 @@ struct ast_hintdevice {
 	char hintdevice[1];
 };
 
-
 /*!
  * \note Using the device for hash
  */
 static int hintdevice_hash_cb(const void *obj, const int flags)
 {
-	const struct ast_hintdevice *ext = obj;
+	const struct ast_hintdevice *ext;
+	const char *key;
 
-	return ast_str_case_hash(ext->hintdevice);
+	switch (flags & (OBJ_KEY | OBJ_POINTER)) {
+	case OBJ_KEY:
+		key = obj;
+		break;
+	case OBJ_POINTER:
+		ext = obj;
+		key = ext->hintdevice;
+		break;
+	default:
+		ast_assert(0);
+		return 0;
+	}
+
+	return ast_str_case_hash(key);
 }
 /*!
  * \note Devices on hints are not unique so no CMP_STOP is returned
@@ -1036,29 +1051,66 @@ static int hintdevice_hash_cb(const void *obj, const int flags)
  */
 static int hintdevice_cmp_multiple(void *obj, void *arg, int flags)
 {
-	struct ast_hintdevice *ext = obj, *ext2 = arg;
+	struct ast_hintdevice *left = obj;
+	struct ast_hintdevice *right = arg;
+	const char *right_key = arg;
+	int cmp;
 
-	return !strcasecmp(ext->hintdevice, ext2->hintdevice) ? CMP_MATCH  : 0;
+	switch (flags & (OBJ_POINTER | OBJ_KEY)) {
+	case OBJ_POINTER:
+		right_key = right->hintdevice;
+		/* Fall through */
+	case OBJ_KEY:
+		cmp = strcmp(left->hintdevice, right_key);
+		break;
+	default:
+		ast_assert(0);
+		cmp = 0;
+		break;
+	}
+	return cmp ? 0 : CMP_MATCH;
 }
 
-/*
- * \details This is used with ao2_callback to remove old devices
- * when they are linked to the hint
-*/
-static int hintdevice_remove_cb(void *deviceobj, void *arg, int flags)
-{
-	struct ast_hintdevice *device = deviceobj;
-	struct ast_hint *hint = arg;
+/*! \internal \brief Callback data for \c hintdevice_remove_cb */
+struct hintdevice_remove_data {
+	/*! The device watching the hint */
+	const char *device;
+	/*! The actual hint */
+	struct ast_hint *hint;
+};
 
-	return (device->hint == hint) ? CMP_MATCH : 0;
+/*! \internal \brief \c ao2_callback function to remove hintdevices */
+static int hintdevice_remove_cb(void *obj, void *arg, int flags)
+{
+	struct ast_hintdevice *candidate = obj;
+	struct hintdevice_remove_data *removal = arg;
+
+	if (!strcmp(candidate->hintdevice, removal->device)
+		&& candidate->hint == removal->hint) {
+		return CMP_MATCH;
+	}
+	return 0;
 }
 
 static int remove_hintdevice(struct ast_hint *hint)
 {
-	/* iterate through all devices and remove the devices which are linked to this hint */
-	ao2_t_callback(hintdevices, OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK,
-		hintdevice_remove_cb, hint,
-		"callback to remove all devices which are linked to a hint");
+	while (AST_VECTOR_SIZE(&hint->devices) > 0) {
+		struct hintdevice_remove_data remove_data;
+		char *device = AST_VECTOR_GET(&hint->devices, 0);
+
+		if (!device) {
+			continue;
+		}
+
+		remove_data.device = device;
+		remove_data.hint = hint;
+
+		ao2_t_callback(hintdevices, OBJ_KEY | OBJ_UNLINK | OBJ_NODATA,
+			hintdevice_remove_cb, &remove_data, "Remove device from container");
+		AST_VECTOR_REMOVE_UNORDERED(&hint->devices, 0);
+		ast_free(device);
+	}
+
 	return 0;
 }
 
@@ -1101,16 +1153,34 @@ static int add_hintdevice(struct ast_hint *hint, const char *devicelist)
 	ast_str_set(&str, 0, "%s", devicelist);
 	parse = parse_hint_device(str);
 
-	while ((cur = strsep(&parse, "&"))) {
+	/* Spit on '&' and ',' to handle presence hints as well */
+	while ((cur = strsep(&parse, "&,"))) {
+		char *device_name;
+
 		devicelength = strlen(cur);
+		if (!devicelength) {
+			continue;
+		}
+
+		device_name = ast_strdup(cur);
+		if (!device_name) {
+			return -1;
+		}
+
 		device = ao2_t_alloc(sizeof(*device) + devicelength, hintdevice_destroy,
 			"allocating a hintdevice structure");
 		if (!device) {
+			ast_free(device_name);
 			return -1;
 		}
 		strcpy(device->hintdevice, cur);
 		ao2_ref(hint, +1);
 		device->hint = hint;
+		if (AST_VECTOR_APPEND(&hint->devices, device_name)) {
+			ast_free(device_name);
+			ao2_ref(device, -1);
+			return -1;
+		}
 		ao2_t_link(hintdevices, device, "Linking device into hintdevice container.");
 		ao2_t_ref(device, -1, "hintdevice is linked so we can unref");
 	}
@@ -5785,6 +5855,7 @@ static int hint_id_cmp(void *obj, void *arg, int flags)
 static void destroy_hint(void *obj)
 {
 	struct ast_hint *hint = obj;
+	int i;
 
 	if (hint->callbacks) {
 		struct ast_state_cb *state_cb;
@@ -5814,6 +5885,12 @@ static void destroy_hint(void *obj)
 		}
 		ao2_ref(hint->callbacks, -1);
 	}
+
+	for (i = 0; i < AST_VECTOR_SIZE(&hint->devices); i++) {
+		char *device = AST_VECTOR_GET(&hint->devices, i);
+		ast_free(device);
+	}
+	AST_VECTOR_FREE(&hint->devices);
 	ast_free(hint->last_presence_subtype);
 	ast_free(hint->last_presence_message);
 }
@@ -5875,6 +5952,7 @@ static int ast_add_hint(struct ast_exten *e)
 	if (!hint_new) {
 		return -1;
 	}
+	AST_VECTOR_INIT(&hint_new->devices, 8);
 
 	/* Initialize new hint. */
 	hint_new->callbacks = ao2_container_alloc(1, NULL, hint_id_cmp);
