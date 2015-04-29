@@ -17,8 +17,9 @@
  */
 
 /*** MODULEINFO
+	<load_priority>app_depend</load_priority>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
+	<use type="module">res_pjsip</use>
 	<support_level>core</support_level>
  ***/
 
@@ -224,30 +225,21 @@ static struct ast_sip_session_supplement path_session_supplement = {
 
 static int load_module(void)
 {
-	CHECK_PJSIP_SESSION_MODULE_LOADED();
-
 	if (ast_sip_register_supplement(&path_supplement)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (ast_sip_session_register_supplement(&path_session_supplement)) {
-		ast_sip_unregister_supplement(&path_supplement);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_sip_unregister_supplement(&path_supplement);
 	ast_sip_session_unregister_supplement(&path_session_supplement);
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP Path Header Support",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_APP_DEPEND,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "PJSIP Path Header Support");

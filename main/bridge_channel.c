@@ -1039,6 +1039,7 @@ static int run_app_helper(struct ast_channel *chan, const char *app_name, const 
 				ast_log(LOG_WARNING, "Could not substitute application argument variables for %s\n", app_name);
 				res = pbx_exec(chan, app, app_args);
 			}
+			ao2_ref(app, -1);
 		}
 	}
 	return res;

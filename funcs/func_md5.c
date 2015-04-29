@@ -71,14 +71,9 @@ static struct ast_custom_function md5_function = {
 	.read_max = 33,
 };
 
-static int unload_module(void)
-{
-	return ast_custom_function_unregister(&md5_function);
-}
-
 static int load_module(void)
 {
 	return ast_custom_function_register(&md5_function);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "MD5 digest dialplan functions");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "MD5 digest dialplan functions");

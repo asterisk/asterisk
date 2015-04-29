@@ -34,6 +34,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_driver</load_priority>
         <use type="module">res_pktccops</use>
 	<support_level>extended</support_level>
  ***/
@@ -995,8 +996,6 @@ static int mgcp_hangup(struct ast_channel *ast)
 		sub->rtp = NULL;
 	}
 
-	ast_module_unref(ast_module_info->self);
-
 	if ((p->hookstate == MGCP_ONHOOK) && (!sub->next->rtp)) {
 		p->hidecallerid = 0;
 		if (p->hascallwaiting && !p->callwaiting) {
@@ -1551,7 +1550,6 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state, cons
 	if (i->amaflags)
 		ast_channel_amaflags_set(tmp, i->amaflags);
 	mgcp_set_owner(sub, tmp);
-	ast_module_ref(ast_module_info->self);
 	ast_channel_callgroup_set(tmp, i->callgroup);
 	ast_channel_pickupgroup_set(tmp, i->pickupgroup);
 	ast_channel_call_forward_set(tmp, i->call_forward);
@@ -4866,7 +4864,6 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	if (!(mgcp_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
-		ao2_ref(global_capability, -1);
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	ast_format_cap_append(global_capability, ast_format_ulaw, 0);
@@ -4874,32 +4871,21 @@ static int load_module(void)
 	ast_format_cap_append(mgcp_tech.capabilities, ast_format_alaw, 0);
 	if (!(sched = ast_sched_context_create())) {
 		ast_log(LOG_WARNING, "Unable to create schedule context\n");
-		ao2_ref(global_capability, -1);
-		ao2_ref(mgcp_tech.capabilities, -1);
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (!(io = io_context_create())) {
 		ast_log(LOG_WARNING, "Unable to create I/O context\n");
-		ast_sched_context_destroy(sched);
-		ao2_ref(global_capability, -1);
-		ao2_ref(mgcp_tech.capabilities, -1);
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (reload_config(0)) {
-		ao2_ref(global_capability, -1);
-		ao2_ref(mgcp_tech.capabilities, -1);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	/* Make sure we can register our mgcp channel type */
 	if (ast_channel_register(&mgcp_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'MGCP'\n");
-		io_context_destroy(io);
-		ast_sched_context_destroy(sched);
-		ao2_ref(global_capability, -1);
-		ao2_ref(mgcp_tech.capabilities, -1);
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
@@ -4945,13 +4931,13 @@ static char *mgcp_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 	return CLI_SUCCESS;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	mgcp_reload(NULL, 0, NULL);
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	struct mgcp_endpoint *e;
 	struct mgcp_gateway *g;
@@ -4959,14 +4945,12 @@ static int unload_module(void)
 	/* Check to see if we're reloading */
 	if (ast_mutex_trylock(&mgcp_reload_lock)) {
 		ast_log(LOG_WARNING, "MGCP is currently reloading.  Unable to remove module.\n");
-		return -1;
+		ast_module_block_unload(AST_MODULE_SELF);
+		return;
 	} else {
 		mgcp_reloading = 1;
 		ast_mutex_unlock(&mgcp_reload_lock);
 	}
-
-	/* First, take us out of the channel loop */
-	ast_channel_unregister(&mgcp_tech);
 
 	/* Shut down the monitoring thread */
 	if (!ast_mutex_lock(&monlock)) {
@@ -4983,7 +4967,8 @@ static int unload_module(void)
 		ast_channel_register(&mgcp_tech);
 		mgcp_reloading = 0;
 		mgcp_reload(NULL, 0, NULL);
-		return -1;
+		ast_module_block_unload(AST_MODULE_SELF);
+		return;
 	}
 
 	if (!ast_mutex_lock(&gatelock)) {
@@ -5004,27 +4989,17 @@ static int unload_module(void)
 		monitor_thread = AST_PTHREADT_NULL;
 		mgcp_reloading = 0;
 		mgcp_reload(NULL, 0, NULL);
-		return -1;
+		ast_module_block_unload(AST_MODULE_SELF);
+		return;
 	}
 
 	close(mgcpsock);
-	ast_rtp_glue_unregister(&mgcp_rtp_glue);
-	ast_cli_unregister_multiple(cli_mgcp, sizeof(cli_mgcp) / sizeof(struct ast_cli_entry));
 	ast_sched_context_destroy(sched);
 
 	ao2_ref(global_capability, -1);
 	global_capability = NULL;
 	ao2_ref(mgcp_tech.capabilities, -1);
 	mgcp_tech.capabilities = NULL;
-
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Media Gateway Control Protocol (MGCP)",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CHANNEL_DRIVER,
-	.nonoptreq = "res_pktccops",
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Media Gateway Control Protocol (MGCP)");

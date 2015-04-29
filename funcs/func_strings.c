@@ -1930,43 +1930,6 @@ AST_TEST_DEFINE(test_STRREPLACE)
 }
 #endif
 
-static int unload_module(void)
-{
-	int res = 0;
-
-	AST_TEST_UNREGISTER(test_FIELDNUM);
-	AST_TEST_UNREGISTER(test_REPLACE);
-	AST_TEST_UNREGISTER(test_FILTER);
-	AST_TEST_UNREGISTER(test_STRREPLACE);
-	res |= ast_custom_function_unregister(&fieldqty_function);
-	res |= ast_custom_function_unregister(&fieldnum_function);
-	res |= ast_custom_function_unregister(&filter_function);
-	res |= ast_custom_function_unregister(&replace_function);
-	res |= ast_custom_function_unregister(&strreplace_function);
-	res |= ast_custom_function_unregister(&listfilter_function);
-	res |= ast_custom_function_unregister(&regex_function);
-	res |= ast_custom_function_unregister(&array_function);
-	res |= ast_custom_function_unregister(&quote_function);
-	res |= ast_custom_function_unregister(&csv_quote_function);
-	res |= ast_custom_function_unregister(&len_function);
-	res |= ast_custom_function_unregister(&strftime_function);
-	res |= ast_custom_function_unregister(&strptime_function);
-	res |= ast_custom_function_unregister(&eval_function);
-	res |= ast_custom_function_unregister(&keypadhash_function);
-	res |= ast_custom_function_unregister(&hashkeys_function);
-	res |= ast_custom_function_unregister(&hash_function);
-	res |= ast_unregister_application(app_clearhash);
-	res |= ast_custom_function_unregister(&toupper_function);
-	res |= ast_custom_function_unregister(&tolower_function);
-	res |= ast_custom_function_unregister(&shift_function);
-	res |= ast_custom_function_unregister(&pop_function);
-	res |= ast_custom_function_unregister(&push_function);
-	res |= ast_custom_function_unregister(&unshift_function);
-	res |= ast_custom_function_unregister(&passthru_function);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res = 0;
@@ -2004,4 +1967,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "String handling dialplan functions");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "String handling dialplan functions");

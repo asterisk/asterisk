@@ -265,16 +265,10 @@ static int readexten_exec(struct ast_channel *chan, const char *data)
 	return status[0] == 'H' ? -1 : 0;
 }
 
-static int unload_module(void)
-{
-	int res = ast_unregister_application(app);
-	return res;
-}
-
 static int load_module(void)
 {
 	int res = ast_register_application_xml(app, readexten_exec);
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Read and evaluate extension validity");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Read and evaluate extension validity");

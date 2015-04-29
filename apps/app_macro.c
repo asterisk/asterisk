@@ -621,18 +621,6 @@ static int macro_exit_exec(struct ast_channel *chan, const char *data)
 	return MACRO_EXIT_RESULT;
 }
 
-static int unload_module(void)
-{
-	int res;
-
-	res = ast_unregister_application(if_app);
-	res |= ast_unregister_application(exit_app);
-	res |= ast_unregister_application(app);
-	res |= ast_unregister_application(exclusive_app);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res;
@@ -645,4 +633,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Extension Macros");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Extension Macros");

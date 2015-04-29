@@ -33,6 +33,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_driver</load_priority>
 	<depend>alsa</depend>
 	<support_level>extended</support_level>
  ***/
@@ -376,7 +377,6 @@ static int alsa_hangup(struct ast_channel *c)
 	ast_channel_tech_pvt_set(c, NULL);
 	alsa.owner = NULL;
 	ast_verbose(" << Hangup on console >> \n");
-	ast_module_unref(ast_module_info->self);
 	hookstate = 0;
 	if (!noaudiocapture) {
 		snd_pcm_drop(alsa.icard);
@@ -598,7 +598,6 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state, const st
 	if (!ast_strlen_zero(language))
 		ast_channel_language_set(tmp, language);
 	p->owner = tmp;
-	ast_module_ref(ast_module_info->self);
 	ast_jb_configure(tmp, &global_jbconf);
 
 	ast_channel_stage_snapshot_done(tmp);
@@ -1025,29 +1024,21 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	ast_channel_unregister(&alsa_tech);
-	ast_cli_unregister_multiple(cli_alsa, ARRAY_LEN(cli_alsa));
-
 	if (alsa.icard)
 		snd_pcm_close(alsa.icard);
 	if (alsa.ocard)
 		snd_pcm_close(alsa.ocard);
 	if (alsa.owner)
 		ast_softhangup(alsa.owner, AST_SOFTHANGUP_APPUNLOAD);
-	if (alsa.owner)
-		return -1;
+	if (alsa.owner) {
+		ast_module_block_unload(AST_MODULE_SELF);
+		return;
+	}
 
 	ao2_cleanup(alsa_tech.capabilities);
 	alsa_tech.capabilities = NULL;
-
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "ALSA Console Channel Driver",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DRIVER,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "ALSA Console Channel Driver");

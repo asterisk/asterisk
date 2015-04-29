@@ -33,6 +33,8 @@
  */
 
 /*** MODULEINFO
+	<load_priority>devstate_provider</load_priority>
+	<export_globals/>
 	<support_level>core</support_level>
  ***/
 
@@ -552,7 +554,6 @@ int ast_calendar_register(struct ast_calendar_tech *tech)
 		}
 	}
 	AST_LIST_INSERT_HEAD(&techs, tech, list);
-	tech->user = ast_module_user_add(NULL);
 	AST_LIST_UNLOCK(&techs);
 
 	ast_verb(2, "Registered calendar type '%s' (%s)\n", tech->type, tech->description);
@@ -585,7 +586,6 @@ void ast_calendar_unregister(struct ast_calendar_tech *tech)
 		ao2_callback(calendars, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, match_caltech_cb, tech);
 
 		AST_LIST_REMOVE_CURRENT(list);
-		ast_module_user_remove(iter->user);
 		ast_verb(2, "Unregistered calendar type '%s'\n", tech->type);
 		break;
 	}
@@ -1773,7 +1773,7 @@ static int cb_rm_pending_deletion(void *user_data, void *arg, int flags)
 	return cal->pending_deletion ? CMP_MATCH : 0;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	struct ast_calendar_tech *iter;
 
@@ -1830,18 +1830,8 @@ static void *do_refresh(void *data)
 }
 
 /* If I were to allow unloading it would look something like this */
-static int unload_module(void)
+static void unload_module(void)
 {
-	struct ast_calendar_tech *tech;
-
-	ast_devstate_prov_del("calendar");
-	ast_custom_function_unregister(&calendar_busy_function);
-	ast_custom_function_unregister(&calendar_event_function);
-	ast_custom_function_unregister(&calendar_query_function);
-	ast_custom_function_unregister(&calendar_query_result_function);
-	ast_custom_function_unregister(&calendar_write_function);
-	ast_cli_unregister_multiple(calendar_cli, ARRAY_LEN(calendar_cli));
-
 	/* Remove all calendars */
 	ao2_callback(calendars, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL);
 	ao2_cleanup(calendars);
@@ -1853,17 +1843,8 @@ static int unload_module(void)
 	ast_mutex_unlock(&refreshlock);
 	pthread_join(refresh_thread, NULL);
 
-	AST_LIST_LOCK(&techs);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&techs, tech, list) {
-		ast_unload_resource(tech->module, 0);
-	}
-	AST_LIST_TRAVERSE_SAFE_END;
-	AST_LIST_UNLOCK(&techs);
-
 	ast_config_destroy(calendar_config);
 	calendar_config = NULL;
-
-	return 0;
 }
 
 /*!
@@ -1912,10 +1893,5 @@ static int load_module(void)
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Asterisk Calendar integration",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_DEVSTATE_PROVIDER,
-);
+
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Asterisk Calendar integration");

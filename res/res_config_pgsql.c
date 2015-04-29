@@ -23,6 +23,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>realtime_driver</load_priority>
 	<depend>pgsql</depend>
 	<support_level>extended</support_level>
  ***/
@@ -1308,7 +1309,7 @@ static int load_module(void)
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	struct tables *table;
 	/* Acquire control before doing anything to the module itself. */
@@ -1318,8 +1319,6 @@ static int unload_module(void)
 		PQfinish(pgsqlConn);
 		pgsqlConn = NULL;
 	}
-	ast_cli_unregister_multiple(cli_realtime, ARRAY_LEN(cli_realtime));
-	ast_config_engine_deregister(&pgsql_engine);
 
 	/* Destroy cached table info */
 	AST_LIST_LOCK(&psql_tables);
@@ -1330,11 +1329,9 @@ static int unload_module(void)
 
 	/* Unlock so something else can destroy the lock. */
 	ast_mutex_unlock(&pgsql_lock);
-
-	return 0;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	parse_config(1);
 
@@ -1621,10 +1618,4 @@ static char *handle_cli_realtime_pgsql_status(struct ast_cli_entry *e, int cmd, 
 }
 
 /* needs usecount semantics defined */
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PostgreSQL RealTime Configuration Driver",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_REALTIME_DRIVER,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "PostgreSQL RealTime Configuration Driver");

@@ -35,6 +35,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>cdr_driver</load_priority>
 	<support_level>core</support_level>
  ***/
 
@@ -336,16 +337,16 @@ static int manager_log(struct ast_cdr *cdr)
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	if (ast_cdr_unregister(name)) {
-		return -1;
+		ast_module_block_unload(AST_MODULE_SELF);
+		return;
 	}
 
-	if (customfields)
+	if (customfields) {
 		ast_free(customfields);
-
-	return 0;
+	}
 }
 
 static int load_module(void)
@@ -362,15 +363,9 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	return load_config(1);
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Asterisk Manager Interface CDR Backend",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CDR_DRIVER,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Asterisk Manager Interface CDR Backend");

@@ -271,9 +271,9 @@ unsigned int check_expr(char* buffer, char* error_report)
 
 int check_eval(char *buffer, char *error_report);
 
-struct ast_custom_function *ast_custom_function_find(const char *name);
+int ast_custom_function_exists(const char *name);
 
-struct ast_custom_function *ast_custom_function_find(const char *name)
+int ast_custom_function_exists(const char *name)
 {
 	return 0;
 }

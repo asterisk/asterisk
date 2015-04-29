@@ -547,7 +547,7 @@ struct ast_vm_functions {
 	/*! \brief The name of the module that provides the voicemail functionality */
 	const char *module_name;
 	/*! \brief The module for the voicemail provider */
-	struct ast_module *module;
+	struct ast_module_lib *lib;
 
 	ast_has_voicemail_fn *has_voicemail;
 	ast_inboxcount_fn *inboxcount;
@@ -625,7 +625,7 @@ struct ast_vm_greeter_functions {
 	/*! \brief The name of the module that provides the voicemail greeter functionality */
 	const char *module_name;
 	/*! \brief The module for the voicemail greeter provider */
-	struct ast_module *module;
+	struct ast_module_lib *lib;
 
 	ast_sayname_fn *sayname;
 };

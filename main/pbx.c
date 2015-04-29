@@ -73,6 +73,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/stasis_channels.h"
 #include "asterisk/dial.h"
 #include "asterisk/vector.h"
+#include "asterisk/api_registry.h"
 
 /*!
  * \note I M P O R T A N T :
@@ -999,7 +1000,7 @@ struct ast_app {
 	enum ast_doc_src docsrc;		/*!< Where the documentation come from. */
 #endif
 	AST_RWLIST_ENTRY(ast_app) list;		/*!< Next app in list */
-	struct ast_module *module;		/*!< Module this app belongs to */
+	struct ast_module_lib *lib;		/*!< Module this app belongs to */
 	char name[0];				/*!< Name of the application */
 };
 
@@ -1318,6 +1319,116 @@ static struct ast_context *find_context_locked(const char *context);
 static struct ast_context *find_context(const char *context);
 static void get_device_state_causing_channels(struct ao2_container *c);
 
+
+#ifdef AST_XML_DOCS
+static int acf_initialize(void *interface, struct ast_module *module)
+{
+	struct ast_custom_function *acf = interface;
+	char *tmpxml;
+
+	acf->docsrc = AST_STATIC_DOC;
+
+	/* Let's try to find it in the Documentation XML */
+	if (!ast_strlen_zero(acf->desc) || !ast_strlen_zero(acf->synopsis)) {
+		return 0;
+	}
+
+	if (ast_string_field_init(acf, 128)) {
+		return -1;
+	}
+
+	/* load synopsis */
+	tmpxml = ast_xmldoc_build_synopsis("function", acf->name, ast_module_name(module));
+	ast_string_field_set(acf, synopsis, tmpxml);
+	ast_free(tmpxml);
+
+	/* load description */
+	tmpxml = ast_xmldoc_build_description("function", acf->name, ast_module_name(module));
+	ast_string_field_set(acf, desc, tmpxml);
+	ast_free(tmpxml);
+
+	/* load syntax */
+	tmpxml = ast_xmldoc_build_syntax("function", acf->name, ast_module_name(module));
+	ast_string_field_set(acf, syntax, tmpxml);
+	ast_free(tmpxml);
+
+	/* load arguments */
+	tmpxml = ast_xmldoc_build_arguments("function", acf->name, ast_module_name(module));
+	ast_string_field_set(acf, arguments, tmpxml);
+	ast_free(tmpxml);
+
+	/* load seealso */
+	tmpxml = ast_xmldoc_build_seealso("function", acf->name, ast_module_name(module));
+	ast_string_field_set(acf, seealso, tmpxml);
+	ast_free(tmpxml);
+
+	acf->docsrc = AST_XML_DOC;
+
+	return 0;
+}
+
+static void acf_cleanup(void *interface)
+{
+	struct ast_custom_function *acf = interface;
+
+	if (acf->docsrc == AST_XML_DOC) {
+		ast_string_field_free_memory(acf);
+	}
+}
+#endif
+
+struct ast_api_registry ast_custom_function = {
+	.label = "Dialplan Function",
+	.allow_core = 1,
+#ifdef AST_XML_DOCS
+	.initialize_interface = acf_initialize,
+	.clean_interface = acf_cleanup,
+#endif
+};
+AST_API_FN_REGISTER(ast_custom_function, __ast_custom_function)
+AST_API_FN_UNREGISTER(ast_custom_function, ast_custom_function)
+AST_API_FN_USE_BY_NAME(ast_custom_function, ast_custom_function)
+
+int __ast_custom_function_register_escalating(struct ast_custom_function *acf, enum ast_custom_function_escalation escalation, struct ast_module *mod)
+{
+	switch (escalation) {
+	case AST_CFE_NONE:
+		break;
+	case AST_CFE_READ:
+		acf->read_escalates = 1;
+		break;
+	case AST_CFE_WRITE:
+		acf->write_escalates = 1;
+		break;
+	case AST_CFE_BOTH:
+		acf->read_escalates = 1;
+		acf->write_escalates = 1;
+		break;
+	}
+
+	return __ast_custom_function_register(acf, mod);
+}
+
+int ast_custom_function_exists(const char *name)
+{
+	struct ast_api_holder *holder;
+
+	holder = ast_api_registry_find_by_name(&ast_custom_function, name);
+	if (holder) {
+		ao2_ref(holder, -1);
+
+		return 1;
+	}
+
+	return 0;
+}
+
+
+struct ast_api_registry ast_switch = { .label = "PBX Switch" };
+AST_API_FN_REGISTER(ast_switch, __ast_switch)
+static AST_API_FN_USE_BY_NAME(ast_switch, ast_switch)
+
+
 /*!
  * \internal
  * \brief Character array comparison function for qsort.
@@ -1435,13 +1546,6 @@ AST_MUTEX_DEFINE_STATIC(maxcalllock);
 static int countcalls;
 static int totalcalls;
 
-/*!
- * \brief Registered functions container.
- *
- * It is sorted by function name.
- */
-static AST_RWLIST_HEAD_STATIC(acf_root, ast_custom_function);
-
 /*! \brief Declaration of builtin applications */
 static struct pbx_builtin {
 	char name[AST_MAX_APP];
@@ -1501,8 +1605,6 @@ AST_MUTEX_DEFINE_STATIC(context_merge_lock);
  * It is sorted by application name.
  */
 static AST_RWLIST_HEAD_STATIC(apps, ast_app);
-
-static AST_RWLIST_HEAD_STATIC(switches, ast_switch);
 
 static int stateid = 1;
 /*!
@@ -1701,7 +1803,7 @@ int pbx_exec(struct ast_channel *c,	/*!< Channel */
 	     const char *data)		/*!< Data for execution */
 {
 	int res;
-	struct ast_module_user *u = NULL;
+	struct ast_module_disposer *disposer = NULL;
 	const char *saved_c_appl;
 	const char *saved_c_data;
 
@@ -1715,11 +1817,23 @@ int pbx_exec(struct ast_channel *c,	/*!< Channel */
 	ast_channel_publish_snapshot(c);
 	ast_channel_unlock(c);
 
-	if (app->module)
-		u = __ast_module_user_add(app->module, c);
+	if (app->lib) {
+		struct ast_module_instance *instance = ast_module_lib_get_instance(app->lib);
+
+		if (!instance) {
+			return -1;
+		}
+
+		/* Eats the instance reference on success or failure. */
+		disposer = ast_module_disposer_alloc(instance, c, ast_module_disposer_channel_cb);
+		if (!disposer) {
+			return -1;
+		}
+	}
 	res = app->execute(c, S_OR(data, ""));
-	if (app->module && u)
-		__ast_module_user_remove(app->module, u);
+	if (disposer) {
+		ast_module_disposer_destroy(disposer);
+	}
 	/* restore channel values */
 	ast_channel_appl_set(c, saved_c_appl);
 	ast_channel_data_set(c, saved_c_data);
@@ -1745,7 +1859,7 @@ static struct ast_app *pbx_findapp_nolock(const char *name)
 		break;
 	}
 
-	return cur;
+	return ao2_bump(cur);
 }
 
 struct ast_app *pbx_findapp(const char *app)
@@ -1757,20 +1871,6 @@ struct ast_app *pbx_findapp(const char *app)
 	AST_RWLIST_UNLOCK(&apps);
 
 	return ret;
-}
-
-static struct ast_switch *pbx_findswitch(const char *sw)
-{
-	struct ast_switch *asw;
-
-	AST_RWLIST_RDLOCK(&switches);
-	AST_RWLIST_TRAVERSE(&switches, asw, list) {
-		if (!strcasecmp(asw->name, sw))
-			break;
-	}
-	AST_RWLIST_UNLOCK(&switches);
-
-	return asw;
 }
 
 static inline int include_valid(struct ast_include *i)
@@ -3291,13 +3391,13 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	do {
 		if (!ast_strlen_zero(overrideswitch)) {
 			char *osw = ast_strdupa(overrideswitch), *name;
-			struct ast_switch *asw;
+			AST_API_HOLDER_SCOPED(ast_switch, asw, NULL);
 			ast_switch_f *aswf = NULL;
 			char *datap;
 			int eval = 0;
 
 			name = strsep(&osw, "/");
-			asw = pbx_findswitch(name);
+			AST_API_HOLDER_SET(ast_switch, asw, ast_switch_use_by_name(name));
 
 			if (!asw) {
 				ast_log(LOG_WARNING, "No such switch '%s'\n", name);
@@ -3454,7 +3554,7 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 
 	/* Check alternative switches */
 	AST_LIST_TRAVERSE(&tmp->alts, sw, list) {
-		struct ast_switch *asw = pbx_findswitch(sw->name);
+		AST_API_HOLDER_SCOPED(ast_switch, asw, ast_switch_use_by_name(sw->name));
 		ast_switch_f *aswf = NULL;
 		char *datap;
 
@@ -3881,7 +3981,6 @@ static struct ast_custom_function exception_function = {
 
 static char *handle_show_functions(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct ast_custom_function *acf;
 	int count_acf = 0;
 	int like = 0;
 
@@ -3904,8 +4003,8 @@ static char *handle_show_functions(struct ast_cli_entry *e, int cmd, struct ast_
 
 	ast_cli(a->fd, "%s Custom Functions:\n--------------------------------------------------------------------------------\n", like ? "Matching" : "Installed");
 
-	AST_RWLIST_RDLOCK(&acf_root);
-	AST_RWLIST_TRAVERSE(&acf_root, acf, acflist) {
+	AST_API_REGISTRY_RDLOCK(ast_custom_function);
+	AST_API_REGISTRY_ITERATE_INTERFACES(ast_custom_function, acf, {
 		if (!like || strstr(acf->name, a->argv[4])) {
 			count_acf++;
 			ast_cli(a->fd, "%-20.20s  %-35.35s  %s\n",
@@ -3913,8 +4012,8 @@ static char *handle_show_functions(struct ast_cli_entry *e, int cmd, struct ast_
 				S_OR(acf->syntax, ""),
 				S_OR(acf->synopsis, ""));
 		}
-	}
-	AST_RWLIST_UNLOCK(&acf_root);
+	});
+	AST_API_REGISTRY_UNLOCK(ast_custom_function);
 
 	ast_cli(a->fd, "%d %scustom functions installed.\n", count_acf, like ? "matching " : "");
 
@@ -3923,7 +4022,6 @@ static char *handle_show_functions(struct ast_cli_entry *e, int cmd, struct ast_
 
 static char *complete_functions(const char *word, int pos, int state)
 {
-	struct ast_custom_function *cur;
 	char *ret = NULL;
 	int which = 0;
 	int wordlen;
@@ -3934,8 +4032,9 @@ static char *complete_functions(const char *word, int pos, int state)
 	}
 
 	wordlen = strlen(word);
-	AST_RWLIST_RDLOCK(&acf_root);
-	AST_RWLIST_TRAVERSE(&acf_root, cur, acflist) {
+
+	AST_API_REGISTRY_RDLOCK(ast_custom_function);
+	AST_API_REGISTRY_ITERATE_INTERFACES(ast_custom_function, cur, {
 		/*
 		 * Do a case-insensitive search for convenience in this
 		 * 'complete' function.
@@ -3953,15 +4052,14 @@ static char *complete_functions(const char *word, int pos, int state)
 			ret = ast_strdup(cur->name);
 			break;
 		}
-	}
-	AST_RWLIST_UNLOCK(&acf_root);
+	});
+	AST_API_REGISTRY_UNLOCK(ast_custom_function);
 
 	return ret;
 }
 
 static char *handle_show_function(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct ast_custom_function *acf;
 	/* Maximum number of characters added by terminal coloring is 22 */
 	char infotitle[64 + AST_MAX_APP + 22], syntitle[40], destitle[40], argtitle[40], seealsotitle[40];
 	char info[64 + AST_MAX_APP], *synopsis = NULL, *description = NULL, *seealso = NULL;
@@ -3983,61 +4081,65 @@ static char *handle_show_function(struct ast_cli_entry *e, int cmd, struct ast_c
 		return CLI_SHOWUSAGE;
 	}
 
-	if (!(acf = ast_custom_function_find(a->argv[3]))) {
-		ast_cli(a->fd, "No function by that name registered.\n");
-		return CLI_FAILURE;
-	}
-
-	syntax_size = strlen(S_OR(acf->syntax, "Not Available")) + AST_TERM_MAX_ESCAPE_CHARS;
-	if (!(syntax = ast_malloc(syntax_size))) {
-		ast_cli(a->fd, "Memory allocation failure!\n");
-		return CLI_FAILURE;
-	}
-
-	snprintf(info, sizeof(info), "\n  -= Info about function '%s' =- \n\n", acf->name);
-	term_color(infotitle, info, COLOR_MAGENTA, 0, sizeof(infotitle));
-	term_color(syntitle, "[Synopsis]\n", COLOR_MAGENTA, 0, 40);
-	term_color(destitle, "[Description]\n", COLOR_MAGENTA, 0, 40);
-	term_color(stxtitle, "[Syntax]\n", COLOR_MAGENTA, 0, 40);
-	term_color(argtitle, "[Arguments]\n", COLOR_MAGENTA, 0, 40);
-	term_color(seealsotitle, "[See Also]\n", COLOR_MAGENTA, 0, 40);
-	term_color(syntax, S_OR(acf->syntax, "Not available"), COLOR_CYAN, 0, syntax_size);
-#ifdef AST_XML_DOCS
-	if (acf->docsrc == AST_XML_DOC) {
-		arguments = ast_xmldoc_printable(S_OR(acf->arguments, "Not available"), 1);
-		synopsis = ast_xmldoc_printable(S_OR(acf->synopsis, "Not available"), 1);
-		description = ast_xmldoc_printable(S_OR(acf->desc, "Not available"), 1);
-		seealso = ast_xmldoc_printable(S_OR(acf->seealso, "Not available"), 1);
-	} else
-#endif
 	{
-		synopsis_size = strlen(S_OR(acf->synopsis, "Not Available")) + AST_TERM_MAX_ESCAPE_CHARS;
-		synopsis = ast_malloc(synopsis_size);
+		AST_API_HOLDER_SCOPED(ast_custom_function, acf, ast_custom_function_use_by_name(a->argv[3]));
 
-		description_size = strlen(S_OR(acf->desc, "Not Available")) + AST_TERM_MAX_ESCAPE_CHARS;
-		description = ast_malloc(description_size);
-
-		arguments_size = strlen(S_OR(acf->arguments, "Not Available")) + AST_TERM_MAX_ESCAPE_CHARS;
-		arguments = ast_malloc(arguments_size);
-
-		seealso_size = strlen(S_OR(acf->seealso, "Not Available")) + AST_TERM_MAX_ESCAPE_CHARS;
-		seealso = ast_malloc(seealso_size);
-
-		/* check allocated memory. */
-		if (!synopsis || !description || !arguments || !seealso) {
-			ast_free(synopsis);
-			ast_free(description);
-			ast_free(arguments);
-			ast_free(seealso);
-			ast_free(syntax);
+		if (!acf) {
+			ast_cli(a->fd, "No function by that name registered.\n");
 			return CLI_FAILURE;
 		}
 
-		term_color(arguments, S_OR(acf->arguments, "Not available"), COLOR_CYAN, 0, arguments_size);
-		term_color(synopsis, S_OR(acf->synopsis, "Not available"), COLOR_CYAN, 0, synopsis_size);
-		term_color(description, S_OR(acf->desc, "Not available"), COLOR_CYAN, 0, description_size);
-		term_color(seealso, S_OR(acf->seealso, "Not available"), COLOR_CYAN, 0, seealso_size);
-	}
+		syntax_size = strlen(S_OR(acf->syntax, "Not Available")) + AST_TERM_MAX_ESCAPE_CHARS;
+		if (!(syntax = ast_malloc(syntax_size))) {
+			ast_cli(a->fd, "Memory allocation failure!\n");
+			return CLI_FAILURE;
+		}
+
+		snprintf(info, sizeof(info), "\n  -= Info about function '%s' =- \n\n", acf->name);
+		term_color(infotitle, info, COLOR_MAGENTA, 0, sizeof(infotitle));
+		term_color(syntitle, "[Synopsis]\n", COLOR_MAGENTA, 0, 40);
+		term_color(destitle, "[Description]\n", COLOR_MAGENTA, 0, 40);
+		term_color(stxtitle, "[Syntax]\n", COLOR_MAGENTA, 0, 40);
+		term_color(argtitle, "[Arguments]\n", COLOR_MAGENTA, 0, 40);
+		term_color(seealsotitle, "[See Also]\n", COLOR_MAGENTA, 0, 40);
+		term_color(syntax, S_OR(acf->syntax, "Not available"), COLOR_CYAN, 0, syntax_size);
+	#ifdef AST_XML_DOCS
+		if (acf->docsrc == AST_XML_DOC) {
+			arguments = ast_xmldoc_printable(S_OR(acf->arguments, "Not available"), 1);
+			synopsis = ast_xmldoc_printable(S_OR(acf->synopsis, "Not available"), 1);
+			description = ast_xmldoc_printable(S_OR(acf->desc, "Not available"), 1);
+			seealso = ast_xmldoc_printable(S_OR(acf->seealso, "Not available"), 1);
+		} else
+	#endif
+		{
+			synopsis_size = strlen(S_OR(acf->synopsis, "Not Available")) + AST_TERM_MAX_ESCAPE_CHARS;
+			synopsis = ast_malloc(synopsis_size);
+
+			description_size = strlen(S_OR(acf->desc, "Not Available")) + AST_TERM_MAX_ESCAPE_CHARS;
+			description = ast_malloc(description_size);
+
+			arguments_size = strlen(S_OR(acf->arguments, "Not Available")) + AST_TERM_MAX_ESCAPE_CHARS;
+			arguments = ast_malloc(arguments_size);
+
+			seealso_size = strlen(S_OR(acf->seealso, "Not Available")) + AST_TERM_MAX_ESCAPE_CHARS;
+			seealso = ast_malloc(seealso_size);
+
+			/* check allocated memory. */
+			if (!synopsis || !description || !arguments || !seealso) {
+				ast_free(synopsis);
+				ast_free(description);
+				ast_free(arguments);
+				ast_free(seealso);
+				ast_free(syntax);
+				return CLI_FAILURE;
+			}
+
+			term_color(arguments, S_OR(acf->arguments, "Not available"), COLOR_CYAN, 0, arguments_size);
+			term_color(synopsis, S_OR(acf->synopsis, "Not available"), COLOR_CYAN, 0, synopsis_size);
+			term_color(description, S_OR(acf->desc, "Not available"), COLOR_CYAN, 0, description_size);
+			term_color(seealso, S_OR(acf->seealso, "Not available"), COLOR_CYAN, 0, seealso_size);
+		}
+	};
 
 	ast_cli(a->fd, "%s%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n\n%s%s\n",
 			infotitle, syntitle, synopsis, destitle, description,
@@ -4050,61 +4152,6 @@ static char *handle_show_function(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_free(syntax);
 
 	return CLI_SUCCESS;
-}
-
-static struct ast_custom_function *ast_custom_function_find_nolock(const char *name)
-{
-	struct ast_custom_function *cur;
-	int cmp;
-
-	AST_RWLIST_TRAVERSE(&acf_root, cur, acflist) {
-		cmp = strcmp(name, cur->name);
-		if (cmp > 0) {
-			continue;
-		}
-		if (!cmp) {
-			/* Found it. */
-			break;
-		}
-		/* Not in container. */
-		cur = NULL;
-		break;
-	}
-
-	return cur;
-}
-
-struct ast_custom_function *ast_custom_function_find(const char *name)
-{
-	struct ast_custom_function *acf;
-
-	AST_RWLIST_RDLOCK(&acf_root);
-	acf = ast_custom_function_find_nolock(name);
-	AST_RWLIST_UNLOCK(&acf_root);
-
-	return acf;
-}
-
-int ast_custom_function_unregister(struct ast_custom_function *acf)
-{
-	struct ast_custom_function *cur;
-
-	if (!acf) {
-		return -1;
-	}
-
-	AST_RWLIST_WRLOCK(&acf_root);
-	if ((cur = AST_RWLIST_REMOVE(&acf_root, acf, acflist))) {
-#ifdef AST_XML_DOCS
-		if (cur->docsrc == AST_XML_DOC) {
-			ast_string_field_free_memory(acf);
-		}
-#endif
-		ast_verb(2, "Unregistered custom function %s\n", cur->name);
-	}
-	AST_RWLIST_UNLOCK(&acf_root);
-
-	return cur ? 0 : -1;
 }
 
 /*!
@@ -4127,131 +4174,6 @@ static int read_escalates(const struct ast_custom_function *acf) {
  */
 static int write_escalates(const struct ast_custom_function *acf) {
 	return acf->write_escalates;
-}
-
-/*! \internal
- *  \brief Retrieve the XML documentation of a specified ast_custom_function,
- *         and populate ast_custom_function string fields.
- *  \param acf ast_custom_function structure with empty 'desc' and 'synopsis'
- *             but with a function 'name'.
- *  \retval -1 On error.
- *  \retval 0 On succes.
- */
-static int acf_retrieve_docs(struct ast_custom_function *acf)
-{
-#ifdef AST_XML_DOCS
-	char *tmpxml;
-
-	/* Let's try to find it in the Documentation XML */
-	if (!ast_strlen_zero(acf->desc) || !ast_strlen_zero(acf->synopsis)) {
-		return 0;
-	}
-
-	if (ast_string_field_init(acf, 128)) {
-		return -1;
-	}
-
-	/* load synopsis */
-	tmpxml = ast_xmldoc_build_synopsis("function", acf->name, ast_module_name(acf->mod));
-	ast_string_field_set(acf, synopsis, tmpxml);
-	ast_free(tmpxml);
-
-	/* load description */
-	tmpxml = ast_xmldoc_build_description("function", acf->name, ast_module_name(acf->mod));
-	ast_string_field_set(acf, desc, tmpxml);
-	ast_free(tmpxml);
-
-	/* load syntax */
-	tmpxml = ast_xmldoc_build_syntax("function", acf->name, ast_module_name(acf->mod));
-	ast_string_field_set(acf, syntax, tmpxml);
-	ast_free(tmpxml);
-
-	/* load arguments */
-	tmpxml = ast_xmldoc_build_arguments("function", acf->name, ast_module_name(acf->mod));
-	ast_string_field_set(acf, arguments, tmpxml);
-	ast_free(tmpxml);
-
-	/* load seealso */
-	tmpxml = ast_xmldoc_build_seealso("function", acf->name, ast_module_name(acf->mod));
-	ast_string_field_set(acf, seealso, tmpxml);
-	ast_free(tmpxml);
-
-	acf->docsrc = AST_XML_DOC;
-#endif
-
-	return 0;
-}
-
-int __ast_custom_function_register(struct ast_custom_function *acf, struct ast_module *mod)
-{
-	struct ast_custom_function *cur;
-
-	if (!acf) {
-		return -1;
-	}
-
-	acf->mod = mod;
-#ifdef AST_XML_DOCS
-	acf->docsrc = AST_STATIC_DOC;
-#endif
-
-	if (acf_retrieve_docs(acf)) {
-		return -1;
-	}
-
-	AST_RWLIST_WRLOCK(&acf_root);
-
-	cur = ast_custom_function_find_nolock(acf->name);
-	if (cur) {
-		ast_log(LOG_ERROR, "Function %s already registered.\n", acf->name);
-		AST_RWLIST_UNLOCK(&acf_root);
-		return -1;
-	}
-
-	/* Store in alphabetical order */
-	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&acf_root, cur, acflist) {
-		if (strcmp(acf->name, cur->name) < 0) {
-			AST_RWLIST_INSERT_BEFORE_CURRENT(acf, acflist);
-			break;
-		}
-	}
-	AST_RWLIST_TRAVERSE_SAFE_END;
-	if (!cur) {
-		AST_RWLIST_INSERT_TAIL(&acf_root, acf, acflist);
-	}
-
-	AST_RWLIST_UNLOCK(&acf_root);
-
-	ast_verb(2, "Registered custom function '" COLORIZE_FMT "'\n", COLORIZE(COLOR_BRCYAN, 0, acf->name));
-
-	return 0;
-}
-
-int __ast_custom_function_register_escalating(struct ast_custom_function *acf, enum ast_custom_function_escalation escalation, struct ast_module *mod)
-{
-	int res;
-
-	res = __ast_custom_function_register(acf, mod);
-	if (res != 0) {
-		return -1;
-	}
-
-	switch (escalation) {
-	case AST_CFE_NONE:
-		break;
-	case AST_CFE_READ:
-		acf->read_escalates = 1;
-		break;
-	case AST_CFE_WRITE:
-		acf->write_escalates = 1;
-		break;
-	case AST_CFE_BOTH:
-		acf->read_escalates = 1;
-		acf->write_escalates = 1;
-		break;
-	}
-
-	return 0;
 }
 
 /*! \brief return a pointer to the arguments of the function,
@@ -4397,9 +4319,7 @@ int ast_func_read(struct ast_channel *chan, const char *function, char *workspac
 {
 	char *copy = ast_strdupa(function);
 	char *args = func_args(copy);
-	struct ast_custom_function *acfptr = ast_custom_function_find(copy);
-	int res;
-	struct ast_module_user *u = NULL;
+	AST_API_HOLDER_SCOPED(ast_custom_function, acfptr, ast_custom_function_use_by_name(copy));
 
 	if (acfptr == NULL) {
 		ast_log(LOG_ERROR, "Function %s not registered\n", copy);
@@ -4408,23 +4328,12 @@ int ast_func_read(struct ast_channel *chan, const char *function, char *workspac
 	} else if (!is_read_allowed(acfptr)) {
 		ast_log(LOG_ERROR, "Dangerous function %s read blocked\n", copy);
 	} else if (acfptr->read) {
-		if (acfptr->mod) {
-			u = __ast_module_user_add(acfptr->mod, chan);
-		}
-		res = acfptr->read(chan, copy, args, workspace, len);
-		if (acfptr->mod && u) {
-			__ast_module_user_remove(acfptr->mod, u);
-		}
-		return res;
+		return acfptr->read(chan, copy, args, workspace, len);
 	} else {
 		struct ast_str *str = ast_str_create(16);
-		if (acfptr->mod) {
-			u = __ast_module_user_add(acfptr->mod, chan);
-		}
+		int res;
+
 		res = acfptr->read2(chan, copy, args, &str, 0);
-		if (acfptr->mod && u) {
-			__ast_module_user_remove(acfptr->mod, u);
-		}
 		ast_copy_string(workspace, ast_str_buffer(str), len > ast_str_size(str) ? ast_str_size(str) : len);
 		ast_free(str);
 		return res;
@@ -4436,9 +4345,7 @@ int ast_func_read2(struct ast_channel *chan, const char *function, struct ast_st
 {
 	char *copy = ast_strdupa(function);
 	char *args = func_args(copy);
-	struct ast_custom_function *acfptr = ast_custom_function_find(copy);
-	int res;
-	struct ast_module_user *u = NULL;
+	AST_API_HOLDER_SCOPED(ast_custom_function, acfptr, ast_custom_function_use_by_name(copy));
 
 	if (acfptr == NULL) {
 		ast_log(LOG_ERROR, "Function %s not registered\n", copy);
@@ -4447,13 +4354,10 @@ int ast_func_read2(struct ast_channel *chan, const char *function, struct ast_st
 	} else if (!is_read_allowed(acfptr)) {
 		ast_log(LOG_ERROR, "Dangerous function %s read blocked\n", copy);
 	} else {
-		if (acfptr->mod) {
-			u = __ast_module_user_add(acfptr->mod, chan);
-		}
 		ast_str_reset(*str);
 		if (acfptr->read2) {
 			/* ast_str enabled */
-			res = acfptr->read2(chan, copy, args, str, maxlen);
+			return acfptr->read2(chan, copy, args, str, maxlen);
 		} else {
 			/* Legacy function pointer, allocate buffer for result */
 			int maxsize = ast_str_size(*str);
@@ -4469,12 +4373,8 @@ int ast_func_read2(struct ast_channel *chan, const char *function, struct ast_st
 				}
 				ast_str_make_space(str, maxsize);
 			}
-			res = acfptr->read(chan, copy, args, ast_str_buffer(*str), maxsize);
+			return acfptr->read(chan, copy, args, ast_str_buffer(*str), maxsize);
 		}
-		if (acfptr->mod && u) {
-			__ast_module_user_remove(acfptr->mod, u);
-		}
-		return res;
 	}
 	return -1;
 }
@@ -4483,7 +4383,7 @@ int ast_func_write(struct ast_channel *chan, const char *function, const char *v
 {
 	char *copy = ast_strdupa(function);
 	char *args = func_args(copy);
-	struct ast_custom_function *acfptr = ast_custom_function_find(copy);
+	AST_API_HOLDER_SCOPED(ast_custom_function, acfptr, ast_custom_function_use_by_name(copy));
 
 	if (acfptr == NULL) {
 		ast_log(LOG_ERROR, "Function %s not registered\n", copy);
@@ -4492,14 +4392,7 @@ int ast_func_write(struct ast_channel *chan, const char *function, const char *v
 	} else if (!is_write_allowed(acfptr)) {
 		ast_log(LOG_ERROR, "Dangerous function %s write blocked\n", copy);
 	} else {
-		int res;
-		struct ast_module_user *u = NULL;
-		if (acfptr->mod)
-			u = __ast_module_user_add(acfptr->mod, chan);
-		res = acfptr->write(chan, copy, args, value);
-		if (acfptr->mod && u)
-			__ast_module_user_remove(acfptr->mod, u);
-		return res;
+		return acfptr->write(chan, copy, args, value);
 	}
 
 	return -1;
@@ -4952,9 +4845,12 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 			ast_unlock_contexts();
 			return res;	/* the priority we were looking for */
 		} else {	/* spawn */
+			int ret;
+
+			/* BUGBUG: where should we clean e->cached_app? */
 			if (!e->cached_app)
 				e->cached_app = pbx_findapp(e->app);
-			app = e->cached_app;
+			app = ao2_bump(e->cached_app);
 			if (ast_strlen_zero(e->data)) {
 				*passdata = '\0';
 			} else {
@@ -4989,7 +4885,10 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 					COLORIZE(COLOR_BRMAGENTA, 0, passdata),
 					"in new stack");
 			}
-			return pbx_exec(c, app, passdata);	/* 0 on success, -1 on failure */
+			ret = pbx_exec(c, app, passdata);	/* 0 on success, -1 on failure */
+			ao2_ref(app, -1);
+
+			return ret;
 		}
 	} else if (q.swo) {	/* not found here, but in another switch */
 		if (found)
@@ -6749,6 +6648,7 @@ static void destroy_exten(struct ast_exten *e)
 		ast_hashtab_destroy(e->peer_label_table, 0);
 	if (e->datad)
 		e->datad(e->data);
+	ao2_cleanup(e->cached_app);
 	ast_free(e);
 }
 
@@ -7238,8 +7138,22 @@ int ast_context_unlockmacro(const char *context)
 	return ret;
 }
 
+static void module_app_unregister(void *weakproxy, void *data)
+{
+	struct ast_app *cur = data;
+
+	ast_unregister_application(cur->name);
+}
+
+static void app_destructor(void *obj)
+{
+	struct ast_app *app = obj;
+
+	ao2_cleanup(app->lib);
+}
+
 /*! \brief Dynamically register a new dial plan application */
-int ast_register_application2(const char *app, int (*execute)(struct ast_channel *, const char *), const char *synopsis, const char *description, void *mod)
+int ast_register_application2(const char *app, int (*execute)(struct ast_channel *, const char *), const char *synopsis, const char *description, struct ast_module *module)
 {
 	struct ast_app *tmp;
 	struct ast_app *cur;
@@ -7253,51 +7167,54 @@ int ast_register_application2(const char *app, int (*execute)(struct ast_channel
 	if (cur) {
 		ast_log(LOG_WARNING, "Already have an application '%s'\n", app);
 		AST_RWLIST_UNLOCK(&apps);
+		ao2_ref(cur, -1);
 		return -1;
 	}
 
 	length = sizeof(*tmp) + strlen(app) + 1;
 
-	if (!(tmp = ast_calloc(1, length))) {
+	tmp = ao2_t_alloc(length, app_destructor, app);
+	if (!tmp) {
 		AST_RWLIST_UNLOCK(&apps);
 		return -1;
 	}
 
 	if (ast_string_field_init(tmp, 128)) {
 		AST_RWLIST_UNLOCK(&apps);
-		ast_free(tmp);
+		ao2_ref(tmp, -1);
 		return -1;
 	}
 
 	strcpy(tmp->name, app);
 	tmp->execute = execute;
-	tmp->module = mod;
+	tmp->lib = module ? ast_module_get_lib_running(module) : NULL;
+	ast_assert(tmp->lib || !module);
 
 #ifdef AST_XML_DOCS
 	/* Try to lookup the docs in our XML documentation database */
 	if (ast_strlen_zero(synopsis) && ast_strlen_zero(description)) {
 		/* load synopsis */
-		tmpxml = ast_xmldoc_build_synopsis("application", app, ast_module_name(tmp->module));
+		tmpxml = ast_xmldoc_build_synopsis("application", app, ast_module_name(module));
 		ast_string_field_set(tmp, synopsis, tmpxml);
 		ast_free(tmpxml);
 
 		/* load description */
-		tmpxml = ast_xmldoc_build_description("application", app, ast_module_name(tmp->module));
+		tmpxml = ast_xmldoc_build_description("application", app, ast_module_name(module));
 		ast_string_field_set(tmp, description, tmpxml);
 		ast_free(tmpxml);
 
 		/* load syntax */
-		tmpxml = ast_xmldoc_build_syntax("application", app, ast_module_name(tmp->module));
+		tmpxml = ast_xmldoc_build_syntax("application", app, ast_module_name(module));
 		ast_string_field_set(tmp, syntax, tmpxml);
 		ast_free(tmpxml);
 
 		/* load arguments */
-		tmpxml = ast_xmldoc_build_arguments("application", app, ast_module_name(tmp->module));
+		tmpxml = ast_xmldoc_build_arguments("application", app, ast_module_name(module));
 		ast_string_field_set(tmp, arguments, tmpxml);
 		ast_free(tmpxml);
 
 		/* load seealso */
-		tmpxml = ast_xmldoc_build_seealso("application", app, ast_module_name(tmp->module));
+		tmpxml = ast_xmldoc_build_seealso("application", app, ast_module_name(module));
 		ast_string_field_set(tmp, seealso, tmpxml);
 		ast_free(tmpxml);
 		tmp->docsrc = AST_XML_DOC;
@@ -7321,40 +7238,17 @@ int ast_register_application2(const char *app, int (*execute)(struct ast_channel
 	if (!cur)
 		AST_RWLIST_INSERT_TAIL(&apps, tmp, list);
 
+	ao2_t_ref(tmp, +1, "link to list");
 	ast_verb(2, "Registered application '" COLORIZE_FMT "'\n", COLORIZE(COLOR_BRCYAN, 0, tmp->name));
 
 	AST_RWLIST_UNLOCK(&apps);
 
-	return 0;
-}
-
-/*
- * Append to the list. We don't have a tail pointer because we need
- * to scan the list anyways to check for duplicates during insertion.
- */
-int ast_register_switch(struct ast_switch *sw)
-{
-	struct ast_switch *tmp;
-
-	AST_RWLIST_WRLOCK(&switches);
-	AST_RWLIST_TRAVERSE(&switches, tmp, list) {
-		if (!strcasecmp(tmp->name, sw->name)) {
-			AST_RWLIST_UNLOCK(&switches);
-			ast_log(LOG_WARNING, "Switch '%s' already found\n", sw->name);
-			return -1;
-		}
+	if (tmp->lib) {
+		ast_module_lib_subscribe_stop(tmp->lib, module_app_unregister, tmp);
 	}
-	AST_RWLIST_INSERT_TAIL(&switches, sw, list);
-	AST_RWLIST_UNLOCK(&switches);
+	ao2_t_ref(tmp, -1, "drop allocation ref");
 
 	return 0;
-}
-
-void ast_unregister_switch(struct ast_switch *sw)
-{
-	AST_RWLIST_WRLOCK(&switches);
-	AST_RWLIST_REMOVE(&switches, sw, list);
-	AST_RWLIST_UNLOCK(&switches);
 }
 
 /*
@@ -7648,8 +7542,6 @@ static char *handle_show_hint(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 /*! \brief  handle_show_switches: CLI support for listing registered dial plan switches */
 static char *handle_show_switches(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct ast_switch *sw;
-
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "core show switches";
@@ -7661,19 +7553,20 @@ static char *handle_show_switches(struct ast_cli_entry *e, int cmd, struct ast_c
 		return NULL;
 	}
 
-	AST_RWLIST_RDLOCK(&switches);
+	AST_API_REGISTRY_RDLOCK(ast_switch);
 
-	if (AST_RWLIST_EMPTY(&switches)) {
-		AST_RWLIST_UNLOCK(&switches);
+	if (AST_API_REGISTRY_EMPTY(ast_switch)) {
+		AST_API_REGISTRY_UNLOCK(ast_switch);
 		ast_cli(a->fd, "There are no registered alternative switches\n");
 		return CLI_SUCCESS;
 	}
 
 	ast_cli(a->fd, "\n    -= Registered Asterisk Alternative Switches =-\n");
-	AST_RWLIST_TRAVERSE(&switches, sw, list)
+	AST_API_REGISTRY_ITERATE_INTERFACES(ast_switch, sw, {
 		ast_cli(a->fd, "%s: %s\n", sw->name, sw->description);
+	});
 
-	AST_RWLIST_UNLOCK(&switches);
+	AST_API_REGISTRY_UNLOCK(ast_switch);
 
 	return CLI_SUCCESS;
 }
@@ -8674,8 +8567,10 @@ static void unreference_cached_app(struct ast_app *app)
 	while ((context = ast_walk_contexts(context))) {
 		while ((eroot = ast_walk_context_extensions(context, eroot))) {
 			while ((e = ast_walk_extension_priorities(eroot, e))) {
-				if (e->cached_app == app)
+				if (e->cached_app == app) {
 					e->cached_app = NULL;
+					ao2_ref(app, -1);
+				}
 			}
 		}
 	}
@@ -8701,7 +8596,13 @@ int ast_unregister_application(const char *app)
 			AST_RWLIST_REMOVE_CURRENT(list);
 			ast_verb(2, "Unregistered application '%s'\n", cur->name);
 			ast_string_field_free_memory(cur);
-			ast_free(cur);
+			if (cur->lib) {
+				ast_module_lib_unsubscribe_stop(cur->lib, module_app_unregister, cur);
+				ao2_ref(cur->lib, -1);
+				cur->lib = NULL;
+			}
+
+			ao2_ref(cur, -1);
 			break;
 		}
 		/* Not in container. */
@@ -10330,6 +10231,7 @@ static void *pbx_outgoing_exec(void *data)
 			ast_verb(4, "Launching %s(%s) on %s\n", outgoing->app, S_OR(outgoing->appdata, ""),
 				ast_channel_name(ast_dial_answered(outgoing->dial)));
 			pbx_exec(ast_dial_answered(outgoing->dial), app, outgoing->appdata);
+			ao2_ref(app, -1);
 		} else {
 			ast_log(LOG_WARNING, "No such application '%s'\n", outgoing->app);
 		}
@@ -11231,7 +11133,11 @@ static int pbx_builtin_execiftime(struct ast_channel *chan, const char *data)
 
 
 	if ((app = pbx_findapp(appname))) {
-		return pbx_exec(chan, app, S_OR(s, ""));
+		int ret;
+
+		ret = pbx_exec(chan, app, S_OR(s, ""));
+		ao2_ref(app, -1);
+		return ret;
 	} else {
 		ast_log(LOG_WARNING, "Cannot locate application %s\n", appname);
 		return -1;
@@ -12186,8 +12092,8 @@ int load_pbx(void)
 	ast_verb(2, "Registering builtin applications and functions:\n");
 	ast_cli_register_multiple(pbx_cli, ARRAY_LEN(pbx_cli));
 	ast_data_register_multiple_core(pbx_data_providers, ARRAY_LEN(pbx_data_providers));
-	__ast_custom_function_register(&exception_function, NULL);
-	__ast_custom_function_register(&testtime_function, NULL);
+	ast_custom_function_register(&exception_function);
+	ast_custom_function_register(&testtime_function);
 
 	/* Register builtin applications */
 	for (x = 0; x < ARRAY_LEN(builtins); x++) {
@@ -12610,6 +12516,8 @@ static void pbx_shutdown(void)
 		ast_hashtab_destroy(contexts_table, NULL);
 	}
 	pbx_builtin_clear_globals();
+	ast_api_registry_cleanup(&ast_custom_function);
+	ast_api_registry_cleanup(&ast_switch);
 }
 
 static void print_hints_key(void *v_obj, void *where, ao2_prnt_fn *prnt)
@@ -12661,6 +12569,11 @@ int ast_pbx_init(void)
 	}
 
 	ast_register_cleanup(pbx_shutdown);
+
+	if (hints && hintdevices && statecbs) {
+		return ast_api_registry_init(&ast_custom_function, 20)
+			|| ast_api_registry_init(&ast_switch, 5);
+	}
 
 	return (hints && hintdevices && statecbs) ? 0 : -1;
 }

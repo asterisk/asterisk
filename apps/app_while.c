@@ -335,18 +335,6 @@ static int while_continue_exec(struct ast_channel *chan, const char *data)
 	return 0;
 }
 
-static int unload_module(void)
-{
-	int res;
-	
-	res = ast_unregister_application(start_app);
-	res |= ast_unregister_application(stop_app);
-	res |= ast_unregister_application(exit_app);
-	res |= ast_unregister_application(continue_app);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res;
@@ -359,4 +347,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "While Loops and Conditional Execution");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "While Loops and Conditional Execution");

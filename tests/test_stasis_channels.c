@@ -306,17 +306,6 @@ AST_TEST_DEFINE(channel_snapshot_json)
 	return AST_TEST_PASS;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(channel_blob_create);
-	AST_TEST_UNREGISTER(null_blob);
-	AST_TEST_UNREGISTER(multi_channel_blob_create);
-	AST_TEST_UNREGISTER(multi_channel_blob_snapshots);
-	AST_TEST_UNREGISTER(channel_snapshot_json);
-
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(channel_blob_create);
@@ -328,7 +317,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, 0, "Stasis Channel Testing",
-	.load = load_module,
-	.unload = unload_module
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Stasis Channel Testing");

@@ -25,17 +25,17 @@
 
 /*** MODULEINFO
 	<depend>TEST_FRAMEWORK</depend>
-	<depend>format_g723</depend>
-	<depend>format_g726</depend>
-	<depend>format_g729</depend>
-	<depend>format_gsm</depend>
-	<depend>format_ogg_vorbis</depend>
-	<depend>format_pcm</depend>
-	<depend>format_siren14</depend>
-	<depend>format_siren7</depend>
-	<depend>format_sln</depend>
-	<depend>format_wav</depend>
-	<depend>format_wav_gsm</depend>
+	<use type="module">format_g723</use>
+	<use type="module">format_g726</use>
+	<use type="module">format_g729</use>
+	<use type="module">format_gsm</use>
+	<use type="module">format_ogg_vorbis</use>
+	<use type="module">format_pcm</use>
+	<use type="module">format_siren14</use>
+	<use type="module">format_siren7</use>
+	<use type="module">format_sln</use>
+	<use type="module">format_wav</use>
+	<use type="module">format_wav_gsm</use>
 	<support_level>core</support_level>
  ***/
 
@@ -120,12 +120,6 @@ AST_TEST_DEFINE(ast_format_str_reduce_test_1)
 	return AST_TEST_PASS;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(ast_format_str_reduce_test_1);
-	return 0;
-}
-
 static int load_module(void)
 {
 
@@ -134,4 +128,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "ast_format_str_reduce() test module");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "ast_format_str_reduce() test module");

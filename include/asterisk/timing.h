@@ -92,21 +92,8 @@ struct ast_timing_interface {
  * \retval non-Null handle to be passed to ast_unregister_timing_interface() on success
  * \since 1.6.1
  */
-#define ast_register_timing_interface(i) _ast_register_timing_interface(i, AST_MODULE_SELF)
-void *_ast_register_timing_interface(struct ast_timing_interface *funcs,
-						 struct ast_module *mod);
-
-/*!
- * \brief Unregister a previously registered timing interface.
- *
- * \param handle The handle returned from a prior successful call to
- *        ast_register_timing_interface().
- *
- * \retval 0 success
- * \retval non-zero failure
- * \since 1.6.1
- */
-int ast_unregister_timing_interface(void *handle);
+#define ast_timing_interface_register(i) __ast_timing_interface_register(i, AST_MODULE_SELF)
+int __ast_timing_interface_register(struct ast_timing_interface *funcs, struct ast_module *mod);
 
 struct ast_timer;
 

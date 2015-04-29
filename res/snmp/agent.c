@@ -769,16 +769,13 @@ static u_char *ast_var_indications_table(struct variable *vp, oid *name, size_t 
 	return NULL;
 }
 
-static int countmodule(const char *mod, const char *desc, int use, const char *status,
-		const char *like, enum ast_module_support_level support_level)
-{
-	return 1;
-}
+/* BUGBUG: move to header.. */
+int ast_module_count_running(void);
 
 static u_char *ast_var_Modules(struct variable *vp, oid *name, size_t *length,
 							  int exact, size_t *var_len, WriteMethod **write_method)
 {
-	static unsigned long long_ret;
+	static unsigned long long_ret = 0;
 
 	if (header_generic(vp, name, length, exact, var_len, write_method))
 		return NULL;
@@ -786,7 +783,7 @@ static u_char *ast_var_Modules(struct variable *vp, oid *name, size_t *length,
 	if (vp->magic != ASTMODCOUNT)
 		return NULL;
 
-	long_ret = ast_update_module_list(countmodule, NULL);
+	long_ret = ast_module_count_running();
 
 	return (u_char *)&long_ret;
 }

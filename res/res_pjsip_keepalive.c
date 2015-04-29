@@ -17,8 +17,9 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_depend</load_priority>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
+	<use type="module">res_pjsip</use>
 	<support_level>core</support_level>
  ***/
 
@@ -240,18 +241,10 @@ static struct ast_sorcery_observer keepalive_global_observer = {
 
 static int load_module(void)
 {
-	CHECK_PJSIP_MODULE_LOADED();
-
 	ast_sorcery_observer_add(ast_sip_get_sorcery(), "global", &keepalive_global_observer);
 	ast_sorcery_reload_object(ast_sip_get_sorcery(), "global");
-	ast_module_shutdown_ref(ast_module_info->self);
+	ast_module_block_unload(AST_MODULE_SELF);
 	return AST_MODULE_LOAD_SUCCESS;
-}
-
-static int unload_module(void)
-{
-	/* This will never get called */
-	return 0;
 }
 
 static int reload_module(void)
@@ -260,10 +253,4 @@ static int reload_module(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP Stateful Connection Keepalive Support",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.reload = reload_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND - 4,
-);
+AST_MODULE_INFO_AUTOCLEAN_RELOADABLE(ASTERISK_GPL_KEY, "PJSIP Stateful Connection Keepalive Support");

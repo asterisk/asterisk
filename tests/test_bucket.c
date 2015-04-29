@@ -822,27 +822,6 @@ AST_TEST_DEFINE(bucket_file_json)
 	return AST_TEST_PASS;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(bucket_scheme_register);
-	AST_TEST_UNREGISTER(bucket_alloc);
-	AST_TEST_UNREGISTER(bucket_create);
-	AST_TEST_UNREGISTER(bucket_delete);
-	AST_TEST_UNREGISTER(bucket_retrieve);
-	AST_TEST_UNREGISTER(bucket_json);
-	AST_TEST_UNREGISTER(bucket_file_alloc);
-	AST_TEST_UNREGISTER(bucket_file_create);
-	AST_TEST_UNREGISTER(bucket_file_copy);
-	AST_TEST_UNREGISTER(bucket_file_retrieve);
-	AST_TEST_UNREGISTER(bucket_file_update);
-	AST_TEST_UNREGISTER(bucket_file_delete);
-	AST_TEST_UNREGISTER(bucket_file_metadata_set);
-	AST_TEST_UNREGISTER(bucket_file_metadata_unset);
-	AST_TEST_UNREGISTER(bucket_file_metadata_get);
-	AST_TEST_UNREGISTER(bucket_file_json);
-	return 0;
-}
-
 static int load_module(void)
 {
 	if (ast_bucket_scheme_register("test", &bucket_test_wizard, &bucket_file_test_wizard,
@@ -870,4 +849,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Bucket test module");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Bucket test module");

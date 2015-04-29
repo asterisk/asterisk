@@ -35,6 +35,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>cdr_driver</load_priority>
 	<depend>sqlite</depend>
 	<defaultenabled>no</defaultenabled>
 	<support_level>deprecated</support_level>
@@ -189,16 +190,16 @@ static int sqlite_log(struct ast_cdr *cdr)
 	return res;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	if (ast_cdr_unregister(name)) {
-		return -1;
+		ast_module_block_unload(AST_MODULE_SELF);
+		return;
 	}
 
 	if (db) {
 		sqlite_close(db);
 	}
-	return 0;
 }
 
 static int load_module(void)
@@ -232,7 +233,7 @@ static int load_module(void)
 		/* TODO: here we should probably create an index */
 	}
 
-	res = ast_cdr_register(name, ast_module_info->description, sqlite_log);
+	res = ast_cdr_register(name, ast_module_description(AST_MODULE_SELF), sqlite_log);
 	if (res) {
 		ast_log(LOG_ERROR, "Unable to register SQLite CDR handling\n");
 		return AST_MODULE_LOAD_DECLINE;
@@ -245,9 +246,4 @@ err:
 	return AST_MODULE_LOAD_DECLINE;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "SQLite CDR Backend",
-	.support_level = AST_MODULE_SUPPORT_DEPRECATED,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_CDR_DRIVER,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "SQLite CDR Backend");

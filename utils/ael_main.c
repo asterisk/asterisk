@@ -172,10 +172,10 @@ struct ast_app *pbx_findapp(const char *app)
 	return (struct ast_app*)1; /* so as not to trigger an error */
 }
 
-struct ast_custom_function *ast_custom_function_find(const char *name);
+int ast_custom_function_exists(const char *name);
 
 
-struct ast_custom_function *ast_custom_function_find(const char *name)
+int ast_custom_function_exists(const char *name)
 {
 	return 0; /* in "standalone" mode, functions are just not avail */
 }
@@ -190,20 +190,17 @@ int ast_add_profile(const char *x, uint64_t scale)
 }
 #endif
 
-int ast_loader_register(int (*updater)(void))
-{
-	return 1;
+int __ast_module_register(struct ast_module **self, const char *name,
+	const char *buildopt_sum, const char *manifest_checksum,
+	const char *keystr, const char *desc,
+	ast_module_load_fn load_fn,
+	ast_module_reload_fn reload_fn,
+	ast_module_stop_fn stop_fn,
+	ast_module_unload_fn unload_fn) {
+		return 0;
 }
 
-int ast_loader_unregister(int (*updater)(void))
-{
-	return 1;
-}
-void ast_module_register(const struct ast_module_info *x)
-{
-}
-
-void ast_module_unregister(const struct ast_module_info *x)
+void __ast_module_unregister(struct ast_module **self)
 {
 }
 

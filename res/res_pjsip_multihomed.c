@@ -17,8 +17,9 @@
  */
 
 /*** MODULEINFO
+	<load_priority>app_depend</load_priority>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
+	<use type="module">res_pjsip</use>
 	<support_level>core</support_level>
  ***/
 
@@ -195,18 +196,10 @@ static pjsip_module multihomed_module = {
 	.on_tx_response = multihomed_on_tx_message,
 };
 
-static int unload_module(void)
-{
-	ast_sip_unregister_service(&multihomed_module);
-	return 0;
-}
-
 static int load_module(void)
 {
 	char hostname[MAXHOSTNAMELEN] = "";
 	pj_sockaddr addr;
-
-	CHECK_PJSIP_MODULE_LOADED();
 
 	if (!gethostname(hostname, sizeof(hostname) - 1)) {
 		ast_verb(2, "Performing DNS resolution of local hostname '%s' to get local IPv4 and IPv6 address\n",
@@ -231,9 +224,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP Multihomed Routing Support",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_APP_DEPEND,
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "PJSIP Multihomed Routing Support");

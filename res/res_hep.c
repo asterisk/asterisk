@@ -37,6 +37,8 @@
  */
 
 /*** MODULEINFO
+	<load_priority>app_depend</load_priority>
+	<export_globals/>
 	<support_level>extended</support_level>
  ***/
 
@@ -578,15 +580,13 @@ static int reload_module(void)
 /*!
  * \brief Unload the module
  */
-static int unload_module(void)
+static void unload_module(void)
 {
 	hep_queue_tp = ast_taskprocessor_unreference(hep_queue_tp);
 
 	ao2_global_obj_release(global_config);
 	ao2_global_obj_release(global_data);
 	aco_info_destroy(&cfg_info);
-
-	return 0;
 }
 
 /*!
@@ -595,12 +595,12 @@ static int unload_module(void)
 static int load_module(void)
 {
 	if (aco_info_init(&cfg_info)) {
-		goto error;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	hep_queue_tp = ast_taskprocessor_get("hep_queue_tp", TPS_REF_DEFAULT);
 	if (!hep_queue_tp) {
-		goto error;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	aco_option_register(&cfg_info, "enabled", ACO_EXACT, global_options, "yes", OPT_BOOL_T, 1, FLDSET(struct hepv3_global_config, enabled));
@@ -609,20 +609,10 @@ static int load_module(void)
 	aco_option_register(&cfg_info, "capture_id", ACO_EXACT, global_options, "0", OPT_UINT_T, 0, STRFLDSET(struct hepv3_global_config, capture_id));
 
 	if (aco_process_config(&cfg_info, 0) == ACO_PROCESS_ERROR) {
-		goto error;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
-
-error:
-	aco_info_destroy(&cfg_info);
-	return AST_MODULE_LOAD_DECLINE;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "HEPv3 API",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload_module,
-	.load_pri = AST_MODPRI_APP_DEPEND,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "HEPv3 API");

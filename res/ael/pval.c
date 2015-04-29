@@ -4602,7 +4602,7 @@ int ast_compile_ael2(struct ast_context **local_contexts, struct ast_hashtab *lo
 	}
 
 	/* Create default "h" bubble context */
-	if (ast_custom_function_find("DIALPLAN_EXISTS") && ast_custom_function_find("STACK_PEEK")) {
+	if (ast_custom_function_exists("DIALPLAN_EXISTS") && ast_custom_function_exists("STACK_PEEK")) {
 		int i;
 		const char *h_context = "ael-builtin-h-bubble";
 		struct ael_priority *np;

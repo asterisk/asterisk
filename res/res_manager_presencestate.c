@@ -17,6 +17,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>devstate_consumer</load_priority>
 	<support_level>core</support_level>
  ***/
 
@@ -112,11 +113,9 @@ static int action_presencestatelist(struct mansession *s, const struct message *
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	ast_manager_unregister("PresenceStateList");
 	topic_forwarder = stasis_forward_cancel(topic_forwarder);
-	return 0;
 }
 
 static int load_module(void)
@@ -134,16 +133,10 @@ static int load_module(void)
 
 	if (ast_manager_register_xml("PresenceStateList", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING,
 		                         action_presencestatelist)) {
-		topic_forwarder = stasis_forward_cancel(topic_forwarder);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Manager Presence State Topic Forwarder",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_DEVSTATE_CONSUMER,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Manager Presence State Topic Forwarder");

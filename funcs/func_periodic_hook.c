@@ -27,10 +27,11 @@
 
 /*** MODULEINFO
 	<support_level>core</support_level>
-	<depend>app_chanspy</depend>
-	<depend>func_cut</depend>
-	<depend>func_groupcount</depend>
-	<depend>func_uri</depend>
+	<export_globals/>
+	<use type="module">app_chanspy</use>
+	<use type="module">func_cut</use>
+	<use type="module">func_groupcount</use>
+	<use type="module">func_uri</use>
  ***/
 
 #include "asterisk.h"
@@ -139,8 +140,6 @@ static void hook_datastore_destroy_callback(void *data)
 	ast_free(state->context);
 	ast_free(state->exten);
 	ast_free(state);
-
-	ast_module_unref(ast_module_info->self);
 }
 
 static const struct ast_datastore_info hook_datastore = {
@@ -307,7 +306,6 @@ static int init_hook(struct ast_channel *chan, const char *context, const char *
 	if (!(datastore = ast_datastore_alloc(&hook_datastore, uid))) {
 		return -1;
 	}
-	ast_module_ref(ast_module_info->self);
 	if (!(state = hook_state_alloc(context, exten, interval, hook_id))) {
 		ast_datastore_free(datastore);
 		return -1;
@@ -446,11 +444,9 @@ static struct ast_custom_function hook_function = {
 	.write = hook_write,
 };
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_context_destroy(NULL, AST_MODULE);
-
-	return ast_custom_function_unregister(&hook_function);
 }
 
 static int load_module(void)
@@ -514,8 +510,4 @@ int AST_OPTIONAL_API_NAME(ast_beep_stop)(struct ast_channel *chan, const char *b
 	return hook_write(chan, NULL, (char *) beep_id, "off");
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Periodic dialplan hooks.",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Periodic dialplan hooks.");

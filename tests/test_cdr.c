@@ -2545,43 +2545,10 @@ static int test_cdr_cleanup_cb(struct ast_test_info *info, struct ast_test *test
 }
 
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	AST_TEST_UNREGISTER(test_cdr_channel_creation);
-	AST_TEST_UNREGISTER(test_cdr_unanswered_inbound_call);
-	AST_TEST_UNREGISTER(test_cdr_unanswered_outbound_call);
-
-	AST_TEST_UNREGISTER(test_cdr_single_party);
-	AST_TEST_UNREGISTER(test_cdr_single_bridge);
-	AST_TEST_UNREGISTER(test_cdr_single_bridge_continue);
-	AST_TEST_UNREGISTER(test_cdr_single_twoparty_bridge_a);
-	AST_TEST_UNREGISTER(test_cdr_single_twoparty_bridge_b);
-	AST_TEST_UNREGISTER(test_cdr_single_multiparty_bridge);
-
-	AST_TEST_UNREGISTER(test_cdr_outbound_bridged_call);
-
-	AST_TEST_UNREGISTER(test_cdr_dial_unanswered);
-	AST_TEST_UNREGISTER(test_cdr_dial_congestion);
-	AST_TEST_UNREGISTER(test_cdr_dial_busy);
-	AST_TEST_UNREGISTER(test_cdr_dial_unavailable);
-	AST_TEST_UNREGISTER(test_cdr_dial_caller_cancel);
-	AST_TEST_UNREGISTER(test_cdr_dial_parallel_failed);
-	AST_TEST_UNREGISTER(test_cdr_dial_answer_no_bridge);
-	AST_TEST_UNREGISTER(test_cdr_dial_answer_twoparty_bridge_a);
-	AST_TEST_UNREGISTER(test_cdr_dial_answer_twoparty_bridge_b);
-	AST_TEST_UNREGISTER(test_cdr_dial_answer_multiparty);
-
-	AST_TEST_UNREGISTER(test_cdr_park);
-
-	AST_TEST_UNREGISTER(test_cdr_fields);
-	AST_TEST_UNREGISTER(test_cdr_no_reset_cdr);
-	AST_TEST_UNREGISTER(test_cdr_fork_cdr);
-
 	ast_cdr_unregister(MOCK_CDR_BACKEND);
-	ast_channel_unregister(&test_cdr_chan_tech);
 	clear_mock_cdr_backend();
-
-	return 0;
 }
 
 static int load_module(void)

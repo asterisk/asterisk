@@ -706,8 +706,7 @@ static const char channel_type[] = "USTM";
 /*! Protos */
 static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor);
 static int load_module(void);
-static int reload(void);
-static int unload_module(void);
+static int reload_module(void);
 static int reload_config(void);
 static void unistim_set_owner(struct unistim_subchannel *sub, struct ast_channel *chan);
 static void show_main_page(struct unistimsession *pte);
@@ -5763,7 +5762,6 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 		ast_channel_language_set(tmp, l->parent->language);
 	}
 	unistim_set_owner(sub, tmp);
-	ast_update_use_count();
 	ast_channel_callgroup_set(tmp, l->callgroup);
 	ast_channel_pickupgroup_set(tmp, l->pickupgroup);
 	ast_channel_call_forward_set(tmp, l->parent->call_forward);
@@ -6235,7 +6233,7 @@ static char *unistim_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	if (e && a && a->argc != e->args) {
 		return CLI_SHOWUSAGE;
 	}
-	reload();
+	reload_module();
 
 	return CLI_SUCCESS;
 }
@@ -7126,18 +7124,14 @@ buff_failed:
 	return AST_MODULE_LOAD_FAILURE;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	/* First, take us out of the channel loop */
 	if (sched) {
 		ast_sched_context_destroy(sched);
 	}
 
-	ast_cli_unregister_multiple(unistim_cli, ARRAY_LEN(unistim_cli));
-
-	ast_channel_unregister(&unistim_tech);
 	ao2_cleanup(unistim_tech.capabilities);
-	ast_rtp_glue_unregister(&unistim_rtp_glue);
 
 	ast_mutex_lock(&monlock);
 	if (monitor_thread && (monitor_thread != AST_PTHREADT_STOP) && (monitor_thread != AST_PTHREADT_NULL)) {
@@ -7155,12 +7149,10 @@ static int unload_module(void)
 		close(unistimsock);
 	}
 	ao2_ref(global_cap, -1);
-
-	return 0;
 }
 
 /*! reload: Part of Asterisk module interface ---*/
-int reload(void)
+static int reload_module(void)
 {
 	if (unistimdebug) {
 		ast_verb(0, "reload unistim\n");
@@ -7176,9 +7168,4 @@ int reload(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "UNISTIM Protocol (USTM)",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "UNISTIM Protocol (USTM)");

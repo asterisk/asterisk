@@ -503,7 +503,7 @@ done:
 	return res;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	struct ast_variable *v;
 	struct ast_flags config_flags = { CONFIG_FLAG_FILEUNCHANGED };
@@ -538,18 +538,11 @@ static int reload(void)
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	int res;
-
-	res = ast_unregister_application(app);
-
-	ast_cli_unregister_multiple(cli_playback, ARRAY_LEN(cli_playback));
-
-	if (say_cfg)
+	if (say_cfg) {
 		ast_config_destroy(say_cfg);
-
-	return res;	
+	}
 }
 
 static int load_module(void)
@@ -571,9 +564,4 @@ static int load_module(void)
 	return ast_register_application_xml(app, playback_exec);
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Sound File Playback Application",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Sound File Playback Application");

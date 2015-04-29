@@ -321,10 +321,5 @@ static int load_module(void)
 	return ast_format_def_register(&mp3_f);
 }
 
-static int unload_module(void)
-{
-	return ast_format_def_unregister(name);
-}
-
-AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "MP3 format [Any rate but 8000hz mono is optimal]");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "MP3 format [Any rate but 8000hz mono is optimal]");
 

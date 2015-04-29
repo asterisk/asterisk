@@ -971,16 +971,6 @@ static int rcvfax_exec(struct ast_channel *chan, const char *data)
 	return res;
 }
 
-static int unload_module(void)
-{
-	int res;
-
-	res = ast_unregister_application(app_sndfax_name);	
-	res |= ast_unregister_application(app_rcvfax_name);	
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res ;
@@ -994,11 +984,4 @@ static int load_module(void)
 	return res;
 }
 
-
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Simple FAX Application",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-);
-
-
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Simple FAX Application");

@@ -41,6 +41,8 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_depend</load_priority>
+	<export_globals/>
 	<support_level>core</support_level>
  ***/
 
@@ -247,8 +249,6 @@ static void smdi_interface_destroy(void *obj)
 	ast_cond_destroy(&iface->mwi_q_cond);
 
 	ast_free(iface);
-
-	ast_module_unref(ast_module_info->self);
 }
 
 /*! 
@@ -1089,7 +1089,6 @@ static int smdi_load(int reload)
 			}
 
 			ao2_link(new_ifaces, iface);
-			ast_module_ref(ast_module_info->self);
 		} else {
 			ast_log(LOG_NOTICE, "Ignoring unknown option %s in %s\n", v->name, config_file);
 		}
@@ -1171,7 +1170,6 @@ END_OPTIONS );
 
 static int smdi_msg_retrieve_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	struct ast_module_user *u;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(port);
 		AST_APP_ARG(search_key);
@@ -1186,8 +1184,6 @@ static int smdi_msg_retrieve_read(struct ast_channel *chan, const char *cmd, cha
 	struct ast_datastore *datastore = NULL;
 	struct ast_smdi_interface *iface = NULL;
 	struct ast_smdi_md_message *md_msg = NULL;
-
-	u = ast_module_user_add(chan);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_ERROR, "SMDI_MSG_RETRIEVE requires an argument\n");
@@ -1260,14 +1256,11 @@ return_error:
 	if (parse)
 		ast_autoservice_stop(chan);
 
-	ast_module_user_remove(u);
-
 	return res;
 }
 
 static int smdi_msg_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	struct ast_module_user *u;
 	int res = -1;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(id);
@@ -1276,8 +1269,6 @@ static int smdi_msg_read(struct ast_channel *chan, const char *cmd, char *data, 
 	char *parse;
 	struct ast_datastore *datastore = NULL;
 	struct smdi_msg_datastore *smd = NULL;
-
-	u = ast_module_user_add(chan);
 
 	if (!chan) {
 		ast_log(LOG_ERROR, "SMDI_MSG can not be called without a channel\n");
@@ -1332,7 +1323,6 @@ static int smdi_msg_read(struct ast_channel *chan, const char *cmd, char *data, 
 	res = 0;
 
 return_error:
-	ast_module_user_remove(u);
 
 	return res;
 }
@@ -1346,8 +1336,6 @@ static struct ast_custom_function smdi_msg_function = {
 	.name = "SMDI_MSG",
 	.read = smdi_msg_read,
 };
-
-static int _unload_module(int fromload);
 
 /*!
  * \brief Load the module
@@ -1370,10 +1358,8 @@ static int load_module(void)
 	/* load the config and start the listener threads*/
 	res = smdi_load(0);
 	if (res < 0) {
-		_unload_module(1);
 		return res;
 	} else if (res == 1) {
-		_unload_module(1);
 		ast_log(LOG_NOTICE, "No SMDI interfaces are available to listen on, not starting SMDI listener.\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -1381,13 +1367,14 @@ static int load_module(void)
 	ast_custom_function_register(&smdi_msg_retrieve_function);
 	ast_custom_function_register(&smdi_msg_function);
 
+	ast_module_block_unload(AST_MODULE_SELF);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int _unload_module(int fromload)
+static void unload_module(void)
 {
 	if (!smdi_loaded) {
-		return 0;
+		return;
 	}
 
 	ao2_global_obj_release(smdi_ifaces);
@@ -1403,21 +1390,10 @@ static int _unload_module(int fromload)
 		pthread_join(mwi_monitor.thread, NULL);
 	}
 
-	if (!fromload) {
-		ast_custom_function_unregister(&smdi_msg_retrieve_function);
-		ast_custom_function_unregister(&smdi_msg_function);
-	}
-
 	smdi_loaded = 0;
-	return 0;
 }
 
-static int unload_module(void)
-{
-	return _unload_module(0);
-}
-
-static int reload(void)
+static int reload_module(void)
 {
 	int res;
 
@@ -1432,10 +1408,4 @@ static int reload(void)
 		return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Simplified Message Desk Interface (SMDI) Resource",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Simplified Message Desk Interface (SMDI) Resource");

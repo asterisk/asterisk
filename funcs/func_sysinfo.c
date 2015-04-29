@@ -142,15 +142,10 @@ static struct ast_custom_function sysinfo_function = {
 	.read_max = 22,
 };
 
-static int unload_module(void)
-{
-	return ast_custom_function_unregister(&sysinfo_function);
-}
-
 static int load_module(void)
 {
 	return ast_custom_function_register(&sysinfo_function);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "System information related functions");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "System information related functions");
 

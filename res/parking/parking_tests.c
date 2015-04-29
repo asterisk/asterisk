@@ -837,19 +837,6 @@ cleanup:
 #endif /* TEST_FRAMEWORK */
 
 
-void unload_parking_tests(void)
-{
-/* NOOP without test framework */
-#if defined(TEST_FRAMEWORK)
-	AST_TEST_UNREGISTER(create_lot);
-	AST_TEST_UNREGISTER(park_call);
-	AST_TEST_UNREGISTER(retrieve_call);
-	AST_TEST_UNREGISTER(park_extensions);
-	AST_TEST_UNREGISTER(extension_conflicts);
-	AST_TEST_UNREGISTER(dynamic_parking_variables);
-#endif
-}
-
 int load_parking_tests(void)
 {
 	int res = 0;

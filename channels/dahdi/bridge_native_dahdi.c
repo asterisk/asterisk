@@ -885,18 +885,6 @@ static struct ast_bridge_technology native_bridge = {
 
 /*!
  * \internal
- * \brief Destroy the DAHDI native bridge support.
- * \since 12.0.0
- *
- * \return Nothing
- */
-void dahdi_native_unload(void)
-{
-	ast_bridge_technology_unregister(&native_bridge);
-}
-
-/*!
- * \internal
  * \brief Initialize the DAHDI native bridge support.
  * \since 12.0.0
  *

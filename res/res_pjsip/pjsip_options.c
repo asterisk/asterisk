@@ -1172,20 +1172,15 @@ int ast_res_pjsip_init_options_handling(int reload)
 	}
 
 	if (pjsip_endpt_register_module(ast_sip_get_pjsip_endpoint(), &options_module) != PJ_SUCCESS) {
-		ao2_cleanup(sched_qualifies);
-		sched_qualifies = NULL;
 		return -1;
 	}
 
 	if (pjsip_endpt_add_capability(ast_sip_get_pjsip_endpoint(), NULL, PJSIP_H_ALLOW,
 		NULL, 1, &STR_OPTIONS) != PJ_SUCCESS) {
-		pjsip_endpt_unregister_module(ast_sip_get_pjsip_endpoint(), &options_module);
-		ao2_cleanup(sched_qualifies);
-		sched_qualifies = NULL;
 		return -1;
 	}
 
-	internal_sip_register_endpoint_formatter(&contact_status_formatter);
+	ast_sip_register_endpoint_formatter(&contact_status_formatter);
 	ast_manager_register_xml("PJSIPQualify", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_sip_qualify);
 	ast_cli_register_multiple(cli_options, ARRAY_LEN(cli_options));
 
@@ -1196,9 +1191,7 @@ int ast_res_pjsip_init_options_handling(int reload)
 
 void ast_res_pjsip_cleanup_options_handling(void)
 {
-	ast_cli_unregister_multiple(cli_options, ARRAY_LEN(cli_options));
-	ast_manager_unregister("PJSIPQualify");
-	internal_sip_unregister_endpoint_formatter(&contact_status_formatter);
+	ast_sip_unregister_endpoint_formatter(&contact_status_formatter);
 
 	pjsip_endpt_unregister_module(ast_sip_get_pjsip_endpoint(), &options_module);
 	ao2_cleanup(sched_qualifies);

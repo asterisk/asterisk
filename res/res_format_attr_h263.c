@@ -251,11 +251,6 @@ static struct ast_format_interface h263_interface = {
 	.format_generate_sdp_fmtp = h263_generate_sdp_fmtp,
 };
 
-static int unload_module(void)
-{
-	return 0;
-}
-
 static int load_module(void)
 {
 	if (ast_format_interface_register("h263", &h263_interface)) {
@@ -269,9 +264,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "H.263 Format Attribute Module",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_DEFAULT,
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "H.263 Format Attribute Module");

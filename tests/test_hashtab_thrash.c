@@ -319,16 +319,10 @@ AST_TEST_DEFINE(hash_test)
 	return res;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(hash_test);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(hash_test);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Hash test");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Hash test");

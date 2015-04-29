@@ -216,10 +216,9 @@ static struct ast_custom_function config_function = {
 	.read = config_function_read,
 };
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	struct config_item *current;
-	int res = ast_custom_function_unregister(&config_function);
 
 	AST_RWLIST_WRLOCK(&configs);
 	while ((current = AST_RWLIST_REMOVE_HEAD(&configs, entry))) {
@@ -227,8 +226,6 @@ static int unload_module(void)
 		ast_free(current);
 	}
 	AST_RWLIST_UNLOCK(&configs);
-
-	return res;
 }
 
 static int load_module(void)

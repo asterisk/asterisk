@@ -156,6 +156,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/stasis.h"
 #include "asterisk/json.h"
 #include "asterisk/stasis_channels.h"
+#include "asterisk/api_registry.h"
 
 struct ast_srtp_res *res_srtp = NULL;
 struct ast_srtp_policy_res *res_srtp_policy = NULL;
@@ -163,7 +164,7 @@ struct ast_srtp_policy_res *res_srtp_policy = NULL;
 /*! Structure that represents an RTP session (instance) */
 struct ast_rtp_instance {
 	/*! Engine that is handling this RTP instance */
-	struct ast_rtp_engine *engine;
+	AST_API_HOLDER(ast_rtp_engine, engine);
 	/*! Data unique to the RTP engine */
 	void *data;
 	/*! RTP properties that have been set and their value */
@@ -192,8 +193,21 @@ struct ast_rtp_instance {
 	char channel_uniqueid[AST_MAX_UNIQUEID];
 };
 
-/*! List of RTP engines that are currently registered */
-static AST_RWLIST_HEAD_STATIC(engines, ast_rtp_engine);
+
+static int rtp_engine_initialize(void *interface, struct ast_module *module)
+{
+	struct ast_rtp_engine *engine = interface;
+
+	return !engine->new || !engine->destroy || !engine->write || !engine->read;
+}
+
+struct ast_api_registry ast_rtp_engine = {
+	.label = "RTP Engine",
+	.initialize_interface = rtp_engine_initialize,
+};
+AST_API_FN_REGISTER(ast_rtp_engine, __ast_rtp_engine)
+AST_API_FN_UNREGISTER(ast_rtp_engine, ast_rtp_engine)
+static AST_API_FN_USE_BY_NAME(ast_rtp_engine, ast_rtp_engine)
 
 /*! List of RTP glues */
 static AST_RWLIST_HEAD_STATIC(glues, ast_rtp_glue);
@@ -249,64 +263,19 @@ struct ast_rtp_payload_type *ast_rtp_engine_alloc_payload_type(void)
 	return payload;
 }
 
-int ast_rtp_engine_register2(struct ast_rtp_engine *engine, struct ast_module *module)
+static void module_rtp_glue_unregister(void *weakproxy, void *data)
 {
-	struct ast_rtp_engine *current_engine;
-
-	/* Perform a sanity check on the engine structure to make sure it has the basics */
-	if (ast_strlen_zero(engine->name) || !engine->new || !engine->destroy || !engine->write || !engine->read) {
-		ast_log(LOG_WARNING, "RTP Engine '%s' failed sanity check so it was not registered.\n", !ast_strlen_zero(engine->name) ? engine->name : "Unknown");
-		return -1;
-	}
-
-	/* Link owner module to the RTP engine for reference counting purposes */
-	engine->mod = module;
-
-	AST_RWLIST_WRLOCK(&engines);
-
-	/* Ensure that no two modules with the same name are registered at the same time */
-	AST_RWLIST_TRAVERSE(&engines, current_engine, entry) {
-		if (!strcmp(current_engine->name, engine->name)) {
-			ast_log(LOG_WARNING, "An RTP engine with the name '%s' has already been registered.\n", engine->name);
-			AST_RWLIST_UNLOCK(&engines);
-			return -1;
-		}
-	}
-
-	/* The engine survived our critique. Off to the list it goes to be used */
-	AST_RWLIST_INSERT_TAIL(&engines, engine, entry);
-
-	AST_RWLIST_UNLOCK(&engines);
-
-	ast_verb(2, "Registered RTP engine '%s'\n", engine->name);
-
-	return 0;
-}
-
-int ast_rtp_engine_unregister(struct ast_rtp_engine *engine)
-{
-	struct ast_rtp_engine *current_engine = NULL;
-
-	AST_RWLIST_WRLOCK(&engines);
-
-	if ((current_engine = AST_RWLIST_REMOVE(&engines, engine, entry))) {
-		ast_verb(2, "Unregistered RTP engine '%s'\n", engine->name);
-	}
-
-	AST_RWLIST_UNLOCK(&engines);
-
-	return current_engine ? 0 : -1;
+	ast_rtp_glue_unregister(data);
 }
 
 int ast_rtp_glue_register2(struct ast_rtp_glue *glue, struct ast_module *module)
 {
 	struct ast_rtp_glue *current_glue = NULL;
+	struct ast_module_lib *lib = ast_module_get_lib_running(module);
 
-	if (ast_strlen_zero(glue->type)) {
+	if (ast_strlen_zero(glue->type) || !lib) {
 		return -1;
 	}
-
-	glue->mod = module;
 
 	AST_RWLIST_WRLOCK(&glues);
 
@@ -314,15 +283,21 @@ int ast_rtp_glue_register2(struct ast_rtp_glue *glue, struct ast_module *module)
 		if (!strcasecmp(current_glue->type, glue->type)) {
 			ast_log(LOG_WARNING, "RTP glue with the name '%s' has already been registered.\n", glue->type);
 			AST_RWLIST_UNLOCK(&glues);
+			ao2_ref(lib, -1);
 			return -1;
 		}
 	}
+
+	glue->lib = lib;
 
 	AST_RWLIST_INSERT_TAIL(&glues, glue, entry);
 
 	AST_RWLIST_UNLOCK(&glues);
 
 	ast_verb(2, "Registered RTP glue '%s'\n", glue->type);
+
+	/* Outside AST_RWLIST_WRLOCK to avoid recursion if module is already being unloaded. */
+	ast_module_lib_subscribe_stop(glue->lib, module_rtp_glue_unregister, glue);
 
 	return 0;
 }
@@ -334,6 +309,12 @@ int ast_rtp_glue_unregister(struct ast_rtp_glue *glue)
 	AST_RWLIST_WRLOCK(&glues);
 
 	if ((current_glue = AST_RWLIST_REMOVE(&glues, glue, entry))) {
+		ast_module_lib_unsubscribe_stop(current_glue->lib, module_rtp_glue_unregister, current_glue);
+
+		ao2_ref(current_glue->lib, -1);
+		current_glue->lib = NULL;
+
+
 		ast_verb(2, "Unregistered RTP glue '%s'\n", glue->type);
 	}
 
@@ -359,7 +340,7 @@ static void instance_destructor(void *obj)
 	ast_rtp_codecs_payloads_destroy(&instance->codecs);
 
 	/* Drop our engine reference */
-	ast_module_unref(instance->engine->mod);
+	AST_API_HOLDER_CLEANUP(instance->engine);
 
 	ast_debug(1, "Destroyed RTP instance '%p'\n", instance);
 }
@@ -377,39 +358,22 @@ struct ast_rtp_instance *ast_rtp_instance_new(const char *engine_name,
 {
 	struct ast_sockaddr address = {{0,}};
 	struct ast_rtp_instance *instance = NULL;
-	struct ast_rtp_engine *engine = NULL;
-
-	AST_RWLIST_RDLOCK(&engines);
-
-	/* If an engine name was specified try to use it or otherwise use the first one registered */
-	if (!ast_strlen_zero(engine_name)) {
-		AST_RWLIST_TRAVERSE(&engines, engine, entry) {
-			if (!strcmp(engine->name, engine_name)) {
-				break;
-			}
-		}
-	} else {
-		engine = AST_RWLIST_FIRST(&engines);
-	}
+	AST_API_HOLDER_INIT(ast_rtp_engine, engine, ast_rtp_engine_use_by_name(engine_name));
 
 	/* If no engine was actually found bail out now */
 	if (!engine) {
 		ast_log(LOG_ERROR, "No RTP engine was found. Do you have one loaded?\n");
-		AST_RWLIST_UNLOCK(&engines);
 		return NULL;
 	}
-
-	/* Bump up the reference count before we return so the module can not be unloaded */
-	ast_module_ref(engine->mod);
-
-	AST_RWLIST_UNLOCK(&engines);
 
 	/* Allocate a new RTP instance */
 	if (!(instance = ao2_alloc(sizeof(*instance), instance_destructor))) {
-		ast_module_unref(engine->mod);
+		AST_API_HOLDER_CLEANUP(engine);
 		return NULL;
 	}
-	instance->engine = engine;
+	/* This steals the use reference. */
+	AST_API_HOLDER_SET(ast_rtp_engine, instance->engine, engine_holder);
+
 	ast_sockaddr_copy(&instance->local_address, sa);
 	ast_sockaddr_copy(&address, sa);
 
@@ -2071,6 +2035,8 @@ static void rtp_engine_shutdown(void)
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_rtp_rtcp_received_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_rtp_rtcp_sent_type);
 
+	ast_api_registry_cleanup(&ast_rtp_engine);
+
 	ast_rwlock_wrlock(&static_RTP_PT_lock);
 	for (x = 0; x < AST_RTP_MAX_PT; x++) {
 		if (static_RTP_PT[x].format) {
@@ -2092,6 +2058,8 @@ int ast_rtp_engine_init()
 {
 	ast_rwlock_init(&mime_types_lock);
 	ast_rwlock_init(&static_RTP_PT_lock);
+
+	ast_api_registry_init(&ast_rtp_engine, 2);
 
 	rtp_topic = stasis_topic_create("rtp_topic");
 	if (!rtp_topic) {

@@ -24,6 +24,8 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_depend</load_priority>
+	<export_globals/>
 	<support_level>core</support_level>
  ***/
  
@@ -983,26 +985,5 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
-{
-	ast_unregister_application("Monitor");
-	ast_unregister_application("StopMonitor");
-	ast_unregister_application("ChangeMonitor");
-	ast_unregister_application("PauseMonitor");
-	ast_unregister_application("UnpauseMonitor");
-	ast_manager_unregister("Monitor");
-	ast_manager_unregister("StopMonitor");
-	ast_manager_unregister("ChangeMonitor");
-	ast_manager_unregister("PauseMonitor");
-	ast_manager_unregister("UnpauseMonitor");
-
-	return 0;
-}
-
 /* usecount semantics need to be defined */
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Call Monitoring Resource",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND,
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Call Monitoring Resource");

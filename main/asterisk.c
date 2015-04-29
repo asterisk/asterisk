@@ -3789,7 +3789,6 @@ int main(int argc, char *argv[])
 	int isroot = 1, rundir_exists = 0;
 	char *buf;
 	const char *runuser = NULL, *rungroup = NULL;
-	int moduleresult;         /*!< Result from the module load subsystem */
 	struct rlimit l;
 	static const char *getopt_settings = "BC:cde:FfG:ghIiL:M:mnpqRrs:TtU:VvWXx:";
 
@@ -4296,14 +4295,20 @@ int main(int argc, char *argv[])
 	if (ast_opt_console) {
 		ast_verb(0, "[ Initializing Custom Configuration Options ]\n");
 	}
-	/* custom config setup */
-	register_config_cli();
-	read_config_maps();
 
 	if (astobj2_init()) {
 		printf("Failed: astobj2_init\n%s", term_quit());
 		exit(1);
 	}
+
+	if (ast_pbx_init()) {
+		printf("Failed: ast_pbx_init\n%s", term_quit());
+		exit(1);
+	}
+
+	/* custom config setup */
+	read_config_maps();
+	register_config_cli();
 
 	if (ast_opt_console) {
 		if (el_hist == NULL || el == NULL)
@@ -4332,11 +4337,6 @@ int main(int argc, char *argv[])
 
 	if (ast_fd_init()) {
 		printf("Failed: ast_fd_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_pbx_init()) {
-		printf("Failed: ast_pbx_init\n%s", term_quit());
 		exit(1);
 	}
 
@@ -4511,10 +4511,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if ((moduleresult = load_modules(1))) {		/* Load modules, pre-load only */
-		printf("Failed: load_modules\n%s", term_quit());
-		exit(moduleresult == -2 ? 2 : 1);
-	}
+	/* BUGBUG: original preload location. */
 
 	if (ast_features_init()) {
 		printf("Failed: ast_features_init\n%s", term_quit());
@@ -4596,9 +4593,9 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if ((moduleresult = load_modules(0))) {		/* Load modules */
-		printf("%s", term_quit());
-		exit(moduleresult == -2 ? 2 : 1);
+	if (modules_init()) {
+		printf("Failed: modules_init\n%s", term_quit());
+		exit(1);
 	}
 
 	/* loads the cli_permissoins.conf file needed to implement cli restrictions. */

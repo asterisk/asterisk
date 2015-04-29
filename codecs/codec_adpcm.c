@@ -329,16 +329,6 @@ static struct ast_translator lintoadpcm = {
 	.buf_size = BUFFER_SAMPLES/ 2,	/* 2 samples per byte */
 };
 
-static int unload_module(void)
-{
-	int res;
-
-	res = ast_unregister_translator(&lintoadpcm);
-	res |= ast_unregister_translator(&adpcmtolin);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res = 0;
@@ -347,15 +337,10 @@ static int load_module(void)
 	res |= ast_register_translator(&lintoadpcm);
 
 	if (res) {
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Adaptive Differential PCM Coder/Decoder",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Adaptive Differential PCM Coder/Decoder");

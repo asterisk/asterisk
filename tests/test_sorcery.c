@@ -26,7 +26,7 @@
 
 /*** MODULEINFO
 	<depend>TEST_FRAMEWORK</depend>
-	<depend>func_sorcery</depend>
+	<use type="module">func_sorcery</use>
 	<support_level>core</support_level>
  ***/
 
@@ -3468,61 +3468,6 @@ AST_TEST_DEFINE(wizard_apply_and_insert)
 	return AST_TEST_PASS;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(wizard_registration);
-	AST_TEST_UNREGISTER(sorcery_open);
-	AST_TEST_UNREGISTER(apply_default);
-	AST_TEST_UNREGISTER(apply_config);
-	AST_TEST_UNREGISTER(object_register);
-	AST_TEST_UNREGISTER(object_register_without_mapping);
-	AST_TEST_UNREGISTER(object_field_register);
-	AST_TEST_UNREGISTER(object_fields_register);
-	AST_TEST_UNREGISTER(object_alloc_with_id);
-	AST_TEST_UNREGISTER(object_alloc_without_id);
-	AST_TEST_UNREGISTER(object_copy);
-	AST_TEST_UNREGISTER(object_copy_native);
-	AST_TEST_UNREGISTER(object_diff);
-	AST_TEST_UNREGISTER(object_diff_native);
-	AST_TEST_UNREGISTER(objectset_create);
-	AST_TEST_UNREGISTER(objectset_json_create);
-	AST_TEST_UNREGISTER(objectset_create_regex);
-	AST_TEST_UNREGISTER(objectset_apply);
-	AST_TEST_UNREGISTER(objectset_apply_handler);
-	AST_TEST_UNREGISTER(objectset_apply_invalid);
-	AST_TEST_UNREGISTER(objectset_transform);
-	AST_TEST_UNREGISTER(objectset_apply_fields);
-	AST_TEST_UNREGISTER(extended_fields);
-	AST_TEST_UNREGISTER(changeset_create);
-	AST_TEST_UNREGISTER(changeset_create_unchanged);
-	AST_TEST_UNREGISTER(object_create);
-	AST_TEST_UNREGISTER(object_retrieve_id);
-	AST_TEST_UNREGISTER(object_retrieve_field);
-	AST_TEST_UNREGISTER(object_retrieve_multiple_all);
-	AST_TEST_UNREGISTER(object_retrieve_multiple_field);
-	AST_TEST_UNREGISTER(object_retrieve_regex);
-	AST_TEST_UNREGISTER(object_update);
-	AST_TEST_UNREGISTER(object_update_uncreated);
-	AST_TEST_UNREGISTER(object_delete);
-	AST_TEST_UNREGISTER(object_delete_uncreated);
-	AST_TEST_UNREGISTER(caching_wizard_behavior);
-	AST_TEST_UNREGISTER(object_type_observer);
-	AST_TEST_UNREGISTER(configuration_file_wizard);
-	AST_TEST_UNREGISTER(configuration_file_wizard_with_file_integrity);
-	AST_TEST_UNREGISTER(configuration_file_wizard_with_criteria);
-	AST_TEST_UNREGISTER(configuration_file_wizard_retrieve_field);
-	AST_TEST_UNREGISTER(configuration_file_wizard_retrieve_multiple);
-	AST_TEST_UNREGISTER(configuration_file_wizard_retrieve_multiple_all);
-	AST_TEST_UNREGISTER(dialplan_function);
-	AST_TEST_UNREGISTER(object_field_registered);
-	AST_TEST_UNREGISTER(global_observation);
-	AST_TEST_UNREGISTER(instance_observation);
-	AST_TEST_UNREGISTER(wizard_observation);
-	AST_TEST_UNREGISTER(wizard_apply_and_insert);
-
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(wizard_apply_and_insert);
@@ -3578,4 +3523,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Sorcery test module");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Sorcery test module");

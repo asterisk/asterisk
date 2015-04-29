@@ -27,7 +27,7 @@
  */
 
 /*** MODULEINFO
-	<depend>res_statsd</depend>
+	<use type="module">res_statsd</use>
 	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
  ***/
@@ -170,18 +170,12 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	stasis_unsubscribe_and_join(sub);
 	sub = NULL;
 	stasis_message_router_unsubscribe_and_join(router);
 	router = NULL;
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Example of how to use Stasis",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.nonoptreq = "res_statsd"
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Example of how to use Stasis");

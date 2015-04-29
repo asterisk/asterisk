@@ -143,12 +143,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(uri_default_http_secure);
-	AST_TEST_UNREGISTER(uri_default_http);
-	AST_TEST_UNREGISTER(uri_parse);
-	return 0;
-}
-
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "URI test module");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "URI test module");

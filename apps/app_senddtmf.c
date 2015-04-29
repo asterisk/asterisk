@@ -178,16 +178,6 @@ static int manager_play_dtmf(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static int unload_module(void)
-{
-	int res;
-
-	res = ast_unregister_application(senddtmf_name);
-	res |= ast_manager_unregister("PlayDTMF");
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res;
@@ -198,4 +188,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Send DTMF digits Application");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Send DTMF digits Application");

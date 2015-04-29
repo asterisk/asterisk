@@ -58,19 +58,14 @@ int ast_set_mixmonitor_methods(struct ast_mixmonitor_methods *method_table)
 	return 0;
 }
 
-int ast_clear_mixmonitor_methods(void)
+void ast_clear_mixmonitor_methods(void)
 {
 	SCOPED_WRLOCK(lock, &mixmonitor_lock);
 
-	if (!table_loaded) {
-		ast_log(LOG_ERROR, "Tried to clear mixmonitor methods, but none are currently loaded.\n");
-		return -1;
+	if (table_loaded) {
+		memset(&mixmonitor_methods, 0, sizeof(mixmonitor_methods));
+		table_loaded = 0;
 	}
-
-	memset(&mixmonitor_methods, 0, sizeof(mixmonitor_methods));
-
-	table_loaded = 0;
-	return 0;
 }
 
 int ast_start_mixmonitor(struct ast_channel *chan, const char *filename, const char *options)

@@ -118,14 +118,9 @@ static struct ast_custom_function cc_function = {
 	.write = acf_cc_write,
 };
 
-static int unload_module(void)
-{
-	return ast_custom_function_unregister(&cc_function);
-}
-
 static int load_module(void)
 {
 	return ast_custom_function_register(&cc_function) == 0 ? AST_MODULE_LOAD_SUCCESS : AST_MODULE_LOAD_DECLINE;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Call Control Configuration Function");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Call Control Configuration Function");

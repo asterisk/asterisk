@@ -139,7 +139,6 @@ struct ast_custom_function {
 	size_t read_max;
 	/*! Write function, if write is supported */
 	ast_acf_write_fn_t write;	/*!< Write function, if write is supported */
-	struct ast_module *mod;         /*!< Module this custom function belongs to */
 	unsigned int read_escalates:1;  /*!< The read function is to be considered
 					 * 'dangerous', and should not be run directly
 					 * from external interfaces (AMI, ARI, etc.)
@@ -148,8 +147,6 @@ struct ast_custom_function {
 					 * 'dangerous', and should not be run directly
 					 * from external interfaces (AMI, ARI, etc.)
 					 * \since 12 */
-
-	AST_RWLIST_ENTRY(ast_custom_function) acflist;
 };
 
 /*! \brief All switch functions have the same interface, so define a type for them */
@@ -158,7 +155,6 @@ typedef int (ast_switch_f)(struct ast_channel *chan, const char *context,
 
 /*!< Data structure associated with an Asterisk switch */
 struct ast_switch {
-	AST_LIST_ENTRY(ast_switch) list;
 	const char *name;			/*!< Name of the switch */
 	const char *description;		/*!< Description of the switch */
 
@@ -225,18 +221,10 @@ struct ast_pbx {
  * \retval 0 success
  * \retval non-zero failure
  */
-int ast_register_switch(struct ast_switch *sw);
+#define ast_switch_register(sw) \
+	__ast_switch_register(sw, AST_MODULE_SELF)
 
-/*!
- * \brief Unregister an alternative switch
- *
- * \param sw switch to unregister
- *
- * Unregisters a switch from asterisk.
- *
- * \return nothing
- */
-void ast_unregister_switch(struct ast_switch *sw);
+int __ast_switch_register(struct ast_switch *sw, struct ast_module *module);
 
 /*!
  * \brief Look up an application
@@ -247,7 +235,7 @@ void ast_unregister_switch(struct ast_switch *sw);
  * the apps that are registered for the one with the name
  * you passed in.
  *
- * \return the ast_app structure that matches on success, or NULL on failure
+ * \return a reference to the ast_app structure that matches on success, or NULL on failure
  */
 struct ast_app *pbx_findapp(const char *app);
 
@@ -1386,7 +1374,11 @@ int ast_explicit_goto(struct ast_channel *chan, const char *context, const char 
  */
 int ast_async_goto_if_exists(struct ast_channel *chan, const char *context, const char *exten, int priority);
 
-struct ast_custom_function* ast_custom_function_find(const char *name);
+/*! BUGBUG \deprecated */
+int ast_custom_function_exists(const char *name);
+
+/*! Grab a reference to a function and it's module.  Release with ast_api_holder_release */
+struct ast_api_holder *ast_custom_function_use_by_name(const char *search);
 
 /*!
  * \brief Unregister a custom function

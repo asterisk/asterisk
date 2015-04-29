@@ -254,16 +254,6 @@ static struct ast_custom_function srv_result_function = {
 	.read = srv_result_read,
 };
 
-static int unload_module(void)
-{
-	int res = 0;
-
-	res |= ast_custom_function_unregister(&srv_query_function);
-	res |= ast_custom_function_unregister(&srv_result_function);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res = ast_custom_function_register(&srv_query_function);
@@ -278,4 +268,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "SRV related dialplan functions");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "SRV related dialplan functions");

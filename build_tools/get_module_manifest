@@ -1,0 +1,71 @@
+BEGIN {
+	support_level="support_level=unknown\n"
+	load_priority=""
+	export_globals=""
+	configs=""
+	inmoduleinfo=0
+	indocumentation=0
+	uses=""
+	provides=""
+}
+
+function process_provides(data, type) {
+	sub(/.*</, " ", data)
+	sub(/>.*/, "")
+	sub(/.* name *= *"/, "")
+	sub(/".*/, "")
+	provides=provides type "=" $0 "\n"
+}
+
+/\/\*\*\* MODULEINFO/     { inmoduleinfo=1 }
+/\/\*\*\* DOCUMENTATION/  { indocumentation=1 }
+inmoduleinfo && /<export_globals\/>/ {
+	export_globals="export_globals=yes\n"
+}
+inmoduleinfo && /<load_priority>/ {
+	sub(/.*<load_priority>/, "")
+	sub(/<\/.*/, "")
+	load_priority="load_priority=" $1 "\n"
+}
+inmoduleinfo && /<support_level>/ {
+	sub(/.*<support_level>/, "")
+	sub(/<\/.*/, "")
+	support_level="support_level=" $1 "\n"
+}
+inmoduleinfo && /<use/ {
+	sub(/.*<use /, " ")
+	sub(/<\/use>.*/, "")
+	sub(/.* type *= *"/, "")
+	data = $0
+	sub(/".*/, "")
+	type = $0
+	sub(/.*>/, "", data)
+	if (type != "external") {
+		uses=uses type "=" data "\n"
+	}
+}
+indocumentation && /<function / {
+	process_provides($0, "function")
+}
+indocumentation && /<application / {
+	process_provides($0, "application")
+}
+indocumentation && /<agi / {
+	process_provides($0, "agi")
+}
+indocumentation && /<configFile / {
+	sub(/.*<configFile/, "")
+	sub(/ *name *= *"/, "")
+	sub(/".*/, "")
+	filename=$0
+	configs=configs "config=" filename "\n"
+}
+/\*\*\*\// {
+	inmoduleinfo=0
+	indocumentation=0
+}
+END {
+	print "[module]\nname=" AST_MODULE "\nchecksum=" AST_MODULE_CHECKSUM "\n" support_level load_priority export_globals configs
+	print "[uses]\n" uses
+	print "[provides]\n" provides
+}

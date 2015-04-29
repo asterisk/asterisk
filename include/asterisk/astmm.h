@@ -49,6 +49,8 @@ void *ast_std_calloc(size_t nmemb, size_t size);
 void *ast_std_realloc(void *ptr, size_t size);
 void ast_std_free(void *ptr);
 void ast_free_ptr(void *ptr);
+char *ast_std_strdup(const char *s);
+char *ast_std_strndup(const char *s, size_t n);
 
 void *__ast_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func);
 void *__ast_calloc_cache(size_t nmemb, size_t size, const char *file, int lineno, const char *func);

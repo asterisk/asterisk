@@ -127,6 +127,7 @@ struct ast_parked_call_payload *ast_parked_call_payload_create(enum ast_parked_c
 
 int ast_parking_park_bridge_channel(struct ast_bridge_channel *parkee, const char *parkee_uuid, const char *parker_uuid, const char *app_data)
 {
+	int ret;
 	RAII_VAR(struct ast_parking_bridge_feature_fn_table *, table,
 		ao2_global_obj_ref(parking_provider), ao2_cleanup);
 
@@ -134,18 +135,24 @@ int ast_parking_park_bridge_channel(struct ast_bridge_channel *parkee, const cha
 		return -1;
 	}
 
-	if (table->module) {
-		SCOPED_MODULE_USE(table->module);
-		return table->parking_park_bridge_channel(parkee, parkee_uuid, parker_uuid, app_data);
+	if (table->lib && ast_module_lib_ref_instance(table->lib, +1) < 0) {
+		return -1;
 	}
 
-	return table->parking_park_bridge_channel(parkee, parkee_uuid, parker_uuid, app_data);
+	ret = table->parking_park_bridge_channel(parkee, parkee_uuid, parker_uuid, app_data);
+
+	if (table->lib) {
+		ast_module_lib_ref_instance(table->lib, -1);
+	}
+
+	return ret;
 }
 
 int ast_parking_blind_transfer_park(struct ast_bridge_channel *parker,
 	const char *context, const char *exten, transfer_channel_cb parked_channel_cb,
 	struct transfer_channel_data *parked_channel_data)
 {
+	int ret;
 	RAII_VAR(struct ast_parking_bridge_feature_fn_table *, table,
 		ao2_global_obj_ref(parking_provider), ao2_cleanup);
 
@@ -153,16 +160,22 @@ int ast_parking_blind_transfer_park(struct ast_bridge_channel *parker,
 		return -1;
 	}
 
-	if (table->module) {
-		SCOPED_MODULE_USE(table->module);
-		return table->parking_blind_transfer_park(parker, context, exten, parked_channel_cb, parked_channel_data);
+	if (table->lib && ast_module_lib_ref_instance(table->lib, +1) < 0) {
+		return -1;
 	}
 
-	return table->parking_blind_transfer_park(parker, context, exten, parked_channel_cb, parked_channel_data);
+	ret = table->parking_blind_transfer_park(parker, context, exten, parked_channel_cb, parked_channel_data);
+
+	if (table->lib) {
+		ast_module_lib_ref_instance(table->lib, -1);
+	}
+
+	return ret;
 }
 
 int ast_parking_park_call(struct ast_bridge_channel *parker, char *exten, size_t length)
 {
+	int ret;
 	RAII_VAR(struct ast_parking_bridge_feature_fn_table *, table,
 		ao2_global_obj_ref(parking_provider), ao2_cleanup);
 
@@ -170,16 +183,22 @@ int ast_parking_park_call(struct ast_bridge_channel *parker, char *exten, size_t
 		return -1;
 	}
 
-	if (table->module) {
-		SCOPED_MODULE_USE(table->module);
-		return table->parking_park_call(parker, exten, length);
+	if (table->lib && ast_module_lib_ref_instance(table->lib, +1) < 0) {
+		return -1;
 	}
 
-	return table->parking_park_call(parker, exten, length);
+	ret = table->parking_park_call(parker, exten, length);
+
+	if (table->lib) {
+		ast_module_lib_ref_instance(table->lib, -1);
+	}
+
+	return ret;
 }
 
 int ast_parking_is_exten_park(const char *context, const char *exten)
 {
+	int ret;
 	RAII_VAR(struct ast_parking_bridge_feature_fn_table *, table,
 		ao2_global_obj_ref(parking_provider), ao2_cleanup);
 
@@ -187,12 +206,17 @@ int ast_parking_is_exten_park(const char *context, const char *exten)
 		return -1;
 	}
 
-	if (table->module) {
-		SCOPED_MODULE_USE(table->module);
-		return table->parking_is_exten_park(context, exten);
+	if (table->lib && ast_module_lib_ref_instance(table->lib, +1) < 0) {
+		return -1;
 	}
 
-	return table->parking_is_exten_park(context, exten);
+	ret = table->parking_is_exten_park(context, exten);
+
+	if (table->lib) {
+		ast_module_lib_ref_instance(table->lib, -1);
+	}
+
+	return ret;
 }
 
 int ast_parking_register_bridge_features(struct ast_parking_bridge_feature_fn_table *fn_table)

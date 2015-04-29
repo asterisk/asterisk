@@ -901,11 +901,6 @@ static void *scan_thread(void *unused)
 }
 #endif
 
-static int unload_module(void)
-{
-	return -1;
-}
-
 static int load_module(void)
 {
 	pthread_t thread;
@@ -922,7 +917,8 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
+	ast_module_block_unload(AST_MODULE_SELF);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Outgoing Spool Support");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Outgoing Spool Support");

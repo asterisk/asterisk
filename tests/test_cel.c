@@ -2103,49 +2103,10 @@ static int cel_verify_and_cleanup_cb(struct ast_test_info *info, struct ast_test
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	AST_TEST_UNREGISTER(test_cel_channel_creation);
-	AST_TEST_UNREGISTER(test_cel_unanswered_inbound_call);
-	AST_TEST_UNREGISTER(test_cel_unanswered_outbound_call);
-	AST_TEST_UNREGISTER(test_cel_single_party);
-	AST_TEST_UNREGISTER(test_cel_single_bridge);
-	AST_TEST_UNREGISTER(test_cel_single_bridge_continue);
-	AST_TEST_UNREGISTER(test_cel_single_twoparty_bridge_a);
-	AST_TEST_UNREGISTER(test_cel_single_twoparty_bridge_b);
-#ifdef RACEY_TESTS
-	AST_TEST_UNREGISTER(test_cel_single_multiparty_bridge);
-#endif
-
-	AST_TEST_UNREGISTER(test_cel_dial_unanswered);
-	AST_TEST_UNREGISTER(test_cel_dial_unanswered_filter);
-	AST_TEST_UNREGISTER(test_cel_dial_congestion);
-	AST_TEST_UNREGISTER(test_cel_dial_busy);
-	AST_TEST_UNREGISTER(test_cel_dial_unavailable);
-	AST_TEST_UNREGISTER(test_cel_dial_caller_cancel);
-	AST_TEST_UNREGISTER(test_cel_dial_parallel_failed);
-	AST_TEST_UNREGISTER(test_cel_dial_answer_no_bridge);
-	AST_TEST_UNREGISTER(test_cel_dial_answer_twoparty_bridge_a);
-	AST_TEST_UNREGISTER(test_cel_dial_answer_twoparty_bridge_b);
-#ifdef RACEY_TESTS
-	AST_TEST_UNREGISTER(test_cel_dial_answer_multiparty);
-	AST_TEST_UNREGISTER(test_cel_attended_transfer_bridges_swap);
-	AST_TEST_UNREGISTER(test_cel_attended_transfer_bridges_link);
-#endif
-
-	AST_TEST_UNREGISTER(test_cel_blind_transfer);
-	AST_TEST_UNREGISTER(test_cel_attended_transfer_bridges_merge);
-
-	AST_TEST_UNREGISTER(test_cel_dial_pickup);
-
-	AST_TEST_UNREGISTER(test_cel_local_optimize);
-
-	ast_channel_unregister(&test_cel_chan_tech);
-
 	ao2_cleanup(cel_test_config);
 	cel_test_config = NULL;
-
-	return 0;
 }
 
 static int load_module(void)

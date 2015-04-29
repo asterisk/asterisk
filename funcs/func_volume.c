@@ -228,14 +228,9 @@ static struct ast_custom_function volume_function = {
 	.write = volume_write,
 };
 
-static int unload_module(void)
-{
-	return ast_custom_function_unregister(&volume_function);
-}
-
 static int load_module(void)
 {
 	return ast_custom_function_register(&volume_function);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Technology independent volume control");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Technology independent volume control");

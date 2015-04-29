@@ -25,6 +25,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>app_depend</load_priority>
 	<support_level>extended</support_level>
  ***/
  
@@ -143,14 +144,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
-{
-	return ast_format_def_unregister(vox_f.name);
-}
-
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Dialogic VOX (ADPCM) File Format",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_APP_DEPEND
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Dialogic VOX (ADPCM) File Format");

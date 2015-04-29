@@ -26,6 +26,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>app_depend</load_priority>
 	<use type="module">res_agi</use>
 	<support_level>core</support_level>
  ***/
@@ -1276,21 +1277,11 @@ static int handle_gosub(struct ast_channel *chan, AGI *agi, int argc, const char
 static struct agi_command gosub_agi_command =
 	{ { "gosub", NULL }, handle_gosub, NULL, NULL, 0 };
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_install_stack_functions(NULL);
 
-	ast_agi_unregister(ast_module_info->self, &gosub_agi_command);
-
-	ast_unregister_application(app_return);
-	ast_unregister_application(app_pop);
-	ast_unregister_application(app_gosubif);
-	ast_unregister_application(app_gosub);
-	ast_custom_function_unregister(&local_function);
-	ast_custom_function_unregister(&peek_function);
-	ast_custom_function_unregister(&stackpeek_function);
-
-	return 0;
+	ast_agi_unregister(AST_MODULE_SELF, &gosub_agi_command);
 }
 
 static int load_module(void)
@@ -1301,7 +1292,7 @@ static int load_module(void)
 		.expand_sub_args = expand_gosub_args,
 	};
 
-	ast_agi_register(ast_module_info->self, &gosub_agi_command);
+	ast_agi_register(AST_MODULE_SELF, &gosub_agi_command);
 
 	ast_register_application_xml(app_pop, pop_exec);
 	ast_register_application_xml(app_return, return_exec);
@@ -1311,16 +1302,10 @@ static int load_module(void)
 	ast_custom_function_register(&peek_function);
 	ast_custom_function_register(&stackpeek_function);
 
-	funcs.module = ast_module_info->self,
+	funcs.module = AST_MODULE_SELF,
 	ast_install_stack_functions(&funcs);
 
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT | AST_MODFLAG_LOAD_ORDER, "Dialplan subroutines (Gosub, Return, etc)",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_APP_DEPEND,
-	.nonoptreq = "res_agi",
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Dialplan subroutines (Gosub, Return, etc)");

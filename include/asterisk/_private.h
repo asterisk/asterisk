@@ -15,7 +15,7 @@
 #ifndef _ASTERISK__PRIVATE_H
 #define _ASTERISK__PRIVATE_H
 
-int load_modules(unsigned int);		/*!< Provided by loader.c */
+int modules_init(void);			/*!< Provided by module.c */
 int load_pbx(void);			/*!< Provided by pbx.c */
 int init_logger(void);			/*!< Provided by logger.c */
 void close_logger(void);		/*!< Provided by logger.c */
@@ -50,6 +50,23 @@ int ast_test_init(void);            /*!< Provided by test.c */
 int ast_msg_init(void);             /*!< Provided by message.c */
 void ast_msg_shutdown(void);        /*!< Provided by message.c */
 int aco_init(void);             /*!< Provided by config_options.c */
+
+
+/*!
+ * \brief Grab a reference to the ref_log.
+ *
+ * \note Used internally by the module loader to work around issues
+ * with the inability to dlclose res_pjsip_session.
+ */
+void astobj2_ref_log_ref(void);
+
+/*!
+ * \brief Release a reference to the ref_log.
+ *
+ * \note Used internally by the module loader to work around issues
+ * with the inability to dlclose res_pjsip_session.
+ */
+void astobj2_ref_log_unref(void);
 
 /*!
  * \brief Initialize the bridging system.

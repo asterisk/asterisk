@@ -146,16 +146,10 @@ static struct ast_cli_entry cli_convert[] = {
 	AST_CLI_DEFINE(handle_cli_file_convert, "Convert audio file")
 };
 
-static int unload_module(void)
-{
-	ast_cli_unregister_multiple(cli_convert, ARRAY_LEN(cli_convert));
-	return 0;
-}
-
 static int load_module(void)
 {
 	ast_cli_register_multiple(cli_convert, ARRAY_LEN(cli_convert));
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "File format conversion CLI command");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "File format conversion CLI command");

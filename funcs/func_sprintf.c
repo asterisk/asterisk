@@ -213,15 +213,6 @@ static struct ast_custom_function sprintf_function = {
 	.read = acf_sprintf,
 };
 
-static int unload_module(void)
-{
-	int res = 0;
-
-	res |= ast_custom_function_unregister(&sprintf_function);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res = 0;
@@ -231,4 +222,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "SPRINTF dialplan function");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "SPRINTF dialplan function");

@@ -17,8 +17,9 @@
  */
 
 /*** MODULEINFO
+	<load_priority>app_depend</load_priority>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
+	<use type="module">res_pjsip</use>
 	<support_level>core</support_level>
  ***/
 
@@ -280,17 +281,13 @@ static struct ast_sip_session_supplement nat_supplement = {
 };
 
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_sip_session_unregister_supplement(&nat_supplement);
-	ast_sip_unregister_service(&nat_module);
-	return 0;
 }
 
 static int load_module(void)
 {
-	CHECK_PJSIP_SESSION_MODULE_LOADED();
-
 	if (ast_sip_register_service(&nat_module)) {
 		ast_log(LOG_ERROR, "Could not register NAT module for incoming and outgoing requests\n");
 		return AST_MODULE_LOAD_FAILURE;
@@ -298,16 +295,10 @@ static int load_module(void)
 
 	if (ast_sip_session_register_supplement(&nat_supplement)) {
 		ast_log(LOG_ERROR, "Could not register NAT session supplement for incoming and outgoing INVITE requests\n");
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP NAT Support",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_APP_DEPEND,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "PJSIP NAT Support");

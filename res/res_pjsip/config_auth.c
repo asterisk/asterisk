@@ -312,7 +312,7 @@ int ast_sip_initialize_sorcery_auth(void)
 	ast_sorcery_object_field_register_custom(sorcery, SIP_SORCERY_AUTH_TYPE, "auth_type",
 			"userpass", auth_type_handler, auth_type_to_str, NULL, 0, 0);
 
-	internal_sip_register_endpoint_formatter(&endpoint_auth_formatter);
+	ast_sip_register_endpoint_formatter(&endpoint_auth_formatter);
 
 	cli_formatter = ao2_alloc(sizeof(struct ast_sip_cli_formatter_entry), NULL);
 	if (!cli_formatter) {
@@ -335,9 +335,8 @@ int ast_sip_initialize_sorcery_auth(void)
 
 int ast_sip_destroy_sorcery_auth(void)
 {
-	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
 	ast_sip_unregister_cli_formatter(cli_formatter);
-	internal_sip_unregister_endpoint_formatter(&endpoint_auth_formatter);
+	ast_sip_unregister_endpoint_formatter(&endpoint_auth_formatter);
 
 	return 0;
 }

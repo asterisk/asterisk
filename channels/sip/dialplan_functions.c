@@ -404,7 +404,7 @@ done:
 		dialog_unlink_all(p);
 		dialog_unref(p, "Destroy test object");
 	}
-	ast_rtp_engine_unregister(&test_engine);
+
 	return res;
 }
 #endif
@@ -413,11 +413,5 @@ done:
 void sip_dialplan_function_register_tests(void)
 {
 	AST_TEST_REGISTER(test_sip_rtpqos_1);
-}
-
-/*! \brief SIP test registration */
-void sip_dialplan_function_unregister_tests(void)
-{
-	AST_TEST_UNREGISTER(test_sip_rtpqos_1);
 }
 

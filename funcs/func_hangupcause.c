@@ -222,23 +222,6 @@ static const char app[] = "HangupCauseClear";
 
 /*!
  * \internal
- * \brief Unload the function module
- *
- * \retval 0 on success.
- * \retval -1 on error.
- */
-static int unload_module(void)
-{
-	int res;
-
-	res = ast_custom_function_unregister(&hangupcause_function);
-	res |= ast_custom_function_unregister(&hangupcause_keys_function);
-	res |= ast_unregister_application(app);
-	return res;
-}
-
-/*!
- * \internal
  * \brief Load and initialize the function module.
  *
  * \retval AST_MODULE_LOAD_SUCCESS on success.
@@ -255,4 +238,4 @@ static int load_module(void)
 }
 
 /* Do not wrap the following line. */
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "HANGUPCAUSE related functions and applications");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "HANGUPCAUSE related functions and applications");

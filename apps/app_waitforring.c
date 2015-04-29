@@ -130,15 +130,9 @@ static int waitforring_exec(struct ast_channel *chan, const char *data)
 	return res;
 }
 
-static int unload_module(void)
-{
-	return ast_unregister_application(app);
-}
-
 static int load_module(void)
 {
 	return ast_register_application_xml(app, waitforring_exec);
 }
 
-AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Waits until first ring after time");
-
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Waits until first ring after time");

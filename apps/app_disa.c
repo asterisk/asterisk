@@ -391,6 +391,7 @@ static int disa_exec(struct ast_channel *chan, const char *data)
 			app_reset_cdr = pbx_findapp("ResetCDR");
 			if (app_reset_cdr) {
 				pbx_exec(chan, app_reset_cdr, special_noanswer ? "" : "e");
+				ao2_ref(app_reset_cdr, -1);
 			} else {
 				ast_log(AST_LOG_NOTICE, "ResetCDR application not found; CDR will not be reset\n");
 			}
@@ -411,15 +412,10 @@ reorder:
 	return -1;
 }
 
-static int unload_module(void)
-{
-	return ast_unregister_application(app);
-}
-
 static int load_module(void)
 {
 	return ast_register_application_xml(app, disa_exec) ?
 		AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "DISA (Direct Inward System Access) Application");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "DISA (Direct Inward System Access) Application");

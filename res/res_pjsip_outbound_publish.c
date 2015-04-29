@@ -17,8 +17,10 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_depend</load_priority>
+	<export_globals/>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
+	<use type="module">res_pjsip</use>
 	<support_level>core</support_level>
  ***/
 
@@ -248,7 +250,6 @@ AST_RWLIST_HEAD_STATIC(publisher_handlers, ast_sip_event_publisher_handler);
 static void sub_add_handler(struct ast_sip_event_publisher_handler *handler)
 {
 	AST_RWLIST_INSERT_TAIL(&publisher_handlers, handler, next);
-	ast_module_ref(ast_module_info->self);
 }
 
 static struct ast_sip_event_publisher_handler *find_publisher_handler_for_event_name(const char *event_name)
@@ -442,7 +443,6 @@ void ast_sip_unregister_event_publisher_handler(struct ast_sip_event_publisher_h
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&publisher_handlers, iter, next) {
 		if (handler == iter) {
 			AST_RWLIST_REMOVE_CURRENT(next);
-			ast_module_unref(ast_module_info->self);
 			break;
 		}
 	}
@@ -1105,8 +1105,6 @@ static int outbound_auth_handler(const struct aco_option *opt, struct ast_variab
 
 static int load_module(void)
 {
-	CHECK_PJSIP_MODULE_LOADED();
-
 	ast_sorcery_apply_config(ast_sip_get_sorcery(), "res_pjsip_outbound_publish");
 	ast_sorcery_apply_default(ast_sip_get_sorcery(), "outbound-publish", "config", "pjsip.conf,criteria=type=outbound-publish");
 
@@ -1146,7 +1144,7 @@ static int reload_module(void)
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	struct timeval start = ast_tvnow();
 	struct timespec end = {
@@ -1157,7 +1155,7 @@ static int unload_module(void)
 	struct ao2_container *states = ao2_global_obj_ref(current_states);
 
 	if (!states || !(unloading.count = ao2_container_count(states))) {
-		return 0;
+		return;
 	}
 	ao2_ref(states, -1);
 
@@ -1181,16 +1179,10 @@ static int unload_module(void)
 	if (res) {
 		ast_verb(5, "At least %d items were unable to unpublish "
 			"in the allowed time\n", unloading.count);
+		ast_module_block_unload(AST_MODULE_SELF);
 	} else {
 		ast_verb(5, "All items successfully unpublished\n");
 	}
-
-	return res;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "PJSIP Outbound Publish Support",
-	.load = load_module,
-	.reload = reload_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "PJSIP Outbound Publish Support");

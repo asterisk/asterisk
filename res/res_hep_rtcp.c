@@ -25,7 +25,7 @@
  */
 
 /*** MODULEINFO
-	<depend>res_hep</depend>
+	<use type="module">res_hep</use>
 	<support_level>extended</support_level>
  ***/
 
@@ -128,17 +128,11 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	if (stasis_rtp_subscription) {
 		stasis_rtp_subscription = stasis_unsubscribe_and_join(stasis_rtp_subscription);
 	}
-
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "RTCP HEPv3 Logger",
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_DEFAULT,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "RTCP HEPv3 Logger");

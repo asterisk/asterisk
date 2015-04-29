@@ -101,14 +101,9 @@ static struct ast_custom_function blacklist_function = {
 	.read2 = blacklist_read2,
 };
 
-static int unload_module(void)
-{
-	return ast_custom_function_unregister(&blacklist_function);
-}
-
 static int load_module(void)
 {
 	return ast_custom_function_register(&blacklist_function);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Look up Caller*ID name/number from blacklist database");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Look up Caller*ID name/number from blacklist database");

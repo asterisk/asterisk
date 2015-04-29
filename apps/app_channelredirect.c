@@ -105,15 +105,10 @@ static int asyncgoto_exec(struct ast_channel *chan, const char *data)
 	return res;
 }
 
-static int unload_module(void)
-{
-	return ast_unregister_application(app);
-}
-
 static int load_module(void)
 {
 	return ast_register_application_xml(app, asyncgoto_exec) ?
 		AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Redirects a given channel to a dialplan target");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Redirects a given channel to a dialplan target");

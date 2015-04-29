@@ -867,19 +867,6 @@ static struct ast_translator lintog726aal2 = {
 	.buf_size = BUFFER_SAMPLES / 2,
 };
 
-static int unload_module(void)
-{
-	int res = 0;
-
-	res |= ast_unregister_translator(&g726tolin);
-	res |= ast_unregister_translator(&lintog726);
-
-	res |= ast_unregister_translator(&g726aal2tolin);
-	res |= ast_unregister_translator(&lintog726aal2);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res = 0;
@@ -891,15 +878,10 @@ static int load_module(void)
 	res |= ast_register_translator(&lintog726aal2);
 
 	if (res) {
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}	
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "ITU G.726-32kbps G726 Transcoder",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "ITU G.726-32kbps G726 Transcoder");

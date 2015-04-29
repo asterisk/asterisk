@@ -38,6 +38,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>cdr_driver</load_priority>
 	<depend>pgsql</depend>
 	<support_level>extended</support_level>
  ***/
@@ -392,7 +393,7 @@ ast_log_cleanup:
 	ast_mutex_unlock(&pgsql_lock);
 }
 
-static int my_unload_module(void)
+static void unload_module(void)
 {
 	struct columns *current;
 
@@ -438,12 +439,6 @@ static int my_unload_module(void)
 		ast_free(current);
 	}
 	AST_RWLIST_UNLOCK(&psql_columns);
-	return 0;
-}
-
-static int unload_module(void)
-{
-	return my_unload_module();
 }
 
 static int process_my_load_module(struct ast_config *cfg)
@@ -613,7 +608,6 @@ static int process_my_load_module(struct ast_config *cfg)
 			pgerror = PQresultErrorMessage(result);
 			ast_log(LOG_ERROR, "Failed to query database columns: %s\n", pgerror);
 			PQclear(result);
-			unload_module();
 			return AST_MODULE_LOAD_DECLINE;
 		}
 
@@ -670,7 +664,7 @@ static int my_load_module(int reload)
 	}
 
 	if (reload) {
-		my_unload_module();
+		unload_module();
 	}
 
 	process_my_load_module(cfg);
@@ -689,15 +683,9 @@ static int load_module(void)
 	return my_load_module(0);
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	return my_load_module(1);
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PostgreSQL CEL Backend",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CDR_DRIVER,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "PostgreSQL CEL Backend");

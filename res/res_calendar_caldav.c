@@ -21,9 +21,11 @@
  */
 
 /*** MODULEINFO
+	<load_priority>devstate_plugin</load_priority>
 	<depend>neon</depend>
 	<depend>ical</depend>
 	<depend>libxml2</depend>
+	<use type="module">res_calendar</use>
 	<support_level>core</support_level>
 ***/
 
@@ -710,23 +712,16 @@ static int load_module(void)
 {
 	ne_sock_init();
 	if (ast_calendar_register(&caldav_tech)) {
-		ne_sock_exit();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_calendar_unregister(&caldav_tech);
 	ne_sock_exit();
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Asterisk CalDAV Calendar Integration",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_DEVSTATE_PLUGIN,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Asterisk CalDAV Calendar Integration");

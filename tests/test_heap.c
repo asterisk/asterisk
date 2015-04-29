@@ -287,15 +287,6 @@ return_cleanup:
 	return res;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(heap_test_1);
-	AST_TEST_UNREGISTER(heap_test_2);
-	AST_TEST_UNREGISTER(heap_test_3);
-
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(heap_test_1);
@@ -305,4 +296,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Heap test module");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Heap test module");

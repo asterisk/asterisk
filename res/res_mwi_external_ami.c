@@ -27,7 +27,8 @@
  */
 
 /*** MODULEINFO
-	<depend>res_mwi_external</depend>
+	<load_priority></load_priority>
+	<use type="module">res_mwi_external</use>
 	<support_level>core</support_level>
  ***/
 
@@ -338,39 +339,20 @@ static int mwi_mailbox_update(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static int unload_module(void)
-{
-	ast_manager_unregister("MWIGet");
-	ast_manager_unregister("MWIDelete");
-	ast_manager_unregister("MWIUpdate");
-
-	/* Must be done last */
-	ast_mwi_external_unref();
-	return 0;
-}
-
 static int load_module(void)
 {
 	int res;
-
-	/* Must be done first */
-	ast_mwi_external_ref();
 
 	res = 0;
 	res |= ast_manager_register_xml("MWIGet", EVENT_FLAG_CALL | EVENT_FLAG_REPORTING, mwi_mailbox_get);
 	res |= ast_manager_register_xml("MWIDelete", EVENT_FLAG_CALL, mwi_mailbox_delete);
 	res |= ast_manager_register_xml("MWIUpdate", EVENT_FLAG_CALL, mwi_mailbox_update);
 	if (res) {
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "AMI support for external MWI",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "AMI support for external MWI");
 

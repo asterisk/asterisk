@@ -496,16 +496,6 @@ cleanup:
 	return rc;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(locks);
-	AST_TEST_UNREGISTER(callbacks);
-	AST_TEST_UNREGISTER(basic_ops_integer);
-	AST_TEST_UNREGISTER(basic_ops);
-
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(locks);
@@ -516,4 +506,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Vector test module");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Vector test module");

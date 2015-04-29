@@ -201,14 +201,9 @@ static struct ast_custom_function timeout_function = {
 	.write = timeout_write,
 };
 
-static int unload_module(void)
-{
-	return ast_custom_function_unregister(&timeout_function);
-}
-
 static int load_module(void)
 {
 	return ast_custom_function_register(&timeout_function);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Channel timeout dialplan functions");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Channel timeout dialplan functions");

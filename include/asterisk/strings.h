@@ -1237,6 +1237,17 @@ static force_inline char *attribute_pure ast_str_to_upper(char *str)
 struct ao2_container *ast_str_container_alloc_options(enum ao2_alloc_opts opts, int buckets);
 
 /*!
+ * \since 14
+ * \brief Copies a string to an immutable reference counted string.
+ *
+ * \param copy The string to duplicate as an ao2 object
+ *
+ * \retval non-NULL an ao2 string reference.
+ * \retval NULL an allocation error.
+ */
+char *ast_str_ao2_alloc(const char *copy);
+
+/*!
  * \since 12
  * \brief Adds a string to a string container allocated by ast_str_container_alloc
  *

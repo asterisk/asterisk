@@ -75,6 +75,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/test.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/max_forwards.h"
+#include "asterisk/module.h"
 
 /*** DOCUMENTATION
  ***/
@@ -120,6 +121,7 @@ AST_THREADSTORAGE(state2str_threadbuf);
 /*! \brief List of channel drivers */
 struct chanlist {
 	const struct ast_channel_tech *tech;
+	struct ast_module_lib *lib;
 	AST_LIST_ENTRY(chanlist) list;
 };
 
@@ -561,10 +563,29 @@ int ast_channel_cmpwhentohangup(struct ast_channel *chan, time_t offset)
 	return ast_channel_cmpwhentohangup_tv(chan, when);
 }
 
+static void module_channel_unregister(void *weakproxy, void *data)
+{
+	struct chanlist *chan = data;
+
+	ast_channel_unregister(chan->tech);
+}
+
+static void channel_tech_holder_destroy(void *obj)
+{
+	struct chanlist *chan = obj;
+
+	ao2_cleanup(chan->lib);
+}
+
 /*! \brief Register a new telephony channel in Asterisk */
-int ast_channel_register(const struct ast_channel_tech *tech)
+int __ast_channel_register(const struct ast_channel_tech *tech, struct ast_module *module)
 {
 	struct chanlist *chan;
+	struct ast_module_lib *lib = module ? ast_module_get_lib_running(module) : NULL;
+
+	if (module && !lib) {
+		return -1;
+	}
 
 	AST_RWLIST_WRLOCK(&backends);
 
@@ -572,22 +593,29 @@ int ast_channel_register(const struct ast_channel_tech *tech)
 		if (!strcasecmp(tech->type, chan->tech->type)) {
 			ast_log(LOG_WARNING, "Already have a handler for type '%s'\n", tech->type);
 			AST_RWLIST_UNLOCK(&backends);
+			ao2_cleanup(lib);
 			return -1;
 		}
 	}
 
-	if (!(chan = ast_calloc(1, sizeof(*chan)))) {
+	chan = ao2_t_alloc(sizeof(*chan), channel_tech_holder_destroy, tech->type);
+	if (!chan) {
 		AST_RWLIST_UNLOCK(&backends);
+		ao2_cleanup(lib);
 		return -1;
 	}
 	chan->tech = tech;
+	chan->lib = lib;
 	AST_RWLIST_INSERT_HEAD(&backends, chan, list);
 
 	ast_debug(1, "Registered handler for '%s' (%s)\n", chan->tech->type, chan->tech->description);
-
 	ast_verb(2, "Registered channel type '%s' (%s)\n", chan->tech->type, chan->tech->description);
 
 	AST_RWLIST_UNLOCK(&backends);
+
+	if (lib) {
+		ast_module_lib_subscribe_stop(lib, module_channel_unregister, chan);
+	}
 
 	return 0;
 }
@@ -602,9 +630,8 @@ void ast_channel_unregister(const struct ast_channel_tech *tech)
 	AST_RWLIST_WRLOCK(&backends);
 
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&backends, chan, list) {
-		if (chan->tech == tech) {
+		if (!strcmp(chan->tech->type, tech->type)) {
 			AST_LIST_REMOVE_CURRENT(list);
-			ast_free(chan);
 			ast_verb(2, "Unregistered channel type '%s'\n", tech->type);
 			break;
 		}
@@ -612,6 +639,16 @@ void ast_channel_unregister(const struct ast_channel_tech *tech)
 	AST_LIST_TRAVERSE_SAFE_END;
 
 	AST_RWLIST_UNLOCK(&backends);
+
+	if (!chan) {
+		return;
+	}
+
+	if (chan->lib) {
+		ast_module_lib_unsubscribe_stop(chan->lib, module_channel_unregister, chan);
+	}
+
+	ao2_ref(chan, -1);
 }
 
 /*! \brief Get handle to channel driver based on name */
@@ -10740,4 +10777,15 @@ int ast_channel_feature_hooks_append(struct ast_channel *chan, struct ast_bridge
 int ast_channel_feature_hooks_replace(struct ast_channel *chan, struct ast_bridge_features *features)
 {
 	return channel_feature_hooks_set_full(chan, features, 1);
+}
+
+int ast_module_disposer_channel_cb(void *userdata, int level)
+{
+	struct ast_channel *chan = userdata;
+
+	if (level) {
+		ast_softhangup(chan, AST_SOFTHANGUP_APPUNLOAD);
+	}
+
+	return 0;
 }

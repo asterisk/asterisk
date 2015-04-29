@@ -496,11 +496,6 @@ static int load_config(int reload)
 	return 0;
 }
 
-static int unload_module(void)
-{
-	return ast_unregister_application(app);
-}
-
 /*!
  * \brief Load the module
  *
@@ -520,16 +515,11 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	if (load_config(1))
 		return AST_MODULE_LOAD_DECLINE;
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Answering Machine Detection Application",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-);
+AST_MODULE_INFO_AUTOCLEAN_RELOADABLE(ASTERISK_GPL_KEY, "Answering Machine Detection Application");

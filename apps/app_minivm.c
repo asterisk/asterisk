@@ -3511,7 +3511,7 @@ static int load_module(void)
 }
 
 /*! \brief Reload mini voicemail module */
-static int reload(void)
+static int reload_module(void)
 {
 	return(load_config(1));
 }
@@ -3531,38 +3531,17 @@ static char *handle_minivm_reload(struct ast_cli_entry *e, int cmd, struct ast_c
 		return NULL;
 	}
 	
-	reload();
+	reload_module();
 	ast_cli(a->fd, "\n-- Mini voicemail re-configured \n");
 	return CLI_SUCCESS;
 }
 
 /*! \brief Unload mini voicemail module */
-static int unload_module(void)
+static void unload_module(void)
 {
-	int res;
-	
-	res = ast_unregister_application(app_minivm_record);
-	res |= ast_unregister_application(app_minivm_greet);
-	res |= ast_unregister_application(app_minivm_notify);
-	res |= ast_unregister_application(app_minivm_delete);
-	res |= ast_unregister_application(app_minivm_accmess);
-	res |= ast_unregister_application(app_minivm_mwi);
-
-	ast_cli_unregister_multiple(cli_minivm, ARRAY_LEN(cli_minivm));
-	ast_custom_function_unregister(&minivm_account_function);
-	ast_custom_function_unregister(&minivm_counter_function);
-
 	message_destroy_list();		/* Destroy list of voicemail message templates */
 	timezone_destroy_list();	/* Destroy list of timezones */
 	vmaccounts_destroy_list();	/* Destroy list of voicemail accounts */
-
-	return res;
 }
 
-
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Mini VoiceMail (A minimal Voicemail e-mail System)",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Mini VoiceMail (A minimal Voicemail e-mail System)");

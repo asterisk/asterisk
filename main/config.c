@@ -53,6 +53,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/astobj2.h"
 #include "asterisk/strings.h"	/* for the ast_str_*() API */
 #include "asterisk/netsock2.h"
+#include "asterisk/api_registry.h"
 
 #define MAX_NESTED_COMMENTS 128
 #define COMMENT_START ";--"
@@ -206,7 +207,11 @@ static struct ast_config_map {
 } *config_maps = NULL;
 
 AST_MUTEX_DEFINE_STATIC(config_lock);
-static struct ast_config_engine *config_engine_list;
+
+
+struct ast_api_registry ast_config_engine = { .label = "Realtime Driver" };
+AST_API_FN_REGISTER(ast_config_engine, __ast_config_engine)
+static AST_API_FN_USE_BY_NAME(ast_config_engine, ast_config_engine)
 
 #define MAX_INCLUDE_LEVEL 10
 
@@ -2743,6 +2748,11 @@ static int ast_realtime_append_mapping(const char *name, const char *driver, con
 	return 0;
 }
 
+static void config_engines_cleanup(void)
+{
+	ast_api_registry_cleanup(&ast_config_engine);
+}
+
 int read_config_maps(void)
 {
 	struct ast_config *config, *configtmp;
@@ -2750,6 +2760,9 @@ int read_config_maps(void)
 	char *driver, *table, *database, *textpri, *stringp, *tmp;
 	struct ast_flags flags = { CONFIG_FLAG_NOREALTIME };
 	int pri;
+
+	ast_api_registry_init(&ast_config_engine, 6);
+	ast_register_cleanup(config_engines_cleanup);
 
 	clear_config_maps();
 
@@ -2823,42 +2836,6 @@ int read_config_maps(void)
 	return 0;
 }
 
-int ast_config_engine_register(struct ast_config_engine *new)
-{
-	struct ast_config_engine *ptr;
-
-	SCOPED_MUTEX(lock, &config_lock);
-
-	if (!config_engine_list) {
-		config_engine_list = new;
-	} else {
-		for (ptr = config_engine_list; ptr->next; ptr=ptr->next);
-		ptr->next = new;
-	}
-
-	return 1;
-}
-
-int ast_config_engine_deregister(struct ast_config_engine *del)
-{
-	struct ast_config_engine *ptr, *last=NULL;
-
-	SCOPED_MUTEX(lock, &config_lock);
-
-	for (ptr = config_engine_list; ptr; ptr=ptr->next) {
-		if (ptr == del) {
-			if (last)
-				last->next = ptr->next;
-			else
-				config_engine_list = ptr->next;
-			break;
-		}
-		last = ptr;
-	}
-
-	return 0;
-}
-
 int ast_realtime_is_mapping_defined(const char *family)
 {
 	struct ast_config_map *map;
@@ -2874,34 +2851,38 @@ int ast_realtime_is_mapping_defined(const char *family)
 }
 
 /*! \brief Find realtime engine for realtime family */
-static struct ast_config_engine *find_engine(const char *family, int priority, char *database, int dbsiz, char *table, int tabsiz)
+static struct ast_api_holder *find_engine(const char *family, int priority, char *database, int dbsiz, char *table, int tabsiz)
 {
-	struct ast_config_engine *eng, *ret = NULL;
+	struct ast_api_holder *ret = NULL;
 	struct ast_config_map *map;
 
-	SCOPED_MUTEX(lock, &config_lock);
-
-	for (map = config_maps; map; map = map->next) {
-		if (!strcasecmp(family, map->name) && (priority == map->priority)) {
-			if (database)
-				ast_copy_string(database, map->database, dbsiz);
-			if (table)
-				ast_copy_string(table, map->table ? map->table : family, tabsiz);
-			break;
+	{
+		SCOPED_MUTEX(lock, &config_lock);
+		for (map = config_maps; map; map = map->next) {
+			if (priority == map->priority && !strcasecmp(family, map->name)) {
+				if (database) {
+					ast_copy_string(database, map->database, dbsiz);
+				}
+				if (table) {
+					ast_copy_string(table, map->table ? map->table : family, tabsiz);
+				}
+				break;
+			}
 		}
-	}
+	};
 
 	/* Check if the required driver (engine) exist */
 	if (map) {
-		for (eng = config_engine_list; !ret && eng; eng = eng->next) {
-			if (!strcasecmp(eng->name, map->driver))
-				ret = eng;
+		ret = ast_config_engine_use_by_name(map->driver);
+
+		/* issue a warning if the engine is not available */
+		if (!ret) {
+			ast_log(LOG_WARNING,
+				"Realtime mapping for '%s' found to engine '%s', "
+				"but the engine is not available\n",
+				map->name, map->driver);
 		}
 	}
-
-	/* if we found a mapping, but the engine is not available, then issue a warning */
-	if (map && !ret)
-		ast_log(LOG_WARNING, "Realtime mapping for '%s' found to engine '%s', but the engine is not available\n", map->name, map->driver);
 
 	return ret;
 }
@@ -2948,6 +2929,7 @@ struct ast_config *ast_config_internal_load(const char *filename, struct ast_con
 {
 	char db[256];
 	char table[256];
+	AST_API_HOLDER_SCOPED(ast_config_engine, eng, NULL);
 	struct ast_config_engine *loader = &text_file_engine;
 	struct ast_config *result;
 
@@ -2959,18 +2941,19 @@ struct ast_config *ast_config_internal_load(const char *filename, struct ast_con
 
 	cfg->include_level++;
 
-	if (!ast_test_flag(&flags, CONFIG_FLAG_NOREALTIME) && config_engine_list) {
-		struct ast_config_engine *eng;
-
-		eng = find_engine(filename, 1, db, sizeof(db), table, sizeof(table));
-
+	if (!ast_test_flag(&flags, CONFIG_FLAG_NOREALTIME) && !AST_API_REGISTRY_EMPTY(ast_config_engine)) {
+		AST_API_HOLDER_SET(ast_config_engine, eng,
+			find_engine(filename, 1, db, sizeof(db), table, sizeof(table)));
 
 		if (eng && eng->load_func) {
 			loader = eng;
 		} else {
-			eng = find_engine("global", 1, db, sizeof(db), table, sizeof(table));
-			if (eng && eng->load_func)
+			AST_API_HOLDER_REPLACE(ast_config_engine, eng,
+				find_engine("global", 1, db, sizeof(db), table, sizeof(table)));
+
+			if (eng && eng->load_func) {
 				loader = eng;
+			}
 		}
 	}
 
@@ -3100,19 +3083,22 @@ static int realtime_arguments_to_fields2(va_list ap, int skip, struct ast_variab
 
 struct ast_variable *ast_load_realtime_all_fields(const char *family, const struct ast_variable *fields)
 {
-	struct ast_config_engine *eng;
+	AST_API_HOLDER_SCOPED(ast_config_engine, eng, NULL);
 	char db[256];
 	char table[256];
 	struct ast_variable *res=NULL;
 	int i;
 
 	for (i = 1; ; i++) {
-		if ((eng = find_engine(family, i, db, sizeof(db), table, sizeof(table)))) {
-			if (eng->realtime_func && (res = eng->realtime_func(db, table, fields))) {
-				return res;
-			}
-		} else {
+		AST_API_HOLDER_REPLACE(ast_config_engine, eng,
+			find_engine(family, i, db, sizeof(db), table, sizeof(table)));
+
+		if (!eng) {
 			return NULL;
+		}
+
+		if (eng->realtime_func && (res = eng->realtime_func(db, table, fields))) {
+			return res;
 		}
 	}
 
@@ -3197,14 +3183,16 @@ struct ast_variable *ast_load_realtime(const char *family, ...)
 /*! \brief Check if realtime engine is configured for family */
 int ast_check_realtime(const char *family)
 {
-	struct ast_config_engine *eng;
+	struct ast_api_holder *eng;
 	if (!ast_realtime_enabled()) {
 		return 0;	/* There are no engines at all so fail early */
 	}
 
 	eng = find_engine(family, 1, NULL, 0, NULL, 0);
-	if (eng)
+	if (eng) {
+		ast_api_holder_release(eng);
 		return 1;
+	}
 	return 0;
 }
 
@@ -3216,7 +3204,7 @@ int ast_realtime_enabled(void)
 
 int ast_realtime_require_field(const char *family, ...)
 {
-	struct ast_config_engine *eng;
+	AST_API_HOLDER_SCOPED(ast_config_engine, eng, NULL);
 	char db[256];
 	char table[256];
 	va_list ap;
@@ -3224,12 +3212,15 @@ int ast_realtime_require_field(const char *family, ...)
 
 	va_start(ap, family);
 	for (i = 1; ; i++) {
-		if ((eng = find_engine(family, i, db, sizeof(db), table, sizeof(table)))) {
-			/* If the require succeeds, it returns 0. */
-			if (eng->require_func && !(res = eng->require_func(db, table, ap))) {
-				break;
-			}
-		} else {
+		AST_API_HOLDER_REPLACE(ast_config_engine, eng,
+			find_engine(family, i, db, sizeof(db), table, sizeof(table)));
+
+		if (!eng) {
+			break;
+		}
+
+		/* If the require succeeds, it returns 0. */
+		if (eng->require_func && !(res = eng->require_func(db, table, ap))) {
 			break;
 		}
 	}
@@ -3240,19 +3231,22 @@ int ast_realtime_require_field(const char *family, ...)
 
 int ast_unload_realtime(const char *family)
 {
-	struct ast_config_engine *eng;
+	AST_API_HOLDER_SCOPED(ast_config_engine, eng, NULL);
 	char db[256];
 	char table[256];
 	int res = -1, i;
 
 	for (i = 1; ; i++) {
-		if ((eng = find_engine(family, i, db, sizeof(db), table, sizeof(table)))) {
-			if (eng->unload_func) {
-				/* Do this for ALL engines */
-				res = eng->unload_func(db, table);
-			}
-		} else {
+		AST_API_HOLDER_REPLACE(ast_config_engine, eng,
+			find_engine(family, i, db, sizeof(db), table, sizeof(table)));
+
+		if (!eng) {
 			break;
+		}
+
+		if (eng->unload_func) {
+			/* Do this for ALL engines */
+			res = eng->unload_func(db, table);
 		}
 	}
 	return res;
@@ -3260,23 +3254,26 @@ int ast_unload_realtime(const char *family)
 
 struct ast_config *ast_load_realtime_multientry_fields(const char *family, const struct ast_variable *fields)
 {
-	struct ast_config_engine *eng;
+	AST_API_HOLDER_SCOPED(ast_config_engine, eng, NULL);
 	char db[256];
 	char table[256];
 	struct ast_config *res = NULL;
 	int i;
 
 	for (i = 1; ; i++) {
-		if ((eng = find_engine(family, i, db, sizeof(db), table, sizeof(table)))) {
-			if (eng->realtime_multi_func && (res = eng->realtime_multi_func(db, table, fields))) {
-				/* If we were returned an empty cfg, destroy it and return NULL */
-				if (!res->root) {
-					ast_config_destroy(res);
-					res = NULL;
-				}
-				break;
+		AST_API_HOLDER_REPLACE(ast_config_engine, eng,
+			find_engine(family, i, db, sizeof(db), table, sizeof(table)));
+
+		if (!eng) {
+			break;
+		}
+
+		if (eng->realtime_multi_func && (res = eng->realtime_multi_func(db, table, fields))) {
+			/* If we were returned an empty cfg, destroy it and return NULL */
+			if (!res->root) {
+				ast_config_destroy(res);
+				res = NULL;
 			}
-		} else {
 			break;
 		}
 	}
@@ -3302,18 +3299,21 @@ struct ast_config *ast_load_realtime_multientry(const char *family, ...)
 
 int ast_update_realtime_fields(const char *family, const char *keyfield, const char *lookup, const struct ast_variable *fields)
 {
-	struct ast_config_engine *eng;
+	AST_API_HOLDER_SCOPED(ast_config_engine, eng, NULL);
 	int res = -1, i;
 	char db[256];
 	char table[256];
 
 	for (i = 1; ; i++) {
-		if ((eng = find_engine(family, i, db, sizeof(db), table, sizeof(table)))) {
-			/* If the update succeeds, it returns >= 0. */
-			if (eng->update_func && ((res = eng->update_func(db, table, keyfield, lookup, fields)) >= 0)) {
-				break;
-			}
-		} else {
+		AST_API_HOLDER_REPLACE(ast_config_engine, eng,
+			find_engine(family, i, db, sizeof(db), table, sizeof(table)));
+
+		if (!eng) {
+			break;
+		}
+
+		/* If the update succeeds, it returns >= 0. */
+		if (eng->update_func && ((res = eng->update_func(db, table, keyfield, lookup, fields)) >= 0)) {
 			break;
 		}
 	}
@@ -3339,17 +3339,20 @@ int ast_update_realtime(const char *family, const char *keyfield, const char *lo
 
 int ast_update2_realtime_fields(const char *family, const struct ast_variable *lookup_fields, const struct ast_variable *update_fields)
 {
-	struct ast_config_engine *eng;
+	AST_API_HOLDER_SCOPED(ast_config_engine, eng, NULL);
 	int res = -1, i;
 	char db[256];
 	char table[256];
 
 	for (i = 1; ; i++) {
-		if ((eng = find_engine(family, i, db, sizeof(db), table, sizeof(table)))) {
-			if (eng->update2_func && !(res = eng->update2_func(db, table, lookup_fields, update_fields))) {
-				break;
-			}
-		} else {
+		AST_API_HOLDER_REPLACE(ast_config_engine, eng,
+			find_engine(family, i, db, sizeof(db), table, sizeof(table)));
+
+		if (!eng) {
+			break;
+		}
+
+		if (eng->update2_func && !(res = eng->update2_func(db, table, lookup_fields, update_fields))) {
 			break;
 		}
 	}
@@ -3383,18 +3386,21 @@ int ast_update2_realtime(const char *family, ...)
 
 int ast_store_realtime_fields(const char *family, const struct ast_variable *fields)
 {
-	struct ast_config_engine *eng;
+	AST_API_HOLDER_SCOPED(ast_config_engine, eng, NULL);
 	int res = -1, i;
 	char db[256];
 	char table[256];
 
 	for (i = 1; ; i++) {
-		if ((eng = find_engine(family, i, db, sizeof(db), table, sizeof(table)))) {
-			/* If the store succeeds, it returns >= 0*/
-			if (eng->store_func && ((res = eng->store_func(db, table, fields)) >= 0)) {
-				break;
-			}
-		} else {
+		AST_API_HOLDER_REPLACE(ast_config_engine, eng,
+			find_engine(family, i, db, sizeof(db), table, sizeof(table)));
+
+		if (!eng) {
+			break;
+		}
+
+		/* If the store succeeds, it returns >= 0*/
+		if (eng->store_func && ((res = eng->store_func(db, table, fields)) >= 0)) {
 			break;
 		}
 	}
@@ -3420,17 +3426,20 @@ int ast_store_realtime(const char *family, ...)
 
 int ast_destroy_realtime_fields(const char *family, const char *keyfield, const char *lookup, const struct ast_variable *fields)
 {
-	struct ast_config_engine *eng;
+	AST_API_HOLDER_SCOPED(ast_config_engine, eng, NULL);
 	int res = -1, i;
 	char db[256];
 	char table[256];
 
 	for (i = 1; ; i++) {
-		if ((eng = find_engine(family, i, db, sizeof(db), table, sizeof(table)))) {
-			if (eng->destroy_func && !(res = eng->destroy_func(db, table, keyfield, lookup, fields))) {
-				break;
-			}
-		} else {
+		AST_API_HOLDER_REPLACE(ast_config_engine, eng,
+			find_engine(family, i, db, sizeof(db), table, sizeof(table)));
+
+		if (!eng) {
+			break;
+		}
+
+		if (eng->destroy_func && !(res = eng->destroy_func(db, table, keyfield, lookup, fields))) {
 			break;
 		}
 	}
@@ -3703,7 +3712,6 @@ double_done:
 
 static char *handle_cli_core_show_config_mappings(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct ast_config_engine *eng;
 	struct ast_config_map *map;
 
 	switch (cmd) {
@@ -3719,19 +3727,23 @@ static char *handle_cli_core_show_config_mappings(struct ast_cli_entry *e, int c
 
 	{
 		SCOPED_MUTEX(lock, &config_lock);
+		int c = 0;
 
-		if (!config_engine_list) {
-			ast_cli(a->fd, "No config mappings found.\n");
-		} else {
-			for (eng = config_engine_list; eng; eng = eng->next) {
-				ast_cli(a->fd, "Config Engine: %s\n", eng->name);
-				for (map = config_maps; map; map = map->next) {
-					if (!strcasecmp(map->driver, eng->name)) {
-						ast_cli(a->fd, "===> %s (db=%s, table=%s)\n", map->name, map->database,
-								map->table ? map->table : map->name);
-					}
+		AST_API_REGISTRY_RDLOCK(ast_config_engine);
+		AST_API_REGISTRY_ITERATE_INTERFACES(ast_config_engine, eng, {
+			c++;
+			ast_cli(a->fd, "Config Engine: %s\n", eng->name);
+			for (map = config_maps; map; map = map->next) {
+				if (!strcasecmp(map->driver, eng->name)) {
+					ast_cli(a->fd, "===> %s (db=%s, table=%s)\n", map->name, map->database,
+							map->table ? map->table : map->name);
 				}
 			}
+		});
+		AST_API_REGISTRY_UNLOCK(ast_config_engine);
+
+		if (!c) {
+			ast_cli(a->fd, "No config mappings found.\n");
 		}
 	}
 

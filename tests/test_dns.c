@@ -1314,25 +1314,6 @@ cleanup:
 	return res;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(resolver_register_unregister);
-	AST_TEST_UNREGISTER(resolver_register_off_nominal);
-	AST_TEST_UNREGISTER(resolver_unregister_off_nominal);
-	AST_TEST_UNREGISTER(resolver_data);
-	AST_TEST_UNREGISTER(resolver_set_result);
-	AST_TEST_UNREGISTER(resolver_set_result_off_nominal);
-	AST_TEST_UNREGISTER(resolver_add_record);
-	AST_TEST_UNREGISTER(resolver_add_record_off_nominal);
-	AST_TEST_UNREGISTER(resolver_resolve_sync);
-	AST_TEST_UNREGISTER(resolver_resolve_sync_off_nominal);
-	AST_TEST_UNREGISTER(resolver_resolve_async);
-	AST_TEST_UNREGISTER(resolver_resolve_async_off_nominal);
-	AST_TEST_UNREGISTER(resolver_resolve_async_cancel);
-
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(resolver_register_unregister);
@@ -1352,4 +1333,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "DNS API Tests");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "DNS API Tests");

@@ -24,6 +24,8 @@
  */
 
 /*** MODULEINFO
+	<load_priority>0</load_priority>
+	<export_globals/>
 	<support_level>extended</support_level>
  ***/
 
@@ -276,7 +278,6 @@ static int load_module(void)
 		CHARFLDSET(struct conf_global_options, prefix));
 
 	if (aco_process_config(&cfg_info, 0)) {
-		aco_info_destroy(&cfg_info);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -291,12 +292,11 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	statsd_shutdown();
 	aco_info_destroy(&cfg_info);
 	ao2_global_obj_release(confs);
-	return 0;
 }
 
 static int reload_module(void)
@@ -313,13 +313,4 @@ static int reload_module(void)
 	}
 }
 
-/* The priority of this module is set to be as low as possible, since it could
- * be used by any other sort of module.
- */
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Statsd client support",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload_module,
-	.load_pri = 0,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Statsd client support");

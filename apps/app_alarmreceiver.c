@@ -953,17 +953,6 @@ static int load_config(int reload)
 }
 
 /*!
- * \brief Unregister Alarm Receiver App
- *
- * \retval 0 success
- * \retval -1 failure
- */
-static int unload_module(void)
-{
-	return ast_unregister_application(app);
-}
-
-/*!
  * \brief Load the module
  *
  * Module loading including tests for configuration or dependencies.
@@ -985,7 +974,7 @@ static int load_module(void)
 	return AST_MODULE_LOAD_DECLINE;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	if (load_config(1)) {
 		return AST_MODULE_LOAD_SUCCESS;
@@ -994,9 +983,4 @@ static int reload(void)
 	return AST_MODULE_LOAD_DECLINE;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Alarm Receiver for Asterisk",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-);
+AST_MODULE_INFO_AUTOCLEAN_RELOADABLE(ASTERISK_GPL_KEY, "Alarm Receiver for Asterisk")

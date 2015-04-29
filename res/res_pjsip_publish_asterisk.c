@@ -17,9 +17,10 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_depend</load_priority>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
-	<depend>res_pjsip_outbound_publish</depend>
+	<use type="module">res_pjsip</use>
+	<use type="module">res_pjsip_outbound_publish</use>
 	<support_level>core</support_level>
  ***/
 
@@ -856,8 +857,6 @@ static int regex_filter_handler(const struct aco_option *opt, struct ast_variabl
 
 static int load_module(void)
 {
-	CHECK_PJSIP_PUBSUB_MODULE_LOADED();
-
 	ast_sorcery_apply_config(ast_sip_get_sorcery(), "asterisk-publication");
 	ast_sorcery_apply_default(ast_sip_get_sorcery(), "asterisk-publication", "config", "pjsip.conf,criteria=type=asterisk-publication");
 
@@ -882,22 +881,16 @@ static int load_module(void)
 	if (ast_sip_register_publish_handler(&asterisk_mwi_publication_handler)) {
 		ast_log(LOG_WARNING, "Unable to register event publication handler %s\n",
 			asterisk_mwi_publication_handler.event_name);
-		ast_sip_unregister_publish_handler(&asterisk_devicestate_publication_handler);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	if (ast_sip_register_event_publisher_handler(&asterisk_devicestate_publisher_handler)) {
 		ast_log(LOG_WARNING, "Unable to register event publisher handler %s\n",
 			asterisk_devicestate_publisher_handler.event_name);
-		ast_sip_unregister_publish_handler(&asterisk_devicestate_publication_handler);
-		ast_sip_unregister_publish_handler(&asterisk_mwi_publication_handler);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	if (ast_sip_register_event_publisher_handler(&asterisk_mwi_publisher_handler)) {
 		ast_log(LOG_WARNING, "Unable to register event publisher handler %s\n",
 			asterisk_mwi_publisher_handler.event_name);
-		ast_sip_unregister_event_publisher_handler(&asterisk_mwi_publisher_handler);
-		ast_sip_unregister_publish_handler(&asterisk_devicestate_publication_handler);
-		ast_sip_unregister_publish_handler(&asterisk_mwi_publication_handler);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -913,18 +906,12 @@ static int reload_module(void)
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_sip_unregister_publish_handler(&asterisk_devicestate_publication_handler);
 	ast_sip_unregister_publish_handler(&asterisk_mwi_publication_handler);
 	ast_sip_unregister_event_publisher_handler(&asterisk_devicestate_publisher_handler);
 	ast_sip_unregister_event_publisher_handler(&asterisk_mwi_publisher_handler);
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP Asterisk Event PUBLISH Support",
-	.load = load_module,
-	.reload = reload_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "PJSIP Asterisk Event PUBLISH Support");

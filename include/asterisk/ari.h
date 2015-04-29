@@ -107,7 +107,8 @@ struct ast_ari_response {
  * \return 0 on success.
  * \return non-zero on failure.
  */
-int ast_ari_add_handler(struct stasis_rest_handlers *handler);
+#define ast_ari_add_handler(handler) __ast_ari_add_handler(handler, AST_MODULE_SELF)
+int __ast_ari_add_handler(struct stasis_rest_handlers *handler, struct ast_module *module);
 
 /*!
  * Remove a resource for REST handling.

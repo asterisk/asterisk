@@ -1462,14 +1462,22 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
  * \param tech Structure defining channel technology or "type"
  * \return Returns 0 on success, -1 on failure.
  */
-int ast_channel_register(const struct ast_channel_tech *tech);
+#define ast_channel_register(tech) \
+	__ast_channel_register(tech, AST_MODULE_SELF)
+int __ast_channel_register(const struct ast_channel_tech *tech, struct ast_module *module);
 
+#ifndef AST_MODULE_SELF_SYM
 /*!
+ * \internal
  * \brief Unregister a channel technology
  * \param tech Structure defining channel technology or "type" that was previously registered
  * \return No return value.
+ *
+ * \note This function is not for use by modules.  Module channel technologies are
+ * automatically unregistered.
  */
 void ast_channel_unregister(const struct ast_channel_tech *tech);
+#endif
 
 /*!
  * \brief Get a channel technology structure by name
@@ -4608,5 +4616,9 @@ int ast_channel_feature_hooks_append(struct ast_channel *chan, struct ast_bridge
  * \retval -1 on failure
  */
 int ast_channel_feature_hooks_replace(struct ast_channel *chan, struct ast_bridge_features *features);
+
+struct ast_module_instance;
+
+int ast_module_disposer_channel_cb(void *userdata, int level);
 
 #endif /* _ASTERISK_CHANNEL_H */

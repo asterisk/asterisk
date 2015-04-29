@@ -475,18 +475,6 @@ AST_TEST_DEFINE(naptr_resolve_off_nominal_interactions)
 	return off_nominal_test(test, records, ARRAY_LEN(records));
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(naptr_resolve_nominal);
-	AST_TEST_UNREGISTER(naptr_resolve_off_nominal_length);
-	AST_TEST_UNREGISTER(naptr_resolve_off_nominal_flags);
-	AST_TEST_UNREGISTER(naptr_resolve_off_nominal_services);
-	AST_TEST_UNREGISTER(naptr_resolve_off_nominal_regexp);
-	AST_TEST_UNREGISTER(naptr_resolve_off_nominal_interactions);
-
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(naptr_resolve_nominal);
@@ -499,4 +487,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "DNS API Tests");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "DNS API Tests");

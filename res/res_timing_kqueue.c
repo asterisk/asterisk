@@ -26,6 +26,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_depend</load_priority>
 	<depend>kqueue</depend>
 	<conflict>launchd</conflict>
 	<support_level>extended</support_level>
@@ -45,8 +46,6 @@
 #include "asterisk/time.h"
 #include "asterisk/test.h"
 #include "asterisk/poll-compat.h"       /* for ast_poll() */
-
-static void *timing_funcs_handle;
 
 static void *kqueue_timer_open(void);
 static void kqueue_timer_close(void *data);
@@ -483,7 +482,7 @@ AST_TEST_DEFINE(test_kqueue_timing)
  */
 static int load_module(void)
 {
-	if (!(timing_funcs_handle = ast_register_timing_interface(&kqueue_timing))) {
+	if (ast_timing_interface_register(&kqueue_timing)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -491,16 +490,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(test_kqueue_timing);
-
-	return ast_unregister_timing_interface(timing_funcs_handle);
-}
-
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "KQueue Timing Interface",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND,
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "KQueue Timing Interface");

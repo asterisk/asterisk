@@ -40,6 +40,8 @@
  */
 
 /*** MODULEINFO
+	<load_priority>realtime_depend</load_priority>
+	<export_globals/>
 	<depend>generic_odbc</depend>
 	<depend>ltdl</depend>
 	<support_level>core</support_level>
@@ -1803,7 +1805,7 @@ static const struct ast_data_entry odbc_providers[] = {
 	AST_DATA_ENTRY("/asterisk/res/odbc", &odbc_provider),
 };
 
-static int reload(void)
+static int reload_module(void)
 {
 	struct odbc_cache_tables *table;
 	struct odbc_class *class;
@@ -1877,12 +1879,6 @@ static int reload(void)
 	return 0;
 }
 
-static int unload_module(void)
-{
-	/* Prohibit unloading */
-	return -1;
-}
-
 /*!
  * \brief Load the module
  *
@@ -1905,13 +1901,8 @@ static int load_module(void)
 	ast_register_application_xml(app_rollback, rollback_exec);
 	ast_custom_function_register(&odbc_function);
 	ast_log(LOG_NOTICE, "res_odbc loaded.\n");
+	ast_module_block_unload(AST_MODULE_SELF);
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "ODBC resource",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_REALTIME_DEPEND,
-);
+AST_MODULE_INFO_AUTOCLEAN_RELOADABLE(ASTERISK_GPL_KEY, "ODBC resource");

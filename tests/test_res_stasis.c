@@ -26,7 +26,7 @@
 
 /*** MODULEINFO
 	<depend>TEST_FRAMEWORK</depend>
-	<depend>res_stasis</depend>
+	<use type="module">res_stasis</use>
 	<support_level>core</support_level>
  ***/
 
@@ -174,26 +174,12 @@ AST_TEST_DEFINE(app_replaced)
 	return AST_TEST_PASS;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(app_invoke_dne);
-	AST_TEST_UNREGISTER(app_invoke_one);
-	AST_TEST_UNREGISTER(app_replaced);
-	stasis_app_unref();
-	return 0;
-}
-
 static int load_module(void)
 {
-	stasis_app_ref();
 	AST_TEST_REGISTER(app_replaced);
 	AST_TEST_REGISTER(app_invoke_one);
 	AST_TEST_REGISTER(app_invoke_dne);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Stasis Core testing",
-	.load = load_module,
-	.unload = unload_module,
-	.nonoptreq = "res_stasis",
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Stasis Core testing");

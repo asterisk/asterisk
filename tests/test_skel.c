@@ -68,16 +68,10 @@ AST_TEST_DEFINE(sample_test)
 	return AST_TEST_PASS;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(sample_test);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(sample_test);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Skeleton (sample) Test");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Skeleton (sample) Test");

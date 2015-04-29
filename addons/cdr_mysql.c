@@ -358,8 +358,6 @@ static int my_unload_module(int reload)
 	struct unload_string *us;
 	struct column *entry;
 
-	ast_cli_unregister_multiple(cdr_mysql_status_cli, sizeof(cdr_mysql_status_cli) / sizeof(struct ast_cli_entry));
-
 	if (connected) {
 		mysql_close(&mysql);
 		connected = 0;
@@ -681,12 +679,14 @@ static int load_module(void)
 	return my_load_module(0);
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	return my_unload_module(0);
+	if (my_unload_module(0)) {
+		ast_module_block_unload(AST_MODULE_SELF);
+	}
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	int ret;
 
@@ -697,10 +697,4 @@ static int reload(void)
 	return ret;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "MySQL CDR Backend",
-	.support_level = AST_MODULE_SUPPORT_DEPRECATED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-);
-
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "MySQL CDR Backend");

@@ -227,10 +227,6 @@ struct sig_pri_callback {
 	 */
 	void (* const ami_channel_event)(void *pvt, struct ast_channel *chan);
 
-	/*! Reference the parent module. */
-	void (*module_ref)(void);
-	/*! Unreference the parent module. */
-	void (*module_unref)(void);
 	/*! Mark the span for destruction. */
 	void (*destroy_later)(struct sig_pri_span *pri);
 };

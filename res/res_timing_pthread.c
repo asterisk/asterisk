@@ -24,6 +24,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>timing</load_priority>
 	<support_level>extended</support_level>
  ***/
 
@@ -42,8 +43,6 @@ ASTERISK_REGISTER_FILE();
 #include "asterisk/astobj2.h"
 #include "asterisk/time.h"
 #include "asterisk/lock.h"
-
-static void *timing_funcs_handle;
 
 static void *pthread_timer_open(void);
 static void pthread_timer_close(void *data);
@@ -450,35 +449,23 @@ static int load_module(void)
 	}
 
 	if (init_timing_thread()) {
-		ao2_ref(pthread_timers, -1);
-		pthread_timers = NULL;
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	return (timing_funcs_handle = ast_register_timing_interface(&pthread_timing)) ?
+	return !ast_timing_interface_register(&pthread_timing) ?
 		AST_MODULE_LOAD_SUCCESS : AST_MODULE_LOAD_DECLINE;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	int res;
-
 	ast_mutex_lock(&timing_thread.lock);
 	timing_thread.stop = 1;
 	ast_cond_signal(&timing_thread.cond);
 	ast_mutex_unlock(&timing_thread.lock);
 	pthread_join(timing_thread.thread, NULL);
 
-	if (!(res = ast_unregister_timing_interface(timing_funcs_handle))) {
-		ao2_ref(pthread_timers, -1);
-		pthread_timers = NULL;
-	}
-
-	return res;
+	ao2_ref(pthread_timers, -1);
+	pthread_timers = NULL;
 }
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "pthread Timing Interface",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_TIMING,
-);
+
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "pthread Timing Interface");

@@ -33,9 +33,10 @@
  */
 
 /*** MODULEINFO
+	<load_priority>app_depend</load_priority>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
-	<depend>res_phoneprov</depend>
+	<use type="module">res_pjsip</use>
+	<use type="module">res_phoneprov</use>
 	<support_level>extended</support_level>
  ***/
 
@@ -367,8 +368,6 @@ static int load_users(void)
 
 static int load_module(void)
 {
-	CHECK_PJSIP_MODULE_LOADED();
-
 	sorcery = ast_sip_get_sorcery();
 
 	ast_sorcery_apply_config(sorcery, "res_pjsip_phoneprov_provider");
@@ -393,11 +392,9 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_phoneprov_provider_unregister(AST_MODULE);
-
-	return 0;
 }
 
 static int reload_module(void)
@@ -412,9 +409,4 @@ static int reload_module(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP Phoneprov Provider",
-	.load = load_module,
-	.reload = reload_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_APP_DEPEND,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "PJSIP Phoneprov Provider");

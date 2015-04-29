@@ -212,15 +212,9 @@ static int NBScat_exec(struct ast_channel *chan, const char *data)
 	return res;
 }
 
-static int unload_module(void)
-{
-	return ast_unregister_application(app);
-}
-
 static int load_module(void)
 {
 	return ast_register_application_xml(app, NBScat_exec);
 }
 
-AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Silly NBS Stream Application");
-
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Silly NBS Stream Application");

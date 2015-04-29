@@ -43,6 +43,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>cdr_driver</load_priority>
 	<depend>pgsql</depend>
 	<support_level>extended</support_level>
  ***/
@@ -482,13 +483,12 @@ static void empty_columns(void)
 
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	if (ast_cdr_unregister(name)) {
-		return -1;
+		ast_module_block_unload(AST_MODULE_SELF);
+		return;
 	}
-
-	ast_cli_unregister_multiple(cdr_pgsql_status_cli, ARRAY_LEN(cdr_pgsql_status_cli));
 
 	if (conn) {
 		PQfinish(conn);
@@ -505,8 +505,6 @@ static int unload_module(void)
 	ast_free(tz);
 
 	empty_columns();
-
-	return 0;
 }
 
 static int config_module(int reload)
@@ -707,7 +705,6 @@ static int config_module(int reload)
 			pgerror = PQresultErrorMessage(result);
 			ast_log(LOG_ERROR, "Failed to query database columns: %s\n", pgerror);
 			PQclear(result);
-			unload_module();
 			ast_mutex_unlock(&pgsql_lock);
 			return AST_MODULE_LOAD_DECLINE;
 		}
@@ -716,7 +713,6 @@ static int config_module(int reload)
 		if (rows == 0) {
 			ast_log(LOG_ERROR, "cdr_pgsql: Failed to query database columns. No columns found, does the table exist?\n");
 			PQclear(result);
-			unload_module();
 			ast_mutex_unlock(&pgsql_lock);
 			return AST_MODULE_LOAD_DECLINE;
 		}
@@ -779,19 +775,13 @@ static int load_module(void)
 	if (config_module(0)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	return ast_cdr_register(name, ast_module_info->description, pgsql_log)
+	return ast_cdr_register(name, ast_module_description(AST_MODULE_SELF), pgsql_log)
 		? AST_MODULE_LOAD_DECLINE : 0;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	return config_module(1);
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PostgreSQL CDR Backend",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CDR_DRIVER,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "PostgreSQL CDR Backend");

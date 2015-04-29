@@ -247,10 +247,10 @@ extern struct ast_context *local_contexts;
 extern struct ast_context *contexts;
 
 
-struct ast_custom_function *ast_custom_function_find(const char *name);
+int ast_custom_function_exists(const char *name);
 
 
-struct ast_custom_function *ast_custom_function_find(const char *name)
+int ast_custom_function_exists(const char *name)
 {
 	return 0; /* in "standalone" mode, functions are just not avail */
 }
@@ -611,11 +611,17 @@ void __ast_cli_register_multiple(void)
 {
 }
 
-void ast_module_register(const struct ast_module_info *x)
-{
+int __ast_module_register(struct ast_module **self, const char *name,
+	const char *buildopt_sum, const char *manifest_checksum,
+	const char *keystr, const char *desc,
+	ast_module_load_fn load_fn,
+	ast_module_reload_fn reload_fn,
+	ast_module_stop_fn stop_fn,
+	ast_module_unload_fn unload_fn) {
+		return 0;
 }
 
-void ast_module_unregister(const struct ast_module_info *x)
+void __ast_module_unregister(struct ast_module **self)
 {
 }
 

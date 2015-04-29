@@ -689,11 +689,6 @@ static struct ast_cli_entry cli_sec_evt[] = {
 	AST_CLI_DEFINE(handle_cli_sec_evt_test, "Test security event generation"),
 };
 
-static int unload_module(void)
-{
-	return ast_cli_unregister_multiple(cli_sec_evt, ARRAY_LEN(cli_sec_evt));
-}
-
 static int load_module(void)
 {
 	int res;
@@ -703,4 +698,4 @@ static int load_module(void)
 	return res ? AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Test Security Event Generation");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Test Security Event Generation");

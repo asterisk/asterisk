@@ -1818,8 +1818,6 @@ int ast_res_pjsip_initialize_configuration(void)
 
 	if (ast_sip_initialize_sorcery_auth()) {
 		ast_log(LOG_ERROR, "Failed to register SIP authentication support\n");
-		ast_sorcery_unref(sip_sorcery);
-		sip_sorcery = NULL;
 		return -1;
 	}
 
@@ -1828,8 +1826,6 @@ int ast_res_pjsip_initialize_configuration(void)
 
 	if (ast_sorcery_object_register(sip_sorcery, "endpoint", ast_sip_endpoint_alloc, NULL, sip_endpoint_apply_handler)) {
 		ast_log(LOG_ERROR, "Failed to register SIP endpoint object with sorcery\n");
-		ast_sorcery_unref(sip_sorcery);
-		sip_sorcery = NULL;
 		return -1;
 	}
 
@@ -1930,22 +1926,16 @@ int ast_res_pjsip_initialize_configuration(void)
 
 	if (ast_sip_initialize_sorcery_transport()) {
 		ast_log(LOG_ERROR, "Failed to register SIP transport support with sorcery\n");
-		ast_sorcery_unref(sip_sorcery);
-		sip_sorcery = NULL;
 		return -1;
 	}
 
 	if (ast_sip_initialize_sorcery_location()) {
 		ast_log(LOG_ERROR, "Failed to register SIP location support with sorcery\n");
-		ast_sorcery_unref(sip_sorcery);
-		sip_sorcery = NULL;
 		return -1;
 	}
 
 	if (ast_sip_initialize_sorcery_qualify()) {
 		ast_log(LOG_ERROR, "Failed to register SIP qualify support with sorcery\n");
-		ast_sorcery_unref(sip_sorcery);
-		sip_sorcery = NULL;
 		return -1;
 	}
 
@@ -1954,23 +1944,17 @@ int ast_res_pjsip_initialize_configuration(void)
 
 	if (ast_sip_initialize_sorcery_domain_alias()) {
 		ast_log(LOG_ERROR, "Failed to register SIP domain aliases support with sorcery\n");
-		ast_sorcery_unref(sip_sorcery);
-		sip_sorcery = NULL;
 		return -1;
 	}
 
 	if (ast_sip_initialize_sorcery_global()) {
 		ast_log(LOG_ERROR, "Failed to register SIP Global support\n");
-		ast_sorcery_unref(sip_sorcery);
-		sip_sorcery = NULL;
 		return -1;
 	}
 
 	channel_formatter = ao2_alloc(sizeof(struct ast_sip_cli_formatter_entry), NULL);
 	if (!channel_formatter) {
 		ast_log(LOG_ERROR, "Unable to allocate memory for channel_formatter\n");
-		ast_sorcery_unref(sip_sorcery);
-		sip_sorcery = NULL;
 		return -1;
 	}
 	channel_formatter->name = "channel";
@@ -1984,8 +1968,6 @@ int ast_res_pjsip_initialize_configuration(void)
 	endpoint_formatter = ao2_alloc(sizeof(struct ast_sip_cli_formatter_entry), NULL);
 	if (!endpoint_formatter) {
 		ast_log(LOG_ERROR, "Unable to allocate memory for endpoint_formatter\n");
-		ast_sorcery_unref(sip_sorcery);
-		sip_sorcery = NULL;
 		return -1;
 	}
 	endpoint_formatter->name = "endpoint";
@@ -2013,9 +1995,6 @@ void ast_res_pjsip_destroy_configuration(void)
 	ast_sip_destroy_sorcery_location();
 	ast_sip_destroy_sorcery_auth();
 	ast_sip_destroy_sorcery_transport();
-	ast_manager_unregister(AMI_SHOW_ENDPOINT);
-	ast_manager_unregister(AMI_SHOW_ENDPOINTS);
-	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
 	ast_sip_unregister_cli_formatter(endpoint_formatter);
 	ast_sip_unregister_cli_formatter(channel_formatter);
 	ast_sorcery_unref(sip_sorcery);

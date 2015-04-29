@@ -71,11 +71,8 @@ int ast_set_mixmonitor_methods(struct ast_mixmonitor_methods *vmethod_table);
 /*!
  * \brief Clear the MixMonitor virtual methods table. Use this to cleanup function pointers provided by a module that set.
  * \since 12.0.0
- *
- * \retval 0 if successful
- * \retval non-zero on failure (occurs when methods aren't loaded)
  */
-int ast_clear_mixmonitor_methods(void);
+void ast_clear_mixmonitor_methods(void);
 
 /*!
  * \brief Start a mixmonitor on a channel with the given parameters

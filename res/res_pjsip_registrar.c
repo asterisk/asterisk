@@ -17,8 +17,9 @@
  */
 
 /*** MODULEINFO
+	<load_priority>app_depend</load_priority>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
+	<use type="module">res_pjsip</use>
 	<support_level>core</support_level>
  ***/
 
@@ -791,8 +792,6 @@ static int load_module(void)
 {
 	const pj_str_t STR_REGISTER = { "REGISTER", 8 };
 
-	CHECK_PJSIP_MODULE_LOADED();
-
 	if (!(serializers = ao2_container_alloc(
 		      SERIALIZER_BUCKETS, serializer_hash, serializer_cmp))) {
 		return AST_MODULE_LOAD_DECLINE;
@@ -803,7 +802,6 @@ static int load_module(void)
 	}
 
 	if (pjsip_endpt_add_capability(ast_sip_get_pjsip_endpoint(), NULL, PJSIP_H_ALLOW, NULL, 1, &STR_REGISTER) != PJ_SUCCESS) {
-		ast_sip_unregister_service(&registrar_module);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -813,18 +811,9 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	ast_manager_unregister(AMI_SHOW_REGISTRATIONS);
-	ast_sip_unregister_service(&registrar_module);
-
 	ao2_cleanup(serializers);
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP Registrar Support",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_APP_DEPEND,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "PJSIP Registrar Support");

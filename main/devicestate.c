@@ -156,6 +156,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/astobj2.h"
 #include "asterisk/stasis.h"
 #include "asterisk/devicestate.h"
+#include "asterisk/module.h"
 
 #define DEVSTATE_TOPIC_BUCKETS 57
 
@@ -193,6 +194,7 @@ static const struct chan2dev {
 struct devstate_prov {
 	char label[40];
 	ast_devstate_prov_cb_type callback;
+	struct ast_module_lib *lib;
 	AST_RWLIST_ENTRY(devstate_prov) list;
 };
 
@@ -394,20 +396,49 @@ enum ast_device_state ast_device_state(const char *device)
 	return _ast_device_state(device, 1);
 }
 
+static void module_devstate_prov_del(void *weakproxy, void *data)
+{
+	struct devstate_prov *devprov = data;
+
+	ast_devstate_prov_del(devprov->label);
+}
+
+static void devstate_prov_destructor(void *obj)
+{
+	struct devstate_prov *devprov = obj;
+
+	ao2_cleanup(devprov->lib);
+}
+
 /*! \brief Add device state provider */
-int ast_devstate_prov_add(const char *label, ast_devstate_prov_cb_type callback)
+int __ast_devstate_prov_add(const char *label, ast_devstate_prov_cb_type callback,
+	struct ast_module *module)
 {
 	struct devstate_prov *devprov;
 
-	if (!callback || !(devprov = ast_calloc(1, sizeof(*devprov))))
+	if (!callback) {
 		return -1;
+	}
+
+	devprov = ao2_t_alloc(sizeof(*devprov), devstate_prov_destructor, label);
+	if (!devprov) {
+		return -1;
+	}
 
 	devprov->callback = callback;
+	devprov->lib = module ? ast_module_get_lib_running(module) : NULL;
+	ast_assert(devprov->lib || !module);
 	ast_copy_string(devprov->label, label, sizeof(devprov->label));
 
 	AST_RWLIST_WRLOCK(&devstate_provs);
 	AST_RWLIST_INSERT_HEAD(&devstate_provs, devprov, list);
+	ao2_t_ref(devprov, +1, "link to devstate_provs");
 	AST_RWLIST_UNLOCK(&devstate_provs);
+
+	if (devprov->lib) {
+		ast_module_lib_subscribe_stop(devprov->lib, module_devstate_prov_del, devprov);
+	}
+	ao2_t_ref(devprov, -1, "drop allocation ref");
 
 	return 0;
 }
@@ -416,21 +447,23 @@ int ast_devstate_prov_add(const char *label, ast_devstate_prov_cb_type callback)
 int ast_devstate_prov_del(const char *label)
 {
 	struct devstate_prov *devcb;
-	int res = -1;
 
 	AST_RWLIST_WRLOCK(&devstate_provs);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&devstate_provs, devcb, list) {
 		if (!strcasecmp(devcb->label, label)) {
 			AST_RWLIST_REMOVE_CURRENT(list);
-			ast_free(devcb);
-			res = 0;
 			break;
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&devstate_provs);
 
-	return res;
+	if (devcb->lib) {
+		ast_module_lib_unsubscribe_stop(devcb->lib, module_devstate_prov_del, devcb);
+	}
+	ao2_ref(devcb, -1);
+
+	return devcb ? 0 : -1;
 }
 
 /*! \brief Get provider device state */
@@ -444,11 +477,21 @@ static int getproviderstate(const char *provider, const char *address)
 		ast_debug(5, "Checking provider %s with %s\n", devprov->label, provider);
 
 		if (!strcasecmp(devprov->label, provider)) {
-			res = devprov->callback(address);
+			ao2_ref(devprov, +1);
 			break;
 		}
 	}
 	AST_RWLIST_UNLOCK(&devstate_provs);
+
+	if (devprov) {
+		struct ast_module_instance *instance = NULL;
+
+		if (!devprov->lib || (instance = ast_module_lib_get_instance(devprov->lib))) {
+			res = devprov->callback(address);
+			ao2_cleanup(instance);
+		}
+		ao2_ref(devprov, -1);
+	}
 
 	return res;
 }

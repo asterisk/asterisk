@@ -349,15 +349,6 @@ AST_TEST_DEFINE(query_set_off_nominal_cancel)
 	return query_set_test(test, 2, 2);
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(query_set);
-	AST_TEST_UNREGISTER(query_set_nominal_cancel);
-	AST_TEST_UNREGISTER(query_set_off_nominal_cancel);
-
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(query_set);
@@ -367,4 +358,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "DNS query set tests");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "DNS query set tests");

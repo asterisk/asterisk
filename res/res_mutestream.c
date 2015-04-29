@@ -228,13 +228,4 @@ static int load_module(void)
 	return (res ? AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS);
 }
 
-static int unload_module(void)
-{
-	ast_custom_function_unregister(&mute_function);
-	/* Unregister AMI actions */
-	ast_manager_unregister("MuteAudio");
-
-	return 0;
-}
-
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Mute audio stream resources");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Mute audio stream resources");

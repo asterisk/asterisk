@@ -174,6 +174,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_driver</load_priority>
 	<use type="module">res_crypto</use>
 	<use type="module">res_http_websocket</use>
 	<support_level>extended</support_level>
@@ -1453,9 +1454,9 @@ static void add_expires(struct sip_request *req, int expires);
 static void build_contact(struct sip_pvt *p, struct sip_request *req, int incoming);
 
 /*------Request handling functions */
-static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, int *recount, int *nounlock);
+static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, int *nounlock);
 static int handle_request_update(struct sip_pvt *p, struct sip_request *req);
-static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, uint32_t seqno, int *recount, const char *e, int *nounlock);
+static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, uint32_t seqno, const char *e, int *nounlock);
 static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, uint32_t seqno, int *nounlock);
 static int handle_request_bye(struct sip_pvt *p, struct sip_request *req);
 static int handle_request_register(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *sin, const char *e);
@@ -2178,7 +2179,8 @@ static void sip_cc_monitor_destructor(void *private_data)
 {
 	struct sip_monitor_instance *monitor_instance = private_data;
 	ao2_unlink(sip_monitor_instances, monitor_instance);
-	ast_module_unref(ast_module_info->self);
+	/* BUGBUG: move to core. */
+	//ast_module_unref(AST_MODULE_SELF);
 }
 
 static int sip_get_cc_information(struct sip_request *req, char *subscribe_uri, size_t size, enum ast_cc_service_type *service)
@@ -2291,7 +2293,8 @@ static void sip_handle_cc(struct sip_pvt *pvt, struct sip_request *req, enum ast
 		 * will have a reference to callbacks in this module. We decrement the module
 		 * refcount once the monitor destructor is called
 		 */
-		ast_module_ref(ast_module_info->self);
+		/* BUGBUG: move to core. */
+		//ast_module_ref(AST_MODULE_SELF, 0);
 		ast_queue_cc_frame(pvt->owner, "SIP", pvt->dialstring, offered_service, monitor_instance);
 		ao2_ref(monitor_instance, -1);
 		return;
@@ -6925,7 +6928,6 @@ static int sip_hangup(struct ast_channel *ast)
 			sip_pvt_unlock(p);
 			ast_channel_tech_pvt_set(oldowner, dialog_unref(ast_channel_tech_pvt(oldowner), "unref oldowner->tech_pvt"));
 		}
-		ast_module_unref(ast_module_info->self);
 		return 0;
 	}
 
@@ -6961,7 +6963,6 @@ static int sip_hangup(struct ast_channel *ast)
 	sip_set_owner(p, NULL);
 	ast_channel_tech_pvt_set(ast, NULL);
 
-	ast_module_unref(ast_module_info->self);
 	/* Do not destroy this pvt until we have timeout or
 	   get an answer to the BYE or INVITE/CANCEL
 	   If we get no answer during retransmit period, drop the call anyway.
@@ -8024,7 +8025,6 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		ast_channel_zone_set(tmp, zone);
 	}
 	sip_set_owner(i, tmp);
-	ast_module_ref(ast_module_info->self);
 	ast_channel_context_set(tmp, i->context);
 	/*Since it is valid to have extensions in the dialplan that have unescaped characters in them
 	 * we should decode the uri before storing it in the channel, but leave it encoded in the sip_pvt
@@ -24932,6 +24932,7 @@ static int do_magic_pickup(struct ast_channel *channel, const char *extension, c
 	   doesn't return anything meaningful unless the passed data is an empty
 	   string (which in our case it will not be) */
 	pbx_exec(channel, pickup, ast_str_buffer(str));
+	ao2_ref(pickup, -1);
 
 	return 0;
 }
@@ -25152,7 +25153,7 @@ static int handle_request_invite_st(struct sip_pvt *p, struct sip_request *req,
  *	plan but try to find the active call and masquerade
  *	into it
  */
-static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, uint32_t seqno, int *recount, const char *e, int *nounlock)
+static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, uint32_t seqno, const char *e, int *nounlock)
 {
 	int res = INV_REQ_SUCCESS;
 	int gotdest;
@@ -25651,7 +25652,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 				ast_setup_cc_recall_datastore(c, cc_recall_core_id);
 				ast_cc_agent_set_interfaces_chanvar(c);
 			}
-			*recount = 1;
 
 			/* Save Record-Route for any later requests we make on this dialogue */
 			build_route(p, req, 0, 0);
@@ -26639,7 +26639,7 @@ static int handle_request_message(struct sip_pvt *p, struct sip_request *req, st
 
 static int sip_msg_send(const struct ast_msg *msg, const char *to, const char *from);
 
-static const struct ast_msg_tech sip_msg_tech = {
+static struct ast_msg_tech sip_msg_tech = {
 	.name = "sip",
 	.msg_send = sip_msg_send,
 };
@@ -27867,7 +27867,7 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, s
  * \note
  * called with p and p->owner locked
  */
-static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, int *recount, int *nounlock)
+static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct ast_sockaddr *addr, int *nounlock)
 {
 	/* Called with p->lock held, as well as p->owner->lock if appropriate, keeping things
 	   relatively static */
@@ -28077,7 +28077,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 		res = handle_request_options(p, req, addr, e);
 		break;
 	case SIP_INVITE:
-		res = handle_request_invite(p, req, addr, seqno, recount, e, nounlock);
+		res = handle_request_invite(p, req, addr, seqno, e, nounlock);
 
 		if (res < 9) {
 			sip_report_security_event(p, req, res);
@@ -28231,7 +28231,6 @@ static int handle_request_do(struct sip_request *req, struct ast_sockaddr *addr)
 {
 	struct sip_pvt *p;
 	struct ast_channel *owner_chan_ref = NULL;
-	int recount = 0;
 	int nounlock = 0;
 
 	if (sip_debug_test_addr(addr))	/* Set the debug flag early on packet level */
@@ -28286,13 +28285,9 @@ static int handle_request_do(struct sip_request *req, struct ast_sockaddr *addr)
 	if (p->do_history) /* This is a request or response, note what it was for */
 		append_history(p, "Rx", "%s / %s / %s", ast_str_buffer(req->data), sip_get_header(req, "CSeq"), REQ_OFFSET_TO_STR(req, rlpart2));
 
-	if (handle_incoming(p, req, addr, &recount, &nounlock) == -1) {
+	if (handle_incoming(p, req, addr, &nounlock) == -1) {
 		/* Request failed */
 		ast_debug(1, "SIP message could not be handled, bad request: %-70.70s\n", p->callid[0] ? p->callid : "<no callid>");
-	}
-
-	if (recount) {
-		ast_update_use_count();
 	}
 
 	if (p->owner && !nounlock) {
@@ -29768,7 +29763,6 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 		ast_channel_unlock(tmpc);
 	}
 	dialog_unref(p, "toss pvt ptr at end of sip_request_call");
-	ast_update_use_count();
 	restart_monitor();
 	return tmpc;
 }
@@ -33116,7 +33110,7 @@ static char *sip_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 }
 
 /*! \brief  Part of Asterisk module interface */
-static int reload(void)
+static int reload_module(void)
 {
 	if (sip_reload(0, 0, NULL)) {
 		return 0;
@@ -33391,14 +33385,6 @@ static void sip_register_tests(void)
 	sip_config_parser_register_tests();
 	sip_request_parser_register_tests();
 	sip_dialplan_function_register_tests();
-}
-
-/*! \brief SIP test registration */
-static void sip_unregister_tests(void)
-{
-	sip_config_parser_unregister_tests();
-	sip_request_parser_unregister_tests();
-	sip_dialplan_function_unregister_tests();
 }
 
 #ifdef TEST_FRAMEWORK
@@ -34345,8 +34331,6 @@ static const struct ast_sip_api_tech chan_sip_api_provider = {
 	.sipinfo_send = sipinfo_send,
 };
 
-static int unload_module(void);
-
 /*!
  * \brief Load the module
  *
@@ -34362,17 +34346,14 @@ static int load_module(void)
 	ast_verbose("SIP channel loading...\n");
 
 	if (STASIS_MESSAGE_TYPE_INIT(session_timeout_type)) {
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (!(sip_tech.capabilities = ast_format_cap_alloc(0))) {
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (ast_sip_api_provider_register(&chan_sip_api_provider)) {
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
@@ -34387,12 +34368,10 @@ static int load_module(void)
 	if (!peers || !peers_by_ip || !dialogs || !dialogs_needdestroy || !dialogs_rtpcheck
 		|| !threadt) {
 		ast_log(LOG_ERROR, "Unable to create primary SIP container(s)\n");
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (!(sip_cfg.caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	ast_format_cap_append_by_type(sip_tech.capabilities, AST_MEDIA_TYPE_AUDIO);
@@ -34403,13 +34382,11 @@ static int load_module(void)
 
 	if (!(sched = ast_sched_context_create())) {
 		ast_log(LOG_ERROR, "Unable to create scheduler context\n");
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (!(io = io_context_create())) {
 		ast_log(LOG_ERROR, "Unable to create I/O context\n");
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
@@ -34417,14 +34394,12 @@ static int load_module(void)
 
 	can_parse_xml = sip_is_xml_parsable();
 	if (reload_config(sip_reloadreason)) {	/* Load the configuration from sip.conf */
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	/* Initialize bogus peer. Can be done first after reload_config() */
 	if (!(bogus_peer = temp_peer("(bogus_peer)"))) {
 		ast_log(LOG_ERROR, "Unable to create bogus_peer for authentication\n");
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	/* Make sure the auth will always fail. */
@@ -34439,14 +34414,12 @@ static int load_module(void)
 	memset((void *) &sip_tech_info.send_digit_begin, 0, sizeof(sip_tech_info.send_digit_begin));
 
 	if (ast_msg_tech_register(&sip_msg_tech)) {
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	/* Make sure we can register our sip channel type */
 	if (ast_channel_register(&sip_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel type 'SIP'\n");
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
@@ -34493,13 +34466,11 @@ static int load_module(void)
 	initialize_escs();
 
 	if (sip_epa_register(&cc_epa_static_data)) {
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (sip_reqresp_parser_init() == -1) {
 		ast_log(LOG_ERROR, "Unable to initialize the SIP request and response parser\n");
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -34508,16 +34479,13 @@ static int load_module(void)
 		 * in incoming PUBLISH requests
 		 */
 		if (ast_cc_agent_register(&sip_cc_agent_callbacks)) {
-			unload_module();
 			return AST_MODULE_LOAD_DECLINE;
 		}
 	}
 	if (ast_cc_monitor_register(&sip_cc_monitor_callbacks)) {
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	if (!(sip_monitor_instances = ao2_container_alloc(37, sip_monitor_instance_hash_fn, sip_monitor_instance_cmp_fn))) {
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -34546,7 +34514,7 @@ static int load_module(void)
 }
 
 /*! \brief PBX unload module API */
-static int unload_module(void)
+static void unload_module(void)
 {
 	struct sip_pvt *p;
 	struct sip_threadinfo *th;
@@ -34563,44 +34531,8 @@ static int unload_module(void)
 
 	ast_sched_dump(sched);
 
-	/* First, take us out of the channel type list */
-	ast_channel_unregister(&sip_tech);
-
-	ast_msg_tech_unregister(&sip_msg_tech);
-
-	/* Unregister dial plan functions */
-	ast_custom_function_unregister(&sippeer_function);
-	ast_custom_function_unregister(&sip_header_function);
-	ast_custom_function_unregister(&checksipdomain_function);
-
-	/* Unregister dial plan applications */
-	ast_unregister_application(app_dtmfmode);
-	ast_unregister_application(app_sipaddheader);
-	ast_unregister_application(app_sipremoveheader);
-#ifdef TEST_FRAMEWORK
-	ast_unregister_application(app_sipsendcustominfo);
-
-	AST_TEST_UNREGISTER(test_sip_peers_get);
-	AST_TEST_UNREGISTER(test_sip_mwi_subscribe_parse);
-	AST_TEST_UNREGISTER(test_tcp_message_fragmentation);
-	AST_TEST_UNREGISTER(get_in_brackets_const_test);
-#endif
 	/* Unregister all the AstData providers */
 	ast_data_unregister(NULL);
-
-	/* Unregister CLI commands */
-	ast_cli_unregister_multiple(cli_sip, ARRAY_LEN(cli_sip));
-
-	/* Disconnect from RTP engine */
-	ast_rtp_glue_unregister(&sip_rtp_glue);
-
-	/* Unregister AMI actions */
-	ast_manager_unregister("SIPpeers");
-	ast_manager_unregister("SIPshowpeer");
-	ast_manager_unregister("SIPqualifypeer");
-	ast_manager_unregister("SIPshowregistry");
-	ast_manager_unregister("SIPnotify");
-	ast_manager_unregister("SIPpeerstatus");
 
 	/* Kill TCP/TLS server threads */
 	if (sip_tcp_desc.master) {
@@ -34740,7 +34672,6 @@ static int unload_module(void)
 	ast_cc_agent_unregister(&sip_cc_agent_callbacks);
 
 	sip_reqresp_parser_exit();
-	sip_unregister_tests();
 
 	if (notify_types) {
 		ast_config_destroy(notify_types);
@@ -34753,15 +34684,6 @@ static int unload_module(void)
 	sip_cfg.caps = NULL;
 
 	STASIS_MESSAGE_TYPE_CLEANUP(session_timeout_type);
-
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Session Initiation Protocol (SIP)",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CHANNEL_DRIVER,
-	.nonoptreq = "res_crypto,res_http_websocket",
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Session Initiation Protocol (SIP)");

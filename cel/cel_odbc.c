@@ -27,7 +27,8 @@
  */
 
 /*** MODULEINFO
-	<depend>res_odbc</depend>
+	<load_priority>cdr_driver</load_priority>
+	<use type="module">res_odbc</use>
 	<support_level>core</support_level>
  ***/
 
@@ -788,19 +789,18 @@ early_release:
 	ast_free(sql2);
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	if (AST_RWLIST_WRLOCK(&odbc_tables)) {
 		ast_log(LOG_ERROR, "Unable to lock column list.  Unload failed.\n");
-		return -1;
+		ast_module_block_unload(AST_MODULE_SELF);
+		return;
 	}
 
 	ast_cel_backend_unregister(ODBC_BACKEND_NAME);
 	free_config();
 	AST_RWLIST_UNLOCK(&odbc_tables);
 	AST_RWLIST_HEAD_DESTROY(&odbc_tables);
-        
-	return 0;
 }
 
 static int load_module(void)
@@ -820,7 +820,7 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	if (AST_RWLIST_WRLOCK(&odbc_tables)) {
 		ast_log(LOG_ERROR, "Unable to lock column list.  Reload failed.\n");
@@ -833,11 +833,4 @@ static int reload(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, ODBC_BACKEND_NAME,
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CDR_DRIVER,
-);
-
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, ODBC_BACKEND_NAME);

@@ -35,7 +35,6 @@ extern "C" {
 
 /* ------------------------------------------------------------------- */
 
-void dahdi_native_unload(void);
 int dahdi_native_load(const struct ast_channel_tech *tech);
 
 /* ------------------------------------------------------------------- */

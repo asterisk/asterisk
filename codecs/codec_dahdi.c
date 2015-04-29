@@ -767,7 +767,6 @@ static void unregister_translators(void)
 
 	AST_LIST_LOCK(&translators);
 	while ((cur = AST_LIST_REMOVE_HEAD(&translators, entry))) {
-		ast_unregister_translator(&cur->t);
 		ast_free(cur);
 	}
 	AST_LIST_UNLOCK(&translators);
@@ -852,17 +851,9 @@ static int find_transcoders(void)
 	return 0;
 }
 
-static int reload(void)
+static void unload_module(void)
 {
-	return AST_MODULE_LOAD_SUCCESS;
-}
-
-static int unload_module(void)
-{
-	ast_cli_unregister_multiple(cli, ARRAY_LEN(cli));
 	unregister_translators();
-
-	return 0;
 }
 
 static int load_module(void)
@@ -872,9 +863,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Generic DAHDI Transcoder Codec Translator",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Generic DAHDI Transcoder Codec Translator");

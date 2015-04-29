@@ -28,6 +28,7 @@
 /*** MODULEINFO
 	<depend>TEST_FRAMEWORK</depend>
 	<support_level>core</support_level>
+	<use type="module">app_stack</use>
  ***/
 
 #include "asterisk.h"
@@ -149,9 +150,12 @@ AST_TEST_DEFINE(test_gosub)
 
 			if ((exec_res = pbx_exec(chan, app, testplan[i].args)) && ((const char *) exec_res != testplan[i].expected_value)) {
 				ast_test_status_update(test, "Application '%s' exited abnormally (with code %d)\n", testplan[i].app, (int) exec_res);
+				ao2_ref(app, -1);
 				res = AST_TEST_FAIL;
 				break;
 			}
+
+			ao2_ref(app, -1);
 		}
 	}
 
@@ -163,16 +167,10 @@ AST_TEST_DEFINE(test_gosub)
 	return res;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(test_gosub);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(test_gosub);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Gosub Tests");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Gosub Tests");

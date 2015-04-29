@@ -2046,35 +2046,6 @@ AST_TEST_DEFINE(caching_dtor_order)
 	return AST_TEST_PASS;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(message_type);
-	AST_TEST_UNREGISTER(message);
-	AST_TEST_UNREGISTER(subscription_messages);
-	AST_TEST_UNREGISTER(subscription_pool_messages);
-	AST_TEST_UNREGISTER(publish);
-	AST_TEST_UNREGISTER(publish_sync);
-	AST_TEST_UNREGISTER(publish_pool);
-	AST_TEST_UNREGISTER(unsubscribe_stops_messages);
-	AST_TEST_UNREGISTER(forward);
-	AST_TEST_UNREGISTER(cache_filter);
-	AST_TEST_UNREGISTER(cache);
-	AST_TEST_UNREGISTER(cache_dump);
-	AST_TEST_UNREGISTER(cache_eid_aggregate);
-	AST_TEST_UNREGISTER(router);
-	AST_TEST_UNREGISTER(router_pool);
-	AST_TEST_UNREGISTER(router_cache_updates);
-	AST_TEST_UNREGISTER(interleaving);
-	AST_TEST_UNREGISTER(subscription_interleaving);
-	AST_TEST_UNREGISTER(no_to_json);
-	AST_TEST_UNREGISTER(to_json);
-	AST_TEST_UNREGISTER(no_to_ami);
-	AST_TEST_UNREGISTER(to_ami);
-	AST_TEST_UNREGISTER(dtor_order);
-	AST_TEST_UNREGISTER(caching_dtor_order);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(message_type);
@@ -2104,7 +2075,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, 0, "Stasis testing",
-	.load = load_module,
-	.unload = unload_module
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Stasis testing");

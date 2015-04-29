@@ -26,6 +26,7 @@
  */
 
 /*** MODULEINFO
+	<export_globals/>
 	<support_level>extended</support_level>
  ***/
 
@@ -41,19 +42,4 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/lock.h"
 #include "asterisk/cli.h"
 
-
-static int unload_module(void)
-{
-	return 0;
-}
-
-static int load_module(void)
-{
-	return AST_MODULE_LOAD_SUCCESS;
-}
-
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "share-able code for AEL",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module
-);
+AST_MODULE_INFO_SYMBOLS_ONLY(ASTERISK_GPL_KEY, "share-able code for AEL");

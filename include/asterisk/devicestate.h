@@ -210,7 +210,11 @@ int ast_device_state_changed_literal(const char *device)
  * \retval 0 success
  * \retval -1 failure
  */
-int ast_devstate_prov_add(const char *label, ast_devstate_prov_cb_type callback);
+#define ast_devstate_prov_add(label, callback) \
+	__ast_devstate_prov_add(label, callback, AST_MODULE_SELF)
+
+int __ast_devstate_prov_add(const char *label, ast_devstate_prov_cb_type callback,
+	struct ast_module *module);
 
 /*!
  * \brief Remove device state provider

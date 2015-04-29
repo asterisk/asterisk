@@ -129,15 +129,6 @@ static struct ast_custom_function extstate_function = {
 	.read_max = 12,
 };
 
-static int unload_module(void)
-{
-	int res;
-
-	res = ast_custom_function_unregister(&extstate_function);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res;
@@ -147,4 +138,4 @@ static int load_module(void)
 	return res ? AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Gets an extension's state in the dialplan");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Gets an extension's state in the dialplan");

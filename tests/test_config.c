@@ -1672,19 +1672,6 @@ out:
 	return res;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(config_basic_ops);
-	AST_TEST_UNREGISTER(config_filtered_ops);
-	AST_TEST_UNREGISTER(config_template_ops);
-	AST_TEST_UNREGISTER(copy_config);
-	AST_TEST_UNREGISTER(config_hook);
-	AST_TEST_UNREGISTER(ast_parse_arg_test);
-	AST_TEST_UNREGISTER(config_options_test);
-	AST_TEST_UNREGISTER(config_dialplan_function);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(config_basic_ops);
@@ -1698,5 +1685,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Config test module");
-
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Config test module");

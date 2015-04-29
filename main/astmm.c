@@ -171,6 +171,16 @@ void ast_std_free(void *ptr)
 	free(ptr);
 }
 
+char *ast_std_strndup(const char *s, size_t n)
+{
+	return strndup(s, n);
+}
+
+char *ast_std_strdup(const char *s)
+{
+	return strdup(s);
+}
+
 void ast_free_ptr(void *ptr)
 {
 	ast_free(ptr);

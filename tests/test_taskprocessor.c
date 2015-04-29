@@ -727,16 +727,6 @@ AST_TEST_DEFINE(taskprocessor_push_local)
 	return AST_TEST_PASS;
 }
 
-static int unload_module(void)
-{
-	ast_test_unregister(default_taskprocessor);
-	ast_test_unregister(default_taskprocessor_load);
-	ast_test_unregister(taskprocessor_listener);
-	ast_test_unregister(taskprocessor_shutdown);
-	ast_test_unregister(taskprocessor_push_local);
-	return 0;
-}
-
 static int load_module(void)
 {
 	ast_test_register(default_taskprocessor);
@@ -747,4 +737,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "taskprocessor test module");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "taskprocessor test module");

@@ -1027,16 +1027,6 @@ static struct ast_custom_function jack_hook_function = {
 	.write = jack_hook_write,
 };
 
-static int unload_module(void)
-{
-	int res;
-
-	res = ast_unregister_application(jack_app);
-	res |= ast_custom_function_unregister(&jack_hook_function);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	if (ast_register_application_xml(jack_app, jack_exec)) {
@@ -1044,12 +1034,10 @@ static int load_module(void)
 	}
 
 	if (ast_custom_function_register(&jack_hook_function)) {
-		ast_unregister_application(jack_app);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "JACK Interface");
-
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "JACK Interface");

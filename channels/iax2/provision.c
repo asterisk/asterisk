@@ -522,7 +522,6 @@ static void iax_provision_free_templates(int dead)
 int iax_provision_unload(void)
 {
 	provinit = 0;
-	ast_cli_unregister_multiple(cli_iax2_provision, sizeof(cli_iax2_provision) / sizeof(struct ast_cli_entry));
 	iax_provision_free_templates(0 /* Remove all templates. */);
 
 	return 0;

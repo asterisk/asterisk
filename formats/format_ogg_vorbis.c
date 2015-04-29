@@ -26,6 +26,7 @@
 */
 
 /*** MODULEINFO
+	<load_priority>app_depend</load_priority>
 	<depend>vorbis</depend>
 	<depend>ogg</depend>
 	<support_level>core</support_level>
@@ -429,14 +430,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
-{
-	return ast_format_def_unregister(vorbis_f.name);
-}
-
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "OGG/Vorbis audio",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_APP_DEPEND
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "OGG/Vorbis audio");

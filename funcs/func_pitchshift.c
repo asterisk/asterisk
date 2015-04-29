@@ -498,16 +498,10 @@ static struct ast_custom_function pitch_shift_function = {
 	.write = pitchshift_helper,
 };
 
-static int unload_module(void)
-{
-	return ast_custom_function_unregister(&pitch_shift_function);
-}
-
 static int load_module(void)
 {
 	int res = ast_custom_function_register(&pitch_shift_function);
 	return res ? AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Audio Effects Dialplan Functions");
-
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Audio Effects Dialplan Functions");

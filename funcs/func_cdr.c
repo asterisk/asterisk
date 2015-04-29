@@ -594,10 +594,9 @@ static struct ast_custom_function cdr_prop_function = {
 	.write = cdr_prop_write,
 };
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	RAII_VAR(struct stasis_message_router *, router, ast_cdr_message_router(), ao2_cleanup);
-	int res = 0;
 
 	if (router) {
 		stasis_message_router_remove(router, cdr_prop_write_message_type());
@@ -607,10 +606,6 @@ static int unload_module(void)
 	STASIS_MESSAGE_TYPE_CLEANUP(cdr_read_message_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(cdr_write_message_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(cdr_prop_write_message_type);
-	res |= ast_custom_function_unregister(&cdr_function);
-	res |= ast_custom_function_unregister(&cdr_prop_function);
-
-	return res;
 }
 
 static int load_module(void)

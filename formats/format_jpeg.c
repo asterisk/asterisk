@@ -25,6 +25,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>app_depend</load_priority>
 	<support_level>extended</support_level>
  ***/
  
@@ -102,16 +103,9 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_image_unregister(&jpeg_format);
-
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "jpeg (joint picture experts group) image format",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_APP_DEPEND
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "jpeg (joint picture experts group) image format");

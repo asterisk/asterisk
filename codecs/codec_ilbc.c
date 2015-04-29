@@ -26,7 +26,7 @@
  */
 
 /*** MODULEINFO
-	<use>ilbc</use>
+	<depend>ilbc</depend>
 	<support_level>core</support_level>
  ***/
 
@@ -219,16 +219,6 @@ static struct ast_translator lintoilbc = {
 	.buf_size = (BUFFER_SAMPLES * ILBC_FRAME_LEN + ILBC_SAMPLES - 1) / ILBC_SAMPLES,
 };
 
-static int unload_module(void)
-{
-	int res;
-
-	res = ast_unregister_translator(&lintoilbc);
-	res |= ast_unregister_translator(&ilbctolin);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res;
@@ -237,11 +227,10 @@ static int load_module(void)
 	res |= ast_register_translator(&lintoilbc);
 
 	if (res) {
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "iLBC Coder/Decoder");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "iLBC Coder/Decoder");

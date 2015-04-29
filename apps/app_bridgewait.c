@@ -28,7 +28,7 @@
  */
 
 /*** MODULEINFO
-	<depend>bridge_holding</depend>
+	<use type="module">bridge_holding</use>
 	<support_level>core</support_level>
  ***/
 
@@ -491,11 +491,9 @@ static int bridgewait_exec(struct ast_channel *chan, const char *data)
 	return (res || ast_check_hangup_locked(chan)) ? -1 : 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ao2_cleanup(wait_bridge_wrappers);
-
-	return ast_unregister_application(APP_NAME);
 }
 
 static int load_module(void)

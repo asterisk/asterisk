@@ -201,8 +201,3 @@ int load_parking_ui(void)
 {
 	return ast_cli_register_multiple(cli_parking_lot, ARRAY_LEN(cli_parking_lot));
 }
-
-void unload_parking_ui(void)
-{
-	ast_cli_unregister_multiple(cli_parking_lot, ARRAY_LEN(cli_parking_lot));
-}

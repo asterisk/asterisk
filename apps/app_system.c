@@ -163,16 +163,6 @@ static int trysystem_exec(struct ast_channel *chan, const char *data)
 	return system_exec_helper(chan, data, 0);
 }
 
-static int unload_module(void)
-{
-	int res;
-
-	res = ast_unregister_application(app);
-	res |= ast_unregister_application(app2);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res;
@@ -183,4 +173,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Generic System() application");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Generic System() application");

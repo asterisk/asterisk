@@ -240,16 +240,6 @@ static struct ast_translator lintolpc10 = {
 	.buf_size = LPC10_BYTES_IN_COMPRESSED_FRAME * (1 + BUFFER_SAMPLES / LPC10_SAMPLES_PER_FRAME),
 };
 
-static int unload_module(void)
-{
-	int res;
-
-	res = ast_unregister_translator(&lintolpc10);
-	res |= ast_unregister_translator(&lpc10tolin);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res;
@@ -258,15 +248,10 @@ static int load_module(void)
 	res |= ast_register_translator(&lintolpc10);
 
 	if (res) {
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "LPC10 2.4kbps Coder/Decoder",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "LPC10 2.4kbps Coder/Decoder");

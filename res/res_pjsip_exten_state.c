@@ -17,9 +17,10 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_depend</load_priority>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
-	<depend>res_pjsip_pubsub</depend>
+	<use type="module">res_pjsip</use>
+	<use type="module">res_pjsip_pubsub</use>
 	<support_level>core</support_level>
  ***/
 
@@ -491,8 +492,6 @@ static void to_ami(struct ast_sip_subscription *sub,
 
 static int load_module(void)
 {
-	CHECK_PJSIP_MODULE_LOADED();
-
 	if (ast_sip_register_subscription_handler(&presence_handler)) {
 		ast_log(LOG_WARNING, "Unable to register subscription handler %s\n",
 			presence_handler.event_name);
@@ -502,23 +501,16 @@ static int load_module(void)
 	if (ast_sip_register_subscription_handler(&dialog_handler)) {
 		ast_log(LOG_WARNING, "Unable to register subscription handler %s\n",
 			dialog_handler.event_name);
-		ast_sip_unregister_subscription_handler(&presence_handler);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_sip_unregister_subscription_handler(&dialog_handler);
 	ast_sip_unregister_subscription_handler(&presence_handler);
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP Extension State Notifications",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "PJSIP Extension State Notifications");

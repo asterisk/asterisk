@@ -38,6 +38,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>devstate_provider</load_priority>
 	<support_level>core</support_level>
  ***/
 
@@ -681,14 +682,14 @@ static int conf_start_record(struct confbridge_conference *conference)
 
 	features = ast_bridge_features_new();
 	if (!features) {
-		return -1;
+		goto cleanuperror;
 	}
 	ast_set_flag(&features->feature_flags, AST_BRIDGE_CHANNEL_FLAG_IMMOVABLE);
 
 	cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!cap) {
 		ast_bridge_features_destroy(features);
-		return -1;
+		goto cleanuperror;
 	}
 	ast_format_cap_append(cap, ast_format_slin, 0);
 
@@ -697,7 +698,7 @@ static int conf_start_record(struct confbridge_conference *conference)
 	ao2_ref(cap, -1);
 	if (!chan) {
 		ast_bridge_features_destroy(features);
-		return -1;
+		goto cleanuperror;
 	}
 
 	/* Start recording. */
@@ -705,6 +706,7 @@ static int conf_start_record(struct confbridge_conference *conference)
 		is_new_rec_file(conference->b_profile.rec_file, &conference->orig_rec_file));
 	ast_answer(chan);
 	pbx_exec(chan, mixmonapp, ast_str_buffer(conference->record_filename));
+	ao2_ref(mixmonapp, -1);
 
 	/* Put the channel into the conference bridge. */
 	ast_channel_ref(chan);
@@ -721,6 +723,11 @@ static int conf_start_record(struct confbridge_conference *conference)
 	send_start_record_event(conference);
 
 	return 0;
+
+cleanuperror:
+	ao2_ref(mixmonapp, -1);
+
+	return -1;
 }
 
 /* \brief Playback the given filename and monitor for any dtmf interrupts.
@@ -1744,20 +1751,11 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	}
 
 	if (ast_test_flag(&user.u_profile, USER_OPT_JITTERBUFFER)) {
-		char *func_jb;
-		if ((func_jb = ast_module_helper("", "func_jitterbuffer", 0, 0, 0, 0))) {
-			ast_free(func_jb);
-			ast_func_write(chan, "JITTERBUFFER(adaptive)", "default");
-		}
+		ast_func_write(chan, "JITTERBUFFER(adaptive)", "default");
 	}
 
 	if (ast_test_flag(&user.u_profile, USER_OPT_DENOISE)) {
-		char *mod_speex;
-		/* Reduce background noise from each participant */
-		if ((mod_speex = ast_module_helper("", "codec_speex", 0, 0, 0, 0))) {
-			ast_free(mod_speex);
-			ast_func_write(chan, "DENOISE(rx)", "on");
-		}
+		ast_func_write(chan, "DENOISE(rx)", "on");
 	}
 
 	/* if this user has a intro, play it before entering */
@@ -3294,7 +3292,6 @@ void conf_remove_user_waiting(struct confbridge_conference *conference, struct c
  */
 static void unregister_channel_tech(struct ast_channel_tech *tech)
 {
-	ast_channel_unregister(tech);
 	ao2_cleanup(tech->capabilities);
 }
 
@@ -3324,26 +3321,8 @@ static int register_channel_tech(struct ast_channel_tech *tech)
 }
 
 /*! \brief Called when module is being unloaded */
-static int unload_module(void)
+static void unload_module(void)
 {
-	ast_unregister_application(app);
-
-	ast_custom_function_unregister(&confbridge_function);
-	ast_custom_function_unregister(&confbridge_info_function);
-
-	ast_cli_unregister_multiple(cli_confbridge, ARRAY_LEN(cli_confbridge));
-
-	ast_manager_unregister("ConfbridgeList");
-	ast_manager_unregister("ConfbridgeListRooms");
-	ast_manager_unregister("ConfbridgeMute");
-	ast_manager_unregister("ConfbridgeUnmute");
-	ast_manager_unregister("ConfbridgeKick");
-	ast_manager_unregister("ConfbridgeUnlock");
-	ast_manager_unregister("ConfbridgeLock");
-	ast_manager_unregister("ConfbridgeStartRecord");
-	ast_manager_unregister("ConfbridgeStopRecord");
-	ast_manager_unregister("ConfbridgeSetSingleVideoSrc");
-
 	/* Unsubscribe from stasis confbridge message type and clean it up. */
 	manager_confbridge_shutdown();
 
@@ -3355,8 +3334,6 @@ static int unload_module(void)
 
 	unregister_channel_tech(conf_announce_get_tech());
 	unregister_channel_tech(conf_record_get_tech());
-
-	return 0;
 }
 
 /*!
@@ -3380,7 +3357,6 @@ static int load_module(void)
 
 	if (register_channel_tech(conf_record_get_tech())
 		|| register_channel_tech(conf_announce_get_tech())) {
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
@@ -3388,7 +3364,6 @@ static int load_module(void)
 	conference_bridges = ao2_container_alloc(CONFERENCE_BRIDGE_BUCKETS,
 		conference_bridge_hash_cb, conference_bridge_cmp_cb);
 	if (!conference_bridges) {
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
@@ -3413,22 +3388,15 @@ static int load_module(void)
 	res |= ast_manager_register_xml("ConfbridgeStopRecord", EVENT_FLAG_SYSTEM, action_confbridgestoprecord);
 	res |= ast_manager_register_xml("ConfbridgeSetSingleVideoSrc", EVENT_FLAG_CALL, action_confbridgesetsinglevideosrc);
 	if (res) {
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	return conf_reload_config();
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Conference Bridge Application",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_DEVSTATE_PROVIDER,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Conference Bridge Application");

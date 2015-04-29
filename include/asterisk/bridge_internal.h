@@ -79,7 +79,9 @@ struct ast_bridge *bridge_register(struct ast_bridge *bridge);
  * \retval bridge on success.
  * \retval NULL on error.
  */
-struct ast_bridge *bridge_alloc(size_t size, const struct ast_bridge_methods *v_table);
+#define bridge_alloc(size, v_table) __bridge_alloc(size, v_table, AST_MODULE_SELF)
+struct ast_bridge *__bridge_alloc(size_t size, const struct ast_bridge_methods *v_table,
+	struct ast_module *module);
 
 /*!
  * \brief Initialize the base class of the bridge.

@@ -1261,19 +1261,6 @@ static struct ast_custom_function file_format_function = {
 	.read_max = 2,
 };
 
-static int unload_module(void)
-{
-	int res = 0;
-
-	res |= ast_custom_function_unregister(&env_function);
-	res |= ast_custom_function_unregister(&stat_function);
-	res |= ast_custom_function_unregister(&file_function);
-	res |= ast_custom_function_unregister(&file_count_line_function);
-	res |= ast_custom_function_unregister(&file_format_function);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res = 0;
@@ -1287,4 +1274,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Environment/filesystem dialplan functions");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Environment/filesystem dialplan functions");

@@ -477,7 +477,7 @@ static struct ast_custom_function unlock_function = {
 	.read_max = 2,
 };
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	struct lock_frame *current;
 
@@ -485,6 +485,7 @@ static int unload_module(void)
 	unloading = 1;
 
 	AST_LIST_LOCK(&locklist);
+	/* BUGBUG: module reference counting should prevent this failure? */
 	while ((current = AST_LIST_REMOVE_HEAD(&locklist, entries))) {
 		/* If any locks are currently in use, then we cannot unload this module */
 		if (current->owner || ao2_container_count(current->requesters)) {
@@ -492,17 +493,13 @@ static int unload_module(void)
 			AST_LIST_INSERT_HEAD(&locklist, current, entries);
 			AST_LIST_UNLOCK(&locklist);
 			unloading = 0;
-			return -1;
+			ast_module_block_unload(AST_MODULE_SELF);
+			return;
 		}
 		ast_mutex_destroy(&current->mutex);
 		ao2_ref(current->requesters, -1);
 		ast_free(current);
 	}
-
-	/* No locks left, unregister functions */
-	ast_custom_function_unregister(&lock_function);
-	ast_custom_function_unregister(&trylock_function);
-	ast_custom_function_unregister(&unlock_function);
 
 	if (broker_tid != AST_PTHREADT_NULL) {
 		pthread_cancel(broker_tid);
@@ -511,8 +508,6 @@ static int unload_module(void)
 	}
 
 	AST_LIST_UNLOCK(&locklist);
-
-	return 0;
 }
 
 static int load_module(void)
@@ -524,7 +519,6 @@ static int load_module(void)
 	if (ast_pthread_create_background(&broker_tid, NULL, lock_broker, NULL)) {
 		ast_log(LOG_ERROR, "Failed to start lock broker thread. Unloading func_lock module.\n");
 		broker_tid = AST_PTHREADT_NULL;
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 

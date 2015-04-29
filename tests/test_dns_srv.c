@@ -558,20 +558,6 @@ AST_TEST_DEFINE(srv_resolve_record_missing_host)
 	return invalid_record_test(test, records, ARRAY_LEN(records));
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(srv_resolve_single_record);
-	AST_TEST_UNREGISTER(srv_resolve_sort_priority);
-	AST_TEST_UNREGISTER(srv_resolve_same_priority_zero_weight);
-	AST_TEST_UNREGISTER(srv_resolve_same_priority_different_weights);
-	AST_TEST_UNREGISTER(srv_resolve_different_priorities_different_weights);
-	AST_TEST_UNREGISTER(srv_resolve_record_missing_weight_port_host);
-	AST_TEST_UNREGISTER(srv_resolve_record_missing_port_host);
-	AST_TEST_UNREGISTER(srv_resolve_record_missing_host);
-
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(srv_resolve_single_record);
@@ -586,4 +572,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "DNS SRV Tests");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "DNS SRV Tests");

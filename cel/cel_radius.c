@@ -27,6 +27,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>cdr_driver</load_priority>
 	<depend>radius</depend>
 	<support_level>extended</support_level>
  ***/
@@ -211,14 +212,13 @@ return_cleanup:
 	}
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_cel_backend_unregister(RADIUS_BACKEND_NAME);
 	if (rh) {
 		rc_destroy(rh);
 		rh = NULL;
 	}
-	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int load_module(void)
@@ -258,23 +258,14 @@ static int load_module(void)
 	/* read radiusclient-ng dictionaries */
 	if (rc_read_dictionary(rh, rc_conf_str(rh, "dictionary"))) {
 		ast_log(LOG_NOTICE, "Cannot load radiusclient-ng dictionary file.\n");
-		rc_destroy(rh);
-		rh = NULL;
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (ast_cel_backend_register(RADIUS_BACKEND_NAME, radius_log)) {
-		rc_destroy(rh);
-		rh = NULL;
 		return AST_MODULE_LOAD_DECLINE;
 	} else {
 		return AST_MODULE_LOAD_SUCCESS;
 	}
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "RADIUS CEL Backend",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_CDR_DRIVER,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "RADIUS CEL Backend");

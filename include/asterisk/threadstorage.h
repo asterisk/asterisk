@@ -49,6 +49,7 @@
 
 #include "asterisk/utils.h"
 #include "asterisk/inline_api.h"
+#include "asterisk/module.h"
 
 /*!
  * \brief data for a thread locally stored variable
@@ -124,6 +125,7 @@ scope struct ast_threadstorage name = {         \
 };                                              \
 static void __init_##name(void)                 \
 {                                               \
+	ast_module_block_unload(AST_MODULE_SELF);   \
 	pthread_key_create(&(name).key, c_cleanup); \
 }
 #else /* defined(DEBUG_THREADLOCALS) */
@@ -141,6 +143,7 @@ static void __cleanup_##name(void *data)        \
 }                                               \
 static void __init_##name(void)                 \
 {                                               \
+	ast_module_block_unload(AST_MODULE_SELF);   \
 	pthread_key_create(&(name).key, __cleanup_##name); \
 }
 #endif /* defined(DEBUG_THREADLOCALS) */

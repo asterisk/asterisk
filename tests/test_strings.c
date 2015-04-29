@@ -455,16 +455,6 @@ AST_TEST_DEFINE(escape_semicolons_test)
 	return AST_TEST_PASS;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(str_test);
-	AST_TEST_UNREGISTER(begins_with_test);
-	AST_TEST_UNREGISTER(ends_with_test);
-	AST_TEST_UNREGISTER(strsep_test);
-	AST_TEST_UNREGISTER(escape_semicolons_test);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(str_test);
@@ -475,4 +465,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Dynamic string test module");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Dynamic string test module");

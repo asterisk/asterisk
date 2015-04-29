@@ -232,7 +232,7 @@ static int nocdr_exec(struct ast_channel *chan, const char *data)
 	return publish_app_cdr_message(chan, payload);
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	RAII_VAR(struct stasis_message_router *, router, ast_cdr_message_router(), ao2_cleanup);
 
@@ -240,9 +240,6 @@ static int unload_module(void)
 		stasis_message_router_remove(router, appcdr_message_type());
 	}
 	STASIS_MESSAGE_TYPE_CLEANUP(appcdr_message_type);
-	ast_unregister_application(nocdr_app);
-	ast_unregister_application(resetcdr_app);
-	return 0;
 }
 
 static int load_module(void)

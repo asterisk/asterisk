@@ -29,7 +29,7 @@
 /*** MODULEINFO
 	<support_level>core</support_level>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
+	<use type="module">res_pjsip</use>
  ***/
 
 #include "asterisk.h"
@@ -148,14 +148,9 @@ static struct ast_custom_function pjsip_endpoint_function = {
 	.read2 = pjsip_endpoint_function_read,
 };
 
-static int unload_module(void)
-{
-	return ast_custom_function_unregister(&pjsip_endpoint_function);
-}
-
 static int load_module(void)
 {
 	return ast_custom_function_register(&pjsip_endpoint_function);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Get information about a PJSIP endpoint");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Get information about a PJSIP endpoint");

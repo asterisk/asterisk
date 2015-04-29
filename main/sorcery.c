@@ -531,6 +531,14 @@ static void sorcery_internal_wizard_destructor(void *obj)
 	struct ast_sorcery_internal_wizard *wizard = obj;
 
 	ao2_cleanup(wizard->observers);
+	ao2_cleanup(wizard->callbacks.lib);
+}
+
+static void module_sorcery_wizard_unregister(void *weakproxy, void *data)
+{
+	struct ast_sorcery_internal_wizard *wizard = data;
+
+	ast_sorcery_wizard_unregister(&wizard->callbacks);
 }
 
 int __ast_sorcery_wizard_register(const struct ast_sorcery_wizard *interface, struct ast_module *module)
@@ -553,7 +561,7 @@ int __ast_sorcery_wizard_register(const struct ast_sorcery_wizard *interface, st
 	}
 
 	wizard->callbacks = *interface;
-	wizard->callbacks.module = module;
+	wizard->callbacks.lib = module ? ast_module_get_lib_running(module) : NULL;
 
 	wizard->observers = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_RWLOCK, 0, NULL, NULL);
 	if (!wizard->observers) {
@@ -569,8 +577,15 @@ int __ast_sorcery_wizard_register(const struct ast_sorcery_wizard *interface, st
 		interface->name, interface);
 
 done:
-	ao2_cleanup(wizard);
 	ao2_unlock(wizards);
+
+	if (!res && wizard->callbacks.lib) {
+		ast_module_lib_subscribe_stop(wizard->callbacks.lib,
+			module_sorcery_wizard_unregister, wizard);
+	}
+
+	ao2_cleanup(wizard);
+
 
 	return res;
 }
@@ -578,11 +593,14 @@ done:
 int ast_sorcery_wizard_unregister(const struct ast_sorcery_wizard *interface)
 {
 	struct ast_sorcery_internal_wizard *wizard =
-		interface ? ao2_find(wizards, interface->name, OBJ_SEARCH_KEY) : NULL;
+		interface ? ao2_find(wizards, interface->name, OBJ_SEARCH_KEY | OBJ_UNLINK) : NULL;
 
 	if (wizard) {
 		NOTIFY_GLOBAL_OBSERVERS(observers, wizard_unregistering, wizard->callbacks.name, &wizard->callbacks);
-		ao2_unlink(wizards, wizard);
+		if (wizard->callbacks.lib) {
+			ast_module_lib_unsubscribe_stop(wizard->callbacks.lib,
+				module_sorcery_wizard_unregister, wizard);
+		}
 		ao2_ref(wizard, -1);
 		ast_verb(2, "Sorcery unregistered wizard '%s'\n", interface->name);
 		return 0;
@@ -881,8 +899,8 @@ static void sorcery_object_wizard_destructor(void *obj)
 		object_wizard->wizard->callbacks.close(object_wizard->data);
 	}
 
-	if (object_wizard->wizard) {
-		ast_module_unref(object_wizard->wizard->callbacks.module);
+	if (object_wizard->wizard && object_wizard->wizard->callbacks.lib) {
+		ast_module_lib_ref_instance(object_wizard->wizard->callbacks.lib, -1);
 	}
 
 	ao2_cleanup(object_wizard->wizard);
@@ -991,12 +1009,15 @@ enum ast_sorcery_apply_result __ast_sorcery_insert_wizard_mapping(struct ast_sor
 		}
 	}
 
-	if (wizard->callbacks.open && !(object_wizard->data = wizard->callbacks.open(data))) {
+	if (wizard->callbacks.lib && ast_module_lib_ref_instance(wizard->callbacks.lib, +1) < 0) {
 		AST_VECTOR_RW_UNLOCK(&object_type->wizards);
 		return AST_SORCERY_APPLY_FAIL;
 	}
 
-	ast_module_ref(wizard->callbacks.module);
+	if (wizard->callbacks.open && !(object_wizard->data = wizard->callbacks.open(data))) {
+		AST_VECTOR_RW_UNLOCK(&object_type->wizards);
+		return AST_SORCERY_APPLY_FAIL;
+	}
 
 	object_wizard->wizard = ao2_bump(wizard);
 	object_wizard->caching = caching;
@@ -1106,7 +1127,10 @@ static int sorcery_extended_fields_handler(const void *obj, struct ast_variable 
 	return 0;
 }
 
-int __ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type, unsigned int hidden, unsigned int reloadable, aco_type_item_alloc alloc, sorcery_transform_handler transform, sorcery_apply_handler apply)
+int __ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type,
+	unsigned int hidden, unsigned int reloadable, aco_type_item_alloc alloc,
+	sorcery_transform_handler transform, sorcery_apply_handler apply,
+	struct ast_module *module)
 {
 	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
 
@@ -1114,6 +1138,8 @@ int __ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type,
 		return -1;
 	}
 
+	/* BUGBUG: update this to use lib reference.. */
+	ast_module_block_unload(module);
 	object_type->type.name = object_type->name;
 	object_type->type.type = ACO_ITEM;
 	object_type->type.category = ".?";

@@ -39,7 +39,9 @@ ASTERISK_REGISTER_FILE()
 /* Use ast_log_safe in place of ast_log. */
 #define ast_log ast_log_safe
 
-static FILE *ref_log;
+static struct {
+	FILE *fh;
+} *ref_log;
 
 /*!
  * astobj2 objects are always preceded by this data structure,
@@ -447,9 +449,9 @@ int __ao2_ref(void *user_data, int delta,
 
 	if (obj == NULL) {
 		if (ref_log && user_data) {
-			fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**invalid**,%s\n",
+			fprintf(ref_log->fh, "%p,%d,%d,%s,%d,%s,**invalid**,%s\n",
 				user_data, delta, ast_get_tid(), file, line, func, tag ?: "");
-			fflush(ref_log);
+			fflush(ref_log->fh);
 		}
 		ast_assert(0);
 		return -1;
@@ -487,23 +489,23 @@ int __ao2_ref(void *user_data, int delta,
 			weakproxy_run_callbacks(weakproxy);
 
 			/* weak is already unlinked from obj so this won't recurse */
-			ao2_ref(user_data, -1);
+			ao2_t_ref(user_data, -1, "remove weakproxy reference");
 		}
 
 		ao2_unlock(weakproxy);
 
 		if (current_value == 1) {
-			ao2_ref(weakproxy, -1);
+			ao2_t_ref(weakproxy, -1, "remove weakproxy reference");
 		}
 	}
 
 	if (0 < current_value) {
 		/* The object still lives. */
 		if (ref_log && tag) {
-			fprintf(ref_log, "%p,%s%d,%d,%s,%d,%s,%d,%s\n", user_data,
+			fprintf(ref_log->fh, "%p,%s%d,%d,%s,%d,%s,%d,%s\n", user_data,
 				(delta < 0 ? "" : "+"), delta, ast_get_tid(),
 				file, line, func, ret, tag);
-			fflush(ref_log);
+			fflush(ref_log->fh);
 		}
 		return ret;
 	}
@@ -513,10 +515,10 @@ int __ao2_ref(void *user_data, int delta,
 		ast_log(__LOG_ERROR, file, line, func,
 			"Invalid refcount %d on ao2 object %p\n", current_value, user_data);
 		if (ref_log) {
-			/* Log to ref_log invalid even if (tag == NULL) */
-			fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**invalid**,%s\n",
+			/* Log to ref_log->fh invalid even if (tag == NULL) */
+			fprintf(ref_log->fh, "%p,%d,%d,%s,%d,%s,**invalid**,%s\n",
 				user_data, delta, ast_get_tid(), file, line, func, tag ?: "");
-			fflush(ref_log);
+			fflush(ref_log->fh);
 		}
 		ast_assert(0);
 		/* stop here even if assert doesn't DO_CRASH */
@@ -526,6 +528,12 @@ int __ao2_ref(void *user_data, int delta,
 	/* last reference, destroy the object */
 	if (obj->priv_data.destructor_fn != NULL) {
 		obj->priv_data.destructor_fn(user_data);
+	}
+
+	if (ref_log && tag) {
+		fprintf(ref_log->fh, "%p,%d,%d,%s,%d,%s,**destructor**,%s\n",
+			user_data, delta, ast_get_tid(), file, line, func, tag);
+		fflush(ref_log->fh);
 	}
 
 #ifdef AO2_DEBUG
@@ -556,12 +564,6 @@ int __ao2_ref(void *user_data, int delta,
 		ast_log(__LOG_ERROR, file, line, func,
 			"Invalid lock option on ao2 object %p\n", user_data);
 		break;
-	}
-
-	if (ref_log && tag) {
-		fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**destructor**,%s\n",
-			user_data, delta, ast_get_tid(), file, line, func, tag);
-		fflush(ref_log);
 	}
 
 	return ret;
@@ -646,9 +648,9 @@ void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, unsigned in
 #endif
 
 	if (ref_log && tag) {
-		fprintf(ref_log, "%p,+1,%d,%s,%d,%s,**constructor**,%s\n",
+		fprintf(ref_log->fh, "%p,+1,%d,%s,%d,%s,**constructor**,%s\n",
 			EXTERNAL_OBJ(obj), ast_get_tid(), file, line, func, tag);
-		fflush(ref_log);
+		fflush(ref_log->fh);
 	}
 
 	/* return a pointer to the user data */
@@ -1127,32 +1129,52 @@ static struct ast_cli_entry cli_astobj2[] = {
 };
 #endif /* AO2_DEBUG */
 
+static void ref_log_dtor(void *obj)
+{
+	fclose(ref_log->fh);
+	ref_log = NULL;
+}
+
+void astobj2_ref_log_ref(void)
+{
+	/* Keep this out of ref_log logging. */
+	ao2_t_bump(ref_log, NULL);
+}
+
+void astobj2_ref_log_unref(void)
+{
+	/* Keep this out of ref_log logging. */
+	ao2_t_cleanup(ref_log, NULL);
+}
+
 static void astobj2_cleanup(void)
 {
 #if defined(AO2_DEBUG)
 	ast_cli_unregister_multiple(cli_astobj2, ARRAY_LEN(cli_astobj2));
 #endif
 
-	if (ast_opt_ref_debug) {
-		fclose(ref_log);
-		ref_log = NULL;
-	}
+	astobj2_ref_log_unref();
 }
 
 int astobj2_init(void)
 {
-	char ref_filename[1024];
-
 	if (ast_opt_ref_debug) {
+		char ref_filename[1024];
+		FILE *tmp;
+
 		snprintf(ref_filename, sizeof(ref_filename), "%s/refs", ast_config_AST_LOG_DIR);
-		ref_log = fopen(ref_filename, "w");
-		if (!ref_log) {
+		tmp = fopen(ref_filename, "w");
+		if (!tmp) {
 			ast_log(LOG_ERROR, "Could not open ref debug log file: %s\n", ref_filename);
 		}
+
+		/* Keep 'ref_log' from logging references to itself. */
+		ref_log = ao2_t_alloc(sizeof(*ref_log), ref_log_dtor, NULL);
+		ref_log->fh = tmp;
 	}
 
 	if (container_init() != 0) {
-		fclose(ref_log);
+		astobj2_ref_log_unref();
 		return -1;
 	}
 

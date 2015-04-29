@@ -152,13 +152,6 @@ AST_TEST_DEFINE(parse_off_nominal)
 	return AST_TEST_PASS;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(parse_nominal);
-	AST_TEST_UNREGISTER(parse_off_nominal);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(parse_nominal);
@@ -166,4 +159,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Callerid Parse Tests");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Callerid Parse Tests");

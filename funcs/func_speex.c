@@ -360,13 +360,6 @@ static struct ast_custom_function denoise_function = {
 	.read_max = 22,
 };
 
-static int unload_module(void)
-{
-	ast_custom_function_unregister(&agc_function);
-	ast_custom_function_unregister(&denoise_function);
-	return 0;
-}
-
 static int load_module(void)
 {
 	if (ast_custom_function_register(&agc_function)) {
@@ -374,11 +367,10 @@ static int load_module(void)
 	}
 
 	if (ast_custom_function_register(&denoise_function)) {
-		ast_custom_function_unregister(&agc_function);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Noise reduction and Automatic Gain Control (AGC)");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Noise reduction and Automatic Gain Control (AGC)");

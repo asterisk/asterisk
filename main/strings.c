@@ -173,16 +173,30 @@ struct ao2_container *ast_str_container_alloc_options(enum ao2_alloc_opts opts, 
 	return ao2_container_alloc_options(opts, buckets, str_hash, str_cmp);
 }
 
+char *ast_str_ao2_alloc(const char *copy)
+{
+	/* The ao2_add object is immutable so it doesn't need a lock of its own. */
+	char *ao2_copy;
+
+	if (!copy) {
+		return NULL;
+	}
+
+	ao2_copy = ao2_t_alloc_options(strlen(copy) + 1, NULL, AO2_ALLOC_OPT_LOCK_NOLOCK, copy);
+	if (!ao2_copy) {
+		return NULL;
+	}
+	strcpy(ao2_copy, copy); /* Safe */
+
+	return ao2_copy;
+}
+
 int ast_str_container_add(struct ao2_container *str_container, const char *add)
 {
-	char *ao2_add;
-
-	/* The ao2_add object is immutable so it doesn't need a lock of its own. */
-	ao2_add = ao2_alloc_options(strlen(add) + 1, NULL, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	char *ao2_add = ast_str_ao2_alloc(add);
 	if (!ao2_add) {
 		return -1;
 	}
-	strcpy(ao2_add, add);/* Safe */
 
 	ao2_link(str_container, ao2_add);
 	ao2_ref(ao2_add, -1);

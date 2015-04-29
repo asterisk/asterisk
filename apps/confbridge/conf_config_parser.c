@@ -2407,7 +2407,6 @@ int conf_set_menu_to_user(struct ast_channel *chan, struct confbridge_user *user
 
 void conf_destroy_config(void)
 {
-	ast_cli_unregister_multiple(cli_confbridge_parser, ARRAY_LEN(cli_confbridge_parser));
 	aco_info_destroy(&cfg_info);
 	ao2_global_obj_release(cfg_handle);
 }

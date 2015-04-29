@@ -2873,7 +2873,8 @@ static void sig_pri_cc_monitor_instance_destroy(void *data)
 		pri_cc_cancel(monitor_instance->pri->pri, monitor_instance->cc_id);
 		ast_mutex_unlock(&monitor_instance->pri->lock);
 	}
-	sig_pri_callbacks.module_unref();
+	/* BUGBUG */
+	ast_module_unref(AST_MODULE_SELF);
 }
 #endif	/* defined(HAVE_PRI_CCSS) */
 
@@ -2900,10 +2901,6 @@ static struct sig_pri_cc_monitor_instance *sig_pri_cc_monitor_instance_init(int 
 {
 	struct sig_pri_cc_monitor_instance *monitor_instance;
 
-	if (!sig_pri_callbacks.module_ref || !sig_pri_callbacks.module_unref) {
-		return NULL;
-	}
-
 	monitor_instance = ao2_alloc(sizeof(*monitor_instance) + strlen(device_name),
 		sig_pri_cc_monitor_instance_destroy);
 	if (!monitor_instance) {
@@ -2915,7 +2912,8 @@ static struct sig_pri_cc_monitor_instance *sig_pri_cc_monitor_instance_init(int 
 	monitor_instance->core_id = core_id;
 	strcpy(monitor_instance->name, device_name);
 
-	sig_pri_callbacks.module_ref();
+	/* BUGBUG */
+	ast_module_ref(AST_MODULE_SELF, 0);
 
 	ao2_link(sig_pri_cc_monitors, monitor_instance);
 	return monitor_instance;

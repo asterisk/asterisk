@@ -4789,8 +4789,10 @@ static int dundi_exec(struct ast_channel *chan, const char *context, const char 
 		snprintf(req, sizeof(req), "%s/%s,,%s", results[x].tech, results[x].dest,
 			S_OR(dundiargs, ""));
 		dial = pbx_findapp("Dial");
-		if (dial)
+		if (dial) {
 			res = pbx_exec(chan, dial, req);
+			ao2_ref(dial, -1);
+		}
 	} else
 		res = -1;
 	return res;
@@ -4951,15 +4953,9 @@ static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	pthread_t previous_netthreadid = netthreadid, previous_precachethreadid = precachethreadid, previous_clearcachethreadid = clearcachethreadid;
-
-	ast_cli_unregister_multiple(cli_dundi, ARRAY_LEN(cli_dundi));
-	ast_unregister_switch(&dundi_switch);
-	ast_custom_function_unregister(&dundi_function);
-	ast_custom_function_unregister(&dundi_query_function);
-	ast_custom_function_unregister(&dundi_result_function);
 
 	/* Stop all currently running threads */
 	dundi_shutdown = 1;
@@ -4984,11 +4980,9 @@ static int unload_module(void)
 	prune_mappings();
 	mark_peers();
 	prune_peers();
-
-	return 0;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	struct sockaddr_in sin;
 
@@ -5035,12 +5029,11 @@ static int load_module(void)
 
 	if (start_network_thread()) {
 		ast_log(LOG_ERROR, "Unable to start network thread\n");
-		close(netsocket);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	ast_cli_register_multiple(cli_dundi, ARRAY_LEN(cli_dundi));
-	if (ast_register_switch(&dundi_switch))
+	if (ast_switch_register(&dundi_switch))
 		ast_log(LOG_ERROR, "Unable to register DUNDi switch\n");
 	ast_custom_function_register(&dundi_function);
 	ast_custom_function_register(&dundi_query_function);
@@ -5051,11 +5044,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Distributed Universal Number Discovery (DUNDi)",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.nonoptreq = "res_crypto",
-);
-
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Distributed Universal Number Discovery (DUNDi)");

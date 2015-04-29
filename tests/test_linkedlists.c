@@ -646,13 +646,6 @@ AST_TEST_DEFINE(double_ll_tests)
 	return AST_TEST_PASS;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(single_ll_tests);
-	AST_TEST_UNREGISTER(double_ll_tests);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(single_ll_tests);
@@ -660,4 +653,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Test Linked Lists");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Test Linked Lists");

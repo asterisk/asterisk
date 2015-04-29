@@ -17,9 +17,10 @@
  */
 
 /*** MODULEINFO
+	<load_priority>app_depend</load_priority>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
-	<depend>res_pjsip_session</depend>
+	<use type="module">res_pjsip</use>
+	<use type="module">res_pjsip_session</use>
 	<support_level>core</support_level>
  ***/
 
@@ -603,7 +604,7 @@ static int sip_msg_send(const struct ast_msg *msg, const char *to, const char *f
 	return 0;
 }
 
-static const struct ast_msg_tech msg_tech = {
+static struct ast_msg_tech msg_tech = {
 	.name = "pjsip",
 	.msg_send = sip_msg_send,
 };
@@ -739,8 +740,6 @@ static pjsip_module messaging_module = {
 
 static int load_module(void)
 {
-	CHECK_PJSIP_SESSION_MODULE_LOADED();
-
 	if (ast_sip_register_service(&messaging_module) != PJ_SUCCESS) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -748,20 +747,15 @@ static int load_module(void)
 	if (pjsip_endpt_add_capability(ast_sip_get_pjsip_endpoint(),
 				       NULL, PJSIP_H_ALLOW, NULL, 1,
 				       &pjsip_message_method.name) != PJ_SUCCESS) {
-
-		ast_sip_unregister_service(&messaging_module);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (ast_msg_tech_register(&msg_tech)) {
-		ast_sip_unregister_service(&messaging_module);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	message_serializer = ast_sip_create_serializer();
 	if (!message_serializer) {
-		ast_sip_unregister_service(&messaging_module);
-		ast_msg_tech_unregister(&msg_tech);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -769,18 +763,10 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_sip_session_unregister_supplement(&messaging_supplement);
-	ast_msg_tech_unregister(&msg_tech);
-	ast_sip_unregister_service(&messaging_module);
 	ast_taskprocessor_unreference(message_serializer);
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP Messaging Support",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_APP_DEPEND,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "PJSIP Messaging Support");

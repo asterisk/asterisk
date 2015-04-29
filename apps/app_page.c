@@ -26,7 +26,7 @@
  */
 
 /*** MODULEINFO
-	<depend>app_confbridge</depend>
+	<use type="module">app_confbridge</use>
 	<support_level>core</support_level>
  ***/
 
@@ -396,6 +396,7 @@ static int page_exec(struct ast_channel *chan, const char *data)
 		snprintf(confbridgeopts, sizeof(confbridgeopts), "%u", confid);
 		pbx_exec(chan, app, confbridgeopts);
 	}
+	ao2_ref(app, -1);
 
 	/* Go through each dial attempt cancelling, joining, and destroying */
 	for (i = 0; i < pos; i++) {
@@ -416,15 +417,10 @@ static int page_exec(struct ast_channel *chan, const char *data)
 	return -1;
 }
 
-static int unload_module(void)
-{
-	return ast_unregister_application(app_page);
-}
-
 static int load_module(void)
 {
 	return ast_register_application_xml(app_page, page_exec);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Page Multiple Phones");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Page Multiple Phones");
 

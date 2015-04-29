@@ -674,13 +674,6 @@ cleanup_aoc_test:
 	return res;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(aoc_encode_decode_test);
-	AST_TEST_UNREGISTER(aoc_event_generation_test);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(aoc_encode_decode_test);
@@ -688,4 +681,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "AOC unit tests");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "AOC unit tests");

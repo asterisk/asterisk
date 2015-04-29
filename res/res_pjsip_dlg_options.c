@@ -17,9 +17,10 @@
  */
 
 /*** MODULEINFO
+	<load_priority>app_depend</load_priority>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
-	<depend>res_pjsip_session</depend>
+	<use type="module">res_pjsip</use>
+	<use type="module">res_pjsip_session</use>
 	<support_level>core</support_level>
 ***/
 
@@ -86,22 +87,15 @@ static struct ast_sip_session_supplement  dlg_options_supplement = {
 
 static int load_module(void)
 {
-	CHECK_PJSIP_MODULE_LOADED();
-
 	if (ast_sip_session_register_supplement(&dlg_options_supplement)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_sip_session_unregister_supplement(&dlg_options_supplement);
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "SIP OPTIONS in dialog handler",
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_APP_DEPEND,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "SIP OPTIONS in dialog handler");

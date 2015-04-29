@@ -497,13 +497,11 @@ static int feature_hangup(struct ast_bridge_channel *bridge_channel, void *hook_
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_bridge_features_unregister(AST_BRIDGE_BUILTIN_HANGUP);
 	ast_bridge_features_unregister(AST_BRIDGE_BUILTIN_AUTOMON);
 	ast_bridge_features_unregister(AST_BRIDGE_BUILTIN_AUTOMIXMON);
-
-	return 0;
 }
 
 static int load_module(void)
@@ -513,7 +511,7 @@ static int load_module(void)
 	ast_bridge_features_register(AST_BRIDGE_BUILTIN_AUTOMIXMON, feature_automixmonitor, NULL);
 
 	/* This module cannot be unloaded until shutdown */
-	ast_module_shutdown_ref(ast_module_info->self);
+	ast_module_block_unload(AST_MODULE_SELF);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }

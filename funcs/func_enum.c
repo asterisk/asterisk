@@ -450,18 +450,6 @@ static struct ast_custom_function txtcidname_function = {
 	.read = function_txtcidname,
 };
 
-static int unload_module(void)
-{
-	int res = 0;
-
-	res |= ast_custom_function_unregister(&enum_result_function);
-	res |= ast_custom_function_unregister(&enum_query_function);
-	res |= ast_custom_function_unregister(&enum_function);
-	res |= ast_custom_function_unregister(&txtcidname_function);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res = 0;
@@ -474,4 +462,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "ENUM related dialplan functions");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "ENUM related dialplan functions");

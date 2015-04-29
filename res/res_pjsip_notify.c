@@ -17,8 +17,9 @@
  */
 
 /*** MODULEINFO
+	<load_priority>app_depend</load_priority>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
+	<use type="module">res_pjsip</use>
 	<support_level>core</support_level>
  ***/
 
@@ -987,8 +988,6 @@ static int manager_notify(struct mansession *s, const struct message *m)
 
 static int load_module(void)
 {
-	CHECK_PJSIP_MODULE_LOADED();
-
 	if (aco_info_init(&notify_cfg)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -997,7 +996,6 @@ static int load_module(void)
 				   "", notify_option_handler, 0);
 
 	if (aco_process_config(&notify_cfg, 0)) {
-		aco_info_destroy(&notify_cfg);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -1016,20 +1014,10 @@ static int reload_module(void)
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	ast_manager_unregister("PJSIPNotify");
-	ast_cli_unregister_multiple(cli_options, ARRAY_LEN(cli_options));
 	aco_info_destroy(&notify_cfg);
 	ao2_global_obj_release(globals);
-
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "CLI/AMI PJSIP NOTIFY Support",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.reload = reload_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_APP_DEPEND,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "CLI/AMI PJSIP NOTIFY Support");

@@ -195,16 +195,10 @@ static struct ast_cli_entry cli_logger[] = {
 	AST_CLI_DEFINE(handle_cli_performance_test, "Test the logger performance"),
 };
 
-static int unload_module(void)
-{
-	ast_cli_unregister_multiple(cli_logger, ARRAY_LEN(cli_logger));
-	return 0;
-}
-
 static int load_module(void)
 {
 	ast_cli_register_multiple(cli_logger, ARRAY_LEN(cli_logger));
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Logger Test Module");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Logger Test Module");

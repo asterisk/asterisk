@@ -117,15 +117,9 @@ static int setcallerid_pres_exec(struct ast_channel *chan, const char *data)
 	return 0;
 }
 
-static int unload_module(void)
-{
-	return ast_unregister_application(app2);
-}
-
 static int load_module(void)
 {
 	return ast_register_application_xml(app2, setcallerid_pres_exec);
 }
 
-AST_MODULE_INFO_STANDARD_DEPRECATED(ASTERISK_GPL_KEY, "Set CallerID Presentation Application");
-
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Set CallerID Presentation Application");

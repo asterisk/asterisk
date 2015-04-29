@@ -27,7 +27,10 @@
  */
 
 /*** MODULEINFO
+	<load_priority>realtime_driver</load_priority>
 	<depend>curl</depend>
+	<use type="module">res_curl</use>
+	<use type="module">func_curl</use>
 	<support_level>core</support_level>
  ***/
 
@@ -66,11 +69,6 @@ static struct ast_variable *realtime_curl(const char *url, const char *unused, c
 	char *stringp, *pair, *key;
 	unsigned int start = 1;
 	struct ast_variable *var = NULL, *prev = NULL;
-
-	if (!ast_custom_function_find("CURL")) {
-		ast_log(LOG_ERROR, "func_curl.so must be loaded in order to use res_config_curl.so!!\n");
-		return NULL;
-	}
 
 	if (!(query = ast_str_thread_get(&query_buf, 16))) {
 		return NULL;
@@ -139,11 +137,6 @@ static struct ast_config *realtime_multi_curl(const char *url, const char *unuse
 	struct ast_variable *var = NULL;
 	struct ast_config *cfg = NULL;
 	struct ast_category *cat = NULL;
-
-	if (!ast_custom_function_find("CURL")) {
-		ast_log(LOG_ERROR, "func_curl.so must be loaded in order to use res_config_curl.so!!\n");
-		return NULL;
-	}
 
 	if (!(query = ast_str_thread_get(&query_buf, 16))) {
 		return NULL;
@@ -233,11 +226,6 @@ static int update_curl(const char *url, const char *unused, const char *keyfield
 	char *stringp;
 	int start = 1, rowcount = -1;
 
-	if (!ast_custom_function_find("CURL")) {
-		ast_log(LOG_ERROR, "func_curl.so must be loaded in order to use res_config_curl.so!!\n");
-		return -1;
-	}
-
 	if (!(query = ast_str_thread_get(&query_buf, 16))) {
 		return -1;
 	}
@@ -282,11 +270,6 @@ static int update2_curl(const char *url, const char *unused, const struct ast_va
 	char *stringp;
 	unsigned int start = 1;
 	int rowcount = -1;
-
-	if (!ast_custom_function_find("CURL")) {
-		ast_log(LOG_ERROR, "func_curl.so must be loaded in order to use res_config_curl.so!!\n");
-		return -1;
-	}
 
 	if (!(query = ast_str_thread_get(&query_buf, 1000)))
 		return -1;
@@ -355,11 +338,6 @@ static int store_curl(const char *url, const char *unused, const struct ast_vari
 	char *stringp;
 	int start = 1, rowcount = -1;
 
-	if (!ast_custom_function_find("CURL")) {
-		ast_log(LOG_ERROR, "func_curl.so must be loaded in order to use res_config_curl.so!!\n");
-		return -1;
-	}
-
 	if (!(query = ast_str_thread_get(&query_buf, 1000))) {
 		return -1;
 	}
@@ -416,11 +394,6 @@ static int destroy_curl(const char *url, const char *unused, const char *keyfiel
 	char *stringp;
 	int start = 1, rowcount = -1;
 
-	if (!ast_custom_function_find("CURL")) {
-		ast_log(LOG_ERROR, "func_curl.so must be loaded in order to use res_config_curl.so!!\n");
-		return -1;
-	}
-
 	if (!(query = ast_str_thread_get(&query_buf, 1000))) {
 		return -1;
 	}
@@ -462,11 +435,6 @@ static int require_curl(const char *url, const char *unused, va_list ap)
 	struct ast_str *query, *buffer;
 	char *elm, field[256];
 	int type, size, i = 0;
-
-	if (!ast_custom_function_find("CURL")) {
-		ast_log(LOG_ERROR, "func_curl.so must be loaded in order to use res_config_curl.so!!\n");
-		return -1;
-	}
 
 	if (!(query = ast_str_thread_get(&query_buf, 100))) {
 		return -1;
@@ -518,11 +486,6 @@ static struct ast_config *config_curl(const char *url, const char *unused, const
 	char *cur_cat = "";
 	char *category = "", *var_name = "", *var_val = "";
 	struct ast_flags loader_flags = { 0 };
-
-	if (!ast_custom_function_find("CURL")) {
-		ast_log(LOG_ERROR, "func_curl.so must be loaded in order to use res_config_curl.so!!\n");
-		return NULL;
-	}
 
 	if (!(query = ast_str_thread_get(&query_buf, 100))) {
 		return NULL;
@@ -627,29 +590,8 @@ static int reload_module(void)
 	return 0;
 }
 
-static int unload_module(void)
-{
-	ast_config_engine_deregister(&curl_engine);
-
-	return 0;
-}
-
 static int load_module(void)
 {
-	if (!ast_module_check("res_curl.so")) {
-		if (ast_load_resource("res_curl.so") != AST_MODULE_LOAD_SUCCESS) {
-			ast_log(LOG_ERROR, "Cannot load res_curl, so res_config_curl cannot be loaded\n");
-			return AST_MODULE_LOAD_DECLINE;
-		}
-	}
-
-	if (!ast_module_check("func_curl.so")) {
-		if (ast_load_resource("func_curl.so") != AST_MODULE_LOAD_SUCCESS) {
-			ast_log(LOG_ERROR, "Cannot load func_curl, so res_config_curl cannot be loaded\n");
-			return AST_MODULE_LOAD_DECLINE;
-		}
-	}
-
 	reload_module();
 
 	ast_config_engine_register(&curl_engine);
@@ -657,10 +599,4 @@ static int load_module(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Realtime Curl configuration",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload_module,
-	.load_pri = AST_MODPRI_REALTIME_DRIVER,
-);
+AST_MODULE_INFO_AUTOCLEAN_RELOADABLE(ASTERISK_GPL_KEY, "Realtime Curl configuration");

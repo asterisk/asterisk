@@ -169,16 +169,10 @@ static struct ast_cli_entry cli_locales[] = {
 	AST_CLI_DEFINE(handle_cli_test_locales, "Test locales for thread-safety"),
 };
 
-static int unload_module(void)
-{
-	ast_cli_unregister_multiple(cli_locales, ARRAY_LEN(cli_locales));
-	return 0;
-}
-
 static int load_module(void)
 {
 	ast_cli_register_multiple(cli_locales, ARRAY_LEN(cli_locales));
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Locale tests");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Locale tests");

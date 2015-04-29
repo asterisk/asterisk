@@ -31,6 +31,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>devstate_provider</load_priority>
 	<support_level>core</support_level>
  ***/
 
@@ -316,18 +317,6 @@ static struct ast_custom_function hint_function = {
 	.read = hint_read,
 };
 
-static int unload_module(void)
-{
-	int res = 0;
-
-	res |= ast_custom_function_unregister(&devstate_function);
-	res |= ast_custom_function_unregister(&hint_function);
-	res |= ast_devstate_prov_del("Custom");
-	res |= ast_cli_unregister_multiple(cli_funcdevstate, ARRAY_LEN(cli_funcdevstate));
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res = 0;
@@ -354,9 +343,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Gets or sets a device state in the dialplan",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_DEVSTATE_PROVIDER,
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Gets or sets a device state in the dialplan");

@@ -310,20 +310,6 @@ static struct ast_custom_function import_function = {
 	.read2 = import_read2,
 };
 
-static int unload_module(void)
-{
-	int res = 0;
-
-	res |= ast_custom_function_unregister(&isnull_function);
-	res |= ast_custom_function_unregister(&set_function);
-	res |= ast_custom_function_unregister(&exists_function);
-	res |= ast_custom_function_unregister(&if_function);
-	res |= ast_custom_function_unregister(&if_time_function);
-	res |= ast_custom_function_unregister(&import_function);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res = 0;
@@ -338,4 +324,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Logical dialplan functions");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Logical dialplan functions");

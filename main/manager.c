@@ -2742,6 +2742,7 @@ int ast_hook_send_action(struct manager_custom_hook *hook, const char *msg)
 	if (strcasecmp(action, "login")) {
 		act_found = action_find(action);
 		if (act_found) {
+			struct ast_module_instance *instance = NULL;
 			/*
 			 * we have to simulate a session for this action request
 			 * to be able to pass it down for processing
@@ -2751,20 +2752,15 @@ int ast_hook_send_action(struct manager_custom_hook *hook, const char *msg)
 			s.f = (void*)1; /* set this to something so our request will make it through all functions that test it*/
 
 			ao2_lock(act_found);
-			if (act_found->registered && act_found->func) {
-				if (act_found->module) {
-					ast_module_ref(act_found->module);
-				}
+			instance = ast_module_lib_get_instance(act_found->lib);
+			if (act_found->registered && act_found->func && (instance || !act_found->lib)) {
 				ao2_unlock(act_found);
 				ret = act_found->func(&s, &m);
-				ao2_lock(act_found);
-				if (act_found->module) {
-					ast_module_unref(act_found->module);
-				}
 			} else {
+				ao2_unlock(act_found);
 				ret = -1;
 			}
-			ao2_unlock(act_found);
+			ao2_cleanup(instance);
 			ao2_t_ref(act_found, -1, "done with found action object");
 		}
 	}
@@ -3830,10 +3826,16 @@ static int action_updateconfig(struct mansession *s, const struct message *m)
 		}
 		astman_send_ack(s, m, NULL);
 		if (!ast_strlen_zero(rld)) {
-			if (ast_true(rld)) {
-				rld = NULL;
+			struct ast_module *mod = NULL;
+
+			if (!ast_true(rld)) {
+				mod = ast_module_find(rld);
 			}
-			ast_module_reload(rld);
+
+			if (mod || ast_true(rld)) {
+				ast_module_reload(mod);
+			}
+			ao2_cleanup(mod);
 		}
 	} else {
 		ast_config_destroy(cfg);
@@ -5862,11 +5864,22 @@ static int action_corestatus(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-/*! \brief Send a reload event */
-static int action_reload(struct mansession *s, const struct message *m)
+static void handle_action_reload(struct mansession *s, const struct message *m, const char *module_name)
 {
-	const char *module = astman_get_header(m, "Module");
-	enum ast_module_reload_result res = ast_module_reload(S_OR(module, NULL));
+	enum ast_module_reload_result res;
+	struct ast_module *module;
+
+	if (ast_strlen_zero(module_name)) {
+		res = ast_module_reload(NULL);
+	} else {
+		module = ast_module_find(module_name);
+		if (!module) {
+			res = AST_MODULE_RELOAD_NOT_FOUND;
+		} else {
+			res = ast_module_reload(module);
+			ao2_ref(module, -1);
+		}
+	}
 
 	switch (res) {
 	case AST_MODULE_RELOAD_NOT_FOUND:
@@ -5890,6 +5903,12 @@ static int action_reload(struct mansession *s, const struct message *m)
 		astman_send_ack(s, m, "Module Reloaded");
 		break;
 	}
+}
+
+/*! \brief Send a reload event */
+static int action_reload(struct mansession *s, const struct message *m)
+{
+	handle_action_reload(s, m, astman_get_header(m, "Module"));
 	return 0;
 }
 
@@ -5981,99 +6000,73 @@ static int action_loggerrotate(struct mansession *s, const struct message *m)
 /*! \brief Manager function to check if module is loaded */
 static int manager_modulecheck(struct mansession *s, const struct message *m)
 {
-	int res;
-	const char *module = astman_get_header(m, "Module");
-	const char *id = astman_get_header(m, "ActionID");
-	char idText[256];
-	char filename[PATH_MAX];
-	char *cut;
+	const char *module_name = astman_get_header(m, "Module");
+	struct ast_module *module;
 
-	ast_copy_string(filename, module, sizeof(filename));
-	if ((cut = strchr(filename, '.'))) {
-		*cut = '\0';
-	} else {
-		cut = filename + strlen(filename);
-	}
-	snprintf(cut, (sizeof(filename) - strlen(filename)) - 1, ".so");
-	ast_debug(1, "**** ModuleCheck .so file %s\n", filename);
-	res = ast_module_check(filename);
-	if (!res) {
-		astman_send_error(s, m, "Module not loaded");
+	module = ast_module_find(module_name);
+	if (!module) {
+		astman_send_error(s, m, "Module not found");
 		return 0;
 	}
 
-	if (!ast_strlen_zero(id)) {
-		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
-	} else {
-		idText[0] = '\0';
+	if (!ast_module_is_running(module)) {
+		astman_send_error(s, m, "Module not loaded");
+		ao2_ref(module, -1);
+		return 0;
 	}
-	astman_append(s, "Response: Success\r\n%s", idText);
+
+	astman_start_ack(s, m);
 #if !defined(LOW_MEMORY)
-	astman_append(s, "Version: %s\r\n\r\n", "");
+	/* BUGBUG: implement module version's */
+	astman_append(s, "Version: %s\r\n", "");
 #endif
+	astman_append(s, "\r\n");
+	ao2_ref(module, -1);
+
 	return 0;
 }
 
 static int manager_moduleload(struct mansession *s, const struct message *m)
 {
 	int res;
-	const char *module = astman_get_header(m, "Module");
+	const char *module_name = astman_get_header(m, "Module");
 	const char *loadtype = astman_get_header(m, "LoadType");
+	struct ast_module *module;
 
 	if (!loadtype || strlen(loadtype) == 0) {
 		astman_send_error(s, m, "Incomplete ModuleLoad action.");
 	}
-	if ((!module || strlen(module) == 0) && strcasecmp(loadtype, "reload") != 0) {
+
+	if (!strcasecmp(loadtype, "reload")) {
+		handle_action_reload(s, m, module_name);
+		return 0;
+	}
+
+	if (ast_strlen_zero(module_name)) {
 		astman_send_error(s, m, "Need module name");
+		return 0;
+	}
+
+	module = ast_module_find(module_name);
+	if (!module) {
+		astman_send_error(s, m, "No such module.");
+		return 0;
 	}
 
 	if (!strcasecmp(loadtype, "load")) {
-		res = ast_load_resource(module);
+		res = ast_module_load(module);
 		if (res) {
 			astman_send_error(s, m, "Could not load module.");
 		} else {
 			astman_send_ack(s, m, "Module loaded.");
 		}
 	} else if (!strcasecmp(loadtype, "unload")) {
-		res = ast_unload_resource(module, AST_FORCE_SOFT);
-		if (res) {
-			astman_send_error(s, m, "Could not unload module.");
-		} else {
-			astman_send_ack(s, m, "Module unloaded.");
-		}
-	} else if (!strcasecmp(loadtype, "reload")) {
-		/* TODO: Unify the ack/error messages here with action_reload */
-		if (!ast_strlen_zero(module)) {
-			enum ast_module_reload_result reload_res = ast_module_reload(module);
-
-			switch (reload_res) {
-			case AST_MODULE_RELOAD_NOT_FOUND:
-				astman_send_error(s, m, "No such module.");
-				break;
-			case AST_MODULE_RELOAD_NOT_IMPLEMENTED:
-				astman_send_error(s, m, "Module does not support reload action.");
-				break;
-			case AST_MODULE_RELOAD_ERROR:
-				astman_send_error(s, m, "An unknown error occurred");
-				break;
-			case AST_MODULE_RELOAD_IN_PROGRESS:
-				astman_send_error(s, m, "A reload is in progress");
-				break;
-			case AST_MODULE_RELOAD_UNINITIALIZED:
-				astman_send_error(s, m, "Module not initialized");
-				break;
-			case AST_MODULE_RELOAD_QUEUED:
-			case AST_MODULE_RELOAD_SUCCESS:
-				/* Treat a queued request as success */
-				astman_send_ack(s, m, "Module reloaded.");
-				break;
-			}
-		} else {
-			ast_module_reload(NULL);	/* Reload all modules */
-			astman_send_ack(s, m, "All modules reloaded");
-		}
-	} else
+		ast_module_unload(module, 0);
+		astman_send_ack(s, m, "Module unload requested.");
+	} else {
 		astman_send_error(s, m, "Incomplete ModuleLoad action.");
+	}
+	ao2_ref(module, -1);
 	return 0;
 }
 
@@ -6146,22 +6139,18 @@ static int process_message(struct mansession *s, const struct message *m)
 		/* Found the requested AMI action. */
 		int acted = 0;
 
-		if ((s->session->writeperm & act_found->authority)
-			|| act_found->authority == 0) {
+		if ((s->session->writeperm & act_found->authority) || act_found->authority == 0) {
+			struct ast_module_instance *instance;
 			/* We have the authority to execute the action. */
 			ao2_lock(act_found);
-			if (act_found->registered && act_found->func) {
+			instance = act_found->lib ? ast_module_lib_get_instance(act_found->lib) : NULL;
+			if (act_found->registered && act_found->func && (instance || !act_found->lib)) {
 				ast_debug(1, "Running action '%s'\n", act_found->action);
-				if (act_found->module) {
-					ast_module_ref(act_found->module);
-				}
 				ao2_unlock(act_found);
 				ret = act_found->func(s, m);
 				acted = 1;
 				ao2_lock(act_found);
-				if (act_found->module) {
-					ast_module_unref(act_found->module);
-				}
+				ao2_cleanup(instance);
 			}
 			ao2_unlock(act_found);
 		}
@@ -6693,6 +6682,13 @@ int __ast_manager_event_multichan(int category, const char *event, int chancount
 	return 0;
 }
 
+static void module_manager_unregister(void *weakproxy, void *data)
+{
+	struct manager_action *cur = data;
+
+	ast_manager_unregister(cur->action);
+}
+
 /*! \brief
  * support functions to register/unregister AMI action handlers,
  */
@@ -6718,6 +6714,10 @@ int ast_manager_unregister(const char *action)
 		ao2_lock(cur);
 		cur->registered = 0;
 		ao2_unlock(cur);
+
+		if (cur->lib) {
+			ast_module_lib_unsubscribe_stop(cur->lib, module_manager_unregister, cur);
+		}
 
 		ao2_t_ref(cur, -1, "action object removed from list");
 		ast_verb(2, "Manager unregistered action %s\n", action);
@@ -6819,6 +6819,7 @@ static void action_destroy(void *obj)
 	}
 	ao2_cleanup(doomed->final_response);
 	ao2_cleanup(doomed->list_responses);
+	ao2_cleanup(doomed->lib);
 }
 
 /*! \brief register a new command with manager, including online help. This is
@@ -6839,7 +6840,7 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 	cur->action = action;
 	cur->authority = auth;
 	cur->func = func;
-	cur->module = module;
+	cur->lib = module ? ast_module_get_lib_running(module) : NULL;
 #ifdef AST_XML_DOCS
 	if (ast_strlen_zero(synopsis) && ast_strlen_zero(description)) {
 		char *tmpxml;
@@ -6882,6 +6883,9 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 		return -1;
 	}
 
+	if (cur->lib) {
+		ast_module_lib_subscribe_stop(cur->lib, module_manager_unregister, cur);
+	}
 	ao2_t_ref(cur, -1, "action object registration successful");
 	return 0;
 }

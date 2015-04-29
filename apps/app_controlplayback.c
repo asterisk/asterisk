@@ -328,16 +328,6 @@ static int controlplayback_manager(struct mansession *s, const struct message *m
 	return 0;
 }
 
-static int unload_module(void)
-{
-	int res = 0;
-
-	res |= ast_unregister_application(app);
-	res |= ast_manager_unregister("ControlPlayback");
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res = 0;
@@ -348,4 +338,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Control Playback Application");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Control Playback Application");

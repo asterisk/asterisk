@@ -50,6 +50,7 @@ ASTERISK_REGISTER_FILE();
 #include "asterisk/astobj2.h"
 #include "asterisk/stasis.h"
 #include "asterisk/json.h"
+#include "asterisk/module.h"
 
 /*! \since 12
  * \brief The topic for test suite messages
@@ -80,6 +81,7 @@ struct ast_test {
 	enum ast_test_result_state state;   /*!< current test state */
 	unsigned int time;                  /*!< time in ms test took */
 	ast_test_cb_t *cb;                  /*!< test callback function */
+	struct ast_module_lib *lib;         /*!< Pointer to the module implementing cb. */
 	ast_test_init_cb_t *init_cb;        /*!< test init function */
 	ast_test_cleanup_cb_t *cleanup_cb;  /*!< test cleanup function */
 	AST_LIST_ENTRY(ast_test) entry;
@@ -105,7 +107,7 @@ enum test_mode {
 /*! List of registered test definitions */
 static AST_LIST_HEAD_STATIC(tests, ast_test);
 
-static struct ast_test *test_alloc(ast_test_cb_t *cb);
+static struct ast_test *test_alloc(ast_test_cb_t *cb, struct ast_module *module);
 static struct ast_test *test_free(struct ast_test *test);
 static int test_insert(struct ast_test *test);
 static struct ast_test *test_remove(ast_test_cb_t *cb);
@@ -193,7 +195,7 @@ int ast_test_register_cleanup(const char *category, ast_test_cleanup_cb_t *cb)
 	return registered;
 }
 
-int ast_test_register(ast_test_cb_t *cb)
+int __ast_test_register(ast_test_cb_t *cb, struct ast_module *module)
 {
 	struct ast_test *test;
 
@@ -203,7 +205,7 @@ int ast_test_register(ast_test_cb_t *cb)
 		return -1;
 	}
 
-	if (!(test = test_alloc(cb))) {
+	if (!(test = test_alloc(cb, module))) {
 		registration_errors++;
 		return -1;
 	}
@@ -241,13 +243,19 @@ static void test_execute(struct ast_test *test)
 {
 	struct timeval begin;
 	enum ast_test_result_state result;
+	struct ast_module_instance *instance = NULL;
 
 	ast_str_reset(test->status_str);
 
 	begin = ast_tvnow();
+
+	if (test->lib && !(instance = ast_module_lib_get_instance(test->lib))) {
+		test->state = AST_TEST_FAIL;
+		goto done;
+	}
 	if (test->init_cb && test->init_cb(&test->info, test)) {
 		test->state = AST_TEST_FAIL;
-		goto exit;
+		goto done;
 	}
 	test->state = AST_TEST_NOT_RUN;
 	result = test->cb(&test->info, TEST_EXECUTE, test);
@@ -257,7 +265,9 @@ static void test_execute(struct ast_test *test)
 	if (test->cleanup_cb && test->cleanup_cb(&test->info, test)) {
 		test->state = AST_TEST_FAIL;
 	}
-exit:
+
+done:
+	ao2_cleanup(instance);
 	test->time = ast_tvdiff_ms(ast_tvnow(), begin);
 }
 
@@ -529,6 +539,11 @@ done:
 	return res;
 }
 
+static void module_test_unregister(void *weakproxy, void *data)
+{
+	ast_test_unregister(data);
+}
+
 /*!
  * \internal
  * \brief adds test to container sorted first by category then by name
@@ -545,6 +560,10 @@ static int test_insert(struct ast_test *test)
 	AST_LIST_LOCK(&tests);
 	AST_LIST_INSERT_SORTALPHA(&tests, test, entry, info.category);
 	AST_LIST_UNLOCK(&tests);
+
+	if (test->lib) {
+		ast_module_lib_subscribe_stop(test->lib, module_test_unregister, test->cb);
+	}
 
 	return 0;
 }
@@ -568,6 +587,10 @@ static struct ast_test *test_remove(ast_test_cb_t *cb)
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
 	AST_LIST_UNLOCK(&tests);
+
+	if (cur && cur->lib) {
+		ast_module_lib_unsubscribe_stop(cur->lib, module_test_unregister, cb);
+	}
 
 	return cur;
 }
@@ -610,6 +633,7 @@ static struct ast_test *test_free(struct ast_test *test)
 	}
 
 	ast_free(test->status_str);
+	ao2_cleanup(test->lib);
 	ast_free(test);
 
 	return NULL;
@@ -619,7 +643,7 @@ static struct ast_test *test_free(struct ast_test *test)
  * \internal
  * \brief allocate an ast_test object.
  */
-static struct ast_test *test_alloc(ast_test_cb_t *cb)
+static struct ast_test *test_alloc(ast_test_cb_t *cb, struct ast_module *module)
 {
 	struct ast_test *test;
 
@@ -630,6 +654,7 @@ static struct ast_test *test_alloc(ast_test_cb_t *cb)
 	}
 
 	test->cb = cb;
+	test->lib = module ? ast_module_get_lib_running(module) : NULL;
 
 	test->cb(&test->info, TEST_INIT, test);
 

@@ -328,16 +328,10 @@ cleanup:
 	return res;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(pattern_match_test);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(pattern_match_test);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "PBX test module");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "PBX test module");

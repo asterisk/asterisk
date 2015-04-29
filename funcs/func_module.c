@@ -58,9 +58,16 @@ static int ifmodule_read(struct ast_channel *chan, const char *cmd, char *data,
 
 	*buf = '\0';
 
-	if (data)
-		if (ast_module_check(data))
+	if (data) {
+		/* BUGBUG: need to make sure this deals with the .so. */
+		struct ast_module *module = ast_module_find(data);
+
+		if (module && ast_module_is_running(module)) {
 			ret = "1";
+		}
+
+		ao2_cleanup(module);
+	}
 
 	ast_copy_string(buf, ret, len);
 
@@ -74,14 +81,9 @@ static struct ast_custom_function ifmodule_function = {
 };
 
 
-static int unload_module(void)
-{
-	return ast_custom_function_unregister(&ifmodule_function);
-}
-
 static int load_module(void)
 {
 	return ast_custom_function_register(&ifmodule_function);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Checks if Asterisk module is loaded in memory");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Checks if Asterisk module is loaded in memory");

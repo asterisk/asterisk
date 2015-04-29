@@ -35,6 +35,8 @@
  */
 
 /*** MODULEINFO
+	<load_priority>app_depend</load_priority>
+	<export_globals/>
 	<conflict>app_fax</conflict>
 	<support_level>core</support_level>
 ***/
@@ -979,7 +981,6 @@ int ast_fax_tech_register(struct ast_fax_tech *tech)
 	AST_RWLIST_WRLOCK(&faxmodules);
 	AST_RWLIST_INSERT_TAIL(&faxmodules, fax, list);
 	AST_RWLIST_UNLOCK(&faxmodules);
-	ast_module_ref(ast_module_info->self);
 
 	ast_verb(3, "Registered handler for '%s' (%s)\n", fax->tech->type, fax->tech->description);
 
@@ -999,7 +1000,6 @@ void ast_fax_tech_unregister(struct ast_fax_tech *tech)
 			continue;
 		}
 		AST_RWLIST_REMOVE_CURRENT(list);
-		ast_module_unref(ast_module_info->self);
 		ast_free(fax);
 		ast_verb(4, "Unregistered FAX module type '%s'\n", tech->type);
 		break;
@@ -1101,7 +1101,7 @@ static void destroy_session(void *session)
 		if (s->tech_pvt) {
 			s->tech->destroy_session(s);
 		}
-		ast_module_unref(s->tech->module);
+		ast_module_lib_ref_instance(s->tech->lib, -1);
 	}
 
 	if (s->details) {
@@ -1162,8 +1162,10 @@ static struct ast_fax_session *fax_session_reserve(struct ast_fax_session_detail
 		if ((faxmod->tech->caps & details->caps) != details->caps) {
 			continue;
 		}
+		if (ast_module_lib_ref_instance(faxmod->tech->lib, +1) < 0) {
+			continue;
+		}
 		ast_debug(4, "Reserving a FAX session from '%s'.\n", faxmod->tech->description);
-		ast_module_ref(faxmod->tech->module);
 		s->tech = faxmod->tech;
 		break;
 	}
@@ -1280,11 +1282,13 @@ static struct ast_fax_session *fax_session_new(struct ast_fax_session_details *d
 			if ((faxmod->tech->caps & details->caps) != details->caps) {
 				continue;
 			}
+			if (ast_module_lib_ref_instance(faxmod->tech->lib, +1) < 0) {
+				continue;
+			}
 			ast_debug(4, "Requesting a new FAX session from '%s'.\n", faxmod->tech->description);
-			ast_module_ref(faxmod->tech->module);
 			if (reserved) {
 				/* Balance module ref from reserved session */
-				ast_module_unref(reserved->tech->module);
+				ast_module_lib_ref_instance(reserved->tech->lib, -1);
 			}
 			s->tech = faxmod->tech;
 			break;
@@ -4567,33 +4571,13 @@ struct ast_custom_function acf_faxopt = {
 };
 
 /*! \brief unload res_fax */
-static int unload_module(void)
+static void unload_module(void)
 {
-	ast_cli_unregister_multiple(fax_cli, ARRAY_LEN(fax_cli));
-
-	if (ast_custom_function_unregister(&acf_faxopt) < 0) {
-		ast_log(LOG_WARNING, "failed to unregister function '%s'\n", acf_faxopt.name);
-	}
-
-	if (ast_unregister_application(app_sendfax) < 0) {
-		ast_log(LOG_WARNING, "failed to unregister '%s'\n", app_sendfax);
-	}
-
-	if (ast_unregister_application(app_receivefax) < 0) {
-		ast_log(LOG_WARNING, "failed to unregister '%s'\n", app_receivefax);
-	}
-
-	ast_manager_unregister("FAXSessions");
-	ast_manager_unregister("FAXSession");
-	ast_manager_unregister("FAXStats");
-
 	if (fax_logger_level != -1) {
 		ast_logger_unregister_level("FAX");
 	}
 
 	ao2_ref(faxregistry.container, -1);
-
-	return 0;
 }
 
 /*!
@@ -4619,47 +4603,31 @@ static int load_module(void)
 
 	if (set_config(0) < 0) {
 		ast_log(LOG_ERROR, "failed to load configuration file '%s'\n", config);
-		ao2_ref(faxregistry.container, -1);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	/* register CLI operations and applications */
 	if (ast_register_application_xml(app_sendfax, sendfax_exec) < 0) {
 		ast_log(LOG_WARNING, "failed to register '%s'.\n", app_sendfax);
-		ao2_ref(faxregistry.container, -1);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	if (ast_register_application_xml(app_receivefax, receivefax_exec) < 0) {
 		ast_log(LOG_WARNING, "failed to register '%s'.\n", app_receivefax);
-		ast_unregister_application(app_sendfax);
-		ao2_ref(faxregistry.container, -1);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (ast_manager_register_xml("FAXSessions", EVENT_FLAG_CALL, manager_fax_sessions)) {
 		ast_log(LOG_WARNING, "failed to register 'FAXSessions' AMI command.\n");
-		ast_unregister_application(app_receivefax);
-		ast_unregister_application(app_sendfax);
-		ao2_ref(faxregistry.container, -1);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (ast_manager_register_xml("FAXSession", EVENT_FLAG_CALL, manager_fax_session)) {
 		ast_log(LOG_WARNING, "failed to register 'FAXSession' AMI command.\n");
-		ast_manager_unregister("FAXSession");
-		ast_unregister_application(app_receivefax);
-		ast_unregister_application(app_sendfax);
-		ao2_ref(faxregistry.container, -1);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (ast_manager_register_xml("FAXStats", EVENT_FLAG_REPORTING, manager_fax_stats)) {
 		ast_log(LOG_WARNING, "failed to register 'FAXStats' AMI command.\n");
-		ast_manager_unregister("FAXSession");
-		ast_manager_unregister("FAXSessions");
-		ast_unregister_application(app_receivefax);
-		ast_unregister_application(app_sendfax);
-		ao2_ref(faxregistry.container, -1);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -4676,11 +4644,4 @@ static int reload_module(void)
 	return 0;
 }
 
-
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Generic FAX Applications",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload_module,
-	.load_pri = AST_MODPRI_APP_DEPEND,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Generic FAX Applications");

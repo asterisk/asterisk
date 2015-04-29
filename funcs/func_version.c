@@ -121,16 +121,9 @@ static struct ast_custom_function acf_version = {
 	.read = acf_version_exec,
 };
 
-static int unload_module(void)
-{
-	ast_custom_function_unregister(&acf_version);
-
-	return 0;
-}
-
 static int load_module(void)
 {
 	return ast_custom_function_register(&acf_version);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Get Asterisk Version/Build Info");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Get Asterisk Version/Build Info");

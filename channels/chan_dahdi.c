@@ -43,6 +43,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_driver</load_priority>
 	<use type="module">res_smdi</use>
 	<depend>dahdi</depend>
 	<depend>tonezone</depend>
@@ -3017,34 +3018,6 @@ static void dahdi_pri_update_span_devstate(struct sig_pri_span *pri)
 #endif	/* defined(HAVE_PRI) */
 
 #if defined(HAVE_PRI)
-/*!
- * \internal
- * \brief Reference this module.
- * \since 1.8
- *
- * \return Nothing
- */
-static void my_module_ref(void)
-{
-	ast_module_ref(ast_module_info->self);
-}
-#endif	/* defined(HAVE_PRI) */
-
-#if defined(HAVE_PRI)
-/*!
- * \internal
- * \brief Unreference this module.
- * \since 1.8
- *
- * \return Nothing
- */
-static void my_module_unref(void)
-{
-	ast_module_unref(ast_module_info->self);
-}
-#endif	/* defined(HAVE_PRI) */
-
-#if defined(HAVE_PRI)
 #if defined(HAVE_PRI_CALL_WAITING)
 static void my_pri_init_config(void *priv, struct sig_pri_span *pri);
 #endif	/* defined(HAVE_PRI_CALL_WAITING) */
@@ -3075,8 +3048,6 @@ struct sig_pri_callback sig_pri_callbacks =
 	.get_orig_dialstring = my_get_orig_dialstring,
 	.make_cc_dialstring = my_pri_make_cc_dialstring,
 	.update_span_devstate = dahdi_pri_update_span_devstate,
-	.module_ref = my_module_ref,
-	.module_unref = my_module_unref,
 	.dial_digits = my_pri_dial_digits,
 	.open_media = my_pri_ss7_open_media,
 	.ami_channel_event = my_ami_channel_event,
@@ -6304,7 +6275,6 @@ hangup_out:
 	}
 	ast_mutex_unlock(&iflock);
 
-	ast_module_unref(ast_module_info->self);
 	return 0;
 }
 
@@ -9242,8 +9212,6 @@ static struct ast_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpb
 
 	ast_channel_unlock(tmp);
 
-	ast_module_ref(ast_module_info->self);
-
 	dahdi_ami_channel_event(i, tmp);
 	if (startpbx) {
 #ifdef HAVE_OPENR2
@@ -10950,7 +10918,6 @@ static void dahdi_destroy_channel_range(int start, int end)
 			ioctl(cur->subs[SUB_REAL].dfd, DAHDI_HOOK, &x);
 
 			destroy_channel(cur, 1);
-			ast_module_unref(ast_module_info->self);
 		}
 	}
 	ast_mutex_unlock(&iflock);
@@ -17139,11 +17106,13 @@ static int dahdi_pri_cc_agent_init(struct ast_cc_agent *agent, struct ast_channe
 		return -1;
 	}
 
-	ast_module_ref(ast_module_info->self);
+	/* BUGBUG: move to core. */
+	ast_module_ref(AST_MODULE_SELF, 0);
 
 	res = sig_pri_cc_agent_init(agent, pvt_chan);
 	if (res) {
-		ast_module_unref(ast_module_info->self);
+		/* BUGBUG: move to core. */
+		ast_module_unref(AST_MODULE_SELF);
 	}
 	return res;
 }
@@ -17169,7 +17138,8 @@ static void dahdi_pri_cc_agent_destructor(struct ast_cc_agent *agent)
 {
 	sig_pri_cc_agent_destructor(agent);
 
-	ast_module_unref(ast_module_info->self);
+	/* BUGBUG: move to core. */
+	ast_module_unref(AST_MODULE_SELF);
 }
 #endif	/* defined(HAVE_PRI_CCSS) */
 #endif	/* defined(HAVE_PRI) */
@@ -17206,7 +17176,7 @@ static struct ast_cc_monitor_callbacks dahdi_pri_cc_monitor_callbacks = {
 #endif	/* defined(HAVE_PRI_CCSS) */
 #endif	/* defined(HAVE_PRI) */
 
-static int __unload_module(void)
+static void __unload_module(void)
 {
 	struct dahdi_pvt *p;
 #if defined(HAVE_PRI) || defined(HAVE_SS7)
@@ -17220,11 +17190,6 @@ static int __unload_module(void)
 			pthread_kill(pris[i].pri.master, SIGURG);
 		}
 	}
-	ast_cli_unregister_multiple(dahdi_pri_cli, ARRAY_LEN(dahdi_pri_cli));
-	ast_unregister_application(dahdi_send_keypad_facility_app);
-#ifdef HAVE_PRI_PROG_W_CAUSE
-	ast_unregister_application(dahdi_send_callrerouting_facility_app);
-#endif
 #endif
 #if defined(HAVE_SS7)
 	for (i = 0; i < NUM_SPANS; i++) {
@@ -17233,30 +17198,11 @@ static int __unload_module(void)
 			pthread_kill(linksets[i].ss7.master, SIGURG);
 		}
 	}
-	ast_cli_unregister_multiple(dahdi_ss7_cli, ARRAY_LEN(dahdi_ss7_cli));
 #endif	/* defined(HAVE_SS7) */
 #if defined(HAVE_OPENR2)
 	dahdi_r2_destroy_links();
-	ast_cli_unregister_multiple(dahdi_mfcr2_cli, ARRAY_LEN(dahdi_mfcr2_cli));
-	ast_unregister_application(dahdi_accept_r2_call_app);
 #endif
-
-	ast_cli_unregister_multiple(dahdi_cli, ARRAY_LEN(dahdi_cli));
-	ast_manager_unregister("DAHDIDialOffhook");
-	ast_manager_unregister("DAHDIHangup");
-	ast_manager_unregister("DAHDITransfer");
-	ast_manager_unregister("DAHDIDNDoff");
-	ast_manager_unregister("DAHDIDNDon");
-	ast_manager_unregister("DAHDIShowChannels");
-	ast_manager_unregister("DAHDIRestart");
-#if defined(HAVE_PRI)
-	ast_manager_unregister("PRIShowSpans");
-	ast_manager_unregister("PRIDebugSet");
-	ast_manager_unregister("PRIDebugFileSet");
-	ast_manager_unregister("PRIDebugFileUnset");
-#endif	/* defined(HAVE_PRI) */
 	ast_data_unregister(NULL);
-	ast_channel_unregister(&dahdi_tech);
 
 	/* Hangup all interfaces if they have an owner */
 	ast_mutex_lock(&iflock);
@@ -17310,15 +17256,12 @@ static int __unload_module(void)
 #endif	/* defined(HAVE_SS7) */
 	ast_cond_destroy(&ss_thread_complete);
 
-	dahdi_native_unload();
-
 	ao2_cleanup(dahdi_tech.capabilities);
 	dahdi_tech.capabilities = NULL;
 	STASIS_MESSAGE_TYPE_CLEANUP(dahdichannel_type);
-	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 #if defined(HAVE_PRI) || defined(HAVE_SS7)
 	int y;
@@ -17331,7 +17274,7 @@ static int unload_module(void)
 	for (y = 0; y < NUM_SPANS; y++)
 		ast_mutex_destroy(&linksets[y].ss7.lock);
 #endif	/* defined(HAVE_SS7) */
-	return __unload_module();
+	__unload_module();
 }
 
 static void string_replace(char *str, int char1, int char2)
@@ -19516,7 +19459,6 @@ static int load_module(void)
 	ast_format_cap_append(dahdi_tech.capabilities, ast_format_alaw, 0);
 
 	if (dahdi_native_load(&dahdi_tech)) {
-		ao2_ref(dahdi_tech.capabilities, -1);
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
@@ -19534,7 +19476,6 @@ static int load_module(void)
 #if defined(HAVE_PRI_CCSS)
 	if (ast_cc_agent_register(&dahdi_pri_cc_agent_callbacks)
 		|| ast_cc_monitor_register(&dahdi_pri_cc_monitor_callbacks)) {
-		__unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 #endif	/* defined(HAVE_PRI_CCSS) */
@@ -19545,7 +19486,6 @@ static int load_module(void)
 		NULL
 #endif	/* defined(HAVE_PRI_CCSS) */
 		)) {
-		__unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 #endif
@@ -19563,12 +19503,10 @@ static int load_module(void)
 	res = setup_dahdi(0);
 	/* Make sure we can register our DAHDI channel type */
 	if (res) {
-		__unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	if (ast_channel_register(&dahdi_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'DAHDI'\n");
-		__unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 #ifdef HAVE_PRI
@@ -19726,7 +19664,7 @@ static int dahdi_sendtext(struct ast_channel *c, const char *text)
 }
 
 
-static int reload(void)
+static int reload_module(void)
 {
 	int res = 0;
 
@@ -19739,14 +19677,6 @@ static int reload(void)
 }
 
 /* This is a workaround so that menuselect displays a proper description
- * AST_MODULE_INFO(, , "DAHDI Telephony"
+ * AST_MODULE_INFO(, "DAHDI Telephony"
  */
-
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, tdesc,
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CHANNEL_DRIVER,
-	.nonoptreq = "res_smdi",
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, tdesc);

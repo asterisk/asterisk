@@ -33,6 +33,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_depend</load_priority>
 	<conflict>win32</conflict>
 	<support_level>core</support_level>
  ***/
@@ -206,7 +207,7 @@ static struct ao2_container *mohclasses;
 #define MAX_MP3S 256
 
 static void moh_parse_options(struct ast_variable *var, struct mohclass *mohclass);
-static int reload(void);
+static int reload_module(void);
 
 #define mohclass_ref(class,string)   (ao2_t_ref((class), +1, (string)), class)
 
@@ -469,7 +470,7 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 	state = ast_channel_music_state(chan);
 	if (!state && (state = ast_calloc(1, sizeof(*state)))) {
 		ast_channel_music_state_set(chan, state);
-		ast_module_ref(ast_module_info->self);
+		/* BUGBUG: ast_module_ref(AST_MODULE_SELF, 0); */
 	} else {
 		if (!state) {
 			return NULL;
@@ -967,7 +968,7 @@ static void *moh_alloc(struct ast_channel *chan, void *params)
 	state = ast_channel_music_state(chan);
 	if (!state && (state = ast_calloc(1, sizeof(*state)))) {
 		ast_channel_music_state_set(chan, state);
-		ast_module_ref(ast_module_info->self);
+		/* BUGBUG: ast_module_ref(AST_MODULE_SELF, 0); */
 	} else {
 		if (!state) {
 			return NULL;
@@ -1356,8 +1357,7 @@ static void local_ast_moh_cleanup(struct ast_channel *chan)
 		ao2_cleanup(state->origwfmt);
 		ao2_cleanup(state->mohwfmt);
 		ast_free(state);
-		/* Only held a module reference if we had a music state */
-		ast_module_unref(ast_module_info->self);
+		/* BUGBUG: ast_module_unref(AST_MODULE_SELF); */
 	}
 }
 
@@ -1808,7 +1808,7 @@ static char *handle_cli_moh_reload(struct ast_cli_entry *e, int cmd, struct ast_
 	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
 
-	reload();
+	reload_module();
 
 	return CLI_SUCCESS;
 }
@@ -1946,7 +1946,7 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	if (load_moh_classes(1)) {
 		ast_install_music_functions(local_ast_moh_start, local_ast_moh_stop,
@@ -1963,39 +1963,23 @@ static int moh_class_inuse(void *obj, void *arg, int flags)
 	return AST_LIST_EMPTY(&class->members) ? 0 : CMP_MATCH | CMP_STOP;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	int res = 0;
 	struct mohclass *class = NULL;
 
+	ast_module_block_unload(AST_MODULE_SELF);
 	/* XXX This check shouldn't be required if module ref counting was being used
 	 * properly ... */
 	if ((class = ao2_t_callback(mohclasses, 0, moh_class_inuse, NULL, "Module unload callback"))) {
 		class = mohclass_unref(class, "unref of class from module unload callback");
-		res = -1;
-	}
-
-	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to unload res_musiconhold due to active MOH channels\n");
-		return res;
+		return;
 	}
 
 	ast_uninstall_music_functions();
 
 	ast_moh_destroy();
-	res = ast_unregister_application(play_moh);
-	res |= ast_unregister_application(start_moh);
-	res |= ast_unregister_application(stop_moh);
-	ast_cli_unregister_multiple(cli_moh, ARRAY_LEN(cli_moh));
 	ast_unregister_atexit(ast_moh_destroy);
-
-	return res;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Music On Hold Resource",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Music On Hold Resource");

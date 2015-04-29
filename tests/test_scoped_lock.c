@@ -264,13 +264,6 @@ AST_TEST_DEFINE(cleanup_order)
 	return res;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(lock_test);
-	AST_TEST_UNREGISTER(cleanup_order);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(lock_test);
@@ -278,4 +271,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "SCOPED_LOCK test module");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "SCOPED_LOCK test module");

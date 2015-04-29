@@ -26,9 +26,10 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_driver</load_priority>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
-	<depend>res_pjsip_session</depend>
+	<use type="module">res_pjsip</use>
+	<use type="module">res_pjsip_session</use>
 	<support_level>core</support_level>
  ***/
 
@@ -2322,8 +2323,6 @@ static int load_module(void)
 {
 	struct ao2_container *endpoints;
 
-	CHECK_PJSIP_SESSION_MODULE_LOADED();
-
 	if (!(chan_pjsip_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -2334,50 +2333,44 @@ static int load_module(void)
 
 	if (ast_channel_register(&chan_pjsip_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", channel_type);
-		goto end;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (ast_custom_function_register(&chan_pjsip_dial_contacts_function)) {
 		ast_log(LOG_ERROR, "Unable to register PJSIP_DIAL_CONTACTS dialplan function\n");
-		goto end;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (ast_custom_function_register(&media_offer_function)) {
 		ast_log(LOG_WARNING, "Unable to register PJSIP_MEDIA_OFFER dialplan function\n");
-		goto end;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (ast_sip_session_register_supplement(&chan_pjsip_supplement)) {
 		ast_log(LOG_ERROR, "Unable to register PJSIP supplement\n");
-		goto end;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (!(pjsip_uids_onhold = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_RWLOCK,
 			AO2_CONTAINER_ALLOC_OPT_DUPS_REJECT, 37, uid_hold_hash_fn,
 			uid_hold_sort_fn, NULL))) {
 		ast_log(LOG_ERROR, "Unable to create held channels container\n");
-		goto end;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (ast_sip_session_register_supplement(&call_pickup_supplement)) {
 		ast_log(LOG_ERROR, "Unable to register PJSIP call pickup supplement\n");
-		ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
-		goto end;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (ast_sip_session_register_supplement(&pbx_start_supplement)) {
 		ast_log(LOG_ERROR, "Unable to register PJSIP pbx start supplement\n");
-		ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
-		ast_sip_session_unregister_supplement(&call_pickup_supplement);
-		goto end;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (ast_sip_session_register_supplement(&chan_pjsip_ack_supplement)) {
 		ast_log(LOG_ERROR, "Unable to register PJSIP ACK supplement\n");
-		ast_sip_session_unregister_supplement(&pbx_start_supplement);
-		ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
-		ast_sip_session_unregister_supplement(&call_pickup_supplement);
-		goto end;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	/* since endpoints are loaded before the channel driver their device
@@ -2388,20 +2381,10 @@ static int load_module(void)
 	}
 
 	return 0;
-
-end:
-	ao2_cleanup(pjsip_uids_onhold);
-	pjsip_uids_onhold = NULL;
-	ast_custom_function_unregister(&media_offer_function);
-	ast_custom_function_unregister(&chan_pjsip_dial_contacts_function);
-	ast_channel_unregister(&chan_pjsip_tech);
-	ast_rtp_glue_unregister(&chan_pjsip_rtp_glue);
-
-	return AST_MODULE_LOAD_FAILURE;
 }
 
 /*! \brief Unload the PJSIP channel from Asterisk */
-static int unload_module(void)
+static void unload_module(void)
 {
 	ao2_cleanup(pjsip_uids_onhold);
 	pjsip_uids_onhold = NULL;
@@ -2411,19 +2394,7 @@ static int unload_module(void)
 	ast_sip_session_unregister_supplement(&chan_pjsip_ack_supplement);
 	ast_sip_session_unregister_supplement(&call_pickup_supplement);
 
-	ast_custom_function_unregister(&media_offer_function);
-	ast_custom_function_unregister(&chan_pjsip_dial_contacts_function);
-
-	ast_channel_unregister(&chan_pjsip_tech);
 	ao2_ref(chan_pjsip_tech.capabilities, -1);
-	ast_rtp_glue_unregister(&chan_pjsip_rtp_glue);
-
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP Channel Driver",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DRIVER,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "PJSIP Channel Driver");

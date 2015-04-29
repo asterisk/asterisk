@@ -28,6 +28,7 @@
  */
 /*** MODULEINFO
 	<support_level>core</support_level>
+	<load_priority>devstate_provider</load_priority>
  ***/
 
 
@@ -1411,6 +1412,19 @@ static void bridge_init_agent_hold(void)
 	bridge_agent_hold_v_table.pull = bridge_agent_hold_pull;
 }
 
+static int bridge_deinit_agent_hold(void *userdata, int level)
+{
+	struct ast_bridge *holding;
+
+	/* Destroy agent holding bridge. */
+	holding = ao2_global_obj_replace(agent_holding, NULL);
+	if (holding) {
+		ast_bridge_destroy(holding, 0);
+	}
+
+	return 1;
+}
+
 static int bridge_agent_hold_deferred_create(void)
 {
 	RAII_VAR(struct ast_bridge *, holding, ao2_global_obj_ref(agent_holding), ao2_cleanup);
@@ -1419,8 +1433,13 @@ static int bridge_agent_hold_deferred_create(void)
 		ast_mutex_lock(&agent_holding_lock);
 		holding = ao2_global_obj_ref(agent_holding);
 		if (!holding) {
-			holding = bridge_agent_hold_new();
-			ao2_global_obj_replace_unref(agent_holding, holding);
+			struct ast_module_instance *instance = ast_module_get_instance(AST_MODULE_SELF);
+
+			if (instance) {
+				holding = bridge_agent_hold_new();
+				ao2_global_obj_replace_unref(agent_holding, holding);
+				ao2_cleanup(ast_module_disposer_alloc(instance, NULL, bridge_deinit_agent_hold));
+			}
 		}
 		ast_mutex_unlock(&agent_holding_lock);
 		if (!holding) {
@@ -2616,36 +2635,11 @@ static int action_agent_logoff(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	struct ast_bridge *holding;
-
-	/* Unregister dialplan applications */
-	ast_unregister_application(app_agent_login);
-	ast_unregister_application(app_agent_request);
-
-	/* Unregister dialplan functions */
-	ast_custom_function_unregister(&agent_function);
-
-	/* Unregister manager command */
-	ast_manager_unregister("Agents");
-	ast_manager_unregister("AgentLogoff");
-
-	/* Unregister CLI commands */
-	ast_cli_unregister_multiple(cli_agents, ARRAY_LEN(cli_agents));
-
-	ast_devstate_prov_del("Agent");
-
-	/* Destroy agent holding bridge. */
-	holding = ao2_global_obj_replace(agent_holding, NULL);
-	if (holding) {
-		ast_bridge_destroy(holding, 0);
-	}
-
 	destroy_config();
 	ao2_cleanup(agents);
 	agents = NULL;
-	return 0;
 }
 
 static int load_module(void)
@@ -2679,20 +2673,18 @@ static int load_module(void)
 	res |= ast_register_application_xml(app_agent_request, agent_request_exec);
 
 	if (res) {
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (load_config()) {
 		ast_log(LOG_ERROR, "Unable to load config. Not loading module.\n");
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	if (aco_process_config(&cfg_info, 1) == ACO_PROCESS_ERROR) {
 		/* Just keep the config we already have in place. */
@@ -2701,10 +2693,4 @@ static int reload(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Call center agent pool applications",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_DEVSTATE_PROVIDER,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Call center agent pool applications");

@@ -55,6 +55,7 @@ CREATE TABLE [dbo].[cel] (
 */
 
 /*** MODULEINFO
+	<load_priority>cdr_driver</load_priority>
 	<depend>freetds</depend>
 	<support_level>extended</support_level>
  ***/
@@ -395,7 +396,7 @@ failed:
 	return -1;
 }
 
-static int tds_unload_module(void)
+static void unload_module(void)
 {
 	ast_cel_backend_unregister(TDS_BACKEND_NAME);
 
@@ -409,8 +410,6 @@ static int tds_unload_module(void)
 	}
 
 	dbexit();
-
-	return 0;
 }
 
 static int tds_error_handler(DBPROCESS *dbproc, int severity, int dberr, int oserr, char *dberrstr, char *oserrstr)
@@ -527,7 +526,7 @@ failed:
 	return 0;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	return tds_load_module(1);
 }
@@ -545,15 +544,10 @@ static int load_module(void)
 	settings = ast_calloc_with_stringfields(1, struct cel_tds_config, 256);
 
 	if (!settings) {
-		dbexit();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (!tds_load_module(0)) {
-		ast_string_field_free_memory(settings);
-		ast_free(settings);
-		settings = NULL;
-		dbexit();
 		ast_log(LOG_WARNING,"cel_tds module had config problems; declining load\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -561,25 +555,10 @@ static int load_module(void)
 	/* Register MSSQL CEL handler */
 	if (ast_cel_backend_register(TDS_BACKEND_NAME, tds_log)) {
 		ast_log(LOG_ERROR, "Unable to register MSSQL CEL handling\n");
-		ast_string_field_free_memory(settings);
-		ast_free(settings);
-		settings = NULL;
-		dbexit();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
-{
-	return tds_unload_module();
-}
-
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "FreeTDS CEL Backend",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CDR_DRIVER,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "FreeTDS CEL Backend");

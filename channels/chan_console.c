@@ -56,6 +56,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_driver</load_priority>
 	<depend>portaudio</depend>
 	<support_level>extended</support_level>
  ***/
@@ -1492,12 +1493,10 @@ static void stop_streams(void)
 	ao2_iterator_destroy(&i);
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ao2_ref(console_tech.capabilities, -1);
 	console_tech.capabilities = NULL;
-	ast_channel_unregister(&console_tech);
-	ast_cli_unregister_multiple(cli_console, ARRAY_LEN(cli_console));
 
 	stop_streams();
 
@@ -1507,8 +1506,6 @@ static int unload_module(void)
 	ao2_ref(pvts, -1);
 
 	pvt_destructor(&globals);
-
-	return 0;
 }
 
 /*!
@@ -1533,54 +1530,32 @@ static int load_module(void)
 	init_pvt(&globals, NULL);
 
 	if (!(pvts = ao2_container_alloc(NUM_PVT_BUCKETS, pvt_hash_cb, pvt_cmp_cb)))
-		goto return_error;
+		return AST_MODULE_LOAD_DECLINE;
 
 	if (load_config(0))
-		goto return_error;
+		return AST_MODULE_LOAD_DECLINE;
 
 	res = Pa_Initialize();
 	if (res != paNoError) {
 		ast_log(LOG_WARNING, "Failed to initialize audio system - (%d) %s\n",
 			res, Pa_GetErrorText(res));
-		goto return_error_pa_init;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (ast_channel_register(&console_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel type 'Console'\n");
-		goto return_error_chan_reg;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (ast_cli_register_multiple(cli_console, ARRAY_LEN(cli_console)))
-		goto return_error_cli_reg;
+		return AST_MODULE_LOAD_DECLINE;
 
 	return AST_MODULE_LOAD_SUCCESS;
-
-return_error_cli_reg:
-	ast_cli_unregister_multiple(cli_console, ARRAY_LEN(cli_console));
-return_error_chan_reg:
-	ast_channel_unregister(&console_tech);
-return_error_pa_init:
-	Pa_Terminate();
-return_error:
-	if (pvts)
-		ao2_ref(pvts, -1);
-	pvts = NULL;
-	ao2_ref(console_tech.capabilities, -1);
-	console_tech.capabilities = NULL;
-	pvt_destructor(&globals);
-
-	return AST_MODULE_LOAD_DECLINE;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	return load_config(1);
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Console Channel Driver",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CHANNEL_DRIVER,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Console Channel Driver");

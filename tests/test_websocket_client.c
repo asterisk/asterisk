@@ -26,7 +26,7 @@
 
 /*** MODULEINFO
 	<depend>TEST_FRAMEWORK</depend>
-	<depend>res_http_websocket</depend>
+	<use type="module">res_http_websocket</use>
 	<support_level>core</support_level>
  ***/
 
@@ -149,13 +149,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(websocket_client_multiple_protocols);
-	AST_TEST_UNREGISTER(websocket_client_unsupported_protocol);
-	AST_TEST_UNREGISTER(websocket_client_bad_url);
-	AST_TEST_UNREGISTER(websocket_client_create_and_connect);
-	return 0;
-}
-
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Websocket client test module");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Websocket client test module");

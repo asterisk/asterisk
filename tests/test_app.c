@@ -223,13 +223,6 @@ exit_group_test:
 	return res;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(app_group);
-	AST_TEST_UNREGISTER(options_parsing);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(app_group);
@@ -237,4 +230,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "App unit tests");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "App unit tests");

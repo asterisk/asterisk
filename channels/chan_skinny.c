@@ -34,6 +34,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_driver</load_priority>
 	<support_level>extended</support_level>
  ***/
 
@@ -4978,7 +4979,6 @@ static int skinny_hangup(struct ast_channel *ast)
 	ast_free(sub->origtonum);
 	ast_free(sub->origtoname);
 	ast_free(sub);
-	ast_module_unref(ast_module_info->self);
 	return 0;
 }
 
@@ -5441,7 +5441,6 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 		if (l->amaflags)
 			ast_channel_amaflags_set(tmp, l->amaflags);
 
-		ast_module_ref(ast_module_info->self);
 		ast_channel_callgroup_set(tmp, l->callgroup);
 		ast_channel_pickupgroup_set(tmp, l->pickupgroup);
 
@@ -8656,7 +8655,6 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	if (!(skinny_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
-		ao2_ref(default_cap, -1);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -8670,23 +8668,17 @@ static int load_module(void)
 	/* load and parse config */
 	res = config_load();
 	if (res == -1) {
-		ao2_ref(skinny_tech.capabilities, -1);
-		ao2_ref(default_cap, -1);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	sched = ast_sched_context_create();
 	if (!sched) {
-		ao2_ref(skinny_tech.capabilities, -1);
-		ao2_ref(default_cap, -1);
 		ast_log(LOG_WARNING, "Unable to create schedule context\n");
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	/* Make sure we can register our skinny channel type */
 	if (ast_channel_register(&skinny_tech)) {
-		ao2_ref(default_cap, -1);
-		ao2_ref(skinny_tech.capabilities, -1);
 		ast_log(LOG_ERROR, "Unable to register channel class 'Skinny'\n");
 		return -1;
 	}
@@ -8700,18 +8692,13 @@ static int load_module(void)
 	ast_manager_register_xml("SKINNYshowline", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, manager_skinny_show_line);
 
 	if (ast_sched_start_thread(sched)) {
-		ast_sched_context_destroy(sched);
-		sched = NULL;
-		ast_channel_unregister(&skinny_tech);
-		ao2_ref(default_cap, -1);
-		ao2_ref(skinny_tech.capabilities, -1);
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	struct skinnysession *s;
 	struct skinny_device *d;
@@ -8720,15 +8707,7 @@ static int unload_module(void)
 	struct ast_context *con;
 	pthread_t tempthread;
 
-	ast_rtp_glue_unregister(&skinny_rtp_glue);
-	ast_channel_unregister(&skinny_tech);
 	ao2_cleanup(skinny_tech.capabilities);
-	ast_cli_unregister_multiple(cli_skinny, ARRAY_LEN(cli_skinny));
-
-	ast_manager_unregister("SKINNYdevices");
-	ast_manager_unregister("SKINNYshowdevice");
-	ast_manager_unregister("SKINNYlines");
-	ast_manager_unregister("SKINNYshowline");
 
 	ast_mutex_lock(&netlock);
 	if (accept_t && (accept_t != AST_PTHREADT_STOP)) {
@@ -8783,19 +8762,12 @@ static int unload_module(void)
 		ast_context_destroy(con, "Skinny");
 
 	ao2_ref(default_cap, -1);
-	return 0;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	skinny_reload();
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Skinny Client Control Protocol (Skinny)",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CHANNEL_DRIVER,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Skinny Client Control Protocol (Skinny)");

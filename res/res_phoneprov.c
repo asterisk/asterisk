@@ -39,6 +39,8 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_depend</load_priority>
+	<export_globals/>
 	<support_level>extended</support_level>
  ***/
 
@@ -1369,12 +1371,9 @@ static int load_common(void)
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_http_uri_unlink(&phoneprovuri);
-	ast_custom_function_unregister(&pp_each_user_function);
-	ast_custom_function_unregister(&pp_each_extension_function);
-	ast_cli_unregister_multiple(pp_cli, ARRAY_LEN(pp_cli));
 
 	/* This cleans up the sip.conf/users.conf provider (called specifically for clarity) */
 	ast_phoneprov_provider_unregister(SIPUSERS_PROVIDER_NAME);
@@ -1392,8 +1391,6 @@ static int unload_module(void)
 	delete_providers();
 	ao2_cleanup(providers);
 	providers = NULL;
-
-	return 0;
 }
 
 /*!
@@ -1417,24 +1414,24 @@ static int load_module(void)
 	http_routes = ao2_container_alloc(MAX_ROUTE_BUCKETS, http_route_hash_fn, http_route_cmp_fn);
 	if (!http_routes) {
 		ast_log(LOG_ERROR, "Unable to allocate routes container.\n");
-		goto error;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (load_common()) {
 		ast_log(LOG_ERROR, "Unable to load provisioning profiles.\n");
-		goto error;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	users = ao2_container_alloc(MAX_USER_BUCKETS, user_hash_fn, user_cmp_fn);
 	if (!users) {
 		ast_log(LOG_ERROR, "Unable to allocate users container.\n");
-		goto error;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	providers = ao2_container_alloc(MAX_PROVIDER_BUCKETS, phoneprov_provider_hash_fn, phoneprov_provider_cmp_fn);
 	if (!providers) {
 		ast_log(LOG_ERROR, "Unable to allocate providers container.\n");
-		goto error;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	/* Register ourselves as the provider for sip.conf/users.conf */
@@ -1449,13 +1446,9 @@ static int load_module(void)
 	ast_cli_register_multiple(pp_cli, ARRAY_LEN(pp_cli));
 
 	return AST_MODULE_LOAD_SUCCESS;
-
-error:
-	unload_module();
-	return AST_MODULE_LOAD_DECLINE;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	struct ao2_iterator i;
 	struct phoneprov_provider *provider;
@@ -1468,7 +1461,6 @@ static int reload(void)
 	/* Reload the profiles */
 	if (load_common()) {
 		ast_log(LOG_ERROR, "Unable to reload provisioning profiles.\n");
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -1488,13 +1480,7 @@ static int reload(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "HTTP Phone Provisioning",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "HTTP Phone Provisioning");
 
 /****  Public API for register/unregister, set defaults, and add extension. ****/
 

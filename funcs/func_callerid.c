@@ -1836,24 +1836,6 @@ static struct ast_custom_function redirecting_function = {
 
 /*!
  * \internal
- * \brief Unload the function module
- *
- * \retval 0 on success.
- * \retval -1 on error.
- */
-static int unload_module(void)
-{
-	int res;
-
-	res = ast_custom_function_unregister(&callerpres_function);
-	res |= ast_custom_function_unregister(&callerid_function);
-	res |= ast_custom_function_unregister(&connectedline_function);
-	res |= ast_custom_function_unregister(&redirecting_function);
-	return res;
-}
-
-/*!
- * \internal
  * \brief Load and initialize the function module.
  *
  * \retval AST_MODULE_LOAD_SUCCESS on success.
@@ -1871,4 +1853,4 @@ static int load_module(void)
 }
 
 /* Do not wrap the following line. */
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Party ID related dialplan functions (Caller-ID, Connected-line, Redirecting)");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Party ID related dialplan functions (Caller-ID, Connected-line, Redirecting)");

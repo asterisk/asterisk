@@ -176,6 +176,7 @@ static void answer_exec_run(struct ast_dial *dial, struct ast_dial_channel *dial
 
 	/* All is well... execute the application */
 	pbx_exec(chan, ast_app, args);
+	ao2_ref(ast_app, -1);
 
 	/* If another thread is not taking over hang up the channel */
 	ast_mutex_lock(&dial->lock);

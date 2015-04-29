@@ -58,6 +58,7 @@ CREATE TABLE [dbo].[cdr] (
 */
 
 /*** MODULEINFO
+	<load_priority>cdr_driver</load_priority>
 	<depend>freetds</depend>
 	<support_level>extended</support_level>
  ***/
@@ -591,7 +592,7 @@ failed:
 	return 0;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	return tds_load_module(1);
 }
@@ -621,20 +622,16 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	ast_cdr_register(name, ast_module_info->description, tds_log);
+	ast_cdr_register(name, ast_module_description(AST_MODULE_SELF), tds_log);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	return tds_unload_module();
+	if (tds_unload_module()) {
+		ast_module_block_unload(AST_MODULE_SELF);
+	}
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "FreeTDS CDR Backend",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CDR_DRIVER,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "FreeTDS CDR Backend");

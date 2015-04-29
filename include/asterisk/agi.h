@@ -57,7 +57,7 @@ typedef struct agi_command {
 	/*! Where the documentation come from. */
 	const enum ast_doc_src docsrc;
 	/*! Pointer to module that registered the agi command */
-	struct ast_module *mod;
+	struct ast_module_lib *lib;
 	/*! Linked list pointer */
 	AST_LIST_ENTRY(agi_command) list;
 } agi_command;

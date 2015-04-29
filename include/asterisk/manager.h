@@ -164,7 +164,7 @@ struct manager_action {
 	int authority;
 	/*! Function to be called */
 	int (*func)(struct mansession *s, const struct message *m);
-	struct ast_module *module;		/*!< Module this action belongs to */
+	struct ast_module_lib *lib;		/*!< Module this action belongs to */
 	/*! Where the documentation come from. */
 	enum ast_doc_src docsrc;
 	/*! For easy linking */

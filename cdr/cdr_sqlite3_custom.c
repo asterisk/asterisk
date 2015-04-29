@@ -33,6 +33,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>cdr_driver</load_priority>
 	<depend>sqlite3</depend>
 	<support_level>extended</support_level>
  ***/
@@ -277,15 +278,13 @@ static int write_cdr(struct ast_cdr *cdr)
 	return res;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	if (ast_cdr_unregister(name)) {
-		return -1;
+		ast_module_block_unload(AST_MODULE_SELF);
 	}
 
 	free_config(0);
-
-	return 0;
 }
 
 static int load_module(void)
@@ -335,7 +334,7 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	int res = 0;
 
@@ -346,10 +345,4 @@ static int reload(void)
 	return res;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "SQLite3 Custom CDR Module",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CDR_DRIVER,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "SQLite3 Custom CDR Module");

@@ -260,20 +260,17 @@ static int reload_module(void)
 }
 
 /*! \brief Function called to unload the module */
-static int unload_module(void)
+static void unload_module(void)
 {
 	ao2_callback(cli_aliases, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, alias_unregister_cb, NULL);
 
 	if (ao2_container_count(cli_aliases)) {
 		ast_log(LOG_ERROR, "Could not unregister all CLI aliases\n");
-		return -1;
+		ast_module_block_unload(AST_MODULE_SELF);
+		return;
 	}
 
 	ao2_ref(cli_aliases, -1);
-
-	ast_cli_unregister_multiple(cli_alias, ARRAY_LEN(cli_alias));
-
-	return 0;
 }
 
 /*!
@@ -299,9 +296,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "CLI Aliases",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload_module,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "CLI Aliases");

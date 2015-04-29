@@ -921,25 +921,6 @@ static int test_core_format_init(struct ast_test_info *info, struct ast_test *te
 	return 0;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(format_create);
-	AST_TEST_UNREGISTER(format_create_attr);
-	AST_TEST_UNREGISTER(format_clone);
-	AST_TEST_UNREGISTER(format_cmp_same_codec);
-	AST_TEST_UNREGISTER(format_attr_cmp_same_codec);
-	AST_TEST_UNREGISTER(format_cmp_different_codec);
-	AST_TEST_UNREGISTER(format_joint_same_codec);
-	AST_TEST_UNREGISTER(format_attr_joint_same_codec);
-	AST_TEST_UNREGISTER(format_joint_different_codec);
-	AST_TEST_UNREGISTER(format_copy);
-	AST_TEST_UNREGISTER(format_attribute_set_without_interface);
-	AST_TEST_UNREGISTER(format_parse_sdp_fmtp_without_interface);
-	AST_TEST_UNREGISTER(format_parse_and_generate_sdp_fmtp);
-
-	return 0;
-}
-
 static int load_module(void)
 {
 	/* Test codec/format interface used by this module */
@@ -972,4 +953,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Core format API test module");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Core format API test module");

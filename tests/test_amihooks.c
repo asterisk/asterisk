@@ -141,10 +141,9 @@ static struct ast_cli_entry cli_amihook_evt[] = {
 	AST_CLI_DEFINE(handle_cli_amihook_unregister_hook, "Unregister module for AMI hook"),
 };
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_manager_unregister_hook(&test_hook);
-	return ast_cli_unregister_multiple(cli_amihook_evt, ARRAY_LEN(cli_amihook_evt));
 }
 
 static int load_module(void)

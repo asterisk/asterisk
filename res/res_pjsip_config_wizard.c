@@ -32,8 +32,10 @@
  */
 
 /*** MODULEINFO
+	<load_priority>realtime_driver</load_priority>
+	<export_globals/>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
+	<use type="module">res_pjsip</use>
 	<support_level>core</support_level>
  ***/
 
@@ -1160,7 +1162,7 @@ static void instance_created_observer(const char *name, struct ast_sorcery *sorc
 	if (strcmp(name, "res_pjsip")) {
 		return;
 	}
-	ast_module_ref(ast_module_info->self);
+	/* BUGBUG: ast_module_ref(AST_MODULE_SELF, 0); */
 	ast_sorcery_instance_observer_add(sorcery, &observer);
 }
 
@@ -1174,7 +1176,7 @@ static void instance_destroying_observer(const char *name, struct ast_sorcery *s
 	}
 
 	ast_sorcery_instance_observer_remove(sorcery, &observer);
-	ast_module_unref(ast_module_info->self);
+	/* BUGBUG: ast_module_unref(AST_MODULE_SELF); */
 }
 
 static int load_module(void)
@@ -1185,18 +1187,12 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_sorcery_global_observer_remove(&global_observer);
 	AST_VECTOR_REMOVE_CMP_UNORDERED(&object_type_wizards, NULL, NOT_EQUALS, OTW_DELETE_CB);
 	AST_VECTOR_FREE(&object_type_wizards);
-
-	return 0;
+	ast_module_block_unload(AST_MODULE_SELF);
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "PJSIP Config Wizard",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_REALTIME_DRIVER,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "PJSIP Config Wizard");

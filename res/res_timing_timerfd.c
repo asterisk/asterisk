@@ -24,6 +24,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>timing</load_priority>
 	<depend>timerfd</depend>
 	<support_level>core</support_level>
  ***/
@@ -38,8 +39,6 @@
 #include "asterisk/logger.h"
 #include "asterisk/utils.h"
 #include "asterisk/time.h"
-
-static void *timing_funcs_handle;
 
 static void *timerfd_timer_open(void);
 static void timerfd_timer_close(void *data);
@@ -259,21 +258,11 @@ static int load_module(void)
 
 	close(fd);
 
-	if (!(timing_funcs_handle = ast_register_timing_interface(&timerfd_timing))) {
+	if (ast_timing_interface_register(&timerfd_timing)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
-{
-	return ast_unregister_timing_interface(timing_funcs_handle);
-}
-
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Timerfd Timing Interface",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_TIMING,
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Timerfd Timing Interface");

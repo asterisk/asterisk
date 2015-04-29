@@ -103,16 +103,10 @@ AST_TEST_DEFINE(xml_escape_test)
 	return test_res;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(xml_escape_test);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(xml_escape_test);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Skeleton (sample) Test");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Skeleton (sample) Test");
