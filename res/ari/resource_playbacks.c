@@ -23,6 +23,11 @@
  * \author David M. Lee, II <dlee@digium.com>
  */
 
+/*** MODULEINFO
+	<depend type="module">res_stasis_playback</depend>
+	<support_level>core</support_level>
+ ***/
+
 #include "asterisk.h"
 
 ASTERISK_REGISTER_FILE()
