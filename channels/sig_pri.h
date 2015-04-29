@@ -496,6 +496,8 @@ struct sig_pri_span {
 #if defined(HAVE_PRI_MCID)
 	/*! \brief TRUE if allow sending MCID request on this span. */
 	unsigned int mcid_send:1;
+	/*! \brief TRUE if forcing RESTART when receive cause 44 on this span. */
+	unsigned int force_restart_unavailable_chans:1;
 #endif	/* defined(HAVE_PRI_MCID) */
 #if defined(HAVE_PRI_DATETIME_SEND)
 	/*! \brief Configured date/time ie send policy option. */

@@ -133,15 +133,6 @@
  */
 //#define ALWAYS_PICK_CHANNEL	1
 
-/*!
- * Define to force a RESTART on a channel that returns a cause
- * code of PRI_CAUSE_REQUESTED_CHAN_UNAVAIL(44).  If the cause
- * is because of a stuck channel on the peer and the channel is
- * always the next channel we pick for an outgoing call then
- * this can help.
- */
-#define FORCE_RESTART_UNAVAIL_CHANS		1
-
 #if defined(HAVE_PRI_CCSS)
 struct sig_pri_cc_agent_prv {
 	/*! Asterisk span D channel control structure. */
@@ -7170,9 +7161,9 @@ static void *pri_dchannel(void *vpri)
 					pri_hangup(pri->pri, pri->pvts[chanpos]->call, e->hangup.cause);
 					pri->pvts[chanpos]->call = NULL;
 				}
-#if defined(FORCE_RESTART_UNAVAIL_CHANS)
 				if (e->hangup.cause == PRI_CAUSE_REQUESTED_CHAN_UNAVAIL
 					&& pri->sig != SIG_BRI_PTMP && !pri->resetting
+					&& pri->force_restart_unavailable_chans
 					&& pri->pvts[chanpos]->resetting == SIG_PRI_RESET_IDLE) {
 					ast_verb(3,
 						"Span %d: Forcing restart of channel %d/%d since channel reported in use\n",
@@ -7181,7 +7172,6 @@ static void *pri_dchannel(void *vpri)
 					pri->pvts[chanpos]->resetting = SIG_PRI_RESET_ACTIVE;
 					pri_reset(pri->pri, PVT_TO_CHANNEL(pri->pvts[chanpos]));
 				}
-#endif	/* defined(FORCE_RESTART_UNAVAIL_CHANS) */
 				if (e->hangup.aoc_units > -1)
 					ast_verb(3, "Channel %d/%d, span %d received AOC-E charging %d unit%s\n",
 						pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span, (int)e->hangup.aoc_units, (e->hangup.aoc_units == 1) ? "" : "s");
@@ -7319,9 +7309,9 @@ static void *pri_dchannel(void *vpri)
 					pri_hangup(pri->pri, pri->pvts[chanpos]->call, e->hangup.cause);
 					pri->pvts[chanpos]->call = NULL;
 				}
-#if defined(FORCE_RESTART_UNAVAIL_CHANS)
 				if (e->hangup.cause == PRI_CAUSE_REQUESTED_CHAN_UNAVAIL
 					&& pri->sig != SIG_BRI_PTMP && !pri->resetting
+					&& pri->force_restart_unavailable_chans
 					&& pri->pvts[chanpos]->resetting == SIG_PRI_RESET_IDLE) {
 					ast_verb(3,
 						"Span %d: Forcing restart of channel %d/%d since channel reported in use\n",
@@ -7330,7 +7320,6 @@ static void *pri_dchannel(void *vpri)
 					pri->pvts[chanpos]->resetting = SIG_PRI_RESET_ACTIVE;
 					pri_reset(pri->pri, PVT_TO_CHANNEL(pri->pvts[chanpos]));
 				}
-#endif	/* defined(FORCE_RESTART_UNAVAIL_CHANS) */
 
 #ifdef SUPPORT_USERUSER
 				if (!ast_strlen_zero(e->hangup.useruserinfo)) {
