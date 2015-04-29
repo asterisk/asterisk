@@ -330,6 +330,7 @@ static struct ast_variable *realtime_mysql(const char *database, const char *tab
 	char *op;
 	const char *newparam, *newval;
 	struct ast_variable *var=NULL, *prev=NULL;
+	va_list aq;
 
 	if (!(dbh = find_database(database, 0))) {
 		ast_log(LOG_WARNING, "MySQL RealTime: Invalid database specified: %s (check res_mysql.conf)\n", database);
@@ -343,14 +344,17 @@ static struct ast_variable *realtime_mysql(const char *database, const char *tab
 	}
 
 	/* Get the first parameter and first value in our list of passed paramater/value pairs */
-	if (!(newparam = va_arg(ap, const char *)) || !(newval = va_arg(ap, const char *)))  {
+	va_copy(aq, ap);
+	if (!(newparam = va_arg(aq, const char *)) || !(newval = va_arg(aq, const char *)))  {
 		ast_log(LOG_WARNING, "MySQL RealTime: Realtime retrieval requires at least 1 parameter and 1 value to search on.\n");
+		va_end(aq);
 		release_database(dbh);
 		return NULL;
 	}
 
 	/* Must connect to the server before anything else, as the escape function requires the mysql handle. */
 	if (!mysql_reconnect(dbh)) {
+		va_end(aq);
 		release_database(dbh);
 		return NULL;
 	}
@@ -365,8 +369,8 @@ static struct ast_variable *realtime_mysql(const char *database, const char *tab
 
 	ESCAPE_STRING(buf, newval);
 	ast_str_set(&sql, 0, "SELECT * FROM %s WHERE %s%s '%s'", table, newparam, op, ast_str_buffer(buf));
-	while ((newparam = va_arg(ap, const char *))) {
-		newval = va_arg(ap, const char *);
+	while ((newparam = va_arg(aq, const char *))) {
+		newval = va_arg(aq, const char *);
 		if (!strchr(newparam, ' ')) 
 			op = " ="; 
 		else
@@ -380,6 +384,7 @@ static struct ast_variable *realtime_mysql(const char *database, const char *tab
 	/* Execution. */
 	if (mysql_real_query(&dbh->handle, ast_str_buffer(sql), ast_str_strlen(sql))) {
 		ast_log(LOG_WARNING, "MySQL RealTime: Failed to query database: %s\n", mysql_error(&dbh->handle));
+		va_end(aq);
 		release_database(dbh);
 		return NULL;
 	}
@@ -411,6 +416,7 @@ static struct ast_variable *realtime_mysql(const char *database, const char *tab
 		ast_debug(1, "MySQL RealTime: Could not find any rows in table %s.\n", table);
 	}
 
+	va_end(aq);
 	release_database(dbh);
 	mysql_free_result(result);
 
@@ -434,6 +440,7 @@ static struct ast_config *realtime_multi_mysql(const char *database, const char 
 	struct ast_variable *var = NULL;
 	struct ast_config *cfg = NULL;
 	struct ast_category *cat = NULL;
+	va_list aq;
 
 	if (!(dbh = find_database(database, 0))) {
 		ast_log(LOG_WARNING, "MySQL RealTime: Invalid database specified: '%s' (check res_mysql.conf)\n", database);
@@ -454,8 +461,10 @@ static struct ast_config *realtime_multi_mysql(const char *database, const char 
 	}
 
 	/* Get the first parameter and first value in our list of passed paramater/value pairs */
-	if (!(newparam = va_arg(ap, const char *)) || !(newval = va_arg(ap, const char *)))  {
+	va_copy(aq, ap);
+	if (!(newparam = va_arg(aq, const char *)) || !(newval = va_arg(aq, const char *)))  {
 		ast_log(LOG_WARNING, "MySQL RealTime: Realtime retrieval requires at least 1 parameter and 1 value to search on.\n");
+		va_end(aq);
 		ast_config_destroy(cfg);
 		release_database(dbh);
 		return NULL;
@@ -468,6 +477,7 @@ static struct ast_config *realtime_multi_mysql(const char *database, const char 
 
 	/* Must connect to the server before anything else, as the escape function requires the mysql handle. */
 	if (!mysql_reconnect(dbh)) {
+		va_end(aq);
 		release_database(dbh);
 		ast_config_destroy(cfg);
 		return NULL;
@@ -483,8 +493,8 @@ static struct ast_config *realtime_multi_mysql(const char *database, const char 
 
 	ESCAPE_STRING(buf, newval);
 	ast_str_set(&sql, 0, "SELECT * FROM %s WHERE %s%s '%s'", table, newparam, op, ast_str_buffer(buf));
-	while ((newparam = va_arg(ap, const char *))) {
-		newval = va_arg(ap, const char *);
+	while ((newparam = va_arg(aq, const char *))) {
+		newval = va_arg(aq, const char *);
 		if (!strchr(newparam, ' ')) op = " ="; else op = "";
 		ESCAPE_STRING(buf, newval);
 		ast_str_append(&sql, 0, " AND %s%s '%s'", newparam, op, ast_str_buffer(buf));
@@ -499,6 +509,7 @@ static struct ast_config *realtime_multi_mysql(const char *database, const char 
 	/* Execution. */
 	if (mysql_real_query(&dbh->handle, ast_str_buffer(sql), ast_str_strlen(sql))) {
 		ast_log(LOG_WARNING, "MySQL RealTime: Failed to query database: %s\n", mysql_error(&dbh->handle));
+		va_end(aq);
 		release_database(dbh);
 		ast_config_destroy(cfg);
 		return NULL;
@@ -534,6 +545,7 @@ static struct ast_config *realtime_multi_mysql(const char *database, const char 
 		ast_debug(1, "MySQL RealTime: Could not find any rows in table %s.\n", table);
 	}
 
+	va_end(aq);
 	release_database(dbh);
 	mysql_free_result(result);
 
@@ -548,6 +560,7 @@ static int update_mysql(const char *database, const char *tablename, const char 
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 100), *buf = ast_str_thread_get(&scratch_buf, 100);
 	struct tables *table;
 	struct columns *column = NULL;
+	va_list aq;
 
 	if (!(dbh = find_database(database, 1))) {
 		ast_log(LOG_WARNING, "MySQL RealTime: Invalid database specified: '%s' (check res_mysql.conf)\n", database);
@@ -574,8 +587,10 @@ static int update_mysql(const char *database, const char *tablename, const char 
 	}
 
 	/* Get the first parameter and first value in our list of passed paramater/value pairs */
-	if (!(newparam = va_arg(ap, const char *)) || !(newval = va_arg(ap, const char *)))  {
+	va_copy(aq, ap);
+	if (!(newparam = va_arg(aq, const char *)) || !(newval = va_arg(aq, const char *)))  {
 		ast_log(LOG_WARNING, "MySQL RealTime: Realtime update requires at least 1 parameter and 1 value to update.\n");
+		va_end(aq);
 		release_table(table);
 		release_database(dbh);
 		return -1;
@@ -584,6 +599,7 @@ static int update_mysql(const char *database, const char *tablename, const char 
 	/* Check that the column exists in the table */
 	if (!(column = find_column(table, newparam))) {
 		ast_log(LOG_ERROR, "MySQL RealTime: Updating column '%s', but that column does not exist within the table '%s' (first pair MUST exist)!\n", newparam, tablename);
+		va_end(aq);
 		release_table(table);
 		release_database(dbh);
 		return -1;
@@ -591,6 +607,7 @@ static int update_mysql(const char *database, const char *tablename, const char 
 
 	/* Must connect to the server before anything else, as the escape function requires the mysql handle. */
 	if (!mysql_reconnect(dbh)) {
+		va_end(aq);
 		release_table(table);
 		release_database(dbh);
 		return -1;
@@ -607,8 +624,8 @@ static int update_mysql(const char *database, const char *tablename, const char 
 		internal_require(database, tablename, newparam, RQ_CHAR, ast_str_strlen(buf), SENTINEL);
 	}
 
-	while ((newparam = va_arg(ap, const char *))) {
-		newval = va_arg(ap, const char *);
+	while ((newparam = va_arg(aq, const char *))) {
+		newval = va_arg(aq, const char *);
 
 		/* If the column is not within the table, then skip it */
 		if (!(column = find_column(table, newparam))) {
@@ -624,6 +641,8 @@ static int update_mysql(const char *database, const char *tablename, const char 
 			internal_require(database, tablename, newparam, RQ_CHAR, ast_str_strlen(buf), SENTINEL);
 		}
 	}
+
+	va_end(aq);
 
 	ESCAPE_STRING(buf, lookup);
 	ast_str_append(&sql, 0, " WHERE `%s` = '%s'", keyfield, ast_str_buffer(buf));
@@ -663,6 +682,7 @@ static int update2_mysql(const char *database, const char *tablename, va_list ap
 	struct ast_str *where = ast_str_thread_get(&sql2_buf, 100);
 	struct tables *table;
 	struct columns *column = NULL;
+	va_list aq;
 
 	if (!tablename) {
 		ast_log(LOG_WARNING, "MySQL RealTime: No table specified.\n");
@@ -697,15 +717,18 @@ static int update2_mysql(const char *database, const char *tablename, va_list ap
 	}
 
 	first = 1;
-	while ((newparam = va_arg(ap, const char *))) {
+	va_copy(aq, ap);
+	while ((newparam = va_arg(aq, const char *))) {
 		if (!(column = find_column(table, newparam))) {
 			ast_log(LOG_ERROR, "Updating on column '%s', but that column does not exist within the table '%s'!\n", newparam, tablename);
+			va_end(aq);
 			release_table(table);
 			release_database(dbh);
 			return -1;
 		}
-		if (!(newval = va_arg(ap, const char *))) {
+		if (!(newval = va_arg(aq, const char *))) {
 			ast_log(LOG_ERROR, "Invalid arguments: no value specified for column '%s' on '%s@%s'\n", newparam, tablename, database);
+			va_end(aq);
 			release_table(table);
 			release_database(dbh);
 			return -1;
@@ -721,9 +744,10 @@ static int update2_mysql(const char *database, const char *tablename, va_list ap
 	}
 
 	first = 1;
-	while ((newparam = va_arg(ap, const char *))) {
-		if (!(newval = va_arg(ap, const char *))) {
+	while ((newparam = va_arg(aq, const char *))) {
+		if (!(newval = va_arg(aq, const char *))) {
 			ast_log(LOG_ERROR, "Invalid arguments: no value specified for column '%s' on '%s@%s'\n", newparam, tablename, database);
+			va_end(aq);
 			release_table(table);
 			release_database(dbh);
 			return -1;
@@ -744,6 +768,8 @@ static int update2_mysql(const char *database, const char *tablename, va_list ap
 			internal_require(database, tablename, newparam, RQ_CHAR, ast_str_strlen(buf), SENTINEL);
 		}
 	}
+
+	va_end(aq);
 
 	release_table(table);
 
@@ -781,6 +807,7 @@ static int store_mysql(const char *database, const char *table, va_list ap)
 	struct ast_str *sql2 = ast_str_thread_get(&sql2_buf, 16);
 	struct ast_str *buf = ast_str_thread_get(&scratch_buf, 16);
 	const char *newparam, *newval;
+	va_list aq;
 
 	if (!(dbh = find_database(database, 1))) {
 		ast_log(LOG_WARNING, "MySQL RealTime: Invalid database specified: '%s' (check res_mysql.conf)\n", database);
@@ -793,13 +820,16 @@ static int store_mysql(const char *database, const char *table, va_list ap)
 		return -1;
 	}
 	/* Get the first parameter and first value in our list of passed paramater/value pairs */
-	if (!(newparam = va_arg(ap, const char *)) || !(newval = va_arg(ap, const char *))) {
+	va_copy(aq, ap);
+	if (!(newparam = va_arg(aq, const char *)) || !(newval = va_arg(aq, const char *))) {
 		ast_log(LOG_WARNING, "MySQL RealTime: Realtime storage requires at least 1 parameter and 1 value to search on.\n");
+		va_end(aq);
 		release_database(dbh);
 		return -1;
 	}
 	/* Must connect to the server before anything else, as the escape function requires the mysql handle. */
 	if (!mysql_reconnect(dbh)) {
+		va_end(aq);
 		release_database(dbh);
 		return -1;
 	}
@@ -811,8 +841,8 @@ static int store_mysql(const char *database, const char *table, va_list ap)
 
 	internal_require(database, table, newparam, RQ_CHAR, ast_str_strlen(buf), SENTINEL);
 
-	while ((newparam = va_arg(ap, const char *))) {
-		if ((newval = va_arg(ap, const char *))) {
+	while ((newparam = va_arg(aq, const char *))) {
+		if ((newval = va_arg(aq, const char *))) {
 			ESCAPE_STRING(buf, newval);
 		} else {
 			ast_str_reset(buf);
@@ -822,6 +852,7 @@ static int store_mysql(const char *database, const char *table, va_list ap)
 			ast_str_append(&sql2, 0, ", '%s'", ast_str_buffer(buf));
 		}
 	}
+	va_end(aq);
 	ast_str_append(&sql, 0, "%s)", ast_str_buffer(sql2));
 	ast_debug(1,"MySQL RealTime: Insert SQL: %s\n", ast_str_buffer(sql));
 
@@ -853,6 +884,7 @@ static int destroy_mysql(const char *database, const char *table, const char *ke
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 16);
 	struct ast_str *buf = ast_str_thread_get(&scratch_buf, 16);
 	const char *newparam, *newval;
+	va_list aq;
 
 	if (!(dbh = find_database(database, 1))) {
 		ast_log(LOG_WARNING, "MySQL RealTime: Invalid database specified: '%s' (check res_mysql.conf)\n", database);
@@ -866,8 +898,8 @@ static int destroy_mysql(const char *database, const char *table, const char *ke
 	}
 
 	/* Get the first parameter and first value in our list of passed paramater/value pairs */
-	/* newparam = va_arg(ap, const char *);
-	newval = va_arg(ap, const char *);*/
+	/* newparam = va_arg(aq, const char *);
+	newval = va_arg(aq, const char *);*/
 	if (ast_strlen_zero(keyfield) || ast_strlen_zero(lookup))  {
 		ast_log(LOG_WARNING, "MySQL RealTime: Realtime destroying requires at least 1 parameter and 1 value to search on.\n");
 		release_database(dbh);
@@ -884,11 +916,13 @@ static int destroy_mysql(const char *database, const char *table, const char *ke
 	   If there is only 1 set, then we have our query. Otherwise, loop thru the list and concat */
 	ESCAPE_STRING(buf, lookup);
 	ast_str_set(&sql, 0, "DELETE FROM %s WHERE `%s` = '%s'", table, keyfield, ast_str_buffer(buf));
-	while ((newparam = va_arg(ap, const char *))) {
-		newval = va_arg(ap, const char *);
+	va_copy(aq, ap);
+	while ((newparam = va_arg(aq, const char *))) {
+		newval = va_arg(aq, const char *);
 		ESCAPE_STRING(buf, newval);
 		ast_str_append(&sql, 0, " AND `%s` = '%s'", newparam, ast_str_buffer(buf));
 	}
+	va_end(aq);
 
 	ast_debug(1, "MySQL RealTime: Delete SQL: %s\n", ast_str_buffer(sql));
 
@@ -1109,15 +1143,17 @@ static int require_mysql(const char *database, const char *tablename, va_list ap
 	struct tables *table = find_table(database, tablename);
 	char *elm;
 	int type, size, res = 0, table_altered = 0;
+	va_list aq;
 
 	if (!table) {
 		ast_log(LOG_WARNING, "Table %s not found in database.  This table should exist if you're using realtime.\n", tablename);
 		return -1;
 	}
 
-	while ((elm = va_arg(ap, char *))) {
-		type = va_arg(ap, require_type);
-		size = va_arg(ap, int);
+	va_copy(aq, ap);
+	while ((elm = va_arg(aq, char *))) {
+		type = va_arg(aq, require_type);
+		size = va_arg(aq, int);
 		AST_LIST_TRAVERSE(&table->columns, column, list) {
 			if (strcmp(column->name, elm) == 0) {
 				/* Char can hold anything, as long as it is large enough */
@@ -1338,6 +1374,7 @@ static int require_mysql(const char *database, const char *tablename, va_list ap
 			}
 		}
 	}
+	va_end(aq);
 	release_table(table);
 
 	/* If we altered the table, we must refresh the cache */
