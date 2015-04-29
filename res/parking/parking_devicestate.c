@@ -113,11 +113,6 @@ void parking_notify_metermaids(int exten, const char *context, enum ast_device_s
 	ast_devstate_changed(state, AST_DEVSTATE_CACHABLE, "park:%d@%s", exten, context);
 }
 
-void unload_parking_devstate(void)
-{
-	ast_devstate_prov_del("Park");
-}
-
 int load_parking_devstate(void)
 {
 	return ast_devstate_prov_add("Park", metermaidstate);

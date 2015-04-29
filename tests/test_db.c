@@ -290,15 +290,6 @@ AST_TEST_DEFINE(put_get_long)
 	return res;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(put_get_del);
-	AST_TEST_UNREGISTER(gettree_deltree);
-	AST_TEST_UNREGISTER(perftest);
-	AST_TEST_UNREGISTER(put_get_long);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(put_get_del);
@@ -308,4 +299,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "AstDB test module");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "AstDB test module");

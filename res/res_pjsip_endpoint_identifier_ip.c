@@ -17,8 +17,9 @@
  */
 
 /*** MODULEINFO
+	<load_priority>app_depend</load_priority>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
+	<use type="module">res_pjsip</use>
 	<support_level>core</support_level>
  ***/
 
@@ -477,7 +478,6 @@ static struct ast_sip_cli_formatter_entry *cli_formatter;
 
 static int load_module(void)
 {
-	CHECK_PJSIP_MODULE_LOADED();
 
 	ast_sorcery_apply_config(ast_sip_get_sorcery(), "res_pjsip_endpoint_identifier_ip");
 	ast_sorcery_apply_default(ast_sip_get_sorcery(), "identify", "config", "pjsip.conf,criteria=type=identify");
@@ -520,20 +520,11 @@ static int reload_module(void)
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	ast_cli_unregister_multiple(cli_identify, ARRAY_LEN(cli_identify));
 	ast_sip_unregister_cli_formatter(cli_formatter);
 	ast_sip_unregister_endpoint_formatter(&endpoint_identify_formatter);
 	ast_sip_unregister_endpoint_identifier(&ip_identifier);
-
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP IP endpoint identifier",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.reload = reload_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_APP_DEPEND,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "PJSIP IP endpoint identifier");

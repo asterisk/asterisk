@@ -775,7 +775,6 @@ static void *mixmonitor_thread(void *obj)
 
 	mixmonitor_free(mixmonitor);
 
-	ast_module_unref(ast_module_info->self);
 	return NULL;
 }
 
@@ -954,7 +953,13 @@ static int launch_monitor_thread(struct ast_channel *chan, const char *filename,
 	/* reference be released at mixmonitor destruction */
 	mixmonitor->callid = ast_read_threadstorage_callid();
 
-	return ast_pthread_create_detached_background(&thread, NULL, mixmonitor_thread, mixmonitor);
+	if (ast_pthread_create_detached_background(&thread, NULL, mixmonitor_thread, mixmonitor)) {
+		return -1;
+	}
+
+	/* BUGBUG: implement a pthread_create function that holds ref to ast_module_lib. */
+	ast_module_block_unload(AST_MODULE_SELF);
+	return 0;
 }
 
 /* a note on filename_parse: creates directory structure and assigns absolute path from relative paths for filenames */
@@ -1092,21 +1097,17 @@ static int mixmonitor_exec(struct ast_channel *chan, const char *data)
 
 	pbx_builtin_setvar_helper(chan, "MIXMONITOR_FILENAME", args.filename);
 
-	/* If launch_monitor_thread works, the module reference must not be released until it is finished. */
-	ast_module_ref(ast_module_info->self);
-	if (launch_monitor_thread(chan,
-			args.filename,
-			flags.flags,
-			readvol,
-			writevol,
-			args.post_process,
-			filename_write,
-			filename_read,
-			uid_channel_var,
-			recipients,
-			beep_id)) {
-		ast_module_unref(ast_module_info->self);
-	}
+	launch_monitor_thread(chan,
+		args.filename,
+		flags.flags,
+		readvol,
+		writevol,
+		args.post_process,
+		filename_write,
+		filename_read,
+		uid_channel_var,
+		recipients,
+		beep_id);
 
 	return 0;
 }
@@ -1494,25 +1495,9 @@ static int set_mixmonitor_methods(void)
 	return ast_set_mixmonitor_methods(&mixmonitor_methods);
 }
 
-static int clear_mixmonitor_methods(void)
+static void unload_module(void)
 {
-	return ast_clear_mixmonitor_methods();
-}
-
-static int unload_module(void)
-{
-	int res;
-
-	ast_cli_unregister_multiple(cli_mixmonitor, ARRAY_LEN(cli_mixmonitor));
-	res = ast_unregister_application(stop_app);
-	res |= ast_unregister_application(app);
-	res |= ast_manager_unregister("MixMonitorMute");
-	res |= ast_manager_unregister("MixMonitor");
-	res |= ast_manager_unregister("StopMixMonitor");
-	res |= ast_custom_function_unregister(&mixmonitor_function);
-	res |= clear_mixmonitor_methods();
-
-	return res;
+	ast_clear_mixmonitor_methods();
 }
 
 static int load_module(void)

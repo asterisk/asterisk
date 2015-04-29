@@ -31,6 +31,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>app_depend</load_priority>
 	<support_level>core</support_level>
  ***/
 
@@ -1157,7 +1158,7 @@ static void adsi_load(int reload)
 	return;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	adsi_load(1);
 	return 0;
@@ -1199,20 +1200,14 @@ static int load_module(void)
 {
 	adsi_load(0);
 	ast_adsi_install_funcs(&res_adsi_funcs);
+	ast_module_block_unload(AST_MODULE_SELF);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	/* Can't unload this once we're loaded */
+	/* Can only unload at shutdown */
 	ast_adsi_install_funcs(NULL);
-	return -1;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "ADSI Resource",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_APP_DEPEND,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "ADSI Resource");

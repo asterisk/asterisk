@@ -72,7 +72,9 @@
  */
 
 /*** MODULEINFO
-	<depend type="module">res_http_websocket</depend>
+	<load_priority>app_depend</load_priority>
+	<export_globals/>
+	<use type="module">res_http_websocket</use>
 	<support_level>core</support_level>
  ***/
 
@@ -173,7 +175,7 @@ struct ast_json *ast_ari_oom_json(void)
 	return oom_json;
 }
 
-int ast_ari_add_handler(struct stasis_rest_handlers *handler)
+int __ast_ari_add_handler(struct stasis_rest_handlers *handler, struct ast_module *module)
 {
 	RAII_VAR(struct stasis_rest_handlers *, new_handler, NULL, ao2_cleanup);
 	size_t old_size, new_size;
@@ -188,13 +190,13 @@ int ast_ari_add_handler(struct stasis_rest_handlers *handler)
 	if (!new_handler) {
 		return -1;
 	}
+	ast_module_block_unload(module);
 	memcpy(new_handler, root_handler, old_size);
 	new_handler->children[new_handler->num_children++] = handler;
 
 	ao2_cleanup(root_handler);
 	ao2_ref(new_handler, +1);
 	root_handler = new_handler;
-	ast_module_ref(ast_module_info->self);
 	return 0;
 }
 
@@ -217,7 +219,6 @@ int ast_ari_remove_handler(struct stasis_rest_handlers *handler)
 
 	for (i = 0, j = 0; i < root_handler->num_children; ++i) {
 		if (root_handler->children[i] == handler) {
-			ast_module_unref(ast_module_info->self);
 			continue;
 		}
 		new_handler->children[j++] = root_handler->children[i];
@@ -1059,10 +1060,8 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	ast_ari_cli_unregister();
-
 	if (is_enabled()) {
 		ast_debug(3, "Disabling ARI\n");
 		ast_http_uri_unlink(&http_uri);
@@ -1076,8 +1075,6 @@ static int unload_module(void)
 
 	ast_json_unref(oom_json);
 	oom_json = NULL;
-
-	return 0;
 }
 
 static int reload_module(void)
@@ -1099,11 +1096,4 @@ static int reload_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Asterisk RESTful Interface",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload_module,
-	.nonoptreq = "res_http_websocket",
-	.load_pri = AST_MODPRI_APP_DEPEND,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Asterisk RESTful Interface");

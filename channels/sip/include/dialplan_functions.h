@@ -33,9 +33,5 @@ int sip_acf_channel_read(struct ast_channel *chan, const char *funcname, char *p
  * \brief register dialplan function tests
  */
 void sip_dialplan_function_register_tests(void);
-/*!
- * \brief unregister dialplan function tests
- */
-void sip_dialplan_function_unregister_tests(void);
 
 #endif /* !defined(_SIP_DIALPLAN_FUNCTIONS_H) */

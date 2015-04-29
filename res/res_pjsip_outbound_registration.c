@@ -17,8 +17,9 @@
  */
 
 /*** MODULEINFO
+	<load_priority>app_depend</load_priority>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
+	<use type="module">res_pjsip</use>
 	<support_level>core</support_level>
  ***/
 
@@ -1731,27 +1732,19 @@ static const struct ast_sorcery_instance_observer observer_callbacks_registratio
 	.object_type_loaded = registration_loaded_observer,
 };
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_sip_unregister_endpoint_identifier(&line_identifier);
 	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "auth", &observer_callbacks_auth);
 	ast_sorcery_instance_observer_remove(ast_sip_get_sorcery(), &observer_callbacks_registrations);
-	ast_cli_unregister_multiple(cli_outbound_registration, ARRAY_LEN(cli_outbound_registration));
 	ast_sip_unregister_cli_formatter(cli_formatter);
-	ast_manager_unregister("PJSIPShowRegistrationsOutbound");
-	ast_manager_unregister("PJSIPUnregister");
-	ast_manager_unregister("PJSIPRegister");
 
 	ao2_global_obj_release(current_states);
-
-	return 0;
 }
 
 static int load_module(void)
 {
 	struct ao2_container *new_states;
-
-	CHECK_PJSIP_MODULE_LOADED();
 
 	ast_sorcery_apply_config(ast_sip_get_sorcery(), "res_pjsip_outbound_registration");
 	ast_sorcery_apply_default(ast_sip_get_sorcery(), "registration", "config", "pjsip.conf,criteria=type=registration");
@@ -1784,7 +1777,6 @@ static int load_module(void)
 	cli_formatter = ao2_alloc(sizeof(struct ast_sip_cli_formatter_entry), NULL);
 	if (!cli_formatter) {
 		ast_log(LOG_ERROR, "Unable to allocate memory for cli formatter\n");
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	cli_formatter->name = "registration";
@@ -1801,7 +1793,6 @@ static int load_module(void)
 	if (!(new_states = ao2_container_alloc(
 		      DEFAULT_STATE_BUCKETS, registration_state_hash, registration_state_cmp))) {
 		ast_log(LOG_ERROR, "Unable to allocate registration states container\n");
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	ao2_global_obj_replace_unref(current_states, new_states);
@@ -1809,7 +1800,6 @@ static int load_module(void)
 
 	if (ast_sorcery_instance_observer_add(ast_sip_get_sorcery(),
 		&observer_callbacks_registrations)) {
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
@@ -1826,10 +1816,4 @@ static int reload_module(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP Outbound Registration Support",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.reload = reload_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_APP_DEPEND,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "PJSIP Outbound Registration Support");

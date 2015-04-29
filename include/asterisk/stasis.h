@@ -306,8 +306,11 @@ enum stasis_message_type_result {
  * \returns A stasis_message_type_result enum
  * \since 12
  */
-enum stasis_message_type_result stasis_message_type_create(const char *name,
-	struct stasis_message_vtable *vtable, struct stasis_message_type **result);
+#define stasis_message_type_create(name, vtable, result) \
+	__stasis_message_type_create(name, vtable, result, AST_MODULE_SELF)
+enum stasis_message_type_result __stasis_message_type_create(const char *name,
+	struct stasis_message_vtable *vtable, struct stasis_message_type **result,
+	struct ast_module *module);
 
 /*!
  * \brief Gets the name of a given message type

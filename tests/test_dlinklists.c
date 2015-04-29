@@ -352,15 +352,10 @@ static void dll_tests(void)
 	destroy_test_container(tc);
 }
 
-static int unload_module(void)
-{
-	return 0;
-}
-
 static int load_module(void)
 {
 	dll_tests();
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Test Doubly-Linked Lists");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Test Doubly-Linked Lists");

@@ -15,6 +15,7 @@
 *.eo
 *.so
 *.exports
+*.manifest
 *.moduleinfo
 *.makeopts
 *.makedeps

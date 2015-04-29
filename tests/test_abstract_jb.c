@@ -513,23 +513,6 @@ test_put_overflow(AST_JB_FIXED, "fixed", 12)
 
 test_put_out_of_order(AST_JB_FIXED, "fixed", DEFAULT_CONFIG_RESYNC_THRESHOLD)
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(TEST_NAME(AST_JB_ADAPTIVE, create));
-	AST_TEST_UNREGISTER(TEST_NAME(AST_JB_ADAPTIVE, put_first));
-	AST_TEST_UNREGISTER(TEST_NAME(AST_JB_ADAPTIVE, put));
-	AST_TEST_UNREGISTER(TEST_NAME(AST_JB_ADAPTIVE, put_overflow));
-	AST_TEST_UNREGISTER(TEST_NAME(AST_JB_ADAPTIVE, put_out_of_order));
-
-	AST_TEST_UNREGISTER(TEST_NAME(AST_JB_FIXED, create));
-	AST_TEST_UNREGISTER(TEST_NAME(AST_JB_FIXED, put_first));
-	AST_TEST_UNREGISTER(TEST_NAME(AST_JB_FIXED, put));
-	AST_TEST_UNREGISTER(TEST_NAME(AST_JB_FIXED, put_overflow));
-	AST_TEST_UNREGISTER(TEST_NAME(AST_JB_FIXED, put_out_of_order));
-
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(TEST_NAME(AST_JB_ADAPTIVE, create));
@@ -547,4 +530,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Abstract JitterBuffer API Tests");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Abstract JitterBuffer API Tests");

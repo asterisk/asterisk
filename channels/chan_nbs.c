@@ -247,10 +247,8 @@ static struct ast_channel *nbs_request(const char *type, struct ast_format_cap *
 	return tmp;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	/* First, take us out of the channel loop */
-	ast_channel_unregister(&nbs_tech);
 	ao2_ref(nbs_tech.capabilities, -1);
 	nbs_tech.capabilities = NULL;
 	return 0;
@@ -270,5 +268,5 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Network Broadcast Sound Support");
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Network Broadcast Sound Support");
 

@@ -15,31 +15,32 @@ autoload=yes
 ; files are initialized.
 ;
 ; An example of loading ODBC support would be:
-;preload => res_odbc.so
-;preload => res_config_odbc.so
+;preload => res_odbc
+;preload => res_config_odbc
 ;
 ; Uncomment the following if you wish to use the Speech Recognition API
-;preload => res_speech.so
+;preload => res_speech
 ;
 ; If you want Asterisk to fail if a module does not load, then use
 ; the "require" keyword. Asterisk will exit with a status code of 2
 ; if a required module does not load.
 ;
-; require = chan_sip.so
+; require = chan_sip
 ; If you want you can combine with preload
-; preload-require = res_odbc.so
+; preload-require = res_odbc
 ;
-; If you want, load the GTK console right away.
+; neverload puts a module on a ban list, so the module
+; cannot be loaded for any reason at any time.  Can only
+; be removed by changing this config and restarting.
+;neverload=func_shell
 ;
-noload => pbx_gtkconsole.so
-;load => pbx_gtkconsole.so
-;
-load => res_musiconhold.so
+; Load res_musiconhold right away.
+load => res_musiconhold
 ;
 ; Load one of: chan_oss, alsa, or console (portaudio).
 ; By default, load chan_oss only (automatically).
 ;
-noload => chan_alsa.so
-;noload => chan_oss.so
-noload => chan_console.so
+noload => chan_alsa
+;noload => chan_oss
+noload => chan_console
 ;

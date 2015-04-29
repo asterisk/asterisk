@@ -335,18 +335,6 @@ static struct ast_custom_function db_delete_function = {
 	.write = function_db_delete_write,
 };
 
-static int unload_module(void)
-{
-	int res = 0;
-
-	res |= ast_custom_function_unregister(&db_function);
-	res |= ast_custom_function_unregister(&db_exists_function);
-	res |= ast_custom_function_unregister(&db_delete_function);
-	res |= ast_custom_function_unregister(&db_keys_function);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res = 0;
@@ -359,4 +347,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Database (astdb) related dialplan functions");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Database (astdb) related dialplan functions");

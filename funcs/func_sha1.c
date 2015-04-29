@@ -81,14 +81,9 @@ static struct ast_custom_function sha1_function = {
 	.read_max = 42,
 };
 
-static int unload_module(void)
-{
-	return ast_custom_function_unregister(&sha1_function);
-}
-
 static int load_module(void)
 {
 	return ast_custom_function_register(&sha1_function);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "SHA-1 computation dialplan function");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "SHA-1 computation dialplan function");

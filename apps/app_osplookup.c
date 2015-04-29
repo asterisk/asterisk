@@ -3138,30 +3138,16 @@ static int load_module(void)
 	return res;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	int res;
-
-	res = ast_unregister_application(app4);
-	res |= ast_unregister_application(app3);
-	res |= ast_unregister_application(app2);
-	res |= ast_unregister_application(app1);
-	ast_cli_unregister_multiple(cli_osp, sizeof(cli_osp) / sizeof(struct ast_cli_entry));
 	osp_unload();
-
-	return res;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	osp_load(1);
 
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Open Settlement Protocol Applications",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Open Settlement Protocol Applications");

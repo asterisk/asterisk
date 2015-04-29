@@ -165,12 +165,6 @@ static struct ast_custom_function aes_decrypt_function = {
 	.read = aes_helper,
 };
 
-static int unload_module(void)
-{
-	int res = ast_custom_function_unregister(&aes_decrypt_function);
-	return res | ast_custom_function_unregister(&aes_encrypt_function);
-}
-
 static int load_module(void)
 {
 	int res = ast_custom_function_register(&aes_decrypt_function);
@@ -178,9 +172,4 @@ static int load_module(void)
 	return res ? AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "AES dialplan functions",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.nonoptreq = "res_crypto",
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "AES dialplan functions");

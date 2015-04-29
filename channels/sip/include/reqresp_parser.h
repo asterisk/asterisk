@@ -161,11 +161,6 @@ int parse_contact_header(char *contactheader, struct contactliststruct *contactl
 void sip_request_parser_register_tests(void);
 
 /*!
- * \brief unregister request parsing tests
- */
-void sip_request_parser_unregister_tests(void);
-
-/*!
  * \brief Parse supported header in incoming packet
  *
  * \details This function parses through the options parameters and

@@ -282,7 +282,6 @@ struct ast_sched_context;
 /*! Retreive the 'struct ast_module *' for the current module. */
 #define AST_MODULE_SELF AST_MODULE_SELF_SYM()
 
-struct ast_module;
 /* Internal/forward declaration, AST_MODULE_SELF should be used instead. */
 struct ast_module *AST_MODULE_SELF_SYM(void);
 

@@ -193,13 +193,6 @@ struct event_sub_data {
 	unsigned int count;
 };
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(event_new_test);
-
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(event_new_test);
@@ -207,4 +200,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "ast_event API Tests");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "ast_event API Tests");

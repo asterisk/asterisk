@@ -323,16 +323,6 @@ AST_TEST_DEFINE(test_features_channel_interval)
 	return AST_TEST_PASS;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(test_features_channel_dtmf);
-	AST_TEST_UNREGISTER(test_features_channel_interval);
-
-	ast_channel_unregister(&test_features_chan_tech);
-
-	return 0;
-}
-
 static int load_module(void)
 {
 	ast_channel_register(&test_features_chan_tech);
@@ -342,4 +332,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Bridge Features Unit Tests");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Bridge Features Unit Tests");

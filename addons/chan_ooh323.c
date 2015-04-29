@@ -18,6 +18,7 @@
 
 
 /*** MODULEINFO
+	<load_priority>channel_driver</load_priority>
 	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
  ***/
@@ -410,7 +411,8 @@ static struct ast_channel *ooh323_new(struct ooh323_pvt *i, int state,
 		ast_channel_adsicpe_set(ch, AST_ADSI_UNAVAILABLE);
 		ast_channel_tech_pvt_set(ch, i);
 		i->owner = ch;
-		ast_module_ref(myself);
+		/* BUGBUG */
+		ast_module_ref(myself, 0);
 
 		/* Allocate dsp for in-band DTMF support */
 		if ((i->dtmfmode & H323_DTMF_INBAND) || (i->faxdetect & FAXDETECT_CNG)) {
@@ -439,9 +441,6 @@ static struct ast_channel *ooh323_new(struct ooh323_pvt *i, int state,
 		ast_mutex_lock(&usecnt_lock);
 		usecnt++;
 		ast_mutex_unlock(&usecnt_lock);
-
-		/* Notify the module monitors that use count for resource has changed*/
-		ast_update_use_count();
 
 		ast_channel_context_set(ch, i->context);
 		ast_channel_exten_set(ch, i->exten);
@@ -1081,6 +1080,7 @@ static int ooh323_hangup(struct ast_channel *ast)
 		if (p->owner) {
 			ast_channel_tech_pvt_set(p->owner, NULL);
 			p->owner = NULL;
+			/* BUGBUG */
 			ast_module_unref(myself);
 		}
 
@@ -1089,9 +1089,6 @@ static int ooh323_hangup(struct ast_channel *ast)
 		usecnt--;
 		ast_mutex_unlock(&usecnt_lock);
 
-		/* Notify the module monitors that use count for resource has changed */
-		ast_update_use_count();
-	  
 	} else {
 		ast_debug(1, "No call to hangup\n" );
 	}
@@ -2226,6 +2223,7 @@ int onCallCleared(ooCallData *call)
     		ast_channel_tech_pvt_set(p->owner, NULL);
 		ast_channel_unlock(p->owner);
     		p->owner = NULL;
+		/* BUGBUG */
 		ast_module_unref(myself);
 	}
 
@@ -3760,7 +3758,7 @@ static int load_module(void)
 	ast_format_cap_append(gCap, ast_format_ulaw, 0);
 	ast_format_cap_append_by_type(ooh323_tech.capabilities, AST_MEDIA_TYPE_UNKNOWN);
 
-	myself = ast_module_info->self;
+	myself = AST_MODULE_SELF;
 
 	h225Callbacks.onReceivedSetup = &ooh323_onReceivedSetup;
 
@@ -4134,6 +4132,7 @@ int ooh323_destroy(struct ooh323_pvt *p)
 			ast_channel_tech_pvt_set(cur->owner, NULL);
 			ast_channel_unlock(cur->owner);
 			cur->owner = NULL;
+			/* BUGBUG */
 			ast_module_unref(myself);
 		}
   
@@ -4238,7 +4237,7 @@ int delete_users()
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	struct ooh323_pvt *p;
 	struct ooAliases *cur = NULL, *prev = NULL;
@@ -4246,10 +4245,6 @@ static int unload_module(void)
 	if (gH323Debug) {
 		ast_verb(0, "--- ooh323  unload_module \n");
 	}
-	/* First, take us out of the channel loop */
-	ast_cli_unregister_multiple(cli_ooh323, sizeof(cli_ooh323) / sizeof(struct ast_cli_entry));
-	ast_rtp_glue_unregister(&ooh323_rtp);
-	ast_channel_unregister(&ooh323_tech);
 #if 0
 	ast_unregister_atexit(&ast_ooh323c_exit);
 #endif
@@ -4270,7 +4265,8 @@ static int unload_module(void)
 		ast_mutex_unlock(&iflock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the interface list\n");
-		return -1;
+		ast_module_block_unload(AST_MODULE_SELF);
+		return;
 	}
 
 
@@ -4288,7 +4284,8 @@ static int unload_module(void)
 			ast_mutex_unlock(&monlock);
 		} else {
 			ast_log(LOG_WARNING, "Unable to lock the monitor\n");
-			return -1;
+			ast_module_block_unload(AST_MODULE_SELF);
+			return;
 		}
 	}
 
@@ -4317,7 +4314,8 @@ static int unload_module(void)
 		ast_mutex_unlock(&iflock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the interface list\n");
-		return -1;
+		ast_module_block_unload(AST_MODULE_SELF);
+		return;
 	}
  
 
@@ -4359,7 +4357,6 @@ static int unload_module(void)
 	gCap = NULL;
 	ao2_ref(ooh323_tech.capabilities, -1);
 	ooh323_tech.capabilities = NULL;
-	return 0;
 }
 
 static void ooh323_get_codec(struct ast_channel *chan, struct ast_format_cap *result)
@@ -5187,10 +5184,4 @@ void ast_ooh323c_exit()
 }
 #endif
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Objective Systems H323 Channel",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DRIVER
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Objective Systems H323 Channel");

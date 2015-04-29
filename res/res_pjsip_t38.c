@@ -24,9 +24,10 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_driver</load_priority>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
-	<depend>res_pjsip_session</depend>
+	<use type="module">res_pjsip</use>
+	<use type="module">res_pjsip_session</use>
 	<support_level>core</support_level>
  ***/
 
@@ -864,12 +865,10 @@ static struct ast_sip_session_sdp_handler image_sdp_handler = {
 };
 
 /*! \brief Unloads the SIP T.38 module from Asterisk */
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_sip_session_unregister_sdp_handler(&image_sdp_handler, "image");
 	ast_sip_session_unregister_supplement(&t38_supplement);
-
-	return 0;
 }
 
 /*!
@@ -884,31 +883,20 @@ static int unload_module(void)
  */
 static int load_module(void)
 {
-	CHECK_PJSIP_SESSION_MODULE_LOADED();
-
 	ast_sockaddr_parse(&address_ipv4, "0.0.0.0", 0);
 	ast_sockaddr_parse(&address_ipv6, "::", 0);
 
 	if (ast_sip_session_register_supplement(&t38_supplement)) {
 		ast_log(LOG_ERROR, "Unable to register T.38 session supplement\n");
-		goto end;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (ast_sip_session_register_sdp_handler(&image_sdp_handler, "image")) {
 		ast_log(LOG_ERROR, "Unable to register SDP handler for image stream type\n");
-		goto end;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
-end:
-	unload_module();
-
-	return AST_MODULE_LOAD_FAILURE;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP T.38 UDPTL Support",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DRIVER,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "PJSIP T.38 UDPTL Support");

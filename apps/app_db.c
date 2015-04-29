@@ -148,16 +148,6 @@ static int del_exec(struct ast_channel *chan, const char *data)
 	return 0;
 }
 
-static int unload_module(void)
-{
-	int retval;
-
-	retval = ast_unregister_application(dt_app);
-	retval |= ast_unregister_application(d_app);
-
-	return retval;
-}
-
 static int load_module(void)
 {
 	int retval;
@@ -168,4 +158,4 @@ static int load_module(void)
 	return retval;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Database Access Functions");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Database Access Functions");

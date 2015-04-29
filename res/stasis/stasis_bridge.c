@@ -67,13 +67,12 @@ static void bridge_stasis_run_cb(struct ast_channel *chan, void *data)
 		return;
 	}
 
-	if (ast_check_hangup_locked(chan)) {
-		/* channel hungup, don't run Stasis() */
-		return;
+	/* don't run Stasis() if the channel hungup */
+	if (!ast_check_hangup_locked(chan)) {
+		pbx_exec(chan, app_stasis, app_name);
 	}
 
-	/* run Stasis() */
-	pbx_exec(chan, app_stasis, app_name);
+	ao2_ref(app_stasis, -1);
 }
 
 static int add_channel_to_bridge(

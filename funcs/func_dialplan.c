@@ -25,6 +25,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>app_depend</load_priority>
 	<support_level>core</support_level>
  ***/
 
@@ -179,13 +180,6 @@ static struct ast_custom_function acf_isexten = {
 	.read = acf_isexten_exec,
 };
 
-static int unload_module(void)
-{
-	int res = ast_custom_function_unregister(&isexten_function);
-	res |= ast_custom_function_unregister(&acf_isexten);
-	return res;
-}
-
 static int load_module(void)
 {
 	int res = ast_custom_function_register(&isexten_function);
@@ -193,9 +187,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Dialplan Context/Extension/Priority Checking Functions",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_APP_DEPEND,
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Dialplan Context/Extension/Priority Checking Functions");

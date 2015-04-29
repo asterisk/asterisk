@@ -1,6 +1,7 @@
 {
 	global:
 		LINKER_SYMBOL_PREFIXast_sip_*;
+		LINKER_SYMBOL_PREFIX__ast_sip_*;
 		LINKER_SYMBOL_PREFIXast_copy_pj_str;
 		LINKER_SYMBOL_PREFIXast_pjsip_rdata_get_endpoint;
 	local:

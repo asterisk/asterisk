@@ -29,7 +29,7 @@
 /*** MODULEINFO
 	<support_level>core</support_level>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
+	<use type="module">res_pjsip</use>
  ***/
 
 #include "asterisk.h"
@@ -190,14 +190,9 @@ static struct ast_custom_function pjsip_contact_function = {
 	.read2 = pjsip_contact_function_read,
 };
 
-static int unload_module(void)
-{
-	return ast_custom_function_unregister(&pjsip_contact_function);
-}
-
 static int load_module(void)
 {
 	return ast_custom_function_register(&pjsip_contact_function);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Get information about a PJSIP contact");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Get information about a PJSIP contact");

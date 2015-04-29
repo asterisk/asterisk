@@ -161,7 +161,7 @@ static struct ast_channel *record_request(const char *type, struct ast_format_ca
 	return media_request_helper(cap, assignedids, requestor, data, &record_tech, "recorder");
 }
 
-static void cleanup_capabilities(void)
+static void unload_module(void)
 {
 	if (announce_tech.capabilities) {
 		ao2_ref(announce_tech.capabilities, -1);
@@ -174,24 +174,16 @@ static void cleanup_capabilities(void)
 	}
 }
 
-static int unload_module(void)
-{
-	ast_channel_unregister(&announce_tech);
-	ast_channel_unregister(&record_tech);
-	cleanup_capabilities();
-	return 0;
-}
-
 static int load_module(void)
 {
 	announce_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!announce_tech.capabilities) {
-		return AST_MODULE_LOAD_DECLINE;
+		return -1;
 	}
 
 	record_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!record_tech.capabilities) {
-		return AST_MODULE_LOAD_DECLINE;
+		return -1;
 	}
 
 	ast_format_cap_append_by_type(announce_tech.capabilities, AST_MEDIA_TYPE_UNKNOWN);
@@ -200,22 +192,16 @@ static int load_module(void)
 	if (ast_channel_register(&announce_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel technology %s(%s).\n",
 			announce_tech.type, announce_tech.description);
-		cleanup_capabilities();
-		return AST_MODULE_LOAD_DECLINE;
+		return -1;
 	}
 
 	if (ast_channel_register(&record_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel technology %s(%s).\n",
 			record_tech.type, record_tech.description);
-		cleanup_capabilities();
-		return AST_MODULE_LOAD_DECLINE;
+		return -1;
 	}
 
-	return AST_MODULE_LOAD_SUCCESS;
+	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Bridge Media Channel Driver",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Bridge Media Channel Driver");

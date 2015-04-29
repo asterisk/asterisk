@@ -23,6 +23,11 @@
  * \author David M. Lee, II <dlee@digium.com>
  */
 
+/*** MODULEINFO
+	<use type="module">res_http_websocket</use>
+	<support_level>core</support_level>
+ ***/
+
 #include "asterisk.h"
 
 ASTERISK_REGISTER_FILE()

@@ -196,18 +196,28 @@ static void bridge_manager_service_req(struct ast_bridge *bridge)
 	ao2_unlock(bridge_manager);
 }
 
+static void module_bridge_technology_unregister(void *weakproxy, void *data)
+{
+	ast_bridge_technology_unregister(data);
+}
+
 int __ast_bridge_technology_register(struct ast_bridge_technology *technology, struct ast_module *module)
 {
 	struct ast_bridge_technology *current;
+	struct ast_module_lib *lib;
 
 	/* Perform a sanity check to make sure the bridge technology conforms to our needed requirements */
-	if (ast_strlen_zero(technology->name)
+	if (!module
+		|| ast_strlen_zero(technology->name)
 		|| !technology->capabilities
 		|| !technology->write) {
 		ast_log(LOG_WARNING, "Bridge technology %s failed registration sanity check.\n",
 			technology->name);
 		return -1;
 	}
+
+	lib = ast_module_get_lib_running(module);
+	ast_assert(!!lib);
 
 	AST_RWLIST_WRLOCK(&bridge_technologies);
 
@@ -217,12 +227,13 @@ int __ast_bridge_technology_register(struct ast_bridge_technology *technology, s
 			ast_log(LOG_WARNING, "A bridge technology of %s already claims to exist in our world.\n",
 				technology->name);
 			AST_RWLIST_UNLOCK(&bridge_technologies);
+			ao2_ref(lib, -1);
 			return -1;
 		}
 	}
 
 	/* Copy module pointer so reference counting can keep the module from unloading */
-	technology->mod = module;
+	technology->lib = lib;
 
 	/* Insert our new bridge technology into the list and print out a pretty message */
 	AST_RWLIST_INSERT_TAIL(&bridge_technologies, technology, entry);
@@ -230,6 +241,7 @@ int __ast_bridge_technology_register(struct ast_bridge_technology *technology, s
 	AST_RWLIST_UNLOCK(&bridge_technologies);
 
 	ast_verb(2, "Registered bridge technology %s\n", technology->name);
+	ast_module_lib_subscribe_stop(lib, module_bridge_technology_unregister, technology);
 
 	return 0;
 }
@@ -252,6 +264,10 @@ int ast_bridge_technology_unregister(struct ast_bridge_technology *technology)
 
 	AST_RWLIST_UNLOCK(&bridge_technologies);
 
+	if (current) {
+		ast_module_lib_unsubscribe_stop(technology->lib, module_bridge_technology_unregister, current);
+		ao2_ref(technology->lib, -1);
+	}
 	return current ? 0 : -1;
 }
 
@@ -468,7 +484,11 @@ static void bridge_complete_join(struct ast_bridge *bridge)
 static struct ast_bridge_technology *find_best_technology(uint32_t capabilities, struct ast_bridge *bridge)
 {
 	struct ast_bridge_technology *current;
-	struct ast_bridge_technology *best = NULL;
+	struct ast_bridge_technology *best;
+	int retry = 0;
+
+doretry:
+	best = NULL;
 
 	AST_RWLIST_RDLOCK(&bridge_technologies);
 	AST_RWLIST_TRAVERSE(&bridge_technologies, current, entry) {
@@ -497,8 +517,19 @@ static struct ast_bridge_technology *find_best_technology(uint32_t capabilities,
 
 	if (best) {
 		/* Increment it's module reference count if present so it does not get unloaded while in use */
-		ast_module_ref(best->mod);
-		ast_debug(1, "Chose bridge technology %s\n", best->name);
+		if (ast_module_lib_ref_instance(best->lib, +1) > 0) {
+			ast_debug(1, "Chose bridge technology %s\n", best->name);
+		} else {
+			if (!retry) {
+				/* If the module became unavailable the bridge technology was likely
+				 * unregistered while we waited on the lock for best->lib.  Rescanning
+				 * the list should find the 'second best' if it exists. */
+				retry++;
+				goto doretry;
+			}
+			ast_log(LOG_WARNING, "Chose bridge technology %s but it is not available", best->name);
+			best = NULL;
+		}
 	}
 
 	AST_RWLIST_UNLOCK(&bridge_technologies);
@@ -537,7 +568,7 @@ static void bridge_tech_deferred_destroy(struct ast_bridge *bridge, struct ast_f
 	ast_debug(1, "Bridge %s: calling %s technology destructor (deferred, dummy)\n",
 		dummy_bridge.uniqueid, dummy_bridge.technology->name);
 	dummy_bridge.technology->destroy(&dummy_bridge);
-	ast_module_unref(dummy_bridge.technology->mod);
+	ast_module_lib_ref_instance(dummy_bridge.technology->lib, -1);
 }
 
 /*!
@@ -630,6 +661,13 @@ static void destroy_bridge(void *obj)
 {
 	struct ast_bridge *bridge = obj;
 
+	if (!bridge->v_table) {
+		ao2_cleanup(bridge->instance);
+
+		/* Initialization never completed */
+		return;
+	}
+
 	ast_debug(1, "Bridge %s: actually destroying %s bridge, nobody wants it anymore\n",
 		bridge->uniqueid, bridge->v_table->name);
 
@@ -673,7 +711,7 @@ static void destroy_bridge(void *obj)
 		if (bridge->technology->destroy) {
 			bridge->technology->destroy(bridge);
 		}
-		ast_module_unref(bridge->technology->mod);
+		ast_module_lib_ref_instance(bridge->technology->lib, -1);
 		bridge->technology = NULL;
 	}
 
@@ -684,6 +722,7 @@ static void destroy_bridge(void *obj)
 	stasis_cp_single_unsubscribe(bridge->topics);
 
 	ast_string_field_free_memory(bridge);
+	ao2_cleanup(bridge->instance);
 }
 
 struct ast_bridge *bridge_register(struct ast_bridge *bridge)
@@ -701,9 +740,18 @@ struct ast_bridge *bridge_register(struct ast_bridge *bridge)
 	return bridge;
 }
 
-struct ast_bridge *bridge_alloc(size_t size, const struct ast_bridge_methods *v_table)
+struct ast_bridge *__bridge_alloc(size_t size, const struct ast_bridge_methods *v_table,
+	struct ast_module *module)
 {
 	struct ast_bridge *bridge;
+	struct ast_module_instance *instance = NULL;
+
+	if (module) {
+		instance = ast_module_get_instance(module);
+		if (!instance) {
+			return NULL;
+		}
+	}
 
 	/* Check v_table that all methods are present. */
 	if (!v_table
@@ -717,13 +765,17 @@ struct ast_bridge *bridge_alloc(size_t size, const struct ast_bridge_methods *v_
 		ast_log(LOG_ERROR, "Virtual method table for bridge class %s not complete.\n",
 			v_table && v_table->name ? v_table->name : "<unknown>");
 		ast_assert(0);
+		ao2_cleanup(instance);
 		return NULL;
 	}
 
 	bridge = ao2_alloc(size, destroy_bridge);
 	if (!bridge) {
+		ao2_cleanup(instance);
 		return NULL;
 	}
+
+	bridge->instance = instance;
 
 	if (ast_string_field_init(bridge, 80)) {
 		ao2_cleanup(bridge);
@@ -1028,7 +1080,7 @@ static int smart_bridge_operation(struct ast_bridge *bridge)
 	if (new_technology == old_technology) {
 		ast_debug(1, "Bridge %s is already using the new technology.\n",
 			bridge->uniqueid);
-		ast_module_unref(old_technology->mod);
+		ast_module_lib_ref_instance(old_technology->lib, -1);
 		return 0;
 	}
 
@@ -1050,7 +1102,7 @@ static int smart_bridge_operation(struct ast_bridge *bridge)
 		 */
 		deferred_action = ast_frdup(&action);
 		if (!deferred_action) {
-			ast_module_unref(new_technology->mod);
+			ast_module_lib_ref_instance(new_technology->lib, -1);
 			return -1;
 		}
 	} else {
@@ -1082,7 +1134,7 @@ static int smart_bridge_operation(struct ast_bridge *bridge)
 			bridge->uniqueid, new_technology->name);
 		bridge->tech_pvt = dummy_bridge.tech_pvt;
 		bridge->technology = dummy_bridge.technology;
-		ast_module_unref(new_technology->mod);
+		ast_module_lib_ref_instance(new_technology->lib, -1);
 		return -1;
 	}
 
@@ -1157,7 +1209,7 @@ static int smart_bridge_operation(struct ast_bridge *bridge)
 	} else {
 		ast_debug(1, "Bridge %s: calling %s technology destructor\n",
 			dummy_bridge.uniqueid, old_technology->name);
-		ast_module_unref(old_technology->mod);
+		ast_module_lib_ref_instance(old_technology->lib, -1);
 	}
 
 	return 0;

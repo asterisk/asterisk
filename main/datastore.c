@@ -30,10 +30,12 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/_private.h"
 
 #include "asterisk/datastore.h"
+#include "asterisk/module.h"
 #include "asterisk/utils.h"
 
-struct ast_datastore *__ast_datastore_alloc(const struct ast_datastore_info *info, const char *uid,
-					    const char *file, int line, const char *function)
+struct ast_datastore *__ast_datastore_alloc(
+	const struct ast_datastore_info *info, const char *uid, struct ast_module *module,
+	const char *file, int line, const char *function)
 {
 	struct ast_datastore *datastore = NULL;
 
@@ -52,12 +54,20 @@ struct ast_datastore *__ast_datastore_alloc(const struct ast_datastore_info *inf
 	}
 #endif
 
-	datastore->info = info;
-
 	if (!ast_strlen_zero(uid) && !(datastore->uid = ast_strdup(uid))) {
 		ast_free(datastore);
-		datastore = NULL;
+		return NULL;
 	}
+
+	if (module) {
+		datastore->instance = ast_module_get_instance(module);
+		if (!datastore->instance) {
+			ast_free((void *) datastore->uid);
+			ast_free(datastore);
+			return NULL;
+		}
+	}
+	datastore->info = info;
 
 	return datastore;
 }
@@ -77,6 +87,8 @@ int ast_datastore_free(struct ast_datastore *datastore)
 		ast_free((void *) datastore->uid);
 		datastore->uid = NULL;
 	}
+
+	ao2_cleanup(datastore->instance);
 
 	/* Finally free memory used by ourselves */
 	ast_free(datastore);

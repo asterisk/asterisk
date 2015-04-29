@@ -144,16 +144,10 @@ static struct ast_custom_function base64_decode_function = {
 	.read2 = base64_str_helper,
 };
 
-static int unload_module(void)
-{
-	return ast_custom_function_unregister(&base64_encode_function) |
-		ast_custom_function_unregister(&base64_decode_function);
-}
-
 static int load_module(void)
 {
 	return ast_custom_function_register(&base64_encode_function) |
 		ast_custom_function_register(&base64_decode_function);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "base64 encode/decode dialplan functions");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "base64 encode/decode dialplan functions");

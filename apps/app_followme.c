@@ -1538,11 +1538,9 @@ outrun:
 	return res;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	struct call_followme *f;
-
-	ast_unregister_application(app);
 
 	/* Free Memory. Yeah! I'm free! */
 	AST_RWLIST_WRLOCK(&followmes);
@@ -1552,8 +1550,6 @@ static int unload_module(void)
 	}
 
 	AST_RWLIST_UNLOCK(&followmes);
-
-	return 0;
 }
 
 /*!
@@ -1574,16 +1570,11 @@ static int load_module(void)
 	return ast_register_application_xml(app, app_exec);
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	reload_followme(1);
 
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Find-Me/Follow-Me Application",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Find-Me/Follow-Me Application");

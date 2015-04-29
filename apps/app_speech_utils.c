@@ -27,7 +27,7 @@
 
 /*** MODULEINFO
 	<support_level>core</support_level>
-	<depend>res_speech</depend>
+	<use type="module">res_speech</use>
  ***/
 
 #include "asterisk.h"
@@ -955,29 +955,6 @@ static int speech_destroy(struct ast_channel *chan, const char *data)
 	return speech_datastore_destroy(chan);
 }
 
-static int unload_module(void)
-{
-	int res = 0;
-
-	res = ast_unregister_application("SpeechCreate");
-	res |= ast_unregister_application("SpeechLoadGrammar");
-	res |= ast_unregister_application("SpeechUnloadGrammar");
-	res |= ast_unregister_application("SpeechActivateGrammar");
-	res |= ast_unregister_application("SpeechDeactivateGrammar");
-	res |= ast_unregister_application("SpeechStart");
-	res |= ast_unregister_application("SpeechBackground");
-	res |= ast_unregister_application("SpeechDestroy");
-	res |= ast_unregister_application("SpeechProcessingSound");
-	res |= ast_custom_function_unregister(&speech_function);
-	res |= ast_custom_function_unregister(&speech_score_function);
-	res |= ast_custom_function_unregister(&speech_text_function);
-	res |= ast_custom_function_unregister(&speech_grammar_function);
-	res |= ast_custom_function_unregister(&speech_engine_function);
-	res |= ast_custom_function_unregister(&speech_results_type_function);
-
-	return res;	
-}
-
 static int load_module(void)
 {
 	int res = 0;
@@ -1001,9 +978,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Dialplan Speech Applications",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.nonoptreq = "res_speech",
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Dialplan Speech Applications");

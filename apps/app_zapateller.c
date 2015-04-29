@@ -127,15 +127,9 @@ static int zapateller_exec(struct ast_channel *chan, const char *data)
 	return res;
 }
 
-static int unload_module(void)
-{
-	return ast_unregister_application(app);
-}
-
 static int load_module(void)
 {
 	return ((ast_register_application_xml(app, zapateller_exec)) ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS);
 }
 
-AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Block Telemarketers with Special Information Tone");
-
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Block Telemarketers with Special Information Tone");

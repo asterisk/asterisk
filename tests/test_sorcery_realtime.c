@@ -856,25 +856,6 @@ AST_TEST_DEFINE(object_filter)
 	return AST_TEST_PASS;
 }
 
-static int unload_module(void)
-{
-	ast_config_engine_deregister(&sorcery_config_engine);
-	AST_TEST_UNREGISTER(object_create);
-	AST_TEST_UNREGISTER(object_retrieve_id);
-	AST_TEST_UNREGISTER(object_retrieve_field);
-	AST_TEST_UNREGISTER(object_retrieve_multiple_all);
-	AST_TEST_UNREGISTER(object_retrieve_multiple_field);
-	AST_TEST_UNREGISTER(object_retrieve_regex);
-	AST_TEST_UNREGISTER(object_update);
-	AST_TEST_UNREGISTER(object_update_uncreated);
-	AST_TEST_UNREGISTER(object_delete);
-	AST_TEST_UNREGISTER(object_delete_uncreated);
-	AST_TEST_UNREGISTER(object_allocate_on_retrieval);
-	AST_TEST_UNREGISTER(object_filter);
-
-	return 0;
-}
-
 static int load_module(void)
 {
 	ast_config_engine_register(&sorcery_config_engine);
@@ -895,4 +876,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Sorcery Realtime Wizard test module");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Sorcery Realtime Wizard test module");

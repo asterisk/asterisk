@@ -41,6 +41,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>realtime_driver</load_priority>
 	<depend>ldap</depend>
 	<support_level>extended</support_level>
  ***/
@@ -1632,7 +1633,7 @@ static int load_module(void)
 /*! \brief Unload Module
  *
  */
-static int unload_module(void)
+static void unload_module(void)
 {
 	/* Aquire control before doing anything to the module itself. */
 	ast_mutex_lock(&ldap_lock);
@@ -1643,19 +1644,15 @@ static int unload_module(void)
 		ldap_unbind_ext_s(ldapConn, NULL, NULL);
 		ldapConn = NULL;
 	}
-	ast_cli_unregister_multiple(ldap_cli, ARRAY_LEN(ldap_cli));
-	ast_config_engine_deregister(&ldap_engine);
 	ast_verb(1, "LDAP RealTime driver unloaded.\n");
 
 	/* Unlock so something else can destroy the lock. */
 	ast_mutex_unlock(&ldap_lock);
-
-	return 0;
 }
 
 /*! \breif Relod Module
  */
-static int reload(void)
+static int reload_module(void)
 {
 	/* Aquire control before doing anything to the module itself. */
 	ast_mutex_lock(&ldap_lock);
@@ -1886,10 +1883,4 @@ static char *realtime_ldap_status(struct ast_cli_entry *e, int cmd, struct ast_c
 /*! \brief Module Information
  *
  */
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "LDAP realtime interface",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_REALTIME_DRIVER,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "LDAP realtime interface");

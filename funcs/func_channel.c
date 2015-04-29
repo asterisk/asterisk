@@ -909,17 +909,6 @@ static struct ast_custom_function mchan_function = {
 	.write = func_mchan_write,
 };
 
-static int unload_module(void)
-{
-	int res = 0;
-
-	res |= ast_custom_function_unregister(&channel_function);
-	res |= ast_custom_function_unregister(&channels_function);
-	res |= ast_custom_function_unregister(&mchan_function);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res = 0;
@@ -931,4 +920,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Channel information dialplan functions");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Channel information dialplan functions");

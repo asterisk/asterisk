@@ -168,13 +168,6 @@ AST_TEST_DEFINE(test_provide_last)
 	return res;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(test_provide_first);
-	AST_TEST_UNREGISTER(test_provide_last);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(test_provide_first);
@@ -182,7 +175,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "ARI testing",
-	.load = load_module,
-	.unload = unload_module,
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "ARI testing");

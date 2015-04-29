@@ -26,7 +26,7 @@
 
 /*** MODULEINFO
 	<depend>TEST_FRAMEWORK</depend>
-	<depend>res_ari</depend>
+	<use type="module">res_ari</use>
 	<support_level>core</support_level>
  ***/
 
@@ -534,21 +534,6 @@ AST_TEST_DEFINE(invoke_not_found)
 	return AST_TEST_PASS;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(get_docs);
-	AST_TEST_UNREGISTER(get_docs_nohost);
-	AST_TEST_UNREGISTER(get_docs_notfound);
-	AST_TEST_UNREGISTER(get_docs_hackerz);
-	AST_TEST_UNREGISTER(invoke_get);
-	AST_TEST_UNREGISTER(invoke_wildcard);
-	AST_TEST_UNREGISTER(invoke_delete);
-	AST_TEST_UNREGISTER(invoke_post);
-	AST_TEST_UNREGISTER(invoke_bad_post);
-	AST_TEST_UNREGISTER(invoke_not_found);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(get_docs);
@@ -564,8 +549,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "ARI testing",
-	.load = load_module,
-	.unload = unload_module,
-	.nonoptreq = "res_ari",
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "ARI testing");

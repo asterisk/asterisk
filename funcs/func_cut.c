@@ -316,16 +316,6 @@ static struct ast_custom_function acf_cut = {
 	.read2 = acf_cut_exec2,
 };
 
-static int unload_module(void)
-{
-	int res = 0;
-
-	res |= ast_custom_function_unregister(&acf_cut);
-	res |= ast_custom_function_unregister(&acf_sort);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res = 0;
@@ -336,4 +326,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Cut out information from a string");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Cut out information from a string");

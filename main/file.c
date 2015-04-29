@@ -122,6 +122,13 @@ static int publish_format_update(const struct ast_format_def *f, struct stasis_m
 	return 0;
 }
 
+static void module_format_unregister(void *weakproxy, void *data)
+{
+	struct ast_format_def *tmp = data;
+
+	ast_format_def_unregister(tmp->name);
+}
+
 int __ast_format_def_register(const struct ast_format_def *f, struct ast_module *mod)
 {
 	struct ast_format_def *tmp;
@@ -139,7 +146,10 @@ int __ast_format_def_register(const struct ast_format_def *f, struct ast_module 
 		return -1;
 	}
 	*tmp = *f;
-	tmp->module = mod;
+
+	tmp->lib = ast_module_get_lib_running(mod);
+	ast_assert(!!tmp->lib);
+
 	if (tmp->buf_size) {
 		/*
 		 * Align buf_size properly, rounding up to the machine-specific
@@ -155,6 +165,10 @@ int __ast_format_def_register(const struct ast_format_def *f, struct ast_module 
 	AST_RWLIST_INSERT_HEAD(&formats, tmp, list);
 	AST_RWLIST_UNLOCK(&formats);
 	ast_verb(2, "Registered file format %s, extension(s) %s\n", f->name, f->exts);
+
+	if (tmp->lib) {
+		ast_module_lib_subscribe_stop(tmp->lib, module_format_unregister, tmp);
+	}
 	publish_format_update(f, ast_format_register_type());
 
 	return 0;
@@ -163,26 +177,31 @@ int __ast_format_def_register(const struct ast_format_def *f, struct ast_module 
 int ast_format_def_unregister(const char *name)
 {
 	struct ast_format_def *tmp;
-	int res = -1;
 
 	AST_RWLIST_WRLOCK(&formats);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&formats, tmp, list) {
 		if (!strcasecmp(name, tmp->name)) {
 			AST_RWLIST_REMOVE_CURRENT(list);
-			publish_format_update(tmp, ast_format_unregister_type());
-			ast_free(tmp);
-			res = 0;
+			ast_verb(2, "Unregistered format %s\n", name);
+			break;
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&formats);
 
-	if (!res)
-		ast_verb(2, "Unregistered format %s\n", name);
-	else
-		ast_log(LOG_WARNING, "Tried to unregister format %s, already unregistered\n", name);
+	if (!tmp) {
+		return -1;
+	}
 
-	return res;
+	if (tmp->lib) {
+		ast_module_lib_unsubscribe_stop(tmp->lib, module_format_unregister, tmp);
+		ao2_ref(tmp->lib, -1);
+		tmp->lib = NULL;
+	}
+	publish_format_update(tmp, ast_format_unregister_type());
+	ast_free(tmp);
+
+	return 0;
 }
 
 int ast_stopstream(struct ast_channel *tmp)
@@ -420,17 +439,22 @@ static void filestream_destructor(void *arg)
 	ast_free((void *)f->orig_chan_name);
 	ao2_cleanup(f->lastwriteformat);
 	ao2_cleanup(f->fr.subclass.format);
-	ast_module_unref(f->fmt->module);
+	ast_module_lib_ref_instance(f->fmt->lib, -1);
 }
 
 static struct ast_filestream *get_filestream(struct ast_format_def *fmt, FILE *bfile)
 {
 	struct ast_filestream *s;
-
 	int l = sizeof(*s) + fmt->buf_size + fmt->desc_size;	/* total allocation size */
-	if ( (s = ao2_alloc(l, filestream_destructor)) == NULL)
+
+	if (ast_module_lib_ref_instance(fmt->lib, +1) <= 0) {
 		return NULL;
-	ast_module_ref(fmt->module);
+	}
+
+	s = ao2_alloc(l, filestream_destructor);
+	if (s == NULL) {
+		return NULL;
+	}
 	s->fmt = fmt;
 	s->f = bfile;
 

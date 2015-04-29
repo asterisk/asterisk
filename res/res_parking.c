@@ -24,7 +24,7 @@
  */
 
 /*** MODULEINFO
-	<depend>bridge_holding</depend>
+	<use type="module">bridge_holding</use>
 	<support_level>core</support_level>
  ***/
 
@@ -1159,21 +1159,15 @@ static void link_configured_disable_marked_lots(void)
 	disable_marked_lots();
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	unload_parking_bridge_features();
 	remove_all_configured_parking_lot_extensions();
-	unload_parking_applications();
 	unload_parking_manager();
-	unload_parking_ui();
-	unload_parking_devstate();
-	unload_parking_tests();
 	ao2_cleanup(parking_lot_container);
 	parking_lot_container = NULL;
 	aco_info_destroy(&cfg_info);
 	ao2_global_obj_release(globals);
-
-	return 0;
 }
 
 static int load_module(void)
@@ -1183,11 +1177,11 @@ static int load_module(void)
 		parking_lot_sort_fn,
 		NULL);
 	if (!parking_lot_container) {
-		goto error;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (aco_info_init(&cfg_info)) {
-		goto error;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	/* Global options */
@@ -1215,38 +1209,34 @@ static int load_module(void)
 	aco_option_register_custom(&cfg_info, "parkedcallrecording", ACO_EXACT, parking_lot_types, "no", option_handler_parkedfeature, OPT_PARKEDRECORDING);
 
 	if (aco_process_config(&cfg_info, 0) == ACO_PROCESS_ERROR) {
-		goto error;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (load_parking_applications()) {
-		goto error;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (load_parking_ui()) {
-		goto error;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (load_parking_manager()) {
-		goto error;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (load_parking_bridge_features()) {
-		goto error;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (load_parking_devstate()) {
-		goto error;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (load_parking_tests()) {
-		goto error;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
-
-error:
-	unload_module();
-	return AST_MODULE_LOAD_DECLINE;
 }
 
 static int reload_module(void)
@@ -1258,9 +1248,4 @@ static int reload_module(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Call Parking Resource",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload_module,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Call Parking Resource");

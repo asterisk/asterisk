@@ -25,9 +25,10 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_driver</load_priority>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
-	<depend>res_pjsip_session</depend>
+	<use type="module">res_pjsip</use>
+	<use type="module">res_pjsip_session</use>
 	<support_level>core</support_level>
  ***/
 
@@ -1307,7 +1308,7 @@ static struct ast_sip_session_supplement video_info_supplement = {
 };
 
 /*! \brief Unloads the sdp RTP/AVP module from Asterisk */
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_sip_session_unregister_supplement(&video_info_supplement);
 	ast_sip_session_unregister_sdp_handler(&video_sdp_handler, STR_VIDEO);
@@ -1316,8 +1317,6 @@ static int unload_module(void)
 	if (sched) {
 		ast_sched_context_destroy(sched);
 	}
-
-	return 0;
 }
 
 /*!
@@ -1332,43 +1331,32 @@ static int unload_module(void)
  */
 static int load_module(void)
 {
-	CHECK_PJSIP_SESSION_MODULE_LOADED();
-
 	ast_sockaddr_parse(&address_ipv4, "0.0.0.0", 0);
 	ast_sockaddr_parse(&address_ipv6, "::", 0);
 
 	if (!(sched = ast_sched_context_create())) {
 		ast_log(LOG_ERROR, "Unable to create scheduler context.\n");
-		goto end;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (ast_sched_start_thread(sched)) {
 		ast_log(LOG_ERROR, "Unable to create scheduler context thread.\n");
-		goto end;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (ast_sip_session_register_sdp_handler(&audio_sdp_handler, STR_AUDIO)) {
 		ast_log(LOG_ERROR, "Unable to register SDP handler for %s stream type\n", STR_AUDIO);
-		goto end;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (ast_sip_session_register_sdp_handler(&video_sdp_handler, STR_VIDEO)) {
 		ast_log(LOG_ERROR, "Unable to register SDP handler for %s stream type\n", STR_VIDEO);
-		goto end;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	ast_sip_session_register_supplement(&video_info_supplement);
 
 	return AST_MODULE_LOAD_SUCCESS;
-end:
-	unload_module();
-
-	return AST_MODULE_LOAD_FAILURE;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP SDP RTP/AVP stream handler",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DRIVER,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "PJSIP SDP RTP/AVP stream handler");

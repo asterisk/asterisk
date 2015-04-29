@@ -386,16 +386,10 @@ AST_TEST_DEFINE(test_func_file)
 	return res;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(test_func_file);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(test_func_file);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "FILE() Tests");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "FILE() Tests");

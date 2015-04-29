@@ -20,8 +20,10 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_depend</load_priority>
+	<export_globals/>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
+	<use type="module">res_pjsip</use>
 	<support_level>core</support_level>
  ***/
 
@@ -1181,7 +1183,6 @@ static void subscription_tree_destructor(void *obj)
 	ao2_cleanup(sub_tree->root);
 
 	ast_taskprocessor_unreference(sub_tree->serializer);
-	ast_module_unref(ast_module_info->self);
 }
 
 static void subscription_setup_dialog(struct sip_subscription_tree *sub_tree, pjsip_dialog *dlg)
@@ -1204,8 +1205,6 @@ static struct sip_subscription_tree *allocate_subscription_tree(struct ast_sip_e
 	if (!sub_tree) {
 		return NULL;
 	}
-
-	ast_module_ref(ast_module_info->self);
 
 	sub_tree->serializer = ast_sip_create_serializer();
 	if (!sub_tree->serializer) {
@@ -2341,8 +2340,6 @@ int ast_sip_register_publish_handler(struct ast_sip_publish_handler *handler)
 
 	publish_add_handler(handler);
 
-	ast_module_ref(ast_module_info->self);
-
 	return 0;
 }
 
@@ -2354,7 +2351,6 @@ void ast_sip_unregister_publish_handler(struct ast_sip_publish_handler *handler)
 		if (handler == iter) {
 			AST_RWLIST_REMOVE_CURRENT(next);
 			ao2_cleanup(handler->publications);
-			ast_module_unref(ast_module_info->self);
 			break;
 		}
 	}
@@ -2367,7 +2363,6 @@ static void sub_add_handler(struct ast_sip_subscription_handler *handler)
 {
 	SCOPED_LOCK(lock, &subscription_handlers, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
 	AST_RWLIST_INSERT_TAIL(&subscription_handlers, handler, next);
-	ast_module_ref(ast_module_info->self);
 }
 
 static struct ast_sip_subscription_handler *find_sub_handler_for_event_name(const char *event_name)
@@ -2422,7 +2417,6 @@ void ast_sip_unregister_subscription_handler(struct ast_sip_subscription_handler
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&subscription_handlers, iter, next) {
 		if (handler == iter) {
 			AST_RWLIST_REMOVE_CURRENT(next);
-			ast_module_unref(ast_module_info->self);
 			break;
 		}
 	}
@@ -4193,8 +4187,6 @@ static int load_module(void)
 	static const pj_str_t str_PUBLISH = { "PUBLISH", 7 };
 	struct ast_sorcery *sorcery;
 
-	CHECK_PJSIP_MODULE_LOADED();
-
 	sorcery = ast_sip_get_sorcery();
 
 	pjsip_evsub_init_module(ast_sip_get_pjsip_endpoint());
@@ -4206,7 +4198,6 @@ static int load_module(void)
 
 	if (ast_sched_start_thread(sched)) {
 		ast_log(LOG_ERROR, "Could not start scheduler thread for publication expiration\n");
-		ast_sched_context_destroy(sched);
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
@@ -4214,7 +4205,6 @@ static int load_module(void)
 
 	if (ast_sip_register_service(&pubsub_module)) {
 		ast_log(LOG_ERROR, "Could not register pubsub service\n");
-		ast_sched_context_destroy(sched);
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
@@ -4223,8 +4213,6 @@ static int load_module(void)
 	if (ast_sorcery_object_register(sorcery, "subscription_persistence", subscription_persistence_alloc,
 		NULL, NULL)) {
 		ast_log(LOG_ERROR, "Could not register subscription persistence object support\n");
-		ast_sip_unregister_service(&pubsub_module);
-		ast_sched_context_destroy(sched);
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	ast_sorcery_object_field_register(sorcery, "subscription_persistence", "packet", "", OPT_CHAR_ARRAY_T, 0,
@@ -4249,16 +4237,13 @@ static int load_module(void)
 		persistence_expires_str2struct, persistence_expires_struct2str, NULL, 0, 0);
 
 	if (apply_list_configuration(sorcery)) {
-		ast_sip_unregister_service(&pubsub_module);
-		ast_sched_context_destroy(sched);
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	ast_sorcery_apply_default(sorcery, "inbound-publication", "config", "pjsip.conf,criteria=type=inbound-publication");
 	if (ast_sorcery_object_register(sorcery, "inbound-publication", publication_resource_alloc,
 		NULL, NULL)) {
 		ast_log(LOG_ERROR, "Could not register subscription persistence object support\n");
-		ast_sip_unregister_service(&pubsub_module);
-		ast_sched_context_destroy(sched);
 		return AST_MODULE_LOAD_FAILURE;
 	}
 	ast_sorcery_object_field_register(sorcery, "inbound-publication", "type", "", OPT_NOOP_T, 0, 0);
@@ -4291,31 +4276,11 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	ast_manager_unregister(AMI_SHOW_SUBSCRIPTIONS_OUTBOUND);
-	ast_manager_unregister(AMI_SHOW_SUBSCRIPTIONS_INBOUND);
-	ast_manager_unregister("PJSIPShowResourceLists");
-
-	ast_sip_unregister_service(&pubsub_module);
 	if (sched) {
 		ast_sched_context_destroy(sched);
 	}
-
-	AST_TEST_UNREGISTER(resource_tree);
-	AST_TEST_UNREGISTER(complex_resource_tree);
-	AST_TEST_UNREGISTER(bad_resource);
-	AST_TEST_UNREGISTER(bad_branch);
-	AST_TEST_UNREGISTER(duplicate_resource);
-	AST_TEST_UNREGISTER(loop);
-	AST_TEST_UNREGISTER(bad_event);
-
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "PJSIP event resource",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "PJSIP event resource");

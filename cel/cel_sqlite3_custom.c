@@ -35,6 +35,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>cdr_driver</load_priority>
 	<depend>sqlite3</depend>
 	<support_level>extended</support_level>
  ***/
@@ -280,13 +281,11 @@ static void write_cel(struct ast_event *event)
 	return;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_cel_backend_unregister(SQLITE_BACKEND_NAME);
 
 	free_config();
-
-	return 0;
 }
 
 static int load_module(void)
@@ -305,7 +304,6 @@ static int load_module(void)
 	res = sqlite3_open(filename, &db);
 	if (res != SQLITE_OK) {
 		ast_log(LOG_ERROR, "Could not open database %s.\n", filename);
-		free_config();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	sqlite3_busy_timeout(db, 1000);
@@ -321,21 +319,19 @@ static int load_module(void)
 		if (res != SQLITE_OK) {
 			ast_log(LOG_WARNING, "Unable to create table '%s': %s.\n", table, error);
 			sqlite3_free(error);
-			free_config();
 			return AST_MODULE_LOAD_DECLINE;
 		}
 	}
 
 	if (ast_cel_backend_register(SQLITE_BACKEND_NAME, write_cel)) {
 		ast_log(LOG_ERROR, "Unable to register custom SQLite3 CEL handling\n");
-		free_config();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	int res = 0;
 
@@ -346,10 +342,4 @@ static int reload(void)
 	return res;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "SQLite3 Custom CEL Module",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CDR_DRIVER,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "SQLite3 Custom CEL Module");

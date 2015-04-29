@@ -24,6 +24,8 @@
  */
 
 /*** MODULEINFO
+	<load_priority>app_depend</load_priority>
+	<export_globals/>
 	<support_level>core</support_level>
  ***/
 
@@ -350,20 +352,10 @@ int ast_speech_unregister(const char *engine_name)
 	return res;
 }
 
-static int unload_module(void)
-{
-	/* We can not be unloaded */
-	return -1;
-}
-
 static int load_module(void)
 {
+	ast_module_block_unload(AST_MODULE_SELF);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Generic Speech Recognition API",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_APP_DEPEND,
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Generic Speech Recognition API");

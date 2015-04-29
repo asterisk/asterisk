@@ -28,6 +28,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_driver</load_priority>
 	<support_level>core</support_level>
  ***/
 
@@ -287,17 +288,13 @@ failure:
 }
 
 /*! \brief Function called when our module is unloaded */
-static int unload_module(void)
+static void unload_module(void)
 {
-	ast_channel_unregister(&multicast_rtp_tech);
 	ao2_cleanup(multicast_rtp_tech.capabilities);
 	multicast_rtp_tech.capabilities = NULL;
 
-	ast_channel_unregister(&unicast_rtp_tech);
 	ao2_cleanup(unicast_rtp_tech.capabilities);
 	unicast_rtp_tech.capabilities = NULL;
-
-	return 0;
 }
 
 /*! \brief Function called when our module is loaded */
@@ -309,27 +306,19 @@ static int load_module(void)
 	ast_format_cap_append_by_type(multicast_rtp_tech.capabilities, AST_MEDIA_TYPE_UNKNOWN);
 	if (ast_channel_register(&multicast_rtp_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'MulticastRTP'\n");
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (!(unicast_rtp_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_format_cap_append_by_type(unicast_rtp_tech.capabilities, AST_MEDIA_TYPE_UNKNOWN);
 	if (ast_channel_register(&unicast_rtp_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'UnicastRTP'\n");
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "RTP Media Channel",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DRIVER,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "RTP Media Channel");

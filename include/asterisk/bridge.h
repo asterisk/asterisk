@@ -271,6 +271,8 @@ struct ast_bridge_softmix {
 struct ast_bridge {
 	/*! Bridge virtual method table. */
 	const struct ast_bridge_methods *v_table;
+	/*! Module that implements v_table */
+	struct ast_module_instance *instance;
 	/*! "Personality" currently exhibited by bridge subclass */
 	void *personality;
 	/*! Bridge technology that is handling the bridge */

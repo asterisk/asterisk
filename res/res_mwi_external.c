@@ -32,6 +32,8 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_depend</load_priority>
+	<export_globals/>
 	<defaultenabled>no</defaultenabled>
 	<conflict>app_voicemail</conflict>
 	<support_level>core</support_level>
@@ -83,16 +85,6 @@ struct ast_mwi_mailbox_object {
 };
 
 static struct ast_sorcery *mwi_sorcery;
-
-void ast_mwi_external_ref(void)
-{
-	ast_module_ref(ast_module_info->self);
-}
-
-void ast_mwi_external_unref(void)
-{
-	ast_module_unref(ast_module_info->self);
-}
 
 /*!
  * \internal
@@ -919,18 +911,13 @@ static void mwi_initial_events(void)
 	ao2_ref(mailboxes, -1);
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_vm_unregister(vm_table.module_name);
-#if defined(MWI_DEBUG_CLI)
-	ast_cli_unregister_multiple(mwi_cli, ARRAY_LEN(mwi_cli));
-#endif	/* defined(MWI_DEBUG_CLI) */
 	ast_sorcery_observer_remove(mwi_sorcery, MWI_MAILBOX_TYPE, &mwi_observers);
 
 	ast_sorcery_unref(mwi_sorcery);
 	mwi_sorcery = NULL;
-
-	return 0;
 }
 
 static int load_module(void)
@@ -941,7 +928,6 @@ static int load_module(void)
 		|| ast_cli_register_multiple(mwi_cli, ARRAY_LEN(mwi_cli))
 #endif	/* defined(MWI_DEBUG_CLI) */
 		|| ast_vm_register(&vm_table)) {
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -951,9 +937,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Core external MWI resource",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND - 5,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Core external MWI resource");

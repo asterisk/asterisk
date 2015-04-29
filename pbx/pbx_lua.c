@@ -25,6 +25,7 @@
  */
 
 /*** MODULEINFO
+	<export_globals/>
 	<depend>lua</depend>
 	<support_level>extended</support_level>
  ***/
@@ -233,6 +234,7 @@ static int lua_pbx_exec(lua_State *L)
 		ast_autoservice_stop(chan);
 
 	res = pbx_exec(chan, app, data);
+	ao2_ref(app, -1);
 
 	lua_pop(L, 1); /* pop data */
 	data = "";
@@ -1319,22 +1321,15 @@ static int exists(struct ast_channel *chan, const char *context, const char *ext
 {
 	int res;
 	lua_State *L;
-	struct ast_module_user *u = ast_module_user_add(chan);
-	if (!u) {
-		ast_log(LOG_ERROR, "Error adjusting use count, probably could not allocate memory\n");
-		return 0;
-	}
 
 	L = lua_get_state(chan);
 	if (!L) {
-		ast_module_user_remove(u);
 		return 0;
 	}
 
 	res = lua_find_extension(L, context, exten, priority, &exists, 0);
 
 	if (!chan) lua_close(L);
-	ast_module_user_remove(u);
 	return res;
 }
 
@@ -1342,22 +1337,15 @@ static int canmatch(struct ast_channel *chan, const char *context, const char *e
 {
 	int res;
 	lua_State *L;
-	struct ast_module_user *u = ast_module_user_add(chan);
-	if (!u) {
-		ast_log(LOG_ERROR, "Error adjusting use count, probably could not allocate memory\n");
-		return 0;
-	}
 
 	L = lua_get_state(chan);
 	if (!L) {
-		ast_module_user_remove(u);
 		return 0;
 	}
 
 	res = lua_find_extension(L, context, exten, priority, &canmatch, 0);
 
 	if (!chan) lua_close(L);
-	ast_module_user_remove(u);
 	return res;
 }
 
@@ -1365,22 +1353,15 @@ static int matchmore(struct ast_channel *chan, const char *context, const char *
 {
 	int res;
 	lua_State *L;
-	struct ast_module_user *u = ast_module_user_add(chan);
-	if (!u) {
-		ast_log(LOG_ERROR, "Error adjusting use count, probably could not allocate memory\n");
-		return 0;
-	}
 
 	L = lua_get_state(chan);
 	if (!L) {
-		ast_module_user_remove(u);
 		return 0;
 	}
 	
 	res = lua_find_extension(L, context, exten, priority, &matchmore, 0);
 
 	if (!chan) lua_close(L);
-	ast_module_user_remove(u);
 	return res;
 }
 
@@ -1389,15 +1370,9 @@ static int exec(struct ast_channel *chan, const char *context, const char *exten
 {
 	int res, error_func;
 	lua_State *L;
-	struct ast_module_user *u = ast_module_user_add(chan);
-	if (!u) {
-		ast_log(LOG_ERROR, "Error adjusting use count, probably could not allocate memory\n");
-		return -1;
-	}
-	
+
 	L = lua_get_state(chan);
 	if (!L) {
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -1409,7 +1384,6 @@ static int exec(struct ast_channel *chan, const char *context, const char *exten
 		lua_pop(L, 1); /* pop the debug function */
 		ast_log(LOG_ERROR, "Could not find extension %s in context %s\n", exten, context);
 		if (!chan) lua_close(L);
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -1456,7 +1430,6 @@ static int exec(struct ast_channel *chan, const char *context, const char *exten
 	lua_pop(L, 1);
 
 	if (!chan) lua_close(L);
-	ast_module_user_remove(u);
 	return res;
 }
 
@@ -1643,16 +1616,14 @@ static int load_or_reload_lua_stuff(void)
 	return res;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_context_destroy(NULL, registrar);
-	ast_unregister_switch(&lua_switch);
 	lua_free_extensions();
 	ast_log(LOG_NOTICE, "Lua PBX Switch unloaded.\n");
-	return 0;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	return load_or_reload_lua_stuff();
 }
@@ -1664,7 +1635,7 @@ static int load_module(void)
 	if ((res = load_or_reload_lua_stuff()))
 		return res;
 
-	if (ast_register_switch(&lua_switch)) {
+	if (ast_switch_register(&lua_switch)) {
 		ast_log(LOG_ERROR, "Unable to register LUA PBX switch\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -1672,10 +1643,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Lua PBX Switch",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-);
-
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Lua PBX Switch");

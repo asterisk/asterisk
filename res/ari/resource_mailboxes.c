@@ -24,7 +24,7 @@
  */
 
 /*** MODULEINFO
-	<depend type="module">res_stasis_mailbox</depend>
+	<use type="module">res_stasis_mailbox</use>
 	<support_level>core</support_level>
  ***/
 

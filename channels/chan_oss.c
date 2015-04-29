@@ -656,7 +656,6 @@ static int oss_hangup(struct ast_channel *c)
 	o->owner = NULL;
 	ast_verbose(" << Hangup on console >> \n");
 	console_video_uninit(o->env);
-	ast_module_unref(ast_module_info->self);
 	if (o->hookstate) {
 		if (o->autoanswer || o->autohangup) {
 			/* Assume auto-hangup too */
@@ -828,7 +827,6 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 	}
 
 	o->owner = c;
-	ast_module_ref(ast_module_info->self);
 	ast_jb_configure(c, &global_jbconf);
 	ast_channel_unlock(c);
 	if (state != AST_STATE_DOWN) {
@@ -1497,20 +1495,20 @@ static int load_module(void)
 }
 
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	struct chan_oss_pvt *o, *next;
-
-	ast_channel_unregister(&oss_tech);
-	ast_cli_unregister_multiple(cli_oss, ARRAY_LEN(cli_oss));
 
 	o = oss_default.next;
 	while (o) {
 		close(o->sounddev);
-		if (o->owner)
+		if (o->owner) {
 			ast_softhangup(o->owner, AST_SOFTHANGUP_APPUNLOAD);
-		if (o->owner)
-			return -1;
+		}
+		if (o->owner) {
+			ast_module_block_unload(AST_MODULE_SELF);
+			return;
+		}
 		next = o->next;
 		ast_free(o->name);
 		ast_free(o);
@@ -1518,9 +1516,7 @@ static int unload_module(void)
 	}
 	ao2_cleanup(oss_tech.capabilities);
 	oss_tech.capabilities = NULL;
-
-	return 0;
 }
 
-AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "OSS Console Channel Driver");
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "OSS Console Channel Driver");
 

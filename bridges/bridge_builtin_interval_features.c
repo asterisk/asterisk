@@ -144,7 +144,6 @@ static void bridge_features_limits_dtor(void *vdoomed)
 	struct ast_bridge_features_limits *doomed = vdoomed;
 
 	ast_bridge_features_limits_destroy(doomed);
-	ast_module_unref(ast_module_info->self);
 }
 
 static int bridge_builtin_set_limits(struct ast_bridge_features *features,
@@ -158,11 +157,9 @@ static int bridge_builtin_set_limits(struct ast_bridge_features *features,
 	}
 
 	/* Create limits hook_pvt data. */
-	ast_module_ref(ast_module_info->self);
 	feature_limits = ao2_alloc_options(sizeof(*feature_limits),
 		bridge_features_limits_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!feature_limits) {
-		ast_module_unref(ast_module_info->self);
 		return -1;
 	}
 	if (ast_bridge_features_limits_construct(feature_limits)) {
@@ -202,10 +199,10 @@ static int bridge_builtin_set_limits(struct ast_bridge_features *features,
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_bridge_interval_unregister(AST_BRIDGE_BUILTIN_INTERVAL_LIMITS);
-	return 0;
+	ast_module_block_unload(AST_MODULE_SELF);
 }
 
 static int load_module(void)

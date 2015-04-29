@@ -33,6 +33,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>cdr_driver</load_priority>
 	<support_level>extended</support_level>
  ***/
 
@@ -317,14 +318,14 @@ static int csv_log(struct ast_cdr *cdr)
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	if (ast_cdr_unregister(name)) {
-		return -1;
+		ast_module_block_unload(AST_MODULE_SELF);
+		return;
 	}
 
 	loaded = 0;
-	return 0;
 }
 
 static int load_module(void)
@@ -335,7 +336,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	if ((res = ast_cdr_register(name, ast_module_info->description, csv_log))) {
+	if ((res = ast_cdr_register(name, ast_module_description(AST_MODULE_SELF), csv_log))) {
 		ast_log(LOG_ERROR, "Unable to register CSV CDR handling\n");
 	} else {
 		loaded = 1;
@@ -343,7 +344,7 @@ static int load_module(void)
 	return res;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	if (load_config(1)) {
 		loaded = 1;
@@ -356,10 +357,4 @@ static int reload(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Comma Separated Values CDR Backend",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CDR_DRIVER,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Comma Separated Values CDR Backend");

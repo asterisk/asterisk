@@ -697,13 +697,11 @@ static int reload_module(void)
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	ast_cli_unregister_multiple(skel_cli, ARRAY_LEN(skel_cli));
 	aco_info_destroy(&cfg_info);
 	ao2_global_obj_release(globals);
 	ao2_cleanup(games);
-	return ast_unregister_application(app);
 }
 
 /*!
@@ -719,10 +717,10 @@ static int unload_module(void)
 static int load_module(void)
 {
 	if (aco_info_init(&cfg_info)) {
-		goto error;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	if (!(games = ao2_container_alloc(1, NULL, NULL))) {
-		goto error;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	/* Global options */
@@ -742,25 +740,14 @@ static int load_module(void)
 	aco_option_register(&cfg_info, "max_guesses", ACO_EXACT, level_options, NULL, OPT_UINT_T, 1, FLDSET(struct skel_level, max_guesses));
 
 	if (aco_process_config(&cfg_info, 0) == ACO_PROCESS_ERROR) {
-		goto error;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	ast_cli_register_multiple(skel_cli, ARRAY_LEN(skel_cli));
 	if (ast_register_application_xml(app, app_exec)) {
-		goto error;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	return AST_MODULE_LOAD_SUCCESS;
-
-error:
-	aco_info_destroy(&cfg_info);
-	ao2_cleanup(games);
-	return AST_MODULE_LOAD_DECLINE;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Skeleton (sample) Application",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload_module,
-	.load_pri = AST_MODPRI_DEFAULT,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Skeleton (sample) Application");

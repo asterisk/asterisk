@@ -27,7 +27,7 @@
 
 /*** MODULEINFO
 	<depend>TEST_FRAMEWORK</depend>
-	<depend>func_curl</depend>
+	<use type="module">func_curl</use>
 	<support_level>core</support_level>
  ***/
 
@@ -45,6 +45,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/stringfields.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/test.h"
+#include "asterisk/api_registry.h"
 
 static enum ast_test_result_state test_chan_integer(struct ast_test *test,
 		struct ast_channel *c, int *ifield, const char *expression)
@@ -305,14 +306,16 @@ AST_TEST_DEFINE(test_substitution)
 				strcmp(cmd, "CDR") && strcmp(cmd, "ENV") && strcmp(cmd, "GLOBAL") &&
 				strcmp(cmd, "GROUP") && strcmp(cmd, "CUT") && strcmp(cmd, "LISTFILTER") &&
 				strcmp(cmd, "PP_EACH_EXTENSION") && strcmp(cmd, "SET")) {
-			struct ast_custom_function *acf = ast_custom_function_find(cmd);
-			if (acf->read && acf->read2) {
+			AST_API_HOLDER_INIT(ast_custom_function, acf, ast_custom_function_use_by_name(cmd));
+
+			if (acf && acf->read && acf->read2) {
 				char expression[80];
 				snprintf(expression, sizeof(expression), "${%s(foo)}", cmd);
 				if (AST_TEST_FAIL == test_chan_function(test, c, expression)) {
 					res = AST_TEST_FAIL;
 				}
 			}
+			AST_API_HOLDER_CLEANUP(acf);
 		}
 		ast_free(cmd);
 	}
@@ -321,16 +324,10 @@ AST_TEST_DEFINE(test_substitution)
 	return res;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(test_substitution);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(test_substitution);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Substitution tests");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Substitution tests");

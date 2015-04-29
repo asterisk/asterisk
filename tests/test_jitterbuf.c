@@ -1235,23 +1235,6 @@ cleanup:
 	return result;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(jitterbuffer_nominal_voice_frames);
-	AST_TEST_UNREGISTER(jitterbuffer_nominal_control_frames);
-	AST_TEST_UNREGISTER(jitterbuffer_out_of_order_voice);
-	AST_TEST_UNREGISTER(jitterbuffer_out_of_order_control);
-	AST_TEST_UNREGISTER(jitterbuffer_lost_voice);
-	AST_TEST_UNREGISTER(jitterbuffer_lost_control);
-	AST_TEST_UNREGISTER(jitterbuffer_late_voice);
-	AST_TEST_UNREGISTER(jitterbuffer_late_control);
-	AST_TEST_UNREGISTER(jitterbuffer_overflow_voice);
-	AST_TEST_UNREGISTER(jitterbuffer_overflow_control);
-	AST_TEST_UNREGISTER(jitterbuffer_resynch_voice);
-	AST_TEST_UNREGISTER(jitterbuffer_resynch_control);
-	return 0;
-}
-
 static int load_module(void)
 {
 	/* Nominal - put / get frames */
@@ -1281,4 +1264,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Jitter Buffer Tests");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Jitter Buffer Tests");

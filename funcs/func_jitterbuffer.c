@@ -169,16 +169,10 @@ static struct ast_custom_function jb_function = {
 	.write = jb_helper,
 };
 
-static int unload_module(void)
-{
-	return ast_custom_function_unregister(&jb_function);
-}
-
 static int load_module(void)
 {
 	int res = ast_custom_function_register(&jb_function);
 	return res ? AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Jitter buffer for read side of channel.");
-
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Jitter buffer for read side of channel.");

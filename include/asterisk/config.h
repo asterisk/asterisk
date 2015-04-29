@@ -106,39 +106,38 @@ struct ast_variable {
 	char stuff[0];
 };
 
-typedef struct ast_config *config_load_func(const char *database, const char *table, const char *configfile, struct ast_config *config, struct ast_flags flags, const char *suggested_include_file, const char *who_asked);
-typedef struct ast_variable *realtime_var_get(const char *database, const char *table, const struct ast_variable *fields);
-typedef struct ast_config *realtime_multi_get(const char *database, const char *table, const struct ast_variable *fields);
-typedef int realtime_update(const char *database, const char *table, const char *keyfield, const char *entity, const struct ast_variable *fields);
-typedef int realtime_update2(const char *database, const char *table, const struct ast_variable *lookup_fields, const struct ast_variable *update_fields);
-typedef int realtime_store(const char *database, const char *table, const struct ast_variable *fields);
-typedef int realtime_destroy(const char *database, const char *table, const char *keyfield, const char *entity, const struct ast_variable *fields);
+typedef struct ast_config *(*config_load_func)(const char *database, const char *table, const char *configfile, struct ast_config *config, struct ast_flags flags, const char *suggested_include_file, const char *who_asked);
+typedef struct ast_variable *(*realtime_var_get)(const char *database, const char *table, const struct ast_variable *fields);
+typedef struct ast_config *(*realtime_multi_get)(const char *database, const char *table, const struct ast_variable *fields);
+typedef int (*realtime_update)(const char *database, const char *table, const char *keyfield, const char *entity, const struct ast_variable *fields);
+typedef int (*realtime_update2)(const char *database, const char *table, const struct ast_variable *lookup_fields, const struct ast_variable *update_fields);
+typedef int (*realtime_store)(const char *database, const char *table, const struct ast_variable *fields);
+typedef int (*realtime_destroy)(const char *database, const char *table, const char *keyfield, const char *entity, const struct ast_variable *fields);
 
 /*!
  * \brief Function pointer called to ensure database schema is properly configured for realtime use
  * \since 1.6.1
  */
-typedef int realtime_require(const char *database, const char *table, va_list ap);
+typedef int (*realtime_require)(const char *database, const char *table, va_list ap);
 
 /*!
  * \brief Function pointer called to clear the database cache and free resources used for such
  * \since 1.6.1
  */
-typedef int realtime_unload(const char *database, const char *table);
+typedef int (*realtime_unload)(const char *database, const char *table);
 
 /*! \brief Configuration engine structure, used to define realtime drivers */
 struct ast_config_engine {
-	char *name;
-	config_load_func *load_func;
-	realtime_var_get *realtime_func;
-	realtime_multi_get *realtime_multi_func;
-	realtime_update *update_func;
-	realtime_update2 *update2_func;
-	realtime_store *store_func;
-	realtime_destroy *destroy_func;
-	realtime_require *require_func;
-	realtime_unload *unload_func;
-	struct ast_config_engine *next;
+	const char * const name;
+	const config_load_func load_func;
+	const realtime_var_get realtime_func;
+	const realtime_multi_get realtime_multi_func;
+	const realtime_update update_func;
+	const realtime_update2 update2_func;
+	const realtime_store store_func;
+	const realtime_destroy destroy_func;
+	const realtime_require require_func;
+	const realtime_unload unload_func;
 };
 
 /*!
@@ -719,13 +718,10 @@ void ast_variables_destroy(struct ast_variable *var);
  * \brief Register config engine
  * \retval 1 Always
  */
-int ast_config_engine_register(struct ast_config_engine *newconfig);
-
-/*!
- * \brief Deregister config engine
- * \retval 0 Always
- */
-int ast_config_engine_deregister(struct ast_config_engine *del);
+#define ast_config_engine_register(new) \
+	__ast_config_engine_register(new, AST_MODULE_SELF)
+int __ast_config_engine_register(struct ast_config_engine *newconfig,
+	struct ast_module *module);
 
 /*!
  * \brief Determine if a mapping exists for a given family

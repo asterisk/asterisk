@@ -177,7 +177,7 @@ struct ast_cli_entry {
 	const char * usage; 				/*!< Detailed usage information */
 
 	int inuse; 				/*!< For keeping track of usage */
-	struct ast_module *module;			/*!< module this belongs to */
+	struct ast_module_lib *lib;			/*!< module this belongs to */
 	char *_full_cmd;			/*!< built at load time from cmda[] */
 	int cmdlen;				/*!< len up to the first invalid char [<{% */
 	/*! \brief This gets set in ast_cli_register()
@@ -279,6 +279,9 @@ int ast_cli_unregister(struct ast_cli_entry *e);
  * \brief Unregister multiple commands
  * \param e pointer to first cli entry to unregister
  * \param len number of entries to unregister
+ *
+ * \note Modules should only call this function when a CLI command needs to be
+ * unregistered before the module unloads, such as in res_clialiases.
  */
 int ast_cli_unregister_multiple(struct ast_cli_entry *e, int len);
 

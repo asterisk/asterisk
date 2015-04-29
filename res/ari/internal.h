@@ -39,11 +39,6 @@
  */
 int ast_ari_cli_register(void);
 
-/*!
- * \brief Unregister CLI commands for ARI.
- */
-void ast_ari_cli_unregister(void);
-
 /*! @} */
 
 /*! @{ */

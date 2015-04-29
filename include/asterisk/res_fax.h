@@ -236,8 +236,8 @@ struct ast_fax_tech {
 	const char * const version;
 	/*! the ast_fax_capabilities supported by the fax technology */
 	const enum ast_fax_capabilities caps;
-	/*! module information for the fax technology */
-	struct ast_module *module;
+	/*! module for the fax technology */
+	struct ast_module_lib *lib;
 	/*! reserves a session for future use; returns a token */
 	struct ast_fax_tech_token *(* const reserve_session)(struct ast_fax_session *);
 	/*! releases an unused session token */

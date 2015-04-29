@@ -504,76 +504,72 @@ struct ast_rtp_engine_dtls {
 /*! Structure that represents an RTP stack (engine) */
 struct ast_rtp_engine {
 	/*! Name of the RTP engine, used when explicitly requested */
-	const char *name;
-	/*! Module this RTP engine came from, used for reference counting */
-	struct ast_module *mod;
+	const char * const name;
 	/*! Callback for setting up a new RTP instance */
-	int (*new)(struct ast_rtp_instance *instance, struct ast_sched_context *sched, struct ast_sockaddr *sa, void *data);
+	int (*const new)(struct ast_rtp_instance *instance, struct ast_sched_context *sched, struct ast_sockaddr *sa, void *data);
 	/*! Callback for destroying an RTP instance */
-	int (*destroy)(struct ast_rtp_instance *instance);
+	int (*const destroy)(struct ast_rtp_instance *instance);
 	/*! Callback for writing out a frame */
-	int (*write)(struct ast_rtp_instance *instance, struct ast_frame *frame);
+	int (*const write)(struct ast_rtp_instance *instance, struct ast_frame *frame);
 	/*! Callback for stopping the RTP instance */
-	void (*stop)(struct ast_rtp_instance *instance);
+	void (*const stop)(struct ast_rtp_instance *instance);
 	/*! Callback for starting RFC2833 DTMF transmission */
-	int (*dtmf_begin)(struct ast_rtp_instance *instance, char digit);
+	int (*const dtmf_begin)(struct ast_rtp_instance *instance, char digit);
 	/*! Callback for stopping RFC2833 DTMF transmission */
-	int (*dtmf_end)(struct ast_rtp_instance *instance, char digit);
-	int (*dtmf_end_with_duration)(struct ast_rtp_instance *instance, char digit, unsigned int duration);
+	int (*const dtmf_end)(struct ast_rtp_instance *instance, char digit);
+	int (*const dtmf_end_with_duration)(struct ast_rtp_instance *instance, char digit, unsigned int duration);
 	/*! Callback to indicate that we should update the marker bit */
-	void (*update_source)(struct ast_rtp_instance *instance);
+	void (*const update_source)(struct ast_rtp_instance *instance);
 	/*! Callback to indicate that we should update the marker bit and ssrc */
-	void (*change_source)(struct ast_rtp_instance *instance);
+	void (*const change_source)(struct ast_rtp_instance *instance);
 	/*! Callback for setting an extended RTP property */
-	int (*extended_prop_set)(struct ast_rtp_instance *instance, int property, void *value);
+	int (*const extended_prop_set)(struct ast_rtp_instance *instance, int property, void *value);
 	/*! Callback for getting an extended RTP property */
-	void *(*extended_prop_get)(struct ast_rtp_instance *instance, int property);
+	void *(*const extended_prop_get)(struct ast_rtp_instance *instance, int property);
 	/*! Callback for setting an RTP property */
-	void (*prop_set)(struct ast_rtp_instance *instance, enum ast_rtp_property property, int value);
+	void (*const prop_set)(struct ast_rtp_instance *instance, enum ast_rtp_property property, int value);
 	/*! Callback for setting a payload.  If asterisk  is to be used, asterisk_format will be set, otherwise value in code is used. */
-	void (*payload_set)(struct ast_rtp_instance *instance, int payload, int asterisk_format, struct ast_format *format, int code);
+	void (*const payload_set)(struct ast_rtp_instance *instance, int payload, int asterisk_format, struct ast_format *format, int code);
 	/*! Callback for setting the remote address that RTP is to be sent to */
-	void (*remote_address_set)(struct ast_rtp_instance *instance, struct ast_sockaddr *sa);
+	void (*const remote_address_set)(struct ast_rtp_instance *instance, struct ast_sockaddr *sa);
 	/*! Callback for changing DTMF mode */
-	int (*dtmf_mode_set)(struct ast_rtp_instance *instance, enum ast_rtp_dtmf_mode dtmf_mode);
+	int (*const dtmf_mode_set)(struct ast_rtp_instance *instance, enum ast_rtp_dtmf_mode dtmf_mode);
 	/*! Callback for getting DTMF mode */
-	enum ast_rtp_dtmf_mode (*dtmf_mode_get)(struct ast_rtp_instance *instance);
+	enum ast_rtp_dtmf_mode (*const dtmf_mode_get)(struct ast_rtp_instance *instance);
 	/*! Callback for retrieving statistics */
-	int (*get_stat)(struct ast_rtp_instance *instance, struct ast_rtp_instance_stats *stats, enum ast_rtp_instance_stat stat);
+	int (*const get_stat)(struct ast_rtp_instance *instance, struct ast_rtp_instance_stats *stats, enum ast_rtp_instance_stat stat);
 	/*! Callback for setting QoS values */
-	int (*qos)(struct ast_rtp_instance *instance, int tos, int cos, const char *desc);
+	int (*const qos)(struct ast_rtp_instance *instance, int tos, int cos, const char *desc);
 	/*! Callback for retrieving a file descriptor to poll on, not always required */
-	int (*fd)(struct ast_rtp_instance *instance, int rtcp);
+	int (*const fd)(struct ast_rtp_instance *instance, int rtcp);
 	/*! Callback for initializing RED support */
-	int (*red_init)(struct ast_rtp_instance *instance, int buffer_time, int *payloads, int generations);
+	int (*const red_init)(struct ast_rtp_instance *instance, int buffer_time, int *payloads, int generations);
 	/*! Callback for buffering a frame using RED */
-	int (*red_buffer)(struct ast_rtp_instance *instance, struct ast_frame *frame);
+	int (*const red_buffer)(struct ast_rtp_instance *instance, struct ast_frame *frame);
 	/*! Callback for reading a frame from the RTP engine */
-	struct ast_frame *(*read)(struct ast_rtp_instance *instance, int rtcp);
+	struct ast_frame *(*const read)(struct ast_rtp_instance *instance, int rtcp);
 	/*! Callback to locally bridge two RTP instances */
-	int (*local_bridge)(struct ast_rtp_instance *instance0, struct ast_rtp_instance *instance1);
+	int (*const local_bridge)(struct ast_rtp_instance *instance0, struct ast_rtp_instance *instance1);
 	/*! Callback to set the read format */
-	int (*set_read_format)(struct ast_rtp_instance *instance, struct ast_format *format);
+	int (*const set_read_format)(struct ast_rtp_instance *instance, struct ast_format *format);
 	/*! Callback to set the write format */
-	int (*set_write_format)(struct ast_rtp_instance *instance, struct ast_format *format);
+	int (*const set_write_format)(struct ast_rtp_instance *instance, struct ast_format *format);
 	/*! Callback to make two instances compatible */
-	int (*make_compatible)(struct ast_channel *chan0, struct ast_rtp_instance *instance0, struct ast_channel *chan1, struct ast_rtp_instance *instance1);
+	int (*const make_compatible)(struct ast_channel *chan0, struct ast_rtp_instance *instance0, struct ast_channel *chan1, struct ast_rtp_instance *instance1);
 	/*! Callback to see if two instances are compatible with DTMF */
-	int (*dtmf_compatible)(struct ast_channel *chan0, struct ast_rtp_instance *instance0, struct ast_channel *chan1, struct ast_rtp_instance *instance1);
+	int (*const dtmf_compatible)(struct ast_channel *chan0, struct ast_rtp_instance *instance0, struct ast_channel *chan1, struct ast_rtp_instance *instance1);
 	/*! Callback to indicate that packets will now flow */
-	int (*activate)(struct ast_rtp_instance *instance);
+	int (*const activate)(struct ast_rtp_instance *instance);
 	/*! Callback to request that the RTP engine send a STUN BIND request */
-	void (*stun_request)(struct ast_rtp_instance *instance, struct ast_sockaddr *suggestion, const char *username);
+	void (*const stun_request)(struct ast_rtp_instance *instance, struct ast_sockaddr *suggestion, const char *username);
 	/*! Callback to get the transcodeable formats supported. result returned in ast_format_cap *result */
-	void (*available_formats)(struct ast_rtp_instance *instance, struct ast_format_cap *to_endpoint, struct ast_format_cap *to_asterisk, struct ast_format_cap *result);
+	void (*const available_formats)(struct ast_rtp_instance *instance, struct ast_format_cap *to_endpoint, struct ast_format_cap *to_asterisk, struct ast_format_cap *result);
 	/*! Callback to send CNG */
-	int (*sendcng)(struct ast_rtp_instance *instance, int level);
+	int (*const sendcng)(struct ast_rtp_instance *instance, int level);
 	/*! Callback to pointer for optional ICE support */
 	struct ast_rtp_engine_ice *ice;
 	/*! Callback to pointer for optional DTLS SRTP support */
 	struct ast_rtp_engine_dtls *dtls;
-	/*! Linked list information */
-	AST_RWLIST_ENTRY(ast_rtp_engine) entry;
 };
 
 /*! Structure that represents codec and packetization information */
@@ -594,7 +590,7 @@ struct ast_rtp_glue {
 	/*! Name of the channel driver that this glue is responsible for */
 	const char *type;
 	/*! Module that the RTP glue came from */
-	struct ast_module *mod;
+	struct ast_module_lib *lib;
 	/*!
 	 * \brief Callback for retrieving the RTP instance carrying audio
 	 * \note This function increases the reference count on the returned RTP instance.
@@ -643,32 +639,17 @@ struct ast_rtp_glue {
  */
 struct ast_rtp_payload_type *ast_rtp_engine_alloc_payload_type(void);
 
-#define ast_rtp_engine_register(engine) ast_rtp_engine_register2(engine, AST_MODULE_SELF)
 
 /*!
  * \brief Register an RTP engine
  *
  * \param engine Structure of the RTP engine to register
- * \param module Module that the RTP engine is part of
  *
  * \retval 0 success
  * \retval -1 failure
- *
- * Example usage:
- *
- * \code
- * ast_rtp_engine_register2(&example_rtp_engine, NULL);
- * \endcode
- *
- * This registers the RTP engine declared as example_rtp_engine with the RTP engine core, but does not
- * associate a module with it.
- *
- * \note It is recommended that you use the ast_rtp_engine_register macro so that the module is
- *       associated with the RTP engine and use counting is performed.
- *
- * \since 1.8
  */
-int ast_rtp_engine_register2(struct ast_rtp_engine *engine, struct ast_module *module);
+#define ast_rtp_engine_register(engine) __ast_rtp_engine_register(engine, AST_MODULE_SELF)
+int __ast_rtp_engine_register(struct ast_rtp_engine *engine, struct ast_module *module);
 
 /*!
  * \brief Unregister an RTP engine
@@ -678,16 +659,7 @@ int ast_rtp_engine_register2(struct ast_rtp_engine *engine, struct ast_module *m
  * \retval 0 success
  * \retval -1 failure
  *
- * Example usage:
- *
- * \code
- * ast_rtp_engine_unregister(&example_rtp_engine);
- * \endcode
- *
- * This unregisters the RTP engine declared as example_rtp_engine from the RTP engine core. If a module
- * reference was provided when it was registered then this will only be called once the RTP engine is no longer in use.
- *
- * \since 1.8
+ * \note This is automatically called during module_unload.
  */
 int ast_rtp_engine_unregister(struct ast_rtp_engine *engine);
 

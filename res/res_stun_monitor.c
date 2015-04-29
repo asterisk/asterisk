@@ -24,6 +24,8 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_depend</load_priority>
+	<export_globals/>
 	<support_level>core</support_level>
  ***/
 
@@ -444,20 +446,15 @@ static int __reload(int startup)
 	return res;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	return __reload(0);
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	stun_stop_monitor();
 	ast_mutex_destroy(&args.lock);
-
-	/*! Unregister CLI commands */
-	ast_cli_unregister_multiple(cli_stun, ARRAY_LEN(cli_stun));
-
-	return 0;
 }
 
 static int load_module(void)
@@ -465,7 +462,6 @@ static int load_module(void)
 	ast_mutex_init(&args.lock);
 	args.stun_sock = -1;
 	if (__reload(1)) {
-		ast_mutex_destroy(&args.lock);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -475,10 +471,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "STUN Network Monitor",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "STUN Network Monitor");

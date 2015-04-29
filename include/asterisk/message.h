@@ -81,15 +81,19 @@ struct ast_msg_tech {
  * \retval 0 success
  * \retval non-zero failure
  */
-int ast_msg_tech_register(const struct ast_msg_tech *tech);
+#define ast_msg_tech_register(tech) __ast_msg_tech_register(tech, AST_MODULE_SELF)
+int __ast_msg_tech_register(struct ast_msg_tech *tech, struct ast_module *module);
 
 /*!
  * \brief Unregister a message technology.
  *
  * \retval 0 success
  * \retval non-zero failure
+ *
+ * \note This normally should not be run by modules.  It is exposed for
+ * use by the testsuite only.
  */
-int ast_msg_tech_unregister(const struct ast_msg_tech *tech);
+int ast_msg_tech_unregister(struct ast_msg_tech *tech);
 
 /*!
  * \brief An external processor of received messages

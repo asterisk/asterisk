@@ -197,13 +197,5 @@ static int load_module(void)
 	return res;
 }
 
-static int unload_module(void)
-{
-	int res;
-	res = ast_unregister_application("SayCountedNoun");
-	res |= ast_unregister_application("SayCountedAdj");
-	return res;
-}
-
-AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Decline words according to channel language");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Decline words according to channel language");
 

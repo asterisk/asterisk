@@ -2048,16 +2048,6 @@ AST_TEST_DEFINE(astobj2_test_perf)
 	return res;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(astobj2_test_1);
-	AST_TEST_UNREGISTER(astobj2_test_2);
-	AST_TEST_UNREGISTER(astobj2_test_3);
-	AST_TEST_UNREGISTER(astobj2_test_4);
-	AST_TEST_UNREGISTER(astobj2_test_perf);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(astobj2_test_1);
@@ -2068,4 +2058,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "ASTOBJ2 Unit Tests");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "ASTOBJ2 Unit Tests");

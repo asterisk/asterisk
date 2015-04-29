@@ -261,7 +261,3 @@ static struct ast_cli_entry cli_ari[] = {
 int ast_ari_cli_register(void) {
 	return ast_cli_register_multiple(cli_ari, ARRAY_LEN(cli_ari));
 }
-
-void ast_ari_cli_unregister(void) {
-	ast_cli_unregister_multiple(cli_ari, ARRAY_LEN(cli_ari));
-}

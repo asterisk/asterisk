@@ -200,16 +200,10 @@ static int chanavail_exec(struct ast_channel *chan, const char *data)
 	return 0;
 }
 
-static int unload_module(void)
-{
-	return ast_unregister_application(app);
-}
-
 static int load_module(void)
 {
 	return ast_register_application_xml(app, chanavail_exec) ?
 		AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "Check channel availability");
-
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Check channel availability");

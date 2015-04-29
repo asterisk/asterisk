@@ -172,16 +172,6 @@ static int sayunixtime_exec(struct ast_channel *chan, const char *data)
 	return res;
 }
 
-static int unload_module(void)
-{
-	int res;
-	
-	res = ast_unregister_application(app_sayunixtime);
-	res |= ast_unregister_application(app_datetime);
-	
-	return res;
-}
-
 static int load_module(void)
 {
 	int res;
@@ -192,4 +182,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Say time");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Say time");

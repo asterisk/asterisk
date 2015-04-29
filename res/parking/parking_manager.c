@@ -686,15 +686,7 @@ int load_parking_manager(void)
 	return res ? -1 : 0;
 }
 
-static void parking_manager_disable_stasis(void)
-{
-	parking_sub = stasis_unsubscribe_and_join(parking_sub);
-}
-
 void unload_parking_manager(void)
 {
-	ast_manager_unregister("Parkinglots");
-	ast_manager_unregister("ParkedCalls");
-	ast_manager_unregister("Park");
-	parking_manager_disable_stasis();
+	parking_sub = stasis_unsubscribe_and_join(parking_sub);
 }

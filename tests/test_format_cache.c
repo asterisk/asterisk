@@ -258,16 +258,6 @@ AST_TEST_DEFINE(format_cache_get_nonexistent)
 	return AST_TEST_PASS;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(format_cache_set);
-	AST_TEST_UNREGISTER(format_cache_set_duplicate);
-	AST_TEST_UNREGISTER(format_cache_set_null);
-	AST_TEST_UNREGISTER(format_cache_get);
-	AST_TEST_UNREGISTER(format_cache_get_nonexistent);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(format_cache_set);
@@ -278,4 +268,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Format cache API test module");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Format cache API test module");

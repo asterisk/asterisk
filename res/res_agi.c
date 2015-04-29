@@ -26,6 +26,9 @@
  */
 
 /*** MODULEINFO
+	<load_priority>app_depend</load_priority>
+	<export_globals/>
+	<use type="module">res_speech</use>
 	<support_level>core</support_level>
  ***/
 
@@ -2772,6 +2775,7 @@ static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, const char 
 		if (!workaround) {
 			ast_clear_flag(ast_channel_flags(chan), AST_FLAG_DISABLE_WORKAROUNDS);
 		}
+		ao2_ref(app_to_exec, -1);
 	} else {
 		ast_log(LOG_WARNING, "Could not find application (%s)\n", argv[1]);
 		res = -2;
@@ -3435,12 +3439,11 @@ int AST_OPTIONAL_API_NAME(ast_agi_register)(struct ast_module *mod, agi_command 
 #endif
 		}
 
-		cmd->mod = mod;
+		cmd->lib = ast_module_get_lib_running(mod);
+		ast_assert(!!cmd->lib);
 		AST_RWLIST_WRLOCK(&agi_commands);
 		AST_LIST_INSERT_TAIL(&agi_commands, cmd, list);
 		AST_RWLIST_UNLOCK(&agi_commands);
-		if (mod != ast_module_info->self)
-			ast_module_ref(ast_module_info->self);
 		ast_verb(2, "AGI Command '%s' registered\n",fullcmd);
 		return 1;
 	} else {
@@ -3461,8 +3464,7 @@ int AST_OPTIONAL_API_NAME(ast_agi_unregister)(struct ast_module *mod, agi_comman
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&agi_commands, e, list) {
 		if (cmd == e) {
 			AST_RWLIST_REMOVE_CURRENT(list);
-			if (mod != ast_module_info->self)
-				ast_module_unref(ast_module_info->self);
+			ao2_cleanup(cmd->lib);
 #ifdef AST_XML_DOCS
 			if (e->docsrc == AST_XML_DOC) {
 				ast_free((char *) e->summary);
@@ -3665,13 +3667,15 @@ static enum agi_result agi_handle_command(struct ast_channel *chan, AGI *agi, ch
 	parse_args(buf, &argc, argv);
 	c = find_command(argv, 0);
 	if (c && (!dead || (dead && c->dead))) {
-		/* if this command wasn't registered by res_agi, be sure to usecount
-		the module we are using */
-		if (c->mod != ast_module_info->self)
-			ast_module_ref(c->mod);
-		res = c->handler(chan, agi, argc, argv);
-		if (c->mod != ast_module_info->self)
-			ast_module_unref(c->mod);
+		struct ast_module_instance *instance = ast_module_lib_get_instance(c->lib);
+
+		if (instance) {
+			res = c->handler(chan, agi, argc, argv);
+			ao2_ref(instance, -1);
+		} else {
+			res = RESULT_FAILURE;
+		}
+
 		switch (res) {
 		case RESULT_SHOWUSAGE:
 			ami_res = "Usage";
@@ -4247,7 +4251,7 @@ AST_TEST_DEFINE(test_agi_null_docs)
 		break;
 	}
 
-	if (ast_agi_register(ast_module_info->self, &noop_command) == 0) {
+	if (ast_agi_register(AST_MODULE_SELF, &noop_command) == 0) {
 		ast_test_status_update(test, "Unable to register testnoop command, because res_agi is not loaded.\n");
 		return AST_TEST_NOT_RUN;
 	}
@@ -4264,12 +4268,12 @@ AST_TEST_DEFINE(test_agi_null_docs)
 	}
 #endif
 
-	ast_agi_unregister(ast_module_info->self, &noop_command);
+	ast_agi_unregister(AST_MODULE_SELF, &noop_command);
 	return res;
 }
 #endif
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	STASIS_MESSAGE_TYPE_CLEANUP(agi_exec_start_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(agi_exec_end_type);
@@ -4277,14 +4281,7 @@ static int unload_module(void)
 	STASIS_MESSAGE_TYPE_CLEANUP(agi_async_exec_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(agi_async_end_type);
 
-	ast_cli_unregister_multiple(cli_agi, ARRAY_LEN(cli_agi));
-	ast_agi_unregister_multiple(ast_module_info->self, commands, ARRAY_LEN(commands));
-	ast_unregister_application(eapp);
-	ast_unregister_application(deadapp);
-	ast_manager_unregister("AGI");
-	ast_unregister_application(app);
-	AST_TEST_UNREGISTER(test_agi_null_docs);
-	return 0;
+	ast_agi_unregister_multiple(AST_MODULE_SELF, commands, ARRAY_LEN(commands));
 }
 
 static int load_module(void)
@@ -4298,7 +4295,7 @@ static int load_module(void)
 	err |= STASIS_MESSAGE_TYPE_INIT(agi_async_end_type);
 
 	err |= ast_cli_register_multiple(cli_agi, ARRAY_LEN(cli_agi));
-	err |= ast_agi_register_multiple(ast_module_info->self, commands, ARRAY_LEN(commands));
+	err |= ast_agi_register_multiple(AST_MODULE_SELF, commands, ARRAY_LEN(commands));
 	err |= ast_register_application_xml(deadapp, deadagi_exec);
 	err |= ast_register_application_xml(eapp, eagi_exec);
 	err |= ast_manager_register_xml("AGI", EVENT_FLAG_AGI, action_add_agi_cmd);
@@ -4307,15 +4304,9 @@ static int load_module(void)
 	AST_TEST_REGISTER(test_agi_null_docs);
 
 	if (err) {
-		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Asterisk Gateway Interface (AGI)",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_APP_DEPEND,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Asterisk Gateway Interface (AGI)");

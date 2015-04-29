@@ -522,13 +522,6 @@ AST_TEST_DEFINE(device_state_aggregation_test)
 	return AST_TEST_PASS;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(device2extenstate_test);
-	AST_TEST_UNREGISTER(device_state_aggregation_test);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(device_state_aggregation_test);
@@ -536,4 +529,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Device State Test");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Device State Test");

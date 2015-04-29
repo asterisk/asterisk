@@ -282,7 +282,9 @@ int __ast_bucket_scheme_register(const char *name, struct ast_sorcery_wizard *bu
 
 	ast_verb(2, "Registered bucket scheme '%s'\n", name);
 
-	ast_module_shutdown_ref(module);
+	if (module) {
+		ast_module_block_unload(module);
+	}
 
 	return 0;
 }

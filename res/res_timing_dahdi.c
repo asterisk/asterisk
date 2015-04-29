@@ -24,6 +24,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>timing</load_priority>
 	<depend>dahdi</depend>
 	<support_level>core</support_level>
  ***/
@@ -42,8 +43,6 @@ ASTERISK_REGISTER_FILE();
 #include "asterisk/module.h"
 #include "asterisk/timing.h"
 #include "asterisk/utils.h"
-
-static void *timing_funcs_handle;
 
 static void *dahdi_timer_open(void);
 static void dahdi_timer_close(void *data);
@@ -221,22 +220,8 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	return (timing_funcs_handle = ast_register_timing_interface(&dahdi_timing)) ?
+	return !ast_register_timing_interface(&dahdi_timing) ?
 		AST_MODULE_LOAD_SUCCESS : AST_MODULE_LOAD_DECLINE;
 }
 
-static int unload_module(void)
-{
-	if (timing_funcs_handle) {
-		return ast_unregister_timing_interface(timing_funcs_handle);
-	}
-
-	return 0;
-}
-
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "DAHDI Timing Interface",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_TIMING,
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "DAHDI Timing Interface");

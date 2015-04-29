@@ -17,8 +17,9 @@
  */
 
 /*** MODULEINFO
+	<load_priority>app_depend</load_priority>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
+	<use type="module">res_pjsip</use>
 	<support_level>core</support_level>
  ***/
 
@@ -114,21 +115,13 @@ static struct ast_sip_endpoint_identifier username_identifier = {
 
 static int load_module(void)
 {
-	CHECK_PJSIP_MODULE_LOADED();
-
 	ast_sip_register_endpoint_identifier_with_name(&username_identifier, "username");
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_sip_unregister_endpoint_identifier(&username_identifier);
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP username endpoint identifier",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_APP_DEPEND,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "PJSIP username endpoint identifier");

@@ -402,7 +402,7 @@ AST_TEST_DEFINE(agi_loaded_test)
 			       ast_agi_register);
 #endif
 
-	if (ast_agi_register(ast_module_info->self, &noop_command) == AST_OPTIONAL_API_UNAVAILABLE) {
+	if (ast_agi_register(AST_MODULE_SELF, &noop_command) == AST_OPTIONAL_API_UNAVAILABLE) {
 		ast_test_status_update(test, "Unable to register testnoop command, because res_agi is not loaded.\n");
 		return AST_TEST_FAIL;
 	}
@@ -419,7 +419,7 @@ AST_TEST_DEFINE(agi_loaded_test)
 	}
 #endif
 
-	ast_agi_unregister(ast_module_info->self, &noop_command);
+	ast_agi_unregister(AST_MODULE_SELF, &noop_command);
 	return res;
 }
 
@@ -640,23 +640,6 @@ AST_TEST_DEFINE(quote_unescaping)
 	return AST_TEST_PASS;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(uri_encode_decode_test);
-	AST_TEST_UNREGISTER(quoted_escape_test);
-	AST_TEST_UNREGISTER(md5_test);
-	AST_TEST_UNREGISTER(sha1_test);
-	AST_TEST_UNREGISTER(base64_test);
-	AST_TEST_UNREGISTER(crypto_loaded_test);
-	AST_TEST_UNREGISTER(adsi_loaded_test);
-	AST_TEST_UNREGISTER(agi_loaded_test);
-	AST_TEST_UNREGISTER(safe_mkdir_test);
-	AST_TEST_UNREGISTER(crypt_test);
-	AST_TEST_UNREGISTER(quote_mutation);
-	AST_TEST_UNREGISTER(quote_unescaping);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(uri_encode_decode_test);
@@ -674,4 +657,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Utils test module");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Utils test module");

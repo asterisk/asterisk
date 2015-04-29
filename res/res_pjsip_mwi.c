@@ -17,9 +17,10 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_depend</load_priority>
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
-	<depend>res_pjsip_pubsub</depend>
+	<use type="module">res_pjsip</use>
+	<use type="module">res_pjsip_pubsub</use>
 	<support_level>core</support_level>
  ***/
 
@@ -987,7 +988,7 @@ static void mwi_startup_event_cb(void *data, struct stasis_subscription *sub, st
 	stasis_unsubscribe(sub);
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	create_mwi_subscriptions();
 	return 0;
@@ -995,8 +996,6 @@ static int reload(void)
 
 static int load_module(void)
 {
-	CHECK_PJSIP_MODULE_LOADED();
-
 	if (ast_sip_register_subscription_handler(&mwi_handler)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -1012,7 +1011,7 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	RAII_VAR(struct ao2_container *, mwi_subscriptions, ao2_global_obj_ref(unsolicited_mwi), ao2_cleanup);
 	if (mwi_subscriptions) {
@@ -1021,13 +1020,6 @@ static int unload_module(void)
 		ast_sorcery_observer_remove(ast_sip_get_sorcery(), "contact", &mwi_contact_observer);
 	}
 	ast_sip_unregister_subscription_handler(&mwi_handler);
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP MWI resource",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "PJSIP MWI resource");

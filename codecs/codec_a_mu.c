@@ -118,16 +118,6 @@ static struct ast_translator ulawtoalaw = {
 
 /*! \brief standard module glue */
 
-static int unload_module(void)
-{
-	int res;
-
-	res = ast_unregister_translator(&ulawtoalaw);
-	res |= ast_unregister_translator(&alawtoulaw);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res;
@@ -142,11 +132,10 @@ static int load_module(void)
 	res |= ast_register_translator(&ulawtoalaw);
 
 	if (res) {
-		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "A-law and Mulaw direct Coder/Decoder");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "A-law and Mulaw direct Coder/Decoder");

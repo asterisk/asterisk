@@ -27,6 +27,8 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_depend</load_priority>
+	<export_globals/>
 	<depend>openssl</depend>
 	<support_level>core</support_level>
  ***/
@@ -638,7 +640,7 @@ static int crypto_init(void)
 	return 0;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	crypto_load(-1, -1);
 	return 0;
@@ -652,20 +654,9 @@ static int load_module(void)
 	} else {
 		crypto_load(-1, -1);
 	}
+	ast_module_block_unload(AST_MODULE_SELF);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
-{
-	/* Can't unload this once we're loaded */
-	return -1;
-}
-
-/* needs usecount semantics defined */
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Cryptographic Digital Signatures",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND, /*!< Since we don't have a config file, we could move up to REALTIME_DEPEND, if necessary */
-);
+/* needs usecount semantics defined, or maybe drop OPTIONAL_API. */
+AST_MODULE_INFO_AUTOCLEAN_RELOADABLE(ASTERISK_GPL_KEY, "Cryptographic Digital Signatures");

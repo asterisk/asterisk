@@ -37,6 +37,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>cdr_driver</load_priority>
 	<depend>syslog</depend>
 	<support_level>core</support_level>
 ***/
@@ -233,21 +234,22 @@ static int load_config(int reload)
 	return AST_RWLIST_EMPTY(&sinks) ? -1 : 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	if (ast_cdr_unregister(name)) {
-		return -1;
+		ast_module_block_unload(AST_MODULE_SELF);
+		return;
 	}
 
 	if (AST_RWLIST_WRLOCK(&sinks)) {
-		ast_cdr_register(name, ast_module_info->description, syslog_log);
+		ast_cdr_register(name, ast_module_description(AST_MODULE_SELF), syslog_log);
 		ast_log(AST_LOG_ERROR, "Unable to lock sink list.  Unload failed.\n");
-		return -1;
+		ast_module_block_unload(AST_MODULE_SELF);
+		return;
 	}
 
 	free_config();
 	AST_RWLIST_UNLOCK(&sinks);
-	return 0;
 }
 
 static enum ast_module_load_result load_module(void)
@@ -264,11 +266,11 @@ static enum ast_module_load_result load_module(void)
 	if (res) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
-	ast_cdr_register(name, ast_module_info->description, syslog_log);
+	ast_cdr_register(name, ast_module_description(AST_MODULE_SELF), syslog_log);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	int res;
 	if (AST_RWLIST_WRLOCK(&sinks)) {
@@ -285,10 +287,4 @@ static int reload(void)
 	return res ? AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Customizable syslog CDR Backend",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_CDR_DRIVER,
-);
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "Customizable syslog CDR Backend");

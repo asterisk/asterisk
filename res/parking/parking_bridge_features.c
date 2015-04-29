@@ -502,8 +502,6 @@ static int parking_park_call(struct ast_bridge_channel *parker, char *exten, siz
 
 static int feature_park_call(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
-	SCOPED_MODULE_USE(AST_MODULE_SELF);
-
 	return parking_park_call(bridge_channel, NULL, 0);
 }
 
@@ -722,11 +720,13 @@ void unload_parking_bridge_features(void)
 {
 	ast_bridge_features_unregister(AST_BRIDGE_BUILTIN_PARKCALL);
 	ast_parking_unregister_bridge_features(parking_provider.module_name);
+	ast_module_block_unload(AST_MODULE_SELF);
+	ao2_cleanup(parking_provider.lib);
 }
 
 int load_parking_bridge_features(void)
 {
-	parking_provider.module = AST_MODULE_SELF;
+	parking_provider.lib = ast_module_get_lib_running(AST_MODULE_SELF);
 
 	if (ast_parking_register_bridge_features(&parking_provider)) {
 		return -1;

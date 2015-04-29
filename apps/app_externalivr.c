@@ -907,15 +907,9 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
   	return res;
 }
 
-static int unload_module(void)
-{
-	return ast_unregister_application(app);
-}
-
 static int load_module(void)
 {
 	return ast_register_application_xml(app, app_exec);
 }
 
-AST_MODULE_INFO_STANDARD_EXTENDED(ASTERISK_GPL_KEY, "External IVR Interface Application");
-
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "External IVR Interface Application");

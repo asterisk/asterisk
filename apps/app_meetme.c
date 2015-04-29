@@ -39,6 +39,7 @@
  */
 
 /*** MODULEINFO
+	<load_priority>devstate_provider</load_priority>
 	<depend>dahdi</depend>
 	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
@@ -3739,6 +3740,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, struc
 		agi_app = pbx_findapp("agi");
 		if (agi_app) {
 			ret = pbx_exec(chan, agi_app, agifile);
+			ao2_ref(agi_app, -1);
 		} else {
 			ast_log(LOG_WARNING, "Could not find application (agi)\n");
 			ret = -2;
@@ -8186,38 +8188,15 @@ AST_TEST_DEFINE(test_meetme_data_provider)
 }
 #endif
 
-static int unload_module(void)
+static void unload_module(void)
 {
-	int res = 0;
-	
-	ast_cli_unregister_multiple(cli_meetme, ARRAY_LEN(cli_meetme));
-	res = ast_manager_unregister("MeetmeMute");
-	res |= ast_manager_unregister("MeetmeUnmute");
-	res |= ast_manager_unregister("MeetmeList");
-	res |= ast_manager_unregister("MeetmeListRooms");
-	res |= ast_unregister_application(app4);
-	res |= ast_unregister_application(app3);
-	res |= ast_unregister_application(app2);
-	res |= ast_unregister_application(app);
-	res |= ast_unregister_application(slastation_app);
-	res |= ast_unregister_application(slatrunk_app);
-
-#ifdef TEST_FRAMEWORK
-	AST_TEST_UNREGISTER(test_meetme_data_provider);
-#endif
 	ast_data_unregister(NULL);
 
-	ast_devstate_prov_del("Meetme");
-	ast_devstate_prov_del("SLA");
-	
 	sla_destroy();
-	
-	res |= ast_custom_function_unregister(&meetme_info_acf);
+
 	ast_unload_realtime("meetme");
 
 	meetme_stasis_cleanup();
-
-	return res;
 }
 
 /*!
@@ -8264,17 +8243,10 @@ static int load_module(void)
 	return res;
 }
 
-static int reload(void)
+static int reload_module(void)
 {
 	ast_unload_realtime("meetme");
 	return load_config(1);
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "MeetMe conference bridge",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-	.load_pri = AST_MODPRI_DEVSTATE_PROVIDER,
-);
-
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "MeetMe conference bridge");

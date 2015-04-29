@@ -2639,19 +2639,6 @@ void sip_request_parser_register_tests(void)
 	AST_TEST_REGISTER(sip_uri_cmp_test);
 	AST_TEST_REGISTER(parse_via_test);
 }
-void sip_request_parser_unregister_tests(void)
-{
-	AST_TEST_UNREGISTER(sip_parse_uri_test);
-	AST_TEST_UNREGISTER(get_calleridname_test);
-	AST_TEST_UNREGISTER(get_in_brackets_test);
-	AST_TEST_UNREGISTER(get_name_and_number_test);
-	AST_TEST_UNREGISTER(sip_parse_uri_full_test);
-	AST_TEST_UNREGISTER(parse_name_andor_addr_test);
-	AST_TEST_UNREGISTER(parse_contact_header_test);
-	AST_TEST_UNREGISTER(sip_parse_options_test);
-	AST_TEST_UNREGISTER(sip_uri_cmp_test);
-	AST_TEST_UNREGISTER(parse_via_test);
-}
 
 int sip_reqresp_parser_init(void)
 {

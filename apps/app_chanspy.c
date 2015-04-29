@@ -1437,17 +1437,6 @@ static int dahdiscan_exec(struct ast_channel *chan, const char *data)
 	return res;
 }
 
-static int unload_module(void)
-{
-	int res = 0;
-
-	res |= ast_unregister_application(app_chan);
-	res |= ast_unregister_application(app_ext);
-	res |= ast_unregister_application(app_dahdiscan);
-
-	return res;
-}
-
 static int load_module(void)
 {
 	int res = 0;
@@ -1459,4 +1448,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Listen to the audio of an active channel");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Listen to the audio of an active channel");

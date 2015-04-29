@@ -400,13 +400,6 @@ error:
 	return AST_TEST_FAIL;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(string_field_aggregate_test);
-	AST_TEST_UNREGISTER(string_field_test);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(string_field_test);
@@ -414,4 +407,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "String Fields Test");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "String Fields Test");

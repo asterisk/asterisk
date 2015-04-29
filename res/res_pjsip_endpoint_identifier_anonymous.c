@@ -19,7 +19,7 @@
 
 /*** MODULEINFO
 	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
+	<use type="module">res_pjsip</use>
 	<support_level>core</support_level>
  ***/
 
@@ -108,21 +108,13 @@ static struct ast_sip_endpoint_identifier anonymous_identifier = {
 
 static int load_module(void)
 {
-	CHECK_PJSIP_MODULE_LOADED();
-
 	ast_sip_register_endpoint_identifier_with_name(&anonymous_identifier, "anonymous");
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_sip_unregister_endpoint_identifier(&anonymous_identifier);
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP Anonymous endpoint identifier",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_DEFAULT,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "PJSIP Anonymous endpoint identifier");

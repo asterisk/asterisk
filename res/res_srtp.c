@@ -29,6 +29,8 @@
  */
 
 /*** MODULEINFO
+	<load_priority>channel_depend</load_priority>
+	<export_globals/>
 	<depend>srtp</depend>
 	<support_level>core</support_level>
 ***/
@@ -445,7 +447,7 @@ static int ast_srtp_create(struct ast_srtp **srtp, struct ast_rtp_instance *rtp,
 	if (!(temp = res_srtp_new())) {
 		return -1;
 	}
-	ast_module_ref(ast_module_info->self);
+	/* BUGBUG: move to rtp engine. ast_module_ref(AST_MODULE_SELF, 0); */
 
 	/* Any failures after this point can use ast_srtp_destroy to destroy the instance */
 	if (srtp_create(&temp->session, &policy->sp) != err_status_ok) {
@@ -481,7 +483,7 @@ static void ast_srtp_destroy(struct ast_srtp *srtp)
 	ao2_t_ref(srtp->policies, -1, "Destroying container");
 
 	ast_free(srtp);
-	ast_module_unref(ast_module_info->self);
+	/* BUGBUG: move to rtp engine. ast_module_unref(AST_MODULE_SELF); */
 }
 
 static int ast_srtp_add_stream(struct ast_srtp *srtp, struct ast_srtp_policy *policy)
@@ -566,6 +568,7 @@ static int res_srtp_init(void)
 
 	srtp_install_event_handler(srtp_event_cb);
 
+	/* BUGBUG: need to add AST_MODULE_SELF parameter so rtp_engine can bump our refs. */
 	if (ast_rtp_engine_register_srtp(&srtp_res, &policy_res)) {
 		ast_log(AST_LOG_WARNING, "Failed to register SRTP with rtp engine\n");
 		res_srtp_shutdown();
@@ -585,15 +588,9 @@ static int load_module(void)
 	return res_srtp_init();
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	res_srtp_shutdown();
-	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Secure RTP (SRTP)",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Secure RTP (SRTP)");

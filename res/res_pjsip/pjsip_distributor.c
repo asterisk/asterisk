@@ -374,13 +374,13 @@ int ast_sip_initialize_distributor(void)
 		return -1;
 	}
 
-	if (internal_sip_register_service(&distributor_mod)) {
+	if (ast_sip_register_service(&distributor_mod)) {
 		return -1;
 	}
-	if (internal_sip_register_service(&endpoint_mod)) {
+	if (ast_sip_register_service(&endpoint_mod)) {
 		return -1;
 	}
-	if (internal_sip_register_service(&auth_mod)) {
+	if (ast_sip_register_service(&auth_mod)) {
 		return -1;
 	}
 
@@ -389,10 +389,6 @@ int ast_sip_initialize_distributor(void)
 
 void ast_sip_destroy_distributor(void)
 {
-	internal_sip_unregister_service(&distributor_mod);
-	internal_sip_unregister_service(&endpoint_mod);
-	internal_sip_unregister_service(&auth_mod);
-
 	ao2_cleanup(artificial_auth);
 	ao2_cleanup(artificial_endpoint);
 }

@@ -338,6 +338,7 @@ int ast_app_exec_macro(struct ast_channel *autoservice_chan, struct ast_channel 
 		ast_channel_priority(macro_chan));
 
 	res = pbx_exec(macro_chan, macro_app, macro_args);
+	ao2_ref(macro_app, -1);
 	ast_debug(4, "Macro exited with status %d\n", res);
 
 	/*
@@ -396,16 +397,15 @@ const char *ast_app_expand_sub_args(struct ast_channel *chan, const char *args)
 	const char *new_args;
 
 	funcs = app_stack_callbacks;
-	if (!funcs || !funcs->expand_sub_args) {
+	if (!funcs || !funcs->expand_sub_args || ast_module_ref_instance(funcs->module, +1) < 0) {
 		ast_log(LOG_WARNING,
 			"Cannot expand 'Gosub(%s)' arguments.  The app_stack module is not available.\n",
 			args);
 		return NULL;
 	}
-	ast_module_ref(funcs->module);
 
 	new_args = funcs->expand_sub_args(chan, args);
-	ast_module_unref(funcs->module);
+	ast_module_ref_instance(funcs->module, -1);
 	return new_args;
 }
 
@@ -415,20 +415,19 @@ int ast_app_exec_sub(struct ast_channel *autoservice_chan, struct ast_channel *s
 	int res;
 
 	funcs = app_stack_callbacks;
-	if (!funcs || !funcs->run_sub) {
+	if (!funcs || !funcs->run_sub || ast_module_ref_instance(funcs->module, +1) < 0) {
 		ast_log(LOG_WARNING,
 			"Cannot run 'Gosub(%s)'.  The app_stack module is not available.\n",
 			sub_args);
 		return -1;
 	}
-	ast_module_ref(funcs->module);
 
 	if (autoservice_chan) {
 		ast_autoservice_start(autoservice_chan);
 	}
 
 	res = funcs->run_sub(sub_chan, sub_args, ignore_hangup);
-	ast_module_unref(funcs->module);
+	ast_module_ref_instance(funcs->module, -1);
 
 	if (autoservice_chan) {
 		ast_autoservice_stop(autoservice_chan);
@@ -502,7 +501,7 @@ int __ast_vm_register(const struct ast_vm_functions *vm_table, struct ast_module
 		return -1;
 	}
 	*table = *vm_table;
-	table->module = module;
+	table->lib = ast_module_get_lib_running(module);
 
 	ao2_global_obj_replace_unref(vm_provider, table);
 	return 0;
@@ -515,6 +514,7 @@ void ast_vm_unregister(const char *module_name)
 	table = ao2_global_obj_ref(vm_provider);
 	if (table && !strcmp(table->module_name, module_name)) {
 		ao2_global_obj_release(vm_provider);
+		ao2_cleanup(table->lib);
 	}
 	ao2_cleanup(table);
 }
@@ -613,7 +613,8 @@ int __ast_vm_greeter_register(const struct ast_vm_greeter_functions *vm_table, s
 		return -1;
 	}
 	*table = *vm_table;
-	table->module = module;
+	table->lib = ast_module_get_lib_running(module);
+	ast_assert(!!table->lib);
 
 	ao2_global_obj_replace_unref(vm_greeter_provider, table);
 	return 0;
@@ -626,6 +627,7 @@ void ast_vm_greeter_unregister(const char *module_name)
 	table = ao2_global_obj_ref(vm_greeter_provider);
 	if (table && !strcmp(table->module_name, module_name)) {
 		ao2_global_obj_release(vm_greeter_provider);
+		ao2_cleanup(table->lib);
 	}
 	ao2_cleanup(table);
 }
@@ -662,9 +664,14 @@ static void vm_warn_no_provider(void)
 		if (!table) {														\
 			vm_warn_no_provider();											\
 		} else if (table->api_call) {										\
-			ast_module_ref(table->module);									\
-			(res) = table->api_call api_parms;								\
-			ast_module_unref(table->module);								\
+			struct ast_module_instance *instance;							\
+			instance = ast_module_lib_get_instance(table->lib); 			\
+			if (instance) {													\
+				(res) = table->api_call api_parms;							\
+				ao2_ref(instance, -1);										\
+			} else {														\
+				vm_warn_no_provider();										\
+			}																\
 		}																	\
 		ao2_cleanup(table);													\
 	} while (0)
@@ -683,9 +690,14 @@ static void vm_greeter_warn_no_provider(void)
 		if (!table) {														\
 			vm_greeter_warn_no_provider();									\
 		} else if (table->api_call) {										\
-			ast_module_ref(table->module);									\
-			(res) = table->api_call api_parms;								\
-			ast_module_unref(table->module);								\
+			struct ast_module_instance *instance;							\
+			instance = ast_module_lib_get_instance(table->lib); 			\
+			if (instance) {													\
+				(res) = table->api_call api_parms;							\
+				ao2_ref(instance, -1);										\
+			} else {														\
+				vm_warn_no_provider();										\
+			}																\
 		}																	\
 		ao2_cleanup(table);													\
 	} while (0)

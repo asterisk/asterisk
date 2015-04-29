@@ -95,14 +95,9 @@ static struct ast_custom_function acf_vmcount = {
 	.read_max = 12,
 };
 
-static int unload_module(void)
-{
-	return ast_custom_function_unregister(&acf_vmcount);
-}
-
 static int load_module(void)
 {
 	return ast_custom_function_register(&acf_vmcount);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Indicator for whether a voice mailbox has messages in a given folder.");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Indicator for whether a voice mailbox has messages in a given folder.");

@@ -44,7 +44,7 @@
 
 /*** MODULEINFO
 	<depend>spandsp</depend>
-	<depend>res_fax</depend>
+	<use type="module">res_fax</use>
 	<support_level>extended</support_level>
 ***/
 
@@ -1240,18 +1240,18 @@ static char *spandsp_fax_cli_show_settings(int fd)
 }
 
 /*! \brief unload res_fax_spandsp */
-static int unload_module(void)
+static void unload_module(void)
 {
 	ast_fax_tech_unregister(&spandsp_fax_tech);
+	ao2_cleanup(spandsp_fax_tech.lib);
 	ast_mutex_destroy(&spandsp_global_stats.lock);
-	return AST_MODULE_LOAD_SUCCESS;
 }
 
 /*! \brief load res_fax_spandsp */
 static int load_module(void)
 {
 	ast_mutex_init(&spandsp_global_stats.lock);
-	spandsp_fax_tech.module = ast_module_info->self;
+	spandsp_fax_tech.lib = ast_module_get_lib_running(AST_MODULE_SELF);
 	if (ast_fax_tech_register(&spandsp_fax_tech) < 0) {
 		ast_log(LOG_ERROR, "failed to register FAX technology\n");
 		return AST_MODULE_LOAD_DECLINE;
@@ -1263,9 +1263,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Spandsp G.711 and T.38 FAX Technologies",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-);
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Spandsp G.711 and T.38 FAX Technologies");

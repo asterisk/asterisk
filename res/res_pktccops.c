@@ -31,7 +31,8 @@
  */
 
 /*** MODULEINFO
-        <defaultenabled>no</defaultenabled>
+	<export_globals/>
+	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
  ***/
 
@@ -1477,7 +1478,7 @@ static int load_module(void)
 	return 0;
 }
 
-static int unload_module(void)
+static void unload_module(void)
 {
 	if (!ast_mutex_lock(&pktccops_lock)) {
 		if ((pktccops_thread != AST_PTHREADT_NULL) && (pktccops_thread != AST_PTHREADT_STOP)) {
@@ -1489,14 +1490,13 @@ static int unload_module(void)
 		ast_mutex_unlock(&pktccops_lock);
 	} else {
 		ast_log(LOG_ERROR, "Unable to lock the pktccops_thread\n");
-		return -1;
+		ast_module_block_unload(AST_MODULE_SELF);
+		return;
 	}
 
-	ast_cli_unregister_multiple(cli_pktccops, sizeof(cli_pktccops) / sizeof(struct ast_cli_entry));
 	pktccops_unregister_cmtses();
 	pktccops_unregister_ippools();
 	pktccops_thread = AST_PTHREADT_NULL;
-	return 0;
 }
 
 static int reload_module(void)
@@ -1510,10 +1510,4 @@ static int reload_module(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "PktcCOPS manager for MGCP",
-	.support_level = AST_MODULE_SUPPORT_EXTENDED,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload_module,
-);
-
+AST_MODULE_INFO_RELOADABLE(ASTERISK_GPL_KEY, "PktcCOPS manager for MGCP");

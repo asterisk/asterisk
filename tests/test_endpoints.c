@@ -136,14 +136,6 @@ AST_TEST_DEFINE(setters)
 	return AST_TEST_PASS;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(create);
-	AST_TEST_UNREGISTER(defaults);
-	AST_TEST_UNREGISTER(setters);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(create);
@@ -152,7 +144,4 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Endpoint testing",
-	.load = load_module,
-	.unload = unload_module,
-);
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Endpoint testing");

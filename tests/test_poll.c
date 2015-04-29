@@ -233,16 +233,10 @@ AST_TEST_DEFINE(poll_test)
 	return res;
 }
 
-static int unload_module(void)
-{
-	AST_TEST_UNREGISTER(poll_test);
-	return 0;
-}
-
 static int load_module(void)
 {
 	AST_TEST_REGISTER(poll_test);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Poll test");
+AST_MODULE_INFO_AUTOCLEAN(ASTERISK_GPL_KEY, "Poll test");
