@@ -560,6 +560,32 @@ int __ao2_weakproxy_set_object(void *weakproxy, void *obj, int flags,
 
 /*!
  * \since 14.0.0
+ * \brief Run ao2_t_ref on the object associated with weakproxy.
+ *
+ * \param weakproxy The weakproxy to read from.
+ * \param delta Value to add to the reference counter.
+ * \param flags OBJ_NOLOCK to avoid locking weakproxy.
+ *
+ * \retval -2 weakproxy is not a valid ao2_weakproxy.
+ * \retval -1 weakproxy has no associated object.
+ *
+ * \return The value of the reference counter before the operation.
+ *
+ * \note The OBJ_NOLOCK flag is only effective for delta >= 0.  For negative
+ *       delta's weakproxy will be locked by ao2_ref.
+ */
+int __ao2_weakproxy_ref_object(void *weakproxy, int delta, int flags,
+	const char *tag, const char *file, int line, const char *func);
+
+#define ao2_t_weakproxy_ref_object(weakproxy, delta, flags, tag) \
+	__ao2_weakproxy_ref_object(weakproxy, delta, flags, \
+		tag, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+#define ao2_weakproxy_ref_object(weakproxy, delta, flags) \
+	ao2_t_weakproxy_ref_object(weakproxy, delta, flags, "")
+
+/*!
+ * \since 14.0.0
  * \brief Get the object associated with weakproxy.
  *
  * \param weakproxy The weakproxy to read from.
