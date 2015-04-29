@@ -711,22 +711,14 @@ static int check_modem_rate(enum ast_fax_modems modems, unsigned int rate)
 {
 	switch (rate) {
 	case 2400:
-		if (!(modems & (AST_FAX_MODEM_V34))) {
-			return 1;
-		}
-		break;
 	case 4800:
 		if (!(modems & (AST_FAX_MODEM_V27 | AST_FAX_MODEM_V34))) {
 			return 1;
 		}
 		break;
 	case 7200:
-		if (!(modems & (AST_FAX_MODEM_V17 | AST_FAX_MODEM_V29 | AST_FAX_MODEM_V34))) {
-			return 1;
-		}
-		break;
 	case 9600:
-		if (!(modems & (AST_FAX_MODEM_V17 | AST_FAX_MODEM_V27 | AST_FAX_MODEM_V29 | AST_FAX_MODEM_V34))) {
+		if (!(modems & (AST_FAX_MODEM_V17 | AST_FAX_MODEM_V29 | AST_FAX_MODEM_V34))) {
 			return 1;
 		}
 		break;
@@ -3919,13 +3911,6 @@ static int set_config(int reload)
 		ast_log(LOG_ERROR, "maxrate %u is less than minrate %u\n", options.maxrate, options.minrate);
 		res = -1;
 		goto end;
-	}
-
-	if (options.minrate == 2400 && (options.modems & AST_FAX_MODEM_V27) && !(options.modems & (AST_FAX_MODEM_V34))) {
-		ast_fax_modem_to_str(options.modems, modems, sizeof(modems));
-		ast_log(LOG_WARNING, "'modems' setting '%s' is no longer accepted with 'minrate' setting %u\n", modems, options.minrate);
-		ast_log(LOG_WARNING, "'minrate' has been reset to 4800, please update res_fax.conf.\n");
-		options.minrate = 4800;
 	}
 
 	if (check_modem_rate(options.modems, options.minrate)) {
