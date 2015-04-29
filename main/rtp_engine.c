@@ -503,12 +503,19 @@ void ast_rtp_codecs_payloads_copy(struct ast_rtp_codecs *src, struct ast_rtp_cod
 
 	for (i = 0; i < AST_RTP_MAX_PT; i++) {
 		struct ast_rtp_payload_type *new_type;
+		int payload_alloced = 0;
 
 		if (!(type = ao2_find(src->payloads, &i, OBJ_KEY | OBJ_NOLOCK))) {
 			continue;
 		}
 
-		if (!(new_type = ao2_alloc(sizeof(*new_type), NULL))) {
+		new_type = ao2_find(dest->payloads, &i, OBJ_KEY | OBJ_NOLOCK);
+		if (!new_type) {
+			new_type = ao2_alloc(sizeof(*new_type), NULL);
+			payload_alloced = 1;
+		}
+
+		if (!new_type) {
 			continue;
 		}
 
@@ -517,7 +524,9 @@ void ast_rtp_codecs_payloads_copy(struct ast_rtp_codecs *src, struct ast_rtp_cod
 		new_type->payload = i;
 		*new_type = *type;
 
-		ao2_link_flags(dest->payloads, new_type, OBJ_NOLOCK);
+		if (payload_alloced) {
+			ao2_link_flags(dest->payloads, new_type, OBJ_NOLOCK);
+		}
 
 		ao2_ref(new_type, -1);
 
