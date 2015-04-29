@@ -573,13 +573,13 @@ static int handle_registration_response(void *data)
 	ast_copy_pj_str(client_uri, &info.client_uri, sizeof(client_uri));
 
 	if (response->client_state->status == SIP_REGISTRATION_STOPPED) {
-		ast_debug(1, "Not handling registration response from '%s' (transaction %s). Registration already stopped\n",
-				server_uri, response->tsx ? response->tsx->obj_name : "<none>");
+		ast_debug(1, "Not handling registration response from server '%s' for client '%s'. Registration already stopped\n",
+				server_uri, client_uri);
 		return 0;
 	}
 
-	ast_debug(1, "Processing REGISTER response %d from '%s' (transaction %s)\n",
-			response->code, server_uri, response->tsx ? response->tsx->obj_name : "<none>");
+	ast_debug(1, "Processing REGISTER response %d from server '%s' for client '%s'\n",
+			response->code, server_uri, client_uri);
 
 	if (!response->client_state->auth_attempted &&
 			(response->code == 401 || response->code == 407)) {
