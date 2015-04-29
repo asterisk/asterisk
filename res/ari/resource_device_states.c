@@ -23,6 +23,11 @@
  * \author Kevin Harwell <kharwell@digium.com>
  */
 
+/*** MODULEINFO
+	<depend type="module">res_stasis_device_states</depend>
+	<support_level>core</support_level>
+ ***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
