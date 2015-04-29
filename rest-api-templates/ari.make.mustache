@@ -20,6 +20,7 @@
 
 {{#apis}}
 res_ari_{{c_name}}.so: ari/resource_{{c_name}}.o
+.res_ari_{{c_name}}.moduleinfo: ari/resource_{{c_name}}.c
 
 ari/resource_{{c_name}}.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ari_{{c_name}})
 

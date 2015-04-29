@@ -24,7 +24,10 @@
  */
 
 /*** MODULEINFO
-	<depend type="module">res_stasis_app_playback</depend>
+	<depend type="module">res_stasis_answer</depend>
+	<depend type="module">res_stasis_playback</depend>
+	<depend type="module">res_stasis_recording</depend>
+	<depend type="module">res_stasis_snoop</depend>
 	<support_level>core</support_level>
  ***/
 
