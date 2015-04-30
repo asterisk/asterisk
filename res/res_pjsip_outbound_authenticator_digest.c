@@ -158,6 +158,7 @@ static int digest_create_request_with_auth(const struct ast_sip_auth_vector *aut
 
 static struct ast_sip_outbound_authenticator digest_authenticator = {
 	.create_request_with_auth = digest_create_request_with_auth,
+	.create_request_with_auth_from_old = digest_create_request_with_auth_from_old,
 };
 
 static int load_module(void)
