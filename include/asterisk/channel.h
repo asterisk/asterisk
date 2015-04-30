@@ -3920,7 +3920,7 @@ void ast_channel_name_set(struct ast_channel *chan, const char *name);
  *
  * \li language
  * \li accountcode
- * \li peeracccount
+ * \li peeraccount
  * \li linkedid
  */
 DECLARE_STRINGFIELD_SETTERS_FOR(name);
