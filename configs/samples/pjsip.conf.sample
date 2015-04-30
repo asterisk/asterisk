@@ -870,9 +870,9 @@
             ; Identifier names are derived from res_pjsip_endpoint_identifier_*
             ; modules. (default: ip,username,anonymous)
 ;max_initial_qualify_time=4 ; The maximum amount of time (in seconds) from
-                              startup that qualifies should be attempted on all
-                              contacts.  If greater than the qualify_frequency
-                              for an aor, qualify_frequency will be used instead.
+                            ; startup that qualifies should be attempted on all
+                            ; contacts.  If greater than the qualify_frequency
+                            ; for an aor, qualify_frequency will be used instead.
 
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_acl
 ;==========================ACL SECTION OPTIONS=========================
