@@ -24,7 +24,7 @@
  */
 
 /*** MODULEINFO
-	<depend type="module">res_stasis_device_states</depend>
+	<depend type="module">res_stasis_device_state</depend>
 	<support_level>core</support_level>
  ***/
 
