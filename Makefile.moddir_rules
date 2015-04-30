@@ -66,7 +66,9 @@ define MOD_ADD_SOURCE
 $$(if $$(filter $(1),$$(EMBEDDED_MODS)),modules.link,$(1).so): $$(subst $(3),$(5),$(2))
 $$(subst $(3),$(5),$(2)): _ASTCFLAGS+=$$(call MOD_ASTCFLAGS,$(1))
 .$(1).moduleinfo: MODULEINFO_EXTRA_OUTPUT=" $$(addprefix $$(SUBDIR)/,$$(subst $(3),$(5),$(2)) $$(subst $(3),$(4),$(2)))"
-.$(1).moduleinfo: $(2)
+# The use of wildcard ensures that 'make menuselect' will not fail for modules that
+# require additional source downloads.
+.$(1).moduleinfo: $(wildcard $(2))
 
 clean:: clean-$(1)$(3)
 
