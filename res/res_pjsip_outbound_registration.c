@@ -33,6 +33,7 @@
 #include "asterisk/taskprocessor.h"
 #include "asterisk/cli.h"
 #include "asterisk/stasis_system.h"
+#include "asterisk/threadstorage.h"
 #include "res_pjsip/include/res_pjsip_private.h"
 
 /*** DOCUMENTATION
@@ -194,6 +195,9 @@
 		</description>
 	</manager>
  ***/
+
+/*! \brief Some thread local storage used to determine if the running thread invoked the callback */
+AST_THREADSTORAGE(register_callback_invoked);
 
 /*! \brief Amount of buffer time (in seconds) before expiration that we re-register at */
 #define REREGISTER_BUFFER_TIME 10
@@ -429,6 +433,33 @@ static void cancel_registration(struct sip_outbound_registration_client_state *c
 
 static pj_str_t PATH_NAME = { "path", 4 };
 
+/*! \brief Helper function which sends a message and cleans up, if needed, on failure */
+static pj_status_t registration_client_send(struct sip_outbound_registration_client_state *client_state,
+	pjsip_tx_data *tdata)
+{
+	pj_status_t status;
+	int *callback_invoked;
+
+	callback_invoked = ast_threadstorage_get(&register_callback_invoked, sizeof(int));
+	if (!callback_invoked) {
+		return PJ_ENOMEM;
+	}
+	*callback_invoked = 0;
+
+	/* Due to the message going out the callback may now be invoked, so bump the count */
+	ao2_ref(client_state, +1);
+	status = pjsip_regc_send(client_state->client, tdata);
+
+	/* If the attempt to send the message failed and the callback was not invoked we need to
+	 * drop the reference we just added
+	 */
+	if ((status != PJ_SUCCESS) && !(*callback_invoked)) {
+		ao2_ref(client_state, -1);
+	}
+
+	return status;
+}
+
 /*! \brief Callback function for registering */
 static int handle_client_registration(void *data)
 {
@@ -466,11 +497,7 @@ static int handle_client_registration(void *data)
 		pj_strassign(&hdr->values[hdr->count++], &PATH_NAME);
 	}
 
-	/* Due to the registration the callback may now get called, so bump the ref count */
-	ao2_ref(client_state, +1);
-	if (pjsip_regc_send(client_state->client, tdata) != PJ_SUCCESS) {
-		ao2_ref(client_state, -1);
-	}
+	registration_client_send(client_state, tdata);
 
 	return 0;
 }
@@ -650,13 +677,11 @@ static int handle_registration_response(void *data)
 		pjsip_tx_data *tdata;
 		if (!ast_sip_create_request_with_auth(&response->client_state->outbound_auths,
 				response->rdata, response->old_request, &tdata)) {
-			ao2_ref(response->client_state, +1);
 			response->client_state->auth_attempted = 1;
 			ast_debug(1, "Sending authenticated REGISTER to server '%s' from client '%s'\n",
 					server_uri, client_uri);
-			if (pjsip_regc_send(response->client_state->client, tdata) != PJ_SUCCESS) {
+			if (registration_client_send(response->client_state, tdata) != PJ_SUCCESS) {
 				response->client_state->auth_attempted = 0;
-				ao2_cleanup(response->client_state);
 			}
 			return 0;
 		} else {
@@ -732,8 +757,14 @@ static void sip_outbound_registration_response_cb(struct pjsip_regc_cbparam *par
 	RAII_VAR(struct sip_outbound_registration_client_state *, client_state, param->token, ao2_cleanup);
 	struct registration_response *response;
 	pjsip_regc_info info;
+	int *callback_invoked;
 
+	callback_invoked = ast_threadstorage_get(&register_callback_invoked, sizeof(int));
+
+	ast_assert(callback_invoked != NULL);
 	ast_assert(client_state != NULL);
+
+	*callback_invoked = 1;
 
 	response = ao2_alloc(sizeof(*response), registration_response_destroy);
 	if (!response) {
@@ -1202,10 +1233,7 @@ static int unregister_task(void *obj)
 		return 0;
 	}
 
-	ao2_ref(state->client_state, +1);
-	if (pjsip_regc_send(client, tdata) != PJ_SUCCESS) {
-		ao2_cleanup(state->client_state);
-	}
+	registration_client_send(state->client_state, tdata);
 
 	return 0;
 }
