@@ -167,6 +167,11 @@
 ; "contact_user=" sets the SIP contact header's user portion of the SIP URI
 ; this will affect the extension reached in dialplan when the far end calls you at this
 ; registration. The default is 's'.
+;
+; If you would like to enable line support and have incoming calls related to this
+; registration go to an endpoint automatically the "line" and "endpoint" options must
+; be set. The "endpoint" option specifies what endpoint the incoming call should be
+; associated with.
 
 ;[mytrunk]
 ;type=registration
@@ -178,6 +183,8 @@
 ;retry_interval=60
 ;forbidden_retry_interval=600
 ;expiration=3600
+;line=yes
+;endpoint=mytrunk
 
 ;[mytrunk_auth]
 ;type=auth

@@ -23,6 +23,12 @@ chan_pjsip
  * The configuration setting 'progressinband' now defaults to 'no', which
    matches the actual behavior of previous versions.
 
+ * New 'line' and 'endpoint' options added on outbound registrations. This allows some
+   identifying information to be added to the Contact of the outbound registration.
+   If this information is present on messages received from the remote server
+   the message will automatically be associated with the configured endpoint on the
+   outbound registration.
+
 res_pjsip
 ------------------
  * A new CLI command has been added: "pjsip show settings", which shows
