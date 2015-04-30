@@ -93,8 +93,7 @@ static const char config[] = "cdr.conf";
 
 static char *name = "csv";
 
-AST_MUTEX_DEFINE_STATIC(mf_lock);
-AST_MUTEX_DEFINE_STATIC(acf_lock);
+AST_MUTEX_DEFINE_STATIC(f_lock);
 
 static int load_config(int reload)
 {
@@ -251,36 +250,37 @@ static int build_csv_record(char *buf, size_t bufsize, struct ast_cdr *cdr)
 	return -1;
 }
 
-static int writefile(char *s, char *acc)
+static int writefile(char *s, char *file_path)
 {
-	char tmp[PATH_MAX];
 	FILE *f;
-
-	if (strchr(acc, '/') || (acc[0] == '.')) {
-		ast_log(LOG_WARNING, "Account code '%s' insecure for writing file\n", acc);
-		return -1;
-	}
-
-	snprintf(tmp, sizeof(tmp), "%s/%s/%s.csv", ast_config_AST_LOG_DIR,CSV_LOG_DIR, acc);
-
-	ast_mutex_lock(&acf_lock);
-	if (!(f = fopen(tmp, "a"))) {
-		ast_mutex_unlock(&acf_lock);
-		ast_log(LOG_ERROR, "Unable to open file %s : %s\n", tmp, strerror(errno));
+	/* because of the absolutely unconditional need for the
+	   highest reliability possible in writing billing records,
+	   we open write and close the log file each time */
+	if (!(f = fopen(file_path, "a"))) {
+		ast_log(LOG_ERROR, "Unable to open file %s : %s\n", file_path, strerror(errno));
 		return -1;
 	}
 	fputs(s, f);
-	fflush(f);
+	fflush(f); /* be particularly anal here */
 	fclose(f);
-	ast_mutex_unlock(&acf_lock);
 
 	return 0;
 }
 
 
+static int writefile_account(char *s, char *acc)
+{
+	char file_account[PATH_MAX];
+	if (strchr(acc, '/') || (acc[0] == '.')) {
+		ast_log(LOG_WARNING, "Account code '%s' insecure for writing file\n", acc);
+		return -1;
+	}
+	snprintf(file_account, sizeof(file_account), "%s/%s/%s.csv", ast_config_AST_LOG_DIR,CSV_LOG_DIR, acc);
+	return writefile(s, file_account);
+}
+
 static int csv_log(struct ast_cdr *cdr)
 {
-	FILE *mf = NULL;
 	/* Make sure we have a big enough buf */
 	char buf[1024];
 	char csvmaster[PATH_MAX];
@@ -290,26 +290,15 @@ static int csv_log(struct ast_cdr *cdr)
 		return 0;
 	}
 
-	/* because of the absolutely unconditional need for the
-	   highest reliability possible in writing billing records,
-	   we open write and close the log file each time */
-	ast_mutex_lock(&mf_lock);
-	if ((mf = fopen(csvmaster, "a"))) {
-		fputs(buf, mf);
-		fflush(mf); /* be particularly anal here */
-		fclose(mf);
-		mf = NULL;
-		ast_mutex_unlock(&mf_lock);
-	} else {
-		ast_mutex_unlock(&mf_lock);
-		ast_log(LOG_ERROR, "Unable to re-open master file %s : %s\n", csvmaster, strerror(errno));
-	}
+	ast_mutex_lock(&f_lock);
+	if (writefile(buf, csvmaster))
+		ast_log(LOG_WARNING, "Unable to write CSV record to master '%s' : %s\n", csvmaster, strerror(errno));
 
 	if (accountlogs && !ast_strlen_zero(cdr->accountcode)) {
-		if (writefile(buf, cdr->accountcode))
+		if (writefile_account(buf, cdr->accountcode))
 			ast_log(LOG_WARNING, "Unable to write CSV record to account file '%s' : %s\n", cdr->accountcode, strerror(errno));
 	}
-
+	ast_mutex_unlock(&f_lock);
 	return 0;
 }
 
