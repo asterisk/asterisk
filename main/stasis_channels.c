@@ -1279,6 +1279,7 @@ static void dial_target_free(struct dial_target *doomed)
 		return;
 	}
 	ast_free(doomed->dialstring);
+	ast_channel_cleanup(doomed->peer);
 	ast_free(doomed);
 }
 
@@ -1301,7 +1302,7 @@ static void dial_masquerade_datastore_cleanup(struct dial_masquerade_datastore *
 	while ((cur = AST_LIST_REMOVE_HEAD(&masq_data->dialed_peers, list))) {
 		dial_target_free(cur);
 	}
-	masq_data->caller = NULL;
+	masq_data->caller = ast_channel_cleanup(masq_data->caller);
 }
 
 static void dial_masquerade_datastore_remove_chan(struct dial_masquerade_datastore *masq_data, struct ast_channel *chan)
@@ -1509,7 +1510,7 @@ static struct dial_masquerade_datastore *dial_masquerade_datastore_add(
 			ast_datastore_free(datastore);
 			return NULL;
 		}
-		masq_data->caller = chan;
+		masq_data->caller = ast_channel_ref(chan);
 	}
 
 	datastore->data = masq_data;
@@ -1557,7 +1558,7 @@ static int set_dial_masquerade(struct ast_channel *caller, struct ast_channel *p
 			return -1;
 		}
 	}
-	target->peer = peer;
+	target->peer = ast_channel_ref(peer);
 
 	/* Put peer target into datastore */
 	ao2_lock(masq_data);
