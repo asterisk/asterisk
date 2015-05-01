@@ -1143,16 +1143,16 @@ int astobj2_init(void)
 {
 	char ref_filename[1024];
 
-	if (container_init() != 0) {
-		return -1;
-	}
-
 	if (ast_opt_ref_debug) {
 		snprintf(ref_filename, sizeof(ref_filename), "%s/refs", ast_config_AST_LOG_DIR);
 		ref_log = fopen(ref_filename, "w");
 		if (!ref_log) {
 			ast_log(LOG_ERROR, "Could not open ref debug log file: %s\n", ref_filename);
 		}
+	}
+
+	if (container_init() != 0) {
+		return -1;
 	}
 
 #if defined(AO2_DEBUG)
