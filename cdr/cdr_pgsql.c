@@ -75,6 +75,7 @@ static char *encoding;
 static char *tz;
 
 static int connected = 0;
+/* Optimization to reduce number of memory allocations */
 static int maxsize = 512, maxsize2 = 512;
 static time_t connect_time = 0;
 static int totalrecords = 0;
@@ -453,6 +454,15 @@ static int pgsql_log(struct ast_cdr *cdr)
 			records++;
 		}
 		PQclear(result);
+
+		/* Next time, just allocate buffers that are that big to start with. */
+		if (ast_str_strlen(sql) > maxsize) {
+			maxsize = ast_str_strlen(sql);
+		}
+		if (ast_str_strlen(sql2) > maxsize2) {
+			maxsize2 = ast_str_strlen(sql2);
+		}
+
 		ast_free(sql);
 		ast_free(sql2);
 	}

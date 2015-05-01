@@ -71,6 +71,7 @@ static char *pgdbport;
 static char *table;
 
 static int connected = 0;
+/* Optimization to reduce number of memory allocations */
 static int maxsize = 512, maxsize2 = 512;
 static int usegmtime = 0;
 
@@ -371,6 +372,14 @@ static void pgsql_log(struct ast_event *event)
 			goto ast_log_cleanup;
 		}
 		PQclear(result);
+
+		/* Next time, just allocate buffers that are that big to start with. */
+		if (ast_str_strlen(sql) > maxsize) {
+			maxsize = ast_str_strlen(sql);
+		}
+		if (ast_str_strlen(sql2) > maxsize2) {
+			maxsize2 = ast_str_strlen(sql2);
+		}
 
 ast_log_cleanup:
 		ast_free(sql);
