@@ -60,6 +60,7 @@ static int loguserfield = 0;
 static int loaded = 0;
 static int newcdrcolumns = 0;
 static const char config[] = "cdr.conf";
+static char file_csv_master[PATH_MAX];
 
 /* #define CSV_LOGUNIQUEID 1 */
 /* #define CSV_LOGUSERFIELD 1 */
@@ -119,6 +120,10 @@ static int load_config(int reload)
 		ast_config_destroy(cfg);
 		return 0;
 	}
+
+	/* compute the location of the csv master file */
+	snprintf(file_csv_master, sizeof(file_csv_master),
+		"%s/%s/%s", ast_config_AST_LOG_DIR, CSV_LOG_DIR, CSV_MASTER);
 
 	for (; v; v = v->next) {
 		if (!strcasecmp(v->name, "usegmtime")) {
@@ -293,16 +298,14 @@ static int csv_log(struct ast_cdr *cdr)
 {
 	/* Make sure we have a big enough buf */
 	char buf[1024];
-	char csvmaster[PATH_MAX];
-	snprintf(csvmaster, sizeof(csvmaster),"%s/%s/%s", ast_config_AST_LOG_DIR, CSV_LOG_DIR, CSV_MASTER);
 	if (build_csv_record(buf, sizeof(buf), cdr)) {
 		ast_log(LOG_WARNING, "Unable to create CSV record in %d bytes.  CDR not recorded!\n", (int)sizeof(buf));
 		return 0;
 	}
 
 	ast_mutex_lock(&f_lock);
-	if (writefile(buf, csvmaster))
-		ast_log(LOG_WARNING, "Unable to write CSV record to master '%s' : %s\n", csvmaster, strerror(errno));
+	if (writefile(buf, file_csv_master))
+		ast_log(LOG_WARNING, "Unable to write CSV record to master '%s' : %s\n", file_csv_master, strerror(errno));
 
 	if (accountlogs && !ast_strlen_zero(cdr->accountcode)) {
 		if (writefile_account(buf, cdr->accountcode))
