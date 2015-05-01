@@ -899,19 +899,18 @@ int astobj2_init(void)
 {
 #ifdef REF_DEBUG
 	char ref_filename[1024];
-#endif
 
-	if (container_init() != 0) {
-		return -1;
-	}
-
-#ifdef REF_DEBUG
 	snprintf(ref_filename, sizeof(ref_filename), "%s/refs", ast_config_AST_LOG_DIR);
 	ref_log = fopen(ref_filename, "w");
 	if (!ref_log) {
 		ast_log(LOG_ERROR, "Could not open ref debug log file: %s\n", ref_filename);
 	}
 #endif
+
+	if (container_init() != 0) {
+		fclose(ref_log);
+		return -1;
+	}
 
 #if defined(AO2_DEBUG)
 	ast_cli_register_multiple(cli_astobj2, ARRAY_LEN(cli_astobj2));
