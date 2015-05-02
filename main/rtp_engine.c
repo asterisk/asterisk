@@ -625,7 +625,7 @@ void ast_rtp_codecs_payloads_copy(struct ast_rtp_codecs *src, struct ast_rtp_cod
 		}
 		ast_debug(2, "Copying payload %d (%p) from %p to %p\n", i, type, src, dest);
 		ao2_bump(type);
-		AST_VECTOR_INSERT(&dest->payloads, i, type);
+		AST_VECTOR_REPLACE(&dest->payloads, i, type);
 
 		if (instance && instance->engine && instance->engine->payload_set) {
 			instance->engine->payload_set(instance, i, type->asterisk_format, type->format, type->rtp_code);
@@ -662,7 +662,7 @@ void ast_rtp_codecs_payloads_set_m_type(struct ast_rtp_codecs *codecs, struct as
 	new_type->format = ao2_bump(static_RTP_PT[payload].format);
 
 	ast_debug(1, "Setting payload %d (%p) based on m type on %p\n", payload, new_type, codecs);
-	AST_VECTOR_INSERT(&codecs->payloads, payload, new_type);
+	AST_VECTOR_REPLACE(&codecs->payloads, payload, new_type);
 
 	if (instance && instance->engine && instance->engine->payload_set) {
 		instance->engine->payload_set(instance, payload, new_type->asterisk_format, new_type->format, new_type->rtp_code);
@@ -727,7 +727,7 @@ int ast_rtp_codecs_payloads_set_rtpmap_type_rate(struct ast_rtp_codecs *codecs, 
 		} else {
 			new_type->format = ao2_bump(t->payload_type.format);
 		}
-		AST_VECTOR_INSERT(&codecs->payloads, pt, new_type);
+		AST_VECTOR_REPLACE(&codecs->payloads, pt, new_type);
 
 		if (instance && instance->engine && instance->engine->payload_set) {
 			instance->engine->payload_set(instance, pt, new_type->asterisk_format, new_type->format, new_type->rtp_code);
@@ -760,7 +760,7 @@ void ast_rtp_codecs_payloads_unset(struct ast_rtp_codecs *codecs, struct ast_rtp
 	if (payload < AST_VECTOR_SIZE(&codecs->payloads)) {
 		type = AST_VECTOR_GET(&codecs->payloads, payload);
 		ao2_cleanup(type);
-		AST_VECTOR_INSERT(&codecs->payloads, payload, NULL);
+		AST_VECTOR_REPLACE(&codecs->payloads, payload, NULL);
 	}
 
 	if (instance && instance->engine && instance->engine->payload_set) {
