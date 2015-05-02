@@ -190,7 +190,6 @@
 
 ASTERISK_REGISTER_FILE()
 
-#include "parking/res_parking.h"
 #include "asterisk/config.h"
 #include "asterisk/config_options.h"
 #include "asterisk/utils.h"
@@ -200,6 +199,8 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/features.h"
 #include "asterisk/manager.h"
 #include "asterisk/pbx.h"
+
+#include "parking/res_parking.h"
 
 static int parking_lot_sort_fn(const void *obj_left, const void *obj_right, int flags)
 {
@@ -1227,7 +1228,7 @@ static int load_module(void)
 		goto error;
 	}
 
-	if (load_parking_ui()) {
+	if (load_parking_ui(ast_module_info)) {
 		goto error;
 	}
 

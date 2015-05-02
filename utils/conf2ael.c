@@ -605,9 +605,9 @@ struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts,
 	return localized_context_find_or_create(extcontexts, exttable, name, registrar);
 }
 
-void ast_cli_register_multiple(void);
+void __ast_cli_register_multiple(void);
 
-void ast_cli_register_multiple(void)
+void __ast_cli_register_multiple(void)
 {
 }
 

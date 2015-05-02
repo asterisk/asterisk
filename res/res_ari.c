@@ -1052,7 +1052,7 @@ static int load_module(void)
 		ast_debug(3, "ARI disabled\n");
 	}
 
-	if (ast_ari_cli_register() != 0) {
+	if (ast_ari_cli_register(ast_module_info) != 0) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
 

@@ -497,7 +497,7 @@ void unload_parking_applications(void);
  * \retval 0 if successful
  * \retval -1 on failure
  */
-int load_parking_ui(void);
+int load_parking_ui(const struct ast_module_info *ast_module_info);
 
 /*!
  * \since 12.0.0

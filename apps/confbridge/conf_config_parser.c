@@ -2110,7 +2110,7 @@ static int verify_default_profiles(void)
 	return 0;
 }
 
-int conf_load_config(void)
+int conf_load_config(const struct ast_module_info *ast_module_info)
 {
 	if (aco_info_init(&cfg_info)) {
 		return -1;

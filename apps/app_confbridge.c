@@ -3373,7 +3373,7 @@ static int load_module(void)
 {
 	int res = 0;
 
-	if (conf_load_config()) {
+	if (conf_load_config(ast_module_info)) {
 		ast_log(LOG_ERROR, "Unable to load config. Not loading module.\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}

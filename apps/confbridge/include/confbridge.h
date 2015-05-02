@@ -28,6 +28,7 @@
 #include "asterisk/channel.h"
 #include "asterisk/bridge.h"
 #include "asterisk/bridge_features.h"
+#include "asterisk/module.h"
 #include "conf_state.h"
 
 /* Maximum length of a conference bridge name */
@@ -256,7 +257,7 @@ struct confbridge_user {
 };
 
 /*! \brief load confbridge.conf file */
-int conf_load_config(void);
+int conf_load_config(const struct ast_module_info *ast_module_info);
 
 /*! \brief reload confbridge.conf file */
 int conf_reload_config(void);

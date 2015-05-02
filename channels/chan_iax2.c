@@ -15006,6 +15006,11 @@ static const struct ast_data_entry iax2_data_providers[] = {
 	AST_DATA_ENTRY("asterisk/channel/iax2/users", &users_data_provider),
 };
 
+const struct ast_module_info *iax2_module_info(void)
+{
+	return ast_module_info;
+}
+
 /*!
  * \brief Load the module
  *

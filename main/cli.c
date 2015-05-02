@@ -2203,7 +2203,7 @@ static int cli_is_registered(struct ast_cli_entry *e)
 	return 0;
 }
 
-static int __ast_cli_unregister(struct ast_cli_entry *e, struct ast_cli_entry *ed)
+int ast_cli_unregister(struct ast_cli_entry *e)
 {
 	if (e->inuse) {
 		ast_log(LOG_WARNING, "Can't remove command that is in use\n");
@@ -2225,7 +2225,7 @@ static int __ast_cli_unregister(struct ast_cli_entry *e, struct ast_cli_entry *e
 	return 0;
 }
 
-static int __ast_cli_register(struct ast_cli_entry *e, struct ast_cli_entry *ed)
+int __ast_cli_register(struct ast_cli_entry *e, struct ast_module *module)
 {
 	struct ast_cli_entry *cur;
 	int i, lf, ret = -1;
@@ -2244,7 +2244,13 @@ static int __ast_cli_register(struct ast_cli_entry *e, struct ast_cli_entry *ed)
 	}
 
 	memset(&a, '\0', sizeof(a));
+
+	e->module = module;
+
+	ast_module_ref(e->module);
 	e->handler(e, CLI_INIT, &a);
+	ast_module_unref(e->module);
+
 	/* XXX check that usage and command are filled up */
 	s = ast_skip_blanks(e->command);
 	s = e->command = ast_strdup(s);
@@ -2295,27 +2301,16 @@ done:
 	return ret;
 }
 
-/* wrapper function, so we can unregister deprecated commands recursively */
-int ast_cli_unregister(struct ast_cli_entry *e)
-{
-	return __ast_cli_unregister(e, NULL);
-}
-
-/* wrapper function, so we can register deprecated commands recursively */
-int ast_cli_register(struct ast_cli_entry *e)
-{
-	return __ast_cli_register(e, NULL);
-}
-
 /*
  * register/unregister an array of entries.
  */
-int ast_cli_register_multiple(struct ast_cli_entry *e, int len)
+int __ast_cli_register_multiple(struct ast_cli_entry *e, int len, struct ast_module *module)
 {
 	int i, res = 0;
 
-	for (i = 0; i < len; i++)
-		res |= ast_cli_register(e + i);
+	for (i = 0; i < len; i++) {
+		res |= __ast_cli_register(e + i, module);
+	}
 
 	return res;
 }
@@ -2329,7 +2324,6 @@ int ast_cli_unregister_multiple(struct ast_cli_entry *e, int len)
 
 	return res;
 }
-
 
 /*! \brief helper for final part of handle_help
  *  if locked = 1, assume the list is already locked
@@ -2657,7 +2651,9 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 					.n = state - matchnum,
 					.argv = argv,
 					.argc = x};
+				ast_module_ref(e->module);
 				ret = e->handler(e, CLI_GENERATE, &a);
+				ast_module_unref(e->module);
 			}
 			if (ret)
 				break;
@@ -2714,7 +2710,9 @@ int ast_cli_command_full(int uid, int gid, int fd, const char *s)
 	 */
 	args[0] = (char *)e;
 
+	ast_module_ref(e->module);
 	retval = e->handler(e, CLI_HANDLER, &a);
+	ast_module_unref(e->module);
 
 	if (retval == CLI_SHOWUSAGE) {
 		ast_cli(fd, "%s", S_OR(e->usage, "Invalid usage, but no usage information available.\n"));

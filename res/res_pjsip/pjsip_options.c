@@ -1150,7 +1150,8 @@ static struct ast_sip_endpoint_formatter contact_status_formatter = {
 	.format_ami = format_ami_contact_status
 };
 
-int ast_res_pjsip_init_options_handling(int reload)
+int __ast_res_pjsip_init_options_handling(int reload,
+	const struct ast_module_info *ast_module_info)
 {
 	static const pj_str_t STR_OPTIONS = { "OPTIONS", 7 };
 

@@ -42,6 +42,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/lock.h"
 #include "asterisk/frame.h"
 #include "asterisk/md5.h"
+#include "asterisk/module.h"
 #include "asterisk/astdb.h"
 #include "asterisk/utils.h"
 #include "asterisk/acl.h"
@@ -498,7 +499,9 @@ static struct ast_cli_entry cli_iax2_provision[] = {
 
 static int iax_provision_init(void)
 {
-	ast_cli_register_multiple(cli_iax2_provision, sizeof(cli_iax2_provision) / sizeof(struct ast_cli_entry));
+	__ast_cli_register_multiple(cli_iax2_provision,
+		sizeof(cli_iax2_provision) / sizeof(struct ast_cli_entry),
+		iax2_module_info()->self);
 	provinit = 1;
 	return 0;
 }

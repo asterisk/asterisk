@@ -1758,9 +1758,9 @@ int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_mod
 		return -1;
 	}
 
-	ast_sip_initialize_cli();
+	ast_sip_initialize_cli(ast_module_info);
 
-	if (ast_sip_initialize_sorcery_auth()) {
+	if (ast_sip_initialize_sorcery_auth(ast_module_info)) {
 		ast_log(LOG_ERROR, "Failed to register SIP authentication support\n");
 		ast_sorcery_unref(sip_sorcery);
 		sip_sorcery = NULL;
@@ -1872,14 +1872,14 @@ int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_mod
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "message_context", "", OPT_STRINGFIELD_T, 1, STRFLDSET(struct ast_sip_endpoint, message_context));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "accountcode", "", OPT_STRINGFIELD_T, 1, STRFLDSET(struct ast_sip_endpoint, accountcode));
 
-	if (ast_sip_initialize_sorcery_transport()) {
+	if (ast_sip_initialize_sorcery_transport(ast_module_info)) {
 		ast_log(LOG_ERROR, "Failed to register SIP transport support with sorcery\n");
 		ast_sorcery_unref(sip_sorcery);
 		sip_sorcery = NULL;
 		return -1;
 	}
 
-	if (ast_sip_initialize_sorcery_location()) {
+	if (ast_sip_initialize_sorcery_location(ast_module_info)) {
 		ast_log(LOG_ERROR, "Failed to register SIP location support with sorcery\n");
 		ast_sorcery_unref(sip_sorcery);
 		sip_sorcery = NULL;
