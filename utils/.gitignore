@@ -3,10 +3,10 @@ aelparse
 aelparse.c
 ast_expr2.c
 ast_expr2f.c
-astman
 astcanary
 astdb2bdb
 astdb2sqlite3
+astman
 check_expr
 check_expr2
 conf2ael
@@ -16,9 +16,15 @@ lock.c
 md5.c
 muted
 pbx_ael.c
+poll.c
 pval.c
+refcounter
+sha1.c
 smsq
 stereorize
 strcompat.c
 streamplayer
+strings.c
 threadstorage.c
+utils.c
+version.c
