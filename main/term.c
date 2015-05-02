@@ -311,8 +311,7 @@ const char *ast_term_color(int fgcolor, int bgcolor)
 const char *ast_term_reset(void)
 {
 	if (ast_opt_force_black_background) {
-		static const char reset[] = { ESC, '[', COLOR_BLACK + 10, 'm', 0 };
-		return reset;
+		return enddata;
 	} else {
 		return quitdata;
 	}
