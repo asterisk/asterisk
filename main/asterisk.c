@@ -4260,7 +4260,10 @@ int main(int argc, char *argv[])
 	register_config_cli();
 	read_config_maps();
 
-	astobj2_init();
+	if (astobj2_init()) {
+		printf("Failed: astobj2_init\n%s", term_quit());
+		exit(1);
+	}
 
 	if (ast_opt_console) {
 		if (el_hist == NULL || el == NULL)
