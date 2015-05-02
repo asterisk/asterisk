@@ -254,7 +254,6 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/astobj2.h"
 #include "asterisk/dnsmgr.h"
 #include "asterisk/devicestate.h"
-#include "asterisk/monitor.h"
 #include "asterisk/netsock2.h"
 #include "asterisk/localtime.h"
 #include "asterisk/abstract_jb.h"
