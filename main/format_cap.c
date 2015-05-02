@@ -139,7 +139,7 @@ static inline int format_cap_framed_init(struct format_cap_framed *framed, struc
 	framed->framing = framing;
 
 	if (ast_format_get_codec_id(format) >= AST_VECTOR_SIZE(&cap->formats)) {
-		if (AST_VECTOR_INSERT(&cap->formats, ast_format_get_codec_id(format), format_cap_framed_list_empty)) {
+		if (AST_VECTOR_REPLACE(&cap->formats, ast_format_get_codec_id(format), format_cap_framed_list_empty)) {
 			ao2_ref(framed, -1);
 			return -1;
 		}
