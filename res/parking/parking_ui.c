@@ -197,7 +197,7 @@ static struct ast_cli_entry cli_parking_lot[] = {
 	AST_CLI_DEFINE(handle_show_parking_lot_cmd, "Show a parking lot or a list of all parking lots."),
 };
 
-int load_parking_ui(void)
+int load_parking_ui(const struct ast_module_info *ast_module_info)
 {
 	return ast_cli_register_multiple(cli_parking_lot, ARRAY_LEN(cli_parking_lot));
 }

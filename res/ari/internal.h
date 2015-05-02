@@ -28,6 +28,7 @@
 #include "asterisk/http.h"
 #include "asterisk/json.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/module.h"
 
 /*! @{ */
 
@@ -37,7 +38,7 @@
  * \return 0 on success.
  * \return Non-zero on error.
  */
-int ast_ari_cli_register(void);
+int ast_ari_cli_register(const struct ast_module_info *ast_module_info);
 
 /*!
  * \brief Unregister CLI commands for ARI.

@@ -891,7 +891,7 @@ static int contact_apply_handler(const struct ast_sorcery *sorcery, void *object
 }
 
 /*! \brief Initialize sorcery with location support */
-int ast_sip_initialize_sorcery_location(void)
+int ast_sip_initialize_sorcery_location(const struct ast_module_info *ast_module_info)
 {
 	struct ast_sorcery *sorcery = ast_sip_get_sorcery();
 	ast_sorcery_apply_default(sorcery, "contact", "astdb", "registrar");
