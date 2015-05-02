@@ -53,7 +53,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/chanvars.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/indications.h"
-#include "asterisk/monitor.h"
 #include "asterisk/causes.h"
 #include "asterisk/callerid.h"
 #include "asterisk/utils.h"

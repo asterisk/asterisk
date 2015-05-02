@@ -26,30 +26,10 @@
 #include "asterisk/channel.h"
 #include "asterisk/optional_api.h"
 
-enum AST_MONITORING_STATE {
-	AST_MONITOR_RUNNING,
-	AST_MONITOR_PAUSED
-};
-
 /* Streams recording control */
 #define X_REC_IN	1
 #define X_REC_OUT	2
 #define X_JOIN		4
-
-/*! Responsible for channel monitoring data */
-struct ast_channel_monitor {
-	struct ast_filestream *read_stream;
-	struct ast_filestream *write_stream;
-	char read_filename[FILENAME_MAX];
-	char write_filename[FILENAME_MAX];
-	char filename_base[FILENAME_MAX];
-	char beep_id[64];
-	int filename_changed;
-	char *format;
-	int joinfiles;
-	enum AST_MONITORING_STATE state;
-	int (*stop)(struct ast_channel *chan, int need_lock);
-};
 
 /* Start monitoring a channel */
 AST_OPTIONAL_API(int, ast_monitor_start,
