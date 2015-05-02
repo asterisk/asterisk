@@ -258,7 +258,7 @@ static struct ast_cli_entry cli_ari[] = {
 	AST_CLI_DEFINE(ari_mkpasswd, "Encrypts a password"),
 };
 
-int ast_ari_cli_register(void) {
+int ast_ari_cli_register(const struct ast_module_info *ast_module_info) {
 	return ast_cli_register_multiple(cli_ari, ARRAY_LEN(cli_ari));
 }
 

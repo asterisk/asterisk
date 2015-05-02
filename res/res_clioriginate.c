@@ -156,8 +156,6 @@ static char *handle_orig(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 			"used. If no extension is given, the 's' extension will be used.\n";
 		return NULL;
 	case CLI_GENERATE:
-		/* ugly, can be removed when CLI entries have ast_module pointers */
-		ast_module_ref(ast_module_info->self);
 		if (a->pos == 3) {
 			res = ast_cli_complete(a->word, choices, a->n);
 		} else if (a->pos == 4) {
@@ -165,15 +163,11 @@ static char *handle_orig(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 				res = ast_complete_applications(a->line, a->word, a->n);
 			}
 		}
-		ast_module_unref(ast_module_info->self);
 		return res;
 	}
 
 	if (ast_strlen_zero(a->argv[2]) || ast_strlen_zero(a->argv[3]))
 		return CLI_SHOWUSAGE;
-
-	/* ugly, can be removed when CLI entries have ast_module pointers */
-	ast_module_ref(ast_module_info->self);
 
 	if (!strcasecmp("application", a->argv[3])) {
 		res = orig_app(a->fd, a->argv[2], a->argv[4], a->argv[5]);
@@ -182,8 +176,6 @@ static char *handle_orig(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 	} else {
 		res = CLI_SHOWUSAGE;
 	}
-
-	ast_module_unref(ast_module_info->self);
 
 	return res;
 }

@@ -224,6 +224,8 @@ typedef int64_t iax2_format;
 /*!\brief iax2 wrapper function for ast_getformatname */
 const char *iax2_getformatname(iax2_format format);
 
+const struct ast_module_info *iax2_module_info(void);
+
 /*! Full frames are always delivered reliably */
 struct ast_iax2_full_hdr {
 	unsigned short scallno;	/*!< Source call number -- high bit must be 1 */

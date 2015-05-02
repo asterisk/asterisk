@@ -350,7 +350,7 @@ static struct ast_cli_entry pjsip_cli[] = {
 	AST_CLI_DEFINE(handle_pjsip_show_version, "Show the version of pjproject in use"),
 };
 
-int ast_sip_initialize_cli(void)
+int ast_sip_initialize_cli(const struct ast_module_info *ast_module_info)
 {
 	formatter_registry = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, 17,
 		formatter_hash, formatter_sort, formatter_compare);

@@ -735,7 +735,7 @@ static struct ast_cli_entry cli_commands[] = {
 static struct ast_sip_cli_formatter_entry *cli_formatter;
 
 /*! \brief Initialize sorcery with transport support */
-int ast_sip_initialize_sorcery_transport(void)
+int ast_sip_initialize_sorcery_transport(const struct ast_module_info *ast_module_info)
 {
 	struct ast_sorcery *sorcery = ast_sip_get_sorcery();
 

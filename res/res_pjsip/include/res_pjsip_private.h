@@ -46,7 +46,7 @@ int ast_res_pjsip_reload_configuration(void);
  * \retval -1 failure
  * \retval 0 success
  */
-int ast_sip_initialize_sorcery_transport(void);
+int ast_sip_initialize_sorcery_transport(const struct ast_module_info *ast_module_info);
 
 /*!
  * \internal
@@ -73,7 +73,7 @@ int ast_sip_initialize_sorcery_qualify(void);
  * \retval -1 failure
  * \retval 0 success
  */
-int ast_sip_initialize_sorcery_location(void);
+int ast_sip_initialize_sorcery_location(const struct ast_module_info *ast_module_info);
 
 /*!
  * \internal
@@ -100,7 +100,7 @@ int ast_sip_initialize_sorcery_domain_alias(void);
  * \retval -1 failure
  * \retval 0 success
  */
-int ast_sip_initialize_sorcery_auth(void);
+int ast_sip_initialize_sorcery_auth(const struct ast_module_info *ast_module_info);
 
 /*!
  * \internal
@@ -181,7 +181,9 @@ void ast_sip_destroy_global_headers(void);
  * \retval 0 on success
  * \retval other on failure
  */
-int ast_res_pjsip_init_options_handling(int reload);
+#define ast_res_pjsip_init_options_handling(reload) \
+	__ast_res_pjsip_init_options_handling(reload ? NULL : ast_module_info)
+int __ast_res_pjsip_init_options_handling(const struct ast_module_info *ast_module_info);
 
 /*!
  * \internal
@@ -274,7 +276,7 @@ char *ast_sip_global_default_outbound_endpoint(void);
  * \internal
  * \brief Functions for initializing and destroying the CLI.
  */
-int ast_sip_initialize_cli(void);
+int ast_sip_initialize_cli(const struct ast_module_info *ast_module_info);
 void ast_sip_destroy_cli(void);
 
 /*!
