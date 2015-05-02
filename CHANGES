@@ -153,6 +153,10 @@ cel_pgsql
  * Added a new option, 'usegmtime', which causes timestamps in CEL events
    to be logged in GMT.
 
+ * Added support to set schema where located the table cel. This settings is
+   configurable for cel_pgsql via the 'schema' in configuration file
+   cel_pgsql.conf.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.3.0 to Asterisk 13.4.0 ------------
 ------------------------------------------------------------------------------
