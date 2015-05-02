@@ -47,6 +47,20 @@
 	}
 
 /*!
+ * \brief Define a vector structure with a read/write lock
+ *
+ * \param name Optional vector struct name.
+ * \param type Vector element type.
+ */
+#define AST_RWVECTOR(name, type) \
+	struct name {            \
+		type *elems;         \
+		size_t max;          \
+		size_t current;      \
+		ast_rwlock_t lock;   \
+	}
+
+/*!
  * \brief Initialize a vector
  *
  * If \a size is 0, then no space will be allocated until the vector is
@@ -71,6 +85,14 @@
 	(alloc_size == 0 || (vec)->elems != NULL) ? 0 : -1;		\
 })
 
+#define AST_RWVECTOR_INIT(vec, size) ({ \
+	int res = -1; \
+	if (AST_VECTOR_INIT(vec, size) == 0) { \
+		res = ast_rwlock_init(&(vec)->lock); \
+	} \
+	res; \
+})
+
 /*!
  * \brief Deallocates this vector.
  *
@@ -85,6 +107,11 @@
 	(vec)->max = 0;				\
 	(vec)->current = 0;			\
 } while (0)
+
+#define AST_RWVECTOR_FREE(vec) do { \
+	AST_VECTOR_FREE(vec); \
+	ast_rwlock_destroy(&(vec)->lock); \
+} while(0)
 
 /*!
  * \brief Append an element to a vector, growing the vector if needed.
@@ -115,12 +142,21 @@
 	res;									\
 })
 
+#define AST_RWVECTOR_APPEND(vec, elem) ({ \
+	int res = -1; \
+	if (!ast_rwlock_wrlock(&(vec)->lock)) { \
+		res = AST_VECTOR_APPEND(vec, elem); \
+		ast_rwlock_unlock(&(vec)->lock); \
+	} \
+	res; \
+})
+
 /*!
- * \brief Insert an element at a specific position in a vector, growing the vector if needed.
+ * \brief Replace an element at a specific position in a vector, growing the vector if needed.
  *
- * \param vec Vector to insert into.
- * \param idx Position to insert at.
- * \param elem Element to insert.
+ * \param vec Vector to replace into.
+ * \param idx Position to replace.
+ * \param elem Element to replace.
  *
  * \return 0 on success.
  * \return Non-zero on failure.
@@ -131,7 +167,7 @@
  * index means you can not use the UNORDERED assortment of macros. These macros alter the ordering
  * of the vector itself.
  */
-#define AST_VECTOR_INSERT(vec, idx, elem) ({					\
+#define AST_VECTOR_REPLACE(vec, idx, elem) ({					\
  	int res = 0;												\
  	do {														\
  		if (((idx) + 1) > (vec)->max) {							\
@@ -157,6 +193,64 @@
  	res;														\
 })
 
+#define AST_RWVECTOR_REPLACE(vec, idx, elem) ({ \
+	int res = -1; \
+	if (!ast_rwlock_wrlock(&(vec)->lock)) { \
+		res = AST_VECTOR_REPLACE(vec, idx, elem); \
+		ast_rwlock_unlock(&(vec)->lock); \
+	} \
+	res; \
+})
+
+/*!
+ * \brief Insert an element at a specific position in a vector, growing the vector if needed.
+ *
+ * \param vec Vector to insert into.
+ * \param idx Position to insert at.
+ * \param elem Element to insert.
+ *
+ * \return 0 on success.
+ * \return Non-zero on failure.
+ *
+ * \warning This macro will shift existing elements right to make room for the new element.
+ *
+ * \warning Use of this macro with the expectation that the element will remain at the provided
+ * index means you can not use the UNORDERED assortment of macros. These macros alter the ordering
+ * of the vector itself.
+ */
+#define AST_VECTOR_INSERT_AT(vec, idx, elem) ({ \
+	int res = 0; \
+	size_t __move; \
+	do { \
+		if ((vec)->current + 1 > (vec)->max) { \
+			size_t new_max = (vec)->max ? 2 * (vec)->max : 1; \
+			typeof((vec)->elems) new_elems = ast_realloc( \
+				(vec)->elems, new_max * sizeof(*new_elems)); \
+			if (new_elems) { \
+				(vec)->elems = new_elems; \
+				(vec)->max = new_max; \
+			} else { \
+				res = -1; \
+				break; \
+			} \
+		} \
+		__move = ((vec)->current - 1) * sizeof(typeof((vec)->elems[0])); \
+		memmove(&(vec)->elems[(idx) + 1], &(vec)->elems[(idx)], __move); \
+		(vec)->elems[(idx)] = (elem); \
+		(vec)->current++; \
+	} while (0); \
+	res; \
+})
+
+#define AST_RWVECTOR_INSERT_AT(vec, idx, elem) ({ \
+	int res = -1; \
+	if (!ast_rwlock_wrlock(&(vec)->lock)) { \
+		res = AST_VECTOR_INSERT_AT(vec, idx, elem); \
+		ast_rwlock_unlock(&(vec)->lock); \
+	} \
+	res; \
+})
+
 /*!
  * \brief Remove an element from a vector by index.
  *
@@ -174,6 +268,15 @@
 	res = (vec)->elems[__idx];				\
 	(vec)->elems[__idx] = (vec)->elems[--(vec)->current];	\
 	res;							\
+})
+
+#define AST_RWVECTOR_REMOVE_UNORDERED(vec, idx) ({ \
+	typeof((vec)->elems[0]) res = (typeof((vec)->elems[0]))NULL; \
+	if (!ast_rwlock_wrlock(&(vec)->lock)) { \
+		res = AST_VECTOR_REMOVE_UNORDERED(vec, idx); \
+		ast_rwlock_unlock(&(vec)->lock); \
+	} \
+	res; \
 })
 
 /*!
@@ -195,6 +298,14 @@
 	res;								\
 })
 
+#define AST_RWVECTOR_REMOVE_ORDERED(vec, idx) ({ \
+	typeof((vec)->elems[0]) res = (typeof((vec)->elems[0]))NULL; \
+	if (!ast_rwlock_wrlock(&(vec)->lock)) { \
+		res = AST_VECTOR_REMOVE_ORDERED(vec, idx); \
+		ast_rwlock_unlock(&(vec)->lock); \
+	} \
+	res; \
+})
 
 /*!
  * \brief Remove an element from a vector that matches the given comparison
@@ -222,6 +333,15 @@
 	res;								\
 })
 
+#define AST_RWVECTOR_REMOVE_CMP_UNORDERED(vec, value, cmp, cleanup) ({ \
+	int res = -1; \
+	if (!ast_rwlock_wrlock(&(vec)->lock)) { \
+		res = AST_VECTOR_REMOVE_CMP_UNORDERED(vec, value, cmp, cleanup); \
+		ast_rwlock_unlock(&(vec)->lock); \
+	} \
+	res; \
+})
+
 /*!
  * \brief Remove an element from a vector that matches the given comparison while maintaining order
  *
@@ -246,6 +366,15 @@
 		}							\
 	}								\
 	res;								\
+})
+
+#define AST_RWVECTOR_REMOVE_CMP_ORDERED(vec, value, cmp, cleanup) ({ \
+	int res = -1; \
+	if (!ast_rwlock_wrlock(&(vec)->lock)) { \
+		res = AST_VECTOR_REMOVE_CMP_ORDERED(vec, value, cmp, cleanup); \
+		ast_rwlock_unlock(&(vec)->lock); \
+	} \
+	res; \
 })
 
 /*!
@@ -283,6 +412,11 @@
 		AST_VECTOR_ELEM_DEFAULT_CMP, cleanup);		\
 })
 
+#define AST_RWVECTOR_REMOVE_ELEM_UNORDERED(vec, elem, cleanup) ({ \
+	AST_RWVECTOR_REMOVE_CMP_UNORDERED((vec), (elem), \
+		AST_VECTOR_ELEM_DEFAULT_CMP, cleanup); \
+})
+
 /*!
  * \brief Remove an element from a vector while maintaining order.
  *
@@ -296,6 +430,11 @@
 #define AST_VECTOR_REMOVE_ELEM_ORDERED(vec, elem, cleanup) ({	\
 	AST_VECTOR_REMOVE_CMP_ORDERED((vec), (elem),		\
 		AST_VECTOR_ELEM_DEFAULT_CMP, cleanup);		\
+})
+
+#define AST_RWVECTOR_REMOVE_ELEM_ORDERED(vec, elem, cleanup) ({ \
+	AST_RWVECTOR_REMOVE_CMP_ORDERED((vec), (elem), \
+		AST_VECTOR_ELEM_DEFAULT_CMP, cleanup); \
 })
 
 /*!
@@ -328,6 +467,160 @@
 	size_t __idx = (idx);			\
 	ast_assert(__idx < (vec)->current);	\
 	(vec)->elems[__idx];			\
+})
+
+/*!
+ * \brief Get an element from a vector that matches the given comparison
+ *
+ * \param vec Vector to get from.
+ * \param value Value to pass into comparator.
+ * \param cmp Comparator function/macros (called as \c cmp(elem, value))
+ *
+ * \return a pointer to the element that was found or NULL
+ */
+#define AST_VECTOR_GET_CMP(vec, value, cmp) ({ \
+	void *res = NULL; \
+	size_t idx; \
+	typeof(value) __value = (value); \
+	for (idx = 0; idx < (vec)->current; ++idx) { \
+		if (cmp((vec)->elems[idx], __value)) { \
+			res = &(vec)->elems[idx]; \
+			break; \
+		} \
+	} \
+	res; \
+})
+
+#define AST_RWVECTOR_GET_CMP(vec, value, cmp) ({ \
+	void *res = NULL; \
+	if (ast_rwlock_rdlock(&(vec)->lock) == 0) { \
+		res = AST_VECTOR_GET_CMP(vec, value, cmp); \
+		ast_rwlock_unlock(&(vec)->lock); \
+	} \
+	res; \
+})
+
+/*!
+ * \brief Execute a callback on every element in a vector
+ *
+ * \param vec Vector to operate on.
+ * \param callback The ao2_callback style function to execute
+ * \param arg Any argument
+ *
+ * \return the number of elements visited before the end of the vector
+ * was reached or CMP_STOP was returned.
+ */
+#define AST_VECTOR_CALLBACK(vec, callback, arg) ({ \
+	size_t idx; \
+	for (idx = 0; idx < (vec)->current; idx++) { \
+		int rc = callback((vec)->elems[idx], arg, 0);	\
+		if (rc == CMP_STOP) { \
+			idx++; \
+			break; \
+		}\
+	} \
+	idx; \
+})
+
+/*!
+ * \brief Execute a callback on every element in a vector while holding a read lock
+ *
+ * \param vec Vector to operate on.
+ * \param callback The ao2_callback style function to execute
+ * \param arg Any argument
+ *
+ * \return the number of elements visited before the end of the vector
+ * was reached or CMP_STOP was returned.
+ */
+#define AST_RWVECTOR_CALLBACK_RDLOCK(vec, callback, arg) ({ \
+	int res = -1; \
+	if (ast_rwlock_wrlock(&(vec)->lock) == 0) { \
+		res = AST_VECTOR_CALLBACK(vec, callback, arg); \
+		ast_rwlock_unlock(&(vec)->lock); \
+	} \
+	res; \
+})
+
+/*!
+ * \brief Execute a callback on every element in a vector while holding a write lock
+ *
+ * \param vec Vector to operate on.
+ * \param callback The ao2_callback style function to execute
+ * \param arg Any argument
+ *
+ * \return the number of elements visited before the end of the vector
+ * was reached or CMP_STOP was returned.
+ */
+#define AST_RWVECTOR_CALLBACK_WRLOCK(vec, callback, arg) ({ \
+	int res = -1; \
+	if (ast_rwlock_wrlock(&(vec)->lock) == 0) { \
+		res = AST_VECTOR_CALLBACK(vec, callback, arg); \
+		ast_rwlock_unlock(&(vec)->lock); \
+	} \
+	res; \
+})
+
+/*!
+ * \brief Execute a callback on every element in a vector
+ *
+ * \param vec Vector to operate on.
+ * \param callback The ao2_callback_data style function to execute
+ * \param arg Any argument
+ * \param data Any data
+ *
+ * \return the number of elements visited before the end of the vector
+ * was reached or CMP_STOP was returned.
+ */
+#define AST_VECTOR_CALLBACK_DATA(vec, callback, arg, data) ({ \
+	size_t idx; \
+	for (idx = 0; idx < (vec)->current; idx++) { \
+		int rc = callback((vec)->elems[idx], arg, data, 0);	\
+		if (rc == CMP_STOP) { \
+			idx++; \
+			break; \
+		}\
+	} \
+	idx; \
+})
+
+/*!
+ * \brief Execute a callback on every element in a vector while holding a read lock
+ *
+ * \param vec Vector to operate on.
+ * \param callback The ao2_callback_data style function to execute
+ * \param arg Any argument
+ * \param data Any data
+ *
+ * \return the number of elements visited before the end of the vector
+ * was reached or CMP_STOP was returned.
+ */
+#define AST_RWVECTOR_CALLBACK_DATA_RDLOCK(vec, callback, arg, data) ({ \
+	int res = -1; \
+	if (ast_rwlock_wrlock(&(vec)->lock) == 0) { \
+		res = AST_VECTOR_CALLBACK_DATA(vec, callback, arg, data); \
+		ast_rwlock_unlock(&(vec)->lock); \
+	} \
+	res; \
+})
+
+/*!
+ * \brief Execute a callback on every element in a vector while holding a write lock
+ *
+ * \param vec Vector to operate on.
+ * \param callback The ao2_callback_data style function to execute
+ * \param arg Any argument
+ * \param data Any data
+ *
+ * \return the number of elements visited before the end of the vector
+ * was reached or CMP_STOP was returned.
+ */
+#define AST_RWVECTOR_CALLBACK_DATA_WRLOCK(vec, callback, arg, data) ({ \
+	int res = -1; \
+	if (ast_rwlock_wrlock(&(vec)->lock) == 0) { \
+		res = AST_VECTOR_CALLBACK_DATA(vec, callback, arg, data); \
+		ast_rwlock_unlock(&(vec)->lock); \
+	} \
+	res; \
 })
 
 #endif /* _ASTERISK_VECTOR_H */

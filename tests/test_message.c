@@ -160,7 +160,7 @@ static int verify_user_event_fields(int user_event, const char *header, const ch
 				bad_headers_head = AST_VECTOR_GET(&bad_headers, user_event);
 			}
 			ast_variable_list_append(&bad_headers_head, bad_header);
-			AST_VECTOR_INSERT(&bad_headers, user_event, bad_headers_head);
+			AST_VECTOR_REPLACE(&bad_headers, user_event, bad_headers_head);
 		}
 		regfree(&regexbuf);
 		return -1;
@@ -492,28 +492,28 @@ AST_TEST_DEFINE(test_message_queue_dialplan_nominal)
 	ast_variable_list_append(&expected_response, expected);
 	expected = ast_variable_new("Value","^foo$", __FILE__);
 	ast_variable_list_append(&expected_response, expected);
-	AST_VECTOR_INSERT(&expected_user_event_fields, 0, expected_response);
+	AST_VECTOR_REPLACE(&expected_user_event_fields, 0, expected_response);
 
 	expected_response = NULL;
 	expected = ast_variable_new("Verify", "^From$", __FILE__);
 	ast_variable_list_append(&expected_response, expected);
 	expected = ast_variable_new("Value","^bar$", __FILE__);
 	ast_variable_list_append(&expected_response, expected);
-	AST_VECTOR_INSERT(&expected_user_event_fields, 1, expected_response);
+	AST_VECTOR_REPLACE(&expected_user_event_fields, 1, expected_response);
 
 	expected_response = NULL;
 	expected = ast_variable_new("Verify", "^Body$", __FILE__);
 	ast_variable_list_append(&expected_response, expected);
 	expected = ast_variable_new("Value", "^a body$", __FILE__);
 	ast_variable_list_append(&expected_response, expected);
-	AST_VECTOR_INSERT(&expected_user_event_fields, 2, expected_response);
+	AST_VECTOR_REPLACE(&expected_user_event_fields, 2, expected_response);
 
 	expected_response = NULL;
 	expected = ast_variable_new("Verify", "^Custom$", __FILE__);
 	ast_variable_list_append(&expected_response, expected);
 	expected = ast_variable_new("Value", "^field$", __FILE__);
 	ast_variable_list_append(&expected_response, expected);
-	AST_VECTOR_INSERT(&expected_user_event_fields, 3, expected_response);
+	AST_VECTOR_REPLACE(&expected_user_event_fields, 3, expected_response);
 
 	ast_msg_set_to(msg, "foo");
 	ast_msg_set_from(msg, "bar");
@@ -609,21 +609,21 @@ AST_TEST_DEFINE(test_message_queue_both_nominal)
 	ast_variable_list_append(&expected_response, expected);
 	expected = ast_variable_new("Value","^foo$", __FILE__);
 	ast_variable_list_append(&expected_response, expected);
-	AST_VECTOR_INSERT(&expected_user_event_fields, 0, expected_response);
+	AST_VECTOR_REPLACE(&expected_user_event_fields, 0, expected_response);
 
 	expected_response = NULL;
 	expected = ast_variable_new("Verify", "^From$", __FILE__);
 	ast_variable_list_append(&expected_response, expected);
 	expected = ast_variable_new("Value","^bar$", __FILE__);
 	ast_variable_list_append(&expected_response, expected);
-	AST_VECTOR_INSERT(&expected_user_event_fields, 1, expected_response);
+	AST_VECTOR_REPLACE(&expected_user_event_fields, 1, expected_response);
 
 	expected_response = NULL;
 	expected = ast_variable_new("Verify", "^Body$", __FILE__);
 	ast_variable_list_append(&expected_response, expected);
 	expected = ast_variable_new("Value", "^a body$", __FILE__);
 	ast_variable_list_append(&expected_response, expected);
-	AST_VECTOR_INSERT(&expected_user_event_fields, 2, expected_response);
+	AST_VECTOR_REPLACE(&expected_user_event_fields, 2, expected_response);
 
 	ast_msg_set_to(msg, "foo");
 	ast_msg_set_from(msg, "bar");
