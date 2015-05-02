@@ -60,6 +60,8 @@ ASTERISK_REGISTER_FILE()
 
 #define PGSQL_BACKEND_NAME "CEL PGSQL backend"
 
+#define PGSQL_MIN_VERSION_SCHEMA 70300
+
 static char *config = "cel_pgsql.conf";
 
 static char *pghostname;
@@ -69,6 +71,7 @@ static char *pgpassword;
 static char *pgappname;
 static char *pgdbport;
 static char *table;
+static char *schema;
 
 static int connected = 0;
 static int maxsize = 512, maxsize2 = 512;
@@ -418,6 +421,10 @@ static int my_unload_module(void)
 		ast_free(table);
 		table = NULL;
 	}
+	if (schema) {
+		ast_free(schema);
+		schema = NULL;
+	}
 	while ((current = AST_RWLIST_REMOVE_HEAD(&psql_columns, list))) {
 		ast_free(current);
 	}
@@ -521,6 +528,16 @@ static int process_my_load_module(struct ast_config *cfg)
 	} else {
 		usegmtime = 0;
 	}
+	if (!(tmp = ast_variable_retrieve(cfg, "global", "schema"))) {
+		tmp = "";
+	}
+	if (schema) {
+		ast_free(schema);
+	}
+	if (!(schema = ast_strdup(tmp))) {
+		ast_log(LOG_WARNING,"PostgreSQL Ran out of memory copying schema info\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}
 	if (option_debug) {
 		if (ast_strlen_zero(pghostname)) {
 			ast_debug(3, "cel_pgsql: using default unix socket\n");
@@ -538,23 +555,50 @@ static int process_my_load_module(struct ast_config *cfg)
 
 	pgsql_reconnect();
 	if (PQstatus(conn) != CONNECTION_BAD) {
-		char sqlcmd[512];
-		char *fname, *ftype, *flen, *fnotnull, *fdef;
-		char *tableptr;
-		int i, rows;
+		char sqlcmd[768];
+		char *fname, *ftype, *flen, *fnotnull, *fdef, *tablename, *tmp_tablename;
+		int i, rows, version, int_flen;
 
 		ast_debug(1, "Successfully connected to PostgreSQL database.\n");
 		connected = 1;
 
+		version = PQserverVersion(conn);
 		/* Remove any schema name from the table */
-		if ((tableptr = strrchr(table, '.'))) {
-			tableptr++;
+		if ((tmp_tablename = strrchr(table, '.'))) {
+			tmp_tablename++;
 		} else {
-			tableptr = table;
+			tmp_tablename = table;
 		}
+		tablename = ast_alloca(strlen(tmp_tablename) * 2 + 1);
+		PQescapeStringConn(conn, tablename, tmp_tablename, strlen(tmp_tablename), NULL);
+		if (version >= PGSQL_MIN_VERSION_SCHEMA) {
+			char *schemaname;
+			int lenschema;
+			lenschema = strlen(schema);
+			schemaname = ast_alloca(lenschema * 2 + 1);
+			PQescapeStringConn(conn, schemaname, schema, lenschema, NULL);
 
+			snprintf(sqlcmd, sizeof(sqlcmd),
+			"SELECT a.attname, t.typname, a.attlen, a.attnotnull, d.adsrc, a.atttypmod "
+			"FROM (((pg_catalog.pg_class c INNER JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace "
+			         "AND c.relname = '%s' AND n.nspname = %s%s%s) "
+			       "INNER JOIN pg_catalog.pg_attribute a ON ("
+			           "NOT a.attisdropped) AND a.attnum > 0 AND a.attrelid = c.oid) "
+			    "INNER JOIN pg_catalog.pg_type t ON t.oid = a.atttypid) "
+			"LEFT OUTER JOIN pg_attrdef d ON a.atthasdef AND d.adrelid = a.attrelid "
+			  "AND d.adnum = a.attnum "
+			"ORDER BY n.nspname, c.relname, attnum",
+				tablename,
+				lenschema == 0 ? "" : "'", lenschema == 0 ? "current_schema()" : schemaname, lenschema == 0 ? "" : "'");
+		} else {
+			snprintf(sqlcmd, sizeof(sqlcmd),
+			"SELECT a.attname, t.typname, a.attlen, a.attnotnull, d.adsrc, a.atttypmod "
+			"FROM pg_class c, pg_type t, pg_attribute a "
+			"LEFT OUTER JOIN pg_attrdef d ON a.atthasdef AND d.adrelid = a.attrelid "
+			"AND d.adnum = a.attnum WHERE c.oid = a.attrelid AND a.atttypid = t.oid "
+			"AND (a.attnum > 0) AND c.relname = '%s' ORDER BY c.relname, attnum", tablename);
+		}
 		/* Query the columns */
-		snprintf(sqlcmd, sizeof(sqlcmd), "select a.attname, t.typname, a.attlen, a.attnotnull, d.adsrc from pg_class c, pg_type t, pg_attribute a left outer join pg_attrdef d on a.atthasdef and d.adrelid = a.attrelid and d.adnum = a.attnum where c.oid = a.attrelid and a.atttypid = t.oid and (a.attnum > 0) and c.relname = '%s' order by c.relname, attnum", tableptr);
 		result = PQexec(conn, sqlcmd);
 		if (PQresultStatus(result) != PGRES_TUPLES_OK) {
 			pgerror = PQresultErrorMessage(result);
@@ -571,6 +615,11 @@ static int process_my_load_module(struct ast_config *cfg)
 			flen = PQgetvalue(result, i, 2);
 			fnotnull = PQgetvalue(result, i, 3);
 			fdef = PQgetvalue(result, i, 4);
+			int_flen = 0;
+			if (sscanf(flen, "%d", &int_flen) == 1 && int_flen == -1) {
+				/* For varchar columns, the maximum length is encoded in a different field */
+				flen = PQgetvalue(result, i, 5);
+			}
 			ast_verb(4, "Found column '%s' of type '%s'\n", fname, ftype);
 			cur = ast_calloc(1, sizeof(*cur) + strlen(fname) + strlen(ftype) + 2);
 			if (cur) {
