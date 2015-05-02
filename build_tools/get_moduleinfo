@@ -1,4 +1,4 @@
-/\/\*\*\* MODULEINFO/ {printit=1; next}
+/\/\*\*\* +MODULEINFO/ {printit=1; next}
 /<support_level>/ {if (gotsupportlevel) { next }; gotsupportlevel=1}
 /\*\*\*\// {printit=0}
 /.*/ {if (printit) print}
