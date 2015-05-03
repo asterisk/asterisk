@@ -40,6 +40,12 @@ cdr_odbc
  * Added a new configuration option, "newcdrcolumns", which enables use of the
    post-1.8 CDR columns 'peeraccount', 'linkedid', and 'sequence'.
 
+------------------
+cdr_csv
+------------------
+ * Added a new configuration option, "newcdrcolumns", which enables use of the
+   post-1.8 CDR columns 'peeraccount', 'linkedid', and 'sequence'.
+
 
 Channel Drivers
 ------------------
