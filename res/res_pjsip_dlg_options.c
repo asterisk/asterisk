@@ -16,7 +16,7 @@
  * at the top of the source tree.
  */
 
-/***  MODULEINFO
+/*** MODULEINFO
 	<depend>pjproject</depend>
 	<depend>res_pjsip</depend>
 	<depend>res_pjsip_session</depend>
