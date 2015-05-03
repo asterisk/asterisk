@@ -110,6 +110,7 @@ static struct ast_test *test_free(struct ast_test *test);
 static int test_insert(struct ast_test *test);
 static struct ast_test *test_remove(ast_test_cb_t *cb);
 static int test_cat_cmp(const char *cat1, const char *cat2);
+static int registration_errors = 0;
 
 void ast_test_debug(struct ast_test *test, const char *fmt, ...)
 {
@@ -197,16 +198,19 @@ int ast_test_register(ast_test_cb_t *cb)
 	struct ast_test *test;
 
 	if (!cb) {
-		ast_log(LOG_WARNING, "Attempted to register test without all required information\n");
+		ast_log(LOG_ERROR, "Attempted to register test without all required information\n");
+		registration_errors++;
 		return -1;
 	}
 
 	if (!(test = test_alloc(cb))) {
+		registration_errors++;
 		return -1;
 	}
 
 	if (test_insert(test)) {
 		test_free(test);
+		registration_errors++;
 		return -1;
 	}
 
@@ -619,7 +623,9 @@ static struct ast_test *test_alloc(ast_test_cb_t *cb)
 {
 	struct ast_test *test;
 
-	if (!cb || !(test = ast_calloc(1, sizeof(*test)))) {
+	test = ast_calloc(1, sizeof(*test));
+	if (!test) {
+		ast_log(LOG_ERROR, "Failed to allocate test, registration failed.\n");
 		return NULL;
 	}
 
@@ -628,12 +634,12 @@ static struct ast_test *test_alloc(ast_test_cb_t *cb)
 	test->cb(&test->info, TEST_INIT, test);
 
 	if (ast_strlen_zero(test->info.name)) {
-		ast_log(LOG_WARNING, "Test has no name, test registration refused.\n");
+		ast_log(LOG_ERROR, "Test has no name, test registration refused.\n");
 		return test_free(test);
 	}
 
 	if (ast_strlen_zero(test->info.category)) {
-		ast_log(LOG_WARNING, "Test %s has no category, test registration refused.\n",
+		ast_log(LOG_ERROR, "Test %s has no category, test registration refused.\n",
 				test->info.name);
 		return test_free(test);
 	}
@@ -641,21 +647,26 @@ static struct ast_test *test_alloc(ast_test_cb_t *cb)
 	if (test->info.category[0] != '/' || test->info.category[strlen(test->info.category) - 1] != '/') {
 		ast_log(LOG_WARNING, "Test category '%s' for test '%s' is missing a leading or trailing slash.\n",
 				test->info.category, test->info.name);
+		/* Flag an error anyways so test_registrations fails but allow the test to be
+		 * registered. */
+		registration_errors++;
 	}
 
 	if (ast_strlen_zero(test->info.summary)) {
-		ast_log(LOG_WARNING, "Test %s%s has no summary, test registration refused.\n",
+		ast_log(LOG_ERROR, "Test %s%s has no summary, test registration refused.\n",
 				test->info.category, test->info.name);
 		return test_free(test);
 	}
 
 	if (ast_strlen_zero(test->info.description)) {
-		ast_log(LOG_WARNING, "Test %s%s has no description, test registration refused.\n",
+		ast_log(LOG_ERROR, "Test %s%s has no description, test registration refused.\n",
 				test->info.category, test->info.name);
 		return test_free(test);
 	}
 
 	if (!(test->status_str = ast_str_create(128))) {
+		ast_log(LOG_ERROR, "Failed to allocate status_str for %s%s, test registration failed.\n",
+				test->info.category, test->info.name);
 		return test_free(test);
 	}
 
@@ -1095,19 +1106,38 @@ void __ast_test_suite_event_notify(const char *file, const char *func, int line,
 	stasis_publish(ast_test_suite_topic(), msg);
 }
 
-#endif /* TEST_FRAMEWORK */
+AST_TEST_DEFINE(test_registrations)
+{
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "registrations";
+		info->category = "/main/test/";
+		info->summary = "Validate Test Registration Data.";
+		info->description = "Validate Test Registration Data.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
 
-#ifdef TEST_FRAMEWORK
+	if (registration_errors) {
+		ast_test_status_update(test,
+			"%d test registration error%s occurred.  See startup logs for details.\n",
+			registration_errors, registration_errors > 1 ? "s" : "");
+		return AST_TEST_FAIL;
+	}
+
+	return AST_TEST_PASS;
+}
 
 static void test_cleanup(void)
 {
+	AST_TEST_UNREGISTER(test_registrations);
 	ast_cli_unregister_multiple(test_cli, ARRAY_LEN(test_cli));
 	ao2_cleanup(test_suite_topic);
 	test_suite_topic = NULL;
 	STASIS_MESSAGE_TYPE_CLEANUP(ast_test_suite_message_type);
 }
-
-#endif
+#endif /* TEST_FRAMEWORK */
 
 int ast_test_init(void)
 {
@@ -1123,6 +1153,8 @@ int ast_test_init(void)
 	if (STASIS_MESSAGE_TYPE_INIT(ast_test_suite_message_type) != 0) {
 		return -1;
 	}
+
+	AST_TEST_REGISTER(test_registrations);
 
 	/* Register cli commands */
 	ast_cli_register_multiple(test_cli, ARRAY_LEN(test_cli));
