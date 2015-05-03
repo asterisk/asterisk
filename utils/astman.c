@@ -55,8 +55,8 @@ ASTERISK_REGISTER_FILE()
 
 /*
  * 2005.05.27 - different versions of newt define the type of the buffer
- * for the 5th argument to newtEntry() as char ** or const char ** . To 
- * let the code compile cleanly with -Werror, we cast it to void * through 
+ * for the 5th argument to newtEntry() as char ** or const char ** . To
+ * let the code compile cleanly with -Werror, we cast it to void * through
  * _NEWT_CAST.
  */
 #define _NEWT_CAST (void *)
@@ -280,7 +280,7 @@ static int process_message(struct ast_mansession *s, struct message *m)
 	for (x=0;x<m->hdrcount;x++) {
 		printf("Header: %s\n", m->headers[x]);
 	}
-#endif	
+#endif
 	return 0;
 }
 
@@ -295,8 +295,8 @@ static void rebuild_channels(newtComponent c)
 	newtListboxClear(c);
 	AST_LIST_TRAVERSE(&chans, chan, list) {
 		snprintf(tmpn, sizeof(tmpn), "%s (%s)", chan->name, chan->callerid);
-		if (strlen(chan->exten)) 
-			snprintf(tmp, sizeof(tmp), "%-30s %8s -> %s@%s:%s", 
+		if (strlen(chan->exten))
+			snprintf(tmp, sizeof(tmp), "%-30s %8s -> %s@%s:%s",
 				tmpn, chan->state,
 				chan->exten, chan->context, chan->priority);
 		else
@@ -313,8 +313,8 @@ static void rebuild_channels(newtComponent c)
 static int has_input(struct ast_mansession *s)
 {
 	int x;
-	for (x=1;x<s->inlen;x++) 
-		if ((s->inbuf[x] == '\n') && (s->inbuf[x-1] == '\r')) 
+	for (x=1;x<s->inlen;x++)
+		if ((s->inbuf[x] == '\n') && (s->inbuf[x-1] == '\r'))
 			return 1;
 	return 0;
 }
@@ -337,7 +337,7 @@ static int get_input(struct ast_mansession *s, char *output)
 			s->inlen -= (x + 1);
 			return 1;
 		}
-	} 
+	}
 	if (s->inlen >= sizeof(s->inbuf) - 1) {
 		fprintf(stderr, "Dumping long line with no return from %s: %s\n", inet_ntoa(s->sin.sin_addr), s->inbuf);
 		s->inlen = 0;
@@ -489,7 +489,7 @@ static void try_status(void)
 		show_message("Status Failed Failed", get_header(m, "Message"));
 	}
 }
-	
+
 
 static void try_hangup(newtComponent c)
 {
@@ -506,7 +506,7 @@ static void try_hangup(newtComponent c)
 			show_message("Hangup Failed", get_header(m, "Message"));
 		}
 	}
-	
+
 }
 
 static int get_user_input(char *msg, char *buf, int buflen)
@@ -528,7 +528,7 @@ static int get_user_input(char *msg, char *buf, int buflen)
 	newtFormAddComponents(form, inpfield, ok, cancel, NULL);
 	newtFormRun(form, &es);
 	strncpy(buf, input, buflen - 1);
-	if (es.u.co == ok) 
+	if (es.u.co == ok)
 		res = 0;
 	else
 		res = -1;
@@ -550,7 +550,7 @@ static void try_redirect(newtComponent c)
 	if (chan) {
 		strncpy(channame, chan->name, sizeof(channame) - 1);
 		snprintf(tmp, sizeof(tmp), "Enter new extension for %s", channame);
-		if (get_user_input(tmp, dest, sizeof(dest))) 
+		if (get_user_input(tmp, dest, sizeof(dest)))
 			return;
 		if ((context = strchr(dest, '@'))) {
 			*context = '\0';
@@ -566,7 +566,7 @@ static void try_redirect(newtComponent c)
 			show_message("Hangup Failed", get_header(m, "Message"));
 		}
 	}
-	
+
 }
 
 static int manage_calls(char *host)
@@ -581,23 +581,23 @@ static int manage_calls(char *host)
 
 	/* Mark: If there's one thing you learn from this code, it is this...
 	   Never, ever fly Air France.  Their customer service is absolutely
-	   the worst.  I've never heard the words "That's not my problem" as 
+	   the worst.  I've never heard the words "That's not my problem" as
 	   many times as I have from their staff -- It should, without doubt
-	   be their corporate motto if it isn't already.  Don't bother giving 
+	   be their corporate motto if it isn't already.  Don't bother giving
 	   them business because you're just a pain in their side and they
 	   will be sure to let you know the first time you speak to them.
-	   
+
 	   If you ever want to make me happy just tell me that you, too, will
 	   never fly Air France again either (in spite of their excellent
-	   cuisine). 
-	
+	   cuisine).
+
 	   Update by oej: The merger with KLM has transferred this
-	   behaviour to KLM as well. 
+	   behaviour to KLM as well.
 	   Don't bother giving them business either...
 
 	   Only if you want to travel randomly without luggage, you
 	   might pick either of them.
-	   
+
 	*/
 	snprintf(tmp, sizeof(tmp), "Asterisk Manager at %s", host);
 	newtCenteredWindow(74, 20, tmp);
@@ -610,7 +610,7 @@ static int manage_calls(char *host)
 	channels = newtListbox(1,1,14, NEWT_FLAG_SCROLL);
 	newtFormAddComponents(form, channels, redirect, hangup, quit, NULL);
 	newtListboxSetWidth(channels, 72);
-	
+
 	show_doing("Getting Status", "Retrieving system status...");
 	try_status();
 	hide_doing();
@@ -654,18 +654,18 @@ static int manager_login(char *hostname)
 	char tmp[55];
 	struct hostent *hp;
 	int res = -1;
-	
+
 	session.fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (session.fd < 0) {
 		snprintf(tmp, sizeof(tmp), "socket() failed: %s\n", strerror(errno));
 		show_message("Socket failed", tmp);
 		return -1;
 	}
-	
+
 	snprintf(tmp, sizeof(tmp), "Looking up %s\n", hostname);
 	show_doing("Connecting....", tmp);
-	
-	
+
+
 	hp = gethostbyname(hostname);
 	if (!hp) {
 		snprintf(tmp, sizeof(tmp), "No such address: %s\n", hostname);
@@ -685,21 +685,21 @@ static int manager_login(char *hostname)
 		show_message("Connect Failed", tmp);
 		return -1;
 	}
-	
+
 	hide_doing();
-	
+
 	login = newtButton(5, 6, "Login");
 	cancel = newtButton(25, 6, "Cancel");
 	newtCenteredWindow(40, 10, "Asterisk Manager Login");
 	snprintf(tmp, sizeof(tmp), "Host:     %s", hostname);
 	label = newtLabel(4,1, tmp);
-	
+
 	ulabel = newtLabel(4,2,"Username:");
 	plabel = newtLabel(4,3,"Password:");
-	
+
 	username = newtEntry(14, 2, "", 20, _NEWT_CAST &user, 0);
 	password = newtEntry(14, 3, "", 20, _NEWT_CAST &pass, NEWT_FLAG_HIDDEN);
-	
+
 	form = newtForm(NULL, NULL, 0);
 	newtFormAddComponents(form, username, password, login, cancel, label, ulabel, plabel,NULL);
 	newtFormRun(form, &es);
@@ -736,7 +736,7 @@ static int manager_login(char *hostname)
 					show_message("Login Failed", get_header(m, "Message"));
 				}
 			} else {
-				manager_action("Login", 
+				manager_action("Login",
 					"Username: %s\r\n"
 					"Secret: %s\r\n",
 						user, pass);
