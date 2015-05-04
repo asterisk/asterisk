@@ -177,11 +177,24 @@ static struct ast_frame *snoop_read(struct ast_channel *chan)
 	}
 
 	/* Only get audio from the spy audiohook if it is active */
-	if (snoop->spy_active) {
-		ast_audiohook_lock(&snoop->spy);
-		frame = ast_audiohook_read_frame(&snoop->spy, snoop->spy_samples, snoop->spy_direction, snoop->spy_format);
-		ast_audiohook_unlock(&snoop->spy);
+	if (!snoop->spy_active) {
+		return &ast_null_frame;
 	}
+
+	ast_audiohook_lock(&snoop->spy);
+	if (snoop->spy_direction == AST_AUDIOHOOK_DIRECTION_WRITE) {
+		/*
+		 * Frames are still being written to the "in" queue. They must
+		 * be read so the queue does not continue to grow, however since
+		 * we don't need them for the "out" case they can be dropped.
+		 */
+		frame = ast_audiohook_read_frame(&snoop->spy, snoop->spy_samples,
+						 AST_AUDIOHOOK_DIRECTION_READ, snoop->spy_format);
+		ast_free(frame);
+	}
+
+	frame = ast_audiohook_read_frame(&snoop->spy, snoop->spy_samples, snoop->spy_direction, snoop->spy_format);
+	ast_audiohook_unlock(&snoop->spy);
 
 	return frame ? frame : &ast_null_frame;
 }
