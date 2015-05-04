@@ -360,7 +360,7 @@ struct ast_data_mapping_structure {
  */
 int __ast_data_register(const char *path, const struct ast_data_handler *handler,
 	const char *registrar, struct ast_module *mod);
-#define ast_data_register(path, handler) __ast_data_register(path, handler, __FILE__, ast_module_info->self)
+#define ast_data_register(path, handler) __ast_data_register(path, handler, __FILE__, AST_MODULE_SELF)
 #define ast_data_register_core(path, handler) __ast_data_register(path, handler, __FILE__, NULL)
 
 /*!
@@ -376,7 +376,7 @@ int __ast_data_register(const char *path, const struct ast_data_handler *handler
 int __ast_data_register_multiple(const struct ast_data_entry *data_entries,
 	size_t entries, const char *registrar, struct ast_module *mod);
 #define ast_data_register_multiple(data_entries, entries) \
-	__ast_data_register_multiple(data_entries, entries, __FILE__, ast_module_info->self)
+	__ast_data_register_multiple(data_entries, entries, __FILE__, AST_MODULE_SELF)
 #define ast_data_register_multiple_core(data_entries, entries) \
 	__ast_data_register_multiple(data_entries, entries, __FILE__, NULL)
 

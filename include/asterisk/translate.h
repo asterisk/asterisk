@@ -241,7 +241,7 @@ struct ast_trans_pvt;
 int __ast_register_translator(struct ast_translator *t, struct ast_module *module);
 
 /*! \brief See \ref __ast_register_translator() */
-#define ast_register_translator(t) __ast_register_translator(t, ast_module_info->self)
+#define ast_register_translator(t) __ast_register_translator(t, AST_MODULE_SELF)
 
 /*!
  * \brief Unregister a translator

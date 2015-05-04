@@ -366,7 +366,7 @@ int __ast_sorcery_wizard_register(const struct ast_sorcery_wizard *interface, st
 /*!
  * \brief See \ref __ast_sorcery_wizard_register()
  */
-#define ast_sorcery_wizard_register(interface) __ast_sorcery_wizard_register(interface, ast_module_info ? ast_module_info->self : NULL)
+#define ast_sorcery_wizard_register(interface) __ast_sorcery_wizard_register(interface, AST_MODULE_SELF)
 
 /*!
  * \brief Unregister a sorcery wizard

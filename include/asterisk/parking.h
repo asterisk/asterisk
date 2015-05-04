@@ -196,7 +196,7 @@ struct ast_parking_bridge_feature_fn_table {
 	int (* parking_park_bridge_channel)(struct ast_bridge_channel *parkee, const char *parkee_uuid, const char *parker_uuid, const char *app_data);
 
 	/*! \brief The module info for the module registering this parking provider */
-	const struct ast_module_info *module_info;
+	struct ast_module *module;
 };
 
 /*!

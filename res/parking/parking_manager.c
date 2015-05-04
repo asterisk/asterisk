@@ -678,11 +678,10 @@ static void parking_manager_enable_stasis(void)
 int load_parking_manager(void)
 {
 	int res;
-	const struct ast_module_info *module = parking_get_module_info();
 
-	res = ast_manager_register2("Parkinglots", EVENT_FLAG_CALL, manager_parking_lot_list, module->self, NULL, NULL);
-	res |= ast_manager_register2("ParkedCalls", EVENT_FLAG_CALL, manager_parking_status, module->self, NULL, NULL);
-	res |= ast_manager_register2("Park", EVENT_FLAG_CALL, manager_park, module->self, NULL, NULL);
+	res = ast_manager_register_xml("Parkinglots", EVENT_FLAG_CALL, manager_parking_lot_list);
+	res |= ast_manager_register_xml("ParkedCalls", EVENT_FLAG_CALL, manager_parking_status);
+	res |= ast_manager_register_xml("Park", EVENT_FLAG_CALL, manager_park);
 	parking_manager_enable_stasis();
 	return res ? -1 : 0;
 }

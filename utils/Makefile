@@ -150,6 +150,8 @@ pbx_ael.c: $(ASTTOPDIR)/pbx/pbx_ael.c
 	$(CMD_PREFIX) sed 's/ast_debug([[:digit:]][[:digit:]]*/ast_log(LOG_DEBUG/' "$@" > "$@.new"
 	$(CMD_PREFIX) mv "$@.new" "$@"
 
+pbx_ael.o: _ASTCFLAGS+=-DAST_MODULE_SELF_SYM=__internal_pbx_ael_self
+
 aelparse.c: $(ASTTOPDIR)/res/ael/ael_lex.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
