@@ -103,7 +103,7 @@ static char var_dir[PATH_MAX];
 const char *ast_config_AST_CONFIG_DIR = config_dir;
 const char *ast_config_AST_VAR_DIR = var_dir;
 
-void ast_cli_register_multiple(void);
+void __ast_cli_register_multiple(void);
 int ast_add_extension2(struct ast_context *con,
 					   int replace, const char *extension, int priority, const char *label, const char *callerid,
 						const char *application, void *data, void (*datad)(void *),
@@ -208,7 +208,7 @@ void ast_module_unregister(const struct ast_module_info *x)
 }
 
 
-void ast_cli_register_multiple(void)
+void __ast_cli_register_multiple(void)
 {
 	if(!no_comp)
         	printf("Executed ast_cli_register_multiple();\n");
