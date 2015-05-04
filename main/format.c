@@ -36,6 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/format.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/strings.h"
+#include "asterisk/module.h"
 
 /*! \brief Number of buckets to use for format interfaces (should be prime for performance reasons) */
 #define FORMAT_INTERFACE_BUCKETS 53
@@ -156,6 +157,8 @@ int __ast_format_interface_register(const char *codec, const struct ast_format_i
 	format_interface->interface = interface;
 	strcpy(format_interface->codec, codec); /* Safe */
 
+	/* Once registered a format interface cannot be unregistered. */
+	ast_module_shutdown_ref(mod);
 	ao2_link_flags(interfaces, format_interface, OBJ_NOLOCK);
 	ao2_ref(format_interface, -1);
 
