@@ -389,7 +389,7 @@ static const char *presence_state_get_id(struct stasis_message *msg)
 
 #if defined(TEST_FRAMEWORK)
 
-#define TEST_CATEGORY "/main/presence"
+#define TEST_CATEGORY "/main/presence/"
 
 static int presence_test_alice_state = AST_PRESENCE_UNAVAILABLE;
 static int presence_test_bob_state = AST_PRESENCE_UNAVAILABLE;
