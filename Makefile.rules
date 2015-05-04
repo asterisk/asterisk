@@ -65,6 +65,11 @@ endif
 CC_CFLAGS=$(PTHREAD_CFLAGS) $(_ASTCFLAGS) $(ASTCFLAGS)
 CXX_CFLAGS=$(PTHREAD_CFLAGS) $(filter-out -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(AST_DECLARATION_AFTER_STATEMENT),$(_ASTCFLAGS) $(ASTCFLAGS))
 
+# Clang -Werror warning suppressions
+ifeq ($(C_COMPILER_FAMILY),clang)
+	CC_CFLAGS+=-Wno-unused-value -Wno-parentheses-equality
+endif
+
 ifeq ($(GNU_LD),1)
 SO_SUPPRESS_SYMBOLS=-Wl,--version-script,$(subst .so,.exports,$@),--warn-common
 ifneq ($(wildcard $(subst .so,.dynamics,$@)),)
