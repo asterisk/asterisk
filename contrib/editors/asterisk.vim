@@ -14,7 +14,8 @@ syn sync clear
 syn sync fromstart
 
 syn keyword     asteriskTodo            TODO contained
-syn match       asteriskComment         ";.*" contains=asteriskTodo
+syn match       asteriskComment         "\\\@<!;.*" contains=asteriskTodo
+syn region      asteriskBlockComment    start=/\\\@<!;---\@!/ end=/--;/ contains=asteriskBlockComment,asteriskTodo
 syn match       asteriskContext         "\[.\{-}\]"
 syn match       asteriskExten           "^\s*exten\s*=>\?\s*[^,]\+" contains=asteriskPattern
 syn match       asteriskExten           "^\s*\(register\|channel\|ignorepat\|include\|\(no\)\?load\)\s*=>\?"
@@ -67,6 +68,7 @@ if version >= 508 || !exists("did_conf_syntax_inits")
   endif
 
   HiLink        asteriskComment         Comment
+  HiLink        asteriskBlockComment    Comment
   HiLink        asteriskExten           String
   HiLink        asteriskContext         Preproc
   HiLink        asteriskPattern         Type
