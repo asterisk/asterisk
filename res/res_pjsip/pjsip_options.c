@@ -1181,7 +1181,7 @@ int ast_res_pjsip_init_options_handling(int reload)
 	}
 
 	internal_sip_register_endpoint_formatter(&contact_status_formatter);
-	ast_manager_register2("PJSIPQualify", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_sip_qualify, NULL, NULL, NULL);
+	ast_manager_register_xml("PJSIPQualify", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_sip_qualify);
 	ast_cli_register_multiple(cli_options, ARRAY_LEN(cli_options));
 
 	qualify_and_schedule_all();

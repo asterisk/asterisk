@@ -19519,7 +19519,7 @@ static int load_module(void)
 	ast_format_cap_append(dahdi_tech.capabilities, ast_format_ulaw, 0);
 	ast_format_cap_append(dahdi_tech.capabilities, ast_format_alaw, 0);
 
-	if (dahdi_native_load(ast_module_info->self, &dahdi_tech)) {
+	if (dahdi_native_load(&dahdi_tech)) {
 		ao2_ref(dahdi_tech.capabilities, -1);
 		return AST_MODULE_LOAD_FAILURE;
 	}

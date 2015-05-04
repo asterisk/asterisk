@@ -116,7 +116,7 @@ int __ast_codec_register(struct ast_codec *codec, struct ast_module *mod);
  * \retval 0 success
  * \retval -1 failure
  */
-#define ast_codec_register(codec) __ast_codec_register(codec, ast_module_info->self)
+#define ast_codec_register(codec) __ast_codec_register(codec, AST_MODULE_SELF)
 
 /*!
  * \brief Retrieve a codec given a name, type, and sample rate

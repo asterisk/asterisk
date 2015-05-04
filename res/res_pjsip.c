@@ -3650,7 +3650,7 @@ static int load_module(void)
 
 	ast_sip_initialize_global_headers();
 
-	if (ast_res_pjsip_initialize_configuration(ast_module_info)) {
+	if (ast_res_pjsip_initialize_configuration()) {
 		ast_log(LOG_ERROR, "Failed to initialize SIP configuration. Aborting load\n");
 		ast_sip_destroy_global_headers();
 		stop_monitor_thread();

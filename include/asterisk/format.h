@@ -247,7 +247,7 @@ int __ast_format_interface_register(const char *codec, const struct ast_format_i
  * \retval 0 success
  * \retval -1 failure
  */
-#define ast_format_interface_register(codec, interface) __ast_format_interface_register(codec, interface, ast_module_info->self)
+#define ast_format_interface_register(codec, interface) __ast_format_interface_register(codec, interface, AST_MODULE_SELF)
 
 /*!
  * \brief Get the attribute data on a format

@@ -128,7 +128,7 @@ struct ast_filestream {
  * \retval -1 on failure
  */
 int __ast_format_def_register(const struct ast_format_def *f, struct ast_module *mod);
-#define ast_format_def_register(f) __ast_format_def_register(f, ast_module_info->self)
+#define ast_format_def_register(f) __ast_format_def_register(f, AST_MODULE_SELF)
 
 /*! 
  * \brief Unregisters a file format 

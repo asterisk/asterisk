@@ -584,7 +584,7 @@ int ast_vm_is_registered(void);
 int __ast_vm_register(const struct ast_vm_functions *vm_table, struct ast_module *module);
 
 /*! \brief See \ref __ast_vm_register() */
-#define ast_vm_register(vm_table) __ast_vm_register(vm_table, ast_module_info ? ast_module_info->self : NULL)
+#define ast_vm_register(vm_table) __ast_vm_register(vm_table, AST_MODULE_SELF)
 
 /*!
  * \brief Unregister the specified voicemail provider
@@ -652,7 +652,7 @@ int ast_vm_greeter_is_registered(void);
 int __ast_vm_greeter_register(const struct ast_vm_greeter_functions *vm_table, struct ast_module *module);
 
 /*! \brief See \ref __ast_vm_greeter_register() */
-#define ast_vm_greeter_register(vm_table) __ast_vm_greeter_register(vm_table, ast_module_info ? ast_module_info->self : NULL)
+#define ast_vm_greeter_register(vm_table) __ast_vm_greeter_register(vm_table, AST_MODULE_SELF)
 
 /*!
  * \brief Unregister the specified voicemail greeter provider

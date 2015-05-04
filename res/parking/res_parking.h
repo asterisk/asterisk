@@ -560,12 +560,3 @@ int load_parking_tests(void);
  * \return Nothing
  */
 void unload_parking_tests(void);
-
-struct ast_module_info;
-/*!
- * \since 12.0.0
- * \brief Get res_parking's module info
- *
- * \retval res_parking's ast_module
- */
-const struct ast_module_info *parking_get_module_info(void);

@@ -312,9 +312,9 @@ struct ast_module_user *__ast_module_user_add(struct ast_module *, struct ast_ch
 void __ast_module_user_remove(struct ast_module *, struct ast_module_user *);
 void __ast_module_user_hangup_all(struct ast_module *);
 
-#define ast_module_user_add(chan) __ast_module_user_add(ast_module_info->self, chan)
-#define ast_module_user_remove(user) __ast_module_user_remove(ast_module_info->self, user)
-#define ast_module_user_hangup_all() __ast_module_user_hangup_all(ast_module_info->self)
+#define ast_module_user_add(chan) __ast_module_user_add(AST_MODULE_SELF, chan)
+#define ast_module_user_remove(user) __ast_module_user_remove(AST_MODULE_SELF, user)
+#define ast_module_user_hangup_all() __ast_module_user_hangup_all(AST_MODULE_SELF)
 
 struct ast_module *__ast_module_ref(struct ast_module *mod, const char *file, int line, const char *func);
 void __ast_module_shutdown_ref(struct ast_module *mod, const char *file, int line, const char *func);
@@ -368,7 +368,12 @@ void __ast_module_unref(struct ast_module *mod, const char *file, int line, cons
 	{                                                                  \
 		ast_module_unregister(&__mod_info);                            \
 	}                                                                  \
+	struct ast_module *AST_MODULE_SELF_SYM(void)                       \
+	{                                                                  \
+		return __mod_info.self;                                        \
+	}                                                                  \
 	static const __attribute__((unused)) struct ast_module_info *ast_module_info = &__mod_info
+
 
 #define AST_MODULE_INFO_STANDARD(keystr, desc)              \
 	AST_MODULE_INFO(keystr, AST_MODFLAG_LOAD_ORDER, desc,   \
@@ -401,7 +406,9 @@ void __ast_module_unref(struct ast_module *mod, const char *file, int line, cons
 /* forward declare this pointer in modules, so that macro/function
    calls that need it can get it, since it will actually be declared
    and populated at the end of the module's source file... */
+#if !defined(AST_IN_CORE)
 static const __attribute__((unused)) struct ast_module_info *ast_module_info;
+#endif
 
 #if !defined(EMBEDDED_MODULE)
 #define __MODULE_INFO_SECTION
@@ -482,6 +489,10 @@ static void __restore_globals(void)
 	{ \
 		ast_module_unregister(&__mod_info); \
 	} \
+	struct ast_module *AST_MODULE_SELF_SYM(void)                       \
+	{                                                                  \
+		return __mod_info.self;                                        \
+	}                                                                  \
 	static const struct ast_module_info *ast_module_info = &__mod_info
 
 #define AST_MODULE_INFO_STANDARD(keystr, desc)              \
@@ -527,7 +538,7 @@ static void __restore_globals(void)
  * \retval 0 success 
  * \retval -1 failure.
  */
-#define ast_register_application(app, execute, synopsis, description) ast_register_application2(app, execute, synopsis, description, ast_module_info->self)
+#define ast_register_application(app, execute, synopsis, description) ast_register_application2(app, execute, synopsis, description, AST_MODULE_SELF)
 
 /*! 
  * \brief Register an application using XML documentation.

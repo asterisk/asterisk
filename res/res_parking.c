@@ -1159,11 +1159,6 @@ static void link_configured_disable_marked_lots(void)
 	disable_marked_lots();
 }
 
-const struct ast_module_info *parking_get_module_info(void)
-{
-	return ast_module_info;
-}
-
 static int unload_module(void)
 {
 	unload_parking_bridge_features();
