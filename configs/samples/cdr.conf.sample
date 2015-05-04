@@ -154,6 +154,8 @@ usegmtime=yes    ; log date/time in GMT.  Default is "no"
 loguniqueid=yes  ; log uniqueid.  Default is "no"
 loguserfield=yes ; log user field.  Default is "no"
 accountlogs=yes  ; create separate log file for each account code. Default is "yes"
+;newcdrcolumns=yes ; Enable logging of post-1.8 CDR columns (peeraccount, linkedid, sequence).
+                   ; Default is "no".
 
 ;[radius]
 ;usegmtime=yes    ; log date/time in GMT
