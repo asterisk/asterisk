@@ -3885,6 +3885,26 @@ enum ama_flags ast_channel_string2amaflag(const char *flag);
  */
 const char *ast_channel_amaflags2string(enum ama_flags flags);
 
+enum AST_MONITORING_STATE {
+	AST_MONITOR_RUNNING,
+	AST_MONITOR_PAUSED
+};
+
+/*! Responsible for channel monitoring data */
+struct ast_channel_monitor {
+	struct ast_filestream *read_stream;
+	struct ast_filestream *write_stream;
+	char read_filename[FILENAME_MAX];
+	char write_filename[FILENAME_MAX];
+	char filename_base[FILENAME_MAX];
+	char beep_id[64];
+	int filename_changed;
+	char *format;
+	int joinfiles;
+	enum AST_MONITORING_STATE state;
+	int (*stop)(struct ast_channel *chan, int need_lock);
+};
+
 /* ACCESSOR FUNTIONS */
 /*! \brief Set the channel name */
 void ast_channel_name_set(struct ast_channel *chan, const char *name);

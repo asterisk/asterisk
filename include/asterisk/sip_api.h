@@ -23,7 +23,6 @@
 extern "C" {
 #endif
 
-#include "asterisk/optional_api.h"
 #include "asterisk/config.h"
 
 #define AST_SIP_API_VERSION 1
