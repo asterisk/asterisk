@@ -56,6 +56,10 @@ cdr_odbc:
    'sequence'. Support for the new columns can be enabled via the newcdrcolumns
    option in cdr_odbc.conf.
 
+cdr_csv:
+ - Added a new configuration option, "newcdrcolumns", which enables use of the
+   post-1.8 CDR columns 'peeraccount', 'linkedid', and 'sequence'.
+
 from 11.16 to 11.17
 chan_dahdi:
  - For users using the FXO port (FXS signaling) distinctive ring detection
