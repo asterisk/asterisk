@@ -66,7 +66,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/adsi.h"
 #include "asterisk/devicestate.h"
-#include "asterisk/monitor.h"
 #include "asterisk/audiohook.h"
 #include "asterisk/global_datastores.h"
 #include "asterisk/astobj2.h"
