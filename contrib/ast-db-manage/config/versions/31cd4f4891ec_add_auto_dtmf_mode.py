@@ -11,6 +11,7 @@ revision = '31cd4f4891ec'
 down_revision = '23530d604b96'
 
 from alembic import op
+from sqlalchemy.dialects.postgresql import ENUM
 import sqlalchemy as sa
 
 OLD_ENUM = ['rfc4733', 'inband', 'info']
