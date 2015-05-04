@@ -203,8 +203,10 @@ int ast_audiohook_write_frame(struct ast_audiohook *audiohook, enum ast_audiohoo
 		ast_frame_clear(frame);
 	}
 
-	/* Write frame out to respective factory */
-	ast_slinfactory_feed(factory, frame);
+	/* Only write frame out to the respective factory if not muted */
+	if (!muteme) {
+		ast_slinfactory_feed(factory, frame);
+	}
 
 	/* If we need to notify the respective handler of this audiohook, do so */
 	if ((ast_test_flag(audiohook, AST_AUDIOHOOK_TRIGGER_MODE) == AST_AUDIOHOOK_TRIGGER_READ) && (direction == AST_AUDIOHOOK_DIRECTION_READ)) {

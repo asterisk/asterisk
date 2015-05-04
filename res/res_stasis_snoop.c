@@ -259,19 +259,26 @@ static void *snoop_stasis_thread(void *obj)
 static int snoop_setup_audiohook(struct ast_channel *chan, enum ast_audiohook_type type, enum stasis_app_snoop_direction requested_direction,
 	enum ast_audiohook_direction *direction, struct ast_audiohook *audiohook)
 {
-	ast_audiohook_init(audiohook, type, "Snoop", 0);
+#define AUDIOHOOK_SOURCE "Snoop"
+	ast_audiohook_init(audiohook, type, AUDIOHOOK_SOURCE, 0);
+
+	if (ast_audiohook_attach(chan, audiohook)) {
+		return -1;
+	}
 
 	if (requested_direction == STASIS_SNOOP_DIRECTION_OUT) {
 		*direction = AST_AUDIOHOOK_DIRECTION_WRITE;
+		ast_audiohook_set_mute(chan, AUDIOHOOK_SOURCE, AST_AUDIOHOOK_MUTE_READ, 0);
 	} else if (requested_direction == STASIS_SNOOP_DIRECTION_IN) {
 		*direction = AST_AUDIOHOOK_DIRECTION_READ;
+		ast_audiohook_set_mute(chan, AUDIOHOOK_SOURCE, AST_AUDIOHOOK_MUTE_WRITE, 0);
 	} else if (requested_direction == STASIS_SNOOP_DIRECTION_BOTH) {
 		*direction = AST_AUDIOHOOK_DIRECTION_BOTH;
 	} else {
 		return -1;
 	}
 
-	return ast_audiohook_attach(chan, audiohook);
+	return 0;
 }
 
 /*! \brief Helper function which gets the format for a Snoop channel based on the channel being snooped on */
