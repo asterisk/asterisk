@@ -30608,7 +30608,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 					ast_append_acl(v->name, v->value, &peer->acl, &ha_error, &acl_change_subscription_needed);
 				}
 				if (ha_error) {
-					ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
+					ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s. Deleting peer\n", v->lineno, v->value);
+					sip_unref_peer(peer, "Removing peer due to bad ACL configuration");
+					return NULL;
 				}
 			} else if (!strcasecmp(v->name, "contactpermit") || !strcasecmp(v->name, "contactdeny") || !strcasecmp(v->name, "contactacl")) {
 				int ha_error = 0;
@@ -30616,13 +30618,17 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 					ast_append_acl(v->name + 7, v->value, &peer->contactacl, &ha_error, &acl_change_subscription_needed);
 				}
 				if (ha_error) {
-					ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
+					ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s. Deleting peer\n", v->lineno, v->value);
+					sip_unref_peer(peer, "Removing peer due to bad contact ACL configuration");
+					return NULL;
 				}
 			} else if (!strcasecmp(v->name, "directmediapermit") || !strcasecmp(v->name, "directmediadeny") || !strcasecmp(v->name, "directmediaacl")) {
 				int ha_error = 0;
 				ast_append_acl(v->name + 11, v->value, &peer->directmediaacl, &ha_error, &acl_change_subscription_needed);
 				if (ha_error) {
-					ast_log(LOG_ERROR, "Bad directmedia ACL entry in configuration line %d : %s\n", v->lineno, v->value);
+					ast_log(LOG_ERROR, "Bad directmedia ACL entry in configuration line %d : %s. Deleting peer\n", v->lineno, v->value);
+					sip_unref_peer(peer, "Removing peer due to bad direct media ACL configuration");
+					return NULL;
 				}
 			} else if (!strcasecmp(v->name, "port")) {
 				peer->portinuri = 1;
@@ -31566,7 +31572,8 @@ static int reload_config(enum channelreloadreason reason)
 			int ha_error = 0;
 			ast_append_acl(v->name + 7, v->value, &sip_cfg.contact_acl, &ha_error, &acl_change_subscription_needed);
 			if (ha_error) {
-				ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
+				ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s. Failing to load chan_sip.so\n", v->lineno, v->value);
+				return -1;
 			}
 		} else if (!strcasecmp(v->name, "rtautoclear")) {
 			int i = atoi(v->value);

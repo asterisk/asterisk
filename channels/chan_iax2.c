@@ -13746,6 +13746,7 @@ static int set_config(const char *config_file, int reload, int forced)
 		} else if (!strcasecmp(v->name, "calltokenoptional")) {
 			if (add_calltoken_ignore(v->value)) {
 				ast_log(LOG_WARNING, "Invalid calltokenoptional address range - '%s' line %d\n", v->value, v->lineno);
+				return -1;
 			}
 		} else if (!strcasecmp(v->name, "calltokenexpiration")) {
 			int temp = -1;

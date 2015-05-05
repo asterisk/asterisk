@@ -8977,7 +8977,13 @@ static int __init_manager(int reload, int by_external_config)
 			} else if (!strcasecmp(var->name, "deny") ||
 				       !strcasecmp(var->name, "permit") ||
 				       !strcasecmp(var->name, "acl")) {
-				ast_append_acl(var->name, var->value, &user->acl, NULL, &acl_subscription_flag);
+				int acl_error = 0;
+
+				ast_append_acl(var->name, var->value, &user->acl, &acl_error, &acl_subscription_flag);
+				if (acl_error) {
+					ast_log(LOG_ERROR, "Invalid ACL '%s' for manager user '%s' on line %d. Deleting user\n");
+					user->keep = 0;
+				}
 			}  else if (!strcasecmp(var->name, "read") ) {
 				user->readperm = get_perm(var->value);
 			}  else if (!strcasecmp(var->name, "write") ) {
