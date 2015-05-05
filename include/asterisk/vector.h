@@ -19,6 +19,8 @@
 #ifndef _ASTERISK_VECTOR_H
 #define _ASTERISK_VECTOR_H
 
+#include "asterisk/lock.h"
+
 /*! \file
  *
  * \brief Vector container support.
@@ -47,6 +49,20 @@
 	}
 
 /*!
+ * \brief Define a vector structure with a read/write lock
+ *
+ * \param name Optional vector struct name.
+ * \param type Vector element type.
+ */
+#define AST_VECTOR_RW(name, type) \
+	struct name {            \
+		type *elems;         \
+		size_t max;          \
+		size_t current;      \
+		ast_rwlock_t lock;   \
+	}
+
+/*!
  * \brief Initialize a vector
  *
  * If \a size is 0, then no space will be allocated until the vector is
@@ -72,6 +88,26 @@
 })
 
 /*!
+ * \brief Initialize a vector with a read/write lock
+ *
+ * If \a size is 0, then no space will be allocated until the vector is
+ * appended to.
+ *
+ * \param vec Vector to initialize.
+ * \param size Initial size of the vector.
+ *
+ * \return 0 on success.
+ * \return Non-zero on failure.
+ */
+#define AST_VECTOR_RW_INIT(vec, size) ({ \
+	int res = -1; \
+	if (AST_VECTOR_INIT(vec, size) == 0) { \
+		res = ast_rwlock_init(&(vec)->lock); \
+	} \
+	res; \
+})
+
+/*!
  * \brief Deallocates this vector.
  *
  * If any code to free the elements of this vector need to be run, that should
@@ -85,6 +121,19 @@
 	(vec)->max = 0;				\
 	(vec)->current = 0;			\
 } while (0)
+
+/*!
+ * \brief Deallocates this locked vector
+ *
+ * If any code to free the elements of this vector need to be run, that should
+ * be done prior to this call.
+ *
+ * \param vec Vector to deallocate.
+ */
+#define AST_VECTOR_RW_FREE(vec) do { \
+	AST_VECTOR_FREE(vec); \
+	ast_rwlock_destroy(&(vec)->lock); \
+} while(0)
 
 /*!
  * \brief Append an element to a vector, growing the vector if needed.
@@ -116,11 +165,11 @@
 })
 
 /*!
- * \brief Insert an element at a specific position in a vector, growing the vector if needed.
+ * \brief Replace an element at a specific position in a vector, growing the vector if needed.
  *
- * \param vec Vector to insert into.
- * \param idx Position to insert at.
- * \param elem Element to insert.
+ * \param vec Vector to replace into.
+ * \param idx Position to replace.
+ * \param elem Element to replace.
  *
  * \return 0 on success.
  * \return Non-zero on failure.
@@ -131,7 +180,7 @@
  * index means you can not use the UNORDERED assortment of macros. These macros alter the ordering
  * of the vector itself.
  */
-#define AST_VECTOR_INSERT(vec, idx, elem) ({					\
+#define AST_VECTOR_REPLACE(vec, idx, elem) ({					\
  	int res = 0;												\
  	do {														\
  		if (((idx) + 1) > (vec)->max) {							\
@@ -155,6 +204,46 @@
  		}														\
  	} while(0);													\
  	res;														\
+})
+
+/*!
+ * \brief Insert an element at a specific position in a vector, growing the vector if needed.
+ *
+ * \param vec Vector to insert into.
+ * \param idx Position to insert at.
+ * \param elem Element to insert.
+ *
+ * \return 0 on success.
+ * \return Non-zero on failure.
+ *
+ * \warning This macro will shift existing elements right to make room for the new element.
+ *
+ * \warning Use of this macro with the expectation that the element will remain at the provided
+ * index means you can not use the UNORDERED assortment of macros. These macros alter the ordering
+ * of the vector itself.
+ */
+#define AST_VECTOR_INSERT_AT(vec, idx, elem) ({ \
+	int res = 0; \
+	size_t __move; \
+	do { \
+		if ((vec)->current + 1 > (vec)->max) { \
+			size_t new_max = (vec)->max ? 2 * (vec)->max : 1; \
+			typeof((vec)->elems) new_elems = ast_realloc( \
+				(vec)->elems, new_max * sizeof(*new_elems)); \
+			if (new_elems) { \
+				(vec)->elems = new_elems; \
+				(vec)->max = new_max; \
+			} else { \
+				res = -1; \
+				break; \
+			} \
+		} \
+		__move = ((vec)->current - 1) * sizeof(typeof((vec)->elems[0])); \
+		memmove(&(vec)->elems[(idx) + 1], &(vec)->elems[(idx)], __move); \
+		(vec)->elems[(idx)] = (elem); \
+		(vec)->current++; \
+	} while (0); \
+	res; \
 })
 
 /*!
@@ -194,7 +283,6 @@
 	(vec)->current--;						\
 	res;								\
 })
-
 
 /*!
  * \brief Remove an element from a vector that matches the given comparison
@@ -329,5 +417,119 @@
 	ast_assert(__idx < (vec)->current);	\
 	(vec)->elems[__idx];			\
 })
+
+/*!
+ * \brief Get an element from a vector that matches the given comparison
+ *
+ * \param vec Vector to get from.
+ * \param value Value to pass into comparator.
+ * \param cmp Comparator function/macros (called as \c cmp(elem, value))
+ *
+ * \return a pointer to the element that was found or NULL
+ */
+#define AST_VECTOR_GET_CMP(vec, value, cmp) ({ \
+	void *res = NULL; \
+	size_t idx; \
+	typeof(value) __value = (value); \
+	for (idx = 0; idx < (vec)->current; ++idx) { \
+		if (cmp((vec)->elems[idx], __value)) { \
+			res = &(vec)->elems[idx]; \
+			break; \
+		} \
+	} \
+	res; \
+})
+
+/*!
+ * \brief Execute a callback on every element in a vector
+ *
+ * \param vec Vector to operate on.
+ * \param callback A callback that takes at least 1 argument (the element)
+ * plus number of optional arguments
+ *
+ * \return the number of elements visited before the end of the vector
+ * was reached or CMP_STOP was returned.
+ */
+#define AST_VECTOR_CALLBACK(vec, callback, ...) ({ \
+	size_t idx; \
+	for (idx = 0; idx < (vec)->current; idx++) { \
+		int rc = callback((vec)->elems[idx], ##__VA_ARGS__);	\
+		if (rc == CMP_STOP) { \
+			idx++; \
+			break; \
+		}\
+	} \
+	idx; \
+})
+
+/*!
+ * \brief Obtain read lock on vector
+ *
+ * \param vec Vector to operate on.
+ *
+ * \return 0 if success
+ * \return Non-zero if error
+ */
+#define AST_VECTOR_RW_RDLOCK(vec) ast_rwlock_rdlock(&(vec)->lock)
+
+/*!
+ * \brief Obtain write lock on vector
+ *
+ * \param vec Vector to operate on.
+ *
+ * \return 0 if success
+ * \return Non-zero if error
+ */
+#define AST_VECTOR_RW_WRLOCK(vec) ast_rwlock_wrlock(&(vec)->lock)
+
+/*!
+ * \brief Unlock vector
+ *
+ * \param vec Vector to operate on.
+ *
+ * \return 0 if success
+ * \return Non-zero if error
+ */
+#define AST_VECTOR_RW_UNLOCK(vec) ast_rwlock_unlock(&(vec)->lock)
+
+/*!
+ * \brief Try to obtain read lock on vector failing immediately if unable
+ *
+ * \param vec Vector to operate on.
+ *
+ * \return 0 if success
+ * \return Non-zero if error
+ */
+#define AST_VECTOR_RW_RDLOCK_TRY(vec) ast_rwlock_tryrdlock(&(vec)->lock)
+
+/*!
+ * \brief Try to obtain write lock on vector failing immediately if unable
+ *
+ * \param vec Vector to operate on.
+ *
+ * \return 0 if success
+ * \return Non-zero if error
+ */
+#define AST_VECTOR_RW_WRLOCK_TRY(vec) ast_rwlock_trywrlock(&(vec)->lock)
+
+/*!
+ * \brief Try to obtain read lock on vector failing after timeout if unable
+ *
+ * \param vec Vector to operate on.
+ *
+ * \return 0 if success
+ * \return Non-zero if error
+ */
+#define AST_VECTOR_RW_RDLOCK_TIMED(vec, timespec) ast_rwlock_timedrdlock(&(vec)->lock, timespec)
+
+/*!
+ * \brief Try to obtain write lock on vector failing after timeout if unable
+ *
+ * \param vec Vector to operate on.
+ *
+ * \return 0 if success
+ * \return Non-zero if error
+ */
+#define AST_VECTOR_RW_WRLOCK_TIMED(vec, timespec) ast_rwlock_timedwrlock(&(vec)->lock, timespec)
 
 #endif /* _ASTERISK_VECTOR_H */
