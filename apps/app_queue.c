@@ -7204,7 +7204,8 @@ check_turns:
 			record_abandoned(&qe);
 			reason = QUEUE_TIMEOUT;
 			res = 0;
-			ast_queue_log(args.queuename, ast_channel_uniqueid(chan), "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
+			ast_queue_log(args.queuename, ast_channel_uniqueid(chan), "NONE", "EXITWITHTIMEOUT",
+				"%d|%d|%ld", qe.pos, qe.opos, (long) (time(NULL) - qe.start));
 			break;
 		}
 
@@ -7233,7 +7234,8 @@ check_turns:
 		/* exit after 'timeout' cycle if 'n' option enabled */
 		if (noption && tries >= ao2_container_count(qe.parent->members)) {
 			ast_verb(3, "Exiting on time-out cycle\n");
-			ast_queue_log(args.queuename, ast_channel_uniqueid(chan), "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
+			ast_queue_log(args.queuename, ast_channel_uniqueid(chan), "NONE", "EXITWITHTIMEOUT",
+				"%d|%d|%ld", qe.pos, qe.opos, (long) (time(NULL) - qe.start));
 			record_abandoned(&qe);
 			reason = QUEUE_TIMEOUT;
 			res = 0;
