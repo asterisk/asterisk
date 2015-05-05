@@ -6399,6 +6399,7 @@ static void delete_device(struct unistim_device *d)
 {
 	struct unistim_line *l;
 	struct unistim_subchannel *sub;
+	struct unistimsession *s;
 
 	if (unistimdebug) {
 		ast_verb(0, "Removing device '%s'\n", d->name);
@@ -6406,25 +6407,18 @@ static void delete_device(struct unistim_device *d)
 	AST_LIST_LOCK(&d->subs);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&d->subs, sub, list){
 		if (sub->subtype == SUB_REAL) {
-			if (!sub) {
-				ast_log(LOG_ERROR, "Device '%s' without a subchannel !, aborting\n",
-						d->name);
-				ast_config_destroy(cfg);
-				return 0;
-			}
 			if (sub->owner) {
 				ast_log(LOG_WARNING,
 						"Device '%s' was not deleted : a call is in progress. Try again later.\n",
 						d->name);
-				d = d->next;
-				continue;
+				return;
 			}
 		}
 		if (sub->subtype == SUB_THREEWAY) {
 			ast_log(LOG_WARNING,
 					"Device '%s' with threeway call subchannels allocated, aborting.\n",
 					d->name);
-			break;
+			return;
 		}
 		AST_LIST_REMOVE_CURRENT(list);
 		ast_mutex_destroy(&sub->lock);
