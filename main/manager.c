@@ -6780,9 +6780,8 @@ static int ast_manager_register_struct(struct manager_action *act)
 			AST_RWLIST_UNLOCK(&actions);
 			return -1;
 		}
-		if (ret > 0) { /* Insert these alphabetically */
+		if (ret < 0) { /* Insert these alphabetically */
 			prev = cur;
-			break;
 		}
 	}
 
