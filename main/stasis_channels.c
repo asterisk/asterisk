@@ -364,6 +364,7 @@ static void ast_channel_publish_dial_internal(struct ast_channel *caller,
 }
 
 static void remove_dial_masquerade(struct ast_channel *peer);
+static void remove_dial_masquerade_caller(struct ast_channel *caller);
 static int set_dial_masquerade(struct ast_channel *caller,
 	struct ast_channel *peer, const char *dialstring);
 
@@ -372,6 +373,11 @@ void ast_channel_publish_dial_forward(struct ast_channel *caller, struct ast_cha
 	const char *forward)
 {
 	ast_assert(peer != NULL);
+
+	/* XXX With an early bridge the below dial masquerade datastore code could, theoretically,
+	 * go away as the act of changing the channel during dialing would be done using the bridge
+	 * API itself and not a masquerade.
+	 */
 
 	if (caller) {
 		/*
@@ -407,6 +413,7 @@ void ast_channel_publish_dial_forward(struct ast_channel *caller, struct ast_cha
 			ast_channel_unlock(forwarded);
 		}
 		ast_channel_unlock(peer);
+		remove_dial_masquerade_caller(caller);
 		ast_channel_unlock(caller);
 	}
 }
@@ -1349,7 +1356,6 @@ static void dial_masquerade_datastore_cleanup(struct dial_masquerade_datastore *
 	while ((cur = AST_LIST_REMOVE_HEAD(&masq_data->dialed_peers, list))) {
 		dial_target_free(cur);
 	}
-	masq_data->caller = ast_channel_cleanup(masq_data->caller);
 }
 
 static void dial_masquerade_datastore_remove_chan(struct dial_masquerade_datastore *masq_data, struct ast_channel *chan)
@@ -1396,6 +1402,16 @@ static struct dial_masquerade_datastore *dial_masquerade_datastore_alloc(void)
  */
 static void dial_masquerade_datastore_destroy(void *data)
 {
+	ao2_ref(data, -1);
+}
+
+/*!
+ * \internal
+ * \brief Datastore destructor for dial_masquerade_datastore
+ */
+static void dial_masquerade_caller_datastore_destroy(void *data)
+{
+	dial_masquerade_datastore_cleanup(data);
 	ao2_ref(data, -1);
 }
 
@@ -1517,6 +1533,13 @@ static const struct ast_datastore_info dial_masquerade_info = {
 	.chan_breakdown = dial_masquerade_breakdown,
 };
 
+static const struct ast_datastore_info dial_masquerade_caller_info = {
+	.type = "stasis-chan-dial-masq",
+	.destroy = dial_masquerade_caller_datastore_destroy,
+	.chan_fixup = dial_masquerade_fixup,
+	.chan_breakdown = dial_masquerade_breakdown,
+};
+
 /*!
  * \internal
  * \brief Find the dial masquerade datastore on the given channel.
@@ -1527,7 +1550,14 @@ static const struct ast_datastore_info dial_masquerade_info = {
  */
 static struct ast_datastore *dial_masquerade_datastore_find(struct ast_channel *chan)
 {
-	return ast_channel_datastore_find(chan, &dial_masquerade_info, NULL);
+	struct ast_datastore *datastore;
+
+	datastore = ast_channel_datastore_find(chan, &dial_masquerade_info, NULL);
+	if (!datastore) {
+		datastore = ast_channel_datastore_find(chan, &dial_masquerade_caller_info, NULL);
+	}
+
+	return datastore;
 }
 
 /*!
@@ -1546,7 +1576,7 @@ static struct dial_masquerade_datastore *dial_masquerade_datastore_add(
 {
 	struct ast_datastore *datastore;
 
-	datastore = ast_datastore_alloc(&dial_masquerade_info, NULL);
+	datastore = ast_datastore_alloc(!masq_data ? &dial_masquerade_caller_info : &dial_masquerade_info, NULL);
 	if (!datastore) {
 		return NULL;
 	}
@@ -1557,7 +1587,7 @@ static struct dial_masquerade_datastore *dial_masquerade_datastore_add(
 			ast_datastore_free(datastore);
 			return NULL;
 		}
-		masq_data->caller = ast_channel_ref(chan);
+		masq_data->caller = chan;
 	}
 
 	datastore->data = masq_data;
@@ -1661,5 +1691,26 @@ static void remove_dial_masquerade(struct ast_channel *peer)
 	}
 
 	ast_channel_datastore_remove(peer, datastore);
+	ast_datastore_free(datastore);
+}
+
+static void remove_dial_masquerade_caller(struct ast_channel *caller)
+{
+	struct ast_datastore *datastore;
+	struct dial_masquerade_datastore *masq_data;
+
+	datastore = dial_masquerade_datastore_find(caller);
+	if (!datastore) {
+		return;
+	}
+
+	masq_data = datastore->data;
+	if (!masq_data || !AST_LIST_EMPTY(&masq_data->dialed_peers)) {
+		return;
+	}
+
+	dial_masquerade_datastore_remove_chan(masq_data, caller);
+
+	ast_channel_datastore_remove(caller, datastore);
 	ast_datastore_free(datastore);
 }
