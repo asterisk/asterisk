@@ -2405,6 +2405,7 @@ static char *handle_showmancmds(struct ast_cli_entry *e, int cmd, struct ast_cli
 	struct manager_action *cur;
 	int name_len = 1;
 	int space_remaining;
+	AST_LIST_HEAD_NOLOCK(, manager_action) alpha_manager_actions = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
 #define HSMC_FORMAT "  %-*.*s  %-.*s\n"
 	switch (cmd) {
 	case CLI_INIT:
@@ -2423,6 +2424,7 @@ static char *handle_showmancmds(struct ast_cli_entry *e, int cmd, struct ast_cli
 		if (incoming_len > name_len) {
 			name_len = incoming_len;
 		}
+		AST_LIST_INSERT_SORTALPHA(&alpha_manager_actions, cur, entry, action);
 	}
 
 	space_remaining = MGR_SHOW_TERMINAL_WIDTH - name_len - 4;
@@ -2433,7 +2435,7 @@ static char *handle_showmancmds(struct ast_cli_entry *e, int cmd, struct ast_cli
 	ast_cli(a->fd, HSMC_FORMAT, name_len, name_len, "Action", space_remaining, "Synopsis");
 	ast_cli(a->fd, HSMC_FORMAT, name_len, name_len, "------", space_remaining, "--------");
 
-	AST_RWLIST_TRAVERSE(&actions, cur, list) {
+	while ((cur = AST_LIST_REMOVE_HEAD(&alpha_manager_actions, entry))) {
 		ast_cli(a->fd, HSMC_FORMAT, name_len, name_len, cur->action, space_remaining, cur->synopsis);
 	}
 	AST_RWLIST_UNLOCK(&actions);
