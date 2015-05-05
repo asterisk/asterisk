@@ -6755,9 +6755,9 @@ static int ast_manager_register_struct(struct manager_action *act)
 			return -1;
 		}
 		if (ret > 0) { /* Insert these alphabetically */
-			prev = cur;
 			break;
 		}
+		prev = cur;
 	}
 
 	ao2_t_ref(act, +1, "action object added to list");
