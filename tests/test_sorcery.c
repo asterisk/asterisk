@@ -204,9 +204,17 @@ static int sorcery_test_delete(const struct ast_sorcery *sorcery, void *data, vo
 	return 0;
 }
 
-/*! \brief Dummy sorcery wizard, not actually used so we only populate the name and nothing else */
+/*! \brief Dummy sorcery wizards, not actually used so we only populate the name and nothing else */
 static struct ast_sorcery_wizard test_wizard = {
 	.name = "test",
+	.create = sorcery_test_create,
+	.retrieve_id = sorcery_test_retrieve_id,
+	.update = sorcery_test_update,
+	.delete = sorcery_test_delete,
+};
+
+static struct ast_sorcery_wizard test_wizard2 = {
+	.name = "test2",
 	.create = sorcery_test_create,
 	.retrieve_id = sorcery_test_retrieve_id,
 	.update = sorcery_test_update,
@@ -3340,6 +3348,91 @@ AST_TEST_DEFINE(wizard_observation)
 	return AST_TEST_PASS;
 }
 
+/*! \brief The following 2 structures are copied from sorcery.c
+ * so the tests can properly dereference the pointers.
+ */
+struct ast_sorcery_internal_wizard {
+	/*! \brief Wizard interface itself */
+	struct ast_sorcery_wizard callbacks;
+
+	/*! \brief Observers */
+	struct ao2_container *observers;
+};
+
+struct ast_sorcery_object_wizard {
+	/*! \brief Wizard interface itself */
+	struct ast_sorcery_internal_wizard *wizard;
+
+	/*! \brief Unique data for the wizard */
+	void *data;
+
+	/*! \brief Wizard is acting as an object cache */
+	unsigned int caching:1;
+};
+
+AST_TEST_DEFINE(wizard_apply_and_insert)
+{
+	RAII_VAR(struct ast_sorcery *, sorcery, NULL, ast_sorcery_unref);
+	RAII_VAR(struct ast_sorcery_wizard *, wizard1, &test_wizard, ast_sorcery_wizard_unregister);
+	RAII_VAR(struct ast_sorcery_wizard *, wizard2, &test_wizard2, ast_sorcery_wizard_unregister);
+	struct ast_sorcery_object_wizards *wizards;
+	struct ast_sorcery_object_wizard *owizard1;
+	struct ast_sorcery_object_wizard *owizard2;
+	int res = AST_TEST_PASS;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "wizard apply and insert";
+		info->category = "/main/sorcery/";
+		info->summary = "sorcery wizard1 apply and insert test";
+		info->description =
+			"sorcery wizard1 apply and insert test";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	wizard1->load = sorcery_test_load;
+	wizard1->reload = sorcery_test_load;
+
+	wizard2->load = sorcery_test_load;
+	wizard2->reload = sorcery_test_load;
+
+	if (!(sorcery = ast_sorcery_open())) {
+		ast_test_status_update(test, "Failed to open a sorcery instance\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_sorcery_wizard_register(wizard1);
+	ast_sorcery_wizard_register(wizard2);
+
+	ast_sorcery_apply_default(sorcery, "test_object_type", "test", NULL);
+	wizards = ast_sorcery_get_wizard_mappings(sorcery, "test_object_type");
+	ast_test_validate_cleanup(test, wizards, res, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(wizards) == 1, res, cleanup);
+
+	ast_test_validate_cleanup(test,
+		(ast_sorcery_insert_wizard_mapping(sorcery, "test_object_type", "test2", NULL, 0, 0) == AST_SORCERY_APPLY_SUCCESS), res, cleanup);
+
+	AST_VECTOR_FREE(wizards);
+	ast_free(wizards);
+	wizards = ast_sorcery_get_wizard_mappings(sorcery, "test_object_type");
+	ast_test_validate_cleanup(test, wizards, res, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(wizards) == 2, res, cleanup);
+
+	/* Check the order.  test2 should be first */
+	owizard1 = AST_VECTOR_GET(wizards, 0);
+	owizard2 = AST_VECTOR_GET(wizards, 1);
+
+	ast_test_validate_cleanup(test, strcmp(owizard1->wizard->callbacks.name, "test2") == 0, res, cleanup);
+	ast_test_validate_cleanup(test, strcmp(owizard2->wizard->callbacks.name, "test") == 0, res, cleanup);
+
+cleanup:
+	AST_VECTOR_PTR_FREE(wizards);
+
+	return res;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(wizard_registration);
@@ -3390,12 +3483,14 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(global_observation);
 	AST_TEST_UNREGISTER(instance_observation);
 	AST_TEST_UNREGISTER(wizard_observation);
+	AST_TEST_UNREGISTER(wizard_apply_and_insert);
 
 	return 0;
 }
 
 static int load_module(void)
 {
+	AST_TEST_REGISTER(wizard_apply_and_insert);
 	AST_TEST_REGISTER(wizard_registration);
 	AST_TEST_REGISTER(sorcery_open);
 	AST_TEST_REGISTER(apply_default);

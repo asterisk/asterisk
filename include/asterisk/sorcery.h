@@ -102,6 +102,7 @@ extern "C" {
 
 #include "asterisk/config_options.h"
 #include "asterisk/uuid.h"
+#include "asterisk/vector.h"
 
 /*! \brief Maximum size of an object type */
 #define MAX_OBJECT_TYPE 64
@@ -442,6 +443,10 @@ enum ast_sorcery_apply_result __ast_sorcery_apply_config(struct ast_sorcery *sor
 #define ast_sorcery_apply_config(sorcery, name) \
 	__ast_sorcery_apply_config((sorcery), (name), AST_MODULE)
 
+
+/*! \brief Interface for a sorcery object type wizards */
+AST_VECTOR_RW(ast_sorcery_object_wizards, struct ast_sorcery_object_wizard *);
+
 /*!
  * \brief Apply default object wizard mappings
  *
@@ -462,7 +467,6 @@ enum ast_sorcery_apply_result __ast_sorcery_apply_default(struct ast_sorcery *so
 
 #define ast_sorcery_apply_default(sorcery, type, name, data) \
 	__ast_sorcery_apply_default((sorcery), (type), AST_MODULE, (name), (data))
-
 
 /*!
  * \brief Apply additional object wizard mappings
@@ -496,6 +500,72 @@ enum ast_sorcery_apply_result __ast_sorcery_apply_wizard_mapping(struct ast_sorc
  */
 #define ast_sorcery_apply_wizard_mapping(sorcery, type, name, data, caching) \
 	__ast_sorcery_apply_wizard_mapping((sorcery), (type), AST_MODULE, (name), (data), (caching));
+
+
+/*!
+ * \brief Pre-defined locations to insert at
+ */
+enum ast_sorcery_wizard_position {
+	ast_sorcery_wizard_position_last = -1,
+	ast_sorcery_wizard_position_first = 0,
+};
+
+/*!
+ * \brief Insert an additional object wizard mapping at a specific position
+ * in the wizard list
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param type Type of object to apply to
+ * \param module The name of the module, typically AST_MODULE
+ * \param name Name of the wizard to use
+ * \param data Data to be passed to wizard
+ * \param caching Wizard should cache
+ * \param position An index to inser to or one of ast_sorcery_wizard_position
+ *
+ * \return What occurred when applying the mapping
+ *
+ * \note This should be called *after* applying default mappings
+ */
+enum ast_sorcery_apply_result __ast_sorcery_insert_wizard_mapping(struct ast_sorcery *sorcery,
+	const char *type, const char *module, const char *name, const char *data,
+	unsigned int caching, int position);
+
+/*!
+ * \brief Insert an additional object wizard mapping at a specific position
+ * in the wizard list
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param type Type of object to apply to
+ * \param module The name of the module, typically AST_MODULE
+ * \param name Name of the wizard to use
+ * \param data Data to be passed to wizard
+ * \param position One of ast_sorcery_wizard_position
+ *
+ * \return What occurred when applying the mapping
+ *
+ * \note This should be called *after* applying default mappings
+ */
+#define ast_sorcery_insert_wizard_mapping(sorcery, type, name, data, caching, position) \
+	__ast_sorcery_insert_wizard_mapping((sorcery), (type), AST_MODULE, (name), (data), \
+		(caching), (position))
+
+/*!
+ * \brief Return a vector of an object type's wizards
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param type Type of object
+ *
+ * \return A vector containing the object type's wizards
+ *
+ * \warning The returned vector must have AST_VECTOR_PTR_FREE()
+ * called on it after you've finished with it.
+ *
+ * \note This vector is a copy.  Modifying it will have no effect
+ * on wizard behavior.
+ *
+ */
+struct ast_sorcery_object_wizards *ast_sorcery_get_wizard_mappings(struct ast_sorcery *sorcery,
+	const char *type);
 
 /*!
  * \brief Register an object type
