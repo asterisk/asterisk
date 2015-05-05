@@ -204,9 +204,17 @@ static int sorcery_test_delete(const struct ast_sorcery *sorcery, void *data, vo
 	return 0;
 }
 
-/*! \brief Dummy sorcery wizard, not actually used so we only populate the name and nothing else */
+/*! \brief Dummy sorcery wizards, not actually used so we only populate the name and nothing else */
 static struct ast_sorcery_wizard test_wizard = {
 	.name = "test",
+	.create = sorcery_test_create,
+	.retrieve_id = sorcery_test_retrieve_id,
+	.update = sorcery_test_update,
+	.delete = sorcery_test_delete,
+};
+
+static struct ast_sorcery_wizard test_wizard2 = {
+	.name = "test2",
 	.create = sorcery_test_create,
 	.retrieve_id = sorcery_test_retrieve_id,
 	.update = sorcery_test_update,
@@ -3340,6 +3348,79 @@ AST_TEST_DEFINE(wizard_observation)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(wizard_apply_and_insert)
+{
+	RAII_VAR(struct ast_sorcery *, sorcery, NULL, ast_sorcery_unref);
+	RAII_VAR(struct ast_sorcery_wizard *, wizard1, &test_wizard, ast_sorcery_wizard_unregister);
+	RAII_VAR(struct ast_sorcery_wizard *, wizard2, &test_wizard2, ast_sorcery_wizard_unregister);
+	struct ast_sorcery_wizard *wizard;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "wizard_apply_and_insert";
+		info->category = "/main/sorcery/";
+		info->summary = "sorcery wizard apply and insert test";
+		info->description =
+			"sorcery wizard apply and insert test";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	wizard1->load = sorcery_test_load;
+	wizard1->reload = sorcery_test_load;
+
+	wizard2->load = sorcery_test_load;
+	wizard2->reload = sorcery_test_load;
+
+	if (!(sorcery = ast_sorcery_open())) {
+		ast_test_status_update(test, "Failed to open a sorcery instance\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_sorcery_wizard_register(wizard1);
+	ast_sorcery_wizard_register(wizard2);
+
+	/* test_object_type isn't registered yet so count should return error */
+	ast_test_validate(test,
+		ast_sorcery_get_wizard_mapping_count(sorcery, "test_object_type") == -1);
+
+	ast_sorcery_apply_default(sorcery, "test_object_type", "test", NULL);
+
+	ast_test_validate(test,
+		ast_sorcery_get_wizard_mapping_count(sorcery, "test_object_type") == 1);
+
+	ast_test_validate(test,
+		(wizard = ast_sorcery_get_wizard_mapping(sorcery, "test_object_type", 0)));
+	ast_test_validate(test, strcmp("test", wizard->name) == 0);
+
+	ast_test_validate(test,
+		ast_sorcery_insert_wizard_mapping(sorcery, "test_object_type", "test2", NULL, 0, 0) == 0);
+
+	ast_test_validate(test,
+		ast_sorcery_get_wizard_mapping(sorcery, "test_object_type", 2) == NULL);
+
+	ast_test_validate(test,
+		(wizard = ast_sorcery_get_wizard_mapping(sorcery, "test_object_type", 0)));
+	ast_test_validate(test, strcmp("test2", wizard->name) == 0);
+
+	ast_test_validate(test,
+		(wizard = ast_sorcery_get_wizard_mapping(sorcery, "test_object_type", 1)));
+	ast_test_validate(test, strcmp("test", wizard->name) == 0);
+
+
+	ast_test_validate(test,
+		ast_sorcery_get_wizard_mapping(sorcery, "non-existent-type", 0) == NULL);
+
+	ast_test_validate(test,
+		ast_sorcery_get_wizard_mapping(sorcery, "test_object_type", -1) == NULL);
+
+	ast_test_validate(test,
+		ast_sorcery_get_wizard_mapping(sorcery, "test_object_type", 2) == NULL);
+
+	return AST_TEST_PASS;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(wizard_registration);
@@ -3390,12 +3471,14 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(global_observation);
 	AST_TEST_UNREGISTER(instance_observation);
 	AST_TEST_UNREGISTER(wizard_observation);
+	AST_TEST_UNREGISTER(wizard_apply_and_insert);
 
 	return 0;
 }
 
 static int load_module(void)
 {
+	AST_TEST_REGISTER(wizard_apply_and_insert);
 	AST_TEST_REGISTER(wizard_registration);
 	AST_TEST_REGISTER(sorcery_open);
 	AST_TEST_REGISTER(apply_default);
