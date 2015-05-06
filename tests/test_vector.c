@@ -40,14 +40,6 @@
 #include "asterisk/module.h"
 #include "asterisk/vector.h"
 
-#define test_validate_cleanup(condition) ({ \
-	if (!(condition)) {	\
-		ast_test_status_update((test), "%s: %s\n", "Condition failed", #condition); \
-		rc = AST_TEST_FAIL; \
-		goto cleanup; \
-	} \
-})
-
 static int cleanup_count;
 
 static void cleanup(char *element)
@@ -77,28 +69,28 @@ AST_TEST_DEFINE(basic_ops)
 	}
 
 	ast_test_validate(test, AST_VECTOR_INIT(&sv1, 3) == 0);
-	test_validate_cleanup(sv1.max == 3);
-	test_validate_cleanup(AST_VECTOR_SIZE(&sv1) == 0);
+	ast_test_validate_cleanup(test, sv1.max == 3, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 0, rc, cleanup);
 
-	test_validate_cleanup(AST_VECTOR_APPEND(&sv1, AAA) == 0);
-	test_validate_cleanup(AST_VECTOR_APPEND(&sv1, BBB) == 0);
-	test_validate_cleanup(AST_VECTOR_APPEND(&sv1, CCC) == 0);
-	test_validate_cleanup(AST_VECTOR_SIZE(&sv1) == 3);
-	test_validate_cleanup(sv1.max == 3);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 0) == AAA);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 1) == BBB);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 2) == CCC);
+	ast_test_validate_cleanup(test, AST_VECTOR_APPEND(&sv1, AAA) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_APPEND(&sv1, BBB) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_APPEND(&sv1, CCC) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 3, rc, cleanup);
+	ast_test_validate_cleanup(test, sv1.max == 3, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 0) == AAA, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 1) == BBB, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 2) == CCC, rc, cleanup);
 
-	test_validate_cleanup(AST_VECTOR_INSERT_AT(&sv1, 1, ZZZ) == 0);
-	test_validate_cleanup(sv1.max >= 4);
-	test_validate_cleanup(AST_VECTOR_SIZE(&sv1) == 4);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 0) == AAA);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 1) == ZZZ);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 2) == BBB);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 3) == CCC);
+	ast_test_validate_cleanup(test, AST_VECTOR_INSERT_AT(&sv1, 1, ZZZ) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, sv1.max >= 4, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 4, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 0) == AAA, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 1) == ZZZ, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 2) == BBB, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 3) == CCC, rc, cleanup);
 
-	test_validate_cleanup(*(char **)AST_VECTOR_GET_CMP(&sv1, "AAA", 0 == strcmp) == AAA);
-	test_validate_cleanup(*(char **)AST_VECTOR_GET_CMP(&sv1, "ZZZ", 0 == strcmp) == ZZZ);
+	ast_test_validate_cleanup(test, *(char **)AST_VECTOR_GET_CMP(&sv1, "AAA", 0 == strcmp) == AAA, rc, cleanup);
+	ast_test_validate_cleanup(test, *(char **)AST_VECTOR_GET_CMP(&sv1, "ZZZ", 0 == strcmp) == ZZZ, rc, cleanup);
 
 	AST_VECTOR_FREE(&sv1);
 	ast_test_validate(test, sv1.elems == NULL);
@@ -106,76 +98,95 @@ AST_TEST_DEFINE(basic_ops)
 	ast_test_validate(test, sv1.max == 0);
 
 	ast_test_validate(test, AST_VECTOR_INIT(&sv1, 0) == 0);
-	test_validate_cleanup(sv1.max == 0);
-	test_validate_cleanup(AST_VECTOR_SIZE(&sv1) == 0);
+	ast_test_validate_cleanup(test, sv1.max == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 0, rc, cleanup);
 
-	test_validate_cleanup(AST_VECTOR_APPEND(&sv1, AAA) == 0);
-	test_validate_cleanup(AST_VECTOR_APPEND(&sv1, BBB) == 0);
-	test_validate_cleanup(AST_VECTOR_APPEND(&sv1, CCC) == 0);
-	test_validate_cleanup(sv1.max >= 3);
-	test_validate_cleanup(AST_VECTOR_SIZE(&sv1) == 3);
+	ast_test_validate_cleanup(test, AST_VECTOR_APPEND(&sv1, AAA) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_APPEND(&sv1, BBB) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_APPEND(&sv1, CCC) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, sv1.max >= 3, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 3, rc, cleanup);
 
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 0) == AAA);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 1) == BBB);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 2) == CCC);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 0) == AAA, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 1) == BBB, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 2) == CCC, rc, cleanup);
 
 	/* Overwrite index 1 */
-	test_validate_cleanup(AST_VECTOR_REPLACE(&sv1, 1, ZZZ) == 0);
-	test_validate_cleanup(AST_VECTOR_SIZE(&sv1) == 3);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 0) == AAA);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 1) == ZZZ);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 2) == CCC);
+	ast_test_validate_cleanup(test, AST_VECTOR_REPLACE(&sv1, 1, ZZZ) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 3, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 0) == AAA, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 1) == ZZZ, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 2) == CCC, rc, cleanup);
 
 	/* Remove index 0 and bring the last entry into it's empty slot */
-	test_validate_cleanup(AST_VECTOR_REMOVE_UNORDERED(&sv1, 0) == AAA);
-	test_validate_cleanup(AST_VECTOR_SIZE(&sv1) == 2);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 0) == CCC);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 1) == ZZZ);
+	ast_test_validate_cleanup(test, AST_VECTOR_REMOVE_UNORDERED(&sv1, 0) == AAA, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 2, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 0) == CCC, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 1) == ZZZ, rc, cleanup);
 
 	/* Replace 0 and 2 leaving 1 alone */
-	test_validate_cleanup(AST_VECTOR_REPLACE(&sv1, 0, AAA) == 0);
-	test_validate_cleanup(AST_VECTOR_REPLACE(&sv1, 2, CCC) == 0);
-	test_validate_cleanup(AST_VECTOR_SIZE(&sv1) == 3);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 0) == AAA);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 1) == ZZZ);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 2) == CCC);
+	ast_test_validate_cleanup(test, AST_VECTOR_REPLACE(&sv1, 0, AAA) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_REPLACE(&sv1, 2, CCC) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 3, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 0) == AAA, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 1) == ZZZ, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 2) == CCC, rc, cleanup);
 
 	/* Remove 1 and compact preserving order */
-	test_validate_cleanup(AST_VECTOR_REMOVE_ORDERED(&sv1, 1) == ZZZ);
-	test_validate_cleanup(AST_VECTOR_SIZE(&sv1) == 2);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 0) == AAA);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 1) == CCC);
+	ast_test_validate_cleanup(test, AST_VECTOR_REMOVE_ORDERED(&sv1, 1) == ZZZ, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 2, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 0) == AAA, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 1) == CCC, rc, cleanup);
 
 	/* Equivalent of APPEND */
-	test_validate_cleanup(AST_VECTOR_REPLACE(&sv1, 2, ZZZ) == 0);
-	test_validate_cleanup(AST_VECTOR_SIZE(&sv1) == 3);
+	ast_test_validate_cleanup(test, AST_VECTOR_REPLACE(&sv1, 2, ZZZ) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 3, rc, cleanup);
 
 	/* This should fail because comparison is by pointer */
-	test_validate_cleanup(AST_VECTOR_REMOVE_ELEM_ORDERED(&sv1, "ZZZ", cleanup) != 0);
+	ast_test_validate_cleanup(test, AST_VECTOR_REMOVE_ELEM_ORDERED(&sv1, "ZZZ", cleanup) != 0, rc, cleanup);
 
 	/* This should work because we passing in the specific object to be removed */
 	cleanup_count = 0;
-	test_validate_cleanup(AST_VECTOR_REMOVE_ELEM_ORDERED(&sv1, ZZZ, cleanup) == 0);
-	test_validate_cleanup(AST_VECTOR_SIZE(&sv1) == 2);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 0) == AAA);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 1) == CCC);
-	test_validate_cleanup(cleanup_count == 1);
+	ast_test_validate_cleanup(test, AST_VECTOR_REMOVE_ELEM_ORDERED(&sv1, ZZZ, cleanup) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 2, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 0) == AAA, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 1) == CCC, rc, cleanup);
+	ast_test_validate_cleanup(test, cleanup_count == 1, rc, cleanup);
 
 	/* If we want a comparison by value, we need to pass in a comparison
 	 * function.  The comparison looks weird but that's what it takes.
 	 */
 	cleanup_count = 0;
-	test_validate_cleanup(AST_VECTOR_REMOVE_CMP_ORDERED(&sv1, "AAA", 0 == strcmp, cleanup) == 0);
-	test_validate_cleanup(AST_VECTOR_SIZE(&sv1) == 1);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 0) == CCC);
-	test_validate_cleanup(cleanup_count == 1);
+	ast_test_validate_cleanup(test, AST_VECTOR_REMOVE_CMP_ORDERED(&sv1, "AAA", 0 == strcmp, cleanup) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 1, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 0) == CCC, rc, cleanup);
+	ast_test_validate_cleanup(test, cleanup_count == 1, rc, cleanup);
 
 	/* This element is gone so we shouldn't be able to find it or delete it again. */
-	test_validate_cleanup(AST_VECTOR_GET_CMP(&sv1, "AAA", 0 == strcmp) == NULL);
-	test_validate_cleanup(AST_VECTOR_REMOVE_CMP_ORDERED(&sv1, "AAA", 0 == strcmp, cleanup) != 0);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET_CMP(&sv1, "AAA", 0 == strcmp) == NULL, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_REMOVE_CMP_ORDERED(&sv1, "AAA", 0 == strcmp, cleanup) != 0, rc, cleanup);
 
 	/* CCC should still be there though */
-	test_validate_cleanup(*(char **)AST_VECTOR_GET_CMP(&sv1, "CCC", 0 == strcmp) == CCC);
+	ast_test_validate_cleanup(test, *(char **)AST_VECTOR_GET_CMP(&sv1, "CCC", 0 == strcmp) == CCC, rc, cleanup);
+
+	/* Make sure we can insert at beginning and end and that growing works */
+	ast_test_validate_cleanup(test, AST_VECTOR_INSERT_AT(&sv1, 0, ZZZ) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 0) == ZZZ, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 1) == CCC, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_INSERT_AT(&sv1, AST_VECTOR_SIZE(&sv1), BBB) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 2) == BBB, rc, cleanup);
+
+	AST_VECTOR_FREE(&sv1);
+	ast_test_validate(test, AST_VECTOR_INIT(&sv1, 0) == 0);
+	ast_test_validate_cleanup(test, AST_VECTOR_INSERT_AT(&sv1, 0, ZZZ) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 0) == ZZZ, rc, cleanup);
+
+	AST_VECTOR_FREE(&sv1);
+	ast_test_validate(test, AST_VECTOR_INIT(&sv1, 0) == 0);
+	ast_test_validate_cleanup(test, AST_VECTOR_INSERT_AT(&sv1, AST_VECTOR_SIZE(&sv1), ZZZ) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 0) == ZZZ, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_INSERT_AT(&sv1, AST_VECTOR_SIZE(&sv1), CCC) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 1) == CCC, rc, cleanup);
 
 cleanup:
 	AST_VECTOR_FREE(&sv1);
@@ -209,28 +220,28 @@ AST_TEST_DEFINE(basic_ops_integer)
 	}
 
 	ast_test_validate(test, AST_VECTOR_INIT(&sv1, 3) == 0);
-	test_validate_cleanup(sv1.max == 3);
-	test_validate_cleanup(AST_VECTOR_SIZE(&sv1) == 0);
+	ast_test_validate_cleanup(test, sv1.max == 3, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 0, rc, cleanup);
 
-	test_validate_cleanup(AST_VECTOR_APPEND(&sv1, AAA) == 0);
-	test_validate_cleanup(AST_VECTOR_APPEND(&sv1, BBB) == 0);
-	test_validate_cleanup(AST_VECTOR_APPEND(&sv1, CCC) == 0);
-	test_validate_cleanup(AST_VECTOR_SIZE(&sv1) == 3);
-	test_validate_cleanup(sv1.max == 3);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 0) == AAA);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 1) == BBB);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 2) == CCC);
+	ast_test_validate_cleanup(test, AST_VECTOR_APPEND(&sv1, AAA) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_APPEND(&sv1, BBB) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_APPEND(&sv1, CCC) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 3, rc, cleanup);
+	ast_test_validate_cleanup(test, sv1.max == 3, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 0) == AAA, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 1) == BBB, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 2) == CCC, rc, cleanup);
 
-	test_validate_cleanup(AST_VECTOR_INSERT_AT(&sv1, 1, ZZZ) == 0);
-	test_validate_cleanup(sv1.max >= 4);
-	test_validate_cleanup(AST_VECTOR_SIZE(&sv1) == 4);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 0) == AAA);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 1) == ZZZ);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 2) == BBB);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 3) == CCC);
+	ast_test_validate_cleanup(test, AST_VECTOR_INSERT_AT(&sv1, 1, ZZZ) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, sv1.max >= 4, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 4, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 0) == AAA, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 1) == ZZZ, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 2) == BBB, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 3) == CCC, rc, cleanup);
 
-	test_validate_cleanup(*(int *)AST_VECTOR_GET_CMP(&sv1, AAA,  AST_VECTOR_ELEM_DEFAULT_CMP) == AAA);
-	test_validate_cleanup(*(int *)AST_VECTOR_GET_CMP(&sv1, ZZZ, AST_VECTOR_ELEM_DEFAULT_CMP) == ZZZ);
+	ast_test_validate_cleanup(test, *(int *)AST_VECTOR_GET_CMP(&sv1, AAA,  AST_VECTOR_ELEM_DEFAULT_CMP) == AAA, rc, cleanup);
+	ast_test_validate_cleanup(test, *(int *)AST_VECTOR_GET_CMP(&sv1, ZZZ, AST_VECTOR_ELEM_DEFAULT_CMP) == ZZZ, rc, cleanup);
 
 	AST_VECTOR_FREE(&sv1);
 	ast_test_validate(test, sv1.elems == NULL);
@@ -238,73 +249,73 @@ AST_TEST_DEFINE(basic_ops_integer)
 	ast_test_validate(test, sv1.max == 0);
 
 	ast_test_validate(test, AST_VECTOR_INIT(&sv1, 0) == 0);
-	test_validate_cleanup(sv1.max == 0);
-	test_validate_cleanup(AST_VECTOR_SIZE(&sv1) == 0);
+	ast_test_validate_cleanup(test, sv1.max == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 0, rc, cleanup);
 
-	test_validate_cleanup(AST_VECTOR_APPEND(&sv1, AAA) == 0);
-	test_validate_cleanup(AST_VECTOR_APPEND(&sv1, BBB) == 0);
-	test_validate_cleanup(AST_VECTOR_APPEND(&sv1, CCC) == 0);
-	test_validate_cleanup(sv1.max >= 3);
-	test_validate_cleanup(AST_VECTOR_SIZE(&sv1) == 3);
+	ast_test_validate_cleanup(test, AST_VECTOR_APPEND(&sv1, AAA) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_APPEND(&sv1, BBB) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_APPEND(&sv1, CCC) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, sv1.max >= 3, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 3, rc, cleanup);
 
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 0) == AAA);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 1) == BBB);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 2) == CCC);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 0) == AAA, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 1) == BBB, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 2) == CCC, rc, cleanup);
 
 	/* Overwrite index 1 */
-	test_validate_cleanup(AST_VECTOR_REPLACE(&sv1, 1, ZZZ) == 0);
-	test_validate_cleanup(AST_VECTOR_SIZE(&sv1) == 3);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 0) == AAA);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 1) == ZZZ);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 2) == CCC);
+	ast_test_validate_cleanup(test, AST_VECTOR_REPLACE(&sv1, 1, ZZZ) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 3, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 0) == AAA, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 1) == ZZZ, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 2) == CCC, rc, cleanup);
 
 	/* Remove index 0 and bring the last entry into it's empty slot */
-	test_validate_cleanup(AST_VECTOR_REMOVE_UNORDERED(&sv1, 0) == 1);
-	test_validate_cleanup(AST_VECTOR_SIZE(&sv1) == 2);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 0) == CCC);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 1) == ZZZ);
+	ast_test_validate_cleanup(test, AST_VECTOR_REMOVE_UNORDERED(&sv1, 0) == 1, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 2, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 0) == CCC, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 1) == ZZZ, rc, cleanup);
 
 	/* Replace 0 and 2 leaving 1 alone */
-	test_validate_cleanup(AST_VECTOR_REPLACE(&sv1, 0, AAA) == 0);
-	test_validate_cleanup(AST_VECTOR_REPLACE(&sv1, 2, CCC) == 0);
-	test_validate_cleanup(AST_VECTOR_SIZE(&sv1) == 3);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 0) == AAA);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 1) == ZZZ);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 2) == CCC);
+	ast_test_validate_cleanup(test, AST_VECTOR_REPLACE(&sv1, 0, AAA) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_REPLACE(&sv1, 2, CCC) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 3, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 0) == AAA, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 1) == ZZZ, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 2) == CCC, rc, cleanup);
 
 	/* Remove 1 and compact preserving order */
-	test_validate_cleanup(AST_VECTOR_REMOVE_ORDERED(&sv1, 1) == ZZZ);
-	test_validate_cleanup(AST_VECTOR_SIZE(&sv1) == 2);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 0) == AAA);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 1) == CCC);
+	ast_test_validate_cleanup(test, AST_VECTOR_REMOVE_ORDERED(&sv1, 1) == ZZZ, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 2, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 0) == AAA, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 1) == CCC, rc, cleanup);
 
 	/* Equivalent of APPEND */
-	test_validate_cleanup(AST_VECTOR_REPLACE(&sv1, 2, ZZZ) == 0);
-	test_validate_cleanup(AST_VECTOR_SIZE(&sv1) == 3);
+	ast_test_validate_cleanup(test, AST_VECTOR_REPLACE(&sv1, 2, ZZZ) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 3, rc, cleanup);
 
 	/* This should work because we passing in the specific object to be removed */
 	cleanup_count = 0;
-	test_validate_cleanup(AST_VECTOR_REMOVE_ELEM_ORDERED(&sv1, ZZZ, cleanup_int) == 0);
-	test_validate_cleanup(AST_VECTOR_SIZE(&sv1) == 2);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 0) == AAA);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 1) == CCC);
-	test_validate_cleanup(cleanup_count == 1);
+	ast_test_validate_cleanup(test, AST_VECTOR_REMOVE_ELEM_ORDERED(&sv1, ZZZ, cleanup_int) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 2, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 0) == AAA, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 1) == CCC, rc, cleanup);
+	ast_test_validate_cleanup(test, cleanup_count == 1, rc, cleanup);
 
 	/* If we want a comparison by value, we need to pass in a comparison
 	 * function.
 	 */
 	cleanup_count = 0;
-	test_validate_cleanup(AST_VECTOR_REMOVE_CMP_ORDERED(&sv1, AAA, AST_VECTOR_ELEM_DEFAULT_CMP, cleanup_int) == 0);
-	test_validate_cleanup(AST_VECTOR_SIZE(&sv1) == 1);
-	test_validate_cleanup(AST_VECTOR_GET(&sv1, 0) == CCC);
-	test_validate_cleanup(cleanup_count == 1);
+	ast_test_validate_cleanup(test, AST_VECTOR_REMOVE_CMP_ORDERED(&sv1, AAA, AST_VECTOR_ELEM_DEFAULT_CMP, cleanup_int) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 1, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 0) == CCC, rc, cleanup);
+	ast_test_validate_cleanup(test, cleanup_count == 1, rc, cleanup);
 
 	/* This element is gone so we shouldn't be able to find it or delete it again. */
-	test_validate_cleanup(AST_VECTOR_GET_CMP(&sv1, AAA, AST_VECTOR_ELEM_DEFAULT_CMP) == NULL);
-	test_validate_cleanup(AST_VECTOR_REMOVE_CMP_ORDERED(&sv1, AAA, AST_VECTOR_ELEM_DEFAULT_CMP, cleanup_int) != 0);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET_CMP(&sv1, AAA, AST_VECTOR_ELEM_DEFAULT_CMP) == NULL, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_REMOVE_CMP_ORDERED(&sv1, AAA, AST_VECTOR_ELEM_DEFAULT_CMP, cleanup_int) != 0, rc, cleanup);
 
 	/* CCC should still be there though */
-	test_validate_cleanup(*(int *)AST_VECTOR_GET_CMP(&sv1, CCC, AST_VECTOR_ELEM_DEFAULT_CMP) == CCC);
+	ast_test_validate_cleanup(test, *(int *)AST_VECTOR_GET_CMP(&sv1, CCC, AST_VECTOR_ELEM_DEFAULT_CMP) == CCC, rc, cleanup);
 
 cleanup:
 	AST_VECTOR_FREE(&sv1);
@@ -314,18 +325,23 @@ cleanup:
 
 static int cb(void *obj, void *arg, void *data)
 {
-	return strcmp(arg, "ARG") == 0 ? 0 : CMP_STOP;
+	return strcmp(arg, "ARG") == 0 ? CMP_MATCH : CMP_STOP;
 }
 
 static int cb_first(void *obj, void *arg, void *data)
 {
-	return data == arg ? CMP_STOP : 0;
+	return data == arg ? CMP_MATCH | CMP_STOP : 0;
 }
 
 AST_TEST_DEFINE(callbacks)
 {
 	AST_VECTOR(, char *) sv1;
+	typeof(sv1) *sv2 = NULL;
+
 	int rc = AST_TEST_PASS;
+	char *AAA = "AAA";
+	char *BBB = "BBB";
+	char *CCC = "CCC";
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -340,16 +356,27 @@ AST_TEST_DEFINE(callbacks)
 
 	AST_VECTOR_INIT(&sv1, 32);
 
-	AST_VECTOR_APPEND(&sv1, "AAA");
-	AST_VECTOR_APPEND(&sv1, "BBB");
-	AST_VECTOR_APPEND(&sv1, "CCC");
+	AST_VECTOR_APPEND(&sv1, AAA);
+	AST_VECTOR_APPEND(&sv1, BBB);
+	AST_VECTOR_APPEND(&sv1, CCC);
 
-	test_validate_cleanup(AST_VECTOR_CALLBACK(&sv1, cb, "ARG", test) == 3);
+	ast_test_validate_cleanup(test, AST_VECTOR_CALLBACK(&sv1, cb, "ARG", test) == CCC, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_CALLBACK(&sv1, cb_first, test, test) == AAA, rc, cleanup);
 
-	test_validate_cleanup(AST_VECTOR_CALLBACK(&sv1, cb_first, test, test) == 1);
+	sv2 = AST_VECTOR_CALLBACK_MULTIPLE(&sv1, cb, "ARG", test);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(sv2) == 3, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(sv2, 0) == AAA, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(sv2, 1) == BBB, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(sv2, 2) == CCC, rc, cleanup);
+
+	AST_VECTOR_PTR_FREE(sv2);
+	sv2 = AST_VECTOR_CALLBACK_MULTIPLE(&sv1, cb_first, test, test);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(sv2) == 1, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(sv2, 0) == AAA, rc, cleanup);
 
 cleanup:
 	AST_VECTOR_FREE(&sv1);
+	AST_VECTOR_PTR_FREE(sv2);
 
 	return rc;
 }
@@ -377,25 +404,25 @@ AST_TEST_DEFINE(locks)
 
 	AST_VECTOR_RW_INIT(&sv1, 0);
 
-	test_validate_cleanup(AST_VECTOR_RW_RDLOCK(&sv1) == 0);
-	test_validate_cleanup(AST_VECTOR_RW_UNLOCK(&sv1) == 0);
-	test_validate_cleanup(AST_VECTOR_RW_WRLOCK(&sv1) == 0);
-	test_validate_cleanup(AST_VECTOR_RW_UNLOCK(&sv1) == 0);
+	ast_test_validate_cleanup(test, AST_VECTOR_RW_RDLOCK(&sv1) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_RW_UNLOCK(&sv1) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_RW_WRLOCK(&sv1) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_RW_UNLOCK(&sv1) == 0, rc, cleanup);
 
-	test_validate_cleanup(AST_VECTOR_RW_RDLOCK_TRY(&sv1) == 0);
-	test_validate_cleanup(AST_VECTOR_RW_WRLOCK_TRY(&sv1) != 0);
-	test_validate_cleanup(AST_VECTOR_RW_UNLOCK(&sv1) == 0);
-	test_validate_cleanup(AST_VECTOR_RW_WRLOCK_TRY(&sv1) == 0);
-	test_validate_cleanup(AST_VECTOR_RW_UNLOCK(&sv1) == 0);
+	ast_test_validate_cleanup(test, AST_VECTOR_RW_RDLOCK_TRY(&sv1) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_RW_WRLOCK_TRY(&sv1) != 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_RW_UNLOCK(&sv1) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_RW_WRLOCK_TRY(&sv1) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_RW_UNLOCK(&sv1) == 0, rc, cleanup);
 
 	ts.tv_nsec = 0;
 	ts.tv_sec = 2;
 
-	test_validate_cleanup(AST_VECTOR_RW_RDLOCK_TIMED(&sv1, &ts) == 0);
-	test_validate_cleanup(AST_VECTOR_RW_WRLOCK_TIMED(&sv1, &ts) != 0);
-	test_validate_cleanup(AST_VECTOR_RW_UNLOCK(&sv1) == 0);
-	test_validate_cleanup(AST_VECTOR_RW_WRLOCK_TIMED(&sv1, &ts) == 0);
-	test_validate_cleanup(AST_VECTOR_RW_UNLOCK(&sv1) == 0);
+	ast_test_validate_cleanup(test, AST_VECTOR_RW_RDLOCK_TIMED(&sv1, &ts) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_RW_WRLOCK_TIMED(&sv1, &ts) != 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_RW_UNLOCK(&sv1) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_RW_WRLOCK_TIMED(&sv1, &ts) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_RW_UNLOCK(&sv1) == 0, rc, cleanup);
 
 cleanup:
 	AST_VECTOR_RW_FREE(&sv1);
