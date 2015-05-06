@@ -2080,9 +2080,9 @@ static int load_module(void)
 		ast_cli_register(&cli_dialplan_save);
 	ast_cli_register_multiple(cli_pbx_config, ARRAY_LEN(cli_pbx_config));
 
-	res = ast_manager_register_xml_core(AMI_EXTENSION_ADD,
+	res = ast_manager_register_xml(AMI_EXTENSION_ADD,
 		EVENT_FLAG_SYSTEM, manager_dialplan_extension_add);
-	res |= ast_manager_register_xml_core(AMI_EXTENSION_REMOVE,
+	res |= ast_manager_register_xml(AMI_EXTENSION_REMOVE,
 		EVENT_FLAG_SYSTEM, manager_dialplan_extension_remove);
 
 	if (res) {
