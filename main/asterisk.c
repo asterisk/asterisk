@@ -3352,7 +3352,7 @@ static int show_cli_help(void)
 	printf("   -G <group>      Run as a group other than the caller\n");
 	printf("   -U <user>       Run as a user other than the caller\n");
 	printf("   -c              Provide console CLI\n");
-	printf("   -d              Enable extra debugging\n");
+	printf("   -d              Increase debugging (multiple d's = more debugging)\n");
 #if HAVE_WORKING_FORK
 	printf("   -f              Do not fork\n");
 	printf("   -F              Always fork\n");
@@ -3375,7 +3375,7 @@ static int show_cli_help(void)
 	printf("                   of output to the CLI\n");
 	printf("   -v              Increase verbosity (multiple v's = more verbose)\n");
 	printf("   -x <cmd>        Execute command <cmd> (implies -r)\n");
-	printf("   -X              Execute includes by default (allows #exec in asterisk.conf)\n");
+	printf("   -X              Enable use of #exec in asterisk.conf\n");
 	printf("   -W              Adjust terminal colors to compensate for a light background\n");
 	printf("\n");
 	return 0;
@@ -3385,7 +3385,6 @@ static void ast_readconfig(void)
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
-	char *config = DEFAULT_CONFIG_FILE;
 	char hostname[MAXHOSTNAMELEN] = "";
 	struct ast_flags config_flags = { CONFIG_FLAG_NOREALTIME };
 	struct {
@@ -3394,18 +3393,11 @@ static void ast_readconfig(void)
 	} found = { 0, 0 };
 	/* Default to false for security */
 	int live_dangerously = 0;
+	int option_debug_new = 0;
+	int option_verbose_new = 0;
 
 	/* Set default value */
 	option_dtmfminduration = AST_MIN_DTMF_DURATION;
-
-	if (ast_opt_override_config) {
-		cfg = ast_config_load2(ast_config_AST_CONFIG_FILE, "" /* core, can't reload */, config_flags);
-		if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
-			fprintf(stderr, "Unable to open specified master config file '%s', using built-in defaults\n", ast_config_AST_CONFIG_FILE);
-		}
-	} else {
-		cfg = ast_config_load2(config, "" /* core, can't reload */, config_flags);
-	}
 
 	/* init with buildtime config */
 	ast_copy_string(cfg_paths.config_dir, DEFAULT_CONFIG_DIR, sizeof(cfg_paths.config_dir));
@@ -3432,8 +3424,15 @@ static void ast_readconfig(void)
 
 	ast_set_default_eid(&ast_eid_default);
 
+	cfg = ast_config_load2(ast_config_AST_CONFIG_FILE, "" /* core, can't reload */, config_flags);
+
+	/* If AST_OPT_FLAG_EXEC_INCLUDES was previously enabled with -X turn it off now.
+	 * Using #exec from other configs requires that it be enabled from asterisk.conf. */
+	ast_clear_flag(&ast_options, AST_OPT_FLAG_EXEC_INCLUDES);
+
 	/* no asterisk.conf? no problem, use buildtime config! */
 	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
+		fprintf(stderr, "Unable to open specified master config file '%s', using built-in defaults\n", ast_config_AST_CONFIG_FILE);
 		return;
 	}
 
@@ -3487,7 +3486,7 @@ static void ast_readconfig(void)
 	for (v = ast_variable_browse(cfg, "options"); v; v = v->next) {
 		/* verbose level (-v at startup) */
 		if (!strcasecmp(v->name, "verbose")) {
-			option_verbose = atoi(v->value);
+			option_verbose_new = atoi(v->value);
 		/* whether or not to force timestamping in CLI verbose output. (-T at startup) */
 		} else if (!strcasecmp(v->name, "timestamp")) {
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_TIMESTAMP);
@@ -3496,9 +3495,9 @@ static void ast_readconfig(void)
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_EXEC_INCLUDES);
 		/* debug level (-d at startup) */
 		} else if (!strcasecmp(v->name, "debug")) {
-			option_debug = 0;
-			if (sscanf(v->value, "%30d", &option_debug) != 1) {
-				option_debug = ast_true(v->value) ? 1 : 0;
+			option_debug_new = 0;
+			if (sscanf(v->value, "%30d", &option_debug_new) != 1) {
+				option_debug_new = ast_true(v->value) ? 1 : 0;
 			}
 		} else if (!strcasecmp(v->name, "refdebug")) {
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_REF_DEBUG);
@@ -3647,6 +3646,9 @@ static void ast_readconfig(void)
 		pbx_live_dangerously(live_dangerously);
 	}
 
+	option_debug += option_debug_new;
+	option_verbose += option_verbose_new;
+
 	ast_config_destroy(cfg);
 }
 
@@ -3787,9 +3789,9 @@ int main(int argc, char *argv[])
 	int isroot = 1, rundir_exists = 0;
 	char *buf;
 	const char *runuser = NULL, *rungroup = NULL;
-	char *remotesock = NULL;
 	int moduleresult;         /*!< Result from the module load subsystem */
 	struct rlimit l;
+	static const char *getopt_settings = "BC:cde:FfG:ghIiL:M:mnpqRrs:TtU:VvWXx:";
 
 	/* Remember original args for restart */
 	if (argc > ARRAY_LEN(_argv) - 1) {
@@ -3813,11 +3815,57 @@ int main(int argc, char *argv[])
 
 	if (getenv("HOME"))
 		snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
+
+	/* Set config file to default before checking arguments for override. */
+	ast_copy_string(cfg_paths.config_file, DEFAULT_CONFIG_FILE, sizeof(cfg_paths.config_file));
+
+	/* Process command-line options that effect asterisk.conf load. */
+	while ((c = getopt(argc, argv, getopt_settings)) != -1) {
+		switch (c) {
+		case 'X':
+			ast_set_flag(&ast_options, AST_OPT_FLAG_EXEC_INCLUDES);
+			break;
+		case 'C':
+			ast_copy_string(cfg_paths.config_file, optarg, sizeof(cfg_paths.config_file));
+			break;
+		case 'd':
+			option_debug++;
+			break;
+		case 'h':
+			show_cli_help();
+			exit(0);
+		case 'R':
+		case 'r':
+		case 'x':
+			/* ast_opt_remote is checked during config load.  This is only part of what
+			 * these options do, see the second loop for the rest of the actions. */
+			ast_set_flag(&ast_options, AST_OPT_FLAG_REMOTE);
+			break;
+		case 'V':
+			show_version();
+			exit(0);
+		case 'v':
+			option_verbose++;
+			break;
+		case '?':
+			exit(1);
+		}
+	}
+
+	/* Initialize env so it is available if #exec is used in asterisk.conf. */
+	env_init();
+
+	ast_readconfig();
+
+	/* Update env to include any systemname that was set. */
+	env_init();
+
 	/*! \brief Check for options
 	 *
 	 * \todo Document these options
 	 */
-	while ((c = getopt(argc, argv, "BC:cde:FfG:ghIiL:M:mnpqRrs:TtU:VvWXx:")) != -1) {
+	optind = 0;
+	while ((c = getopt(argc, argv, getopt_settings)) != -1) {
 		/*!\note Please keep the ordering here to alphabetical, capital letters
 		 * first.  This will make it easier in the future to select unused
 		 * option flags for new features. */
@@ -3827,18 +3875,16 @@ int main(int argc, char *argv[])
 			ast_clear_flag(&ast_options, AST_OPT_FLAG_LIGHT_BACKGROUND);
 			break;
 		case 'X':
-			ast_set_flag(&ast_options, AST_OPT_FLAG_EXEC_INCLUDES);
+			/* The command-line -X option enables #exec for asterisk.conf only. */
 			break;
 		case 'C':
-			ast_copy_string(cfg_paths.config_file, optarg, sizeof(cfg_paths.config_file));
-			ast_set_flag(&ast_options, AST_OPT_FLAG_OVERRIDE_CONFIG);
+			/* already processed. */
 			break;
 		case 'c':
 			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK | AST_OPT_FLAG_CONSOLE);
 			break;
 		case 'd':
-			option_debug++;
-			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK);
+			/* already processed. */
 			break;
 #if defined(HAVE_SYSINFO)
 		case 'e':
@@ -3862,8 +3908,8 @@ int main(int argc, char *argv[])
 			ast_set_flag(&ast_options, AST_OPT_FLAG_DUMP_CORE);
 			break;
 		case 'h':
-			show_cli_help();
-			exit(0);
+			/* already processed. */
+			break;
 		case 'I':
 			fprintf(stderr,
 				"NOTICE: The -I option is no longer needed.\n"
@@ -3901,7 +3947,9 @@ int main(int argc, char *argv[])
 			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK | AST_OPT_FLAG_REMOTE);
 			break;
 		case 's':
-			remotesock = ast_strdupa(optarg);
+			if (ast_opt_remote) {
+				ast_copy_string((char *) cfg_paths.socket_path, optarg, sizeof(cfg_paths.socket_path));
+			}
 			break;
 		case 'T':
 			ast_set_flag(&ast_options, AST_OPT_FLAG_TIMESTAMP);
@@ -3913,11 +3961,8 @@ int main(int argc, char *argv[])
 			runuser = ast_strdupa(optarg);
 			break;
 		case 'V':
-			show_version();
-			exit(0);
 		case 'v':
-			option_verbose++;
-			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK);
+			/* already processed. */
 			break;
 		case 'W': /* White background */
 			ast_set_flag(&ast_options, AST_OPT_FLAG_LIGHT_BACKGROUND);
@@ -3931,7 +3976,8 @@ int main(int argc, char *argv[])
 			xarg = ast_strdupa(optarg);
 			break;
 		case '?':
-			exit(1);
+			/* already processed. */
+			break;
 		}
 	}
 
@@ -3944,12 +3990,6 @@ int main(int argc, char *argv[])
 			argv[x] = argv[0] + 10;
 		}
 	}
-
-	ast_readconfig();
-	env_init();
-
-	if (ast_opt_remote && remotesock != NULL)
-		ast_copy_string((char *) cfg_paths.socket_path, remotesock, sizeof(cfg_paths.socket_path));
 
 	if (!ast_language_is_prefix && !ast_opt_remote) {
 		fprintf(stderr, "The 'languageprefix' option in asterisk.conf is deprecated; in a future release it will be removed, and your sound files will need to be organized in the 'new style' language layout.\n");
