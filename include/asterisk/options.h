@@ -66,8 +66,6 @@ enum ast_option_flags {
 	AST_OPT_FLAG_CACHE_RECORD_FILES = (1 << 13),
 	/*! Display timestamp in CLI verbose output */
 	AST_OPT_FLAG_TIMESTAMP = (1 << 14),
-	/*! Override config */
-	AST_OPT_FLAG_OVERRIDE_CONFIG = (1 << 15),
 	/*! Reconnect */
 	AST_OPT_FLAG_RECONNECT = (1 << 16),
 	/*! Transmit Silence during Record() and DTMF Generation */
@@ -119,7 +117,6 @@ enum ast_option_flags {
 #define ast_opt_dump_core		ast_test_flag(&ast_options, AST_OPT_FLAG_DUMP_CORE)
 #define ast_opt_cache_record_files	ast_test_flag(&ast_options, AST_OPT_FLAG_CACHE_RECORD_FILES)
 #define ast_opt_timestamp		ast_test_flag(&ast_options, AST_OPT_FLAG_TIMESTAMP)
-#define ast_opt_override_config		ast_test_flag(&ast_options, AST_OPT_FLAG_OVERRIDE_CONFIG)
 #define ast_opt_reconnect		ast_test_flag(&ast_options, AST_OPT_FLAG_RECONNECT)
 #define ast_opt_transmit_silence	ast_test_flag(&ast_options, AST_OPT_FLAG_TRANSMIT_SILENCE)
 #define ast_opt_dont_warn		ast_test_flag(&ast_options, AST_OPT_FLAG_DONT_WARN)
