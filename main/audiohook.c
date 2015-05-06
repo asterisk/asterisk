@@ -104,7 +104,8 @@ static int audiohook_set_internal_rate(struct ast_audiohook *audiohook, int rate
  *
  * \return Returns 0 on success, -1 on failure
  */
-int ast_audiohook_init(struct ast_audiohook *audiohook, enum ast_audiohook_type type, const char *source, enum ast_audiohook_init_flags init_flags)
+int ast_audiohook_initialize(struct ast_audiohook *audiohook, enum ast_audiohook_type type, const char *source,
+			     enum ast_audiohook_init_flags init_flags, unsigned int flags)
 {
 	/* Need to keep the type and source */
 	audiohook->type = type;
@@ -115,6 +116,7 @@ int ast_audiohook_init(struct ast_audiohook *audiohook, enum ast_audiohook_type 
 	ast_cond_init(&audiohook->trigger, NULL);
 
 	audiohook->init_flags = init_flags;
+	audiohook->flags = flags;
 
 	/* initialize internal rate at 8khz, this will adjust if necessary */
 	audiohook_set_internal_rate(audiohook, 8000, 0);
@@ -174,6 +176,11 @@ int ast_audiohook_write_frame(struct ast_audiohook *audiohook, enum ast_audiohoo
 
 	/* Update last feeding time to be current */
 	*rwtime = ast_tvnow();
+
+	if ((ast_test_flag(audiohook, AST_AUDIOHOOK_READ_ONLY) && (direction == AST_AUDIOHOOK_DIRECTION_WRITE)) ||
+	    (ast_test_flag(audiohook, AST_AUDIOHOOK_WRITE_ONLY) && (direction == AST_AUDIOHOOK_DIRECTION_READ))) {
+		    return 0;
+	}
 
 	our_factory_samples = ast_slinfactory_available(factory);
 	our_factory_ms = ast_tvdiff_ms(*rwtime, previous_time) + (our_factory_samples / (audiohook->hook_internal_samp_rate / 1000));
