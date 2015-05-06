@@ -63,6 +63,8 @@ enum ast_audiohook_flags {
 	AST_AUDIOHOOK_SMALL_QUEUE   = (1 << 4),
 	AST_AUDIOHOOK_MUTE_READ     = (1 << 5), /*!< audiohook should be mute frames read */
 	AST_AUDIOHOOK_MUTE_WRITE    = (1 << 6), /*!< audiohook should be mute frames written */
+	AST_AUDIOHOOK_READ_ONLY     = (1 << 7), /*!< audiohook will not write to write queue */
+	AST_AUDIOHOOK_WRITE_ONLY    = (1 << 8), /*!< audiohook will not write to read queue */
 };
 
 enum ast_audiohook_init_flags {
@@ -123,10 +125,22 @@ struct ast_audiohook_list;
  * \param audiohook Audiohook structure
  * \param type Type of audiohook to initialize this as
  * \param source Who is initializing this audiohook
+ * \param init_flags flags used at initialization
+ * \param flags flags used while processing
+ * \return Returns 0 on success, -1 on failure
+ */
+int ast_audiohook_initialize(struct ast_audiohook *audiohook, enum ast_audiohook_type type, const char *source,
+			     enum ast_audiohook_init_flags init_flags, unsigned int flags);
+
+/*! \brief Initialize an audiohook structure
+ * \param audiohook Audiohook structure
+ * \param type Type of audiohook to initialize this as
+ * \param source Who is initializing this audiohook
  * \param init flags
  * \return Returns 0 on success, -1 on failure
  */
-int ast_audiohook_init(struct ast_audiohook *audiohook, enum ast_audiohook_type type, const char *source, enum ast_audiohook_init_flags flags);
+#define ast_audiohook_init(audiohook, type, source, init_flags) ast_audiohook_initialize(audiohook, type, source, init_flags, 0)
+
 
 /*! \brief Destroys an audiohook structure
  * \param audiohook Audiohook structure
