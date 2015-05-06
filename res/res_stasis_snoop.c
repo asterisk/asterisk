@@ -259,13 +259,14 @@ static void *snoop_stasis_thread(void *obj)
 static int snoop_setup_audiohook(struct ast_channel *chan, enum ast_audiohook_type type, enum stasis_app_snoop_direction requested_direction,
 	enum ast_audiohook_direction *direction, struct ast_audiohook *audiohook)
 {
-	ast_audiohook_init(audiohook, type, "Snoop", 0);
-
 	if (requested_direction == STASIS_SNOOP_DIRECTION_OUT) {
+		ast_audiohook_initialize(audiohook, type, "Snoop", 0, AST_AUDIOHOOK_WRITE_ONLY);
 		*direction = AST_AUDIOHOOK_DIRECTION_WRITE;
 	} else if (requested_direction == STASIS_SNOOP_DIRECTION_IN) {
+		ast_audiohook_initialize(audiohook, type, "Snoop", 0, AST_AUDIOHOOK_READ_ONLY);
 		*direction = AST_AUDIOHOOK_DIRECTION_READ;
 	} else if (requested_direction == STASIS_SNOOP_DIRECTION_BOTH) {
+		ast_audiohook_init(audiohook, type, "Snoop", 0);
 		*direction = AST_AUDIOHOOK_DIRECTION_BOTH;
 	} else {
 		return -1;
