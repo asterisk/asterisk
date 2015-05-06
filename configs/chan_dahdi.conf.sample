@@ -196,10 +196,12 @@ context=public
 ;
 ;resetinterval = 3600
 ;
-; Enable per span to force a RESTART on a channel that returns a cause
-; code of PRI_CAUSE_REQUESTED_CHAN_UNAVAIL(44).  If the cause is because
-; of a stuck channel on the peer and the channel is always the next
-; channel we pick for an outgoing call then this might help.
+; Enable per ISDN span to force a RESTART on a channel that returns a cause
+; code of PRI_CAUSE_REQUESTED_CHAN_UNAVAIL(44).  If this option is enabled
+; and the reason the peer rejected the call with cause 44 was that the
+; channel is stuck in an unavailable state on the peer, then this might
+; help release the channel.  It is worth noting that the next outgoing call
+; Asterisk makes will likely try the same channel again.
 ;
 ; NOTE: Sending a RESTART in response to a cause 44 is not required
 ; (nor prohibited) by the standards and is likely a primitive chan_dahdi
