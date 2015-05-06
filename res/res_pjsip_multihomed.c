@@ -83,21 +83,15 @@ static int multihomed_rewrite_sdp(struct pjmedia_sdp_session *sdp)
 	return 0;
 }
 
-/*! \brief Helper function which determines if the existing address has priority over new one */
-static int multihomed_rewrite_header(pj_str_t *source, pjsip_transport *transport)
+/*! \brief Helper function which determines if a transport is bound to any */
+static int multihomed_bound_any(pjsip_transport *transport)
 {
 	pj_uint32_t loop6[4] = {0, 0, 0, 0};
 
-	/* If the transport is bound to any it should always rewrite */
 	if ((transport->local_addr.addr.sa_family == pj_AF_INET() &&
 		transport->local_addr.ipv4.sin_addr.s_addr == PJ_INADDR_ANY) ||
 		(transport->local_addr.addr.sa_family == pj_AF_INET6() &&
 		!pj_memcmp(&transport->local_addr.ipv6.sin6_addr, loop6, sizeof(loop6)))) {
-		return 1;
-	}
-
-	/* If the transport is explicitly bound but the determined source differs favor the transport */
-	if (!pj_strcmp(source, &transport->local_name.host)) {
 		return 1;
 	}
 
@@ -107,7 +101,6 @@ static int multihomed_rewrite_header(pj_str_t *source, pjsip_transport *transpor
 static pj_status_t multihomed_on_tx_message(pjsip_tx_data *tdata)
 {
 	pjsip_tpmgr_fla2_param prm;
-	pjsip_transport *transport = NULL;
 	pjsip_cseq_hdr *cseq;
 	pjsip_via_hdr *via;
 
@@ -122,24 +115,32 @@ static pj_status_t multihomed_on_tx_message(pjsip_tx_data *tdata)
 		return PJ_SUCCESS;
 	}
 
-	/* If the transport it is going out on is different reflect it in the message */
-	if (tdata->tp_info.transport->key.type == PJSIP_TRANSPORT_UDP ||
-		tdata->tp_info.transport->key.type == PJSIP_TRANSPORT_UDP6) {
-		transport = multihomed_get_udp_transport(&prm.ret_addr, prm.ret_port);
-	}
+	/* The port in the message should always be that of the original transport */
+	prm.ret_port = tdata->tp_info.transport->local_name.port;
 
-	/* If no new transport use the one provided by the message */
-	if (!transport) {
-		transport = tdata->tp_info.transport;
-	}
+	/* If the IP source differs from the existing transport see if we need to update it */
+	if (pj_strcmp(&prm.ret_addr, &tdata->tp_info.transport->local_name.host)) {
 
-	/* If the message should not be rewritten then abort early */
-	if (!multihomed_rewrite_header(&prm.ret_addr, transport)) {
-		return PJ_SUCCESS;
-	}
+		/* If the transport it is going out on is different reflect it in the message */
+		if (tdata->tp_info.transport->key.type == PJSIP_TRANSPORT_UDP ||
+			tdata->tp_info.transport->key.type == PJSIP_TRANSPORT_UDP6) {
+			pjsip_transport *transport;
 
-	/* Update the transport in case it has changed - we do this now in case we don't want to touch the message above */
-	tdata->tp_info.transport = transport;
+			transport = multihomed_get_udp_transport(&prm.ret_addr, prm.ret_port);
+
+			if (transport) {
+				tdata->tp_info.transport = transport;
+			}
+		}
+
+		/* If the chosen transport is not bound to any we can't use the source address as it won't get back to us */
+		if (!multihomed_bound_any(tdata->tp_info.transport)) {
+			pj_strassign(&prm.ret_addr, &tdata->tp_info.transport->local_name.host);
+		}
+	} else {
+		/* The transport chosen will deliver this but ensure it is updated with the right information */
+		pj_strassign(&prm.ret_addr, &tdata->tp_info.transport->local_name.host);
+	}
 
 	/* If the message needs to be updated with new address do so */
 	if (tdata->msg->type == PJSIP_REQUEST_MSG || !(cseq = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CSEQ, NULL)) ||
@@ -148,7 +149,7 @@ static pj_status_t multihomed_on_tx_message(pjsip_tx_data *tdata)
 		if (contact && (PJSIP_URI_SCHEME_IS_SIP(contact->uri) || PJSIP_URI_SCHEME_IS_SIPS(contact->uri))) {
 			pjsip_sip_uri *uri = pjsip_uri_get_uri(contact->uri);
 
-			/* prm.ret_addr is allocated from the tdata pool so it is perfectly fine to just do an assignment like this */
+			/* prm.ret_addr is allocated from the tdata pool OR the transport so it is perfectly fine to just do an assignment like this */
 			pj_strassign(&uri->host, &prm.ret_addr);
 			uri->port = prm.ret_port;
 
