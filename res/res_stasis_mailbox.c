@@ -163,4 +163,4 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Stasis applicatio
 	.load = load_module,
 	.unload = unload_module,
 	.nonoptreq = "res_stasis,res_mwi_external"
-	);
+);

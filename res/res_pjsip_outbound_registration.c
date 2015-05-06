@@ -1822,9 +1822,9 @@ static int reload_module(void)
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP Outbound Registration Support",
-		.support_level = AST_MODULE_SUPPORT_CORE,
-		.load = load_module,
-		.reload = reload_module,
-		.unload = unload_module,
-		.load_pri = AST_MODPRI_APP_DEPEND,
-	       );
+	.support_level = AST_MODULE_SUPPORT_CORE,
+	.load = load_module,
+	.reload = reload_module,
+	.unload = unload_module,
+	.load_pri = AST_MODPRI_APP_DEPEND,
+);

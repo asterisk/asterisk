@@ -362,4 +362,4 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "RESTful API module - Dev
 	.load = load_module,
 	.unload = unload_module,
 	.nonoptreq = "res_ari,res_stasis",
-	);
+);
