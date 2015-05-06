@@ -8981,7 +8981,8 @@ static int __init_manager(int reload, int by_external_config)
 
 				ast_append_acl(var->name, var->value, &user->acl, &acl_error, &acl_subscription_flag);
 				if (acl_error) {
-					ast_log(LOG_ERROR, "Invalid ACL '%s' for manager user '%s' on line %d. Deleting user\n");
+					ast_log(LOG_ERROR, "Invalid ACL '%s' for manager user '%s' on line %d. Deleting user\n",
+						var->value, user->username, var->lineno);
 					user->keep = 0;
 				}
 			}  else if (!strcasecmp(var->name, "read") ) {
