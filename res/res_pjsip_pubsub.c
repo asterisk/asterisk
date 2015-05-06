@@ -2185,6 +2185,11 @@ const char *ast_sip_subscription_get_resource_name(struct ast_sip_subscription *
 	return sub->resource;
 }
 
+int ast_sip_subscription_is_terminated(const struct ast_sip_subscription *sub)
+{
+	return sub->subscription_state == PJSIP_EVSUB_STATE_TERMINATED ? 1 : 0;
+}
+
 static int sip_subscription_accept(struct sip_subscription_tree *sub_tree, pjsip_rx_data *rdata, int response)
 {
 	pjsip_hdr res_hdr;

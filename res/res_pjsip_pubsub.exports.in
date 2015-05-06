@@ -37,6 +37,7 @@
 		LINKER_SYMBOL_PREFIXast_sip_subscription_get_local_uri;
 		LINKER_SYMBOL_PREFIXast_sip_subscription_get_remote_uri;
 		LINKER_SYMBOL_PREFIXast_sip_subscription_get_header;
+		LINKER_SYMBOL_PREFIXast_sip_subscription_is_terminated;
 	local:
 		*;
 };
