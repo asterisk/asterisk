@@ -389,6 +389,28 @@ int __ast_test_status_update(const char *file, const char *func, int line, struc
 		}							\
 	} while(0)
 
+/*!
+ * \brief Check a test condition, report error and goto cleanup label if failed.
+ *
+ * \since 13.4.0
+ *
+ * This macro evaluates \a condition. If the condition evaluates to true (non-zero),
+ * nothing happens. If it evaluates to false (zero), then the failure is printed
+ * using \ref ast_test_status_update, the variable \a rc_variable is set to AST_TEST_FAIL,
+ * and a goto to \a cleanup_label is executed.
+ *
+ * \param test Currently executing test
+ * \param condition Boolean condition to check.
+ * \param rc_variable Variable to receive AST_TEST_FAIL.
+ * \param cleanup_label The label to go to on failure.
+ */
+#define ast_test_validate_cleanup(test, condition, rc_variable, cleanup_label) ({ \
+	if (!(condition)) {	\
+		ast_test_status_update((test), "%s: %s\n", "Condition failed", #condition); \
+		rc_variable = AST_TEST_FAIL; \
+		goto cleanup_label; \
+	} \
+})
 
 #endif /* TEST_FRAMEWORK */
 #endif /* _AST_TEST_H */
