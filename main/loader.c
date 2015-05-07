@@ -895,7 +895,7 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 	struct ast_module *mod;
 	enum ast_module_load_result res = AST_MODULE_LOAD_SUCCESS;
 
-	if ((mod = find_resource(resource_name, 0))) {
+	if ((mod = find_resource(resource_name, 0)) && (mod->lib != NULL)) {
 		if (mod->flags.running) {
 			ast_log(LOG_WARNING, "Module '%s' already exists.\n", resource_name);
 			return AST_MODULE_LOAD_DECLINE;
@@ -918,6 +918,12 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 		return required ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_DECLINE;
 #endif
 	}
+
+	if (mod->lib == NULL) {
+		ast_log(LOG_ERROR, "Module '%s' was unloaded.\n", resource_name);
+		return required ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_DECLINE;
+	}
+
 
 	if (inspect_module(mod)) {
 		ast_log(LOG_WARNING, "Module '%s' could not be loaded.\n", resource_name);
