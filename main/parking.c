@@ -134,8 +134,8 @@ int ast_parking_park_bridge_channel(struct ast_bridge_channel *parkee, const cha
 		return -1;
 	}
 
-	if (table->module_info) {
-		SCOPED_MODULE_USE(table->module_info->self);
+	if (table->module) {
+		SCOPED_MODULE_USE(table->module);
 		return table->parking_park_bridge_channel(parkee, parkee_uuid, parker_uuid, app_data);
 	}
 
@@ -153,8 +153,8 @@ int ast_parking_blind_transfer_park(struct ast_bridge_channel *parker,
 		return -1;
 	}
 
-	if (table->module_info) {
-		SCOPED_MODULE_USE(table->module_info->self);
+	if (table->module) {
+		SCOPED_MODULE_USE(table->module);
 		return table->parking_blind_transfer_park(parker, context, exten, parked_channel_cb, parked_channel_data);
 	}
 
@@ -170,8 +170,8 @@ int ast_parking_park_call(struct ast_bridge_channel *parker, char *exten, size_t
 		return -1;
 	}
 
-	if (table->module_info) {
-		SCOPED_MODULE_USE(table->module_info->self);
+	if (table->module) {
+		SCOPED_MODULE_USE(table->module);
 		return table->parking_park_call(parker, exten, length);
 	}
 
@@ -187,8 +187,8 @@ int ast_parking_is_exten_park(const char *context, const char *exten)
 		return -1;
 	}
 
-	if (table->module_info) {
-		SCOPED_MODULE_USE(table->module_info->self);
+	if (table->module) {
+		SCOPED_MODULE_USE(table->module);
 		return table->parking_is_exten_park(context, exten);
 	}
 

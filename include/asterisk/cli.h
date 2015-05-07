@@ -177,7 +177,7 @@ struct ast_cli_entry {
 	const char * usage; 				/*!< Detailed usage information */
 
 	int inuse; 				/*!< For keeping track of usage */
-	struct module *module;			/*!< module this belongs to */
+	struct ast_module *module;			/*!< module this belongs to */
 	char *_full_cmd;			/*!< built at load time from cmda[] */
 	int cmdlen;				/*!< len up to the first invalid char [<{% */
 	/*! \brief This gets set in ast_cli_register()
@@ -253,14 +253,19 @@ int ast_cli_command_multiple_full(int uid, int gid, int fd, size_t size, const c
  * \retval 0 on success
  * \retval -1 on failure
  */
-int ast_cli_register(struct ast_cli_entry *e);
+#define ast_cli_register(e) __ast_cli_register(e, AST_MODULE_SELF)
+
+int __ast_cli_register(struct ast_cli_entry *e, struct ast_module *mod);
 
 /*!
  * \brief Register multiple commands
  * \param e pointer to first cli entry to register
  * \param len number of entries to register
  */
-int ast_cli_register_multiple(struct ast_cli_entry *e, int len);
+#define ast_cli_register_multiple(e, len) \
+	__ast_cli_register_multiple(e, len, AST_MODULE_SELF)
+
+int __ast_cli_register_multiple(struct ast_cli_entry *e, int len, struct ast_module *mod);
 
 /*! 
  * \brief Unregisters a command or an array of commands

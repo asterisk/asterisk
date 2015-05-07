@@ -134,7 +134,7 @@ int ast_bucket_init(void);
  *
  * \note Once a scheme has been registered it can not be unregistered
  */
-#define ast_bucket_scheme_register(name, bucket, file, create_cb, destroy_cb) __ast_bucket_scheme_register(name, bucket, file, create_cb, destroy_cb, ast_module_info ? ast_module_info->self : NULL)
+#define ast_bucket_scheme_register(name, bucket, file, create_cb, destroy_cb) __ast_bucket_scheme_register(name, bucket, file, create_cb, destroy_cb, AST_MODULE_SELF)
 
 /*!
  * \brief Register support for a specific scheme

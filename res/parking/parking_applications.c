@@ -868,8 +868,6 @@ static int park_and_announce_app_exec(struct ast_channel *chan, const char *data
 
 int load_parking_applications(void)
 {
-	const struct ast_module_info *ast_module_info = parking_get_module_info();
-
 	if (ast_register_application_xml(PARK_APPLICATION, park_app_exec)) {
 		return -1;
 	}

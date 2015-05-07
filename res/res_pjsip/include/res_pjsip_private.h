@@ -25,7 +25,7 @@ struct ast_sip_cli_context;
  * \internal
  * \brief Initialize the configuration for res_pjsip
  */
-int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_module_info);
+int ast_res_pjsip_initialize_configuration(void);
 
 /*!
  * \internal

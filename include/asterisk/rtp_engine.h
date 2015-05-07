@@ -643,7 +643,7 @@ struct ast_rtp_glue {
  */
 struct ast_rtp_payload_type *ast_rtp_engine_alloc_payload_type(void);
 
-#define ast_rtp_engine_register(engine) ast_rtp_engine_register2(engine, ast_module_info->self)
+#define ast_rtp_engine_register(engine) ast_rtp_engine_register2(engine, AST_MODULE_SELF)
 
 /*!
  * \brief Register an RTP engine
@@ -696,7 +696,7 @@ int ast_rtp_engine_register_srtp(struct ast_srtp_res *srtp_res, struct ast_srtp_
 void ast_rtp_engine_unregister_srtp(void);
 int ast_rtp_engine_srtp_is_registered(void);
 
-#define ast_rtp_glue_register(glue) ast_rtp_glue_register2(glue, ast_module_info->self)
+#define ast_rtp_glue_register(glue) ast_rtp_glue_register2(glue, AST_MODULE_SELF)
 
 /*!
  * \brief Register RTP glue

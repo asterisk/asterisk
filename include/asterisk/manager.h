@@ -180,10 +180,10 @@ struct manager_action {
 
 /*! \brief External routines may register/unregister manager callbacks this way 
  * \note  Use ast_manager_register2() to register with help text for new manager commands */
-#define ast_manager_register(action, authority, func, synopsis) ast_manager_register2(action, authority, func, ast_module_info->self, synopsis, NULL)
+#define ast_manager_register(action, authority, func, synopsis) ast_manager_register2(action, authority, func, AST_MODULE_SELF, synopsis, NULL)
 
 /*! \brief Register a manager callback using XML documentation to describe the manager. */
-#define ast_manager_register_xml(action, authority, func) ast_manager_register2(action, authority, func, ast_module_info->self, NULL, NULL)
+#define ast_manager_register_xml(action, authority, func) ast_manager_register2(action, authority, func, AST_MODULE_SELF, NULL, NULL)
 
 /*!
  * \brief Register a manager callback using XML documentation to describe the manager.

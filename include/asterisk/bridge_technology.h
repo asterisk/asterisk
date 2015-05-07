@@ -182,7 +182,7 @@ struct ast_bridge_technology {
 int __ast_bridge_technology_register(struct ast_bridge_technology *technology, struct ast_module *mod);
 
 /*! \brief See \ref __ast_bridge_technology_register() */
-#define ast_bridge_technology_register(technology) __ast_bridge_technology_register(technology, ast_module_info->self)
+#define ast_bridge_technology_register(technology) __ast_bridge_technology_register(technology, AST_MODULE_SELF)
 
 /*!
  * \brief Unregister a bridge technology from use

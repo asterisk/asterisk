@@ -271,4 +271,21 @@ struct ast_sched_context;
 #define __stringify_1(x)	#x
 #define __stringify(x)		__stringify_1(x)
 
+#if defined(AST_IN_CORE) \
+	|| (!defined(AST_MODULE_SELF_SYM) \
+		&& (defined(STANDALONE) || defined(STANDALONE2) || defined(AST_NOT_MODULE)))
+
+#define AST_MODULE_SELF NULL
+
+#elif defined(AST_MODULE_SELF_SYM)
+
+/*! Retreive the 'struct ast_module *' for the current module. */
+#define AST_MODULE_SELF AST_MODULE_SELF_SYM()
+
+struct ast_module;
+/* Internal/forward declaration, AST_MODULE_SELF should be used instead. */
+struct ast_module *AST_MODULE_SELF_SYM(void);
+
+#endif
+
 #endif /* _ASTERISK_H */

@@ -60,7 +60,11 @@ endif
 # is used to collect the required flags for a module... which can
 # then be used any place they are required.
 
-MOD_ASTCFLAGS=-DAST_MODULE=\"$(1)\" $(MENUSELECT_OPTS_$(1):%=-D%) $(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$(value $(dep)_INCLUDE))
+MOD_ASTCFLAGS=\
+	-DAST_MODULE=\"$(1)\" \
+	-DAST_MODULE_SELF_SYM=__internal_$(1)_self \
+	$(MENUSELECT_OPTS_$(1):%=-D%) \
+	$(foreach dep,$(MENUSELECT_DEPENDS_$(1)),$(value $(dep)_INCLUDE))
 
 define MOD_ADD_SOURCE
 $$(if $$(filter $(1),$$(EMBEDDED_MODS)),modules.link,$(1).so): $$(subst $(3),$(5),$(2))

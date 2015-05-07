@@ -1406,7 +1406,7 @@ enum ast_custom_function_escalation {
 /*!
  * \brief Register a custom function
  */
-#define ast_custom_function_register(acf) __ast_custom_function_register(acf, ast_module_info->self)
+#define ast_custom_function_register(acf) __ast_custom_function_register(acf, AST_MODULE_SELF)
 
 /*!
  * \brief Register a custom function which requires escalated privileges.
@@ -1415,7 +1415,7 @@ enum ast_custom_function_escalation {
  * arbitrary code) or FILE() (for which write needs permission to change files
  * on the filesystem).
  */
-#define ast_custom_function_register_escalating(acf, escalation) __ast_custom_function_register_escalating(acf, escalation, ast_module_info->self)
+#define ast_custom_function_register_escalating(acf, escalation) __ast_custom_function_register_escalating(acf, escalation, AST_MODULE_SELF)
 
 /*!
  * \brief Register a custom function

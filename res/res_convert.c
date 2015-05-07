@@ -88,9 +88,6 @@ static char *handle_cli_file_convert(struct ast_cli_entry *e, int cmd, struct as
 		return NULL;
 	}
 	
-	/* ugly, can be removed when CLI entries have ast_module pointers */
-	ast_module_ref(ast_module_info->self);
-
 	if (a->argc != 4 || ast_strlen_zero(a->argv[2]) || ast_strlen_zero(a->argv[3])) {
 		ret = CLI_SHOWUSAGE;
 		goto fail_out;	
@@ -141,8 +138,6 @@ fail_out:
 
 	if (fs_in) 
 		ast_closestream(fs_in);
-
-	ast_module_unref(ast_module_info->self);
 
 	return ret;
 }
