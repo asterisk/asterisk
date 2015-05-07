@@ -216,6 +216,33 @@
 		<member name="CORE-SOUNDS-JA-SIREN14" displayname="Japanese, G.722.1C (Siren14) format">
 			<support_level>core</support_level>
 		</member>
+		<member name="CORE-SOUNDS-SV-WAV" displayname="Swedish, WAV format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-SV-ULAW" displayname="Swedish, mu-Law format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-SV-ALAW" displayname="Swedish, a-Law format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-SV-GSM" displayname="Swedish, GSM format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-SV-G729" displayname="Swedish, G.729 format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-SV-G722" displayname="Swedish, G.722 format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-SV-SLN16" displayname="Swedish, Signed-linear 16kHz format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-SV-SIREN7" displayname="Swedish, G.722.1 (Siren7) format">
+			<support_level>core</support_level>
+		</member>
+		<member name="CORE-SOUNDS-SV-SIREN14" displayname="Swedish, G.722.1C (Siren14) format">
+			<support_level>core</support_level>
+		</member>
 	</category>
 	<category name="MENUSELECT_MOH" displayname="Music On Hold File Packages" positive_output="yes">
 		<member name="MOH-OPSOUND-WAV" displayname="opsound.org Music On Hold Files, WAV format" >
