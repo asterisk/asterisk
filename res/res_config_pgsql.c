@@ -277,63 +277,30 @@ static struct tables *find_table(const char *database, const char *orig_tablenam
 
 	/* Not found, scan the table */
 	if (has_schema_support) {
-		char *schemaname, *tablename;
+		char *schemaname, *tablename, *tmp_schemaname, *tmp_tablename;
 		if (strchr(orig_tablename, '.')) {
-			schemaname = ast_strdupa(orig_tablename);
-			tablename = strchr(schemaname, '.');
-			*tablename++ = '\0';
+			tmp_schemaname = ast_strdupa(orig_tablename);
+			tmp_tablename = strchr(tmp_schemaname, '.');
+			*tmp_tablename++ = '\0';
 		} else {
-			schemaname = "";
-			tablename = ast_strdupa(orig_tablename);
+			tmp_schemaname = "";
+			tmp_tablename = ast_strdupa(orig_tablename);
 		}
 
-		/* Escape special characters in schemaname */
-		if (strchr(schemaname, '\\') || strchr(schemaname, '\'')) {
-			char *tmp = schemaname, *ptr;
-
-			ptr = schemaname = ast_alloca(strlen(tmp) * 2 + 1);
-			for (; *tmp; tmp++) {
-				if (strchr("\\'", *tmp)) {
-					*ptr++ = *tmp;
-				}
-				*ptr++ = *tmp;
-			}
-			*ptr = '\0';
-		}
-		/* Escape special characters in tablename */
-		if (strchr(tablename, '\\') || strchr(tablename, '\'')) {
-			char *tmp = tablename, *ptr;
-
-			ptr = tablename = ast_alloca(strlen(tmp) * 2 + 1);
-			for (; *tmp; tmp++) {
-				if (strchr("\\'", *tmp)) {
-					*ptr++ = *tmp;
-				}
-				*ptr++ = *tmp;
-			}
-			*ptr = '\0';
-		}
+		tablename = ast_alloca(strlen(tmp_tablename) * 2 + 1);
+		PQescapeStringConn(pgsqlConn, tablename, tmp_tablename, strlen(tmp_tablename), NULL);
+		schemaname = ast_alloca(strlen(tmp_schemaname) * 2 + 1);
+		PQescapeStringConn(pgsqlConn, schemaname, tmp_schemaname, strlen(tmp_schemaname), NULL);
 
 		ast_str_set(&sql, 0, "SELECT a.attname, t.typname, a.attlen, a.attnotnull, d.adsrc, a.atttypmod FROM (((pg_catalog.pg_class c INNER JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace AND c.relname = '%s' AND n.nspname = %s%s%s) INNER JOIN pg_catalog.pg_attribute a ON (NOT a.attisdropped) AND a.attnum > 0 AND a.attrelid = c.oid) INNER JOIN pg_catalog.pg_type t ON t.oid = a.atttypid) LEFT OUTER JOIN pg_attrdef d ON a.atthasdef AND d.adrelid = a.attrelid AND d.adnum = a.attnum ORDER BY n.nspname, c.relname, attnum",
 			tablename,
 			ast_strlen_zero(schemaname) ? "" : "'", ast_strlen_zero(schemaname) ? "current_schema()" : schemaname, ast_strlen_zero(schemaname) ? "" : "'");
 	} else {
-		/* Escape special characters in tablename */
-		if (strchr(orig_tablename, '\\') || strchr(orig_tablename, '\'')) {
-			const char *tmp = orig_tablename;
-			char *ptr;
+		char *tablename;
+		tablename = ast_alloca(strlen(orig_tablename) * 2 + 1);
+		PQescapeStringConn(pgsqlConn, tablename, orig_tablename, strlen(orig_tablename), NULL);
 
-			orig_tablename = ptr = ast_alloca(strlen(tmp) * 2 + 1);
-			for (; *tmp; tmp++) {
-				if (strchr("\\'", *tmp)) {
-					*ptr++ = *tmp;
-				}
-				*ptr++ = *tmp;
-			}
-			*ptr = '\0';
-		}
-
-		ast_str_set(&sql, 0, "SELECT a.attname, t.typname, a.attlen, a.attnotnull, d.adsrc, a.atttypmod FROM pg_class c, pg_type t, pg_attribute a LEFT OUTER JOIN pg_attrdef d ON a.atthasdef AND d.adrelid = a.attrelid AND d.adnum = a.attnum WHERE c.oid = a.attrelid AND a.atttypid = t.oid AND (a.attnum > 0) AND c.relname = '%s' ORDER BY c.relname, attnum", orig_tablename);
+		ast_str_set(&sql, 0, "SELECT a.attname, t.typname, a.attlen, a.attnotnull, d.adsrc, a.atttypmod FROM pg_class c, pg_type t, pg_attribute a LEFT OUTER JOIN pg_attrdef d ON a.atthasdef AND d.adrelid = a.attrelid AND d.adnum = a.attnum WHERE c.oid = a.attrelid AND a.atttypid = t.oid AND (a.attnum > 0) AND c.relname = '%s' ORDER BY c.relname, attnum", tablename);
 	}
 
 	exec_result = pgsql_exec(database, orig_tablename, ast_str_buffer(sql), &result);
