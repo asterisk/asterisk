@@ -606,17 +606,16 @@ static int setup_dynamic_feature(void *obj, void *arg, void *data, int flags)
  */
 static int setup_bridge_features_dynamic(struct ast_bridge_features *features, struct ast_channel *chan)
 {
-	RAII_VAR(struct ao2_container *, applicationmap, NULL, ao2_cleanup);
+	struct ao2_container *applicationmap;
 	int res = 0;
 
 	ast_channel_lock(chan);
 	applicationmap = ast_get_chan_applicationmap(chan);
 	ast_channel_unlock(chan);
-	if (!applicationmap) {
-		return 0;
+	if (applicationmap) {
+		ao2_callback_data(applicationmap, 0, setup_dynamic_feature, features, &res);
+		ao2_ref(applicationmap, -1);
 	}
-
-	ao2_callback_data(applicationmap, 0, setup_dynamic_feature, features, &res);
 
 	return res;
 }
@@ -1418,7 +1417,7 @@ static struct attended_transfer_properties *attended_transfer_properties_alloc(
 	char *tech;
 	char *addr;
 	char *serial;
-	RAII_VAR(struct ast_features_xfer_config *, xfer_cfg, NULL, ao2_cleanup);
+	struct ast_features_xfer_config *xfer_cfg;
 	struct ast_flags *transferer_features;
 
 	props = ao2_alloc(sizeof(*props), attended_transfer_properties_destructor);
@@ -1450,6 +1449,7 @@ static struct attended_transfer_properties *attended_transfer_properties_alloc(
 	ast_string_field_set(props, context, get_transfer_context(transferer, context));
 	ast_string_field_set(props, failsound, xfer_cfg->xferfailsound);
 	ast_string_field_set(props, xfersound, xfer_cfg->xfersound);
+	ao2_ref(xfer_cfg, -1);
 
 	/*
 	 * Save the transferee's party information for any recall calls.
@@ -1695,17 +1695,16 @@ static void publish_transfer_fail(struct attended_transfer_properties *props)
  */
 static void play_sound(struct ast_channel *chan, const char *sound)
 {
-	RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
+	struct ast_bridge_channel *bridge_channel;
 
 	ast_channel_lock(chan);
 	bridge_channel = ast_channel_get_bridge_channel(chan);
 	ast_channel_unlock(chan);
 
-	if (!bridge_channel) {
-		return;
+	if (bridge_channel) {
+		ast_bridge_channel_queue_playfile(bridge_channel, NULL, sound, NULL);
+		ao2_ref(bridge_channel, -1);
 	}
-
-	ast_bridge_channel_queue_playfile(bridge_channel, NULL, sound, NULL);
 }
 
 /*!
@@ -1713,16 +1712,19 @@ static void play_sound(struct ast_channel *chan, const char *sound)
  */
 static void hold(struct ast_channel *chan)
 {
-	RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
+	struct ast_bridge_channel *bridge_channel;
 
-	if (chan) {
-		ast_channel_lock(chan);
-		bridge_channel = ast_channel_get_bridge_channel(chan);
-		ast_channel_unlock(chan);
+	if (!chan) {
+		return;
+	}
 
-		ast_assert(bridge_channel != NULL);
+	ast_channel_lock(chan);
+	bridge_channel = ast_channel_get_bridge_channel(chan);
+	ast_channel_unlock(chan);
 
+	if (bridge_channel) {
 		ast_bridge_channel_write_hold(bridge_channel, NULL);
+		ao2_ref(bridge_channel, -1);
 	}
 }
 
@@ -1731,15 +1733,20 @@ static void hold(struct ast_channel *chan)
  */
 static void unhold(struct ast_channel *chan)
 {
-	RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
+	struct ast_bridge_channel *bridge_channel;
+
+	if (!chan) {
+		return;
+	}
 
 	ast_channel_lock(chan);
 	bridge_channel = ast_channel_get_bridge_channel(chan);
 	ast_channel_unlock(chan);
 
-	ast_assert(bridge_channel != NULL);
-
-	ast_bridge_channel_write_unhold(bridge_channel);
+	if (bridge_channel) {
+		ast_bridge_channel_write_unhold(bridge_channel);
+		ao2_ref(bridge_channel, -1);
+	}
 }
 
 /*!
@@ -1747,15 +1754,16 @@ static void unhold(struct ast_channel *chan)
  */
 static void ringing(struct ast_channel *chan)
 {
-	RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
+	struct ast_bridge_channel *bridge_channel;
 
 	ast_channel_lock(chan);
 	bridge_channel = ast_channel_get_bridge_channel(chan);
 	ast_channel_unlock(chan);
 
-	ast_assert(bridge_channel != NULL);
-
-	ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_RINGING, NULL, 0);
+	if (bridge_channel) {
+		ast_bridge_channel_write_control_data(bridge_channel, AST_CONTROL_RINGING, NULL, 0);
+		ao2_ref(bridge_channel, -1);
+	}
 }
 
 /*!
@@ -1800,10 +1808,9 @@ static void bridge_unhold(struct ast_bridge *bridge)
 /*!
  * \brief Wrapper for \ref bridge_do_move
  */
-static int bridge_move(struct ast_bridge *dest, struct ast_bridge *src, struct ast_channel *channel, struct ast_channel *swap)
+static void bridge_move(struct ast_bridge *dest, struct ast_bridge *src, struct ast_channel *channel, struct ast_channel *swap)
 {
-	int res;
-	RAII_VAR(struct ast_bridge_channel *, bridge_channel, NULL, ao2_cleanup);
+	struct ast_bridge_channel *bridge_channel;
 
 	ast_bridge_lock_both(src, dest);
 
@@ -1811,18 +1818,18 @@ static int bridge_move(struct ast_bridge *dest, struct ast_bridge *src, struct a
 	bridge_channel = ast_channel_get_bridge_channel(channel);
 	ast_channel_unlock(channel);
 
-	ast_assert(bridge_channel != NULL);
+	if (bridge_channel) {
+		ao2_lock(bridge_channel);
+		bridge_channel->swap = swap;
+		ao2_unlock(bridge_channel);
 
-	ao2_lock(bridge_channel);
-	bridge_channel->swap = swap;
-	ao2_unlock(bridge_channel);
-
-	res = bridge_do_move(dest, bridge_channel, 1, 0);
+		bridge_do_move(dest, bridge_channel, 1, 0);
+	}
 
 	ast_bridge_unlock(dest);
 	ast_bridge_unlock(src);
 
-	return res;
+	ao2_cleanup(bridge_channel);
 }
 
 /*!
@@ -2033,7 +2040,8 @@ static const struct attended_transfer_state_properties state_properties[] = {
 
 static int calling_target_enter(struct attended_transfer_properties *props)
 {
-	return bridge_move(props->target_bridge, props->transferee_bridge, props->transferer, NULL);
+	bridge_move(props->target_bridge, props->transferee_bridge, props->transferer, NULL);
+	return 0;
 }
 
 static enum attended_transfer_state calling_target_exit(struct attended_transfer_properties *props,
@@ -2072,10 +2080,7 @@ static enum attended_transfer_state calling_target_exit(struct attended_transfer
 
 static int hesitant_enter(struct attended_transfer_properties *props)
 {
-	if (bridge_move(props->transferee_bridge, props->target_bridge, props->transferer, NULL)) {
-		return -1;
-	}
-
+	bridge_move(props->transferee_bridge, props->target_bridge, props->transferer, NULL);
 	unhold(props->transferer);
 	return 0;
 }
@@ -2115,11 +2120,7 @@ static enum attended_transfer_state hesitant_exit(struct attended_transfer_prope
 
 static int rebridge_enter(struct attended_transfer_properties *props)
 {
-	if (bridge_move(props->transferee_bridge, props->target_bridge,
-			props->transferer, NULL)) {
-		return -1;
-	}
-
+	bridge_move(props->transferee_bridge, props->target_bridge, props->transferer, NULL);
 	unhold(props->transferer);
 	return 0;
 }
@@ -2839,7 +2840,8 @@ static void transfer_pull(struct ast_bridge *self, struct ast_bridge_channel *br
 	}
 
 	if (self->num_channels == 1) {
-		RAII_VAR(struct ast_bridge_channel *, transferer_bridge_channel, NULL, ao2_cleanup);
+		struct ast_bridge_channel *transferer_bridge_channel;
+		int not_transferer;
 
 		ast_channel_lock(props->transferer);
 		transferer_bridge_channel = ast_channel_get_bridge_channel(props->transferer);
@@ -2849,7 +2851,9 @@ static void transfer_pull(struct ast_bridge *self, struct ast_bridge_channel *br
 			return;
 		}
 
-		if (AST_LIST_FIRST(&self->channels) != transferer_bridge_channel) {
+		not_transferer = AST_LIST_FIRST(&self->channels) != transferer_bridge_channel;
+		ao2_ref(transferer_bridge_channel, -1);
+		if (not_transferer) {
 			return;
 		}
 	}
@@ -2886,7 +2890,8 @@ static void recall_pull(struct ast_bridge *self, struct ast_bridge_channel *brid
 	}
 
 	if (self->num_channels == 1) {
-		RAII_VAR(struct ast_bridge_channel *, target_bridge_channel, NULL, ao2_cleanup);
+		struct ast_bridge_channel *target_bridge_channel;
+
 		if (!props->recall_target) {
 			/* No recall target means that the pull happened on a transferee. If there's still
 			 * a channel left in the bridge, we don't need to send a stimulus
@@ -2898,12 +2903,11 @@ static void recall_pull(struct ast_bridge *self, struct ast_bridge_channel *brid
 		target_bridge_channel = ast_channel_get_bridge_channel(props->recall_target);
 		ast_channel_unlock(props->recall_target);
 
-		if (!target_bridge_channel) {
-			return;
-		}
-
-		if (AST_LIST_FIRST(&self->channels) == target_bridge_channel) {
-			stimulate_attended_transfer(props, STIMULUS_TRANSFEREE_HANGUP);
+		if (target_bridge_channel) {
+			if (AST_LIST_FIRST(&self->channels) == target_bridge_channel) {
+				stimulate_attended_transfer(props, STIMULUS_TRANSFEREE_HANGUP);
+			}
+			ao2_ref(target_bridge_channel, -1);
 		}
 	}
 }
@@ -2925,7 +2929,8 @@ static void bridge_personality_atxfer_pull(struct ast_bridge *self, struct ast_b
 
 static enum attended_transfer_stimulus wait_for_stimulus(struct attended_transfer_properties *props)
 {
-	RAII_VAR(struct stimulus_list *, list, NULL, ast_free_ptr);
+	enum attended_transfer_stimulus stimulus;
+	struct stimulus_list *list;
 	SCOPED_MUTEX(lock, ao2_object_get_lockaddr(props));
 
 	while (!(list = AST_LIST_REMOVE_HEAD(&props->stimulus_queue, next))) {
@@ -2956,7 +2961,9 @@ static enum attended_transfer_stimulus wait_for_stimulus(struct attended_transfe
 			}
 		}
 	}
-	return list->stimulus;
+	stimulus = list->stimulus;
+	ast_free(list);
+	return stimulus;
 }
 
 /*!
@@ -3050,7 +3057,7 @@ static int add_transferer_role(struct ast_channel *chan, struct ast_bridge_featu
 	const char *atxfer_threeway;
 	const char *atxfer_complete;
 	const char *atxfer_swap;
-	RAII_VAR(struct ast_features_xfer_config *, xfer_cfg, NULL, ao2_cleanup);
+	struct ast_features_xfer_config *xfer_cfg;
 	SCOPED_CHANNELLOCK(lock, chan);
 
 	xfer_cfg = ast_get_chan_features_xfer_config(chan);
@@ -3068,6 +3075,7 @@ static int add_transferer_role(struct ast_channel *chan, struct ast_bridge_featu
 		atxfer_complete = ast_strdupa(xfer_cfg->atxfercomplete);
 		atxfer_swap = ast_strdupa(xfer_cfg->atxferswap);
 	}
+	ao2_ref(xfer_cfg, -1);
 
 	return ast_channel_add_bridge_role(chan, AST_TRANSFERER_ROLE_NAME) ||
 		ast_channel_set_bridge_role_option(chan, AST_TRANSFERER_ROLE_NAME, "abort", atxfer_abort) ||
@@ -3088,7 +3096,7 @@ static int grab_transfer(struct ast_channel *chan, char *exten, size_t exten_len
 	int digit_timeout;
 	int attempts = 0;
 	int max_attempts;
-	RAII_VAR(struct ast_features_xfer_config *, xfer_cfg, NULL, ao2_cleanup);
+	struct ast_features_xfer_config *xfer_cfg;
 	char *retry_sound;
 	char *invalid_sound;
 
@@ -3103,6 +3111,7 @@ static int grab_transfer(struct ast_channel *chan, char *exten, size_t exten_len
 	max_attempts = xfer_cfg->transferdialattempts;
 	retry_sound = ast_strdupa(xfer_cfg->transferretrysound);
 	invalid_sound = ast_strdupa(xfer_cfg->transferinvalidsound);
+	ao2_ref(xfer_cfg, -1);
 	ast_channel_unlock(chan);
 
 	/* Play the simple "transfer" prompt out and wait */
