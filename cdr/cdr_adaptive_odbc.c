@@ -395,6 +395,7 @@ static int odbc_log(struct ast_cdr *cdr)
 	char colbuf[1024], *colptr;
 	SQLHSTMT stmt = NULL;
 	SQLLEN rows = 0;
+	char *separator;
 
 	if (!sql || !sql2) {
 		if (sql)
@@ -412,7 +413,7 @@ static int odbc_log(struct ast_cdr *cdr)
 	}
 
 	AST_LIST_TRAVERSE(&odbc_tables, tableptr, list) {
-		int first = 1;
+		separator = "";
 		int quoted = 0;
 
 		if (tableptr->quoted_identifiers != '\0'){
@@ -517,7 +518,7 @@ static int odbc_log(struct ast_cdr *cdr)
 					LENGTHEN_BUF2(strlen(colptr));
 
 					/* Encode value, with escaping */
-					ast_str_append(&sql2, 0, "%s'", first ? "" : ",");
+					ast_str_append(&sql2, 0, "%s'", separator);
 					for (tmp = colptr; *tmp; tmp++) {
 						if (*tmp == '\'') {
 							ast_str_append(&sql2, 0, "''");
@@ -550,7 +551,7 @@ static int odbc_log(struct ast_cdr *cdr)
 						}
 
 						LENGTHEN_BUF2(17);
-						ast_str_append(&sql2, 0, "%s{ d '%04d-%02d-%02d' }", first ? "" : ",", year, month, day);
+						ast_str_append(&sql2, 0, "%s{ d '%04d-%02d-%02d' }", separator, year, month, day);
 					}
 					break;
 				case SQL_TYPE_TIME:
@@ -566,7 +567,7 @@ static int odbc_log(struct ast_cdr *cdr)
 						}
 
 						LENGTHEN_BUF2(15);
-						ast_str_append(&sql2, 0, "%s{ t '%02d:%02d:%02d' }", first ? "" : ",", hour, minute, second);
+						ast_str_append(&sql2, 0, "%s{ t '%02d:%02d:%02d' }", separator, hour, minute, second);
 					}
 					break;
 				case SQL_TYPE_TIMESTAMP:
@@ -594,7 +595,7 @@ static int odbc_log(struct ast_cdr *cdr)
 						}
 
 						LENGTHEN_BUF2(26);
-						ast_str_append(&sql2, 0, "%s{ ts '%04d-%02d-%02d %02d:%02d:%02d' }", first ? "" : ",", year, month, day, hour, minute, second);
+						ast_str_append(&sql2, 0, "%s{ ts '%04d-%02d-%02d %02d:%02d:%02d' }", separator, year, month, day, hour, minute, second);
 					}
 					break;
 				case SQL_INTEGER:
@@ -608,7 +609,7 @@ static int odbc_log(struct ast_cdr *cdr)
 						}
 
 						LENGTHEN_BUF2(12);
-						ast_str_append(&sql2, 0, "%s%d", first ? "" : ",", integer);
+						ast_str_append(&sql2, 0, "%s%d", separator, integer);
 					}
 					break;
 				case SQL_BIGINT:
@@ -622,7 +623,7 @@ static int odbc_log(struct ast_cdr *cdr)
 						}
 
 						LENGTHEN_BUF2(24);
-						ast_str_append(&sql2, 0, "%s%lld", first ? "" : ",", integer);
+						ast_str_append(&sql2, 0, "%s%lld", separator, integer);
 					}
 					break;
 				case SQL_SMALLINT:
@@ -636,7 +637,7 @@ static int odbc_log(struct ast_cdr *cdr)
 						}
 
 						LENGTHEN_BUF2(6);
-						ast_str_append(&sql2, 0, "%s%d", first ? "" : ",", integer);
+						ast_str_append(&sql2, 0, "%s%d", separator, integer);
 					}
 					break;
 				case SQL_TINYINT:
@@ -650,7 +651,7 @@ static int odbc_log(struct ast_cdr *cdr)
 						}
 
 						LENGTHEN_BUF2(4);
-						ast_str_append(&sql2, 0, "%s%d", first ? "" : ",", integer);
+						ast_str_append(&sql2, 0, "%s%d", separator, integer);
 					}
 					break;
 				case SQL_BIT:
@@ -666,7 +667,7 @@ static int odbc_log(struct ast_cdr *cdr)
 							integer = 1;
 
 						LENGTHEN_BUF2(2);
-						ast_str_append(&sql2, 0, "%s%d", first ? "" : ",", integer);
+						ast_str_append(&sql2, 0, "%s%d", separator, integer);
 					}
 					break;
 				case SQL_NUMERIC:
@@ -698,7 +699,7 @@ static int odbc_log(struct ast_cdr *cdr)
 						}
 
 						LENGTHEN_BUF2(entry->decimals);
-						ast_str_append(&sql2, 0, "%s%*.*lf", first ? "" : ",", entry->decimals, entry->radix, number);
+						ast_str_append(&sql2, 0, "%s%*.*lf", separator, entry->decimals, entry->radix, number);
 					}
 					break;
 				case SQL_FLOAT:
@@ -731,7 +732,7 @@ static int odbc_log(struct ast_cdr *cdr)
 						}
 
 						LENGTHEN_BUF2(entry->decimals);
-						ast_str_append(&sql2, 0, "%s%lf", first ? "" : ",", number);
+						ast_str_append(&sql2, 0, "%s%lf", separator, number);
 					}
 					break;
 				default:
@@ -739,11 +740,11 @@ static int odbc_log(struct ast_cdr *cdr)
 					continue;
 				}
 				if (quoted) {
-					ast_str_append(&sql, 0, "%s%s", first ? "" : ",", entry->name);
+					ast_str_append(&sql, 0, "%s%s", separator, entry->name);
 				} else {
-					ast_str_append(&sql, 0, "%s%c%s%c", first ? "" : ",", tableptr->quoted_identifiers, entry->name, tableptr->quoted_identifiers);
+					ast_str_append(&sql, 0, "%s%c%s%c", separator, tableptr->quoted_identifiers, entry->name, tableptr->quoted_identifiers);
 				}
-				first = 0;
+				separator = ", ";
 			} else if (entry->filtervalue
 				&& ((!entry->negatefiltervalue && entry->filtervalue[0] != '\0')
 					|| (entry->negatefiltervalue && entry->filtervalue[0] == '\0'))) {
