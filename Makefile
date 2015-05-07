@@ -391,6 +391,10 @@ _clean:
 	rm -f include/asterisk/build.h
 	rm -f main/version.c
 	rm -f include/asterisk/version.h
+	rm -f doc/core-en_US.xml
+	rm -f doc/full-en_US.xml
+	rm -f doxygen.log
+	rm -rf latex
 	@$(MAKE) -C menuselect clean
 	cp -f .cleancount .lastclean
 
@@ -406,6 +410,7 @@ distclean: $(SUBDIRS_DIST_CLEAN) _clean
 	rm -f include/asterisk/autoconfig.h
 	rm -f include/asterisk/buildopts.h
 	rm -rf doc/api
+	rm -f doc/asterisk-ng-doxygen
 	rm -f build_tools/menuselect-deps
 
 datafiles: _all doc/core-en_US.xml
@@ -673,8 +678,30 @@ webvmail:
 	@echo " +-------------------------------------------+"  
 
 progdocs:
-	(cat contrib/asterisk-ng-doxygen; echo "HAVE_DOT=$(HAVEDOT)"; \
-	echo "PROJECT_NUMBER=$(ASTERISKVERSION)") | doxygen - 
+	# Note, Makefile conditionals must not be tabbed out. Wasted hours with that.
+	@cp doc/asterisk-ng-doxygen.in doc/asterisk-ng-doxygen
+ifeq ($(DOXYGEN),:)
+	@echo "Doxygen is not installed.  Please install and re-run the configuration script."
+else
+ifeq ($(DOT),:)
+	@echo "DOT is not installed. Doxygen will not produce any diagrams. Please install and re-run the configuration script."
+else
+	# Enable DOT
+	@echo "HAVE_DOT = YES" >> doc/asterisk-ng-doxygen
+endif
+	# Set Doxygen PROJECT_NUMBER variable
+ifneq ($(ASTERISKVERSION),UNKNOWN__and_probably_unsupported)
+	@echo "PROJECT_NUMBER = $(ASTERISKVERSION)" >> doc/asterisk-ng-doxygen
+else
+	echo "Asterisk Version is unknown, not configuring Doxygen PROJECT_NUMBER."
+endif
+	# Validate and auto-update local copy
+	@doxygen -u doc/asterisk-ng-doxygen
+	# Run Doxygen
+	@doxygen doc/asterisk-ng-doxygen
+	# Remove configuration backup file
+	@rm -f doc/asterisk-ng-doxygen.bak
+endif
 
 install-logrotate:
 	if [ ! -d "$(DESTDIR)$(ASTETCDIR)/../logrotate.d" ]; then \
