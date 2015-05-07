@@ -123,6 +123,19 @@
 } while (0)
 
 /*!
+ * \brief Deallocates this vector pointer.
+ *
+ * If any code to free the elements of this vector need to be run, that should
+ * be done prior to this call.
+ *
+ * \param vec Pointer to a malloc'd vector structure.
+ */
+#define AST_VECTOR_PTR_FREE(vec) do { \
+	AST_VECTOR_FREE(vec); \
+	ast_free(vec); \
+} while (0)
+
+/*!
  * \brief Deallocates this locked vector
  *
  * If any code to free the elements of this vector need to be run, that should
@@ -136,6 +149,44 @@
 } while(0)
 
 /*!
+ * \brief Deallocates this locked vector pointer.
+ *
+ * If any code to free the elements of this vector need to be run, that should
+ * be done prior to this call.
+ *
+ * \param vec Pointer to a malloc'd vector structure.
+ */
+#define AST_VECTOR_RW_PTR_FREE(vec) do { \
+	AST_VECTOR_RW_FREE(vec); \
+	ast_free(vec); \
+} while(0)
+
+/*!
+ * \internal
+ */
+#define __make_room(idx, vec) ({ \
+	int res = 0;								\
+	do {														\
+		if ((idx) >= (vec)->max) {								\
+			size_t new_max = ((idx) + 1) * 2;				\
+			typeof((vec)->elems) new_elems = ast_calloc(1,		\
+				new_max * sizeof(*new_elems));					\
+			if (new_elems) {									\
+				memcpy(new_elems, (vec)->elems,					\
+					(vec)->current * sizeof(*new_elems)); 		\
+				ast_free((vec)->elems);							\
+				(vec)->elems = new_elems;						\
+				(vec)->max = new_max;							\
+			} else {											\
+				res = -1;										\
+				break;											\
+			}													\
+		}														\
+	} while(0);													\
+	res;														\
+})
+
+/*!
  * \brief Append an element to a vector, growing the vector if needed.
  *
  * \param vec Vector to append to.
@@ -145,23 +196,15 @@
  * \return Non-zero on failure.
  */
 #define AST_VECTOR_APPEND(vec, elem) ({						\
-	int res = 0;								\
-	do {									\
-		if ((vec)->current + 1 > (vec)->max) {				\
-			size_t new_max = (vec)->max ? 2 * (vec)->max : 1;	\
-			typeof((vec)->elems) new_elems = ast_realloc(		\
-				(vec)->elems, new_max * sizeof(*new_elems));	\
-			if (new_elems) {					\
-				(vec)->elems = new_elems;			\
-				(vec)->max = new_max;				\
-			} else {						\
-				res = -1;					\
-				break;						\
-			}							\
-		}								\
+	int res = 0;											\
+	do {													\
+		if (__make_room((vec)->current, vec) != 0) { 		\
+			res = -1;										\
+			break;											\
+		} 													\
 		(vec)->elems[(vec)->current++] = (elem);			\
-	} while (0);								\
-	res;									\
+	} while (0);											\
+	res;													\
 })
 
 /*!
@@ -180,30 +223,19 @@
  * index means you can not use the UNORDERED assortment of macros. These macros alter the ordering
  * of the vector itself.
  */
-#define AST_VECTOR_REPLACE(vec, idx, elem) ({					\
- 	int res = 0;												\
- 	do {														\
- 		if (((idx) + 1) > (vec)->max) {							\
- 			size_t new_max = ((idx) + 1) * 2;					\
-			typeof((vec)->elems) new_elems = ast_calloc(1,		\
-				new_max * sizeof(*new_elems));					\
-			if (new_elems) {									\
-				memcpy(new_elems, (vec)->elems,					\
-					(vec)->current * sizeof(*new_elems)); 		\
-				ast_free((vec)->elems);							\
-				(vec)->elems = new_elems;						\
-				(vec)->max = new_max;							\
-			} else {											\
-				res = -1;										\
-				break;											\
-			}													\
- 		}														\
- 		(vec)->elems[(idx)] = (elem);							\
- 		if (((idx) + 1) > (vec)->current) {						\
- 			(vec)->current = (idx) + 1;							\
- 		}														\
- 	} while(0);													\
- 	res;														\
+#define AST_VECTOR_REPLACE(vec, idx, elem) ({		\
+	int res = 0;									\
+	do {											\
+		if (__make_room((idx), vec) != 0) {			\
+			res = -1;								\
+			break;									\
+		}											\
+		(vec)->elems[(idx)] = (elem);				\
+		if (((idx) + 1) > (vec)->current) {			\
+			(vec)->current = (idx) + 1;				\
+		}											\
+	} while(0);										\
+	res;											\
 })
 
 /*!
@@ -226,22 +258,16 @@
 	int res = 0; \
 	size_t __move; \
 	do { \
-		if ((vec)->current + 1 > (vec)->max) { \
-			size_t new_max = (vec)->max ? 2 * (vec)->max : 1; \
-			typeof((vec)->elems) new_elems = ast_realloc( \
-				(vec)->elems, new_max * sizeof(*new_elems)); \
-			if (new_elems) { \
-				(vec)->elems = new_elems; \
-				(vec)->max = new_max; \
-			} else { \
-				res = -1; \
-				break; \
-			} \
+		if (__make_room(((idx) > (vec)->current ? (idx) : (vec)->current), vec) != 0) {							\
+			res = -1;										\
+			break;											\
+		}														\
+		if ((vec)->current > 0 && (idx) < (vec)->current) { \
+			__move = ((vec)->current - (idx)) * sizeof(typeof((vec)->elems[0])); \
+			memmove(&(vec)->elems[(idx) + 1], &(vec)->elems[(idx)], __move); \
 		} \
-		__move = ((vec)->current - 1) * sizeof(typeof((vec)->elems[0])); \
-		memmove(&(vec)->elems[(idx) + 1], &(vec)->elems[(idx)], __move); \
 		(vec)->elems[(idx)] = (elem); \
-		(vec)->current++; \
+		(vec)->current = ((idx) > (vec)->current ? (idx) : (vec)->current) + 1; \
 	} while (0); \
 	res; \
 })
@@ -441,25 +467,127 @@
 })
 
 /*!
- * \brief Execute a callback on every element in a vector
+ * \brief Default callback for AST_VECTOR_CALLBACK()
+ *
+ * \param elem Element to compare against
+ * \param value Value to compare with the vector element.
+ *
+ * \return CMP_MATCH always.
+ */
+#define AST_VECTOR_MATCH_ALL(element) (CMP_MATCH)
+
+
+/*!
+ * \brief Execute a callback on every element in a vector returning the first matched
+ *
+ * \param vec Vector to operate on.
+ * \param callback A callback that takes at least 1 argument (the element)
+ * plus number of optional arguments
+ * \param default_value A default value to return if no elements matched
+ *
+ * \return the first element matched before CMP_STOP was returned
+ * or the end of the vector was reached. Otherwise, default_value
+ */
+#define AST_VECTOR_CALLBACK(vec, callback, default_value, ...) ({ \
+	size_t idx; \
+	typeof((vec)->elems[0]) res = default_value;				\
+	for (idx = 0; idx < (vec)->current; idx++) { \
+		int rc = callback((vec)->elems[idx], ##__VA_ARGS__);	\
+		if (rc & CMP_MATCH) { \
+			res = (vec)->elems[idx]; \
+			break; \
+		}\
+		if (rc & CMP_STOP) { \
+			break; \
+		}\
+	} \
+	res; \
+})
+
+/*!
+ * \brief Execute a callback on every element in a vector returning the matching
+ * elements in a new vector
  *
  * \param vec Vector to operate on.
  * \param callback A callback that takes at least 1 argument (the element)
  * plus number of optional arguments
  *
- * \return the number of elements visited before the end of the vector
- * was reached or CMP_STOP was returned.
+ * \return a vector containing the elements matched before CMP_STOP was returned
+ * or the end of the vector was reached. The vector may be empty and could be NULL
+ * if there was not enough memory to allocate it's control structure.
+ *
+ * \warning The returned vector must have AST_VECTOR_PTR_FREE()
+ * called on it after you've finished with it.
+ *
+ * \note The type of the returned vector must be traceable to the original vector.
+ *
+ * The following will resut in "error: assignment from incompatible pointer type"
+ * because these declare 2 different structures.
+ *
+ * \code
+ * AST_VECTOR(, char *) vector_1;
+ * AST_VECTOR(, char *) *vector_2;
+ *
+ * vector_2 = AST_VECTOR_CALLBACK_MULTIPLE(&vector_1, callback);
+ * \endcode
+ *
+ * This will work because you're using the type of the first
+ * to declare the second:
+ *
+ * \code
+ * AST_VECTOR(mytype, char *) vector_1;
+ * struct mytype *vector_2 = NULL;
+ *
+ * vector_2 = AST_VECTOR_CALLBACK_MULTIPLE(&vector_1, callback);
+ * \endcode
+ *
+ * This will also work because you're declaring both vector_1 and
+ * vector_2 from the same definition.
+ *
+ * \code
+ * AST_VECTOR(, char *) vector_1, *vector_2 = NULL;
+ *
+ * vector_2 = AST_VECTOR_CALLBACK_MULTIPLE(&vector_1, callback);
+ * \endcode
  */
-#define AST_VECTOR_CALLBACK(vec, callback, ...) ({ \
+#define AST_VECTOR_CALLBACK_MULTIPLE(vec, callback, ...) ({ \
+	size_t idx; \
+	typeof((vec)) new_vec; \
+	do { \
+		new_vec = ast_malloc(sizeof(*new_vec)); \
+		if (!new_vec) { \
+			break; \
+		} \
+		if (AST_VECTOR_INIT(new_vec, AST_VECTOR_SIZE((vec))) != 0) { \
+			ast_free(new_vec); \
+			new_vec = NULL; \
+			break; \
+		} \
+		for (idx = 0; idx < (vec)->current; idx++) { \
+			int rc = callback((vec)->elems[idx], ##__VA_ARGS__);	\
+			if (rc & CMP_MATCH) { \
+				AST_VECTOR_APPEND(new_vec, (vec)->elems[idx]); \
+			} \
+			if (rc & CMP_STOP) { \
+				break; \
+			}\
+		} \
+	} while(0); \
+	new_vec; \
+})
+
+/*!
+ * \brief Execute a callback on every element in a vector disregarding callback return
+ *
+ * \param vec Vector to operate on.
+ * \param callback A callback that takes at least 1 argument (the element)
+ * plus number of optional arguments
+ */
+#define AST_VECTOR_CALLBACK_VOID(vec, callback, ...) ({ \
 	size_t idx; \
 	for (idx = 0; idx < (vec)->current; idx++) { \
-		int rc = callback((vec)->elems[idx], ##__VA_ARGS__);	\
-		if (rc == CMP_STOP) { \
-			idx++; \
-			break; \
-		}\
+		callback((vec)->elems[idx], ##__VA_ARGS__);	\
 	} \
-	idx; \
 })
 
 /*!
