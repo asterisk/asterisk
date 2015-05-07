@@ -31,3 +31,6 @@ menuselect-tree
 *.pyc
 *.gcno
 *.gcda
+latex
+doxygen.log
+
