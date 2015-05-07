@@ -406,6 +406,16 @@ void ast_sip_subscription_get_remote_uri(struct ast_sip_subscription *sub, char 
 const char *ast_sip_subscription_get_resource_name(struct ast_sip_subscription *sub);
 
 /*!
+ * \brief Get whether the subscription has been terminated or not.
+ *
+ * \param sub The subscription.
+ * \retval 0 not terminated.
+ * \retval 1 terminated.
+ * \since 13.4.0
+ */
+int ast_sip_subscription_is_terminated(const struct ast_sip_subscription *sub);
+
+/*!
  * \brief Get a header value for a subscription.
  *
  * For notifiers, the headers of the inbound SUBSCRIBE that started the dialog
