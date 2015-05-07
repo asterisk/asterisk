@@ -177,11 +177,27 @@ static struct ast_frame *snoop_read(struct ast_channel *chan)
 	}
 
 	/* Only get audio from the spy audiohook if it is active */
-	if (snoop->spy_active) {
-		ast_audiohook_lock(&snoop->spy);
-		frame = ast_audiohook_read_frame(&snoop->spy, snoop->spy_samples, snoop->spy_direction, snoop->spy_format);
-		ast_audiohook_unlock(&snoop->spy);
+	if (!snoop->spy_active) {
+		return &ast_null_frame;
 	}
+
+	ast_audiohook_lock(&snoop->spy);
+	if (snoop->spy_direction != AST_AUDIOHOOK_DIRECTION_BOTH) {
+		/*
+		 * When a singular direction is chosen frames are still written to the
+		 * opposing direction's queue. Those frames must be read so the queue
+		 * does not continue to grow, however since they are not needed for the
+		 * selected direction they can be dropped.
+		 */
+		enum ast_audiohook_direction opposing_direction =
+			snoop->spy_direction == AST_AUDIOHOOK_DIRECTION_READ ?
+			AST_AUDIOHOOK_DIRECTION_WRITE : AST_AUDIOHOOK_DIRECTION_READ;
+		ast_frame_dtor(ast_audiohook_read_frame(&snoop->spy, snoop->spy_samples,
+							opposing_direction, snoop->spy_format));
+	}
+
+	frame = ast_audiohook_read_frame(&snoop->spy, snoop->spy_samples, snoop->spy_direction, snoop->spy_format);
+	ast_audiohook_unlock(&snoop->spy);
 
 	return frame ? frame : &ast_null_frame;
 }
