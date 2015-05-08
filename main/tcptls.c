@@ -633,6 +633,7 @@ static void *handle_tcptls_connection(void *data)
 					ASN1_STRING *str;
 					unsigned char *str2;
 					X509_NAME *name = X509_get_subject_name(peer);
+					STACK_OF(GENERAL_NAME) *alt_names;
 					int pos = -1;
 					int found = 0;
 
@@ -662,6 +663,43 @@ static void *handle_tcptls_connection(void *data)
 							break;
 						}
 					}
+
+					if (!found) {
+						alt_names = X509_get_ext_d2i(peer, NID_subject_alt_name, NULL, NULL);
+
+						if (alt_names != NULL) {
+							int alt_names_count = sk_GENERAL_NAME_num(alt_names);
+							for (pos = 0; pos < alt_names_count; pos++) {
+								const GENERAL_NAME *alt_name = sk_GENERAL_NAME_value(alt_names, pos);
+
+								if (alt_name->type != GEN_DNS) {
+									continue;
+								}
+
+								ret = ASN1_STRING_to_UTF8(&str2, alt_name->d.dNSName);
+								if (ret < 0) {
+									continue;
+								}
+
+								if (str2) {
+									if (strlen((char *) str2) != ret) {
+										ast_log(LOG_WARNING, "Invalid certificate alt name length (contains NULL bytes?)\n");
+									} else if (!strcasecmp(tcptls_session->parent->hostname, (char *) str2)) {
+										found = 1;
+									}
+									ast_debug(3, "SSL Alt Name compare s1='%s' s2='%s'\n", tcptls_session->parent->hostname, str2);
+									OPENSSL_free(str2);
+								}
+
+								if (found) {
+									break;
+								}
+							}
+
+							sk_GENERAL_NAME_pop_free(alt_names, GENERAL_NAME_free);
+						}
+					}
+
 					if (!found) {
 						ast_log(LOG_ERROR, "Certificate common name did not match (%s)\n", tcptls_session->parent->hostname);
 						X509_free(peer);
