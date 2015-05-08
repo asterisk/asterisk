@@ -93,33 +93,6 @@ void SSL_load_error_strings(void)
 #endif
 }
 
-void ERR_load_SSL_strings(void)
-{
-#if defined(AST_DEVMODE)
-	if (startup_complete) {
-		ast_debug(1, "Called after startup... ignoring!\n");
-	}
-#endif
-}
-
-void ERR_load_crypto_strings(void)
-{
-#if defined(AST_DEVMODE)
-	if (startup_complete) {
-		ast_debug(1, "Called after startup... ignoring!\n");
-	}
-#endif
-}
-
-void ERR_load_BIO_strings(void)
-{
-#if defined(AST_DEVMODE)
-	if (startup_complete) {
-		ast_debug(1, "Called after startup... ignoring!\n");
-	}
-#endif
-}
-
 void CRYPTO_set_id_callback(unsigned long (*func)(void))
 {
 #if defined(AST_DEVMODE)
@@ -157,8 +130,6 @@ int ast_ssl_init(void)
 	void (*real_CRYPTO_set_id_callback)(unsigned long (*)(void));
 	void (*real_CRYPTO_set_locking_callback)(void (*)(int, int, const char *, int));
 	void (*real_SSL_load_error_strings)(void);
-	void (*real_ERR_load_SSL_strings)(void);
-	void (*real_ERR_load_BIO_strings)(void);
 	const char *errstr;
 
 	/* clear any previous dynamic linker errors */
@@ -215,12 +186,6 @@ int ast_ssl_init(void)
 
 	get_OpenSSL_function(SSL_load_error_strings);
 	real_SSL_load_error_strings();
-
-	get_OpenSSL_function(ERR_load_SSL_strings);
-	real_ERR_load_SSL_strings();
-
-	get_OpenSSL_function(ERR_load_BIO_strings);
-	real_ERR_load_BIO_strings();
 
 	startup_complete = 1;
 
