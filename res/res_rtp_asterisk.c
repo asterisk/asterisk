@@ -1256,6 +1256,7 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 	}
 
 	if (!ast_rtp_engine_srtp_is_registered()) {
+		ast_log(LOG_NOTICE, "SRTP support module is not loaded or available. Try loading res_srtp.so.\n");
 		return -1;
 	}
 
