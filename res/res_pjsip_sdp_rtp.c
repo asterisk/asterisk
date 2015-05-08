@@ -316,8 +316,14 @@ static pjmedia_sdp_attr* generate_rtpmap_attr(pjmedia_sdp_media *media, pj_pool_
 	rtpmap.pt = media->desc.fmt[media->desc.fmt_count - 1];
 	rtpmap.clock_rate = ast_rtp_lookup_sample_rate2(asterisk_format, format, code);
 	pj_strdup2(pool, &rtpmap.enc_name, ast_rtp_lookup_mime_subtype2(asterisk_format, format, code, 0));
-	rtpmap.param.slen = 0;
-	rtpmap.param.ptr = NULL;
+
+	if (!pj_stricmp2(&rtpmap.enc_name, "opus")) {
+		rtpmap.param.slen = 1;
+		rtpmap.param.ptr = "2";
+	} else {
+		rtpmap.param.slen = 0;
+		rtpmap.param.ptr = NULL;
+	}
 
 	pjmedia_sdp_rtpmap_to_attr(pool, &rtpmap, &attr);
 
