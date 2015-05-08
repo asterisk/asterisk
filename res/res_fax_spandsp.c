@@ -48,13 +48,15 @@
 	<support_level>extended</support_level>
 ***/
 
-#include "asterisk.h"
-
-ASTERISK_REGISTER_FILE()
-
+/* Include spandsp headers before asterisk.h so the inline functions can continue using
+ * malloc and free, even with MALLOC_DEBUG enabled. */
 #define SPANDSP_EXPOSE_INTERNAL_STRUCTURES
 #include <spandsp.h>
 #include <spandsp/version.h>
+
+#include "asterisk.h"
+
+ASTERISK_REGISTER_FILE()
 
 #include "asterisk/logger.h"
 #include "asterisk/module.h"
