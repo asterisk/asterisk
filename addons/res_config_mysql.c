@@ -1202,38 +1202,44 @@ static int require_mysql(const char *database, const char *tablename, va_list ap
 							PICK_WHICH_ALTER_ACTION(bigint)
 						}
 					}
-				} else if (strncmp(column->type, "float", 5) == 0 && !ast_rq_is_int(type) && type != RQ_FLOAT) {
-					if (table->database->requirements == RQ_WARN) {
-						ast_log(LOG_WARNING, "Realtime table %s@%s: Column %s cannot be a %s\n", tablename, database, column->name, column->type);
-						res = -1;
-					} else if (table->database->requirements == RQ_CREATECLOSE && modify_mysql(database, tablename, column, type, size) == 0) {
-						table_altered = 1;
-					} else if (table->database->requirements == RQ_CREATECHAR && modify_mysql(database, tablename, column, RQ_CHAR, size) == 0) {
-						table_altered = 1;
-					} else {
-						res = -1;
+				} else if (strncmp(column->type, "float", 5) == 0) {
+					if (!ast_rq_is_int(type) && type != RQ_FLOAT) {
+						if (table->database->requirements == RQ_WARN) {
+							ast_log(LOG_WARNING, "Realtime table %s@%s: Column %s cannot be a %s\n", tablename, database, column->name, column->type);
+							res = -1;
+						} else if (table->database->requirements == RQ_CREATECLOSE && modify_mysql(database, tablename, column, type, size) == 0) {
+							table_altered = 1;
+						} else if (table->database->requirements == RQ_CREATECHAR && modify_mysql(database, tablename, column, RQ_CHAR, size) == 0) {
+							table_altered = 1;
+						} else {
+							res = -1;
+						}
 					}
-				} else if ((strncmp(column->type, "datetime", 8) == 0 || strncmp(column->type, "timestamp", 9) == 0) && type != RQ_DATETIME) {
-					if (table->database->requirements == RQ_WARN) {
-						ast_log(LOG_WARNING, "Realtime table %s@%s: Column %s cannot be a %s\n", tablename, database, column->name, column->type);
-						res = -1;
-					} else if (table->database->requirements == RQ_CREATECLOSE && modify_mysql(database, tablename, column, type, size) == 0) {
-						table_altered = 1;
-					} else if (table->database->requirements == RQ_CREATECHAR && modify_mysql(database, tablename, column, RQ_CHAR, size) == 0) {
-						table_altered = 1;
-					} else {
-						res = -1;
+				} else if (strncmp(column->type, "datetime", 8) == 0 || strncmp(column->type, "timestamp", 9) == 0) {
+					if (type != RQ_DATETIME) {
+						if (table->database->requirements == RQ_WARN) {
+							ast_log(LOG_WARNING, "Realtime table %s@%s: Column %s cannot be a %s\n", tablename, database, column->name, column->type);
+							res = -1;
+						} else if (table->database->requirements == RQ_CREATECLOSE && modify_mysql(database, tablename, column, type, size) == 0) {
+							table_altered = 1;
+						} else if (table->database->requirements == RQ_CREATECHAR && modify_mysql(database, tablename, column, RQ_CHAR, size) == 0) {
+							table_altered = 1;
+						} else {
+							res = -1;
+						}
 					}
-				} else if ((strncmp(column->type, "date", 4) == 0) && type != RQ_DATE) {
-					if (table->database->requirements == RQ_WARN) {
-						ast_log(LOG_WARNING, "Realtime table %s@%s: Column %s cannot be a %s\n", tablename, database, column->name, column->type);
-						res = -1;
-					} else if (table->database->requirements == RQ_CREATECLOSE && modify_mysql(database, tablename, column, type, size) == 0) {
-						table_altered = 1;
-					} else if (table->database->requirements == RQ_CREATECHAR && modify_mysql(database, tablename, column, RQ_CHAR, size) == 0) {
-						table_altered = 1;
-					} else {
-						res = -1;
+				} else if (strncmp(column->type, "date", 4) == 0) {
+					if (type != RQ_DATE) {
+						if (table->database->requirements == RQ_WARN) {
+							ast_log(LOG_WARNING, "Realtime table %s@%s: Column %s cannot be a %s\n", tablename, database, column->name, column->type);
+							res = -1;
+						} else if (table->database->requirements == RQ_CREATECLOSE && modify_mysql(database, tablename, column, type, size) == 0) {
+							table_altered = 1;
+						} else if (table->database->requirements == RQ_CREATECHAR && modify_mysql(database, tablename, column, RQ_CHAR, size) == 0) {
+							table_altered = 1;
+						} else {
+							res = -1;
+						}
 					}
 				} else { /* Other, possibly unsupported types? */
 					if (table->database->requirements == RQ_WARN) {
