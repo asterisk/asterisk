@@ -34,7 +34,8 @@ Some OSS fixes and a few lpc changes to make it actually work
 	-lf2c -lm   (in that order)
 */
 
-#include <stdlib.h>
+#define WRAP_LIBC_MALLOC
+#include "asterisk.h"
 #include "f2c.h"
 
 #ifdef P_R_O_T_O_T_Y_P_E_S
