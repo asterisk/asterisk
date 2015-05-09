@@ -63,7 +63,9 @@ AST_TEST_DEFINE(basic_ops)
 	char *CCC = "CCC";
 	char *YYY = "YYY";
 	char *ZZZ = "ZZZ";
+	char CCC2[4];
 
+	strcpy(CCC2, "CCC");
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "basic";
@@ -202,6 +204,29 @@ AST_TEST_DEFINE(basic_ops)
 	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 0) == CCC, rc, cleanup);
 	ast_test_validate_cleanup(test, cleanup_count == 1, rc, cleanup);
 
+	/* Test INSERT_SORTED */
+	AST_VECTOR_FREE(&sv1);
+	ast_test_validate(test, AST_VECTOR_INIT(&sv1, 0) == 0);
+
+	ast_test_validate_cleanup(test, AST_VECTOR_ADD_SORTED(&sv1, ZZZ, strcmp) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_ADD_SORTED(&sv1, BBB, strcmp) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_ADD_SORTED(&sv1, CCC, strcmp) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_ADD_SORTED(&sv1, AAA, strcmp) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_ADD_SORTED(&sv1, CCC2, strcmp) == 0, rc, cleanup);
+
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 0) == AAA, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 1) == BBB, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 2) == CCC, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 3) == CCC2, rc, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_GET(&sv1, 4) == ZZZ, rc, cleanup);
+
+	cleanup_count = 0;
+	AST_VECTOR_RESET(&sv1, cleanup);
+	ast_test_validate_cleanup(test, AST_VECTOR_SIZE(&sv1) == 0, rc, cleanup);
+	ast_test_validate_cleanup(test, sv1.max >= 5, rc, cleanup);
+	ast_test_validate_cleanup(test, sv1.elems != NULL, rc, cleanup);
+	ast_test_validate_cleanup(test, cleanup_count == 5, rc, cleanup);
+
 cleanup:
 	AST_VECTOR_FREE(&sv1);
 	return rc;
@@ -218,13 +243,13 @@ AST_TEST_DEFINE(basic_ops_integer)
 	int rc = AST_TEST_PASS;
 
 	int AAA = 1;
-	int BBB = 2;
-	int CCC = 3;
+	int BBB = 3;
+	int CCC = 5;
 	int ZZZ = 26;
 
 	switch (cmd) {
 	case TEST_INIT:
-		info->name = "basic integer";
+		info->name = "basic_integer";
 		info->category = "/main/vector/";
 		info->summary = "Test integer vector basic ops";
 		info->description = "Test integer vector basic ops";
