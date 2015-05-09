@@ -273,7 +273,65 @@
 })
 
 /*!
+ * \brief Insert an element into a sorted vector
+ *
+ * \param vec Sorted vector to insert into.
+ * \param elem Element to insert.
+ * \param comparison_fn The comparison_fn_t compatible compare function.
+ *
+ * \return 0 on success.
+ * \return Non-zero on failure.
+ *
+ * \warning Use of this macro on an unsorted vector will produce unpredictable results
+ */
+#define AST_VECTOR_INSERT_SORTED(vec, elem, compare_fn) ({ \
+	int res = 0; \
+	size_t __idx = (vec)->current - 1; \
+	do { \
+		if (__make_room((vec)->current, vec) != 0) { \
+			res = -1; \
+			break; \
+		} \
+		while (__idx >= 0 && (compare_fn(&elem, &(vec)->elems[__idx]) < 0)) { \
+			(vec)->elems[__idx + 1] = (vec)->elems[__idx]; \
+			__idx--; \
+		} \
+		(vec)->elems[__idx + 1] = elem; \
+		(vec)->current++; \
+	} while (0); \
+	res; \
+})
+
+/*!
  * \brief Remove an element from a vector by index.
+ *
+ * Note that elements in the vector may be reordered, so that the remove can
+ * happen in constant time.
+ *
+ * \param vec Vector to remove from.
+ * \param idx Index of the element to remove.
+ * \param preserve_order Preserve the vector order.
+ *
+ * \return The element that was removed.
+ */
+#define AST_VECTOR_REMOVE(vec, idx, preserve_ordered) ({ \
+	typeof((vec)->elems[0]) res; \
+	size_t __idx = (idx); \
+	ast_assert(__idx < (vec)->current); \
+	res = (vec)->elems[__idx]; \
+	if ((preserve_ordered)) { \
+		size_t __move; \
+		__move = ((vec)->current - (__idx) - 1) * sizeof(typeof((vec)->elems[0])); \
+		memmove(&(vec)->elems[__idx], &(vec)->elems[__idx + 1], __move); \
+		(vec)->current--; \
+	} else { \
+		(vec)->elems[__idx] = (vec)->elems[--(vec)->current];	\
+	}; \
+	res;							\
+})
+
+/*!
+ * \brief Remove an element from an unordered vector by index.
  *
  * Note that elements in the vector may be reordered, so that the remove can
  * happen in constant time.
@@ -282,14 +340,8 @@
  * \param idx Index of the element to remove.
  * \return The element that was removed.
  */
-#define AST_VECTOR_REMOVE_UNORDERED(vec, idx) ({		\
-	typeof((vec)->elems[0]) res;				\
-	size_t __idx = (idx);					\
-	ast_assert(__idx < (vec)->current);			\
-	res = (vec)->elems[__idx];				\
-	(vec)->elems[__idx] = (vec)->elems[--(vec)->current];	\
-	res;							\
-})
+#define AST_VECTOR_REMOVE_UNORDERED(vec, idx) \
+	AST_VECTOR_REMOVE(vec, idx, 0)
 
 /*!
  * \brief Remove an element from a vector by index while maintaining order.
@@ -298,17 +350,8 @@
  * \param idx Index of the element to remove.
  * \return The element that was removed.
  */
-#define AST_VECTOR_REMOVE_ORDERED(vec, idx) ({				\
-      	typeof((vec)->elems[0]) res;					\
-	size_t __idx = (idx);						\
-	size_t __move;							\
-	ast_assert(__idx < (vec)->current);				\
-	res = (vec)->elems[__idx];					\
-	__move = ((vec)->current - (__idx) - 1) * sizeof(typeof((vec)->elems[0])); \
-	memmove(&(vec)->elems[__idx], &(vec)->elems[__idx + 1], __move); \
-	(vec)->current--;						\
-	res;								\
-})
+#define AST_VECTOR_REMOVE_ORDERED(vec, idx) \
+	AST_VECTOR_REMOVE(vec, idx, 1)
 
 /*!
  * \brief Remove an element from a vector that matches the given comparison
@@ -421,6 +464,29 @@
 #define AST_VECTOR_SIZE(vec) (vec)->current
 
 /*!
+ * \brief Reset vector.
+ *
+ * \param vec Vector to reset.
+ * \param callback A cleanup callback or AST_VECTOR_ELEM_CLEANUP_NOOP.
+ */
+#define AST_VECTOR_RESET(vec, cleanup) ({ \
+	size_t idx; \
+	for (idx = 0; idx < (vec)->current; ++idx) { \
+		cleanup((vec)->elems[idx]); \
+	} \
+	(vec)->current = 0; \
+})
+
+/*!
+ * \brief Sort vector.
+ *
+ * \param vec Vector to sort.
+ * \param comparison_fn The comparison_fn_t compatible compare function.
+ */
+#define AST_VECTOR_SORT(vec, comparison_fn) \
+	qsort((vec)->elems, (vec)->current, sizeof(*((vec)->elems)), comparison_fn)
+
+/*!
  * \brief Get an address of element in a vector.
  *
  * \param vec Vector to query.
@@ -507,6 +573,8 @@
 /*!
  * \brief Execute a callback on every element in a vector returning the matching
  * elements in a new vector
+ *
+ * This macro basically provides a filtered clone.
  *
  * \param vec Vector to operate on.
  * \param callback A callback that takes at least 1 argument (the element)
