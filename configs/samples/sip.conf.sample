@@ -561,7 +561,12 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;------------------------ TLS settings ------------------------------------------------------------
 ;tlscertfile=</path/to/certificate.pem> ; Certificate chain (*.pem format only) to use for TLS connections
                                         ; The certificates must be sorted starting with the subject's certificate
-                                        ; and followed by intermediate CA certificates if applicable.
+                                        ; and followed by intermediate CA certificates if applicable. If the
+                                        ; file name ends in _rsa, for example "asterisk_rsa.pem", the files
+                                        ; "asterisk_dsa.pem" and/or "asterisk_ecc.pem" are looked-up
+                                        ; (certificate, intermediates, private key), to support multiple
+                                        ; algorithms for server authentication (RSA, DSA, ECDSA). If the chains
+                                        ; are different, at least OpenSSL 1.0.2 is required.
                                         ; Default is to look for "asterisk.pem" in current directory
 
 ;tlsprivatekey=</path/to/private.pem> ; Private key file (*.pem format only) for TLS connections.

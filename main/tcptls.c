@@ -752,6 +752,22 @@ void *ast_tcptls_server_root(void *data)
 	return NULL;
 }
 
+static void __ssl_setup_certs(struct ast_tls_config *cfg, const size_t cert_file_len, const char *key_type_extension, const char *key_type)
+{
+	char *cert_file = ast_strdupa(cfg->certfile);
+
+	memcpy(cert_file + cert_file_len - 8, key_type_extension, 5);
+	if (access(cert_file, F_OK) == 0) {
+		if (SSL_CTX_use_certificate_chain_file(cfg->ssl_ctx, cert_file) == 0) {
+			ast_log(LOG_ERROR, "TLS/SSL error loading %s cert file. <%s>\n", key_type, cert_file);
+		} else if (SSL_CTX_use_PrivateKey_file(cfg->ssl_ctx, cert_file, SSL_FILETYPE_PEM) == 0) {
+			ast_log(LOG_ERROR, "TLS/SSL error loading %s cert file. <%s>\n", key_type, cert_file);
+		} else if (SSL_CTX_check_private_key(cfg->ssl_ctx) == 0) {
+			ast_log(LOG_ERROR, "TLS/SSL error loading %s cert file. <%s>\n", key_type, cert_file);
+		}
+	}
+}
+
 static int __ssl_setup(struct ast_tls_config *cfg, int client)
 {
 #ifndef DO_SSL
@@ -837,6 +853,17 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 				SSL_CTX_free(cfg->ssl_ctx);
 				cfg->ssl_ctx = NULL;
 				return 0;
+			}
+		}
+		if (!client) {
+			size_t certfile_len = strlen(cfg->certfile);
+
+			/* expects a file name which contains _rsa. like asterisk_rsa.pem
+			 * ignores any 3-character file-extension like .pem, .cer, .crt
+			 */
+			if (certfile_len >= 8 && !strncmp(cfg->certfile + certfile_len - 8, "_rsa.", 5)) {
+				__ssl_setup_certs(cfg, certfile_len, "_ecc.", "ECC");
+				__ssl_setup_certs(cfg, certfile_len, "_dsa.", "DSA");
 			}
 		}
 	}
