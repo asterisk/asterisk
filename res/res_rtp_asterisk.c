@@ -1999,8 +1999,9 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 #ifdef HAVE_OPENSSL_SRTP
 	dtls_srtp_check_pending(instance, rtp, rtcp);
 
-	/* If this is an SSL packet pass it to OpenSSL for processing */
-	if ((*in >= 20) && (*in <= 64)) {
+	/* If this is an SSL packet pass it to OpenSSL for processing. RFC section for first byte value:
+	 * https://tools.ietf.org/html/rfc5764#section-5.1.2 */
+	if ((*in >= 20) && (*in <= 63)) {
 		struct dtls_details *dtls = !rtcp ? &rtp->dtls : &rtp->rtcp->dtls;
 		int res = 0;
 
