@@ -765,7 +765,13 @@
                 ; (default: "")
 ;cert_file=     ; Certificate file for endpoint TLS ONLY
                 ; Will read .crt or .pem file but only uses cert,
-                ; a .key file must be specified via priv_key_file
+                ; a .key file must be specified via priv_key_file. Since
+                ; PJProject version 2.5: If the file name ends in _rsa, for
+                ; example "asterisk_rsa.pem", the files "asterisk_dsa.pem"
+                ; and/or "asterisk_ecc.pem" are looked-up (certificate, inter-
+                ; mediates, private key), to support multiple algorithms for 
+                ; server authentication (RSA, DSA, ECDSA). If the chains are 
+                ; different, at least OpenSSL 1.0.2 is required.
                 ; (default: "")
 ;cipher=        ; Preferred cryptography cipher names TLS ONLY (default: "")
 ;domain=        ; Domain the transport comes from (default: "")
