@@ -17147,7 +17147,8 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 
 			set_peer_nat(p, peer);
 
-			ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_NAT_FORCE_RPORT);
+ 			ast_copy_flags(&peer->flags[0], &p->flags[0], SIP_NAT_FORCE_RPORT);
+ 			ast_copy_flags(&peer->flags[0], &p->flags[0], SIP_NAT_RPORT_PRESENT);
 
 			if (!(res = check_auth(p, req, peer->name, peer->secret, peer->md5secret, SIP_REGISTER, uri2, XMIT_UNRELIABLE))) {
 				if (sip_cancel_destroy(p))
