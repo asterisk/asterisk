@@ -112,13 +112,15 @@ void dns_srv_sort(struct ast_dns_result *result)
 	struct dns_records newlist = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
 
 	while (AST_LIST_FIRST(&result->records)) {
-		unsigned short cur_priority = 0;
+		unsigned short cur_priority = ((struct ast_dns_srv_record *)(AST_LIST_FIRST(&result->records)))->priority;
 		struct dns_records temp_list = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
 
-		/* Find the lowest current priority to work on */
-		AST_LIST_TRAVERSE(&result->records, current, list) {
-			if (!cur_priority || ((struct ast_dns_srv_record *)current)->priority < cur_priority) {
-				cur_priority = ((struct ast_dns_srv_record *)current)->priority;
+		/* Find the lowest current priority to work on, but if the priority is already zero there is no lower priority */
+		if (cur_priority) {
+			AST_LIST_TRAVERSE(&result->records, current, list) {
+				if (((struct ast_dns_srv_record *)current)->priority < cur_priority) {
+					cur_priority = ((struct ast_dns_srv_record *)current)->priority;
+				}
 			}
 		}
 
