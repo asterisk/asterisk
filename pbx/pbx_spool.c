@@ -100,6 +100,14 @@ struct outgoing {
 };
 
 #if defined(HAVE_INOTIFY) || defined(HAVE_KQUEUE)
+struct direntry {
+	AST_LIST_ENTRY(direntry) list;
+	time_t mtime;
+	char name[0];
+};
+
+static AST_LIST_HEAD_STATIC(dirlist, direntry);
+
 static void queue_file(const char *filename, time_t when);
 #endif
 
@@ -322,6 +330,10 @@ static int remove_from_queue(struct outgoing *o, const char *status)
 	char newfn[256];
 	const char *bname;
 
+#if defined(HAVE_INOTIFY) || defined(HAVE_KQUEUE)
+	struct direntry *cur;
+#endif
+
 	if (!ast_test_flag(&o->options, SPOOL_FLAG_ALWAYS_DELETE)) {
 		struct stat current_file_status;
 
@@ -331,6 +343,19 @@ static int remove_from_queue(struct outgoing *o, const char *status)
 			}
 		}
 	}
+
+#if defined(HAVE_INOTIFY) || defined(HAVE_KQUEUE)
+	AST_LIST_LOCK(&dirlist);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&dirlist, cur, list) {
+		if (!strcmp(cur->name, o->fn)) {
+			AST_LIST_REMOVE_CURRENT(list);
+			ast_free(cur);
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+	AST_LIST_UNLOCK(&dirlist);
+#endif
 
 	if (!ast_test_flag(&o->options, SPOOL_FLAG_ARCHIVE)) {
 		unlink(o->fn);
@@ -487,20 +512,14 @@ static int scan_service(const char *fn, time_t now)
 	return 0;
 }
 
-#if defined(HAVE_INOTIFY) || defined(HAVE_KQUEUE)
-struct direntry {
-	AST_LIST_ENTRY(direntry) list;
-	time_t mtime;
-	char name[0];
-};
-
-static AST_LIST_HEAD_STATIC(dirlist, direntry);
 
 #if defined(HAVE_INOTIFY)
 /* Only one thread is accessing this list, so no lock is necessary */
 static AST_LIST_HEAD_NOLOCK_STATIC(createlist, direntry);
 static AST_LIST_HEAD_NOLOCK_STATIC(openlist, direntry);
 #endif
+
+#if defined(HAVE_INOTIFY) || defined(HAVE_KQUEUE)
 
 static void queue_file(const char *filename, time_t when)
 {
