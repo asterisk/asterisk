@@ -19,7 +19,7 @@
 /*!
  * \file
  * \author Russell Bryant <russell@digium.com>
- * 
+ *
  * \brief A utility for reading from a raw TCP stream
  *
  * This application is intended for use when a raw TCP stream is desired to be
@@ -84,33 +84,33 @@ int main(int argc, char *argv[])
 	}
 
 	memset(&sin, 0, sizeof(sin));
-	
+
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(atoi(argv[2]));
 	memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
-	
+
 	s = socket(AF_INET, SOCK_STREAM, 0);
-	
+
 	if (s < 0) {
 		fprintf(stderr, "Unable to allocate socket!\n");
 		exit(1);
-	}	
+	}
 
 	res = connect(s, (struct sockaddr *)&sin, sizeof(sin));
-	
+
 	if (res) {
 		fprintf(stderr, "Unable to connect to host!\n");
 		close(s);
-		exit(1);	
+		exit(1);
 	}
 
 	while (1) {
 		res = read(s, buf, sizeof(buf));
 
 		if (res < 1)
-			break;		
-	
-		memset(&tv, 0, sizeof(tv));		
+			break;
+
+		memset(&tv, 0, sizeof(tv));
 		FD_ZERO(&wfds);
 		FD_SET(1, &wfds);
 

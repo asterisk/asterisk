@@ -145,7 +145,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 {
 	va_list vars;
 	va_start(vars,fmt);
-	
+
 	printf("LOG: lev:%d file:%s  line:%d func: %s  ",
 		   level, file, line, function);
 	vprintf(fmt, vars);
@@ -162,7 +162,7 @@ void parse_file(const char *fname);
 void __ast_register_file(const char *file);
 void __ast_register_file(const char *file) { }
 #if !defined(LOW_MEMORY)
-int ast_add_profile(const char *x, uint64_t scale) { return 0;} 
+int ast_add_profile(const char *x, uint64_t scale) { return 0;}
 #endif
 int ast_atomic_fetchadd_int_slow(volatile int *p, int v)
 {
@@ -207,7 +207,7 @@ unsigned int check_expr(char* buffer, char* error_report)
 	unsigned int warn_found = 0;
 
 	error_report[0] = 0;
-	
+
 	for (cp = buffer; *cp; ++cp)
 	{
 		switch (*cp)
@@ -223,7 +223,7 @@ unsigned int check_expr(char* buffer, char* error_report)
 						global_lineno);
 				}
 				break;
-				
+
 			case '>':
 			case '<':
 			case '!':
@@ -240,7 +240,7 @@ unsigned int check_expr(char* buffer, char* error_report)
 					++warn_found;
 				}
 				break;
-				
+
 			case '|':
 			case '&':
 			case '=':
@@ -292,13 +292,13 @@ int check_eval(char *buffer, char *error_report)
 		if (*cp == '$' && *(cp+1) == '{') {
 			int brack_lev = 1;
 			char *xp= cp+2;
-			
+
 			while (*xp) {
 				if (*xp == '{')
 					brack_lev++;
 				else if (*xp == '}')
 					brack_lev--;
-				
+
 				if (brack_lev == 0)
 					break;
 				xp++;
@@ -306,7 +306,7 @@ int check_eval(char *buffer, char *error_report)
 			if (*xp == '}') {
 				char varname[200];
 				char *val;
-				
+
 				strncpy(varname,cp+2, xp-cp-2);
 				varname[xp-cp-2] = 0;
 				cp = xp;
@@ -358,7 +358,7 @@ void parse_file(const char *fname)
 	int c1;
 	char last_char= 0;
 	char buffer[30000]; /* I sure hope no expr gets this big! */
-	
+
 	if (!f) {
 		fprintf(stderr,"Couldn't open %s for reading... need an extensions.conf file to parse!\n",fname);
 		exit(20);
@@ -367,9 +367,9 @@ void parse_file(const char *fname)
 		fprintf(stderr,"Couldn't open 'expr2_log' file for writing... please fix and re-run!\n");
 		exit(21);
 	}
-	
+
 	global_lineno = 1;
-	
+
 	while ((c1 = fgetc(f)) != EOF) {
 		if (c1 == '\n')
 			global_lineno++;
@@ -380,7 +380,7 @@ void parse_file(const char *fname)
 				int bufcount = 0;
 				int retval;
 				char error_report[30000];
-				
+
 				while ((c1 = fgetc(f)) != EOF) {
 					if (c1 == '[')
 						bracklev++;
@@ -392,7 +392,7 @@ void parse_file(const char *fname)
 						fclose(l);
 						printf("--- ERROR --- A newline in the middle of an expression at line %d!\n", global_lineno);
 					}
-					
+
 					if (bracklev == 0)
 						break;
 					buffer[bufcount++] = c1;
@@ -404,18 +404,18 @@ void parse_file(const char *fname)
 					printf("--- ERROR --- EOF reached in middle of an expression at line %d!\n", global_lineno);
 					exit(22);
 				}
-				
+
 				buffer[bufcount] = 0;
 				/* update stats */
 				global_expr_tot_size += bufcount;
 				global_expr_count++;
 				if (bufcount > global_expr_max_size)
 					global_expr_max_size = bufcount;
-				
+
 				retval = check_expr(buffer, error_report); /* check_expr should bump the warning counter */
 				if (retval != 0) {
 					/* print error report */
-					printf("Warning(s) at line %d, expression: $[%s]; see expr2_log file for details\n", 
+					printf("Warning(s) at line %d, expression: $[%s]; see expr2_log file for details\n",
 						   global_lineno, buffer);
 					fprintf(l, "%s", error_report);
 				}
@@ -436,7 +436,7 @@ void parse_file(const char *fname)
 		   global_warn_count,
 		   global_expr_max_size,
 		   (global_expr_count) ? global_expr_tot_size/global_expr_count : 0);
-	
+
 	fclose(f);
 	fclose(l);
 }
@@ -446,7 +446,7 @@ int main(int argc,char **argv)
 {
 	int argc1;
 	char *eq;
-	
+
 	if (argc < 2) {
 		printf("check_expr -- a program to look thru extensions.conf files for $[...] expressions,\n");
 		printf("              and run them thru the parser, looking for problems\n");
@@ -458,7 +458,7 @@ int main(int argc,char **argv)
 		printf(" Note that messages about operators not being surrounded by spaces is merely to alert\n");
 		printf("  you to possible problems where you might be expecting those operators as part of a string.\n");
         printf("  (to include operators in a string, wrap with double quotes!)\n");
-		
+
 		exit(19);
 	}
 	global_varlist = 0;
@@ -470,7 +470,7 @@ int main(int argc,char **argv)
 	}
 
 	/* parse command args for x=y and set varz */
-	
+
 	parse_file(argv[1]);
 	return 0;
 }

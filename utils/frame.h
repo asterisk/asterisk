@@ -102,7 +102,7 @@ extern int getremainingfilelength( FILE *anyin, long *result);
 void readpkheader( FILE *anyin);
 
 /* -----------------------------------------------------------------------
-   Read a .WAV header from 'anyin'. 
+   Read a .WAV header from 'anyin'.
    If it is recognised, the data is used.
    Otherwise, we assume it's PCM-data and ignore the header.
    The global variable 'iswav' is set on success, otherwise cleared.

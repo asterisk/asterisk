@@ -7,8 +7,8 @@
  * Name:    frame.c
  * Version: see static char *standardversion, below.
  * Author:  Mark Roberts <mark@manumark.de>
- *	    Michael Labuschke <michael@labuschke.de> sys_errlist fixes 
- *		
+ *	    Michael Labuschke <michael@labuschke.de> sys_errlist fixes
+ *
  ****************************************************************************/
 /****************************************************************************
  *  These are useful functions that all DSP programs might find handy
@@ -850,7 +850,7 @@ void parseargs( int argcount, char *args[], int fileswitch)
      }
 
    /*-------------------------------------------------*
-    * Set samplefrequency, width, wavout, 
+    * Set samplefrequency, width, wavout,
     *-------------------------------------------------*/
    parseintarg( argcount, args, "f", &samplefrequency);
    wavout = parseswitcharg( argcount, args, "h");
