@@ -95,21 +95,21 @@ void __ast_mm_init_phase_2(void);
 	__ast_vasprintf(a,b,c,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 #else
 #define calloc(a,b) \
-	Do_not_use_calloc__use_ast_calloc(a,b)
+	Do_not_use_calloc__use_ast_calloc->fail(a,b)
 #define malloc(a) \
-	Do_not_use_malloc__use_ast_malloc(a)
+	Do_not_use_malloc__use_ast_malloc->fail(a)
 #define free(a) \
-	Do_not_use_free__use_ast_free_or_ast_std_free_for_remotely_allocated_memory(a)
+	Do_not_use_free__use_ast_free_or_ast_std_free_for_remotely_allocated_memory->fail(a)
 #define realloc(a,b) \
-	Do_not_use_realloc__use_ast_realloc(a,b)
+	Do_not_use_realloc__use_ast_realloc->fail(a,b)
 #define strdup(a) \
-	Do_not_use_strdup__use_ast_strdup(a)
+	Do_not_use_strdup__use_ast_strdup->fail(a)
 #define strndup(a,b) \
-	Do_not_use_strndup__use_ast_strndup(a,b)
+	Do_not_use_strndup__use_ast_strndup->fail(a,b)
 #define asprintf(a, b, c...) \
-	Do_not_use_asprintf__use_ast_asprintf(a,b,c)
+	Do_not_use_asprintf__use_ast_asprintf->fail(a,b,c)
 #define vasprintf(a,b,c) \
-	Do_not_use_vasprintf__use_ast_vasprintf(a,b,c)
+	Do_not_use_vasprintf__use_ast_vasprintf->fail(a,b,c)
 #endif
 
 /* Provide our own definitions */
