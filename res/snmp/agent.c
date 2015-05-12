@@ -18,6 +18,8 @@
 	<support_level>extended</support_level>
  ***/
 
+/* Needed for net-snmp headers */
+#define NOWRAP_LIBC_MALLOC
 #include "asterisk.h"
 
 ASTERISK_REGISTER_FILE()

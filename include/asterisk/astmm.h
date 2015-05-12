@@ -44,16 +44,6 @@ extern "C" {
 #include <stdio.h>
 #include <stdarg.h>
 
-/* Undefine any macros */
-#undef malloc
-#undef calloc
-#undef realloc
-#undef strdup
-#undef strndup
-#undef asprintf
-#undef vasprintf
-#undef free
-
 void *ast_std_malloc(size_t size);
 void *ast_std_calloc(size_t nmemb, size_t size);
 void *ast_std_realloc(void *ptr, size_t size);
@@ -75,6 +65,17 @@ void __ast_mm_init_phase_1(void);
 void __ast_mm_init_phase_2(void);
 
 /* Redefine libc malloc to our own versions */
+
+#ifndef NOWRAP_LIBC_MALLOC
+/* Undefine any macros */
+#undef malloc
+#undef calloc
+#undef realloc
+#undef strdup
+#undef strndup
+#undef asprintf
+#undef vasprintf
+#undef free
 
 #ifdef WRAP_LIBC_MALLOC
 #define calloc(a,b) \
@@ -112,6 +113,7 @@ void __ast_mm_init_phase_2(void);
 	Do_not_use_vasprintf__use_ast_vasprintf->fail(a,b,c)
 #endif
 
+#endif
 /* Provide our own definitions */
 
 #define ast_calloc(a,b) \
