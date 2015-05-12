@@ -617,6 +617,7 @@ static AST_LIST_HEAD_STATIC(vmstates, vmstate);
 #define VM_MESSAGEWRAP   (1 << 17)  /*!< Wrap around from the last message to the first, and vice-versa */
 #define VM_FWDURGAUTO    (1 << 18)  /*!< Autoset of Urgent flag on forwarded Urgent messages set globally */
 #define ERROR_LOCK_PATH  -100
+#define ERROR_MAX_MSGS   -101
 #define OPERATOR_EXIT     300
 
 enum vm_box {
@@ -7093,7 +7094,7 @@ static int save_to_folder(struct ast_vm_user *vmu, struct vm_state *vms, int msg
 	} else {
 		if (x >= vmu->maxmsg) {
 			ast_unlock_path(ddir);
-			return -1;
+			return ERROR_MAX_MSGS;
 		}
 	}
 	make_file(sfn, sizeof(sfn), dir, msg);
@@ -8918,7 +8919,7 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 		} else if ((!strcasecmp(vms->curbox, "INBOX") || !strcasecmp(vms->curbox, "Urgent")) && vms->heard[x] && ast_test_flag(vmu, VM_MOVEHEARD) && !vms->deleted[x]) {
 			/* Move to old folder before deleting */
 			res = save_to_folder(vmu, vms, x, 1, NULL, 0);
-			if (res == ERROR_LOCK_PATH) {
+			if (res == ERROR_LOCK_PATH || res == ERROR_MAX_MSGS) {
 				/* If save failed do not delete the message */
 				ast_log(AST_LOG_WARNING, "Save failed.  Not moving message: %s.\n", res == ERROR_LOCK_PATH ? "unable to lock path" : "destination folder full");
 				vms->deleted[x] = 0;
