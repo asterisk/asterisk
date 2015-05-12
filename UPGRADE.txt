@@ -36,6 +36,13 @@ Core:
    The setting can be overridden in asterisk.conf by setting refdebug in
    the options category.  No recompile is required to enable/disable it.
 
+ - Modified processing of command-line options to first parse only what
+   is necessary to read asterisk.conf. Once asterisk.conf is fully loaded,
+   the remaining options are processed.  The -X option now applies to
+   asterisk.conf only.  To enable #exec for other config files you must
+   set execincludes=yes in asterisk.conf.  Any other option set on the
+   command-line will now override the equivalent setting from asterisk.conf.
+
 AMI:
  - The 'ModuleCheck' Action's Version key will no longer show the module
    version. The value will always be blank.
