@@ -3593,7 +3593,7 @@ static void ast_readconfig(void)
 		} else if (!strcasecmp(v->name, "debug")) {
 			option_debug = 0;
 			if (sscanf(v->value, "%30d", &option_debug) != 1) {
-				option_debug = ast_true(v->value);
+				option_debug = ast_true(v->value) ? 1 : 0;
 			}
 #if HAVE_WORKING_FORK
 		/* Disable forking (-f at startup) */
