@@ -44,16 +44,6 @@ extern "C" {
 #include <stdio.h>
 #include <stdarg.h>
 
-/* Undefine any macros */
-#undef malloc
-#undef calloc
-#undef realloc
-#undef strdup
-#undef strndup
-#undef asprintf
-#undef vasprintf
-#undef free
-
 void *ast_std_malloc(size_t size);
 void *ast_std_calloc(size_t nmemb, size_t size);
 void *ast_std_realloc(void *ptr, size_t size);
@@ -74,9 +64,32 @@ int __ast_vasprintf(char **strp, const char *format, va_list ap, const char *fil
 void __ast_mm_init_phase_1(void);
 void __ast_mm_init_phase_2(void);
 
-/* Redefine libc malloc to our own versions */
+#define ASTMM_BLOCK    0
+#define ASTMM_REDIRECT 1
+#define ASTMM_IGNORE   2
 
-#ifdef WRAP_LIBC_MALLOC
+#if !defined(ASTMM_LIBC)
+/* BLOCK libc allocators by default. */
+#define ASTMM_LIBC ASTMM_BLOCK
+#endif
+
+#if ASTMM_LIBC == ASTMM_IGNORE
+/* Don't touch the libc functions. */
+#else
+
+/* Undefine any macros */
+#undef malloc
+#undef calloc
+#undef realloc
+#undef strdup
+#undef strndup
+#undef asprintf
+#undef vasprintf
+#undef free
+
+#if ASTMM_LIBC == ASTMM_REDIRECT
+
+/* Redefine libc functions to our own versions */
 #define calloc(a,b) \
 	__ast_calloc(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define malloc(a) \
@@ -93,7 +106,10 @@ void __ast_mm_init_phase_2(void);
 	__ast_asprintf(__FILE__, __LINE__, __PRETTY_FUNCTION__, a, b, c)
 #define vasprintf(a,b,c) \
 	__ast_vasprintf(a,b,c,__FILE__, __LINE__, __PRETTY_FUNCTION__)
-#else
+
+#elif ASTMM_LIBC == ASTMM_BLOCK
+
+/* Redefine libc functions to cause compile errors */
 #define calloc(a,b) \
 	Do_not_use_calloc__use_ast_calloc->fail(a,b)
 #define malloc(a) \
@@ -110,6 +126,11 @@ void __ast_mm_init_phase_2(void);
 	Do_not_use_asprintf__use_ast_asprintf->fail(a,b,c)
 #define vasprintf(a,b,c) \
 	Do_not_use_vasprintf__use_ast_vasprintf->fail(a,b,c)
+
+#else
+#error "Unacceptable value for the macro ASTMM_LIBC"
+#endif
+
 #endif
 
 /* Provide our own definitions */

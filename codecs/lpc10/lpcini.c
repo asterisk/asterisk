@@ -34,7 +34,7 @@ Some OSS fixes and a few lpc changes to make it actually work
 	-lf2c -lm   (in that order)
 */
 
-#define WRAP_LIBC_MALLOC
+#define ASTMM_LIBC ASTMM_REDIRECT
 #include "asterisk.h"
 #include "f2c.h"
 

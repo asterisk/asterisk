@@ -1,4 +1,4 @@
-#define WRAP_LIBC_MALLOC
+#define ASTMM_LIBC ASTMM_REDIRECT
 #include "asterisk.h"
 
 #line 2 "ael_lex.c"

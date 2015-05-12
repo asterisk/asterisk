@@ -18,6 +18,8 @@
 	<support_level>extended</support_level>
  ***/
 
+/* Needed for net-snmp headers */
+#define ASTMM_LIBC ASTMM_IGNORE
 #include "asterisk.h"
 
 ASTERISK_REGISTER_FILE()
