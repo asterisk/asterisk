@@ -28,6 +28,7 @@
 	<support_level>core</support_level>
  ***/
 
+#define ASTMM_LIBC ASTMM_IGNORE
 #include "asterisk.h"
 
 #if defined(__AST_DEBUG_MALLOC)
@@ -60,16 +61,6 @@ enum func_type {
 	FUNC_VASPRINTF,
 	FUNC_ASPRINTF
 };
-
-/* Undefine all our macros */
-#undef malloc
-#undef calloc
-#undef realloc
-#undef strdup
-#undef strndup
-#undef free
-#undef vasprintf
-#undef asprintf
 
 #define FENCE_MAGIC		0xfeedbabe	/*!< Allocated memory high/low fence overwrite check. */
 #define FREED_MAGIC		0xdeaddead	/*!< Freed memory wipe filler. */
