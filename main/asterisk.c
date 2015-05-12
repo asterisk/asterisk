@@ -3498,7 +3498,7 @@ static void ast_readconfig(void)
 		} else if (!strcasecmp(v->name, "debug")) {
 			option_debug = 0;
 			if (sscanf(v->value, "%30d", &option_debug) != 1) {
-				option_debug = ast_true(v->value);
+				option_debug = ast_true(v->value) ? 1 : 0;
 			}
 		} else if (!strcasecmp(v->name, "refdebug")) {
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_REF_DEBUG);
