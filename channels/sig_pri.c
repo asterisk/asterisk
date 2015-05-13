@@ -7102,10 +7102,11 @@ static void *pri_dchannel(void *vpri)
 						break;
 					}
 					if (pri->pvts[chanpos]->owner) {
-						int do_hangup = 0;
-
 						snprintf(cause_str, sizeof(cause_str), "PRI PRI_EVENT_HANGUP (%d)", e->hangup.cause);
 						pri_queue_pvt_cause_data(pri, chanpos, cause_str, e->hangup.cause);
+					}
+					if (pri->pvts[chanpos]->owner) {
+						int do_hangup = 0;
 
 						/* Queue a BUSY instead of a hangup if our cause is appropriate */
 						ast_channel_hangupcause_set(pri->pvts[chanpos]->owner, e->hangup.cause);
@@ -7246,10 +7247,11 @@ static void *pri_dchannel(void *vpri)
 					break;
 				}
 				if (pri->pvts[chanpos]->owner) {
-					int do_hangup = 0;
-
 					snprintf(cause_str, sizeof(cause_str), "PRI PRI_EVENT_HANGUP_REQ (%d)", e->hangup.cause);
 					pri_queue_pvt_cause_data(pri, chanpos, cause_str, e->hangup.cause);
+				}
+				if (pri->pvts[chanpos]->owner) {
+					int do_hangup = 0;
 
 					ast_channel_hangupcause_set(pri->pvts[chanpos]->owner, e->hangup.cause);
 					switch (ast_channel_state(pri->pvts[chanpos]->owner)) {
