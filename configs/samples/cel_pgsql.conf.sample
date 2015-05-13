@@ -68,4 +68,6 @@
 ;password=password
 ;user=postgres
 ;table=cel		;SQL table where CEL's will be inserted
+;schema=public ;Schema where CEL's table is located.  Optional parameter.
+               ;If schema support is present the default value used will be current_schema().
 ;appname=asterisk   ; Postgres application_name support (optional). Whitespace not allowed.
