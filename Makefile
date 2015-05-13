@@ -933,7 +933,7 @@ nmenuselect: menuselect/nmenuselect menuselect-tree menuselect.makeopts
 	-@menuselect/nmenuselect menuselect.makeopts && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
 
 # options for make in menuselect/
-MAKE_MENUSELECT=CC="$(CC)" CXX="$(CXX)" LD="" AR="" RANLIB="" \
+MAKE_MENUSELECT=CC="$(BUILD_CC)" CXX="$(CXX)" LD="" AR="" RANLIB="" \
 		CFLAGS="$(BUILD_CFLAGS)" LDFLAGS="$(BUILD_LDFLAGS)" \
 		$(MAKE) -C menuselect CONFIGURE_SILENT="--silent"
 
