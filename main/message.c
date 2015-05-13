@@ -743,6 +743,7 @@ static void chan_cleanup(struct ast_channel *chan)
 	struct ast_datastore *msg_ds, *ds;
 	struct varshead *headp;
 	struct ast_var_t *vardata;
+	struct ast_frame *cur;
 
 	ast_channel_lock(chan);
 
@@ -770,6 +771,15 @@ static void chan_cleanup(struct ast_channel *chan)
 	while ((vardata = AST_LIST_REMOVE_HEAD(headp, entries))) {
 		ast_var_delete(vardata);
 	}
+
+	/*
+	 * Remove frames from read queue
+	 */
+	AST_LIST_TRAVERSE_SAFE_BEGIN(ast_channel_readq(chan), cur, frame_list) {
+		AST_LIST_REMOVE_CURRENT(frame_list);
+		ast_frfree(cur);
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
 
 	/*
 	 * Restore msg datastore.
