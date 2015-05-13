@@ -70,7 +70,11 @@ static int audiohook_set_internal_rate(struct ast_audiohook *audiohook, int rate
 {
 	struct ast_format *slin;
 
-	if (audiohook->hook_internal_samp_rate == rate) {
+	/*
+	 * Only set the rate if it is higher than the current one. This prevents possible switching
+	 * and resetting of the rate if there is a difference between read and write rates.
+	 */
+	if (audiohook->hook_internal_samp_rate && audiohook->hook_internal_samp_rate >= rate) {
 		return 0;
 	}
 
@@ -766,15 +770,6 @@ static struct ast_frame *audiohook_list_translate_to_slin(struct ast_audiohook_l
 	struct ast_frame *new_frame = frame;
 	struct ast_format *slin;
 
-	/* If we are capable of maintaining doing samplerates other that 8khz, update
-	 * the internal audiohook_list's rate and higher samplerate audio arrives. By
-	 * updating the list's rate, all the audiohooks in the list will be updated as well
-	 * as the are written and read from. */
-	if (audiohook_list->native_slin_compatible) {
-		audiohook_list->list_internal_samp_rate =
-			MAX(ast_format_get_sample_rate(frame->subclass.format), audiohook_list->list_internal_samp_rate);
-	}
-
 	slin = ast_format_cache_get_slin_by_rate(audiohook_list->list_internal_samp_rate);
 	if (ast_format_cmp(frame->subclass.format, slin) == AST_FORMAT_CMP_EQUAL) {
 		return new_frame;
@@ -821,6 +816,71 @@ static struct ast_frame *audiohook_list_translate_to_native(struct ast_audiohook
 	return outframe;
 }
 
+static void audiohook_list_set_internal_rate(struct ast_audiohook_list *audiohook_list, int rate)
+{
+	/*
+	 * If we are capable of handling sample rates other that 8khz, update the
+	 * internal audiohook_list's rate and higher samplerate audio arrives. By
+	 * updating the list's rate, all the audiohooks in the list will be updated.
+	 */
+	if (audiohook_list->native_slin_compatible &&
+	    audiohook_list->list_internal_samp_rate < rate) {
+		audiohook_list->list_internal_samp_rate = rate;
+	}
+}
+
+static void audiohook_list_check_internal_rates(struct ast_audiohook_list *audiohook_list,
+						struct ast_audiohook *audiohook)
+{
+	/*
+	 * The audiohook's rate may have changed during a read. If so the list's rate may
+	 * also need to be updated.
+	 */
+	audiohook_list_set_internal_rate(audiohook_list, audiohook->hook_internal_samp_rate);
+
+	/*
+	 * The list's rate may have changed (an audiohook's rate changed or an incoming
+	 * frame had a higher sample rate, and compatibility mode was enabled). If so the
+	 * audiohook's rate may need to change as well.
+	 */
+	audiohook_set_internal_rate(audiohook, audiohook_list->list_internal_samp_rate, 1);
+}
+
+/*!
+ * \brief Audiohook lists pre-checks.
+ *
+ * If they need to be, update the audiohook_list's and hook's internal sample rates.
+ *
+ * \param frame the frame itself
+ * \param audiohook_list audiohook_list data object
+ */
+static void audiohook_lists_check(struct ast_frame *frame, struct ast_audiohook_list *audiohook_list)
+{
+	struct ast_audiohook *audiohook;
+
+	/*
+	 * The incoming frame's sample rate may be higher than the current audiohook_list's internal
+	 * sample rate. If it is adjust the internal rate accordingly (if native slin compatibility
+	 * is enabled).
+	 */
+	audiohook_list_set_internal_rate(audiohook_list, ast_format_get_sample_rate(frame->subclass.format));
+
+	/*
+	 * For the spy list check if the internal rates need to be updated. A change in rate may
+	 * occur if the incoming frame's sample rate changes it (see above), or if the internal
+	 * sample rate on a hook itself gets modified during a read. If a hook's rate gets modified
+	 * on a read, then by checking here the audiohook_list's rate can also be adjusted if needed.
+	 */
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&audiohook_list->spy_list, audiohook, list) {
+		ast_audiohook_lock(audiohook);
+		if (audiohook->status == AST_AUDIOHOOK_STATUS_RUNNING) {
+			audiohook_list_check_internal_rates(audiohook_list, audiohook);
+		}
+		ast_audiohook_unlock(audiohook);
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+}
+
 /*!
  * \brief Pass an AUDIO frame off to be handled by the audiohook core
  *
@@ -852,6 +912,11 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 	int middle_frame_manipulated = 0;
 	int removed = 0;
 
+	/*
+	 * Do a pre-check on the audiohooks to see if sample rates need to be adjusted.
+	 */
+	audiohook_lists_check(frame, audiohook_list);
+
 	/* ---Part_1. translate start_frame to SLINEAR if necessary. */
 	if (!(middle_frame = audiohook_list_translate_to_slin(audiohook_list, direction, start_frame))) {
 		return frame;
@@ -872,7 +937,6 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 			}
 			continue;
 		}
-		audiohook_set_internal_rate(audiohook, audiohook_list->list_internal_samp_rate, 1);
 		ast_audiohook_write_frame(audiohook, direction, middle_frame);
 		ast_audiohook_unlock(audiohook);
 	}
@@ -896,7 +960,6 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 				}
 				continue;
 			}
-			audiohook_set_internal_rate(audiohook, audiohook_list->list_internal_samp_rate, 1);
 			if (ast_slinfactory_available(factory) >= samples && ast_slinfactory_read(factory, read_buf, samples)) {
 				/* Take audio from this whisper source and combine it into our main buffer */
 				for (i = 0, data1 = combine_buf, data2 = read_buf; i < samples; i++, data1++, data2++) {
@@ -929,7 +992,6 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 				}
 				continue;
 			}
-			audiohook_set_internal_rate(audiohook, audiohook_list->list_internal_samp_rate, 1);
 			/* Feed in frame to manipulation. */
 			if (!audiohook->manipulate_callback(audiohook, chan, middle_frame, direction)) {
 				/* If the manipulation fails then the frame will be returned in its original state.
