@@ -111,6 +111,10 @@ Core
    set execincludes=yes in asterisk.conf.  Any other option set on the
    command-line will now override the equivalent setting from asterisk.conf.
 
+ * The TLS core in Asterisk now supports X.509 certificate subject alternative
+   names. This way one X.509 certificate can be used for hosts that can be
+   reached under multiple DNS names or for multiple hosts.
+
 Functions
 ------------------
 
