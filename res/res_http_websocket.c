@@ -88,16 +88,10 @@ struct ast_websocket {
 	struct websocket_client *client;  /*!< Client object when connected as a client websocket */
 };
 
-/*! \brief Structure definition for protocols */
-struct websocket_protocol {
-	char *name;                      /*!< Name of the protocol */
-	ast_websocket_callback callback; /*!< Callback called when a new session is established */
-};
-
 /*! \brief Hashing function for protocols */
 static int protocol_hash_fn(const void *obj, const int flags)
 {
-	const struct websocket_protocol *protocol = obj;
+	const struct ast_websocket_protocol *protocol = obj;
 	const char *name = obj;
 
 	return ast_str_case_hash(flags & OBJ_KEY ? name : protocol->name);
@@ -106,7 +100,7 @@ static int protocol_hash_fn(const void *obj, const int flags)
 /*! \brief Comparison function for protocols */
 static int protocol_cmp_fn(void *obj, void *arg, int flags)
 {
-	const struct websocket_protocol *protocol1 = obj, *protocol2 = arg;
+	const struct ast_websocket_protocol *protocol1 = obj, *protocol2 = arg;
 	const char *protocol = arg;
 
 	return !strcasecmp(protocol1->name, flags & OBJ_KEY ? protocol : protocol2->name) ? CMP_MATCH | CMP_STOP : 0;
@@ -115,7 +109,7 @@ static int protocol_cmp_fn(void *obj, void *arg, int flags)
 /*! \brief Destructor function for protocols */
 static void protocol_destroy_fn(void *obj)
 {
-	struct websocket_protocol *protocol = obj;
+	struct ast_websocket_protocol *protocol = obj;
 	ast_free(protocol->name);
 }
 
@@ -182,54 +176,91 @@ static void session_destroy_fn(void *obj)
 	ast_free(session->payload);
 }
 
+struct ast_websocket_protocol *AST_OPTIONAL_API_NAME(ast_websocket_sub_protocol_alloc)(const char *name)
+{
+	struct ast_websocket_protocol *protocol;
+
+	protocol = ao2_alloc(sizeof(*protocol), protocol_destroy_fn);
+	if (!protocol) {
+		return NULL;
+	}
+
+	protocol->name = ast_strdup(name);
+	if (!protocol->name) {
+		ao2_ref(protocol, -1);
+		return NULL;
+	}
+	protocol->version = AST_WEBSOCKET_PROTOCOL_VERSION;
+
+	return protocol;
+}
+
 int AST_OPTIONAL_API_NAME(ast_websocket_server_add_protocol)(struct ast_websocket_server *server, const char *name, ast_websocket_callback callback)
 {
-	struct websocket_protocol *protocol;
+	struct ast_websocket_protocol *protocol;
 
 	if (!server->protocols) {
+		return -1;
+	}
+
+	protocol = ast_websocket_sub_protocol_alloc(name);
+	if (!protocol) {
+		ao2_unlock(server->protocols);
+		return -1;
+	}
+	protocol->session_established = callback;
+
+	if (ast_websocket_server_add_protocol2(server, protocol)) {
+		ao2_ref(protocol, -1);
+		return -1;
+	}
+
+	return 0;
+}
+
+int AST_OPTIONAL_API_NAME(ast_websocket_server_add_protocol2)(struct ast_websocket_server *server, struct ast_websocket_protocol *protocol)
+{
+	struct ast_websocket_protocol *existing;
+
+	if (!server->protocols) {
+		return -1;
+	}
+
+	if (protocol->version != AST_WEBSOCKET_PROTOCOL_VERSION) {
+		ast_log(LOG_WARNING, "WebSocket could not register sub-protocol '%s': "
+			"expected version '%u', got version '%u'\n",
+			protocol->name, AST_WEBSOCKET_PROTOCOL_VERSION, protocol->version);
 		return -1;
 	}
 
 	ao2_lock(server->protocols);
 
 	/* Ensure a second protocol handler is not registered for the same protocol */
-	if ((protocol = ao2_find(server->protocols, name, OBJ_KEY | OBJ_NOLOCK))) {
-		ao2_ref(protocol, -1);
+	existing = ao2_find(server->protocols, protocol->name, OBJ_KEY | OBJ_NOLOCK);
+	if (existing) {
+		ao2_ref(existing, -1);
 		ao2_unlock(server->protocols);
 		return -1;
 	}
-
-	if (!(protocol = ao2_alloc(sizeof(*protocol), protocol_destroy_fn))) {
-		ao2_unlock(server->protocols);
-		return -1;
-	}
-
-	if (!(protocol->name = ast_strdup(name))) {
-		ao2_ref(protocol, -1);
-		ao2_unlock(server->protocols);
-		return -1;
-	}
-
-	protocol->callback = callback;
 
 	ao2_link_flags(server->protocols, protocol, OBJ_NOLOCK);
 	ao2_unlock(server->protocols);
-	ao2_ref(protocol, -1);
 
-	ast_verb(2, "WebSocket registered sub-protocol '%s'\n", name);
+	ast_verb(2, "WebSocket registered sub-protocol '%s'\n", protocol->name);
+	ao2_ref(protocol, -1);
 
 	return 0;
 }
 
 int AST_OPTIONAL_API_NAME(ast_websocket_server_remove_protocol)(struct ast_websocket_server *server, const char *name, ast_websocket_callback callback)
 {
-	struct websocket_protocol *protocol;
+	struct ast_websocket_protocol *protocol;
 
 	if (!(protocol = ao2_find(server->protocols, name, OBJ_KEY))) {
 		return -1;
 	}
 
-	if (protocol->callback != callback) {
+	if (protocol->session_established != callback) {
 		ao2_ref(protocol, -1);
 		return -1;
 	}
@@ -600,7 +631,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 /*!
  * \brief If the server has exactly one configured protocol, return it.
  */
-static struct websocket_protocol *one_protocol(
+static struct ast_websocket_protocol *one_protocol(
 	struct ast_websocket_server *server)
 {
 	SCOPED_AO2LOCK(lock, server->protocols);
@@ -643,7 +674,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 	struct ast_variable *v;
 	char *upgrade = NULL, *key = NULL, *key1 = NULL, *key2 = NULL, *protos = NULL, *requested_protocols = NULL, *protocol = NULL;
 	int version = 0, flags = 1;
-	struct websocket_protocol *protocol_handler = NULL;
+	struct ast_websocket_protocol *protocol_handler = NULL;
 	struct ast_websocket *session;
 	struct ast_websocket_server *server;
 
@@ -742,6 +773,14 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 		}
 		session->timeout =  AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT;
 
+		if (protocol_handler->session_attempted
+			&& protocol_handler->session_attempted(ser, get_vars, headers)) {
+			ast_debug(3, "WebSocket connection from '%s' rejected by protocol handler '%s'\n",
+				ast_sockaddr_stringify(&ser->remote_address), protocol_handler->name);
+			ao2_ref(protocol_handler, -1);
+			return 0;
+		}
+
 		fprintf(ser->f, "HTTP/1.1 101 Switching Protocols\r\n"
 			"Upgrade: %s\r\n"
 			"Connection: Upgrade\r\n"
@@ -797,7 +836,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 
 	/* Give up ownership of the socket and pass it to the protocol handler */
 	ast_tcptls_stream_set_exclusive_input(ser->stream_cookie, 0);
-	protocol_handler->callback(session, get_vars, headers);
+	protocol_handler->session_established(session, get_vars, headers);
 	ao2_ref(protocol_handler, -1);
 
 	/*
@@ -879,6 +918,22 @@ int AST_OPTIONAL_API_NAME(ast_websocket_add_protocol)(const char *name, ast_webs
 		ast_module_ref(ast_module_info->self);
 	}
 	return res;
+}
+
+int AST_OPTIONAL_API_NAME(ast_websocket_add_protocol2)(struct ast_websocket_protocol *protocol)
+{
+	struct ast_websocket_server *ws_server = websocketuri.data;
+
+	if (!ws_server) {
+		return -1;
+	}
+
+	if (ast_websocket_server_add_protocol2(ws_server, protocol)) {
+		return -1;
+	}
+
+	ast_module_ref(ast_module_info->self);
+	return 0;
 }
 
 static int websocket_remove_protocol_internal(const char *name, ast_websocket_callback callback)
