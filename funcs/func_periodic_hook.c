@@ -446,13 +446,9 @@ static struct ast_custom_function hook_function = {
 	.write = hook_write,
 };
 
-static struct ast_context *func_periodic_hook_context;
-
 static int unload_module(void)
 {
-	if (func_periodic_hook_context) {
-		ast_context_destroy(func_periodic_hook_context, AST_MODULE);
-	}
+	ast_context_destroy(NULL, AST_MODULE);
 
 	return ast_custom_function_unregister(&hook_function);
 }
@@ -461,9 +457,7 @@ static int load_module(void)
 {
 	int res;
 
-	func_periodic_hook_context = ast_context_find_or_create(NULL, NULL,
-			context_name, AST_MODULE);
-	if (!func_periodic_hook_context) {
+	if (!ast_context_find_or_create(NULL, NULL, context_name, AST_MODULE)) {
 		ast_log(LOG_ERROR, "Failed to create %s dialplan context.\n", context_name);
 		return AST_MODULE_LOAD_DECLINE;
 	}
