@@ -12,7 +12,7 @@
  * $FreeBSD: src/bin/expr/expr.y,v 1.16 2000/07/22 10:59:36 se Exp $
  */
 
-#define WRAP_LIBC_MALLOC
+#define ASTMM_LIBC ASTMM_REDIRECT
 #include "asterisk.h"
 
 #include <sys/types.h>

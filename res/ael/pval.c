@@ -27,7 +27,7 @@
 	<support_level>extended</support_level>
  ***/
 
-#define WRAP_LIBC_MALLOC
+#define ASTMM_LIBC ASTMM_REDIRECT
 #include "asterisk.h"
 
 ASTERISK_REGISTER_FILE()

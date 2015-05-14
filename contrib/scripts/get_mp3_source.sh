@@ -7,8 +7,8 @@ if [ -f addons/mp3/mpg123.h ]; then
     echo "***"
 
     # Manually patch interface.c if not done yet.
-    if ! grep -q WRAP_LIBC_MALLOC addons/mp3/interface.c; then
-        sed -i -e '/#include "asterisk.h"/i#define WRAP_LIBC_MALLOC' \
+    if ! grep -q ASTMM_LIBC addons/mp3/interface.c; then
+        sed -i -e '/#include "asterisk.h"/i#define ASTMM_LIBC ASTMM_REDIRECT' \
             addons/mp3/interface.c
     fi
 
@@ -18,8 +18,8 @@ fi
 svn export http://svn.digium.com/svn/thirdparty/mp3/trunk addons/mp3 $@
 
 # Manually patch interface.c if not done yet.
-if ! grep -q WRAP_LIBC_MALLOC addons/mp3/interface.c; then
-    sed -i -e '/#include "asterisk.h"/i#define WRAP_LIBC_MALLOC' \
+if ! grep -q ASTMM_LIBC addons/mp3/interface.c; then
+    sed -i -e '/#include "asterisk.h"/i#define ASTMM_LIBC ASTMM_REDIRECT' \
         addons/mp3/interface.c
 fi
 

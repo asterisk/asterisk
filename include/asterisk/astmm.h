@@ -44,16 +44,6 @@ extern "C" {
 #include <stdio.h>
 #include <stdarg.h>
 
-/* Undefine any macros */
-#undef malloc
-#undef calloc
-#undef realloc
-#undef strdup
-#undef strndup
-#undef asprintf
-#undef vasprintf
-#undef free
-
 void *ast_std_malloc(size_t size);
 void *ast_std_calloc(size_t nmemb, size_t size);
 void *ast_std_realloc(void *ptr, size_t size);
@@ -74,9 +64,72 @@ int __ast_vasprintf(char **strp, const char *format, va_list ap, const char *fil
 void __ast_mm_init_phase_1(void);
 void __ast_mm_init_phase_2(void);
 
-/* Redefine libc malloc to our own versions */
+/*!
+ * \brief ASTMM_LIBC can be defined to control the meaning of standard allocators.
+ *
+ * \note The standard allocators effected by this compiler define are:
+ *    malloc, calloc, realloc, strdup, strndup, asprintf, vasprintf and free.
+ *
+ * @{
+ */
 
-#ifdef WRAP_LIBC_MALLOC
+/*!
+ * \brief Produce compiler errors if standard allocators are used.
+ *
+ * \note This is the default option, and in most cases the correct option.
+ * Any use of standard allocators will cause an error, even if those uses
+ * are in unused static inline header functions.
+ */
+#define ASTMM_BLOCK    0
+
+/*!
+ * \brief Redirect standard allocators to use Asterisk functions.
+ *
+ * \note This option is used in some cases instead of changing the
+ * existing source to use Asterisk functions.  New code should
+ * generally avoid this option, except where it's needed to work
+ * with situations where switching the code is unreasonable, such
+ * as output from code generators that are hard coded to use
+ * standard functions.
+ */
+#define ASTMM_REDIRECT 1
+
+/*!
+ * \brief Standard allocators are used directly.
+ *
+ * \note This option is needed when including 3rd party headers with calls
+ * to standard allocators from inline functions.  Using ASTMM_REDIRECT in
+ * this situation could result in an object being allocated by malloc and
+ * freed by ast_free, or the reverse.
+ */
+#define ASTMM_IGNORE   2
+
+/*!
+ * }@
+ */
+
+#if !defined(ASTMM_LIBC)
+/* BLOCK libc allocators by default. */
+#define ASTMM_LIBC ASTMM_BLOCK
+#endif
+
+#if ASTMM_LIBC == ASTMM_IGNORE
+/* Don't touch the libc functions. */
+#else
+
+/* Undefine any macros */
+#undef malloc
+#undef calloc
+#undef realloc
+#undef strdup
+#undef strndup
+#undef asprintf
+#undef vasprintf
+#undef free
+
+#if ASTMM_LIBC == ASTMM_REDIRECT
+
+/* Redefine libc functions to our own versions */
 #define calloc(a,b) \
 	__ast_calloc(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define malloc(a) \
@@ -93,7 +146,10 @@ void __ast_mm_init_phase_2(void);
 	__ast_asprintf(__FILE__, __LINE__, __PRETTY_FUNCTION__, a, b, c)
 #define vasprintf(a,b,c) \
 	__ast_vasprintf(a,b,c,__FILE__, __LINE__, __PRETTY_FUNCTION__)
-#else
+
+#elif ASTMM_LIBC == ASTMM_BLOCK
+
+/* Redefine libc functions to cause compile errors */
 #define calloc(a,b) \
 	Do_not_use_calloc__use_ast_calloc->fail(a,b)
 #define malloc(a) \
@@ -110,6 +166,11 @@ void __ast_mm_init_phase_2(void);
 	Do_not_use_asprintf__use_ast_asprintf->fail(a,b,c)
 #define vasprintf(a,b,c) \
 	Do_not_use_vasprintf__use_ast_vasprintf->fail(a,b,c)
+
+#else
+#error "Unacceptable value for the macro ASTMM_LIBC"
+#endif
+
 #endif
 
 /* Provide our own definitions */
