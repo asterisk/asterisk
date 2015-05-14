@@ -335,6 +335,23 @@ const char *ast_variable_find(const struct ast_category *category, const char *v
 const char *ast_variable_find_in_list(const struct ast_variable *list, const char *variable);
 
 /*!
+ * \brief Gets the LAST occurrence of a variable from a variable list
+ *
+ * \param list The ast_variable list to search
+ * \param variable The name of the ast_variable you wish to fetch data for
+ *
+ * \details
+ * Iterates over a given ast_variable list to search for the last occurrence of an
+ * ast_variable entry with a name attribute matching the given name (variable).
+ * This is useful if the list has duplicate entries (such as in cases where entries
+ * are created by a template)
+ *
+ * \retval The variable value on success
+ * \retval NULL if unable to find it.
+ */
+const char *ast_variable_find_last_in_list(const struct ast_variable *list, const char *variable);
+
+/*!
  * \brief Retrieve a category if it exists
  *
  * \param config which config to use
