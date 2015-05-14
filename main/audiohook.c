@@ -361,7 +361,16 @@ static struct ast_frame *audiohook_read_frame_helper(struct ast_audiohook *audio
 	struct ast_frame *read_frame = NULL, *final_frame = NULL;
 	struct ast_format *slin;
 
-	audiohook_set_internal_rate(audiohook, ast_format_get_sample_rate(format), 1);
+	if (!ast_test_flag(audiohook, AST_AUDIOHOOK_COMPATIBLE)) {
+		/*
+		 * An audiohook's internal rate is influenced by compatibility mode. If
+		 * compatibility is turned "off" then an audiohook's rate is free to be
+		 * adjusted. However, if it is set to "on" then the audhiohook's rate is
+		 * determined by the audiohook_list's internal rate during a write (see
+		 * audiohook_set_compatible).
+		 */
+		audiohook_set_internal_rate(audiohook, ast_format_get_sample_rate(format), 1);
+	}
 
 	if (!(read_frame = (direction == AST_AUDIOHOOK_DIRECTION_BOTH ?
 		audiohook_read_frame_both(audiohook, samples, read_reference, write_reference) :
@@ -821,6 +830,31 @@ static struct ast_frame *audiohook_list_translate_to_native(struct ast_audiohook
 	return outframe;
 }
 
+static void audiohook_set_compatible(struct ast_audiohook_list *audiohook_list,
+				     struct ast_audiohook *audiohook)
+{
+	/*
+	 * An audiohook's internal rate is influenced by compatibility mode. If
+	 * compatibility is turned "on" then all audiohooks have their sample rate
+	 * set to that of the audiohook_list internal sample rate. If compatibility
+	 * is turned "off" then audiohooks are allowed to adjust their internal rate
+	 * if needed.
+	 *
+	 * Since writes can only adjust the rates while compatibility is "on" and
+	 * reads can only do it while "off" this keeps an audiohook's internal sample
+	 * rate from potentially being changed on each read/write if the read/write
+	 * sample rates differ. Swapping the sample rate on each read/write of course
+	 * causes problems since the factory buffers get reset each time.
+	 */
+	if (audiohook_list->native_slin_compatible) {
+		ast_set_flag(audiohook, AST_AUDIOHOOK_COMPATIBLE);
+		/* If the audiohook is in compatibility mode then make sure it uses the list's rate */
+		audiohook_set_internal_rate(audiohook, audiohook_list->list_internal_samp_rate, 1);
+	} else {
+		ast_clear_flag(audiohook, AST_AUDIOHOOK_COMPATIBLE);
+	}
+}
+
 /*!
  * \brief Pass an AUDIO frame off to be handled by the audiohook core
  *
@@ -872,7 +906,7 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 			}
 			continue;
 		}
-		audiohook_set_internal_rate(audiohook, audiohook_list->list_internal_samp_rate, 1);
+		audiohook_set_compatible(audiohook_list, audiohook);
 		ast_audiohook_write_frame(audiohook, direction, middle_frame);
 		ast_audiohook_unlock(audiohook);
 	}
@@ -896,7 +930,7 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 				}
 				continue;
 			}
-			audiohook_set_internal_rate(audiohook, audiohook_list->list_internal_samp_rate, 1);
+			audiohook_set_compatible(audiohook_list, audiohook);
 			if (ast_slinfactory_available(factory) >= samples && ast_slinfactory_read(factory, read_buf, samples)) {
 				/* Take audio from this whisper source and combine it into our main buffer */
 				for (i = 0, data1 = combine_buf, data2 = read_buf; i < samples; i++, data1++, data2++) {
@@ -929,7 +963,7 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 				}
 				continue;
 			}
-			audiohook_set_internal_rate(audiohook, audiohook_list->list_internal_samp_rate, 1);
+			audiohook_set_compatible(audiohook_list, audiohook);
 			/* Feed in frame to manipulation. */
 			if (!audiohook->manipulate_callback(audiohook, chan, middle_frame, direction)) {
 				/* If the manipulation fails then the frame will be returned in its original state.
