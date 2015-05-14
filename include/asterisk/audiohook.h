@@ -63,6 +63,7 @@ enum ast_audiohook_flags {
 	AST_AUDIOHOOK_SMALL_QUEUE   = (1 << 4),
 	AST_AUDIOHOOK_MUTE_READ     = (1 << 5), /*!< audiohook should be mute frames read */
 	AST_AUDIOHOOK_MUTE_WRITE    = (1 << 6), /*!< audiohook should be mute frames written */
+	AST_AUDIOHOOK_COMPATIBLE    = (1 << 7), /*!< is the audiohook native slin compatible */
 };
 
 enum ast_audiohook_init_flags {
