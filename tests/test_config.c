@@ -234,6 +234,7 @@ AST_TEST_DEFINE(config_basic_ops)
 	struct ast_config *cfg = NULL;
 	struct ast_category *cat = NULL;
 	struct ast_variable *var;
+	struct ast_variable *varlist;
 	char temp[32];
 	const char *cat_name;
 	const char *var_value;
@@ -534,6 +535,22 @@ AST_TEST_DEFINE(config_basic_ops)
 	}
 	if (i != 3) {
 		ast_test_status_update(test, "There should have been 3 matches instead of %d.\n", i);
+		goto out;
+	}
+
+	varlist = ast_variable_new("name1", "value1", "");
+	ast_variable_list_append_hint(&varlist, NULL, ast_variable_new("name1", "value2", ""));
+	ast_variable_list_append_hint(&varlist, NULL, ast_variable_new("name1", "value3", ""));
+
+	var_value = ast_variable_find_in_list(varlist, "name1");
+	if (strcmp(var_value, "value1") != 0) {
+		ast_test_status_update(test, "Wrong variable retrieved %s.\n", var_value);
+		goto out;
+	}
+
+	var_value = ast_variable_find_last_in_list(varlist, "name1");
+	if (strcmp(var_value, "value3") != 0) {
+		ast_test_status_update(test, "Wrong variable retrieved %s.\n", var_value);
 		goto out;
 	}
 

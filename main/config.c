@@ -735,6 +735,19 @@ const char *ast_variable_find_in_list(const struct ast_variable *list, const cha
 	return NULL;
 }
 
+const char *ast_variable_find_last_in_list(const struct ast_variable *list, const char *variable)
+{
+	const struct ast_variable *v;
+	const char *found = NULL;
+
+	for (v = list; v; v = v->next) {
+		if (!strcasecmp(variable, v->name)) {
+			found = v->value;
+		}
+	}
+	return found;
+}
+
 static struct ast_variable *variable_clone(const struct ast_variable *old)
 {
 	struct ast_variable *new = ast_variable_new(old->name, old->value, old->file);
