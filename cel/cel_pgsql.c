@@ -205,7 +205,7 @@ static void pgsql_log(struct ast_event *event)
 		AST_RWLIST_RDLOCK(&psql_columns);
 		AST_RWLIST_TRAVERSE(&psql_columns, cur, list) {
 			LENGTHEN_BUF1(strlen(cur->name) + 2);
-			ast_str_append(&sql, 0, "%s\"%s\"", first ? "" : ",", cur->name);
+			ast_str_append(&sql, 0, "%s\"%s\"", SEP, cur->name);
 
 			if (strcmp(cur->name, "eventtime") == 0) {
 				if (strncmp(cur->type, "int", 3) == 0) {
