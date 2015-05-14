@@ -334,10 +334,10 @@ static void *create_object(const struct ast_sorcery *sorcery,
 	return obj;
 }
 
-/*! \brief Finds a variable in a list and tests it */
+/*! \brief Finds the last variable in a list and tests it */
 static int is_variable_true(struct ast_variable *vars, const char *name)
 {
-	return ast_true(ast_variable_find_in_list(vars, name));
+	return ast_true(ast_variable_find_last_in_list(vars, name));
 }
 
 /*! \brief Appends a variable to the end of an existing list */
@@ -539,7 +539,7 @@ static int handle_auth(const struct ast_sorcery *sorcery, struct object_type_wiz
 	}
 
 	if (is_variable_true(wizvars, test_variable)) {
-		if (!ast_variable_find_in_list(vars, "username")) {
+		if (!ast_variable_find_last_in_list(vars, "username")) {
 			ast_log(LOG_ERROR,
 				"Wizard '%s' must have '%s_auth/username' if it %s.\n", id, direction, test_variable);
 			return -1;
@@ -557,7 +557,7 @@ static int handle_auth(const struct ast_sorcery *sorcery, struct object_type_wiz
 	variable_list_append_return(&vars, "@pjsip_wizard", id);
 
 	/* If the user set auth_type, don't override it. */
-	if (!ast_variable_find_in_list(vars, "auth_type")) {
+	if (!ast_variable_find_last_in_list(vars, "auth_type")) {
 		variable_list_append_return(&vars, "auth_type", "userpass");
 	}
 
@@ -599,8 +599,8 @@ static int handle_aor(const struct ast_sorcery *sorcery, struct object_type_wiza
 	variable_list_append(&vars, "@pjsip_wizard", id);
 
 	/* If the user explicitly specified an aor/contact, don't use remote hosts. */
-	if (!ast_variable_find_in_list(vars, "contact")) {
-		if (!(contact_pattern = ast_variable_find_in_list(wizvars, "contact_pattern"))) {
+	if (!ast_variable_find_last_in_list(vars, "contact")) {
+		if (!(contact_pattern = ast_variable_find_last_in_list(wizvars, "contact_pattern"))) {
 			contact_pattern = "sip:${REMOTE_HOST}";
 		}
 
@@ -645,10 +645,10 @@ static int handle_endpoint(const struct ast_sorcery *sorcery, struct object_type
 	struct ast_variable *wizvars = ast_category_first(wiz);
 	struct ast_sorcery_object *obj = NULL;
 	const char *id = ast_category_get_name(wiz);
-	const char *transport = ast_variable_find_in_list(wizvars, "transport");
-	const char *hint_context = hint_context = ast_variable_find_in_list(wizvars, "hint_context");
-	const char *hint_exten = ast_variable_find_in_list(wizvars, "hint_exten");
-	const char *hint_application= ast_variable_find_in_list(wizvars, "hint_application");
+	const char *transport = ast_variable_find_last_in_list(wizvars, "transport");
+	const char *hint_context = hint_context = ast_variable_find_last_in_list(wizvars, "hint_context");
+	const char *hint_exten = ast_variable_find_last_in_list(wizvars, "hint_exten");
+	const char *hint_application= ast_variable_find_last_in_list(wizvars, "hint_application");
 	char new_id[strlen(id) + MAX_ID_SUFFIX];
 	RAII_VAR(struct ast_variable *, vars, get_object_variables(wizvars, "endpoint/"), ast_variables_destroy);
 
@@ -656,7 +656,7 @@ static int handle_endpoint(const struct ast_sorcery *sorcery, struct object_type
 	variable_list_append_return(&vars, "aors", id);
 
 	if (ast_strlen_zero(hint_context)) {
-		hint_context = ast_variable_find_in_list(vars, "context");
+		hint_context = ast_variable_find_last_in_list(vars, "context");
 	}
 
 	if (ast_strlen_zero(hint_context)) {
@@ -737,7 +737,7 @@ static int handle_identify(const struct ast_sorcery *sorcery, struct object_type
 	variable_list_append_return(&vars, "endpoint", id);
 	variable_list_append_return(&vars, "@pjsip_wizard", id);
 
-	if (!ast_variable_find_in_list(vars, "match")) {
+	if (!ast_variable_find_last_in_list(vars, "match")) {
 		for (host_counter = 0; host_counter < host_count; host_counter++) {
 			char *rhost = AST_VECTOR_GET(remote_hosts_vector, host_counter);
 			char host[strlen(rhost) + 1];
@@ -787,7 +787,7 @@ static int handle_phoneprov(const struct ast_sorcery *sorcery, struct object_typ
 		return 0;
 	}
 
-	if (!ast_variable_find_in_list(wizvars, "phoneprov/MAC")) {
+	if (!ast_variable_find_last_in_list(wizvars, "phoneprov/MAC")) {
 		ast_log(LOG_ERROR,
 			"Wizard '%s' must have 'phoneprov/MAC' if it has_phoneprov.\n", id);
 		return -1;
@@ -834,7 +834,7 @@ static int handle_registrations(const struct ast_sorcery *sorcery, struct object
 	const char *id = ast_category_get_name(wiz);
 	const char *server_uri_pattern;
 	const char *client_uri_pattern;
-	const char *transport = ast_variable_find_in_list(wizvars, "transport");
+	const char *transport = ast_variable_find_last_in_list(wizvars, "transport");
 	const char *username;
 	char new_id[strlen(id) + MAX_ID_SUFFIX];
 	int host_count = AST_VECTOR_SIZE(remote_hosts_vector);
@@ -871,16 +871,16 @@ static int handle_registrations(const struct ast_sorcery *sorcery, struct object
 
 	variable_list_append_return(&vars, "@pjsip_wizard", id);
 
-	if (!(server_uri_pattern = ast_variable_find_in_list(wizvars, "server_uri_pattern"))) {
+	if (!(server_uri_pattern = ast_variable_find_last_in_list(wizvars, "server_uri_pattern"))) {
 		server_uri_pattern = "sip:${REMOTE_HOST}";
 	}
 
-	if (!(client_uri_pattern = ast_variable_find_in_list(wizvars, "client_uri_pattern"))) {
+	if (!(client_uri_pattern = ast_variable_find_last_in_list(wizvars, "client_uri_pattern"))) {
 		client_uri_pattern = "sip:${USERNAME}@${REMOTE_HOST}";
 	}
 
 	if(is_variable_true(wizvars, "sends_auth")) {
-		username = ast_variable_find_in_list(wizvars, "outbound_auth/username");
+		username = ast_variable_find_last_in_list(wizvars, "outbound_auth/username");
 	} else {
 		username = id;
 	}
@@ -958,7 +958,7 @@ static int wizard_apply_handler(const struct ast_sorcery *sorcery, struct object
 	int rc = -1;
 
 	AST_VECTOR_INIT(&remote_hosts_vector, 16);
-	remote_hosts = ast_variable_find_in_list(wizvars, "remote_hosts");
+	remote_hosts = ast_variable_find_last_in_list(wizvars, "remote_hosts");
 
 	if (!ast_strlen_zero(remote_hosts)) {
 		char *host;
