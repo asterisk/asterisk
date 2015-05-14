@@ -51,8 +51,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! \brief The number of user events we should get in a dialplan test */
 #define DEFAULT_EXPECTED_EVENTS 4
 
-static struct ast_context *test_message_context;
-
 /*! \brief The current number of received user events */
 static int received_user_events;
 
@@ -822,9 +820,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(test_message_has_destination_handler);
 	AST_TEST_UNREGISTER(test_message_msg_send);
 
-	if (test_message_context) {
-		ast_context_destroy(test_message_context, AST_MODULE);
-	}
+	ast_context_destroy(NULL, AST_MODULE);
 
 	ast_manager_unregister_hook(&user_event_hook);
 
@@ -835,8 +831,7 @@ static int create_test_dialplan(void)
 {
 	int res = 0;
 
-	test_message_context = ast_context_find_or_create(NULL, NULL, TEST_CONTEXT, AST_MODULE);
-	if (!test_message_context) {
+	if (!ast_context_find_or_create(NULL, NULL, TEST_CONTEXT, AST_MODULE)) {
 		return -1;
 	}
 
