@@ -163,6 +163,17 @@ cel_pgsql
    configurable for cel_pgsql via the 'schema' in configuration file
    cel_pgsql.conf.
 
+CDR Backends
+------------------
+
+cdr_adaptive_odbc
+------------------
+ * Added the ability to set the character to quote identifiers. This
+   allows adding the character at the start and end of table and column
+   names. This setting is configurable for cdr_adaptive_odbc via the
+   quoted_identifiers in configuration file cdr_adaptive_odbc.conf.
+
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.3.0 to Asterisk 13.4.0 ------------
 ------------------------------------------------------------------------------
