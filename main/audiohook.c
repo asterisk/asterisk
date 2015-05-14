@@ -351,7 +351,9 @@ static struct ast_frame *audiohook_read_frame_helper(struct ast_audiohook *audio
 	struct ast_frame *read_frame = NULL, *final_frame = NULL;
 	struct ast_format tmp_fmt;
 
-	audiohook_set_internal_rate(audiohook, ast_format_rate(format), 1);
+	if (!ast_test_flag(audiohook, AST_AUDIOHOOK_COMPATIBLE)) {
+		audiohook_set_internal_rate(audiohook, ast_format_rate(format), 1);
+	}
 
 	if (!(read_frame = (direction == AST_AUDIOHOOK_DIRECTION_BOTH ?
 		audiohook_read_frame_both(audiohook, samples, read_reference, write_reference) :
@@ -751,6 +753,18 @@ static struct ast_frame *audiohook_list_translate_to_native(struct ast_audiohook
 	return outframe;
 }
 
+static void audiohook_set_compatible(struct ast_audiohook_list *audiohook_list,
+				     struct ast_audiohook *audiohook)
+{
+	if (audiohook_list->native_slin_compatible) {
+		ast_set_flag(audiohook, AST_AUDIOHOOK_COMPATIBLE);
+		/* If the audiohook is in compatibility mode then make sure it uses the list's rate */
+		audiohook_set_internal_rate(audiohook, audiohook_list->list_internal_samp_rate, 1);
+	} else {
+		ast_clear_flag(audiohook, AST_AUDIOHOOK_COMPATIBLE);
+	}
+}
+
 /*!
  * \brief Pass an AUDIO frame off to be handled by the audiohook core
  *
@@ -799,7 +813,7 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 			ast_audiohook_unlock(audiohook);
 			continue;
 		}
-		audiohook_set_internal_rate(audiohook, audiohook_list->list_internal_samp_rate, 1);
+		audiohook_set_compatible(audiohook_list, audiohook);
 		ast_audiohook_write_frame(audiohook, direction, middle_frame);
 		ast_audiohook_unlock(audiohook);
 	}
@@ -819,7 +833,7 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 				ast_audiohook_unlock(audiohook);
 				continue;
 			}
-			audiohook_set_internal_rate(audiohook, audiohook_list->list_internal_samp_rate, 1);
+			audiohook_set_compatible(audiohook_list, audiohook);
 			if (ast_slinfactory_available(&audiohook->write_factory) >= samples && ast_slinfactory_read(&audiohook->write_factory, read_buf, samples)) {
 				/* Take audio from this whisper source and combine it into our main buffer */
 				for (i = 0, data1 = combine_buf, data2 = read_buf; i < samples; i++, data1++, data2++)
@@ -848,7 +862,7 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 				audiohook->manipulate_callback(audiohook, chan, NULL, direction);
 				continue;
 			}
-			audiohook_set_internal_rate(audiohook, audiohook_list->list_internal_samp_rate, 1);
+			audiohook_set_compatible(audiohook_list, audiohook);
 			/* Feed in frame to manipulation. */
 			if (audiohook->manipulate_callback(audiohook, chan, middle_frame, direction)) {
 				/* XXX IGNORE FAILURE */
