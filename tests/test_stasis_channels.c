@@ -328,6 +328,6 @@ static int load_module(void)
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, 0, "Stasis Channel Testing",
-		.load = load_module,
-		.unload = unload_module
-	);
+	.load = load_module,
+	.unload = unload_module
+);

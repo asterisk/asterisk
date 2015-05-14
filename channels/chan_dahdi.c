@@ -19753,4 +19753,4 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, tdesc,
 	.reload = reload,
 	.load_pri = AST_MODPRI_CHANNEL_DRIVER,
 	.nonoptreq = "res_smdi",
-	);
+);

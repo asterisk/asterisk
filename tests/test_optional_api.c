@@ -184,4 +184,4 @@ static int load_module(void)
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "ARI testing",
 	.load = load_module,
 	.unload = unload_module,
-	);
+);

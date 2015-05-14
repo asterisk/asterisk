@@ -141,4 +141,4 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Stasis dialplan applicat
 	.load = load_module,
 	.unload = unload_module,
 	.nonoptreq = "res_stasis",
-	);
+);

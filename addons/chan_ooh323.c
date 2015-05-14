@@ -5188,9 +5188,9 @@ void ast_ooh323c_exit()
 #endif
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Objective Systems H323 Channel",
-		.support_level = AST_MODULE_SUPPORT_EXTENDED,
-			.load = load_module,
-			.unload = unload_module,
-			.reload = reload_module,
-			.load_pri = AST_MODPRI_CHANNEL_DRIVER
-			);
+	.support_level = AST_MODULE_SUPPORT_EXTENDED,
+	.load = load_module,
+	.unload = unload_module,
+	.reload = reload_module,
+	.load_pri = AST_MODPRI_CHANNEL_DRIVER
+);
