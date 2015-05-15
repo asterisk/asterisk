@@ -1815,6 +1815,7 @@ static int request(void *obj)
 	if (ast_strlen_zero(endpoint_name)) {
 		ast_log(LOG_ERROR, "Unable to create PJSIP channel with empty endpoint name\n");
 		req_data->cause = AST_CAUSE_CHANNEL_UNACCEPTABLE;
+		return -1;
 	} else if (!(endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", endpoint_name))) {
 		ast_log(LOG_ERROR, "Unable to create PJSIP channel - endpoint '%s' was not found\n", endpoint_name);
 		req_data->cause = AST_CAUSE_NO_ROUTE_DESTINATION;
