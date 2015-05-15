@@ -3096,12 +3096,8 @@ int ast_cdr_serialize_variables(const char *channel_name, struct ast_str **buf, 
 	struct cdr_object *it_cdr;
 	struct ast_var_t *variable;
 	const char *var;
-	RAII_VAR(char *, workspace, ast_malloc(256), ast_free);
+	char workspace[256];
 	int total = 0, x = 0, i;
-
-	if (!workspace) {
-		return 0;
-	}
 
 	if (!cdr) {
 		RAII_VAR(struct module_config *, mod_cfg,
