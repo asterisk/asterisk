@@ -1442,7 +1442,7 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 	struct pjsip_inv_session *inv_session;
 	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
 
-	/* If no location has been provided use the AOR list from the endpoint itself */
+	/* If no location has been provided use the AOR list from the endpoint itself if it exists */
 	if (location || !contact) {
 		location = S_OR(location, endpoint->aors);
 
