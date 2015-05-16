@@ -1290,6 +1290,15 @@ struct ast_sorcery_object_type *ast_sorcery_get_object_type(const struct ast_sor
 int ast_sorcery_is_object_field_registered(const struct ast_sorcery_object_type *object_type,
 		const char *field_name);
 
+/*!
+ * \brief Get the module that has opened the provided sorcery instance.
+ *
+ * \param sorcery The sorcery instance
+ *
+ * \return The module
+ */
+const char *ast_sorcery_get_module(const struct ast_sorcery *sorcery);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
