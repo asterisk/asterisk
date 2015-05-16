@@ -2199,3 +2199,8 @@ int ast_sorcery_is_object_field_registered(const struct ast_sorcery_object_type 
 	ao2_cleanup(object_field);
 	return res;
 }
+
+const char *ast_sorcery_get_module(const struct ast_sorcery *sorcery)
+{
+	return sorcery->module_name;
+}
