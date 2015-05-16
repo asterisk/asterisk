@@ -1444,10 +1444,7 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 
 	/* If no location has been provided use the AOR list from the endpoint itself if it exists */
 	if (location || !contact) {
-		location = S_OR(location, endpoint ? endpoint->aors : NULL);
-		if (ast_strlen_zero(location)) {
-			return NULL;
-		}
+		location = S_OR(location, endpoint->aors);
 
 		ast_sip_location_retrieve_contact_and_aor_from_list(location, &found_aor, &found_contact);
 		if (!found_contact || ast_strlen_zero(found_contact->uri)) {
