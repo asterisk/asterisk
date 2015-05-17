@@ -2037,8 +2037,7 @@ static void cleanup_stale_contexts(char *new, char *old)
 			}
 			
 		}
-		if (stalecontext)
-			ast_context_destroy(ast_context_find(stalecontext), "Skinny");
+		ast_context_destroy_by_name(stalecontext, "Skinny");
 	}
 }
 
@@ -8014,7 +8013,6 @@ static int unload_module(void)
 	struct skinny_device *d;
 	struct skinny_line *l;
 	struct skinny_subchannel *sub;
-	struct ast_context *con;
 
 	ast_rtp_glue_unregister(&skinny_rtp_glue);
 	ast_channel_unregister(&skinny_tech);
@@ -8069,9 +8067,7 @@ static int unload_module(void)
 		ast_sched_context_destroy(sched);
 	}
 
-	con = ast_context_find(used_context);
-	if (con)
-		ast_context_destroy(con, "Skinny");
+	ast_context_destroy_by_name(used_context, "Skinny");
 
 	default_cap = ast_format_cap_destroy(default_cap);
 	skinny_tech.capabilities = ast_format_cap_destroy(skinny_tech.capabilities);
