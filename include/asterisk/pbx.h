@@ -259,6 +259,30 @@ struct ast_app *pbx_findapp(const char *app);
 int pbx_exec(struct ast_channel *c, struct ast_app *app, const char *data);
 
 /*!
+ * \brief Register a new context or find an existing one without locking.
+ *
+ * \param extcontexts pointer to the ast_context structure pointer
+ * \param exttable pointer to the hashtable that contains all the elements in extcontexts
+ * \param name name of the new context
+ * \param registrar registrar of the context
+ *
+ * This function allows you to play in two environments: the global contexts (active dialplan)
+ * or an external context set of your choosing. To act on the external set, make sure extcontexts
+ * and exttable are set; for the globals, make sure both extcontexts and exttable are NULL.
+ *
+ * This will first search for a context with your name.  If it exists already, it will not
+ * create a new one.  If it does not exist, it will create a new one with the given name
+ * and registrar.
+ *
+ * \return NULL on failure, and an ast_context structure on success
+ *
+ * \note This function must be called with a lock on contexts
+ * acquired by \ref ast_wrlock_contexts.
+ */
+struct ast_context *ast_context_find_or_create_nolock(struct ast_context **extcontexts,
+	struct ast_hashtab *exttable, const char *name, const char *registrar);
+
+/*!
  * \brief Register a new context or find an existing one
  *
  * \param extcontexts pointer to the ast_context structure pointer
@@ -275,6 +299,10 @@ int pbx_exec(struct ast_channel *c, struct ast_app *app, const char *data);
  * and registrar.
  *
  * \return NULL on failure, and an ast_context structure on success
+ *
+ * \note The return value is not thread safe when working with the global contexts (active
+ * dialplan).  The moment it returns, another thread can replace the struct ast_context,
+ * freeing the returned pointer.  Use \ref ast_context_find_or_create_nolock instead.
  */
 struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts, struct ast_hashtab *exttable, const char *name, const char *registrar);
 
@@ -291,7 +319,7 @@ struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts,
 void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_hashtab *exttable, const char *registrar);
 
 /*!
- * \brief Destroy a context (matches the specified context (or ANY context if NULL)
+ * \brief Destroy a context without locking (matches the specified context or ANY context if NULL)
  *
  * \param con context to destroy
  * \param registrar who registered it
@@ -301,7 +329,50 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
  *
  * \return nothing
  */
+void ast_context_destroy_nolock(struct ast_context *con, const char *registrar);
+
+/*!
+ * \brief Destroy a context by name
+ *
+ * \param context Name of the context to destroy
+ * \param registrar who registered it
+ *
+ * You can optionally leave out the registrar parameter.  It will find it
+ * based on the context name.
+ *
+ * \return nothing
+ */
+void ast_context_destroy_by_name(const char *context, const char *registrar);
+
+/*!
+ * \brief Destroy a context (matches the specified context or ANY context if NULL)
+ *
+ * \param con context to destroy
+ * \param registrar who registered it
+ *
+ * You can optionally leave out either parameter.  It will find it
+ * based on either the ast_context or the registrar name.
+ *
+ * \return nothing
+ *
+ * \note This method is only thread safe for NULL con.  For non-NULL con see
+ * \ref ast_context_destroy_nolock or ast_context_destroy_by_name.
+ */
 void ast_context_destroy(struct ast_context *con, const char *registrar);
+
+/*!
+ * \brief Find a context without locking.
+ *
+ * \param name name of the context to find
+ *
+ * Will search for the context with the given name.
+ *
+ * \return the ast_context on success, NULL on failure.
+ *
+ * \note This function must be called with a lock on contexts
+ * acquired by \ref ast_rdlock_contexts or \ref ast_wrlock_contexts.
+ */
+struct ast_context *ast_context_find_nolock(const char *name);
 
 /*!
  * \brief Find a context
@@ -311,6 +382,10 @@ void ast_context_destroy(struct ast_context *con, const char *registrar);
  * Will search for the context with the given name.
  *
  * \return the ast_context on success, NULL on failure.
+ *
+ * \note The return value of this function is not thread safe.  The moment it returns,
+ * another thread can replace the struct ast_context, freeing the returned pointer.  Use
+ * \ref ast_context_find_nolock instead.
  */
 struct ast_context *ast_context_find(const char *name);
 

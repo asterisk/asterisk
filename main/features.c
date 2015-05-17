@@ -5271,13 +5271,17 @@ static void manage_parkinglot(struct ast_parkinglot *curlot, const struct pollfd
 		}
 		if (manage_parked_call(pu, pfds, nfds, new_pfds, new_nfds, ms)) {
 			/* Parking is complete for this call so remove it from the parking lot. */
-			con = ast_context_find(pu->parkinglot->cfg.parking_con);
+			ast_wrlock_contexts();
+			con = ast_context_find_nolock(pu->parkinglot->cfg.parking_con);
 			if (con) {
-				if (ast_context_remove_extension2(con, pu->parkingexten, 1, NULL, 0)) {
+				if (ast_context_remove_extension2(con, pu->parkingexten, 1, NULL, 1)) {
 					ast_log(LOG_WARNING,
 						"Whoa, failed to remove the parking extension %s@%s!\n",
 						pu->parkingexten, pu->parkinglot->cfg.parking_con);
 				}
+			}
+			ast_unlock_contexts();
+			if (con) {
 				notify_metermaids(pu->parkingexten, pu->parkinglot->cfg.parking_con,
 					AST_DEVICE_NOT_INUSE);
 			} else {
@@ -5567,9 +5571,15 @@ static int parked_call_exec(struct ast_channel *chan, const char *data)
 			callid = ast_callid_unref(callid);
 		}
 
-		con = ast_context_find(parkinglot->cfg.parking_con);
+		ast_wrlock_contexts();
+		con = ast_context_find_nolock(parkinglot->cfg.parking_con);
 		if (con) {
-			if (ast_context_remove_extension2(con, pu->parkingexten, 1, NULL, 0)) {
+			res = ast_context_remove_extension2(con, pu->parkingexten, 1, NULL, 1);
+		}
+		ast_unlock_contexts();
+
+		if (con) {
+			if (res) {
 				ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
 			} else {
 				notify_metermaids(pu->parkingexten, parkinglot->cfg.parking_con, AST_DEVICE_NOT_INUSE);
@@ -6978,7 +6988,6 @@ static void remove_dead_dialplan_useage(struct parking_dp_map *old_map, struct p
 {
 	struct parking_dp_context *old_ctx;
 	struct parking_dp_context *new_ctx;
-	struct ast_context *con;
 	int cmp;
 
 	old_ctx = AST_LIST_FIRST(old_map);
@@ -6992,10 +7001,7 @@ static void remove_dead_dialplan_useage(struct parking_dp_map *old_map, struct p
 		cmp = strcmp(old_ctx->context, new_ctx->context);
 		if (cmp < 0) {
 			/* New map does not have old map context. */
-			con = ast_context_find(old_ctx->context);
-			if (con) {
-				ast_context_destroy(con, registrar);
-			}
+			ast_context_destroy_by_name(old_ctx->context, registrar);
 			old_ctx = AST_LIST_NEXT(old_ctx, node);
 			continue;
 		}
@@ -7011,10 +7017,7 @@ static void remove_dead_dialplan_useage(struct parking_dp_map *old_map, struct p
 
 	/* Any old contexts left must be dead. */
 	for (; old_ctx; old_ctx = AST_LIST_NEXT(old_ctx, node)) {
-		con = ast_context_find(old_ctx->context);
-		if (con) {
-			ast_context_destroy(con, registrar);
-		}
+		ast_context_destroy_by_name(old_ctx->context, registrar);
 	}
 }
 
@@ -7245,7 +7248,6 @@ static char *handle_feature_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 
 int ast_features_reload(void)
 {
-	struct ast_context *con;
 	int res;
 
 	ast_mutex_lock(&features_reload_lock);/* Searialize reloading features.conf */
@@ -7258,10 +7260,7 @@ int ast_features_reload(void)
 	 * extension.  This is a small window of opportunity on an
 	 * execution chain that is not expected to happen very often.
 	 */
-	con = ast_context_find(parking_con_dial);
-	if (con) {
-		ast_context_destroy(con, registrar);
-	}
+	ast_context_destroy_by_name(parking_con_dial, registrar);
 
 	res = load_config(1);
 	ast_mutex_unlock(&features_reload_lock);
@@ -8687,9 +8686,15 @@ static int unpark_test_channel(struct ast_channel *toremove, struct ast_park_cal
 		return -1;
 	}
 
-	con = ast_context_find(args->pu->parkinglot->cfg.parking_con);
+	ast_wrlock_contexts();
+	con = ast_context_find_nolock(args->pu->parkinglot->cfg.parking_con);
 	if (con) {
-		if (ast_context_remove_extension2(con, args->pu->parkingexten, 1, NULL, 0)) {
+		res = ast_context_remove_extension2(con, args->pu->parkingexten, 1, NULL, 1);
+	}
+	ast_unlock_contexts();
+
+	if (con) {
+		if (res) {
 			ast_log(LOG_WARNING, "Whoa, failed to remove the parking extension!\n");
 			res = -1;
 		} else {

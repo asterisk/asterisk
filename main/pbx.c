@@ -3120,27 +3120,37 @@ struct fake_context /* this struct is purely for matching in the hashtab */
 	char name[256];
 };
 
-struct ast_context *ast_context_find(const char *name)
+struct ast_context *ast_context_find_nolock(const char *name)
 {
-	struct ast_context *tmp;
+	struct ast_context *tmp = NULL;
 	struct fake_context item;
 
 	if (!name) {
 		return NULL;
 	}
-	ast_rdlock_contexts();
+
 	if (contexts_table) {
 		ast_copy_string(item.name, name, sizeof(item.name));
-		tmp = ast_hashtab_lookup(contexts_table, &item);
-	} else {
-		tmp = NULL;
-		while ((tmp = ast_walk_contexts(tmp))) {
-			if (!strcasecmp(name, tmp->name)) {
-				break;
-			}
+		return ast_hashtab_lookup(contexts_table, &item);
+	}
+
+	while ((tmp = ast_walk_contexts(tmp))) {
+		if (!strcasecmp(name, tmp->name)) {
+			break;
 		}
 	}
+
+	return tmp;
+}
+
+struct ast_context *ast_context_find(const char *name)
+{
+	struct ast_context *tmp;
+
+	ast_rdlock_contexts();
+	tmp = ast_context_find_nolock(name);
 	ast_unlock_contexts();
+
 	return tmp;
 }
 
@@ -8759,15 +8769,14 @@ int ast_unregister_application(const char *app)
 	return tmp ? 0 : -1;
 }
 
-struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts, struct ast_hashtab *exttable, const char *name, const char *registrar)
+struct ast_context *ast_context_find_or_create_nolock(struct ast_context **extcontexts, struct ast_hashtab *exttable, const char *name, const char *registrar)
 {
 	struct ast_context *tmp, **local_contexts;
 	struct fake_context search;
 	int length = sizeof(struct ast_context) + strlen(name) + 1;
 
-	if (!contexts_table) {
-		/* Protect creation of contexts_table from reentrancy. */
-		ast_wrlock_contexts();
+	ast_copy_string(search.name, name, sizeof(search.name));
+	if (!extcontexts) {
 		if (!contexts_table) {
 			contexts_table = ast_hashtab_create(17,
 				ast_hashtab_compare_contexts,
@@ -8776,15 +8785,8 @@ struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts,
 				ast_hashtab_hash_contexts,
 				0);
 		}
-		ast_unlock_contexts();
-	}
-
-	ast_copy_string(search.name, name, sizeof(search.name));
-	if (!extcontexts) {
-		ast_rdlock_contexts();
 		local_contexts = &contexts;
 		tmp = ast_hashtab_lookup(contexts_table, &search);
-		ast_unlock_contexts();
 		if (tmp) {
 			tmp->refcount++;
 			return tmp;
@@ -8798,27 +8800,26 @@ struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts,
 		}
 	}
 
-	if ((tmp = ast_calloc(1, length))) {
-		ast_rwlock_init(&tmp->lock);
-		ast_mutex_init(&tmp->macrolock);
-		strcpy(tmp->name, name);
-		tmp->root = NULL;
-		tmp->root_table = NULL;
-		tmp->registrar = ast_strdup(registrar);
-		tmp->includes = NULL;
-		tmp->ignorepats = NULL;
-		tmp->refcount = 1;
-	} else {
+	tmp = ast_calloc(1, length);
+	if (!tmp) {
 		ast_log(LOG_ERROR, "Danger! We failed to allocate a context for %s!\n", name);
 		return NULL;
 	}
 
+	ast_rwlock_init(&tmp->lock);
+	ast_mutex_init(&tmp->macrolock);
+	strcpy(tmp->name, name);
+	tmp->root = NULL;
+	tmp->root_table = NULL;
+	tmp->registrar = ast_strdup(registrar);
+	tmp->includes = NULL;
+	tmp->ignorepats = NULL;
+	tmp->refcount = 1;
+
 	if (!extcontexts) {
-		ast_wrlock_contexts();
 		tmp->next = *local_contexts;
 		*local_contexts = tmp;
 		ast_hashtab_insert_safe(contexts_table, tmp); /*put this context into the tree */
-		ast_unlock_contexts();
 		ast_debug(1, "Registered context '%s'(%p) in table %p registrar: %s\n", tmp->name, tmp, contexts_table, registrar);
 		ast_verb(3, "Registered extension context '%s'; registrar: %s\n", tmp->name, registrar);
 	} else {
@@ -8830,6 +8831,23 @@ struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts,
 		ast_debug(1, "Registered context '%s'(%p) in local table %p; registrar: %s\n", tmp->name, tmp, exttable, registrar);
 		ast_verb(3, "Registered extension context '%s'; registrar: %s\n", tmp->name, registrar);
 	}
+	return tmp;
+}
+
+struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts, struct ast_hashtab *exttable, const char *name, const char *registrar)
+{
+	struct ast_context *tmp;
+
+	if (!extcontexts) {
+		ast_wrlock_contexts();
+	}
+
+	tmp = ast_context_find_or_create_nolock(extcontexts, exttable, name, registrar);
+
+	if (!extcontexts) {
+		ast_unlock_contexts();
+	}
+
 	return tmp;
 }
 
@@ -9710,18 +9728,24 @@ int ast_context_add_ignorepat2(struct ast_context *con, const char *value, const
 
 int ast_ignore_pattern(const char *context, const char *pattern)
 {
-	struct ast_context *con = ast_context_find(context);
+	int ret = 0;
+	struct ast_context *con;
 
+	ast_rdlock_contexts();
+	con = ast_context_find_nolock(context);
 	if (con) {
 		struct ast_ignorepat *pat;
 
 		for (pat = con->ignorepats; pat; pat = pat->next) {
-			if (ast_extension_match(pat->pattern, pattern))
-				return 1;
+			if (ast_extension_match(pat->pattern, pattern)) {
+				ret = 1;
+				break;
+			}
 		}
 	}
+	ast_unlock_contexts();
 
-	return 0;
+	return ret;
 }
 
 /*
@@ -11033,6 +11057,23 @@ void __ast_context_destroy(struct ast_context *list, struct ast_hashtab *context
 		/* if we have a specific match, we are done, otherwise continue */
 		tmp = con ? NULL : next;
 	}
+}
+
+void ast_context_destroy_nolock(struct ast_context *con, const char *registrar)
+{
+	__ast_context_destroy(contexts, contexts_table, con, registrar);
+}
+
+void ast_context_destroy_by_name(const char *context, const char *registrar)
+{
+	struct ast_context *con;
+
+	ast_wrlock_contexts();
+	con = ast_context_find_nolock(context);
+	if (con) {
+		ast_context_destroy_nolock(con, registrar);
+	}
+	ast_unlock_contexts();
 }
 
 void ast_context_destroy(struct ast_context *con, const char *registrar)
