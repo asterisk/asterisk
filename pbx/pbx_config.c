@@ -97,14 +97,16 @@ static char *handle_cli_dialplan_remove_context(struct ast_cli_entry *e, int cmd
 		return CLI_SHOWUSAGE;
 	}
 
+	ast_wrlock_contexts();
 	con = ast_context_find(a->argv[3]);
 
 	if (!con) {
-		ast_cli(a->fd, "There is no such context as '%s'\n",
-                        a->argv[3]);
-                return CLI_SUCCESS;
+		ast_unlock_contexts();
+		ast_cli(a->fd, "There is no such context as '%s'\n", a->argv[3]);
+		return CLI_SUCCESS;
 	} else {
 		ast_context_destroy(con, registrar);
+		ast_unlock_contexts();
 		ast_cli(a->fd, "Removing context '%s'\n",
 			a->argv[3]);
 		return CLI_SUCCESS;

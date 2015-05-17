@@ -7347,14 +7347,13 @@ static int sla_build_trunk(struct ast_config *cfg, const char *cat)
 	ao2_unlock(trunk);
 
 	if (!ast_strlen_zero(trunk->autocontext)) {
-		struct ast_context *context;
-		context = ast_context_find_or_create(NULL, NULL, trunk->autocontext, sla_registrar);
-		if (!context) {
+		if (!ast_context_find_or_create(NULL, NULL, trunk->autocontext, sla_registrar)) {
 			ast_log(LOG_ERROR, "Failed to automatically find or create "
 				"context '%s' for SLA!\n", trunk->autocontext);
 			return -1;
 		}
-		if (ast_add_extension2(context, 0 /* don't replace */, "s", 1,
+
+		if (ast_add_extension(trunk->autocontext, 0 /* don't replace */, "s", 1,
 			NULL, NULL, slatrunk_app, ast_strdup(trunk->name), ast_free_ptr, sla_registrar)) {
 			ast_log(LOG_ERROR, "Failed to automatically create extension "
 				"for trunk '%s'!\n", trunk->name);
@@ -7523,17 +7522,16 @@ static int sla_build_station(struct ast_config *cfg, const char *cat)
 	ao2_unlock(station);
 
 	if (!ast_strlen_zero(station->autocontext)) {
-		struct ast_context *context;
 		struct sla_trunk_ref *trunk_ref;
-		context = ast_context_find_or_create(NULL, NULL, station->autocontext, sla_registrar);
-		if (!context) {
+
+		if (!ast_context_find_or_create(NULL, NULL, station->autocontext, sla_registrar)) {
 			ast_log(LOG_ERROR, "Failed to automatically find or create "
 				"context '%s' for SLA!\n", station->autocontext);
 			return -1;
 		}
 		/* The extension for when the handset goes off-hook.
 		 * exten => station1,1,SLAStation(station1) */
-		if (ast_add_extension2(context, 0 /* don't replace */, station->name, 1,
+		if (ast_add_extension(station->autocontext, 0 /* don't replace */, station->name, 1,
 			NULL, NULL, slastation_app, ast_strdup(station->name), ast_free_ptr, sla_registrar)) {
 			ast_log(LOG_ERROR, "Failed to automatically create extension "
 				"for trunk '%s'!\n", station->name);
@@ -7546,7 +7544,7 @@ static int sla_build_station(struct ast_config *cfg, const char *cat)
 			snprintf(hint, sizeof(hint), "SLA:%s", exten);
 			/* Extension for this line button 
 			 * exten => station1_line1,1,SLAStation(station1_line1) */
-			if (ast_add_extension2(context, 0 /* don't replace */, exten, 1,
+			if (ast_add_extension(station->autocontext, 0 /* don't replace */, exten, 1,
 				NULL, NULL, slastation_app, ast_strdup(exten), ast_free_ptr, sla_registrar)) {
 				ast_log(LOG_ERROR, "Failed to automatically create extension "
 					"for trunk '%s'!\n", station->name);
@@ -7554,7 +7552,7 @@ static int sla_build_station(struct ast_config *cfg, const char *cat)
 			}
 			/* Hint for this line button 
 			 * exten => station1_line1,hint,SLA:station1_line1 */
-			if (ast_add_extension2(context, 0 /* don't replace */, exten, PRIORITY_HINT,
+			if (ast_add_extension(station->autocontext, 0 /* don't replace */, exten, PRIORITY_HINT,
 				NULL, NULL, hint, NULL, NULL, sla_registrar)) {
 				ast_log(LOG_ERROR, "Failed to automatically create hint "
 					"for trunk '%s'!\n", station->name);
