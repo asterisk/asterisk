@@ -17,7 +17,8 @@
  */
 
 /*!
- * \file \brief Test Stasis message bus.
+ * \file
+ * \brief Test Stasis message bus.
  *
  * \author\verbatim David M. Lee, II <dlee@digium.com> \endverbatim
  *

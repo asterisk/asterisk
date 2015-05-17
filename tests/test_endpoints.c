@@ -17,7 +17,8 @@
  */
 
 /*!
- * \file \brief Test endpoints.
+ * \file
+ * \brief Test endpoints.
  *
  * \author\verbatim David M. Lee, II <dlee@digium.com> \endverbatim
  *

@@ -17,7 +17,8 @@
  */
 
 /*!
- * \file \brief Test ARI API.
+ * \file
+ * \brief Test ARI API.
  * \author\verbatim David M. Lee, II <dlee@digium.com> \endverbatim
  *
  * \ingroup tests

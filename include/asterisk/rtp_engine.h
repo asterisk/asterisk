@@ -2316,7 +2316,7 @@ struct stasis_message_type *ast_rtp_rtcp_received_type(void);
  */
 struct stasis_topic *ast_rtp_topic(void);
 
-/* }@ */
+/* @} */
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

@@ -35,7 +35,7 @@
  * modules in Asterisk.
  *  - CEL uses the \ref ast_event representation to pass information to registered
  *    backends.
- *  - The \file res_corosync module publishes \ref ast_event representations of
+ *  - The \file res_corosync.c module publishes \ref ast_event representations of
  *    information to other Asterisk instances in a cluster.
  *  - Security event represent their event types and data using this system.
  *  - Theoretically, any \ref stasis message can use this system to pass

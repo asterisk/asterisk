@@ -17,7 +17,8 @@
  */
 
 /*!
- * \file \brief Test Stasis Application API.
+ * \file
+ * \brief Test Stasis Application API.
  * \author\verbatim David M. Lee, II <dlee@digium.com> \endverbatim
  *
  * \ingroup tests

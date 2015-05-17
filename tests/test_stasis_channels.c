@@ -17,7 +17,8 @@
  */
 
 /*!
- * \file \brief Test Stasis Channel messages and objects
+ * \file
+ * \brief Test Stasis Channel messages and objects
  *
  * \author\verbatim Matt Jordan <mjordan@digium.com> \endverbatim
  *

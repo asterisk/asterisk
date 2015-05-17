@@ -17,7 +17,8 @@
  */
 
 /*!
- * \file \brief Test JSON API.
+ * \file
+ * \brief Test JSON API.
  *
  * While some of these tests are actually testing our JSON library wrapper, the bulk of
  * them are exploratory tests to determine what the behavior of the underlying JSON

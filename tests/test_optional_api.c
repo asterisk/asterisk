@@ -17,7 +17,8 @@
  */
 
 /*!
- * \file \brief Test optional API.
+ * \file
+ * \brief Test optional API.
  *
  * This tests exercise the underlying implementation functions. Acutal usage
  * won't look anything like this; it would use the wrapper macros.

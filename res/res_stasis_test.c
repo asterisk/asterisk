@@ -17,7 +17,8 @@
  */
 
 /*!
- * \file \brief Test infrastructure for dealing with Stasis.
+ * \file
+ * \brief Test infrastructure for dealing with Stasis.
  *
  * \author David M. Lee, II <dlee@digium.com>
  */

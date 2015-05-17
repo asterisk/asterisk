@@ -16,7 +16,7 @@
  * at the top of the source tree.
  */
 
-/*! \file ast_sdp_crypto.c
+/*! \file
  *
  * \brief SRTP and SDP Security descriptions
  *

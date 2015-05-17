@@ -20,7 +20,9 @@
 #define ASTERISK_SEMAPHORE_H
 
 /*!
- * \file Asterisk semaphore API
+ * \file
+ *
+ * \brief Asterisk semaphore API
  *
  * This API is a thin wrapper around the POSIX semaphore API (when available),
  * so see the POSIX documentation for further details.
