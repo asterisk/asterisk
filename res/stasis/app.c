@@ -871,8 +871,7 @@ struct stasis_app *app_create(const char *name, stasis_app_cb handler, void *dat
 
 	strncpy(app->name, name, size - sizeof(*app));
 	app->handler = handler;
-	ao2_ref(data, +1);
-	app->data = data;
+	app->data = ao2_bump(data);
 
 	ao2_ref(app, +1);
 	return app;
@@ -950,7 +949,7 @@ void app_update(struct stasis_app *app, stasis_app_cb handler, void *data)
 {
 	SCOPED_AO2LOCK(lock, app);
 
-	if (app->handler) {
+	if (app->handler && app->data) {
 		RAII_VAR(struct ast_json *, msg, NULL, ast_json_unref);
 
 		ast_verb(1, "Replacing Stasis app '%s'\n", app->name);

@@ -119,6 +119,10 @@ static void app_handler(void *data, const char *app_name,
 	const char *msg_application = S_OR(
 		ast_json_string_get(ast_json_object_get(message, "application")),
 		"");
+
+	if (!session) {
+		return;
+	}
  
 	/* Determine if we've been replaced */
 	if (strcmp(msg_type, "ApplicationReplaced") == 0 &&
@@ -168,7 +172,40 @@ static int session_register_app(struct event_session *session,
 	return 0;
 }
 
-void ast_ari_websocket_events_event_websocket(struct ast_ari_websocket_session *ws_session,
+int ast_ari_websocket_events_event_websocket_attempted(struct ast_tcptls_session_instance *ser,
+	struct ast_variable *headers,
+	struct ast_ari_events_event_websocket_args *args)
+{
+	int res = 0;
+	size_t i, j;
+
+	ast_debug(3, "/events WebSocket attempted\n");
+
+	if (args->app_count == 0) {
+		ast_http_error(ser, 400, "Bad Request", "Missing param 'app'");
+		return -1;
+	}
+
+	for (i = 0; i < args->app_count; ++i) {
+		if (ast_strlen_zero(args->app[i])) {
+			res = -1;
+			break;
+		}
+
+		res |= stasis_app_register(args->app[i], app_handler, NULL);
+	}
+
+	if (res) {
+		for (j = 0; j < i; ++j) {
+			stasis_app_unregister(args->app[j]);
+		}
+		ast_http_error(ser, 400, "Bad Request", "Invalid application provided in param 'app'.");
+	}
+
+	return res;
+}
+
+void ast_ari_websocket_events_event_websocket_established(struct ast_ari_websocket_session *ws_session,
 	struct ast_variable *headers,
 	struct ast_ari_events_event_websocket_args *args)
 {
