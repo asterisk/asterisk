@@ -89,6 +89,23 @@ int ast_ari_{{c_name}}_{{c_nickname}}_parse_body(
 void ast_ari_{{c_name}}_{{c_nickname}}(struct ast_variable *headers, struct ast_ari_{{c_name}}_{{c_nickname}}_args *args, struct ast_ari_response *response);
 {{/is_req}}
 {{#is_websocket}}
+
+/*!
+ * \brief {{summary}}
+{{#notes}}
+ *
+ * {{{notes}}}
+{{/notes}}
+ *
+ * \param ser HTTP TCP/TLS Server Session
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ *
+ * \retval 0 success
+ * \retval non-zero error
+ */
+int ast_ari_websocket_{{c_name}}_{{c_nickname}}_attempted(struct ast_tcptls_session_instance *ser, struct ast_variable *headers, struct ast_ari_{{c_name}}_{{c_nickname}}_args *args);
+
 /*!
  * \brief {{summary}}
 {{#notes}}
@@ -100,7 +117,7 @@ void ast_ari_{{c_name}}_{{c_nickname}}(struct ast_variable *headers, struct ast_
  * \param headers HTTP headers.
  * \param args Swagger parameters.
  */
-void ast_ari_websocket_{{c_name}}_{{c_nickname}}(struct ast_ari_websocket_session *session, struct ast_variable *headers, struct ast_ari_{{c_name}}_{{c_nickname}}_args *args);
+void ast_ari_websocket_{{c_name}}_{{c_nickname}}_established(struct ast_ari_websocket_session *session, struct ast_variable *headers, struct ast_ari_{{c_name}}_{{c_nickname}}_args *args);
 {{/is_websocket}}
 {{/operations}}
 {{/apis}}
