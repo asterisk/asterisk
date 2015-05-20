@@ -25,6 +25,7 @@
 
 ASTERISK_REGISTER_FILE()
 
+#include <signal.h>
 #include <unbound.h>
 #include <arpa/nameser.h>
 
