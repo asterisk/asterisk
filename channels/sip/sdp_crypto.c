@@ -220,7 +220,8 @@ int sdp_crypto_process(struct sdp_crypto *p, const char *attr, struct ast_rtp_in
 		return -1;
 	}
 
-	if (sscanf(tag, "%30d", &p->tag) != 1 || p->tag <= 0 || p->tag > 9) {
+	/* RFC4568 9.1 - tag is 1-9 digits, greater than zero */
+	if (sscanf(tag, "%30d", &p->tag) != 1 || p->tag <= 0 || p->tag > 999999999) {
 		ast_log(LOG_WARNING, "Unacceptable a=crypto tag: %s\n", tag);
 		return -1;
 	}
