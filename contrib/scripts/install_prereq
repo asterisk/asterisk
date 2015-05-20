@@ -24,7 +24,7 @@ PACKAGES_DEBIAN="build-essential"
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libncurses-dev libz-dev libssl-dev libxml2-dev libsqlite3-dev uuid-dev uuid"
 # Asterisk: for addons:
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libcurl-dev libspeex-dev libspeexdsp-dev libogg-dev libvorbis-dev libasound2-dev portaudio19-dev libcurl4-openssl-dev"
-PACKAGES_DEBIAN="$PACKAGES_DEBIAN libpq-dev unixodbc-dev libsqlite0-dev libmysqlclient15-dev libneon27-dev libgmime-dev libusb-dev liblua5.1-0-dev lua5.1"
+PACKAGES_DEBIAN="$PACKAGES_DEBIAN libpq-dev unixodbc-dev libsqlite0-dev libmysqlclient15-dev libneon27-dev libgmime(2)?-dev libusb-dev liblua5.1-0-dev lua5.1"
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libopenh323-dev libvpb-dev libgtk2.0-dev libmysqlclient-dev libbluetooth-dev libradiusclient-ng-dev freetds-dev"
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libsnmp-dev libiksemel-dev libcorosync-dev libnewt-dev libpopt-dev libical-dev libspandsp-dev libjack-dev"
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libresample-dev libc-client-dev binutils-dev libsrtp-dev libgsm1-dev libedit-dev doxygen libjansson-dev libldap-dev"
@@ -66,13 +66,24 @@ in_test_mode() {
 }
 
 check_installed_debs() {
-	for pack in "$@"
-	do
-		tocheck="${tocheck} ^${pack}$"
-	done
-	aptitude -F '%c %p' search ${tocheck} 2>/dev/null \
-		| awk '/^p/{print $2}' \
-		| grep -v ':i386$'
+	if which aptitude >/dev/null; then
+		for pack in "$@"
+		do
+			tocheck="${tocheck} ^${pack}$"
+		done
+		aptitude -F '%c %p' search ${tocheck} 2>/dev/null \
+			| awk '/^p/{print $2}' \
+			| grep -v ':i386$'
+	else
+		for pack in "$@"
+		do
+			if [ $(dpkg-query -W -f='${Status}' $pack 2>/dev/null | grep -c "ok installed") -eq 0 ];
+			then
+				toinstall="${toinstall} ^${pack}$"
+			fi
+		done
+		echo "$toinstall"
+	fi
 }
 
 # parsing the output of yum is close to impossible.
@@ -97,7 +108,12 @@ check_installed_pkgs() {
 
 handle_debian() {
 	extra_packs=`check_installed_debs $PACKAGES_DEBIAN`
-	$testcmd aptitude install -y $extra_packs
+	if which aptitude >/dev/null; then
+		apt_cmd="aptitude"
+	else
+		apt_cmd="apt-get"
+	fi
+	$testcmd $apt_cmd install -y $extra_packs
 }
 
 handle_rh() {
