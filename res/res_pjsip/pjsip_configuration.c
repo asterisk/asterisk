@@ -121,9 +121,20 @@ static int persistent_endpoint_update_state(void *obj, void *arg, int flags)
 /*! \brief Function called when stuff relating to a contact happens (created/deleted) */
 static void persistent_endpoint_contact_created_observer(const void *object)
 {
-	char *id = ast_strdupa(ast_sorcery_object_get_id(object)), *aor = NULL;
+	char *id = ast_strdupa(ast_sorcery_object_get_id(object));
+	char *aor = NULL;
+	char *contact = NULL;
 
-	aor = strsep(&id, ";@");
+	aor = id;
+	/* Dynamic contacts are delimited with ";@" and static ones with "@@" */
+	if ((contact = strstr(id, ";@")) || (contact = strstr(id, "@@"))) {
+		*contact = '\0';
+		contact += 2;
+	} else {
+		contact = id;
+	}
+
+	ast_verb(1, "Contact %s/%s has been created\n", aor, contact);
 
 	ao2_callback(persistent_endpoints, OBJ_NODATA, persistent_endpoint_update_state, aor);
 }
@@ -144,7 +155,7 @@ static void persistent_endpoint_contact_deleted_observer(const void *object)
 		contact = id;
 	}
 
-	ast_verb(1, "Contact %s/%s is now Unavailable\n", aor, contact);
+	ast_verb(1, "Contact %s/%s has been deleted\n", aor, contact);
 
 	ao2_callback(persistent_endpoints, OBJ_NODATA, persistent_endpoint_update_state, aor);
 }

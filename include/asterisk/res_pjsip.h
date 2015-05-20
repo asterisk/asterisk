@@ -1294,6 +1294,13 @@ int ast_sip_send_request(pjsip_tx_data *tdata, struct pjsip_dialog *dlg,
  *
  * \retval 0 Success
  * \retval -1 Failure (out-of-dialog callback will not be called.)
+ *
+ * \note Timeout processing:
+ * There are 2 timers associated with this request, PJSIP timer_b which is
+ * set globally in the "system" section of pjsip.conf, and the timeout specified
+ * on this call.  The timer that expires first (before normal completion) will
+ * cause the callback to be run with e->body.tsx_state.type = PJSIP_EVENT_TIMER.
+ * The timer that expires second is simply ignored and the callback is not run again.
  */
 int ast_sip_send_out_of_dialog_request(pjsip_tx_data *tdata,
 	struct ast_sip_endpoint *endpoint, int timeout, void *token,
