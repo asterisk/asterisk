@@ -78,6 +78,18 @@ struct sorcery_memory_cache {
 	unsigned int expire_on_reload;
 	/*! \brief Heap of cached objects. Oldest object is at the top. */
 	struct ast_heap *object_heap;
+	/*! \brief Scheduler item for expiring oldest object. */
+	int expire_id;
+#ifdef TEST_FRAMEWORK
+	/*! \brief Variable used to indicate we should notify a test when we reach empty */
+	unsigned int cache_notify;
+	/*! \brief Mutex lock used for signaling when the cache has reached empty */
+	ast_mutex_t lock;
+	/*! \brief Condition used for signaling when the cache has reached empty */
+	ast_cond_t cond;
+	/*! \brief Variable that is set when the cache has reached empty */
+	unsigned int cache_completed;
+#endif
 };
 
 /*! \brief Structure for stored a cached object */
@@ -362,6 +374,8 @@ static void sorcery_memory_cached_object_destructor(void *obj)
 	ao2_cleanup(cached->object);
 }
 
+static int schedule_cache_expiration(struct sorcery_memory_cache *cache);
+
 /*!
  * \internal
  * \brief Remove an object from the cache.
@@ -372,13 +386,15 @@ static void sorcery_memory_cached_object_destructor(void *obj)
  *
  * \param cache The cache from which the object is being removed.
  * \param id The sorcery object id of the object to remove.
+ * \param reschedule Reschedule cache expiration if this was the oldest object.
  *
  * \retval 0 Success
  * \retval non-zero Failure
  */
-static int remove_from_cache(struct sorcery_memory_cache *cache, const char *id)
+static int remove_from_cache(struct sorcery_memory_cache *cache, const char *id, int reschedule)
 {
 	struct sorcery_memory_cached_object *hash_object;
+	struct sorcery_memory_cached_object *oldest_object;
 	struct sorcery_memory_cached_object *heap_object;
 
 	hash_object = ao2_find(cache->objects, id,
@@ -386,11 +402,111 @@ static int remove_from_cache(struct sorcery_memory_cache *cache, const char *id)
 	if (!hash_object) {
 		return -1;
 	}
+	oldest_object = ast_heap_peek(cache->object_heap, 1);
 	heap_object = ast_heap_remove(cache->object_heap, hash_object);
 
 	ast_assert(heap_object == hash_object);
 
 	ao2_ref(hash_object, -1);
+
+	if (reschedule && (oldest_object == heap_object)) {
+		schedule_cache_expiration(cache);
+	}
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Scheduler callback invoked to expire old objects
+ *
+ * \param data The opaque callback data (in our case, the memory cache)
+ */
+static int expire_objects_from_cache(const void *data)
+{
+	struct sorcery_memory_cache *cache = (struct sorcery_memory_cache *)data;
+	struct sorcery_memory_cached_object *cached;
+
+	ao2_wrlock(cache->objects);
+
+	cache->expire_id = -1;
+
+	/* This is an optimization for objects which have been cached close to eachother */
+	while ((cached = ast_heap_peek(cache->object_heap, 1))) {
+		int expiration;
+
+		expiration = ast_tvdiff_ms(ast_tvadd(cached->created, ast_samp2tv(cache->object_lifetime_maximum, 1)), ast_tvnow());
+
+		/* If the current oldest object has not yet expired stop and reschedule for it */
+		if (expiration > 0) {
+			break;
+		}
+
+		remove_from_cache(cache, ast_sorcery_object_get_id(cached->object), 0);
+	}
+
+	schedule_cache_expiration(cache);
+
+	ao2_unlock(cache->objects);
+
+	ao2_ref(cache, -1);
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Schedule a callback for cached object expiration.
+ *
+ * \pre cache->objects is write-locked
+ *
+ * \param cache The cache that is having its callback scheduled.
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+static int schedule_cache_expiration(struct sorcery_memory_cache *cache)
+{
+	struct sorcery_memory_cached_object *cached;
+	int expiration = 0;
+
+	if (!cache->object_lifetime_maximum) {
+		return 0;
+	}
+
+	if (cache->expire_id != -1) {
+		/* If we can't unschedule this expiration then it is currently attempting to run,
+		 * so let it run - it just means that it'll be the one scheduling instead of us.
+		 */
+		if (ast_sched_del(sched, cache->expire_id)) {
+			return 0;
+		}
+
+		/* Since it successfully cancelled we need to drop the ref to the cache it had */
+		ao2_ref(cache, -1);
+		cache->expire_id = -1;
+	}
+
+	cached = ast_heap_peek(cache->object_heap, 1);
+	if (!cached) {
+#ifdef TEST_FRAMEWORK
+		ast_mutex_lock(&cache->lock);
+		cache->cache_completed = 1;
+		ast_cond_signal(&cache->cond);
+		ast_mutex_unlock(&cache->lock);
+#endif
+		return 0;
+	}
+
+	expiration = MAX(ast_tvdiff_ms(ast_tvadd(cached->created, ast_samp2tv(cache->object_lifetime_maximum, 1)), ast_tvnow()),
+		1);
+
+	cache->expire_id = ast_sched_add(sched, expiration, expire_objects_from_cache, ao2_bump(cache));
+	if (cache->expire_id < 0) {
+		ao2_ref(cache, -1);
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -420,6 +536,9 @@ static int remove_oldest_from_cache(struct sorcery_memory_cache *cache)
 	ast_assert(heap_old_object == hash_old_object);
 
 	ao2_ref(hash_old_object, -1);
+
+	schedule_cache_expiration(cache);
+
 	return 0;
 }
 
@@ -441,10 +560,15 @@ static int add_to_cache(struct sorcery_memory_cache *cache,
 	if (!ao2_link_flags(cache->objects, cached_object, OBJ_NOLOCK)) {
 		return -1;
 	}
+
 	if (ast_heap_push(cache->object_heap, cached_object)) {
 		ao2_find(cache->objects, cached_object,
 			OBJ_SEARCH_OBJECT | OBJ_UNLINK | OBJ_NODATA | OBJ_NOLOCK);
 		return -1;
+	}
+
+	if (cache->expire_id == -1) {
+		schedule_cache_expiration(cache);
 	}
 
 	return 0;
@@ -481,7 +605,7 @@ static int sorcery_memory_cache_create(const struct ast_sorcery *sorcery, void *
 	 */
 
 	ao2_wrlock(cache->objects);
-	remove_from_cache(cache, ast_sorcery_object_get_id(object));
+	remove_from_cache(cache, ast_sorcery_object_get_id(object), 1);
 	if (cache->maximum_objects && ao2_container_count(cache->objects) >= cache->maximum_objects) {
 		if (remove_oldest_from_cache(cache)) {
 			ast_log(LOG_ERROR, "Unable to make room in cache for sorcery object '%s'.\n",
@@ -611,6 +735,8 @@ static void *sorcery_memory_cache_open(const char *data)
 		return NULL;
 	}
 
+	cache->expire_id = -1;
+
 	/* If no configuration options have been provided this memory cache will operate in a default
 	 * configuration.
 	 */
@@ -694,7 +820,7 @@ static int sorcery_memory_cache_delete(const struct ast_sorcery *sorcery, void *
 	int res;
 
 	ao2_wrlock(cache->objects);
-	res = remove_from_cache(cache, ast_sorcery_object_get_id(object));
+	res = remove_from_cache(cache, ast_sorcery_object_get_id(object), 1);
 	ao2_unlock(cache->objects);
 
 	if (res) {
@@ -702,6 +828,15 @@ static int sorcery_memory_cache_delete(const struct ast_sorcery *sorcery, void *
 	}
 
 	return res;
+}
+
+/*!
+ * \internal
+ * \brief Callback function for matching all cached objects
+ */
+static int match_object(void *obj, void *arg, int flags)
+{
+	return CMP_MATCH;
 }
 
 /*!
@@ -717,6 +852,18 @@ static void sorcery_memory_cache_close(void *data)
 	/* This can occur if a cache is created but never loaded */
 	if (!ast_strlen_zero(cache->name)) {
 		ao2_unlink(caches, cache);
+	}
+
+	if (cache->object_lifetime_maximum) {
+		/* If object lifetime support is enabled we need to explicitly drop all cached objects here
+		 * and stop the scheduled task. Failure to do so could potentially keep the cache around for
+		 * a prolonged period of time.
+		 */
+		ao2_wrlock(cache->objects);
+		ao2_callback(cache->objects, OBJ_UNLINK | OBJ_NOLOCK | OBJ_NODATA | OBJ_MULTIPLE,
+			match_object, NULL);
+		AST_SCHED_DEL_UNREF(sched, cache->expire_id, ao2_ref(cache, -1));
+		ao2_unlock(cache->objects);
 	}
 
 	ao2_ref(cache, -1);
@@ -1332,6 +1479,95 @@ cleanup:
 	return res;
 }
 
+AST_TEST_DEFINE(expiration)
+{
+	int res = AST_TEST_FAIL;
+	struct ast_sorcery *sorcery = NULL;
+	struct sorcery_memory_cache *cache = NULL;
+	int i;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "expiration";
+		info->category = "/res/res_sorcery_memory_cache/";
+		info->summary = "Add objects to a cache configured with maximum lifetime, confirm they are removed";
+		info->description = "This test performs the following:\n"
+			"\t* Creates a memory cache with a maximum object lifetime of 5 seconds\n"
+			"\t* Pushes 10 objects into the memory cache\n"
+			"\t* Waits (up to) 10 seconds for expiration to occur\n"
+			"\t* Confirms that the objects have been removed from the cache\n";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	cache = sorcery_memory_cache_open("object_lifetime_maximum=5");
+	if (!cache) {
+		ast_test_status_update(test, "Failed to create a sorcery memory cache using default options\n");
+		goto cleanup;
+	}
+
+	sorcery = alloc_and_initialize_sorcery();
+	if (!sorcery) {
+		ast_test_status_update(test, "Failed to create a test sorcery instance\n");
+		goto cleanup;
+	}
+
+	cache->cache_notify = 1;
+	ast_mutex_init(&cache->lock);
+	ast_cond_init(&cache->cond, NULL);
+
+	for (i = 0; i < 5; ++i) {
+		char uuid[AST_UUID_STR_LEN];
+		void *object;
+
+		object = ast_sorcery_alloc(sorcery, "test", ast_uuid_generate_str(uuid, sizeof(uuid)));
+		if (!object) {
+			ast_test_status_update(test, "Failed to allocate test object for expiration\n");
+			goto cleanup;
+		}
+
+		sorcery_memory_cache_create(sorcery, cache, object);
+
+		ao2_ref(object, -1);
+	}
+
+	ast_mutex_lock(&cache->lock);
+	while (!cache->cache_completed) {
+		struct timeval start = ast_tvnow();
+		struct timespec end = {
+			.tv_sec = start.tv_sec + 10,
+			.tv_nsec = start.tv_usec * 1000,
+		};
+
+		if (ast_cond_timedwait(&cache->cond, &cache->lock, &end) == ETIMEDOUT) {
+			break;
+		}
+	}
+	ast_mutex_unlock(&cache->lock);
+
+	if (ao2_container_count(cache->objects)) {
+		ast_test_status_update(test, "Objects placed into the memory cache did not expire and get removed\n");
+		goto cleanup;
+	}
+
+	res = AST_TEST_PASS;
+
+cleanup:
+	if (cache) {
+		if (cache->cache_notify) {
+			ast_cond_destroy(&cache->cond);
+			ast_mutex_destroy(&cache->lock);
+		}
+		sorcery_memory_cache_close(cache);
+	}
+	if (sorcery) {
+		ast_sorcery_unref(sorcery);
+	}
+
+	return res;
+}
+
 #endif
 
 static int unload_module(void)
@@ -1357,6 +1593,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(update);
 	AST_TEST_UNREGISTER(delete);
 	AST_TEST_UNREGISTER(maximum_objects);
+	AST_TEST_UNREGISTER(expiration);
 
 	return 0;
 }
@@ -1454,6 +1691,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(update);
 	AST_TEST_REGISTER(delete);
 	AST_TEST_REGISTER(maximum_objects);
+	AST_TEST_REGISTER(expiration);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
