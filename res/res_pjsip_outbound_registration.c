@@ -383,24 +383,29 @@ static int line_identify_relationship(void *obj, void *arg, int flags)
 	return !pj_strcmp2(&line->value, state->client_state->line) ? CMP_MATCH | CMP_STOP : 0;
 }
 
+static struct pjsip_param *get_uri_option_line(const void *uri)
+{
+	pjsip_sip_uri *pjuri;
+	static const pj_str_t LINE_STR = { "line", 4 };
+
+	if (!PJSIP_URI_SCHEME_IS_SIP(uri) && !PJSIP_URI_SCHEME_IS_SIPS(uri)) {
+		return NULL;
+	}
+	pjuri = pjsip_uri_get_uri(uri);
+	return pjsip_param_find(&pjuri->other_param, &LINE_STR);
+}
+
 /*! \brief Endpoint identifier which uses the 'line' parameter to establish a relationship to an outgoing registration */
 static struct ast_sip_endpoint *line_identify(pjsip_rx_data *rdata)
 {
-	pjsip_sip_uri *uri;
-	static const pj_str_t LINE_STR = { "line", 4 };
 	pjsip_param *line;
 	RAII_VAR(struct ao2_container *, states, NULL, ao2_cleanup);
 	RAII_VAR(struct sip_outbound_registration_state *, state, NULL, ao2_cleanup);
 
-	if (!PJSIP_URI_SCHEME_IS_SIP(rdata->msg_info.to->uri) && !PJSIP_URI_SCHEME_IS_SIPS(rdata->msg_info.to->uri)) {
+	if (!(line = get_uri_option_line(rdata->msg_info.to->uri))
+	    && !(line = get_uri_option_line(rdata->msg_info.msg->line.req.uri))) {
 		return NULL;
-	}
-	uri = pjsip_uri_get_uri(rdata->msg_info.to->uri);
-
-	line = pjsip_param_find(&uri->other_param, &LINE_STR);
-	if (!line) {
-		return NULL;
-	}
+        }
 
 	states = ao2_global_obj_ref(current_states);
 	if (!states) {
