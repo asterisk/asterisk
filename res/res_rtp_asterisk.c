@@ -1627,11 +1627,13 @@ static void ast_rtp_on_ice_complete(pj_ice_sess *ice, pj_status_t status)
 	}
  
 #ifdef HAVE_OPENSSL_SRTP
-	dtls_perform_handshake(instance, &rtp->dtls, 0);
-
-	if (rtp->rtcp) {
-		dtls_perform_handshake(instance, &rtp->rtcp->dtls, 1);
+	if (&rtp->dtls && (rtp->dtls.dtls_setup != AST_RTP_DTLS_SETUP_PASSIVE)) {
+		dtls_perform_handshake(instance, &rtp->dtls, 0);
+		if (rtp->rtcp) {
+			dtls_perform_handshake(instance, &rtp->rtcp->dtls, 1);
+		}
 	}
+
 #endif
 
 	if (!strictrtp) {
