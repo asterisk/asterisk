@@ -37,6 +37,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/astobj2.h"
 #include "asterisk/sched.h"
 #include "asterisk/test.h"
+#include "asterisk/heap.h"
 
 /*! \brief Structure for storing a memory cache */
 struct sorcery_memory_cache {
@@ -54,6 +55,8 @@ struct sorcery_memory_cache {
 	unsigned int prefetch;
 	/** \brief Whether all objects are expired when the object type is reloaded, 0 if disabled */
 	unsigned int expire_on_reload;
+	/*! \brief Heap of cached objects. Oldest object is at the top. */
+	struct ast_heap *object_heap;
 };
 
 /*! \brief Structure for stored a cached object */
@@ -62,6 +65,8 @@ struct sorcery_memory_cached_object {
 	void *object;
 	/*! \brief The time at which the object was created */
 	struct timeval created;
+	/*! \brief index required by heap */
+	ssize_t __heap_index;
 };
 
 static void *sorcery_memory_cache_open(const char *data);
@@ -90,6 +95,9 @@ static struct ast_sorcery_wizard memory_cache_object_wizard = {
 
 /*! \brief The default bucket size for the container of objects in the cache */
 #define CACHE_CONTAINER_BUCKET_SIZE 53
+
+/*! \brief Height of heap for cache object heap. Allows 31 initial objects */
+#define CACHE_HEAP_INIT_HEIGHT 5
 
 /*! \brief Container of created caches */
 static struct ao2_container *caches;
@@ -239,6 +247,7 @@ static void sorcery_memory_cache_destructor(void *obj)
 
 	ast_free(cache->name);
 	ao2_cleanup(cache->objects);
+	ast_heap_destroy(cache->object_heap);
 }
 
 /*!
@@ -252,6 +261,94 @@ static void sorcery_memory_cached_object_destructor(void *obj)
 	struct sorcery_memory_cached_object *cached = obj;
 
 	ao2_cleanup(cached->object);
+}
+
+/*!
+ * \internal
+ * \brief Remove an object from the cache.
+ *
+ * This removes the item from both the hashtable and the heap.
+ *
+ * \pre cache->objects is write-locked
+ *
+ * \param cache The cache from which the object is being removed.
+ * \param id The sorcery object id of the object to remove.
+ *
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+static int remove_from_cache(struct sorcery_memory_cache *cache, const char *id)
+{
+	struct sorcery_memory_cached_object *hash_object;
+	struct sorcery_memory_cached_object *heap_object;
+
+	hash_object = ao2_find(cache->objects, id,
+		OBJ_SEARCH_KEY | OBJ_UNLINK | OBJ_NOLOCK);
+	if (!hash_object) {
+		return -1;
+	}
+	heap_object = ast_heap_remove(cache->object_heap, hash_object);
+
+	ast_assert(heap_object == hash_object);
+
+	ao2_ref(hash_object, -1);
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Remove the oldest item from the cache.
+ *
+ * \pre cache->objects is write-locked
+ *
+ * \param cache The cache from which to remove the oldest object
+ *
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+static int remove_oldest_from_cache(struct sorcery_memory_cache *cache)
+{
+	struct sorcery_memory_cached_object *heap_old_object;
+	struct sorcery_memory_cached_object *hash_old_object;
+
+	heap_old_object = ast_heap_pop(cache->object_heap);
+	if (!heap_old_object) {
+		return -1;
+	}
+	hash_old_object = ao2_find(cache->objects, heap_old_object,
+		OBJ_SEARCH_OBJECT | OBJ_UNLINK | OBJ_NOLOCK);
+
+	ast_assert(heap_old_object == hash_old_object);
+
+	ao2_ref(hash_old_object, -1);
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Add a new object to the cache.
+ *
+ * \pre cache->objects is write-locked
+ *
+ * \param cache The cache in which to add the new object
+ * \param cached_object The object to add to the cache
+ *
+ * \retval 0 Success
+ * \retval non-zero Failure
+ */
+static int add_to_cache(struct sorcery_memory_cache *cache,
+		struct sorcery_memory_cached_object *cached_object)
+{
+	if (!ao2_link_flags(cache->objects, cached_object, OBJ_NOLOCK)) {
+		return -1;
+	}
+	if (ast_heap_push(cache->object_heap, cached_object)) {
+		ao2_find(cache->objects, cached_object,
+			OBJ_SEARCH_OBJECT | OBJ_UNLINK | OBJ_NODATA | OBJ_NOLOCK);
+		return -1;
+	}
+
+	return 0;
 }
 
 /*!
@@ -285,12 +382,26 @@ static int sorcery_memory_cache_create(const struct ast_sorcery *sorcery, void *
 	 */
 
 	ao2_wrlock(cache->objects);
-	ao2_find(cache->objects, ast_sorcery_object_get_id(object), OBJ_SEARCH_KEY | OBJ_NODATA | OBJ_UNLINK | OBJ_NOLOCK);
-	ao2_link_flags(cache->objects, cached, OBJ_NOLOCK);
+	remove_from_cache(cache, ast_sorcery_object_get_id(object));
+	if (cache->maximum_objects && ao2_container_count(cache->objects) >= cache->maximum_objects) {
+		if (remove_oldest_from_cache(cache)) {
+			ast_log(LOG_ERROR, "Unable to make room in cache for sorcery object '%s'.\n",
+				ast_sorcery_object_get_id(object));
+			ao2_ref(cached, -1);
+			ao2_unlock(cache->objects);
+			return -1;
+		}
+	}
+	if (add_to_cache(cache, cached)) {
+		ast_log(LOG_ERROR, "Unable to add object '%s' to the cache\n",
+			ast_sorcery_object_get_id(object));
+		ao2_ref(cached, -1);
+		ao2_unlock(cache->objects);
+		return -1;
+	}
 	ao2_unlock(cache->objects);
 
 	ao2_ref(cached, -1);
-
 	return 0;
 }
 
@@ -376,6 +487,12 @@ static int configuration_parse_unsigned_integer(const char *value, unsigned int 
 	return sscanf(value, "%30u", result);
 }
 
+static int age_cmp(void *a, void *b)
+{
+	return ast_tvcmp(((struct sorcery_memory_cached_object *) b)->created,
+			((struct sorcery_memory_cached_object *) a)->created);
+}
+
 /*!
  * \internal
  * \brief Callback function to create a new sorcery memory cache using provided configuration
@@ -444,6 +561,13 @@ static void *sorcery_memory_cache_open(const char *data)
 		return NULL;
 	}
 
+	cache->object_heap = ast_heap_create(CACHE_HEAP_INIT_HEIGHT, age_cmp,
+		offsetof(struct sorcery_memory_cached_object, __heap_index));
+	if (!cache->object_heap) {
+		ast_log(LOG_ERROR, "Could not create heap to hold cached objects\n");
+		return NULL;
+	}
+
 	/* The memory cache is not linked to the caches container until the load callback is invoked.
 	 * Linking occurs there so an intelligent cache name can be constructed using the module of
 	 * the sorcery instance and the specific object type if no cache name was specified as part
@@ -468,14 +592,17 @@ static void *sorcery_memory_cache_open(const char *data)
 static int sorcery_memory_cache_delete(const struct ast_sorcery *sorcery, void *data, void *object)
 {
 	struct sorcery_memory_cache *cache = data;
+	int res;
 
-	/* There is no guarantee that the object we have cached is the one we will be provided
-	 * with in this callback function. As a result of this we remove the cached object based on
-	 * the identifier and not the object itself.
-	 */
-	ao2_find(cache->objects, ast_sorcery_object_get_id(object), OBJ_SEARCH_KEY | OBJ_NODATA | OBJ_UNLINK);
+	ao2_wrlock(cache->objects);
+	res = remove_from_cache(cache, ast_sorcery_object_get_id(object));
+	ao2_unlock(cache->objects);
 
-	return 0;
+	if (res) {
+		ast_log(LOG_ERROR, "Unable to delete object '%s' from sorcery cache\n", ast_sorcery_object_get_id(object));
+	}
+
+	return res;
 }
 
 /*!
@@ -949,6 +1076,163 @@ cleanup:
 	return res;
 }
 
+static int check_cache_content(struct ast_test *test, struct ast_sorcery *sorcery, struct sorcery_memory_cache *cache,
+		const char **in_cache, size_t num_in_cache, const char **not_in_cache, size_t num_not_in_cache)
+{
+	int i;
+	int res = 0;
+	RAII_VAR(void *, cached_object, NULL, ao2_cleanup);
+
+	for (i = 0; i < num_in_cache; ++i) {
+		cached_object = sorcery_memory_cache_retrieve_id(sorcery, cache, "test", in_cache[i]);
+		if (!cached_object) {
+			ast_test_status_update(test, "Failed to retrieve '%s' object from the cache\n",
+					in_cache[i]);
+			res = -1;
+		}
+		ao2_ref(cached_object, -1);
+	}
+
+	for (i = 0; i < num_not_in_cache; ++i) {
+		cached_object = sorcery_memory_cache_retrieve_id(sorcery, cache, "test", not_in_cache[i]);
+		if (cached_object) {
+			ast_test_status_update(test, "Retrieved '%s' object from the cache unexpectedly\n",
+					not_in_cache[i]);
+			ao2_ref(cached_object, -1);
+			res = -1;
+		}
+	}
+
+	return res;
+}
+
+AST_TEST_DEFINE(maximum_objects)
+{
+	int res = AST_TEST_FAIL;
+	struct ast_sorcery *sorcery = NULL;
+	struct sorcery_memory_cache *cache = NULL;
+	RAII_VAR(void *, alice, NULL, ao2_cleanup);
+	RAII_VAR(void *, bob, NULL, ao2_cleanup);
+	RAII_VAR(void *, charlie, NULL, ao2_cleanup);
+	RAII_VAR(void *, cached_object, NULL, ao2_cleanup);
+	const char *in_cache[2];
+	const char *not_in_cache[2];
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "maximum_objects";
+		info->category = "/res/res_sorcery_memory_cache/";
+		info->summary = "Ensure that the 'maximum_objects' option works as expected";
+		info->description = "This test performs the following:\n"
+			"\t* Creates a memory cache with maximum_objects=2\n"
+			"\t* Creates a sorcery instance\n"
+			"\t* Creates a three test objects: alice, bob, charlie, and david\n"
+			"\t* Pushes alice and bob into the memory cache\n"
+			"\t* Confirms that alice and bob are in the memory cache\n"
+			"\t* Pushes charlie into the memory cache\n"
+			"\t* Confirms that bob and charlie are in the memory cache\n"
+			"\t* Deletes charlie from the memory cache\n"
+			"\t* Confirms that only bob is in the memory cache\n"
+			"\t* Pushes alice into the memory cache\n"
+			"\t* Confirms that bob and alice are in the memory cache\n";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	cache = sorcery_memory_cache_open("maximum_objects=2");
+	if (!cache) {
+		ast_test_status_update(test, "Failed to create a sorcery memory cache with maximum_objects=2\n");
+		goto cleanup;
+	}
+
+	if (ao2_container_count(cache->objects)) {
+		ast_test_status_update(test, "Memory cache contains cached objects before we added one\n");
+		goto cleanup;
+	}
+
+	sorcery = alloc_and_initialize_sorcery();
+	if (!sorcery) {
+		ast_test_status_update(test, "Failed to create a test sorcery instance\n");
+		goto cleanup;
+	}
+
+	alice = ast_sorcery_alloc(sorcery, "test", "alice");
+	bob = ast_sorcery_alloc(sorcery, "test", "bob");
+	charlie = ast_sorcery_alloc(sorcery, "test", "charlie");
+
+	if (!alice || !bob || !charlie) {
+		ast_test_status_update(test, "Failed to allocate sorcery object(s)\n");
+		goto cleanup;
+	}
+
+	sorcery_memory_cache_create(sorcery, cache, alice);
+	in_cache[0] = "alice";
+	in_cache[1] = NULL;
+	not_in_cache[0] = "bob";
+	not_in_cache[1] = "charlie";
+	if (check_cache_content(test, sorcery, cache, in_cache, 1, not_in_cache, 2)) {
+		goto cleanup;
+	}
+
+	/* Delays are added to ensure that we are not adding cache entries within the
+	 * same microsecond
+	 */
+	usleep(1000);
+
+	sorcery_memory_cache_create(sorcery, cache, bob);
+	in_cache[0] = "alice";
+	in_cache[1] = "bob";
+	not_in_cache[0] = "charlie";
+	not_in_cache[1] = NULL;
+	if (check_cache_content(test, sorcery, cache, in_cache, 2, not_in_cache, 1)) {
+		goto cleanup;
+	}
+
+	usleep(1000);
+
+	sorcery_memory_cache_create(sorcery, cache, charlie);
+	in_cache[0] = "bob";
+	in_cache[1] = "charlie";
+	not_in_cache[0] = "alice";
+	not_in_cache[1] = NULL;
+	if (check_cache_content(test, sorcery, cache, in_cache, 2, not_in_cache, 1)) {
+		goto cleanup;
+	}
+	usleep(1000);
+
+	sorcery_memory_cache_delete(sorcery, cache, charlie);
+	in_cache[0] = "bob";
+	in_cache[1] = NULL;
+	not_in_cache[0] = "alice";
+	not_in_cache[1] = "charlie";
+	if (check_cache_content(test, sorcery, cache, in_cache, 1, not_in_cache, 2)) {
+		goto cleanup;
+	}
+	usleep(1000);
+
+	sorcery_memory_cache_create(sorcery, cache, alice);
+	in_cache[0] = "bob";
+	in_cache[1] = "alice";
+	not_in_cache[0] = "charlie";
+	not_in_cache[1] = NULL;
+	if (check_cache_content(test, sorcery, cache, in_cache, 2, not_in_cache, 1)) {
+		goto cleanup;
+	}
+
+	res = AST_TEST_PASS;
+
+cleanup:
+	if (cache) {
+		sorcery_memory_cache_close(cache);
+	}
+	if (sorcery) {
+		ast_sorcery_unref(sorcery);
+	}
+
+	return res;
+}
+
 #endif
 
 static int unload_module(void)
@@ -967,6 +1251,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(create_and_retrieve);
 	AST_TEST_UNREGISTER(update);
 	AST_TEST_UNREGISTER(delete);
+	AST_TEST_UNREGISTER(maximum_objects);
 
 	return 0;
 }
@@ -1004,6 +1289,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(create_and_retrieve);
 	AST_TEST_REGISTER(update);
 	AST_TEST_REGISTER(delete);
+	AST_TEST_REGISTER(maximum_objects);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
