@@ -68,6 +68,24 @@ struct ast_websocket_server;
 struct ast_websocket;
 
 /*!
+ * \brief Callback from the HTTP request attempting to establish a websocket connection
+ *
+ * This callback occurs when an HTTP request is made to establish a websocket connection.
+ * Implementers of \ref ast_websocket_protocol can use this to deny a request, or to
+ * set up application specific data before invocation of \ref ast_websocket_callback.
+ *
+ * \param ser The TCP/TLS session
+ * \param parameters Parameters extracted from the request URI
+ * \param headers Headers included in the request
+ *
+ * \retval 0 The session should be accepted
+ * \retval -1 The session should be rejected. Note that the caller must send an error
+ * response using \ref ast_http_error.
+ * \since 13.5.0
+ */
+typedef int (*ast_websocket_pre_callback)(struct ast_tcptls_session_instance *ser, struct ast_variable *parameters, struct ast_variable *headers);
+
+/*!
  * \brief Callback for when a new connection for a sub-protocol is established
  *
  * \param session A WebSocket session structure
@@ -79,6 +97,32 @@ struct ast_websocket;
  *
  */
 typedef void (*ast_websocket_callback)(struct ast_websocket *session, struct ast_variable *parameters, struct ast_variable *headers);
+
+/*!
+ * \brief A websocket protocol implementation
+ *
+ * Users of the Websocket API can register themselves as a websocket
+ * protocol. See \ref ast_websocket_add_protocol2 and \ref ast_websocket_server_add_protocol2.
+ * Simpler implementations may use only \ref ast_websocket_add_protocol and
+ * \ref ast_websocket_server_add_protocol.
+ *
+ * \since 13.5.0
+ */
+struct ast_websocket_protocol {
+	/*! \brief Name of the protocol */
+	char *name;
+/*!
+ * \brief Protocol version. This prevents dynamically loadable modules from registering
+ * if this struct is changed.
+ */
+#define AST_WEBSOCKET_PROTOCOL_VERSION 1
+	/*! \brief Protocol version. Should be set to /ref AST_WEBSOCKET_PROTOCOL_VERSION */
+	unsigned int version;
+	/*! \brief Callback called when a new session is attempted. Optional. */
+	ast_websocket_pre_callback session_attempted;
+	/* \brief Callback called when a new session is established. Mandatory. */
+	ast_websocket_callback session_established;
+};
 
 /*!
  * \brief Creates a \ref websocket_server
@@ -98,6 +142,15 @@ AST_OPTIONAL_API(struct ast_websocket_server *, ast_websocket_server_create, (vo
 AST_OPTIONAL_API(int, ast_websocket_uri_cb, (struct ast_tcptls_session_instance *ser, const struct ast_http_uri *urih, const char *uri, enum ast_http_method method, struct ast_variable *get_vars, struct ast_variable *headers), { return -1; });
 
 /*!
+ * \brief Allocate a websocket sub-protocol instance
+ *
+ * \retval An instance of \ref ast_websocket_protocol on success
+ * \retval NULL on error
+ * \since 13.5.0
+ */
+AST_OPTIONAL_API(struct ast_websocket_protocol *, ast_websocket_sub_protocol_alloc, (const char *name), {return NULL;});
+
+/*!
  * \brief Add a sub-protocol handler to the default /ws server
  *
  * \param name Name of the sub-protocol to register
@@ -109,10 +162,25 @@ AST_OPTIONAL_API(int, ast_websocket_uri_cb, (struct ast_tcptls_session_instance 
 AST_OPTIONAL_API(int, ast_websocket_add_protocol, (const char *name, ast_websocket_callback callback), {return -1;});
 
 /*!
+ * \brief Add a sub-protocol handler to the default /ws server
+ *
+ * \param protocol The sub-protocol to register. Note that this must
+ * be allocated using /ref ast_websocket_sub_protocol_alloc.
+ *
+ * \note This method is reference stealing. It will steal the reference to \ref protocol
+ * on success.
+ *
+ * \retval 0 success
+ * \retval -1 if sub-protocol handler could not be registered
+ * \since 13.5.0
+ */
+AST_OPTIONAL_API(int, ast_websocket_add_protocol2, (struct ast_websocket_protocol *protocol), {return -1;});
+
+/*!
  * \brief Remove a sub-protocol handler from the default /ws server.
  *
  * \param name Name of the sub-protocol to unregister
- * \param callback Callback that was previously registered with the sub-protocol
+ * \param callback Session Established callback that was previously registered with the sub-protocol
  *
  * \retval 0 success
  * \retval -1 if sub-protocol was not found or if callback did not match
@@ -130,6 +198,22 @@ AST_OPTIONAL_API(int, ast_websocket_remove_protocol, (const char *name, ast_webs
  * \since 12
  */
 AST_OPTIONAL_API(int, ast_websocket_server_add_protocol, (struct ast_websocket_server *server, const char *name, ast_websocket_callback callback), {return -1;});
+
+/*!
+ * \brief Add a sub-protocol handler to the given server.
+ *
+ * \param server The server to add the sub-protocol to.
+ * \param protocol The sub-protocol to register. Note that this must
+ * be allocated using /ref ast_websocket_sub_protocol_alloc.
+ *
+ * \note This method is reference stealing. It will steal the reference to \ref protocol
+ * on success.
+ *
+ * \retval 0 success
+ * \retval -1 if sub-protocol handler could not be registered
+ * \since 13.5.0
+ */
+AST_OPTIONAL_API(int, ast_websocket_server_add_protocol2, (struct ast_websocket_server *server, struct ast_websocket_protocol *protocol), {return -1;});
 
 /*!
  * \brief Remove a sub-protocol handler from the given server.
