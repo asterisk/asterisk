@@ -238,7 +238,8 @@ int ast_sdp_crypto_process(struct ast_rtp_instance *rtp, struct ast_sdp_srtp *sr
 		return -1;
 	}
 
-	if (sscanf(tag, "%30d", &crypto->tag) != 1 || crypto->tag <= 0 || crypto->tag > 9) {
+	/* RFC4568 9.1 - tag is 1-9 digits, greater than zero */
+	if (sscanf(tag, "%30d", &crypto->tag) != 1 || crypto->tag <= 0 || crypto->tag > 999999999) {
 		ast_log(LOG_WARNING, "Unacceptable a=crypto tag: %s\n", tag);
 		return -1;
 	}
