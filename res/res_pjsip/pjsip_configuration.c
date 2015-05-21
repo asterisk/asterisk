@@ -56,22 +56,48 @@ static int persistent_endpoint_cmp(void *obj, void *arg, int flags)
 	return !strcmp(ast_endpoint_get_resource(persistent1->endpoint), id) ? CMP_MATCH | CMP_STOP : 0;
 }
 
+/*! \brief Structure for communicating contact status to
+ * persistent_endpoint_update_state from the contact/contact_status
+ * observers.
+ */
+struct sip_contact_status {
+	char *uri;
+	enum ast_sip_contact_status_type status;
+	int64_t rtt;
+	int no_process;
+};
+
 /*! \brief Callback function for changing the state of an endpoint */
-static int persistent_endpoint_update_state(void *obj, void *arg, int flags)
+static int persistent_endpoint_update_state(void *obj, void *arg, void *data, int flags)
 {
 	struct sip_persistent_endpoint *persistent = obj;
 	struct ast_endpoint *endpoint = persistent->endpoint;
 	char *aor = arg;
+	struct sip_contact_status *status = data;
 	struct ao2_container *contacts;
 	struct ast_json *blob;
 	struct ao2_iterator i;
 	struct ast_sip_contact *contact;
 	enum ast_endpoint_state state = AST_ENDPOINT_OFFLINE;
 
-	if (!ast_strlen_zero(aor) && !strstr(persistent->aors, aor)) {
-		return 0;
-	}
+	if (!ast_strlen_zero(aor)) {
+		if (!strstr(persistent->aors, aor)) {
+			return 0;
+		}
 
+		if (status) {
+			char rtt[32];
+			snprintf(rtt, 31, "%ld", status->rtt);
+			blob = ast_json_pack("{s: s, s: s, s: s, s: s, s: s}",
+				"contact_status", ast_sip_get_contact_status_label(status->status),
+				"aor", aor,
+				"uri", status->uri,
+				"roundtrip_usec", rtt,
+				"endpoint_name", ast_endpoint_get_resource(endpoint));
+			ast_endpoint_blob_publish(endpoint, ast_endpoint_contact_state_type(), blob);
+			ast_json_unref(blob);
+		}
+	}
 	/* Find all the contacts for this endpoint.  If ANY are available,
 	 * mark the endpoint as ONLINE.
 	 */
@@ -122,10 +148,14 @@ static int persistent_endpoint_update_state(void *obj, void *arg, int flags)
 static void persistent_endpoint_contact_created_observer(const void *object)
 {
 	char *id = ast_strdupa(ast_sorcery_object_get_id(object)), *aor = NULL;
+	struct sip_contact_status status;
 
 	aor = strsep(&id, ";@");
+	status.uri = strsep(&id, ";@");
+	status.status = CREATED;
+	status.rtt = 0;
 
-	ao2_callback(persistent_endpoints, OBJ_NODATA, persistent_endpoint_update_state, aor);
+	ao2_callback_data(persistent_endpoints, OBJ_NODATA, persistent_endpoint_update_state, aor, &status);
 }
 
 /*! \brief Function called when stuff relating to a contact happens (created/deleted) */
@@ -134,6 +164,7 @@ static void persistent_endpoint_contact_deleted_observer(const void *object)
 	char *id = ast_strdupa(ast_sorcery_object_get_id(object));
 	char *aor = NULL;
 	char *contact = NULL;
+	struct sip_contact_status status;
 
 	aor = id;
 	/* Dynamic contacts are delimited with ";@" and static ones with "@@" */
@@ -146,7 +177,11 @@ static void persistent_endpoint_contact_deleted_observer(const void *object)
 
 	ast_verb(1, "Contact %s/%s is now Unavailable\n", aor, contact);
 
-	ao2_callback(persistent_endpoints, OBJ_NODATA, persistent_endpoint_update_state, aor);
+	status.uri = contact;
+	status.status = REMOVED;
+	status.rtt = 0;
+
+	ao2_callback_data(persistent_endpoints, OBJ_NODATA, persistent_endpoint_update_state, aor, &status);
 }
 
 /*! \brief Observer for contacts so state can be updated on respective endpoints */
@@ -162,12 +197,11 @@ static void persistent_endpoint_contact_status_observer(const void *object)
 	char *id = ast_strdupa(ast_sorcery_object_get_id(object));
 	char *aor = NULL;
 	char *contact = NULL;
+	struct sip_contact_status status;
+	status.no_process = 0;
 
-	/* If rtt_start is set (this is the outgoing OPTIONS) or
-	 * there's no status change, ignore.
-	 */
-	if (contact_status->rtt_start.tv_sec > 0
-		|| contact_status->status == contact_status->last_status) {
+	/* If rtt_start is set (this is the outgoing OPTIONS), ignore. */
+	if (contact_status->rtt_start.tv_sec > 0) {
 		return;
 	}
 
@@ -180,16 +214,28 @@ static void persistent_endpoint_contact_status_observer(const void *object)
 		contact = id;
 	}
 
+	if (contact_status->status == contact_status->last_status) {
+		ast_debug(3, "Contact %s status didn't change: %s, RTT: %.3f msec\n",
+			contact, ast_sip_get_contact_status_label(contact_status->status),
+			contact_status->rtt / 1000.0);
+		return;
+	} else {
+		ast_verb(1, "Contact %s/%s is now %s.  RTT: %.3f msec\n", aor, contact,
+			ast_sip_get_contact_status_label(contact_status->status),
+			contact_status->rtt / 1000.0);
+	}
+
 	ast_test_suite_event_notify("AOR_CONTACT_UPDATE",
 		"Contact: %s\r\n"
 			"Status: %s",
 		ast_sorcery_object_get_id(contact_status),
 		ast_sip_get_contact_status_label(contact_status->status));
 
-	ast_verb(1, "Contact %s/%s is now %s\n", aor, contact,
-		ast_sip_get_contact_status_label(contact_status->status));
+	status.uri = contact;
+	status.status = contact_status->status;
+	status.rtt = contact_status->rtt;
 
-	ao2_callback(persistent_endpoints, OBJ_NODATA, persistent_endpoint_update_state, aor);
+	ao2_callback_data(persistent_endpoints, OBJ_NODATA, persistent_endpoint_update_state, aor, &status);
 }
 
 /*! \brief Observer for contacts so state can be updated on respective endpoints */
@@ -1014,7 +1060,7 @@ static struct ast_endpoint *persistent_endpoint_find_or_create(const struct ast_
 		if (ast_strlen_zero(persistent->aors)) {
 			ast_endpoint_set_state(persistent->endpoint, AST_ENDPOINT_UNKNOWN);
 		} else {
-			persistent_endpoint_update_state(persistent, NULL, 0);
+			persistent_endpoint_update_state(persistent, NULL, NULL, 0);
 		}
 
 		ao2_link_flags(persistent_endpoints, persistent, OBJ_NOLOCK);
