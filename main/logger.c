@@ -376,16 +376,25 @@ static int init_logger_chain(int locked, const char *altconf)
 	const char *s;
 	struct ast_flags config_flags = { 0 };
 
-	display_callids = 1;
-
 	if (!(cfg = ast_config_load2(S_OR(altconf, "logger.conf"), "logger", config_flags)) || cfg == CONFIG_STATUS_FILEINVALID) {
 		cfg = NULL;
 	}
 
-	/* delete our list of log channels */
 	if (!locked) {
 		AST_RWLIST_WRLOCK(&logchannels);
 	}
+
+	/* Set defaults */
+	hostname[0] = '\0';
+	display_callids = 1;
+	memset(&logfiles, 0, sizeof(logfiles));
+	logfiles.queue_log = 1;
+	ast_copy_string(dateformat, "%b %e %T", sizeof(dateformat));
+	ast_copy_string(queue_log_name, QUEUELOG, sizeof(queue_log_name));
+	exec_after_rotate[0] = '\0';
+	rotatestrategy = SEQUENTIAL;
+
+	/* delete our list of log channels */
 	while ((chan = AST_RWLIST_REMOVE_HEAD(&logchannels, list))) {
 		ast_free(chan);
 	}
@@ -425,17 +434,14 @@ static int init_logger_chain(int locked, const char *altconf)
 				ast_copy_string(hostname, "unknown", sizeof(hostname));
 				fprintf(stderr, "What box has no hostname???\n");
 			}
-		} else
-			hostname[0] = '\0';
-	} else
-		hostname[0] = '\0';
+		}
+	}
 	if ((s = ast_variable_retrieve(cfg, "general", "display_callids"))) {
 		display_callids = ast_true(s);
 	}
-	if ((s = ast_variable_retrieve(cfg, "general", "dateformat")))
+	if ((s = ast_variable_retrieve(cfg, "general", "dateformat"))) {
 		ast_copy_string(dateformat, s, sizeof(dateformat));
-	else
-		ast_copy_string(dateformat, "%b %e %T", sizeof(dateformat));
+	}
 	if ((s = ast_variable_retrieve(cfg, "general", "queue_log"))) {
 		logfiles.queue_log = ast_true(s);
 	}
