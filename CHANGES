@@ -177,6 +177,14 @@ cdr_adaptive_odbc
    names. This setting is configurable for cdr_adaptive_odbc via the
    quoted_identifiers in configuration file cdr_adaptive_odbc.conf.
 
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.4.0 to Asterisk 13.5.0 ------------
+------------------------------------------------------------------------------
+
+AMI
+------------------
+ * A new ContactStatus event has been added that reflects res_pjsip contact
+   lifecycle changes:  Created, Removed, Reachable, Unreachable, Unknown.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.3.0 to Asterisk 13.4.0 ------------
