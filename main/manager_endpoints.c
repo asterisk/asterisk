@@ -75,6 +75,7 @@ int manager_endpoints_init(void)
 	}
 
 	ret |= stasis_message_router_add(endpoint_router, ast_endpoint_state_type(), endpoint_state_cb, NULL);
+	ret |= stasis_message_router_add(endpoint_router, ast_endpoint_contact_state_type(), endpoint_state_cb, NULL);
 
 	/* If somehow we failed to add any routes, just shut down the whole
 	 * thing and fail it.
