@@ -1,6 +1,34 @@
-2015-05-21 18:17 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2015-05-21 19:59 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.4.0-rc1 Released.
+
+2015-05-21 14:56 +0000 [3fb2b375fe]  Matt Jordan <mjordan@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2015-05-21 14:56 +0000 [9d9ae03842]  Matt Jordan <mjordan@digium.com>
+
+	* .version: Update for 13.4.0-rc1
+
+2015-05-21 14:56 +0000 [53a39083e5]  Matt Jordan <mjordan@digium.com>
+
+	* .lastclean: Update for 13.4.0-rc1
+
+2015-05-21 14:56 +0000 [7af8ef9346]  Matt Jordan <mjordan@digium.com>
+
+	* realtime: Add database scripts for 13.4.0-rc1
+
+2015-05-21 14:52 +0000 [20982c68d4]  Matt Jordan <mjordan@digium.com>
+
+	* Release summaries: Correct summaries for 13.4.0-rc1
+
+2015-05-21 13:17 +0000 [1bb62b037f]  mjordan <mjordan@lunkwill>
+
+	* ChangeLog: Updated for 13.4.0-rc1
+
+2015-05-21 13:17 +0000 [1e98a36699]  mjordan <mjordan@lunkwill>
+
+	* Release summaries: Add summaries for 13.4.0-rc1
 
 2015-05-21 13:15 +0000 [5c12e5ba72]  mjordan <mjordan@lunkwill>
 
