@@ -119,6 +119,12 @@ void ast_endpoint_blob_publish(struct ast_endpoint *endpoint, struct stasis_mess
 struct stasis_message_type *ast_endpoint_state_type(void);
 
 /*!
+ * \brief Message type for endpoint contact state changes.
+ * \since 13.5
+ */
+struct stasis_message_type *ast_endpoint_contact_state_type(void);
+
+/*!
  * \brief Message type for \ref ast_endpoint_snapshot.
  * \since 12
  */
