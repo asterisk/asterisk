@@ -490,7 +490,9 @@ static int playback_exec(struct ast_channel *chan, const char *data)
 				ast_stopstream(chan);
 			}
 			if (res) {
-				ast_log(LOG_WARNING, "Playback failed on %s for %s\n", ast_channel_name(chan), (char *)data);
+				if (!ast_check_hangup(chan)) {
+					ast_log(LOG_WARNING, "Playback failed on %s for %s\n", ast_channel_name(chan), (char *)data);
+				}
 				res = 0;
 				mres = 1;
 			}
