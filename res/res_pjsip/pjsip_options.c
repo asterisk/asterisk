@@ -39,12 +39,17 @@ static const char *status_map [] = {
 	[UNAVAILABLE] = "Unreachable",
 	[AVAILABLE] = "Reachable",
 	[UNKNOWN] = "Unknown",
+	[CREATED] = "Created",
+	[REMOVED] = "Removed",
+
 };
 
 static const char *short_status_map [] = {
 	[UNAVAILABLE] = "Unavail",
 	[AVAILABLE] = "Avail",
 	[UNKNOWN] = "Unknown",
+	[CREATED] = "Created",
+	[REMOVED] = "Removed",
 };
 
 const char *ast_sip_get_contact_status_label(const enum ast_sip_contact_status_type status)
