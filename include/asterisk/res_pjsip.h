@@ -178,7 +178,9 @@ struct ast_sip_contact {
 enum ast_sip_contact_status_type {
 	UNAVAILABLE,
 	AVAILABLE,
-	UNKNOWN
+	UNKNOWN,
+	CREATED,
+	REMOVED,
 };
 
 /*!
