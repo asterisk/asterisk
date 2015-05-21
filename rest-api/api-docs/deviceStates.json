@@ -2,7 +2,7 @@
 	"_copyright": "Copyright (C) 2012 - 2013, Digium, Inc.",
 	"_author": "Kevin Harwell <kharwell@digium.com>",
 	"_svn_revision": "$Revision$",
-	"apiVersion": "1.6.0",
+	"apiVersion": "1.7.0",
 	"swaggerVersion": "1.1",
 	"basePath": "http://localhost:8088/ari",
 	"resourcePath": "/api-docs/deviceStates.{format}",
