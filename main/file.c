@@ -902,7 +902,7 @@ static enum fsread_res ast_readaudio_callback(struct ast_filestream *s)
 
 		if (!fr /* stream complete */ || ast_write(s->owner, fr) /* error writing */) {
 			if (fr) {
-				ast_log(LOG_WARNING, "Failed to write frame\n");
+				ast_debug(2, "Failed to write frame\n");
 				ast_frfree(fr);
 			}
 			goto return_failure;
@@ -959,7 +959,7 @@ static enum fsread_res ast_readvideo_callback(struct ast_filestream *s)
 
 		if (!fr /* stream complete */ || ast_write(s->owner, fr) /* error writing */) {
 			if (fr) {
-				ast_log(LOG_WARNING, "Failed to write frame\n");
+				ast_debug(2, "Failed to write frame\n");
 				ast_frfree(fr);
 			}
 			ast_channel_vstreamid_set(s->owner, -1);
