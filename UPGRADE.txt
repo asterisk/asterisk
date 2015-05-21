@@ -32,6 +32,10 @@ AMI:
  - The 'ModuleCheck' Action's Version key will now always report the
    current version of Asterisk.
 
+ARI:
+ - The version of ARI has been updated to 1.7.0 to reflect the backwards
+   compatible changes outlined in the CHANGES file.
+
 CLI:
  - The 'core show file version' command has been altered. In the past,
    this command would show the SVN revision of the source files compiled
