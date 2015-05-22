@@ -248,7 +248,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 		struct columns *cur;
 		struct ast_str *sql = ast_str_create(maxsize), *sql2 = ast_str_create(maxsize2);
 		char buf[257], escapebuf[513], *value;
-		int first = 1;
+		char *separator = "";
 
 		if (!sql || !sql2) {
 			ast_free(sql);
@@ -270,86 +270,86 @@ static int pgsql_log(struct ast_cdr *cdr)
 				if (cur->notnull && !cur->hasdefault) {
 					/* Field is NOT NULL (but no default), must include it anyway */
 					LENGTHEN_BUF1(strlen(cur->name) + 2);
-					ast_str_append(&sql, 0, "%s\"%s\"", first ? "" : ",", cur->name);
+					ast_str_append(&sql, 0, "%s\"%s\"", separator, cur->name);
 					LENGTHEN_BUF2(3);
-					ast_str_append(&sql2, 0, "%s''", first ? "" : ",");
-					first = 0;
+					ast_str_append(&sql2, 0, "%s''", separator);
+					separator = ", ";
 				}
 				continue;
 			}
 
 			LENGTHEN_BUF1(strlen(cur->name) + 2);
-			ast_str_append(&sql, 0, "%s\"%s\"", first ? "" : ",", cur->name);
+			ast_str_append(&sql, 0, "%s\"%s\"", separator, cur->name);
 
 			if (strcmp(cur->name, "start") == 0 || strcmp(cur->name, "calldate") == 0) {
 				if (strncmp(cur->type, "int", 3) == 0) {
 					LENGTHEN_BUF2(13);
-					ast_str_append(&sql2, 0, "%s%ld", first ? "" : ",", (long) cdr->start.tv_sec);
+					ast_str_append(&sql2, 0, "%s%ld", separator, (long) cdr->start.tv_sec);
 				} else if (strncmp(cur->type, "float", 5) == 0) {
 					LENGTHEN_BUF2(31);
-					ast_str_append(&sql2, 0, "%s%f", first ? "" : ",", (double)cdr->start.tv_sec + (double)cdr->start.tv_usec / 1000000.0);
+					ast_str_append(&sql2, 0, "%s%f", separator, (double)cdr->start.tv_sec + (double)cdr->start.tv_usec / 1000000.0);
 				} else {
 					/* char, hopefully */
 					LENGTHEN_BUF2(31);
 					ast_localtime(&cdr->start, &tm, tz);
 					ast_strftime(buf, sizeof(buf), DATE_FORMAT, &tm);
-					ast_str_append(&sql2, 0, "%s%s", first ? "" : ",", buf);
+					ast_str_append(&sql2, 0, "%s%s", separator, buf);
 				}
 			} else if (strcmp(cur->name, "answer") == 0) {
 				if (strncmp(cur->type, "int", 3) == 0) {
 					LENGTHEN_BUF2(13);
-					ast_str_append(&sql2, 0, "%s%ld", first ? "" : ",", (long) cdr->answer.tv_sec);
+					ast_str_append(&sql2, 0, "%s%ld", separator, (long) cdr->answer.tv_sec);
 				} else if (strncmp(cur->type, "float", 5) == 0) {
 					LENGTHEN_BUF2(31);
-					ast_str_append(&sql2, 0, "%s%f", first ? "" : ",", (double)cdr->answer.tv_sec + (double)cdr->answer.tv_usec / 1000000.0);
+					ast_str_append(&sql2, 0, "%s%f", separator, (double)cdr->answer.tv_sec + (double)cdr->answer.tv_usec / 1000000.0);
 				} else {
 					/* char, hopefully */
 					LENGTHEN_BUF2(31);
 					ast_localtime(&cdr->answer, &tm, tz);
 					ast_strftime(buf, sizeof(buf), DATE_FORMAT, &tm);
-					ast_str_append(&sql2, 0, "%s%s", first ? "" : ",", buf);
+					ast_str_append(&sql2, 0, "%s%s", separator, buf);
 				}
 			} else if (strcmp(cur->name, "end") == 0) {
 				if (strncmp(cur->type, "int", 3) == 0) {
 					LENGTHEN_BUF2(13);
-					ast_str_append(&sql2, 0, "%s%ld", first ? "" : ",", (long) cdr->end.tv_sec);
+					ast_str_append(&sql2, 0, "%s%ld", separator, (long) cdr->end.tv_sec);
 				} else if (strncmp(cur->type, "float", 5) == 0) {
 					LENGTHEN_BUF2(31);
-					ast_str_append(&sql2, 0, "%s%f", first ? "" : ",", (double)cdr->end.tv_sec + (double)cdr->end.tv_usec / 1000000.0);
+					ast_str_append(&sql2, 0, "%s%f", separator, (double)cdr->end.tv_sec + (double)cdr->end.tv_usec / 1000000.0);
 				} else {
 					/* char, hopefully */
 					LENGTHEN_BUF2(31);
 					ast_localtime(&cdr->end, &tm, tz);
 					ast_strftime(buf, sizeof(buf), DATE_FORMAT, &tm);
-					ast_str_append(&sql2, 0, "%s%s", first ? "" : ",", buf);
+					ast_str_append(&sql2, 0, "%s%s", separator, buf);
 				}
 			} else if (strcmp(cur->name, "duration") == 0 || strcmp(cur->name, "billsec") == 0) {
 				if (cur->type[0] == 'i') {
 					/* Get integer, no need to escape anything */
 					ast_cdr_format_var(cdr, cur->name, &value, buf, sizeof(buf), 0);
 					LENGTHEN_BUF2(13);
-					ast_str_append(&sql2, 0, "%s%s", first ? "" : ",", value);
+					ast_str_append(&sql2, 0, "%s%s", separator, value);
 				} else if (strncmp(cur->type, "float", 5) == 0) {
 					struct timeval *when = cur->name[0] == 'd' ? &cdr->start : ast_tvzero(cdr->answer) ? &cdr->end : &cdr->answer;
 					LENGTHEN_BUF2(31);
-					ast_str_append(&sql2, 0, "%s%f", first ? "" : ",", (double) (ast_tvdiff_us(cdr->end, *when) / 1000000.0));
+					ast_str_append(&sql2, 0, "%s%f", separator, (double) (ast_tvdiff_us(cdr->end, *when) / 1000000.0));
 				} else {
 					/* Char field, probably */
 					struct timeval *when = cur->name[0] == 'd' ? &cdr->start : ast_tvzero(cdr->answer) ? &cdr->end : &cdr->answer;
 					LENGTHEN_BUF2(31);
-					ast_str_append(&sql2, 0, "%s'%f'", first ? "" : ",", (double) (ast_tvdiff_us(cdr->end, *when) / 1000000.0));
+					ast_str_append(&sql2, 0, "%s'%f'", separator, (double) (ast_tvdiff_us(cdr->end, *when) / 1000000.0));
 				}
 			} else if (strcmp(cur->name, "disposition") == 0 || strcmp(cur->name, "amaflags") == 0) {
 				if (strncmp(cur->type, "int", 3) == 0) {
 					/* Integer, no need to escape anything */
 					ast_cdr_format_var(cdr, cur->name, &value, buf, sizeof(buf), 1);
 					LENGTHEN_BUF2(13);
-					ast_str_append(&sql2, 0, "%s%s", first ? "" : ",", value);
+					ast_str_append(&sql2, 0, "%s%s", separator, value);
 				} else {
 					/* Although this is a char field, there are no special characters in the values for these fields */
 					ast_cdr_format_var(cdr, cur->name, &value, buf, sizeof(buf), 0);
 					LENGTHEN_BUF2(31);
-					ast_str_append(&sql2, 0, "%s'%s'", first ? "" : ",", value);
+					ast_str_append(&sql2, 0, "%s'%s'", separator, value);
 				}
 			} else {
 				/* Arbitrary field, could be anything */
@@ -358,19 +358,19 @@ static int pgsql_log(struct ast_cdr *cdr)
 					long long whatever;
 					if (value && sscanf(value, "%30lld", &whatever) == 1) {
 						LENGTHEN_BUF2(26);
-						ast_str_append(&sql2, 0, "%s%lld", first ? "" : ",", whatever);
+						ast_str_append(&sql2, 0, "%s%lld", separator, whatever);
 					} else {
 						LENGTHEN_BUF2(2);
-						ast_str_append(&sql2, 0, "%s0", first ? "" : ",");
+						ast_str_append(&sql2, 0, "%s0", separator);
 					}
 				} else if (strncmp(cur->type, "float", 5) == 0) {
 					long double whatever;
 					if (value && sscanf(value, "%30Lf", &whatever) == 1) {
 						LENGTHEN_BUF2(51);
-						ast_str_append(&sql2, 0, "%s%30Lf", first ? "" : ",", whatever);
+						ast_str_append(&sql2, 0, "%s%30Lf", separator, whatever);
 					} else {
 						LENGTHEN_BUF2(2);
-						ast_str_append(&sql2, 0, "%s0", first ? "" : ",");
+						ast_str_append(&sql2, 0, "%s0", separator);
 					}
 				/* XXX Might want to handle dates, times, and other misc fields here XXX */
 				} else {
@@ -379,10 +379,10 @@ static int pgsql_log(struct ast_cdr *cdr)
 					else
 						escapebuf[0] = '\0';
 					LENGTHEN_BUF2(strlen(escapebuf) + 3);
-					ast_str_append(&sql2, 0, "%s'%s'", first ? "" : ",", escapebuf);
+					ast_str_append(&sql2, 0, "%s'%s'", separator, escapebuf);
 				}
 			}
-			first = 0;
+			separator = ", ";
 		}
 
 		LENGTHEN_BUF1(ast_str_strlen(sql2) + 2);
