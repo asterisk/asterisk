@@ -148,6 +148,9 @@
 							<enum name="presence"><para>
 								Device state and presence reporting.
 							</para></enum>
+							<enum name="dialog"><para>
+								This is identical to <replaceable>presence</replaceable>.
+							</para></enum>
 							<enum name="message-summary"><para>
 								Message-waiting indication (MWI) reporting.
 							</para></enum>
