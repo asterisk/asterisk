@@ -928,7 +928,7 @@ int ao2_weakproxy_subscribe(void *weakproxy, ao2_weakproxy_notification_cb cb, v
 		if (sub) {
 			sub->cb = cb;
 			sub->data = data;
-			AST_LIST_INSERT_TAIL(&weak->destroyed_cb, sub, list);
+			AST_LIST_INSERT_HEAD(&weak->destroyed_cb, sub, list);
 			ret = 0;
 		}
 	} else {

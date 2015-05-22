@@ -612,6 +612,8 @@ void *__ao2_weakproxy_get_object(void *weakproxy, int flags,
  * \retval 0 Success
  * \retval -1 Failure
  *
+ * \note Callbacks are run in the reverse order of subscriptions.
+ *
  * \note This procedure will allow the same cb / data pair to be added to
  *       the same weakproxy multiple times.
  *
