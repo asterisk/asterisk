@@ -3568,12 +3568,12 @@ int ast_xmpp_client_disconnect(struct ast_xmpp_client *client)
 	}
 
 	if (client->mwi_sub) {
-		client->mwi_sub = stasis_unsubscribe(client->mwi_sub);
+		client->mwi_sub = stasis_unsubscribe_and_join(client->mwi_sub);
 		xmpp_pubsub_unsubscribe(client, "message_waiting");
 	}
 
 	if (client->device_state_sub) {
-		client->device_state_sub = stasis_unsubscribe(client->device_state_sub);
+		client->device_state_sub = stasis_unsubscribe_and_join(client->device_state_sub);
 		xmpp_pubsub_unsubscribe(client, "device_state");
 	}
 

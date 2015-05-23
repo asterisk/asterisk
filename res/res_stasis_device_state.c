@@ -105,7 +105,7 @@ static int device_state_subscriptions_cmp(void *obj, void *arg, int flags)
 static void device_state_subscription_destroy(void *obj)
 {
 	struct device_state_subscription *sub = obj;
-	sub->sub = stasis_unsubscribe(sub->sub);
+	sub->sub = stasis_unsubscribe_and_join(sub->sub);
 	ast_string_field_free_memory(sub);
 }
 

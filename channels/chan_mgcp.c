@@ -489,14 +489,6 @@ static struct ast_channel_tech mgcp_tech = {
 	.func_channel_read = acf_channel_read,
 };
 
-static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct stasis_message *msg)
-{
-	/* This module does not handle MWI in an event-based manner.  However, it
-	 * subscribes to MWI for each mailbox that is configured so that the core
-	 * knows that we care about it.  Then, chan_mgcp will get the MWI from the
-	 * event cache instead of checking the mailbox directly. */
-}
-
 static int has_voicemail(struct mgcp_endpoint *p)
 {
 	int new_msgs;
@@ -4237,7 +4229,11 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 
 					mailbox_specific_topic = ast_mwi_topic(e->mailbox);
 					if (mailbox_specific_topic) {
-						e->mwi_event_sub = stasis_subscribe_pool(mailbox_specific_topic, mwi_event_cb, NULL);
+						/* This module does not handle MWI in an event-based manner.  However, it
+						 * subscribes to MWI for each mailbox that is configured so that the core
+						 * knows that we care about it.  Then, chan_mgcp will get the MWI from the
+						 * event cache instead of checking the mailbox directly. */
+						e->mwi_event_sub = stasis_subscribe_pool(mailbox_specific_topic, stasis_subscription_cb_noop, NULL);
 					}
 				}
 				snprintf(e->rqnt_ident, sizeof(e->rqnt_ident), "%08lx", (unsigned long)ast_random());

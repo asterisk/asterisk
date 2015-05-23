@@ -5004,7 +5004,7 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 static void destroy_mailbox(struct sip_mailbox *mailbox)
 {
 	if (mailbox->event_sub) {
-		mailbox->event_sub = stasis_unsubscribe(mailbox->event_sub);
+		mailbox->event_sub = stasis_unsubscribe_and_join(mailbox->event_sub);
 	}
 	ast_free(mailbox);
 }
