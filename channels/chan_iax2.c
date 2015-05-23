@@ -1430,13 +1430,6 @@ static int iax2_is_control_frame_allowed(int subtype)
 	return is_allowed;
 }
 
-static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct stasis_message *msg)
-{
-	/* The MWI subscriptions exist just so the core knows we care about those
-	 * mailboxes.  However, we just grab the events out of the cache when it
-	 * is time to send MWI, since it is only sent with a REGACK. */
-}
-
 static void network_change_stasis_subscribe(void)
 {
 	if (!network_change_sub) {
@@ -13010,7 +13003,10 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 
 		mailbox_specific_topic = ast_mwi_topic(peer->mailbox);
 		if (mailbox_specific_topic) {
-			peer->mwi_event_sub = stasis_subscribe_pool(mailbox_specific_topic, mwi_event_cb, NULL);
+			/* The MWI subscriptions exist just so the core knows we care about those
+			 * mailboxes.  However, we just grab the events out of the cache when it
+			 * is time to send MWI, since it is only sent with a REGACK. */
+			peer->mwi_event_sub = stasis_subscribe_pool(mailbox_specific_topic, stasis_subscription_cb_noop, NULL);
 		}
 	}
 

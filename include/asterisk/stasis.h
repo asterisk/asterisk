@@ -511,6 +511,17 @@ void stasis_publish_sync(struct stasis_subscription *sub, struct stasis_message 
 typedef void (*stasis_subscription_cb)(void *data, struct stasis_subscription *sub, struct stasis_message *message);
 
 /*!
+ * \brief Stasis subscription callback function that does nothing.
+ *
+ * \note This callback should be used for events are not directly processed, but need
+ * to be generated so data can be retrieved from cache later.  Subscriptions with this
+ * callback can be released with \ref stasis_unsubscribe, even during module unload.
+ *
+ * \since 13.5
+ */
+void stasis_subscription_cb_noop(void *data, struct stasis_subscription *sub, struct stasis_message *message);
+
+/*!
  * \brief Create a subscription.
  *
  * In addition to being AO2 managed memory (requiring an ao2_cleanup() to free

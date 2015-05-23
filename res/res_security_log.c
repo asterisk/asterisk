@@ -152,7 +152,7 @@ static int load_module(void)
 static int unload_module(void)
 {
 	if (security_stasis_sub) {
-		security_stasis_sub = stasis_unsubscribe(security_stasis_sub);
+		security_stasis_sub = stasis_unsubscribe_and_join(security_stasis_sub);
 	}
 
 	ast_logger_unregister_level(LOG_SECURITY_NAME);

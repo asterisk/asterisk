@@ -444,6 +444,10 @@ static void subscription_invoke(struct stasis_subscription *sub,
 static void send_subscription_subscribe(struct stasis_topic *topic, struct stasis_subscription *sub);
 static void send_subscription_unsubscribe(struct stasis_topic *topic, struct stasis_subscription *sub);
 
+void stasis_subscription_cb_noop(void *data, struct stasis_subscription *sub, struct stasis_message *message)
+{
+}
+
 struct stasis_subscription *internal_stasis_subscribe(
 	struct stasis_topic *topic,
 	stasis_subscription_cb callback,
