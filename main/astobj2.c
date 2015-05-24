@@ -900,7 +900,7 @@ static struct bucket_entry *internal_ao2_link(struct ao2_container *c, void *use
 		return NULL;
 	}
 
-	i = abs(c->hash_fn(user_data, OBJ_POINTER));
+	i = abs(c->hash_fn(user_data, OBJ_POINTER) % c->n_buckets);
 
 	if (flags & OBJ_NOLOCK) {
 		orig_lock = adjust_lock(c, AO2_LOCK_REQ_WRLOCK, 1);
@@ -909,7 +909,6 @@ static struct bucket_entry *internal_ao2_link(struct ao2_container *c, void *use
 		orig_lock = AO2_LOCK_REQ_MUTEX;
 	}
 
-	i %= c->n_buckets;
 	p->astobj = obj;
 	p->version = ast_atomic_fetchadd_int(&c->version, 1);
 	AST_LIST_INSERT_TAIL(&c->buckets[i], p, entry);
@@ -1065,7 +1064,7 @@ static void *internal_ao2_callback(struct ao2_container *c, enum search_flags fl
 	 */
 	if ((flags & (OBJ_POINTER | OBJ_KEY))) {
 		/* we know hash can handle this case */
-		start = i = c->hash_fn(arg, flags & (OBJ_POINTER | OBJ_KEY)) % c->n_buckets;
+		start = i = abs(c->hash_fn(arg, flags & (OBJ_POINTER | OBJ_KEY)) % c->n_buckets);
 	} else {
 		/* don't know, let's scan all buckets */
 		start = i = -1;		/* XXX this must be fixed later. */
