@@ -235,8 +235,7 @@ static struct hash_bucket_node *hash_ao2_new_node(struct ao2_container_hash *sel
 		return NULL;
 	}
 
-	i = abs(self->hash_fn(obj_new, OBJ_SEARCH_OBJECT));
-	i %= self->n_buckets;
+	i = (unsigned int)self->hash_fn(obj_new, OBJ_SEARCH_OBJECT) % self->n_buckets;
 
 	if (tag) {
 		__ao2_ref_debug(obj_new, +1, tag, file, line, func);
@@ -386,8 +385,8 @@ static struct hash_bucket_node *hash_ao2_find_first(struct ao2_container_hash *s
 	case OBJ_SEARCH_OBJECT:
 	case OBJ_SEARCH_KEY:
 		/* we know hash can handle this case */
-		bucket_cur = abs(self->hash_fn(arg, flags & OBJ_SEARCH_MASK));
-		bucket_cur %= self->n_buckets;
+		bucket_cur = (unsigned int)self->hash_fn(arg, flags & OBJ_SEARCH_MASK)
+			% self->n_buckets;
 		state->sort_fn = self->common.sort_fn;
 		break;
 	case OBJ_SEARCH_PARTIAL_KEY:
@@ -984,8 +983,8 @@ static int hash_ao2_integrity(struct ao2_container_hash *self)
 			++count_obj;
 
 			/* Check container hash key for expected bucket. */
-			bucket_exp = abs(self->hash_fn(node->common.obj, OBJ_SEARCH_OBJECT));
-			bucket_exp %= self->n_buckets;
+			bucket_exp = (unsigned int)self->hash_fn(node->common.obj, OBJ_SEARCH_OBJECT)
+				% self->n_buckets;
 			if (bucket != bucket_exp) {
 				ast_log(LOG_ERROR, "Bucket %d node hashes to bucket %d!\n",
 					bucket, bucket_exp);
