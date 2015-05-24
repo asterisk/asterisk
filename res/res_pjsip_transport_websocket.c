@@ -197,12 +197,13 @@ static int transport_read(void *data)
 	pjsip_rx_data *rdata = &newtransport->rdata;
 	int recvd;
 	pj_str_t buf;
+	int pjsip_pkt_len;
 
 	pj_gettimeofday(&rdata->pkt_info.timestamp);
 
-	pj_memcpy(rdata->pkt_info.packet, read_data->payload,
-		PJSIP_MAX_PKT_LEN < read_data->payload_len ? PJSIP_MAX_PKT_LEN : read_data->payload_len);
-	rdata->pkt_info.len = read_data->payload_len;
+	pjsip_pkt_len = PJSIP_MAX_PKT_LEN < read_data->payload_len ? PJSIP_MAX_PKT_LEN : read_data->payload_len;
+	pj_memcpy(rdata->pkt_info.packet, read_data->payload, pjsip_pkt_len);
+	rdata->pkt_info.len = pjsip_pkt_len;
 	rdata->pkt_info.zero = 0;
 
 	pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&buf, ast_sockaddr_stringify(ast_websocket_remote_address(session))), &rdata->pkt_info.src_addr);
