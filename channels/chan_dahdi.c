@@ -600,14 +600,6 @@ static int restart_monitor(void);
 
 static int dahdi_sendtext(struct ast_channel *c, const char *text);
 
-static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct stasis_message *msg)
-{
-	/* This module does not handle MWI in an event-based manner.  However, it
-	 * subscribes to MWI for each mailbox that is configured so that the core
-	 * knows that we care about it.  Then, chan_dahdi will get the MWI from the
-	 * event cache instead of checking the mailbox directly. */
-}
-
 /*! \brief Avoid the silly dahdi_getevent which ignores a bunch of events */
 static inline int dahdi_get_event(int fd)
 {
@@ -12593,7 +12585,11 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 
 			mailbox_specific_topic = ast_mwi_topic(tmp->mailbox);
 			if (mailbox_specific_topic) {
-				tmp->mwi_event_sub = stasis_subscribe_pool(mailbox_specific_topic, mwi_event_cb, NULL);
+				/* This module does not handle MWI in an event-based manner.  However, it
+				 * subscribes to MWI for each mailbox that is configured so that the core
+				 * knows that we care about it.  Then, chan_dahdi will get the MWI from the
+				 * event cache instead of checking the mailbox directly. */
+				tmp->mwi_event_sub = stasis_subscribe_pool(mailbox_specific_topic, stasis_subscription_cb_noop, NULL);
 			}
 		}
 #ifdef HAVE_DAHDI_LINEREVERSE_VMWI
