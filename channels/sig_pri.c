@@ -8991,7 +8991,7 @@ void sig_pri_stop_pri(struct sig_pri_span *pri)
 #if defined(HAVE_PRI_MWI)
 	for (idx = 0; idx < ARRAY_LEN(pri->mbox); ++idx) {
 		if (pri->mbox[idx].sub) {
-			pri->mbox[idx].sub = stasis_unsubscribe(pri->mbox[idx].sub);
+			pri->mbox[idx].sub = stasis_unsubscribe_and_join(pri->mbox[idx].sub);
 		}
 	}
 #endif	/* defined(HAVE_PRI_MWI) */

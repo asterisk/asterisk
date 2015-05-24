@@ -8749,7 +8749,7 @@ static int unload_module(void)
 				skinny_unlocksub(sub);
 			}
 			if (l->mwi_event_sub) {
-				l->mwi_event_sub = stasis_unsubscribe(l->mwi_event_sub);
+				l->mwi_event_sub = stasis_unsubscribe_and_join(l->mwi_event_sub);
 			}
 			ast_mutex_unlock(&l->lock);
 			unregister_exten(l);

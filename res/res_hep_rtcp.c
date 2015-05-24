@@ -131,7 +131,7 @@ static int load_module(void)
 static int unload_module(void)
 {
 	if (stasis_rtp_subscription) {
-		stasis_rtp_subscription = stasis_unsubscribe(stasis_rtp_subscription);
+		stasis_rtp_subscription = stasis_unsubscribe_and_join(stasis_rtp_subscription);
 	}
 
 	return 0;

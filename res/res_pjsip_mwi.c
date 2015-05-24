@@ -471,7 +471,7 @@ static int unsubscribe_stasis(void *obj, void *arg, int flags)
 	struct mwi_stasis_subscription *mwi_stasis = obj;
 	if (mwi_stasis->stasis_sub) {
 		ast_debug(3, "Removing stasis subscription to mailbox %s\n", mwi_stasis->mailbox);
-		mwi_stasis->stasis_sub = stasis_unsubscribe(mwi_stasis->stasis_sub);
+		mwi_stasis->stasis_sub = stasis_unsubscribe_and_join(mwi_stasis->stasis_sub);
 	}
 	return CMP_MATCH;
 }
