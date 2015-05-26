@@ -1237,16 +1237,95 @@ void ast_sip_session_unsuspend(struct ast_sip_session *session)
 	ao2_ref(suspender, -1);
 }
 
-static int session_outbound_auth(pjsip_dialog *dlg, pjsip_tx_data *tdata, void *user_data)
+/*!
+ * \internal
+ * \brief Handle initial INVITE challenge response message.
+ * \since 13.5.0
+ *
+ * \param rdata PJSIP receive response message data.
+ *
+ * \retval PJ_FALSE Did not handle message.
+ * \retval PJ_TRUE Handled message.
+ */
+static pj_bool_t outbound_invite_auth(pjsip_rx_data *rdata)
 {
-	pjsip_inv_session *inv = pjsip_dlg_get_inv_session(dlg);
-	struct ast_sip_session *session = inv->mod_data[session_module.id];
+	pjsip_transaction *tsx;
+	pjsip_dialog *dlg;
+	pjsip_inv_session *inv;
+	pjsip_tx_data *tdata;
+	struct ast_sip_session *session;
 
-	if (inv->state < PJSIP_INV_STATE_CONFIRMED && tdata->msg->line.req.method.id == PJSIP_INVITE_METHOD) {
-		pjsip_inv_uac_restart(inv, PJ_FALSE);
+	if (rdata->msg_info.msg->line.status.code != 401
+		&& rdata->msg_info.msg->line.status.code != 407) {
+		/* Doesn't pertain to us. Move on */
+		return PJ_FALSE;
 	}
+
+	tsx = pjsip_rdata_get_tsx(rdata);
+	dlg = pjsip_rdata_get_dlg(rdata);
+	if (!dlg || !tsx) {
+		return PJ_FALSE;
+	}
+
+	if (tsx->method.id != PJSIP_INVITE_METHOD) {
+		/* Not an INVITE that needs authentication */
+		return PJ_FALSE;
+	}
+
+	inv = pjsip_dlg_get_inv_session(dlg);
+	if (PJSIP_INV_STATE_CONFIRMED <= inv->state) {
+		/*
+		 * We cannot handle reINVITE authentication at this
+		 * time because the reINVITE transaction is still in
+		 * progress.
+		 */
+		ast_debug(1, "A reINVITE is being challenged.\n");
+		return PJ_FALSE;
+	}
+	ast_debug(1, "Initial INVITE is being challenged.\n");
+
+	session = inv->mod_data[session_module.id];
+
+	if (ast_sip_create_request_with_auth(&session->endpoint->outbound_auths, rdata, tsx,
+		&tdata)) {
+		return PJ_FALSE;
+	}
+
+	/*
+	 * Restart the outgoing initial INVITE transaction to deal
+	 * with authentication.
+	 */
+	pjsip_inv_uac_restart(inv, PJ_FALSE);
+
 	ast_sip_session_send_request(session, tdata);
-	return 0;
+	return PJ_TRUE;
+}
+
+static pjsip_module outbound_invite_auth_module = {
+	.name = {"Outbound INVITE Auth", 20},
+	.priority = PJSIP_MOD_PRIORITY_DIALOG_USAGE,
+	.on_rx_response = outbound_invite_auth,
+};
+
+/*!
+ * \internal
+ * \brief Setup outbound initial INVITE authentication.
+ * \since 13.5.0
+ *
+ * \param dlg PJSIP dialog to attach outbound authentication.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int setup_outbound_invite_auth(pjsip_dialog *dlg)
+{
+	pj_status_t status;
+
+	++dlg->sess_count;
+	status = pjsip_dlg_add_usage(dlg, &outbound_invite_auth_module, NULL);
+	--dlg->sess_count;
+
+	return status != PJ_SUCCESS ? -1 : 0;
 }
 
 struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint *endpoint,
@@ -1283,7 +1362,7 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 		return NULL;
 	}
 
-	if (ast_sip_dialog_setup_outbound_authentication(dlg, endpoint, session_outbound_auth, NULL)) {
+	if (setup_outbound_invite_auth(dlg)) {
 		pjsip_dlg_terminate(dlg);
 		return NULL;
 	}
@@ -1322,7 +1401,7 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 		ao2_cleanup(joint_caps);
 	}
 
-	if ((pjsip_dlg_add_usage(dlg, &session_module, NULL) != PJ_SUCCESS)) {
+	if (pjsip_dlg_add_usage(dlg, &session_module, NULL) != PJ_SUCCESS) {
 		pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
 		/* Since we are not notifying ourselves that the INVITE session is being terminated
 		 * we need to manually drop its reference to session
@@ -2029,6 +2108,8 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 {
 	ast_sip_session_response_cb cb;
 	struct ast_sip_session *session = inv->mod_data[session_module.id];
+	pjsip_tx_data *tdata;
+
 	print_debug_details(inv, tsx, e);
 	if (!session) {
 		/* Transaction likely timed out after the call was hung up. Just
@@ -2057,12 +2138,23 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 					if (tsx->status_code == PJSIP_SC_REQUEST_PENDING) {
 						reschedule_reinvite(session, cb);
 						return;
-					} else if (inv->state == PJSIP_INV_STATE_CONFIRMED &&
-						   tsx->status_code != 488) {
-						/* Other reinvite failures (except 488) result in destroying the session. */
-						pjsip_tx_data *tdata;
-						if (pjsip_inv_end_session(inv, 500, NULL, &tdata) == PJ_SUCCESS) {
-							ast_sip_session_send_request(session, tdata);
+					}
+					if (inv->state == PJSIP_INV_STATE_CONFIRMED) {
+						ast_debug(1, "reINVITE received final response code %d\n",
+							tsx->status_code);
+						if ((tsx->status_code == 401 || tsx->status_code == 407)
+							&& !ast_sip_create_request_with_auth(
+								&session->endpoint->outbound_auths,
+								e->body.tsx_state.src.rdata, tsx, &tdata)) {
+							/* Send authed reINVITE */
+							ast_sip_session_send_request_with_cb(session, tdata, cb);
+							return;
+						}
+						if (tsx->status_code != 488) {
+							/* Other reinvite failures (except 488) result in destroying the session. */
+							if (pjsip_inv_end_session(inv, 500, NULL, &tdata) == PJ_SUCCESS) {
+								ast_sip_session_send_request(session, tdata);
+							}
 						}
 					}
 				} else if (tsx->state == PJSIP_TSX_STATE_TERMINATED) {
@@ -2073,11 +2165,27 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 						 * a cancelled call. Our role is to immediately send a BYE to end the
 						 * dialog.
 						 */
-						pjsip_tx_data *tdata;
-
 						if (pjsip_inv_end_session(inv, 500, NULL, &tdata) == PJ_SUCCESS) {
 							ast_sip_session_send_request(session, tdata);
 						}
+					}
+				}
+			}
+		} else {
+			/* All other methods */
+			if (tsx->role == PJSIP_ROLE_UAC) {
+				if (tsx->state == PJSIP_TSX_STATE_COMPLETED) {
+					/* This means we got a final response to our outgoing method */
+					ast_debug(1, "%.*s received final response code %d\n",
+						(int) pj_strlen(&tsx->method.name), pj_strbuf(&tsx->method.name),
+						tsx->status_code);
+					if ((tsx->status_code == 401 || tsx->status_code == 407)
+						&& !ast_sip_create_request_with_auth(
+							&session->endpoint->outbound_auths,
+							e->body.tsx_state.src.rdata, tsx, &tdata)) {
+						/* Send authed version of the method */
+						ast_sip_session_send_request_with_cb(session, tdata, cb);
+						return;
 					}
 				}
 			}
@@ -2388,6 +2496,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_sip_register_service(&session_reinvite_module);
+	ast_sip_register_service(&outbound_invite_auth_module);
 
 	ast_module_ref(ast_module_info->self);
 
@@ -2397,6 +2506,12 @@ static int load_module(void)
 static int unload_module(void)
 {
 	/* This will never get called as this module can't be unloaded */
+	ast_sip_unregister_service(&outbound_invite_auth_module);
+	ast_sip_unregister_service(&session_reinvite_module);
+	ast_sip_unregister_service(&session_module);
+	ast_sorcery_delete(ast_sip_get_sorcery(), nat_hook);
+	ao2_cleanup(nat_hook);
+	ao2_cleanup(sdp_handlers);
 	return 0;
 }
 
