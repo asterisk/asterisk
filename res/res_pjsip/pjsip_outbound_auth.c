@@ -17,9 +17,12 @@
  */
 
 #include "asterisk.h"
+
 #undef bzero
 #define bzero bzero
-#include "pjsip.h"
+#include <pjsip.h>
+#include <pjsip_ua.h>
+#include <pjlib.h>
 
 #include "asterisk/res_pjsip.h"
 #include "asterisk/module.h"
@@ -40,14 +43,15 @@ struct outbound_auth_cb_data {
 
 static pj_bool_t outbound_auth(pjsip_rx_data *rdata)
 {
-	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
+	struct ast_sip_endpoint *endpoint;
 	pjsip_transaction *tsx;
 	pjsip_dialog *dlg;
 	struct outbound_auth_cb_data *cb_data;
+	pjsip_inv_session *inv;
 	pjsip_tx_data *tdata;
 
-	if (rdata->msg_info.msg->line.status.code != 401 &&
-			rdata->msg_info.msg->line.status.code != 407) {
+	if (rdata->msg_info.msg->line.status.code != 401
+		&& rdata->msg_info.msg->line.status.code != 407) {
 		/* Doesn't pertain to us. Move on */
 		return PJ_FALSE;
 	}
@@ -58,22 +62,47 @@ static pj_bool_t outbound_auth(pjsip_rx_data *rdata)
 		return PJ_FALSE;
 	}
 
+	if (tsx->method.id != PJSIP_INVITE_METHOD) {
+		/* Not an INVITE that needs authentication */
+		return PJ_FALSE;
+	}
+
+	inv = pjsip_dlg_get_inv_session(dlg);
+	if (PJSIP_INV_STATE_CONFIRMED <= inv->state) {
+		/*
+		 * We cannot handle reINVITE authentication at this
+		 * time because the reINVITE transaction is still in
+		 * progress.  Authentication will get handled by the
+		 * session state change callback.
+		 */
+		ast_debug(1, "A reINVITE is being challenged.\n");
+		return PJ_FALSE;
+	}
+	ast_debug(1, "Initial INVITE is being challenged.\n");
+
 	endpoint = ast_sip_dialog_get_endpoint(dlg);
 	if (!endpoint) {
 		return PJ_FALSE;
 	}
 
 	if (ast_sip_create_request_with_auth(&endpoint->outbound_auths, rdata, tsx, &tdata)) {
+		ao2_ref(endpoint, -1);
 		return PJ_FALSE;
 	}
+
+	/*
+	 * Restart the outgoing initial INVITE transaction to deal
+	 * with authentication.
+	 */
+	pjsip_inv_uac_restart(inv, PJ_FALSE);
 
 	cb_data = dlg->mod_data[outbound_auth_mod.id];
 	if (cb_data) {
 		cb_data->cb(dlg, tdata, cb_data->user_data);
-		return PJ_TRUE;
+	} else {
+		pjsip_dlg_send_request(dlg, tdata, -1, NULL);
 	}
-
-	pjsip_dlg_send_request(dlg, tdata, -1, NULL);
+	ao2_ref(endpoint, -1);
 	return PJ_TRUE;
 }
 
