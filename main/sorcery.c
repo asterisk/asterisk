@@ -1723,7 +1723,12 @@ void *ast_sorcery_retrieve_by_id(const struct ast_sorcery *sorcery, const char *
 	ao2_iterator_destroy(&i);
 
 	if (!cached && object) {
-		ao2_callback(object_type->wizards, 0, sorcery_cache_create, object);
+		struct sorcery_details sdetails = {
+			.sorcery = sorcery,
+			.obj = object,
+		};
+
+		ao2_callback(object_type->wizards, 0, sorcery_cache_create, &sdetails);
 	}
 
 	return object;
