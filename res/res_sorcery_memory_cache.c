@@ -38,6 +38,73 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/sched.h"
 #include "asterisk/test.h"
 #include "asterisk/heap.h"
+#include "asterisk/cli.h"
+#include "asterisk/manager.h"
+
+/*** DOCUMENTATION
+	<manager name="SorceryMemoryCacheExpireObject" language="en_US">
+		<synopsis>
+			Expire (remove) an object from a sorcery memory cache.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Cache" required="true">
+				<para>The name of the cache to expire the object from.</para>
+			</parameter>
+			<parameter name="Object" required="true">
+				<para>The name of the object to expire.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Expires (removes) an object from a sorcery memory cache.</para>
+		</description>
+	</manager>
+	<manager name="SorceryMemoryCacheExpire" language="en_US">
+		<synopsis>
+			Expire (remove) ALL objects from a sorcery memory cache.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Cache" required="true">
+				<para>The name of the cache to expire all objects from.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Expires (removes) ALL objects from a sorcery memory cache.</para>
+		</description>
+	</manager>
+	<manager name="SorceryMemoryCacheStaleObject" language="en_US">
+		<synopsis>
+			Mark an object in a sorcery memory cache as stale.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Cache" required="true">
+				<para>The name of the cache to mark the object as stale in.</para>
+			</parameter>
+			<parameter name="Object" required="true">
+				<para>The name of the object to mark as stale.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Marks an object as stale within a sorcery memory cache.</para>
+		</description>
+	</manager>
+	<manager name="SorceryMemoryCacheStale" language="en_US">
+		<synopsis>
+			Marks ALL objects in a sorcery memory cache as stale.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Cache" required="true">
+				<para>The name of the cache to mark all object as stale in.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Marks ALL objects in a sorcery memory cache as stale.</para>
+		</description>
+	</manager>
+ ***/
 
 /*! \brief Structure for storing a memory cache */
 struct sorcery_memory_cache {
@@ -401,6 +468,94 @@ static int expire_objects_from_cache(const void *data)
 	ao2_ref(cache, -1);
 
 	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Remove all objects from the cache.
+ *
+ * This removes ALL objects from both the hash table and heap.
+ *
+ * \pre cache->objects is write-locked
+ *
+ * \param cache The cache to empty.
+ */
+static void remove_all_from_cache(struct sorcery_memory_cache *cache)
+{
+	while (ast_heap_pop(cache->object_heap));
+
+	ao2_callback(cache->objects, OBJ_UNLINK | OBJ_NOLOCK | OBJ_NODATA | OBJ_MULTIPLE,
+		NULL, NULL);
+
+	AST_SCHED_DEL_UNREF(sched, cache->expire_id, ao2_ref(cache, -1));
+}
+
+/*!
+ * \internal
+ * \brief AO2 callback function for making an object stale immediately
+ *
+ * This changes the creation time of an object so it appears as though it is stale immediately.
+ *
+ * \param obj The cached object
+ * \param arg The cache itself
+ * \param flags Unused flags
+ */
+static int object_stale_callback(void *obj, void *arg, int flags)
+{
+	struct sorcery_memory_cached_object *cached = obj;
+	struct sorcery_memory_cache *cache = arg;
+
+	/* Since our granularity is seconds it's possible for something to retrieve us within a window
+	 * where we wouldn't be treated as stale. To ensure that doesn't happen we use the configured stale
+	 * time plus a second.
+	 */
+	cached->created = ast_tvsub(cached->created, ast_samp2tv(cache->object_lifetime_stale + 1, 1));
+
+	return CMP_MATCH;
+}
+
+/*!
+ * \internal
+ * \brief Mark an object as stale explicitly.
+ *
+ * This changes the creation time of an object so it appears as though it is stale immediately.
+ *
+ * \pre cache->objects is read-locked
+ *
+ * \param cache The cache the object is in
+ * \param id The unique identifier of the object
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+static int mark_object_as_stale_in_cache(struct sorcery_memory_cache *cache, const char *id)
+{
+	struct sorcery_memory_cached_object *cached;
+
+	cached = ao2_find(cache->objects, id, OBJ_SEARCH_KEY | OBJ_NOLOCK);
+	if (!cached) {
+		return -1;
+	}
+
+	object_stale_callback(cached, cache, 0);
+	ao2_ref(cached, -1);
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Mark all objects as stale within a cache.
+ *
+ * This changes the creation time of ALL objects so they appear as though they are stale.
+ *
+ * \pre cache->objects is read-locked
+ *
+ * \param cache
+ */
+static void mark_all_as_stale_in_cache(struct sorcery_memory_cache *cache)
+{
+	ao2_callback(cache->objects, OBJ_NOLOCK | OBJ_NODATA | OBJ_MULTIPLE, object_stale_callback, cache);
 }
 
 /*!
@@ -898,6 +1053,480 @@ static void sorcery_memory_cache_close(void *data)
 	}
 
 	ao2_ref(cache, -1);
+}
+
+/*!
+ * \internal
+ * \brief CLI tab completion for cache names
+ */
+static char *sorcery_memory_cache_complete_name(const char *word, int state)
+{
+	struct sorcery_memory_cache *cache;
+	struct ao2_iterator it_caches;
+	int wordlen = strlen(word);
+	int which = 0;
+	char *result = NULL;
+
+	it_caches = ao2_iterator_init(caches, 0);
+	while ((cache = ao2_iterator_next(&it_caches))) {
+		if (!strncasecmp(word, cache->name, wordlen)
+			&& ++which > state) {
+			result = ast_strdup(cache->name);
+		}
+		ao2_ref(cache, -1);
+		if (result) {
+			break;
+		}
+	}
+	ao2_iterator_destroy(&it_caches);
+	return result;
+}
+
+/*!
+ * \internal
+ * \brief CLI command implementation for 'sorcery memory cache show'
+ */
+static char *sorcery_memory_cache_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct sorcery_memory_cache *cache;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "sorcery memory cache show";
+		e->usage =
+		    "Usage: sorcery memory cache show <name>\n"
+		    "       Show sorcery memory cache configuration and statistics.\n";
+		return NULL;
+	case CLI_GENERATE:
+		if (a->pos == 4) {
+			return sorcery_memory_cache_complete_name(a->word, a->n);
+		} else {
+			return NULL;
+		}
+	}
+
+	if (a->argc != 5) {
+		return CLI_SHOWUSAGE;
+	}
+
+	cache = ao2_find(caches, a->argv[4], OBJ_SEARCH_KEY);
+	if (!cache) {
+		ast_cli(a->fd, "Specified sorcery memory cache '%s' does not exist\n", a->argv[4]);
+		return CLI_FAILURE;
+	}
+
+	ast_cli(a->fd, "Sorcery memory cache: %s\n", cache->name);
+	ast_cli(a->fd, "Number of objects within cache: %d\n", ao2_container_count(cache->objects));
+	if (cache->maximum_objects) {
+		ast_cli(a->fd, "Maximum allowed objects: %d\n", cache->maximum_objects);
+	} else {
+		ast_cli(a->fd, "There is no limit on the maximum number of objects in the cache\n");
+	}
+	if (cache->object_lifetime_maximum) {
+		ast_cli(a->fd, "Number of seconds before object expires: %d\n", cache->object_lifetime_maximum);
+	} else {
+		ast_cli(a->fd, "Object expiration is not enabled - cached objects will not expire\n");
+	}
+	if (cache->object_lifetime_stale) {
+		ast_cli(a->fd, "Number of seconds before object becomes stale: %d\n", cache->object_lifetime_stale);
+	} else {
+		ast_cli(a->fd, "Object staleness is not enabled - cached objects will not go stale\n");
+	}
+	ast_cli(a->fd, "Prefetch: %s\n", AST_CLI_ONOFF(cache->prefetch));
+	ast_cli(a->fd, "Expire all objects on reload: %s\n", AST_CLI_ONOFF(cache->expire_on_reload));
+
+	ao2_ref(cache, -1);
+
+	return CLI_SUCCESS;
+}
+
+/*! \brief Structure used to pass data for printing cached object information */
+struct print_object_details {
+	/*! \brief The sorcery memory cache */
+	struct sorcery_memory_cache *cache;
+	/*! \brief The CLI arguments */
+	struct ast_cli_args *a;
+};
+
+/*!
+ * \internal
+ * \brief Callback function for displaying object within the cache
+ */
+static int sorcery_memory_cache_print_object(void *obj, void *arg, int flags)
+{
+#define FORMAT "%-25.25s %-15u %-15u \n"
+	struct sorcery_memory_cached_object *cached = obj;
+	struct print_object_details *details = arg;
+	int seconds_until_expire = 0, seconds_until_stale = 0;
+
+	if (details->cache->object_lifetime_maximum) {
+		seconds_until_expire = ast_tvdiff_ms(ast_tvadd(cached->created, ast_samp2tv(details->cache->object_lifetime_maximum, 1)), ast_tvnow()) / 1000;
+	}
+	if (details->cache->object_lifetime_stale) {
+		seconds_until_stale = ast_tvdiff_ms(ast_tvadd(cached->created, ast_samp2tv(details->cache->object_lifetime_stale, 1)), ast_tvnow()) / 1000;
+	}
+
+	ast_cli(details->a->fd, FORMAT, ast_sorcery_object_get_id(cached->object), MAX(seconds_until_stale, 0), MAX(seconds_until_expire, 0));
+
+	return CMP_MATCH;
+#undef FORMAT
+}
+
+/*!
+ * \internal
+ * \brief CLI command implementation for 'sorcery memory cache dump'
+ */
+static char *sorcery_memory_cache_dump(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+#define FORMAT "%-25.25s %-15.15s %-15.15s \n"
+	struct sorcery_memory_cache *cache;
+	struct print_object_details details;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "sorcery memory cache dump";
+		e->usage =
+		    "Usage: sorcery memory cache dump <name>\n"
+		    "       Dump a list of the objects within the cache, listed by object identifier.\n";
+		return NULL;
+	case CLI_GENERATE:
+		if (a->pos == 4) {
+			return sorcery_memory_cache_complete_name(a->word, a->n);
+		} else {
+			return NULL;
+		}
+	}
+
+	if (a->argc != 5) {
+		return CLI_SHOWUSAGE;
+	}
+
+	cache = ao2_find(caches, a->argv[4], OBJ_SEARCH_KEY);
+	if (!cache) {
+		ast_cli(a->fd, "Specified sorcery memory cache '%s' does not exist\n", a->argv[4]);
+		return CLI_FAILURE;
+	}
+
+	details.cache = cache;
+	details.a = a;
+
+	ast_cli(a->fd, "Dumping sorcery memory cache '%s':\n", cache->name);
+	if (!cache->object_lifetime_stale) {
+		ast_cli(a->fd, " * Staleness is not enabled - objects will not go stale\n");
+	}
+	if (!cache->object_lifetime_maximum) {
+		ast_cli(a->fd, " * Object lifetime is not enabled - objects will not expire\n");
+	}
+	ast_cli(a->fd, FORMAT, "Object Name", "Stale In", "Expires In");
+	ast_cli(a->fd, FORMAT, "-------------------------", "---------------", "---------------");
+	ao2_callback(cache->objects, OBJ_NODATA | OBJ_MULTIPLE, sorcery_memory_cache_print_object, &details);
+	ast_cli(a->fd, FORMAT, "-------------------------", "---------------", "---------------");
+	ast_cli(a->fd, "Total number of objects cached: %d\n", ao2_container_count(cache->objects));
+
+	ao2_ref(cache, -1);
+
+	return CLI_SUCCESS;
+#undef FORMAT
+}
+
+/*!
+ * \internal
+ * \brief CLI tab completion for cached object names
+ */
+static char *sorcery_memory_cache_complete_object_name(const char *cache_name, const char *word, int state)
+{
+	struct sorcery_memory_cache *cache;
+	struct sorcery_memory_cached_object *cached;
+	struct ao2_iterator it_cached;
+	int wordlen = strlen(word);
+	int which = 0;
+	char *result = NULL;
+
+	cache = ao2_find(caches, cache_name, OBJ_SEARCH_KEY);
+	if (!cache) {
+		return NULL;
+	}
+
+	it_cached = ao2_iterator_init(cache->objects, 0);
+	while ((cached = ao2_iterator_next(&it_cached))) {
+		if (!strncasecmp(word, ast_sorcery_object_get_id(cached->object), wordlen)
+			&& ++which > state) {
+			result = ast_strdup(ast_sorcery_object_get_id(cached->object));
+		}
+		ao2_ref(cached, -1);
+		if (result) {
+			break;
+		}
+	}
+	ao2_iterator_destroy(&it_cached);
+
+	ao2_ref(cache, -1);
+
+	return result;
+}
+
+/*!
+ * \internal
+ * \brief CLI command implementation for 'sorcery memory cache expire'
+ */
+static char *sorcery_memory_cache_expire(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct sorcery_memory_cache *cache;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "sorcery memory cache expire";
+		e->usage =
+		    "Usage: sorcery memory cache expire <cache name> [object name]\n"
+		    "       Expire a specific object or ALL objects within a sorcery memory cache.\n";
+		return NULL;
+	case CLI_GENERATE:
+		if (a->pos == 4) {
+			return sorcery_memory_cache_complete_name(a->word, a->n);
+		} else if (a->pos == 5) {
+			return sorcery_memory_cache_complete_object_name(a->argv[4], a->word, a->n);
+		} else {
+			return NULL;
+		}
+	}
+
+	if (a->argc > 6) {
+		return CLI_SHOWUSAGE;
+	}
+
+	cache = ao2_find(caches, a->argv[4], OBJ_SEARCH_KEY);
+	if (!cache) {
+		ast_cli(a->fd, "Specified sorcery memory cache '%s' does not exist\n", a->argv[4]);
+		return CLI_FAILURE;
+	}
+
+	ao2_wrlock(cache->objects);
+	if (a->argc == 5) {
+		remove_all_from_cache(cache);
+		ast_cli(a->fd, "All objects have been removed from cache '%s'\n", a->argv[4]);
+	} else {
+		if (!remove_from_cache(cache, a->argv[5], 1)) {
+			ast_cli(a->fd, "Successfully expired object '%s' from cache '%s'\n", a->argv[5], a->argv[4]);
+		} else {
+			ast_cli(a->fd, "Object '%s' was not expired from cache '%s' as it was not found\n", a->argv[5],
+				a->argv[4]);
+		}
+	}
+	ao2_unlock(cache->objects);
+
+	ao2_ref(cache, -1);
+
+	return CLI_SUCCESS;
+}
+
+/*!
+ * \internal
+ * \brief CLI command implementation for 'sorcery memory cache stale'
+ */
+static char *sorcery_memory_cache_stale(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct sorcery_memory_cache *cache;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "sorcery memory cache stale";
+		e->usage =
+		    "Usage: sorcery memory cache stale <cache name> [object name]\n"
+		    "       Mark a specific object or ALL objects as stale in a sorcery memory cache.\n";
+		return NULL;
+	case CLI_GENERATE:
+		if (a->pos == 4) {
+			return sorcery_memory_cache_complete_name(a->word, a->n);
+		} else if (a->pos == 5) {
+			return sorcery_memory_cache_complete_object_name(a->argv[4], a->word, a->n);
+		} else {
+			return NULL;
+		}
+	}
+
+	if (a->argc > 6) {
+		return CLI_SHOWUSAGE;
+	}
+
+	cache = ao2_find(caches, a->argv[4], OBJ_SEARCH_KEY);
+	if (!cache) {
+		ast_cli(a->fd, "Specified sorcery memory cache '%s' does not exist\n", a->argv[4]);
+		return CLI_FAILURE;
+	}
+
+	if (!cache->object_lifetime_stale) {
+		ast_cli(a->fd, "Specified sorcery memory cache '%s' does not have staleness enabled\n", a->argv[4]);
+		ao2_ref(cache, -1);
+		return CLI_FAILURE;
+	}
+
+	ao2_rdlock(cache->objects);
+	if (a->argc == 5) {
+		mark_all_as_stale_in_cache(cache);
+		ast_cli(a->fd, "Marked all objects in sorcery memory cache '%s' as stale\n", a->argv[4]);
+	} else {
+		if (!mark_object_as_stale_in_cache(cache, a->argv[5])) {
+			ast_cli(a->fd, "Successfully marked object '%s' in memory cache '%s' as stale\n",
+				a->argv[5], a->argv[4]);
+		} else {
+			ast_cli(a->fd, "Object '%s' in sorcery memory cache '%s' could not be marked as stale as it was not found\n",
+				a->argv[5], a->argv[4]);
+		}
+	}
+	ao2_unlock(cache->objects);
+
+	ao2_ref(cache, -1);
+
+	return CLI_SUCCESS;
+}
+
+static struct ast_cli_entry cli_memory_cache[] = {
+	AST_CLI_DEFINE(sorcery_memory_cache_show, "Show sorcery memory cache information"),
+	AST_CLI_DEFINE(sorcery_memory_cache_dump, "Dump all objects within a sorcery memory cache"),
+	AST_CLI_DEFINE(sorcery_memory_cache_expire, "Expire a specific object or ALL objects within a sorcery memory cache"),
+	AST_CLI_DEFINE(sorcery_memory_cache_stale, "Mark a specific object or ALL objects as stale within a sorcery memory cache"),
+};
+
+/*!
+ * \internal
+ * \brief AMI command implementation for 'SorceryMemoryCacheExpireObject'
+ */
+static int sorcery_memory_cache_ami_expire_object(struct mansession *s, const struct message *m)
+{
+	const char *cache_name = astman_get_header(m, "Cache");
+	const char *object_name = astman_get_header(m, "Object");
+	struct sorcery_memory_cache *cache;
+	int res;
+
+	if (ast_strlen_zero(cache_name)) {
+		astman_send_error(s, m, "SorceryMemoryCacheExpireObject requires that a cache name be provided.\n");
+		return 0;
+	} else if (ast_strlen_zero(object_name)) {
+		astman_send_error(s, m, "SorceryMemoryCacheExpireObject requires that an object name be provided\n");
+		return 0;
+	}
+
+	cache = ao2_find(caches, cache_name, OBJ_SEARCH_KEY);
+	if (!cache) {
+		astman_send_error(s, m, "The provided cache does not exist\n");
+		return 0;
+	}
+
+	ao2_wrlock(cache->objects);
+	res = remove_from_cache(cache, object_name, 1);
+	ao2_unlock(cache->objects);
+
+	ao2_ref(cache, -1);
+
+	if (!res) {
+		astman_send_ack(s, m, "The provided object was expired from the cache\n");
+	} else {
+		astman_send_error(s, m, "The provided object could not be expired from the cache\n");
+	}
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief AMI command implementation for 'SorceryMemoryCacheExpire'
+ */
+static int sorcery_memory_cache_ami_expire(struct mansession *s, const struct message *m)
+{
+	const char *cache_name = astman_get_header(m, "Cache");
+	struct sorcery_memory_cache *cache;
+
+	if (ast_strlen_zero(cache_name)) {
+		astman_send_error(s, m, "SorceryMemoryCacheExpire requires that a cache name be provided.\n");
+		return 0;
+	}
+
+	cache = ao2_find(caches, cache_name, OBJ_SEARCH_KEY);
+	if (!cache) {
+		astman_send_error(s, m, "The provided cache does not exist\n");
+		return 0;
+	}
+
+	ao2_wrlock(cache->objects);
+	remove_all_from_cache(cache);
+	ao2_unlock(cache->objects);
+
+	ao2_ref(cache, -1);
+
+	astman_send_ack(s, m, "All objects were expired from the cache\n");
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief AMI command implementation for 'SorceryMemoryCacheStaleObject'
+ */
+static int sorcery_memory_cache_ami_stale_object(struct mansession *s, const struct message *m)
+{
+	const char *cache_name = astman_get_header(m, "Cache");
+	const char *object_name = astman_get_header(m, "Object");
+	struct sorcery_memory_cache *cache;
+	int res;
+
+	if (ast_strlen_zero(cache_name)) {
+		astman_send_error(s, m, "SorceryMemoryCacheStaleObject requires that a cache name be provided.\n");
+		return 0;
+	} else if (ast_strlen_zero(object_name)) {
+		astman_send_error(s, m, "SorceryMemoryCacheStaleObject requires that an object name be provided\n");
+		return 0;
+	}
+
+	cache = ao2_find(caches, cache_name, OBJ_SEARCH_KEY);
+	if (!cache) {
+		astman_send_error(s, m, "The provided cache does not exist\n");
+		return 0;
+	}
+
+	ao2_rdlock(cache->objects);
+	res = mark_object_as_stale_in_cache(cache, object_name);
+	ao2_unlock(cache->objects);
+
+	ao2_ref(cache, -1);
+
+	if (!res) {
+		astman_send_ack(s, m, "The provided object was marked as stale in the cache\n");
+	} else {
+		astman_send_error(s, m, "The provided object could not be marked as stale in the cache\n");
+	}
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief AMI command implementation for 'SorceryMemoryCacheStale'
+ */
+static int sorcery_memory_cache_ami_stale(struct mansession *s, const struct message *m)
+{
+	const char *cache_name = astman_get_header(m, "Cache");
+	struct sorcery_memory_cache *cache;
+
+	if (ast_strlen_zero(cache_name)) {
+		astman_send_error(s, m, "SorceryMemoryCacheStale requires that a cache name be provided.\n");
+		return 0;
+	}
+
+	cache = ao2_find(caches, cache_name, OBJ_SEARCH_KEY);
+	if (!cache) {
+		astman_send_error(s, m, "The provided cache does not exist\n");
+		return 0;
+	}
+
+	ao2_rdlock(cache->objects);
+	mark_all_as_stale_in_cache(cache);
+	ao2_unlock(cache->objects);
+
+	ao2_ref(cache, -1);
+
+	astman_send_ack(s, m, "All objects were marked as stale in the cache\n");
+
+	return 0;
 }
 
 #ifdef TEST_FRAMEWORK
@@ -1846,6 +2475,13 @@ static int unload_module(void)
 
 	ast_sorcery_wizard_unregister(&memory_cache_object_wizard);
 
+	ast_cli_unregister_multiple(cli_memory_cache, ARRAY_LEN(cli_memory_cache));
+
+	ast_manager_unregister("SorceryMemoryCacheExpireObject");
+	ast_manager_unregister("SorceryMemoryCacheExpire");
+	ast_manager_unregister("SorceryMemoryCacheStaleObject");
+	ast_manager_unregister("SorceryMemoryCacheStale");
+
 	AST_TEST_UNREGISTER(open_with_valid_options);
 	AST_TEST_UNREGISTER(open_with_invalid_options);
 	AST_TEST_UNREGISTER(create_and_retrieve);
@@ -1860,6 +2496,8 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+	int res;
+
 	sched = ast_sched_context_create();
 	if (!sched) {
 		ast_log(LOG_ERROR, "Failed to create scheduler for cache management\n");
@@ -1882,6 +2520,17 @@ static int load_module(void)
 	}
 
 	if (ast_sorcery_wizard_register(&memory_cache_object_wizard)) {
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	res = ast_cli_register_multiple(cli_memory_cache, ARRAY_LEN(cli_memory_cache));
+	res |= ast_manager_register_xml("SorceryMemoryCacheExpireObject", EVENT_FLAG_SYSTEM, sorcery_memory_cache_ami_expire_object);
+	res |= ast_manager_register_xml("SorceryMemoryCacheExpire", EVENT_FLAG_SYSTEM, sorcery_memory_cache_ami_expire);
+	res |= ast_manager_register_xml("SorceryMemoryCacheStaleObject", EVENT_FLAG_SYSTEM, sorcery_memory_cache_ami_stale_object);
+	res |= ast_manager_register_xml("SorceryMemoryCacheStale", EVENT_FLAG_SYSTEM, sorcery_memory_cache_ami_stale);
+
+	if (res) {
 		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
