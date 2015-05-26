@@ -1822,7 +1822,12 @@ void *ast_sorcery_retrieve_by_id(const struct ast_sorcery *sorcery, const char *
 	}
 
 	if (!cached && object) {
-		AST_VECTOR_CALLBACK(&object_type->wizards, sorcery_cache_create, NULL, object, 0);
+		struct sorcery_details sdetails = {
+			.sorcery = sorcery,
+			.obj = object,
+		};
+
+		AST_VECTOR_CALLBACK(&object_type->wizards, sorcery_cache_create, NULL, &sdetails, 0);
 	}
 	AST_VECTOR_RW_UNLOCK(&object_type->wizards);
 
