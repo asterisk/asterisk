@@ -841,13 +841,15 @@ static void caching_topic_exec(void *data, struct stasis_subscription *sub,
 				stasis_publish(caching_topic->topic, update);
 			}
 			ao2_cleanup(update);
-		} else {
+		}
+#if 0
+		else {
 			ast_log(LOG_ERROR,
 				"Attempting to remove an item from the %s cache that isn't there: %s %s\n",
 				stasis_topic_name(caching_topic->topic),
 				stasis_message_type_name(msg_type), msg_id);
 		}
-
+#endif
 		if (snapshots.aggregate_old != snapshots.aggregate_new) {
 			if (snapshots.aggregate_new && caching_topic->cache->aggregate_publish_fn) {
 				caching_topic->cache->aggregate_publish_fn(caching_topic->original_topic,
