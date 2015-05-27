@@ -109,6 +109,8 @@ struct stasis_cp_single;
 /*!
  * \brief Create the 'one' side of the cache pattern.
  *
+ * Create the 'one' and forward to all's topic and topic_cached.
+ *
  * Dispose of using stasis_cp_single_unsubscribe().
  *
  * \param all Corresponding all side.
@@ -116,6 +118,23 @@ struct stasis_cp_single;
  * \return One side instance
  */
 struct stasis_cp_single *stasis_cp_single_create(struct stasis_cp_all *all,
+	const char *name);
+
+/*!
+ * \brief Create a sink in the cache pattern
+ *
+ * Create the 'one' but do not automatically forward to the all's topic.
+ * This is useful when aggregating other topic's messages created with
+ * \c stasis_cp_single_create in another caching topic without replicating
+ * those messages in the all's topics.
+ *
+ * Dispose of using stasis_cp_single_unsubscribe().
+ *
+ * \param all Corresponding all side.
+ * \param name Base name for the topics.
+ * \return One side instance
+ */
+struct stasis_cp_single *stasis_cp_sink_create(struct stasis_cp_all *all,
 	const char *name);
 
 /*!

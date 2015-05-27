@@ -303,13 +303,14 @@ static struct ast_endpoint *endpoint_internal_create(const char *tech, const cha
 		return NULL;
 	}
 
-	endpoint->topics = stasis_cp_single_create(ast_endpoint_cache_all(),
-		endpoint->id);
-	if (!endpoint->topics) {
-		return NULL;
-	}
-
 	if (!ast_strlen_zero(resource)) {
+
+		endpoint->topics = stasis_cp_single_create(ast_endpoint_cache_all(),
+			endpoint->id);
+		if (!endpoint->topics) {
+			return NULL;
+		}
+
 		endpoint->router = stasis_message_router_create_pool(ast_endpoint_topic(endpoint));
 		if (!endpoint->router) {
 			return NULL;
@@ -325,9 +326,16 @@ static struct ast_endpoint *endpoint_internal_create(const char *tech, const cha
 
 		endpoint->tech_forward = stasis_forward_all(stasis_cp_single_topic(endpoint->topics),
 			stasis_cp_single_topic(tech_endpoint->topics));
+
 		endpoint_publish_snapshot(endpoint);
 		ao2_link(endpoints, endpoint);
 	} else {
+		endpoint->topics = stasis_cp_sink_create(ast_endpoint_cache_all(),
+			endpoint->id);
+		if (!endpoint->topics) {
+			return NULL;
+		}
+
 		ao2_link(tech_endpoints, endpoint);
 	}
 
