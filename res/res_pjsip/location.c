@@ -354,6 +354,7 @@ static int permanent_uri_handler(const struct aco_option *opt, struct ast_variab
 	contacts = ast_strdupa(var->value);
 	while ((contact_uri = strsep(&contacts, ","))) {
 		struct ast_sip_contact *contact;
+		struct ast_sip_contact_status *status;
 		char contact_id[strlen(aor_id) + strlen(contact_uri) + 2 + 1];
 
 		if (ast_sip_push_task_synchronous(NULL, permanent_contact_validate, contact_uri)) {
@@ -376,10 +377,12 @@ static int permanent_uri_handler(const struct aco_option *opt, struct ast_variab
 			return -1;
 		}
 
-		if (!ast_res_pjsip_find_or_create_contact_status(contact)) {
+		status = ast_res_pjsip_find_or_create_contact_status(contact);
+		if (!status) {
 			ao2_ref(contact, -1);
 			return -1;
 		}
+		ao2_ref(status, -1);
 
 		ast_string_field_set(contact, uri, contact_uri);
 		ao2_link(aor->permanent_contacts, contact);
