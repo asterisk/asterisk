@@ -74,6 +74,8 @@ struct ast_endpoint {
 	struct stasis_message_router *router;
 	/*! ast_str_container of channels associated with this endpoint */
 	struct ao2_container *channel_ids;
+	/*! Forwarding subscription from an endpoint to its tech endpoint */
+	struct stasis_forward *tech_forward;
 };
 
 static int endpoint_hash(const void *obj, int flags)
@@ -301,14 +303,13 @@ static struct ast_endpoint *endpoint_internal_create(const char *tech, const cha
 		return NULL;
 	}
 
+	endpoint->topics = stasis_cp_single_create(ast_endpoint_cache_all(),
+		endpoint->id);
+	if (!endpoint->topics) {
+		return NULL;
+	}
+
 	if (!ast_strlen_zero(resource)) {
-
-		endpoint->topics = stasis_cp_single_create_only(ast_endpoint_cache_all(),
-			endpoint->id);
-		if (!endpoint->topics) {
-			return NULL;
-		}
-
 		endpoint->router = stasis_message_router_create_pool(ast_endpoint_topic(endpoint));
 		if (!endpoint->router) {
 			return NULL;
@@ -322,19 +323,11 @@ static struct ast_endpoint *endpoint_internal_create(const char *tech, const cha
 			return NULL;
 		}
 
-		if (stasis_cp_single_forward(endpoint->topics, tech_endpoint->topics)) {
-			return NULL;
-		}
-
+		endpoint->tech_forward = stasis_forward_all(stasis_cp_single_topic(endpoint->topics),
+			stasis_cp_single_topic(tech_endpoint->topics));
 		endpoint_publish_snapshot(endpoint);
 		ao2_link(endpoints, endpoint);
 	} else {
-		endpoint->topics = stasis_cp_single_create(ast_endpoint_cache_all(),
-			endpoint->id);
-		if (!endpoint->topics) {
-			return NULL;
-		}
-
 		ao2_link(tech_endpoints, endpoint);
 	}
 
@@ -382,6 +375,7 @@ void ast_endpoint_shutdown(struct ast_endpoint *endpoint)
 	}
 
 	ao2_unlink(endpoints, endpoint);
+	endpoint->tech_forward = stasis_forward_cancel(endpoint->tech_forward);
 
 	clear_msg = create_endpoint_snapshot_message(endpoint);
 	if (clear_msg) {
