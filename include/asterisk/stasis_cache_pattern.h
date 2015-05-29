@@ -109,8 +109,6 @@ struct stasis_cp_single;
 /*!
  * \brief Create the 'one' side of the cache pattern.
  *
- * Create the 'one' and forward to all's topic and topic_cached.
- *
  * Dispose of using stasis_cp_single_unsubscribe().
  *
  * \param all Corresponding all side.
@@ -119,32 +117,6 @@ struct stasis_cp_single;
  */
 struct stasis_cp_single *stasis_cp_single_create(struct stasis_cp_all *all,
 	const char *name);
-
-/*!
- * \brief Create the 'one' side of the cache pattern.
- *
- * Create the 'one' but do not automatically forward.
- *
- * Dispose of using stasis_cp_single_unsubscribe().
- *
- * \param all Corresponding all side.
- * \param name Base name for the topics.
- * \return One side instance
- */
-struct stasis_cp_single *stasis_cp_single_create_only(struct stasis_cp_all *all,
-	const char *name);
-
-/*!
- * \brief Set up a topic and topic cache forward.
- *
- * Forward 'from' to 'to'.
- *
- * \param from Source 'one' side instance.
- * \param to Destination 'one' side instance.
- * \retval 0 Success
- * \retval -1 Failure
- */
-int stasis_cp_single_forward(struct stasis_cp_single *from, struct stasis_cp_single *to);
 
 /*!
  * \brief Stops caching and forwarding messages.
