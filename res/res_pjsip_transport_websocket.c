@@ -80,6 +80,23 @@ static pj_status_t ws_destroy(pjsip_transport *transport)
 {
 	struct ws_transport *wstransport = (struct ws_transport *)transport;
 
+	if (ast_websocket_fd(wstransport->ws_session) > 0) {
+		ast_websocket_close(wstransport->ws_session, 1000);
+	}
+
+	ao2_ref(wstransport, -1);
+
+	return PJ_SUCCESS;
+}
+
+static void transport_dtor(void *arg)
+{
+	struct ws_transport *wstransport = arg;
+
+	if (wstransport->ws_session) {
+		ast_websocket_unref(wstransport->ws_session);
+	}
+
 	if (wstransport->transport.ref_cnt) {
 		pj_atomic_destroy(wstransport->transport.ref_cnt);
 	}
@@ -93,15 +110,18 @@ static pj_status_t ws_destroy(pjsip_transport *transport)
 	if (wstransport->rdata.tp_info.pool) {
 		pjsip_endpt_release_pool(wstransport->transport.endpt, wstransport->rdata.tp_info.pool);
 	}
-
-	return PJ_SUCCESS;
 }
 
 static int transport_shutdown(void *data)
 {
-	pjsip_transport *transport = data;
+	struct ws_transport *wstransport = data;
 
-	pjsip_transport_shutdown(transport);
+	if (!wstransport->transport.is_shutdown && !wstransport->transport.is_destroying) {
+		pjsip_transport_shutdown(&wstransport->transport);
+	}
+
+	ao2_ref(wstransport, -1);
+
 	return 0;
 }
 
@@ -130,13 +150,18 @@ static int transport_create(void *data)
 		return -1;
 	}
 
-	if (!(newtransport = PJ_POOL_ZALLOC_T(pool, struct ws_transport))) {
+	newtransport = ao2_t_alloc_options(sizeof(*newtransport), transport_dtor,
+			AO2_ALLOC_OPT_LOCK_NOLOCK, "pjsip websocket transport");
+	if (!newtransport) {
 		ast_log(LOG_ERROR, "Failed to allocate WebSocket transport.\n");
 		pjsip_endpt_release_pool(endpt, pool);
 		return -1;
 	}
 
 	newtransport->ws_session = create_data->ws_session;
+
+	/* Keep the session until transport dies */
+	ast_websocket_ref(newtransport->ws_session);
 
 	pj_atomic_create(pool, 0, &newtransport->transport.ref_cnt);
 	pj_lock_create_recursive_mutex(pool, pool->obj_name, &newtransport->transport.lock);
@@ -171,7 +196,7 @@ static int transport_create(void *data)
 		PJSIP_POOL_RDATA_LEN, PJSIP_POOL_RDATA_INC);
 	if (!newtransport->rdata.tp_info.pool) {
 		ast_log(LOG_ERROR, "Failed to allocate WebSocket rdata.\n");
-		pjsip_endpt_release_pool(endpt, pool);
+		ao2_ref(newtransport, -1);
 		return -1;
 	}
 
@@ -286,6 +311,8 @@ static void websocket_cb(struct ast_websocket *session, struct ast_variable *par
 	}
 
 	transport = create_data.transport;
+	ao2_ref(transport, +1);
+
 	read_data.transport = transport;
 
 	while (ast_wait_for_input(ast_websocket_fd(session), -1) > 0) {
