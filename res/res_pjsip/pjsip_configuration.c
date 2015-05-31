@@ -103,8 +103,7 @@ static int persistent_endpoint_update_state(void *obj, void *arg, void *data, in
 	contacts = ast_sip_location_retrieve_contacts_from_aor_list(persistent->aors);
 	if (contacts) {
 		i = ao2_iterator_init(contacts, 0);
-		while ((contact = ao2_iterator_next(&i))
-			&& state == AST_ENDPOINT_OFFLINE) {
+		while (state == AST_ENDPOINT_OFFLINE && (contact = ao2_iterator_next(&i))) {
 			struct ast_sip_contact_status *contact_status;
 			const char *contact_id = ast_sorcery_object_get_id(contact);
 
