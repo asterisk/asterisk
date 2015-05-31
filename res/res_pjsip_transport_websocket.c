@@ -48,6 +48,7 @@ struct ws_transport {
 	pjsip_transport transport;
 	pjsip_rx_data rdata;
 	struct ast_websocket *ws_session;
+	pj_grp_lock_t *grp_lock;
 };
 
 /*!
@@ -80,28 +81,56 @@ static pj_status_t ws_destroy(pjsip_transport *transport)
 {
 	struct ws_transport *wstransport = (struct ws_transport *)transport;
 
-	if (wstransport->transport.ref_cnt) {
-		pj_atomic_destroy(wstransport->transport.ref_cnt);
-	}
-
-	if (wstransport->transport.lock) {
-		pj_lock_destroy(wstransport->transport.lock);
-	}
-
-	pjsip_endpt_release_pool(wstransport->transport.endpt, wstransport->transport.pool);
-
-	if (wstransport->rdata.tp_info.pool) {
-		pjsip_endpt_release_pool(wstransport->transport.endpt, wstransport->rdata.tp_info.pool);
-	}
+	pj_grp_lock_dec_ref(wstransport->grp_lock);
 
 	return PJ_SUCCESS;
 }
 
+static void ws_on_destroy(void *arg)
+{
+	struct ws_transport *wstransport = (struct ws_transport*)arg;
+
+	if (wstransport->ws_session) {
+		if (ast_websocket_fd(wstransport->ws_session) > 0) {
+			ast_websocket_close(wstransport->ws_session, 1000);
+		}
+		ast_websocket_unref(wstransport->ws_session);
+		wstransport->ws_session = NULL;
+	}
+
+	if (wstransport->transport.ref_cnt) {
+		pj_atomic_destroy(wstransport->transport.ref_cnt);
+		wstransport->transport.ref_cnt = NULL;
+	}
+
+	if (wstransport->transport.lock) {
+		pj_lock_destroy(wstransport->transport.lock);
+		wstransport->transport.lock = NULL;
+	}
+
+	if (wstransport->rdata.tp_info.pool) {
+		pjsip_endpt_release_pool(wstransport->transport.endpt, wstransport->rdata.tp_info.pool);
+		wstransport->rdata.tp_info.pool = NULL;
+	}
+
+	if (wstransport->transport.pool) {
+		pj_pool_t *pool;
+
+		pool = wstransport->transport.pool;
+		wstransport->transport.pool = NULL;
+		pjsip_endpt_release_pool(wstransport->transport.endpt, pool);
+	}
+}
+
 static int transport_shutdown(void *data)
 {
-	pjsip_transport *transport = data;
+	struct ws_transport *wstransport = data;
 
-	pjsip_transport_shutdown(transport);
+	if (!wstransport->transport.is_shutdown && !wstransport->transport.is_destroying) {
+		pjsip_transport_shutdown(&wstransport->transport);
+	}
+
+	pj_grp_lock_dec_ref(wstransport->grp_lock);
 	return 0;
 }
 
@@ -164,6 +193,20 @@ static int transport_create(void *data)
 	newtransport->transport.send_msg = &ws_send_msg;
 	newtransport->transport.destroy = &ws_destroy;
 
+	if (PJ_SUCCESS != pj_grp_lock_create(pool, NULL, &newtransport->grp_lock)) {
+		ast_log(LOG_ERROR, "Failed to get pj_grp_lock.\n");
+		pjsip_endpt_release_pool(endpt, pool);
+		return -1;
+	}
+
+	/*
+	 * Group lock ensures the transport is not destroyed until both
+	 * pjsip transport manager and websocket listener are finished
+	 */
+	pj_grp_lock_add_ref(newtransport->grp_lock);
+	pj_grp_lock_add_ref(newtransport->grp_lock);
+	pj_grp_lock_add_handler(newtransport->grp_lock, pool, newtransport, &ws_on_destroy);
+
 	pjsip_transport_register(newtransport->transport.tpmgr, (pjsip_transport *)newtransport);
 
 	newtransport->rdata.tp_info.transport = &newtransport->transport;
@@ -171,10 +214,12 @@ static int transport_create(void *data)
 		PJSIP_POOL_RDATA_LEN, PJSIP_POOL_RDATA_INC);
 	if (!newtransport->rdata.tp_info.pool) {
 		ast_log(LOG_ERROR, "Failed to allocate WebSocket rdata.\n");
-		pjsip_endpt_release_pool(endpt, pool);
+		pj_grp_lock_destroy(newtransport->grp_lock);
 		return -1;
 	}
 
+	/* Add a reference for transport manager */
+	ast_websocket_ref(newtransport->ws_session);
 	create_data->transport = newtransport;
 	return 0;
 }
