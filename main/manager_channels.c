@@ -408,6 +408,7 @@ struct ast_str *ast_manager_build_channel_state_string_prefix(
 {
 	struct ast_str *out = ast_str_create(1024);
 	int res = 0;
+	char *caller_name, *connected_name;
 
 	if (!out) {
 		return NULL;
@@ -417,6 +418,9 @@ struct ast_str *ast_manager_build_channel_state_string_prefix(
 		ast_free(out);
 		return NULL;
 	}
+
+	caller_name = ast_escape_c_alloc(snapshot->caller_name);
+	connected_name = ast_escape_c_alloc(snapshot->connected_name);
 
 	res = ast_str_set(&out, 0,
 		"%sChannel: %s\r\n"
@@ -436,9 +440,9 @@ struct ast_str *ast_manager_build_channel_state_string_prefix(
 		prefix, snapshot->state,
 		prefix, ast_state2str(snapshot->state),
 		prefix, S_OR(snapshot->caller_number, "<unknown>"),
-		prefix, S_OR(snapshot->caller_name, "<unknown>"),
+		prefix, S_OR(caller_name, "<unknown>"),
 		prefix, S_OR(snapshot->connected_number, "<unknown>"),
-		prefix, S_OR(snapshot->connected_name, "<unknown>"),
+		prefix, S_OR(connected_name, "<unknown>"),
 		prefix, snapshot->language,
 		prefix, snapshot->accountcode,
 		prefix, snapshot->context,
@@ -448,17 +452,25 @@ struct ast_str *ast_manager_build_channel_state_string_prefix(
 
 	if (!res) {
 		ast_free(out);
+		ast_free(caller_name);
+		ast_free(connected_name);
 		return NULL;
 	}
 
 	if (snapshot->manager_vars) {
 		struct ast_var_t *var;
+		char *val;
 		AST_LIST_TRAVERSE(snapshot->manager_vars, var, entries) {
+			val = ast_escape_c_alloc(var->value);
 			ast_str_append(&out, 0, "%sChanVariable: %s=%s\r\n",
 				       prefix,
-				       var->name, var->value);
+				       var->name, S_OR(val, ""));
+			ast_free(val);
 		}
 	}
+
+	ast_free(caller_name);
+	ast_free(connected_name);
 
 	return out;
 }
@@ -556,6 +568,9 @@ static struct ast_manager_event_blob *channel_new_callerid(
 	struct ast_channel_snapshot *old_snapshot,
 	struct ast_channel_snapshot *new_snapshot)
 {
+	struct ast_manager_event_blob *res;
+	char *callerid;
+
 	/* No NewCallerid event on cache clear or first event */
 	if (!old_snapshot || !new_snapshot) {
 		return NULL;
@@ -565,11 +580,19 @@ static struct ast_manager_event_blob *channel_new_callerid(
 		return NULL;
 	}
 
-	return ast_manager_event_blob_create(
+	if (!(callerid = ast_escape_c_alloc(
+		      ast_describe_caller_presentation(new_snapshot->caller_pres)))) {
+		return NULL;
+	}
+
+	res = ast_manager_event_blob_create(
 		EVENT_FLAG_CALL, "NewCallerid",
 		"CID-CallingPres: %d (%s)\r\n",
 		new_snapshot->caller_pres,
-		ast_describe_caller_presentation(new_snapshot->caller_pres));
+		callerid);
+
+	ast_free(callerid);
+	return res;
 }
 
 static struct ast_manager_event_blob *channel_new_connected_line(
