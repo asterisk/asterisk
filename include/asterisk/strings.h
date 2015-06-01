@@ -309,6 +309,62 @@ char *ast_unescape_semicolon(char *s);
  */
 char *ast_unescape_c(char *s);
 
+/* Standard escape sequences */
+extern char ast_escape_sequences[];
+
+/*!
+ * \brief Escape the 'to_escape' characters in the given string.
+ *
+ * \note The given output buffer has to have enough memory allocated to store the
+ *       original string plus any escaped values.
+ *
+ * \param dest the escaped string
+ * \param s the source string to escape
+ * \param num number of characters to be copied from the source
+ * \param to_escape an array of characters to escape
+ *
+ * \return Pointer to the destination.
+ */
+char* ast_escape(char *dest, const char *s, size_t num, const char *to_escape);
+
+/*!
+ * \brief Escape standard 'C' sequences in the given string.
+ *
+ * \note The given output buffer has to have enough memory allocated to store the
+ *       original string plus any escaped values.
+ *
+ * \param dest the escaped string
+ * \param s the source string to escape
+ * \param num number of characters to be copied from the source
+ * \param to_escape an array of characters to escape
+ *
+ * \return Pointer to the escaped string.
+ */
+#define ast_escape_c(dest, s, num) ast_escape(dest, s, num, ast_escape_sequences)
+
+/*!
+ * \brief Escape the 'to_escape' characters in the given string.
+ *
+ * \note Caller is responsible for freeing the returned string
+ *
+ * \param s the source string to escape
+ * \param to_escape an array of characters to escape
+ *
+ * \return Pointer to the destination.
+ */
+char *ast_escape_alloc(const char *s, const char *to_escape);
+
+/*!
+ * \brief Escape standard 'C' sequences in the given string.
+ *
+ * \note Caller is responsible for freeing the returned string
+ *
+ * \param s the source string to escape
+ *
+ * \return Pointer to the escaped string.
+ */
+#define ast_escape_c_alloc(s) ast_escape_alloc(s, ast_escape_sequences)
+
 /*!
   \brief Size-limited null-terminating string copy.
   \param dst The destination buffer.

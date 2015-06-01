@@ -1623,6 +1623,73 @@ char *ast_unescape_c(char *src)
 	return ret;
 }
 
+/* Standard escape sequences  */
+char ast_escape_sequences[] = {
+	'\a', '\b', '\f', '\n', '\r', '\t', '\v', '\\', '\'', '\"', '\?', '\0'
+};
+
+/*
+ * Standard escape sequences output map (has to maintain matching
+ * order with ast_escape_sequences).
+ */
+static char escape_sequences_map[] = {
+	'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', '\'', '"', '?'
+};
+
+char* ast_escape(char *dest, const char *s, size_t num, const char *to_escape)
+{
+	char *p;
+
+	if (!dest || ast_strlen_zero(s)) {
+		return dest;
+	}
+
+	if (ast_strlen_zero(to_escape)) {
+		ast_copy_string(dest, s, num);
+		return dest;
+	}
+
+	for (p = dest; *s && num--; ++s, ++p) {
+		/* If in the list of characters to escape then escape it */
+		if (strchr(to_escape, *s)) {
+			/*
+			 * See if the character to escape is part of the standard escape
+			 * sequences. If so we'll have to use its mapped counterpart
+			 * otherwise just use the given value.
+			 */
+			char *c = strchr(ast_escape_sequences, *s);
+			*p++ = '\\';
+			*p = c ? escape_sequences_map[c - ast_escape_sequences] : *s;
+		} else {
+			*p = *s;
+		}
+	}
+
+	*p = '\0';
+	return dest;
+}
+
+char *ast_escape_alloc(const char *s, const char *to_escape)
+{
+	char *res;
+	size_t size;
+
+	if (!s || !(size = strlen(s))) {
+		return NULL;
+	}
+
+	/*
+	 * The result string needs to be twice the size of the given
+	 * string just in case every character in it needs to be escaped.
+	 */
+	size = size * 2 + 1;
+	if (!(res = (char*)ast_calloc(sizeof(char), size))) {
+		return NULL;
+	}
+
+	return ast_escape(res, s, size, to_escape);
+}
+
 int ast_build_string_va(char **buffer, size_t *space, const char *fmt, va_list ap)
 {
 	int result;
