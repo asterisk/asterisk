@@ -79,6 +79,8 @@ struct sorcery_memory_cached_object {
 	struct timeval created;
 	/*! \brief index required by heap */
 	ssize_t __heap_index;
+	/*! \brief scheduler id of stale update task */
+	int stale_update_sched_id;
 };
 
 static void *sorcery_memory_cache_open(const char *data);
@@ -116,6 +118,50 @@ static struct ao2_container *caches;
 
 /*! \brief Scheduler for cache management */
 static struct ast_sched_context *sched;
+
+#define STALE_UPDATE_THREAD_ID 0x5EED1E55
+AST_THREADSTORAGE(stale_update_id_storage);
+
+static int is_stale_update(void)
+{
+	uint32_t *stale_update_thread_id;
+
+	stale_update_thread_id = ast_threadstorage_get(&stale_update_id_storage,
+		sizeof(*stale_update_thread_id));
+	if (!stale_update_thread_id) {
+		return 0;
+	}
+
+	return *stale_update_thread_id == STALE_UPDATE_THREAD_ID;
+}
+
+static void start_stale_update(void)
+{
+	uint32_t *stale_update_thread_id;
+
+	stale_update_thread_id = ast_threadstorage_get(&stale_update_id_storage,
+		sizeof(*stale_update_thread_id));
+	if (!stale_update_thread_id) {
+		ast_log(LOG_ERROR, "Could not set stale update ID for sorcery memory cache thread\n");
+		return;
+	}
+
+	*stale_update_thread_id = STALE_UPDATE_THREAD_ID;
+}
+
+static void end_stale_update(void)
+{
+	uint32_t *stale_update_thread_id;
+
+	stale_update_thread_id = ast_threadstorage_get(&stale_update_id_storage,
+		sizeof(*stale_update_thread_id));
+	if (!stale_update_thread_id) {
+		ast_log(LOG_ERROR, "Could not set stale update ID for sorcery memory cache thread\n");
+		return;
+	}
+
+	*stale_update_thread_id = 0;
+}
 
 /*!
  * \internal
@@ -493,13 +539,13 @@ static int sorcery_memory_cache_create(const struct ast_sorcery *sorcery, void *
 	struct sorcery_memory_cache *cache = data;
 	struct sorcery_memory_cached_object *cached;
 
-	cached = ao2_alloc_options(sizeof(*cached), sorcery_memory_cached_object_destructor,
-		AO2_ALLOC_OPT_LOCK_NOLOCK);
+	cached = ao2_alloc(sizeof(*cached), sorcery_memory_cached_object_destructor);
 	if (!cached) {
 		return -1;
 	}
 	cached->object = ao2_bump(object);
 	cached->created = ast_tvnow();
+	cached->stale_update_sched_id = -1;
 
 	/* As there is no guarantee that this won't be called by multiple threads wanting to cache
 	 * the same object we remove any old ones, which turns this into a create/update function
@@ -531,6 +577,69 @@ static int sorcery_memory_cache_create(const struct ast_sorcery *sorcery, void *
 	return 0;
 }
 
+struct stale_update_task_data {
+	struct ast_sorcery *sorcery;
+	struct sorcery_memory_cache *cache;
+	void *object;
+};
+
+static void stale_update_task_data_destructor(void *obj)
+{
+	struct stale_update_task_data *task_data = obj;
+
+	ao2_cleanup(task_data->cache);
+	ao2_cleanup(task_data->object);
+	ast_sorcery_unref(task_data->sorcery);
+}
+
+static struct stale_update_task_data *stale_update_task_data_alloc(struct ast_sorcery *sorcery,
+		struct sorcery_memory_cache *cache, const char *type, void *object)
+{
+	struct stale_update_task_data *task_data;
+
+	task_data = ao2_alloc_options(sizeof(*task_data), stale_update_task_data_destructor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!task_data) {
+		return NULL;
+	}
+
+	task_data->sorcery = ao2_bump(sorcery);
+	task_data->cache = ao2_bump(cache);
+	task_data->object = ao2_bump(object);
+
+	return task_data;
+}
+
+static int stale_item_update(const void *data)
+{
+	struct stale_update_task_data *task_data = (struct stale_update_task_data *) data;
+	void *object;
+
+	start_stale_update();
+
+	object = ast_sorcery_retrieve_by_id(task_data->sorcery,
+		ast_sorcery_object_get_type(task_data->object),
+		ast_sorcery_object_get_id(task_data->object));
+	if (!object) {
+		ast_debug(1, "Backend no longer has object type '%s' ID '%s'. Removing from cache\n",
+			ast_sorcery_object_get_type(task_data->object),
+			ast_sorcery_object_get_id(task_data->object));
+		sorcery_memory_cache_delete(task_data->sorcery, task_data->cache,
+			task_data->object);
+	} else {
+		ast_debug(1, "Refreshing stale cache object type '%s' ID '%s'\n",
+			ast_sorcery_object_get_type(task_data->object),
+			ast_sorcery_object_get_id(task_data->object));
+		sorcery_memory_cache_create(task_data->sorcery, task_data->cache,
+			object);
+	}
+
+	ao2_ref(task_data, -1);
+	end_stale_update();
+
+	return 0;
+}
+
 /*!
  * \internal
  * \brief Callback function to retrieve an object from a memory cache
@@ -549,9 +658,37 @@ static void *sorcery_memory_cache_retrieve_id(const struct ast_sorcery *sorcery,
 	struct sorcery_memory_cached_object *cached;
 	void *object;
 
+	if (is_stale_update()) {
+		return NULL;
+	}
+
 	cached = ao2_find(cache->objects, id, OBJ_SEARCH_KEY);
 	if (!cached) {
 		return NULL;
+	}
+
+	if (cache->object_lifetime_stale) {
+		struct timeval elapsed;
+
+		elapsed = ast_tvsub(ast_tvnow(), cached->created);
+		if (elapsed.tv_sec > cache->object_lifetime_stale) {
+			ao2_lock(cached);
+			if (cached->stale_update_sched_id == -1) {
+				struct stale_update_task_data *task_data;
+
+				task_data = stale_update_task_data_alloc((struct ast_sorcery *)sorcery, cache,
+					type, cached->object);
+				if (task_data) {
+					ast_debug(1, "Cached sorcery object type '%s' ID '%s' is stale. Refreshing\n",
+						type, id);
+					cached->stale_update_sched_id = ast_sched_add(sched, 1, stale_item_update, task_data);
+				} else {
+					ast_log(LOG_ERROR, "Unable to update stale cached object type '%s', ID '%s'.\n",
+						type, id);
+				}
+			}
+			ao2_unlock(cached);
+		}
 	}
 
 	object = ao2_bump(cached->object);
@@ -1462,6 +1599,240 @@ cleanup:
 	return res;
 }
 
+/*!
+ * \brief Backend data that the mock sorcery wizard uses to create objects
+ */
+static struct backend_data {
+	/*! An arbitrary data field */
+	int salt;
+	/*! Another arbitrary data field */
+	int pepper;
+	/*! Indicates whether the backend has data */
+	int exists;
+} *real_backend_data;
+
+/*!
+ * \brief Sorcery object created based on backend data
+ */
+struct test_data {
+	SORCERY_OBJECT(details);
+	/*! Mirrors the backend data's salt field */
+	int salt;
+	/*! Mirrors the backend data's pepper field */
+	int pepper;
+};
+
+/*!
+ * \brief Allocation callback for test_data sorcery object
+ */
+static void *test_data_alloc(const char *id) {
+	return ast_sorcery_generic_alloc(sizeof(struct test_data), NULL);
+}
+
+/*!
+ * \brief Callback for retrieving sorcery object by ID
+ *
+ * The mock wizard uses the \ref real_backend_data in order to construct
+ * objects. If the backend data is "nonexisent" then no object is returned.
+ * Otherwise, an object is created that has the backend data's salt and
+ * pepper values copied.
+ *
+ * \param sorcery The sorcery instance
+ * \param data Unused
+ * \param type The object type. Will always be "test".
+ * \param id The object id. Will always be "test".
+ *
+ * \retval NULL Backend data does not exist
+ * \retval non-NULL An object representing the backend data
+ */
+static void *mock_retrieve_id(const struct ast_sorcery *sorcery, void *data,
+		const char *type, const char *id)
+{
+	struct test_data *b_data;
+
+	if (!real_backend_data->exists) {
+		return NULL;
+	}
+
+	b_data = ast_sorcery_alloc(sorcery, type, id);
+	if (!b_data) {
+		return NULL;
+	}
+
+	b_data->salt = real_backend_data->salt;
+	b_data->pepper = real_backend_data->pepper;
+	return b_data;
+}
+
+/*!
+ * \brief A mock sorcery wizard used for the stale test
+ */
+static struct ast_sorcery_wizard mock_wizard = {
+	.name = "mock",
+	.retrieve_id = mock_retrieve_id,
+};
+
+/*!
+ * \brief Wait for the cache to be updated after a stale object is retrieved.
+ *
+ * Since the cache does not know what type of objects it is dealing with, and
+ * since we do not have the internals of the cache, the only way to make this
+ * determination is to continuously retrieve an object from the cache until
+ * we retrieve a different object than we had previously retrieved.
+ *
+ * \param sorcery The sorcery instance
+ * \param previous_object The object we had previously retrieved from the cache
+ * \param[out] new_object The new object we retrieve from the cache
+ *
+ * \retval 0 Successfully retrieved a new object from the cache
+ * \retval non-zero Failed to retrieve a new object from the cache
+ */
+static int wait_for_cache_update(const struct ast_sorcery *sorcery,
+		void *previous_object, struct test_data **new_object)
+{
+	struct timeval start = ast_tvnow();
+
+	while (ast_remaining_ms(start, 5000) > 0) {
+		void *object;
+
+		object = ast_sorcery_retrieve_by_id(sorcery, "test", "test");
+		if (object != previous_object) {
+			*new_object = object;
+			return 0;
+		}
+		ao2_cleanup(object);
+	}
+
+	return -1;
+}
+
+AST_TEST_DEFINE(stale)
+{
+	int res = AST_TEST_FAIL;
+	struct ast_sorcery *sorcery = NULL;
+	struct test_data *backend_object;
+	struct backend_data iterations[] = {
+		{ .salt = 1,      .pepper = 2,       .exists = 1 },
+		{ .salt = 568729, .pepper = -234123, .exists = 1 },
+		{ .salt = 0,      .pepper = 0,       .exists = 0 },
+	};
+	struct backend_data initial = {
+		.salt = 0,
+		.pepper = 0,
+		.exists = 1,
+	};
+	int i;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "stale";
+		info->category = "/res/res_sorcery_memory_cache/";
+		info->summary = "Ensure that stale objects are replaced with updated objects";
+		info->description = "This test performs the following:\n"
+			"\t* Create a sorcery instance with two wizards"
+			"\t\t* The first is a memory cache that marks items stale after 3 seconds\n"
+			"\t\t* The second is a mock of a back-end\n"
+			"\t* Pre-populates the cache by retrieving some initial data from the backend.\n"
+			"\t* Performs iterations of the following:\n"
+			"\t\t* Update backend data with new values\n"
+			"\t\t* Retrieve item from the cache\n"
+			"\t\t* Ensure the retrieved item does not have the new backend values\n"
+			"\t\t* Wait for cached object to become stale\n"
+			"\t\t* Retrieve the stale cached object\n"
+			"\t\t* Ensure that the stale object retrieved is the same as the fresh one from earlier\n"
+			"\t\t* Wait for the cache to update with new data\n"
+			"\t\t* Ensure that new data in the cache matches backend data\n";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	ast_sorcery_wizard_register(&mock_wizard);
+
+	sorcery = ast_sorcery_open();
+	if (!sorcery) {
+		ast_test_status_update(test, "Failed to create sorcery instance\n");
+		goto cleanup;
+	}
+
+	ast_sorcery_apply_wizard_mapping(sorcery, "test", "memory_cache",
+			"object_lifetime_stale=3", 1);
+	ast_sorcery_apply_wizard_mapping(sorcery, "test", "mock", NULL, 0);
+	ast_sorcery_internal_object_register(sorcery, "test", test_data_alloc, NULL, NULL);
+
+	/* Prepopulate the cache */
+	real_backend_data = &initial;
+
+	backend_object = ast_sorcery_retrieve_by_id(sorcery, "test", "test");
+	if (!backend_object) {
+		ast_test_status_update(test, "Unable to retrieve backend data and populate the cache\n");
+		goto cleanup;
+	}
+	ao2_ref(backend_object, -1);
+
+	for (i = 0; i < ARRAY_LEN(iterations); ++i) {
+		RAII_VAR(struct test_data *, cache_fresh, NULL, ao2_cleanup);
+		RAII_VAR(struct test_data *, cache_stale, NULL, ao2_cleanup);
+		RAII_VAR(struct test_data *, cache_new, NULL, ao2_cleanup);
+
+		real_backend_data = &iterations[i];
+
+		ast_test_status_update(test, "Begininning iteration %d\n", i);
+
+		cache_fresh = ast_sorcery_retrieve_by_id(sorcery, "test", "test");
+		if (!cache_fresh) {
+			ast_test_status_update(test, "Unable to retrieve fresh cached object\n");
+			goto cleanup;
+		}
+
+		if (cache_fresh->salt == iterations[i].salt || cache_fresh->pepper == iterations[i].pepper) {
+			ast_test_status_update(test, "Fresh cached object has unexpected values. Did we hit the backend?\n");
+			goto cleanup;
+		}
+
+		sleep(5);
+
+		cache_stale = ast_sorcery_retrieve_by_id(sorcery, "test", "test");
+		if (!cache_stale) {
+			ast_test_status_update(test, "Unable to retrieve stale cached object\n");
+			goto cleanup;
+		}
+
+		if (cache_stale != cache_fresh) {
+			ast_test_status_update(test, "Stale cache hit retrieved different object than fresh cache hit\n");
+			goto cleanup;
+		}
+
+		if (wait_for_cache_update(sorcery, cache_stale, &cache_new)) {
+			ast_test_status_update(test, "Cache was not updated\n");
+			goto cleanup;
+		}
+
+		if (iterations[i].exists) {
+			if (!cache_new) {
+				ast_test_status_update(test, "Failed to retrieve item from cache when there should be one present\n");
+				goto cleanup;
+			} else if (cache_new->salt != iterations[i].salt ||
+					cache_new->pepper != iterations[i].pepper) {
+				ast_test_status_update(test, "New cached item has unexpected values\n");
+				goto cleanup;
+			}
+		} else if (cache_new) {
+			ast_test_status_update(test, "Retrieved a cached item when there should not have been one present\n");
+			goto cleanup;
+		}
+	}
+
+	res = AST_TEST_PASS;
+
+cleanup:
+	if (sorcery) {
+		ast_sorcery_unref(sorcery);
+	}
+	ast_sorcery_wizard_unregister(&mock_wizard);
+	return res;
+}
+
 #endif
 
 static int unload_module(void)
@@ -1482,6 +1853,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(delete);
 	AST_TEST_UNREGISTER(maximum_objects);
 	AST_TEST_UNREGISTER(expiration);
+	AST_TEST_UNREGISTER(stale);
 
 	return 0;
 }
@@ -1521,6 +1893,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(delete);
 	AST_TEST_REGISTER(maximum_objects);
 	AST_TEST_REGISTER(expiration);
+	AST_TEST_REGISTER(stale);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
