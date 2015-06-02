@@ -194,24 +194,6 @@ int ast_res_pjsip_init_contact_transports(void);
 
 /*!
  * \internal
- * \brief Initialize outbound authentication support
- *
- * \retval 0 Success
- * \retval non-zero Failure
- */
-int internal_sip_initialize_outbound_authentication(void);
-
-/*!
- * \internal
- * \brief Destroy outbound authentication support
- *
- * \retval 0 Success
- * \retval non-zero Failure
- */
-void internal_sip_destroy_outbound_authentication(void);
-
-/*!
- * \internal
  * \brief Initialize system configuration
  *
  * \retval 0 Success

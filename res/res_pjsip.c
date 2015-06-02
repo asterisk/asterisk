@@ -3743,22 +3743,6 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	if (internal_sip_initialize_outbound_authentication()) {
-		ast_log(LOG_ERROR, "Failed to initialize outbound authentication. Aborting load\n");
-		internal_sip_unregister_service(&supplement_module);
-		ast_sip_destroy_distributor();
-		ast_res_pjsip_destroy_configuration();
-		ast_sip_destroy_global_headers();
-		stop_monitor_thread();
-		ast_sip_destroy_system();
-		pj_pool_release(memory_pool);
-		memory_pool = NULL;
-		pjsip_endpt_destroy(ast_pjsip_endpoint);
-		ast_pjsip_endpoint = NULL;
-		pj_caching_pool_destroy(&caching_pool);
-		return AST_MODULE_LOAD_DECLINE;
-	}
-
 	ast_res_pjsip_init_options_handling(0);
 	ast_cli_register_multiple(cli_commands, ARRAY_LEN(cli_commands));
 
@@ -3783,7 +3767,6 @@ static int unload_pjsip(void *data)
 {
 	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
 	ast_res_pjsip_cleanup_options_handling();
-	internal_sip_destroy_outbound_authentication();
 	ast_sip_destroy_distributor();
 	ast_res_pjsip_destroy_configuration();
 	ast_sip_destroy_system();
