@@ -1467,8 +1467,8 @@ static pj_bool_t outbound_invite_auth(pjsip_rx_data *rdata)
 
 	session = inv->mod_data[session_module.id];
 
-	if (ast_sip_create_request_with_auth(&session->endpoint->outbound_auths, rdata, tsx,
-		&tdata)) {
+	if (ast_sip_create_request_with_auth(&session->endpoint->outbound_auths, rdata,
+		tsx->last_tx, &tdata)) {
 		return PJ_FALSE;
 	}
 
@@ -2370,7 +2370,7 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 						if ((tsx->status_code == 401 || tsx->status_code == 407)
 							&& !ast_sip_create_request_with_auth(
 								&session->endpoint->outbound_auths,
-								e->body.tsx_state.src.rdata, tsx, &tdata)) {
+								e->body.tsx_state.src.rdata, tsx->last_tx, &tdata)) {
 							/* Send authed reINVITE */
 							ast_sip_session_send_request_with_cb(session, tdata, cb);
 							return;
@@ -2407,7 +2407,7 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 					if ((tsx->status_code == 401 || tsx->status_code == 407)
 						&& !ast_sip_create_request_with_auth(
 							&session->endpoint->outbound_auths,
-							e->body.tsx_state.src.rdata, tsx, &tdata)) {
+							e->body.tsx_state.src.rdata, tsx->last_tx, &tdata)) {
 						/* Send authed version of the method */
 						ast_sip_session_send_request_with_cb(session, tdata, cb);
 						return;
