@@ -791,6 +791,7 @@ void *ast_tcptls_server_root(void *data)
 	return NULL;
 }
 
+#ifdef DO_SSL
 static void __ssl_setup_certs(struct ast_tls_config *cfg, const size_t cert_file_len, const char *key_type_extension, const char *key_type)
 {
 	char *cert_file = ast_strdupa(cfg->certfile);
@@ -806,6 +807,7 @@ static void __ssl_setup_certs(struct ast_tls_config *cfg, const size_t cert_file
 		}
 	}
 }
+#endif
 
 static int __ssl_setup(struct ast_tls_config *cfg, int client)
 {
