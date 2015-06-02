@@ -418,6 +418,9 @@ static int remove_from_cache(struct sorcery_memory_cache *cache, const char *id,
 	if (!hash_object) {
 		return -1;
 	}
+
+	ast_assert(!strcmp(ast_sorcery_object_get_id(hash_object->object), id));
+
 	oldest_object = ast_heap_peek(cache->object_heap, 1);
 	heap_object = ast_heap_remove(cache->object_heap, hash_object);
 
@@ -536,6 +539,8 @@ static int mark_object_as_stale_in_cache(struct sorcery_memory_cache *cache, con
 	if (!cached) {
 		return -1;
 	}
+
+	ast_assert(!strcmp(ast_sorcery_object_get_id(cached->object), id));
 
 	object_stale_callback(cached, cache, 0);
 	ao2_ref(cached, -1);
@@ -718,6 +723,7 @@ static int sorcery_memory_cache_create(const struct ast_sorcery *sorcery, void *
 			ao2_unlock(cache->objects);
 			return -1;
 		}
+		ast_assert(ao2_container_count(cache->objects) != cache->maximum_objects);
 	}
 	if (add_to_cache(cache, cached)) {
 		ast_log(LOG_ERROR, "Unable to add object '%s' to the cache\n",
@@ -825,6 +831,8 @@ static void *sorcery_memory_cache_retrieve_id(const struct ast_sorcery *sorcery,
 	if (!cached) {
 		return NULL;
 	}
+
+	ast_assert(!strcmp(ast_sorcery_object_get_id(cached->object), id));
 
 	if (cache->object_lifetime_stale) {
 		struct timeval elapsed;
