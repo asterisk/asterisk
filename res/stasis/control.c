@@ -135,7 +135,7 @@ struct stasis_app_control *control_create(struct ast_channel *channel, struct st
 }
 
 static void app_control_register_rule(
-	const struct stasis_app_control *control,
+	struct stasis_app_control *control,
 	struct app_control_rules *list, struct stasis_app_control_rule *obj)
 {
 	SCOPED_AO2LOCK(lock, control->command_queue);
@@ -143,7 +143,7 @@ static void app_control_register_rule(
 }
 
 static void app_control_unregister_rule(
-	const struct stasis_app_control *control,
+	struct stasis_app_control *control,
 	struct app_control_rules *list, struct stasis_app_control_rule *obj)
 {
 	struct stasis_app_control_rule *rule;
