@@ -1529,7 +1529,7 @@ AST_RWLIST_HEAD_STATIC(event_sources, stasis_app_event_source);
 
 void stasis_app_register_event_source(struct stasis_app_event_source *obj)
 {
-	SCOPED_LOCK(lock, &event_sources, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
+	SCOPED_RWLIST_WRLOCK(lock, &event_sources);
 	AST_LIST_INSERT_TAIL(&event_sources, obj, next);
 	/* only need to bump the module ref on non-core sources because the
 	   core ones are [un]registered by this module. */
@@ -1541,7 +1541,7 @@ void stasis_app_register_event_source(struct stasis_app_event_source *obj)
 void stasis_app_unregister_event_source(struct stasis_app_event_source *obj)
 {
 	struct stasis_app_event_source *source;
-	SCOPED_LOCK(lock, &event_sources, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
+	SCOPED_RWLIST_WRLOCK(lock, &event_sources);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&event_sources, source, next) {
 		if (source == obj) {
 			AST_RWLIST_REMOVE_CURRENT(next);
@@ -1570,7 +1570,7 @@ static struct ast_json *app_event_sources_to_json(
 	const struct stasis_app *app, struct ast_json *json)
 {
 	struct stasis_app_event_source *source;
-	SCOPED_LOCK(lock, &event_sources, AST_RWLIST_RDLOCK, AST_RWLIST_UNLOCK);
+	SCOPED_RWLIST_RDLOCK(lock, &event_sources);
 	AST_LIST_TRAVERSE(&event_sources, source, next) {
 		if (source->to_json) {
 			source->to_json(app, json);
@@ -1609,7 +1609,7 @@ struct ast_json *stasis_app_to_json(const char *app_name)
 static struct stasis_app_event_source *app_event_source_find(const char *uri)
 {
 	struct stasis_app_event_source *source;
-	SCOPED_LOCK(lock, &event_sources, AST_RWLIST_RDLOCK, AST_RWLIST_UNLOCK);
+	SCOPED_RWLIST_RDLOCK(lock, &event_sources);
 	AST_LIST_TRAVERSE(&event_sources, source, next) {
 		if (ast_begins_with(uri, source->scheme)) {
 			return source;

@@ -615,6 +615,16 @@ static void  __attribute__((destructor)) fini_##rwlock(void) \
 #define SCOPED_WRLOCK(varname, lock) SCOPED_LOCK(varname, (lock), ast_rwlock_wrlock, ast_rwlock_unlock)
 
 /*!
+ * \brief scoped lock specialization for read locks of AST_RWLIST
+ */
+#define SCOPED_RWLIST_RDLOCK(varname, head) SCOPED_LOCK(varname, &(head)->lock, ast_rwlock_rdlock, ast_rwlock_unlock)
+
+/*!
+ * \brief scoped lock specialization for write locks of AST_RWLIST
+ */
+#define SCOPED_RWLIST_WRLOCK(varname, head) SCOPED_LOCK(varname, &(head)->lock, ast_rwlock_wrlock, ast_rwlock_unlock)
+
+/*!
  * \brief scoped lock specialization for ao2 mutexes.
  */
 #define SCOPED_AO2LOCK(varname, obj) SCOPED_LOCK(varname, (obj), ao2_lock, ao2_unlock)

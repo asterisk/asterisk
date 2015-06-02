@@ -7685,7 +7685,7 @@ struct varshead *ast_channel_get_manager_vars(struct ast_channel *chan)
 	RAII_VAR(struct varshead *, ret, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_str *, tmp, NULL, ast_free);
 	struct manager_channel_variable *mcv;
-	SCOPED_LOCK(lock, &channelvars, AST_RWLIST_RDLOCK, AST_RWLIST_UNLOCK);
+	SCOPED_RWLIST_RDLOCK(lock, &channelvars);
 
 	if (AST_LIST_EMPTY(&channelvars)) {
 		return NULL;
