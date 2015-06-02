@@ -60,7 +60,7 @@ endif
 
 ifneq ($(findstring darwin,$(OSARCH)),)
   AST_LIBS+=-lresolv
-  ASTLINK=-mmacosx-version-min=10.6 -Xlinker -undefined -Xlinker dynamic_lookup -force_flat_namespace
+  ASTLINK=-mmacosx-version-min=10.6 -Wl,-undefined,dynamic_lookup -force_flat_namespace
   ASTLINK+=/usr/lib/bundle1.o
 else
 # These are used for all but Darwin

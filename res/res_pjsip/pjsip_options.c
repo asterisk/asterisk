@@ -974,7 +974,7 @@ static int rtt_start_to_str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct ast_sip_contact_status *status = obj;
 
-	if (ast_asprintf(buf, "%ld.%06ld", status->rtt_start.tv_sec, status->rtt_start.tv_usec) == -1) {
+	if (ast_asprintf(buf, "%ld.%06ld", (long)status->rtt_start.tv_sec, (long)status->rtt_start.tv_usec) == -1) {
 		return -1;
 	}
 

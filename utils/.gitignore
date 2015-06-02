@@ -9,6 +9,7 @@ astdb2bdb
 astdb2sqlite3
 check_expr
 check_expr2
+check_expr2.dSYM/
 conf2ael
 db1-ast/libdb1.a
 hashtab.c
