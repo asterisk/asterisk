@@ -21,10 +21,10 @@
  * \brief App to flash a DAHDI trunk
  *
  * \author Mark Spencer <markster@digium.com>
- * 
+ *
  * \ingroup applications
  */
- 
+
 /*** MODULEINFO
 	<depend>dahdi</depend>
 	<support_level>core</support_level>
@@ -83,7 +83,7 @@ static int flash_exec(struct ast_channel *chan, const char *data)
 		ast_log(LOG_WARNING, "%s is not a DAHDI channel\n", ast_channel_name(chan));
 		return -1;
 	}
-	
+
 	memset(&dahdip, 0, sizeof(dahdip));
 	res = ioctl(ast_channel_fd(chan, 0), DAHDI_GET_PARAMS, &dahdip);
 	if (!res) {

@@ -21,7 +21,7 @@
  * \brief Wait for Ring Application
  *
  * \author Mark Spencer <markster@digium.com>
- * 
+ *
  * \ingroup applications
  */
 

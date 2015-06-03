@@ -21,7 +21,7 @@
  * \brief App to transmit a text message
  *
  * \author Mark Spencer <markster@digium.com>
- * 
+ *
  * \note Requires support of sending text messages from channel driver
  *
  * \ingroup applications
@@ -30,7 +30,7 @@
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/
- 
+
 #include "asterisk.h"
 
 ASTERISK_REGISTER_FILE()

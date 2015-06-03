@@ -164,7 +164,7 @@ static int do_waiting(struct ast_channel *chan, int timereqd, time_t waitstart, 
 			pbx_builtin_setvar_helper(chan, "WAITSTATUS", "HANGUP");
 			break;
 		}
-		
+
 		/* We waited and got no frame; sounds like digital silence or a muted digital channel */
 		if (res == 0) {
 			dsptime = timereqd;

@@ -21,7 +21,7 @@
  * \brief Stack applications Gosub, Return, etc.
  *
  * \author Tilghman Lesher <app_stack_v003@the-tilghman.com>
- * 
+ *
  * \ingroup applications
  */
 
@@ -31,7 +31,7 @@
  ***/
 
 #include "asterisk.h"
- 
+
 ASTERISK_REGISTER_FILE()
 
 #include "asterisk/pbx.h"
@@ -305,7 +305,7 @@ static void gosub_release_frame(struct ast_channel *chan, struct gosub_stack_fra
 	 */
 	while ((vardata = AST_LIST_REMOVE_HEAD(&frame->varshead, entries))) {
 		if (chan)
-			pbx_builtin_setvar_helper(chan, ast_var_name(vardata), NULL);	
+			pbx_builtin_setvar_helper(chan, ast_var_name(vardata), NULL);
 		ast_var_delete(vardata);
 	}
 

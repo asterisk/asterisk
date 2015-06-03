@@ -103,7 +103,7 @@ static const char app[] = "Authenticate";
 		</syntax>
 		<description>
 			<para>This application asks the caller to enter a given password in order to continue dialplan execution.</para>
-			<para>If the password begins with the <literal>/</literal> character, 
+			<para>If the password begins with the <literal>/</literal> character,
 			it is interpreted as a file which contains a list of valid passwords, listed 1 password per line in the file.</para>
 			<para>When using a database key, the value associated with the key can be anything.</para>
 			<para>Users have three attempts to authenticate before the channel is hung up.</para>
@@ -158,7 +158,7 @@ static int auth_exec(struct ast_channel *chan, const char *data)
 	} else {
 		prompt = "agent-pass";
 	}
-   
+
 	/* Start asking for password */
 	for (retries = 0; retries < 3; retries++) {
 		if ((res = ast_app_getdata(chan, prompt, passwd, maxdigits, 0)) < 0)

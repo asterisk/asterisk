@@ -21,7 +21,7 @@
  * \brief SayUnixTime application
  *
  * \author Tilghman Lesher <app_sayunixtime__200309@the-tilghman.com>
- * 
+ *
  * \ingroup applications
  */
 
@@ -68,7 +68,7 @@ ASTERISK_REGISTER_FILE()
 			</parameter>
 		</syntax>
 		<description>
-			<para>Uses some of the sound files stored in <directory>/var/lib/asterisk/sounds</directory> to construct a phrase 
+			<para>Uses some of the sound files stored in <directory>/var/lib/asterisk/sounds</directory> to construct a phrase
 			saying the specified date and/or time in the specified format. </para>
 		</description>
 		<see-also>
@@ -175,20 +175,20 @@ static int sayunixtime_exec(struct ast_channel *chan, const char *data)
 static int unload_module(void)
 {
 	int res;
-	
+
 	res = ast_unregister_application(app_sayunixtime);
 	res |= ast_unregister_application(app_datetime);
-	
+
 	return res;
 }
 
 static int load_module(void)
 {
 	int res;
-	
+
 	res = ast_register_application_xml(app_sayunixtime, sayunixtime_exec);
 	res |= ast_register_application_xml(app_datetime, sayunixtime_exec);
-	
+
 	return res;
 }
 

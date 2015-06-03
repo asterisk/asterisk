@@ -28,7 +28,7 @@
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/
- 
+
 #include "asterisk.h"
 
 ASTERISK_REGISTER_FILE()
@@ -188,7 +188,7 @@ static int record_exec(struct ast_channel *chan, const char *data)
 
 	struct ast_filestream *s = NULL;
 	struct ast_frame *f = NULL;
-	
+
 	struct ast_dsp *sildet = NULL;   	/* silence detector dsp */
 	int totalsilence = 0;
 	int dspsilence = 0;
@@ -245,7 +245,7 @@ static int record_exec(struct ast_channel *chan, const char *data)
 			ast_log(LOG_WARNING, "'%s' is not a valid silence duration\n", args.silence);
 		}
 	}
-	
+
 	if (args.maxduration) {
 		if ((sscanf(args.maxduration, "%30d", &i) == 1) && (i > -1))
 			/* Convert duration to milliseconds */
@@ -344,7 +344,7 @@ static int record_exec(struct ast_channel *chan, const char *data)
 			return -1;
 		}
 		ast_dsp_set_threshold(sildet, ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE));
-	} 
+	}
 
 	/* Create the directory if it does not exist. */
 	dir = ast_strdupa(tmp);

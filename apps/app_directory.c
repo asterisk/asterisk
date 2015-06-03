@@ -49,9 +49,9 @@ ASTERISK_REGISTER_FILE()
 		</synopsis>
 		<syntax>
 			<parameter name="vm-context">
-				<para>This is the context within voicemail.conf to use for the Directory. If not 
-				specified and <literal>searchcontexts=no</literal> in 
-				<filename>voicemail.conf</filename>, then <literal>default</literal> 
+				<para>This is the context within voicemail.conf to use for the Directory. If not
+				specified and <literal>searchcontexts=no</literal> in
+				<filename>voicemail.conf</filename>, then <literal>default</literal>
 				will be assumed.</para>
 			</parameter>
 			<parameter name="dial-context" required="false">
@@ -107,7 +107,7 @@ ASTERISK_REGISTER_FILE()
 					</option>
 				</optionlist>
 				<note><para>Only one of the <replaceable>f</replaceable>, <replaceable>l</replaceable>, or <replaceable>b</replaceable>
-				options may be specified. <emphasis>If more than one is specified</emphasis>, then Directory will act as 
+				options may be specified. <emphasis>If more than one is specified</emphasis>, then Directory will act as
 				if <replaceable>b</replaceable> was specified.  The number
 				of characters for the user to type defaults to <literal>3</literal>.</para></note>
 
@@ -366,7 +366,7 @@ static int select_item_seq(struct ast_channel *chan, struct directory_item **ite
 			if (!res)
 				res = ast_waitfordigit(chan, 3000);
 			ast_stopstream(chan);
-	
+
 			if (res == '0') { /* operator selected */
 				goto_exten(chan, dialcontext, "o");
 				pbx_builtin_setvar_helper(chan, "DIRECTORY_RESULT", "OPERATOR");
@@ -921,7 +921,7 @@ static int directory_exec(struct ast_channel *chan, const char *data)
 				res = ast_stream_and_wait(chan, digits, AST_DIGIT_ANY);
 			}
 			if (!res) {
-				res = ast_stream_and_wait(chan, 
+				res = ast_stream_and_wait(chan,
 					which == FIRST ? "dir-first" :
 					which == LAST ? "dir-last" :
 					"dir-firstlast", AST_DIGIT_ANY);

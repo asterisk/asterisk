@@ -109,7 +109,7 @@ ASTERISK_REGISTER_FILE();
 			and ${SPEECH_SCORE(1)}.</para>
 			<para>The first argument is the sound file and the second is the timeout integer in seconds.</para>
 			<para>Hangs up the channel on failure. If this is not desired, use TryExec.</para>
-			
+
 		</description>
 	</application>
 	<application name="SpeechDeactivateGrammar" language="en_US">
@@ -371,9 +371,9 @@ static int speech_score(struct ast_channel *chan, const char *cmd, char *data,
 	if (data == NULL || speech == NULL || !(result = find_result(speech->results, data))) {
 		return -1;
 	}
-	
+
 	snprintf(tmp, sizeof(tmp), "%d", result->score);
-	
+
 	ast_copy_string(buf, tmp, len);
 
 	return 0;
@@ -681,10 +681,10 @@ static int speech_streamfile(struct ast_channel *chan, const char *filename, con
 
 	if (!(fs = ast_openstream(chan, filename, preflang)))
 		return -1;
-	
+
 	if (ast_applystream(chan, fs))
 		return -1;
-	
+
 	ast_playstream(fs);
 
 	return 0;
@@ -756,7 +756,7 @@ static int speech_background(struct ast_channel *chan, const char *data)
 	if ((tmp2 = pbx_builtin_getvar_helper(chan, "SPEECH_DTMF_MAXLEN")) && !ast_strlen_zero(tmp2)) {
 		max_dtmf_len = atoi(tmp2);
 	}
-	
+
 	/* See if a terminator is specified */
 	if ((tmp2 = pbx_builtin_getvar_helper(chan, "SPEECH_DTMF_TERMINATOR"))) {
 		if (ast_strlen_zero(tmp2))
@@ -975,7 +975,7 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&speech_engine_function);
 	res |= ast_custom_function_unregister(&speech_results_type_function);
 
-	return res;	
+	return res;
 }
 
 static int load_module(void)

@@ -17,7 +17,7 @@
 /*! \file
  *
  * \brief SMS application - ETSI ES 201 912 protocol 1 implementation
- * 
+ *
  * \par Development notes
  * \note The ETSI standards are available free of charge from ETSI at
  *	http://pda.etsi.org/pda/queryform.asp
@@ -26,7 +26,7 @@
  *	ES 201 912	SMS for PSTN/ISDN
  *	TS 123 040	Technical realization of SMS
  *
- * 
+ *
  * \ingroup applications
  *
  * \author Adrian Kennard (for the original protocol 1 code)
@@ -413,7 +413,7 @@ static int packsms7(unsigned char *o, int udhl, unsigned char *udh, int udl, uns
 			for (v = 0; v < 128 && escapes[v] != u; v++);
 			if (v < 128) {	/* escaped sequence, esc + v */
 				/* store the low (8-b) bits in o[p], the remaining bits in o[p+1] */
-				o[p] |= (27 << b);          /* the low bits go into o[p] */ 
+				o[p] |= (27 << b);          /* the low bits go into o[p] */
 				b += 7;
 				if (b >= 8) {
 					b -= 8;
@@ -476,13 +476,13 @@ static int packsms8(unsigned char *o, int udhl, unsigned char *udh, int udl, uns
 	return p;
 }
 
-/*! \brief takes a binary header (udhl bytes at udh) and UCS-2 
-	message (udl characters at ud) and packs in to o using 16 bit 
-	UCS-2 character codes 
-	The return value is the number of bytes packed in to o, which is 
-	internally limited to 140 
-	o can be null, in which case this is used to validate or count 
-	only if the input contains invalid characters then 
+/*! \brief takes a binary header (udhl bytes at udh) and UCS-2
+	message (udl characters at ud) and packs in to o using 16 bit
+	UCS-2 character codes
+	The return value is the number of bytes packed in to o, which is
+	internally limited to 140
+	o can be null, in which case this is used to validate or count
+	only if the input contains invalid characters then
 	the return value is -1 */
 static int packsms16(unsigned char *o, int udhl, unsigned char *udh, int udl, unsigned short *ud)
 {
@@ -517,7 +517,7 @@ static int packsms16(unsigned char *o, int udhl, unsigned char *udh, int udl, un
 	return p;
 }
 
-/*! \brief general pack, with length and data, 
+/*! \brief general pack, with length and data,
 	returns number of bytes of target used */
 static int packsms(unsigned char dcs, unsigned char *base, unsigned int udhl, unsigned char *udh, int udl, unsigned short *ud)
 {
@@ -525,7 +525,7 @@ static int packsms(unsigned char dcs, unsigned char *base, unsigned int udhl, un
 	if (udl == 0) {
 		*p++ = 0;                           /* no user data */
 	} else {
-		
+
 		int l = 0;
 		if (is7bit(dcs)) {                  /* 7 bit */
 			if ((l = packsms7(p + 1, udhl, udh, udl, ud)) < 0) {
@@ -598,8 +598,8 @@ static struct timeval unpackdate(unsigned char *i)
 	return ast_mktime(&t, NULL);
 }
 
-/*! \brief unpacks bytes (7 bit encoding) at i, len l septets, 
-	and places in udh and ud setting udhl and udl. udh not used 
+/*! \brief unpacks bytes (7 bit encoding) at i, len l septets,
+	and places in udh and ud setting udhl and udl. udh not used
 	if udhi not set */
 static void unpacksms7(unsigned char *i, unsigned char l, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
 {
@@ -653,8 +653,8 @@ static void unpacksms7(unsigned char *i, unsigned char l, unsigned char *udh, in
 	*udl = (o - ud);
 }
 
-/*! \brief unpacks bytes (8 bit encoding) at i, len l septets, 
- *  and places in udh and ud setting udhl and udl. udh not used 
+/*! \brief unpacks bytes (8 bit encoding) at i, len l septets,
+ *  and places in udh and ud setting udhl and udl. udh not used
  *  if udhi not set.
  */
 static void unpacksms8(unsigned char *i, unsigned char l, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
@@ -681,7 +681,7 @@ static void unpacksms8(unsigned char *i, unsigned char l, unsigned char *udh, in
 }
 
 /*! \brief unpacks bytes (16 bit encoding) at i, len l septets,
-	 and places in udh and ud setting udhl and udl. 
+	 and places in udh and ud setting udhl and udl.
 	udh not used if udhi not set */
 static void unpacksms16(unsigned char *i, unsigned char l, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
 {
@@ -1442,7 +1442,7 @@ static void sms_compose1(sms_t *h, int more)
 
 /*! \brief find and fill in next message, or send a REL if none waiting */
 static void sms_nextoutgoing (sms_t * h)
-{	  
+{
 	char fn[100 + NAME_MAX] = "";
 	DIR *d;
 	char more = 0;
@@ -1954,7 +1954,7 @@ static int sms_exec(struct ast_channel *chan, const char *data)
 	if (ast_test_flag(&flags, OPTION_DCS)) {
 		h.dcs = 1;
 	}
-#if 0	
+#if 0
 		case '1':
 		case '2':
 		case '3':
@@ -2009,7 +2009,7 @@ static int sms_exec(struct ast_channel *chan, const char *data)
 		res = h.err;
 		goto done;
 	}
-	
+
 	if (ast_channel_state(chan) != AST_STATE_UP) {		/* make sure channel is answered before any TX */
 		ast_answer(chan);
 	}
@@ -2066,7 +2066,7 @@ static int sms_exec(struct ast_channel *chan, const char *data)
 	}
 	res = h.err;                            /* XXX */
 
-	/* 
+	/*
 	 * The SMS generator data is on the stack.  We _MUST_ make sure the generator
 	 * is stopped before returning from this function.
 	 */

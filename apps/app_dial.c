@@ -381,7 +381,7 @@ ASTERISK_REGISTER_FILE()
 					</argument>
 				</option>
                                 <option name="R">
-                                        <para>Default: Indicate ringing to the calling party, even if the called party isn't actually ringing. 
+                                        <para>Default: Indicate ringing to the calling party, even if the called party isn't actually ringing.
 					Allow interruption of the ringback if early media is received on the channel.</para>
                                 </option>
 				<option name="S">

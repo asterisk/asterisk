@@ -21,7 +21,7 @@
  * \brief Trivial application to playback a sound file
  *
  * \author Mark Spencer <markster@digium.com>
- * 
+ *
  * \ingroup applications
  */
 
@@ -165,7 +165,7 @@ static int s_streamwait3(const say_args_t *a, const char *fn)
 	ast_waitstream_full(a->chan, a->ints, a->audiofd, a->ctrlfd) :
 	ast_waitstream(a->chan, a->ints);
 	ast_stopstream(a->chan);
-	return res;  
+	return res;
 }
 
 /*! \brief
@@ -176,7 +176,7 @@ static int do_say(say_args_t *a, const char *s, const char *options, int depth)
 {
 	struct ast_variable *v;
 	char *lang, *x, *rule = NULL;
-	int ret = 0;   
+	int ret = 0;
 	struct varshead head = { .first = NULL, .last = NULL };
 	struct ast_var_t *n;
 
@@ -276,7 +276,7 @@ static int do_say(say_args_t *a, const char *s, const char *options, int depth)
 				strcpy(fn2 + l, data);
 				ret = do_say(a, fn2, options, depth);
 			}
-			
+
 			if (ret) {
 				break;
 			}
@@ -374,9 +374,9 @@ static int say_init_mode(const char *mode) {
 
 		ast_say_enumeration_full = say_enumeration_full;
 #if 0
-		/*! \todo XXX 
+		/*! \todo XXX
 		   These functions doesn't exist.
-		   say.conf.sample indicates this is working... 
+		   say.conf.sample indicates this is working...
 		*/
 		ast_say_digits_full = say_digits_full;
 		ast_say_digit_str_full = say_digit_str_full;
@@ -394,7 +394,7 @@ static int say_init_mode(const char *mode) {
 		ast_log(LOG_WARNING, "unrecognized mode %s\n", mode);
 		return -1;
 	}
-	
+
 	return 0;
 }
 
@@ -405,7 +405,7 @@ static char *__say_cli_init(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	switch (cmd) {
 	case CLI_INIT:
 		e->command = "say load [new|old]";
-		e->usage = 
+		e->usage =
 			"Usage: say load [new|old]\n"
 			"       say load\n"
 			"           Report status of current say mode\n"
@@ -449,7 +449,7 @@ static int playback_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(filenames);
 		AST_APP_ARG(options);
 	);
-	
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Playback requires an argument (filename)\n");
 		return -1;
@@ -465,7 +465,7 @@ static int playback_exec(struct ast_channel *chan, const char *data)
 			option_say = 1;
 		if (strcasestr(args.options, "noanswer"))
 			option_noanswer = 1;
-	} 
+	}
 	if (ast_channel_state(chan) != AST_STATE_UP) {
 		if (option_skip) {
 			/* At the user's option, skip if the line is not up */
@@ -530,7 +530,7 @@ static int reload(void)
 			}
 		}
 	}
-	
+
 	/*! \todo
 	 * XXX here we should sort rules according to the same order
 	 * we have in pbx.c so we have the same matching behaviour.
@@ -549,7 +549,7 @@ static int unload_module(void)
 	if (say_cfg)
 		ast_config_destroy(say_cfg);
 
-	return res;	
+	return res;
 }
 
 static int load_module(void)

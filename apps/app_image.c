@@ -21,14 +21,14 @@
  * \brief App to transmit an image
  *
  * \author Mark Spencer <markster@digium.com>
- * 
+ *
  * \ingroup applications
  */
 
 /*** MODULEINFO
 	<support_level>extended</support_level>
  ***/
- 
+
 #include "asterisk.h"
 
 ASTERISK_REGISTER_FILE()
@@ -92,7 +92,7 @@ static int sendimage_exec(struct ast_channel *chan, const char *data)
 	} else {
 		pbx_builtin_setvar_helper(chan, "SENDIMAGESTATUS", "FAILURE");
 	}
-	
+
 	return 0;
 }
 

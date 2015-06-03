@@ -21,7 +21,7 @@
  * \brief IVR Demo application
  *
  * \author Mark Spencer <markster@digium.com>
- * 
+ *
  * \ingroup applications
  */
 
@@ -64,7 +64,7 @@ static int ivr_demo_func(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-AST_IVR_DECLARE_MENU(ivr_submenu, "IVR Demo Sub Menu", 0, 
+AST_IVR_DECLARE_MENU(ivr_submenu, "IVR Demo Sub Menu", 0,
 {
 	{ "s", AST_ACTION_BACKGROUND, "demo-abouttotry" },
 	{ "s", AST_ACTION_WAITOPTION },
@@ -79,7 +79,7 @@ AST_IVR_DECLARE_MENU(ivr_submenu, "IVR Demo Sub Menu", 0,
 	{ NULL }
 });
 
-AST_IVR_DECLARE_MENU(ivr_demo, "IVR Demo Main Menu", 0, 
+AST_IVR_DECLARE_MENU(ivr_demo, "IVR Demo Main Menu", 0,
 {
 	{ "s", AST_ACTION_BACKGROUND, "demo-congrats" },
 	{ "g", AST_ACTION_BACKGROUND, "demo-instruct" },
@@ -98,12 +98,12 @@ static int skel_exec(struct ast_channel *chan, const char *data)
 {
 	int res=0;
 	char *tmp;
-	
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "skel requires an argument (filename)\n");
 		return -1;
 	}
-	
+
 	tmp = ast_strdupa(data);
 
 	/* Do our thing here */
@@ -112,7 +112,7 @@ static int skel_exec(struct ast_channel *chan, const char *data)
 		res = ast_answer(chan);
 	if (!res)
 		res = ast_ivr_menu_run(chan, &ivr_demo, tmp);
-	
+
 	return res;
 }
 

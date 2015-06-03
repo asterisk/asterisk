@@ -21,7 +21,7 @@
  * \brief App to set callerid presentation
  *
  * \author Mark Spencer <markster@digium.com>
- * 
+ *
  * \ingroup applications
  */
 
@@ -110,7 +110,7 @@ static int setcallerid_pres_exec(struct ast_channel *chan, const char *data)
 			(char *) data);
 		return 0;
 	}
-	
+
 	/* Set the combined caller id presentation. */
 	ast_channel_caller(chan)->id.name.presentation = pres;
 	ast_channel_caller(chan)->id.number.presentation = pres;

@@ -21,7 +21,7 @@
  * \brief Digital Milliwatt Test
  *
  * \author Mark Spencer <markster@digium.com>
- * 
+ *
  * \ingroup applications
  */
 

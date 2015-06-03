@@ -799,7 +799,7 @@ static int unload_module(void)
 	free_config();
 	AST_RWLIST_UNLOCK(&odbc_tables);
 	AST_RWLIST_HEAD_DESTROY(&odbc_tables);
-        
+
 	return 0;
 }
 

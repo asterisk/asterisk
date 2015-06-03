@@ -23,7 +23,7 @@
  * \author Christos Ricudis <ricudis@itc.auth.gr>
  *
  * \extref  The Festival Speech Synthesis System - http://www.cstr.ed.ac.uk/projects/festival/
- * 
+ *
  * \ingroup applications
  */
 
@@ -31,7 +31,7 @@
  * \addtogroup configuration_file Configuration Files
  */
 
-/*! 
+/*!
  * \page festival.conf festival.conf
  * \verbinclude festival.conf.sample
  */
@@ -198,7 +198,7 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 		ast_answer(chan);
 	ast_stopstream(chan);
 	ast_indicate(chan, -1);
-	
+
 	owriteformat = ao2_bump(ast_channel_writeformat(chan));
 	res = ast_set_write_format(chan, ast_format_slin);
 	if (res < 0) {
@@ -212,7 +212,7 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 	myf.f.offset = AST_FRIENDLY_OFFSET;
 	myf.f.src = __PRETTY_FUNCTION__;
 	myf.f.data.ptr = myf.frdata;
-	
+
 	res = send_waveform_to_fd(waveform, length, fds[1]);
 	if (res >= 0) {
 		/* Order is important -- there's almost always going to be mp3...  we want to prioritize the
@@ -308,8 +308,8 @@ static int festival_exec(struct ast_channel *chan, const char *vdata)
 	int strln;
 	int fdesc = -1;
 	char buffer[16384];
-	int seekpos = 0;	
-	char *data;	
+	int seekpos = 0;
+	char *data;
 	struct ast_config *cfg;
 	char *newfestivalcommand;
 	struct ast_flags config_flags = { 0 };
@@ -381,13 +381,13 @@ static int festival_exec(struct ast_channel *chan, const char *vdata)
 		newfestivalcommand[j] = '\0';
 		festivalcommand = newfestivalcommand;
 	}
-	
+
 	if (args.interrupt && !strcasecmp(args.interrupt, "any"))
 		args.interrupt = AST_DIGIT_ANY;
 
 	ast_debug(1, "Text passed to festival server : %s\n", args.text);
 	/* Connect to local festival server */
-	
+
 	fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
 	if (fd < 0) {
@@ -425,7 +425,7 @@ static int festival_exec(struct ast_channel *chan, const char *vdata)
 	MD5Final(MD5Res, &md5ctx);
 	MD5Hex[0] = '\0';
 
-	/* Convert to HEX and look if there is any matching file in the cache 
+	/* Convert to HEX and look if there is any matching file in the cache
 		directory */
 	for (i = 0; i < 16; i++) {
 		snprintf(koko, sizeof(koko), "%X", (unsigned)MD5Res[i]);
@@ -462,7 +462,7 @@ static int festival_exec(struct ast_channel *chan, const char *vdata)
 					ast_log(LOG_WARNING, "read() failed: %s\n", strerror(errno));
 				}
 				bigstring[strln] = 0;
-				if (strcmp(bigstring, args.text) == 0) { 
+				if (strcmp(bigstring, args.text) == 0) {
 					readcache = 1;
 				} else {
 					ast_log(LOG_WARNING, "Strings do not match\n");
@@ -485,7 +485,7 @@ static int festival_exec(struct ast_channel *chan, const char *vdata)
 		fflush(fs);
 		fclose(fs);
 	}
-	
+
 	/* Write to cache and then pass it down */
 	if (writecache == 1) {
 		ast_debug(1, "Writing result to cache...\n");
@@ -499,7 +499,7 @@ static int festival_exec(struct ast_channel *chan, const char *vdata)
 		fd = open(cachefile, O_RDWR);
 		lseek(fd, seekpos, SEEK_SET);
 	}
-	
+
 	ast_debug(1, "Passing data to channel...\n");
 
 	/* Read back info from server */
@@ -556,8 +556,8 @@ static int unload_module(void)
  * Module loading including tests for configuration or dependencies.
  * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
  * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
- * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
- * configuration file or other non-critical problem return 
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the
+ * configuration file or other non-critical problem return
  * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
  */
 static int load_module(void)

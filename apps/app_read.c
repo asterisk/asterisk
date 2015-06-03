@@ -21,14 +21,14 @@
  * \brief Trivial application to read a variable
  *
  * \author Mark Spencer <markster@digium.com>
- * 
+ *
  * \ingroup applications
  */
 
 /*** MODULEINFO
 	<support_level>core</support_level>
  ***/
- 
+
 #include "asterisk.h"
 
 ASTERISK_REGISTER_FILE()
@@ -146,13 +146,13 @@ static int read_exec(struct ast_channel *chan, const char *data)
 		AST_APP_ARG(attempts);
 		AST_APP_ARG(timeout);
 	);
-	
+
 	pbx_builtin_setvar_helper(chan, "READSTATUS", status);
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Read requires an argument (variable)\n");
 		return 0;
 	}
-	
+
 	argcopy = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(arglist, argcopy);
@@ -160,7 +160,7 @@ static int read_exec(struct ast_channel *chan, const char *data)
 	if (!ast_strlen_zero(arglist.options)) {
 		ast_app_parse_options(read_app_options, &flags, NULL, arglist.options);
 	}
-	
+
 	if (!ast_strlen_zero(arglist.attempts)) {
 		tries = atoi(arglist.attempts);
 		if (tries <= 0)

@@ -23,7 +23,7 @@
  *
  * \author Mark Spencer <markster@digium.com>
  * \author Russell Bryant <russelb@clemson.edu>
- * 
+ *
  * \ingroup applications
  */
 

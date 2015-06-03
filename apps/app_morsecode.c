@@ -67,7 +67,7 @@ ASTERISK_REGISTER_FILE()
 			<ref type="application">SayPhonetic</ref>
 		</see-also>
 	</application>
- ***/	
+ ***/
 static const char app_morsecode[] = "Morsecode";
 
 static const char * const morsecode[] = {

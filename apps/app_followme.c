@@ -2,7 +2,7 @@
  * Asterisk -- An open source telephony toolkit.
  *
  * A full-featured Find-Me/Follow-Me Application
- * 
+ *
  * Copyright (C) 2005-2006, BJ Weschke All Rights Reserved.
  *
  * BJ Weschke <bweschke@btwtech.com>
@@ -30,7 +30,7 @@
  * \addtogroup configuration_file Configuration Files
  */
 
-/*! 
+/*!
  * \page followme.conf followme.conf
  * \verbinclude followme.conf.sample
  */
@@ -331,15 +331,15 @@ static void init_profile(struct call_followme *f)
 	ast_copy_string(f->moh, defaultmoh, sizeof(f->moh));
 }
 
-   
-   
+
+
 /*! \brief Set parameter in profile from configuration file */
 static void profile_set_param(struct call_followme *f, const char *param, const char *val, int linenum, int failunknown)
 {
 
-	if (!strcasecmp(param, "musicclass") || !strcasecmp(param, "musiconhold") || !strcasecmp(param, "music")) 
+	if (!strcasecmp(param, "musicclass") || !strcasecmp(param, "musiconhold") || !strcasecmp(param, "music"))
 		ast_copy_string(f->moh, val, sizeof(f->moh));
-	else if (!strcasecmp(param, "context")) 
+	else if (!strcasecmp(param, "context"))
 		ast_copy_string(f->context, val, sizeof(f->context));
 	else if (!strcasecmp(param, "takecall"))
 		ast_copy_string(f->takecall, val, sizeof(f->takecall));
@@ -347,15 +347,15 @@ static void profile_set_param(struct call_followme *f, const char *param, const 
 		ast_copy_string(f->nextindp, val, sizeof(f->nextindp));
 	else if (!strcasecmp(param, "call-from-prompt") || !strcasecmp(param, "call_from_prompt"))
 		ast_copy_string(f->callfromprompt, val, sizeof(f->callfromprompt));
-	else if (!strcasecmp(param, "followme-norecording-prompt") || !strcasecmp(param, "norecording_prompt")) 
+	else if (!strcasecmp(param, "followme-norecording-prompt") || !strcasecmp(param, "norecording_prompt"))
 		ast_copy_string(f->norecordingprompt, val, sizeof(f->norecordingprompt));
-	else if (!strcasecmp(param, "followme-options-prompt") || !strcasecmp(param, "options_prompt")) 
+	else if (!strcasecmp(param, "followme-options-prompt") || !strcasecmp(param, "options_prompt"))
 		ast_copy_string(f->optionsprompt, val, sizeof(f->optionsprompt));
 	else if (!strcasecmp(param, "followme-pls-hold-prompt") || !strcasecmp(param, "pls_hold_prompt"))
 		ast_copy_string(f->plsholdprompt, val, sizeof(f->plsholdprompt));
-	else if (!strcasecmp(param, "followme-status-prompt") || !strcasecmp(param, "status_prompt")) 
+	else if (!strcasecmp(param, "followme-status-prompt") || !strcasecmp(param, "status_prompt"))
 		ast_copy_string(f->statusprompt, val, sizeof(f->statusprompt));
-	else if (!strcasecmp(param, "followme-sorry-prompt") || !strcasecmp(param, "sorry_prompt")) 
+	else if (!strcasecmp(param, "followme-sorry-prompt") || !strcasecmp(param, "sorry_prompt"))
 		ast_copy_string(f->sorryprompt, val, sizeof(f->sorryprompt));
 	else if (failunknown) {
 		if (linenum >= 0)
@@ -521,7 +521,7 @@ static int reload_followme(int reload)
 						numorder = atoi(tmp);
 						if (numorder < 0)
 							numorder = 0;
-					} else 
+					} else
 						numorder = 0;
 				} else {
 					timeout = 25;
@@ -530,7 +530,7 @@ static int reload_followme(int reload)
 
 				if (!numorder) {
 					idx = 1;
-					AST_LIST_TRAVERSE(&f->numbers, nm, entry) 
+					AST_LIST_TRAVERSE(&f->numbers, nm, entry)
 						idx++;
 					numorder = idx;
 				}
@@ -545,7 +545,7 @@ static int reload_followme(int reload)
 			var = var->next;
 		} /* End while(var) loop */
 
-		if (!new) 
+		if (!new)
 			ast_mutex_unlock(&f->lock);
 		else
 			AST_RWLIST_INSERT_HEAD(&followmes, f, entry);
@@ -583,7 +583,7 @@ static void clear_caller(struct findme_user *tmpuser)
 	tmpuser->ochan = NULL;
 }
 
-static void clear_unanswered_calls(struct findme_user_listptr *findme_user_list) 
+static void clear_unanswered_calls(struct findme_user_listptr *findme_user_list)
 {
 	struct findme_user *tmpuser;
 
@@ -625,7 +625,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 	char *callfromname;
 	char *pressbuttonname;
 
-	/* ------------ wait_for_winner_channel start --------------- */ 
+	/* ------------ wait_for_winner_channel start --------------- */
 
 	callfromname = ast_strdupa(tpargs->callfromprompt);
 	pressbuttonname = ast_strdupa(tpargs->optionsprompt);
@@ -634,7 +634,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 
 	for (;;) {
 		to = 1000;
-		pos = 1; 
+		pos = 1;
 		livechannels = 0;
 		watchers[0] = caller;
 
@@ -782,7 +782,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 						ast_channel_publish_dial(caller, winner, NULL, "ANSWER");
 						publish_dial_end_event(caller, findme_user_list, winner, "CANCEL");
 						tmpuser->answered = 1;
-						/* If call has been answered, then the eventual hangup is likely to be normal hangup */ 
+						/* If call has been answered, then the eventual hangup is likely to be normal hangup */
 						ast_channel_hangupcause_set(winner, AST_CAUSE_NORMAL_CLEARING);
 						ast_channel_hangupcause_set(caller, AST_CAUSE_NORMAL_CLEARING);
 						ast_verb(3, "Starting playback of %s\n", callfromname);
@@ -924,7 +924,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 							f->subclass.integer, ast_channel_name(winner));
 						break;
 					}
-				} 
+				}
 				if (tmpuser && tmpuser->state == 3 && f->frametype == AST_FRAME_DTMF) {
 					int cmp_len;
 
@@ -1373,7 +1373,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 	ast_copy_string(targs->plsholdprompt, f->plsholdprompt, sizeof(targs->plsholdprompt));
 	ast_copy_string(targs->statusprompt, f->statusprompt, sizeof(targs->statusprompt));
 	ast_copy_string(targs->sorryprompt, f->sorryprompt, sizeof(targs->sorryprompt));
-	/* Copy the numbers we're going to use into another list in case the master list should get modified 
+	/* Copy the numbers we're going to use into another list in case the master list should get modified
 	   (and locked) while we're trying to do a follow-me */
 	AST_LIST_HEAD_INIT_NOLOCK(&targs->cnumbers);
 	AST_LIST_TRAVERSE(&f->numbers, nm, entry) {
@@ -1562,8 +1562,8 @@ static int unload_module(void)
  * Module loading including tests for configuration or dependencies.
  * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
  * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
- * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
- * configuration file or other non-critical problem return 
+ * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the
+ * configuration file or other non-critical problem return
  * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
  */
 static int load_module(void)

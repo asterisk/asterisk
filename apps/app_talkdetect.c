@@ -21,7 +21,7 @@
  * \brief Playback a file with audio detect
  *
  * \author Mark Spencer <markster@digium.com>
- * 
+ *
  * \ingroup applications
  */
 
@@ -173,7 +173,7 @@ static int background_detect_exec(struct ast_channel *chan, const char *data)
 						ast_verb(3, "BackgroundDetect: Talk analysis time complete on %s.\n", ast_channel_name(chan));
 					}
 				}
-				
+
 				if (!fr) {
 					res = -1;
 					break;
@@ -205,8 +205,8 @@ static int background_detect_exec(struct ast_channel *chan, const char *data)
 								char ms_str[12];
 								ast_debug(1, "Found qualified token of %d ms\n", ms);
 
-								/* Save detected talk time (in milliseconds) */ 
-								snprintf(ms_str, sizeof(ms_str), "%d", ms);	
+								/* Save detected talk time (in milliseconds) */
+								snprintf(ms_str, sizeof(ms_str), "%d", ms);
 								pbx_builtin_setvar_helper(chan, "TALK_DETECTED", ms_str);
 
 								ast_goto_if_exists(chan, ast_channel_context(chan), "talk", 1);
@@ -236,7 +236,7 @@ static int background_detect_exec(struct ast_channel *chan, const char *data)
 
 	if (res > -1) {
 		if (origrformat && ast_set_read_format(chan, origrformat)) {
-			ast_log(LOG_WARNING, "Failed to restore read format for %s to %s\n", 
+			ast_log(LOG_WARNING, "Failed to restore read format for %s to %s\n",
 				ast_channel_name(chan), ast_format_get_name(origrformat));
 		}
 	}
