@@ -889,6 +889,7 @@ static int contact_apply_handler(const struct ast_sorcery *sorcery, void *object
 	struct ast_sip_contact *contact = object;
 
 	status = ast_res_pjsip_find_or_create_contact_status(contact);
+	ao2_cleanup(status);
 
 	return status ? 0 : -1;
 }
