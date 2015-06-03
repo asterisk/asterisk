@@ -15900,9 +15900,10 @@ static int expire_register(const void *data)
 	if (peer->endpoint) {
 		RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 		ast_endpoint_set_state(peer->endpoint, AST_ENDPOINT_OFFLINE);
-		blob = ast_json_pack("{s: s, s: s}",
+		blob = ast_json_pack("{s: s, s: s, s: s}",
 			"peer_status", "Unregistered",
-			"cause", "Expired");
+			"cause", "Expired"
+			"address", ast_sockaddr_stringify(&peer->addr));
 		ast_endpoint_blob_publish(peer->endpoint, ast_endpoint_state_type(), blob);
 	}
 	register_peer_exten(peer, FALSE);	/* Remove regexten */
