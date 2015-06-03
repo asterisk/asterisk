@@ -2627,6 +2627,10 @@ static pjsip_redirect_op session_inv_on_redirected(pjsip_inv_session *inv, const
 	struct ast_sip_session *session = inv->mod_data[session_module.id];
 	const pjsip_sip_uri *uri;
 
+	if (!session->channel) {
+		return PJSIP_REDIRECT_STOP;
+	}
+
 	if (session->endpoint->redirect_method == AST_SIP_REDIRECT_URI_PJSIP) {
 		return PJSIP_REDIRECT_ACCEPT;
 	}
