@@ -89,7 +89,13 @@ static int dtmf_info_incoming_request(struct ast_sip_session *session, struct pj
 	char event = '\0';
 	unsigned int duration = 100;
 
-	char is_dtmf = is_media_type(rdata, "dtmf");
+	char is_dtmf;
+
+	if (!session->channel) {
+		return 0;
+	}
+
+	is_dtmf = is_media_type(rdata, "dtmf");
 
 	if (!is_dtmf && !is_media_type(rdata, "dtmf-relay")) {
 		return 0;
