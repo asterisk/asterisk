@@ -1,0 +1,85 @@
+                                Release Summary
+
+                                asterisk-11.18.0
+
+                                Date: 2015-06-03
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Other Changes
+    4. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-11.17.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                   Testers                  Reporters                
+   3 Matt Jordan            
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author      | Summary                                     |
+   |------------+-------------+---------------------------------------------|
+   | dad609854e | Matt Jordan | Release summaries: Remove previous versions |
+   |------------+-------------+---------------------------------------------|
+   | 33111ee23b | Matt Jordan | .version: Update for 11.18.0                |
+   |------------+-------------+---------------------------------------------|
+   | 71133f5108 | Matt Jordan | .lastclean: Update for 11.18.0              |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ asterisk-11.18.0-rc1-summary.html |  348 ---------------
+ asterisk-11.18.0-rc1-summary.txt  |  831 --------------------------------------
+ b/.version                        |    2
+ 3 files changed, 1 insertion(+), 1180 deletions(-)
