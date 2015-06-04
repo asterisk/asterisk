@@ -1,3 +1,19 @@
+2015-06-04 00:44 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 11.18.0 Released.
+
+2015-06-03 19:44 +0000 [dad609854e]  Matt Jordan <mjordan@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2015-06-03 19:44 +0000 [33111ee23b]  Matt Jordan <mjordan@digium.com>
+
+	* .version: Update for 11.18.0
+
+2015-06-03 19:44 +0000 [71133f5108]  Matt Jordan <mjordan@digium.com>
+
+	* .lastclean: Update for 11.18.0
+
 2015-05-21 20:03 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 11.18.0-rc1 Released.
