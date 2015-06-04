@@ -789,6 +789,10 @@ static int stale_item_update(const void *data)
 			object);
 	}
 
+	ast_test_suite_event_notify("SORCERY_MEMORY_CACHE_REFRESHED", "Cache: %s\r\nType: %s\r\nName: %s\r\n",
+		task_data->cache->name, ast_sorcery_object_get_type(task_data->object),
+		ast_sorcery_object_get_id(task_data->object));
+
 	ao2_ref(task_data, -1);
 	end_stale_update();
 
