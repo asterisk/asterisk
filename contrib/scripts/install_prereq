@@ -70,9 +70,10 @@ check_installed_debs() {
 	do
 		tocheck="${tocheck} ^${pack}$"
 	done
-	aptitude -F '%c %p' search ${tocheck} 2>/dev/null \
-		| awk '/^p/{print $2}' \
-		| grep -v ':i386$'
+	pkgs=$(aptitude -F '%c %p' search ${tocheck} 2>/dev/null | awk '/^p/{print $2}')
+	if ! [ ${#pkgs} -eq 0 ]; then
+		echo $pkgs | grep -v ':i386$'
+	fi
 }
 
 # parsing the output of yum is close to impossible.
@@ -96,6 +97,9 @@ check_installed_pkgs() {
 }
 
 handle_debian() {
+	if ! [ -x "$(command -v aptitude)" ]; then
+		apt-get install aptitude
+	fi
 	extra_packs=`check_installed_debs $PACKAGES_DEBIAN`
 	$testcmd aptitude install -y $extra_packs
 }
