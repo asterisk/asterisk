@@ -155,10 +155,9 @@ static int sip_resolve_add(struct sip_resolve *resolve, const char *name, int rr
 
 	if (!resolve->queries) {
 		resolve->queries = ast_dns_query_set_create();
-	}
-
-	if (!resolve->queries) {
-		return -1;
+		if (!resolve->queries) {
+			return -1;
+		}
 	}
 
 	if (!port) {
@@ -186,15 +185,18 @@ static int sip_resolve_add(struct sip_resolve *resolve, const char *name, int rr
 static int sip_resolve_invoke_user_callback(void *data)
 {
 	struct sip_resolve *resolve = data;
-	int idx;
 
-	for (idx = 0; idx < resolve->addresses.count; ++idx) {
+	if (DEBUG_ATLEAST(2)) {
 		/* This includes space for the IP address, [, ], :, and the port */
 		char addr[PJ_INET6_ADDRSTRLEN + 10];
+		int idx;
 
-		ast_debug(2, "[%p] Address '%d' is %s with transport '%s'\n",
-			resolve, idx, pj_sockaddr_print(&resolve->addresses.entry[idx].addr, addr, sizeof(addr), 3),
-			pjsip_transport_get_type_name(resolve->addresses.entry[idx].type));
+		for (idx = 0; idx < resolve->addresses.count; ++idx) {
+			pj_sockaddr_print(&resolve->addresses.entry[idx].addr, addr, sizeof(addr), 3);
+			ast_log(LOG_DEBUG, "[%p] Address '%d' is %s with transport '%s'\n",
+				resolve, idx, addr,
+				pjsip_transport_get_type_name(resolve->addresses.entry[idx].type));
+		}
 	}
 
 	ast_debug(2, "[%p] Invoking user callback with '%d' addresses\n", resolve, resolve->addresses.count);
