@@ -1864,6 +1864,15 @@
 
 #define MOD_DATA_CONTACT "contact"
 
+/*! Number of serializers in pool if one not supplied. */
+#define SERIALIZER_POOL_SIZE		8
+
+/*! Next serializer pool index to use. */
+static int serializer_pool_pos;
+
+/*! Pool of serializers to use if not supplied. */
+static struct ast_taskprocessor *serializer_pool[SERIALIZER_POOL_SIZE];
+
 static pjsip_endpoint *ast_pjsip_endpoint;
 
 static struct ast_threadpool *sip_threadpool;
@@ -3323,8 +3332,56 @@ struct ast_taskprocessor *ast_sip_create_serializer(void)
 	return serializer;
 }
 
+/*!
+ * \internal
+ * \brief Shutdown the serializers in the default pool.
+ * \since 14.0.0
+ *
+ * \return Nothing
+ */
+static void serializer_pool_shutdown(void)
+{
+	int idx;
+
+	for (idx = 0; idx < SERIALIZER_POOL_SIZE; ++idx) {
+		ast_taskprocessor_unreference(serializer_pool[idx]);
+		serializer_pool[idx] = NULL;
+	}
+}
+
+/*!
+ * \internal
+ * \brief Setup the serializers in the default pool.
+ * \since 14.0.0
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int serializer_pool_setup(void)
+{
+	int idx;
+
+	for (idx = 0; idx < SERIALIZER_POOL_SIZE; ++idx) {
+		serializer_pool[idx] = ast_sip_create_serializer();
+		if (!serializer_pool[idx]) {
+			serializer_pool_shutdown();
+			return -1;
+		}
+	}
+	return 0;
+}
+
 int ast_sip_push_task(struct ast_taskprocessor *serializer, int (*sip_task)(void *), void *task_data)
 {
+	if (!serializer) {
+		unsigned int pos;
+
+		/* Pick a serializer to use from the pool. */
+		pos = ast_atomic_fetchadd_int(&serializer_pool_pos, 1);
+		pos %= SERIALIZER_POOL_SIZE;
+		serializer = serializer_pool[pos];
+	}
+
 	if (serializer) {
 		return ast_taskprocessor_push(serializer, sip_task, task_data);
 	} else {
@@ -3377,18 +3434,10 @@ int ast_sip_push_task_synchronous(struct ast_taskprocessor *serializer, int (*si
 	std.task = sip_task;
 	std.task_data = task_data;
 
-	if (serializer) {
-		if (ast_taskprocessor_push(serializer, sync_task, &std)) {
-			ast_mutex_destroy(&std.lock);
-			ast_cond_destroy(&std.cond);
-			return -1;
-		}
-	} else {
-		if (ast_threadpool_push(sip_threadpool, sync_task, &std)) {
-			ast_mutex_destroy(&std.lock);
-			ast_cond_destroy(&std.cond);
-			return -1;
-		}
+	if (ast_sip_push_task(serializer, sync_task, &std)) {
+		ast_mutex_destroy(&std.lock);
+		ast_cond_destroy(&std.cond);
+		return -1;
 	}
 
 	ast_mutex_lock(&std.lock);
@@ -3679,6 +3728,18 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
+	if (serializer_pool_setup()) {
+		ast_log(LOG_ERROR, "Failed to create SIP serializer pool. Aborting load\n");
+		ast_threadpool_shutdown(sip_threadpool);
+		ast_sip_destroy_system();
+		pj_pool_release(memory_pool);
+		memory_pool = NULL;
+		pjsip_endpt_destroy(ast_pjsip_endpoint);
+		ast_pjsip_endpoint = NULL;
+		pj_caching_pool_destroy(&caching_pool);
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
 	pjsip_tsx_layer_init_module(ast_pjsip_endpoint);
 	pjsip_ua_init_module(ast_pjsip_endpoint, NULL);
 
@@ -3792,6 +3853,7 @@ static int unload_module(void)
 	 */
 	ast_sip_push_task_synchronous(NULL, unload_pjsip, NULL);
 
+	serializer_pool_shutdown();
 	ast_threadpool_shutdown(sip_threadpool);
 
 	ast_sip_destroy_cli();
