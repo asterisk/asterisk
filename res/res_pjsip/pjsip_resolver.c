@@ -30,6 +30,8 @@
 #include "asterisk/dns_naptr.h"
 #include "asterisk/res_pjsip.h"
 #include "include/res_pjsip_private.h"
+#include "asterisk/taskprocessor.h"
+#include "asterisk/threadpool.h"
 
 #ifdef HAVE_PJSIP_EXTERNAL_RESOLVER
 
@@ -52,6 +54,8 @@ struct sip_resolve {
 	struct ast_dns_query_set *queries;
 	/*! \brief Current viable server addresses */
 	pjsip_server_addresses addresses;
+	/*! \brief Serializer to run async callback into pjlib. */
+	struct ast_taskprocessor *serializer;
 	/*! \brief Callback to invoke upon completion */
 	pjsip_resolver_callback *callback;
 	/*! \brief User provided data */
@@ -97,6 +101,7 @@ static void sip_resolve_destroy(void *data)
 
 	AST_VECTOR_FREE(&resolve->resolving);
 	ao2_cleanup(resolve->queries);
+	ast_taskprocessor_unreference(resolve->serializer);
 }
 
 /*!
@@ -398,7 +403,7 @@ static void sip_resolve_callback(const struct ast_dns_query_set *query_set)
 
 	/* Push a task to invoke the callback, we do this so it is guaranteed to run in a PJSIP thread */
 	ao2_ref(resolve, +1);
-	if (ast_sip_push_task(NULL, sip_resolve_invoke_user_callback, resolve)) {
+	if (ast_sip_push_task(resolve->serializer, sip_resolve_invoke_user_callback, resolve)) {
 		ao2_ref(resolve, -1);
 	}
 
@@ -571,6 +576,8 @@ static void sip_resolve(pjsip_resolver_t *resolver, pj_pool_t *pool, const pjsip
 		cb(PJLIB_UTIL_EDNSNOANSWERREC, token, NULL);
 		return;
 	}
+
+	resolve->serializer = ao2_bump(ast_threadpool_serializer_get_current());
 
 	ast_debug(2, "[%p] Starting initial resolution using parallel queries for target '%s'\n", resolve, host);
 	ast_dns_query_set_resolve_async(resolve->queries, sip_resolve_callback, resolve);
