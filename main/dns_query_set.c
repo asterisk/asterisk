@@ -117,6 +117,14 @@ int ast_dns_query_set_add(struct ast_dns_query_set *query_set, const char *name,
 		return -1;
 	}
 
+	/*
+	 * We are intentionally passing NULL for the user data even
+	 * though dns_query_set_callback() is not NULL tolerant.  Doing
+	 * this avoids a circular reference chain until the queries are
+	 * started.  ast_dns_query_set_resolve_async() will set the
+	 * query user_data for us later when we actually kick off the
+	 * queries.
+	 */
 	query.query = dns_query_alloc(name, rr_type, rr_class, dns_query_set_callback, NULL);
 	if (!query.query) {
 		return -1;

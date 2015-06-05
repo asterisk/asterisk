@@ -161,7 +161,7 @@ struct ast_dns_query_recurring {
 struct dns_query_set_query {
 	/*! \brief Whether the query started successfully or not */
 	unsigned int started;
-	/*! \brief THe query itself */
+	/*! \brief The query itself */
 	struct ast_dns_query *query;
 };
 
@@ -169,7 +169,7 @@ struct dns_query_set_query {
 struct ast_dns_query_set {
 	/*! \brief DNS queries */
 	AST_VECTOR(, struct dns_query_set_query) queries;
-	/* \brief Whether the query set is in progress or not */
+	/*! \brief Whether the query set is in progress or not */
 	int in_progress;
 	/*! \brief The total number of completed queries */
 	int queries_completed;
