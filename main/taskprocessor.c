@@ -593,7 +593,6 @@ static struct ast_taskprocessor *__allocate_taskprocessor(const char *name, stru
 		return NULL;
 	}
 	if (!(p->name = ast_strdup(name))) {
-		ao2_ref(p, -1);
 		return NULL;
 	}
 
