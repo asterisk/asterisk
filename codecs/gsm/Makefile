@@ -315,7 +315,7 @@ install:	toastinstall gsminstall
 # The basic API: libgsm
 
 $(LIBGSMSO):	$(LIB) $(GSM_OBJECTS)
-		$(LD) -o $@.1.0.10 -shared -Xlinker -soname -Xlinker libgsm.so.1 $(GSM_OBJECTS) -lc
+		$(LD) -o $@.1.0.10 -shared -Wl,-soname,libgsm.so.1 $(GSM_OBJECTS) -lc
 		ln -fs libgsm.so.1.0.10 lib/libgsm.so.1
 		ln -fs libgsm.so.1.0.10 lib/libgsm.so
 
