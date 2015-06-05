@@ -888,6 +888,15 @@ static void sorcery_memory_cache_load(void *data, const struct ast_sorcery *sorc
  */
 static void sorcery_memory_cache_reload(void *data, const struct ast_sorcery *sorcery, const char *type)
 {
+	struct sorcery_memory_cache *cache = data;
+
+	if (!cache->expire_on_reload) {
+		return;
+	}
+
+	ao2_wrlock(cache->objects);
+	remove_all_from_cache(cache);
+	ao2_unlock(cache->objects);
 }
 
 /*!
