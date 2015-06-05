@@ -516,7 +516,7 @@ static void sip_resolve(pjsip_resolver_t *resolver, pj_pool_t *pool, const pjsip
 	resolve->callback = cb;
 	resolve->token = token;
 
-	if (AST_VECTOR_INIT(&resolve->resolving, 2)) {
+	if (AST_VECTOR_INIT(&resolve->resolving, 4)) {
 		ao2_ref(resolve, -1);
 		cb(PJ_ENOMEM, token, NULL);
 		return;
@@ -563,6 +563,12 @@ static void sip_resolve(pjsip_resolver_t *resolver, pj_pool_t *pool, const pjsip
 	if (res) {
 		ao2_ref(resolve, -1);
 		cb(PJ_ENOMEM, token, NULL);
+		return;
+	}
+	if (!resolve->queries) {
+		ast_debug(2, "[%p] No resolution queries for target '%s'\n", resolve, host);
+		ao2_ref(resolve, -1);
+		cb(PJLIB_UTIL_EDNSNOANSWERREC, token, NULL);
 		return;
 	}
 

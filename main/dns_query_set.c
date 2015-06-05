@@ -130,7 +130,10 @@ int ast_dns_query_set_add(struct ast_dns_query_set *query_set, const char *name,
 		return -1;
 	}
 
-	AST_VECTOR_APPEND(&query_set->queries, query);
+	if (AST_VECTOR_APPEND(&query_set->queries, query)) {
+		ao2_ref(query.query, -1);
+		return -1;
+	}
 
 	return 0;
 }
@@ -175,6 +178,11 @@ void ast_dns_query_set_resolve_async(struct ast_dns_query_set *query_set, ast_dn
 	query_set->callback = callback;
 	query_set->user_data = ao2_bump(data);
 
+	/*
+	 * Bump the query_set ref in case all queries complete
+	 * before we are done kicking them off.
+	 */
+	ao2_ref(query_set, +1);
 	for (idx = 0; idx < AST_VECTOR_SIZE(&query_set->queries); ++idx) {
 		struct dns_query_set_query *query = AST_VECTOR_GET_ADDR(&query_set->queries, idx);
 
@@ -187,6 +195,17 @@ void ast_dns_query_set_resolve_async(struct ast_dns_query_set *query_set, ast_dn
 
 		dns_query_set_callback(query->query);
 	}
+	if (!idx) {
+		/*
+		 * There were no queries in the set;
+		 * therefore all queries are "completed".
+		 * Invoke the final callback.
+		 */
+		query_set->callback(query_set);
+		ao2_cleanup(query_set->user_data);
+		query_set->user_data = NULL;
+	}
+	ao2_ref(query_set, -1);
 }
 
 /*! \brief Structure used for signaling back for synchronous resolution completion */
