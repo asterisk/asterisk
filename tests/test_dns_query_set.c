@@ -306,6 +306,26 @@ AST_TEST_DEFINE(query_set)
 	return query_set_test(test, 4, 0);
 }
 
+AST_TEST_DEFINE(query_set_empty)
+{
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "query_set_empty";
+		info->category = "/main/dns/query_set/";
+		info->summary = "Test nominal asynchronous empty DNS query set";
+		info->description =
+			"This tests nominal query set in the following ways:\n"
+			"\t* No queries are added to a query set\n"
+			"\t* Asynchronous resolution of the query set is started\n"
+			"\t* We ensure that the query set callback is invoked upon completion";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	return query_set_test(test, 0, 0);
+}
+
 AST_TEST_DEFINE(query_set_nominal_cancel)
 {
 	switch (cmd) {
@@ -352,6 +372,7 @@ AST_TEST_DEFINE(query_set_off_nominal_cancel)
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(query_set);
+	AST_TEST_UNREGISTER(query_set_empty);
 	AST_TEST_UNREGISTER(query_set_nominal_cancel);
 	AST_TEST_UNREGISTER(query_set_off_nominal_cancel);
 
@@ -361,6 +382,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	AST_TEST_REGISTER(query_set);
+	AST_TEST_REGISTER(query_set_empty);
 	AST_TEST_REGISTER(query_set_nominal_cancel);
 	AST_TEST_REGISTER(query_set_off_nominal_cancel);
 
