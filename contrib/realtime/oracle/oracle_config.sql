@@ -984,7 +984,23 @@ ALTER TABLE ps_endpoints ADD CONSTRAINT yesno_values CHECK (media_encryption_opt
 
 /
 
-INSERT INTO alembic_version (version_num) VALUES ('eb88a14f2a')
+-- Running upgrade eb88a14f2a -> 371a3bf4143e
+
+ALTER TABLE ps_endpoints ADD user_eq_phone VARCHAR(3 CHAR)
+
+/
+
+ALTER TABLE ps_endpoints ADD CONSTRAINT yesno_values CHECK (user_eq_phone IN ('yes', 'no'))
+
+/
+
+-- Running upgrade 371a3bf4143e -> 45e3f47c6c44
+
+ALTER TABLE ps_globals ADD endpoint_identifier_order VARCHAR2(40 CHAR)
+
+/
+
+INSERT INTO alembic_version (version_num) VALUES ('45e3f47c6c44')
 
 /
 
