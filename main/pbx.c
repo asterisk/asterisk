@@ -8739,9 +8739,9 @@ struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts,
 		ast_rdlock_contexts();
 		local_contexts = &contexts;
 		tmp = ast_hashtab_lookup(contexts_table, &search);
-		ast_unlock_contexts();
 		if (tmp) {
 			tmp->refcount++;
+			ast_unlock_contexts();
 			return tmp;
 		}
 	} else { /* local contexts just in a linked list; search there for the new context; slow, linear search, but not frequent */
@@ -8765,11 +8765,13 @@ struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts,
 		tmp->refcount = 1;
 	} else {
 		ast_log(LOG_ERROR, "Danger! We failed to allocate a context for %s!\n", name);
+		if (!extcontexts) {
+			ast_unlock_contexts();
+		}
 		return NULL;
 	}
 
 	if (!extcontexts) {
-		ast_wrlock_contexts();
 		tmp->next = *local_contexts;
 		*local_contexts = tmp;
 		ast_hashtab_insert_safe(contexts_table, tmp); /*put this context into the tree */
@@ -9668,18 +9670,24 @@ int ast_context_add_ignorepat2(struct ast_context *con, const char *value, const
 
 int ast_ignore_pattern(const char *context, const char *pattern)
 {
-	struct ast_context *con = ast_context_find(context);
+	int ret = 0;
+	struct ast_context *con;
 
+	ast_rdlock_contexts();
+	con = ast_context_find(context);
 	if (con) {
 		struct ast_ignorepat *pat;
 
 		for (pat = con->ignorepats; pat; pat = pat->next) {
-			if (ast_extension_match(pat->pattern, pattern))
-				return 1;
+			if (ast_extension_match(pat->pattern, pattern)) {
+				ret = 1;
+				break;
+			}
 		}
 	}
+	ast_unlock_contexts();
 
-	return 0;
+	return ret;
 }
 
 /*
@@ -10885,6 +10893,22 @@ void __ast_context_destroy(struct ast_context *list, struct ast_hashtab *context
 		/* if we have a specific match, we are done, otherwise continue */
 		tmp = con ? NULL : next;
 	}
+}
+
+int ast_context_destroy_by_name(const char *context, const char *registrar)
+{
+	struct ast_context *con;
+	int ret = -1;
+
+	ast_wrlock_contexts();
+	con = ast_context_find(context);
+	if (con) {
+		ast_context_destroy(con, registrar);
+		ret = 0;
+	}
+	ast_unlock_contexts();
+
+	return ret;
 }
 
 void ast_context_destroy(struct ast_context *con, const char *registrar)

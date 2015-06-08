@@ -42,10 +42,10 @@ ASTERISK_REGISTER_FILE()
 
 AST_TEST_DEFINE(test_gosub)
 {
+#define CONTEXT_NAME "tests_test_gosub_virtual_context"
 	int res = AST_TEST_PASS, i;
 	struct ast_channel *chan;
 	struct ast_str *str;
-	struct ast_context *con;
 	struct testplan {
 		const char *app;
 		const char *args;
@@ -119,14 +119,14 @@ AST_TEST_DEFINE(test_gosub)
 	}
 
 	/* Create our test dialplan */
-	if (!(con = ast_context_find_or_create(NULL, NULL, "tests_test_gosub_virtual_context", "test_gosub"))) {
+	if (!ast_context_find_or_create(NULL, NULL, CONTEXT_NAME, "test_gosub")) {
 		ast_test_status_update(test, "Unable to create test dialplan context");
 		ast_free(str);
 		ast_channel_unref(chan);
 		return AST_TEST_FAIL;
 	}
 
-	ast_add_extension2(con, 1, "s", 1, NULL, NULL, "NoOp", ast_strdup(""), ast_free_ptr, "test_gosub");
+	ast_add_extension(CONTEXT_NAME, 1, "s", 1, NULL, NULL, "NoOp", ast_strdup(""), ast_free_ptr, "test_gosub");
 
 	for (i = 0; i < ARRAY_LEN(testplan); i++) {
 		if (testplan[i].app == NULL) {
@@ -157,8 +157,8 @@ AST_TEST_DEFINE(test_gosub)
 
 	ast_free(str);
 	ast_channel_unref(chan);
-	ast_context_remove_extension2(con, "s", 1, NULL, 0);
-	ast_context_destroy(con, "test_gosub");
+	ast_context_remove_extension(CONTEXT_NAME, "s", 1, NULL);
+	ast_context_destroy(NULL, "test_gosub");
 
 	return res;
 }

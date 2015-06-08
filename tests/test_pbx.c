@@ -198,7 +198,6 @@ AST_TEST_DEFINE(pattern_match_test)
 	 */
 	struct {
 		const char * context_string;
-		struct ast_context *context;
 	} contexts[] = {
 		{ TEST_PATTERN, },
 		{ TEST_PATTERN_INCLUDE, },
@@ -267,7 +266,7 @@ AST_TEST_DEFINE(pattern_match_test)
 	 */
 
 	for (i = 0; i < ARRAY_LEN(contexts); ++i) {
-		if (!(contexts[i].context = ast_context_find_or_create(NULL, NULL, contexts[i].context_string, registrar))) {
+		if (!ast_context_find_or_create(NULL, NULL, contexts[i].context_string, registrar)) {
 			ast_test_status_update(test, "Failed to create context %s\n", contexts[i].context_string);
 			res = AST_TEST_FAIL;
 			goto cleanup;
@@ -319,11 +318,7 @@ AST_TEST_DEFINE(pattern_match_test)
 	}
 
 cleanup:
-	for (i = 0; i < ARRAY_LEN(contexts); ++i) {
-		if (contexts[i].context) {
-			ast_context_destroy(contexts[i].context, registrar);
-		}
-	}
+	ast_context_destroy(NULL, registrar);
 
 	return res;
 }
