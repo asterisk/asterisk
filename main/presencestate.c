@@ -522,14 +522,23 @@ int ast_presence_state_engine_init(void)
 static struct ast_manager_event_blob *presence_state_to_ami(struct stasis_message *msg)
 {
 	struct ast_presence_state_message *presence_state = stasis_message_data(msg);
+	struct ast_manager_event_blob *res;
 
-	return ast_manager_event_blob_create(EVENT_FLAG_CALL, "PresenceStateChange",
+	char *subtype = ast_escape_c_alloc(presence_state->subtype);
+	char *message = ast_escape_c_alloc(presence_state->message);
+
+	res = ast_manager_event_blob_create(EVENT_FLAG_CALL, "PresenceStateChange",
 		"Presentity: %s\r\n"
 		"Status: %s\r\n"
 		"Subtype: %s\r\n"
 		"Message: %s\r\n",
 		presence_state->provider,
 		ast_presence_state2str(presence_state->state),
-		presence_state->subtype,
-		presence_state->message);
+		subtype ?: "",
+                message ?: "");
+
+	ast_free(subtype);
+	ast_free(message);
+
+	return res;
 }

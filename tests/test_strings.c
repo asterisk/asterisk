@@ -455,6 +455,38 @@ AST_TEST_DEFINE(escape_semicolons_test)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(escape_test)
+{
+	char buf[128];
+
+#define TEST_ESCAPE(s, to_escape, expected) \
+	!strcmp(ast_escape(buf, s, sizeof(buf) / sizeof(char), to_escape), expected)
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "escape";
+		info->category = "/main/strings/";
+		info->summary = "Test ast_escape";
+		info->description = "Test escaping values in a string";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	ast_test_validate(test, TEST_ESCAPE("null escape", NULL, "null escape"));
+	ast_test_validate(test, TEST_ESCAPE("no matching escape", "Z", "no matching escape"));
+	ast_test_validate(test, TEST_ESCAPE("escape Z", "Z", "escape \\Z"));
+	ast_test_validate(test, TEST_ESCAPE("Z", "Z", "\\Z"));
+	ast_test_validate(test, TEST_ESCAPE(";;", ";;", "\\;\\;"));
+	ast_test_validate(test, TEST_ESCAPE("escape \n", "\n", "escape \\n"));
+	ast_test_validate(test, TEST_ESCAPE("escape \n again \n", "\n", "escape \\n again \\n"));
+
+	ast_test_validate(test, !strcmp(ast_escape_c(buf, "escape \a\b\f\n\r\t\v\\\'\"\?",
+						     sizeof(buf) / sizeof(char)),
+					"escape \\a\\b\\f\\n\\r\\t\\v\\\\\\\'\\\"\\?"));
+	return AST_TEST_PASS;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(str_test);
@@ -462,6 +494,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(ends_with_test);
 	AST_TEST_UNREGISTER(strsep_test);
 	AST_TEST_UNREGISTER(escape_semicolons_test);
+	AST_TEST_UNREGISTER(escape_test);
 	return 0;
 }
 
@@ -472,6 +505,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(ends_with_test);
 	AST_TEST_REGISTER(strsep_test);
 	AST_TEST_REGISTER(escape_semicolons_test);
+	AST_TEST_REGISTER(escape_test);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
