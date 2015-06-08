@@ -1,0 +1,517 @@
+                                Release Summary
+
+                       asterisk-certified/13.1-cert3-rc1
+
+                                Date: 2015-06-08
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-certified/13.1-cert2.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                            Testers         Reporters                
+   12 Mark Michelson                 3 gtjoseph      10 Mark Michelson        
+   10 Kevin Harwell                  1 Juergen Spies 7 Matt Jordan            
+   10 Richard Mudgett                                7 Mark Michelson         
+   6 Matt Jordan                                     6 Kevin Harwell          
+   5 Joshua Colp                                     3 Richard Mudgett        
+   3 Ashley Sanders                                  2 Zane Conkle            
+   3 gtjoseph                                        2 Zane Conkle            
+   2 Jonathan Rose                                   2 Chet Stevens           
+   1 Maciej Szmigiero (license 6085)                 2 Jonathan Rose          
+   1 Corey Farrell                                   2 Joshua Colp            
+   1 Juergen Spies (License 6698)                    2 Joshua Colp            
+                                                     2 Richard Mudgett        
+                                                     2 Jonathan Rose          
+                                                     1 Denis Alberto Martinez 
+                                                     1 Kevin Harwell          
+                                                     1 Ray Crumrine           
+                                                     1 Juergen Spies          
+                                                     1 David Justl            
+                                                     1 viniciusfontes         
+                                                     1 John Hardin            
+                                                     1 David Justl            
+                                                     1 Maciej Szmigiero       
+                                                     1 Chet Stevens           
+                                                     1 Alexandr Gordeev       
+                                                     1 Alexandr Gordeev       
+                                                     1 Juergen Spies          
+                                                     1 Ray Crumrine           
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Applications/app_chanspy
+
+   ASTERISK-24828: Fix Frame Leaks
+   Reported by: Kevin Harwell
+     * [3b4ba353f0] Kevin Harwell -- app_chanspy, channel: fix frame leaks
+
+    Category: Applications/app_confbridge
+
+   ASTERISK-24841: ConfBridge: Strange sampling rates chosen when channels
+   have multiple native formats
+   Reported by: Matt Jordan
+     * [b17d0953b6] Matt Jordan -- res/res_pjsip_sdp_rtp: Revert portion of
+       r432195
+
+    Category: Applications/app_dial
+
+   ASTERISK-24958: Forwarding loop detection inhibits certain desirable
+   scenarios
+   Reported by: Mark Michelson
+     * [1bb6122f35] Mark Michelson -- Detect potential forwarding loops based
+       on count.
+
+    Category: Applications/app_voicemail
+
+   ASTERISK-25082: Asterisk deletes message after doing a playback of an
+   INBOX message using ast_vm_play when the Old folder is full for that
+   mailbox.
+   Reported by: Jonathan Rose
+     * [b81353a0ec] Jonathan Rose -- app_voicemail: fix moving when old
+       messages full
+
+    Category: Channels/General
+
+   ASTERISK-25025: Periodic crashes (in ast_channel_snapshot_create at
+   stasis_channels.c) with Certified Asterisk 13.
+   Reported by: Chet Stevens
+     * [7c687c8e54] Joshua Colp -- stasis: Fix dial masquerade datastore
+       lifetime
+     * [c6c06bbe70] Mark Michelson -- Prevent potential crash on blond
+       transfer.
+
+    Category: Channels/chan_dahdi
+
+   ASTERISK-21893: Segfault after call hangup, in
+   ast_channel_hangupcause_set, at channel_internal_api.c
+   Reported by: Alexandr Gordeev
+     * [523fab02d8] Richard Mudgett -- chan_dahdi/sig_pri: Fix crash on ISDN
+       call hangup collision.
+   ASTERISK-24869: Asterisk segfaults on DAHDI attended transfer due to
+   application (appl) being NULL on unbridged channel
+   Reported by: viniciusfontes
+     * [b764454d4d] Kevin Harwell -- bridge.c: NULL app causes crash during
+       attended transfer
+   ASTERISK-19608: Asterisk-1.8.x starts rejecting calls with cause code 44
+   after some time.
+   Reported by: Denis Alberto Martinez
+     * [0602409c89] Richard Mudgett -- chan_dahdi: Add the chan_dahdi.conf
+       force_restart_unavailable_chans option.
+   ASTERISK-25034: chan_dahdi: Some telco switches occasionally ignore ISDN
+   RESTART requests.
+   Reported by: Richard Mudgett
+     * [0602409c89] Richard Mudgett -- chan_dahdi: Add the chan_dahdi.conf
+       force_restart_unavailable_chans option.
+
+    Category: Channels/chan_pjsip
+
+   ASTERISK-24933: T38 fails negotiation
+   Reported by: Jonathan Rose
+     * [918ca7dd36] Jonathan Rose -- res_pjsip_t38: Fix FAX failures when
+       using PJSIP with authentication
+
+    Category: Channels/chan_sip/TCP-TLS
+
+   ASTERISK-24847: [security] [patch] tcptls: certificate CN NULL byte prefix
+   bug
+   Reported by: Matt Jordan
+     * [08945a5c77] Maciej Szmigiero -- Security/tcptls: MitM Attack
+       potential from certificate with NULL byte in CN.
+
+    Category: Core/Bridging
+
+   ASTERISK-24869: Asterisk segfaults on DAHDI attended transfer due to
+   application (appl) being NULL on unbridged channel
+   Reported by: viniciusfontes
+     * [b764454d4d] Kevin Harwell -- bridge.c: NULL app causes crash during
+       attended transfer
+   ASTERISK-24752: Crash in bridge_manager_service_req when bridge is
+   destroyed by ARI during shutdown
+   Reported by: Richard Mudgett
+     * [340588c721] Richard Mudgett -- HTTP: Stop accepting requests on final
+       system shutdown.
+
+    Category: Core/BuildSystem
+
+   ASTERISK-24954: Git migration: Asterisk version numbers are incompatible
+   with the Test Suite
+   Reported by: Matt Jordan
+     * [735bea479a] Matt Jordan -- build_tools/make_version: Update version
+       parsing for Git migration
+
+    Category: Core/Channels
+
+   ASTERISK-24828: Fix Frame Leaks
+   Reported by: Kevin Harwell
+     * [3b4ba353f0] Kevin Harwell -- app_chanspy, channel: fix frame leaks
+
+    Category: Core/General
+
+   ASTERISK-24752: Crash in bridge_manager_service_req when bridge is
+   destroyed by ARI during shutdown
+   Reported by: Richard Mudgett
+     * [340588c721] Richard Mudgett -- HTTP: Stop accepting requests on final
+       system shutdown.
+
+    Category: Resources/res_ari
+
+   ASTERISK-24812: ARI: Creating channels through /channels resource always
+   uses SLIN, which results in unneeded transcoding
+   Reported by: Matt Jordan
+     * [33c73ffeaa] Matt Jordan -- ARI/PJSIP: Apply requesting channel's
+       format cap to created channels
+
+    Category: Resources/res_ari_channels
+
+   ASTERISK-24812: ARI: Creating channels through /channels resource always
+   uses SLIN, which results in unneeded transcoding
+   Reported by: Matt Jordan
+     * [33c73ffeaa] Matt Jordan -- ARI/PJSIP: Apply requesting channel's
+       format cap to created channels
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-24910: "timer=no" and "timer=required" settings in pjsip.conf
+   fail
+   Reported by: Ray Crumrine
+     * [1e98fcac6b] Kevin Harwell -- res_pjsip: config option 'timers' can't
+       be set to 'no'
+   ASTERISK-25131: chan_pjsip: In-dialog authentication not handled.
+   Reported by: Richard Mudgett
+     * [bd32327353] Richard Mudgett -- res_pjsip_session: Fix in-dialog
+       authentication.
+   ASTERISK-24615: When Multiple Transports Exist in pjsip.conf, Incorrect
+   External Addresses is Used in SIP Packets When Responding to INVITE
+   Reported by: David Justl
+     * [bf31a486cb] Joshua Colp -- res_pjsip / res_pjsip_multihomed: Use the
+       correct transport and addressing information on UAS sessions.
+   ASTERISK-25020: Mismatched response to outgoing REGISTER request
+   Reported by: Mark Michelson
+     * [11d85ea251] Mark Michelson -- res_pjsip_outbound_registration: Don't
+       fail on delayed processing: 13.
+     * [0037ca59a6] Mark Michelson -- res_pjsip_outbound_registration: Add
+       debugging messages.
+   ASTERISK-24920: Asterisk handles duplicate SIP requests as if they were
+   each a new request
+   Reported by: Mark Michelson
+     * [b5b44876c2] Mark Michelson -- Add stateful PJSIP response API call,
+       and use it for out-of-dialog responses.
+   ASTERISK-24840: res_pjsip: conflicting endpoint identifiers
+   Reported by: Kevin Harwell
+     * [e0b644ddb7] Kevin Harwell -- res_pjsip: Allow configuration of
+       endpoint identifier query order
+     * [d7c8041f6b] Kevin Harwell -- res_pjsip: Allow configuration of
+       endpoint identifier query order
+     * [6cd70450fd] Kevin Harwell -- Revert - res_pjsip: Allow configuration
+       of endpoint identifier query order
+     * [4eb1dd4b35] Kevin Harwell -- res_pjsip: Allow configuration of
+       endpoint identifier query order
+   ASTERISK-24741: dtls_handler causes Asterisk to crash
+   Reported by: Zane Conkle
+     * [3ad393b043] Kevin Harwell -- res_pjsip: dtls_handler causes Asterisk
+       to crash
+
+    Category: Resources/res_pjsip_messaging
+
+   ASTERISK-24937: [patch]res_pjsip_messaging: Messages may be sent out of
+   order
+   Reported by: Mark Michelson
+     * [42b7ebdd4d] Mark Michelson -- res_pjsip_messaging: Serialize outbound
+       SIP MESSAGEs
+
+    Category: Resources/res_pjsip_mwi
+
+   ASTERISK-24982: res_pjsip_mwi: Unsolicited MWI NOTIFY only sent on mailbox
+   changes
+   Reported by: Joshua Colp
+     * [677898f839] Joshua Colp -- res_pjsip_mwi: Send unsolicited MWI NOTIFY
+       on startup and when endpoint registers.
+
+    Category: Resources/res_pjsip_outbound_registration
+
+   ASTERISK-25037: res_pjsip_outbound_registration: Potential crash in
+   off-nominal failure case when sending message
+   Reported by: Joshua Colp
+     * [47df4e031c] Joshua Colp -- res_pjsip_outbound_registration: Fix
+       double unref on error return.
+
+    Category: Resources/res_pjsip_pubsub
+
+   ASTERISK-25057: res_pjsip_pubsub: Crash in send_notify due to invalid root
+   pointer in sub_tree
+   Reported by: Matt Jordan
+     * [6433b697ae] Joshua Colp -- res_pjsip_exten_state: Fix race condition
+       between sending NOTIFY and termination
+
+    Category: Resources/res_pjsip_refer
+
+   ASTERISK-24700: CRASH: NULL channel is being passed to
+   ast_bridge_transfer_attended()
+   Reported by: Zane Conkle
+     * [c994a3bfa0] Richard Mudgett -- res_pjsip_refer: Fix crash from a
+       REFER and BYE collision.
+
+    Category: Resources/res_pjsip_session
+
+   ASTERISK-25131: chan_pjsip: In-dialog authentication not handled.
+   Reported by: Richard Mudgett
+     * [bd32327353] Richard Mudgett -- res_pjsip_session: Fix in-dialog
+       authentication.
+
+    Category: Resources/res_pjsip_t38
+
+   ASTERISK-24928: [patch]t38_udptl_maxdatagram in pjsip.conf not honored
+   Reported by: Juergen Spies
+     * [e84fcb2464] Juergen Spies -- res/res_pjsip_t38: Add missing
+       initialization of t38faxmaxdatagram
+   ASTERISK-24933: T38 fails negotiation
+   Reported by: Jonathan Rose
+     * [918ca7dd36] Jonathan Rose -- res_pjsip_t38: Fix FAX failures when
+       using PJSIP with authentication
+
+    Category: Resources/res_stasis
+
+   ASTERISK-24701: Stasis: Write timeout on WebSocket fails to fully
+   disconnect underlying socket, leading to events being dropped with no
+   additional information
+   Reported by: Matt Jordan
+     * [8be00450b9] Kevin Harwell -- res_http_websocket: websocket write
+       timeout fails to fully disconnect
+
+  Improvement
+
+    Category: Applications/app_stasis
+
+   ASTERISK-24802: stasis: set a channel variable on websocket disconnect
+   error
+   Reported by: Kevin Harwell
+     * [758fead630] Ashley Sanders -- stasis: set a channel variable on
+       websocket disconnect error
+
+    Category: Resources/res_ari
+
+   ASTERISK-24802: stasis: set a channel variable on websocket disconnect
+   error
+   Reported by: Kevin Harwell
+     * [758fead630] Ashley Sanders -- stasis: set a channel variable on
+       websocket disconnect error
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author      | Summary                                     |
+   |------------+-------------+---------------------------------------------|
+   |            | Mark        | res_pjsip_outbound_authenticator_digest:    |
+   | 08a4cf3237 | Michelson   | Add missing outbound authenticator          |
+   |            |             | callback.                                   |
+   |------------+-------------+---------------------------------------------|
+   | cb67aae596 | gtjoseph    | More .gitignore updates                     |
+   |------------+-------------+---------------------------------------------|
+   | 70fab74baf | gtjoseph    | .gitignore updates for master/13            |
+   |------------+-------------+---------------------------------------------|
+   | 7d64479748 | Matt Jordan | git migration: Remove support for file      |
+   |            |             | versions                                    |
+   |------------+-------------+---------------------------------------------|
+   | 9237e8b11e | Corey       | main/editline: Add .gitignore.              |
+   |            | Farrell     |                                             |
+   |------------+-------------+---------------------------------------------|
+   | 630dbcb8b4 | Matt Jordan | .gitignore: Ignore tarballs (*.gz)          |
+   |------------+-------------+---------------------------------------------|
+   | e4892f9aa4 | gtjoseph    | Add .gitignore and .gitreview files         |
+   |------------+-------------+---------------------------------------------|
+   | 45f09898e9 | Mark        | Do not queue message requests that we do    |
+   |            | Michelson   | not respond to.                             |
+   |------------+-------------+---------------------------------------------|
+   | b6fff2719d | Mark        | core: avoid possible asterisk -r crash from |
+   |            | Michelson   | long id                                     |
+   |------------+-------------+---------------------------------------------|
+   | 8ae3670781 | Ashley      | stasis: set a channel variable on websocket |
+   |            | Sanders     | disconnect error                            |
+   |------------+-------------+---------------------------------------------|
+   | 259227eb1a | Ashley      | stasis: set a channel variable on websocket |
+   |            | Sanders     | disconnect error                            |
+   |------------+-------------+---------------------------------------------|
+   | 66b8c7cab4 | Richard     | res_pjsip_registrar_expire.c: Cleanup       |
+   |            | Mudgett     | scheduler leaks on unload/shutdown.         |
+   |------------+-------------+---------------------------------------------|
+   | fb7062afca | Richard     | Audit ast_pjsip_rdata_get_endpoint() usage  |
+   |            | Mudgett     | for ref leaks.                              |
+   |------------+-------------+---------------------------------------------|
+   | cf9799845f | Richard     | res_pjsip_sdp_rtp,sorcery: Fix invalid      |
+   |            | Mudgett     | access and memory leak respectively.        |
+   |------------+-------------+---------------------------------------------|
+   | 90fc65da62 | Richard     | Audit ast_sockaddr_resolve() usage for      |
+   |            | Mudgett     | memory leaks.                               |
+   |------------+-------------+---------------------------------------------|
+   | cd4e18c4cc | Richard     | Multiple revisions 431583,433005            |
+   |            | Mudgett     |                                             |
+   |------------+-------------+---------------------------------------------|
+   | 52366a423c | Matt Jordan | translate: Prevent invalid memory accesses  |
+   |            |             | on fast shutdown                            |
+   |------------+-------------+---------------------------------------------|
+   | 69dc8f9ec2 | Kevin       | pjsip_options: Fix continued qualifies      |
+   |            | Harwell     | after endpoint/aor deletion                 |
+   |------------+-------------+---------------------------------------------|
+   | 2125e1b2de | Mark        | Add Asterisk 13 revision 431420 that fixes  |
+   |            | Michelson   | disabling 100rel option on PJSIP endpoints. |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ b/.gitignore                                                                                |   31
+ b/.gitreview                                                                                |    4
+ b/.version                                                                                  |    2
+ b/CHANGES                                                                                   |   11
+ b/ChangeLog                                                                                 |  831 ----------
+ b/UPGRADE.txt                                                                               |   27
+ b/addons/.gitignore                                                                         |    1
+ b/agi/.gitignore                                                                            |    3
+ b/apps/app_chanspy.c                                                                        |    3
+ b/apps/app_confbridge.c                                                                     |    6
+ b/apps/app_dial.c                                                                           |   85 -
+ b/apps/app_externalivr.c                                                                    |    2
+ b/apps/app_followme.c                                                                       |   13
+ b/apps/app_queue.c                                                                          |   96 -
+ b/apps/app_stasis.c                                                                         |   42
+ b/apps/app_voicemail.c                                                                      |    5
+ b/build_tools/.gitignore                                                                    |    1
+ b/build_tools/make_version                                                                  |    7
+ b/channels/chan_dahdi.c                                                                     |    4
+ b/channels/chan_pjsip.c                                                                     |   11
+ b/channels/chan_sip.c                                                                       |    4
+ b/channels/sig_pri.c                                                                        |   25
+ b/channels/sig_pri.h                                                                        |    2
+ b/configs/samples/chan_dahdi.conf.sample                                                    |   14
+ b/configs/samples/pjsip.conf.sample                                                         |    4
+ b/contrib/ast-db-manage/config/versions/45e3f47c6c44_add_pjsip_endpoint_identifier_order.py |   21
+ b/contrib/realtime/mysql/mysql_config.sql                                                   |    6
+ b/contrib/realtime/oracle/oracle_config.sql                                                 |   12
+ b/contrib/realtime/postgresql/postgresql_config.sql                                         |    6
+ b/contrib/realtime/sqlserver/mssql_config.sql                                               |   12
+ b/doc/.gitignore                                                                            |    1
+ b/funcs/func_channel.c                                                                      |   25
+ b/include/asterisk.h                                                                        |   59
+ b/include/asterisk/.gitignore                                                               |    3
+ b/include/asterisk/channel.h                                                                |   19
+ b/include/asterisk/global_datastores.h                                                      |    6
+ b/include/asterisk/max_forwards.h                                                           |   78
+ b/include/asterisk/res_pjsip.h                                                              |   76
+ b/include/asterisk/res_pjsip_pubsub.h                                                       |   10
+ b/main/.gitignore                                                                           |    3
+ b/main/asterisk.c                                                                           |  260 ++-
+ b/main/bridge.c                                                                             |   21
+ b/main/ccss.c                                                                               |    4
+ b/main/channel.c                                                                            |   43
+ b/main/config.c                                                                             |    4
+ b/main/dial.c                                                                               |   15
+ b/main/editline/.gitignore                                                                  |   13
+ b/main/features.c                                                                           |   28
+ b/main/global_datastores.c                                                                  |   56
+ b/main/http.c                                                                               |    5
+ b/main/manager.c                                                                            |   10
+ b/main/max_forwards.c                                                                       |  165 +
+ b/main/netsock2.c                                                                           |    4
+ b/main/sorcery.c                                                                            |    1
+ b/main/stasis_channels.c                                                                    |   60
+ b/main/translate.c                                                                          |    4
+ b/main/utils.c                                                                              |    2
+ b/main/xmldoc.c                                                                             |    2
+ b/menuselect/.gitignore                                                                     |    7
+ b/res/ael/.gitignore                                                                        |    1
+ b/res/ari/ari_websockets.c                                                                  |   14
+ b/res/ari/resource_channels.c                                                               |   10
+ b/res/res_http_websocket.c                                                                  |    4
+ b/res/res_pjsip.c                                                                           |  203 ++
+ b/res/res_pjsip/config_global.c                                                             |   23
+ b/res/res_pjsip/pjsip_configuration.c                                                       |   24
+ b/res/res_pjsip/pjsip_options.c                                                             |   38
+ b/res/res_pjsip_acl.c                                                                       |    2
+ b/res/res_pjsip_caller_id.c                                                                 |    2
+ b/res/res_pjsip_diversion.c                                                                 |    5
+ b/res/res_pjsip_dtmf_info.c                                                                 |    8
+ b/res/res_pjsip_endpoint_identifier_anonymous.c                                             |    2
+ b/res/res_pjsip_endpoint_identifier_ip.c                                                    |    2
+ b/res/res_pjsip_endpoint_identifier_user.c                                                  |    2
+ b/res/res_pjsip_exten_state.c                                                               |   33
+ b/res/res_pjsip_messaging.c                                                                 |   54
+ b/res/res_pjsip_multihomed.c                                                                |   51
+ b/res/res_pjsip_mwi.c                                                                       |  121 +
+ b/res/res_pjsip_nat.c                                                                       |    9
+ b/res/res_pjsip_outbound_authenticator_digest.c                                             |   15
+ b/res/res_pjsip_outbound_registration.c                                                     |  122 +
+ b/res/res_pjsip_pubsub.c                                                                    |    5
+ b/res/res_pjsip_pubsub.exports.in                                                           |    1
+ b/res/res_pjsip_refer.c                                                                     |   16
+ b/res/res_pjsip_registrar.c                                                                 |    7
+ b/res/res_pjsip_registrar_expire.c                                                          |   64
+ b/res/res_pjsip_sdp_rtp.c                                                                   |   21
+ b/res/res_pjsip_send_to_voicemail.c                                                         |   10
+ b/res/res_pjsip_session.c                                                                   |  145 +
+ b/res/res_pjsip_t38.c                                                                       |   47
+ certified-asterisk-13.1-cert2-summary.html                                                  |   62
+ certified-asterisk-13.1-cert2-summary.txt                                                   |   93 -
+ 92 files changed, 1842 insertions(+), 1649 deletions(-)
