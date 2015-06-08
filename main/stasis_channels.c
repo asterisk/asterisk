@@ -791,8 +791,12 @@ static struct ast_manager_event_blob *varset_to_ami(struct stasis_message *msg)
 	struct ast_channel_blob *obj = stasis_message_data(msg);
 	const char *variable =
 		ast_json_string_get(ast_json_object_get(obj->blob, "variable"));
-	const char *value =
-		ast_json_string_get(ast_json_object_get(obj->blob, "value"));
+	RAII_VAR(char *, value, ast_escape_c_alloc(
+			 ast_json_string_get(ast_json_object_get(obj->blob, "value"))), ast_free);
+
+	if (!value) {
+		return NULL;
+	}
 
 	if (obj->snapshot) {
 		channel_event_string =
