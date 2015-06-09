@@ -20,7 +20,7 @@ AC_COMPILE_IFELSE(
 )
 else
 AC_COMPILE_IFELSE(
-	[AC_LANG_PROGRAM([$3 void __attribute__(($2)) *test(void *muffin, ...) {return (void *) 0;}],
+	[AC_LANG_PROGRAM([$3 void __attribute__(($2)) *test(void *muffin, ...) ;],
 			[])],
 	AC_MSG_RESULT(yes)
 	m4_ifval([$4],$4=1)
