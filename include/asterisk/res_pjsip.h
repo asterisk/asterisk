@@ -284,21 +284,21 @@ enum ast_sip_auth_type {
 #define SIP_SORCERY_AUTH_TYPE "auth"
 
 struct ast_sip_auth {
-	/* Sorcery ID of the auth is its name */
+	/*! Sorcery ID of the auth is its name */
 	SORCERY_OBJECT(details);
 	AST_DECLARE_STRING_FIELDS(
-		/* Identification for these credentials */
+		/*! Identification for these credentials */
 		AST_STRING_FIELD(realm);
-		/* Authentication username */
+		/*! Authentication username */
 		AST_STRING_FIELD(auth_user);
-		/* Authentication password */
+		/*! Authentication password */
 		AST_STRING_FIELD(auth_pass);
-		/* Authentication credentials in MD5 format (hash of user:realm:pass) */
+		/*! Authentication credentials in MD5 format (hash of user:realm:pass) */
 		AST_STRING_FIELD(md5_creds);
 	);
-	/* The time period (in seconds) that a nonce may be reused */
+	/*! The time period (in seconds) that a nonce may be reused */
 	unsigned int nonce_lifetime;
-	/* Used to determine what to use when authenticating */
+	/*! Used to determine what to use when authenticating */
 	enum ast_sip_auth_type type;
 };
 
@@ -1772,7 +1772,7 @@ const char *ast_sip_auth_type_to_str(enum ast_sip_auth_type type);
  */
 int ast_sip_auths_to_str(const struct ast_sip_auth_vector *auths, char **buf);
 
-/*
+/*!
  * \brief AMI variable container
  */
 struct ast_sip_ami {
