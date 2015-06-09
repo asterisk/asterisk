@@ -14626,7 +14626,6 @@ static void cleanup_thread_list(void *head)
 
 static int __unload_module(void)
 {
-	struct ast_context *con;
 	int x;
 
 	network_change_stasis_unsubscribe();
@@ -14703,9 +14702,7 @@ static int __unload_module(void)
 	sched = NULL;
 	ao2_ref(peercnts, -1);
 
-	con = ast_context_find(regcontext);
-	if (con)
-		ast_context_destroy(con, "IAX2");
+	ast_context_destroy_by_name(regcontext, "IAX2");
 	ast_unload_realtime("iaxpeers");
 
 	ao2_ref(iax2_tech.capabilities, -1);

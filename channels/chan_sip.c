@@ -19740,8 +19740,7 @@ static void cleanup_stale_contexts(char *new, char *old)
 			}
 
 		}
-		if (stalecontext)
-			ast_context_destroy(ast_context_find(stalecontext), "SIP");
+		ast_context_destroy_by_name(stalecontext, "SIP");
 	}
 }
 
@@ -34550,7 +34549,6 @@ static int unload_module(void)
 {
 	struct sip_pvt *p;
 	struct sip_threadinfo *th;
-	struct ast_context *con;
 	struct ao2_iterator i;
 	int wait_count;
 
@@ -34730,10 +34728,7 @@ static int unload_module(void)
 	close(sipsock);
 	io_context_destroy(io);
 	ast_sched_context_destroy(sched);
-	con = ast_context_find(used_context);
-	if (con) {
-		ast_context_destroy(con, "SIP");
-	}
+	ast_context_destroy_by_name(used_context, "SIP");
 	ast_unload_realtime("sipregs");
 	ast_unload_realtime("sippeers");
 	ast_cc_monitor_unregister(&sip_cc_monitor_callbacks);

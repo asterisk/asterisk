@@ -300,7 +300,21 @@ struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts,
 void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_hashtab *exttable, const char *registrar);
 
 /*!
- * \brief Destroy a context (matches the specified context (or ANY context if NULL)
+ * \brief Destroy a context by name
+ *
+ * \param context Name of the context to destroy
+ * \param registrar who registered it
+ *
+ * You can optionally leave out the registrar parameter.  It will find it
+ * based on the context name.
+ *
+ * \retval -1 context not found
+ * \retval 0 Success
+ */
+int ast_context_destroy_by_name(const char *context, const char *registrar);
+
+/*!
+ * \brief Destroy a context (matches the specified context or ANY context if NULL)
  *
  * \param con context to destroy
  * \param registrar who registered it
