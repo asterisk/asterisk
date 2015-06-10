@@ -1720,6 +1720,16 @@ static void after_bridge_move_channel(struct ast_channel *chan_bridged, void *da
 		return;
 	}
 
+	/* The ast_channel_move function will end up updating the connected line information
+	 * on chan_target to the value we have here, but will not inform it. To ensure that
+	 * AST_FRAME_READ_ACTION_CONNECTED_LINE_MACRO is executed we wipe it away here. If
+	 * we don't do this then the change will be considered redundant, since the connected
+	 * line information is already it (despite the channel not being told).
+	 */
+	ast_channel_lock(chan_target);
+	ast_party_connected_line_init(ast_channel_connected_indicated(chan_target));
+	ast_channel_unlock(chan_target);
+
 	if ((payload_size = ast_connected_line_build_data(connected_line_data,
 		sizeof(connected_line_data), &connected_target, NULL)) != -1) {
 		struct ast_control_read_action_payload *frame_payload;
@@ -1732,6 +1742,15 @@ static void after_bridge_move_channel(struct ast_channel *chan_bridged, void *da
 		memcpy(frame_payload->payload, connected_line_data, payload_size);
 		ast_queue_control_data(chan_target, AST_CONTROL_READ_ACTION, frame_payload, frame_size);
 	}
+
+	/* A connected line update is queued so that if chan_target is remotely involved with
+	 * anything (such as dialing a channel) the other channel(s) will be informed of the
+	 * new channel they are involved with.
+	 */
+	ast_channel_lock(chan_target);
+	ast_connected_line_copy_from_caller(&connected_target, ast_channel_caller(chan_target));
+	ast_channel_queue_connected_line_update(chan_target, &connected_target, NULL);
+	ast_channel_unlock(chan_target);
 
 	ast_party_connected_line_free(&connected_target);
 }
