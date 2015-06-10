@@ -290,14 +290,14 @@ AST_TEST_DEFINE(query_set)
 	case TEST_INIT:
 		info->name = "query_set";
 		info->category = "/main/dns/query_set/";
-		info->summary = "Test nominal asynchronous DNS query set\n";
+		info->summary = "Test nominal asynchronous DNS query set";
 		info->description =
 			"This tests nominal query set in the following ways:\n"
 			"\t* Multiple queries are added to a query set\n"
 			"\t* The mock resolver is configured to respond to all queries\n"
 			"\t* Asynchronous resolution of the query set is started\n"
 			"\t* The mock resolver responds to all queries\n"
-			"\t* We ensure that the query set callback is invoked upon completion\n";
+			"\t* We ensure that the query set callback is invoked upon completion";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -312,13 +312,13 @@ AST_TEST_DEFINE(query_set_nominal_cancel)
 	case TEST_INIT:
 		info->name = "query_set_nominal_cancel";
 		info->category = "/main/dns/query_set/";
-		info->summary = "Test nominal asynchronous DNS query set cancellation\n";
+		info->summary = "Test nominal asynchronous DNS query set cancellation";
 		info->description =
 			"This tests nominal query set cancellation in the following ways:\n"
 			"\t* Multiple queries are added to a query set\n"
 			"\t* The mock resolver is configured to NOT respond to any queries\n"
 			"\t* Asynchronous resolution of the query set is started\n"
-			"\t* The query set is canceled and is confirmed to return with success\n";
+			"\t* The query set is canceled and is confirmed to return with success";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -333,14 +333,14 @@ AST_TEST_DEFINE(query_set_off_nominal_cancel)
 	case TEST_INIT:
 		info->name = "query_set_off_nominal_cancel";
 		info->category = "/main/dns/query_set/";
-		info->summary = "Test off-nominal asynchronous DNS query set cancellation\n";
+		info->summary = "Test off-nominal asynchronous DNS query set cancellation";
 		info->description =
 			"This tests nominal query set cancellation in the following ways:\n"
 			"\t* Multiple queries are added to a query set\n"
 			"\t* The mock resolver is configured to respond to half the queries\n"
 			"\t* Asynchronous resolution of the query set is started\n"
 			"\t* The query set is canceled and is confirmed to return failure\n"
-			"\t* The query set callback is confirmed to run, since it could not be fully canceled\n";
+			"\t* The query set callback is confirmed to run, since it could not be fully canceled";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;

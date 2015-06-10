@@ -823,7 +823,7 @@ AST_TEST_DEFINE(resolve_sync)
 	case TEST_INIT:
 		info->name = "resolve_sync";
 		info->category = "/res/res_resolver_unbound/";
-		info->summary = "Test nominal synchronous resolution using libunbound\n";
+		info->summary = "Test nominal synchronous resolution using libunbound";
 		info->description = "This test performs the following:\n"
 			"\t* Set two static A records and one static AAAA record on one domain\n"
 			"\t* Set an A record for a second domain\n"
@@ -832,7 +832,7 @@ AST_TEST_DEFINE(resolve_sync)
 			"\t* Perform an AAAA record lookup on the first domain\n"
 			"\t* Ensure that the AAAA record is returned and no A record is returned\n"
 			"\t* Perform an A record lookup on the second domain\n"
-			"\t* Ensure that the A record from the second domain is returned\n";
+			"\t* Ensure that the A record from the second domain is returned";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -847,7 +847,7 @@ AST_TEST_DEFINE(resolve_async)
 	case TEST_INIT:
 		info->name = "resolve_async";
 		info->category = "/res/res_resolver_unbound/";
-		info->summary = "Test nominal asynchronous resolution using libunbound\n";
+		info->summary = "Test nominal asynchronous resolution using libunbound";
 		info->description = "This test performs the following:\n"
 			"\t* Set two static A records and one static AAAA record on one domain\n"
 			"\t* Set an A record for a second domain\n"
@@ -856,7 +856,7 @@ AST_TEST_DEFINE(resolve_async)
 			"\t* Perform an AAAA record lookup on the first domain\n"
 			"\t* Ensure that the AAAA record is returned and no A record is returned\n"
 			"\t* Perform an A record lookup on the second domain\n"
-			"\t* Ensure that the A record from the second domain is returned\n";
+			"\t* Ensure that the A record from the second domain is returned";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1064,11 +1064,11 @@ AST_TEST_DEFINE(resolve_sync_off_nominal)
 	case TEST_INIT:
 		info->name = "resolve_sync_off_nominal";
 		info->category = "/res/res_resolver_unbound/";
-		info->summary = "Test off-nominal synchronous resolution using libunbound\n";
+		info->summary = "Test off-nominal synchronous resolution using libunbound";
 		info->description = "This test performs the following:\n"
 			"\t* Attempt a lookup of a non-existent domain\n"
 			"\t* Attempt a lookup of a AAAA record on a domain that contains only A records\n"
-			"\t* Attempt a lookup of an A record on Chaos-net\n";
+			"\t* Attempt a lookup of an A record on Chaos-net";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1083,11 +1083,11 @@ AST_TEST_DEFINE(resolve_async_off_nominal)
 	case TEST_INIT:
 		info->name = "resolve_async_off_nominal";
 		info->category = "/res/res_resolver_unbound/";
-		info->summary = "Test off-nominal synchronous resolution using libunbound\n";
+		info->summary = "Test off-nominal synchronous resolution using libunbound";
 		info->description = "This test performs the following:\n"
 			"\t* Attempt a lookup of a non-existent domain\n"
 			"\t* Attempt a lookup of a AAAA record on a domain that contains only A records\n"
-			"\t* Attempt a lookup of an A record on Chaos-net\n";
+			"\t* Attempt a lookup of an A record on Chaos-net";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1152,10 +1152,10 @@ AST_TEST_DEFINE(resolve_cancel_off_nominal)
 	case TEST_INIT:
 		info->name = "resolve_cancel_off_nominal";
 		info->category = "/res/res_resolver_unbound/";
-		info->summary = "Off nominal cancellation test using libunbound\n";
+		info->summary = "Off nominal cancellation test using libunbound";
 		info->description = "This test does the following:\n"
 			"\t* Perform an asynchronous query\n"
-			"\t* Once the query has completed, attempt to cancel it\n";
+			"\t* Once the query has completed, attempt to cancel it";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1220,9 +1220,9 @@ AST_TEST_DEFINE(resolve_naptr)
 	case TEST_INIT:
 		info->name = "resolve_naptr";
 		info->category = "/res/res_resolver_unbound/";
-		info->summary = "Attempt resolution of NAPTR record\n";
+		info->summary = "Attempt resolution of NAPTR record";
 		info->description = "This test performs a NAPTR lookup and ensures that\n"
-			"the returned record has the appropriate values set\n";
+			"the returned record has the appropriate values set";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1319,11 +1319,11 @@ AST_TEST_DEFINE(resolve_srv)
 	case TEST_INIT:
 		info->name = "resolve_srv";
 		info->category = "/res/res_resolver_unbound/";
-		info->summary = "Test synchronous SRV resolution using libunbound\n";
+		info->summary = "Test synchronous SRV resolution using libunbound";
 		info->description = "This test performs the following:\n"
 			"\t* Set one SRV record on one domain\n"
 			"\t* Perform an SRV lookup on the domain\n"
-			"\t* Ensure that the SRV record returned matches the expected value\n";
+			"\t* Ensure that the SRV record returned matches the expected value";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;

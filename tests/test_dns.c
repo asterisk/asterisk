@@ -62,7 +62,7 @@ AST_TEST_DEFINE(resolver_register_unregister)
 			"The test performs the following steps:\n"
 			"\t* Register a valid resolver.\n"
 			"\t* Unregister the resolver.\n"
-			"If either step fails, the test fails\n";
+			"If either step fails, the test fails";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -114,7 +114,7 @@ AST_TEST_DEFINE(resolver_register_off_nominal)
 			"\t* Register a duplicate resolver\n"
 			"\t* Register a resolver without a name\n"
 			"\t* Register a resolver without a resolve() method\n"
-			"\t* Register a resolver without a cancel() method\n";
+			"\t* Register a resolver without a cancel() method";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -174,7 +174,7 @@ AST_TEST_DEFINE(resolver_unregister_off_nominal)
 			"\t* Unregister a resolver that is not registered.\n"
 			"\t* Unregister a NULL pointer.\n"
 			"Because unregistering a resolver does not return an indicator of success, the best\n"
-			"this test can do is verify that nothing blows up when this is attempted.\n";
+			"this test can do is verify that nothing blows up when this is attempted.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -210,7 +210,7 @@ AST_TEST_DEFINE(resolver_data)
 			"\t* Ensure that setting resolver data does not result in an error.\n"
 			"\t* Ensure that retrieving the set resolver data returns the data we expect\n"
 			"\t* Ensure that setting new resolver data on the query does not result in an error\n"
-			"\t* Ensure that retrieving the resolver data returns the new data that we set\n";
+			"\t* Ensure that retrieving the resolver data returns the new data that we set";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -361,13 +361,13 @@ AST_TEST_DEFINE(resolver_set_result_off_nominal)
 	case TEST_INIT:
 		info->name = "resolver_set_result_off_nominal";
 		info->category = "/main/dns/";
-		info->summary = "Test setting off-nominal DNS results\n";
+		info->summary = "Test setting off-nominal DNS results";
 		info->description =
 			"This test performs the following:\n"
 			"\t* Attempt to add a DNS result that is both bogus and secure\n"
 			"\t* Attempt to add a DNS result that has no canonical name\n"
 			"\t* Attempt to add a DNS result that has no answer\n"
-			"\t* Attempt to add a DNS result with a zero answer size\n";
+			"\t* Attempt to add a DNS result with a zero answer size";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -474,7 +474,7 @@ AST_TEST_DEFINE(resolver_add_record)
 			"\t* Ensure a nominal A record can be added to a query result\n"
 			"\t* Ensures that the record can be retrieved\n"
 			"\t* Ensure that a second record can be added to the query result\n"
-			"\t* Ensures that both records can be retrieved\n";
+			"\t* Ensures that both records can be retrieved";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -585,7 +585,7 @@ AST_TEST_DEFINE(resolver_add_record_off_nominal)
 			"\t* Ensure that an A record with invalid RR classes cannot be added to a query\n"
 			"\t* Ensure that an A record with invalid TTL cannot be added to a query\n"
 			"\t* Ensure that an A record with NULL data cannot be added to a query\n"
-			"\t* Ensure that an A record with invalid length cannot be added to a query\n";
+			"\t* Ensure that an A record with invalid length cannot be added to a query";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -917,7 +917,7 @@ AST_TEST_DEFINE(resolver_resolve_sync_off_nominal)
 			"\t* Attempt resolution with invalid RR type\n",
 			"\t* Attempt resolution with invalid RR class\n",
 			"\t* Attempt resolution with NULL result pointer\n",
-			"\t* Attempt resolution with resolver that returns an error\n";
+			"\t* Attempt resolution with resolver that returns an error";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1174,7 +1174,7 @@ AST_TEST_DEFINE(resolver_resolve_async_off_nominal)
 			"\t* Attempt resolution with invalid RR type\n",
 			"\t* Attempt resolution with invalid RR class\n",
 			"\t* Attempt resolution with NULL callback pointer\n",
-			"\t* Attempt resolution with resolver that returns an error\n";
+			"\t* Attempt resolution with resolver that returns an error";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1232,7 +1232,7 @@ AST_TEST_DEFINE(resolver_resolve_async_cancel)
 			"This test performs an asynchronous DNS resolution of a domain and then cancels\n"
 			"the resolution. The goal of this test is to ensure that the cancel() callback of\n"
 			"the resolver is called and that it properly interrupts the resolution such that no\n"
-			"records are returned.\n";
+			"records are returned.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;

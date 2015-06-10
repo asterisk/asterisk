@@ -278,7 +278,7 @@ AST_TEST_DEFINE(recurring_query)
 	case TEST_INIT:
 		info->name = "recurring_query";
 		info->category = "/main/dns/recurring/";
-		info->summary = "Test nominal asynchronous recurring DNS queries\n";
+		info->summary = "Test nominal asynchronous recurring DNS queries";
 		info->description =
 			"This tests nominal recurring queries in the following ways:\n"
 			"\t* An asynchronous query is sent to a mock resolver\n"
@@ -286,7 +286,7 @@ AST_TEST_DEFINE(recurring_query)
 			"\t* We ensure that the query re-occurs according to the lower of the TTLs\n"
 			"\t* The mock resolver returns two records, this time with different TTLs\n"
 			"\t  from the first time the query was resolved\n"
-			"\t* We ensure that the query re-occurs according to the new lower TTL\n";
+			"\t* We ensure that the query re-occurs according to the new lower TTL";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -403,8 +403,7 @@ AST_TEST_DEFINE(recurring_query_off_nominal)
 			"\t* Attempt resolution with invalid RR type\n",
 			"\t* Attempt resolution with invalid RR class\n",
 			"\t* Attempt resolution with NULL callback pointer\n",
-			"\t* Attempt resolution with resolver that returns an error\n";
-
+			"\t* Attempt resolution with resolver that returns an error";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -459,11 +458,11 @@ AST_TEST_DEFINE(recurring_query_cancel_between)
 	case TEST_INIT:
 		info->name = "recurring_query_cancel_between";
 		info->category = "/main/dns/recurring/";
-		info->summary = "Test canceling a recurring DNS query during the downtime between queries\n";
+		info->summary = "Test canceling a recurring DNS query during the downtime between queries";
 		info->description = "This test does the following:\n"
 			"\t* Issue a recurring DNS query.\n"
 			"\t* Once results have been returned, cancel the recurring query.\n"
-			"\t* Wait a while to ensure that no more queries are occurring.\n";
+			"\t* Wait a while to ensure that no more queries are occurring.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -540,13 +539,13 @@ AST_TEST_DEFINE(recurring_query_cancel_during)
 	case TEST_INIT:
 		info->name = "recurring_query_cancel_during";
 		info->category = "/main/dns/recurring/";
-		info->summary = "Cancel a recurring DNS query while a query is actually happening\n";
+		info->summary = "Cancel a recurring DNS query while a query is actually happening";
 		info->description = "This test does the following:\n"
 			"\t* Initiate a recurring DNS query.\n"
 			"\t* Allow the initial query to complete, and a second query to start\n"
 			"\t* Cancel the recurring query while the second query is executing\n"
 			"\t* Ensure that the resolver's cancel() method was called\n"
-			"\t* Wait a while to make sure that recurring queries are no longer occurring\n";
+			"\t* Wait a while to make sure that recurring queries are no longer occurring";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
