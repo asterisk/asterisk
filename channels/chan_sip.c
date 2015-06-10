@@ -9285,6 +9285,13 @@ static struct sip_pvt *find_call(struct sip_request *req, struct ast_sockaddr *a
 
 			switch (found) {
 			case SIP_REQ_MATCH:
+				if (args.method != SIP_RESPONSE && args.authentication_present) {
+					/* If we have a request that uses athentication, the fromtag may
+					 * different from the original call dialog. So update the fromtag */
+					sip_pvt_lock(sip_pvt_ptr);
+					ast_string_field_set(sip_pvt_ptr, theirtag, args.fromtag);
+					sip_pvt_unlock(sip_pvt_ptr);
+				}
 				ao2_iterator_destroy(iterator);
 				dialog_unref(fork_pvt, "unref fork_pvt");
 				free_via(via);
