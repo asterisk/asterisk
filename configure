@@ -15510,7 +15510,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 else
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
- void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
+ void __attribute__(()) *test(void *muffin, ...) ;
 int
 main ()
 {
@@ -15578,7 +15578,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 else
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
- void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
+ void __attribute__(()) *test(void *muffin, ...) ;
 int
 main ()
 {
@@ -15646,7 +15646,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 else
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
- void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
+ void __attribute__(()) *test(void *muffin, ...) ;
 int
 main ()
 {
@@ -15714,7 +15714,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 else
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
- void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
+ void __attribute__(()) *test(void *muffin, ...) ;
 int
 main ()
 {
@@ -15782,7 +15782,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 else
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
- void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
+ void __attribute__(()) *test(void *muffin, ...) ;
 int
 main ()
 {
@@ -15850,7 +15850,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 else
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
- void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
+ void __attribute__(()) *test(void *muffin, ...) ;
 int
 main ()
 {
@@ -15918,7 +15918,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 else
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
- void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
+ void __attribute__(()) *test(void *muffin, ...) ;
 int
 main ()
 {
@@ -15986,7 +15986,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 else
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
- void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
+ void __attribute__(()) *test(void *muffin, ...) ;
 int
 main ()
 {
@@ -16065,7 +16065,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 else
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
- void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
+ void __attribute__(()) *test(void *muffin, ...) ;
 int
 main ()
 {
@@ -16137,7 +16137,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 else
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
- void __attribute__(()) *test(void *muffin, ...) {return (void *) 0;}
+ void __attribute__(()) *test(void *muffin, ...) ;
 int
 main ()
 {
@@ -16209,7 +16209,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 else
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-static void __attribute__((weakref("foo"))) *test(void *muffin, ...) {return (void *) 0;}
+static void __attribute__((weakref("foo"))) *test(void *muffin, ...) ;
 int
 main ()
 {
@@ -16283,7 +16283,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 else
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-static void __attribute__((weakref("foo"))) *test(void *muffin, ...) {return (void *) 0;}
+static void __attribute__((weakref("foo"))) *test(void *muffin, ...) ;
 int
 main ()
 {
