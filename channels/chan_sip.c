@@ -9241,7 +9241,7 @@ static struct sip_pvt *__find_call(struct sip_request *req, struct ast_sockaddr 
 			switch (found) {
 			case SIP_REQ_MATCH:
 				if (args.method != SIP_RESPONSE && args.authentication_present
-						&& strcmp(args.fromtag, theirtag)) {
+						&& strcmp(args.fromtag, sip_pvt_ptr.theirtag)) {
 					/* If we have a request that uses athentication and the fromtag is
 					 * different from that in the original call dialog, update the
 					 * fromtag in the saved call dialog */
