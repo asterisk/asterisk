@@ -518,7 +518,9 @@ static struct ast_config *realtime_directory(char *context)
 			/* Skip hidden */
 			continue;
 		}
-		ast_str_set(&tmp, 0, "no-password,%s", S_OR(fullname, ""));
+
+		/* password,Full Name,email,pager,options */
+		ast_str_set(&tmp, 0, "no-password,%s,,,", S_OR(fullname, ""));
 		if (ast_variable_retrieve(rtdata, mailbox, "alias")) {
 			for (alias = ast_variable_browse(rtdata, mailbox); alias; alias = alias->next) {
 				if (!strcasecmp(alias->name, "alias")) {
@@ -602,7 +604,10 @@ static int search_directory_sub(const char *context, struct ast_config *vmcfg, s
 {
 	struct ast_variable *v;
 	struct ast_str *buf = ast_str_thread_get(&commonbuf, 100);
-	char *pos, *bufptr, *cat, *alias;
+	char *name;
+	char *options;
+	char *alias;
+	char *cat;
 	struct directory_item *item;
 	int res;
 
@@ -613,33 +618,36 @@ static int search_directory_sub(const char *context, struct ast_config *vmcfg, s
 	ast_debug(2, "Pattern: %s\n", ext);
 
 	for (v = ast_variable_browse(vmcfg, context); v; v = v->next) {
-
-		/* Ignore hidden */
-		if (strcasestr(v->value, "hidefromdir=yes")) {
-			continue;
-		}
-
 		ast_str_set(&buf, 0, "%s", v->value);
-		bufptr = ast_str_buffer(buf);
+		options = ast_str_buffer(buf);
 
 		/* password,Full Name,email,pager,options */
-		strsep(&bufptr, ",");
-		pos = strsep(&bufptr, ",");
+		strsep(&options, ",");          /* Skip password */
+		name = strsep(&options, ",");   /* Save full name */
+		strsep(&options, ",");          /* Skip email */
+		strsep(&options, ",");          /* Skip pager */
+		/* options is now the options field if it exists. */
 
-		/* No name to compare against */
-		if (ast_strlen_zero(pos)) {
+		if (options && strcasestr(options, "hidefromdir=yes")) {
+			/* Ignore hidden */
+			continue;
+		}
+		if (ast_strlen_zero(name)) {
+			/* No name to compare against */
 			continue;
 		}
 
 		res = 0;
 		if (ast_test_flag(&flags, OPT_LISTBYLASTNAME)) {
-			res = check_match(&item, context, pos, v->name, ext, 0 /* use_first_name */);
+			res = check_match(&item, context, name, v->name, ext, 0 /* use_first_name */);
 		}
 		if (!res && ast_test_flag(&flags, OPT_LISTBYFIRSTNAME)) {
-			res = check_match(&item, context, pos, v->name, ext, 1 /* use_first_name */);
+			res = check_match(&item, context, name, v->name, ext, 1 /* use_first_name */);
 		}
-		if (!res && ast_test_flag(&flags, OPT_ALIAS) && (alias = strcasestr(bufptr, "alias="))) {
+		if (!res && ast_test_flag(&flags, OPT_ALIAS)
+			&& options && (alias = strcasestr(options, "alias="))) {
 			char *a;
+
 			ast_debug(1, "Found alias: %s\n", alias);
 			while ((a = strsep(&alias, "|"))) {
 				if (!strncasecmp(a, "alias=", 6)) {
@@ -683,9 +691,9 @@ static int search_directory_sub(const char *context, struct ast_config *vmcfg, s
 				res = check_match(&item, context, position, cat, ext, 1 /* use_first_name */);
 			}
 			if (!res && ast_test_flag(&flags, OPT_ALIAS)) {
-				struct ast_variable *alias;
-				for (alias = ast_variable_browse(ucfg, cat); alias; alias = alias->next) {
-					if (!strcasecmp(v->name, "alias") && (res = check_match(&item, context, v->value, cat, ext, 1))) {
+				for (v = ast_variable_browse(ucfg, cat); v; v = v->next) {
+					if (!strcasecmp(v->name, "alias")
+						&& (res = check_match(&item, context, v->value, cat, ext, 1))) {
 						break;
 					}
 				}
