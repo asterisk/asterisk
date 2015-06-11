@@ -26977,11 +26977,14 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 				if (bridged_to) {
 					/* Don't actually hangup here... */
 					ast_queue_control(c, AST_CONTROL_UNHOLD);
+					sip_pvt_unlock(p);
 					ast_channel_unlock(c);  /* async_goto can do a masquerade, no locks can be held during a masq */
 					ast_async_goto(bridged_to, p->context, p->refer->refer_to, 1);
 					ast_channel_lock(c);
-				} else
+					sip_pvt_lock(p);
+				} else {
 					ast_queue_hangup(p->owner);
+				}
 			}
 		} else {
 			ast_log(LOG_WARNING, "Invalid transfer information from '%s'\n", ast_sockaddr_stringify(&p->recv));
