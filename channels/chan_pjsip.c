@@ -388,7 +388,9 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 	chan = ast_channel_alloc_with_endpoint(1, state,
 		S_COR(session->id.number.valid, session->id.number.str, ""),
 		S_COR(session->id.name.valid, session->id.name.str, ""),
-		session->endpoint->accountcode, "", "", assignedids, requestor, 0,
+		session->endpoint->accountcode,
+		exten, session->endpoint->context,
+		assignedids, requestor, 0,
 		session->endpoint->persistent, "PJSIP/%s-%08x",
 		ast_sorcery_object_get_id(session->endpoint),
 		(unsigned) ast_atomic_fetchadd_int((int *) &chan_idx, +1));
@@ -445,8 +447,6 @@ static struct ast_channel *chan_pjsip_new(struct ast_sip_session *session, int s
 	ast_party_id_copy(&ast_channel_caller(chan)->id, &session->id);
 	ast_party_id_copy(&ast_channel_caller(chan)->ani, &session->id);
 
-	ast_channel_context_set(chan, session->endpoint->context);
-	ast_channel_exten_set(chan, S_OR(exten, "s"));
 	ast_channel_priority_set(chan, 1);
 
 	ast_channel_callgroup_set(chan, session->endpoint->pickup.callgroup);
