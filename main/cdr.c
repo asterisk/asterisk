@@ -912,6 +912,8 @@ static struct cdr_object *cdr_object_create_and_append(struct cdr_object *cdr)
 	ast_string_field_set(new_cdr, linkedid, cdr_last->linkedid);
 	ast_string_field_set(new_cdr, appl, cdr_last->appl);
 	ast_string_field_set(new_cdr, data, cdr_last->data);
+	ast_string_field_set(new_cdr, context, cdr_last->context);
+	ast_string_field_set(new_cdr, exten, cdr_last->exten);
 
 	/* Copy over other Party A information */
 	cdr_object_snapshot_copy(&new_cdr->party_a, &cdr_last->party_a);
