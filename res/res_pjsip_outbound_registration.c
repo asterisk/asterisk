@@ -471,10 +471,11 @@ static int handle_client_registration(void *data)
 	RAII_VAR(struct sip_outbound_registration_client_state *, client_state, data, ao2_cleanup);
 	pjsip_tx_data *tdata;
 	pjsip_regc_info info;
-	char server_uri[PJSIP_MAX_URL_SIZE], client_uri[PJSIP_MAX_URL_SIZE];
+	char server_uri[PJSIP_MAX_URL_SIZE];
+	char client_uri[PJSIP_MAX_URL_SIZE];
 
-	if ((client_state->status == SIP_REGISTRATION_STOPPED) ||
-		(pjsip_regc_register(client_state->client, PJ_FALSE, &tdata) != PJ_SUCCESS)) {
+	if (client_state->status == SIP_REGISTRATION_STOPPED
+		|| pjsip_regc_register(client_state->client, PJ_FALSE, &tdata) != PJ_SUCCESS) {
 		return 0;
 	}
 
@@ -571,7 +572,8 @@ static int handle_client_state_destruction(void *data)
 			return 0;
 		}
 
-		if (client_state->status != SIP_REGISTRATION_UNREGISTERED && client_state->status != SIP_REGISTRATION_REJECTED_PERMANENT) {
+		if (client_state->status != SIP_REGISTRATION_UNREGISTERED
+			&& client_state->status != SIP_REGISTRATION_REJECTED_PERMANENT) {
 			pjsip_tx_data *tdata;
 
 			if (pjsip_regc_unregister(client_state->client, &tdata) == PJ_SUCCESS) {
@@ -620,7 +622,7 @@ static void registration_response_destroy(void *obj)
 	ao2_cleanup(response->client_state);
 }
 
-/* \brief Helper funtion which determines if a response code is temporal or not */
+/*! \brief Helper function which determines if a response code is temporal or not */
 static int sip_outbound_registration_is_temporal(unsigned int code,
 		struct sip_outbound_registration_client_state *client_state)
 {
@@ -662,7 +664,8 @@ static int handle_registration_response(void *data)
 {
 	RAII_VAR(struct registration_response *, response, data, ao2_cleanup);
 	pjsip_regc_info info;
-	char server_uri[PJSIP_MAX_URL_SIZE], client_uri[PJSIP_MAX_URL_SIZE];
+	char server_uri[PJSIP_MAX_URL_SIZE];
+	char client_uri[PJSIP_MAX_URL_SIZE];
 
 	pjsip_regc_get_info(response->client_state->client, &info);
 	ast_copy_pj_str(server_uri, &info.server_uri, sizeof(server_uri));
@@ -713,7 +716,8 @@ static int handle_registration_response(void *data)
 	} else if (response->retry_after) {
 		/* If we have been instructed to retry after a period of time, schedule it as such */
 		schedule_retry(response, response->retry_after, server_uri, client_uri);
-	} else if (response->client_state->retry_interval && sip_outbound_registration_is_temporal(response->code, response->client_state)) {
+	} else if (response->client_state->retry_interval
+		&& sip_outbound_registration_is_temporal(response->code, response->client_state)) {
 		if (response->client_state->retries == response->client_state->max_retries) {
 			/* If we received enough temporal responses to exceed our maximum give up permanently */
 			response->client_state->status = SIP_REGISTRATION_REJECTED_PERMANENT;
@@ -746,7 +750,8 @@ static int handle_registration_response(void *data)
 		}
 	}
 
-	ast_system_publish_registry("PJSIP", client_uri, server_uri, sip_outbound_registration_status_str[response->client_state->status], NULL);
+	ast_system_publish_registry("PJSIP", client_uri, server_uri,
+		sip_outbound_registration_status_str[response->client_state->status], NULL);
 
 	/* If deferred destruction is in use see if we need to destroy now */
 	if (response->client_state->destroy) {
@@ -787,9 +792,11 @@ static void sip_outbound_registration_response_cb(struct pjsip_regc_cbparam *par
 			(int) info.client_uri.slen, info.client_uri.ptr);
 
 	if (param->rdata) {
-		struct pjsip_retry_after_hdr *retry_after = pjsip_msg_find_hdr(param->rdata->msg_info.msg, PJSIP_H_RETRY_AFTER, NULL);
+		struct pjsip_retry_after_hdr *retry_after;
 		pjsip_transaction *tsx;
 
+		retry_after = pjsip_msg_find_hdr(param->rdata->msg_info.msg, PJSIP_H_RETRY_AFTER,
+			NULL);
 		response->retry_after = retry_after ? retry_after->ivalue : 0;
 		tsx = pjsip_rdata_get_tsx(param->rdata);
 		response->old_request = tsx->last_tx;
@@ -874,7 +881,10 @@ static void sip_outbound_registration_destroy(void *obj)
 /*! \brief Allocator function for registration information */
 static void *sip_outbound_registration_alloc(const char *name)
 {
-	struct sip_outbound_registration *registration = ast_sorcery_generic_alloc(sizeof(*registration), sip_outbound_registration_destroy);
+	struct sip_outbound_registration *registration;
+
+	registration = ast_sorcery_generic_alloc(sizeof(*registration),
+		sip_outbound_registration_destroy);
 	if (!registration || ast_string_field_init(registration, 256)) {
 		ao2_cleanup(registration);
 		return NULL;
@@ -884,8 +894,8 @@ static void *sip_outbound_registration_alloc(const char *name)
 }
 
 /*! \brief Helper function which populates a pj_str_t with a contact header */
-static int sip_dialog_create_contact(pj_pool_t *pool, pj_str_t *contact, const char *user, const pj_str_t *target, pjsip_tpselector *selector,
-	const char *line)
+static int sip_dialog_create_contact(pj_pool_t *pool, pj_str_t *contact, const char *user,
+	const pj_str_t *target, pjsip_tpselector *selector, const char *line)
 {
 	pj_str_t tmp, local_addr;
 	pjsip_uri *uri;
@@ -918,8 +928,8 @@ static int sip_dialog_create_contact(pj_pool_t *pool, pj_str_t *contact, const c
 		type = (pjsip_transport_type_e)(((int)type) + PJSIP_TRANSPORT_IPV6);
 	}
 
-	if (pjsip_tpmgr_find_local_addr(pjsip_endpt_get_tpmgr(ast_sip_get_pjsip_endpoint()), pool, type, selector,
-							      &local_addr, &local_port) != PJ_SUCCESS) {
+	if (pjsip_tpmgr_find_local_addr(pjsip_endpt_get_tpmgr(ast_sip_get_pjsip_endpoint()),
+		pool, type, selector, &local_addr, &local_port) != PJ_SUCCESS) {
 		return -1;
 	}
 
@@ -929,18 +939,18 @@ static int sip_dialog_create_contact(pj_pool_t *pool, pj_str_t *contact, const c
 
 	contact->ptr = pj_pool_alloc(pool, PJSIP_MAX_URL_SIZE);
 	contact->slen = pj_ansi_snprintf(contact->ptr, PJSIP_MAX_URL_SIZE,
-				      "<%s:%s@%s%.*s%s:%d%s%s%s%s>",
-				      (pjsip_transport_get_flag_from_type(type) & PJSIP_TRANSPORT_SECURE) ? "sips" : "sip",
-				      user,
-				      (type & PJSIP_TRANSPORT_IPV6) ? "[" : "",
-				      (int)local_addr.slen,
-				      local_addr.ptr,
-				      (type & PJSIP_TRANSPORT_IPV6) ? "]" : "",
-				      local_port,
-				      (type != PJSIP_TRANSPORT_UDP && type != PJSIP_TRANSPORT_UDP6) ? ";transport=" : "",
-				      (type != PJSIP_TRANSPORT_UDP && type != PJSIP_TRANSPORT_UDP6) ? pjsip_transport_get_type_name(type) : "",
-				      !ast_strlen_zero(line) ? ";line=" : "",
-				      S_OR(line, ""));
+		"<%s:%s@%s%.*s%s:%d%s%s%s%s>",
+		(pjsip_transport_get_flag_from_type(type) & PJSIP_TRANSPORT_SECURE) ? "sips" : "sip",
+		user,
+		(type & PJSIP_TRANSPORT_IPV6) ? "[" : "",
+		(int)local_addr.slen,
+		local_addr.ptr,
+		(type & PJSIP_TRANSPORT_IPV6) ? "]" : "",
+		local_port,
+		(type != PJSIP_TRANSPORT_UDP && type != PJSIP_TRANSPORT_UDP6) ? ";transport=" : "",
+		(type != PJSIP_TRANSPORT_UDP && type != PJSIP_TRANSPORT_UDP6) ? pjsip_transport_get_type_name(type) : "",
+		!ast_strlen_zero(line) ? ";line=" : "",
+		S_OR(line, ""));
 
 	return 0;
 }
@@ -1053,8 +1063,11 @@ static int sip_outbound_registration_regc_alloc(void *data)
 
 		pj_list_init(&route_set);
 
-		pj_strdup2_with_null(pjsip_regc_get_pool(state->client_state->client), &tmp, registration->outbound_proxy);
-		if (!(route = pjsip_parse_hdr(pjsip_regc_get_pool(state->client_state->client), &ROUTE_HNAME, tmp.ptr, tmp.slen, NULL))) {
+		pj_strdup2_with_null(pjsip_regc_get_pool(state->client_state->client), &tmp,
+			registration->outbound_proxy);
+		route = pjsip_parse_hdr(pjsip_regc_get_pool(state->client_state->client),
+			&ROUTE_HNAME, tmp.ptr, tmp.slen, NULL);
+		if (!route) {
 			return -1;
 		}
 		pj_list_insert_nodes_before(&route_set, route);
@@ -1069,13 +1082,15 @@ static int sip_outbound_registration_regc_alloc(void *data)
 	pj_cstr(&server_uri, registration->server_uri);
 
 
-	if (sip_dialog_create_contact(pjsip_regc_get_pool(state->client_state->client), &contact_uri, S_OR(registration->contact_user, "s"), &server_uri, &selector,
+	if (sip_dialog_create_contact(pjsip_regc_get_pool(state->client_state->client),
+		&contact_uri, S_OR(registration->contact_user, "s"), &server_uri, &selector,
 		state->client_state->line)) {
 		return -1;
 	}
 
 	pj_cstr(&client_uri, registration->client_uri);
-	if (pjsip_regc_init(state->client_state->client, &server_uri, &client_uri, &client_uri, 1, &contact_uri, registration->expiration) != PJ_SUCCESS) {
+	if (pjsip_regc_init(state->client_state->client, &server_uri, &client_uri,
+		&client_uri, 1, &contact_uri, registration->expiration) != PJ_SUCCESS) {
 		return -1;
 	}
 
@@ -1798,8 +1813,9 @@ static int load_module(void)
 	ast_sip_register_cli_formatter(cli_formatter);
 	ast_cli_register_multiple(cli_outbound_registration, ARRAY_LEN(cli_outbound_registration));
 
-	if (!(new_states = ao2_container_alloc(
-		      DEFAULT_STATE_BUCKETS, registration_state_hash, registration_state_cmp))) {
+	new_states = ao2_container_alloc(DEFAULT_STATE_BUCKETS,
+		registration_state_hash, registration_state_cmp);
+	if (!new_states) {
 		ast_log(LOG_ERROR, "Unable to allocate registration states container\n");
 		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
