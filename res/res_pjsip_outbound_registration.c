@@ -360,9 +360,15 @@ static int registration_state_cmp(void *obj, void *arg, int flags)
 
 static struct sip_outbound_registration_state *get_state(const char *id)
 {
-	RAII_VAR(struct ao2_container *, states,
-		 ao2_global_obj_ref(current_states), ao2_cleanup);
-	return states ? ao2_find(states, id, OBJ_SEARCH_KEY) : NULL;
+	struct sip_outbound_registration_state *state = NULL;
+	struct ao2_container *states;
+
+	states = ao2_global_obj_ref(current_states);
+	if (states) {
+		state = ao2_find(states, id, OBJ_SEARCH_KEY);
+		ao2_ref(states, -1);
+	}
+	return state;
 }
 
 static struct ao2_container *get_registrations(void)
@@ -1100,8 +1106,8 @@ static int sip_outbound_registration_regc_alloc(void *data)
 /*! \brief Helper function which performs a single registration */
 static int sip_outbound_registration_perform(void *data)
 {
-	RAII_VAR(struct sip_outbound_registration_state *, state, data, ao2_cleanup);
-	RAII_VAR(struct sip_outbound_registration *, registration, ao2_bump(state->registration), ao2_cleanup);
+	struct sip_outbound_registration_state *state = data;
+	struct sip_outbound_registration *registration = ao2_bump(state->registration);
 	size_t i;
 
 	/* Just in case the client state is being reused for this registration, free the auth information */
@@ -1110,7 +1116,10 @@ static int sip_outbound_registration_perform(void *data)
 	AST_VECTOR_INIT(&state->client_state->outbound_auths, AST_VECTOR_SIZE(&registration->outbound_auths));
 	for (i = 0; i < AST_VECTOR_SIZE(&registration->outbound_auths); ++i) {
 		const char *name = ast_strdup(AST_VECTOR_GET(&registration->outbound_auths, i));
-		AST_VECTOR_APPEND(&state->client_state->outbound_auths, name);
+
+		if (name) {
+			AST_VECTOR_APPEND(&state->client_state->outbound_auths, name);
+		}
 	}
 	state->client_state->retry_interval = registration->retry_interval;
 	state->client_state->forbidden_retry_interval = registration->forbidden_retry_interval;
@@ -1123,6 +1132,8 @@ static int sip_outbound_registration_perform(void *data)
 
 	schedule_registration(state->client_state, (ast_random() % 10) + 1);
 
+	ao2_ref(registration, -1);
+	ao2_ref(state, -1);
 	return 0;
 }
 
@@ -1193,11 +1204,9 @@ static int sip_outbound_registration_apply(const struct ast_sorcery *sorcery, vo
 	}
 
 	ao2_lock(states);
-
 	if (state) {
 		ao2_unlink(states, state);
 	}
-
 	ao2_link(states, new_state);
 	ao2_unlock(states);
 
@@ -1238,23 +1247,22 @@ static int outbound_auths_to_var_list(const void *obj, struct ast_variable **fie
 
 static int unregister_task(void *obj)
 {
-	RAII_VAR(struct sip_outbound_registration_state*, state, obj, ao2_cleanup);
+	struct sip_outbound_registration_state *state = obj;
 	struct pjsip_regc *client = state->client_state->client;
 	pjsip_tx_data *tdata;
 	pjsip_regc_info info;
 
 	pjsip_regc_get_info(client, &info);
 	ast_debug(1, "Unregistering contacts with server '%s' from client '%s'\n",
-			state->registration->server_uri, state->registration->client_uri);
+		state->registration->server_uri, state->registration->client_uri);
 
 	cancel_registration(state->client_state);
 
-	if (pjsip_regc_unregister(client, &tdata) != PJ_SUCCESS) {
-		return 0;
+	if (pjsip_regc_unregister(client, &tdata) == PJ_SUCCESS) {
+		registration_client_send(state->client_state, tdata);
 	}
 
-	registration_client_send(state->client_state, tdata);
-
+	ao2_ref(state, -1);
 	return 0;
 }
 
@@ -1287,7 +1295,7 @@ static char *cli_complete_registration(const char *line, const char *word,
 	int wordlen;
 	int which = 0;
 	struct sip_outbound_registration *registration;
-	RAII_VAR(struct ao2_container *, registrations, NULL, ao2_cleanup);
+	struct ao2_container *registrations;
 	struct ao2_iterator i;
 
 	if (pos != 3) {
@@ -1304,22 +1312,25 @@ static char *cli_complete_registration(const char *line, const char *word,
 	i = ao2_iterator_init(registrations, 0);
 	while ((registration = ao2_iterator_next(&i))) {
 		const char *name = ast_sorcery_object_get_id(registration);
+
 		if (!strncasecmp(word, name, wordlen) && ++which > state) {
 			result = ast_strdup(name);
 		}
 
-		ao2_cleanup(registration);
+		ao2_ref(registration, -1);
 		if (result) {
 			break;
 		}
 	}
 	ao2_iterator_destroy(&i);
+
+	ao2_ref(registrations, -1);
 	return result;
 }
 
 static char *cli_unregister(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	RAII_VAR(struct sip_outbound_registration_state *, state, NULL, ao2_cleanup);
+	struct sip_outbound_registration_state *state;
 	const char *registration_name;
 
 	switch (cmd) {
@@ -1347,15 +1358,15 @@ static char *cli_unregister(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 	if (queue_unregister(state)) {
 		ast_cli(a->fd, "Failed to queue unregistration");
-		return 0;
 	}
 
+	ao2_ref(state, -1);
 	return CLI_SUCCESS;
 }
 
 static char *cli_register(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	RAII_VAR(struct sip_outbound_registration_state *, state, NULL, ao2_cleanup);
+	struct sip_outbound_registration_state *state;
 	const char *registration_name;
 
 	switch (cmd) {
@@ -1387,20 +1398,18 @@ static char *cli_register(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	 */
 	if (queue_unregister(state)) {
 		ast_cli(a->fd, "Failed to queue unregistration");
-		return 0;
-	}
-	if (queue_register(state)) {
+	} else if (queue_register(state)) {
 		ast_cli(a->fd, "Failed to queue registration");
-		return 0;
 	}
 
+	ao2_ref(state, -1);
 	return CLI_SUCCESS;
 }
 
 static int ami_unregister(struct mansession *s, const struct message *m)
 {
 	const char *registration_name = astman_get_header(m, "Registration");
-	RAII_VAR(struct sip_outbound_registration_state *, state, NULL, ao2_cleanup);
+	struct sip_outbound_registration_state *state;
 
 	if (ast_strlen_zero(registration_name)) {
 		astman_send_error(s, m, "Registration parameter missing.");
@@ -1415,17 +1424,18 @@ static int ami_unregister(struct mansession *s, const struct message *m)
 
 	if (queue_unregister(state)) {
 		astman_send_ack(s, m, "Failed to queue unregistration");
-		return 0;
+	} else {
+		astman_send_ack(s, m, "Unregistration sent");
 	}
 
-	astman_send_ack(s, m, "Unregistration sent");
+	ao2_ref(state, -1);
 	return 0;
 }
 
 static int ami_register(struct mansession *s, const struct message *m)
 {
 	const char *registration_name = astman_get_header(m, "Registration");
-	RAII_VAR(struct sip_outbound_registration_state *, state, NULL, ao2_cleanup);
+	struct sip_outbound_registration_state *state;
 
 	if (ast_strlen_zero(registration_name)) {
 		astman_send_error(s, m, "Registration parameter missing.");
@@ -1443,14 +1453,13 @@ static int ami_register(struct mansession *s, const struct message *m)
 	 */
 	if (queue_unregister(state)) {
 		astman_send_ack(s, m, "Failed to queue unregistration");
-		return 0;
-	}
-	if (queue_register(state)) {
+	} else if (queue_register(state)) {
 		astman_send_ack(s, m, "Failed to queue unregistration");
-		return 0;
+	} else {
+		astman_send_ack(s, m, "Reregistration sent");
 	}
 
-	astman_send_ack(s, m, "Reregistration sent");
+	ao2_ref(state, -1);
 	return 0;
 }
 
@@ -1464,7 +1473,7 @@ struct sip_ami_outbound {
 static int ami_outbound_registration_task(void *obj)
 {
 	struct sip_ami_outbound *ami = obj;
-	RAII_VAR(struct ast_str *, buf, NULL, ast_free);
+	struct ast_str *buf;
 	struct sip_outbound_registration_state *state;
 
 	buf = ast_sip_create_ami_event("OutboundRegistrationDetail", ami->ami);
@@ -1492,6 +1501,8 @@ static int ami_outbound_registration_task(void *obj)
 	}
 
 	astman_append(ami->ami->s, "%s\r\n", ast_str_buffer(buf));
+	ast_free(buf);
+
 	return ast_sip_format_auths_ami(&ami->registration->outbound_auths, ami->ami);
 }
 
@@ -1509,8 +1520,9 @@ static int ami_show_outbound_registrations(struct mansession *s,
 {
 	struct ast_sip_ami ami = { .s = s, .m = m, .action_id = astman_get_header(m, "ActionID"), };
 	struct sip_ami_outbound ami_outbound = { .ami = &ami };
-	RAII_VAR(struct ao2_container *, regs, get_registrations(), ao2_cleanup);
+	struct ao2_container *regs;
 
+	regs = get_registrations();
 	if (!regs) {
 		astman_send_error(s, m, "Unable to retrieve "
 				  "outbound registrations\n");
@@ -1530,6 +1542,8 @@ static int ami_show_outbound_registrations(struct mansession *s,
 		ami_outbound.registered,
 		ami_outbound.not_registered);
 	astman_send_list_complete_end(s);
+
+	ao2_ref(regs, -1);
 	return 0;
 }
 
