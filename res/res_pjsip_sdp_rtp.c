@@ -155,6 +155,8 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 	char name[256];
 	char media[20];
 	char fmt_param[256];
+	enum ast_rtp_options options = session->endpoint->media.g726_non_standard ?
+		AST_RTP_OPT_G726_NONSTANDARD : 0;
 
 	ast_rtp_codecs_payloads_initialize(codecs);
 
@@ -176,9 +178,10 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
                 if (strcmp(name,"telephone-event") == 0) {
                         tel_event++;
                 }
+
 		ast_copy_pj_str(media, (pj_str_t*)&stream->desc.media, sizeof(media));
 		ast_rtp_codecs_payloads_set_rtpmap_type_rate(codecs, NULL, pj_strtoul(&stream->desc.fmt[i]),
-							     media, name, 0, rtpmap->clock_rate);
+							     media, name, options, rtpmap->clock_rate);
 		/* Look for an optional associated fmtp attribute */
 		if (!(attr = pjmedia_sdp_media_find_attr2(stream, "fmtp", &rtpmap->pt))) {
 			continue;
@@ -304,18 +307,20 @@ static int set_caps(struct ast_sip_session *session, struct ast_sip_session_medi
 	return 0;
 }
 
-static pjmedia_sdp_attr* generate_rtpmap_attr(pjmedia_sdp_media *media, pj_pool_t *pool, int rtp_code,
-					      int asterisk_format, struct ast_format *format, int code)
+static pjmedia_sdp_attr* generate_rtpmap_attr(struct ast_sip_session *session, pjmedia_sdp_media *media, pj_pool_t *pool,
+					      int rtp_code, int asterisk_format, struct ast_format *format, int code)
 {
 	pjmedia_sdp_rtpmap rtpmap;
 	pjmedia_sdp_attr *attr = NULL;
 	char tmp[64];
+	enum ast_rtp_options options = session->endpoint->media.g726_non_standard ?
+		AST_RTP_OPT_G726_NONSTANDARD : 0;
 
 	snprintf(tmp, sizeof(tmp), "%d", rtp_code);
 	pj_strdup2(pool, &media->desc.fmt[media->desc.fmt_count++], tmp);
 	rtpmap.pt = media->desc.fmt[media->desc.fmt_count - 1];
 	rtpmap.clock_rate = ast_rtp_lookup_sample_rate2(asterisk_format, format, code);
-	pj_strdup2(pool, &rtpmap.enc_name, ast_rtp_lookup_mime_subtype2(asterisk_format, format, code, 0));
+	pj_strdup2(pool, &rtpmap.enc_name, ast_rtp_lookup_mime_subtype2(asterisk_format, format, code, options));
 	rtpmap.param.slen = 0;
 	rtpmap.param.ptr = NULL;
 
@@ -1051,7 +1056,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 			continue;
 		}
 
-		if (!(attr = generate_rtpmap_attr(media, pool, rtp_code, 1, format, 0))) {
+		if (!(attr = generate_rtpmap_attr(session, media, pool, rtp_code, 1, format, 0))) {
 			ao2_ref(format, -1);
 			continue;
 		}
@@ -1076,7 +1081,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 				continue;
 			}
 
-			if (!(attr = generate_rtpmap_attr(media, pool, rtp_code, 0, NULL, index))) {
+			if (!(attr = generate_rtpmap_attr(session, media, pool, rtp_code, 0, NULL, index))) {
 				continue;
 			}
 

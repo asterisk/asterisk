@@ -471,6 +471,15 @@
 						set to <literal>sdes</literal> or <literal>dtls</literal>.
 					</para></description>
 				</configOption>
+				<configOption name="g726_non_standard" default="no">
+					<synopsis>Force g.726 to use AAL2 packing order when negotiating g.726 audio</synopsis>
+					<description><para>
+                                                When set to "yes" and an endpoint negotiates g.726 audio then use g.726 for AAL2
+                                                packing order instead of what is recommended by RFC3551. Since this essentially
+                                                replaces the underlying 'g726' codec with 'g726aal2' then 'g726aal2' needs to be
+                                                specified in the endpoint's allowed codec list.
+					</para></description>
+				</configOption>
 				<configOption name="inband_progress" default="no">
 					<synopsis>Determines whether chan_pjsip will indicate ringing using inband
 					    progress.</synopsis>
