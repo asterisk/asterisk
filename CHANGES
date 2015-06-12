@@ -17,6 +17,12 @@ AMI
  * A new ContactStatus event has been added that reflects res_pjsip contact
    lifecycle changes:  Created, Removed, Reachable, Unreachable, Unknown.
 
+res_pjsip
+------------------
+* A new 'g726_non_standard' endpoint option has been added that, when set to
+  'yes' and g.726 audio is negotiated, changes the packing order for the g726
+  codec to g726 for AAL2.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.3.0 to Asterisk 13.4.0 ------------
 ------------------------------------------------------------------------------
