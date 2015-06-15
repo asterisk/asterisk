@@ -1775,6 +1775,8 @@ static int unload_module(void)
 	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "auth", &observer_callbacks_auth);
 	ast_sorcery_instance_observer_remove(ast_sip_get_sorcery(), &observer_callbacks_registrations);
 
+	ast_sorcery_object_unregister(ast_sip_get_sorcery(), "registration");
+
 	ao2_global_obj_release(current_states);
 
 	return 0;
