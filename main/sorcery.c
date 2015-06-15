@@ -1106,6 +1106,25 @@ static int sorcery_extended_fields_handler(const void *obj, struct ast_variable 
 	return 0;
 }
 
+int ast_sorcery_object_unregister(struct ast_sorcery *sorcery, const char *type)
+{
+	struct ast_sorcery_object_type *object_type;
+	int res = -1;
+
+	ao2_wrlock(sorcery->types);
+	object_type = ao2_find(sorcery->types, type, OBJ_SEARCH_KEY | OBJ_NOLOCK);
+	if (object_type && object_type->type.type == ACO_ITEM) {
+		ao2_unlink_flags(sorcery->types, object_type, OBJ_NOLOCK);
+		res = 0;
+	}
+	ao2_unlock(sorcery->types);
+
+	/* XXX may need to add an instance unregister observer callback on success. */
+
+	ao2_cleanup(object_type);
+	return res;
+}
+
 int __ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type, unsigned int hidden, unsigned int reloadable, aco_type_item_alloc alloc, sorcery_transform_handler transform, sorcery_apply_handler apply)
 {
 	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);
