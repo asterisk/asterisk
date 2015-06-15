@@ -915,6 +915,14 @@ static struct cdr_object *cdr_object_create_and_append(struct cdr_object *cdr)
 	ast_string_field_set(new_cdr, context, cdr_last->context);
 	ast_string_field_set(new_cdr, exten, cdr_last->exten);
 
+	/*
+	 * If the current CDR says to disable all future ones,
+	 * keep the disable chain going
+	 */
+	if (ast_test_flag(&cdr_last->flags, AST_CDR_FLAG_DISABLE_ALL)) {
+		ast_set_flag(&new_cdr->flags, AST_CDR_FLAG_DISABLE_ALL);
+	}
+
 	/* Copy over other Party A information */
 	cdr_object_snapshot_copy(&new_cdr->party_a, &cdr_last->party_a);
 
