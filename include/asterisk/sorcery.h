@@ -617,6 +617,17 @@ int ast_sorcery_get_wizard_mapping(struct ast_sorcery *sorcery,
 	const char *type, int index, struct ast_sorcery_wizard **wizard, void **data);
 
 /*!
+ * \brief Unregister an object type
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param type Type of object
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_sorcery_object_unregister(struct ast_sorcery *sorcery, const char *type);
+
+/*!
  * \brief Register an object type
  *
  * \param sorcery Pointer to a sorcery structure
