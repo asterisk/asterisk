@@ -135,6 +135,8 @@ static int pjsip_aor_function_read(struct ast_channel *chan,
 
 			ast_str_append(buf, len, "%s", ast_sorcery_object_get_id(contact));
 			first = 0;
+
+			ao2_ref(contact, -1);
 		}
 		ao2_iterator_destroy(&i);
 	} else {
