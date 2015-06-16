@@ -156,6 +156,22 @@ ASTERISK_REGISTER_FILE()
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
+	<managerEvent language="en_US" name="ParkedCallSwap">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when a channel takes the place of a previously parked channel</synopsis>
+			<syntax>
+				<channel_snapshot prefix="Parkee"/>
+				<channel_snapshot prefix="Parker"/>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='ParkedCall']/managerEventInstance/syntax/parameter)" />
+			</syntax>
+			<description>
+				<para>This event is raised when a channel initially parked in the parking lot
+				is swapped out with a different channel. The most common case for this is when
+				an attended transfer to a parking lot occurs. The Parkee information in the event
+				will indicate the party that was swapped into the parking lot.</para>
+			</description>
+		</managerEventInstance>
+	</managerEvent>
  ***/
 
 /*! \brief subscription to the parking lot topic */
