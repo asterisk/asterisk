@@ -557,6 +557,8 @@ struct ast_sip_endpoint_media_configuration {
 	unsigned int tos_video;
 	/*! Priority for video streams */
 	unsigned int cos_video;
+	/*! Is g.726 packed in a non standard way */
+	unsigned int g726_non_standard;
 };
 
 /*!
