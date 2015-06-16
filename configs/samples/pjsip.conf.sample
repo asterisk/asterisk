@@ -656,6 +656,11 @@
                         ; "no")
 ;media_encryption_optimistic=no ; Use encryption if possible but don't fail the call
 								; if not possible.
+;g726_non_standard=no   ; When set to "yes" and an endpoint negotiates g.726
+                        ; audio then g.726 for AAL2 packing order is used contrary
+                        ; to what is recommended in RFC3551. Note, 'g726aal2' also
+                        ; needs to be specified in the codec allow list
+                        ; (default: "no")
 ;inband_progress=no     ; Determines whether chan_pjsip will indicate ringing
                         ; using inband progress (default: "no")
 ;call_group=    ; The numeric pickup groups for a channel (default: "")
