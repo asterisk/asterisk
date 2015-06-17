@@ -168,6 +168,8 @@ struct ast_sip_contact {
 	int authenticate_qualify;
 	/*! Qualify timeout. 0 is diabled. */
 	double qualify_timeout;
+	/*! Endpoint that added the contact, only available in observers */
+	struct ast_sip_endpoint *endpoint;
 };
 
 #define CONTACT_STATUS "contact_status"
@@ -962,12 +964,14 @@ struct ast_sip_contact *ast_sip_location_retrieve_contact(const char *contact_na
  * \param expiration_time Optional expiration time of the contact
  * \param path_info Path information
  * \param user_agent User-Agent header from REGISTER request
+ * \param endpoint The endpoint that resulted in the contact being added
  *
  * \retval -1 failure
  * \retval 0 success
  */
 int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri,
-	struct timeval expiration_time, const char *path_info, const char *user_agent);
+	struct timeval expiration_time, const char *path_info, const char *user_agent,
+	struct ast_sip_endpoint *endpoint);
 
 /*!
  * \brief Update a contact
