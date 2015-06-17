@@ -53,6 +53,7 @@ static void contact_destroy(void *obj)
 	struct ast_sip_contact *contact = obj;
 
 	ast_string_field_free_memory(contact);
+	ao2_cleanup(contact->endpoint);
 }
 
 /*! \brief Allocator for contact */
@@ -228,7 +229,8 @@ struct ast_sip_contact *ast_sip_location_retrieve_contact(const char *contact_na
 }
 
 int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri,
-		struct timeval expiration_time, const char *path_info, const char *user_agent)
+		struct timeval expiration_time, const char *path_info, const char *user_agent,
+		struct ast_sip_endpoint *endpoint)
 {
 	char name[MAX_OBJECT_FIELD * 2 + 3];
 	RAII_VAR(struct ast_sip_contact *, contact, NULL, ao2_cleanup);
@@ -255,6 +257,8 @@ int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri,
 	if (!ast_strlen_zero(user_agent)) {
 		ast_string_field_set(contact, user_agent, user_agent);
 	}
+
+	contact->endpoint = ao2_bump(endpoint);
 
 	return ast_sorcery_create(ast_sip_get_sorcery(), contact);
 }
