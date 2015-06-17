@@ -118,8 +118,6 @@ struct sorcery_memory_cache {
 	unsigned int object_lifetime_maximum;
 	/*! \brief The amount of time (in seconds) before an object is marked as stale, 0 if disabled */
 	unsigned int object_lifetime_stale;
-	/*! \brief Whether objects are prefetched from normal storage at load time, 0 if disabled */
-	unsigned int prefetch;
 	/** \brief Whether all objects are expired when the object type is reloaded, 0 if disabled */
 	unsigned int expire_on_reload;
 	/*! \brief Heap of cached objects. Oldest object is at the top. */
@@ -866,7 +864,7 @@ static void *sorcery_memory_cache_retrieve_id(const struct ast_sorcery *sorcery,
 
 /*!
  * \internal
- * \brief Callback function to finish configuring the memory cache and to prefetch objects
+ * \brief Callback function to finish configuring the memory cache
  *
  * \param data The sorcery memory cache
  * \param sorcery The sorcery instance
@@ -984,8 +982,6 @@ static void *sorcery_memory_cache_open(const char *data)
 					value);
 				return NULL;
 			}
-		} else if (!strcasecmp(name, "prefetch")) {
-			cache->prefetch = ast_true(value);
 		} else if (!strcasecmp(name, "expire_on_reload")) {
 			cache->expire_on_reload = ast_true(value);
 		} else {
@@ -1153,7 +1149,6 @@ static char *sorcery_memory_cache_show(struct ast_cli_entry *e, int cmd, struct 
 	} else {
 		ast_cli(a->fd, "Object staleness is not enabled - cached objects will not go stale\n");
 	}
-	ast_cli(a->fd, "Prefetch: %s\n", AST_CLI_ONOFF(cache->prefetch));
 	ast_cli(a->fd, "Expire all objects on reload: %s\n", AST_CLI_ONOFF(cache->expire_on_reload));
 
 	ao2_ref(cache, -1);
