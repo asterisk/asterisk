@@ -500,7 +500,7 @@ static int rx_task(void *data)
 
 			if (ast_sip_location_add_contact(task_data->aor, contact_uri, ast_tvadd(ast_tvnow(),
 				ast_samp2tv(expiration, 1)), path_str ? ast_str_buffer(path_str) : NULL,
-					user_agent)) {
+					user_agent, task_data->endpoint)) {
 				ast_log(LOG_ERROR, "Unable to bind contact '%s' to AOR '%s'\n",
 						contact_uri, aor_name);
 				continue;
