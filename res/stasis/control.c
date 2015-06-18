@@ -713,7 +713,7 @@ static int app_send_command_on_condition(struct stasis_app_control *control,
 {
 	RAII_VAR(struct stasis_app_command *, command, NULL, ao2_cleanup);
 
-	if (control == NULL) {
+	if (control == NULL || control->is_done) {
 		return -1;
 	}
 
@@ -738,7 +738,7 @@ int stasis_app_send_command_async(struct stasis_app_control *control,
 {
 	RAII_VAR(struct stasis_app_command *, command, NULL, ao2_cleanup);
 
-	if (control == NULL) {
+	if (control == NULL || control->is_done) {
 		return -1;
 	}
 
