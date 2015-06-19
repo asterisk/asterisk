@@ -1280,6 +1280,7 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 
 		/* Check to see if a bridge absorbed our hangup frame */
 		if (ast_check_hangup_locked(chan)) {
+			control_mark_done(control);
 			break;
 		}
 
@@ -1303,6 +1304,7 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 		if (r < 0) {
 			ast_debug(3, "%s: Poll error\n",
 				  ast_channel_uniqueid(chan));
+			control_mark_done(control);
 			break;
 		}
 
@@ -1323,6 +1325,7 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 			/* Continue on in the dialplan */
 			ast_debug(3, "%s: Hangup (no more frames)\n",
 				ast_channel_uniqueid(chan));
+			control_mark_done(control);
 			break;
 		}
 
@@ -1331,13 +1334,14 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 				/* Continue on in the dialplan */
 				ast_debug(3, "%s: Hangup\n",
 					ast_channel_uniqueid(chan));
+				control_mark_done(control);
 				break;
 			}
 		}
 	}
 
 	ast_channel_lock(chan);
-	needs_depart = ast_channel_is_bridged(chan);
+	needs_depart = (ast_channel_internal_bridge_channel(chan) != NULL);
 	ast_channel_unlock(chan);
 	if (needs_depart) {
 		ast_bridge_depart(chan);
