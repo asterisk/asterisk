@@ -195,6 +195,28 @@ int ast_threadpool_push(struct ast_threadpool *pool, int (*task)(void *data), vo
  */
 void ast_threadpool_shutdown(struct ast_threadpool *pool);
 
+struct ast_serializer_shutdown_group;
+
+/*!
+ * \brief Create a serializer group shutdown control object.
+ * \since 13.5.0
+ *
+ * \return ao2 object to control shutdown of a serializer group.
+ */
+struct ast_serializer_shutdown_group *ast_serializer_shutdown_group_alloc(void);
+
+/*!
+ * \brief Wait for the serializers in the group to shutdown with timeout.
+ * \since 13.5.0
+ *
+ * \param shutdown_group Group shutdown controller. (Returns 0 immediately if NULL)
+ * \param timeout Number of seconds to wait for the serializers in the group to shutdown.
+ *     Zero if the timeout is disabled.
+ *
+ * \return Number of seriaizers that did not get shutdown within the timeout.
+ */
+int ast_serializer_shutdown_group_join(struct ast_serializer_shutdown_group *shutdown_group, int timeout);
+
 /*!
  * \brief Serialized execution of tasks within a \ref ast_threadpool.
  *
@@ -218,9 +240,40 @@ void ast_threadpool_shutdown(struct ast_threadpool *pool);
  *
  * \param name Name of the serializer. (must be unique)
  * \param pool \ref ast_threadpool for execution.
+ *
  * \return \ref ast_taskprocessor for enqueuing work.
  * \return \c NULL on error.
  */
 struct ast_taskprocessor *ast_threadpool_serializer(const char *name, struct ast_threadpool *pool);
+
+/*!
+ * \brief Serialized execution of tasks within a \ref ast_threadpool.
+ * \since 13.5.0
+ *
+ * A \ref ast_taskprocessor with the same contract as a default taskprocessor
+ * (tasks execute serially) except instead of executing out of a dedicated
+ * thread, execution occurs in a thread from a \ref ast_threadpool. Think of it
+ * as a lightweight thread.
+ *
+ * While it guarantees that each task will complete before executing the next,
+ * there is no guarantee as to which thread from the \c pool individual tasks
+ * will execute. This normally only matters if your code relys on thread
+ * specific information, such as thread locals.
+ *
+ * Use ast_taskprocessor_unreference() to dispose of the returned \ref
+ * ast_taskprocessor.
+ *
+ * Only a single taskprocessor with a given name may exist. This function will fail
+ * if a taskprocessor with the given name already exists.
+ *
+ * \param name Name of the serializer. (must be unique)
+ * \param pool \ref ast_threadpool for execution.
+ * \param shutdown_group Group shutdown controller. (NULL if no group association)
+ *
+ * \return \ref ast_taskprocessor for enqueuing work.
+ * \return \c NULL on error.
+ */
+struct ast_taskprocessor *ast_threadpool_serializer_group(const char *name,
+	struct ast_threadpool *pool, struct ast_serializer_shutdown_group *shutdown_group);
 
 #endif /* ASTERISK_THREADPOOL_H */
