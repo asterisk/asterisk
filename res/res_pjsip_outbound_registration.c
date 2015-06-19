@@ -34,6 +34,7 @@
 #include "asterisk/cli.h"
 #include "asterisk/stasis_system.h"
 #include "asterisk/threadstorage.h"
+#include "asterisk/threadpool.h"
 #include "res_pjsip/include/res_pjsip_private.h"
 
 /*** DOCUMENTATION
@@ -333,6 +334,12 @@ struct sip_outbound_registration_state {
 	struct sip_outbound_registration_client_state *client_state;
 };
 
+/*! Time needs to be long enough for a transaction to timeout if nothing replies. */
+#define MAX_UNLOAD_TIMEOUT_TIME		35	/* Seconds */
+
+/*! Shutdown group to monitor sip_outbound_registration_client_state serializers. */
+static struct ast_serializer_shutdown_group *shutdown_group;
+
 /*! \brief Default number of state container buckets */
 #define DEFAULT_STATE_BUCKETS 53
 static AO2_GLOBAL_OBJ_STATIC(current_states);
@@ -550,12 +557,15 @@ static void sip_outbound_registration_timer_cb(pj_timer_heap_t *timer_heap, stru
 
 	entry->id = 0;
 
-	ao2_ref(client_state, +1);
+	/*
+	 * Transfer client_state reference to serializer task so the
+	 * nominal path will not dec the client_state ref in this
+	 * pjproject callback thread.
+	 */
 	if (ast_sip_push_task(client_state->serializer, handle_client_registration, client_state)) {
 		ast_log(LOG_WARNING, "Scheduled outbound registration could not be executed.\n");
 		ao2_ref(client_state, -1);
 	}
-	ao2_ref(client_state, -1);
 }
 
 /*! \brief Helper function which sets up the timer to re-register in a specific amount of time */
@@ -835,7 +845,11 @@ static void sip_outbound_registration_response_cb(struct pjsip_regc_cbparam *par
 	}
 	response->code = param->code;
 	response->expiration = param->expiration;
-	/* Transfer client_state reference to response. */
+	/*
+	 * Transfer client_state reference to response so the
+	 * nominal path will not dec the client_state ref in this
+	 * pjproject callback thread.
+	 */
 	response->client_state = client_state;
 
 	ast_debug(1, "Received REGISTER response %d(%.*s)\n",
@@ -854,6 +868,11 @@ static void sip_outbound_registration_response_cb(struct pjsip_regc_cbparam *par
 		pjsip_rx_data_clone(param->rdata, 0, &response->rdata);
 	}
 
+	/*
+	 * Transfer response reference to serializer task so the
+	 * nominal path will not dec the response ref in this
+	 * pjproject callback thread.
+	 */
 	if (ast_sip_push_task(client_state->serializer, handle_registration_response, response)) {
 		ast_log(LOG_WARNING, "Failed to pass incoming registration response to threadpool\n");
 		ao2_cleanup(response);
@@ -905,7 +924,7 @@ static struct sip_outbound_registration_state *sip_outbound_registration_state_a
 		return NULL;
 	}
 
-	state->client_state->serializer = ast_sip_create_serializer();
+	state->client_state->serializer = ast_sip_create_serializer_group(shutdown_group);
 	if (!state->client_state->serializer) {
 		ao2_cleanup(state);
 		return NULL;
@@ -1235,7 +1254,8 @@ static int sip_outbound_registration_apply(const struct ast_sorcery *sorcery, vo
 		return -1;
 	}
 
-	if (ast_sip_push_task_synchronous(NULL, sip_outbound_registration_regc_alloc, new_state)) {
+	if (ast_sip_push_task_synchronous(new_state->client_state->serializer,
+		sip_outbound_registration_regc_alloc, new_state)) {
 		return -1;
 	}
 
@@ -1806,6 +1826,8 @@ static const struct ast_sorcery_instance_observer observer_callbacks_registratio
 
 static int unload_module(void)
 {
+	int remaining;
+
 	ast_manager_unregister("PJSIPShowRegistrationsOutbound");
 	ast_manager_unregister("PJSIPUnregister");
 	ast_manager_unregister("PJSIPRegister");
@@ -1823,6 +1845,25 @@ static int unload_module(void)
 
 	ao2_global_obj_release(current_states);
 
+	/* Wait for registration serializers to get destroyed. */
+	ast_debug(2, "Waiting for registration transactions to complete for unload.\n");
+	remaining = ast_serializer_shutdown_group_join(shutdown_group, MAX_UNLOAD_TIMEOUT_TIME);
+	if (remaining) {
+		/*
+		 * NOTE: We probably have a sip_outbound_registration_client_state
+		 * ref leak if the remaining count cannot reach zero after a few
+		 * minutes of trying to unload.
+		 */
+		ast_log(LOG_WARNING, "Unload incomplete.  Could not stop %d outbound registrations.  Try again later.\n",
+			remaining);
+		return -1;
+	}
+
+	ast_debug(2, "Successful shutdown.\n");
+
+	ao2_cleanup(shutdown_group);
+	shutdown_group = NULL;
+
 	return 0;
 }
 
@@ -1831,6 +1872,11 @@ static int load_module(void)
 	struct ao2_container *new_states;
 
 	CHECK_PJSIP_MODULE_LOADED();
+
+	shutdown_group = ast_serializer_shutdown_group_alloc();
+	if (!shutdown_group) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
 
 	/* Create outbound registration states container. */
 	new_states = ao2_container_alloc(DEFAULT_STATE_BUCKETS,
