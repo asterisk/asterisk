@@ -233,6 +233,50 @@ AST_TEST_DEFINE(bucket_create)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(bucket_clone)
+{
+	RAII_VAR(struct ast_bucket *, bucket, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_bucket *, clone, NULL, ao2_cleanup);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "bucket_clone";
+		info->category = "/main/bucket/";
+		info->summary = "bucket clone unit test";
+		info->description =
+			"Test cloning a bucket";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(bucket = ast_bucket_alloc("test:///tmp/bob"))) {
+		ast_test_status_update(test, "Failed to allocate bucket\n");
+		return AST_TEST_FAIL;
+	}
+
+	bucket_test_wizard_clear();
+
+	if (ast_bucket_create(bucket)) {
+		ast_test_status_update(test, "Failed to create bucket with URI '%s'\n",
+			ast_sorcery_object_get_id(bucket));
+		return AST_TEST_FAIL;
+	}
+
+	clone = ast_bucket_clone(bucket);
+	if (!clone) {
+		ast_test_status_update(test, "Failed to clone bucket with URI '%s'\n",
+			ast_sorcery_object_get_id(bucket));
+		return AST_TEST_FAIL;
+	}
+
+	ast_test_validate(test, strcmp(ast_sorcery_object_get_id(bucket), ast_sorcery_object_get_id(clone)) == 0);
+	ast_test_validate(test, bucket->scheme_impl == clone->scheme_impl);
+	ast_test_validate(test, strcmp(bucket->scheme, clone->scheme) == 0);
+
+	return AST_TEST_PASS;
+}
+
 AST_TEST_DEFINE(bucket_delete)
 {
 	RAII_VAR(struct ast_bucket *, bucket, NULL, ao2_cleanup);
@@ -436,6 +480,52 @@ AST_TEST_DEFINE(bucket_file_create)
 			ast_sorcery_object_get_id(file));
 		return AST_TEST_FAIL;
 	}
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(bucket_file_clone)
+{
+	RAII_VAR(struct ast_bucket_file *, file, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_bucket_file *, clone, NULL, ao2_cleanup);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "bucket_file_clone";
+		info->category = "/main/bucket/";
+		info->summary = "file clone unit test";
+		info->description =
+			"Test cloning a file";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(file = ast_bucket_file_alloc("test:///tmp/bob"))) {
+		ast_test_status_update(test, "Failed to allocate file\n");
+		return AST_TEST_FAIL;
+	}
+
+	bucket_test_wizard_clear();
+
+	if (ast_bucket_file_create(file)) {
+		ast_test_status_update(test, "Failed to create file with URI '%s'\n",
+			ast_sorcery_object_get_id(file));
+		return AST_TEST_FAIL;
+	}
+	ast_bucket_file_metadata_set(file, "bob", "joe");
+
+	clone = ast_bucket_file_clone(file);
+	if (!clone) {
+		ast_test_status_update(test, "Failed to clone file with URI '%s'\n",
+			ast_sorcery_object_get_id(file));
+		return AST_TEST_FAIL;
+	}
+
+	ast_test_validate(test, strcmp(ast_sorcery_object_get_id(file), ast_sorcery_object_get_id(clone)) == 0);
+	ast_test_validate(test, file->scheme_impl == clone->scheme_impl);
+	ast_test_validate(test, strcmp(file->scheme, clone->scheme) == 0);
+	ast_test_validate(test, ao2_container_count(file->metadata) == ao2_container_count(clone->metadata));
 
 	return AST_TEST_PASS;
 }
@@ -827,11 +917,13 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(bucket_scheme_register);
 	AST_TEST_UNREGISTER(bucket_alloc);
 	AST_TEST_UNREGISTER(bucket_create);
+	AST_TEST_UNREGISTER(bucket_clone);
 	AST_TEST_UNREGISTER(bucket_delete);
 	AST_TEST_UNREGISTER(bucket_retrieve);
 	AST_TEST_UNREGISTER(bucket_json);
 	AST_TEST_UNREGISTER(bucket_file_alloc);
 	AST_TEST_UNREGISTER(bucket_file_create);
+	AST_TEST_UNREGISTER(bucket_file_clone);
 	AST_TEST_UNREGISTER(bucket_file_copy);
 	AST_TEST_UNREGISTER(bucket_file_retrieve);
 	AST_TEST_UNREGISTER(bucket_file_update);
@@ -854,11 +946,13 @@ static int load_module(void)
 	AST_TEST_REGISTER(bucket_scheme_register);
 	AST_TEST_REGISTER(bucket_alloc);
 	AST_TEST_REGISTER(bucket_create);
+	AST_TEST_REGISTER(bucket_clone);
 	AST_TEST_REGISTER(bucket_delete);
 	AST_TEST_REGISTER(bucket_retrieve);
 	AST_TEST_REGISTER(bucket_json);
 	AST_TEST_REGISTER(bucket_file_alloc);
 	AST_TEST_REGISTER(bucket_file_create);
+	AST_TEST_REGISTER(bucket_file_clone);
 	AST_TEST_REGISTER(bucket_file_copy);
 	AST_TEST_REGISTER(bucket_file_retrieve);
 	AST_TEST_REGISTER(bucket_file_update);

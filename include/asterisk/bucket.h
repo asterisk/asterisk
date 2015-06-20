@@ -218,6 +218,19 @@ struct ast_bucket *ast_bucket_alloc(const char *uri);
 int ast_bucket_create(struct ast_bucket *bucket);
 
 /*!
+ * \brief Clone a bucket
+ *
+ * \param file The bucket to clone
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ *
+ * \note This operation should be called prior to updating a bucket
+ * object, as \c ast_bucket instances are immutable
+ */
+struct ast_bucket *ast_bucket_clone(struct ast_bucket *bucket);
+
+/*!
  * \brief Delete a bucket from backend storage
  *
  * \param bucket The bucket
@@ -307,6 +320,19 @@ int ast_bucket_file_create(struct ast_bucket_file *file);
  *
  */
 struct ast_bucket_file *ast_bucket_file_copy(struct ast_bucket_file *file, const char *uri);
+
+/*!
+ * \brief Clone a bucket file
+ *
+ * \param file The bucket file to clone
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ *
+ * \note This operation should be called prior to updating a bucket file
+ * object, as \c ast_bucket_file instances are immutable
+ */
+struct ast_bucket_file *ast_bucket_file_clone(struct ast_bucket_file *file);
 
 /*!
  * \brief Update an existing bucket file in backend storage
