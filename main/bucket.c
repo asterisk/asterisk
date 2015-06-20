@@ -163,12 +163,25 @@ static int bucket_wizard_delete(const struct ast_sorcery *sorcery, void *data, v
 	return bucket->scheme_impl->bucket->delete(sorcery, data, object);
 }
 
+/*! \brief Callback function for determining if a bucket is stale */
+static int bucket_wizard_is_stale(const struct ast_sorcery *sorcery, void *data, void *object)
+{
+	struct ast_bucket *bucket = object;
+
+	if (!bucket->scheme_impl->bucket->is_stale) {
+		return 0;
+	}
+
+	return bucket->scheme_impl->bucket->is_stale(sorcery, data, object);
+}
+
 /*! \brief Intermediary bucket wizard */
 static struct ast_sorcery_wizard bucket_wizard = {
 	.name = "bucket",
 	.create = bucket_wizard_create,
 	.retrieve_id = bucket_wizard_retrieve,
 	.delete = bucket_wizard_delete,
+	.is_stale = bucket_wizard_is_stale,
 };
 
 /*! \brief Callback function for creating a bucket file */
@@ -240,6 +253,18 @@ static int bucket_file_wizard_delete(const struct ast_sorcery *sorcery, void *da
 	return file->scheme_impl->file->delete(sorcery, data, object);
 }
 
+/*! \brief Callback function for determining if a bucket is stale */
+static int bucket_file_wizard_is_stale(const struct ast_sorcery *sorcery, void *data, void *object)
+{
+	struct ast_bucket_file *file = object;
+
+	if (!file->scheme_impl->file->is_stale) {
+		return 0;
+	}
+
+	return file->scheme_impl->file->is_stale(sorcery, data, object);
+}
+
 /*! \brief Intermediary file wizard */
 static struct ast_sorcery_wizard bucket_file_wizard = {
 	.name = "bucket_file",
@@ -247,6 +272,7 @@ static struct ast_sorcery_wizard bucket_file_wizard = {
 	.retrieve_id = bucket_file_wizard_retrieve,
 	.update = bucket_file_wizard_update,
 	.delete = bucket_file_wizard_delete,
+	.is_stale = bucket_file_wizard_is_stale,
 };
 
 int __ast_bucket_scheme_register(const char *name, struct ast_sorcery_wizard *bucket,
@@ -459,6 +485,28 @@ int ast_bucket_create(struct ast_bucket *bucket)
 	return ast_sorcery_create(bucket_sorcery, bucket);
 }
 
+/*!
+ * \internal
+ * \brief Sorcery object type copy handler for \c ast_bucket
+ */
+static int bucket_copy_handler(const void *src, void *dst)
+{
+	const struct ast_bucket *src_bucket = src;
+	struct ast_bucket *dst_bucket = dst;
+
+	dst_bucket->scheme_impl = ao2_bump(src_bucket->scheme_impl);
+	ast_string_field_set(dst_bucket, scheme, src_bucket->scheme);
+	dst_bucket->created = src_bucket->created;
+	dst_bucket->modified = src_bucket->modified;
+
+	return 0;
+}
+
+struct ast_bucket *ast_bucket_clone(struct ast_bucket *bucket)
+{
+	return ast_sorcery_copy(bucket_sorcery, bucket);
+}
+
 struct ast_bucket *ast_bucket_retrieve(const char *uri)
 {
 	if (ast_strlen_zero(uri)) {
@@ -466,6 +514,11 @@ struct ast_bucket *ast_bucket_retrieve(const char *uri)
 	}
 
 	return ast_sorcery_retrieve_by_id(bucket_sorcery, "bucket", uri);
+}
+
+int ast_bucket_is_stale(struct ast_bucket *bucket)
+{
+	return ast_sorcery_is_stale(bucket_sorcery, bucket);
 }
 
 int ast_bucket_observer_add(const struct ast_sorcery_observer *callbacks)
@@ -730,6 +783,29 @@ static int bucket_copy(const char *infile, const char *outfile)
 	return 0;	/* success */
 }
 
+/*!
+ * \internal
+ * \brief Sorcery object type copy handler for \c ast_bucket_file
+ */
+static int bucket_file_copy_handler(const void *src, void *dst)
+{
+	const struct ast_bucket_file *src_file = src;
+	struct ast_bucket_file *dst_file = dst;
+
+	dst_file->scheme_impl = ao2_bump(src_file->scheme_impl);
+	ast_string_field_set(dst_file, scheme, src_file->scheme);
+	dst_file->created = src_file->created;
+	dst_file->modified = src_file->modified;
+	strcpy(dst_file->path, src_file->path); /* safe */
+
+	dst_file->metadata = ao2_container_clone(src_file->metadata, 0);
+	if (!dst_file->metadata) {
+		return -1;
+	}
+
+	return 0;
+}
+
 struct ast_bucket_file *ast_bucket_file_copy(struct ast_bucket_file *file, const char *uri)
 {
 	RAII_VAR(struct ast_bucket_file *, copy, ast_bucket_file_alloc(uri), ao2_cleanup);
@@ -749,6 +825,11 @@ struct ast_bucket_file *ast_bucket_file_copy(struct ast_bucket_file *file, const
 	return copy;
 }
 
+struct ast_bucket_file *ast_bucket_file_clone(struct ast_bucket_file *file)
+{
+	return ast_sorcery_copy(bucket_sorcery, file);
+}
+
 struct ast_bucket_file *ast_bucket_file_retrieve(const char *uri)
 {
 	if (ast_strlen_zero(uri)) {
@@ -756,6 +837,11 @@ struct ast_bucket_file *ast_bucket_file_retrieve(const char *uri)
 	}
 
 	return ast_sorcery_retrieve_by_id(bucket_sorcery, "file", uri);
+}
+
+int ast_bucket_file_is_stale(struct ast_bucket_file *file)
+{
+	return ast_sorcery_is_stale(bucket_sorcery, file);
 }
 
 int ast_bucket_file_observer_add(const struct ast_sorcery_observer *callbacks)
@@ -945,6 +1031,7 @@ int ast_bucket_init(void)
 	ast_sorcery_object_field_register(bucket_sorcery, "bucket", "scheme", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_bucket, scheme));
 	ast_sorcery_object_field_register_custom(bucket_sorcery, "bucket", "created", "", timeval_str2struct, timeval_struct2str, NULL, 0, FLDSET(struct ast_bucket, created));
 	ast_sorcery_object_field_register_custom(bucket_sorcery, "bucket", "modified", "", timeval_str2struct, timeval_struct2str, NULL, 0, FLDSET(struct ast_bucket, modified));
+	ast_sorcery_object_set_copy_handler(bucket_sorcery, "bucket", bucket_copy_handler);
 
 	if (ast_sorcery_apply_default(bucket_sorcery, "file", "bucket_file", NULL) == AST_SORCERY_APPLY_FAIL) {
 		ast_log(LOG_ERROR, "Failed to apply intermediary for 'file' object type in Bucket sorcery\n");
@@ -959,6 +1046,7 @@ int ast_bucket_init(void)
 	ast_sorcery_object_field_register(bucket_sorcery, "file", "scheme", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_bucket_file, scheme));
 	ast_sorcery_object_field_register_custom(bucket_sorcery, "file", "created", "", timeval_str2struct, timeval_struct2str, NULL, 0, FLDSET(struct ast_bucket_file, created));
 	ast_sorcery_object_field_register_custom(bucket_sorcery, "file", "modified", "", timeval_str2struct, timeval_struct2str, NULL, 0, FLDSET(struct ast_bucket_file, modified));
+	ast_sorcery_object_set_copy_handler(bucket_sorcery, "file", bucket_file_copy_handler);
 
 	return 0;
 }
