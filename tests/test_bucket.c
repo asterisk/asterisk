@@ -50,6 +50,8 @@ struct bucket_test_state {
 	unsigned int updated:1;
 	/*! \brief Whether the object has been deleted or not */
 	unsigned int deleted:1;
+	/*! \brief Whether the object is stale or not */
+	unsigned int is_stale:1;
 };
 
 /*! \brief Global scope structure for testing bucket wizards */
@@ -60,6 +62,7 @@ static void bucket_test_wizard_clear(void)
 	bucket_test_wizard_state.created = 0;
 	bucket_test_wizard_state.updated = 0;
 	bucket_test_wizard_state.deleted = 0;
+	bucket_test_wizard_state.is_stale = 0;
 }
 
 static int bucket_test_wizard_create(const struct ast_sorcery *sorcery, void *data, void *object)
@@ -107,11 +110,17 @@ static int bucket_test_wizard_delete(const struct ast_sorcery *sorcery, void *da
 	return 0;
 }
 
+static int bucket_test_wizard_is_stale(const struct ast_sorcery *sorcery, void *data, void *object)
+{
+	return bucket_test_wizard_state.is_stale;
+}
+
 static struct ast_sorcery_wizard bucket_test_wizard = {
 	.name = "test",
 	.create = bucket_test_wizard_create,
 	.retrieve_id = bucket_test_wizard_retrieve_id,
 	.delete = bucket_test_wizard_delete,
+	.is_stale = bucket_test_wizard_is_stale,
 };
 
 static struct ast_sorcery_wizard bucket_file_test_wizard = {
@@ -120,6 +129,7 @@ static struct ast_sorcery_wizard bucket_file_test_wizard = {
 	.update = bucket_test_wizard_update,
 	.retrieve_id = bucket_test_wizard_retrieve_id,
 	.delete = bucket_test_wizard_delete,
+	.is_stale = bucket_test_wizard_is_stale,
 };
 
 AST_TEST_DEFINE(bucket_scheme_register)
@@ -233,6 +243,50 @@ AST_TEST_DEFINE(bucket_create)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(bucket_clone)
+{
+	RAII_VAR(struct ast_bucket *, bucket, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_bucket *, clone, NULL, ao2_cleanup);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "bucket_clone";
+		info->category = "/main/bucket/";
+		info->summary = "bucket clone unit test";
+		info->description =
+			"Test cloning a bucket";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(bucket = ast_bucket_alloc("test:///tmp/bob"))) {
+		ast_test_status_update(test, "Failed to allocate bucket\n");
+		return AST_TEST_FAIL;
+	}
+
+	bucket_test_wizard_clear();
+
+	if (ast_bucket_create(bucket)) {
+		ast_test_status_update(test, "Failed to create bucket with URI '%s'\n",
+			ast_sorcery_object_get_id(bucket));
+		return AST_TEST_FAIL;
+	}
+
+	clone = ast_bucket_clone(bucket);
+	if (!clone) {
+		ast_test_status_update(test, "Failed to clone bucket with URI '%s'\n",
+			ast_sorcery_object_get_id(bucket));
+		return AST_TEST_FAIL;
+	}
+
+	ast_test_validate(test, strcmp(ast_sorcery_object_get_id(bucket), ast_sorcery_object_get_id(clone)) == 0);
+	ast_test_validate(test, bucket->scheme_impl == clone->scheme_impl);
+	ast_test_validate(test, strcmp(bucket->scheme, clone->scheme) == 0);
+
+	return AST_TEST_PASS;
+}
+
 AST_TEST_DEFINE(bucket_delete)
 {
 	RAII_VAR(struct ast_bucket *, bucket, NULL, ao2_cleanup);
@@ -272,6 +326,38 @@ AST_TEST_DEFINE(bucket_delete)
 			ast_sorcery_object_get_id(bucket));
 		return AST_TEST_FAIL;
 	}
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(bucket_is_stale)
+{
+	RAII_VAR(struct ast_bucket *, bucket, NULL, ao2_cleanup);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "bucket_is_stale";
+		info->category = "/main/bucket/";
+		info->summary = "bucket staleness unit test";
+		info->description =
+			"Test if staleness of a bucket is reported correctly";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(bucket = ast_bucket_alloc("test:///tmp/bob"))) {
+		ast_test_status_update(test, "Failed to allocate bucket\n");
+		return AST_TEST_FAIL;
+	}
+
+	bucket_test_wizard_clear();
+
+	ast_test_validate(test, ast_bucket_is_stale(bucket) == 0);
+
+	bucket_test_wizard_state.is_stale = 1;
+
+	ast_test_validate(test, ast_bucket_is_stale(bucket) == 1);
 
 	return AST_TEST_PASS;
 }
@@ -436,6 +522,52 @@ AST_TEST_DEFINE(bucket_file_create)
 			ast_sorcery_object_get_id(file));
 		return AST_TEST_FAIL;
 	}
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(bucket_file_clone)
+{
+	RAII_VAR(struct ast_bucket_file *, file, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_bucket_file *, clone, NULL, ao2_cleanup);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "bucket_file_clone";
+		info->category = "/main/bucket/";
+		info->summary = "file clone unit test";
+		info->description =
+			"Test cloning a file";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(file = ast_bucket_file_alloc("test:///tmp/bob"))) {
+		ast_test_status_update(test, "Failed to allocate file\n");
+		return AST_TEST_FAIL;
+	}
+
+	bucket_test_wizard_clear();
+
+	if (ast_bucket_file_create(file)) {
+		ast_test_status_update(test, "Failed to create file with URI '%s'\n",
+			ast_sorcery_object_get_id(file));
+		return AST_TEST_FAIL;
+	}
+	ast_bucket_file_metadata_set(file, "bob", "joe");
+
+	clone = ast_bucket_file_clone(file);
+	if (!clone) {
+		ast_test_status_update(test, "Failed to clone file with URI '%s'\n",
+			ast_sorcery_object_get_id(file));
+		return AST_TEST_FAIL;
+	}
+
+	ast_test_validate(test, strcmp(ast_sorcery_object_get_id(file), ast_sorcery_object_get_id(clone)) == 0);
+	ast_test_validate(test, file->scheme_impl == clone->scheme_impl);
+	ast_test_validate(test, strcmp(file->scheme, clone->scheme) == 0);
+	ast_test_validate(test, ao2_container_count(file->metadata) == ao2_container_count(clone->metadata));
 
 	return AST_TEST_PASS;
 }
@@ -621,6 +753,38 @@ AST_TEST_DEFINE(bucket_file_delete)
 			ast_sorcery_object_get_id(file));
 		return AST_TEST_FAIL;
 	}
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(bucket_file_is_stale)
+{
+	RAII_VAR(struct ast_bucket_file *, file, NULL, ao2_cleanup);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "bucket_file_is_stale";
+		info->category = "/main/bucket/";
+		info->summary = "file staleness unit test";
+		info->description =
+			"Test if staleness of a bucket file is reported correctly";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(file = ast_bucket_file_alloc("test:///tmp/bob"))) {
+		ast_test_status_update(test, "Failed to allocate file\n");
+		return AST_TEST_FAIL;
+	}
+
+	bucket_test_wizard_clear();
+
+	ast_test_validate(test, ast_bucket_file_is_stale(file) == 0);
+
+	bucket_test_wizard_state.is_stale = 1;
+
+	ast_test_validate(test, ast_bucket_file_is_stale(file) == 1);
 
 	return AST_TEST_PASS;
 }
@@ -827,11 +991,13 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(bucket_scheme_register);
 	AST_TEST_UNREGISTER(bucket_alloc);
 	AST_TEST_UNREGISTER(bucket_create);
+	AST_TEST_UNREGISTER(bucket_clone);
 	AST_TEST_UNREGISTER(bucket_delete);
 	AST_TEST_UNREGISTER(bucket_retrieve);
 	AST_TEST_UNREGISTER(bucket_json);
 	AST_TEST_UNREGISTER(bucket_file_alloc);
 	AST_TEST_UNREGISTER(bucket_file_create);
+	AST_TEST_UNREGISTER(bucket_file_clone);
 	AST_TEST_UNREGISTER(bucket_file_copy);
 	AST_TEST_UNREGISTER(bucket_file_retrieve);
 	AST_TEST_UNREGISTER(bucket_file_update);
@@ -854,15 +1020,19 @@ static int load_module(void)
 	AST_TEST_REGISTER(bucket_scheme_register);
 	AST_TEST_REGISTER(bucket_alloc);
 	AST_TEST_REGISTER(bucket_create);
+	AST_TEST_REGISTER(bucket_clone);
 	AST_TEST_REGISTER(bucket_delete);
 	AST_TEST_REGISTER(bucket_retrieve);
+	AST_TEST_REGISTER(bucket_is_stale);
 	AST_TEST_REGISTER(bucket_json);
 	AST_TEST_REGISTER(bucket_file_alloc);
 	AST_TEST_REGISTER(bucket_file_create);
+	AST_TEST_REGISTER(bucket_file_clone);
 	AST_TEST_REGISTER(bucket_file_copy);
 	AST_TEST_REGISTER(bucket_file_retrieve);
 	AST_TEST_REGISTER(bucket_file_update);
 	AST_TEST_REGISTER(bucket_file_delete);
+	AST_TEST_REGISTER(bucket_file_is_stale);
 	AST_TEST_REGISTER(bucket_file_metadata_set);
 	AST_TEST_REGISTER(bucket_file_metadata_unset);
 	AST_TEST_REGISTER(bucket_file_metadata_get);
