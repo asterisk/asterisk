@@ -3179,10 +3179,24 @@ static int match_and_cleanup_peer_sched(void *peerobj, void *arg, int flags)
 
 static void unlink_peers_from_tables(peer_unlink_flag_t flag)
 {
-	ao2_t_callback(peers, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE,
+	struct ao2_iterator *peers_iter;
+
+	/*
+	 * We must remove the ref outside of the peers container to prevent
+	 * a deadlock condition when unsubscribing from stasis while it is
+	 * invoking a subscription event callback.
+	 */
+	peers_iter = ao2_t_callback(peers, OBJ_UNLINK | OBJ_MULTIPLE,
 		match_and_cleanup_peer_sched, &flag, "initiating callback to remove marked peers");
-	ao2_t_callback(peers_by_ip, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE,
+	if (peers_iter) {
+		ao2_iterator_destroy(peers_iter);
+	}
+
+	peers_iter = ao2_t_callback(peers_by_ip, OBJ_UNLINK | OBJ_MULTIPLE,
 		match_and_cleanup_peer_sched, &flag, "initiating callback to remove marked peers_by_ip");
+	if (peers_iter) {
+		ao2_iterator_destroy(peers_iter);
+	}
 }
 
 /* \brief Unlink all marked peers from ao2 containers */
