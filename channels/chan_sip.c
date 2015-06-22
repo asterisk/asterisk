@@ -10510,8 +10510,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	/* Setup audio address and port */
 	if (p->rtp) {
 		if (sa && portno > 0) {
-			start_ice(p->rtp, (req->method != SIP_RESPONSE) ? 0 : 1);
-			ast_sockaddr_set_port(sa, portno);
+                        if(req->method == SIP_RESPONSE){
+                                start_ice(p->rtp,(req->method != SIP_RESPONSE) ? 0 : 1);
+                        }
+                        ast_sockaddr_set_port(sa, portno);
 			ast_rtp_instance_set_remote_address(p->rtp, sa);
 			if (debug) {
 				ast_verbose("Peer audio RTP is at port %s\n",
@@ -13256,6 +13258,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		if (!doing_directmedia) {
 			if (ast_test_flag(&p->flags[2], SIP_PAGE3_ICE_SUPPORT)) {
 				add_ice_to_sdp(p->rtp, &a_audio);
+				start_ice(p->rtp, 0);
 			}
 
 			add_dtls_to_sdp(p->rtp, &a_audio);

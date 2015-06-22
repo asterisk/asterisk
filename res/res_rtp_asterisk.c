@@ -1590,7 +1590,7 @@ static void dtls_perform_handshake(struct ast_rtp_instance *instance, struct dtl
 #endif
 
 #ifdef USE_PJPROJECT
-static void ast_rtp_on_ice_complete(pj_ice_sess *ice, pj_status_t status)
+static void ast_rtp_on_ice_complete(pj_ice_sess *ice, pj_ice_strans_op op, pj_status_t status)
 {
 	struct ast_rtp_instance *instance = ice->user_data;
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
@@ -1607,15 +1607,18 @@ static void ast_rtp_on_ice_complete(pj_ice_sess *ice, pj_status_t status)
 		if (rtp->rtcp) {
 			update_address_with_ice_candidate(rtp, AST_RTP_ICE_COMPONENT_RTCP, &rtp->rtcp->them);
 		}
-	}
-
 #ifdef HAVE_OPENSSL_SRTP
-	dtls_perform_handshake(instance, &rtp->dtls, 0);
-
-	if (rtp->rtcp) {
-		dtls_perform_handshake(instance, &rtp->rtcp->dtls, 1);
-	}
+                dtls_perform_handshake(instance, &rtp->dtls, 0);
+                if (rtp->rtcp) {
+                        dtls_perform_handshake(instance, &rtp->rtcp->dtls, 1);
+                }
 #endif
+        } else {
+                char errmsg[PJ_ERR_MSG_SIZE];
+                pj_strerror(status, errmsg, sizeof(errmsg));
+                ast_log(LOG_WARNING,"ICE %s failed: %s\n", opname, errmsg);
+        }
+
 
 	if (!strictrtp) {
 		return;
