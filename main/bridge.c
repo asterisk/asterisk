@@ -4387,6 +4387,7 @@ enum ast_transfer_result ast_bridge_transfer_attended(struct ast_channel *to_tra
 	int do_bridge_transfer;
 	enum ast_transfer_result res;
 	const char *app = NULL;
+	int hangup_target = 0;
 
 	to_transferee_bridge = acquire_bridge(to_transferee);
 	to_target_bridge = acquire_bridge(to_transfer_target);
@@ -4466,7 +4467,7 @@ enum ast_transfer_result ast_bridge_transfer_attended(struct ast_channel *to_tra
 		ast_bridge_unlock(to_transferee_bridge);
 		ast_bridge_unlock(to_target_bridge);
 
-		ast_softhangup(to_transfer_target, AST_SOFTHANGUP_DEV);
+		hangup_target = 1;
 		goto end;
 	}
 
@@ -4509,6 +4510,11 @@ enum ast_transfer_result ast_bridge_transfer_attended(struct ast_channel *to_tra
 	set_transfer_variables_all(to_transferee, channels, 1);
 
 	if (do_bridge_transfer) {
+		/*
+		 * Hang up the target if it was bridged. Note, if it is not bridged
+		 * it is hung up during the masquerade.
+		 */
+		hangup_target = chan_bridged == to_transfer_target;
 		ast_bridge_lock(the_bridge);
 		res = attended_transfer_bridge(chan_bridged, chan_unbridged, the_bridge, NULL, transfer_msg);
 		ast_bridge_unlock(the_bridge);
@@ -4532,6 +4538,10 @@ enum ast_transfer_result ast_bridge_transfer_attended(struct ast_channel *to_tra
 	res = AST_BRIDGE_TRANSFER_SUCCESS;
 
 end:
+	if (res == AST_BRIDGE_TRANSFER_SUCCESS && hangup_target) {
+		ast_softhangup(to_transfer_target, AST_SOFTHANGUP_DEV);
+	}
+
 	transfer_msg->result = res;
 	ast_bridge_publish_attended_transfer(transfer_msg);
 	return res;
