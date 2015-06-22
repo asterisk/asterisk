@@ -30406,8 +30406,11 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		if (!ast_sockaddr_isnull(&peer->addr)) {
 			ao2_t_unlink(peers_by_ip, peer, "ao2_unlink peer from peers_by_ip table");
 		}
-		if (!(peer->the_mark))
+		if (!(peer->the_mark)) {
 			firstpass = 0;
+		} else {
+			ast_format_cap_remove_by_type(peer->caps, AST_MEDIA_TYPE_UNKNOWN);
+		}
 	} else {
 		if (!(peer = ao2_t_alloc(sizeof(*peer), sip_destroy_peer_fn, "allocate a peer struct"))) {
 			return NULL;
