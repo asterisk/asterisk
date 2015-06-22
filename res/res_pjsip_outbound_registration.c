@@ -389,7 +389,7 @@ static struct pjsip_param *get_uri_option_line(const void *uri)
 	static const pj_str_t LINE_STR = { "line", 4 };
 
 	if (!PJSIP_URI_SCHEME_IS_SIP(uri) && !PJSIP_URI_SCHEME_IS_SIPS(uri)) {
-        	return NULL;
+		return NULL;
 	}
 	pjuri = pjsip_uri_get_uri(uri);
 	return pjsip_param_find(&pjuri->other_param, &LINE_STR);
@@ -403,7 +403,7 @@ static struct ast_sip_endpoint *line_identify(pjsip_rx_data *rdata)
 	RAII_VAR(struct sip_outbound_registration_state *, state, NULL, ao2_cleanup);
 
 	if (!(line = get_uri_option_line(rdata->msg_info.to->uri))
-	    && !(line = get_uri_option_line(rdata->msg_info.msg->line.req.uri))) {
+		&& !(line = get_uri_option_line(rdata->msg_info.msg->line.req.uri))) {
 		return NULL;
 	}
 
