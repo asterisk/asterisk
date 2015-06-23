@@ -872,8 +872,17 @@ static void do_forward(struct chanlist *o, struct cause_args *num,
 		c = o->chan = NULL;
 		cause = AST_CAUSE_BUSY;
 	} else {
+		struct ast_format_cap *nativeformats;
+
+		ast_channel_lock(in);
+		nativeformats = ao2_bump(ast_channel_nativeformats(in));
+		ast_channel_unlock(in);
+
 		/* Setup parameters */
-		c = o->chan = ast_request(tech, ast_channel_nativeformats(in), NULL, in, stuff, &cause);
+		c = o->chan = ast_request(tech, nativeformats, NULL, in, stuff, &cause);
+
+		ao2_cleanup(nativeformats);
+
 		if (c) {
 			if (single && !caller_entertained) {
 				ast_channel_make_compatible(in, o->chan);
@@ -2323,6 +2332,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		char *tech = strsep(&number, "/");
 		size_t tech_len;
 		size_t number_len;
+		struct ast_format_cap *nativeformats;
 
 		num_dialed++;
 		if (ast_strlen_zero(number)) {
@@ -2373,9 +2383,15 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		 * through the CONNECTED_LINE dialplan function.
 		 */
 		ast_party_connected_line_copy(&tmp->connected, ast_channel_connected(chan));
+
+		nativeformats = ao2_bump(ast_channel_nativeformats(chan));
+
 		ast_channel_unlock(chan);
 
-		tc = ast_request(tmp->tech, ast_channel_nativeformats(chan), NULL, chan, tmp->number, &cause);
+		tc = ast_request(tmp->tech, nativeformats, NULL, chan, tmp->number, &cause);
+
+		ao2_cleanup(nativeformats);
+
 		if (!tc) {
 			/* If we can't, just go on to the next call */
 			ast_log(LOG_WARNING, "Unable to create channel of type '%s' (cause %d - %s)\n",
