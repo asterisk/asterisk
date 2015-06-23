@@ -98,6 +98,11 @@
                 <xsl:value-of select="concat(@prefix,'Uniqueid')"/>
             </xsl:attribute>
         </xsl:element>
+        <xsl:element name="parameter">
+            <xsl:attribute name="name">
+                <xsl:value-of select="concat(@prefix,'Linkedid')"/>
+            </xsl:attribute>
+        </xsl:element>
     </xsl:template>
 
     <xsl:template match="bridge_snapshot">
