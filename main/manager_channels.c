@@ -435,7 +435,8 @@ struct ast_str *ast_manager_build_channel_state_string_prefix(
 		"%sContext: %s\r\n"
 		"%sExten: %s\r\n"
 		"%sPriority: %d\r\n"
-		"%sUniqueid: %s\r\n",
+		"%sUniqueid: %s\r\n"
+		"%sLinkedid: %s\r\n",
 		prefix, snapshot->name,
 		prefix, snapshot->state,
 		prefix, ast_state2str(snapshot->state),
@@ -448,7 +449,8 @@ struct ast_str *ast_manager_build_channel_state_string_prefix(
 		prefix, snapshot->context,
 		prefix, snapshot->exten,
 		prefix, snapshot->priority,
-		prefix, snapshot->uniqueid);
+		prefix, snapshot->uniqueid,
+		prefix, snapshot->linkedid);
 
 	if (!res) {
 		ast_free(out);
