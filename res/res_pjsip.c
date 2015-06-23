@@ -302,9 +302,9 @@
 				<configOption name="rewrite_contact">
 					<synopsis>Allow Contact header to be rewritten with the source IP address-port</synopsis>
 					<description><para>
-						On inbound SIP messages from this endpoint, the Contact header will be changed to have the
-						source IP address and port. This option does not affect outbound messages send to this
-						endpoint.
+						On inbound SIP messages from this endpoint, the Contact header or an appropriate Record-Route
+						header will be changed to have the source IP address and port. This option does not affect
+						outbound messages sent to this endpoint.
 					</para></description>
 				</configOption>
 				<configOption name="rtp_ipv6" default="no">
