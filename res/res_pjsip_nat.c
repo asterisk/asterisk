@@ -32,32 +32,88 @@
 #include "asterisk/module.h"
 #include "asterisk/acl.h"
 
-static pj_bool_t handle_rx_message(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata)
+static void rewrite_uri(pjsip_rx_data *rdata, pjsip_sip_uri *uri)
+{
+	pj_cstr(&uri->host, rdata->pkt_info.src_name);
+	if (strcasecmp("udp", rdata->tp_info.transport->type_name)) {
+		uri->transport_param = pj_str(rdata->tp_info.transport->type_name);
+	} else {
+		uri->transport_param.slen = 0;
+	}
+	uri->port = rdata->pkt_info.src_port;
+}
+
+static int rewrite_route_set(pjsip_rx_data *rdata, pjsip_dialog *dlg)
+{
+	pjsip_rr_hdr *rr = NULL;
+	pjsip_sip_uri *uri;
+
+	if (rdata->msg_info.msg->type == PJSIP_RESPONSE_MSG) {
+		pjsip_hdr *iter;
+		for (iter = rdata->msg_info.msg->hdr.prev; iter != &rdata->msg_info.msg->hdr; iter = iter->prev) {
+			if (iter->type == PJSIP_H_RECORD_ROUTE) {
+				rr = (pjsip_rr_hdr *)iter;
+				break;
+			}
+		}
+	} else {
+		rr = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_RECORD_ROUTE, NULL);
+	}
+
+	if (rr) {
+		uri = pjsip_uri_get_uri(&rr->name_addr);
+		rewrite_uri(rdata, uri);
+		if (dlg && dlg->route_set.next && !dlg->route_set_frozen) {
+			pjsip_routing_hdr *route = dlg->route_set.next;
+			uri = pjsip_uri_get_uri(&route->name_addr);
+			rewrite_uri(rdata, uri);
+		}
+
+		return 0;
+	}
+
+	return -1;
+}
+
+static int rewrite_contact(pjsip_rx_data *rdata, pjsip_dialog *dlg)
 {
 	pjsip_contact_hdr *contact;
+
+	contact = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, NULL);
+	if (contact && !contact->star && (PJSIP_URI_SCHEME_IS_SIP(contact->uri) || PJSIP_URI_SCHEME_IS_SIPS(contact->uri))) {
+		pjsip_sip_uri *uri = pjsip_uri_get_uri(contact->uri);
+
+		rewrite_uri(rdata, uri);
+
+		if (dlg && !dlg->route_set_frozen && (!dlg->remote.contact
+			|| pjsip_uri_cmp(PJSIP_URI_IN_REQ_URI, dlg->remote.contact->uri, contact->uri))) {
+			dlg->remote.contact = (pjsip_contact_hdr*)pjsip_hdr_clone(dlg->pool, contact);
+			dlg->target = dlg->remote.contact->uri;
+		}
+		return 0;
+	}
+
+	return -1;
+}
+
+static pj_bool_t handle_rx_message(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata)
+{
+	pjsip_dialog *dlg = pjsip_rdata_get_dlg(rdata);
 
 	if (!endpoint) {
 		return PJ_FALSE;
 	}
 
-	if (endpoint->nat.rewrite_contact && (contact = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, NULL)) &&
-		!contact->star && (PJSIP_URI_SCHEME_IS_SIP(contact->uri) || PJSIP_URI_SCHEME_IS_SIPS(contact->uri))) {
-		pjsip_sip_uri *uri = pjsip_uri_get_uri(contact->uri);
-		pjsip_dialog *dlg = pjsip_rdata_get_dlg(rdata);
-
-		pj_cstr(&uri->host, rdata->pkt_info.src_name);
-		if (strcasecmp("udp", rdata->tp_info.transport->type_name)) {
-			uri->transport_param = pj_str(rdata->tp_info.transport->type_name);
-		} else {
-			uri->transport_param.slen = 0;
-		}
-		uri->port = rdata->pkt_info.src_port;
-
-		/* rewrite the session target since it may have already been pulled from the contact header */
-		if (dlg && (!dlg->remote.contact
-			|| pjsip_uri_cmp(PJSIP_URI_IN_REQ_URI, dlg->remote.contact->uri, contact->uri))) {
-			dlg->remote.contact = (pjsip_contact_hdr*)pjsip_hdr_clone(dlg->pool, contact);
-			dlg->target = dlg->remote.contact->uri;
+	if (endpoint->nat.rewrite_contact) {
+		/* rewrite_contact is intended to ensure we send requests/responses to
+		 * a routeable address when NAT is involved. The URI that dictates where
+		 * we send requests/responses can be determined either by Record-Route
+		 * headers or by the Contact header if no Record-Route headers are present.
+		 * We therefore will attempt to rewrite a Record-Route header first, and if
+		 * none are present, we fall back to rewriting the Contact header instead.
+		 */
+		if (rewrite_route_set(rdata, dlg)) {
+			rewrite_contact(rdata, dlg);
 		}
 	}
 
