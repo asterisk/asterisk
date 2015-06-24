@@ -430,7 +430,7 @@ AST_TEST_DEFINE(test_cel_unanswered_inbound_call)
 		info->description =
 			"Test CEL records for a call that is\n"
 			"inbound to Asterisk, executes some dialplan, but\n"
-			"is never answered.\n";
+			"is never answered.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -461,7 +461,7 @@ AST_TEST_DEFINE(test_cel_unanswered_outbound_call)
 		info->summary = "Test outbound unanswered calls";
 		info->description =
 			"Test CEL records for a call that is\n"
-			"outbound to Asterisk but is never answered.\n";
+			"outbound to Asterisk but is never answered.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -490,7 +490,7 @@ AST_TEST_DEFINE(test_cel_single_party)
 		info->summary = "Test CEL for a single party";
 		info->description =
 			"Test CEL records for a call that is\n"
-			"answered, but only involves a single channel\n";
+			"answered, but only involves a single channel";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -519,7 +519,7 @@ AST_TEST_DEFINE(test_cel_single_bridge)
 		info->summary = "Test CEL for a single party entering/leaving a bridge";
 		info->description =
 			"Test CEL records for a call that is\n"
-			"answered, enters a bridge, and leaves it.\n";
+			"answered, enters a bridge, and leaves it.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -557,7 +557,7 @@ AST_TEST_DEFINE(test_cel_single_bridge_continue)
 		info->summary = "Test CEL for a single party entering/leaving a bridge";
 		info->description =
 			"Test CEL records for a call that is\n"
-			"answered, enters a bridge, and leaves it.\n";
+			"answered, enters a bridge, and leaves it.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -601,7 +601,7 @@ AST_TEST_DEFINE(test_cel_single_twoparty_bridge_a)
 		info->description =
 			"Test CEL records for a call that is\n"
 			"answered, enters a bridge, and leaves it. In this scenario, the\n"
-			"Party A should answer the bridge first.\n";
+			"Party A should answer the bridge first.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -649,7 +649,7 @@ AST_TEST_DEFINE(test_cel_single_twoparty_bridge_b)
 		info->description =
 			"Test CEL records for a call that is\n"
 			"answered, enters a bridge, and leaves it. In this scenario, the\n"
-			"Party B should answer the bridge first.\n";
+			"Party B should answer the bridge first.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -703,7 +703,7 @@ AST_TEST_DEFINE(test_cel_single_multiparty_bridge)
 		info->description =
 			"Test CEL records for a call that is\n"
 			"answered, enters a bridge, and leaves it. A total of three\n"
-			"parties perform this action.\n";
+			"parties perform this action.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -780,7 +780,7 @@ AST_TEST_DEFINE(test_cel_dial_unanswered)
 		info->summary = "Test CEL for a dial that isn't answered";
 		info->description =
 			"Test CEL records for a channel that\n"
-			"performs a dial operation that isn't answered\n";
+			"performs a dial operation that isn't answered";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -814,7 +814,7 @@ AST_TEST_DEFINE(test_cel_dial_unanswered_filter)
 		info->summary = "Test CEL for a dial that isn't answered";
 		info->description =
 			"Test CEL records for a channel that\n"
-			"performs a dial operation that isn't answered\n";
+			"performs a dial operation that isn't answered";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -849,7 +849,7 @@ AST_TEST_DEFINE(test_cel_dial_busy)
 		info->summary = "Test CEL for a dial that results in a busy";
 		info->description =
 			"Test CEL records for a channel that\n"
-			"performs a dial operation to an endpoint that's busy\n";
+			"performs a dial operation to an endpoint that's busy";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -883,7 +883,7 @@ AST_TEST_DEFINE(test_cel_dial_congestion)
 		info->summary = "Test CEL for a dial that results in congestion";
 		info->description =
 			"Test CEL records for a channel that\n"
-			"performs a dial operation to an endpoint that's congested\n";
+			"performs a dial operation to an endpoint that's congested";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -917,7 +917,7 @@ AST_TEST_DEFINE(test_cel_dial_unavailable)
 		info->summary = "Test CEL for a dial that results in unavailable";
 		info->description =
 			"Test CEL records for a channel that\n"
-			"performs a dial operation to an endpoint that's unavailable\n";
+			"performs a dial operation to an endpoint that's unavailable";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -952,7 +952,7 @@ AST_TEST_DEFINE(test_cel_dial_caller_cancel)
 		info->description =
 			"Test CEL records for a channel that\n"
 			"performs a dial operation to an endpoint but then decides\n"
-			"to hang up, cancelling the dial\n";
+			"to hang up, cancelling the dial";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -989,7 +989,7 @@ AST_TEST_DEFINE(test_cel_dial_parallel_failed)
 		info->description =
 			"This tests dialing three parties: Bob, Charlie, David. Charlie\n"
 			"returns BUSY; David returns CONGESTION; Bob fails to answer and\n"
-			"Alice hangs up. Three records are created for Alice as a result.\n";
+			"Alice hangs up. Three records are created for Alice as a result.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1042,7 +1042,7 @@ AST_TEST_DEFINE(test_cel_dial_answer_no_bridge)
 			"a dial, then bounce both channels to different priorities and\n"
 			"never have them enter a bridge together. Ew. This makes sure that\n"
 			"when we answer, we get a CEL, it gets ended at that point, and\n"
-			"that it gets finalized appropriately.\n";
+			"that it gets finalized appropriately.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1083,7 +1083,7 @@ AST_TEST_DEFINE(test_cel_dial_answer_twoparty_bridge_a)
 		info->category = TEST_CATEGORY;
 		info->summary = "Test dialing, answering, and going into a 2-party bridge";
 		info->description =
-			"The most 'basic' of scenarios\n";
+			"The most 'basic' of scenarios";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1130,7 +1130,7 @@ AST_TEST_DEFINE(test_cel_dial_answer_twoparty_bridge_b)
 		info->category = TEST_CATEGORY;
 		info->summary = "Test dialing, answering, and going into a 2-party bridge";
 		info->description =
-			"The most 'basic' of scenarios\n";
+			"The most 'basic' of scenarios";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1180,7 +1180,7 @@ AST_TEST_DEFINE(test_cel_dial_answer_multiparty)
 		info->category = TEST_CATEGORY;
 		info->summary = "Test dialing, answering, and going into a multi-party bridge";
 		info->description =
-			"A little tricky to get to do, but possible with some redirects.\n";
+			"A little tricky to get to do, but possible with some redirects.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1256,7 +1256,7 @@ AST_TEST_DEFINE(test_cel_blind_transfer)
 		info->summary = "Test blind transfers to an extension";
 		info->description =
 			"This test creates two channels, bridges them, and then"
-			" blind transfers the bridge to an extension.\n";
+			" blind transfers the bridge to an extension.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1327,7 +1327,7 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_swap)
 		info->description =
 			"This test creates four channels, places each pair in"
 			" a bridge, and then attended transfers the bridges"
-			" together.\n";
+			" together.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1409,7 +1409,7 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_merge)
 		info->description =
 			"This test creates four channels, places each pair"
 			" in a bridge, and then attended transfers the bridges"
-			" together causing a bridge merge.\n";
+			" together causing a bridge merge.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1497,7 +1497,7 @@ AST_TEST_DEFINE(test_cel_attended_transfer_bridges_link)
 		info->description =
 			"This test creates four channels, places each pair"
 			" in a bridge, and then attended transfers the bridges"
-			" together causing a bridge link.\n";
+			" together causing a bridge link.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1577,7 +1577,7 @@ AST_TEST_DEFINE(test_cel_dial_pickup)
 		info->description =
 			"Test CEL records for a call that is\n"
 			"inbound to Asterisk, executes some dialplan, and\n"
-			"is picked up.\n";
+			"is picked up.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1637,7 +1637,7 @@ AST_TEST_DEFINE(test_cel_local_optimize)
 		info->description =
 			"Test CEL records for two local channels being optimized\n"
 			"out by sending a messages indicating local optimization\n"
-			"begin and end\n";
+			"begin and end";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
