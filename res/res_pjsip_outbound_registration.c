@@ -1357,7 +1357,7 @@ static char *cli_unregister(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	}
 
 	if (queue_unregister(state)) {
-		ast_cli(a->fd, "Failed to queue unregistration");
+		ast_cli(a->fd, "Failed to queue unregistration\n");
 	}
 
 	ao2_ref(state, -1);
@@ -1397,9 +1397,9 @@ static char *cli_register(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	 * to be queued as separate tasks.
 	 */
 	if (queue_unregister(state)) {
-		ast_cli(a->fd, "Failed to queue unregistration");
+		ast_cli(a->fd, "Failed to queue unregistration\n");
 	} else if (queue_register(state)) {
-		ast_cli(a->fd, "Failed to queue registration");
+		ast_cli(a->fd, "Failed to queue registration\n");
 	}
 
 	ao2_ref(state, -1);
