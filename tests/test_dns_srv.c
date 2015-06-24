@@ -200,7 +200,7 @@ AST_TEST_DEFINE(srv_resolve_single_record)
 		info->summary = "Test an SRV lookup which returns a single record";
 		info->description = "This test defines a single SRV record and performs a\n"
 			"resolution of the domain to which they belong. The test ensures that all\n"
-			"fields of the SRV record are parsed correctly\n";
+			"fields of the SRV record are parsed correctly";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -225,7 +225,7 @@ AST_TEST_DEFINE(srv_resolve_sort_priority)
 		info->description = "This test defines two SRV records with differing priorities and\n"
 			"performs a resolution of the domain to which they belong. The test ensures that\n"
 			"the two records are sorted according to priority and that all fields of the SRV\n"
-			"records are parsed correctly\n";
+			"records are parsed correctly";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -250,7 +250,7 @@ AST_TEST_DEFINE(srv_resolve_same_priority_zero_weight)
 		info->description = "This test defines two SRV records with same priority but different weights and\n"
 			"performs a resolution of the domain to which they belong. The test ensures that\n"
 			"the record with zero weight comes last and that all fields of the SRV\n"
-			"records are parsed correctly\n";
+			"records are parsed correctly";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -277,7 +277,7 @@ AST_TEST_DEFINE(srv_resolve_same_priority_different_weights)
 		info->summary = "Test an SRV lookup which returns two records with same priority but different weights";
 		info->description = "This test defines two SRV records with same priority but different weights and\n"
 			"performs a resolution of the domain to which they belong. The test ensures that\n"
-			"the record with higher weight occurs more often than the one of lesser weight\n";
+			"the record with higher weight occurs more often than the one of lesser weight";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -367,7 +367,7 @@ AST_TEST_DEFINE(srv_resolve_different_priorities_different_weights)
 		info->description = "This test defines four SRV records, two with one priority and two with another priority,\n"
 			"and different weights and performs a resolution of the domain to which they belong.\n"
 			"The test ensures that the priorities are sorted properly and that the records with higher weight\n"
-			"occur more often than the ones of less weight.\n";
+			"occur more often than the ones of less weight.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -504,7 +504,7 @@ AST_TEST_DEFINE(srv_resolve_record_missing_weight_port_host)
 		info->summary = "Test an SRV lookup which returns a single invalid record";
 		info->description = "This test defines a single SRV record and performs a\n"
 			"resolution of the domain to which they belong. The test ensures that the\n"
-			"record is determined to be corrupt as it contains only a priority\n";
+			"record is determined to be corrupt as it contains only a priority";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -526,7 +526,7 @@ AST_TEST_DEFINE(srv_resolve_record_missing_port_host)
 		info->summary = "Test an SRV lookup which returns a single invalid record";
 		info->description = "This test defines a single SRV record and performs a\n"
 			"resolution of the domain to which they belong. The test ensures that the\n"
-			"record is determined to be corrupt as it contains only a priority and weight\n";
+			"record is determined to be corrupt as it contains only a priority and weight";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -549,7 +549,7 @@ AST_TEST_DEFINE(srv_resolve_record_missing_host)
 		info->description = "This test defines a single SRV record and performs a\n"
 			"resolution of the domain to which they belong. The test ensures that the\n"
 			"record is determined to be corrupt as it contains only a priority, weight,\n"
-			"and port\n";
+			"and port";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
