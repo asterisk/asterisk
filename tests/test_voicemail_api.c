@@ -940,7 +940,7 @@ AST_TEST_DEFINE(voicemail_api_off_nominal_snapshot)
 			" * Access to non-existent context\n"
 			" * Access to non-existent folder\n"
 			" * Access to NULL folder\n"
-			" * Invalid sort identifier\n";
+			" * Invalid sort identifier";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1054,7 +1054,7 @@ AST_TEST_DEFINE(voicemail_api_off_nominal_move)
 			" * Moving to a non-existent context\n"
 			" * Moving to/from non-existent folder\n"
 			" * Moving to/from NULL folder\n"
-			" * Invalid message identifier(s)\n";
+			" * Invalid message identifier(s)";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1173,7 +1173,7 @@ AST_TEST_DEFINE(voicemail_api_off_nominal_remove)
 			" * Removing messages from an invalid context\n"
 			" * Removing messages from an invalid folder\n"
 			" * Removing messages from a NULL folder\n"
-			" * Removing messages with bad identifiers\n";
+			" * Removing messages with bad identifiers";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1348,7 +1348,7 @@ AST_TEST_DEFINE(voicemail_api_off_nominal_forward)
 			" * Invalid to context\n"
 			" * Invalid/NULL to folder\n"
 			" * Invalid message numbers\n"
-			" * Invalid number of messages\n";
+			" * Invalid number of messages";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1426,7 +1426,7 @@ AST_TEST_DEFINE(voicemail_api_nominal_msg_playback)
 		info->summary = "Nominal message playback";
 		info->description =
 			"Tests playing back a message on a provided"
-			" channel or callback function\n";
+			" channel or callback function";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1488,7 +1488,7 @@ AST_TEST_DEFINE(voicemail_api_off_nominal_msg_playback)
 			" * Invalid/NULL mailbox\n"
 			" * Invalid context\n"
 			" * Invalid/NULL folder\n"
-			" * Invalid message identifiers\n";
+			" * Invalid message identifiers";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;

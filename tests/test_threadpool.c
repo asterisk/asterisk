@@ -858,7 +858,7 @@ AST_TEST_DEFINE(threadpool_auto_increment)
 		info->description =
 			"Create an empty threadpool and push a task to it. Once the task is\n"
 			"pushed, the threadpool should add three threads and be able to\n"
-			"handle the task. The threads should then go idle\n";
+			"handle the task. The threads should then go idle";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -972,7 +972,7 @@ AST_TEST_DEFINE(threadpool_max_size)
 		info->description =
 			"Create an empty threadpool and push a task to it. Once the task is\n"
 			"pushed, the threadpool should attempt to grow by three threads, but the\n"
-			"pool's restrictions should only allow two threads to be added.\n";
+			"pool's restrictions should only allow two threads to be added.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1043,7 +1043,7 @@ AST_TEST_DEFINE(threadpool_reactivation)
 		info->description =
 			"Push a task into a threadpool. Make sure the task executes and the\n"
 			"thread goes idle. Then push a second task and ensure that the thread\n"
-			"awakens and executes the second task.\n";
+			"awakens and executes the second task.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1250,7 +1250,7 @@ AST_TEST_DEFINE(threadpool_task_distribution)
 		info->summary = "Test that tasks are evenly distributed to threads";
 		info->description =
 			"Push two tasks into a threadpool. Ensure that each is handled by\n"
-			"a separate thread\n";
+			"a separate thread";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1346,7 +1346,7 @@ AST_TEST_DEFINE(threadpool_more_destruction)
 			"Push two tasks into a threadpool. Set the threadpool size to 4\n"
 			"Ensure that there are 2 active and 2 idle threads. Then shrink the\n"
 			"threadpool down to 1 thread. Ensure that the thread leftover is active\n"
-			"and ensure that both tasks complete.\n";
+			"and ensure that both tasks complete.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1456,7 +1456,7 @@ AST_TEST_DEFINE(threadpool_serializer)
 		info->category = "/main/threadpool/";
 		info->summary = "Test that serializers";
 		info->description =
-			"Ensures that tasks enqueued to a serialize execute in sequence.\n";
+			"Ensures that tasks enqueued to a serialize execute in sequence.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1570,7 +1570,7 @@ AST_TEST_DEFINE(threadpool_serializer_dupe)
 		info->summary = "Test that serializers are uniquely named";
 		info->description =
 			"Creating two serializers with the same name should\n"
-			"result in error.\n";
+			"result in error.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
