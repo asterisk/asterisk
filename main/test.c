@@ -640,33 +640,53 @@ static struct ast_test *test_alloc(ast_test_cb_t *cb)
 
 	if (ast_strlen_zero(test->info.category)) {
 		ast_log(LOG_ERROR, "Test %s has no category, test registration refused.\n",
-				test->info.name);
+			test->info.name);
 		return test_free(test);
 	}
 
 	if (test->info.category[0] != '/' || test->info.category[strlen(test->info.category) - 1] != '/') {
 		ast_log(LOG_WARNING, "Test category '%s' for test '%s' is missing a leading or trailing slash.\n",
-				test->info.category, test->info.name);
-		/* Flag an error anyways so test_registrations fails but allow the test to be
-		 * registered. */
-		registration_errors++;
+			test->info.category, test->info.name);
+		/*
+		 * Flag an error anyways so test_registrations fails but allow the
+		 * test to be registered.
+		 */
+		++registration_errors;
 	}
 
 	if (ast_strlen_zero(test->info.summary)) {
 		ast_log(LOG_ERROR, "Test %s%s has no summary, test registration refused.\n",
-				test->info.category, test->info.name);
+			test->info.category, test->info.name);
 		return test_free(test);
+	}
+	if (test->info.summary[strlen(test->info.summary) - 1] == '\n') {
+		ast_log(LOG_WARNING, "Test %s%s summary has a trailing newline.\n",
+			test->info.category, test->info.name);
+		/*
+		 * Flag an error anyways so test_registrations fails but allow the
+		 * test to be registered.
+		 */
+		++registration_errors;
 	}
 
 	if (ast_strlen_zero(test->info.description)) {
 		ast_log(LOG_ERROR, "Test %s%s has no description, test registration refused.\n",
-				test->info.category, test->info.name);
+			test->info.category, test->info.name);
 		return test_free(test);
+	}
+	if (test->info.description[strlen(test->info.description) - 1] == '\n') {
+		ast_log(LOG_WARNING, "Test %s%s description has a trailing newline.\n",
+			test->info.category, test->info.name);
+		/*
+		 * Flag an error anyways so test_registrations fails but allow the
+		 * test to be registered.
+		 */
+		++registration_errors;
 	}
 
 	if (!(test->status_str = ast_str_create(128))) {
 		ast_log(LOG_ERROR, "Failed to allocate status_str for %s%s, test registration failed.\n",
-				test->info.category, test->info.name);
+			test->info.category, test->info.name);
 		return test_free(test);
 	}
 
