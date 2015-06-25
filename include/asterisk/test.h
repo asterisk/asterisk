@@ -224,13 +224,22 @@ struct ast_test_info {
 	/*!
 	 * \brief test category
 	 *
+	 * \details
 	 * Tests are categorized in a directory tree style hierarchy.  It is expected that
 	 * this string have both a leading and trailing forward slash ('/').
 	 */
 	const char *category;
-	/*! \brief optional short summary of test */
+	/*!
+	 * \brief Short summary of test
+	 *
+	 * \note The summary must not end with a newline.
+	 */
 	const char *summary;
-	/*! \brief optional brief detailed description of test */
+	/*!
+	 * \brief More detailed description of test
+	 *
+	 * \note The description must not end with a newline.
+	 */
 	const char *description;
 };
 
