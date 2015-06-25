@@ -3905,11 +3905,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		switch (f->frametype) {
 		case AST_FRAME_CONTROL:
 			if (f->subclass.integer == AST_CONTROL_ANSWER) {
-				if (!ast_test_flag(ast_channel_flags(chan), AST_FLAG_OUTGOING)) {
-					ast_debug(1, "Ignoring answer on an inbound call!\n");
-					ast_frfree(f);
-					f = &ast_null_frame;
-				} else if (prestate == AST_STATE_UP && ast_channel_is_bridged(chan)) {
+				if (prestate == AST_STATE_UP && ast_channel_is_bridged(chan)) {
 					ast_debug(1, "Dropping duplicate answer!\n");
 					ast_frfree(f);
 					f = &ast_null_frame;
