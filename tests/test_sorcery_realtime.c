@@ -821,7 +821,7 @@ AST_TEST_DEFINE(object_filter)
 			"realtime backend that is unknown to sorcery. When sorcery attempts to retrieve\n"
 			"the object from the realtime backend, the data unknown to sorcery should be\n"
 			"filtered out of the returned objectset, and the object should be successfully\n"
-			"allocated by sorcery\n";
+			"allocated by sorcery";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;

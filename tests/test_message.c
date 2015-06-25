@@ -310,7 +310,7 @@ AST_TEST_DEFINE(test_message_msg_tech_registration)
 		info->description =
 			"Test that:\n"
 			"\tA message technology can be registered once only\n"
-			"\tA registered message technology can be unregistered once only\n";
+			"\tA registered message technology can be unregistered once only";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -343,7 +343,7 @@ AST_TEST_DEFINE(test_message_msg_handler_registration)
 		info->description =
 			"Test that:\n"
 			"\tA message handler can be registered once only\n"
-			"\tA registered message handler can be unregistered once only\n";
+			"\tA registered message handler can be unregistered once only";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -391,7 +391,7 @@ AST_TEST_DEFINE(test_message_manipulation)
 			"This test covers the following:\n"
 			"\tSetting/getting the body\n"
 			"\tSetting/getting inbound/outbound variables\n"
-			"\tIterating over variables\n";
+			"\tIterating over variables";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -477,7 +477,7 @@ AST_TEST_DEFINE(test_message_queue_dialplan_nominal)
 		info->summary = "Test enqueueing messages to the dialplan";
 		info->description =
 			"Test that a message enqueued for the dialplan is\n"
-			"passed to that particular extension\n";
+			"passed to that particular extension";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -548,7 +548,7 @@ AST_TEST_DEFINE(test_message_queue_handler_nominal)
 		info->summary = "Test enqueueing messages to a handler";
 		info->description =
 			"Test that a message enqueued can be handled by a\n"
-			"non-dialplan handler\n";
+			"non-dialplan handler";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -591,7 +591,7 @@ AST_TEST_DEFINE(test_message_queue_both_nominal)
 		info->description =
 			"Test that a message enqueued is passed to all\n"
 			"handlers that can process it, dialplan as well as\n"
-			"a custom handler\n";
+			"a custom handler";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -662,7 +662,7 @@ AST_TEST_DEFINE(test_message_has_destination_dialplan)
 		info->summary = "Test checking for a dialplan destination";
 		info->description =
 			"Test that a message's destination is verified via the\n"
-			"dialplan\n";
+			"dialplan";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -704,7 +704,7 @@ AST_TEST_DEFINE(test_message_has_destination_handler)
 		info->summary = "Test checking for a handler destination";
 		info->description =
 			"Test that a message's destination is verified via a\n"
-			"handler\n";
+			"handler";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -744,7 +744,7 @@ AST_TEST_DEFINE(test_message_msg_send)
 		info->summary = "Test message routing";
 		info->description =
 			"Test that a message can be routed if it has\n"
-			"a valid handler\n";
+			"a valid handler";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;

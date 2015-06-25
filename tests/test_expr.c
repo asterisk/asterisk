@@ -158,7 +158,7 @@ AST_TEST_DEFINE(expr_test)
 		info->category = "/main/ast_expr/";
 		info->summary = "unit test for the internal expression engine";
 		info->description =
-			"Verifies behavior for the internal expression engine\n";
+			"Verifies behavior for the internal expression engine";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
