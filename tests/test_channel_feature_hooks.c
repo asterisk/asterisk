@@ -169,7 +169,7 @@ AST_TEST_DEFINE(test_features_channel_dtmf)
 		info->description =
 			"This test creates two channels, adds a DTMF hook to one, places them into\n"
 			"a bridge, and verifies that the DTMF hook added to the channel feature\n"
-			"hooks can be triggered once the channel is bridged.\n";
+			"hooks can be triggered once the channel is bridged.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -261,7 +261,7 @@ AST_TEST_DEFINE(test_features_channel_interval)
 		info->description =
 			"This test creates two channels, adds an interval hook to one, places them\n"
 			"into a bridge, and verifies that the interval hook added to the channel\n"
-			"feature hooks is triggered once the channel is bridged.\n";
+			"feature hooks is triggered once the channel is bridged.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;

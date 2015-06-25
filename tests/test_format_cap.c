@@ -1088,7 +1088,7 @@ AST_TEST_DEFINE(format_cap_get_names)
 		info->summary = "Test getting the names of formats";
 		info->description =
 			"Test that obtaining the names from a format capabilities structure\n"
-			"produces the expected output.\n";
+			"produces the expected output.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;

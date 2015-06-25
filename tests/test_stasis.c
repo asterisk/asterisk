@@ -789,7 +789,7 @@ AST_TEST_DEFINE(subscription_interleaving)
 			"and publishes messages alternately between the children.\n"
 			"It verifies that the messages are received in the expected\n"
 			"order, for different subscription types: one with a dedicated\n"
-			"thread, the other on the Stasis threadpool.\n";
+			"thread, the other on the Stasis threadpool.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1618,7 +1618,7 @@ AST_TEST_DEFINE(router_pool)
 		info->summary = "Test message routing via threadpool";
 		info->description = "Test simple message routing when\n"
 			"the subscriptions dictate usage of the Stasis\n"
-			"threadpool.\n";
+			"threadpool.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;

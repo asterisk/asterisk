@@ -463,7 +463,7 @@ AST_TEST_DEFINE(test_cdr_unanswered_inbound_call)
 		info->description =
 			"Test the properties of a CDR for a call that is\n"
 			"inbound to Asterisk, executes some dialplan, but\n"
-			"is never answered.\n";
+			"is never answered.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -513,7 +513,7 @@ AST_TEST_DEFINE(test_cdr_unanswered_outbound_call)
 		info->summary = "Test outbound unanswered calls";
 		info->description =
 			"Test the properties of a CDR for a call that is\n"
-			"outbound to Asterisk but is never answered.\n";
+			"outbound to Asterisk but is never answered.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -583,7 +583,7 @@ AST_TEST_DEFINE(test_cdr_outbound_bridged_call)
 		info->category = TEST_CATEGORY;
 		info->summary = "Test dialing, answering, and going into a 2-party bridge";
 		info->description =
-			"The most 'basic' of scenarios\n";
+			"The most 'basic' of scenarios";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -662,7 +662,7 @@ AST_TEST_DEFINE(test_cdr_single_party)
 		info->summary = "Test cdrs for a single party";
 		info->description =
 			"Test the properties of a CDR for a call that is\n"
-			"answered, but only involves a single channel\n";
+			"answered, but only involves a single channel";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -713,7 +713,7 @@ AST_TEST_DEFINE(test_cdr_single_bridge)
 		info->summary = "Test cdrs for a single party entering/leaving a bridge";
 		info->description =
 			"Test the properties of a CDR for a call that is\n"
-			"answered, enters a bridge, and leaves it.\n";
+			"answered, enters a bridge, and leaves it.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -788,7 +788,7 @@ AST_TEST_DEFINE(test_cdr_single_bridge_continue)
 		info->summary = "Test cdrs for a single party entering/leaving a bridge";
 		info->description =
 			"Test the properties of a CDR for a call that is\n"
-			"answered, enters a bridge, and leaves it.\n";
+			"answered, enters a bridge, and leaves it.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -872,7 +872,7 @@ AST_TEST_DEFINE(test_cdr_single_twoparty_bridge_a)
 		info->description =
 			"Test the properties of a CDR for a call that is\n"
 			"answered, enters a bridge, and leaves it. In this scenario, the\n"
-			"Party A should answer the bridge first.\n";
+			"Party A should answer the bridge first.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -964,7 +964,7 @@ AST_TEST_DEFINE(test_cdr_single_twoparty_bridge_b)
 		info->description =
 			"Test the properties of a CDR for a call that is\n"
 			"answered, enters a bridge, and leaves it. In this scenario, the\n"
-			"Party B should answer the bridge first.\n";
+			"Party B should answer the bridge first.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1089,7 +1089,7 @@ AST_TEST_DEFINE(test_cdr_single_multiparty_bridge)
 		info->description =
 			"Test the properties of a CDR for a call that is\n"
 			"answered, enters a bridge, and leaves it. A total of three\n"
-			"parties perform this action.\n";
+			"parties perform this action.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1179,7 +1179,7 @@ AST_TEST_DEFINE(test_cdr_dial_unanswered)
 		info->summary = "Test CDRs for a dial that isn't answered";
 		info->description =
 			"Test the properties of a CDR for a channel that\n"
-			"performs a dial operation that isn't answered\n";
+			"performs a dial operation that isn't answered";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1242,7 +1242,7 @@ AST_TEST_DEFINE(test_cdr_dial_busy)
 		info->summary = "Test CDRs for a dial that results in a busy";
 		info->description =
 			"Test the properties of a CDR for a channel that\n"
-			"performs a dial operation to an endpoint that's busy\n";
+			"performs a dial operation to an endpoint that's busy";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1304,7 +1304,7 @@ AST_TEST_DEFINE(test_cdr_dial_congestion)
 		info->summary = "Test CDRs for a dial that results in congestion";
 		info->description =
 			"Test the properties of a CDR for a channel that\n"
-			"performs a dial operation to an endpoint that's congested\n";
+			"performs a dial operation to an endpoint that's congested";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1366,7 +1366,7 @@ AST_TEST_DEFINE(test_cdr_dial_unavailable)
 		info->summary = "Test CDRs for a dial that results in unavailable";
 		info->description =
 			"Test the properties of a CDR for a channel that\n"
-			"performs a dial operation to an endpoint that's unavailable\n";
+			"performs a dial operation to an endpoint that's unavailable";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1429,7 +1429,7 @@ AST_TEST_DEFINE(test_cdr_dial_caller_cancel)
 		info->description =
 			"Test the properties of a CDR for a channel that\n"
 			"performs a dial operation to an endpoint but then decides\n"
-			"to hang up, cancelling the dial\n";
+			"to hang up, cancelling the dial";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1528,7 +1528,7 @@ AST_TEST_DEFINE(test_cdr_dial_parallel_failed)
 		info->description =
 			"This tests dialing three parties: Bob, Charlie, David. Charlie\n"
 			"returns BUSY; David returns CONGESTION; Bob fails to answer and\n"
-			"Alice hangs up. Three records are created for Alice as a result.\n";
+			"Alice hangs up. Three records are created for Alice as a result.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1650,7 +1650,7 @@ AST_TEST_DEFINE(test_cdr_dial_answer_no_bridge)
 			"when we answer, we get a CDR, it gets ended at that point, and\n"
 			"that it gets finalized appropriately. We should get three CDRs in\n"
 			"the end - one for the dial, and one for each CDR as they continued\n"
-			"on.\n";
+			"on.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1720,7 +1720,7 @@ AST_TEST_DEFINE(test_cdr_dial_answer_twoparty_bridge_a)
 		info->category = TEST_CATEGORY;
 		info->summary = "Test dialing, answering, and going into a 2-party bridge";
 		info->description =
-			"The most 'basic' of scenarios\n";
+			"The most 'basic' of scenarios";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1797,7 +1797,7 @@ AST_TEST_DEFINE(test_cdr_dial_answer_twoparty_bridge_b)
 		info->category = TEST_CATEGORY;
 		info->summary = "Test dialing, answering, and going into a 2-party bridge";
 		info->description =
-			"The most 'basic' of scenarios\n";
+			"The most 'basic' of scenarios";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -1955,7 +1955,7 @@ AST_TEST_DEFINE(test_cdr_dial_answer_multiparty)
 		info->category = TEST_CATEGORY;
 		info->summary = "Test dialing, answering, and going into a multi-party bridge";
 		info->description =
-			"A little tricky to get to do, but possible with some redirects.\n";
+			"A little tricky to get to do, but possible with some redirects.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -2076,7 +2076,7 @@ AST_TEST_DEFINE(test_cdr_park)
 		info->summary = "Test cdrs for a single party entering Park";
 		info->description =
 			"Test the properties of a CDR for calls that are\n"
-			"answered, enters Park, and leaves it.\n";
+			"answered, enters Park, and leaves it.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -2184,7 +2184,7 @@ AST_TEST_DEFINE(test_cdr_fields)
 		info->category = TEST_CATEGORY;
 		info->summary = "Test field access CDRs";
 		info->description =
-			"This tests setting/retrieving data on CDR records.\n";
+			"This tests setting/retrieving data on CDR records.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -2351,7 +2351,7 @@ AST_TEST_DEFINE(test_cdr_no_reset_cdr)
 		info->category = TEST_CATEGORY;
 		info->summary = "Test field access CDRs";
 		info->description =
-			"This tests setting/retrieving data on CDR records.\n";
+			"This tests setting/retrieving data on CDR records.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -2449,7 +2449,7 @@ AST_TEST_DEFINE(test_cdr_fork_cdr)
 		info->category = TEST_CATEGORY;
 		info->summary = "Test field access CDRs";
 		info->description =
-			"This tests setting/retrieving data on CDR records.\n";
+			"This tests setting/retrieving data on CDR records.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
