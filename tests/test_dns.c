@@ -913,10 +913,10 @@ AST_TEST_DEFINE(resolver_resolve_sync_off_nominal)
 		info->summary = "Test off-nominal synchronous DNS resolution";
 		info->description =
 			"This test performs several off-nominal synchronous DNS resolutions:\n"
-			"\t* Attempt resolution with NULL name\n",
-			"\t* Attempt resolution with invalid RR type\n",
-			"\t* Attempt resolution with invalid RR class\n",
-			"\t* Attempt resolution with NULL result pointer\n",
+			"\t* Attempt resolution with NULL name\n"
+			"\t* Attempt resolution with invalid RR type\n"
+			"\t* Attempt resolution with invalid RR class\n"
+			"\t* Attempt resolution with NULL result pointer\n"
 			"\t* Attempt resolution with resolver that returns an error";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
@@ -1170,10 +1170,10 @@ AST_TEST_DEFINE(resolver_resolve_async_off_nominal)
 		info->summary = "Test off-nominal asynchronous DNS resolution";
 		info->description =
 			"This test performs several off-nominal asynchronous DNS resolutions:\n"
-			"\t* Attempt resolution with NULL name\n",
-			"\t* Attempt resolution with invalid RR type\n",
-			"\t* Attempt resolution with invalid RR class\n",
-			"\t* Attempt resolution with NULL callback pointer\n",
+			"\t* Attempt resolution with NULL name\n"
+			"\t* Attempt resolution with invalid RR type\n"
+			"\t* Attempt resolution with invalid RR class\n"
+			"\t* Attempt resolution with NULL callback pointer\n"
 			"\t* Attempt resolution with resolver that returns an error";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:

@@ -399,10 +399,10 @@ AST_TEST_DEFINE(recurring_query_off_nominal)
 		info->summary = "Test off-nominal recurring DNS resolution";
 		info->description =
 			"This test performs several off-nominal recurring DNS resolutions:\n"
-			"\t* Attempt resolution with NULL name\n",
-			"\t* Attempt resolution with invalid RR type\n",
-			"\t* Attempt resolution with invalid RR class\n",
-			"\t* Attempt resolution with NULL callback pointer\n",
+			"\t* Attempt resolution with NULL name\n"
+			"\t* Attempt resolution with invalid RR type\n"
+			"\t* Attempt resolution with invalid RR class\n"
+			"\t* Attempt resolution with NULL callback pointer\n"
 			"\t* Attempt resolution with resolver that returns an error";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
