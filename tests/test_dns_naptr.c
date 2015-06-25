@@ -197,7 +197,7 @@ AST_TEST_DEFINE(naptr_resolve_nominal)
 		info->description = "This test defines four valid NAPTR records and\n"
 			"performs a resolution of the domain to which they belong. The test\n"
 			"ensures that all fields of the NAPTR records are parsed correctly\n"
-			"and that the records are returned in sorted order\n";
+			"and that the records are returned in sorted order";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -334,7 +334,7 @@ AST_TEST_DEFINE(naptr_resolve_off_nominal_length)
 		info->description = "This test defines a set of records where the strings provided\n"
 			"within the record are valid, but the lengths of the strings in the record are\n"
 			"invalid, either too large or too small. The goal of this test is to ensure that\n"
-			"these invalid lengths result in resolution failures\n";
+			"these invalid lengths result in resolution failures";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -374,7 +374,7 @@ AST_TEST_DEFINE(naptr_resolve_off_nominal_flags)
 		info->description = "This test defines a set of records where the flags provided are\n"
 			"invalid in some way. This may be due to providing non-alphanumeric characters or\n"
 			"by providing clashing flags. The result should be that none of the defined records\n"
-			"are returned by the resolver\n";
+			"are returned by the resolver";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -405,7 +405,7 @@ AST_TEST_DEFINE(naptr_resolve_off_nominal_services)
 		info->description = "This test defines a set of records where the services provided are\n"
 			"invalid in some way. This may be due to providing non-alphanumeric characters, providing\n"
 			"protocols or resolution services that start with a non-alphabetic character, or\n"
-			"providing fields that are too long.\n";
+			"providing fields that are too long.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -440,7 +440,7 @@ AST_TEST_DEFINE(naptr_resolve_off_nominal_regexp)
 		info->summary = "Ensure that NAPTR records with invalid regexps are not presented in results";
 		info->description = "This test defines a set of records where the regexps provided are\n"
 			"invalid in some way. The test ensures that none of the invalid records are returned\n"
-			"when performing a NAPTR lookup\n";
+			"when performing a NAPTR lookup";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -466,7 +466,7 @@ AST_TEST_DEFINE(naptr_resolve_off_nominal_interactions)
 		info->category = "/main/dns/naptr/";
 		info->summary = "Ensure that NAPTR records with invalid interactions are not presented in results";
 		info->description = "This test defines a set of records where all parts are individually valid,\n"
-			"but when combined do not make sense and are thus invalid.\n";
+			"but when combined do not make sense and are thus invalid.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
