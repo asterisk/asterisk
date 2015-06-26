@@ -7,9 +7,20 @@
 === and the other UPGRADE files for older releases.
 ===
 ==============================================================================
+
 ------------------------------------------------------------------------------
---- Functionality changes from Asterisk 13.1.0 to Asterisk 13.1-cert2 --------
+--- Functionality changes from Asterisk 13.1.0-cert3 to Asterisk 13.1-cert4 --
 ------------------------------------------------------------------------------
+
+AMI
+------------------
+ * Added the Linkedid header to the common channel headers listed for each
+   channel in AMI events.
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.1.0-cert1 to Asterisk 13.1-cert2 --
+------------------------------------------------------------------------------
+
 res_pjsip
 ------------------
  * A new 'endpoint_identifier_order' option has been added that allows one to
