@@ -189,6 +189,11 @@ AMI
  * Added the Linkedid header to the common channel headers listed for each
    channel in AMI events.
 
+ARI
+------------------
+ * A new feature has been added that enables the retrieval of modules and
+   module information through an HTTP request.
+
 res_pjsip
 ------------------
 * A new 'g726_non_standard' endpoint option has been added that, when set to
