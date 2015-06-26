@@ -33,6 +33,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/ast_version.h"
 #include "asterisk/buildinfo.h"
+#include "asterisk/module.h"
 #include "asterisk/paths.h"
 #include "asterisk/pbx.h"
 #include "resource_asterisk.h"
@@ -136,6 +137,50 @@ void ast_ari_asterisk_get_info(struct ast_variable *headers,
 		ast_ari_response_alloc_failed(response);
 		return;
 	}
+
+	ast_ari_response_ok(response, ast_json_ref(json));
+}
+
+/*!
+ * \brief Process module information and append to a json array
+ * \param module Resource name
+ * \param description
+ * \param usecnt Resource use count
+ * \param status
+ * \param like
+ * \param support_level
+ * \param module_data_list Resource array
+ *
+ * \retval 0 if no resource
+ * \retval 1 if resource exists
+ */
+static int process_module_list(const char *module, const char *description, int usecnt,
+                               const char *status, const char *like,
+															 enum ast_module_support_level support_level, void *module_data_list)
+{
+	struct ast_json *module_info;
+
+	module_info = ast_json_pack("{s: s, s: s, s: i, s: s, s: s}",
+															"name", module,
+															"description", description,
+															"use_count", usecnt,
+															"status", status,
+															"support_level", ast_module_support_level_to_string(support_level));
+	if (!module_info) {
+		return 0;
+	}
+	ast_json_array_append(module_data_list, module_info);
+	return 1;
+}
+
+void ast_ari_asterisk_list_modules(struct ast_variable *headers,
+	struct ast_ari_asterisk_list_modules_args *args,
+	struct ast_ari_response *response)
+{
+	RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
+
+	json = ast_json_array_create();
+	ast_update_module_list_data(&process_module_list, NULL, json);
 
 	ast_ari_response_ok(response, ast_json_ref(json));
 }
