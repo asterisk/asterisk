@@ -1762,14 +1762,18 @@ static const struct ast_sorcery_instance_observer observer_callbacks_registratio
 
 static int unload_module(void)
 {
-	ast_sip_unregister_endpoint_identifier(&line_identifier);
-	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "auth", &observer_callbacks_auth);
-	ast_sorcery_instance_observer_remove(ast_sip_get_sorcery(), &observer_callbacks_registrations);
-	ast_cli_unregister_multiple(cli_outbound_registration, ARRAY_LEN(cli_outbound_registration));
-	ast_sip_unregister_cli_formatter(cli_formatter);
 	ast_manager_unregister("PJSIPShowRegistrationsOutbound");
 	ast_manager_unregister("PJSIPUnregister");
 	ast_manager_unregister("PJSIPRegister");
+
+	ast_cli_unregister_multiple(cli_outbound_registration, ARRAY_LEN(cli_outbound_registration));
+	ast_sip_unregister_cli_formatter(cli_formatter);
+	cli_formatter = NULL;
+
+	ast_sip_unregister_endpoint_identifier(&line_identifier);
+
+	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "auth", &observer_callbacks_auth);
+	ast_sorcery_instance_observer_remove(ast_sip_get_sorcery(), &observer_callbacks_registrations);
 
 	ao2_global_obj_release(current_states);
 
@@ -1782,10 +1786,25 @@ static int load_module(void)
 
 	CHECK_PJSIP_MODULE_LOADED();
 
+	/* Create outbound registration states container. */
+	new_states = ao2_container_alloc(DEFAULT_STATE_BUCKETS,
+		registration_state_hash, registration_state_cmp);
+	if (!new_states) {
+		ast_log(LOG_ERROR, "Unable to allocate registration states container\n");
+		unload_module();
+		return AST_MODULE_LOAD_FAILURE;
+	}
+	ao2_global_obj_replace_unref(current_states, new_states);
+	ao2_ref(new_states, -1);
+
+	/*
+	 * Register sorcery object descriptions.
+	 */
 	ast_sorcery_apply_config(ast_sip_get_sorcery(), "res_pjsip_outbound_registration");
 	ast_sorcery_apply_default(ast_sip_get_sorcery(), "registration", "config", "pjsip.conf,criteria=type=registration");
 
 	if (ast_sorcery_object_register(ast_sip_get_sorcery(), "registration", sip_outbound_registration_alloc, NULL, sip_outbound_registration_apply)) {
+		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -1804,12 +1823,23 @@ static int load_module(void)
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "support_path", "no", OPT_BOOL_T, 1, FLDSET(struct sip_outbound_registration, support_path));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "line", "no", OPT_BOOL_T, 1, FLDSET(struct sip_outbound_registration, line));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "endpoint", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct sip_outbound_registration, endpoint));
+
+	/*
+	 * Register sorcery observers.
+	 */
+	if (ast_sorcery_instance_observer_add(ast_sip_get_sorcery(),
+		&observer_callbacks_registrations)
+		|| ast_sorcery_observer_add(ast_sip_get_sorcery(), "auth",
+			&observer_callbacks_auth)) {
+		ast_log(LOG_ERROR, "Unable to register observers.\n");
+		unload_module();
+		return AST_MODULE_LOAD_FAILURE;
+	}
+
+	/* Register how this module identifies endpoints. */
 	ast_sip_register_endpoint_identifier(&line_identifier);
 
-	ast_manager_register_xml("PJSIPUnregister", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_unregister);
-	ast_manager_register_xml("PJSIPRegister", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_register);
-	ast_manager_register_xml("PJSIPShowRegistrationsOutbound", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_show_outbound_registrations);
-
+	/* Register CLI commands. */
 	cli_formatter = ao2_alloc(sizeof(struct ast_sip_cli_formatter_entry), NULL);
 	if (!cli_formatter) {
 		ast_log(LOG_ERROR, "Unable to allocate memory for cli formatter\n");
@@ -1823,29 +1853,16 @@ static int load_module(void)
 	cli_formatter->iterate = cli_iterator;
 	cli_formatter->get_id = ast_sorcery_object_get_id;
 	cli_formatter->retrieve_by_id = cli_retrieve_by_id;
-
 	ast_sip_register_cli_formatter(cli_formatter);
 	ast_cli_register_multiple(cli_outbound_registration, ARRAY_LEN(cli_outbound_registration));
 
-	new_states = ao2_container_alloc(DEFAULT_STATE_BUCKETS,
-		registration_state_hash, registration_state_cmp);
-	if (!new_states) {
-		ast_log(LOG_ERROR, "Unable to allocate registration states container\n");
-		unload_module();
-		return AST_MODULE_LOAD_FAILURE;
-	}
-	ao2_global_obj_replace_unref(current_states, new_states);
-	ao2_ref(new_states, -1);
+	/* Register AMI actions. */
+	ast_manager_register_xml("PJSIPUnregister", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_unregister);
+	ast_manager_register_xml("PJSIPRegister", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_register);
+	ast_manager_register_xml("PJSIPShowRegistrationsOutbound", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_show_outbound_registrations);
 
-	if (ast_sorcery_instance_observer_add(ast_sip_get_sorcery(),
-		&observer_callbacks_registrations)) {
-		unload_module();
-		return AST_MODULE_LOAD_FAILURE;
-	}
-
+	/* Load configuration objects */
 	ast_sorcery_load_object(ast_sip_get_sorcery(), "registration");
-
-	ast_sorcery_observer_add(ast_sip_get_sorcery(), "auth", &observer_callbacks_auth);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
