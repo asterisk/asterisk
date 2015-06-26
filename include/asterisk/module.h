@@ -161,7 +161,7 @@ int ast_update_module_list(int (*modentry)(const char *module, const char *descr
                            const char *like);
 
 /*!
- * /brief Ask for a list of modules, descriptions, use counts and status.
+ * \brief Ask for a list of modules, descriptions, use counts and status.
  * \param modentry A callback to an updated function
  * \param like
  * \param data Data passed into the callback for manipulation

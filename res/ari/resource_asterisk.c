@@ -161,11 +161,11 @@ static int process_module_list(const char *module, const char *description, int 
 	struct ast_json *module_info;
 
 	module_info = ast_json_pack("{s: s, s: s, s: i, s: s, s: s}",
-															"name", module,
-															"description", description,
-															"use_count", usecnt,
-															"status", status,
-															"support_level", ast_module_support_level_to_string(support_level));
+                              "name", module,
+                              "description", description,
+                              "use_count", usecnt,
+                              "status", status,
+                              "support_level", ast_module_support_level_to_string(support_level));
 	if (!module_info) {
 		return 0;
 	}
