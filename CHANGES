@@ -186,6 +186,9 @@ AMI
  * A new ContactStatus event has been added that reflects res_pjsip contact
    lifecycle changes:  Created, Removed, Reachable, Unreachable, Unknown.
 
+ * Added the Linkedid header to the common channel headers listed for each
+   channel in AMI events.
+
 res_pjsip
 ------------------
 * A new 'g726_non_standard' endpoint option has been added that, when set to
