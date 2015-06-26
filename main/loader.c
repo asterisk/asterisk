@@ -1419,6 +1419,32 @@ int ast_update_module_list(int (*modentry)(const char *module, const char *descr
 	return total_mod_loaded;
 }
 
+int ast_update_module_list_data(int (*modentry)(const char *module, const char *description,
+                                                int usecnt, const char *status,
+                                                enum ast_module_support_level support_level,
+                                                void *data),
+                                void *data)
+{
+	struct ast_module *cur;
+	int total_mod_loaded = 0;
+	AST_LIST_HEAD_NOLOCK(, ast_module) alpha_module_list = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
+
+	AST_DLLIST_LOCK(&module_list);
+
+	AST_DLLIST_TRAVERSE(&module_list, cur, entry) {
+		AST_LIST_INSERT_SORTALPHA(&alpha_module_list, cur, list_entry, resource);
+	}
+
+	while ((cur = AST_LIST_REMOVE_HEAD(&alpha_module_list, list_entry))) {
+		total_mod_loaded += modentry(cur->resource, cur->info->description, cur->usecount,
+		        cur->flags.running? "Running" : "Not Running", cur->info->support_level, data);
+	}
+
+	AST_DLLIST_UNLOCK(&module_list);
+
+	return total_mod_loaded;
+}
+
 /*! \brief Check if module exists */
 int ast_module_check(const char *name)
 {
