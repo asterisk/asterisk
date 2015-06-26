@@ -63,7 +63,7 @@ static int rewrite_route_set(pjsip_rx_data *rdata, pjsip_dialog *dlg)
 	if (rr) {
 		uri = pjsip_uri_get_uri(&rr->name_addr);
 		rewrite_uri(rdata, uri);
-		if (dlg && dlg->route_set.next && !dlg->route_set_frozen) {
+		if (dlg && !pj_list_empty(&dlg->route_set) && !dlg->route_set_frozen) {
 			pjsip_routing_hdr *route = dlg->route_set.next;
 			uri = pjsip_uri_get_uri(&route->name_addr);
 			rewrite_uri(rdata, uri);
@@ -85,7 +85,7 @@ static int rewrite_contact(pjsip_rx_data *rdata, pjsip_dialog *dlg)
 
 		rewrite_uri(rdata, uri);
 
-		if (dlg && !dlg->route_set_frozen && (!dlg->remote.contact
+		if (dlg && pj_list_empty(&dlg->route_set) && (!dlg->remote.contact
 			|| pjsip_uri_cmp(PJSIP_URI_IN_REQ_URI, dlg->remote.contact->uri, contact->uri))) {
 			dlg->remote.contact = (pjsip_contact_hdr*)pjsip_hdr_clone(dlg->pool, contact);
 			dlg->target = dlg->remote.contact->uri;
