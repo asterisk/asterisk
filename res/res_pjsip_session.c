@@ -1039,7 +1039,10 @@ void ast_sip_session_resume_reinvite(struct ast_sip_session *session)
 		return;
 	}
 
-	pjsip_endpt_process_rx_data(ast_sip_get_pjsip_endpoint(), session->deferred_reinvite, NULL, NULL);
+	if (session->channel) {
+		pjsip_endpt_process_rx_data(ast_sip_get_pjsip_endpoint(),
+			session->deferred_reinvite, NULL, NULL);
+	}
 	pjsip_rx_data_free_cloned(session->deferred_reinvite);
 	session->deferred_reinvite = NULL;
 }
