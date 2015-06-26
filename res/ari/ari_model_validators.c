@@ -308,6 +308,108 @@ ari_validator ast_ari_validate_config_info_fn(void)
 	return ast_ari_validate_config_info;
 }
 
+int ast_ari_validate_module(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_description = 0;
+	int has_name = 0;
+	int has_status = 0;
+	int has_support_level = 0;
+	int has_use_count = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("description", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_description = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Module field description failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("name", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_name = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Module field name failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("status", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_status = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Module field status failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("support_level", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_support_level = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Module field support_level failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("use_count", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_use_count = 1;
+			prop_is_valid = ast_ari_validate_int(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Module field use_count failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI Module has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_description) {
+		ast_log(LOG_ERROR, "ARI Module missing required field description\n");
+		res = 0;
+	}
+
+	if (!has_name) {
+		ast_log(LOG_ERROR, "ARI Module missing required field name\n");
+		res = 0;
+	}
+
+	if (!has_status) {
+		ast_log(LOG_ERROR, "ARI Module missing required field status\n");
+		res = 0;
+	}
+
+	if (!has_support_level) {
+		ast_log(LOG_ERROR, "ARI Module missing required field support_level\n");
+		res = 0;
+	}
+
+	if (!has_use_count) {
+		ast_log(LOG_ERROR, "ARI Module missing required field use_count\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_module_fn(void)
+{
+	return ast_ari_validate_module;
+}
+
 int ast_ari_validate_set_id(struct ast_json *json)
 {
 	int res = 1;
