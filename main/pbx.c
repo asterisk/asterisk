@@ -1061,7 +1061,7 @@ static int hintdevice_cmp_multiple(void *obj, void *arg, int flags)
 		right_key = right->hintdevice;
 		/* Fall through */
 	case OBJ_KEY:
-		cmp = strcmp(left->hintdevice, right_key);
+		cmp = strcasecmp(left->hintdevice, right_key);
 		break;
 	default:
 		ast_assert(0);
@@ -1078,7 +1078,7 @@ static int hintdevice_remove_cb(void *obj, void *arg, void *data, int flags)
 	char *device = arg;
 	struct ast_hint *hint = data;
 
-	if (!strcmp(candidate->hintdevice, device)
+	if (!strcasecmp(candidate->hintdevice, device)
 		&& candidate->hint == hint) {
 		return CMP_MATCH;
 	}
