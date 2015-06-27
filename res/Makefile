@@ -71,7 +71,7 @@ ael/pval.o: ael/pval.c
 
 clean::
 	@if [ -f pjproject/build.mak ]; then $(MAKE) -C pjproject realclean; fi
-	rm -f snmp/*.o snmp/*.i ael/*.o ael/*.i ais/*.o ais/*.i
+	rm -f snmp/*.o snmp/*.i ael/*.o ael/*.i ais/*.o ais/*.i snmp/*.gcda snmp/*.gcno ael/*.gcda ael/*.gcno
 
 dist-clean:: distclean
 distclean::
