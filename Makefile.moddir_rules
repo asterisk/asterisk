@@ -81,8 +81,8 @@ clean-$(1)$(3):
 
 endef
 
-MOD_ADD_C=$(eval $(call MOD_ADD_SOURCE,$(1),$(2),.c,.i,.o))
-MOD_ADD_CC=$(eval $(call MOD_ADD_SOURCE,$(1),$(2),.cc,.ii,.oo))
+MOD_ADD_C=$(eval $(call MOD_ADD_SOURCE,$(1),$(2),.c,.i,.o,.gcda,.gcno))
+MOD_ADD_CC=$(eval $(call MOD_ADD_SOURCE,$(1),$(2),.cc,.ii,.oo,.gcda,.gcno))
 
 $(addsuffix .oo,$(CC_MODS)) $(addsuffix .o,$(C_MODS)):	\
 	_ASTCFLAGS+=$(call MOD_ASTCFLAGS,$*)
@@ -140,6 +140,7 @@ clean::
 	rm -f *.so *.o *.oo *.eo *.i *.ii
 	rm -f .*.d
 	rm -f *.s *.i
+	rm -f *.gcda *.gcno
 	rm -f modules.link
 
 install:: all

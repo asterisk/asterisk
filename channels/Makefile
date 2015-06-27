@@ -23,7 +23,6 @@ ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
   LIBS+= -lres_monitor.so
 endif
 
-
 $(call MOD_ADD_C,chan_iax2,$(wildcard iax2/*.c))
 $(call MOD_ADD_C,chan_sip,$(wildcard sip/*.c))
 $(call MOD_ADD_C,chan_pjsip,$(wildcard pjsip/*.c))
