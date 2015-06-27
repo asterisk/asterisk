@@ -118,6 +118,7 @@ clean::
 	rm -f *.so *.o *.oo *.eo *.i *.ii
 	rm -f .*.d
 	rm -f *.s *.i
+	rm -f *.gcda *.gcno
 	rm -f modules.link
 
 install:: all

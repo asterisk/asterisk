@@ -24,7 +24,7 @@ ifneq ($(findstring $(OSARCH), mingw32 cygwin ),)
 endif
 
 clean::
-	rm -f ael/*.o ael/*.i
+	rm -f ael/*.o ael/*.i ael/*.gcda ael/*.gcno
 
 dundi-parser.o: dundi-parser.h
 dundi-parser.o: _ASTCFLAGS+=-I.

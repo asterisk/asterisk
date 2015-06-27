@@ -25,10 +25,10 @@ endif
 
 clean::
 	$(MAKE) -C misdn clean
-	rm -f dahdi/*.o dahdi/*.i
-	rm -f sip/*.o sip/*.i
-	rm -f iax2/*.o iax2/*.i
-	rm -f pjsip/*.o pjsip/*.i
+	rm -f dahdi/*.o dahdi/*.i dahdi/*.gcda dahdi/*.gcno
+	rm -f sip/*.o sip/*.i sip/*.gcda sip/*.gcno
+	rm -f iax2/*.o iax2/*.i iax2/*.gcda iax2/*.gcno
+	rm -f pjsip/*.o pjsip/*.i pjsip/*.gcda pjsip/*.gcno
 
 $(if $(filter chan_iax2,$(EMBEDDED_MODS)),modules.link,chan_iax2.so): $(subst .c,.o,$(wildcard iax2/*.c))
 $(subst .c,.o,$(wildcard iax2/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,chan_iax2)

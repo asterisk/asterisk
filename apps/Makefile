@@ -28,7 +28,7 @@ all: _all
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
 clean::
-	rm -f confbridge/*.o confbridge/*.i
+	rm -f confbridge/*.o confbridge/*.i confbridge/*.gcda confbridge/*.gcno
 
 $(if $(filter app_confbridge,$(EMBEDDED_MODS)),modules.link,app_confbridge.so): $(subst .c,.o,$(wildcard confbridge/*.c))
 $(subst .c,.o,$(wildcard confbridge/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,app_confbridge)
