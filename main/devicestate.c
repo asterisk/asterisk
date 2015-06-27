@@ -370,6 +370,7 @@ enum ast_device_state ast_device_state(const char *device)
 /*! \brief Add device state provider */
 int ast_devstate_prov_add(const char *label, ast_devstate_prov_cb_type callback)
 {
+	struct devstate_prov *devcb;
 	struct devstate_prov *devprov;
 
 	if (!callback || !(devprov = ast_calloc(1, sizeof(*devprov))))
@@ -379,6 +380,15 @@ int ast_devstate_prov_add(const char *label, ast_devstate_prov_cb_type callback)
 	ast_copy_string(devprov->label, label, sizeof(devprov->label));
 
 	AST_RWLIST_WRLOCK(&devstate_provs);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&devstate_provs, devcb, list) {
+		if (!strcasecmp(devcb->label, label)) {
+			ast_log(LOG_WARNING, "Device state provider '%s' already registered\n", label);
+			ast_free(devprov);
+			AST_RWLIST_UNLOCK(&devstate_provs);
+			return -1;
+		}
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_INSERT_HEAD(&devstate_provs, devprov, list);
 	AST_RWLIST_UNLOCK(&devstate_provs);
 
