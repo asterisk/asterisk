@@ -863,7 +863,6 @@ static void cleanup_module(void)
 static int load_module(void)
 {
 	cs_error_t cs_err;
-	enum ast_module_load_result res = AST_MODULE_LOAD_FAILURE;
 	struct cpg_name name;
 
 	corosync_aggregate_topic = stasis_topic_create("corosync_aggregate_topic");
@@ -885,7 +884,6 @@ static int load_module(void)
 
 	if (load_config(0)) {
 		/* simply not configured is not a fatal error */
-		res = AST_MODULE_LOAD_DECLINE;
 		goto failed;
 	}
 
@@ -926,7 +924,7 @@ static int load_module(void)
 failed:
 	cleanup_module();
 
-	return res;
+	return AST_MODULE_LOAD_DECLINE;
 }
 
 static int unload_module(void)
