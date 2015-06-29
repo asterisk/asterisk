@@ -142,6 +142,8 @@ static struct ast_variable *sorcery_realtime_filter_objectset(struct ast_variabl
 		}
 	}
 
+	ao2_ref(object_type, -1);
+
 	return objectset;
 }
 
