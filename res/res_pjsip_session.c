@@ -1420,7 +1420,8 @@ void ast_sip_session_unsuspend(struct ast_sip_session *session)
 
 /*!
  * \internal
- * \brief Handle initial INVITE challenge response message.
+ * \brief Possibly handle response to outbound requests (for instance,
+ *        initial INVITE challenge and failover).
  * \since 13.5.0
  *
  * \param rdata PJSIP receive response message data.
@@ -1428,82 +1429,89 @@ void ast_sip_session_unsuspend(struct ast_sip_session *session)
  * \retval PJ_FALSE Did not handle message.
  * \retval PJ_TRUE Handled message.
  */
-static pj_bool_t outbound_invite_auth(pjsip_rx_data *rdata)
+static pj_bool_t on_rx_outbound(pjsip_rx_data *rdata)
 {
 	pjsip_transaction *tsx;
 	pjsip_dialog *dlg;
 	pjsip_inv_session *inv;
 	pjsip_tx_data *tdata;
 	struct ast_sip_session *session;
+	int code = rdata->msg_info.msg->line.status.code;
 
-	if (rdata->msg_info.msg->line.status.code != 401
-		&& rdata->msg_info.msg->line.status.code != 407) {
+	if (code != 401 && code != 407 && code != 503) {
 		/* Doesn't pertain to us. Move on */
 		return PJ_FALSE;
 	}
 
 	tsx = pjsip_rdata_get_tsx(rdata);
 	dlg = pjsip_rdata_get_dlg(rdata);
+
 	if (!dlg || !tsx) {
 		return PJ_FALSE;
 	}
 
-	if (tsx->method.id != PJSIP_INVITE_METHOD) {
-		/* Not an INVITE that needs authentication */
-		return PJ_FALSE;
-	}
-
 	inv = pjsip_dlg_get_inv_session(dlg);
-	if (PJSIP_INV_STATE_CONFIRMED <= inv->state) {
-		/*
-		 * We cannot handle reINVITE authentication at this
-		 * time because the reINVITE transaction is still in
-		 * progress.
-		 */
-		ast_debug(1, "A reINVITE is being challenged.\n");
-		return PJ_FALSE;
-	}
-	ast_debug(1, "Initial INVITE is being challenged.\n");
-
 	session = inv->mod_data[session_module.id];
 
-	if (ast_sip_create_request_with_auth(&session->endpoint->outbound_auths, rdata,
-		tsx->last_tx, &tdata)) {
-		return PJ_FALSE;
+	switch (code) {
+	case 401:
+	case 407:
+		if (tsx->method.id != PJSIP_INVITE_METHOD) {
+			/* Not an INVITE that needs authentication */
+			return PJ_FALSE;
+		}
+
+		if (PJSIP_INV_STATE_CONFIRMED <= inv->state) {
+			/*
+			 * We cannot handle reINVITE authentication at this
+			 * time because the reINVITE transaction is still in
+			 * progress.
+			 */
+			ast_debug(1, "A reINVITE is being challenged.\n");
+			return PJ_FALSE;
+		}
+
+		ast_debug(1, "Initial INVITE is being challenged.\n");
+		if (ast_sip_create_request_with_auth(&session->endpoint->outbound_auths, rdata,
+						     tsx->last_tx, &tdata)) {
+			return PJ_FALSE;
+		}
+		break;
+	case 503:
+		if (!ast_sip_create_failover_request(tsx->last_tx, &tdata)) {
+			return PJ_FALSE;
+		}
+		break;
 	}
 
-	/*
-	 * Restart the outgoing initial INVITE transaction to deal
-	 * with authentication.
-	 */
 	pjsip_inv_uac_restart(inv, PJ_FALSE);
-
 	ast_sip_session_send_request(session, tdata);
 	return PJ_TRUE;
 }
 
-static pjsip_module outbound_invite_auth_module = {
-	.name = {"Outbound INVITE Auth", 20},
+static pjsip_module outbound_module = {
+	.name = {"Outbound", 8},
 	.priority = PJSIP_MOD_PRIORITY_DIALOG_USAGE,
-	.on_rx_response = outbound_invite_auth,
+	.on_rx_response = on_rx_outbound,
 };
 
 /*!
  * \internal
- * \brief Setup outbound initial INVITE authentication.
+ * \brief Setup outbound response handling for things like initial INVITE
+ *        authentication, failover, etc...
  * \since 13.5.0
  *
- * \param dlg PJSIP dialog to attach outbound authentication.
+ * \param dlg PJSIP dialog
  *
  * \retval 0 on success.
  * \retval -1 on error.
  */
-static int setup_outbound_invite_auth(pjsip_dialog *dlg)
+static int setup_outbound(pjsip_dialog *dlg)
 {
 	pj_status_t status;
 
 	++dlg->sess_count;
-	status = pjsip_dlg_add_usage(dlg, &outbound_invite_auth_module, NULL);
+	status = pjsip_dlg_add_usage(dlg, &outbound_module, NULL);
 	--dlg->sess_count;
 
 	return status != PJ_SUCCESS ? -1 : 0;
@@ -1544,7 +1552,7 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 		return NULL;
 	}
 
-	if (setup_outbound_invite_auth(dlg)) {
+	if (setup_outbound(dlg)) {
 		pjsip_dlg_terminate(dlg);
 		return NULL;
 	}
@@ -2267,6 +2275,22 @@ static int session_end(struct ast_sip_session *session)
 	return 0;
 }
 
+static int check_request_status(pjsip_inv_session *inv, pjsip_event *e)
+{
+	struct ast_sip_session *session = inv->mod_data[session_module.id];
+	pjsip_transaction *tsx = e->body.tsx_state.tsx;
+	pjsip_tx_data *tdata;
+
+	if (tsx->status_code != 503 ||
+	    !ast_sip_create_failover_request(tsx->last_tx, &tdata)) {
+		return 0;
+	}
+
+	pjsip_inv_uac_restart(inv, PJ_FALSE);
+	ast_sip_session_send_request(session, tdata);
+	return 1;
+}
+
 static void session_inv_on_state_changed(pjsip_inv_session *inv, pjsip_event *e)
 {
 	struct ast_sip_session *session = inv->mod_data[session_module.id];
@@ -2299,10 +2323,18 @@ static void session_inv_on_state_changed(pjsip_inv_session *inv, pjsip_event *e)
 			handle_outgoing(session, e->body.tsx_state.src.tdata);
 			break;
 		case PJSIP_EVENT_RX_MSG:
-			handle_incoming(session, e->body.tsx_state.src.rdata, type,
-					AST_SIP_SESSION_BEFORE_MEDIA);
+			if (!check_request_status(inv, e)) {
+				handle_incoming(session, e->body.tsx_state.src.rdata, type,
+						AST_SIP_SESSION_BEFORE_MEDIA);
+			}
 			break;
 		case PJSIP_EVENT_TRANSPORT_ERROR:
+			/*
+			 * Check the request status on transport error. A transport error
+			 * can occur when a TCP socket closes and that can be the result
+			 * of a 503. If so attempt to failover.
+			 */
+			check_request_status(inv, e);
 		case PJSIP_EVENT_TIMER:
 		case PJSIP_EVENT_USER:
 		case PJSIP_EVENT_UNKNOWN:
@@ -2751,7 +2783,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	ast_sip_register_service(&session_reinvite_module);
-	ast_sip_register_service(&outbound_invite_auth_module);
+	ast_sip_register_service(&outbound_module);
 
 	ast_module_shutdown_ref(ast_module_info->self);
 
@@ -2760,7 +2792,7 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	ast_sip_unregister_service(&outbound_invite_auth_module);
+	ast_sip_unregister_service(&outbound_module);
 	ast_sip_unregister_service(&session_reinvite_module);
 	ast_sip_unregister_service(&session_module);
 	ast_sorcery_delete(ast_sip_get_sorcery(), nat_hook);
