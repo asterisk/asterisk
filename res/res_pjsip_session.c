@@ -2267,6 +2267,25 @@ static int session_end(struct ast_sip_session *session)
 	return 0;
 }
 
+static int check_request_status(pjsip_inv_session *inv, pjsip_event *e)
+{
+	struct ast_sip_session *session = inv->mod_data[session_module.id];
+	pjsip_transaction *tsx = e->body.tsx_state.tsx;
+	pjsip_tx_data *tdata;
+
+	if (tsx->status_code != 503 && tsx->status_code != 408) {
+		return 0;
+	}
+
+	if (!ast_sip_failover_request(tsx->last_tx, &tdata)) {
+		return 0;
+	}
+
+	pjsip_inv_uac_restart(inv, PJ_FALSE);
+	ast_sip_session_send_request(session, tdata);
+	return 1;
+}
+
 static void session_inv_on_state_changed(pjsip_inv_session *inv, pjsip_event *e)
 {
 	struct ast_sip_session *session = inv->mod_data[session_module.id];
@@ -2299,11 +2318,20 @@ static void session_inv_on_state_changed(pjsip_inv_session *inv, pjsip_event *e)
 			handle_outgoing(session, e->body.tsx_state.src.tdata);
 			break;
 		case PJSIP_EVENT_RX_MSG:
-			handle_incoming(session, e->body.tsx_state.src.rdata, type,
-					AST_SIP_SESSION_BEFORE_MEDIA);
+			if (!check_request_status(inv, e)) {
+				handle_incoming(session, e->body.tsx_state.src.rdata, type,
+						AST_SIP_SESSION_BEFORE_MEDIA);
+			}
 			break;
 		case PJSIP_EVENT_TRANSPORT_ERROR:
 		case PJSIP_EVENT_TIMER:
+			/*
+			 * Check the request status on transport error or timeout. A transport
+			 * error can occur when a TCP socket closes and that can be the result
+			 * of a 503. Also we may need to failover on a timeout (408).
+			 */
+			check_request_status(inv, e);
+			break;
 		case PJSIP_EVENT_USER:
 		case PJSIP_EVENT_UNKNOWN:
 		case PJSIP_EVENT_TSX_STATE:

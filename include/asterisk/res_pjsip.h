@@ -2044,4 +2044,14 @@ unsigned int ast_sip_get_max_initial_qualify_time(void);
 const char *ast_sip_get_contact_status_label(const enum ast_sip_contact_status_type status);
 const char *ast_sip_get_contact_short_status_label(const enum ast_sip_contact_status_type status);
 
+/*!
+ * \brief Set a request to use the next value in the list of resolved addresses.
+ *
+ * \param old_data the tx data from the original request
+ * \param new_data the updated request
+ * \retval 0 No more addresses to try
+ * \retval 1 The request was successfully re-intialized
+ */
+int ast_sip_failover_request(pjsip_tx_data *old_data, pjsip_tx_data **new_data);
+
 #endif /* _RES_PJSIP_H */

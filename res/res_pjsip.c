@@ -3135,19 +3135,83 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 	return ret_val;
 }
 
+int ast_sip_failover_request(pjsip_tx_data *old_data, pjsip_tx_data **new_data)
+{
+	pjsip_via_hdr *via;
+
+	if (old_data->dest_info.cur_addr == old_data->dest_info.addr.count - 1) {
+		/* No more addresses to try */
+		return 0;
+	}
+
+	/* Try next address */
+	++old_data->dest_info.cur_addr;
+
+	via = (pjsip_via_hdr*)pjsip_msg_find_hdr(old_data->msg, PJSIP_H_VIA, NULL);
+	via->branch_param.slen = 0;
+
+	pjsip_tx_data_invalidate_msg(old_data);
+	pjsip_tx_data_add_ref(old_data);
+
+	*new_data = old_data;
+	return 1;
+}
+
+static void send_request_cb(void *token, pjsip_event *e);
+
+static int check_request_status(struct send_request_data *req_data, pjsip_event *e)
+{
+	struct ast_sip_endpoint *endpoint;
+	pjsip_transaction *tsx;
+	pjsip_tx_data *tdata;
+	int res = 0;
+
+	if (!(endpoint = ao2_bump(req_data->endpoint))) {
+		return 0;
+	}
+
+	tsx = e->body.tsx_state.tsx;
+
+	switch (tsx->status_code) {
+	case 401:
+	case 407:
+		/* Resend the request with a challenge response if we are challenged. */
+		res = ++req_data->challenge_count < MAX_RX_CHALLENGES /* Not in a challenge loop */
+			&& !ast_sip_create_request_with_auth(&endpoint->outbound_auths,
+				e->body.tsx_state.src.rdata, tsx->last_tx, &tdata);
+		break;
+	case 408:
+	case 503:
+		res = ast_sip_failover_request(tsx->last_tx, &tdata);
+		break;
+	}
+
+	if (res) {
+		res = endpt_send_request(endpoint, tdata, -1,
+					 req_data, send_request_cb) == PJ_SUCCESS;
+	}
+
+	ao2_ref(endpoint, -1);
+	return res;
+}
+
 static void send_request_cb(void *token, pjsip_event *e)
 {
 	struct send_request_data *req_data = token;
-	pjsip_transaction *tsx;
 	pjsip_rx_data *challenge;
-	pjsip_tx_data *tdata;
 	struct ast_sip_supplement *supplement;
-	struct ast_sip_endpoint *endpoint;
-	int res;
 
 	switch(e->body.tsx_state.type) {
 	case PJSIP_EVENT_TRANSPORT_ERROR:
 	case PJSIP_EVENT_TIMER:
+		/*
+		 * Check the request status on transport error or timeout. A transport
+		 * error can occur when a TCP socket closes and that can be the result
+		 * of a 503. Also we may need to failover on a timeout (408).
+		 */
+		if (check_request_status(req_data, e)) {
+			return;
+		}
 		break;
 	case PJSIP_EVENT_RX_MSG:
 		challenge = e->body.tsx_state.src.rdata;
@@ -3166,20 +3230,9 @@ static void send_request_cb(void *token, pjsip_event *e)
 		}
 		AST_RWLIST_UNLOCK(&supplements);
 
-		/* Resend the request with a challenge response if we are challenged. */
-		tsx = e->body.tsx_state.tsx;
-		endpoint = ao2_bump(req_data->endpoint);
-		res = (tsx->status_code == 401 || tsx->status_code == 407)
-			&& endpoint
-			&& ++req_data->challenge_count < MAX_RX_CHALLENGES /* Not in a challenge loop */
-			&& !ast_sip_create_request_with_auth(&endpoint->outbound_auths,
-				challenge, tsx->last_tx, &tdata)
-			&& endpt_send_request(endpoint, tdata, -1, req_data, send_request_cb)
-				== PJ_SUCCESS;
-		ao2_cleanup(endpoint);
-		if (res) {
+		if (check_request_status(req_data, e)) {
 			/*
-			 * Request with challenge response sent.
+			 * Request with challenge response or failover sent.
 			 * Passed our req_data ref to the new request.
 			 */
 			return;
