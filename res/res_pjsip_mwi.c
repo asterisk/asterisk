@@ -633,10 +633,10 @@ static struct mwi_subscription *mwi_create_subscription(
 static struct mwi_subscription *mwi_subscribe_single(
 	struct ast_sip_endpoint *endpoint, struct ast_sip_subscription *sip_sub, const char *name)
 {
-	RAII_VAR(struct ast_sip_aor *, aor,
-		 ast_sip_location_retrieve_aor(name), ao2_cleanup);
+	struct ast_sip_aor *aor;
 	struct mwi_subscription *sub;
 
+	aor = ast_sip_location_retrieve_aor(name);
 	if (!aor) {
 		/*! I suppose it's possible for the AOR to disappear on us
 		 * between accepting the subscription and sending the first
@@ -647,11 +647,12 @@ static struct mwi_subscription *mwi_subscribe_single(
 		return NULL;
 	}
 
-	if (!(sub = mwi_create_subscription(endpoint, sip_sub))) {
-		return NULL;
+	sub = mwi_create_subscription(endpoint, sip_sub);
+	if (sub) {
+		mwi_on_aor(aor, sub, 0);
 	}
 
-	mwi_on_aor(aor, sub, 0);
+	ao2_ref(aor, -1);
 	return sub;
 }
 
