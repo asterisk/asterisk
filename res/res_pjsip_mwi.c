@@ -751,16 +751,16 @@ static void *mwi_get_notify_data(struct ast_sip_subscription *sub)
 static void mwi_subscription_mailboxes_str(struct ao2_container *stasis_subs,
 					   struct ast_str **str)
 {
-	int num = ao2_container_count(stasis_subs);
-
+	int is_first = 1;
 	struct mwi_stasis_subscription *node;
 	struct ao2_iterator i = ao2_iterator_init(stasis_subs, 0);
 
 	while ((node = ao2_iterator_next(&i))) {
-		if (--num) {
-			ast_str_append(str, 0, "%s,", node->mailbox);
-		} else {
+		if (is_first) {
+			is_first = 0;
 			ast_str_append(str, 0, "%s", node->mailbox);
+		} else {
+			ast_str_append(str, 0, ",%s", node->mailbox);
 		}
 		ao2_ref(node, -1);
 	}
@@ -815,7 +815,9 @@ static int serialized_cleanup(void *userdata)
 static int send_notify(void *obj, void *arg, int flags)
 {
 	struct mwi_subscription *mwi_sub = obj;
-	struct ast_taskprocessor *serializer = mwi_sub->is_solicited ? ast_sip_subscription_get_serializer(mwi_sub->sip_sub) : NULL;
+	struct ast_taskprocessor *serializer = mwi_sub->is_solicited
+		? ast_sip_subscription_get_serializer(mwi_sub->sip_sub)
+		: NULL;
 
 	if (ast_sip_push_task(serializer, serialized_notify, ao2_bump(mwi_sub))) {
 		ao2_ref(mwi_sub, -1);
