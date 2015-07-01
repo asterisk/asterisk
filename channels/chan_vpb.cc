@@ -2633,14 +2633,13 @@ static int unload_module(void)
 
 	if (bridges) {
 		ast_mutex_lock(&bridge_lock);
-		memset(bridges, 0, sizeof bridges);
-		ast_mutex_unlock(&bridge_lock);
-		ast_mutex_destroy(&bridge_lock);
 		for (int i = 0; i < max_bridges; i++) {
 			ast_mutex_destroy(&bridges[i].lock);
 			ast_cond_destroy(&bridges[i].cond);
 		}
 		ast_free(bridges);
+		bridges = NULL;
+		ast_mutex_unlock(&bridge_lock);
 	}
 
 	ast_format_cap_destroy(vpb_tech.capabilities);
