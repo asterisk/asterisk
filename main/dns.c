@@ -45,6 +45,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/dns.h"
 #include "asterisk/endian.h"
 
+/*! \brief The maximum size permitted for the answer from the DNS server */
 #define MAX_SIZE 4096
 
 #ifdef __PDP_ENDIAN
@@ -57,6 +58,10 @@ ASTERISK_REGISTER_FILE()
 #endif
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define DETERMINED_BYTE_ORDER __LITTLE_ENDIAN
+#endif
+
+#ifndef HAVE_RES_NINIT
+AST_MUTEX_DEFINE_STATIC(res_lock);
 #endif
 
 /* The dns_HEADER structure definition below originated
@@ -156,12 +161,23 @@ typedef struct {
 } dns_HEADER;
 
 struct dn_answer {
-	unsigned short rtype;
-	unsigned short class;
-	unsigned int ttl;
-	unsigned short size;
+	unsigned short rtype;       /*!< The resource record type. */
+	unsigned short class;       /*!< The resource record class. */
+	unsigned int ttl;           /*!< The resource record time to live. */
+	unsigned short size;        /*!< The resource record size. */
 } __attribute__((__packed__));
 
+/*!
+ * \brief Tries to find the position of the next field in the DNS response.
+ *
+ * \internal
+ *
+ * \param  s    A char pointer to the current frame in the DNS response.
+ * \param  len  The remaining available length of the DNS response.
+ *
+ * \retval The position of the next field
+ * \retval -1 if there are no remaining fields
+ */
 static int skip_name(unsigned char *s, int len)
 {
 	int x = 0;
@@ -172,20 +188,152 @@ static int skip_name(unsigned char *s, int len)
 			x++;
 			break;
 		}
+
 		if ((*s & 0xc0) == 0xc0) {
 			s += 2;
 			x += 2;
 			break;
 		}
+
 		x += *s + 1;
 		s += *s + 1;
 	}
+
+	/* If we are out of room to search, return failure. */
 	if (x >= len)
-		return -1;
+		return AST_DNS_SEARCH_FAILURE;
+
+	/* Return the value for the current position in the DNS response. This is the start
+	position of the next field. */
 	return x;
 }
 
-/*! \brief Parse DNS lookup result, call callback */
+/*!
+ * \brief Advances the position of the DNS response pointer by the size of the current field.
+ *
+ * \internal
+ *
+ * \param  dns_response   A pointer to a char pointer to the current field in the DNS response.
+ * \param  remaining_len  The remaining available length in the DNS response to search.
+ * \param  field_size     A positive value representing the size of the current field
+                          pointed to by the dns_response parameter.
+ *
+ * \retval The remaining length in the DNS response
+ * \retval -1 there are no frames remaining in the DNS response
+ */
+static int dns_advance_field(unsigned char **dns_response, int remaining_len, int field_size)
+{
+	if (dns_response == NULL || field_size < 0 || remaining_len < field_size) {
+		return AST_DNS_SEARCH_FAILURE;
+	}
+
+	*dns_response += field_size;
+	remaining_len -= field_size;
+
+	return remaining_len;
+}
+
+/*!
+ * \brief Handles the DNS search if the system has RES_INIT.
+ *
+ * \internal
+ *
+ * \param  dname             Domain name to lookup (host, SRV domain, TXT record name).
+ * \param  rr_class          Record Class (see "man res_search").
+ * \param  rr_type           Record type (see "man res_search").
+ * \param  dns_response      The full DNS response.
+ * \param  dns_response_len  The length of the full DNS response.
+ *
+ * \retval The length of the DNS response
+ * \retval -1 on search failure
+ */
+static int dns_search_res_n(const char *dname, int rr_class, int rr_type,
+	unsigned char *dns_response, int dns_response_len)
+{
+
+#ifndef HAVE_RES_NINIT
+
+	struct __res_state dns_state;
+
+	ast_mutex_lock(&res_lock);
+	res_init();
+	dns_response_len = res_nsearch(&dns_state,
+	                               dname,
+	                               rr_class,
+	                               rr_type,
+	                               dns_response,
+	                               dns_response_len);
+
+#ifdef HAVE_RES_CLOSE
+	res_close();
+#endif
+
+	ast_mutex_unlock(&res_lock);
+	return dns_response_len;           /* Search is complete */
+#endif
+
+	return AST_DNS_SEARCH_FAILURE;     /* No search performed */
+}
+
+/*!
+ * \brief Handles the DNS search if the system has RES_NINIT.
+ *
+ * \internal
+ *
+ * \param  dname             Domain name to lookup (host, SRV domain, TXT record name).
+ * \param  rr_class          Record Class (see "man res_search").
+ * \param  rr_type           Record type (see "man res_search").
+ * \param  dns_response      The full DNS response.
+ * \param  dns_response_len  The length of the full DNS response.
+ *
+ * \retval The length of the DNS response
+ * \retval -1 on search failure
+ */
+static int dns_search_res_ninit(const char *dname, int rr_class, int rr_type,
+	unsigned char *dns_response, int dns_response_len)
+{
+
+#ifdef HAVE_RES_NINIT
+	struct __res_state dns_state;
+
+	memset(&dns_state, 0, sizeof(dns_state));
+	res_ninit(&dns_state);
+	dns_response_len = res_nsearch(&dns_state,
+	                               dname,
+	                               rr_class,
+	                               rr_type,
+	                               dns_response,
+	                               dns_response_len);
+
+#ifdef HAVE_RES_NDESTROY
+	res_ndestroy(&dns_state);
+#else
+	res_nclose(&dns_state);
+#endif
+
+	return dns_response_len;           /* Search is complete */
+#endif
+
+	return AST_DNS_SEARCH_FAILURE;     /* No search performed */
+}
+
+/*!
+ * \brief Parse DNS lookup result, call callback
+ *
+ * \internal
+ *
+ * \param  context   Void pointer containing data to use in the callback functions.
+ * \param  dname     Domain name to lookup (host, SRV domain, TXT record name).
+ * \param  class     Record Class (see "man res_search").
+ * \param  type      Record type (see "man res_search").
+ * \param  answer    The full DNS response.
+ * \param  len       The length of the full DNS response.
+ * \param  callback  Callback function for handling the discovered resource records from the DNS search.
+ *
+ * \retval -1 on search failure
+ * \retval  0 on no records found
+ * \retval  1 on success
+ */
 static int dns_parse_answer(void *context,
 	int class, int type, unsigned char *answer, int len,
 	int (*callback)(void *context, unsigned char *answer, int len, unsigned char *fullanswer))
@@ -244,9 +392,102 @@ static int dns_parse_answer(void *context,
 	return ret;
 }
 
-#ifndef HAVE_RES_NINIT
-AST_MUTEX_DEFINE_STATIC(res_lock);
-#endif
+/*!
+ * \brief Extended version of the DNS Parsing function. Parses the DNS lookup result and notifies
+ *        the observer of each discovered resource record with the provided callback.
+ *
+ * \internal
+ *
+ * \param  context           Void pointer containing data to use in the callback functions.
+ * \param  dname             Domain name to lookup (host, SRV domain, TXT record name).
+ * \param  rr_class          Record Class (see "man res_search").
+ * \param  rr_type           Record type (see "man res_search").
+ * \param  answer            The full DNS response.
+ * \param  answer_len        The length of the full DNS response.
+ * \param  response_handler  Callback function for handling the DNS response.
+ * \param  record_handler    Callback function for handling the discovered resource records from the DNS search.
+ *
+ * \retval -1 on search failure
+ * \retval  0 on no records found
+ * \retval  1 on success
+ */
+static int dns_parse_answer_ex(void *context, int rr_class, int rr_type, unsigned char *answer, int answer_len,
+	int (*response_handler)(void *context, unsigned char *dns_response, int dns_response_len, int rcode),
+	int (*record_handler)(void *context, unsigned char *record, int record_len, int ttl))
+{
+	unsigned char *dns_response = answer;
+	dns_HEADER *dns_header = (dns_HEADER *)answer;
+
+	struct dn_answer *ans;
+	int res, x, pos, dns_response_len, ret;
+
+	dns_response_len = answer_len;
+	ret = AST_DNS_SEARCH_NO_RECORDS;
+
+	/* Invoke the response_handler callback to notify the observer of the raw DNS response */
+	response_handler(context, dns_response, dns_response_len, ntohs(dns_header->rcode));
+
+	/* Verify there is something to parse */
+	if (answer_len == 0) {
+		return ret;
+	}
+
+	/* Try advancing the cursor for the dns header */
+	if ((pos = dns_advance_field(&answer, answer_len, sizeof(dns_HEADER))) < 0) {
+		ast_log(LOG_WARNING, "Length of DNS answer exceeds available search frames \n");
+		return AST_DNS_SEARCH_FAILURE;
+	}
+
+	/* Skip domain name and QCODE / QCLASS */
+	for (x = 0; x < ntohs(dns_header->qdcount); x++) {
+		if ((res = skip_name(answer, pos)) < 0) {
+			ast_log(LOG_WARNING, "Failed skipping name\n");
+			return AST_DNS_SEARCH_FAILURE;
+		}
+
+		/* Try advancing the cursor for the name and QCODE / QCLASS fields */
+		if ((pos = dns_advance_field(&answer, pos, res + 4)) < 0) {
+			return AST_DNS_SEARCH_FAILURE;
+		}
+	}
+
+	/* Extract the individual records */
+	for (x = 0; x < ntohs(dns_header->ancount); x++) {
+		if ((res = skip_name(answer, pos)) < 0) {
+			ast_log(LOG_WARNING, "Failed skipping name\n");
+			return AST_DNS_SEARCH_FAILURE;
+		}
+
+		/* Try advancing the cursor to the current record */
+		if ((pos = dns_advance_field(&answer, pos, res)) < 0) {
+			ast_log(LOG_WARNING, "Length of DNS answer exceeds available search frames \n");
+			return AST_DNS_SEARCH_FAILURE;
+		}
+
+		/* Cast the current value for the answer pointer as a dn_answer struct */
+		ans = (struct dn_answer *) answer;
+
+		/* Try advancing the cursor to the end of the current record  */
+		if ((pos = dns_advance_field(&answer, pos, sizeof(struct dn_answer)))  < 0) {
+			ast_log(LOG_WARNING, "Length of DNS answer exceeds available search frames \n");
+			return AST_DNS_SEARCH_FAILURE;
+		}
+
+		/* Skip over the records that do not have the same resource record class and type we care about */
+		if (ntohs(ans->class) == rr_class && ntohs(ans->rtype) == rr_type) {
+			/* Invoke the record handler callback to deliver the discovered record */
+			record_handler(context, answer, ntohs(ans->size), ans->ttl);
+			/*At least one record was found */
+			ret = AST_DNS_SEARCH_SUCCESS;
+		}
+
+		/* Try and update the field to the next record, but ignore any errors that come
+		 * back because this may be the end of the line. */
+		pos = dns_advance_field(&answer, pos, res + ntohs(ans->size));
+	}
+
+	return ret;
+}
 
 /*! \brief Lookup record in DNS
 \note Asterisk DNS is synchronus at this time. This means that if your DNS does
@@ -293,6 +534,52 @@ int ast_search_dns(void *context,
 #endif
 	ast_mutex_unlock(&res_lock);
 #endif
+
+	return ret;
+}
+
+int ast_search_dns_ex(void *context, const char *dname, int rr_class, int rr_type,
+	int (*response_handler)(void *context, unsigned char *dns_response, int dns_response_len, int rcode),
+	int (*record_handler)(void *context, unsigned char *record, int record_len, int ttl))
+{
+	int ret, dns_response_len;
+	unsigned char dns_response[MAX_SIZE];
+
+	/* Assert that the callbacks are not NULL */
+	ast_assert(response_handler != NULL);
+	ast_assert(record_handler != NULL);
+
+	/* Try the DNS search. */
+	if ((dns_response_len = dns_search_res_ninit(dname,
+	                                             rr_class,
+	                                             rr_type,
+	                                             dns_response,
+	                                             sizeof(dns_response))) < 0) {
+		if ((dns_response_len = dns_search_res_n(dname,
+		                                         rr_class,
+		                                         rr_type,
+		                                         dns_response,
+		                                         sizeof(dns_response))) < 0) {
+			ast_log(LOG_WARNING, "DNS Search was not performed; System does not have either RES_INIT or RES_NINIT.");
+			return AST_DNS_SEARCH_FAILURE;
+		}
+	}
+
+	/* Parse records from DNS response */
+	ret = dns_parse_answer_ex(context,
+	                          rr_class,
+	                          rr_type,
+	                          dns_response,
+	                          dns_response_len,
+	                          response_handler,
+	                          record_handler);
+
+	/* Handle parse result */
+	if (ret == AST_DNS_SEARCH_FAILURE) {
+		ast_log(LOG_WARNING, "DNS Parse error for %s\n", dname);                  /* Parsing Error */
+	} else if (ret == AST_DNS_SEARCH_NO_RECORDS) {
+		ast_log(LOG_WARNING, "DNS search yielded no results for %s\n", dname);    /* No results found */
+	}
 
 	return ret;
 }

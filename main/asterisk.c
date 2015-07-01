@@ -4511,6 +4511,11 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	if (ast_dns_system_resolver_init()) {		/* Initialize the default DNS resolver */
+		printf("Failed: ast_dns_system_resolver_init\n%s", term_quit());
+		exit(1);
+	}
+
 	if ((moduleresult = load_modules(1))) {		/* Load modules, pre-load only */
 		printf("Failed: load_modules\n%s", term_quit());
 		exit(moduleresult == -2 ? 2 : 1);
