@@ -1202,7 +1202,14 @@ void ast_channel_named_pickupgroups_set(struct ast_channel *chan, struct ast_nam
 int ast_channel_alert_write(struct ast_channel *chan)
 {
 	char blah = 0x7F;
-	return ast_channel_alert_writable(chan) && write(chan->alertpipe[1], &blah, sizeof(blah)) != sizeof(blah);
+
+	/* preset errno in case returned size does not match */
+	errno = EPIPE;
+	if (!ast_channel_alert_writable(chan)) {
+		errno = EBADF;
+		return 0;
+	}
+	return write(chan->alertpipe[1], &blah, sizeof(blah)) != sizeof(blah);
 }
 
 ast_alert_status_t ast_channel_internal_alert_read(struct ast_channel *chan)
@@ -1253,9 +1260,11 @@ void ast_channel_internal_alertpipe_close(struct ast_channel *chan)
 {
 	if (ast_channel_internal_alert_readable(chan)) {
 		close(chan->alertpipe[0]);
+		chan->alertpipe[0] = -1;
 	}
 	if (ast_channel_alert_writable(chan)) {
 		close(chan->alertpipe[1]);
+		chan->alertpipe[1] = -1;
 	}
 }
 
