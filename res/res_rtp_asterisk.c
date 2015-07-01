@@ -204,11 +204,13 @@ struct rtp_learning_info {
 
 #ifdef HAVE_OPENSSL_SRTP
 struct dtls_details {
+	ast_mutex_t lock; /*!< Lock for timeout timer synchronization */
 	SSL *ssl;         /*!< SSL session */
 	BIO *read_bio;    /*!< Memory buffer for reading */
 	BIO *write_bio;   /*!< Memory buffer for writing */
 	enum ast_rtp_dtls_setup dtls_setup; /*!< Current setup state */
 	enum ast_rtp_dtls_connection connection; /*!< Whether this is a new or existing connection */
+	int timeout_timer; /*!< Scheduler id for timeout timer */
 };
 #endif
 
@@ -317,7 +319,6 @@ struct ast_rtp {
 
 #ifdef HAVE_OPENSSL_SRTP
 	SSL_CTX *ssl_ctx; /*!< SSL context */
-	ast_mutex_t dtls_timer_lock;           /*!< Lock for synchronization purposes */
 	enum ast_rtp_dtls_verify dtls_verify; /*!< What to verify */
 	enum ast_srtp_suite suite;   /*!< SRTP crypto suite */
 	enum ast_rtp_dtls_hash local_hash; /*!< Local hash used for the fingerprint */
@@ -326,7 +327,6 @@ struct ast_rtp {
 	unsigned char remote_fingerprint[EVP_MAX_MD_SIZE]; /*!< Fingerprint of the peer certificate */
 	unsigned int rekey; /*!< Interval at which to renegotiate and rekey */
 	int rekeyid; /*!< Scheduled item id for rekeying */
-	int dtlstimerid; /*!< Scheduled item id for DTLS retransmission for RTP */
 	struct dtls_details dtls; /*!< DTLS state information */
 #endif
 };
@@ -444,6 +444,8 @@ static int ast_rtp_sendcng(struct ast_rtp_instance *instance, int level);
 #ifdef HAVE_OPENSSL_SRTP
 static int ast_rtp_activate(struct ast_rtp_instance *instance);
 static void dtls_srtp_check_pending(struct ast_rtp_instance *instance, struct ast_rtp *rtp, int rtcp);
+static void dtls_srtp_start_timeout_timer(struct ast_rtp_instance *instance, struct ast_rtp *rtp, int rtcp);
+static void dtls_srtp_stop_timeout_timer(struct ast_rtp_instance *instance, struct ast_rtp *rtp, int rtcp);
 #endif
 
 static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa, int rtcp, int *ice, int use_srtp);
@@ -1229,6 +1231,9 @@ static int dtls_details_initialize(struct dtls_details *dtls, SSL_CTX *ssl_ctx,
 	}
 	dtls->connection = AST_RTP_DTLS_CONNECTION_NEW;
 
+	ast_mutex_init(&dtls->lock);
+	dtls->timeout_timer = -1;
+
 	return 0;
 
 error:
@@ -1397,6 +1402,8 @@ static void ast_rtp_dtls_stop(struct ast_rtp_instance *instance)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
+	dtls_srtp_stop_timeout_timer(instance, rtp, 0);
+
 	if (rtp->ssl_ctx) {
 		SSL_CTX_free(rtp->ssl_ctx);
 		rtp->ssl_ctx = NULL;
@@ -1405,11 +1412,17 @@ static void ast_rtp_dtls_stop(struct ast_rtp_instance *instance)
 	if (rtp->dtls.ssl) {
 		SSL_free(rtp->dtls.ssl);
 		rtp->dtls.ssl = NULL;
+		ast_mutex_destroy(&rtp->dtls.lock);
 	}
 
-	if (rtp->rtcp && rtp->rtcp->dtls.ssl) {
-		SSL_free(rtp->rtcp->dtls.ssl);
-		rtp->rtcp->dtls.ssl = NULL;
+	if (rtp->rtcp) {
+		dtls_srtp_stop_timeout_timer(instance, rtp, 1);
+
+		if (rtp->rtcp->dtls.ssl) {
+			SSL_free(rtp->rtcp->dtls.ssl);
+			rtp->rtcp->dtls.ssl = NULL;
+			ast_mutex_destroy(&rtp->rtcp->dtls.lock);
+		}
 	}
 }
 
@@ -1586,21 +1599,25 @@ static void dtls_perform_handshake(struct ast_rtp_instance *instance, struct dtl
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
-	if (!dtls->ssl) {
+	/* If we are not acting as a client connecting to the remote side then
+	 * don't start the handshake as it will accomplish nothing and would conflict
+	 * with the handshake we receive from the remote side.
+	 */
+	if (!dtls->ssl || (dtls->dtls_setup != AST_RTP_DTLS_SETUP_ACTIVE)) {
 		return;
 	}
 
-	if (SSL_is_init_finished(dtls->ssl)) {
-		SSL_clear(dtls->ssl);
-		if (dtls->dtls_setup == AST_RTP_DTLS_SETUP_PASSIVE) {
-			SSL_set_accept_state(dtls->ssl);
-		} else {
-			SSL_set_connect_state(dtls->ssl);
-		}
-		dtls->connection = AST_RTP_DTLS_CONNECTION_NEW;
-	}
 	SSL_do_handshake(dtls->ssl);
+
+	/* Since the handshake is started in a thread outside of the channel thread it's possible
+	 * for the response to be handled in the channel thread before we start the timeout timer.
+	 * To ensure this doesn't actually happen we hold the DTLS lock. The channel thread will
+	 * block until we're done at which point the timeout timer will be immediately stopped.
+	 */
+	ast_mutex_lock(&dtls->lock);
 	dtls_srtp_check_pending(instance, rtp, rtcp);
+	dtls_srtp_start_timeout_timer(instance, rtp, rtcp);
+	ast_mutex_unlock(&dtls->lock);
 }
 #endif
 
@@ -1754,48 +1771,85 @@ static inline int rtcp_debug_test_addr(struct ast_sockaddr *addr)
 }
 
 #ifdef HAVE_OPENSSL_SRTP
+static int dtls_srtp_handle_timeout(struct ast_rtp_instance *instance, int rtcp)
+{
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+	struct dtls_details *dtls = !rtcp ? &rtp->dtls : &rtp->rtcp->dtls;
+	struct timeval dtls_timeout;
 
-static int dtls_srtp_handle_timeout(const void *data)
+	DTLSv1_handle_timeout(dtls->ssl);
+	dtls_srtp_check_pending(instance, rtp, rtcp);
+
+	/* If a timeout can't be retrieved then this recurring scheduled item must stop */
+	if (!DTLSv1_get_timeout(dtls->ssl, &dtls_timeout)) {
+		dtls->timeout_timer = -1;
+		return 0;
+	}
+
+	return dtls_timeout.tv_sec * 1000 + dtls_timeout.tv_usec / 1000;
+}
+
+static int dtls_srtp_handle_rtp_timeout(const void *data)
 {
 	struct ast_rtp_instance *instance = (struct ast_rtp_instance *)data;
-	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+	int reschedule;
 
-	if (!rtp)
-	{
-		return 0;
-	}
+	reschedule = dtls_srtp_handle_timeout(instance, 0);
 
-	ast_mutex_lock(&rtp->dtls_timer_lock);
-	if (rtp->dtlstimerid == -1)
-	{
-		ast_mutex_unlock(&rtp->dtls_timer_lock);
+	if (!reschedule) {
 		ao2_ref(instance, -1);
-		return 0;
 	}
 
-	rtp->dtlstimerid = -1;
-	ast_mutex_unlock(&rtp->dtls_timer_lock);
+	return reschedule;
+}
 
-	if (rtp->dtls.ssl && !SSL_is_init_finished(rtp->dtls.ssl)) {
-		DTLSv1_handle_timeout(rtp->dtls.ssl);
+static int dtls_srtp_handle_rtcp_timeout(const void *data)
+{
+	struct ast_rtp_instance *instance = (struct ast_rtp_instance *)data;
+	int reschedule;
+
+	reschedule = dtls_srtp_handle_timeout(instance, 1);
+
+	if (!reschedule) {
+		ao2_ref(instance, -1);
 	}
-	dtls_srtp_check_pending(instance, rtp, 0);
 
-	if (rtp->rtcp && rtp->rtcp->dtls.ssl && !SSL_is_init_finished(rtp->rtcp->dtls.ssl)) {
-		DTLSv1_handle_timeout(rtp->rtcp->dtls.ssl);
+	return reschedule;
+}
+
+static void dtls_srtp_start_timeout_timer(struct ast_rtp_instance *instance, struct ast_rtp *rtp, int rtcp)
+{
+	struct dtls_details *dtls = !rtcp ? &rtp->dtls : &rtp->rtcp->dtls;
+	struct timeval dtls_timeout;
+
+	if (DTLSv1_get_timeout(dtls->ssl, &dtls_timeout)) {
+		int timeout = dtls_timeout.tv_sec * 1000 + dtls_timeout.tv_usec / 1000;
+
+		ast_assert(dtls->timeout_timer == -1);
+
+		ao2_ref(instance, +1);
+		if ((dtls->timeout_timer = ast_sched_add(rtp->sched, timeout,
+			!rtcp ? dtls_srtp_handle_rtp_timeout : dtls_srtp_handle_rtcp_timeout, instance)) < 0) {
+			ao2_ref(instance, -1);
+			ast_log(LOG_WARNING, "Scheduling '%s' DTLS retransmission for RTP instance [%p] failed.\n",
+				!rtcp ? "RTP" : "RTCP", instance);
+		}
 	}
-	dtls_srtp_check_pending(instance, rtp, 1);
+}
 
-	ao2_ref(instance, -1);
+static void dtls_srtp_stop_timeout_timer(struct ast_rtp_instance *instance, struct ast_rtp *rtp, int rtcp)
+{
+	struct dtls_details *dtls = !rtcp ? &rtp->dtls : &rtp->rtcp->dtls;
 
-	return 0;
+	if (!AST_SCHED_DEL(rtp->sched, dtls->timeout_timer)) {
+		ao2_ref(instance, -1);
+	}
 }
 
 static void dtls_srtp_check_pending(struct ast_rtp_instance *instance, struct ast_rtp *rtp, int rtcp)
 {
 	struct dtls_details *dtls = !rtcp ? &rtp->dtls : &rtp->rtcp->dtls;
 	size_t pending;
-	struct timeval dtls_timeout; /* timeout on DTLS  */
 
 	if (!dtls->ssl || !dtls->write_bio) {
 		return;
@@ -1821,24 +1875,6 @@ static void dtls_srtp_check_pending(struct ast_rtp_instance *instance, struct as
 		}
 
 		out = BIO_read(dtls->write_bio, outgoing, sizeof(outgoing));
-
-		/* Stop existing DTLS timer if running */
-		ast_mutex_lock(&rtp->dtls_timer_lock);
-		if (rtp->dtlstimerid > -1) {
-			AST_SCHED_DEL_UNREF(rtp->sched, rtp->dtlstimerid, ao2_ref(instance, -1));
-			rtp->dtlstimerid = -1;
-		}
-
-		if (DTLSv1_get_timeout(dtls->ssl, &dtls_timeout)) {
-			int timeout = dtls_timeout.tv_sec * 1000 + dtls_timeout.tv_usec / 1000;
-			ao2_ref(instance, +1);
-			if ((rtp->dtlstimerid = ast_sched_add(rtp->sched, timeout, dtls_srtp_handle_timeout, instance)) < 0) {
-				ao2_ref(instance, -1);
-				ast_log(LOG_WARNING, "scheduling DTLS retransmission for RTP instance [%p] failed.\n", instance);
-			}
-		}
-		ast_mutex_unlock(&rtp->dtls_timer_lock);
-
 		__rtp_sendto(instance, outgoing, out, 0, &remote_address, rtcp, &ice, 0);
 	}
 }
@@ -2014,8 +2050,6 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 	}
 
 #ifdef HAVE_OPENSSL_SRTP
-	dtls_srtp_check_pending(instance, rtp, rtcp);
-
 	/* If this is an SSL packet pass it to OpenSSL for processing. RFC section for first byte value:
 	 * https://tools.ietf.org/html/rfc5764#section-5.1.2 */
 	if ((*in >= 20) && (*in <= 63)) {
@@ -2028,6 +2062,15 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 				instance);
 			return -1;
 		}
+
+		/* This mutex is locked so that this thread blocks until the dtls_perform_handshake function
+		 * completes.
+		 */
+		ast_mutex_lock(&dtls->lock);
+		ast_mutex_unlock(&dtls->lock);
+
+		/* Before we feed data into OpenSSL ensure that the timeout timer is either stopped or completed */
+		dtls_srtp_stop_timeout_timer(instance, rtp, rtcp);
 
 		/* If we don't yet know if we are active or passive and we receive a packet... we are obviously passive */
 		if (dtls->dtls_setup == AST_RTP_DTLS_SETUP_ACTPASS) {
@@ -2057,6 +2100,9 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 				/* Use the keying material to set up key/salt information */
 				res = dtls_srtp_setup(rtp, srtp, instance);
 			}
+		} else {
+			/* Since we've sent additional traffic start the timeout timer for retransmission */
+			dtls_srtp_start_timeout_timer(instance, rtp, rtcp);
 		}
 
 		return res;
@@ -2479,7 +2525,6 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
 
 #ifdef HAVE_OPENSSL_SRTP
 	rtp->rekeyid = -1;
-	rtp->dtlstimerid = -1;
 #endif
 
 	rtp->f.subclass.format = ao2_bump(ast_format_none);
@@ -2495,6 +2540,10 @@ static int ast_rtp_destroy(struct ast_rtp_instance *instance)
 #ifdef HAVE_PJPROJECT
 	struct timeval wait = ast_tvadd(ast_tvnow(), ast_samp2tv(TURN_STATE_WAIT_TIME, 1000));
 	struct timespec ts = { .tv_sec = wait.tv_sec, .tv_nsec = wait.tv_usec * 1000, };
+#endif
+
+#ifdef HAVE_OPENSSL_SRTP
+	ast_rtp_dtls_stop(instance);
 #endif
 
 	/* Destroy the smoother that was smoothing out audio if present */
@@ -2515,11 +2564,6 @@ static int ast_rtp_destroy(struct ast_rtp_instance *instance)
 		 * RTP instance while it's active.
 		 */
 		close(rtp->rtcp->s);
-#ifdef HAVE_OPENSSL_SRTP
-		if (rtp->rtcp->dtls.ssl) {
-			SSL_free(rtp->rtcp->dtls.ssl);
-		}
-#endif
 		ast_free(rtp->rtcp);
 	}
 
@@ -2568,18 +2612,6 @@ static int ast_rtp_destroy(struct ast_rtp_instance *instance)
 
 	if (rtp->ice_active_remote_candidates) {
 		ao2_ref(rtp->ice_active_remote_candidates, -1);
-	}
-#endif
-
-#ifdef HAVE_OPENSSL_SRTP
-	/* Destroy the SSL context if present */
-	if (rtp->ssl_ctx) {
-		SSL_CTX_free(rtp->ssl_ctx);
-	}
-
-	/* Destroy the SSL session if present */
-	if (rtp->dtls.ssl) {
-		SSL_free(rtp->dtls.ssl);
 	}
 #endif
 
@@ -4909,9 +4941,11 @@ static void ast_rtp_stop(struct ast_rtp_instance *instance)
 
 #ifdef HAVE_OPENSSL_SRTP
 	AST_SCHED_DEL_UNREF(rtp->sched, rtp->rekeyid, ao2_ref(instance, -1));
-	ast_mutex_lock(&rtp->dtls_timer_lock);
-	AST_SCHED_DEL_UNREF(rtp->sched, rtp->dtlstimerid, ao2_ref(instance, -1));
-	ast_mutex_unlock(&rtp->dtls_timer_lock);
+
+	dtls_srtp_stop_timeout_timer(instance, rtp, 0);
+	if (rtp->rtcp) {
+		dtls_srtp_stop_timeout_timer(instance, rtp, 1);
+	}
 #endif
 
 	if (rtp->rtcp && rtp->rtcp->schedid > 0) {
@@ -4993,9 +5027,30 @@ static int ast_rtp_sendcng(struct ast_rtp_instance *instance, int level)
 }
 
 #ifdef HAVE_OPENSSL_SRTP
+static void dtls_perform_setup(struct dtls_details *dtls)
+{
+	if (!dtls->ssl || !SSL_is_init_finished(dtls->ssl)) {
+		return;
+	}
+
+	SSL_clear(dtls->ssl);
+	if (dtls->dtls_setup == AST_RTP_DTLS_SETUP_PASSIVE) {
+		SSL_set_accept_state(dtls->ssl);
+	} else {
+		SSL_set_connect_state(dtls->ssl);
+	}
+	dtls->connection = AST_RTP_DTLS_CONNECTION_NEW;
+}
+
 static int ast_rtp_activate(struct ast_rtp_instance *instance)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+
+	dtls_perform_setup(&rtp->dtls);
+
+	if (rtp->rtcp) {
+		dtls_perform_setup(&rtp->rtcp->dtls);
+	}
 
 	/* If ICE negotiation is enabled the DTLS Handshake will be performed upon completion of it */
 #ifdef HAVE_PJPROJECT
