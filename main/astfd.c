@@ -48,19 +48,24 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/unaligned.h"
 
 static struct fdleaks {
-	char file[40];
+	const char *callname;
 	int line;
-	char function[25];
-	char callname[10];
-	char callargs[60];
 	unsigned int isopen:1;
+	char file[40];
+	char function[25];
+	char callargs[60];
 } fdleaks[1024] = { { "", }, };
 
+/* COPY does ast_copy_string(dst, src, sizeof(dst)), except:
+ * - if it doesn't fit, it copies the value after the slash
+ *   (possibly truncated)
+ * - if there is no slash, it copies the value with the head
+ *   truncated */
 #define	COPY(dst, src)                                             \
 	do {                                                           \
 		int dlen = sizeof(dst), slen = strlen(src);                \
 		if (slen + 1 > dlen) {                                     \
-			char *slash = strrchr(src, '/');                       \
+			const char *slash = strrchr(src, '/');                 \
 			if (slash) {                                           \
 				ast_copy_string(dst, slash + 1, dlen);             \
 			} else {                                               \
@@ -72,12 +77,15 @@ static struct fdleaks {
 	} while (0)
 
 #define STORE_COMMON(offset, name, ...)     \
-	COPY(fdleaks[offset].file, file);       \
-	fdleaks[offset].line = line;            \
-	COPY(fdleaks[offset].function, func);   \
-	strcpy(fdleaks[offset].callname, name); \
-	snprintf(fdleaks[offset].callargs, sizeof(fdleaks[offset].callargs), __VA_ARGS__); \
-	fdleaks[offset].isopen = 1;
+	do { \
+		struct fdleaks *tmp = &fdleaks[offset]; \
+		COPY(tmp->file, file);      \
+		tmp->line = line;           \
+		COPY(tmp->function, func);  \
+		tmp->callname = name;       \
+		snprintf(tmp->callargs, sizeof(tmp->callargs), __VA_ARGS__); \
+		tmp->isopen = 1;            \
+	} while (0)
 
 #undef open
 int __ast_fdleak_open(const char *file, int line, const char *func, const char *path, int flags, ...)
@@ -91,7 +99,7 @@ int __ast_fdleak_open(const char *file, int line, const char *func, const char *
 		mode = va_arg(ap, int);
 		va_end(ap);
 		res = open(path, flags, mode);
-		if (res > -1 && res < (sizeof(fdleaks) / sizeof(fdleaks[0]))) {
+		if (res > -1 && res < ARRAY_LEN(fdleaks)) {
 			char sflags[80];
 			snprintf(sflags, sizeof(sflags), "O_CREAT%s%s%s%s%s%s%s%s",
 				flags & O_APPEND ? "|O_APPEND" : "",
@@ -115,7 +123,7 @@ int __ast_fdleak_open(const char *file, int line, const char *func, const char *
 		}
 	} else {
 		res = open(path, flags);
-		if (res > -1 && res < (sizeof(fdleaks) / sizeof(fdleaks[0]))) {
+		if (res > -1 && res < ARRAY_LEN(fdleaks)) {
 			STORE_COMMON(res, "open", "\"%s\",%d", path, flags);
 		}
 	}
@@ -130,7 +138,9 @@ int __ast_fdleak_pipe(int *fds, const char *file, int line, const char *func)
 		return res;
 	}
 	for (i = 0; i < 2; i++) {
-		STORE_COMMON(fds[i], "pipe", "{%d,%d}", fds[0], fds[1]);
+		if (fds[i] > -1 && fds[i] < ARRAY_LEN(fdleaks)) {
+			STORE_COMMON(fds[i], "pipe", "{%d,%d}", fds[0], fds[1]);
+		}
 	}
 	return 0;
 }
@@ -141,7 +151,7 @@ int __ast_fdleak_socket(int domain, int type, int protocol, const char *file, in
 	char sdomain[20], stype[20], *sproto = NULL;
 	struct protoent *pe;
 	int res = socket(domain, type, protocol);
-	if (res < 0 || res > 1023) {
+	if (res < 0 || res >= ARRAY_LEN(fdleaks)) {
 		return res;
 	}
 
@@ -183,7 +193,7 @@ int __ast_fdleak_socket(int domain, int type, int protocol, const char *file, in
 int __ast_fdleak_close(int fd)
 {
 	int res = close(fd);
-	if (!res && fd > -1 && fd < 1024) {
+	if (!res && fd > -1 && fd < ARRAY_LEN(fdleaks)) {
 		fdleaks[fd].isopen = 0;
 	}
 	return res;
@@ -198,7 +208,9 @@ FILE *__ast_fdleak_fopen(const char *path, const char *mode, const char *file, i
 		return res;
 	}
 	fd = fileno(res);
-	STORE_COMMON(fd, "fopen", "\"%s\",\"%s\"", path, mode);
+	if (fd > -1 && fd < ARRAY_LEN(fdleaks)) {
+		STORE_COMMON(fd, "fopen", "\"%s\",\"%s\"", path, mode);
+	}
 	return res;
 }
 
@@ -211,7 +223,7 @@ int __ast_fdleak_fclose(FILE *ptr)
 	}
 
 	fd = fileno(ptr);
-	if ((res = fclose(ptr)) || fd < 0 || fd > 1023) {
+	if ((res = fclose(ptr)) || fd < 0 || fd >= ARRAY_LEN(fdleaks)) {
 		return res;
 	}
 	fdleaks[fd].isopen = 0;
@@ -222,10 +234,13 @@ int __ast_fdleak_fclose(FILE *ptr)
 int __ast_fdleak_dup2(int oldfd, int newfd, const char *file, int line, const char *func)
 {
 	int res = dup2(oldfd, newfd);
-	if (res < 0 || res > 1023) {
+	if (res < 0 || res >= ARRAY_LEN(fdleaks)) {
 		return res;
 	}
-	STORE_COMMON(res, "dup2", "%d,%d", oldfd, newfd);
+	/* On success, newfd will be closed automatically if it was already
+	 * open. We don't need to mention anything about that, we're updating
+	 * the value anway. */
+	STORE_COMMON(res, "dup2", "%d,%d", oldfd, newfd); /* res == newfd */
 	return res;
 }
 
@@ -233,7 +248,7 @@ int __ast_fdleak_dup2(int oldfd, int newfd, const char *file, int line, const ch
 int __ast_fdleak_dup(int oldfd, const char *file, int line, const char *func)
 {
 	int res = dup(oldfd);
-	if (res < 0 || res > 1023) {
+	if (res < 0 || res >= ARRAY_LEN(fdleaks)) {
 		return res;
 	}
 	STORE_COMMON(res, "dup2", "%d", oldfd);
@@ -263,7 +278,7 @@ static char *handle_show_fd(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		snprintf(line, sizeof(line), "%d/%d", (int) rl.rlim_cur, (int) rl.rlim_max);
 	}
 	ast_cli(a->fd, "Current maxfiles: %s\n", line);
-	for (i = 0; i < 1024; i++) {
+	for (i = 0; i < ARRAY_LEN(fdleaks); i++) {
 		if (fdleaks[i].isopen) {
 			snprintf(line, sizeof(line), "%d", fdleaks[i].line);
 			ast_cli(a->fd, "%5d %15s:%-7.7s (%-25s): %s(%s)\n", i, fdleaks[i].file, line, fdleaks[i].function, fdleaks[i].callname, fdleaks[i].callargs);
