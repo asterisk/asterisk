@@ -1798,7 +1798,9 @@ int ast_rtp_engine_unload_format(struct ast_format *format)
 			rtp_engine_mime_type_cleanup(x);
 			continue;
 		}
-		ast_rtp_mime_types[y] = ast_rtp_mime_types[x];
+		if (x != y) {
+			ast_rtp_mime_types[y] = ast_rtp_mime_types[x];
+		}
 		y++;
 	}
 	mime_types_len = y;
