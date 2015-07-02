@@ -2289,7 +2289,9 @@ int ast_rtp_engine_unload_format(const struct ast_format *format)
 		if (ast_format_cmp(&ast_rtp_mime_types[x].payload_type.format, format) == AST_FORMAT_CMP_EQUAL) {
 			continue;
 		}
-		ast_rtp_mime_types[y] = ast_rtp_mime_types[x];
+		if (x != y) {
+			ast_rtp_mime_types[y] = ast_rtp_mime_types[x];
+		}
 		y++;
 	}
 	mime_types_len = y;
