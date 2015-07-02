@@ -159,7 +159,9 @@ static void timer_destroy(void *obj)
 	struct kqueue_timer *timer = obj;
 	ast_debug(5, "[%d]: Timer Destroy\n", timer->handle);
 	kqueue_timer_fini_continuous_event(timer);
-	close(timer->handle);
+	if (timer->handle > -1) {
+		close(timer->handle);
+	}
 }
 
 static void *kqueue_timer_open(void)

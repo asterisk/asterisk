@@ -76,8 +76,9 @@ struct timerfd_timer {
 static void timer_destroy(void *obj)
 {
 	struct timerfd_timer *timer = obj;
-
-	close(timer->fd);
+	if (timer->fd > -1) {
+		close(timer->fd);
+	}
 }
 
 static void *timerfd_timer_open(void)
