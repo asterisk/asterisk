@@ -2869,6 +2869,7 @@ int ast_realtime_is_mapping_defined(const char *family)
 			return 1;
 		}
 	}
+	ast_debug(5, "Failed to find a realtime mapping for %s\n", family);
 
 	return 0;
 }

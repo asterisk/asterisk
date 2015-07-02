@@ -991,7 +991,11 @@ enum ast_sorcery_apply_result __ast_sorcery_insert_wizard_mapping(struct ast_sor
 		}
 	}
 
+	ast_debug(5, "Calling wizard %s open callback on object type %s\n",
+		name, object_type->name);
 	if (wizard->callbacks.open && !(object_wizard->data = wizard->callbacks.open(data))) {
+		ast_log(LOG_WARNING, "Wizard '%s' failed to open mapping for object type '%s' with data: %s\n",
+			name, object_type->name, S_OR(data, ""));
 		AST_VECTOR_RW_UNLOCK(&object_type->wizards);
 		return AST_SORCERY_APPLY_FAIL;
 	}
