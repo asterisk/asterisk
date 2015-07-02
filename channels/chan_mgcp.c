@@ -4995,7 +4995,9 @@ static int unload_module(void)
 		return -1;
 	}
 
-	close(mgcpsock);
+	if (mgcpsock > -1) {
+		close(mgcpsock);
+	}
 	ast_rtp_glue_unregister(&mgcp_rtp_glue);
 	ast_cli_unregister_multiple(cli_mgcp, sizeof(cli_mgcp) / sizeof(struct ast_cli_entry));
 	ast_sched_context_destroy(sched);
