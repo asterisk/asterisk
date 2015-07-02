@@ -1769,7 +1769,7 @@ static int rlmi_print_body(struct pjsip_msg_body *msg_body, char *buf, pj_size_t
 	pj_xml_node *rlmi = msg_body->data;
 
 	num_printed = pj_xml_print(rlmi, buf, size, PJ_TRUE);
-	if (num_printed == AST_PJSIP_XML_PROLOG_LEN) {
+	if (num_printed <= AST_PJSIP_XML_PROLOG_LEN) {
 		return -1;
 	}
 

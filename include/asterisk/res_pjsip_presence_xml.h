@@ -17,14 +17,15 @@
  */
 
 /*!
- * \brief The length of the XML prolog when printing
- * presence or other XML in PJSIP.
+ * \brief Length of the XML prolog when printing presence or other XML in PJSIP.
  *
  * When calling any variant of pj_xml_print(), the documentation
  * claims that it will return -1 if the provided buffer is not
  * large enough. However, if the XML prolog is requested to be
- * printed, then the length of the XML prolog is returned upon
- * failure instead of -1.
+ * printed and the buffer is not large enough, then it will
+ * return -1 only if the buffer is not large enough to hold the
+ * XML prolog or return the length of the XML prolog on failure
+ * instead of -1.
  *
  * This constant is useful to check against when trying to determine
  * if printing XML succeeded or failed.

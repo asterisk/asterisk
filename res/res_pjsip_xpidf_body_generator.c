@@ -106,14 +106,13 @@ static void xpidf_to_string(void *body, struct ast_str **str)
 	int size;
 
 	do {
-		size = pjxpidf_print(pres, ast_str_buffer(*str), ast_str_size(*str));
-		if (size == AST_PJSIP_XML_PROLOG_LEN) {
+		size = pjxpidf_print(pres, ast_str_buffer(*str), ast_str_size(*str) - 1);
+		if (size <= AST_PJSIP_XML_PROLOG_LEN) {
 			ast_str_make_space(str, ast_str_size(*str) * 2);
 			++growths;
 		}
-	} while (size == AST_PJSIP_XML_PROLOG_LEN && growths < MAX_STRING_GROWTHS);
-
-	if (size == AST_PJSIP_XML_PROLOG_LEN) {
+	} while (size <= AST_PJSIP_XML_PROLOG_LEN && growths < MAX_STRING_GROWTHS);
+	if (size <= AST_PJSIP_XML_PROLOG_LEN) {
 		ast_log(LOG_WARNING, "XPIDF body text too large\n");
 		return;
 	}
