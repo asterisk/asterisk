@@ -90,7 +90,9 @@ static int timerfd_timer_cmp(void *obj, void *args, int flags)
 static void timer_destroy(void *obj)
 {
 	struct timerfd_timer *timer = obj;
-	close(timer->handle);
+	if (timer->handle > -1) {
+		close(timer->handle);
+	}
 	timer->handle = -1;
 }
 
@@ -103,13 +105,12 @@ static int timerfd_timer_open(void)
 		ast_log(LOG_ERROR, "Could not allocate memory for timerfd_timer structure\n");
 		return -1;
 	}
-	if ((handle = timerfd_create(CLOCK_MONOTONIC, 0)) < 0) {
+	if ((timer->handle = handle = timerfd_create(CLOCK_MONOTONIC, 0)) < 0) {
 		ast_log(LOG_ERROR, "Failed to create timerfd timer: %s\n", strerror(errno));
 		ao2_ref(timer, -1);
 		return -1;
 	}
 
-	timer->handle = handle;
 	ao2_link(timerfd_timers, timer);
 	/* Get rid of the reference from the allocation */
 	ao2_ref(timer, -1);

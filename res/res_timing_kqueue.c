@@ -93,7 +93,9 @@ static int kqueue_timer_cmp(void *obj, void *args, int flags)
 static void timer_destroy(void *obj)
 {
 	struct kqueue_timer *timer = obj;
-	close(timer->handle);
+	if (timer->handle > -1) {
+		close(timer->handle);
+	}
 }
 
 #define lookup_timer(a)	_lookup_timer(a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
@@ -121,13 +123,12 @@ static int kqueue_timer_open(void)
 		ast_log(LOG_ERROR, "Could not allocate memory for kqueue_timer structure\n");
 		return -1;
 	}
-	if ((handle = kqueue()) < 0) {
+	if ((timer->handle = handle = kqueue()) < 0) {
 		ast_log(LOG_ERROR, "Failed to create kqueue timer: %s\n", strerror(errno));
 		ao2_ref(timer, -1);
 		return -1;
 	}
 
-	timer->handle = handle;
 	ao2_link(kqueue_timers, timer);
 	/* Get rid of the reference from the allocation */
 	ao2_ref(timer, -1);
