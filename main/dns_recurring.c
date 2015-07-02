@@ -73,10 +73,21 @@ static int dns_query_recurring_scheduled_callback(const void *data)
 static void dns_query_recurring_resolution_callback(const struct ast_dns_query *query)
 {
 	struct ast_dns_query_recurring *recurring = ast_dns_query_get_data(query);
+	struct ast_dns_query *callback_query;
 
-	/* Replace the user data so the actual callback sees what it provided */
-	((struct ast_dns_query*)query)->user_data = ao2_bump(recurring->user_data);
-	recurring->callback(query);
+	/* Create a separate query to invoke the user specific callback on as the
+	 * recurring query user data may get used externally (by the unit test)
+	 * and thus changing it is problematic
+	 */
+	callback_query = dns_query_alloc(query->name, query->rr_type, query->rr_class,
+		recurring->callback, recurring->user_data);
+	if (callback_query) {
+		/* The result is immutable at this point and can be safely provided */
+		callback_query->result = query->result;
+		callback_query->callback(callback_query);
+		callback_query->result = NULL;
+		ao2_ref(callback_query, -1);
+	}
 
 	ao2_lock(recurring);
 	/* So.. if something has not externally cancelled this we can reschedule based on the TTL */
@@ -87,7 +98,7 @@ static void dns_query_recurring_resolution_callback(const struct ast_dns_query *
 		if (ttl) {
 			recurring->timer = ast_sched_add(ast_dns_get_sched(), ttl * 1000, dns_query_recurring_scheduled_callback, ao2_bump(recurring));
 			if (recurring->timer < 0) {
-				/* It is impossible for this to be the last reference as this callback function holds a reference itself */
+				/* It is impossible for this to be the last reference as the query has a reference to it */
 				ao2_ref(recurring, -1);
 			}
 		}
@@ -95,9 +106,6 @@ static void dns_query_recurring_resolution_callback(const struct ast_dns_query *
 
 	ao2_replace(recurring->active, NULL);
 	ao2_unlock(recurring);
-
-	/* Since we stole the reference from the query we need to drop it ourselves */
-	ao2_ref(recurring, -1);
 }
 
 struct ast_dns_query_recurring *ast_dns_resolve_recurring(const char *name, int rr_type, int rr_class, ast_dns_resolve_callback callback, void *data)
