@@ -24926,10 +24926,12 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req,
 		if (ast_bridge_impart(bridge, c, replaces_chan, NULL,
 			AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
 			ast_hangup(c);
+			ast_channel_unref(c);
 		}
 	} else {
 		ast_channel_move(replaces_chan, c);
 		ast_hangup(c);
+		ast_channel_unref(c);
 	}
 	sip_pvt_lock(p);
 	return 0;
