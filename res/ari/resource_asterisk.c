@@ -33,6 +33,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/ast_version.h"
 #include "asterisk/buildinfo.h"
+#include "asterisk/module.h"
 #include "asterisk/paths.h"
 #include "asterisk/pbx.h"
 #include "resource_asterisk.h"
@@ -138,6 +139,76 @@ void ast_ari_asterisk_get_info(struct ast_variable *headers,
 	}
 
 	ast_ari_response_ok(response, ast_json_ref(json));
+}
+
+/*!
+ * \brief Identify module by name and process resource information
+ * \param module Resource name
+ * \param description
+ * \param usecnt Resource use count
+ * \param status
+ * \param like
+ * \param support_level
+ * \param data JSON body for resource
+ * \param condition Name to match resource to
+ *
+ * \retval 0 if no resource
+ * \retval 1 if resource exists
+ */
+static int identify_module(const char *module, const char *description, int usecnt,
+                           const char *status, const char *like,
+                           enum ast_module_support_level support_level, void *data,
+                           const char *condition)
+{
+	struct ast_json *module_info;
+	struct ast_json **out = data;
+
+	if (strcmp(condition,module) != 0) {
+		return 0;
+	}
+
+	module_info = ast_json_pack("{s: s, s: s, s: i, s: s, s: s}",
+	                            "name", module,
+	                            "description", description,
+	                            "use_count", usecnt,
+	                            "status", status,
+	                            "support_level", ast_module_support_level_to_string(support_level));
+
+	if (!module_info) {
+		return 0;
+	}
+
+	*out = module_info;
+	return 1;
+}
+
+void ast_ari_asterisk_get_module(struct ast_variable *headers,
+	struct ast_ari_asterisk_get_module_args *args,
+	struct ast_ari_response *response)
+{
+	struct ast_json *json;
+
+	json = ast_json_object_create();
+
+	ast_assert(response != NULL);
+
+	if (ast_strlen_zero(args->module_name)) {
+		ast_ari_response_error(
+		  response, 400, "Bad Request",
+		  "Module name is required");
+		return;
+	}
+
+	if (!ast_module_check(args->module_name)) {
+		ast_ari_response_error(
+		  response, 404, "Not Found",
+		  "Module does not exist");
+		return;
+	}
+
+	ast_update_module_list_condition(&identify_module,NULL,&json,args->module_name);
+
+	ast_ari_response_ok(response, json);
 }
 
 void ast_ari_asterisk_get_global_var(struct ast_variable *headers,
