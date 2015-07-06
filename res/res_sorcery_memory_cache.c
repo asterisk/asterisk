@@ -2551,6 +2551,10 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
+	/* This causes the stale unit test to execute last, so if a sorcery instance persists
+	 * longer than expected subsequent unit tests don't fail when setting it up.
+	 */
+	AST_TEST_REGISTER(stale);
 	AST_TEST_REGISTER(open_with_valid_options);
 	AST_TEST_REGISTER(open_with_invalid_options);
 	AST_TEST_REGISTER(create_and_retrieve);
@@ -2558,7 +2562,6 @@ static int load_module(void)
 	AST_TEST_REGISTER(delete);
 	AST_TEST_REGISTER(maximum_objects);
 	AST_TEST_REGISTER(expiration);
-	AST_TEST_REGISTER(stale);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
