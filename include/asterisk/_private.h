@@ -29,6 +29,7 @@ int ast_cli_perms_init(int reload);	/*!< Provided by cli.c */
 int dnsmgr_init(void);			/*!< Provided by dnsmgr.c */
 void dnsmgr_start_refresh(void);	/*!< Provided by dnsmgr.c */
 int dnsmgr_reload(void);		/*!< Provided by dnsmgr.c */
+int ast_dns_system_resolver_init(void); /*!< Provided by dns_system_resolver.c */
 void threadstorage_init(void);		/*!< Provided by threadstorage.c */
 int ast_device_state_engine_init(void);	/*!< Provided by devicestate.c */
 int astobj2_init(void);			/*!< Provided by astobj2.c */
