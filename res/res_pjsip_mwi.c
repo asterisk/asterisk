@@ -633,25 +633,26 @@ static struct mwi_subscription *mwi_create_subscription(
 static struct mwi_subscription *mwi_subscribe_single(
 	struct ast_sip_endpoint *endpoint, struct ast_sip_subscription *sip_sub, const char *name)
 {
-	RAII_VAR(struct ast_sip_aor *, aor,
-		 ast_sip_location_retrieve_aor(name), ao2_cleanup);
+	struct ast_sip_aor *aor;
 	struct mwi_subscription *sub;
 
+	aor = ast_sip_location_retrieve_aor(name);
 	if (!aor) {
 		/*! I suppose it's possible for the AOR to disappear on us
 		 * between accepting the subscription and sending the first
 		 * NOTIFY...
 		 */
-		ast_log(LOG_WARNING, "Unable to locate aor %s. MWI "
-			"subscription failed.\n", name);
+		ast_log(LOG_WARNING, "Unable to locate aor %s. MWI subscription failed.\n",
+			name);
 		return NULL;
 	}
 
-	if (!(sub = mwi_create_subscription(endpoint, sip_sub))) {
-		return NULL;
+	sub = mwi_create_subscription(endpoint, sip_sub);
+	if (sub) {
+		mwi_on_aor(aor, sub, 0);
 	}
 
-	mwi_on_aor(aor, sub, 0);
+	ao2_ref(aor, -1);
 	return sub;
 }
 
@@ -661,7 +662,6 @@ static struct mwi_subscription *mwi_subscribe_all(
 	struct mwi_subscription *sub;
 
 	sub = mwi_create_subscription(endpoint, sip_sub);
-
 	if (!sub) {
 		return NULL;
 	}
@@ -683,16 +683,15 @@ static int mwi_new_subscribe(struct ast_sip_endpoint *endpoint,
 	}
 
 	aor = ast_sip_location_retrieve_aor(resource);
-
 	if (!aor) {
-		ast_log(LOG_WARNING, "Unable to locate aor %s. MWI "
-			"subscription failed.\n", resource);
+		ast_log(LOG_WARNING, "Unable to locate aor %s. MWI subscription failed.\n",
+			resource);
 		return 404;
 	}
 
 	if (ast_strlen_zero(aor->mailboxes)) {
-		ast_log(LOG_NOTICE, "AOR %s has no configured mailboxes. "
-			"MWI subscription failed\n", resource);
+		ast_log(LOG_NOTICE, "AOR %s has no configured mailboxes. MWI subscription failed.\n",
+			resource);
 		return 404;
 	}
 
@@ -842,6 +841,7 @@ static void mwi_stasis_cb(void *userdata, struct stasis_subscription *sub,
 	}
 }
 
+/*! \note Called with the unsolicited_mwi conainer lock held. */
 static int create_mwi_subscriptions_for_endpoint(void *obj, void *arg, int flags)
 {
 	RAII_VAR(struct mwi_subscription *, aggregate_sub, NULL, ao2_cleanup);
@@ -982,7 +982,6 @@ static void mwi_contact_added(const void *object)
 	ao2_lock(unsolicited_mwi);
 
 	mwi_subs = ao2_find(unsolicited_mwi, endpoint_id, OBJ_SEARCH_KEY | OBJ_MULTIPLE | OBJ_NOLOCK | OBJ_UNLINK);
-
 	if (mwi_subs) {
 		for (; (mwi_sub = ao2_iterator_next(mwi_subs)); ao2_cleanup(mwi_sub)) {
 			unsubscribe(mwi_sub, NULL, 0);
