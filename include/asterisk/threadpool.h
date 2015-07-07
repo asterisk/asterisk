@@ -218,6 +218,22 @@ struct ast_serializer_shutdown_group *ast_serializer_shutdown_group_alloc(void);
 int ast_serializer_shutdown_group_join(struct ast_serializer_shutdown_group *shutdown_group, int timeout);
 
 /*!
+ * \brief Get the threadpool serializer currently associated with this thread.
+ * \since 14.0.0
+ *
+ * \note The returned pointer is valid while the serializer
+ * thread is running.
+ *
+ * \note Use ao2_ref() on serializer if you are going to keep it
+ * for another thread.  To unref it you must then use
+ * ast_taskprocessor_unreference().
+ *
+ * \retval serializer on success.
+ * \retval NULL on error or no serializer associated with the thread.
+ */
+struct ast_taskprocessor *ast_threadpool_serializer_get_current(void);
+
+/*!
  * \brief Serialized execution of tasks within a \ref ast_threadpool.
  *
  * \since 12.0.0
