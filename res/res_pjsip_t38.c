@@ -324,9 +324,13 @@ static int t38_interpret_parameters(void *obj)
 	case AST_T38_REQUEST_NEGOTIATE:         /* Request T38 */
 		/* Negotiation can not take place without a valid max_ifp value. */
 		if (!parameters->max_ifp) {
-			t38_change_state(data->session, session_media, state, T38_REJECTED);
 			if (data->session->t38state == T38_PEER_REINVITE) {
+				t38_change_state(data->session, session_media, state, T38_REJECTED);
 				ast_sip_session_resume_reinvite(data->session);
+			} else if (data->session->t38state == T38_ENABLED) {
+				t38_change_state(data->session, session_media, state, T38_DISABLED);
+				ast_sip_session_refresh(data->session, NULL, NULL, NULL,
+					AST_SIP_SESSION_REFRESH_METHOD_INVITE, 1);
 			}
 			break;
 		} else if (data->session->t38state == T38_PEER_REINVITE) {
