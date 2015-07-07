@@ -135,10 +135,13 @@ static void t38_change_state(struct ast_sip_session *session, struct ast_sip_ses
 	}
 
 	session->t38state = new_state;
-	ast_debug(2, "T.38 state changed to '%u' from '%u' on channel '%s'\n", new_state, old_state, ast_channel_name(session->channel));
+	ast_debug(2, "T.38 state changed to '%u' from '%u' on channel '%s'\n",
+		new_state, old_state,
+		session->channel ? ast_channel_name(session->channel) : "<gone>");
 
 	if (pj_timer_heap_cancel(pjsip_endpt_get_timer_heap(ast_sip_get_pjsip_endpoint()), &state->timer)) {
-		ast_debug(2, "Automatic T.38 rejection on channel '%s' terminated\n", ast_channel_name(session->channel));
+		ast_debug(2, "Automatic T.38 rejection on channel '%s' terminated\n",
+			session->channel ? ast_channel_name(session->channel) : "<gone>");
 		ao2_ref(session, -1);
 	}
 
@@ -198,7 +201,8 @@ static int t38_automatic_reject(void *obj)
 		return 0;
 	}
 
-	ast_debug(2, "Automatically rejecting T.38 request on channel '%s'\n", ast_channel_name(session->channel));
+	ast_debug(2, "Automatically rejecting T.38 request on channel '%s'\n",
+		session->channel ? ast_channel_name(session->channel) : "<gone>");
 
 	t38_change_state(session, session_media, datastore->data, T38_REJECTED);
 	ast_sip_session_resume_reinvite(session);
@@ -227,9 +231,9 @@ static struct t38_state *t38_state_get_or_alloc(struct ast_sip_session *session)
 		return datastore->data;
 	}
 
-	if (!(datastore = ast_sip_session_alloc_datastore(&t38_datastore, "t38")) ||
-		!(datastore->data = ast_calloc(1, sizeof(struct t38_state))) ||
-		ast_sip_session_add_datastore(session, datastore)) {
+	if (!(datastore = ast_sip_session_alloc_datastore(&t38_datastore, "t38"))
+		|| !(datastore->data = ast_calloc(1, sizeof(struct t38_state)))
+		|| ast_sip_session_add_datastore(session, datastore)) {
 		return NULL;
 	}
 
