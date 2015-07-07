@@ -84,19 +84,18 @@ static int pidf_generate_body_content(void *body, void *data)
 
 static void pidf_to_string(void *body, struct ast_str **str)
 {
-	int size;
-	int growths = 0;
 	pjpidf_pres *pres = body;
+	int growths = 0;
+	int size;
 
 	do {
 		size = pjpidf_print(pres, ast_str_buffer(*str), ast_str_size(*str) - 1);
-		if (size == AST_PJSIP_XML_PROLOG_LEN) {
+		if (size <= AST_PJSIP_XML_PROLOG_LEN) {
 			ast_str_make_space(str, ast_str_size(*str) * 2);
 			++growths;
 		}
-	} while (size == AST_PJSIP_XML_PROLOG_LEN && growths < MAX_STRING_GROWTHS);
-
-	if (size == AST_PJSIP_XML_PROLOG_LEN) {
+	} while (size <= AST_PJSIP_XML_PROLOG_LEN && growths < MAX_STRING_GROWTHS);
+	if (size <= AST_PJSIP_XML_PROLOG_LEN) {
 		ast_log(LOG_WARNING, "PIDF body text too large\n");
 		return;
 	}

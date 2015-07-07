@@ -163,14 +163,13 @@ static void dialog_info_to_string(void *body, struct ast_str **str)
 	int size;
 
 	do {
-		size = pj_xml_print(dialog_info, ast_str_buffer(*str), ast_str_size(*str), PJ_TRUE);
-		if (size == AST_PJSIP_XML_PROLOG_LEN) {
+		size = pj_xml_print(dialog_info, ast_str_buffer(*str), ast_str_size(*str) - 1, PJ_TRUE);
+		if (size <= AST_PJSIP_XML_PROLOG_LEN) {
 			ast_str_make_space(str, ast_str_size(*str) * 2);
 			++growths;
 		}
-	} while (size == AST_PJSIP_XML_PROLOG_LEN && growths < MAX_STRING_GROWTHS);
-
-	if (size == AST_PJSIP_XML_PROLOG_LEN) {
+	} while (size <= AST_PJSIP_XML_PROLOG_LEN && growths < MAX_STRING_GROWTHS);
+	if (size <= AST_PJSIP_XML_PROLOG_LEN) {
 		ast_log(LOG_WARNING, "dialog-info+xml body text too large\n");
 		return;
 	}
