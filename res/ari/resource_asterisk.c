@@ -33,6 +33,7 @@ ASTERISK_REGISTER_FILE()
 
 #include "asterisk/ast_version.h"
 #include "asterisk/buildinfo.h"
+#include "asterisk/module.h"
 #include "asterisk/paths.h"
 #include "asterisk/pbx.h"
 #include "resource_asterisk.h"
@@ -138,6 +139,41 @@ void ast_ari_asterisk_get_info(struct ast_variable *headers,
 	}
 
 	ast_ari_response_ok(response, ast_json_ref(json));
+}
+
+void ast_ari_asterisk_unload_module(struct ast_variable *headers,
+	struct ast_ari_asterisk_unload_module_args *args,
+	struct ast_ari_response *response)
+{
+	int unload_result;
+	enum ast_module_unload_mode unload_mode = AST_FORCE_FIRM;
+
+	ast_assert(response != NULL);
+
+	if (ast_strlen_zero(args->module_name)) {
+		ast_ari_response_error(
+			response, 400, "Bad Request",
+			"Module name is required");
+		return;
+	}
+
+	if (!ast_module_check(args->module_name)) {
+		ast_ari_response_error(
+			response, 404, "Not Found",
+			"Module does not exist");
+		return;
+	}
+
+	unload_result = ast_unload_resource(args->module_name, unload_mode);
+
+	if (unload_result != 0) {
+		ast_ari_response_error(
+			response, 409, "Conflict",
+			"Module could not be unloaded");
+		return;
+	}
+
+	ast_ari_response_no_content(response);
 }
 
 void ast_ari_asterisk_get_global_var(struct ast_variable *headers,
