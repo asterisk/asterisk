@@ -209,6 +209,67 @@ fin: __attribute__((unused))
 	ast_free(args.only);
 	return;
 }
+/*!
+ * \brief Parameter parsing callback for /asterisk/modules/{moduleName}.
+ * \param get_params GET parameters in the HTTP request.
+ * \param path_vars Path variables extracted from the request.
+ * \param headers HTTP headers.
+ * \param[out] response Response to the HTTP request.
+ */
+static void ast_ari_asterisk_unload_module_cb(
+	struct ast_tcptls_session_instance *ser,
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct ast_ari_response *response)
+{
+	struct ast_ari_asterisk_unload_module_args args = {};
+	struct ast_variable *i;
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
+	for (i = path_vars; i; i = i->next) {
+		if (strcmp(i->name, "moduleName") == 0) {
+			args.module_name = (i->value);
+		} else
+		{}
+	}
+	ast_ari_asterisk_unload_module(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
+	case 400: /* Module name is required. */
+	case 404: /* Module does not exist. */
+	case 409: /* Module could not be unloaded. */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ast_ari_validate_void(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /asterisk/modules/{moduleName}\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /asterisk/modules/{moduleName}\n");
+		ast_ari_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
+}
 int ast_ari_asterisk_get_global_var_parse_body(
 	struct ast_json *body,
 	struct ast_ari_asterisk_get_global_var_args *args)
@@ -409,6 +470,24 @@ static struct stasis_rest_handlers asterisk_info = {
 	.children = {  }
 };
 /*! \brief REST handler for /api-docs/asterisk.{format} */
+static struct stasis_rest_handlers asterisk_modules_moduleName = {
+	.path_segment = "moduleName",
+	.is_wildcard = 1,
+	.callbacks = {
+		[AST_HTTP_DELETE] = ast_ari_asterisk_unload_module_cb,
+	},
+	.num_children = 0,
+	.children = {  }
+};
+/*! \brief REST handler for /api-docs/asterisk.{format} */
+static struct stasis_rest_handlers asterisk_modules = {
+	.path_segment = "modules",
+	.callbacks = {
+	},
+	.num_children = 1,
+	.children = { &asterisk_modules_moduleName, }
+};
+/*! \brief REST handler for /api-docs/asterisk.{format} */
 static struct stasis_rest_handlers asterisk_variable = {
 	.path_segment = "variable",
 	.callbacks = {
@@ -423,8 +502,8 @@ static struct stasis_rest_handlers asterisk = {
 	.path_segment = "asterisk",
 	.callbacks = {
 	},
-	.num_children = 2,
-	.children = { &asterisk_info,&asterisk_variable, }
+	.num_children = 3,
+	.children = { &asterisk_info,&asterisk_modules,&asterisk_variable, }
 };
 
 static int load_module(void)
