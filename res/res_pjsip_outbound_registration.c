@@ -1217,7 +1217,7 @@ static int sip_outbound_registration_apply(const struct ast_sorcery *sorcery, vo
 	ast_debug(4, "Applying configuration to outbound registration '%s'\n", ast_sorcery_object_get_id(applied));
 
 	if (ast_strlen_zero(applied->server_uri)) {
-		ast_log(LOG_ERROR, "No server URI specified on outbound registration '%s'",
+		ast_log(LOG_ERROR, "No server URI specified on outbound registration '%s'\n",
 			ast_sorcery_object_get_id(applied));
 		return -1;
 	} else if (ast_strlen_zero(applied->client_uri)) {
