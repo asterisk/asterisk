@@ -9,6 +9,18 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.5.0 to Asterisk 13.6.0 ------------
+------------------------------------------------------------------------------
+
+ARI
+------------------
+ * A new resource has been added to the 'asterisk' resource, 'config/dynamic'.
+   This resource allows for push configuration of sorcery derived objects
+   within Asterisk. The resource supports creation, retrieval, updating, and
+   deletion. Sorcery derived objects that are manipulated by this resource
+   must have a sorcery wizard that supports the desired operations.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.4.0 to Asterisk 13.5.0 ------------
 ------------------------------------------------------------------------------
 
