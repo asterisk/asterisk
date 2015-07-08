@@ -138,9 +138,17 @@ static struct mwi_stasis_subscription *mwi_stasis_subscription_alloc(const char 
 
 	/* Safe strcpy */
 	strcpy(mwi_stasis_sub->mailbox, mailbox);
+
+	ast_debug(3, "Creating stasis MWI subscription to mailbox %s for endpoint %s\n",
+		mailbox, mwi_sub->id);
 	ao2_ref(mwi_sub, +1);
-	ast_debug(3, "Creating stasis MWI subscription to mailbox %s for endpoint %s\n", mailbox, mwi_sub->id);
 	mwi_stasis_sub->stasis_sub = stasis_subscribe_pool(topic, mwi_stasis_cb, mwi_sub);
+	if (!mwi_stasis_sub->stasis_sub) {
+		/* Failed to subscribe. */
+		ao2_ref(mwi_stasis_sub, -1);
+		ao2_ref(mwi_sub, -1);
+		mwi_stasis_sub = NULL;
+	}
 	return mwi_stasis_sub;
 }
 
@@ -491,25 +499,41 @@ static void mwi_subscription_shutdown(struct ast_sip_subscription *sub)
 
 	mwi_sub = mwi_datastore->data;
 	ao2_callback(mwi_sub->stasis_subs, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, unsubscribe_stasis, NULL);
+	ast_sip_subscription_remove_datastore(sub, MWI_DATASTORE);
 
 	ao2_ref(mwi_datastore, -1);
 }
 
-static struct ast_datastore_info mwi_ds_info = { };
+static void mwi_ds_destroy(void *data)
+{
+	struct mwi_subscription *sub = data;
+
+	ao2_ref(sub, -1);
+}
+
+static struct ast_datastore_info mwi_ds_info = {
+	.destroy = mwi_ds_destroy,
+};
 
 static int add_mwi_datastore(struct mwi_subscription *sub)
 {
 	struct ast_datastore *mwi_datastore;
+	int res;
 
 	mwi_datastore = ast_sip_subscription_alloc_datastore(&mwi_ds_info, MWI_DATASTORE);
 	if (!mwi_datastore) {
 		return -1;
 	}
+	ao2_ref(sub, +1);
 	mwi_datastore->data = sub;
 
-	ast_sip_subscription_add_datastore(sub->sip_sub, mwi_datastore);
+	/*
+	 * NOTE:  Adding the datastore to the subscription creates a ref loop
+	 * that must be manually broken.
+	 */
+	res = ast_sip_subscription_add_datastore(sub->sip_sub, mwi_datastore);
 	ao2_ref(mwi_datastore, -1);
-	return 0;
+	return res;
 }
 
 /*!
@@ -621,8 +645,8 @@ static struct mwi_subscription *mwi_create_subscription(
 	}
 
 	if (add_mwi_datastore(sub)) {
-		ast_log(LOG_WARNING, "Unable to allocate datastore on MWI "
-			"subscription from %s\n", sub->id);
+		ast_log(LOG_WARNING, "Unable to add datastore for MWI subscription to %s\n",
+			sub->id);
 		ao2_ref(sub, -1);
 		return NULL;
 	}
@@ -714,10 +738,17 @@ static int mwi_subscription_established(struct ast_sip_subscription *sip_sub)
 	} else {
 		sub = mwi_subscribe_single(endpoint, sip_sub, resource);
 	}
-
 	if (!sub) {
 		ao2_cleanup(endpoint);
 		return -1;
+	}
+
+	if (!ao2_container_count(sub->stasis_subs)) {
+		/*
+		 * We setup no MWI subscriptions so remove the MWI datastore
+		 * to break the ref loop.
+		 */
+		ast_sip_subscription_remove_datastore(sip_sub, MWI_DATASTORE);
 	}
 
 	ao2_cleanup(sub);
