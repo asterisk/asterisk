@@ -207,6 +207,24 @@ int ast_ari_validate_config_info(struct ast_json *json);
 ari_validator ast_ari_validate_config_info_fn(void);
 
 /*!
+ * \brief Validator for ConfigTuple.
+ *
+ * A key/value pair that makes up part of a configuration object.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_config_tuple(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_config_tuple().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_config_tuple_fn(void);
+
+/*!
  * \brief Validator for Module.
  *
  * Details of an Asterisk module
@@ -1262,6 +1280,9 @@ ari_validator ast_ari_validate_application_fn(void);
  * - max_open_files: int
  * - name: string (required)
  * - setid: SetId (required)
+ * ConfigTuple
+ * - attribute: string (required)
+ * - value: string (required)
  * Module
  * - description: string (required)
  * - name: string (required)
