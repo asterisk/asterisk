@@ -2560,7 +2560,27 @@ static void bridge_channel_event_join_leave(struct ast_bridge_channel *bridge_ch
 	ao2_iterator_destroy(&iter);
 }
 
-int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
+void bridge_channel_internal_wait(struct bridge_channel_internal_cond *cond)
+{
+	ast_mutex_lock(&cond->lock);
+	while (!cond->done) {
+		ast_cond_wait(&cond->cond, &cond->lock);
+	}
+	ast_mutex_unlock(&cond->lock);
+}
+
+void bridge_channel_internal_signal(struct bridge_channel_internal_cond *cond)
+{
+	if (cond) {
+		ast_mutex_lock(&cond->lock);
+		cond->done = 1;
+		ast_cond_signal(&cond->cond);
+		ast_mutex_unlock(&cond->lock);
+	}
+}
+
+int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel,
+				 struct bridge_channel_internal_cond *cond)
 {
 	int res = 0;
 	struct ast_bridge_features *channel_features;
@@ -2590,6 +2610,7 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 			bridge_channel->bridge->uniqueid,
 			bridge_channel,
 			ast_channel_name(bridge_channel->chan));
+		bridge_channel_internal_signal(cond);
 		return -1;
 	}
 	ast_channel_internal_bridge_set(bridge_channel->chan, bridge_channel->bridge);
@@ -2623,6 +2644,8 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 		res = -1;
 	}
 	bridge_reconfigured(bridge_channel->bridge, !bridge_channel->inhibit_colp);
+
+	bridge_channel_internal_signal(cond);
 
 	if (bridge_channel->state == BRIDGE_CHANNEL_STATE_WAIT) {
 		/*

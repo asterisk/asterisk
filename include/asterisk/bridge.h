@@ -509,6 +509,8 @@ enum ast_bridge_impart_flags {
  * \param features Bridge features structure.
  * \param flags defined by enum ast_bridge_impart_flags.
  *
+ * \note The given bridge must be unlocked when calling this function.
+ *
  * \note The features parameter must be NULL or obtained by
  * ast_bridge_features_new().  You must not dereference features
  * after calling even if the call fails.
