@@ -700,7 +700,7 @@ static int media_encryption_handler(const struct aco_option *opt, struct ast_var
 
 static const char *media_encryption_map[] = {
 	[AST_SIP_MEDIA_TRANSPORT_INVALID] = "invalid",
-	[AST_SIP_MEDIA_ENCRYPT_NONE] = "none",
+	[AST_SIP_MEDIA_ENCRYPT_NONE] = "no",
 	[AST_SIP_MEDIA_ENCRYPT_SDES] = "sdes",
 	[AST_SIP_MEDIA_ENCRYPT_DTLS] = "dtls",
 };
@@ -1925,8 +1925,8 @@ int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_mod
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "g726_non_standard", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_endpoint, media.g726_non_standard));
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "redirect_method", "user", redirect_handler, NULL, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "set_var", "", set_var_handler, set_var_to_str, set_var_to_vl, 0, 0);
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "message_context", "", OPT_STRINGFIELD_T, 1, STRFLDSET(struct ast_sip_endpoint, message_context));
-	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "accountcode", "", OPT_STRINGFIELD_T, 1, STRFLDSET(struct ast_sip_endpoint, accountcode));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "message_context", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, message_context));
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "accountcode", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, accountcode));
 
 	if (ast_sip_initialize_sorcery_transport()) {
 		ast_log(LOG_ERROR, "Failed to register SIP transport support with sorcery\n");
