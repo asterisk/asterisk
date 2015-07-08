@@ -2560,7 +2560,30 @@ static void bridge_channel_event_join_leave(struct ast_bridge_channel *bridge_ch
 	ao2_iterator_destroy(&iter);
 }
 
-int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
+int bridge_channel_internal_wait(struct bridge_channel_internal_cond *cond)
+{
+	ast_mutex_lock(&cond->lock);
+	while (!cond->done) {
+		ast_cond_wait(&cond->cond, &cond->lock);
+	}
+	ast_mutex_unlock(&cond->lock);
+	return cond->res;
+}
+
+int bridge_channel_internal_signal(struct bridge_channel_internal_cond *cond, int res)
+{
+	if (cond && !cond->done) {
+		ast_mutex_lock(&cond->lock);
+		cond->res = res;
+		cond->done = 1;
+		ast_cond_signal(&cond->cond);
+		ast_mutex_unlock(&cond->lock);
+	}
+	return res;
+}
+
+int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel,
+				 struct bridge_channel_internal_cond *cond)
 {
 	int res = 0;
 	struct ast_bridge_features *channel_features;
@@ -2569,13 +2592,11 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 	ast_debug(1, "Bridge %s: %p(%s) is joining\n",
 		bridge_channel->bridge->uniqueid,
 		bridge_channel, ast_channel_name(bridge_channel->chan));
-
 	/*
 	 * Directly locking the bridge is safe here because nobody else
 	 * knows about this bridge_channel yet.
 	 */
 	ast_bridge_lock(bridge_channel->bridge);
-
 	ast_channel_lock(bridge_channel->chan);
 
 	bridge_channel->read_format = ao2_bump(ast_channel_readformat(bridge_channel->chan));
@@ -2590,7 +2611,7 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 			bridge_channel->bridge->uniqueid,
 			bridge_channel,
 			ast_channel_name(bridge_channel->chan));
-		return -1;
+		return bridge_channel_internal_signal(cond, -1);
 	}
 	ast_channel_internal_bridge_set(bridge_channel->chan, bridge_channel->bridge);
 
@@ -2642,6 +2663,7 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 		swap = NULL;
 
 		bridge_channel_event_join_leave(bridge_channel, AST_BRIDGE_HOOK_TYPE_JOIN);
+		bridge_channel_internal_signal(cond, 0);
 
 		while (bridge_channel->state == BRIDGE_CHANNEL_STATE_WAIT) {
 			/* Wait for something to do. */
@@ -2660,6 +2682,7 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 	bridge_reconfigured(bridge_channel->bridge, 1);
 
 	ast_bridge_unlock(bridge_channel->bridge);
+	bridge_channel_internal_signal(cond, 0);
 
 	/* Must release any swap ref after unlocking the bridge. */
 	ao2_t_cleanup(swap, "Bridge push with swap failed or exited immediately");
