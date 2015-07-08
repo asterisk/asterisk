@@ -1549,7 +1549,7 @@ int ast_bridge_join(struct ast_bridge *bridge,
 	}
 
 	if (!res) {
-		res = bridge_channel_internal_join(bridge_channel);
+		res = bridge_channel_internal_join(bridge_channel, NULL);
 	}
 
 	/* Cleanup all the data in the bridge channel after it leaves the bridge. */
@@ -1579,13 +1579,14 @@ join_exit:;
 /*! \brief Thread responsible for imparted bridged channels to be departed */
 static void *bridge_channel_depart_thread(void *data)
 {
-	struct ast_bridge_channel *bridge_channel = data;
+	struct bridge_channel_internal_cond *cond = data;
+	struct ast_bridge_channel *bridge_channel = cond->bridge_channel;
 
 	if (bridge_channel->callid) {
 		ast_callid_threadassoc_add(bridge_channel->callid);
 	}
 
-	bridge_channel_internal_join(bridge_channel);
+	bridge_channel_internal_join(bridge_channel, cond);
 
 	/*
 	 * cleanup
@@ -1606,14 +1607,15 @@ static void *bridge_channel_depart_thread(void *data)
 /*! \brief Thread responsible for independent imparted bridged channels */
 static void *bridge_channel_ind_thread(void *data)
 {
-	struct ast_bridge_channel *bridge_channel = data;
+	struct bridge_channel_internal_cond *cond = data;
+	struct ast_bridge_channel *bridge_channel = cond->bridge_channel;
 	struct ast_channel *chan;
 
 	if (bridge_channel->callid) {
 		ast_callid_threadassoc_add(bridge_channel->callid);
 	}
 
-	bridge_channel_internal_join(bridge_channel);
+	bridge_channel_internal_join(bridge_channel, cond);
 	chan = bridge_channel->chan;
 
 	/* cleanup */
@@ -1697,13 +1699,27 @@ int ast_bridge_impart(struct ast_bridge *bridge,
 
 	/* Actually create the thread that will handle the channel */
 	if (!res) {
+		struct bridge_channel_internal_cond cond = {
+			.done = 0,
+			.bridge_channel = bridge_channel
+		};
+		ast_mutex_init(&cond.lock);
+		ast_cond_init(&cond.cond, NULL);
+
 		if ((flags & AST_BRIDGE_IMPART_CHAN_MASK) == AST_BRIDGE_IMPART_CHAN_INDEPENDENT) {
 			res = ast_pthread_create_detached(&bridge_channel->thread, NULL,
-				bridge_channel_ind_thread, bridge_channel);
+				bridge_channel_ind_thread, &cond);
 		} else {
 			res = ast_pthread_create(&bridge_channel->thread, NULL,
-				bridge_channel_depart_thread, bridge_channel);
+				bridge_channel_depart_thread, &cond);
 		}
+
+		if (!res) {
+			bridge_channel_internal_wait(&cond);
+		}
+
+		ast_cond_destroy(&cond.cond);
+		ast_mutex_destroy(&cond.lock);
 	}
 
 	if (res) {
@@ -3953,6 +3969,15 @@ static enum ast_transfer_result attended_transfer_bridge(struct ast_channel *cha
 		struct ast_channel *chan2, struct ast_bridge *bridge1, struct ast_bridge *bridge2,
 		struct ast_attended_transfer_message *transfer_msg)
 {
+#define BRIDGE_LOCK_ONE_OR_BOTH(b1, b2) \
+	do { \
+		if (b2) { \
+			ast_bridge_lock_both(b1, b2); \
+		} else { \
+			ast_bridge_lock(b1); \
+		} \
+	} while (0)
+
 	static const char *dest = "_attended@transfer/m";
 	struct ast_channel *local_chan;
 	int cause;
@@ -3983,8 +4008,18 @@ static enum ast_transfer_result attended_transfer_bridge(struct ast_channel *cha
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}
 
+	/*
+	 * Since bridges need to be unlocked before entering ast_bridge_impart and
+	 * core_local may call into it then the bridges need to be unlocked here.
+	 */
+	ast_bridge_unlock(bridge1);
+	if (bridge2) {
+		ast_bridge_unlock(bridge2);
+	}
+
 	if (ast_call(local_chan, dest, 0)) {
 		ast_hangup(local_chan);
+		BRIDGE_LOCK_ONE_OR_BOTH(bridge1, bridge2);
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}
 
@@ -3994,8 +4029,10 @@ static enum ast_transfer_result attended_transfer_bridge(struct ast_channel *cha
 		AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
 		ast_hangup(local_chan);
 		ao2_cleanup(local_chan);
+		BRIDGE_LOCK_ONE_OR_BOTH(bridge1, bridge2);
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}
+	BRIDGE_LOCK_ONE_OR_BOTH(bridge1, bridge2);
 
 	if (bridge2) {
 		RAII_VAR(struct ast_channel *, local_chan2, NULL, ao2_cleanup);
