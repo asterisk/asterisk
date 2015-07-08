@@ -1600,6 +1600,7 @@ struct ast_json *ast_sorcery_objectset_json_create(const struct ast_sorcery *sor
 			if (object_field->handler(object, object_field->args, &buf)
 				|| !(value = ast_json_string_create(buf))
 				|| ast_json_object_set(json, object_field->name, value)) {
+				ast_free(buf);
 				ast_debug(5, "Skipping field '%s' for object type '%s'\n",
 					object_field->name, object_type->name);
 				continue;

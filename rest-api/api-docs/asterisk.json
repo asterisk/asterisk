@@ -8,6 +8,146 @@
 	"resourcePath": "/api-docs/asterisk.{format}",
 	"apis": [
 		{
+			"path": "/asterisk/config/dynamic/{configClass}/{objectType}/{id}",
+			"description": "Asterisk dynamic configuration",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "Retrieve a dynamic configuration object.",
+					"nickname": "getObject",
+					"responseClass": "List[ConfigTuple]",
+					"parameters": [
+						{
+							"name": "configClass",
+							"description": "The configuration class containing dynamic configuration objects.",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "objectType",
+							"description": "The type of configuration object to retrieve.",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "id",
+							"description": "The unique identifier of the object to retrieve.",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "{configClass|objectType|id} not found"
+						}
+					]
+				},
+				{
+					"httpMethod": "PUT",
+					"summary": "Create or update a dynamic configuration object.",
+					"nickname": "updateObject",
+					"responseClass": "List[ConfigTuple]",
+					"parameters": [
+						{
+							"name": "configClass",
+							"description": "The configuration class containing dynamic configuration objects.",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "objectType",
+							"description": "The type of configuration object to create or update.",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "id",
+							"description": "The unique identifier of the object to create or update.",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "fields",
+							"description": "The body object should have a value that is a list of ConfigTuples, which provide the fields to update. Ex. [ { \"attribute\": \"directmedia\", \"value\": \"false\" } ]",
+							"paramType": "body",
+							"required": false,
+							"dataType": "containers",
+							"allowMultiple": false
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 400,
+							"reason": "Bad request body"
+						},
+						{
+							"code": 403,
+							"reason": "Could not create or update object"
+						},
+						{
+							"code": 404,
+							"reason": "{configClass|objectType} not found"
+						}
+					]
+				},
+				{
+					"httpMethod": "DELETE",
+					"summary": "Delete a dynamic configuration object.",
+					"nickname": "deleteObject",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "configClass",
+							"description": "The configuration class containing dynamic configuration objects.",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "objectType",
+							"description": "The type of configuration object to delete.",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "id",
+							"description": "The unique identifier of the object to delete.",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 403,
+							"reason": "Could not delete object"
+						},
+						{
+							"code": 404,
+							"reason": "{configClass|objectType|id} not found"
+						}
+					]
+				}
+			]
+		},
+		{
 			"path": "/asterisk/info",
 			"description": "Asterisk system information (similar to core show settings)",
 			"operations": [
@@ -295,6 +435,22 @@
 					"required": true,
 					"type": "string",
 					"description": "The value of the variable requested"
+				}
+			}
+		},
+		"ConfigTuple": {
+			"id": "ConfigTuple",
+			"description": "A key/value pair that makes up part of a configuration object.",
+			"properties": {
+				"attribute": {
+					"required": true,
+					"type": "string",
+					"description": "A configuration object attribute."
+				},
+				"value": {
+					"required": true,
+					"type": "string",
+					"description": "The value for the attribute."
 				}
 			}
 		}
