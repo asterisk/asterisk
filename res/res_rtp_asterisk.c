@@ -1232,7 +1232,6 @@ static int dtls_details_initialize(struct dtls_details *dtls, SSL_CTX *ssl_ctx,
 	dtls->connection = AST_RTP_DTLS_CONNECTION_NEW;
 
 	ast_mutex_init(&dtls->lock);
-	dtls->timeout_timer = -1;
 
 	return 0;
 
@@ -2523,6 +2522,7 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
 
 #ifdef HAVE_OPENSSL_SRTP
 	rtp->rekeyid = -1;
+	rtp->dtls.timeout_timer = -1;
 #endif
 
 	rtp->f.subclass.format = ao2_bump(ast_format_none);
@@ -4723,6 +4723,7 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 #endif
 
 #ifdef HAVE_OPENSSL_SRTP
+			rtp->rtcp->dtls.timeout_timer = -1;
 			dtls_setup_rtcp(instance);
 #endif
 
