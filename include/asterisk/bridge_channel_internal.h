@@ -130,10 +130,41 @@ int bridge_channel_internal_push(struct ast_bridge_channel *bridge_channel);
 void bridge_channel_internal_pull(struct ast_bridge_channel *bridge_channel);
 
 /*!
+ * \brief Internal bridge channel wait condition and associated result.
+ */
+struct bridge_channel_internal_cond {
+	/*! Lock for the data structure */
+	ast_mutex_t lock;
+	/*! Wait condition */
+	ast_cond_t cond;
+	/*! Wait until done */
+	int done;
+	/*! The bridge channel */
+	struct ast_bridge_channel *bridge_channel;
+};
+
+/*!
+ * \internal
+ * \brief Wait for the expected signal.
+ *
+ * \param cond the wait object
+ */
+void bridge_channel_internal_wait(struct bridge_channel_internal_cond *cond);
+
+/*!
+ * \internal
+ * \brief Signal the condition wait.
+ *
+ * \param cond the wait object
+ */
+void bridge_channel_internal_signal(struct bridge_channel_internal_cond *cond);
+
+/*!
  * \internal
  * \brief Join the bridge_channel to the bridge (blocking)
  *
  * \param bridge_channel The Channel in the bridge
+ * \param cond data used for signaling
  *
  * \note The bridge_channel->swap holds a channel reference for the swap
  * channel going into the bridging system.  The ref ensures that the swap
@@ -148,7 +179,8 @@ void bridge_channel_internal_pull(struct ast_bridge_channel *bridge_channel);
  * \retval 0 bridge channel successfully joined the bridge
  * \retval -1 bridge channel failed to join the bridge
  */
-int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel);
+int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel,
+				 struct bridge_channel_internal_cond *cond);
 
 /*!
  * \internal
