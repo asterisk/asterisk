@@ -107,6 +107,39 @@ static void format_cap_only_type(struct ast_format_cap *caps, enum ast_media_typ
 	}
 }
 
+static int send_keepalive(const void *data)
+{
+	struct ast_sip_session_media *session_media = (struct ast_sip_session_media *) data;
+	struct ast_rtp_instance *rtp = session_media->rtp;
+	int keepalive;
+	time_t interval;
+	int send_keepalive;
+
+	if (!rtp) {
+		return 0;
+	}
+
+	keepalive = ast_rtp_instance_get_keepalive(rtp);
+
+	if (!ast_sockaddr_isnull(&session_media->direct_media_addr)) {
+		ast_debug(1, "Not sending RTP keepalive on RTP instance %p since direct media is in use\n", rtp);
+		return keepalive * 1000;
+	}
+
+	interval = time(NULL) - ast_rtp_instance_get_last_tx(rtp);
+	send_keepalive = interval >= keepalive;
+
+	ast_debug(1, "It has been %d seconds since RTP was last sent on instance %p. %sending keepalive\n",
+			(int) interval, rtp, send_keepalive ? "S" : "Not s");
+
+	if (send_keepalive) {
+		ast_rtp_instance_sendcng(rtp, 0);
+		return keepalive * 1000;
+	}
+
+	return (keepalive - interval) * 1000;
+}
+
 /*! \brief Internal function which creates an RTP instance */
 static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_media *session_media, unsigned int ipv6)
 {
@@ -1227,6 +1260,17 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 	/* This purposely resets the encryption to the configured in case it gets added later */
 	session_media->encryption = session->endpoint->media.rtp.encryption;
 
+	if (session->endpoint->media.rtp.keepalive > 0 &&
+			stream_to_media_type(session_media->stream_type) == AST_MEDIA_TYPE_AUDIO) {
+		ast_rtp_instance_set_keepalive(session_media->rtp, session->endpoint->media.rtp.keepalive);
+		/* Schedule the initial keepalive early in case this is being used to punch holes through
+		 * a NAT. This way there won't be an awkward delay before media starts flowing in some
+		 * scenarios.
+		 */
+		session_media->keepalive_sched_id = ast_sched_add_variable(sched, 500, send_keepalive,
+			session_media, 1);
+	}
+
 	return 1;
 }
 
@@ -1256,6 +1300,9 @@ static void change_outgoing_sdp_stream_media_address(pjsip_tx_data *tdata, struc
 static void stream_destroy(struct ast_sip_session_media *session_media)
 {
 	if (session_media->rtp) {
+		if (session_media->keepalive_sched_id != -1) {
+			AST_SCHED_DEL(sched, session_media->keepalive_sched_id);
+		}
 		ast_rtp_instance_stop(session_media->rtp);
 		ast_rtp_instance_destroy(session_media->rtp);
 	}
