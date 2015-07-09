@@ -2316,6 +2316,22 @@ struct stasis_message_type *ast_rtp_rtcp_received_type(void);
  */
 struct stasis_topic *ast_rtp_topic(void);
 
+/*!
+ * \brief Get the last RTP transmission time
+ *
+ * \param rtp The instance from which to get the last transmission time
+ * \return The last RTP transmission time
+ */
+time_t ast_rtp_instance_get_last_tx(const struct ast_rtp_instance *rtp);
+
+/*!
+ * \brief Set the last RTP transmission time
+ *
+ * \param rtp The instance on which to set the last transmission time
+ * \param time The last transmission time
+ */
+void ast_rtp_instance_set_last_tx(struct ast_rtp_instance *rtp, time_t time);
+
 /* }@ */
 
 #if defined(__cplusplus) || defined(c_plusplus)
