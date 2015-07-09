@@ -50,6 +50,8 @@ ASTERISK_REGISTER_FILE()
 struct native_rtp_bridge_data {
 	/*! \brief Framehook used to intercept certain control frames */
 	int id;
+	/*! \brief Set when this framehook has been detached */
+	unsigned int detached;
 };
 
 /*! \brief Internal helper function which gets all RTP information (glue and instances) relating to the given channels */
@@ -261,6 +263,7 @@ static void native_rtp_bridge_stop(struct ast_bridge *bridge, struct ast_channel
 static struct ast_frame *native_rtp_framehook(struct ast_channel *chan, struct ast_frame *f, enum ast_framehook_event event, void *data)
 {
 	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
+	struct native_rtp_bridge_data *native_data = data;
 
 	if (!f || (event != AST_FRAMEHOOK_EVENT_WRITE)) {
 		return f;
@@ -272,13 +275,22 @@ static struct ast_frame *native_rtp_framehook(struct ast_channel *chan, struct a
 		/* native_rtp_bridge_start/stop are not being called from bridging
 		   core so we need to lock the bridge prior to calling these functions
 		   Unfortunately that means unlocking the channel, but as it
-		   should not be modified this should be okay...hopefully */
+		   should not be modified this should be okay... hopefully...
+		   unless this channel is being moved around right now and is in
+		   the process of having this framehook removed (which is fine). To
+		   ensure we then don't stop or start when we shouldn't we consult
+		   the data provided. If this framehook has been detached then the
+		   detached variable will be set. This is safe to check as it is only
+		   manipulated with the bridge lock held. */
 		ast_channel_unlock(chan);
 		ast_bridge_lock(bridge);
-		if (f->subclass.integer == AST_CONTROL_HOLD) {
-			native_rtp_bridge_stop(bridge, chan);
-		} else if ((f->subclass.integer == AST_CONTROL_UNHOLD) || (f->subclass.integer == AST_CONTROL_UPDATE_RTP_PEER)) {
-			native_rtp_bridge_start(bridge, chan);
+		if (!native_data->detached) {
+			if (f->subclass.integer == AST_CONTROL_HOLD) {
+				native_rtp_bridge_stop(bridge, chan);
+			} else if ((f->subclass.integer == AST_CONTROL_UNHOLD) ||
+				(f->subclass.integer == AST_CONTROL_UPDATE_RTP_PEER)) {
+				native_rtp_bridge_start(bridge, chan);
+			}
 		}
 		ast_bridge_unlock(bridge);
 		ast_channel_lock(chan);
@@ -403,6 +415,7 @@ static int native_rtp_bridge_framehook_attach(struct ast_bridge_channel *bridge_
 	static struct ast_framehook_interface hook = {
 		.version = AST_FRAMEHOOK_INTERFACE_VERSION,
 		.event_cb = native_rtp_framehook,
+		.destroy_cb = __ao2_cleanup,
 		.consume_cb = native_rtp_framehook_consume,
 		.disable_inheritance = 1,
 	};
@@ -412,10 +425,12 @@ static int native_rtp_bridge_framehook_attach(struct ast_bridge_channel *bridge_
 	}
 
 	ast_channel_lock(bridge_channel->chan);
+	hook.data = ao2_bump(data);
 	data->id = ast_framehook_attach(bridge_channel->chan, &hook);
 	ast_channel_unlock(bridge_channel->chan);
 	if (data->id < 0) {
-		ao2_cleanup(data);
+		/* We need to drop both the reference we hold, and the one the framehook would hold */
+		ao2_ref(data, -2);
 		return -1;
 	}
 
@@ -435,6 +450,7 @@ static void native_rtp_bridge_framehook_detach(struct ast_bridge_channel *bridge
 
 	ast_channel_lock(bridge_channel->chan);
 	ast_framehook_detach(bridge_channel->chan, data->id);
+	data->detached = 1;
 	ast_channel_unlock(bridge_channel->chan);
 	bridge_channel->tech_pvt = NULL;
 }
