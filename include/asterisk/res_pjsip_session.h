@@ -77,6 +77,8 @@ struct ast_sip_session_media {
 	enum ast_sip_session_media_encryption encryption;
 	/*! \brief The media transport in use for this stream */
 	pj_str_t transport;
+	/*! \brief Scheduler ID for RTP keepalive */
+	int keepalive_sched_id;
 	/*! \brief Stream is on hold by remote side */
 	unsigned int remotely_held:1;
 	/*! \brief Stream is on hold by local side */
