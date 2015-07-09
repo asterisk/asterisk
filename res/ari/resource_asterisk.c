@@ -33,6 +33,7 @@ ASTERISK_REGISTER_FILE()
 
 #include "asterisk/ast_version.h"
 #include "asterisk/buildinfo.h"
+#include "asterisk/module.h"
 #include "asterisk/paths.h"
 #include "asterisk/pbx.h"
 #include "resource_asterisk.h"
@@ -138,6 +139,64 @@ void ast_ari_asterisk_get_info(struct ast_variable *headers,
 	}
 
 	ast_ari_response_ok(response, ast_json_ref(json));
+}
+
+void ast_ari_asterisk_reload_module(struct ast_variable *headers,
+	struct ast_ari_asterisk_reload_module_args *args,
+	struct ast_ari_response *response)
+{
+	enum ast_module_reload_result reload_result;
+
+	ast_assert(response != NULL);
+
+	if (ast_strlen_zero(args->module_name)) {
+		ast_ari_response_error(
+			response, 400, "Bad Request",
+			"Module name is required");
+		return;
+	}
+
+	if (!ast_module_check(args->module_name)) {
+		ast_verb(0, "made it here\n");
+		ast_ari_response_error(
+			response, 404, "Not Found",
+			"Module does not exist");
+		return;
+	}
+
+	reload_result = ast_module_reload(args->module_name);
+
+	if (reload_result == AST_MODULE_RELOAD_NOT_FOUND) {
+		ast_ari_response_error(
+			response, 404, "Not Found",
+			"Module could not be found");
+		return;
+	} else if (reload_result == AST_MODULE_RELOAD_ERROR) {
+		ast_ari_response_error(
+			response, 409, "Conflict",
+			"An error occurred while reloading the module");
+		return;
+	} else if (reload_result == AST_MODULE_RELOAD_IN_PROGRESS) {
+		ast_ari_response_error(
+			response, 409, "Conflict",
+			"Another reload is currently in progress");
+		return;
+	} else if (reload_result == AST_MODULE_RELOAD_UNINITIALIZED) {
+		ast_ari_response_error(
+			response, 409, "Conflict",
+			"Module has not been initialized");
+		return;
+	} else if (reload_result == AST_MODULE_RELOAD_NOT_IMPLEMENTED) {
+		ast_ari_response_error(
+			response, 409, "Conflict",
+			"Module does not support reloading");
+		return;
+	} else if (reload_result == AST_MODULE_RELOAD_QUEUED) {
+		ast_ari_response_accepted(response);
+		return;
+	}
+
+	ast_ari_response_no_content(response);
 }
 
 void ast_ari_asterisk_get_global_var(struct ast_variable *headers,
