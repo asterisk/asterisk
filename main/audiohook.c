@@ -1019,6 +1019,7 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 			ast_audiohook_unlock(audiohook);
 		}
 		AST_LIST_TRAVERSE_SAFE_END;
+		middle_frame_manipulated = 1;
 	}
 
 	/* ---Part_3: Decide what to do with the end_frame (whether to transcode or not) */
@@ -1028,6 +1029,7 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 			end_frame = start_frame;
 		}
 	} else {
+		ast_log(LOG_NOTICE, "Middle frame not manipulated?!\n");
 		end_frame = start_frame;
 	}
 	/* clean up our middle_frame if required */

@@ -654,10 +654,12 @@ int ast_frame_adjust_volume(struct ast_frame *f, int adjustment)
 	short adjust_value = abs(adjustment);
 
 	if ((f->frametype != AST_FRAME_VOICE) || !(ast_format_cache_is_slinear(f->subclass.format))) {
+		ast_log(LOG_NOTICE, "Is it not slinear?\n");
 		return -1;
 	}
 
 	if (!adjustment) {
+		ast_log(LOG_NOTICE, "No adjustment?\n");
 		return 0;
 	}
 

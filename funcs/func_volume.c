@@ -128,9 +128,11 @@ static int volume_callback(struct ast_audiohook *audiohook, struct ast_channel *
 			if (direction != AST_AUDIOHOOK_DIRECTION_READ)
 				return 0; 
 			if (frame->subclass.integer == '*') {
+				ast_log(LOG_NOTICE, "Increasing gain\n");
 				vi->tx_gain += 1;
 				vi->rx_gain += 1;
 			} else if (frame->subclass.integer == '#') {
+				ast_log(LOG_NOTICE, "Decreasing gain\n");
 				vi->tx_gain -= 1;
 				vi->rx_gain -= 1;
 			}
@@ -143,6 +145,7 @@ static int volume_callback(struct ast_audiohook *audiohook, struct ast_channel *
 		if (!(gain = (direction == AST_AUDIOHOOK_DIRECTION_READ) ? &vi->rx_gain : &vi->tx_gain) || !*gain)
 			return 0;
 		/* Apply gain to frame... easy as pi */
+		ast_log(LOG_NOTICE, "Adjusting volume with gain %d\n", *gain);
 		ast_frame_adjust_volume(frame, *gain);
 	}
 
