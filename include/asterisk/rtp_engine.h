@@ -2316,6 +2316,10 @@ struct stasis_message_type *ast_rtp_rtcp_received_type(void);
  */
 struct stasis_topic *ast_rtp_topic(void);
 
+time_t ast_rtp_instance_get_last_tx(const struct ast_rtp_instance *rtp);
+
+void ast_rtp_instance_set_last_tx(struct ast_rtp_instance *rtp, time_t time);
+
 /* }@ */
 
 #if defined(__cplusplus) || defined(c_plusplus)
