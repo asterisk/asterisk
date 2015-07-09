@@ -2117,6 +2117,7 @@ static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t siz
 	void *temp = buf;
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	struct ast_srtp *srtp = ast_rtp_instance_get_srtp(instance);
+	int res;
 
 	*ice = 0;
 
@@ -2135,7 +2136,11 @@ static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t siz
 	}
 #endif
 
-	return ast_sendto(rtcp ? rtp->rtcp->s : rtp->s, temp, len, flags, sa);
+	res = ast_sendto(rtcp ? rtp->rtcp->s : rtp->s, temp, len, flags, sa);
+	if (res > 0) {
+		ast_rtp_instance_set_last_tx(instance, time(NULL));
+	}
+	return res;
 }
 
 static int rtcp_sendto(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa, int *ice)
