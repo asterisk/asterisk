@@ -106,6 +106,15 @@ static void format_cap_only_type(struct ast_format_cap *caps, enum ast_media_typ
 	}
 }
 
+static int send_keepalive(const void *data)
+{
+	struct ast_rtp_instance *rtp = (struct ast_rtp_instance *) data;
+
+	ast_rtp_instance_sendcng(rtp, 0);
+
+	return ast_rtp_instance_get_keepalive(rtp) * 1000;
+}
+
 /*! \brief Internal function which creates an RTP instance */
 static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_media *session_media, unsigned int ipv6)
 {
@@ -141,6 +150,16 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 			(session->endpoint->media.tos_video || session->endpoint->media.cos_video)) {
 		ast_rtp_instance_set_qos(session_media->rtp, session->endpoint->media.tos_video,
 				session->endpoint->media.cos_video, "SIP RTP Video");
+	}
+
+	if (session->endpoint->media.rtp.keepalive > 0) {
+		ast_rtp_instance_set_keepalive(session_media->rtp, session->endpoint->media.rtp.keepalive);
+		/* Schedule the initial keepalive early in case this is being used to punch holes through
+		 * a NAT. This way there won't be an awkward delay before media starts flowing in some
+		 * scenarios.
+		 */
+		session_media->keepalive_sched_id = ast_sched_add(sched, 500, send_keepalive,
+			session_media->rtp);
 	}
 
 	return 0;
@@ -1248,6 +1267,9 @@ static void stream_destroy(struct ast_sip_session_media *session_media)
 	if (session_media->rtp) {
 		ast_rtp_instance_stop(session_media->rtp);
 		ast_rtp_instance_destroy(session_media->rtp);
+		if (session_media->keepalive_sched_id != -1) {
+			AST_SCHED_DEL(sched, session_media->keepalive_sched_id);
+		}
 	}
 	session_media->rtp = NULL;
 }

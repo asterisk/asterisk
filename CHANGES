@@ -17,6 +17,12 @@ AMI
  * Added the Linkedid header to the common channel headers listed for each
    channel in AMI events.
 
+res_pjsip
+------------------
+* A new 'rtp_keepalive' endpoint option has been added. This option specifies
+  an interval, in seconds, at which we will send RTP comfort noise packets to
+  the endpoint. This functions identically to chan_sip's "rtpkeepalive" option.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.1.0-cert1 to Asterisk 13.1-cert2 --
 ------------------------------------------------------------------------------
