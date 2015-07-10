@@ -39,6 +39,42 @@
 			]
 		},
 		{
+			"path": "/asterisk/modules/{moduleName}",
+			"description": "Asterisk module",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "Get Asterisk module information.",
+					"nickname": "getModule",
+					"responseClass": "Module",
+					"parameters": [
+						{
+							"name": "moduleName",
+							"description": "Module's name",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 400,
+							"reason": "Module name is required."
+						},
+						{
+							"code": 404,
+							"reason": "Module does not exist."
+						},
+						{
+							"code": 409,
+							"reason": "Module information could not be retrieved."
+						}
+					]
+				}
+			]
+		},
+		{
 			"path": "/asterisk/variable",
 			"description": "Global variables",
 			"operations": [
@@ -241,6 +277,37 @@
 					"required": false,
 					"type": "StatusInfo",
 					"description": "Info about Asterisk status"
+				}
+			}
+		},
+		"Module": {
+			"id": "Module",
+			"description": "Details of an Asterisk module",
+			"properties": {
+				"name": {
+					"type": "string",
+					"description": "The name of this module",
+					"required": true
+				},
+				"description": {
+					"type": "string",
+					"description": "The dsecription of this module",
+					"required": true
+				},
+				"use_count": {
+					"type": "int",
+					"description": "The number of times this module is being used",
+					"required": true
+				},
+				"status": {
+					"type": "string",
+					"description": "The running status of this module",
+					"required": true
+				},
+				"support_level": {
+					"type": "string",
+					"description": "The support state of this module",
+					"required": true
 				}
 			}
 		},
