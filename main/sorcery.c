@@ -129,6 +129,9 @@ struct ast_sorcery_object {
 
 	/*! \brief Extended object fields */
 	struct ast_variable *extended;
+
+	/*! \brief Time that the object was created */
+	struct timeval created;
 };
 
 /*! \brief Structure for registered object type */
@@ -1734,6 +1737,7 @@ void *ast_sorcery_alloc(const struct ast_sorcery *sorcery, const char *type, con
 		details->object->id = ast_strdup(id);
 	}
 
+	details->object->created = ast_tvnow();
 	ast_copy_string(details->object->type, type, sizeof(details->object->type));
 
 	if (aco_set_defaults(&object_type->type, id, details)) {
@@ -2143,6 +2147,35 @@ int ast_sorcery_delete(const struct ast_sorcery *sorcery, void *object)
 	return object_wizard ? 0 : -1;
 }
 
+int ast_sorcery_is_stale(const struct ast_sorcery *sorcery, void *object)
+{
+	const struct ast_sorcery_object_details *details = object;
+	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, details->object->type, OBJ_KEY), ao2_cleanup);
+	struct ast_sorcery_object_wizard *found_wizard;
+	int res = 0;
+	int i;
+
+	if (!object_type) {
+		return -1;
+	}
+
+	AST_VECTOR_RW_RDLOCK(&object_type->wizards);
+	for (i = 0; i < AST_VECTOR_SIZE(&object_type->wizards); i++) {
+		found_wizard = AST_VECTOR_GET(&object_type->wizards, i);
+
+		if (found_wizard->wizard->callbacks.is_stale) {
+			res |= found_wizard->wizard->callbacks.is_stale(sorcery, found_wizard->data, object);
+			ast_debug(5, "After calling wizard '%s', object '%s' is %s\n",
+				found_wizard->wizard->callbacks.name,
+				ast_sorcery_object_get_id(object),
+				res ? "stale" : "not stale");
+		}
+	}
+	AST_VECTOR_RW_UNLOCK(&object_type->wizards);
+
+	return res;
+}
+
 void ast_sorcery_unref(struct ast_sorcery *sorcery)
 {
 	if (sorcery) {
@@ -2159,6 +2192,12 @@ const char *ast_sorcery_object_get_id(const void *object)
 {
 	const struct ast_sorcery_object_details *details = object;
 	return details->object->id;
+}
+
+const struct timeval ast_sorcery_object_get_created(const void *object)
+{
+	const struct ast_sorcery_object_details *details = object;
+	return details->object->created;
 }
 
 const char *ast_sorcery_object_get_type(const void *object)
