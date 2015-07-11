@@ -462,7 +462,7 @@ AST_TEST_DEFINE(low_unique_object_count_immediately_stale)
 			"after 1 second. It also creates 25 threads which are constantly attempting\n"
 			"to retrieve the objects. This test confirms that the background refreshes\n"
 			"being done as a result of going stale do not conflict or cause problems with\n"
-			"the large number of retrieve threads.\n";
+			"the large number of retrieve threads.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -481,7 +481,7 @@ AST_TEST_DEFINE(low_unique_object_count_immediately_expire)
 		info->description = "This test creates a cache with objects that are expired\n"
 			"after 1 second. It also creates 25 threads which are constantly attempting\n"
 			"to retrieve the objects. This test confirms that the expiration process does\n"
-			"not cause a problem as the retrieve threads execute.\n";
+			"not cause a problem as the retrieve threads execute.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -500,7 +500,7 @@ AST_TEST_DEFINE(low_unique_object_count_high_concurrent_updates)
 		info->description = "This test creates a cache with objects that are being constantly\n"
 			"updated and retrieved at the same time. This will create contention between all\n"
 			"of the threads as the write lock is held for the updates. This test confirms that\n"
-			"no problems occur in this situation.\n";
+			"no problems occur in this situation.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -520,7 +520,7 @@ AST_TEST_DEFINE(unique_objects_exceeding_maximum)
 			"allowed in it. The maximum number of unique objects, however, far exceeds the\n"
 			"the maximum number allowed in the cache. This test confirms that the cache does\n"
 			"not exceed the maximum and that the removal of older objects does not cause\n"
-			"a problem.\n";
+			"a problem.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -540,7 +540,7 @@ AST_TEST_DEFINE(unique_objects_exceeding_maximum_with_expire_and_stale)
 			"allowed in it with objects that also go stale after a period of time and expire.\n"
 			"A number of threads are created that constantly retrieve from the cache, causing\n"
 			"both stale refresh and expiration to occur. This test confirms that the combination\n"
-			"of these do not present a problem.\n";
+			"of these do not present a problem.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -559,7 +559,7 @@ AST_TEST_DEFINE(conflicting_expire_and_stale)
 		info->summary = "Thrash a cache with a large number of objects that expire and go stale";
 		info->description = "This test creates a cache with a large number of objects that expire\n"
 			"and go stale. As there is such a large number this ensures that both operations occur.\n"
-			"This test confirms that stale refreshing and expiration do not conflict.\n";
+			"This test confirms that stale refreshing and expiration do not conflict.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
@@ -578,7 +578,7 @@ AST_TEST_DEFINE(high_object_count_without_expiration)
 		info->summary = "Thrash a cache with a large number of objects";
 		info->description = "This test creates a cache with a large number of objects that persist.\n"
 			"A large number of threads are created which constantly retrieve from the cache.\n"
-			"This test confirms that the large number of retrieves do not cause a problem.\n";
+			"This test confirms that the large number of retrieves do not cause a problem.";
 		return AST_TEST_NOT_RUN;
 	case TEST_EXECUTE:
 		break;
