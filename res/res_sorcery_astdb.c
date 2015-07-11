@@ -202,6 +202,7 @@ static void *sorcery_astdb_retrieve_id(const struct ast_sorcery *sorcery, void *
 	if (ast_db_get_allocated(family, id, &value) || !(json = ast_json_load_string(value, &error)) ||
 		!(objset = sorcery_json_to_objectset(json)) || !(object = ast_sorcery_alloc(sorcery, type, id)) ||
 		ast_sorcery_objectset_apply(sorcery, object, objset)) {
+		ast_debug(3, "Failed to retrieve object '%s' from astdb\n", id);
 		ao2_cleanup(object);
 		return NULL;
 	}
