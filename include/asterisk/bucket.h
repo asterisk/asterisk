@@ -218,6 +218,23 @@ struct ast_bucket *ast_bucket_alloc(const char *uri);
 int ast_bucket_create(struct ast_bucket *bucket);
 
 /*!
+ * \brief Clone a bucket
+ *
+ * This will create a copy of the passed in \c ast_bucket structure. While
+ * all properties of the \c ast_bucket structure are copied, any metadata
+ * in the original structure simply has its reference count increased.
+ *
+ * \param file The bucket to clone
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ *
+ * \note This operation should be called prior to updating a bucket
+ * object, as \c ast_bucket instances are immutable
+ */
+struct ast_bucket *ast_bucket_clone(struct ast_bucket *bucket);
+
+/*!
  * \brief Delete a bucket from backend storage
  *
  * \param bucket The bucket
@@ -238,6 +255,23 @@ int ast_bucket_delete(struct ast_bucket *bucket);
  * \note The object is returned with reference count increased
  */
 struct ast_bucket *ast_bucket_retrieve(const char *uri);
+
+/*!
+ * \brief Retrieve whether or not the backing datastore views the bucket as stale
+ * \since 14.0.0
+ *
+ * This function will ask whatever data storage backs the bucket's schema
+ * type if the current instance of the object is stale. It will not
+ * update the bucket object itself, as said objects are immutable. If the
+ * caller of this function would like to update the object, it should perform
+ * a retrieve operation.
+ *
+ * \param bucket The bucket object to check
+ *
+ * \retval 0 if \c bucket is not stale
+ * \retval 1 if \c bucket is stale
+ */
+int ast_bucket_is_stale(struct ast_bucket *bucket);
 
 /*!
  * \brief Add an observer for bucket creation and deletion operations
@@ -309,6 +343,24 @@ int ast_bucket_file_create(struct ast_bucket_file *file);
 struct ast_bucket_file *ast_bucket_file_copy(struct ast_bucket_file *file, const char *uri);
 
 /*!
+ * \brief Clone a bucket file
+ *
+ * This will create a copy of the passed in \c ast_bucket_file structure. While
+ * all properties of the \c ast_bucket_file structure are copied, any metadata
+ * in the original structure simply has its reference count increased. Note that
+ * this copies the structure, not the underlying file.
+ *
+ * \param file The bucket file to clone
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ *
+ * \note This operation should be called prior to updating a bucket file
+ * object, as \c ast_bucket_file instances are immutable
+ */
+struct ast_bucket_file *ast_bucket_file_clone(struct ast_bucket_file *file);
+
+/*!
  * \brief Update an existing bucket file in backend storage
  *
  * \param file The bucket file
@@ -341,6 +393,23 @@ int ast_bucket_file_delete(struct ast_bucket_file *file);
  * \note The object is returned with reference count increased
  */
 struct ast_bucket_file *ast_bucket_file_retrieve(const char *uri);
+
+/*!
+ * \brief Retrieve whether or not the backing datastore views the bucket file as stale
+ * \since 14.0.0
+ *
+ * This function will ask whatever data storage backs the bucket file's schema
+ * type if the current instance of the object is stale. It will not
+ * update the bucket file object itself, as said objects are immutable. If the
+ * caller of this function would like to update the object, it should perform
+ * a retrieve operation.
+ *
+ * \param bucket_file The bucket file object to check
+ *
+ * \retval 0 if \c bucket_file is not stale
+ * \retval 1 if \c bucket_file is stale
+ */
+int ast_bucket_file_is_stale(struct ast_bucket_file *file);
 
 /*!
  * \brief Add an observer for bucket file creation and deletion operations
