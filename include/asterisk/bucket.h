@@ -195,6 +195,17 @@ int ast_bucket_file_metadata_unset(struct ast_bucket_file *file, const char *nam
 struct ast_bucket_metadata *ast_bucket_file_metadata_get(struct ast_bucket_file *file, const char *name);
 
 /*!
+ * \brief Execute a callback function on the metadata associated with a file
+ * \since 14.0.0
+ *
+ * \param file The bucket file
+ * \param cb An ao2 callback function that will be called with each \c ast_bucket_metadata
+ *           associated with \c file
+ * \param arg An optional argument to pass to \c cb
+ */
+void ast_bucket_file_metadata_callback(struct ast_bucket_file *file, ao2_callback_fn cb, void *arg);
+
+/*!
  * \brief Allocate a new bucket
  *
  * \param uri Complete URI for the bucket
