@@ -179,6 +179,25 @@ int ast_update_module_list_data(int (*modentry)(const char *module, const char *
                                 const char *like, void *data);
 
 /*!
+ * \brief Ask for a list of modules, descriptions, use counts and status.
+ * \param modentry A callback to an updater function
+ * \param like
+ * \param data Data passed into the callback for manipulation
+ * \param condition The condition to meet
+ *
+ * For each of the modules loaded, modentry will be executed with the resource,
+ * description, and usecount values of each particular module.
+ *
+ * \return the number of conditions met
+ * \since 13.5.0
+ */
+int ast_update_module_list_condition(int (*modentry)(const char *module, const char *description,
+                                                     int usecnt, const char *status, const char *like,
+                                                     enum ast_module_support_level support_level,
+                                                     void *data, const char *condition),
+                                     const char *like, void *data, const char *condition);
+
+/*!
  * \brief Check if module with the name given is loaded
  * \param name Module name, like "chan_sip.so"
  * \retval 1 if true 
