@@ -192,7 +192,8 @@ AMI
 ARI
 ------------------
  * A new feature has been added that enables the retrieval of modules and
-   module information through an HTTP request.
+   module information through an HTTP request. Modules can also be loaded
+   to Asterisk through this feature.
 
 res_pjsip
 ------------------
