@@ -51,6 +51,38 @@
 			]
 		},
 		{
+			"path": "/asterisk/modules/{moduleName}",
+			"description": "Asterisk module",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "Get Asterisk module information.",
+					"nickname": "getModule",
+					"responseClass": "Module",
+					"parameters": [
+						{
+							"name": "moduleName",
+							"description": "Module's name",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Module could not be found in running modules."
+						},
+						{
+							"code": 409,
+							"reason": "Module information could not be retrieved."
+						}
+					]
+				}
+			]
+		},
+		{
 			"path": "/asterisk/variable",
 			"description": "Global variables",
 			"operations": [
