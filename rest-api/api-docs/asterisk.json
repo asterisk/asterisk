@@ -51,6 +51,38 @@
 			]
 		},
 		{
+			"path": "/asterisk/modules/{moduleName}",
+			"description": "Asterisk module",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Load an Asterisk module.",
+					"nickname": "loadModule",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "moduleName",
+							"description": "Module's name",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Module is not configured."
+						},
+						{
+							"code": 409,
+							"reason": "Module could not be loaded."
+						}
+					]
+				}
+			]
+		},
+		{
 			"path": "/asterisk/variable",
 			"description": "Global variables",
 			"operations": [
