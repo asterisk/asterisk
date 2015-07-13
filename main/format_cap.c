@@ -324,7 +324,24 @@ int ast_format_cap_update_by_allow_disallow(struct ast_format_cap *cap, const ch
 	}
 
 	parse = ast_strdupa(list);
-	while ((this = strsep(&parse, ","))) {
+
+	/* If the list is being fed to us as a result of ast_format_cap_get_names,
+	 * strip off the paranthesis and immediately apply the inverse of the
+	 * allowing option
+	 */
+	if (parse[0] == '(' && parse[strlen(parse) - 1] == ')') {
+		parse++;
+		parse[strlen(parse) - 1] = '\0';
+
+		if (allowing) {
+			ast_format_cap_remove_by_type(cap, AST_MEDIA_TYPE_UNKNOWN);
+		} else {
+			ast_format_cap_append_by_type(cap, AST_MEDIA_TYPE_UNKNOWN);
+		}
+	}
+
+
+	while ((this = strsep(&parse, ",|"))) {
 		int framems = 0;
 		struct ast_format *format = NULL;
 
