@@ -79,6 +79,28 @@
 							"reason": "Module information could not be retrieved."
 						}
 					]
+				},
+				{
+					"httpMethod": "POST",
+					"summary": "Load an Asterisk module.",
+					"nickname": "loadModule",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "moduleName",
+							"description": "Module's name",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 409,
+							"reason": "Module could not be loaded."
+						}
+					]
 				}
 			]
 		},
