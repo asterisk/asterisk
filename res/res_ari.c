@@ -284,6 +284,13 @@ void ast_ari_response_no_content(struct ast_ari_response *response)
 	response->response_text = "No Content";
 }
 
+void ast_ari_response_accepted(struct ast_ari_response *response)
+{
+	response->message = ast_json_null();
+	response->response_code = 202;
+	response->response_text = "Accepted";
+}
+
 void ast_ari_response_alloc_failed(struct ast_ari_response *response)
 {
 	response->message = ast_json_ref(oom_json);
