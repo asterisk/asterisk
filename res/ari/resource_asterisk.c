@@ -258,6 +258,43 @@ void ast_ari_asterisk_get_module(struct ast_variable *headers,
 	ast_ari_response_ok(response, json);
 }
 
+void ast_ari_asterisk_load_module(struct ast_variable *headers,
+	struct ast_ari_asterisk_load_module_args *args,
+	struct ast_ari_response *response)
+{
+	enum ast_module_load_result load_result;
+
+	ast_assert(response != NULL);
+
+	if (ast_module_check(args->module_name)) {
+		ast_ari_response_error(
+			response, 409, "Conflict",
+			"Module is already loaded");
+		return;
+	}
+
+	load_result = ast_load_resource(args->module_name);
+
+	if (load_result == AST_MODULE_LOAD_DECLINE) {
+		ast_ari_response_error(
+			response, 409, "Conflict",
+			"Module load declined");
+		return;
+	} else if (load_result == AST_MODULE_LOAD_SKIP) {
+		ast_ari_response_error(
+			response, 409, "Conflict",
+			"Module was skipped");
+		return;
+	} else if (load_result == AST_MODULE_LOAD_FAILURE) {
+		ast_ari_response_error(
+			response, 409, "Conflict",
+			"Module could not be loaded properly");
+		return;
+	}
+
+	ast_ari_response_no_content(response);
+}
+
 void ast_ari_asterisk_get_global_var(struct ast_variable *headers,
 	struct ast_ari_asterisk_get_global_var_args *args,
 	struct ast_ari_response *response)
