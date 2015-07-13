@@ -78,6 +78,19 @@ struct ast_ari_asterisk_list_modules_args {
  * \param[out] response HTTP response
  */
 void ast_ari_asterisk_list_modules(struct ast_variable *headers, struct ast_ari_asterisk_list_modules_args *args, struct ast_ari_response *response);
+/*! Argument struct for ast_ari_asterisk_unload_module() */
+struct ast_ari_asterisk_unload_module_args {
+	/*! Module's name */
+	const char *module_name;
+};
+/*!
+ * \brief Unload an Asterisk module.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_asterisk_unload_module(struct ast_variable *headers, struct ast_ari_asterisk_unload_module_args *args, struct ast_ari_response *response);
 /*! Argument struct for ast_ari_asterisk_get_global_var() */
 struct ast_ari_asterisk_get_global_var_args {
 	/*! The variable to get */
