@@ -51,6 +51,38 @@
 			]
 		},
 		{
+			"path": "/asterisk/modules/{moduleName}",
+			"description": "Asterisk module",
+			"operations": [
+				{
+					"httpMethod": "DELETE",
+					"summary": "Unload an Asterisk module.",
+					"nickname": "unloadModule",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "moduleName",
+							"description": "Module's name",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Module not found in running modules."
+						},
+						{
+							"code": 409,
+							"reason": "Module could not be unloaded."
+						}
+					]
+				}
+			]
+		},
+		{
 			"path": "/asterisk/variable",
 			"description": "Global variables",
 			"operations": [
