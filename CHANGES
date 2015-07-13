@@ -23,7 +23,8 @@ AMI
 ARI
 ------------------
  * A new feature has been added that enables the retrieval of modules and
-   module information through an HTTP request.
+   module information through an HTTP request. Information on a single module
+   can be also be retrieved.
 
 res_pjsip
 ------------------
