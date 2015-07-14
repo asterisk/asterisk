@@ -323,6 +323,56 @@ void ast_ari_asterisk_unload_module(struct ast_variable *headers,
 	ast_ari_response_no_content(response);
 }
 
+void ast_ari_asterisk_reload_module(struct ast_variable *headers,
+	struct ast_ari_asterisk_reload_module_args *args,
+	struct ast_ari_response *response)
+{
+	enum ast_module_reload_result reload_result;
+
+	ast_assert(response != NULL);
+
+	if (!ast_module_check(args->module_name)) {
+		ast_ari_response_error(
+			response, 404, "Not Found",
+			"Module not found in running modules");
+		return;
+	}
+
+	reload_result = ast_module_reload(args->module_name);
+
+	if (reload_result == AST_MODULE_RELOAD_NOT_FOUND) {
+		ast_ari_response_error(
+			response, 404, "Not Found",
+			"Module could not be found");
+		return;
+	} else if (reload_result == AST_MODULE_RELOAD_ERROR) {
+		ast_ari_response_error(
+			response, 409, "Conflict",
+			"An unknown error occurred while reloading the module");
+		return;
+	} else if (reload_result == AST_MODULE_RELOAD_IN_PROGRESS) {
+		ast_ari_response_error(
+			response, 409, "Conflict",
+			"Another reload is currently in progress");
+		return;
+	} else if (reload_result == AST_MODULE_RELOAD_UNINITIALIZED) {
+		ast_ari_response_error(
+			response, 409, "Conflict",
+			"Module has not been initialized");
+		return;
+	} else if (reload_result == AST_MODULE_RELOAD_NOT_IMPLEMENTED) {
+		ast_ari_response_error(
+			response, 409, "Conflict",
+			"Module does not support reloading");
+		return;
+	} else if (reload_result == AST_MODULE_RELOAD_QUEUED) {
+		ast_ari_response_accepted(response);
+		return;
+	}
+
+	ast_ari_response_no_content(response);
+}
+
 void ast_ari_asterisk_get_global_var(struct ast_variable *headers,
 	struct ast_ari_asterisk_get_global_var_args *args,
 	struct ast_ari_response *response)

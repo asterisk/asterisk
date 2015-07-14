@@ -225,6 +225,11 @@ void ast_ari_response_ok(struct ast_ari_response *response,
 void ast_ari_response_no_content(struct ast_ari_response *response);
 
 /*!
+ * \brief Fill in a <tt>Accepted</tt> (202) \a ast_ari_response.
+ */
+void ast_ari_response_accepted(struct ast_ari_response *response);
+
+/*!
  * \brief Fill in a <tt>Created</tt> (201) \a ast_ari_response.
  * \param response Response to fill in.
  * \param url URL to the created resource.
