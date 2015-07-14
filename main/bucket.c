@@ -362,6 +362,12 @@ struct ast_bucket_metadata *ast_bucket_file_metadata_get(struct ast_bucket_file 
 	return ao2_find(file->metadata, name, OBJ_KEY);
 }
 
+void ast_bucket_file_metadata_callback(struct ast_bucket_file *file, ao2_callback_fn cb, void *arg)
+{
+	ao2_callback(file->metadata, 0, cb, arg);
+}
+
+
 /*! \brief Destructor for buckets */
 static void bucket_destroy(void *obj)
 {
