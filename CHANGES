@@ -24,7 +24,8 @@ ARI
 ------------------
  * A new feature has been added that enables the retrieval of modules and
    module information through an HTTP request. Information on a single module
-   can be also be retrieved. Individual modules can be loaded to Asterisk.
+   can be also be retrieved. Individual modules can be loaded to Asterisk, as
+   well as unloaded.
 
 res_pjsip
 ------------------
