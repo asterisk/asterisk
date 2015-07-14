@@ -295,6 +295,34 @@ void ast_ari_asterisk_load_module(struct ast_variable *headers,
 	ast_ari_response_no_content(response);
 }
 
+void ast_ari_asterisk_unload_module(struct ast_variable *headers,
+	struct ast_ari_asterisk_unload_module_args *args,
+	struct ast_ari_response *response)
+{
+	int unload_result;
+	enum ast_module_unload_mode unload_mode = AST_FORCE_FIRM;
+
+	ast_assert(response != NULL);
+
+	if (!ast_module_check(args->module_name)) {
+		ast_ari_response_error(
+			response, 404, "Not Found",
+			"Module not found in running modules");
+		return;
+	}
+
+	unload_result = ast_unload_resource(args->module_name, unload_mode);
+
+	if (unload_result != 0) {
+		ast_ari_response_error(
+			response, 409, "Conflict",
+			"Module could not be unloaded");
+		return;
+	}
+
+	ast_ari_response_no_content(response);
+}
+
 void ast_ari_asterisk_get_global_var(struct ast_variable *headers,
 	struct ast_ari_asterisk_get_global_var_args *args,
 	struct ast_ari_response *response)
