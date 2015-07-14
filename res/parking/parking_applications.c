@@ -349,8 +349,12 @@ static int setup_park_common_datastore(struct ast_channel *parkee, const char *p
 	attended_transfer = pbx_builtin_getvar_helper(parkee, "ATTENDEDTRANSFER");
 	blind_transfer = pbx_builtin_getvar_helper(parkee, "BLINDTRANSFER");
 
-	if (attended_transfer || blind_transfer) {
-		parker_dial_string = ast_strdupa(S_OR(attended_transfer, blind_transfer));
+	if (!ast_strlen_zero(attended_transfer)) {
+		parker_dial_string = ast_strdupa(attended_transfer);
+	} else if (!ast_strlen_zero(blind_transfer)) {
+		parker_dial_string = ast_strdupa(blind_transfer);
+		/* Ensure that attended_transfer is NULL and not an empty string. */
+		attended_transfer = NULL;
 	}
 
 	ast_channel_unlock(parkee);
