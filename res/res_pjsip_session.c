@@ -2247,7 +2247,7 @@ static void handle_outgoing(struct ast_sip_session *session, pjsip_tx_data *tdat
 	}
 }
 
-static int session_end(struct ast_sip_session *session)
+static void session_end(struct ast_sip_session *session)
 {
 	struct ast_sip_session_supplement *iter;
 
@@ -2256,14 +2256,28 @@ static int session_end(struct ast_sip_session *session)
 		ao2_ref(session, -1);
 	}
 
-	/* Session is dead. Let's get rid of the reference to the session */
+	/* Session is dead.  Notify the supplements. */
 	AST_LIST_TRAVERSE(&session->supplements, iter, next) {
 		if (iter->session_end) {
 			iter->session_end(session);
 		}
 	}
+}
 
-	session->inv_session->mod_data[session_module.id] = NULL;
+/*!
+ * \internal
+ * \brief Complete ending session activities.
+ * \since 13.5.0
+ *
+ * \param vsession Which session to complete stopping.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+static int session_end_completion(void *vsession)
+{
+	struct ast_sip_session *session = vsession;
+
 	ast_sip_dialog_set_serializer(session->inv_session->dlg, NULL);
 	ast_sip_dialog_set_endpoint(session->inv_session->dlg, NULL);
 	ao2_cleanup(session);
@@ -2372,9 +2386,7 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 
 	print_debug_details(inv, tsx, e);
 	if (!session) {
-		/* Transaction likely timed out after the call was hung up. Just
-		 * ignore such transaction changes
-		 */
+		/* The session has ended.  Ignore the transaction change. */
 		return;
 	}
 	switch (e->body.tsx_state.type) {
@@ -2455,7 +2467,48 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 		}
 		break;
 	case PJSIP_EVENT_TRANSPORT_ERROR:
+		/*
+		 * Clear the module data now to block session_inv_on_state_changed()
+		 * from calling session_end() if it hasn't already done so.
+		 */
+		inv->mod_data[session_module.id] = NULL;
+
+		if (inv->state != PJSIP_INV_STATE_DISCONNECTED) {
+			session_end(session);
+		}
+
+		/*
+		 * Pass the session ref held by session->inv_session to
+		 * session_end_completion().
+		 */
+		session_end_completion(session);
+		return;
 	case PJSIP_EVENT_TIMER:
+		/*
+		 * The timer event is run by the pjsip monitor thread and not
+		 * by the session serializer.
+		 */
+		if (inv->state == PJSIP_INV_STATE_DISCONNECTED) {
+			/*
+			 * We are locking because ast_sip_dialog_get_session() needs
+			 * the dialog locked to get the session by other threads.
+			 */
+			pjsip_dlg_inc_lock(inv->dlg);
+			session = inv->mod_data[session_module.id];
+			inv->mod_data[session_module.id] = NULL;
+			pjsip_dlg_dec_lock(inv->dlg);
+
+			/*
+			 * Pass the session ref held by session->inv_session to
+			 * session_end_completion().
+			 */
+			if (ast_sip_push_task(session->serializer, session_end_completion, session)) {
+				/* Do it anyway even though this is not the right thread. */
+				session_end_completion(session);
+			}
+			return;
+		}
+		break;
 	case PJSIP_EVENT_USER:
 	case PJSIP_EVENT_UNKNOWN:
 	case PJSIP_EVENT_TSX_STATE:
