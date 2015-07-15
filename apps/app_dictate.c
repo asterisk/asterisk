@@ -5,7 +5,7 @@
  *
  * Anthony Minessale II <anthmct@yahoo.com>
  *
- * Donated by Sangoma Technologies <http://www.samgoma.com>
+ * Donated by Sangoma Technologies <http://www.sangoma.com>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
