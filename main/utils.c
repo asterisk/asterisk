@@ -1634,40 +1634,50 @@ static char escape_sequences_map[] = {
 	'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', '\'', '"', '?', '\0'
 };
 
-char* ast_escape(char *dest, const char *s, size_t num, const char *to_escape)
+char *ast_escape(char *dest, const char *s, size_t size, const char *to_escape)
 {
 	char *p;
+	char *c;
 
-	if (!dest || ast_strlen_zero(s)) {
+	if (!dest || !size) {
+		return dest;
+	}
+	if (ast_strlen_zero(s)) {
+		*dest = '\0';
 		return dest;
 	}
 
 	if (ast_strlen_zero(to_escape)) {
-		ast_copy_string(dest, s, num);
+		ast_copy_string(dest, s, size);
 		return dest;
 	}
 
-	for (p = dest; *s && num--; ++s, ++p) {
+	for (p = dest; *s && --size; ++s, ++p) {
 		/* If in the list of characters to escape then escape it */
 		if (strchr(to_escape, *s)) {
+			if (!--size) {
+				/* Not enough room left for the escape sequence. */
+				break;
+			}
+
 			/*
 			 * See if the character to escape is part of the standard escape
 			 * sequences. If so we'll have to use its mapped counterpart
 			 * otherwise just use the current character.
 			 */
-			char *c = strchr(escape_sequences, *s);
+			c = strchr(escape_sequences, *s);
 			*p++ = '\\';
 			*p = c ? escape_sequences_map[c - escape_sequences] : *s;
 		} else {
 			*p = *s;
 		}
 	}
-
 	*p = '\0';
+
 	return dest;
 }
 
-char* ast_escape_c(char *dest, const char *s, size_t num)
+char *ast_escape_c(char *dest, const char *s, size_t size)
 {
 	/*
 	 * Note - This is an optimized version of ast_escape. When looking only
@@ -1675,32 +1685,42 @@ char* ast_escape_c(char *dest, const char *s, size_t num)
 	 * be left out thus making it slightly more efficient.
 	 */
 	char *p;
+	char *c;
 
-	if (!dest || ast_strlen_zero(s)) {
+	if (!dest || !size) {
+		return dest;
+	}
+	if (ast_strlen_zero(s)) {
+		*dest = '\0';
 		return dest;
 	}
 
-	for (p = dest; *s && num--; ++s, ++p) {
+	for (p = dest; *s && --size; ++s, ++p) {
 		/*
 		 * See if the character to escape is part of the standard escape
 		 * sequences. If so use its mapped counterpart.
 		 */
-		char *c = strchr(escape_sequences, *s);
+		c = strchr(escape_sequences, *s);
 		if (c) {
+			if (!--size) {
+				/* Not enough room left for the escape sequence. */
+				break;
+			}
+
 			*p++ = '\\';
 			*p = escape_sequences_map[c - escape_sequences];
 		} else {
 			*p = *s;
 		}
 	}
-
 	*p = '\0';
+
 	return dest;
 }
 
 static char *escape_alloc(const char *s, size_t *size)
 {
-	if (!s || !(*size = strlen(s))) {
+	if (!s) {
 		return NULL;
 	}
 
@@ -1708,14 +1728,15 @@ static char *escape_alloc(const char *s, size_t *size)
 	 * The result string needs to be twice the size of the given
 	 * string just in case every character in it needs to be escaped.
 	 */
-	*size = *size * 2 + 1;
-	return ast_calloc(sizeof(char), *size);
+	*size = strlen(s) * 2 + 1;
+	return ast_malloc(*size);
 }
 
 char *ast_escape_alloc(const char *s, const char *to_escape)
 {
 	size_t size = 0;
 	char *dest = escape_alloc(s, &size);
+
 	return ast_escape(dest, s, size, to_escape);
 }
 
@@ -1723,6 +1744,7 @@ char *ast_escape_c_alloc(const char *s)
 {
 	size_t size = 0;
 	char *dest = escape_alloc(s, &size);
+
 	return ast_escape_c(dest, s, size);
 }
 

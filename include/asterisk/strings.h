@@ -312,32 +312,33 @@ char *ast_unescape_c(char *s);
 /*!
  * \brief Escape the 'to_escape' characters in the given string.
  *
- * \note The given output buffer has to have enough memory allocated to store the
- *       original string plus any escaped values.
+ * \note The given output buffer will contain a truncated escaped
+ * version of the source string if the given buffer is not large
+ * enough.
  *
  * \param dest the escaped string
  * \param s the source string to escape
- * \param num number of characters to be copied from the source
+ * \param size The size of the destination buffer
  * \param to_escape an array of characters to escape
  *
  * \return Pointer to the destination.
  */
-char* ast_escape(char *dest, const char *s, size_t num, const char *to_escape);
+char *ast_escape(char *dest, const char *s, size_t size, const char *to_escape);
 
 /*!
  * \brief Escape standard 'C' sequences in the given string.
  *
- * \note The given output buffer has to have enough memory allocated to store the
- *       original string plus any escaped values.
+ * \note The given output buffer will contain a truncated escaped
+ * version of the source string if the given buffer is not large
+ * enough.
  *
  * \param dest the escaped string
  * \param s the source string to escape
- * \param num number of characters to be copied from the source
- * \param to_escape an array of characters to escape
+ * \param size The size of the destination buffer
  *
  * \return Pointer to the escaped string.
  */
-char* ast_escape_c(char *dest, const char *s, size_t num);
+char *ast_escape_c(char *dest, const char *s, size_t size);
 
 /*!
  * \brief Escape the 'to_escape' characters in the given string.
