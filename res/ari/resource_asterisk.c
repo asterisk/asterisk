@@ -300,7 +300,7 @@ void ast_ari_asterisk_unload_module(struct ast_variable *headers,
 	struct ast_ari_response *response)
 {
 	int unload_result;
-	enum ast_module_unload_mode unload_mode = AST_FORCE_FIRM;
+	enum ast_module_unload_mode unload_mode = AST_FORCE_SOFT;
 
 	ast_assert(response != NULL);
 
