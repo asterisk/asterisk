@@ -297,5 +297,22 @@ int __ast_test_status_update(const char *file, const char *func, int line,
 		}							\
 	} while(0)
 
+/*!
+ * \ref ast_test_check
+ */
+enum ast_test_result_state __ast_test_check(const char *file, const char *function, int line, struct ast_test *test, const char *condition_str, enum ast_test_result_state current_res, int condition);
+
+/*!
+ * \brief Accumulate test results for a test.
+ *
+ * This macro evaluates \a condition, then updates \a res and the test status accordingly. If the condition evaluates to
+ * true (non-zero), nothing happens. If it evaluates to false (zero), then res is set to \a AST_TEST_FAIL and the failure
+ * is printed using \ref ast_test_status_update.
+ *
+ * \param \a res Local variable of type \a ast_test_result_state.
+ * \param \a condition Boolean condition to check.
+ */
+#define ast_test_check(res, condition) res = __ast_test_check( __FILE__, __PRETTY_FUNCTION__, __LINE__, test, #condition, (res), (condition))
+
 #endif /* TEST_FRAMEWORK */
 #endif /* _AST_TEST_H */
