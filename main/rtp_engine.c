@@ -1346,9 +1346,9 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0,
 				if (fr->subclass.integer == AST_CONTROL_HOLD) {
 					/* If we someone went on hold we want the other side to reinvite back to us */
 					if (who == c0) {
-						glue1->update_peer(c1, NULL, NULL, NULL, 0, 0);
+						glue1->update_peer(c1, NULL, NULL, NULL, NULL, 0);
 					} else {
-						glue0->update_peer(c0, NULL, NULL, NULL, 0, 0);
+						glue0->update_peer(c0, NULL, NULL, NULL, NULL, 0);
 					}
 				} else if (fr->subclass.integer == AST_CONTROL_UNHOLD ||
 					fr->subclass.integer == AST_CONTROL_UPDATE_RTP_PEER) {
@@ -1435,7 +1435,7 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0,
 		ast_debug(1, "Channel c0->'%s' pvt changed, in bridge with c1->'%s'\n", ast_channel_name(c0), ast_channel_name(c1));
 	} else if (glue0 != ast_rtp_instance_get_glue(ast_channel_tech(c0)->type)) {
 		ast_debug(1, "Channel c0->'%s' technology changed, in bridge with c1->'%s'\n", ast_channel_name(c0), ast_channel_name(c1));
-	} else if (glue0->update_peer(c0, NULL, NULL, NULL, 0, 0)) {
+	} else if (glue0->update_peer(c0, NULL, NULL, NULL, NULL, 0)) {
 		ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", ast_channel_name(c0));
 	}
 	if (ast_test_flag(ast_channel_flags(c1), AST_FLAG_ZOMBIE)) {
@@ -1444,7 +1444,7 @@ static enum ast_bridge_result remote_bridge_loop(struct ast_channel *c0,
 		ast_debug(1, "Channel c1->'%s' pvt changed, in bridge with c0->'%s'\n", ast_channel_name(c1), ast_channel_name(c0));
 	} else if (glue1 != ast_rtp_instance_get_glue(ast_channel_tech(c1)->type)) {
 		ast_debug(1, "Channel c1->'%s' technology changed, in bridge with c0->'%s'\n", ast_channel_name(c1), ast_channel_name(c0));
-	} else if (glue1->update_peer(c1, NULL, NULL, NULL, 0, 0)) {
+	} else if (glue1->update_peer(c1, NULL, NULL, NULL, NULL, 0)) {
 		ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", ast_channel_name(c1));
 	}
 
