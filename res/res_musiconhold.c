@@ -893,7 +893,7 @@ static struct mohclass *_get_mohbyname(const char *name, int warn, int flags, co
 #endif
 
 	if (!moh && warn) {
-		ast_debug(1, "Music on Hold class '%s' not found in memory\n", name);
+		ast_log(LOG_WARNING, "Music on Hold class '%s' not found in memory. Verify your configuration.\n", name);
 	}
 
 	return moh;
