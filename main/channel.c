@@ -7404,7 +7404,7 @@ int ast_moh_start(struct ast_channel *chan, const char *mclass, const char *inte
 
 	ast_verb(3, "Music class %s requested but no musiconhold loaded.\n", mclass ? mclass : (interpclass ? interpclass : "default"));
 
-	return 0;
+	return -1;
 }
 
 void ast_moh_stop(struct ast_channel *chan)

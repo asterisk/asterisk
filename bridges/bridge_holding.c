@@ -205,7 +205,10 @@ static void participant_entertainment_start(struct ast_bridge_channel *bridge_ch
 	switch(hc->idle_mode) {
 	case IDLE_MODE_MOH:
 		moh_class = ast_bridge_channel_get_role_option(bridge_channel, "holding_participant", "moh_class");
-		ast_moh_start(bridge_channel->chan, moh_class, NULL);
+		if (ast_moh_start(bridge_channel->chan, moh_class, NULL)) {
+			ast_log(LOG_WARNING, "Failed to start moh, starting silence generator instead\n");
+			hc->silence_generator = ast_channel_start_silence_generator(bridge_channel->chan);
+		}
 		break;
 	case IDLE_MODE_RINGING:
 		ast_indicate(bridge_channel->chan, AST_CONTROL_RINGING);
