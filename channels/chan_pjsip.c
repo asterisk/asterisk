@@ -629,6 +629,14 @@ static struct ast_frame *chan_pjsip_read(struct ast_channel *ast)
 		return f;
 	}
 
+	if (ast_format_cap_iscompatible_format(channel->session->endpoint->media.codecs, f->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
+		ast_debug(1, "Oooh, got a frame with format of %s on channel '%s' when endpoint '%s' is not configured for it\n",
+			ast_format_get_name(f->subclass.format), ast_channel_name(ast),
+			ast_sorcery_object_get_id(channel->session->endpoint));
+
+		return &ast_null_frame;
+	}
+
 	if (channel->session->dsp) {
 		f = ast_dsp_process(ast, channel->session->dsp, f);
 
