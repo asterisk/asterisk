@@ -308,6 +308,60 @@ ari_validator ast_ari_validate_config_info_fn(void)
 	return ast_ari_validate_config_info;
 }
 
+int ast_ari_validate_config_tuple(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_attribute = 0;
+	int has_value = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("attribute", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_attribute = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ConfigTuple field attribute failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("value", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_value = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ConfigTuple field value failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI ConfigTuple has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_attribute) {
+		ast_log(LOG_ERROR, "ARI ConfigTuple missing required field attribute\n");
+		res = 0;
+	}
+
+	if (!has_value) {
+		ast_log(LOG_ERROR, "ARI ConfigTuple missing required field value\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_config_tuple_fn(void)
+{
+	return ast_ari_validate_config_tuple;
+}
+
 int ast_ari_validate_module(struct ast_json *json)
 {
 	int res = 1;
