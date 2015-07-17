@@ -512,16 +512,15 @@ void ast_rtp_codecs_payloads_copy(struct ast_rtp_codecs *src, struct ast_rtp_cod
 		new_type = ao2_find(dest->payloads, &i, OBJ_KEY | OBJ_NOLOCK);
 		if (!new_type) {
 			new_type = ao2_alloc(sizeof(*new_type), NULL);
+			if (!new_type) {
+				ao2_ref(type, -1);
+				continue;
+			}
 			payload_alloced = 1;
-		}
-
-		if (!new_type) {
-			continue;
 		}
 
 		ast_debug(2, "Copying payload %d from %p to %p\n", i, src, dest);
 
-		new_type->payload = i;
 		*new_type = *type;
 
 		if (payload_alloced) {
@@ -560,7 +559,6 @@ void ast_rtp_codecs_payloads_set_m_type(struct ast_rtp_codecs *codecs, struct as
 
 	type->asterisk_format = static_RTP_PT[payload].asterisk_format;
 	type->rtp_code = static_RTP_PT[payload].rtp_code;
-	type->payload = payload;
 	ast_format_copy(&type->format, &static_RTP_PT[payload].format);
 
 	ast_debug(1, "Setting payload %d based on m type on %p\n", payload, codecs);
@@ -610,7 +608,7 @@ int ast_rtp_codecs_payloads_set_rtpmap_type_rate(struct ast_rtp_codecs *codecs, 
 
 		if (!(type = ao2_find(codecs->payloads, &pt, OBJ_KEY | OBJ_NOLOCK))) {
 			if (!(type = ao2_alloc(sizeof(*type), NULL))) {
-				continue;
+				break;
 			}
 			type->payload = pt;
 			ao2_link_flags(codecs->payloads, type, OBJ_NOLOCK);
