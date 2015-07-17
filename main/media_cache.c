@@ -36,6 +36,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/config.h"
 #include "asterisk/bucket.h"
 #include "asterisk/astdb.h"
+#include "asterisk/cli.h"
 #include "asterisk/media_cache.h"
 
 /*! The name of the AstDB family holding items in the cache. */
@@ -176,7 +177,7 @@ static void media_cache_item_del_from_astdb(struct ast_bucket_file *bucket_file)
 	}
 
 	ast_db_deltree(hash_value, NULL);
-	ast_db_del(AST_DB_FAMILY, hash_value);
+	ast_db_del(AST_DB_FAMILY, ast_sorcery_object_get_id(bucket_file));
 	ast_free(hash_value);
 }
 
@@ -378,16 +379,6 @@ int ast_media_cache_delete(const char *uri)
 
 /*!
  * \internal
- * \brief Shutdown the media cache
- */
-static void media_cache_shutdown(void)
-{
-	ao2_ref(media_cache, -1);
-	media_cache = NULL;
-}
-
-/*!
- * \internal
  * \brief Remove a media cache item from the AstDB
  * \param uri The unique URI that represents the item in the cache
  * \param hash The hash key for the item in the AstDB
@@ -474,6 +465,229 @@ static void media_cache_populate_from_astdb(void)
 	ast_db_freetree(db_tree);
 }
 
+/*!
+ * \internal
+ * \brief ao2 callback function for \ref media_cache_handle_show_all
+ */
+static int media_cache_prnt_summary(void *obj, void *arg, int flags)
+{
+#define FORMAT_ROW "%-40s\n\t%-40s\n"
+	struct ast_bucket_file *bucket_file = obj;
+	struct ast_cli_args *a = arg;
+
+	ast_cli(a->fd, FORMAT_ROW, ast_sorcery_object_get_id(bucket_file), bucket_file->path);
+
+#undef FORMAT_ROW
+	return CMP_MATCH;
+}
+
+static char *media_cache_handle_show_all(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "media cache show all";
+		e->usage =
+			"Usage: media cache show all\n"
+			"       Display a summary of all current items\n"
+			"       in the media cache.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	ast_cli(a->fd, "URI\n\tLocal File\n");
+	ast_cli(a->fd, "---------------\n");
+	ao2_callback(media_cache, OBJ_NODATA | OBJ_MULTIPLE, media_cache_prnt_summary, a);
+
+	return CLI_SUCCESS;
+}
+
+/*!
+ * \internal
+ * \brief CLI tab completion function for URIs
+ */
+static char *cli_complete_uri(const char *word, int state)
+{
+	struct ast_bucket_file *bucket_file;
+	struct ao2_iterator it_media_items;
+	int wordlen = strlen(word);
+	int which = 0;
+	char *result = NULL;
+
+	it_media_items = ao2_iterator_init(media_cache, 0);
+	while ((bucket_file = ao2_iterator_next(&it_media_items))) {
+		if (!strncasecmp(word, ast_sorcery_object_get_id(bucket_file), wordlen)
+			&& ++which > state) {
+			result = ast_strdup(ast_sorcery_object_get_id(bucket_file));
+		}
+		ao2_ref(bucket_file, -1);
+		if (result) {
+			break;
+		}
+	}
+	ao2_iterator_destroy(&it_media_items);
+	return result;
+}
+
+static char *media_cache_handle_show_item(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+#define FORMAT_ROW "\t%20s: %-40.40s\n"
+	struct ast_bucket_file *bucket_file;
+	struct ao2_iterator it_metadata;
+	struct ast_bucket_metadata *metadata;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "media cache show";
+		e->usage =
+			"Usage: media cache show <uri>\n"
+			"       Display all information about a particular\n"
+			"       item in the media cache.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return cli_complete_uri(a->word, a->n);
+	}
+
+	if (a->argc != 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	bucket_file = ao2_find(media_cache, a->argv[3], OBJ_SEARCH_KEY);
+	if (!bucket_file) {
+		ast_cli(a->fd, "Unable to find '%s' in the media cache\n", a->argv[3]);
+		return CLI_SUCCESS;
+	}
+
+	ast_cli(a->fd, "URI: %s\n", ast_sorcery_object_get_id(bucket_file));
+	ast_cli(a->fd, "%s\n", "----------------------------------------");
+	ast_cli(a->fd, FORMAT_ROW, "Path", bucket_file->path);
+
+	it_metadata = ao2_iterator_init(bucket_file->metadata, 0);
+	while ((metadata = ao2_iterator_next(&it_metadata))) {
+		ast_cli(a->fd, FORMAT_ROW, metadata->name, metadata->value);
+		ao2_ref(metadata, -1);
+	}
+	ao2_iterator_destroy(&it_metadata);
+
+	ao2_ref(bucket_file, -1);
+#undef FORMAT_ROW
+	return CLI_SUCCESS;
+}
+
+static char *media_cache_handle_delete_item(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "media cache delete";
+		e->usage =
+			"Usage: media cache delete <uri>\n"
+			"       Delete an item from the media cache.\n"
+			"       Note that this will also remove any local\n"
+			"       storage of the media associated with the URI,\n"
+			"       and will inform the backend supporting the URI\n"
+			"       scheme that it should remove the item.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return cli_complete_uri(a->word, a->n);
+	}
+
+	if (a->argc != 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (ast_media_cache_delete(a->argv[3])) {
+		ast_cli(a->fd, "Unable to delete '%s'\n", a->argv[3]);
+	} else {
+		ast_cli(a->fd, "Deleted '%s' from the media cache\n", a->argv[3]);
+	}
+
+	return CLI_SUCCESS;
+}
+
+static char *media_cache_handle_refresh_item(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char file_path[PATH_MAX];
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "media cache refresh";
+		e->usage =
+			"Usage: media cache refresh <uri>\n"
+			"       Ask for a refresh of a particular URI.\n"
+			"       If the item does not already exist in the\n"
+			"       media cache, the item will be populated from\n"
+			"       the backend supporting the URI scheme.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return cli_complete_uri(a->word, a->n);
+	}
+
+	if (a->argc != 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (ast_media_cache_retrieve(a->argv[3], NULL, file_path, sizeof(file_path))) {
+		ast_cli(a->fd, "Unable to refresh '%s'\n", a->argv[3]);
+	} else {
+		ast_cli(a->fd, "Refreshed '%s' to local storage '%s'\n", a->argv[3], file_path);
+	}
+
+	return CLI_SUCCESS;
+}
+
+static char *media_cache_handle_create_item(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "media cache create";
+		e->usage =
+			"Usage: media cache create <uri> <file>\n"
+			"       Create an item in the media cache by associating\n"
+			"       a local media file with some URI.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 5) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (ast_media_cache_create_or_update(a->argv[3], a->argv[4], NULL)) {
+		ast_cli(a->fd, "Unable to create '%s' associated with local file '%s'\n",
+			a->argv[3], a->argv[4]);
+	} else {
+		ast_cli(a->fd, "Created '%s' for '%s' in the media cache\n",
+			a->argv[3], a->argv[4]);
+	}
+
+	return CLI_SUCCESS;
+}
+
+static struct ast_cli_entry cli_media_cache[] = {
+	AST_CLI_DEFINE(media_cache_handle_show_all, "Show all items in the media cache"),
+	AST_CLI_DEFINE(media_cache_handle_show_item, "Show a single item in the media cache"),
+	AST_CLI_DEFINE(media_cache_handle_delete_item, "Remove an item from the media cache"),
+	AST_CLI_DEFINE(media_cache_handle_refresh_item, "Refresh an item in the media cache"),
+	AST_CLI_DEFINE(media_cache_handle_create_item, "Create an item in the media cache"),
+};
+
+/*!
+ * \internal
+ * \brief Shutdown the media cache
+ */
+static void media_cache_shutdown(void)
+{
+	ao2_ref(media_cache, -1);
+	media_cache = NULL;
+
+	ast_cli_unregister_multiple(cli_media_cache, ARRAY_LEN(cli_media_cache));
+}
+
 int ast_media_cache_init(void)
 {
 	ast_register_atexit(media_cache_shutdown);
@@ -481,6 +695,11 @@ int ast_media_cache_init(void)
 	media_cache = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK, AO2_BUCKETS,
 		media_cache_hash, media_cache_cmp);
 	if (!media_cache) {
+		return -1;
+	}
+
+	if (ast_cli_register_multiple(cli_media_cache, ARRAY_LEN(cli_media_cache))) {
+		ao2_ref(media_cache, -1);
 		return -1;
 	}
 
