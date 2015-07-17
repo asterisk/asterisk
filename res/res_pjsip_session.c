@@ -1693,6 +1693,23 @@ int ast_sip_session_defer_termination(struct ast_sip_session *session)
 	return res;
 }
 
+/*!
+ * \internal
+ * \brief Stop the defer termination timer if it is still running.
+ * \since 13.5.0
+ *
+ * \param session Which session to stop the timer.
+ *
+ * \return Nothing
+ */
+static void sip_session_defer_termination_stop_timer(struct ast_sip_session *session)
+{
+	if (pj_timer_heap_cancel(pjsip_endpt_get_timer_heap(ast_sip_get_pjsip_endpoint()),
+		&session->scheduled_termination)) {
+		ao2_ref(session, -1);
+	}
+}
+
 void ast_sip_session_defer_termination_cancel(struct ast_sip_session *session)
 {
 	if (!session->defer_terminate) {
@@ -1707,10 +1724,7 @@ void ast_sip_session_defer_termination_cancel(struct ast_sip_session *session)
 	}
 
 	/* Stop the termination timer if it is still running. */
-	if (pj_timer_heap_cancel(pjsip_endpt_get_timer_heap(ast_sip_get_pjsip_endpoint()),
-		&session->scheduled_termination)) {
-		ao2_ref(session, -1);
-	}
+	sip_session_defer_termination_stop_timer(session);
 }
 
 struct ast_sip_session *ast_sip_dialog_get_session(pjsip_dialog *dlg)
@@ -2257,9 +2271,7 @@ static void session_end(struct ast_sip_session *session)
 	struct ast_sip_session_supplement *iter;
 
 	/* Stop the scheduled termination */
-	if (pj_timer_heap_cancel(pjsip_endpt_get_timer_heap(ast_sip_get_pjsip_endpoint()), &session->scheduled_termination)) {
-		ao2_ref(session, -1);
-	}
+	sip_session_defer_termination_stop_timer(session);
 
 	/* Session is dead.  Notify the supplements. */
 	AST_LIST_TRAVERSE(&session->supplements, iter, next) {
