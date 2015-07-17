@@ -1212,8 +1212,9 @@ static int add_supplements(struct ast_sip_session *session)
 static int add_session_media(void *obj, void *arg, int flags)
 {
 	struct sdp_handler_list *handler_list = obj;
-	struct ast_sip_session * session = arg;
+	struct ast_sip_session *session = arg;
 	RAII_VAR(struct ast_sip_session_media *, session_media, NULL, ao2_cleanup);
+
 	session_media = ao2_alloc(sizeof(*session_media) + strlen(handler_list->stream_type), session_media_dtor);
 	if (!session_media) {
 		return CMP_STOP;
@@ -1253,9 +1254,11 @@ struct ast_sip_channel_pvt *ast_sip_channel_pvt_alloc(void *pvt, struct ast_sip_
 struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	struct ast_sip_contact *contact, pjsip_inv_session *inv_session)
 {
-	RAII_VAR(struct ast_sip_session *, session, ao2_alloc(sizeof(*session), session_destructor), ao2_cleanup);
+	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
 	struct ast_sip_session_supplement *iter;
 	int dsp_features = 0;
+
+	session = ao2_alloc(sizeof(*session), session_destructor);
 	if (!session) {
 		return NULL;
 	}
@@ -1296,6 +1299,7 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 
 	if (dsp_features) {
 		if (!(session->dsp = ast_dsp_new())) {
+			/* Release the ref held by session->inv_session */
 			ao2_ref(session, -1);
 			return NULL;
 		}
@@ -1304,6 +1308,7 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	}
 
 	if (add_supplements(session)) {
+		/* Release the ref held by session->inv_session */
 		ao2_ref(session, -1);
 		return NULL;
 	}
@@ -2280,6 +2285,8 @@ static int session_end_completion(void *vsession)
 
 	ast_sip_dialog_set_serializer(session->inv_session->dlg, NULL);
 	ast_sip_dialog_set_endpoint(session->inv_session->dlg, NULL);
+
+	/* Now we can release the ref that was held by session->inv_session */
 	ao2_cleanup(session);
 	return 0;
 }
