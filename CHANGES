@@ -196,6 +196,13 @@ ARI
    can be also be retrieved. Individual modules can be loaded to Asterisk, as
    well as unloaded and reloaded.
 
+* A new resource has been added to the 'asterisk' resource, 'config/dynamic'.
+   This resource allows for push configuration of sorcery derived objects
+   within Asterisk. The resource supports creation, retrieval, updating, and
+   deletion. Sorcery derived objects that are manipulated by this resource
+   must have a sorcery wizard that supports the desired operations.
+
+
 res_pjsip
 ------------------
 * A new 'g726_non_standard' endpoint option has been added that, when set to
