@@ -284,7 +284,7 @@ int __ast_bucket_scheme_register(const char *name, struct ast_sorcery_wizard *bu
 
 	if (ast_strlen_zero(name) || !bucket || !file ||
 	    !bucket->create || !bucket->delete || !bucket->retrieve_id ||
-	    !create_cb) {
+	    (!bucket->create && !create_cb)) {
 		return -1;
 	}
 
@@ -738,7 +738,7 @@ struct ast_bucket_file *ast_bucket_file_alloc(const char *uri)
 
 	ast_string_field_set(file, scheme, uri_scheme);
 
-	if (scheme->create(file)) {
+	if (scheme->create && scheme->create(file)) {
 		ao2_ref(file, -1);
 		return NULL;
 	}
