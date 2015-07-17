@@ -1161,7 +1161,7 @@ static void session_destructor(void *obj)
 	struct ast_sip_session_delayed_request *delay;
 
 	ast_debug(3, "Destroying SIP session with endpoint %s\n",
-			ast_sorcery_object_get_id(session->endpoint));
+		session->endpoint ? ast_sorcery_object_get_id(session->endpoint) : "<none>");
 
 	while ((supplement = AST_LIST_REMOVE_HEAD(&session->supplements, next))) {
 		if (supplement->session_destroy) {
