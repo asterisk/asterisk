@@ -737,6 +737,12 @@
 ;rtp_keepalive= ; Interval, in seconds, between comfort noise RTP packets if
                 ; RTP is not flowing. This setting is useful for ensuring that
                 ; holes in NATs and firewalls are kept open throughout a call.
+;rtp_timeout=      ; Hang up channel if RTP is not received for the specified
+                   ; number of seconds when the channel is off hold (default:
+                   ; "0" or not enabled)
+;rtp_timeout_hold= ; Hang up channel if RTP is not received for the specified
+                   ; number of seconds when the channel is on hold (default:
+                   ; "0" or not enabled)
 
 ;==========================AUTH SECTION OPTIONS=========================
 ;[auth]

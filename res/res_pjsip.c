@@ -798,6 +798,22 @@
 						a hole open in order to allow for media to arrive at Asterisk.
 					</para></description>
 				</configOption>
+				<configOption name="rtp_timeout" default="0">
+					<synopsis>Maximum number of seconds without receiving RTP (while off hold) before terminating call.</synopsis>
+					<description><para>
+						This option configures the number of seconds without RTP (while off hold) before
+						considering a channel as dead. When the number of seconds is reached the underlying
+						channel is hung up. By default this option is set to 0, which means do not check.
+					</para></description>
+				</configOption>
+				<configOption name="rtp_timeout_hold" default="0">
+					<synopsis>Maximum number of seconds without receiving RTP (while on hold) before terminating call.</synopsis>
+					<description><para>
+						This option configures the number of seconds without RTP (while on hold) before
+						considering a channel as dead. When the number of seconds is reached the underlying
+						channel is hung up. By default this option is set to 0, which means do not check.
+					</para></description>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<synopsis>Authentication type</synopsis>
