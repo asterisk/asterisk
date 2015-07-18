@@ -502,6 +502,10 @@ struct ast_sip_media_rtp_configuration {
 	unsigned int encryption_optimistic;
 	/*! Number of seconds between RTP keepalive packets */
 	unsigned int keepalive;
+	/*! Number of seconds before terminating channel due to lack of RTP (when not on hold) */
+	unsigned int timeout;
+	/*! Number of seconds before terminating channel due to lack of RTP (when on hold) */
+	unsigned int timeout_hold;
 };
 
 /*!
