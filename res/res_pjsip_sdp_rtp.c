@@ -115,10 +115,6 @@ static int send_keepalive(const void *data)
 	time_t interval;
 	int send_keepalive;
 
-	if (!rtp) {
-		return 0;
-	}
-
 	keepalive = ast_rtp_instance_get_keepalive(rtp);
 
 	if (!ast_sockaddr_isnull(&session_media->direct_media_addr)) {
@@ -138,6 +134,37 @@ static int send_keepalive(const void *data)
 	}
 
 	return (keepalive - interval) * 1000;
+}
+
+/*! \brief Check whether RTP is being received or not */
+static int rtp_check_timeout(const void *data)
+{
+	struct ast_sip_session_media *session_media = (struct ast_sip_session_media *)data;
+	struct ast_rtp_instance *rtp = session_media->rtp;
+	int elapsed;
+	struct ast_channel *chan;
+
+	if (!rtp) {
+		return 0;
+	}
+
+	elapsed = time(NULL) - ast_rtp_instance_get_last_rx(rtp);
+	if (elapsed < ast_rtp_instance_get_timeout(rtp)) {
+		return (ast_rtp_instance_get_timeout(rtp) - elapsed) * 1000;
+	}
+
+	chan = ast_channel_get_by_name(ast_rtp_instance_get_channel_id(rtp));
+	if (!chan) {
+		return 0;
+	}
+
+	ast_log(LOG_NOTICE, "Disconnecting channel '%s' for lack of RTP activity in %d seconds\n",
+		ast_channel_name(chan), elapsed);
+
+	ast_softhangup(chan, AST_SOFTHANGUP_DEV);
+	ast_channel_unref(chan);
+
+	return 0;
 }
 
 /*! \brief Internal function which creates an RTP instance */
@@ -173,6 +200,8 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 		ast_rtp_instance_set_qos(session_media->rtp, session->endpoint->media.tos_video,
 				session->endpoint->media.cos_video, "SIP RTP Video");
 	}
+
+	ast_rtp_instance_set_last_rx(session_media->rtp, time(NULL));
 
 	return 0;
 }
@@ -1272,6 +1301,28 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 			session_media, 1);
 	}
 
+	/* As the channel lock is not held during this process the scheduled item won't block if
+	 * it is hanging up the channel at the same point we are applying this negotiated SDP.
+	 */
+	AST_SCHED_DEL(sched, session_media->timeout_sched_id);
+
+	/* Due to the fact that we only ever have one scheduled timeout item for when we are both
+	 * off hold and on hold we don't need to store the two timeouts differently on the RTP
+	 * instance itself.
+	 */
+	ast_rtp_instance_set_timeout(session_media->rtp, 0);
+	if (session->endpoint->media.rtp.timeout && !session_media->remotely_held) {
+		ast_rtp_instance_set_timeout(session_media->rtp, session->endpoint->media.rtp.timeout);
+	} else if (session->endpoint->media.rtp.timeout_hold && session_media->remotely_held) {
+		ast_rtp_instance_set_timeout(session_media->rtp, session->endpoint->media.rtp.timeout_hold);
+	}
+
+	if (ast_rtp_instance_get_timeout(session_media->rtp)) {
+		session_media->timeout_sched_id = ast_sched_add_variable(sched,
+			ast_rtp_instance_get_timeout(session_media->rtp) * 1000, rtp_check_timeout,
+			session_media, 1);
+	}
+
 	return 1;
 }
 
@@ -1301,9 +1352,8 @@ static void change_outgoing_sdp_stream_media_address(pjsip_tx_data *tdata, struc
 static void stream_destroy(struct ast_sip_session_media *session_media)
 {
 	if (session_media->rtp) {
-		if (session_media->keepalive_sched_id != -1) {
-			AST_SCHED_DEL(sched, session_media->keepalive_sched_id);
-		}
+		AST_SCHED_DEL(sched, session_media->keepalive_sched_id);
+		AST_SCHED_DEL(sched, session_media->timeout_sched_id);
 		ast_rtp_instance_stop(session_media->rtp);
 		ast_rtp_instance_destroy(session_media->rtp);
 	}
