@@ -2304,6 +2304,22 @@ time_t ast_rtp_instance_get_last_tx(const struct ast_rtp_instance *rtp);
  */
 void ast_rtp_instance_set_last_tx(struct ast_rtp_instance *rtp, time_t time);
 
+/*
+ * \brief Get the last RTP reception time
+ *
+ * \param rtp The instance from which to get the last reception time
+ * \return The last RTP reception time
+ */
+time_t ast_rtp_instance_get_last_rx(const struct ast_rtp_instance *rtp);
+
+/*!
+ * \brief Set the last RTP reception time
+ *
+ * \param rtp The instance on which to set the last reception time
+ * \param time The last reception time
+ */
+void ast_rtp_instance_set_last_rx(struct ast_rtp_instance *rtp, time_t time);
+
 /*! \addtogroup StasisTopicsAndMessages
  * @{
  */
