@@ -625,6 +625,8 @@ static struct ast_frame *chan_pjsip_read(struct ast_channel *ast)
 		return f;
 	}
 
+	ast_rtp_instance_set_last_rx(media->rtp, time(NULL));
+
 	if (f->frametype != AST_FRAME_VOICE) {
 		return f;
 	}
