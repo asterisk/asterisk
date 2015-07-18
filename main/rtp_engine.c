@@ -192,6 +192,8 @@ struct ast_rtp_instance {
 	char channel_uniqueid[AST_MAX_UNIQUEID];
 	/*! Time of last packet sent */
 	time_t last_tx;
+	/*! Time of last packet received */
+	time_t last_rx;
 };
 
 /*! List of RTP engines that are currently registered */
@@ -2185,7 +2187,6 @@ int ast_rtp_engine_init()
 	return 0;
 }
 
-
 time_t ast_rtp_instance_get_last_tx(const struct ast_rtp_instance *rtp)
 {
 	return rtp->last_tx;
@@ -2194,4 +2195,14 @@ time_t ast_rtp_instance_get_last_tx(const struct ast_rtp_instance *rtp)
 void ast_rtp_instance_set_last_tx(struct ast_rtp_instance *rtp, time_t time)
 {
 	rtp->last_tx = time;
+}
+
+time_t ast_rtp_instance_get_last_rx(const struct ast_rtp_instance *rtp)
+{
+	return rtp->last_rx;
+}
+
+void ast_rtp_instance_set_last_rx(struct ast_rtp_instance *rtp, time_t time)
+{
+	rtp->last_rx = time;
 }

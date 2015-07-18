@@ -79,6 +79,8 @@ struct ast_sip_session_media {
 	pj_str_t transport;
 	/*! \brief Scheduler ID for RTP keepalive */
 	int keepalive_sched_id;
+	/*! \brief Scheduler ID for RTP timeout */
+	int timeout_sched_id;
 	/*! \brief Stream is on hold */
 	unsigned int held:1;
 	/*! \brief Stream type this session media handles */

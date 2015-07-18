@@ -719,6 +719,12 @@
                 ; byte tags (default: "no")
 ;set_var=       ; Variable set on a channel involving the endpoint. For multiple
 		; channel variables specify multiple 'set_var'(s)
+;rtp_timeout=      ; Hang up channel if RTP is not received for the specified
+                   ; number of seconds when the channel is off hold (default:
+                   ; "0" or not enabled)
+;rtp_timeout_hold= ; Hang up channel if RTP is not received for the specified
+                   ; number of seconds when the channel is on hold (default:
+                   ; "0" or not enabled)
 
 ;==========================AUTH SECTION OPTIONS=========================
 ;[auth]
