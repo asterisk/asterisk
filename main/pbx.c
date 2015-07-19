@@ -11591,6 +11591,8 @@ int pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const 
 	struct ast_var_t *newvariable;
 	struct varshead *headp;
 	const char *nametail = name;
+	/*! True if the old value was not an empty string. */
+	int old_value_existed = 0;
 
 	if (name[strlen(name) - 1] == ')') {
 		char *function = ast_strdupa(name);
@@ -11617,6 +11619,7 @@ int pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const 
 		if (strcmp(ast_var_name(newvariable), nametail) == 0) {
 			/* there is already such a variable, delete it */
 			AST_LIST_REMOVE_CURRENT(entries);
+			old_value_existed = !ast_strlen_zero(ast_var_value(newvariable));
 			ast_var_delete(newvariable);
 			break;
 		}
@@ -11629,6 +11632,9 @@ int pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const 
 		}
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
 		ast_channel_publish_varset(chan, name, value);
+	} else if (old_value_existed) {
+		/* We just deleted a non-empty dialplan variable. */
+		ast_channel_publish_varset(chan, name, "");
 	}
 
 	if (chan)
