@@ -348,8 +348,17 @@ static void sorcery_config_reload(void *data, const struct ast_sorcery *sorcery,
 
 static void *sorcery_config_open(const char *data)
 {
-	char *tmp = ast_strdupa(data), *filename = strsep(&tmp, ","), *option;
+	char *tmp;
+	char *filename;
+	char *option;
 	struct sorcery_config *config;
+
+	if (ast_strlen_zero(data)) {
+		return NULL;
+	}
+
+ 	tmp = ast_strdupa(data);
+ 	filename = strsep(&tmp, ",");
 
 	if (ast_strlen_zero(filename) || !(config = ao2_alloc_options(sizeof(*config) + strlen(filename) + 1, sorcery_config_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK))) {
 		return NULL;
