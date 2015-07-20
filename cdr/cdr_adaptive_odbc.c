@@ -740,9 +740,9 @@ static int odbc_log(struct ast_cdr *cdr)
 					continue;
 				}
 				if (quoted) {
-					ast_str_append(&sql, 0, "%s%s", separator, entry->name);
-				} else {
 					ast_str_append(&sql, 0, "%s%c%s%c", separator, tableptr->quoted_identifiers, entry->name, tableptr->quoted_identifiers);
+				} else {
+					ast_str_append(&sql, 0, "%s%s", separator, entry->name);
 				}
 				separator = ", ";
 			} else if (entry->filtervalue
