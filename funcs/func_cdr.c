@@ -180,7 +180,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>Write-Only</para>
 					</enum>
 					<enum name="disable">
-						<para>Disable CDRs for this channel.</para>
+						<para>Setting to 1 will disable CDRs for this channel.
+						Setting to 0 will enable CDRs for this channel.</para>
 						<para>Write-Only</para>
 					</enum>
 				</enumlist>
