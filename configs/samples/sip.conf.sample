@@ -810,7 +810,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;
 ;register => tls://username:xxxxxx@sip-tls-proxy.example.org
 ;
-;    The 'transport' part defaults to 'udp' but may also be 'tcp', 'tls', 'ws', or 'wss'.
+;    The 'transport' part defaults to 'udp' but may also be 'tcp' or 'tls'.
 ;    Using 'udp://' explicitly is also useful in case the username part
 ;    contains a '/' ('user/name').
 
