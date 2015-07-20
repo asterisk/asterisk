@@ -790,6 +790,14 @@
 						have this accountcode set on it.
 					</para></description>
 				</configOption>
+				<configOption name="rtp_keepalive">
+					<synopsis>Number of seconds between RTP comfort noise keepalive packets.</synopsis>
+					<description><para>
+						At the specified interval, Asterisk will send an RTP comfort noise frame. This may
+						be useful for situations where Asterisk is behind a NAT or firewall and must keep
+						a hole open in order to allow for media to arrive at Asterisk.
+					</para></description>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<synopsis>Authentication type</synopsis>

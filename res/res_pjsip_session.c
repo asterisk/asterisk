@@ -1220,6 +1220,7 @@ static int add_session_media(void *obj, void *arg, int flags)
 		return CMP_STOP;
 	}
 	session_media->encryption = session->endpoint->media.rtp.encryption;
+	session_media->keepalive_sched_id = -1;
 	/* Safe use of strcpy */
 	strcpy(session_media->stream_type, handler_list->stream_type);
 	ao2_link(session->media, session_media);
