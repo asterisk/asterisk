@@ -12663,6 +12663,12 @@ static void add_codec_to_sdp(const struct sip_pvt *p,
 	struct ast_format_list fmt;
 	const char *mime;
 	unsigned int rate;
+	struct ast_codec_pref *pref;
+
+	if (!p->rtp) {
+		/* I don't see how you couldn't have p->rtp, but good to check for and error out if not there like earlier code */
+		return;
+	}
 
 	if (debug)
 		ast_verbose("Adding codec %u (%s) to SDP\n", format->id, ast_getformatname(format));
@@ -12673,11 +12679,9 @@ static void add_codec_to_sdp(const struct sip_pvt *p,
 		return;
 	}
 
-	if (p->rtp) {
-		struct ast_codec_pref *pref = &ast_rtp_instance_get_codecs(p->rtp)->pref;
-		fmt = ast_codec_pref_getsize(pref, format);
-	} else /* I don't see how you couldn't have p->rtp, but good to check for and error out if not there like earlier code */
-		return;
+	pref = &ast_rtp_instance_get_codecs(p->rtp)->pref;
+	fmt = ast_codec_pref_getsize(pref, format);
+
 	ast_str_append(m_buf, 0, " %d", rtp_code);
 	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%u\r\n", rtp_code, mime, rate);
 
