@@ -18,13 +18,19 @@ YESNO_NAME = 'yesno_values'
 YESNO_VALUES = ['yes', 'no']
 
 def upgrade():
-    ############################# Enums ##############################
+	currentcontext = op.get_context()
+	if currentcontext.bind.dialect.name != 'oracle':
+		############################# Enums ##############################
 
-    # yesno_values have already been created, so use postgres enum object
-    # type to get around "already created" issue - works okay with mysql
-    yesno_values = ENUM(*YESNO_VALUES, name=YESNO_NAME, create_type=False)
+		# yesno_values have already been created, so use postgres enum object
+		# type to get around "already created" issue - works okay with mysql
+		yesno_values = ENUM(*YESNO_VALUES, name=YESNO_NAME, create_type=False)
 
-    op.add_column('ps_endpoints', sa.Column('user_eq_phone', yesno_values))
+		op.add_column('ps_endpoints', sa.Column('user_eq_phone', yesno_values))
+	if currentcontext.bind.dialect.name == 'oracle':
+
+		op.add_column('ps_endpoints', sa.Column('user_eq_phone', sa.Enum(*YESNO_VALUES, name='psepYnNusereqphone')))
+		
 
 def downgrade():
-    op.drop_column('ps_endpoints', 'user_eq_phone')
+	op.drop_column('ps_endpoints', 'user_eq_phone')
