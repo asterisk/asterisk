@@ -33,9 +33,9 @@ import sqlalchemy as sa
 
 
 def upgrade():
-    op.alter_column('sippeers', 'useragent', type_=sa.String(255))
+	op.alter_column('sippeers', 'useragent', type_=sa.String(255))
 
 
 def downgrade():
-    op.alter_column('sippeers', 'useragent', type_=sa.String(20))
+	op.alter_column('sippeers', 'useragent', type_=sa.String(20))
 
