@@ -15,8 +15,8 @@ import sqlalchemy as sa
 
 
 def upgrade():
-    op.add_column('ps_endpoints', sa.Column('rtp_keepalive', sa.Integer))
+	op.add_column('ps_endpoints', sa.Column('rtp_keepalive', sa.Integer))
 
 
 def downgrade():
-    op.drop_column('ps_endpoints', 'rtp_keepalive')
+	op.drop_column('ps_endpoints', 'rtp_keepalive')
