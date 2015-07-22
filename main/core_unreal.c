@@ -409,12 +409,7 @@ static int unreal_queue_indicate(struct ast_unreal_pvt *p, struct ast_channel *a
 	int isoutbound;
 
 	ao2_lock(p);
-	/*
-	 * Block -1 stop tones events if we are to be optimized out.  We
-	 * don't need a flurry of these events on an unreal channel chain
-	 * when initially connected to slow the optimization process.
-	 */
-	if (0 <= condition || ast_test_flag(p, AST_UNREAL_NO_OPTIMIZATION)) {
+	if (ast_test_flag(p, AST_UNREAL_NO_OPTIMIZATION)) {
 		struct ast_frame f = {
 			.frametype = AST_FRAME_CONTROL,
 			.subclass.integer = condition,
