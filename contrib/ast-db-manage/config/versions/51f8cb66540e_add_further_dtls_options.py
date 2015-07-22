@@ -18,15 +18,19 @@ YESNO_NAME = 'yesno_values'
 YESNO_VALUES = ['yes', 'no']
 
 def upgrade():
-    ############################# Enums ##############################
+	############################# Enums ##############################
 
-    # yesno_values have already been created, so use postgres enum object
-    # type to get around "already created" issue - works okay with mysql
-    yesno_values = ENUM(*YESNO_VALUES, name=YESNO_NAME, create_type=False)
-
-    op.add_column('ps_endpoints', sa.Column('force_avp', yesno_values))
-    op.add_column('ps_endpoints', sa.Column('media_use_received_transport', yesno_values))
+	# yesno_values have already been created, so use postgres enum object
+	# type to get around "already created" issue - works okay with mysql
+	yesno_values = ENUM(*YESNO_VALUES, name=YESNO_NAME, create_type=False)
+	currentcontext = op.get_context()
+	if currentcontext.bind.dialect.name != 'oracle':	
+		op.add_column('ps_endpoints', sa.Column('force_avp', yesno_values))
+		op.add_column('ps_endpoints', sa.Column('media_use_received_transport', yesno_values))
+	if currentcontext.bind.dialect.name == 'oracle':	
+		op.add_column('ps_endpoints', sa.Column('force_avp', sa.Enum(*YESNO_VALUES, name='psepYnNforceavp')))
+		op.add_column('ps_endpoints', sa.Column('media_use_received_transport',sa.Enum(*YESNO_VALUES, name='psepYnNmediausereceivedtrans')))		
 
 def downgrade():
-    op.drop_column('ps_endpoints', 'force_avp')
-    op.drop_column('ps_endpoints', 'media_use_received_transport')
+	op.drop_column('ps_endpoints', 'force_avp')
+	op.drop_column('ps_endpoints', 'media_use_received_transport')

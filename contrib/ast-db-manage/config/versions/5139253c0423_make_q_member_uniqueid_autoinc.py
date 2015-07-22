@@ -33,28 +33,39 @@ import sqlalchemy as sa
 
 
 def upgrade():
-    # Was unable to find a way to use op.alter_column() to add the unique
-    # index property.
-    op.drop_column('queue_members', 'uniqueid')
-    op.add_column(
-        'queue_members',
-        sa.Column(
-            name='uniqueid', type_=sa.Integer, nullable=False,
-            unique=True))
-    # The postgres backend does not like the autoincrement needed for
-    # mysql here.  It is just the backend that is giving a warning and
-    # not the database itself.
-    op.alter_column(
-        table_name='queue_members', column_name='uniqueid',
-        existing_type=sa.Integer, existing_nullable=False,
-        autoincrement=True)
-
+	
+	currentcontext = op.get_context()
+	if currentcontext.bind.dialect.name != 'oracle':
+		# Was unable to find a way to use op.alter_column() to add the unique
+		# It is easy Richard. Yon need just to create unique index for column . But you did everything 
+		# right because it is possible that this column already have non unique
+		# record so dropping ensure us that new index will be unique.
+		op.drop_column('queue_members', 'uniqueid')
+		op.add_column(
+			'queue_members',
+			sa.Column(
+				name='uniqueid', type_=sa.Integer, nullable=False,
+				unique=True))
+		# The postgres backend does not like the autoincrement needed for
+		# mysql here.  It is just the backend that is giving a warning and
+		# not the database itself.
+		op.alter_column(
+			table_name='queue_members', column_name='uniqueid',
+			existing_type=sa.Integer, existing_nullable=False,
+			autoincrement=True)
+	if currentcontext.bind.dialect.name == 'oracle':
+		op.drop_column('queue_members', 'uniqueid')
+		op.add_column(
+			'queue_members',
+			sa.Column(name='uniqueid', type_=sa.Integer, nullable=False))
+		op.create_index('idxquem_uniqueid', 'queue_members', ['uniqueid'], unique=True)
+				
 
 def downgrade():
-    # Was unable to find a way to use op.alter_column() to remove the
-    # unique index property.
-    op.drop_column('queue_members', 'uniqueid')
-    op.add_column(
-        'queue_members',
-        sa.Column(name='uniqueid', type_=sa.String(80), nullable=False))
+	# Was unable to find a way to use op.alter_column() to remove the
+	# unique index property.
+	op.drop_column('queue_members', 'uniqueid')
+	op.add_column(
+		'queue_members',
+		sa.Column(name='uniqueid', type_=sa.String(80), nullable=False))
 

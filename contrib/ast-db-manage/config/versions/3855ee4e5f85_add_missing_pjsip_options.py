@@ -15,10 +15,10 @@ import sqlalchemy as sa
 
 
 def upgrade():
-    op.add_column('ps_endpoints', sa.Column('message_context', sa.String(40)))
-    op.add_column('ps_contacts', sa.Column('user_agent', sa.String(40)))
+	op.add_column('ps_endpoints', sa.Column('message_context', sa.String(40)))
+	op.add_column('ps_contacts', sa.Column('user_agent', sa.String(40)))
 
 
 def downgrade():
-    op.drop_column('ps_contacts', 'user_agent')
-    op.drop_column('ps_endpoints', 'message_context')
+	op.drop_column('ps_contacts', 'user_agent')
+	op.drop_column('ps_endpoints', 'message_context')

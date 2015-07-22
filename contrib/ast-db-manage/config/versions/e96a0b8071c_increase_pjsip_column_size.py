@@ -15,25 +15,25 @@ import sqlalchemy as sa
 
 
 def upgrade():
-    op.alter_column('ps_globals', 'user_agent', type_=sa.String(255))
+	op.alter_column('ps_globals', 'user_agent', type_=sa.String(255))
 
-    op.alter_column('ps_contacts', 'id', type_=sa.String(255))
-    op.alter_column('ps_contacts', 'uri', type_=sa.String(255))
-    op.alter_column('ps_contacts', 'user_agent', type_=sa.String(255))
+	op.alter_column('ps_contacts', 'id', type_=sa.String(255))
+	op.alter_column('ps_contacts', 'uri', type_=sa.String(255))
+	op.alter_column('ps_contacts', 'user_agent', type_=sa.String(255))
 
-    op.alter_column('ps_registrations', 'client_uri', type_=sa.String(255))
-    op.alter_column('ps_registrations', 'server_uri', type_=sa.String(255))
+	op.alter_column('ps_registrations', 'client_uri', type_=sa.String(255))
+	op.alter_column('ps_registrations', 'server_uri', type_=sa.String(255))
 
 
 def downgrade():
-    op.alter_column('ps_registrations', 'server_uri', type_=sa.String(40))
-    op.alter_column('ps_registrations', 'client_uri', type_=sa.String(40))
+	op.alter_column('ps_registrations', 'server_uri', type_=sa.String(40))
+	op.alter_column('ps_registrations', 'client_uri', type_=sa.String(40))
 
-    op.alter_column('ps_contacts', 'user_agent', type_=sa.String(40))
-    op.alter_column('ps_contacts', 'uri', type_=sa.String(40))
-    op.alter_column('ps_contacts', 'id', type_=sa.String(40))
+	op.alter_column('ps_contacts', 'user_agent', type_=sa.String(40))
+	op.alter_column('ps_contacts', 'uri', type_=sa.String(40))
+	op.alter_column('ps_contacts', 'id', type_=sa.String(40))
 
-    op.alter_column('ps_globals', 'user_agent', type_=sa.String(40))
+	op.alter_column('ps_globals', 'user_agent', type_=sa.String(40))
 
 
 
