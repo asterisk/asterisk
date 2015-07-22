@@ -377,6 +377,16 @@ static struct ast_frame *audiohook_read_frame_helper(struct ast_audiohook *audio
 		audiohook_set_internal_rate(audiohook, ast_format_rate(format), 1);
 	}
 
+	/* If the sample rate of the requested format differs from that of the underlying audiohook
+	 * sample rate determine how many samples we actually need to get from the audiohook. This
+	 * needs to occur as the signed linear factory stores them at the rate of the audiohook.
+	 * We do this by determining the duration of audio they've requested and then determining
+	 * how many samples that would be in the audiohook format.
+	 */
+	if (ast_format_rate(format) != audiohook->hook_internal_samp_rate) {
+		samples = (audiohook->hook_internal_samp_rate / 1000) * (samples / (ast_format_rate(format) / 1000));
+	}
+
 	if (!(read_frame = (direction == AST_AUDIOHOOK_DIRECTION_BOTH ?
 		audiohook_read_frame_both(audiohook, samples, read_reference, write_reference) :
 		audiohook_read_frame_single(audiohook, samples, direction)))) {
