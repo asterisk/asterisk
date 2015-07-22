@@ -754,12 +754,7 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 	} else {
 		/* Queue up a frame representing the indication as a control frame */
 		ao2_lock(p);
-		/*
-		 * Block -1 stop tones events if we are to be optimized out.  We
-		 * don't need a flurry of these events on a local channel chain
-		 * when initially connected to slow the optimization process.
-		 */
-		if (0 <= condition || ast_test_flag(p, LOCAL_NO_OPTIMIZATION)) {
+		if (ast_test_flag(p, LOCAL_NO_OPTIMIZATION)) {
 			isoutbound = IS_OUTBOUND(ast, p);
 			f.subclass.integer = condition;
 			f.data.ptr = (void *) data;
