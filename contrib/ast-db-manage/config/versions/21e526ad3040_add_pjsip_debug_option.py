@@ -15,7 +15,7 @@ import sqlalchemy as sa
 
 
 def upgrade():
-    op.add_column('ps_globals', sa.Column('debug', sa.String(40)))
+	op.add_column('ps_globals', sa.Column('debug', sa.String(40)))
 
 def downgrade():
-    op.drop_column('ps_globals', 'debug')
+	op.drop_column('ps_globals', 'debug')
