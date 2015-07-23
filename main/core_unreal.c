@@ -554,6 +554,18 @@ int ast_unreal_indicate(struct ast_channel *ast, int condition, const void *data
 		}
 		res = unreal_queue_indicate(p, ast, condition, data, datalen);
 		break;
+	case AST_CONTROL_RINGING:
+		/* Don't queue ringing frames if the channel is not in a "ring" state. Otherwise,
+		 * the real channel on the other end will likely start a playtones generator. It is
+		 * possible that this playtones generator will never be stopped under certain
+		 * circumstances.
+		 */
+		if (ast_channel_state(ast) == AST_STATE_RING) {
+			res = unreal_queue_indicate(p, ast, condition, data, datalen);
+		} else {
+			res = -1;
+		}
+		break;
 	default:
 		res = unreal_queue_indicate(p, ast, condition, data, datalen);
 		break;
