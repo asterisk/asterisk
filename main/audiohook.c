@@ -1019,13 +1019,16 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 			audiohook_list_set_hook_rate(audiohook_list, audiohook, &internal_sample_rate);
 			/*
 			 * Feed in frame to manipulation.
-			 *
-			 * XXX FAILURES ARE IGNORED XXX
-			 * If the manipulation fails then the frame will be returned in its original state.
-			 * Since there are potentially more manipulator callbacks in the list, no action should
-			 * be taken here to exit early.
 			 */
-			audiohook->manipulate_callback(audiohook, chan, middle_frame, direction);
+			if (!audiohook->manipulate_callback(audiohook, chan, middle_frame, direction)) {
+				/*
+				 * XXX FAILURES ARE IGNORED XXX
+				 * If the manipulation fails then the frame will be returned in its original state.
+				 * Since there are potentially more manipulator callbacks in the list, no action should
+				 * be taken here to exit early.
+				 */
+				middle_frame_manipulated = 1;
+			}
 			ast_audiohook_unlock(audiohook);
 		}
 		AST_LIST_TRAVERSE_SAFE_END;
