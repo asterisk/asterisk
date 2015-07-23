@@ -409,7 +409,7 @@ static int unreal_queue_indicate(struct ast_unreal_pvt *p, struct ast_channel *a
 	int isoutbound;
 
 	ao2_lock(p);
-	if (ast_test_flag(p, AST_UNREAL_NO_OPTIMIZATION)) {
+	if (0 <= condition || ast_test_flag(p, AST_UNREAL_NO_OPTIMIZATION)) {
 		struct ast_frame f = {
 			.frametype = AST_FRAME_CONTROL,
 			.subclass.integer = condition,
@@ -548,6 +548,13 @@ int ast_unreal_indicate(struct ast_channel *ast, int condition, const void *data
 			break;
 		}
 		res = unreal_queue_indicate(p, ast, condition, data, datalen);
+		break;
+	case AST_CONTROL_RINGING:
+		if (ast_channel_state(ast) == AST_STATE_RING) {
+			res = unreal_queue_indicate(p, ast, condition, data, datalen);
+		} else {
+			res = -1;
+		}
 		break;
 	default:
 		res = unreal_queue_indicate(p, ast, condition, data, datalen);
