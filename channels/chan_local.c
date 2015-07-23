@@ -751,10 +751,17 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 			res = local_queue_frame(p, isoutbound, &f, ast, 1);
 		}
 		ao2_unlock(p);
+	} else if (condition == AST_CONTROL_RINGING && ast_channel_state(ast) != AST_STATE_RING) {
+		/* Don't queue ringing frames if the channel is not in a "ring" state. Otherwise,
+		 * the real channel on the other end will likely start a playtones generator. It is
+		 * possible that this playtones generator will never be stopped under certain
+		 * circumstances.
+		 */
+		res = -1;
 	} else {
 		/* Queue up a frame representing the indication as a control frame */
 		ao2_lock(p);
-		if (ast_test_flag(p, LOCAL_NO_OPTIMIZATION)) {
+		if (0 <= condition || ast_test_flag(p, LOCAL_NO_OPTIMIZATION)) {
 			isoutbound = IS_OUTBOUND(ast, p);
 			f.subclass.integer = condition;
 			f.data.ptr = (void *) data;
