@@ -245,7 +245,7 @@ static enum ast_test_result_state query_set_test(struct ast_test *test, int reso
 		}
 	}
 
-	clock_gettime(CLOCK_REALTIME, &timeout);
+	timeout = ast_tsnow();
 	timeout.tv_sec += 10;
 
 	ast_mutex_lock(&qsdata->lock);
