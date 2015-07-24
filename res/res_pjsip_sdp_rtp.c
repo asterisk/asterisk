@@ -286,8 +286,10 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 	}
 }
 
-static int set_caps(struct ast_sip_session *session, struct ast_sip_session_media *session_media,
-		    const struct pjmedia_sdp_media *stream)
+static int set_caps(struct ast_sip_session *session,
+	struct ast_sip_session_media *session_media,
+	const struct pjmedia_sdp_media *stream,
+	int is_offer)
 {
 	RAII_VAR(struct ast_format_cap *, caps, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_format_cap *, peer, NULL, ao2_cleanup);
@@ -332,6 +334,13 @@ static int set_caps(struct ast_sip_session *session, struct ast_sip_session_medi
 		return -1;
 	}
 
+	if (is_offer) {
+		/*
+		 * Setup rx payload type mapping to prefer the mapping
+		 * from the peer that the RFC says we SHOULD use.
+		 */
+		ast_rtp_codecs_payloads_xover(&codecs, &codecs, NULL);
+	}
 	ast_rtp_codecs_payloads_copy(&codecs, ast_rtp_instance_get_codecs(session_media->rtp),
 		session_media->rtp);
 
@@ -901,7 +910,7 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 		pj_strdup(session->inv_session->pool, &session_media->transport, &stream->desc.transport);
  	}
 
-	if (set_caps(session, session_media, stream)) {
+	if (set_caps(session, session_media, stream, 1)) {
 		return 0;
 	}
 	return 1;
@@ -1249,7 +1258,7 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 	/* Apply connection information to the RTP instance */
 	ast_sockaddr_set_port(addrs, remote_stream->desc.port);
 	ast_rtp_instance_set_remote_address(session_media->rtp, addrs);
-	if (set_caps(session, session_media, remote_stream)) {
+	if (set_caps(session, session_media, remote_stream, 0)) {
 		return 1;
 	}
 
