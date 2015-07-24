@@ -2677,7 +2677,7 @@ static int ast_rtp_dtmf_begin(struct ast_rtp_instance *instance, char digit)
 	}
 
 	/* Grab the payload that they expect the RFC2833 packet to be received in */
-	payload = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(instance), 0, NULL, AST_RTP_DTMF);
+	payload = ast_rtp_codecs_payload_code_tx(ast_rtp_instance_get_codecs(instance), 0, NULL, AST_RTP_DTMF);
 
 	rtp->dtmfmute = ast_tvadd(ast_tvnow(), ast_tv(0, 500000));
 	rtp->send_duration = 160;
@@ -3404,10 +3404,8 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 	}
 
 	/* Grab the subclass and look up the payload we are going to use */
-	codec = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(instance),
-	                                    1,
-	                                    frame->subclass.format,
-	                                    0);
+	codec = ast_rtp_codecs_payload_code_tx(ast_rtp_instance_get_codecs(instance),
+		1, frame->subclass.format, 0);
 	if (codec < 0) {
 		ast_log(LOG_WARNING, "Don't know how to send format %s packets with RTP\n",
 			ast_format_get_name(frame->subclass.format));
@@ -4193,7 +4191,8 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance, unsigned int 
 	}
 
 	/* Otherwise adjust bridged payload to match */
-	bridged_payload = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(instance1), payload_type->asterisk_format, payload_type->format, payload_type->rtp_code);
+	bridged_payload = ast_rtp_codecs_payload_code_tx(ast_rtp_instance_get_codecs(instance1),
+		payload_type->asterisk_format, payload_type->format, payload_type->rtp_code);
 
 	/* If no codec could be matched between instance and instance1, then somehow things were made incompatible while we were still bridged.  Bail. */
 	if (bridged_payload < 0) {
@@ -4999,7 +4998,7 @@ static int ast_rtp_sendcng(struct ast_rtp_instance *instance, int level)
 		return -1;
 	}
 
-	payload = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(instance), 0, NULL, AST_RTP_CN);
+	payload = ast_rtp_codecs_payload_code_tx(ast_rtp_instance_get_codecs(instance), 0, NULL, AST_RTP_CN);
 
 	level = 127 - (level & 0x7f);
 

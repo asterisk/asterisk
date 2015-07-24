@@ -2709,7 +2709,8 @@ static void send_start_rtp(struct unistim_subchannel *sub)
 	}
 
 	pte = sub->parent->parent->session;
-	codec = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(sub->rtp), 1, ast_channel_readformat(sub->owner), 0);
+	codec = ast_rtp_codecs_payload_code_tx(ast_rtp_instance_get_codecs(sub->rtp),
+		1, ast_channel_readformat(sub->owner), 0);
 	if ((ast_format_cmp(ast_channel_readformat(sub->owner), ast_format_ulaw) == AST_FORMAT_CMP_EQUAL) ||
 		(ast_format_cmp(ast_channel_readformat(sub->owner), ast_format_alaw) == AST_FORMAT_CMP_EQUAL)) {
 		if (unistimdebug) {
