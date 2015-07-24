@@ -28,6 +28,10 @@ AMI:
    compatible features included with this release.  See CHANGES for more
    information.
 
+ARI:
+ - The version of ARI has been updated to 1.8.0 to reflect the backwards
+   compatible changes outlined in the CHANGES file.
+
 From 13.3.0 to 13.4.0:
 
 Source Control:
