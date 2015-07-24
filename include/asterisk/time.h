@@ -23,8 +23,14 @@
 #ifndef _ASTERISK_TIME_H
 #define _ASTERISK_TIME_H
 
+#include "asterisk/autoconfig.h"
+
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
 #endif
 
 #include "asterisk/inline_api.h"
@@ -140,6 +146,34 @@ struct timeval ast_tvnow(void),
 	return t;
 }
 )
+
+/*!
+ * \brief Returns current timespec. Meant to avoid calling ast_tvnow() just to
+ * create a timespec from the timeval it returns.
+ */
+#if defined _POSIX_TIMERS && _POSIX_TIMERS > 0
+AST_INLINE_API(
+struct timespec ast_tsnow(void),
+{
+	struct timespec ts;
+	clock_gettime(CLOCK_REALTIME, &ts);
+	return ts;
+}
+)
+#else
+AST_INLINE_API(
+struct timespec ast_tsnow(void),
+{
+	struct timeval tv = ast_tvnow();
+	struct timespec ts;
+	/* Can't use designated initializer, because it does odd things with
+	 * the AST_INLINE_API macro. Go figure. */
+	ts.tv_sec = tv.tv_sec;
+	ts.tv_nsec = tv.tv_usec * 1000;
+	return ts;
+}
+)
+#endif
 
 /*!
  * \brief Returns the sum of two timevals a + b
