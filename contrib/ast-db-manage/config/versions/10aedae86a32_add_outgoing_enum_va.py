@@ -39,50 +39,49 @@ old_type = sa.Enum(*OLD_ENUM, name='sip_directmedia_values')
 new_type = sa.Enum(*NEW_ENUM, name='sip_directmedia_values_v2')
 
 tcr = sa.sql.table('sippeers', sa.Column('directmedia', new_type,
-				   nullable=True))
+                   nullable=True))
 
 def upgrade():
-	currentcontext = op.get_context()
+    currentcontext = op.get_context()
 
-	# Upgrading to this revision WILL clear your directmedia values.
-	if currentcontext.bind.dialect.name != 'postgresql':
-		if currentcontext.bind.dialect.name != 'oracle':
-			op.alter_column('sippeers', 'directmedia',
-							type_=new_type,
-							existing_type=old_type)
-		if currentcontext.bind.dialect.name == 'oracle':
-			op.alter_column('sippeers', 'directmedia',type_=sa.String(10))
-			
-			
-	else:
-		enum = ENUM("yes", "no", "nonat", "update", "outgoing",
-					name="sip_directmedia_values_v2")
-		enum.create(op.get_bind(), checkfirst=False)
+    # Upgrading to this revision WILL clear your directmedia values.
+    if currentcontext.bind.dialect.name != 'postgresql':
+        if currentcontext.bind.dialect.name != 'oracle':
+            op.alter_column('sippeers', 'directmedia',
+                            type_=new_type,
+                            existing_type=old_type)
+        if currentcontext.bind.dialect.name == 'oracle':
+            op.alter_column('sippeers', 'directmedia',type_=sa.String(10))
 
-		op.execute('ALTER TABLE sippeers ALTER COLUMN directmedia TYPE'
-				   ' sip_directmedia_values_v2 USING'
-				   ' directmedia::text::sip_directmedia_values_v2')
+    else:
+        enum = ENUM("yes", "no", "nonat", "update", "outgoing",
+                    name="sip_directmedia_values_v2")
+        enum.create(op.get_bind(), checkfirst=False)
 
-		ENUM(name="sip_directmedia_values").drop(op.get_bind(), checkfirst=False)
+        op.execute('ALTER TABLE sippeers ALTER COLUMN directmedia TYPE'
+                   ' sip_directmedia_values_v2 USING'
+                   ' directmedia::text::sip_directmedia_values_v2')
+
+        ENUM(name="sip_directmedia_values").drop(op.get_bind(), checkfirst=False)
 
 def downgrade():
-	currentcontext = op.get_context()
+    currentcontext = op.get_context()
 
-	op.execute(tcr.update().where(tcr.c.directmedia==u'outgoing')
-			   .values(directmedia=None))
+    op.execute(tcr.update().where(tcr.c.directmedia==u'outgoing')
+               .values(directmedia=None))
 
-	if currentcontext.bind.dialect.name != 'postgresql':
-		op.alter_column('sippeers', 'directmedia',
-						type_=old_type,
-						existing_type=new_type)
-	else:
-		enum = ENUM("yes", "no", "nonat", "update",
-					name="sip_directmedia_values")
-		enum.create(op.get_bind(), checkfirst=False)
+    if currentcontext.bind.dialect.name != 'postgresql':
+        op.alter_column('sippeers', 'directmedia',
+                        type_=old_type,
+                        existing_type=new_type)
+    else:
+        enum = ENUM("yes", "no", "nonat", "update",
+                    name="sip_directmedia_values")
+        enum.create(op.get_bind(), checkfirst=False)
 
-		op.execute('ALTER TABLE sippeers ALTER COLUMN directmedia TYPE'
-				   ' sip_directmedia_values USING'
-				   ' directmedia::text::sip_directmedia_values')
+        op.execute('ALTER TABLE sippeers ALTER COLUMN directmedia TYPE'
+                   ' sip_directmedia_values USING'
+                   ' directmedia::text::sip_directmedia_values')
 
-		ENUM(name="sip_directmedia_values_v2").drop(op.get_bind(),
-												checkfirst=False)
+        ENUM(name="sip_directmedia_values_v2").drop(op.get_bind(),
+                                                checkfirst=False)

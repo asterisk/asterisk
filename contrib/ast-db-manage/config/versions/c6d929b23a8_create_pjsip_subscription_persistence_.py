@@ -13,44 +13,43 @@ down_revision = 'e96a0b8071c'
 from alembic import op
 import sqlalchemy as sa
 
-
 def upgrade():
-	currentcontext = op.get_context()
-	if currentcontext.bind.dialect.name != 'oracle':
-		op.create_table(
-			'ps_subscription_persistence',
-			sa.Column('id', sa.String(40), nullable=False, unique=True),
-		sa.Column('packet', sa.String(2048)),
-		sa.Column('src_name', sa.String(128)),
-		sa.Column('src_port', sa.Integer),
-		sa.Column('transport_key', sa.String(64)),
-		sa.Column('local_name', sa.String(128)),
-		sa.Column('local_port', sa.Integer),
-		sa.Column('cseq', sa.Integer),
-		sa.Column('tag', sa.String(128)),
-		sa.Column('endpoint', sa.String(40)),
-		sa.Column('expires', sa.Integer),
-		)
+    currentcontext = op.get_context()
+    if currentcontext.bind.dialect.name != 'oracle':
+        op.create_table(
+            'ps_subscription_persistence',
+            sa.Column('id', sa.String(40), nullable=False, unique=True),
+        sa.Column('packet', sa.String(2048)),
+        sa.Column('src_name', sa.String(128)),
+        sa.Column('src_port', sa.Integer),
+        sa.Column('transport_key', sa.String(64)),
+        sa.Column('local_name', sa.String(128)),
+        sa.Column('local_port', sa.Integer),
+        sa.Column('cseq', sa.Integer),
+        sa.Column('tag', sa.String(128)),
+        sa.Column('endpoint', sa.String(40)),
+        sa.Column('expires', sa.Integer),
+        )
 
-		op.create_index('ps_subscription_persistence_id', 'ps_subscription_persistence', ['id'])
+        op.create_index('ps_subscription_persistence_id', 'ps_subscription_persistence', ['id'])
 
-	if currentcontext.bind.dialect.name == 'oracle':
-		op.create_table(
-		'ps_subscription_persistence',
-		sa.Column('id', sa.String(40), nullable=False),
-		sa.Column('packet', sa.String(2048)),
-		sa.Column('src_name', sa.String(128)),
-		sa.Column('src_port', sa.Integer),
-		sa.Column('transport_key', sa.String(64)),
-		sa.Column('local_name', sa.String(128)),
-		sa.Column('local_port', sa.Integer),
-		sa.Column('cseq', sa.Integer),
-		sa.Column('tag', sa.String(128)),
-		sa.Column('endpoint', sa.String(40)),
-		sa.Column('expires', sa.Integer),
-		)
+    if currentcontext.bind.dialect.name == 'oracle':
+        op.create_table(
+        'ps_subscription_persistence',
+        sa.Column('id', sa.String(40), nullable=False),
+        sa.Column('packet', sa.String(2048)),
+        sa.Column('src_name', sa.String(128)),
+        sa.Column('src_port', sa.Integer),
+        sa.Column('transport_key', sa.String(64)),
+        sa.Column('local_name', sa.String(128)),
+        sa.Column('local_port', sa.Integer),
+        sa.Column('cseq', sa.Integer),
+        sa.Column('tag', sa.String(128)),
+        sa.Column('endpoint', sa.String(40)),
+        sa.Column('expires', sa.Integer),
+        )
 
-		op.create_index('ps_subscription_persistence_id', 'ps_subscription_persistence', ['id'], unique=True)
+        op.create_index('ps_subscription_persistence_id', 'ps_subscription_persistence', ['id'], unique=True)
 
 def downgrade():
-	op.drop_table('ps_subscription_persistence')
+    op.drop_table('ps_subscription_persistence')

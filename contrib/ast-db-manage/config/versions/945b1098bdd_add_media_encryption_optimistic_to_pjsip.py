@@ -18,24 +18,23 @@ YESNO_NAME = 'yesno_values'
 YESNO_VALUES = ['yes', 'no']
 
 def upgrade():
-	currentcontext = op.get_context()
-	if currentcontext.bind.dialect.name != 'oracle':
-		############################# Enums ##############################
+    currentcontext = op.get_context()
+    if currentcontext.bind.dialect.name != 'oracle':
+        ############################# Enums ##############################
 
-		# yesno_values have already been created, so use postgres enum object
-		# type to get around "already created" issue - works okay with mysql
-		yesno_values = ENUM(*YESNO_VALUES, name=YESNO_NAME, create_type=False)
+        # yesno_values have already been created, so use postgres enum object
+        # type to get around "already created" issue - works okay with mysql
+        yesno_values = ENUM(*YESNO_VALUES, name=YESNO_NAME, create_type=False)
 
-		op.add_column('ps_endpoints', sa.Column('media_encryption_optimistic', yesno_values))
-	if currentcontext.bind.dialect.name == 'oracle':
-		############################# Enums ##############################
+        op.add_column('ps_endpoints', sa.Column('media_encryption_optimistic', yesno_values))
+    if currentcontext.bind.dialect.name == 'oracle':
+        ############################# Enums ##############################
 
-		# yesno_values have already been created, so use postgres enum object
-		# type to get around "already created" issue - works okay with mysql
-		yesno_values = ENUM(*YESNO_VALUES, name=YESNO_NAME, create_type=False)
+        # yesno_values have already been created, so use postgres enum object
+        # type to get around "already created" issue - works okay with mysql
+        yesno_values = ENUM(*YESNO_VALUES, name=YESNO_NAME, create_type=False)
 
-		op.add_column('ps_endpoints', sa.Column('media_encryption_optimistic', ENUM(*YESNO_VALUES, name='psepYnNmediaencryptionoptim')))
-
+        op.add_column('ps_endpoints', sa.Column('media_encryption_optimistic', ENUM(*YESNO_VALUES, name='psepYnNmediaencryptionoptim')))
 
 def downgrade():
-	op.drop_column('ps_endpoints', 'media_encryption_optimistic')
+    op.drop_column('ps_endpoints', 'media_encryption_optimistic')

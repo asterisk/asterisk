@@ -19,45 +19,44 @@ YESNO_NAME = 'yesno_values'
 YESNO_VALUES = ['yes', 'no']
 
 def upgrade():
-	op.alter_column('ps_endpoints', 'tos_audio',
-					type_=sa.String(10))
-	op.alter_column('ps_endpoints', 'tos_video',
-					type_=sa.String(10))
-	op.alter_column('ps_transports', 'tos',
-					type_=sa.String(10))
+    op.alter_column('ps_endpoints', 'tos_audio',
+                    type_=sa.String(10))
+    op.alter_column('ps_endpoints', 'tos_video',
+                    type_=sa.String(10))
+    op.alter_column('ps_transports', 'tos',
+                    type_=sa.String(10))
 
-	# Can't cast YENO_VALUES to Integers, so dropping and adding is required
-	op.drop_column('ps_endpoints', 'cos_audio')
-	op.drop_column('ps_endpoints', 'cos_video')
-	op.drop_column('ps_transports', 'cos')
+    # Can't cast YENO_VALUES to Integers, so dropping and adding is required
+    op.drop_column('ps_endpoints', 'cos_audio')
+    op.drop_column('ps_endpoints', 'cos_video')
+    op.drop_column('ps_transports', 'cos')
 
-	op.add_column('ps_endpoints', sa.Column('cos_audio', sa.Integer))
-	op.add_column('ps_endpoints', sa.Column('cos_video', sa.Integer))
-	op.add_column('ps_transports', sa.Column('cos', sa.Integer))
-	pass
-
+    op.add_column('ps_endpoints', sa.Column('cos_audio', sa.Integer))
+    op.add_column('ps_endpoints', sa.Column('cos_video', sa.Integer))
+    op.add_column('ps_transports', sa.Column('cos', sa.Integer))
+    pass
 
 def downgrade():
-	currentcontext = op.get_context()
-	
-	yesno_values = ENUM(*YESNO_VALUES, name=YESNO_NAME, create_type=False)
+    currentcontext = op.get_context()
+    
+    yesno_values = ENUM(*YESNO_VALUES, name=YESNO_NAME, create_type=False)
 
-	# Can't cast string to YESNO_VALUES, so dropping and adding is required
-	if currentcontext.bind.dialect.name != 'oracle':
-		op.drop_column('ps_endpoints', 'tos_audio')
-		op.drop_column('ps_endpoints', 'tos_video')
-		op.drop_column('ps_transports', 'tos')
+    # Can't cast string to YESNO_VALUES, so dropping and adding is required
+    if currentcontext.bind.dialect.name != 'oracle':
+        op.drop_column('ps_endpoints', 'tos_audio')
+        op.drop_column('ps_endpoints', 'tos_video')
+        op.drop_column('ps_transports', 'tos')
 
-		op.add_column('ps_endpoints', sa.Column('tos_audio', yesno_values))
-		op.add_column('ps_endpoints', sa.Column('tos_video', yesno_values))
-		op.add_column('ps_transports', sa.Column('tos', yesno_values))
+        op.add_column('ps_endpoints', sa.Column('tos_audio', yesno_values))
+        op.add_column('ps_endpoints', sa.Column('tos_video', yesno_values))
+        op.add_column('ps_transports', sa.Column('tos', yesno_values))
 
-		# Can't cast integers to YESNO_VALUES, so dropping and adding is required
-		op.drop_column('ps_endpoints', 'cos_audio')
-		op.drop_column('ps_endpoints', 'cos_video')
-		op.drop_column('ps_transports', 'cos')
+        # Can't cast integers to YESNO_VALUES, so dropping and adding is required
+        op.drop_column('ps_endpoints', 'cos_audio')
+        op.drop_column('ps_endpoints', 'cos_video')
+        op.drop_column('ps_transports', 'cos')
 
-		op.add_column('ps_endpoints', sa.Column('cos_audio', yesno_values))
-		op.add_column('ps_endpoints', sa.Column('cos_video', yesno_values))
-		op.add_column('ps_transports', sa.Column('cos', yesno_values))
-	pass
+        op.add_column('ps_endpoints', sa.Column('cos_audio', yesno_values))
+        op.add_column('ps_endpoints', sa.Column('cos_video', yesno_values))
+        op.add_column('ps_transports', sa.Column('cos', yesno_values))
+    pass

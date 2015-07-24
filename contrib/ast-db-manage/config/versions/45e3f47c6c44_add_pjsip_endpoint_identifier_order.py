@@ -13,8 +13,7 @@ down_revision = '945b1098bdd'
 from alembic import op
 import sqlalchemy as sa
 
-
 def upgrade():
-	op.add_column('ps_globals', sa.Column('endpoint_identifier_order', sa.String(40)))
+    op.add_column('ps_globals', sa.Column('endpoint_identifier_order', sa.String(40)))
 def downgrade():
-	op.drop_column('ps_globals', 'endpoint_identifier_order')
+    op.drop_column('ps_globals', 'endpoint_identifier_order')

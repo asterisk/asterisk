@@ -13,7 +13,6 @@ down_revision = '5139253c0423'
 from alembic import op
 import sqlalchemy as sa
 
-
 def upgrade():
     op.create_table(
         'queue_rules',
@@ -23,9 +22,7 @@ def upgrade():
         sa.Column('max_penalty', sa.String(32), nullable=False)
     )
 
-
 def downgrade():
     ########################## drop tables ###########################
 
     op.drop_table('queue_rules')
-

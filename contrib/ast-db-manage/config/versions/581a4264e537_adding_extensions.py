@@ -31,36 +31,35 @@ down_revision = '43956d550a44'
 from alembic import op
 import sqlalchemy as sa
 
-
 def upgrade():
-	currentcontext = op.get_context()
-	if currentcontext.bind.dialect.name != 'oracle':
-		op.create_table(
-			'extensions',
-			sa.Column('id', sa.BigInteger, primary_key=True, nullable=False,
-					  unique=True, autoincrement=True),
-			sa.Column('context', sa.String(40), primary_key=True, nullable=False),
-			sa.Column('exten', sa.String(40), primary_key=True, nullable=False),
-			sa.Column('priority', sa.Integer, primary_key=True, nullable=False,
-					  autoincrement=True),
-			sa.Column('app', sa.String(40), nullable=False),
-			sa.Column('appdata', sa.String(256), nullable=False),
-		)
-	if currentcontext.bind.dialect.name == 'oracle':
-		# oracle can have only one primary key . Using unique index instead due to same functionality
-		op.create_table(
-			'extensions',
-			sa.Column('id', sa.BigInteger, nullable=False,autoincrement=True),
-			sa.Column('context', sa.String(40), nullable=False),
-			sa.Column('exten', sa.String(40), nullable=False),
-			sa.Column('priority', sa.Integer, nullable=False,autoincrement=True),
-			sa.Column('app', sa.String(40), nullable=False),
-			sa.Column('appdata', sa.String(256), nullable=False),
-		)
-		op.create_primary_key('pkext_id', 'extensions', ['id'])
-		op.create_index('idxext_context', 'extensions', ['context'], unique=True)
-		op.create_index('idxext_exten', 'extensions', ['exten'], unique=True)
-		op.create_index('idxext_priority', 'extensions', ['priority'], unique=True)
+    currentcontext = op.get_context()
+    if currentcontext.bind.dialect.name != 'oracle':
+        op.create_table(
+            'extensions',
+            sa.Column('id', sa.BigInteger, primary_key=True, nullable=False,
+                      unique=True, autoincrement=True),
+            sa.Column('context', sa.String(40), primary_key=True, nullable=False),
+            sa.Column('exten', sa.String(40), primary_key=True, nullable=False),
+            sa.Column('priority', sa.Integer, primary_key=True, nullable=False,
+                      autoincrement=True),
+            sa.Column('app', sa.String(40), nullable=False),
+            sa.Column('appdata', sa.String(256), nullable=False),
+        )
+    if currentcontext.bind.dialect.name == 'oracle':
+        # oracle can have only one primary key . Using unique index instead due to same functionality
+        op.create_table(
+            'extensions',
+            sa.Column('id', sa.BigInteger, nullable=False,autoincrement=True),
+            sa.Column('context', sa.String(40), nullable=False),
+            sa.Column('exten', sa.String(40), nullable=False),
+            sa.Column('priority', sa.Integer, nullable=False,autoincrement=True),
+            sa.Column('app', sa.String(40), nullable=False),
+            sa.Column('appdata', sa.String(256), nullable=False),
+        )
+        op.create_primary_key('pkext_id', 'extensions', ['id'])
+        op.create_index('idxext_context', 'extensions', ['context'], unique=True)
+        op.create_index('idxext_exten', 'extensions', ['exten'], unique=True)
+        op.create_index('idxext_priority', 'extensions', ['priority'], unique=True)
 
 def downgrade():
-	op.drop_table('extensions')
+    op.drop_table('extensions')

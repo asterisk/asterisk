@@ -18,17 +18,16 @@ YESNO_NAME = 'yesno_values'
 YESNO_VALUES = ['yes', 'no']
 
 def upgrade():
-	currentcontext = op.get_context()
-	if currentcontext.bind.dialect.name == 'oracle':
-		op.add_column('ps_endpoints', sa.Column('g726_non_standard', sa.Enum(*YESNO_VALUES, name='psepYnNg726nonstandard')))
-		return
-	############################# Enums ##############################
+    currentcontext = op.get_context()
+    if currentcontext.bind.dialect.name == 'oracle':
+        op.add_column('ps_endpoints', sa.Column('g726_non_standard', sa.Enum(*YESNO_VALUES, name='psepYnNg726nonstandard')))
+        return
+    ############################# Enums ##############################
 
-	# yesno_values have already been created, so use postgres enum object
-	# type to get around "already created" issue - works okay with mysql
-	yesno_values = ENUM(*YESNO_VALUES, name=YESNO_NAME, create_type=False)
-	op.add_column('ps_endpoints', sa.Column('g726_non_standard', yesno_values))
-
+    # yesno_values have already been created, so use postgres enum object
+    # type to get around "already created" issue - works okay with mysql
+    yesno_values = ENUM(*YESNO_VALUES, name=YESNO_NAME, create_type=False)
+    op.add_column('ps_endpoints', sa.Column('g726_non_standard', yesno_values))
 
 def downgrade():
-	op.drop_column('ps_endpoints', 'g726_non_standard')
+    op.drop_column('ps_endpoints', 'g726_non_standard')

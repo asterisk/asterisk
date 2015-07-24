@@ -14,7 +14,7 @@ from alembic import op
 import sqlalchemy as sa
 
 def upgrade():
-	op.add_column('ps_endpoints', sa.Column('accountcode', sa.String(20)))
+    op.add_column('ps_endpoints', sa.Column('accountcode', sa.String(20)))
 
 def downgrade():
-	op.drop_column('ps_endpoints', 'accountcode')
+    op.drop_column('ps_endpoints', 'accountcode')
