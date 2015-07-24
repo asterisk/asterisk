@@ -734,6 +734,9 @@
                 ; byte tags (default: "no")
 ;set_var=       ; Variable set on a channel involving the endpoint. For multiple
 		; channel variables specify multiple 'set_var'(s)
+;rtp_keepalive= ; Interval, in seconds, between comfort noise RTP packets if
+                ; RTP is not flowing. This setting is useful for ensuring that
+                ; holes in NATs and firewalls are kept open throughout a call.
 
 ;==========================AUTH SECTION OPTIONS=========================
 ;[auth]
