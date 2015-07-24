@@ -210,7 +210,7 @@ static int wait_for_resolution(struct ast_test *test, struct recurring_data *rda
 	struct timespec timeout;
 	int secdiff;
 
-	clock_gettime(CLOCK_REALTIME, &begin);
+	begin = ast_tsnow();
 
 	timeout.tv_sec = begin.tv_sec + 20;
 	timeout.tv_nsec = begin.tv_nsec;
@@ -229,7 +229,7 @@ static int wait_for_resolution(struct ast_test *test, struct recurring_data *rda
 	}
 
 	rdata->query_complete = 0;
-	clock_gettime(CLOCK_REALTIME, &end);
+	end = ast_tsnow();
 
 	secdiff = end.tv_sec - begin.tv_sec;
 
@@ -504,7 +504,7 @@ AST_TEST_DEFINE(recurring_query_cancel_between)
 	/* Query has been canceled, so let's wait to make sure that we don't get
 	 * told another query has occurred.
 	 */
-	clock_gettime(CLOCK_REALTIME, &timeout);
+	timeout = ast_tsnow();
 	timeout.tv_sec += 10;
 
 	ast_mutex_lock(&rdata->lock);
@@ -602,7 +602,7 @@ AST_TEST_DEFINE(recurring_query_cancel_during)
 	}
 
 	/* Now ensure that no more queries get completed after cancellation. */
-	clock_gettime(CLOCK_REALTIME, &timeout);
+	timeout = ast_tsnow();
 	timeout.tv_sec += 10;
 
 	ast_mutex_lock(&rdata->lock);
