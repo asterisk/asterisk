@@ -2018,7 +2018,6 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 	ast_rtp_instance_set_remote_address(sub->rtp, &sin_tmp);
 	ast_debug(3, "Peer RTP is at port %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 	/* Scan through the RTP payload types specified in a "m=" line: */
-	ast_rtp_codecs_payloads_clear(ast_rtp_instance_get_codecs(sub->rtp), sub->rtp);
 	codecs = ast_strdupa(m + len);
 	while (!ast_strlen_zero(codecs)) {
 		if (sscanf(codecs, "%30d%n", &codec, &len) != 1) {
@@ -4487,7 +4486,8 @@ static enum ast_rtp_glue_result mgcp_get_rtp_peer(struct ast_channel *chan, stru
 	if (!(sub = ast_channel_tech_pvt(chan)) || !(sub->rtp))
 		return AST_RTP_GLUE_RESULT_FORBID;
 
-	*instance = sub->rtp ? ao2_ref(sub->rtp, +1), sub->rtp : NULL;
+	ao2_ref(sub->rtp, +1);
+	*instance = sub->rtp;
 
 	if (sub->parent->directmedia)
 		return AST_RTP_GLUE_RESULT_REMOTE;
