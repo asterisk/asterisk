@@ -137,7 +137,8 @@ fin: __attribute__((unused))
 }
 {{/is_req}}
 {{#is_websocket}}
-static int ast_ari_{{c_name}}_{{c_nickname}}_ws_attempted_cb(struct ast_tcptls_session_instance *ser, struct ast_variable *get_params, struct ast_variable *headers)
+static int ast_ari_{{c_name}}_{{c_nickname}}_ws_attempted_cb(struct ast_tcptls_session_instance *ser,
+	struct ast_variable *get_params, struct ast_variable *headers, const char *session_id)
 {
 	struct ast_ari_{{c_name}}_{{c_nickname}}_args args = {};
 {{#has_parameters}}
@@ -156,7 +157,7 @@ static int ast_ari_{{c_name}}_{{c_nickname}}_ws_attempted_cb(struct ast_tcptls_s
 
 {{> param_parsing}}
 
-	res = ast_ari_websocket_{{c_name}}_{{c_nickname}}_attempted(ser, headers, &args);
+	res = ast_ari_websocket_{{c_name}}_{{c_nickname}}_attempted(ser, headers, &args, session_id);
 
 fin: __attribute__((unused))
 	if (!response) {
@@ -254,6 +255,10 @@ static int load_module(void)
 {{#operations}}
 {{#has_websocket}}
 	struct ast_websocket_protocol *protocol;
+
+	if (ast_ari_websocket_{{c_name}}_{{c_nickname}}_init() == -1) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
 
 	{{full_name}}.ws_server = ast_websocket_server_create();
 	if (!{{full_name}}.ws_server) {
