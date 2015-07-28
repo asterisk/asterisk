@@ -678,6 +678,31 @@ static void payload_mapping_rx_clear_primary(struct ast_rtp_codecs *codecs, stru
 
 /*!
  * \internal
+ * \brief Put the new_type into the rx payload type mapping.
+ * \since 14.0.0
+ *
+ * \param codecs Codecs structure to put new_type into
+ * \param payload type position to replace.
+ * \param new_type RTP payload mapping object to store.
+ *
+ * \note It is assumed that codecs is write locked before calling.
+ *
+ * \return Nothing
+ */
+static void rtp_codecs_payload_replace_rx(struct ast_rtp_codecs *codecs, int payload, struct ast_rtp_payload_type *new_type)
+{
+	ao2_ref(new_type, +1);
+	if (payload < AST_VECTOR_SIZE(&codecs->payload_mapping_rx)) {
+		ao2_t_cleanup(AST_VECTOR_GET(&codecs->payload_mapping_rx, payload),
+			"cleaning up rx mapping vector element about to be replaced");
+	}
+	AST_VECTOR_REPLACE(&codecs->payload_mapping_rx, payload, new_type);
+
+	payload_mapping_rx_clear_primary(codecs, new_type);
+}
+
+/*!
+ * \internal
  * \brief Copy the rx payload type mapping to the destination.
  * \since 14.0.0
  *
@@ -703,14 +728,7 @@ static void rtp_codecs_payloads_copy_rx(struct ast_rtp_codecs *src, struct ast_r
 
 		ast_debug(2, "Copying rx payload mapping %d (%p) from %p to %p\n",
 			idx, type, src, dest);
-		ao2_ref(type, +1);
-		if (idx < AST_VECTOR_SIZE(&dest->payload_mapping_rx)) {
-			ao2_t_cleanup(AST_VECTOR_GET(&dest->payload_mapping_rx, idx),
-				"cleaning up rx mapping vector element about to be replaced");
-		}
-		AST_VECTOR_REPLACE(&dest->payload_mapping_rx, idx, type);
-
-		payload_mapping_rx_clear_primary(dest, type);
+		rtp_codecs_payload_replace_rx(dest, idx, type);
 
 		if (instance && instance->engine && instance->engine->payload_set) {
 			instance->engine->payload_set(instance, idx, type->asterisk_format, type->format, type->rtp_code);
@@ -851,14 +869,7 @@ void ast_rtp_codecs_payloads_xover(struct ast_rtp_codecs *src, struct ast_rtp_co
 
 		ast_debug(2, "Crossover copying tx to rx payload mapping %d (%p) from %p to %p\n",
 			idx, type, src, dest);
-		ao2_ref(type, +1);
-		if (idx < AST_VECTOR_SIZE(&dest->payload_mapping_rx)) {
-			ao2_t_cleanup(AST_VECTOR_GET(&dest->payload_mapping_rx, idx),
-				"cleaning up rx mapping vector element about to be replaced");
-		}
-		AST_VECTOR_REPLACE(&dest->payload_mapping_rx, idx, type);
-
-		payload_mapping_rx_clear_primary(dest, type);
+		rtp_codecs_payload_replace_rx(dest, idx, type);
 
 		if (instance && instance->engine && instance->engine->payload_set) {
 			instance->engine->payload_set(instance, idx, type->asterisk_format, type->format, type->rtp_code);
