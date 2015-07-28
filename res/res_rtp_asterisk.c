@@ -1288,6 +1288,13 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 
 	SSL_CTX_set_read_ahead(rtp->ssl_ctx, 1);
 
+	#ifdef HAVE_OPENSSL_ECDH_AUTO
+		SSL_CTX_set_ecdh_auto(rtp->ssl_ctx, 1);
+	#else
+		SSL_CTX_set_tmp_ecdh(rtp->ssl_ctx,
+			EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+	#endif
+
 	rtp->dtls_verify = dtls_cfg->verify;
 
 	SSL_CTX_set_verify(rtp->ssl_ctx, (rtp->dtls_verify & AST_RTP_DTLS_VERIFY_FINGERPRINT) || (rtp->dtls_verify & AST_RTP_DTLS_VERIFY_CERTIFICATE) ?
@@ -1641,7 +1648,7 @@ static void ast_rtp_on_ice_complete(pj_ice_sess *ice, pj_status_t status)
 			update_address_with_ice_candidate(rtp, AST_RTP_ICE_COMPONENT_RTCP, &rtp->rtcp->them);
 		}
 	}
- 
+
 #ifdef HAVE_OPENSSL_SRTP
 	dtls_perform_handshake(instance, &rtp->dtls, 0);
 
