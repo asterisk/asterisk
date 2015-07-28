@@ -530,6 +530,9 @@
 /* Define to 1 if you have the OpenSSL Secure Sockets Layer library. */
 #undef HAVE_OPENSSL
 
+/* Define if your system has SSL_CTX_set_ecdh_auto declared. */
+#undef HAVE_OPENSSL_ECDH_AUTO
+
 /* Define to 1 if CRYPTO has the OpenSSL SRTP Extension Support feature. */
 #undef HAVE_OPENSSL_SRTP
 
