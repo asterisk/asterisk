@@ -78,14 +78,13 @@ extern "C" {
 #include "asterisk/stasis.h"
 #include "asterisk/vector.h"
 
-/* Maximum number of payloads supported */
-#if defined(LOW_MEMORY)
+/*! Maximum number of payload types RTP can support. */
 #define AST_RTP_MAX_PT 128
-#else
-#define AST_RTP_MAX_PT 196
-#endif
 
-/* Maximum number of generations */
+/*! First dynamic RTP payload type */
+#define AST_RTP_PT_FIRST_DYNAMIC 96
+
+/*! Maximum number of generations */
 #define AST_RED_MAX_GENERATION 5
 
 /*!
