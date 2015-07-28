@@ -640,11 +640,13 @@ static void payload_mapping_rx_clear_primary(struct ast_rtp_codecs *codecs, stru
 	int idx;
 	struct ast_rtp_payload_type *current;
 	struct ast_rtp_payload_type *new_type;
+	struct timeval now;
 
 	if (!to_match->primary_mapping) {
 		return;
 	}
 
+	now = ast_tvnow();
 	for (idx = 0; idx < AST_VECTOR_SIZE(&codecs->payload_mapping_rx); ++idx) {
 		current = AST_VECTOR_GET(&codecs->payload_mapping_rx, idx);
 
@@ -670,6 +672,7 @@ static void payload_mapping_rx_clear_primary(struct ast_rtp_codecs *codecs, stru
 		}
 		*new_type = *current;
 		new_type->primary_mapping = 0;
+		new_type->when_retired = now;
 		ao2_bump(new_type->format);
 		AST_VECTOR_REPLACE(&codecs->payload_mapping_rx, idx, new_type);
 		ao2_ref(current, -1);
@@ -1160,6 +1163,8 @@ void ast_rtp_codecs_payload_formats(struct ast_rtp_codecs *codecs, struct ast_fo
  * \param format Asterisk format to look for
  * \param code The non-Asterisk format code to look for
  *
+ * \note It is assumed that static_RTP_PT_lock is at least read locked before calling.
+ *
  * \retval Numerical payload type
  * \retval -1 if not found.
  */
@@ -1169,7 +1174,6 @@ static int find_static_payload_type(int asterisk_format, const struct ast_format
 	int payload = -1;
 
 	if (!asterisk_format) {
-		ast_rwlock_rdlock(&static_RTP_PT_lock);
 		for (idx = 0; idx < AST_RTP_MAX_PT; ++idx) {
 			if (static_RTP_PT[idx]
 				&& !static_RTP_PT[idx]->asterisk_format
@@ -1178,9 +1182,7 @@ static int find_static_payload_type(int asterisk_format, const struct ast_format
 				break;
 			}
 		}
-		ast_rwlock_unlock(&static_RTP_PT_lock);
 	} else if (format) {
-		ast_rwlock_rdlock(&static_RTP_PT_lock);
 		for (idx = 0; idx < AST_RTP_MAX_PT; ++idx) {
 			if (static_RTP_PT[idx]
 				&& static_RTP_PT[idx]->asterisk_format
@@ -1190,18 +1192,149 @@ static int find_static_payload_type(int asterisk_format, const struct ast_format
 				break;
 			}
 		}
-		ast_rwlock_unlock(&static_RTP_PT_lock);
 	}
 
 	return payload;
 }
 
-int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, int asterisk_format, const struct ast_format *format, int code)
+/*!
+ * \internal
+ * \brief Find the first unused dynamic rx payload type.
+ * \since 14.0.0
+ *
+ * \param codecs Codecs structure to look in
+ *
+ * \note It is assumed that codecs is at least read locked before calling.
+ *
+ * \retval Numerical payload type
+ * \retval -1 if not found.
+ */
+static int rtp_codecs_find_empty_dynamic_rx(struct ast_rtp_codecs *codecs)
 {
 	struct ast_rtp_payload_type *type;
 	int idx;
 	int payload = -1;
 
+	idx = AST_RTP_PT_FIRST_DYNAMIC;
+	for (; idx < AST_VECTOR_SIZE(&codecs->payload_mapping_rx); ++idx) {
+		type = AST_VECTOR_GET(&codecs->payload_mapping_rx, idx);
+		if (!type) {
+			payload = idx;
+			break;
+		}
+	}
+	return payload;
+}
+
+/*!
+ * \internal
+ * \brief Find the oldest non-primary dynamic rx payload type.
+ * \since 14.0.0
+ *
+ * \param codecs Codecs structure to look in
+ *
+ * \note It is assumed that codecs is at least read locked before calling.
+ *
+ * \retval Numerical payload type
+ * \retval -1 if not found.
+ */
+static int rtp_codecs_find_non_primary_dynamic_rx(struct ast_rtp_codecs *codecs)
+{
+	struct ast_rtp_payload_type *type;
+	struct timeval oldest;
+	int idx;
+	int payload = -1;
+
+	idx = AST_RTP_PT_FIRST_DYNAMIC;
+	for (; idx < AST_VECTOR_SIZE(&codecs->payload_mapping_rx); ++idx) {
+		type = AST_VECTOR_GET(&codecs->payload_mapping_rx, idx);
+		if (type
+			&& !type->primary_mapping
+			&& (payload == -1
+				|| ast_tvdiff_ms(type->when_retired, oldest) < 0)) {
+			oldest = type->when_retired;
+			payload = idx;
+		}
+	}
+	return payload;
+}
+
+/*!
+ * \internal
+ * \brief Assign a payload type for the rx mapping.
+ * \since 14.0.0
+ *
+ * \param codecs Codecs structure to look in
+ * \param asterisk_format Non-zero if the given Asterisk format is present
+ * \param format Asterisk format to look for
+ * \param code The format to look for
+ *
+ * \note It is assumed that static_RTP_PT_lock is at least read locked before calling.
+ *
+ * \retval Numerical payload type
+ * \retval -1 if could not assign.
+ */
+static int rtp_codecs_assign_payload_code_rx(struct ast_rtp_codecs *codecs, int asterisk_format, struct ast_format *format, int code)
+{
+	int payload;
+	struct ast_rtp_payload_type *new_type;
+
+	payload = find_static_payload_type(asterisk_format, format, code);
+	if (payload < 0) {
+		return payload;
+	}
+
+	new_type = ast_rtp_engine_alloc_payload_type();
+	if (!new_type) {
+		return -1;
+	}
+	new_type->format = ao2_bump(format);
+	new_type->asterisk_format = asterisk_format;
+	new_type->rtp_code = code;
+	new_type->payload = payload;
+	new_type->primary_mapping = 1;
+
+	ast_rwlock_wrlock(&codecs->codecs_lock);
+	if (payload < AST_RTP_PT_FIRST_DYNAMIC
+		|| AST_VECTOR_SIZE(&codecs->payload_mapping_rx) <= payload
+		|| !AST_VECTOR_GET(&codecs->payload_mapping_rx, payload)) {
+		/*
+		 * The payload type is a static assignment
+		 * or our default dynamic position is available.
+		 */
+		rtp_codecs_payload_replace_rx(codecs, payload, new_type);
+	} else if (-1 < (payload = rtp_codecs_find_empty_dynamic_rx(codecs))
+		|| -1 < (payload = rtp_codecs_find_non_primary_dynamic_rx(codecs))) {
+		/*
+		 * We found the first available empty dynamic position
+		 * or we found a mapping that should no longer be
+		 * actively used.
+		 */
+		new_type->payload = payload;
+		rtp_codecs_payload_replace_rx(codecs, payload, new_type);
+	} else {
+		/*
+		 * There are no empty or non-primary dynamic positions
+		 * left.  Sadness.
+		 *
+		 * I don't think this is really possible.
+		 */
+		ast_log(LOG_WARNING, "No dynamic RTP payload type values available!\n");
+	}
+	ast_rwlock_unlock(&codecs->codecs_lock);
+
+	ao2_ref(new_type, -1);
+
+	return payload;
+}
+
+int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, int asterisk_format, struct ast_format *format, int code)
+{
+	struct ast_rtp_payload_type *type;
+	int idx;
+	int payload = -1;
+
+	ast_rwlock_rdlock(&static_RTP_PT_lock);
 	if (!asterisk_format) {
 		ast_rwlock_rdlock(&codecs->codecs_lock);
 		for (idx = 0; idx < AST_VECTOR_SIZE(&codecs->payload_mapping_rx); ++idx) {
@@ -1211,14 +1344,10 @@ int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, int asterisk_form
 			}
 
 			if (!type->asterisk_format
+				&& type->primary_mapping
 				&& type->rtp_code == code) {
-				if (type->primary_mapping) {
-					payload = idx;
-					break;
-				}
-				if (payload == -1) {
-					payload = idx;
-				}
+				payload = idx;
+				break;
 			}
 		}
 		ast_rwlock_unlock(&codecs->codecs_lock);
@@ -1231,22 +1360,20 @@ int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, int asterisk_form
 			}
 
 			if (type->asterisk_format
+				&& type->primary_mapping
 				&& ast_format_cmp(format, type->format) == AST_FORMAT_CMP_EQUAL) {
-				if (type->primary_mapping) {
-					payload = idx;
-					break;
-				}
-				if (payload == -1) {
-					payload = idx;
-				}
+				payload = idx;
+				break;
 			}
 		}
 		ast_rwlock_unlock(&codecs->codecs_lock);
 	}
 
 	if (payload < 0) {
-		payload = find_static_payload_type(asterisk_format, format, code);
+		payload = rtp_codecs_assign_payload_code_rx(codecs, asterisk_format, format,
+			code);
 	}
+	ast_rwlock_unlock(&static_RTP_PT_lock);
 
 	return payload;
 }
@@ -1290,7 +1417,9 @@ int ast_rtp_codecs_payload_code_tx(struct ast_rtp_codecs *codecs, int asterisk_f
 	}
 
 	if (payload < 0) {
+		ast_rwlock_rdlock(&static_RTP_PT_lock);
 		payload = find_static_payload_type(asterisk_format, format, code);
+		ast_rwlock_unlock(&static_RTP_PT_lock);
 	}
 
 	return payload;
