@@ -1740,22 +1740,24 @@ static void set_next_mime_type(struct ast_format *format, int rtp_code, const ch
 static void add_static_payload(int map, struct ast_format *format, int rtp_code)
 {
 	int x;
+
+	ast_assert(map < ARRAY_LEN(static_RTP_PT));
+
 	ast_rwlock_wrlock(&static_RTP_PT_lock);
 	if (map < 0) {
 		/* find next available dynamic payload slot */
-		for (x = 96; x < 127; x++) {
+		for (x = AST_RTP_PT_FIRST_DYNAMIC; x < AST_RTP_MAX_PT; ++x) {
 			if (!static_RTP_PT[x].asterisk_format && !static_RTP_PT[x].rtp_code) {
 				map = x;
 				break;
 			}
 		}
-	}
-
-	if (map < 0) {
-		ast_log(LOG_WARNING, "No Dynamic RTP mapping available for format %s\n",
-			ast_format_get_name(format));
-		ast_rwlock_unlock(&static_RTP_PT_lock);
-		return;
+		if (map < 0) {
+			ast_log(LOG_WARNING, "No Dynamic RTP mapping available for format %s\n",
+				ast_format_get_name(format));
+			ast_rwlock_unlock(&static_RTP_PT_lock);
+			return;
+		}
 	}
 
 	if (format) {
