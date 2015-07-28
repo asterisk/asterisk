@@ -1642,7 +1642,7 @@ void *__ao2_unlink(struct ao2_container *c, void *obj, int flags,
  * The use of flags argument is the follow:
  *
  *      OBJ_UNLINK              unlinks the object found
- *      OBJ_NODATA              on match, do return an object
+ *      OBJ_NODATA              on match, do not return an object
  *                              Callbacks use OBJ_NODATA as a default
  *                              functions such as find() do
  *      OBJ_MULTIPLE            return multiple matches
