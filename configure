@@ -1089,6 +1089,10 @@ PBX_DAHDI
 DAHDI_DIR
 DAHDI_INCLUDE
 DAHDI_LIB
+PBX_OPENSSL_ECDH_AUTO
+OPENSSL_ECDH_AUTO_DIR
+OPENSSL_ECDH_AUTO_INCLUDE
+OPENSSL_ECDH_AUTO_LIB
 PBX_OPENSSL_EC
 OPENSSL_EC_DIR
 OPENSSL_EC_INCLUDE
@@ -8689,6 +8693,18 @@ OPENSSL_EC_OPTION=crypto
 OPENSSL_EC_DIR=${CRYPTO_DIR}
 
 PBX_OPENSSL_EC=0
+
+
+
+
+
+
+
+OPENSSL_ECDH_AUTO_DESCRIP="OpenSSL Auto ECDH Support"
+OPENSSL_ECDH_AUTO_OPTION=crypto
+OPENSSL_ECDH_AUTO_DIR=${CRYPTO_DIR}
+
+PBX_OPENSSL_ECDH_AUTO=0
 
 
 
@@ -30263,6 +30279,53 @@ _ACEOF
    fi
 fi
 
+
+fi
+
+if test "$PBX_OPENSSL" = "1";
+then
+
+    if test "x${PBX_OPENSSL_ECDH_AUTO}" != "x1" -a "${USE_OPENSSL_ECDH_AUTO}" != "no"; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for SSL_CTX_set_ecdh_auto declared in openssl/ssl.h" >&5
+$as_echo_n "checking for SSL_CTX_set_ecdh_auto declared in openssl/ssl.h... " >&6; }
+        saved_cppflags="${CPPFLAGS}"
+        if test "x${OPENSSL_ECDH_AUTO_DIR}" != "x"; then
+            OPENSSL_ECDH_AUTO_INCLUDE="-I${OPENSSL_ECDH_AUTO_DIR}/include"
+        fi
+        CPPFLAGS="${CPPFLAGS} ${OPENSSL_ECDH_AUTO_INCLUDE}"
+
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ #include <openssl/ssl.h>
+int
+main ()
+{
+#if !defined(SSL_CTX_set_ecdh_auto)
+                                    (void) SSL_CTX_set_ecdh_auto;
+                                #endif
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+                PBX_OPENSSL_ECDH_AUTO=1
+
+$as_echo "#define HAVE_OPENSSL_ECDH_AUTO 1" >>confdefs.h
+
+
+
+else
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+        CPPFLAGS="${saved_cppflags}"
+    fi
 
 fi
 
