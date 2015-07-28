@@ -242,17 +242,19 @@ enum ast_rtp_instance_stat {
 
 /*! Structure that represents a payload */
 struct ast_rtp_payload_type {
-	/*! Is this an Asterisk value */
-	int asterisk_format;
 	/*! If asterisk_format is set, this is the internal
 	 * asterisk format represented by the payload */
 	struct ast_format *format;
+	/*! Is this an Asterisk value */
+	int asterisk_format;
 	/*! Actual internal RTP specific value of the payload */
 	int rtp_code;
 	/*! Actual payload number */
 	int payload;
 	/*! TRUE if this is the primary mapping to the format. */
 	unsigned int primary_mapping:1;
+	/*! When the payload type became non-primary. */
+	struct timeval when_retired;
 };
 
 /* Common RTCP report types */
@@ -1451,8 +1453,13 @@ void ast_rtp_codecs_payload_formats(struct ast_rtp_codecs *codecs, struct ast_fo
  * \param format Asterisk format to look for
  * \param code The format to look for
  *
+ * \details
+ * Find the currently assigned rx mapped payload type based on whether it
+ * is an Asterisk format or non-format code.  If one is currently not
+ * assigned then create a rx payload type mapping.
+ *
  * \retval Numerical payload type
- * \retval -1 if not found.
+ * \retval -1 if could not assign.
  *
  * Example usage:
  *
@@ -1464,7 +1471,7 @@ void ast_rtp_codecs_payload_formats(struct ast_rtp_codecs *codecs, struct ast_fo
  *
  * \since 1.8
  */
-int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, int asterisk_format, const struct ast_format *format, int code);
+int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, int asterisk_format, struct ast_format *format, int code);
 
 /*!
  * \brief Retrieve a tx mapped payload type based on whether it is an Asterisk format and the code
