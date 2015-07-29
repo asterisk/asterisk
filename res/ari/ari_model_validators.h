@@ -225,6 +225,24 @@ int ast_ari_validate_config_tuple(struct ast_json *json);
 ari_validator ast_ari_validate_config_tuple_fn(void);
 
 /*!
+ * \brief Validator for LogChannel.
+ *
+ * Details of an Asterisk log channel
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_log_channel(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_log_channel().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_log_channel_fn(void);
+
+/*!
  * \brief Validator for Module.
  *
  * Details of an Asterisk module
@@ -1283,6 +1301,11 @@ ari_validator ast_ari_validate_application_fn(void);
  * ConfigTuple
  * - attribute: string (required)
  * - value: string (required)
+ * LogChannel
+ * - channel: string (required)
+ * - configuration: string (required)
+ * - status: string (required)
+ * - type: string (required)
  * Module
  * - description: string (required)
  * - name: string (required)
