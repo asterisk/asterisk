@@ -4656,6 +4656,11 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 		/* We have a tone to play, yay. */
 		ast_debug(1, "Driver for channel '%s' does not support indication %u, emulating it\n", ast_channel_name(chan), condition);
 		res = ast_playtones_start(chan, 0, ts->data, 1);
+		if (!res) {
+			ast_test_suite_event_notify("RINGING_INBAND",
+					"Channel: %s\r\n",
+					ast_channel_name(chan));
+		}
 		ts = ast_tone_zone_sound_unref(ts);
 	}
 
