@@ -244,7 +244,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_write)(struct ast_websocket *session, en
 	if (length == 126) {
 		put_unaligned_uint16(&frame[2], htons(actual_length));
 	} else if (length == 127) {
-		put_unaligned_uint64(&frame[2], htonl(actual_length));
+		put_unaligned_uint64(&frame[2], htobe64(actual_length));
 	}
 
 	ao2_lock(session);
