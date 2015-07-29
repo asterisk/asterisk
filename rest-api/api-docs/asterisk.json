@@ -297,6 +297,18 @@
 			]
 		},
 		{
+			"path": "/asterisk/logging",
+			"description": "Asterisk log channels",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "Gets Asterisk log channel information.",
+					"nickname": "listLogChannels",
+					"responseClass": "List[LogChannel]"
+				}
+			]
+		},
+		{
 			"path": "/asterisk/variable",
 			"description": "Global variables",
 			"operations": [
@@ -529,6 +541,32 @@
 				"support_level": {
 					"type": "string",
 					"description": "The support state of this module",
+					"required": true
+				}
+			}
+		},
+		"LogChannel": {
+			"id": "LogChannel",
+			"description": "Details of an Asterisk log channel",
+			"properties": {
+				"channel": {
+					"type": "string",
+					"description": "The log channel path",
+					"required": true
+				},
+				"type": {
+					"type": "string",
+					"description": "Types of logs for the log channel",
+					"required": true
+				},
+				"status": {
+					"type": "string",
+					"description": "Whether or not a log type is enabled",
+					"required": true
+				},
+				"configuration": {
+					"type": "string",
+					"description": "The various log levels",
 					"required": true
 				}
 			}
