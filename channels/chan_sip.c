@@ -8416,7 +8416,9 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 
 	sip_pvt_lock(p);
 	fr = sip_rtp_read(ast, p, &faxdetected);
-	p->lastrtprx = time(NULL);
+	if (fr->datalen > 0)  {
+		p->lastrtprx = time(NULL);
+	}
 
 	/* If we detect a CNG tone and fax detection is enabled then send us off to the fax extension */
 	if (faxdetected && ast_test_flag(&p->flags[1], SIP_PAGE2_FAX_DETECT_CNG)) {
