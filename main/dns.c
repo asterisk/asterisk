@@ -559,6 +559,7 @@ enum ast_dns_search_result ast_search_dns_ex(void *context, const char *dname, i
 
 	if (dns_response_len < 0) {
 		ast_log(LOG_ERROR, "DNS search failed for %s\n", dname);
+		response_handler(context, (unsigned char *)"", 0, ns_r_nxdomain);
 		return AST_DNS_SEARCH_FAILURE;
 	}
 

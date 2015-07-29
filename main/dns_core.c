@@ -399,10 +399,10 @@ int ast_dns_resolver_set_result(struct ast_dns_query *query, unsigned int secure
 		return -1;
 	}
 
-	if (!answer || answer_size == 0) {
-		ast_debug(2, "Query '%p': Could not set result information since no DNS answer was provided\n",
-			query);
-		return -1;
+	if (!answer) {
+		answer = "";
+		answer_size = 0;
+		ast_debug(2, "Query '%p': Assuming zero-sized answer on NULL input\n", query);
 	}
 
 	ast_dns_result_free(query->result);
