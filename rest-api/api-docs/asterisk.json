@@ -297,6 +297,34 @@
 			]
 		},
 		{
+			"path": "/asterisk/logging/{logChannelName}/rotate",
+			"description": "Asterisk log channel",
+			"operations": [
+				{
+					"httpMethod": "PUT",
+					"summary": "Rotates a log channel.",
+					"nickname": "rotateLog",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "logChannelName",
+							"description": "Log channel's name",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Log channel does not exist."
+						}
+					]
+				}
+			]
+		},
+		{
 			"path": "/asterisk/variable",
 			"description": "Global variables",
 			"operations": [
@@ -529,6 +557,32 @@
 				"support_level": {
 					"type": "string",
 					"description": "The support state of this module",
+					"required": true
+				}
+			}
+		},
+		"LogChannel": {
+			"id": "LogChannel",
+			"description": "Details of an Asterisk log channel",
+			"properties": {
+				"name": {
+					"type": "string",
+					"description": "The log channel path",
+					"required": true
+				},
+				"type": {
+					"type": "string",
+					"description": "Types of logs for the log channel",
+					"required": true
+				},
+				"status": {
+					"type": "string",
+					"description": "Whether or not a log type is enabled",
+					"required": true
+				},
+				"configuration": {
+					"type": "string",
+					"description": "The various log levels",
 					"required": true
 				}
 			}
