@@ -362,6 +362,61 @@ ari_validator ast_ari_validate_config_tuple_fn(void)
 	return ast_ari_validate_config_tuple;
 }
 
+int ast_ari_validate_log_channel(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_logging_levels = 0;
+	int has_name = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("logging_levels", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_logging_levels = 1;
+			prop_is_valid = ast_ari_validate_list(
+				ast_json_object_iter_value(iter),
+				ast_ari_validate_string);
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI LogChannel field logging_levels failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("name", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_name = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI LogChannel field name failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI LogChannel has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_logging_levels) {
+		ast_log(LOG_ERROR, "ARI LogChannel missing required field logging_levels\n");
+		res = 0;
+	}
+
+	if (!has_name) {
+		ast_log(LOG_ERROR, "ARI LogChannel missing required field name\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_log_channel_fn(void)
+{
+	return ast_ari_validate_log_channel;
+}
+
 int ast_ari_validate_module(struct ast_json *json)
 {
 	int res = 1;

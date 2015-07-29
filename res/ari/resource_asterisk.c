@@ -33,6 +33,7 @@ ASTERISK_REGISTER_FILE()
 
 #include "asterisk/ast_version.h"
 #include "asterisk/buildinfo.h"
+#include "asterisk/logger.h"
 #include "asterisk/module.h"
 #include "asterisk/paths.h"
 #include "asterisk/pbx.h"
@@ -621,6 +622,26 @@ void ast_ari_asterisk_reload_module(struct ast_variable *headers,
 		return;
 	} else if (reload_result == AST_MODULE_RELOAD_QUEUED) {
 		ast_ari_response_accepted(response);
+		return;
+	}
+
+	ast_ari_response_no_content(response);
+}
+
+void ast_ari_asterisk_rotate_log(struct ast_variable *headers,
+	struct ast_ari_asterisk_rotate_log_args *args,
+	struct ast_ari_response *response)
+{
+	int success;
+
+	ast_assert(response != NULL);
+
+	success = ast_logger_rotate_channel(args->log_channel_name);
+
+	if (!success) {
+		ast_ari_response_error(
+			response, 404, "Not Found",
+			"Log channel does not exist");
 		return;
 	}
 
