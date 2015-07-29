@@ -4504,6 +4504,10 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 	}
 
 	payload = ast_rtp_codecs_get_payload(ast_rtp_instance_get_codecs(instance), payloadtype);
+	if (!payload) {
+		/* Unknown payload type. */
+		return AST_LIST_FIRST(&frames) ? AST_LIST_FIRST(&frames) : &ast_null_frame;
+	}
 
 	/* If the payload is not actually an Asterisk one but a special one pass it off to the respective handler */
 	if (!payload->asterisk_format) {
@@ -4530,10 +4534,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		/* Even if no frame was returned by one of the above methods,
 		 * we may have a frame to return in our frame list
 		 */
-		if (!AST_LIST_EMPTY(&frames)) {
-			return AST_LIST_FIRST(&frames);
-		}
-		return &ast_null_frame;
+		return AST_LIST_FIRST(&frames) ? AST_LIST_FIRST(&frames) : &ast_null_frame;
 	}
 
 	ao2_replace(rtp->lastrxformat, payload->format);
