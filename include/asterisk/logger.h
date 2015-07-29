@@ -102,6 +102,13 @@ int logger_reload(void);
 /*! \brief Reload logger while rotating log files */
 int ast_logger_rotate(void);
 
+/*!
+ * \brief Rotate the specified log channel.
+ *
+ * \param log_channel The log channel to rotate
+ */
+int ast_logger_rotate_channel(const char *log_channel);
+
 void __attribute__((format(printf, 5, 6))) ast_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...);
 
 /*!
