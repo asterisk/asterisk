@@ -33,6 +33,9 @@ ARI
    deletion. Sorcery derived objects that are manipulated by this resource
    must have a sorcery wizard that supports the desired operations.
 
+ * A new feature has been added that allows for the rotation of log channels
+   through HTTP requests.
+
 
 res_pjsip
 ------------------
