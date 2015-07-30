@@ -38,6 +38,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/file.h"
 #include "asterisk/unaligned.h"
 #include "asterisk/uri.h"
+#include "asterisk/uuid.h"
 
 #define AST_API_MODULE
 #include "asterisk/http_websocket.h"
@@ -86,6 +87,7 @@ struct ast_websocket {
 	unsigned int closing:1;           /*!< Bit to indicate that the session is in the process of being closed */
 	unsigned int close_sent:1;        /*!< Bit to indicate that the session close opcode has been sent and no further data will be sent */
 	struct websocket_client *client;  /*!< Client object when connected as a client websocket */
+	char session_id[];                /*!< The identifier for the websocket session */
 };
 
 /*! \brief Hashing function for protocols */
@@ -414,6 +416,13 @@ int AST_OPTIONAL_API_NAME(ast_websocket_set_timeout)(struct ast_websocket *sessi
 	return 0;
 }
 
+
+const char * AST_OPTIONAL_API_NAME(ast_websocket_session_id)(struct ast_websocket *session)
+{
+	return session->session_id;
+}
+
+
 /* MAINTENANCE WARNING on ast_websocket_read()!
  *
  * We have to keep in mind during this function that the fact that session->fd seems ready
@@ -677,6 +686,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 	struct ast_websocket_protocol *protocol_handler = NULL;
 	struct ast_websocket *session;
 	struct ast_websocket_server *server;
+	char session_id[AST_UUID_STR_LEN];
 
 	SCOPED_MODULE_USE(ast_module_info->self);
 
@@ -751,6 +761,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 	/* Determine how to respond depending on the version */
 	if (version == 7 || version == 8 || version == 13) {
 		char base64[64];
+		size_t size;
 
 		if (!key || strlen(key) + strlen(WEBSOCKET_GUID) + 1 > 8192) { /* no stack overflows please */
 			websocket_bad_request(ser);
@@ -764,7 +775,16 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 			return 0;
 		}
 
-		if (!(session = ao2_alloc(sizeof(*session), session_destroy_fn))) {
+		/* Generate the session id */
+		if (!ast_uuid_generate_str(session_id, sizeof(session_id))) {
+			ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted - failed to generate a session id\n",
+				ast_sockaddr_stringify(&ser->remote_address));
+			ast_http_error(ser, 500, "Internal Server Error", "Allocation failed");
+			return 0;
+		}
+		size = sizeof(*session) + strlen(session_id) + 1;
+
+		if (!(session = ao2_alloc(size, session_destroy_fn))) {
 			ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted\n",
 				ast_sockaddr_stringify(&ser->remote_address));
 			websocket_bad_request(ser);
@@ -772,9 +792,10 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 			return 0;
 		}
 		session->timeout =  AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT;
+		strncpy(session->session_id, session_id, size - sizeof(*session));
 
 		if (protocol_handler->session_attempted
-		    && protocol_handler->session_attempted(ser, get_vars, headers)) {
+		    && protocol_handler->session_attempted(ser, get_vars, headers, session_id)) {
 			ast_debug(3, "WebSocket connection from '%s' rejected by protocol handler '%s'\n",
 				ast_sockaddr_stringify(&ser->remote_address), protocol_handler->name);
 			ao2_ref(protocol_handler, -1);
