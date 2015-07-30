@@ -2681,8 +2681,10 @@ static void session_inv_on_media_update(pjsip_inv_session *inv, pj_status_t stat
 	struct ast_sip_session *session = inv->mod_data[session_module.id];
 	const pjmedia_sdp_session *local, *remote;
 
-	if (!session->channel) {
-		/* If we don't have a channel. We really don't care about media updates.
+	if (!session || !session->channel) {
+		/*
+		 * If we don't have a session or channel then we really
+		 * don't care about media updates.
 		 * Just ignore
 		 */
 		return;
