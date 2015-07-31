@@ -90,6 +90,10 @@ void *ast_dns_resolver_get_data(const struct ast_dns_query *query);
  * \param answer The raw DNS answer
  * \param answer_size The size of the raw DNS answer
  *
+ * Zero-sized and NULL answers are permitted by this function. This may be
+ * necessary if the query fails at an early stage and no actual DNS response
+ * has been received from a DNS server.
+ *
  * \retval 0 success
  * \retval -1 failure
  */
