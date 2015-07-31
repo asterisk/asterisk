@@ -80,6 +80,9 @@ static const struct {
 	{ "xa", AST_PRESENCE_XA},
 	{ "chat", AST_PRESENCE_CHAT},
 	{ "dnd", AST_PRESENCE_DND},
+#ifdef TEST_FRAMEWORK
+	{ "invalid", AST_PRESENCE_INVALID},
+#endif
 };
 
 static struct ast_manager_event_blob *presence_state_to_ami(struct stasis_message *msg);
