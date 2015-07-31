@@ -177,8 +177,13 @@ static int parse_data(char *data, enum ast_presence_state *state, char **subtype
 
 	*state = ast_presence_state_val(state_str);
 
+#ifdef TEST_FRAMEWORK
+	/* Allow setting invalid state when in test mode, but only if the state_str is explicitly 'invalid' */
+	if (strcasecmp(state_str, "invalid") && (*state == AST_PRESENCE_INVALID)) {
+#else
 	/* not a valid state */
 	if (*state == AST_PRESENCE_INVALID) {
+#endif
 		ast_log(LOG_WARNING, "Unknown presence state value %s\n", state_str);
 		return -1;
 	}
@@ -242,6 +247,10 @@ static int presence_write(struct ast_channel *chan, const char *cmd, char *data,
 		ast_presence_state_changed_literal(state, decoded_subtype, decoded_message, tmp);
 	} else {
 		ast_presence_state_changed_literal(state, subtype, message, tmp);
+	}
+
+	if (state == AST_PRESENCE_INVALID) {
+		ast_db_del(astdb_family, data);
 	}
 
 	return 0;
@@ -436,6 +445,10 @@ static char *handle_cli_presencestate_change(struct ast_cli_entry *e, int cmd, s
 	ast_db_put(astdb_family, dev, state);
 
 	ast_presence_state_changed_literal(state_val, subtype, message, full_dev);
+
+	if (state_val == AST_PRESENCE_INVALID) {
+		ast_db_del(astdb_family, dev);
+	}
 
 	return CLI_SUCCESS;
 }
