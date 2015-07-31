@@ -53,7 +53,8 @@ ASTERISK_REGISTER_FILE()
 
 #define MAX_VALS 128
 
-static int ast_ari_events_event_websocket_ws_attempted_cb(struct ast_tcptls_session_instance *ser, struct ast_variable *get_params, struct ast_variable *headers)
+static int ast_ari_events_event_websocket_ws_attempted_cb(struct ast_tcptls_session_instance *ser,
+	struct ast_variable *get_params, struct ast_variable *headers, const char *session_id)
 {
 	struct ast_ari_events_event_websocket_args args = {};
 	int res = 0;
@@ -113,7 +114,7 @@ static int ast_ari_events_event_websocket_ws_attempted_cb(struct ast_tcptls_sess
 		{}
 	}
 
-	res = ast_ari_websocket_events_event_websocket_attempted(ser, headers, &args);
+	res = ast_ari_websocket_events_event_websocket_attempted(ser, headers, &args, session_id);
 
 fin: __attribute__((unused))
 	if (!response) {
@@ -432,6 +433,10 @@ static int load_module(void)
 {
 	int res = 0;
 	struct ast_websocket_protocol *protocol;
+
+	if (ast_ari_websocket_events_event_websocket_init() == -1) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
 
 	events.ws_server = ast_websocket_server_create();
 	if (!events.ws_server) {

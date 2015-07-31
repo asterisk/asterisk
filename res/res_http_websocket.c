@@ -38,6 +38,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/file.h"
 #include "asterisk/unaligned.h"
 #include "asterisk/uri.h"
+#include "asterisk/uuid.h"
 
 #define AST_API_MODULE
 #include "asterisk/http_websocket.h"
@@ -74,18 +75,19 @@ ASTERISK_REGISTER_FILE()
 
 /*! \brief Structure definition for session */
 struct ast_websocket {
-	FILE *f;                          /*!< Pointer to the file instance used for writing and reading */
-	int fd;                           /*!< File descriptor for the session, only used for polling */
-	struct ast_sockaddr address;      /*!< Address of the remote client */
-	enum ast_websocket_opcode opcode; /*!< Cached opcode for multi-frame messages */
-	size_t payload_len;               /*!< Length of the payload */
-	char *payload;                    /*!< Pointer to the payload */
-	size_t reconstruct;               /*!< Number of bytes before a reconstructed payload will be returned and a new one started */
-	int timeout;                      /*!< The timeout for operations on the socket */
-	unsigned int secure:1;            /*!< Bit to indicate that the transport is secure */
-	unsigned int closing:1;           /*!< Bit to indicate that the session is in the process of being closed */
-	unsigned int close_sent:1;        /*!< Bit to indicate that the session close opcode has been sent and no further data will be sent */
-	struct websocket_client *client;  /*!< Client object when connected as a client websocket */
+	FILE *f;                           /*!< Pointer to the file instance used for writing and reading */
+	int fd;                            /*!< File descriptor for the session, only used for polling */
+	struct ast_sockaddr address;       /*!< Address of the remote client */
+	enum ast_websocket_opcode opcode;  /*!< Cached opcode for multi-frame messages */
+	size_t payload_len;                /*!< Length of the payload */
+	char *payload;                     /*!< Pointer to the payload */
+	size_t reconstruct;                /*!< Number of bytes before a reconstructed payload will be returned and a new one started */
+	int timeout;                       /*!< The timeout for operations on the socket */
+	unsigned int secure:1;             /*!< Bit to indicate that the transport is secure */
+	unsigned int closing:1;            /*!< Bit to indicate that the session is in the process of being closed */
+	unsigned int close_sent:1;         /*!< Bit to indicate that the session close opcode has been sent and no further data will be sent */
+	struct websocket_client *client;   /*!< Client object when connected as a client websocket */
+	char session_id[AST_UUID_STR_LEN]; /*!< The identifier for the websocket session */
 };
 
 /*! \brief Hashing function for protocols */
@@ -413,6 +415,12 @@ int AST_OPTIONAL_API_NAME(ast_websocket_set_timeout)(struct ast_websocket *sessi
 
 	return 0;
 }
+
+const char * AST_OPTIONAL_API_NAME(ast_websocket_session_id)(struct ast_websocket *session)
+{
+	return session->session_id;
+}
+
 
 /* MAINTENANCE WARNING on ast_websocket_read()!
  *
@@ -764,7 +772,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 			return 0;
 		}
 
-		if (!(session = ao2_alloc(sizeof(*session), session_destroy_fn))) {
+		if (!(session = ao2_alloc(sizeof(*session) + AST_UUID_STR_LEN + 1, session_destroy_fn))) {
 			ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted\n",
 				ast_sockaddr_stringify(&ser->remote_address));
 			websocket_bad_request(ser);
@@ -773,8 +781,16 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 		}
 		session->timeout =  AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT;
 
+		/* Generate the session id */
+		if (!ast_uuid_generate_str(session->session_id, sizeof(session->session_id))) {
+			ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted - failed to generate a session id\n",
+				ast_sockaddr_stringify(&ser->remote_address));
+			ast_http_error(ser, 500, "Internal Server Error", "Allocation failed");
+			return 0;
+		}
+
 		if (protocol_handler->session_attempted
-		    && protocol_handler->session_attempted(ser, get_vars, headers)) {
+		    && protocol_handler->session_attempted(ser, get_vars, headers, session->session_id)) {
 			ast_debug(3, "WebSocket connection from '%s' rejected by protocol handler '%s'\n",
 				ast_sockaddr_stringify(&ser->remote_address), protocol_handler->name);
 			ao2_ref(protocol_handler, -1);

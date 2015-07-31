@@ -153,7 +153,7 @@ struct ast_json *ast_ari_websocket_session_read(
 	"{"						\
 	"  \"error\": \"InvalidMessage\","		\
 	"  \"message\": \"Message validation failed\""	\
-	"}" 
+	"}"
 
 int ast_ari_websocket_session_write(struct ast_ari_websocket_session *session,
 	struct ast_json *message)
@@ -195,4 +195,10 @@ void ari_handle_websocket(struct ast_websocket_server *ws_server,
 	};
 	ast_websocket_uri_cb(ser, &fake_urih, uri, method, get_params,
 		headers);
+}
+
+const char *ast_ari_websocket_session_id(
+	const struct ast_ari_websocket_session *session)
+{
+	return ast_websocket_session_id(session->ws_session);
 }
