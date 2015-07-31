@@ -188,6 +188,16 @@ int ast_ari_websocket_session_write(struct ast_ari_websocket_session *session,
 	struct ast_json *message);
 
 /*!
+ * \brief Get the Session ID for an ARI WebSocket.
+ *
+ * \param session Session to query.
+ * \return Session ID.
+ * \return \c NULL on error.
+ */
+const char *ast_ari_websocket_session_id(
+	const struct ast_ari_websocket_session *session);
+
+/*!
  * \brief The stock message to return when out of memory.
  *
  * The refcount is NOT bumped on this object, so ast_json_ref() if you want to

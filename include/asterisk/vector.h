@@ -110,7 +110,7 @@
 /*!
  * \brief Deallocates this vector.
  *
- * If any code to free the elements of this vector need to be run, that should
+ * If any code to free the elements of this vector needs to be run, that should
  * be done prior to this call.
  *
  * \param vec Vector to deallocate.
