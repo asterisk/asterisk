@@ -925,6 +925,46 @@ int ast_logger_rotate()
 	return reload_logger(1, NULL);
 }
 
+int ast_logger_rotate_channel(const char *log_channel)
+{
+	struct logchannel *f;
+	int success = 0;
+
+	struct ast_str *filename = ast_str_create(64);
+	if (!filename) {
+		return -1;
+	}
+
+	ast_str_append(&filename, 0, "%s/%s", ast_config_AST_LOG_DIR, log_channel);
+
+	AST_RWLIST_WRLOCK(&logchannels);
+
+	ast_mkdir(ast_config_AST_LOG_DIR, 0644);
+
+	AST_RWLIST_TRAVERSE(&logchannels, f, list) {
+		if (f->disabled) {
+			f->disabled = 0;	/* Re-enable logging at reload */
+			manager_event(EVENT_FLAG_SYSTEM, "LogChannel", "Channel: %s\r\nEnabled: Yes\r\n",
+				f->filename);
+		}
+		if (f->fileptr && (f->fileptr != stdout) && (f->fileptr != stderr)) {
+			fclose(f->fileptr);	/* Close file */
+			f->fileptr = NULL;
+			if (strcmp(ast_str_buffer(filename), f->filename) == 0) {
+				rotate_file(f->filename);
+				success = 1;
+			}
+		}
+	}
+
+	init_logger_chain(1 /* locked */, NULL);
+
+	AST_RWLIST_UNLOCK(&logchannels);
+	ast_free(filename);
+
+	return success;
+}
+
 static char *handle_logger_set_level(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int x;
