@@ -92,6 +92,20 @@ void ast_log_callid(int level, const char *file, int line, const char *function,
 	__attribute__((format(printf, 6, 7)));
 
 /*!
+ * \brief Retrieve the existing log channels
+ * \param logentry A callback to an updater function
+ * \param data Data passed into the callback for manipulation
+ *
+ * For each of the logging channels, logentry will be executed with the
+ * channel file name, log type, status of the log, and configuration levels.
+ *
+ * \retval 1 on success
+ * \retval 0 on failure
+ */
+int ast_logger_get_channels(int (*logentry)(const char *channel, const char *type,
+	const char *status, const char *configuration, void *data), void *data);
+
+/*!
  * \brief Log a backtrace of the current thread's execution stack to the Asterisk log
  */
 void ast_log_backtrace(void);

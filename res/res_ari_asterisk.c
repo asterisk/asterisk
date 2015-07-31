@@ -722,6 +722,57 @@ fin: __attribute__((unused))
 	return;
 }
 /*!
+ * \brief Parameter parsing callback for /asterisk/logging.
+ * \param get_params GET parameters in the HTTP request.
+ * \param path_vars Path variables extracted from the request.
+ * \param headers HTTP headers.
+ * \param[out] response Response to the HTTP request.
+ */
+static void ast_ari_asterisk_list_log_channels_cb(
+	struct ast_tcptls_session_instance *ser,
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct ast_ari_response *response)
+{
+	struct ast_ari_asterisk_list_log_channels_args args = {};
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
+	ast_ari_asterisk_list_log_channels(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ast_ari_validate_list(response->message,
+				ast_ari_validate_log_channel_fn());
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /asterisk/logging\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /asterisk/logging\n");
+		ast_ari_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
+}
+/*!
  * \brief Parameter parsing callback for /asterisk/logging/{logChannelName}/rotate.
  * \param get_params GET parameters in the HTTP request.
  * \param path_vars Path variables extracted from the request.
@@ -1069,6 +1120,7 @@ static struct stasis_rest_handlers asterisk_logging_logChannelName = {
 static struct stasis_rest_handlers asterisk_logging = {
 	.path_segment = "logging",
 	.callbacks = {
+		[AST_HTTP_GET] = ast_ari_asterisk_list_log_channels_cb,
 	},
 	.num_children = 1,
 	.children = { &asterisk_logging_logChannelName, }

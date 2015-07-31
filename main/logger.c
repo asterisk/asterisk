@@ -1054,6 +1054,40 @@ static char *handle_logger_show_channels(struct ast_cli_entry *e, int cmd, struc
 	return CLI_SUCCESS;
 }
 
+int ast_logger_get_channels(int (*logentry)(const char *channel, const char *type,
+	const char *status, const char *configuration, void *data), void *data)
+{
+	struct logchannel *chan;
+	struct ast_str *configs = ast_str_create(64);
+
+	if (!configs) {
+		return 0;
+	}
+
+	AST_RWLIST_RDLOCK(&logchannels);
+	AST_RWLIST_TRAVERSE(&logchannels, chan, list) {
+		unsigned int level;
+
+		ast_str_reset(configs);
+
+		for (level = 0; level < ARRAY_LEN(levels); level++) {
+			if ((chan->logmask & (1 << level)) && levels[level]) {
+				ast_str_append(&configs, 0, "%s ", levels[level]);
+			}
+		}
+
+		logentry(chan->filename, chan->type == LOGTYPE_CONSOLE ? "Console" :
+			(chan->type == LOGTYPE_SYSLOG ? "Syslog" : "File"), chan->disabled ?
+			"Disabled" : "Enabled", ast_str_buffer(configs), data);
+	}
+	AST_RWLIST_UNLOCK(&logchannels);
+
+	ast_free(configs);
+	configs = NULL;
+
+	return 1;
+}
+
 static char *handle_logger_add_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct logchannel *chan;
