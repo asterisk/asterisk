@@ -236,7 +236,10 @@ static ast_rwlock_t static_RTP_PT_lock;
 static struct stasis_topic *rtp_topic;
 
 
-/*! \internal \brief Destructor for \c ast_rtp_payload_type */
+/*!
+ * \internal
+ * \brief Destructor for \c ast_rtp_payload_type
+ */
 static void rtp_payload_type_dtor(void *obj)
 {
 	struct ast_rtp_payload_type *payload = obj;
@@ -248,7 +251,8 @@ struct ast_rtp_payload_type *ast_rtp_engine_alloc_payload_type(void)
 {
 	struct ast_rtp_payload_type *payload;
 
-	payload = ao2_alloc(sizeof(*payload), rtp_payload_type_dtor);
+	payload = ao2_alloc_options(sizeof(*payload), rtp_payload_type_dtor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
 
 	return payload;
 }
@@ -644,17 +648,16 @@ void ast_rtp_codecs_payloads_set_m_type(struct ast_rtp_codecs *codecs, struct as
 {
 	struct ast_rtp_payload_type *new_type;
 
+	if (payload < 0 || payload >= AST_RTP_MAX_PT) {
+		return;
+	}
+
 	new_type = ast_rtp_engine_alloc_payload_type();
 	if (!new_type) {
 		return;
 	}
 
 	ast_rwlock_rdlock(&static_RTP_PT_lock);
-	if (payload < 0 || payload >= AST_RTP_MAX_PT) {
-		ast_rwlock_unlock(&static_RTP_PT_lock);
-		return;
-	}
-
 	ast_rwlock_wrlock(&codecs->codecs_lock);
 	if (payload < AST_VECTOR_SIZE(&codecs->payloads)) {
 		ao2_t_cleanup(AST_VECTOR_GET(&codecs->payloads, payload), "cleaning up replaced payload type");
@@ -684,12 +687,11 @@ int ast_rtp_codecs_payloads_set_rtpmap_type_rate(struct ast_rtp_codecs *codecs, 
 	unsigned int i;
 	int found = 0;
 
-	ast_rwlock_rdlock(&mime_types_lock);
 	if (pt < 0 || pt >= AST_RTP_MAX_PT) {
-		ast_rwlock_unlock(&mime_types_lock);
 		return -1; /* bogus payload type */
 	}
 
+	ast_rwlock_rdlock(&mime_types_lock);
 	ast_rwlock_wrlock(&codecs->codecs_lock);
 	for (i = 0; i < mime_types_len; ++i) {
 		const struct ast_rtp_mime_type *t = &ast_rtp_mime_types[i];
@@ -1738,22 +1740,24 @@ static void set_next_mime_type(struct ast_format *format, int rtp_code, const ch
 static void add_static_payload(int map, struct ast_format *format, int rtp_code)
 {
 	int x;
+
+	ast_assert(map < ARRAY_LEN(static_RTP_PT));
+
 	ast_rwlock_wrlock(&static_RTP_PT_lock);
 	if (map < 0) {
 		/* find next available dynamic payload slot */
-		for (x = 96; x < 127; x++) {
+		for (x = AST_RTP_PT_FIRST_DYNAMIC; x < AST_RTP_MAX_PT; ++x) {
 			if (!static_RTP_PT[x].asterisk_format && !static_RTP_PT[x].rtp_code) {
 				map = x;
 				break;
 			}
 		}
-	}
-
-	if (map < 0) {
-		ast_log(LOG_WARNING, "No Dynamic RTP mapping available for format %s\n",
-			ast_format_get_name(format));
-		ast_rwlock_unlock(&static_RTP_PT_lock);
-		return;
+		if (map < 0) {
+			ast_log(LOG_WARNING, "No Dynamic RTP mapping available for format %s\n",
+				ast_format_get_name(format));
+			ast_rwlock_unlock(&static_RTP_PT_lock);
+			return;
+		}
 	}
 
 	if (format) {
@@ -2094,7 +2098,7 @@ static void rtp_engine_shutdown(void)
 	ast_rwlock_unlock(&mime_types_lock);
 }
 
-int ast_rtp_engine_init()
+int ast_rtp_engine_init(void)
 {
 	ast_rwlock_init(&mime_types_lock);
 	ast_rwlock_init(&static_RTP_PT_lock);

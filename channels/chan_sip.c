@@ -7350,7 +7350,7 @@ static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 		   redirect of both channels). Note that a channel can not be masqueraded *into*
 		   a native bridge. So there is no danger that this breaks a native bridge that
 		   should stay up. */
-		sip_set_rtp_peer(newchan, NULL, NULL, 0, 0, 0);
+		sip_set_rtp_peer(newchan, NULL, NULL, NULL, NULL, 0);
 		ret = 0;
 	}
 	ast_debug(3, "SIP Fixup: New owner for dialogue %s: %s (Old parent: %s)\n", p->callid, ast_channel_name(p->owner), ast_channel_name(oldchan));

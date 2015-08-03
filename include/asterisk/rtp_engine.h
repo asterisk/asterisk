@@ -1,4 +1,4 @@
- /*
+/*
  * Asterisk -- An open source telephony toolkit.
  *
  * Copyright (C) 1999 - 2009, Digium, Inc.
@@ -78,14 +78,13 @@ extern "C" {
 #include "asterisk/stasis.h"
 #include "asterisk/vector.h"
 
-/* Maximum number of payloads supported */
-#if defined(LOW_MEMORY)
+/*! Maximum number of payload types RTP can support. */
 #define AST_RTP_MAX_PT 128
-#else
-#define AST_RTP_MAX_PT 196
-#endif
 
-/* Maximum number of generations */
+/*! First dynamic RTP payload type */
+#define AST_RTP_PT_FIRST_DYNAMIC 96
+
+/*! Maximum number of generations */
 #define AST_RED_MAX_GENERATION 5
 
 /*!
@@ -625,7 +624,7 @@ struct ast_rtp_glue {
 	enum ast_rtp_glue_result (*get_trtp_info)(struct ast_channel *chan, struct ast_rtp_instance **instance);
 	/*! Callback for updating the destination that the remote side should send RTP to */
 	int (*update_peer)(struct ast_channel *chan, struct ast_rtp_instance *instance, struct ast_rtp_instance *vinstance, struct ast_rtp_instance *tinstance, const struct ast_format_cap *cap, int nat_active);
-	/*! Callback for retrieving codecs that the channel can do.  Result returned in result_cap*/
+	/*! Callback for retrieving codecs that the channel can do.  Result returned in result_cap. */
 	void (*get_codec)(struct ast_channel *chan, struct ast_format_cap *result_cap);
 	/*! Linked list information */
 	AST_RWLIST_ENTRY(ast_rtp_glue) entry;
@@ -1418,7 +1417,7 @@ unsigned int ast_rtp_lookup_sample_rate2(int asterisk_format, struct ast_format 
  * \code
  * struct ast_format_cap *astformats = ast_format_cap_alloc_nolock()
  * int nonastformats;
- * ast_rtp_codecs_payload_formats(&codecs, &astformats, &nonastformats);
+ * ast_rtp_codecs_payload_formats(&codecs, astformats, &nonastformats);
  * \endcode
  *
  * This retrieves all the formats known about in the codecs structure and puts the Asterisk ones in the integer
@@ -1449,6 +1448,7 @@ void ast_rtp_codecs_payload_formats(struct ast_rtp_codecs *codecs, struct ast_fo
  * \since 1.8
  */
 int ast_rtp_codecs_payload_code(struct ast_rtp_codecs *codecs, int asterisk_format, const struct ast_format *format, int code);
+
 /*!
  * \brief Search for a payload code in the ast_rtp_codecs structure
  *
