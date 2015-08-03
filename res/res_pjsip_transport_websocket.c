@@ -63,8 +63,9 @@ static pj_status_t ws_send_msg(pjsip_transport *transport,
                             pjsip_transport_callback callback)
 {
 	struct ws_transport *wstransport = (struct ws_transport *)transport;
+	uint64_t len = tdata->buf.cur - tdata->buf.start;
 
-	if (ast_websocket_write(wstransport->ws_session, AST_WEBSOCKET_OPCODE_TEXT, tdata->buf.start, (int)(tdata->buf.cur - tdata->buf.start))) {
+	if (ast_websocket_write(wstransport->ws_session, AST_WEBSOCKET_OPCODE_TEXT, tdata->buf.start, len)) {
 		return PJ_EUNKNOWN;
 	}
 
