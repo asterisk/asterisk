@@ -1370,8 +1370,17 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read_string)
 int AST_OPTIONAL_API_NAME(ast_websocket_write_string)
 	(struct ast_websocket *ws, const char *buf)
 {
+	uint64_t len = strlen(buf);
+
+	/* We do not pass strlen(buf) to ast_websocket_write() directly because the
+	 * size_t returned by strlen() may not require the same storage size
+	 * as the uint64_t that ast_websocket_write() uses. This normally
+	 * would not cause a problem, but since ast_websocket_write() uses
+	 * the optional API, this function call goes through a series of macros
+	 * that may cause a 32-bit to 64-bit conversion to go awry.
+	 */
 	return ast_websocket_write(ws, AST_WEBSOCKET_OPCODE_TEXT,
-				   (char *)buf, strlen(buf));
+				   (char *)buf, len);
 }
 
 static int load_module(void)
