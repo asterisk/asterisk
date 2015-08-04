@@ -300,6 +300,24 @@ int AST_OPTIONAL_API_NAME(ast_websocket_close)(struct ast_websocket *session, ui
 	return res;
 }
 
+static const char *opcode_map[] = {
+	[AST_WEBSOCKET_OPCODE_CONTINUATION] = "continuation",
+	[AST_WEBSOCKET_OPCODE_TEXT] = "text",
+	[AST_WEBSOCKET_OPCODE_BINARY] = "binary",
+	[AST_WEBSOCKET_OPCODE_CLOSE] = "close",
+	[AST_WEBSOCKET_OPCODE_PING] = "ping",
+	[AST_WEBSOCKET_OPCODE_PONG] = "pong",
+};
+
+static const char *websocket_opcode2str(enum ast_websocket_opcode opcode)
+{
+	if (opcode < AST_WEBSOCKET_OPCODE_CONTINUATION ||
+			opcode > AST_WEBSOCKET_OPCODE_PONG) {
+		return "<unknown>";
+	} else {
+		return opcode_map[opcode];
+	}
+}
 
 /*! \brief Write function for websocket traffic */
 int AST_OPTIONAL_API_NAME(ast_websocket_write)(struct ast_websocket *session, enum ast_websocket_opcode opcode, char *payload, uint64_t actual_length)
@@ -307,6 +325,9 @@ int AST_OPTIONAL_API_NAME(ast_websocket_write)(struct ast_websocket *session, en
 	size_t header_size = 2; /* The minimum size of a websocket frame is 2 bytes */
 	char *frame;
 	uint64_t length;
+
+	ast_debug(3, "Writing websocket %s frame, length %" PRIu64 "\n",
+			websocket_opcode2str(opcode), actual_length);
 
 	if (actual_length < 126) {
 		length = actual_length;
@@ -1371,6 +1392,8 @@ int AST_OPTIONAL_API_NAME(ast_websocket_write_string)
 	(struct ast_websocket *ws, const char *buf)
 {
 	uint64_t len = strlen(buf);
+
+	ast_debug(3, "Writing websocket string of length %" PRIu64 "\n", len);
 
 	/* We do not pass strlen(buf) to ast_websocket_write() directly because the
 	 * size_t returned by strlen() may not require the same storage size
