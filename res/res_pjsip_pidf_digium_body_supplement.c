@@ -40,7 +40,7 @@ static int pidf_supplement_body(void *body, void *data)
 {
 	struct ast_sip_exten_state_data *state_data = data;
 	pj_xml_node *node;
-	char sanitized[256];
+	char sanitized[1024];
 
 	if (ast_strlen_zero(state_data->user_agent) ||
 	    !strstr(state_data->user_agent, "digium")) {
