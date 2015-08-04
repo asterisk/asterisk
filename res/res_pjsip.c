@@ -40,6 +40,8 @@
 #include "asterisk/file.h"
 #include "asterisk/cli.h"
 #include "asterisk/res_pjsip_cli.h"
+#include "asterisk/test.h"
+#include "asterisk/res_pjsip_presence_xml.h"
 
 /*** MODULEINFO
 	<depend>pjproject</depend>
@@ -3755,6 +3757,31 @@ static void remove_request_headers(pjsip_endpoint *endpt)
 	}
 }
 
+AST_TEST_DEFINE(xml_sanitization_end_null)
+{
+	char sanitized[8];
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "xml_sanitization_end_null";
+		info->category = "/res/res_pjsip/";
+		info->summary = "Ensure XML sanitization works as expected with a long string";
+		info->description = "This test sanitizes a string which exceeds the output\n"
+			"buffer size. Once done the string is confirmed to be NULL terminated";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	ast_sip_sanitize_xml("aaaaaaaaaaaa", sanitized, sizeof(sanitized));
+	if (sanitized[7] != '\0') {
+		ast_test_status_update(test, "Sanitized XML string is not null-terminated when it should be\n");
+		return AST_TEST_FAIL;
+	}
+
+	return AST_TEST_PASS;
+}
+
 /*!
  * \internal
  * \brief Reload configuration within a PJSIP thread
@@ -3909,6 +3936,8 @@ static int load_module(void)
 	ast_res_pjsip_init_options_handling(0);
 	ast_cli_register_multiple(cli_commands, ARRAY_LEN(cli_commands));
 
+	AST_TEST_REGISTER(xml_sanitization_end_null);
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
@@ -3950,6 +3979,8 @@ static int unload_pjsip(void *data)
 
 static int unload_module(void)
 {
+	AST_TEST_UNREGISTER(xml_sanitization_end_null);
+
 	/* The thread this is called from cannot call PJSIP/PJLIB functions,
 	 * so we have to push the work to the threadpool to handle
 	 */
