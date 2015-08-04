@@ -174,7 +174,7 @@ int ast_ari_websocket_session_write(struct ast_ari_websocket_session *session,
 		return -1;
 	}
 
-	ast_debug(3, "Examining ARI event: \n%s\n", str);
+	ast_debug(3, "Examining ARI event (length %zu): \n%s\n", strlen(str), str);
 	if (ast_websocket_write_string(session->ws_session, str)) {
 		ast_log(LOG_NOTICE, "Problem occurred during websocket write, websocket closed\n");
 		return -1;
