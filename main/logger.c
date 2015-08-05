@@ -1054,6 +1054,44 @@ static char *handle_logger_show_channels(struct ast_cli_entry *e, int cmd, struc
 	return CLI_SUCCESS;
 }
 
+int ast_logger_create_channel(const char *log_channel, const char *components)
+{
+	struct logchannel *chan;
+	struct ast_str *filename = ast_str_create(64);
+	int chan_exists = 0;
+
+	if (ast_strlen_zero(components)) {
+		return AST_LOGGER_DECLINE;
+	}
+
+	if (!filename) {
+		return AST_LOGGER_ALLOC_ERROR;
+	}
+
+	ast_str_append(&filename, 0, "%s/%s", ast_config_AST_LOG_DIR, log_channel);
+
+	AST_RWLIST_WRLOCK(&logchannels);
+
+	AST_RWLIST_TRAVERSE(&logchannels, chan, list) {
+		if (!strcmp(ast_str_buffer(filename), chan->filename)) {
+			chan_exists = AST_LOGGER_FAILURE;
+			break;
+		}
+	}
+
+	if (!chan_exists) {
+		chan = make_logchannel(log_channel, components, 0, 1);
+		if (chan) {
+			AST_RWLIST_INSERT_HEAD(&logchannels, chan, list);
+			global_logmask |= chan->logmask;
+			chan_exists = AST_LOGGER_SUCCESS;
+		}
+	}
+	AST_RWLIST_UNLOCK(&logchannels);
+
+	return chan_exists;
+}
+
 static char *handle_logger_add_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct logchannel *chan;

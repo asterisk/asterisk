@@ -1302,8 +1302,10 @@ ari_validator ast_ari_validate_application_fn(void);
  * - attribute: string (required)
  * - value: string (required)
  * LogChannel
- * - logging_levels: List[string] (required)
- * - name: string (required)
+ * - channel: string (required)
+ * - configuration: List[string] (required)
+ * - status: string (required)
+ * - type: string (required)
  * Module
  * - description: string (required)
  * - name: string (required)

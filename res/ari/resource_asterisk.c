@@ -628,6 +628,33 @@ void ast_ari_asterisk_reload_module(struct ast_variable *headers,
 	ast_ari_response_no_content(response);
 }
 
+void ast_ari_asterisk_add_log(struct ast_variable *headers,
+	struct ast_ari_asterisk_add_log_args *args,
+	struct ast_ari_response *response)
+{
+	int res;
+
+	ast_assert(response != NULL);
+
+	res = ast_logger_create_channel(args->log_channel_name, args->configuration);
+
+	if (res == AST_LOGGER_DECLINE) {
+		ast_ari_response_error(response, 400, "Bad Request",
+			"Configuration levels are required");
+		return;
+	} else if (res == AST_LOGGER_FAILURE) {
+		ast_ari_response_error(response, 409, "Conflict",
+			"Log channel already exists");
+		return;
+	} else if (res == AST_LOGGER_ALLOC_ERROR) {
+		ast_ari_response_error(response, 500, "Internal Server Error",
+			"Allocation failed");
+		return;
+	}
+
+	ast_ari_response_no_content(response);
+}
+
 void ast_ari_asterisk_rotate_log(struct ast_variable *headers,
 	struct ast_ari_asterisk_rotate_log_args *args,
 	struct ast_ari_response *response)
