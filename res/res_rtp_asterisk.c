@@ -1254,6 +1254,9 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	int res;
+#ifndef HAVE_OPENSSL_ECDH_AUTO
+	EC_KEY *ecdh;
+#endif
 
 	if (!dtls_cfg->enabled) {
 		return 0;
@@ -1273,8 +1276,11 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 #ifdef HAVE_OPENSSL_ECDH_AUTO
 	SSL_CTX_set_ecdh_auto(rtp->ssl_ctx, 1);
 #else
-	SSL_CTX_set_tmp_ecdh(rtp->ssl_ctx,
-		EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
+	ecdh = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+	if (ecdh) {
+		SSL_CTX_set_tmp_ecdh(rtp->ssl_ctx, ecdh);
+		EC_KEY_free(ecdh);
+	}
 #endif
 
 	rtp->dtls_verify = dtls_cfg->verify;
