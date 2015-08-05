@@ -91,6 +91,8 @@ struct ast_callid;
 void ast_log_callid(int level, const char *file, int line, const char *function, struct ast_callid *callid, const char *fmt, ...)
 	__attribute__((format(printf, 6, 7)));
 
+int ast_logger_create_channel(const char *channel, const char *components);
+
 /*!
  * \brief Log a backtrace of the current thread's execution stack to the Asterisk log
  */
