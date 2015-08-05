@@ -194,6 +194,32 @@ struct ast_ari_asterisk_reload_module_args {
  * \param[out] response HTTP response
  */
 void ast_ari_asterisk_reload_module(struct ast_variable *headers, struct ast_ari_asterisk_reload_module_args *args, struct ast_ari_response *response);
+/*! Argument struct for ast_ari_asterisk_add_log() */
+struct ast_ari_asterisk_add_log_args {
+	/*! The log channel to add */
+	const char *log_channel_name;
+	/*! levels of the log channel */
+	const char *configuration;
+};
+/*!
+ * \brief Body parsing function for /asterisk/logging/{logChannelName}.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_asterisk_add_log_parse_body(
+	struct ast_json *body,
+	struct ast_ari_asterisk_add_log_args *args);
+
+/*!
+ * \brief Adds a log channel.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_asterisk_add_log(struct ast_variable *headers, struct ast_ari_asterisk_add_log_args *args, struct ast_ari_response *response);
 /*! Argument struct for ast_ari_asterisk_rotate_log() */
 struct ast_ari_asterisk_rotate_log_args {
 	/*! Log channel's name */
