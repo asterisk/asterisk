@@ -92,6 +92,13 @@ void ast_log_callid(int level, const char *file, int line, const char *function,
 	__attribute__((format(printf, 6, 7)));
 
 /*!
+ * \brief Delete the specified log channel
+ *
+ * \param log_channel The log channel to delete
+ */
+int ast_logger_remove_channel(const char *log_channel);
+
+/*!
  * \brief Log a backtrace of the current thread's execution stack to the Asterisk log
  */
 void ast_log_backtrace(void);
