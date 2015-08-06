@@ -603,6 +603,7 @@ void ast_rtp_codecs_payloads_destroy(struct ast_rtp_codecs *codecs)
 void ast_rtp_codecs_payloads_clear(struct ast_rtp_codecs *codecs, struct ast_rtp_instance *instance)
 {
 	ast_rtp_codecs_payloads_destroy(codecs);
+	ast_rtp_codecs_payloads_initialize(codecs);
 
 	if (instance && instance->engine && instance->engine->payload_set) {
 		int i;
@@ -610,8 +611,6 @@ void ast_rtp_codecs_payloads_clear(struct ast_rtp_codecs *codecs, struct ast_rtp
 			instance->engine->payload_set(instance, i, 0, NULL, 0);
 		}
 	}
-
-	ast_rtp_codecs_payloads_initialize(codecs);
 }
 
 void ast_rtp_codecs_payloads_copy(struct ast_rtp_codecs *src, struct ast_rtp_codecs *dest, struct ast_rtp_instance *instance)
@@ -1716,12 +1715,16 @@ static void rtp_engine_mime_type_cleanup(int i)
 
 static void set_next_mime_type(struct ast_format *format, int rtp_code, const char *type, const char *subtype, unsigned int sample_rate)
 {
-	int x = mime_types_len;
-	if (ARRAY_LEN(ast_rtp_mime_types) == mime_types_len) {
+	int x;
+
+	ast_rwlock_wrlock(&mime_types_lock);
+
+	x = mime_types_len;
+	if (ARRAY_LEN(ast_rtp_mime_types) <= x) {
+		ast_rwlock_unlock(&mime_types_lock);
 		return;
 	}
 
-	ast_rwlock_wrlock(&mime_types_lock);
 	/* Make sure any previous value in ast_rtp_mime_types is cleaned up */
 	memset(&ast_rtp_mime_types[x], 0, sizeof(struct ast_rtp_mime_type));	
 	if (format) {
@@ -1734,6 +1737,7 @@ static void set_next_mime_type(struct ast_format *format, int rtp_code, const ch
 	ast_copy_string(ast_rtp_mime_types[x].subtype, subtype, sizeof(ast_rtp_mime_types[x].subtype));
 	ast_rtp_mime_types[x].sample_rate = sample_rate;
 	mime_types_len++;
+
 	ast_rwlock_unlock(&mime_types_lock);
 }
 
@@ -2095,6 +2099,7 @@ static void rtp_engine_shutdown(void)
 			rtp_engine_mime_type_cleanup(x);
 		}
 	}
+	mime_types_len = 0;
 	ast_rwlock_unlock(&mime_types_lock);
 }
 
