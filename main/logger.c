@@ -1093,6 +1093,7 @@ static char *handle_logger_add_channel(struct ast_cli_entry *e, int cmd, struct 
 	if (chan) {
 		AST_RWLIST_INSERT_HEAD(&logchannels, chan, list);
 		global_logmask |= chan->logmask;
+		ast_cli(a->fd, "the channel is: %s\n", chan->filename);
 		AST_RWLIST_UNLOCK(&logchannels);
 		return CLI_SUCCESS;
 	}
@@ -1101,6 +1102,41 @@ static char *handle_logger_add_channel(struct ast_cli_entry *e, int cmd, struct 
 	ast_cli(a->fd, "ERROR: Unable to create log channel '%s'\n", a->argv[3]);
 
 	return CLI_FAILURE;
+}
+
+int ast_logger_remove_channel(const char *log_channel)
+{
+	struct logchannel *chan;
+	struct ast_str *filename = ast_str_create(64);
+
+	if (!filename) {
+        return -1;
+    }
+
+    ast_str_append(&filename, 0, "%s/%s", ast_config_AST_LOG_DIR, log_channel);
+
+    AST_RWLIST_WRLOCK(&logchannels);
+    AST_RWLIST_TRAVERSE_SAFE_BEGIN(&logchannels, chan, list) {
+        if (chan->dynamic && !strcmp(chan->filename, ast_str_buffer(filename))) {
+            AST_RWLIST_REMOVE_CURRENT(list);
+			break;
+        }
+    }
+    AST_RWLIST_TRAVERSE_SAFE_END;
+    AST_RWLIST_UNLOCK(&logchannels);
+
+    if (!chan) {
+        return 1;
+    }
+
+    if (chan->fileptr) {
+        fclose(chan->fileptr);
+        chan->fileptr = NULL;
+    }
+    ast_free(chan);
+    chan = NULL;
+
+    return 0;
 }
 
 static char *handle_logger_remove_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
