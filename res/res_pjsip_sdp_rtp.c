@@ -237,13 +237,13 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 		}
 
 		ast_copy_pj_str(name, &rtpmap->enc_name, sizeof(name));
-                if (strcmp(name,"telephone-event") == 0) {
-                        tel_event++;
-                }
+		if (strcmp(name, "telephone-event") == 0) {
+			tel_event++;
+		}
 
 		ast_copy_pj_str(media, (pj_str_t*)&stream->desc.media, sizeof(media));
-		ast_rtp_codecs_payloads_set_rtpmap_type_rate(codecs, NULL, pj_strtoul(&stream->desc.fmt[i]),
-							     media, name, options, rtpmap->clock_rate);
+		ast_rtp_codecs_payloads_set_rtpmap_type_rate(codecs, NULL,
+			pj_strtoul(&stream->desc.fmt[i]), media, name, options, rtpmap->clock_rate);
 		/* Look for an optional associated fmtp attribute */
 		if (!(attr = pjmedia_sdp_media_find_attr2(stream, "fmtp", &rtpmap->pt))) {
 			continue;
@@ -270,8 +270,8 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 			}
 		}
 	}
-	if ((tel_event==0) && (session->endpoint->dtmf == AST_SIP_DTMF_AUTO)) {
-                ast_rtp_instance_dtmf_mode_set(session_media->rtp, AST_RTP_DTMF_MODE_INBAND);
+	if (!tel_event && (session->endpoint->dtmf == AST_SIP_DTMF_AUTO)) {
+		ast_rtp_instance_dtmf_mode_set(session_media->rtp, AST_RTP_DTMF_MODE_INBAND);
 	}
 	/* Get the packetization, if it exists */
 	if ((attr = pjmedia_sdp_media_find_attr2(stream, "ptime", NULL))) {
@@ -329,7 +329,7 @@ static int set_caps(struct ast_sip_session *session, struct ast_sip_session_medi
 	}
 
 	ast_rtp_codecs_payloads_copy(&codecs, ast_rtp_instance_get_codecs(session_media->rtp),
-				     session_media->rtp);
+		session_media->rtp);
 
 	ast_format_cap_append_from_cap(session->req_caps, joint, AST_MEDIA_TYPE_UNKNOWN);
 
@@ -1138,8 +1138,12 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	/* Add non-codec formats */
 	if (media_type != AST_MEDIA_TYPE_VIDEO) {
 		for (index = 1LL; index <= AST_RTP_MAX; index <<= 1) {
-			if (!(noncodec & index) || (rtp_code = ast_rtp_codecs_payload_code(ast_rtp_instance_get_codecs(session_media->rtp),
-											   0, NULL, index)) == -1) {
+			if (!(noncodec & index)) {
+				continue;
+			}
+			rtp_code = ast_rtp_codecs_payload_code(
+				ast_rtp_instance_get_codecs(session_media->rtp), 0, NULL, index);
+			if (rtp_code == -1) {
 				continue;
 			}
 
