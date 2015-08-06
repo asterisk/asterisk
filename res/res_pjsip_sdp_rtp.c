@@ -1241,7 +1241,7 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 	/* Apply connection information to the RTP instance */
 	ast_sockaddr_set_port(addrs, remote_stream->desc.port);
 	ast_rtp_instance_set_remote_address(session_media->rtp, addrs);
-	if (set_caps(session, session_media, local_stream)) {
+	if (set_caps(session, session_media, remote_stream)) {
 		return 1;
 	}
 
