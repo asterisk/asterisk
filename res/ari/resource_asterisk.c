@@ -653,6 +653,29 @@ void ast_ari_asterisk_rotate_log(struct ast_variable *headers,
 	ast_ari_response_no_content(response);
 }
 
+void ast_ari_asterisk_delete_log(struct ast_variable *headers,
+	struct ast_ari_asterisk_delete_log_args *args,
+	struct ast_ari_response *response)
+{
+	int res;
+
+	ast_assert(response != NULL);
+
+	res = ast_logger_remove_channel(args->log_channel_name);
+
+	if (res == AST_LOGGER_FAILURE) {
+		ast_ari_response_error(response, 404, "Not Found",
+			"Log channel does not exist");
+		return;
+	} else if (res == AST_LOGGER_ALLOC_ERROR) {
+		ast_ari_response_error(response, 500, "Internal Server Error",
+			"Allocation failed");
+		return;
+	}
+
+	ast_ari_response_no_content(response);
+}
+
 void ast_ari_asterisk_get_global_var(struct ast_variable *headers,
 	struct ast_ari_asterisk_get_global_var_args *args,
 	struct ast_ari_response *response)

@@ -1095,6 +1095,41 @@ static char *handle_logger_add_channel(struct ast_cli_entry *e, int cmd, struct 
 	return CLI_FAILURE;
 }
 
+int ast_logger_remove_channel(const char *log_channel)
+{
+	struct logchannel *chan;
+	struct ast_str *filename = ast_str_create(64);
+
+	if (!filename) {
+		return AST_LOGGER_ALLOC_ERROR;
+	}
+
+	ast_str_append(&filename, 0, "%s/%s", ast_config_AST_LOG_DIR, log_channel);
+
+	AST_RWLIST_WRLOCK(&logchannels);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&logchannels, chan, list) {
+		if (chan->dynamic && !strcmp(chan->filename, ast_str_buffer(filename))) {
+			AST_RWLIST_REMOVE_CURRENT(list);
+			break;
+		}
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END;
+	AST_RWLIST_UNLOCK(&logchannels);
+
+	if (!chan) {
+		return AST_LOGGER_FAILURE;
+	}
+
+	if (chan->fileptr) {
+		fclose(chan->fileptr);
+		chan->fileptr = NULL;
+	}
+	ast_free(chan);
+	chan = NULL;
+
+	return AST_LOGGER_SUCCESS;
+}
+
 static char *handle_logger_remove_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct logchannel *chan;
