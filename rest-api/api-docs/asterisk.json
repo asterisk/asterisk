@@ -297,6 +297,18 @@
 			]
 		},
 		{
+			"path": "/asterisk/logging",
+			"description": "Asterisk log channels",
+			"operations": [
+				{
+					"httpMethod": "GET",
+					"summary": "Gets Asterisk log channel information.",
+					"nickname": "listLogChannels",
+					"responseClass": "List[LogChannel]"
+				}
+			]
+		},
+		{
 			"path": "/asterisk/logging/{logChannelName}",
 			"description": "Asterisk log channel",
 			"operations": [

@@ -628,6 +628,57 @@ void ast_ari_asterisk_reload_module(struct ast_variable *headers,
 	ast_ari_response_no_content(response);
 }
 
+/*!
+ * \brief Process logger information and append to a json array
+ * \param channel Resource logger channel name path
+ * \param type Resource log type
+ * \param status Resource log status
+ * \param configuration Resource logger levels
+ * \param log_data_list Resource array
+ *
+ * \retval -1 if no resource exists
+ * \retval 0 if resource exists
+ */
+static int process_log_list(const char *channel, const char *type,
+	const char *status, const char *configuration, void *log_data_list)
+{
+	struct ast_json *logger_info;
+
+	logger_info = ast_json_pack("{s: s, s: s, s: s, s: s}",
+		"channel", channel, "type", type, "status", status, "configuration",
+		configuration);
+
+	if (!logger_info) {
+		return AST_LOGGER_FAILURE;
+	}
+
+	ast_json_array_append(log_data_list, logger_info);
+	return AST_LOGGER_SUCCESS;
+}
+
+void ast_ari_asterisk_list_log_channels(struct ast_variable *headers,
+	struct ast_ari_asterisk_list_log_channels_args *args,
+	struct ast_ari_response *response)
+{
+	struct ast_json *json;
+	int res;
+
+	json = ast_json_array_create();
+	res = ast_logger_get_channels(&process_log_list, json);
+
+	if (res == AST_LOGGER_FAILURE) {
+		ast_ari_response_error(response, 500, "Internal Server Error",
+			"Response body is not valid");
+		return;
+	} else if (res == AST_LOGGER_ALLOC_ERROR) {
+		ast_ari_response_error(response, 500, "Internal Server Error",
+			"Allocation Failed");
+		return;
+	}
+
+	ast_ari_response_ok(response, json);
+}
+
 void ast_ari_asterisk_add_log(struct ast_variable *headers,
 	struct ast_ari_asterisk_add_log_args *args,
 	struct ast_ari_response *response)
@@ -659,18 +710,18 @@ void ast_ari_asterisk_rotate_log(struct ast_variable *headers,
 	struct ast_ari_asterisk_rotate_log_args *args,
 	struct ast_ari_response *response)
 {
-	int success;
+	int res;
 
 	ast_assert(response != NULL);
 
-	success = ast_logger_rotate_channel(args->log_channel_name);
+	res = ast_logger_rotate_channel(args->log_channel_name);
 
-	if (success == 0) {
+	if (res == AST_LOGGER_FAILURE) {
 		ast_ari_response_error(
 			response, 404, "Not Found",
 			"Log channel does not exist");
 		return;
-	} else if (success == -1) {
+	} else if (res == AST_LOGGER_ALLOC_ERROR) {
 		ast_ari_response_error(
 			response, 500, "Internal Server Error",
 			"Allocation failed");
