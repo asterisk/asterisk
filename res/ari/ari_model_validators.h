@@ -1302,8 +1302,8 @@ ari_validator ast_ari_validate_application_fn(void);
  * - attribute: string (required)
  * - value: string (required)
  * LogChannel
+ * - channel: string (required)
  * - configuration: string (required)
- * - name: string (required)
  * - status: string (required)
  * - type: string (required)
  * Module

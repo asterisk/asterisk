@@ -301,6 +301,40 @@
 			"description": "Asterisk log channel",
 			"operations": [
 				{
+					"httpMethod": "POST",
+					"summary": "Adds a log channel.",
+					"nickname": "addLog",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "logChannelName",
+							"description": "The log channel to add",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "configuration",
+							"description": "levels of the log channel",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 400,
+							"reason": "Bad request body"
+						},
+						{
+							"code": 409,
+							"reason": "Log channel could not be created."
+						}
+					]
+				},
+				{
 					"httpMethod": "DELETE",
 					"summary": "Deletes a log channel.",
 					"nickname": "deleteLog",
@@ -609,7 +643,7 @@
 					"required": true
 				},
 				"configuration": {
-					"type": "List[string]",
+					"type": "string",
 					"description": "The various log levels",
 					"required": true
 				}

@@ -99,6 +99,14 @@ void ast_log_callid(int level, const char *file, int line, const char *function,
 	__attribute__((format(printf, 6, 7)));
 
 /*!
+ * \brief Create a log channel
+ *
+ * \param log_channel Log channel to create
+ * \param components Logging config levels to add to the log channel
+ */
+int ast_logger_create_channel(const char *log_channel, const char *components);
+
+/*!
  * \brief Delete the specified log channel
  *
  * \param log_channel The log channel to delete
