@@ -45,6 +45,13 @@ extern "C" {
 
 #define AST_CALLID_BUFFER_LENGTH 13
 
+enum ast_logger_results {
+	AST_LOGGER_SUCCESS = 0, /*!< Log channel was created or deleted successfully*/
+	AST_LOGGER_FAILURE = 1, /*!< Log channel already exists for create or doesn't exist for deletion of log channel */
+	AST_LOGGER_DECLINE = -1, /*!< Log channel request was not accepted */
+	AST_LOGGER_ALLOC_ERROR = -2 /*!< filename allocation error */
+};
+
 /*! \brief Used for sending a log message
 	This is the standard logger function.  Probably the only way you will invoke it would be something like this:
 	ast_log(AST_LOG_WHATEVER, "Problem with the %s Captain.  We should get some more.  Will %d be enough?\n", "flux capacitor", 10);
@@ -90,6 +97,13 @@ struct ast_callid;
 */
 void ast_log_callid(int level, const char *file, int line, const char *function, struct ast_callid *callid, const char *fmt, ...)
 	__attribute__((format(printf, 6, 7)));
+
+/*!
+ * \brief Delete the specified log channel
+ *
+ * \param log_channel The log channel to delete
+ */
+int ast_logger_remove_channel(const char *log_channel);
 
 /*!
  * \brief Log a backtrace of the current thread's execution stack to the Asterisk log
