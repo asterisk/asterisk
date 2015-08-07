@@ -366,12 +366,22 @@ int ast_ari_validate_log_channel(struct ast_json *json)
 {
 	int res = 1;
 	struct ast_json_iter *iter;
+	int has_channel = 0;
 	int has_configuration = 0;
-	int has_name = 0;
 	int has_status = 0;
 	int has_type = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("channel", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_channel = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI LogChannel field channel failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("configuration", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_configuration = 1;
@@ -379,16 +389,6 @@ int ast_ari_validate_log_channel(struct ast_json *json)
 				ast_json_object_iter_value(iter));
 			if (!prop_is_valid) {
 				ast_log(LOG_ERROR, "ARI LogChannel field configuration failed validation\n");
-				res = 0;
-			}
-		} else
-		if (strcmp("name", ast_json_object_iter_key(iter)) == 0) {
-			int prop_is_valid;
-			has_name = 1;
-			prop_is_valid = ast_ari_validate_string(
-				ast_json_object_iter_value(iter));
-			if (!prop_is_valid) {
-				ast_log(LOG_ERROR, "ARI LogChannel field name failed validation\n");
 				res = 0;
 			}
 		} else
@@ -420,13 +420,13 @@ int ast_ari_validate_log_channel(struct ast_json *json)
 		}
 	}
 
-	if (!has_configuration) {
-		ast_log(LOG_ERROR, "ARI LogChannel missing required field configuration\n");
+	if (!has_channel) {
+		ast_log(LOG_ERROR, "ARI LogChannel missing required field channel\n");
 		res = 0;
 	}
 
-	if (!has_name) {
-		ast_log(LOG_ERROR, "ARI LogChannel missing required field name\n");
+	if (!has_configuration) {
+		ast_log(LOG_ERROR, "ARI LogChannel missing required field configuration\n");
 		res = 0;
 	}
 
