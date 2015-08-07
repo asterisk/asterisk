@@ -1,3 +1,23 @@
+2015-08-07 16:42 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 11.19.0 Released.
+
+2015-08-07 11:41 +0000 [a77dd7a4a9]  Matt Jordan <mjordan@digium.com>
+
+	* Release summaries: Add summaries for 11.19.0
+
+2015-08-07 11:40 +0000 [d63c328b81]  Matt Jordan <mjordan@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2015-08-07 11:40 +0000 [2e41732799]  Matt Jordan <mjordan@digium.com>
+
+	* .version: Update for 11.19.0
+
+2015-08-07 11:40 +0000 [b70c95945b]  Matt Jordan <mjordan@digium.com>
+
+	* .lastclean: Update for 11.19.0
+
 2015-07-24 22:06 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 11.19.0-rc1 Released.
