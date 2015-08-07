@@ -936,11 +936,11 @@ int ast_logger_rotate()
 int ast_logger_rotate_channel(const char *log_channel)
 {
 	struct logchannel *f;
-	int success = 0;
+	int success = AST_LOGGER_FAILURE;
 
 	struct ast_str *filename = ast_str_create(64);
 	if (!filename) {
-		return -1;
+		return AST_LOGGER_ALLOC_ERROR;
 	}
 
 	ast_str_append(&filename, 0, "%s/%s", ast_config_AST_LOG_DIR, log_channel);
@@ -960,7 +960,7 @@ int ast_logger_rotate_channel(const char *log_channel)
 			f->fileptr = NULL;
 			if (strcmp(ast_str_buffer(filename), f->filename) == 0) {
 				rotate_file(f->filename);
-				success = 1;
+				success = AST_LOGGER_SUCCESS;
 			}
 		}
 	}
@@ -1013,6 +1013,45 @@ static char *handle_logger_set_level(struct ast_cli_entry *e, int cmd, struct as
 		return CLI_SHOWUSAGE;
 
 	return CLI_SUCCESS;
+}
+
+int ast_logger_get_channels(int (*logentry)(const char *channel, const char *type,
+	const char *status, const char *configuration, void *data), void *data)
+{
+	struct logchannel *chan;
+	struct ast_str *configs = ast_str_create(64);
+	int res = AST_LOGGER_SUCCESS;
+
+	if (!configs) {
+		return AST_LOGGER_ALLOC_ERROR;
+	}
+
+	AST_RWLIST_RDLOCK(&logchannels);
+	AST_RWLIST_TRAVERSE(&logchannels, chan, list) {
+		unsigned int level;
+
+		ast_str_reset(configs);
+
+		for (level = 0; level < ARRAY_LEN(levels); level++) {
+			if ((chan->logmask & (1 << level)) && levels[level]) {
+				ast_str_append(&configs, 0, "%s ", levels[level]);
+			}
+		}
+
+		res = logentry(chan->filename, chan->type == LOGTYPE_CONSOLE ? "Console" :
+			(chan->type == LOGTYPE_SYSLOG ? "Syslog" : "File"), chan->disabled ?
+			"Disabled" : "Enabled", ast_str_buffer(configs), data);
+
+		if (res) {
+			return AST_LOGGER_FAILURE;
+		}
+	}
+	AST_RWLIST_UNLOCK(&logchannels);
+
+	ast_free(configs);
+	configs = NULL;
+
+	return AST_LOGGER_SUCCESS;
 }
 
 /*! \brief CLI command to show logging system configuration */
