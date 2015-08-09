@@ -298,6 +298,17 @@ struct ast_format *ast_format_attribute_set(const struct ast_format *format, con
 	return interface->format_attribute_set(format, name, value);
 }
 
+const void *ast_format_attribute_get(const struct ast_format *format, const char *name)
+{
+	const struct ast_format_interface *interface = format->interface;
+
+	if (!interface || !interface->format_attribute_get) {
+		return NULL;
+	}
+
+	return interface->format_attribute_get(format, name);
+}
+
 struct ast_format *ast_format_parse_sdp_fmtp(const struct ast_format *format, const char *attributes)
 {
 	const struct ast_format_interface *interface = format->interface;

@@ -45,6 +45,7 @@ static int test_core_format_clone(const struct ast_format *src, struct ast_forma
 static enum ast_format_cmp_res test_core_format_cmp(const struct ast_format *format1, const struct ast_format *format2);
 static struct ast_format *test_core_format_get_joint(const struct ast_format *format1, const struct ast_format *format2);
 static struct ast_format *test_core_format_attribute_set(const struct ast_format *format, const char *name, const char *value);
+static const void *test_core_format_attribute_get(const struct ast_format *format, const char *name);
 static struct ast_format *test_core_format_parse_sdp_fmtp(const struct ast_format *format, const char *attributes);
 static void test_core_format_generate_sdp_fmtp(const struct ast_format *format, unsigned int payload, struct ast_str **str);
 
@@ -55,6 +56,7 @@ static struct ast_format_interface test_core_format_attr = {
 	.format_cmp = &test_core_format_cmp,
 	.format_get_joint = &test_core_format_get_joint,
 	.format_attribute_set = &test_core_format_attribute_set,
+	.format_attribute_get = &test_core_format_attribute_get,
 	.format_parse_sdp_fmtp = &test_core_format_parse_sdp_fmtp,
 	.format_generate_sdp_fmtp = &test_core_format_generate_sdp_fmtp,
 };
@@ -202,6 +204,19 @@ static struct ast_format *test_core_format_attribute_set(const struct ast_format
 	return clone;
 }
 
+/*! \brief Format attribute callback for retrieving an attribute */
+static const void *test_core_format_attribute_get(const struct ast_format *format, const char *name)
+{
+	struct test_core_format_pvt *pvt = ast_format_get_attribute_data(format);
+
+	if (!strcmp(name, "one")) {
+		return &pvt->field_one;
+	} else if (!strcmp(name, "two")) {
+		return &pvt->field_two;
+	}
+	return NULL;
+}
+
 /*! \brief Format attribute callback to construct a format from an SDP fmtp line */
 static struct ast_format *test_core_format_parse_sdp_fmtp(const struct ast_format *format, const char *attributes)
 {
@@ -329,6 +344,55 @@ AST_TEST_DEFINE(format_create_attr)
 
 	ast_test_validate(test, test_callbacks_called.format_attribute_set == 1);
 	ast_test_validate(test, test_callbacks_called.format_cmp == 1);
+
+	return AST_TEST_PASS;
+}
+
+AST_TEST_DEFINE(format_retrieve_attr)
+{
+	RAII_VAR(struct ast_codec *, codec, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_format *, format, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_format *, format_w_attr, NULL, ao2_cleanup);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = __PRETTY_FUNCTION__;
+		info->category = TEST_CATEGORY;
+		info->summary = "Format attribute retrieval unit test";
+		info->description =
+			"Test retrieval of format attributes";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	codec = ast_codec_get("test_core_format_codec", AST_MEDIA_TYPE_AUDIO, 8000);
+	if (!codec) {
+		ast_test_status_update(test, "Could not retrieve test_core_format_codec codec\n");
+		return AST_TEST_FAIL;
+	}
+
+	format = ast_format_create(codec);
+	if (!format) {
+		ast_test_status_update(test, "Could not create format using test_core_format_codec codec\n");
+		return AST_TEST_FAIL;
+	}
+
+	format_w_attr = ast_format_attribute_set(format, "one", "1");
+	if (!format_w_attr) {
+		ast_test_status_update(test, "Could not create format with attributes using test_core_format_codec codec\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (*((int *)ast_format_attribute_get(format_w_attr, "one")) != 1) {
+		ast_test_status_update(test, "Could not retrieve valid format attribute\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_format_attribute_get(format_w_attr, "foo") != NULL) {
+		ast_test_status_update(test, "Retrieved invalid format attribute\n");
+		return AST_TEST_FAIL;
+	}
 
 	return AST_TEST_PASS;
 }
@@ -829,6 +893,43 @@ AST_TEST_DEFINE(format_attribute_set_without_interface)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(format_attribute_get_without_interface)
+{
+	RAII_VAR(struct ast_codec *, codec, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_format *, format, NULL, ao2_cleanup);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = __PRETTY_FUNCTION__;
+		info->category = TEST_CATEGORY;
+		info->summary = "Format attribute retrieval unit test";
+		info->description =
+			"Test that attribute retrieval on a format without an interface fails";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	codec = ast_codec_get("ulaw", AST_MEDIA_TYPE_AUDIO, 8000);
+	if (!codec) {
+		ast_test_status_update(test, "Could not retrieve built-in ulaw codec\n");
+		return AST_TEST_FAIL;
+	}
+
+	format = ast_format_create(codec);
+	if (!format) {
+		ast_test_status_update(test, "Could not create format using built-in codec\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_format_attribute_get(format, "bees") != NULL) {
+		ast_test_status_update(test, "Successfully retrieved an attribute on a format without an interface\n");
+		return AST_TEST_FAIL;
+	}
+
+	return AST_TEST_PASS;
+}
+
 AST_TEST_DEFINE(format_parse_sdp_fmtp_without_interface)
 {
 	RAII_VAR(struct ast_codec *, codec, NULL, ao2_cleanup);
@@ -925,6 +1026,7 @@ static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(format_create);
 	AST_TEST_UNREGISTER(format_create_attr);
+	AST_TEST_UNREGISTER(format_retrieve_attr);
 	AST_TEST_UNREGISTER(format_clone);
 	AST_TEST_UNREGISTER(format_cmp_same_codec);
 	AST_TEST_UNREGISTER(format_attr_cmp_same_codec);
@@ -934,6 +1036,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(format_joint_different_codec);
 	AST_TEST_UNREGISTER(format_copy);
 	AST_TEST_UNREGISTER(format_attribute_set_without_interface);
+	AST_TEST_UNREGISTER(format_attribute_get_without_interface);
 	AST_TEST_UNREGISTER(format_parse_sdp_fmtp_without_interface);
 	AST_TEST_UNREGISTER(format_parse_and_generate_sdp_fmtp);
 
@@ -955,6 +1058,7 @@ static int load_module(void)
 
 	AST_TEST_REGISTER(format_create);
 	AST_TEST_REGISTER(format_create_attr);
+	AST_TEST_REGISTER(format_retrieve_attr);
 	AST_TEST_REGISTER(format_clone);
 	AST_TEST_REGISTER(format_cmp_same_codec);
 	AST_TEST_REGISTER(format_attr_cmp_same_codec);
@@ -964,6 +1068,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(format_joint_different_codec);
 	AST_TEST_REGISTER(format_copy);
 	AST_TEST_REGISTER(format_attribute_set_without_interface);
+	AST_TEST_REGISTER(format_attribute_get_without_interface);
 	AST_TEST_REGISTER(format_parse_sdp_fmtp_without_interface);
 	AST_TEST_REGISTER(format_parse_and_generate_sdp_fmtp);
 
