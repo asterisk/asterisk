@@ -165,7 +165,9 @@ static inline int format_cap_framed_init(struct format_cap_framed *framed, struc
 	/* This takes the allocation reference */
 	AST_VECTOR_APPEND(&cap->preference_order, framed);
 
-	cap->framing = MIN(cap->framing, framing ? framing : ast_format_get_default_ms(format));
+	if (framing) {
+		cap->framing = MIN(cap->framing, framing);
+	}
 
 	return 0;
 }
