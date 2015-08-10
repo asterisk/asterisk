@@ -4624,7 +4624,7 @@ static int dahdi_digit_begin(struct ast_channel *chan, char digit)
 {
 	struct dahdi_pvt *pvt;
 	int idx;
-	int dtmf = -1;
+	int dtmf;
 	int res;
 
 	pvt = ast_channel_tech_pvt(chan);
@@ -4647,8 +4647,11 @@ static int dahdi_digit_begin(struct ast_channel *chan, char digit)
 		break;
 	}
 #endif
-	if ((dtmf = digit_to_dtmfindex(digit)) == -1)
+	dtmf = digit_to_dtmfindex(digit);
+	if (dtmf == -1) {
+		/* Not a valid DTMF digit */
 		goto out;
+	}
 
 	if (pvt->pulse || ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_SENDTONE, &dtmf)) {
 		struct dahdi_dialoperation zo = {
@@ -4664,10 +4667,19 @@ static int dahdi_digit_begin(struct ast_channel *chan, char digit)
 		else
 			pvt->dialing = 1;
 	} else {
-		ast_debug(1, "Channel %s started VLDTMF digit '%c'\n",
-			ast_channel_name(chan), digit);
 		pvt->dialing = 1;
 		pvt->begindigit = digit;
+
+		/* Flush the write buffer in DAHDI to start sending the digit immediately. */
+		dtmf = DAHDI_FLUSH_WRITE;
+		res = ioctl(pvt->subs[SUB_REAL].dfd, DAHDI_FLUSH, &dtmf);
+		if (res) {
+			ast_log(LOG_WARNING, "Unable to flush the DAHDI write buffer to send DTMF on channel %d: %s\n",
+				pvt->channel, strerror(errno));
+		}
+
+		ast_debug(1, "Channel %s started VLDTMF digit '%c'\n",
+			ast_channel_name(chan), digit);
 	}
 
 out:
