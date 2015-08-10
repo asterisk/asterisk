@@ -767,6 +767,9 @@
 /* Define to 1 if you have the `roundl' function. */
 #undef HAVE_ROUNDL
 
+/* Define to 1 if rt has the Realtime functions feature. */
+#undef HAVE_RT
+
 /* Define if your system has the RTLD_NOLOAD headers. */
 #undef HAVE_RTLD_NOLOAD
 

@@ -676,7 +676,7 @@ static void *resolution_thread(void *dns_query)
 	static const size_t V4_BUFSIZE = sizeof(struct in_addr);
 	char v4_buf[V4_BUFSIZE];
 
-	clock_gettime(CLOCK_REALTIME, &timeout);
+	timeout = ast_tsnow();
 	timeout.tv_sec += 5;
 
 	ast_mutex_lock(&test_resolver_data.lock);
@@ -1071,7 +1071,7 @@ AST_TEST_DEFINE(resolver_resolve_async)
 		goto cleanup;
 	}
 
-	clock_gettime(CLOCK_REALTIME, &timeout);
+	timeout = ast_tsnow();
 	timeout.tv_sec += 10;
 	ast_mutex_lock(&async_data->lock);
 	while (!async_data->complete) {
@@ -1261,7 +1261,7 @@ AST_TEST_DEFINE(resolver_resolve_async_cancel)
 		goto cleanup;
 	}
 
-	clock_gettime(CLOCK_REALTIME, &timeout);
+	timeout = ast_tsnow();
 	timeout.tv_sec += 10;
 	ast_mutex_lock(&async_data->lock);
 	while (!async_data->complete) {
