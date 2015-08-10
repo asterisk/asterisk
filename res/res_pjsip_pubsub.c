@@ -561,7 +561,7 @@ static void subscription_persistence_update(struct sip_subscription_tree *sub_tr
 		expires = expires_hdr ? expires_hdr->ivalue : DEFAULT_PUBLISH_EXPIRES;
 		sub_tree->persistence->expires = ast_tvadd(ast_tvnow(), ast_samp2tv(expires, 1));
 
-		ast_copy_string(sub_tree->persistence->packet, rdata->pkt_info.packet,
+		pjsip_msg_print(rdata->msg_info.msg, sub_tree->persistence->packet,
 				sizeof(sub_tree->persistence->packet));
 		ast_copy_string(sub_tree->persistence->src_name, rdata->pkt_info.src_name,
 				sizeof(sub_tree->persistence->src_name));
@@ -1334,6 +1334,13 @@ static int subscription_persistence_recreate(void *obj, void *arg, int flags)
 		persistence->transport_key, persistence->local_name, persistence->local_port)) {
 		ast_log(LOG_WARNING, "A subscription for '%s' could not be recreated as the message could not be parsed\n",
 			persistence->endpoint);
+		ast_sorcery_delete(ast_sip_get_sorcery(), persistence);
+		return 0;
+	}
+
+	if (rdata.msg_info.msg->type != PJSIP_REQUEST_MSG) {
+		ast_log(LOG_NOTICE, "Endpoint %s persisted a SIP response instead of a subscribe request. Unable to reload subscription.\n",
+				ast_sorcery_object_get_id(endpoint));
 		ast_sorcery_delete(ast_sip_get_sorcery(), persistence);
 		return 0;
 	}
