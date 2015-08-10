@@ -2649,6 +2649,12 @@ int ast_sip_create_rdata(pjsip_rx_data *rdata, char *packet, const char *src_nam
 {
 	pj_str_t tmp;
 
+	/*
+	 * Initialize the error list in case there is a parse error
+	 * in the given packet.
+	 */
+	pj_list_init(&rdata->msg_info.parse_err);
+
 	rdata->tp_info.transport = PJ_POOL_ZALLOC_T(rdata->tp_info.pool, pjsip_transport);
 	if (!rdata->tp_info.transport) {
 		return -1;
@@ -2659,7 +2665,7 @@ int ast_sip_create_rdata(pjsip_rx_data *rdata, char *packet, const char *src_nam
 	rdata->pkt_info.src_port = src_port;
 
 	pjsip_parse_rdata(packet, strlen(packet), rdata);
-	if (!rdata->msg_info.msg) {
+	if (!rdata->msg_info.msg || !pj_list_empty(&rdata->msg_info.parse_err)) {
 		return -1;
 	}
 
