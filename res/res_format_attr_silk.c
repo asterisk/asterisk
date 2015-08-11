@@ -200,12 +200,36 @@ static struct ast_format *silk_set(const struct ast_format *format, const char *
 	return cloned;
 }
 
+static const void *silk_get(const struct ast_format *format, const char *name)
+{
+	struct silk_attr *attr = ast_format_get_attribute_data(format);
+	unsigned int *val;
+
+	if (!strcasecmp(name, "sample_rate")) {
+		val = &attr->samplerate;
+	} else if (!strcasecmp(name, "max_bitrate")) {
+		val = &attr->maxbitrate;
+	} else if (!strcasecmp(name, "dtx")) {
+		val = &attr->dtx;
+	} else if (!strcasecmp(name, "fec")) {
+		val = &attr->fec;
+	} else if (!strcasecmp(name, "packetloss_percentage")) {
+		val = &attr->packetloss_percentage;
+	} else {
+		ast_log(LOG_WARNING, "unknown attribute type %s\n", name);
+		return NULL;
+	}
+
+	return val;
+}
+
 static struct ast_format_interface silk_interface = {
 	.format_destroy = silk_destroy,
 	.format_clone = silk_clone,
 	.format_cmp = silk_cmp,
 	.format_get_joint = silk_getjoint,
 	.format_attribute_set = silk_set,
+	.format_attribute_get = silk_get,
 	.format_parse_sdp_fmtp = silk_parse_sdp_fmtp,
 	.format_generate_sdp_fmtp = silk_generate_sdp_fmtp,
 };
