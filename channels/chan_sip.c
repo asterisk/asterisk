@@ -12801,9 +12801,6 @@ static void add_codec_to_sdp(const struct sip_pvt *p,
 	} else if (ast_format_cmp(format, ast_format_g723) == AST_FORMAT_CMP_EQUAL) {
 		/* Indicate that we don't support VAD (G.723.1 annex A) */
 		ast_str_append(a_buf, 0, "a=fmtp:%d annexa=no\r\n", rtp_code);
-	} else if (ast_format_cmp(format, ast_format_ilbc) == AST_FORMAT_CMP_EQUAL) {
-		/* Add information about us using only 20/30 ms packetization */
-		ast_str_append(a_buf, 0, "a=fmtp:%d mode=%u\r\n", rtp_code, framing);
 	} else if (ast_format_cmp(format, ast_format_siren7) == AST_FORMAT_CMP_EQUAL) {
 		/* Indicate that we only expect 32Kbps */
 		ast_str_append(a_buf, 0, "a=fmtp:%d bitrate=32000\r\n", rtp_code);
