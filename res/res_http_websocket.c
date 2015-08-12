@@ -294,6 +294,17 @@ int AST_OPTIONAL_API_NAME(ast_websocket_close)(struct ast_websocket *session, ui
 
 	ao2_lock(session);
 	res = ast_careful_fwrite(session->f, session->fd, frame, 4, session->timeout);
+
+	/* If an error occurred when trying to close this connection explicitly terminate it now.
+	 * Doing so will cause the thread polling on it to wake up and terminate.
+	 */
+	if (res) {
+		fclose(session->f);
+		session->f = NULL;
+		ast_verb(2, "WebSocket connection %s '%s' forcefully closed due to fatal write error\n",
+			session->client ? "to" : "from", ast_sockaddr_stringify(&session->address));
+	}
+
 	ao2_unlock(session);
 	return res;
 }
@@ -470,6 +481,13 @@ static inline int ws_safe_read(struct ast_websocket *session, char *buf, int len
 	char *rbuf = buf;
 	int sanity = 10;
 
+	ao2_lock(session);
+	if (!session->f) {
+		ao2_unlock(session);
+		errno = ECONNABORTED;
+		return -1;
+	}
+
 	for (;;) {
 		clearerr(session->f);
 		rlen = fread(rbuf, 1, xlen, session->f);
@@ -478,6 +496,7 @@ static inline int ws_safe_read(struct ast_websocket *session, char *buf, int len
 				ast_log(LOG_WARNING, "Web socket closed abruptly\n");
 				*opcode = AST_WEBSOCKET_OPCODE_CLOSE;
 				session->closing = 1;
+				ao2_unlock(session);
 				return -1;
 			}
 
@@ -485,6 +504,7 @@ static inline int ws_safe_read(struct ast_websocket *session, char *buf, int len
 				ast_log(LOG_ERROR, "Error reading from web socket: %s\n", strerror(errno));
 				*opcode = AST_WEBSOCKET_OPCODE_CLOSE;
 				session->closing = 1;
+				ao2_unlock(session);
 				return -1;
 			}
 
@@ -492,6 +512,7 @@ static inline int ws_safe_read(struct ast_websocket *session, char *buf, int len
 				ast_log(LOG_WARNING, "Websocket seems unresponsive, disconnecting ...\n");
 				*opcode = AST_WEBSOCKET_OPCODE_CLOSE;
 				session->closing = 1;
+				ao2_unlock(session);
 				return -1;
 			}
 		}
@@ -504,9 +525,12 @@ static inline int ws_safe_read(struct ast_websocket *session, char *buf, int len
 			ast_log(LOG_ERROR, "ast_wait_for_input returned err: %s\n", strerror(errno));
 			*opcode = AST_WEBSOCKET_OPCODE_CLOSE;
 			session->closing = 1;
+			ao2_unlock(session);
 			return -1;
 		}
 	}
+
+	ao2_unlock(session);
 	return 0;
 }
 
@@ -523,7 +547,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 	*fragmented = 0;
 
 	if (ws_safe_read(session, &buf[0], MIN_WS_HDR_SZ, opcode)) {
-		return 0;
+		return -1;
 	}
 	frame_size += MIN_WS_HDR_SZ;
 
@@ -541,7 +565,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 		if (options_len) {
 			/* read the rest of the header options */
 			if (ws_safe_read(session, &buf[frame_size], options_len, opcode)) {
-				return 0;
+				return -1;
 			}
 			frame_size += options_len;
 		}
@@ -570,7 +594,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 		}
 
 		if (ws_safe_read(session, *payload, *payload_len, opcode)) {
-			return 0;
+			return -1;
 		}
 		/* If a mask is present unmask the payload */
 		if (mask_present) {
@@ -593,7 +617,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 					session->payload, session->payload_len, *payload_len);
 				*payload_len = 0;
 				ast_websocket_close(session, 1009);
-				return 0;
+				return -1;
 			}
 
 			session->payload = new_payload;
@@ -630,7 +654,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_read)(struct ast_websocket *session, cha
 		/* Make the payload available so the user can look at the reason code if they so desire */
 		if ((*payload_len) && (new_payload = ast_realloc(session->payload, *payload_len))) {
 			if (ws_safe_read(session, &buf[frame_size], (*payload_len), opcode)) {
-				return 0;
+				return -1;
 			}
 			session->payload = new_payload;
 			memcpy(session->payload, &buf[frame_size], *payload_len);
