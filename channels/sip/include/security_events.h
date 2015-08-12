@@ -38,6 +38,7 @@ void sip_report_failed_challenge_response(const struct sip_pvt *p, const char *r
 void sip_report_chal_sent(const struct sip_pvt *p);
 void sip_report_inval_transport(const struct sip_pvt *p, const char *transport);
 void sip_digest_parser(char *c, struct digestkeys *keys);
-int sip_report_security_event(const struct sip_pvt *p, const struct sip_request *req, const int res);
+int sip_report_security_event(const char *peer, struct ast_sockaddr *addr, const struct sip_pvt *p,
+			      const struct sip_request *req, const int res);
 
 #endif
