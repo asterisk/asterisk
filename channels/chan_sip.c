@@ -28015,7 +28015,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 		res = handle_request_invite(p, req, addr, seqno, recount, e, nounlock);
 
 		if (res < 9) {
-			sip_report_security_event(p, req, res);
+			sip_report_security_event(NULL, &p->recv, p, req, res);
 		}
 
 		switch (res) {
@@ -28054,7 +28054,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 		break;
 	case SIP_REGISTER:
 		res = handle_request_register(p, req, addr, e);
-		sip_report_security_event(p, req, res);
+		sip_report_security_event(p->exten, NULL, p, req, res);
 		break;
 	case SIP_INFO:
 		if (req->debug)
