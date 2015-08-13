@@ -324,6 +324,8 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 		ast_debug(1, "Failed to get %d samples from write factory %p\n", (int)samples, &audiohook->write_factory);
 	}
 
+	frame.subclass.format = ast_format_cache_get_slin_by_rate(audiohook->hook_internal_samp_rate);
+
 	/* Basically we figure out which buffer to use... and if mixing can be done here */
 	if (read_buf && read_reference) {
 		frame.data.ptr = buf1;
@@ -349,8 +351,6 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 
 	/* Make the final buffer part of the frame, so it gets duplicated fine */
 	frame.data.ptr = final_buf;
-
-	frame.subclass.format = ast_format_cache_get_slin_by_rate(audiohook->hook_internal_samp_rate);
 
 	/* Yahoo, a combined copy of the audio! */
 	return ast_frdup(&frame);
