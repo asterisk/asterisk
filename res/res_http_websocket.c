@@ -169,9 +169,11 @@ static void session_destroy_fn(void *obj)
 
 	if (session->f) {
 		ast_websocket_close(session, 0);
-		fclose(session->f);
-		ast_verb(2, "WebSocket connection %s '%s' closed\n", session->client ? "to" : "from",
-			ast_sockaddr_stringify(&session->address));
+		if (session->f) {
+			fclose(session->f);
+			ast_verb(2, "WebSocket connection %s '%s' closed\n", session->client ? "to" : "from",
+				ast_sockaddr_stringify(&session->address));
+		}
 	}
 
 	ao2_cleanup(session->client);
