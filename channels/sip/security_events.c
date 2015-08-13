@@ -283,7 +283,8 @@ void sip_report_inval_transport(const struct sip_pvt *p, const char *transport)
         ast_security_event_report(AST_SEC_EVT(&inval_transport));
 }
 
-int sip_report_security_event(const struct sip_pvt *p, const struct sip_request *req, const int res) {
+int sip_report_security_event(const char *peer, struct ast_sockaddr *addr, const struct sip_pvt *p,
+			      const struct sip_request *req, const int res) {
 
 	struct sip_peer *peer_report;
 	enum check_auth_result res_report = res;
@@ -301,7 +302,7 @@ int sip_report_security_event(const struct sip_pvt *p, const struct sip_request 
 		[K_LAST]  = { NULL, NULL}
 	};
 
-	peer_report = sip_find_peer(p->exten, NULL, TRUE, FINDPEERS, FALSE, 0);
+	peer_report = sip_find_peer(peer, addr, TRUE, FINDPEERS, FALSE, p->socket.type);
 
 	switch(res_report) {
 	case AUTH_DONT_KNOW:
