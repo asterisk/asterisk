@@ -253,11 +253,16 @@ static struct ast_frame *audiohook_read_frame_single(struct ast_audiohook *audio
 
 static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audiohook, size_t samples, struct ast_frame **read_reference, struct ast_frame **write_reference)
 {
-	int i = 0, usable_read, usable_write;
-	short buf1[samples], buf2[samples], *read_buf = NULL, *write_buf = NULL, *final_buf = NULL, *data1 = NULL, *data2 = NULL;
+	int count;
+	int usable_read;
+	int usable_write;
+	short adjust_value;
+	short buf1[samples];
+	short buf2[samples];
+	short *read_buf = NULL;
+	short *write_buf = NULL;
 	struct ast_frame frame = {
 		.frametype = AST_FRAME_VOICE,
-		.data.ptr = NULL,
 		.datalen = sizeof(buf1),
 		.samples = samples,
 	};
@@ -290,8 +295,7 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 			read_buf = buf1;
 			/* Adjust read volume if need be */
 			if (audiohook->options.read_volume) {
-				int count = 0;
-				short adjust_value = abs(audiohook->options.read_volume);
+				adjust_value = abs(audiohook->options.read_volume);
 				for (count = 0; count < samples; count++) {
 					if (audiohook->options.read_volume > 0) {
 						ast_slinear_saturated_multiply(&buf1[count], &adjust_value);
@@ -311,8 +315,7 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 			write_buf = buf2;
 			/* Adjust write volume if need be */
 			if (audiohook->options.write_volume) {
-				int count = 0;
-				short adjust_value = abs(audiohook->options.write_volume);
+				adjust_value = abs(audiohook->options.write_volume);
 				for (count = 0; count < samples; count++) {
 					if (audiohook->options.write_volume > 0) {
 						ast_slinear_saturated_multiply(&buf2[count], &adjust_value);
@@ -330,29 +333,27 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 
 	/* Basically we figure out which buffer to use... and if mixing can be done here */
 	if (read_buf && read_reference) {
-		frame.data.ptr = buf1;
+		frame.data.ptr = read_buf;
 		*read_reference = ast_frdup(&frame);
 	}
 	if (write_buf && write_reference) {
-		frame.data.ptr = buf2;
+		frame.data.ptr = write_buf;
 		*write_reference = ast_frdup(&frame);
 	}
 
-	if (read_buf && write_buf) {
-		for (i = 0, data1 = read_buf, data2 = write_buf; i < samples; i++, data1++, data2++) {
-			ast_slinear_saturated_add(data1, data2);
+	/* Make the correct buffer part of the built frame, so it gets duplicated. */
+	if (read_buf) {
+		frame.data.ptr = read_buf;
+		if (write_buf) {
+			for (count = 0; count < samples; count++) {
+				ast_slinear_saturated_add(read_buf++, write_buf++);
+			}
 		}
-		final_buf = buf1;
-	} else if (read_buf) {
-		final_buf = buf1;
 	} else if (write_buf) {
-		final_buf = buf2;
+		frame.data.ptr = write_buf;
 	} else {
 		return NULL;
 	}
-
-	/* Make the final buffer part of the frame, so it gets duplicated fine */
-	frame.data.ptr = final_buf;
 
 	/* Yahoo, a combined copy of the audio! */
 	return ast_frdup(&frame);
