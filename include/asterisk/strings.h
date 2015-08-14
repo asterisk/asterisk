@@ -965,8 +965,11 @@ static force_inline int attribute_pure ast_str_hash(const char *str)
 {
 	int hash = 5381;
 
-	while (*str)
-		hash = hash * 33 ^ *str++;
+	if (str) {
+		while (*str) {
+				hash = hash * 33 ^ *str++;
+		}
+	}
 
 	return abs(hash);
 }
