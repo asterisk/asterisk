@@ -114,6 +114,10 @@ static int send_keepalive(const void *data)
 	time_t interval;
 	int send_keepalive;
 
+	if (!rtp) {
+		return 0;
+	}
+
 	keepalive = ast_rtp_instance_get_keepalive(rtp);
 
 	if (!ast_sockaddr_isnull(&session_media->direct_media_addr)) {
