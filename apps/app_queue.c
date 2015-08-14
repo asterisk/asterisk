@@ -542,7 +542,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			Count number of members answering a queue.
 		</synopsis>
 		<syntax>
-			<parameter name="queuename" required="true" />
+			<parameter name="queuename" required="false" />
 			<parameter name="option" required="true">
 				<enumlist>
 					<enum name="logged">
@@ -558,13 +558,22 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>Returns the total number of members for the specified queue.</para>
 					</enum>
 					<enum name="penalty">
-						<para>Gets or sets queue member penalty.</para>
+						<para>Gets or sets queue member penalty.  If
+						<replaceable>queuename</replaceable> is not specified
+						when setting the penalty then the penalty is set in all queues
+						the interface is a member.</para>
 					</enum>
 					<enum name="paused">
-						<para>Gets or sets queue member paused status.</para>
+						<para>Gets or sets queue member paused status.  If
+						<replaceable>queuename</replaceable> is not specified
+						when setting the paused status then the paused status is set
+						in all queues the interface is a member.</para>
 					</enum>
 					<enum name="ringinuse">
-						<para>Gets or sets queue member ringinuse.</para>
+						<para>Gets or sets queue member ringinuse.  If
+						<replaceable>queuename</replaceable> is not specified
+						when setting ringinuse then ringinuse is set
+						in all queues the interface is a member.</para>
 					</enum>
 				</enumlist>
 			</parameter>
@@ -572,10 +581,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</syntax>
 		<description>
 			<para>Allows access to queue counts [R] and member information [R/W].</para>
-			<para>
-				<replaceable>queuename</replaceable> is required for all operations
-				<replaceable>interface</replaceable> is required for all member operations.
-			</para>
+			<para><replaceable>queuename</replaceable> is required for all read operations.</para>
+			<para><replaceable>interface</replaceable> is required for all member operations.</para>
 		</description>
 		<see-also>
 			<ref type="application">Queue</ref>
@@ -8106,9 +8113,6 @@ static int queue_function_mem_read(struct ast_channel *chan, const char *cmd, ch
 static int queue_function_mem_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
 	int memvalue;
-	struct call_queue *q;
-	struct member *m;
-	char rtvalue[80];
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(queuename);
@@ -8117,65 +8121,48 @@ static int queue_function_mem_write(struct ast_channel *chan, const char *cmd, c
 	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_ERROR, "Missing argument. QUEUE_MEMBER(<queuename>,<option>,<interface>)\n");
+		ast_log(LOG_ERROR,
+			"Missing required argument. %s([<queuename>],<option>,<interface>)\n",
+			cmd);
 		return -1;
 	}
 
 	AST_STANDARD_APP_ARGS(args, data);
 
-	if (args.argc < 3) {
-		ast_log(LOG_ERROR, "Missing argument. QUEUE_MEMBER_PENALTY(<queuename>,<interface>)\n");
+	if (ast_strlen_zero(args.option)
+		|| ast_strlen_zero(args.interface)) {
+		ast_log(LOG_ERROR,
+			"Missing required argument. %s([<queuename>],<option>,<interface>)\n",
+			cmd);
 		return -1;
 	}
 
-	if (ast_strlen_zero(args.interface) && ast_strlen_zero(args.option)) {
-		ast_log (LOG_ERROR, "<interface> and <option> parameter's can't be null\n");
-		return -1;
-	}
+	/*
+	 * If queuename is empty then the option will will be
+	 * set for the interface in all queues.
+	 */
 
 	memvalue = atoi(value);
 	if (!strcasecmp(args.option, "penalty")) {
-		/* if queuename = NULL then penalty will be set for interface in all the queues.*/
 		if (set_member_value(args.queuename, args.interface, MEMBER_PENALTY, memvalue)) {
-			ast_log(LOG_ERROR, "Invalid interface, queue or penalty\n");
+			ast_log(LOG_ERROR, "Invalid interface, queue, or penalty\n");
 			return -1;
 		}
-	} else if ((q = find_load_queue_rt_friendly(args.queuename))) {
-		ao2_lock(q);
-		if ((m = interface_exists(q, args.interface))) {
-			sprintf(rtvalue, "%s",(memvalue <= 0) ? "0" : "1");
-			if (!strcasecmp(args.option, "paused")) {
-				if (m->realtime) {
-					update_realtime_member_field(m, q->name, args.option, rtvalue);
-				}
-				m->paused = (memvalue <= 0) ? 0 : 1;
-				ast_devstate_changed(m->paused ? QUEUE_PAUSED_DEVSTATE : QUEUE_UNPAUSED_DEVSTATE,
-					AST_DEVSTATE_CACHABLE, "Queue:%s_pause_%s", q->name, args.interface);
-
-			} else if ((!strcasecmp(args.option, "ignorebusy")) || (!strcasecmp(args.option, "ringinuse"))) {
-				if (m->realtime) {
-					update_realtime_member_field(m, q->name, args.option, rtvalue);
-				}
-
-				m->ringinuse = (memvalue <= 0) ? 0 : 1;
-			} else {
-				ast_log(LOG_ERROR, "Invalid option, only penalty , paused or ringinuse/ignorebusy are valid\n");
-				ao2_ref(m, -1);
-				ao2_unlock(q);
-				ao2_ref(q, -1);
-				return -1;
-			}
-			ao2_ref(m, -1);
-		} else {
-			ao2_unlock(q);
-			ao2_ref(q, -1);
-			ast_log(LOG_ERROR, "Invalid interface for queue\n");
+	} else if (!strcasecmp(args.option, "paused")) {
+		memvalue = (memvalue <= 0) ? 0 : 1;
+		if (set_member_paused(args.queuename, args.interface, NULL, memvalue)) {
+			ast_log(LOG_ERROR, "Invalid interface or queue\n");
 			return -1;
 		}
-		ao2_unlock(q);
-		ao2_ref(q, -1);
-        } else {
-		ast_log(LOG_ERROR, "Invalid queue\n");
+	} else if (!strcasecmp(args.option, "ignorebusy") /* ignorebusy is legacy */
+		|| !strcasecmp(args.option, "ringinuse")) {
+		memvalue = (memvalue <= 0) ? 0 : 1;
+		if (set_member_value(args.queuename, args.interface, MEMBER_RINGINUSE, memvalue)) {
+			ast_log(LOG_ERROR, "Invalid interface or queue\n");
+			return -1;
+		}
+	} else {
+		ast_log(LOG_ERROR, "%s: Invalid option '%s' provided.\n", cmd, args.option);
 		return -1;
 	}
 	return 0;
