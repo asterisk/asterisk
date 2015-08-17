@@ -1739,6 +1739,10 @@ void *ast_sorcery_alloc(const struct ast_sorcery *sorcery, const char *type, con
 	} else {
 		details->object->id = ast_strdup(id);
 	}
+	if (!details->object->id) {
+		ao2_ref(details, -1);
+		return NULL;
+	}
 
 	details->object->created = ast_tvnow();
 	ast_copy_string(details->object->type, type, sizeof(details->object->type));
