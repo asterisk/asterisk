@@ -6290,13 +6290,106 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 	return res;
 }
 
+/*!
+ * \internal
+ * \brief Set the pause status of the specific queue member.
+ *
+ * \param q Which queue the member belongs.
+ * \param mem Queue member being paused/unpaused.
+ * \param reason Why is this happening (Can be NULL/empty for no reason given.)
+ * \param paused Set to 1 if the member is being paused or 0 to unpause.
+ *
+ * \pre The q is locked on entry.
+ *
+ * \return Nothing
+ */
+static void set_queue_member_pause(struct call_queue *q, struct member *mem, const char *reason, int paused)
+{
+	if (mem->paused == paused) {
+		ast_debug(1, "%spausing already-%spaused queue member %s:%s\n",
+			(paused ? "" : "un"), (paused ? "" : "un"), q->name, mem->interface);
+	}
+
+	if (mem->realtime) {
+		if (update_realtime_member_field(mem, q->name, "paused", paused ? "1" : "0")) {
+			ast_log(LOG_WARNING, "Failed %spause update of realtime queue member %s:%s\n",
+				(paused ? "" : "un"), q->name, mem->interface);
+		}
+	}
+
+	mem->paused = paused;
+
+	if (queue_persistent_members) {
+		dump_queue_members(q);
+	}
+
+	if (is_member_available(q, mem)) {
+		ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE,
+			"Queue:%s_avail", q->name);
+	} else if (!num_available_members(q)) {
+		ast_devstate_changed(AST_DEVICE_INUSE, AST_DEVSTATE_CACHABLE,
+			"Queue:%s_avail", q->name);
+	}
+
+	ast_queue_log(q->name, "NONE", mem->membername, (paused ? "PAUSE" : "UNPAUSE"),
+		"%s", S_OR(reason, ""));
+
+	if (!ast_strlen_zero(reason)) {
+		/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a member is paused/unpaused in the queue with a reason.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Location'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Paused'])" />
+				<parameter name="Reason">
+					<para>The reason given for pausing or unpausing a queue member.</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="application">PauseQueueMember</ref>
+				<ref type="application">UnPauseQueueMember</ref>
+			</see-also>
+		</managerEventInstance>
+		***/
+		manager_event(EVENT_FLAG_AGENT, "QueueMemberPaused",
+			"Queue: %s\r\n"
+			"Location: %s\r\n"
+			"MemberName: %s\r\n"
+			"Paused: %d\r\n"
+			"Reason: %s\r\n",
+			q->name, mem->interface, mem->membername, paused, reason);
+	} else {
+		/*** DOCUMENTATION
+		<managerEventInstance>
+			<synopsis>Raised when a member is paused/unpaused in the queue without a reason.</synopsis>
+			<syntax>
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Location'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
+				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Paused'])" />
+			</syntax>
+			<see-also>
+				<ref type="application">PauseQueueMember</ref>
+				<ref type="application">UnPauseQueueMember</ref>
+			</see-also>
+		</managerEventInstance>
+		***/
+		manager_event(EVENT_FLAG_AGENT, "QueueMemberPaused",
+			"Queue: %s\r\n"
+			"Location: %s\r\n"
+			"MemberName: %s\r\n"
+			"Paused: %d\r\n",
+			q->name, mem->interface, mem->membername, paused);
+	}
+}
+
 static int set_member_paused(const char *queuename, const char *interface, const char *reason, int paused)
 {
 	int found = 0;
 	struct call_queue *q;
-	struct member *mem;
 	struct ao2_iterator queue_iter;
-	int failed;
 
 	/* Special event for when all queues are paused - individual events still generated */
 	/* XXX In all other cases, we use the membername, but since this affects all queues, we cannot */
@@ -6307,95 +6400,20 @@ static int set_member_paused(const char *queuename, const char *interface, const
 	while ((q = ao2_t_iterator_next(&queue_iter, "Iterate over queues"))) {
 		ao2_lock(q);
 		if (ast_strlen_zero(queuename) || !strcasecmp(q->name, queuename)) {
+			struct member *mem;
+
 			if ((mem = interface_exists(q, interface))) {
-				if (mem->paused == paused) {
-					ast_debug(1, "%spausing already-%spaused queue member %s:%s\n", (paused ? "" : "un"), (paused ? "" : "un"), q->name, interface);
-				}
+				++found;
 
-				failed = 0;
-				if (mem->realtime) {
-					failed = update_realtime_member_field(mem, q->name, "paused", paused ? "1" : "0");
-				}
-
-				if (failed) {
-					ast_log(LOG_WARNING, "Failed %spausing realtime queue member %s:%s\n", (paused ? "" : "un"), q->name, interface);
-					ao2_ref(mem, -1);
-					ao2_unlock(q);
-					queue_t_unref(q, "Done with iterator");
-					continue;
-				}
-				found++;
-				mem->paused = paused;
-
-				if (queue_persistent_members) {
-					dump_queue_members(q);
-				}
-
-				if (is_member_available(q, mem)) {
-					ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Queue:%s_avail", q->name);
-				} else if (!num_available_members(q)) {
-					ast_devstate_changed(AST_DEVICE_INUSE, AST_DEVSTATE_CACHABLE, "Queue:%s_avail", q->name);
-				}
-
-				ast_queue_log(q->name, "NONE", mem->membername, (paused ? "PAUSE" : "UNPAUSE"), "%s", S_OR(reason, ""));
-
-				if (!ast_strlen_zero(reason)) {
-					/*** DOCUMENTATION
-					<managerEventInstance>
-						<synopsis>Raised when a member is paused/unpaused in the queue with a reason.</synopsis>
-						<syntax>
-							<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
-							<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Location'])" />
-							<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
-							<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Paused'])" />
-							<parameter name="Reason">
-								<para>The reason given for pausing or unpausing a queue member.</para>
-							</parameter>
-						</syntax>
-						<see-also>
-							<ref type="application">PauseQueueMember</ref>
-							<ref type="application">UnPauseQueueMember</ref>
-						</see-also>
-					</managerEventInstance>
-					***/
-					manager_event(EVENT_FLAG_AGENT, "QueueMemberPaused",
-						"Queue: %s\r\n"
-						"Location: %s\r\n"
-						"MemberName: %s\r\n"
-						"Paused: %d\r\n"
-						"Reason: %s\r\n",
-							q->name, mem->interface, mem->membername, paused, reason);
-				} else {
-					/*** DOCUMENTATION
-					<managerEventInstance>
-						<synopsis>Raised when a member is paused/unpaused in the queue without a reason.</synopsis>
-						<syntax>
-							<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
-							<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Location'])" />
-							<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='MemberName'])" />
-							<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Paused'])" />
-						</syntax>
-						<see-also>
-							<ref type="application">PauseQueueMember</ref>
-							<ref type="application">UnPauseQueueMember</ref>
-						</see-also>
-					</managerEventInstance>
-					***/
-					manager_event(EVENT_FLAG_AGENT, "QueueMemberPaused",
-						"Queue: %s\r\n"
-						"Location: %s\r\n"
-						"MemberName: %s\r\n"
-						"Paused: %d\r\n",
-							q->name, mem->interface, mem->membername, paused);
-				}
+				set_queue_member_pause(q, mem, reason, paused);
 				ao2_ref(mem, -1);
 			}
-		}
 
-		if (!ast_strlen_zero(queuename) && !strcasecmp(queuename, q->name)) {
-			ao2_unlock(q);
-			queue_t_unref(q, "Done with iterator");
-			break;
+			if (!ast_strlen_zero(queuename)) {
+				ao2_unlock(q);
+				queue_t_unref(q, "Done with iterator");
+				break;
+			}
 		}
 
 		ao2_unlock(q);
@@ -6456,45 +6474,63 @@ static int set_member_penalty_help_members(struct call_queue *q, const char *int
 	return foundinterface;
 }
 
+/*!
+ * \internal
+ * \brief Set the ringinuse value of the specific queue member.
+ *
+ * \param q Which queue the member belongs.
+ * \param mem Queue member being set.
+ * \param ringinuse Set to 1 if the member is called when inuse.
+ *
+ * \pre The q is locked on entry.
+ *
+ * \return Nothing
+ */
+static void set_queue_member_ringinuse(struct call_queue *q, struct member *mem, int ringinuse)
+{
+	if (mem->realtime) {
+		update_realtime_member_field(mem, q->name, realtime_ringinuse_field,
+			ringinuse ? "1" : "0");
+	}
+
+	mem->ringinuse = ringinuse;
+
+	ast_queue_log(q->name, "NONE", mem->interface, "RINGINUSE", "%d", ringinuse);
+
+	/*** DOCUMENTATION
+	<managerEventInstance>
+		<synopsis>Raised when a member's ringinuse setting is changed.</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
+			<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Location'])" />
+			<parameter name="Ringinuse">
+				<enumlist>
+					<enum name="0"/>
+					<enum name="1"/>
+				</enumlist>
+			</parameter>
+		</syntax>
+		<see-also>
+			<ref type="function">QUEUE_MEMBER</ref>
+		</see-also>
+	</managerEventInstance>
+	***/
+	manager_event(EVENT_FLAG_AGENT, "QueueMemberRinginuse",
+		"Queue: %s\r\n"
+		"Location: %s\r\n"
+		"Ringinuse: %d\r\n",
+		q->name, mem->interface, ringinuse);
+}
+
 static int set_member_ringinuse_help_members(struct call_queue *q, const char *interface, int ringinuse)
 {
 	struct member *mem;
 	int foundinterface = 0;
-	char rtringinuse[80];
 
 	ao2_lock(q);
 	if ((mem = interface_exists(q, interface))) {
 		foundinterface++;
-		if (!mem->realtime) {
-			mem->ringinuse = ringinuse;
-		} else {
-			sprintf(rtringinuse, "%i", ringinuse);
-			update_realtime_member_field(mem, q->name, realtime_ringinuse_field, rtringinuse);
-		}
-		ast_queue_log(q->name, "NONE", interface, "RINGINUSE", "%d", ringinuse);
-		/*** DOCUMENTATION
-		<managerEventInstance>
-			<synopsis>Raised when a member's ringinuse setting is changed.</synopsis>
-			<syntax>
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Queue'])" />
-				<xi:include xpointer="xpointer(/docs/managerEvent[@name='QueueMemberStatus']/managerEventInstance/syntax/parameter[@name='Location'])" />
-				<parameter name="Ringinuse">
-					<enumlist>
-						<enum name="0"/>
-						<enum name="1"/>
-					</enumlist>
-				</parameter>
-			</syntax>
-			<see-also>
-				<ref type="function">QUEUE_MEMBER</ref>
-			</see-also>
-		</managerEventInstance>
-		***/
-		manager_event(EVENT_FLAG_AGENT, "QueueMemberRinginuse",
-			"Queue: %s\r\n"
-			"Location: %s\r\n"
-			"Ringinuse: %d\r\n",
-			q->name, mem->interface, ringinuse);
+		set_queue_member_ringinuse(q, mem, ringinuse);
 		ao2_ref(mem, -1);
 	}
 	ao2_unlock(q);
