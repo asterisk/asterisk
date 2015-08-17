@@ -8008,12 +8008,29 @@ static int queue_function_exists(struct ast_channel *chan, const char *cmd, char
 	return 0;
 }
 
+static struct member *get_interface_helper(struct call_queue *q, const char *interface)
+{
+	struct member *m;
+
+	if (ast_strlen_zero(interface)) {
+		ast_log(LOG_ERROR, "QUEUE_MEMBER: Missing required interface argument.\n");
+		return NULL;
+	}
+
+	m = interface_exists(q, interface);
+	if (!m) {
+		ast_log(LOG_ERROR, "Queue member interface '%s' not in queue '%s'.\n",
+			interface, q->name);
+	}
+	return m;
+}
+
 /*!
  * \brief Get number either busy / free / ready or total members of a specific queue
  * \brief Get or set member properties penalty / paused / ringinuse
  * \retval number of members (busy / free / ready / total) or member info (penalty / paused / ringinuse)
  * \retval -1 on error
-*/
+ */
 static int queue_function_mem_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	int count = 0;
@@ -8030,14 +8047,18 @@ static int queue_function_mem_read(struct ast_channel *chan, const char *cmd, ch
 	buf[0] = '\0';
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_ERROR, "Missing required argument. %s(<queuename>,<option>[<interface>])\n", cmd);
+		ast_log(LOG_ERROR,
+			"Missing required argument. %s(<queuename>,<option>[,<interface>])\n",
+			cmd);
 		return -1;
 	}
 
 	AST_STANDARD_APP_ARGS(args, data);
 
-	if (args.argc < 2) {
-		ast_log(LOG_ERROR, "Missing required argument. %s(<queuename>,<option>[<interface>])\n", cmd);
+	if (ast_strlen_zero(args.queuename) || ast_strlen_zero(args.option)) {
+		ast_log(LOG_ERROR,
+			"Missing required argument. %s(<queuename>,<option>[,<interface>])\n",
+			cmd);
 		return -1;
 	}
 
@@ -8076,27 +8097,29 @@ static int queue_function_mem_read(struct ast_channel *chan, const char *cmd, ch
 				ao2_ref(m, -1);
 			}
 			ao2_iterator_destroy(&mem_iter);
-		} else if (!strcasecmp(args.option, "count") || ast_strlen_zero(args.option)) {
+		} else if (!strcasecmp(args.option, "count")) {
 			count = ao2_container_count(q->members);
-		} else if (!strcasecmp(args.option, "penalty") && !ast_strlen_zero(args.interface) &&
-			   ((m = interface_exists(q, args.interface)))) {
-			count = m->penalty;
-			ao2_ref(m, -1);
-		} else if (!strcasecmp(args.option, "paused") && !ast_strlen_zero(args.interface) &&
-			   ((m = interface_exists(q, args.interface)))) {
-			count = m->paused;
-			ao2_ref(m, -1);
-		} else if ( (!strcasecmp(args.option, "ignorebusy") || !strcasecmp(args.option, "ringinuse")) &&
-			   !ast_strlen_zero(args.interface) &&
-			   ((m = interface_exists(q, args.interface)))) {
-			count = m->ringinuse;
-			ao2_ref(m, -1);
-		} else if (!ast_strlen_zero(args.interface)) {
-			ast_log(LOG_ERROR, "Queue member interface %s not in queue %s\n",
-				args.interface, args.queuename);
+		} else if (!strcasecmp(args.option, "penalty")) {
+			m = get_interface_helper(q, args.interface);
+			if (m) {
+				count = m->penalty;
+				ao2_ref(m, -1);
+			}
+		} else if (!strcasecmp(args.option, "paused")) {
+			m = get_interface_helper(q, args.interface);
+			if (m) {
+				count = m->paused;
+				ao2_ref(m, -1);
+			}
+		} else if ((!strcasecmp(args.option, "ignorebusy") /* ignorebusy is legacy */
+			|| !strcasecmp(args.option, "ringinuse"))) {
+			m = get_interface_helper(q, args.interface);
+			if (m) {
+				count = m->ringinuse;
+				ao2_ref(m, -1);
+			}
 		} else {
-			ast_log(LOG_ERROR, "Unknown option %s provided to %s, valid values are: "
-				"logged, free, ready, count, penalty, paused, ringinuse\n", args.option, cmd);
+			ast_log(LOG_ERROR, "%s: Invalid option '%s' provided.\n", cmd, args.option);
 		}
 		ao2_unlock(q);
 		queue_t_unref(q, "Done with temporary reference in QUEUE_MEMBER()");
