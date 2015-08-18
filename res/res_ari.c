@@ -180,8 +180,7 @@ int ast_ari_add_handler(struct stasis_rest_handlers *handler)
 
 	SCOPED_MUTEX(lock, &root_handler_lock);
 
-	old_size = sizeof(*new_handler) +
-		root_handler->num_children * sizeof(handler);
+	old_size = sizeof(*new_handler) + root_handler->num_children * sizeof(handler);
 	new_size = old_size + sizeof(handler);
 
 	new_handler = ao2_alloc(new_size, NULL);
@@ -200,21 +199,24 @@ int ast_ari_add_handler(struct stasis_rest_handlers *handler)
 
 int ast_ari_remove_handler(struct stasis_rest_handlers *handler)
 {
-	RAII_VAR(struct stasis_rest_handlers *, new_handler, NULL, ao2_cleanup);
-	size_t size, i, j;
+	struct stasis_rest_handlers *new_handler;
+	size_t size;
+	size_t i;
+	size_t j;
 
 	ast_assert(root_handler != NULL);
 
 	ast_mutex_lock(&root_handler_lock);
-	size = sizeof(*new_handler) +
-		root_handler->num_children * sizeof(handler);
+	size = sizeof(*new_handler) + root_handler->num_children * sizeof(handler);
 
 	new_handler = ao2_alloc(size, NULL);
 	if (!new_handler) {
+		ast_mutex_unlock(&root_handler_lock);
 		return -1;
 	}
-	memcpy(new_handler, root_handler, sizeof(*new_handler));
 
+	/* Create replacement root_handler less the handler to remove. */
+	memcpy(new_handler, root_handler, sizeof(*new_handler));
 	for (i = 0, j = 0; i < root_handler->num_children; ++i) {
 		if (root_handler->children[i] == handler) {
 			ast_module_unref(ast_module_info->self);
@@ -224,9 +226,10 @@ int ast_ari_remove_handler(struct stasis_rest_handlers *handler)
 	}
 	new_handler->num_children = j;
 
+	/* Replace the old root_handler with the new. */
 	ao2_cleanup(root_handler);
-	ao2_ref(new_handler, +1);
 	root_handler = new_handler;
+
 	ast_mutex_unlock(&root_handler_lock);
 	return 0;
 }
