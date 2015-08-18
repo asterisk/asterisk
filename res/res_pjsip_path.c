@@ -187,7 +187,7 @@ static void path_outgoing_response(struct ast_sip_endpoint *endpoint, struct ast
 	}
 
 	contact_hdr = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CONTACT, NULL);
-	if (!contact_hdr) {
+	if (!contact_hdr || !contact_hdr->uri) {
 		return;
 	}
 
