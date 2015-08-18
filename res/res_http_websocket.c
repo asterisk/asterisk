@@ -832,6 +832,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 			ast_log(LOG_WARNING, "WebSocket connection from '%s' could not be accepted - failed to generate a session id\n",
 				ast_sockaddr_stringify(&ser->remote_address));
 			ast_http_error(ser, 500, "Internal Server Error", "Allocation failed");
+			ao2_ref(protocol_handler, -1);
 			return 0;
 		}
 
