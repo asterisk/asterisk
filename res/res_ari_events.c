@@ -462,6 +462,7 @@ static int unload_module(void)
 	ast_ari_remove_handler(&events);
 	ao2_cleanup(events.ws_server);
 	events.ws_server = NULL;
+	ast_ari_websocket_events_event_websocket_dtor();
 	stasis_app_unref();
 	return 0;
 }

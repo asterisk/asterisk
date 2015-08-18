@@ -103,12 +103,12 @@ static void stasis_app_message_handler(
 		        msg_type,
 		        msg_application);
 	} else if (!session->ws_session) {
-			/* If the websocket is NULL, the message goes to the queue */
-			AST_VECTOR_APPEND(&session->message_queue, message);
-			ast_log(LOG_WARNING,
-			        "Queued '%s' message for Stasis app '%s'; websocket is not ready\n",
-			        msg_type,
-			        msg_application);
+		/* If the websocket is NULL, the message goes to the queue */
+		AST_VECTOR_APPEND(&session->message_queue, message);
+		ast_log(LOG_WARNING,
+				"Queued '%s' message for Stasis app '%s'; websocket is not ready\n",
+				msg_type,
+				msg_application);
 	} else {
 		/* We are ready to publish the message */
 		ast_ari_websocket_session_write(session->ws_session, message);
@@ -426,13 +426,18 @@ static int event_session_alloc(struct ast_tcptls_session_instance *ser,
 	return 0;
 }
 
+void ast_ari_websocket_events_event_websocket_dtor(void)
+{
+	ao2_cleanup(event_session_registry);
+	event_session_registry = NULL;
+}
+
 int ast_ari_websocket_events_event_websocket_init(void)
 {
 	/* Try to instantiate the registry */
 	event_session_registry = ao2_container_alloc(EVENT_SESSION_NUM_BUCKETS,
 	                                             event_session_hash,
 	                                             event_session_compare);
-
 	if (!event_session_registry) {
 		/* This is bad, bad. */
 		ast_log(LOG_WARNING,

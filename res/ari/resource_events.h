@@ -60,6 +60,13 @@ int ast_ari_websocket_events_event_websocket_init(void);
 /*!
  * \brief WebSocket connection for events.
  *
+ * \return Nothing
+ */
+void ast_ari_websocket_events_event_websocket_dtor(void);
+
+/*!
+ * \brief WebSocket connection for events.
+ *
  * \param ser HTTP TCP/TLS Server Session
  * \param headers HTTP headers
  * \param args Swagger parameters
