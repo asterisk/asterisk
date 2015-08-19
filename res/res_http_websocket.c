@@ -207,7 +207,6 @@ int AST_OPTIONAL_API_NAME(ast_websocket_server_add_protocol)(struct ast_websocke
 
 	protocol = ast_websocket_sub_protocol_alloc(name);
 	if (!protocol) {
-		ao2_unlock(server->protocols);
 		return -1;
 	}
 	protocol->session_established = callback;
@@ -824,6 +823,7 @@ int AST_OPTIONAL_API_NAME(ast_websocket_uri_cb)(struct ast_tcptls_session_instan
 		    && protocol_handler->session_attempted(ser, get_vars, headers)) {
 			ast_debug(3, "WebSocket connection from '%s' rejected by protocol handler '%s'\n",
 				ast_sockaddr_stringify(&ser->remote_address), protocol_handler->name);
+			websocket_bad_request(ser);
 			ao2_ref(protocol_handler, -1);
 			return 0;
 		}
