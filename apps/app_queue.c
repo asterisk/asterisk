@@ -6972,6 +6972,55 @@ static int publish_queue_member_pause(struct call_queue *q, struct member *membe
 	return 0;
 }
 
+/*!
+ * \internal
+ * \brief Set the pause status of the specific queue member.
+ *
+ * \param q Which queue the member belongs.
+ * \param mem Queue member being paused/unpaused.
+ * \param reason Why is this happening (Can be NULL/empty for no reason given.)
+ * \param paused Set to 1 if the member is being paused or 0 to unpause.
+ *
+ * \pre The q is locked on entry.
+ *
+ * \return Nothing
+ */
+static void set_queue_member_pause(struct call_queue *q, struct member *mem, const char *reason, int paused)
+{
+	if (mem->paused == paused) {
+		ast_debug(1, "%spausing already-%spaused queue member %s:%s\n",
+			(paused ? "" : "un"), (paused ? "" : "un"), q->name, mem->interface);
+	}
+
+	if (mem->realtime) {
+		if (update_realtime_member_field(mem, q->name, "paused", paused ? "1" : "0")) {
+			ast_log(LOG_WARNING, "Failed %spause update of realtime queue member %s:%s\n",
+				(paused ? "" : "un"), q->name, mem->interface);
+		}
+	}
+
+	mem->paused = paused;
+	ast_devstate_changed(mem->paused ? QUEUE_PAUSED_DEVSTATE : QUEUE_UNPAUSED_DEVSTATE,
+		AST_DEVSTATE_CACHABLE, "Queue:%s_pause_%s", q->name, mem->interface);
+
+	if (queue_persistent_members) {
+		dump_queue_members(q);
+	}
+
+	if (is_member_available(q, mem)) {
+		ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE,
+			"Queue:%s_avail", q->name);
+	} else if (!num_available_members(q)) {
+		ast_devstate_changed(AST_DEVICE_INUSE, AST_DEVSTATE_CACHABLE,
+			"Queue:%s_avail", q->name);
+	}
+
+	ast_queue_log(q->name, "NONE", mem->membername, (paused ? "PAUSE" : "UNPAUSE"),
+		"%s", S_OR(reason, ""));
+
+	publish_queue_member_pause(q, mem, reason);
+}
+
 static int set_member_paused(const char *queuename, const char *interface, const char *reason, int paused)
 {
 	int found = 0;
@@ -6985,55 +7034,30 @@ static int set_member_paused(const char *queuename, const char *interface, const
 			struct member *mem;
 
 			if ((mem = interface_exists(q, interface))) {
-				if (mem->paused == paused) {
-					ast_debug(1, "%spausing already-%spaused queue member %s:%s\n", (paused ? "" : "un"), (paused ? "" : "un"), q->name, interface);
+				/*
+				 * Before we do the PAUSE/UNPAUSE, log if this was a
+				 * PAUSEALL/UNPAUSEALL but only on the first found entry.
+				 */
+				++found;
+				if (found == 1
+					&& ast_strlen_zero(queuename)) {
+					/*
+					 * XXX In all other cases, we use the queue name,
+					 * but since this affects all queues, we cannot.
+					 */
+					ast_queue_log("NONE", "NONE", mem->membername,
+						(paused ? "PAUSEALL" : "UNPAUSEALL"), "%s", "");
 				}
 
-				if (mem->realtime) {
-					if (update_realtime_member_field(mem, q->name, "paused", paused ? "1" : "0")) {
-						ast_log(LOG_WARNING, "Failed %spausing realtime queue member %s:%s\n", (paused ? "" : "un"), q->name, interface);
-						ao2_ref(mem, -1);
-						ao2_unlock(q);
-						queue_t_unref(q, "Done with iterator");
-						continue;
-					}
-				}
-
-				mem->paused = paused;
-				ast_devstate_changed(mem->paused ? QUEUE_PAUSED_DEVSTATE : QUEUE_UNPAUSED_DEVSTATE,
-					AST_DEVSTATE_CACHABLE, "Queue:%s_pause_%s", q->name, mem->interface);
-				found++;
-
-				/* Before we do the PAUSE/UNPAUSE log, if this was a PAUSEALL/UNPAUSEALL, log that here, but only on the first found entry. */
-				if (found == 1) {
-
-					/* XXX In all other cases, we use the membername, but since this affects all queues, we cannot */
-					if (ast_strlen_zero(queuename)) {
-						ast_queue_log("NONE", "NONE", interface, (paused ? "PAUSEALL" : "UNPAUSEALL"), "%s", "");
-					}
-				}
-
-				if (queue_persistent_members) {
-					dump_queue_members(q);
-				}
-
-				if (is_member_available(q, mem)) {
-					ast_devstate_changed(AST_DEVICE_NOT_INUSE, AST_DEVSTATE_CACHABLE, "Queue:%s_avail", q->name);
-				} else if (!num_available_members(q)) {
-					ast_devstate_changed(AST_DEVICE_INUSE, AST_DEVSTATE_CACHABLE, "Queue:%s_avail", q->name);
-				}
-
-				ast_queue_log(q->name, "NONE", mem->membername, (paused ? "PAUSE" : "UNPAUSE"), "%s", S_OR(reason, ""));
-
-				publish_queue_member_pause(q, mem, reason);
+				set_queue_member_pause(q, mem, reason, paused);
 				ao2_ref(mem, -1);
 			}
-		}
 
-		if (!ast_strlen_zero(queuename) && !strcasecmp(queuename, q->name)) {
-			ao2_unlock(q);
-			queue_t_unref(q, "Done with iterator");
-			break;
+			if (!ast_strlen_zero(queuename)) {
+				ao2_unlock(q);
+				queue_t_unref(q, "Done with iterator");
+				break;
+			}
 		}
 
 		ao2_unlock(q);
@@ -7079,6 +7103,31 @@ static int set_member_penalty_help_members(struct call_queue *q, const char *int
 	return foundinterface;
 }
 
+/*!
+ * \internal
+ * \brief Set the ringinuse value of the specific queue member.
+ *
+ * \param q Which queue the member belongs.
+ * \param mem Queue member being set.
+ * \param ringinuse Set to 1 if the member is called when inuse.
+ *
+ * \pre The q is locked on entry.
+ *
+ * \return Nothing
+ */
+static void set_queue_member_ringinuse(struct call_queue *q, struct member *mem, int ringinuse)
+{
+	if (mem->realtime) {
+		update_realtime_member_field(mem, q->name, realtime_ringinuse_field,
+			ringinuse ? "1" : "0");
+	}
+
+	mem->ringinuse = ringinuse;
+
+	ast_queue_log(q->name, "NONE", mem->interface, "RINGINUSE", "%d", ringinuse);
+	queue_publish_member_blob(queue_member_ringinuse_type(), queue_member_blob_create(q, mem));
+}
+
 static int set_member_ringinuse_help_members(struct call_queue *q, const char *interface, int ringinuse)
 {
 	struct member *mem;
@@ -7087,17 +7136,7 @@ static int set_member_ringinuse_help_members(struct call_queue *q, const char *i
 	ao2_lock(q);
 	if ((mem = interface_exists(q, interface))) {
 		foundinterface++;
-		if (mem->realtime) {
-			char rtringinuse[80];
-
-			sprintf(rtringinuse, "%i", ringinuse);
-			update_realtime_member_field(mem, q->name, realtime_ringinuse_field, rtringinuse);
-		}
-
-		mem->ringinuse = ringinuse;
-
-		ast_queue_log(q->name, "NONE", interface, "RINGINUSE", "%d", ringinuse);
-		queue_publish_member_blob(queue_member_ringinuse_type(), queue_member_blob_create(q, mem));
+		set_queue_member_ringinuse(q, mem, ringinuse);
 		ao2_ref(mem, -1);
 	}
 	ao2_unlock(q);
@@ -8008,12 +8047,29 @@ static int queue_function_exists(struct ast_channel *chan, const char *cmd, char
 	return 0;
 }
 
+static struct member *get_interface_helper(struct call_queue *q, const char *interface)
+{
+	struct member *m;
+
+	if (ast_strlen_zero(interface)) {
+		ast_log(LOG_ERROR, "QUEUE_MEMBER: Missing required interface argument.\n");
+		return NULL;
+	}
+
+	m = interface_exists(q, interface);
+	if (!m) {
+		ast_log(LOG_ERROR, "Queue member interface '%s' not in queue '%s'.\n",
+			interface, q->name);
+	}
+	return m;
+}
+
 /*!
  * \brief Get number either busy / free / ready or total members of a specific queue
  * \brief Get or set member properties penalty / paused / ringinuse
  * \retval number of members (busy / free / ready / total) or member info (penalty / paused / ringinuse)
  * \retval -1 on error
-*/
+ */
 static int queue_function_mem_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	int count = 0;
@@ -8030,14 +8086,18 @@ static int queue_function_mem_read(struct ast_channel *chan, const char *cmd, ch
 	buf[0] = '\0';
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_ERROR, "Missing required argument. %s(<queuename>,<option>[<interface>])\n", cmd);
+		ast_log(LOG_ERROR,
+			"Missing required argument. %s(<queuename>,<option>[,<interface>])\n",
+			cmd);
 		return -1;
 	}
 
 	AST_STANDARD_APP_ARGS(args, data);
 
-	if (args.argc < 2) {
-		ast_log(LOG_ERROR, "Missing required argument. %s(<queuename>,<option>[<interface>])\n", cmd);
+	if (ast_strlen_zero(args.queuename) || ast_strlen_zero(args.option)) {
+		ast_log(LOG_ERROR,
+			"Missing required argument. %s(<queuename>,<option>[,<interface>])\n",
+			cmd);
 		return -1;
 	}
 
@@ -8076,27 +8136,29 @@ static int queue_function_mem_read(struct ast_channel *chan, const char *cmd, ch
 				ao2_ref(m, -1);
 			}
 			ao2_iterator_destroy(&mem_iter);
-		} else if (!strcasecmp(args.option, "count") || ast_strlen_zero(args.option)) {
+		} else if (!strcasecmp(args.option, "count")) {
 			count = ao2_container_count(q->members);
-		} else if (!strcasecmp(args.option, "penalty") && !ast_strlen_zero(args.interface) &&
-			   ((m = interface_exists(q, args.interface)))) {
-			count = m->penalty;
-			ao2_ref(m, -1);
-		} else if (!strcasecmp(args.option, "paused") && !ast_strlen_zero(args.interface) &&
-			   ((m = interface_exists(q, args.interface)))) {
-			count = m->paused;
-			ao2_ref(m, -1);
-		} else if ( (!strcasecmp(args.option, "ignorebusy") || !strcasecmp(args.option, "ringinuse")) &&
-			   !ast_strlen_zero(args.interface) &&
-			   ((m = interface_exists(q, args.interface)))) {
-			count = m->ringinuse;
-			ao2_ref(m, -1);
-		} else if (!ast_strlen_zero(args.interface)) {
-			ast_log(LOG_ERROR, "Queue member interface %s not in queue %s\n",
-				args.interface, args.queuename);
+		} else if (!strcasecmp(args.option, "penalty")) {
+			m = get_interface_helper(q, args.interface);
+			if (m) {
+				count = m->penalty;
+				ao2_ref(m, -1);
+			}
+		} else if (!strcasecmp(args.option, "paused")) {
+			m = get_interface_helper(q, args.interface);
+			if (m) {
+				count = m->paused;
+				ao2_ref(m, -1);
+			}
+		} else if ((!strcasecmp(args.option, "ignorebusy") /* ignorebusy is legacy */
+			|| !strcasecmp(args.option, "ringinuse"))) {
+			m = get_interface_helper(q, args.interface);
+			if (m) {
+				count = m->ringinuse;
+				ao2_ref(m, -1);
+			}
 		} else {
-			ast_log(LOG_ERROR, "Unknown option %s provided to %s, valid values are: "
-				"logged, free, ready, count, penalty, paused, ringinuse\n", args.option, cmd);
+			ast_log(LOG_ERROR, "%s: Invalid option '%s' provided.\n", cmd, args.option);
 		}
 		ao2_unlock(q);
 		queue_t_unref(q, "Done with temporary reference in QUEUE_MEMBER()");
