@@ -1263,7 +1263,7 @@ static struct sip_subscription_tree *create_subscription_tree(const struct ast_s
 
 	sub_tree = allocate_subscription_tree(endpoint);
 	if (!sub_tree) {
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
+		*dlg_status = PJ_ENOMEM;
 		return NULL;
 	}
 	sub_tree->role = AST_SIP_NOTIFIER;
