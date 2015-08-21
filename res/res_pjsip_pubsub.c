@@ -982,6 +982,7 @@ static int build_resource_tree(struct ast_sip_endpoint *endpoint, const struct a
 
 	tree->root = tree_node_alloc(resource, &visited, list->full_state);
 	if (!tree->root) {
+		AST_VECTOR_FREE(&visited);
 		return 500;
 	}
 
