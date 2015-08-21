@@ -2995,16 +2995,13 @@ int ast_sip_pubsub_register_body_generator(struct ast_sip_pubsub_body_generator 
 	AST_LIST_INSERT_HEAD(&body_generators, generator, list);
 	AST_RWLIST_UNLOCK(&body_generators);
 
-	/* Lengths of type and subtype plus space for a slash. pj_str_t is not
-	 * null-terminated, so there is no need to allocate for the extra null
-	 * byte
-	 */
+	/* Lengths of type and subtype plus a slash. */
 	accept_len = strlen(generator->type) + strlen(generator->subtype) + 1;
 
-	accept.ptr = ast_alloca(accept_len);
-	accept.slen = accept_len;
-	/* Safe use of sprintf */
-	sprintf(accept.ptr, "%s/%s", generator->type, generator->subtype);
+	/* Add room for null terminator that sprintf() will set. */
+	pj_strset(&accept, ast_alloca(accept_len + 1), accept_len);
+	sprintf((char *) pj_strbuf(&accept), "%s/%s", generator->type, generator->subtype);/* Safe */
+
 	pjsip_endpt_add_capability(ast_sip_get_pjsip_endpoint(), &pubsub_module,
 			PJSIP_H_ACCEPT, NULL, 1, &accept);
 
