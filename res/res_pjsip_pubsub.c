@@ -1528,6 +1528,7 @@ void *ast_sip_subscription_get_header(const struct ast_sip_subscription *sub, co
 	return pjsip_msg_find_hdr_by_name(msg, &name, NULL);
 }
 
+/* XXX This function is not used. */
 struct ast_sip_subscription *ast_sip_create_subscription(const struct ast_sip_subscription_handler *handler,
 		struct ast_sip_endpoint *endpoint, const char *resource)
 {
