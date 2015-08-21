@@ -4270,6 +4270,7 @@ static int load_module(void)
 	if (apply_list_configuration(sorcery)) {
 		ast_sip_unregister_service(&pubsub_module);
 		ast_sched_context_destroy(sched);
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	ast_sorcery_apply_default(sorcery, "inbound-publication", "config", "pjsip.conf,criteria=type=inbound-publication");
