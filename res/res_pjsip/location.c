@@ -137,12 +137,6 @@ static int contact_link_static(void *obj, void *arg, int flags)
 	return 0;
 }
 
-/*! \brief Simple callback function which returns immediately, used to grab the first contact of an AOR */
-static int contact_find_first(void *obj, void *arg, int flags)
-{
-	return CMP_MATCH | CMP_STOP;
-}
-
 struct ast_sip_contact *ast_sip_location_retrieve_first_aor_contact(const struct ast_sip_aor *aor)
 {
 	RAII_VAR(struct ao2_container *, contacts, NULL, ao2_cleanup);
@@ -153,7 +147,8 @@ struct ast_sip_contact *ast_sip_location_retrieve_first_aor_contact(const struct
 		return NULL;
 	}
 
-	contact = ao2_callback(contacts, 0, contact_find_first, NULL);
+	/* Get the first AOR contact in the container. */
+	contact = ao2_callback(contacts, 0, NULL, NULL);
 	return contact;
 }
 
