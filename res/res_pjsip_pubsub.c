@@ -1358,7 +1358,7 @@ static int subscription_persistence_recreate(void *obj, void *arg, int flags)
 
 	request_uri = pjsip_uri_get_uri(rdata.msg_info.msg->line.req.uri);
 	resource_size = pj_strlen(&request_uri->user) + 1;
-	resource = alloca(resource_size);
+	resource = ast_alloca(resource_size);
 	ast_copy_pj_str(resource, &request_uri->user, resource_size);
 
 	/* Update the expiration header with the new expiration */
@@ -2578,7 +2578,7 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 
 	request_uri_sip = pjsip_uri_get_uri(request_uri);
 	resource_size = pj_strlen(&request_uri_sip->user) + 1;
-	resource = alloca(resource_size);
+	resource = ast_alloca(resource_size);
 	ast_copy_pj_str(resource, &request_uri_sip->user, resource_size);
 
 	expires_header = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_EXPIRES, rdata->msg_info.msg->hdr.next);
@@ -2795,7 +2795,7 @@ static struct ast_sip_publication *publish_request_initial(struct ast_sip_endpoi
 
 	request_uri_sip = pjsip_uri_get_uri(request_uri);
 	resource_size = pj_strlen(&request_uri_sip->user) + 1;
-	resource_name = alloca(resource_size);
+	resource_name = ast_alloca(resource_size);
 	ast_copy_pj_str(resource_name, &request_uri_sip->user, resource_size);
 
 	resource = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "inbound-publication", resource_name);
@@ -3001,7 +3001,7 @@ int ast_sip_pubsub_register_body_generator(struct ast_sip_pubsub_body_generator 
 	 */
 	accept_len = strlen(generator->type) + strlen(generator->subtype) + 1;
 
-	accept.ptr = alloca(accept_len);
+	accept.ptr = ast_alloca(accept_len);
 	accept.slen = accept_len;
 	/* Safe use of sprintf */
 	sprintf(accept.ptr, "%s/%s", generator->type, generator->subtype);
