@@ -33131,10 +33131,8 @@ static char *sip_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 /*! \brief  Part of Asterisk module interface */
 static int reload(void)
 {
-	if (sip_reload(0, 0, NULL)) {
-		return 0;
-	}
-	return 1;
+	sip_reload(0, 0, NULL);
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 /*! \brief  Return the first entry from ast_sockaddr_resolve filtered by address family
