@@ -4,23 +4,23 @@
 
 The purpose of this document is to define best practices when working with
 Asterisk in order to minimize possible security breaches and to provide tried
-examples in field deployments. This is a living document and is subject to 
+examples in field deployments. This is a living document and is subject to
 change over time as best practices are defined.
 
 --------
 Sections
 --------
 
-* Filtering Data: 
+* Filtering Data:
         How to protect yourself from redial attacks
 
-* Proper Device Naming: 
+* Proper Device Naming:
         Why to not use numbered extensions for devices
 
-* Secure Passwords: 
+* Secure Passwords:
         Secure passwords limit your risk to brute force attacks
 
-* Reducing Pattern Match Typos: 
+* Reducing Pattern Match Typos:
         Using the 'same' prefix, or using Goto()
 
 * Manager Class Authorizations:
@@ -47,9 +47,9 @@ security are listed below.
 Filtering Data
 ==============
 
-In the Asterisk dialplan, several channel variables contain data potentially 
-supplied by outside sources. This could lead to a potential security concern 
-where those outside sources may send cleverly crafted strings of data which 
+In the Asterisk dialplan, several channel variables contain data potentially
+supplied by outside sources. This could lead to a potential security concern
+where those outside sources may send cleverly crafted strings of data which
 could be utilized, e.g. to place calls to unexpected locations.
 
 An example of this can be found in the use of pattern matching and the ${EXTEN}
@@ -57,14 +57,14 @@ channel variable. Note that ${EXTEN} is not the only system created channel
 variable, so it is important to be aware of where the data you're using is
 coming from.
 
-For example, this common dialplan takes 2 or more characters of data, starting 
+For example, this common dialplan takes 2 or more characters of data, starting
 with a number 0-9, and then accepts any additional information supplied by the
 request.
 
 [NOTE: We use SIP in this example, but is not limited to SIP only; protocols
        such as Jabber/XMPP or IAX2 are also susceptible to the same sort of
        injection problem.]
-       
+
 
 [incoming]
 exten => _X.,1,Verbose(2,Incoming call to extension ${EXTEN})
@@ -83,7 +83,7 @@ to dial extension 500 (which in our example above would create the string
 SIP/500 and is then used by the Dial() application to place a call), someone
 could potentially send a string like "500&SIP/itsp/14165551212".
 
-The string "500&SIP/itsp/14165551212" would then be contained within the 
+The string "500&SIP/itsp/14165551212" would then be contained within the
 ${EXTEN} channel variable, which is then utilized by the Dial() application in
 our example, thereby giving you the dialplan line of:
 
@@ -98,7 +98,7 @@ Strict Pattern Matching
 -----------------------
 
 The simple way to mitigate this problem is with a strict pattern match that does
-not utilize the period (.) or bang (!) characters to match on one-or-more 
+not utilize the period (.) or bang (!) characters to match on one-or-more
 characters or zero-or-more characters (respectively). To fine tune our example
 to only accept three digit extensions, we could change our pattern match to
 be:
@@ -121,8 +121,8 @@ application which will contain dynamic information passed to Asterisk from an
 external source. Lets take a look at how we can use FILTER() to control what
 data we allow.
 
-Using our previous example to accept any string length of 2 or more characters, 
-starting with a number of zero through nine, we can use FILTER() to limit what 
+Using our previous example to accept any string length of 2 or more characters,
+starting with a number of zero through nine, we can use FILTER() to limit what
 we will accept to just numbers. Our example would then change to something like:
 
 [incoming]
@@ -234,21 +234,21 @@ first ones added to the dictionary for brute force attacks.
 Secure Passwords
 ================
 
-Secure passwords are necessary in many (if not all) environments, and Asterisk 
+Secure passwords are necessary in many (if not all) environments, and Asterisk
 is certainly no exception, especially when it comes to expensive long distance
 calls that could potentially cost your company hundreds or thousands of dollars
 on an expensive monthly phone bill, with little to no recourse to fight the
 charges.
 
 Whenever you are positioned to add a password to your system, whether that is
-for a device configuration, a database connection, or any other secure 
+for a device configuration, a database connection, or any other secure
 connection, be sure to use a secure password. A good example of a secure
 password would be something like:
 
 aE3%B8*$jk^G
 
 Our password also contains 12 characters with a mixture of upper and
-lower case characters, numbers, and symbols. Because these passwords are likely 
+lower case characters, numbers, and symbols. Because these passwords are likely
 to only be entered once, or loaded via a configuration file, there is
 no need to create simple passwords, even in testing. Some of the holes found in
 production systems used for exploitations involve finding the one test extension
