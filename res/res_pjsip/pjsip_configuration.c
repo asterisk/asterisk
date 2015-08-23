@@ -406,6 +406,10 @@ int ast_sip_auth_vector_init(struct ast_sip_auth_vector *auths, const char *valu
 		if (!val) {
 			goto failure;
 		}
+		if (ast_strlen_zero(val)) {
+			ast_free(val);
+			continue;
+		}
 		if (AST_VECTOR_APPEND(auths, val)) {
 			goto failure;
 		}
