@@ -1388,8 +1388,9 @@ static int subscription_persistence_recreate(void *obj, void *arg, int flags)
 		subscription_persistence_update(sub_tree, &rdata);
 		if (generate_initial_notify(sub_tree->root)) {
 			pjsip_evsub_terminate(sub_tree->evsub, PJ_TRUE);
+		} else {
+			send_notify(sub_tree, 1);
 		}
-		send_notify(sub_tree, 1);
 	} else {
 		ast_sorcery_delete(ast_sip_get_sorcery(), persistence);
 	}
