@@ -402,6 +402,10 @@ int ast_sip_auth_vector_init(struct ast_sip_auth_vector *auths, const char *valu
 	}
 
 	while ((val = strsep(&auth_names, ","))) {
+		if (ast_strlen_zero(val)) {
+			continue;
+		}
+
 		val = ast_strdup(val);
 		if (!val) {
 			goto failure;
