@@ -1873,6 +1873,13 @@ static void bridge_channel_handle_action(struct ast_bridge_channel *bridge_chann
 	default:
 		break;
 	}
+
+	/* While invoking an action it is possible for the channel to be hung up. So
+	 * that the bridge respects this we check here and if hung up kick it out.
+	 */
+	if (bridge_channel->chan && ast_check_hangup_locked(bridge_channel->chan)) {
+		ast_bridge_channel_kick(bridge_channel, 0);
+	}
 }
 
 /*!
