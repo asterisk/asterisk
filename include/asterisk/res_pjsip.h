@@ -2071,4 +2071,31 @@ unsigned int ast_sip_get_max_initial_qualify_time(void);
 const char *ast_sip_get_contact_status_label(const enum ast_sip_contact_status_type status);
 const char *ast_sip_get_contact_short_status_label(const enum ast_sip_contact_status_type status);
 
+/*!
+ * \brief Retrieve the local host address in IP form
+ *
+ * \param af The address family to retrieve
+ * \param addr A place to store the local host address
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ *
+ * \since 13.6.0
+ */
+int ast_sip_get_host_ip(int af, pj_sockaddr *addr);
+
+/*!
+ * \brief Retrieve the local host address in string form
+ *
+ * \param af The address family to retrieve
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ *
+ * \since 13.6.0
+ *
+ * \note An empty string may be returned if the address family is valid but no local address exists
+ */
+const char *ast_sip_get_host_ip_string(int af);
+
 #endif /* _RES_PJSIP_H */

@@ -1023,7 +1023,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	static const pj_str_t STR_IP6 = { "IP6", 3};
 	static const pj_str_t STR_SENDRECV = { "sendrecv", 8 };
 	pjmedia_sdp_media *media;
-	char hostip[PJ_INET6_ADDRSTRLEN+2];
+	const char *hostip = NULL;
 	struct ast_sockaddr addr;
 	char tmp[512];
 	pj_str_t stmp;
@@ -1071,16 +1071,16 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 
 	/* Add connection level details */
 	if (direct_media_enabled) {
-		ast_copy_string(hostip, ast_sockaddr_stringify_fmt(&session_media->direct_media_addr, AST_SOCKADDR_STR_ADDR), sizeof(hostip));
+		hostip = ast_sockaddr_stringify_fmt(&session_media->direct_media_addr, AST_SOCKADDR_STR_ADDR);
 	} else if (ast_strlen_zero(session->endpoint->media.address)) {
-		pj_sockaddr localaddr;
-
-		if (pj_gethostip(session->endpoint->media.rtp.ipv6 ? pj_AF_INET6() : pj_AF_INET(), &localaddr)) {
-			return -1;
-		}
-		pj_sockaddr_print(&localaddr, hostip, sizeof(hostip), 2);
+		hostip = ast_sip_get_host_ip_string(session->endpoint->media.rtp.ipv6 ? pj_AF_INET6() : pj_AF_INET());
 	} else {
-		ast_copy_string(hostip, session->endpoint->media.address, sizeof(hostip));
+		hostip = session->endpoint->media.address;
+	}
+
+	if (ast_strlen_zero(hostip)) {
+		ast_log(LOG_ERROR, "No local host IP available for stream %s\n", session_media->stream_type);
+		return -1;
 	}
 
 	media->conn->net_type = STR_IN;
