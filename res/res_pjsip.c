@@ -1912,6 +1912,18 @@ static pjsip_endpoint *ast_pjsip_endpoint;
 
 static struct ast_threadpool *sip_threadpool;
 
+/*! Local host address for IPv4 */
+static pj_sockaddr host_ip_ipv4;
+
+/*! Local host address for IPv4 (string form) */
+static char host_ip_ipv4_string[PJ_INET6_ADDRSTRLEN + 2];
+
+/*! Local host address for IPv6 */
+static pj_sockaddr host_ip_ipv6;
+
+/*! Local host address for IPv6 (string form) */
+static char host_ip_ipv6_string[PJ_INET6_ADDRSTRLEN + 2];
+
 static int register_service_noref(void *data)
 {
 	pjsip_module **module = data;
@@ -3751,6 +3763,30 @@ int ast_sip_create_response(const pjsip_rx_data *rdata, int st_code,
 	return res;
 }
 
+int ast_sip_get_host_ip(int af, pj_sockaddr *addr)
+{
+	if (af == pj_AF_INET() && !ast_strlen_zero(host_ip_ipv4_string)) {
+		pj_sockaddr_copy_addr(addr, &host_ip_ipv4);
+		return 0;
+	} else if (af == pj_AF_INET6() && !ast_strlen_zero(host_ip_ipv6_string)) {
+		pj_sockaddr_copy_addr(addr, &host_ip_ipv6);
+		return 0;
+	}
+
+	return -1;
+}
+
+const char *ast_sip_get_host_ip_string(int af)
+{
+	if (af == pj_AF_INET()) {
+		return host_ip_ipv4_string;
+	} else if (af == pj_AF_INET6()) {
+		return host_ip_ipv6_string;
+	}
+
+	return NULL;
+}
+
 static void remove_request_headers(pjsip_endpoint *endpt)
 {
 	const pjsip_hdr *request_headers = pjsip_endpt_get_request_headers(endpt);
@@ -3863,6 +3899,16 @@ static int load_module(void)
 		ast_pjsip_endpoint = NULL;
 		pj_caching_pool_destroy(&caching_pool);
 		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	if (!pj_gethostip(pj_AF_INET(), &host_ip_ipv4)) {
+		pj_sockaddr_print(&host_ip_ipv4, host_ip_ipv4_string, sizeof(host_ip_ipv4_string), 2);
+		ast_verb(3, "Local IPv4 address determined to be: %s\n", host_ip_ipv4_string);
+	}
+
+	if (!pj_gethostip(pj_AF_INET6(), &host_ip_ipv6)) {
+		pj_sockaddr_print(&host_ip_ipv6, host_ip_ipv6_string, sizeof(host_ip_ipv6_string), 2);
+		ast_verb(3, "Local IPv6 address determined to be: %s\n", host_ip_ipv6_string);
 	}
 
 	if (ast_sip_initialize_system()) {
