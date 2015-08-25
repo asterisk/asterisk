@@ -2675,12 +2675,7 @@ static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv, stru
 		if (!ast_strlen_zero(session->endpoint->media.address)) {
 			pj_strdup2(inv->pool_prov, &local->origin.addr, session->endpoint->media.address);
 		} else {
-			pj_sockaddr localaddr;
-			char our_ip[PJ_INET6_ADDRSTRLEN];
-
-			pj_gethostip(session->endpoint->media.rtp.ipv6 ? pj_AF_INET6() : pj_AF_INET(), &localaddr);
-			pj_sockaddr_print(&localaddr, our_ip, sizeof(our_ip), 0);
-			pj_strdup2(inv->pool_prov, &local->origin.addr, our_ip);
+			pj_strdup2(inv->pool_prov, &local->origin.addr, ast_sip_get_host_ip_string(session->endpoint->media.rtp.ipv6 ? pj_AF_INET6() : pj_AF_INET()));
 		}
 	}
 
