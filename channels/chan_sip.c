@@ -24522,10 +24522,9 @@ static void *sip_pickup_thread(void *stuff)
 	struct ast_channel *chan;
 	chan = stuff;
 
+	ast_channel_hangupcause_set(chan, AST_CAUSE_NORMAL_CLEARING);
 	if (ast_pickup_call(chan)) {
 		ast_channel_hangupcause_set(chan, AST_CAUSE_CALL_REJECTED);
-	} else {
-		ast_channel_hangupcause_set(chan, AST_CAUSE_NORMAL_CLEARING);
 	}
 	ast_hangup(chan);
 	ast_channel_unref(chan);
