@@ -611,6 +611,9 @@ static enum ast_sip_session_media_encryption get_media_encryption_type(pj_str_t 
 
 	*optimistic = 0;
 
+	if (!transport_str) {
+		return AST_SIP_MEDIA_TRANSPORT_INVALID;
+	}
 	if (strstr(transport_str, "UDP/TLS")) {
 		return AST_SIP_MEDIA_ENCRYPT_DTLS;
 	} else if (strstr(transport_str, "SAVP")) {
