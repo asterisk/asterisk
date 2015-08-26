@@ -1435,6 +1435,10 @@ static void transfer_refer(struct ast_sip_session *session, const char *target)
 	enum ast_control_transfer message = AST_TRANSFER_SUCCESS;
 	pj_str_t tmp;
 	pjsip_tx_data *packet;
+	pjsip_hdr *hdr;
+	const pj_str_t ref_by = { "Referred-By", 11 };
+	const char *ref_by_val;
+	pj_str_t tmp2;
 
 	if (pjsip_xfer_create_uac(session->inv_session->dlg, NULL, &sub) != PJ_SUCCESS) {
 		message = AST_TRANSFER_FAILED;
@@ -1450,6 +1454,15 @@ static void transfer_refer(struct ast_sip_session *session, const char *target)
 
 		return;
 	}
+
+	/* Add Referred-By header to packet (channel variable SIPREFERREDBYHDR value or existing dialog's local info) */
+	ref_by_val = pbx_builtin_getvar_helper(session->channel, "SIPREFERREDBYHDR");
+	if (!ast_strlen_zero(ref_by_val)) {
+		hdr = (pjsip_hdr*)pjsip_generic_string_hdr_create(packet->pool, &ref_by, pj_cstr(&tmp2, ref_by_val));
+	} else {
+		hdr = (pjsip_hdr*)pjsip_generic_string_hdr_create(packet->pool, &ref_by, &session->inv_session->dlg->local.info_str);
+	}
+	pjsip_msg_add_hdr(packet->msg, hdr);
 
 	pjsip_xfer_send_request(sub, packet);
 	ast_queue_control_data(session->channel, AST_CONTROL_TRANSFER, &message, sizeof(message));
