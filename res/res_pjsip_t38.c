@@ -707,7 +707,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	static const pj_str_t STR_T38UDPREDUNDANCY = { "t38UDPRedundancy", 16 };
 	struct t38_state *state;
 	pjmedia_sdp_media *media;
-	char hostip[PJ_INET6_ADDRSTRLEN+2];
+	const char *hostip = NULL;
 	struct ast_sockaddr addr;
 	char tmp[512];
 	pj_str_t stmp;
@@ -732,14 +732,13 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	media->desc.transport = STR_UDPTL;
 
 	if (ast_strlen_zero(session->endpoint->media.address)) {
-		pj_sockaddr localaddr;
-
-		if (pj_gethostip(session->endpoint->media.t38.ipv6 ? pj_AF_INET6() : pj_AF_INET(), &localaddr)) {
-			return -1;
-		}
-		pj_sockaddr_print(&localaddr, hostip, sizeof(hostip), 2);
+		hostip = ast_sip_get_host_ip_string(session->endpoint->media.t38.ipv6 ? pj_AF_INET6() : pj_AF_INET());
 	} else {
-		ast_copy_string(hostip, session->endpoint->media.address, sizeof(hostip));
+		hostip = session->endpoint->media.address;
+	}
+
+	if (ast_strlen_zero(hostip)) {
+		return -1;
 	}
 
 	media->conn->net_type = STR_IN;
