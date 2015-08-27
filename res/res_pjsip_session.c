@@ -2390,8 +2390,16 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 		break;
 	case PJSIP_EVENT_RX_MSG:
 		cb = ast_sip_mod_data_get(tsx->mod_data, session_module.id, MOD_DATA_ON_RESPONSE);
-		handle_incoming(session, e->body.tsx_state.src.rdata, e->type,
-				AST_SIP_SESSION_AFTER_MEDIA);
+		/* As the PJSIP invite session implementation responds with a 200 OK before we have a
+		 * chance to be invoked session supplements for BYE requests actually end up executing
+		 * in the invite session state callback as well. To prevent session supplements from
+		 * running on the BYE request again we explicitly squash invocation of them here.
+		 */
+		if ((e->body.tsx_state.src.rdata->msg_info.msg->type != PJSIP_REQUEST_MSG) ||
+			(tsx->method.id != PJSIP_BYE_METHOD)) {
+			handle_incoming(session, e->body.tsx_state.src.rdata, e->type,
+							AST_SIP_SESSION_AFTER_MEDIA);
+		}
 		if (tsx->method.id == PJSIP_INVITE_METHOD) {
 			if (tsx->role == PJSIP_ROLE_UAC) {
 				if (tsx->state == PJSIP_TSX_STATE_COMPLETED) {
