@@ -1811,9 +1811,17 @@ static int hangup(void *data)
 static int chan_pjsip_hangup(struct ast_channel *ast)
 {
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
-	struct chan_pjsip_pvt *pvt = channel->pvt;
-	int cause = hangup_cause2sip(ast_channel_hangupcause(channel->session->channel));
-	struct hangup_data *h_data = hangup_data_alloc(cause, ast);
+	struct chan_pjsip_pvt *pvt;
+	int cause;
+	struct hangup_data *h_data;
+
+	if (!channel || !channel->session) {
+		return -1;
+	}
+
+	pvt = channel->pvt;
+	cause = hangup_cause2sip(ast_channel_hangupcause(channel->session->channel));
+	h_data = hangup_data_alloc(cause, ast);
 
 	if (!h_data) {
 		goto failure;
