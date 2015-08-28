@@ -39,6 +39,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/config.h"
 #include "asterisk/module.h"
 #include "asterisk/utils.h"
+#include "asterisk/linkedlists.h"
 
 #include "lpc10/lpc10.h"
 
@@ -161,30 +162,39 @@ static struct ast_frame *lintolpc10_frameout(struct ast_trans_pvt *pvt)
 {
 	struct lpc10_coder_pvt *tmp = pvt->pvt;
 	int x;
-	int datalen = 0;	/* output frame */
-	int samples = 0;	/* output samples */
+	struct ast_frame *result = NULL;
+	struct ast_frame *last = NULL;
 	float tmpbuf[LPC10_SAMPLES_PER_FRAME];
 	INT32 bits[LPC10_BITS_IN_COMPRESSED_FRAME];	/* XXX what ??? */
-	/* We can't work on anything less than a frame in size */
-	if (pvt->samples < LPC10_SAMPLES_PER_FRAME)
-		return NULL;
-	while (pvt->samples >=  LPC10_SAMPLES_PER_FRAME) {
+
+	while (pvt->samples >= LPC10_SAMPLES_PER_FRAME) {
+		struct ast_frame *current = NULL;
+
 		/* Encode a frame of data */
 		for (x=0;x<LPC10_SAMPLES_PER_FRAME;x++)
-			tmpbuf[x] = (float)tmp->buf[x + samples] / 32768.0;
+			tmpbuf[x] = (float)tmp->buf[x] / 32768.0;
 		lpc10_encode(tmpbuf, bits, tmp->lpc10.enc);
-		build_bits(pvt->outbuf.uc + datalen, bits);
-		datalen += LPC10_BYTES_IN_COMPRESSED_FRAME;
-		samples += LPC10_SAMPLES_PER_FRAME;
+		build_bits(pvt->outbuf.uc, bits);
+
+		/* Move the data at the end of the buffer to the front */
 		pvt->samples -= LPC10_SAMPLES_PER_FRAME;
+		if (pvt->samples) {
+			memmove(tmp->buf, tmp->buf + LPC10_SAMPLES_PER_FRAME, pvt->samples * 2);
+		}
+
 		/* Use one of the two left over bits to record if this is a 22 or 23 ms frame...
 		   important for IAX use */
 		tmp->longer = 1 - tmp->longer;
+
+		current = ast_trans_frameout(pvt, LPC10_BYTES_IN_COMPRESSED_FRAME, LPC10_SAMPLES_PER_FRAME);
+		if (last) {
+			AST_LIST_NEXT(last, frame_list) = current;
+		} else {
+			result = current;
+		}
+		last = current;
 	}
-	/* Move the data at the end of the buffer to the front */
-	if (pvt->samples)
-		memmove(tmp->buf, tmp->buf + samples, pvt->samples * 2);
-	return ast_trans_frameout(pvt, datalen, samples);
+	return result;
 }
 
 
