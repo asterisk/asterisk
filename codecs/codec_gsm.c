@@ -39,6 +39,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config.h"
 #include "asterisk/module.h"
 #include "asterisk/utils.h"
+#include "asterisk/linkedlists.h"
 
 #ifdef HAVE_GSM_HEADER
 #include "gsm.h"
@@ -139,25 +140,35 @@ static int lintogsm_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 static struct ast_frame *lintogsm_frameout(struct ast_trans_pvt *pvt)
 {
 	struct gsm_translator_pvt *tmp = pvt->pvt;
-	int datalen = 0;
-	int samples = 0;
+	struct ast_frame *result = NULL;
+	struct ast_frame *last = NULL;
+	int samples = 0; /* output samples */
 
-	/* We can't work on anything less than a frame in size */
-	if (pvt->samples < GSM_SAMPLES)
-		return NULL;
 	while (pvt->samples >= GSM_SAMPLES) {
+		struct ast_frame *current;
+
 		/* Encode a frame of data */
-		gsm_encode(tmp->gsm, tmp->buf + samples, (gsm_byte *) pvt->outbuf.c + datalen);
-		datalen += GSM_FRAME_LEN;
+		gsm_encode(tmp->gsm, tmp->buf + samples, (gsm_byte *) pvt->outbuf.c);
 		samples += GSM_SAMPLES;
 		pvt->samples -= GSM_SAMPLES;
+
+		current = ast_trans_frameout(pvt, GSM_FRAME_LEN, GSM_SAMPLES);
+		if (!current) {
+			continue;
+		} else if (last) {
+			AST_LIST_NEXT(last, frame_list) = current;
+		} else {
+			result = current;
+		}
+		last = current;
 	}
 
 	/* Move the data at the end of the buffer to the front */
-	if (pvt->samples)
+	if (samples) {
 		memmove(tmp->buf, tmp->buf + samples, pvt->samples * 2);
+	}
 
-	return ast_trans_frameout(pvt, datalen, samples);
+	return result;
 }
 
 static void gsm_destroy_stuff(struct ast_trans_pvt *pvt)
