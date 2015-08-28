@@ -39,7 +39,7 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <speex/speex.h>
 
@@ -54,6 +54,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/module.h"
 #include "asterisk/config.h"
 #include "asterisk/utils.h"
+#include "asterisk/linkedlists.h"
 
 /* codec variables */
 static int quality = 3;
@@ -259,15 +260,16 @@ static int lintospeex_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 static struct ast_frame *lintospeex_frameout(struct ast_trans_pvt *pvt)
 {
 	struct speex_coder_pvt *tmp = pvt->pvt;
-	int is_speech=1;
-	int datalen = 0;	/* output bytes */
-	int samples = 0;	/* output samples */
+	struct ast_frame *result = NULL;
+	struct ast_frame *last = NULL;
+	int samples = 0; /* output samples */
 
-	/* We can't work on anything less than a frame in size */
-	if (pvt->samples < tmp->framesize)
-		return NULL;
-	speex_bits_reset(&tmp->bits);
 	while (pvt->samples >= tmp->framesize) {
+		struct ast_frame *current = NULL;
+		int is_speech=1;
+
+		speex_bits_reset(&tmp->bits);
+
 #ifdef _SPEEX_TYPES_H
 		/* Preprocess audio */
 		if (preproc)
@@ -293,19 +295,17 @@ static struct ast_frame *lintospeex_frameout(struct ast_trans_pvt *pvt)
 #endif
 		samples += tmp->framesize;
 		pvt->samples -= tmp->framesize;
-	}
 
-	/* Move the data at the end of the buffer to the front */
-	if (pvt->samples)
-		memmove(tmp->buf, tmp->buf + samples, pvt->samples * 2);
+		/* Use AST_FRAME_CNG to signify the start of any silence period */
+		if (is_speech) {
+			int datalen = 0; /* output bytes */
 
-	/* Use AST_FRAME_CNG to signify the start of any silence period */
-	if (is_speech) {
-		tmp->silent_state = 0;
-	} else {
-		if (tmp->silent_state) {
-			return NULL;
-		} else {
+			tmp->silent_state = 0;
+			/* Terminate bit stream */
+			speex_bits_pack(&tmp->bits, 15, 5);
+			datalen = speex_bits_write(&tmp->bits, pvt->outbuf.c, pvt->t->buf_size);
+			current = ast_trans_frameout(pvt, datalen, tmp->framesize);
+		} else if (!tmp->silent_state) {
 			struct ast_frame frm = {
 				.frametype = AST_FRAME_CNG,
 				.src = pvt->t->name,
@@ -320,14 +320,23 @@ static struct ast_frame *lintospeex_frameout(struct ast_trans_pvt *pvt)
 			tmp->silent_state = 1;
 
 			/* XXX what now ? format etc... */
-			return ast_frisolate(&frm);
+			current = ast_frisolate(&frm);
 		}
+
+		if (last) {
+			AST_LIST_NEXT(last, frame_list) = current;
+		} else {
+			result = current;
+		}
+		last = current;
 	}
 
-	/* Terminate bit stream */
-	speex_bits_pack(&tmp->bits, 15, 5);
-	datalen = speex_bits_write(&tmp->bits, pvt->outbuf.c, pvt->t->buf_size);
-	return ast_trans_frameout(pvt, datalen, samples);
+	/* Move the data at the end of the buffer to the front */
+	if (samples) {
+		memmove(tmp->buf, tmp->buf + samples, pvt->samples * 2);
+	}
+
+	return result;
 }
 
 static void speextolin_destroy(struct ast_trans_pvt *arg)
@@ -625,8 +634,8 @@ static int load_module(void)
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Speex Coder/Decoder",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.reload = reload,
-);
+		.support_level = AST_MODULE_SUPPORT_CORE,
+		.load = load_module,
+		.unload = unload_module,
+		.reload = reload,
+	       );
