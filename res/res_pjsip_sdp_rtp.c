@@ -1290,6 +1290,7 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 		 * a NAT. This way there won't be an awkward delay before media starts flowing in some
 		 * scenarios.
 		 */
+		AST_SCHED_DEL(sched, session_media->keepalive_sched_id);
 		session_media->keepalive_sched_id = ast_sched_add_variable(sched, 500, send_keepalive,
 			session_media, 1);
 	}
@@ -1341,13 +1342,23 @@ static void change_outgoing_sdp_stream_media_address(pjsip_tx_data *tdata, struc
 	pj_strdup2(tdata->pool, &stream->conn->addr, transport->external_media_address);
 }
 
+/*! \brief Function which stops the RTP instance */
+static void stream_stop(struct ast_sip_session_media *session_media)
+{
+	if (!session_media->rtp) {
+		return;
+	}
+
+	AST_SCHED_DEL(sched, session_media->keepalive_sched_id);
+	AST_SCHED_DEL(sched, session_media->timeout_sched_id);
+	ast_rtp_instance_stop(session_media->rtp);
+}
+
 /*! \brief Function which destroys the RTP instance when session ends */
 static void stream_destroy(struct ast_sip_session_media *session_media)
 {
 	if (session_media->rtp) {
-		AST_SCHED_DEL(sched, session_media->keepalive_sched_id);
-		AST_SCHED_DEL(sched, session_media->timeout_sched_id);
-		ast_rtp_instance_stop(session_media->rtp);
+		stream_stop(session_media);
 		ast_rtp_instance_destroy(session_media->rtp);
 	}
 	session_media->rtp = NULL;
@@ -1360,6 +1371,7 @@ static struct ast_sip_session_sdp_handler audio_sdp_handler = {
 	.create_outgoing_sdp_stream = create_outgoing_sdp_stream,
 	.apply_negotiated_sdp_stream = apply_negotiated_sdp_stream,
 	.change_outgoing_sdp_stream_media_address = change_outgoing_sdp_stream_media_address,
+	.stream_stop = stream_stop,
 	.stream_destroy = stream_destroy,
 };
 
@@ -1370,6 +1382,7 @@ static struct ast_sip_session_sdp_handler video_sdp_handler = {
 	.create_outgoing_sdp_stream = create_outgoing_sdp_stream,
 	.apply_negotiated_sdp_stream = apply_negotiated_sdp_stream,
 	.change_outgoing_sdp_stream_media_address = change_outgoing_sdp_stream_media_address,
+	.stream_stop = stream_stop,
 	.stream_destroy = stream_destroy,
 };
 
