@@ -497,7 +497,9 @@ int _ast_sched_del(struct ast_sched_context *con, int id, const char *file, int 
 		/* Wait for executing task to complete so that caller of ast_sched_del() does not
 		 * free memory out from under the task.
 		 */
-		ast_cond_wait(&s->cond, &con->lock);
+		while (con->currently_executing && (id == con->currently_executing->id)) {
+			ast_cond_wait(&s->cond, &con->lock);
+		}
 		/* Do not sched_release() here because ast_sched_runq() will do it */
 	}
 
