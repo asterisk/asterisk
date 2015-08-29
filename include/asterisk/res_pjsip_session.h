@@ -357,6 +357,12 @@ struct ast_sip_session_sdp_handler {
 	int (*apply_negotiated_sdp_stream)(struct ast_sip_session *session, struct ast_sip_session_media *session_media, const struct pjmedia_sdp_session *local, const struct pjmedia_sdp_media *local_stream,
 		const struct pjmedia_sdp_session *remote, const struct pjmedia_sdp_media *remote_stream);
 	/*!
+	 * \brief Stop a session_media created by this handler but do not destroy resources
+	 * \param session The session for which media is being stopped
+	 * \param session_media The media to destroy
+	 */
+	void (*stream_stop)(struct ast_sip_session_media *session_media);
+	/*!
 	 * \brief Destroy a session_media created by this handler
 	 * \param session The session for which media is being destroyed
 	 * \param session_media The media to destroy

@@ -362,6 +362,13 @@ static int handle_negotiated_sdp_session_media(void *obj, void *arg, int flags)
 			}
 		}
 	}
+
+	if (session_media->handler && session_media->handler->stream_stop) {
+		ast_debug(1, "Stopping SDP media stream '%s' as it is not currently negotiated\n",
+			session_media->stream_type);
+		session_media->handler->stream_stop(session_media);
+	}
+
 	return CMP_MATCH;
 }
 
