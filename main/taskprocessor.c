@@ -692,15 +692,25 @@ void *ast_taskprocessor_unreference(struct ast_taskprocessor *tps)
 		return NULL;
 	}
 
+	/* To prevent another thread from finding and getting a reference to this
+	 * taskprocessor we hold the singletons lock. If we didn't do this then
+	 * they may acquire it and find that the listener has been shut down.
+	 */
+	ao2_lock(tps_singletons);
+
 	if (ao2_ref(tps, -1) > 3) {
+		ao2_unlock(tps_singletons);
 		return NULL;
 	}
+
 	/* If we're down to 3 references, then those must be:
 	 * 1. The reference we just got rid of
 	 * 2. The container
 	 * 3. The listener
 	 */
-	ao2_unlink(tps_singletons, tps);
+	ao2_unlink_flags(tps_singletons, tps, OBJ_NOLOCK);
+	ao2_unlock(tps_singletons);
+
 	listener_shutdown(tps->listener);
 	return NULL;
 }
