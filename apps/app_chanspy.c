@@ -632,9 +632,10 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 	spyer_name = ast_strdupa(ast_channel_name(chan));
 	ast_channel_unlock(chan);
 
-	ast_channel_lock(spyee_autochan->chan);
+	spyee_autochan_chan = spyee_autochan->chan;
+	ast_channel_lock(spyee_autochan_chan);
 	name = ast_strdupa(ast_channel_name(spyee_autochan->chan));
-	ast_channel_unlock(spyee_autochan->chan);
+	ast_channel_unlock(spyee_autochan_chan);
 
 	ast_verb(2, "Spying on channel %s\n", name);
 	publish_chanspy_message(chan, spyee_autochan->chan, 1);
