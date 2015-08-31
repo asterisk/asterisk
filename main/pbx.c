@@ -11978,10 +11978,11 @@ static void presence_state_cb(void *unused, struct stasis_subscription *sub, str
 		struct ast_state_cb *state_cb;
 		const char *app;
 		char *parse;
-		SCOPED_AO2LOCK(lock, hint);
+		ao2_lock(hint);
 
 		if (!hint->exten) {
 			/* The extension has already been destroyed */
+			ao2_unlock(hint);
 			continue;
 		}
 
@@ -11989,16 +11990,19 @@ static void presence_state_cb(void *unused, struct stasis_subscription *sub, str
 		app = ast_get_extension_app(hint->exten);
 		if (ast_strlen_zero(app)) {
 			/* The hint does not monitor presence at all. */
+			ao2_unlock(hint);
 			continue;
 		}
 
 		ast_str_set(&hint_app, 0, "%s", app);
 		parse = parse_hint_presence(hint_app);
 		if (ast_strlen_zero(parse)) {
+			ao2_unlock(hint);
 			continue;
 		}
 		if (strcasecmp(parse, presence_state->provider)) {
 			/* The hint does not monitor the presence provider. */
+			ao2_unlock(hint);
 			continue;
 		}
 
@@ -12019,6 +12023,7 @@ static void presence_state_cb(void *unused, struct stasis_subscription *sub, str
 			((hint->last_presence_message && presence_state->message && !strcmp(hint->last_presence_message, presence_state->message)) || (!hint->last_presence_message && !presence_state->message))) {
 
 			/* this update is the same as the last, do nothing */
+			ao2_unlock(hint);
 			continue;
 		}
 
@@ -12028,6 +12033,14 @@ static void presence_state_cb(void *unused, struct stasis_subscription *sub, str
 		hint->last_presence_state = presence_state->state;
 		hint->last_presence_subtype = presence_state->subtype ? ast_strdup(presence_state->subtype) : NULL;
 		hint->last_presence_message = presence_state->message ? ast_strdup(presence_state->message) : NULL;
+		/*
+		 * (Copied from device_state_cb)
+		 *
+		 * NOTE: We cannot hold any locks while notifying
+		 * the watchers without causing a deadlock.
+		 * (conlock, hints, and hint)
+		 */
+		ao2_unlock(hint);
 
 		/* For general callbacks */
 		cb_iter = ao2_iterator_init(statecbs, 0);
