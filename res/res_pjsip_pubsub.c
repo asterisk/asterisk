@@ -1079,6 +1079,10 @@ static void destroy_subscriptions(struct ast_sip_subscription *root)
 {
 	int i;
 
+	if (!root) {
+		return;
+	}
+
 	for (i = 0; i < AST_VECTOR_SIZE(&root->children); ++i) {
 		struct ast_sip_subscription *child;
 
