@@ -7524,7 +7524,7 @@ static char *handle_show_hints(struct ast_cli_entry *e, int cmd, struct ast_cli_
 			continue;
 		}
 		watchers = ao2_container_count(hint->callbacks);
-		sprintf(buf, "%s@%s",
+		snprintf(buf, sizeof(buf), "%s@%s",
 			ast_get_extension_name(hint->exten),
 			ast_get_context_name(ast_get_extension_context(hint->exten)));
 
