@@ -3682,6 +3682,14 @@ int ast_sip_send_stateful_response(pjsip_rx_data *rdata, pjsip_tx_data *tdata, s
 	pjsip_transaction *tsx;
 
 	if (pjsip_tsx_create_uas(NULL, rdata, &tsx) != PJ_SUCCESS) {
+		struct ast_sip_contact *contact;
+
+		/* ast_sip_create_response bumps the refcount of the contact and adds it to the tdata.
+		 * We'll leak that reference if we don't get rid of it here.
+		 */
+		contact = ast_sip_mod_data_get(tdata->mod_data, supplement_module.id, MOD_DATA_CONTACT);
+		ao2_cleanup(contact);
+		ast_sip_mod_data_set(tdata->pool, tdata->mod_data, supplement_module.id, MOD_DATA_CONTACT, NULL);
 		pjsip_tx_data_dec_ref(tdata);
 		return -1;
 	}
