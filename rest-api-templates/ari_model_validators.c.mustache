@@ -50,7 +50,7 @@ int ast_ari_validate_{{c_id}}(struct ast_json *json)
 
 	discriminator = ast_json_string_get(ast_json_object_get(json, "{{discriminator.name}}"));
 	if (!discriminator) {
-		ast_log(LOG_ERROR, "ARI {{id}} missing required field {{discriminator.name}}");
+		ast_log(LOG_ERROR, "ARI {{id}} missing required field {{discriminator.name}}\n");
 		return 0;
 	}
 
