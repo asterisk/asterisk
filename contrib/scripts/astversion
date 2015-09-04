@@ -1,0 +1,376 @@
+#!/bin/bash
+#
+# astversion - determine version/source of components
+#
+# Copyright (c) 2015, Digium, Inc.
+#
+# Written by Scott Griepentrog <sgriepentrog@digium.com>
+#
+# Distributed under the terms of the GNU General Public License
+
+# libraries to provide the source/version of
+LIBRARIES=(
+	$LIBDIR/libspandsp.so.2
+	$LIBDIR/libpjsip.so.2
+	$LIBDIR/libpri.so.*
+)
+
+# binaries to provide the source/version of
+BINARIES=(
+	/usr/sbin/asterisk
+	/usr/sbin/dahdi_cfg
+)
+
+# condense list of files when more than X in a set
+CONDENSE=3
+
+sanity_check()
+{
+	# insure that needed tools are present
+	TOOLS=(uname basename fgrep cut head)
+	# making assumption that rpm and dpkg always exist on their platforms
+
+	for TOOL in ${TOOLS[@]}
+	do
+		if ! which $TOOL > /dev/null
+		then
+			echo "ERROR: please install package for $TOOL utility"
+			exit
+		fi
+	done
+}
+
+main()
+{
+	sanity_check
+
+	echo "Checking Asterisk versions on $HOSTNAME at $(date)"
+	TMPFILE="/tmp/astversion.$$"
+	locate_libdir
+
+	check_asterisk_version
+	check_dahdi_version
+
+	gather_packages
+	gather_files
+	search_packages
+	search_source
+	show_unknown_files
+
+	rm -f $TMPFILE
+}
+
+locate_libdir()
+{
+	LIBDIR="/usr/lib"
+	if [ `uname -m` = "x86_64" -a -d /usr/lib64 ]
+	then
+		LIBDIR="/usr/lib64"
+	fi
+}
+
+check_asterisk_version()
+{
+	# get the version that the executable says it is
+	ASTEXEC=$(asterisk -V)
+	if [ -z "$ASTEXEC" ]
+	then
+		echo "### ERROR: Unable to find Asterisk version from executable"
+		exit 1
+	fi
+	if [ "${ASTEXEC:0:9}" != "Asterisk " ]
+	then
+		echo "### ERROR: Unexpected version from executable: $ASTEXEC"
+		exit 1
+	fi
+
+	# compare with the version that is running
+	if ! asterisk -rx "core show version" > $TMPFILE 2>/dev/null
+	then
+		echo "Installed version: $ASTEXEC"
+		echo "Asterisk is not running - repeat command with it running for more details."
+		ASTLIVE=""
+	else
+		ASTLIVE=$(grep '^Asterisk [^e][^n][^d]' < $TMPFILE)
+		if [ -z "$ASTLIVE" ]
+		then
+			echo "### ERROR: Unable to find Asterisk version from running instance"
+			exit 1
+		fi
+
+		# is it running the same version? (note: space is significant!)
+		if ! fgrep "$ASTEXEC " < $TMPFILE > /dev/null
+		then
+			echo "Installed version: $ASTEXEC"
+			echo "### WARNING: Asterisk is running different version:"
+		fi
+		echo "$ASTLIVE"
+	fi
+
+	if [ "$ASTEXEC" = "Asterisk SVN--r75026M" ]
+	then
+		echo "### WARNING: version 'SVN--r75026M' is not accurate - appears across multiple builds"
+	fi
+}
+
+check_dahdi_version()
+{
+	if [ ! -f /sys/module/dahdi/version ]
+	then
+		echo "Dahdi kernel module is not installed"
+	else
+		DAHDI_KERNEL=$(cat /sys/module/dahdi/version)
+		echo "Dahdi kernel module version: $DAHDI_KERNEL"
+	fi
+
+	if ! which dahdi_cfg >&/dev/null
+	then
+		echo "Dahdi tools are not installed"
+	else
+		DAHDI_TOOLS=$(dahdi_cfg -v |& head -1)
+		echo "$DAHDI_TOOLS"
+	fi
+
+	if asterisk -rx "dahdi show version" > $TMPFILE 2>/dev/null
+	then
+		DAHDI_CLI=$(grep ^DAHDI $TMPFILE)
+		# may be empty if dahdi not installed
+		if [ ! -z "$DAHDI_CLI" ]
+		then
+			echo "Asterisk reports: $DAHDI_CLI"
+		fi
+	fi
+}
+
+scan_package_redhat()
+{
+	PKGNAME="$1"
+
+	if ! rpm -q $PKGNAME > /tmp/astversion-$PKGNAME-version
+	then
+		rm -f /tmp/astversion-$PKGNAME-version
+		return 2
+	fi
+
+	rpm -ql $PKGNAME > /tmp/astversion-$PKGNAME-files
+	rpm -V $PKGNAME > /tmp/astversion-$PKGNAME-verify
+	return 0
+}
+
+scan_package_debian()
+{
+	PKGNAME="$1"
+
+	if ! dpkg -s asterisk > $TMPFILE
+	then
+		rm -f /tmp/astversion-$PKGNAME-version
+		return 2
+	fi
+
+	# prefix the version with the package name to mimic rpm
+	echo -n "$PKGNAME " > /tmp/astversion-$PKGNAME-version
+	cat $TMPFILE | fgrep Version |cut -d ' ' -f2 >> /tmp/astversion-$PKGNAME-version
+
+	dpkg -L $PKGNAME > /tmp/astversion-$PKGNAME-files
+	dpkg -V $PKGNAME > /tmp/astversion-$PKGNAME-verify
+}
+
+package_has_file()
+{
+	PKGNAME="$1"
+	PKGFILE="$2"
+
+	if [ ! -f /tmp/astversion-$PKGNAME-version ]
+	then
+		return 2
+	fi
+
+	if [ ! -f /tmp/astversion-$PKGNAME-files ]
+	then
+		return 2
+	fi
+
+	if ! fgrep "$PKGFILE" /tmp/astversion-$PKGNAME-files >/dev/null
+	then
+		# package doesn't have that file
+		return 3
+	fi
+
+	#PKGVERIFY=$(rpm -V $PKGNAME | fgrep $PKGFILE)
+	if fgrep "$PKGFILE" /tmp/astversion-$PKGNAME-verify >/dev/null
+	then
+		# file does not match package
+		return 4
+	fi
+
+	return 0
+}
+
+
+gather_packages()
+{
+	# build a list of installed packages that are likely to contain components
+	PACKAGES=()
+	SEARCH=(asterisk dahdi libpri pjproject spandsp)
+	if [ -f /etc/redhat-release ]
+	then
+		DISTRO="redhat"
+		for NAME in ${SEARCH[@]}
+		do
+			PACKAGES+=($(rpm -qa |fgrep $NAME))
+		done
+	fi
+
+	if [ -f /etc/debian_version ]
+	then
+		DISTRO="debian"
+		for NAME in ${SEARCH[@]}
+		do
+			PACKAGES+=($(dpkg --get-selections |cut -f1 |fgrep $NAME))
+		done
+	fi
+}
+
+gather_files()
+{
+
+	# build a list of files that need to be located
+	FILES=($LIBDIR/asterisk/modules/*.so)
+
+	# add libraries and binaries that exist to the files list
+	for LIBRARY in ${LIBRARIES[@]}
+	do
+		if [ -f $LIBRARY ]
+		then
+			FILES+=($LIBRARY)
+		fi
+	done
+
+	for BINARY in ${BINARIES[@]}
+	do
+		if [ -f $BINARY ]
+		then
+			FILES+=($BINARY)
+		fi
+	done
+}
+
+search_packages()
+{
+	# scan each package and report files that match
+	for PACKAGE in ${PACKAGES[@]}
+	do
+		scan_package_$DISTRO "$PACKAGE"
+		PKGVERSION=$(cat /tmp/astversion-$PKGNAME-version)
+
+		FOUND=()
+		for FILE in ${FILES[@]}
+		do
+			if package_has_file "$PACKAGE" "$FILE"
+			then
+				FOUND+=($FILE)
+				FILES=(${FILES[@]/$FILE/})
+			fi
+		done
+
+		if [ ! -z "$FOUND" ]
+		then
+			if [ ${#FOUND[@]} -le $CONDENSE ]
+			then
+				for FILEFOUND in ${FOUND[@]}
+				do
+					echo "Found $FILEFOUND in package $PKGVERSION"
+				done
+			else
+				echo "Found ${#FOUND[@]} files in package $PKGVERSION"
+			fi
+		fi
+
+		rm -f /tmp/astversion-$PKGNAME-version
+		rm -f /tmp/astversion-$PKGNAME-files
+		rm -f /tmp/astversion-$PKGNAME-verify
+	done
+}
+
+search_source()
+{
+	# look for source path locally (compiled on this machine)
+	# - scan elfs for compilation directory
+	# - compare the file to confirm match
+	if [ -z "$FILES" ]
+	then
+		return
+	fi
+
+	# skip this check on no readelf tool (fedora 22)
+	if ! which readelf >& /dev/null
+	then
+		echo "Warning: skipping source detection because readelf utility is not available"
+		return
+	fi
+
+	# build a list of possible source paths
+	DIRS=()
+	for FILE in ${FILES[@]}
+	do
+		DEBUG_ELF=$(readelf -wi $FILE |fgrep DW_AT_comp_dir |head -1)
+		COMP_DIR=${DEBUG_ELF##* }
+		DIR=${COMP_DIR//[[:space:]]/}
+		if [ -d $DIR ]
+		then
+			if ! [[ " ${DIRS[@]} " =~ " $DIR " ]]
+			then
+				DIRS+=($DIR)
+			fi
+		fi
+	done
+
+	# for each possible path, look for target file
+	for DIR in ${DIRS[@]}
+	do
+		FOUND=()
+		for FILE in ${FILES[@]}
+		do
+			BASENAME=$(basename $FILE)
+			if [ -f $DIR/$BASENAME ]
+			then
+				if cmp $DIR/$BASENAME $FILE
+				then
+					FOUND+=($FILE)
+					FILES=(${FILES[@]/$FILE/})
+				fi
+			fi
+		done
+
+		if [ ! -z "$FOUND" ]
+		then
+			if [ ${#FOUND[@]} -le $CONDENSE ]
+			then
+				for FILEFOUND in ${FOUND[@]}
+				do
+					echo "Found $FILEFOUND compiled from $DIR"
+				done
+			else
+				echo "Found ${#FOUND[@]} files compiled from $DIR"
+			fi
+		fi
+	done
+}
+
+show_unknown_files()
+{
+	# show a warning for any remaining files unaccounted for
+	if [ -z "$FILES" ]
+	then
+		echo "Success: all files accounted for."
+	else
+		echo ""
+		echo "WARNING: source of the following files was not found:"
+		for FILE in ${FILES[@]}
+		do
+			echo "     ### $FILE"
+		done
+	fi
+}
+
+main
