@@ -110,6 +110,9 @@ static int ast_ari_events_event_websocket_ws_attempted_cb(struct ast_tcptls_sess
 				args.app[j] = (vals[j]);
 			}
 		} else
+		if (strcmp(i->name, "subscribeAll") == 0) {
+			args.subscribe_all = ast_true(i->value);
+		} else
 		{}
 	}
 
@@ -207,6 +210,9 @@ static void ast_ari_events_event_websocket_ws_established_cb(struct ast_websocke
 			for (j = 0; j < args.app_count; ++j) {
 				args.app[j] = (vals[j]);
 			}
+		} else
+		if (strcmp(i->name, "subscribeAll") == 0) {
+			args.subscribe_all = ast_true(i->value);
 		} else
 		{}
 	}

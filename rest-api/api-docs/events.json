@@ -26,6 +26,14 @@
 							"required": true,
 							"allowMultiple": true,
 							"dataType": "string"
+						},
+						{
+							"name": "subscribeAll",
+							"description": "Subscribe to all Asterisk events. If provided, the applications listed will be subscribed to all events, effectively disabling the application specific subscriptions. Default is 'false'.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "boolean"
 						}
 					]
 				}

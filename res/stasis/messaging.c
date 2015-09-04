@@ -38,6 +38,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "messaging.h"
 
 /*!
+ * \brief Subscription to all technologies
+ */
+#define TECH_WILDCARD "__AST_ALL_TECH"
+
+/*!
  * \brief Number of buckets for the \ref endpoint_subscriptions container
  */
 #define ENDPOINTS_NUM_BUCKETS 127
@@ -219,10 +224,14 @@ static int has_destination_cb(const struct ast_msg *msg)
 	for (i = 0; i < AST_VECTOR_SIZE(&tech_subscriptions); i++) {
 		sub = AST_VECTOR_GET(&tech_subscriptions, i);
 
-		if (sub && (!strncasecmp(sub->token, buf, strlen(sub->token))
-		            || !strncasecmp(sub->token, buf, strlen(sub->token)))) {
+		if (!sub) {
+			continue;
+		}
+
+		if (!strcmp(sub->token, TECH_WILDCARD)
+		    || !strncasecmp(sub->token, buf, strlen(sub->token))
+		    || !strncasecmp(sub->token, buf, strlen(sub->token))) {
 			ast_rwlock_unlock(&tech_subscriptions_lock);
-			sub = NULL; /* No ref bump! */
 			goto match;
 		}
 
@@ -231,6 +240,7 @@ static int has_destination_cb(const struct ast_msg *msg)
 
 	sub = ao2_find(endpoint_subscriptions, buf, OBJ_SEARCH_KEY);
 	if (sub) {
+		ao2_ref(sub, -1);
 		goto match;
 	}
 
@@ -238,7 +248,6 @@ static int has_destination_cb(const struct ast_msg *msg)
 	return 0;
 
 match:
-	ao2_cleanup(sub);
 	return 1;
 }
 
@@ -301,7 +310,8 @@ static int handle_msg_cb(struct ast_msg *msg)
 			continue;
 		}
 
-		if (!strncasecmp(sub->token, buf, strlen(sub->token))) {
+		if (!strcmp(sub->token, TECH_WILDCARD)
+		    || !strncasecmp(sub->token, buf, strlen(sub->token))) {
 			ast_rwlock_unlock(&tech_subscriptions_lock);
 			ao2_bump(sub);
 			endpoint_name = buf;
@@ -374,7 +384,7 @@ static struct message_subscription *get_subscription(struct ast_endpoint *endpoi
 {
 	struct message_subscription *sub = NULL;
 
-	if (!ast_strlen_zero(ast_endpoint_get_resource(endpoint))) {
+	if (endpoint && !ast_strlen_zero(ast_endpoint_get_resource(endpoint))) {
 		sub = ao2_find(endpoint_subscriptions, endpoint, OBJ_SEARCH_KEY);
 	} else {
 		int i;
@@ -383,7 +393,7 @@ static struct message_subscription *get_subscription(struct ast_endpoint *endpoi
 		for (i = 0; i < AST_VECTOR_SIZE(&tech_subscriptions); i++) {
 			sub = AST_VECTOR_GET(&tech_subscriptions, i);
 
-			if (sub && !strcmp(sub->token, ast_endpoint_get_tech(endpoint))) {
+			if (sub && !strcmp(sub->token, endpoint ? ast_endpoint_get_tech(endpoint) : TECH_WILDCARD)) {
 				ao2_bump(sub);
 				break;
 			}
@@ -400,10 +410,6 @@ void messaging_app_unsubscribe_endpoint(const char *app_name, const char *endpoi
 	RAII_VAR(struct ast_endpoint *, endpoint, NULL, ao2_cleanup);
 
 	endpoint = ast_endpoint_find_by_id(endpoint_id);
-	if (!endpoint) {
-		return;
-	}
-
 	sub = get_subscription(endpoint);
 	if (!sub) {
 		return;
@@ -417,11 +423,11 @@ void messaging_app_unsubscribe_endpoint(const char *app_name, const char *endpoi
 
 	AST_VECTOR_REMOVE_CMP_UNORDERED(&sub->applications, app_name, application_tuple_cmp, ao2_cleanup);
 	if (AST_VECTOR_SIZE(&sub->applications) == 0) {
-		if (!ast_strlen_zero(ast_endpoint_get_resource(endpoint))) {
+		if (endpoint && !ast_strlen_zero(ast_endpoint_get_resource(endpoint))) {
 			ao2_unlink(endpoint_subscriptions, sub);
 		} else {
 			ast_rwlock_wrlock(&tech_subscriptions_lock);
-			AST_VECTOR_REMOVE_CMP_UNORDERED(&tech_subscriptions, ast_endpoint_get_id(endpoint),
+			AST_VECTOR_REMOVE_CMP_UNORDERED(&tech_subscriptions, endpoint ? ast_endpoint_get_id(endpoint) : TECH_WILDCARD,
 				messaging_subscription_cmp, AST_VECTOR_ELEM_CLEANUP_NOOP);
 			ast_rwlock_unlock(&tech_subscriptions_lock);
 		}
@@ -429,9 +435,9 @@ void messaging_app_unsubscribe_endpoint(const char *app_name, const char *endpoi
 	ao2_unlock(sub);
 	ao2_ref(sub, -1);
 
-	ast_debug(3, "App '%s' unsubscribed to messages from endpoint '%s'\n", app_name, ast_endpoint_get_id(endpoint));
+	ast_debug(3, "App '%s' unsubscribed to messages from endpoint '%s'\n", app_name, endpoint ? ast_endpoint_get_id(endpoint) : "-- ALL --");
 	ast_test_suite_event_notify("StasisMessagingSubscription", "SubState: Unsubscribed\r\nAppName: %s\r\nToken: %s\r\n",
-		app_name, ast_endpoint_get_id(endpoint));
+		app_name, endpoint ? ast_endpoint_get_id(endpoint) : "ALL");
 }
 
 static struct message_subscription *get_or_create_subscription(struct ast_endpoint *endpoint)
@@ -442,12 +448,12 @@ static struct message_subscription *get_or_create_subscription(struct ast_endpoi
 		return sub;
 	}
 
-	sub = message_subscription_alloc(ast_endpoint_get_id(endpoint));
+	sub = message_subscription_alloc(endpoint ? ast_endpoint_get_id(endpoint) : TECH_WILDCARD);
 	if (!sub) {
 		return NULL;
 	}
 
-	if (!ast_strlen_zero(ast_endpoint_get_resource(endpoint))) {
+	if (endpoint && !ast_strlen_zero(ast_endpoint_get_resource(endpoint))) {
 		ao2_link(endpoint_subscriptions, sub);
 	} else {
 		ast_rwlock_wrlock(&tech_subscriptions_lock);
@@ -482,9 +488,9 @@ int messaging_app_subscribe_endpoint(const char *app_name, struct ast_endpoint *
 	AST_VECTOR_APPEND(&sub->applications, tuple);
 	ao2_unlock(sub);
 
-	ast_debug(3, "App '%s' subscribed to messages from endpoint '%s'\n", app_name, ast_endpoint_get_id(endpoint));
+	ast_debug(3, "App '%s' subscribed to messages from endpoint '%s'\n", app_name, endpoint ? ast_endpoint_get_id(endpoint) : "-- ALL --");
 	ast_test_suite_event_notify("StasisMessagingSubscription", "SubState: Subscribed\r\nAppName: %s\r\nToken: %s\r\n",
-		app_name, ast_endpoint_get_id(endpoint));
+		app_name, endpoint ? ast_endpoint_get_id(endpoint) : "ALL");
 
 	return 0;
 }
