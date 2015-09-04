@@ -464,7 +464,7 @@ static void endpoint_snapshot_dtor(void *obj)
 struct ast_endpoint_snapshot *ast_endpoint_snapshot_create(
 	struct ast_endpoint *endpoint)
 {
-	RAII_VAR(struct ast_endpoint_snapshot *, snapshot, NULL, ao2_cleanup);
+	struct ast_endpoint_snapshot *snapshot;
 	int channel_count;
 	struct ao2_iterator i;
 	void *obj;
@@ -500,7 +500,6 @@ struct ast_endpoint_snapshot *ast_endpoint_snapshot_create(
 	}
 	ao2_iterator_destroy(&i);
 
-	ao2_ref(snapshot, +1);
 	return snapshot;
 }
 
