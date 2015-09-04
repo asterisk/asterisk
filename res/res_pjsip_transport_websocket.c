@@ -419,7 +419,7 @@ static int load_module(void)
 	CHECK_PJSIP_MODULE_LOADED();
 
 	pjsip_transport_register_type(PJSIP_TRANSPORT_RELIABLE, "WS", 5060, &transport_type_ws);
-	pjsip_transport_register_type(PJSIP_TRANSPORT_RELIABLE, "WSS", 5060, &transport_type_wss);
+	pjsip_transport_register_type(PJSIP_TRANSPORT_RELIABLE | PJSIP_TRANSPORT_SECURE, "WSS", 5060, &transport_type_wss);
 
 	if (ast_sip_register_service(&websocket_module) != PJ_SUCCESS) {
 		return AST_MODULE_LOAD_DECLINE;
