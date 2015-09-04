@@ -21,6 +21,11 @@ Dialplan Functions
 
 ARI
 ------------------
+ * Two new endpoint related events are now available: PeerStatusChange and
+   ContactStatusChange. In particular, these events are useful when subscribing
+   to all event sources, as they provide additional endpoint related
+   information beyond the addition/removal of channels from an endpoint.
+
  * Added the ability to subscribe to all ARI events in Asterisk, regardless
    of whether the application 'controls' the resource. This is useful for
    scenarios where an ARI application merely wants to observe the system,
