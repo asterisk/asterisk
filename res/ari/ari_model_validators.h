@@ -1007,6 +1007,42 @@ int ast_ari_validate_channel_varset(struct ast_json *json);
 ari_validator ast_ari_validate_channel_varset_fn(void);
 
 /*!
+ * \brief Validator for ContactInfo.
+ *
+ * Detailed information about a contact on an endpoint.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_contact_info(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_contact_info().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_contact_info_fn(void);
+
+/*!
+ * \brief Validator for ContactStatusChange.
+ *
+ * The state of a contact on an endpoint has changed.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_contact_status_change(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_contact_status_change().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_contact_status_change_fn(void);
+
+/*!
  * \brief Validator for DeviceStateChanged.
  *
  * Notification that a device state has changed.
@@ -1113,6 +1149,42 @@ int ast_ari_validate_missing_params(struct ast_json *json);
  * See \ref ast_ari_model_validators.h for more details.
  */
 ari_validator ast_ari_validate_missing_params_fn(void);
+
+/*!
+ * \brief Validator for Peer.
+ *
+ * Detailed information about a remote peer that communicates with Asterisk.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_peer(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_peer().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_peer_fn(void);
+
+/*!
+ * \brief Validator for PeerStatusChange.
+ *
+ * The state of a peer associated with an endpoint has changed.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_peer_status_change(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_peer_status_change().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_peer_status_change_fn(void);
 
 /*!
  * \brief Validator for PlaybackFinished.
@@ -1546,6 +1618,17 @@ ari_validator ast_ari_validate_application_fn(void);
  * - channel: Channel
  * - value: string (required)
  * - variable: string (required)
+ * ContactInfo
+ * - aor: string (required)
+ * - contact_status: string (required)
+ * - roundtrip_usec: string
+ * - uri: string (required)
+ * ContactStatusChange
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date
+ * - contact_info: ContactInfo (required)
+ * - endpoint: Endpoint (required)
  * DeviceStateChanged
  * - type: string (required)
  * - application: string (required)
@@ -1575,6 +1658,18 @@ ari_validator ast_ari_validate_application_fn(void);
  * MissingParams
  * - type: string (required)
  * - params: List[string] (required)
+ * Peer
+ * - address: string
+ * - cause: string
+ * - peer_status: string (required)
+ * - port: string
+ * - time: string
+ * PeerStatusChange
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date
+ * - endpoint: Endpoint (required)
+ * - peer: Peer (required)
  * PlaybackFinished
  * - type: string (required)
  * - application: string (required)
