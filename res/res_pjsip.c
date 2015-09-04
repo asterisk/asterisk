@@ -1218,6 +1218,11 @@
                                         Identifier names are usually derived from and can be found in the endpoint
                                         identifier module itself (res_pjsip_endpoint_identifier_*)</synopsis>
 				</configOption>
+				<configOption name="default_from_user" default="asterisk">
+					<synopsis>When Asterisk generates an outgoing SIP request, the From header username will be
+                                        set to this value if there is no better option (such as CallerID) to be
+                                        used.</synopsis>
+				</configOption>
 			</configObject>
 		</configFile>
 	</configInfo>
@@ -2186,10 +2191,9 @@ static int sip_dialog_create_from(pj_pool_t *pool, pj_str_t *from, const char *u
 	pjsip_sip_uri *sip_uri;
 	pjsip_transport_type_e type = PJSIP_TRANSPORT_UNSPECIFIED;
 	int local_port;
-	char uuid_str[AST_UUID_STR_LEN];
 
 	if (ast_strlen_zero(user)) {
-		user = ast_uuid_generate_str(uuid_str, sizeof(uuid_str));
+		user = ast_sip_get_default_from_user();
 	}
 
 	/* Parse the provided target URI so we can determine what transport it will end up using */
