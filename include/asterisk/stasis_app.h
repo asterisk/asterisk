@@ -92,6 +92,21 @@ struct ao2_container *stasis_app_get_all(void);
 int stasis_app_register(const char *app_name, stasis_app_cb handler, void *data);
 
 /*!
+ * \brief Register a new Stasis application that receives all Asterisk events.
+ *
+ * If an application is already registered with the given name, the old
+ * application is sent a 'replaced' message and unregistered.
+ *
+ * \param app_name Name of this application.
+ * \param handler Callback for application messages.
+ * \param data Data blob to pass to the callback. Must be AO2 managed.
+ *
+ * \return 0 for success
+ * \return -1 for error.
+ */
+int stasis_app_register_all(const char *app_name, stasis_app_cb handler, void *data);
+
+/*!
  * \brief Unregister a Stasis application.
  * \param app_name Name of the application to unregister.
  */

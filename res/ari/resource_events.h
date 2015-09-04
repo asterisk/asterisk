@@ -47,6 +47,8 @@ struct ast_ari_events_event_websocket_args {
 	size_t app_count;
 	/*! Parsing context for app. */
 	char *app_parse;
+	/*! Subscribe to all Asterisk events. If provided, the applications listed will be subscribed to all events, effectively disabling the application specific subscriptions. Default is 'false'. */
+	int subscribe_all;
 };
 
 /*!

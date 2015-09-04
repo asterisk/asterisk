@@ -388,6 +388,7 @@ static int permanent_uri_handler(const struct aco_option *opt, struct ast_variab
 		}
 		ao2_ref(status, -1);
 
+		ast_debug(4, "Adding permanent contact %s to AoR '%s'\n", contact_uri, aor_id);
 		ast_string_field_set(contact, uri, contact_uri);
 		ao2_link(aor->permanent_contacts, contact);
 		ao2_ref(contact, -1);
