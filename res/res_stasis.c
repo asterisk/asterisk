@@ -109,6 +109,11 @@ struct ao2_container *app_bridges_moh;
 
 struct ao2_container *app_bridges_playback;
 
+/*!
+ * \internal \brief List of registered event sources.
+ */
+AST_RWLIST_HEAD_STATIC(event_sources, stasis_app_event_source);
+
 static struct ast_json *stasis_end_to_json(struct stasis_message *message,
 		const struct stasis_message_sanitizer *sanitize)
 {
@@ -1469,7 +1474,7 @@ struct ao2_container *stasis_app_get_all(void)
 	return ao2_bump(apps);
 }
 
-int stasis_app_register(const char *app_name, stasis_app_cb handler, void *data)
+static int __stasis_app_register(const char *app_name, stasis_app_cb handler, void *data, int all_events)
 {
 	RAII_VAR(struct stasis_app *, app, NULL, ao2_cleanup);
 
@@ -1482,8 +1487,20 @@ int stasis_app_register(const char *app_name, stasis_app_cb handler, void *data)
 	if (app) {
 		app_update(app, handler, data);
 	} else {
-		app = app_create(app_name, handler, data);
+		app = app_create(app_name, handler, data, all_events ? STASIS_APP_SUBSCRIBE_ALL : STASIS_APP_SUBSCRIBE_MANUAL);
 		if (app) {
+			if (all_events) {
+				struct stasis_app_event_source *source;
+				SCOPED_LOCK(lock, &event_sources, AST_RWLIST_RDLOCK, AST_RWLIST_UNLOCK);
+
+				AST_LIST_TRAVERSE(&event_sources, source, next) {
+					if (!source->subscribe) {
+						continue;
+					}
+
+					source->subscribe(app, NULL);
+				}
+			}
 			ao2_link_flags(apps_registry, app, OBJ_NOLOCK);
 		} else {
 			ao2_unlock(apps_registry);
@@ -1497,6 +1514,16 @@ int stasis_app_register(const char *app_name, stasis_app_cb handler, void *data)
 	cleanup();
 	ao2_unlock(apps_registry);
 	return 0;
+}
+
+int stasis_app_register(const char *app_name, stasis_app_cb handler, void *data)
+{
+	return __stasis_app_register(app_name, handler, data, 0);
+}
+
+int stasis_app_register_all(const char *app_name, stasis_app_cb handler, void *data)
+{
+	return __stasis_app_register(app_name, handler, data, 1);
 }
 
 void stasis_app_unregister(const char *app_name)
@@ -1525,11 +1552,6 @@ void stasis_app_unregister(const char *app_name)
 	 */
 	cleanup();
 }
-
-/*!
- * \internal \brief List of registered event sources.
- */
-AST_RWLIST_HEAD_STATIC(event_sources, stasis_app_event_source);
 
 void stasis_app_register_event_source(struct stasis_app_event_source *obj)
 {
@@ -1727,8 +1749,8 @@ static enum stasis_app_subscribe_res app_subscribe(
 
 	ast_debug(3, "%s: Checking %s\n", app_name, uri);
 
-	if (!event_source->find ||
-	    (!(obj = event_source->find(app, uri + strlen(event_source->scheme))))) {
+	if (!ast_strlen_zero(uri + strlen(event_source->scheme)) &&
+	    (!event_source->find || (!(obj = event_source->find(app, uri + strlen(event_source->scheme)))))) {
 		ast_log(LOG_WARNING, "Event source not found: %s\n", uri);
 		return STASIS_ASR_EVENT_SOURCE_NOT_FOUND;
 	}
@@ -2062,6 +2084,7 @@ static int load_module(void)
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Stasis application support",
+	.load_pri = AST_MODPRI_APP_DEPEND,
 	.support_level = AST_MODULE_SUPPORT_CORE,
 	.load = load_module,
 	.unload = unload_module,

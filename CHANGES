@@ -19,6 +19,21 @@ Dialplan Functions
    return the SIP Call-ID associated with the INVITE request that established
    the PJSIP channel.
 
+ARI
+------------------
+ * Added the ability to subscribe to all ARI events in Asterisk, regardless
+   of whether the application 'controls' the resource. This is useful for
+   scenarios where an ARI application merely wants to observe the system,
+   as opposed to control it. There are two ways to accomplish this:
+   (1) Via the WebSocket connection URI. A new query paramter, 'subscribeAll',
+       has been added that, when present and True, will subscribe all
+       specified applications to all ARI event sources in Asterisk.
+   (2) Via the applications resource. An ARI client can, at any time, subscribe
+       to all resources in an event source merely by not providing an explicit
+       resource. For example, subscribing to an event source of 'channels:'
+       as opposed to 'channels:12345' will subscribe the application to all
+       channels.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.4.0 to Asterisk 13.5.0 ------------
 ------------------------------------------------------------------------------

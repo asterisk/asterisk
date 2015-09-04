@@ -36,6 +36,19 @@
  */
 struct stasis_app;
 
+enum stasis_app_subscription_model {
+	/*
+	 * \brief An application must manually subscribe to each
+	 * resource that it cares about. This is the default approach.
+	 */
+	STASIS_APP_SUBSCRIBE_MANUAL,
+	/*
+	 * \brief An application is automatically subscribed to all
+	 * resources in Asterisk, even if it does not control them.
+	 */
+	STASIS_APP_SUBSCRIBE_ALL
+};
+
 /*!
  * \brief Create a res_stasis application.
  *
@@ -45,7 +58,7 @@ struct stasis_app;
  * \return New \c res_stasis application.
  * \return \c NULL on error.
  */
-struct stasis_app *app_create(const char *name, stasis_app_cb handler, void *data);
+struct stasis_app *app_create(const char *name, stasis_app_cb handler, void *data, enum stasis_app_subscription_model subscription_model);
 
 /*!
  * \brief Tears down an application.
