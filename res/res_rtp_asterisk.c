@@ -704,8 +704,7 @@ static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 	ao2_iterator_destroy(&i);
 
 	if (has_rtp && has_rtcp &&
-	    pj_ice_sess_create_check_list(rtp->ice, &ufrag, &passwd, ao2_container_count(
-						  rtp->ice_active_remote_candidates), &candidates[0]) == PJ_SUCCESS) {
+	    pj_ice_sess_create_check_list(rtp->ice, &ufrag, &passwd, cand_cnt, &candidates[0]) == PJ_SUCCESS) {
 		ast_test_suite_event_notify("ICECHECKLISTCREATE", "Result: SUCCESS");
 		pj_ice_sess_start_check(rtp->ice);
 		pj_timer_heap_poll(timer_heap, NULL);
