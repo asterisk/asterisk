@@ -148,9 +148,11 @@ static void app_handler(void *data, const char *app_name,
  * \brief Register for all of the apps given.
  * \param session Session info struct.
  * \param app_name Name of application to register.
+ * \param register_handler Pointer to the application registration handler
  */
 static int session_register_app(struct event_session *session,
-				 const char *app_name)
+				 const char *app_name,
+				 int (* register_handler)(const char *, stasis_app_cb handler, void *data))
 {
 	SCOPED_AO2LOCK(lock, session);
 
@@ -167,7 +169,7 @@ static int session_register_app(struct event_session *session,
 		return -1;
 	}
 
-	stasis_app_register(app_name, app_handler, session);
+	register_handler(app_name, app_handler, session);
 
 	return 0;
 }
@@ -178,6 +180,7 @@ int ast_ari_websocket_events_event_websocket_attempted(struct ast_tcptls_session
 {
 	int res = 0;
 	size_t i, j;
+	int (* register_handler)(const char *, stasis_app_cb handler, void *data);
 
 	ast_debug(3, "/events WebSocket attempted\n");
 
@@ -186,13 +189,19 @@ int ast_ari_websocket_events_event_websocket_attempted(struct ast_tcptls_session
 		return -1;
 	}
 
+	if (args->subscribe_all) {
+		register_handler = &stasis_app_register_all;
+	} else {
+		register_handler = &stasis_app_register;
+	}
+
 	for (i = 0; i < args->app_count; ++i) {
 		if (ast_strlen_zero(args->app[i])) {
 			res = -1;
 			break;
 		}
 
-		res |= stasis_app_register(args->app[i], app_handler, NULL);
+		res |= register_handler(args->app[i], app_handler, NULL);
 	}
 
 	if (res) {
@@ -213,6 +222,7 @@ void ast_ari_websocket_events_event_websocket_established(struct ast_ari_websock
 	struct ast_json *msg;
 	int res;
 	size_t i;
+	int (* register_handler)(const char *, stasis_app_cb handler, void *data);
 
 	ast_debug(3, "/events WebSocket connection\n");
 
@@ -222,12 +232,18 @@ void ast_ari_websocket_events_event_websocket_established(struct ast_ari_websock
 		return;
 	}
 
+	if (args->subscribe_all) {
+		register_handler = &stasis_app_register_all;
+	} else {
+		register_handler = &stasis_app_register;
+	}
+
 	res = 0;
 	for (i = 0; i < args->app_count; ++i) {
 		if (ast_strlen_zero(args->app[i])) {
 			continue;
 		}
-		res |= session_register_app(session, args->app[i]);
+		res |= session_register_app(session, args->app[i], register_handler);
 	}
 
 	if (ao2_container_count(session->websocket_apps) == 0) {
