@@ -2018,6 +2018,17 @@ char *ast_sip_get_debug(void);
  */
 char *ast_sip_get_endpoint_identifier_order(void);
 
+/*!
+ * \brief Retrieve the global default from user.
+ *
+ * This is the value placed in outbound requests' From header if there
+ * is no better option (such as an endpoint-configured from_user or
+ * caller ID number).
+ *
+ * \retval The global default_from_user value.
+ */
+const char *ast_sip_get_default_from_user(void);
+
 /*! \brief Determines whether the res_pjsip module is loaded */
 #define CHECK_PJSIP_MODULE_LOADED()				\
 	do {							\
