@@ -9,6 +9,17 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.5.0 to Asterisk 13.6.0 ------------
+------------------------------------------------------------------------------
+
+Dialplan Functions
+------------------
+ * The CHANNEL function, when used on a PJSIP channel, now exposes a 'call-id'
+   extraction option when using with the 'pjsip' signalling option. It will
+   return the SIP Call-ID associated with the INVITE request that established
+   the PJSIP channel.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.4.0 to Asterisk 13.5.0 ------------
 ------------------------------------------------------------------------------
 
