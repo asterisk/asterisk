@@ -34,6 +34,7 @@
 #define DEFAULT_DEBUG "no"
 #define DEFAULT_ENDPOINT_IDENTIFIER_ORDER "ip,username,anonymous"
 #define DEFAULT_MAX_INITIAL_QUALIFY_TIME 0
+#define DEFAULT_FROM_USER "asterisk"
 
 static char default_useragent[256];
 
@@ -46,6 +47,8 @@ struct global_config {
 		AST_STRING_FIELD(debug);
 		/*! Order by which endpoint identifiers are checked (comma separated list) */
 		AST_STRING_FIELD(endpoint_identifier_order);
+		/*! User name to place in From header if there is no better option */
+		AST_STRING_FIELD(default_from_user);
 	);
 	/* Value to put in Max-Forwards header */
 	unsigned int max_forwards;
@@ -179,6 +182,22 @@ unsigned int ast_sip_get_max_initial_qualify_time(void)
 	return time;
 }
 
+const char *ast_sip_get_default_from_user(void)
+{
+	const char *from_user;
+	struct global_config *cfg;
+
+	cfg = get_global_cfg();
+	if (!cfg) {
+		return DEFAULT_FROM_USER;
+	}
+
+	from_user = cfg->default_from_user;
+	ao2_ref(cfg, -1);
+
+	return from_user;
+}
+
 /*!
  * \internal
  * \brief Observer to set default global object if none exist.
@@ -292,6 +311,8 @@ int ast_sip_initialize_sorcery_global(void)
 	ast_sorcery_object_field_register(sorcery, "global", "max_initial_qualify_time",
 		__stringify(DEFAULT_MAX_INITIAL_QUALIFY_TIME),
 		OPT_UINT_T, 0, FLDSET(struct global_config, max_initial_qualify_time));
+	ast_sorcery_object_field_register(sorcery, "global", "default_from_user", DEFAULT_FROM_USER,
+		OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, default_from_user));
 
 	if (ast_sorcery_instance_observer_add(sorcery, &observer_callbacks_global)) {
 		return -1;
