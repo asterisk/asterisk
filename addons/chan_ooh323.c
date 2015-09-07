@@ -4080,6 +4080,7 @@ int ooh323_destroy(struct ooh323_pvt *p)
 		}
 
 		if (cur->rtp) {
+			ast_rtp_instance_stop(cur->rtp);
 			ast_rtp_instance_destroy(cur->rtp);
 			cur->rtp = NULL;
 		}
