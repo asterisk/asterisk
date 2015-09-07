@@ -47,6 +47,41 @@ static void *aor_alloc(const char *name)
 	return aor;
 }
 
+/*! \brief Internal callback function which destroys the specified contact */
+static int destroy_contact(void *obj, void *arg, int flags)
+{
+	struct ast_sip_contact *contact = obj;
+
+	ast_sip_location_delete_contact(contact);
+
+	return CMP_MATCH;
+}
+
+static void aor_deleted_observer(const void *object)
+{
+	const char *aor_id = ast_sorcery_object_get_id(object);
+	/* Give enough space for ^ at the beginning and ;@ at the end, since that is our object naming scheme */
+	char regex[strlen(aor_id) + 4];
+	struct ao2_container *contacts;
+
+	snprintf(regex, sizeof(regex), "^%s;@", aor_id);
+
+	if (!(contacts = ast_sorcery_retrieve_by_regex(ast_sip_get_sorcery(), "contact", regex))) {
+		return;
+	}
+
+	/* Destroy any contacts that may still exist that were made for this AoR */
+	ao2_callback(contacts, OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK, destroy_contact, NULL);
+
+	ao2_ref(contacts, -1);
+}
+
+/*! \brief Observer for contacts so state can be updated on respective endpoints */
+static const struct ast_sorcery_observer aor_observer = {
+	.deleted = aor_deleted_observer,
+};
+
+
 /*! \brief Destructor for contact */
 static void contact_destroy(void *obj)
 {
@@ -910,6 +945,8 @@ int ast_sip_initialize_sorcery_location(void)
 		return -1;
 	}
 
+	ast_sorcery_observer_add(sorcery, "aor", &aor_observer);
+
 	ast_sorcery_object_field_register(sorcery, "contact", "type", "", OPT_NOOP_T, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "contact", "uri", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_contact, uri));
 	ast_sorcery_object_field_register(sorcery, "contact", "path", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_contact, path));
@@ -971,6 +1008,7 @@ int ast_sip_initialize_sorcery_location(void)
 
 int ast_sip_destroy_sorcery_location(void)
 {
+	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "aor", &aor_observer);
 	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
 	ast_sip_unregister_cli_formatter(contact_formatter);
 	ast_sip_unregister_cli_formatter(aor_formatter);
