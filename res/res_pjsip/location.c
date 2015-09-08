@@ -234,8 +234,10 @@ int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri,
 {
 	char name[MAX_OBJECT_FIELD * 2 + 3];
 	RAII_VAR(struct ast_sip_contact *, contact, NULL, ao2_cleanup);
+	char hash[33];
 
-	snprintf(name, sizeof(name), "%s;@%s", ast_sorcery_object_get_id(aor), uri);
+	ast_md5_hash(hash, uri);
+	snprintf(name, sizeof(name), "%s;@%s", ast_sorcery_object_get_id(aor), hash);
 
 	if (!(contact = ast_sorcery_alloc(ast_sip_get_sorcery(), "contact", name))) {
 		return -1;
