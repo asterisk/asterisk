@@ -1297,6 +1297,10 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	session->contact = ao2_bump(contact);
 	session->inv_session = inv_session;
 	session->req_caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!session->req_caps) {
+		/* Release the ref held by session->inv_session */
+		ao2_ref(session, -1);
+	}
 
 	if ((endpoint->dtmf == AST_SIP_DTMF_INBAND) || (endpoint->dtmf == AST_SIP_DTMF_AUTO)) {
 		dsp_features |= DSP_FEATURE_DIGIT_DETECT;
