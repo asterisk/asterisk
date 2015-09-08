@@ -381,6 +381,13 @@ int ast_sched_add_variable(struct ast_sched_context *con, int when, ast_sched_cb
 	ast_mutex_lock(&con->lock);
 	if ((tmp = sched_alloc(con))) {
 		tmp->id = con->eventcnt++;
+		/* Overflow has been observed on busy systems in the past, so be sure
+		 * not to set tmp->id to a negative value if the scheduler context
+		 * is long-running.
+		 */
+		if (tmp->id < 0) {
+			tmp->id = con->eventcnt = 0;
+		}
 		tmp->callback = callback;
 		tmp->data = data;
 		tmp->resched = when;
