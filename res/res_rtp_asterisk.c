@@ -588,12 +588,16 @@ static int ice_reset_session(struct ast_rtp_instance *instance)
 	pj_ice_sess_role role = rtp->ice->role;
 	int res;
 
+	ast_debug(3, "Resetting ICE for RTP instance '%p'\n", instance);
 	if (!rtp->ice->is_nominating && !rtp->ice->is_complete) {
+		ast_debug(3, "Nevermind. ICE isn't ready for a reset\n");
 		return 0;
 	}
 
+	ast_debug(3, "Stopping ICE for RTP instance '%p'\n", instance);
 	ast_rtp_ice_stop(instance);
 
+	ast_debug(3, "Recreating ICE session %s (%d) for RTP instance '%p'\n", ast_sockaddr_stringify(&rtp->ice_original_rtp_addr), rtp->ice_port, instance);
 	res = ice_create(instance, &rtp->ice_original_rtp_addr, rtp->ice_port, 1);
 	if (!res) {
 		/* Preserve the role that the old ICE session used */
@@ -646,6 +650,7 @@ static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 	/* Check for equivalence in the lists */
 	if (rtp->ice_active_remote_candidates &&
 			!ice_candidates_compare(rtp->ice_proposed_remote_candidates, rtp->ice_active_remote_candidates)) {
+		ast_debug(3, "Proposed == active candidates for RTP instance '%p'\n", instance);
 		ao2_cleanup(rtp->ice_proposed_remote_candidates);
 		rtp->ice_proposed_remote_candidates = NULL;
 		return;
@@ -692,8 +697,10 @@ static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 		}
 
 		if (candidate->id == AST_RTP_ICE_COMPONENT_RTP && rtp->turn_rtp) {
+			ast_debug(3, "RTP candidate %s (%p)\n", ast_sockaddr_stringify(&candidate->address), instance);
 			pj_turn_sock_set_perm(rtp->turn_rtp, 1, &candidates[cand_cnt].addr, 1);
 		} else if (candidate->id == AST_RTP_ICE_COMPONENT_RTCP && rtp->turn_rtcp) {
+			ast_debug(3, "RTCP candidate %s (%p)\n", ast_sockaddr_stringify(&candidate->address), instance);
 			pj_turn_sock_set_perm(rtp->turn_rtcp, 1, &candidates[cand_cnt].addr, 1);
 		}
 
@@ -703,20 +710,40 @@ static void ast_rtp_ice_start(struct ast_rtp_instance *instance)
 
 	ao2_iterator_destroy(&i);
 
-	if (has_rtp && has_rtcp &&
-	    pj_ice_sess_create_check_list(rtp->ice, &ufrag, &passwd, cand_cnt, &candidates[0]) == PJ_SUCCESS) {
-		ast_test_suite_event_notify("ICECHECKLISTCREATE", "Result: SUCCESS");
-		pj_ice_sess_start_check(rtp->ice);
-		pj_timer_heap_poll(timer_heap, NULL);
-		rtp->strict_rtp_state = STRICT_RTP_OPEN;
-		return;
+	if (cand_cnt < ao2_container_count(rtp->ice_active_remote_candidates)) {
+		ast_log(LOG_WARNING, "Lost %d ICE candidates. Consider increasing PJ_ICE_MAX_CAND in PJSIP (%p)\n",
+			ao2_container_count(rtp->ice_active_remote_candidates) - cand_cnt, instance);
+	}
+
+	if (!has_rtp) {
+		ast_log(LOG_WARNING, "No RTP candidates; skipping ICE checklist (%p)\n", instance);
+	}
+
+	if (!has_rtcp) {
+		ast_log(LOG_WARNING, "No RTCP candidates; skipping ICE checklist (%p)\n", instance);
+	}
+
+	if (has_rtp && has_rtcp) {
+		pj_status_t res = pj_ice_sess_create_check_list(rtp->ice, &ufrag, &passwd, cand_cnt, &candidates[0]);
+		char reason[80];
+
+		if (res == PJ_SUCCESS) {
+			ast_debug(3, "Successfully created ICE checklist (%p)\n", instance);
+			ast_test_suite_event_notify("ICECHECKLISTCREATE", "Result: SUCCESS");
+			pj_ice_sess_start_check(rtp->ice);
+			pj_timer_heap_poll(timer_heap, NULL);
+			rtp->strict_rtp_state = STRICT_RTP_OPEN;
+			return;
+		}
+
+		pj_strerror(res, reason, sizeof(reason));
+		ast_log(LOG_WARNING, "Failed to create ICE session check list: %s (%p)\n", reason, instance);
 	}
 
 	ast_test_suite_event_notify("ICECHECKLISTCREATE", "Result: FAILURE");
 
 	/* even though create check list failed don't stop ice as
 	   it might still work */
-	ast_debug(1, "Failed to create ICE session check list\n");
 	/* however we do need to reset remote candidates since
 	   this function may be re-entered */
 	ao2_ref(rtp->ice_active_remote_candidates, -1);
@@ -766,7 +793,11 @@ static void ast_rtp_ice_set_role(struct ast_rtp_instance *instance, enum ast_rtp
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 
+	ast_debug(3, "Set role to %s (%p)\n",
+		role == AST_RTP_ICE_ROLE_CONTROLLED ? "CONTROLLED" : "CONTROLLING", instance);
+
 	if (!rtp->ice) {
+		ast_log(LOG_WARNING, "Set role failed; no ice instance (%p)\n", instance);
 		return;
 	}
 
@@ -2456,7 +2487,7 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
 	     create_new_socket("RTP",
 			       ast_sockaddr_is_ipv4(addr) ? AF_INET  :
 			       ast_sockaddr_is_ipv6(addr) ? AF_INET6 : -1)) < 0) {
-		ast_debug(1, "Failed to create a new socket for RTP instance '%p'\n", instance);
+		ast_log(LOG_WARNING, "Failed to create a new socket for RTP instance '%p'\n", instance);
 		ast_free(rtp);
 		return -1;
 	}
@@ -2497,6 +2528,7 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
 
 	/* Create an ICE session for ICE negotiation */
 	if (icesupport) {
+		ast_debug(3, "Creating ICE session %s (%d) for RTP instance '%p'\n", ast_sockaddr_stringify(addr), x, instance);
 		if (ice_create(instance, addr, x, 0)) {
 			ast_log(LOG_NOTICE, "Failed to start ICE session\n");
 		} else {
