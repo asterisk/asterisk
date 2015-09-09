@@ -1171,6 +1171,7 @@ static void shutdown_subscriptions(struct ast_sip_subscription *sub)
 		return;
 	}
 
+	/* We notify subscription shutdown only on the tree leaves. */
 	if (sub->handler->subscription_shutdown) {
 		sub->handler->subscription_shutdown(sub);
 	}
@@ -2523,6 +2524,7 @@ static int generate_initial_notify(struct ast_sip_subscription *sub)
 		return 0;
 	}
 
+	/* We notify subscription establishment only on the tree leaves. */
 	if (sub->handler->notifier->subscription_established(sub)) {
 		return -1;
 	}
