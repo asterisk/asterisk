@@ -758,14 +758,14 @@ int ooEncodeH225Message(OOH323CallData *call, Q931Message *pq931Msg,
       i += pq931Msg->causeIE->length;
    } 
       
-   /*Add progress indicator IE 
-   if(pq931Msg->messageType == Q931AlertingMsg || pq931Msg->messageType == Q931CallProceedingMsg)
+   /* Add progress indicator IE */
+   if(pq931Msg->messageType == Q931AlertingMsg || pq931Msg->messageType == Q931ProgressMsg)
    {
       msgbuf[i++] = Q931ProgressIndicatorIE;
       msgbuf[i++] = 2; //Length is 2 octet
       msgbuf[i++] = 0x80; //PI=8
       msgbuf[i++] = 0x88;
-  }*/
+   }
 
    /*Add display ie. for all but Status message as per ASTERISK-18748 */
    if(!ooUtilsIsStrEmpty(call->ourCallerId) && (pq931Msg->messageType != Q931StatusMsg))
