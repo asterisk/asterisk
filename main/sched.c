@@ -62,9 +62,26 @@ ASTERISK_REGISTER_FILE()
 
 AST_THREADSTORAGE(last_del_id);
 
+/*!
+ * \brief Scheduler ID holder
+ *
+ * These form a queue on a scheduler context. When a new
+ * scheduled item is created, a sched_id is popped off the
+ * queue and its id is assigned to the new scheduled item.
+ * When the scheduled task is complete, the sched_id on that
+ * task is then pushed to the back of the queue to be re-used
+ * on some future scheduled item.
+ */
+struct sched_id {
+	/*! Immutable ID number that is copied onto the scheduled task */
+	int id;
+	AST_LIST_ENTRY(sched_id) list;
+};
+
 struct sched {
 	AST_LIST_ENTRY(sched) list;
-	int id;                       /*!< ID number of event */
+	/*! The ID that has been popped off the scheduler context's queue */
+	struct sched_id *sched_id;
 	struct timeval when;          /*!< Absolute time event should take place */
 	int resched;                  /*!< When to reschedule */
 	int variable;                 /*!< Use return value from callback to reschedule */
@@ -99,6 +116,10 @@ struct ast_sched_context {
 	AST_LIST_HEAD_NOLOCK(, sched) schedc;   /*!< Cache of unused schedule structures and how many */
 	unsigned int schedccnt;
 #endif
+	/*! Queue of scheduler task IDs to assign */
+	AST_LIST_HEAD_NOLOCK(, sched_id) id_queue;
+	/*! The number of IDs in the id_queue */
+	int id_queue_size;
 };
 
 static void *sched_run(void *data)
@@ -208,6 +229,8 @@ struct ast_sched_context *ast_sched_context_create(void)
 	ast_mutex_init(&tmp->lock);
 	tmp->eventcnt = 1;
 
+	AST_LIST_HEAD_INIT_NOLOCK(&tmp->id_queue);
+
 	if (!(tmp->sched_heap = ast_heap_create(8, sched_time_cmp,
 			offsetof(struct sched, __heap_index)))) {
 		ast_sched_context_destroy(tmp);
@@ -219,6 +242,11 @@ struct ast_sched_context *ast_sched_context_create(void)
 
 static void sched_free(struct sched *task)
 {
+	/* task->sched_id will be NULL most of the time, but when the
+	 * scheduler context shuts down, it will free all scheduled
+	 * tasks, and in that case, the task->sched_id will be non-NULL
+	 */
+	ast_free(task->sched_id);
 	ast_cond_destroy(&task->cond);
 	ast_free(task);
 }
@@ -226,6 +254,7 @@ static void sched_free(struct sched *task)
 void ast_sched_context_destroy(struct ast_sched_context *con)
 {
 	struct sched *s;
+	struct sched_id *sid;
 
 	sched_thread_destroy(con);
 	con->sched_thread = NULL;
@@ -246,10 +275,83 @@ void ast_sched_context_destroy(struct ast_sched_context *con)
 		con->sched_heap = NULL;
 	}
 
+	while ((sid = AST_LIST_REMOVE_HEAD(&con->id_queue, list))) {
+		ast_free(sid);
+	}
+
 	ast_mutex_unlock(&con->lock);
 	ast_mutex_destroy(&con->lock);
 
 	ast_free(con);
+}
+
+#define ID_QUEUE_INCREMENT 16
+
+/*!
+ * \brief Add new scheduler IDs to the queue.
+ *
+ * \retval The number of IDs added to the queue
+ */
+static int add_ids(struct ast_sched_context *con)
+{
+	int new_size;
+	int original_size;
+	int i;
+
+	original_size = con->id_queue_size;
+	/* So we don't go overboard with the mallocs here, we'll just up
+	 * the size of the list by a fixed amount each time instead of
+	 * multiplying the size by any particular factor
+	 */
+	new_size = original_size + ID_QUEUE_INCREMENT;
+	if (new_size < 0) {
+		/* Overflow. Cap it at INT_MAX. */
+		new_size = INT_MAX;
+	}
+	for (i = original_size; i < new_size; ++i) {
+		struct sched_id *new_id;
+
+		new_id = ast_calloc(1, sizeof(*new_id));
+		if (!new_id) {
+			continue;
+		}
+		new_id->id = i;
+		AST_LIST_INSERT_TAIL(&con->id_queue, new_id, list);
+		++con->id_queue_size;
+	}
+
+	return con->id_queue_size - original_size;
+}
+
+static int set_sched_id(struct ast_sched_context *con, struct sched *new_sched)
+{
+	if (AST_LIST_EMPTY(&con->id_queue) && (add_ids(con) == 0)) {
+		return -1;
+	}
+
+	new_sched->sched_id = AST_LIST_REMOVE_HEAD(&con->id_queue, list);
+	return 0;
+}
+
+static void sched_release(struct ast_sched_context *con, struct sched *tmp)
+{
+
+	if (tmp->sched_id) {
+		AST_LIST_INSERT_TAIL(&con->id_queue, tmp->sched_id, list);
+		tmp->sched_id = NULL;
+	}
+
+	/*
+	 * Add to the cache, or just free() if we
+	 * already have too many cache entries
+	 */
+#ifdef SCHED_MAX_CACHE
+	if (con->schedccnt < SCHED_MAX_CACHE) {
+		AST_LIST_INSERT_HEAD(&con->schedc, tmp, list);
+		con->schedccnt++;
+	} else
+#endif
+		sched_free(tmp);
 }
 
 static struct sched *sched_alloc(struct ast_sched_context *con)
@@ -263,30 +365,22 @@ static struct sched *sched_alloc(struct ast_sched_context *con)
 #ifdef SCHED_MAX_CACHE
 	if ((tmp = AST_LIST_REMOVE_HEAD(&con->schedc, list))) {
 		con->schedccnt--;
-	} else 
+	} else
 #endif
 	{
 		tmp = ast_calloc(1, sizeof(*tmp));
+		if (!tmp) {
+			return NULL;
+		}
 		ast_cond_init(&tmp->cond, NULL);
 	}
 
+	if (set_sched_id(con, tmp)) {
+		sched_release(con, tmp);
+		return NULL;
+	}
+
 	return tmp;
-}
-
-static void sched_release(struct ast_sched_context *con, struct sched *tmp)
-{
-	/*
-	 * Add to the cache, or just free() if we
-	 * already have too many cache entries
-	 */
-
-#ifdef SCHED_MAX_CACHE
-	if (con->schedccnt < SCHED_MAX_CACHE) {
-		AST_LIST_INSERT_HEAD(&con->schedc, tmp, list);
-		con->schedccnt++;
-	} else
-#endif
-		sched_free(tmp);
 }
 
 void ast_sched_clean_by_callback(struct ast_sched_context *con, ast_sched_cb match, ast_sched_cb cleanup_cb)
@@ -388,7 +482,7 @@ int ast_sched_add_variable(struct ast_sched_context *con, int when, ast_sched_cb
 
 	ast_mutex_lock(&con->lock);
 	if ((tmp = sched_alloc(con))) {
-		tmp->id = con->eventcnt++;
+		con->eventcnt++;
 		tmp->callback = callback;
 		tmp->data = data;
 		tmp->resched = when;
@@ -399,7 +493,7 @@ int ast_sched_add_variable(struct ast_sched_context *con, int when, ast_sched_cb
 			sched_release(con, tmp);
 		} else {
 			schedule(con, tmp);
-			res = tmp->id;
+			res = tmp->sched_id->id;
 		}
 	}
 #ifdef DUMP_SCHEDULER
@@ -437,7 +531,7 @@ static struct sched *sched_find(struct ast_sched_context *con, int id)
 	for (x = 1; x <= heap_size; x++) {
 		struct sched *cur = ast_heap_peek(con->sched_heap, x);
 
-		if (cur->id == id) {
+		if (cur->sched_id->id == id) {
 			return cur;
 		}
 	}
@@ -488,16 +582,16 @@ int _ast_sched_del(struct ast_sched_context *con, int id, const char *file, int 
 	s = sched_find(con, id);
 	if (s) {
 		if (!ast_heap_remove(con->sched_heap, s)) {
-			ast_log(LOG_WARNING,"sched entry %d not in the sched heap?\n", s->id);
+			ast_log(LOG_WARNING,"sched entry %d not in the sched heap?\n", s->sched_id->id);
 		}
 		sched_release(con, s);
-	} else if (con->currently_executing && (id == con->currently_executing->id)) {
+	} else if (con->currently_executing && (id == con->currently_executing->sched_id->id)) {
 		s = con->currently_executing;
 		s->deleted = 1;
 		/* Wait for executing task to complete so that caller of ast_sched_del() does not
 		 * free memory out from under the task.
 		 */
-		while (con->currently_executing && (id == con->currently_executing->id)) {
+		while (con->currently_executing && (id == con->currently_executing->sched_id->id)) {
 			ast_cond_wait(&s->cond, &con->lock);
 		}
 		/* Do not sched_release() here because ast_sched_runq() will do it */
@@ -586,7 +680,7 @@ void ast_sched_dump(struct ast_sched_context *con)
 		q = ast_heap_peek(con->sched_heap, x);
 		delta = ast_tvsub(q->when, when);
 		ast_debug(1, "|%.4d | %-15p | %-15p | %.6ld : %.6ld |\n",
-			q->id,
+			q->sched_id->id,
 			q->callback,
 			q->data,
 			(long)delta.tv_sec,
