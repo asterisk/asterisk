@@ -694,6 +694,68 @@ static struct park_announce_subscription_data *park_announce_subscription_data_c
 	return pa_data;
 }
 
+/*! \internal
+ * \brief Gathers inheritable channel variables from a channel by name.
+ *
+ * \param oh outgoing helper struct we are bestowing inheritable variables to
+ * \param channel_id name or uniqueID of the channel to inherit variables from
+ *
+ * \return Nothing
+ */
+static void inherit_channel_vars_from_id(struct outgoing_helper *oh, const char *channel_id)
+{
+	struct ast_channel *chan = ast_channel_get_by_name(channel_id);
+	struct ast_var_t *current;
+	struct ast_variable *newvar;
+	const char *varname;
+	int vartype;
+
+
+	if (!chan) {
+		/* Already gone */
+		return;
+	}
+
+	ast_channel_lock(chan);
+
+	AST_LIST_TRAVERSE(ast_channel_varshead((struct ast_channel *) chan), current, entries) {
+		varname = ast_var_full_name(current);
+		if (!varname) {
+			continue;
+		}
+
+		vartype = 0;
+		if (varname[0] == '_') {
+			vartype = 1;
+			if (varname[1] == '_') {
+				vartype = 2;
+			}
+		}
+
+		switch (vartype) {
+		case 1:
+			newvar = ast_variable_new(&varname[1], ast_var_value(current), "");
+			break;
+		case 2:
+			newvar = ast_variable_new(varname, ast_var_value(current), "");
+			break;
+		default:
+			continue;
+		}
+		if (newvar) {
+			ast_debug(1, "Inheriting variable %s from %s.\n",
+				newvar->name, ast_channel_name(chan));
+			if (oh->vars) {
+				newvar->next = oh->vars;
+				oh->vars = newvar;
+			}
+		}
+	}
+
+	ast_channel_unlock(chan);
+	ast_channel_cleanup(chan);
+}
+
 static void announce_to_dial(char *dial_string, char *announce_string, int parkingspace, struct ast_channel_snapshot *parkee_snapshot)
 {
 	struct ast_channel *dchan;
@@ -715,6 +777,9 @@ static void announce_to_dial(char *dial_string, char *announce_string, int parki
 
 	snprintf(buf, sizeof(buf), "%d", parkingspace);
 	oh.vars = ast_variable_new("_PARKEDAT", buf, "");
+
+	inherit_channel_vars_from_id(&oh, parkee_snapshot->uniqueid);
+
 	dchan = __ast_request_and_dial(dial_tech, cap_slin, NULL, NULL, dial_string, 30000,
 		&outstate,
 		parkee_snapshot->caller_number,
