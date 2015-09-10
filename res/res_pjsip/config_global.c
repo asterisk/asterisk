@@ -182,20 +182,17 @@ unsigned int ast_sip_get_max_initial_qualify_time(void)
 	return time;
 }
 
-const char *ast_sip_get_default_from_user(void)
+void ast_sip_get_default_from_user(char *from_user, size_t size)
 {
-	const char *from_user;
 	struct global_config *cfg;
 
 	cfg = get_global_cfg();
 	if (!cfg) {
-		return DEFAULT_FROM_USER;
+		ast_copy_string(from_user, DEFAULT_FROM_USER, size);
+	} else {
+		ast_copy_string(from_user, cfg->default_from_user, size);
+		ao2_ref(cfg, -1);
 	}
-
-	from_user = cfg->default_from_user;
-	ao2_ref(cfg, -1);
-
-	return from_user;
 }
 
 /*!

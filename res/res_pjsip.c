@@ -2342,9 +2342,11 @@ static int sip_dialog_create_from(pj_pool_t *pool, pj_str_t *from, const char *u
 	pjsip_sip_uri *sip_uri;
 	pjsip_transport_type_e type = PJSIP_TRANSPORT_UNSPECIFIED;
 	int local_port;
+	char default_user[PJSIP_MAX_URL_SIZE];
 
 	if (ast_strlen_zero(user)) {
-		user = ast_sip_get_default_from_user();
+		ast_sip_get_default_from_user(default_user, sizeof(default_user));
+		user = default_user;
 	}
 
 	/* Parse the provided target URI so we can determine what transport it will end up using */
