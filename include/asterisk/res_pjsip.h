@@ -2025,9 +2025,11 @@ char *ast_sip_get_endpoint_identifier_order(void);
  * is no better option (such as an endpoint-configured from_user or
  * caller ID number).
  *
- * \retval The global default_from_user value.
+ * \param[out] from_user The default from user
+ * \param size The buffer size of from_user
+ * \return nothing
  */
-const char *ast_sip_get_default_from_user(void);
+void ast_sip_get_default_from_user(char *from_user, size_t size);
 
 /*! \brief Determines whether the res_pjsip module is loaded */
 #define CHECK_PJSIP_MODULE_LOADED()				\
