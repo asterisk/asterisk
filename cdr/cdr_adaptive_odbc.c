@@ -358,11 +358,11 @@ static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
 	return stmt;
 }
 
-#define LENGTHEN_BUF1(size)														\
+#define LENGTHEN_BUF(size, var_sql)														\
 			do {																\
 				/* Lengthen buffer, if necessary */								\
-				if (ast_str_strlen(sql) + size + 1 > ast_str_size(sql)) {		\
-					if (ast_str_make_space(&sql, ((ast_str_size(sql) + size + 1) / 512 + 1) * 512) != 0) { \
+				if (ast_str_strlen(var_sql) + size + 1 > ast_str_size(var_sql)) {		\
+					if (ast_str_make_space(&var_sql, ((ast_str_size(var_sql) + size + 1) / 512 + 1) * 512) != 0) { \
 						ast_log(LOG_ERROR, "Unable to allocate sufficient memory.  Insert CDR '%s:%s' failed.\n", tableptr->connection, tableptr->table); \
 						ast_free(sql);											\
 						ast_free(sql2);											\
@@ -372,18 +372,10 @@ static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
 				}																\
 			} while (0)
 
-#define LENGTHEN_BUF2(size)														\
-			do {																\
-				if (ast_str_strlen(sql2) + size + 1 > ast_str_size(sql2)) {		\
-					if (ast_str_make_space(&sql2, ((ast_str_size(sql2) + size + 3) / 512 + 1) * 512) != 0) { \
-						ast_log(LOG_ERROR, "Unable to allocate sufficient memory.  Insert CDR '%s:%s' failed.\n", tableptr->connection, tableptr->table); \
-						ast_free(sql);											\
-						ast_free(sql2);											\
-						AST_RWLIST_UNLOCK(&odbc_tables);						\
-						return -1;												\
-					}															\
-				}																\
-			} while (0)
+#define LENGTHEN_BUF1(size)	\
+	LENGTHEN_BUF(size, sql);
+#define LENGTHEN_BUF2(size)	\
+	LENGTHEN_BUF(size, sql2);
 
 static int odbc_log(struct ast_cdr *cdr)
 {
