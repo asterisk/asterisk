@@ -56,7 +56,7 @@ static int rewrite_route_set(pjsip_rx_data *rdata, pjsip_dialog *dlg)
 				break;
 			}
 		}
-	} else {
+	} else if (pjsip_method_cmp(&rdata->msg_info.msg->line.req.method, &pjsip_register_method)) {
 		rr = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_RECORD_ROUTE, NULL);
 	}
 
