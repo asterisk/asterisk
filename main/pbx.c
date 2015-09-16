@@ -5856,11 +5856,27 @@ static int ast_add_hint(struct ast_exten *e)
 /*! \brief Change hint for an extension */
 static int ast_change_hint(struct ast_exten *oe, struct ast_exten *ne)
 {
+	struct ast_str *hint_app;
 	struct ast_hint *hint;
+	int previous_device_state;
+	char *previous_message = NULL;
+	char *message = NULL;
+	char *previous_subtype = NULL;
+	char *subtype = NULL;
+	int previous_presence_state;
+	int presence_state;
+	int presence_state_changed = 0;
 
 	if (!oe || !ne) {
 		return -1;
 	}
+
+	hint_app = ast_str_create(1024);
+	if (!hint_app) {
+		return -1;
+	}
+
+	ast_mutex_lock(&context_merge_lock); /* Hold off ast_merge_contexts_and_delete and state changes */
 
 	ao2_lock(hints);/* Locked to hold off others while we move the hint around. */
 
@@ -5871,6 +5887,8 @@ static int ast_change_hint(struct ast_exten *oe, struct ast_exten *ne)
 	hint = ao2_find(hints, oe, OBJ_UNLINK);
 	if (!hint) {
 		ao2_unlock(hints);
+		ast_mutex_unlock(&context_merge_lock);
+		ast_free(hint_app);
 		return -1;
 	}
 
@@ -5879,7 +5897,28 @@ static int ast_change_hint(struct ast_exten *oe, struct ast_exten *ne)
 	/* Update the hint and put it back in the hints container. */
 	ao2_lock(hint);
 	hint->exten = ne;
+
+	/* Store the previous states so we know whether we need to notify state callbacks */
+	previous_device_state = hint->laststate;
+	previous_presence_state = hint->last_presence_state;
+	previous_message = hint->last_presence_message;
+	previous_subtype = hint->last_presence_subtype;
+
+	/* Update the saved device and presence state with the new extension */
+	hint->laststate = ast_extension_state2(ne, NULL);
+	hint->last_presence_state = AST_PRESENCE_INVALID;
+	hint->last_presence_subtype = NULL;
+	hint->last_presence_message = NULL;
+
+	presence_state = extension_presence_state_helper(ne, &subtype, &message);
+	if (presence_state > 0) {
+		hint->last_presence_state = presence_state;
+		hint->last_presence_subtype = subtype;
+		hint->last_presence_message = message;
+	}
+
 	ao2_unlock(hint);
+
 	ao2_link(hints, hint);
 	if (add_hintdevice(hint, ast_get_extension_app(ne))) {
 		ast_log(LOG_WARNING, "Could not add devices for hint: %s@%s.\n",
@@ -5888,7 +5927,97 @@ static int ast_change_hint(struct ast_exten *oe, struct ast_exten *ne)
 	}
 
 	ao2_unlock(hints);
+
+	/* Locking for state callbacks is respected here and only the context_merge_lock lock is
+	 * held during the state callback invocation. This will stop the normal state callback
+	 * thread from being able to handle incoming state changes if they occur.
+	 */
+
+	/* Determine if presence state has changed due to the change of the hint extension */
+	if ((hint->last_presence_state != previous_presence_state) ||
+		strcmp(S_OR(hint->last_presence_subtype, ""), S_OR(previous_subtype, "")) ||
+		strcmp(S_OR(hint->last_presence_message, ""), S_OR(previous_message, ""))) {
+		presence_state_changed = 1;
+	}
+
+	/* Notify any existing state callbacks if the device or presence state has changed */
+	if ((hint->laststate != previous_device_state) || presence_state_changed) {
+		struct ao2_iterator cb_iter;
+		struct ast_state_cb *state_cb;
+		struct ao2_container *device_state_info;
+		int first_extended_cb_call = 1;
+
+		/* For general callbacks */
+		cb_iter = ao2_iterator_init(statecbs, 0);
+		for (; (state_cb = ao2_iterator_next(&cb_iter)); ao2_ref(state_cb, -1)) {
+			/* Unlike the normal state callbacks since something has explicitly provided us this extension
+			 * it will remain valid and unchanged for the lifetime of this function invocation.
+			 */
+			if (hint->laststate != previous_device_state) {
+				execute_state_callback(state_cb->change_cb,
+					ast_get_context_name(ast_get_extension_context(ne)),
+					ast_get_extension_name(ne),
+					state_cb->data,
+					AST_HINT_UPDATE_DEVICE,
+					hint,
+					NULL);
+			}
+			if (presence_state_changed) {
+				execute_state_callback(state_cb->change_cb,
+					ast_get_context_name(ast_get_extension_context(ne)),
+					ast_get_extension_name(ne),
+					state_cb->data,
+					AST_HINT_UPDATE_PRESENCE,
+					hint,
+					NULL);
+			}
+		}
+		ao2_iterator_destroy(&cb_iter);
+
+		ast_str_set(&hint_app, 0, "%s", ast_get_extension_app(ne));
+
+		device_state_info = alloc_device_state_info();
+		ast_extension_state3(hint_app, device_state_info);
+
+		/* For extension callbacks */
+		cb_iter = ao2_iterator_init(hint->callbacks, 0);
+		for (; (state_cb = ao2_iterator_next(&cb_iter)); ao2_ref(state_cb, -1)) {
+			if (hint->laststate != previous_device_state) {
+				if (state_cb->extended && first_extended_cb_call) {
+				/* Fill detailed device_state_info now that we know it is used by extd. callback */
+					first_extended_cb_call = 0;
+					get_device_state_causing_channels(device_state_info);
+				}
+				execute_state_callback(state_cb->change_cb,
+					ast_get_context_name(ast_get_extension_context(ne)),
+					ast_get_extension_name(ne),
+					state_cb->data,
+					AST_HINT_UPDATE_DEVICE,
+					hint,
+					state_cb->extended ? device_state_info : NULL);
+			}
+			if (presence_state_changed) {
+				execute_state_callback(state_cb->change_cb,
+					ast_get_context_name(ast_get_extension_context(ne)),
+					ast_get_extension_name(ne),
+					state_cb->data,
+					AST_HINT_UPDATE_PRESENCE,
+					hint,
+					NULL);
+			}
+		}
+		ao2_iterator_destroy(&cb_iter);
+
+		ao2_cleanup(device_state_info);
+	}
+
 	ao2_ref(hint, -1);
+
+	ast_mutex_unlock(&context_merge_lock);
+
+	ast_free(hint_app);
+	ast_free(previous_message);
+	ast_free(previous_subtype);
 
 	return 0;
 }
