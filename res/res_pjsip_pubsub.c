@@ -1299,7 +1299,7 @@ static struct sip_subscription_tree *create_subscription_tree(const struct ast_s
 	return sub_tree;
 }
 
-static int generate_initial_notify(struct ast_sip_subscription *sub);
+static int initial_notify_task(void *obj);
 static int send_notify(struct sip_subscription_tree *sub_tree, unsigned int force_full_state);
 
 /*! \brief Callback function to perform the actual recreation of a subscription */
@@ -1397,10 +1397,9 @@ static int subscription_persistence_recreate(void *obj, void *arg, int flags)
 		}
 		sub_tree->persistence = ao2_bump(persistence);
 		subscription_persistence_update(sub_tree, &rdata);
-		if (generate_initial_notify(sub_tree->root)) {
+		if (ast_sip_push_task(sub_tree->serializer, initial_notify_task, ao2_bump(sub_tree))) {
 			pjsip_evsub_terminate(sub_tree->evsub, PJ_TRUE);
-		} else {
-			send_notify(sub_tree, 1);
+			ao2_ref(sub_tree, -1);
 		}
 	} else {
 		ast_sorcery_delete(ast_sip_get_sorcery(), persistence);
@@ -2530,6 +2529,24 @@ static int generate_initial_notify(struct ast_sip_subscription *sub)
 	return res;
 }
 
+static int initial_notify_task(void * obj)
+{
+	struct sip_subscription_tree *sub_tree;
+
+	sub_tree = obj;
+	if (generate_initial_notify(sub_tree->root)) {
+		pjsip_evsub_terminate(sub_tree->evsub, PJ_TRUE);
+	} else {
+		send_notify(sub_tree, 1);
+		ast_test_suite_event_notify("SUBSCRIPTION_ESTABLISHED",
+			"Resource: %s",
+			sub_tree->root->resource);
+	}
+
+	ao2_ref(sub_tree, -1);
+	return 0;
+}
+
 static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 {
 	pjsip_expires_hdr *expires_header;
@@ -2617,13 +2634,9 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 		sub_tree->persistence = subscription_persistence_create(sub_tree);
 		subscription_persistence_update(sub_tree, rdata);
 		sip_subscription_accept(sub_tree, rdata, resp);
-		if (generate_initial_notify(sub_tree->root)) {
+		if (ast_sip_push_task(sub_tree->serializer, initial_notify_task, ao2_bump(sub_tree))) {
 			pjsip_evsub_terminate(sub_tree->evsub, PJ_TRUE);
-		} else {
-			send_notify(sub_tree, 1);
-			ast_test_suite_event_notify("SUBSCRIPTION_ESTABLISHED",
-					"Resource: %s",
-					sub_tree->root->resource);
+			ao2_ref(sub_tree, -1);
 		}
 	}
 
