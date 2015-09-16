@@ -5927,6 +5927,9 @@ static int ast_add_hint(struct ast_exten *e)
 static int ast_change_hint(struct ast_exten *oe, struct ast_exten *ne)
 {
 	struct ast_hint *hint;
+	char *message = NULL;
+	char *subtype = NULL;
+	int presence_state;
 
 	if (!oe || !ne) {
 		return -1;
@@ -5949,6 +5952,22 @@ static int ast_change_hint(struct ast_exten *oe, struct ast_exten *ne)
 	/* Update the hint and put it back in the hints container. */
 	ao2_lock(hint);
 	hint->exten = ne;
+
+	/* Update the saved device and presence state with the new extension */
+	hint->laststate = ast_extension_state2(ne, NULL);
+	hint->last_presence_state = AST_PRESENCE_INVALID;
+	ast_free(hint->last_presence_subtype);
+	hint->last_presence_subtype = NULL;
+	ast_free(hint->last_presence_message);
+	hint->last_presence_message = NULL;
+
+	presence_state = extension_presence_state_helper(ne, &subtype, &message);
+	if (presence_state > 0) {
+		hint->last_presence_state = presence_state;
+		hint->last_presence_subtype = subtype;
+		hint->last_presence_message = message;
+	}
+
 	ao2_unlock(hint);
 	ao2_link(hints, hint);
 	if (add_hintdevice(hint, ast_get_extension_app(ne))) {
