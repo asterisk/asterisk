@@ -13940,6 +13940,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	int cid_has_name = 1;
 	int cid_has_num = 1;
 	struct ast_party_id connected_id;
+	int ret;
 
 	if (ast_test_flag(&p->flags[0], SIP_USEREQPHONE)) {
 	 	const char *s = p->username;	/* being a string field, cannot be NULL */
@@ -14024,26 +14025,37 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 
 	ast_copy_string(tmp_l, l, sizeof(tmp_l));
 	if (sip_cfg.pedanticsipchecking) {
-		ast_escape_quoted(n, tmp_n, sizeof(tmp_n));
-		n = tmp_n;
 		ast_uri_encode(l, tmp_l, sizeof(tmp_l), ast_uri_sip_user);
 	}
 
 	ourport = (p->fromdomainport && (p->fromdomainport != STANDARD_SIP_PORT)) ? p->fromdomainport : ast_sockaddr_port(&p->ourip);
 
-	/* If a caller id name was specified, add a display name. */
-	if (cid_has_name || !cid_has_num) {
-		snprintf(from, sizeof(from), "\"%s\" ", n);
+	if (!sip_standard_port(p->socket.type, ourport)) {
+		ret = snprintf(from, sizeof(from), "<sip:%s@%s:%d>;tag=%s", tmp_l, d, ourport, p->tag);
 	} else {
-		from[0] = '\0';
+		ret = snprintf(from, sizeof(from), "<sip:%s@%s>;tag=%s", tmp_l, d, p->tag);
+	}
+	if (ret < 0 || ret >= sizeof(from)) { /* a return value of size or more means that the output was truncated */
+		/* We don't have an escape path from here... */
+		ast_log(LOG_ERROR, "The From header was truncated. This call setup will fail.\n");
 	}
 
-	if (!sip_standard_port(p->socket.type, ourport)) {
-		size_t offset = strlen(from);
-		snprintf(&from[offset], sizeof(from) - offset, "<sip:%s@%s:%d>;tag=%s", tmp_l, d, ourport, p->tag);
-	} else {
-		size_t offset = strlen(from);
-		snprintf(&from[offset], sizeof(from) - offset, "<sip:%s@%s>;tag=%s", tmp_l, d, p->tag);
+	/* If a caller id name was specified, prefix a display name, if there is enough room. */
+	if (cid_has_name || !cid_has_num) {
+		size_t written = strlen(from);
+		ssize_t left = sizeof(from) - written - 4; /* '"" \0' */
+		if (left >= 0) {
+			if (sip_cfg.pedanticsipchecking) {
+				ast_escape_quoted(n, tmp_n, MIN(left + 1, sizeof(tmp_n)));
+				n = tmp_n;
+				left = strlen(n);
+			}
+			memmove(from + left + 3, from, written + 1);
+			from[0] = '"';
+			memcpy(from + 1, n, left);
+			from[left + 1] = '"';
+			from[left + 2] = ' ';
+		}
 	}
 
 	if (!ast_strlen_zero(explicit_uri)) {
@@ -14085,21 +14097,25 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
  		/*! \todo Need to add back the VXML URL here at some point, possibly use build_string for all this junk */
  		if (!strchr(p->todnid, '@')) {
  			/* We have no domain in the dnid */
- 			snprintf(to, sizeof(to), "<sip:%s@%s>%s%s", p->todnid, p->tohost, ast_strlen_zero(p->theirtag) ? "" : ";tag=", p->theirtag);
+			ret = snprintf(to, sizeof(to), "<sip:%s@%s>%s%s", p->todnid, p->tohost, ast_strlen_zero(p->theirtag) ? "" : ";tag=", p->theirtag);
  		} else {
- 			snprintf(to, sizeof(to), "<sip:%s>%s%s", p->todnid, ast_strlen_zero(p->theirtag) ? "" : ";tag=", p->theirtag);
+			ret = snprintf(to, sizeof(to), "<sip:%s>%s%s", p->todnid, ast_strlen_zero(p->theirtag) ? "" : ";tag=", p->theirtag);
  		}
  	} else {
  		if (sipmethod == SIP_NOTIFY && !ast_strlen_zero(p->theirtag)) {
  			/* If this is a NOTIFY, use the From: tag in the subscribe (RFC 3265) */
-			snprintf(to, sizeof(to), "<%s%s>;tag=%s", (strncasecmp(p->uri, "sip:", 4) ? "sip:" : ""), p->uri, p->theirtag);
+			ret = snprintf(to, sizeof(to), "<%s%s>;tag=%s", (strncasecmp(p->uri, "sip:", 4) ? "sip:" : ""), p->uri, p->theirtag);
  		} else if (p->options && p->options->vxml_url) {
  			/* If there is a VXML URL append it to the SIP URL */
- 			snprintf(to, sizeof(to), "<%s>;%s", p->uri, p->options->vxml_url);
+			ret = snprintf(to, sizeof(to), "<%s>;%s", p->uri, p->options->vxml_url);
  		} else {
- 			snprintf(to, sizeof(to), "<%s>", p->uri);
+			ret = snprintf(to, sizeof(to), "<%s>", p->uri);
 		}
  	}
+	if (ret < 0 || ret >= sizeof(to)) { /* a return value of size or more means that the output was truncated */
+		/* We don't have an escape path from here... */
+		ast_log(LOG_ERROR, "The To header was truncated. This call setup will fail.\n");
+	}
 
 	init_req(req, sipmethod, p->uri);
 	/* now tmp_n is available so reuse it to build the CSeq */
