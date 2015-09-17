@@ -251,21 +251,19 @@ static pj_bool_t distributor(pjsip_rx_data *rdata)
 	pjsip_dialog *dlg = find_dialog(rdata);
 	struct distributor_dialog_data *dist = NULL;
 	struct ast_taskprocessor *serializer = NULL;
-	struct ast_taskprocessor *req_serializer = NULL;
 	pjsip_rx_data *clone;
 
 	if (dlg) {
 		dist = pjsip_dlg_get_mod_data(dlg, distributor_mod.id);
 		if (dist) {
-			serializer = dist->serializer;
+			serializer = ao2_bump(dist->serializer);
 		}
 	}
 
 	if (serializer) {
 		/* We have a serializer so we know where to send the message. */
 	} else if (rdata->msg_info.msg->type == PJSIP_RESPONSE_MSG) {
-		req_serializer = find_request_serializer(rdata);
-		serializer = req_serializer;
+		serializer = find_request_serializer(rdata);
 	} else if (!pjsip_method_cmp(&rdata->msg_info.msg->line.req.method, &pjsip_cancel_method)
 		|| !pjsip_method_cmp(&rdata->msg_info.msg->line.req.method, &pjsip_bye_method)) {
 		/* We have a BYE or CANCEL request without a serializer. */
@@ -286,7 +284,7 @@ end:
 	if (dlg) {
 		pjsip_dlg_dec_lock(dlg);
 	}
-	ast_taskprocessor_unreference(req_serializer);
+	ast_taskprocessor_unreference(serializer);
 
 	return PJ_TRUE;
 }
