@@ -5582,6 +5582,10 @@ struct queue_stasis_data {
 	struct local_optimization caller_optimize;
 	/*! Local channel optimization details for the member */
 	struct local_optimization member_optimize;
+	/*! Member channel */
+	struct ast_channel *member_channel;
+	/*! Caller channel */
+	struct ast_channel *caller_channel;
 };
 
 /*!
@@ -5599,6 +5603,9 @@ static void queue_stasis_data_destructor(void *obj)
 	ao2_cleanup(queue_data->member);
 	queue_unref(queue_data->queue);
 	ast_string_field_free_memory(queue_data);
+
+	ao2_ref(queue_data->member_channel, -1);
+	ao2_ref(queue_data->caller_channel, -1);
 }
 
 /*!
@@ -5645,6 +5652,16 @@ static struct queue_stasis_data *queue_stasis_data_alloc(struct queue_ent *qe,
 	queue_data->caller_pos = qe->opos;
 	ao2_ref(mem, +1);
 	queue_data->member = mem;
+
+	/*
+	 * During transfers it's possible for both the member and/or caller
+	 * channel(s) to not be available. Adding a reference here ensures
+	 * that the channels remain until app_queue is completely done with
+	 * them.
+	 */
+	queue_data->member_channel = ao2_bump(peer);
+	queue_data->caller_channel = ao2_bump(qe->chan);
+
 	return queue_data;
 }
 
