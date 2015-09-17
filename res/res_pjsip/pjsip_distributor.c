@@ -171,7 +171,7 @@ static pj_bool_t distributor(pjsip_rx_data *rdata)
 	if (dlg) {
 		dist = pjsip_dlg_get_mod_data(dlg, distributor_mod.id);
 		if (dist) {
-			serializer = dist->serializer;
+			serializer = ao2_bump(dist->serializer);
 		}
 	}
 
@@ -195,6 +195,7 @@ end:
 	if (dlg) {
 		pjsip_dlg_dec_lock(dlg);
 	}
+	ast_taskprocessor_unreference(serializer);
 
 	return PJ_TRUE;
 }
