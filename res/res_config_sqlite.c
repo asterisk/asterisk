@@ -786,6 +786,9 @@ static int cdr_handler(struct ast_cdr *cdr)
 		return -1;
 	}
 
+	if (!sql1 || !sql2) {
+		return -1;
+	}
 	ast_str_set(&sql1, 0, "INSERT INTO %s (", cdr_table);
 	ast_str_set(&sql2, 0, ") VALUES (");
 
