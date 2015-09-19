@@ -6015,7 +6015,9 @@ static void handle_hangup(void *userdata, struct stasis_subscription *sub,
 	}
 
 	chan = ast_channel_get_by_name(channel_blob->snapshot->name);
-	if (chan && ast_channel_has_role(chan, AST_TRANSFERER_ROLE_NAME)) {
+	if (chan && (ast_channel_has_role(chan, AST_TRANSFERER_ROLE_NAME) ||
+		     !ast_strlen_zero(pbx_builtin_getvar_helper(chan, "ATTENDEDTRANSFER")) ||
+		     !ast_strlen_zero(pbx_builtin_getvar_helper(chan, "BLINDTRANSFER")))) {
 		/* Channel that is hanging up is doing it as part of a transfer.
 		 * We'll get a transfer event later
 		 */
