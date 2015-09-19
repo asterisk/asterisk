@@ -117,7 +117,9 @@ static void set_redirecting_value(char **dst, const pj_str_t *src)
 {
 	ast_free(*dst);
 	*dst = ast_malloc(pj_strlen(src) + 1);
-	ast_copy_pj_str(*dst, src, pj_strlen(src) + 1);
+	if (*dst) {
+		ast_copy_pj_str(*dst, src, pj_strlen(src) + 1);
+	}
 }
 
 static void set_redirecting_id(pjsip_name_addr *name_addr, struct ast_party_id *data,
