@@ -781,8 +781,16 @@ static int cdr_handler(struct ast_cdr *cdr)
 	struct ast_str *sql1 = ast_str_create(160), *sql2 = ast_str_create(16);
 	int first = 1;
 
+	if (!sql1 || !sql2) {
+		ast_free(sql1);
+		ast_free(sql2);
+		return -1;
+	}
+
 	if (!tbl) {
 		ast_log(LOG_WARNING, "No such table: %s\n", cdr_table);
+		ast_free(sql1);
+		ast_free(sql2);
 		return -1;
 	}
 
