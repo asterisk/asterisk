@@ -837,6 +837,10 @@ int aco_set_defaults(struct aco_type *type, const char *category, void *obj)
 	struct aco_option *opt;
 	struct ao2_iterator iter;
 
+	if (!type->internal) {
+		return -1;
+	}
+
 	iter = ao2_iterator_init(type->internal->opts, 0);
 
 	while ((opt = ao2_iterator_next(&iter))) {
