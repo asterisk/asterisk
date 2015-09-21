@@ -316,7 +316,6 @@ static struct logchannel *make_logchannel(const char *channel, const char *compo
 
 		chan->type = LOGTYPE_SYSLOG;
 		ast_copy_string(chan->filename, channel, sizeof(chan->filename));
-		openlog("asterisk", LOG_PID, chan->facility);
 	} else {
 		const char *log_dir_prefix = "";
 		const char *log_dir_separator = "";
@@ -1019,7 +1018,7 @@ static struct sigaction handle_SIGXFSZ = {
 	.sa_flags = SA_RESTART,
 };
 
-static void ast_log_vsyslog(struct logmsg *msg)
+static void ast_log_vsyslog(struct logmsg *msg, int facility)
 {
 	char buf[BUFSIZ];
 	int syslog_level = ast_syslog_priority_from_loglevel(msg->level);
@@ -1036,6 +1035,8 @@ static void ast_log_vsyslog(struct logmsg *msg)
 		fprintf(stderr, "ast_log_vsyslog called with bogus level: %d\n", msg->level);
 		return;
 	}
+
+	syslog_level = LOG_MAKEPRI(facility, syslog_level);
 
 	snprintf(buf, sizeof(buf), "%s[%d]%s: %s:%d in %s: %s",
 		 levels[msg->level], msg->lwp, call_identifier_str, msg->file, msg->line, msg->function, msg->message);
@@ -1122,7 +1123,7 @@ static void logger_print_normal(struct logmsg *logmsg)
 
 			/* Check syslog channels */
 			if (chan->type == LOGTYPE_SYSLOG && (chan->logmask & (1 << logmsg->level))) {
-				ast_log_vsyslog(logmsg);
+				ast_log_vsyslog(logmsg, chan->facility);
 			/* Console channels */
 			} else if (chan->type == LOGTYPE_CONSOLE && (chan->logmask & (1 << logmsg->level))) {
 				char linestr[128];
