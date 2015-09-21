@@ -80,7 +80,35 @@
 ;
 [logfiles]
 ;
-; Format is "filename" and then "levels" of debugging to be included:
+; Format is:
+;
+; logger_name => [formatter]levels
+;
+; The name of the logger dictates not only the name of the logging
+; channel, but also its type. Valid types are:
+;   - 'console'  - The root console of Asterisk
+;   - 'syslog'   - Linux syslog, with facilities specified afterwards with
+;                  a period delimiter, e.g., 'syslog.local0'
+;   - 'filename' - The name of the log file to create. This is the default
+;                  for log channels.
+;
+; Filenames can either be relative to the standard Asterisk log directory
+; (see 'astlogdir' in asterisk.conf), or absolute paths that begin with
+; '/'.
+;
+; An optional formatter can be specified prior to the log levels sent
+; to the log channel. The formatter is defined immediately preceeding the
+; levels, and is enclosed in square brackets. Valid formatters are:
+;   - [default] - The default formatter, this outputs log messages using a
+;                 human readable format.
+;   - [json]    - Log the output in JSON. Note that JSON formatted log entries,
+;                 if specified for a logger type of 'console', will be formatted
+;                 per the 'default' formatter for log messages of type VERBOSE.
+;                 This is due to the remote consoles intepreting verbosity
+;                 outside of the logging subsystem.
+;
+; Log levels include the following, and are specified in a comma delineated
+; list:
 ;    debug
 ;    notice
 ;    warning
@@ -89,12 +117,6 @@
 ;    dtmf
 ;    fax
 ;    security
-;
-; Special filename "console" represents the root console
-;
-; Filenames can either be relative to the standard Asterisk log directory
-; (see 'astlogdir' in asterisk.conf), or absolute paths that begin with
-; '/'.
 ;
 ; Verbose takes an optional argument, in the form of an integer level.
 ; Verbose messages with higher levels will not be logged to the file.  If
@@ -127,7 +149,9 @@ console => notice,warning,error
 ;console => notice,warning,error,debug
 messages => notice,warning,error
 ;full => notice,warning,error,debug,verbose,dtmf,fax
-
+;
+;full-json => [json]debug,verbose,notice,warning,error,dtmf,fax
+;
 ;syslog keyword : This special keyword logs to syslog facility
 ;
 ;syslog.local0 => notice,warning,error

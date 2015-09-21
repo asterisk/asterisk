@@ -115,6 +115,13 @@ Core
    names. This way one X.509 certificate can be used for hosts that can be
    reached under multiple DNS names or for multiple hosts.
 
+ * The Asterisk logging system now supports JSON structured logging. Log
+   channels specified in logger.conf or added dynamically via CLI commands now
+   support an optional specifier prior to their levels that determines their
+   formatting. To set a log channel to format its entries as JSON, a formatter
+   of '[json]' can be set, e.g.,
+      full => [json]debug,verbose,notice,warning,error
+
 Functions
 ------------------
 
