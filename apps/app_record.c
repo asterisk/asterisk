@@ -294,9 +294,10 @@ static int record_exec(struct ast_channel *chan, const char *data)
 			}
 			count++;
 		} while (ast_fileexists(tmp, ext, ast_channel_language(chan)) > 0);
-		pbx_builtin_setvar_helper(chan, "RECORDED_FILE", tmp);
 	} else
 		ast_copy_string(tmp, args.filename, sizeof(tmp));
+
+	pbx_builtin_setvar_helper(chan, "RECORDED_FILE", tmp);
 	/* end of routine mentioned */
 
 	if (ast_channel_state(chan) != AST_STATE_UP) {
