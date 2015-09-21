@@ -69,6 +69,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/buildinfo.h"
 #include "asterisk/ast_version.h"
 #include "asterisk/backtrace.h"
+#include "asterisk/json.h"
 
 /*** DOCUMENTATION
  ***/
@@ -104,6 +105,16 @@ static struct {
 static char hostname[MAXHOSTNAMELEN];
 AST_THREADSTORAGE_RAW(in_safe_log);
 
+struct logchannel;
+struct logmsg;
+
+struct logformatter {
+	/* The name of the log formatter */
+	const char *name;
+	/* Pointer to the function that will format the log */
+	int (* const format_log)(struct logchannel *channel, struct logmsg *msg, char *buf, size_t size);
+};
+
 enum logtypes {
 	LOGTYPE_SYSLOG,
 	LOGTYPE_FILE,
@@ -111,6 +122,8 @@ enum logtypes {
 };
 
 struct logchannel {
+	/*! How the logs sent to this channel will be formatted */
+	struct logformatter formatter;
 	/*! What to log to this channel */
 	unsigned int logmask;
 	/*! If this channel is disabled or not */
@@ -234,6 +247,117 @@ AST_THREADSTORAGE(verbose_build_buf);
 AST_THREADSTORAGE(log_buf);
 #define LOG_BUF_INIT_SIZE       256
 
+static int format_log_json(struct logchannel *channel, struct logmsg *msg, char *buf, size_t size)
+{
+	struct ast_json *json;
+	char *str;
+	char call_identifier_str[13];
+	size_t json_str_len;
+
+	if (msg->callid) {
+		snprintf(call_identifier_str, sizeof(call_identifier_str), "[C-%08x]", msg->callid);
+	} else {
+		call_identifier_str[0] = '\0';
+	}
+
+	json = ast_json_pack("{s: s, s: s, "
+		"s: {s: i, s: s} "
+		"s: {s: {s: s, s: s, s: i}, "
+		"s: s, s: s} }",
+		"hostname", ast_config_AST_SYSTEM_NAME,
+		"timestamp", msg->date,
+		"identifiers",
+		"lwp", msg->lwp,
+		"callid", S_OR(call_identifier_str, ""),
+		"logmsg",
+		"location",
+		"filename", msg->file,
+		"function", msg->function,
+		"line", msg->line,
+		"level", msg->level_name,
+		"message", msg->message);
+	if (!json) {
+		return -1;
+	}
+
+	str = ast_json_dump_string(json);
+	if (!str) {
+		ast_json_unref(json);
+		return -1;
+	}
+
+	ast_copy_string(buf, str, size);
+	json_str_len = strlen(str);
+	if (json_str_len > size - 1) {
+		json_str_len = size - 1;
+	}
+	buf[json_str_len] = '\n';
+	buf[json_str_len + 1] = '\0';
+
+	term_strip(buf, buf, size);
+
+	ast_json_free(str);
+	ast_json_unref(json);
+
+	return 0;
+}
+
+static struct logformatter logformatter_json = {
+	.name = "json",
+	.format_log = format_log_json
+};
+
+static int format_log_default(struct logchannel *chan, struct logmsg *msg, char *buf, size_t size)
+{
+	char call_identifier_str[13];
+
+	if (msg->callid) {
+		snprintf(call_identifier_str, sizeof(call_identifier_str), "[C-%08x]", msg->callid);
+	} else {
+		call_identifier_str[0] = '\0';
+	}
+
+	switch (chan->type) {
+	case LOGTYPE_SYSLOG:
+		snprintf(buf, size, "%s[%d]%s: %s:%d in %s: %s",
+		     levels[msg->level], msg->lwp, call_identifier_str, msg->file,
+		     msg->line, msg->function, msg->message);
+		term_strip(buf, buf, size);
+		break;
+	case LOGTYPE_FILE:
+		snprintf(buf, size, "[%s] %s[%d]%s %s: %s",
+		      msg->date, msg->level_name, msg->lwp, call_identifier_str,
+		      msg->file, msg->message);
+		term_strip(buf, buf, size);
+		break;
+	case LOGTYPE_CONSOLE:
+		{
+			char linestr[32];
+
+			/* Turn the numeric line number into a string for colorization */
+			snprintf(linestr, sizeof(linestr), "%d", msg->line);
+
+			snprintf(buf, size, "[%s] " COLORIZE_FMT "[%d]%s: " COLORIZE_FMT ":" COLORIZE_FMT " " COLORIZE_FMT ": %s",
+				 msg->date,
+				 COLORIZE(colors[msg->level], 0, msg->level_name),
+				 msg->lwp,
+				 call_identifier_str,
+				 COLORIZE(COLOR_BRWHITE, 0, msg->file),
+				 COLORIZE(COLOR_BRWHITE, 0, linestr),
+				 COLORIZE(COLOR_BRWHITE, 0, msg->function),
+				 msg->message);
+		}
+		break;
+	}
+
+	return 0;
+}
+
+static struct logformatter logformatter_default = {
+	.name = "default",
+	.format_log = format_log_default,
+};
+
 static void make_components(struct logchannel *chan)
 {
 	char *w;
@@ -244,6 +368,33 @@ static void make_components(struct logchannel *chan)
 
 	/* Default to using option_verbose as the verbosity level of the logging channel.  */
 	verb_level = -1;
+
+	w = strchr(stringp, '[');
+	if (w) {
+		char *end = strchr(w + 1, ']');
+		if (!end) {
+			fprintf(stderr, "Logger Warning: bad formatter definition for %s in logger.conf\n", chan->filename);
+		} else {
+			char *formatter_name = w + 1;
+
+			*end = '\0';
+			stringp = end + 1;
+
+			if (!strcasecmp(formatter_name, "json")) {
+				memcpy(&chan->formatter, &logformatter_json, sizeof(chan->formatter));
+			} else if (!strcasecmp(formatter_name, "default")) {
+				memcpy(&chan->formatter, &logformatter_default, sizeof(chan->formatter));
+			} else {
+				fprintf(stderr, "Logger Warning: Unknown formatter definition %s for %s in logger.conf; using 'default'\n",
+					formatter_name, chan->filename);
+				memcpy(&chan->formatter, &logformatter_default, sizeof(chan->formatter));
+			}
+		}
+	}
+
+	if (!chan->formatter.name) {
+		memcpy(&chan->formatter, &logformatter_default, sizeof(chan->formatter));
+	}
 
 	while ((w = strsep(&stringp, ","))) {
 		w = ast_strip(w);
@@ -1095,7 +1246,7 @@ int ast_logger_get_channels(int (*logentry)(const char *channel, const char *typ
 /*! \brief CLI command to show logging system configuration */
 static char *handle_logger_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-#define FORMATL	"%-35.35s %-8.8s %-9.9s "
+#define FORMATL	"%-35.35s %-8.8s %-10.10s %-9.9s "
 	struct logchannel *chan;
 	switch (cmd) {
 	case CLI_INIT:
@@ -1107,15 +1258,16 @@ static char *handle_logger_show_channels(struct ast_cli_entry *e, int cmd, struc
 	case CLI_GENERATE:
 		return NULL;
 	}
-	ast_cli(a->fd, FORMATL, "Channel", "Type", "Status");
+	ast_cli(a->fd, FORMATL, "Channel", "Type", "Formatter", "Status");
 	ast_cli(a->fd, "Configuration\n");
-	ast_cli(a->fd, FORMATL, "-------", "----", "------");
+	ast_cli(a->fd, FORMATL, "-------", "----", "---------", "------");
 	ast_cli(a->fd, "-------------\n");
 	AST_RWLIST_RDLOCK(&logchannels);
 	AST_RWLIST_TRAVERSE(&logchannels, chan, list) {
 		unsigned int level;
 
 		ast_cli(a->fd, FORMATL, chan->filename, chan->type == LOGTYPE_CONSOLE ? "Console" : (chan->type == LOGTYPE_SYSLOG ? "Syslog" : "File"),
+			chan->formatter.name,
 			chan->disabled ? "Disabled" : "Enabled");
 		ast_cli(a->fd, " - ");
 		for (level = 0; level < ARRAY_LEN(levels); level++) {
@@ -1171,7 +1323,9 @@ static char *handle_logger_add_channel(struct ast_cli_entry *e, int cmd, struct 
 			"       Adds a temporary logger channel. This logger channel\n"
 			"       will exist until removed or until Asterisk is restarted.\n"
 			"       <levels> is a comma-separated list of desired logger\n"
-			"       levels such as: verbose,warning,error\n";
+			"       levels such as: verbose,warning,error\n"
+			"       An optional formatter may be specified with the levels;\n"
+			"       valid values are '[json]' and '[default]'.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
@@ -1296,33 +1450,6 @@ static struct sigaction handle_SIGXFSZ = {
 	.sa_flags = SA_RESTART,
 };
 
-static void ast_log_vsyslog(struct logmsg *msg, int facility)
-{
-	char buf[BUFSIZ];
-	int syslog_level = ast_syslog_priority_from_loglevel(msg->level);
-	char call_identifier_str[13];
-
-	if (msg->callid) {
-		snprintf(call_identifier_str, sizeof(call_identifier_str), "[C-%08x]", msg->callid);
-	} else {
-		call_identifier_str[0] = '\0';
-	}
-
-	if (syslog_level < 0) {
-		/* we are locked here, so cannot ast_log() */
-		fprintf(stderr, "ast_log_vsyslog called with bogus level: %d\n", msg->level);
-		return;
-	}
-
-	syslog_level = LOG_MAKEPRI(facility, syslog_level);
-
-	snprintf(buf, sizeof(buf), "%s[%d]%s: %s:%d in %s: %s",
-		 levels[msg->level], msg->lwp, call_identifier_str, msg->file, msg->line, msg->function, msg->message);
-
-	term_strip(buf, buf, strlen(buf) + 1);
-	syslog(syslog_level, "%s", buf);
-}
-
 static char *logger_strip_verbose_magic(const char *message, int level)
 {
 	const char *begin, *end;
@@ -1378,17 +1505,8 @@ static void logger_print_normal(struct logmsg *logmsg)
 	}
 
 	AST_RWLIST_RDLOCK(&logchannels);
-
 	if (!AST_RWLIST_EMPTY(&logchannels)) {
 		AST_RWLIST_TRAVERSE(&logchannels, chan, list) {
-			char call_identifier_str[13];
-
-			if (logmsg->callid) {
-				snprintf(call_identifier_str, sizeof(call_identifier_str), "[C-%08x]", logmsg->callid);
-			} else {
-				call_identifier_str[0] = '\0';
-			}
-
 
 			/* If the channel is disabled, then move on to the next one */
 			if (chan->disabled) {
@@ -1399,65 +1517,76 @@ static void logger_print_normal(struct logmsg *logmsg)
 				continue;
 			}
 
-			/* Check syslog channels */
-			if (chan->type == LOGTYPE_SYSLOG && (chan->logmask & (1 << logmsg->level))) {
-				ast_log_vsyslog(logmsg, chan->facility);
-			/* Console channels */
-			} else if (chan->type == LOGTYPE_CONSOLE && (chan->logmask & (1 << logmsg->level))) {
-				char linestr[128];
+			if (!(chan->logmask & (1 << logmsg->level))) {
+				continue;
+			}
 
-				/* If the level is verbose, then skip it */
-				if (logmsg->level == __LOG_VERBOSE)
-					continue;
+			switch (chan->type) {
+			case LOGTYPE_SYSLOG:
+				{
+					int syslog_level = ast_syslog_priority_from_loglevel(logmsg->level);
 
-				/* Turn the numerical line number into a string */
-				snprintf(linestr, sizeof(linestr), "%d", logmsg->line);
-				/* Build string to print out */
-				snprintf(buf, sizeof(buf), "[%s] " COLORIZE_FMT "[%d]%s: " COLORIZE_FMT ":" COLORIZE_FMT " " COLORIZE_FMT ": %s",
-					 logmsg->date,
-					 COLORIZE(colors[logmsg->level], 0, logmsg->level_name),
-					 logmsg->lwp,
-					 call_identifier_str,
-					 COLORIZE(COLOR_BRWHITE, 0, logmsg->file),
-					 COLORIZE(COLOR_BRWHITE, 0, linestr),
-					 COLORIZE(COLOR_BRWHITE, 0, logmsg->function),
-					 logmsg->message);
-				/* Print out */
-				ast_console_puts_mutable(buf, logmsg->level);
-			/* File channels */
-			} else if (chan->type == LOGTYPE_FILE && (chan->logmask & (1 << logmsg->level))) {
-				int res = 0;
+					if (syslog_level < 0) {
+						/* we are locked here, so cannot ast_log() */
+						fprintf(stderr, "ast_log_vsyslog called with bogus level: %d\n", logmsg->level);
+						continue;
+					}
 
-				/* If no file pointer exists, skip it */
-				if (!chan->fileptr) {
+					syslog_level = LOG_MAKEPRI(chan->facility, syslog_level);
+					if (!chan->formatter.format_log(chan, logmsg, buf, BUFSIZ)) {
+						syslog(syslog_level, "%s", buf);
+					}
+				}
+				break;
+			case LOGTYPE_CONSOLE:
+				/* The Console already is a verboser as well */
+				if (logmsg->level == __LOG_VERBOSE) {
 					continue;
 				}
 
-				/* Print out to the file */
-				res = fprintf(chan->fileptr, "[%s] %s[%d]%s %s: %s",
-					      logmsg->date, logmsg->level_name, logmsg->lwp, call_identifier_str,
-					      logmsg->file, term_strip(buf, logmsg->message, BUFSIZ));
-				if (res <= 0 && !ast_strlen_zero(logmsg->message)) {
-					fprintf(stderr, "**** Asterisk Logging Error: ***********\n");
-					if (errno == ENOMEM || errno == ENOSPC)
-						fprintf(stderr, "Asterisk logging error: Out of disk space, can't log to log file %s\n", chan->filename);
-					else
-						fprintf(stderr, "Logger Warning: Unable to write to log file '%s': %s (disabled)\n", chan->filename, strerror(errno));
-					/*** DOCUMENTATION
-						<managerEventInstance>
-							<synopsis>Raised when a logging channel is disabled.</synopsis>
-							<syntax>
-								<parameter name="Channel">
-									<para>The name of the logging channel.</para>
-								</parameter>
-							</syntax>
-						</managerEventInstance>
-					***/
-					manager_event(EVENT_FLAG_SYSTEM, "LogChannel", "Channel: %s\r\nEnabled: No\r\nReason: %d - %s\r\n", chan->filename, errno, strerror(errno));
-					chan->disabled = 1;
-				} else if (res > 0) {
-					fflush(chan->fileptr);
+				if (!chan->formatter.format_log(chan, logmsg, buf, BUFSIZ)) {
+					ast_console_puts_mutable(buf, logmsg->level);
 				}
+				break;
+			case LOGTYPE_FILE:
+				{
+					int res = 0;
+
+					if (!chan->fileptr) {
+						continue;
+					}
+
+					if (chan->formatter.format_log(chan, logmsg, buf, BUFSIZ)) {
+						continue;
+					}
+
+					/* Print out to the file */
+					res = fprintf(chan->fileptr, "%s", buf);
+					if (res > 0) {
+						fflush(chan->fileptr);
+					} else if (res <= 0 && !ast_strlen_zero(logmsg->message)) {
+						fprintf(stderr, "**** Asterisk Logging Error: ***********\n");
+						if (errno == ENOMEM || errno == ENOSPC) {
+							fprintf(stderr, "Asterisk logging error: Out of disk space, can't log to log file %s\n", chan->filename);
+						} else {
+							fprintf(stderr, "Logger Warning: Unable to write to log file '%s': %s (disabled)\n", chan->filename, strerror(errno));
+						}
+
+						/*** DOCUMENTATION
+							<managerEventInstance>
+								<synopsis>Raised when a logging channel is disabled.</synopsis>
+								<syntax>
+									<parameter name="Channel">
+										<para>The name of the logging channel.</para>
+									</parameter>
+								</syntax>
+							</managerEventInstance>
+						***/
+						manager_event(EVENT_FLAG_SYSTEM, "LogChannel", "Channel: %s\r\nEnabled: No\r\nReason: %d - %s\r\n", chan->filename, errno, strerror(errno));
+						chan->disabled = 1;
+					}
+				}
+				break;
 			}
 		}
 	} else if (logmsg->level != __LOG_VERBOSE) {
