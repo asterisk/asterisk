@@ -46,6 +46,8 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/lock.h"
 #include "asterisk/strings.h"
 #include "asterisk/unaligned.h"
+#include "asterisk/localtime.h"
+#include "asterisk/time.h"
 
 static struct fdleaks {
 	const char *callname;
@@ -54,6 +56,7 @@ static struct fdleaks {
 	char file[40];
 	char function[25];
 	char callargs[60];
+	struct timeval now;
 } fdleaks[1024] = { { "", }, };
 
 /* COPY does ast_copy_string(dst, src, sizeof(dst)), except:
@@ -79,6 +82,7 @@ static struct fdleaks {
 #define STORE_COMMON(offset, name, ...)     \
 	do { \
 		struct fdleaks *tmp = &fdleaks[offset]; \
+		tmp->now = ast_tvnow(); \
 		COPY(tmp->file, file);      \
 		tmp->line = line;           \
 		COPY(tmp->function, func);  \
@@ -271,7 +275,7 @@ static char *handle_show_fd(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	case CLI_GENERATE:
 		return NULL;
 	}
-	getrlimit(RLIMIT_FSIZE, &rl);
+	getrlimit(RLIMIT_NOFILE, &rl);
 	if (rl.rlim_cur == RLIM_INFINITY || rl.rlim_max == RLIM_INFINITY) {
 		ast_copy_string(line, "unlimited", sizeof(line));
 	} else {
@@ -280,8 +284,13 @@ static char *handle_show_fd(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	ast_cli(a->fd, "Current maxfiles: %s\n", line);
 	for (i = 0; i < ARRAY_LEN(fdleaks); i++) {
 		if (fdleaks[i].isopen) {
+			struct ast_tm tm = {0};
+			char datestring[256];
+
+			ast_localtime(&fdleaks[i].now, &tm, NULL);
+			ast_strftime(datestring, sizeof(datestring), "%F %T", &tm);
 			snprintf(line, sizeof(line), "%d", fdleaks[i].line);
-			ast_cli(a->fd, "%5d %15s:%-7.7s (%-25s): %s(%s)\n", i, fdleaks[i].file, line, fdleaks[i].function, fdleaks[i].callname, fdleaks[i].callargs);
+			ast_cli(a->fd, "%5d [%s] %22s:%-7.7s (%-25s): %s(%s)\n", i, datestring, fdleaks[i].file, line, fdleaks[i].function, fdleaks[i].callname, fdleaks[i].callargs);
 		}
 	}
 	return CLI_SUCCESS;
