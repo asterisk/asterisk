@@ -378,14 +378,13 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 	ast_channel_unlock(channel->owner);
 
 	if (!ast_strlen_zero(predial_string)) {
-		const char *predial_callee = ast_app_expand_sub_args(chan, predial_string);
-		if (!predial_callee) {
-			ast_log(LOG_ERROR, "Could not expand subroutine arguments in predial request '%s'\n", predial_string);
+		if (chan) {
+			ast_autoservice_start(chan);
 		}
-		ast_autoservice_start(chan);
-		ast_pre_call(channel->owner, predial_callee);
-		ast_autoservice_stop(chan);
-		ast_free((char *) predial_callee);
+		ast_pre_call(channel->owner, predial_string);
+		if (chan) {
+			ast_autoservice_stop(chan);
+		}
 	}
 
 	return 0;
@@ -396,10 +395,6 @@ int ast_dial_prerun(struct ast_dial *dial, struct ast_channel *chan, struct ast_
 	struct ast_dial_channel *channel;
 	int res = -1;
 	char *predial_string = dial->options[AST_DIAL_OPTION_PREDIAL];
-
-	if (!ast_strlen_zero(predial_string)) {
-		ast_replace_subargument_delimiter(predial_string);
-	}
 
 	AST_LIST_LOCK(&dial->channels);
 	AST_LIST_TRAVERSE(&dial->channels, channel, list) {
@@ -450,10 +445,6 @@ static int begin_dial(struct ast_dial *dial, struct ast_channel *chan, int async
 	int success = 0;
 	char *predial_string = dial->options[AST_DIAL_OPTION_PREDIAL];
 
-	if (!ast_strlen_zero(predial_string)) {
-		ast_replace_subargument_delimiter(predial_string);
-	}
-
 	/* Iterate through channel list, requesting and calling each one */
 	AST_LIST_LOCK(&dial->channels);
 	AST_LIST_TRAVERSE(&dial->channels, channel, list) {
@@ -472,10 +463,6 @@ static int handle_call_forward(struct ast_dial *dial, struct ast_dial_channel *c
 	char *tmp = ast_strdupa(ast_channel_call_forward(channel->owner));
 	char *tech = "Local", *device = tmp, *stuff;
 	char *predial_string = dial->options[AST_DIAL_OPTION_PREDIAL];
-
-	if (!ast_strlen_zero(predial_string)) {
-		ast_replace_subargument_delimiter(predial_string);
-	}
 
 	/* If call forwarding is disabled just drop the original channel and don't attempt to dial the new one */
 	if (FIND_RELATIVE_OPTION(dial, channel, AST_DIAL_OPTION_DISABLE_CALL_FORWARDING)) {
