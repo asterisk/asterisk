@@ -249,12 +249,18 @@ static void page_state_callback(struct ast_dial *dial)
 
 static int page_exec(struct ast_channel *chan, const char *data)
 {
-	char *tech, *resource, *tmp;
-	char confbridgeopts[128], originator[AST_CHANNEL_NAME];
+	char *tech;
+	char *resource;
+	char *tmp;
+	char *predial_callee = NULL;
+	char confbridgeopts[128];
+	char originator[AST_CHANNEL_NAME];
 	struct page_options options = { { 0, }, { 0, } };
 	unsigned int confid = ast_random();
 	struct ast_app *app;
-	int res = 0, pos = 0, i = 0;
+	int res = 0;
+	int pos = 0;
+	int i = 0;
 	struct ast_dial **dial_list;
 	unsigned int num_dials;
 	int timeout = 0;
@@ -310,6 +316,15 @@ static int page_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
+	/* PREDIAL: Preprocess any callee gosub arguments. */
+	if (ast_test_flag(&options.flags, PAGE_PREDIAL_CALLEE)
+		&& !ast_strlen_zero(options.opts[OPT_ARG_PREDIAL_CALLEE])) {
+		ast_replace_subargument_delimiter(options.opts[OPT_ARG_PREDIAL_CALLEE]);
+		predial_callee =
+			(char *) ast_app_expand_sub_args(chan, options.opts[OPT_ARG_PREDIAL_CALLEE]);
+	}
+
+	/* PREDIAL: Run gosub on the caller's channel */
 	if (ast_test_flag(&options.flags, PAGE_PREDIAL_CALLER)
 		&& !ast_strlen_zero(options.opts[OPT_ARG_PREDIAL_CALLER])) {
 		ast_replace_subargument_delimiter(options.opts[OPT_ARG_PREDIAL_CALLER]);
@@ -360,9 +375,8 @@ static int page_exec(struct ast_channel *chan, const char *data)
 		/* Set ANSWER_EXEC as global option */
 		ast_dial_option_global_enable(dial, AST_DIAL_OPTION_ANSWER_EXEC, confbridgeopts);
 
-		if (ast_test_flag(&options.flags, PAGE_PREDIAL_CALLEE)
-			&& !ast_strlen_zero(options.opts[OPT_ARG_PREDIAL_CALLEE])) {
-			ast_dial_option_global_enable(dial, AST_DIAL_OPTION_PREDIAL, options.opts[OPT_ARG_PREDIAL_CALLEE]);
+		if (predial_callee) {
+			ast_dial_option_global_enable(dial, AST_DIAL_OPTION_PREDIAL, predial_callee);
 		}
 
 		if (timeout) {
@@ -382,6 +396,8 @@ static int page_exec(struct ast_channel *chan, const char *data)
 		/* Put in our dialing array */
 		dial_list[pos++] = dial;
 	}
+
+	ast_free(predial_callee);
 
 	if (!ast_test_flag(&options.flags, PAGE_QUIET)) {
 		res = ast_streamfile(chan, "beep", ast_channel_language(chan));
