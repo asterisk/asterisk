@@ -280,7 +280,9 @@ static void event_session_cleanup(struct event_session *session)
 	}
 
 	event_session_shutdown(session);
-	ao2_unlink(event_session_registry, session);
+	if (event_session_registry) {
+		ao2_unlink(event_session_registry, session);
+	}
 }
 
 /*!
@@ -367,6 +369,7 @@ static int event_session_alloc(struct ast_tcptls_session_instance *ser,
 		struct ast_ari_events_event_websocket_args *args, const char *session_id)
 {
 	RAII_VAR(struct event_session *, session, NULL, ao2_cleanup);
+	int (* register_handler)(const char *, stasis_app_cb handler, void *data);
 	size_t size, i;
 
 	/* The request must have at least one [app] parameter */
@@ -399,6 +402,12 @@ static int event_session_alloc(struct ast_tcptls_session_instance *ser,
 	}
 
 	/* Register the apps with Stasis */
+	if (args->subscribe_all) {
+		register_handler = &stasis_app_register_all;
+	} else {
+		register_handler = &stasis_app_register;
+	}
+
 	for (i = 0; i < args->app_count; ++i) {
 		const char *app = args->app[i];
 
@@ -411,10 +420,10 @@ static int event_session_alloc(struct ast_tcptls_session_instance *ser,
 			return event_session_allocation_error_handler(session, ERROR_TYPE_OOM, ser);
 		}
 
-		if (stasis_app_register(app, stasis_app_message_handler, session)) {
+		if (register_handler(app, stasis_app_message_handler, session)) {
 			ast_log(LOG_WARNING, "Stasis registration failed for application: '%s'\n", app);
 			return event_session_allocation_error_handler(
-				session, ERROR_TYPE_STASIS_REGISTRATION, ser);
+				session, ERROR_TYPE_STASIS_REGISTRATION, ser);			
 		}
 	}
 
@@ -426,8 +435,17 @@ static int event_session_alloc(struct ast_tcptls_session_instance *ser,
 	return 0;
 }
 
+static int event_session_shutdown_cb(void *session, void *arg, int flags)
+{
+	event_session_cleanup(session);
+
+	return 0;
+}
+
 void ast_ari_websocket_events_event_websocket_dtor(void)
 {
+	ao2_callback(event_session_registry, OBJ_MULTIPLE | OBJ_NODATA, event_session_shutdown_cb, NULL);
+
 	ao2_cleanup(event_session_registry);
 	event_session_registry = NULL;
 }
@@ -462,7 +480,8 @@ void ast_ari_websocket_events_event_websocket_established(
 		struct ast_ari_websocket_session *ws_session, struct ast_variable *headers,
 		struct ast_ari_events_event_websocket_args *args)
 {
-	RAII_VAR(struct event_session *, session, NULL, event_session_cleanup);
+	struct event_session *session;
+
 	struct ast_json *msg;
 	const char *session_id;
 
@@ -474,7 +493,6 @@ void ast_ari_websocket_events_event_websocket_established(
 
 	/* Find the event_session and update its websocket  */
 	session = ao2_find(event_session_registry, session_id, OBJ_SEARCH_KEY);
-
 	if (session) {
 		ao2_unlink(event_session_registry, session);
 		event_session_update_websocket(session, ws_session);
@@ -487,6 +505,9 @@ void ast_ari_websocket_events_event_websocket_established(
 	while ((msg = ast_ari_websocket_session_read(ws_session))) {
 		ast_json_unref(msg);
 	}
+
+	event_session_cleanup(session);
+	ao2_ref(session, -1);
 }
 
 void ast_ari_events_user_event(struct ast_variable *headers,
