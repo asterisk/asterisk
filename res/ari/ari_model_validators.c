@@ -4180,6 +4180,180 @@ ari_validator ast_ari_validate_channel_varset_fn(void)
 	return ast_ari_validate_channel_varset;
 }
 
+int ast_ari_validate_contact_info(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_aor = 0;
+	int has_contact_status = 0;
+	int has_uri = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("aor", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_aor = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ContactInfo field aor failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("contact_status", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_contact_status = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ContactInfo field contact_status failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("roundtrip_usec", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ContactInfo field roundtrip_usec failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("uri", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_uri = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ContactInfo field uri failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI ContactInfo has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_aor) {
+		ast_log(LOG_ERROR, "ARI ContactInfo missing required field aor\n");
+		res = 0;
+	}
+
+	if (!has_contact_status) {
+		ast_log(LOG_ERROR, "ARI ContactInfo missing required field contact_status\n");
+		res = 0;
+	}
+
+	if (!has_uri) {
+		ast_log(LOG_ERROR, "ARI ContactInfo missing required field uri\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_contact_info_fn(void)
+{
+	return ast_ari_validate_contact_info;
+}
+
+int ast_ari_validate_contact_status_change(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_type = 0;
+	int has_application = 0;
+	int has_contact_info = 0;
+	int has_endpoint = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_type = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ContactStatusChange field type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("application", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_application = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ContactStatusChange field application failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ContactStatusChange field timestamp failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("contact_info", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_contact_info = 1;
+			prop_is_valid = ast_ari_validate_contact_info(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ContactStatusChange field contact_info failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("endpoint", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_endpoint = 1;
+			prop_is_valid = ast_ari_validate_endpoint(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI ContactStatusChange field endpoint failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI ContactStatusChange has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_type) {
+		ast_log(LOG_ERROR, "ARI ContactStatusChange missing required field type\n");
+		res = 0;
+	}
+
+	if (!has_application) {
+		ast_log(LOG_ERROR, "ARI ContactStatusChange missing required field application\n");
+		res = 0;
+	}
+
+	if (!has_contact_info) {
+		ast_log(LOG_ERROR, "ARI ContactStatusChange missing required field contact_info\n");
+		res = 0;
+	}
+
+	if (!has_endpoint) {
+		ast_log(LOG_ERROR, "ARI ContactStatusChange missing required field endpoint\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_contact_status_change_fn(void)
+{
+	return ast_ari_validate_contact_status_change;
+}
+
 int ast_ari_validate_device_state_changed(struct ast_json *json)
 {
 	int res = 1;
@@ -4479,7 +4653,7 @@ int ast_ari_validate_event(struct ast_json *json)
 
 	discriminator = ast_json_string_get(ast_json_object_get(json, "type"));
 	if (!discriminator) {
-		ast_log(LOG_ERROR, "ARI Event missing required field type");
+		ast_log(LOG_ERROR, "ARI Event missing required field type\n");
 		return 0;
 	}
 
@@ -4552,6 +4726,9 @@ int ast_ari_validate_event(struct ast_json *json)
 	if (strcmp("ChannelVarset", discriminator) == 0) {
 		return ast_ari_validate_channel_varset(json);
 	} else
+	if (strcmp("ContactStatusChange", discriminator) == 0) {
+		return ast_ari_validate_contact_status_change(json);
+	} else
 	if (strcmp("DeviceStateChanged", discriminator) == 0) {
 		return ast_ari_validate_device_state_changed(json);
 	} else
@@ -4560,6 +4737,9 @@ int ast_ari_validate_event(struct ast_json *json)
 	} else
 	if (strcmp("EndpointStateChange", discriminator) == 0) {
 		return ast_ari_validate_endpoint_state_change(json);
+	} else
+	if (strcmp("PeerStatusChange", discriminator) == 0) {
+		return ast_ari_validate_peer_status_change(json);
 	} else
 	if (strcmp("PlaybackFinished", discriminator) == 0) {
 		return ast_ari_validate_playback_finished(json);
@@ -4656,7 +4836,7 @@ int ast_ari_validate_message(struct ast_json *json)
 
 	discriminator = ast_json_string_get(ast_json_object_get(json, "type"));
 	if (!discriminator) {
-		ast_log(LOG_ERROR, "ARI Message missing required field type");
+		ast_log(LOG_ERROR, "ARI Message missing required field type\n");
 		return 0;
 	}
 
@@ -4729,6 +4909,9 @@ int ast_ari_validate_message(struct ast_json *json)
 	if (strcmp("ChannelVarset", discriminator) == 0) {
 		return ast_ari_validate_channel_varset(json);
 	} else
+	if (strcmp("ContactStatusChange", discriminator) == 0) {
+		return ast_ari_validate_contact_status_change(json);
+	} else
 	if (strcmp("DeviceStateChanged", discriminator) == 0) {
 		return ast_ari_validate_device_state_changed(json);
 	} else
@@ -4743,6 +4926,9 @@ int ast_ari_validate_message(struct ast_json *json)
 	} else
 	if (strcmp("MissingParams", discriminator) == 0) {
 		return ast_ari_validate_missing_params(json);
+	} else
+	if (strcmp("PeerStatusChange", discriminator) == 0) {
+		return ast_ari_validate_peer_status_change(json);
 	} else
 	if (strcmp("PlaybackFinished", discriminator) == 0) {
 		return ast_ari_validate_playback_finished(json);
@@ -4859,6 +5045,175 @@ int ast_ari_validate_missing_params(struct ast_json *json)
 ari_validator ast_ari_validate_missing_params_fn(void)
 {
 	return ast_ari_validate_missing_params;
+}
+
+int ast_ari_validate_peer(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_peer_status = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("address", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Peer field address failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("cause", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Peer field cause failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("peer_status", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_peer_status = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Peer field peer_status failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("port", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Peer field port failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("time", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Peer field time failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI Peer has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_peer_status) {
+		ast_log(LOG_ERROR, "ARI Peer missing required field peer_status\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_peer_fn(void)
+{
+	return ast_ari_validate_peer;
+}
+
+int ast_ari_validate_peer_status_change(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_type = 0;
+	int has_application = 0;
+	int has_endpoint = 0;
+	int has_peer = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_type = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI PeerStatusChange field type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("application", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_application = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI PeerStatusChange field application failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI PeerStatusChange field timestamp failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("endpoint", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_endpoint = 1;
+			prop_is_valid = ast_ari_validate_endpoint(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI PeerStatusChange field endpoint failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("peer", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_peer = 1;
+			prop_is_valid = ast_ari_validate_peer(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI PeerStatusChange field peer failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI PeerStatusChange has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_type) {
+		ast_log(LOG_ERROR, "ARI PeerStatusChange missing required field type\n");
+		res = 0;
+	}
+
+	if (!has_application) {
+		ast_log(LOG_ERROR, "ARI PeerStatusChange missing required field application\n");
+		res = 0;
+	}
+
+	if (!has_endpoint) {
+		ast_log(LOG_ERROR, "ARI PeerStatusChange missing required field endpoint\n");
+		res = 0;
+	}
+
+	if (!has_peer) {
+		ast_log(LOG_ERROR, "ARI PeerStatusChange missing required field peer\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_peer_status_change_fn(void)
+{
+	return ast_ari_validate_peer_status_change;
 }
 
 int ast_ari_validate_playback_finished(struct ast_json *json)
