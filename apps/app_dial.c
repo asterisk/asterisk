@@ -2707,7 +2707,7 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			chans[0] = chan;
 			chans[1] = peer;
 
-			/* we need to stream the announcment while monitoring the caller for a hangup */
+			/* we need to stream the announcement while monitoring the caller for a hangup */
 
 			/* stream the file */
 			res = ast_streamfile(peer, opt_args[OPT_ARG_ANNOUNCE], ast_channel_language(peer));
@@ -2786,7 +2786,6 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			if (ast_pbx_start(peer)) {
 				ast_autoservice_chan_hangup_peer(chan, peer);
 			}
-			hanguptree(&out_chans, NULL, ast_test_flag64(&opts, OPT_CANCEL_ELSEWHERE) ? 1 : 0);
 			if (continue_exec)
 				*continue_exec = 1;
 			res = 0;
