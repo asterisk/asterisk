@@ -4487,7 +4487,7 @@ int ast_indicate_data(struct ast_channel *chan, int _condition,
 
 	/* Don't bother if the channel is about to go away, anyway. */
 	if ((ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE)
-			|| ast_check_hangup(chan))
+			|| (ast_check_hangup(chan) && !ast_channel_is_leaving_bridge(chan)))
 		&& condition != AST_CONTROL_MASQUERADE_NOTIFY) {
 		res = -1;
 		goto indicate_cleanup;
