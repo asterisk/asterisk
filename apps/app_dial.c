@@ -2748,34 +2748,50 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 
 				active_chan = ast_waitfor_n(chans, 2, &ms);
 				if (active_chan) {
+					struct ast_channel *other_chan;
 					struct ast_frame *fr = ast_read(active_chan);
+
 					if (!fr) {
 						ast_autoservice_chan_hangup_peer(chan, peer);
 						res = -1;
 						goto done;
 					}
-					switch(fr->frametype) {
-						case AST_FRAME_DTMF_END:
-							digit = fr->subclass.integer;
-							if (active_chan == peer && strchr(AST_DIGIT_ANY, res)) {
-								ast_stopstream(peer);
-								res = ast_senddigit(chan, digit, 0);
+					switch (fr->frametype) {
+					case AST_FRAME_DTMF_END:
+						digit = fr->subclass.integer;
+						if (active_chan == peer && strchr(AST_DIGIT_ANY, res)) {
+							ast_stopstream(peer);
+							res = ast_senddigit(chan, digit, 0);
+						}
+						break;
+					case AST_FRAME_CONTROL:
+						switch (fr->subclass.integer) {
+						case AST_CONTROL_HANGUP:
+							ast_frfree(fr);
+							ast_autoservice_chan_hangup_peer(chan, peer);
+							res = -1;
+							goto done;
+						case AST_CONTROL_CONNECTED_LINE:
+							/* Pass COLP update to the other channel. */
+							if (active_chan == chan) {
+								other_chan = peer;
+							} else {
+								other_chan = chan;
 							}
-							break;
-						case AST_FRAME_CONTROL:
-							switch (fr->subclass.integer) {
-								case AST_CONTROL_HANGUP:
-									ast_frfree(fr);
-									ast_autoservice_chan_hangup_peer(chan, peer);
-									res = -1;
-									goto done;
-								default:
-									break;
+							if (ast_channel_connected_line_sub(active_chan, other_chan, fr, 1)
+								&& ast_channel_connected_line_macro(active_chan,
+									other_chan, fr, other_chan == chan, 1)) {
+								ast_indicate_data(other_chan, fr->subclass.integer,
+									fr->data.ptr, fr->datalen);
 							}
 							break;
 						default:
-							/* Ignore all others */
 							break;
+						}
+						break;
+					default:
+						/* Ignore all others */
+						break;
 					}
 					ast_frfree(fr);
 				}
