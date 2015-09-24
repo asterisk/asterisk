@@ -704,6 +704,8 @@ struct chanlist {
 	const char *tech;
 	/*! Channel device addressing.  (Stored in stuff[]) */
 	const char *number;
+	/*! Original channel name.  Must be freed.  Could be NULL if allocation failed. */
+	char *orig_chan_name;
 	uint64_t flags;
 	/*! Saved connected party info from an AST_CONTROL_CONNECTED_LINE. */
 	struct ast_party_connected_line connected;
@@ -722,6 +724,7 @@ static void chanlist_free(struct chanlist *outgoing)
 {
 	ast_party_connected_line_free(&outgoing->connected);
 	ast_aoc_destroy_decoded(outgoing->aoc_s_rate_list);
+	ast_free(outgoing->orig_chan_name);
 	ast_free(outgoing);
 }
 
@@ -1167,7 +1170,14 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 			if (ast_test_flag64(o, DIAL_STILLGOING) && ast_channel_state(c) == AST_STATE_UP) {
 				if (!peer) {
 					ast_verb(3, "%s answered %s\n", ast_channel_name(c), ast_channel_name(in));
-					if (!single && !ast_test_flag64(o, OPT_IGNORE_CONNECTEDLINE)) {
+					if (o->orig_chan_name
+						&& strcmp(o->orig_chan_name, ast_channel_name(c))) {
+						/*
+						 * The channel name changed so we must generate COLP update.
+						 * Likely because a call pickup channel masqueraded in.
+						 */
+						update_connected_line_from_peer(in, c, 1);
+					} else if (!single && !ast_test_flag64(o, OPT_IGNORE_CONNECTEDLINE)) {
 						if (o->pending_connected_update) {
 							if (ast_channel_connected_line_sub(c, in, &o->connected, 0) &&
 								ast_channel_connected_line_macro(c, in, &o->connected, 1, 0)) {
@@ -1229,10 +1239,14 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				do_forward(o, &num, peerflags, single, caller_entertained, &orig,
 					forced_clid, stored_clid);
 
-				if (single && o->chan
-					&& !ast_test_flag64(o, OPT_IGNORE_CONNECTEDLINE)
-					&& !ast_test_flag64(o, DIAL_CALLERID_ABSENT)) {
-					update_connected_line_from_peer(in, o->chan, 1);
+				if (o->chan) {
+					ast_free(o->orig_chan_name);
+					o->orig_chan_name = ast_strdup(ast_channel_name(o->chan));
+					if (single
+						&& !ast_test_flag64(o, OPT_IGNORE_CONNECTEDLINE)
+						&& !ast_test_flag64(o, DIAL_CALLERID_ABSENT)) {
+						update_connected_line_from_peer(in, o->chan, 1);
+					}
 				}
 				continue;
 			}
@@ -1256,7 +1270,14 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					/* This is our guy if someone answered. */
 					if (!peer) {
 						ast_verb(3, "%s answered %s\n", ast_channel_name(c), ast_channel_name(in));
-						if (!single && !ast_test_flag64(o, OPT_IGNORE_CONNECTEDLINE)) {
+						if (o->orig_chan_name
+							&& strcmp(o->orig_chan_name, ast_channel_name(c))) {
+							/*
+							 * The channel name changed so we must generate COLP update.
+							 * Likely because a call pickup channel masqueraded in.
+							 */
+							update_connected_line_from_peer(in, c, 1);
+						} else if (!single && !ast_test_flag64(o, OPT_IGNORE_CONNECTEDLINE)) {
 							if (o->pending_connected_update) {
 								if (ast_channel_connected_line_sub(c, in, &o->connected, 0) &&
 									ast_channel_connected_line_macro(c, in, &o->connected, 1, 0)) {
@@ -2500,6 +2521,9 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			ast_channel_exten_set(tc, ast_channel_exten(chan));
 
 		ast_channel_stage_snapshot_done(tc);
+
+		/* Save the original channel name to detect call pickup masquerading in. */
+		tmp->orig_chan_name = ast_strdup(ast_channel_name(tc));
 
 		ast_channel_unlock(tc);
 		ast_channel_unlock(chan);
