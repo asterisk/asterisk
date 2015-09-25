@@ -155,12 +155,17 @@ static struct aco_type user_option = {
 
 static struct aco_type *user[] = ACO_TYPES(&user_option);
 
+static void conf_general_dtor(void *obj)
+{
+	struct ast_ari_conf_general *general = obj;
+
+	ast_string_field_free_memory(general);
+}
+
 /*! \brief \ref ast_ari_conf destructor. */
 static void conf_destructor(void *obj)
 {
 	struct ast_ari_conf *cfg = obj;
-
-	ast_string_field_free_memory(cfg->general);
 
 	ao2_cleanup(cfg->general);
 	ao2_cleanup(cfg->users);
@@ -169,7 +174,7 @@ static void conf_destructor(void *obj)
 /*! \brief Allocate an \ref ast_ari_conf for config parsing */
 static void *conf_alloc(void)
 {
-	RAII_VAR(struct ast_ari_conf *, cfg, NULL, ao2_cleanup);
+	struct ast_ari_conf *cfg;
 
 	cfg = ao2_alloc_options(sizeof(*cfg), conf_destructor,
 		AO2_ALLOC_OPT_LOCK_NOLOCK);
@@ -177,20 +182,20 @@ static void *conf_alloc(void)
 		return NULL;
 	}
 
-	cfg->general = ao2_alloc_options(sizeof(*cfg->general), NULL,
+	cfg->general = ao2_alloc_options(sizeof(*cfg->general), conf_general_dtor,
 		AO2_ALLOC_OPT_LOCK_NOLOCK);
-	if (!cfg->general) {
-		return NULL;
-	}
-	if (ast_string_field_init(cfg->general, 64)) {
-		return NULL;
-	}
-	aco_set_defaults(&general_option, "general", cfg->general);
 
 	cfg->users = ao2_container_alloc_rbtree(AO2_ALLOC_OPT_LOCK_NOLOCK,
 		AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE, user_sort_cmp, NULL);
 
-	ao2_ref(cfg, +1);
+	if (!cfg->users
+		|| !cfg->general
+		|| ast_string_field_init(cfg->general, 64)
+		|| aco_set_defaults(&general_option, "general", cfg->general)) {
+		ao2_ref(cfg, -1);
+		return NULL;
+	}
+
 	return cfg;
 }
 
@@ -308,6 +313,7 @@ int ast_ari_config_init(void)
 		return -1;
 	}
 
+	/* ARI general category options */
 	aco_option_register(&cfg_info, "enabled", ACO_EXACT, general_options,
 		"yes", OPT_BOOL_T, 1,
 		FLDSET(struct ast_ari_conf_general, enabled));
@@ -324,6 +330,7 @@ int ast_ari_config_init(void)
 		AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT_STR, OPT_INT_T, PARSE_IN_RANGE,
 		FLDSET(struct ast_ari_conf_general, write_timeout), 1, INT_MAX);
 
+	/* ARI type=user category options */
 	aco_option_register(&cfg_info, "type", ACO_EXACT, user, NULL,
 		OPT_NOOP_T, 0, 0);
 	aco_option_register(&cfg_info, "read_only", ACO_EXACT, user,
