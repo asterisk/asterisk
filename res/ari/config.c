@@ -116,19 +116,31 @@ static void *user_alloc(const char *cat)
 static int user_sort_cmp(const void *obj_left, const void *obj_right, int flags)
 {
 	const struct ast_ari_conf_user *user_left = obj_left;
+	const struct ast_ari_conf_user *user_right = obj_right;
+	const char *key_right = obj_right;
+	int cmp;
 
-	if (flags & OBJ_PARTIAL_KEY) {
-		const char *key_right = obj_right;
-		return strncasecmp(user_left->username, key_right,
-			strlen(key_right));
-	} else if (flags & OBJ_KEY) {
-		const char *key_right = obj_right;
-		return strcasecmp(user_left->username, key_right);
-	} else {
-		const struct ast_ari_conf_user *user_right = obj_right;
-		const char *key_right = user_right->username;
-		return strcasecmp(user_left->username, key_right);
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		key_right = user_right->username;
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcasecmp(user_left->username, key_right);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		/*
+		 * We could also use a partial key struct containing a length
+		 * so strlen() does not get called for every comparison instead.
+		 */
+		cmp = strncasecmp(user_left->username, key_right, strlen(key_right));
+		break;
+	default:
+		/* Sort can only work on something with a full or partial key. */
+		ast_assert(0);
+		cmp = 0;
+		break;
 	}
+	return cmp;
 }
 
 /*! \brief \ref aco_type item_find function */
@@ -138,7 +150,7 @@ static void *user_find(struct ao2_container *tmp_container, const char *cat)
 		return NULL;
 	}
 
-	return ao2_find(tmp_container, cat, OBJ_KEY);
+	return ao2_find(tmp_container, cat, OBJ_SEARCH_KEY);
 }
 
 static struct aco_type user_option = {
@@ -234,7 +246,7 @@ struct ast_ari_conf_user *ast_ari_config_validate_user(const char *username,
 		return NULL;
 	}
 
-	user = ao2_find(conf->users, username, OBJ_KEY);
+	user = ao2_find(conf->users, username, OBJ_SEARCH_KEY);
 	if (!user) {
 		return NULL;
 	}
