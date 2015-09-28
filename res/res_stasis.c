@@ -1294,7 +1294,9 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 
 		if (bridge != last_bridge) {
 			app_unsubscribe_bridge(app, last_bridge);
-			app_subscribe_bridge(app, bridge);
+			if (bridge) {
+				app_subscribe_bridge(app, bridge);
+			}
 		}
 
 		if (bridge) {
