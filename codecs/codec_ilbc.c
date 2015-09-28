@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/translate.h"
 #include "asterisk/module.h"
 #include "asterisk/utils.h"
+#include "asterisk/linkedlists.h"
 
 #ifdef ILBC_WEBRTC
 #include <ilbc.h>
@@ -150,31 +151,40 @@ static int lintoilbc_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 static struct ast_frame *lintoilbc_frameout(struct ast_trans_pvt *pvt)
 {
 	struct ilbc_coder_pvt *tmp = pvt->pvt;
-	int datalen = 0;
-	int samples = 0;
+	struct ast_frame *result = NULL;
+	struct ast_frame *last = NULL;
+	int samples = 0; /* output samples */
 
-	/* We can't work on anything less than a frame in size */
-	if (pvt->samples < ILBC_SAMPLES)
-		return NULL;
 	while (pvt->samples >= ILBC_SAMPLES) {
+		struct ast_frame *current;
 		ilbc_block tmpf[ILBC_SAMPLES];
 		int i;
 
 		/* Encode a frame of data */
 		for (i = 0 ; i < ILBC_SAMPLES ; i++)
 			tmpf[i] = tmp->buf[samples + i];
-		iLBC_encode( (ilbc_bytes*)pvt->outbuf.BUF_TYPE + datalen, tmpf, &tmp->enc);
+		iLBC_encode((ilbc_bytes *) pvt->outbuf.BUF_TYPE, tmpf, &tmp->enc);
 
-		datalen += ILBC_FRAME_LEN;
 		samples += ILBC_SAMPLES;
 		pvt->samples -= ILBC_SAMPLES;
+
+		current = ast_trans_frameout(pvt, ILBC_FRAME_LEN, ILBC_SAMPLES);
+		if (!current) {
+			continue;
+		} else if (last) {
+			AST_LIST_NEXT(last, frame_list) = current;
+		} else {
+			result = current;
+		}
+		last = current;
 	}
 
 	/* Move the data at the end of the buffer to the front */
-	if (pvt->samples)
+	if (samples) {
 		memmove(tmp->buf, tmp->buf + samples, pvt->samples * 2);
+	}
 
-	return ast_trans_frameout(pvt, datalen, samples);
+	return result;
 }
 
 static struct ast_translator ilbctolin = {

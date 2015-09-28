@@ -44,6 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/term.h"
 #include "asterisk/format.h"
+#include "asterisk/linkedlists.h"
 
 /*! \todo
  * TODO: sample frames for each supported input format.
@@ -547,7 +548,12 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 	}
 	delivery = f->delivery;
 	for (out = f; out && p ; p = p->next) {
-		framein(p, out);
+		struct ast_frame *current = out;
+
+		do {
+			framein(p, current);
+			current = AST_LIST_NEXT(current, frame_list);
+		} while (current);
 		if (out != f) {
 			ast_frfree(out);
 		}
@@ -556,22 +562,33 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 	if (out) {
 		/* we have a frame, play with times */
 		if (!ast_tvzero(delivery)) {
-			/* Regenerate prediction after a discontinuity */
-			if (ast_tvzero(path->nextout)) {
-				path->nextout = ast_tvnow();
-			}
+			struct ast_frame *current = out;
 
-			/* Use next predicted outgoing timestamp */
-			out->delivery = path->nextout;
+			do {
+				/* Regenerate prediction after a discontinuity */
+				if (ast_tvzero(path->nextout)) {
+					path->nextout = ast_tvnow();
+				}
 
-			/* Predict next outgoing timestamp from samples in this
-			   frame. */
-			path->nextout = ast_tvadd(path->nextout, ast_samp2tv(
-				 out->samples, ast_format_get_sample_rate(out->subclass.format)));
-			if (f->samples != out->samples && ast_test_flag(out, AST_FRFLAG_HAS_TIMING_INFO)) {
-				ast_debug(4, "Sample size different %d vs %d\n", f->samples, out->samples);
-				ast_clear_flag(out, AST_FRFLAG_HAS_TIMING_INFO);
-			}
+				/* Use next predicted outgoing timestamp */
+				current->delivery = path->nextout;
+
+				/* Invalidate prediction if we're entering a silence period */
+				if (current->frametype == AST_FRAME_CNG) {
+					path->nextout = ast_tv(0, 0);
+				/* Predict next outgoing timestamp from samples in this
+				   frame. */
+				} else {
+					path->nextout = ast_tvadd(path->nextout, ast_samp2tv(
+						current->samples, ast_format_get_sample_rate(current->subclass.format)));
+				}
+
+				if (f->samples != current->samples && ast_test_flag(current, AST_FRFLAG_HAS_TIMING_INFO)) {
+					ast_debug(4, "Sample size different %d vs %d\n", f->samples, current->samples);
+					ast_clear_flag(current, AST_FRFLAG_HAS_TIMING_INFO);
+				}
+				current = AST_LIST_NEXT(current, frame_list);
+			} while (current);
 		} else {
 			out->delivery = ast_tv(0, 0);
 			ast_set2_flag(out, has_timing_info, AST_FRFLAG_HAS_TIMING_INFO);
@@ -580,10 +597,10 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 				out->len = len;
 				out->seqno = seqno;
 			}
-		}
-		/* Invalidate prediction if we're entering a silence period */
-		if (out->frametype == AST_FRAME_CNG) {
-			path->nextout = ast_tv(0, 0);
+			/* Invalidate prediction if we're entering a silence period */
+			if (out->frametype == AST_FRAME_CNG) {
+				path->nextout = ast_tv(0, 0);
+			}
 		}
 	}
 	if (consume) {
