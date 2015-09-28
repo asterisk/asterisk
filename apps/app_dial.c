@@ -1047,6 +1047,34 @@ static void publish_dial_end_event(struct ast_channel *in, struct dial_head *out
 	}
 }
 
+/*!
+ * \internal
+ * \brief Update connected line on chan from peer.
+ * \since 13.6.0
+ *
+ * \param chan Channel to get connected line updated.
+ * \param peer Channel providing connected line information.
+ * \param is_caller Non-zero if chan is the calling channel.
+ *
+ * \return Nothing
+ */
+static void update_connected_line_from_peer(struct ast_channel *chan, struct ast_channel *peer, int is_caller)
+{
+	struct ast_party_connected_line connected_caller;
+
+	ast_party_connected_line_init(&connected_caller);
+
+	ast_channel_lock(peer);
+	ast_connected_line_copy_from_caller(&connected_caller, ast_channel_caller(peer));
+	ast_channel_unlock(peer);
+	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
+	if (ast_channel_connected_line_sub(peer, chan, &connected_caller, 0)
+		&& ast_channel_connected_line_macro(peer, chan, &connected_caller, is_caller, 0)) {
+		ast_channel_update_connected_line(chan, &connected_caller, NULL);
+	}
+	ast_party_connected_line_free(&connected_caller);
+}
+
 static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	struct dial_head *out_chans, int *to, struct ast_flags64 *peerflags,
 	char *opt_args[],
@@ -1067,7 +1095,6 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	int single = outgoing && !AST_LIST_NEXT(outgoing, node);
 	int caller_entertained = outgoing
 		&& ast_test_flag64(outgoing, OPT_MUSICBACK | OPT_RINGBACK);
-	struct ast_party_connected_line connected_caller;
 	struct ast_str *featurecode = ast_str_alloca(AST_FEATURE_MAX_LEN + 1);
 	int cc_recall_core_id;
 	int is_cc_recall;
@@ -1075,7 +1102,6 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	int num_ringing = 0;
 	struct timeval start = ast_tvnow();
 
-	ast_party_connected_line_init(&connected_caller);
 	if (single) {
 		/* Turn off hold music, etc */
 		if (!caller_entertained) {
@@ -1096,15 +1122,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 
 		if (!ast_test_flag64(outgoing, OPT_IGNORE_CONNECTEDLINE)
 			&& !ast_test_flag64(outgoing, DIAL_CALLERID_ABSENT)) {
-			ast_channel_lock(outgoing->chan);
-			ast_connected_line_copy_from_caller(&connected_caller, ast_channel_caller(outgoing->chan));
-			ast_channel_unlock(outgoing->chan);
-			connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-			if (ast_channel_connected_line_sub(outgoing->chan, in, &connected_caller, 0) &&
-				ast_channel_connected_line_macro(outgoing->chan, in, &connected_caller, 1, 0)) {
-				ast_channel_update_connected_line(in, &connected_caller, NULL);
-			}
-			ast_party_connected_line_free(&connected_caller);
+			update_connected_line_from_peer(in, outgoing->chan, 1);
 		}
 	}
 
@@ -1165,15 +1183,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 								ast_channel_update_connected_line(in, &o->connected, NULL);
 							}
 						} else if (!ast_test_flag64(o, DIAL_CALLERID_ABSENT)) {
-							ast_channel_lock(c);
-							ast_connected_line_copy_from_caller(&connected_caller, ast_channel_caller(c));
-							ast_channel_unlock(c);
-							connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-							if (ast_channel_connected_line_sub(c, in, &connected_caller, 0) &&
-								ast_channel_connected_line_macro(c, in, &connected_caller, 1, 0)) {
-								ast_channel_update_connected_line(in, &connected_caller, NULL);
-							}
-							ast_party_connected_line_free(&connected_caller);
+							update_connected_line_from_peer(in, c, 1);
 						}
 					}
 					if (o->aoc_s_rate_list) {
@@ -1231,16 +1241,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				if (single && o->chan
 					&& !ast_test_flag64(o, OPT_IGNORE_CONNECTEDLINE)
 					&& !ast_test_flag64(o, DIAL_CALLERID_ABSENT)) {
-					ast_channel_lock(o->chan);
-					ast_connected_line_copy_from_caller(&connected_caller,
-						ast_channel_caller(o->chan));
-					ast_channel_unlock(o->chan);
-					connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-					if (ast_channel_connected_line_sub(o->chan, in, &connected_caller, 0) &&
-						ast_channel_connected_line_macro(o->chan, in, &connected_caller, 1, 0)) {
-						ast_channel_update_connected_line(in, &connected_caller, NULL);
-					}
-					ast_party_connected_line_free(&connected_caller);
+					update_connected_line_from_peer(in, o->chan, 1);
 				}
 				continue;
 			}
@@ -1271,15 +1272,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 									ast_channel_update_connected_line(in, &o->connected, NULL);
 								}
 							} else if (!ast_test_flag64(o, DIAL_CALLERID_ABSENT)) {
-								ast_channel_lock(c);
-								ast_connected_line_copy_from_caller(&connected_caller, ast_channel_caller(c));
-								ast_channel_unlock(c);
-								connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-								if (ast_channel_connected_line_sub(c, in, &connected_caller, 0) &&
-									ast_channel_connected_line_macro(c, in, &connected_caller, 1, 0)) {
-									ast_channel_update_connected_line(in, &connected_caller, NULL);
-								}
-								ast_party_connected_line_free(&connected_caller);
+								update_connected_line_from_peer(in, c, 1);
 							}
 						}
 						if (o->aoc_s_rate_list) {
