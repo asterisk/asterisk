@@ -3980,6 +3980,13 @@ static int retrans_pkt(const void *data)
 			}
 
 			/* For non-invites, a maximum of 4 secs */
+			if (INT_MAX / pkt->timer_a < pkt->timer_t1) {
+				/*
+				 * Uh Oh, we will have an integer overflow.
+				 * Recalculate previous timeout time instead.
+				 */
+				pkt->timer_a = pkt->timer_a / 2;
+			}
 			siptimer_a = pkt->timer_t1 * pkt->timer_a;	/* Double each time */
 			if (pkt->method != SIP_INVITE && siptimer_a > 4000) {
 				siptimer_a = 4000;
