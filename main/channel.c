@@ -7388,8 +7388,10 @@ void ast_channel_set_caller(struct ast_channel *chan, const struct ast_party_cal
 
 void ast_channel_set_caller_event(struct ast_channel *chan, const struct ast_party_caller *caller, const struct ast_set_party_caller *update)
 {
-	const char *pre_set_number;
-	const char *pre_set_name;
+	const char *old_number;
+	const char *old_name;
+	const char *new_number;
+	const char *new_name;
 
 	if (ast_channel_caller(chan) == caller) {
 		/* Don't set to self */
@@ -7397,14 +7399,19 @@ void ast_channel_set_caller_event(struct ast_channel *chan, const struct ast_par
 	}
 
 	ast_channel_lock(chan);
-	pre_set_number =
-		S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL);
-	pre_set_name = S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, NULL);
+	old_number = ast_strdupa(S_COR(ast_channel_caller(chan)->id.number.valid,
+		ast_channel_caller(chan)->id.number.str, ""));
+	old_name = ast_strdupa(S_COR(ast_channel_caller(chan)->id.name.valid,
+		ast_channel_caller(chan)->id.name.str, ""));
+
 	ast_party_caller_set(ast_channel_caller(chan), caller, update);
-	if (S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL)
-			!= pre_set_number
-		|| S_COR(ast_channel_caller(chan)->id.name.valid, ast_channel_caller(chan)->id.name.str, NULL)
-			!= pre_set_name) {
+
+	new_number = S_COR(ast_channel_caller(chan)->id.number.valid,
+		ast_channel_caller(chan)->id.number.str, "");
+	new_name = S_COR(ast_channel_caller(chan)->id.name.valid,
+		ast_channel_caller(chan)->id.name.str, "");
+
+	if (0 != strcmp(old_number, new_number) || 0 != strcmp(old_name, new_name)) {
 		/* The caller id name or number changed. */
 		report_new_callerid(chan);
 	}
