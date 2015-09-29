@@ -4579,6 +4579,34 @@ static void rna(int rnatime, struct queue_ent *qe, struct ast_channel *peer, cha
 	return;
 }
 
+/*!
+ * \internal
+ * \brief Update connected line on chan from peer.
+ * \since 13.6.0
+ *
+ * \param chan Channel to get connected line updated.
+ * \param peer Channel providing connected line information.
+ * \param is_caller Non-zero if chan is the calling channel.
+ *
+ * \return Nothing
+ */
+static void update_connected_line_from_peer(struct ast_channel *chan, struct ast_channel *peer, int is_caller)
+{
+	struct ast_party_connected_line connected_caller;
+
+	ast_party_connected_line_init(&connected_caller);
+
+	ast_channel_lock(peer);
+	ast_connected_line_copy_from_caller(&connected_caller, ast_channel_caller(peer));
+	ast_channel_unlock(peer);
+	connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
+	if (ast_channel_connected_line_sub(peer, chan, &connected_caller, 0)
+		&& ast_channel_connected_line_macro(peer, chan, &connected_caller, is_caller, 0)) {
+		ast_channel_update_connected_line(chan, &connected_caller, NULL);
+	}
+	ast_party_connected_line_free(&connected_caller);
+}
+
 #define AST_MAX_WATCHERS 256
 /*!
  * \brief Wait for a member to answer the call
@@ -4613,11 +4641,8 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 #ifdef HAVE_EPOLL
 	struct callattempt *epollo;
 #endif
-	struct ast_party_connected_line connected_caller;
 	char *inchan_name;
 	struct timeval start_time_tv = ast_tvnow();
-
-	ast_party_connected_line_init(&connected_caller);
 
 	ast_channel_lock(qe->chan);
 	inchan_name = ast_strdupa(ast_channel_name(qe->chan));
@@ -4703,15 +4728,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 								ast_channel_update_connected_line(in, &o->connected, NULL);
 							}
 						} else if (!o->dial_callerid_absent) {
-							ast_channel_lock(o->chan);
-							ast_connected_line_copy_from_caller(&connected_caller, ast_channel_caller(o->chan));
-							ast_channel_unlock(o->chan);
-							connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-							if (ast_channel_connected_line_sub(o->chan, in, &connected_caller, 0) &&
-								ast_channel_connected_line_macro(o->chan, in, &connected_caller, 1, 0)) {
-								ast_channel_update_connected_line(in, &connected_caller, NULL);
-							}
-							ast_party_connected_line_free(&connected_caller);
+							update_connected_line_from_peer(in, o->chan, 1);
 						}
 					}
 					if (o->aoc_s_rate_list) {
@@ -4874,15 +4891,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 											ast_channel_update_connected_line(in, &o->connected, NULL);
 										}
 									} else if (!o->dial_callerid_absent) {
-										ast_channel_lock(o->chan);
-										ast_connected_line_copy_from_caller(&connected_caller, ast_channel_caller(o->chan));
-										ast_channel_unlock(o->chan);
-										connected_caller.source = AST_CONNECTED_LINE_UPDATE_SOURCE_ANSWER;
-										if (ast_channel_connected_line_sub(o->chan, in, &connected_caller, 0) &&
-											ast_channel_connected_line_macro(o->chan, in, &connected_caller, 1, 0)) {
-											ast_channel_update_connected_line(in, &connected_caller, NULL);
-										}
-										ast_party_connected_line_free(&connected_caller);
+										update_connected_line_from_peer(in, o->chan, 1);
 									}
 								}
 								if (o->aoc_s_rate_list) {
