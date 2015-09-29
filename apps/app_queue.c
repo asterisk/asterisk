@@ -1446,6 +1446,8 @@ struct callattempt {
 	/*! TRUE if the call is still active */
 	unsigned int stillgoing:1;
 	struct ast_aoc_decoded *aoc_s_rate_list;
+	/*! Original channel name.  Must be freed.  Could be NULL if allocation failed. */
+	char *orig_chan_name;
 };
 
 
@@ -3951,6 +3953,7 @@ static void callattempt_free(struct callattempt *doomed)
 		ao2_ref(doomed->member, -1);
 	}
 	ast_party_connected_line_free(&doomed->connected);
+	ast_free(doomed->orig_chan_name);
 	ast_free(doomed);
 }
 
@@ -4281,6 +4284,9 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	} else {
 		ast_channel_exten_set(tmp->chan, ast_channel_exten(qe->chan));
 	}
+
+	/* Save the original channel name to detect call pickup masquerading in. */
+	tmp->orig_chan_name = ast_strdup(ast_channel_name(tmp->chan));
 
 	ast_channel_unlock(tmp->chan);
 	ast_channel_unlock(qe->chan);
@@ -4703,7 +4709,14 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 			if (o->stillgoing && (o->chan) &&  (ast_channel_state(o->chan) == AST_STATE_UP)) {
 				if (!peer) {
 					ast_verb(3, "%s answered %s\n", ochan_name, inchan_name);
-					if (!o->block_connected_update) {
+					if (o->orig_chan_name
+						&& strcmp(o->orig_chan_name, ochan_name)) {
+						/*
+						 * The channel name changed so we must generate COLP update.
+						 * Likely because a call pickup channel masqueraded in.
+						 */
+						update_connected_line_from_peer(in, o->chan, 1);
+					} else if (!o->block_connected_update) {
 						if (o->pending_connected_update) {
 							if (ast_channel_connected_line_sub(o->chan, in, &o->connected, 0) &&
 								ast_channel_connected_line_macro(o->chan, in, &o->connected, 1, 0)) {
@@ -4791,6 +4804,9 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							ast_party_connected_line_copy(&o->connected, ast_channel_connected(in));
 						}
 
+						ast_free(o->orig_chan_name);
+						o->orig_chan_name = ast_strdup(ast_channel_name(o->chan));
+
 						ast_channel_req_accountcodes(o->chan, in, AST_CHANNEL_REQUESTOR_BRIDGE_PEER);
 
 						if (!ast_channel_redirecting(o->chan)->from.number.valid
@@ -4866,7 +4882,14 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 								ast_verb(3, "%s answered %s\n", ochan_name, inchan_name);
 								ast_channel_publish_dial(qe->chan, o->chan, on, "ANSWER");
 								publish_dial_end_event(qe->chan, outgoing, o->chan, "CANCEL");
-								if (!o->block_connected_update) {
+								if (o->orig_chan_name
+									&& strcmp(o->orig_chan_name, ochan_name)) {
+									/*
+									 * The channel name changed so we must generate COLP update.
+									 * Likely because a call pickup channel masqueraded in.
+									 */
+									update_connected_line_from_peer(in, o->chan, 1);
+								} else if (!o->block_connected_update) {
 									if (o->pending_connected_update) {
 										if (ast_channel_connected_line_sub(o->chan, in, &o->connected, 0) &&
 											ast_channel_connected_line_macro(o->chan, in, &o->connected, 1, 0)) {
