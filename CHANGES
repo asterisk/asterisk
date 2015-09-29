@@ -25,6 +25,7 @@ ARI
    ContactStatusChange. In particular, these events are useful when subscribing
    to all event sources, as they provide additional endpoint related
    information beyond the addition/removal of channels from an endpoint.
+   The ARI version has been bumped to 1.9.0 as a result.
 
  * Added the ability to subscribe to all ARI events in Asterisk, regardless
    of whether the application 'controls' the resource. This is useful for
