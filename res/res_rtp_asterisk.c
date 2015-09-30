@@ -799,7 +799,7 @@ static void ast_rtp_ice_set_role(struct ast_rtp_instance *instance, enum ast_rtp
 		role == AST_RTP_ICE_ROLE_CONTROLLED ? "CONTROLLED" : "CONTROLLING", instance);
 
 	if (!rtp->ice) {
-		ast_log(LOG_WARNING, "Set role failed; no ice instance (%p)\n", instance);
+		ast_debug(3, "Set role failed; no ice instance (%p)\n", instance);
 		return;
 	}
 
