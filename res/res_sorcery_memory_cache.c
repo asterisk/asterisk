@@ -243,7 +243,7 @@ static int sorcery_memory_cache_hash(const void *obj, int flags)
 	const char *name = obj;
 	int hash;
 
-	switch (flags & (OBJ_SEARCH_OBJECT | OBJ_SEARCH_KEY | OBJ_SEARCH_PARTIAL_KEY)) {
+	switch (flags & OBJ_SEARCH_MASK) {
 	default:
 	case OBJ_SEARCH_OBJECT:
 		name = cache->name;
@@ -278,7 +278,7 @@ static int sorcery_memory_cache_cmp(void *obj, void *arg, int flags)
 	const char *right_name = arg;
 	int cmp;
 
-	switch (flags & (OBJ_SEARCH_OBJECT | OBJ_SEARCH_KEY | OBJ_SEARCH_PARTIAL_KEY)) {
+	switch (flags & OBJ_SEARCH_MASK) {
 	default:
 	case OBJ_SEARCH_OBJECT:
 		right_name = right->name;
@@ -308,7 +308,7 @@ static int sorcery_memory_cached_object_hash(const void *obj, int flags)
 	const char *name = obj;
 	int hash;
 
-	switch (flags & (OBJ_SEARCH_OBJECT | OBJ_SEARCH_KEY | OBJ_SEARCH_PARTIAL_KEY)) {
+	switch (flags & OBJ_SEARCH_MASK) {
 	default:
 	case OBJ_SEARCH_OBJECT:
 		name = ast_sorcery_object_get_id(cached->object);
@@ -343,7 +343,7 @@ static int sorcery_memory_cached_object_cmp(void *obj, void *arg, int flags)
 	const char *right_name = arg;
 	int cmp;
 
-	switch (flags & (OBJ_SEARCH_OBJECT | OBJ_SEARCH_KEY | OBJ_SEARCH_PARTIAL_KEY)) {
+	switch (flags & OBJ_SEARCH_MASK) {
 	default:
 	case OBJ_SEARCH_OBJECT:
 		right_name = ast_sorcery_object_get_id(right->object);
