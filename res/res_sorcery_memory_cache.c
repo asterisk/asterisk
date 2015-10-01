@@ -1061,9 +1061,7 @@ static void sorcery_memory_cache_close(void *data)
 		 * a prolonged period of time.
 		 */
 		ao2_wrlock(cache->objects);
-		ao2_callback(cache->objects, OBJ_UNLINK | OBJ_NOLOCK | OBJ_NODATA | OBJ_MULTIPLE,
-			NULL, NULL);
-		AST_SCHED_DEL_UNREF(sched, cache->expire_id, ao2_ref(cache, -1));
+		remove_all_from_cache(cache);
 		ao2_unlock(cache->objects);
 	}
 
