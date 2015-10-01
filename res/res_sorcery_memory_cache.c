@@ -2480,22 +2480,6 @@ cleanup:
 
 static int unload_module(void)
 {
-	if (sched) {
-		ast_sched_context_destroy(sched);
-		sched = NULL;
-	}
-
-	ao2_cleanup(caches);
-
-	ast_sorcery_wizard_unregister(&memory_cache_object_wizard);
-
-	ast_cli_unregister_multiple(cli_memory_cache, ARRAY_LEN(cli_memory_cache));
-
-	ast_manager_unregister("SorceryMemoryCacheExpireObject");
-	ast_manager_unregister("SorceryMemoryCacheExpire");
-	ast_manager_unregister("SorceryMemoryCacheStaleObject");
-	ast_manager_unregister("SorceryMemoryCacheStale");
-
 	AST_TEST_UNREGISTER(open_with_valid_options);
 	AST_TEST_UNREGISTER(open_with_invalid_options);
 	AST_TEST_UNREGISTER(create_and_retrieve);
@@ -2505,12 +2489,41 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(expiration);
 	AST_TEST_UNREGISTER(stale);
 
+	ast_manager_unregister("SorceryMemoryCacheExpireObject");
+	ast_manager_unregister("SorceryMemoryCacheExpire");
+	ast_manager_unregister("SorceryMemoryCacheStaleObject");
+	ast_manager_unregister("SorceryMemoryCacheStale");
+
+	ast_cli_unregister_multiple(cli_memory_cache, ARRAY_LEN(cli_memory_cache));
+
+	ast_sorcery_wizard_unregister(&memory_cache_object_wizard);
+
+	/*
+	 * XXX There is the potential to leak memory if there are pending
+	 * next-cache-expiration and stale-cache-update tasks in the scheduler.
+	 */
+	if (sched) {
+		ast_sched_context_destroy(sched);
+		sched = NULL;
+	}
+
+	ao2_cleanup(caches);
+	caches = NULL;
+
 	return 0;
 }
 
 static int load_module(void)
 {
 	int res;
+
+	caches = ao2_container_alloc(CACHES_CONTAINER_BUCKET_SIZE, sorcery_memory_cache_hash,
+		sorcery_memory_cache_cmp);
+	if (!caches) {
+		ast_log(LOG_ERROR, "Failed to create container for configured caches\n");
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
 
 	sched = ast_sched_context_create();
 	if (!sched) {
@@ -2521,14 +2534,6 @@ static int load_module(void)
 
 	if (ast_sched_start_thread(sched)) {
 		ast_log(LOG_ERROR, "Failed to create scheduler thread for cache management\n");
-		unload_module();
-		return AST_MODULE_LOAD_DECLINE;
-	}
-
-	caches = ao2_container_alloc(CACHES_CONTAINER_BUCKET_SIZE, sorcery_memory_cache_hash,
-		sorcery_memory_cache_cmp);
-	if (!caches) {
-		ast_log(LOG_ERROR, "Failed to create container for configured caches\n");
 		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
