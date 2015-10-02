@@ -369,10 +369,10 @@ static void sorcery_memory_cache_destructor(void *obj)
 	struct sorcery_memory_cache *cache = obj;
 
 	ast_free(cache->name);
-	ao2_cleanup(cache->objects);
 	if (cache->object_heap) {
 		ast_heap_destroy(cache->object_heap);
 	}
+	ao2_cleanup(cache->objects);
 }
 
 /*!
@@ -411,8 +411,7 @@ static int remove_from_cache(struct sorcery_memory_cache *cache, const char *id,
 	struct sorcery_memory_cached_object *oldest_object;
 	struct sorcery_memory_cached_object *heap_object;
 
-	hash_object = ao2_find(cache->objects, id,
-		OBJ_SEARCH_KEY | OBJ_UNLINK | OBJ_NOLOCK);
+	hash_object = ao2_find(cache->objects, id, OBJ_SEARCH_KEY | OBJ_UNLINK | OBJ_NOLOCK);
 	if (!hash_object) {
 		return -1;
 	}
@@ -448,7 +447,7 @@ static int expire_objects_from_cache(const void *data)
 
 	cache->expire_id = -1;
 
-	/* This is an optimization for objects which have been cached close to eachother */
+	/* This is an optimization for objects which have been cached close to each other */
 	while ((cached = ast_heap_peek(cache->object_heap, 1))) {
 		int expiration;
 
@@ -483,7 +482,8 @@ static int expire_objects_from_cache(const void *data)
  */
 static void remove_all_from_cache(struct sorcery_memory_cache *cache)
 {
-	while (ast_heap_pop(cache->object_heap));
+	while (ast_heap_pop(cache->object_heap)) {
+	}
 
 	ao2_callback(cache->objects, OBJ_UNLINK | OBJ_NOLOCK | OBJ_NODATA | OBJ_MULTIPLE,
 		NULL, NULL);
@@ -717,8 +717,8 @@ static int sorcery_memory_cache_create(const struct ast_sorcery *sorcery, void *
 		if (remove_oldest_from_cache(cache)) {
 			ast_log(LOG_ERROR, "Unable to make room in cache for sorcery object '%s'.\n",
 				ast_sorcery_object_get_id(object));
-			ao2_ref(cached, -1);
 			ao2_unlock(cache->objects);
+			ao2_ref(cached, -1);
 			return -1;
 		}
 		ast_assert(ao2_container_count(cache->objects) != cache->maximum_objects);
@@ -726,8 +726,8 @@ static int sorcery_memory_cache_create(const struct ast_sorcery *sorcery, void *
 	if (add_to_cache(cache, cached)) {
 		ast_log(LOG_ERROR, "Unable to add object '%s' to the cache\n",
 			ast_sorcery_object_get_id(object));
-		ao2_ref(cached, -1);
 		ao2_unlock(cache->objects);
+		ao2_ref(cached, -1);
 		return -1;
 	}
 	ao2_unlock(cache->objects);
