@@ -124,6 +124,8 @@ struct sorcery_memory_cache {
 	struct ast_heap *object_heap;
 	/*! \brief Scheduler item for expiring oldest object. */
 	int expire_id;
+	/*! TRUE if trying to stop the oldest object expiration scheduler item. */
+	unsigned int del_expire:1;
 #ifdef TEST_FRAMEWORK
 	/*! \brief Variable used to indicate we should notify a test when we reach empty */
 	unsigned int cache_notify;
@@ -443,7 +445,21 @@ static int expire_objects_from_cache(const void *data)
 	struct sorcery_memory_cache *cache = (struct sorcery_memory_cache *)data;
 	struct sorcery_memory_cached_object *cached;
 
-	ao2_wrlock(cache->objects);
+	/*
+	 * We need to do deadlock avoidance between a non-scheduler thread
+	 * blocking when trying to delete the scheduled entry for this
+	 * callback because the scheduler thread is running this callback
+	 * and this callback waiting for the cache->objects container lock
+	 * that the blocked non-scheduler thread already holds.
+	 */
+	while (ao2_trywrlock(cache->objects)) {
+		if (cache->del_expire) {
+			cache->expire_id = -1;
+			ao2_ref(cache, -1);
+			return 0;
+		}
+		sched_yield();
+	}
 
 	cache->expire_id = -1;
 
@@ -488,7 +504,9 @@ static void remove_all_from_cache(struct sorcery_memory_cache *cache)
 	ao2_callback(cache->objects, OBJ_UNLINK | OBJ_NOLOCK | OBJ_NODATA | OBJ_MULTIPLE,
 		NULL, NULL);
 
+	cache->del_expire = 1;
 	AST_SCHED_DEL_UNREF(sched, cache->expire_id, ao2_ref(cache, -1));
+	cache->del_expire = 0;
 }
 
 /*!
@@ -581,18 +599,9 @@ static int schedule_cache_expiration(struct sorcery_memory_cache *cache)
 		return 0;
 	}
 
-	if (cache->expire_id != -1) {
-		/* If we can't unschedule this expiration then it is currently attempting to run,
-		 * so let it run - it just means that it'll be the one scheduling instead of us.
-		 */
-		if (ast_sched_del(sched, cache->expire_id)) {
-			return 0;
-		}
-
-		/* Since it successfully cancelled we need to drop the ref to the cache it had */
-		ao2_ref(cache, -1);
-		cache->expire_id = -1;
-	}
+	cache->del_expire = 1;
+	AST_SCHED_DEL_UNREF(sched, cache->expire_id, ao2_ref(cache, -1));
+	cache->del_expire = 0;
 
 	cached = ast_heap_peek(cache->object_heap, 1);
 	if (!cached) {
