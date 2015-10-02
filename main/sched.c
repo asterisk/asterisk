@@ -450,6 +450,17 @@ static int sched_settime(struct timeval *t, int when)
 {
 	struct timeval now = ast_tvnow();
 
+	if (when < 0) {
+		/*
+		 * A negative when value is likely a bug as it
+		 * represents a VERY large timeout time.
+		 */
+		ast_log(LOG_WARNING,
+			"Bug likely: Negative time interval %d (interpreted as %u ms) requested!\n",
+			when, (unsigned int) when);
+		ast_assert(0);
+	}
+
 	/*ast_debug(1, "TV -> %lu,%lu\n", tv->tv_sec, tv->tv_usec);*/
 	if (ast_tvzero(*t))	/* not supplied, default to now */
 		*t = now;
