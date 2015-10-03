@@ -3477,18 +3477,18 @@ static int action_getconfigjson(struct mansession *s, const struct message *m)
 		category_name = ast_category_get_name(cur_category);
 		astman_append(s, "%s\"", comma1 ? "," : "");
 		astman_append_json(s, category_name);
-		astman_append(s, "\":[");
+		astman_append(s, "\":{");
 		comma1 = 1;
 
 		if (ast_category_is_template(cur_category)) {
-			astman_append(s, "istemplate:1");
+			astman_append(s, "\"istemplate\":1");
 			comma2 = 1;
 		}
 
 		if ((templates = ast_category_get_templates(cur_category))
 			&& ast_str_strlen(templates) > 0) {
 			astman_append(s, "%s", comma2 ? "," : "");
-			astman_append(s, "templates:\"%s\"", ast_str_buffer(templates));
+			astman_append(s, "\"templates\":\"%s\"", ast_str_buffer(templates));
 			ast_free(templates);
 			comma2 = 1;
 		}
@@ -3502,7 +3502,7 @@ static int action_getconfigjson(struct mansession *s, const struct message *m)
 			comma2 = 1;
 		}
 
-		astman_append(s, "]");
+		astman_append(s, "}");
 	}
 	astman_append(s, "}\r\n\r\n");
 
