@@ -1,3 +1,59 @@
+2015-10-06 18:40 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.6.0-rc2 Released.
+
+2015-10-06 13:40 +0000 [a44f6aa046]  Kevin Harwell <kharwell@lunkwill>
+
+	* Release summaries: Add summaries for 13.6.0-rc2
+
+2015-10-06 13:40 +0000 [dd74af7e46]  Kevin Harwell <kharwell@lunkwill.digium.internal>
+
+	* Release summaries: Remove previous versions
+
+2015-10-06 13:40 +0000 [a11a78ca34]  Kevin Harwell <kharwell@lunkwill>
+
+	* .version: Update for 13.6.0-rc2
+
+2015-10-06 13:40 +0000 [570329ec8a]  Kevin Harwell <kharwell@lunkwill>
+
+	* .lastclean: Update for 13.6.0-rc2
+
+2015-10-06 13:40 +0000 [51c9ff47f6]  Kevin Harwell <kharwell@lunkwill>
+
+	* realtime: Add database scripts for 13.6.0-rc2
+
+2015-10-05 21:34 +0000 [754daeca0a]  Matt Jordan <mjordan@digium.com>
+
+	* Fix improper usage of scheduler exposed by 5c713fdf18f
+
+	  When 5c713fdf18f was merged, it allowed for scheduled items to have an ID of
+	  '0' returned. While this was valid per the documentation for the API, it was
+	  apparently never returned previously. As a result, several users of the
+	  scheduler API viewed the result as being invalid, causing them to reschedule
+	  already scheduled items or otherwise fail in interesting ways.
+
+	  This patch corrects the users such that they view '0' as valid, and a returned
+	  ID of -1 as being invalid.
+
+	  Note that the failing HEP RTCP tests now pass with this patch. These tests
+	  failed due to a duplicate scheduling of the RTCP transmissions.
+
+	  ASTERISK-25449 #close
+
+	  Change-Id: I019a9aa8b6997584f66876331675981ac9e07e39
+2015-09-30 13:42 +0000 [9913d47697]  Joshua Colp <jcolp@digium.com>
+
+	* res_rtp_asterisk: Move "Set role" warning to be debug.
+
+	  In practice the set_role API callback can be invoked even
+	  when no ICE is present on an RTP instance. This can occur
+	  if ICE has not been enabled on it.
+
+	  ASTERISK-25438 #close
+
+	  Change-Id: I0e17e4316f0f0d7f095c78c3d4fd73a913b6ba69
+	  (cherry picked from commit 56ed7b9dd560e468be31684e56a8070b88ae0205)
+
 2015-09-29 21:15 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.6.0-rc1 Released.
