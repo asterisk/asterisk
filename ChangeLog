@@ -1,3 +1,76 @@
+2015-10-06 18:09 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 11.20.0-rc2 Released.
+
+2015-10-06 13:08 +0000 [967e8ac5a9]  Kevin Harwell <kharwell@lunkwill>
+
+	* Release summaries: Add summaries for 11.20.0-rc2
+
+2015-10-06 13:08 +0000 [41af944b79]  Kevin Harwell <kharwell@lunkwill.digium.internal>
+
+	* Release summaries: Remove previous versions
+
+2015-10-06 13:08 +0000 [0c43fbfe03]  Kevin Harwell <kharwell@lunkwill>
+
+	* .version: Update for 11.20.0-rc2
+
+2015-10-06 13:08 +0000 [6cc9188f58]  Kevin Harwell <kharwell@lunkwill>
+
+	* .lastclean: Update for 11.20.0-rc2
+
+2015-10-05 21:34 +0000 [60a9172d7e]  Matt Jordan <mjordan@digium.com>
+
+	* Fix improper usage of scheduler exposed by 5c713fdf18f
+
+	  When 5c713fdf18f was merged, it allowed for scheduled items to have an ID of
+	  '0' returned. While this was valid per the documentation for the API, it was
+	  apparently never returned previously. As a result, several users of the
+	  scheduler API viewed the result as being invalid, causing them to reschedule
+	  already scheduled items or otherwise fail in interesting ways.
+
+	  This patch corrects the users such that they view '0' as valid, and a returned
+	  ID of -1 as being invalid.
+
+	  Note that the failing HEP RTCP tests now pass with this patch. These tests
+	  failed due to a duplicate scheduling of the RTCP transmissions.
+
+	  ASTERISK-25449 #close
+
+	  Change-Id: I019a9aa8b6997584f66876331675981ac9e07e39
+2015-10-03 06:27 +0000 [b66f1eef41]  Ivan Poddubny <ivan.poddubny@gmail.com>
+
+	* manager: Fix GetConfigJSON returning invalid JSON
+
+	  When GetConfigJSON was introduced back in 1.6, it returned each
+	  section as an array of strings: ["key=value", "key2=value2"].
+	  Afterwards, it was changed a few times and became
+	  ["key": "value", "key2": "value2"], which is not a correct JSON.
+	  This patch fixes that by constructing a JSON object {} instead of
+	  an array [].
+
+	  ASTERISK-25391 #close
+	  Reported by: Bojan Nemčić
+
+	  Change-Id: Ibbe93c6a227dff14d4a54b0d152341857bcf6ad8
+
+2015-09-28 15:31 +0000 [6803444ac1]  Richard Mudgett <rmudgett@digium.com>
+
+	* sched.c: Add warning about negative time interval request.
+
+	  Change-Id: Ib91435fb45b7f5f7c0fc83d0eec20b88098707bc
+
+2015-09-30 13:42 +0000 [fa0985851a]  Joshua Colp <jcolp@digium.com>
+
+	* res_rtp_asterisk: Move "Set role" warning to be debug.
+
+	  In practice the set_role API callback can be invoked even
+	  when no ICE is present on an RTP instance. This can occur
+	  if ICE has not been enabled on it.
+
+	  ASTERISK-25438 #close
+
+	  Change-Id: I0e17e4316f0f0d7f095c78c3d4fd73a913b6ba69
+
 2015-09-29 20:58 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 11.20.0-rc1 Released.
