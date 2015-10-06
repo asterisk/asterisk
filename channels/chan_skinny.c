@@ -4875,7 +4875,7 @@ static int skinny_dialer_cb(const void *data)
 {
 	struct skinny_subchannel *sub = (struct skinny_subchannel *)data;
 	SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %u - Dialer called from SCHED %d\n", sub->callid, sub->dialer_sched);
-	sub->dialer_sched = 0;
+	sub->dialer_sched = -1;
 	skinny_dialer(sub, 1);
 	return 0;
 }
@@ -4884,7 +4884,7 @@ static int skinny_autoanswer_cb(const void *data)
 {
 	struct skinny_subchannel *sub = (struct skinny_subchannel *)data;
 	skinny_locksub(sub);
-	sub->aa_sched = 0;
+	sub->aa_sched = -1;
 	setsubstate(sub, SKINNY_CONNECTED);
 	skinny_unlocksub(sub);
 	return 0;
@@ -4894,7 +4894,7 @@ static int skinny_cfwd_cb(const void *data)
 {
 	struct skinny_subchannel *sub = (struct skinny_subchannel *)data;
 	struct skinny_line *l = sub->line;
-	sub->cfwd_sched = 0;
+	sub->cfwd_sched = -1;
 	SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %u - CFWDNOANS to %s.\n", sub->callid, l->call_forward_noanswer);
 	ast_channel_call_forward_set(sub->owner, l->call_forward_noanswer);
 	ast_queue_control(sub->owner, AST_CONTROL_REDIRECTING);
@@ -4936,7 +4936,7 @@ static int skinny_call(struct ast_channel *ast, const char *dest, int timeout)
 	skinny_locksub(sub);
 	AST_LIST_TRAVERSE(ast_channel_varshead(ast), current, entries) {
 		if (!(strcmp(ast_var_name(current), "SKINNY_AUTOANSWER"))) {
-			if (d->hookstate == SKINNY_ONHOOK && !sub->aa_sched) {
+			if (d->hookstate == SKINNY_ONHOOK && sub->aa_sched < 0) {
 				char buf[24];
 				int aatime;
 				char *stringp = buf, *curstr;
@@ -5401,9 +5401,9 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 			sub->xferor = 0;
 			sub->related = NULL;
 			sub->calldirection = direction;
-			sub->aa_sched = 0;
-			sub->dialer_sched = 0;
-			sub->cfwd_sched = 0;
+			sub->aa_sched = -1;
+			sub->dialer_sched = -1;
+			sub->cfwd_sched = -1;
 			sub->dialType = DIALTYPE_NORMAL;
 			sub->getforward = 0;
 
@@ -5562,17 +5562,17 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 
 	if (sub->dialer_sched) {
 		skinny_sched_del(sub->dialer_sched, sub);
-		sub->dialer_sched = 0;
+		sub->dialer_sched = -1;
 	}
 
 	if (state != SUBSTATE_RINGIN && sub->aa_sched) {
 		skinny_sched_del(sub->aa_sched, sub);
-		sub->aa_sched = 0;
+		sub->aa_sched = -1;
 		sub->aa_beep = 0;
 		sub->aa_mute = 0;
 	}
 
-	if (sub->cfwd_sched) {
+	if (sub->cfwd_sched > -1) {
 		if (state == SUBSTATE_CONNECTED) {
 			if (skinny_sched_del(sub->cfwd_sched, sub)) {
 				SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %u - trying to change state from %s to %s, but already forwarded because no answer.\n",
@@ -5580,7 +5580,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 				skinny_unlocksub(sub);
 				return;
 			}
-			sub->cfwd_sched = 0;
+			sub->cfwd_sched = -1;
 		} else if (state == SUBSTATE_ONHOOK) {
 			skinny_sched_del(sub->cfwd_sched, sub);
 		}
@@ -6252,7 +6252,7 @@ static int handle_keypad_button_message(struct skinny_req *req, struct skinnyses
 	if ((sub->owner && ast_channel_state(sub->owner) <  AST_STATE_UP)) {
 		if (sub->dialer_sched && !skinny_sched_del(sub->dialer_sched, sub)) {
 			SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %u - Got a digit and not timed out, so try dialing\n", sub->callid);
-			sub->dialer_sched = 0;
+			sub->dialer_sched = -1;
 			len = strlen(sub->exten);
 			if (len == 0) {
 				transmit_stop_tone(d, l->instance, sub->callid);
@@ -7089,7 +7089,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 			d->name, instance, callreference);
 		if (sub->dialer_sched && !skinny_sched_del(sub->dialer_sched, sub)) {
 			size_t len;
-			sub->dialer_sched = 0;
+			sub->dialer_sched = -1;
 			len = strlen(sub->exten);
 			if (len > 0) {
 				sub->exten[len-1] = '\0';
