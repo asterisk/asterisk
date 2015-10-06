@@ -797,7 +797,7 @@ static void ast_rtp_ice_set_role(struct ast_rtp_instance *instance, enum ast_rtp
 		role == AST_RTP_ICE_ROLE_CONTROLLED ? "CONTROLLED" : "CONTROLLING", instance);
 
 	if (!rtp->ice) {
-		ast_log(LOG_WARNING, "Set role failed; no ice instance (%p)\n", instance);
+		ast_debug(3, "Set role failed; no ice instance (%p)\n", instance);
 		return;
 	}
 
@@ -3278,7 +3278,7 @@ static int ast_rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame
 			rtp->txcount++;
 			rtp->txoctetcount += (res - hdrlen);
 
-			if (rtp->rtcp && rtp->rtcp->schedid < 1) {
+			if (rtp->rtcp && rtp->rtcp->schedid < 0) {
 				ast_debug(1, "Starting RTCP transmission on RTP instance '%p'\n", instance);
 				ao2_ref(instance, +1);
 				rtp->rtcp->schedid = ast_sched_add(rtp->sched, ast_rtcp_calc_interval(rtp), ast_rtcp_write, instance);
@@ -4397,7 +4397,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 	}
 
 	/* Do not schedule RR if RTCP isn't run */
-	if (rtp->rtcp && !ast_sockaddr_isnull(&rtp->rtcp->them) && rtp->rtcp->schedid < 1) {
+	if (rtp->rtcp && !ast_sockaddr_isnull(&rtp->rtcp->them) && rtp->rtcp->schedid < 0) {
 		/* Schedule transmission of Receiver Report */
 		ao2_ref(instance, +1);
 		rtp->rtcp->schedid = ast_sched_add(rtp->sched, ast_rtcp_calc_interval(rtp), ast_rtcp_write, instance);

@@ -2871,7 +2871,7 @@ static int action_getconfigjson(struct mansession *s, const struct message *m)
 
 		astman_append(s, "%s\"", comma1 ? "," : "");
 		astman_append_json(s, category);
-		astman_append(s, "\":[");
+		astman_append(s, "\":{");
 		comma1 = 1;
 		for (v = ast_variable_browse(cfg, category); v; v = v->next) {
 			astman_append(s, "%s\"", comma2 ? "," : "");
@@ -2881,7 +2881,7 @@ static int action_getconfigjson(struct mansession *s, const struct message *m)
 			astman_append(s, "\"");
 			comma2 = 1;
 		}
-		astman_append(s, "]");
+		astman_append(s, "}");
 	}
 	astman_append(s, "}\r\n\r\n");
 
