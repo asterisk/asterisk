@@ -2962,8 +2962,6 @@ struct send_request_wrapper {
 	pj_timer_entry *timeout_timer;
 	/*! Original timeout. */
 	pj_int32_t timeout;
-	/*! Timeout/cleanup lock. */
-	pj_mutex_t *lock;
 	/*! The transmit data. */
 	pjsip_tx_data *tdata;
 };
@@ -2989,7 +2987,7 @@ static void endpt_send_request_cb(void *token, pjsip_event *e)
 		ast_debug(2, "%p: PJSIP tsx response received\n", req_wrapper);
 	}
 
-	pj_mutex_lock(req_wrapper->lock);
+	ao2_lock(req_wrapper);
 
 	/* It's possible that our own timer was already processing while
 	 * we were waiting on the lock so check the timer id.  If it's
@@ -3030,7 +3028,7 @@ static void endpt_send_request_cb(void *token, pjsip_event *e)
 		req_wrapper->cb_called = 1;
 		ast_debug(2, "%p: Callbacks executed\n", req_wrapper);
 	}
-	pj_mutex_unlock(req_wrapper->lock);
+	ao2_unlock(req_wrapper);
 	ao2_ref(req_wrapper, -1);
 }
 
@@ -3047,12 +3045,12 @@ static void send_request_timer_callback(pj_timer_heap_t *theap, pj_timer_entry *
 	ast_debug(2, "%p: Internal tsx timer expired after %d msec\n",
 		req_wrapper, req_wrapper->timeout);
 
-	pj_mutex_lock(req_wrapper->lock);
+	ao2_lock(req_wrapper);
 	/* If the id is not TIMEOUT_TIMER2 then the timer was cancelled above
 	 * while the lock was being held so just clean up.
 	 */
 	if (entry->id != TIMEOUT_TIMER2) {
-		pj_mutex_unlock(req_wrapper->lock);
+		ao2_unlock(req_wrapper);
 		ast_debug(3, "%p: Timeout already handled\n", req_wrapper);
 		ao2_ref(req_wrapper, -1);
 		return;
@@ -3070,7 +3068,7 @@ static void send_request_timer_callback(pj_timer_heap_t *theap, pj_timer_entry *
 		ast_debug(2, "%p: Callbacks executed\n", req_wrapper);
 	}
 
-	pj_mutex_unlock(req_wrapper->lock);
+	ao2_unlock(req_wrapper);
 	ao2_ref(req_wrapper, -1);
 }
 
@@ -3078,7 +3076,6 @@ static void send_request_wrapper_destructor(void *obj)
 {
 	struct send_request_wrapper *req_wrapper = obj;
 
-	pj_mutex_destroy(req_wrapper->lock);
 	pjsip_tx_data_dec_ref(req_wrapper->tdata);
 	ast_debug(2, "%p: wrapper destroyed\n", req_wrapper);
 }
@@ -3091,8 +3088,7 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 	pjsip_endpoint *endpt = ast_sip_get_pjsip_endpoint();
 
 	/* Create wrapper to detect if the callback was actually called on an error. */
-	req_wrapper = ao2_alloc_options(sizeof(*req_wrapper), send_request_wrapper_destructor,
-		AO2_ALLOC_OPT_LOCK_NOLOCK);
+	req_wrapper = ao2_alloc(sizeof(*req_wrapper), send_request_wrapper_destructor);
 	if (!req_wrapper) {
 		pjsip_tx_data_dec_ref(tdata);
 		return PJ_ENOMEM;
@@ -3104,25 +3100,11 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 	req_wrapper->callback = cb;
 	req_wrapper->timeout = timeout;
 	req_wrapper->timeout_timer = NULL;
-	req_wrapper->lock = NULL;
 	req_wrapper->tdata = tdata;
 	/* Add a reference to tdata.  The wrapper destructor cleans it up. */
 	pjsip_tx_data_add_ref(tdata);
 
-	ret_val = pj_mutex_create_simple(tdata->pool, "tsx_timeout", &req_wrapper->lock);
-	if (ret_val != PJ_SUCCESS) {
-		char errmsg[PJ_ERR_MSG_SIZE];
-		pj_strerror(ret_val, errmsg, sizeof(errmsg));
-		ast_log(LOG_ERROR, "Error %d '%s' sending %.*s request to endpoint %s\n",
-			(int) ret_val, errmsg, (int) pj_strlen(&tdata->msg->line.req.method.name),
-			pj_strbuf(&tdata->msg->line.req.method.name),
-			endpoint ? ast_sorcery_object_get_id(endpoint) : "<unknown>");
-		pjsip_tx_data_dec_ref(tdata);
-		ao2_ref(req_wrapper, -1);
-		return PJ_ENOMEM;
-	}
-
-	pj_mutex_lock(req_wrapper->lock);
+	ao2_lock(req_wrapper);
 
 	if (timeout > 0) {
 		pj_time_val timeout_timer_val = { timeout / 1000, timeout % 1000 };
@@ -3184,7 +3166,7 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 			ao2_ref(req_wrapper, -1);
 		}
 	}
-	pj_mutex_unlock(req_wrapper->lock);
+	ao2_unlock(req_wrapper);
 	ao2_ref(req_wrapper, -1);
 	return ret_val;
 }
