@@ -4702,7 +4702,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 		rtp->f.delivery.tv_sec = 0;
 		rtp->f.delivery.tv_usec = 0;
 		/* Pass the RTP marker bit as bit */
-		rtp->f.subclass.frame_ending = mark;
+		rtp->f.subclass.frame_ending = mark ? 1 : 0;
 	} else if (ast_format_get_type(rtp->f.subclass.format) == AST_MEDIA_TYPE_TEXT) {
 		/* TEXT -- samples is # of samples vs. 1000 */
 		if (!rtp->lastitexttimestamp)
