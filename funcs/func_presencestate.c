@@ -255,7 +255,9 @@ static enum ast_presence_state custom_presence_callback(const char *data, char *
 	char *_message;
 	char *_subtype;
 
-	ast_db_get(astdb_family, data, buf, sizeof(buf));
+	if (ast_db_get(astdb_family, data, buf, sizeof(buf))) {
+		return AST_PRESENCE_NOT_SET;
+	}
 
 	if (parse_data(buf, &state, &_subtype, &_message, &_options)) {
 		return AST_PRESENCE_INVALID;
