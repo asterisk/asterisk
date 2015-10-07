@@ -1,3 +1,55 @@
+2015-10-07 18:42 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.6.0-rc3 Released.
+
+2015-10-07 13:41 +0000 [9da83dbd15]  Kevin Harwell <kharwell@lunkwill>
+
+	* Release summaries: Add summaries for 13.6.0-rc3
+
+2015-10-07 13:41 +0000 [8c60f9326c]  Kevin Harwell <kharwell@lunkwill.digium.internal>
+
+	* Release summaries: Remove previous versions
+
+2015-10-07 13:41 +0000 [316d47755b]  Kevin Harwell <kharwell@lunkwill>
+
+	* .version: Update for 13.6.0-rc3
+
+2015-10-07 13:41 +0000 [74a86d0a72]  Kevin Harwell <kharwell@lunkwill>
+
+	* .lastclean: Update for 13.6.0-rc3
+
+2015-10-07 13:41 +0000 [4c39bea6f0]  Kevin Harwell <kharwell@lunkwill>
+
+	* realtime: Add database scripts for 13.6.0-rc3
+
+2015-10-06 20:43 +0000 [10e790f81a]  Matt Jordan <mjordan@digium.com>
+
+	* res/res_rtp_asterisk: Fix assignment after ao2 decrement
+
+	  When we decide we will no longer schedule an RTCP write, we remove the
+	  reference to the RTP instance, then assign -1 to the stored scheduler ID
+	  in case something else comes along and wants to see if anything is scheduled.
+
+	  That scheduler ID is on the RTP instance. After 60a9172d7ef2 was merged to
+	  fix the regression introduced by 3cf0f29310, this improper assignment on a
+	  potentially destroyed object started getting tripped on the build agents.
+
+	  Frankly, this should have been crashing a lot more often earlier. I can only
+	  assume that the timing was changed just enough by both changes to start
+	  actually hitting this problem.
+
+	  As it is, simply moving the assignment prior to the ao2 deference is sufficient
+	  to keep the RTP instance from being referenced when it is very, truly,
+	  aboslutely dead.
+
+	  (Note that it is still good practice to assign -1 to the scheduler ID when we
+	  know we won't be scheduling it again, as the ao2 deref *may* not always destroy
+	  the ao2 object.)
+
+	  ASTERISK-25449
+
+	  Change-Id: Ie6d3cb4adc7b1a6c078b1c38c19fc84cf787cda7
+
 2015-10-06 18:40 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.6.0-rc2 Released.
