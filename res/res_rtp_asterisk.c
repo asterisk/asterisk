@@ -3199,8 +3199,8 @@ static int ast_rtcp_write(const void *data)
 		/*
 		 * Not being rescheduled.
 		 */
-		ao2_ref(instance, -1);
 		rtp->rtcp->schedid = -1;
+		ao2_ref(instance, -1);
 	}
 
 	return res;
