@@ -2006,7 +2006,14 @@ AST_EXT_TOOL_CHECK([NETSNMP], [net-snmp-config], , [--agent-libs],
 
 AST_EXT_LIB_CHECK([NEWT], [newt], [newtBell], [newt.h])
 
-AST_EXT_LIB_CHECK([UNBOUND], [unbound], [ub_ctx_create], [unbound.h], [])
+# libunbound v1.5.0 added the ub_ctx_add_ta_autr() API call that we can
+# detect as a useable version so that is going to be the minimum version
+# that we will require.
+# Technically v1.4.21 and later could be used but v1.4.21 has a configure
+# script bug which does not find the ldns library.  The bug is fixed in
+# v1.4.22 but that version is not easily detectable.
+#
+AST_EXT_LIB_CHECK([UNBOUND], [unbound], [ub_ctx_add_ta_autr], [unbound.h], [])
 
 AST_EXT_LIB_CHECK([UNIXODBC], [odbc], [SQLConnect], [sql.h], [])
 
