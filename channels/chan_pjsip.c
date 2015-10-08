@@ -2134,7 +2134,8 @@ static int chan_pjsip_incoming_request(struct ast_sip_session *session, struct p
 		return 0;
 	}
 
-	if (session->inv_session->state >= PJSIP_INV_STATE_CONFIRMED) {
+	/* Check for a to-tag to determine if this is a reinvite */
+	if (rdata->msg_info.to->tag.slen) {
 		/* Weird case. We've received a reinvite but we don't have a channel. The most
 		 * typical case for this happening is that a blind transfer fails, and so the
 		 * transferer attempts to reinvite himself back into the call. We already got
@@ -2181,8 +2182,9 @@ static int call_pickup_incoming_request(struct ast_sip_session *session, pjsip_r
 	struct ast_features_pickup_config *pickup_cfg;
 	struct ast_channel *chan;
 
-	/* We don't care about reinvites */
-	if (session->inv_session->state >= PJSIP_INV_STATE_CONFIRMED) {
+	/* Check for a to-tag to determine if this is a reinvite */
+	if (rdata->msg_info.to->tag.slen) {
+		/* We don't care about reinvites */
 		return 0;
 	}
 
@@ -2229,8 +2231,9 @@ static int pbx_start_incoming_request(struct ast_sip_session *session, pjsip_rx_
 {
 	int res;
 
-	/* We don't care about reinvites */
-	if (session->inv_session->state >= PJSIP_INV_STATE_CONFIRMED) {
+	/* Check for a to-tag to determine if this is a reinvite */
+	if (rdata->msg_info.to->tag.slen) {
+		/* We don't care about reinvites */
 		return 0;
 	}
 
