@@ -351,10 +351,11 @@ static void update_incoming_connected_line(struct ast_sip_session *session, pjsi
  */
 static int caller_id_incoming_request(struct ast_sip_session *session, pjsip_rx_data *rdata)
 {
-	if (session->inv_session->state < PJSIP_INV_STATE_CONFIRMED) {
+	if (!session->channel) {
 		/*
-		 * Initial inbound INVITE.  Set the session ID directly
-		 * because the channel has not been created yet.
+		 * Since we have no channel this must be the initial inbound
+		 * INVITE.  Set the session ID directly because the channel
+		 * has not been created yet.
 		 */
 		if (session->endpoint->id.trust_inbound
 			&& (!set_id_from_pai(rdata, &session->id)
@@ -367,9 +368,10 @@ static int caller_id_incoming_request(struct ast_sip_session *session, pjsip_rx_
 		if (!session->endpoint->id.self.number.valid) {
 			set_id_from_from(rdata, &session->id);
 		}
-	} else if (session->channel) {
-		/* Reinvite. Check for changes to the ID and queue a connected line
-		 * update if necessary
+	} else {
+		/*
+		 * ReINVITE or UPDATE.  Check for changes to the ID and queue
+		 * a connected line update if necessary.
 		 */
 		update_incoming_connected_line(session, rdata);
 	}
