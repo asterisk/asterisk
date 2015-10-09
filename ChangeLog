@@ -1,6 +1,26 @@
-2015-10-09 20:56 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2015-10-09 21:28 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 11.20.0 Released.
+
+2015-10-09 16:28 +0000 [ad4e910368]  Kevin Harwell <kharwell@lunkwill>
+
+	* Release summaries: Add summaries for 11.20.0
+
+2015-10-09 16:26 +0000 [1b7a210bb8]  Kevin Harwell <kharwell@lunkwill.digium.internal>
+
+	* Release summaries: Remove previous versions
+
+2015-10-09 16:26 +0000 [edd82562ba]  Kevin Harwell <kharwell@lunkwill>
+
+	* .version: Update for 11.20.0
+
+2015-10-09 16:26 +0000 [495a482281]  Kevin Harwell <kharwell@lunkwill>
+
+	* .lastclean: Update for 11.20.0
+
+2015-10-09 15:56 +0000 [74b5c009bc]  Kevin Harwell <kharwell@lunkwill>
+
+	* ChangeLog: Updated for 11.20.0
 
 2015-10-09 15:55 +0000 [7f4408940e]  Kevin Harwell <kharwell@lunkwill>
 
