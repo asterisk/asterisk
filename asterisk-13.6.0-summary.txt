@@ -1,0 +1,839 @@
+                                Release Summary
+
+                                asterisk-13.6.0
+
+                                Date: 2015-10-09
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Open Issues
+    5. Other Changes
+    6. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-13.5.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                       Testers          Reporters                    
+   40 Richard Mudgett           1 Elazar Broad   13 Matt Jordan               
+   18 Kevin Harwell                              11 Joshua Colp               
+   16 Joshua Colp                                11 Richard Mudgett           
+   15 Mark Michelson                             10 Scott Griepentrog         
+   13 Matt Jordan                                8 Mark Michelson             
+   9 Scott Griepentrog                           8 Mark Michelson             
+   8 Kevin Harwell                               7 John Hardin                
+   3 Scott Emidy                                 5 Kevin Harwell              
+   3 David M. Lee                                4 Scott Griepentrog          
+   2 Alexander Traud                             3 Richard Mudgett            
+   2 Alexander Anikin                            2 Kevin Harwell              
+   2 Jonathan Rose                               2 Alexander Traud            
+   1 Martin Tomec                                2 Alexandr Dranchuk          
+   1 Elazar Broad                                2 Dmitriy Serov              
+   1 Walter Doekes                               2 Stefan EngstrAP:m          
+   1 Rodrigo RamArez Norambuena                  1 Oleg Kozlov                
+   1 Mark Duncan                                 1 Walter Doekes              
+   1 Benjamin Ford                               1 Etienne Lessard            
+   1 Guido Falsi                                 1 Lorne Gaetz                
+                                                 1 Chet Stevens               
+                                                 1 Rodrigo Ramirez Norambuena 
+                                                 1 Ashley Sanders             
+                                                 1 Guido Falsi                
+                                                 1 Lorne Gaetz                
+                                                 1 Chet Stevens               
+                                                 1 Kevin Scott Adams          
+                                                 1 Elazar Broad               
+                                                 1 Sean Pimental              
+                                                 1 Jonathan Rose              
+                                                 1 Etienne Lessard            
+                                                 1 Alexandr Dranchuk          
+                                                 1 yaron nahum                
+                                                 1 Elazar Broad               
+                                                 1 yaron nahum                
+                                                 1 Guido Falsi                
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  New Feature
+
+    Category: Resources/res_ari
+
+   ASTERISK-25252: ARI: Add the ability to manipulate log channels
+   Reported by: Matt Jordan
+     * [df9ce36366] Scott Emidy -- ARI: Retrieve existing log channels
+     * [e9f1bc08cb] Scott Emidy -- ARI: Creating log channels
+     * [78364132ce] Scott Emidy -- ARI: Deleting log channels
+     * [1ae762634c] Benjamin Ford -- ARI: Rotate log channels.
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-25377: res_pjsip: Change default "From user" from UUID to
+   something more palatable
+   Reported by: Mark Michelson
+     * [ac62928d6b] Mark Michelson -- res_pjsip: Change default from user
+       value.
+
+  Bug
+
+    Category: Addons/chan_ooh323
+
+   ASTERISK-25227: No audio at in-band announcements in ooh323 channel
+   Reported by: Alexandr Dranchuk
+     * [71408df2b8] Alexander Anikin -- chan_ooh323: Add ProgressIndicator IE
+       with inband info available
+
+    Category: Applications/app_dial
+
+   ASTERISK-25423: Caller gets no Connected line update during call pickup.
+   Reported by: Richard Mudgett
+     * [6b1e7583c1] Richard Mudgett -- app_queue.c: Force COLP update if
+       outgoing channel name changed.
+     * [6bf304bf25] Richard Mudgett -- app_queue.c: Factor out a connected
+       line update routine.
+     * [e36b5f1e8e] Richard Mudgett -- app_dial.c: Make 'A' option pass COLP
+       updates.
+     * [747bfac895] Richard Mudgett -- app_dial.c: Force COLP update if
+       outgoing channel name changed.
+     * [14481d9aa0] Richard Mudgett -- app_dial.c: Factor out a connected
+       line update routine.
+
+    Category: Applications/app_mixmonitor
+
+   ASTERISK-25322: Crash occurs when using MixMonitor with t() or r()
+   options.
+   Reported by: Richard Mudgett
+     * [b3a56bee83] Richard Mudgett -- audiohook.c: Fix MixMonitor crash when
+       using the r() or t() options.
+
+    Category: Applications/app_page
+
+   ASTERISK-25384: Regular Asterisk crashes when using Page application.
+   "user_data is NULL"
+   Reported by: Chet Stevens
+     * [5f15cd93f0] Richard Mudgett -- app_page.c: Fix crash when forwarding
+       with a predial handler.
+
+    Category: Applications/app_queue
+
+   ASTERISK-25423: Caller gets no Connected line update during call pickup.
+   Reported by: Richard Mudgett
+     * [6b1e7583c1] Richard Mudgett -- app_queue.c: Force COLP update if
+       outgoing channel name changed.
+     * [6bf304bf25] Richard Mudgett -- app_queue.c: Factor out a connected
+       line update routine.
+     * [e36b5f1e8e] Richard Mudgett -- app_dial.c: Make 'A' option pass COLP
+       updates.
+     * [747bfac895] Richard Mudgett -- app_dial.c: Force COLP update if
+       outgoing channel name changed.
+     * [14481d9aa0] Richard Mudgett -- app_dial.c: Factor out a connected
+       line update routine.
+   ASTERISK-25399: app_queue: AgentComplete event has wrong reason
+   Reported by: Kevin Harwell
+     * [4fb95bbc4e] Kevin Harwell -- app_queue: AgentComplete event has wrong
+       reason
+   ASTERISK-25185: Segfault in app_queue on transfer scenarios
+   Reported by: Etienne Lessard
+     * [6409e7b11a] Kevin Harwell -- app_queue: Crash when transferring
+   ASTERISK-25215: Differences in queue.log between Set QUEUE_MEMBER and
+   using PauseQueueMember
+   Reported by: Lorne Gaetz
+     * [e5f5b9f384] Richard Mudgett -- app_queue.c: Fix setting QUEUE_MEMBER
+       'paused' and 'ringinuse'.
+
+    Category: Applications/app_record
+
+   ASTERISK-25410: app_record: RECORDED_FILE variable not being populated
+   Reported by: Kevin Harwell
+     * [aeddee39fb] Kevin Harwell -- app_record: RECORDED_FILE variable not
+       being populated
+
+    Category: Bridges/bridge_holding
+
+   ASTERISK-25271: Parking & blind transfer: Transferer channel not hung up
+   if no MOH
+   Reported by: Kevin Harwell
+     * [8458b8d441] Jonathan Rose -- holding_bridge: ensure moh participants
+       get frames
+
+    Category: Channels/chan_dahdi
+
+   ASTERISK-25315: DAHDI channels send shortened duration DTMF tones.
+   Reported by: Richard Mudgett
+     * [256bc52b66] Richard Mudgett -- chan_dahdi.c: Flush the DAHDI write
+       buffer after starting DTMF.
+     * [800e0ea48d] Richard Mudgett -- chan_dahdi.c: Lock private struct for
+       ast_write().
+
+    Category: Channels/chan_sip/CodecHandling
+
+   ASTERISK-25309: [patch] iLBC 20 advertised
+   Reported by: Alexander Traud
+     * [f68c995bc9] Alexander Traud -- chan_sip: Fix negotiation of iLBC 30.
+
+    Category: Channels/chan_sip/General
+
+   ASTERISK-25346: chan_sip: Overwriting answered elsewhere hangup cause on
+   call pickup
+   Reported by: Joshua Colp
+     * [c01111223f] Joshua Colp -- chan_sip: Allow call pickup to set the
+       hangup cause.
+
+    Category: Channels/chan_sip/Interoperability
+
+   ASTERISK-25396: chan_sip: Extremely long callerid name causes invalid SIP
+   Reported by: Walter Doekes
+     * [b59c4d82b5] Walter Doekes -- chan_sip: Fix From header truncation for
+       extremely long CALLERID(name).
+
+    Category: Channels/chan_sip/Security Framework
+
+   ASTERISK-25320: chan_sip.c: sip_report_security_event searches for wrong
+   or non existent peer on invite
+   Reported by: Kevin Harwell
+     * [25af2d71c8] Kevin Harwell -- chan_sip.c: wrong peer searched in
+       sip_report_security_event
+
+    Category: Channels/chan_skinny
+
+   ASTERISK-25296: RTP performance issue with several channel drivers.
+   Reported by: Richard Mudgett
+     * [aeeb170fc4] Richard Mudgett -- rtp_engine.c: Fix performance issue
+       with several channel drivers that use RTP.
+     * [84262749d2] Richard Mudgett -- res_rtp_asterisk.c: Fix off-nominal
+       crash potential.
+
+    Category: Channels/chan_unistim
+
+   ASTERISK-25296: RTP performance issue with several channel drivers.
+   Reported by: Richard Mudgett
+     * [aeeb170fc4] Richard Mudgett -- rtp_engine.c: Fix performance issue
+       with several channel drivers that use RTP.
+     * [84262749d2] Richard Mudgett -- res_rtp_asterisk.c: Fix off-nominal
+       crash potential.
+
+    Category: Codecs/General
+
+   ASTERISK-25353: [patch] Transcoding while different in Frame size = Frames
+   lost
+   Reported by: Alexander Traud
+     * [b88c54fa4b] Alexander Traud -- translate: Fix transcoding while
+       different in frame size.
+
+    Category: Core/Bridging
+
+   ASTERISK-25341: bridge: Hangups may get lost when executing actions
+   Reported by: Joshua Colp
+     * [6c2dab1e88] Joshua Colp -- bridge: Kick channel from bridge if hung
+       up during action.
+
+    Category: Core/BuildSystem
+
+   ASTERISK-25383: Core dumps on startup and shutdown with MALLOC_DEBUG
+   enabled
+   Reported by: yaron nahum
+     * [028033e5a8] Richard Mudgett -- res/ari/config.c: Fix conf_alloc()
+       object init.
+   ASTERISK-25265: [patch]DTLS Failure when calling WebRTC-peer on Firefox 39
+   - add ECDH support and fallback to prime256v1
+   Reported by: Stefan EngstrAP:m
+     * [9a12804e59] Joshua Colp -- res_rtp_asterisk: Don't leak temporary key
+       when enabling PFS.
+     * [aed068844c] Mark Duncan -- res/res_rtp_asterisk: Add ECDH support
+
+    Category: Core/General
+
+   ASTERISK-25449: main/sched: Regression introduced by 5c713fdf18f causes
+   erroneous duplicate RTCP messages; other potential scheduling issues in
+   chan_sip/chan_skinny
+   Reported by: Matt Jordan
+     * [10e790f81a] Matt Jordan -- res/res_rtp_asterisk: Fix assignment after
+       ao2 decrement
+     * [754daeca0a] Matt Jordan -- Fix improper usage of scheduler exposed by
+       5c713fdf18f
+   ASTERISK-25383: Core dumps on startup and shutdown with MALLOC_DEBUG
+   enabled
+   Reported by: yaron nahum
+     * [028033e5a8] Richard Mudgett -- res/ari/config.c: Fix conf_alloc()
+       object init.
+   ASTERISK-25418: On-hold channels redirected out of a bridge appear to
+   still be on hold
+   Reported by: Mark Michelson
+     * [629458d349] Mark Michelson -- Do not swallow frames on channels
+       leaving bridges.
+   ASTERISK-25355: sched: ast_sched_del may return prematurely due to
+   spurious wakeup
+   Reported by: Joshua Colp
+     * [85e1cb51b2] Joshua Colp -- sched: ast_sched_del may return
+       prematurely due to spurious wakeup
+
+    Category: Core/Logging
+
+   ASTERISK-25305: Dynamic logger channels can be added multiple times
+   Reported by: Mark Michelson
+     * [f050fa76eb] Mark Michelson -- logger: Prevent duplicate dynamic
+       channels from being added.
+   ASTERISK-25407: Asterisk fails to log to multiple syslog destinations
+   Reported by: Elazar Broad
+     * [ec514ad64d] Elazar Broad -- core/logging: Fix logging to more than
+       one syslog channel
+
+    Category: Core/PBX
+
+   ASTERISK-25394: pbx: Incorrect device and presence state when changing
+   hint details
+   Reported by: Joshua Colp
+     * [2bd27d1222] Joshua Colp -- pbx: Update device and presence state when
+       changing a hint extension.
+   ASTERISK-25367: pbx: Long pattern match hints may cause "core show hints"
+   to crash
+   Reported by: Joshua Colp
+     * [cc1363209e] Joshua Colp -- pbx: Fix crash when issuing "core show
+       hints" with long pattern match.
+   ASTERISK-25362: Deadlock due to presence state callback
+   Reported by: Mark Michelson
+     * [03fe79f29e] Mark Michelson -- Fix deadlock on presence state changes.
+
+    Category: Core/RTP
+
+   ASTERISK-25296: RTP performance issue with several channel drivers.
+   Reported by: Richard Mudgett
+     * [aeeb170fc4] Richard Mudgett -- rtp_engine.c: Fix performance issue
+       with several channel drivers that use RTP.
+     * [84262749d2] Richard Mudgett -- res_rtp_asterisk.c: Fix off-nominal
+       crash potential.
+
+    Category: Resources/res_ari
+
+   ASTERISK-25325: ARI PUT reload chan_sip HTTP response 404
+   Reported by: Rodrigo Ramirez Norambuena
+     * [865377fc38] Rodrigo RamArez Norambuena -- chan_sip.c: Validation on
+       module reload
+
+    Category: Resources/res_http_websocket
+
+   ASTERISK-25312: res_http_websocket: Terminate connection on fatal cases
+   Reported by: Joshua Colp
+     * [b4e9416138] Joshua Colp -- res_http_websocket: Forcefully terminate
+       on write errors.
+
+    Category: Resources/res_parking
+
+   ASTERISK-25369: res_parking: ParkAndAnnounce - Inheritable variables
+   aren't applied to the announcer channel
+   Reported by: Jonathan Rose
+     * [fbf720db91] Jonathan Rose -- ParkAndAnnounce: Add variable
+       inheritance
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-25295: res_pjsip crash - pjsip_uri_get_uri at
+   /usr/include/pjsip/sip_uri.h
+   Reported by: Dmitriy Serov
+     * [5469caa9dd] Joshua Colp -- res_pjsip: Use hash for contact object
+       identity instead of Contact URI.
+     * [a676ba2aad] Joshua Colp -- taskprocessor: Fix race condition between
+       unreferencing and finding.
+   ASTERISK-25381: res_pjsip: AoRs deleted via ARI (or other mechanism) do
+   not destroy their related contacts
+   Reported by: Matt Jordan
+     * [c3e6debdb9] Matt Jordan -- res/res_pjsip: Purge contacts when an AoR
+       is deleted
+   ASTERISK-25339: res_pjsip: Empty "auth" sections from non-config
+   backgrounds are interpreted as valid
+   Reported by: Matt Jordan
+     * [bc6fe07f5c] Matt Jordan -- res_pjsip/pjsip_configuration: Disregard
+       empty auth values
+   ASTERISK-25304: res_pjsip: XML sanitization may write past buffer
+   Reported by: Joshua Colp
+     * [8521a86367] Joshua Colp -- res_pjsip: Ensure sanitized XML is NULL
+       terminated.
+
+    Category: Resources/res_pjsip_nat
+
+   ASTERISK-25387: res_pjsip_nat: Malformed REGISTER request causes NAT'd
+   Contact header to not be rewritten
+   Reported by: Matt Jordan
+     * [1dd0e220bf] Matt Jordan -- res/res_pjsip_nat: Ignore REGISTER
+       requests when looking for a Record-Route
+
+    Category: Resources/res_pjsip_pubsub
+
+   ASTERISK-25306: Persistent subscriptions can save multiple SIP messages at
+   once, leading to potential crashes.
+   Reported by: Mark Michelson
+     * [c126afe18f] Richard Mudgett -- res_pjsip.c: Fix crash from corrupt
+       saved SUBSCRIBE message.
+     * [e25569ef95] Mark Michelson -- res_pjsip_pubsub: More accurately
+       persist packet.
+
+    Category: Resources/res_pjsip_sdp_rtp
+
+   ASTERISK-25356: res_pjsip_sdp_rtp: Multiple keepalive scheduled items may
+   exist
+   Reported by: Joshua Colp
+     * [1b1561f4c8] Joshua Colp -- res_pjsip_sdp_rtp: Fix multiple keepalive
+       scheduled items.
+
+    Category: Resources/res_pjsip_session
+
+   ASTERISK-25297: Crashes running
+   channels/pjsip/resolver/srv/failover/in_dialog testsuite tests
+   Reported by: Richard Mudgett
+     * [13eb491e35] Richard Mudgett -- res_pjsip_session.c: Fix crashes seen
+       when call cancelled.
+
+    Category: Resources/res_rtp_asterisk
+
+   ASTERISK-25438: res_rtp_asterisk: ICE role message even when ICE is not
+   enabled
+   Reported by: Joshua Colp
+     * [9913d47697] Joshua Colp -- res_rtp_asterisk: Move "Set role" warning
+       to be debug.
+   ASTERISK-25265: [patch]DTLS Failure when calling WebRTC-peer on Firefox 39
+   - add ECDH support and fallback to prime256v1
+   Reported by: Stefan EngstrAP:m
+     * [9a12804e59] Joshua Colp -- res_rtp_asterisk: Don't leak temporary key
+       when enabling PFS.
+     * [aed068844c] Mark Duncan -- res/res_rtp_asterisk: Add ECDH support
+
+    Category: Tests/testsuite
+
+   ASTERISK-25318:
+   tests/rest_api/applications/subscribe-endpoint/nominal/resource:
+   Sporadically failing
+   Reported by: Joshua Colp
+     * [c2c7319082] Joshua Colp -- res_pjsip_session: Don't invoke session
+       supplements twice for BYE requests.
+   ASTERISK-25292: Testuite:
+   tests/apps/bridge/bridge_wait/bridge_wait_e_options fails
+   Reported by: Kevin Harwell
+     * [10ba72a927] Mark Michelson -- Add a test event for inband ringing.
+
+  Improvement
+
+    Category: Core/General
+
+   ASTERISK-25310: [patch]on FreeBSD also pthread_attr_init() defaults to
+   PTHREAD_EXPLICIT_SCHED
+   Reported by: Guido Falsi
+     * [4ed9c9a280] Guido Falsi -- Core/General: Add #ifdef needed on
+       FreeBSD.
+
+    Category: Resources/res_ari_applications
+
+   ASTERISK-24870: ARI: Subscriptions to bridges generally not super useful
+   Reported by: Matt Jordan
+     * [90165e306d] Matt Jordan -- res/res_stasis: Fix accidental
+       subscription to 'all' bridge topic
+     * [b50e372394] Matt Jordan -- ARI: Add events for Contact and Peer
+       Status changes
+     * [3502c0431d] Matt Jordan -- res/res_stasis_device_state: Allow for
+       subscribing to 'all' device state
+     * [4c9f613309] Matt Jordan -- ARI: Add the ability to subscribe to all
+       events
+
+    Category: Resources/res_ari_bridges
+
+   ASTERISK-24870: ARI: Subscriptions to bridges generally not super useful
+   Reported by: Matt Jordan
+     * [90165e306d] Matt Jordan -- res/res_stasis: Fix accidental
+       subscription to 'all' bridge topic
+     * [b50e372394] Matt Jordan -- ARI: Add events for Contact and Peer
+       Status changes
+     * [3502c0431d] Matt Jordan -- res/res_stasis_device_state: Allow for
+       subscribing to 'all' device state
+     * [4c9f613309] Matt Jordan -- ARI: Add the ability to subscribe to all
+       events
+
+     ----------------------------------------------------------------------
+
+                                  Open Issues
+
+                                 [Back to Top]
+
+   This is a list of all open issues from the issue tracker that were
+   referenced by changes that went into this release.
+
+  Bug
+
+    Category: Addons/chan_ooh323
+
+   ASTERISK-25299: RTP port leaks with incoming OOH323 calls
+   Reported by: Alexandr Dranchuk
+     * [480c443e26] Alexander Anikin -- chan_ooh323: call
+       ast_rtp_instance_stop on ooh323_destroy
+
+    Category: General
+
+   ASTERISK-25323: Asterisk: ongoing segfaults uncovered by CHAOS_DEBUG
+   Reported by: Scott Griepentrog
+     * [c94f46080f] Scott Griepentrog -- CHAOS: avoid crash if string create
+       fails
+     * [4cc59533b9] Richard Mudgett -- CHAOS: res_pjsip_diversion avoid crash
+       if allocation fails
+     * [fb6b5c684b] Scott Griepentrog -- PJSIP: avoid crash when getting rtp
+       peer
+     * [f72f9ceefc] Scott Griepentrog -- pjsip: avoid possible crash req_caps
+       allocation failure
+     * [6862c2a167] Scott Griepentrog -- Chaos: handle failed allocation in
+       get_media_encryption_type
+     * [f1cd636658] Scott Griepentrog -- Chaos: make hangup NULL tolerant
+     * [ab373f2cef] Scott Griepentrog -- CHAOS: prevent sorcery object with
+       null id
+
+    Category: Resources/res_hep_rtcp
+
+   ASTERISK-25352: res_hep_rtcp correlation_id is different then res_hep
+   Reported by: Kevin Scott Adams
+     * [78d0b9d97e] Matt Jordan -- channels/pjsip/dialplan_functions: Add an
+       option for extracting the SIP call-id
+
+    Category: pjproject/pjsip
+
+   ASTERISK-24602: Unable to call WebRTC client via wss on chan_pjsip
+   Reported by: Oleg Kozlov
+     * [d32e516c7c] Martin Tomec -- res/pjsip: Mark WSS transport as secure
+
+  Improvement
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author          | Summary                                 |
+   |------------+-----------------+-----------------------------------------|
+   | cc0eff5651 | Kevin Harwell   | Release summaries: Remove previous      |
+   |            |                 | versions                                |
+   |------------+-----------------+-----------------------------------------|
+   | 8cd191b885 | Kevin Harwell   | .version: Update for 13.6.0             |
+   |------------+-----------------+-----------------------------------------|
+   | a3777c24fd | Kevin Harwell   | .lastclean: Update for 13.6.0           |
+   |------------+-----------------+-----------------------------------------|
+   | 68121cef21 | Kevin Harwell   | realtime: Add database scripts for      |
+   |            |                 | 13.6.0                                  |
+   |------------+-----------------+-----------------------------------------|
+   | d72dab4f40 | Kevin Harwell   | ChangeLog: Updated for 13.6.0-rc3       |
+   |------------+-----------------+-----------------------------------------|
+   | 9da83dbd15 | Kevin Harwell   | Release summaries: Add summaries for    |
+   |            |                 | 13.6.0-rc3                              |
+   |------------+-----------------+-----------------------------------------|
+   | 8c60f9326c | Kevin Harwell   | Release summaries: Remove previous      |
+   |            |                 | versions                                |
+   |------------+-----------------+-----------------------------------------|
+   | 316d47755b | Kevin Harwell   | .version: Update for 13.6.0-rc3         |
+   |------------+-----------------+-----------------------------------------|
+   | 74a86d0a72 | Kevin Harwell   | .lastclean: Update for 13.6.0-rc3       |
+   |------------+-----------------+-----------------------------------------|
+   | 4c39bea6f0 | Kevin Harwell   | realtime: Add database scripts for      |
+   |            |                 | 13.6.0-rc3                              |
+   |------------+-----------------+-----------------------------------------|
+   | c3521e9469 | Kevin Harwell   | ChangeLog: Updated for 13.6.0-rc2       |
+   |------------+-----------------+-----------------------------------------|
+   | a44f6aa046 | Kevin Harwell   | Release summaries: Add summaries for    |
+   |            |                 | 13.6.0-rc2                              |
+   |------------+-----------------+-----------------------------------------|
+   | dd74af7e46 | Kevin Harwell   | Release summaries: Remove previous      |
+   |            |                 | versions                                |
+   |------------+-----------------+-----------------------------------------|
+   | a11a78ca34 | Kevin Harwell   | .version: Update for 13.6.0-rc2         |
+   |------------+-----------------+-----------------------------------------|
+   | 570329ec8a | Kevin Harwell   | .lastclean: Update for 13.6.0-rc2       |
+   |------------+-----------------+-----------------------------------------|
+   | 51c9ff47f6 | Kevin Harwell   | realtime: Add database scripts for      |
+   |            |                 | 13.6.0-rc2                              |
+   |------------+-----------------+-----------------------------------------|
+   | a0fb436eda | Kevin Harwell   | ChangeLog: Updated for 13.6.0-rc1       |
+   |------------+-----------------+-----------------------------------------|
+   | bba1c4066b | Kevin Harwell   | Release summaries: Add summaries for    |
+   |            |                 | 13.6.0-rc1                              |
+   |------------+-----------------+-----------------------------------------|
+   | 82c4aecdbb | Kevin Harwell   | .version: Update for 13.6.0-rc1         |
+   |------------+-----------------+-----------------------------------------|
+   | bc18db7388 | Kevin Harwell   | .lastclean: Update for 13.6.0-rc1       |
+   |------------+-----------------+-----------------------------------------|
+   | b9c53f95e3 | Kevin Harwell   | realtime: Add database scripts for      |
+   |            |                 | 13.6.0-rc1                              |
+   |------------+-----------------+-----------------------------------------|
+   | d30939b6e8 | Kevin Harwell   | ARI: Changed version from 1.8.0 to      |
+   |            |                 | 1.9.0                                   |
+   |------------+-----------------+-----------------------------------------|
+   | 5f19c9bade | Richard Mudgett | res/ari/config.c: Fix user sort compare |
+   |            |                 | function.                               |
+   |------------+-----------------+-----------------------------------------|
+   | 3a85764039 | Richard Mudgett | res/ari/config.c: Optimize conf_alloc() |
+   |            |                 | object init.                            |
+   |------------+-----------------+-----------------------------------------|
+   | bbeda190c3 | Richard Mudgett | app_dial.c: Remove some no-op code.     |
+   |------------+-----------------+-----------------------------------------|
+   | fe5077b1f8 | Mark Michelson  | res_pjsip_pubsub: Eliminate race during |
+   |            |                 | initial NOTIFY.                         |
+   |------------+-----------------+-----------------------------------------|
+   | 5c713fdf18 | Mark Michelson  | scheduler: Use queue for allocating     |
+   |            |                 | sched IDs.                              |
+   |------------+-----------------+-----------------------------------------|
+   |            |                 | res_pjsip_pubsub.c: Mark                |
+   | e75aff53e6 | Richard Mudgett | ast_sip_create_subscription() as not    |
+   |            |                 | used.                                   |
+   |------------+-----------------+-----------------------------------------|
+   | 4d91d01df1 | Richard Mudgett | res_pjsip_pubsub.c: Add some            |
+   |            |                 | notification comments.                  |
+   |------------+-----------------+-----------------------------------------|
+   | f36a9d1221 | Richard Mudgett | res_pjsip_pubsub.c: Set dlg_status code |
+   |            |                 | instead of sending SIP response.        |
+   |------------+-----------------+-----------------------------------------|
+   | 94582f8fab | Richard Mudgett | res_pjsip_pubsub.c: Fix off-nominal     |
+   |            |                 | memory leak.                            |
+   |------------+-----------------+-----------------------------------------|
+   | 8b3ed52239 | Richard Mudgett | res_pjsip_pubsub.c: Fix one byte buffer |
+   |            |                 | overrun error.                          |
+   |------------+-----------------+-----------------------------------------|
+   | 4329bd1e4c | Richard Mudgett | res_pjsip_pubsub.c: Use ast_alloca()    |
+   |            |                 | instead of alloca().                    |
+   |------------+-----------------+-----------------------------------------|
+   | a456a20ecf | Richard Mudgett | res_pjsip_pubsub.c: Add missing error   |
+   |            |                 | return in load_module().                |
+   |------------+-----------------+-----------------------------------------|
+   | f58f4c6e27 | Richard Mudgett | res_pjsip/location.c: Use the builtin   |
+   |            |                 | ao2_callback() match function instead.  |
+   |------------+-----------------+-----------------------------------------|
+   |            |                 | main/config_options: Check for          |
+   | 4eedd9ef9d | Matt Jordan     | existance of internal object before     |
+   |            |                 | derefing                                |
+   |------------+-----------------+-----------------------------------------|
+   | 695f26cbb7 | David M. Lee    | res_rtp_asterisk: Add more ICE          |
+   |            |                 | debugging                               |
+   |------------+-----------------+-----------------------------------------|
+   | 61c6c6aa6c | David M. Lee    | Fix when remote candidates exceed       |
+   |            |                 | PJ_ICE_MAX_CAND                         |
+   |------------+-----------------+-----------------------------------------|
+   | ad9cb6c2ce | Mark Michelson  | res_pjsip: Fix contact refleak on       |
+   |            |                 | stateful responses.                     |
+   |------------+-----------------+-----------------------------------------|
+   | 7c4d0c3506 | Joshua Colp     | res_pjsip_pubsub: On recreated notify   |
+   |            |                 | fail deleted sub_tree is referenced     |
+   |------------+-----------------+-----------------------------------------|
+   | 0582776f7f | Richard Mudgett | ari/ari_websockets.c: Fix ast_debug     |
+   |            |                 | parameter type mismatch.                |
+   |------------+-----------------+-----------------------------------------|
+   | 77518d5434 | Richard Mudgett | res_http_websocket.c: Fix some off      |
+   |            |                 | nominal path cleanup.                   |
+   |------------+-----------------+-----------------------------------------|
+   | c61547fee6 | Richard Mudgett | res_ari.c: Add missing off nominal      |
+   |            |                 | unlock and remove a RAII_VAR().         |
+   |------------+-----------------+-----------------------------------------|
+   | bd867cd078 | Richard Mudgett | app_queue.c: Extract some functions for |
+   |            |                 | simpler code.                           |
+   |------------+-----------------+-----------------------------------------|
+   | ded51e3d77 | Richard Mudgett | app_queue.c: Fix error checking in      |
+   |            |                 | QUEUE_MEMBER() read.                    |
+   |------------+-----------------+-----------------------------------------|
+   | b719f56c72 | Mark Michelson  | res_pjsip_sdp_rtp: Restore removed NULL |
+   |            |                 | check.                                  |
+   |------------+-----------------+-----------------------------------------|
+   | cea5dc7b8a | Richard Mudgett | audiohook.c: Simplify variable usage in |
+   |            |                 | audiohook_read_frame_both().            |
+   |------------+-----------------+-----------------------------------------|
+   | e18c300550 | Joshua Colp     | res_http_websocket: When shutting down  |
+   |            |                 | a session don't close closed socket     |
+   |------------+-----------------+-----------------------------------------|
+   | 8e194047ac | Matt Jordan     | res/res_format_attr_silk: Expose format |
+   |            |                 | attributes to other modules             |
+   |------------+-----------------+-----------------------------------------|
+   | a0f451c35e | Matt Jordan     | main/format: Add an API call for        |
+   |            |                 | retrieving format attributes            |
+   |------------+-----------------+-----------------------------------------|
+   | 26f0559a94 | David M. Lee    | Replace htobe64 with htonll             |
+   |------------+-----------------+-----------------------------------------|
+   | 27dc2094e9 | Mark Michelson  | res_http_websocket: Debug write         |
+   |            |                 | lengths.                                |
+   |------------+-----------------+-----------------------------------------|
+   | 39cc28f6ea | Mark Michelson  | res_http_websocket: Avoid passing       |
+   |            |                 | strlen() to ast_websocket_write().      |
+   |------------+-----------------+-----------------------------------------|
+   | 1519eb44a7 | Richard Mudgett | rtp_engine.c: Must protect              |
+   |            |                 | mime_types_len with mime_types_lock.    |
+   |------------+-----------------+-----------------------------------------|
+   | a93b7a927c | Richard Mudgett | res_pjsip_sdp_rtp.c: Fix processing     |
+   |            |                 | wrong SDP media list.                   |
+   |------------+-----------------+-----------------------------------------|
+   | 741fa0d26d | Richard Mudgett | res_pjsip_sdp_rtp.c: Fixup some         |
+   |            |                 | whitespace.                             |
+   |------------+-----------------+-----------------------------------------|
+   | 89b21fd9a3 | Richard Mudgett | rtp_engine.h: No sense allowing payload |
+   |            |                 | types larger than RFC allows.           |
+   |------------+-----------------+-----------------------------------------|
+   | 7427c7f13b | Richard Mudgett | rtp_engine.c: Minor tweaks.             |
+   |------------+-----------------+-----------------------------------------|
+   | e20f435b60 | Richard Mudgett | rtp_engine.h: Misc comment fixes.       |
+   |------------+-----------------+-----------------------------------------|
+   | bc5d7f9c37 | Richard Mudgett | chan_sip.c: Tweak glue->update_peer()   |
+   |            |                 | parameter nil value.                    |
+   |------------+-----------------+-----------------------------------------|
+   | 48698a5e21 | Mark Michelson  | res_http_websocket: Properly encode 64  |
+   |            |                 | bit payload                             |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ asterisk-13.5.0-summary.html                                                  |  441 --
+ asterisk-13.5.0-summary.txt                                                   | 1141 ------
+ b/.version                                                                    |    2
+ b/CHANGES                                                                     |   35
+ b/ChangeLog                                                                   | 1884 +++++++++-
+ b/Makefile                                                                    |    1
+ b/UPGRADE.txt                                                                 |    6
+ b/addons/chan_ooh323.c                                                        |    1
+ b/addons/ooh323c/src/ooq931.c                                                 |    6
+ b/apps/app_dial.c                                                             |  156
+ b/apps/app_page.c                                                             |   28
+ b/apps/app_queue.c                                                            |  412 +-
+ b/apps/app_record.c                                                           |    3
+ b/bridges/bridge_holding.c                                                    |    6
+ b/channels/chan_dahdi.c                                                       |   55
+ b/channels/chan_pjsip.c                                                       |   18
+ b/channels/chan_sip.c                                                         |   78
+ b/channels/chan_skinny.c                                                      |   26
+ b/channels/pjsip/dialplan_functions.c                                         |    5
+ b/channels/sip/include/security_events.h                                      |    3
+ b/channels/sip/security_events.c                                              |    5
+ b/codecs/codec_gsm.c                                                          |   29
+ b/codecs/codec_ilbc.c                                                         |   28
+ b/codecs/codec_lpc10.c                                                        |   41
+ b/codecs/codec_speex.c                                                        |   60
+ b/configure                                                                   |   63
+ b/configure.ac                                                                |    6
+ b/contrib/ast-db-manage/config/versions/154177371065_add_default_from_user.py |   22
+ b/contrib/realtime/mssql/mssql_config.sql                                     |    8
+ b/contrib/realtime/mysql/mysql_config.sql                                     |    6
+ b/contrib/realtime/oracle/oracle_config.sql                                   |    8
+ b/contrib/realtime/postgresql/postgresql_config.sql                           |    6
+ b/contrib/scripts/astversion                                                  |  536 ++
+ b/contrib/scripts/install_prereq                                              |    2
+ b/include/asterisk/autoconfig.h.in                                            |    3
+ b/include/asterisk/format.h                                                   |   23
+ b/include/asterisk/logger.h                                                   |   44
+ b/include/asterisk/res_pjsip.h                                                |   40
+ b/include/asterisk/res_pjsip_session.h                                        |    6
+ b/include/asterisk/rtp_engine.h                                               |   18
+ b/include/asterisk/stasis_app.h                                               |   15
+ b/main/audiohook.c                                                            |   43
+ b/main/bridge_channel.c                                                       |    7
+ b/main/channel.c                                                              |    9
+ b/main/config_options.c                                                       |    4
+ b/main/dial.c                                                                 |   25
+ b/main/endpoints.c                                                            |    3
+ b/main/format.c                                                               |   11
+ b/main/logger.c                                                               |  272 +
+ b/main/pbx.c                                                                  |  146
+ b/main/rtp_engine.c                                                           |  153
+ b/main/sched.c                                                                |  143
+ b/main/sorcery.c                                                              |    4
+ b/main/stasis_endpoints.c                                                     |   78
+ b/main/taskprocessor.c                                                        |   12
+ b/main/translate.c                                                            |   55
+ b/main/utils.c                                                                |    4
+ b/res/ari/ari_model_validators.c                                              |  445 ++
+ b/res/ari/ari_model_validators.h                                              |  118
+ b/res/ari/ari_websockets.c                                                    |    9
+ b/res/ari/config.c                                                            |   72
+ b/res/ari/resource_asterisk.c                                                 |  127
+ b/res/ari/resource_asterisk.h                                                 |   63
+ b/res/ari/resource_events.c                                                   |   24
+ b/res/ari/resource_events.h                                                   |    2
+ b/res/parking/parking_applications.c                                          |   65
+ b/res/res_ari.c                                                               |   19
+ b/res/res_ari_asterisk.c                                                      |  300 +
+ b/res/res_ari_events.c                                                        |    6
+ b/res/res_config_sqlite.c                                                     |    8
+ b/res/res_format_attr_silk.c                                                  |   24
+ b/res/res_http_websocket.c                                                    |   80
+ b/res/res_pjsip.c                                                             |  131
+ b/res/res_pjsip/config_global.c                                               |   18
+ b/res/res_pjsip/location.c                                                    |   51
+ b/res/res_pjsip/pjsip_configuration.c                                         |    4
+ b/res/res_pjsip/presence_xml.c                                                |   31
+ b/res/res_pjsip_diversion.c                                                   |    4
+ b/res/res_pjsip_multihomed.c                                                  |   23
+ b/res/res_pjsip_nat.c                                                         |    2
+ b/res/res_pjsip_pidf_digium_body_supplement.c                                 |    2
+ b/res/res_pjsip_pubsub.c                                                      |   80
+ b/res/res_pjsip_sdp_rtp.c                                                     |   70
+ b/res/res_pjsip_session.c                                                     |   37
+ b/res/res_pjsip_t38.c                                                         |   15
+ b/res/res_pjsip_transport_websocket.c                                         |    5
+ b/res/res_rtp_asterisk.c                                                      |   79
+ b/res/res_stasis.c                                                            |   45
+ b/res/res_stasis_device_state.c                                               |   54
+ b/res/stasis/app.c                                                            |  335 +
+ b/res/stasis/app.h                                                            |   15
+ b/res/stasis/messaging.c                                                      |   44
+ b/rest-api-templates/ari_model_validators.c.mustache                          |    2
+ b/rest-api/api-docs/applications.json                                         |    2
+ b/rest-api/api-docs/asterisk.json                                             |  130
+ b/rest-api/api-docs/bridges.json                                              |    2
+ b/rest-api/api-docs/channels.json                                             |    2
+ b/rest-api/api-docs/deviceStates.json                                         |    2
+ b/rest-api/api-docs/endpoints.json                                            |    2
+ b/rest-api/api-docs/events.json                                               |  109
+ b/rest-api/api-docs/mailboxes.json                                            |    2
+ b/rest-api/api-docs/playbacks.json                                            |    2
+ b/rest-api/api-docs/recordings.json                                           |    2
+ b/rest-api/api-docs/sounds.json                                               |    2
+ b/rest-api/resources.json                                                     |    2
+ b/tests/test_core_format.c                                                    |   57
+ 106 files changed, 6435 insertions(+), 2535 deletions(-)
