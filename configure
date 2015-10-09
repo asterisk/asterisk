@@ -22968,6 +22968,13 @@ fi
 
 
 
+# libunbound v1.5.0 added the ub_ctx_add_ta_autr() API call that we can
+# detect as a useable version so that is going to be the minimum version
+# that we will require.
+# Technically v1.4.21 and later could be used but v1.4.21 has a configure
+# script bug which does not find the ldns library.  The bug is fixed in
+# v1.4.22 but that version is not easily detectable.
+#
 
 if test "x${PBX_UNBOUND}" != "x1" -a "${USE_UNBOUND}" != "no"; then
    pbxlibdir=""
@@ -22979,7 +22986,7 @@ if test "x${PBX_UNBOUND}" != "x1" -a "${USE_UNBOUND}" != "no"; then
          pbxlibdir="-L${UNBOUND_DIR}"
       fi
    fi
-   pbxfuncname="ub_ctx_create"
+   pbxfuncname="ub_ctx_add_ta_autr"
    if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
       AST_UNBOUND_FOUND=yes
    else
