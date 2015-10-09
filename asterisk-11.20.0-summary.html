@@ -1,0 +1,121 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-11.20.0</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-11.20.0</h3><h3 align="center">Date: 2015-10-09</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#open_issues">Open Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-11.19.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">22 Kevin Harwell <kharwell@lunkwill><br/>9 Richard Mudgett <rmudgett@digium.com><br/>7 Kevin Harwell <kharwell@lunkwill.digium.internal><br/>5 Joshua Colp <jcolp@digium.com><br/>3 David M. Lee <dlee@respoke.io><br/>2 Matt Jordan <mjordan@digium.com><br/>2 Mark Michelson <mmichelson@digium.com><br/>2 Alexander Anikin <may213@yandex.ru><br/>1 Walter Doekes <walter+asterisk@wjd.nu><br/>1 Ivan Poddubny <ivan.poddubny@gmail.com><br/>1 Elazar Broad <elazar@thebroadfamily.com><br/>1 Mark Duncan <mark@syon.co.jp><br/>1 Scott Griepentrog <scott@griepentrog.com><br/>1 Guido Falsi <madpilot@freebsd.org><br/>1 Alexander Traud <pabstraud@compuserve.com><br/></td><td width="33%">1 Elazar Broad<br/></td><td width="33%">4 Joshua Colp <jcolp@digium.com><br/>2 Stefan Engström <stefanen@kth.se><br/>2 Matt Jordan <mjordan@digium.com><br/>2 Richard Mudgett <rmudgett@digium.com><br/>2 John Hardin<br/>2 Alexandr Dranchuk <alex.dranchuk@gmail.com><br/>2 Kevin Harwell <kharwell@digium.com><br/>1 Guido Falsi <madpilot@freebsd.org><br/>1 Walter Doekes <walter+asterisk@wjd.nu><br/>1 Kevin Harwell<br/>1 Ivan Poddubny<br/>1 Ivan Poddubny <ivan.poddubny@gmail.com><br/>1 Elazar Broad<br/>1 Lorne Gaetz<br/>1 Scott Griepentrog <sgriepentrog@digium.com><br/>1 Elazar Broad <elazar@thebroadfamily.com><br/>1 Guido Falsi<br/>1 Lorne Gaetz <lgaetz@gmail.com><br/>1 Alexandr Dranchuk<br/>1 Alexander Traud <pabstraud@compuserve.com><br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Bug</h3><h4>Category: Addons/chan_ooh323</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25227">ASTERISK-25227</a>: No audio at in-band announcements in ooh323 channel<br/>Reported by: Alexandr Dranchuk<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=198a1cab8ed070fd077361ca931898850e7b0d49">[198a1cab8e]</a> Alexander Anikin -- chan_ooh323: Add ProgressIndicator IE with inband info available</li>
+</ul><br><h4>Category: Applications/app_queue</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25215">ASTERISK-25215</a>: Differences in queue.log between Set QUEUE_MEMBER and using PauseQueueMember<br/>Reported by: Lorne Gaetz<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=43150cc58d88a79017f930edff2ae8d62bb9bb79">[43150cc58d]</a> Richard Mudgett -- app_queue.c: Fix setting QUEUE_MEMBER 'paused' and 'ringinuse'.</li>
+</ul><br><h4>Category: Applications/app_record</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25410">ASTERISK-25410</a>: app_record: RECORDED_FILE variable not being populated<br/>Reported by: Kevin Harwell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=455a31476bfe26a0cf3fdb186cdf9f0d6f0696ee">[455a31476b]</a> Kevin Harwell -- app_record: RECORDED_FILE variable not being populated</li>
+</ul><br><h4>Category: Channels/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25427">ASTERISK-25427</a>: Callerid change does not always emit NewCallerid AMI event<br/>Reported by: Ivan Poddubny<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8d2e1ecdca3291f0f82aac392bd68deec3c914e5">[8d2e1ecdca]</a> Ivan Poddubny -- channel.c: Fix NewCallerid AMI event not been sent on Caller ID change</li>
+</ul><br><h4>Category: Channels/chan_dahdi</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25315">ASTERISK-25315</a>: DAHDI channels send shortened duration DTMF tones.<br/>Reported by: Richard Mudgett<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c777c9565dbcb8527f5a9b2dbc35e81c541101f1">[c777c9565d]</a> Richard Mudgett -- chan_dahdi.c: Flush the DAHDI write buffer after starting DTMF.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f43ea74e9eb18eaead46a08ac287ee5ce0ad798a">[f43ea74e9e]</a> Richard Mudgett -- chan_dahdi.c: Lock private struct for ast_write().</li>
+</ul><br><h4>Category: Channels/chan_sip/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25346">ASTERISK-25346</a>: chan_sip: Overwriting answered elsewhere hangup cause on call pickup<br/>Reported by: Joshua Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=59636e82b2140993081837b0719bf6ad0ec41c40">[59636e82b2]</a> Joshua Colp -- chan_sip: Allow call pickup to set the hangup cause.</li>
+</ul><br><h4>Category: Channels/chan_sip/Interoperability</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25396">ASTERISK-25396</a>: chan_sip: Extremely long callerid name causes invalid SIP<br/>Reported by: Walter Doekes<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2fcf45e9cfc3a68ed4b37ba8cafdf73279f5aae7">[2fcf45e9cf]</a> Walter Doekes -- chan_sip: Fix From header truncation for extremely long CALLERID(name).</li>
+</ul><br><h4>Category: Channels/chan_sip/Security Framework</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25320">ASTERISK-25320</a>: chan_sip.c: sip_report_security_event searches for wrong or non existent peer on invite<br/>Reported by: Kevin Harwell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=430db4333e25d4d1c101ed4a3473af320abb0145">[430db4333e]</a> Kevin Harwell -- chan_sip.c: wrong peer searched in sip_report_security_event</li>
+</ul><br><h4>Category: Codecs/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25353">ASTERISK-25353</a>: [patch] Transcoding while different in Frame size = Frames lost<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c7f8c8c35db2fe1c4ce9f27c4a28649452dc5463">[c7f8c8c35d]</a> Alexander Traud -- translate: Fix transcoding while different in frame size.</li>
+</ul><br><h4>Category: Core/BuildSystem</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25265">ASTERISK-25265</a>: [patch]DTLS Failure when calling WebRTC-peer on Firefox 39 - add ECDH support and fallback to prime256v1<br/>Reported by: Stefan Engström<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c7a1dca4baec5c2edec16470b377761066021650">[c7a1dca4ba]</a> Joshua Colp -- res_rtp_asterisk: Don't leak temporary key when enabling PFS.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2d2e7419054cb4b837fa9113f0f309e19fc690ee">[2d2e741905]</a> Mark Duncan -- res/res_rtp_asterisk: Add ECDH support</li>
+</ul><br><h4>Category: Core/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25449">ASTERISK-25449</a>: main/sched: Regression introduced by 5c713fdf18f causes erroneous duplicate RTCP messages; other potential scheduling issues in chan_sip/chan_skinny<br/>Reported by: Matt Jordan<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=984ff78ec7c568b3c4cee5f7e389ed908dfcada2">[984ff78ec7]</a> Matt Jordan -- res/res_rtp_asterisk: Fix assignment after ao2 decrement</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=33c945f471e92046d50cb35482f4d94e5ed86e86">[33c945f471]</a> Matt Jordan -- Fix improper usage of scheduler exposed by 5c713fdf18f</li>
+</ul><br><h4>Category: Core/Logging</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25407">ASTERISK-25407</a>: Asterisk fails to log to multiple syslog destinations<br/>Reported by: Elazar Broad<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=29694eb2aaa45c366fe28777722b0307f3742f95">[29694eb2aa]</a> Elazar Broad -- core/logging: Fix logging to more than one syslog channel</li>
+</ul><br><h4>Category: Core/PBX</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25394">ASTERISK-25394</a>: pbx: Incorrect device and presence state when changing hint details<br/>Reported by: Joshua Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=51013b052d242717fce8b30bfba083721981b769">[51013b052d]</a> Joshua Colp -- pbx: Update device and presence state when changing a hint extension.</li>
+</ul><br><h4>Category: Resources/res_http_websocket</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25312">ASTERISK-25312</a>: res_http_websocket: Terminate connection on fatal cases<br/>Reported by: Joshua Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b9bd3c1435cb1e7b09851de2c7dcc5882bc2f9f4">[b9bd3c1435]</a> Joshua Colp -- res_http_websocket: Forcefully terminate on write errors.</li>
+</ul><br><h4>Category: Resources/res_rtp_asterisk</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25438">ASTERISK-25438</a>: res_rtp_asterisk: ICE role message even when ICE is not enabled<br/>Reported by: Joshua Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=72d3a65706a10f29d590d05a586ae0009d7b1807">[72d3a65706]</a> Joshua Colp -- res_rtp_asterisk: Move "Set role" warning to be debug.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25265">ASTERISK-25265</a>: [patch]DTLS Failure when calling WebRTC-peer on Firefox 39 - add ECDH support and fallback to prime256v1<br/>Reported by: Stefan Engström<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c7a1dca4baec5c2edec16470b377761066021650">[c7a1dca4ba]</a> Joshua Colp -- res_rtp_asterisk: Don't leak temporary key when enabling PFS.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2d2e7419054cb4b837fa9113f0f309e19fc690ee">[2d2e741905]</a> Mark Duncan -- res/res_rtp_asterisk: Add ECDH support</li>
+</ul><br><h3>Improvement</h3><h4>Category: Core/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25310">ASTERISK-25310</a>: [patch]on FreeBSD also pthread_attr_init() defaults to PTHREAD_EXPLICIT_SCHED<br/>Reported by: Guido Falsi<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ffa26a0c2e88ab294e6f0407faa71cc053a4e511">[ffa26a0c2e]</a> Guido Falsi -- Core/General: Add #ifdef needed on FreeBSD.</li>
+</ul><br><hr><a name="open_issues"><h2 align="center">Open Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all open issues from the issue tracker that were referenced by changes that went into this release.</p><h3>Bug</h3><h4>Category: Addons/chan_ooh323</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25299">ASTERISK-25299</a>: RTP port leaks with incoming OOH323 calls<br/>Reported by: Alexandr Dranchuk<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=07b25a2312efecdfc4aeccaf8742782e714ff358">[07b25a2312]</a> Alexander Anikin -- chan_ooh323: call ast_rtp_instance_stop on ooh323_destroy</li>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5ab7cac6e2ecf11f6930b7f0da64bd496280c75f">5ab7cac6e2</a></td><td>Kevin Harwell</td><td>Release summaries: Remove previous versions</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5130fa4854fb96b32bb7d6fef5cd8321ab4acf3d">5130fa4854</a></td><td>Kevin Harwell</td><td>.version: Update for 11.20.0</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=779180b1f495040707f91b8f3abfee9136fa66e4">779180b1f4</a></td><td>Kevin Harwell</td><td>.lastclean: Update for 11.20.0</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4980a406a1c4f6f147917fcec8ef445d918fc1cb">4980a406a1</a></td><td>Kevin Harwell</td><td>ChangeLog: Updated for 11.20.0</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ad4e9103687872c0022c3be8bc9bae07fe8eb317">ad4e910368</a></td><td>Kevin Harwell</td><td>Release summaries: Add summaries for 11.20.0</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1b7a210bb849bd8904f1d08f00effb2f24dfb9e9">1b7a210bb8</a></td><td>Kevin Harwell</td><td>Release summaries: Remove previous versions</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=edd82562ba527cf1d2ee271e76f43a75a8f5d9fc">edd82562ba</a></td><td>Kevin Harwell</td><td>.version: Update for 11.20.0</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=495a482281fc5ffd3fcc8081863042f689f64cd5">495a482281</a></td><td>Kevin Harwell</td><td>.lastclean: Update for 11.20.0</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=74b5c009bc79a281d6b3ec9330afd8744bdd6682">74b5c009bc</a></td><td>Kevin Harwell</td><td>ChangeLog: Updated for 11.20.0</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7f4408940e7bf96d4d5f7b81c74d6982b60021ff">7f4408940e</a></td><td>Kevin Harwell</td><td>Release summaries: Add summaries for 11.20.0</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=38d8bb41e4f93d3b7c1fbc84ee379e6cfe58c6aa">38d8bb41e4</a></td><td>Kevin Harwell</td><td>Release summaries: Remove previous versions</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=25a701c39822e140aca4d9bf030adf710040b7d7">25a701c398</a></td><td>Kevin Harwell</td><td>.version: Update for 11.20.0</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1fb284225e9e77ba7f1b29b766b003431f18f475">1fb284225e</a></td><td>Kevin Harwell</td><td>.lastclean: Update for 11.20.0</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=96430103568e298023df2529c01de4e97d436d58">9643010356</a></td><td>Kevin Harwell</td><td>ChangeLog: Updated for 11.20.0</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ac23a5511dc3989e75665974c8de62be6dc1bdf7">ac23a5511d</a></td><td>Kevin Harwell</td><td>Release summaries: Add summaries for 11.20.0</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5036db7bad82a24874377a70d8a9132a6e24229a">5036db7bad</a></td><td>Kevin Harwell</td><td>Release summaries: Remove previous versions</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ab3078d6643f9610f4b050e8f57687918d6a384b">ab3078d664</a></td><td>Kevin Harwell</td><td>.version: Update for 11.20.0</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=502b4c978671a9b38c9b8d1bc5ae1e235e65b9fd">502b4c9786</a></td><td>Kevin Harwell</td><td>.lastclean: Update for 11.20.0</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8aae2a474513d7eddb432e04f73e10614c9280bb">8aae2a4745</a></td><td>Kevin Harwell</td><td>ChangeLog: Updated for 11.20.0-rc3</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a42c71a4a48d968e0fc931f9c90a25a48c2c0dec">a42c71a4a4</a></td><td>Kevin Harwell</td><td>Release summaries: Add summaries for 11.20.0-rc3</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=01c9b5457cad9b7ff89da9f78b277e1a96f784ec">01c9b5457c</a></td><td>Kevin Harwell</td><td>Release summaries: Remove previous versions</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7d711312895f62c50beb43ef278b98e959a6cb43">7d71131289</a></td><td>Kevin Harwell</td><td>.version: Update for 11.20.0-rc3</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=19fea938160d84a3328627c26a84e2927cbc37b7">19fea93816</a></td><td>Kevin Harwell</td><td>.lastclean: Update for 11.20.0-rc3</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e93726aec2cf7330c96843679bb6984469cfe5af">e93726aec2</a></td><td>Kevin Harwell</td><td>ChangeLog: Updated for 11.20.0-rc1</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e4ef76777f084eba6474df18a80e516d86310216">e4ef76777f</a></td><td>Kevin Harwell</td><td>Release summaries: Add summaries for 11.20.0-rc1</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=db337a8a50633167fced3c197372e1234a6ce67a">db337a8a50</a></td><td>Kevin Harwell</td><td>.version: Update for 11.20.0-rc1</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1db02c4e569935b233215ba10d81499e18880abc">1db02c4e56</a></td><td>Kevin Harwell</td><td>.lastclean: Update for 11.20.0-rc1</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3cf0f293101cb8f044b3b1b57e3ecaaaf47365bf">3cf0f29310</a></td><td>Mark Michelson</td><td>scheduler: Use queue for allocating sched IDs.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=819760baece744384b7bba992738b002d50236e6">819760baec</a></td><td>David M. Lee</td><td>res_rtp_asterisk: Add more ICE debugging</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=94b764c8f3e771c100154303c38949beaed9ea42">94b764c8f3</a></td><td>David M. Lee</td><td>Fix when remote candidates exceed PJ_ICE_MAX_CAND</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6a364807f4b9016d0ccda9d67f1accacee7cbca5">6a364807f4</a></td><td>Richard Mudgett</td><td>app_queue.c: Extract some functions for simpler code.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a56da797d96bb797825b8c5029f597e1472050cc">a56da797d9</a></td><td>Richard Mudgett</td><td>app_queue.c: Fix error checking in QUEUE_MEMBER() read.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=06b464ab1b7c42e3c1b5b05463d5bc73c112dd76">06b464ab1b</a></td><td>David M. Lee</td><td>Replace htobe64 with htonll</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5311d18101b9a1a20cb9b86a7102a1c7a0b1df28">5311d18101</a></td><td>Richard Mudgett</td><td>chan_sip.c: Move NULL check to where it will do some good.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=75185c5d8f40e1bba48e15b566e4974967b261f6">75185c5d8f</a></td><td>Richard Mudgett</td><td>rtp_engine.c: Fix off nominal ref leak and some minor tweaks.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1b51b5efb619eb29c67ed5be0f4ab6d0793760d5">1b51b5efb6</a></td><td>Richard Mudgett</td><td>rtp_engine.c: Tweak glue-&gt;update_peer() parameter nil value.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f5cd1fa0df0b8ed9aa7736419f2b066c909bcadb">f5cd1fa0df</a></td><td>Richard Mudgett</td><td>chan_sip.c: Tweak glue-&gt;update_peer() parameter nil value.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f2089dce3dd972c147328cf8e7df5c756ee272b0">f2089dce3d</a></td><td>Mark Michelson</td><td>res_http_websocket: Properly encode 64 bit payload</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>asterisk-11.19.0-summary.html            |  139 ------
+asterisk-11.19.0-summary.txt             |  445 --------------------
+b/.version                               |    2
+b/ChangeLog                              |  680 ++++++++++++++++++++++++++++++-
+b/addons/chan_ooh323.c                   |    1
+b/addons/ooh323c/src/ooq931.c            |    6
+b/apps/app_queue.c                       |  432 ++++++++++---------
+b/apps/app_record.c                      |    3
+b/channels/chan_dahdi.c                  |   59 +-
+b/channels/chan_sip.c                    |   81 ++-
+b/channels/chan_skinny.c                 |   18
+b/channels/sip/include/security_events.h |    3
+b/channels/sip/security_events.c         |    5
+b/codecs/codec_gsm.c                     |   29 -
+b/codecs/codec_ilbc.c                    |   28 -
+b/codecs/codec_lpc10.c                   |   41 +
+b/codecs/codec_speex.c                   |   61 +-
+b/configure                              |   63 ++
+b/configure.ac                           |    6
+b/contrib/scripts/install_prereq         |    2
+b/include/asterisk/autoconfig.h.in       |    3
+b/main/channel.c                         |   25 -
+b/main/logger.c                          |    7
+b/main/pbx.c                             |  129 +++++
+b/main/rtp_engine.c                      |   20
+b/main/sched.c                           |  171 ++++++-
+b/main/translate.c                       |   53 +-
+b/main/utils.c                           |    4
+b/res/res_http_websocket.c               |   36 +
+b/res/res_rtp_asterisk.c                 |   64 ++
+30 files changed, 1624 insertions(+), 992 deletions(-)</pre><br></html>
