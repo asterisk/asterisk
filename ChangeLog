@@ -1,3 +1,27 @@
+2015-10-09 21:48 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.6.0 Released.
+
+2015-10-09 16:48 +0000 [68d2a14e1a]  Kevin Harwell <kharwell@lunkwill>
+
+	* Release summaries: Add summaries for 13.6.0
+
+2015-10-09 16:45 +0000 [cc0eff5651]  Kevin Harwell <kharwell@lunkwill.digium.internal>
+
+	* Release summaries: Remove previous versions
+
+2015-10-09 16:45 +0000 [8cd191b885]  Kevin Harwell <kharwell@lunkwill>
+
+	* .version: Update for 13.6.0
+
+2015-10-09 16:45 +0000 [a3777c24fd]  Kevin Harwell <kharwell@lunkwill>
+
+	* .lastclean: Update for 13.6.0
+
+2015-10-09 16:45 +0000 [68121cef21]  Kevin Harwell <kharwell@lunkwill>
+
+	* realtime: Add database scripts for 13.6.0
+
 2015-10-07 18:42 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.6.0-rc3 Released.
