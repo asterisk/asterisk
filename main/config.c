@@ -1696,6 +1696,8 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 						return -1;
 					}
 					if (newcat) {
+						ast_config_set_current_category(cfg, *cat);
+						(*cat)->ignored |= newcat->ignored;
 						move_variables(newcat, *cat);
 						ast_category_destroy(newcat);
 						newcat = NULL;
