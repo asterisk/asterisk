@@ -1659,6 +1659,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 		/* If there are options or categories to inherit from, process them now */
 		if (c) {
 			if (!(cur = strchr(c, ')'))) {
+				ast_category_destroy(newcat);
 				ast_log(LOG_WARNING, "parse error: no closing ')', line %d of %s\n", lineno, configfile);
 				return -1;
 			}
@@ -1687,6 +1688,9 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 
 					base = ast_category_get(cfg, cur, "TEMPLATES=include");
 					if (!base) {
+						if (newcat) {
+							ast_category_destroy(newcat);
+						}
 						ast_log(LOG_WARNING, "Inheritance requested, but category '%s' does not exist, line %d of %s\n", cur, lineno, configfile);
 						return -1;
 					}
