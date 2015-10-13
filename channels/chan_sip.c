@@ -29213,7 +29213,8 @@ static int check_rtp_timeout(struct sip_pvt *dialog, time_t t)
 					ast_channel_name(dialog->owner), (long) (t - dialog->lastrtprx));
 				manager_event(EVENT_FLAG_CALL, "SessionTimeout", "Source: RTPTimeout\r\n"
 						"Channel: %s\r\nUniqueid: %s\r\n", ast_channel_name(dialog->owner), ast_channel_uniqueid(dialog->owner));
-				/* Issue a softhangup */
+				/* Issue a softhangup - cause 44 (as used by Cisco for RTP timeouts) */
+				ast_channel_hangupcause_set(dialog->owner, AST_CAUSE_REQUESTED_CHAN_UNAVAIL);
 				ast_softhangup_nolock(dialog->owner, AST_SOFTHANGUP_DEV);
 				ast_channel_unlock(dialog->owner);
 				/* forget the timeouts for this call, since a hangup
