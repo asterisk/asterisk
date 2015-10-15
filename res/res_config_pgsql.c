@@ -336,7 +336,9 @@ static struct tables *find_table(const char *database, const char *orig_tablenam
 		ast_str_set(&sql, 0, "SELECT a.attname, t.typname, a.attlen, a.attnotnull, d.adsrc, a.atttypmod FROM pg_class c, pg_type t, pg_attribute a LEFT OUTER JOIN pg_attrdef d ON a.atthasdef AND d.adrelid = a.attrelid AND d.adnum = a.attnum WHERE c.oid = a.attrelid AND a.atttypid = t.oid AND (a.attnum > 0) AND c.relname = '%s' ORDER BY c.relname, attnum", orig_tablename);
 	}
 
+	ast_mutex_lock(&pgsql_lock);
 	exec_result = pgsql_exec(database, orig_tablename, ast_str_buffer(sql), &result);
+	ast_mutex_unlock(&pgsql_lock);
 	ast_debug(1, "Query of table structure complete.  Now retrieving results.\n");
 	if (exec_result != 0) {
 		ast_log(LOG_ERROR, "Failed to query database columns for table %s\n", orig_tablename);
@@ -1354,15 +1356,15 @@ static int unload_module(void)
 	ast_cli_unregister_multiple(cli_realtime, ARRAY_LEN(cli_realtime));
 	ast_config_engine_deregister(&pgsql_engine);
 
+	/* Unlock so something else can destroy the lock. */
+	ast_mutex_unlock(&pgsql_lock);
+
 	/* Destroy cached table info */
 	AST_LIST_LOCK(&psql_tables);
 	while ((table = AST_LIST_REMOVE_HEAD(&psql_tables, list))) {
 		destroy_table(table);
 	}
 	AST_LIST_UNLOCK(&psql_tables);
-
-	/* Unlock so something else can destroy the lock. */
-	ast_mutex_unlock(&pgsql_lock);
 
 	return 0;
 }
