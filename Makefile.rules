@@ -27,6 +27,26 @@
 # extra cflags to build dependencies. Recursively expanded.
 MAKE_DEPS=-MD -MT $@ -MF .$(subst /,_,$@).d -MP
 
+ifeq ($(findstring ADDRESS_SANITIZER,$(MENUSELECT_CFLAGS)),ADDRESS_SANITIZER)
+    _ASTLDFLAGS+=-fsanitize=address
+    _ASTCFLAGS+=-fno-omit-frame-pointer -fsanitize=address
+endif
+
+ifeq ($(findstring THREAD_SANITIZER,$(MENUSELECT_CFLAGS)),THREAD_SANITIZER)
+    _ASTLDFLAGS+=-fsanitize=thread -pie -fPIE
+    _ASTCFLAGS+=-fno-omit-frame-pointer -pie -fPIE -fsanitize=thread
+endif
+
+ifeq ($(findstring LEAK_SANITIZER,$(MENUSELECT_CFLAGS)),LEAK_SANITIZER)
+    _ASTLDFLAGS+=-fsanitize=leak
+    _ASTCFLAGS+=-fno-omit-frame-pointer -fsanitize=leak
+endif
+
+ifeq ($(findstring UNDEFINED_SANITIZER,$(MENUSELECT_CFLAGS)),UNDEFINED_SANITIZER)
+    _ASTLDFLAGS+=-fsanitize=undefined
+    _ASTCFLAGS+=-fno-omit-frame-pointer -fsanitize=undefined
+endif
+
 ifeq ($(NOISY_BUILD),)
     ECHO_PREFIX=@
     CMD_PREFIX=@
