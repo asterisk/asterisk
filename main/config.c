@@ -1394,7 +1394,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 		 *		You can put a comma-separated list of categories and templates
 		 *		and '!' and '+' between parentheses, with obvious meaning.
 		 */
-		struct ast_category *newcat = NULL;
+		struct ast_category *newcat;
 		char *catname;
 
 		c = strchr(cur, ']');
@@ -1407,14 +1407,13 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 		if (*c++ != '(')
 			c = NULL;
 		catname = cur;
-		if (!(*cat = newcat = ast_category_new(catname,
-				S_OR(suggested_include_file, cfg->include_level == 1 ? "" : configfile),
-				lineno))) {
+		*cat = newcat = ast_category_new(catname,
+			S_OR(suggested_include_file, cfg->include_level == 1 ? "" : configfile),
+			lineno);
+		if (!newcat) {
 			return -1;
 		}
 		(*cat)->lineno = lineno;
-		*last_var = 0;
-		*last_cat = newcat;
 
 		/* add comments */
 		if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS))
@@ -1427,6 +1426,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 		/* If there are options or categories to inherit from, process them now */
 		if (c) {
 			if (!(cur = strchr(c, ')'))) {
+				ast_category_destroy(newcat);
 				ast_log(LOG_WARNING, "parse error: no closing ')', line %d of %s\n", lineno, configfile);
 				return -1;
 			}
@@ -1437,12 +1437,15 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 				} else if (!strcasecmp(cur, "+")) {
 					*cat = category_get(cfg, catname, 1);
 					if (!(*cat)) {
-						if (newcat)
+						if (newcat) {
 							ast_category_destroy(newcat);
+						}
 						ast_log(LOG_WARNING, "Category addition requested, but category '%s' does not exist, line %d of %s\n", catname, lineno, configfile);
 						return -1;
 					}
 					if (newcat) {
+						ast_config_set_current_category(cfg, *cat);
+						(*cat)->ignored |= newcat->ignored;
 						move_variables(newcat, *cat);
 						ast_category_destroy(newcat);
 						newcat = NULL;
@@ -1452,6 +1455,9 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 
 					base = category_get(cfg, cur, 1);
 					if (!base) {
+						if (newcat) {
+							ast_category_destroy(newcat);
+						}
 						ast_log(LOG_WARNING, "Inheritance requested, but category '%s' does not exist, line %d of %s\n", cur, lineno, configfile);
 						return -1;
 					}
@@ -1459,8 +1465,19 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 				}
 			}
 		}
-		if (newcat)
-			ast_category_append(cfg, *cat);
+
+		/*
+		 * We need to set *last_cat to newcat here regardless.  If the
+		 * category is being appended to we have no place for trailing
+		 * comments on the appended category.  The appended category
+		 * may be in another file or it already has trailing comments
+		 * that we would then leak.
+		 */
+		*last_var = NULL;
+		*last_cat = newcat;
+		if (newcat) {
+			ast_category_append(cfg, newcat);
+		}
 	} else if (cur[0] == '#') { /* A directive - #include or #exec */
 		char *cur2;
 		char real_inclusion_name[256];
@@ -1616,7 +1633,7 @@ set_new_variable:
 			} else if ((v = ast_variable_new(cur, ast_strip(c), S_OR(suggested_include_file, cfg->include_level == 1 ? "" : configfile)))) {
 				v->lineno = lineno;
 				v->object = object;
-				*last_cat = 0;
+				*last_cat = NULL;
 				*last_var = v;
 				/* Put and reset comments */
 				v->blanklines = 0;
@@ -1656,8 +1673,8 @@ static struct ast_config *config_text_file_load(const char *database, const char
 	struct stat statbuf;
 	struct cache_file_mtime *cfmtime = NULL;
 	struct cache_file_include *cfinclude;
-	struct ast_variable *last_var = 0;
-	struct ast_category *last_cat = 0;
+	struct ast_variable *last_var = NULL;
+	struct ast_category *last_cat = NULL;
 	/*! Growable string buffer */
 	struct ast_str *comment_buffer = NULL;	/*!< this will be a comment collector.*/
 	struct ast_str *lline_buffer = NULL;	/*!< A buffer for stuff behind the ; */
