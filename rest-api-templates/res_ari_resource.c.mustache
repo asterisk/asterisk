@@ -291,6 +291,7 @@ static int unload_module(void)
 {{#has_websocket}}
 	ao2_cleanup({{full_name}}.ws_server);
 	{{full_name}}.ws_server = NULL;
+	ast_ari_websocket_events_event_websocket_dtor();
 {{/has_websocket}}
 {{/apis}}
 	stasis_app_unref();
