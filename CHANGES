@@ -184,6 +184,10 @@ cdr_adaptive_odbc
    names. This setting is configurable for cdr_adaptive_odbc via the
    quoted_identifiers in configuration file cdr_adaptive_odbc.conf.
 
+Queue
+-------------------
+ * Added field ReasonPause on QueueMemberStatus if set when paused, the reason
+   the queue member was paused.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.5.0 to Asterisk 13.6.0 ------------
