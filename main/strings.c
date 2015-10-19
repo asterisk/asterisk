@@ -60,55 +60,78 @@ int __ast_str_helper(struct ast_str **buf, ssize_t max_len,
 	int append, const char *fmt, va_list ap)
 #endif
 {
-	int res, need;
+	int res;
+	int added;
+	int need;
 	int offset = (append && (*buf)->__AST_STR_LEN) ? (*buf)->__AST_STR_USED : 0;
 	va_list aq;
 
+	if (max_len < 0) {
+		max_len = (*buf)->__AST_STR_LEN;	/* don't exceed the allocated space */
+	}
+
 	do {
-		if (max_len < 0) {
-			max_len = (*buf)->__AST_STR_LEN;	/* don't exceed the allocated space */
-		}
-		/*
-		 * Ask vsnprintf how much space we need. Remember that vsnprintf
-		 * does not count the final <code>'\\0'</code> so we must add 1.
-		 */
 		va_copy(aq, ap);
 		res = vsnprintf((*buf)->__AST_STR_STR + offset, (*buf)->__AST_STR_LEN - offset, fmt, aq);
-
-		need = res + offset + 1;
-		/*
-		 * If there is not enough space and we are below the max length,
-		 * reallocate the buffer and return a message telling to retry.
-		 */
-		if (need > (*buf)->__AST_STR_LEN && (max_len == 0 || (*buf)->__AST_STR_LEN < max_len) ) {
-			int len = (int)(*buf)->__AST_STR_LEN;
-			if (max_len && max_len < need) {	/* truncate as needed */
-				need = max_len;
-			} else if (max_len == 0) {	/* if unbounded, give more room for next time */
-				need += 16 + need / 4;
-			}
-			if (
-#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
-					_ast_str_make_space(buf, need, file, lineno, function)
-#else
-					ast_str_make_space(buf, need)
-#endif
-				) {
-				ast_log_safe(LOG_VERBOSE, "failed to extend from %d to %d\n", len, need);
-				va_end(aq);
-				return AST_DYNSTR_BUILD_FAILED;
-			}
-			(*buf)->__AST_STR_STR[offset] = '\0';	/* Truncate the partial write. */
-
-			/* Restart va_copy before calling vsnprintf() again. */
-			va_end(aq);
-			continue;
-		}
 		va_end(aq);
-		break;
+
+		if (res < 0) {
+			/*
+			 * vsnprintf write to string failed.
+			 * I don't think this is possible with a memory buffer.
+			 */
+			res = AST_DYNSTR_BUILD_FAILED;
+			added = 0;
+			break;
+		}
+
+		/*
+		 * vsnprintf returns how much space we used or would need.
+		 * Remember that vsnprintf does not count the nil terminator
+		 * so we must add 1.
+		 */
+		added = res;
+		need = offset + added + 1;
+		if (need <= (*buf)->__AST_STR_LEN
+			|| (max_len && max_len <= (*buf)->__AST_STR_LEN)) {
+			/*
+			 * There was enough room for the string or we are not
+			 * allowed to try growing the string buffer.
+			 */
+			break;
+		}
+
+		/* Reallocate the buffer and try again. */
+		if (max_len == 0) {
+			/* unbounded, give more room for next time */
+			need += 16 + need / 4;
+		} else if (max_len < need) {
+			/* truncate as needed */
+			need = max_len;
+		}
+
+		if (
+#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+			_ast_str_make_space(buf, need, file, lineno, function)
+#else
+			ast_str_make_space(buf, need)
+#endif
+			) {
+			ast_log_safe(LOG_VERBOSE, "failed to extend from %d to %d\n",
+				(int) (*buf)->__AST_STR_LEN, need);
+
+			res = AST_DYNSTR_BUILD_FAILED;
+			break;
+		}
 	} while (1);
-	/* update space used, keep in mind the truncation */
-	(*buf)->__AST_STR_USED = (res + offset > (*buf)->__AST_STR_LEN) ? (*buf)->__AST_STR_LEN - 1: res + offset;
+
+	/* Update space used, keep in mind truncation may be necessary. */
+	(*buf)->__AST_STR_USED = ((*buf)->__AST_STR_LEN <= offset + added)
+		? (*buf)->__AST_STR_LEN - 1
+		: offset + added;
+
+	/* Ensure that the string is terminated. */
+	(*buf)->__AST_STR_STR[(*buf)->__AST_STR_USED] = '\0';
 
 	return res;
 }
