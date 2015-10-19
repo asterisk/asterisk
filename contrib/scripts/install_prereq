@@ -97,6 +97,7 @@ check_installed_pkgs() {
 
 handle_debian() {
 	extra_packs=`check_installed_debs $PACKAGES_DEBIAN`
+	$testcmd aptitude update
 	$testcmd aptitude install -y $extra_packs
 }
 
