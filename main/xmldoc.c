@@ -2646,14 +2646,18 @@ struct ast_xml_xpath_results *__attribute__((format(printf, 1, 2))) ast_xmldoc_q
 	struct documentation_tree *doctree;
 	RAII_VAR(struct ast_str *, xpath_str, ast_str_create(128), ast_free);
 	va_list ap;
+	int res;
 
 	if (!xpath_str) {
 		return NULL;
 	}
 
 	va_start(ap, fmt);
-	ast_str_set_va(&xpath_str, 0, fmt, ap);
+	res = ast_str_set_va(&xpath_str, 0, fmt, ap);
 	va_end(ap);
+	if (res == AST_DYNSTR_BUILD_FAILED) {
+		return NULL;
+	}
 
 	AST_RWLIST_RDLOCK(&xmldoc_tree);
 	AST_LIST_TRAVERSE(&xmldoc_tree, doctree, entry) {
