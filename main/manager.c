@@ -2809,6 +2809,7 @@ AST_THREADSTORAGE(userevent_buf);
  */
 void astman_append(struct mansession *s, const char *fmt, ...)
 {
+	int res;
 	va_list ap;
 	struct ast_str *buf;
 
@@ -2817,8 +2818,11 @@ void astman_append(struct mansession *s, const char *fmt, ...)
 	}
 
 	va_start(ap, fmt);
-	ast_str_set_va(&buf, 0, fmt, ap);
+	res = ast_str_set_va(&buf, 0, fmt, ap);
 	va_end(ap);
+	if (res == AST_DYNSTR_BUILD_FAILED) {
+		return;
+	}
 
 	if (s->f != NULL || s->session->f != NULL) {
 		send_string(s, ast_str_buffer(buf));
@@ -2878,6 +2882,7 @@ void astman_send_error(struct mansession *s, const struct message *m, char *erro
 
 void astman_send_error_va(struct mansession *s, const struct message *m, const char *fmt, ...)
 {
+	int res;
 	va_list ap;
 	struct ast_str *buf;
 	char *msg;
@@ -2887,8 +2892,11 @@ void astman_send_error_va(struct mansession *s, const struct message *m, const c
 	}
 
 	va_start(ap, fmt);
-	ast_str_set_va(&buf, 0, fmt, ap);
+	res = ast_str_set_va(&buf, 0, fmt, ap);
 	va_end(ap);
+	if (res == AST_DYNSTR_BUILD_FAILED) {
+		return;
+	}
 
 	/* astman_append will use the same underlying buffer, so copy the message out
 	 * before sending the response */
