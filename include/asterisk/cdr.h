@@ -536,6 +536,36 @@ int ast_cdr_backend_suspend(const char *name);
 int ast_cdr_backend_unsuspend(const char *name);
 
 /*!
+ * \brief Register a CDR modifier
+ * \param name name associated with the particular CDR modifier
+ * \param desc description of the CDR modifier
+ * \param be function pointer to a CDR modifier
+ *
+ * Used to register a Call Detail Record modifier.
+ *
+ * This gives modules a chance to modify CDR fields before they are dispatched
+ * to registered backends (odbc, syslog, etc).
+ *
+ * \note The *modified* CDR will be passed to **all** registered backends for
+ * logging. For instance, if cdr_manager changes the CDR data, cdr_adaptive_odbc
+ * will also get the modified CDR.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error
+ */
+int ast_cdr_modifier_register(const char *name, const char *desc, ast_cdrbe be);
+
+/*!
+ * \brief Unregister a CDR modifier
+ * \param name name of CDR modifier to unregister
+ * Unregisters a CDR modifier by its name
+ *
+ * \retval 0 The modifier unregistered successfully
+ * \retval -1 The modifier could not be unregistered at this time
+ */
+int ast_cdr_modifier_unregister(const char *name);
+
+/*!
  * \brief Disposition to a string
  * \param disposition input binary form
  * Converts the binary form of a disposition to string form.
