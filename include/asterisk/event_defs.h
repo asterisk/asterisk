@@ -58,8 +58,10 @@ enum ast_event_type {
 	AST_EVENT_ACL_CHANGE          = 0x0b,
 	/*! Send out a ping for debugging distributed events */
 	AST_EVENT_PING                = 0x0c,
+	/*! A cluster discovery message */
+	AST_EVENT_CLUSTER_DISCOVERY   = 0x0d,
 	/*! Number of event types.  This should be the last event type + 1 */
-	AST_EVENT_TOTAL               = 0x0d,
+	AST_EVENT_TOTAL               = 0x0e,
 };
 
 /*! \brief Event Information Element types */
@@ -302,8 +304,15 @@ enum ast_event_ie_type {
 	 * Payload type: UINT
 	 */
 	AST_EVENT_IE_CACHABLE            = 0x003d,
+
+	/*!
+	 * \brief Cluster node ID
+	 * Used by: Corosync
+	 * Payload type: UINT
+	 */
+	AST_EVENT_IE_NODE_ID             = 0x003e,
 	/*! \brief Must be the last IE value +1 */
-	AST_EVENT_IE_TOTAL               = 0x003e,
+	AST_EVENT_IE_TOTAL               = 0x003f,
 };
 
 /*!
