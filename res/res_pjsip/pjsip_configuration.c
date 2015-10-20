@@ -1395,13 +1395,12 @@ static int ami_show_endpoints(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static struct ao2_container *cli_endpoint_get_container(void)
+static struct ao2_container *cli_endpoint_get_container(const char *regex)
 {
 	RAII_VAR(struct ao2_container *, container, NULL, ao2_cleanup);
 	struct ao2_container *s_container;
 
-	container = ast_sorcery_retrieve_by_fields(sip_sorcery, "endpoint",
-		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	container = ast_sorcery_retrieve_by_regex(sip_sorcery, "endpoint", regex);
 	if (!container) {
 		return NULL;
 	}
@@ -1515,12 +1514,26 @@ static int cli_endpoint_gather_channels(void *obj, void *arg, int flags)
 	return 0;
 }
 
-static struct ao2_container *cli_channel_get_container(void)
+static int cli_filter_channels(void *obj, void *arg, int flags)
+{
+	struct ast_channel_snapshot *channel = obj;
+	regex_t *regexbuf = arg;
+
+	if (!regexec(regexbuf, channel->name, 0, NULL, 0)
+		|| !regexec(regexbuf, channel->appl, 0, NULL, 0)) {
+		return 0;
+	}
+
+	return CMP_MATCH;
+}
+
+static struct ao2_container *cli_channel_get_container(const char *regex)
 {
 	RAII_VAR(struct ao2_container *, parent_container, NULL, ao2_cleanup);
 	struct ao2_container *child_container;
+	regex_t regexbuf;
 
-	parent_container = cli_endpoint_get_container();
+	parent_container = cli_endpoint_get_container("");
 	if (!parent_container) {
 		return NULL;
 	}
@@ -1531,6 +1544,15 @@ static struct ao2_container *cli_channel_get_container(void)
 	}
 
 	ao2_callback(parent_container, OBJ_NODATA, cli_endpoint_gather_channels, child_container);
+
+	if (!ast_strlen_zero(regex)) {
+		if (regcomp(&regexbuf, regex, REG_EXTENDED | REG_NOSUB)) {
+			ao2_ref(child_container, -1);
+			return NULL;
+		}
+		ao2_callback(child_container, OBJ_UNLINK | OBJ_MULTIPLE | OBJ_NODATA, cli_filter_channels, &regexbuf);
+		regfree(&regexbuf);
+	}
 
 	return child_container;
 }
@@ -1544,7 +1566,7 @@ static const char *cli_channel_get_id(const void *obj)
 
 static void *cli_channel_retrieve_by_id(const char *id)
 {
-	RAII_VAR(struct ao2_container *, container, cli_channel_get_container(), ao2_cleanup);
+	RAII_VAR(struct ao2_container *, container, cli_channel_get_container(""), ao2_cleanup);
 
 	return ao2_find(container, id, OBJ_KEY | OBJ_NOLOCK);
 }
@@ -1746,12 +1768,14 @@ static int cli_endpoint_print_body(void *obj, void *arg, int flags)
 static struct ast_cli_entry cli_commands[] = {
 	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "List PJSIP Channels",
 		.command = "pjsip list channels",
-		.usage = "Usage: pjsip list channels\n"
-				 "       List the active PJSIP channels\n"),
+		.usage = "Usage: pjsip list channels [ like <pattern> ]\n"
+				"       List the active PJSIP channels\n"
+				"       Optional regular expression pattern is used to filter the list.\n"),
 	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "Show PJSIP Channels",
 		.command = "pjsip show channels",
-		.usage = "Usage: pjsip show channels\n"
-				 "       List(detailed) the active PJSIP channels\n"),
+		.usage = "Usage: pjsip show channels [ like <pattern> ]\n"
+				"       List(detailed) the active PJSIP channels\n"
+				"       Optional regular expression pattern is used to filter the list.\n"),
 	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "Show PJSIP Channel",
 		.command = "pjsip show channel",
 		.usage = "Usage: pjsip show channel\n"
@@ -1759,12 +1783,14 @@ static struct ast_cli_entry cli_commands[] = {
 
 	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "List PJSIP Endpoints",
 		.command = "pjsip list endpoints",
-		.usage = "Usage: pjsip list endpoints\n"
-				 "       List the configured PJSIP endpoints\n"),
+		.usage = "Usage: pjsip list endpoints [ like <pattern> ]\n"
+				"       List the configured PJSIP endpoints\n"
+				"       Optional regular expression pattern is used to filter the list.\n"),
 	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "Show PJSIP Endpoints",
 		.command = "pjsip show endpoints",
-		.usage = "Usage: pjsip show endpoints\n"
-				 "       List(detailed) the configured PJSIP endpoints\n"),
+		.usage = "Usage: pjsip show endpoints [ like <pattern> ]\n"
+				"       List(detailed) the configured PJSIP endpoints\n"
+				"       Optional regular expression pattern is used to filter the list.\n"),
 	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "Show PJSIP Endpoint",
 		.command = "pjsip show endpoint",
 		.usage = "Usage: pjsip show endpoint <id>\n"

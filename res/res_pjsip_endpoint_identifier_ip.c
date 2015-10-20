@@ -298,13 +298,6 @@ struct ast_sip_endpoint_formatter endpoint_identify_formatter = {
 	.format_ami = format_ami_endpoint_identify
 };
 
-static int cli_populate_container(void *obj, void *arg, int flags)
-{
-	ao2_link(arg, obj);
-
-	return 0;
-}
-
 static int cli_iterator(void *container, ao2_callback_fn callback, void *args)
 {
 	const struct ast_sip_endpoint *endpoint = container;
@@ -328,47 +321,28 @@ static int cli_iterator(void *container, ao2_callback_fn callback, void *args)
 	return 0;
 }
 
-static int cli_endpoint_gather_identifies(void *obj, void *arg, int flags)
+static struct ao2_container *cli_get_container(const char *regex)
 {
-	struct ast_sip_endpoint *endpoint = obj;
-	struct ao2_container *container = arg;
+	RAII_VAR(struct ao2_container *, container, NULL, ao2_cleanup);
+	struct ao2_container *s_container;
 
-	cli_iterator(endpoint, cli_populate_container, container);
-
-	return 0;
-}
-
-static struct ao2_container *cli_get_container(void)
-{
-	RAII_VAR(struct ao2_container *, parent_container, NULL, ao2_cleanup);
-	RAII_VAR(struct ao2_container *, s_parent_container, NULL, ao2_cleanup);
-	struct ao2_container *child_container;
-
-	parent_container =  ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "endpoint",
-		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
-	if (!parent_container) {
+	container =  ast_sorcery_retrieve_by_regex(ast_sip_get_sorcery(), "identify", regex);
+	if (!container) {
 		return NULL;
 	}
 
-	s_parent_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
+	s_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
 		ast_sorcery_object_id_sort, ast_sorcery_object_id_compare);
-	if (!s_parent_container) {
+	if (!s_container) {
 		return NULL;
 	}
 
-	if (ao2_container_dup(s_parent_container, parent_container, 0)) {
+	if (ao2_container_dup(s_container, container, 0)) {
+		ao2_ref(s_container, -1);
 		return NULL;
 	}
 
-	child_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
-		ast_sorcery_object_id_sort, ast_sorcery_object_id_compare);
-	if (!child_container) {
-		return NULL;
-	}
-
-	ao2_callback(s_parent_container, OBJ_NODATA, cli_endpoint_gather_identifies, child_container);
-
-	return child_container;
+	return s_container;
 }
 
 static void *cli_retrieve_by_id(const char *id)
@@ -461,12 +435,14 @@ static char *my_cli_traverse_objects(struct ast_cli_entry *e, int cmd,
 static struct ast_cli_entry cli_identify[] = {
 AST_CLI_DEFINE(my_cli_traverse_objects, "List PJSIP Identifies",
 	.command = "pjsip list identifies",
-	.usage = "Usage: pjsip list identifies\n"
-	"       List the configured PJSIP Identifies\n"),
+	.usage = "Usage: pjsip list identifies [ like <pattern> ]\n"
+	"       List the configured PJSIP Identifies\n"
+	"       Optional regular expression pattern is used to filter the list.\n"),
 AST_CLI_DEFINE(my_cli_traverse_objects, "Show PJSIP Identifies",
 	.command = "pjsip show identifies",
-	.usage = "Usage: pjsip show identifies\n"
-	"       Show the configured PJSIP Identifies\n"),
+	.usage = "Usage: pjsip show identifies [ like <pattern> ]\n"
+	"       Show the configured PJSIP Identifies\n"
+	"       Optional regular expression pattern is used to filter the list.\n"),
 AST_CLI_DEFINE(my_cli_traverse_objects, "Show PJSIP Identify",
 	.command = "pjsip show identify",
 	.usage = "Usage: pjsip show identify <id>\n"
