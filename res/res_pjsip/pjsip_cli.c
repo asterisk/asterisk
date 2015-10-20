@@ -125,6 +125,7 @@ char *ast_sip_cli_traverse_objects(struct ast_cli_entry *e, int cmd, struct ast_
 	const char *cmd2;
 	const char *object_id;
 	char formatter_type[64];
+	const char *regex;
 
 	struct ast_sip_cli_context context = {
 		.indent_level = 0,
@@ -162,6 +163,18 @@ char *ast_sip_cli_traverse_objects(struct ast_cli_entry *e, int cmd, struct ast_
 		is_container = 1;
 	}
 
+	if (cmd != CLI_GENERATE
+		&& is_container
+		&& a->argc >= 4
+		&& strcmp(object_id, "like") == 0) {
+		if (ast_strlen_zero(a->argv[4])) {
+			return CLI_SHOWUSAGE;
+		}
+		regex = a->argv[4];
+	} else {
+		regex = "";
+	}
+
 	if (cmd == CLI_GENERATE
 		&& (is_container
 			|| a->argc > 4
@@ -187,7 +200,7 @@ char *ast_sip_cli_traverse_objects(struct ast_cli_entry *e, int cmd, struct ast_
 		" =========================================================================================\n\n");
 
 	if (is_container || cmd == CLI_GENERATE) {
-		container = formatter_entry->get_container();
+		container = formatter_entry->get_container(regex);
 		if (!container) {
 			ast_cli(a->fd, "No container returned for object type %s.\n",
 				formatter_type);
