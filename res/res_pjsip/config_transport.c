@@ -633,13 +633,13 @@ static int tos_to_str(const void *obj, const intptr_t *args, char **buf)
 	return 0;
 }
 
-static struct ao2_container *cli_get_container(void)
+static struct ao2_container *cli_get_container(const char *regex)
 {
 	RAII_VAR(struct ao2_container *, container, NULL, ao2_cleanup);
 	struct ao2_container *s_container;
 
-	container = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "transport",
-		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	container = ast_sorcery_retrieve_by_regex(ast_sip_get_sorcery(), "transport",
+		regex);
 	if (!container) {
 		return NULL;
 	}
@@ -720,12 +720,14 @@ static struct ast_cli_entry cli_commands[] = {
 	AST_CLI_DEFINE(handle_pjsip_list_ciphers, "List available OpenSSL cipher names"),
 	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "List PJSIP Transports",
 		.command = "pjsip list transports",
-		.usage = "Usage: pjsip list transports\n"
-				 "       List the configured PJSIP Transports\n"),
+		.usage = "Usage: pjsip list transports [ like <pattern> ]\n"
+				"       List the configured PJSIP Transports\n"
+				"       Optional regular expression pattern is used to filter the list.\n"),
 	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "Show PJSIP Transports",
 		.command = "pjsip show transports",
-		.usage = "Usage: pjsip show transports\n"
-				 "       Show the configured PJSIP Transport\n"),
+		.usage = "Usage: pjsip show transports [ like <pattern> ]\n"
+				"       Show the configured PJSIP Transport\n"
+				"       Optional regular expression pattern is used to filter the list.\n"),
 	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "Show PJSIP Transport",
 		.command = "pjsip show transport",
 		.usage = "Usage: pjsip show transport <id>\n"
