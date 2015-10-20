@@ -195,13 +195,12 @@ static struct ast_sip_endpoint_formatter endpoint_auth_formatter = {
 	.format_ami = format_ami_endpoint_auth
 };
 
-static struct ao2_container *cli_get_container(void)
+static struct ao2_container *cli_get_container(const char *regex)
 {
 	RAII_VAR(struct ao2_container *, container, NULL, ao2_cleanup);
 	struct ao2_container *s_container;
 
-	container = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "auth",
-		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	container = ast_sorcery_retrieve_by_regex(ast_sip_get_sorcery(), "auth", regex);
 	if (!container) {
 		return NULL;
 	}
@@ -272,12 +271,14 @@ static int cli_print_body(void *obj, void *arg, int flags)
 static struct ast_cli_entry cli_commands[] = {
 	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "List PJSIP Auths",
 		.command = "pjsip list auths",
-		.usage = "Usage: pjsip list auths\n"
-				 "       List the configured PJSIP Auths\n"),
+		.usage = "Usage: pjsip list auths [ like <pattern> ]\n"
+				"       List the configured PJSIP Auths\n"
+				"       Optional regular expression pattern is used to filter the list.\n"),
 	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "Show PJSIP Auths",
 		.command = "pjsip show auths",
-		.usage = "Usage: pjsip show auths\n"
-				 "       Show the configured PJSIP Auths\n"),
+		.usage = "Usage: pjsip show auths [ like <pattern> ]\n"
+				"       Show the configured PJSIP Auths\n"
+				"       Optional regular expression pattern is used to filter the list.\n"),
 	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "Show PJSIP Auth",
 		.command = "pjsip show auth",
 		.usage = "Usage: pjsip show auth <id>\n"

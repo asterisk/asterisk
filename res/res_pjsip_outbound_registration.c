@@ -1611,11 +1611,12 @@ static int ami_show_outbound_registrations(struct mansession *s,
 	return 0;
 }
 
-static struct ao2_container *cli_get_container(void)
+static struct ao2_container *cli_get_container(const char *regex)
 {
-	RAII_VAR(struct ao2_container *, container, get_registrations(), ao2_cleanup);
+	RAII_VAR(struct ao2_container *, container, NULL, ao2_cleanup);
 	struct ao2_container *s_container;
 
+	container = ast_sorcery_retrieve_by_regex(ast_sip_get_sorcery(), "registration", regex);
 	if (!container) {
 		return NULL;
 	}
@@ -1719,12 +1720,14 @@ static struct ast_cli_entry cli_outbound_registration[] = {
 	AST_CLI_DEFINE(cli_register, "Registers an outbound registration target"),
 	AST_CLI_DEFINE(my_cli_traverse_objects, "List PJSIP Registrations",
 		.command = "pjsip list registrations",
-		.usage = "Usage: pjsip list registrations\n"
-				 "       List the configured PJSIP Registrations\n"),
+		.usage = "Usage: pjsip list registrations [ like <pattern> ]\n"
+				"       List the configured PJSIP Registrations\n"
+				"       Optional regular expression pattern is used to filter the list.\n"),
 	AST_CLI_DEFINE(my_cli_traverse_objects, "Show PJSIP Registrations",
 		.command = "pjsip show registrations",
-		.usage = "Usage: pjsip show registrations\n"
-				 "       Show the configured PJSIP Registrations\n"),
+		.usage = "Usage: pjsip show registrations [ like <pattern> ]\n"
+				"       Show the configured PJSIP Registrations\n"
+				"       Optional regular expression pattern is used to filter the list.\n"),
 	AST_CLI_DEFINE(my_cli_traverse_objects, "Show PJSIP Registration",
 		.command = "pjsip show registration",
 		.usage = "Usage: pjsip show registration <id>\n"
