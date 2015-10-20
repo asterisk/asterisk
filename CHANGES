@@ -27,6 +27,11 @@ res_pjsip_outbound_registration
   outbound registration, registration is retried at the given interval up to
   'max_retries'.
 
+res_pjsip
+------------------
+ * The ability to use "like" has been added to the pjsip list and show
+   CLI commands.  For instance: CLI> pjsip list endpoints like abc
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.5.0 to Asterisk 13.6.0 ------------
 ------------------------------------------------------------------------------

@@ -61,7 +61,7 @@ struct ast_sip_cli_formatter_entry {
 	/*! The callback used to print the details of the object. */
 	ao2_callback_fn *print_body;
 	/*! The function used to retrieve a container of all objects of this type. */
-	struct ao2_container *(* get_container)(void);
+	struct ao2_container *(* get_container)(const char *regex);
 	/*! The function used to iterate over a container of objects. */
 	int (* iterate)(void *container, ao2_callback_fn callback, void *args);
 	/*! The function used to retrieve a specific object from it's container. */
