@@ -626,13 +626,12 @@ struct ast_sip_endpoint_formatter endpoint_aor_formatter = {
 	.format_ami = format_ami_endpoint_aor
 };
 
-static struct ao2_container *cli_aor_get_container(void)
+static struct ao2_container *cli_aor_get_container(const char *regex)
 {
 	RAII_VAR(struct ao2_container *, container, NULL, ao2_cleanup);
 	struct ao2_container *s_container;
 
-	container = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "aor",
-		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	container = ast_sorcery_retrieve_by_regex(ast_sip_get_sorcery(), "aor", regex);
 	if (!container) {
 		return NULL;
 	}
@@ -730,12 +729,25 @@ static int cli_contact_iterate(void *container, ao2_callback_fn callback, void *
 	return ast_sip_for_each_contact(container, callback, args);
 }
 
-static struct ao2_container *cli_contact_get_container(void)
+static int cli_filter_contacts(void *obj, void *arg, int flags)
+{
+	struct ast_sip_contact_wrapper *wrapper = obj;
+	regex_t *regexbuf = arg;
+
+	if (!regexec(regexbuf, wrapper->contact_id, 0, NULL, 0)) {
+		return 0;
+	}
+
+	return CMP_MATCH;
+}
+
+static struct ao2_container *cli_contact_get_container(const char *regex)
 {
 	RAII_VAR(struct ao2_container *, parent_container, NULL, ao2_cleanup);
 	struct ao2_container *child_container;
+	regex_t regexbuf;
 
-	parent_container =  cli_aor_get_container();
+	parent_container =  cli_aor_get_container("");
 	if (!parent_container) {
 		return NULL;
 	}
@@ -748,12 +760,23 @@ static struct ao2_container *cli_contact_get_container(void)
 
 	ao2_callback(parent_container, OBJ_NODATA, cli_aor_gather_contacts, child_container);
 
+	if (!ast_strlen_zero(regex)) {
+		if (regcomp(&regexbuf, regex, REG_EXTENDED | REG_NOSUB)) {
+			ao2_ref(child_container, -1);
+			return NULL;
+		}
+		ao2_callback(child_container, OBJ_UNLINK | OBJ_MULTIPLE | OBJ_NODATA, cli_filter_contacts, &regexbuf);
+		regfree(&regexbuf);
+	}
+
 	return child_container;
 }
 
 static void *cli_contact_retrieve_by_id(const char *id)
 {
-	return ao2_find(cli_contact_get_container(), id, OBJ_KEY | OBJ_NOLOCK);
+	RAII_VAR(struct ao2_container *, container, cli_contact_get_container(""), ao2_cleanup);
+
+	return ao2_find(container, id, OBJ_KEY | OBJ_NOLOCK);
 }
 
 static int cli_contact_print_header(void *obj, void *arg, int flags)
@@ -890,12 +913,14 @@ static int cli_aor_print_body(void *obj, void *arg, int flags)
 static struct ast_cli_entry cli_commands[] = {
 	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "List PJSIP Aors",
 		.command = "pjsip list aors",
-		.usage = "Usage: pjsip list aors\n"
-				 "       List the configured PJSIP Aors\n"),
+		.usage = "Usage: pjsip list aors [ like <pattern> ]\n"
+				"       List the configured PJSIP Aors\n"
+				"       Optional regular expression pattern is used to filter the list.\n"),
 	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "Show PJSIP Aors",
 		.command = "pjsip show aors",
-		.usage = "Usage: pjsip show aors\n"
-				 "       Show the configured PJSIP Aors\n"),
+		.usage = "Usage: pjsip show aors [ like <pattern> ]\n"
+				"       Show the configured PJSIP Aors\n"
+				"       Optional regular expression pattern is used to filter the list.\n"),
 	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "Show PJSIP Aor",
 		.command = "pjsip show aor",
 		.usage = "Usage: pjsip show aor <id>\n"
@@ -903,12 +928,14 @@ static struct ast_cli_entry cli_commands[] = {
 
 	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "List PJSIP Contacts",
 		.command = "pjsip list contacts",
-		.usage = "Usage: pjsip list contacts\n"
-				 "       List the configured PJSIP contacts\n"),
+		.usage = "Usage: pjsip list contacts [ like <pattern> ]\n"
+				"       List the configured PJSIP contacts\n"
+				"       Optional regular expression pattern is used to filter the list.\n"),
 	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "Show PJSIP Contacts",
 		.command = "pjsip show contacts",
-		.usage = "Usage: pjsip show contacts\n"
-				 "       Show the configured PJSIP contacts\n"),
+		.usage = "Usage: pjsip show contacts [ like <pattern> ]\n"
+				"       Show the configured PJSIP contacts\n"
+				"       Optional regular expression pattern is used to filter the list.\n"),
 	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "Show PJSIP Contact",
 		.command = "pjsip show contact",
 		.usage = "Usage: pjsip show contact\n"
