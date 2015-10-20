@@ -74,7 +74,7 @@ if [ $MYUID -ne  0 ]; then
 fi
 
 SUPPORTED_MODULES="wcb4xxp wct4xxp wctc4xxp wctdm wctdm24xxp wcte11xp wcte12xp"
-RELATED_MODULES="$SUPPORTED_MODULES dahdi_dummy dahdi_transcode dahdi_vpmadt032_loader zaptel ztdummy zttranscode";
+RELATED_MODULES="$SUPPORTED_MODULES dahdi_dummy dahdi_transcode dahdi_vpmadt032_loader";
 
 OUTPUT_FILE="${FILE_PREFIX}${OUTPUT_FILE}"
 TARBALL_OUTPUT_FILE="${FILE_PREFIX}${TARBALL_OUTPUT_FILE}"
@@ -152,18 +152,16 @@ echo >> $OUTPUT;
 echo >> $OUTPUT;
 echo -n "."
 
-# Check for loaded Zaptel/DAHDI modules
-for module in dahdi zaptel; do
-  if [ -d /sys/module/$module ]; then
-    echo "------------------" >> $OUTPUT
-    echo "$module version:" >> $OUTPUT
-    echo "------------------" >> $OUTPUT
-    echo "/sys/module/$module/version: " >> $OUTPUT
-    cat /sys/module/$module/version 2> /dev/null >> $OUTPUT
-    echo "" >> $OUTPUT;
-    echo -n "."
-  fi
-done
+
+if [ -d /sys/module/dahdi ]; then
+  echo "------------------" >> $OUTPUT
+  echo "dahdi version:" >> $OUTPUT
+  echo "------------------" >> $OUTPUT
+  echo "/sys/module/dahdi/version: " >> $OUTPUT
+  cat /sys/module/dahdi/version 2> /dev/null >> $OUTPUT
+  echo "" >> $OUTPUT;
+  echo -n "."
+fi
 
 echo "------------------" >> $OUTPUT;
 echo "DAHDI TOOLS : dahdi_cfg --help" >> $OUTPUT;
@@ -188,13 +186,16 @@ asterisk -V >> $OUTPUT;
 echo >> $OUTPUT;
 # Add check to see if asterisk is running.
 if [ -e /var/run/asterisk.ctl ] || [ -e /var/run/asterisk/asterisk.ctl ]; then
-  for command in "show version" "core show version" "pri show version" "dahdi show version" "transcoder show" \
-      "core show uptime" "pri show spans" "misdn show stacks" "zap show channels" "dahdi show status" "dahdi show channels" \
-      "dahdi show channel 1" "core show channels" "skype show version" "skype show licenses" "skype show users" \
-      "skype show hostid" "show g729" "g729 show version" "g729 show licenses" "g729 show hostid" "fax show version" \
-      "fax show licenses" "fax show hostid" "fax show stats" "digium_phones show version" "digium_phones show alerts" \
-			"digium_phones show applications" "digium_phones show firmwares" "digium_phones show lines" "digium_phones show networks" \
-			"digium_phones show phones" "digium_phones show sessions" "digium_phones show settings" "digium_phones show translations" ;
+  for command in "core show version" "pri show version" "dahdi show version" "core show translation" \
+      "core show uptime" "core show settings" "core show sysinfo" "core show channels" \
+      "pri show spans" "dahdi show status" "dahdi show channels" "dahdi show channel 1" \
+      "pjsip show endpoints" "pjsip show registrations" "pjsip list channels" \
+      "sip show peers" "sip show registry" "sip show channels" "sip show subscriptions" "sip show settings" \
+      "show g729" "g729 show version" "g729 show licenses" "g729 show hostid" \
+      "digium_phones show version" "digium_phones show alerts" "digium_phones show applications" \
+      "digium_phones show firmwares" "digium_phones show lines" "digium_phones show networks" \
+			"digium_phones show phones" "digium_phones show sessions" "digium_phones show settings" \
+      "digium_phones show translations" ;
 	do
     echo "asterisk -rx \"$command\"" >> $OUTPUT;
     asterisk -rx "$command" >> $OUTPUT;
@@ -317,19 +318,17 @@ echo >> $OUTPUT;
 echo -n "."
 
 echo "----------------------------" >> $OUTPUT;
-echo "CAT OF DAHDI/ZAPTEL CHANNELS : cat /proc/dahdi/" >> $OUTPUT;
+echo "CAT OF DAHDI CHANNELS : cat /proc/dahdi/" >> $OUTPUT;
 echo "----------------------------" >> $OUTPUT;
-for tech in dahdi zaptel zap; do
-  if [ -d /proc/$tech/ ]; then
-    for file in $(ls /proc/$tech/ 2> /dev/null); do
-      echo "----------------------------" >> $OUTPUT;
-      echo "/proc/$tech/$file:" >> $OUTPUT;
-      cat /proc/$tech/$file >> $OUTPUT;
-      echo >> $OUTPUT;
-      echo -n "."
-    done
-  fi
-done
+if [ -d /proc/dahdi/ ]; then
+  for file in $(ls /proc/dahdi/ 2> /dev/null); do
+    echo "----------------------------" >> $OUTPUT;
+    echo "/proc/dahdi/$file:" >> $OUTPUT;
+    cat /proc/dahdi/$file >> $OUTPUT;
+    echo >> $OUTPUT;
+    echo -n "."
+  done
+fi
 echo >> $OUTPUT;
 
 echo "------------------" >> $OUTPUT;
@@ -371,7 +370,7 @@ for mod in $SUPPORTED_MODULES; do
 done
 
 echo "------------------------" >> $OUTPUT;
-echo "DAHDI/ZAPTEL MODULE INFO : modinfo" >> $OUTPUT;
+echo "DAHDI MODULE INFO : modinfo" >> $OUTPUT;
 echo "------------------------" >> $OUTPUT;
 for file in $(ls /lib/modules/$(uname -r)/dahdi/*.ko \
   /lib/modules/$(uname -r)/dahdi/*/*.ko\
@@ -518,26 +517,9 @@ collect_config_backup()
     TAR_FILES="$TAR_FILES /etc/dahdi*"
   fi
 
-  # Check for Zaptel Module configuration
-  if [ -f /etc/sysconfig/zaptel ]; then
-    TAR_FILES="$TAR_FILES /etc/sysconfig/zaptel*"
-  fi
-
-  # Check for Zaptel Module configuration (alternate location)
-  if [ -f /etc/default/zaptel ]; then
-    TAR_FILES="$TAR_FILES /etc/default/zaptel*"
-  fi
-
-  # Grab the dahdi/zaptel init scripts, in case they have been modified
-  for driver in dahdi zaptel; do
-    if [ -f /etc/init.d/$driver ]; then
-      TAR_FILES="$TAR_FILES /etc/init.d/$driver"
-    fi
-  done
-
-  # Check for zaptel.conf
-  if [ -f /etc/zaptel.conf ]; then
-    TAR_FILES="$TAR_FILES /etc/zaptel*"
+  # Grab the dahdi init scripts, in case they have been modified
+  if [ -f /etc/init.d/dahdi ]; then
+    TAR_FILES="$TAR_FILES /etc/init.d/dahdi"
   fi
 
   # Check for fxotune.conf
@@ -566,6 +548,9 @@ collect_config_backup()
   fi
   if [ -f /var/log/messages ]; then
     TAR_FILES="$TAR_FILES /var/log/messages"
+  fi
+  if [ -f /var/log/syslog ]; then
+    TAR_FILES="$TAR_FILES /var/log/syslog"
   fi
 
   [ -f $TARBALL_OUTPUT ] && rm -rf $TARBALL_OUTPUT
@@ -616,8 +601,8 @@ else
   echo "pci listing, dmesg, running processes, and kernel version"
   echo
   echo "2. A backup of elements of your configuration such as:"
-  echo "asterisk config files, license files, loaded dahdi/zaptel module"
-  echo "parameters, and other asterisk/dahdi/zaptel related files."
+  echo "asterisk config files, license files, loaded dahdi module"
+  echo "parameters, and other asterisk/dahdi related files."
   echo
   echo "Collect this information [y/n] ? "
   read files;
