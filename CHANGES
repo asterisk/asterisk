@@ -186,6 +186,19 @@ cdr_adaptive_odbc
 
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.6.0 to Asterisk 13.7.0 ------------
+------------------------------------------------------------------------------
+
+Dialplan Functions
+------------------
+ * The HOLD_INTERCEPT dialplan function now actually exists in the source tree.
+   While support for the events was added in Asterisk 13.4.0, the function
+   accidentally never made it in. That function is now present, and will cause
+   the 'hold' raised by a channel to be intercepted and converted into an
+   event instead.
+
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.5.0 to Asterisk 13.6.0 ------------
 ------------------------------------------------------------------------------
 
