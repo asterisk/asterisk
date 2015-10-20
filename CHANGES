@@ -184,6 +184,14 @@ cdr_adaptive_odbc
    names. This setting is configurable for cdr_adaptive_odbc via the
    quoted_identifiers in configuration file cdr_adaptive_odbc.conf.
 
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.6.0 to Asterisk 13.7.0 ------------
+------------------------------------------------------------------------------
+
+res_pjsip
+------------------
+ * The ability to use "like" has been added to the pjsip list and show
+   CLI commands.  For instance: CLI> pjsip list endpoints like abc
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.6.0 to Asterisk 13.7.0 ------------
