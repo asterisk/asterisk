@@ -100,6 +100,21 @@
 						buggy registrars.
 					</para></description>
 				</configOption>
+				<configOption name="fatal_retry_interval" default="0">
+					<synopsis>Interval used when receiving a Fatal response.</synopsis>
+					<description><para>
+						If a fatal response is received, chan_pjsip will wait
+						<replaceable>fatal_retry_interval</replaceable> seconds before
+						attempting registration again. If 0 is specified, chan_pjsip will not
+						retry after receiving a fatal (non-temporary 4xx, 5xx, 6xx) response.
+                                                Setting this to a non-zero value may go against a "SHOULD NOT" in RFC3261,
+                                                but can be used to work around buggy registrars.</para>
+						<note><para>if also set the <replaceable>forbidden_retry_interval</replaceable>
+                                                takes precedence over this one when a 403 is received.
+                                                Also, if <replaceable>auth_rejection_permanent</replaceable> equals 'yes' then
+                                                a 401 and 407 become subject to this retry interval.</para></note>
+					</description>
+				</configOption>
 				<configOption name="server_uri">
 					<synopsis>SIP URI of the server to register against</synopsis>
 					<description><para>
@@ -277,6 +292,8 @@ struct sip_outbound_registration {
 	unsigned int retry_interval;
 	/*! \brief Interval at which retries should occur for permanent responses */
 	unsigned int forbidden_retry_interval;
+	/*! \brief Interval at which retries should occur for all permanent responses */
+	unsigned int fatal_retry_interval;
 	/*! \brief Treat authentication challenges that we cannot handle as permanent failures */
 	unsigned int auth_rejection_permanent;
 	/*! \brief Maximum number of retries permitted */
@@ -312,6 +329,8 @@ struct sip_outbound_registration_client_state {
 	unsigned int retry_interval;
 	/*! \brief Interval at which retries should occur for permanent responses */
 	unsigned int forbidden_retry_interval;
+	/*! \brief Interval at which retries should occur for all permanent responses */
+	unsigned int fatal_retry_interval;
 	/*! \brief Treat authentication challenges that we cannot handle as permanent failures */
 	unsigned int auth_rejection_permanent;
 	/*! \brief Determines whether SIP Path support should be advertised */
@@ -799,6 +818,14 @@ static int handle_registration_response(void *data)
 			schedule_registration(response->client_state, response->client_state->forbidden_retry_interval);
 			ast_log(LOG_WARNING, "403 Forbidden fatal response received from '%s' on registration attempt to '%s', retrying in '%u' seconds\n",
 				server_uri, client_uri, response->client_state->forbidden_retry_interval);
+		} else if (response->client_state->fatal_retry_interval
+			   && response->client_state->retries < response->client_state->max_retries) {
+			/* Some kind of fatal failure response received, so retry according to configured interval */
+			response->client_state->status = SIP_REGISTRATION_REJECTED_TEMPORARY;
+			response->client_state->retries++;
+			schedule_registration(response->client_state, response->client_state->fatal_retry_interval);
+			ast_log(LOG_WARNING, "'%d' fatal response received from '%s' on registration attempt to '%s', retrying in '%u' seconds\n",
+				response->code, server_uri, client_uri, response->client_state->fatal_retry_interval);
 		} else {
 			/* Finally if there's no hope of registering give up */
 			response->client_state->status = SIP_REGISTRATION_REJECTED_PERMANENT;
@@ -1186,6 +1213,7 @@ static int sip_outbound_registration_perform(void *data)
 	}
 	state->client_state->retry_interval = registration->retry_interval;
 	state->client_state->forbidden_retry_interval = registration->forbidden_retry_interval;
+	state->client_state->fatal_retry_interval = registration->fatal_retry_interval;
 	state->client_state->max_retries = registration->max_retries;
 	state->client_state->retries = 0;
 	state->client_state->support_path = registration->support_path;
@@ -1909,6 +1937,7 @@ static int load_module(void)
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "expiration", "3600", OPT_UINT_T, 0, FLDSET(struct sip_outbound_registration, expiration));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "retry_interval", "60", OPT_UINT_T, 0, FLDSET(struct sip_outbound_registration, retry_interval));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "forbidden_retry_interval", "0", OPT_UINT_T, 0, FLDSET(struct sip_outbound_registration, forbidden_retry_interval));
+	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "fatal_retry_interval", "0", OPT_UINT_T, 0, FLDSET(struct sip_outbound_registration, fatal_retry_interval));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "max_retries", "10", OPT_UINT_T, 0, FLDSET(struct sip_outbound_registration, max_retries));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "registration", "auth_rejection_permanent", "yes", OPT_BOOL_T, 1, FLDSET(struct sip_outbound_registration, auth_rejection_permanent));
 	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "registration", "outbound_auth", "", outbound_auth_handler, outbound_auths_to_str, outbound_auths_to_var_list, 0, 0);
