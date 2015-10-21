@@ -28,6 +28,13 @@ res_pjsip
   before terminating the call due to lack of received RTP. These are identical
   to chan_sip's rtptimeout and rtpholdtimeout options.
 
+res_pjsip_outbound_registration
+-------------------------------
+* A new 'fatal_retry_interval' option has been added to outbound registration.
+  When set (default is zero), and upon receiving a failure response to an
+  outbound registration, registration is retried at the given interval up to
+  'max_retries'.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.1.0-cert1 to Asterisk 13.1-cert2 --
 ------------------------------------------------------------------------------
