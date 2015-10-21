@@ -923,6 +923,14 @@
                         ; registration is unsuccessful (default: "60")
 ;forbidden_retry_interval=0     ; Interval used when receiving a 403 Forbidden
                                 ; response (default: "0")
+;fatal_retry_interval=0 ; Interval used when receiving a fatal response.
+                        ; (default: "0") A fatal response is any permanent
+                        ; failure (non-temporary 4xx, 5xx, 6xx) response
+                        ; received from the registrar. NOTE - if also set
+                        ; the 'forbidden_retry_interval' takes precedence
+                        ; over this one when a 403 is received. Also, if
+                        ; 'auth_rejection_permanent' equals 'yes' a 401 and
+                        ; 407 become subject to this retry interval.
 ;server_uri=    ; SIP URI of the server to register against (default: "")
 ;transport=     ; Transport used for outbound authentication (default: "")
 ;type=  ; Must be of type registration (default: "")
