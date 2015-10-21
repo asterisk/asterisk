@@ -39,7 +39,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/alaw.h"
 #include "asterisk/format_cache.h"
 
-#define BUF_SIZE 160		/* 160 bytes, and same number of samples */
+#define BUF_SIZE 80		/* 80 bytes, and same number of samples */
 
 static char ulaw_silence[BUF_SIZE];
 static char alaw_silence[BUF_SIZE];

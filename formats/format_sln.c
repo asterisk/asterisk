@@ -117,7 +117,7 @@ static off_t slinear_tell(struct ast_filestream *fs)
 	return ftello(fs->f) / 2;
 }
 
-static struct ast_frame *slinear_read(struct ast_filestream *s, int *whennext){return generic_read(s, whennext, 320);}
+static struct ast_frame *slinear_read(struct ast_filestream *s, int *whennext){return generic_read(s, whennext, 160);}
 static struct ast_format_def slin_f = {
 	.name = "sln",
 	.exts = "sln|raw",
@@ -126,10 +126,10 @@ static struct ast_format_def slin_f = {
 	.trunc = slinear_trunc,
 	.tell = slinear_tell,
 	.read = slinear_read,
-	.buf_size = 320 + AST_FRIENDLY_OFFSET,
+	.buf_size = 160 + AST_FRIENDLY_OFFSET,
 };
 
-static struct ast_frame *slinear12_read(struct ast_filestream *s, int *whennext){return generic_read(s, whennext, 480);}
+static struct ast_frame *slinear12_read(struct ast_filestream *s, int *whennext){return generic_read(s, whennext, 240);}
 static struct ast_format_def slin12_f = {
 	.name = "sln12",
 	.exts = "sln12",
@@ -138,10 +138,10 @@ static struct ast_format_def slin12_f = {
 	.trunc = slinear_trunc,
 	.tell = slinear_tell,
 	.read = slinear12_read,
-	.buf_size = 480 + AST_FRIENDLY_OFFSET,
+	.buf_size = 240 + AST_FRIENDLY_OFFSET,
 };
 
-static struct ast_frame *slinear16_read(struct ast_filestream *s, int *whennext){return generic_read(s, whennext, 640);}
+static struct ast_frame *slinear16_read(struct ast_filestream *s, int *whennext){return generic_read(s, whennext, 320);}
 static struct ast_format_def slin16_f = {
 	.name = "sln16",
 	.exts = "sln16",
@@ -150,10 +150,10 @@ static struct ast_format_def slin16_f = {
 	.trunc = slinear_trunc,
 	.tell = slinear_tell,
 	.read = slinear16_read,
-	.buf_size = 640 + AST_FRIENDLY_OFFSET,
+	.buf_size = 320 + AST_FRIENDLY_OFFSET,
 };
 
-static struct ast_frame *slinear24_read(struct ast_filestream *s, int *whennext){return generic_read(s, whennext, 960);}
+static struct ast_frame *slinear24_read(struct ast_filestream *s, int *whennext){return generic_read(s, whennext, 480);}
 static struct ast_format_def slin24_f = {
 	.name = "sln24",
 	.exts = "sln24",
@@ -162,10 +162,10 @@ static struct ast_format_def slin24_f = {
 	.trunc = slinear_trunc,
 	.tell = slinear_tell,
 	.read = slinear24_read,
-	.buf_size = 960 + AST_FRIENDLY_OFFSET,
+	.buf_size = 480 + AST_FRIENDLY_OFFSET,
 };
 
-static struct ast_frame *slinear32_read(struct ast_filestream *s, int *whennext){return generic_read(s, whennext, 1280);}
+static struct ast_frame *slinear32_read(struct ast_filestream *s, int *whennext){return generic_read(s, whennext, 640);}
 static struct ast_format_def slin32_f = {
 	.name = "sln32",
 	.exts = "sln32",
@@ -174,10 +174,10 @@ static struct ast_format_def slin32_f = {
 	.trunc = slinear_trunc,
 	.tell = slinear_tell,
 	.read = slinear32_read,
-	.buf_size = 1280 + AST_FRIENDLY_OFFSET,
+	.buf_size = 640 + AST_FRIENDLY_OFFSET,
 };
 
-static struct ast_frame *slinear44_read(struct ast_filestream *s, int *whennext){return generic_read(s, whennext, 1764);}
+static struct ast_frame *slinear44_read(struct ast_filestream *s, int *whennext){return generic_read(s, whennext, 882);}
 static struct ast_format_def slin44_f = {
 	.name = "sln44",
 	.exts = "sln44",
@@ -186,10 +186,10 @@ static struct ast_format_def slin44_f = {
 	.trunc = slinear_trunc,
 	.tell = slinear_tell,
 	.read = slinear44_read,
-	.buf_size = 1764 + AST_FRIENDLY_OFFSET,
+	.buf_size = 882 + AST_FRIENDLY_OFFSET,
 };
 
-static struct ast_frame *slinear48_read(struct ast_filestream *s, int *whennext){return generic_read(s, whennext, 1920);}
+static struct ast_frame *slinear48_read(struct ast_filestream *s, int *whennext){return generic_read(s, whennext, 960);}
 static struct ast_format_def slin48_f = {
 	.name = "sln48",
 	.exts = "sln48",
@@ -198,10 +198,10 @@ static struct ast_format_def slin48_f = {
 	.trunc = slinear_trunc,
 	.tell = slinear_tell,
 	.read = slinear48_read,
-	.buf_size = 1920 + AST_FRIENDLY_OFFSET,
+	.buf_size = 960 + AST_FRIENDLY_OFFSET,
 };
 
-static struct ast_frame *slinear96_read(struct ast_filestream *s, int *whennext){return generic_read(s, whennext, 3840);}
+static struct ast_frame *slinear96_read(struct ast_filestream *s, int *whennext){return generic_read(s, whennext, 1920);}
 static struct ast_format_def slin96_f = {
 	.name = "sln96",
 	.exts = "sln96",
@@ -210,10 +210,10 @@ static struct ast_format_def slin96_f = {
 	.trunc = slinear_trunc,
 	.tell = slinear_tell,
 	.read = slinear96_read,
-	.buf_size = 3840 + AST_FRIENDLY_OFFSET,
+	.buf_size = 1920 + AST_FRIENDLY_OFFSET,
 };
 
-static struct ast_frame *slinear192_read(struct ast_filestream *s, int *whennext){return generic_read(s, whennext, 7680);}
+static struct ast_frame *slinear192_read(struct ast_filestream *s, int *whennext){return generic_read(s, whennext, 3840);}
 static struct ast_format_def slin192_f = {
 	.name = "sln192",
 	.exts = "sln192",
@@ -222,7 +222,7 @@ static struct ast_format_def slin192_f = {
 	.trunc = slinear_trunc,
 	.tell = slinear_tell,
 	.read = slinear192_read,
-	.buf_size = 7680 + AST_FRIENDLY_OFFSET,
+	.buf_size = 3840 + AST_FRIENDLY_OFFSET,
 };
 
 static struct ast_format_def *slin_list[] = {
