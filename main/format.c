@@ -1049,7 +1049,7 @@ static int format_list_init(void)
 	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_G729A, 0), "g729", 8000, "G.729A", 10, 10, 230, 10, 20, AST_SMOOTHER_FLAG_G729, 0);   /*!< Binary commercial distribution */
 	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_SPEEX, 0), "speex", 8000, "SpeeX", 10, 10, 60, 10, 20, 0, 0);          /*!< codec_speex.c */
 	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_SPEEX16, 0), "speex16", 16000, "SpeeX 16khz", 10, 10, 60, 10, 20, 0, 0);   /*!< codec_speex.c */
-	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_ILBC, 0), "ilbc", 8000, "iLBC", 50, 30, 30, 30, 30, 0, 0);                 /*!< codec_ilbc.c */ /* inc=30ms - workaround */
+	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_ILBC, 0), "ilbc", 8000, "iLBC", 50, 30, 300, 30, 30, 0, 0);                /*!< codec_ilbc.c */
 	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_G726_AAL2, 0), "g726aal2", 8000, "G.726 AAL2", 40, 10, 300, 10, 20, 0, 0); /*!< codec_g726.c */
 	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_G722, 0), "g722", 16000, "G722", 80, 10, 150, 10, 20, 0, 0);               /*!< codec_g722.c */
 	format_list_add_static(ast_format_set(&tmpfmt, AST_FORMAT_SLINEAR16, 0), "slin16", 16000, "16 bit Signed Linear PCM (16kHz)", 320, 10, 70, 10, 20, AST_SMOOTHER_FLAG_BE, 0);/*!< Signed linear (16kHz) */
