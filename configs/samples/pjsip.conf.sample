@@ -910,6 +910,8 @@
                         ; registration is unsuccessful (default: "60")
 ;forbidden_retry_interval=0     ; Interval used when receiving a 403 Forbidden
                                 ; response (default: "0")
+;fatal_retry_interval=0     ; Interval used when receiving a fatal response
+                            ; (default: "0")
 ;server_uri=    ; SIP URI of the server to register against (default: "")
 ;transport=     ; Transport used for outbound authentication (default: "")
 ;type=  ; Must be of type registration (default: "")
