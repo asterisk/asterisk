@@ -40,7 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /* Portions of the conversion code are by guido@sienanet.it */
 
-#define	WAV_BUF_SIZE	320
+#define	WAV_BUF_SIZE	160
 
 #define WAV_HEADER_SIZE 44
 

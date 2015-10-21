@@ -42,8 +42,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /* Portions of the conversion code are by guido@sienanet.it */
 
-#define	BUF_SIZE	20	/* two G729 frames */
-#define	G729A_SAMPLES	160
+#define	BUF_SIZE	10	/* one G729 frame */
+#define	G729A_SAMPLES	80
 
 static struct ast_frame *g729_read(struct ast_filestream *s, int *whennext)
 {
