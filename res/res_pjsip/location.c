@@ -236,32 +236,6 @@ static int expiration_struct2str(const void *obj, const intptr_t *args, char **b
 	return (ast_asprintf(buf, "%ld", contact->expiration_time.tv_sec) < 0) ? -1 : 0;
 }
 
-/*! \brief Helper function which validates a permanent contact */
-static int permanent_contact_validate(void *data)
-{
-	const char *value = data;
-	pj_pool_t *pool;
-	pj_str_t contact_uri;
-	static const pj_str_t HCONTACT = { "Contact", 7 };
-	pjsip_contact_hdr *contact_hdr;
-	int rc = 0;
-
-	pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "Permanent Contact Validation", 256, 256);
-	if (!pool) {
-		return -1;
-	}
-
-	pj_strdup2_with_null(pool, &contact_uri, value);
-	if (!(contact_hdr = pjsip_parse_hdr(pool, &HCONTACT, contact_uri.ptr, contact_uri.slen, NULL))
-		|| !(PJSIP_URI_SCHEME_IS_SIP(contact_hdr->uri)
-			|| PJSIP_URI_SCHEME_IS_SIPS(contact_hdr->uri))) {
-		rc = -1;
-	}
-
-	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
-	return rc;
-}
-
 static int permanent_uri_sort_fn(const void *obj_left, const void *obj_right, int flags)
 {
 	const struct ast_sip_contact *object_left = obj_left;
@@ -308,12 +282,6 @@ static int permanent_uri_handler(const struct aco_option *opt, struct ast_variab
 	while ((contact_uri = strsep(&contacts, ","))) {
 		struct ast_sip_contact *contact;
 		char contact_id[strlen(aor_id) + strlen(contact_uri) + 2 + 1];
-
-		if (ast_sip_push_task_synchronous(NULL, permanent_contact_validate, contact_uri)) {
-			ast_log(LOG_ERROR, "Permanent URI on aor '%s' with contact '%s' failed to parse\n",
-				ast_sorcery_object_get_id(aor), contact_uri);
-			return -1;
-		}
 
 		if (!aor->permanent_contacts) {
 			aor->permanent_contacts = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK,
