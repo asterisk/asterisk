@@ -2563,6 +2563,8 @@ pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
 
 		pj_strdup2_with_null(dlg->pool, &tmp, outbound_proxy);
 		if (!(route = pjsip_parse_hdr(dlg->pool, &ROUTE_HNAME, tmp.ptr, tmp.slen, NULL))) {
+			ast_log(LOG_ERROR, "Could not create dialog to endpoint '%s' as outbound proxy URI '%s' is not valid\n",
+				ast_sorcery_object_get_id(endpoint), outbound_proxy);
 			dlg->sess_count--;
 			pjsip_dlg_terminate(dlg);
 			return NULL;
@@ -2756,6 +2758,7 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 	pj_str_t from;
 	pj_pool_t *pool;
 	pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
+	pjsip_uri *sip_uri;
 
 	if (ast_strlen_zero(uri)) {
 		if (!endpoint && (!contact || ast_strlen_zero(contact->uri))) {
@@ -2792,6 +2795,16 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 		return -1;
 	}
 
+	sip_uri = pjsip_parse_uri(pool, remote_uri.ptr, remote_uri.slen, 0);
+	if (!sip_uri || (!PJSIP_URI_SCHEME_IS_SIP(sip_uri) && !PJSIP_URI_SCHEME_IS_SIPS(sip_uri))) {
+		ast_log(LOG_ERROR, "Unable to create outbound %.*s request to endpoint %s as URI '%s' is not valid\n",
+			(int) pj_strlen(&method->name), pj_strbuf(&method->name),
+			endpoint ? ast_sorcery_object_get_id(endpoint) : "<none>",
+			pj_strbuf(&remote_uri));
+		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+		return -1;
+	}
+
 	if (sip_dialog_create_from(pool, &from, endpoint ? endpoint->fromuser : NULL,
 				endpoint ? endpoint->fromdomain : NULL, &remote_uri, &selector)) {
 		ast_log(LOG_ERROR, "Unable to create From header for %.*s request to endpoint %s\n",
@@ -2816,8 +2829,9 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 	/* If an outbound proxy is specified on the endpoint apply it to this request */
 	if (endpoint && !ast_strlen_zero(endpoint->outbound_proxy) &&
 		ast_sip_set_outbound_proxy((*tdata), endpoint->outbound_proxy)) {
-		ast_log(LOG_ERROR, "Unable to apply outbound proxy on request %.*s to endpoint %s\n",
-			(int) pj_strlen(&method->name), pj_strbuf(&method->name), ast_sorcery_object_get_id(endpoint));
+		ast_log(LOG_ERROR, "Unable to apply outbound proxy on request %.*s to endpoint %s as outbound proxy URI '%s' is not valid\n",
+			(int) pj_strlen(&method->name), pj_strbuf(&method->name), ast_sorcery_object_get_id(endpoint),
+			endpoint->outbound_proxy);
 		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
 		return -1;
 	}
