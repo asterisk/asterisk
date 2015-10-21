@@ -162,6 +162,13 @@ res_pjsip
    will be used instead. The new SIP resolver provides NAPTR support, improved
    SRV support, and AAAA record support.
 
+res_pjsip_outbound_registration
+-------------------------------
+* A new 'fatal_retry_interval' option has been added to outbound registration.
+  When set (default is zero), and upon receiving a failure response to an
+  outbound registration, registration is retried at the given interval up to
+  'max_retries'.
+
 CEL Backends
 ------------------
 
