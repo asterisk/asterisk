@@ -93,14 +93,27 @@ static void format_cap_destroy(void *obj)
 	AST_VECTOR_FREE(&cap->preference_order);
 }
 
-static inline void format_cap_init(struct ast_format_cap *cap, enum ast_format_cap_flags flags)
+/*
+ * \brief Initialize values on an ast_format_cap
+ *
+ * \param cap ast_format_cap to initialize
+ * \param flags Unused.
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+static inline int format_cap_init(struct ast_format_cap *cap, enum ast_format_cap_flags flags)
 {
-	AST_VECTOR_INIT(&cap->formats, 0);
+	if (AST_VECTOR_INIT(&cap->formats, 0)) {
+		return -1;
+	}
 
 	/* TODO: Look at common usage of this and determine a good starting point */
-	AST_VECTOR_INIT(&cap->preference_order, 5);
+	if (AST_VECTOR_INIT(&cap->preference_order, 5)) {
+		return -1;
+	}
 
 	cap->framing = UINT_MAX;
+	return 0;
 }
 
 struct ast_format_cap *__ast_format_cap_alloc(enum ast_format_cap_flags flags)
@@ -112,7 +125,10 @@ struct ast_format_cap *__ast_format_cap_alloc(enum ast_format_cap_flags flags)
 		return NULL;
 	}
 
-	format_cap_init(cap, flags);
+	if (format_cap_init(cap, flags)) {
+		ao2_ref(cap, -1);
+		return NULL;
+	}
 
 	return cap;
 }
@@ -126,7 +142,10 @@ struct ast_format_cap *__ast_format_cap_alloc_debug(enum ast_format_cap_flags fl
 		return NULL;
 	}
 
-	format_cap_init(cap, flags);
+	if (format_cap_init(cap, flags)) {
+		ao2_ref(cap, -1);
+		return NULL;
+	}
 
 	return cap;
 }
