@@ -1076,10 +1076,12 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 				char locbuf[40] = "(None)";
 				char appdata[40] = "(None)";
 
-				if (!cs->context && !cs->exten)
+				if (!ast_strlen_zero(cs->context) && !ast_strlen_zero(cs->exten)) {
 					snprintf(locbuf, sizeof(locbuf), "%s@%s:%d", cs->exten, cs->context, cs->priority);
-				if (cs->appl)
+				}
+				if (!ast_strlen_zero(cs->appl)) {
 					snprintf(appdata, sizeof(appdata), "%s(%s)", cs->appl, S_OR(cs->data, ""));
+				}
 				ast_cli(a->fd, FORMAT_STRING, cs->name, locbuf, ast_state2str(cs->state), appdata);
 			}
 		}
