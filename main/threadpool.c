@@ -1150,13 +1150,17 @@ static struct serializer *serializer_create(struct ast_threadpool *pool)
 	return ser;
 }
 
+AST_THREADSTORAGE_RAW(current_serializer);
+
 static int execute_tasks(void *data)
 {
 	struct ast_taskprocessor *tps = data;
 
+	ast_threadstorage_set_ptr(&current_serializer, tps);
 	while (ast_taskprocessor_execute(tps)) {
 		/* No-op */
 	}
+	ast_threadstorage_set_ptr(&current_serializer, NULL);
 
 	ast_taskprocessor_unreference(tps);
 	return 0;
@@ -1191,6 +1195,11 @@ static struct ast_taskprocessor_listener_callbacks serializer_tps_listener_callb
 	.start = serializer_start,
 	.shutdown = serializer_shutdown,
 };
+
+struct ast_taskprocessor *ast_threadpool_serializer_get_current(void)
+{
+	return ast_threadstorage_get_ptr(&current_serializer);
+}
 
 struct ast_taskprocessor *ast_threadpool_serializer(const char *name, struct ast_threadpool *pool)
 {

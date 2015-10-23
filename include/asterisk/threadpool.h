@@ -196,6 +196,22 @@ int ast_threadpool_push(struct ast_threadpool *pool, int (*task)(void *data), vo
 void ast_threadpool_shutdown(struct ast_threadpool *pool);
 
 /*!
+ * \brief Get the threadpool serializer currently associated with this thread.
+ * \since 14.0.0
+ *
+ * \note The returned pointer is valid while the serializer
+ * thread is running.
+ *
+ * \note Use ao2_ref() on serializer if you are going to keep it
+ * for another thread.  To unref it you must then use
+ * ast_taskprocessor_unreference().
+ *
+ * \retval serializer on success.
+ * \retval NULL on error or no serializer associated with the thread.
+ */
+struct ast_taskprocessor *ast_threadpool_serializer_get_current(void);
+
+/*!
  * \brief Serialized execution of tasks within a \ref ast_threadpool.
  *
  * \since 12.0.0
