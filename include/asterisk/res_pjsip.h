@@ -1180,6 +1180,11 @@ int ast_sip_push_task(struct ast_taskprocessor *serializer, int (*sip_task)(void
  * cause a deadlock. If you are in a SIP servant thread, just call your function
  * in-line.
  *
+ * \warning \b Never hold locks that may be acquired by a SIP servant thread when
+ * calling this function. Doing so may cause a deadlock if all SIP servant threads
+ * are blocked waiting to acquire the lock while the thread holding the lock is
+ * waiting for a free SIP servant thread.
+ *
  * \param serializer The SIP serializer to which the task belongs. May be NULL.
  * \param sip_task The task to execute
  * \param task_data The parameter to pass to the task when it executes
