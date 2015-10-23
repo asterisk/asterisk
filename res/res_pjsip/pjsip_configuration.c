@@ -922,29 +922,6 @@ static struct ast_endpoint *persistent_endpoint_find_or_create(const struct ast_
 	return persistent->endpoint;
 }
 
-/*! \brief Helper function which validates an outbound proxy */
-static int outbound_proxy_validate(void *data)
-{
-	const char *proxy = data;
-	pj_pool_t *pool;
-	pj_str_t tmp;
-	static const pj_str_t ROUTE_HNAME = { "Route", 5 };
-
-	pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "Outbound Proxy Validation", 256, 256);
-	if (!pool) {
-		return -1;
-	}
-
-	pj_strdup2_with_null(pool, &tmp, proxy);
-	if (!pjsip_parse_hdr(pool, &ROUTE_HNAME, tmp.ptr, tmp.slen, NULL)) {
-		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
-		return -1;
-	}
-
-	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
-	return 0;
-}
-
 /*! \brief Callback function for when an object is finalized */
 static int sip_endpoint_apply_handler(const struct ast_sorcery *sorcery, void *obj)
 {
@@ -954,12 +931,7 @@ static int sip_endpoint_apply_handler(const struct ast_sorcery *sorcery, void *o
 		return -1;
 	}
 
-	if (!ast_strlen_zero(endpoint->outbound_proxy) &&
-		ast_sip_push_task_synchronous(NULL, outbound_proxy_validate, (char*)endpoint->outbound_proxy)) {
-		ast_log(LOG_ERROR, "Invalid outbound proxy '%s' specified on endpoint '%s'\n",
-			endpoint->outbound_proxy, ast_sorcery_object_get_id(endpoint));
-		return -1;
-	} else if (endpoint->extensions.timer.min_se < 90) {
+	if (endpoint->extensions.timer.min_se < 90) {
 		ast_log(LOG_ERROR, "Session timer minimum expires time must be 90 or greater on endpoint '%s'\n",
 			ast_sorcery_object_get_id(endpoint));
 		return -1;
