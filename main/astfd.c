@@ -281,7 +281,7 @@ static void fd_shutdown(void)
 
 int ast_fd_init(void)
 {
-	ast_register_atexit(fd_shutdown);
+	ast_register_cleanup(fd_shutdown);
 	return ast_cli_register(&cli_show_fd);
 }
 

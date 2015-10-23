@@ -1211,7 +1211,7 @@ int container_init(void)
 	}
 
 	ast_cli_register_multiple(cli_astobj2, ARRAY_LEN(cli_astobj2));
-	ast_register_atexit(container_cleanup);
+	ast_register_cleanup(container_cleanup);
 #endif	/* defined(AO2_DEBUG) */
 
 	return 0;

@@ -1493,7 +1493,7 @@ void __ast_mm_init_phase_2(void)
 		ast_log(LOG_ERROR, "Could not open malloc debug log file: %s\n", filename);
 	}
 
-	ast_register_atexit(mm_atexit_ast);
+	ast_register_cleanup(mm_atexit_ast);
 }
 
 #endif	/* defined(__AST_DEBUG_MALLOC) */

@@ -1785,6 +1785,6 @@ int ast_file_init(void)
 	STASIS_MESSAGE_TYPE_INIT(ast_format_register_type);
 	STASIS_MESSAGE_TYPE_INIT(ast_format_unregister_type);
 	ast_cli_register_multiple(cli_file, ARRAY_LEN(cli_file));
-	ast_register_atexit(file_shutdown);
+	ast_register_cleanup(file_shutdown);
 	return 0;
 }

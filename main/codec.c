@@ -245,7 +245,7 @@ int ast_codec_init(void)
 	}
 
 	ast_cli_register_multiple(codec_cli, ARRAY_LEN(codec_cli));
-	ast_register_atexit(codec_shutdown);
+	ast_register_cleanup(codec_shutdown);
 
 	return 0;
 }
