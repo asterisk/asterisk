@@ -1177,6 +1177,24 @@ static void shutdown_subscriptions(struct ast_sip_subscription *sub)
 		sub->handler->subscription_shutdown(sub);
 	}
 }
+static int subscription_unreference_dialog(void *obj)
+{
+	struct sip_subscription_tree *sub_tree = obj;
+
+	/* This is why we keep the dialog on the subscription. When the subscription
+	 * is destroyed, there is no guarantee that the underlying dialog is ready
+	 * to be destroyed. Furthermore, there's no guarantee in the opposite direction
+	 * either. The dialog could be destroyed before our subscription is. We fix
+	 * this problem by keeping a reference to the dialog until it is time to
+	 * destroy the subscription. We need to have the dialog available when the
+	 * subscription is destroyed so that we can guarantee that our attempt to
+	 * remove the serializer will be successful.
+	 */
+	pjsip_dlg_dec_session(sub_tree->dlg, &pubsub_module);
+	sub_tree->dlg = NULL;
+
+	return 0;
+}
 
 static void subscription_tree_destructor(void *obj)
 {
@@ -1190,6 +1208,7 @@ static void subscription_tree_destructor(void *obj)
 
 	destroy_subscriptions(sub_tree->root);
 
+	ast_sip_push_task_synchronous(sub_tree->serializer, subscription_unreference_dialog, sub_tree);
 	ast_taskprocessor_unreference(sub_tree->serializer);
 	ast_module_unref(ast_module_info->self);
 }
@@ -1206,6 +1225,7 @@ static void subscription_setup_dialog(struct sip_subscription_tree *sub_tree, pj
 	ast_sip_dialog_set_serializer(dlg, sub_tree->serializer);
 	ast_sip_dialog_set_endpoint(dlg, sub_tree->endpoint);
 	pjsip_evsub_set_mod_data(sub_tree->evsub, pubsub_module.id, sub_tree);
+	pjsip_dlg_inc_session(dlg, &pubsub_module);
 }
 
 static struct sip_subscription_tree *allocate_subscription_tree(struct ast_sip_endpoint *endpoint)
@@ -1526,10 +1546,6 @@ void *ast_sip_subscription_get_header(const struct ast_sip_subscription *sub, co
 	pj_str_t name;
 
 	dlg = sub->tree->dlg;
-	if (!dlg) {
-		return NULL;
-	}
-
 	msg = ast_sip_mod_data_get(dlg->mod_data, pubsub_module.id, MOD_DATA_MSG);
 	pj_cstr(&name, header);
 
@@ -2136,10 +2152,6 @@ static int serialized_send_notify(void *userdata)
 	struct sip_subscription_tree *sub_tree = userdata;
 	pjsip_dialog *dlg = sub_tree->dlg;
 
-	if (!dlg) {
-		return 0;
-	}
-
 	pjsip_dlg_inc_lock(dlg);
 	/* It's possible that between when the notification was scheduled
 	 * and now, that a new SUBSCRIBE arrived, requiring full state to be
@@ -2193,10 +2205,6 @@ int ast_sip_subscription_notify(struct ast_sip_subscription *sub, struct ast_sip
 	int res;
 	pjsip_dialog *dlg = sub->tree->dlg;
 
-	if (!dlg) {
-		return 0;
-	}
-
 	pjsip_dlg_inc_lock(dlg);
 
 	if (!sub->tree->evsub) {
@@ -2241,10 +2249,6 @@ void ast_sip_subscription_get_remote_uri(struct ast_sip_subscription *sub, char 
 	pjsip_dialog *dlg;
 
 	dlg = sub->tree->dlg;
-	if (!dlg) {
-		*buf = '\0';
-		return;
-	}
 	ast_copy_pj_str(buf, &dlg->remote.info_str, size);
 }
 
@@ -3199,10 +3203,6 @@ static int serialized_pubsub_on_server_timeout(void *userdata)
 	struct sip_subscription_tree *sub_tree = userdata;
 	pjsip_dialog *dlg = sub_tree->dlg;
 
-	if (!dlg) {
-		return 0;
-	}
-
 	pjsip_dlg_inc_lock(dlg);
 	if (!sub_tree->evsub) {
 		pjsip_dlg_dec_lock(dlg);
@@ -3291,7 +3291,6 @@ static void pubsub_on_evsub_state(pjsip_evsub *evsub, pjsip_event *event)
 	sub_tree->evsub = NULL;
 	ast_sip_dialog_set_serializer(sub_tree->dlg, NULL);
 	ast_sip_dialog_set_endpoint(sub_tree->dlg, NULL);
-	sub_tree->dlg = NULL;
 	subscription_persistence_remove(sub_tree);
 	shutdown_subscriptions(sub_tree->root);
 
@@ -3303,10 +3302,6 @@ static int serialized_pubsub_on_rx_refresh(void *userdata)
 {
 	struct sip_subscription_tree *sub_tree = userdata;
 	pjsip_dialog *dlg = sub_tree->dlg;
-
-	if (!dlg) {
-		return 0;
-	}
 
 	pjsip_dlg_inc_lock(dlg);
 	if (!sub_tree->evsub) {
