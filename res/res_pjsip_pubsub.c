@@ -595,6 +595,7 @@ static void subscription_persistence_remove(struct sip_subscription_tree *sub_tr
 
 	ast_sorcery_delete(ast_sip_get_sorcery(), sub_tree->persistence);
 	ao2_ref(sub_tree->persistence, -1);
+	sub_tree->persistence = NULL;
 }
 
 
@@ -1180,7 +1181,6 @@ static void subscription_tree_destructor(void *obj)
 
 	remove_subscription(sub_tree);
 
-	subscription_persistence_remove(sub_tree);
 	ao2_cleanup(sub_tree->endpoint);
 
 	destroy_subscriptions(sub_tree->root);
@@ -3279,6 +3279,7 @@ static void pubsub_on_evsub_state(pjsip_evsub *evsub, pjsip_event *event)
 	ast_sip_dialog_set_serializer(sub_tree->dlg, NULL);
 	ast_sip_dialog_set_endpoint(sub_tree->dlg, NULL);
 	sub_tree->dlg = NULL;
+	subscription_persistence_remove(sub_tree);
 	shutdown_subscriptions(sub_tree->root);
 
 	/* Remove evsub's reference to the sub_tree */
