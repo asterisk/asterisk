@@ -2134,19 +2134,20 @@ static int send_notify(struct sip_subscription_tree *sub_tree, unsigned int forc
 static int serialized_send_notify(void *userdata)
 {
 	struct sip_subscription_tree *sub_tree = userdata;
+	pjsip_dialog *dlg = sub_tree->dlg;
 
-	if (!sub_tree->dlg) {
+	if (!dlg) {
 		return 0;
 	}
 
-	pjsip_dlg_inc_lock(sub_tree->dlg);
+	pjsip_dlg_inc_lock(dlg);
 	/* It's possible that between when the notification was scheduled
 	 * and now, that a new SUBSCRIBE arrived, requiring full state to be
 	 * sent out in an immediate NOTIFY. If that has happened, we need to
 	 * bail out here instead of sending the batched NOTIFY.
 	 */
 	if (!sub_tree->send_scheduled_notify) {
-		pjsip_dlg_dec_lock(sub_tree->dlg);
+		pjsip_dlg_dec_lock(dlg);
 		ao2_cleanup(sub_tree);
 		return 0;
 	}
@@ -2156,7 +2157,7 @@ static int serialized_send_notify(void *userdata)
 			"Resource: %s",
 			sub_tree->root->resource);
 	sub_tree->notify_sched_id = -1;
-	pjsip_dlg_dec_lock(sub_tree->dlg);
+	pjsip_dlg_dec_lock(dlg);
 	ao2_cleanup(sub_tree);
 	return 0;
 }
@@ -2190,21 +2191,22 @@ int ast_sip_subscription_notify(struct ast_sip_subscription *sub, struct ast_sip
 		int terminate)
 {
 	int res;
+	pjsip_dialog *dlg = sub->tree->dlg;
 
-	if (!sub->tree->dlg) {
+	if (!dlg) {
 		return 0;
 	}
 
-	pjsip_dlg_inc_lock(sub->tree->dlg);
+	pjsip_dlg_inc_lock(dlg);
 
 	if (!sub->tree->evsub) {
-		pjsip_dlg_dec_lock(sub->tree->dlg);
+		pjsip_dlg_dec_lock(dlg);
 		return 0;
 	}
 
 	if (ast_sip_pubsub_generate_body_content(ast_sip_subscription_get_body_type(sub),
 				ast_sip_subscription_get_body_subtype(sub), notify_data, &sub->body_text)) {
-		pjsip_dlg_dec_lock(sub->tree->dlg);
+		pjsip_dlg_dec_lock(dlg);
 		return -1;
 	}
 
@@ -2225,7 +2227,7 @@ int ast_sip_subscription_notify(struct ast_sip_subscription *sub, struct ast_sip
 		ao2_ref(sub->tree, -1);
 	}
 
-	pjsip_dlg_dec_lock(sub->tree->dlg);
+	pjsip_dlg_dec_lock(dlg);
 	return res;
 }
 
@@ -3195,14 +3197,15 @@ static void set_state_terminated(struct ast_sip_subscription *sub)
 static int serialized_pubsub_on_server_timeout(void *userdata)
 {
 	struct sip_subscription_tree *sub_tree = userdata;
+	pjsip_dialog *dlg = sub_tree->dlg;
 
-	if (!sub_tree->dlg) {
+	if (!dlg) {
 		return 0;
 	}
 
-	pjsip_dlg_inc_lock(sub_tree->dlg);
+	pjsip_dlg_inc_lock(dlg);
 	if (!sub_tree->evsub) {
-		pjsip_dlg_dec_lock(sub_tree->dlg);
+		pjsip_dlg_dec_lock(dlg);
 		return 0;
 	}
 	set_state_terminated(sub_tree->root);
@@ -3211,7 +3214,7 @@ static int serialized_pubsub_on_server_timeout(void *userdata)
 			"Resource: %s",
 			sub_tree->root->resource);
 
-	pjsip_dlg_dec_lock(sub_tree->dlg);
+	pjsip_dlg_dec_lock(dlg);
 	ao2_cleanup(sub_tree);
 	return 0;
 }
@@ -3299,14 +3302,15 @@ static void pubsub_on_evsub_state(pjsip_evsub *evsub, pjsip_event *event)
 static int serialized_pubsub_on_rx_refresh(void *userdata)
 {
 	struct sip_subscription_tree *sub_tree = userdata;
+	pjsip_dialog *dlg = sub_tree->dlg;
 
-	if (!sub_tree->dlg) {
+	if (!dlg) {
 		return 0;
 	}
 
-	pjsip_dlg_inc_lock(sub_tree->dlg);
+	pjsip_dlg_inc_lock(dlg);
 	if (!sub_tree->evsub) {
-		pjsip_dlg_dec_lock(sub_tree->dlg);
+		pjsip_dlg_dec_lock(dlg);
 		return 0;
 	}
 
@@ -3320,7 +3324,7 @@ static int serialized_pubsub_on_rx_refresh(void *userdata)
 			"SUBSCRIPTION_TERMINATED" : "SUBSCRIPTION_REFRESHED",
 			"Resource: %s", sub_tree->root->resource);
 
-	pjsip_dlg_dec_lock(sub_tree->dlg);
+	pjsip_dlg_dec_lock(dlg);
 	ao2_cleanup(sub_tree);
 	return 0;
 }
