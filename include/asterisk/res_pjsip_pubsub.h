@@ -684,6 +684,15 @@ const char *ast_sip_subscription_get_body_type(struct ast_sip_subscription *sub)
  */
 const char *ast_sip_subscription_get_body_subtype(struct ast_sip_subscription *sub);
 
+/*!
+ * \since 13.6.0
+ * \brief Alert the pubsub core that the subscription is ready for destruction
+ *
+ * \param sub The subscription that is complete
+ * \return Nothing
+ */
+void ast_sip_subscription_destroy(struct ast_sip_subscription *sub);
+
 /*! \brief Determines whether the res_pjsip_pubsub module is loaded */
 #define CHECK_PJSIP_PUBSUB_MODULE_LOADED()			\
 	do {							\

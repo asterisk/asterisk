@@ -204,7 +204,9 @@ static void mwi_subscription_destructor(void *obj)
 	struct mwi_subscription *sub = obj;
 
 	ast_debug(3, "Destroying MWI subscription for endpoint %s\n", sub->id);
-	ao2_cleanup(sub->sip_sub);
+	if (sub->is_solicited) {
+		ast_sip_subscription_destroy(sub->sip_sub);
+	}
 	ao2_cleanup(sub->stasis_subs);
 	ast_free(sub->aors);
 }
@@ -233,7 +235,7 @@ static struct mwi_subscription *mwi_subscription_alloc(struct ast_sip_endpoint *
 	 * state not being updated on the device
 	 */
 	if (is_solicited) {
-		sub->sip_sub = ao2_bump(sip_sub);
+		sub->sip_sub = sip_sub;
 	}
 
 	sub->stasis_subs = ao2_container_alloc(STASIS_BUCKETS, stasis_sub_hash, stasis_sub_cmp);
