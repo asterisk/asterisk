@@ -4500,7 +4500,7 @@ static void sig_pri_handle_subcmds(struct sig_pri_span *pri, int chanpos, int ev
 					f.frametype = AST_FRAME_TEXT;
 					f.subclass.integer = 0;
 					f.offset = 0;
-					f.data.ptr = &subcmd->u.display.text;
+					f.data.ptr = (void *)&subcmd->u.display.text;
 					f.datalen = subcmd->u.display.length + 1;
 					ast_queue_frame(owner, &f);
 					ast_channel_unlock(owner);
