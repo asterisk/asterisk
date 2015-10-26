@@ -101,6 +101,7 @@ handle_debian() {
 		apt-get install aptitude
 	fi
 	extra_packs=`check_installed_debs $PACKAGES_DEBIAN`
+	$testcmd aptitude update
 	$testcmd aptitude install -y $extra_packs
 }
 
