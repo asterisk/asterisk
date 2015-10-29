@@ -33,6 +33,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/app.h"
 #include "asterisk/pbx.h"
 #include "asterisk/strings.h"
+#include "asterisk/statsd.h"
 
 /*** DOCUMENTATION
 	<application name="StatsD" language="en_US">
@@ -76,7 +77,7 @@ static int value_in_range(const char *value, const char *metric)
 {
 	double numerical_value = strtod(value, NULL);
 
-	if (!strcmp(metric, "counter")) {
+	if (!strcmp(metric, "c")) {
 		if (numerical_value < pow(-2, 63) || numerical_value > pow(2, 63)) {
 			ast_log(AST_LOG_WARNING, "Value %lf out of range!\n", numerical_value);
 			return 1;
@@ -104,7 +105,7 @@ static int value_in_range(const char *value, const char *metric)
  */
 static int validate_metric(const char *metric)
 {
-	const char *valid_metrics[] = {"gauge","set","timer","counter"};
+	const char *valid_metrics[] = {"g","s","ms","c"};
 	int i;
 
 	if (ast_strlen_zero(metric)) {
@@ -168,7 +169,7 @@ static int validate_value(const char *value, const char *metric)
 		return 1;
 	}
 
-	if (!strcmp(metric, "gauge") || !strcmp(metric, "counter")) {
+	if (!strcmp(metric, "g") || !strcmp(metric, "c")) {
 		if ((value[0] == '+') || (value[0] == '-')) {
 			actual_value = &value[1];
 			if (ast_strlen_zero(actual_value)) {
@@ -198,6 +199,7 @@ static int validate_value(const char *value, const char *metric)
 static int statsd_exec(struct ast_channel *chan, const char *data)
 {
 	char *stats;
+	double numerical_value;
 
 	AST_DECLARE_APP_ARGS(args,
 			AST_APP_ARG(metric_type);
@@ -222,6 +224,9 @@ static int statsd_exec(struct ast_channel *chan, const char *data)
 
 		return 1;
 	}
+
+	numerical_value = strtod(args.value, NULL);
+	ast_statsd_log(args.statistic_name, args.metric_type, numerical_value);
 
 	return 0;
 }
