@@ -1208,7 +1208,10 @@ static void subscription_tree_destructor(void *obj)
 
 	destroy_subscriptions(sub_tree->root);
 
-	ast_sip_push_task_synchronous(sub_tree->serializer, subscription_unreference_dialog, sub_tree);
+	if (sub_tree->dlg) {
+		ast_sip_push_task_synchronous(sub_tree->serializer, subscription_unreference_dialog, sub_tree);
+	}
+
 	ast_taskprocessor_unreference(sub_tree->serializer);
 	ast_module_unref(ast_module_info->self);
 }
