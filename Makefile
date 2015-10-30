@@ -124,7 +124,7 @@ empty:=
 space:=$(empty) $(empty)
 ASTTOPDIR:=$(subst $(space),\$(space),$(CURDIR))
 
-# Overwite config files on "make samples"
+# Overwite config files on "make samples" or other config installation targets
 OVERWRITE=y
 
 # Include debug and macro symbols in the executables (-g) and profiling info (-pg)
@@ -652,7 +652,12 @@ install: badshell bininstall datafiles
 	@echo " + configuration files (overwriting any      +"
 	@echo " + existing config files), run:              +"
 	@echo " +                                           +"
-	@echo " +               $(mK) samples               +"
+	@echo " + For generic reference documentation:      +"
+	@echo " +   $(mK) samples                           +"
+	@echo " +                                           +"
+	@echo " + For a sample basic PBX:                   +"
+	@echo " +   $(mK) basic-pbx                         +"
+	@echo " +                                           +"
 	@echo " +                                           +"
 	@echo " +-----------------  or ---------------------+"
 	@echo " +                                           +"
@@ -670,24 +675,23 @@ isntall: install
 
 upgrade: bininstall
 
-# XXX why *.adsi is installed first ?
-adsi:
-	@echo Installing adsi config files...
-	$(INSTALL) -d "$(DESTDIR)$(ASTETCDIR)"
-	@for x in configs/samples/*.adsi; do \
-		dst="$(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x`" ; \
-		if [ -f "$${dst}" ] ; then \
-			echo "Overwriting $$x" ; \
-		else \
-			echo "Installing $$x" ; \
-		fi ; \
-		$(INSTALL) -m 644 "$$x" "$(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x`" ; \
-	done
 
-samples: adsi
-	@echo Installing other config files...
-	@for x in configs/samples/*.sample; do \
-		dst="$(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x .sample`" ;	\
+# Install configuration files from the specified directory
+# Parameters:
+#  (1) the configuration directory to install from
+#  (2) the extension to strip off
+define INSTALL_CONFIGS
+	@if [ -z "$(2)" ]; then \
+		install_path=configs/$(1)/* ; \
+	else \
+		install_path=configs/$(1)/*.$(2) ; \
+	fi ; \
+	for x in $${install_path}; do \
+		if [ -z "$(2)" ]; then \
+			dst="$(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x`"; \
+		else \
+			dst="$(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x .$(2)`" ;	\
+		fi ; \
 		if [ -f "$${dst}" ]; then \
 			if [ "$(OVERWRITE)" = "y" ]; then \
 				if cmp -s "$${dst}" "$$x" ; then \
@@ -702,7 +706,7 @@ samples: adsi
 		fi ; \
 		echo "Installing file $$x"; \
 		$(INSTALL) -m 644 "$$x" "$${dst}" ;\
-	done
+	done ; \
 	if [ "$(OVERWRITE)" = "y" ]; then \
 		echo "Updating asterisk.conf" ; \
 		sed -e 's|^astetcdir.*$$|astetcdir => $(ASTETCDIR)|' \
@@ -719,10 +723,28 @@ samples: adsi
 			"$(DESTDIR)$(ASTCONFPATH)" > "$(DESTDIR)$(ASTCONFPATH).tmp" ; \
 		$(INSTALL) -m 644 "$(DESTDIR)$(ASTCONFPATH).tmp" "$(DESTDIR)$(ASTCONFPATH)" ; \
 		rm -f "$(DESTDIR)$(ASTCONFPATH).tmp" ; \
-	fi ; \
+	fi
+endef
+
+# XXX why *.adsi is installed first ?
+adsi:
+	@echo Installing adsi config files...
+	$(INSTALL) -d "$(DESTDIR)$(ASTETCDIR)"
+	@for x in configs/samples/*.adsi; do \
+		dst="$(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x`" ; \
+		if [ -f "$${dst}" ] ; then \
+			echo "Overwriting $$x" ; \
+		else \
+			echo "Installing $$x" ; \
+		fi ; \
+		$(INSTALL) -m 644 "$$x" "$(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x`" ; \
+	done
+
+samples: adsi
+	@echo Installing other config files...
+	$(call INSTALL_CONFIGS,samples,sample)
 	$(INSTALL) -d "$(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/INBOX"
 	build_tools/make_sample_voicemail "$(DESTDIR)/$(ASTDATADIR)" "$(DESTDIR)/$(ASTSPOOLDIR)"
-
 	@for x in phoneprov/*; do \
 		dst="$(DESTDIR)$(ASTDATADIR)/$$x" ;	\
 		if [ -f "$${dst}" ]; then \
@@ -740,6 +762,10 @@ samples: adsi
 		echo "Installing file $$x"; \
 		$(INSTALL) -m 644 "$$x" "$${dst}" ;\
 	done
+
+basic-pbx:
+	@echo Installing basic-pbx config files...
+	$(call INSTALL_CONFIGS,basic-pbx)
 
 webvmail:
 	@[ -d "$(DESTDIR)$(HTTP_DOCSDIR)/" ] || ( printf "http docs directory not found.\nUpdate assignment of variable HTTP_DOCSDIR in Makefile!\n" && exit 1 )
