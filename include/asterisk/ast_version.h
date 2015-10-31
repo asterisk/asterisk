@@ -41,4 +41,7 @@ const char *ast_get_version(void);
  */
 const char *ast_get_version_num(void);
 
+/*! Retreive the Asterisk build options */
+const char *ast_get_build_opts(void);
+
 #endif /* __AST_VERSION_H */
