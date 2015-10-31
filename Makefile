@@ -400,7 +400,7 @@ defaults.h: makeopts .lastclean build_tools/make_defaults_h
 	@cmp -s $@.tmp $@ || mv $@.tmp $@
 	@rm -f $@.tmp
 
-main/version.c: FORCE .lastclean
+main/version.c: FORCE menuselect.makeopts .lastclean
 	@build_tools/make_version_c > $@.tmp
 	@cmp -s $@.tmp $@ || mv $@.tmp $@
 	@rm -f $@.tmp
