@@ -1026,6 +1026,7 @@ static int qualify_and_schedule_cb(void *obj, void *arg, int flags)
 
 	initial_interval = (int)((initial_interval * 1000) * ast_random_double());
 
+	unschedule_qualify(contact);
 	if (contact->qualify_frequency) {
 		schedule_qualify(contact, initial_interval);
 	} else {
@@ -1155,6 +1156,43 @@ static struct ast_sip_endpoint_formatter contact_status_formatter = {
 	.format_ami = format_ami_contact_status
 };
 
+static void aor_observer_modified(const void *obj)
+{
+	struct ast_sip_aor *aor = (void *)obj;
+	struct ao2_container *contacts;
+
+	contacts = ast_sip_location_retrieve_aor_contacts(aor);
+	if (contacts) {
+		ao2_callback(contacts, OBJ_NODATA, qualify_and_schedule_cb, aor);
+		ao2_ref(contacts, -1);
+	}
+}
+
+static int unschedule_contact_cb(void *obj, void *arg, int flags)
+{
+	unschedule_qualify(obj);
+
+	return CMP_MATCH;
+}
+
+static void aor_observer_deleted(const void *obj)
+{
+	const struct ast_sip_aor *aor = obj;
+	struct ao2_container *contacts;
+
+	contacts = ast_sip_location_retrieve_aor_contacts(aor);
+	if (contacts) {
+		ao2_callback(contacts, OBJ_NODATA, unschedule_contact_cb, NULL);
+		ao2_ref(contacts, -1);
+	}
+}
+
+static const struct ast_sorcery_observer observer_callbacks_options = {
+	.created = aor_observer_modified,
+	.updated = aor_observer_modified,
+	.deleted = aor_observer_deleted
+};
+
 int ast_res_pjsip_init_options_handling(int reload)
 {
 	static const pj_str_t STR_OPTIONS = { "OPTIONS", 7 };
@@ -1185,6 +1223,13 @@ int ast_res_pjsip_init_options_handling(int reload)
 		return -1;
 	}
 
+	if (ast_sorcery_observer_add(ast_sip_get_sorcery(), "aor", &observer_callbacks_options)) {
+		pjsip_endpt_unregister_module(ast_sip_get_pjsip_endpoint(), &options_module);
+		ao2_cleanup(sched_qualifies);
+		sched_qualifies = NULL;
+		return -1;
+	}
+
 	internal_sip_register_endpoint_formatter(&contact_status_formatter);
 	ast_manager_register_xml("PJSIPQualify", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_sip_qualify);
 	ast_cli_register_multiple(cli_options, ARRAY_LEN(cli_options));
@@ -1200,6 +1245,7 @@ void ast_res_pjsip_cleanup_options_handling(void)
 	ast_manager_unregister("PJSIPQualify");
 	internal_sip_unregister_endpoint_formatter(&contact_status_formatter);
 
+	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "aor", &observer_callbacks_options);
 	pjsip_endpt_unregister_module(ast_sip_get_pjsip_endpoint(), &options_module);
 	ao2_cleanup(sched_qualifies);
 	sched_qualifies = NULL;
