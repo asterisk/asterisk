@@ -180,7 +180,7 @@ int ast_sip_initialize_system(void)
 			OPT_UINT_T, 0, FLDSET(struct system_config, threadpool.auto_increment));
 	ast_sorcery_object_field_register(system_sorcery, "system", "threadpool_idle_timeout", "60",
 			OPT_UINT_T, 0, FLDSET(struct system_config, threadpool.idle_timeout));
-	ast_sorcery_object_field_register(system_sorcery, "system", "threadpool_max_size", "0",
+	ast_sorcery_object_field_register(system_sorcery, "system", "threadpool_max_size", "50",
 			OPT_UINT_T, 0, FLDSET(struct system_config, threadpool.max_size));
 	ast_sorcery_object_field_register(system_sorcery, "system", "disable_tcp_switch", "yes",
 			OPT_BOOL_T, 1, FLDSET(struct system_config, disable_tcp_switch));
