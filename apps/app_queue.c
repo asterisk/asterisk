@@ -1043,6 +1043,9 @@ ASTERISK_REGISTER_FILE()
 						<enum name="1"/>
 					</enumlist>
 				</parameter>
+				<parameter name="PausedReason">
+					<para>If set when paused, the reason the queue member was paused.</para>
+				</parameter>
 				<parameter name="Ringinuse">
 					<enumlist>
 						<enum name="0"/>
@@ -1534,6 +1537,7 @@ struct member {
 	int realtime;                        /*!< Is this member realtime? */
 	int status;                          /*!< Status of queue member */
 	int paused;                          /*!< Are we paused (not accepting calls)? */
+	char reason_paused[80];              /*!< Reason of paused if member is paused */
 	int queuepos;                        /*!< In what order (pertains to certain strategies) should this member be called? */
 	time_t lastcall;                     /*!< When last successful call was hungup */
 	struct call_queue *lastqueue;	     /*!< Last queue we received a call */
@@ -2173,7 +2177,7 @@ static void queue_publish_member_blob(struct stasis_message_type *type, struct a
 
 static struct ast_json *queue_member_blob_create(struct call_queue *q, struct member *mem)
 {
-	return ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: i, s: i, s: i, s: i, s: i, s: i}",
+	return ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: i, s: i, s: i, s: i, s: i, s: s, s: i}",
 		"Queue", q->name,
 		"MemberName", mem->membername,
 		"Interface", mem->interface,
@@ -2184,6 +2188,7 @@ static struct ast_json *queue_member_blob_create(struct call_queue *q, struct me
 		"LastCall", (int)mem->lastcall,
 		"Status", mem->status,
 		"Paused", mem->paused,
+		"PausedReason", mem->reason_paused,
 		"Ringinuse", mem->ringinuse);
 }
 
@@ -7069,6 +7074,14 @@ static void set_queue_member_pause(struct call_queue *q, struct member *mem, con
 	}
 
 	mem->paused = paused;
+	if (paused) {
+		if (!ast_strlen_zero(reason)) {
+			ast_copy_string(mem->reason_paused, reason, sizeof(mem->reason_paused));
+		}
+	} else {
+		ast_copy_string(mem->reason_paused, "", sizeof(mem->reason_paused));
+	}
+
 	ast_devstate_changed(mem->paused ? QUEUE_PAUSED_DEVSTATE : QUEUE_UNPAUSED_DEVSTATE,
 		AST_DEVSTATE_CACHABLE, "Queue:%s_pause_%s", q->name, mem->interface);
 
@@ -9611,10 +9624,11 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 						"LastCall: %d\r\n"
 						"Status: %d\r\n"
 						"Paused: %d\r\n"
+						"PausedReason: %s\r\n"
 						"%s"
 						"\r\n",
 						q->name, mem->membername, mem->interface, mem->state_interface, mem->dynamic ? "dynamic" : "static",
-						mem->penalty, mem->calls, (int)mem->lastcall, mem->status, mem->paused, idText);
+						mem->penalty, mem->calls, (int)mem->lastcall, mem->status, mem->paused, mem->reason_paused, idText);
 					++q_items;
 				}
 				ao2_ref(mem, -1);
@@ -9768,7 +9782,7 @@ static int manager_pause_queue_member(struct mansession *s, const struct message
 	interface = astman_get_header(m, "Interface");
 	paused_s = astman_get_header(m, "Paused");
 	queuename = astman_get_header(m, "Queue");      /* Optional - if not supplied, pause the given Interface in all queues */
-	reason = astman_get_header(m, "Reason");        /* Optional - Only used for logging purposes */
+	reason = astman_get_header(m, "Reason");        /* Optional */
 
 	if (ast_strlen_zero(interface) || ast_strlen_zero(paused_s)) {
 		astman_send_error(s, m, "Need 'Interface' and 'Paused' parameters.");
