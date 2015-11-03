@@ -12,6 +12,13 @@
 --- Functionality changes from Asterisk 13.6.0 to Asterisk 13.7.0 ------------
 ------------------------------------------------------------------------------
 
+chan_sip
+------------------
+ * The websockets_enabled option has been added to the general section of
+   sip.conf.  The option is enabled by default to match the previous behavior.
+   The option should be disabled when using res_pjsip_transport_websockets to
+   ensure chan_sip will not conflict with PJSIP websockets.
+
 Dialplan Functions
 ------------------
  * The HOLD_INTERCEPT dialplan function now actually exists in the source tree.
