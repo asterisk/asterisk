@@ -83,6 +83,8 @@ struct ast_taskprocessor {
 	pthread_t thread;
 	/*! Indicates if the taskprocessor is currently executing a task */
 	unsigned int executing:1;
+	/*! Indicates that a high water warning has been issued on this task processor */
+	unsigned int high_water_warned:1;
 };
 
 /*!
@@ -715,6 +717,8 @@ void *ast_taskprocessor_unreference(struct ast_taskprocessor *tps)
 	return NULL;
 }
 
+#define HIGH_WATER_LEVEL 100
+
 /* push the task into the taskprocessor queue */
 static int taskprocessor_push(struct ast_taskprocessor *tps, struct tps_task *t)
 {
@@ -734,6 +738,13 @@ static int taskprocessor_push(struct ast_taskprocessor *tps, struct tps_task *t)
 	ao2_lock(tps);
 	AST_LIST_INSERT_TAIL(&tps->tps_queue, t, list);
 	previous_size = tps->tps_queue_size++;
+
+	if (previous_size >= HIGH_WATER_LEVEL && !tps->high_water_warned) {
+		ast_log(LOG_WARNING, "The '%s' task processor queue reached %d scheduled tasks.\n",
+			tps->name, previous_size);
+		tps->high_water_warned = 1;
+	}
+
 	/* The currently executing task counts as still in queue */
 	was_empty = tps->executing ? 0 : previous_size == 0;
 	ao2_unlock(tps);
