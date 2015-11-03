@@ -158,7 +158,7 @@ extern "C" {
  */
 #define AST_MAX_UNIQUEID        (AST_MAX_PUBLIC_UNIQUEID + 2 + 1)
 
-#define AST_MAX_ACCOUNT_CODE    20  /*!< Max length of an account code */
+#define AST_MAX_ACCOUNT_CODE    80  /*!< Max length of an account code */
 #define AST_CHANNEL_NAME        80  /*!< Max length of an ast_channel name */
 #define MAX_LANGUAGE            40  /*!< Max length of the language setting */
 #define MAX_MUSICCLASS          80  /*!< Max length of the music class setting */
