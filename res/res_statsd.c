@@ -97,11 +97,11 @@ static void conf_server(const struct conf *cfg, struct ast_sockaddr *addr)
 	}
 }
 
-void AST_OPTIONAL_API_NAME(ast_statsd_log_full)(const char *metric_name,
-	const char *metric_type, intmax_t value, double sample_rate)
+void AST_OPTIONAL_API_NAME(ast_statsd_log_string)(const char *metric_name,
+	const char *metric_type, const char *value, double sample_rate)
 {
-	RAII_VAR(struct conf *, cfg, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_str *, msg, NULL, ast_free);
+	struct conf *cfg;
+	struct ast_str *msg;
 	size_t len;
 	struct ast_sockaddr statsd_server;
 
@@ -109,22 +109,23 @@ void AST_OPTIONAL_API_NAME(ast_statsd_log_full)(const char *metric_name,
 		return;
 	}
 
-	cfg = ao2_global_obj_ref(confs);
-	conf_server(cfg, &statsd_server);
-
 	/* Rates <= 0.0 never get logged.
 	 * Rates >= 1.0 always get logged.
 	 * All others leave it to chance.
 	 */
 	if (sample_rate <= 0.0 ||
 		(sample_rate < 1.0 && sample_rate < ast_random_double())) {
+		ast_free(msg);
 		return;
 	}
 
 	cfg = ao2_global_obj_ref(confs);
+	conf_server(cfg, &statsd_server);
 
 	msg = ast_str_create(40);
 	if (!msg) {
+		ao2_cleanup(cfg);
+		ast_free(msg);
 		return;
 	}
 
@@ -132,7 +133,7 @@ void AST_OPTIONAL_API_NAME(ast_statsd_log_full)(const char *metric_name,
 		ast_str_append(&msg, 0, "%s.", cfg->global->prefix);
 	}
 
-	ast_str_append(&msg, 0, "%s:%jd|%s", metric_name, value, metric_type);
+	ast_str_append(&msg, 0, "%s:%s|%s", metric_name, value, metric_type);
 
 	if (sample_rate < 1.0) {
 		ast_str_append(&msg, 0, "|@%.2f", sample_rate);
@@ -144,20 +145,39 @@ void AST_OPTIONAL_API_NAME(ast_statsd_log_full)(const char *metric_name,
 
 	len = ast_str_strlen(msg);
 
-	ast_debug(6, "send: %s\n", ast_str_buffer(msg));
+	ast_debug(6, "Sending statistic %s to StatsD server\n", ast_str_buffer(msg));
 	ast_sendto(socket_fd, ast_str_buffer(msg), len, 0, &statsd_server);
+
+	ao2_cleanup(cfg);
+	ast_free(msg);
+}
+
+void AST_OPTIONAL_API_NAME(ast_statsd_log_full)(const char *metric_name,
+	const char *metric_type, intmax_t value, double sample_rate)
+{
+	const char *char_value;
+
+	char_value = "%jd", value;
+	ast_statsd_log_string(metric_name, metric_type, char_value, sample_rate);
+	
 }
 
 void AST_OPTIONAL_API_NAME(ast_statsd_log)(const char *metric_name,
 	const char *metric_type, intmax_t value)
 {
-	ast_statsd_log_full(metric_name, metric_type, value, 1.0);
+	const char *char_value;
+
+	char_value = "%jd", value;
+	ast_statsd_log_string(metric_name, metric_type, char_value, 1.0);
 }
 
 void AST_OPTIONAL_API_NAME(ast_statsd_log_sample)(const char *metric_name,
 	intmax_t value, double sample_rate)
 {
-	ast_statsd_log_full(metric_name, AST_STATSD_COUNTER, value,
+	const char *char_value;
+
+	char_value = "%jd", value;
+	ast_statsd_log_string(metric_name, AST_STATSD_COUNTER, char_value,
 		sample_rate);
 }
 
