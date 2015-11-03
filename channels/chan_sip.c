@@ -31265,6 +31265,7 @@ static int reload_config(enum channelreloadreason reason)
 	int bindport = 0;
 	int acl_change_subscription_needed = 0;
 	int min_subexpiry_set = 0, max_subexpiry_set = 0;
+	int websocket_was_enabled = sip_cfg.websocket_enabled;
 
 	run_start = time(0);
 	ast_unload_realtime("sipregs");
@@ -32068,6 +32069,8 @@ static int reload_config(enum channelreloadreason reason)
 				ast_log(LOG_WARNING, "'%s' is not a valid websocket_write_timeout value at line %d. Using default '%d'.\n", v->value, v->lineno, AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT);
 				sip_cfg.websocket_write_timeout = AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT;
 			}
+		} else if (!strcasecmp(v->name, "websocket_enabled")) {
+			sip_cfg.websocket_enabled = ast_true(v->value);
 		}
 	}
 
@@ -32411,6 +32414,15 @@ static int reload_config(enum channelreloadreason reason)
 	if ((notify_types = ast_config_load(notify_config, config_flags)) == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_ERROR, "Contents of %s are invalid and cannot be parsed.\n", notify_config);
 		notify_types = NULL;
+	}
+
+	/* If the module is loading it's not time to enable websockets yet. */
+	if (reason != CHANNEL_MODULE_LOAD && websocket_was_enabled != sip_cfg.websocket_enabled) {
+		if (sip_cfg.websocket_enabled) {
+			ast_websocket_add_protocol("sip", sip_websocket_callback);
+		} else {
+			ast_websocket_remove_protocol("sip", sip_websocket_callback);
+		}
 	}
 
 	run_end = time(0);
@@ -34594,7 +34606,9 @@ static int load_module(void)
 	sip_register_tests();
 	network_change_stasis_subscribe();
 
-	ast_websocket_add_protocol("sip", sip_websocket_callback);
+	if (sip_cfg.websocket_enabled) {
+		ast_websocket_add_protocol("sip", sip_websocket_callback);
+	}
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
@@ -34609,7 +34623,9 @@ static int unload_module(void)
 
 	ast_sip_api_provider_unregister();
 
-	ast_websocket_remove_protocol("sip", sip_websocket_callback);
+	if (sip_cfg.websocket_enabled) {
+		ast_websocket_remove_protocol("sip", sip_websocket_callback);
+	}
 
 	network_change_stasis_unsubscribe();
 	acl_change_event_stasis_unsubscribe();
