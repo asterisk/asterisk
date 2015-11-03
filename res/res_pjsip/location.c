@@ -59,17 +59,20 @@ static int destroy_contact(void *obj, void *arg, int flags)
 
 static void aor_deleted_observer(const void *object)
 {
+	const struct ast_sip_aor *aor = object;
 	const char *aor_id = ast_sorcery_object_get_id(object);
 	/* Give enough space for ^ at the beginning and ;@ at the end, since that is our object naming scheme */
 	char regex[strlen(aor_id) + 4];
 	struct ao2_container *contacts;
 
-	snprintf(regex, sizeof(regex), "^%s;@", aor_id);
+	if (aor->permanent_contacts) {
+		ao2_callback(aor->permanent_contacts, OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK, destroy_contact, NULL);
+	}
 
+	snprintf(regex, sizeof(regex), "^%s;@", aor_id);
 	if (!(contacts = ast_sorcery_retrieve_by_regex(ast_sip_get_sorcery(), "contact", regex))) {
 		return;
 	}
-
 	/* Destroy any contacts that may still exist that were made for this AoR */
 	ao2_callback(contacts, OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK, destroy_contact, NULL);
 
@@ -302,6 +305,14 @@ int ast_sip_location_update_contact(struct ast_sip_contact *contact)
 
 int ast_sip_location_delete_contact(struct ast_sip_contact *contact)
 {
+	void *contact_status_obj;
+
+	contact_status_obj = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), CONTACT_STATUS, ast_sorcery_object_get_id(contact));
+	if (contact_status_obj) {
+		ast_sorcery_delete(ast_sip_get_sorcery(), contact_status_obj);
+		ao2_ref(contact_status_obj, -1);
+	}
+
 	return ast_sorcery_delete(ast_sip_get_sorcery(), contact);
 }
 
