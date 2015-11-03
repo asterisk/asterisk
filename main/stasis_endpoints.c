@@ -247,7 +247,7 @@ static struct ast_json *contactstatus_to_json(struct stasis_message *msg, const 
 		return NULL;
 	}
 
-	json_final = ast_json_pack("{s: s, s: o, s: o, s: { s: s, s: s, s: s } } ",
+	json_final = ast_json_pack("{s: s, s: o, s: o, s: { s: s, s: s, s: s, s: s } } ",
 		"type", "ContactStatusChange",
 		"timestamp", ast_json_timeval(*tv, NULL),
 		"endpoint", json_endpoint,
