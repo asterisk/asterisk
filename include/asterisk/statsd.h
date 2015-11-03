@@ -42,6 +42,22 @@
 /*!
  * \brief Send a stat to the configured statsd server.
  *
+ * This function uses a character argument for value instead of
+ * an intmax_t argument. This is designed to be simpler to use for
+ * updating a current value rather than resetting it.
+ *
+ * \param metric_name String (UTF-8) name of the metric.
+ * \param type_str Type of metric to send.
+ * \param value Value to send.
+ * \param sample_rate Percentage of samples to send.
+ * \since 13
+ */
+AST_OPTIONAL_API(void, ast_statsd_log_string, (const char *metric_name,
+	const char *metric_type, const char *value, double sample_rate), {});
+
+/*!
+ * \brief Send a stat to the configured statsd server.
+ *
  * The is the most flexible function for sending a message to the statsd server,
  * but also the least easy to use. See ast_statsd_log() or
  * ast_statsd_log_sample() for a slightly more convenient interface.
