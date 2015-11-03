@@ -253,6 +253,17 @@ static const struct ast_sorcery_observer state_contact_status_observer = {
 	.updated = persistent_endpoint_contact_status_observer,
 };
 
+static void endpoint_deleted_observer(const void *object)
+{
+	const struct ast_sip_endpoint *endpoint = object;
+
+	ao2_find(persistent_endpoints, ast_endpoint_get_resource(endpoint->persistent), OBJ_SEARCH_KEY | OBJ_UNLINK | OBJ_NODATA);
+}
+
+static const struct ast_sorcery_observer endpoint_observers = {
+	.deleted = endpoint_deleted_observer,
+};
+
 static int dtmf_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct ast_sip_endpoint *endpoint = obj;
@@ -1955,6 +1966,7 @@ int ast_res_pjsip_initialize_configuration(void)
 		return -1;
 	}
 
+	ast_sorcery_observer_add(sip_sorcery, "endpoint", &endpoint_observers);
 	ast_sorcery_observer_add(sip_sorcery, "contact", &state_contact_observer);
 	ast_sorcery_observer_add(sip_sorcery, CONTACT_STATUS, &state_contact_status_observer);
 
