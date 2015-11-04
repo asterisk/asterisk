@@ -295,6 +295,7 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 	char numsubst[AST_MAX_EXTENSION];
 	struct ast_format_cap *cap_all_audio = NULL;
 	struct ast_format_cap *cap_request;
+	struct ast_format_cap *requester_cap = NULL;
 	struct ast_assigned_ids assignedids = {
 		.uniqueid = channel->assignedid1,
 		.uniqueid2 = channel->assignedid2,
@@ -305,6 +306,7 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 
 		ast_channel_lock(chan);
 		max_forwards = ast_max_forwards_get(chan);
+		requester_cap = ao2_bump(ast_channel_nativeformats(chan));
 		ast_channel_unlock(chan);
 
 		if (max_forwards <= 0) {
@@ -318,8 +320,8 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 
 	if (cap && ast_format_cap_count(cap)) {
 		cap_request = cap;
-	} else if (chan) {
-		cap_request = ast_channel_nativeformats(chan);
+	} else if (requester_cap) {
+		cap_request = requester_cap;
 	} else {
 		cap_all_audio = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 		ast_format_cap_append_by_type(cap_all_audio, AST_MEDIA_TYPE_AUDIO);
@@ -332,6 +334,7 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 		return -1;
 	}
 	cap_request = NULL;
+	ao2_cleanup(requester_cap);
 	ao2_cleanup(cap_all_audio);
 
 	if (chan) {
