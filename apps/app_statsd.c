@@ -42,13 +42,28 @@ ASTERISK_REGISTER_FILE()
 		</synopsis>
 		<syntax>
 			<parameter name="metric_type" required="true">
-				<para>The metric type to be sent to StatsD.</para>
+				<para>The metric type to be sent to StatsD. Valid metric types
+				are 'g' for gauge, 'c' for counter, 'ms' for timer, and 's' for
+				sets.</para>
 			</parameter>
 			<parameter name="statistic_name" required="true">
-				<para>The name of the variable to be sent to StatsD.</para>
+				<para>The name of the variable to be sent to StatsD. Statistic
+				names cannot contain the pipe (|) character.</para>
 			</parameter>
 			<parameter name="value" required="true">
-				<para>The value of the variable to be sent to StatsD.</para>
+				<para>The value of the variable to be sent to StatsD. Values
+				must be numeric. Values for gauge and counter metrics can be
+				sent with a '+' or '-' to update a value after the value has
+				been initialized. Only counters can be initialized as negative.
+				Sets can send a string as the value parameter, but the string
+				cannot contain the pipe character.</para>
+			</parameter>
+			<parameter name="sample_rate">
+				<para>The value of the sample rate to be sent to StatsD. Sample
+				rates less than or equal to 0 will never be sent and sample rates
+				greater than or equal to 1 will always be sent. Any rate
+				between 1 and 0 will be compared to a randomly generated value,
+				and if it is greater than the random value, it will be sent.</para>
 			</parameter>
 		</syntax>
 		<description>
@@ -64,29 +79,41 @@ static const char app[] = "StatsD";
  * \brief Check to ensure the value is within the allowed range.
  *
  * \param value The value of the statistic to be sent to StatsD.
- * \param metric The metric type to be sent to StatsD.
  *
  * This function checks to see if the value given to the StatsD daialplan
- * application is within the allowed range as specified by StatsD. A counter
- * is the only metric type allowed to be initialized as a negative number.
+ * application is within the allowed range of [-2^63, 2^63] as specified by StatsD.
  *
  * \retval zero on success.
  * \retval 1 on error.
  */
-static int value_in_range(const char *value, const char *metric)
-{
+static int value_in_range(const char *value) {
 	double numerical_value = strtod(value, NULL);
 
-	if (!strcmp(metric, "c")) {
-		if (numerical_value < pow(-2, 63) || numerical_value > pow(2, 63)) {
-			ast_log(AST_LOG_WARNING, "Value %lf out of range!\n", numerical_value);
-			return 1;
-		}
-	} else {
-		if (numerical_value < 0 || numerical_value > pow(2, 64)) {
-			ast_log(AST_LOG_WARNING, "Value %lf out of range!\n", numerical_value);
-			return 1;
-		}
+	if (numerical_value < pow(-2, 63) || numerical_value > pow(2, 63)) {
+		ast_log(AST_LOG_WARNING, "Value %lf out of range!\n", numerical_value);
+		return 1;
+	}
+
+	return 0;
+}
+
+/*!
+ * \brief Check to ensure the value is within the allowed range.
+ *
+ * \param value The value of the statistic to be sent to StatsD.
+ *
+ * This function checks to see if the value given to the StatsD daialplan
+ * application is within the allowed range of [0, 2^64] as specified by StatsD.
+ *
+ * \retval zero on success.
+ * \retval 1 on error.
+ */
+static int non_neg_value_range(const char *value) {
+	double numerical_value = strtod(value, NULL);
+
+	if (numerical_value < 0 || numerical_value > pow(2, 64)) {
+		ast_log(AST_LOG_WARNING, "Value %lf out of range!\n", numerical_value);
+		return 1;
 	}
 
 	return 0;
@@ -125,6 +152,65 @@ static int validate_metric(const char *metric)
 }
 
 /*!
+ * \brief Check to ensure that a numeric value is valid.
+ *
+ * \param numeric_value The numeric value to be sent to StatsD.
+ *
+ * This function checks to see if a number to be sent to StatsD is actually
+ * a valid number. One decimal is allowed.
+ *
+ * \retval zero on success.
+ * \retval 1 on error.
+ */
+static int validate_numeric(const char *numeric_value) {
+	const char *num;
+	int decimal_counter = 0;
+
+	num = numeric_value;
+	while (*num) {
+		if (!isdigit(*num++)) {
+			if (strstr(numeric_value, ".") != NULL && decimal_counter == 0) {
+				decimal_counter++;
+				continue;
+			}
+			ast_log(AST_LOG_ERROR, "%s is not a number!\n", numeric_value);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+/*!
+ * \brief Determines the actual value of a number by looking for a leading + or -.
+ *
+ * \param raw_value The entire numeric string to be sent to StatsD.
+ *
+ * This function checks to see if the numeric string contains valid characters
+ * and then isolates the actual number to be sent for validation. Returns the
+ * result of the numeric validation.
+ *
+ * \retval zero on success.
+ * \retval 1 on error.
+ */
+static int determine_actual_value(const char *raw_value) {
+	const char *actual_value;
+
+	if ((raw_value[0] == '+') || (raw_value[0] == '-')) {
+		actual_value = &raw_value[1];
+		if (ast_strlen_zero(actual_value)) {
+			ast_log(AST_LOG_ERROR, "Value argument %s only contains a sign"
+				" operator.\n", raw_value);
+			return 1;
+		}
+	} else {
+		actual_value = &raw_value[0];
+	}
+
+	return validate_numeric(actual_value);
+}
+
+/*!
  * \brief Check to ensure the statistic name is valid.
  *
  * \param name The variable name to be sent to StatsD.
@@ -147,49 +233,113 @@ static int validate_name(const char *name)
 	return 0;
 }
 
+
 /*!
- * \brief Check to ensure the value is valid.
+ * \brief Calls the appropriate functions to validate a gauge metric.
  *
- * \param value The value of the statistic to be sent to StatsD.
- * \param metric The metric type to be sent to StatsD.
+ * \param statistic_name The statistic name to be sent to StatsD.
+ * \param value The value to be sent to StatsD.
  *
- * This function checks to see if the value given to the StatsD daialplan
- * application is valid by testing if it is numeric. A plus or minus is only
- * allowed at the beginning of the value if it is a counter or a gauge.
+ * This function calls other validating functions to correctly validate each
+ * input based on allowable input for a gauge metric.
  *
  * \retval zero on success.
  * \retval 1 on error.
  */
-static int validate_value(const char *value, const char *metric)
-{
-	const char *actual_value;
+static int validate_metric_type_gauge(const char *statistic_name, const char *value) {
 
 	if (ast_strlen_zero(value)) {
 		ast_log(AST_LOG_ERROR, "Missing value argument.\n");
 		return 1;
 	}
 
-	if (!strcmp(metric, "g") || !strcmp(metric, "c")) {
-		if ((value[0] == '+') || (value[0] == '-')) {
-			actual_value = &value[1];
-			if (ast_strlen_zero(actual_value)) {
-				ast_log(AST_LOG_ERROR, "Value argument %s only contains a sign"
-					" operator.\n", value);
-				return 1;
-			}
-		} else {
-			actual_value = &value[0];
-		}
-	} else {
-		actual_value = &value[0];
-	}
-
-	if (!isdigit(*actual_value)) {
-		ast_log(AST_LOG_ERROR, "Value of %s is not a valid number!\n", actual_value);
+	if (validate_name(statistic_name) || determine_actual_value(value)
+		|| value_in_range(value)) {
 		return 1;
 	}
 
-	if (value_in_range(actual_value, metric)) {
+	return 0;
+}
+
+/*!
+ * \brief Calls the appropriate functions to validate a counter metric.
+ *
+ * \param statistic_name The statistic name to be sent to StatsD.
+ * \param value The value to be sent to StatsD.
+ *
+ * This function calls other validating functions to correctly validate each
+ * input based on allowable input for a counter metric.
+ *
+ * \retval zero on success.
+ * \retval 1 on error.
+ */
+static int validate_metric_type_counter(const char *statistic_name, const char *value) {
+
+	if (ast_strlen_zero(value)) {
+		ast_log(AST_LOG_ERROR, "Missing value argument.\n");
+		return 1;
+	}
+
+	if (validate_name(statistic_name) || determine_actual_value(value)
+		|| value_in_range(value)) {
+		return 1;
+	}
+
+	return 0;
+}
+
+/*!
+ * \brief Calls the appropriate functions to validate a timer metric.
+ *
+ * \param statistic_name The statistic name to be sent to StatsD.
+ * \param value The value to be sent to StatsD.
+ *
+ * This function calls other validating functions to correctly validate each
+ * input based on allowable input for a timer metric.
+ *
+ * \retval zero on success.
+ * \retval 1 on error.
+ */
+static int validate_metric_type_timer(const char *statistic_name, const char *value) {
+
+	if (ast_strlen_zero(value)) {
+		ast_log(AST_LOG_ERROR, "Missing value argument.\n");
+		return 1;
+	}
+
+	if (validate_name(statistic_name) || validate_numeric(value)
+		|| non_neg_value_range(value)) {
+		return 1;
+	}
+
+	return 0;
+}
+
+/*!
+ * \brief Calls the appropriate functions to validate a set metric.
+ *
+ * \param statistic_name The statistic name to be sent to StatsD.
+ * \param value The value to be sent to StatsD.
+ *
+ * This function calls other validating functions to correctly validate each
+ * input based on allowable input for a set metric.
+ *
+ * \retval zero on success.
+ * \retval 1 on error.
+ */
+static int validate_metric_type_set(const char *statistic_name, const char *value) {
+	if (ast_strlen_zero(value)) {
+		ast_log(AST_LOG_ERROR, "Missing value argument.\n");
+		return 1;
+	}
+
+	if (validate_name(statistic_name)) {
+		return 1;
+	}
+
+	if (strstr(value, "|") != NULL) {
+		ast_log(AST_LOG_ERROR, "Pipe (|) character is not allowed for value %s"
+			" in a set metric.\n", value);
 		return 1;
 	}
 
@@ -199,38 +349,65 @@ static int validate_value(const char *value, const char *metric)
 static int statsd_exec(struct ast_channel *chan, const char *data)
 {
 	char *stats;
-	double numerical_value;
+	double numerical_rate = 1.0;
 
 	AST_DECLARE_APP_ARGS(args,
 			AST_APP_ARG(metric_type);
 			AST_APP_ARG(statistic_name);
 			AST_APP_ARG(value);
+			AST_APP_ARG(sample_rate);
 	);
 
 	if (!data) {
 		ast_log(AST_LOG_ERROR, "No parameters were provided. Correct format is "
-			"StatsD(metric_type,statistic_name,value). All parameters are required.\n");
+			"StatsD(metric_type,statistic_name,value[,sample_rate]). Sample rate is the "
+			"only optional parameter.\n");
 		return 1;
 	}
 
 	stats = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, stats);
 
-	/* If any of the validations fail, emit a warning message. */
-	if (validate_metric(args.metric_type) || validate_name(args.statistic_name)
-		|| validate_value(args.value, args.metric_type)) {
-		ast_log(AST_LOG_WARNING, "Invalid parameters provided. Correct format is "
-			"StatsD(metric_type,statistic_name,value). All parameters are required.\n");
-
+	if (validate_metric(args.metric_type)) {
 		return 1;
 	}
 
-	/*
-	 * Conversion to a double is safe here since the value would have been validated as a
-	 * number in validate_value().
-	 */
-	numerical_value = strtod(args.value, NULL);
-	ast_statsd_log(args.statistic_name, args.metric_type, numerical_value);
+	if (!strcmp(args.metric_type, "g")) {
+		if (validate_metric_type_gauge(args.statistic_name, args.value)) {
+			ast_log(AST_LOG_ERROR, "Invalid input for a gauge metric.\n");
+			return 1;
+		}
+	}
+	else if (!strcmp(args.metric_type, "c")) {
+		if (validate_metric_type_counter(args.statistic_name, args.value)) {
+			ast_log(AST_LOG_ERROR, "Invalid input for a counter metric.\n");
+			return 1;
+		}
+	}
+	else if (!strcmp(args.metric_type, "ms")) {
+		if (validate_metric_type_timer(args.statistic_name, args.value)) {
+			ast_log(AST_LOG_ERROR, "Invalid input for a timer metric.\n");
+			return 1;
+		}
+	}
+	else if (!strcmp(args.metric_type, "s")) {
+		if (validate_metric_type_set(args.statistic_name, args.value)) {
+			ast_log(AST_LOG_ERROR, "Invalid input for a set metric.\n");
+			return 1;
+		}
+	}
+
+	if (args.sample_rate) {
+
+		if (validate_numeric(args.sample_rate)) {
+			return 1;
+		}
+
+		numerical_rate = strtod(args.sample_rate, NULL);
+	}
+
+	ast_statsd_log_string(args.statistic_name, args.metric_type, args.value,
+		numerical_rate);
 
 	return 0;
 }
