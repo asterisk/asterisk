@@ -56,10 +56,10 @@ static const char app[] = "ChanIsAvail";
 			<parameter name="Technology/Resource" required="true" argsep="&amp;">
 				<argument name="Technology2/Resource2" multiple="true">
 					<para>Optional extra devices to check</para>
-					<para>If you need more then one enter them as
-					Technology2/Resource2&amp;Technology3/Resourse3&amp;.....</para>
+					<para>If you need more than one enter them as
+					Technology2/Resource2&amp;Technology3/Resource3&amp;.....</para>
 				</argument>
-				<para>Specification of the device(s) to check.  These must be in the format of 
+				<para>Specification of the device(s) to check.  These must be in the format of
 				<literal>Technology/Resource</literal>, where <replaceable>Technology</replaceable>
 				represents a particular channel driver, and <replaceable>Resource</replaceable>
 				represents a resource available to that particular channel driver.</para>
