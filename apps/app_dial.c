@@ -83,12 +83,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</argument>
 				<argument name="Technology2/Resource2" required="false" multiple="true">
 					<para>Optional extra devices to dial in parallel</para>
-					<para>If you need more then one enter them as
-					Technology2/Resource2&amp;Technology3/Resourse3&amp;.....</para>
+					<para>If you need more than one enter them as
+					Technology2/Resource2&amp;Technology3/Resource3&amp;.....</para>
 				</argument>
 			</parameter>
 			<parameter name="timeout" required="false">
-				<para>Specifies the number of seconds we attempt to dial the specified devices</para>
+				<para>Specifies the number of seconds we attempt to dial the specified devices.</para>
 				<para>If not specified, this defaults to 136 years.</para>
 			</parameter>
 			<parameter name="options" required="false">
@@ -330,7 +330,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<para>With <replaceable>delete</replaceable> set to <literal>1</literal>, the introduction will
 						always be deleted.</para>
 					</argument>
-					<para>This option is a modifier for the call screening/privacy mode. (See the 
+					<para>This option is a modifier for the call screening/privacy mode. (See the
 					<literal>p</literal> and <literal>P</literal> options.) It specifies
 					that no introductions are to be saved in the <directory>priv-callerintros</directory>
 					directory.</para>
@@ -485,7 +485,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 			<para>Unless there is a timeout specified, the Dial application will wait
 			indefinitely until one of the called channels answers, the user hangs up, or
-			if all of the called channels are busy or unavailable. Dialplan executing will
+			if all of the called channels are busy or unavailable. Dialplan execution will
 			continue if no requested channels can be called, or if the timeout expires.
 			This application will report normal termination if the originating channel
 			hangs up, or if the call is bridged and either of the parties in the bridge
