@@ -60,7 +60,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<argument name="Technology2/Resource2" multiple="true">
 					<para>Optional extra devices to dial in parallel</para>
 					<para>If you need more than one, enter them as Technology2/Resource2&amp;
-					Technology3/Resourse3&amp;.....</para>
+					Technology3/Resource3&amp;.....</para>
 				</argument>
 			</parameter>
 			<parameter name="options">
