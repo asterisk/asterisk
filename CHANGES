@@ -9,7 +9,21 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
---- Functionality changes since Asterisk 11.15 --------------------------------
+--- Functionality changes since Asterisk 11.21 -------------------------------
+------------------------------------------------------------------------------
+
+func_callerid
+-------------------
+ * CALLERID(pres) is now documented as a valid alternative to setting both
+   CALLERID(name-pres) and CALLERID(num-pres) at once.  Some channel drivers,
+   like chan_sip, don't make a distinction between the two: they take the
+   least public value from name-pres and num-pres.  By using CALLERID(pres)
+   for reading and writing, you touch the same combined value in the dialplan.
+   The same applies to CONNECTEDLINE(pres), REDIRECTING(orig-pres),
+   REDIRECTING(to-pres) and REDIRECTING(from-pres).
+
+------------------------------------------------------------------------------
+--- Functionality changes since Asterisk 11.15 -------------------------------
 ------------------------------------------------------------------------------
 
 res_fax
