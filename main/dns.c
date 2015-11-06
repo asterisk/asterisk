@@ -475,7 +475,7 @@ static int dns_parse_answer_ex(void *context, int rr_class, int rr_type, unsigne
 		/* Skip over the records that do not have the same resource record class and type we care about */
 		if (ntohs(ans->class) == rr_class && ntohs(ans->rtype) == rr_type) {
 			/* Invoke the record handler callback to deliver the discovered record */
-			record_handler(context, answer, ntohs(ans->size), ans->ttl);
+			record_handler(context, answer, ntohs(ans->size), ntohl(ans->ttl));
 			/*At least one record was found */
 			ret = AST_DNS_SEARCH_SUCCESS;
 		}
