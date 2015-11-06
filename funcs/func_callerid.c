@@ -40,10 +40,10 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/callerid.h"
 
 /*
- * Do not document the CALLERID(pres) datatype.
- * The name and number now have their own presentation value.  The pres
- * option will simply live on as a historical relic with as best
- * as can be managed backward compatible meaning.
+ * The CALLERID(pres) datatype is shorthand for getting/setting the
+ * combined value of name-pres and num-pres.  Some channel drivers
+ * don't make a distinction, so it makes sense to only use one property
+ * to get/set it.
  *
  * Do not document the CALLERID(ton) datatype.
  * It is an alias for num-plan.
@@ -55,10 +55,10 @@ ASTERISK_REGISTER_FILE()
  * It has turned out to not be needed.  The source value is really
  * only useful as a possible tracing aid.
  *
- * Do not document the CONNECTEDLINE(pres) datatype.
- * The name and number now have their own presentation value.  The pres
- * option will simply live on as a historical relic with as best
- * as can be managed backward compatible meaning.
+ * The CONNECTEDLINE(pres) datatype is shorthand for getting/setting the
+ * combined value of name-pres and num-pres.  Some channel drivers
+ * don't make a distinction, so it makes sense to only use one property
+ * to get/set it.
  *
  * Do not document the CONNECTEDLINE(ton) datatype.
  * It is an alias for num-plan.
@@ -98,6 +98,7 @@ ASTERISK_REGISTER_FILE()
 					<enum name = "num-valid" />
 					<enum name = "num-plan" />
 					<enum name = "num-pres" />
+					<enum name = "pres" />
 					<enum name = "subaddr" />
 					<enum name = "subaddr-valid" />
 					<enum name = "subaddr-type" />
@@ -144,6 +145,9 @@ ASTERISK_REGISTER_FILE()
 		<description>
 			<para>Gets or sets Caller*ID data on the channel. Uses channel callerid by
 			default or optional callerid, if specified.</para>
+			<para>The <replaceable>pres</replaceable> field gets/sets a combined value
+			for <replaceable>name-pres</replaceable> and
+			<replaceable>num-pres</replaceable>.</para>
 			<para>The allowable values for the <replaceable>name-charset</replaceable>
 			field are the following:</para>
 			<enumlist>
@@ -168,7 +172,8 @@ ASTERISK_REGISTER_FILE()
 		<description>
 			<para>Gets or sets Caller*ID presentation on the channel.
 			This function is deprecated in favor of CALLERID(num-pres)
-			and CALLERID(name-pres).
+			and CALLERID(name-pres) or CALLERID(pres) to get/set both
+			at once.
 			The following values are valid:</para>
 			<enumlist>
 				<enum name="allowed_not_screened">
@@ -218,6 +223,7 @@ ASTERISK_REGISTER_FILE()
 					<enum name = "num-valid" />
 					<enum name = "num-plan" />
 					<enum name = "num-pres" />
+					<enum name = "pres" />
 					<enum name = "subaddr" />
 					<enum name = "subaddr-valid" />
 					<enum name = "subaddr-type" />
@@ -246,6 +252,9 @@ ASTERISK_REGISTER_FILE()
 		</syntax>
 		<description>
 			<para>Gets or sets Connected Line data on the channel.</para>
+			<para>The <replaceable>pres</replaceable> field gets/sets a combined value
+			for <replaceable>name-pres</replaceable> and
+			<replaceable>num-pres</replaceable>.</para>
 			<para>The allowable values for the <replaceable>name-charset</replaceable>
 			field are the following:</para>
 			<enumlist>
