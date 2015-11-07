@@ -525,6 +525,8 @@ static int filehelper(const char *filename, const void *arg2, const char *fmt, c
 			struct stat st;
 			char *fn = build_filename(filename, ext);
 
+			ast_log(LOG_DEBUG, "Search file %s \n", fn);
+
 			if (fn == NULL)
 				continue;
 
