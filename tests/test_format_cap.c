@@ -1079,7 +1079,7 @@ AST_TEST_DEFINE(format_cap_get_names)
 	RAII_VAR(struct ast_format *, ulaw_format, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_codec *, alaw, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_format *, alaw_format, NULL, ao2_cleanup);
-	struct ast_str *buffer = ast_str_alloca(128);
+	struct ast_str *buffer = ast_str_alloca(384);
 
 	switch (cmd) {
 	case TEST_INIT:
