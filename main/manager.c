@@ -4343,7 +4343,7 @@ static void generate_status(struct mansession *s, struct ast_channel *chan, char
 	RAII_VAR(struct ast_str *, variable_str, NULL, ast_free);
 	struct ast_str *write_transpath = ast_str_alloca(256);
 	struct ast_str *read_transpath = ast_str_alloca(256);
-	struct ast_str *codec_buf = ast_str_alloca(128);
+	struct ast_str *codec_buf = ast_str_alloca(384);
 	struct ast_party_id effective_id;
 	int i;
 	RAII_VAR(struct ast_channel_snapshot *, snapshot,

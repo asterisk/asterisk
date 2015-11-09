@@ -323,8 +323,8 @@ static int set_caps(struct ast_sip_session *session,
 	/* get the joint capabilities between peer and endpoint */
 	ast_format_cap_get_compatible(caps, peer, joint);
 	if (!ast_format_cap_count(joint)) {
-		struct ast_str *usbuf = ast_str_alloca(256);
-		struct ast_str *thembuf = ast_str_alloca(256);
+		struct ast_str *usbuf = ast_str_alloca(384);
+		struct ast_str *thembuf = ast_str_alloca(384);
 
 		ast_rtp_codecs_payloads_destroy(&codecs);
 		ast_log(LOG_NOTICE, "No joint capabilities for '%s' media stream between our configuration(%s) and incoming SDP(%s)\n",

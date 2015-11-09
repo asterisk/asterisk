@@ -3803,7 +3803,7 @@ static char *handle_cli_iax2_show_peer(struct ast_cli_entry *e, int cmd, struct 
 	char status[30];
 	char cbuf[256];
 	struct iax2_peer *peer;
-	struct ast_str *codec_buf = ast_str_alloca(256);
+	struct ast_str *codec_buf = ast_str_alloca(384);
 	struct ast_str *encmethods = ast_str_alloca(256);
 	int load_realtime = 0;
 
@@ -5576,8 +5576,8 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 			return AST_BRIDGE_FAILED_NOWARN;
 		}
 		if (!(ast_format_cap_identical(ast_channel_nativeformats(c0), ast_channel_nativeformats(c1)))) {
-			struct ast_str *c0_buf = ast_str_alloca(64);
-			struct ast_str *c1_buf = ast_str_alloca(64);
+			struct ast_str *c0_buf = ast_str_alloca(384);
+			struct ast_str *c1_buf = ast_str_alloca(384);
 
 			ast_verb(3, "Operating with different codecs [%s] [%s] , can't native bridge...\n",
 				ast_format_cap_get_names(ast_channel_nativeformats(c0), &c0_buf),
@@ -10801,9 +10801,9 @@ static int socket_process_helper(struct iax2_thread *thread)
 									break;
 								}
 								if (authdebug) {
-									struct ast_str *peer_buf = ast_str_alloca(64);
-									struct ast_str *cap_buf = ast_str_alloca(64);
-									struct ast_str *peer_form_buf = ast_str_alloca(64);
+									struct ast_str *peer_buf = ast_str_alloca(384);
+									struct ast_str *cap_buf = ast_str_alloca(384);
+									struct ast_str *peer_form_buf = ast_str_alloca(384);
 
 									if (ast_test_flag64(iaxs[fr->callno], IAX_CODEC_NOCAP)) {
 										ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested '%s' incompatible with our capability '%s'.\n",
@@ -10848,9 +10848,9 @@ static int socket_process_helper(struct iax2_thread *thread)
 								}
 
 								if (!format) {
-									struct ast_str *peer_buf = ast_str_alloca(64);
-									struct ast_str *cap_buf = ast_str_alloca(64);
-									struct ast_str *peer_form_buf = ast_str_alloca(64);
+									struct ast_str *peer_buf = ast_str_alloca(384);
+									struct ast_str *cap_buf = ast_str_alloca(384);
+									struct ast_str *peer_form_buf = ast_str_alloca(384);
 
 									memset(&ied0, 0, sizeof(ied0));
 									iax_ie_append_str(&ied0, IAX_IE_CAUSE, "Unable to negotiate codec");
@@ -11028,8 +11028,8 @@ static int socket_process_helper(struct iax2_thread *thread)
 						break;
 					}
 					if (authdebug) {
-						struct ast_str *peer_buf = ast_str_alloca(64);
-						struct ast_str *cap_buf = ast_str_alloca(64);
+						struct ast_str *peer_buf = ast_str_alloca(384);
+						struct ast_str *cap_buf = ast_str_alloca(384);
 
 						ast_log(LOG_NOTICE, "Rejected call to %s, format %s incompatible with our capability %s.\n",
 							ast_sockaddr_stringify(&addr),
@@ -11042,7 +11042,7 @@ static int socket_process_helper(struct iax2_thread *thread)
 					ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
 					iax2_lock_owner(fr->callno);
 					if (iaxs[fr->callno] && iaxs[fr->callno]->owner && native) {
-						struct ast_str *cap_buf = ast_str_alloca(64);
+						struct ast_str *cap_buf = ast_str_alloca(384);
 
 						/* Switch us to use a compatible format */
 						iax2_codec_pref_best_bitfield2cap(
@@ -11246,9 +11246,9 @@ static int socket_process_helper(struct iax2_thread *thread)
 						iax2_codec_pref_string(&iaxs[fr->callno]->prefs, host_pref_buf, sizeof(host_pref_buf) - 1);
 					}
 					if (!format) {
-						struct ast_str *cap_buf = ast_str_alloca(64);
-						struct ast_str *peer_buf = ast_str_alloca(64);
-						struct ast_str *peer_form_buf = ast_str_alloca(64);
+						struct ast_str *cap_buf = ast_str_alloca(384);
+						struct ast_str *peer_buf = ast_str_alloca(384);
+						struct ast_str *peer_form_buf = ast_str_alloca(384);
 
 						if(!ast_test_flag64(iaxs[fr->callno], IAX_CODEC_NOCAP)) {
 							ast_debug(1, "We don't do requested format %s, falling back to peer capability '%s'\n",
@@ -11309,9 +11309,9 @@ static int socket_process_helper(struct iax2_thread *thread)
 								}
 							}
 							if (!format) {
-								struct ast_str *cap_buf = ast_str_alloca(64);
-								struct ast_str *peer_buf = ast_str_alloca(64);
-								struct ast_str *peer_form_buf = ast_str_alloca(64);
+								struct ast_str *cap_buf = ast_str_alloca(384);
+								struct ast_str *peer_buf = ast_str_alloca(384);
+								struct ast_str *peer_form_buf = ast_str_alloca(384);
 
 								ast_log(LOG_ERROR, "No best format in %s???\n",
 									iax2_getformatname_multiple(iaxs[fr->callno]->peercapability & iaxs[fr->callno]->capability, &cap_buf));
@@ -11435,7 +11435,7 @@ immediatedial:
 							break;
 						}
 					} else {
-						struct ast_str *cap_buf = ast_str_alloca(64);
+						struct ast_str *cap_buf = ast_str_alloca(384);
 						ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
 						ast_verb(3, "Accepting DIAL from %s, formats = %s\n",
 								ast_sockaddr_stringify(&addr),
@@ -12514,8 +12514,8 @@ static struct ast_channel *iax2_request(const char *type, struct ast_format_cap 
 
 			res = ast_translator_best_choice(cap, ast_channel_nativeformats(c), &best_fmt_cap, &best_fmt_native);
 			if (res < 0) {
-				struct ast_str *native_cap_buf = ast_str_alloca(256);
-				struct ast_str *cap_buf = ast_str_alloca(256);
+				struct ast_str *native_cap_buf = ast_str_alloca(384);
+				struct ast_str *cap_buf = ast_str_alloca(384);
 
 				ast_log(LOG_WARNING, "Unable to create translator path for %s to %s on %s\n",
 					ast_format_cap_get_names(ast_channel_nativeformats(c), &native_cap_buf),
@@ -14374,7 +14374,7 @@ static int function_iaxpeer(struct ast_channel *chan, const char *cmd, char *dat
 	} else  if (!strcasecmp(colname, "callerid_num")) {
 		ast_copy_string(buf, peer->cid_num, len);
 	} else  if (!strcasecmp(colname, "codecs")) {
-		struct ast_str *codec_buf = ast_str_alloca(256);
+		struct ast_str *codec_buf = ast_str_alloca(384);
 
 		iax2_getformatname_multiple(peer->capability, &codec_buf);
 		ast_copy_string(buf, ast_str_buffer(codec_buf), len);
