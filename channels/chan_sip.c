@@ -7209,7 +7209,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 	switch (frame->frametype) {
 	case AST_FRAME_VOICE:
 		if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), frame->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
-			struct ast_str *codec_buf = ast_str_alloca(64);
+			struct ast_str *codec_buf = ast_str_alloca(384);
 			ast_log(LOG_WARNING, "Asked to transmit frame type %s, while native formats is %s read/write = %s/%s\n",
 				ast_format_get_name(frame->subclass.format),
 				ast_format_cap_get_names(ast_channel_nativeformats(ast), &codec_buf),
@@ -7846,7 +7846,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	struct ast_variable *v = NULL;
 	struct ast_format *fmt;
 	struct ast_format_cap *what = NULL; /* SHALLOW COPY DO NOT DESTROY! */
-	struct ast_str *codec_buf = ast_str_alloca(64);
+	struct ast_str *codec_buf = ast_str_alloca(384);
 	int needvideo = 0;
 	int needtext = 0;
 	char *exten;
@@ -9921,7 +9921,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	int debug = sip_debug_test_pvt(p);
 
 	/* START UNKNOWN */
-	struct ast_str *codec_buf = ast_str_alloca(64);
+	struct ast_str *codec_buf = ast_str_alloca(384);
 	struct ast_format *tmp_fmt;
 	/* END UNKNOWN */
 
@@ -10570,11 +10570,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 
 	if (debug) {
 		/* shame on whoever coded this.... */
-		struct ast_str *cap_buf = ast_str_alloca(64);
-		struct ast_str *peer_buf = ast_str_alloca(64);
-		struct ast_str *vpeer_buf = ast_str_alloca(64);
-		struct ast_str *tpeer_buf = ast_str_alloca(64);
-		struct ast_str *joint_buf = ast_str_alloca(64);
+		struct ast_str *cap_buf = ast_str_alloca(384);
+		struct ast_str *peer_buf = ast_str_alloca(384);
+		struct ast_str *vpeer_buf = ast_str_alloca(384);
+		struct ast_str *tpeer_buf = ast_str_alloca(384);
+		struct ast_str *joint_buf = ast_str_alloca(384);
 
 		ast_verbose("Capabilities: us - %s, peer - audio=%s/video=%s/text=%s, combined - %s\n",
 			    ast_format_cap_get_names(p->caps, &cap_buf),
@@ -10781,8 +10781,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		unsigned int framing;
 
 		if (debug) {
-			struct ast_str *cap_buf = ast_str_alloca(64);
-			struct ast_str *joint_buf = ast_str_alloca(64);
+			struct ast_str *cap_buf = ast_str_alloca(384);
+			struct ast_str *joint_buf = ast_str_alloca(384);
 
 			ast_debug(1, "Setting native formats after processing SDP. peer joint formats %s, old nativeformats %s\n",
 				ast_format_cap_get_names(p->jointcaps, &joint_buf),
@@ -13116,7 +13116,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 	int min_video_packet_size = 0;
 	int min_text_packet_size = 0;
 
-	struct ast_str *codec_buf = ast_str_alloca(64);
+	struct ast_str *codec_buf = ast_str_alloca(384);
 
 	/* Set the SDP session name */
 	snprintf(subject, sizeof(subject), "s=%s\r\n", ast_strlen_zero(global_sdpsession) ? "-" : global_sdpsession);
@@ -20298,7 +20298,7 @@ static char *_sip_show_peer(int type, int fd, struct mansession *s, const struct
 	char status[30] = "";
 	char cbuf[256];
 	struct sip_peer *peer;
-	struct ast_str *codec_buf = ast_str_alloca(64);
+	struct ast_str *codec_buf = ast_str_alloca(384);
 	struct ast_variable *v;
 	int x = 0, load_realtime;
 	int realtimepeers;
@@ -20944,7 +20944,7 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 {
 	int realtimepeers;
 	int realtimeregs;
-	struct ast_str *codec_buf = ast_str_alloca(64);
+	struct ast_str *codec_buf = ast_str_alloca(384);
 	const char *msg;	/* temporary msg pointer */
 	struct sip_auth_container *credentials;
 
@@ -21261,7 +21261,7 @@ static int show_channels_cb(void *__cur, void *__arg, int flags)
 	if (cur->subscribed == NONE && !arg->subscriptions) {
 		/* set if SIP transfer in progress */
 		const char *referstatus = cur->refer ? referstatus2str(cur->refer->status) : "";
-		struct ast_str *codec_buf = ast_str_alloca(64);
+		struct ast_str *codec_buf = ast_str_alloca(384);
 
 		ast_cli(arg->fd, FORMAT, ast_sockaddr_stringify_addr(dst),
 				S_OR(cur->username, S_OR(cur->cid_num, "(None)")),
@@ -21507,7 +21507,7 @@ static char *sip_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 
 		if (!strncasecmp(cur->callid, a->argv[3], len)) {
 			struct ast_str *strbuf;
-			struct ast_str *codec_buf = ast_str_alloca(64);
+			struct ast_str *codec_buf = ast_str_alloca(384);
 
 			ast_cli(a->fd, "\n");
 			if (cur->subscribed != NONE) {
@@ -22466,7 +22466,7 @@ static int function_sippeer(struct ast_channel *chan, const char *cmd, char *dat
 	} else  if (!strcasecmp(colname, "callerid_num")) {
 		ast_copy_string(buf, peer->cid_num, len);
 	} else  if (!strcasecmp(colname, "codecs")) {
-		struct ast_str *codec_buf = ast_str_alloca(64);
+		struct ast_str *codec_buf = ast_str_alloca(384);
 		ast_format_cap_get_names(peer->caps, &codec_buf);
 		ast_copy_string(buf, ast_str_buffer(codec_buf), len);
 	} else if (!strcasecmp(colname, "encryption")) {
@@ -29609,8 +29609,8 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 	struct ast_channel *tmpc = NULL;
 	char *ext = NULL, *host;
 	char tmp[256];
-	struct ast_str *codec_buf = ast_str_alloca(64);
-	struct ast_str *cap_buf = ast_str_alloca(64);
+	struct ast_str *codec_buf = ast_str_alloca(384);
+	struct ast_str *cap_buf = ast_str_alloca(384);
 	char *dnid;
 	char *secret = NULL;
 	char *md5secret = NULL;
