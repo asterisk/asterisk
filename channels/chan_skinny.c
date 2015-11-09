@@ -4176,7 +4176,7 @@ static char *_skinny_show_device(int type, int fd, struct mansession *s, const s
 	struct skinny_speeddial *sd;
 	struct skinny_addon *sa;
 	struct skinny_serviceurl *surl;
-	struct ast_str *codec_buf = ast_str_alloca(64);
+	struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 
 	if (argc < 4) {
 		return CLI_SHOWUSAGE;
@@ -4425,7 +4425,7 @@ static char *_skinny_show_line(int type, int fd, struct mansession *s, const str
 	struct skinny_device *d;
 	struct skinny_line *l;
 	struct skinny_subline *subline;
-	struct ast_str *codec_buf = ast_str_alloca(64);
+	struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 	char group_buf[256];
 	char cbuf[256];
 
@@ -5075,7 +5075,7 @@ static int skinny_write(struct ast_channel *ast, struct ast_frame *frame)
 		}
 	} else {
 		if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), frame->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
-			struct ast_str *codec_buf = ast_str_alloca(64);
+			struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 			ast_log(LOG_WARNING, "Asked to transmit frame type %s, while native formats is %s (read/write = %s/%s)\n",
 				ast_format_get_name(frame->subclass.format),
 				ast_format_cap_get_names(ast_channel_nativeformats(ast), &codec_buf),
@@ -5351,7 +5351,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, struct skinny_subli
 	struct ast_format *tmpfmt;
 	struct ast_format_cap *caps;
 #ifdef AST_DEVMODE
-	struct ast_str *codec_buf = ast_str_alloca(64);
+	struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 #endif
 
 	if (!l->device || !l->device->session) {
@@ -6638,7 +6638,7 @@ static int handle_capabilities_res_message(struct skinny_req *req, struct skinny
 	struct ast_format_cap *codecs = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	int i;
 #ifdef AST_DEVMODE
-	struct ast_str *codec_buf = ast_str_alloca(64);
+	struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 #endif
 	
 
@@ -7681,7 +7681,7 @@ static struct ast_channel *skinny_request(const char *type, struct ast_format_ca
 	char tmp[256];
 
 	if (!(ast_format_cap_has_type(cap, AST_MEDIA_TYPE_AUDIO))) {
-		struct ast_str *codec_buf = ast_str_alloca(64);
+		struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%s'\n", ast_format_cap_get_names(cap, &codec_buf));
 		return NULL;
 	}

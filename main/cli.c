@@ -1528,7 +1528,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	struct ast_var_t *var;
 	struct ast_str *write_transpath = ast_str_alloca(256);
 	struct ast_str *read_transpath = ast_str_alloca(256);
-	struct ast_str *codec_buf = ast_str_alloca(64);
+	struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 	struct ast_bridge *bridge;
 	ast_callid callid;
 	char callid_buf[32];
