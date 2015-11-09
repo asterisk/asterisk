@@ -673,7 +673,7 @@ static int chan_pjsip_write(struct ast_channel *ast, struct ast_frame *frame)
 			return 0;
 		}
 		if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), frame->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
-			struct ast_str *cap_buf = ast_str_alloca(128);
+			struct ast_str *cap_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 			struct ast_str *write_transpath = ast_str_alloca(256);
 			struct ast_str *read_transpath = ast_str_alloca(256);
 

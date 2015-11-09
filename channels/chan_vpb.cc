@@ -2508,7 +2508,7 @@ static struct ast_channel *vpb_request(const char *type, struct ast_format_cap *
 	if (!(ast_format_cap_iscompatible_format(cap, ast_format_slin))) {
 		struct ast_str *buf;
 
-		buf = ast_str_create(256);
+		buf = ast_str_create(AST_FORMAT_CAP_NAMES_LEN);
 		if (!buf) {
 			return NULL;
 		}

@@ -321,6 +321,11 @@ int ast_format_cap_has_type(const struct ast_format_cap *cap, enum ast_media_typ
  */
 const char *ast_format_cap_get_names(struct ast_format_cap *cap, struct ast_str **buf);
 
+#ifndef AST_FORMAT_CAP_NAMES_LEN
+/*! Buffer size for callers of ast_format_cap_get_names to allocate. */
+#define AST_FORMAT_CAP_NAMES_LEN 384
+#endif
+
 /*!
  * \brief Determine if a format cap has no formats in it.
  *

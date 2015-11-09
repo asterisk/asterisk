@@ -443,7 +443,7 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 	if (!strcasecmp(data, "audionativeformat")) {
 		tmpcap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 		if (tmpcap) {
-			struct ast_str *codec_buf = ast_str_alloca(128);
+			struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 
 			ast_channel_lock(chan);
 			ast_format_cap_append_from_cap(tmpcap, ast_channel_nativeformats(chan), AST_MEDIA_TYPE_AUDIO);
@@ -454,7 +454,7 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 	} else if (!strcasecmp(data, "videonativeformat")) {
 		tmpcap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 		if (tmpcap) {
-			struct ast_str *codec_buf = ast_str_alloca(128);
+			struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 
 			ast_channel_lock(chan);
 			ast_format_cap_append_from_cap(tmpcap, ast_channel_nativeformats(chan), AST_MEDIA_TYPE_VIDEO);

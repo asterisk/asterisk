@@ -304,7 +304,7 @@ static int chararray_handler_fn(const void *obj, const intptr_t *args, char **bu
 
 static int codec_handler_fn(const void *obj, const intptr_t *args, char **buf)
 {
-	struct ast_str *codec_buf = ast_str_alloca(64);
+	struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 	struct ast_format_cap **cap = (struct ast_format_cap **)(obj + args[0]);
 	return !(*buf = ast_strdup(ast_format_cap_get_names(*cap, &codec_buf)));
 }

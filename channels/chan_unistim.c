@@ -2889,7 +2889,7 @@ static void start_rtp(struct unistim_subchannel *sub)
 	ast_rtp_instance_set_remote_address(sub->rtp, &sin_tmp);
 	if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(sub->owner), ast_channel_readformat(sub->owner)) == AST_FORMAT_CMP_NOT_EQUAL) {
 		struct ast_format *tmpfmt;
-		struct ast_str *cap_buf = ast_str_alloca(64);
+		struct ast_str *cap_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 
 		tmpfmt = ast_format_cap_get_format(ast_channel_nativeformats(sub->owner), 0);
 		ast_log(LOG_WARNING,
@@ -5142,7 +5142,7 @@ static struct ast_frame *unistim_rtp_read(const struct ast_channel *ast,
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {
 			if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(sub->owner), f->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
-				struct ast_str *cap_buf = ast_str_alloca(64);
+				struct ast_str *cap_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 				struct ast_format_cap *caps;
 
 				ast_debug(1,
@@ -5192,7 +5192,7 @@ static int unistim_write(struct ast_channel *ast, struct ast_frame *frame)
 		}
 	} else {
 		if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), frame->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
-			struct ast_str *cap_buf = ast_str_alloca(64);
+			struct ast_str *cap_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 
 			ast_log(LOG_WARNING,
 					"Asked to transmit frame type %s, while native formats is %s (read/write = (%s/%s)\n",
@@ -5723,9 +5723,9 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 	tmpfmt = ast_format_cap_get_format(ast_channel_nativeformats(tmp), 0);
 
 	if (unistimdebug) {
-		struct ast_str *native_buf = ast_str_alloca(64);
-		struct ast_str *cap_buf = ast_str_alloca(64);
-		struct ast_str *global_buf = ast_str_alloca(64);
+		struct ast_str *native_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
+		struct ast_str *cap_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
+		struct ast_str *global_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 
 		ast_verb(0, "Best codec = %s from nativeformats %s (line cap=%s global=%s)\n",
 			ast_format_get_name(tmpfmt),
@@ -5938,8 +5938,8 @@ static struct ast_channel *unistim_request(const char *type, struct ast_format_c
 	char tmp[256];
 
 	if (!(ast_format_cap_iscompatible(cap, global_cap))) {
-		struct ast_str *cap_buf = ast_str_alloca(64);
-		struct ast_str *global_buf = ast_str_alloca(64);
+		struct ast_str *cap_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
+		struct ast_str *global_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 		ast_log(LOG_NOTICE,
 				"Asked to get a channel of unsupported format %s while capability is %s\n",
 				ast_format_cap_get_names(cap, &cap_buf),
@@ -6014,7 +6014,7 @@ static char *unistim_show_info(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	struct unistim_line *line;
 	struct unistim_subchannel *sub;
 	struct unistimsession *s;
-	struct ast_str *cap_buf = ast_str_alloca(64);
+	struct ast_str *cap_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 
 	switch (cmd) {
 	case CLI_INIT:

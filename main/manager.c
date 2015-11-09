@@ -4339,7 +4339,7 @@ static int action_status(struct mansession *s, const struct message *m)
 	struct ast_str *write_transpath = ast_str_alloca(256);
 	struct ast_str *read_transpath = ast_str_alloca(256);
 	struct ast_channel *chan;
-	struct ast_str *codec_buf = ast_str_alloca(64);
+	struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 	int channels = 0;
 	int all = ast_strlen_zero(name); /* set if we want all channels */
 	char id_text[256];
