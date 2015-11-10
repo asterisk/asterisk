@@ -2098,9 +2098,6 @@ int ast_app_group_list_unlock(void)
 	return AST_RWLIST_UNLOCK(&groups);
 }
 
-#undef ast_app_separate_args
-unsigned int ast_app_separate_args(char *buf, char delim, char **array, int arraylen);
-
 unsigned int __ast_app_separate_args(char *buf, char delim, int remove_chars, char **array, int arraylen)
 {
 	int argc;
@@ -2163,12 +2160,6 @@ unsigned int __ast_app_separate_args(char *buf, char delim, int remove_chars, ch
 	}
 
 	return argc;
-}
-
-/* ABI compatible function */
-unsigned int ast_app_separate_args(char *buf, char delim, char **array, int arraylen)
-{
-	return __ast_app_separate_args(buf, delim, 1, array, arraylen);
 }
 
 static enum AST_LOCK_RESULT ast_lock_path_lockfile(const char *path)

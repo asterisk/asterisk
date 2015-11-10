@@ -2144,21 +2144,6 @@ void __ast_verbose_callid(const char *file, int line, const char *func, int leve
 	va_end(ap);
 }
 
-/* No new code should use this directly, but we have the ABI for backwards compat */
-#undef ast_verbose
-void __attribute__((format(printf, 1,2))) ast_verbose(const char *fmt, ...);
-void ast_verbose(const char *fmt, ...)
-{
-	ast_callid callid;
-	va_list ap;
-
-	callid = ast_read_threadstorage_callid();
-
-	va_start(ap, fmt);
-	__ast_verbose_ap("", 0, "", 0, callid, fmt, ap);
-	va_end(ap);
-}
-
 /*! Console verbosity level node. */
 struct verb_console {
 	/*! List node link */
