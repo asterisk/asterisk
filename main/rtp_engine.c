@@ -621,6 +621,8 @@ int ast_rtp_codecs_payloads_set_rtpmap_type_rate(struct ast_rtp_codecs *codecs, 
 			ast_format_set(&type->format, AST_FORMAT_G726_AAL2, 0);
 		}
 
+		ast_format_sdp_parse(&type->format, "");
+
 		if (instance && instance->engine && instance->engine->payload_set) {
 			instance->engine->payload_set(instance, pt, type->asterisk_format, &type->format, type->rtp_code);
 		}
