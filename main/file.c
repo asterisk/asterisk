@@ -1096,7 +1096,7 @@ int ast_streamfile(struct ast_channel *chan, const char *filename, const char *p
 
 	fs = ast_openstream(chan, filename, preflang);
 	if (!fs) {
-		struct ast_str *codec_buf = ast_str_alloca(64);
+		struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 		ast_log(LOG_WARNING, "Unable to open %s (format %s): %s\n",
 			filename, ast_format_cap_get_names(ast_channel_nativeformats(chan), &codec_buf), strerror(errno));
 		return -1;

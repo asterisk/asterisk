@@ -1706,7 +1706,7 @@ static int jingle_write(struct ast_channel *ast, struct ast_frame *frame)
 	switch (frame->frametype) {
 	case AST_FRAME_VOICE:
 		if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), frame->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
-			struct ast_str *codec_buf = ast_str_alloca(64);
+			struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 
 			ast_log(LOG_WARNING,
 				"Asked to transmit frame type %s, while native formats is %s (read/write = %s/%s)\n",

@@ -479,7 +479,7 @@ static struct ast_channel *console_request(const char *type, struct ast_format_c
 	}
 
 	if (!(ast_format_cap_iscompatible(cap, console_tech.capabilities))) {
-		struct ast_str *cap_buf = ast_str_alloca(64);
+		struct ast_str *cap_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 		ast_log(LOG_NOTICE, "Channel requested with unsupported format(s): '%s'\n",
 			ast_format_cap_get_names(cap, &cap_buf));
 		goto return_unref;

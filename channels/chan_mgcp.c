@@ -1253,7 +1253,7 @@ static int mgcp_write(struct ast_channel *ast, struct ast_frame *frame)
 		}
 	} else {
 		if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), frame->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
-			struct ast_str *cap_buf = ast_str_alloca(64);
+			struct ast_str *cap_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 
 			ast_log(LOG_WARNING, "Asked to transmit frame type %s, while native formats is %s (read/write = %s/%s)\n",
 				ast_format_get_name(frame->subclass.format),
@@ -1986,9 +1986,9 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 	int codec, codec_count=0;
 	int iterator;
 	struct mgcp_endpoint *p = sub->parent;
-	struct ast_str *global_buf = ast_str_alloca(64);
-	struct ast_str *peer_buf = ast_str_alloca(64);
-	struct ast_str *pvt_buf = ast_str_alloca(64);
+	struct ast_str *global_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
+	struct ast_str *peer_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
+	struct ast_str *pvt_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 
 	/* Get codec and RTP info from SDP */
 	m = get_sdp(req, "m");
@@ -3972,7 +3972,7 @@ static struct ast_channel *mgcp_request(const char *type, struct ast_format_cap 
 	char tmp[256];
 
 	if (!(ast_format_cap_iscompatible(cap, global_capability))) {
-		struct ast_str *cap_buf = ast_str_alloca(64);
+		struct ast_str *cap_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%s'\n",
 			ast_format_cap_get_names(cap, &cap_buf));
 		/*return NULL;*/
