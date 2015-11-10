@@ -1282,7 +1282,7 @@ static struct ast_channel *phone_request(const char *type, struct ast_format_cap
 	restart_monitor();
 	if (tmp == NULL) {
 		if (!(ast_format_cap_iscompatible(cap, phone_tech.capabilities))) {
-			struct ast_str *codec_buf = ast_str_alloca(64);
+			struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 			ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%s'\n",
 				ast_format_cap_get_names(cap, &codec_buf));
 			return NULL;

@@ -387,8 +387,8 @@ static int native_rtp_bridge_compatible(struct ast_bridge *bridge)
 		glue1->get_codec(bc1->chan, cap1);
 	}
 	if (ast_format_cap_count(cap0) != 0 && ast_format_cap_count(cap1) != 0 && !ast_format_cap_iscompatible(cap0, cap1)) {
-		struct ast_str *codec_buf0 = ast_str_alloca(64);
-		struct ast_str *codec_buf1 = ast_str_alloca(64);
+		struct ast_str *codec_buf0 = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
+		struct ast_str *codec_buf1 = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 		ast_debug(1, "Channel codec0 = %s is not codec1 = %s, cannot native bridge in RTP.\n",
 			ast_format_cap_get_names(cap0, &codec_buf0), ast_format_cap_get_names(cap1, &codec_buf1));
 		return 0;

@@ -72,7 +72,7 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 {
 	long elapsed_seconds = 0;
 	int hour = 0, min = 0, sec = 0;
-	struct ast_str *format_buf = ast_str_alloca(64);
+	struct ast_str *format_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 	char cgrp[256];
 	char pgrp[256];
 	struct ast_str *write_transpath = ast_str_alloca(256);

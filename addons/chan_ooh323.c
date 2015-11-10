@@ -576,7 +576,7 @@ static struct ast_channel *ooh323_request(const char *type, struct ast_format_ca
 		const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
 
 {
-	struct ast_str *codec_buf = ast_str_alloca(64);
+	struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 	struct ast_channel *chan = NULL;
 	struct ooh323_pvt *p = NULL;
 	struct ooh323_peer *peer = NULL;
@@ -1192,7 +1192,7 @@ static int ooh323_write(struct ast_channel *ast, struct ast_frame *f)
 
 			if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), f->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
 				if (ast_format_cap_count(ast_channel_nativeformats(ast))) {
-					struct ast_str *codec_buf = ast_str_alloca(64);
+					struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 					ast_log(LOG_WARNING,
 							"Asked to transmit frame type %s, while native formats is %s (read/write = %s/%s)\n",
 							ast_format_get_name(f->subclass.format),
@@ -1545,7 +1545,7 @@ void ooh323_set_write_format(ooCallData *call, struct ast_format *fmt, int txfra
 			return;
 		}
 		if (gH323Debug) {
-			struct ast_str *codec_buf = ast_str_alloca(64);
+			struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 			ast_verb(0, "Writeformat before update %s/%s\n", 
 			  ast_format_get_name(ast_channel_writeformat(p->owner)),
 			  ast_format_cap_get_names(ast_channel_nativeformats(p->owner), &codec_buf));
@@ -2114,7 +2114,7 @@ int onNewCallCreated(ooCallData *call)
 		}
 
 		if (gH323Debug) {
-			struct ast_str *codec_buf = ast_str_alloca(64);
+			struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 
 			ast_verb(0, " Outgoing call %s(%s) - Codec prefs - %s\n", 
 				p->username?p->username:"NULL", call->callToken,
@@ -3231,7 +3231,7 @@ static char *handle_cli_ooh323_show_peer(struct ast_cli_entry *e, int cmd, struc
 static char *handle_cli_ooh323_show_peers(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ooh323_peer *prev = NULL, *peer = NULL;
-	struct ast_str *codec_buf = ast_str_alloca(64);
+	struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
    char ip_port[30];
 #define FORMAT  "%-15.15s  %-15.15s  %-23.23s  %-s\n"
 
@@ -3370,7 +3370,7 @@ static char *handle_cli_ooh323_show_user(struct ast_cli_entry *e, int cmd, struc
 static char *handle_cli_ooh323_show_users(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ooh323_user *prev = NULL, *user = NULL;
-	struct ast_str *codec_buf = ast_str_alloca(64);
+	struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 #define FORMAT1  "%-15.15s  %-15.15s  %-15.15s  %-s\n"
 
 	switch (cmd) {
@@ -3504,7 +3504,7 @@ static char *handle_cli_ooh323_show_gk(struct ast_cli_entry *e, int cmd, struct 
 static char *handle_cli_ooh323_show_config(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char value[FORMAT_STRING_SIZE];
-	struct ast_str *codec_buf = ast_str_alloca(64);
+	struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 	ooAliases *pAlias = NULL, *pAliasNext = NULL;;
 
 	switch (cmd) {

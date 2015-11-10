@@ -620,7 +620,7 @@ static struct ast_channel *alsa_request(const char *type, struct ast_format_cap 
 	struct ast_channel *tmp = NULL;
 
 	if (ast_format_cap_iscompatible_format(cap, ast_format_slin) == AST_FORMAT_CMP_NOT_EQUAL) {
-		struct ast_str *codec_buf = ast_str_alloca(64);
+		struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 		ast_log(LOG_NOTICE, "Asked to get a channel of format '%s'\n", ast_format_cap_get_names(cap, &codec_buf));
 		return NULL;
 	}

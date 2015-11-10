@@ -1492,8 +1492,8 @@ AST_TEST_DEFINE(config_options_test)
 			res = AST_TEST_FAIL;
 		}
 		if (!ast_format_cap_identical(arr[x]->codeccapopt, control->codeccapopt)) {
-			struct ast_str *codec_buf1 = ast_str_alloca(64);
-			struct ast_str *codec_buf2 = ast_str_alloca(64);
+			struct ast_str *codec_buf1 = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
+			struct ast_str *codec_buf2 = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 
 			ast_test_status_update(test, "format did not match: '%s' vs '%s' on loop %d\n",
 				ast_format_cap_get_names(arr[x]->codeccapopt, &codec_buf1),
