@@ -3809,6 +3809,10 @@ static void remove_request_headers(pjsip_endpoint *endpt)
 	}
 }
 
+long ast_sip_threadpool_queue_size(void) {
+	return ast_threadpool_queue_size(sip_threadpool);
+}
+
 AST_TEST_DEFINE(xml_sanitization_end_null)
 {
 	char sanitized[8];
