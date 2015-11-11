@@ -239,4 +239,10 @@ struct ast_taskprocessor *ast_threadpool_serializer_get_current(void);
  */
 struct ast_taskprocessor *ast_threadpool_serializer(const char *name, struct ast_threadpool *pool);
 
+/*!
+ * \brief Return the size of the threadpool's task queue
+ * \since 13.7.0
+ */
+long ast_threadpool_queue_size(struct ast_threadpool *pool);
+
 #endif /* ASTERISK_THREADPOOL_H */

@@ -130,9 +130,6 @@ static int tps_ping_handler(void *datap);
 /*! \brief Remove the front task off the taskprocessor queue */
 static struct tps_task *tps_taskprocessor_pop(struct ast_taskprocessor *tps);
 
-/*! \brief Return the size of the taskprocessor queue */
-static int tps_taskprocessor_depth(struct ast_taskprocessor *tps);
-
 static char *cli_tps_ping(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *cli_tps_report(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
@@ -508,7 +505,7 @@ static struct tps_task *tps_taskprocessor_pop(struct ast_taskprocessor *tps)
 	return task;
 }
 
-static int tps_taskprocessor_depth(struct ast_taskprocessor *tps)
+long ast_taskprocessor_size(struct ast_taskprocessor *tps)
 {
 	return (tps) ? tps->tps_queue_size : -1;
 }
@@ -766,7 +763,7 @@ int ast_taskprocessor_execute(struct ast_taskprocessor *tps)
 {
 	struct ast_taskprocessor_local local;
 	struct tps_task *t;
-	int size;
+	long size;
 
 	ao2_lock(tps);
 	t = tps_taskprocessor_pop(tps);
@@ -798,7 +795,7 @@ int ast_taskprocessor_execute(struct ast_taskprocessor *tps)
 	 * after we pop an empty stack.
 	 */
 	tps->executing = 0;
-	size = tps_taskprocessor_depth(tps);
+	size = ast_taskprocessor_size(tps);
 	/* If we executed a task, bump the stats */
 	if (tps->stats) {
 		tps->stats->_tasks_processed_count++;

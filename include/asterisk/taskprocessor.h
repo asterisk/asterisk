@@ -262,4 +262,10 @@ int ast_taskprocessor_is_task(struct ast_taskprocessor *tps);
  */
 const char *ast_taskprocessor_name(struct ast_taskprocessor *tps);
 
+/*!
+ * \brief Return the current size of the taskprocessor queue
+ * \since 13.7.0
+ */
+long ast_taskprocessor_size(struct ast_taskprocessor *tps);
+
 #endif /* __AST_TASKPROCESSOR_H__ */
