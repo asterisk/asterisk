@@ -1225,3 +1225,8 @@ struct ast_taskprocessor *ast_threadpool_serializer(const char *name, struct ast
 
 	return tps;
 }
+
+long ast_threadpool_queue_size(struct ast_threadpool *pool)
+{
+	return ast_taskprocessor_size(pool->tps);
+}

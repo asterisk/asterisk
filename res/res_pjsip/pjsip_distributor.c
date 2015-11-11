@@ -245,6 +245,8 @@ static pjsip_module endpoint_mod = {
 	.on_rx_request = endpoint_lookup,
 };
 
+#define SIP_MAX_QUEUE 500l
+
 static pj_bool_t distributor(pjsip_rx_data *rdata)
 {
 	pjsip_dialog *dlg = find_dialog(rdata);
@@ -279,7 +281,18 @@ static pj_bool_t distributor(pjsip_rx_data *rdata)
 		clone->endpt_info.mod_data[endpoint_mod.id] = ao2_bump(dist->endpoint);
 	}
 
-	ast_sip_push_task(serializer, distribute, clone);
+	if (ast_sip_threadpool_queue_size() > SIP_MAX_QUEUE) {
+		/* This may mean an allocation failure, but it's more likely that
+		 * conditions have become unfavorable, resulting in a full queue.
+		 * It's in our best interest to send back a 503 response and be
+		 * done with it.
+		 */
+		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 503, NULL, NULL, NULL);
+		ao2_cleanup(clone->endpt_info.mod_data[endpoint_mod.id]);
+		pjsip_rx_data_free_cloned(clone);
+	} else {
+		ast_sip_push_task(serializer, distribute, clone);
+	}
 
 end:
 	if (dlg) {
