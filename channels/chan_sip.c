@@ -20720,7 +20720,7 @@ static char *sip_unregister(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		return CLI_SHOWUSAGE;
 
 	if ((peer = sip_find_peer(a->argv[2], NULL, load_realtime, FINDPEERS, TRUE, 0))) {
-		if (peer->expire > 0) {
+		if (peer->expire > -1) {
 			AST_SCHED_DEL_UNREF(sched, peer->expire,
 				sip_unref_peer(peer, "remove register expire ref"));
 			expire_register(sip_ref_peer(peer, "ref for expire_register"));
@@ -21299,7 +21299,7 @@ static char *complete_sip_registered_peer(const char *word, int state, int flags
        while ((peer = ao2_t_iterator_next(&i, "iterate thru peers table"))) {
 	       if (!strncasecmp(word, peer->name, wordlen) &&
 		   (!flags2 || ast_test_flag(&peer->flags[1], flags2)) &&
-		   ++which > state && peer->expire > 0)
+		   ++which > state && peer->expire > -1)
 		       result = ast_strdup(peer->name);
 	       if (result) {
 		       sip_unref_peer(peer, "toss iterator peer ptr before break");
@@ -30150,13 +30150,11 @@ static struct ast_variable *add_var(const char *buf, struct ast_variable *list)
 /*! \brief Set peer defaults before configuring specific configurations */
 static void set_peer_defaults(struct sip_peer *peer)
 {
-	if (peer->expire == 0) {
+	if (peer->expire < 0) {
 		/* Don't reset expire or port time during reload
 		   if we have an active registration
 		*/
-		peer->expire = -1;
-		peer->pokeexpire = -1;
-		peer->keepalivesend = -1;
+		peer_sched_cleanup(peer);
 		set_socket_transport(&peer->socket, AST_TRANSPORT_UDP);
 	}
 	peer->type = SIP_TYPE_PEER;
@@ -30241,6 +30239,10 @@ static struct sip_peer *temp_peer(const char *name)
 	}
 
 	ast_atomic_fetchadd_int(&apeerobjs, 1);
+	peer->expire = -1;
+	peer->pokeexpire = -1;
+	peer->keepalivesend = -1;
+
 	set_peer_defaults(peer);
 
 	ast_copy_string(peer->name, name, sizeof(peer->name));
@@ -30358,6 +30360,10 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			ast_debug(3, "-REALTIME- peer built. Name: %s. Peer objects: %d\n", name, rpeerobjs);
 		} else
 			ast_atomic_fetchadd_int(&speerobjs, 1);
+
+		peer->expire = -1;
+		peer->pokeexpire = -1;
+		peer->keepalivesend = -1;
 	}
 
 	/* Note that our peer HAS had its reference count increased */
