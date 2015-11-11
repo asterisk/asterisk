@@ -306,7 +306,7 @@ static void destroy(struct ast_trans_pvt *pvt)
  * \brief Allocate the descriptor, required outbuf space,
  * and possibly desc.
  */
-static struct ast_trans_pvt *newpvt(struct ast_translator *t)
+static struct ast_trans_pvt *newpvt(struct ast_translator *t, struct ast_format *dst)
 {
 	struct ast_trans_pvt *pvt;
 	int len;
@@ -331,6 +331,9 @@ static struct ast_trans_pvt *newpvt(struct ast_translator *t)
 	}
 	if (t->buf_size) {/* finally buffer and header */
 		pvt->outbuf.c = ofs + AST_FRIENDLY_OFFSET;
+	}
+	if ((t->dst_codec.sample_rate != ast_format_get_sample_rate(dst)) || (t->dst_codec.type != ast_format_get_type(dst)) || (strcmp(t->dst_codec.name, ast_format_get_name(dst)))) {
+		pvt->f.subclass.format = ao2_bump(dst);
 	}
 
 	ast_module_ref(t->module);
@@ -484,7 +487,7 @@ struct ast_trans_pvt *ast_translator_build_path(struct ast_format *dst, struct a
 			AST_RWLIST_UNLOCK(&translators);
 			return NULL;
 		}
-		if (!(cur = newpvt(t))) {
+		if (!(cur = newpvt(t, dst))) {
 			ast_log(LOG_WARNING, "Failed to build translator step from %s to %s\n",
 				ast_format_get_name(src), ast_format_get_name(dst));
 			if (head) {
@@ -638,7 +641,7 @@ static void generate_computational_cost(struct ast_translator *t, int seconds)
 		return;
 	}
 
-	pvt = newpvt(t);
+	pvt = newpvt(t, NULL);
 	if (!pvt) {
 		ast_log(LOG_WARNING, "Translator '%s' appears to be broken and will probably fail.\n", t->name);
 		t->comp_cost = 999999;
