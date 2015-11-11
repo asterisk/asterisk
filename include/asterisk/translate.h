@@ -223,6 +223,14 @@ struct ast_trans_pvt {
 	struct ast_trans_pvt *next; /*!< next in translator chain */
 	struct timeval nextin;
 	struct timeval nextout;
+	/*! If a translation path using a format with attributes requires the output
+	 * to be a specific set of attributes, this variable will be set describing
+	 * those attributes to the translator. Otherwise, the translator must choose
+	 * a set of format attributes for the destination that preserves the quality
+	 * of the audio in the best way possible. For example with the Opus Codec,
+	 * explicit_dst contains an attribute which describes whether both parties
+	 * want to do forward-error correction (FEC). */
+	struct ast_format *explicit_dst;
 };
 
 /*! \brief generic frameout function */
