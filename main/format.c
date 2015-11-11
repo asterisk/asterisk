@@ -302,6 +302,14 @@ const void *ast_format_attribute_get(const struct ast_format *format, const char
 {
 	const struct ast_format_interface *interface = format->interface;
 
+	if (!interface) {
+		struct format_interface *format_interface = ao2_find(interfaces, format->codec->name, OBJ_SEARCH_KEY);
+		if (format_interface) {
+			interface = format_interface->interface;
+			ao2_ref(format_interface, -1);
+		}
+	}
+
 	if (!interface || !interface->format_attribute_get) {
 		return NULL;
 	}
@@ -330,11 +338,21 @@ struct ast_format *ast_format_parse_sdp_fmtp(const struct ast_format *format, co
 
 void ast_format_generate_sdp_fmtp(const struct ast_format *format, unsigned int payload, struct ast_str **str)
 {
-	if (!format->interface || !format->interface->format_generate_sdp_fmtp) {
+	const struct ast_format_interface *interface = format->interface;
+
+	if (!interface) {
+		struct format_interface *format_interface = ao2_find(interfaces, format->codec->name, OBJ_SEARCH_KEY);
+		if (format_interface) {
+			interface = format_interface->interface;
+			ao2_ref(format_interface, -1);
+		}
+	}
+
+	if (!interface || !interface->format_generate_sdp_fmtp) {
 		return;
 	}
 
-	format->interface->format_generate_sdp_fmtp(format, payload, str);
+	interface->format_generate_sdp_fmtp(format, payload, str);
 }
 
 struct ast_codec *ast_format_get_codec(const struct ast_format *format)
