@@ -973,9 +973,13 @@ int ast_rtp_codecs_payloads_set_rtpmap_type_rate(struct ast_rtp_codecs *codecs, 
 		if (t->payload_type.asterisk_format
 			&& ast_format_cmp(t->payload_type.format, ast_format_g726) == AST_FORMAT_CMP_EQUAL
 			&& (options & AST_RTP_OPT_G726_NONSTANDARD)) {
-			new_type->format = ao2_bump(ast_format_g726_aal2);
+			new_type->format = ast_format_g726_aal2;
 		} else {
-			new_type->format = ao2_bump(t->payload_type.format);
+			new_type->format = t->payload_type.format;
+		}
+		if (new_type->format) {
+			/* SDP parsing automatically increases the reference count */
+			new_type->format = ast_format_parse_sdp_fmtp(new_type->format, "");
 		}
 
 		if (pt < AST_VECTOR_SIZE(&codecs->payload_mapping_tx)) {
