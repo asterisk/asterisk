@@ -571,6 +571,87 @@ end:
 	return res;
 }
 
+AST_TEST_DEFINE(threadpool_thread_timeout_thrash)
+{
+	struct ast_threadpool *pool = NULL;
+	struct ast_threadpool_listener *listener = NULL;
+	enum ast_test_result_state res = AST_TEST_FAIL;
+	struct test_listener_data *tld = NULL;
+	struct ast_threadpool_options options = {
+		.version = AST_THREADPOOL_OPTIONS_VERSION,
+		.idle_timeout = 1,
+		.auto_increment = 1,
+		.initial_size = 0,
+		.max_size = 1,
+	};
+	int iteration;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "thread_timeout_thrash";
+		info->category = "/main/threadpool/";
+		info->summary = "Thrash threadpool thread timeout";
+		info->description =
+			"Repeatedly queue a task when a threadpool thread should timeout.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	tld = test_alloc();
+	if (!tld) {
+		return AST_TEST_FAIL;
+	}
+
+	listener = ast_threadpool_listener_alloc(&test_callbacks, tld);
+	if (!listener) {
+		goto end;
+	}
+
+	pool = ast_threadpool_create(info->name, listener, &options);
+	if (!pool) {
+		goto end;
+	}
+
+	ast_threadpool_set_size(pool, 1);
+
+	for (iteration = 0; iteration < 30; ++iteration) {
+		struct simple_task_data *std = NULL;
+		struct timeval start = ast_tvnow();
+		struct timespec end = {
+			.tv_sec = start.tv_sec + options.idle_timeout,
+			.tv_nsec = start.tv_usec * 1000
+		};
+
+		std = simple_task_data_alloc();
+		if (!std) {
+			goto end;
+		}
+
+		/* Wait until the threadpool thread should timeout due to being idle */
+		ast_mutex_lock(&tld->lock);
+		while (ast_cond_timedwait(&tld->cond, &tld->lock, &end) != ETIMEDOUT) {
+			/* This purposely left empty as we want to loop waiting for a time out */
+		}
+		ast_mutex_unlock(&tld->lock);
+
+		ast_threadpool_push(pool, simple_task, std);
+	}
+
+	res = wait_until_thread_state(test, tld, 0, 0);
+	if (res == AST_TEST_FAIL) {
+		goto end;
+	}
+
+	res = listener_check(test, listener, 1, 1, 30, 0, 0, 1);
+
+end:
+	ast_threadpool_shutdown(pool);
+	ao2_cleanup(listener);
+	ast_free(tld);
+	return res;
+}
+
 AST_TEST_DEFINE(threadpool_one_task_one_thread)
 {
 	struct ast_threadpool *pool = NULL;
@@ -1610,6 +1691,7 @@ static int unload_module(void)
 	ast_test_unregister(threadpool_thread_creation);
 	ast_test_unregister(threadpool_thread_destruction);
 	ast_test_unregister(threadpool_thread_timeout);
+	ast_test_unregister(threadpool_thread_timeout_thrash);
 	ast_test_unregister(threadpool_one_task_one_thread);
 	ast_test_unregister(threadpool_one_thread_one_task);
 	ast_test_unregister(threadpool_one_thread_multiple_tasks);
@@ -1630,6 +1712,7 @@ static int load_module(void)
 	ast_test_register(threadpool_thread_creation);
 	ast_test_register(threadpool_thread_destruction);
 	ast_test_register(threadpool_thread_timeout);
+	ast_test_register(threadpool_thread_timeout_thrash);
 	ast_test_register(threadpool_one_task_one_thread);
 	ast_test_register(threadpool_one_thread_one_task);
 	ast_test_register(threadpool_one_thread_multiple_tasks);
