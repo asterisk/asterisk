@@ -4275,7 +4275,7 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 			return;
 		} else {
 			if (rtp->rtcp) {
-				if (rtp->rtcp->schedid > 0) {
+				if (rtp->rtcp->schedid > -1) {
 					if (!ast_sched_del(rtp->sched, rtp->rtcp->schedid)) {
 						/* Successfully cancelled scheduler entry. */
 						ao2_ref(instance, -1);
@@ -4501,7 +4501,7 @@ static void ast_rtp_stop(struct ast_rtp_instance *instance)
 	ast_mutex_unlock(&rtp->dtls_timer_lock);
 #endif
 
-	if (rtp->rtcp && rtp->rtcp->schedid > 0) {
+	if (rtp->rtcp && rtp->rtcp->schedid > -1) {
 		if (!ast_sched_del(rtp->sched, rtp->rtcp->schedid)) {
 			/* successfully cancelled scheduler entry. */
 			ao2_ref(instance, -1);
