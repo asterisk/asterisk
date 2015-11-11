@@ -7068,7 +7068,7 @@ static char *handle_cli_iax2_unregister(struct ast_cli_entry *e, int cmd, struct
 
 	p = find_peer(a->argv[2], 1);
 	if (p) {
-		if (p->expire > 0) {
+		if (p->expire > -1) {
 			struct iax2_peer *peer;
 
 			peer = ao2_find(peers, a->argv[2], OBJ_KEY);
@@ -7101,7 +7101,7 @@ static char *complete_iax2_unregister(const char *line, const char *word, int po
 		struct ao2_iterator i = ao2_iterator_init(peers, 0);
 		while ((p = ao2_iterator_next(&i))) {
 			if (!strncasecmp(p->name, word, wordlen) && 
-				++which > state && p->expire > 0) {
+				++which > state && p->expire > -1) {
 				res = ast_strdup(p->name);
 				peer_unref(p);
 				break;
