@@ -2104,4 +2104,10 @@ int ast_sip_get_host_ip(int af, pj_sockaddr *addr);
  */
 const char *ast_sip_get_host_ip_string(int af);
 
+/*!
+ * \brief Return the size of the SIP threadpool's task queue
+ * \since 13.7.0
+ */
+long ast_sip_threadpool_queue_size(void);
+
 #endif /* _RES_PJSIP_H */
