@@ -3092,10 +3092,10 @@ static struct ast_json *rtcp_report_to_json(struct stasis_message *msg,
 	const struct stasis_message_sanitizer *sanitize)
 {
 	struct rtcp_message_payload *payload = stasis_message_data(msg);
-	RAII_VAR(struct ast_json *, json_rtcp_report, NULL, ast_json_unref);
-	RAII_VAR(struct ast_json *, json_rtcp_report_blocks, NULL, ast_json_unref);
-	RAII_VAR(struct ast_json *, json_rtcp_sender_info, NULL, ast_json_unref);
-	RAII_VAR(struct ast_json *, json_channel, NULL, ast_json_unref);
+	struct ast_json *json_rtcp_report = NULL;
+	struct ast_json *json_rtcp_report_blocks;
+	struct ast_json *json_rtcp_sender_info = NULL;
+	struct ast_json *json_channel = NULL;
 	int i;
 
 	json_rtcp_report_blocks = ast_json_array_create();
@@ -3106,20 +3106,19 @@ static struct ast_json *rtcp_report_to_json(struct stasis_message *msg,
 	for (i = 0; i < payload->report->reception_report_count && payload->report->report_block[i]; i++) {
 		struct ast_json *json_report_block;
 		char str_lsr[32];
+
 		snprintf(str_lsr, sizeof(str_lsr), "%u", payload->report->report_block[i]->lsr);
 		json_report_block = ast_json_pack("{s: i, s: i, s: i, s: i, s: i, s: s, s: i}",
-				"source_ssrc", payload->report->report_block[i]->source_ssrc,
-				"fraction_lost", payload->report->report_block[i]->lost_count.fraction,
-				"packets_lost", payload->report->report_block[i]->lost_count.packets,
-				"highest_seq_no", payload->report->report_block[i]->highest_seq_no,
-				"ia_jitter", payload->report->report_block[i]->ia_jitter,
-				"lsr", str_lsr,
-				"dlsr", payload->report->report_block[i]->dlsr);
-		if (!json_report_block) {
-			return NULL;
-		}
-
-		if (ast_json_array_append(json_rtcp_report_blocks, json_report_block)) {
+			"source_ssrc", payload->report->report_block[i]->source_ssrc,
+			"fraction_lost", payload->report->report_block[i]->lost_count.fraction,
+			"packets_lost", payload->report->report_block[i]->lost_count.packets,
+			"highest_seq_no", payload->report->report_block[i]->highest_seq_no,
+			"ia_jitter", payload->report->report_block[i]->ia_jitter,
+			"lsr", str_lsr,
+			"dlsr", payload->report->report_block[i]->dlsr);
+		if (!json_report_block
+			|| ast_json_array_append(json_rtcp_report_blocks, json_report_block)) {
+			ast_json_unref(json_rtcp_report_blocks);
 			return NULL;
 		}
 	}
@@ -3127,25 +3126,27 @@ static struct ast_json *rtcp_report_to_json(struct stasis_message *msg,
 	if (payload->report->type == AST_RTP_RTCP_SR) {
 		char sec[32];
 		char usec[32];
+
 		snprintf(sec, sizeof(sec), "%lu", (unsigned long)payload->report->sender_information.ntp_timestamp.tv_sec);
 		snprintf(usec, sizeof(usec), "%lu", (unsigned long)payload->report->sender_information.ntp_timestamp.tv_usec);
 		json_rtcp_sender_info = ast_json_pack("{s: s, s: s, s: i, s: i, s: i}",
-				"ntp_timestamp_sec", sec,
-				"ntp_timestamp_usec", usec,
-				"rtp_timestamp", payload->report->sender_information.rtp_timestamp,
-				"packets", payload->report->sender_information.packet_count,
-				"octets", payload->report->sender_information.octet_count);
+			"ntp_timestamp_sec", sec,
+			"ntp_timestamp_usec", usec,
+			"rtp_timestamp", payload->report->sender_information.rtp_timestamp,
+			"packets", payload->report->sender_information.packet_count,
+			"octets", payload->report->sender_information.octet_count);
 		if (!json_rtcp_sender_info) {
+			ast_json_unref(json_rtcp_report_blocks);
 			return NULL;
 		}
 	}
 
 	json_rtcp_report = ast_json_pack("{s: i, s: i, s: i, s: o, s: o}",
-			"ssrc", payload->report->ssrc,
-			"type", payload->report->type,
-			"report_count", payload->report->reception_report_count,
-			"sender_information", json_rtcp_sender_info ? ast_json_ref(json_rtcp_sender_info) : ast_json_ref(ast_json_null()),
-			"report_blocks", ast_json_ref(json_rtcp_report_blocks));
+		"ssrc", payload->report->ssrc,
+		"type", payload->report->type,
+		"report_count", payload->report->reception_report_count,
+		"sender_information", json_rtcp_sender_info ?: ast_json_null(),
+		"report_blocks", json_rtcp_report_blocks);
 	if (!json_rtcp_report) {
 		return NULL;
 	}
@@ -3153,14 +3154,15 @@ static struct ast_json *rtcp_report_to_json(struct stasis_message *msg,
 	if (payload->snapshot) {
 		json_channel = ast_channel_snapshot_to_json(payload->snapshot, sanitize);
 		if (!json_channel) {
+			ast_json_unref(json_rtcp_report);
 			return NULL;
 		}
 	}
 
 	return ast_json_pack("{s: o, s: o, s: o}",
-		"channel", payload->snapshot ? ast_json_ref(json_channel) : ast_json_ref(ast_json_null()),
-		"rtcp_report", ast_json_ref(json_rtcp_report),
-		"blob", ast_json_deep_copy(payload->blob));
+		"channel", payload->snapshot ? json_channel : ast_json_null(),
+		"rtcp_report", json_rtcp_report,
+		"blob", ast_json_deep_copy(payload->blob) ?: ast_json_null());
 }
 
 static void rtp_rtcp_report_dtor(void *obj)
