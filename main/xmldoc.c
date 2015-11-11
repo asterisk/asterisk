@@ -46,12 +46,7 @@ static const char default_documentation_language[] = "en_US";
 
 /*! \brief Number of columns to print when showing the XML documentation with a
  *         'core show application/function *' CLI command. Used in text wrapping.*/
-static const int xmldoc_text_columns = 74;
-
-/*! \brief This is a value that we will use to let the wrapping mechanism move the cursor
- *         backward and forward xmldoc_max_diff positions before cutting the middle of a
- *         word, trying to find a space or a \n. */
-static const int xmldoc_max_diff = 5;
+static const int xmldoc_text_columns = 79;
 
 /*! \brief XML documentation language. */
 static char documentation_language[6];
@@ -161,92 +156,20 @@ static void xmldoc_setpostbr(char *postbr, size_t len, const char *text)
 }
 
 /*! \internal
- *  \brief Try to find a space or a break in text starting at currentpost
- *         and moving at most maxdiff positions.
- *         Helper for xmldoc_string_wrap().
- *  \param text Input string where it will search.
- *  \param currentpos Current position within text.
- *  \param maxdiff Not move more than maxdiff inside text.
- *  \retval 1 if a space or break is found inside text while moving.
- *  \retval 0 if no space or break is found.
- */
-static int xmldoc_wait_nextspace(const char *text, int currentpos, int maxdiff)
-{
-	int i, textlen;
-
-	if (!text) {
-		return 0;
-	}
-
-	textlen = strlen(text);
-	for (i = currentpos; i < textlen; i++) {
-		if (text[i] == ESC) {
-			/* Move to the end of the escape sequence */
-			while (i < textlen && text[i] != 'm') {
-				i++;
-			}
-		} else if (text[i] == ' ' || text[i] == '\n') {
-			/* Found the next space or linefeed */
-			return 1;
-		} else if (i - currentpos > maxdiff) {
-			/* We have looked the max distance and didn't find it */
-			return 0;
-		}
-	}
-
-	/* Reached the end and did not find it */
-
-	return 0;
-}
-
-/*! \internal
- *  \brief Helper function for xmldoc_string_wrap().
- *	   Try to found a space or a break inside text moving backward
- *	   not more than maxdiff positions.
- *  \param text The input string where to search for a space.
- *  \param currentpos The current cursor position.
- *  \param maxdiff The max number of positions to move within text.
- *  \retval 0 If no space is found (Notice that text[currentpos] is not a space or a break)
- *  \retval > 0 If a space or a break is found, and the result is the position relative to
- *		currentpos.
- */
-static int xmldoc_foundspace_backward(const char *text, int currentpos, int maxdiff)
-{
-	int i;
-
-	for (i = currentpos; i > 0; i--) {
-		if (text[i] == ' ' || text[i] == '\n') {
-			return (currentpos - i);
-		} else if (text[i] == 'm' && (text[i - 1] >= '0' || text[i - 1] <= '9')) {
-			/* give up, we found the end of a possible ESC sequence. */
-			return 0;
-		} else if (currentpos - i > maxdiff) {
-			/* give up, we can't move anymore. */
-			return 0;
-		}
-	}
-
-	/* we found the beginning of the text */
-
-	return 0;
-}
-
-/*! \internal
  *  \brief Justify a text to a number of columns.
  *  \param text Input text to be justified.
  *  \param columns Number of columns to preserve in the text.
- *  \param maxdiff Try to not cut a word when goinf down.
  *  \retval NULL on error.
  *  \retval The wrapped text.
  */
-static char *xmldoc_string_wrap(const char *text, int columns, int maxdiff)
+static char *xmldoc_string_wrap(const char *text, int columns)
 {
 	struct ast_str *tmp;
 	char *ret, postbr[160];
-	int count = 1, i, backspace, needtobreak = 0, colmax, textlen;
+	int count, i, textlen, postbrlen, lastbreak;
 
 	/* sanity check */
-	if (!text || columns <= 0 || maxdiff < 0) {
+	if (!text || columns <= 0) {
 		ast_log(LOG_WARNING, "Passing wrong arguments while trying to wrap the text\n");
 		return NULL;
 	}
@@ -259,55 +182,44 @@ static char *xmldoc_string_wrap(const char *text, int columns, int maxdiff)
 
 	/* Check for blanks and tabs and put them in postbr. */
 	xmldoc_setpostbr(postbr, sizeof(postbr), text);
-	colmax = columns - xmldoc_postbrlen(postbr);
+	postbrlen = xmldoc_postbrlen(postbr);
+
+	count = 0;
+	lastbreak = 0;
 
 	textlen = strlen(text);
 	for (i = 0; i < textlen; i++) {
-		if (needtobreak || !(count % colmax)) {
-			if (text[i] == ' ') {
-				ast_str_append(&tmp, 0, "\n%s", postbr);
-				needtobreak = 0;
-				count = 1;
-			} else if (text[i] != '\n') {
-				needtobreak = 1;
-				if (xmldoc_wait_nextspace(text, i, maxdiff)) {
-					/* wait for the next space */
-					ast_str_append(&tmp, 0, "%c", text[i]);
-					continue;
-				}
-				/* Try to look backwards */
-				backspace = xmldoc_foundspace_backward(text, i, maxdiff);
-				if (backspace) {
-					needtobreak = 1;
-					ast_str_truncate(tmp, -backspace);
-					i -= backspace + 1;
-					continue;
-				}
-				ast_str_append(&tmp, 0, "\n%s", postbr);
-				needtobreak = 0;
-				count = 1;
-			}
-			/* skip blanks after a \n */
-			while (text[i] == ' ') {
-				i++;
-			}
-		}
 		if (text[i] == '\n') {
 			xmldoc_setpostbr(postbr, sizeof(postbr), &text[i] + 1);
-			colmax = columns - xmldoc_postbrlen(postbr);
-			needtobreak = 0;
-			count = 1;
-		}
-		if (text[i] == ESC) {
-			/* Ignore Escape sequences. */
+			postbrlen = xmldoc_postbrlen(postbr);
+			count = 0;
+			lastbreak = 0;
+		} else if (text[i] == ESC) {
+			/* Walk over escape sequences without counting them. */
 			do {
 				ast_str_append(&tmp, 0, "%c", text[i]);
 				i++;
 			} while (i < textlen && text[i] != 'm');
 		} else {
+			if (text[i] == ' ') {
+				lastbreak = i;
+			}
 			count++;
 		}
-		ast_str_append(&tmp, 0, "%c", text[i]);
+
+		if (count > columns) {
+			/* Seek backwards if it was at most 30 characters ago. */
+			int back = i - lastbreak;
+			if (lastbreak && back > 0 && back < 30) {
+				ast_str_truncate(tmp, -back);
+				i = lastbreak; /* go back a bit */
+			}
+			ast_str_append(&tmp, 0, "\n%s", postbr);
+			count = postbrlen;
+			lastbreak = 0;
+		} else {
+			ast_str_append(&tmp, 0, "%c", text[i]);
+		}
 	}
 
 	ret = ast_strdup(ast_str_buffer(tmp));
@@ -419,7 +331,7 @@ char *ast_xmldoc_printable(const char *bwinput, int withcolors)
 	}
 
 	/* Wrap the text, notice that string wrap will avoid cutting an ESC sequence. */
-	wrapped = xmldoc_string_wrap(ast_str_buffer(colorized), xmldoc_text_columns, xmldoc_max_diff);
+	wrapped = xmldoc_string_wrap(ast_str_buffer(colorized), xmldoc_text_columns);
 
 	ast_free(colorized);
 
