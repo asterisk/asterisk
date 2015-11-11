@@ -34,6 +34,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/logger.h"
 #include "asterisk/codec.h"
 #include "asterisk/format.h"
+#include "asterisk/format_cache.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/strings.h"
 #include "asterisk/module.h"
@@ -136,6 +137,7 @@ int __ast_format_interface_register(const char *codec, const struct ast_format_i
 {
 	SCOPED_AO2WRLOCK(lock, interfaces);
 	struct format_interface *format_interface;
+	struct ast_format *cached;
 
 	if (!interface->format_clone || !interface->format_destroy) {
 		ast_log(LOG_ERROR, "Format interface for codec '%s' does not implement required callbacks\n", codec);
@@ -156,6 +158,11 @@ int __ast_format_interface_register(const char *codec, const struct ast_format_i
 	}
 	format_interface->interface = interface;
 	strcpy(format_interface->codec, codec); /* Safe */
+
+	cached = ast_format_cache_get(codec);
+	if (cached) {
+		cached->interface = format_interface->interface;
+	}
 
 	/* Once registered a format interface cannot be unregistered. */
 	ast_module_shutdown_ref(mod);
@@ -283,14 +290,6 @@ struct ast_format *ast_format_attribute_set(const struct ast_format *format, con
 {
 	const struct ast_format_interface *interface = format->interface;
 
-	if (!interface) {
-		struct format_interface *format_interface = ao2_find(interfaces, format->codec->name, OBJ_SEARCH_KEY);
-		if (format_interface) {
-			interface = format_interface->interface;
-			ao2_ref(format_interface, -1);
-		}
-	}
-
 	if (!interface || !interface->format_attribute_set) {
 		return ao2_bump((struct ast_format*)format);
 	}
@@ -312,14 +311,6 @@ const void *ast_format_attribute_get(const struct ast_format *format, const char
 struct ast_format *ast_format_parse_sdp_fmtp(const struct ast_format *format, const char *attributes)
 {
 	const struct ast_format_interface *interface = format->interface;
-
-	if (!interface) {
-		struct format_interface *format_interface = ao2_find(interfaces, format->codec->name, OBJ_SEARCH_KEY);
-		if (format_interface) {
-			interface = format_interface->interface;
-			ao2_ref(format_interface, -1);
-		}
-	}
 
 	if (!interface || !interface->format_parse_sdp_fmtp) {
 		return ao2_bump((struct ast_format*)format);
