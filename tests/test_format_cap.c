@@ -245,7 +245,7 @@ AST_TEST_DEFINE(format_cap_append_all_unknown)
 	} else if (!ast_format_cap_has_type(caps, AST_MEDIA_TYPE_VIDEO)) {
 		ast_test_status_update(test, "Added all media formats but no video formats exist when they should\n");
 		return AST_TEST_FAIL;
-	} else if ((ast_format_cap_count(caps) + 1) != ast_codec_get_max()) {
+	} else if ((ast_format_cap_count(caps) + 1) != (ast_codec_get_max() - 1)) {
 		ast_test_status_update(test, "The number of formats in the capabilities structure does not match known number\n");
 		return AST_TEST_FAIL;
 	}
