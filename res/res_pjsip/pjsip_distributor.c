@@ -286,7 +286,9 @@ static pj_bool_t distributor(pjsip_rx_data *rdata)
 		 * some sort of terrible condition and don't need to be adding more work to the threadpool.
 		 * It's in our best interest to send back a 503 response and be done with it.
 		 */
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 503, NULL, NULL, NULL);
+		if (rdata->msg_info.msg->type == PJSIP_REQUEST_MSG) {
+			pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 503, NULL, NULL, NULL);
+		}
 		ao2_cleanup(clone->endpt_info.mod_data[endpoint_mod.id]);
 		pjsip_rx_data_free_cloned(clone);
 	} else {
