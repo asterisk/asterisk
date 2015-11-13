@@ -16125,7 +16125,8 @@ static int parse_reason_header(struct sip_pvt *pvt, struct sip_request *req)
 {
 	struct ast_channel *owner;
 	owner = pvt->owner;
-	int ret=FALSE;
+	int ret;
+	ret=FALSE;
 	if (owner) {
 		const char *rp = NULL, *rh = NULL;
 		ast_channel_hangupcause_set(owner, 0);
