@@ -36,10 +36,19 @@ Dialplan Functions
 
 res_pjsip_outbound_registration
 -------------------------------
-* A new 'fatal_retry_interval' option has been added to outbound registration.
-  When set (default is zero), and upon receiving a failure response to an
-  outbound registration, registration is retried at the given interval up to
-  'max_retries'.
+ * A new 'fatal_retry_interval' option has been added to outbound registration.
+   When set (default is zero), and upon receiving a failure response to an
+   outbound registration, registration is retried at the given interval up to
+   'max_retries'.
+
+ * If res_statsd is loaded and a StatsD server is configured, basic statistics
+   regarding the state of outbound registrations will now be emitted. This
+   includes:
+   - A GUAGE statistic for the overall number of outbound registrations, i.e.:
+       PJSIP.registrations.count
+   - A GUAGE statistic for the overall number of outbound registrations in a
+     particular state, e.g.:
+       PJSIP.registrations.state.Registered
 
 res_pjsip
 ------------------
