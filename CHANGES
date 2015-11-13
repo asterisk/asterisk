@@ -12,6 +12,13 @@
 --- Functionality changes from Asterisk 13.1.0-cert3 to Asterisk 13.1-cert4 --
 ------------------------------------------------------------------------------
 
+ConfBridge
+------------------
+ * A new "timeout" user profile option has been added. This configures the number
+   of seconds that a participant may stay in the ConfBridge after joining. When
+   the time expires, the user is ejected from the conference and CONFBRIDGE_RESULT
+   is set to "TIMEOUT" on the channel.
+
 AMI
 ------------------
  * Added the Linkedid header to the common channel headers listed for each
