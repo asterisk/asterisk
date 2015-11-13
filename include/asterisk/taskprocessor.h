@@ -56,6 +56,8 @@
 
 struct ast_taskprocessor;
 
+#define AST_TASKPROCESSOR_HIGH_WATER_LEVEL 500
+
 /*!
  * \brief ast_tps_options for specification of taskprocessor options
  *
