@@ -35,6 +35,7 @@
 #include "asterisk/stasis_system.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/threadpool.h"
+#include "asterisk/statsd.h"
 #include "res_pjsip/include/res_pjsip_private.h"
 
 /*** DOCUMENTATION
@@ -612,6 +613,19 @@ static void schedule_registration(struct sip_outbound_registration_client_state 
 	}
 }
 
+static void update_client_state_status(struct sip_outbound_registration_client_state *client_state, enum sip_outbound_registration_status status)
+{
+	if (client_state->status == status) {
+		return;
+	}
+
+	ast_statsd_log_string_va("PJSIP.registrations.state.%s", AST_STATSD_GUAGE, "-1", 1.0,
+		sip_outbound_registration_status_str(client_state->status));
+	ast_statsd_log_string_va("PJSIP.registrations.state.%s", AST_STATSD_GUAGE, "+1", 1.0,
+		sip_outbound_registration_status_str(status));
+	client_state->status = status;
+}
+
 /*! \brief Callback function for unregistering (potentially) and destroying state */
 static int handle_client_state_destruction(void *data)
 {
@@ -645,7 +659,7 @@ static int handle_client_state_destruction(void *data)
 				(int) info.server_uri.slen, info.server_uri.ptr,
 				(int) info.client_uri.slen, info.client_uri.ptr);
 
-			client_state->status = SIP_REGISTRATION_STOPPING;
+			update_client_state_status(client_state, SIP_REGISTRATION_STOPPING);
 			client_state->destroy = 1;
 			if (pjsip_regc_unregister(client_state->client, &tdata) == PJ_SUCCESS
 				&& registration_client_send(client_state, tdata) == PJ_SUCCESS) {
@@ -664,7 +678,7 @@ static int handle_client_state_destruction(void *data)
 		client_state->client = NULL;
 	}
 
-	client_state->status = SIP_REGISTRATION_STOPPED;
+	update_client_state_status(client_state, SIP_REGISTRATION_STOPPED);
 	ast_sip_auth_vector_destroy(&client_state->outbound_auths);
 	ao2_ref(client_state, -1);
 
@@ -726,7 +740,7 @@ static int sip_outbound_registration_is_temporal(unsigned int code,
 static void schedule_retry(struct registration_response *response, unsigned int interval,
 			   const char *server_uri, const char *client_uri)
 {
-	response->client_state->status = SIP_REGISTRATION_REJECTED_TEMPORARY;
+	update_client_state_status(response->client_state, SIP_REGISTRATION_REJECTED_TEMPORARY);
 	schedule_registration(response->client_state, interval);
 
 	if (response->rdata) {
@@ -800,7 +814,7 @@ static int handle_registration_response(void *data)
 
 			/* If the registration went fine simply reschedule registration for the future */
 			ast_debug(1, "Outbound registration to '%s' with client '%s' successful\n", server_uri, client_uri);
-			response->client_state->status = SIP_REGISTRATION_REGISTERED;
+			update_client_state_status(response->client_state, SIP_REGISTRATION_REGISTERED);
 			response->client_state->retries = 0;
 			next_registration_round = response->expiration - REREGISTER_BUFFER_TIME;
 			if (next_registration_round < 0) {
@@ -810,7 +824,7 @@ static int handle_registration_response(void *data)
 			schedule_registration(response->client_state, next_registration_round);
 		} else {
 			ast_debug(1, "Outbound unregistration to '%s' with client '%s' successful\n", server_uri, client_uri);
-			response->client_state->status = SIP_REGISTRATION_UNREGISTERED;
+			update_client_state_status(response->client_state, SIP_REGISTRATION_UNREGISTERED);
 		}
 	} else if (response->client_state->destroy) {
 		/* We need to deal with the pending destruction instead. */
@@ -821,7 +835,7 @@ static int handle_registration_response(void *data)
 		&& sip_outbound_registration_is_temporal(response->code, response->client_state)) {
 		if (response->client_state->retries == response->client_state->max_retries) {
 			/* If we received enough temporal responses to exceed our maximum give up permanently */
-			response->client_state->status = SIP_REGISTRATION_REJECTED_PERMANENT;
+			update_client_state_status(response->client_state, SIP_REGISTRATION_REJECTED_PERMANENT);
 			ast_log(LOG_WARNING, "Maximum retries reached when attempting outbound registration to '%s' with client '%s', stopping registration attempt\n",
 				server_uri, client_uri);
 		} else {
@@ -834,7 +848,7 @@ static int handle_registration_response(void *data)
 			&& response->client_state->forbidden_retry_interval
 			&& response->client_state->retries < response->client_state->max_retries) {
 			/* A forbidden response retry interval is configured and there are retries remaining */
-			response->client_state->status = SIP_REGISTRATION_REJECTED_TEMPORARY;
+			update_client_state_status(response->client_state, SIP_REGISTRATION_REJECTED_TEMPORARY);
 			response->client_state->retries++;
 			schedule_registration(response->client_state, response->client_state->forbidden_retry_interval);
 			ast_log(LOG_WARNING, "403 Forbidden fatal response received from '%s' on registration attempt to '%s', retrying in '%u' seconds\n",
@@ -842,14 +856,14 @@ static int handle_registration_response(void *data)
 		} else if (response->client_state->fatal_retry_interval
 			   && response->client_state->retries < response->client_state->max_retries) {
 			/* Some kind of fatal failure response received, so retry according to configured interval */
-			response->client_state->status = SIP_REGISTRATION_REJECTED_TEMPORARY;
+			update_client_state_status(response->client_state, SIP_REGISTRATION_REJECTED_TEMPORARY);
 			response->client_state->retries++;
 			schedule_registration(response->client_state, response->client_state->fatal_retry_interval);
 			ast_log(LOG_WARNING, "'%d' fatal response received from '%s' on registration attempt to '%s', retrying in '%u' seconds\n",
 				response->code, server_uri, client_uri, response->client_state->fatal_retry_interval);
 		} else {
 			/* Finally if there's no hope of registering give up */
-			response->client_state->status = SIP_REGISTRATION_REJECTED_PERMANENT;
+			update_client_state_status(response->client_state, SIP_REGISTRATION_REJECTED_PERMANENT);
 			if (response->rdata) {
 				ast_log(LOG_WARNING, "Fatal response '%d' received from '%s' on registration attempt to '%s', stopping outbound registration\n",
 					response->code, server_uri, client_uri);
@@ -934,7 +948,6 @@ static void sip_outbound_registration_state_destroy(void *obj)
 
 	ast_debug(3, "Destroying registration state for registration to server '%s' from client '%s'\n",
 			state->registration->server_uri, state->registration->client_uri);
-
 	ao2_cleanup(state->registration);
 
 	if (!state->client_state) {
@@ -952,6 +965,10 @@ static void sip_outbound_registration_state_destroy(void *obj)
 static void sip_outbound_registration_client_state_destroy(void *obj)
 {
 	struct sip_outbound_registration_client_state *client_state = obj;
+
+	ast_statsd_log_string("PJSIP.registrations.count", AST_STATSD_GUAGE, "-1", 1.0);
+	ast_statsd_log_string_va("PJSIP.registrations.state.%s", AST_STATSD_GUAGE, "-1", 1.0,
+		sip_outbound_registration_status_str(client_state->status));
 
 	ast_taskprocessor_unreference(client_state->serializer);
 }
@@ -980,6 +997,10 @@ static struct sip_outbound_registration_state *sip_outbound_registration_state_a
 	state->client_state->status = SIP_REGISTRATION_UNREGISTERED;
 	state->client_state->timer.user_data = state->client_state;
 	state->client_state->timer.cb = sip_outbound_registration_timer_cb;
+
+	ast_statsd_log_string("PJSIP.registrations.count", AST_STATSD_GUAGE, "+1", 1.0);
+	ast_statsd_log_string_va("PJSIP.registrations.state.%s", AST_STATSD_GUAGE, "+1", 1.0,
+		sip_outbound_registration_status_str(state->client_state->status));
 
 	state->registration = ao2_bump(registration);
 	return state;
@@ -2012,6 +2033,12 @@ static int load_module(void)
 	ast_manager_register_xml("PJSIPUnregister", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_unregister);
 	ast_manager_register_xml("PJSIPRegister", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_register);
 	ast_manager_register_xml("PJSIPShowRegistrationsOutbound", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_show_outbound_registrations);
+
+	/* Clear any previous statsd gauges in case we weren't shutdown cleanly */
+	ast_statsd_log("PJSIP.registrations.count", AST_STATSD_GUAGE, 0);
+	ast_statsd_log("PJSIP.registrations.state.Registered", AST_STATSD_GUAGE, 0);
+	ast_statsd_log("PJSIP.registrations.state.Unregistered", AST_STATSD_GUAGE, 0);
+	ast_statsd_log("PJSIP.registrations.state.Rejected", AST_STATSD_GUAGE, 0);
 
 	/* Load configuration objects */
 	ast_sorcery_load_object(ast_sip_get_sorcery(), "registration");
