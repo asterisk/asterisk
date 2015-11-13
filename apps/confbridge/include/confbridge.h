@@ -140,6 +140,8 @@ struct user_profile {
 	unsigned int talking_threshold;
 	/*! The time in ms of silence before a user is considered to be silent by the dsp. */
 	unsigned int silence_threshold;
+	/*! The time in ms the user may stay in the confbridge */
+	unsigned int timeout;
 };
 
 enum conf_sounds {

@@ -71,6 +71,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_bridges.h"
 #include "asterisk/json.h"
 #include "asterisk/format_cache.h"
+#include "asterisk/causes.h"
 
 /*** DOCUMENTATION
 	<application name="ConfBridge" language="en_US">
@@ -118,6 +119,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<value name="KICKED">The channel was kicked from the conference.</value>
 					<value name="ENDMARKED">The channel left the conference as a result of the last marked user leaving.</value>
 					<value name="DTMF">The channel pressed a DTMF sequence to exit the conference.</value>
+					<value name="TIMEOUT">The channel reached its configured timeout.</value>
 				</variable>
 			</variablelist>
 		</description>
@@ -1496,6 +1498,14 @@ static int conf_get_pin(struct ast_channel *chan, struct confbridge_user *user)
 	return -1;
 }
 
+static int user_timeout(struct ast_bridge_channel *bridge_channel, void *ignore)
+{
+	ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END,
+			AST_CAUSE_NORMAL_CLEARING);
+	pbx_builtin_setvar_helper(bridge_channel->chan, "CONFBRIDGE_RESULT", "TIMEOUT");
+	return -1;
+}
+
 static int conf_rec_name(struct confbridge_user *user, const char *conf_name)
 {
 	char destdir[PATH_MAX];
@@ -1728,6 +1738,16 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		ast_autoservice_start(chan);
 		play_sound_file(conference, join_sound);
 		ast_autoservice_stop(chan);
+	}
+
+	if (user.u_profile.timeout) {
+		ast_bridge_interval_hook(&user.features,
+			AST_BRIDGE_HOOK_TIMER_OPTION_MEDIA,
+			user.u_profile.timeout * 1000,
+			user_timeout,
+			NULL,
+			NULL,
+			AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 	}
 
 	/* See if we need to automatically set this user as a video source or not */
