@@ -137,6 +137,12 @@ type=user
                        ; This option is off by default.
 ;announcement=</path/to/file> ; Play a sound file to the user when they join the conference.
 
+;timeout=3600 ; When set non-zero, this specifies the number of seconds that the participant
+              ; may stay in the conference before being automatically ejected. When the user
+              ; is ejected from the conference, the user's channel will have the CONFBRIDGE_RESULT
+              ; variable set to "TIMEOUT". A value of 0 indicates that there is no timeout.
+              ; Default: 0
+
 ; --- ConfBridge Bridge Profile Options ---
 [default_bridge]
 type=bridge
