@@ -245,7 +245,7 @@ static pjsip_module endpoint_mod = {
 	.on_rx_request = endpoint_lookup,
 };
 
-#define SIP_MAX_QUEUE 500L
+#define SIP_MAX_QUEUE (AST_TASKPROCESSOR_HIGH_WATER_LEVEL * 3)
 
 static pj_bool_t distributor(pjsip_rx_data *rdata)
 {
