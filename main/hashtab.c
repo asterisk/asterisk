@@ -745,6 +745,8 @@ struct ast_hashtab_iter *ast_hashtab_start_write_traversal(struct ast_hashtab *t
 
 void ast_hashtab_end_traversal(struct ast_hashtab_iter *it)
 {
+	if (!it)
+		return;
 	if (it->tab->do_locking)
 		ast_rwlock_unlock(&it->tab->lock);
 	free(it);
