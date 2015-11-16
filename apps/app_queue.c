@@ -6500,7 +6500,6 @@ static int try_calling(struct queue_ent *qe, struct ast_flags opts, char **opt_a
 		ast_test_flag(&(bridge_config.features_caller), AST_FEATURE_DISCONNECT),
 		forwardsallowed, ringing);
 
-	ast_channel_unlock(qe->chan);
 	ao2_lock(qe->parent);
 	if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY || qe->parent->strategy == QUEUE_STRATEGY_RRORDERED) {
 		store_next_rr(qe, outgoing);
