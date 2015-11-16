@@ -482,7 +482,7 @@ static int dns_parse_answer_ex(void *context, int rr_class, int rr_type, unsigne
 
 		/* Try and update the field to the next record, but ignore any errors that come
 		 * back because this may be the end of the line. */
-		pos = dns_advance_field(&answer, pos, res + ntohs(ans->size));
+		pos = dns_advance_field(&answer, pos, ntohs(ans->size));
 	}
 
 	return ret;
