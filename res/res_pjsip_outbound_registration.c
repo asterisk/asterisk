@@ -335,6 +335,8 @@ struct sip_outbound_registration_client_state {
 	unsigned int auth_rejection_permanent;
 	/*! \brief Determines whether SIP Path support should be advertised */
 	unsigned int support_path;
+	/*! CSeq number of last sent auth request. */
+	unsigned int auth_cseq;
 	/*! \brief Serializer for stuff and things */
 	struct ast_taskprocessor *serializer;
 	/*! \brief Configured authentication credentials */
@@ -758,15 +760,27 @@ static int handle_registration_response(void *data)
 	ast_debug(1, "Processing REGISTER response %d from server '%s' for client '%s'\n",
 			response->code, server_uri, client_uri);
 
-	if (!response->client_state->auth_attempted &&
-			(response->code == 401 || response->code == 407)) {
+	if ((response->code == 401 || response->code == 407)
+		&& (!response->client_state->auth_attempted
+			|| response->rdata->msg_info.cseq->cseq != response->client_state->auth_cseq)) {
+		int res;
+		pjsip_cseq_hdr *cseq_hdr;
 		pjsip_tx_data *tdata;
+
 		if (!ast_sip_create_request_with_auth_from_old(&response->client_state->outbound_auths,
 				response->rdata, response->old_request, &tdata)) {
 			response->client_state->auth_attempted = 1;
 			ast_debug(1, "Sending authenticated REGISTER to server '%s' from client '%s'\n",
 					server_uri, client_uri);
-			if (registration_client_send(response->client_state, tdata) == PJ_SUCCESS) {
+			pjsip_tx_data_add_ref(tdata);
+			res = registration_client_send(response->client_state, tdata);
+
+			/* Save the cseq that actually got sent. */
+			cseq_hdr = (pjsip_cseq_hdr *) pjsip_msg_find_hdr(tdata->msg, PJSIP_H_CSEQ,
+				NULL);
+			response->client_state->auth_cseq = cseq_hdr->cseq;
+			pjsip_tx_data_dec_ref(tdata);
+			if (res == PJ_SUCCESS) {
 				ao2_ref(response, -1);
 				return 0;
 			}
