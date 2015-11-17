@@ -1399,7 +1399,7 @@ static char *remove_uri_parameters(char *uri);
 static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoing_req);
 static int get_also_info(struct sip_pvt *p, struct sip_request *oreq);
 static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req);
-static int parse_reason_header(struct sip_pvt *pvt, struct sip_request *req);
+static int use_reason_header(struct sip_pvt *pvt, struct sip_request *req);
 static int set_address_from_contact(struct sip_pvt *pvt);
 static void check_via(struct sip_pvt *p, const struct sip_request *req);
 static int get_rpid(struct sip_pvt *p, struct sip_request *oreq);
@@ -16112,34 +16112,36 @@ static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req)
 	return TRUE;
 }
 
-/*! \brief Parses SIP reason header according to RFC3326 and sets channel's hangupcause if configured so
+/*!
+ * \brief Parses SIP reason header according to RFC3326 and sets channel's hangupcause if configured so
  *  and header present
  *
  * \note This is used in BYE and CANCEL request and SIP response, but according to RFC3326 it could
  *       appear in any request, but makes not a lot of sense in others than BYE or CANCEL.
  *       Currently only implemented for Q.850 status codes.
- * \retval TRUE success
- * \retval FALSE on failure or if not configured
+ * \retval 0 success
+ * \retval -1 on failure or if not configured
  */
-static int parse_reason_header(struct sip_pvt *pvt, struct sip_request *req)
+static int use_reason_header(struct sip_pvt *pvt, struct sip_request *req)
 {
-	struct ast_channel *owner;
-	owner = pvt->owner;
 	int ret;
-	ret=FALSE;
-	if (owner) {
-		const char *rp = NULL, *rh = NULL;
-		ast_channel_hangupcause_set(owner, 0);
-		if (ast_test_flag(&pvt->flags[1], SIP_PAGE2_Q850_REASON) && (rh = sip_get_header(req, "Reason"))) {
-			rh = ast_skip_blanks(rh);
-			if (!strncasecmp(rh, "Q.850", 5)) {
-				int cause = ast_channel_hangupcause(owner);
-				rp = strstr(rh, "cause=");
-				if (rp && sscanf(rp + 6, "%3d", &cause) == 1) {
-					ret=TRUE;
-					ast_channel_hangupcause_set(owner, cause & 0x7f);
-					if (req->debug)
-						ast_verbose("Using Reason header for cause code: %d\n", ast_channel_hangupcause(owner));
+	const char *rp, *rh;
+
+	if (!pvt->owner) {
+		return -1;
+	}
+
+	ret = -1;
+	if (ast_test_flag(&pvt->flags[1], SIP_PAGE2_Q850_REASON) && (rh = sip_get_header(req, "Reason"))) {
+		rh = ast_skip_blanks(rh);
+		if (!strncasecmp(rh, "Q.850", 5)) {
+			int cause = ast_channel_hangupcause(pvt->owner);
+			rp = strstr(rh, "cause=");
+			if (rp && sscanf(rp + 6, "%3d", &cause) == 1) {
+				ret=0;
+				ast_channel_hangupcause_set(pvt->owner, cause & 0x7f);
+				if (req->debug) {
+					ast_verbose("Using Reason header for cause code: %d\n", ast_channel_hangupcause(pvt->owner));
 				}
 			}
 		}
@@ -24133,11 +24135,12 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 		msg = "";
 
 	sipmethod = find_sip_method(msg);
-
 	owner = p->owner;
 	if (owner) {
-		if (!parse_reason_header(p, req))
+		if (use_reason_header(p, req) != 0) {
+			/* Use the SIP cause */
 			ast_channel_hangupcause_set(owner, hangup_sip2cause(resp));
+		}
 	}
 
 	if (p->socket.type == AST_TRANSPORT_UDP) {
@@ -26429,8 +26432,8 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 		return 0;
 	}
 
-	parse_reason_header(p, req);
-	
+	use_reason_header(p, req);
+
 	/* At this point, we could have cancelled the invite at the same time
 	   as the other side sends a CANCEL. Our final reply with error code
 	   might not have been received by the other side before the CANCEL
@@ -26447,8 +26450,7 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 
 	stop_media_flows(p); /* Immediately stop RTP, VRTP and UDPTL as applicable */
 	if (p->owner) {
-		int cause = ast_channel_hangupcause(p->owner);
-		sip_queue_hangup_cause(p, cause);
+		sip_queue_hangup_cause(p, ast_channel_hangupcause(p->owner));
 	} else {
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	}
@@ -26627,7 +26629,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 		stop_session_timer(p); /* Stop Session-Timer */
 	}
 
-	parse_reason_header(p, req);
+	use_reason_header(p, req);
 	if (!ast_strlen_zero(sip_get_header(req, "Also"))) {
 		ast_log(LOG_NOTICE, "Client '%s' using deprecated BYE/Also transfer method.  Ask vendor to support REFER instead\n",
 			ast_sockaddr_stringify(&p->recv));
@@ -26668,8 +26670,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 				ast_queue_hangup_with_cause(p->owner, AST_CAUSE_PROTOCOL_ERROR);
 		}
 	} else if (p->owner) {
-		int cause = ast_channel_hangupcause(p->owner);
-		sip_queue_hangup_cause(p, cause);
+		sip_queue_hangup_cause(p, ast_channel_hangupcause(p->owner));
 		sip_scheddestroy_final(p, DEFAULT_TRANS_TIMEOUT);
 		ast_debug(3, "Received bye, issuing owner hangup\n");
 	} else {
