@@ -3155,9 +3155,11 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 		char errmsg[PJ_ERR_MSG_SIZE];
 
 		if (timeout > 0) {
-			pj_timer_heap_cancel_if_active(pjsip_endpt_get_timer_heap(endpt),
+			int timers_cancelled = pj_timer_heap_cancel_if_active(pjsip_endpt_get_timer_heap(endpt),
 				req_wrapper->timeout_timer, TIMER_INACTIVE);
-			ao2_ref(req_wrapper, -1);
+			if (timers_cancelled > 0) {
+				ao2_ref(req_wrapper, -1);
+			}
 		}
 
 		/* Complain of failure to send the request. */
