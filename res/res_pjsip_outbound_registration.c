@@ -786,11 +786,18 @@ static int handle_registration_response(void *data)
 	if (PJSIP_IS_STATUS_IN_CLASS(response->code, 200)) {
 		/* Check if this is in regards to registering or unregistering */
 		if (response->expiration) {
+			int next_registration_round;
+
 			/* If the registration went fine simply reschedule registration for the future */
 			ast_debug(1, "Outbound registration to '%s' with client '%s' successful\n", server_uri, client_uri);
 			response->client_state->status = SIP_REGISTRATION_REGISTERED;
 			response->client_state->retries = 0;
-			schedule_registration(response->client_state, response->expiration - REREGISTER_BUFFER_TIME);
+			next_registration_round = response->expiration - REREGISTER_BUFFER_TIME;
+			if (next_registration_round < 0) {
+				/* Re-register immediately. */
+				next_registration_round = 0;
+			}
+			schedule_registration(response->client_state, next_registration_round);
 		} else {
 			ast_debug(1, "Outbound unregistration to '%s' with client '%s' successful\n", server_uri, client_uri);
 			response->client_state->status = SIP_REGISTRATION_UNREGISTERED;
