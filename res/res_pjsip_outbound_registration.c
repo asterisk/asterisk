@@ -215,6 +215,9 @@
 /*! \brief Some thread local storage used to determine if the running thread invoked the callback */
 AST_THREADSTORAGE(register_callback_invoked);
 
+/*! \brief Max attempts to authenticate per registration round. */
+#define MAX_AUTH_ATTEMPTS 3
+
 /*! \brief Amount of buffer time (in seconds) before expiration that we re-register at */
 #define REREGISTER_BUFFER_TIME 10
 
@@ -335,14 +338,14 @@ struct sip_outbound_registration_client_state {
 	unsigned int auth_rejection_permanent;
 	/*! \brief Determines whether SIP Path support should be advertised */
 	unsigned int support_path;
+	/*! \brief Number of times we have sent a REGISTER with authentication for this round */
+	unsigned int auth_attempted;
 	/*! \brief Serializer for stuff and things */
 	struct ast_taskprocessor *serializer;
 	/*! \brief Configured authentication credentials */
 	struct ast_sip_auth_vector outbound_auths;
 	/*! \brief Registration should be destroyed after completion of transaction */
 	unsigned int destroy:1;
-	/*! \brief Non-zero if we have attempted sending a REGISTER with authentication */
-	unsigned int auth_attempted:1;
 };
 
 /*! \brief Outbound registration state information (persists for lifetime that registration should exist) */
@@ -758,12 +761,13 @@ static int handle_registration_response(void *data)
 	ast_debug(1, "Processing REGISTER response %d from server '%s' for client '%s'\n",
 			response->code, server_uri, client_uri);
 
-	if (!response->client_state->auth_attempted &&
-			(response->code == 401 || response->code == 407)) {
+	if ((response->code == 401 || response->code == 407)
+		&& response->client_state->auth_attempted < MAX_AUTH_ATTEMPTS) {
 		pjsip_tx_data *tdata;
+
 		if (!ast_sip_create_request_with_auth(&response->client_state->outbound_auths,
 				response->rdata, response->old_request, &tdata)) {
-			response->client_state->auth_attempted = 1;
+			++response->client_state->auth_attempted;
 			ast_debug(1, "Sending authenticated REGISTER to server '%s' from client '%s'\n",
 					server_uri, client_uri);
 			if (registration_client_send(response->client_state, tdata) == PJ_SUCCESS) {
