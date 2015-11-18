@@ -160,6 +160,54 @@ void AST_OPTIONAL_API_NAME(ast_statsd_log_full)(const char *metric_name,
 
 }
 
+AST_THREADSTORAGE(statsd_buf);
+
+void AST_OPTIONAL_API_NAME(ast_statsd_log_string_va)(const char *metric_name,
+	const char *metric_type, const char *value, double sample_rate, ...)
+{
+	struct ast_str *buf;
+	va_list ap;
+	int res;
+
+	buf = ast_str_thread_get(&statsd_buf, 128);
+	if (!buf) {
+		return;
+	}
+
+	va_start(ap, sample_rate);
+	res = ast_str_set_va(&buf, 0, metric_name, ap);
+	va_end(ap);
+
+	if (res == AST_DYNSTR_BUILD_FAILED) {
+		return;
+	}
+
+	ast_statsd_log_string(ast_str_buffer(buf), metric_type, value, sample_rate);
+}
+
+void AST_OPTIONAL_API_NAME(ast_statsd_log_full_va)(const char *metric_name,
+	const char *metric_type, intmax_t value, double sample_rate, ...)
+{
+	struct ast_str *buf;
+	va_list ap;
+	int res;
+
+	buf = ast_str_thread_get(&statsd_buf, 128);
+	if (!buf) {
+		return;
+	}
+
+	va_start(ap, sample_rate);
+	res = ast_str_set_va(&buf, 0, metric_name, ap);
+	va_end(ap);
+
+	if (res == AST_DYNSTR_BUILD_FAILED) {
+		return;
+	}
+
+	ast_statsd_log_full(ast_str_buffer(buf), metric_type, value, sample_rate);
+}
+
 void AST_OPTIONAL_API_NAME(ast_statsd_log)(const char *metric_name,
 	const char *metric_type, intmax_t value)
 {
