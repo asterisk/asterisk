@@ -15,6 +15,11 @@
 Applications
 ------------------
 
+BridgeAdd
+------------------
+ * A new application in Asterisk, this will join the calling channel
+   to an existing bridge containing the named channel prefix.
+
 ConfBridge
 ------------------
  * Added the ability to pass options to MixMonitor when recording is used with
