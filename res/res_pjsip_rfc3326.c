@@ -32,6 +32,7 @@
 #include "asterisk/res_pjsip_session.h"
 #include "asterisk/module.h"
 #include "asterisk/causes.h"
+#include "asterisk/threadpool.h"
 
 static void rfc3326_use_reason_header(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
 {
@@ -101,9 +102,15 @@ static void rfc3326_add_reason_header(struct ast_sip_session *session, struct pj
 
 static void rfc3326_outgoing_request(struct ast_sip_session *session, struct pjsip_tx_data *tdata)
 {
-	if ((pjsip_method_cmp(&tdata->msg->line.req.method, &pjsip_bye_method) &&
-	     pjsip_method_cmp(&tdata->msg->line.req.method, &pjsip_cancel_method)) ||
-	    !session->channel) {
+	if ((pjsip_method_cmp(&tdata->msg->line.req.method, &pjsip_bye_method)
+			&& pjsip_method_cmp(&tdata->msg->line.req.method, &pjsip_cancel_method))
+		|| !session->channel
+		/*
+		 * The session->channel has been seen to go away on us between
+		 * checks so we must also be running under the call's serializer
+		 * thread.
+		 */
+		|| session->serializer != ast_threadpool_serializer_get_current()) {
 		return;
 	}
 
@@ -114,7 +121,9 @@ static void rfc3326_outgoing_response(struct ast_sip_session *session, struct pj
 {
 	struct pjsip_status_line status = tdata->msg->line.status;
 
-	if ((status.code < 300) || !session->channel) {
+	if (status.code < 300
+		|| !session->channel
+		|| session->serializer != ast_threadpool_serializer_get_current()) {
 		return;
 	}
 
