@@ -243,6 +243,18 @@ func_callerid
    The same applies to CONNECTEDLINE(pres), REDIRECTING(orig-pres),
    REDIRECTING(to-pres) and REDIRECTING(from-pres).
 
+res_endpoint_stats
+-------------------
+ * A new module that emits StatsD statistics regarding Asterisk endpoints.
+   This includes a total count of the number of endpoints, the count of the
+   number of endpoints in the technology agnosti state of the endpoint -
+   online or offline - as well as the number of channels associated with each
+   endpoint. These are recorded as three differeng GUAGE statistics:
+    - endpoints.count
+    - endpoints.state.{unknown|offline|online}
+    - endpoints.{tech}.{resource}.channels
+
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.5.0 to Asterisk 13.6.0 ------------
 ------------------------------------------------------------------------------
