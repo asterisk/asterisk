@@ -26,6 +26,7 @@
 #include "asterisk/sorcery.h"
 #include "include/res_pjsip_private.h"
 #include "asterisk/res_pjsip_cli.h"
+#include "asterisk/statsd.h"
 
 /*! \brief Destructor for AOR */
 static void aor_destroy(void *obj)
@@ -940,6 +941,8 @@ static int contact_apply_handler(const struct ast_sorcery *sorcery, void *object
 int ast_sip_initialize_sorcery_location(void)
 {
 	struct ast_sorcery *sorcery = ast_sip_get_sorcery();
+	int i;
+
 	ast_sorcery_apply_default(sorcery, "contact", "astdb", "registrar");
 	ast_sorcery_apply_default(sorcery, "aor", "config", "pjsip.conf,criteria=type=aor");
 
@@ -1005,6 +1008,15 @@ int ast_sip_initialize_sorcery_location(void)
 	ast_sip_register_cli_formatter(contact_formatter);
 	ast_sip_register_cli_formatter(aor_formatter);
 	ast_cli_register_multiple(cli_commands, ARRAY_LEN(cli_commands));
+
+	/*
+	 * Reset StatsD gauges in case we didn't shut down cleanly.
+	 * Note that this must done here, as contacts will create the contact_status
+	 * object before PJSIP options handling is initialized.
+	 */
+	for (i = 0; i < REMOVED; i++) {
+		ast_statsd_log_full_va("PJSIP.contacts.states.%s", AST_STATSD_GUAGE, 0, 1.0, ast_sip_get_contact_status_label(i));
+	}
 
 	return 0;
 }
