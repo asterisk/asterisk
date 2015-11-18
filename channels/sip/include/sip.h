@@ -212,6 +212,7 @@
 #define DEFAULT_REALM          "asterisk" /*!< Realm for HTTP digest authentication */
 #define DEFAULT_DOMAINSASREALM FALSE    /*!< Use the domain option to guess the realm for registration and invite requests */
 #define DEFAULT_NOTIFYRINGING  TRUE     /*!< Notify devicestate system on ringing state */
+#define DEFAULT_NOTIFYRINGINGPRIO TRUE  /*!< Ringing notifications trump busy notifications */
 #define DEFAULT_NOTIFYCID      DISABLED	/*!< Include CID with ringing notifications */
 #define DEFAULT_PEDANTIC       TRUE     /*!< Follow SIP standards for dialog matching */
 #define DEFAULT_AUTOCREATEPEER AUTOPEERS_DISABLED    /*!< Don't create peers automagically */
@@ -757,6 +758,7 @@ struct sip_settings {
 	char messagecontext[AST_MAX_CONTEXT];  /*!< Default context for out of dialog msgs. */
 	unsigned int disallowed_methods;   /*!< methods that we should never try to use */
 	int notifyringing;          /*!< Send notifications on ringing */
+	int notifyringingprio;      /*!< Ringing notifications trump busy notifications */
 	int notifyhold;             /*!< Send notifications on hold */
 	enum notifycid_setting notifycid;  /*!< Send CID with ringing notifications */
 	enum transfermodes allowtransfer;  /*!< SIP Refer restriction scheme */
