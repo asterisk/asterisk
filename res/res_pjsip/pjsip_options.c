@@ -29,6 +29,7 @@
 #include "asterisk/cli.h"
 #include "asterisk/time.h"
 #include "asterisk/test.h"
+#include "asterisk/statsd.h"
 #include "include/res_pjsip_private.h"
 
 #define DEFAULT_LANGUAGE "en"
@@ -113,6 +114,9 @@ struct ast_sip_contact_status *ast_res_pjsip_find_or_create_contact_status(const
 		return NULL;
 	}
 
+	ast_statsd_log_string_va("PJSIP.contacts.states.%s", AST_STATSD_GUAGE,
+		"+1", 1.0, ast_sip_get_contact_status_label(status->status));
+
 	return status;
 }
 
@@ -143,6 +147,12 @@ static void update_contact_status(const struct ast_sip_contact *contact,
 
 	update->last_status = status->status;
 	update->status = value;
+	if (update->last_status != update->status) {
+		ast_statsd_log_string_va("PJSIP.contacts.states.%s", AST_STATSD_GUAGE,
+			"-1", 1.0, ast_sip_get_contact_status_label(update->last_status));
+		ast_statsd_log_string_va("PJSIP.contacts.states.%s", AST_STATSD_GUAGE,
+			"+1", 1.0, ast_sip_get_contact_status_label(update->status));
+	}
 
 	/* if the contact is available calculate the rtt as
 	   the diff between the last start time and "now" */
@@ -151,10 +161,12 @@ static void update_contact_status(const struct ast_sip_contact *contact,
 
 	update->rtt_start = ast_tv(0, 0);
 
+	ast_statsd_log_full_va("PJSIP.contacts.%s.rtt", AST_STATSD_TIMER,
+		update->rtt / 1000, 1.0, ast_sorcery_object_get_id(update));
 	ast_test_suite_event_notify("AOR_CONTACT_QUALIFY_RESULT",
 		"Contact: %s\r\n"
-			"Status: %s\r\n"
-			"RTT: %" PRId64,
+		"Status: %s\r\n"
+		"RTT: %" PRId64,
 		ast_sorcery_object_get_id(update),
 		ast_sip_get_contact_status_label(update->status),
 		update->rtt);
