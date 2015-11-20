@@ -43,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/channel.h"
 #include "asterisk/dns.h"
+#include "asterisk/dns_cache.h"
 #include "asterisk/endian.h"
 
 #define MAX_SIZE 4096
@@ -262,6 +263,11 @@ int ast_search_dns(void *context,
 	unsigned char answer[MAX_SIZE];
 	int res, ret = -1;
 
+	if (!ast_dns_cache_check(dname)) {
+		/* If the domain name exists negatively in the cache return failure */
+		return -1;
+	}
+
 #ifdef HAVE_RES_NINIT
 	memset(&dnsstate, 0, sizeof(dnsstate));
 	res_ninit(&dnsstate);
@@ -281,6 +287,7 @@ int ast_search_dns(void *context,
 		} else
 			ret = 1;
 	}
+
 #ifdef HAVE_RES_NINIT
 #ifdef HAVE_RES_NDESTROY
 	res_ndestroy(&dnsstate);
@@ -293,6 +300,14 @@ int ast_search_dns(void *context,
 #endif
 	ast_mutex_unlock(&res_lock);
 #endif
+
+	if (res > 0) {
+		/* Domain was resolved, so remove from cache (if it exists in it) */
+		ast_dns_cache_delete(dname);
+	} else {
+		/* Domain was not resolved, so add to or update the cache */
+		ast_dns_cache_add_or_update(dname);
+	}
 
 	return ret;
 }
