@@ -236,7 +236,7 @@ static struct ast_format *h264_parse_sdp_fmtp(const struct ast_format *format, c
 	if (field != H264_ATTR_KEY_UNSET) {	\
 		if (added) {	\
 			ast_str_append(str, 0, ";");	\
-		} else {	\
+		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {	\
 			added = 1;	\
 		}	\
 		ast_str_append(str, 0, "%s=%u", name, field);	\
@@ -247,7 +247,7 @@ static struct ast_format *h264_parse_sdp_fmtp(const struct ast_format *format, c
 	if (field) {	\
 		if (added) {	\
 			ast_str_append(str, 0, ";");	\
-		} else {	\
+		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {	\
 			added = 1;	\
 		}	\
 		ast_str_append(str, 0, "%s=%u", name, field);	\
@@ -262,8 +262,6 @@ static void h264_generate_sdp_fmtp(const struct ast_format *format, unsigned int
 	if (!attr) {
 		return;
 	}
-
-	ast_str_append(str, 0, "a=fmtp:%u ", payload);
 
 	APPEND_IF_NONZERO(attr->MAX_MBPS, str, "max-mbps");
 	APPEND_IF_NONZERO(attr->MAX_FS, str, "max-fs");
@@ -287,7 +285,7 @@ static void h264_generate_sdp_fmtp(const struct ast_format *format, unsigned int
 	if (attr->PROFILE_IDC && attr->PROFILE_IOP && attr->LEVEL) {
 		if (added) {
 			ast_str_append(str, 0, ";");
-		} else {
+		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {
 			added = 1;
 		}
 		ast_str_append(str, 0, "profile-level-id=%02X%02X%02X", attr->PROFILE_IDC, attr->PROFILE_IOP, attr->LEVEL);
@@ -296,15 +294,13 @@ static void h264_generate_sdp_fmtp(const struct ast_format *format, unsigned int
 	if (!ast_strlen_zero(attr->SPS) && !ast_strlen_zero(attr->PPS)) {
 		if (added) {
 			ast_str_append(str, 0, ";");
-		} else {
+		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {
 			added = 1;
 		}
-		ast_str_append(str, 0, ";sprop-parameter-sets=%s,%s", attr->SPS, attr->PPS);
+		ast_str_append(str, 0, "sprop-parameter-sets=%s,%s", attr->SPS, attr->PPS);
 	}
 
-	if (!added) {
-		ast_str_reset(*str);
-	} else {
+	if (added) {
 		ast_str_append(str, 0, "\r\n");
 	}
 
