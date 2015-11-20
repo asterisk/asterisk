@@ -1846,6 +1846,13 @@ static void registration_loaded_observer(const char *name, const struct ast_sorc
 		return;
 	}
 
+	/*
+	 * Refresh the current configured registrations. We don't need to hold
+	 * onto the objects, as the apply handler will cause their states to
+	 * be created appropriately.
+	 */
+	ao2_cleanup(get_registrations());
+
 	/* Now to purge dead registrations. */
 	ao2_callback(states, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, check_state, NULL);
 	ao2_ref(states, -1);
