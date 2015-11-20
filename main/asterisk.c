@@ -4487,6 +4487,11 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+	if (ast_dns_cache_create()) {
+		printf("Failed: ast_dns_negative_cache_create\n%s", term_quit());
+		exit(1);
+	}
+
 	threadstorage_init();
 
 	if (ast_rtp_engine_init()) {
