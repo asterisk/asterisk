@@ -18815,7 +18815,7 @@ static void check_via(struct sip_pvt *p, const struct sip_request *req)
 	c = strchr(via, ' ');
 	if (c) {
 		*c = '\0';
-		c = ast_skip_blanks(c+1);
+		c = ast_strip(c+1);
 		if (strcasecmp(via, "SIP/2.0/UDP") && strcasecmp(via, "SIP/2.0/TCP") && strcasecmp(via, "SIP/2.0/TLS")) {
 			ast_log(LOG_WARNING, "Don't know how to respond via '%s'\n", via);
 			return;
