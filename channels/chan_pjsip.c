@@ -162,8 +162,15 @@ static enum ast_rtp_glue_result chan_pjsip_get_rtp_peer(struct ast_channel *chan
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
 	struct chan_pjsip_pvt *pvt;
 	struct ast_sip_endpoint *endpoint;
+	struct ast_datastore *datastore;
 
 	if (!channel || !channel->session || !(pvt = channel->pvt) || !pvt->media[SIP_MEDIA_AUDIO]->rtp) {
+		return AST_RTP_GLUE_RESULT_FORBID;
+	}
+
+	datastore = ast_sip_session_get_datastore(channel->session, "t38");
+	if (datastore) {
+		ao2_ref(datastore, -1);
 		return AST_RTP_GLUE_RESULT_FORBID;
 	}
 
