@@ -33,28 +33,36 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/module.h"
 #include "asterisk/format.h"
+#include "asterisk/logger.h"            /* for ast_log, LOG_WARNING */
+#include "asterisk/strings.h"           /* for ast_str_append */
+#include "asterisk/utils.h"             /* for MIN, ast_malloc, ast_free */
 
 /*!
  * \brief Opus attribute structure.
  *
- * \note http://tools.ietf.org/html/draft-ietf-payload-rtp-opus-00.
+ * \note http://tools.ietf.org/html/rfc7587#section-6
  */
 struct opus_attr {
-	unsigned int maxbitrate;	        /* Default 64-128 kb/s for FB stereo music */
-	unsigned int maxplayrate	        /* Default 48000 */;
-	unsigned int minptime;	            /* Default 3, but it's 10 in format.c */
-	unsigned int stereo;	            /* Default 0 */
-	unsigned int cbr;	                /* Default 0 */
-	unsigned int fec;	                /* Default 0 */
-	unsigned int dtx;	                /* Default 0 */
-	unsigned int spropmaxcapturerate;	/* Default 48000 */
-	unsigned int spropstereo;	        /* Default 0 */
+	unsigned int maxbitrate;
+	unsigned int maxplayrate;
+	unsigned int unused; /* was minptime, kept for binary compatibility */
+	unsigned int stereo;
+	unsigned int cbr;
+	unsigned int fec;
+	unsigned int dtx;
+	unsigned int spropmaxcapturerate;
+	unsigned int spropstereo;
 };
 
 static struct opus_attr default_opus_attr = {
-	.fec    = 0,
-	.dtx    = 0,
-	.stereo = 0,
+	.maxplayrate         = 48000,
+	.spropmaxcapturerate = 48000,
+	.maxbitrate          = 510000,
+	.stereo              = 0,
+	.spropstereo         = 0,
+	.cbr                 = 0,
+	.fec                 = 1,
+	.dtx                 = 0,
 };
 
 static void opus_destroy(struct ast_format *format)
@@ -67,7 +75,7 @@ static void opus_destroy(struct ast_format *format)
 static int opus_clone(const struct ast_format *src, struct ast_format *dst)
 {
 	struct opus_attr *original = ast_format_get_attribute_data(src);
-	struct opus_attr *attr = ast_calloc(1, sizeof(*attr));
+	struct opus_attr *attr = ast_malloc(sizeof(*attr));
 
 	if (!attr) {
 		return -1;
@@ -75,6 +83,8 @@ static int opus_clone(const struct ast_format *src, struct ast_format *dst)
 
 	if (original) {
 		*attr = *original;
+	} else {
+		*attr = default_opus_attr;
 	}
 
 	ast_format_set_attribute_data(dst, attr);
@@ -97,33 +107,54 @@ static struct ast_format *opus_parse_sdp_fmtp(const struct ast_format *format, c
 
 	if ((kvp = strstr(attributes, "maxplaybackrate")) && sscanf(kvp, "maxplaybackrate=%30u", &val) == 1) {
 		attr->maxplayrate = val;
+	} else {
+		attr->maxplayrate = 48000;
 	}
+
 	if ((kvp = strstr(attributes, "sprop-maxcapturerate")) && sscanf(kvp, "sprop-maxcapturerate=%30u", &val) == 1) {
 		attr->spropmaxcapturerate = val;
+	} else {
+		attr->spropmaxcapturerate = 48000;
 	}
-	if ((kvp = strstr(attributes, "minptime")) && sscanf(kvp, "minptime=%30u", &val) == 1) {
-		attr->minptime = val;
-	}
+
 	if ((kvp = strstr(attributes, "maxaveragebitrate")) && sscanf(kvp, "maxaveragebitrate=%30u", &val) == 1) {
 		attr->maxbitrate = val;
+	} else {
+		attr->maxbitrate = 510000;
 	}
-	if ((kvp = strstr(attributes, " stereo")) && sscanf(kvp, " stereo=%30u", &val) == 1) {
-		attr->stereo = val;
+
+	if (!strncmp(attributes, "stereo=1", 8)) {
+		attr->stereo = 1;
+	} else if (strstr(attributes, " stereo=1")) {
+		attr->stereo = 1;
+	} else if (strstr(attributes, ";stereo=1")) {
+		attr->stereo = 1;
+	} else {
+		attr->stereo = 0;
 	}
-	if ((kvp = strstr(attributes, ";stereo")) && sscanf(kvp, ";stereo=%30u", &val) == 1) {
-		attr->stereo = val;
+
+	if (strstr(attributes, "sprop-stereo=1")) {
+		attr->spropstereo = 1;
+	} else {
+		attr->spropstereo = 0;
 	}
-	if ((kvp = strstr(attributes, "sprop-stereo")) && sscanf(kvp, "sprop-stereo=%30u", &val) == 1) {
-		attr->spropstereo = val;
+
+	if (strstr(attributes, "cbr=1")) {
+		attr->cbr = 1;
+	} else {
+		attr->cbr = 0;
 	}
-	if ((kvp = strstr(attributes, "cbr")) && sscanf(kvp, "cbr=%30u", &val) == 1) {
-		attr->cbr = val;
+
+	if (strstr(attributes, "useinbandfec=1")) {
+		attr->fec = 1;
+	} else {
+		attr->fec = 0;
 	}
-	if ((kvp = strstr(attributes, "useinbandfec")) && sscanf(kvp, "useinbandfec=%30u", &val) == 1) {
-		attr->fec = val;
-	}
-	if ((kvp = strstr(attributes, "usedtx")) && sscanf(kvp, "usedtx=%30u", &val) == 1) {
-		attr->dtx = val;
+
+	if (strstr(attributes, "usedtx=1")) {
+		attr->dtx = 1;
+	} else {
+		attr->dtx = 0;
 	}
 
 	return cloned;
@@ -132,34 +163,92 @@ static struct ast_format *opus_parse_sdp_fmtp(const struct ast_format *format, c
 static void opus_generate_sdp_fmtp(const struct ast_format *format, unsigned int payload, struct ast_str **str)
 {
 	struct opus_attr *attr = ast_format_get_attribute_data(format);
+	int added = 0;
 
 	if (!attr) {
-		return;
+		/*
+		 * (Only) cached formats do not have attribute data assigned because
+		 * they were created before this attribute module was registered.
+		 * Therefore, we assume the default attribute values here.
+		 */
+		attr = &default_opus_attr;
 	}
 
-	/* FIXME should we only generate attributes that were explicitly set? */
-	ast_str_append(str, 0,
-				"a=fmtp:%u "
-					"maxplaybackrate=%u;"
-					"sprop-maxcapturerate=%u;"
-					"minptime=%u;"
-					"maxaveragebitrate=%u;"
-					"stereo=%d;"
-					"sprop-stereo=%d;"
-					"cbr=%d;"
-					"useinbandfec=%d;"
-					"usedtx=%d\r\n",
-			payload,
-			attr->maxplayrate ? attr->maxplayrate : 48000,	/* maxplaybackrate */
-			attr->spropmaxcapturerate ? attr->spropmaxcapturerate : 48000,	/* sprop-maxcapturerate */
-			attr->minptime > 10 ? attr->minptime : 10,	/* minptime */
-			attr->maxbitrate ? attr->maxbitrate : 20000,	/* maxaveragebitrate */
-			attr->stereo ? 1 : 0,		/* stereo */
-			attr->spropstereo ? 1 : 0,		/* sprop-stereo */
-			attr->cbr ? 1 : 0,		/* cbr */
-			attr->fec ? 1 : 0,		/* useinbandfec */
-			attr->dtx ? 1 : 0		/* usedtx */
-	);
+	if (48000 != attr->maxplayrate) {
+		if (added) {
+			ast_str_append(str, 0, ";");
+		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {
+			added = 1;
+		}
+		ast_str_append(str, 0, "maxplaybackrate=%u", attr->maxplayrate);
+	}
+
+	if (48000 != attr->spropmaxcapturerate) {
+		if (added) {
+			ast_str_append(str, 0, ";");
+		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {
+			added = 1;
+		}
+		ast_str_append(str, 0, "sprop-maxcapturerate=%u", attr->spropmaxcapturerate);
+	}
+
+	if (510000 != attr->maxbitrate) {
+		if (added) {
+			ast_str_append(str, 0, ";");
+		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {
+			added = 1;
+		}
+		ast_str_append(str, 0, "maxaveragebitrate=%u", attr->maxbitrate);
+	}
+
+	if (0 != attr->stereo) {
+		if (added) {
+			ast_str_append(str, 0, ";");
+		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {
+			added = 1;
+		}
+		ast_str_append(str, 0, "stereo=%u", attr->stereo);
+	}
+
+	if (0 != attr->spropstereo) {
+		if (added) {
+			ast_str_append(str, 0, ";");
+		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {
+			added = 1;
+		}
+		ast_str_append(str, 0, "sprop-stereo=%u", attr->spropstereo);
+	}
+
+	if (0 != attr->cbr) {
+		if (added) {
+			ast_str_append(str, 0, ";");
+		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {
+			added = 1;
+		}
+		ast_str_append(str, 0, "cbr=%u", attr->cbr);
+	}
+
+	if (0 != attr->fec) {
+		if (added) {
+			ast_str_append(str, 0, ";");
+		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {
+			added = 1;
+		}
+		ast_str_append(str, 0, "useinbandfec=%u", attr->fec);
+	}
+
+	if (0 != attr->dtx) {
+		if (added) {
+			ast_str_append(str, 0, ";");
+		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {
+			added = 1;
+		}
+		ast_str_append(str, 0, "usedtx=%u", attr->dtx);
+	}
+
+	if (added) {
+		ast_str_append(str, 0, "\r\n");
+	}
 }
 
 static struct ast_format *opus_getjoint(const struct ast_format *format1, const struct ast_format *format2)
@@ -183,19 +272,22 @@ static struct ast_format *opus_getjoint(const struct ast_format *format1, const 
 	}
 	attr_res = ast_format_get_attribute_data(jointformat);
 
-	/* Only do dtx if both sides want it. DTX is a trade off between
-	 * computational complexity and bandwidth. */
-	attr_res->dtx = attr1->dtx && attr2->dtx ? 1 : 0;
+	attr_res->dtx = attr1->dtx || attr2->dtx ? 1 : 0;
 
 	/* Only do FEC if both sides want it.  If a peer specifically requests not
 	 * to receive with FEC, it may be a waste of bandwidth. */
 	attr_res->fec = attr1->fec && attr2->fec ? 1 : 0;
 
+	attr_res->cbr = attr1->cbr || attr2->cbr ? 1 : 0;
+	attr_res->spropstereo = attr1->spropstereo || attr2->spropstereo ? 1 : 0;
+
 	/* Only do stereo if both sides want it.  If a peer specifically requests not
 	 * to receive stereo signals, it may be a waste of bandwidth. */
 	attr_res->stereo = attr1->stereo && attr2->stereo ? 1 : 0;
 
-	/* FIXME: do we need to join other attributes as well, e.g., minptime, cbr, etc.? */
+	attr_res->maxbitrate = MIN(attr1->maxbitrate, attr2->maxbitrate);
+	attr_res->spropmaxcapturerate = MIN(attr1->spropmaxcapturerate, attr2->spropmaxcapturerate);
+	attr_res->maxplayrate = MIN(attr1->maxplayrate, attr2->maxplayrate);
 
 	return jointformat;
 }
@@ -223,7 +315,7 @@ static struct ast_format *opus_set(const struct ast_format *format, const char *
 	} else if (!strcasecmp(name, "max_playrate")) {
 		attr->maxplayrate = val;
 	} else if (!strcasecmp(name, "minptime")) {
-		attr->minptime = val;
+		attr->unused = val;
 	} else if (!strcasecmp(name, "stereo")) {
 		attr->stereo = val;
 	} else if (!strcasecmp(name, "cbr")) {
