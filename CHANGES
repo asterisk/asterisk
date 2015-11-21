@@ -205,6 +205,11 @@ Queue
 --- Functionality changes from Asterisk 13.6.0 to Asterisk 13.7.0 ------------
 ------------------------------------------------------------------------------
 
+Codecs
+------------------
+ * Added format attribute negotiation for the VP8 video codec. Format attribute
+   negotiation is provided by the res_format_attr_vp8 module.
+
 ConfBridge
 ------------------
  * A new "timeout" user profile option has been added. This configures the number
