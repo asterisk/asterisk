@@ -264,6 +264,7 @@ static int t38_initialize_session(struct ast_sip_session *session, struct ast_si
 	ast_udptl_set_error_correction_scheme(session_media->udptl, session->endpoint->media.t38.error_correction);
 	ast_udptl_setnat(session_media->udptl, session->endpoint->media.t38.nat);
 	ast_udptl_set_far_max_datagram(session_media->udptl, session->endpoint->media.t38.maxdatagram);
+	ast_debug(3, "UDPTL initialized on session for %s\n", ast_channel_name(session->channel));
 
 	return 0;
 }
@@ -630,10 +631,12 @@ static enum ast_sip_session_sdp_stream_defer defer_incoming_sdp_stream(
 	struct t38_state *state;
 
 	if (!session->endpoint->media.t38.enabled) {
+		ast_debug(3, "Not deferring incoming SDP stream: T.38 not enabled on %s\n", ast_channel_name(session->channel));
 		return AST_SIP_SESSION_SDP_DEFER_NOT_HANDLED;
 	}
 
 	if (t38_initialize_session(session, session_media)) {
+		ast_debug(3, "Not deferring incoming SDP stream: Failed to initialize UDPTL on %s\n", ast_channel_name(session->channel));
 		return AST_SIP_SESSION_SDP_DEFER_ERROR;
 	}
 
@@ -646,6 +649,7 @@ static enum ast_sip_session_sdp_stream_defer defer_incoming_sdp_stream(
 	/* If they are initiating the re-invite we need to defer responding until later */
 	if (session->t38state == T38_DISABLED) {
 		t38_change_state(session, session_media, state, T38_PEER_REINVITE);
+		ast_debug(3, "Deferring incoming SDP stream on %s for peer re-invite\n", ast_channel_name(session->channel));
 		return AST_SIP_SESSION_SDP_DEFER_NEEDED;
 	}
 
@@ -661,6 +665,7 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 	RAII_VAR(struct ast_sockaddr *, addrs, NULL, ast_free);
 
 	if (!session->endpoint->media.t38.enabled) {
+		ast_debug(3, "Declining; T.38 not enabled on session\n");
 		return -1;
 	}
 
@@ -669,6 +674,7 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 	}
 
 	if ((session->t38state == T38_REJECTED) || (session->t38state == T38_DISABLED)) {
+		ast_debug(3, "Declining; T.38 state is rejected or declined\n");
 		t38_change_state(session, session_media, state, T38_DISABLED);
 		return -1;
 	}
@@ -678,6 +684,7 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 	/* Ensure that the address provided is valid */
 	if (ast_sockaddr_resolve(&addrs, host, PARSE_PORT_FORBID, AST_AF_INET) <= 0) {
 		/* The provided host was actually invalid so we error out this negotiation */
+		ast_debug(3, "Declining; provided host is invalid\n");
 		return -1;
 	}
 
@@ -685,6 +692,7 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 	if ((ast_sockaddr_is_ipv6(addrs) && !session->endpoint->media.t38.ipv6) ||
 		(ast_sockaddr_is_ipv4(addrs) && session->endpoint->media.t38.ipv6)) {
 		/* The address does not match configured */
+		ast_debug(3, "Declining, provided host does not match configured address family\n");
 		return -1;
 	}
 
@@ -713,13 +721,16 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	pj_str_t stmp;
 
 	if (!session->endpoint->media.t38.enabled) {
+		ast_debug(3, "Not creating outgoing SDP stream: T.38 not enabled\n");
 		return 1;
 	} else if ((session->t38state != T38_LOCAL_REINVITE) && (session->t38state != T38_PEER_REINVITE) &&
 		(session->t38state != T38_ENABLED)) {
+		ast_debug(3, "Not creating outgoing SDP stream: T.38 not enabled\n");
 		return 1;
 	} else if (!(state = t38_state_get_or_alloc(session))) {
 		return -1;
 	} else if (t38_initialize_session(session, session_media)) {
+		ast_debug(3, "Not creating outgoing SDP stream: Failed to initialize T.38 session\n");
 		return -1;
 	}
 
@@ -738,6 +749,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	}
 
 	if (ast_strlen_zero(hostip)) {
+		ast_debug(3, "Not creating outgoing SDP stream: no known host IP\n");
 		return -1;
 	}
 
@@ -805,6 +817,7 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 	struct t38_state *state;
 
 	if (!session_media->udptl) {
+		ast_debug(3, "Not applying negotiated SDP stream: no UDTPL session\n");
 		return 0;
 	}
 
@@ -817,6 +830,7 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 	/* Ensure that the address provided is valid */
 	if (ast_sockaddr_resolve(&addrs, host, PARSE_PORT_FORBID, AST_AF_UNSPEC) <= 0) {
 		/* The provided host was actually invalid so we error out this negotiation */
+		ast_debug(3, "Not applying negotiated SDP stream: failed to resolve remote stream host\n");
 		return -1;
 	}
 
