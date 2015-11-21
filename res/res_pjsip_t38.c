@@ -161,6 +161,9 @@ static void t38_change_state(struct ast_sip_session *session, struct ast_sip_ses
 		parameters.max_ifp = ast_udptl_get_far_max_ifp(session_media->udptl);
 		parameters.request_response = AST_T38_REQUEST_NEGOTIATE;
 		ast_udptl_set_tag(session_media->udptl, "%s", ast_channel_name(session->channel));
+
+		/* Inform the bridge the channel is in that it needs to be reconfigured */
+		ast_channel_set_unbridged(session->channel, 1);
 		break;
 	case T38_ENABLED:
 		parameters = state->their_parms;
@@ -177,7 +180,8 @@ static void t38_change_state(struct ast_sip_session *session, struct ast_sip_ses
 		}
 		break;
 	case T38_LOCAL_REINVITE:
-		/* wait until we get a peer response before responding to local reinvite */
+		/* Inform the bridge the channel is in that it needs to be reconfigured */
+		ast_channel_set_unbridged(session->channel, 1);
 		break;
 	case T38_MAX_ENUM:
 		/* Well, that shouldn't happen */
@@ -462,6 +466,11 @@ static void t38_masq(void *data, int framehook_id,
 	ast_framehook_detach(new_chan, framehook_id);
 }
 
+static int t38_consume(void *data, enum ast_frame_type type)
+{
+	return 0;
+}
+
 static const struct ast_datastore_info t38_framehook_datastore = {
 	.type = "T38 framehook",
 };
@@ -474,6 +483,7 @@ static void t38_attach_framehook(struct ast_sip_session *session)
 	static struct ast_framehook_interface hook = {
 		.version = AST_FRAMEHOOK_INTERFACE_VERSION,
 		.event_cb = t38_framehook,
+		.consume_cb = t38_consume,
 		.chan_fixup_cb = t38_masq,
 		.chan_breakdown_cb = t38_masq,
 	};
@@ -557,6 +567,32 @@ static struct ast_sip_session_supplement t38_supplement = {
 	.priority = AST_SIP_SUPPLEMENT_PRIORITY_CHANNEL + 1,
 	.incoming_request = t38_incoming_invite_request,
 	.outgoing_request = t38_outgoing_invite_request,
+};
+
+static int t38_incoming_bye_request(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
+{
+	RAII_VAR(struct ast_datastore *, datastore, ast_sip_session_get_datastore(session, "t38"), ao2_cleanup);
+	RAII_VAR(struct ast_sip_session_media *, session_media, ao2_find(session->media, "image", OBJ_KEY), ao2_cleanup);
+
+	if (!session->channel) {
+		return 0;
+	}
+
+	if (!datastore) {
+		return 0;
+	}
+
+	t38_change_state(session, session_media, datastore->data, T38_REJECTED);
+	ast_sip_session_resume_reinvite(session);
+
+	return 0;
+}
+
+/*! \brief Supplement for handling a remote termination of T.38 state */
+static struct ast_sip_session_supplement t38_bye_supplement = {
+	.method = "BYE",
+	.priority = AST_SIP_SUPPLEMENT_PRIORITY_CHANNEL + 1,
+	.incoming_request = t38_incoming_bye_request,
 };
 
 /*! \brief Parse a T.38 image stream and store the attribute information */
@@ -875,6 +911,7 @@ static int unload_module(void)
 {
 	ast_sip_session_unregister_sdp_handler(&image_sdp_handler, "image");
 	ast_sip_session_unregister_supplement(&t38_supplement);
+	ast_sip_session_unregister_supplement(&t38_bye_supplement);
 
 	return 0;
 }
@@ -898,6 +935,11 @@ static int load_module(void)
 
 	if (ast_sip_session_register_supplement(&t38_supplement)) {
 		ast_log(LOG_ERROR, "Unable to register T.38 session supplement\n");
+		goto end;
+	}
+
+	if (ast_sip_session_register_supplement(&t38_bye_supplement)) {
+		ast_log(LOG_ERROR, "Unable to register T.38 BYE session supplement\n");
 		goto end;
 	}
 
