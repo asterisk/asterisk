@@ -96,10 +96,6 @@ char *term_strip(char *outbuf, const char *inbuf, int maxout);
 
 void term_filter_escapes(char *line);
 
-char *term_prompt(char *outbuf, const char *inbuf, int maxout);
-
-char *term_prep(void);
-
 char *term_end(void);
 
 char *term_quit(void);
