@@ -243,6 +243,14 @@ res_pjsip
  * The ability to use "like" has been added to the pjsip list and show
    CLI commands.  For instance: CLI> pjsip list endpoints like abc
 
+ * If res_statsd is loaded and a StatsD server is configured, basic statistics
+   regarding the state of PJSIP contacts will not be emitted. This includes:
+   - A GUAGE statistic for the overall number of contacts in a particular
+     state, e.g.:
+       PJSIP.contacts.states.Reachable
+   - A TIMER statistic for the RTT time for each qualified contact, e.g.:
+       PJSIP.contacts.alice@@127.0.0.1:5061.rtt
+
 func_callerid
 -------------------
  * CALLERID(pres) is now documented as a valid alternative to setting both
