@@ -7655,6 +7655,11 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 					break;
 			} else {
 				/* Well, if it's not reasonable, just send in-band */
+				if (ast_test_flag(&p->flags[0], SIP_PROG_INBAND) != SIP_PROG_INBAND_YES && !ast_test_flag(&p->flags[0], SIP_RINGING)) {
+					transmit_provisional_response(p, "180 Ringing", &p->initreq, 0);
+					ast_set_flag(&p->flags[0], SIP_RINGING);
+					break;
+				}
 			}
 		}
 		res = -1;
