@@ -57,9 +57,31 @@ AST_OPTIONAL_API(void, ast_statsd_log_string, (const char *metric_name,
 
 /*!
  * \brief Send a stat to the configured statsd server.
+ * \since 13.7.0
  *
- * The is the most flexible function for sending a message to the statsd server,
- * but also the least easy to use. See ast_statsd_log() or
+ * This is the most flexible function for sending a message to the statsd
+ * server. In addition to allowing the string value and sample rate to be specified,
+ * the metric_name can be formed as a printf style string with variable
+ * arguments.
+ *
+ * \param metric_name Format string (UTF-8) specifying the name of the metric.
+ * \param metric_type Type of metric to send.
+ * \param value Value to send.
+ * \param sample_rate Percentage of samples to send.
+ *
+ * Example Usage:
+ * \code
+ *     ast_statsd_log_string_va(AST_STATSD_GUAGE, "+1", 1.0, "endpoints.states.%s", state_name);
+ * \endcode
+ */
+AST_OPTIONAL_API_ATTR(void, format(printf, 1, 5), ast_statsd_log_string_va,
+	(const char *metric_name, const char *metric_type, const char *value, double sample_rate, ...), {});
+
+/*!
+ * \brief Send a stat to the configured statsd server.
+ *
+ * The is nearly the most flexible function for sending a message to the statsd
+ * server, but also the least easy to use. See ast_statsd_log() or
  * ast_statsd_log_sample() for a slightly more convenient interface.
  *
  * \param metric_name String (UTF-8) name of the metric.
@@ -70,6 +92,28 @@ AST_OPTIONAL_API(void, ast_statsd_log_string, (const char *metric_name,
  */
 AST_OPTIONAL_API(void, ast_statsd_log_full, (const char *metric_name,
 	const char *metric_type, intmax_t value, double sample_rate), {});
+
+/*!
+ * \brief Send a stat to the configured statsd server.
+ * \since 13.7.0
+ *
+ * This is the most flexible function for sending a message to the statsd
+ * server. In addition to allowing the value and sample rate to be specified,
+ * the metric_name can be formed as a printf style string with variable
+ * arguments.
+ *
+ * \param metric_name Format string (UTF-8) specifying the name of the metric.
+ * \param metric_type Type of metric to send.
+ * \param value Value to send.
+ * \param sample_rate Percentage of samples to send.
+ *
+ * Example Usage:
+ * \code
+ *     ast_statsd_log_full_va(AST_STATSD_TIMER, rtt, 1.0, "endpoint.%s.rtt", endpoint_name);
+ * \endcode
+ */
+AST_OPTIONAL_API_ATTR(void, format(printf, 1, 5), ast_statsd_log_full_va,
+	(const char *metric_name, const char *metric_type, intmax_t value, double sample_rate, ...), {});
 
 /*!
  * \brief Send a stat to the configured statsd server.
