@@ -5290,6 +5290,7 @@ static void update_qe_rule(struct queue_ent *qe)
 static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *reason)
 {
 	int res = 0;
+	int updrtcount = 0;
 
 	/* This is the holding pen for callers 2 through maxlen */
 	for (;;) {
@@ -5356,6 +5357,14 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 		if (qe->expire && (time(NULL) >= qe->expire)) {
 			*reason = QUEUE_TIMEOUT;
 			break;
+		}
+
+		/* Update realtime members each 5 iterations/seconds */
+		if (updrtcount < 5) {
+			updrtcount++;
+		} else {
+			update_realtime_members(qe->parent);
+			updrtcount = 0;
 		}
 	}
 
