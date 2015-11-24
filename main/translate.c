@@ -298,6 +298,10 @@ static void destroy(struct ast_trans_pvt *pvt)
 		t->destroy(pvt);
 	}
 	ao2_cleanup(pvt->f.subclass.format);
+	if (pvt->explicit_dst) {
+		ao2_ref(pvt->explicit_dst, -1);
+		pvt->explicit_dst = NULL;
+	}
 	ast_free(pvt);
 	ast_module_unref(t->module);
 }
@@ -306,7 +310,7 @@ static void destroy(struct ast_trans_pvt *pvt)
  * \brief Allocate the descriptor, required outbuf space,
  * and possibly desc.
  */
-static struct ast_trans_pvt *newpvt(struct ast_translator *t)
+static struct ast_trans_pvt *newpvt(struct ast_translator *t, struct ast_format *explicit_dst)
 {
 	struct ast_trans_pvt *pvt;
 	int len;
@@ -332,6 +336,12 @@ static struct ast_trans_pvt *newpvt(struct ast_translator *t)
 	if (t->buf_size) {/* finally buffer and header */
 		pvt->outbuf.c = ofs + AST_FRIENDLY_OFFSET;
 	}
+	/*
+	 * If the format has an attribute module, explicit_dst includes the (joined)
+	 * result of the SDP negotiation. For example with the Opus Codec, the format
+	 * knows whether both parties want to do forward-error correction (FEC).
+	 */
+	pvt->explicit_dst = ao2_bump(explicit_dst);
 
 	ast_module_ref(t->module);
 
@@ -349,9 +359,16 @@ static struct ast_trans_pvt *newpvt(struct ast_translator *t)
 	pvt->f.src = pvt->t->name;
 	pvt->f.data.ptr = pvt->outbuf.c;
 
-	/* if the translator has not provided a format find one in the cache or create one */
+	/*
+	 * If the translator has not provided a format
+	 * A) use the joined one,
+	 * B) use the cached one, or
+	 * C) create one.
+	 */
 	if (!pvt->f.subclass.format) {
-		if (!ast_strlen_zero(pvt->t->format)) {
+		pvt->f.subclass.format = ao2_bump(pvt->explicit_dst);
+
+		if (!pvt->f.subclass.format && !ast_strlen_zero(pvt->t->format)) {
 			pvt->f.subclass.format = ast_format_cache_get(pvt->t->format);
 		}
 
@@ -477,6 +494,7 @@ struct ast_trans_pvt *ast_translator_build_path(struct ast_format *dst, struct a
 
 	while (src_index != dst_index) {
 		struct ast_trans_pvt *cur;
+		struct ast_format *explicit_dst = NULL;
 		struct ast_translator *t = matrix_get(src_index, dst_index)->step;
 		if (!t) {
 			ast_log(LOG_WARNING, "No translator path from %s to %s\n",
@@ -484,7 +502,10 @@ struct ast_trans_pvt *ast_translator_build_path(struct ast_format *dst, struct a
 			AST_RWLIST_UNLOCK(&translators);
 			return NULL;
 		}
-		if (!(cur = newpvt(t))) {
+		if ((t->dst_codec.sample_rate == ast_format_get_sample_rate(dst)) && (t->dst_codec.type == ast_format_get_type(dst)) && (!strcmp(t->dst_codec.name, ast_format_get_name(dst)))) {
+			explicit_dst = dst;
+		}
+		if (!(cur = newpvt(t, explicit_dst))) {
 			ast_log(LOG_WARNING, "Failed to build translator step from %s to %s\n",
 				ast_format_get_name(src), ast_format_get_name(dst));
 			if (head) {
@@ -638,7 +659,7 @@ static void generate_computational_cost(struct ast_translator *t, int seconds)
 		return;
 	}
 
-	pvt = newpvt(t);
+	pvt = newpvt(t, NULL);
 	if (!pvt) {
 		ast_log(LOG_WARNING, "Translator '%s' appears to be broken and will probably fail.\n", t->name);
 		t->comp_cost = 999999;
