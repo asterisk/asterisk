@@ -35,6 +35,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/astobj2.h"
 #include "asterisk/strings.h"
 #include "asterisk/sched.h"
+#include "asterisk/dns_cache.h"
 #include "asterisk/dns_core.h"
 #include "asterisk/dns_srv.h"
 #include "asterisk/dns_tlsa.h"
@@ -247,6 +248,11 @@ struct ast_dns_query *dns_query_alloc(const char *name, int rr_type, int rr_clas
 struct ast_dns_query_active *ast_dns_resolve_async(const char *name, int rr_type, int rr_class, ast_dns_resolve_callback callback, void *data)
 {
 	struct ast_dns_query_active *active;
+
+	if (!ast_dns_cache_check(name)) {
+		/* If the domain name exists negatively in the cache return failure */
+		return NULL;
+	}
 
 	active = ao2_alloc_options(sizeof(*active), dns_query_active_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!active) {
@@ -523,6 +529,16 @@ static void sort_result(int rr_type, struct ast_dns_result *result)
 void ast_dns_resolver_completed(struct ast_dns_query *query)
 {
 	sort_result(ast_dns_query_get_rr_type(query), query->result);
+
+	if (query->result) {
+		if (!query->result->rcode) {
+			/* Domain was resolved, so remove from cache (if it exists in it) */
+			ast_dns_cache_delete(query->name);
+		} else {
+			/* A resolve error occurred, so add to or update the cache */
+			ast_dns_cache_add_or_update(query->name);
+		}
+	}
 
 	query->callback(query);
 }
