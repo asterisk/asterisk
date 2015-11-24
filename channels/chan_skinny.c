@@ -5548,12 +5548,12 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 
 	skinny_locksub(sub);
 
-	if (sub->dialer_sched) {
+	if (-1 < sub->dialer_sched) {
 		skinny_sched_del(sub->dialer_sched, sub);
 		sub->dialer_sched = -1;
 	}
 
-	if (state != SUBSTATE_RINGIN && sub->aa_sched) {
+	if (state != SUBSTATE_RINGIN && -1 < sub->aa_sched) {
 		skinny_sched_del(sub->aa_sched, sub);
 		sub->aa_sched = -1;
 		sub->aa_beep = 0;
@@ -6238,7 +6238,7 @@ static int handle_keypad_button_message(struct skinny_req *req, struct skinnyses
 	}
 
 	if ((sub->owner && ast_channel_state(sub->owner) <  AST_STATE_UP)) {
-		if (sub->dialer_sched && !skinny_sched_del(sub->dialer_sched, sub)) {
+		if (-1 < sub->dialer_sched && !skinny_sched_del(sub->dialer_sched, sub)) {
 			SKINNY_DEBUG(DEBUG_SUB, 3, "Sub %u - Got a digit and not timed out, so try dialing\n", sub->callid);
 			sub->dialer_sched = -1;
 			len = strlen(sub->exten);
@@ -7075,7 +7075,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 	case SOFTKEY_BKSPC:
 		SKINNY_DEBUG(DEBUG_PACKET, 3, "Received SOFTKEY_BKSPC from %s, inst %d, callref %d\n",
 			d->name, instance, callreference);
-		if (sub->dialer_sched && !skinny_sched_del(sub->dialer_sched, sub)) {
+		if (-1 < sub->dialer_sched && !skinny_sched_del(sub->dialer_sched, sub)) {
 			size_t len;
 			sub->dialer_sched = -1;
 			len = strlen(sub->exten);
