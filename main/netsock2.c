@@ -35,6 +35,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/netsock2.h"
 #include "asterisk/utils.h"
 #include "asterisk/threadstorage.h"
+#include "asterisk/dns_cache.h"
 
 int ast_sockaddr_ipv4_mapped(const struct ast_sockaddr *addr, struct ast_sockaddr *ast_mapped)
 {
@@ -286,7 +287,8 @@ int ast_sockaddr_resolve(struct ast_sockaddr **addrs, const char *str,
 	char *s, *host, *port;
 	int	e, i, res_cnt;
 
-	if (!str) {
+	/* See if the domain name currently exists negatively in the cache */
+	if (!ast_dns_cache_check(str)) {
 		*addrs = NULL;
 		return 0;
 	}
@@ -302,11 +304,16 @@ int ast_sockaddr_resolve(struct ast_sockaddr **addrs, const char *str,
 	hints.ai_socktype = SOCK_DGRAM;
 
 	if ((e = getaddrinfo(host, port, &hints, &res))) {
+		/* The domain name was no resolved add to or update the negative cache */
+		ast_dns_cache_add_or_update(str);
 		ast_log(LOG_ERROR, "getaddrinfo(\"%s\", \"%s\", ...): %s\n",
 			host, S_OR(port, "(null)"), gai_strerror(e));
 		*addrs = NULL;
 		return 0;
 	}
+
+	/* The domain name was resolved, so remove it from the negative cache */
+	ast_dns_cache_delete(str);
 
 	res_cnt = 0;
 	for (ai = res; ai; ai = ai->ai_next) {
