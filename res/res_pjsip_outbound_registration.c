@@ -619,9 +619,9 @@ static void update_client_state_status(struct sip_outbound_registration_client_s
 		return;
 	}
 
-	ast_statsd_log_string_va("PJSIP.registrations.state.%s", AST_STATSD_GUAGE, "-1", 1.0,
+	ast_statsd_log_string_va("PJSIP.registrations.state.%s", AST_STATSD_GAUGE, "-1", 1.0,
 		sip_outbound_registration_status_str(client_state->status));
-	ast_statsd_log_string_va("PJSIP.registrations.state.%s", AST_STATSD_GUAGE, "+1", 1.0,
+	ast_statsd_log_string_va("PJSIP.registrations.state.%s", AST_STATSD_GAUGE, "+1", 1.0,
 		sip_outbound_registration_status_str(status));
 	client_state->status = status;
 }
@@ -966,8 +966,8 @@ static void sip_outbound_registration_client_state_destroy(void *obj)
 {
 	struct sip_outbound_registration_client_state *client_state = obj;
 
-	ast_statsd_log_string("PJSIP.registrations.count", AST_STATSD_GUAGE, "-1", 1.0);
-	ast_statsd_log_string_va("PJSIP.registrations.state.%s", AST_STATSD_GUAGE, "-1", 1.0,
+	ast_statsd_log_string("PJSIP.registrations.count", AST_STATSD_GAUGE, "-1", 1.0);
+	ast_statsd_log_string_va("PJSIP.registrations.state.%s", AST_STATSD_GAUGE, "-1", 1.0,
 		sip_outbound_registration_status_str(client_state->status));
 
 	ast_taskprocessor_unreference(client_state->serializer);
@@ -998,8 +998,8 @@ static struct sip_outbound_registration_state *sip_outbound_registration_state_a
 	state->client_state->timer.user_data = state->client_state;
 	state->client_state->timer.cb = sip_outbound_registration_timer_cb;
 
-	ast_statsd_log_string("PJSIP.registrations.count", AST_STATSD_GUAGE, "+1", 1.0);
-	ast_statsd_log_string_va("PJSIP.registrations.state.%s", AST_STATSD_GUAGE, "+1", 1.0,
+	ast_statsd_log_string("PJSIP.registrations.count", AST_STATSD_GAUGE, "+1", 1.0);
+	ast_statsd_log_string_va("PJSIP.registrations.state.%s", AST_STATSD_GAUGE, "+1", 1.0,
 		sip_outbound_registration_status_str(state->client_state->status));
 
 	state->registration = ao2_bump(registration);
@@ -2035,10 +2035,10 @@ static int load_module(void)
 	ast_manager_register_xml("PJSIPShowRegistrationsOutbound", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_show_outbound_registrations);
 
 	/* Clear any previous statsd gauges in case we weren't shutdown cleanly */
-	ast_statsd_log("PJSIP.registrations.count", AST_STATSD_GUAGE, 0);
-	ast_statsd_log("PJSIP.registrations.state.Registered", AST_STATSD_GUAGE, 0);
-	ast_statsd_log("PJSIP.registrations.state.Unregistered", AST_STATSD_GUAGE, 0);
-	ast_statsd_log("PJSIP.registrations.state.Rejected", AST_STATSD_GUAGE, 0);
+	ast_statsd_log("PJSIP.registrations.count", AST_STATSD_GAUGE, 0);
+	ast_statsd_log("PJSIP.registrations.state.Registered", AST_STATSD_GAUGE, 0);
+	ast_statsd_log("PJSIP.registrations.state.Unregistered", AST_STATSD_GAUGE, 0);
+	ast_statsd_log("PJSIP.registrations.state.Rejected", AST_STATSD_GAUGE, 0);
 
 	/* Load configuration objects */
 	ast_sorcery_load_object(ast_sip_get_sorcery(), "registration");
