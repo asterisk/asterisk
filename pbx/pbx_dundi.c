@@ -3264,6 +3264,7 @@ static int dundi_send(struct dundi_transaction *trans, int cmdresp, int flags, i
 	pack = ast_calloc(1, len);
 	if (pack) {
 		pack->h = (struct dundi_hdr *)(pack->data);
+		pack->retransid = -1;
 		if (cmdresp != DUNDI_COMMAND_ACK) {
 			pack->retransid = ast_sched_add(sched, trans->retranstimer, dundi_rexmit, pack);
 			pack->retrans = DUNDI_DEFAULT_RETRANS - 1;
