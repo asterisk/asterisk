@@ -29,7 +29,12 @@
 #include "asterisk/optional_api.h"
 
 /*! An instantaneous measurement of a value. */
-#define AST_STATSD_GUAGE "g"
+#define AST_STATSD_GAUGE "g"
+/*!
+ * Embarrassingly, gauge was misspelled for quite some time.
+ * \deprecated You should spell gauge correctly.
+ */
+#define AST_STATSD_GUAGE AST_STATSD_GAUGE
 /*! A change in a value. */
 #define AST_STATSD_COUNTER "c"
 /*! Measure of milliseconds. */
@@ -71,7 +76,7 @@ AST_OPTIONAL_API(void, ast_statsd_log_string, (const char *metric_name,
  *
  * Example Usage:
  * \code
- *     ast_statsd_log_string_va(AST_STATSD_GUAGE, "+1", 1.0, "endpoints.states.%s", state_name);
+ *     ast_statsd_log_string_va(AST_STATSD_GAUGE, "+1", 1.0, "endpoints.states.%s", state_name);
  * \endcode
  */
 AST_OPTIONAL_API_ATTR(void, format(printf, 1, 5), ast_statsd_log_string_va,
