@@ -63,7 +63,7 @@ extern "C" {
 /*@} */
 
 /*! \brief Maximum number of characters needed for a color escape sequence,
- *         plus a null char */
+ *         and another one for a trailing reset, plus a null char */
 #define AST_TERM_MAX_ESCAPE_CHARS   23
 
 char *term_color(char *outbuf, const char *inbuf, int fgcolor, int bgcolor, int maxout);
