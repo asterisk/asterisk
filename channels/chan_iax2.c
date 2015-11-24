@@ -2136,25 +2136,26 @@ static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, const char *host)
 		return NULL;
 	}
 
-	if (ast_string_field_init(tmp, 32)) {
-		ao2_ref(tmp, -1);
-		tmp = NULL;
-		return NULL;
-	}
-		
-	tmp->prefs = prefs;
 	tmp->pingid = -1;
 	tmp->lagid = -1;
 	tmp->autoid = -1;
 	tmp->authid = -1;
 	tmp->initid = -1;
 	tmp->keyrotateid = -1;
+	tmp->jbid = -1;
+
+	if (ast_string_field_init(tmp, 32)) {
+		ao2_ref(tmp, -1);
+		tmp = NULL;
+		return NULL;
+	}
+
+	tmp->prefs = prefs;
 
 	ast_string_field_set(tmp,exten, "s");
 	ast_string_field_set(tmp,host, host);
 
 	tmp->jb = jb_new();
-	tmp->jbid = -1;
 	jbconf.max_jitterbuf = maxjitterbuffer;
 	jbconf.resync_threshold = resyncthreshold;
 	jbconf.max_contig_interp = maxjitterinterps;
