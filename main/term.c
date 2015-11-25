@@ -175,16 +175,14 @@ end:
 		if (ast_opt_light_background) {
 			snprintf(prepdata, sizeof(prepdata), "%c[%dm", ESC, COLOR_BROWN);
 			snprintf(enddata, sizeof(enddata), "%c[%dm", ESC, COLOR_BLACK);
-			snprintf(quitdata, sizeof(quitdata), "%c[0m", ESC);
 		} else if (ast_opt_force_black_background) {
 			snprintf(prepdata, sizeof(prepdata), "%c[%d;%d;%dm", ESC, ATTR_BRIGHT, COLOR_BROWN, COLOR_BLACK + 10);
 			snprintf(enddata, sizeof(enddata), "%c[%d;%d;%dm", ESC, ATTR_RESET, COLOR_WHITE, COLOR_BLACK + 10);
-			snprintf(quitdata, sizeof(quitdata), "%c[0m", ESC);
 		} else {
 			snprintf(prepdata, sizeof(prepdata), "%c[%d;%dm", ESC, ATTR_BRIGHT, COLOR_BROWN);
-			snprintf(enddata, sizeof(enddata), "%c[%d;%dm", ESC, ATTR_RESET, COLOR_WHITE);
-			snprintf(quitdata, sizeof(quitdata), "%c[0m", ESC);
+			snprintf(enddata, sizeof(enddata), "%c[%dm", ESC, ATTR_RESET);
 		}
+		snprintf(quitdata, sizeof(quitdata), "%c[%dm", ESC, ATTR_RESET);
 	}
 	return 0;
 }
@@ -216,9 +214,12 @@ char *term_color(char *outbuf, const char *inbuf, int fgcolor, int bgcolor, int 
 	}
 
 	if (ast_opt_force_black_background) {
-		snprintf(outbuf, maxout, "%c[%d;%d;%dm%s%c[%d;%dm", ESC, attr, fgcolor, bgcolor + 10, inbuf, ESC, COLOR_WHITE, COLOR_BLACK + 10);
+		if (!bgcolor) {
+			bgcolor = COLOR_BLACK;
+		}
+		snprintf(outbuf, maxout, "%c[%d;%d;%dm%s%s", ESC, attr, fgcolor, bgcolor + 10, inbuf, term_end());
 	} else {
-		snprintf(outbuf, maxout, "%c[%d;%dm%s%c[0m", ESC, attr, fgcolor, inbuf, ESC);
+		snprintf(outbuf, maxout, "%c[%d;%dm%s%s", ESC, attr, fgcolor, inbuf, term_end());
 	}
 	return outbuf;
 }
@@ -242,16 +243,16 @@ static void check_bgcolor(int *bgcolor)
 	}
 }
 
-static int check_colors_allowed(int fgcolor)
+static int check_colors_allowed(void)
 {
-	return (!vt100compat || !fgcolor) ? 0 : 1;
+	return vt100compat;
 }
 
 int ast_term_color_code(struct ast_str **str, int fgcolor, int bgcolor)
 {
 	int attr = 0;
 
-	if (!check_colors_allowed(fgcolor)) {
+	if (!check_colors_allowed()) {
 		return -1;
 	}
 
@@ -273,7 +274,7 @@ char *term_color_code(char *outbuf, int fgcolor, int bgcolor, int maxout)
 {
 	int attr = 0;
 
-	if (!check_colors_allowed(fgcolor)) {
+	if (!check_colors_allowed()) {
 		*outbuf = '\0';
 		return outbuf;
 	}
@@ -310,11 +311,7 @@ const char *ast_term_color(int fgcolor, int bgcolor)
 
 const char *ast_term_reset(void)
 {
-	if (ast_opt_force_black_background) {
-		return enddata;
-	} else {
-		return quitdata;
-	}
+	return term_end();
 }
 
 char *term_strip(char *outbuf, const char *inbuf, int maxout)
