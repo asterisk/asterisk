@@ -2,10 +2,9 @@
 
 #ifndef ASTERISK_AUTOCONFIG_H
 #define ASTERISK_AUTOCONFIG_H
+/* IWYU pragma: private, include "asterisk.h" */
 
 #include "asterisk/buildopts.h"
-
-
 
 /* Define to 1 if internal poll should be used. */
 #undef AST_POLL_COMPAT
@@ -1381,4 +1380,4 @@
    code using `volatile' can become incorrect without. Disable with care. */
 #undef volatile
 
-#endif
+#endif	/* ASTERISK_AUTOCONFIG_H */
