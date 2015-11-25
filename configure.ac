@@ -218,17 +218,13 @@ if test ! x"${UNAME}" = xNo; then
 fi
 AC_SUBST(PBX_OSREV)
 
-AH_TOP(
-#ifndef ASTERISK_AUTOCONFIG_H
+AH_TOP([#ifndef ASTERISK_AUTOCONFIG_H
 #define ASTERISK_AUTOCONFIG_H
+/* IWYU pragma: private, include "asterisk.h" */
 
-#include "asterisk/buildopts.h"
+#include "asterisk/buildopts.h"])
 
-)
-
-AH_BOTTOM(
-#endif
-)
+AH_BOTTOM([#endif	/* ASTERISK_AUTOCONFIG_H */])
 
 # cross-compile checks
 if test "${cross_compiling}" = "yes";
