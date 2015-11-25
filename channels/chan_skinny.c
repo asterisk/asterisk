@@ -1364,6 +1364,12 @@ static int gendigittimeout = 8000;
 /* How long to wait for an extra digit, if there is an ambiguous match */
 static int matchdigittimeout = 3000;
 
+/*!
+ * To apease the stupid compiler option on ast_sched_del()
+ * since we don't care about the return value.
+ */
+static int not_used;
+
 #define SUBSTATE_UNSET 0
 #define SUBSTATE_OFFHOOK 1
 #define SUBSTATE_ONHOOK 2
@@ -2262,10 +2268,10 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 	int instance;
 	int res = -1;
 
-	if (s->auth_timeout_sched && ast_sched_del(sched, s->auth_timeout_sched)) {
-		return 0;
+	if (-1 < s->auth_timeout_sched) {
+		not_used = ast_sched_del(sched, s->auth_timeout_sched);
+		s->auth_timeout_sched = -1;
 	}
-	s->auth_timeout_sched = 0;
 
 	AST_LIST_LOCK(&devices);
 	AST_LIST_TRAVERSE(&devices, d, list){
@@ -5571,6 +5577,7 @@ static void setsubstate(struct skinny_subchannel *sub, int state)
 			sub->cfwd_sched = -1;
 		} else if (state == SUBSTATE_ONHOOK) {
 			skinny_sched_del(sub->cfwd_sched, sub);
+			sub->cfwd_sched = -1;
 		}
 	}
 
@@ -6170,9 +6177,7 @@ static int handle_ip_port_message(struct skinny_req *req, struct skinnysession *
 
 static void handle_keepalive_message(struct skinny_req *req, struct skinnysession *s)
 {
-	if (ast_sched_del(sched, s->keepalive_timeout_sched)) {
-		return;
-	}
+	not_used = ast_sched_del(sched, s->keepalive_timeout_sched);
 
 #ifdef AST_DEVMODE
 	{
@@ -7415,7 +7420,7 @@ static int skinny_noauth_cb(const void *data)
 {
 	struct skinnysession *s = (struct skinnysession *)data;
 	ast_log(LOG_WARNING, "Skinny Client failed to authenticate in %d seconds (SCHED %d)\n", auth_timeout, s->auth_timeout_sched);
-	s->auth_timeout_sched = 0;
+	s->auth_timeout_sched = -1;
 	end_session(s);
 	return 0;
 }
@@ -7424,7 +7429,7 @@ static int skinny_nokeepalive_cb(const void *data)
 {
 	struct skinnysession *s = (struct skinnysession *)data;
 	ast_log(LOG_WARNING, "Skinny Client failed to send keepalive in last %d seconds (SCHED %d)\n", keep_alive*3, s->keepalive_timeout_sched);
-	s->keepalive_timeout_sched = 0;
+	s->keepalive_timeout_sched = -1;
 	end_session(s);
 	return 0;
 }
@@ -7442,11 +7447,13 @@ static void skinny_session_cleanup(void *data)
 		ast_mutex_unlock(&s->lock);
 	}
 
-	if (s->auth_timeout_sched && !ast_sched_del(sched, s->auth_timeout_sched)) {
-		s->auth_timeout_sched = 0;
+	if (-1 < s->auth_timeout_sched) {
+		not_used = ast_sched_del(sched, s->auth_timeout_sched);
+		s->auth_timeout_sched = -1;
 	}
-	if (s->keepalive_timeout_sched && !ast_sched_del(sched, s->keepalive_timeout_sched)) {
-		s->keepalive_timeout_sched = 0;
+	if (-1 < s->keepalive_timeout_sched) {
+		not_used = ast_sched_del(sched, s->keepalive_timeout_sched);
+		s->keepalive_timeout_sched = -1;
 	}
 
 	if (d) {
@@ -7651,6 +7658,8 @@ static void *accept_thread(void *ignore)
 		ast_mutex_init(&s->lock);
 		memcpy(&s->sin, &sin, sizeof(sin));
 		s->fd = as;
+		s->auth_timeout_sched = -1;
+		s->keepalive_timeout_sched = -1;
 
 		if (ast_pthread_create(&s->t, NULL, skinny_session, s)) {
 			destroy_session(s);
