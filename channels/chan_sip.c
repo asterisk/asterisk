@@ -9374,6 +9374,9 @@ static int sip_register(const char *value, int lineno)
 		return -1;
 	}
 
+	reg->expire = -1;
+	reg->timeout = -1;
+
 	if (ast_string_field_init(reg, 256)) {
 		ao2_t_ref(reg, -1, "failed to string_field_init, drop reg");
 		return -1;
@@ -9447,6 +9450,8 @@ static int sip_subscribe_mwi(const char *value, int lineno)
 		return -1;
 	}
 
+	mwi->resub = -1;
+
 	if (ast_string_field_init(mwi, 256)) {
 		ao2_t_ref(mwi, -1, "failed to string_field_init, drop mwi");
 		return -1;
@@ -9461,7 +9466,6 @@ static int sip_subscribe_mwi(const char *value, int lineno)
 	}
 	ast_string_field_set(mwi, hostname, hostname);
 	ast_string_field_set(mwi, mailbox, mailbox);
-	mwi->resub = -1;
 	mwi->portno = portnum;
 	mwi->transport = transport;
 
