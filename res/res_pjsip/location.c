@@ -1015,7 +1015,7 @@ int ast_sip_initialize_sorcery_location(void)
 	 * object before PJSIP options handling is initialized.
 	 */
 	for (i = 0; i < REMOVED; i++) {
-		ast_statsd_log_full_va("PJSIP.contacts.states.%s", AST_STATSD_GUAGE, 0, 1.0, ast_sip_get_contact_status_label(i));
+		ast_statsd_log_full_va("PJSIP.contacts.states.%s", AST_STATSD_GAUGE, 0, 1.0, ast_sip_get_contact_status_label(i));
 	}
 
 	return 0;

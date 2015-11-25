@@ -232,9 +232,9 @@ res_pjsip_outbound_registration
  * If res_statsd is loaded and a StatsD server is configured, basic statistics
    regarding the state of outbound registrations will now be emitted. This
    includes:
-   - A GUAGE statistic for the overall number of outbound registrations, i.e.:
+   - A GAUGE statistic for the overall number of outbound registrations, i.e.:
        PJSIP.registrations.count
-   - A GUAGE statistic for the overall number of outbound registrations in a
+   - A GAUGE statistic for the overall number of outbound registrations in a
      particular state, e.g.:
        PJSIP.registrations.state.Registered
 
@@ -245,7 +245,7 @@ res_pjsip
 
  * If res_statsd is loaded and a StatsD server is configured, basic statistics
    regarding the state of PJSIP contacts will not be emitted. This includes:
-   - A GUAGE statistic for the overall number of contacts in a particular
+   - A GAUGE statistic for the overall number of contacts in a particular
      state, e.g.:
        PJSIP.contacts.states.Reachable
    - A TIMER statistic for the RTT time for each qualified contact, e.g.:
@@ -265,9 +265,9 @@ res_endpoint_stats
 -------------------
  * A new module that emits StatsD statistics regarding Asterisk endpoints.
    This includes a total count of the number of endpoints, the count of the
-   number of endpoints in the technology agnosti state of the endpoint -
+   number of endpoints in the technology agnostic state of the endpoint -
    online or offline - as well as the number of channels associated with each
-   endpoint. These are recorded as three differeng GUAGE statistics:
+   endpoint. These are recorded as three different GAUGE statistics:
     - endpoints.count
     - endpoints.state.{unknown|offline|online}
     - endpoints.{tech}.{resource}.channels

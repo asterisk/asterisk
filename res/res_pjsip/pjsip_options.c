@@ -114,7 +114,7 @@ struct ast_sip_contact_status *ast_res_pjsip_find_or_create_contact_status(const
 		return NULL;
 	}
 
-	ast_statsd_log_string_va("PJSIP.contacts.states.%s", AST_STATSD_GUAGE,
+	ast_statsd_log_string_va("PJSIP.contacts.states.%s", AST_STATSD_GAUGE,
 		"+1", 1.0, ast_sip_get_contact_status_label(status->status));
 
 	return status;
@@ -148,9 +148,9 @@ static void update_contact_status(const struct ast_sip_contact *contact,
 	update->last_status = status->status;
 	update->status = value;
 	if (update->last_status != update->status) {
-		ast_statsd_log_string_va("PJSIP.contacts.states.%s", AST_STATSD_GUAGE,
+		ast_statsd_log_string_va("PJSIP.contacts.states.%s", AST_STATSD_GAUGE,
 			"-1", 1.0, ast_sip_get_contact_status_label(update->last_status));
-		ast_statsd_log_string_va("PJSIP.contacts.states.%s", AST_STATSD_GUAGE,
+		ast_statsd_log_string_va("PJSIP.contacts.states.%s", AST_STATSD_GAUGE,
 			"+1", 1.0, ast_sip_get_contact_status_label(update->status));
 	}
 

@@ -48,13 +48,13 @@ static void update_endpoint_state(struct ast_endpoint_snapshot *snapshot, const 
 {
 	switch (snapshot->state) {
 	case AST_ENDPOINT_UNKNOWN:
-		ast_statsd_log_string("endpoints.state.unknown", AST_STATSD_GUAGE, delta, 1.0);
+		ast_statsd_log_string("endpoints.state.unknown", AST_STATSD_GAUGE, delta, 1.0);
 		break;
 	case AST_ENDPOINT_OFFLINE:
-		ast_statsd_log_string("endpoints.state.offline", AST_STATSD_GUAGE, delta, 1.0);
+		ast_statsd_log_string("endpoints.state.offline", AST_STATSD_GAUGE, delta, 1.0);
 		break;
 	case AST_ENDPOINT_ONLINE:
-		ast_statsd_log_string("endpoints.state.online", AST_STATSD_GUAGE, delta, 1.0);
+		ast_statsd_log_string("endpoints.state.online", AST_STATSD_GAUGE, delta, 1.0);
 		break;
 	}
 }
@@ -62,17 +62,17 @@ static void update_endpoint_state(struct ast_endpoint_snapshot *snapshot, const 
 static void handle_endpoint_update(struct ast_endpoint_snapshot *old_snapshot, struct ast_endpoint_snapshot *new_snapshot)
 {
 	if (!old_snapshot && new_snapshot) {
-		ast_statsd_log_string("endpoints.count", AST_STATSD_GUAGE, "+1", 1.0);
+		ast_statsd_log_string("endpoints.count", AST_STATSD_GAUGE, "+1", 1.0);
 		update_endpoint_state(new_snapshot, "+1");
 	} else if (old_snapshot && !new_snapshot) {
-		ast_statsd_log_string("endpoints.count", AST_STATSD_GUAGE, "-1", 1.0);
+		ast_statsd_log_string("endpoints.count", AST_STATSD_GAUGE, "-1", 1.0);
 		update_endpoint_state(old_snapshot, "-1");
 	} else {
 		if (old_snapshot->state != new_snapshot->state) {
 			update_endpoint_state(old_snapshot, "-1");
 			update_endpoint_state(new_snapshot, "+1");
 		}
-		ast_statsd_log_full_va("endpoints.%s.%s.channels", AST_STATSD_GUAGE, new_snapshot->num_channels, 1.0,
+		ast_statsd_log_full_va("endpoints.%s.%s.channels", AST_STATSD_GAUGE, new_snapshot->num_channels, 1.0,
 			new_snapshot->tech, new_snapshot->resource);
 	}
 }
