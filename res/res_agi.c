@@ -2407,8 +2407,8 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 			}
 			f = ast_read(chan);
 			if (!f) {
-				ast_agi_send(agi->fd, chan, "200 result=%d (hangup) endpos=%ld\n", -1, sample_offset);
 				ast_closestream(fs);
+				ast_agi_send(agi->fd, chan, "200 result=%d (hangup) endpos=%ld\n", -1, sample_offset);
 				if (sildet)
 					ast_dsp_free(sildet);
 				return RESULT_FAILURE;
@@ -2422,8 +2422,8 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 					ast_stream_rewind(fs, 200);
 					ast_truncstream(fs);
 					sample_offset = ast_tellstream(fs);
-					ast_agi_send(agi->fd, chan, "200 result=%d (dtmf) endpos=%ld\n", f->subclass.integer, sample_offset);
 					ast_closestream(fs);
+					ast_agi_send(agi->fd, chan, "200 result=%d (dtmf) endpos=%ld\n", f->subclass.integer, sample_offset);
 					ast_frfree(f);
 					if (sildet)
 						ast_dsp_free(sildet);
@@ -2467,8 +2467,8 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, const
 			ast_truncstream(fs);
 			sample_offset = ast_tellstream(fs);
 		}
-		ast_agi_send(agi->fd, chan, "200 result=%d (timeout) endpos=%ld\n", res, sample_offset);
 		ast_closestream(fs);
+		ast_agi_send(agi->fd, chan, "200 result=%d (timeout) endpos=%ld\n", res, sample_offset);
 	}
 
 	if (silence > 0) {
