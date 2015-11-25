@@ -15,10 +15,12 @@
  * especially those related to header files.
  */
 
-#include "asterisk/compiler.h"
-
 #ifndef _COMPAT_H
 #define _COMPAT_H
+/* IWYU pragma: private, include "asterisk.h" */
+/* IWYU pragma: begin_exports */
+
+#include "asterisk/compiler.h"
 
 #ifndef __STDC_VERSION__
 /* flex output wants to find this defined. */
@@ -231,5 +233,5 @@ float roundf(float x);
 #ifndef NAN
 #define NAN (0.0/0.0)
 #endif
-
+/* IWYU pragma: end_exports */
 #endif
