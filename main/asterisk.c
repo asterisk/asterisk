@@ -372,9 +372,14 @@ struct console consoles[AST_MAX_CONNECTS];
 
 char ast_defaultlanguage[MAX_LANGUAGE] = DEFAULT_LANGUAGE;
 
-static int ast_el_add_history(char *);
-static int ast_el_read_history(char *);
-static int ast_el_write_history(char *);
+static int ast_el_add_history(const char *);
+static int ast_el_read_history(const char *);
+static int ast_el_write_history(const char *);
+
+static void ast_el_read_default_histfile(void);
+static void ast_el_write_default_histfile(void);
+
+static void asterisk_daemon(int isroot, const char *runuser, const char *rungroup);
 
 struct _cfg_paths {
 	char config_dir[PATH_MAX];
@@ -2064,13 +2069,7 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 	}
 
 	if (ast_opt_console || (ast_opt_remote && !ast_opt_exec)) {
-		char filename[80] = "";
-		if (getenv("HOME")) {
-			snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
-		}
-		if (!ast_strlen_zero(filename)) {
-			ast_el_write_history(filename);
-		}
+		ast_el_write_default_histfile();
 		if (consolethread == AST_PTHREADT_NULL || consolethread == pthread_self()) {
 			/* Only end if we are the consolethread, otherwise there's a race with that thread. */
 			if (el != NULL) {
@@ -2301,7 +2300,7 @@ static void console_verboser(const char *s)
 	}
 }
 
-static int ast_all_zeros(char *s)
+static int ast_all_zeros(const char *s)
 {
 	while (*s) {
 		if (*s > 32)
@@ -2312,7 +2311,7 @@ static int ast_all_zeros(char *s)
 }
 
 /* This is the main console CLI command handler.  Run by the main() thread. */
-static void consolehandler(char *s)
+static void consolehandler(const char *s)
 {
 	printf("%s", term_end());
 	fflush(stdout);
@@ -2330,7 +2329,7 @@ static void consolehandler(char *s)
 		ast_cli_command(STDOUT_FILENO, s);
 }
 
-static int remoteconsolehandler(char *s)
+static int remoteconsolehandler(const char *s)
 {
 	int ret = 0;
 
@@ -3247,7 +3246,7 @@ static int ast_el_initialize(void)
 
 #define MAX_HISTORY_COMMAND_LENGTH 256
 
-static int ast_el_add_history(char *buf)
+static int ast_el_add_history(const char *buf)
 {
 	HistEvent ev;
 	char *stripped_buf;
@@ -3269,7 +3268,7 @@ static int ast_el_add_history(char *buf)
 	return history(el_hist, &ev, H_ENTER, stripped_buf);
 }
 
-static int ast_el_write_history(char *filename)
+static int ast_el_write_history(const char *filename)
 {
 	HistEvent ev;
 
@@ -3279,7 +3278,7 @@ static int ast_el_write_history(char *filename)
 	return (history(el_hist, &ev, H_SAVE, filename));
 }
 
-static int ast_el_read_history(char *filename)
+static int ast_el_read_history(const char *filename)
 {
 	HistEvent ev;
 
@@ -3290,11 +3289,32 @@ static int ast_el_read_history(char *filename)
 	return history(el_hist, &ev, H_LOAD, filename);
 }
 
+static void ast_el_read_default_histfile(void)
+{
+	char histfile[80] = "";
+	const char *home = getenv("HOME");
+
+	if (!ast_strlen_zero(home)) {
+		snprintf(histfile, sizeof(histfile), "%s/.asterisk_history", home);
+		ast_el_read_history(histfile);
+	}
+}
+
+static void ast_el_write_default_histfile(void)
+{
+	char histfile[80] = "";
+	const char *home = getenv("HOME");
+
+	if (!ast_strlen_zero(home)) {
+		snprintf(histfile, sizeof(histfile), "%s/.asterisk_history", home);
+		ast_el_write_history(histfile);
+	}
+}
+
 static void ast_remotecontrol(char *data)
 {
 	char buf[256] = "";
 	int res;
-	char filename[80] = "";
 	char *hostname;
 	char *cpid;
 	char *version;
@@ -3303,6 +3323,10 @@ static void ast_remotecontrol(char *data)
 
 	char *ebuf;
 	int num = 0;
+
+	ast_term_init();
+	printf("%s", term_end());
+	fflush(stdout);
 
 	memset(&sig_flags, 0, sizeof(sig_flags));
 	signal(SIGINT, __remote_quit_handler);
@@ -3402,15 +3426,11 @@ static void ast_remotecontrol(char *data)
 
 	ast_verbose("Connected to Asterisk %s currently running on %s (pid = %d)\n", version, hostname, pid);
 	remotehostname = hostname;
-	if (getenv("HOME"))
-		snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
 	if (el_hist == NULL || el == NULL)
 		ast_el_initialize();
+	ast_el_read_default_histfile();
 
 	el_set(el, EL_GETCFN, ast_el_read_char);
-
-	if (!ast_strlen_zero(filename))
-		ast_el_read_history(filename);
 
 	for (;;) {
 		ebuf = (char *)el_gets(el, &num);
@@ -3870,18 +3890,11 @@ static void main_atexit(void)
 int main(int argc, char *argv[])
 {
 	int c;
-	char filename[80] = "";
-	char hostname[MAXHOSTNAMELEN] = "";
 	char * xarg = NULL;
 	int x;
-	FILE *f;
-	sigset_t sigs;
-	int num;
 	int isroot = 1, rundir_exists = 0;
-	char *buf;
 	const char *runuser = NULL, *rungroup = NULL;
 	char *remotesock = NULL;
-	int moduleresult;         /*!< Result from the module load subsystem */
 	struct rlimit l;
 
 	/* Remember original args for restart */
@@ -3900,12 +3913,8 @@ int main(int argc, char *argv[])
 	if (argv[0] && (strstr(argv[0], "rasterisk")) != NULL) {
 		ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK | AST_OPT_FLAG_REMOTE);
 	}
-	if (gethostname(hostname, sizeof(hostname)-1))
-		ast_copy_string(hostname, "<Unknown>", sizeof(hostname));
 	ast_mainpid = getpid();
 
-	if (getenv("HOME"))
-		snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
 	/*! \brief Check for options
 	 *
 	 * \todo Document these options
@@ -4249,6 +4258,10 @@ int main(int argc, char *argv[])
 				quit_handler(0, SHUTDOWN_FAST, 0);
 				exit(0);
 			}
+			ast_term_init();
+			printf("%s", term_end());
+			fflush(stdout);
+
 			print_intro_message(runuser, rungroup);
 			printf("%s", term_quit());
 			ast_remotecontrol(NULL);
@@ -4264,6 +4277,19 @@ int main(int argc, char *argv[])
 		printf("%s", term_quit());
 		exit(1);
 	}
+
+	/* Not a remote console? Start the daemon. */
+	asterisk_daemon(isroot, runuser, rungroup);
+	return 0;
+}
+
+static void asterisk_daemon(int isroot, const char *runuser, const char *rungroup)
+{
+	FILE *f;
+	sigset_t sigs;
+	int num;
+	char *buf;
+	int moduleresult;         /*!< Result from the module load subsystem */
 
 	/* This needs to remain as high up in the initial start up as possible.
 	 * daemon causes a fork to occur, which has all sorts of unintended
@@ -4361,9 +4387,7 @@ int main(int argc, char *argv[])
 	if (ast_opt_console) {
 		if (el_hist == NULL || el == NULL)
 			ast_el_initialize();
-
-		if (!ast_strlen_zero(filename))
-			ast_el_read_history(filename);
+		ast_el_read_default_histfile();
 	}
 
 	ast_json_init();
@@ -4528,7 +4552,7 @@ int main(int argc, char *argv[])
 
 	/* initialize the data retrieval API */
 	if (ast_data_init()) {
-		printf ("Failed: ast_data_init\n%s", term_quit());
+		printf("Failed: ast_data_init\n%s", term_quit());
 		exit(1);
 	}
 
@@ -4695,6 +4719,11 @@ int main(int argc, char *argv[])
 		/* Console stuff now... */
 		/* Register our quit function */
 		char title[256];
+		char hostname[MAXHOSTNAMELEN] = "";
+
+		if (gethostname(hostname, sizeof(hostname) - 1)) {
+			ast_copy_string(hostname, "<Unknown>", sizeof(hostname));
+		}
 
 		ast_pthread_create_detached(&mon_sig_flags, NULL, monitor_sig_flags, NULL);
 
@@ -4712,30 +4741,17 @@ int main(int argc, char *argv[])
 			buf = (char *) el_gets(el, &num);
 
 			if (!buf && write(1, "", 1) < 0)
-				goto lostterm;
+				return; /* quit */
 
 			if (buf) {
 				if (buf[strlen(buf)-1] == '\n')
 					buf[strlen(buf)-1] = '\0';
 
-				consolehandler((char *)buf);
-			} else if (ast_opt_remote && (write(STDOUT_FILENO, "\nUse EXIT or QUIT to exit the asterisk console\n",
-				   strlen("\nUse EXIT or QUIT to exit the asterisk console\n")) < 0)) {
-				/* Whoa, stdout disappeared from under us... Make /dev/null's */
-				int fd;
-				fd = open("/dev/null", O_RDWR);
-				if (fd > -1) {
-					dup2(fd, STDOUT_FILENO);
-					dup2(fd, STDIN_FILENO);
-				} else
-					ast_log(LOG_WARNING, "Failed to open /dev/null to recover from dead console. Bad things will happen!\n");
-				break;
+				consolehandler(buf);
 			}
 		}
 	}
 
+	/* Stall until a quit signal is given */
 	monitor_sig_flags(NULL);
-
-lostterm:
-	return 0;
 }

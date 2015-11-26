@@ -67,8 +67,8 @@ extern "C" {
 #define COLORIZE_FMT	"%s%s%s"
 #define COLORIZE(fg, bg, str)	ast_term_color(fg,bg),str,ast_term_reset()
 /*! \brief Maximum number of characters needed for a color escape sequence,
- *         plus a null char */
-#define AST_TERM_MAX_ESCAPE_CHARS   12
+ *         and another one for a trailing reset, plus a null char */
+#define AST_TERM_MAX_ESCAPE_CHARS   23
 #define AST_TERM_MAX_ROTATING_BUFFERS	15
 
 /*! \brief Colorize a specified string by adding terminal color codes
