@@ -56,7 +56,7 @@ res_pjsip
    CLI commands.  For instance: CLI> pjsip list endpoints like abc
 
  * If res_statsd is loaded and a StatsD server is configured, basic statistics
-   regarding the state of PJSIP contacts will not be emitted. This includes:
+   regarding the state of PJSIP contacts will now be emitted. This includes:
    - A GAUGE statistic for the overall number of contacts in a particular
      state, e.g.:
        PJSIP.contacts.states.Reachable
