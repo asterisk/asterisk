@@ -97,6 +97,11 @@ static void *contact_status_alloc(const char *name)
 	ast_assert(aor_separator != NULL);
 
 	status->aor = ast_strdup(aor);
+	if (!status->aor) {
+		ao2_cleanup(status);
+		return NULL;
+	}
+
 	status->status = UNKNOWN;
 
 	return status;
@@ -125,6 +130,11 @@ struct ast_sip_contact_status *ast_res_pjsip_find_or_create_contact_status(const
 	}
 
 	status->uri = ast_strdup(contact->uri);
+	if (!status->uri) {
+		ao2_cleanup(status);
+		return NULL;
+	}
+
 	status->status = UNKNOWN;
 	status->rtt_start = ast_tv(0, 0);
 	status->rtt = 0;
@@ -168,6 +178,11 @@ static void update_contact_status(const struct ast_sip_contact *contact,
 	}
 
 	update->uri = ast_strdup(contact->uri);
+	if (!update->uri) {
+		ao2_cleanup(status);
+		return;
+	}
+
 	update->last_status = status->status;
 	update->status = value;
 	if (update->last_status != update->status) {
@@ -229,6 +244,11 @@ static void init_start_time(const struct ast_sip_contact *contact)
 	}
 
 	update->uri = ast_strdup(contact->uri);
+	if (!update->uri) {
+		ao2_cleanup(status);
+		return;
+	}
+
 	update->status = status->status;
 	update->last_status = status->last_status;
 	update->rtt = status->rtt;

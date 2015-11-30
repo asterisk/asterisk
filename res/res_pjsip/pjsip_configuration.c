@@ -168,10 +168,9 @@ static void persistent_endpoint_contact_deleted_observer(const void *object)
 				contact->aor, contact->uri);
 			return;
 		}
+		contact_status->uri = ast_strdup(contact->uri);
 	}
 
-	contact_status->uri = ast_strdup(contact->uri);
-	contact_status->aor = ast_strdup(contact->aor);
 	contact_status->status = REMOVED;
 
 	ast_verb(1, "Contact %s/%s has been deleted\n", contact->aor, contact->uri);
