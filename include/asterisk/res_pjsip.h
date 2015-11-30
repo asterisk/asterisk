@@ -201,6 +201,8 @@ struct ast_sip_contact_status {
 	int64_t rtt;
 	/*! Last status for a contact (default - unavailable) */
 	enum ast_sip_contact_status_type last_status;
+	/*! SHA1 hash of this object's sorcery ID */
+	char hash[41];
 };
 
 /*!

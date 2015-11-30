@@ -75,7 +75,7 @@ static void *contact_status_alloc(const char *name)
 		ast_log(LOG_ERROR, "Unable to allocate ast_sip_contact_status\n");
 		return NULL;
 	}
-
+	ast_sha1_hash(status->hash, name);
 	status->status = UNKNOWN;
 
 	return status;
@@ -102,7 +102,7 @@ struct ast_sip_contact_status *ast_res_pjsip_find_or_create_contact_status(const
 			contact->uri);
 		return NULL;
 	}
-
+	ast_sha1_hash(status->hash, ast_sorcery_object_get_id(contact));
 	status->status = UNKNOWN;
 	status->rtt_start = ast_tv(0, 0);
 	status->rtt = 0;
@@ -162,7 +162,7 @@ static void update_contact_status(const struct ast_sip_contact *contact,
 	update->rtt_start = ast_tv(0, 0);
 
 	ast_statsd_log_full_va("PJSIP.contacts.%s.rtt", AST_STATSD_TIMER,
-		update->rtt / 1000, 1.0, ast_sorcery_object_get_id(update));
+		update->rtt / 1000, 1.0, update->hash);
 	ast_test_suite_event_notify("AOR_CONTACT_QUALIFY_RESULT",
 		"Contact: %s\r\n"
 		"Status: %s\r\n"
@@ -1014,6 +1014,8 @@ int ast_sip_initialize_sorcery_qualify(void)
 		"0.0", rtt_start_handler, rtt_start_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_nodoc(sorcery, CONTACT_STATUS, "rtt",
 		"0", OPT_UINT_T, 1, FLDSET(struct ast_sip_contact_status, rtt));
+	ast_sorcery_object_field_register_nodoc(sorcery, CONTACT_STATUS, "hash",
+		"", OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct ast_sip_contact_status, hash));
 
 	return 0;
 }

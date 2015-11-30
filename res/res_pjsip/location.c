@@ -763,12 +763,12 @@ static int cli_contact_print_header(void *obj, void *arg, int flags)
 {
 	struct ast_sip_cli_context *context = arg;
 	int indent = CLI_INDENT_TO_SPACES(context->indent_level);
-	int filler = CLI_LAST_TABSTOP - indent - 18;
+	int filler = CLI_LAST_TABSTOP - indent - 29;
 
 	ast_assert(context->output_buffer != NULL);
 
 	ast_str_append(&context->output_buffer, 0,
-		"%*s:  <Aor/ContactUri%*.*s>  <Status....>  <RTT(ms)..>\n",
+		"%*s:  <Aor/ContactUri%*.*s> <Hash......> <Status....>  <RTT(ms)..>\n",
 		indent, "Contact", filler, filler, CLI_HEADER_FILLER);
 
 	return 0;
@@ -790,13 +790,14 @@ static int cli_contact_print_body(void *obj, void *arg, int flags)
 	ast_assert(context->output_buffer != NULL);
 
 	indent = CLI_INDENT_TO_SPACES(context->indent_level);
-	flexwidth = CLI_LAST_TABSTOP - indent - 2;
+	flexwidth = CLI_LAST_TABSTOP - indent - 14;
 
-	ast_str_append(&context->output_buffer, 0, "%*s:  %-*.*s  %-12.12s  %11.3f\n",
+	ast_str_append(&context->output_buffer, 0, "%*s:  %-*.*s   %10.10s   %-11.11s %11.3f\n",
 		indent,
 		"Contact",
 		flexwidth, flexwidth,
 		wrapper->contact_id,
+		status->hash,
 		ast_sip_get_contact_short_status_label(status ? status->status : UNKNOWN),
 		(status && (status->status != UNKNOWN) ? ((long long) status->rtt) / 1000.0 : NAN));
 
