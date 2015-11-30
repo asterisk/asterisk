@@ -36,6 +36,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/dns_resolver.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/taskprocessor.h"
+#include "asterisk/utils.h"
 
 /*! \brief The consideration priority for this resolver implementation. */
 #define DNS_SYSTEM_RESOLVER_PRIORITY INT_MAX
@@ -152,10 +153,10 @@ static int dns_system_resolver_process_query(void *data)
 
 	/* Handle the possible return values from the DNS search */
 	if (res == AST_DNS_SEARCH_FAILURE) {
-		ast_log(LOG_ERROR, "DNS search failed for query: '%s'\n",
+		ast_debug(1, "DNS search failed for query: '%s'\n",
 		        ast_dns_query_get_name(query));
 	} else if (res == AST_DNS_SEARCH_NO_RECORDS) {
-		ast_log(LOG_WARNING, "DNS search failed to yield any results for query: '%s'\n",
+		ast_debug(1, "DNS search failed to yield any results for query: '%s'\n",
 		        ast_dns_query_get_name(query));
 	}
 
