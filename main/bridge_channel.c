@@ -289,6 +289,8 @@ void ast_bridge_channel_leave_bridge_nolock(struct ast_bridge_channel *bridge_ch
 
 	channel_set_cause(bridge_channel->chan, cause);
 
+	ast_bridge_vars_clear(bridge_channel->chan);
+
 	/* Change the state on the bridge channel */
 	bridge_channel->state = new_state;
 
