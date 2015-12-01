@@ -99,6 +99,9 @@ static void contact_destroy(void *obj)
 static void *contact_alloc(const char *name)
 {
 	struct ast_sip_contact *contact = ast_sorcery_generic_alloc(sizeof(*contact), contact_destroy);
+	char *id = ast_strdupa(name);
+	char *aor = id;
+	char *aor_separator = NULL;
 
 	if (!contact) {
 		return NULL;
@@ -108,6 +111,14 @@ static void *contact_alloc(const char *name)
 		ao2_cleanup(contact);
 		return NULL;
 	}
+
+	/* Dynamic contacts are delimited with ";@" and static ones with "@@" */
+	if ((aor_separator = strstr(id, ";@")) || (aor_separator = strstr(id, "@@"))) {
+		*aor_separator = '\0';
+	}
+	ast_assert(aor_separator != NULL);
+
+	ast_string_field_set(contact, aor, aor);
 
 	return contact;
 }
@@ -790,13 +801,14 @@ static int cli_contact_print_body(void *obj, void *arg, int flags)
 	ast_assert(context->output_buffer != NULL);
 
 	indent = CLI_INDENT_TO_SPACES(context->indent_level);
-	flexwidth = CLI_LAST_TABSTOP - indent - 2;
+	flexwidth = CLI_LAST_TABSTOP - indent - 2 - strlen(contact->aor) + 1;
 
-	ast_str_append(&context->output_buffer, 0, "%*s:  %-*.*s  %-12.12s  %11.3f\n",
+	ast_str_append(&context->output_buffer, 0, "%*s:  %s/%-*.*s  %-12.12s  %11.3f\n",
 		indent,
 		"Contact",
+		contact->aor,
 		flexwidth, flexwidth,
-		wrapper->contact_id,
+		contact->uri,
 		ast_sip_get_contact_short_status_label(status ? status->status : UNKNOWN),
 		(status && (status->status != UNKNOWN) ? ((long long) status->rtt) / 1000.0 : NAN));
 
