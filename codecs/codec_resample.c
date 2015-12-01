@@ -38,7 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/translate.h"
 #include "asterisk/slin.h"
 
-#define OUTBUF_SIZE   8096
+#define OUTBUF_SAMPLES   5760
 
 static struct ast_translator *translators;
 static int trans_size;
@@ -74,7 +74,7 @@ static void resamp_destroy(struct ast_trans_pvt *pvt)
 static int resamp_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	SpeexResamplerState *resamp_pvt = pvt->pvt;
-	unsigned int out_samples = (OUTBUF_SIZE / sizeof(int16_t)) - pvt->samples;
+	unsigned int out_samples = OUTBUF_SAMPLES - pvt->samples;
 	unsigned int in_samples;
 
 	if (!f->datalen) {
@@ -127,8 +127,8 @@ static int load_module(void)
 			translators[idx].destroy = resamp_destroy;
 			translators[idx].framein = resamp_framein;
 			translators[idx].desc_size = 0;
-			translators[idx].buffer_samples = (OUTBUF_SIZE / sizeof(int16_t));
-			translators[idx].buf_size = OUTBUF_SIZE;
+			translators[idx].buffer_samples = OUTBUF_SAMPLES;
+			translators[idx].buf_size = (OUTBUF_SAMPLES * sizeof(int16_t));
 			ast_format_set(&translators[idx].src_format, id_list[x], 0);
 			ast_format_set(&translators[idx].dst_format, id_list[y], 0);
 			snprintf(translators[idx].name, sizeof(translators[idx].name), "slin %dkhz -> %dkhz",
