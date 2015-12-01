@@ -1213,7 +1213,7 @@ static void check_bridge_play_sounds(struct ast_bridge *bridge)
 	}
 }
 
-static void update_bridge_vars_set(struct ast_channel *chan, const char *name, const char *pvtid)
+void ast_bridge_vars_set(struct ast_channel *chan, const char *name, const char *pvtid)
 {
 	ast_channel_stage_snapshot(chan);
 	pbx_builtin_setvar_helper(chan, "BRIDGEPEER", name);
@@ -1253,12 +1253,12 @@ static void set_bridge_peer_vars_2party(struct ast_channel *c0, struct ast_chann
 	ast_channel_unlock(c1);
 
 	ast_channel_lock(c0);
-	update_bridge_vars_set(c0, c1_name, c1_pvtid);
+	ast_bridge_vars_set(c0, c1_name, c1_pvtid);
 	UPDATE_BRIDGE_VARS_GET(c0, c0_name, c0_pvtid);
 	ast_channel_unlock(c0);
 
 	ast_channel_lock(c1);
-	update_bridge_vars_set(c1, c0_name, c0_pvtid);
+	ast_bridge_vars_set(c1, c0_name, c0_pvtid);
 	ast_channel_unlock(c1);
 }
 
@@ -1359,7 +1359,7 @@ static void set_bridge_peer_vars_multiparty(struct ast_bridge *bridge)
 		++idx;
 
 		ast_channel_lock(bridge_channel->chan);
-		update_bridge_vars_set(bridge_channel->chan, buf, NULL);
+		ast_bridge_vars_set(bridge_channel->chan, buf, NULL);
 		ast_channel_unlock(bridge_channel->chan);
 	}
 }
@@ -1381,7 +1381,7 @@ static void set_bridge_peer_vars_holding(struct ast_bridge *bridge)
 
 	AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
 		ast_channel_lock(bridge_channel->chan);
-		update_bridge_vars_set(bridge_channel->chan, NULL, NULL);
+		ast_bridge_vars_set(bridge_channel->chan, NULL, NULL);
 		ast_channel_unlock(bridge_channel->chan);
 	}
 }

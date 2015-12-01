@@ -746,6 +746,18 @@ int ast_bridge_suspend(struct ast_bridge *bridge, struct ast_channel *chan);
  */
 int ast_bridge_unsuspend(struct ast_bridge *bridge, struct ast_channel *chan);
 
+/*!
+ * \brief Sets BRIDGECHANNEL and BRIDGEPVTCALLID for a channel
+ *
+ * \pre chan must be locked before calling
+ *
+ * \param name channel name of the bridged peer
+ * \param pvtid Private CallID of the bridged peer
+ *
+ * \return nothing
+ */
+void ast_bridge_vars_set(struct ast_channel *chan, const char *name, const char *pvtid);
+
 struct ast_unreal_pvt;
 
 /*!
