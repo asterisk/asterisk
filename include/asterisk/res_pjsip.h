@@ -170,6 +170,8 @@ struct ast_sip_contact {
 	double qualify_timeout;
 	/*! Endpoint that added the contact, only available in observers */
 	struct ast_sip_endpoint *endpoint;
+	/*! The name of the aor this contact belongs to */
+	char *aor;
 };
 
 #define CONTACT_STATUS "contact_status"
@@ -201,6 +203,10 @@ struct ast_sip_contact_status {
 	int64_t rtt;
 	/*! Last status for a contact (default - unavailable) */
 	enum ast_sip_contact_status_type last_status;
+	/*! The name of the aor this contact_status belongs to */
+	char *aor;
+	/*! The original contact's URI */
+	char *uri;
 };
 
 /*!
