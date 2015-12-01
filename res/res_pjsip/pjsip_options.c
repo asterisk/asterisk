@@ -42,7 +42,6 @@ static const char *status_map [] = {
 	[UNKNOWN] = "Unknown",
 	[CREATED] = "Created",
 	[REMOVED] = "Removed",
-
 };
 
 static const char *short_status_map [] = {
@@ -65,18 +64,45 @@ const char *ast_sip_get_contact_short_status_label(const enum ast_sip_contact_st
 
 /*!
  * \internal
+ * \brief Destroy a ast_sip_contact_status object.
+ */
+static void contact_status_destroy(void * obj)
+{
+	struct ast_sip_contact_status *status = obj;
+
+	ast_free(status->aor);
+	ast_free(status->uri);
+}
+
+/*!
+ * \internal
  * \brief Create a ast_sip_contact_status object.
  */
 static void *contact_status_alloc(const char *name)
 {
-	struct ast_sip_contact_status *status = ast_sorcery_generic_alloc(sizeof(*status), NULL);
+	struct ast_sip_contact_status *status = ast_sorcery_generic_alloc(sizeof(*status), contact_status_destroy);
+	char *id = ast_strdupa(name);
+	char *aor = id;
+	char *aor_separator = NULL;
 
 	if (!status) {
 		ast_log(LOG_ERROR, "Unable to allocate ast_sip_contact_status\n");
 		return NULL;
 	}
 
-	status->status = UNKNOWN;
+	/* Dynamic contacts are delimited with ";@" and static ones with "@@" */
+	if ((aor_separator = strstr(id, ";@")) || (aor_separator = strstr(id, "@@"))) {
+		*aor_separator = '\0';
+	}
+	ast_assert(aor_separator != NULL);
+
+	status->aor = ast_strdup(aor);
+	if (!status->aor) {
+		ao2_cleanup(status);
+		return NULL;
+	}
+
+	status->status = CREATED;
 
 	return status;
 }
@@ -98,12 +124,17 @@ struct ast_sip_contact_status *ast_res_pjsip_find_or_create_contact_status(const
 	status = ast_sorcery_alloc(ast_sip_get_sorcery(), CONTACT_STATUS,
 		ast_sorcery_object_get_id(contact));
 	if (!status) {
-		ast_log(LOG_ERROR, "Unable to create ast_sip_contact_status for contact %s\n",
-			contact->uri);
+		ast_log(LOG_ERROR, "Unable to create ast_sip_contact_status for contact %s/%s\n",
+			contact->aor, contact->uri);
 		return NULL;
 	}
 
-	status->status = UNKNOWN;
+	status->uri = ast_strdup(contact->uri);
+	if (!status->uri) {
+		ao2_cleanup(status);
+		return NULL;
+	}
+
 	status->rtt_start = ast_tv(0, 0);
 	status->rtt = 0;
 
@@ -127,8 +158,8 @@ struct ast_sip_contact_status *ast_res_pjsip_find_or_create_contact_status(const
 static void update_contact_status(const struct ast_sip_contact *contact,
 	enum ast_sip_contact_status_type value)
 {
-	struct ast_sip_contact_status *status;
-	struct ast_sip_contact_status *update;
+	RAII_VAR(struct ast_sip_contact_status *, status, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_sip_contact_status *, update, NULL, ao2_cleanup);
 
 	status = ast_res_pjsip_find_or_create_contact_status(contact);
 	if (!status) {
@@ -142,6 +173,11 @@ static void update_contact_status(const struct ast_sip_contact *contact,
 	if (!update) {
 		ast_log(LOG_ERROR, "Unable to allocate ast_sip_contact_status for contact %s\n",
 			contact->uri);
+		return;
+	}
+
+	update->uri = ast_strdup(contact->uri);
+	if (!update->uri) {
 		return;
 	}
 
@@ -175,9 +211,6 @@ static void update_contact_status(const struct ast_sip_contact *contact,
 		ast_log(LOG_ERROR, "Unable to update ast_sip_contact_status for contact %s\n",
 			contact->uri);
 	}
-
-	ao2_ref(status, -1);
-	ao2_ref(update, -1);
 }
 
 /*!
@@ -187,8 +220,8 @@ static void update_contact_status(const struct ast_sip_contact *contact,
  */
 static void init_start_time(const struct ast_sip_contact *contact)
 {
-	struct ast_sip_contact_status *status;
-	struct ast_sip_contact_status *update;
+	RAII_VAR(struct ast_sip_contact_status *, status, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_sip_contact_status *, update, NULL, ao2_cleanup);
 
 	status = ast_res_pjsip_find_or_create_contact_status(contact);
 	if (!status) {
@@ -205,6 +238,11 @@ static void init_start_time(const struct ast_sip_contact *contact)
 		return;
 	}
 
+	update->uri = ast_strdup(contact->uri);
+	if (!update->uri) {
+		return;
+	}
+
 	update->status = status->status;
 	update->last_status = status->last_status;
 	update->rtt = status->rtt;
@@ -214,9 +252,6 @@ static void init_start_time(const struct ast_sip_contact *contact)
 		ast_log(LOG_ERROR, "Unable to update ast_sip_contact_status for contact %s\n",
 			contact->uri);
 	}
-
-	ao2_ref(status, -1);
-	ao2_ref(update, -1);
 }
 
 /*!
