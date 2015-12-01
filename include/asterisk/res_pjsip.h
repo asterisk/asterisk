@@ -159,6 +159,8 @@ struct ast_sip_contact {
 		AST_STRING_FIELD(path);
 		/*! Content of the User-Agent header in REGISTER request */
 		AST_STRING_FIELD(user_agent);
+		/*! The name of the aor this contact belongs to */
+		AST_STRING_FIELD(aor);
 	);
 	/*! Absolute time that this contact is no longer valid after */
 	struct timeval expiration_time;
@@ -193,6 +195,12 @@ enum ast_sip_contact_status_type {
  */
 struct ast_sip_contact_status {
 	SORCERY_OBJECT(details);
+	AST_DECLARE_STRING_FIELDS(
+		/*! The original contact's URI */
+		AST_STRING_FIELD(uri);
+		/*! The name of the aor this contact_status belongs to */
+		AST_STRING_FIELD(aor);
+	);
 	/*! Current status for a contact (default - unavailable) */
 	enum ast_sip_contact_status_type status;
 	/*! The round trip start time set before sending a qualify request */
