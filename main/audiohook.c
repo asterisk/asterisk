@@ -824,13 +824,20 @@ static struct ast_frame *audiohook_list_translate_to_slin(struct ast_audiohook_l
 		return new_frame;
 	}
 
-	if (ast_format_cmp(frame->subclass.format, in_translate->format) == AST_FORMAT_CMP_NOT_EQUAL) {
+	if (!in_translate->format ||
+		ast_format_cmp(frame->subclass.format, in_translate->format) != AST_FORMAT_CMP_EQUAL) {
+		struct ast_trans_pvt *new_trans;
+
+		new_trans = ast_translator_build_path(slin, frame->subclass.format);
+		if (!new_trans) {
+			return NULL;
+		}
+
 		if (in_translate->trans_pvt) {
 			ast_translator_free_path(in_translate->trans_pvt);
 		}
-		if (!(in_translate->trans_pvt = ast_translator_build_path(slin, frame->subclass.format))) {
-			return NULL;
-		}
+		in_translate->trans_pvt = new_trans;
+
 		ao2_replace(in_translate->format, frame->subclass.format);
 	}
 
