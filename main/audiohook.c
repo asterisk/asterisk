@@ -822,9 +822,7 @@ static struct ast_frame *audiohook_list_translate_to_slin(struct ast_audiohook_l
 	slin = ast_format_cache_get_slin_by_rate(audiohook_list->list_internal_samp_rate);
 	if (ast_format_cmp(frame->subclass.format, slin) == AST_FORMAT_CMP_EQUAL) {
 		return new_frame;
-	}
-
-	if (ast_format_cmp(frame->subclass.format, in_translate->format) == AST_FORMAT_CMP_NOT_EQUAL) {
+	} else {
 		if (in_translate->trans_pvt) {
 			ast_translator_free_path(in_translate->trans_pvt);
 		}
