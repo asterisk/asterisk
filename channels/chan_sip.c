@@ -16124,28 +16124,32 @@ static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req)
  */
 static int use_reason_header(struct sip_pvt *pvt, struct sip_request *req)
 {
-	int ret;
+	int ret, cause;
 	const char *rp, *rh;
 
 	if (!pvt->owner) {
 		return -1;
 	}
 
+	if (!ast_test_flag(&pvt->flags[1], SIP_PAGE2_Q850_REASON) ||
+		!(rh = sip_get_header(req, "Reason"))) {
+		return -1;
+	}
+
+	rh = ast_skip_blanks(rh);
+	if (strncasecmp(rh, "Q.850", 5)) {
+		return -1;
+	}
+
 	ret = -1;
-	if (ast_test_flag(&pvt->flags[1], SIP_PAGE2_Q850_REASON) &&
-		(rh = sip_get_header(req, "Reason"))) {
-		rh = ast_skip_blanks(rh);
-		if (!strncasecmp(rh, "Q.850", 5)) {
-			int cause = ast_channel_hangupcause(pvt->owner);
-			rp = strstr(rh, "cause=");
-			if (rp && sscanf(rp + 6, "%3d", &cause) == 1) {
-				ret = 0;
-				ast_channel_hangupcause_set(pvt->owner, cause & 0x7f);
-				if (req->debug) {
-					ast_verbose("Using Reason header for cause code: %d\n",
-								ast_channel_hangupcause(pvt->owner));
-				}
-			}
+	cause = ast_channel_hangupcause(pvt->owner);
+	rp = strstr(rh, "cause=");
+	if (rp && sscanf(rp + 6, "%3d", &cause) == 1) {
+		ret = 0;
+		ast_channel_hangupcause_set(pvt->owner, cause & 0x7f);
+		if (req->debug) {
+			ast_verbose("Using Reason header for cause code: %d\n",
+						ast_channel_hangupcause(pvt->owner));
 		}
 	}
 	return ret;
