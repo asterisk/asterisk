@@ -388,7 +388,8 @@ static int permanent_uri_handler(const struct aco_option *opt, struct ast_variab
 	while ((contact_uri = strsep(&contacts, ","))) {
 		struct ast_sip_contact *contact;
 		struct ast_sip_contact_status *status;
-		char contact_id[strlen(aor_id) + strlen(contact_uri) + 2 + 1];
+		char hash[33];
+		char contact_id[strlen(aor_id) + sizeof(hash) + 2 + 1];
 
 		if (!aor->permanent_contacts) {
 			aor->permanent_contacts = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK,
@@ -398,7 +399,8 @@ static int permanent_uri_handler(const struct aco_option *opt, struct ast_variab
 			}
 		}
 
-		snprintf(contact_id, sizeof(contact_id), "%s@@%s", aor_id, contact_uri);
+		ast_md5_hash(hash, contact_uri);
+		snprintf(contact_id, sizeof(contact_id), "%s@@%s", aor_id, hash);
 		contact = ast_sorcery_alloc(ast_sip_get_sorcery(), "contact", contact_id);
 		if (!contact) {
 			return -1;
@@ -774,12 +776,12 @@ static int cli_contact_print_header(void *obj, void *arg, int flags)
 {
 	struct ast_sip_cli_context *context = arg;
 	int indent = CLI_INDENT_TO_SPACES(context->indent_level);
-	int filler = CLI_LAST_TABSTOP - indent - 18;
+	int filler = CLI_LAST_TABSTOP - indent - 23;
 
 	ast_assert(context->output_buffer != NULL);
 
 	ast_str_append(&context->output_buffer, 0,
-		"%*s:  <Aor/ContactUri%*.*s>  <Status....>  <RTT(ms)..>\n",
+		"%*s:  <Aor/ContactUri%*.*s> <Hash....> <Status> <RTT(ms)..>\n",
 		indent, "Contact", filler, filler, CLI_HEADER_FILLER);
 
 	return 0;
@@ -792,23 +794,26 @@ static int cli_contact_print_body(void *obj, void *arg, int flags)
 	struct ast_sip_cli_context *context = arg;
 	int indent;
 	int flexwidth;
+	const char *contact_id = ast_sorcery_object_get_id(contact);
+	const char *hash_start = contact_id + strlen(contact->aor) + 2;
 
 	RAII_VAR(struct ast_sip_contact_status *, status,
-		ast_sorcery_retrieve_by_id( ast_sip_get_sorcery(), CONTACT_STATUS, ast_sorcery_object_get_id(contact)),
+		ast_sorcery_retrieve_by_id( ast_sip_get_sorcery(), CONTACT_STATUS, contact_id),
 		ao2_cleanup);
 
 	ast_assert(contact->uri != NULL);
 	ast_assert(context->output_buffer != NULL);
 
 	indent = CLI_INDENT_TO_SPACES(context->indent_level);
-	flexwidth = CLI_LAST_TABSTOP - indent - 2 - strlen(contact->aor) + 1;
+	flexwidth = CLI_LAST_TABSTOP - indent - 9 - strlen(contact->aor) + 1;
 
-	ast_str_append(&context->output_buffer, 0, "%*s:  %s/%-*.*s  %-12.12s  %11.3f\n",
+	ast_str_append(&context->output_buffer, 0, "%*s:  %s/%-*.*s %-10.10s %-7.7s %11.3f\n",
 		indent,
 		"Contact",
 		contact->aor,
 		flexwidth, flexwidth,
 		contact->uri,
+		hash_start,
 		ast_sip_get_contact_short_status_label(status ? status->status : UNKNOWN),
 		(status && (status->status != UNKNOWN) ? ((long long) status->rtt) / 1000.0 : NAN));
 
