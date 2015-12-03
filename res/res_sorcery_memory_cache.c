@@ -848,13 +848,16 @@ static void *sorcery_memory_cache_retrieve_id(const struct ast_sorcery *sorcery,
 			if (cached->stale_update_sched_id == -1) {
 				struct stale_update_task_data *task_data;
 
-				task_data = stale_update_task_data_alloc((struct ast_sorcery *)sorcery, cache,
-					type, cached->object);
+				task_data = stale_update_task_data_alloc((struct ast_sorcery *) sorcery,
+					cache, type, cached->object);
 				if (task_data) {
 					ast_debug(1, "Cached sorcery object type '%s' ID '%s' is stale. Refreshing\n",
 						type, id);
-					cached->stale_update_sched_id = ast_sched_add(sched, 1, stale_item_update, task_data);
-				} else {
+					cached->stale_update_sched_id = ast_sched_add(sched, 1,
+						stale_item_update, task_data);
+				}
+				if (cached->stale_update_sched_id < 0) {
+					ao2_cleanup(task_data);
 					ast_log(LOG_ERROR, "Unable to update stale cached object type '%s', ID '%s'.\n",
 						type, id);
 				}
