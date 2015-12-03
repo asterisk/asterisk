@@ -872,6 +872,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	ast_channel_hold_state_set(tmp, AST_CONTROL_UNHOLD);
 
 	ast_channel_streamid_set(tmp, -1);
+	ast_channel_vstreamid_set(tmp, -1);
 
 	ast_channel_fin_set(tmp, global_fin);
 	ast_channel_fout_set(tmp, global_fout);

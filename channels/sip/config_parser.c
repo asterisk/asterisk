@@ -79,13 +79,17 @@ int sip_parse_register_line(struct sip_registry *reg, int default_expiry, const 
 		AST_APP_ARG(port);
 	);
 
+	if (!reg) {
+		return -1;
+	}
+
+	reg->expire = -1;
+	reg->timeout = -1;
+
 	if (!value) {
 		return -1;
 	}
 
-	if (!reg) {
-		return -1;
-	}
 	ast_copy_string(buf, value, sizeof(buf));
 
 	/*! register => [peer?][transport://]user[@domain][:secret[:authuser]]@host[:port][/extension][~expiry]
@@ -261,7 +265,6 @@ int sip_parse_register_line(struct sip_registry *reg, int default_expiry, const 
 	ast_string_field_set(reg, regdomain, ast_strip_quoted(S_OR(user2.domain, ""), "\"", "\""));
 
 	reg->transport = transport;
-	reg->timeout = reg->expire = -1;
 	reg->portno = portnum;
 	reg->regdomainport = domainport;
 	reg->callid_valid = FALSE;
