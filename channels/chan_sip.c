@@ -1706,6 +1706,7 @@ static int publish_expire(const void *data)
 	ast_assert(esc != NULL);
 
 	ao2_unlink(esc->compositor, esc_entry);
+	esc_entry->sched_id = -1;
 	ao2_ref(esc_entry, -1);
 	return 0;
 }
@@ -1738,6 +1739,11 @@ static struct sip_esc_entry *create_esc_entry(struct event_state_compositor *esc
 	/* Bump refcount for scheduler */
 	ao2_ref(esc_entry, +1);
 	esc_entry->sched_id = ast_sched_add(sched, expires_ms, publish_expire, esc_entry);
+	if (esc_entry->sched_id == -1) {
+		ao2_ref(esc_entry, -1);
+		ao2_ref(esc_entry, -1);
+		return NULL;
+	}
 
 	/* Note: This links the esc_entry into the ESC properly */
 	create_new_sip_etag(esc_entry, 0);
@@ -9388,6 +9394,9 @@ static int sip_register(const char *value, int lineno)
 		return -1;
 	}
 
+	reg->expire = -1;
+	reg->timeout = -1;
+
 	if (ast_string_field_init(reg, 256)) {
 		ao2_t_ref(reg, -1, "failed to string_field_init, drop reg");
 		return -1;
@@ -9461,6 +9470,8 @@ static int sip_subscribe_mwi(const char *value, int lineno)
 		return -1;
 	}
 
+	mwi->resub = -1;
+
 	if (ast_string_field_init(mwi, 256)) {
 		ao2_t_ref(mwi, -1, "failed to string_field_init, drop mwi");
 		return -1;
@@ -9475,7 +9486,6 @@ static int sip_subscribe_mwi(const char *value, int lineno)
 	}
 	ast_string_field_set(mwi, hostname, hostname);
 	ast_string_field_set(mwi, mailbox, mailbox);
-	mwi->resub = -1;
 	mwi->portno = portnum;
 	mwi->transport = transport;
 
