@@ -315,9 +315,16 @@ static int add_ids(struct ast_sched_context *con)
 		if (!new_id) {
 			break;
 		}
-		new_id->id = i;
+
+		/*
+		 * According to the API doxygen a sched ID of 0 is valid.
+		 * Unfortunately, 0 was never returned historically and
+		 * several users incorrectly coded usage of the returned
+		 * sched ID assuming that 0 was invalid.
+		 */
+		new_id->id = ++con->id_queue_size;
+
 		AST_LIST_INSERT_TAIL(&con->id_queue, new_id, list);
-		++con->id_queue_size;
 	}
 
 	return con->id_queue_size - original_size;
