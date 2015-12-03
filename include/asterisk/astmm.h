@@ -30,6 +30,7 @@ extern "C" {
 
 #ifndef _ASTERISK_ASTMM_H
 #define _ASTERISK_ASTMM_H
+/* IWYU pragma: private, include "asterisk/utils.h" */
 
 #ifndef STANDALONE
 
