@@ -997,9 +997,9 @@ static struct ao2_container *threadt;
 static struct ao2_container *peers;
 static struct ao2_container *peers_by_ip;
 
-/*! \brief  A bogus peer, to be used when authentication should fail */
-static struct sip_peer *bogus_peer;
-/*! \brief  We can recognise the bogus peer by this invalid MD5 hash */
+/*! \brief A bogus peer, to be used when authentication should fail */
+static AO2_GLOBAL_OBJ_STATIC(g_bogus_peer);
+/*! \brief We can recognize the bogus peer by this invalid MD5 hash */
 #define BOGUS_PEER_MD5SECRET "intentionally_invalid_md5_string"
 
 /*! \brief  The register list: Other SIP proxies we register with and receive calls from */
@@ -17184,8 +17184,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 	/* If we don't want username disclosure, use the bogus_peer when a user
 	 * is not found. */
 	if (!peer && sip_cfg.alwaysauthreject && sip_cfg.autocreatepeer == AUTOPEERS_DISABLED) {
-		peer = bogus_peer;
-		sip_ref_peer(peer, "register_verify: ref the bogus_peer");
+		peer = ao2_t_global_obj_ref(g_bogus_peer, "register_verify: Get the bogus peer.");
 	}
 
 	if (!(peer && ast_apply_acl(peer->acl, addr, "SIP Peer ACL: "))) {
@@ -18438,6 +18437,7 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 	enum check_auth_result res;
 	int debug = sip_debug_test_addr(addr);
 	struct sip_peer *peer;
+	struct sip_peer *bogus_peer;
 
 	if (sipmethod == SIP_SUBSCRIBE) {
 		/* For subscribes, match on device name only; for other methods,
@@ -18477,8 +18477,13 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 		/* If you do mind, we use a peer that will never authenticate.
 		 * This ensures that we follow the same code path as regular
 		 * auth: less chance for username disclosure. */
-		peer = bogus_peer;
-		sip_ref_peer(peer, "sip_ref_peer: check_peer_ok: must ref bogus_peer so unreffing it does not fail");
+		peer = ao2_t_global_obj_ref(g_bogus_peer, "check_peer_ok: Get the bogus peer.");
+		if (!peer) {
+			return AUTH_DONT_KNOW;
+		}
+		bogus_peer = peer;
+	} else {
+		bogus_peer = NULL;
 	}
 
 	/*  build_peer, called through sip_find_peer, is not able to check the
@@ -33140,7 +33145,7 @@ static int sip_do_reload(enum channelreloadreason reason)
 /*! \brief Force reload of module from cli */
 static char *sip_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	static struct sip_peer *tmp_peer, *new_peer;
+	static struct sip_peer *new_peer;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -33163,13 +33168,13 @@ static char *sip_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 	ast_mutex_unlock(&sip_reload_lock);
 	restart_monitor();
 
-	tmp_peer = bogus_peer;
 	/* Create new bogus peer possibly with new global settings. */
 	if ((new_peer = temp_peer("(bogus_peer)"))) {
 		ast_string_field_set(new_peer, md5secret, BOGUS_PEER_MD5SECRET);
 		ast_clear_flag(&new_peer->flags[0], SIP_INSECURE);
-		bogus_peer = new_peer;
-		ao2_t_ref(tmp_peer, -1, "unref the old bogus_peer during reload");
+		ao2_t_global_obj_replace_unref(g_bogus_peer, new_peer,
+			"Replacing the old bogus peer during reload.");
+		ao2_t_ref(new_peer, -1, "done with new_peer");
 	} else {
 		ast_log(LOG_ERROR, "Could not update the fake authentication peer.\n");
 		/* You probably have bigger (memory?) issues to worry about though.. */
@@ -34420,6 +34425,8 @@ static int unload_module(void);
  */
 static int load_module(void)
 {
+	struct sip_peer *bogus_peer;
+
 	ast_verbose("SIP channel loading...\n");
 
 	if (STASIS_MESSAGE_TYPE_INIT(session_timeout_type)) {
@@ -34491,6 +34498,8 @@ static int load_module(void)
 	/* Make sure the auth will always fail. */
 	ast_string_field_set(bogus_peer, md5secret, BOGUS_PEER_MD5SECRET);
 	ast_clear_flag(&bogus_peer->flags[0], SIP_INSECURE);
+	ao2_t_global_obj_replace_unref(g_bogus_peer, bogus_peer, "Set the initial bogus peer.");
+	ao2_t_ref(bogus_peer, -1, "Module load is done with the bogus peer.");
 
 	/* Prepare the version that does not require DTMF BEGIN frames.
 	 * We need to use tricks such as memcpy and casts because the variable
@@ -34773,7 +34782,7 @@ static int unload_module(void)
 		ast_debug(2, "TCP/TLS thread container did not become empty :(\n");
 	}
 
-	ao2_t_cleanup(bogus_peer, "unref the bogus_peer");
+	ao2_t_global_obj_release(g_bogus_peer, "Release the bogus peer.");
 
 	ao2_t_cleanup(peers, "unref the peers table");
 	ao2_t_cleanup(peers_by_ip, "unref the peers_by_ip table");
