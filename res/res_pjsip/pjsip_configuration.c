@@ -20,6 +20,7 @@
 #include "asterisk/sorcery.h"
 #include "asterisk/callerid.h"
 #include "asterisk/test.h"
+#include "asterisk/statsd.h"
 
 /*! \brief Number of buckets for persistent endpoint information */
 #define PERSISTENT_BUCKETS 53
@@ -161,20 +162,21 @@ static void persistent_endpoint_contact_deleted_observer(const void *object)
 	const struct ast_sip_contact *contact = object;
 	struct ast_sip_contact_status *contact_status;
 
-	contact_status = ast_sorcery_alloc(ast_sip_get_sorcery(), CONTACT_STATUS,
-		ast_sorcery_object_get_id(contact));
+	contact_status = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), CONTACT_STATUS, ast_sorcery_object_get_id(contact));
 	if (!contact_status) {
 		ast_log(LOG_ERROR, "Unable to create ast_sip_contact_status for contact %s/%s\n",
 			contact->aor, contact->uri);
 		return;
 	}
-	ast_string_field_set(contact_status, uri, contact->uri);
-
-	contact_status->status = REMOVED;
 
 	ast_verb(1, "Contact %s/%s has been deleted\n", contact->aor, contact->uri);
+	ast_statsd_log_string_va("PJSIP.contacts.states.%s", AST_STATSD_GAUGE,
+		"-1", 1.0, ast_sip_get_contact_status_label(contact_status->status));
+	ast_statsd_log_string_va("PJSIP.contacts.states.%s", AST_STATSD_GAUGE,
+		"+1", 1.0, ast_sip_get_contact_status_label(REMOVED));
 
 	ao2_callback(persistent_endpoints, OBJ_NODATA, persistent_endpoint_update_state, contact_status);
+	ast_sorcery_delete(ast_sip_get_sorcery(), contact_status);
 	ao2_cleanup(contact_status);
 }
 
@@ -194,24 +196,31 @@ static void persistent_endpoint_contact_status_observer(const void *object)
 		return;
 	}
 
-	if (contact_status->status == contact_status->last_status) {
-		ast_debug(3, "Contact %s/%s status didn't change: %s, RTT: %.3f msec\n",
-			contact_status->aor, contact_status->uri, ast_sip_get_contact_status_label(contact_status->status),
-			contact_status->rtt / 1000.0);
-		return;
-	} else {
+	if (contact_status->status != contact_status->last_status) {
 		ast_verb(1, "Contact %s/%s is now %s.  RTT: %.3f msec\n", contact_status->aor, contact_status->uri,
 			ast_sip_get_contact_status_label(contact_status->status),
 			contact_status->rtt / 1000.0);
+
+		ast_statsd_log_string_va("PJSIP.contacts.states.%s", AST_STATSD_GAUGE,
+			"-1", 1.0, ast_sip_get_contact_status_label(contact_status->last_status));
+		ast_statsd_log_string_va("PJSIP.contacts.states.%s", AST_STATSD_GAUGE,
+			"+1", 1.0, ast_sip_get_contact_status_label(contact_status->status));
+
+		ast_test_suite_event_notify("AOR_CONTACT_UPDATE",
+			"Contact: %s\r\n"
+				"Status: %s",
+			ast_sorcery_object_get_id(contact_status),
+			ast_sip_get_contact_status_label(contact_status->status));
+
+		ao2_callback(persistent_endpoints, OBJ_NODATA, persistent_endpoint_update_state, contact_status);
+	} else {
+		ast_debug(3, "Contact %s/%s status didn't change: %s, RTT: %.3f msec\n",
+			contact_status->aor, contact_status->uri, ast_sip_get_contact_status_label(contact_status->status),
+			contact_status->rtt / 1000.0);
 	}
 
-	ast_test_suite_event_notify("AOR_CONTACT_UPDATE",
-		"Contact: %s\r\n"
-			"Status: %s",
-		ast_sorcery_object_get_id(contact_status),
-		ast_sip_get_contact_status_label(contact_status->status));
-
-	ao2_callback(persistent_endpoints, OBJ_NODATA, persistent_endpoint_update_state, contact_status);
+	ast_statsd_log_full_va("PJSIP.contacts.%s.rtt", AST_STATSD_TIMER,
+		contact_status->status != AVAILABLE ? -1 : contact_status->rtt / 1000, 1.0, ast_sorcery_object_get_id(contact_status));
 }
 
 /*! \brief Observer for contacts so state can be updated on respective endpoints */
