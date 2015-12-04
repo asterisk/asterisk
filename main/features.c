@@ -3722,7 +3722,7 @@ static int feature_interpret(struct ast_channel *chan, struct ast_channel *peer,
 
 	char dynamic_features_buf[128];
 	const char *peer_dynamic_features, *chan_dynamic_features;
-	struct ast_flags features;
+	struct ast_flags features = { 0, };
 	struct ast_call_feature feature;
 	if (sense == FEATURE_SENSE_CHAN) {
 		/* Coverity - This uninit_use should be ignored since this macro initializes the flags */
