@@ -2151,6 +2151,24 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		return -1;
 	}
 
+	if (ast_check_hangup_locked(chan)) {
+		/*
+		 * Caller hung up before we could dial.  If dial is executed
+		 * within an AGI then the AGI has likely eaten all queued
+		 * frames before executing the dial in DeadAGI mode.  With
+		 * the caller hung up and no pending frames from the caller's
+		 * read queue, dial would not know that the call has hung up
+		 * until a called channel answers.  It is rather annoying to
+		 * whoever just answered the non-existent call.
+		 *
+		 * Dial should not continue execution in DeadAGI mode, hangup
+		 * handlers, or the h exten.
+		 */
+		ast_verb(3, "Caller hung up before dial.\n");
+		pbx_builtin_setvar_helper(chan, "DIALSTATUS", "CANCEL");
+		return -1;
+	}
+
 	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
