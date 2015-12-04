@@ -174,22 +174,13 @@ static void update_contact_status(const struct ast_sip_contact *contact,
 	ast_string_field_set(update, uri, contact->uri);
 	update->last_status = status->status;
 	update->status = value;
-	if (update->last_status != update->status) {
-		ast_statsd_log_string_va("PJSIP.contacts.states.%s", AST_STATSD_GAUGE,
-			"-1", 1.0, ast_sip_get_contact_status_label(update->last_status));
-		ast_statsd_log_string_va("PJSIP.contacts.states.%s", AST_STATSD_GAUGE,
-			"+1", 1.0, ast_sip_get_contact_status_label(update->status));
-	}
 
 	/* if the contact is available calculate the rtt as
 	   the diff between the last start time and "now" */
 	update->rtt = update->status == AVAILABLE && status->rtt_start.tv_sec > 0 ?
 		ast_tvdiff_us(ast_tvnow(), status->rtt_start) : 0;
-
 	update->rtt_start = ast_tv(0, 0);
 
-	ast_statsd_log_full_va("PJSIP.contacts.%s.rtt", AST_STATSD_TIMER,
-		update->rtt / 1000, 1.0, ast_sorcery_object_get_id(update));
 	ast_test_suite_event_notify("AOR_CONTACT_QUALIFY_RESULT",
 		"Contact: %s\r\n"
 		"Status: %s\r\n"
