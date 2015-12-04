@@ -213,6 +213,11 @@ bridge_t38
    several esoteric issues that can occur when channels are removed from a
    bridge after completing a T.38 fax.
 
+Codecs
+------------------
+ * Added format attribute negotiation for the VP8 video codec. Format attribute
+   negotiation is provided by the res_format_attr_vp8 module.
+
 ConfBridge
 ------------------
  * A new "timeout" user profile option has been added. This configures the number
