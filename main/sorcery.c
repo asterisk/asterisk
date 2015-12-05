@@ -1901,7 +1901,7 @@ void *ast_sorcery_retrieve_by_fields(const struct ast_sorcery *sorcery, const ch
 			}
 		}
 
-		if ((flags & AST_RETRIEVE_FLAG_MULTIPLE) || !object) {
+		if (((flags & AST_RETRIEVE_FLAG_MULTIPLE) && (!ao2_container_count(object) || !wizard->caching)) || !object) {
 			continue;
 		}
 
@@ -1939,6 +1939,10 @@ struct ao2_container *ast_sorcery_retrieve_by_regex(const struct ast_sorcery *so
 		}
 
 		wizard->wizard->callbacks.retrieve_regex(sorcery, wizard->data, object_type->name, objects, regex);
+
+		if (wizard->caching && ao2_container_count(objects)) {
+			break;
+		}
 	}
 	AST_VECTOR_RW_UNLOCK(&object_type->wizards);
 
