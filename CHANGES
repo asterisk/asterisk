@@ -68,6 +68,14 @@ res_pjsip
    - A TIMER statistic for the RTT time for each qualified contact, e.g.:
        PJSIP.contacts.alice@@127.0.0.1:5061.rtt
 
+res_sorcery_memory_cache
+------------------------
+ * A new caching strategy, full_backend_cache, has been added which caches
+   all stored objects in the backend. When enabled all objects will be
+   expired or go stale according to the configuration. As well when enabled
+   all retrieval operations will be performed against the cache instead of
+   the backend.
+
 func_callerid
 -------------------
  * CALLERID(pres) is now documented as a valid alternative to setting both
