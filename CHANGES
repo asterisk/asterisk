@@ -205,14 +205,6 @@ Queue
 --- Functionality changes from Asterisk 13.6.0 to Asterisk 13.7.0 ------------
 ------------------------------------------------------------------------------
 
-bridge_t38
-------------------
- * A new module for the bridging framework, this bridge technology acts in the
-   same fashion as bridge_simple, save that it helps to maintain the state of
-   T.38 for two channels passing a fax through Asterisk. This helps to resolve
-   several esoteric issues that can occur when channels are removed from a
-   bridge after completing a T.38 fax.
-
 Codecs
 ------------------
  * Added format attribute negotiation for the VP8 video codec. Format attribute
