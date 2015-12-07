@@ -322,14 +322,6 @@ int ast_sip_location_update_contact(struct ast_sip_contact *contact)
 
 int ast_sip_location_delete_contact(struct ast_sip_contact *contact)
 {
-	void *contact_status_obj;
-
-	contact_status_obj = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), CONTACT_STATUS, ast_sorcery_object_get_id(contact));
-	if (contact_status_obj) {
-		ast_sorcery_delete(ast_sip_get_sorcery(), contact_status_obj);
-		ao2_ref(contact_status_obj, -1);
-	}
-
 	return ast_sorcery_delete(ast_sip_get_sorcery(), contact);
 }
 
@@ -394,7 +386,7 @@ static int permanent_uri_handler(const struct aco_option *opt, struct ast_variab
 		struct ast_sip_contact *contact;
 		struct ast_sip_contact_status *status;
 		char hash[33];
-		char contact_id[strlen(aor_id) + sizeof(hash) + 2 + 1];
+		char contact_id[strlen(aor_id) + sizeof(hash) + 2];
 
 		if (!aor->permanent_contacts) {
 			aor->permanent_contacts = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK,
@@ -411,6 +403,8 @@ static int permanent_uri_handler(const struct aco_option *opt, struct ast_variab
 			return -1;
 		}
 
+		ast_string_field_set(contact, uri, contact_uri);
+
 		status = ast_res_pjsip_find_or_create_contact_status(contact);
 		if (!status) {
 			ao2_ref(contact, -1);
@@ -418,7 +412,6 @@ static int permanent_uri_handler(const struct aco_option *opt, struct ast_variab
 		}
 		ao2_ref(status, -1);
 
-		ast_string_field_set(contact, uri, contact_uri);
 		ao2_link(aor->permanent_contacts, contact);
 		ao2_ref(contact, -1);
 	}
@@ -1036,7 +1029,7 @@ int ast_sip_initialize_sorcery_location(void)
 	 * Note that this must done here, as contacts will create the contact_status
 	 * object before PJSIP options handling is initialized.
 	 */
-	for (i = 0; i < REMOVED; i++) {
+	for (i = 0; i <= REMOVED; i++) {
 		ast_statsd_log_full_va("PJSIP.contacts.states.%s", AST_STATSD_GAUGE, 0, 1.0, ast_sip_get_contact_status_label(i));
 	}
 
