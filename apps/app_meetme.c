@@ -5582,6 +5582,9 @@ static void meetme_set_defaults(void)
 
 	/*  Logging of participants defaults to ON for compatibility reasons */
 	rt_log_members = 1;
+
+	/* Set default number of buffers to be allocated. */
+	audio_buffers = DEFAULT_AUDIO_BUFFERS;
 }
 
 static void load_config_meetme(int reload)
