@@ -397,9 +397,6 @@ static struct ast_trans_pvt *newpvt(struct ast_translator *t, struct ast_format 
 /*! \brief framein wrapper, deals with bound checks.  */
 static int framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
-	int ret;
-	int samples = pvt->samples;	/* initial value */
-
 	/* Copy the last in jb timing info to the pvt */
 	ast_copy_flags(&pvt->f, f, AST_FRFLAG_HAS_TIMING_INFO);
 	pvt->f.ts = f->ts;
@@ -423,12 +420,7 @@ static int framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	/* we require a framein routine, wouldn't know how to do
 	 * it otherwise.
 	 */
-	ret = pvt->t->framein(pvt, f);
-	/* diagnostic ... */
-	if (pvt->samples == samples)
-		ast_log(LOG_WARNING, "%s did not update samples %d\n",
-			pvt->t->name, pvt->samples);
-	return ret;
+	return pvt->t->framein(pvt, f);
 }
 
 /*! \brief generic frameout routine.
