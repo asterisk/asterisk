@@ -4772,6 +4772,11 @@ static int sip_queryoption(struct ast_channel *chan, int option, void *data, int
 	struct sip_pvt *p = (struct sip_pvt *) ast_channel_tech_pvt(chan);
 	char *cp;
 
+	if (!p) {
+		ast_debug(1, "Attempt to Ref a null pointer. Sip private structure is gone!\n");
+		return -1;
+	}
+
 	sip_pvt_lock(p);
 
 	switch (option) {
