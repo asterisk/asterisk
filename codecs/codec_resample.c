@@ -38,7 +38,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/translate.h"
 #include "asterisk/slin.h"
 
-#define OUTBUF_SAMPLES   5760
+#define OUTBUF_SAMPLES   11520
 
 static struct ast_translator *translators;
 static int trans_size;
