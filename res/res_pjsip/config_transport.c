@@ -27,6 +27,7 @@
 #include "asterisk/astobj2.h"
 #include "asterisk/sorcery.h"
 #include "asterisk/acl.h"
+#include "asterisk/utils.h"
 #include "include/res_pjsip_private.h"
 #include "asterisk/http_websocket.h"
 
@@ -224,8 +225,22 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 					ast_sorcery_object_get_id(obj));
 			return -1;
 		}
+		if (!ast_strlen_zero(transport->ca_list_file)) {
+			if (!ast_file_is_readable(transport->ca_list_file)) {
+				ast_log(LOG_ERROR, "Transport: %s: ca_list_file %s is either missing or not readable\n",
+						ast_sorcery_object_get_id(obj), transport->ca_list_file);
+				return -1;
+			}
+		}
 		transport->tls.ca_list_file = pj_str((char*)transport->ca_list_file);
 #ifdef HAVE_PJ_SSL_CERT_LOAD_FROM_FILES2
+		if (!ast_strlen_zero(transport->ca_list_path)) {
+			if (!ast_file_is_readable(transport->ca_list_path)) {
+				ast_log(LOG_ERROR, "Transport: %s: ca_list_path %s is either missing or not readable\n",
+						ast_sorcery_object_get_id(obj), transport->ca_list_path);
+				return -1;
+			}
+		}
 		transport->tls.ca_list_path = pj_str((char*)transport->ca_list_path);
 #else
 		if (!ast_strlen_zero(transport->ca_list_path)) {
@@ -233,7 +248,21 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 					"support the 'ca_list_path' option. Please upgrade to version 2.4 or later.\n");
 		}
 #endif
+		if (!ast_strlen_zero(transport->cert_file)) {
+			if (!ast_file_is_readable(transport->cert_file)) {
+				ast_log(LOG_ERROR, "Transport: %s: cert_file %s is either missing or not readable\n",
+						ast_sorcery_object_get_id(obj), transport->cert_file);
+				return -1;
+			}
+		}
 		transport->tls.cert_file = pj_str((char*)transport->cert_file);
+		if (!ast_strlen_zero(transport->privkey_file)) {
+			if (!ast_file_is_readable(transport->privkey_file)) {
+				ast_log(LOG_ERROR, "Transport: %s: privkey_file %s is either missing or not readable\n",
+						ast_sorcery_object_get_id(obj), transport->privkey_file);
+				return -1;
+			}
+		}
 		transport->tls.privkey_file = pj_str((char*)transport->privkey_file);
 		transport->tls.password = pj_str((char*)transport->password);
 		set_qos(transport, &transport->tls.qos_params);
