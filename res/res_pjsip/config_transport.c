@@ -216,6 +216,14 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 
 		res = pjsip_tcp_transport_start3(ast_sip_get_pjsip_endpoint(), &cfg, &transport->state->factory);
 	} else if (transport->type == AST_TRANSPORT_TLS) {
+		/* The following check is a work-around for ASTERISK-25615.
+		 * When that issue is resolved in upstream pjproject, this check can be removed.
+		 */
+		if ( transport->async_operations > 1) {
+			ast_log(LOG_ERROR, "Transport: %s: When protocol=tls, async_operations can't be > 1 (ASTERISK-25615)\n",
+					ast_sorcery_object_get_id(obj));
+			return -1;
+		}
 		transport->tls.ca_list_file = pj_str((char*)transport->ca_list_file);
 #ifdef HAVE_PJ_SSL_CERT_LOAD_FROM_FILES2
 		transport->tls.ca_list_path = pj_str((char*)transport->ca_list_path);
