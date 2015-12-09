@@ -499,6 +499,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<parameter name="Channel"/>
 				<parameter name="Context"/>
 				<parameter name="Exten"/>
+				<parameter name="Application"/>
+				<parameter name="Data"/>
 				<parameter name="Reason"/>
 				<parameter name="Uniqueid"/>
 				<parameter name="CallerIDNum"/>
@@ -4097,6 +4099,8 @@ struct fast_originate_helper {
 		AST_STRING_FIELD(exten);
 		AST_STRING_FIELD(idtext);
 		AST_STRING_FIELD(account);
+		AST_STRING_FIELD(channelid);
+		AST_STRING_FIELD(otherchannelid);
 	);
 	int priority;
 	struct ast_variable *vars;
@@ -4146,22 +4150,43 @@ static void *fast_originate(void *data)
 	}
 	/* Tell the manager what happened with the channel */
 	chans[0] = chan;
-	ast_manager_event_multichan(EVENT_FLAG_CALL, "OriginateResponse", chan ? 1 : 0, chans,
-		"%s"
-		"Response: %s\r\n"
-		"Channel: %s\r\n"
-		"Context: %s\r\n"
-		"Exten: %s\r\n"
-		"Reason: %d\r\n"
-		"Uniqueid: %s\r\n"
-		"CallerIDNum: %s\r\n"
-		"CallerIDName: %s\r\n",
-		in->idtext, res ? "Failure" : "Success",
-		chan ? ast_channel_name(chan) : requested_channel, in->context, in->exten, reason,
-		chan ? ast_channel_uniqueid(chan) : "<null>",
-		S_OR(in->cid_num, "<unknown>"),
-		S_OR(in->cid_name, "<unknown>")
-		);
+	if (!ast_strlen_zero(in->app)) {
+		ast_manager_event_multichan(EVENT_FLAG_CALL, "OriginateResponse", chan ? 1 : 0, chans,
+				"%s"
+				"Response: %s\r\n"
+				"Channel: %s\r\n"
+				"Application: %s\r\n"
+				"Data: %s\r\n"
+				"Reason: %d\r\n"
+				"Uniqueid: %s\r\n"
+				"CallerIDNum: %s\r\n"
+				"CallerIDName: %s\r\n",
+				in->idtext, res ? "Failure" : "Success",
+				chan ? ast_channel_name(chan) : requested_channel,
+				in->app, in->appdata, reason,
+				chan ? ast_channel_uniqueid(chan) : S_OR(in->channelid, "<unknown>"),
+				S_OR(in->cid_num, "<unknown>"),
+				S_OR(in->cid_name, "<unknown>")
+				);
+	} else {
+		ast_manager_event_multichan(EVENT_FLAG_CALL, "OriginateResponse", chan ? 1 : 0, chans,
+				"%s"
+				"Response: %s\r\n"
+				"Channel: %s\r\n"
+				"Context: %s\r\n"
+				"Exten: %s\r\n"
+				"Reason: %d\r\n"
+				"Uniqueid: %s\r\n"
+				"CallerIDNum: %s\r\n"
+				"CallerIDName: %s\r\n",
+				in->idtext, res ? "Failure" : "Success",
+				chan ? ast_channel_name(chan) : requested_channel,
+				in->context, in->exten, reason,
+				chan ? ast_channel_uniqueid(chan) : S_OR(in->channelid, "<unknown>"),
+				S_OR(in->cid_num, "<unknown>"),
+				S_OR(in->cid_name, "<unknown>")
+				);
+	}
 
 	/* Locked by ast_pbx_outgoing_exten or ast_pbx_outgoing_app */
 	if (chan) {
@@ -4416,6 +4441,10 @@ static int action_originate(struct mansession *s, const struct message *m)
 	const char *id = astman_get_header(m, "ActionID");
 	const char *codecs = astman_get_header(m, "Codecs");
 	const char *early_media = astman_get_header(m, "Earlymedia");
+	struct ast_assigned_ids assignedids = {
+		.uniqueid = astman_get_header(m, "ChannelId"),
+		.uniqueid2 = astman_get_header(m, "OtherChannelId"),
+	};
 	struct ast_variable *vars = NULL;
 	char *tech, *data;
 	char *l = NULL, *n = NULL;
@@ -4435,6 +4464,14 @@ static int action_originate(struct mansession *s, const struct message *m)
 		return 0;
 	}
 	ast_format_cap_add(cap, ast_format_set(&tmp_fmt, AST_FORMAT_SLINEAR, 0));
+
+	if ((assignedids.uniqueid && AST_MAX_PUBLIC_UNIQUEID < strlen(assignedids.uniqueid))
+		|| (assignedids.uniqueid2 && AST_MAX_PUBLIC_UNIQUEID < strlen(assignedids.uniqueid2))) {
+		astman_send_error_va(s, m, "Uniqueid length exceeds maximum of %d\n",
+			AST_MAX_PUBLIC_UNIQUEID);
+		res = 0;
+		goto fast_orig_cleanup;
+	}
 
 	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "Channel not specified");
@@ -4557,6 +4594,8 @@ static int action_originate(struct mansession *s, const struct message *m)
 			ast_string_field_set(fast, context, context);
 			ast_string_field_set(fast, exten, exten);
 			ast_string_field_set(fast, account, account);
+			ast_string_field_set(fast, channelid, assignedids.uniqueid);
+			ast_string_field_set(fast, otherchannelid, assignedids.uniqueid2);
 			fast->vars = vars;
 			fast->cap = cap;
 			cap = NULL; /* transfered originate helper the capabilities structure.  It is now responsible for freeing it. */
