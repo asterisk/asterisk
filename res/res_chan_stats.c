@@ -111,7 +111,7 @@ static void updates(void *data, struct stasis_subscription *sub,
 
 	if (!update->old_snapshot && update->new_snapshot) {
 		/* Initial cache entry; count a channel creation */
-		ast_statsd_log("channels.count", AST_STATSD_COUNTER, 1);
+		ast_statsd_log_string("channels.count", AST_STATSD_GAUGE, "+1", 1.0);
 	} else if (update->old_snapshot && !update->new_snapshot) {
 		/* Cache entry removed. Compute the age of the channel and post
 		 * that, as well as decrementing the channel count.
@@ -125,7 +125,7 @@ static void updates(void *data, struct stasis_subscription *sub,
 		ast_statsd_log("channels.calltime", AST_STATSD_TIMER, age);
 
 		/* And decrement the channel count */
-		ast_statsd_log("channels.count", AST_STATSD_COUNTER, -1);
+		ast_statsd_log_string("channels.count", AST_STATSD_GAUGE, "-1", 1.0);
 	}
 }
 
