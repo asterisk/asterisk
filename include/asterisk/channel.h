@@ -134,6 +134,19 @@ extern "C" {
 
 #define AST_MAX_EXTENSION	80	/*!< Max length of an extension */
 #define AST_MAX_CONTEXT		80	/*!< Max length of a context */
+
+/*!
+* Max length of a channel uniqueid reported to the outside world.
+*
+* \details
+* 149 = 127 (max systemname) + "-" + 10 (epoch timestamp)
+*     + "." + 10 (monotonically incrementing integer).
+*
+* \note If this value is ever changed, MAX_CHANNEL_ID should
+* be updated in rtp_engine.h.
+*/
+#define AST_MAX_PUBLIC_UNIQUEID 149
+
 #define AST_CHANNEL_NAME	80	/*!< Max length of an ast_channel name */
 #define MAX_LANGUAGE		40	/*!< Max length of the language setting */
 #define MAX_MUSICCLASS		80	/*!< Max length of the music class setting */
@@ -364,7 +377,7 @@ struct ast_party_dialed {
  * PSTN gateway).
  *
  * \todo Implement settings for transliteration between UTF8 Caller ID names in
- *       to ASCII Caller ID's (DAHDI). Östen Åsklund might be transliterated into
+ *       to ASCII Caller ID's (DAHDI). Ã–sten Ã…sklund might be transliterated into
  *       Osten Asklund or Oesten Aasklund depending upon language and person...
  *       We need automatic routines for incoming calls and static settings for
  *       our own accounts.
@@ -535,6 +548,15 @@ typedef struct {
 	char *data;
 	const char *value;
 } ast_chan_write_info_t;
+
+/*!
+ * \brief Structure to pass both assignedid values to channel drivers
+ * \note The second value is used only by core_unreal (LOCAL)
+ */
+struct ast_assigned_ids {
+	const char *uniqueid;
+	const char *uniqueid2;
+};
 
 /*!
  * \brief
