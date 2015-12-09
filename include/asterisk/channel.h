@@ -364,7 +364,7 @@ struct ast_party_dialed {
  * PSTN gateway).
  *
  * \todo Implement settings for transliteration between UTF8 Caller ID names in
- *       to ASCII Caller ID's (DAHDI). Östen Åsklund might be transliterated into
+ *       to ASCII Caller ID's (DAHDI). Ã–sten Ã…sklund might be transliterated into
  *       Osten Asklund or Oesten Aasklund depending upon language and person...
  *       We need automatic routines for incoming calls and static settings for
  *       our own accounts.
