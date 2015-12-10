@@ -680,7 +680,7 @@ static int media_encryption_handler(const struct aco_option *opt, struct ast_var
 		endpoint->media.rtp.encryption = AST_SIP_MEDIA_ENCRYPT_SDES;
 	} else if (!strcasecmp("dtls", var->value)) {
 		endpoint->media.rtp.encryption = AST_SIP_MEDIA_ENCRYPT_DTLS;
-		ast_rtp_dtls_cfg_parse(&endpoint->media.rtp.dtls_cfg, "dtlsenable", "yes");
+		return ast_rtp_dtls_cfg_parse(&endpoint->media.rtp.dtls_cfg, "dtlsenable", "yes");
 	} else {
 		return -1;
 	}
