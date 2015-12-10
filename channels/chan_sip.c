@@ -32289,6 +32289,12 @@ static int reload_config(enum channelreloadreason reason)
 		ast_log(LOG_ERROR, "SIP TCP Server start failed. Not listening on TCP socket.\n");
 	} else {
 		ast_debug(2, "SIP TCP server started\n");
+		if (sip_tcp_desc.accept_fd >= 0) {
+			int flags = 1;
+			if (setsockopt(sip_tcp_desc.accept_fd, SOL_SOCKET, SO_KEEPALIVE, &flags, sizeof(flags))) {
+				ast_log(LOG_ERROR, "Error enabling TCP keep-alive on sip socket: %s\n", strerror(errno));
+			}
+		}
 	}
 
 	/* Start TLS server if needed */
@@ -32308,6 +32314,13 @@ static int reload_config(enum channelreloadreason reason)
 		if (default_tls_cfg.enabled && sip_tls_desc.accept_fd == -1) {
 			ast_log(LOG_ERROR, "TLS Server start failed. Not listening on TLS socket.\n");
 			sip_tls_desc.tls_cfg = NULL;
+		}
+		if (sip_tls_desc.accept_fd >= 0) {
+			int flags = 1;
+			if (setsockopt(sip_tls_desc.accept_fd, SOL_SOCKET, SO_KEEPALIVE, &flags, sizeof(flags))) {
+				ast_log(LOG_ERROR, "Error enabling TCP keep-alive on sip socket: %s\n", strerror(errno));
+				sip_tls_desc.tls_cfg = NULL;
+			}
 		}
 	} else if (sip_tls_desc.tls_cfg->enabled) {
 		sip_tls_desc.tls_cfg = NULL;
