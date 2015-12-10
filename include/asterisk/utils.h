@@ -1089,4 +1089,14 @@ char *ast_crypt_encrypt(const char *key);
  */
 int ast_crypt_validate(const char *key, const char *expected);
 
+/*
+ * \brief Test that a file exists and is readable by the effective user.
+ * \since 13.7.0
+ *
+ * \param filename File to test.
+ * \return True (non-zero) if the file exists and is readable.
+ * \return False (zero) if the file either doesn't exists or is not readable.
+ */
+int ast_file_is_readable(const char *filename);
+
 #endif /* _ASTERISK_UTILS_H */

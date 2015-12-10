@@ -2932,3 +2932,20 @@ int ast_eid_cmp(const struct ast_eid *eid1, const struct ast_eid *eid2)
 {
 	return memcmp(eid1, eid2, sizeof(*eid1));
 }
+
+int ast_file_is_readable(const char *filename)
+{
+#if defined(HAVE_EACCESS) || defined(HAVE_EUIDACCESS)
+#if defined(HAVE_EUIDACCESS) && !defined(HAVE_EACCESS)
+#define eaccess euidaccess
+#endif
+	return eaccess(filename, R_OK) == 0;
+#else
+	int fd = open(filename, O_RDONLY |  O_NONBLOCK);
+	if (fd < 0) {
+		return 0;
+	}
+	close(fd);
+	return 1;
+#endif
+}
