@@ -217,11 +217,8 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 
 		res = pjsip_tcp_transport_start3(ast_sip_get_pjsip_endpoint(), &cfg, &transport->state->factory);
 	} else if (transport->type == AST_TRANSPORT_TLS) {
-		/* The following check is a work-around for ASTERISK-25615.
-		 * When that issue is resolved in upstream pjproject, this check can be removed.
-		 */
-		if (transport->async_operations > 1) {
-			ast_log(LOG_ERROR, "Transport: %s: When protocol=tls, async_operations can't be > 1 (ASTERISK-25615)\n",
+		if (transport->async_operations > 1 && ast_compare_versions(pj_get_version(), "2.5.0") < 0) {
+			ast_log(LOG_ERROR, "Transport: %s: When protocol=tls and pjproject version < 2.5.0, async_operations can't be > 1\n",
 					ast_sorcery_object_get_id(obj));
 			return -1;
 		}

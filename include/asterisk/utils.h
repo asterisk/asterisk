@@ -1099,4 +1099,16 @@ int ast_crypt_validate(const char *key, const char *expected);
  */
 int ast_file_is_readable(const char *filename);
 
+/*
+ * \brief Compare 2 major.minor.patch.extra version strings.
+ * \since 13.7.0
+ *
+ * \param version1.
+ * \param version2.
+ * \return -1 if version 1 < version 2.
+ * \return 0 if version 1 = version 2.
+ * \return 1 if version 1 > version 2.
+ */
+int ast_compare_versions(const char *version1, const char *version2);
+
 #endif /* _ASTERISK_UTILS_H */
