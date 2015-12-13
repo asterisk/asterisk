@@ -202,6 +202,31 @@ Queue
    the queue member was paused.
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.7.0 to Asterisk 13.8.0 ------------
+------------------------------------------------------------------------------
+
+res_pjsip_history
+------------------
+ * A new module, res_pjsip_history, has been added that provides SIP history
+   viewing/filtering from the CLI. The module is intended to be used on systems
+   with busy SIP traffic, where existing forms of viewing SIP messages - such
+   as the res_pjsip_logger - may be inadequate. The module provides two new
+   CLI commands:
+   - 'pjsip set history {on|off|clear}' - this enables/disables SIP history
+     capturing, as well as clears an existing history capture. Note that SIP
+     packets captured are stored in memory until cleared. As a result, the
+     history capture should only be used for debugging/viewing purposes, and
+     should *NOT* be left permanently enabled on a system.
+   - 'pjsip show history' - displays the captured SIP history. When invoked
+     with no options, the entire captured history is displayed. Two options
+     are available:
+     -- 'entry <num>' - display a detailed view of a single SIP message in
+        the history
+     -- 'where ...' - filter the history based on some expression. For more
+        information on filtering, view the current CLI help for the
+        'pjsip show history' command.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.6.0 to Asterisk 13.7.0 ------------
 ------------------------------------------------------------------------------
 
