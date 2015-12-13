@@ -1390,7 +1390,11 @@ int ast_carefulwrite(int fd, char *s, int len, int timeoutms)
 
 		if (res < 0 && errno != EAGAIN && errno != EINTR) {
 			/* fatal error from write() */
-			ast_log(LOG_ERROR, "write() returned error: %s\n", strerror(errno));
+			if (errno == EPIPE) {
+				ast_debug(1, "write() failed due to reading end being closed: %s\n", strerror(errno));
+			} else {
+				ast_log(LOG_ERROR, "write() returned error: %s\n", strerror(errno));
+			}
 			return -1;
 		}
 
