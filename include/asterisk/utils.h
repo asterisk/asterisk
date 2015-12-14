@@ -1105,9 +1105,10 @@ int ast_file_is_readable(const char *filename);
  *
  * \param version1.
  * \param version2.
- * \return -1 if version 1 < version 2.
- * \return 0 if version 1 = version 2.
- * \return 1 if version 1 > version 2.
+ *
+ * \return <0 if version 1 < version 2.
+ * \return =0 if version 1 = version 2.
+ * \return >0 if version 1 > version 2.
  */
 int ast_compare_versions(const char *version1, const char *version2);
 
