@@ -2953,14 +2953,15 @@ int ast_file_is_readable(const char *filename)
 
 int ast_compare_versions(const char *version1, const char *version2)
 {
-	u_int64_t major[2] = { 0 };
-	u_int64_t minor[2] = { 0 };
-	u_int64_t patch[2] = { 0 };
-	u_int64_t extra[2] = { 0 };
-	u_int64_t v1, v2;
+	unsigned long long int major[2] = { 0 };
+	unsigned long long int minor[2] = { 0 };
+	unsigned long long int patch[2] = { 0 };
+	unsigned long long int extra[2] = { 0 };
+	u_int64_t v1;
+	u_int64_t v2;
 
-	sscanf(version1, "%lu.%lu.%lu.%lu", &major[0], &minor[0], &patch[0], &extra[0]);
-	sscanf(version2, "%lu.%lu.%lu.%lu", &major[1], &minor[1], &patch[1], &extra[1]);
+	sscanf(version1, "%llu.%llu.%llu.%llu", &major[0], &minor[0], &patch[0], &extra[0]);
+	sscanf(version2, "%llu.%llu.%llu.%llu", &major[1], &minor[1], &patch[1], &extra[1]);
 
 	v1 = major[0] << 48 | minor[0] << 32 | patch[0] << 16 | extra[0];
 	v2 = major[1] << 48 | minor[1] << 32 | patch[1] << 16 | extra[1];
