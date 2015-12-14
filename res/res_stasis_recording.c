@@ -91,9 +91,9 @@ static struct ast_json *recording_to_json(struct stasis_message *message,
 		return NULL;
 	}
 
-	return ast_json_pack("{s: s, s: O}",
+	return ast_json_pack("{s: s, s: o}",
 		"type", type,
-		"recording", blob);
+		"recording", ast_json_deep_copy(blob));
 }
 
 STASIS_MESSAGE_TYPE_DEFN(stasis_app_recording_snapshot_type,

@@ -1667,11 +1667,11 @@ static struct ast_json *charge_to_json(const struct ast_aoc_decoded *decoded)
 	}
 
 	return ast_json_pack(
-		"{s:s, s:s, s:s, s:O}",
+		"{s:s, s:s, s:s, s:o}",
 		"Type", aoc_charge_type_str(decoded->charge_type),
 		"BillingID", aoc_billingid_str(decoded->billing_id),
 		"TotalType", aoc_type_of_totaling_str(decoded->total_type),
-		obj_type, obj);
+		obj_type, ast_json_ref(obj));
 }
 
 static struct ast_json *association_to_json(const struct ast_aoc_decoded *decoded)
@@ -1738,10 +1738,10 @@ static struct ast_json *s_to_json(const struct ast_aoc_decoded *decoded)
 					"Scale", decoded->aoc_s_entries[i].rate.duration.granularity_time_scale);
 			}
 
-			type = ast_json_pack("{s:O, s:s, s:O, s:O}", "Currency", currency, "ChargingType",
+			type = ast_json_pack("{s:o, s:s, s:o, s:o}", "Currency", ast_json_ref(currency), "ChargingType",
 					     decoded->aoc_s_entries[i].rate.duration.charging_type ?
-					     "StepFunction" : "ContinuousCharging", "Time", time,
-					     "Granularity", granularity ? granularity : ast_json_null());
+					     "StepFunction" : "ContinuousCharging", "Time", ast_json_ref(time),
+					     "Granularity", granularity ? ast_json_ref(granularity) : ast_json_ref(ast_json_null()));
 
 			break;
 		}
@@ -1751,7 +1751,7 @@ static struct ast_json *s_to_json(const struct ast_aoc_decoded *decoded)
 				decoded->aoc_s_entries[i].rate.flat.amount,
 				decoded->aoc_s_entries[i].rate.flat.multiplier);
 
-			type = ast_json_pack("{s:O}", "Currency", currency);
+			type = ast_json_pack("{s:o}", "Currency", ast_json_ref(currency));
 			break;
 		case AST_AOC_RATE_TYPE_VOLUME:
 			currency = currency_to_json(
@@ -1760,9 +1760,9 @@ static struct ast_json *s_to_json(const struct ast_aoc_decoded *decoded)
 				decoded->aoc_s_entries[i].rate.volume.multiplier);
 
 			type = ast_json_pack(
-				"{s:s, s:O}", "Unit", aoc_volume_unit_str(
+				"{s:s, s:o}", "Unit", aoc_volume_unit_str(
 					decoded->aoc_s_entries[i].rate.volume.volume_unit),
-				"Currency", currency);
+				"Currency", ast_json_ref(currency));
 			break;
 		case AST_AOC_RATE_TYPE_SPECIAL_CODE:
 			type = ast_json_pack("{s:i}", "SpecialCode",
@@ -1772,8 +1772,8 @@ static struct ast_json *s_to_json(const struct ast_aoc_decoded *decoded)
 			break;
 		}
 
-		rate = ast_json_pack("{s:s, s:O}", "Chargeable", charge_item,
-				     aoc_rate_type_str(decoded->aoc_s_entries[i].rate_type), type);
+		rate = ast_json_pack("{s:s, s:o}", "Chargeable", charge_item,
+				     aoc_rate_type_str(decoded->aoc_s_entries[i].rate_type), ast_json_ref(type));
 		if (ast_json_array_append(rates, rate)) {
 			break;
 		}
