@@ -2095,6 +2095,8 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 			SSL_set_accept_state(dtls->ssl);
 		}
 
+		ast_mutex_lock(&dtls->lock);
+
 		dtls_srtp_check_pending(instance, rtp, rtcp);
 
 		BIO_write(dtls->read_bio, buf, len);
@@ -2105,6 +2107,7 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 			unsigned long error = ERR_get_error();
 			ast_log(LOG_ERROR, "DTLS failure occurred on RTP instance '%p' due to reason '%s', terminating\n",
 				instance, ERR_reason_error_string(error));
+			ast_mutex_unlock(&dtls->lock);
 			return -1;
 		}
 
@@ -2119,10 +2122,10 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 			}
 		} else {
 			/* Since we've sent additional traffic start the timeout timer for retransmission */
-			ast_mutex_lock(&dtls->lock);
 			dtls_srtp_start_timeout_timer(instance, rtp, rtcp);
-			ast_mutex_unlock(&dtls->lock);
 		}
+
+		ast_mutex_unlock(&dtls->lock);
 
 		return res;
 	}
@@ -4672,6 +4675,9 @@ static int ast_rtp_fd(struct ast_rtp_instance *instance, int rtcp)
 static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct ast_sockaddr *addr)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+#ifdef HAVE_OPENSSL_SRTP
+	struct dtls_details *dtls;
+#endif
 
 	if (rtp->rtcp) {
 		ast_debug(1, "Setting RTCP address on RTP instance '%p'\n", instance);
@@ -4688,6 +4694,28 @@ static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct
 		rtp->strict_rtp_state = STRICT_RTP_LEARN;
 		rtp_learning_seq_init(&rtp->rtp_source_learn, rtp->seqno);
 	}
+
+#ifdef HAVE_OPENSSL_SRTP
+	/* Trigger pending outbound DTLS packets received before the address was set.  Avoid unnecessary locking
+	 * by checking if we're passive. Without this, we only send the pending packets once a new SSL packet is
+	 * received in __rtp_recvfrom.
+	 */
+	dtls = &rtp->dtls;
+	if (dtls->dtls_setup == AST_RTP_DTLS_SETUP_PASSIVE) {
+		ast_mutex_lock(&dtls->lock);
+		dtls_srtp_check_pending(instance, rtp, 0);
+		ast_mutex_unlock(&dtls->lock);
+	}
+
+	if (rtp->rtcp) {
+		dtls = &rtp->rtcp->dtls;
+		if (dtls->dtls_setup == AST_RTP_DTLS_SETUP_PASSIVE) {
+			ast_mutex_lock(&dtls->lock);
+			dtls_srtp_check_pending(instance, rtp, 1);
+			ast_mutex_unlock(&dtls->lock);
+		}
+	}
+#endif
 
 	return;
 }
