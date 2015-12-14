@@ -1016,6 +1016,10 @@ static struct ast_json *dtmf_end_to_json(
 	struct ast_channel_snapshot *snapshot = channel_blob->snapshot;
 	const char *direction =
 		ast_json_string_get(ast_json_object_get(blob, "direction"));
+	const char *digit =
+		ast_json_string_get(ast_json_object_get(blob, "digit"));
+	long duration_ms =
+		ast_json_integer_get(ast_json_object_get(blob, "duration_ms"));
 	const struct timeval *tv = stasis_message_timestamp(message);
 	struct ast_json *json_channel;
 
@@ -1029,11 +1033,11 @@ static struct ast_json *dtmf_end_to_json(
 		return NULL;
 	}
 
-	return ast_json_pack("{s: s, s: o, s: O, s: O, s: o}",
+	return ast_json_pack("{s: s, s: o, s: s, s: i, s: o}",
 		"type", "ChannelDtmfReceived",
 		"timestamp", ast_json_timeval(*tv, NULL),
-		"digit", ast_json_object_get(blob, "digit"),
-		"duration_ms", ast_json_object_get(blob, "duration_ms"),
+		"digit", digit,
+		"duration_ms", duration_ms,
 		"channel", json_channel);
 }
 
@@ -1057,6 +1061,12 @@ static struct ast_json *dial_to_json(
 {
 	struct ast_multi_channel_blob *payload = stasis_message_data(message);
 	struct ast_json *blob = ast_multi_channel_blob_get_json(payload);
+	const char *dialstatus =
+		ast_json_string_get(ast_json_object_get(blob, "dialstatus"));
+	const char *forward =
+		ast_json_string_get(ast_json_object_get(blob, "forward"));
+	const char *dialstring =
+		ast_json_string_get(ast_json_object_get(blob, "dialstring"));
 	struct ast_json *caller_json = ast_channel_snapshot_to_json(ast_multi_channel_blob_get_channel(payload, "caller"), sanitize);
 	struct ast_json *peer_json = ast_channel_snapshot_to_json(ast_multi_channel_blob_get_channel(payload, "peer"), sanitize);
 	struct ast_json *forwarded_json = ast_channel_snapshot_to_json(ast_multi_channel_blob_get_channel(payload, "forwarded"), sanitize);
@@ -1064,12 +1074,12 @@ static struct ast_json *dial_to_json(
 	const struct timeval *tv = stasis_message_timestamp(message);
 	int res = 0;
 
-	json = ast_json_pack("{s: s, s: o, s: O, s: O, s: O}",
+	json = ast_json_pack("{s: s, s: o, s: s, s: s, s: s}",
 		"type", "Dial",
 		"timestamp", ast_json_timeval(*tv, NULL),
-		"dialstatus", ast_json_object_get(blob, "dialstatus"),
-		"forward", ast_json_object_get(blob, "forward"),
-		"dialstring", ast_json_object_get(blob, "dialstring"));
+		"dialstatus", dialstatus,
+		"forward", forward,
+		"dialstring", dialstring);
 	if (!json) {
 		ast_json_unref(caller_json);
 		ast_json_unref(peer_json);
