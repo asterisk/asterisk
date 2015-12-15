@@ -447,6 +447,7 @@ static struct ast_filestream *get_filestream(struct ast_format_def *fmt, FILE *b
 	}
 	s->fr.mallocd = 0;
 	s->fr.subclass.format = ao2_bump(fmt->format);
+	s->fr.seqno = 0x10000;
 
 	return s;
 }
