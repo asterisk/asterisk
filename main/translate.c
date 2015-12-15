@@ -358,6 +358,7 @@ static struct ast_trans_pvt *newpvt(struct ast_translator *t, struct ast_format 
 	pvt->f.offset = AST_FRIENDLY_OFFSET;
 	pvt->f.src = pvt->t->name;
 	pvt->f.data.ptr = pvt->outbuf.c;
+	pvt->f.seqno = 0x10000;
 
 	/*
 	 * If the translator has not provided a format
@@ -524,18 +525,42 @@ struct ast_trans_pvt *ast_translator_build_path(struct ast_format *dst, struct a
 /*! \brief do the actual translation */
 struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f, int consume)
 {
-	struct ast_trans_pvt *p = path;
-	struct ast_frame *out;
+	const unsigned int rtp_seqno_max_value = 0xffff;
+	struct ast_trans_pvt *p;
+	struct ast_frame *list, *out = NULL;
 	struct timeval delivery;
 	int has_timing_info;
 	long ts;
 	long len;
 	int seqno;
+	unsigned int frames_missing = 0;
 
 	has_timing_info = ast_test_flag(f, AST_FRFLAG_HAS_TIMING_INFO);
 	ts = f->ts;
 	len = f->len;
 	seqno = f->seqno;
+
+	/* Determine the amount of lost packets for PLC */
+	/* But not at start with first frame = path->f.seqno is still 0x10000 */
+	if ((path->f.seqno <= rtp_seqno_max_value) && ((rtp_seqno_max_value & (path->f.seqno + 1)) != seqno)) {
+		if (seqno < path->f.seqno) { /* seqno overrun situation */
+			frames_missing = rtp_seqno_max_value + seqno - path->f.seqno - 1;
+		} else {
+			frames_missing = seqno - path->f.seqno - 1;
+		}
+		/* Out-of-order packet - more precise: late packet */
+		if ((rtp_seqno_max_value + 1) / 2 < frames_missing) {
+			if (consume) {
+				ast_frfree(f);
+			}
+			/*
+			 * Do not pass late packets to any transcoding module, because that
+			 * confuses the state of any library (packets inter-depend). With
+			 * the next packet, this one is going to be treated as lost packet.
+			 */
+			return NULL;
+		}
+	}
 
 	if (!ast_tvzero(f->delivery)) {
 		if (!ast_tvzero(path->nextin)) {
@@ -560,18 +585,67 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 			 f->samples, ast_format_get_sample_rate(f->subclass.format)));
 	}
 	delivery = f->delivery;
-	for (out = f; out && p ; p = p->next) {
-		struct ast_frame *current = out;
 
-		do {
-			framein(p, current);
-			current = AST_LIST_NEXT(current, frame_list);
-		} while (current);
-		if (out != f) {
-			ast_frfree(out);
-		}
-		out = p->t->frameout(p);
+	if (frames_missing > 50) {
+		ast_log(LOG_WARNING, "Number of missing frames for translation path %p exceeds 50\n", path);
 	}
+
+	while (0 < frames_missing) { /* lost packet(s) */
+		struct ast_frame *temp;
+		struct ast_frame missed = {
+			.frametype = AST_FRAME_VOICE, /* not _NULL for ast_frdup:format */
+			.subclass.format = f->subclass.format,
+			.datalen = 0,
+			.samples = f->samples,
+			.src = __FUNCTION__,
+			.data.uint32 = 0,
+			.delivery.tv_sec = 0,
+			.delivery.tv_usec = 0,
+			.flags = 0,
+		};
+
+		if (f->seqno == 0) {
+			missed.seqno = 0xffff;
+		} else {
+			missed.seqno = f->seqno - 1;
+		}
+
+		temp = ast_frdup(&missed); /* does not duplicate LIST_NEXT */
+		AST_LIST_NEXT(temp, frame_list) = f;
+		f = temp; /* f is head for 'if (consume) then ast_free(f)' */
+
+		frames_missing--;
+	}
+
+	for (list = f; list; list = AST_LIST_NEXT(list, frame_list)) {
+		struct ast_frame *inner;
+
+		for (inner = list, p = path; inner && p; p = p->next) {
+			framein(p, inner);
+			if (inner != list) {
+				ast_frfree(inner);
+			}
+			inner = p->t->frameout(p);
+		}
+		if (out && inner) {
+			struct ast_frame *current = out;
+
+			while (current != inner && AST_LIST_NEXT(current, frame_list)) {
+				current = AST_LIST_NEXT(current, frame_list);
+			}
+			/*
+			 * Now, 'current' points to the
+			 * A) last element in the list of 'out' (inner is new), or
+			 * B) is the same as 'inner' (exists already in list).
+			 */
+			if (current != inner) {
+				AST_LIST_NEXT(current, frame_list) = inner;
+			}
+		} else if (inner) {
+			out = inner;
+		}
+	}
+
 	if (out) {
 		/* we have a frame, play with times */
 		if (!ast_tvzero(delivery)) {
