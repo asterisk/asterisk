@@ -524,13 +524,14 @@ struct ast_trans_pvt *ast_translator_build_path(struct ast_format *dst, struct a
 /*! \brief do the actual translation */
 struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f, int consume)
 {
-	struct ast_trans_pvt *p = path;
-	struct ast_frame *out;
+	struct ast_trans_pvt *p;
+	struct ast_frame *list, *out = NULL;
 	struct timeval delivery;
 	int has_timing_info;
 	long ts;
 	long len;
 	int seqno;
+	unsigned int frames_missing = 0;
 
 	has_timing_info = ast_test_flag(f, AST_FRFLAG_HAS_TIMING_INFO);
 	ts = f->ts;
@@ -541,6 +542,27 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 		if (!ast_tvzero(path->nextin)) {
 			/* Make sure this is in line with what we were expecting */
 			if (!ast_tveq(path->nextin, f->delivery)) {
+				/* For native PLC, determine the amount of lost packets */
+				if (path->t->native_plc && path->f.seqno) { /* not at start 0 */
+					if (seqno < path->f.seqno) { /* seqno overrun situation */
+						frames_missing = 0xffff + seqno - path->f.seqno - 1;
+					} else {
+						frames_missing = seqno - path->f.seqno - 1;
+					}
+					/* Out-of-order packet - more precise: late packet */
+					if (0x7fff < frames_missing) {
+						if (consume) {
+							ast_frfree(f);
+						}
+						/*
+						 * Do not pass a late packet to transcoding module,
+						 * because that confuses the internal state of the
+						 * library (packets inter-depend). With the next valid
+						 * packet, this is going to be treated as lost packet.
+						 */
+						return NULL;
+					}
+				}
 				/* The time has changed between what we expected and this
 				   most recent time on the new packet.  If we have a
 				   valid prediction adjust our output time appropriately */
@@ -560,18 +582,55 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 			 f->samples, ast_format_get_sample_rate(f->subclass.format)));
 	}
 	delivery = f->delivery;
-	for (out = f; out && p ; p = p->next) {
-		struct ast_frame *current = out;
 
-		do {
-			framein(p, current);
-			current = AST_LIST_NEXT(current, frame_list);
-		} while (current);
-		if (out != f) {
-			ast_frfree(out);
+	while (0 < frames_missing) { /* lost packet(s) */
+		struct ast_frame *missed = ast_malloc(sizeof(*missed));
+
+		if (missed) {
+			*missed = ast_null_frame;
+			missed->samples = f->samples;
+			missed->subclass.format = ao2_bump(f->subclass.format);
+			if (f->seqno <= 1) {
+				missed->seqno = 0xffff;
+			} else {
+				missed->seqno = f->seqno - 1;
+			}
+			AST_LIST_NEXT(missed, frame_list) = f;
+			f = missed; /* f is head because of if (consume) then ast_free(f) */
 		}
-		out = p->t->frameout(p);
+
+		frames_missing--;
 	}
+
+	for (list = f; list; list = AST_LIST_NEXT(list, frame_list)) {
+		struct ast_frame *inner;
+
+		for (inner = list, p = path; inner && p; p = p->next) {
+			framein(p, inner);
+			if (inner != list) {
+				ast_frfree(inner);
+			}
+			inner = p->t->frameout(p);
+		}
+		if (out && inner) {
+			struct ast_frame *current = out;
+
+			while (current != inner && AST_LIST_NEXT(current, frame_list)) {
+				current = AST_LIST_NEXT(current, frame_list);
+			}
+			/*
+			 * Now, 'current' points to the
+			 * A) last element in the list of 'out' (inner is new), or
+			 * B) is the same as 'inner' (exists already in list).
+			 */
+			if (current != inner) {
+				AST_LIST_NEXT(current, frame_list) = inner;
+			}
+		} else if (inner) {
+			out = inner;
+		}
+	}
+
 	if (out) {
 		/* we have a frame, play with times */
 		if (!ast_tvzero(delivery)) {
