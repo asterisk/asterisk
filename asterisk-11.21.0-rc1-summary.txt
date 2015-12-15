@@ -1,0 +1,415 @@
+                                Release Summary
+
+                              asterisk-11.21.0-rc1
+
+                                Date: 2015-12-15
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Open Issues
+    5. Other Changes
+    6. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-11.20.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                    Testers                    Reporters             
+   7 Richard Mudgett         1 gtjoseph                 4 Alexander Traud     
+   5 Alexander Traud         1 starting asterisk -c     3 Walter Doekes       
+   4 Walter Doekes           until the colors stopped   3 Michael Keuter      
+   4 Joshua Colp                                        3 Matt Jordan         
+   3 Matt Jordan                                        2 Joshua Colp         
+   3 Ivan Poddubny                                      1 Rusty Newton        
+   2 Kevin Harwell                                      1 ffs                 
+   2 Corey Farrell                                      1 Andrew Nagy         
+   1 Filip Jenicek                                      1 Ben Langfeld        
+   1 Eugene Voityuk                                     1 Kevin Harwell       
+   1 Steve Davies                                       1 George Joseph       
+   1 Kevin Harwell                                      1 mdu113              
+   1 Olle Johansson (License                            1 Hiroaki Komatsu     
+   5267)                                                1 Ben Langfeld        
+   1 Florian Sauerteig                                  1 Rusty Newton        
+   1 Jonathan Rose                                      1 Corey Farrell       
+   1 gtjoseph                                           1 Bojan NemA:*iA:*    
+   1 server-pandora                                     1 DudA!s JA^3zsef     
+   1 mdu113                                             1 Badalian Vyacheslav 
+                                                        1 Olle Johansson      
+                                                        1 Sean Pimental       
+                                                        1 Aleksei Kulakov     
+                                                        1 gtjoseph            
+                                                        1 Badalian Vyacheslav 
+                                                        1 Olle Johansson      
+                                                        1 Andrew Nagy         
+                                                        1 Filip Jenicek       
+                                                        1 Dade Brandon        
+                                                        1 Bojan NemA:*iA:*    
+                                                        1 Richard Mudgett     
+                                                        1 dea                 
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Applications/app_meetme
+
+   ASTERISK-25569: app_meetme: Audio quality issues
+   Reported by: Corey Farrell
+     * [fa7329b72d] Corey Farrell -- app_meetme: Set default value for
+       audio_buffers.
+
+    Category: Channels/chan_dahdi
+
+   ASTERISK-25494: build: GCC 5.1.x catches some new const, array bounds and
+   missing paren issues
+   Reported by: George Joseph
+     * [992879aa43] gtjoseph -- build: GCC 5.1.x catches some new const,
+       array bounds and missing paren issues
+
+    Category: Channels/chan_pjsip
+
+   ASTERISK-25455: Deadlock of PJSIP realtime over res_config_pgsql
+   Reported by: mdu113
+     * [9f4892ece4] mdu113 -- res_config_pgsql.c: Fix deadlock loading
+       realtime configuration.
+
+    Category: Channels/chan_sip/General
+
+   ASTERISK-25364: [patch]Issue a TCP connection(kernel) and thread of
+   asterisk is not released
+   Reported by: Hiroaki Komatsu
+     * [e1d08a39c5] Jonathan Rose -- chan_sip: Add TCP/TLS keepalive to
+       TCP/TLS server
+   ASTERISK-25610: Asterisk crash during "sip reload"
+   Reported by: DudA!s JA^3zsef
+     * [47118fb947] Richard Mudgett -- chan_sip: Fix crash involving the
+       bogus peer during sip reload.
+   ASTERISK-25476: chan_sip loses registrations after a while
+   Reported by: Michael Keuter
+     * [bd4aee4b7b] Richard Mudgett -- sched.c: Make not return a sched id of
+       0.
+     * [394b8a40c1] Richard Mudgett -- Audit improper usage of scheduler
+       exposed by 5c713fdf18f.
+     * [e74110188d] Steve Davies -- Further fixes to improper usage of
+       scheduler
+   ASTERISK-25494: build: GCC 5.1.x catches some new const, array bounds and
+   missing paren issues
+   Reported by: George Joseph
+     * [992879aa43] gtjoseph -- build: GCC 5.1.x catches some new const,
+       array bounds and missing paren issues
+
+    Category: Channels/chan_sip/IPv6
+
+   ASTERISK-25443: [patch]IPv6 - Potential issue in via header parsing
+   Reported by: ffs
+     * [9354c1a64f] Florian Sauerteig -- chan_sip: Fix port parsing for IPv6
+       addresses in SIP Via headers.
+
+    Category: Channels/chan_sip/Interoperability
+
+   ASTERISK-25135: [patch]RTP Timeout hangup cause code missing
+   Reported by: Olle Johansson
+     * [b3101fb8df] Olle Johansson -- channels/chan_sip: Set cause code to 44
+       on RTP timeout
+
+    Category: Channels/chan_sip/T.38
+
+   ASTERISK-25609: [patch]Asterisk may crash when calling
+   ast_channel_get_t38_state(c)
+   Reported by: Filip Jenicek
+     * [62574fb9dc] Filip Jenicek -- chan_sip: Check sip_pvt pointer in
+       ast_channel_get_t38_state(c)
+
+    Category: Channels/chan_sip/WebSocket
+
+   ASTERISK-24146: [patch]No audio on WebRtc caller side when answer waiting
+   time is more than ~7sec
+   Reported by: Aleksei Kulakov
+     * [badac7c340] Eugene Voityuk -- chan_sip.c: Start ICE negotiation when
+       response is sent or received.
+
+    Category: Channels/chan_skinny
+
+   ASTERISK-25494: build: GCC 5.1.x catches some new const, array bounds and
+   missing paren issues
+   Reported by: George Joseph
+     * [992879aa43] gtjoseph -- build: GCC 5.1.x catches some new const,
+       array bounds and missing paren issues
+
+    Category: Codecs/General
+
+   ASTERISK-25616: Warning with a Codec Module which supports PLC with FEC
+   Reported by: Alexander Traud
+     * [ac8e285dfd] Alexander Traud -- translate: Avoid a warning message
+       when doing FEC within Opus Codec.
+   ASTERISK-25498: Asterisk crashes when negotiating g729 without that module
+   installed
+   Reported by: Ben Langfeld
+     * [0a8fe8de11] Joshua Colp -- Fix crash in audiohook translate to slin
+
+    Category: Codecs/codec_resample
+
+   ASTERISK-25599: [patch] SLIN Resampling Codec only 80 msec
+   Reported by: Alexander Traud
+     * [a388ff29e7] Alexander Traud -- codec_resample: Increase buffer for
+       Opus Codec with FEC.
+     * [6f04531b41] Alexander Traud -- codec_resample: Increase buffer for
+       Opus Codec.
+
+    Category: Core/AstDB
+
+   ASTERISK-25400: Hints broken when "CustomPresence" doesn't exist in AstDB
+   Reported by: Andrew Nagy
+     * [966265dd70] Ivan Poddubny -- func_presencestate: Return "not_set"
+       when no data is set in AstDB
+
+    Category: Core/BuildSystem
+
+   ASTERISK-25434: Compiler flags not reported in 'core show settings'
+   despite usage during compilation
+   Reported by: Rusty Newton
+     * [77936f612d] Corey Farrell -- Fix cli display of build options.
+
+    Category: Core/General
+
+   ASTERISK-25585: [patch]rasterisk never hits most of main(), but it's
+   assumed to
+   Reported by: Walter Doekes
+     * [4450cf89d8] Walter Doekes -- main: Slight refactor of main. Improve
+       color situation.
+   ASTERISK-25552: hashtab: Improve NULL tolerance
+   Reported by: Joshua Colp
+     * [78734aadf4] Joshua Colp -- hashtab: Add NULL check when destroying
+       iterator.
+   ASTERISK-25449: main/sched: Regression introduced by 5c713fdf18f causes
+   erroneous duplicate RTCP messages; other potential scheduling issues in
+   chan_sip/chan_skinny
+   Reported by: Matt Jordan
+     * [e74110188d] Steve Davies -- Further fixes to improper usage of
+       scheduler
+     * [44efdbd2de] Matt Jordan -- res/res_rtp_asterisk: Fix assignment after
+       ao2 decrement
+     * [60a9172d7e] Matt Jordan -- Fix improper usage of scheduler exposed by
+       5c713fdf18f
+   ASTERISK-7803: [patch] Update the maximum packetization values in frame.c
+   Reported by: dea
+     * [811ef5ebac] Alexander Traud -- format: Update the maximum
+       packetization time for iLBC 30.
+
+    Category: Core/ManagerInterface
+
+   ASTERISK-25391: AMI GetConfigJSON returns invalid JSON
+   Reported by: Bojan NemA:*iA:*
+     * [b66f1eef41] Ivan Poddubny -- manager: Fix GetConfigJSON returning
+       invalid JSON
+
+    Category: Documentation
+
+   ASTERISK-25373: add documentation for CALLERID(pres) and also the
+   CONNECTEDLINE and REDIRECTING variants
+   Reported by: Walter Doekes
+     * [8fd2b60e1a] Walter Doekes -- func_callerid: Document that
+       CALLERID(pres) is available.
+   ASTERISK-25527: Quirky xmldoc description wrapping
+   Reported by: Walter Doekes
+     * [ebed86fb4a] Walter Doekes -- xmldoc: Improve xmldoc wrapping of 'core
+       show ...' output.
+
+    Category: Formats/General
+
+   ASTERISK-25537: [patch] format-attribute module: RFC or internal defaults?
+   Reported by: Alexander Traud
+     * [6373ed2852] Alexander Traud -- rtp_engine: Init a format-attribute
+       module to its RFC defaults.
+
+    Category: Functions/func_callerid
+
+   ASTERISK-25373: add documentation for CALLERID(pres) and also the
+   CONNECTEDLINE and REDIRECTING variants
+   Reported by: Walter Doekes
+     * [8fd2b60e1a] Walter Doekes -- func_callerid: Document that
+       CALLERID(pres) is available.
+
+    Category: Resources/res_agi
+
+   ASTERISK-25593: fastagi: record file closed after sending result
+   Reported by: Kevin Harwell
+     * [92f631e2f4] Kevin Harwell -- fastagi: record file closed after
+       sending result
+
+    Category: Resources/res_config_pgsql
+
+   ASTERISK-25455: Deadlock of PJSIP realtime over res_config_pgsql
+   Reported by: mdu113
+     * [9f4892ece4] mdu113 -- res_config_pgsql.c: Fix deadlock loading
+       realtime configuration.
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-25455: Deadlock of PJSIP realtime over res_config_pgsql
+   Reported by: mdu113
+     * [9f4892ece4] mdu113 -- res_config_pgsql.c: Fix deadlock loading
+       realtime configuration.
+
+    Category: Resources/res_rtp_asterisk
+
+   ASTERISK-24146: [patch]No audio on WebRtc caller side when answer waiting
+   time is more than ~7sec
+   Reported by: Aleksei Kulakov
+     * [badac7c340] Eugene Voityuk -- chan_sip.c: Start ICE negotiation when
+       response is sent or received.
+   ASTERISK-25438: res_rtp_asterisk: ICE role message even when ICE is not
+   enabled
+   Reported by: Joshua Colp
+     * [fa0985851a] Joshua Colp -- res_rtp_asterisk: Move "Set role" warning
+       to be debug.
+
+  Improvement
+
+    Category: Core/BuildSystem
+
+   ASTERISK-24718: [patch]Add inital support of "sanitize" to configure
+   Reported by: Badalian Vyacheslav
+     * [a0bb7b50ae] Ivan Poddubny -- Build: Add menuselect options for using
+       compiler sanitizers
+
+     ----------------------------------------------------------------------
+
+                                  Open Issues
+
+                                 [Back to Top]
+
+   This is a list of all open issues from the issue tracker that were
+   referenced by changes that went into this release.
+
+  Bug
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author          | Summary                                 |
+   |------------+-----------------+-----------------------------------------|
+   | a2e60af7ff | Kevin Harwell   | .version: Update for 11.21.0-rc1        |
+   |------------+-----------------+-----------------------------------------|
+   | 58966343b3 | Kevin Harwell   | .lastclean: Update for 11.21.0-rc1      |
+   |------------+-----------------+-----------------------------------------|
+   | d4e3491293 | Matt Jordan     | main/utils: Don't emit an ERROR message |
+   |            |                 | if the read end of a pipe closes        |
+   |------------+-----------------+-----------------------------------------|
+   | b59b0bb509 | Joshua Colp     | build: Fix building with newer GCC.     |
+   |------------+-----------------+-----------------------------------------|
+   | 33e214e025 | Walter Doekes   | docs: Fix a few typo's in app docs      |
+   |            |                 | (more then, resourse).                  |
+   |------------+-----------------+-----------------------------------------|
+   | a702ef503f | Richard Mudgett | config.c: Fix off-nominal memory leak.  |
+   |------------+-----------------+-----------------------------------------|
+   | 164e286037 | Richard Mudgett | config.c: Fix potential memory          |
+   |            |                 | corruption after [section](+).          |
+   |------------+-----------------+-----------------------------------------|
+   | 6803444ac1 | Richard Mudgett | sched.c: Add warning about negative     |
+   |            |                 | time interval request.                  |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ ChangeLog                        |36401 ---------------------------------------
+ asterisk-11.20.0-summary.html    |  126
+ asterisk-11.20.0-summary.txt     |  399
+ b/.version                       |    2
+ b/CHANGES                        |   16
+ b/Makefile                       |    2
+ b/Makefile.rules                 |   20
+ b/apps/app_chanisavail.c         |    6
+ b/apps/app_dial.c                |   10
+ b/apps/app_meetme.c              |    3
+ b/apps/app_page.c                |    2
+ b/build_tools/cflags.xml         |   26
+ b/build_tools/make_version_c     |   25
+ b/channels/chan_dahdi.c          |    5
+ b/channels/chan_iax2.c           |   21
+ b/channels/chan_sip.c            |   94
+ b/channels/chan_skinny.c         |   10
+ b/channels/sig_pri.c             |    2
+ b/channels/sip/config_parser.c   |    9
+ b/channels/sip/reqresp_parser.c  |    2
+ b/codecs/codec_resample.c        |    8
+ b/funcs/func_callerid.c          |   39
+ b/funcs/func_presencestate.c     |    4
+ b/include/asterisk/ast_version.h |    3
+ b/include/asterisk/term.h        |    2
+ b/main/asterisk.c                |  126
+ b/main/audiohook.c               |   12
+ b/main/channel.c                 |    1
+ b/main/config.c                  |   41
+ b/main/features.c                |    4
+ b/main/format.c                  |    2
+ b/main/hashtab.c                 |    2
+ b/main/manager.c                 |    4
+ b/main/rtp_engine.c              |    2
+ b/main/sched.c                   |   22
+ b/main/term.c                    |   21
+ b/main/translate.c               |   10
+ b/main/utils.c                   |    8
+ b/main/xmldoc.c                  |  150
+ b/pbx/pbx_dundi.c                |    1
+ b/res/res_agi.c                  |    6
+ b/res/res_config_pgsql.c         |    8
+ b/res/res_rtp_asterisk.c         |    9
+ 43 files changed, 435 insertions(+), 37231 deletions(-)
