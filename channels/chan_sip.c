@@ -31464,6 +31464,7 @@ static int reload_config(enum channelreloadreason reason)
 	sip_cfg.peer_rtupdate = TRUE;
 	global_dynamic_exclude_static = 0;	/* Exclude static peers */
 	sip_cfg.tcp_enabled = FALSE;
+	sip_cfg.websocket_enabled = TRUE;
 
 	/* Session-Timers */
 	global_st_mode = SESSION_TIMER_MODE_ACCEPT;
