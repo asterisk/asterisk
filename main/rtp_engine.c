@@ -2118,14 +2118,14 @@ int ast_rtp_dtls_cfg_parse(struct ast_rtp_dtls_cfg *dtls_cfg, const char *name, 
 		}
 	} else if (!strcasecmp(name, "dtlscertfile")) {
 		ast_free(dtls_cfg->certfile);
-		if (!ast_file_is_readable(value)) {
+		if (!ast_strlen_zero(value) && !ast_file_is_readable(value)) {
 			ast_log(LOG_ERROR, "%s file %s does not exist or is not readable\n", name, value);
 			return -1;
 		}
 		dtls_cfg->certfile = ast_strdup(value);
 	} else if (!strcasecmp(name, "dtlsprivatekey")) {
 		ast_free(dtls_cfg->pvtfile);
-		if (!ast_file_is_readable(value)) {
+		if (!ast_strlen_zero(value) && !ast_file_is_readable(value)) {
 			ast_log(LOG_ERROR, "%s file %s does not exist or is not readable\n", name, value);
 			return -1;
 		}
@@ -2135,14 +2135,14 @@ int ast_rtp_dtls_cfg_parse(struct ast_rtp_dtls_cfg *dtls_cfg, const char *name, 
 		dtls_cfg->cipher = ast_strdup(value);
 	} else if (!strcasecmp(name, "dtlscafile")) {
 		ast_free(dtls_cfg->cafile);
-		if (!ast_file_is_readable(value)) {
+		if (!ast_strlen_zero(value) && !ast_file_is_readable(value)) {
 			ast_log(LOG_ERROR, "%s file %s does not exist or is not readable\n", name, value);
 			return -1;
 		}
 		dtls_cfg->cafile = ast_strdup(value);
 	} else if (!strcasecmp(name, "dtlscapath") || !strcasecmp(name, "dtlscadir")) {
 		ast_free(dtls_cfg->capath);
-		if (!ast_file_is_readable(value)) {
+		if (!ast_strlen_zero(value) && !ast_file_is_readable(value)) {
 			ast_log(LOG_ERROR, "%s file %s does not exist or is not readable\n", name, value);
 			return -1;
 		}
