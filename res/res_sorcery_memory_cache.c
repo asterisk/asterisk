@@ -102,6 +102,20 @@
 			<para>Marks ALL objects in a sorcery memory cache as stale.</para>
 		</description>
 	</manager>
+	<manager name="SorceryMemoryCachePopulate" language="en_US">
+		<synopsis>
+			Expire all objects from a memory cache and populate it with all objects from the backend.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Cache" required="true">
+				<para>The name of the cache to populate.</para>
+			</parameter>
+		</syntax>
+		<description>
+			<para>Expires all objects from a memory cache and populate it with all objects from the backend.</para>
+		</description>
+	</manager>
  ***/
 
 /*! \brief Structure for storing a memory cache */
@@ -116,12 +130,20 @@ struct sorcery_memory_cache {
 	unsigned int object_lifetime_maximum;
 	/*! \brief The amount of time (in seconds) before an object is marked as stale, 0 if disabled */
 	unsigned int object_lifetime_stale;
-	/** \brief Whether all objects are expired when the object type is reloaded, 0 if disabled */
+	/*! \brief Whether all objects are expired when the object type is reloaded, 0 if disabled */
 	unsigned int expire_on_reload;
+	/*! \brief Whether this is a cache of the entire backend, 0 if disabled */
+	unsigned int full_backend_cache;
 	/*! \brief Heap of cached objects. Oldest object is at the top. */
 	struct ast_heap *object_heap;
 	/*! \brief Scheduler item for expiring oldest object. */
 	int expire_id;
+	/*! \brief scheduler id of stale update task */
+	int stale_update_sched_id;
+	/*! \brief An unreffed pointer to the sorcery instance, accessible only with lock held */
+	const struct ast_sorcery *sorcery;
+	/*! \brief The type of object we are caching */
+	char *object_type;
 	/*! TRUE if trying to stop the oldest object expiration scheduler item. */
 	unsigned int del_expire:1;
 #ifdef TEST_FRAMEWORK
@@ -146,6 +168,22 @@ struct sorcery_memory_cached_object {
 	ssize_t __heap_index;
 	/*! \brief scheduler id of stale update task */
 	int stale_update_sched_id;
+	/*! \brief Cached objectset for field and regex retrieval */
+	struct ast_variable *objectset;
+};
+
+/*! \brief Structure used for fields comparison */
+struct sorcery_memory_cache_fields_cmp_params {
+	/*! \brief Pointer to the sorcery structure */
+	const struct ast_sorcery *sorcery;
+	/*! \brief The sorcery memory cache */
+	struct sorcery_memory_cache *cache;
+	/*! \brief Pointer to the fields to check */
+	const struct ast_variable *fields;
+	/*! \brief Regular expression for checking object id */
+	regex_t *regex;
+	/*! \brief Optional container to put object into */
+	struct ao2_container *container;
 };
 
 static void *sorcery_memory_cache_open(const char *data);
@@ -154,6 +192,12 @@ static void sorcery_memory_cache_load(void *data, const struct ast_sorcery *sorc
 static void sorcery_memory_cache_reload(void *data, const struct ast_sorcery *sorcery, const char *type);
 static void *sorcery_memory_cache_retrieve_id(const struct ast_sorcery *sorcery, void *data, const char *type,
 	const char *id);
+static void *sorcery_memory_cache_retrieve_fields(const struct ast_sorcery *sorcery, void *data, const char *type,
+	const struct ast_variable *fields);
+static void sorcery_memory_cache_retrieve_multiple(const struct ast_sorcery *sorcery, void *data, const char *type,
+	struct ao2_container *objects, const struct ast_variable *fields);
+static void sorcery_memory_cache_retrieve_regex(const struct ast_sorcery *sorcery, void *data, const char *type,
+	struct ao2_container *objects, const char *regex);
 static int sorcery_memory_cache_delete(const struct ast_sorcery *sorcery, void *data, void *object);
 static void sorcery_memory_cache_close(void *data);
 
@@ -166,6 +210,9 @@ static struct ast_sorcery_wizard memory_cache_object_wizard = {
 	.load = sorcery_memory_cache_load,
 	.reload = sorcery_memory_cache_reload,
 	.retrieve_id = sorcery_memory_cache_retrieve_id,
+	.retrieve_fields = sorcery_memory_cache_retrieve_fields,
+	.retrieve_multiple = sorcery_memory_cache_retrieve_multiple,
+	.retrieve_regex = sorcery_memory_cache_retrieve_regex,
 	.close = sorcery_memory_cache_close,
 };
 
@@ -184,48 +231,44 @@ static struct ao2_container *caches;
 /*! \brief Scheduler for cache management */
 static struct ast_sched_context *sched;
 
-#define STALE_UPDATE_THREAD_ID 0x5EED1E55
-AST_THREADSTORAGE(stale_update_id_storage);
+#define PASSTHRU_UPDATE_THREAD_ID 0x5EED1E55
+AST_THREADSTORAGE(passthru_update_id_storage);
 
-static int is_stale_update(void)
+static int is_passthru_update(void)
 {
-	uint32_t *stale_update_thread_id;
+	uint32_t *passthru_update_thread_id;
 
-	stale_update_thread_id = ast_threadstorage_get(&stale_update_id_storage,
-		sizeof(*stale_update_thread_id));
-	if (!stale_update_thread_id) {
+	passthru_update_thread_id = ast_threadstorage_get(&passthru_update_id_storage,
+		sizeof(*passthru_update_thread_id));
+	if (!passthru_update_thread_id) {
 		return 0;
 	}
 
-	return *stale_update_thread_id == STALE_UPDATE_THREAD_ID;
+	return *passthru_update_thread_id == PASSTHRU_UPDATE_THREAD_ID;
 }
 
-static void start_stale_update(void)
+static void set_passthru_update(uint32_t value)
 {
-	uint32_t *stale_update_thread_id;
+	uint32_t *passthru_update_thread_id;
 
-	stale_update_thread_id = ast_threadstorage_get(&stale_update_id_storage,
-		sizeof(*stale_update_thread_id));
-	if (!stale_update_thread_id) {
-		ast_log(LOG_ERROR, "Could not set stale update ID for sorcery memory cache thread\n");
+	passthru_update_thread_id = ast_threadstorage_get(&passthru_update_id_storage,
+		sizeof(*passthru_update_thread_id));
+	if (!passthru_update_thread_id) {
+		ast_log(LOG_ERROR, "Could not set passthru update ID for sorcery memory cache thread\n");
 		return;
 	}
 
-	*stale_update_thread_id = STALE_UPDATE_THREAD_ID;
+	*passthru_update_thread_id = value;
 }
 
-static void end_stale_update(void)
+static void start_passthru_update(void)
 {
-	uint32_t *stale_update_thread_id;
+	set_passthru_update(PASSTHRU_UPDATE_THREAD_ID);
+}
 
-	stale_update_thread_id = ast_threadstorage_get(&stale_update_id_storage,
-		sizeof(*stale_update_thread_id));
-	if (!stale_update_thread_id) {
-		ast_log(LOG_ERROR, "Could not set stale update ID for sorcery memory cache thread\n");
-		return;
-	}
-
-	*stale_update_thread_id = 0;
+static void end_passthru_update(void)
+{
+	set_passthru_update(0);
 }
 
 /*!
@@ -373,6 +416,7 @@ static void sorcery_memory_cache_destructor(void *obj)
 		ast_heap_destroy(cache->object_heap);
 	}
 	ao2_cleanup(cache->objects);
+	ast_free(cache->object_type);
 }
 
 /*!
@@ -386,6 +430,7 @@ static void sorcery_memory_cached_object_destructor(void *obj)
 	struct sorcery_memory_cached_object *cached = obj;
 
 	ao2_cleanup(cached->object);
+	ast_variables_destroy(cached->objectset);
 }
 
 static int schedule_cache_expiration(struct sorcery_memory_cache *cache);
@@ -671,8 +716,15 @@ static int remove_oldest_from_cache(struct sorcery_memory_cache *cache)
 static int add_to_cache(struct sorcery_memory_cache *cache,
 		struct sorcery_memory_cached_object *cached_object)
 {
+	struct sorcery_memory_cached_object *front;
+
 	if (!ao2_link_flags(cache->objects, cached_object, OBJ_NOLOCK)) {
 		return -1;
+	}
+
+	if (cache->full_backend_cache && (front = ast_heap_peek(cache->object_heap, 1))) {
+		/* For a full backend cache all objects share the same lifetime */
+		cached_object->created = front->created;
 	}
 
 	if (ast_heap_push(cache->object_heap, cached_object)) {
@@ -686,6 +738,45 @@ static int add_to_cache(struct sorcery_memory_cache *cache,
 	}
 
 	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Allocate a cached object for caching an object
+ *
+ * \param sorcery The sorcery instance
+ * \param cache The sorcery memory cache
+ * \param object The object to cache
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ */
+static struct sorcery_memory_cached_object *sorcery_memory_cached_object_alloc(const struct ast_sorcery *sorcery,
+	const struct sorcery_memory_cache *cache, void *object)
+{
+	struct sorcery_memory_cached_object *cached;
+
+	cached = ao2_alloc(sizeof(*cached), sorcery_memory_cached_object_destructor);
+	if (!cached) {
+		return NULL;
+	}
+
+	cached->object = ao2_bump(object);
+	cached->created = ast_tvnow();
+	cached->stale_update_sched_id = -1;
+
+	if (cache->full_backend_cache) {
+		/* A cached objectset allows us to easily perform all retrieval operations in a
+		 * minimal of time.
+		 */
+		cached->objectset = ast_sorcery_objectset_create(sorcery, object);
+		if (!cached->objectset) {
+			ao2_ref(cached, -1);
+			return NULL;
+		}
+	}
+
+	return cached;
 }
 
 /*!
@@ -704,13 +795,10 @@ static int sorcery_memory_cache_create(const struct ast_sorcery *sorcery, void *
 	struct sorcery_memory_cache *cache = data;
 	struct sorcery_memory_cached_object *cached;
 
-	cached = ao2_alloc(sizeof(*cached), sorcery_memory_cached_object_destructor);
+	cached = sorcery_memory_cached_object_alloc(sorcery, cache, object);
 	if (!cached) {
 		return -1;
 	}
-	cached->object = ao2_bump(object);
-	cached->created = ast_tvnow();
-	cached->stale_update_sched_id = -1;
 
 	/* As there is no guarantee that this won't be called by multiple threads wanting to cache
 	 * the same object we remove any old ones, which turns this into a create/update function
@@ -740,6 +828,116 @@ static int sorcery_memory_cache_create(const struct ast_sorcery *sorcery, void *
 	ao2_unlock(cache->objects);
 
 	ao2_ref(cached, -1);
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief AO2 callback function for adding an object to a memory cache
+ *
+ * \param obj The cached object
+ * \param arg The sorcery instance
+ * \param data The cache itself
+ * \param flags Unused flags
+ */
+static int object_add_to_cache_callback(void *obj, void *arg, void *data, int flags)
+{
+	struct sorcery_memory_cache *cache = data;
+	struct sorcery_memory_cached_object *cached;
+
+	cached = sorcery_memory_cached_object_alloc(arg, cache, obj);
+	if (!cached) {
+		return CMP_STOP;
+	}
+
+	add_to_cache(cache, cached);
+	ao2_ref(cached, -1);
+
+	return 0;
+}
+
+struct stale_cache_update_task_data {
+	struct ast_sorcery *sorcery;
+	struct sorcery_memory_cache *cache;
+	char *type;
+};
+
+static void stale_cache_update_task_data_destructor(void *obj)
+{
+	struct stale_cache_update_task_data *task_data = obj;
+
+	ao2_cleanup(task_data->cache);
+	ast_sorcery_unref(task_data->sorcery);
+	ast_free(task_data->type);
+}
+
+static struct stale_cache_update_task_data *stale_cache_update_task_data_alloc(struct ast_sorcery *sorcery,
+		struct sorcery_memory_cache *cache, const char *type)
+{
+	struct stale_cache_update_task_data *task_data;
+
+	task_data = ao2_alloc_options(sizeof(*task_data), stale_cache_update_task_data_destructor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!task_data) {
+		return NULL;
+	}
+
+	task_data->sorcery = ao2_bump(sorcery);
+	task_data->cache = ao2_bump(cache);
+	task_data->type = ast_strdup(type);
+	if (!task_data->type) {
+		ao2_ref(task_data, -1);
+		return NULL;
+	}
+
+	return task_data;
+}
+
+static int stale_cache_update(const void *data)
+{
+	struct stale_cache_update_task_data *task_data = (struct stale_cache_update_task_data *) data;
+	struct ao2_container *backend_objects;
+
+	start_passthru_update();
+	backend_objects = ast_sorcery_retrieve_by_fields(task_data->sorcery, task_data->type,
+		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	end_passthru_update();
+
+	if (!backend_objects) {
+		task_data->cache->stale_update_sched_id = -1;
+		ao2_ref(task_data, -1);
+		return 0;
+	}
+
+	if (task_data->cache->maximum_objects && ao2_container_count(backend_objects) >= task_data->cache->maximum_objects) {
+		ast_log(LOG_ERROR, "The backend contains %d objects while the sorcery memory cache '%s' is explicitly configured to only allow %d\n",
+			ao2_container_count(backend_objects), task_data->cache->name, task_data->cache->maximum_objects);
+		task_data->cache->stale_update_sched_id = -1;
+		ao2_ref(task_data, -1);
+		return 0;
+	}
+
+	ao2_wrlock(task_data->cache->objects);
+	remove_all_from_cache(task_data->cache);
+	ao2_callback_data(backend_objects, OBJ_NOLOCK | OBJ_NODATA | OBJ_MULTIPLE, object_add_to_cache_callback,
+		task_data->sorcery, task_data->cache);
+
+	/* If the number of cached objects does not match the number of backend objects we encountered a memory allocation
+	 * failure and the cache is incomplete, so drop everything and fall back to querying the backend directly
+	 * as it may be able to provide what is wanted.
+	 */
+	if (ao2_container_count(task_data->cache->objects) != ao2_container_count(backend_objects)) {
+		ast_log(LOG_WARNING, "The backend contains %d objects while only %d could be added to sorcery memory cache '%s'\n",
+			ao2_container_count(backend_objects), ao2_container_count(task_data->cache->objects), task_data->cache->name);
+		remove_all_from_cache(task_data->cache);
+	}
+
+	ao2_unlock(task_data->cache->objects);
+	ao2_ref(backend_objects, -1);
+
+	task_data->cache->stale_update_sched_id = -1;
+	ao2_ref(task_data, -1);
+
 	return 0;
 }
 
@@ -781,7 +979,7 @@ static int stale_item_update(const void *data)
 	struct stale_update_task_data *task_data = (struct stale_update_task_data *) data;
 	void *object;
 
-	start_stale_update();
+	start_passthru_update();
 
 	object = ast_sorcery_retrieve_by_id(task_data->sorcery,
 		ast_sorcery_object_get_type(task_data->object),
@@ -805,9 +1003,192 @@ static int stale_item_update(const void *data)
 		ast_sorcery_object_get_id(task_data->object));
 
 	ao2_ref(task_data, -1);
-	end_stale_update();
+	end_passthru_update();
 
 	return 0;
+}
+
+/*!
+ * \internal
+ * \brief Populate the cache with all objects from the backend
+ *
+ * \pre cache->objects is write-locked
+ *
+ * \param sorcery The sorcery instance
+ * \param type The type of object
+ * \param cache The sorcery memory cache
+ */
+static void memory_cache_populate(const struct ast_sorcery *sorcery, const char *type, struct sorcery_memory_cache *cache)
+{
+	struct ao2_container *backend_objects;
+
+	start_passthru_update();
+	backend_objects = ast_sorcery_retrieve_by_fields(sorcery, type, AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	end_passthru_update();
+
+	if (!backend_objects) {
+		/* This will occur in off-nominal memory allocation failure scenarios */
+		return;
+	}
+
+	if (cache->maximum_objects && ao2_container_count(backend_objects) >= cache->maximum_objects) {
+		ast_log(LOG_ERROR, "The backend contains %d objects while the sorcery memory cache '%s' is explicitly configured to only allow %d\n",
+			ao2_container_count(backend_objects), cache->name, cache->maximum_objects);
+		return;
+	}
+
+	ao2_callback_data(backend_objects, OBJ_NOLOCK | OBJ_NODATA | OBJ_MULTIPLE, object_add_to_cache_callback,
+		(struct ast_sorcery*)sorcery, cache);
+
+	/* If the number of cached objects does not match the number of backend objects we encountered a memory allocation
+	 * failure and the cache is incomplete, so drop everything and fall back to querying the backend directly
+	 * as it may be able to provide what is wanted.
+	 */
+	if (ao2_container_count(cache->objects) != ao2_container_count(backend_objects)) {
+		ast_log(LOG_WARNING, "The backend contains %d objects while only %d could be added to sorcery memory cache '%s'\n",
+			ao2_container_count(backend_objects), ao2_container_count(cache->objects), cache->name);
+		remove_all_from_cache(cache);
+	}
+
+	ao2_ref(backend_objects, -1);
+}
+
+/*!
+ * \internal
+ * \brief Determine if a full backend cache update is needed and do it
+ *
+ * \param sorcery The sorcery instance
+ * \param type The type of object
+ * \param cache The sorcery memory cache
+ */
+static void memory_cache_full_update(const struct ast_sorcery *sorcery, const char *type, struct sorcery_memory_cache *cache)
+{
+	if (!cache->full_backend_cache) {
+		return;
+	}
+
+	ao2_wrlock(cache->objects);
+	if (!ao2_container_count(cache->objects)) {
+		memory_cache_populate(sorcery, type, cache);
+	}
+	ao2_unlock(cache->objects);
+}
+
+/*!
+ * \internal
+ * \brief Queue a full cache update
+ *
+ * \param sorcery The sorcery instance
+ * \param cache The sorcery memory cache
+ * \param type The type of object
+ */
+static void memory_cache_stale_update_full(const struct ast_sorcery *sorcery, struct sorcery_memory_cache *cache,
+	const char *type)
+{
+	ao2_wrlock(cache->objects);
+	if (cache->stale_update_sched_id == -1) {
+		struct stale_cache_update_task_data *task_data;
+
+		task_data = stale_cache_update_task_data_alloc((struct ast_sorcery *) sorcery,
+			cache, type);
+		if (task_data) {
+			cache->stale_update_sched_id = ast_sched_add(sched, 1,
+				stale_cache_update, task_data);
+		}
+		if (cache->stale_update_sched_id < 0) {
+			ao2_cleanup(task_data);
+		}
+	}
+	ao2_unlock(cache->objects);
+}
+
+/*!
+ * \internal
+ * \brief Queue a stale object update
+ *
+ * \param sorcery The sorcery instance
+ * \param cache The sorcery memory cache
+ * \param cached The cached object
+ */
+static void memory_cache_stale_update_object(const struct ast_sorcery *sorcery, struct sorcery_memory_cache *cache,
+	struct sorcery_memory_cached_object *cached)
+{
+	ao2_lock(cached);
+	if (cached->stale_update_sched_id == -1) {
+		struct stale_update_task_data *task_data;
+
+		task_data = stale_update_task_data_alloc((struct ast_sorcery *) sorcery,
+			cache, ast_sorcery_object_get_type(cached->object), cached->object);
+		if (task_data) {
+			ast_debug(1, "Cached sorcery object type '%s' ID '%s' is stale. Refreshing\n",
+				ast_sorcery_object_get_type(cached->object), ast_sorcery_object_get_id(cached->object));
+			cached->stale_update_sched_id = ast_sched_add(sched, 1,
+				stale_item_update, task_data);
+		}
+		if (cached->stale_update_sched_id < 0) {
+			ao2_cleanup(task_data);
+			ast_log(LOG_ERROR, "Unable to update stale cached object type '%s', ID '%s'.\n",
+				ast_sorcery_object_get_type(cached->object), ast_sorcery_object_get_id(cached->object));
+		}
+	}
+	ao2_unlock(cached);
+}
+
+/*!
+ * \internal
+ * \brief Check whether an object (or cache) is stale and queue an update
+ *
+ * \param sorcery The sorcery instance
+ * \param cache The sorcery memory cache
+ * \param cached The cached object
+ */
+static void memory_cache_stale_check_object(const struct ast_sorcery *sorcery, struct sorcery_memory_cache *cache,
+	struct sorcery_memory_cached_object *cached)
+{
+	struct timeval elapsed;
+
+	if (!cache->object_lifetime_stale) {
+		return;
+	}
+
+	/* For a full cache as every object has the same expiration/staleness we can do the same check */
+	elapsed = ast_tvsub(ast_tvnow(), cached->created);
+
+	if (elapsed.tv_sec < cache->object_lifetime_stale) {
+		return;
+	}
+
+	if (cache->full_backend_cache) {
+		memory_cache_stale_update_full(sorcery, cache, ast_sorcery_object_get_type(cached->object));
+	} else {
+		memory_cache_stale_update_object(sorcery, cache, cached);
+	}
+
+}
+
+/*!
+ * \internal
+ * \brief Check whether the entire cache is stale or not and queue an update
+ *
+ * \param sorcery The sorcery instance
+ * \param cache The sorcery memory cache
+ *
+ * \note Unlike \ref memory_cache_stale_check this does not require  an explicit object
+ */
+static void memory_cache_stale_check(const struct ast_sorcery *sorcery, struct sorcery_memory_cache *cache)
+{
+	struct sorcery_memory_cached_object *cached;
+
+	ao2_rdlock(cache->objects);
+	cached = ao2_bump(ast_heap_peek(cache->object_heap, 1));
+	ao2_unlock(cache->objects);
+
+	if (!cached) {
+		return;
+	}
+
+	memory_cache_stale_check_object(sorcery, cache, cached);
+	ao2_ref(cached, -1);
 }
 
 /*!
@@ -828,9 +1209,11 @@ static void *sorcery_memory_cache_retrieve_id(const struct ast_sorcery *sorcery,
 	struct sorcery_memory_cached_object *cached;
 	void *object;
 
-	if (is_stale_update()) {
+	if (is_passthru_update()) {
 		return NULL;
 	}
+
+	memory_cache_full_update(sorcery, type, cache);
 
 	cached = ao2_find(cache->objects, id, OBJ_SEARCH_KEY);
 	if (!cached) {
@@ -839,37 +1222,156 @@ static void *sorcery_memory_cache_retrieve_id(const struct ast_sorcery *sorcery,
 
 	ast_assert(!strcmp(ast_sorcery_object_get_id(cached->object), id));
 
-	if (cache->object_lifetime_stale) {
-		struct timeval elapsed;
-
-		elapsed = ast_tvsub(ast_tvnow(), cached->created);
-		if (elapsed.tv_sec > cache->object_lifetime_stale) {
-			ao2_lock(cached);
-			if (cached->stale_update_sched_id == -1) {
-				struct stale_update_task_data *task_data;
-
-				task_data = stale_update_task_data_alloc((struct ast_sorcery *) sorcery,
-					cache, type, cached->object);
-				if (task_data) {
-					ast_debug(1, "Cached sorcery object type '%s' ID '%s' is stale. Refreshing\n",
-						type, id);
-					cached->stale_update_sched_id = ast_sched_add(sched, 1,
-						stale_item_update, task_data);
-				}
-				if (cached->stale_update_sched_id < 0) {
-					ao2_cleanup(task_data);
-					ast_log(LOG_ERROR, "Unable to update stale cached object type '%s', ID '%s'.\n",
-						type, id);
-				}
-			}
-			ao2_unlock(cached);
-		}
-	}
+	memory_cache_stale_check_object(sorcery, cache, cached);
 
 	object = ao2_bump(cached->object);
 	ao2_ref(cached, -1);
 
 	return object;
+}
+
+/*!
+ * \internal
+ * \brief AO2 callback function for comparing a retrieval request and finding applicable objects
+ *
+ * \param obj The cached object
+ * \param arg The comparison parameters
+ * \param flags Unused flags
+ */
+static int sorcery_memory_cache_fields_cmp(void *obj, void *arg, int flags)
+{
+	struct sorcery_memory_cached_object *cached = obj;
+	const struct sorcery_memory_cache_fields_cmp_params *params = arg;
+	RAII_VAR(struct ast_variable *, diff, NULL, ast_variables_destroy);
+
+	if (params->regex) {
+		/* If a regular expression has been provided see if it matches, otherwise move on */
+		if (!regexec(params->regex, ast_sorcery_object_get_id(cached->object), 0, NULL, 0)) {
+			ao2_link(params->container, cached->object);
+		}
+		return 0;
+	} else if (params->fields &&
+	     (ast_sorcery_changeset_create(cached->objectset, params->fields, &diff) ||
+	     diff)) {
+		/* If we can't turn the object into an object set OR if differences exist between the fields
+		 * passed in and what are present on the object they are not a match.
+		 */
+		return 0;
+	}
+
+	if (params->container) {
+		ao2_link(params->container, cached->object);
+
+		/* As multiple objects are being returned keep going */
+		return 0;
+	} else {
+		/* Immediately stop and return, we only want a single object */
+		return CMP_MATCH | CMP_STOP;
+	}
+}
+
+/*!
+ * \internal
+ * \brief Callback function to retrieve a single object based on fields
+ *
+ * \param sorcery The sorcery instance
+ * \param data The sorcery memory cache
+ * \param type The type of the object to retrieve
+ * \param fields Any explicit fields to search for
+ */
+static void *sorcery_memory_cache_retrieve_fields(const struct ast_sorcery *sorcery, void *data, const char *type,
+	const struct ast_variable *fields)
+{
+	struct sorcery_memory_cache *cache = data;
+	struct sorcery_memory_cache_fields_cmp_params params = {
+		.sorcery = sorcery,
+		.cache = cache,
+		.fields = fields,
+	};
+	struct sorcery_memory_cached_object *cached;
+	void *object = NULL;
+
+	if (is_passthru_update() || !cache->full_backend_cache || !fields) {
+		return NULL;
+	}
+
+	cached = ao2_callback(cache->objects, 0, sorcery_memory_cache_fields_cmp, &params);
+
+	if (cached) {
+		memory_cache_stale_check_object(sorcery, cache, cached);
+		object = ao2_bump(cached->object);
+		ao2_ref(cached, -1);
+	}
+
+	return object;
+}
+
+/*!
+ * \internal
+ * \brief Callback function to retrieve multiple objects from a memory cache
+ *
+ * \param sorcery The sorcery instance
+ * \param data The sorcery memory cache
+ * \param type The type of the object to retrieve
+ * \param objects Container to place the objects into
+ * \param fields Any explicit fields to search for
+ */
+static void sorcery_memory_cache_retrieve_multiple(const struct ast_sorcery *sorcery, void *data, const char *type,
+	struct ao2_container *objects, const struct ast_variable *fields)
+{
+	struct sorcery_memory_cache *cache = data;
+	struct sorcery_memory_cache_fields_cmp_params params = {
+		.sorcery = sorcery,
+		.cache = cache,
+		.fields = fields,
+		.container = objects,
+	};
+
+	if (is_passthru_update() || !cache->full_backend_cache) {
+		return;
+	}
+
+	memory_cache_full_update(sorcery, type, cache);
+	ao2_callback(cache->objects, 0, sorcery_memory_cache_fields_cmp, &params);
+
+	if (ao2_container_count(objects)) {
+		memory_cache_stale_check(sorcery, cache);
+	}
+}
+
+/*!
+ * \internal
+ * \brief Callback function to retrieve multiple objects using a regex on the object id
+ *
+ * \param sorcery The sorcery instance
+ * \param data The sorcery memory cache
+ * \param type The type of the object to retrieve
+ * \param objects Container to place the objects into
+ * \param regex Regular expression to apply to the object id
+ */
+static void sorcery_memory_cache_retrieve_regex(const struct ast_sorcery *sorcery, void *data, const char *type,
+	struct ao2_container *objects, const char *regex)
+{
+	struct sorcery_memory_cache *cache = data;
+	regex_t expression;
+	struct sorcery_memory_cache_fields_cmp_params params = {
+		.sorcery = sorcery,
+		.cache = cache,
+		.container = objects,
+		.regex = &expression,
+	};
+
+	if (is_passthru_update() || !cache->full_backend_cache || regcomp(&expression, regex, REG_EXTENDED | REG_NOSUB)) {
+		return;
+	}
+
+	memory_cache_full_update(sorcery, type, cache);
+	ao2_callback(cache->objects, 0, sorcery_memory_cache_fields_cmp, &params);
+	regfree(&expression);
+
+	if (ao2_container_count(objects)) {
+		memory_cache_stale_check(sorcery, cache);
+	}
 }
 
 /*!
@@ -892,6 +1394,11 @@ static void sorcery_memory_cache_load(void *data, const struct ast_sorcery *sorc
 	ao2_link(caches, cache);
 	ast_debug(1, "Memory cache '%s' associated with sorcery instance '%p' of module '%s' with object type '%s'\n",
 		cache->name, sorcery, ast_sorcery_get_module(sorcery), type);
+
+	if (cache->full_backend_cache) {
+		cache->sorcery = sorcery;
+		cache->object_type = ast_strdup(type);
+	}
 }
 
 /*!
@@ -960,6 +1467,7 @@ static void *sorcery_memory_cache_open(const char *data)
 	}
 
 	cache->expire_id = -1;
+	cache->stale_update_sched_id = -1;
 
 	/* If no configuration options have been provided this memory cache will operate in a default
 	 * configuration.
@@ -994,6 +1502,8 @@ static void *sorcery_memory_cache_open(const char *data)
 			}
 		} else if (!strcasecmp(name, "expire_on_reload")) {
 			cache->expire_on_reload = ast_true(value);
+		} else if (!strcasecmp(name, "full_backend_cache")) {
+			cache->full_backend_cache = ast_true(value);
 		} else {
 			ast_log(LOG_ERROR, "Unsupported option '%s' used for memory cache\n", name);
 			return NULL;
@@ -1074,6 +1584,12 @@ static void sorcery_memory_cache_close(void *data)
 		 */
 		ao2_wrlock(cache->objects);
 		remove_all_from_cache(cache);
+		ao2_unlock(cache->objects);
+	}
+
+	if (cache->full_backend_cache) {
+		ao2_wrlock(cache->objects);
+		cache->sorcery = NULL;
 		ao2_unlock(cache->objects);
 	}
 
@@ -1404,11 +1920,72 @@ static char *sorcery_memory_cache_stale(struct ast_cli_entry *e, int cmd, struct
 	return CLI_SUCCESS;
 }
 
+/*!
+ * \internal
+ * \brief CLI command implementation for 'sorcery memory cache populate'
+ */
+static char *sorcery_memory_cache_populate(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct sorcery_memory_cache *cache;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "sorcery memory cache populate";
+		e->usage =
+		    "Usage: sorcery memory cache populate <cache name>\n"
+		    "       Expire all objects in the cache and populate it with ALL objects from backend.\n";
+		return NULL;
+	case CLI_GENERATE:
+		if (a->pos == 4) {
+			return sorcery_memory_cache_complete_name(a->word, a->n);
+		} else {
+			return NULL;
+		}
+	}
+
+	if (a->argc > 5) {
+		return CLI_SHOWUSAGE;
+	}
+
+	cache = ao2_find(caches, a->argv[4], OBJ_SEARCH_KEY);
+	if (!cache) {
+		ast_cli(a->fd, "Specified sorcery memory cache '%s' does not exist\n", a->argv[4]);
+		return CLI_FAILURE;
+	}
+
+	if (!cache->full_backend_cache) {
+		ast_cli(a->fd, "Specified sorcery memory cache '%s' does not have full backend caching enabled\n", a->argv[4]);
+		ao2_ref(cache, -1);
+		return CLI_FAILURE;
+	}
+
+	ao2_wrlock(cache->objects);
+	if (!cache->sorcery) {
+		ast_cli(a->fd, "Specified sorcery memory cache '%s' is no longer active\n", a->argv[4]);
+		ao2_unlock(cache->objects);
+		ao2_ref(cache, -1);
+		return CLI_FAILURE;
+	}
+
+	remove_all_from_cache(cache);
+	memory_cache_populate(cache->sorcery, cache->object_type, cache);
+
+	ast_cli(a->fd, "Specified sorcery memory cache '%s' has been populated with '%d' objects from the backend\n",
+		a->argv[4], ao2_container_count(cache->objects));
+
+	ao2_unlock(cache->objects);
+
+	ao2_ref(cache, -1);
+
+	return CLI_SUCCESS;
+}
+
 static struct ast_cli_entry cli_memory_cache[] = {
 	AST_CLI_DEFINE(sorcery_memory_cache_show, "Show sorcery memory cache information"),
 	AST_CLI_DEFINE(sorcery_memory_cache_dump, "Dump all objects within a sorcery memory cache"),
 	AST_CLI_DEFINE(sorcery_memory_cache_expire, "Expire a specific object or ALL objects within a sorcery memory cache"),
 	AST_CLI_DEFINE(sorcery_memory_cache_stale, "Mark a specific object or ALL objects as stale within a sorcery memory cache"),
+	AST_CLI_DEFINE(sorcery_memory_cache_populate, "Clear and populate the sorcery memory cache with objects from the backend"),
 };
 
 /*!
@@ -1549,6 +2126,52 @@ static int sorcery_memory_cache_ami_stale(struct mansession *s, const struct mes
 	ao2_ref(cache, -1);
 
 	astman_send_ack(s, m, "All objects were marked as stale in the cache\n");
+
+	return 0;
+}
+
+/*!
+ * \internal
+ * \brief AMI command implementation for 'SorceryMemoryCachePopulate'
+ */
+static int sorcery_memory_cache_ami_populate(struct mansession *s, const struct message *m)
+{
+	const char *cache_name = astman_get_header(m, "Cache");
+	struct sorcery_memory_cache *cache;
+
+	if (ast_strlen_zero(cache_name)) {
+		astman_send_error(s, m, "SorceryMemoryCachePopulate requires that a cache name be provided.\n");
+		return 0;
+	}
+
+	cache = ao2_find(caches, cache_name, OBJ_SEARCH_KEY);
+	if (!cache) {
+		astman_send_error(s, m, "The provided cache does not exist\n");
+		return 0;
+	}
+
+	if (!cache->full_backend_cache) {
+		astman_send_error(s, m, "The provided cache does not have full backend caching enabled\n");
+		ao2_ref(cache, -1);
+		return 0;
+	}
+
+	ao2_wrlock(cache->objects);
+	if (!cache->sorcery) {
+		astman_send_error(s, m, "The provided cache is no longer active\n");
+		ao2_unlock(cache->objects);
+		ao2_ref(cache, -1);
+		return 0;
+	}
+
+	remove_all_from_cache(cache);
+	memory_cache_populate(cache->sorcery, cache->object_type, cache);
+
+	ao2_unlock(cache->objects);
+
+	ao2_ref(cache, -1);
+
+	astman_send_ack(s, m, "Cache has been expired and populated\n");
 
 	return 0;
 }
@@ -2318,11 +2941,51 @@ static void *mock_retrieve_id(const struct ast_sorcery *sorcery, void *data,
 }
 
 /*!
+ * \brief Callback for retrieving multiple sorcery objects
+ *
+ * The mock wizard uses the \ref real_backend_data in order to construct
+ * objects. If the backend data is "nonexisent" then no object is returned.
+ * Otherwise, the number of objects matching the exists value will be returned.
+ *
+ * \param sorcery The sorcery instance
+ * \param data Unused
+ * \param type The object type. Will always be "test".
+ * \param objects Container to place objects into.
+ * \param fields Fields to search for.
+ */
+static void mock_retrieve_multiple(const struct ast_sorcery *sorcery, void *data,
+		const char *type, struct ao2_container *objects, const struct ast_variable *fields)
+{
+	int i;
+
+	if (fields) {
+		return;
+	}
+
+	for (i = 0; i < real_backend_data->exists; ++i) {
+		char uuid[AST_UUID_STR_LEN];
+		struct test_data *b_data;
+
+		b_data = ast_sorcery_alloc(sorcery, type, ast_uuid_generate_str(uuid, sizeof(uuid)));
+		if (!b_data) {
+			continue;
+		}
+
+		b_data->salt = real_backend_data->salt;
+		b_data->pepper = real_backend_data->pepper;
+
+		ao2_link(objects, b_data);
+		ao2_ref(b_data, -1);
+	}
+}
+
+/*!
  * \brief A mock sorcery wizard used for the stale test
  */
 static struct ast_sorcery_wizard mock_wizard = {
 	.name = "mock",
 	.retrieve_id = mock_retrieve_id,
+	.retrieve_multiple = mock_retrieve_multiple,
 };
 
 /*!
@@ -2486,6 +3149,259 @@ cleanup:
 	return res;
 }
 
+AST_TEST_DEFINE(full_backend_cache_expiration)
+{
+	int res = AST_TEST_FAIL;
+	struct ast_sorcery *sorcery = NULL;
+	struct backend_data initial = {
+		.salt = 0,
+		.pepper = 0,
+		.exists = 4,
+	};
+	struct ao2_container *objects;
+	ast_mutex_t lock;
+	ast_cond_t cond;
+	struct timeval start;
+	struct timespec end;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "full_backend_cache_expiration";
+		info->category = "/res/res_sorcery_memory_cache/";
+		info->summary = "Ensure that the full backend cache actually caches the backend";
+		info->description = "This test performs the following:\n"
+			"\t* Create a sorcery instance with two wizards"
+			"\t\t* The first is a memory cache that expires objects after 3 seconds and does full backend caching\n"
+			"\t\t* The second is a mock of a back-end\n"
+			"\t* Populates the cache by requesting all objects which returns 4.\n"
+			"\t* Updates the backend to contain a different number of objects, 8.\n"
+			"\t* Requests all objects and confirms the number returned is only 4.\n"
+			"\t* Wait for cached objects to expire.\n"
+			"\t* Requests all objects and confirms the number returned is 8.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	ast_sorcery_wizard_register(&mock_wizard);
+
+	sorcery = ast_sorcery_open();
+	if (!sorcery) {
+		ast_test_status_update(test, "Failed to create sorcery instance\n");
+		goto cleanup;
+	}
+
+	ast_sorcery_apply_wizard_mapping(sorcery, "test", "memory_cache",
+			"object_lifetime_maximum=3,full_backend_cache=yes", 1);
+	ast_sorcery_apply_wizard_mapping(sorcery, "test", "mock", NULL, 0);
+	ast_sorcery_internal_object_register(sorcery, "test", test_data_alloc, NULL, NULL);
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "salt", "0", OPT_UINT_T, 0, FLDSET(struct test_data, salt));
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "pepper", "0", OPT_UINT_T, 0, FLDSET(struct test_data, pepper));
+
+	/* Prepopulate the cache */
+	real_backend_data = &initial;
+
+	/* Get all current objects in the backend */
+	objects = ast_sorcery_retrieve_by_fields(sorcery, "test", AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	if (!objects) {
+		ast_test_status_update(test, "Unable to retrieve all objects in backend and populate cache\n");
+		goto cleanup;
+	}
+	ao2_ref(objects, -1);
+
+	/* Update the backend to have a different number of objects */
+	initial.exists = 8;
+
+	/* Get all current objects in the backend */
+	objects = ast_sorcery_retrieve_by_fields(sorcery, "test", AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	if (!objects) {
+		ast_test_status_update(test, "Unable to retrieve all objects in backend and populate cache\n");
+		goto cleanup;
+	}
+
+	if (ao2_container_count(objects) == initial.exists) {
+		ast_test_status_update(test, "Number of objects returned is of the current backend and not the cache\n");
+		ao2_ref(objects, -1);
+		goto cleanup;
+	}
+
+	ao2_ref(objects, -1);
+
+	ast_mutex_init(&lock);
+	ast_cond_init(&cond, NULL);
+
+	start = ast_tvnow();
+	end.tv_sec = start.tv_sec + 5;
+	end.tv_nsec = start.tv_usec * 1000;
+
+	ast_mutex_lock(&lock);
+	while (ast_cond_timedwait(&cond, &lock, &end) != ETIMEDOUT) {
+	}
+	ast_mutex_unlock(&lock);
+
+	ast_mutex_destroy(&lock);
+	ast_cond_destroy(&cond);
+
+	/* Get all current objects in the backend */
+	objects = ast_sorcery_retrieve_by_fields(sorcery, "test", AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	if (!objects) {
+		ast_test_status_update(test, "Unable to retrieve all objects in backend and populate cache\n");
+		goto cleanup;
+	}
+
+	if (ao2_container_count(objects) != initial.exists) {
+		ast_test_status_update(test, "Number of objects returned is NOT of the current backend when it should be\n");
+		ao2_ref(objects, -1);
+		goto cleanup;
+	}
+
+	ao2_ref(objects, -1);
+
+	res = AST_TEST_PASS;
+
+cleanup:
+	if (sorcery) {
+		ast_sorcery_unref(sorcery);
+	}
+	ast_sorcery_wizard_unregister(&mock_wizard);
+	return res;
+}
+
+AST_TEST_DEFINE(full_backend_cache_stale)
+{
+	int res = AST_TEST_FAIL;
+	struct ast_sorcery *sorcery = NULL;
+	struct backend_data initial = {
+		.salt = 0,
+		.pepper = 0,
+		.exists = 4,
+	};
+	struct ao2_container *objects;
+	ast_mutex_t lock;
+	ast_cond_t cond;
+	struct timeval start;
+	struct timespec end;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "full_backend_cache_stale";
+		info->category = "/res/res_sorcery_memory_cache/";
+		info->summary = "Ensure that the full backend cache works with staleness";
+		info->description = "This test performs the following:\n"
+			"\t* Create a sorcery instance with two wizards"
+			"\t\t* The first is a memory cache that stales objects after 1 second and does full backend caching\n"
+			"\t\t* The second is a mock of a back-end\n"
+			"\t* Populates the cache by requesting all objects which returns 4.\n"
+			"\t* Wait for objects to go stale.\n"
+			"\t* Updates the backend to contain a different number of objects, 8.\""
+			"\t* Requests all objects and confirms the number returned is only 4.\n"
+			"\t* Wait for objects to be refreshed from backend.\n"
+			"\t* Requests all objects and confirms the number returned is 8.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	ast_sorcery_wizard_register(&mock_wizard);
+
+	ast_mutex_init(&lock);
+	ast_cond_init(&cond, NULL);
+
+	sorcery = ast_sorcery_open();
+	if (!sorcery) {
+		ast_test_status_update(test, "Failed to create sorcery instance\n");
+		goto cleanup;
+	}
+
+	ast_sorcery_apply_wizard_mapping(sorcery, "test", "memory_cache",
+			"object_lifetime_stale=1,full_backend_cache=yes", 1);
+	ast_sorcery_apply_wizard_mapping(sorcery, "test", "mock", NULL, 0);
+	ast_sorcery_internal_object_register(sorcery, "test", test_data_alloc, NULL, NULL);
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "salt", "0", OPT_UINT_T, 0, FLDSET(struct test_data, salt));
+	ast_sorcery_object_field_register_nodoc(sorcery, "test", "pepper", "0", OPT_UINT_T, 0, FLDSET(struct test_data, pepper));
+
+	/* Prepopulate the cache */
+	real_backend_data = &initial;
+
+	/* Get all current objects in the backend */
+	objects = ast_sorcery_retrieve_by_fields(sorcery, "test", AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	if (!objects) {
+		ast_test_status_update(test, "Unable to retrieve all objects in backend and populate cache\n");
+		goto cleanup;
+	}
+	ao2_ref(objects, -1);
+
+	start = ast_tvnow();
+	end.tv_sec = start.tv_sec + 5;
+	end.tv_nsec = start.tv_usec * 1000;
+
+	ast_mutex_lock(&lock);
+	while (ast_cond_timedwait(&cond, &lock, &end) != ETIMEDOUT) {
+	}
+	ast_mutex_unlock(&lock);
+
+	initial.exists = 8;
+
+	/* Get all current objects in the backend */
+	objects = ast_sorcery_retrieve_by_fields(sorcery, "test", AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	if (!objects) {
+		ast_test_status_update(test, "Unable to retrieve all objects in backend and populate cache\n");
+		goto cleanup;
+	}
+
+	if (ao2_container_count(objects) == initial.exists) {
+		ast_test_status_update(test, "Number of objects returned is of the backend and not the cache\n");
+		ao2_ref(objects, -1);
+		goto cleanup;
+	}
+
+	ao2_ref(objects, -1);
+
+	start = ast_tvnow();
+	end.tv_sec = start.tv_sec + 5;
+	end.tv_nsec = start.tv_usec * 1000;
+
+	ast_mutex_lock(&lock);
+	while (ast_cond_timedwait(&cond, &lock, &end) != ETIMEDOUT) {
+	}
+	ast_mutex_unlock(&lock);
+
+	/* Get all current objects in the backend */
+	objects = ast_sorcery_retrieve_by_fields(sorcery, "test", AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	if (!objects) {
+		ast_test_status_update(test, "Unable to retrieve all objects in backend and populate cache\n");
+		goto cleanup;
+	}
+
+	if (ao2_container_count(objects) != initial.exists) {
+		ast_test_status_update(test, "Number of objects returned is not of backend\n");
+		ao2_ref(objects, -1);
+		goto cleanup;
+	}
+
+	ao2_ref(objects, -1);
+
+	start = ast_tvnow();
+	end.tv_sec = start.tv_sec + 5;
+	end.tv_nsec = start.tv_usec * 1000;
+
+	ast_mutex_lock(&lock);
+	while (ast_cond_timedwait(&cond, &lock, &end) != ETIMEDOUT) {
+	}
+	ast_mutex_unlock(&lock);
+
+	res = AST_TEST_PASS;
+
+cleanup:
+	if (sorcery) {
+		ast_sorcery_unref(sorcery);
+	}
+	ast_sorcery_wizard_unregister(&mock_wizard);
+	ast_mutex_destroy(&lock);
+	ast_cond_destroy(&cond);
+	return res;
+}
+
 #endif
 
 static int unload_module(void)
@@ -2498,11 +3414,14 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(maximum_objects);
 	AST_TEST_UNREGISTER(expiration);
 	AST_TEST_UNREGISTER(stale);
+	AST_TEST_UNREGISTER(full_backend_cache_expiration);
+	AST_TEST_UNREGISTER(full_backend_cache_stale);
 
 	ast_manager_unregister("SorceryMemoryCacheExpireObject");
 	ast_manager_unregister("SorceryMemoryCacheExpire");
 	ast_manager_unregister("SorceryMemoryCacheStaleObject");
 	ast_manager_unregister("SorceryMemoryCacheStale");
+	ast_manager_unregister("SorceryMemoryCachePopulate");
 
 	ast_cli_unregister_multiple(cli_memory_cache, ARRAY_LEN(cli_memory_cache));
 
@@ -2558,6 +3477,7 @@ static int load_module(void)
 	res |= ast_manager_register_xml("SorceryMemoryCacheExpire", EVENT_FLAG_SYSTEM, sorcery_memory_cache_ami_expire);
 	res |= ast_manager_register_xml("SorceryMemoryCacheStaleObject", EVENT_FLAG_SYSTEM, sorcery_memory_cache_ami_stale_object);
 	res |= ast_manager_register_xml("SorceryMemoryCacheStale", EVENT_FLAG_SYSTEM, sorcery_memory_cache_ami_stale);
+	res |= ast_manager_register_xml("SorceryMemoryCachePopulate", EVENT_FLAG_SYSTEM, sorcery_memory_cache_ami_populate);
 
 	if (res) {
 		unload_module();
@@ -2575,6 +3495,8 @@ static int load_module(void)
 	AST_TEST_REGISTER(delete);
 	AST_TEST_REGISTER(maximum_objects);
 	AST_TEST_REGISTER(expiration);
+	AST_TEST_REGISTER(full_backend_cache_expiration);
+	AST_TEST_REGISTER(full_backend_cache_stale);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
