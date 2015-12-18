@@ -2028,14 +2028,14 @@ static int report_receive_fax_status(struct ast_channel *chan, const char *filen
 			fax_bitrate = ast_strdupa(fax_bitrate);
 		}
 
-		json_object = ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: s, s: O}",
+		json_object = ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: s, s: o}",
 				"type", "receive",
 				"remote_station_id", S_OR(remote_station_id, ""),
 				"local_station_id", S_OR(local_station_id, ""),
 				"fax_pages", S_OR(fax_pages, ""),
 				"fax_resolution", S_OR(fax_resolution, ""),
 				"fax_bitrate", S_OR(fax_bitrate, ""),
-				"filenames", json_array);
+				"filenames", ast_json_ref(json_array));
 		if (!json_object) {
 			return -1;
 		}

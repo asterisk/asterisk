@@ -1274,8 +1274,8 @@ static struct ast_json *multi_user_event_to_json(
 
 	ast_json_object_set(out, "type", ast_json_string_create("ChannelUserevent"));
 	ast_json_object_set(out, "timestamp", ast_json_timeval(*tv, NULL));
-	ast_json_object_set(out, "eventname", ast_json_ref(ast_json_object_get(blob, "eventname")));
-	ast_json_object_set(out, "userevent", ast_json_ref(blob)); /* eventname gets duplicated, that's ok */
+	ast_json_object_set(out, "eventname", ast_json_string_create(ast_json_string_get((ast_json_object_get(blob, "eventname")))));
+	ast_json_object_set(out, "userevent", ast_json_deep_copy(blob));
 
 	for (type = 0; type < STASIS_UMOS_MAX; ++type) {
 		for (i = 0; i < AST_VECTOR_SIZE(&multi->snapshots[type]); ++i) {
