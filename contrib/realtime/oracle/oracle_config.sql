@@ -1078,7 +1078,19 @@ ALTER TABLE ps_registrations ADD fatal_retry_interval INTEGER
 
 /
 
-INSERT INTO alembic_version (version_num) VALUES ('28ce1e718f05')
+-- Running upgrade 28ce1e718f05 -> 189a235b3fd7
+
+ALTER TABLE ps_globals ADD keep_alive_interval INTEGER
+
+/
+
+-- Running upgrade 189a235b3fd7 -> 2d078ec071b7
+
+ALTER TABLE ps_aors MODIFY contact VARCHAR2(255 CHAR)
+
+/
+
+INSERT INTO alembic_version (version_num) VALUES ('2d078ec071b7')
 
 /
 

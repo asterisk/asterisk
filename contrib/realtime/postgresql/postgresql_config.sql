@@ -785,7 +785,15 @@ ALTER TABLE ps_globals ADD COLUMN default_from_user VARCHAR(80);
 
 ALTER TABLE ps_registrations ADD COLUMN fatal_retry_interval INTEGER;
 
-INSERT INTO alembic_version (version_num) VALUES ('28ce1e718f05');
+-- Running upgrade 28ce1e718f05 -> 189a235b3fd7
+
+ALTER TABLE ps_globals ADD COLUMN keep_alive_interval INTEGER;
+
+-- Running upgrade 189a235b3fd7 -> 2d078ec071b7
+
+ALTER TABLE ps_aors ALTER COLUMN contact TYPE VARCHAR(255);
+
+INSERT INTO alembic_version (version_num) VALUES ('2d078ec071b7');
 
 COMMIT;
 
