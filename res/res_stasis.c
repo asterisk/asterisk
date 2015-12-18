@@ -150,10 +150,10 @@ static struct ast_json *stasis_start_to_json(struct stasis_message *message,
 		return NULL;
 	}
 
-	msg = ast_json_pack("{s: s, s: O, s: O, s: o}",
+	msg = ast_json_pack("{s: s, s: o, s: o, s: o}",
 		"type", "StasisStart",
-		"timestamp", ast_json_object_get(payload->blob, "timestamp"),
-		"args", ast_json_object_get(payload->blob, "args"),
+		"timestamp", ast_json_copy(ast_json_object_get(payload->blob, "timestamp")),
+		"args", ast_json_deep_copy(ast_json_object_get(payload->blob, "args")),
 		"channel", ast_channel_snapshot_to_json(payload->channel, NULL));
 	if (!msg) {
 		ast_log(LOG_ERROR, "Failed to pack JSON for StasisStart message\n");
