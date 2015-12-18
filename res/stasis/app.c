@@ -610,11 +610,11 @@ static int message_received_handler(const char *endpoint_id, struct ast_json *js
 		return -1;
 	}
 
-	app_send(app, ast_json_pack("{s: s, s: o, s: o, s: O}",
+	app_send(app, ast_json_pack("{s: s, s: o, s: o, s: o}",
 		"type", "TextMessageReceived",
 		"timestamp", ast_json_timeval(ast_tvnow(), NULL),
 		"endpoint", json_endpoint,
-		"message", json_msg));
+		"message", ast_json_ref(json_msg)));
 
 	return 0;
 }
