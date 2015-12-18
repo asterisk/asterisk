@@ -444,6 +444,7 @@ static int ast_rtp_sendcng(struct ast_rtp_instance *instance, int level);
 #ifdef HAVE_OPENSSL_SRTP
 static int ast_rtp_activate(struct ast_rtp_instance *instance);
 static void dtls_srtp_check_pending(struct ast_rtp_instance *instance, struct ast_rtp *rtp, int rtcp);
+static void dtls_srtp_flush_pending(struct ast_rtp_instance *instance, struct ast_rtp *rtp);
 static void dtls_srtp_start_timeout_timer(struct ast_rtp_instance *instance, struct ast_rtp *rtp, int rtcp);
 static void dtls_srtp_stop_timeout_timer(struct ast_rtp_instance *instance, struct ast_rtp *rtp, int rtcp);
 #endif
@@ -1683,15 +1684,18 @@ static void ast_rtp_on_ice_complete(pj_ice_sess *ice, pj_status_t status)
 		if (rtp->rtcp) {
 			update_address_with_ice_candidate(rtp, AST_RTP_ICE_COMPONENT_RTCP, &rtp->rtcp->them);
 		}
-	}
- 
-#ifdef HAVE_OPENSSL_SRTP
-	dtls_perform_handshake(instance, &rtp->dtls, 0);
 
-	if (rtp->rtcp) {
-		dtls_perform_handshake(instance, &rtp->rtcp->dtls, 1);
-	}
+#ifdef HAVE_OPENSSL_SRTP
+		if (rtp->dtls.dtls_setup != AST_RTP_DTLS_SETUP_PASSIVE)
+			dtls_perform_handshake(instance, &rtp->dtls, 0);
+		else
+			dtls_srtp_flush_pending(instance, rtp); // flushes pending BIO for both rtp & rtcp as needed.
+
+
+		if (rtp->rtcp && rtp->rtcp->dtls.dtls_setup != AST_RTP_DTLS_SETUP_PASSIVE)
+			dtls_perform_handshake(instance, &rtp->rtcp->dtls, 1);
 #endif
+	}
 
 	if (!strictrtp) {
 		return;
@@ -1884,6 +1888,23 @@ static void dtls_srtp_stop_timeout_timer(struct ast_rtp_instance *instance, stru
 	struct dtls_details *dtls = !rtcp ? &rtp->dtls : &rtp->rtcp->dtls;
 
 	AST_SCHED_DEL_UNREF(rtp->sched, dtls->timeout_timer, ao2_ref(instance, -1));
+}
+
+static void dtls_srtp_flush_pending(struct ast_rtp_instance *instance, struct ast_rtp *rtp)
+{
+	struct dtls_details *dtls;
+
+	dtls = &rtp->dtls;
+	ast_mutex_lock(&dtls->lock);
+	dtls_srtp_check_pending(instance, rtp, 0);
+	ast_mutex_unlock(&dtls->lock);
+
+	if (rtp->rtcp) {
+		dtls = &rtp->rtcp->dtls;
+		ast_mutex_lock(&dtls->lock);
+		dtls_srtp_check_pending(instance, rtp, 1);
+		ast_mutex_unlock(&dtls->lock);
+	}
 }
 
 static void dtls_srtp_check_pending(struct ast_rtp_instance *instance, struct ast_rtp *rtp, int rtcp)
@@ -4822,9 +4843,6 @@ static int ast_rtp_fd(struct ast_rtp_instance *instance, int rtcp)
 static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct ast_sockaddr *addr)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-#ifdef HAVE_OPENSSL_SRTP
-	struct dtls_details *dtls;
-#endif
 
 	if (rtp->rtcp) {
 		ast_debug(1, "Setting RTCP address on RTP instance '%p'\n", instance);
@@ -4845,22 +4863,10 @@ static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct
 #ifdef HAVE_OPENSSL_SRTP
 	/* Trigger pending outbound DTLS packets received before the address was set.  Avoid unnecessary locking
 	 * by checking if we're passive. Without this, we only send the pending packets once a new SSL packet is
-	 * received in __rtp_recvfrom.
+	 * received in __rtp_recvfrom.  If rtp->ice, this is instead done on_ice_complete
 	 */
-	dtls = &rtp->dtls;
-	if (dtls->dtls_setup == AST_RTP_DTLS_SETUP_PASSIVE) {
-		ast_mutex_lock(&dtls->lock);
-		dtls_srtp_check_pending(instance, rtp, 0);
-		ast_mutex_unlock(&dtls->lock);
-	}
-
-	if (rtp->rtcp) {
-		dtls = &rtp->rtcp->dtls;
-		if (dtls->dtls_setup == AST_RTP_DTLS_SETUP_PASSIVE) {
-			ast_mutex_lock(&dtls->lock);
-			dtls_srtp_check_pending(instance, rtp, 1);
-			ast_mutex_unlock(&dtls->lock);
-		}
+	if (!rtp->ice && rtp->dtls.dtls_setup == AST_RTP_DTLS_SETUP_PASSIVE) {
+		dtls_srtp_flush_pending(instance, rtp);
 	}
 #endif
 
