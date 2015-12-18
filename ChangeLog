@@ -1,3 +1,109 @@
+2015-12-18 18:18 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.7.0-rc2 Released.
+
+2015-12-18 12:18 +0000 [a93a5387d4]  Kevin Harwell <kharwell@lunkwill>
+
+	* Release summaries: Add summaries for 13.7.0-rc2
+
+2015-12-18 12:18 +0000 [8e201b742a]  Kevin Harwell <kharwell@lunkwill.digium.internal>
+
+	* Release summaries: Remove previous versions
+
+2015-12-18 12:18 +0000 [5a164c70f2]  Kevin Harwell <kharwell@lunkwill>
+
+	* .version: Update for 13.7.0-rc2
+
+2015-12-18 12:18 +0000 [e039eca0a7]  Kevin Harwell <kharwell@lunkwill>
+
+	* .lastclean: Update for 13.7.0-rc2
+
+2015-12-18 12:18 +0000 [bfe2eb8751]  Kevin Harwell <kharwell@lunkwill>
+
+	* realtime: Add database scripts for 13.7.0-rc2
+
+2015-12-16 11:25 +0000 [805297783d]  Mark Michelson <mmichelson@digium.com>
+
+	* Alembic: Add PJSIP global keep_alive_interval.
+
+	  The keep_alive_interval option was added about a year ago, but no
+	  alembic revision was created to add the appropriate column to the
+	  database.
+
+	  This commit fixes the problem and adds the column. This was discovered
+	  by running the testsuite with automatic conversion to realtime enabled.
+
+	  Change-Id: If3ef92a7c4f4844d08f8aae170d2178aec5c4c1a
+
+2015-12-16 11:28 +0000 [63df9bb560]  Mark Michelson <mmichelson@digium.com>
+
+	* Alembic: Increase column size of PJSIP AOR "contact".
+
+	  When running the PJSIP AMI "show_endpoint" test with automatic
+	  conversion to realtime, the test would fail. This was because the AOR
+	  "contact" column was sized at 40, and the configured contact was larger
+	  than that.
+
+	  This commit increases the size of the contact column to 255 characters.
+
+	  Change-Id: Ia65bc7fd37699b7c0eaef9629a1a31eab9a24ba1
+
+2015-12-14 12:04 +0000 [acd19d5f1f]  Joshua Colp <jcolp@digium.com>
+
+	* json: Audit ast_json_* usage for thread safety.
+
+	  The JSON library Asterisk uses, jansson, is not thread
+	  safe for us in a few ways. To help with this wrappers for JSON
+	  object reference count increasing and decreasing were added
+	  which use a global lock to ensure they don't clobber over
+	  each other. This does not extend to reference count manipulation
+	  within the jansson library itself. This means you can't safely
+	  use the object borrowing specifier (O) in ast_json_pack and
+	  you can't share JSON instances between objects.
+
+	  This change removes uses of the O specifier and replaces them
+	  with the o specifier and an explicit ast_json_ref. Some cases
+	  of instance sharing have also been removed.
+
+	  ASTERISK-25601 #close
+
+	  Change-Id: I06550d8b0cc1bfeb56cab580a4e608ae4f1ec7d1
+
+2015-12-05 10:01 +0000 [11ff4e6b3f]  Joshua Colp <jcolp@digium.com>
+
+	* res_sorcery_memory_cache: Add support for a full backend cache.
+
+	  This change introduces the configuration option 'full_backend_cache'
+	  which changes the cache to be a full mirror of the backend instead
+	  of a per-object cache. This allows all sorcery retrieval operations
+	  to be carried out against it and is useful for object types which
+	  are used in a "retrieve all" or "retrieve some" pattern.
+
+	  ASTERISK-25625 #close
+
+	  Change-Id: Ie2993487e9c19de563413ad5561c7403b48caab5
+	  (cherry picked from commit 59d5bb0613810418f2a618b9a6dee5bcfd45767e)
+
+2015-12-17 10:25 +0000 [9bc1e49325]  Joshua Colp <jcolp@digium.com>
+
+	* rtp_engine: Ignore empty filenames in DTLS configuration.
+
+	  When applying an empty DTLS configuration the filenames in the
+	  configuration will be empty. This is actually valid to do and
+	  each filename should simply be ignored.
+
+	  Change-Id: Ib761dc235638a3fb701df337952f831fc3e69539
+
+2015-12-17 08:10 +0000 [c78eb1e82b]  Joshua Colp <jcolp@digium.com>
+
+	* chan_sip: Enable WebSocket support by default.
+
+	  Per the documentation the WebSocket support in chan_sip is
+	  supposed to be enabled by default but is not. This change
+	  corrects that.
+
+	  Change-Id: Icb02bbcad47b11a795c14ce20a9bf29649a54423
+
 2015-12-15 18:01 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.7.0-rc1 Released.
