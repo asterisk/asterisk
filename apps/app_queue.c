@@ -5191,6 +5191,11 @@ static int is_our_turn(struct queue_ent *qe)
 		res = 0;
 	}
 
+	/* Update realtime members if this is the first call and number of avalable members is 0 */
+	if (avl == 0 && qe->pos == 1) {
+		update_realtime_members(qe->parent);
+	}
+
 	return res;
 }
 
