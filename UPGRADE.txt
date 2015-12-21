@@ -64,5 +64,15 @@ AMI:
    Commands that fail to execute (no such command, invalid syntax etc.) now
    return an Error response instead of Success.
 
+app_amd:
+ - The 'maximum_number_of_words' configuration option and parameter to the AMD
+   application previously did not match the documented functionality + variable
+   name.  In Asterisk 13, a value of '3' would mean that if '3' words were detected,
+   the result would be detection as a 'MACHINE'.  As of this version, the value
+   reflects the maximum words that if EXCEEDED (rather than reached), would
+   result in detection as a machine.  This means that you should update this
+   value to be one higher than your previos value, if your previous value
+   was working well for you.
+
 ===========================================================
 ===========================================================
