@@ -62,19 +62,19 @@ ASTERISK_REGISTER_FILE()
 		<syntax>
 			<parameter name="initialSilence" required="false">
 				<para>Is maximum initial silence duration before greeting.</para>
-				<para>If this is exceeded set as MACHINE</para>
+				<para>If this is exceeded, the result is detection as a MACHINE</para>
 			</parameter>
 			<parameter name="greeting" required="false">
 				<para>is the maximum length of a greeting.</para>
-				<para>If this is exceeded set as MACHINE</para>
+				<para>If this is exceeded, the result is detection as a MACHINE</para>
 			</parameter>
 			<parameter name="afterGreetingSilence" required="false">
 				<para>Is the silence after detecting a greeting.</para>
-				<para>If this is exceeded set as HUMAN</para>
+				<para>If this is exceeded, the result is detection as a HUMAN</para>
 			</parameter>
 			<parameter name="totalAnalysis Time" required="false">
 				<para>Is the maximum time allowed for the algorithm</para>
-				<para>to decide HUMAN or MACHINE</para>
+				<para>to decide on whether the audio represents a HUMAN, or a MACHINE</para>
 			</parameter>
 			<parameter name="miniumWordLength" required="false">
 				<para>Is the minimum duration of Voice considered to be a word</para>
@@ -85,14 +85,14 @@ ASTERISK_REGISTER_FILE()
 			</parameter>
 			<parameter name="maximumNumberOfWords" required="false">
 				<para>Is the maximum number of words in a greeting</para>
-				<para>If this is exceeded set as MACHINE</para>
+				<para>If this is exceeded, then the result is detection as a MACHINE</para>
 			</parameter>
 			<parameter name="silenceThreshold" required="false">
-				<para>How long do we consider silence</para>
+				<para>What is the average level of noise from 0 to 32767 which if not exceeded, should be considered silence?</para>
 			</parameter>
 			<parameter name="maximumWordLength" required="false">
 				<para>Is the maximum duration of a word to accept.</para>
-				<para>If exceeded set as MACHINE</para>
+				<para>If exceeded, then the result is detection as a MACHINE</para>
 			</parameter>
 		</syntax>
 		<description>
@@ -130,7 +130,7 @@ ASTERISK_REGISTER_FILE()
 					</value>
 					<value name="MAXWORDS">
 						Word Count - maximum number of words.
-					</value>	
+					</value>
 				</variable>
 			</variablelist>
 		</description>
@@ -154,7 +154,7 @@ static int dfltAfterGreetingSilence = 800;
 static int dfltTotalAnalysisTime    = 5000;
 static int dfltMinimumWordLength    = 100;
 static int dfltBetweenWordsSilence  = 50;
-static int dfltMaximumNumberOfWords = 3;
+static int dfltMaximumNumberOfWords = 2;
 static int dfltSilenceThreshold     = 256;
 static int dfltMaximumWordLength    = 5000; /* Setting this to a large default so it is not used unless specify it in the configs or command line */
 
@@ -367,7 +367,7 @@ static void isAnsweringMachine(struct ast_channel *chan, const char *data)
 					sprintf(amdCause , "MAXWORDLENGTH-%d", consecutiveVoiceDuration);
 					break;
 				}
-				if (iWordsCount >= maximumNumberOfWords) {
+				if (iWordsCount > maximumNumberOfWords) {
 					ast_verb(3, "AMD: Channel [%s]. ANSWERING MACHINE: iWordsCount:%d\n", ast_channel_name(chan), iWordsCount);
 					ast_frfree(f);
 					strcpy(amdStatus , "MACHINE");
