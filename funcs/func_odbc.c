@@ -42,6 +42,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/config.h"
 #include "asterisk/res_odbc.h"
+#include "asterisk/res_odbc_transaction.h"
 #include "asterisk/app.h"
 #include "asterisk/cli.h"
 #include "asterisk/strings.h"
