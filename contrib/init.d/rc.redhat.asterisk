@@ -115,10 +115,10 @@ start() {
 	fi
 	if [ "x$COLOR" = "xyes" ]; then
 		export TERM=linux
-		daemon sh -c "$DAEMON $ASTARGS -c" >/dev/null </dev/null 2>&1 &
-	else
-		daemon $DAEMON $ASTARGS
 	fi
+	
+	daemon $DAEMON $ASTARGS
+	
 	RETVAL=$?
 	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/asterisk
 	echo
