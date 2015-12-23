@@ -12,9 +12,13 @@
 		LINKER_SYMBOL_PREFIX_ast_odbc_request_obj;
 		LINKER_SYMBOL_PREFIXast_odbc_request_obj2;
 		LINKER_SYMBOL_PREFIX_ast_odbc_request_obj2;
-		LINKER_SYMBOL_PREFIXast_odbc_retrieve_transaction_obj;
 		LINKER_SYMBOL_PREFIXast_odbc_sanity_check;
 		LINKER_SYMBOL_PREFIXast_odbc_smart_execute;
+		LINKER_SYMBOL_PREFIXast_odbc_class_get_isolation;
+		LINKER_SYMBOL_PREFIXast_odbc_class_get_forcecommit;
+		LINKER_SYMBOL_PREFIXast_odbc_class_get_name;
+		LINKER_SYMBOL_PREFIXast_odbc_text2isolation;
+		LINKER_SYMBOL_PREFIXast_odbc_isolation2text;
 	local:
 		*;
 };
