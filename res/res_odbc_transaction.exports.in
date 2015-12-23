@@ -1,0 +1,6 @@
+{
+	global:
+		LINKER_SYMBOL_PREFIXast_odbc_retrieve_transaction_obj;
+	local:
+		*;
+};

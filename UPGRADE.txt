@@ -28,6 +28,13 @@ res_pjsip:
    res_pjproject must be explicitly loaded or res_pjsip and all of its
    dependents will fail to load.
 
+ODBC:
+ - Connection pooling/sharing has been completely removed from Asterisk
+   in favor of letting ODBC take care of it instead. It is strongly
+   recommended that you enable connection pooling in unixODBC. As a result
+   of this, the "pooling", "shared_connection", "limit", and "idlecheck"
+   options in res_odbc.conf are deprecated and provide no function.
+
 From 13.5.0 to 13.6.0:
 
 ARI:
