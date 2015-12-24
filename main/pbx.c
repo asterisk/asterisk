@@ -1496,6 +1496,11 @@ AST_MUTEX_DEFINE_STATIC(conlock);
 AST_MUTEX_DEFINE_STATIC(context_merge_lock);
 
 /*!
+ * \brief Lock used to protect state data during callbacks
+ */
+AST_MUTEX_DEFINE_STATIC(state_callbacks_lock);
+
+/*!
  * \brief Registered applications container.
  *
  * It is sorted by application name.
@@ -5442,12 +5447,14 @@ static void device_state_cb(void *unused, struct stasis_subscription *sub, struc
 	strcpy(cmpdevice->hintdevice, dev_state->device);
 
 	ast_mutex_lock(&context_merge_lock);/* Hold off ast_merge_contexts_and_delete */
+	ast_mutex_lock(&state_callbacks_lock);
 	dev_iter = ao2_t_callback(hintdevices,
 		OBJ_SEARCH_OBJECT | OBJ_MULTIPLE,
 		hintdevice_cmp_multiple,
 		cmpdevice,
 		"find devices in container");
 	if (!dev_iter) {
+		ast_mutex_unlock(&state_callbacks_lock);
 		ast_mutex_unlock(&context_merge_lock);
 		ast_free(hint_app);
 		return;
@@ -5543,6 +5550,7 @@ static void device_state_cb(void *unused, struct stasis_subscription *sub, struc
 
 		ao2_cleanup(device_state_info);
 	}
+	ast_mutex_unlock(&state_callbacks_lock);
 	ast_mutex_unlock(&context_merge_lock);
 
 	ao2_iterator_destroy(dev_iter);
@@ -5946,7 +5954,14 @@ static int ast_change_hint(struct ast_exten *oe, struct ast_exten *ne)
 		return -1;
 	}
 
-	ast_mutex_lock(&context_merge_lock); /* Hold off ast_merge_contexts_and_delete and state changes */
+	/* Lock state callbacks so hints can be manipulated */
+	ast_mutex_lock(&state_callbacks_lock);
+
+	/*
+	 * Hold off ast_merge_contexts_and_delete, but do it by holding the contexts lock.
+	 * If the context_merge_lock is held there is the potential for a deadlock.
+	 */
+	ast_rdlock_contexts();
 
 	ao2_lock(hints);/* Locked to hold off others while we move the hint around. */
 
@@ -5957,7 +5972,8 @@ static int ast_change_hint(struct ast_exten *oe, struct ast_exten *ne)
 	hint = ao2_find(hints, oe, OBJ_UNLINK);
 	if (!hint) {
 		ao2_unlock(hints);
-		ast_mutex_unlock(&context_merge_lock);
+		ast_unlock_contexts();
+		ast_mutex_unlock(&state_callbacks_lock);
 		ast_free(hint_app);
 		return -1;
 	}
@@ -5998,9 +6014,10 @@ static int ast_change_hint(struct ast_exten *oe, struct ast_exten *ne)
 
 	ao2_unlock(hints);
 
-	/* Locking for state callbacks is respected here and only the context_merge_lock lock is
-	 * held during the state callback invocation. This will stop the normal state callback
-	 * thread from being able to handle incoming state changes if they occur.
+	/* Locking for state callbacks is respected here and only the context_merge_lock and
+	 * state_callbacks_lock are held during the state callback invocation. This will stop
+	 * the normal state callback thread from being able to handle incoming state changes
+	 * if they occur.
 	 */
 
 	/* Determine if presence state has changed due to the change of the hint extension */
@@ -6083,7 +6100,8 @@ static int ast_change_hint(struct ast_exten *oe, struct ast_exten *ne)
 
 	ao2_ref(hint, -1);
 
-	ast_mutex_unlock(&context_merge_lock);
+	ast_unlock_contexts();
+	ast_mutex_unlock(&state_callbacks_lock);
 
 	ast_free(hint_app);
 	ast_free(previous_message);
@@ -12102,6 +12120,7 @@ static void presence_state_cb(void *unused, struct stasis_subscription *sub, str
 	}
 
 	ast_mutex_lock(&context_merge_lock);/* Hold off ast_merge_contexts_and_delete */
+	ast_mutex_lock(&state_callbacks_lock);
 	hint_iter = ao2_iterator_init(hints, 0);
 	for (; (hint = ao2_iterator_next(&hint_iter)); ao2_cleanup(hint)) {
 		struct ast_state_cb *state_cb;
@@ -12198,6 +12217,7 @@ static void presence_state_cb(void *unused, struct stasis_subscription *sub, str
 		ao2_iterator_destroy(&cb_iter);
 	}
 	ao2_iterator_destroy(&hint_iter);
+	ast_mutex_unlock(&state_callbacks_lock);
 	ast_mutex_unlock(&context_merge_lock);
 
 	ast_free(hint_app);
