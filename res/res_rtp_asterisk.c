@@ -4720,12 +4720,15 @@ static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct
 	 * by checking if we're passive. Without this, we only send the pending packets once a new SSL packet is
 	 * received in __rtp_recvfrom.  If rtp->ice, this is instead done on_ice_complete
 	 */
-	if (!rtp->ice && rtp->dtls.dtls_setup == AST_RTP_DTLS_SETUP_PASSIVE) {
+#ifdef USE_PJPROJECT
+	if (rtp->ice) {
+		return;
+	}
+#endif
+	if (rtp->dtls.dtls_setup == AST_RTP_DTLS_SETUP_PASSIVE) {
 		dtls_srtp_flush_pending(instance, rtp);
 	}
 #endif
-
-	return;
 }
 
 static void ast_rtp_alt_remote_address_set(struct ast_rtp_instance *instance, struct ast_sockaddr *addr)
