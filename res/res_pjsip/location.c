@@ -317,6 +317,14 @@ int ast_sip_location_update_contact(struct ast_sip_contact *contact)
 
 int ast_sip_location_delete_contact(struct ast_sip_contact *contact)
 {
+	void *contact_status_obj;
+
+	contact_status_obj = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), CONTACT_STATUS, ast_sorcery_object_get_id(contact));
+	if (contact_status_obj) {
+		ast_sorcery_delete(ast_sip_get_sorcery(), contact_status_obj);
+		ao2_ref(contact_status_obj, -1);
+	}
+
 	return ast_sorcery_delete(ast_sip_get_sorcery(), contact);
 }
 
