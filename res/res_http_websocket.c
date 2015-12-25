@@ -227,15 +227,16 @@ int AST_OPTIONAL_API_NAME(ast_websocket_close)(struct ast_websocket *session, ui
 
 
 /*! \brief Write function for websocket traffic */
-int AST_OPTIONAL_API_NAME(ast_websocket_write)(struct ast_websocket *session, enum ast_websocket_opcode opcode, char *payload, uint64_t actual_length)
+int AST_OPTIONAL_API_NAME(ast_websocket_write)(struct ast_websocket *session, enum ast_websocket_opcode opcode, char *payload, uint64_t payload_size)
 {
 	size_t header_size = 2; /* The minimum size of a websocket frame is 2 bytes */
 	char *frame;
 	uint64_t length;
+	uint64_t frame_size;
 
-	if (actual_length < 126) {
-		length = actual_length;
-	} else if (actual_length < (1 << 16)) {
+	if (payload_size < 126) {
+		length = payload_size;
+	} else if (payload_size < (1 << 16)) {
 		length = 126;
 		/* We need an additional 2 bytes to store the extended length */
 		header_size += 2;
@@ -245,18 +246,22 @@ int AST_OPTIONAL_API_NAME(ast_websocket_write)(struct ast_websocket *session, en
 		header_size += 8;
 	}
 
-	frame = ast_alloca(header_size);
-	memset(frame, 0, header_size);
+	frame_size = header_size + payload_size;
+
+	frame = ast_alloca(frame_size + 1);
+	memset(frame, 0, frame_size + 1);
 
 	frame[0] = opcode | 0x80;
 	frame[1] = length;
 
 	/* Use the additional available bytes to store the length */
 	if (length == 126) {
-		put_unaligned_uint16(&frame[2], htons(actual_length));
+		put_unaligned_uint16(&frame[2], htons(payload_size));
 	} else if (length == 127) {
-		put_unaligned_uint64(&frame[2], htonll(actual_length));
+		put_unaligned_uint64(&frame[2], htonll(payload_size));
 	}
+
+	memcpy(&frame[header_size], payload, payload_size);
 
 	ao2_lock(session);
 	if (session->closing) {
@@ -264,19 +269,14 @@ int AST_OPTIONAL_API_NAME(ast_websocket_write)(struct ast_websocket *session, en
 		return -1;
 	}
 
-	if (ast_careful_fwrite(session->f, session->fd, frame, header_size, session->timeout)) {
+	if (ast_careful_fwrite(session->f, session->fd, frame, frame_size, session->timeout)) {
 		ao2_unlock(session);
 		/* 1011 - server terminating connection due to not being able to fulfill the request */
+		ast_debug(1, "Closing WS with 1011 because we can't fulfill a write request\n");
 		ast_websocket_close(session, 1011);
 		return -1;
 	}
 
-	if (ast_careful_fwrite(session->f, session->fd, payload, actual_length, session->timeout)) {
-		ao2_unlock(session);
-		/* 1011 - server terminating connection due to not being able to fulfill the request */
-		ast_websocket_close(session, 1011);
-		return -1;
-	}
 	fflush(session->f);
 	ao2_unlock(session);
 
