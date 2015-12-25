@@ -186,9 +186,10 @@ AST_TEST_DEFINE(cache_clear)
 
 	/* Note: there's a few messages between the creation and the clear.
 	 * Wait for all of them... */
-	message_index = stasis_message_sink_wait_for(sink, message_index + 4,
+	message_index = stasis_message_sink_wait_for(sink, message_index + 2,
 		cache_update, __func__, STASIS_SINK_DEFAULT_WAIT);
 	ast_test_validate(test, 0 <= message_index);
+
 	/* Now we should have a cache removal entry */
 	msg = sink->messages[message_index];
 	type = stasis_message_type(msg);
