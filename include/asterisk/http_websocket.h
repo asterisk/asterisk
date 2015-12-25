@@ -265,12 +265,12 @@ AST_OPTIONAL_API(int, ast_websocket_read_string,
  * \param session Pointer to the WebSocket session
  * \param opcode WebSocket operation code to place in the frame
  * \param payload Optional pointer to a payload to add to the frame
- * \param actual_length Length of the payload (0 if no payload)
+ * \param payload_size Length of the payload (0 if no payload)
  *
  * \retval 0 if successfully written
  * \retval -1 if error occurred
  */
-AST_OPTIONAL_API(int, ast_websocket_write, (struct ast_websocket *session, enum ast_websocket_opcode opcode, char *payload, uint64_t actual_length), { errno = ENOSYS; return -1;});
+AST_OPTIONAL_API(int, ast_websocket_write, (struct ast_websocket *session, enum ast_websocket_opcode opcode, char *payload, uint64_t payload_size), { errno = ENOSYS; return -1;});
 
 /*!
  * \brief Construct and transmit a WebSocket frame containing string data.
