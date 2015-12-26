@@ -54,6 +54,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/stasis.h"
 #include "asterisk/json.h"
 #include "asterisk/stasis_system.h"
+#include "asterisk/media_cache.h"
 
 /*! \brief
  * The following variable controls the layout of localized sound files.
@@ -642,6 +643,10 @@ static int fileexists_test(const char *filename, const char *fmt, const char *la
 {
 	if (buf == NULL) {
 		return 0;
+	}
+
+	if (!ast_media_cache_retrieve(filename, NULL, buf, buflen)) {
+		return filehelper(buf, result_cap, NULL, ACTION_EXISTS);
 	}
 
 	if (ast_language_is_prefix && !is_absolute_path(filename)) { /* new layout */
