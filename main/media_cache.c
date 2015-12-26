@@ -189,23 +189,31 @@ static void media_cache_item_del_from_astdb(struct ast_bucket_file *bucket_file)
 static void bucket_file_update_path(struct ast_bucket_file *bucket_file,
 	const char *preferred_file_name)
 {
-	if (ast_strlen_zero(preferred_file_name)) {
-		return;
-	}
+	char *ext;
 
-	if (!strcmp(bucket_file->path, preferred_file_name)) {
-		return;
-	}
+	if (!ast_strlen_zero(preferred_file_name) && strcmp(bucket_file->path, preferred_file_name)) {
+		/* Use the preferred file name if available */
 
-	rename(bucket_file->path, preferred_file_name);
-	ast_copy_string(bucket_file->path, preferred_file_name,
-		sizeof(bucket_file->path));
+		rename(bucket_file->path, preferred_file_name);
+		ast_copy_string(bucket_file->path, preferred_file_name,
+			sizeof(bucket_file->path));
+	} else if (!strchr(bucket_file->path, '.') && (ext = strrchr(ast_sorcery_object_get_id(bucket_file), '.'))) {
+		/* If we don't have a file extension and were provided one in the URI, use it */
+		char new_path[PATH_MAX];
+
+		ast_bucket_file_metadata_set(bucket_file, "ext", ext);
+
+		snprintf(new_path, sizeof(new_path), "%s%s", bucket_file->path, ext);
+		rename(bucket_file->path, new_path);
+		ast_copy_string(bucket_file->path, new_path, sizeof(bucket_file->path));
+	}
 }
 
 int ast_media_cache_retrieve(const char *uri, const char *preferred_file_name,
 	char *file_path, size_t len)
 {
 	struct ast_bucket_file *bucket_file;
+	char *ext;
 	SCOPED_AO2LOCK(media_lock, media_cache);
 
 	if (ast_strlen_zero(uri)) {
@@ -220,11 +228,18 @@ int ast_media_cache_retrieve(const char *uri, const char *preferred_file_name,
 	if (bucket_file) {
 		if (!ast_bucket_file_is_stale(bucket_file)) {
 			ast_copy_string(file_path, bucket_file->path, len);
+			if ((ext = strrchr(file_path, '.'))) {
+				*ext = '\0';
+			}
 			ao2_ref(bucket_file, -1);
+
+			ast_debug(5, "Returning media at local file: %s\n", file_path);
 			return 0;
 		}
 
-		/* Stale! Drop the ref, as we're going to retrieve it next. */
+		/* Stale! Remove the item completely, as we're going to replace it next */
+		ao2_unlink_flags(media_cache, bucket_file, OBJ_NOLOCK);
+		ast_bucket_file_delete(bucket_file);
 		ao2_ref(bucket_file, -1);
 	}
 
@@ -243,8 +258,13 @@ int ast_media_cache_retrieve(const char *uri, const char *preferred_file_name,
 	bucket_file_update_path(bucket_file, preferred_file_name);
 	media_cache_item_sync_to_astdb(bucket_file);
 	ast_copy_string(file_path, bucket_file->path, len);
+	if ((ext = strrchr(file_path, '.'))) {
+		*ext = '\0';
+	}
 	ao2_link_flags(media_cache, bucket_file, OBJ_NOLOCK);
 	ao2_ref(bucket_file, -1);
+
+	ast_debug(5, "Returning media at local file: %s\n", file_path);
 
 	return 0;
 }
@@ -692,7 +712,7 @@ int ast_media_cache_init(void)
 {
 	ast_register_atexit(media_cache_shutdown);
 
-	media_cache = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK, AO2_BUCKETS,
+	media_cache = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_MUTEX, AO2_BUCKETS,
 		media_cache_hash, media_cache_cmp);
 	if (!media_cache) {
 		return -1;
