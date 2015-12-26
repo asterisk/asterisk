@@ -31,6 +31,21 @@ ConfBridge
    - record_command: a command to execute when recording is finished
    Note that these options may also be with the CONFBRIDGE function.
 
+ControlPlayback
+------------------
+ * Remote files can now be retrieved and played back. See the Playback
+   dialplan application for more details.
+
+Playback
+------------------
+ * Remote files can now be retrieved and played back via the Playback and other
+   media playback dialplan applications. This is done by directly providing
+   the URL to play to the dialplan application:
+     same => n,Playback(http://1.1.1.1/howler-monkeys-fl.wav)
+   Note that unlike 'normal' media files, the entire URI to the file must be
+   provided, including the file extension. Currently, on HTTP and HTTPS URI
+   schemes are supported.
+
 SMS
 ------------------
  * Added the 'n' option, which prevents the SMS from being written to the log
@@ -126,6 +141,17 @@ Core
    formatting. To set a log channel to format its entries as JSON, a formatter
    of '[json]' can be set, e.g.,
       full => [json]debug,verbose,notice,warning,error
+
+ * The core now supports a 'media cache', which stores temporary media files
+   retrieved from external sources. CLI commands have been added to manipulate
+   and display the cached files, including:
+   - 'media cache show <all>' - show all cached media files, or details about
+     one particular cached media file
+   - 'media cache refresh <item>' - force a refresh of a particular media file
+     in the cache
+   - 'media cache delete <item>' - remove an item from the cache
+   - 'media cache create <uri>' - retrieve a URI and store it in the cache
+
 
 Functions
 ------------------
