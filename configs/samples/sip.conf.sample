@@ -694,8 +694,12 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;subscribecontext = default     ; Set a specific context for SUBSCRIBE requests
                                 ; Useful to limit subscriptions to local extensions
                                 ; Settable per peer/user also
-;notifyringing = no             ; Control whether subscriptions already INUSE get sent
-                                ; RINGING when another call is sent (default: yes)
+;notifyringing = no             ; Control when subscriptions get notified of ringing state.
+                                ; Specify 'no' to not send any ringing notifications.
+                                ; Specify 'yes' to always send ringing notifications (default).
+                                ; Specify 'notinuse' to only send ringing notifications for
+                                ; extensions that are not currently in use. This is useful as a
+                                ; visual indication of who is available to pick up an incoming call
 ;notifyhold = yes               ; Notify subscriptions on HOLD state (default: no)
                                 ; Turning on notifyringing and notifyhold will add a lot
                                 ; more database transactions if you are using realtime.
