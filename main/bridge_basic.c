@@ -3385,35 +3385,46 @@ static void blind_transfer_cb(struct ast_channel *new_channel, struct transfer_c
 /*! \brief Internal built in feature for blind transfers */
 static int feature_blind_transfer(struct ast_bridge_channel *bridge_channel, void *hook_pvt)
 {
-	char exten[AST_MAX_EXTENSION] = "";
+	char xfer_exten[AST_MAX_EXTENSION] = "";
 	struct ast_bridge_features_blind_transfer *blind_transfer = hook_pvt;
-	const char *context;
+	const char *xfer_context;
 	char *goto_on_blindxfr;
 
 	ast_bridge_channel_write_hold(bridge_channel, NULL);
 
 	ast_channel_lock(bridge_channel->chan);
-	context = ast_strdupa(get_transfer_context(bridge_channel->chan,
+	xfer_context = ast_strdupa(get_transfer_context(bridge_channel->chan,
 		blind_transfer ? blind_transfer->context : NULL));
 	goto_on_blindxfr = ast_strdupa(S_OR(pbx_builtin_getvar_helper(bridge_channel->chan,
 		"GOTO_ON_BLINDXFR"), ""));
 	ast_channel_unlock(bridge_channel->chan);
 
 	/* Grab the extension to transfer to */
-	if (grab_transfer(bridge_channel->chan, exten, sizeof(exten), context)) {
+	if (grab_transfer(bridge_channel->chan, xfer_exten, sizeof(xfer_exten), xfer_context)) {
 		ast_bridge_channel_write_unhold(bridge_channel);
 		return 0;
 	}
 
 	if (!ast_strlen_zero(goto_on_blindxfr)) {
+		const char *chan_context;
+		const char *chan_exten;
+		int chan_priority;
+
 		ast_debug(1, "After transfer, transferer %s goes to %s\n",
 				ast_channel_name(bridge_channel->chan), goto_on_blindxfr);
-		ast_bridge_set_after_go_on(bridge_channel->chan, NULL, NULL, 0, goto_on_blindxfr);
+
+		ast_channel_lock(bridge_channel->chan);
+		chan_context = ast_strdupa(ast_channel_context(bridge_channel->chan));
+		chan_exten = ast_strdupa(ast_channel_exten(bridge_channel->chan));
+		chan_priority = ast_channel_priority(bridge_channel->chan);
+		ast_channel_unlock(bridge_channel->chan);
+		ast_bridge_set_after_go_on(bridge_channel->chan,
+			chan_context, chan_exten, chan_priority, goto_on_blindxfr);
 	}
 
-	if (ast_bridge_transfer_blind(0, bridge_channel->chan, exten, context, blind_transfer_cb,
-			bridge_channel->chan) != AST_BRIDGE_TRANSFER_SUCCESS &&
-			!ast_strlen_zero(goto_on_blindxfr)) {
+	if (ast_bridge_transfer_blind(0, bridge_channel->chan, xfer_exten, xfer_context,
+		blind_transfer_cb, bridge_channel->chan) != AST_BRIDGE_TRANSFER_SUCCESS
+		&& !ast_strlen_zero(goto_on_blindxfr)) {
 		ast_bridge_discard_after_goto(bridge_channel->chan);
 	}
 
