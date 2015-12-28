@@ -138,6 +138,30 @@ struct stasis_cp_single *stasis_cp_single_create(struct stasis_cp_all *all,
 {
 	RAII_VAR(struct stasis_cp_single *, one, NULL, ao2_cleanup);
 
+	one = stasis_cp_sink_create(all, name);
+	if (!one) {
+		return NULL;
+	}
+
+	one->forward_topic_to_all = stasis_forward_all(one->topic, all->topic);
+	if (!one->forward_topic_to_all) {
+		return NULL;
+	}
+	one->forward_cached_to_all = stasis_forward_all(
+		stasis_caching_get_topic(one->topic_cached), all->topic_cached);
+	if (!one->forward_cached_to_all) {
+		return NULL;
+	}
+
+	ao2_ref(one, +1);
+	return one;
+}
+
+struct stasis_cp_single *stasis_cp_sink_create(struct stasis_cp_all *all,
+	const char *name)
+{
+	RAII_VAR(struct stasis_cp_single *, one, NULL, ao2_cleanup);
+
 	one = ao2_t_alloc(sizeof(*one), one_dtor, name);
 	if (!one) {
 		return NULL;
@@ -149,16 +173,6 @@ struct stasis_cp_single *stasis_cp_single_create(struct stasis_cp_all *all,
 	}
 	one->topic_cached = stasis_caching_topic_create(one->topic, all->cache);
 	if (!one->topic_cached) {
-		return NULL;
-	}
-
-	one->forward_topic_to_all = stasis_forward_all(one->topic, all->topic);
-	if (!one->forward_topic_to_all) {
-		return NULL;
-	}
-	one->forward_cached_to_all = stasis_forward_all(
-		stasis_caching_get_topic(one->topic_cached), all->topic_cached);
-	if (!one->forward_cached_to_all) {
 		return NULL;
 	}
 
