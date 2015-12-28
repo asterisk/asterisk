@@ -796,13 +796,16 @@ static void sstate_free(struct state *p)
 
 void ast_localtime_wakeup_monitor(struct ast_test *info)
 {
+	struct timeval wait_now = ast_tvnow();
+	struct timespec wait_time = { .tv_sec = wait_now.tv_sec + 2, .tv_nsec = wait_now.tv_usec * 1000 };
+
 	if (inotify_thread != AST_PTHREADT_NULL) {
 		AST_LIST_LOCK(&zonelist);
 #ifdef TEST_FRAMEWORK
 		test = info;
 #endif
 		pthread_kill(inotify_thread, SIGURG);
-		ast_cond_wait(&initialization, &(&zonelist)->lock);
+		ast_cond_timedwait(&initialization, &(&zonelist)->lock, &wait_time);
 #ifdef TEST_FRAMEWORK
 		test = NULL;
 #endif
