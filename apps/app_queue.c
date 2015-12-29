@@ -1208,6 +1208,7 @@ struct member {
 	int paused;                          /*!< Are we paused (not accepting calls)? */
 	int queuepos;                        /*!< In what order (pertains to certain strategies) should this member be called? */
 	time_t lastcall;                     /*!< When last successful call was hungup */
+	unsigned int in_call:1;              /*!< True if member is still in call. (so lastcall is not actual) */
 	struct call_queue *lastqueue;	     /*!< Last queue we received a call */
 	unsigned int dead:1;                 /*!< Used to detect members deleted in realtime */
 	unsigned int delme:1;                /*!< Flag to delete entry on reload */
@@ -1647,6 +1648,10 @@ static int get_member_status(struct call_queue *q, int max_penalty, int min_pena
 			if (member->paused && (conditions & QUEUE_EMPTY_PAUSED)) {
 				ast_debug(4, "%s is unavailable because he is paused'\n", member->membername);
 				break;
+			} else if ((conditions & QUEUE_EMPTY_WRAPUP) && member->in_call && q->wrapuptime) {
+				ast_debug(4, "%s is unavailable because still in call, so we can`t check "
+					"wrapuptime (%d)\n", member->membername, q->wrapuptime);
+				break;
 			} else if ((conditions & QUEUE_EMPTY_WRAPUP) && member->lastcall && q->wrapuptime && (time(NULL) - q->wrapuptime < member->lastcall)) {
 				ast_debug(4, "%s is unavailable because it has only been %d seconds since his last call (wrapup time is %d)\n", member->membername, (int) (time(NULL) - member->lastcall), q->wrapuptime);
 				break;
@@ -1793,6 +1798,9 @@ static int is_member_available(struct call_queue *q, struct member *mem)
 	}
 
 	/* Let wrapuptimes override device state availability */
+	if (q->wrapuptime && mem->in_call) {
+		available = 0; /* member is still in call, cant check wrapuptime to lastcall time */
+	}
 	if (mem->lastcall && q->wrapuptime && (time(NULL) - q->wrapuptime < mem->lastcall)) {
 		available = 0;
 	}
@@ -2158,6 +2166,7 @@ static void clear_queue(struct call_queue *q)
 		while ((mem = ao2_iterator_next(&mem_iter))) {
 			mem->calls = 0;
 			mem->lastcall = 0;
+			mem->in_call = 0;
 			ao2_ref(mem, -1);
 		}
 		ao2_iterator_destroy(&mem_iter);
@@ -3624,6 +3633,12 @@ static int can_ring_entry(struct queue_ent *qe, struct callattempt *call)
 		return 0;
 	}
 
+	if (call->member->in_call && call->lastqueue->wrapuptime) {
+		ast_debug(1, "%s is in call, so not available (wrapuptime %d)\n",
+			call->interface, call->lastqueue->wrapuptime);
+		return 0;
+	}
+
 	if ((call->lastqueue && call->lastqueue->wrapuptime && (time(NULL) - call->lastcall < call->lastqueue->wrapuptime))
 		|| (!call->lastqueue && qe->parent->wrapuptime && (time(NULL) - call->lastcall < qe->parent->wrapuptime))) {
 		ast_debug(1, "Wrapuptime not yet expired on queue %s for %s\n",
@@ -4903,6 +4918,9 @@ static int update_queue(struct call_queue *q, struct member *member, int callcom
 				time(&mem->lastcall);
 				mem->calls++;
 				mem->lastqueue = q;
+				mem->in_call = 0;
+				ast_debug(4, "Marked member %s as NOT in_call. Lastcall time: %ld \n",
+					mem->membername, (long)mem->lastcall);
 				ao2_ref(mem, -1);
 			}
 			ao2_unlock(qtmp);
@@ -4914,6 +4932,9 @@ static int update_queue(struct call_queue *q, struct member *member, int callcom
 		time(&member->lastcall);
 		member->calls++;
 		member->lastqueue = q;
+		member->in_call = 0;
+		ast_debug(4, "Marked member %s as NOT in_call. Lastcall time: %ld \n",
+			member->membername, (long)member->lastcall);
 		ao2_unlock(q);
 	}
 	ao2_lock(q);
@@ -5273,6 +5294,9 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 	struct ao2_iterator memi;
 	struct ast_datastore *datastore, *transfer_ds;
 	struct queue_end_bridge *queue_end_bridge = NULL;
+	struct ao2_iterator queue_iter; /* to iterate through all queues (for shared_lastcall)*/
+	struct member *mem;
+	struct call_queue *queuetmp;
 
 	ast_channel_lock(qe->chan);
 	datastore = ast_channel_datastore_find(qe->chan, &dialed_interface_info, NULL);
@@ -5905,6 +5929,28 @@ static int try_calling(struct queue_ent *qe, const struct ast_flags opts, char *
 			}
 		}
 		qe->handled++;
+
+		/** mark member as "in_call" in all queues */
+		if (shared_lastcall) {
+			queue_iter = ao2_iterator_init(queues, 0);
+			while ((queuetmp = ao2_t_iterator_next(&queue_iter, "Iterate through queues"))) {
+				ao2_lock(queuetmp);
+				if ((mem = ao2_find(queuetmp->members, member, OBJ_POINTER))) {
+					mem->in_call = 1;
+					ast_debug(4, "Marked member %s as in_call \n", mem->membername);
+					ao2_ref(mem, -1);
+				}
+				ao2_unlock(queuetmp);
+				queue_t_unref(queuetmp, "Done with iterator");
+			}
+			ao2_iterator_destroy(&queue_iter);
+		} else {
+			ao2_lock(qe->parent);
+			member->in_call = 1;
+			ast_debug(4, "Marked member %s as in_call \n", mem->membername);
+			ao2_unlock(qe->parent);
+		}
+
 		ast_queue_log(queuename, ast_channel_uniqueid(qe->chan), member->membername, "CONNECT", "%ld|%s|%ld", (long) (time(NULL) - qe->start), ast_channel_uniqueid(peer),
 													(long)(orig - to > 0 ? (orig - to) / 1000 : 0));
 
@@ -8455,10 +8501,11 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
 
 				ast_str_append(&out, 0, " (ringinuse %s)", mem->ringinuse ? "enabled" : "disabled");
 
-				ast_str_append(&out, 0, "%s%s%s (%s)",
+				ast_str_append(&out, 0, "%s%s%s%s (%s)",
 					mem->dynamic ? " (dynamic)" : "",
 					mem->realtime ? " (realtime)" : "",
 					mem->paused ? " (paused)" : "",
+					mem->in_call ? " (in call)" : "",
 					ast_devstate2str(mem->status));
 				if (mem->calls) {
 					ast_str_append(&out, 0, " has taken %d calls (last was %ld secs ago)",
@@ -8817,12 +8864,14 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 						"Penalty: %d\r\n"
 						"CallsTaken: %d\r\n"
 						"LastCall: %d\r\n"
+						"IsInCall: %d\r\n"
 						"Status: %d\r\n"
 						"Paused: %d\r\n"
 						"%s"
 						"\r\n",
 						q->name, mem->membername, mem->interface, mem->state_interface, mem->dynamic ? "dynamic" : "static",
-						mem->penalty, mem->calls, (int)mem->lastcall, mem->status, mem->paused, idText);
+						mem->penalty, mem->calls, (int)mem->lastcall, mem->in_call, mem->status,
+						mem->paused, idText);
 				}
 				ao2_ref(mem, -1);
 			}
