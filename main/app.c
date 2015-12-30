@@ -494,7 +494,7 @@ int __ast_vm_register(const struct ast_vm_functions *vm_table, struct ast_module
 	if (table) {
 		ast_log(LOG_WARNING, "Voicemail provider already registered by %s.\n",
 			table->module_name);
-		return -1;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	table = ao2_alloc_options(sizeof(*table), NULL, AO2_ALLOC_OPT_LOCK_NOLOCK);
@@ -605,7 +605,7 @@ int __ast_vm_greeter_register(const struct ast_vm_greeter_functions *vm_table, s
 	if (table) {
 		ast_log(LOG_WARNING, "Voicemail greeter provider already registered by %s.\n",
 			table->module_name);
-		return -1;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	table = ao2_alloc_options(sizeof(*table), NULL, AO2_ALLOC_OPT_LOCK_NOLOCK);
