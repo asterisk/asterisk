@@ -33,7 +33,6 @@
 
 /*** MODULEINFO
 	<defaultenabled>no</defaultenabled>
-	<conflict>app_voicemail</conflict>
 	<support_level>core</support_level>
  ***/
 
@@ -935,12 +934,22 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+	int res;
+
 	if (mwi_sorcery_init()
 		|| ast_sorcery_observer_add(mwi_sorcery, MWI_MAILBOX_TYPE, &mwi_observers)
 #if defined(MWI_DEBUG_CLI)
 		|| ast_cli_register_multiple(mwi_cli, ARRAY_LEN(mwi_cli))
 #endif	/* defined(MWI_DEBUG_CLI) */
-		|| ast_vm_register(&vm_table)) {
+		) {
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	/* ast_vm_register may return DECLINE if another module registered for vm */
+	res = ast_vm_register(&vm_table);
+	if (res) {
+		ast_log(LOG_ERROR, "Failure registering as a voicemail provider\n");
 		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
