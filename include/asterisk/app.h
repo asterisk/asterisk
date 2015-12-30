@@ -580,6 +580,7 @@ int ast_vm_is_registered(void);
  *
  * \retval 0 on success.
  * \retval -1 on error.
+ * \retval -2 (AST_MODULE_LOAD_SKIP) if there's already another provider registered.
  */
 int __ast_vm_register(const struct ast_vm_functions *vm_table, struct ast_module *module);
 
@@ -648,6 +649,7 @@ int ast_vm_greeter_is_registered(void);
  *
  * \retval 0 on success.
  * \retval -1 on error.
+ * \retval -2 (AST_MODULE_LOAD_SKIP) if there's already another greeter registered.
  */
 int __ast_vm_greeter_register(const struct ast_vm_greeter_functions *vm_table, struct ast_module *module);
 

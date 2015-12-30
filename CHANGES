@@ -205,6 +205,14 @@ Queue
 --- Functionality changes from Asterisk 13.6.0 to Asterisk 13.7.0 ------------
 ------------------------------------------------------------------------------
 
+Voicemail
+------------------
+ * app_voicemail and res_mwi_external can now be built together.  The default
+   remains to build app_voicemail and not res_mwi_external but if they are
+   both built, the load order will cause res_mwi_external to load first and
+   app_voicemail will be skipped.  Use 'preload=app_voicemail.so' in
+   modules.conf to force app_voicemail to be the voicemail provider.
+
 Codecs
 ------------------
  * Added format attribute negotiation for the VP8 video codec. Format attribute
