@@ -48,7 +48,6 @@
 
 /*** MODULEINFO
 	<defaultenabled>yes</defaultenabled>
-	<conflict>res_mwi_external</conflict>
 	<use type="module">res_adsi</use>
 	<use type="module">res_smdi</use>
 	<support_level>core</support_level>
@@ -14702,10 +14701,14 @@ static int unload_module(void)
  *
  * Module loading including tests for configuration or dependencies.
  * This function can return AST_MODULE_LOAD_FAILURE, AST_MODULE_LOAD_DECLINE,
- * or AST_MODULE_LOAD_SUCCESS. If a dependency or environment variable fails
- * tests return AST_MODULE_LOAD_FAILURE. If the module can not load the 
- * configuration file or other non-critical problem return 
- * AST_MODULE_LOAD_DECLINE. On success return AST_MODULE_LOAD_SUCCESS.
+ * or AST_MODULE_LOAD_SUCCESS.
+ *
+ * If a dependency, allocation or environment variable fails tests, return AST_MODULE_LOAD_FAILURE.
+ *
+ * If the module can't load the configuration file, can't register as a provider or
+ * has another issue not fatal to Asterisk itself, return AST_MODULE_LOAD_DECLINE.
+ *
+ * On success return AST_MODULE_LOAD_SUCCESS.
  */
 static int load_module(void)
 {
@@ -14714,7 +14717,7 @@ static int load_module(void)
 	umask(my_umask);
 
 	if (!(inprocess_container = ao2_container_alloc(573, inprocess_hash_fn, inprocess_cmp_fn))) {
-		return AST_MODULE_LOAD_DECLINE;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	/* compute the location of the voicemail spool directory */
@@ -14724,8 +14727,10 @@ static int load_module(void)
 		ast_log(AST_LOG_WARNING, "failed to reference mwi subscription taskprocessor.  MWI will not work\n");
 	}
 
-	if ((res = load_config(0)))
-		return res;
+	if ((res = load_config(0))) {
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
 
 	res = ast_register_application_xml(app, vm_exec);
 	res |= ast_register_application_xml(app2, vm_execmain);
@@ -14746,10 +14751,26 @@ static int load_module(void)
 	res |= AST_TEST_REGISTER(test_voicemail_vm_info);
 #endif
 
-	res |= ast_vm_register(&vm_table);
-	res |= ast_vm_greeter_register(&vm_greeter_table);
 	if (res) {
-		return res;
+		ast_log(LOG_ERROR, "Failure registering applications, functions or tests\n");
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	/* ast_vm_register may return DECLINE if another module registered for vm */
+	res = ast_vm_register(&vm_table);
+	if (res) {
+		ast_log(LOG_ERROR, "Failure registering as a voicemail provider\n");
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	/* ast_vm_greeter_register may return DECLINE if another module registered as a greeter */
+	res = ast_vm_greeter_register(&vm_greeter_table);
+	if (res) {
+		ast_log(LOG_ERROR, "Failure registering as a greeter provider\n");
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	ast_cli_register_multiple(cli_voicemail, ARRAY_LEN(cli_voicemail));
@@ -14762,7 +14783,7 @@ static int load_module(void)
 	ast_realtime_require_field("voicemail", "uniqueid", RQ_UINTEGER3, 11, "password", RQ_CHAR, 10, SENTINEL);
 	ast_realtime_require_field("voicemail_data", "filename", RQ_CHAR, 30, "duration", RQ_UINTEGER3, 5, SENTINEL);
 
-	return res;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int dialout(struct ast_channel *chan, struct ast_vm_user *vmu, char *num, char *outgoing_context) 
