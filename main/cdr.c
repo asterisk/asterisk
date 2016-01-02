@@ -2953,7 +2953,7 @@ int ast_cdr_setvar(const char *channel_name, const char *name, const char *value
 		for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
 			struct varshead *headp = NULL;
 
-			if (it_cdr->fn_table == &finalized_state_fn_table) {
+			if (it_cdr->fn_table == &finalized_state_fn_table && it_cdr->next != NULL) {
 				continue;
 			}
 			if (!strcasecmp(channel_name, it_cdr->party_a.snapshot->name)) {
