@@ -19,6 +19,7 @@ int load_modules(unsigned int);		/*!< Provided by loader.c */
 int load_pbx(void);			/*!< Provided by pbx.c */
 int load_pbx_builtins(void);	/*!< Provided by pbx_builtins.c */
 int load_pbx_functions_cli(void);	/*!< Provided by pbx_functions.c */
+int load_pbx_variables(void);	/*!< Provided by pbx_variables.c */
 int init_logger(void);			/*!< Provided by logger.c */
 void close_logger(void);		/*!< Provided by logger.c */
 void logger_queue_start(void);		/*!< Provided by logger.c */
