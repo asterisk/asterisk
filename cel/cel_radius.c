@@ -95,7 +95,7 @@ static rc_handle *rh = NULL;
 
 #define RADIUS_BACKEND_NAME "CEL Radius Logging"
 
-#define ADD_VENDOR_CODE(x,y) (rc_avpair_add(rh, send, x, &y, strlen(y), VENDOR_CODE))
+#define ADD_VENDOR_CODE(x,y) (rc_avpair_add(rh, send, x, y, strlen(y), VENDOR_CODE))
 
 static int build_radius_record(VALUE_PAIR **send, struct ast_cel_event_record *record)
 {
