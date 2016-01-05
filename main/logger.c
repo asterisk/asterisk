@@ -560,13 +560,14 @@ static struct logchannel *make_logchannel(const char *channel, const char *compo
 }
 
 /* \brief Read config, setup channels.
- * \param locked The logchannels list is locked and this is a reload
  * \param altconf Alternate configuration file to read.
+ *
+ * \pre logchannels list is write locked
  *
  * \retval 0 Success
  * \retval -1 No config found or Failed
  */
-static int init_logger_chain(int locked, const char *altconf)
+static int init_logger_chain(const char *altconf)
 {
 	struct logchannel *chan;
 	struct ast_config *cfg;
@@ -576,10 +577,6 @@ static int init_logger_chain(int locked, const char *altconf)
 
 	if (!(cfg = ast_config_load2(S_OR(altconf, "logger.conf"), "logger", config_flags)) || cfg == CONFIG_STATUS_FILEINVALID) {
 		cfg = NULL;
-	}
-
-	if (!locked) {
-		AST_RWLIST_WRLOCK(&logchannels);
 	}
 
 	/* Set defaults */
@@ -597,9 +594,6 @@ static int init_logger_chain(int locked, const char *altconf)
 		ast_free(chan);
 	}
 	global_logmask = 0;
-	if (!locked) {
-		AST_RWLIST_UNLOCK(&logchannels);
-	}
 
 	errno = 0;
 	/* close syslog */
@@ -615,14 +609,8 @@ static int init_logger_chain(int locked, const char *altconf)
 		chan->logmask = __LOG_WARNING | __LOG_NOTICE | __LOG_ERROR;
 		memcpy(&chan->formatter, &logformatter_default, sizeof(chan->formatter));
 
-		if (!locked) {
-			AST_RWLIST_WRLOCK(&logchannels);
-		}
 		AST_RWLIST_INSERT_HEAD(&logchannels, chan, list);
 		global_logmask |= chan->logmask;
-		if (!locked) {
-			AST_RWLIST_UNLOCK(&logchannels);
-		}
 
 		return -1;
 	}
@@ -675,9 +663,6 @@ static int init_logger_chain(int locked, const char *altconf)
 		}
 	}
 
-	if (!locked) {
-		AST_RWLIST_WRLOCK(&logchannels);
-	}
 	var = ast_variable_browse(cfg, "logfiles");
 	for (; var; var = var->next) {
 		if (!(chan = make_logchannel(var->name, var->value, var->lineno, 0))) {
@@ -695,10 +680,6 @@ static int init_logger_chain(int locked, const char *altconf)
 	if (qlog) {
 		fclose(qlog);
 		qlog = NULL;
-	}
-
-	if (!locked) {
-		AST_RWLIST_UNLOCK(&logchannels);
 	}
 
 	ast_config_destroy(cfg);
@@ -1055,7 +1036,7 @@ static int reload_logger(int rotate, const char *altconf)
 
 	filesize_reload_needed = 0;
 
-	init_logger_chain(1 /* locked */, altconf);
+	init_logger_chain(altconf);
 
 	ast_unload_realtime("queue_log");
 	if (logfiles.queue_log) {
@@ -1153,7 +1134,7 @@ int ast_logger_rotate_channel(const char *log_channel)
 		}
 	}
 
-	init_logger_chain(1 /* locked */, NULL);
+	init_logger_chain(NULL);
 
 	AST_RWLIST_UNLOCK(&logchannels);
 
@@ -1725,7 +1706,9 @@ int init_logger(void)
 	ast_mkdir(ast_config_AST_LOG_DIR, 0777);
 
 	/* create log channels */
-	res = init_logger_chain(0 /* locked */, NULL);
+	AST_RWLIST_WRLOCK(&logchannels);
+	res = init_logger_chain(NULL);
+	AST_RWLIST_UNLOCK(&logchannels);
 	ast_verb_update();
 	logger_initialized = 1;
 	if (res) {
