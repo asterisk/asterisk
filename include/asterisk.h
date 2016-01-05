@@ -222,6 +222,9 @@ char *ast_complete_source_filename(const char *partial, int n);
  * SVN from modifying them in this file; under normal circumstances they would
  * not be present and SVN would expand the Revision keyword into the file's
  * revision number.
+ *
+ * \deprecated All new files should use ASTERISK_REGISTER_FILE instead.
+ * \version 11.22.0 deprecated
  */
 #ifdef MTX_PROFILE
 #define	HAVE_MTX_PROFILE	/* used in lock.h */
@@ -250,6 +253,23 @@ char *ast_complete_source_filename(const char *partial, int n);
 #else /* LOW_MEMORY */
 #define ASTERISK_FILE_VERSION(file, x)
 #endif /* LOW_MEMORY */
+
+/*!
+ * \since 11.22.0
+ * \brief Register/unregister a source code file with the core.
+ *
+ * This macro will place a file-scope constructor and destructor into the
+ * source of the module using it; this will cause the file to be
+ * registered with the Asterisk core (and unregistered) at the appropriate
+ * times.
+ *
+ * Example:
+ *
+ * \code
+ * ASTERISK_REGISTER_FILE()
+ * \endcode
+ */
+#define ASTERISK_REGISTER_FILE() ASTERISK_FILE_VERSION(__FILE__, NULL)
 
 #if !defined(LOW_MEMORY)
 /*!
