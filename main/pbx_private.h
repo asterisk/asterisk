@@ -28,6 +28,9 @@ int raise_exception(struct ast_channel *chan, const char *reason, int priority);
 void wait_for_hangup(struct ast_channel *chan, const void *data);
 void set_ext_pri(struct ast_channel *c, const char *exten, int pri);
 
+/*! pbx.c function needed by pbx_app.c */
+void unreference_cached_app(struct ast_app *app);
+
 /*! pbx_builtins.c functions needed by pbx.c */
 int indicate_congestion(struct ast_channel *, const char *);
 int indicate_busy(struct ast_channel *, const char *);
@@ -35,6 +38,8 @@ int indicate_busy(struct ast_channel *, const char *);
 /*! pbx_switch.c functions needed by pbx.c */
 struct ast_switch *pbx_findswitch(const char *sw);
 
+/*! pbx_app.c functions needed by pbx.c */
+const char *app_name(struct ast_app *app);
 
 #define VAR_BUF_SIZE 4096
 
