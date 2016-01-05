@@ -32,6 +32,10 @@ void set_ext_pri(struct ast_channel *c, const char *exten, int pri);
 int indicate_congestion(struct ast_channel *, const char *);
 int indicate_busy(struct ast_channel *, const char *);
 
+/*! pbx_switch.c functions needed by pbx.c */
+struct ast_switch *pbx_findswitch(const char *sw);
+
+
 #define VAR_BUF_SIZE 4096
 
 #endif /* _PBX_PRIVATE_H */

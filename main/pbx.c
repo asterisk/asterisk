@@ -767,8 +767,6 @@ AST_MUTEX_DEFINE_STATIC(context_merge_lock);
  */
 static AST_RWLIST_HEAD_STATIC(apps, ast_app);
 
-static AST_RWLIST_HEAD_STATIC(switches, ast_switch);
-
 static int stateid = 1;
 /*!
  * \note When holding this container's lock, do _not_ do
@@ -1022,20 +1020,6 @@ struct ast_app *pbx_findapp(const char *app)
 	AST_RWLIST_UNLOCK(&apps);
 
 	return ret;
-}
-
-static struct ast_switch *pbx_findswitch(const char *sw)
-{
-	struct ast_switch *asw;
-
-	AST_RWLIST_RDLOCK(&switches);
-	AST_RWLIST_TRAVERSE(&switches, asw, list) {
-		if (!strcasecmp(asw->name, sw))
-			break;
-	}
-	AST_RWLIST_UNLOCK(&switches);
-
-	return asw;
 }
 
 static inline int include_valid(struct ast_include *i)
@@ -5408,35 +5392,6 @@ int ast_register_application2(const char *app, int (*execute)(struct ast_channel
 }
 
 /*
- * Append to the list. We don't have a tail pointer because we need
- * to scan the list anyways to check for duplicates during insertion.
- */
-int ast_register_switch(struct ast_switch *sw)
-{
-	struct ast_switch *tmp;
-
-	AST_RWLIST_WRLOCK(&switches);
-	AST_RWLIST_TRAVERSE(&switches, tmp, list) {
-		if (!strcasecmp(tmp->name, sw->name)) {
-			AST_RWLIST_UNLOCK(&switches);
-			ast_log(LOG_WARNING, "Switch '%s' already found\n", sw->name);
-			return -1;
-		}
-	}
-	AST_RWLIST_INSERT_TAIL(&switches, sw, list);
-	AST_RWLIST_UNLOCK(&switches);
-
-	return 0;
-}
-
-void ast_unregister_switch(struct ast_switch *sw)
-{
-	AST_RWLIST_WRLOCK(&switches);
-	AST_RWLIST_REMOVE(&switches, sw, list);
-	AST_RWLIST_UNLOCK(&switches);
-}
-
-/*
  * Help for CLI commands ...
  */
 
@@ -5720,40 +5675,6 @@ static char *handle_show_hint(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		ast_cli(a->fd, "No hints matching extension %s\n", a->argv[3]);
 	else
 		ast_cli(a->fd, "%d hint%s matching extension %s\n", num, (num!=1 ? "s":""), a->argv[3]);
-	return CLI_SUCCESS;
-}
-
-
-/*! \brief  handle_show_switches: CLI support for listing registered dial plan switches */
-static char *handle_show_switches(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	struct ast_switch *sw;
-
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "core show switches";
-		e->usage =
-			"Usage: core show switches\n"
-			"       List registered switches\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-
-	AST_RWLIST_RDLOCK(&switches);
-
-	if (AST_RWLIST_EMPTY(&switches)) {
-		AST_RWLIST_UNLOCK(&switches);
-		ast_cli(a->fd, "There are no registered alternative switches\n");
-		return CLI_SUCCESS;
-	}
-
-	ast_cli(a->fd, "\n    -= Registered Asterisk Alternative Switches =-\n");
-	AST_RWLIST_TRAVERSE(&switches, sw, list)
-		ast_cli(a->fd, "%s: %s\n", sw->name, sw->description);
-
-	AST_RWLIST_UNLOCK(&switches);
-
 	return CLI_SUCCESS;
 }
 
@@ -6599,7 +6520,6 @@ static struct ast_cli_entry pbx_cli[] = {
 	AST_CLI_DEFINE(handle_eat_memory, "Eats all available memory"),
 #endif
 	AST_CLI_DEFINE(handle_show_applications, "Shows registered dialplan applications"),
-	AST_CLI_DEFINE(handle_show_switches, "Show alternative switches"),
 	AST_CLI_DEFINE(handle_show_hints, "Show dialplan hints"),
 	AST_CLI_DEFINE(handle_show_hint, "Show dialplan hint"),
 #ifdef AST_DEVMODE
