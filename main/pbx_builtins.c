@@ -41,7 +41,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/module.h"
 #include "pbx_private.h"
 
- /*** DOCUMENTATION
+/*** DOCUMENTATION
 	<application name="Answer" language="en_US">
 		<synopsis>
 			Answer a channel if ringing.
@@ -550,66 +550,6 @@ ASTERISK_REGISTER_FILE()
 			<ref type="application">SayAlpha</ref>
 			<ref type="application">SayDigits</ref>
 			<ref type="application">SayNumber</ref>
-		</see-also>
-	</application>
-	<application name="Set" language="en_US">
-		<synopsis>
-			Set channel variable or function value.
-		</synopsis>
-		<syntax argsep="=">
-			<parameter name="name" required="true" />
-			<parameter name="value" required="true" />
-		</syntax>
-		<description>
-			<para>This function can be used to set the value of channel variables or dialplan functions.
-			When setting variables, if the variable name is prefixed with <literal>_</literal>,
-			the variable will be inherited into channels created from the current channel.
-			If the variable name is prefixed with <literal>__</literal>, the variable will be
-			inherited into channels created from the current channel and all children channels.</para>
-			<note><para>If (and only if), in <filename>/etc/asterisk/asterisk.conf</filename>, you have
-			a <literal>[compat]</literal> category, and you have <literal>app_set = 1.4</literal> under that, then
-			the behavior of this app changes, and strips surrounding quotes from the right hand side as
-			it did previously in 1.4.
-			The advantages of not stripping out quoting, and not caring about the separator characters (comma and vertical bar)
-			were sufficient to make these changes in 1.6. Confusion about how many backslashes would be needed to properly
-			protect separators and quotes in various database access strings has been greatly
-			reduced by these changes.</para></note>
-		</description>
-		<see-also>
-			<ref type="application">MSet</ref>
-			<ref type="function">GLOBAL</ref>
-			<ref type="function">SET</ref>
-			<ref type="function">ENV</ref>
-		</see-also>
-	</application>
-	<application name="MSet" language="en_US">
-		<synopsis>
-			Set channel variable(s) or function value(s).
-		</synopsis>
-		<syntax>
-			<parameter name="set1" required="true" argsep="=">
-				<argument name="name1" required="true" />
-				<argument name="value1" required="true" />
-			</parameter>
-			<parameter name="set2" multiple="true" argsep="=">
-				<argument name="name2" required="true" />
-				<argument name="value2" required="true" />
-			</parameter>
-		</syntax>
-		<description>
-			<para>This function can be used to set the value of channel variables or dialplan functions.
-			When setting variables, if the variable name is prefixed with <literal>_</literal>,
-			the variable will be inherited into channels created from the current channel
-			If the variable name is prefixed with <literal>__</literal>, the variable will be
-			inherited into channels created from the current channel and all children channels.
-			MSet behaves in a similar fashion to the way Set worked in 1.2/1.4 and is thus
-			prone to doing things that you may not expect. For example, it strips surrounding
-			double-quotes from the right-hand side (value). If you need to put a separator
-			character (comma or vert-bar), you will need to escape them by inserting a backslash
-			before them. Avoid its use if possible.</para>
-		</description>
-		<see-also>
-			<ref type="application">Set</ref>
 		</see-also>
 	</application>
 	<application name="SetAMAFlags" language="en_US">
@@ -1464,8 +1404,6 @@ struct pbx_builtin {
 	{ "SayDigits",      pbx_builtin_saydigits },
 	{ "SayNumber",      pbx_builtin_saynumber },
 	{ "SayPhonetic",    pbx_builtin_sayphonetic },
-	{ "Set",            pbx_builtin_setvar },
-	{ "MSet",           pbx_builtin_setvar_multiple },
 	{ "SetAMAFlags",    pbx_builtin_setamaflags },
 	{ "Wait",           pbx_builtin_wait },
 	{ "WaitExten",      pbx_builtin_waitexten }

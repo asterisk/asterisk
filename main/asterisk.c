@@ -4605,6 +4605,11 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 		exit(1);
 	}
 
+	if (load_pbx_variables()) {
+		printf("Failed: load_pbx_variables\n%s", term_quit());
+		exit(1);
+	}
+
 	if (ast_local_init()) {
 		printf("Failed: ast_local_init\n%s", term_quit());
 		exit(1);
