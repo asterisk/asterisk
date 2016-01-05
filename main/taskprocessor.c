@@ -238,6 +238,7 @@ static char *cli_tps_ping(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	ts.tv_nsec = when.tv_usec * 1000;
 	ast_mutex_lock(&cli_ping_cond_lock);
 	if (ast_taskprocessor_push(tps, tps_ping_handler, 0) < 0) {
+		ast_mutex_unlock(&cli_ping_cond_lock);
 		ast_cli(a->fd, "\nping failed: could not push task to %s\n\n", name);
 		ao2_ref(tps, -1);
 		return CLI_FAILURE;
