@@ -1,0 +1,331 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE scenario SYSTEM "sipp.dtd">
+<scenario name="INVITE (optional auth), re-INVITE to T38 and send a Fax, Walter Doekes 2012-2013">
+
+  <!--
+
+  NOTE: Creating a sipp-sendfax.pcap is as easy as:
+  - receive a fax with asterisk
+  - get the incoming side of the spansdp.log (use 'fax set debug on',
+    check your logger.conf)
+  - feed it to spandspflow2pcap.py
+
+  NOTE: sipp-sendfax.xml requires image pcap play support in SIPp. This
+  means a version above 3.5.0, or the master git branch from
+  https://github.com/SIPp/sipp.
+
+  -->
+
+  <label id="invite"/>
+
+  <send retrans="500" start_txn="invite">
+    <![CDATA[
+
+      INVITE sip:[tel]@[remote_ip]:[remote_port] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: sip:[service]@[local_ip]:[local_port];tag=[pid]SIPpTag00[call_number]
+      To: sip:[tel]@[remote_ip]:[remote_port]
+      Contact: sip:[service]@[local_ip]:[local_port]
+      Call-ID: [call_id]
+      CSeq: [cseq] INVITE
+      Max-Forwards: 70
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=- 144969 144969 IN IP[local_ip_type] [local_ip]
+      s=-
+      c=IN IP[media_ip_type] [media_ip]
+      t=0 0
+      m=audio [media_port] RTP/AVP 8 0
+      a=rtpmap:8 PCMA/8000
+      a=rtpmap:0 PCMU/8000
+
+    ]]>
+  </send>
+
+  <recv response="100" optional="true" response_txn="invite"/>
+
+  <recv response="180" optional="true" response_txn="invite"/>
+
+  <recv response="181" optional="true" response_txn="invite"/>
+
+  <recv response="183" optional="true" response_txn="invite"/>
+
+  <recv response="200" optional="true" rrs="true" response_txn="invite" next="invite-ack"/>
+
+  <recv response="401" optional="true" rrs="true" next="invite-with-auth" auth="true" rrs="true" response_txn="invite"/>
+
+  <recv response="407" auth="true" rrs="true" response_txn="invite"/>
+
+  <label id="invite-with-auth"/>
+
+  <send ack_txn="invite">
+    <![CDATA[
+
+      ACK sip:[tel]@[remote_ip]:[remote_port] SIP/2.0
+      [last_Via:]
+      [last_From:]
+      [last_To:]
+      Contact: sip:[service]@[local_ip]:[local_port]
+      Call-ID: [call_id]
+      CSeq: [cseq] ACK
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <send retrans="500" start_txn="invite">
+    <![CDATA[
+
+      INVITE sip:[tel]@[remote_ip]:[remote_port] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      From: sip:[service]@[local_ip]:[local_port];tag=[pid]SIPpTag00[call_number]
+      To: sip:[tel]@[remote_ip]:[remote_port]
+      Contact: sip:[service]@[local_ip]:[local_port]
+      [authentication]
+      Call-ID: [call_id]
+      CSeq: [cseq] INVITE
+      Max-Forwards: 70
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=- 144969 144969 IN IP[local_ip_type] [local_ip]
+      s=-
+      c=IN IP[media_ip_type] [media_ip]
+      t=0 0
+      m=audio [media_port] RTP/AVP 8 0
+      a=rtpmap:8 PCMA/8000
+      a=rtpmap:0 PCMU/8000
+
+    ]]>
+  </send>
+
+  <recv response="100" response_txn="invite"/>
+
+  <recv response="180" optional="true" response_txn="invite"/>
+
+  <recv response="181" optional="true" response_txn="invite"/>
+
+  <recv response="183" optional="true" response_txn="invite"/>
+
+  <recv response="200" rrs="true" response_txn="invite"/>
+
+  <label id="invite-ack"/>
+
+  <send ack_txn="invite">
+    <![CDATA[
+
+      ACK [next_url] SIP/2.0
+      [last_Via:]
+      [routes]
+      [last_From:]
+      [last_To:]
+      Contact: sip:[service]@[local_ip]:[local_port]
+      Call-ID: [call_id]
+      CSeq: [cseq] ACK
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <!-- Send a bit of noise to start the RTP. You may need to use
+       the -i MY_IP command line option. -->
+  <pause milliseconds="500"/>
+
+  <nop>
+    <action>
+      <exec play_pcap_audio="g711a.pcap"/>
+    </action>
+  </nop>
+
+  <pause milliseconds="500"/>
+
+
+  <!-- *****************************************************************
+
+  Initiate re-INVITE to T38.
+
+  ****************************************************************** -->
+
+  <send start_txn="t38invite">
+    <![CDATA[
+
+      INVITE [next_url] SIP/2.0
+      Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+      [routes]
+      [last_From:]
+      [last_To:]
+      Contact: sip:[service]@[local_ip]:[local_port]
+      Call-ID: [call_id]
+      CSeq: [cseq] INVITE
+      Max-Forwards: 70
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=- 145280 145280 IN IP[local_ip_type] [local_ip]
+      s=-
+      c=IN IP[media_ip_type] [media_ip]
+      t=0 0
+      m=image [media_port] udptl t38
+      a=T38FaxVersion:0
+      a=T38MaxBitRate:14400
+      a=T38FaxRateManagement:transferredTCF
+      a=T38FaxMaxBuffer:200
+      a=T38FaxMaxDatagram:200
+      a=T38FaxUdpEC:t38UDPRedundancy
+
+    ]]>
+  </send>
+
+  <recv response="100" optional="true" response_txn="t38invite"/>
+
+  <recv response="488" optional="true" response_txn="t38invite" next="abort"/>
+
+  <recv response="200" response_txn="t38invite"/>
+
+  <send ack_txn="t38invite">
+    <![CDATA[
+
+      ACK [next_url] SIP/2.0
+      [last_Via:]
+      [routes]
+      [last_From:]
+      [last_To:]
+      Contact: sip:[service]@[local_ip]:[local_port]
+      Call-ID: [call_id]
+      CSeq: [cseq] ACK
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <!-- Enable the nop/action below to replay the FAX image. You may need to use
+       the -i MY_IP command line option. -->
+  <pause milliseconds="500"/>
+
+  <nop>
+    <action>
+      <exec play_pcap_image="sipp-sendfax.pcap"/>
+    </action>
+  </nop>
+
+
+  <!-- *****************************************************************
+
+  Wait for re-INVITE back to audio.
+
+  ****************************************************************** -->
+
+  <recv request="INVITE"/>
+
+  <send retrans="500">
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_Record-Route:]
+      [last_From:]
+      [last_To:]
+      Contact: sip:[service]@[local_ip]:[local_port]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Max-Forwards: 70
+      Content-Type: application/sdp
+      Content-Length: [len]
+
+      v=0
+      o=- 146312 146312 IN IP[local_ip_type] [local_ip]
+      s=-
+      c=IN IP[media_ip_type] [media_ip]
+      t=0 0
+      m=audio [media_port] RTP/AVP 8 0
+      a=rtpmap:8 PCMA/8000
+      a=rtpmap:0 PCMU/8000
+
+    ]]>
+  </send>
+
+  <recv request="ACK"/>
+
+  <recv request="BYE"/>
+
+  <send next="done">
+    <![CDATA[
+
+      SIP/2.0 200 OK
+      [last_Via:]
+      [last_Record-Route:]
+      [last_From:]
+      [last_To:]
+      Contact: sip:[service]@[local_ip]:[local_port]
+      [last_Call-ID:]
+      [last_CSeq:]
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+
+  <!-- *****************************************************************
+
+  Abort the call ourselves
+
+  ****************************************************************** -->
+
+  <label id="abort"/>
+
+  <send ack_txn="t38invite">
+    <![CDATA[
+
+      ACK [next_url] SIP/2.0
+      [last_Via:]
+      [routes]
+      [last_From:]
+      [last_To:]
+      Contact: sip:[service]@[local_ip]:[local_port]
+      Call-ID: [call_id]
+      CSeq: [cseq] ACK
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <send start_txn="bye">
+    <![CDATA[
+
+      BYE [next_url] SIP/2.0
+      [last_Via:]
+      [routes]
+      [last_From:]
+      [last_To:]
+      Contact: sip:[service]@[local_ip]:[local_port]
+      Call-ID: [call_id]
+      CSeq: [cseq] BYE
+      Max-Forwards: 70
+      Content-Length: 0
+
+    ]]>
+  </send>
+
+  <recv response="200" response_txn="bye" next="done"/>
+
+
+  <!-- *****************************************************************
+
+  Finalize
+
+  ****************************************************************** -->
+
+  <label id="done"/>
+
+  <!-- Keep call open to be able to retransmit stuff -->
+  <timewait milliseconds="2000"/>
+
+</scenario><!-- vim: set ts=8 sw=2 sts=2 et ai: -->
