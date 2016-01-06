@@ -322,24 +322,6 @@ struct ast_context {
 	char name[0];				/*!< Name of the context */
 };
 
-/*! \brief ast_app: A registered application */
-struct ast_app {
-	int (*execute)(struct ast_channel *chan, const char *data);
-	AST_DECLARE_STRING_FIELDS(
-		AST_STRING_FIELD(synopsis);     /*!< Synopsis text for 'show applications' */
-		AST_STRING_FIELD(description);  /*!< Description (help text) for 'show application &lt;name&gt;' */
-		AST_STRING_FIELD(syntax);       /*!< Syntax text for 'core show applications' */
-		AST_STRING_FIELD(arguments);    /*!< Arguments description */
-		AST_STRING_FIELD(seealso);      /*!< See also */
-	);
-#ifdef AST_XML_DOCS
-	enum ast_doc_src docsrc;		/*!< Where the documentation come from. */
-#endif
-	AST_RWLIST_ENTRY(ast_app) list;		/*!< Next app in list */
-	struct ast_module *module;		/*!< Module this app belongs to */
-	char name[0];				/*!< Name of the application */
-};
-
 /*! \brief ast_state_cb: An extension state notify register item */
 struct ast_state_cb {
 	/*! Watcher ID returned when registered. */
@@ -760,15 +742,6 @@ AST_MUTEX_DEFINE_STATIC(conlock);
  */
 AST_MUTEX_DEFINE_STATIC(context_merge_lock);
 
-/*!
- * \brief Registered applications container.
- *
- * It is sorted by application name.
- */
-static AST_RWLIST_HEAD_STATIC(apps, ast_app);
-
-static AST_RWLIST_HEAD_STATIC(switches, ast_switch);
-
 static int stateid = 1;
 /*!
  * \note When holding this container's lock, do _not_ do
@@ -957,86 +930,6 @@ int check_contexts(char *file, int line )
 	return 0;
 }
 #endif
-
-/*
-   \note This function is special. It saves the stack so that no matter
-   how many times it is called, it returns to the same place */
-int pbx_exec(struct ast_channel *c,	/*!< Channel */
-	     struct ast_app *app,	/*!< Application */
-	     const char *data)		/*!< Data for execution */
-{
-	int res;
-	struct ast_module_user *u = NULL;
-	const char *saved_c_appl;
-	const char *saved_c_data;
-
-	/* save channel values */
-	saved_c_appl= ast_channel_appl(c);
-	saved_c_data= ast_channel_data(c);
-
-	ast_channel_lock(c);
-	ast_channel_appl_set(c, app->name);
-	ast_channel_data_set(c, data);
-	ast_channel_publish_snapshot(c);
-	ast_channel_unlock(c);
-
-	if (app->module)
-		u = __ast_module_user_add(app->module, c);
-	res = app->execute(c, S_OR(data, ""));
-	if (app->module && u)
-		__ast_module_user_remove(app->module, u);
-	/* restore channel values */
-	ast_channel_appl_set(c, saved_c_appl);
-	ast_channel_data_set(c, saved_c_data);
-	return res;
-}
-
-static struct ast_app *pbx_findapp_nolock(const char *name)
-{
-	struct ast_app *cur;
-	int cmp;
-
-	AST_RWLIST_TRAVERSE(&apps, cur, list) {
-		cmp = strcasecmp(name, cur->name);
-		if (cmp > 0) {
-			continue;
-		}
-		if (!cmp) {
-			/* Found it. */
-			break;
-		}
-		/* Not in container. */
-		cur = NULL;
-		break;
-	}
-
-	return cur;
-}
-
-struct ast_app *pbx_findapp(const char *app)
-{
-	struct ast_app *ret;
-
-	AST_RWLIST_RDLOCK(&apps);
-	ret = pbx_findapp_nolock(app);
-	AST_RWLIST_UNLOCK(&apps);
-
-	return ret;
-}
-
-static struct ast_switch *pbx_findswitch(const char *sw)
-{
-	struct ast_switch *asw;
-
-	AST_RWLIST_RDLOCK(&switches);
-	AST_RWLIST_TRAVERSE(&switches, asw, list) {
-		if (!strcasecmp(asw->name, sw))
-			break;
-	}
-	AST_RWLIST_UNLOCK(&switches);
-
-	return asw;
-}
 
 static inline int include_valid(struct ast_include *i)
 {
@@ -2927,11 +2820,11 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 			if (substitute) {
 				pbx_substitute_variables_helper(c, substitute, passdata, sizeof(passdata)-1);
 			}
-			ast_debug(1, "Launching '%s'\n", app->name);
+			ast_debug(1, "Launching '%s'\n", app_name(app));
 			if (VERBOSITY_ATLEAST(3)) {
 				ast_verb(3, "Executing [%s@%s:%d] " COLORIZE_FMT "(\"" COLORIZE_FMT "\", \"" COLORIZE_FMT "\") %s\n",
 					exten, context, priority,
-					COLORIZE(COLOR_BRCYAN, 0, app->name),
+					COLORIZE(COLOR_BRCYAN, 0, app_name(app)),
 					COLORIZE(COLOR_BRMAGENTA, 0, ast_channel_name(c)),
 					COLORIZE(COLOR_BRMAGENTA, 0, passdata),
 					"in new stack");
@@ -4167,248 +4060,6 @@ void ast_pbx_h_exten_run(struct ast_channel *chan, const char *context)
 	ast_channel_unlock(chan);
 }
 
-/*!
- * \internal
- * \brief Publish a hangup handler related message to \ref stasis
- */
-static void publish_hangup_handler_message(const char *action, struct ast_channel *chan, const char *handler)
-{
-	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
-
-	blob = ast_json_pack("{s: s, s: s}",
-			"type", action,
-			"handler", S_OR(handler, ""));
-	if (!blob) {
-		return;
-	}
-
-	ast_channel_publish_blob(chan, ast_channel_hangup_handler_type(), blob);
-}
-
-int ast_pbx_hangup_handler_run(struct ast_channel *chan)
-{
-	struct ast_hangup_handler_list *handlers;
-	struct ast_hangup_handler *h_handler;
-
-	ast_channel_lock(chan);
-	handlers = ast_channel_hangup_handlers(chan);
-	if (AST_LIST_EMPTY(handlers)) {
-		ast_channel_unlock(chan);
-		return 0;
-	}
-
-	/*
-	 * Make sure that the channel is marked as hungup since we are
-	 * going to run the hangup handlers on it.
-	 */
-	ast_softhangup_nolock(chan, AST_SOFTHANGUP_HANGUP_EXEC);
-
-	for (;;) {
-		handlers = ast_channel_hangup_handlers(chan);
-		h_handler = AST_LIST_REMOVE_HEAD(handlers, node);
-		if (!h_handler) {
-			break;
-		}
-
-		publish_hangup_handler_message("run", chan, h_handler->args);
-		ast_channel_unlock(chan);
-
-		ast_app_exec_sub(NULL, chan, h_handler->args, 1);
-		ast_free(h_handler);
-
-		ast_channel_lock(chan);
-	}
-	ast_channel_unlock(chan);
-	return 1;
-}
-
-void ast_pbx_hangup_handler_init(struct ast_channel *chan)
-{
-	struct ast_hangup_handler_list *handlers;
-
-	handlers = ast_channel_hangup_handlers(chan);
-	AST_LIST_HEAD_INIT_NOLOCK(handlers);
-}
-
-void ast_pbx_hangup_handler_destroy(struct ast_channel *chan)
-{
-	struct ast_hangup_handler_list *handlers;
-	struct ast_hangup_handler *h_handler;
-
-	ast_channel_lock(chan);
-
-	/* Get rid of each of the hangup handlers on the channel */
-	handlers = ast_channel_hangup_handlers(chan);
-	while ((h_handler = AST_LIST_REMOVE_HEAD(handlers, node))) {
-		ast_free(h_handler);
-	}
-
-	ast_channel_unlock(chan);
-}
-
-int ast_pbx_hangup_handler_pop(struct ast_channel *chan)
-{
-	struct ast_hangup_handler_list *handlers;
-	struct ast_hangup_handler *h_handler;
-
-	ast_channel_lock(chan);
-	handlers = ast_channel_hangup_handlers(chan);
-	h_handler = AST_LIST_REMOVE_HEAD(handlers, node);
-	if (h_handler) {
-		publish_hangup_handler_message("pop", chan, h_handler->args);
-	}
-	ast_channel_unlock(chan);
-	if (h_handler) {
-		ast_free(h_handler);
-		return 1;
-	}
-	return 0;
-}
-
-void ast_pbx_hangup_handler_push(struct ast_channel *chan, const char *handler)
-{
-	struct ast_hangup_handler_list *handlers;
-	struct ast_hangup_handler *h_handler;
-	const char *expanded_handler;
-
-	if (ast_strlen_zero(handler)) {
-		return;
-	}
-
-	expanded_handler = ast_app_expand_sub_args(chan, handler);
-	if (!expanded_handler) {
-		return;
-	}
-	h_handler = ast_malloc(sizeof(*h_handler) + 1 + strlen(expanded_handler));
-	if (!h_handler) {
-		ast_free((char *) expanded_handler);
-		return;
-	}
-	strcpy(h_handler->args, expanded_handler);/* Safe */
-	ast_free((char *) expanded_handler);
-
-	ast_channel_lock(chan);
-
-	handlers = ast_channel_hangup_handlers(chan);
-	AST_LIST_INSERT_HEAD(handlers, h_handler, node);
-	publish_hangup_handler_message("push", chan, h_handler->args);
-	ast_channel_unlock(chan);
-}
-
-#define HANDLER_FORMAT	"%-30s %s\n"
-
-/*!
- * \internal
- * \brief CLI output the hangup handler headers.
- * \since 11.0
- *
- * \param fd CLI file descriptor to use.
- *
- * \return Nothing
- */
-static void ast_pbx_hangup_handler_headers(int fd)
-{
-	ast_cli(fd, HANDLER_FORMAT, "Channel", "Handler");
-}
-
-/*!
- * \internal
- * \brief CLI output the channel hangup handlers.
- * \since 11.0
- *
- * \param fd CLI file descriptor to use.
- * \param chan Channel to show hangup handlers.
- *
- * \return Nothing
- */
-static void ast_pbx_hangup_handler_show(int fd, struct ast_channel *chan)
-{
-	struct ast_hangup_handler_list *handlers;
-	struct ast_hangup_handler *h_handler;
-	int first = 1;
-
-	ast_channel_lock(chan);
-	handlers = ast_channel_hangup_handlers(chan);
-	AST_LIST_TRAVERSE(handlers, h_handler, node) {
-		ast_cli(fd, HANDLER_FORMAT, first ? ast_channel_name(chan) : "", h_handler->args);
-		first = 0;
-	}
-	ast_channel_unlock(chan);
-}
-
-/*
- * \brief 'show hanguphandlers <channel>' CLI command implementation function...
- */
-static char *handle_show_hangup_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	struct ast_channel *chan;
-
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "core show hanguphandlers";
-		e->usage =
-			"Usage: core show hanguphandlers <channel>\n"
-			"       Show hangup handlers of a specified channel.\n";
-		return NULL;
-	case CLI_GENERATE:
-		return ast_complete_channels(a->line, a->word, a->pos, a->n, e->args);
-	}
-
-	if (a->argc < 4) {
-		return CLI_SHOWUSAGE;
-	}
-
-	chan = ast_channel_get_by_name(a->argv[3]);
-	if (!chan) {
-		ast_cli(a->fd, "Channel does not exist.\n");
-		return CLI_FAILURE;
-	}
-
-	ast_pbx_hangup_handler_headers(a->fd);
-	ast_pbx_hangup_handler_show(a->fd, chan);
-
-	ast_channel_unref(chan);
-
-	return CLI_SUCCESS;
-}
-
-/*
- * \brief 'show hanguphandlers all' CLI command implementation function...
- */
-static char *handle_show_hangup_all(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	struct ast_channel_iterator *iter;
-	struct ast_channel *chan;
-
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "core show hanguphandlers all";
-		e->usage =
-			"Usage: core show hanguphandlers all\n"
-			"       Show hangup handlers for all channels.\n";
-		return NULL;
-	case CLI_GENERATE:
-		return ast_complete_channels(a->line, a->word, a->pos, a->n, e->args);
-	}
-
-	if (a->argc < 4) {
-		return CLI_SHOWUSAGE;
-	}
-
-	iter = ast_channel_iterator_all_new();
-	if (!iter) {
-		return CLI_FAILURE;
-	}
-
-	ast_pbx_hangup_handler_headers(a->fd);
-	for (; (chan = ast_channel_iterator_next(iter)); ast_channel_unref(chan)) {
-		ast_pbx_hangup_handler_show(a->fd, chan);
-	}
-	ast_channel_iterator_destroy(iter);
-
-	return CLI_SUCCESS;
-}
-
 /*! helper function to set extension and priority */
 void set_ext_pri(struct ast_channel *c, const char *exten, int pri)
 {
@@ -5314,246 +4965,9 @@ int ast_context_unlockmacro(const char *context)
 	return ret;
 }
 
-/*! \brief Dynamically register a new dial plan application */
-int ast_register_application2(const char *app, int (*execute)(struct ast_channel *, const char *), const char *synopsis, const char *description, void *mod)
-{
-	struct ast_app *tmp;
-	struct ast_app *cur;
-	int length;
-#ifdef AST_XML_DOCS
-	char *tmpxml;
-#endif
-
-	AST_RWLIST_WRLOCK(&apps);
-	cur = pbx_findapp_nolock(app);
-	if (cur) {
-		ast_log(LOG_WARNING, "Already have an application '%s'\n", app);
-		AST_RWLIST_UNLOCK(&apps);
-		return -1;
-	}
-
-	length = sizeof(*tmp) + strlen(app) + 1;
-
-	if (!(tmp = ast_calloc(1, length))) {
-		AST_RWLIST_UNLOCK(&apps);
-		return -1;
-	}
-
-	if (ast_string_field_init(tmp, 128)) {
-		AST_RWLIST_UNLOCK(&apps);
-		ast_free(tmp);
-		return -1;
-	}
-
-	strcpy(tmp->name, app);
-	tmp->execute = execute;
-	tmp->module = mod;
-
-#ifdef AST_XML_DOCS
-	/* Try to lookup the docs in our XML documentation database */
-	if (ast_strlen_zero(synopsis) && ast_strlen_zero(description)) {
-		/* load synopsis */
-		tmpxml = ast_xmldoc_build_synopsis("application", app, ast_module_name(tmp->module));
-		ast_string_field_set(tmp, synopsis, tmpxml);
-		ast_free(tmpxml);
-
-		/* load description */
-		tmpxml = ast_xmldoc_build_description("application", app, ast_module_name(tmp->module));
-		ast_string_field_set(tmp, description, tmpxml);
-		ast_free(tmpxml);
-
-		/* load syntax */
-		tmpxml = ast_xmldoc_build_syntax("application", app, ast_module_name(tmp->module));
-		ast_string_field_set(tmp, syntax, tmpxml);
-		ast_free(tmpxml);
-
-		/* load arguments */
-		tmpxml = ast_xmldoc_build_arguments("application", app, ast_module_name(tmp->module));
-		ast_string_field_set(tmp, arguments, tmpxml);
-		ast_free(tmpxml);
-
-		/* load seealso */
-		tmpxml = ast_xmldoc_build_seealso("application", app, ast_module_name(tmp->module));
-		ast_string_field_set(tmp, seealso, tmpxml);
-		ast_free(tmpxml);
-		tmp->docsrc = AST_XML_DOC;
-	} else {
-#endif
-		ast_string_field_set(tmp, synopsis, synopsis);
-		ast_string_field_set(tmp, description, description);
-#ifdef AST_XML_DOCS
-		tmp->docsrc = AST_STATIC_DOC;
-	}
-#endif
-
-	/* Store in alphabetical order */
-	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&apps, cur, list) {
-		if (strcasecmp(tmp->name, cur->name) < 0) {
-			AST_RWLIST_INSERT_BEFORE_CURRENT(tmp, list);
-			break;
-		}
-	}
-	AST_RWLIST_TRAVERSE_SAFE_END;
-	if (!cur)
-		AST_RWLIST_INSERT_TAIL(&apps, tmp, list);
-
-	ast_verb(2, "Registered application '" COLORIZE_FMT "'\n", COLORIZE(COLOR_BRCYAN, 0, tmp->name));
-
-	AST_RWLIST_UNLOCK(&apps);
-
-	return 0;
-}
-
-/*
- * Append to the list. We don't have a tail pointer because we need
- * to scan the list anyways to check for duplicates during insertion.
- */
-int ast_register_switch(struct ast_switch *sw)
-{
-	struct ast_switch *tmp;
-
-	AST_RWLIST_WRLOCK(&switches);
-	AST_RWLIST_TRAVERSE(&switches, tmp, list) {
-		if (!strcasecmp(tmp->name, sw->name)) {
-			AST_RWLIST_UNLOCK(&switches);
-			ast_log(LOG_WARNING, "Switch '%s' already found\n", sw->name);
-			return -1;
-		}
-	}
-	AST_RWLIST_INSERT_TAIL(&switches, sw, list);
-	AST_RWLIST_UNLOCK(&switches);
-
-	return 0;
-}
-
-void ast_unregister_switch(struct ast_switch *sw)
-{
-	AST_RWLIST_WRLOCK(&switches);
-	AST_RWLIST_REMOVE(&switches, sw, list);
-	AST_RWLIST_UNLOCK(&switches);
-}
-
 /*
  * Help for CLI commands ...
  */
-
-static void print_app_docs(struct ast_app *aa, int fd)
-{
-#ifdef AST_XML_DOCS
-	char *synopsis = NULL, *description = NULL, *arguments = NULL, *seealso = NULL;
-	if (aa->docsrc == AST_XML_DOC) {
-		synopsis = ast_xmldoc_printable(S_OR(aa->synopsis, "Not available"), 1);
-		description = ast_xmldoc_printable(S_OR(aa->description, "Not available"), 1);
-		arguments = ast_xmldoc_printable(S_OR(aa->arguments, "Not available"), 1);
-		seealso = ast_xmldoc_printable(S_OR(aa->seealso, "Not available"), 1);
-		if (!synopsis || !description || !arguments || !seealso) {
-			goto free_docs;
-		}
-		ast_cli(fd, "\n"
-			"%s  -= Info about application '%s' =- %s\n\n"
-			COLORIZE_FMT "\n"
-			"%s\n\n"
-			COLORIZE_FMT "\n"
-			"%s\n\n"
-			COLORIZE_FMT "\n"
-			"%s%s%s\n\n"
-			COLORIZE_FMT "\n"
-			"%s\n\n"
-			COLORIZE_FMT "\n"
-			"%s\n",
-			ast_term_color(COLOR_MAGENTA, 0), aa->name, ast_term_reset(),
-			COLORIZE(COLOR_MAGENTA, 0, "[Synopsis]"), synopsis,
-			COLORIZE(COLOR_MAGENTA, 0, "[Description]"), description,
-			COLORIZE(COLOR_MAGENTA, 0, "[Syntax]"),
-				ast_term_color(COLOR_CYAN, 0), S_OR(aa->syntax, "Not available"), ast_term_reset(),
-			COLORIZE(COLOR_MAGENTA, 0, "[Arguments]"), arguments,
-			COLORIZE(COLOR_MAGENTA, 0, "[See Also]"), seealso);
-free_docs:
-		ast_free(synopsis);
-		ast_free(description);
-		ast_free(arguments);
-		ast_free(seealso);
-	} else
-#endif
-	{
-		ast_cli(fd, "\n"
-			"%s  -= Info about application '%s' =- %s\n\n"
-			COLORIZE_FMT "\n"
-			COLORIZE_FMT "\n\n"
-			COLORIZE_FMT "\n"
-			COLORIZE_FMT "\n\n"
-			COLORIZE_FMT "\n"
-			COLORIZE_FMT "\n\n"
-			COLORIZE_FMT "\n"
-			COLORIZE_FMT "\n\n"
-			COLORIZE_FMT "\n"
-			COLORIZE_FMT "\n",
-			ast_term_color(COLOR_MAGENTA, 0), aa->name, ast_term_reset(),
-			COLORIZE(COLOR_MAGENTA, 0, "[Synopsis]"),
-			COLORIZE(COLOR_CYAN, 0, S_OR(aa->synopsis, "Not available")),
-			COLORIZE(COLOR_MAGENTA, 0, "[Description]"),
-			COLORIZE(COLOR_CYAN, 0, S_OR(aa->description, "Not available")),
-			COLORIZE(COLOR_MAGENTA, 0, "[Syntax]"),
-			COLORIZE(COLOR_CYAN, 0, S_OR(aa->syntax, "Not available")),
-			COLORIZE(COLOR_MAGENTA, 0, "[Arguments]"),
-			COLORIZE(COLOR_CYAN, 0, S_OR(aa->arguments, "Not available")),
-			COLORIZE(COLOR_MAGENTA, 0, "[See Also]"),
-			COLORIZE(COLOR_CYAN, 0, S_OR(aa->seealso, "Not available")));
-	}
-}
-
-/*
- * \brief 'show application' CLI command implementation function...
- */
-static char *handle_show_application(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	struct ast_app *aa;
-	int app, no_registered_app = 1;
-
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "core show application";
-		e->usage =
-			"Usage: core show application <application> [<application> [<application> [...]]]\n"
-			"       Describes a particular application.\n";
-		return NULL;
-	case CLI_GENERATE:
-		/*
-		 * There is a possibility to show informations about more than one
-		 * application at one time. You can type 'show application Dial Echo' and
-		 * you will see informations about these two applications ...
-		 */
-		return ast_complete_applications(a->line, a->word, a->n);
-	}
-
-	if (a->argc < 4) {
-		return CLI_SHOWUSAGE;
-	}
-
-	AST_RWLIST_RDLOCK(&apps);
-	AST_RWLIST_TRAVERSE(&apps, aa, list) {
-		/* Check for each app that was supplied as an argument */
-		for (app = 3; app < a->argc; app++) {
-			if (strcasecmp(aa->name, a->argv[app])) {
-				continue;
-			}
-
-			/* We found it! */
-			no_registered_app = 0;
-
-			print_app_docs(aa, a->fd);
-		}
-	}
-	AST_RWLIST_UNLOCK(&apps);
-
-	/* we found at least one app? no? */
-	if (no_registered_app) {
-		ast_cli(a->fd, "Your application(s) is (are) not registered\n");
-		return CLI_FAILURE;
-	}
-
-	return CLI_SUCCESS;
-}
 
 /*! \brief  handle_show_hints: CLI support for listing registered dial plan hints */
 static char *handle_show_hints(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -5720,40 +5134,6 @@ static char *handle_show_hint(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	return CLI_SUCCESS;
 }
 
-
-/*! \brief  handle_show_switches: CLI support for listing registered dial plan switches */
-static char *handle_show_switches(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	struct ast_switch *sw;
-
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "core show switches";
-		e->usage =
-			"Usage: core show switches\n"
-			"       List registered switches\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-
-	AST_RWLIST_RDLOCK(&switches);
-
-	if (AST_RWLIST_EMPTY(&switches)) {
-		AST_RWLIST_UNLOCK(&switches);
-		ast_cli(a->fd, "There are no registered alternative switches\n");
-		return CLI_SUCCESS;
-	}
-
-	ast_cli(a->fd, "\n    -= Registered Asterisk Alternative Switches =-\n");
-	AST_RWLIST_TRAVERSE(&switches, sw, list)
-		ast_cli(a->fd, "%s: %s\n", sw->name, sw->description);
-
-	AST_RWLIST_UNLOCK(&switches);
-
-	return CLI_SUCCESS;
-}
-
 #if 0
 /* This code can be used to test if the system survives running out of memory.
  * It might be an idea to put this in only if ENABLE_AUTODESTRUCT_TESTS is enabled.
@@ -5828,89 +5208,6 @@ static char *handle_eat_memory(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	return CLI_SUCCESS;
 }
 #endif
-
-static char *handle_show_applications(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	struct ast_app *aa;
-	int like = 0, describing = 0;
-	int total_match = 0;    /* Number of matches in like clause */
-	int total_apps = 0;     /* Number of apps registered */
-	static const char * const choices[] = { "like", "describing", NULL };
-
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "core show applications [like|describing]";
-		e->usage =
-			"Usage: core show applications [{like|describing} <text>]\n"
-			"       List applications which are currently available.\n"
-			"       If 'like', <text> will be a substring of the app name\n"
-			"       If 'describing', <text> will be a substring of the description\n";
-		return NULL;
-	case CLI_GENERATE:
-		return (a->pos != 3) ? NULL : ast_cli_complete(a->word, choices, a->n);
-	}
-
-	AST_RWLIST_RDLOCK(&apps);
-
-	if (AST_RWLIST_EMPTY(&apps)) {
-		ast_cli(a->fd, "There are no registered applications\n");
-		AST_RWLIST_UNLOCK(&apps);
-		return CLI_SUCCESS;
-	}
-
-	/* core list applications like <keyword> */
-	if ((a->argc == 5) && (!strcmp(a->argv[3], "like"))) {
-		like = 1;
-	} else if ((a->argc > 4) && (!strcmp(a->argv[3], "describing"))) {
-		describing = 1;
-	}
-
-	/* core list applications describing <keyword1> [<keyword2>] [...] */
-	if ((!like) && (!describing)) {
-		ast_cli(a->fd, "    -= Registered Asterisk Applications =-\n");
-	} else {
-		ast_cli(a->fd, "    -= Matching Asterisk Applications =-\n");
-	}
-
-	AST_RWLIST_TRAVERSE(&apps, aa, list) {
-		int printapp = 0;
-		total_apps++;
-		if (like) {
-			if (strcasestr(aa->name, a->argv[4])) {
-				printapp = 1;
-				total_match++;
-			}
-		} else if (describing) {
-			if (aa->description) {
-				/* Match all words on command line */
-				int i;
-				printapp = 1;
-				for (i = 4; i < a->argc; i++) {
-					if (!strcasestr(aa->description, a->argv[i])) {
-						printapp = 0;
-					} else {
-						total_match++;
-					}
-				}
-			}
-		} else {
-			printapp = 1;
-		}
-
-		if (printapp) {
-			ast_cli(a->fd,"  %20s: %s\n", aa->name, aa->synopsis ? aa->synopsis : "<Synopsis not available>");
-		}
-	}
-	if ((!like) && (!describing)) {
-		ast_cli(a->fd, "    -= %d Applications Registered =-\n",total_apps);
-	} else {
-		ast_cli(a->fd, "    -= %d Applications Matching =-\n",total_match);
-	}
-
-	AST_RWLIST_UNLOCK(&apps);
-
-	return CLI_SUCCESS;
-}
 
 /*
  * 'show dialplan' CLI command implementation functions ...
@@ -6595,23 +5892,18 @@ static struct ast_cli_entry pbx_cli[] = {
 #if 0
 	AST_CLI_DEFINE(handle_eat_memory, "Eats all available memory"),
 #endif
-	AST_CLI_DEFINE(handle_show_applications, "Shows registered dialplan applications"),
-	AST_CLI_DEFINE(handle_show_switches, "Show alternative switches"),
 	AST_CLI_DEFINE(handle_show_hints, "Show dialplan hints"),
 	AST_CLI_DEFINE(handle_show_hint, "Show dialplan hint"),
 #ifdef AST_DEVMODE
 	AST_CLI_DEFINE(handle_show_device2extenstate, "Show expected exten state from multiple device states"),
 #endif
-	AST_CLI_DEFINE(handle_show_hangup_all, "Show hangup handlers of all channels"),
-	AST_CLI_DEFINE(handle_show_hangup_channel, "Show hangup handlers of a specified channel"),
-	AST_CLI_DEFINE(handle_show_application, "Describe a specific dialplan application"),
 	AST_CLI_DEFINE(handle_show_dialplan, "Show dialplan"),
 	AST_CLI_DEFINE(handle_debug_dialplan, "Show fast extension pattern matching data structures"),
 	AST_CLI_DEFINE(handle_unset_extenpatternmatchnew, "Use the Old extension pattern matching algorithm."),
 	AST_CLI_DEFINE(handle_set_extenpatternmatchnew, "Use the New extension pattern matching algorithm."),
 };
 
-static void unreference_cached_app(struct ast_app *app)
+void unreference_cached_app(struct ast_app *app)
 {
 	struct ast_context *context = NULL;
 	struct ast_exten *eroot = NULL, *e = NULL;
@@ -6628,36 +5920,6 @@ static void unreference_cached_app(struct ast_app *app)
 	ast_unlock_contexts();
 
 	return;
-}
-
-int ast_unregister_application(const char *app)
-{
-	struct ast_app *cur;
-	int cmp;
-
-	AST_RWLIST_WRLOCK(&apps);
-	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&apps, cur, list) {
-		cmp = strcasecmp(app, cur->name);
-		if (cmp > 0) {
-			continue;
-		}
-		if (!cmp) {
-			/* Found it. */
-			unreference_cached_app(cur);
-			AST_RWLIST_REMOVE_CURRENT(list);
-			ast_verb(2, "Unregistered application '%s'\n", cur->name);
-			ast_string_field_free_memory(cur);
-			ast_free(cur);
-			break;
-		}
-		/* Not in container. */
-		cur = NULL;
-		break;
-	}
-	AST_RWLIST_TRAVERSE_SAFE_END;
-	AST_RWLIST_UNLOCK(&apps);
-
-	return cur ? 0 : -1;
 }
 
 struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts, struct ast_hashtab *exttable, const char *name, const char *registrar)
@@ -9257,37 +8519,6 @@ int ast_parseable_goto(struct ast_channel *chan, const char *goto_string)
 int ast_async_parseable_goto(struct ast_channel *chan, const char *goto_string)
 {
 	return pbx_parseable_goto(chan, goto_string, 1);
-}
-
-char *ast_complete_applications(const char *line, const char *word, int state)
-{
-	struct ast_app *app;
-	int which = 0;
-	int cmp;
-	char *ret = NULL;
-	size_t wordlen = strlen(word);
-
-	AST_RWLIST_RDLOCK(&apps);
-	AST_RWLIST_TRAVERSE(&apps, app, list) {
-		cmp = strncasecmp(word, app->name, wordlen);
-		if (cmp > 0) {
-			continue;
-		}
-		if (!cmp) {
-			/* Found match. */
-			if (++which <= state) {
-				/* Not enough matches. */
-				continue;
-			}
-			ret = ast_strdup(app->name);
-			break;
-		}
-		/* Not in container. */
-		break;
-	}
-	AST_RWLIST_UNLOCK(&apps);
-
-	return ret;
 }
 
 static int hint_hash(const void *obj, const int flags)
