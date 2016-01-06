@@ -94,7 +94,7 @@ static struct ast_flags global_flags = { RADIUS_FLAG_USEGMTIME | RADIUS_FLAG_LOG
 static rc_handle *rh = NULL;
 static struct ast_event_sub *event_sub = NULL;
 
-#define ADD_VENDOR_CODE(x,y) (rc_avpair_add(rh, send, x, &y, strlen(y), VENDOR_CODE))
+#define ADD_VENDOR_CODE(x,y) (rc_avpair_add(rh, send, x, (void *)y, strlen(y), VENDOR_CODE))
 
 static int build_radius_record(VALUE_PAIR **send, struct ast_cel_event_record *record)
 {
@@ -175,7 +175,7 @@ static int build_radius_record(VALUE_PAIR **send, struct ast_cel_event_record *r
 	/* Setting Acct-Session-Id & User-Name attributes for proper generation
 	   of Acct-Unique-Session-Id on server side */
 	/* Channel */
-	if (!rc_avpair_add(rh, send, PW_USER_NAME, &record->channel_name,
+	if (!rc_avpair_add(rh, send, PW_USER_NAME, (void *)record->channel_name,
 			strlen(record->channel_name), 0)) {
 		return -1;
 	}
