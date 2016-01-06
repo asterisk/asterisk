@@ -3406,7 +3406,7 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 		ast_debug(2, "%p: Set timer to %d msec\n", req_wrapper, timeout);
 
 		pj_timer_entry_init(req_wrapper->timeout_timer, TIMEOUT_TIMER2,
-			req_wrapper, &send_request_timer_callback);
+			req_wrapper, send_request_timer_callback);
 
 		pj_timer_heap_cancel_if_active(pjsip_endpt_get_timer_heap(endpt),
 			req_wrapper->timeout_timer, TIMER_INACTIVE);
@@ -3415,8 +3415,18 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 		 * timer callback is executed.
 		 */
 		ao2_ref(req_wrapper, +1);
-		pj_timer_heap_schedule(pjsip_endpt_get_timer_heap(endpt),
+		ret_val = pj_timer_heap_schedule(pjsip_endpt_get_timer_heap(endpt),
 			req_wrapper->timeout_timer, &timeout_timer_val);
+		if (ret_val != PJ_SUCCESS) {
+			ao2_unlock(req_wrapper);
+			ast_log(LOG_ERROR,
+				"Failed to set timer.  Not sending %.*s request to endpoint %s.\n",
+				(int) pj_strlen(&tdata->msg->line.req.method.name),
+				pj_strbuf(&tdata->msg->line.req.method.name),
+				endpoint ? ast_sorcery_object_get_id(endpoint) : "<unknown>");
+			ao2_t_ref(req_wrapper, -2, "Drop timer and routine ref");
+			return ret_val;
+		}
 
 		req_wrapper->timeout_timer->id = TIMEOUT_TIMER2;
 	} else {
