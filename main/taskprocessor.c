@@ -879,3 +879,37 @@ int ast_taskprocessor_is_task(struct ast_taskprocessor *tps)
 	ao2_unlock(tps);
 	return is_task;
 }
+
+unsigned int ast_taskprocessor_seq_num(void)
+{
+	static int seq_num;
+
+	return (unsigned int) ast_atomic_fetchadd_int(&seq_num, +1);
+}
+
+void ast_taskprocessor_build_name(char *buf, unsigned int size, const char *format, ...)
+{
+	va_list ap;
+	int user_size;
+#define SEQ_STR_SIZE (1 + 8 + 1)	/* Dash plus 8 hex digits plus null terminator */
+
+	ast_assert(buf != NULL);
+	ast_assert(SEQ_STR_SIZE <= size);
+
+	va_start(ap, format);
+	user_size = vsnprintf(buf, size - (SEQ_STR_SIZE - 1), format, ap);
+	va_end(ap);
+	if (user_size < 0) {
+		/*
+		 * Wow!  We got an output error to a memory buffer.
+		 * Assume no user part of name written.
+		 */
+		user_size = 0;
+	} else if (size < user_size + SEQ_STR_SIZE) {
+		/* Truncate user part of name to make sequence number fit. */
+		user_size = size - SEQ_STR_SIZE;
+	}
+
+	/* Append sequence number to end of user name. */
+	snprintf(buf + user_size, SEQ_STR_SIZE, "-%08x", ast_taskprocessor_seq_num());
+}
