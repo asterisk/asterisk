@@ -231,6 +231,7 @@ static void serializer_destroy(void *obj)
 
 static struct serializer *serializer_create(const char *aor_name)
 {
+	char registered_name[AST_TASKPROCESSOR_MAX_NAME + 1];
 	size_t size = strlen(aor_name) + 1;
 	struct serializer *ser = ao2_alloc(
 		sizeof(*ser) + size, serializer_destroy);
@@ -239,7 +240,8 @@ static struct serializer *serializer_create(const char *aor_name)
 		return NULL;
 	}
 
-	if (!(ser->serializer = ast_sip_create_serializer())) {
+	snprintf(registered_name, sizeof(registered_name), "aor/%s", aor_name);
+	if (!(ser->serializer = ast_sip_create_serializer_named(registered_name))) {
 		ao2_ref(ser, -1);
 		return NULL;
 	}

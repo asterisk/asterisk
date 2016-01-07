@@ -1266,6 +1266,7 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
 	struct ast_sip_session_supplement *iter;
 	int dsp_features = 0;
+	char session_name[AST_TASKPROCESSOR_MAX_NAME + 1];
 
 	session = ao2_alloc(sizeof(*session), session_destructor);
 	if (!session) {
@@ -1286,7 +1287,9 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	/* fill session->media with available types */
 	ao2_callback(sdp_handlers, OBJ_NODATA, add_session_media, session);
 
-	session->serializer = ast_sip_create_serializer();
+	snprintf(session_name, sizeof(session_name), "session/%s",
+		ast_sorcery_object_get_id(endpoint));
+	session->serializer = ast_sip_create_serializer_named(session_name);
 	if (!session->serializer) {
 		return NULL;
 	}

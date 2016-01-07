@@ -323,7 +323,7 @@ static void websocket_cb(struct ast_websocket *session, struct ast_variable *par
 		return;
 	}
 
-	if (!(serializer = ast_sip_create_serializer())) {
+	if (!(serializer = ast_sip_create_serializer_named("websocket"))) {
 		ast_websocket_unref(session);
 		return;
 	}
