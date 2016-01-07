@@ -56,6 +56,9 @@
 
 struct ast_taskprocessor;
 
+/*! \brief Suggested maximum taskprocessor name length (less null terminator). */
+#define AST_TASKPROCESSOR_MAX_NAME	45
+
 #define AST_TASKPROCESSOR_HIGH_WATER_LEVEL 500
 
 /*!
@@ -257,6 +260,14 @@ int ast_taskprocessor_execute(struct ast_taskprocessor *tps);
  * \retval non-zero if current thread is the taskprocessor thread.
  */
 int ast_taskprocessor_is_task(struct ast_taskprocessor *tps);
+
+/*!
+ * \brief Get the next sequence number to create a human friendly taskprocessor name.
+ * \since 13.8.0
+ *
+ * \return Sequence number for use in creating human friendly taskprocessor names.
+ */
+unsigned int ast_taskprocessor_seq_num(void);
 
 /*!
  * \brief Return the name of the taskprocessor singleton

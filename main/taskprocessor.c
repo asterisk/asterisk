@@ -879,3 +879,10 @@ int ast_taskprocessor_is_task(struct ast_taskprocessor *tps)
 	ao2_unlock(tps);
 	return is_task;
 }
+
+unsigned int ast_taskprocessor_seq_num(void)
+{
+	static int seq_num;
+
+	return (unsigned int) ast_atomic_fetchadd_int(&seq_num, +1);
+}
