@@ -4560,7 +4560,7 @@ int ast_cc_init(void)
 					"Create generic monitor container"))) {
 		return -1;
 	}
-	if (!(cc_core_taskprocessor = ast_taskprocessor_get("CCSS core", TPS_REF_DEFAULT))) {
+	if (!(cc_core_taskprocessor = ast_taskprocessor_get("CCSS_core", TPS_REF_DEFAULT))) {
 		return -1;
 	}
 	if (!(cc_sched_context = ast_sched_context_create())) {
