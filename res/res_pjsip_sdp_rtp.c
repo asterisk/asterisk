@@ -175,8 +175,15 @@ static int rtp_check_timeout(const void *data)
 static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_media *session_media, unsigned int ipv6)
 {
 	struct ast_rtp_engine_ice *ice;
+	struct ast_sockaddr temp_media_address;
+	struct ast_sockaddr *media_address =  ipv6 ? &address_ipv6 : &address_ipv4;
 
-	if (!(session_media->rtp = ast_rtp_instance_new(session->endpoint->media.rtp.engine, sched, ipv6 ? &address_ipv6 : &address_ipv4, NULL))) {
+	if (session->endpoint->media.bind_rtp_to_media_address && !ast_strlen_zero(session->endpoint->media.address)) {
+		ast_sockaddr_parse(&temp_media_address, session->endpoint->media.address, 0);
+		media_address = &temp_media_address;
+	}
+
+	if (!(session_media->rtp = ast_rtp_instance_new(session->endpoint->media.rtp.engine, sched, media_address, NULL))) {
 		ast_log(LOG_ERROR, "Unable to create RTP instance using RTP engine '%s'\n", session->endpoint->media.rtp.engine);
 		return -1;
 	}
