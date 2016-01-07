@@ -823,7 +823,7 @@ static struct ast_sorcery_object_type *sorcery_object_type_alloc(const char *typ
 {
 #define INITIAL_WIZARD_VECTOR_SIZE 5
 	struct ast_sorcery_object_type *object_type;
-	char uuid[AST_UUID_STR_LEN];
+	char tps_name[AST_TASKPROCESSOR_MAX_NAME + 1];
 
 	if (!(object_type = ao2_alloc(sizeof(*object_type), sorcery_object_type_destructor))) {
 		return NULL;
@@ -856,12 +856,10 @@ static struct ast_sorcery_object_type *sorcery_object_type_alloc(const char *typ
 		return NULL;
 	}
 
-	if (!ast_uuid_generate_str(uuid, sizeof(uuid))) {
-		ao2_ref(object_type, -1);
-		return NULL;
-	}
+	/* Create name with seq number appended. */
+	ast_taskprocessor_build_name(tps_name, sizeof(tps_name), "sorcery/%s", type);
 
-	if (!(object_type->serializer = ast_threadpool_serializer(uuid, threadpool))) {
+	if (!(object_type->serializer = ast_threadpool_serializer(tps_name, threadpool))) {
 		ao2_ref(object_type, -1);
 		return NULL;
 	}
