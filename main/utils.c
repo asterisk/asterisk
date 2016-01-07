@@ -1208,7 +1208,7 @@ static void *dummy_start(void *data)
 
 	lock_info->thread_id = pthread_self();
 	lock_info->lwp = ast_get_tid();
-	lock_info->thread_name = strdup(a.name);
+	lock_info->thread_name = ast_strdup(a.name);
 
 	pthread_mutexattr_init(&mutex_attr);
 	pthread_mutexattr_settype(&mutex_attr, AST_MUTEX_KIND);
