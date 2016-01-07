@@ -1234,6 +1234,7 @@ static void subscription_setup_dialog(struct sip_subscription_tree *sub_tree, pj
 static struct sip_subscription_tree *allocate_subscription_tree(struct ast_sip_endpoint *endpoint)
 {
 	struct sip_subscription_tree *sub_tree;
+	char pubsub_name[AST_TASKPROCESSOR_MAX_NAME + 1];
 
 	sub_tree = ao2_alloc(sizeof *sub_tree, subscription_tree_destructor);
 	if (!sub_tree) {
@@ -1242,7 +1243,9 @@ static struct sip_subscription_tree *allocate_subscription_tree(struct ast_sip_e
 
 	ast_module_ref(ast_module_info->self);
 
-	sub_tree->serializer = ast_sip_create_serializer();
+	snprintf(pubsub_name, sizeof(pubsub_name), "pubsub/%s",
+		ast_sorcery_object_get_id(endpoint));
+	sub_tree->serializer = ast_sip_create_serializer(pubsub_name);
 	if (!sub_tree->serializer) {
 		ao2_ref(sub_tree, -1);
 		return NULL;

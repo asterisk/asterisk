@@ -3433,23 +3433,30 @@ int ast_sip_append_body(pjsip_tx_data *tdata, const char *body_text)
 	return 0;
 }
 
-struct ast_taskprocessor *ast_sip_create_serializer_group(struct ast_serializer_shutdown_group *shutdown_group)
+struct ast_taskprocessor *ast_sip_create_serializer_group(const char *name, struct ast_serializer_shutdown_group *shutdown_group)
 {
 	struct ast_taskprocessor *serializer;
-	char name[AST_UUID_STR_LEN];
+	char tps_name[AST_TASKPROCESSOR_MAX_NAME + 1];
+	char seq[8 + 1 + 1];
 
-	ast_uuid_generate_str(name, sizeof(name));
+	/*
+	 * Create name with seq number appended.
+	 * Truncate suffix name to ensure string fits.
+	 */
+	snprintf(seq, sizeof(seq), "-%08x", ast_taskprocessor_seq_num());
+	snprintf(tps_name, sizeof(tps_name) - sizeof(seq) + 1, "pjsip/%s", name);
+	strcat(tps_name, seq);
 
-	serializer = ast_threadpool_serializer_group(name, sip_threadpool, shutdown_group);
+	serializer = ast_threadpool_serializer_group(tps_name, sip_threadpool, shutdown_group);
 	if (!serializer) {
 		return NULL;
 	}
 	return serializer;
 }
 
-struct ast_taskprocessor *ast_sip_create_serializer(void)
+struct ast_taskprocessor *ast_sip_create_serializer(const char *name)
 {
-	return ast_sip_create_serializer_group(NULL);
+	return ast_sip_create_serializer_group(name, NULL);
 }
 
 /*!
@@ -3482,7 +3489,7 @@ static int serializer_pool_setup(void)
 	int idx;
 
 	for (idx = 0; idx < SERIALIZER_POOL_SIZE; ++idx) {
-		serializer_pool[idx] = ast_sip_create_serializer();
+		serializer_pool[idx] = ast_sip_create_serializer("default");
 		if (!serializer_pool[idx]) {
 			serializer_pool_shutdown();
 			return -1;

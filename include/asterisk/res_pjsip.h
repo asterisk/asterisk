@@ -1106,32 +1106,36 @@ struct ast_sip_endpoint *ast_sip_get_artificial_endpoint(void);
 
 /*!
  * \brief Create a new serializer for SIP tasks
+ * \since 13.8.0
  *
  * See \ref ast_threadpool_serializer for more information on serializers.
  * SIP creates serializers so that tasks operating on similar data will run
  * in sequence.
  *
+ * \param name Creator's name suffix for the serializer.
+ *
  * \retval NULL Failure
  * \retval non-NULL Newly-created serializer
  */
-struct ast_taskprocessor *ast_sip_create_serializer(void);
+struct ast_taskprocessor *ast_sip_create_serializer(const char *name);
 
 struct ast_serializer_shutdown_group;
 
 /*!
  * \brief Create a new serializer for SIP tasks
- * \since 13.5.0
+ * \since 13.8.0
  *
  * See \ref ast_threadpool_serializer for more information on serializers.
  * SIP creates serializers so that tasks operating on similar data will run
  * in sequence.
  *
+ * \param name Creator's name suffix for the serializer.
  * \param shutdown_group Group shutdown controller. (NULL if no group association)
  *
  * \retval NULL Failure
  * \retval non-NULL Newly-created serializer
  */
-struct ast_taskprocessor *ast_sip_create_serializer_group(struct ast_serializer_shutdown_group *shutdown_group);
+struct ast_taskprocessor *ast_sip_create_serializer_group(const char *name, struct ast_serializer_shutdown_group *shutdown_group);
 
 /*!
  * \brief Set a serializer on a SIP dialog so requests and responses are automatically serialized

@@ -977,6 +977,7 @@ static void sip_outbound_registration_client_state_destroy(void *obj)
 static struct sip_outbound_registration_state *sip_outbound_registration_state_alloc(struct sip_outbound_registration *registration)
 {
 	struct sip_outbound_registration_state *state;
+	char outreg_name[AST_TASKPROCESSOR_MAX_NAME + 1];
 
 	state = ao2_alloc(sizeof(*state), sip_outbound_registration_state_destroy);
 	if (!state) {
@@ -989,7 +990,10 @@ static struct sip_outbound_registration_state *sip_outbound_registration_state_a
 		return NULL;
 	}
 
-	state->client_state->serializer = ast_sip_create_serializer_group(shutdown_group);
+	snprintf(outreg_name, sizeof(outreg_name), "outreg/%s",
+		ast_sorcery_object_get_id(registration));
+	state->client_state->serializer = ast_sip_create_serializer_group(outreg_name,
+		shutdown_group);
 	if (!state->client_state->serializer) {
 		ao2_cleanup(state);
 		return NULL;
