@@ -462,22 +462,35 @@ struct stasis_subscription *internal_stasis_subscribe(
 	}
 
 	/* The ao2 lock is used for join_cond. */
-	sub = ao2_t_alloc(sizeof(*sub), subscription_dtor, topic->name);
+	sub = ao2_t_alloc(sizeof(*sub), subscription_dtor, stasis_topic_name(topic));
 	if (!sub) {
 		return NULL;
 	}
 	ast_uuid_generate_str(sub->uniqueid, sizeof(sub->uniqueid));
 
 	if (needs_mailbox) {
-		/* With a small number of subscribers, a thread-per-sub is
-		 * acceptable. For larger number of subscribers, a thread
+		char tps_name[AST_TASKPROCESSOR_MAX_NAME + 1];
+		char seq[8 + 1 + 1];
+
+		/*
+		 * Create name with seq number appended.
+		 * Truncate topic name to ensure string fits.
+		 */
+		snprintf(seq, sizeof(seq), "-%08x", ast_taskprocessor_seq_num());
+		snprintf(tps_name, sizeof(tps_name) - sizeof(seq) + 1, "sub%c:%s",
+			use_thread_pool ? 'p' : 'm',
+			stasis_topic_name(topic));
+		strcat(tps_name, seq);
+
+		/*
+		 * With a small number of subscribers, a thread-per-sub is
+		 * acceptable. For a large number of subscribers, a thread
 		 * pool should be used.
 		 */
 		if (use_thread_pool) {
-			sub->mailbox = ast_threadpool_serializer(sub->uniqueid, pool);
+			sub->mailbox = ast_threadpool_serializer(tps_name, pool);
 		} else {
-			sub->mailbox = ast_taskprocessor_get(sub->uniqueid,
-				TPS_REF_DEFAULT);
+			sub->mailbox = ast_taskprocessor_get(tps_name, TPS_REF_DEFAULT);
 		}
 		if (!sub->mailbox) {
 			return NULL;
