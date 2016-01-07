@@ -105,6 +105,10 @@ static struct ast_taskprocessor *find_request_serializer(pjsip_rx_data *rdata)
 		serializer_name = tsx->last_tx->mod_data[distributor_mod.id];
 		if (!ast_strlen_zero(serializer_name)) {
 			serializer = ast_taskprocessor_get(serializer_name, TPS_REF_IF_EXISTS);
+			if (serializer) {
+				ast_debug(3, "Found serializer %s on transaction %s\n",
+						serializer_name, tsx->obj_name);
+			}
 		}
 	}
 
@@ -253,27 +257,34 @@ static pj_bool_t distributor(pjsip_rx_data *rdata)
 	pjsip_dialog *dlg = find_dialog(rdata);
 	struct distributor_dialog_data *dist = NULL;
 	struct ast_taskprocessor *serializer = NULL;
-	struct ast_taskprocessor *req_serializer = NULL;
 	pjsip_rx_data *clone;
 
 	if (dlg) {
+		ast_debug(3, "Searching for serializer on dialog %s for %s\n",
+				dlg->obj_name, rdata->msg_info.info);
 		dist = pjsip_dlg_get_mod_data(dlg, distributor_mod.id);
 		if (dist) {
-			serializer = dist->serializer;
+			serializer = ao2_bump(dist->serializer);
+			if (serializer) {
+				ast_debug(3, "Found serializer %s on dialog %s\n",
+						ast_taskprocessor_name(serializer), dlg->obj_name);
+			}
 		}
+		pjsip_dlg_dec_lock(dlg);
 	}
 
 	if (serializer) {
 		/* We have a serializer so we know where to send the message. */
 	} else if (rdata->msg_info.msg->type == PJSIP_RESPONSE_MSG) {
-		req_serializer = find_request_serializer(rdata);
-		serializer = req_serializer;
+		ast_debug(3, "No dialog serializer for response %s. Using request transaction as basis\n",
+				rdata->msg_info.info);
+		serializer = find_request_serializer(rdata);
 	} else if (!pjsip_method_cmp(&rdata->msg_info.msg->line.req.method, &pjsip_cancel_method)
 		|| !pjsip_method_cmp(&rdata->msg_info.msg->line.req.method, &pjsip_bye_method)) {
 		/* We have a BYE or CANCEL request without a serializer. */
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata,
 			PJSIP_SC_CALL_TSX_DOES_NOT_EXIST, NULL, NULL, NULL);
-		goto end;
+		return PJ_TRUE;
 	}
 
 	pjsip_rx_data_clone(rdata, 0, &clone);
@@ -296,11 +307,7 @@ static pj_bool_t distributor(pjsip_rx_data *rdata)
 		ast_sip_push_task(serializer, distribute, clone);
 	}
 
-end:
-	if (dlg) {
-		pjsip_dlg_dec_lock(dlg);
-	}
-	ast_taskprocessor_unreference(req_serializer);
+	ast_taskprocessor_unreference(serializer);
 
 	return PJ_TRUE;
 }
