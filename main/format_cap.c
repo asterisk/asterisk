@@ -218,6 +218,7 @@ int ast_format_cap_append_by_type(struct ast_format_cap *cap, enum ast_media_typ
 
 	for (id = 1; id < ast_codec_get_max(); ++id) {
 		struct ast_codec *codec = ast_codec_get_by_id(id);
+		struct ast_codec *codec2 = NULL;
 		struct ast_format *format;
 		int res;
 
@@ -238,10 +239,14 @@ int ast_format_cap_append_by_type(struct ast_format_cap *cap, enum ast_media_typ
 			continue;
 		}
 
-		if (!format || (codec != ast_format_get_codec(format))) {
+		if (format) {
+			codec2 = ast_format_get_codec(format);
+		}
+		if (codec != codec2) {
 			ao2_cleanup(format);
 			format = ast_format_create(codec);
 		}
+		ao2_cleanup(codec2);
 		ao2_ref(codec, -1);
 
 		if (!format) {
