@@ -31,10 +31,12 @@
 
 /* We have to let the compiler learn what types to use for the elements of a
    struct timeval since on linux, it's time_t and suseconds_t, but on *BSD,
-   they are just a long. */
-extern struct timeval tv;
-typedef typeof(tv.tv_sec) ast_time_t;
-typedef typeof(tv.tv_usec) ast_suseconds_t;
+   they are just a long.
+   note:dummy_tv_var_for_types never actually gets exported, only used as
+   local place holder. */
+extern struct timeval dummy_tv_var_for_types;
+typedef typeof(dummy_tv_var_for_types.tv_sec) ast_time_t;
+typedef typeof(dummy_tv_var_for_types.tv_usec) ast_suseconds_t;
 
 /*!
  * \brief Computes the difference (in seconds) between two \c struct \c timeval instances.
