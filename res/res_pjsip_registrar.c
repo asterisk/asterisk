@@ -231,6 +231,7 @@ static void serializer_destroy(void *obj)
 
 static struct serializer *serializer_create(const char *aor_name)
 {
+	char tps_name[AST_TASKPROCESSOR_MAX_NAME + 1];
 	size_t size = strlen(aor_name) + 1;
 	struct serializer *ser = ao2_alloc(
 		sizeof(*ser) + size, serializer_destroy);
@@ -239,7 +240,11 @@ static struct serializer *serializer_create(const char *aor_name)
 		return NULL;
 	}
 
-	if (!(ser->serializer = ast_sip_create_serializer())) {
+	/* Create name with seq number appended. */
+	ast_taskprocessor_build_name(tps_name, sizeof(tps_name), "pjsip/aor/%s",
+		aor_name);
+
+	if (!(ser->serializer = ast_sip_create_serializer(tps_name))) {
 		ao2_ref(ser, -1);
 		return NULL;
 	}

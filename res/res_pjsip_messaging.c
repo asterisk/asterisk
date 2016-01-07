@@ -758,7 +758,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	message_serializer = ast_sip_create_serializer();
+	message_serializer = ast_sip_create_serializer("pjsip/messaging");
 	if (!message_serializer) {
 		ast_sip_unregister_service(&messaging_module);
 		ast_msg_tech_unregister(&msg_tech);
