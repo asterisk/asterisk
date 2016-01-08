@@ -413,6 +413,44 @@ static char *cli_tps_ping(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	return CLI_SUCCESS;
 }
 
+/*!
+ * \internal
+ * \brief Taskprocessor ao2 container sort function.
+ * \since 13.8.0
+ *
+ * \param obj_left pointer to the (user-defined part) of an object.
+ * \param obj_right pointer to the (user-defined part) of an object.
+ * \param flags flags from ao2_callback()
+ *   OBJ_SEARCH_OBJECT - if set, 'obj_right', is an object.
+ *   OBJ_SEARCH_KEY - if set, 'obj_right', is a search key item that is not an object.
+ *   OBJ_SEARCH_PARTIAL_KEY - if set, 'obj_right', is a partial search key item that is not an object.
+ *
+ * \retval <0 if obj_left < obj_right
+ * \retval =0 if obj_left == obj_right
+ * \retval >0 if obj_left > obj_right
+ */
+static int tps_sort_cb(const void *obj_left, const void *obj_right, int flags)
+{
+	const struct ast_taskprocessor *tps_left = obj_left;
+	const struct ast_taskprocessor *tps_right = obj_right;
+	const char *right_key = obj_right;
+	int cmp;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	default:
+	case OBJ_SEARCH_OBJECT:
+		right_key = tps_right->name;
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcasecmp(tps_left->name, right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		cmp = strncasecmp(tps_left->name, right_key, strlen(right_key));
+		break;
+	}
+	return cmp;
+}
+
 static char *cli_tps_report(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char name[256];
@@ -420,7 +458,8 @@ static char *cli_tps_report(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	unsigned long qsize;
 	unsigned long maxqsize;
 	unsigned long processed;
-	struct ast_taskprocessor *p;
+	struct ao2_container *sorted_tps;
+	struct ast_taskprocessor *tps;
 	struct ao2_iterator iter;
 #define FMT_HEADERS		"%-45s %10s %10s %10s\n"
 #define FMT_FIELDS		"%-45s %10lu %10lu %10lu\n"
@@ -436,28 +475,38 @@ static char *cli_tps_report(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		return NULL;
 	}
 
-	if (a->argc != e->args)
+	if (a->argc != e->args) {
 		return CLI_SHOWUSAGE;
+	}
+
+	sorted_tps = ao2_container_alloc_rbtree(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, tps_sort_cb,
+		NULL);
+	if (!sorted_tps
+		|| ao2_container_dup(sorted_tps, tps_singletons, 0)) {
+		ao2_cleanup(sorted_tps);
+		return CLI_FAILURE;
+	}
 
 	ast_cli(a->fd, "\n" FMT_HEADERS, "Processor", "Processed", "In Queue", "Max Depth");
 	tcount = 0;
-	iter = ao2_iterator_init(tps_singletons, 0);
-	while ((p = ao2_iterator_next(&iter))) {
-		ast_copy_string(name, p->name, sizeof(name));
-		qsize = p->tps_queue_size;
-		if (p->stats) {
-			maxqsize = p->stats->max_qsize;
-			processed = p->stats->_tasks_processed_count;
+	iter = ao2_iterator_init(sorted_tps, AO2_ITERATOR_UNLINK);
+	while ((tps = ao2_iterator_next(&iter))) {
+		ast_copy_string(name, tps->name, sizeof(name));
+		qsize = tps->tps_queue_size;
+		if (tps->stats) {
+			maxqsize = tps->stats->max_qsize;
+			processed = tps->stats->_tasks_processed_count;
 		} else {
 			maxqsize = 0;
 			processed = 0;
 		}
 		ast_cli(a->fd, FMT_FIELDS, name, processed, qsize, maxqsize);
-		ast_taskprocessor_unreference(p);
+		ast_taskprocessor_unreference(tps);
 		++tcount;
 	}
 	ao2_iterator_destroy(&iter);
 	ast_cli(a->fd, "\n%d taskprocessors\n\n", tcount);
+	ao2_ref(sorted_tps, -1);
 	return CLI_SUCCESS;
 }
 
