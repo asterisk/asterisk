@@ -187,6 +187,7 @@ static pthread_t change_thread = AST_PTHREADT_NULL;
 
 /*! \brief Flag for the queue */
 static ast_cond_t change_pending;
+static volatile int shuttingdown;
 
 struct devstate_change {
 	AST_LIST_ENTRY(devstate_change) entry;
@@ -551,7 +552,7 @@ static void *do_devstate_changes(void *data)
 {
 	struct state_change *next, *current;
 
-	for (;;) {
+	while (!shuttingdown) {
 		/* This basically pops off any state change entries, resets the list back to NULL, unlocks, and processes each state change */
 		AST_LIST_LOCK(&state_changes);
 		if (AST_LIST_EMPTY(&state_changes))
@@ -752,6 +753,18 @@ static void devstate_change_collector_cb(const struct ast_event *event, void *da
 	ast_mutex_unlock(&devstate_collector.lock);
 }
 
+static void device_state_engine_cleanup(void)
+{
+	shuttingdown = 1;
+	AST_LIST_LOCK(&state_changes);
+	ast_cond_signal(&change_pending);
+	AST_LIST_UNLOCK(&state_changes);
+
+	if (change_thread != AST_PTHREADT_NULL) {
+		pthread_join(change_thread, NULL);
+	}
+}
+
 /*! \brief Initialize the device state engine in separate thread */
 int ast_device_state_engine_init(void)
 {
@@ -760,6 +773,7 @@ int ast_device_state_engine_init(void)
 		ast_log(LOG_ERROR, "Unable to start device state change thread.\n");
 		return -1;
 	}
+	ast_register_cleanup(device_state_engine_cleanup);
 
 	return 0;
 }
