@@ -7600,6 +7600,8 @@ static void manager_shutdown(void)
 	while ((user = AST_LIST_REMOVE_HEAD(&users, list))) {
 		manager_free_user(user);
 	}
+
+	ast_free(manager_channelvars);
 }
 
 static void manager_set_defaults(void)
