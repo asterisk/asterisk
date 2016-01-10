@@ -2042,6 +2042,17 @@ void ast_sip_unregister_supplement(struct ast_sip_supplement *supplement);
 char *ast_sip_get_debug(void);
 
 /*!
+ * \brief Retrieve the global regcontext setting.
+ *
+ * \since 13.8.0
+ *
+ * \note returned string needs to be de-allocated by caller.
+ *
+ * \retval the global regcontext setting
+ */
+char *ast_sip_get_regcontext(void);
+
+/*!
  * \brief Retrieve the global endpoint_identifier_order setting.
  *
  * Specifies the order by which endpoint identifiers should be regarded.
