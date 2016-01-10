@@ -12,6 +12,13 @@
 --- Functionality changes from Asterisk 13.7.0 to Asterisk 13.8.0 ------------
 ------------------------------------------------------------------------------
 
+res_pjsip
+------------------
+
+ * Added new global option (regcontext) to pjsip. When set, Asterisk will 
+   dynamically create and destroy a NoOp priority 1 extension 
+   for a given endpoint who registers or unregisters with us.
+
 res_pjsip_history
 ------------------
  * A new module, res_pjsip_history, has been added that provides SIP history
