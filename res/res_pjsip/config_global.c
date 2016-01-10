@@ -35,6 +35,7 @@
 #define DEFAULT_ENDPOINT_IDENTIFIER_ORDER "ip,username,anonymous"
 #define DEFAULT_MAX_INITIAL_QUALIFY_TIME 0
 #define DEFAULT_FROM_USER "asterisk"
+#define DEFAULT_REGCONTEXT ""
 
 static char default_useragent[256];
 
@@ -42,6 +43,7 @@ struct global_config {
 	SORCERY_OBJECT(details);
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(useragent);
+		AST_STRING_FIELD(regcontext);
 		AST_STRING_FIELD(default_outbound_endpoint);
 		/*! Debug logging yes|no|host */
 		AST_STRING_FIELD(debug);
@@ -136,6 +138,23 @@ char *ast_sip_get_debug(void)
 	ao2_ref(cfg, -1);
 	return res;
 }
+
+char *ast_sip_get_regcontext(void)
+{
+        char *res;
+        struct global_config *cfg;
+
+        cfg = get_global_cfg();
+        if (!cfg) {
+                return ast_strdup(DEFAULT_REGCONTEXT);
+        }
+
+        res = ast_strdup(cfg->regcontext);
+        ao2_ref(cfg, -1);
+
+        return res;
+}
+
 
 char *ast_sip_get_endpoint_identifier_order(void)
 {
@@ -310,6 +329,9 @@ int ast_sip_initialize_sorcery_global(void)
 		OPT_UINT_T, 0, FLDSET(struct global_config, max_initial_qualify_time));
 	ast_sorcery_object_field_register(sorcery, "global", "default_from_user", DEFAULT_FROM_USER,
 		OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, default_from_user));
+	ast_sorcery_object_field_register(sorcery, "global", "regcontext", DEFAULT_REGCONTEXT,
+                OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, regcontext));
+
 
 	if (ast_sorcery_instance_observer_add(sorcery, &observer_callbacks_global)) {
 		return -1;
