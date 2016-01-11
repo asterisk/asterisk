@@ -1821,7 +1821,8 @@ static char *handle_cli_moh_reload(struct ast_cli_entry *e, int cmd, struct ast_
 	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
 
-	reload();
+	/* The module loader will prevent concurrent reloads from occurring, so we delegate */
+	ast_module_reload("res_musiconhold");
 
 	return CLI_SUCCESS;
 }
