@@ -1853,6 +1853,8 @@ static int unload_module(void)
 	ast_mutex_unlock(&refreshlock);
 	pthread_join(refresh_thread, NULL);
 
+	ast_sched_context_destroy(sched);
+
 	AST_LIST_LOCK(&techs);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&techs, tech, list) {
 		ast_unload_resource(tech->module, 0);
