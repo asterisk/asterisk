@@ -8538,6 +8538,8 @@ static void manager_shutdown(void)
 		manager_free_user(user);
 	}
 	acl_change_stasis_unsubscribe();
+
+	ast_free(manager_channelvars);
 }
 
 
