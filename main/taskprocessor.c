@@ -421,7 +421,9 @@ static char *cli_tps_report(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	unsigned long maxqsize;
 	unsigned long processed;
 	struct ast_taskprocessor *p;
-	struct ao2_iterator i;
+	struct ao2_iterator iter;
+#define FMT_HEADERS		"%-45s %10s %10s %10s\n"
+#define FMT_FIELDS		"%-45s %10lu %10lu %10lu\n"
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -437,19 +439,25 @@ static char *cli_tps_report(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
 
-	ast_cli(a->fd, "\n\t+----- Processor -----+--- Processed ---+- In Queue -+- Max Depth -+");
-	i = ao2_iterator_init(tps_singletons, 0);
-	while ((p = ao2_iterator_next(&i))) {
+	ast_cli(a->fd, "\n" FMT_HEADERS, "Processor", "Processed", "In Queue", "Max Depth");
+	tcount = 0;
+	iter = ao2_iterator_init(tps_singletons, 0);
+	while ((p = ao2_iterator_next(&iter))) {
 		ast_copy_string(name, p->name, sizeof(name));
 		qsize = p->tps_queue_size;
-		maxqsize = p->stats->max_qsize;
-		processed = p->stats->_tasks_processed_count;
-		ast_cli(a->fd, "\n%24s   %17lu %12lu %12lu", name, processed, qsize, maxqsize);
+		if (p->stats) {
+			maxqsize = p->stats->max_qsize;
+			processed = p->stats->_tasks_processed_count;
+		} else {
+			maxqsize = 0;
+			processed = 0;
+		}
+		ast_cli(a->fd, FMT_FIELDS, name, processed, qsize, maxqsize);
 		ast_taskprocessor_unreference(p);
+		++tcount;
 	}
-	ao2_iterator_destroy(&i);
-	tcount = ao2_container_count(tps_singletons);
-	ast_cli(a->fd, "\n\t+---------------------+-----------------+------------+-------------+\n\t%d taskprocessors\n\n", tcount);
+	ao2_iterator_destroy(&iter);
+	ast_cli(a->fd, "\n%d taskprocessors\n\n", tcount);
 	return CLI_SUCCESS;
 }
 
@@ -794,11 +802,14 @@ int ast_taskprocessor_execute(struct ast_taskprocessor *tps)
 	 */
 	tps->executing = 0;
 	size = ast_taskprocessor_size(tps);
-	/* If we executed a task, bump the stats */
+
+	/* Update the stats */
 	if (tps->stats) {
-		tps->stats->_tasks_processed_count++;
-		if (size > tps->stats->max_qsize) {
-			tps->stats->max_qsize = size;
+		++tps->stats->_tasks_processed_count;
+
+		/* Include the task we just executed as part of the queue size. */
+		if (size >= tps->stats->max_qsize) {
+			tps->stats->max_qsize = size + 1;
 		}
 	}
 	ao2_unlock(tps);
