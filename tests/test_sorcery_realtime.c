@@ -67,17 +67,13 @@ static int realtime_is_object_matching(const char *object_id, const struct ast_v
 
 		/* If we are doing a pattern matching we need to remove the LIKE from the name */
 		if ((like = strstr(name, " LIKE"))) {
-			char *pattern, *field_value = ast_strdupa(field->value);
+			char *field_value = ast_strdupa(field->value);
 
 			*like = '\0';
 
 			value = ast_strdupa(ast_variable_retrieve(realtime_objects, object_id, name));
 
-			if (!(pattern = strchr(field_value, '%'))) {
-				return 0;
-			}
-
-			*pattern = '\0';
+			field_value = ast_strip_quoted(field_value, "%", "%");
 
 			if (strncmp(value, field_value, strlen(field_value))) {
 				return 0;
@@ -567,7 +563,7 @@ AST_TEST_DEFINE(object_retrieve_regex)
 		return AST_TEST_FAIL;
 	}
 
-	if (!(objects = ast_sorcery_retrieve_by_regex(sorcery, "test", "^blah-"))) {
+	if (!(objects = ast_sorcery_retrieve_by_regex(sorcery, "test", "blah-"))) {
 		ast_test_status_update(test, "Failed to retrieve a container of objects\n");
 		return AST_TEST_FAIL;
 	} else if (ao2_container_count(objects) != 2) {
