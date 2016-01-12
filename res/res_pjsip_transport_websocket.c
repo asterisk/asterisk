@@ -303,14 +303,22 @@ static int get_write_timeout(void)
 	return write_timeout;
 }
 
-/*!
- \brief WebSocket connection handler.
- */
+static struct ast_taskprocessor *create_websocket_serializer(void)
+{
+	char tps_name[AST_TASKPROCESSOR_MAX_NAME + 1];
+
+	/* Create name with seq number appended. */
+	ast_taskprocessor_build_name(tps_name, sizeof(tps_name), "pjsip/websocket");
+
+	return ast_sip_create_serializer_named(tps_name);
+}
+
+/*! \brief WebSocket connection handler. */
 static void websocket_cb(struct ast_websocket *session, struct ast_variable *parameters, struct ast_variable *headers)
 {
-	struct ast_taskprocessor *serializer = NULL;
+	struct ast_taskprocessor *serializer;
 	struct transport_create_data create_data;
-	struct ws_transport *transport = NULL;
+	struct ws_transport *transport;
 	struct transport_read_data read_data;
 
 	if (ast_websocket_set_nonblock(session)) {
@@ -323,7 +331,8 @@ static void websocket_cb(struct ast_websocket *session, struct ast_variable *par
 		return;
 	}
 
-	if (!(serializer = ast_sip_create_serializer())) {
+	serializer = create_websocket_serializer();
+	if (!serializer) {
 		ast_websocket_unref(session);
 		return;
 	}
