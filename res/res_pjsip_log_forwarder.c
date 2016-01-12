@@ -46,9 +46,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/logger.h"
 #include "asterisk/module.h"
+#include "asterisk/cli.h"
 
 static pj_log_func *log_cb_orig;
 static unsigned decor_orig;
+static int show_info_active;
 
 static void log_cb(int level, const char *data, int len)
 {
@@ -71,6 +73,14 @@ static void log_cb(int level, const char *data, int len)
 	default:
 		ast_level = __LOG_DEBUG;
 
+		if (show_info_active) {
+			/*
+			 * PJPROJECT compile time config option info is
+			 * dumped on a DEBUG level.
+			 */
+			break;
+		}
+
 		/* For levels 3 and up, obey the debug level for res_pjsip */
 		mod_level = ast_opt_dbg_module ?
 			ast_debug_get_by_module("res_pjsip") : 0;
@@ -85,6 +95,37 @@ static void log_cb(int level, const char *data, int len)
 	 * up */
 	ast_log(ast_level, log_source, log_line, log_func, "\t%s\n", data);
 }
+
+static char *handle_pjsip_show_info(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch(cmd) {
+	case CLI_INIT:
+		e->command = "pjsip show info";
+		e->usage =
+			"Usage: pjsip show info\n"
+			"       Show the compile time config info of pjproject that res_pjsip is\n"
+			"       running against.\n"
+			"       NOTE: The library sends the information to the DEBUG logger channel.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	ast_cli(a->fd, "PJPROJECT compile time config info currently running against.\n");
+	ast_cli(a->fd, "The library sends the information to the DEBUG logger channel.\n");
+	show_info_active = 1;
+	pj_dump_config();
+	show_info_active = 0;
+
+	/* Wait for the output to get displayed before returning the prompt. */
+	sleep(1);
+
+	return CLI_SUCCESS;
+}
+
+static struct ast_cli_entry pjsip_cli[] = {
+	AST_CLI_DEFINE(handle_pjsip_show_info, "Show the compiled config info of pjproject in use"),
+};
 
 static int load_module(void)
 {
@@ -102,11 +143,15 @@ static int load_module(void)
 	pj_log_set_decor(PJ_LOG_HAS_SENDER | PJ_LOG_HAS_INDENT);
 	pj_log_set_log_func(log_cb);
 
+	ast_cli_register_multiple(pjsip_cli, ARRAY_LEN(pjsip_cli));
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
+	ast_cli_unregister_multiple(pjsip_cli, ARRAY_LEN(pjsip_cli));
+
 	pj_log_set_log_func(log_cb_orig);
 	pj_log_set_decor(decor_orig);
 
