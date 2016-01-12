@@ -342,6 +342,7 @@ static int refer_progress_alloc(struct ast_sip_session *session, pjsip_rx_data *
 	const pj_str_t str_true = { "true", 4 };
 	pjsip_tx_data *tdata;
 	pjsip_hdr hdr_list;
+	char tps_name[AST_TASKPROCESSOR_MAX_NAME + 1];
 
 	*progress = NULL;
 
@@ -363,7 +364,11 @@ static int refer_progress_alloc(struct ast_sip_session *session, pjsip_rx_data *
 	/* To prevent a potential deadlock we need the dialog so we can lock/unlock */
 	(*progress)->dlg = session->inv_session->dlg;
 
-	if (!((*progress)->serializer = ast_sip_create_serializer())) {
+	/* Create name with seq number appended. */
+	ast_taskprocessor_build_name(tps_name, sizeof(tps_name), "pjsip/refer/%s",
+		ast_sorcery_object_get_id(session->endpoint));
+
+	if (!((*progress)->serializer = ast_sip_create_serializer(tps_name))) {
 		goto error;
 	}
 
