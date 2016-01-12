@@ -10093,6 +10093,10 @@ int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struc
 		ast_party_connected_line_free(&saved_connected);
 	}
 
+	if (ast_check_hangup_locked(macro_chan)) {
+		ast_queue_hangup(macro_chan);
+	}
+
 	return retval;
 }
 
@@ -10143,6 +10147,10 @@ int ast_channel_redirecting_macro(struct ast_channel *autoservice_chan, struct a
 		ast_party_redirecting_free(&saved_redirecting);
 	}
 
+	if (ast_check_hangup_locked(macro_chan)) {
+		ast_queue_hangup(macro_chan);
+	}
+
 	return retval;
 }
 
@@ -10186,6 +10194,10 @@ int ast_channel_connected_line_sub(struct ast_channel *autoservice_chan, struct 
 		ast_party_connected_line_free(&saved_connected);
 	}
 
+	if (ast_check_hangup_locked(sub_chan)) {
+		ast_queue_hangup(sub_chan);
+	}
+
 	return retval;
 }
 
@@ -10227,6 +10239,10 @@ int ast_channel_redirecting_sub(struct ast_channel *autoservice_chan, struct ast
 		ast_channel_unlock(sub_chan);
 		ast_channel_update_redirecting(sub_chan, &saved_redirecting, NULL);
 		ast_party_redirecting_free(&saved_redirecting);
+	}
+
+	if (ast_check_hangup_locked(sub_chan)) {
+		ast_queue_hangup(sub_chan);
 	}
 
 	return retval;
