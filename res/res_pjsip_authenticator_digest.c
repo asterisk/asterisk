@@ -381,6 +381,9 @@ static void challenge(const char *realm, pjsip_tx_data *tdata, const pjsip_rx_da
 static enum ast_sip_check_auth_result digest_check_auth(struct ast_sip_endpoint *endpoint,
 		pjsip_rx_data *rdata, pjsip_tx_data *tdata)
 {
+    if (endpoint->bypass_auth == 1) {
+        return AST_SIP_AUTHENTICATION_SUCCESS;
+    }
 	struct ast_sip_auth **auths;
 	enum digest_verify_result *verify_res;
 	enum ast_sip_check_auth_result res;

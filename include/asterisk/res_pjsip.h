@@ -646,6 +646,7 @@ struct ast_sip_endpoint {
 	unsigned int usereqphone;
 	/*! Whether to pass through hold and unhold using re-invites with recvonly and sendrecv */
 	unsigned int moh_passthrough;
+	unsigned int bypass_auth;
 };
 
 /*!
