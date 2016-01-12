@@ -1,3 +1,50 @@
+2016-01-12 15:24 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 11.21.0-rc3 Released.
+
+2016-01-12 09:24 +0000 [c09fbe1248]  Kevin Harwell <kharwell@lunkwill>
+
+	* Release summaries: Add summaries for 11.21.0-rc3
+
+2016-01-12 09:24 +0000 [a2a4b93864]  Kevin Harwell <kharwell@lunkwill.digium.internal>
+
+	* Release summaries: Remove previous versions
+
+2016-01-12 09:24 +0000 [0f399a5a5f]  Kevin Harwell <kharwell@lunkwill>
+
+	* .version: Update for 11.21.0-rc3
+
+2016-01-12 09:24 +0000 [1d6ac3f797]  Kevin Harwell <kharwell@lunkwill>
+
+	* .lastclean: Update for 11.21.0-rc3
+
+2016-01-06 13:03 +0000 [e909f4a78c]  Kevin Harwell <kharwell@digium.com>
+
+	* pbx: Deadlock between contexts container and context_merge locks
+
+	  Recent changes (ASTERISK-25394 commit 2bd27d12223fe33b58c453965ed5c6ed3af7c4f5)
+	  introduced the possibility of a deadlock. Due to the mentioned modifications
+	  ast_change_hints now needs to keep both merge/delete and state callbacks from
+	  occurring while it executes. Unfortunately, sometimes ast_change_hints can be
+	  called with the contexts container locked. When this happens it's possible for
+	  another thread to grab the context_merge_lock before the thread calling into
+	  ast_change_hints does and then try to obtain the contexts container lock. This
+	  of course causes a deadlock between the two threads. The thread calling into
+	  ast_change_hints waits for the other thread to release context_merge_lock and
+	  the other thread is waiting on that one to release the contexts container lock.
+
+	  Unfortunately, there is not a great way to fix this problem. When hints change,
+	  the subsequent state callbacks cannot run at the same time as a merge/delete,
+	  nor when the usual state callbacks do. This patch alleviates the problem by
+	  having those particular callbacks (the ones run after a hint change) occur in a
+	  serialized task. By moving the context_merge_lock to a task it can now safely be
+	  attempted or held without a deadlock occurring.
+
+	  ASTERISK-25640 #close
+	  Reported by: Krzysztof Trempala
+
+	  Change-Id: If2210ea241afd1585dc2594c16faff84579bf302
+
 2015-12-18 18:08 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 11.21.0-rc2 Released.
