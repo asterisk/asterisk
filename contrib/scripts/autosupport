@@ -3,7 +3,7 @@
 # Autosupport Version 2.1.0
 # Collect support information
 #
-# Copyright (C) 2005-2013, Digium, Inc.
+# Copyright (C) 2005-2016, Digium, Inc.
 #
 # Written by John Bigelow (support@digium.com)
 #            Charles Moye (cmoye@digium.com)
@@ -38,7 +38,7 @@ then
   -h | --help)
     echo
     echo "Digium autosupport script"
-    echo "Copyright (C) 2005-2013, Digium, Inc."
+    echo "Copyright (C) 2005-2016, Digium, Inc."
     echo "Licensed under the terms of the GNU General Public License"
     echo
     echo "usage: autosupport [prefix]"
@@ -186,7 +186,9 @@ asterisk -V >> $OUTPUT;
 echo >> $OUTPUT;
 # Add check to see if asterisk is running.
 if [ -e /var/run/asterisk.ctl ] || [ -e /var/run/asterisk/asterisk.ctl ]; then
-  for command in "core show version" "pri show version" "dahdi show version" "core show translation" \
+  for command in "core show version" "pri show version" "dahdi show version" \
+      "pjsip show version" "pjsip show buildopts" \
+      "core show translation" \
       "core show uptime" "core show settings" "core show sysinfo" "core show channels" \
       "pri show spans" "dahdi show status" "dahdi show channels" "dahdi show channel 1" \
       "pjsip show endpoints" "pjsip show registrations" "pjsip list channels" \
@@ -194,9 +196,9 @@ if [ -e /var/run/asterisk.ctl ] || [ -e /var/run/asterisk/asterisk.ctl ]; then
       "show g729" "g729 show version" "g729 show licenses" "g729 show hostid" \
       "digium_phones show version" "digium_phones show alerts" "digium_phones show applications" \
       "digium_phones show firmwares" "digium_phones show lines" "digium_phones show networks" \
-			"digium_phones show phones" "digium_phones show sessions" "digium_phones show settings" \
+      "digium_phones show phones" "digium_phones show sessions" "digium_phones show settings" \
       "digium_phones show translations" ;
-	do
+  do
     echo "asterisk -rx \"$command\"" >> $OUTPUT;
     asterisk -rx "$command" >> $OUTPUT;
     echo >> $OUTPUT;
