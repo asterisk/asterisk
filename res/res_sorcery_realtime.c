@@ -218,16 +218,12 @@ static void sorcery_realtime_retrieve_multiple(const struct ast_sorcery *sorcery
 
 static void sorcery_realtime_retrieve_regex(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects, const char *regex)
 {
-	char field[strlen(UUID_FIELD) + 6], value[strlen(regex) + 2];
+	char field[strlen(UUID_FIELD) + 6], value[strlen(regex) + 3];
 	RAII_VAR(struct ast_variable *, fields, NULL, ast_variables_destroy);
 
 	/* The realtime API provides no direct ability to do regex so for now we support a limited subset using pattern matching */
-	if (regex[0] != '^') {
-		return;
-	}
-
 	snprintf(field, sizeof(field), "%s LIKE", UUID_FIELD);
-	snprintf(value, sizeof(value), "%s%%", regex + 1);
+	snprintf(value, sizeof(value), "%%%s%%", regex);
 
 	if (!(fields = ast_variable_new(field, value, ""))) {
 		return;
