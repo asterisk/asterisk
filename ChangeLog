@@ -1,3 +1,108 @@
+2016-01-12 20:02 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.7.0-rc3 Released.
+
+2016-01-12 14:02 +0000 [a5cb9e3f1d]  Kevin Harwell <kharwell@lunkwill>
+
+	* Release summaries: Add summaries for 13.7.0-rc3
+
+2016-01-12 14:02 +0000 [8043875fa1]  Kevin Harwell <kharwell@lunkwill.digium.internal>
+
+	* Release summaries: Remove previous versions
+
+2016-01-12 14:02 +0000 [a0e55b01c4]  Kevin Harwell <kharwell@lunkwill>
+
+	* .version: Update for 13.7.0-rc3
+
+2016-01-12 14:02 +0000 [ae3b9d0958]  Kevin Harwell <kharwell@lunkwill>
+
+	* .lastclean: Update for 13.7.0-rc3
+
+2016-01-12 14:02 +0000 [ebc1646def]  Kevin Harwell <kharwell@lunkwill>
+
+	* realtime: Add database scripts for 13.7.0-rc3
+
+2016-01-12 10:36 +0000 [6c5fbd08b8]  Mark Michelson <mmichelson@digium.com>
+
+	* res_sorcery_realtime: Remove leading ^ requirement.
+
+	  res_sorcery_realtime's search-by-regex callback performed a check to
+	  ensure that the passed-in regex began with a caret (^). If it did not,
+	  then no results would be returned.
+
+	  This callback only started to become used when "like" support was added
+	  to PJSIP CLI commands. The CLI command for listing objects would pass an
+	  empty regex ("") to the sorcery backend if no "like" statement was
+	  present. For most sorcery backends, this resulted in returning all
+	  objects. However, for realtime, this resulted in returning no objects.
+
+	  This commit seeks to fix the regression by removing the requirement from
+	  res_sorcery_realtime for the passed-in-regex to begin with a caret.
+
+	  ASTERISK-25689 #close
+	  Reported by Marcelo Terres
+
+	  Change-Id: I22b4dc5d7f3f11bb29ac2e42ef94682e9bab3b20
+
+2016-01-08 15:22 +0000 [20b22635dc]  Kevin Harwell <kharwell@digium.com>
+
+	* pbx: Deadlock between contexts container and context_merge locks
+
+	  Recent changes (ASTERISK-25394 commit 2bd27d12223fe33b58c453965ed5c6ed3af7c4f5)
+	  introduced the possibility of a deadlock. Due to the mentioned modifications
+	  ast_change_hints now needs to keep both merge/delete and state callbacks from
+	  occurring while it executes. Unfortunately, sometimes ast_change_hints can be
+	  called with the contexts container locked. When this happens it's possible for
+	  another thread to grab the context_merge_lock before the thread calling into
+	  ast_change_hints does and then try to obtain the contexts container lock. This
+	  of course causes a deadlock between the two threads. The thread calling into
+	  ast_change_hints waits for the other thread to release context_merge_lock and
+	  the other thread is waiting on that one to release the contexts container lock.
+
+	  Unfortunately, there is not a great way to fix this problem. When hints change,
+	  the subsequent state callbacks cannot run at the same time as a merge/delete,
+	  nor when the usual state callbacks do. This patch alleviates the problem by
+	  having those particular callbacks (the ones run after a hint change) occur in a
+	  serialized task. By moving the context_merge_lock to a task it can now safely be
+	  attempted or held without a deadlock occurring.
+
+	  ASTERISK-25640 #close
+	  Reported by: Krzysztof Trempala
+
+	  Change-Id: If2210ea241afd1585dc2594c16faff84579bf302
+
+2016-01-08 11:49 +0000 [21a9bc1b81]  Joshua Colp <jcolp@digium.com>
+
+	* res_rtp_asterisk: Revert DTLS negotiation changes.
+
+	  Due to locking issues within pjnath these changes are being
+	  reverted until pjnath can be changed.
+
+	  ASTERISK-25645
+
+	  Revert "res_rtp_asterisk.c: Fix DTLS negotiation delays."
+
+	  This reverts commit 24ae124e4f7310cfa64c187b944b2ffc060da28d.
+
+	  Change-Id: I2986cfb2c43dc14455c1bcaf92c3804f9da49705
+
+	  Revert "res_rtp_asterisk: Resolve further timing issues with DTLS negotiation"
+
+	  This reverts commit 965a0eee46d24321f74c244e23c5a5f45e67e12b.
+
+	  Change-Id: Ie68fafde27dad4b03cb7a1e27ce2a8502c3f7bbe
+
+2016-01-07 09:39 +0000 [0766192ee4]  Corey Farrell <git@cfware.com>
+
+	* ast_format_cap_append_by_type: Resolve codec reference leak.
+
+	  This resolves a reference leak caused by ASTERISK-25535.  The pointer
+	  returned by ast_format_get_codec is saved so it can be released.
+
+	  ASTERISK-25664 #close
+
+	  Change-Id: If9941b1bf4320b2c59056546d6bce9422726d1ec
+
 2015-12-18 18:18 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.7.0-rc2 Released.
