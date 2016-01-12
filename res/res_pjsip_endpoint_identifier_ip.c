@@ -141,6 +141,7 @@ static struct ast_sip_endpoint *ip_identify(pjsip_rx_data *rdata)
 	endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", match->endpoint_name);
 	if (endpoint) {
 		ast_debug(3, "Retrieved endpoint %s\n", ast_sorcery_object_get_id(endpoint));
+		endpoint->bypass_auth = 1;
 	} else {
 		ast_log(LOG_WARNING, "Identify section '%s' points to endpoint '%s' but endpoint could not be looked up\n",
 				ast_sorcery_object_get_id(match), match->endpoint_name);
