@@ -67,6 +67,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/time.h"
 #include "asterisk/poll-compat.h"
 
+/* In order to gain access to ast_module_reload in 11 you need to include _private.h */
+#include "asterisk/_private.h"
+
 #define INITIAL_NUM_FILES   8
 #define HANDLE_REF	1
 #define DONT_UNREF	0
@@ -1836,7 +1839,8 @@ static char *handle_cli_moh_reload(struct ast_cli_entry *e, int cmd, struct ast_
 	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
 
-	reload();
+	/* The module loader will prevent concurrent reloads from occurring, so we delegate */
+	ast_module_reload("res_musiconhold");
 
 	return CLI_SUCCESS;
 }
