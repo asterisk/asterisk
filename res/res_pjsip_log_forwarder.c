@@ -47,6 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/logger.h"
 #include "asterisk/module.h"
 #include "asterisk/cli.h"
+#include "asterisk/res_pjsip.h"
 
 static pj_log_func *log_cb_orig;
 static unsigned decor_orig;
@@ -139,7 +140,53 @@ static char *handle_pjsip_show_buildopts(struct ast_cli_entry *e, int cmd, struc
 	return CLI_SUCCESS;
 }
 
+static int do_pjsip_dump_endpt(void *v_a)
+{
+	struct ast_cli_args *a = v_a;
+
+	show_buildopts.thread = pthread_self();
+	show_buildopts.fd = a->fd;
+	pjsip_endpt_dump(ast_sip_get_pjsip_endpoint(), a->argc == 4 ? PJ_TRUE : PJ_FALSE);
+	show_buildopts.fd = -1;
+	show_buildopts.thread = AST_PTHREADT_NULL;
+
+	return 0;
+}
+
+static char *handle_pjsip_dump_endpt(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch(cmd) {
+	case CLI_INIT:
+		e->command = "pjsip dump endpt [details]";
+		e->usage =
+			"Usage: pjsip dump endpt [details]\n"
+			"       Dump the res_pjsip endpt internals.\n"
+			"\n"
+			"Warning: PJPROJECT documents that the function used by this\n"
+			"CLI command may cause a crash when asking for details because\n"
+			"it tries to access all active memory pools.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (4 < a->argc
+		|| (a->argc == 4 && strcasecmp(a->argv[3], "details"))) {
+		return CLI_SHOWUSAGE;
+	}
+
+	/* Protect from other CLI instances trying to do this at the same time. */
+	ast_mutex_lock(&show_buildopts_lock);
+
+	ast_sip_push_task_synchronous(NULL, do_pjsip_dump_endpt, a);
+
+	ast_mutex_unlock(&show_buildopts_lock);
+
+	return CLI_SUCCESS;
+}
+
 static struct ast_cli_entry pjsip_cli[] = {
+	AST_CLI_DEFINE(handle_pjsip_dump_endpt, "Dump the res_pjsip endpt internals"),
 	AST_CLI_DEFINE(handle_pjsip_show_buildopts, "Show the compiled config of pjproject in use"),
 };
 
