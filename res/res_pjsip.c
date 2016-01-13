@@ -42,9 +42,11 @@
 #include "asterisk/res_pjsip_cli.h"
 #include "asterisk/test.h"
 #include "asterisk/res_pjsip_presence_xml.h"
+#include "asterisk/res_pjproject.h"
 
 /*** MODULEINFO
 	<depend>pjproject</depend>
+	<depend>res_pjproject</depend>
 	<depend>res_sorcery_config</depend>
 	<depend>res_sorcery_memory</depend>
 	<depend>res_sorcery_astdb</depend>
@@ -2216,6 +2218,44 @@ struct ast_sip_endpoint *ast_sip_identify_endpoint(pjsip_rx_data *rdata)
 	return endpoint;
 }
 
+static int do_cli_dump_endpt(void *v_a)
+{
+	struct ast_cli_args *a = v_a;
+
+	ast_pjproject_log_intercept_begin(a->fd);
+	pjsip_endpt_dump(ast_sip_get_pjsip_endpoint(), a->argc == 4 ? PJ_TRUE : PJ_FALSE);
+	ast_pjproject_log_intercept_end();
+
+	return 0;
+}
+
+static char *cli_dump_endpt(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "pjsip dump endpt [details]";
+		e->usage =
+			"Usage: pjsip dump endpt [details]\n"
+			"       Dump the res_pjsip endpt internals.\n"
+			"\n"
+			"Warning: PJPROJECT documents that the function used by this\n"
+			"CLI command may cause a crash when asking for details because\n"
+			"it tries to access all active memory pools.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (4 < a->argc
+		|| (a->argc == 4 && strcasecmp(a->argv[3], "details"))) {
+		return CLI_SHOWUSAGE;
+	}
+
+	ast_sip_push_task_synchronous(NULL, do_cli_dump_endpt, a);
+
+	return CLI_SUCCESS;
+}
+
 static char *cli_show_endpoint_identifiers(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 #define ENDPOINT_IDENTIFIER_FORMAT "%-20.20s\n"
@@ -2279,8 +2319,9 @@ static char *cli_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 }
 
 static struct ast_cli_entry cli_commands[] = {
-        AST_CLI_DEFINE(cli_show_settings, "Show global and system configuration options"),
-        AST_CLI_DEFINE(cli_show_endpoint_identifiers, "List registered endpoint identifiers")
+	AST_CLI_DEFINE(cli_dump_endpt, "Dump the res_pjsip endpt internals"),
+	AST_CLI_DEFINE(cli_show_settings, "Show global and system configuration options"),
+	AST_CLI_DEFINE(cli_show_endpoint_identifiers, "List registered endpoint identifiers")
 };
 
 AST_RWLIST_HEAD_STATIC(endpoint_formatters, ast_sip_endpoint_formatter);
@@ -3895,6 +3936,8 @@ static int load_module(void)
 	pj_status_t status;
 	struct ast_threadpool_options options;
 
+	CHECK_PJPROJECT_MODULE_LOADED();
+
 	if (pj_init() != PJ_SUCCESS) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -4041,6 +4084,8 @@ static int load_module(void)
 	AST_TEST_REGISTER(xml_sanitization_end_null);
 	AST_TEST_REGISTER(xml_sanitization_exceeds_buffer);
 
+	ast_pjproject_ref();
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
@@ -4094,6 +4139,8 @@ static int unload_module(void)
 	ast_threadpool_shutdown(sip_threadpool);
 
 	ast_sip_destroy_cli();
+	ast_pjproject_unref();
+
 	return 0;
 }
 

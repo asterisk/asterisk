@@ -19,6 +19,14 @@
 #ifndef _RES_PJPROJECT_H
 #define _RES_PJPROJECT_H
 
+/*! \brief Determines whether the res_pjproject module is loaded */
+#define CHECK_PJPROJECT_MODULE_LOADED()                 \
+	do {                                                \
+		if (!ast_module_check("res_pjproject.so")) {    \
+			return AST_MODULE_LOAD_DECLINE;             \
+		}                                               \
+	} while(0)
+
 /*!
  * \brief Retrieve a pjproject build option
  *
@@ -43,7 +51,33 @@
  *   \endcode
  *
  */
-int ast_pjproject_get_buildopt(char *option, char *format_string, ...) __attribute__((format(scanf, 2,3)));
+int ast_pjproject_get_buildopt(char *option, char *format_string, ...) __attribute__((format(scanf, 2, 3)));
+
+/*!
+ * \brief Begin PJPROJECT log interception for CLI output.
+ * \since 13.8.0
+ *
+ * \param fd CLI file descriptior to send intercepted output.
+ *
+ * \note ast_pjproject_log_intercept_begin() and
+ * ast_pjproject_log_intercept_end() must always be called
+ * in pairs.
+ *
+ * \return Nothing
+ */
+void ast_pjproject_log_intercept_begin(int fd);
+
+/*!
+ * \brief End PJPROJECT log interception for CLI output.
+ * \since 13.8.0
+ *
+ * \note ast_pjproject_log_intercept_begin() and
+ * ast_pjproject_log_intercept_end() must always be called
+ * in pairs.
+ *
+ * \return Nothing
+ */
+void ast_pjproject_log_intercept_end(void);
 
 /*!
  * \brief Increment the res_pjproject reference count.
