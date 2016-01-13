@@ -57,6 +57,19 @@ static unsigned decor_orig;
 
 static AST_VECTOR(buildopts, char *) buildopts;
 
+/*! Protection from other log intercept instances.  There can be only one at a time. */
+AST_MUTEX_DEFINE_STATIC(pjproject_log_intercept_lock);
+
+struct pjproject_log_intercept_data {
+	pthread_t thread;
+	int fd;
+};
+
+static struct pjproject_log_intercept_data pjproject_log_intercept = {
+	.thread = AST_PTHREADT_NULL,
+	.fd = -1,
+};
+
 static void log_forwarder(int level, const char *data, int len)
 {
 	int ast_level;
@@ -65,6 +78,16 @@ static void log_forwarder(int level, const char *data, int len)
 	int log_line = 0;
 	const char *log_func = "<?>";
 	int mod_level;
+
+	if (pjproject_log_intercept.fd != -1
+		&& pjproject_log_intercept.thread == pthread_self()) {
+		/*
+		 * We are handling a CLI command intercepting PJPROJECT
+		 * log output.
+		 */
+		ast_cli(pjproject_log_intercept.fd, "%s\n", data);
+		return;
+	}
 
 	/* Lower number indicates higher importance */
 	switch (level) {
@@ -122,6 +145,23 @@ int ast_pjproject_get_buildopt(char *option, char *format_string, ...)
 	}
 
 	return res;
+}
+
+void ast_pjproject_log_intercept_begin(int fd)
+{
+	/* Protect from other CLI instances trying to do this at the same time. */
+	ast_mutex_lock(&pjproject_log_intercept_lock);
+
+	pjproject_log_intercept.thread = pthread_self();
+	pjproject_log_intercept.fd = fd;
+}
+
+void ast_pjproject_log_intercept_end(void)
+{
+	pjproject_log_intercept.fd = -1;
+	pjproject_log_intercept.thread = AST_PTHREADT_NULL;
+
+	ast_mutex_unlock(&pjproject_log_intercept_lock);
 }
 
 void ast_pjproject_ref(void)
