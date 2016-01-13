@@ -615,6 +615,9 @@
 ;disallow=      ; Media Codec s to disallow (default: "")
 ;dtmf_mode=rfc4733      ; DTMF mode (default: "rfc4733")
 ;media_address=         ; IP address used in SDP for media handling (default: "")
+;bind_rtp_to_media_address=     ; Bind the RTP session to the media_address.
+                                ; This causes all RTP packets to be sent from
+                                ; the specified address. (default: "no")
 ;force_rport=yes        ; Force use of return port (default: "yes")
 ;ice_support=no ; Enable the ICE mechanism to help traverse NAT (default: "no")
 ;identify_by=username   ; Way s for Endpoint to be identified (default:

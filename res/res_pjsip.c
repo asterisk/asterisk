@@ -233,6 +233,14 @@
 					</para></note>
 					</description>
 				</configOption>
+				<configOption name="bind_rtp_to_media_address">
+					<synopsis>Bind the RTP instance to the media_address</synopsis>
+					<description><para>
+						If media_address is specified, this option causes the RTP instance to be bound to the
+						specified ip address which causes the packets to be sent from that address.
+					</para>
+					</description>
+				</configOption>
 				<configOption name="force_rport" default="yes">
 					<synopsis>Force use of return port</synopsis>
 				</configOption>
