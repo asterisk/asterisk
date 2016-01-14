@@ -47,22 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/logger.h"
 #include "asterisk/module.h"
 #include "asterisk/cli.h"
-
-static pj_log_func *log_cb_orig;
-static unsigned decor_orig;
-
-/*! Protection from other CLI instances. */
-AST_MUTEX_DEFINE_STATIC(show_buildopts_lock);
-
-struct pjsip_show_buildopts {
-	pthread_t thread;
-	int fd;
-};
-
-static struct pjsip_show_buildopts show_buildopts = {
-	.thread = AST_PTHREADT_NULL,
-	.fd = -1,
-};
+#include "asterisk/res_pjsip.h"
 
 static void log_cb(int level, const char *data, int len)
 {
@@ -72,15 +57,6 @@ static void log_cb(int level, const char *data, int len)
 	int log_line = 0;
 	const char *log_func = "<?>";
 	int mod_level;
-
-	if (show_buildopts.fd != -1 && show_buildopts.thread == pthread_self()) {
-		/*
-		 * We are handling the CLI command dumping the
-		 * PJPROJECT compile time config option settings.
-		 */
-		ast_cli(show_buildopts.fd, "%s\n", data);
-		return;
-	}
 
 	/* Lower number indicates higher importance */
 	switch (level) {
@@ -109,69 +85,18 @@ static void log_cb(int level, const char *data, int len)
 	ast_log(ast_level, log_source, log_line, log_func, "\t%s\n", data);
 }
 
-static char *handle_pjsip_show_buildopts(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	switch(cmd) {
-	case CLI_INIT:
-		e->command = "pjsip show buildopts";
-		e->usage =
-			"Usage: pjsip show buildopts\n"
-			"       Show the compile time config of pjproject that res_pjsip is\n"
-			"       running against.\n";
-		return NULL;
-	case CLI_GENERATE:
-		return NULL;
-	}
-
-	ast_cli(a->fd, "PJPROJECT compile time config currently running against:\n");
-
-	/* Protect from other CLI instances trying to do this at the same time. */
-	ast_mutex_lock(&show_buildopts_lock);
-
-	show_buildopts.thread = pthread_self();
-	show_buildopts.fd = a->fd;
-	pj_dump_config();
-	show_buildopts.fd = -1;
-	show_buildopts.thread = AST_PTHREADT_NULL;
-
-	ast_mutex_unlock(&show_buildopts_lock);
-
-	return CLI_SUCCESS;
-}
-
-static struct ast_cli_entry pjsip_cli[] = {
-	AST_CLI_DEFINE(handle_pjsip_show_buildopts, "Show the compiled config of pjproject in use"),
-};
-
 static int load_module(void)
 {
-	pj_init();
-
-	decor_orig = pj_log_get_decor();
-	log_cb_orig = pj_log_get_log_func();
-
 	ast_debug(3, "Forwarding PJSIP logger to Asterisk logger\n");
-	/* SENDER prepends the source to the log message. This could be a
-	 * filename, object reference, or simply a string
-	 *
-	 * INDENT is assumed to be on by most log statements in PJSIP itself.
-	 */
-	pj_log_set_decor(PJ_LOG_HAS_SENDER | PJ_LOG_HAS_INDENT);
-	pj_log_set_log_func(log_cb);
-
-	ast_cli_register_multiple(pjsip_cli, ARRAY_LEN(pjsip_cli));
+	ast_sip_set_pjproject_logger(log_cb);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
-	ast_cli_unregister_multiple(pjsip_cli, ARRAY_LEN(pjsip_cli));
-
-	pj_log_set_log_func(log_cb_orig);
-	pj_log_set_decor(decor_orig);
-
-	pj_shutdown();
+	ast_sip_set_pjproject_logger(NULL);
+	ast_debug(3, "Stopped PJSIP logger to Asterisk logger\n");
 
 	return 0;
 }
