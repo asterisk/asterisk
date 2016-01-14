@@ -18,6 +18,8 @@
 
 #include "asterisk.h"
 
+#include <stdarg.h>
+#include <stdio.h>
 #include <pjsip.h>
 #include <pjlib.h>
 
@@ -147,10 +149,127 @@ int sip_cli_print_system(struct ast_sip_cli_context *context)
 	return 0;
 }
 
+static pj_log_func *log_cb_orig;
+static unsigned decor_orig;
+
+struct pjsip_show_buildopts {
+	pthread_t thread;
+	int fd;
+	const char *option;
+	const char *format_string;
+	va_list *arg_ptr;
+	int sscanf_result;
+};
+
+static struct pjsip_show_buildopts show_buildopts = {
+	.thread = AST_PTHREADT_NULL,
+	.fd = -1,
+};
+
+static pjproject_logger_cb *logger;
+
+void ast_sip_set_pjproject_logger(pjproject_logger_cb *logger_cb)
+{
+	logger =logger_cb;
+}
+
+static AST_VECTOR(buildopts, char *) buildopts;
+
+static void log_cb(int level, const char *data, int len)
+{
+	if (show_buildopts.fd == -1) {
+		if (strstr(data, "Teluu") || strstr(data, "Dumping")) {
+			return;
+		}
+
+		AST_VECTOR_ADD_SORTED(&buildopts, ast_strdup(ast_skip_blanks(data)), strcmp);
+
+		return;
+	}
+
+	if (logger) {
+		logger(level, data, len);
+	}
+}
+
+/**
+ * The pragmas are needed to prevent the compiler from emitting a warning
+ * that suggests the use of 'attribute format' because of vsscanf.
+ *
+ * Clang does respect pragma GCC
+ */
+#pragma GCC diagnostic ignored "-Wmissing-format-attribute"
+int ast_sip_get_pjproject_buildopt(char *option, char *format_string, ...)
+{
+	va_list arg_ptr;
+	int res = 0;
+	char *format_temp;
+	int i;
+
+	va_start(arg_ptr, format_string);
+
+	format_temp = ast_alloca(strlen(option) + strlen(" : ") + strlen(format_string) + 1);
+
+	sprintf(format_temp, "%s : %s", option, format_string);
+
+
+	for(i = 0; i < AST_VECTOR_SIZE(&buildopts); i++) {
+		res = vsscanf(AST_VECTOR_GET(&buildopts, i), format_temp, arg_ptr);
+		if (res) {
+			break;
+		}
+	}
+	va_end(arg_ptr);
+
+	return res;
+}
+#pragma GCC diagnostic warning "-Wmissing-format-attribute"
+
+static char *handle_pjsip_show_buildopts(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int i;
+
+	switch(cmd) {
+	case CLI_INIT:
+		e->command = "pjsip show buildopts";
+		e->usage =
+			"Usage: pjsip show buildopts\n"
+			"       Show the compile time config of pjproject that res_pjsip is\n"
+			"       running against.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	ast_cli(a->fd, "PJPROJECT compile time config currently running against:\n");
+
+	for(i = 0; i < AST_VECTOR_SIZE(&buildopts); i++) {
+		ast_cli(a->fd, "%s\n", AST_VECTOR_GET(&buildopts, i));
+	}
+
+	return CLI_SUCCESS;
+}
+
+static struct ast_cli_entry pjsip_cli[] = {
+	AST_CLI_DEFINE(handle_pjsip_show_buildopts, "Show the compiled config of pjproject in use"),
+};
+
 int ast_sip_initialize_system(void)
 {
 	RAII_VAR(struct ao2_container *, system_configs, NULL, ao2_cleanup);
 	RAII_VAR(struct system_config *, system, NULL, ao2_cleanup);
+
+	decor_orig = pj_log_get_decor();
+	log_cb_orig = pj_log_get_log_func();
+	pj_log_set_log_func(log_cb);
+
+	AST_VECTOR_INIT(&buildopts,64);
+
+	show_buildopts.fd = -1;
+	pj_log_set_decor(0);
+	pj_dump_config();
+	pj_log_set_decor(PJ_LOG_HAS_SENDER | PJ_LOG_HAS_INDENT);
+	show_buildopts.fd = 0;
 
 	system_sorcery = ast_sorcery_open();
 	if (!system_sorcery) {
@@ -208,12 +327,23 @@ int ast_sip_initialize_system(void)
 		return -1;
 	}
 
+	ast_cli_register_multiple(pjsip_cli, ARRAY_LEN(pjsip_cli));
+
 	return 0;
 }
+
+#define NOT_EQUALS(a, b) (a != b)
 
 void ast_sip_destroy_system(void)
 {
 	ast_sorcery_unref(system_sorcery);
+
+	ast_cli_unregister_multiple(pjsip_cli, ARRAY_LEN(pjsip_cli));
+	pj_log_set_log_func(log_cb_orig);
+	pj_log_set_decor(decor_orig);
+
+	AST_VECTOR_REMOVE_CMP_UNORDERED(&buildopts, NULL, NOT_EQUALS, ast_free);
+	AST_VECTOR_FREE(&buildopts);
 }
 
 static int system_create_resolver_and_set_nameservers(void *data)
