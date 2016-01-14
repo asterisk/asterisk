@@ -888,6 +888,10 @@
                             ; startup that qualifies should be attempted on all
                             ; contacts.  If greater than the qualify_frequency
                             ; for an aor, qualify_frequency will be used instead.
+; If regcontext is specified, Asterisk will dynamically create and destroy a
+; NoOp priority 1 extension for a given endpoint who registers or unregisters
+; with us. The extension added is the name of the endpoint.
+;regcontext=sipregistrations
 
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_acl
 ;==========================ACL SECTION OPTIONS=========================
