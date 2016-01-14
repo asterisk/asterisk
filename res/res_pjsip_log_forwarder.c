@@ -41,12 +41,14 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include <stdarg.h>
 #include <pjsip.h>
 #include <pj/log.h>
 
 #include "asterisk/logger.h"
 #include "asterisk/module.h"
 #include "asterisk/cli.h"
+#include "asterisk/res_pjsip.h"
 
 static pj_log_func *log_cb_orig;
 static unsigned decor_orig;
@@ -57,12 +59,25 @@ AST_MUTEX_DEFINE_STATIC(show_buildopts_lock);
 struct pjsip_show_buildopts {
 	pthread_t thread;
 	int fd;
+	const char *option;
+	const char *format_string;
+	va_list *arg_ptr;
+	int sscanf_result;
 };
 
 static struct pjsip_show_buildopts show_buildopts = {
 	.thread = AST_PTHREADT_NULL,
 	.fd = -1,
 };
+
+/**\
+ * The pragma is needed to prevent the compiler from emitting a warning
+ * that suggests the use of 'attribute format' because of vsscanf.
+ *
+ * Clang does respect pragma GCC
+ */
+#pragma GCC diagnostic ignored "-Wmissing-format-attribute"
+static void log_cb(int level, const char *data, int len);
 
 static void log_cb(int level, const char *data, int len)
 {
@@ -72,6 +87,19 @@ static void log_cb(int level, const char *data, int len)
 	int log_line = 0;
 	const char *log_func = "<?>";
 	int mod_level;
+	char *format_temp;
+
+	if (show_buildopts.fd == -2) {
+		/* If we already found a match, don't bother processing the rest of the log messages from the dump */
+		if (show_buildopts.sscanf_result) {
+			return;
+		}
+
+		format_temp = ast_alloca(strlen(" config.c ") + strlen(show_buildopts.option) + strlen(" : ") + strlen(show_buildopts.format_string) + 1);
+		sprintf(format_temp, " config.c %s : %s", show_buildopts.option, show_buildopts.format_string);
+		show_buildopts.sscanf_result = vsscanf(data, format_temp, *show_buildopts.arg_ptr);
+		return;
+	}
 
 	if (show_buildopts.fd != -1 && show_buildopts.thread == pthread_self()) {
 		/*
@@ -107,6 +135,33 @@ static void log_cb(int level, const char *data, int len)
 	 * log statements with a tab so they'll have a better shot at lining
 	 * up */
 	ast_log(ast_level, log_source, log_line, log_func, "\t%s\n", data);
+}
+
+int ast_sip_get_pjproject_buildopt(char *option, char *format_string, ...)
+{
+	va_list arg_ptr;
+	int res;
+
+	va_start(arg_ptr, format_string);
+
+	/* Protect from other CLI instances trying to do this at the same time. */
+	ast_mutex_lock(&show_buildopts_lock);
+
+	show_buildopts.thread = pthread_self();
+	show_buildopts.fd = -2;
+	show_buildopts.option = option;
+	show_buildopts.format_string = format_string;
+	show_buildopts.arg_ptr = &arg_ptr;
+	show_buildopts.sscanf_result = 0;
+	pj_dump_config();
+	show_buildopts.fd = -1;
+	show_buildopts.thread = AST_PTHREADT_NULL;
+	res = show_buildopts.sscanf_result;
+	va_end(arg_ptr);
+
+	ast_mutex_unlock(&show_buildopts_lock);
+
+	return res;
 }
 
 static char *handle_pjsip_show_buildopts(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
