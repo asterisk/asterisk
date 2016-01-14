@@ -2135,4 +2135,34 @@ const char *ast_sip_get_host_ip_string(int af);
  */
 long ast_sip_threadpool_queue_size(void);
 
+/*!
+ * \brief Retrieve a pjproject build option
+ *
+ * \param option The build option requested
+ * \param format_string A scanf-style format string to parse the option value into
+ * \param ... Pointers to variables to receive the values parsed
+ *
+ * \retval The number of values parsed
+ *
+ * \since 13.8.0
+ *
+ * \note The option requested must be from those returned by pj_dump_config()
+ * which can be displayed with the 'pjsip show buildopts' CLI command.
+ *
+ * \warning \b This function calls pj_dump_config and intercepts and parses the resulting
+ * log messages.  It could be used for configuration validation, debugging, or saving
+ * the value for later use.   It should never be directly used during call processing.
+ *
+ *   <b>Sample Usage:</b>
+ *   \code
+ *
+ *   int max_hostname;
+ *
+ *   ast_sip_get_pjproject_buildopt("PJ_MAX_HOSTNAME", "%d", &max_hostname);
+ *
+ *   \endcode
+ *
+ */
+int ast_sip_get_pjproject_buildopt(char *option, char *format_string, ...);
+
 #endif /* _RES_PJSIP_H */
