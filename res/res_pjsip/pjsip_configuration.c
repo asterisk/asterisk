@@ -21,6 +21,7 @@
 #include "asterisk/callerid.h"
 #include "asterisk/test.h"
 #include "asterisk/statsd.h"
+#include "asterisk/pbx.h"
 
 /*! \brief Number of buckets for persistent endpoint information */
 #define PERSISTENT_BUCKETS 53
@@ -68,6 +69,7 @@ static int persistent_endpoint_update_state(void *obj, void *arg, int flags)
 	struct ao2_iterator i;
 	struct ast_sip_contact *contact;
 	enum ast_endpoint_state state = AST_ENDPOINT_OFFLINE;
+	char *regcontext;
 
 	if (status) {
 		char rtt[32];
@@ -116,15 +118,36 @@ static int persistent_endpoint_update_state(void *obj, void *arg, int flags)
 		return 0;
 	}
 
+	regcontext = ast_sip_get_regcontext();
+
 	if (state == AST_ENDPOINT_ONLINE) {
 		ast_endpoint_set_state(endpoint, AST_ENDPOINT_ONLINE);
 		blob = ast_json_pack("{s: s}", "peer_status", "Reachable");
+
+		if (!ast_strlen_zero(regcontext)) {
+			if (!ast_exists_extension(NULL, regcontext, ast_endpoint_get_resource(endpoint), 1, NULL)) {
+				ast_add_extension(regcontext, 1, ast_endpoint_get_resource(endpoint), 1, NULL, NULL,
+					"Noop", ast_strdup(ast_endpoint_get_resource(endpoint)), ast_free_ptr, "SIP");
+			}
+		}
+
 		ast_verb(1, "Endpoint %s is now Reachable\n", ast_endpoint_get_resource(endpoint));
 	} else {
 		ast_endpoint_set_state(endpoint, AST_ENDPOINT_OFFLINE);
 		blob = ast_json_pack("{s: s}", "peer_status", "Unreachable");
+
+		if (!ast_strlen_zero(regcontext)) {
+			struct pbx_find_info q = { .stacklen = 0 };
+
+			if (pbx_find_extension(NULL, NULL, &q, regcontext, ast_endpoint_get_resource(endpoint), 1, NULL, "", E_MATCH)) {
+				ast_context_remove_extension(regcontext, ast_endpoint_get_resource(endpoint), 1, NULL);
+			}
+		}
+
 		ast_verb(1, "Endpoint %s is now Unreachable\n", ast_endpoint_get_resource(endpoint));
 	}
+
+	ast_free(regcontext);
 
 	ast_endpoint_blob_publish(endpoint, ast_endpoint_state_type(), blob);
 	ast_json_unref(blob);
