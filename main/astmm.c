@@ -663,6 +663,32 @@ int __ast_vasprintf(char **strp, const char *fmt, va_list ap, const char *file, 
 	return size;
 }
 
+/*!
+ * \internal
+ * \brief Count the number of bytes in the specified freed region.
+ *
+ * \param freed Already freed region blocks storage.
+ *
+ * \note reglock must be locked before calling.
+ *
+ * \return Number of bytes in freed region.
+ */
+static size_t freed_regions_size(struct ast_freed_regions *freed)
+{
+	size_t total_len = 0;
+	int idx;
+	struct ast_region *old;
+
+	for (idx = 0; idx < ARRAY_LEN(freed->regions); ++idx) {
+		old = freed->regions[idx];
+		if (old) {
+			total_len += old->len;
+		}
+	}
+
+	return total_len;
+}
+
 static char *handle_memory_atexit_list(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	switch (cmd) {
@@ -765,12 +791,54 @@ static char *handle_memory_atexit_summary(struct ast_cli_entry *e, int cmd, stru
 	return CLI_SUCCESS;
 }
 
+/*!
+ * \internal
+ * \brief Common summary output at the end of the memory show commands.
+ *
+ * \param fd CLI output file descriptor.
+ * \param whales_len Accumulated size of free large allocations.
+ * \param minnows_len Accumulated size of free small allocations.
+ * \param total_len Accumulated size of all current allocations.
+ * \param selected_len Accumulated size of the selected allocations.
+ * \param cache_len Accumulated size of the allocations that are part of a cache.
+ * \param count Number of selected allocations.
+ *
+ * \return Nothing
+ */
+static void print_memory_show_common_stats(int fd,
+	unsigned int whales_len,
+	unsigned int minnows_len,
+	unsigned int total_len,
+	unsigned int selected_len,
+	unsigned int cache_len,
+	unsigned int count)
+{
+	if (cache_len) {
+		ast_cli(fd, "%10u bytes allocated (%u in caches) in %u selected allocations\n\n",
+			selected_len, cache_len, count);
+	} else {
+		ast_cli(fd, "%10u bytes allocated in %u selected allocations\n\n",
+			selected_len, count);
+	}
+
+	ast_cli(fd, "%10u bytes in all allocations\n", total_len);
+	ast_cli(fd, "%10u bytes in deferred free large allocations\n", whales_len);
+	ast_cli(fd, "%10u bytes in deferred free small allocations\n", minnows_len);
+	ast_cli(fd, "%10u bytes in deferred free allocations\n",
+		whales_len + minnows_len);
+	ast_cli(fd, "%10u bytes in all allocations and deferred free allocations\n",
+		total_len + whales_len + minnows_len);
+}
+
 static char *handle_memory_show_allocations(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	const char *fn = NULL;
 	struct ast_region *reg;
 	unsigned int idx;
-	unsigned int len = 0;
+	unsigned int whales_len;
+	unsigned int minnows_len;
+	unsigned int total_len = 0;
+	unsigned int selected_len = 0;
 	unsigned int cache_len = 0;
 	unsigned int count = 0;
 
@@ -804,6 +872,7 @@ static char *handle_memory_show_allocations(struct ast_cli_entry *e, int cmd, st
 	ast_mutex_lock(&reglock);
 	for (idx = 0; idx < ARRAY_LEN(regions); ++idx) {
 		for (reg = regions[idx]; reg; reg = AST_LIST_NEXT(reg, node)) {
+			total_len += reg->len;
 			if (fn && strcasecmp(fn, reg->file)) {
 				continue;
 			}
@@ -814,21 +883,21 @@ static char *handle_memory_show_allocations(struct ast_cli_entry *e, int cmd, st
 				(unsigned int) reg->len, reg->cache ? " (cache)" : "",
 				reg->func, reg->lineno, reg->file);
 
-			len += reg->len;
+			selected_len += reg->len;
 			if (reg->cache) {
 				cache_len += reg->len;
 			}
 			++count;
 		}
 	}
+
+	whales_len = freed_regions_size(&whales);
+	minnows_len = freed_regions_size(&minnows);
 	ast_mutex_unlock(&reglock);
 
-	if (cache_len) {
-		ast_cli(a->fd, "%u bytes allocated (%u in caches) in %u allocations\n",
-			len, cache_len, count);
-	} else {
-		ast_cli(a->fd, "%u bytes allocated in %u allocations\n", len, count);
-	}
+	print_memory_show_common_stats(a->fd,
+		whales_len, minnows_len, total_len,
+		selected_len, cache_len, count);
 
 	return CLI_SUCCESS;
 }
@@ -841,7 +910,10 @@ static char *handle_memory_show_summary(struct ast_cli_entry *e, int cmd, struct
 	int idx;
 	int cmp;
 	struct ast_region *reg;
-	unsigned int len = 0;
+	unsigned int whales_len;
+	unsigned int minnows_len;
+	unsigned int total_len = 0;
+	unsigned int selected_len = 0;
 	unsigned int cache_len = 0;
 	unsigned int count = 0;
 	struct file_summary {
@@ -859,7 +931,7 @@ static char *handle_memory_show_summary(struct ast_cli_entry *e, int cmd, struct
 		e->usage =
 			"Usage: memory show summary [<file>]\n"
 			"       Summarizes heap memory allocations by file, or optionally\n"
-			"       by line, if a file is specified.\n";
+			"       by line if a file is specified.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
@@ -874,6 +946,7 @@ static char *handle_memory_show_summary(struct ast_cli_entry *e, int cmd, struct
 	ast_mutex_lock(&reglock);
 	for (idx = 0; idx < ARRAY_LEN(regions); ++idx) {
 		for (reg = regions[idx]; reg; reg = AST_LIST_NEXT(reg, node)) {
+			total_len += reg->len;
 			if (fn) {
 				if (strcasecmp(fn, reg->file)) {
 					continue;
@@ -932,11 +1005,14 @@ static char *handle_memory_show_summary(struct ast_cli_entry *e, int cmd, struct
 			++cur->count;
 		}
 	}
+
+	whales_len = freed_regions_size(&whales);
+	minnows_len = freed_regions_size(&minnows);
 	ast_mutex_unlock(&reglock);
 
 	/* Dump the whole list */
 	for (cur = list; cur; cur = cur->next) {
-		len += cur->len;
+		selected_len += cur->len;
 		cache_len += cur->cache_len;
 		count += cur->count;
 		if (cur->cache_len) {
@@ -958,12 +1034,9 @@ static char *handle_memory_show_summary(struct ast_cli_entry *e, int cmd, struct
 		}
 	}
 
-	if (cache_len) {
-		ast_cli(a->fd, "%u bytes allocated (%u in caches) in %u allocations\n",
-			len, cache_len, count);
-	} else {
-		ast_cli(a->fd, "%u bytes allocated in %u allocations\n", len, count);
-	}
+	print_memory_show_common_stats(a->fd,
+		whales_len, minnows_len, total_len,
+		selected_len, cache_len, count);
 
 	return CLI_SUCCESS;
 }
