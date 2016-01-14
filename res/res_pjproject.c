@@ -33,38 +33,31 @@
  */
 
 /*** MODULEINFO
-	<depend>pjproject</depend>
-	<support_level>core</support_level>
+ <depend>pjproject</depend>
+ <support_level>core</support_level>
  ***/
 
 #include "asterisk.h"
 
 ASTERISK_REGISTER_FILE()
 
+#include <stdarg.h>
+#include <pjlib.h>
 #include <pjsip.h>
 #include <pj/log.h>
 
 #include "asterisk/logger.h"
 #include "asterisk/module.h"
 #include "asterisk/cli.h"
+#include "asterisk/res_pjproject.h"
+#include "asterisk/vector.h"
 
 static pj_log_func *log_cb_orig;
 static unsigned decor_orig;
 
-/*! Protection from other CLI instances. */
-AST_MUTEX_DEFINE_STATIC(show_buildopts_lock);
+static AST_VECTOR(buildopts, char *) buildopts;
 
-struct pjsip_show_buildopts {
-	pthread_t thread;
-	int fd;
-};
-
-static struct pjsip_show_buildopts show_buildopts = {
-	.thread = AST_PTHREADT_NULL,
-	.fd = -1,
-};
-
-static void log_cb(int level, const char *data, int len)
+static void log_forwarder(int level, const char *data, int len)
 {
 	int ast_level;
 	/* PJSIP doesn't provide much in the way of source info */
@@ -72,15 +65,6 @@ static void log_cb(int level, const char *data, int len)
 	int log_line = 0;
 	const char *log_func = "<?>";
 	int mod_level;
-
-	if (show_buildopts.fd != -1 && show_buildopts.thread == pthread_self()) {
-		/*
-		 * We are handling the CLI command dumping the
-		 * PJPROJECT compile time config option settings.
-		 */
-		ast_cli(show_buildopts.fd, "%s\n", data);
-		return;
-	}
 
 	/* Lower number indicates higher importance */
 	switch (level) {
@@ -96,7 +80,7 @@ static void log_cb(int level, const char *data, int len)
 
 		/* For levels 3 and up, obey the debug level for res_pjsip */
 		mod_level = ast_opt_dbg_module ?
-			ast_debug_get_by_module("res_pjsip") : 0;
+			ast_debug_get_by_module("res_pjproject") : 0;
 		if (option_debug < level && mod_level < level) {
 			return;
 		}
@@ -109,14 +93,57 @@ static void log_cb(int level, const char *data, int len)
 	ast_log(ast_level, log_source, log_line, log_func, "\t%s\n", data);
 }
 
+static void capture_buildopts_cb(int level, const char *data, int len)
+{
+	if (strstr(data, "Teluu") || strstr(data, "Dumping")) {
+		return;
+	}
+
+	AST_VECTOR_ADD_SORTED(&buildopts, ast_strdup(ast_skip_blanks(data)), strcmp);
+}
+
+int ast_pjproject_get_buildopt(char *option, char *format_string, ...)
+{
+	int res = 0;
+	char *format_temp;
+	int i;
+
+	format_temp = ast_alloca(strlen(option) + strlen(" : ") + strlen(format_string) + 1);
+	sprintf(format_temp, "%s : %s", option, format_string);
+
+	for (i = 0; i < AST_VECTOR_SIZE(&buildopts); i++) {
+		va_list arg_ptr;
+		va_start(arg_ptr, format_string);
+		res = vsscanf(AST_VECTOR_GET(&buildopts, i), format_temp, arg_ptr);
+		va_end(arg_ptr);
+		if (res) {
+			break;
+		}
+	}
+
+	return res;
+}
+
+void ast_pjproject_ref(void)
+{
+	ast_module_ref(ast_module_info->self);
+}
+
+void ast_pjproject_unref(void)
+{
+	ast_module_unref(ast_module_info->self);
+}
+
 static char *handle_pjsip_show_buildopts(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	switch(cmd) {
+	int i;
+
+	switch (cmd) {
 	case CLI_INIT:
-		e->command = "pjsip show buildopts";
+		e->command = "pjproject show buildopts";
 		e->usage =
-			"Usage: pjsip show buildopts\n"
-			"       Show the compile time config of pjproject that res_pjsip is\n"
+			"Usage: pjproject show buildopts\n"
+			"       Show the compile time config of the pjproject that Asterisk is\n"
 			"       running against.\n";
 		return NULL;
 	case CLI_GENERATE:
@@ -125,60 +152,63 @@ static char *handle_pjsip_show_buildopts(struct ast_cli_entry *e, int cmd, struc
 
 	ast_cli(a->fd, "PJPROJECT compile time config currently running against:\n");
 
-	/* Protect from other CLI instances trying to do this at the same time. */
-	ast_mutex_lock(&show_buildopts_lock);
+	for (i = 0; i < AST_VECTOR_SIZE(&buildopts); i++) {
+		ast_cli(a->fd, "%s\n", AST_VECTOR_GET(&buildopts, i));
+	}
 
-	show_buildopts.thread = pthread_self();
-	show_buildopts.fd = a->fd;
-	pj_dump_config();
-	show_buildopts.fd = -1;
-	show_buildopts.thread = AST_PTHREADT_NULL;
-
-	ast_mutex_unlock(&show_buildopts_lock);
-
-	return CLI_SUCCESS;
+	return CLI_SUCCESS ;
 }
 
 static struct ast_cli_entry pjsip_cli[] = {
-	AST_CLI_DEFINE(handle_pjsip_show_buildopts, "Show the compiled config of pjproject in use"),
+	AST_CLI_DEFINE(handle_pjsip_show_buildopts, "Show the compiled config of the pjproject in use"),
 };
 
 static int load_module(void)
 {
+	ast_debug(3, "Starting PJPROJECT logging to Asterisk logger\n");
+
 	pj_init();
 
 	decor_orig = pj_log_get_decor();
 	log_cb_orig = pj_log_get_log_func();
 
-	ast_debug(3, "Forwarding PJSIP logger to Asterisk logger\n");
-	/* SENDER prepends the source to the log message. This could be a
-	 * filename, object reference, or simply a string
-	 *
-	 * INDENT is assumed to be on by most log statements in PJSIP itself.
+	if (AST_VECTOR_INIT(&buildopts, 64)) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	/*
+	 * On startup, we want to capture the dump once and store it.
 	 */
+	pj_log_set_log_func(capture_buildopts_cb);
+	pj_log_set_decor(0);
+	pj_dump_config();
 	pj_log_set_decor(PJ_LOG_HAS_SENDER | PJ_LOG_HAS_INDENT);
-	pj_log_set_log_func(log_cb);
+	pj_log_set_log_func(log_forwarder);
 
 	ast_cli_register_multiple(pjsip_cli, ARRAY_LEN(pjsip_cli));
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
+#define NOT_EQUALS(a, b) (a != b)
+
 static int unload_module(void)
 {
 	ast_cli_unregister_multiple(pjsip_cli, ARRAY_LEN(pjsip_cli));
-
 	pj_log_set_log_func(log_cb_orig);
 	pj_log_set_decor(decor_orig);
+
+	AST_VECTOR_REMOVE_CMP_UNORDERED(&buildopts, NULL, NOT_EQUALS, ast_free);
+	AST_VECTOR_FREE(&buildopts);
+
+	ast_debug(3, "Stopped PJPROJECT logging to Asterisk logger\n");
 
 	pj_shutdown();
 
 	return 0;
 }
 
-/* While we don't really export global symbols, we want to load before other
- * modules that do */
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "PJSIP Log Forwarder",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "PJPROJECT Log and Utility Support",
 	.support_level = AST_MODULE_SUPPORT_CORE,
 	.load = load_module,
 	.unload = unload_module,
