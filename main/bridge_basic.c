@@ -1296,8 +1296,6 @@ struct attended_transfer_properties {
 		AST_STRING_FIELD(exten);
 		/*! Context of transfer target */
 		AST_STRING_FIELD(context);
-		/*! Sound to play on failure */
-		AST_STRING_FIELD(failsound);
 		/*! Sound to play when transfer completes */
 		AST_STRING_FIELD(xfersound);
 		/*! The channel technology of the transferer channel */
@@ -1447,7 +1445,6 @@ static struct attended_transfer_properties *attended_transfer_properties_alloc(
 	props->atxfernoanswertimeout = xfer_cfg->atxfernoanswertimeout;
 	props->atxferloopdelay = xfer_cfg->atxferloopdelay;
 	ast_string_field_set(props, context, get_transfer_context(transferer, context));
-	ast_string_field_set(props, failsound, xfer_cfg->xferfailsound);
 	ast_string_field_set(props, xfersound, xfer_cfg->xfersound);
 	ao2_ref(xfer_cfg, -1);
 
@@ -1704,6 +1701,36 @@ static void play_sound(struct ast_channel *chan, const char *sound)
 	if (bridge_channel) {
 		ast_bridge_channel_queue_playfile(bridge_channel, NULL, sound, NULL);
 		ao2_ref(bridge_channel, -1);
+	}
+}
+
+/*!
+ * \brief Helper method to play a fail sound on a channel in a bridge
+ *
+ * \param chan The channel to play the fail sound to
+ */
+static void play_failsound(struct ast_channel *chan)
+{
+	char *sound = ast_get_chan_features_xferfailsound(chan);
+
+	if (sound) {
+		play_sound(chan, sound);
+		ast_free(sound);
+	}
+}
+
+/*!
+ * \brief Helper method to stream a fail sound on a channel
+ *
+ * \param chan The channel to stream the fail sound to
+ */
+static void stream_failsound(struct ast_channel *chan)
+{
+	char *sound = ast_get_chan_features_xferfailsound(chan);
+
+	if (sound) {
+		ast_stream_and_wait(chan, sound, AST_DIGIT_NONE);
+		ast_free(sound);
 	}
 }
 
@@ -2049,7 +2076,7 @@ static enum attended_transfer_state calling_target_exit(struct attended_transfer
 {
 	switch (stimulus) {
 	case STIMULUS_TRANSFEREE_HANGUP:
-		play_sound(props->transferer, props->failsound);
+		play_failsound(props->transferer);
 		publish_transfer_fail(props);
 		return TRANSFER_FAIL;
 	case STIMULUS_DTMF_ATXFER_COMPLETE:
@@ -2061,7 +2088,7 @@ static enum attended_transfer_state calling_target_exit(struct attended_transfer
 	case STIMULUS_TRANSFER_TARGET_HANGUP:
 	case STIMULUS_TIMEOUT:
 	case STIMULUS_DTMF_ATXFER_ABORT:
-		play_sound(props->transferer, props->failsound);
+		play_failsound(props->transferer);
 		return TRANSFER_REBRIDGE;
 	case STIMULUS_DTMF_ATXFER_THREEWAY:
 		bridge_unhold(props->transferee_bridge);
@@ -2090,7 +2117,7 @@ static enum attended_transfer_state hesitant_exit(struct attended_transfer_prope
 {
 	switch (stimulus) {
 	case STIMULUS_TRANSFEREE_HANGUP:
-		play_sound(props->transferer, props->failsound);
+		play_failsound(props->transferer);
 		publish_transfer_fail(props);
 		return TRANSFER_FAIL;
 	case STIMULUS_DTMF_ATXFER_COMPLETE:
@@ -2101,7 +2128,7 @@ static enum attended_transfer_state hesitant_exit(struct attended_transfer_prope
 	case STIMULUS_TRANSFER_TARGET_HANGUP:
 	case STIMULUS_TIMEOUT:
 	case STIMULUS_DTMF_ATXFER_ABORT:
-		play_sound(props->transferer, props->failsound);
+		play_failsound(props->transferer);
 		return TRANSFER_RESUME;
 	case STIMULUS_DTMF_ATXFER_THREEWAY:
 		return TRANSFER_THREEWAY;
@@ -2163,7 +2190,7 @@ static enum attended_transfer_state consulting_exit(struct attended_transfer_pro
 		 * a sound to the transferer to indicate the transferee is gone.
 		 */
 		bridge_basic_change_personality(props->target_bridge, BRIDGE_BASIC_PERSONALITY_NORMAL, NULL);
-		play_sound(props->transferer, props->failsound);
+		play_failsound(props->transferer);
 		ast_bridge_merge_inhibit(props->target_bridge, -1);
 		/* These next two lines are here to ensure that our reference to the target bridge
 		 * is cleaned up properly and that the target bridge is not destroyed when the
@@ -2179,7 +2206,7 @@ static enum attended_transfer_state consulting_exit(struct attended_transfer_pro
 		return TRANSFER_COMPLETE;
 	case STIMULUS_TRANSFER_TARGET_HANGUP:
 	case STIMULUS_DTMF_ATXFER_ABORT:
-		play_sound(props->transferer, props->failsound);
+		play_failsound(props->transferer);
 		return TRANSFER_REBRIDGE;
 	case STIMULUS_DTMF_ATXFER_THREEWAY:
 		bridge_unhold(props->transferee_bridge);
@@ -2211,7 +2238,7 @@ static enum attended_transfer_state double_checking_exit(struct attended_transfe
 {
 	switch (stimulus) {
 	case STIMULUS_TRANSFEREE_HANGUP:
-		play_sound(props->transferer, props->failsound);
+		play_failsound(props->transferer);
 		publish_transfer_fail(props);
 		return TRANSFER_FAIL;
 	case STIMULUS_TRANSFERER_HANGUP:
@@ -2221,7 +2248,7 @@ static enum attended_transfer_state double_checking_exit(struct attended_transfe
 		return TRANSFER_COMPLETE;
 	case STIMULUS_TRANSFER_TARGET_HANGUP:
 	case STIMULUS_DTMF_ATXFER_ABORT:
-		play_sound(props->transferer, props->failsound);
+		play_failsound(props->transferer);
 		return TRANSFER_RESUME;
 	case STIMULUS_DTMF_ATXFER_THREEWAY:
 		bridge_unhold(props->target_bridge);
@@ -3297,7 +3324,7 @@ static int feature_attended_transfer(struct ast_bridge_channel *bridge_channel, 
 	props->transfer_target = dial_transfer(bridge_channel->chan, destination);
 	if (!props->transfer_target) {
 		ast_log(LOG_ERROR, "Unable to request outbound channel for attended transfer target.\n");
-		ast_stream_and_wait(props->transferer, props->failsound, AST_DIGIT_NONE);
+		stream_failsound(props->transferer);
 		ast_bridge_channel_write_unhold(bridge_channel);
 		attended_transfer_properties_shutdown(props);
 		return 0;
@@ -3308,7 +3335,7 @@ static int feature_attended_transfer(struct ast_bridge_channel *bridge_channel, 
 	props->target_bridge = ast_bridge_basic_new();
 	if (!props->target_bridge) {
 		ast_log(LOG_ERROR, "Unable to create bridge for attended transfer target.\n");
-		ast_stream_and_wait(props->transferer, props->failsound, AST_DIGIT_NONE);
+		stream_failsound(props->transferer);
 		ast_bridge_channel_write_unhold(bridge_channel);
 		ast_hangup(props->transfer_target);
 		props->transfer_target = NULL;
@@ -3319,7 +3346,7 @@ static int feature_attended_transfer(struct ast_bridge_channel *bridge_channel, 
 
 	if (attach_framehook(props, props->transfer_target)) {
 		ast_log(LOG_ERROR, "Unable to attach framehook to transfer target.\n");
-		ast_stream_and_wait(props->transferer, props->failsound, AST_DIGIT_NONE);
+		stream_failsound(props->transferer);
 		ast_bridge_channel_write_unhold(bridge_channel);
 		ast_hangup(props->transfer_target);
 		props->transfer_target = NULL;
@@ -3334,7 +3361,7 @@ static int feature_attended_transfer(struct ast_bridge_channel *bridge_channel, 
 
 	if (ast_call(props->transfer_target, destination, 0)) {
 		ast_log(LOG_ERROR, "Unable to place outbound call to transfer target.\n");
-		ast_stream_and_wait(bridge_channel->chan, props->failsound, AST_DIGIT_NONE);
+		stream_failsound(props->transferer);
 		ast_bridge_channel_write_unhold(bridge_channel);
 		ast_hangup(props->transfer_target);
 		props->transfer_target = NULL;
@@ -3350,7 +3377,7 @@ static int feature_attended_transfer(struct ast_bridge_channel *bridge_channel, 
 	if (ast_bridge_impart(props->target_bridge, props->transfer_target, NULL, NULL,
 		AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
 		ast_log(LOG_ERROR, "Unable to place transfer target into bridge.\n");
-		ast_stream_and_wait(bridge_channel->chan, props->failsound, AST_DIGIT_NONE);
+		stream_failsound(props->transferer);
 		ast_bridge_channel_write_unhold(bridge_channel);
 		ast_hangup(props->transfer_target);
 		props->transfer_target = NULL;
@@ -3360,7 +3387,7 @@ static int feature_attended_transfer(struct ast_bridge_channel *bridge_channel, 
 
 	if (ast_pthread_create_detached(&thread, NULL, attended_transfer_monitor_thread, props)) {
 		ast_log(LOG_ERROR, "Unable to create monitoring thread for attended transfer.\n");
-		ast_stream_and_wait(bridge_channel->chan, props->failsound, AST_DIGIT_NONE);
+		stream_failsound(props->transferer);
 		ast_bridge_channel_write_unhold(bridge_channel);
 		attended_transfer_properties_shutdown(props);
 		return 0;
