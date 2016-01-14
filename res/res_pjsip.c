@@ -48,6 +48,7 @@
 	<depend>res_sorcery_config</depend>
 	<depend>res_sorcery_memory</depend>
 	<depend>res_sorcery_astdb</depend>
+	<depend>res_pjproject</depend>
 	<support_level>core</support_level>
  ***/
 
