@@ -2172,4 +2172,41 @@ const char *ast_sip_get_host_ip_string(int af);
  */
 long ast_sip_threadpool_queue_size(void);
 
+/*!
+ * \brief Retrieve a pjproject build option
+ *
+ * \param option The build option requested
+ * \param format_string A scanf-style format string to parse the option value into
+ * \param ... Pointers to variables to receive the values parsed
+ *
+ * \retval The number of values parsed
+ *
+ * \since 13.8.0
+ *
+ * \note The option requested must be from those returned by pj_dump_config()
+ * which can be displayed with the 'pjsip show buildopts' CLI command.
+ *
+ *   <b>Sample Usage:</b>
+ *   \code
+ *
+ *   int max_hostname;
+ *
+ *   ast_sip_get_pjproject_buildopt("PJ_MAX_HOSTNAME", "%d", &max_hostname);
+ *
+ *   \endcode
+ *
+ */
+int ast_sip_get_pjproject_buildopt(char *option, char *format_string, ...) __attribute__((format(printf, 2,0)));
+
+typedef void (pjproject_logger_cb)(int level, const char *data, int len);
+
+/*!
+ * \brief Set the pjproject logger callback function
+ *
+ * \param logger_cb Logger callback or NULL to unset callback
+ *
+ * \since 13.8.0
+ */
+void ast_sip_set_pjproject_logger(pjproject_logger_cb *logger_cb);
+
 #endif /* _RES_PJSIP_H */
