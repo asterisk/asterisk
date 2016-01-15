@@ -1,3 +1,23 @@
+2016-01-15 18:44 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 11.21.0 Released.
+
+2016-01-15 12:44 +0000 [1829955c12]  Kevin Harwell <kharwell@lunkwill>
+
+	* Release summaries: Add summaries for 11.21.0
+
+2016-01-15 12:42 +0000 [8720b171ce]  Kevin Harwell <kharwell@lunkwill.digium.internal>
+
+	* Release summaries: Remove previous versions
+
+2016-01-15 12:42 +0000 [731f22c9e8]  Kevin Harwell <kharwell@lunkwill>
+
+	* .version: Update for 11.21.0
+
+2016-01-15 12:42 +0000 [2d8ed745d8]  Kevin Harwell <kharwell@lunkwill>
+
+	* .lastclean: Update for 11.21.0
+
 2016-01-12 15:24 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 11.21.0-rc3 Released.
