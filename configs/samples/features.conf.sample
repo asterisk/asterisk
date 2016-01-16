@@ -2,7 +2,7 @@
 ; Sample Call Features (transfer, monitor/mixmonitor, etc) configuration
 ;
 
-; Asterisk 12 Note - All parking lot configuration is now done in res_parking.conf
+; Note: From Asterisk 12 - All parking lot configuration is now done in res_parking.conf
 
 [general]
 ;transferdigittimeout => 3      ; Number of seconds to wait between digits when transferring a call
