@@ -713,12 +713,7 @@ struct ast_taskprocessor *ast_taskprocessor_get(const char *name, enum ast_tps_o
 	}
 
 	p = __allocate_taskprocessor(name, listener);
-	if (!p) {
-		ao2_ref(listener, -1);
-		return NULL;
-	}
 
-	/* Unref listener here since the taskprocessor has gained a reference to the listener */
 	ao2_ref(listener, -1);
 	return p;
 }
