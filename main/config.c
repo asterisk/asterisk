@@ -3863,6 +3863,8 @@ static void config_shutdown(void)
 
 	ast_cli_unregister_multiple(cli_config, ARRAY_LEN(cli_config));
 
+	clear_config_maps();
+
 	ao2_cleanup(cfg_hooks);
 	cfg_hooks = NULL;
 }
