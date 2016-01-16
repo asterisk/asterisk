@@ -2222,6 +2222,7 @@ static enum attended_transfer_state consulting_exit(struct attended_transfer_pro
 		bridge_unhold(props->transferee_bridge);
 		return TRANSFER_COMPLETE;
 	case STIMULUS_TRANSFER_TARGET_HANGUP:
+		return TRANSFER_REBRIDGE;
 	case STIMULUS_DTMF_ATXFER_ABORT:
 		play_failsound(props->transferer);
 		return TRANSFER_REBRIDGE;
