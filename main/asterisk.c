@@ -2808,11 +2808,12 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 
 			console_print(buf, 0);
 
-			if ((res < EL_BUF_SIZE - 1) && ((buf[res-1] == '\n') || (buf[res-2] == '\n'))) {
+			if ((res < EL_BUF_SIZE - 1) && ((buf[res-1] == '\n') || (res >= 2 && buf[res-2] == '\n'))) {
 				*cp = CC_REFRESH;
 				return(1);
-			} else
+			} else {
 				lastpos = 1;
+			}
 		}
 	}
 
