@@ -1,0 +1,24 @@
+
+ifeq ($(NOISY_BUILD),)
+	SUBMAKE?=$(MAKE) --quiet --no-print-directory
+    ECHO_PREFIX?=@
+    CMD_PREFIX?=@
+    QUIET_CONFIGURE=-q
+    REALLY_QUIET=&>/dev/null
+else
+	SUBMAKE?=$(MAKE)
+    ECHO_PREFIX?=@\#
+    CMD_PREFIX?=
+    QUIET_CONFIGURE=
+    REALLY_QUIET=
+endif
+
+export SUBMAKE
+export ECHO_PREFIX
+export CMD_PREFIX
+export QUIET_CONFIGURE
+export REALLY_QUIET
+export ASTTOPDIR
+export ASTSBINDIR
+export DESTDIR
+export ASTDATADIR
