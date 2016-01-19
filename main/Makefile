@@ -22,6 +22,9 @@ SRC:=$(wildcard *.c) ast_expr2.c ast_expr2f.c
 ifeq ($(AST_ASTERISKSSL),yes)
 SRC:=$(filter-out libasteriskssl.c,$(SRC))
 endif
+ifeq ($(PJPROJECT_BUNDLED),yes)
+SRC:=$(filter-out libasteriskpj.c,$(SRC))
+endif
 OBJSFILTER=fskmodem_int.o fskmodem_float.o cygload.o buildinfo.o
 OBJS=$(filter-out $(OBJSFILTER),$(SRC:.c=.o))
 
@@ -200,7 +203,7 @@ ASTSSL_LDLIBS=-L. -lasteriskssl
 ifeq ($(findstring darwin,$(OSARCH)),) # not Darwin
 ASTSSL_LIB:=libasteriskssl.so
 
-$(ASTSSL_LIB).$(ASTSSL_SO_VERSION): _ASTLDFLAGS+=-Wl,-soname=$(ASTSSL_LIB).$(ASTSSL_SO_VERSION)
+$(ASTSSL_LIB).$(ASTSSL_SO_VERSION): _ASTLDFLAGS+=-Wl,-soname=$(ASTSSL_LIB)
 $(ASTSSL_LIB).$(ASTSSL_SO_VERSION): _ASTCFLAGS+=-fPIC -DAST_MODULE=\"asteriskssl\"
 $(ASTSSL_LIB).$(ASTSSL_SO_VERSION): LIBS+=$(ASTSSL_LIBS)
 ifeq ($(GNU_LD),1)
@@ -218,12 +221,14 @@ ifeq ($(GNU_LD),1)
 endif
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
 	$(CMD_PREFIX) $(CC) $(STATIC_BUILD) -o $@ $(CC_LDFLAGS_SO) $^ $(CC_LIBS)
-ifneq ($(LDCONFIG),)
-	$(LDCONFIG) $(LDCONFIG_FLAGS) .
-endif
 
 $(ASTSSL_LIB): $(ASTSSL_LIB).$(ASTSSL_SO_VERSION)
-	$(LN) -sf $< $@
+	$(ECHO_PREFIX) echo "   [LN] $< -> $@"
+ifneq ($(LDCONFIG),)
+	$(CMD_PREFIX) $(LDCONFIG) $(LDCONFIG_FLAGS) . 2>/dev/null
+else
+	$(CMD_PREFIX) $(LN) -sf $< $@
+endif
 
 else # Darwin
 ASTSSL_LIB:=libasteriskssl.dylib
@@ -243,12 +248,92 @@ endif
 
 endif
 
+libasteriskpj.o: _ASTCFLAGS+=$(PJPROJECT_INCLUDE)
+
+ifeq ($(PJPROJECT_BUNDLED),yes)
+
+ASTPJ_SO_VERSION=2
+ASTPJ_LDLIBS=-L. -lasteriskpj
+
+-include $(ASTTOPDIR)/$(PJPROJECT_DIR)/build.mak
+
+PJPROJECT_LDLIBS := \
+-Wl,--whole-archive \
+$(PJSUA_LIB_LDLIB) \
+$(PJSIP_UA_LDLIB) \
+$(PJSIP_SIMPLE_LDLIB) \
+$(PJSIP_LDLIB) \
+$(PJNATH_LDLIB) \
+$(PJMEDIA_CODEC_LDLIB) \
+$(PJMEDIA_VIDEODEV_LDLIB) \
+$(PJMEDIA_AUDIODEV_LDLIB) \
+$(PJMEDIA_LDLIB) \
+$(PJLIB_UTIL_LDLIB) \
+$(PJLIB_LDLIB) \
+-Wl,--no-whole-archive \
+$(APP_THIRD_PARTY_LIBS) \
+$(APP_THIRD_PARTY_EXT)
+
+ifeq ($(findstring darwin,$(OSARCH)),) # not Darwin
+ASTPJ_LIB:=libasteriskpj.so
+
+libasteriskpj.exports: $(ASTTOPDIR)/$(PJPROJECT_DIR)/pjproject.symbols
+	$(ECHO_PREFIX) echo "   [GENERATE] libasteriskpj.exports"
+ifeq ($(GNU_LD),1)
+	$(CMD_PREFIX) echo -e "{\n\tglobal:" > libasteriskpj.exports
+	$(CMD_PREFIX) sed -r -e "s/.*/\t\t$(LINKER_SYMBOL_PREFIX)&;/" $(ASTTOPDIR)/$(PJPROJECT_DIR)/pjproject.symbols >> libasteriskpj.exports
+	$(CMD_PREFIX) echo -e "\t\t$(LINKER_SYMBOL_PREFIX)ast_pj_init;\n" >> libasteriskpj.exports
+	$(CMD_PREFIX) echo -e "\tlocal:\n\t\t*;\n};" >> libasteriskpj.exports
+endif
+
+$(ASTPJ_LIB).$(ASTPJ_SO_VERSION): _ASTLDFLAGS+=-Wl,-soname=$(ASTPJ_LIB) $(PJ_LDFLAGS)
+$(ASTPJ_LIB).$(ASTPJ_SO_VERSION): _ASTCFLAGS+=-fPIC -DAST_MODULE=\"asteriskpj\" $(PJ_CFLAGS)
+$(ASTPJ_LIB).$(ASTPJ_SO_VERSION): LIBS+=$(PJPROJECT_LDLIBS) -lssl -lcrypto -luuid -lm -lrt -lpthread
+ifeq ($(GNU_LD),1)
+    $(ASTPJ_LIB).$(ASTPJ_SO_VERSION): SO_SUPPRESS_SYMBOLS=-Wl,--version-script,libasteriskpj.exports,--warn-common
+endif
+$(ASTPJ_LIB).$(ASTPJ_SO_VERSION): SOLINK=$(DYLINK)
+
+# These rules are duplicated from $(ASTTOPDIR)/Makefile.rules because the library name
+# being built does not match the "%.so" pattern; there are also additional steps
+# required to build a proper shared library (as opposed to the 'loadable module'
+# type that are built by the standard rules)
+$(ASTPJ_LIB).$(ASTPJ_SO_VERSION): libasteriskpj.o libasteriskpj.exports
+	$(ECHO_PREFIX) echo "   [LD] $< -> $@"
+	$(CMD_PREFIX) $(CC) $(STATIC_BUILD) -o $@ $(CC_LDFLAGS_SO) $< $(CC_LIBS)
+
+$(ASTPJ_LIB): $(ASTPJ_LIB).$(ASTPJ_SO_VERSION)
+	$(ECHO_PREFIX) echo "   [LN] $< -> $@"
+ifneq ($(LDCONFIG),)
+	$(CMD_PREFIX) $(LDCONFIG) $(LDCONFIG_FLAGS) . 2>/dev/null
+else
+	$(CMD_PREFIX) $(LN) -sf $< $@
+endif
+
+else # Darwin
+ASTPJ_LIB:=libasteriskpj.dylib
+
+# -install_name allows library to be found if installed somewhere other than
+# /lib or /usr/lib
+$(ASTPJ_LIB): _ASTLDFLAGS+=-dynamiclib -install_name $(ASTLIBDIR)/$(ASTPJ_LIB) $(PJ_LDFLAGS)
+$(ASTPJ_LIB): _ASTCFLAGS+=-fPIC -DAST_MODULE=\"asteriskpj\" $(PJ_CFLAGS)
+$(ASTPJ_LIB): LIBS+=$(PJPROJECT_LIBS)  -lssl -lcrypto -luuid -lm -lrt -lpthread
+$(ASTPJ_LIB): SOLINK=$(DYLINK)
+
+# Special rules for building a shared library (not a dynamically loadable module)
+$(ASTPJ_LIB): libasteriskpj.o
+	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
+	$(CMD_PREFIX) $(CC) $(STATIC_BUILD) -o $@ $(CC_LDFLAGS_SO) $^ $(CC_LIBS)
+endif
+
+endif
+
 tcptls.o: _ASTCFLAGS+=$(OPENSSL_INCLUDE)
 
-$(MAIN_TGT): $(OBJS) $(ASTSSL_LIB) $(LIBEDIT_OBJ) $(AST_EMBED_LDSCRIPTS)
+$(MAIN_TGT): $(OBJS) $(ASTSSL_LIB) $(ASTPJ_LIB) $(LIBEDIT_OBJ) $(AST_EMBED_LDSCRIPTS)
 	@$(CC) -c -o buildinfo.o $(_ASTCFLAGS) buildinfo.c $(ASTCFLAGS)
 	$(ECHO_PREFIX) echo "   [LD] $(OBJS) $(LIBEDIT_OBJ) $(AST_EMBED_LDSCRIPTS) -> $@"
-	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(ASTLINK) $(AST_EMBED_LDFLAGS) $(_ASTLDFLAGS) $(ASTLDFLAGS) $(OBJS) $(ASTSSL_LDLIBS) $(LIBEDIT_OBJ) $(AST_EMBED_LDSCRIPTS) buildinfo.o $(AST_LIBS) $(AST_EMBED_LIBS) $(GMIMELDFLAGS) $(LIBEDIT_LIB)
+	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(ASTLINK) $(AST_EMBED_LDFLAGS) $(_ASTLDFLAGS) $(ASTLDFLAGS) $(OBJS) $(ASTSSL_LDLIBS) $(ASTPJ_LDLIBS) $(LIBEDIT_OBJ) $(AST_EMBED_LDSCRIPTS) buildinfo.o $(AST_LIBS) $(AST_EMBED_LIBS) $(GMIMELDFLAGS) $(LIBEDIT_LIB)
 
 ifeq ($(GNU_LD),1)
 $(MAIN_TGT): asterisk.exports
@@ -265,16 +350,29 @@ ifeq ($(findstring darwin,$(OSARCH)),) # not Darwin
 else # Darwin
 	$(INSTALL) -m 755 $(ASTSSL_LIB) "$(DESTDIR)$(ASTLIBDIR)/"
 endif
+endif
+ifeq ($(PJPROJECT_BUNDLED),yes)
+ifeq ($(findstring darwin,$(OSARCH)),) # not Darwin
+	$(INSTALL) -m 755 $(ASTPJ_LIB).$(ASTPJ_SO_VERSION) "$(DESTDIR)$(ASTLIBDIR)/"
+	$(LN) -sf $(ASTPJ_LIB).$(ASTPJ_SO_VERSION) "$(DESTDIR)$(ASTLIBDIR)/$(ASTPJ_LIB)"
+else # Darwin
+	$(INSTALL) -m 755 $(ASTPJ_LIB) "$(DESTDIR)$(ASTLIBDIR)/"
+endif
+endif
 ifneq ($(LDCONFIG),)
 	$(LDCONFIG) $(LDCONFIG_FLAGS) "$(DESTDIR)$(ASTLIBDIR)/"
-endif
 endif
 	$(LN) -sf asterisk "$(DESTDIR)$(ASTSBINDIR)/rasterisk"
 
 binuninstall:
 	rm -f "$(DESTDIR)$(ASTSBINDIR)/$(MAIN_TGT)"
 	rm -f "$(DESTDIR)$(ASTSBINDIR)/rasterisk"
+ifneq ($(ASTSSL_LIB).$(ASTSSL_SO_VERSION),.)
 	rm -f "$(DESTDIR)$(ASTLIBDIR)/$(ASTSSL_LIB).$(ASTSSL_SO_VERSION)"
+endif
+ifneq ($(ASTPJ_LIB).$(ASTPJ_SO_VERSION),.)
+	rm -f "$(DESTDIR)$(ASTLIBDIR)/$(ASTPJ_LIB).$(ASTPJ_SO_VERSION)"
+endif
 ifneq ($(LDCONFIG),)
 	$(LDCONFIG) $(LDCONFIG_FLAGS) "$(DESTDIR)$(ASTLIBDIR)/"
 endif
@@ -284,7 +382,12 @@ clean::
 ifeq ($(AST_ASTERISKSSL),yes)
 	rm -f $(ASTSSL_LIB) $(ASTSSL_LIB).*
 endif
-	rm -f asterisk.exports libasteriskssl.exports
+	rm -f libasteriskpj.o
+	rm -f libasteriskpj.so* libasteriskpj.dynlib
+	rm -f .libasteriskpj*
+
+	rm -f asterisk.exports libasteriskssl.exports libasteriskpj.exports
 	@if [ -f editline/Makefile ]; then $(MAKE) -C editline distclean ; fi
 	@$(MAKE) -C stdtime clean
 	rm -f libresample/src/*.o
+	rm -f *.tmp

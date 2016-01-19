@@ -4530,6 +4530,11 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 		exit(1);
 	}
 
+	if (ast_pj_init()) {
+		printf("Failed: ast_pj_init\n%s", term_quit());
+		exit(1);
+	}
+
 	if (app_init()) {
 		printf("App core initialization failed.\n%s", term_quit());
 		exit(1);
