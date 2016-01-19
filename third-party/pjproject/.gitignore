@@ -1,0 +1,4 @@
+source/
+**.bz2
+build.mak
+pjproject.symbols
