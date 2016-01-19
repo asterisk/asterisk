@@ -332,10 +332,11 @@ static void *tps_task_free(struct tps_task *task)
 }
 
 /* taskprocessor tab completion */
-static char *tps_taskprocessor_tab_complete(struct ast_taskprocessor *p, struct ast_cli_args *a)
+static char *tps_taskprocessor_tab_complete(struct ast_cli_args *a)
 {
 	int tklen;
 	int wordnum = 0;
+	struct ast_taskprocessor *p;
 	char *name = NULL;
 	struct ao2_iterator i;
 
@@ -347,10 +348,10 @@ static char *tps_taskprocessor_tab_complete(struct ast_taskprocessor *p, struct 
 	while ((p = ao2_iterator_next(&i))) {
 		if (!strncasecmp(a->word, p->name, tklen) && ++wordnum > a->n) {
 			name = ast_strdup(p->name);
-			ao2_ref(p, -1);
+			ast_taskprocessor_unreference(p);
 			break;
 		}
-		ao2_ref(p, -1);
+		ast_taskprocessor_unreference(p);
 	}
 	ao2_iterator_destroy(&i);
 	return name;
@@ -372,7 +373,7 @@ static char *cli_tps_ping(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	const char *name;
 	struct timeval when;
 	struct timespec ts;
-	struct ast_taskprocessor *tps = NULL;
+	struct ast_taskprocessor *tps;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -382,7 +383,7 @@ static char *cli_tps_ping(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 			"	Displays the time required for a task to be processed\n";
 		return NULL;
 	case CLI_GENERATE:
-		return tps_taskprocessor_tab_complete(tps, a);
+		return tps_taskprocessor_tab_complete(a);
 	}
 
 	if (a->argc != 4)
@@ -401,7 +402,7 @@ static char *cli_tps_ping(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	if (ast_taskprocessor_push(tps, tps_ping_handler, 0) < 0) {
 		ast_mutex_unlock(&cli_ping_cond_lock);
 		ast_cli(a->fd, "\nping failed: could not push task to %s\n\n", name);
-		ao2_ref(tps, -1);
+		ast_taskprocessor_unreference(tps);
 		return CLI_FAILURE;
 	}
 	ast_cond_timedwait(&cli_ping_cond, &cli_ping_cond_lock, &ts);
@@ -409,7 +410,7 @@ static char *cli_tps_ping(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	end = ast_tvnow();
 	delta = ast_tvsub(end, begin);
 	ast_cli(a->fd, "\n\t%24s ping time: %.1ld.%.6ld sec\n\n", name, (long)delta.tv_sec, (long int)delta.tv_usec);
-	ao2_ref(tps, -1);
+	ast_taskprocessor_unreference(tps);
 	return CLI_SUCCESS;
 }
 
@@ -663,6 +664,8 @@ static struct ast_taskprocessor *__allocate_taskprocessor(const char *name, stru
 
 	if (!(ao2_link(tps_singletons, p))) {
 		ast_log(LOG_ERROR, "Failed to add taskprocessor '%s' to container\n", p->name);
+		listener->tps = NULL;
+		ao2_ref(p, -1);
 		return NULL;
 	}
 
