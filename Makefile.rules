@@ -165,19 +165,25 @@ endif
 	$(ECHO_PREFIX) echo "   [CPP] $< -> $@"
 	$(CMD_PREFIX) $(CXX) -o $@ -E $< $(MAKE_DEPS) $(CXX_CFLAGS) $(_ASTCFLAGS_COVERAGE)
 
-%.so: %.o
+%.exports: %.exports.in
 ifeq ($(GNU_LD),1)
+	$(ECHO_PREFIX) echo "   [GENERATE] $^ -> $@"
 	$(CMD_PREFIX) $(ASTTOPDIR)/build_tools/make_linker_version_script $* "$(LINKER_SYMBOL_PREFIX)" "$(ASTTOPDIR)"
 endif
-	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
-	$(CMD_PREFIX) $(CC) $(STATIC_BUILD) -o $@ $(CC_LDFLAGS_SO) $^ $(CC_LIBS)
 
-%.so: %.oo
+%.exports: $(ASTTOPDIR)/default.exports.in
 ifeq ($(GNU_LD),1)
-	$(CMD_PREFIX) $(ASTTOPDIR)/build_tools/make_linker_version_script $* "$(LINKER_SYMBOL_PREFIX)" "$(ASTTOPDIR)"
+	$(ECHO_PREFIX) echo "   [COPY] $< -> $@"
+	$(CMD_PREFIX) cp -f $< $@
 endif
-	$(ECHO_PREFIX) echo "   [LDXX] $^ -> $@"
-	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(CXX_LDFLAGS_SO) $^ $(CXX_LIBS)
+
+%.so: %.o %.exports
+	$(ECHO_PREFIX) echo "   [LD] $(filter-out %.exports,$^) -> $@"
+	$(CMD_PREFIX) $(CC) $(STATIC_BUILD) -o $@ $(CC_LDFLAGS_SO) $(filter-out %.exports,$^) $(CC_LIBS)
+
+%.so: %.oo %.exports
+	$(ECHO_PREFIX) echo "   [LDXX] $(filter-out %.exports,$^) -> $@"
+	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(CXX_LDFLAGS_SO) $(filter-out %.exports,$^) $(CXX_LIBS)
 
 %.eo: %.o
 	$(ECHO_PREFIX) echo "   [EMBED] $< -> $@"
