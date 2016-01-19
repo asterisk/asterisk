@@ -210,6 +210,19 @@ Queue
 --- Functionality changes from Asterisk 13.7.0 to Asterisk 13.8.0 ------------
 ------------------------------------------------------------------------------
 
+Build System
+------------------
+ * To help insure that Asterisk is compiled and run with the same known
+   version of pjproject, a new option (--with-pjproject-bundled) has been
+   added to ./configure.  When specified, the version of pjproject specified
+   in third_party/versions.mak will be downloaded and configured.  When you
+   make Asterisk, the build process will also automatically build pjproject
+   and Asterisk will be statically linked to it.  Once a particular version
+   of pjproject is configured and built, it won't be configured or built
+   again unless you run a 'make distclean'.
+   The default behavior remains building with the shared pjproject
+   installation, if any. 
+ 
 app_confbridge
 ------------------
  * Added CONFBRIDGE_INFO(muted,) for querying the muted conference state.

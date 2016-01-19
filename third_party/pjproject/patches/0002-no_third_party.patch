@@ -1,0 +1,17 @@
+--- pjproject-2.2/third_party/build/os-linux.mak	2014-01-02 22:44:05.000000000 -0500
++++ pjproject-2.2-no_third_party/third_party/build/os-linux.mak	2014-02-28 10:56:33.998682746 -0500
+@@ -1,9 +1,9 @@
+-DIRS += gsm
++#DIRS += gsm
+-DIRS += ilbc
+-DIRS += speex
+-DIRS += portaudio
+-DIRS += g7221
+-DIRS += srtp
+-DIRS += resample
++#DIRS += ilbc
++#DIRS += speex
++#DIRS += portaudio
++#DIRS += g7221
++#DIRS += srtp
++#DIRS += resample
