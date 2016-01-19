@@ -457,12 +457,35 @@ AST_EXT_LIB_SETUP([OPUS], [Opus], [opus])
 AST_EXT_LIB_SETUP([OSPTK], [OSP Toolkit], [osptk])
 AST_EXT_LIB_SETUP([OSS], [Open Sound System], [oss])
 AST_EXT_LIB_SETUP([PGSQL], [PostgreSQL], [postgres])
-AST_EXT_LIB_SETUP([PJPROJECT], [PJPROJECT], [pjproject])
-AST_EXT_LIB_SETUP([POPT], [popt], [popt])
+
+AST_EXT_LIB_SETUP([PJPROJECT], [PJSIP Stack], [pjproject])
+PJPROJECT_STATIC=no
+AH_TEMPLATE(m4_bpatsubst([[HAVE_PJPROJECT_STATIC]], [(.*)]), [Define to 1 if you have the pjproject static library.])
+
+AC_ARG_ENABLE([static-pjproject],
+	[AS_HELP_STRING([--enable-static-pjproject],
+		[Link to static pjproject libraries])],
+	[case "${enableval}" in
+	      n|no) PJPROJECT_STATIC=no ;;
+	      *) PJPROJECT_STATIC=yes ;;
+	esac])
+AC_SUBST(PJPROJECT_STATIC)
+
+if test "$PJPROJECT_STATIC" = "yes" ; then
+   if test "${ac_mandatory_list#*PJPROJECT*}" = "$ac_mandatory_list" ; then
+      ac_mandatory_list="$ac_mandatory_list PJPROJECT"
+   fi
+   if test "x$PJPROJECT_DIR" = "x" ; then
+      PJPROJECT_DIR="${PWD}/third_party/pjproject/source"
+   fi
+fi
+
 AST_EXT_LIB_SETUP_OPTIONAL([PJ_TRANSACTION_GRP_LOCK], [PJSIP Transaction Group Lock Support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_REPLACE_MEDIA_STREAM], [PJSIP Media Stream Replacement Support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_GET_DEST_INFO], [pjsip_get_dest_info support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJ_SSL_CERT_LOAD_FROM_FILES2], [pj_ssl_cert_load_from_files2 support], [PJPROJECT], [pjsip])
+
+AST_EXT_LIB_SETUP([POPT], [popt], [popt])
 AST_EXT_LIB_SETUP([PORTAUDIO], [PortAudio], [portaudio])
 AST_EXT_LIB_SETUP([PRI], [ISDN PRI], [pri])
 AST_EXT_LIB_SETUP_OPTIONAL([PRI_SETUP_ACK_INBAND], [ISDN PRI progress inband ie in SETUP ACK], [PRI], [pri])
@@ -2076,20 +2099,44 @@ if test "${PG_CONFIG}" != No; then
    fi
 fi
 
-AST_PKG_CONFIG_CHECK([PJPROJECT], [libpjproject])
+if test "$USE_PJPROJECT" != "no" ; then
+if test "$PJPROJECT_STATIC" = "yes" ; then
+   if test -e "$PJPROJECT_DIR/build.mak" ; then
+      PJPROJECT_INCLUDE=`make -f /dev/null --eval="include $PJPROJECT_DIR/build.mak" --eval='$(info $(PJ_CFLAGS))' --eval='all:' -q -s`
+      PJPROJECT_LIB=`make -f /dev/null --eval="include $PJPROJECT_DIR/build.mak" --eval='$(info $(APP_LDFLAGS) $(APP_LDLIBS))' --eval='all:' -q -s`
+      PBX_PJPROJECT=1
+      AC_DEFINE([HAVE_PJPROJECT], 1, [Define if your system has the pjproject libraries.])
+      AC_DEFINE([HAVE_PJPROJECT_STATIC], 1, [Define if your system has the pjproject static libraries.])
+# dummy shared libraries because AST_EXT_LIB_CHECK needs something
+      temp_lpjsip="m"
+      temp_lpj="m"
+   else
+      PBX_PJPROJECT=0
+   fi
+else
+   AST_PKG_CONFIG_CHECK([PJPROJECT], [libpjproject])
+   temp_lpjsip="pjsip"
+   temp_lpj="pj"
+fi
 
-AST_EXT_LIB_CHECK([PJ_TRANSACTION_GRP_LOCK], [pjsip], [pjsip_tsx_create_uac2], [pjsip.h], [$PJPROJECT_LIBS], [$PJPROJECT_CFLAGS])
+AST_EXT_LIB_CHECK([PJ_TRANSACTION_GRP_LOCK], [$temp_lpjsip], [pjsip_tsx_create_uac2], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_INCLUDE])
 
 saved_cppflags="${CPPFLAGS}"
 saved_libs="${LIBS}"
-CPPFLAGS="${CPPFLAGS} ${PJPROJECT_CFLAGS}"
-LIBS="${LIBS} ${PJPROJECT_LIBS}"
+CPPFLAGS="${CPPFLAGS} ${PJPROJECT_INCLUDE}"
+LIBS="${LIBS} ${PJPROJECT_LIB}"
 AST_C_COMPILE_CHECK([PJSIP_REPLACE_MEDIA_STREAM], [pjmedia_mod_offer_flag flag = PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE], [pjmedia.h])
 LIBS="${saved_libs}"
 CPPFLAGS="${saved_cppflags}"
 
-AST_EXT_LIB_CHECK([PJSIP_GET_DEST_INFO], [pjsip], [pjsip_get_dest_info], [pjsip.h], [$PJPROJECT_LIBS], [$PJPROJECT_CFLAGS])
-AST_EXT_LIB_CHECK([PJ_SSL_CERT_LOAD_FROM_FILES2], [pj], [pj_ssl_cert_load_from_files2], [pjlib.h], [$PJPROJECT_LIBS], [$PJPROJECT_CFLAGS])
+AST_EXT_LIB_CHECK([PJSIP_GET_DEST_INFO], [$temp_lpjsip], [pjsip_get_dest_info], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_INCLUDE])
+AST_EXT_LIB_CHECK([PJ_SSL_CERT_LOAD_FROM_FILES2], [$temp_lpj], [pj_ssl_cert_load_from_files2], [pjlib.h], [$PJPROJECT_LIB], [$PJPROJECT_INCLUDE])
+
+if test "$PJPROJECT_STATIC" = "yes" ; then
+   PJPROJECT_LIB=""
+fi
+
+fi
 
 AST_EXT_LIB_CHECK([POPT], [popt], [poptStrerror], [popt.h])
 
@@ -2253,11 +2300,11 @@ AC_CHECK_FUNC([crypt], [SYSCRYPT=true], [SYSCRYPT=""])
 if test "x$LIBCRYPT_LIB" != "x" ; then
     CRYPT_LIB="$LIBCRYPT_LIB"
     CRYPT_INCLUDE="$LIBCRYPT_INCLUDE"
-    AC_DEFINE([HAVE_CRYPT], [1], [Define to 1 if you have the `crypt' function.])
+    AC_DEFINE([HAVE_CRYPT], [1], [Define to 1 if you have the 'crypt' function.])
 elif test "x$SYSCRYPT" != "x" ; then
     CRYPT_LIB=""
     CRYPT_INCLUDE=""
-    AC_DEFINE([HAVE_CRYPT], [1], [Define to 1 if you have the `crypt' function.])
+    AC_DEFINE([HAVE_CRYPT], [1], [Define to 1 if you have the 'crypt' function.])
 fi
 
 AC_SUBST(CRYPT_LIB)
@@ -2265,7 +2312,7 @@ AC_SUBST(CRYPT_INCLUDE)
 
 # Find crypt_r support
 AC_CHECK_LIB([crypt], [crypt_r],
-    [AC_DEFINE([HAVE_CRYPT_R], [1], [Define to 1 if you have the `crypt_r' function.])])
+    [AC_DEFINE([HAVE_CRYPT_R], [1], [Define to 1 if you have the 'crypt_r' function.])])
 
 AST_EXT_LIB_CHECK([CRYPTO], [crypto], [AES_encrypt], [openssl/aes.h])
 
