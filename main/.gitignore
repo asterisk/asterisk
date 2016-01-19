@@ -1,4 +1,6 @@
 asterisk
 libasteriskssl.so.1
 libasteriskssl.dylib
+libasteriskpj.so.2
+libasteriskpj.dylib
 version.c
