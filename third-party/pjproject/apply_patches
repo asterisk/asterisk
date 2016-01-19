@@ -1,0 +1,39 @@
+#!/bin/bash
+
+if [ "$1" = "-q" ] ; then
+	quiet=1
+	shift
+fi
+
+patchdir=${1:?You must supply a patches directory}
+sourcedir=${2?:You must supply a source directory}
+
+patchdir=`readlink -f $patchdir`
+sourcedir=`readlink -f $sourcedir`
+
+if [ ! -d "$patchdir" ] ; then
+	echo "$patchdir is not a directory" >&2
+	exit 1
+fi
+
+if [ ! -d "$sourcedir" ] ; then
+	echo "$sourcedir is not a directory"  >&2
+	exit 1
+fi
+
+if [ ! "$(ls -A $patchdir/*.patch 2>/dev/null)" ] ; then
+	echo "No patches in $patchdir"  >&2
+	exit 0
+fi
+
+for patchfile in $patchdir/*.patch ; do
+	patch -d $sourcedir -p1 -s -r- -f -N --dry-run -i "$patchfile" || (echo "Patchfile $(basename $patchfile) failed to apply >&2" ; exit 1) || exit 1
+done
+
+for patchfile in "$patchdir"/*.patch ; do
+	[ -z $quiet ] && echo "Applying patch $(basename $patchfile)"
+	patch -d "$sourcedir" -p1 -s -i "$patchfile" || exit 1
+done
+
+exit 0
+
