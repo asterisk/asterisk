@@ -3,8 +3,10 @@
 #	for the variables ($1_DIR, $1_INCLUDE, $1_LIB) in makeopts
 # $3 ->	option name, used in --with-$3 or --without-$3 when calling configure.
 # $2 and $4 are just text describing the package (short and long form)
+# $5 is the capability to fulfill (defaults to package)
+# $6 is the action to take if not specified
 
-# AST_EXT_LIB_SETUP([package], [short description], [configure option name], [long description])
+# AST_EXT_LIB_SETUP([package], [short description], [configure option name], [long description], [capability], [action if not specified])
 
 AC_DEFUN([AST_EXT_LIB_SETUP],
 [
@@ -21,14 +23,22 @@ AC_DEFUN([AST_EXT_LIB_SETUP],
 	PBX_$1=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} $1"
+	if test -n "$5" -a "${ac_mandatory_list#* $5 *}" != "$ac_mandatory_list" ; then
+		AC_MSG_ERROR(An option with capability $5 has already been specified)
+	fi
+	USE_$1=yes
+	ac_mandatory_list="$ac_mandatory_list m4_ifval([$5], [$5], [$1]) "
 	;;
 	*)
+	if test -n "$5" -a "${ac_mandatory_list#* $5 *}" != "$ac_mandatory_list" ; then
+		AC_MSG_ERROR(An option with capability $5 has already been specified)
+	fi
+	USE_$1=yes
 	$1_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} $1"
+	ac_mandatory_list="$ac_mandatory_list m4_ifval([$5], [$5], [$5]) "
 	;;
 	esac
-    ])
+    ], [ USE_$1=notspecified ; $6 ])
     AH_TEMPLATE(m4_bpatsubst([[HAVE_$1]], [(.*)]), [Define to 1 if you have the $2 library.])
     AC_SUBST([$1_LIB])
     AC_SUBST([$1_INCLUDE])
@@ -68,7 +78,7 @@ m4_ifval([$4], [$1_OPTION=$4])
 m4_ifval([$3], [
 for i in ${ac_mandatory_list}; do
    if test "x$3" = "x$i"; then
-      ac_mandatory_list="${ac_mandatory_list} $1"
+      ac_mandatory_list="${ac_mandatory_list} $1 "
       break
    fi
 done

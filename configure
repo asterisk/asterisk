@@ -901,6 +901,10 @@ PBX_PORTAUDIO
 PORTAUDIO_DIR
 PORTAUDIO_INCLUDE
 PORTAUDIO_LIB
+PBX_POPT
+POPT_DIR
+POPT_INCLUDE
+POPT_LIB
 PBX_PJ_SSL_CERT_LOAD_FROM_FILES2
 PJ_SSL_CERT_LOAD_FROM_FILES2_DIR
 PJ_SSL_CERT_LOAD_FROM_FILES2_INCLUDE
@@ -917,10 +921,15 @@ PBX_PJ_TRANSACTION_GRP_LOCK
 PJ_TRANSACTION_GRP_LOCK_DIR
 PJ_TRANSACTION_GRP_LOCK_INCLUDE
 PJ_TRANSACTION_GRP_LOCK_LIB
-PBX_POPT
-POPT_DIR
-POPT_INCLUDE
-POPT_LIB
+PBX_PJPROJECT_STATIC
+PJPROJECT_STATIC_DIR
+PJPROJECT_STATIC_INCLUDE
+PJPROJECT_STATIC_LIB
+PBX_PJPROJECT_SHARED
+PJPROJECT_SHARED_DIR
+PJPROJECT_SHARED_INCLUDE
+PJPROJECT_SHARED_LIB
+PJPROJECT_IMPLEMENTATION
 PBX_PJPROJECT
 PJPROJECT_DIR
 PJPROJECT_INCLUDE
@@ -1339,7 +1348,8 @@ with_opus
 with_osptk
 with_oss
 with_postgres
-with_pjproject
+with_pjproject_shared
+with_pjproject_static
 with_popt
 with_portaudio
 with_pri
@@ -2077,7 +2087,10 @@ Optional Packages:
   --with-osptk=PATH       use OSP Toolkit files in PATH
   --with-oss=PATH         use Open Sound System files in PATH
   --with-postgres=PATH    use PostgreSQL files in PATH
-  --with-pjproject=PATH   use PJPROJECT files in PATH
+  --with-pjproject-shared=PATH
+                          use Shared pjproject files in PATH
+  --with-pjproject-static=PATH
+                          use Static pjproject files in PATH
   --with-popt=PATH        use popt files in PATH
   --with-portaudio=PATH   use PortAudio files in PATH
   --with-pri=PATH         use ISDN PRI files in PATH
@@ -8430,14 +8443,24 @@ if test "${with_asound+set}" = set; then :
 	PBX_ALSA=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} ALSA"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_ALSA=yes
+	ac_mandatory_list="$ac_mandatory_list ALSA "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_ALSA=yes
 	ALSA_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} ALSA"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_ALSA=notspecified ;
 fi
 
 
@@ -8462,14 +8485,24 @@ if test "${with_bfd+set}" = set; then :
 	PBX_BFD=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} BFD"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_BFD=yes
+	ac_mandatory_list="$ac_mandatory_list BFD "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_BFD=yes
 	BFD_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} BFD"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_BFD=notspecified ;
 fi
 
 
@@ -8497,14 +8530,24 @@ if test "${with_execinfo+set}" = set; then :
 	PBX_BKTR=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} BKTR"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_BKTR=yes
+	ac_mandatory_list="$ac_mandatory_list BKTR "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_BKTR=yes
 	BKTR_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} BKTR"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_BKTR=notspecified ;
 fi
 
 
@@ -8529,14 +8572,24 @@ if test "${with_bluetooth+set}" = set; then :
 	PBX_BLUETOOTH=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} BLUETOOTH"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_BLUETOOTH=yes
+	ac_mandatory_list="$ac_mandatory_list BLUETOOTH "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_BLUETOOTH=yes
 	BLUETOOTH_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} BLUETOOTH"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_BLUETOOTH=notspecified ;
 fi
 
 
@@ -8561,14 +8614,24 @@ if test "${with_cap+set}" = set; then :
 	PBX_CAP=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} CAP"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_CAP=yes
+	ac_mandatory_list="$ac_mandatory_list CAP "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_CAP=yes
 	CAP_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} CAP"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_CAP=notspecified ;
 fi
 
 
@@ -8593,14 +8656,24 @@ if test "${with_cpg+set}" = set; then :
 	PBX_COROSYNC=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} COROSYNC"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_COROSYNC=yes
+	ac_mandatory_list="$ac_mandatory_list COROSYNC "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_COROSYNC=yes
 	COROSYNC_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} COROSYNC"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_COROSYNC=notspecified ;
 fi
 
 
@@ -8637,14 +8710,24 @@ if test "${with_curses+set}" = set; then :
 	PBX_CURSES=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} CURSES"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_CURSES=yes
+	ac_mandatory_list="$ac_mandatory_list CURSES "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_CURSES=yes
 	CURSES_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} CURSES"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_CURSES=notspecified ;
 fi
 
 
@@ -8669,14 +8752,24 @@ if test "${with_crypt+set}" = set; then :
 	PBX_CRYPT=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} CRYPT"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_CRYPT=yes
+	ac_mandatory_list="$ac_mandatory_list CRYPT "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_CRYPT=yes
 	CRYPT_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} CRYPT"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_CRYPT=notspecified ;
 fi
 
 
@@ -8701,14 +8794,24 @@ if test "${with_crypto+set}" = set; then :
 	PBX_CRYPTO=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} CRYPTO"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_CRYPTO=yes
+	ac_mandatory_list="$ac_mandatory_list CRYPTO "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_CRYPTO=yes
 	CRYPTO_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} CRYPTO"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_CRYPTO=notspecified ;
 fi
 
 
@@ -8769,14 +8872,24 @@ if test "${with_dahdi+set}" = set; then :
 	PBX_DAHDI=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} DAHDI"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_DAHDI=yes
+	ac_mandatory_list="$ac_mandatory_list DAHDI "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_DAHDI=yes
 	DAHDI_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} DAHDI"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_DAHDI=notspecified ;
 fi
 
 
@@ -8801,14 +8914,24 @@ if test "${with_avcodec+set}" = set; then :
 	PBX_FFMPEG=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} FFMPEG"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_FFMPEG=yes
+	ac_mandatory_list="$ac_mandatory_list FFMPEG "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_FFMPEG=yes
 	FFMPEG_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} FFMPEG"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_FFMPEG=notspecified ;
 fi
 
 
@@ -8833,14 +8956,24 @@ if test "${with_gsm+set}" = set; then :
 	PBX_GSM=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} GSM"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_GSM=yes
+	ac_mandatory_list="$ac_mandatory_list GSM "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_GSM=yes
 	GSM_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} GSM"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_GSM=notspecified ;
 fi
 
 
@@ -8865,14 +8998,24 @@ if test "${with_ilbc+set}" = set; then :
 	PBX_ILBC=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} ILBC"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_ILBC=yes
+	ac_mandatory_list="$ac_mandatory_list ILBC "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_ILBC=yes
 	ILBC_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} ILBC"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_ILBC=notspecified ;
 fi
 
 
@@ -8897,14 +9040,24 @@ if test "${with_gtk2+set}" = set; then :
 	PBX_GTK2=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} GTK2"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_GTK2=yes
+	ac_mandatory_list="$ac_mandatory_list GTK2 "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_GTK2=yes
 	GTK2_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} GTK2"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_GTK2=notspecified ;
 fi
 
 
@@ -8929,14 +9082,24 @@ if test "${with_gmime+set}" = set; then :
 	PBX_GMIME=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} GMIME"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_GMIME=yes
+	ac_mandatory_list="$ac_mandatory_list GMIME "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_GMIME=yes
 	GMIME_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} GMIME"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_GMIME=notspecified ;
 fi
 
 
@@ -8961,14 +9124,24 @@ if test "${with_h323+set}" = set; then :
 	PBX_OPENH323=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} OPENH323"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_OPENH323=yes
+	ac_mandatory_list="$ac_mandatory_list OPENH323 "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_OPENH323=yes
 	OPENH323_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} OPENH323"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_OPENH323=notspecified ;
 fi
 
 
@@ -8993,14 +9166,24 @@ if test "${with_hoard+set}" = set; then :
 	PBX_HOARD=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} HOARD"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_HOARD=yes
+	ac_mandatory_list="$ac_mandatory_list HOARD "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_HOARD=yes
 	HOARD_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} HOARD"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_HOARD=notspecified ;
 fi
 
 
@@ -9025,14 +9208,24 @@ if test "${with_ical+set}" = set; then :
 	PBX_ICAL=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} ICAL"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_ICAL=yes
+	ac_mandatory_list="$ac_mandatory_list ICAL "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_ICAL=yes
 	ICAL_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} ICAL"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_ICAL=notspecified ;
 fi
 
 
@@ -9057,14 +9250,24 @@ if test "${with_iconv+set}" = set; then :
 	PBX_ICONV=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} ICONV"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_ICONV=yes
+	ac_mandatory_list="$ac_mandatory_list ICONV "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_ICONV=yes
 	ICONV_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} ICONV"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_ICONV=notspecified ;
 fi
 
 
@@ -9089,14 +9292,24 @@ if test "${with_iksemel+set}" = set; then :
 	PBX_IKSEMEL=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} IKSEMEL"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_IKSEMEL=yes
+	ac_mandatory_list="$ac_mandatory_list IKSEMEL "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_IKSEMEL=yes
 	IKSEMEL_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} IKSEMEL"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_IKSEMEL=notspecified ;
 fi
 
 
@@ -9121,14 +9334,24 @@ if test "${with_imap+set}" = set; then :
 	PBX_IMAP_TK=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} IMAP_TK"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_IMAP_TK=yes
+	ac_mandatory_list="$ac_mandatory_list IMAP_TK "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_IMAP_TK=yes
 	IMAP_TK_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} IMAP_TK"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_IMAP_TK=notspecified ;
 fi
 
 
@@ -9153,14 +9376,24 @@ if test "${with_inotify+set}" = set; then :
 	PBX_INOTIFY=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} INOTIFY"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_INOTIFY=yes
+	ac_mandatory_list="$ac_mandatory_list INOTIFY "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_INOTIFY=yes
 	INOTIFY_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} INOTIFY"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_INOTIFY=notspecified ;
 fi
 
 
@@ -9185,14 +9418,24 @@ if test "${with_iodbc+set}" = set; then :
 	PBX_IODBC=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} IODBC"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_IODBC=yes
+	ac_mandatory_list="$ac_mandatory_list IODBC "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_IODBC=yes
 	IODBC_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} IODBC"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_IODBC=notspecified ;
 fi
 
 
@@ -9217,14 +9460,24 @@ if test "${with_isdnnet+set}" = set; then :
 	PBX_ISDNNET=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} ISDNNET"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_ISDNNET=yes
+	ac_mandatory_list="$ac_mandatory_list ISDNNET "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_ISDNNET=yes
 	ISDNNET_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} ISDNNET"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_ISDNNET=notspecified ;
 fi
 
 
@@ -9249,14 +9502,24 @@ if test "${with_jack+set}" = set; then :
 	PBX_JACK=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} JACK"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_JACK=yes
+	ac_mandatory_list="$ac_mandatory_list JACK "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_JACK=yes
 	JACK_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} JACK"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_JACK=notspecified ;
 fi
 
 
@@ -9281,14 +9544,24 @@ if test "${with_jansson+set}" = set; then :
 	PBX_JANSSON=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} JANSSON"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_JANSSON=yes
+	ac_mandatory_list="$ac_mandatory_list JANSSON "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_JANSSON=yes
 	JANSSON_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} JANSSON"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_JANSSON=notspecified ;
 fi
 
 
@@ -9313,14 +9586,24 @@ if test "${with_uriparser+set}" = set; then :
 	PBX_URIPARSER=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} URIPARSER"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_URIPARSER=yes
+	ac_mandatory_list="$ac_mandatory_list URIPARSER "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_URIPARSER=yes
 	URIPARSER_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} URIPARSER"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_URIPARSER=notspecified ;
 fi
 
 
@@ -9345,14 +9628,24 @@ if test "${with_kqueue+set}" = set; then :
 	PBX_KQUEUE=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} KQUEUE"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_KQUEUE=yes
+	ac_mandatory_list="$ac_mandatory_list KQUEUE "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_KQUEUE=yes
 	KQUEUE_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} KQUEUE"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_KQUEUE=notspecified ;
 fi
 
 
@@ -9377,14 +9670,24 @@ if test "${with_ldap+set}" = set; then :
 	PBX_LDAP=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} LDAP"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_LDAP=yes
+	ac_mandatory_list="$ac_mandatory_list LDAP "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_LDAP=yes
 	LDAP_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} LDAP"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_LDAP=notspecified ;
 fi
 
 
@@ -9786,14 +10089,24 @@ if test "${with_libedit+set}" = set; then :
 	PBX_LIBEDIT=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} LIBEDIT"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_LIBEDIT=yes
+	ac_mandatory_list="$ac_mandatory_list LIBEDIT "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_LIBEDIT=yes
 	LIBEDIT_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} LIBEDIT"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_LIBEDIT=notspecified ;
 fi
 
 
@@ -9818,14 +10131,24 @@ if test "${with_libxml2+set}" = set; then :
 	PBX_LIBXML2=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} LIBXML2"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_LIBXML2=yes
+	ac_mandatory_list="$ac_mandatory_list LIBXML2 "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_LIBXML2=yes
 	LIBXML2_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} LIBXML2"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_LIBXML2=notspecified ;
 fi
 
 
@@ -9850,14 +10173,24 @@ if test "${with_libxslt+set}" = set; then :
 	PBX_LIBXSLT=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} LIBXSLT"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_LIBXSLT=yes
+	ac_mandatory_list="$ac_mandatory_list LIBXSLT "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_LIBXSLT=yes
 	LIBXSLT_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} LIBXSLT"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_LIBXSLT=notspecified ;
 fi
 
 
@@ -9894,14 +10227,24 @@ if test "${with_ltdl+set}" = set; then :
 	PBX_LTDL=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} LTDL"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_LTDL=yes
+	ac_mandatory_list="$ac_mandatory_list LTDL "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_LTDL=yes
 	LTDL_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} LTDL"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_LTDL=notspecified ;
 fi
 
 
@@ -9926,14 +10269,24 @@ if test "${with_lua+set}" = set; then :
 	PBX_LUA=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} LUA"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_LUA=yes
+	ac_mandatory_list="$ac_mandatory_list LUA "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_LUA=yes
 	LUA_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} LUA"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_LUA=notspecified ;
 fi
 
 
@@ -9958,14 +10311,24 @@ if test "${with_misdn+set}" = set; then :
 	PBX_MISDN=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} MISDN"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_MISDN=yes
+	ac_mandatory_list="$ac_mandatory_list MISDN "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_MISDN=yes
 	MISDN_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} MISDN"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_MISDN=notspecified ;
 fi
 
 
@@ -9990,14 +10353,24 @@ if test "${with_mysqlclient+set}" = set; then :
 	PBX_MYSQLCLIENT=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} MYSQLCLIENT"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_MYSQLCLIENT=yes
+	ac_mandatory_list="$ac_mandatory_list MYSQLCLIENT "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_MYSQLCLIENT=yes
 	MYSQLCLIENT_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} MYSQLCLIENT"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_MYSQLCLIENT=notspecified ;
 fi
 
 
@@ -10022,14 +10395,24 @@ if test "${with_nbs+set}" = set; then :
 	PBX_NBS=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} NBS"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_NBS=yes
+	ac_mandatory_list="$ac_mandatory_list NBS "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_NBS=yes
 	NBS_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} NBS"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_NBS=notspecified ;
 fi
 
 
@@ -10054,14 +10437,24 @@ if test "${with_ncurses+set}" = set; then :
 	PBX_NCURSES=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} NCURSES"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_NCURSES=yes
+	ac_mandatory_list="$ac_mandatory_list NCURSES "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_NCURSES=yes
 	NCURSES_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} NCURSES"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_NCURSES=notspecified ;
 fi
 
 
@@ -10086,14 +10479,24 @@ if test "${with_neon+set}" = set; then :
 	PBX_NEON=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} NEON"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_NEON=yes
+	ac_mandatory_list="$ac_mandatory_list NEON "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_NEON=yes
 	NEON_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} NEON"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_NEON=notspecified ;
 fi
 
 
@@ -10118,14 +10521,24 @@ if test "${with_neon29+set}" = set; then :
 	PBX_NEON29=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} NEON29"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_NEON29=yes
+	ac_mandatory_list="$ac_mandatory_list NEON29 "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_NEON29=yes
 	NEON29_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} NEON29"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_NEON29=notspecified ;
 fi
 
 
@@ -10150,14 +10563,24 @@ if test "${with_netsnmp+set}" = set; then :
 	PBX_NETSNMP=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} NETSNMP"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_NETSNMP=yes
+	ac_mandatory_list="$ac_mandatory_list NETSNMP "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_NETSNMP=yes
 	NETSNMP_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} NETSNMP"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_NETSNMP=notspecified ;
 fi
 
 
@@ -10182,14 +10605,24 @@ if test "${with_newt+set}" = set; then :
 	PBX_NEWT=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} NEWT"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_NEWT=yes
+	ac_mandatory_list="$ac_mandatory_list NEWT "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_NEWT=yes
 	NEWT_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} NEWT"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_NEWT=notspecified ;
 fi
 
 
@@ -10214,14 +10647,24 @@ if test "${with_ogg+set}" = set; then :
 	PBX_OGG=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} OGG"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_OGG=yes
+	ac_mandatory_list="$ac_mandatory_list OGG "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_OGG=yes
 	OGG_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} OGG"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_OGG=notspecified ;
 fi
 
 
@@ -10246,14 +10689,24 @@ if test "${with_openr2+set}" = set; then :
 	PBX_OPENR2=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} OPENR2"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_OPENR2=yes
+	ac_mandatory_list="$ac_mandatory_list OPENR2 "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_OPENR2=yes
 	OPENR2_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} OPENR2"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_OPENR2=notspecified ;
 fi
 
 
@@ -10278,14 +10731,24 @@ if test "${with_opus+set}" = set; then :
 	PBX_OPUS=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} OPUS"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_OPUS=yes
+	ac_mandatory_list="$ac_mandatory_list OPUS "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_OPUS=yes
 	OPUS_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} OPUS"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_OPUS=notspecified ;
 fi
 
 
@@ -10310,14 +10773,24 @@ if test "${with_osptk+set}" = set; then :
 	PBX_OSPTK=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} OSPTK"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_OSPTK=yes
+	ac_mandatory_list="$ac_mandatory_list OSPTK "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_OSPTK=yes
 	OSPTK_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} OSPTK"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_OSPTK=notspecified ;
 fi
 
 
@@ -10342,14 +10815,24 @@ if test "${with_oss+set}" = set; then :
 	PBX_OSS=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} OSS"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_OSS=yes
+	ac_mandatory_list="$ac_mandatory_list OSS "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_OSS=yes
 	OSS_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} OSS"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_OSS=notspecified ;
 fi
 
 
@@ -10374,14 +10857,24 @@ if test "${with_postgres+set}" = set; then :
 	PBX_PGSQL=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} PGSQL"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_PGSQL=yes
+	ac_mandatory_list="$ac_mandatory_list PGSQL "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_PGSQL=yes
 	PGSQL_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} PGSQL"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_PGSQL=notspecified ;
 fi
 
 
@@ -10391,29 +10884,48 @@ fi
 
 
 
-    PJPROJECT_DESCRIP="PJPROJECT"
-    PJPROJECT_OPTION="pjproject"
-    PBX_PJPROJECT=0
+PBX_PJPROJECT=0
 
-# Check whether --with-pjproject was given.
-if test "${with_pjproject+set}" = set; then :
-  withval=$with_pjproject;
+
+
+
+
+
+
+
+    PJPROJECT_SHARED_DESCRIP="Shared pjproject"
+    PJPROJECT_SHARED_OPTION="pjproject-shared"
+    PBX_PJPROJECT_SHARED=0
+
+# Check whether --with-pjproject-shared was given.
+if test "${with_pjproject_shared+set}" = set; then :
+  withval=$with_pjproject_shared;
 	case ${withval} in
 	n|no)
-	USE_PJPROJECT=no
+	USE_PJPROJECT_SHARED=no
 	# -1 is a magic value used by menuselect to know that the package
 	# was disabled, other than 'not found'
-	PBX_PJPROJECT=-1
+	PBX_PJPROJECT_SHARED=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} PJPROJECT"
+	if test -n "PJPROJECT" -a "${ac_mandatory_list#* PJPROJECT *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability PJPROJECT has already been specified" "$LINENO" 5
+	fi
+	USE_PJPROJECT_SHARED=yes
+	ac_mandatory_list="$ac_mandatory_list PJPROJECT "
 	;;
 	*)
-	PJPROJECT_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} PJPROJECT"
+	if test -n "PJPROJECT" -a "${ac_mandatory_list#* PJPROJECT *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability PJPROJECT has already been specified" "$LINENO" 5
+	fi
+	USE_PJPROJECT_SHARED=yes
+	PJPROJECT_SHARED_DIR="${withval}"
+	ac_mandatory_list="$ac_mandatory_list PJPROJECT "
 	;;
 	esac
 
+else
+   USE_PJPROJECT_SHARED=notspecified ;
 fi
 
 
@@ -10423,29 +10935,39 @@ fi
 
 
 
-    POPT_DESCRIP="popt"
-    POPT_OPTION="popt"
-    PBX_POPT=0
+    PJPROJECT_STATIC_DESCRIP="Static pjproject"
+    PJPROJECT_STATIC_OPTION="pjproject-static"
+    PBX_PJPROJECT_STATIC=0
 
-# Check whether --with-popt was given.
-if test "${with_popt+set}" = set; then :
-  withval=$with_popt;
+# Check whether --with-pjproject-static was given.
+if test "${with_pjproject_static+set}" = set; then :
+  withval=$with_pjproject_static;
 	case ${withval} in
 	n|no)
-	USE_POPT=no
+	USE_PJPROJECT_STATIC=no
 	# -1 is a magic value used by menuselect to know that the package
 	# was disabled, other than 'not found'
-	PBX_POPT=-1
+	PBX_PJPROJECT_STATIC=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} POPT"
+	if test -n "PJPROJECT" -a "${ac_mandatory_list#* PJPROJECT *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability PJPROJECT has already been specified" "$LINENO" 5
+	fi
+	USE_PJPROJECT_STATIC=yes
+	ac_mandatory_list="$ac_mandatory_list PJPROJECT "
 	;;
 	*)
-	POPT_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} POPT"
+	if test -n "PJPROJECT" -a "${ac_mandatory_list#* PJPROJECT *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability PJPROJECT has already been specified" "$LINENO" 5
+	fi
+	USE_PJPROJECT_STATIC=yes
+	PJPROJECT_STATIC_DIR="${withval}"
+	ac_mandatory_list="$ac_mandatory_list PJPROJECT "
 	;;
 	esac
 
+else
+   USE_PJPROJECT_STATIC=notspecified ;
 fi
 
 
@@ -10453,6 +10975,23 @@ fi
 
 
 
+
+
+if test "$USE_PJPROJECT_SHARED" != "yes" -a "$USE_PJPROJECT_STATIC" = "notspecified" ; then
+	ac_mandatory_list="$ac_mandatory_list PJPROJECT "
+	USE_PJPROJECT_STATIC=yes
+fi
+
+if test "$USE_PJPROJECT_SHARED" = "yes" ; then
+   PJPROJECT_IMPLEMENTATION="PJPROJECT_SHARED"
+fi
+
+if test "$USE_PJPROJECT_STATIC" = "yes" ; then
+   PJPROJECT_IMPLEMENTATION="PJPROJECT_STATIC"
+   if test "x$PJPROJECT_STATIC_DIR" = "x" ; then
+      PJPROJECT_STATIC_DIR="${PWD}/third_party/pjproject/source"
+   fi
+fi
 
 
 PJ_TRANSACTION_GRP_LOCK_DESCRIP="PJSIP Transaction Group Lock Support"
@@ -10503,6 +11042,49 @@ PBX_PJ_SSL_CERT_LOAD_FROM_FILES2=0
 
 
 
+
+    POPT_DESCRIP="popt"
+    POPT_OPTION="popt"
+    PBX_POPT=0
+
+# Check whether --with-popt was given.
+if test "${with_popt+set}" = set; then :
+  withval=$with_popt;
+	case ${withval} in
+	n|no)
+	USE_POPT=no
+	# -1 is a magic value used by menuselect to know that the package
+	# was disabled, other than 'not found'
+	PBX_POPT=-1
+	;;
+	y|ye|yes)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_POPT=yes
+	ac_mandatory_list="$ac_mandatory_list POPT "
+	;;
+	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_POPT=yes
+	POPT_DIR="${withval}"
+	ac_mandatory_list="$ac_mandatory_list  "
+	;;
+	esac
+
+else
+   USE_POPT=notspecified ;
+fi
+
+
+
+
+
+
+
+
     PORTAUDIO_DESCRIP="PortAudio"
     PORTAUDIO_OPTION="portaudio"
     PBX_PORTAUDIO=0
@@ -10518,14 +11100,24 @@ if test "${with_portaudio+set}" = set; then :
 	PBX_PORTAUDIO=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} PORTAUDIO"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_PORTAUDIO=yes
+	ac_mandatory_list="$ac_mandatory_list PORTAUDIO "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_PORTAUDIO=yes
 	PORTAUDIO_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} PORTAUDIO"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_PORTAUDIO=notspecified ;
 fi
 
 
@@ -10550,14 +11142,24 @@ if test "${with_pri+set}" = set; then :
 	PBX_PRI=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} PRI"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_PRI=yes
+	ac_mandatory_list="$ac_mandatory_list PRI "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_PRI=yes
 	PRI_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} PRI"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_PRI=notspecified ;
 fi
 
 
@@ -10826,14 +11428,24 @@ if test "${with_pwlib+set}" = set; then :
 	PBX_PWLIB=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} PWLIB"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_PWLIB=yes
+	ac_mandatory_list="$ac_mandatory_list PWLIB "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_PWLIB=yes
 	PWLIB_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} PWLIB"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_PWLIB=notspecified ;
 fi
 
 
@@ -10858,14 +11470,24 @@ if test "${with_radius+set}" = set; then :
 	PBX_RADIUS=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} RADIUS"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_RADIUS=yes
+	ac_mandatory_list="$ac_mandatory_list RADIUS "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_RADIUS=yes
 	RADIUS_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} RADIUS"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_RADIUS=notspecified ;
 fi
 
 
@@ -10890,14 +11512,24 @@ if test "${with_resample+set}" = set; then :
 	PBX_RESAMPLE=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} RESAMPLE"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_RESAMPLE=yes
+	ac_mandatory_list="$ac_mandatory_list RESAMPLE "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_RESAMPLE=yes
 	RESAMPLE_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} RESAMPLE"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_RESAMPLE=notspecified ;
 fi
 
 
@@ -10922,14 +11554,24 @@ if test "${with_sdl+set}" = set; then :
 	PBX_SDL=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} SDL"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_SDL=yes
+	ac_mandatory_list="$ac_mandatory_list SDL "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_SDL=yes
 	SDL_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} SDL"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_SDL=notspecified ;
 fi
 
 
@@ -10954,14 +11596,24 @@ if test "${with_SDL_image+set}" = set; then :
 	PBX_SDL_IMAGE=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} SDL_IMAGE"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_SDL_IMAGE=yes
+	ac_mandatory_list="$ac_mandatory_list SDL_IMAGE "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_SDL_IMAGE=yes
 	SDL_IMAGE_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} SDL_IMAGE"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_SDL_IMAGE=notspecified ;
 fi
 
 
@@ -11010,14 +11662,24 @@ if test "${with_spandsp+set}" = set; then :
 	PBX_SPANDSP=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} SPANDSP"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_SPANDSP=yes
+	ac_mandatory_list="$ac_mandatory_list SPANDSP "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_SPANDSP=yes
 	SPANDSP_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} SPANDSP"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_SPANDSP=notspecified ;
 fi
 
 
@@ -11042,14 +11704,24 @@ if test "${with_ss7+set}" = set; then :
 	PBX_SS7=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} SS7"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_SS7=yes
+	ac_mandatory_list="$ac_mandatory_list SS7 "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_SS7=yes
 	SS7_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} SS7"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_SS7=notspecified ;
 fi
 
 
@@ -11074,14 +11746,24 @@ if test "${with_speex+set}" = set; then :
 	PBX_SPEEX=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} SPEEX"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_SPEEX=yes
+	ac_mandatory_list="$ac_mandatory_list SPEEX "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_SPEEX=yes
 	SPEEX_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} SPEEX"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_SPEEX=notspecified ;
 fi
 
 
@@ -11106,14 +11788,24 @@ if test "${with_speex+set}" = set; then :
 	PBX_SPEEX_PREPROCESS=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} SPEEX_PREPROCESS"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_SPEEX_PREPROCESS=yes
+	ac_mandatory_list="$ac_mandatory_list SPEEX_PREPROCESS "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_SPEEX_PREPROCESS=yes
 	SPEEX_PREPROCESS_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} SPEEX_PREPROCESS"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_SPEEX_PREPROCESS=notspecified ;
 fi
 
 
@@ -11138,14 +11830,24 @@ if test "${with_speexdsp+set}" = set; then :
 	PBX_SPEEXDSP=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} SPEEXDSP"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_SPEEXDSP=yes
+	ac_mandatory_list="$ac_mandatory_list SPEEXDSP "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_SPEEXDSP=yes
 	SPEEXDSP_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} SPEEXDSP"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_SPEEXDSP=notspecified ;
 fi
 
 
@@ -11181,14 +11883,24 @@ if test "${with_sqlite+set}" = set; then :
 	PBX_SQLITE=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} SQLITE"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_SQLITE=yes
+	ac_mandatory_list="$ac_mandatory_list SQLITE "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_SQLITE=yes
 	SQLITE_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} SQLITE"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_SQLITE=notspecified ;
 fi
 
 
@@ -11213,14 +11925,24 @@ if test "${with_sqlite3+set}" = set; then :
 	PBX_SQLITE3=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} SQLITE3"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_SQLITE3=yes
+	ac_mandatory_list="$ac_mandatory_list SQLITE3 "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_SQLITE3=yes
 	SQLITE3_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} SQLITE3"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_SQLITE3=notspecified ;
 fi
 
 
@@ -11245,14 +11967,24 @@ if test "${with_srtp+set}" = set; then :
 	PBX_SRTP=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} SRTP"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_SRTP=yes
+	ac_mandatory_list="$ac_mandatory_list SRTP "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_SRTP=yes
 	SRTP_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} SRTP"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_SRTP=notspecified ;
 fi
 
 
@@ -11289,14 +12021,24 @@ if test "${with_ssl+set}" = set; then :
 	PBX_OPENSSL=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} OPENSSL"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_OPENSSL=yes
+	ac_mandatory_list="$ac_mandatory_list OPENSSL "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_OPENSSL=yes
 	OPENSSL_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} OPENSSL"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_OPENSSL=notspecified ;
 fi
 
 
@@ -11321,14 +12063,24 @@ if test "${with_suppserv+set}" = set; then :
 	PBX_SUPPSERV=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} SUPPSERV"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_SUPPSERV=yes
+	ac_mandatory_list="$ac_mandatory_list SUPPSERV "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_SUPPSERV=yes
 	SUPPSERV_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} SUPPSERV"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_SUPPSERV=notspecified ;
 fi
 
 
@@ -11353,14 +12105,24 @@ if test "${with_tds+set}" = set; then :
 	PBX_FREETDS=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} FREETDS"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_FREETDS=yes
+	ac_mandatory_list="$ac_mandatory_list FREETDS "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_FREETDS=yes
 	FREETDS_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} FREETDS"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_FREETDS=notspecified ;
 fi
 
 
@@ -11385,14 +12147,24 @@ if test "${with_termcap+set}" = set; then :
 	PBX_TERMCAP=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} TERMCAP"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_TERMCAP=yes
+	ac_mandatory_list="$ac_mandatory_list TERMCAP "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_TERMCAP=yes
 	TERMCAP_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} TERMCAP"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_TERMCAP=notspecified ;
 fi
 
 
@@ -11417,14 +12189,24 @@ if test "${with_timerfd+set}" = set; then :
 	PBX_TIMERFD=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} TIMERFD"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_TIMERFD=yes
+	ac_mandatory_list="$ac_mandatory_list TIMERFD "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_TIMERFD=yes
 	TIMERFD_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} TIMERFD"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_TIMERFD=notspecified ;
 fi
 
 
@@ -11449,14 +12231,24 @@ if test "${with_tinfo+set}" = set; then :
 	PBX_TINFO=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} TINFO"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_TINFO=yes
+	ac_mandatory_list="$ac_mandatory_list TINFO "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_TINFO=yes
 	TINFO_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} TINFO"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_TINFO=notspecified ;
 fi
 
 
@@ -11481,14 +12273,24 @@ if test "${with_tonezone+set}" = set; then :
 	PBX_TONEZONE=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} TONEZONE"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_TONEZONE=yes
+	ac_mandatory_list="$ac_mandatory_list TONEZONE "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_TONEZONE=yes
 	TONEZONE_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} TONEZONE"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_TONEZONE=notspecified ;
 fi
 
 
@@ -11513,14 +12315,24 @@ if test "${with_unixodbc+set}" = set; then :
 	PBX_UNIXODBC=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} UNIXODBC"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_UNIXODBC=yes
+	ac_mandatory_list="$ac_mandatory_list UNIXODBC "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_UNIXODBC=yes
 	UNIXODBC_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} UNIXODBC"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_UNIXODBC=notspecified ;
 fi
 
 
@@ -11545,14 +12357,24 @@ if test "${with_vorbis+set}" = set; then :
 	PBX_VORBIS=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} VORBIS"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_VORBIS=yes
+	ac_mandatory_list="$ac_mandatory_list VORBIS "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_VORBIS=yes
 	VORBIS_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} VORBIS"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_VORBIS=notspecified ;
 fi
 
 
@@ -11577,14 +12399,24 @@ if test "${with_vpb+set}" = set; then :
 	PBX_VPB=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} VPB"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_VPB=yes
+	ac_mandatory_list="$ac_mandatory_list VPB "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_VPB=yes
 	VPB_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} VPB"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_VPB=notspecified ;
 fi
 
 
@@ -11609,14 +12441,24 @@ if test "${with_x11+set}" = set; then :
 	PBX_X11=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} X11"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_X11=yes
+	ac_mandatory_list="$ac_mandatory_list X11 "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_X11=yes
 	X11_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} X11"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_X11=notspecified ;
 fi
 
 
@@ -11641,14 +12483,24 @@ if test "${with_z+set}" = set; then :
 	PBX_ZLIB=-1
 	;;
 	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} ZLIB"
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_ZLIB=yes
+	ac_mandatory_list="$ac_mandatory_list ZLIB "
 	;;
 	*)
+	if test -n "" -a "${ac_mandatory_list#*  *}" != "$ac_mandatory_list" ; then
+		as_fn_error $? "An option with capability  has already been specified" "$LINENO" 5
+	fi
+	USE_ZLIB=yes
 	ZLIB_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} ZLIB"
+	ac_mandatory_list="$ac_mandatory_list  "
 	;;
 	esac
 
+else
+   USE_ZLIB=notspecified ;
 fi
 
 
@@ -24003,6 +24855,7 @@ $as_echo "$as_me: *** including --without-postgres" >&6;}
    fi
 fi
 
+if test "$PJPROJECT_IMPLEMENTATION" = "PJPROJECT_SHARED" ; then
 
    if test "x${PBX_PJPROJECT}" != "x1" -a "${USE_PJPROJECT}" != "no"; then
 
@@ -24092,6 +24945,28 @@ fi
    fi
 
 
+$as_echo "#define HAVE_PJPROJECT_SHARED 1" >>confdefs.h
+
+elif test "$PJPROJECT_IMPLEMENTATION" = "PJPROJECT_STATIC" ; then
+   if test -e "$PJPROJECT_STATIC_DIR/build.mak" ; then
+      PJPROJECT_INCLUDE=`make -f /dev/null --eval="include $PJPROJECT_STATIC_DIR/build.mak" --eval='$(info $(PJ_CFLAGS))' --eval='all:' -q -s`
+      PJPROJECT_LIB=`make -f /dev/null --eval="include $PJPROJECT_STATIC_DIR/build.mak" --eval='$(info $(APP_LDFLAGS) $(APP_LDLIBS))' --eval='all:' -q -s`
+      PJPROJECT_DIR="$PJPROJECT_STATIC_DIR"
+      PBX_PJPROJECT_STATIC=1
+      PBX_PJPROJECT=1
+
+
+$as_echo "#define HAVE_PJPROJECT 1" >>confdefs.h
+
+
+$as_echo "#define HAVE_PJPROJECT_STATIC 1" >>confdefs.h
+
+   else
+      PBX_PJPROJECT_STATIC=0
+      PBX_PJPROJECT=0
+   fi
+fi
+
 
 if test "x${PBX_PJ_TRANSACTION_GRP_LOCK}" != "x1" -a "${USE_PJ_TRANSACTION_GRP_LOCK}" != "no"; then
    pbxlibdir=""
@@ -24108,7 +24983,7 @@ if test "x${PBX_PJ_TRANSACTION_GRP_LOCK}" != "x1" -a "${USE_PJ_TRANSACTION_GRP_L
       AST_PJ_TRANSACTION_GRP_LOCK_FOUND=yes
    else
       ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
-      CFLAGS="${CFLAGS} $PJPROJECT_CFLAGS"
+      CFLAGS="${CFLAGS} $PJPROJECT_INCLUDE"
       as_ac_Lib=`$as_echo "ac_cv_lib_pjsip_${pbxfuncname}" | $as_tr_sh`
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -lpjsip" >&5
 $as_echo_n "checking for ${pbxfuncname} in -lpjsip... " >&6; }
@@ -24116,7 +24991,7 @@ if eval \${$as_ac_Lib+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lpjsip ${pbxlibdir} $PJPROJECT_LIBS $LIBS"
+LIBS="-lpjsip ${pbxlibdir} $PJPROJECT_LIB $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -24158,12 +25033,12 @@ fi
 
    # now check for the header.
    if test "${AST_PJ_TRANSACTION_GRP_LOCK_FOUND}" = "yes"; then
-      PJ_TRANSACTION_GRP_LOCK_LIB="${pbxlibdir} -lpjsip $PJPROJECT_LIBS"
+      PJ_TRANSACTION_GRP_LOCK_LIB="${pbxlibdir} -lpjsip $PJPROJECT_LIB"
       # if --with-PJ_TRANSACTION_GRP_LOCK=DIR has been specified, use it.
       if test "x${PJ_TRANSACTION_GRP_LOCK_DIR}" != "x"; then
          PJ_TRANSACTION_GRP_LOCK_INCLUDE="-I${PJ_TRANSACTION_GRP_LOCK_DIR}/include"
       fi
-      PJ_TRANSACTION_GRP_LOCK_INCLUDE="${PJ_TRANSACTION_GRP_LOCK_INCLUDE} $PJPROJECT_CFLAGS"
+      PJ_TRANSACTION_GRP_LOCK_INCLUDE="${PJ_TRANSACTION_GRP_LOCK_INCLUDE} $PJPROJECT_INCLUDE"
       if test "xpjsip.h" = "x" ; then	# no header, assume found
          PJ_TRANSACTION_GRP_LOCK_HEADER_FOUND="1"
       else				# check for the header
@@ -24199,8 +25074,8 @@ fi
 
 saved_cppflags="${CPPFLAGS}"
 saved_libs="${LIBS}"
-CPPFLAGS="${CPPFLAGS} ${PJPROJECT_CFLAGS}"
-LIBS="${LIBS} ${PJPROJECT_LIBS}"
+CPPFLAGS="${CPPFLAGS} ${PJPROJECT_INCLUDE}"
+LIBS="${LIBS} ${PJPROJECT_LIB}"
 
     if test "x${PBX_PJSIP_REPLACE_MEDIA_STREAM}" != "x1" -a "${USE_PJSIP_REPLACE_MEDIA_STREAM}" != "no"; then
         if test "x" != "x"; then
@@ -24265,7 +25140,7 @@ if test "x${PBX_PJSIP_GET_DEST_INFO}" != "x1" -a "${USE_PJSIP_GET_DEST_INFO}" !=
       AST_PJSIP_GET_DEST_INFO_FOUND=yes
    else
       ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
-      CFLAGS="${CFLAGS} $PJPROJECT_CFLAGS"
+      CFLAGS="${CFLAGS} $PJPROJECT_INCLUDE"
       as_ac_Lib=`$as_echo "ac_cv_lib_pjsip_${pbxfuncname}" | $as_tr_sh`
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -lpjsip" >&5
 $as_echo_n "checking for ${pbxfuncname} in -lpjsip... " >&6; }
@@ -24273,7 +25148,7 @@ if eval \${$as_ac_Lib+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lpjsip ${pbxlibdir} $PJPROJECT_LIBS $LIBS"
+LIBS="-lpjsip ${pbxlibdir} $PJPROJECT_LIB $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -24315,12 +25190,12 @@ fi
 
    # now check for the header.
    if test "${AST_PJSIP_GET_DEST_INFO_FOUND}" = "yes"; then
-      PJSIP_GET_DEST_INFO_LIB="${pbxlibdir} -lpjsip $PJPROJECT_LIBS"
+      PJSIP_GET_DEST_INFO_LIB="${pbxlibdir} -lpjsip $PJPROJECT_LIB"
       # if --with-PJSIP_GET_DEST_INFO=DIR has been specified, use it.
       if test "x${PJSIP_GET_DEST_INFO_DIR}" != "x"; then
          PJSIP_GET_DEST_INFO_INCLUDE="-I${PJSIP_GET_DEST_INFO_DIR}/include"
       fi
-      PJSIP_GET_DEST_INFO_INCLUDE="${PJSIP_GET_DEST_INFO_INCLUDE} $PJPROJECT_CFLAGS"
+      PJSIP_GET_DEST_INFO_INCLUDE="${PJSIP_GET_DEST_INFO_INCLUDE} $PJPROJECT_INCLUDE"
       if test "xpjsip.h" = "x" ; then	# no header, assume found
          PJSIP_GET_DEST_INFO_HEADER_FOUND="1"
       else				# check for the header
@@ -24369,7 +25244,7 @@ if test "x${PBX_PJ_SSL_CERT_LOAD_FROM_FILES2}" != "x1" -a "${USE_PJ_SSL_CERT_LOA
       AST_PJ_SSL_CERT_LOAD_FROM_FILES2_FOUND=yes
    else
       ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
-      CFLAGS="${CFLAGS} $PJPROJECT_CFLAGS"
+      CFLAGS="${CFLAGS} $PJPROJECT_INCLUDE"
       as_ac_Lib=`$as_echo "ac_cv_lib_pj_${pbxfuncname}" | $as_tr_sh`
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -lpj" >&5
 $as_echo_n "checking for ${pbxfuncname} in -lpj... " >&6; }
@@ -24377,7 +25252,7 @@ if eval \${$as_ac_Lib+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lpj ${pbxlibdir} $PJPROJECT_LIBS $LIBS"
+LIBS="-lpj ${pbxlibdir} $PJPROJECT_LIB $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -24419,12 +25294,12 @@ fi
 
    # now check for the header.
    if test "${AST_PJ_SSL_CERT_LOAD_FROM_FILES2_FOUND}" = "yes"; then
-      PJ_SSL_CERT_LOAD_FROM_FILES2_LIB="${pbxlibdir} -lpj $PJPROJECT_LIBS"
+      PJ_SSL_CERT_LOAD_FROM_FILES2_LIB="${pbxlibdir} -lpj $PJPROJECT_LIB"
       # if --with-PJ_SSL_CERT_LOAD_FROM_FILES2=DIR has been specified, use it.
       if test "x${PJ_SSL_CERT_LOAD_FROM_FILES2_DIR}" != "x"; then
          PJ_SSL_CERT_LOAD_FROM_FILES2_INCLUDE="-I${PJ_SSL_CERT_LOAD_FROM_FILES2_DIR}/include"
       fi
-      PJ_SSL_CERT_LOAD_FROM_FILES2_INCLUDE="${PJ_SSL_CERT_LOAD_FROM_FILES2_INCLUDE} $PJPROJECT_CFLAGS"
+      PJ_SSL_CERT_LOAD_FROM_FILES2_INCLUDE="${PJ_SSL_CERT_LOAD_FROM_FILES2_INCLUDE} $PJPROJECT_INCLUDE"
       if test "xpjlib.h" = "x" ; then	# no header, assume found
          PJ_SSL_CERT_LOAD_FROM_FILES2_HEADER_FOUND="1"
       else				# check for the header
@@ -24457,6 +25332,10 @@ _ACEOF
 fi
 
 
+
+if test "$PJPROJECT_IMPLEMENTATION" = "PJPROJECT_STATIC" ; then
+   PJPROJECT_LIB=""
+fi
 
 
 if test "x${PBX_POPT}" != "x1" -a "${USE_POPT}" != "no"; then
