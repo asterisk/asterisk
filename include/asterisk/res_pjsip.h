@@ -2108,6 +2108,16 @@ char *ast_sip_get_endpoint_identifier_order(void);
 void ast_sip_get_default_from_user(char *from_user, size_t size);
 
 /*! \brief Determines whether the res_pjsip module is loaded */
+#ifdef HAVE_PJPROJECT_STATIC
+#define CHECK_PJSIP_MODULE_LOADED()				\
+	do {							\
+		if (!ast_module_check("res_pjsip.so")		\
+			|| !ast_module_check("res_pjproject.so") \
+			|| !ast_sip_get_pjsip_endpoint()) {	\
+			return AST_MODULE_LOAD_DECLINE;		\
+		}						\
+	} while(0)
+#else
 #define CHECK_PJSIP_MODULE_LOADED()				\
 	do {							\
 		if (!ast_module_check("res_pjsip.so")		\
@@ -2115,7 +2125,7 @@ void ast_sip_get_default_from_user(char *from_user, size_t size);
 			return AST_MODULE_LOAD_DECLINE;		\
 		}						\
 	} while(0)
-
+#endif
 /*!
  * \brief Retrieve the system keep alive interval setting.
  *
