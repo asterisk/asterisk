@@ -1,0 +1,26 @@
+diff --git a/aconfigure.ac b/aconfigure.ac
+index 2f71abb..cd7267f 100644
+--- a/aconfigure.ac
++++ b/aconfigure.ac
+@@ -417,10 +417,12 @@ AC_ARG_ENABLE(epoll,
+ 	      [
+ 		ac_os_objs=ioqueue_epoll.o
+ 		AC_MSG_RESULT([/dev/epoll])
++		AC_SUBST(ac_linux_poll,epoll)
+ 	      ],
+ 	      [
+ 		ac_os_objs=ioqueue_select.o
+-	        AC_MSG_RESULT([select()]) 
++	    AC_MSG_RESULT([select()])
++		AC_SUBST(ac_linux_poll,select)
+ 	      ])
+ 
+ AC_SUBST(ac_shared_libraries)
+@@ -1879,7 +1881,6 @@ esac
+ 
+ 
+ AC_SUBST(target)
+-AC_SUBST(ac_linux_poll,select)
+ AC_SUBST(ac_host,unix)
+ AC_SUBST(ac_main_obj)
+ case $target in
