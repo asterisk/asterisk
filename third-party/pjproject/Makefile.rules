@@ -1,0 +1,4 @@
+PJPROJECT_CONFIG_OPTS = --prefix= --with-external-speex --with-external-gsm --with-external-srtp \
+	--with-external-pa --disable-video --disable-v4l2 --disable-sound --disable-resample \
+	--disable-opencore-amr --disable-ilbc-codec --without-libyuv --disable-g7221-codec
+PJPROJECT_BUILD_CFLAGS = -fPIC
