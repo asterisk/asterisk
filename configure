@@ -907,6 +907,10 @@ PBX_PORTAUDIO
 PORTAUDIO_DIR
 PORTAUDIO_INCLUDE
 PORTAUDIO_LIB
+PBX_POPT
+POPT_DIR
+POPT_INCLUDE
+POPT_LIB
 PBX_PJ_SSL_CERT_LOAD_FROM_FILES2
 PJ_SSL_CERT_LOAD_FROM_FILES2_DIR
 PJ_SSL_CERT_LOAD_FROM_FILES2_INCLUDE
@@ -927,10 +931,7 @@ PBX_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK
 PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_DIR
 PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_INCLUDE
 PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_LIB
-PBX_POPT
-POPT_DIR
-POPT_INCLUDE
-POPT_LIB
+PJPROJECT_BUNDLED
 PBX_PJPROJECT
 PJPROJECT_DIR
 PJPROJECT_INCLUDE
@@ -1350,6 +1351,7 @@ with_osptk
 with_oss
 with_postgres
 with_pjproject
+with_pjproject_bundled
 with_popt
 with_portaudio
 with_pri
@@ -2088,6 +2090,8 @@ Optional Packages:
   --with-oss=PATH         use Open Sound System files in PATH
   --with-postgres=PATH    use PostgreSQL files in PATH
   --with-pjproject=PATH   use PJPROJECT files in PATH
+  --with-pjproject-bundled
+                          Use bundled pjproject libraries
   --with-popt=PATH        use popt files in PATH
   --with-portaudio=PATH   use PortAudio files in PATH
   --with-pri=PATH         use ISDN PRI files in PATH
@@ -10401,6 +10405,7 @@ fi
 
 
 
+
     PJPROJECT_DESCRIP="PJPROJECT"
     PJPROJECT_OPTION="pjproject"
     PBX_PJPROJECT=0
@@ -10432,37 +10437,28 @@ fi
 
 
 
+PJPROJECT_BUNDLED=no
 
-    POPT_DESCRIP="popt"
-    POPT_OPTION="popt"
-    PBX_POPT=0
 
-# Check whether --with-popt was given.
-if test "${with_popt+set}" = set; then :
-  withval=$with_popt;
-	case ${withval} in
-	n|no)
-	USE_POPT=no
-	# -1 is a magic value used by menuselect to know that the package
-	# was disabled, other than 'not found'
-	PBX_POPT=-1
-	;;
-	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} POPT"
-	;;
-	*)
-	POPT_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} POPT"
-	;;
+
+# Check whether --with-pjproject-bundled was given.
+if test "${with_pjproject_bundled+set}" = set; then :
+  withval=$with_pjproject_bundled; case "${enableval}" in
+	      n|no) PJPROJECT_BUNDLED=no ;;
+	      *) PJPROJECT_BUNDLED=yes ;;
 	esac
-
 fi
 
 
 
+if test "$PJPROJECT_BUNDLED" = "yes" -a "${ac_mandatory_list#*PJPROJECT*}" != "$ac_mandatory_list" ; then
+   as_fn_error $? "--with-pjproject and --with-pjproject-bundled can't both be specified" "$LINENO" 5
+fi
 
-
-
+if test "$PJPROJECT_BUNDLED" = "yes" ; then
+   ac_mandatory_list="$ac_mandatory_list PJPROJECT"
+   PJPROJECT_DIR="${ac_top_build_prefix}third_party/pjproject"
+fi
 
 
 PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_DESCRIP="PJSIP Dialog Create UAS with Incremented Lock"
@@ -10518,6 +10514,39 @@ PJ_SSL_CERT_LOAD_FROM_FILES2_OPTION=pjsip
 PJ_SSL_CERT_LOAD_FROM_FILES2_DIR=${PJPROJECT_DIR}
 
 PBX_PJ_SSL_CERT_LOAD_FROM_FILES2=0
+
+
+
+
+
+
+
+
+    POPT_DESCRIP="popt"
+    POPT_OPTION="popt"
+    PBX_POPT=0
+
+# Check whether --with-popt was given.
+if test "${with_popt+set}" = set; then :
+  withval=$with_popt;
+	case ${withval} in
+	n|no)
+	USE_POPT=no
+	# -1 is a magic value used by menuselect to know that the package
+	# was disabled, other than 'not found'
+	PBX_POPT=-1
+	;;
+	y|ye|yes)
+	ac_mandatory_list="${ac_mandatory_list} POPT"
+	;;
+	*)
+	POPT_DIR="${withval}"
+	ac_mandatory_list="${ac_mandatory_list} POPT"
+	;;
+	esac
+
+fi
+
 
 
 
@@ -24153,6 +24182,284 @@ $as_echo "$as_me: *** including --without-postgres" >&6;}
    fi
 fi
 
+if test "$USE_PJPROJECT" != "no" ; then
+   if test "$PJPROJECT_BUNDLED" = "yes" ; then
+
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for embedded pjproject (may have to download)" >&5
+$as_echo_n "checking for embedded pjproject (may have to download)... " >&6; }
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: configuring" >&5
+$as_echo "configuring" >&6; }
+	make --quiet --no-print-directory -C $PJPROJECT_DIR configure
+	if test $? -ne 0 ; then
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: failed" >&5
+$as_echo "failed" >&6; }
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: Unable to configure $PJPROJECT_DIR" >&5
+$as_echo "$as_me: Unable to configure $PJPROJECT_DIR" >&6;}
+		as_fn_error $? "Run \"make -C $PJPROJECT_DIR NOISY_BUILD=yes configure\" to see error details." "$LINENO" 5
+	fi
+
+	PJPROJECT_INCLUDE=$(make --quiet --no-print-directory -C $PJPROJECT_DIR echo_cflags)
+	PJPROJECT_CFLAGS="$PJPROJECT_INCLUDE"
+
+	PBX_PJPROJECT=1
+	PJPROJECT_BUNDLED=yes
+
+$as_echo "#define HAVE_PJPROJECT 1" >>confdefs.h
+
+
+$as_echo "#define HAVE_PJPROJECT_BUNDLED 1" >>confdefs.h
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+
+	saved_dir="PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_DIR"
+	PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_DIR=""
+	PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_INCLUDE="$PJPROJECT_INCLUDE"
+
+    if test "x${PBX_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK}" != "x1" -a "${USE_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK}" != "no"; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pjsip_dlg_create_uas_and_inc_lock declared in pjsip.h" >&5
+$as_echo_n "checking for pjsip_dlg_create_uas_and_inc_lock declared in pjsip.h... " >&6; }
+        saved_cppflags="${CPPFLAGS}"
+        if test "x${PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_DIR}" != "x"; then
+            PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_INCLUDE="-I${PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_DIR}/include"
+        fi
+        CPPFLAGS="${CPPFLAGS} ${PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_INCLUDE}"
+
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ #include <pjsip.h>
+int
+main ()
+{
+#if !defined(pjsip_dlg_create_uas_and_inc_lock)
+                                    (void) pjsip_dlg_create_uas_and_inc_lock;
+                                #endif
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+                PBX_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK=1
+
+$as_echo "#define HAVE_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK 1" >>confdefs.h
+
+
+
+else
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+        CPPFLAGS="${saved_cppflags}"
+    fi
+
+	PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_DIR="$saved_dir"
+
+
+	saved_dir="PJ_TRANSACTION_GRP_LOCK_DIR"
+	PJ_TRANSACTION_GRP_LOCK_DIR=""
+	PJ_TRANSACTION_GRP_LOCK_INCLUDE="$PJPROJECT_INCLUDE"
+
+    if test "x${PBX_PJ_TRANSACTION_GRP_LOCK}" != "x1" -a "${USE_PJ_TRANSACTION_GRP_LOCK}" != "no"; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pjsip_tsx_create_uac2 declared in pjsip.h" >&5
+$as_echo_n "checking for pjsip_tsx_create_uac2 declared in pjsip.h... " >&6; }
+        saved_cppflags="${CPPFLAGS}"
+        if test "x${PJ_TRANSACTION_GRP_LOCK_DIR}" != "x"; then
+            PJ_TRANSACTION_GRP_LOCK_INCLUDE="-I${PJ_TRANSACTION_GRP_LOCK_DIR}/include"
+        fi
+        CPPFLAGS="${CPPFLAGS} ${PJ_TRANSACTION_GRP_LOCK_INCLUDE}"
+
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ #include <pjsip.h>
+int
+main ()
+{
+#if !defined(pjsip_tsx_create_uac2)
+                                    (void) pjsip_tsx_create_uac2;
+                                #endif
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+                PBX_PJ_TRANSACTION_GRP_LOCK=1
+
+$as_echo "#define HAVE_PJ_TRANSACTION_GRP_LOCK 1" >>confdefs.h
+
+
+
+else
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+        CPPFLAGS="${saved_cppflags}"
+    fi
+
+	PJ_TRANSACTION_GRP_LOCK_DIR="$saved_dir"
+
+
+	saved_dir="PJSIP_REPLACE_MEDIA_STREAM_DIR"
+	PJSIP_REPLACE_MEDIA_STREAM_DIR=""
+	PJSIP_REPLACE_MEDIA_STREAM_INCLUDE="$PJPROJECT_INCLUDE"
+
+    if test "x${PBX_PJSIP_REPLACE_MEDIA_STREAM}" != "x1" -a "${USE_PJSIP_REPLACE_MEDIA_STREAM}" != "no"; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE declared in pjmedia.h" >&5
+$as_echo_n "checking for PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE declared in pjmedia.h... " >&6; }
+        saved_cppflags="${CPPFLAGS}"
+        if test "x${PJSIP_REPLACE_MEDIA_STREAM_DIR}" != "x"; then
+            PJSIP_REPLACE_MEDIA_STREAM_INCLUDE="-I${PJSIP_REPLACE_MEDIA_STREAM_DIR}/include"
+        fi
+        CPPFLAGS="${CPPFLAGS} ${PJSIP_REPLACE_MEDIA_STREAM_INCLUDE}"
+
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ #include <pjmedia.h>
+int
+main ()
+{
+#if !defined(PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE)
+                                    (void) PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE;
+                                #endif
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+                PBX_PJSIP_REPLACE_MEDIA_STREAM=1
+
+$as_echo "#define HAVE_PJSIP_REPLACE_MEDIA_STREAM 1" >>confdefs.h
+
+
+
+else
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+        CPPFLAGS="${saved_cppflags}"
+    fi
+
+	PJSIP_REPLACE_MEDIA_STREAM_DIR="$saved_dir"
+
+
+	saved_dir="PJSIP_GET_DEST_INFO_DIR"
+	PJSIP_GET_DEST_INFO_DIR=""
+	PJSIP_GET_DEST_INFO_INCLUDE="$PJPROJECT_INCLUDE"
+
+    if test "x${PBX_PJSIP_GET_DEST_INFO}" != "x1" -a "${USE_PJSIP_GET_DEST_INFO}" != "no"; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pjsip_get_dest_info declared in pjsip.h" >&5
+$as_echo_n "checking for pjsip_get_dest_info declared in pjsip.h... " >&6; }
+        saved_cppflags="${CPPFLAGS}"
+        if test "x${PJSIP_GET_DEST_INFO_DIR}" != "x"; then
+            PJSIP_GET_DEST_INFO_INCLUDE="-I${PJSIP_GET_DEST_INFO_DIR}/include"
+        fi
+        CPPFLAGS="${CPPFLAGS} ${PJSIP_GET_DEST_INFO_INCLUDE}"
+
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ #include <pjsip.h>
+int
+main ()
+{
+#if !defined(pjsip_get_dest_info)
+                                    (void) pjsip_get_dest_info;
+                                #endif
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+                PBX_PJSIP_GET_DEST_INFO=1
+
+$as_echo "#define HAVE_PJSIP_GET_DEST_INFO 1" >>confdefs.h
+
+
+
+else
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+        CPPFLAGS="${saved_cppflags}"
+    fi
+
+	PJSIP_GET_DEST_INFO_DIR="$saved_dir"
+
+
+	saved_dir="PJ_SSL_CERT_LOAD_FROM_FILES2_DIR"
+	PJ_SSL_CERT_LOAD_FROM_FILES2_DIR=""
+	PJ_SSL_CERT_LOAD_FROM_FILES2_INCLUDE="$PJPROJECT_INCLUDE"
+
+    if test "x${PBX_PJ_SSL_CERT_LOAD_FROM_FILES2}" != "x1" -a "${USE_PJ_SSL_CERT_LOAD_FROM_FILES2}" != "no"; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pj_ssl_cert_load_from_files2 declared in pjlib.h" >&5
+$as_echo_n "checking for pj_ssl_cert_load_from_files2 declared in pjlib.h... " >&6; }
+        saved_cppflags="${CPPFLAGS}"
+        if test "x${PJ_SSL_CERT_LOAD_FROM_FILES2_DIR}" != "x"; then
+            PJ_SSL_CERT_LOAD_FROM_FILES2_INCLUDE="-I${PJ_SSL_CERT_LOAD_FROM_FILES2_DIR}/include"
+        fi
+        CPPFLAGS="${CPPFLAGS} ${PJ_SSL_CERT_LOAD_FROM_FILES2_INCLUDE}"
+
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ #include <pjlib.h>
+int
+main ()
+{
+#if !defined(pj_ssl_cert_load_from_files2)
+                                    (void) pj_ssl_cert_load_from_files2;
+                                #endif
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+                PBX_PJ_SSL_CERT_LOAD_FROM_FILES2=1
+
+$as_echo "#define HAVE_PJ_SSL_CERT_LOAD_FROM_FILES2 1" >>confdefs.h
+
+
+
+else
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+        CPPFLAGS="${saved_cppflags}"
+    fi
+
+	PJ_SSL_CERT_LOAD_FROM_FILES2_DIR="$saved_dir"
+
+
+   else
 
    if test "x${PBX_PJPROJECT}" != "x1" -a "${USE_PJPROJECT}" != "no"; then
 
@@ -24370,7 +24677,7 @@ if eval \${$as_ac_Lib+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lpjsip ${pbxlibdir} $PJPROJECT_LIBS $LIBS"
+LIBS="-lpjsip ${pbxlibdir} $PJPROJECT_LIB $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -24412,7 +24719,7 @@ fi
 
    # now check for the header.
    if test "${AST_PJ_TRANSACTION_GRP_LOCK_FOUND}" = "yes"; then
-      PJ_TRANSACTION_GRP_LOCK_LIB="${pbxlibdir} -lpjsip $PJPROJECT_LIBS"
+      PJ_TRANSACTION_GRP_LOCK_LIB="${pbxlibdir} -lpjsip $PJPROJECT_LIB"
       # if --with-PJ_TRANSACTION_GRP_LOCK=DIR has been specified, use it.
       if test "x${PJ_TRANSACTION_GRP_LOCK_DIR}" != "x"; then
          PJ_TRANSACTION_GRP_LOCK_INCLUDE="-I${PJ_TRANSACTION_GRP_LOCK_DIR}/include"
@@ -24451,10 +24758,10 @@ fi
 
 
 
-saved_cppflags="${CPPFLAGS}"
-saved_libs="${LIBS}"
-CPPFLAGS="${CPPFLAGS} ${PJPROJECT_CFLAGS}"
-LIBS="${LIBS} ${PJPROJECT_LIBS}"
+      saved_cppflags="${CPPFLAGS}"
+      saved_libs="${LIBS}"
+      CPPFLAGS="${CPPFLAGS} ${PJPROJECT_CFLAGS}"
+      LIBS="${LIBS} ${PJPROJECT_LIB}"
 
     if test "x${PBX_PJSIP_REPLACE_MEDIA_STREAM}" != "x1" -a "${USE_PJSIP_REPLACE_MEDIA_STREAM}" != "no"; then
         if test "x" != "x"; then
@@ -24500,8 +24807,8 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 	CPPFLAGS="${saved_cppflags}"
     fi
 
-LIBS="${saved_libs}"
-CPPFLAGS="${saved_cppflags}"
+      LIBS="${saved_libs}"
+      CPPFLAGS="${saved_cppflags}"
 
 
 if test "x${PBX_PJSIP_GET_DEST_INFO}" != "x1" -a "${USE_PJSIP_GET_DEST_INFO}" != "no"; then
@@ -24527,7 +24834,7 @@ if eval \${$as_ac_Lib+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lpjsip ${pbxlibdir} $PJPROJECT_LIBS $LIBS"
+LIBS="-lpjsip ${pbxlibdir} $PJPROJECT_LIB $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -24569,7 +24876,7 @@ fi
 
    # now check for the header.
    if test "${AST_PJSIP_GET_DEST_INFO_FOUND}" = "yes"; then
-      PJSIP_GET_DEST_INFO_LIB="${pbxlibdir} -lpjsip $PJPROJECT_LIBS"
+      PJSIP_GET_DEST_INFO_LIB="${pbxlibdir} -lpjsip $PJPROJECT_LIB"
       # if --with-PJSIP_GET_DEST_INFO=DIR has been specified, use it.
       if test "x${PJSIP_GET_DEST_INFO_DIR}" != "x"; then
          PJSIP_GET_DEST_INFO_INCLUDE="-I${PJSIP_GET_DEST_INFO_DIR}/include"
@@ -24618,7 +24925,7 @@ if test "x${PBX_PJ_SSL_CERT_LOAD_FROM_FILES2}" != "x1" -a "${USE_PJ_SSL_CERT_LOA
          pbxlibdir="-L${PJ_SSL_CERT_LOAD_FROM_FILES2_DIR}"
       fi
    fi
-   pbxfuncname="pj_ssl_cert_load_from_files2"
+   pbxfuncname="pjsip/include/pjsip/sip_util.h"
    if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
       AST_PJ_SSL_CERT_LOAD_FROM_FILES2_FOUND=yes
    else
@@ -24631,7 +24938,7 @@ if eval \${$as_ac_Lib+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lpj ${pbxlibdir} $PJPROJECT_LIBS $LIBS"
+LIBS="-lpj ${pbxlibdir} $PJPROJECT_LIB $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -24673,7 +24980,7 @@ fi
 
    # now check for the header.
    if test "${AST_PJ_SSL_CERT_LOAD_FROM_FILES2_FOUND}" = "yes"; then
-      PJ_SSL_CERT_LOAD_FROM_FILES2_LIB="${pbxlibdir} -lpj $PJPROJECT_LIBS"
+      PJ_SSL_CERT_LOAD_FROM_FILES2_LIB="${pbxlibdir} -lpj $PJPROJECT_LIB"
       # if --with-PJ_SSL_CERT_LOAD_FROM_FILES2=DIR has been specified, use it.
       if test "x${PJ_SSL_CERT_LOAD_FROM_FILES2_DIR}" != "x"; then
          PJ_SSL_CERT_LOAD_FROM_FILES2_INCLUDE="-I${PJ_SSL_CERT_LOAD_FROM_FILES2_DIR}/include"
@@ -24711,6 +25018,8 @@ _ACEOF
 fi
 
 
+   fi
+fi
 
 
 if test "x${PBX_POPT}" != "x1" -a "${USE_POPT}" != "no"; then
