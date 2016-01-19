@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2015, Digium, Inc.
+ * Copyright (C) 1999 - 2016, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -6959,13 +6959,14 @@ static void dump_queue_members(struct call_queue *pm_queue)
 			continue;
 		}
 
-		ast_str_append(&value, 0, "%s%s;%d;%d;%s;%s",
+		ast_str_append(&value, 0, "%s%s;%d;%d;%s;%s;%s",
 			ast_str_strlen(value) ? "|" : "",
 			cur_member->interface,
 			cur_member->penalty,
 			cur_member->paused,
 			cur_member->membername,
-			cur_member->state_interface);
+			cur_member->state_interface,
+			cur_member->reason_paused);
 
 		ao2_ref(cur_member, -1);
 	}
@@ -7042,7 +7043,7 @@ static int remove_from_queue(const char *queuename, const char *interface)
  * \retval RES_EXISTS queue exists but no members
  * \retval RES_OUT_OF_MEMORY queue exists but not enough memory to create member
 */
-static int add_to_queue(const char *queuename, const char *interface, const char *membername, int penalty, int paused, int dump, const char *state_interface)
+static int add_to_queue(const char *queuename, const char *interface, const char *membername, int penalty, int paused, int dump, const char *state_interface, const char *reason_paused)
 {
 	struct call_queue *q;
 	struct member *new_member, *old_member;
@@ -7059,6 +7060,9 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 		if ((new_member = create_queue_member(interface, membername, penalty, paused, state_interface, q->ringinuse))) {
 			new_member->ringinuse = q->ringinuse;
 			new_member->dynamic = 1;
+			if (reason_paused) {
+				ast_copy_string(new_member->reason_paused, reason_paused, sizeof(new_member->reason_paused));
+			}
 			member_add_to_queue(q, new_member);
 			queue_publish_member_blob(queue_member_added_type(), queue_member_blob_create(q, new_member));
 
@@ -7415,6 +7419,7 @@ static void reload_queue_members(void)
 	int penalty = 0;
 	char *paused_tok;
 	int paused = 0;
+	char *reason_paused;
 	struct ast_db_entry *db_tree;
 	struct ast_db_entry *entry;
 	struct call_queue *cur_queue;
@@ -7461,6 +7466,7 @@ static void reload_queue_members(void)
 			paused_tok = strsep(&member, ";");
 			membername = strsep(&member, ";");
 			state_interface = strsep(&member, ";");
+			reason_paused = strsep(&member, ";");
 
 			if (!penalty_tok) {
 				ast_log(LOG_WARNING, "Error parsing persistent member string for '%s' (penalty)\n", queue_name);
@@ -7482,9 +7488,10 @@ static void reload_queue_members(void)
 				break;
 			}
 
-			ast_debug(1, "Reload Members: Queue: %s  Member: %s  Name: %s  Penalty: %d  Paused: %d\n", queue_name, interface, membername, penalty, paused);
+			ast_debug(1, "Reload Members: Queue: %s  Member: %s  Name: %s  Penalty: %d  Paused: %d ReasonPause: %s\n",
+			              queue_name, interface, membername, penalty, paused, reason_paused);
 
-			if (add_to_queue(queue_name, interface, membername, penalty, paused, 0, state_interface) == RES_OUTOFMEMORY) {
+			if (add_to_queue(queue_name, interface, membername, penalty, paused, 0, state_interface, reason_paused) == RES_OUTOFMEMORY) {
 				ast_log(LOG_ERROR, "Out of Memory when reloading persistent queue member\n");
 				break;
 			}
@@ -7681,7 +7688,7 @@ static int aqm_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 
-	switch (add_to_queue(args.queuename, args.interface, args.membername, penalty, 0, queue_persistent_members, args.state_interface)) {
+	switch (add_to_queue(args.queuename, args.interface, args.membername, penalty, 0, queue_persistent_members, args.state_interface, NULL)) {
 	case RES_OKAY:
 		if (ast_strlen_zero(args.membername) || !log_membername_as_agent) {
 			ast_queue_log(args.queuename, ast_channel_uniqueid(chan), args.interface, "ADDMEMBER", "%s", "");
@@ -9775,7 +9782,7 @@ static int manager_add_queue_member(struct mansession *s, const struct message *
 		paused = abs(ast_true(paused_s));
 	}
 
-	switch (add_to_queue(queuename, interface, membername, penalty, paused, queue_persistent_members, state_interface)) {
+	switch (add_to_queue(queuename, interface, membername, penalty, paused, queue_persistent_members, state_interface, NULL)) {
 	case RES_OKAY:
 		if (ast_strlen_zero(membername) || !log_membername_as_agent) {
 			ast_queue_log(queuename, "MANAGER", interface, "ADDMEMBER", "%s", paused ? "PAUSED" : "");
@@ -10081,7 +10088,7 @@ static char *handle_queue_add_member(struct ast_cli_entry *e, int cmd, struct as
 		state_interface = a->argv[11];
 	}
 
-	switch (add_to_queue(queuename, interface, membername, penalty, 0, queue_persistent_members, state_interface)) {
+	switch (add_to_queue(queuename, interface, membername, penalty, 0, queue_persistent_members, state_interface, NULL)) {
 	case RES_OKAY:
 		if (ast_strlen_zero(membername) || !log_membername_as_agent) {
 			ast_queue_log(queuename, "CLI", interface, "ADDMEMBER", "%s", "");
