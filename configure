@@ -901,6 +901,10 @@ PBX_PORTAUDIO
 PORTAUDIO_DIR
 PORTAUDIO_INCLUDE
 PORTAUDIO_LIB
+PBX_POPT
+POPT_DIR
+POPT_INCLUDE
+POPT_LIB
 PBX_PJ_SSL_CERT_LOAD_FROM_FILES2
 PJ_SSL_CERT_LOAD_FROM_FILES2_DIR
 PJ_SSL_CERT_LOAD_FROM_FILES2_INCLUDE
@@ -917,10 +921,7 @@ PBX_PJ_TRANSACTION_GRP_LOCK
 PJ_TRANSACTION_GRP_LOCK_DIR
 PJ_TRANSACTION_GRP_LOCK_INCLUDE
 PJ_TRANSACTION_GRP_LOCK_LIB
-PBX_POPT
-POPT_DIR
-POPT_INCLUDE
-POPT_LIB
+PJPROJECT_STATIC
 PBX_PJPROJECT
 PJPROJECT_DIR
 PJPROJECT_INCLUDE
@@ -1340,6 +1341,7 @@ with_osptk
 with_oss
 with_postgres
 with_pjproject
+enable_static_pjproject
 with_popt
 with_portaudio
 with_pri
@@ -2015,6 +2017,8 @@ Optional Features:
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --enable-dev-mode       Turn on developer mode
   --enable-coverage       Turn on code coverage tracking (for gcov)
+  --enable-static-pjproject
+                          Link to static pjproject libraries
   --disable-xmldoc        Explicitly disable XML documentation
   --disable-largefile     omit support for large files
   --enable-internal-poll  Use Asterisk's poll implementation
@@ -2077,7 +2081,7 @@ Optional Packages:
   --with-osptk=PATH       use OSP Toolkit files in PATH
   --with-oss=PATH         use Open Sound System files in PATH
   --with-postgres=PATH    use PostgreSQL files in PATH
-  --with-pjproject=PATH   use PJPROJECT files in PATH
+  --with-pjproject=PATH   use PJSIP Stack files in PATH
   --with-popt=PATH        use popt files in PATH
   --with-portaudio=PATH   use PortAudio files in PATH
   --with-pri=PATH         use ISDN PRI files in PATH
@@ -10391,7 +10395,8 @@ fi
 
 
 
-    PJPROJECT_DESCRIP="PJPROJECT"
+
+    PJPROJECT_DESCRIP="PJSIP Stack"
     PJPROJECT_OPTION="pjproject"
     PBX_PJPROJECT=0
 
@@ -10422,37 +10427,27 @@ fi
 
 
 
+PJPROJECT_STATIC=no
 
-    POPT_DESCRIP="popt"
-    POPT_OPTION="popt"
-    PBX_POPT=0
 
-# Check whether --with-popt was given.
-if test "${with_popt+set}" = set; then :
-  withval=$with_popt;
-	case ${withval} in
-	n|no)
-	USE_POPT=no
-	# -1 is a magic value used by menuselect to know that the package
-	# was disabled, other than 'not found'
-	PBX_POPT=-1
-	;;
-	y|ye|yes)
-	ac_mandatory_list="${ac_mandatory_list} POPT"
-	;;
-	*)
-	POPT_DIR="${withval}"
-	ac_mandatory_list="${ac_mandatory_list} POPT"
-	;;
+# Check whether --enable-static-pjproject was given.
+if test "${enable_static_pjproject+set}" = set; then :
+  enableval=$enable_static_pjproject; case "${enableval}" in
+	      n|no) PJPROJECT_STATIC=no ;;
+	      *) PJPROJECT_STATIC=yes ;;
 	esac
-
 fi
 
 
 
-
-
-
+if test "$PJPROJECT_STATIC" = "yes" ; then
+   if test "${ac_mandatory_list#*PJPROJECT*}" = "$ac_mandatory_list" ; then
+      ac_mandatory_list="$ac_mandatory_list PJPROJECT"
+   fi
+   if test "x$PJPROJECT_DIR" = "x" ; then
+      PJPROJECT_DIR="${PWD}/third_party/pjproject/source"
+   fi
+fi
 
 
 PJ_TRANSACTION_GRP_LOCK_DESCRIP="PJSIP Transaction Group Lock Support"
@@ -10496,6 +10491,39 @@ PJ_SSL_CERT_LOAD_FROM_FILES2_OPTION=pjsip
 PJ_SSL_CERT_LOAD_FROM_FILES2_DIR=${PJPROJECT_DIR}
 
 PBX_PJ_SSL_CERT_LOAD_FROM_FILES2=0
+
+
+
+
+
+
+
+
+    POPT_DESCRIP="popt"
+    POPT_OPTION="popt"
+    PBX_POPT=0
+
+# Check whether --with-popt was given.
+if test "${with_popt+set}" = set; then :
+  withval=$with_popt;
+	case ${withval} in
+	n|no)
+	USE_POPT=no
+	# -1 is a magic value used by menuselect to know that the package
+	# was disabled, other than 'not found'
+	PBX_POPT=-1
+	;;
+	y|ye|yes)
+	ac_mandatory_list="${ac_mandatory_list} POPT"
+	;;
+	*)
+	POPT_DIR="${withval}"
+	ac_mandatory_list="${ac_mandatory_list} POPT"
+	;;
+	esac
+
+fi
+
 
 
 
@@ -24003,6 +24031,25 @@ $as_echo "$as_me: *** including --without-postgres" >&6;}
    fi
 fi
 
+if test "$USE_PJPROJECT" != "no" ; then
+if test "$PJPROJECT_STATIC" = "yes" ; then
+   if test -e "$PJPROJECT_DIR/build.mak" ; then
+      PJPROJECT_INCLUDE=`make -f /dev/null --eval="include $PJPROJECT_DIR/build.mak" --eval='$(info $(PJ_CFLAGS))' --eval='all:' -q -s`
+      PJPROJECT_LIB=`make -f /dev/null --eval="include $PJPROJECT_DIR/build.mak" --eval='$(info $(APP_LDFLAGS) $(APP_LDLIBS))' --eval='all:' -q -s`
+      PBX_PJPROJECT=1
+
+$as_echo "#define HAVE_PJPROJECT 1" >>confdefs.h
+
+
+$as_echo "#define HAVE_PJPROJECT_STATIC 1" >>confdefs.h
+
+# dummy shared libraries because AST_EXT_LIB_CHECK needs something
+      temp_lpjsip="m"
+      temp_lpj="m"
+   else
+      PBX_PJPROJECT=0
+   fi
+else
 
    if test "x${PBX_PJPROJECT}" != "x1" -a "${USE_PJPROJECT}" != "no"; then
 
@@ -24091,6 +24138,9 @@ $as_echo "#define HAVE_PJPROJECT 1" >>confdefs.h
 fi
    fi
 
+   temp_lpjsip="pjsip"
+   temp_lpj="pj"
+fi
 
 
 if test "x${PBX_PJ_TRANSACTION_GRP_LOCK}" != "x1" -a "${USE_PJ_TRANSACTION_GRP_LOCK}" != "no"; then
@@ -24108,15 +24158,15 @@ if test "x${PBX_PJ_TRANSACTION_GRP_LOCK}" != "x1" -a "${USE_PJ_TRANSACTION_GRP_L
       AST_PJ_TRANSACTION_GRP_LOCK_FOUND=yes
    else
       ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
-      CFLAGS="${CFLAGS} $PJPROJECT_CFLAGS"
-      as_ac_Lib=`$as_echo "ac_cv_lib_pjsip_${pbxfuncname}" | $as_tr_sh`
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -lpjsip" >&5
-$as_echo_n "checking for ${pbxfuncname} in -lpjsip... " >&6; }
+      CFLAGS="${CFLAGS} $PJPROJECT_INCLUDE"
+      as_ac_Lib=`$as_echo "ac_cv_lib_$temp_lpjsip''_${pbxfuncname}" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -l$temp_lpjsip" >&5
+$as_echo_n "checking for ${pbxfuncname} in -l$temp_lpjsip... " >&6; }
 if eval \${$as_ac_Lib+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lpjsip ${pbxlibdir} $PJPROJECT_LIBS $LIBS"
+LIBS="-l$temp_lpjsip ${pbxlibdir} $PJPROJECT_LIB $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -24158,12 +24208,12 @@ fi
 
    # now check for the header.
    if test "${AST_PJ_TRANSACTION_GRP_LOCK_FOUND}" = "yes"; then
-      PJ_TRANSACTION_GRP_LOCK_LIB="${pbxlibdir} -lpjsip $PJPROJECT_LIBS"
+      PJ_TRANSACTION_GRP_LOCK_LIB="${pbxlibdir} -l$temp_lpjsip $PJPROJECT_LIB"
       # if --with-PJ_TRANSACTION_GRP_LOCK=DIR has been specified, use it.
       if test "x${PJ_TRANSACTION_GRP_LOCK_DIR}" != "x"; then
          PJ_TRANSACTION_GRP_LOCK_INCLUDE="-I${PJ_TRANSACTION_GRP_LOCK_DIR}/include"
       fi
-      PJ_TRANSACTION_GRP_LOCK_INCLUDE="${PJ_TRANSACTION_GRP_LOCK_INCLUDE} $PJPROJECT_CFLAGS"
+      PJ_TRANSACTION_GRP_LOCK_INCLUDE="${PJ_TRANSACTION_GRP_LOCK_INCLUDE} $PJPROJECT_INCLUDE"
       if test "xpjsip.h" = "x" ; then	# no header, assume found
          PJ_TRANSACTION_GRP_LOCK_HEADER_FOUND="1"
       else				# check for the header
@@ -24199,8 +24249,8 @@ fi
 
 saved_cppflags="${CPPFLAGS}"
 saved_libs="${LIBS}"
-CPPFLAGS="${CPPFLAGS} ${PJPROJECT_CFLAGS}"
-LIBS="${LIBS} ${PJPROJECT_LIBS}"
+CPPFLAGS="${CPPFLAGS} ${PJPROJECT_INCLUDE}"
+LIBS="${LIBS} ${PJPROJECT_LIB}"
 
     if test "x${PBX_PJSIP_REPLACE_MEDIA_STREAM}" != "x1" -a "${USE_PJSIP_REPLACE_MEDIA_STREAM}" != "no"; then
         if test "x" != "x"; then
@@ -24265,15 +24315,15 @@ if test "x${PBX_PJSIP_GET_DEST_INFO}" != "x1" -a "${USE_PJSIP_GET_DEST_INFO}" !=
       AST_PJSIP_GET_DEST_INFO_FOUND=yes
    else
       ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
-      CFLAGS="${CFLAGS} $PJPROJECT_CFLAGS"
-      as_ac_Lib=`$as_echo "ac_cv_lib_pjsip_${pbxfuncname}" | $as_tr_sh`
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -lpjsip" >&5
-$as_echo_n "checking for ${pbxfuncname} in -lpjsip... " >&6; }
+      CFLAGS="${CFLAGS} $PJPROJECT_INCLUDE"
+      as_ac_Lib=`$as_echo "ac_cv_lib_$temp_lpjsip''_${pbxfuncname}" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -l$temp_lpjsip" >&5
+$as_echo_n "checking for ${pbxfuncname} in -l$temp_lpjsip... " >&6; }
 if eval \${$as_ac_Lib+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lpjsip ${pbxlibdir} $PJPROJECT_LIBS $LIBS"
+LIBS="-l$temp_lpjsip ${pbxlibdir} $PJPROJECT_LIB $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -24315,12 +24365,12 @@ fi
 
    # now check for the header.
    if test "${AST_PJSIP_GET_DEST_INFO_FOUND}" = "yes"; then
-      PJSIP_GET_DEST_INFO_LIB="${pbxlibdir} -lpjsip $PJPROJECT_LIBS"
+      PJSIP_GET_DEST_INFO_LIB="${pbxlibdir} -l$temp_lpjsip $PJPROJECT_LIB"
       # if --with-PJSIP_GET_DEST_INFO=DIR has been specified, use it.
       if test "x${PJSIP_GET_DEST_INFO_DIR}" != "x"; then
          PJSIP_GET_DEST_INFO_INCLUDE="-I${PJSIP_GET_DEST_INFO_DIR}/include"
       fi
-      PJSIP_GET_DEST_INFO_INCLUDE="${PJSIP_GET_DEST_INFO_INCLUDE} $PJPROJECT_CFLAGS"
+      PJSIP_GET_DEST_INFO_INCLUDE="${PJSIP_GET_DEST_INFO_INCLUDE} $PJPROJECT_INCLUDE"
       if test "xpjsip.h" = "x" ; then	# no header, assume found
          PJSIP_GET_DEST_INFO_HEADER_FOUND="1"
       else				# check for the header
@@ -24369,15 +24419,15 @@ if test "x${PBX_PJ_SSL_CERT_LOAD_FROM_FILES2}" != "x1" -a "${USE_PJ_SSL_CERT_LOA
       AST_PJ_SSL_CERT_LOAD_FROM_FILES2_FOUND=yes
    else
       ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
-      CFLAGS="${CFLAGS} $PJPROJECT_CFLAGS"
-      as_ac_Lib=`$as_echo "ac_cv_lib_pj_${pbxfuncname}" | $as_tr_sh`
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -lpj" >&5
-$as_echo_n "checking for ${pbxfuncname} in -lpj... " >&6; }
+      CFLAGS="${CFLAGS} $PJPROJECT_INCLUDE"
+      as_ac_Lib=`$as_echo "ac_cv_lib_$temp_lpj''_${pbxfuncname}" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -l$temp_lpj" >&5
+$as_echo_n "checking for ${pbxfuncname} in -l$temp_lpj... " >&6; }
 if eval \${$as_ac_Lib+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lpj ${pbxlibdir} $PJPROJECT_LIBS $LIBS"
+LIBS="-l$temp_lpj ${pbxlibdir} $PJPROJECT_LIB $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -24419,12 +24469,12 @@ fi
 
    # now check for the header.
    if test "${AST_PJ_SSL_CERT_LOAD_FROM_FILES2_FOUND}" = "yes"; then
-      PJ_SSL_CERT_LOAD_FROM_FILES2_LIB="${pbxlibdir} -lpj $PJPROJECT_LIBS"
+      PJ_SSL_CERT_LOAD_FROM_FILES2_LIB="${pbxlibdir} -l$temp_lpj $PJPROJECT_LIB"
       # if --with-PJ_SSL_CERT_LOAD_FROM_FILES2=DIR has been specified, use it.
       if test "x${PJ_SSL_CERT_LOAD_FROM_FILES2_DIR}" != "x"; then
          PJ_SSL_CERT_LOAD_FROM_FILES2_INCLUDE="-I${PJ_SSL_CERT_LOAD_FROM_FILES2_DIR}/include"
       fi
-      PJ_SSL_CERT_LOAD_FROM_FILES2_INCLUDE="${PJ_SSL_CERT_LOAD_FROM_FILES2_INCLUDE} $PJPROJECT_CFLAGS"
+      PJ_SSL_CERT_LOAD_FROM_FILES2_INCLUDE="${PJ_SSL_CERT_LOAD_FROM_FILES2_INCLUDE} $PJPROJECT_INCLUDE"
       if test "xpjlib.h" = "x" ; then	# no header, assume found
          PJ_SSL_CERT_LOAD_FROM_FILES2_HEADER_FOUND="1"
       else				# check for the header
@@ -24457,6 +24507,12 @@ _ACEOF
 fi
 
 
+
+if test "$PJPROJECT_STATIC" = "yes" ; then
+   PJPROJECT_LIB=""
+fi
+
+fi
 
 
 if test "x${PBX_POPT}" != "x1" -a "${USE_POPT}" != "no"; then

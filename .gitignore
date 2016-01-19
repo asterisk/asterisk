@@ -18,6 +18,7 @@
 *.moduleinfo
 *.makeopts
 *.makedeps
+*.tmp
 .lastclean
 aclocal.m4
 autom4te.cache

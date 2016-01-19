@@ -1,0 +1,224 @@
+diff --git a/pjlib/include/pj/ssl_sock.h b/pjlib/include/pj/ssl_sock.h
+index 1682bda..a69af32 100644
+--- a/pjlib/include/pj/ssl_sock.h
++++ b/pjlib/include/pj/ssl_sock.h
+@@ -864,6 +864,18 @@ PJ_DECL(void) pj_ssl_sock_param_default(pj_ssl_sock_param *param);
+ 
+ 
+ /**
++ * Duplicate pj_ssl_sock_param.
++ *
++ * @param pool	Pool to allocate memory.
++ * @param dst	Destination parameter.
++ * @param src	Source parameter.
++ */
++PJ_DECL(void) pj_ssl_sock_param_copy(pj_pool_t *pool, 
++				     pj_ssl_sock_param *dst,
++				     const pj_ssl_sock_param *src);
++
++
++/**
+  * Create secure socket instance.
+  *
+  * @param pool		The pool for allocating secure socket instance.
+@@ -1115,6 +1127,30 @@ PJ_DECL(pj_status_t) pj_ssl_sock_start_accept(pj_ssl_sock_t *ssock,
+ 
+ 
+ /**
++ * Same as #pj_ssl_sock_start_accept(), but application can provide
++ * a secure socket parameter, which will be used to create a new secure
++ * socket reported in \a on_accept_complete() callback when there is
++ * an incoming connection.
++ *
++ * @param ssock		The secure socket.
++ * @param pool		Pool used to allocate some internal data for the
++ *			operation.
++ * @param localaddr	Local address to bind on.
++ * @param addr_len	Length of buffer containing local address.
++ * @param newsock_param	Secure socket parameter for new accepted sockets.
++ *
++ * @return		PJ_SUCCESS if the operation has been successful,
++ *			or the appropriate error code on failure.
++ */
++PJ_DECL(pj_status_t)
++pj_ssl_sock_start_accept2(pj_ssl_sock_t *ssock,
++			  pj_pool_t *pool,
++			  const pj_sockaddr_t *local_addr,
++			  int addr_len,
++			  const pj_ssl_sock_param *newsock_param);
++
++
++/**
+  * Starts asynchronous socket connect() operation and SSL/TLS handshaking 
+  * for this socket. Once the connection is done (either successfully or not),
+  * the \a on_connect_complete() callback will be called.
+diff --git a/pjlib/src/pj/ssl_sock_common.c b/pjlib/src/pj/ssl_sock_common.c
+index 913efee..717ab1d 100644
+--- a/pjlib/src/pj/ssl_sock_common.c
++++ b/pjlib/src/pj/ssl_sock_common.c
+@@ -19,6 +19,7 @@
+ #include <pj/ssl_sock.h>
+ #include <pj/assert.h>
+ #include <pj/errno.h>
++#include <pj/pool.h>
+ #include <pj/string.h>
+ 
+ /*
+@@ -48,6 +49,31 @@ PJ_DEF(void) pj_ssl_sock_param_default(pj_ssl_sock_param *param)
+ }
+ 
+ 
++/*
++ * Duplicate SSL socket parameter.
++ */
++PJ_DEF(void) pj_ssl_sock_param_copy( pj_pool_t *pool, 
++				     pj_ssl_sock_param *dst,
++				     const pj_ssl_sock_param *src)
++{
++    /* Init secure socket param */
++    pj_memcpy(dst, src, sizeof(*dst));
++    if (src->ciphers_num > 0) {
++	unsigned i;
++	dst->ciphers = (pj_ssl_cipher*)
++			pj_pool_calloc(pool, src->ciphers_num, 
++				       sizeof(pj_ssl_cipher));
++	for (i = 0; i < src->ciphers_num; ++i)
++	    dst->ciphers[i] = src->ciphers[i];
++    }
++
++    if (src->server_name.slen) {
++        /* Server name must be null-terminated */
++        pj_strdup_with_null(pool, &dst->server_name, &src->server_name);
++    }
++}
++
++
+ PJ_DEF(pj_status_t) pj_ssl_cert_get_verify_status_strings(
+ 						pj_uint32_t verify_status, 
+ 						const char *error_strings[],
+diff --git a/pjlib/src/pj/ssl_sock_ossl.c b/pjlib/src/pj/ssl_sock_ossl.c
+index 40a5a1e..6a701b7 100644
+--- a/pjlib/src/pj/ssl_sock_ossl.c
++++ b/pjlib/src/pj/ssl_sock_ossl.c
+@@ -141,6 +141,7 @@ struct pj_ssl_sock_t
+     pj_pool_t		 *pool;
+     pj_ssl_sock_t	 *parent;
+     pj_ssl_sock_param	  param;
++    pj_ssl_sock_param	  newsock_param;
+     pj_ssl_cert_t	 *cert;
+     
+     pj_ssl_cert_info	  local_cert_info;
+@@ -1757,11 +1758,9 @@ static pj_bool_t asock_on_accept_complete (pj_activesock_t *asock,
+     unsigned i;
+     pj_status_t status;
+ 
+-    PJ_UNUSED_ARG(src_addr_len);
+-
+     /* Create new SSL socket instance */
+-    status = pj_ssl_sock_create(ssock_parent->pool, &ssock_parent->param,
+-				&ssock);
++    status = pj_ssl_sock_create(ssock_parent->pool,
++    				&ssock_parent->newsock_param, &ssock);
+     if (status != PJ_SUCCESS)
+ 	goto on_return;
+ 
+@@ -2183,20 +2182,8 @@ PJ_DEF(pj_status_t) pj_ssl_sock_create (pj_pool_t *pool,
+ 	return status;
+ 
+     /* Init secure socket param */
+-    ssock->param = *param;
++    pj_ssl_sock_param_copy(pool, &ssock->param, param);
+     ssock->param.read_buffer_size = ((ssock->param.read_buffer_size+7)>>3)<<3;
+-    if (param->ciphers_num > 0) {
+-	unsigned i;
+-	ssock->param.ciphers = (pj_ssl_cipher*)
+-			       pj_pool_calloc(pool, param->ciphers_num, 
+-					      sizeof(pj_ssl_cipher));
+-	for (i = 0; i < param->ciphers_num; ++i)
+-	    ssock->param.ciphers[i] = param->ciphers[i];
+-    }
+-
+-    /* Server name must be null-terminated */
+-    pj_strdup_with_null(pool, &ssock->param.server_name, 
+-			&param->server_name);
+ 
+     /* Finally */
+     *p_ssock = ssock;
+@@ -2617,12 +2604,36 @@ PJ_DEF(pj_status_t) pj_ssl_sock_start_accept (pj_ssl_sock_t *ssock,
+ 					      const pj_sockaddr_t *localaddr,
+ 					      int addr_len)
+ {
++    return pj_ssl_sock_start_accept2(ssock, pool, localaddr, addr_len,
++    				     &ssock->param);
++}
++
++
++/**
++ * Same as #pj_ssl_sock_start_accept(), but application provides parameter
++ * for new accepted secure sockets.
++ */
++PJ_DEF(pj_status_t)
++pj_ssl_sock_start_accept2(pj_ssl_sock_t *ssock,
++			  pj_pool_t *pool,
++			  const pj_sockaddr_t *localaddr,
++			  int addr_len,
++			  const pj_ssl_sock_param *newsock_param)
++{
+     pj_activesock_cb asock_cb;
+     pj_activesock_cfg asock_cfg;
+     pj_status_t status;
+ 
+     PJ_ASSERT_RETURN(ssock && pool && localaddr && addr_len, PJ_EINVAL);
+ 
++    /* Verify new socket parameters */
++    if (newsock_param->grp_lock != ssock->param.grp_lock ||
++        newsock_param->sock_af != ssock->param.sock_af ||
++        newsock_param->sock_type != ssock->param.sock_type)
++    {
++        return PJ_EINVAL;
++    }
++
+     /* Create socket */
+     status = pj_sock_socket(ssock->param.sock_af, ssock->param.sock_type, 0, 
+ 			    &ssock->sock);
+@@ -2691,6 +2702,7 @@ PJ_DEF(pj_status_t) pj_ssl_sock_start_accept (pj_ssl_sock_t *ssock,
+ 	goto on_error;
+ 
+     /* Start accepting */
++    pj_ssl_sock_param_copy(pool, &ssock->newsock_param, newsock_param);
+     status = pj_activesock_start_accept(ssock->asock, pool);
+     if (status != PJ_SUCCESS)
+ 	goto on_error;
+diff --git a/pjsip/src/pjsip/sip_transport_tls.c b/pjsip/src/pjsip/sip_transport_tls.c
+index a9e95fb..91d99a7 100644
+--- a/pjsip/src/pjsip/sip_transport_tls.c
++++ b/pjsip/src/pjsip/sip_transport_tls.c
+@@ -314,7 +314,7 @@ PJ_DEF(pj_status_t) pjsip_tls_transport_start2( pjsip_endpoint *endpt,
+     int af, sip_ssl_method;
+     pj_uint32_t sip_ssl_proto;
+     struct tls_listener *listener;
+-    pj_ssl_sock_param ssock_param;
++    pj_ssl_sock_param ssock_param, newsock_param;
+     pj_sockaddr *listener_addr;
+     pj_bool_t has_listener;
+     pj_status_t status;
+@@ -473,9 +473,14 @@ PJ_DEF(pj_status_t) pjsip_tls_transport_start2( pjsip_endpoint *endpt,
+      */
+     has_listener = PJ_FALSE;
+ 
+-    status = pj_ssl_sock_start_accept(listener->ssock, pool, 
++    pj_memcpy(&newsock_param, &ssock_param, sizeof(newsock_param));
++    newsock_param.async_cnt = 1;
++    newsock_param.cb.on_data_read = &on_data_read;
++    newsock_param.cb.on_data_sent = &on_data_sent;
++    status = pj_ssl_sock_start_accept2(listener->ssock, pool, 
+ 			  (pj_sockaddr_t*)listener_addr, 
+-			  pj_sockaddr_get_len((pj_sockaddr_t*)listener_addr));
++			  pj_sockaddr_get_len((pj_sockaddr_t*)listener_addr),
++			  &newsock_param);
+     if (status == PJ_SUCCESS || status == PJ_EPENDING) {
+ 	pj_ssl_sock_info info;
+ 	has_listener = PJ_TRUE;
+-- 
+cgit v0.11.2
+
