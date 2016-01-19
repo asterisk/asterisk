@@ -1,14 +1,14 @@
 """fix pjsip qualify timeout
 
-Revision ID: 3d00be6d0c1f
-Revises: 26d7f3bf0fa5
-Create Date: 2016-01-16 19:48:31.730429
+Revision ID: 423f34ad36e2
+Revises: 136885b81223
+Create Date: 2016-01-13 21:49:21.557734
 
 """
 
 # revision identifiers, used by Alembic.
-revision = '3d00be6d0c1f'
-down_revision = '26d7f3bf0fa5'
+revision = '423f34ad36e2'
+down_revision = '136885b81223'
 
 from alembic import op
 import sqlalchemy as sa
@@ -24,4 +24,3 @@ def downgrade():
     op.alter_column('ps_aors', 'qualify_timeout', type_=sa.Integer)
     op.alter_column('ps_contacts', 'qualify_timeout', type_=sa.Integer)
     pass
-
