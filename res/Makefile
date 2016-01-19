@@ -97,3 +97,45 @@ stasis_recording/stored.o:  _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_stasis_recordin
 
 # Dependencies for res_ari_*.so are generated, so they're in this file
 include ari.make
+
+ifeq ($(PJPROJECT_STATIC),yes)
+
+.res_pjproject.stripped_build.tmp: $(PJPROJECT_DIR)/build.mak
+	@sed -r -e "/prefix|export PJ_SHARED_LIBRARIES|MACHINE_NAME|OS_NAME|HOST_NAME|CC_NAME|CROSS_COMPILE|LINUX_POLL/d" $(PJPROJECT_DIR)/build.mak > .res_pjproject.stripped_build.tmp
+
+.res_pjproject.symbols.tmp: $(PJSIP_LDLIB) .res_pjproject.stripped_build.tmp
+	@find $(PJPROJECT_DIR) -type f -name *.a -exec nm -Pog '{}' ';' | sed -n -r -e "s/.+: ([pP][jJ][^ ]+) .+/\1/gp" | sort -u > .res_pjproject.symbols.tmp
+
+ifneq ($(findstring clean,$(MAKECMDGOALS)),clean)
+include .res_pjproject.stripped_build.tmp
+endif
+
+res_pjproject.exports: res_pjproject.exports.in .res_pjproject.symbols
+	$(ECHO_PREFIX) echo "   [GENERATE] res_pjproject.exports.in -> res_pjproject.exports"
+	$(CMD_PREFIX) echo -e "{\n\tglobal:" > res_pjproject.exports
+	$(CMD_PREFIX) sed -n -r -e "s/LINKER_SYMBOL_PREFIX(.*)/$(LINKER_SYMBOL_PREFIX)\1/gp" res_pjproject.exports.in >> res_pjproject.exports
+	$(CMD_PREFIX) sed -r -e "s/.*/\t\t&;/" .res_pjproject.symbols.tmp >> res_pjproject.exports
+	$(CMD_PREFIX) echo -e "\tlocal:\n\t\t*;\n};" >> res_pjproject.exports
+
+PJPROJECT_LDLIBS := \
+-Wl,--whole-archive \
+$(PJSUA_LIB_LDLIB) \
+$(PJSIP_UA_LDLIB) \
+$(PJSIP_SIMPLE_LDLIB) \
+$(PJSIP_LDLIB) \
+$(PJNATH_LDLIB) \
+$(PJMEDIA_CODEC_LDLIB) \
+$(PJMEDIA_VIDEODEV_LDLIB) \
+$(PJMEDIA_AUDIODEV_LDLIB) \
+$(PJMEDIA_LDLIB) \
+$(PJLIB_UTIL_LDLIB) \
+$(PJLIB_LDLIB) \
+-Wl,--no-whole-archive \
+$(APP_THIRD_PARTY_LIBS) \
+$(APP_THIRD_PARTY_EXT)
+
+res_pjproject.o: _ASTCFLAGS+=$(PJ_CFLAGS)
+res_pjproject.so: _ASTLDFLAGS+=$(PJ_LDFLAGS) -Wl,-E
+res_pjproject.so: LIBS= $(PJPROJECT_LDLIBS) -lssl -lcrypto -luuid -lm -lrt -lpthread
+
+endif
