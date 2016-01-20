@@ -108,5 +108,4 @@ int control_add_channel_to_bridge(
 	struct stasis_app_control *control,
 	struct ast_channel *chan, void *obj);
 
-
 #endif /* _ASTERISK_RES_STASIS_CONTROL_H */
