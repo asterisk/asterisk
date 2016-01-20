@@ -221,6 +221,26 @@ STASIS_MESSAGE_TYPE_DEFN_LOCAL(cdr_read_message_type);
 STASIS_MESSAGE_TYPE_DEFN_LOCAL(cdr_write_message_type);
 STASIS_MESSAGE_TYPE_DEFN_LOCAL(cdr_prop_write_message_type);
 
+static struct timeval cdr_retrieve_time(struct ast_channel *chan, const char *time_name)
+{
+	struct timeval time;
+	char *value = NULL;
+	char tempbuf[128];
+
+	if (ast_strlen_zero(ast_channel_name(chan))) {
+		/* Format request on a dummy channel */
+		ast_cdr_format_var(ast_channel_cdr(chan), time_name, &value, tempbuf, sizeof(tempbuf), 1);
+	} else {
+		ast_cdr_getvar(ast_channel_name(chan), time_name, tempbuf, sizeof(tempbuf));
+	}
+
+	if (sscanf(tempbuf, "%ld.%ld", &time.tv_sec, &time.tv_usec) != 2) {
+		ast_log(AST_LOG_WARNING, "Failed to fully extract '%s' from CDR\n", time_name);
+	}
+
+	return time;
+}
+
 static void cdr_read_callback(void *data, struct stasis_subscription *sub, struct stasis_message *message)
 {
 	struct cdr_func_payload *payload = stasis_message_data(message);
@@ -268,16 +288,21 @@ static void cdr_read_callback(void *data, struct stasis_subscription *sub, struc
 
 	if (ast_test_flag(&flags, OPT_FLOAT)
 		&& (!strcasecmp("billsec", args.variable) || !strcasecmp("duration", args.variable))) {
-		long ms;
-		double dtime;
+		struct timeval start = cdr_retrieve_time(payload->chan, !strcasecmp("billsec", args.variable) ? "answer" : "start");
+		struct timeval finish = cdr_retrieve_time(payload->chan, "end");
+		double delta;
 
-		if (sscanf(tempbuf, "%30ld", &ms) != 1) {
-			ast_log(AST_LOG_WARNING, "Unable to parse %s (%s) from the CDR for channel %s\n",
-				args.variable, tempbuf, ast_channel_name(payload->chan));
-			return;
+		if (ast_tvzero(finish)) {
+			finish = ast_tvnow();
 		}
-		dtime = (double)(ms / 1000.0);
-		snprintf(tempbuf, sizeof(tempbuf), "%lf", dtime);
+
+		if (ast_tvzero(start)) {
+			delta = 0.0;
+		} else {
+			delta = (double)(ast_tvdiff_us(finish, start) / 1000000.0);
+		}
+		snprintf(tempbuf, sizeof(tempbuf), "%lf", delta);
+
 	} else if (!ast_test_flag(&flags, OPT_UNPARSED)) {
 		if (!strcasecmp("start", args.variable)
 			|| !strcasecmp("end", args.variable)
