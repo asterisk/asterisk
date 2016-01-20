@@ -12,6 +12,14 @@
 --- Functionality changes from Asterisk 13.7.0 to Asterisk 13.8.0 ------------
 ------------------------------------------------------------------------------
 
+res_pjproject
+------------------
+ * This module is the successor of res_pjsip_log_forwarder.  As well as
+   handling the log forwarding (which now displays as 'pjproject:0' instead
+   of 'pjsip:0'), it also adds a 'pjproject show buildopts' command to the CLI.
+   This displays the compiled-in options of the pjproject installation
+   Asterisk is currently running against.
+
 res_pjsip
 ------------------
 
