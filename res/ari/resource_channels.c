@@ -84,6 +84,13 @@ static struct stasis_app_control *find_control(
 		return NULL;
 	}
 
+	/* Even if we can find the control, the channel may have hung up */
+	if (ast_check_hangup(stasis_app_control_channel(control))) {
+		ast_ari_response_error(response, 404, "Not Found",
+				"Channel not found");
+		return NULL;
+	}
+
 	ao2_ref(control, +1);
 	return control;
 }

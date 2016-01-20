@@ -862,6 +862,12 @@ int stasis_app_channel_unreal_set_internal(struct ast_channel *chan);
  */
 int stasis_app_channel_set_internal(struct ast_channel *chan);
 
+/*!
+ * \brief Retrieve the channel from a control structure
+ *
+ * \return The channel that the control was created for
+ */
+struct ast_channel *stasis_app_control_channel(struct stasis_app_control *control);
 /*! @} */
 
 #endif /* _ASTERISK_STASIS_APP_H */

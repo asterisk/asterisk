@@ -97,6 +97,7 @@ static void control_dtor(void *obj)
 	ao2_cleanup(control->command_queue);
 	ast_cond_destroy(&control->wait_cond);
 	ao2_cleanup(control->app);
+	ast_channel_cleanup(control->channel);
 }
 
 struct stasis_app_control *control_create(struct ast_channel *channel, struct stasis_app *app)
@@ -125,7 +126,7 @@ struct stasis_app_control *control_create(struct ast_channel *channel, struct st
 		return NULL;
 	}
 
-	control->channel = channel;
+	control->channel = ao2_bump(channel);
 
 	AST_LIST_HEAD_INIT(&control->add_rules);
 	AST_LIST_HEAD_INIT(&control->remove_rules);
@@ -1083,4 +1084,9 @@ int control_prestart_dispatch_all(struct stasis_app_control *control,
 struct stasis_app *control_app(struct stasis_app_control *control)
 {
 	return control->app;
+}
+
+struct ast_channel *stasis_app_control_channel(struct stasis_app_control *control)
+{
+	return control->channel;
 }
