@@ -636,6 +636,14 @@ AST_TEST_DEFINE(threadpool_thread_timeout_thrash)
 		ast_mutex_unlock(&tld->lock);
 
 		ast_threadpool_push(pool, simple_task, std);
+
+		res = wait_for_completion(test, std);
+
+		ast_free(std);
+
+		if (res == AST_TEST_FAIL) {
+			goto end;
+		}
 	}
 
 	res = wait_until_thread_state(test, tld, 0, 0);
