@@ -395,9 +395,18 @@ static char *cli_tps_ping(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 		return CLI_SUCCESS;
 	}
 	ast_cli(a->fd, "\npinging %s ...", name);
-	when = ast_tvadd((begin = ast_tvnow()), ast_samp2tv(1000, 1000));
+
+	/*
+	 * Wait up to 5 seconds for a ping reply.
+	 *
+	 * On a very busy system it could take awhile to get a
+	 * ping response from some taskprocessors.
+	 */
+	begin = ast_tvnow();
+	when = ast_tvadd(begin, ast_samp2tv(5000, 1000));
 	ts.tv_sec = when.tv_sec;
 	ts.tv_nsec = when.tv_usec * 1000;
+
 	ast_mutex_lock(&cli_ping_cond_lock);
 	if (ast_taskprocessor_push(tps, tps_ping_handler, 0) < 0) {
 		ast_mutex_unlock(&cli_ping_cond_lock);
@@ -407,6 +416,7 @@ static char *cli_tps_ping(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	}
 	ast_cond_timedwait(&cli_ping_cond, &cli_ping_cond_lock, &ts);
 	ast_mutex_unlock(&cli_ping_cond_lock);
+
 	end = ast_tvnow();
 	delta = ast_tvsub(end, begin);
 	ast_cli(a->fd, "\n\t%24s ping time: %.1ld.%.6ld sec\n\n", name, (long)delta.tv_sec, (long int)delta.tv_usec);
