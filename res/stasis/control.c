@@ -355,14 +355,42 @@ int stasis_app_control_dial(struct stasis_app_control *control, const char *endp
 	return 0;
 }
 
+static int app_control_add_role(struct stasis_app_control *control,
+		struct ast_channel *chan, void *data)
+{
+	char *role = data;
+
+	return ast_channel_add_bridge_role(chan, role);
+}
+
 int stasis_app_control_add_role(struct stasis_app_control *control, const char *role)
 {
-	return ast_channel_add_bridge_role(control->channel, role);
+	char *role_dup;
+
+	role_dup = ast_strdup(role);
+	if (!role_dup) {
+		return -1;
+	}
+
+	if (stasis_app_send_command_async(control, app_control_add_role, role_dup, ast_free_ptr)) {
+		ast_free(role_dup);
+		return -1;
+	}
+
+	return 0;
+}
+
+static int app_control_clear_roles(struct stasis_app_control *control,
+		struct ast_channel *chan, void *data)
+{
+	ast_channel_clear_bridge_roles(chan);
+
+	return 0;
 }
 
 void stasis_app_control_clear_roles(struct stasis_app_control *control)
 {
-	ast_channel_clear_bridge_roles(control->channel);
+	stasis_app_send_command_async(control, app_control_clear_roles, NULL, NULL);
 }
 
 int control_command_count(struct stasis_app_control *control)
@@ -598,9 +626,31 @@ int stasis_app_control_unmute(struct stasis_app_control *control, unsigned int d
 	return 0;
 }
 
+static int app_control_set_channel_var(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
+{
+	struct ast_variable *var = data;
+
+	pbx_builtin_setvar_helper(control->channel, var->name, var->value);
+
+	return 0;
+}
+
 int stasis_app_control_set_channel_var(struct stasis_app_control *control, const char *variable, const char *value)
 {
-	return pbx_builtin_setvar_helper(control->channel, variable, value);
+	struct ast_variable *var;
+
+	var = ast_variable_new(variable, value, "ARI");
+	if (!var) {
+		return -1;
+	}
+
+	if (stasis_app_send_command_async(control, app_control_set_channel_var, var, ast_free_ptr)) {
+		ast_free(var);
+		return -1;
+	}
+
+	return 0;
 }
 
 static int app_control_hold(struct stasis_app_control *control,
