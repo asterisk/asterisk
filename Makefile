@@ -1010,6 +1010,10 @@ else
 		rest-api/resources.json .
 endif
 
+check-alembic: makeopts
+	@find contrib/ast-db-manage/ -name '*.pyc' -delete
+	@ALEMBIC=$(ALEMBIC) build_tools/make_check_alembic config cdr voicemail >&2
+
 .PHONY: menuselect
 .PHONY: main
 .PHONY: sounds
@@ -1031,6 +1035,7 @@ endif
 .PHONY: _clean
 .PHONY: ari-stubs
 .PHONY: basic-pbx
+.PHONY: check-alembic
 .PHONY: $(SUBDIRS_INSTALL)
 .PHONY: $(SUBDIRS_DIST_CLEAN)
 .PHONY: $(SUBDIRS_CLEAN)
