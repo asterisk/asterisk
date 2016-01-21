@@ -91,6 +91,12 @@ void ast_sip_presence_exten_state_to_str(int state, char **statestring, char **p
 		*pidfstate = "busy";
 		*pidfnote = "Ringing";
 		break;
+	case (AST_EXTENSION_INUSE | AST_EXTENSION_RINGING):
+		*statestring = "confirmed";
+		*local_state = NOTIFY_INUSE;
+		*pidfstate = "busy";
+		*pidfnote = "Ringing";
+		break;
 	case AST_EXTENSION_INUSE:
 		*statestring = "confirmed";
 		*local_state = NOTIFY_INUSE;
@@ -121,7 +127,7 @@ void ast_sip_presence_exten_state_to_str(int state, char **statestring, char **p
 		*statestring = "terminated";
 		*local_state = NOTIFY_OPEN;
 		*pidfstate = "--";
-		*pidfnote ="Ready";
+		*pidfnote = "Ready";
 		break;
 	}
 }
