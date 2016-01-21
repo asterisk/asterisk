@@ -211,7 +211,7 @@
 #define DEFAULT_ALLOW_EXT_DOM  TRUE    /*!< Allow external domains */
 #define DEFAULT_REALM          "asterisk" /*!< Realm for HTTP digest authentication */
 #define DEFAULT_DOMAINSASREALM FALSE    /*!< Use the domain option to guess the realm for registration and invite requests */
-#define DEFAULT_NOTIFYRINGING  TRUE     /*!< Notify devicestate system on ringing state */
+#define DEFAULT_NOTIFYRINGING  NOTIFYRINGING_ENABLED /*!< Notify devicestate system on ringing state */
 #define DEFAULT_NOTIFYCID      DISABLED	/*!< Include CID with ringing notifications */
 #define DEFAULT_PEDANTIC       TRUE     /*!< Follow SIP standards for dialog matching */
 #define DEFAULT_AUTOCREATEPEER AUTOPEERS_DISABLED    /*!< Don't create peers automagically */
@@ -620,6 +620,13 @@ enum sipmethod {
 	SIP_CANCEL,     /*!< Cancel an INVITE */
 	SIP_PUBLISH,    /*!< Not supported in Asterisk */
 	SIP_PING,       /*!< Not supported at all, no standard but still implemented out there */
+};
+
+/*! \brief Setting for the 'notifyringing' option, see sip.conf.sample for details. */
+enum notifyringing_setting {
+	NOTIFYRINGING_DISABLED = 0,
+	NOTIFYRINGING_ENABLED = 1,
+	NOTIFYRINGING_NOTINUSE = 2,
 };
 
 /*! \brief Settings for the 'notifycid' option, see sip.conf.sample for details. */
