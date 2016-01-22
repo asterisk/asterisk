@@ -1,0 +1,29 @@
+#!/bin/sh
+if [ -z "$ALEMBIC" -o ! -d contrib/ast-db-manage ]; then
+	echo "Run 'make check-alembic' to use this script" >&2
+	exit 1
+fi
+
+if [ "$ALEMBIC" = ":" ]; then
+	echo "Install alembic and re-run configure before using this target."
+	exit 1
+fi
+
+cd contrib/ast-db-manage
+
+FOUNDERROR=
+for id in "$@"; do
+	if [ -n "$($ALEMBIC -c ${id}.ini.sample branches)" ]; then
+		echo "Alembic branches exist for $id - details follow:"
+		# This second run is needed to display the errors because
+		# formatting was lost in the first execution.
+		$ALEMBIC -c ${id}.ini.sample branches
+		# Display all errors before reporting failure to Make.
+		FOUNDERROR=yes
+	fi
+done
+
+if [ -n "$FOUNDERROR" ]; then
+	# One or more failures.
+	exit 1
+fi
