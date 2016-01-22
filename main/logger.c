@@ -464,7 +464,7 @@ static int init_logger_chain(int locked, const char *altconf)
 
 	/* If no config file, we're fine, set default options. */
 	if (!cfg) {
-		if (!(chan = ast_calloc(1, sizeof(*chan)))) {
+		if (!(chan = ast_calloc(1, sizeof(*chan) + 1))) {
 			fprintf(stderr, "Failed to initialize default logging\n");
 			return -1;
 		}
