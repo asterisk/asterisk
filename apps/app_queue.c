@@ -110,7 +110,6 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/stasis_bridges.h"
 #include "asterisk/core_local.h"
 #include "asterisk/mixmonitor.h"
-#include "asterisk/core_unreal.h"
 #include "asterisk/bridge_basic.h"
 #include "asterisk/max_forwards.h"
 
