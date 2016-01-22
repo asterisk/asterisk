@@ -746,6 +746,14 @@ static int app_send_command_on_condition(struct stasis_app_control *control,
 	RAII_VAR(struct stasis_app_command *, command, NULL, ao2_cleanup);
 
 	if (control == NULL || control->is_done) {
+		/* If exec_command_on_condition fails, it calls the data_destructor.
+		 * In order to provide consistent behavior, we'll also call the data_destructor
+		 * on this error path. This way, callers never have to call the
+		 * data_destructor themselves.
+		 */
+		if (data_destructor) {
+			data_destructor(data);
+		}
 		return -1;
 	}
 
@@ -771,6 +779,14 @@ int stasis_app_send_command_async(struct stasis_app_control *control,
 	RAII_VAR(struct stasis_app_command *, command, NULL, ao2_cleanup);
 
 	if (control == NULL || control->is_done) {
+		/* If exec_command fails, it calls the data_destructor. In order to
+		 * provide consistent behavior, we'll also call the data_destructor
+		 * on this error path. This way, callers never have to call the
+		 * data_destructor themselves.
+		 */
+		if (data_destructor) {
+			data_destructor(data);
+		}
 		return -1;
 	}
 
