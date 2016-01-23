@@ -200,6 +200,11 @@ Queue
 -------------------
  * Added field ReasonPause on QueueMemberStatus if set when paused, the reason
    the queue member was paused.
+ * Added field LastPause on QueueMemberStatus for time when started the last
+   pause for a queue member.
+ * Show the time when started the last pause for queue member on CLI for command
+   'queue show'.
+
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.7.0 to Asterisk 13.8.0 ------------
