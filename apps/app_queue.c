@@ -1333,9 +1333,9 @@ enum {
 };
 
 enum {
-     QUEUE_AUTOPAUSE_OFF = 0,
-     QUEUE_AUTOPAUSE_ON,
-     QUEUE_AUTOPAUSE_ALL
+	QUEUE_AUTOPAUSE_OFF = 0,
+	QUEUE_AUTOPAUSE_ON,
+	QUEUE_AUTOPAUSE_ALL
 };
 
 enum queue_reload_mask {
@@ -1525,7 +1525,7 @@ struct queue_ent {
 	int linwrapped;                        /*!< Is the linpos wrapped? */
 	time_t start;                          /*!< When we started holding */
 	time_t expire;                         /*!< When this entry should expire (time out of queue) */
-	int cancel_answered_elsewhere;	       /*!< Whether we should force the CAE flag on this call (C) option*/
+	int cancel_answered_elsewhere;         /*!< Whether we should force the CAE flag on this call (C) option*/
 	struct ast_channel *chan;              /*!< Our channel */
 	AST_LIST_HEAD_NOLOCK(,penalty_rule) qe_rules; /*!< Local copy of the queue's penalty rules */
 	struct penalty_rule *pr;               /*!< Pointer to the next penalty rule to implement */
@@ -1548,7 +1548,7 @@ struct member {
 	int queuepos;                        /*!< In what order (pertains to certain strategies) should this member be called? */
 	time_t lastcall;                     /*!< When last successful call was hungup */
 	unsigned int in_call:1;              /*!< True if member is still in call. (so lastcall is not actual) */
-	struct call_queue *lastqueue;	     /*!< Last queue we received a call */
+	struct call_queue *lastqueue;        /*!< Last queue we received a call */
 	unsigned int dead:1;                 /*!< Used to detect members deleted in realtime */
 	unsigned int delme:1;                /*!< Flag to delete entry on reload */
 	unsigned int call_pending:1;         /*!< TRUE if the Q is attempting to place a call to the member. */
@@ -1685,7 +1685,7 @@ struct call_queue {
 	int memberdelay;                    /*!< Seconds to delay connecting member to caller */
 	int autofill;                       /*!< Ignore the head call status and ring an available agent */
 
-	struct ao2_container *members;             /*!< Head of the list of members */
+	struct ao2_container *members;      /*!< Head of the list of members */
 	struct queue_ent *head;             /*!< Head of the list of callers */
 	AST_LIST_ENTRY(call_queue) list;    /*!< Next call queue */
 	AST_LIST_HEAD_NOLOCK(, penalty_rule) rules; /*!< The list of penalty rules to invoke */
