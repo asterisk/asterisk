@@ -1086,6 +1086,31 @@ void conf_update_user_mute(struct confbridge_user *user)
 		ast_channel_name(user->chan));
 }
 
+/*
+ * \internal
+ * \brief Mute/unmute a single user.
+ */
+static void generic_mute_unmute_user(struct confbridge_conference *conference, struct confbridge_user *user, int mute)
+{
+	/* Set user level mute request. */
+	user->muted = mute ? 1 : 0;
+
+	conf_update_user_mute(user);
+	ast_test_suite_event_notify("CONF_MUTE",
+		"Message: participant %s %s\r\n"
+		"Conference: %s\r\n"
+		"Channel: %s",
+		ast_channel_name(user->chan),
+		mute ? "muted" : "unmuted",
+		conference->b_profile.name,
+		ast_channel_name(user->chan));
+	if (mute) {
+		send_mute_event(user, conference);
+	} else {
+		send_unmute_event(user, conference);
+	}
+}
+
 void conf_moh_stop(struct confbridge_user *user)
 {
 	user->playing_moh = 0;
@@ -1922,22 +1947,7 @@ static int action_toggle_mute(struct confbridge_conference *conference,
 
 	/* Toggle user level mute request. */
 	mute = !user->muted;
-	user->muted = mute;
-
-	conf_update_user_mute(user);
-	ast_test_suite_event_notify("CONF_MUTE",
-		"Message: participant %s %s\r\n"
-		"Conference: %s\r\n"
-		"Channel: %s",
-		ast_channel_name(user->chan),
-		mute ? "muted" : "unmuted",
-		user->b_profile.name,
-		ast_channel_name(user->chan));
-	if (mute) {
-		send_mute_event(user, conference);
-	} else {
-		send_unmute_event(user, conference);
-	}
+	generic_mute_unmute_user(conference, user, mute);
 
 	return play_file(bridge_channel, NULL, (mute ?
 		conf_get_sound(CONF_SOUND_MUTED, user->b_profile.sounds) :
@@ -2549,30 +2559,6 @@ static int generic_lock_unlock_helper(int lock, const char *conference_name)
 	ao2_ref(conference, -1);
 
 	return res;
-}
-
-/* \internal
- * \brief Mute/unmute a single user.
- */
-static void generic_mute_unmute_user(struct confbridge_conference *conference, struct confbridge_user *user, int mute)
-{
-	/* Set user level mute request. */
-	user->muted = mute ? 1 : 0;
-
-	conf_update_user_mute(user);
-	ast_test_suite_event_notify("CONF_MUTE",
-		"Message: participant %s %s\r\n"
-		"Conference: %s\r\n"
-		"Channel: %s",
-		ast_channel_name(user->chan),
-		mute ? "muted" : "unmuted",
-		conference->b_profile.name,
-		ast_channel_name(user->chan));
-	if (mute) {
-		send_mute_event(user, conference);
-	} else {
-		send_unmute_event(user, conference);
-	}
 }
 
 /* \internal
