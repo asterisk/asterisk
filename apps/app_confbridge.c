@@ -194,6 +194,9 @@ ASTERISK_REGISTER_FILE()
 					<enum name="marked">
 						<para>Get the number of marked users in the conference.</para>
 					</enum>
+					<enum name="muted">
+						<para>Determine if the conference is muted. (0 or 1)</para>
+					</enum>
 					<enum name="parties">
 						<para>Get the number of users in the conference.</para>
 					</enum>
@@ -2486,11 +2489,16 @@ static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct
 	if (a->argc == 2) {
 		struct ao2_iterator iter;
 
-		ast_cli(a->fd, "Conference Bridge Name           Users  Marked Locked?\n");
-		ast_cli(a->fd, "================================ ====== ====== ========\n");
+		ast_cli(a->fd, "Conference Bridge Name           Users  Marked Locked Muted\n");
+		ast_cli(a->fd, "================================ ====== ====== ====== =====\n");
 		iter = ao2_iterator_init(conference_bridges, 0);
 		while ((conference = ao2_iterator_next(&iter))) {
-			ast_cli(a->fd, "%-32s %6u %6u %s\n", conference->name, conference->activeusers + conference->waitingusers, conference->markedusers, (conference->locked ? "locked" : "unlocked"));
+			ast_cli(a->fd, "%-32s %6u %6u %-6s %s\n",
+				conference->name,
+				conference->activeusers + conference->waitingusers,
+				conference->markedusers,
+				AST_CLI_YESNO(conference->locked),
+				AST_CLI_YESNO(conference->muted));
 			ao2_ref(conference, -1);
 		}
 		ao2_iterator_destroy(&iter);
@@ -2980,12 +2988,14 @@ static int action_confbridgelistrooms(struct mansession *s, const struct message
 		"Parties: %u\r\n"
 		"Marked: %u\r\n"
 		"Locked: %s\r\n"
+		"Muted: %s\r\n"
 		"\r\n",
 		id_text,
 		conference->name,
 		conference->activeusers + conference->waitingusers,
 		conference->markedusers,
-		conference->locked ? "Yes" : "No");
+		AST_YESNO(conference->locked),
+		AST_YESNO(conference->muted));
 		ao2_unlock(conference);
 
 		ao2_ref(conference, -1);
@@ -3256,30 +3266,31 @@ static int func_confbridge_info(struct ast_channel *chan, const char *cmd, char 
 
 	/* get the correct count for the type requested */
 	ao2_lock(conference);
-	if (!strncasecmp(args.type, "parties", 7)) {
+	if (!strcasecmp(args.type, "parties")) {
 		AST_LIST_TRAVERSE(&conference->active_list, user, list) {
 			count++;
 		}
 		AST_LIST_TRAVERSE(&conference->waiting_list, user, list) {
 			count++;
 		}
-	} else if (!strncasecmp(args.type, "admins", 6)) {
+	} else if (!strcasecmp(args.type, "admins")) {
 		AST_LIST_TRAVERSE(&conference->active_list, user, list) {
 			if (ast_test_flag(&user->u_profile, USER_OPT_ADMIN)) {
 				count++;
 			}
 		}
-	} else if (!strncasecmp(args.type, "marked", 6)) {
+	} else if (!strcasecmp(args.type, "marked")) {
 		AST_LIST_TRAVERSE(&conference->active_list, user, list) {
 			if (ast_test_flag(&user->u_profile, USER_OPT_MARKEDUSER)) {
 				count++;
 			}
 		}
-	} else if (!strncasecmp(args.type, "locked", 6)) {
+	} else if (!strcasecmp(args.type, "locked")) {
 		count = conference->locked;
+	} else if (!strcasecmp(args.type, "muted")) {
+		count = conference->muted;
 	} else {
-		ast_log(LOG_ERROR, "Invalid keyword '%s' passed to CONFBRIDGE_INFO.  Should be one of: "
-			"parties, admins, marked, or locked.\n", args.type);
+		ast_log(LOG_ERROR, "Invalid keyword '%s' passed to CONFBRIDGE_INFO.\n", args.type);
 	}
 	snprintf(buf, len, "%d", count);
 	ao2_unlock(conference);
