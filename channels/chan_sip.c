@@ -33395,8 +33395,8 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 
 			memset(ldomain, 0, sizeof(ldomain));
 			local_to_header++;
-			/* This is okey because lhost and lport are as big as tmp */
-			sscanf(local_to_header, "%256[^<>; ]", ldomain);
+			/* Will copy no more than 255 chars plus null terminator. */
+			sscanf(local_to_header, "%255[^<>; ]", ldomain);
 			if (ast_strlen_zero(ldomain)) {
 				ast_log(LOG_ERROR, "Can't find the host address\n");
 				return 0;
