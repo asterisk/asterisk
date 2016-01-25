@@ -1202,8 +1202,6 @@ static void subscription_tree_destructor(void *obj)
 
 	ast_debug(3, "Destroying subscription tree %p\n", sub_tree);
 
-	remove_subscription(sub_tree);
-
 	ao2_cleanup(sub_tree->endpoint);
 
 	destroy_subscriptions(sub_tree->root);
@@ -3295,6 +3293,7 @@ static void pubsub_on_evsub_state(pjsip_evsub *evsub, pjsip_event *event)
 		}
 	}
 
+	remove_subscription(sub_tree);
 	pjsip_evsub_set_mod_data(evsub, pubsub_module.id, NULL);
 	sub_tree->evsub = NULL;
 	ast_sip_dialog_set_serializer(sub_tree->dlg, NULL);
