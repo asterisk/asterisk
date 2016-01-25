@@ -278,6 +278,10 @@ AC_PATH_PROG([CATDVI], [catdvi], :)
 AC_PATH_PROG([KPATHSEA], [kpsewhich], :)
 AC_PATH_PROG([XMLLINT], [xmllint], :)
 AC_PATH_PROG([XMLSTARLET], [xmlstarlet], :)
+AC_PATH_PROG([XSLTPROC], [xsltproc], :)
+if test "x${XSLTPROC}" = "x:" ; then
+   AC_MSG_ERROR(xsltproc was not found)
+fi
 AC_PATH_PROG([GIT], [git], :)
 AC_PATH_PROG([ALEMBIC], [alembic], :)
 if test "${WGET}" != ":" ; then
