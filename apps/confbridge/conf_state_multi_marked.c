@@ -163,7 +163,7 @@ static void leave_marked(struct confbridge_user *user)
 			ao2_unlock(user->conference);
 			ast_autoservice_start(user->chan);
 			play_sound_file(user->conference,
-				conf_get_sound(CONF_SOUND_LEADER_HAS_LEFT, user->b_profile.sounds));
+				conf_get_sound(CONF_SOUND_LEADER_HAS_LEFT, user->conference->b_profile.sounds));
 			ast_autoservice_stop(user->chan);
 			ao2_lock(user->conference);
 		}
@@ -182,14 +182,14 @@ static void leave_marked(struct confbridge_user *user)
 	}
 }
 
-static int post_join_play_begin(struct confbridge_user *cbu)
+static int post_join_play_begin(struct confbridge_user *user)
 {
 	int res;
 
-	ast_autoservice_start(cbu->chan);
-	res = play_sound_file(cbu->conference,
-		conf_get_sound(CONF_SOUND_BEGIN, cbu->b_profile.sounds));
-	ast_autoservice_stop(cbu->chan);
+	ast_autoservice_start(user->chan);
+	res = play_sound_file(user->conference,
+		conf_get_sound(CONF_SOUND_BEGIN, user->conference->b_profile.sounds));
+	ast_autoservice_stop(user->chan);
 	return res;
 }
 
