@@ -1082,7 +1082,7 @@ void conf_update_user_mute(struct confbridge_user *user)
 		"Conference: %s\r\n"
 		"Channel: %s",
 		mute_effective ? "muted" : "unmuted",
-		user->b_profile.name,
+		user->conference->b_profile.name,
 		ast_channel_name(user->chan));
 }
 
@@ -1203,7 +1203,7 @@ int conf_handle_inactive_waitmarked(struct confbridge_user *user)
 {
 	/* If we have not been quieted play back that they are waiting for the leader */
 	if (!ast_test_flag(&user->u_profile, USER_OPT_QUIET) && play_prompt_to_user(user,
-			conf_get_sound(CONF_SOUND_WAIT_FOR_LEADER, user->b_profile.sounds))) {
+			conf_get_sound(CONF_SOUND_WAIT_FOR_LEADER, user->conference->b_profile.sounds))) {
 		/* user hungup while the sound was playing */
 		return -1;
 	}
@@ -1215,7 +1215,7 @@ int conf_handle_only_unmarked(struct confbridge_user *user)
 	/* If audio prompts have not been quieted or this prompt quieted play it on out */
 	if (!ast_test_flag(&user->u_profile, USER_OPT_QUIET | USER_OPT_NOONLYPERSON)) {
 		if (play_prompt_to_user(user,
-			conf_get_sound(CONF_SOUND_ONLY_PERSON, user->b_profile.sounds))) {
+			conf_get_sound(CONF_SOUND_ONLY_PERSON, user->conference->b_profile.sounds))) {
 			/* user hungup while the sound was playing */
 			return -1;
 		}
@@ -1289,11 +1289,11 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 	/* When finding a conference bridge that already exists make sure that it is not locked, and if so that we are not an admin */
 	if (conference && (max_members_reached || conference->locked) && !ast_test_flag(&user->u_profile, USER_OPT_ADMIN)) {
 		ao2_unlock(conference_bridges);
-		ao2_ref(conference, -1);
 		ast_debug(1, "Conference '%s' is locked and caller is not an admin\n", conference_name);
 		ast_stream_and_wait(user->chan,
-				conf_get_sound(CONF_SOUND_LOCKED, user->b_profile.sounds),
-				"");
+			conf_get_sound(CONF_SOUND_LOCKED, conference->b_profile.sounds),
+			"");
+		ao2_ref(conference, -1);
 		return NULL;
 	}
 
@@ -1327,7 +1327,6 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 			app, conference_name, NULL);
 		if (!conference->bridge) {
 			ao2_ref(conference, -1);
-			conference = NULL;
 			ao2_unlock(conference_bridges);
 			ast_log(LOG_ERROR, "Conference '%s' mixing bridge could not be created.\n", conference_name);
 			return NULL;
@@ -1345,7 +1344,6 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 		/* Link it into the conference bridges container */
 		if (!ao2_link(conference_bridges, conference)) {
 			ao2_ref(conference, -1);
-			conference = NULL;
 			ao2_unlock(conference_bridges);
 			ast_log(LOG_ERROR,
 				"Conference '%s' could not be added to the conferences list.\n", conference_name);
@@ -1390,6 +1388,7 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 		/* Invalid event, nothing was done, so we don't want to process a leave. */
 		ao2_unlock(conference);
 		ao2_ref(conference, -1);
+		user->conference = NULL;
 		return NULL;
 	}
 
@@ -1581,7 +1580,12 @@ static int conf_get_pin(struct ast_channel *chan, struct confbridge_user *user)
 	const char *pin = user->u_profile.pin;
 	char *tmp = pin_guess;
 	int i, res;
-	unsigned int len = MAX_PIN ;
+	unsigned int len = MAX_PIN;
+
+	/* 
+	 * NOTE: We have not joined a conference yet so we have to use
+	 * the bridge profile requested by the user.
+	 */
 
 	/* give them three tries to get the pin right */
 	for (i = 0; i < 3; i++) {
@@ -1833,13 +1837,13 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		ast_autoservice_start(chan);
 		play_sound_file(conference, user.name_rec_location);
 		play_sound_file(conference,
-			conf_get_sound(CONF_SOUND_HAS_JOINED, user.b_profile.sounds));
+			conf_get_sound(CONF_SOUND_HAS_JOINED, conference->b_profile.sounds));
 		ast_autoservice_stop(chan);
 	}
 
 	/* Play the Join sound to both the conference and the user entering. */
 	if (!quiet) {
-		const char *join_sound = conf_get_sound(CONF_SOUND_JOIN, user.b_profile.sounds);
+		const char *join_sound = conf_get_sound(CONF_SOUND_JOIN, conference->b_profile.sounds);
 
 		ast_stream_and_wait(chan, join_sound, "");
 		ast_autoservice_start(chan);
@@ -1898,28 +1902,28 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 		ast_autoservice_start(chan);
 		play_sound_file(conference, user.name_rec_location);
 		play_sound_file(conference,
-			conf_get_sound(CONF_SOUND_HAS_LEFT, user.b_profile.sounds));
+			conf_get_sound(CONF_SOUND_HAS_LEFT, conference->b_profile.sounds));
 		ast_autoservice_stop(chan);
 	}
 
 	/* play the leave sound */
 	if (!quiet) {
-		const char *leave_sound = conf_get_sound(CONF_SOUND_LEAVE, user.b_profile.sounds);
+		const char *leave_sound = conf_get_sound(CONF_SOUND_LEAVE, conference->b_profile.sounds);
 		ast_autoservice_start(chan);
 		play_sound_file(conference, leave_sound);
 		ast_autoservice_stop(chan);
 	}
 
-	/* Easy as pie, depart this channel from the conference bridge */
-	leave_conference(&user);
-	conference = NULL;
-
 	/* If the user was kicked from the conference play back the audio prompt for it */
 	if (!quiet && user.kicked) {
 		res = ast_stream_and_wait(chan,
-			conf_get_sound(CONF_SOUND_KICKED, user.b_profile.sounds),
+			conf_get_sound(CONF_SOUND_KICKED, conference->b_profile.sounds),
 			"");
 	}
+
+	/* Easy as pie, depart this channel from the conference bridge */
+	leave_conference(&user);
+	conference = NULL;
 
 	/* Restore volume adjustments to previous values in case they were changed */
 	if (volume_adjustments[0]) {
@@ -1949,9 +1953,9 @@ static int action_toggle_mute(struct confbridge_conference *conference,
 	mute = !user->muted;
 	generic_mute_unmute_user(conference, user, mute);
 
-	return play_file(bridge_channel, NULL, (mute ?
-		conf_get_sound(CONF_SOUND_MUTED, user->b_profile.sounds) :
-		conf_get_sound(CONF_SOUND_UNMUTED, user->b_profile.sounds))) < 0;
+	return play_file(bridge_channel, NULL,
+		conf_get_sound(mute ? CONF_SOUND_MUTED : CONF_SOUND_UNMUTED,
+			conference->b_profile.sounds)) < 0;
 }
 
 static int action_toggle_mute_participants(struct confbridge_conference *conference, struct confbridge_user *user)
@@ -1976,8 +1980,9 @@ static int action_toggle_mute_participants(struct confbridge_conference *confere
 
 	ao2_unlock(conference);
 
-	sound_to_play = conf_get_sound((mute ? CONF_SOUND_PARTICIPANTS_MUTED : CONF_SOUND_PARTICIPANTS_UNMUTED),
-		user->b_profile.sounds);
+	sound_to_play = conf_get_sound(
+		mute ? CONF_SOUND_PARTICIPANTS_MUTED : CONF_SOUND_PARTICIPANTS_UNMUTED,
+		conference->b_profile.sounds);
 
 	/* The host needs to hear it seperately, as they don't get the audio from play_sound_helper */
 	ast_stream_and_wait(user->chan, sound_to_play, "");
@@ -2084,7 +2089,7 @@ static int action_kick_last(struct confbridge_conference *conference,
 
 	if (!isadmin) {
 		play_file(bridge_channel, NULL,
-			  conf_get_sound(CONF_SOUND_ERROR_MENU, user->b_profile.sounds));
+			conf_get_sound(CONF_SOUND_ERROR_MENU, conference->b_profile.sounds));
 		ast_log(LOG_WARNING, "Only admin users can use the kick_last menu action. Channel %s of conf %s is not an admin.\n",
 			ast_channel_name(bridge_channel->chan),
 			conference->name);
@@ -2096,7 +2101,7 @@ static int action_kick_last(struct confbridge_conference *conference,
 		|| (ast_test_flag(&last_user->u_profile, USER_OPT_ADMIN))) {
 		ao2_unlock(conference);
 		play_file(bridge_channel, NULL,
-			  conf_get_sound(CONF_SOUND_ERROR_MENU, user->b_profile.sounds));
+			conf_get_sound(CONF_SOUND_ERROR_MENU, conference->b_profile.sounds));
 	} else if (last_user && !last_user->kicked) {
 		last_user->kicked = 1;
 		pbx_builtin_setvar_helper(last_user->chan, "CONFBRIDGE_RESULT", "KICKED");
@@ -2225,9 +2230,9 @@ static int execute_menu_entry(struct confbridge_conference *conference,
 			}
 			conference->locked = (!conference->locked ? 1 : 0);
 			res |= play_file(bridge_channel, NULL,
-				(conference->locked ?
-				conf_get_sound(CONF_SOUND_LOCKED_NOW, user->b_profile.sounds) :
-				conf_get_sound(CONF_SOUND_UNLOCKED_NOW, user->b_profile.sounds))) < 0;
+				conf_get_sound(
+					conference->locked ? CONF_SOUND_LOCKED_NOW : CONF_SOUND_UNLOCKED_NOW,
+					conference->b_profile.sounds)) < 0;
 			break;
 		case MENU_ACTION_ADMIN_KICK_LAST:
 			res |= action_kick_last(conference, bridge_channel, user);
@@ -2458,7 +2463,7 @@ static void handle_cli_confbridge_list_item(struct ast_cli_args *a, struct confb
 		ast_channel_name(user->chan),
 		flag_str,
 		user->u_profile.name,
-		user->b_profile.name,
+		user->conference->b_profile.name,
 		user->menu_name,
 		S_COR(ast_channel_caller(user->chan)->id.number.valid,
 			ast_channel_caller(user->chan)->id.number.str, "<unknown>"));
