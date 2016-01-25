@@ -623,10 +623,36 @@ int stasis_app_control_unmute(struct stasis_app_control *control, unsigned int d
 	return 0;
 }
 
+/*!
+ * \brief structure for queuing ARI channel variable setting
+ *
+ * It may seem weird to define this custom structure given that we already have
+ * ast_var_t and ast_variable defined elsewhere. The problem with those is that
+ * they are not tolerant of NULL channel variable value pointers. In fact, in both
+ * cases, the best they could do is to have a zero-length variable value. However,
+ * when un-setting a channel variable, it is important to pass a NULL value, not
+ * a zero-length string.
+ */
+struct chanvar {
+	/*! Name of variable to set/unset */
+	char *name;
+	/*! Value of variable to set. If unsetting, this will be NULL */
+	char *value;
+};
+
+static void free_chanvar(void *data)
+{
+	struct chanvar *var = data;
+
+	ast_free(var->name);
+	ast_free(var->value);
+	ast_free(var);
+}
+
 static int app_control_set_channel_var(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
-	struct ast_variable *var = data;
+	struct chanvar *var = data;
 
 	pbx_builtin_setvar_helper(control->channel, var->name, var->value);
 
@@ -635,14 +661,29 @@ static int app_control_set_channel_var(struct stasis_app_control *control,
 
 int stasis_app_control_set_channel_var(struct stasis_app_control *control, const char *variable, const char *value)
 {
-	struct ast_variable *var;
+	struct chanvar *var;
 
-	var = ast_variable_new(variable, value, "ARI");
+	var = ast_calloc(1, sizeof(*var));
 	if (!var) {
 		return -1;
 	}
 
-	stasis_app_send_command_async(control, app_control_set_channel_var, var, ast_free_ptr);
+	var->name = ast_strdup(variable);
+	if (!var->name) {
+		free_chanvar(var);
+		return -1;
+	}
+
+	/* It's kosher for value to be NULL. It means the variable is being unset */
+	if (value) {
+		var->value = ast_strdup(value);
+		if (!var->value) {
+			free_chanvar(var);
+			return -1;
+		}
+	}
+
+	stasis_app_send_command_async(control, app_control_set_channel_var, var, free_chanvar);
 
 	return 0;
 }
