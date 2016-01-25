@@ -365,7 +365,7 @@ makeopts.embed_rules: menuselect.makeopts
 	+@$(SUBMAKE) $(MOD_SUBDIRS_EMBED_LDFLAGS)
 	+@$(SUBMAKE) $(MOD_SUBDIRS_EMBED_LIBS)
 
-$(SUBDIRS): makeopts .lastclean main/version.c include/asterisk/build.h include/asterisk/buildopts.h defaults.h makeopts.embed_rules
+$(SUBDIRS): makeopts .lastclean main/version.c include/asterisk/build.h include/asterisk/buildopts.h include/asterisk/module_loadorder.h defaults.h makeopts.embed_rules
 
 ifeq ($(findstring $(OSARCH), mingw32 cygwin ),)
   ifeq ($(shell grep ^MENUSELECT_EMBED=$$ menuselect.makeopts 2>/dev/null),)
@@ -447,6 +447,7 @@ distclean: $(SUBDIRS_DIST_CLEAN) _clean
 	rm -rf autom4te.cache
 	rm -f include/asterisk/autoconfig.h
 	rm -f include/asterisk/buildopts.h
+	rm -f include/asterisk/module_loadorder.h
 	rm -rf doc/api
 	rm -f doc/asterisk-ng-doxygen
 	rm -f build_tools/menuselect-deps
@@ -995,6 +996,9 @@ menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(di
 	@cat build_tools/embed_modules.xml >> $@
 	@cat sounds/sounds.xml >> $@
 	@echo "</menu>" >> $@
+
+include/asterisk/module_loadorder.h: menuselect-tree menuselect.makeopts
+	@xsltproc build_tools/make_loaderdeps.xslt menuselect-tree | make -s -f- all > include/asterisk/module_loadorder.h 2>/dev/null
 
 # We don't want to require Python or Pystache for every build, so this is its
 # own target.

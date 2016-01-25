@@ -57,6 +57,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/test.h"
 #include "asterisk/sounds_index.h"
+#include "asterisk/module_loadorder.h"
 
 #include <dlfcn.h>
 
@@ -1250,6 +1251,7 @@ int load_modules(unsigned int preload_only)
 	int res = 0;
 	struct ast_flags config_flags = { 0 };
 	int modulecount = 0;
+	int i;
 
 #ifdef LOADABLE_MODULES
 	struct dirent *dirent;
@@ -1305,6 +1307,12 @@ int load_modules(unsigned int preload_only)
 		}
 
 #ifdef LOADABLE_MODULES
+
+		/* Add the modules from the build-time array */
+		for (i = 0; i < ARRAY_LEN(module_loadorder); i++) {
+			add_to_load_order(module_loadorder[i], &load_order, 0);
+		}
+
 		/* if we are allowed to load dynamic modules, scan the directory for
 		   for all available modules and add them as well */
 		if ((dir = opendir(ast_config_AST_MODULE_DIR))) {
@@ -1363,12 +1371,7 @@ int load_modules(unsigned int preload_only)
 	if (load_count)
 		ast_log(LOG_NOTICE, "%u modules will be loaded.\n", load_count);
 
-	/* first, load only modules that provide global symbols */
-	if ((res = load_resource_list(&load_order, 1, &modulecount)) < 0) {
-		goto done;
-	}
-
-	/* now load everything else */
+	/* now load everything */
 	if ((res = load_resource_list(&load_order, 0, &modulecount)) < 0) {
 		goto done;
 	}
