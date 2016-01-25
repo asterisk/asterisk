@@ -1241,6 +1241,14 @@ static struct conference_bridge *join_conference_bridge(const char *name, struct
 
 	ao2_lock(conference_bridge);
 
+	/* Determine if the new user should join the conference muted. */
+	if (ast_test_flag(&conference_bridge_user->u_profile, USER_OPT_STARTMUTED)
+		|| (!ast_test_flag(&conference_bridge_user->u_profile, USER_OPT_ADMIN)
+			&& conference_bridge->muted)) {
+		/* Set user level mute request. */
+		conference_bridge_user->muted = 1;
+	}
+
 	/*
 	 * Suspend any MOH until the user actually joins the bridge of
 	 * the conference.  This way any pre-join file playback does not
@@ -1657,12 +1665,6 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 			conf_handle_talker_cb,
 			conf_handle_talker_destructor,
 			conf_name);
-	}
-
-	/* If the caller should be joined already muted, set the flag before we join. */
-	if (ast_test_flag(&conference_bridge_user.u_profile, USER_OPT_STARTMUTED)) {
-		/* Set user level mute request. */
-		conference_bridge_user.muted = 1;
 	}
 
 	/* Look for a conference bridge matching the provided name */
