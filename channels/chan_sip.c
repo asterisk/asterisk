@@ -12703,9 +12703,16 @@ static void add_ice_to_sdp(struct ast_rtp_instance *instance, struct ast_str **a
 
 	while ((candidate = ao2_iterator_next(&i))) {
 		ast_str_append(a_buf, 0, "a=candidate:%s %u %s %d ", candidate->foundation, candidate->id, candidate->transport, candidate->priority);
-		ast_str_append(a_buf, 0, "%s ", ast_sockaddr_stringify_host(&candidate->address));
 
-		ast_str_append(a_buf, 0, "%s typ ", ast_sockaddr_stringify_port(&candidate->address));
+                /* We still must use media_address if specified otherwise natted servers will never be heard */
+		if (  !ast_sockaddr_isnull(&media_address)  ) {
+			ast_str_append(a_buf, 0, "%s ", ast_sockaddr_stringify_host(&media_address));
+		}
+		else {
+			ast_str_append(a_buf, 0, "%s ", ast_sockaddr_stringify_host(&candidate->address));
+		}
+
+			ast_str_append(a_buf, 0, "%s typ ", ast_sockaddr_stringify_port(&candidate->address));
 
 		if (candidate->type == AST_RTP_ICE_CANDIDATE_TYPE_HOST) {
 			ast_str_append(a_buf, 0, "host");
