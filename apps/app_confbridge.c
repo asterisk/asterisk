@@ -130,32 +130,51 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</application>
 	<function name="CONFBRIDGE" language="en_US">
 		<synopsis>
-			Set a custom dynamic bridge, user, or menu profile on a channel for the ConfBridge application using the same options defined in confbridge.conf.
+			Set a custom dynamic bridge, user, or menu profile on a channel for the
+			ConfBridge application using the same options available in confbridge.conf.
 		</synopsis>
 		<syntax>
 			<parameter name="type" required="true">
-				<para>Type refers to which type of profile the option belongs too.  Type can be <literal>bridge</literal>, <literal>user</literal>, or
-				<literal>menu</literal>.</para>
+				<para>To what type of conference profile the option applies.</para>
+				<enumlist>
+					<enum name="bridge"></enum>
+					<enum name="menu"></enum>
+					<enum name="user"></enum>
+				</enumlist>
 			</parameter>
 			<parameter name="option" required="true">
-				<para>Option refers to <filename>confbridge.conf</filename> option that is being set dynamically on this channel, or
-				<literal>clear</literal> to remove already applied options from the channel.</para>
+				<para>Option refers to a <filename>confbridge.conf</filename> option
+				that is being set dynamically on this channel, or <literal>clear</literal>
+				to remove already applied profile options from the channel.</para>
 			</parameter>
 		</syntax>
 		<description>
+			<para>A custom profile uses the default profile type settings defined in
+			<filename>confbridge.conf</filename> as defaults if the profile template
+			is not explicitly specified first.</para>
+			<para>For <literal>bridge</literal> profiles the default template is <literal>default_bridge</literal>.</para>
+			<para>For <literal>menu</literal> profiles the default template is <literal>default_menu</literal>.</para>
+			<para>For <literal>user</literal> profiles the default template is <literal>default_user</literal>.</para>
 			<para>---- Example 1 ----</para>
-			<para>In this example the custom set user profile on this channel will automatically be used by the ConfBridge app.</para>
-			<para>exten => 1,1,Answer() </para>
-			<para>exten => 1,n,Set(CONFBRIDGE(user,announce_join_leave)=yes)</para>
-			<para>exten => 1,n,Set(CONFBRIDGE(user,startmuted)=yes)</para>
-			<para>exten => 1,n,ConfBridge(1) </para>
+			<para>In this example the custom user profile set on the channel will
+			automatically be used by the ConfBridge application.</para>
+			<para>exten => 1,1,Answer()</para>
+			<para>; In this example the effect of the following line is</para>
+			<para>; implied:</para>
+			<para>; same => n,Set(CONFBRIDGE(user,template)=default_user)</para>
+			<para>same => n,Set(CONFBRIDGE(user,announce_join_leave)=yes)</para>
+			<para>same => n,Set(CONFBRIDGE(user,startmuted)=yes)</para>
+			<para>same => n,ConfBridge(1) </para>
 			<para>---- Example 2 ----</para>
-			<para>This example shows how to use a predefined user or bridge profile in confbridge.conf as a template for a dynamic profile. Here we make a admin/marked user out of the default_user profile that is already defined in confbridge.conf.</para>
-			<para>exten => 1,1,Answer() </para>
-			<para>exten => 1,n,Set(CONFBRIDGE(user,template)=default_user)</para>
-			<para>exten => 1,n,Set(CONFBRIDGE(user,admin)=yes)</para>
-			<para>exten => 1,n,Set(CONFBRIDGE(user,marked)=yes)</para>
-			<para>exten => 1,n,ConfBridge(1)</para>
+			<para>This example shows how to use a predefined user profile in
+			<filename>confbridge.conf</filename> as a template for a dynamic profile.
+			Here we make an admin/marked user out of the <literal>my_user</literal>
+			profile that you define in <filename>confbridge.conf</filename>.</para>
+			<para>exten => 1,1,Answer()</para>
+			<para>same => n,Set(CONFBRIDGE(user,template)=my_user)</para>
+			<para>same => n,Set(CONFBRIDGE(user,admin)=yes)</para>
+			<para>same => n,Set(CONFBRIDGE(user,marked)=yes)</para>
+			<para>same => n,ConfBridge(1)</para>
 		</description>
 	</function>
 	<function name="CONFBRIDGE_INFO" language="en_US">
@@ -164,14 +183,29 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		</synopsis>
 		<syntax>
 			<parameter name="type" required="true">
-				<para>Type can be <literal>parties</literal>, <literal>admins</literal>, <literal>marked</literal>, or <literal>locked</literal>.</para>
+				<para>What conference information is requested.</para>
+				<enumlist>
+					<enum name="admins">
+						<para>Get the number of admin users in the conference.</para>
+					</enum>
+					<enum name="locked">
+						<para>Determine if the conference is locked. (0 or 1)</para>
+					</enum>
+					<enum name="marked">
+						<para>Get the number of marked users in the conference.</para>
+					</enum>
+					<enum name="parties">
+						<para>Get the number of users in the conference.</para>
+					</enum>
+				</enumlist>
 			</parameter>
 			<parameter name="conf" required="true">
-				<para>Conf refers to the name of the conference being referenced.</para>
+				<para>The name of the conference being referenced.</para>
 			</parameter>
 		</syntax>
 		<description>
-			<para>This function returns a non-negative integer for valid conference identifiers (0 or 1 for <literal>locked</literal>) and "" for invalid conference identifiers.</para>
+			<para>This function returns a non-negative integer for valid conference
+			names and an empty string for invalid conference names.</para>
 		</description>
 	</function>
 	<manager name="ConfbridgeList" language="en_US">
