@@ -58,3 +58,30 @@ rtpend=20000
 ;
 ; Password used to authenticate with TURN relay server.
 ; turnpassword=
+;
+[ice_host_candidates]
+;
+; When Asterisk is behind a static one-to-one NAT and ICE is in use, ICE will
+; expose the server's internal IP address as one of the host candidates.
+; Although using STUN (see the 'stunaddr' configuration option) will provide a
+; publicly accessible IP, the internal IP will still be sent to the remote
+; peer. To help hide the topology of your internal network, you can override
+; the host candidates that Asterisk will send to the remote peer.
+;
+; IMPORTANT: Only use this functionality when your Asterisk server is behind a
+; one-to-one NAT and you know what you're doing. If you do define anything
+; here, you almost certainly will NOT want to specify 'stunaddr' or 'turnaddr'
+; above.
+;
+; The format for these overrides is:
+;
+;    <local address> => <advertised address>
+;
+; The following will replace 192.168.1.10 with 1.2.3.4 during ICE
+; negotiation:
+;
+;192.168.1.10 => 1.2.3.4
+;
+; You can define an override for more than 1 interface if you have a multihomed
+; server. Any local interface that is not matched will be passed through
+; unaltered. Both IPv4 and IPv6 addresses are supported.
