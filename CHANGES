@@ -257,6 +257,13 @@ res_pjsip_sdp_rtp
    originate from the media address instead of the operating system's "primary"
    ip address.
 
+res_rtp_asterisk
+------------------
+ * A new configuration section - ice_host_candidates - has been added to
+   rtp.conf, allowing automatically discovered ICE host candidates to be
+   overriden. This allows an Asterisk server behind a 1:1 NAT to send its
+   external IP as a host candidate rather than relying on STUN to discover it.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.6.0 to Asterisk 13.7.0 ------------
 ------------------------------------------------------------------------------
