@@ -1295,11 +1295,15 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 	ldap_mods = ldap_memcalloc(sizeof(LDAPMod *), mods_size);
 	ldap_mods[0] = ldap_memcalloc(1, sizeof(LDAPMod));
 
-	ldap_mods[0]->mod_op = LDAP_MOD_REPLACE;
-	ldap_mods[0]->mod_type = ldap_strdup(newparam);
+	if (strlen(field->value) == 0) {
+		ldap_mods[0]->mod_op = LDAP_MOD_DELETE;
+	} else {
+		ldap_mods[0]->mod_op = LDAP_MOD_REPLACE;
 
-	ldap_mods[0]->mod_values = ast_calloc(sizeof(char *), 2);
-	ldap_mods[0]->mod_values[0] = ldap_strdup(field->value);
+		ldap_mods[0]->mod_type = ldap_strdup(newparam);
+		ldap_mods[0]->mod_values = ast_calloc(sizeof(char *), 2);
+		ldap_mods[0]->mod_values[0] = ldap_strdup(field->value);
+	}
 
 	while ((field = field->next)) {
 		newparam = convert_attribute_name_to_ldap(table_config, field->name);
