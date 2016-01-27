@@ -182,6 +182,16 @@ struct ast_rtp_ioqueue_thread {
 /*! \brief List of ioqueue threads */
 static AST_LIST_HEAD_STATIC(ioqueues, ast_rtp_ioqueue_thread);
 
+/*! \brief Structure which contains ICE host candidate mapping information */
+struct ast_ice_host_candidate {
+	pj_sockaddr local;
+	pj_sockaddr advertised;
+	AST_RWLIST_ENTRY(ast_ice_host_candidate) next;
+};
+
+/*! \brief List of ICE host candidate mappings */
+static AST_RWLIST_HEAD_STATIC(host_candidates, ast_ice_host_candidate);
+
 #endif
 
 #define FLAG_3389_WARNING               (1 << 0)
@@ -451,6 +461,38 @@ static void dtls_srtp_stop_timeout_timer(struct ast_rtp_instance *instance, stru
 static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa, int rtcp, int *ice, int use_srtp);
 
 #ifdef HAVE_PJPROJECT
+/*! \brief Helper function which clears the ICE host candidate mapping */
+static void host_candidate_overrides_clear(void)
+{
+	struct ast_ice_host_candidate *candidate;
+
+	AST_RWLIST_WRLOCK(&host_candidates);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&host_candidates, candidate, next) {
+		AST_RWLIST_REMOVE_CURRENT(next);
+		ast_free(candidate);
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END;
+	AST_RWLIST_UNLOCK(&host_candidates);
+}
+
+/*! \brief Applies the ICE host candidate mapping */
+static void host_candidate_overrides_apply(unsigned int count, pj_sockaddr addrs[])
+{
+	int pos;
+	struct ast_ice_host_candidate *candidate;
+
+	AST_RWLIST_RDLOCK(&host_candidates);
+	for (pos = 0; pos < count; pos++) {
+		AST_LIST_TRAVERSE(&host_candidates, candidate, next) {
+			if (!pj_sockaddr_cmp(&candidate->local, &addrs[pos])) {
+				pj_sockaddr_copy_addr(&addrs[pos], &candidate->advertised);
+				break;
+			}
+		}
+	}
+	AST_RWLIST_UNLOCK(&host_candidates);
+}
+
 /*! \brief Helper function which updates an ast_sockaddr with the candidate used for the component */
 static void update_address_with_ice_candidate(struct ast_rtp *rtp, enum ast_rtp_ice_component_type component,
 	struct ast_sockaddr *cand_address)
@@ -2367,6 +2409,8 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 	} else {
 		pj_enum_ip_interface(pj_AF_INET6(), &count, address);
 	}
+
+	host_candidate_overrides_apply(count, address);
 
 	for (pos = 0; pos < count; pos++) {
 		pj_sockaddr_set_port(&address[pos], port);
@@ -5257,6 +5301,11 @@ static int rtp_reload(int reload)
 	const char *s;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
+#ifdef HAVE_PJPROJECT
+	struct ast_variable *var;
+	struct ast_ice_host_candidate *candidate;
+#endif
+
 	cfg = ast_config_load2("rtp.conf", "rtp", config_flags);
 	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEUNCHANGED || cfg == CONFIG_STATUS_FILEINVALID) {
 		return 0;
@@ -5283,6 +5332,7 @@ static int rtp_reload(int reload)
 	turnaddr = pj_str(NULL);
 	turnusername = pj_str(NULL);
 	turnpassword = pj_str(NULL);
+	host_candidate_overrides_clear();
 #endif
 
 	if (cfg) {
@@ -5362,6 +5412,36 @@ static int rtp_reload(int reload)
 		if ((s = ast_variable_retrieve(cfg, "general", "turnpassword"))) {
 			pj_strdup2_with_null(pool, &turnpassword, s);
 		}
+
+		AST_RWLIST_WRLOCK(&host_candidates);
+		for (var = ast_variable_browse(cfg, "ice_host_candidates"); var; var = var->next) {
+			struct ast_sockaddr local_addr, advertised_addr;
+			pj_str_t address;
+
+			ast_sockaddr_setnull(&local_addr);
+			ast_sockaddr_setnull(&advertised_addr);
+
+			if (ast_parse_arg(var->name, PARSE_ADDR | PARSE_PORT_IGNORE, &local_addr)) {
+				ast_log(LOG_WARNING, "Invalid local ICE host address: %s\n", var->name);
+				continue;
+			}
+
+			if (ast_parse_arg(var->value, PARSE_ADDR | PARSE_PORT_IGNORE, &advertised_addr)) {
+				ast_log(LOG_WARNING, "Invalid advertised ICE host address: %s\n", var->value);
+				continue;
+			}
+
+			if (!(candidate = ast_calloc(1, sizeof(*candidate)))) {
+				ast_log(LOG_ERROR, "Failed to allocate ICE host candidate mapping.\n");
+				break;
+			}
+
+			pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&address, ast_sockaddr_stringify(&local_addr)), &candidate->local);
+			pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&address, ast_sockaddr_stringify(&advertised_addr)), &candidate->advertised);
+
+			AST_RWLIST_INSERT_TAIL(&host_candidates, candidate, next);
+		}
+		AST_RWLIST_UNLOCK(&host_candidates);
 #endif
 		ast_config_destroy(cfg);
 	}
@@ -5464,6 +5544,7 @@ static int unload_module(void)
 	ast_cli_unregister_multiple(cli_rtp, ARRAY_LEN(cli_rtp));
 
 #ifdef HAVE_PJPROJECT
+	host_candidate_overrides_clear();
 	pj_thread_register_check();
 	rtp_terminate_pjproject();
 #endif
