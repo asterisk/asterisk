@@ -98,7 +98,10 @@ export LDCONFIG
 export LDCONFIG_FLAGS
 export PYTHON
 
--include makeopts
+# makeopts is required unless the goal is clean or distclean
+ifeq ($(findstring clean,$(MAKECMDGOALS)),)
+include makeopts
+endif
 
 # start the primary CFLAGS and LDFLAGS with any that were provided
 # to the configure script
