@@ -23,6 +23,13 @@ res_pjproject
 res_pjsip
 ------------------
 
+ * Transports are now reloadable.  In testing, no in-progress calls were
+   disrupted if the ip address or port weren't changed, but the possibility
+   still exists.  To make sure there are no unintentional drops, a new option
+   'allow_reload', which defaults to 'no' has been added to transport.  If
+   left at the default, changes to the particular transport will be ignored.
+   If set to 'yes', changes (if any) will be applied.
+
  * Added new global option (regcontext) to pjsip. When set, Asterisk will
    dynamically create and destroy a NoOp priority 1 extension
    for a given endpoint who registers or unregisters with us.
