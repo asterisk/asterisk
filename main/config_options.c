@@ -1050,7 +1050,7 @@ static int xmldoc_update_config_option(struct aco_type **types, const char *modu
 	}
 
 	if (!(option = ast_xml_xpath_get_first_result(results))) {
-		ast_log(LOG_WARNING, "Could obtain results for option '%s' with type '%s' in module '%s'\n", name, object_name, module);
+		ast_log(LOG_WARNING, "Could not obtain results for option '%s' with type '%s' in module '%s'\n", name, object_name, module);
 		return XMLDOC_STRICT ? -1 : 0;
 	}
 	ast_xml_set_attribute(option, "regex", regex ? "true" : "false");
