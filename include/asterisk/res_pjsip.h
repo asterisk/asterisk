@@ -132,6 +132,8 @@ struct ast_sip_transport {
 	unsigned int cos;
 	/*! Write timeout */
 	int write_timeout;
+	/*! Allow reload */
+	int allow_reload;
 };
 
 /*!

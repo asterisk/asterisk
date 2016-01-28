@@ -147,20 +147,32 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 	struct ast_sip_transport *transport = obj;
 	RAII_VAR(struct ast_sip_transport *, existing, ast_sorcery_retrieve_by_id(sorcery, "transport", ast_sorcery_object_get_id(obj)), ao2_cleanup);
 	pj_status_t res = -1;
+	struct ast_variable *changes = NULL;
 
-	if (!existing || !existing->state) {
-		if (!(transport->state = ao2_alloc(sizeof(*transport->state), transport_state_destroy))) {
-			ast_log(LOG_ERROR, "Transport state for '%s' could not be allocated\n", ast_sorcery_object_get_id(obj));
-			return -1;
+	if (existing) {
+		if (existing->state) {
+			transport->state = existing->state;
+			ao2_ref(transport->state, +1);
 		}
-	} else {
-		transport->state = existing->state;
-		ao2_ref(transport->state, +1);
+
+		if (!transport->allow_reload) {
+			ast_log(LOG_NOTICE, "Transport '%s'  is not reloadable, maintaining previous values\n", ast_sorcery_object_get_id(obj));
+			return 0;
+		}
+
+		ast_sorcery_diff(sorcery, existing, transport, &changes);
+		if (changes == NULL) {
+			return 0;
+		}
+		ast_variables_destroy(changes);
 	}
 
-	/* Once active a transport can not be reconfigured */
-	if (transport->state->transport || transport->state->factory) {
-		return -1;
+	if (!transport->state) {
+		if (!(transport->state = ao2_alloc(sizeof(*transport->state), transport_state_destroy))) {
+			ast_log(LOG_ERROR, "Transport state for '%s' could not be allocated\n",
+				ast_sorcery_object_get_id(obj));
+			return -1;
+		}
 	}
 
 	if (transport->host.addr.sa_family != PJ_AF_INET && transport->host.addr.sa_family != PJ_AF_INET6) {
@@ -192,12 +204,21 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 	}
 
 	if (transport->type == AST_TRANSPORT_UDP) {
+
+		if (existing && transport->state->transport) {
+				pjsip_udp_transport_pause(transport->state->transport, PJSIP_UDP_TRANSPORT_DESTROY_SOCKET);
+				/*
+				 * We need to sleep for a bit to allow the OS to release the socket or we'll get an
+				 * Address in Use error when we try to re-open.
+				 */
+				usleep(100000);
+		}
+
 		if (transport->host.addr.sa_family == pj_AF_INET()) {
-			res = pjsip_udp_transport_start(ast_sip_get_pjsip_endpoint(), &transport->host.ipv4, NULL, transport->async_operations, &transport->state->transport);
+			res = pjsip_udp_transport_start(ast_sip_get_pjsip_endpoint(), &transport->host.ipv4, NULL, transport->async_operations, 	&transport->state->transport);
 		} else if (transport->host.addr.sa_family == pj_AF_INET6()) {
 			res = pjsip_udp_transport_start6(ast_sip_get_pjsip_endpoint(), &transport->host.ipv6, NULL, transport->async_operations, &transport->state->transport);
 		}
-
 		if (res == PJ_SUCCESS && (transport->tos || transport->cos)) {
 			pj_sock_t sock;
 			pj_qos_params qos_params;
@@ -209,6 +230,11 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		}
 	} else if (transport->type == AST_TRANSPORT_TCP) {
 		pjsip_tcp_transport_cfg cfg;
+
+		if (transport->state->factory && transport->state->factory->destroy) {
+			transport->state->factory->destroy(transport->state->factory);
+			usleep(100000);
+		}
 
 		pjsip_tcp_transport_cfg_default(&cfg, transport->host.addr.sa_family);
 		cfg.bind_addr = transport->host;
@@ -263,6 +289,11 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		transport->tls.privkey_file = pj_str((char*)transport->privkey_file);
 		transport->tls.password = pj_str((char*)transport->password);
 		set_qos(transport, &transport->tls.qos_params);
+
+		if (transport->state->factory && transport->state->factory->destroy) {
+			transport->state->factory->destroy(transport->state->factory);
+			usleep(100000);
+		}
 
 		res = pjsip_tls_transport_start2(ast_sip_get_pjsip_endpoint(), &transport->tls, &transport->host, NULL, transport->async_operations, &transport->state->factory);
 	} else if ((transport->type == AST_TRANSPORT_WS) || (transport->type == AST_TRANSPORT_WSS)) {
@@ -775,9 +806,10 @@ int ast_sip_initialize_sorcery_transport(void)
 {
 	struct ast_sorcery *sorcery = ast_sip_get_sorcery();
 
+
 	ast_sorcery_apply_default(sorcery, "transport", "config", "pjsip.conf,criteria=type=transport");
 
-	if (ast_sorcery_object_register_no_reload(sorcery, "transport", transport_alloc, NULL, transport_apply)) {
+	if (ast_sorcery_object_register(sorcery, "transport", transport_alloc, NULL, transport_apply)) {
 		return -1;
 	}
 
@@ -803,6 +835,7 @@ int ast_sip_initialize_sorcery_transport(void)
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "tos", "0", transport_tos_handler, tos_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "transport", "cos", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_transport, cos));
 	ast_sorcery_object_field_register(sorcery, "transport", "websocket_write_timeout", AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT_STR, OPT_INT_T, PARSE_IN_RANGE, FLDSET(struct ast_sip_transport, write_timeout), 1, INT_MAX);
+	ast_sorcery_object_field_register(sorcery, "transport", "allow_reload", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_transport, allow_reload));
 
 	internal_sip_register_endpoint_formatter(&endpoint_transport_formatter);
 
