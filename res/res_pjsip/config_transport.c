@@ -190,6 +190,7 @@ static int destroy_sip_transport_state(void *data)
 		ast_dnsmgr_release(transport_state->external_address_refresher);
 	}
 	pjsip_transport_shutdown(transport_state->transport);
+
 	return 0;
 }
 
@@ -289,17 +290,23 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 	old_state = ao2_find(states, transport_id, OBJ_SEARCH_KEY);
 	if (old_state) {
 		ast_sorcery_diff(sorcery, old_state->transport, transport, &changes);
-		if (changes) {
+		if (!changes) {
+			transport->state = old_state->state;
+			copy_state_to_transport(transport);
+			ao2_replace(old_state->transport, transport);
+			return 0;
+		} else if (!transport->allow_reload) {
+			/* For realtime based transports, we only want to spit this message out once */
 			if (!old_state->change_detected) {
 				old_state->change_detected = 1;
-				ast_log(LOG_WARNING, "Changes to transport '%s' are being ignored\n", transport_id);
+				ast_log(LOG_WARNING, "Changes to transport '%s' are not allowed\n",
+					transport_id);
 			}
+			transport->state = old_state->state;
+			copy_state_to_transport(transport);
+			ao2_replace(old_state->transport, transport);
+			return 0;
 		}
-
-		transport->state = old_state->state;
-		copy_state_to_transport(transport);
-		ao2_replace(old_state->transport, transport);
-		return 0;
 	}
 
 	new_state = internal_state_alloc(transport);
@@ -340,6 +347,16 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 	}
 
 	if (transport->type == AST_TRANSPORT_UDP) {
+
+		if (old_state && old_state->state && old_state->state->transport) {
+			pjsip_udp_transport_pause(old_state->state->transport, PJSIP_UDP_TRANSPORT_DESTROY_SOCKET);
+			/*
+			 * We need to sleep for a bit to allow the OS to release the socket or we'll get an
+			 * Address in Use error when we try to re-open.
+			 */
+			usleep(100000);
+		}
+
 		if (transport->host.addr.sa_family == pj_AF_INET()) {
 			res = pjsip_udp_transport_start(ast_sip_get_pjsip_endpoint(), &transport->host.ipv4, NULL, transport->async_operations, &transport->state->transport);
 		} else if (transport->host.addr.sa_family == pj_AF_INET6()) {
@@ -357,6 +374,11 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		}
 	} else if (transport->type == AST_TRANSPORT_TCP) {
 		pjsip_tcp_transport_cfg cfg;
+
+		if (old_state && old_state->state && old_state->state->factory && old_state->state->factory->destroy) {
+			old_state->state->factory->destroy(old_state->state->factory);
+			usleep(100000);
+		}
 
 		pjsip_tcp_transport_cfg_default(&cfg, transport->host.addr.sa_family);
 		cfg.bind_addr = transport->host;
@@ -418,6 +440,11 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		transport->tls.password = pj_str((char*)transport->password);
 		set_qos(transport, &transport->tls.qos_params);
 
+		if (old_state && old_state->state && old_state->state->factory && old_state->state->factory->destroy) {
+			old_state->state->factory->destroy(old_state->state->factory);
+			usleep(100000);
+		}
+
 		res = pjsip_tls_transport_start2(ast_sip_get_pjsip_endpoint(), &transport->tls, &transport->host, NULL, transport->async_operations, &transport->state->factory);
 	} else if ((transport->type == AST_TRANSPORT_WS) || (transport->type == AST_TRANSPORT_WSS)) {
 		if (transport->cos || transport->tos) {
@@ -436,7 +463,10 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 	}
 
 	copy_transport_to_state(transport);
-	ao2_link(states, new_state);
+	if (old_state) {
+		ao2_unlink_flags(states, old_state, OBJ_NOLOCK);
+	}
+	ao2_link_flags(states, new_state, OBJ_NOLOCK);
 
 	return 0;
 }
@@ -968,9 +998,10 @@ int ast_sip_initialize_sorcery_transport(void)
 	ao2_global_obj_replace_unref(current_states, new_states);
 	ao2_ref(new_states, -1);
 
+
 	ast_sorcery_apply_default(sorcery, "transport", "config", "pjsip.conf,criteria=type=transport");
 
-	if (ast_sorcery_object_register_no_reload(sorcery, "transport", sip_transport_alloc, NULL, transport_apply)) {
+	if (ast_sorcery_object_register(sorcery, "transport", sip_transport_alloc, NULL, transport_apply)) {
 		return -1;
 	}
 
@@ -996,6 +1027,7 @@ int ast_sip_initialize_sorcery_transport(void)
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "tos", "0", transport_tos_handler, tos_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "transport", "cos", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_transport, cos));
 	ast_sorcery_object_field_register(sorcery, "transport", "websocket_write_timeout", AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT_STR, OPT_INT_T, PARSE_IN_RANGE, FLDSET(struct ast_sip_transport, write_timeout), 1, INT_MAX);
+	ast_sorcery_object_field_register(sorcery, "transport", "allow_reload", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_transport, allow_reload));
 
 	internal_sip_register_endpoint_formatter(&endpoint_transport_formatter);
 
