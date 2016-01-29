@@ -15160,6 +15160,12 @@ static int manager_sipnotify(struct mansession *s, const struct message *m)
 		}
 	}
 
+	/* Now that we have the peer's address, set our ip and change callid */
+	ast_sip_ouraddrfor(&p->sa, &p->ourip, p);
+	build_via(p);
+
+	change_callid_pvt(p, NULL);
+
 	sip_scheddestroy(p, SIP_TRANS_TIMEOUT);
 	transmit_invite(p, SIP_NOTIFY, 0, 2, NULL);
 	dialog_unref(p, "bump down the count of p since we're done with it.");
