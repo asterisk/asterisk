@@ -1172,20 +1172,20 @@ static int sip_outbound_registration_regc_alloc(void *data)
 	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
 
 	if (!ast_strlen_zero(registration->transport)) {
-		RAII_VAR(struct ast_sip_transport *, transport, ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport", registration->transport), ao2_cleanup);
+		RAII_VAR(struct ast_sip_transport_state *, transport_state, ast_sip_get_transport_state(registration->transport), ao2_cleanup);
 
-		if (!transport || !transport->state) {
+		if (!transport_state) {
 			ast_log(LOG_ERROR, "Unable to retrieve PJSIP transport '%s' "
 				" for outbound registration", registration->transport);
 			return -1;
 		}
 
-		if (transport->state->transport) {
+		if (transport_state->transport) {
 			selector.type = PJSIP_TPSELECTOR_TRANSPORT;
-			selector.u.transport = transport->state->transport;
-		} else if (transport->state->factory) {
+			selector.u.transport = transport_state->transport;
+		} else if (transport_state->factory) {
 			selector.type = PJSIP_TPSELECTOR_LISTENER;
-			selector.u.listener = transport->state->factory;
+			selector.u.listener = transport_state->factory;
 		} else {
 			return -1;
 		}
