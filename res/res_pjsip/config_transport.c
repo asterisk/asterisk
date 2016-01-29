@@ -31,6 +31,69 @@
 #include "include/res_pjsip_private.h"
 #include "asterisk/http_websocket.h"
 
+/*! \brief Default number of state container buckets */
+#define DEFAULT_STATE_BUCKETS 53
+static AO2_GLOBAL_OBJ_STATIC(current_states);
+
+struct internal_state {
+	/*! Set if there was a change detected */
+	int change_detected;
+	/*! \brief Transport configuration object */
+	struct ast_sip_transport *transport;
+	/*! \brief Transport state information */
+	struct ast_sip_transport_state *state;
+};
+
+/*! \brief hashing function for state objects */
+static int internal_state_hash(const void *obj, const int flags)
+{
+	const struct internal_state *object;
+	const char *key;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		key = obj;
+		break;
+	case OBJ_SEARCH_OBJECT:
+		object = obj;
+		key = ast_sorcery_object_get_id(object->transport);
+		break;
+	default:
+		ast_assert(0);
+		return 0;
+	}
+	return ast_str_hash(key);
+}
+
+/*! \brief comparator function for state objects */
+static int internal_state_cmp(void *obj, void *arg, int flags)
+{
+	const struct internal_state *object_left = obj;
+	const struct internal_state *object_right = arg;
+	const char *right_key = arg;
+	int cmp;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = ast_sorcery_object_get_id(object_right->transport);
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(ast_sorcery_object_get_id(object_left->transport), right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		/* Not supported by container. */
+		ast_assert(0);
+		return 0;
+	default:
+		cmp = 0;
+		break;
+	}
+	if (cmp) {
+		return 0;
+	}
+	return CMP_MATCH;
+}
+
 static int sip_transport_to_ami(const struct ast_sip_transport *transport,
 				struct ast_str **buf)
 {
@@ -75,42 +138,32 @@ struct ast_sip_endpoint_formatter endpoint_transport_formatter = {
 	.format_ami = format_ami_endpoint_transport
 };
 
-static int destroy_transport_state(void *data)
+static void set_qos(struct ast_sip_transport *transport, pj_qos_params *qos)
 {
-	pjsip_transport *transport = data;
-	pjsip_transport_shutdown(transport);
-	return 0;
-}
+	int tos_as_dscp = transport->tos >> 2;
 
-/*! \brief Destructor for transport state information */
-static void transport_state_destroy(void *obj)
-{
-	struct ast_sip_transport_state *state = obj;
-
-	if (state->transport) {
-		ast_sip_push_task_synchronous(NULL, destroy_transport_state, state->transport);
+	if (transport->tos) {
+		qos->flags |= PJ_QOS_PARAM_HAS_DSCP;
+		qos->dscp_val = tos_as_dscp;
+	}
+	if (transport->cos) {
+		qos->flags |= PJ_QOS_PARAM_HAS_SO_PRIO;
+		qos->so_prio = transport->cos;
 	}
 }
 
 /*! \brief Destructor for transport */
-static void transport_destroy(void *obj)
+static void sip_transport_destroy(void *obj)
 {
 	struct ast_sip_transport *transport = obj;
 
 	ast_string_field_free_memory(transport);
-	ast_free_ha(transport->localnet);
-
-	if (transport->external_address_refresher) {
-		ast_dnsmgr_release(transport->external_address_refresher);
-	}
-
-	ao2_cleanup(transport->state);
 }
 
 /*! \brief Allocator for transport */
-static void *transport_alloc(const char *name)
+static void *sip_transport_alloc(const char *name)
 {
-	struct ast_sip_transport *transport = ast_sorcery_generic_alloc(sizeof(*transport), transport_destroy);
+	struct ast_sip_transport *transport = ast_sorcery_generic_alloc(sizeof(*transport), sip_transport_destroy);
 
 	if (!transport) {
 		return NULL;
@@ -127,39 +180,131 @@ static void *transport_alloc(const char *name)
 	return transport;
 }
 
-static void set_qos(struct ast_sip_transport *transport, pj_qos_params *qos)
+static int destroy_sip_transport_state(void *data)
 {
-	int tos_as_dscp = transport->tos >> 2;
+	struct ast_sip_transport_state *transport_state = data;
 
-	if (transport->tos) {
-		qos->flags |= PJ_QOS_PARAM_HAS_DSCP;
-		qos->dscp_val = tos_as_dscp;
+	ast_free_ha(transport_state->localnet);
+
+	if (transport_state->external_address_refresher) {
+		ast_dnsmgr_release(transport_state->external_address_refresher);
 	}
-	if (transport->cos) {
-		qos->flags |= PJ_QOS_PARAM_HAS_SO_PRIO;
-		qos->so_prio = transport->cos;
+	pjsip_transport_shutdown(transport_state->transport);
+	return 0;
+}
+
+/*! \brief Destructor for ast_sip_transport state information */
+static void sip_transport_state_destroy(void *obj)
+{
+	struct ast_sip_transport_state *state = obj;
+
+	if (state->transport) {
+		ast_sip_push_task_synchronous(NULL, destroy_sip_transport_state, state);
 	}
+}
+
+/*! \brief Destructor for ast_sip_transport state information */
+static void internal_state_destroy(void *obj)
+{
+	struct internal_state *state = obj;
+
+	ao2_cleanup(state->transport);
+	ao2_cleanup(state->state);
+}
+
+static struct internal_state *internal_state_alloc(struct ast_sip_transport *transport)
+{
+	struct internal_state *internal_state;
+
+	internal_state = ao2_alloc(sizeof(*internal_state), internal_state_destroy);
+	if (!internal_state) {
+		return NULL;
+	}
+
+	internal_state->state = ao2_alloc(sizeof(*internal_state->state), sip_transport_state_destroy);
+	if (!internal_state->state) {
+		ao2_cleanup(internal_state);
+		return NULL;
+	}
+
+	internal_state->transport = transport;
+	transport->state = internal_state->state;
+	ao2_bump(transport);
+
+	return internal_state;
+}
+
+static void copy_transport_to_state(struct ast_sip_transport *transport)
+{
+	ast_assert(transport && transport->state);
+
+	memcpy(&transport->state->host, &transport->host, sizeof(transport->host));
+	memcpy(&transport->state->tls, &transport->tls, sizeof(transport->tls));
+	memcpy(&transport->state->ciphers, &transport->ciphers, sizeof(transport->ciphers));
+	transport->state->localnet = transport->localnet;
+	transport->state->external_address_refresher = transport->external_address_refresher;
+	memcpy(&transport->state->external_address, &transport->external_address, sizeof(transport->external_address));
+}
+
+static void copy_state_to_transport(struct ast_sip_transport *transport)
+{
+	ast_assert(transport && transport->state);
+
+	memcpy(&transport->host, &transport->state->host, sizeof(transport->host));
+	memcpy(&transport->tls, &transport->state->tls, sizeof(transport->tls));
+	memcpy(&transport->ciphers, &transport->state->ciphers, sizeof(transport->ciphers));
+	transport->localnet = transport->state->localnet;
+	transport->external_address_refresher = transport->state->external_address_refresher;
+	memcpy(&transport->external_address, &transport->state->external_address, sizeof(transport->external_address));
+}
+
+static void states_cleanup(void *states)
+{
+	ao2_unlock(states);
+	ao2_cleanup(states);
 }
 
 /*! \brief Apply handler for transports */
 static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 {
 	struct ast_sip_transport *transport = obj;
-	RAII_VAR(struct ast_sip_transport *, existing, ast_sorcery_retrieve_by_id(sorcery, "transport", ast_sorcery_object_get_id(obj)), ao2_cleanup);
+	const char *transport_id = ast_sorcery_object_get_id(obj);
+	RAII_VAR(struct ao2_container *, states, ao2_global_obj_ref(current_states), states_cleanup);
+	RAII_VAR(struct internal_state *, new_state, NULL, ao2_cleanup);
+	RAII_VAR(struct internal_state *, old_state, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_variable *, changes, NULL, ast_variables_destroy);
 	pj_status_t res = -1;
 
-	if (!existing || !existing->state) {
-		if (!(transport->state = ao2_alloc(sizeof(*transport->state), transport_state_destroy))) {
-			ast_log(LOG_ERROR, "Transport state for '%s' could not be allocated\n", ast_sorcery_object_get_id(obj));
-			return -1;
-		}
-	} else {
-		transport->state = existing->state;
-		ao2_ref(transport->state, +1);
+	if (!states) {
+		return -1;
 	}
 
-	/* Once active a transport can not be reconfigured */
-	if (transport->state->transport || transport->state->factory) {
+	/*
+	 * transport_apply gets called for EVERY retrieval of a transport when using realtime.
+	 * We need to prevent multiple threads from trying to mess with underlying transports
+	 * at the same time.  The container is the only thing we have to lock on.
+	 */
+	ao2_lock(states);
+
+	old_state = ao2_find(states, transport_id, OBJ_SEARCH_KEY);
+	if (old_state) {
+		ast_sorcery_diff(sorcery, old_state->transport, transport, &changes);
+		if (changes) {
+			if (!old_state->change_detected) {
+				old_state->change_detected = 1;
+				ast_log(LOG_WARNING, "Changes to transport '%s' are being ignored\n", transport_id);
+			}
+		}
+
+		transport->state = old_state->state;
+		copy_state_to_transport(transport);
+		ao2_replace(old_state->transport, transport);
+		return 0;
+	}
+
+	new_state = internal_state_alloc(transport);
+	if (!new_state) {
+		ast_log(LOG_ERROR, "Transport state for '%s' could not be allocated\n", transport_id);
 		return -1;
 	}
 
@@ -260,6 +405,7 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 				return -1;
 			}
 		}
+
 		transport->tls.privkey_file = pj_str((char*)transport->privkey_file);
 		transport->tls.password = pj_str((char*)transport->password);
 		set_qos(transport, &transport->tls.qos_params);
@@ -279,6 +425,10 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		ast_log(LOG_ERROR, "Transport '%s' could not be started: %s\n", ast_sorcery_object_get_id(obj), msg);
 		return -1;
 	}
+
+	copy_transport_to_state(transport);
+	ao2_link(states, new_state);
+
 	return 0;
 }
 
@@ -770,14 +920,48 @@ static struct ast_cli_entry cli_commands[] = {
 
 static struct ast_sip_cli_formatter_entry *cli_formatter;
 
+struct ast_sip_transport_state *ast_sip_get_transport_state(const char *transport_id)
+{
+	struct ao2_container * states;
+	struct internal_state * state = NULL;
+
+	states = ao2_global_obj_ref(current_states);
+	if (!states) {
+		return NULL;
+	}
+
+	state = ao2_find(states, transport_id, OBJ_SEARCH_KEY);
+	if (!state || !state->state) {
+		ao2_cleanup(states);
+		return NULL;
+	}
+
+	ao2_bump(state->state);
+	ao2_cleanup(state);
+	ao2_cleanup(states);
+
+	return (state->state);
+}
+
 /*! \brief Initialize sorcery with transport support */
 int ast_sip_initialize_sorcery_transport(void)
 {
 	struct ast_sorcery *sorcery = ast_sip_get_sorcery();
+	struct ao2_container *new_states;
+	struct ao2_container *transports;
+
+	/* Create outbound registration states container. */
+	new_states = ao2_container_alloc(DEFAULT_STATE_BUCKETS, internal_state_hash, internal_state_cmp);
+	if (!new_states) {
+		ast_log(LOG_ERROR, "Unable to allocate transport states container\n");
+		return AST_MODULE_LOAD_FAILURE;
+	}
+	ao2_global_obj_replace_unref(current_states, new_states);
+	ao2_ref(new_states, -1);
 
 	ast_sorcery_apply_default(sorcery, "transport", "config", "pjsip.conf,criteria=type=transport");
 
-	if (ast_sorcery_object_register_no_reload(sorcery, "transport", transport_alloc, NULL, transport_apply)) {
+	if (ast_sorcery_object_register_no_reload(sorcery, "transport", sip_transport_alloc, NULL, transport_apply)) {
 		return -1;
 	}
 
@@ -822,6 +1006,10 @@ int ast_sip_initialize_sorcery_transport(void)
 	ast_sip_register_cli_formatter(cli_formatter);
 	ast_cli_register_multiple(cli_commands, ARRAY_LEN(cli_commands));
 
+	/* trigger load of transports from realtime by trying to revrieve them all */
+	transports = ast_sorcery_retrieve_by_fields(sorcery, "transport", AST_RETRIEVE_FLAG_ALL | AST_RETRIEVE_FLAG_MULTIPLE, NULL);
+	ao2_cleanup(transports);
+
 	return 0;
 }
 
@@ -831,6 +1019,7 @@ int ast_sip_destroy_sorcery_transport(void)
 	ast_sip_unregister_cli_formatter(cli_formatter);
 
 	internal_sip_unregister_endpoint_formatter(&endpoint_transport_formatter);
+	ao2_global_obj_release(current_states);
 
 	return 0;
 }
