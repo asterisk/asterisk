@@ -33,30 +33,28 @@
 /*! \brief Helper function which returns a UDP transport bound to the given address and port */
 static pjsip_transport *multihomed_get_udp_transport(pj_str_t *address, int port)
 {
-	struct ao2_container *transports = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "transport",
-		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
-	struct ast_sip_transport *transport;
+	struct ao2_container *transport_states = ast_sip_get_transport_states();
+	struct ast_sip_transport_state *transport_state;
 	struct ao2_iterator iter;
 	pjsip_transport *sip_transport = NULL;
 
-	if (!transports) {
+	if (!transport_states) {
 		return NULL;
 	}
 
-	for (iter = ao2_iterator_init(transports, 0); (transport = ao2_iterator_next(&iter)); ao2_ref(transport, -1)) {
-		if ((transport->type != AST_TRANSPORT_UDP) ||
-			(pj_strcmp(&transport->state->transport->local_name.host, address)) ||
-			(transport->state->transport->local_name.port != port)) {
+	for (iter = ao2_iterator_init(transport_states, 0); (transport_state = ao2_iterator_next(&iter)); ao2_ref(transport_state, -1)) {
+		if (transport_state && ((transport_state->type != AST_TRANSPORT_UDP) ||
+			(pj_strcmp(&transport_state->transport->local_name.host, address)) ||
+			(transport_state->transport->local_name.port != port))) {
 			continue;
 		}
 
-		sip_transport = transport->state->transport;
-		ao2_ref(transport, -1);
+		sip_transport = transport_state->transport;
 		break;
 	}
 	ao2_iterator_destroy(&iter);
 
-	ao2_ref(transports, -1);
+	ao2_ref(transport_states, -1);
 
 	return sip_transport;
 }
