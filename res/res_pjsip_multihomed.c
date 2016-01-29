@@ -44,13 +44,15 @@ static pjsip_transport *multihomed_get_udp_transport(pj_str_t *address, int port
 	}
 
 	for (iter = ao2_iterator_init(transports, 0); (transport = ao2_iterator_next(&iter)); ao2_ref(transport, -1)) {
-		if ((transport->type != AST_TRANSPORT_UDP) ||
-			(pj_strcmp(&transport->state->transport->local_name.host, address)) ||
-			(transport->state->transport->local_name.port != port)) {
+		RAII_VAR(struct ast_sip_transport_state *, transport_state, ast_sip_get_transport_state(ast_sorcery_object_get_id(transport)), ao2_cleanup);
+
+		if (transport_state && ((transport->type != AST_TRANSPORT_UDP) ||
+			(pj_strcmp(&transport_state->transport->local_name.host, address)) ||
+			(transport_state->transport->local_name.port != port))) {
 			continue;
 		}
 
-		sip_transport = transport->state->transport;
+		sip_transport = transport_state->transport;
 		ao2_ref(transport, -1);
 		break;
 	}
