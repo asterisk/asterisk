@@ -890,11 +890,12 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 /*! \brief Function which updates the media stream with external media address, if applicable */
 static void change_outgoing_sdp_stream_media_address(pjsip_tx_data *tdata, struct pjmedia_sdp_media *stream, struct ast_sip_transport *transport)
 {
+	RAII_VAR(struct ast_sip_transport_state *, transport_state, ast_sip_get_transport_state(ast_sorcery_object_get_id(transport)), ao2_cleanup);
 	char host[NI_MAXHOST];
 	struct ast_sockaddr addr = { { 0, } };
 
 	/* If the stream has been rejected there will be no connection line */
-	if (!stream->conn) {
+	if (!stream->conn || !transport_state) {
 		return;
 	}
 
@@ -902,7 +903,7 @@ static void change_outgoing_sdp_stream_media_address(pjsip_tx_data *tdata, struc
 	ast_sockaddr_parse(&addr, host, PARSE_PORT_FORBID);
 
 	/* Is the address within the SDP inside the same network? */
-	if (ast_apply_ha(transport->localnet, &addr) == AST_SENSE_ALLOW) {
+	if (ast_apply_ha(transport_state->localnet, &addr) == AST_SENSE_ALLOW) {
 		return;
 	}
 
