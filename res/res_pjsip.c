@@ -2482,6 +2482,7 @@ static int sip_dialog_create_from(pj_pool_t *pool, pj_str_t *from, const char *u
 static int sip_get_tpselector_from_endpoint(const struct ast_sip_endpoint *endpoint, pjsip_tpselector *selector)
 {
 	RAII_VAR(struct ast_sip_transport *, transport, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_sip_transport_state *, transport_state, NULL, ao2_cleanup);
 	const char *transport_name = endpoint->transport;
 
 	if (ast_strlen_zero(transport_name)) {
@@ -2489,19 +2490,20 @@ static int sip_get_tpselector_from_endpoint(const struct ast_sip_endpoint *endpo
 	}
 
 	transport = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport", transport_name);
+	transport_state = ast_sip_get_transport_state(transport_name);
 
-	if (!transport || !transport->state) {
+	if (!transport || !transport_state) {
 		ast_log(LOG_ERROR, "Unable to retrieve PJSIP transport '%s' for endpoint '%s'\n",
 			transport_name, ast_sorcery_object_get_id(endpoint));
 		return -1;
 	}
 
-	if (transport->state->transport) {
+	if (transport_state->transport) {
 		selector->type = PJSIP_TPSELECTOR_TRANSPORT;
-		selector->u.transport = transport->state->transport;
-	} else if (transport->state->factory) {
+		selector->u.transport = transport_state->transport;
+	} else if (transport_state->factory) {
 		selector->type = PJSIP_TPSELECTOR_LISTENER;
-		selector->u.listener = transport->state->factory;
+		selector->u.listener = transport_state->factory;
 	} else if (transport->type == AST_TRANSPORT_WS || transport->type == AST_TRANSPORT_WSS) {
 		/* The WebSocket transport has no factory as it can not create outgoing connections, so
 		 * even if an endpoint is locked to a WebSocket transport we let the PJSIP logic

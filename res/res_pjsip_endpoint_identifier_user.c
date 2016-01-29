@@ -45,11 +45,12 @@ static int get_endpoint_details(pjsip_rx_data *rdata, char *endpoint, size_t end
 static int find_transport_in_use(void *obj, void *arg, int flags)
 {
 	struct ast_sip_transport *transport = obj;
+	RAII_VAR(struct ast_sip_transport_state *, transport_state, ast_sip_get_transport_state(ast_sorcery_object_get_id(transport)), ao2_cleanup);
 	pjsip_rx_data *rdata = arg;
 
-	if ((transport->state->transport == rdata->tp_info.transport) ||
-		(transport->state->factory && !pj_strcmp(&transport->state->factory->addr_name.host, &rdata->tp_info.transport->local_name.host) &&
-			transport->state->factory->addr_name.port == rdata->tp_info.transport->local_name.port)) {
+	if (transport_state && ((transport_state->transport == rdata->tp_info.transport) ||
+		(transport_state->factory && !pj_strcmp(&transport_state->factory->addr_name.host, &rdata->tp_info.transport->local_name.host) &&
+			transport_state->factory->addr_name.port == rdata->tp_info.transport->local_name.port))) {
 		return CMP_MATCH | CMP_STOP;
 	}
 
