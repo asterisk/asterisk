@@ -2998,10 +2998,10 @@ static char *handle_minivm_list_templates(struct ast_cli_entry *e, int cmd, stru
 	ast_cli(a->fd, HVLT_OUTPUT_FORMAT, "-------------", "-------", "------", "------------", "-------");
 	AST_LIST_TRAVERSE(&message_templates, this, list) {
 		ast_cli(a->fd, HVLT_OUTPUT_FORMAT, this->name, 
-			this->charset ? this->charset : "-", 
-			this->locale ? this->locale : "-",
+			S_OR(this->charset, "-"),
+			S_OR(this->locale, "-"),
 			this->attachment ? "Yes" : "No",
-			this->subject ? this->subject : "-");
+			S_OR(this->subject, "-"));
 		count++;
 	}
 	AST_LIST_UNLOCK(&message_templates);
@@ -3069,10 +3069,10 @@ static char *handle_minivm_show_users(struct ast_cli_entry *e, int cmd, struct a
 		if ((a->argc == 3) || ((a->argc == 5) && !strcmp(a->argv[4], vmu->domain))) {
 			count++;
 			snprintf(tmp, sizeof(tmp), "%s@%s", vmu->username, vmu->domain);
-			ast_cli(a->fd, HMSU_OUTPUT_FORMAT, tmp, vmu->etemplate ? vmu->etemplate : "-", 
-				vmu->ptemplate ? vmu->ptemplate : "-",
-				vmu->zonetag ? vmu->zonetag : "-", 
-				vmu->attachfmt ? vmu->attachfmt : "-",
+			ast_cli(a->fd, HMSU_OUTPUT_FORMAT, tmp, S_OR(vmu->etemplate, "-"),
+				S_OR(vmu->ptemplate, "-"),
+				S_OR(vmu->zonetag, "-"),
+				S_OR(vmu->attachfmt, "-"),
 				vmu->fullname);
 		}
 	}
