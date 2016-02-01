@@ -99,6 +99,7 @@ enum analog_event {
 };
 
 enum analog_sub {
+	ANALOG_SUB_ERROR = -1,
 	ANALOG_SUB_REAL = 0,			/*!< Active call */
 	ANALOG_SUB_CALLWAIT,			/*!< Call-Waiting call on hold */
 	ANALOG_SUB_THREEWAY,			/*!< Three-way call */
