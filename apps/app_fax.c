@@ -356,8 +356,8 @@ static int fax_generator_generate(struct ast_channel *chan, void *data, int len,
 }
 
 static struct ast_generator generator = {
-	alloc:		fax_generator_alloc,
-	generate: 	fax_generator_generate,
+	.alloc = fax_generator_alloc,
+	.generate = fax_generator_generate,
 };
 
 
