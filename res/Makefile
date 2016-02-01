@@ -81,7 +81,7 @@ clean::
 	rm -f stasis/*.[oi] stasis/*.gcda stasis/*.gcno
 	rm -f parking/*.[oi] parking/*.gcda parking/*.gcno
 	rm -f stasis_recording/*.[oi] stasis_recording/*.gcda stasis_recording/*.gcno
-	rm -f res/ari/*.[oi] res/ari/*.gcda res/ari/*.gcno
+	rm -f ari/*.[oi] ari/*.gcda ari/*.gcno
 
 $(if $(filter res_parking,$(EMBEDDED_MODS)),modules.link,res_parking.so): $(subst .c,.o,$(wildcard parking/*.c))
 $(subst .c,.o,$(wildcard parking/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_parking)
