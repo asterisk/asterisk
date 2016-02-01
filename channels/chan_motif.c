@@ -320,7 +320,6 @@ struct jingle_session {
 	ast_callid callid;                    /*!< Bound session call-id */
 };
 
-static const char desc[] = "Motif Jingle Channel";
 static const char channel_type[] = "Motif";
 
 struct jingle_config {

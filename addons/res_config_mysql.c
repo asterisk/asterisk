@@ -1518,7 +1518,7 @@ static int load_mysql_config(struct ast_config *config, const char *category, st
 	ast_debug(1, "MySQL RealTime database name: %s\n", conn->name);
 	ast_debug(1, "MySQL RealTime user: %s\n", conn->user);
 	ast_debug(1, "MySQL RealTime password: %s\n", conn->pass);
-	if(conn->charset)
+	if(!ast_strlen_zero(conn->charset))
 		ast_debug(1, "MySQL RealTime charset: %s\n", conn->charset);
 
 	return 1;
@@ -1533,13 +1533,13 @@ static int mysql_reconnect(struct mysql_conn *conn)
 	/* mutex lock should have been locked before calling this function. */
 
 reconnect_tryagain:
-	if ((!conn->connected) && (!ast_strlen_zero(conn->host) || conn->sock) && !ast_strlen_zero(conn->user) && !ast_strlen_zero(conn->name)) {
+	if ((!conn->connected) && (!ast_strlen_zero(conn->host) || !ast_strlen_zero(conn->sock)) && !ast_strlen_zero(conn->user) && !ast_strlen_zero(conn->name)) {
 		if (!mysql_init(&conn->handle)) {
 			ast_log(LOG_WARNING, "MySQL RealTime: Insufficient memory to allocate MySQL resource.\n");
 			conn->connected = 0;
 			return 0;
 		}
-		if(conn->charset && strlen(conn->charset) > 2){
+		if(strlen(conn->charset) > 2){
 			char set_names[255];
 			char statement[512];
 			snprintf(set_names, sizeof(set_names), "SET NAMES %s", conn->charset);

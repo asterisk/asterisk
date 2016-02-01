@@ -70,7 +70,7 @@ static char analog_defaultozz[64] = "";
 
 static const struct {
 	enum analog_sigtype sigtype;
-	const char const *name;
+	const char *name;
 } sigtypes[] = {
 	{ ANALOG_SIG_FXOLS, "fxo_ls" },
 	{ ANALOG_SIG_FXOKS, "fxo_ks" },
@@ -97,7 +97,7 @@ static const struct {
 
 static const struct {
 	unsigned int cid_type;
-	const char const *name;
+	const char *name;
 } cidtypes[] = {
 	{ CID_SIG_BELL,   "bell" },
 	{ CID_SIG_V23,    "v23" },
@@ -393,7 +393,7 @@ static int analog_send_callerid(struct analog_pvt *p, int cwcid, struct ast_part
 }
 
 #define analog_get_index(ast, p, nullok)	_analog_get_index(ast, p, nullok, __PRETTY_FUNCTION__, __LINE__)
-static int _analog_get_index(struct ast_channel *ast, struct analog_pvt *p, int nullok, const char *fname, unsigned long line)
+static enum analog_sub _analog_get_index(struct ast_channel *ast, struct analog_pvt *p, int nullok, const char *fname, unsigned long line)
 {
 	int res;
 	if (p->subs[ANALOG_SUB_REAL].owner == ast) {
@@ -403,7 +403,7 @@ static int _analog_get_index(struct ast_channel *ast, struct analog_pvt *p, int 
 	} else if (p->subs[ANALOG_SUB_THREEWAY].owner == ast) {
 		res = ANALOG_SUB_THREEWAY;
 	} else {
-		res = -1;
+		res = ANALOG_SUB_ERROR;
 		if (!nullok) {
 			ast_log(LOG_WARNING,
 				"Unable to get index for '%s' on channel %d (%s(), line %lu)\n",
@@ -974,7 +974,8 @@ static void analog_set_inthreeway(struct analog_pvt *p, enum analog_sub sub, int
 
 int analog_call(struct analog_pvt *p, struct ast_channel *ast, const char *rdest, int timeout)
 {
-	int res, idx, mysig;
+	int res, mysig;
+	enum analog_sub idx;
 	char *c, *n, *l;
 	char dest[256]; /* must be same length as p->dialdest */
 
@@ -1079,7 +1080,7 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, const char *rdest
 
 		ast_setstate(ast, AST_STATE_RINGING);
 		idx = analog_get_index(ast, p, 0);
-		if (idx > -1) {
+		if (idx != ANALOG_SUB_ERROR) {
 			struct ast_cc_config_params *cc_params;
 
 			/* This is where the initial ringing frame is queued for an analog call.
@@ -1238,8 +1239,8 @@ int analog_call(struct analog_pvt *p, struct ast_channel *ast, const char *rdest
 
 int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 {
-	int res;
-	int idx, x;
+	int res, x;
+	enum analog_sub idx;
 
 	ast_debug(1, "%s %d\n", __FUNCTION__, p->channel);
 	if (!ast_channel_tech_pvt(ast)) {
@@ -1265,7 +1266,7 @@ int analog_hangup(struct analog_pvt *p, struct ast_channel *ast)
 
 	ast_debug(1, "Hangup: channel: %d index = %d, normal = %d, callwait = %d, thirdcall = %d\n",
 		p->channel, idx, p->subs[ANALOG_SUB_REAL].allocd, p->subs[ANALOG_SUB_CALLWAIT].allocd, p->subs[ANALOG_SUB_THREEWAY].allocd);
-	if (idx > -1) {
+	if (idx != ANALOG_SUB_ERROR) {
 		/* Real channel, do some fixup */
 		p->subs[idx].owner = NULL;
 		p->polarity = POLARITY_IDLE;
@@ -1455,7 +1456,7 @@ int analog_answer(struct analog_pvt *p, struct ast_channel *ast)
 	ast_debug(1, "%s %d\n", __FUNCTION__, p->channel);
 	ast_setstate(ast, AST_STATE_UP);
 	idx = analog_get_index(ast, p, 1);
-	if (idx < 0) {
+	if (idx == ANALOG_SUB_ERROR) {
 		idx = ANALOG_SUB_REAL;
 	}
 	switch (p->sig) {
@@ -1714,7 +1715,7 @@ static void *__analog_ss_thread(void *data)
 	char *s1, *s2;
 	int len = 0;
 	int res;
-	int idx;
+	enum analog_sub idx;
 	ast_callid callid;
 	RAII_VAR(struct ast_features_pickup_config *, pickup_cfg, NULL, ao2_cleanup);
 	const char *pickupexten;
@@ -1743,7 +1744,7 @@ static void *__analog_ss_thread(void *data)
 
 	ast_verb(3, "Starting simple switch on '%s'\n", ast_channel_name(chan));
 	idx = analog_get_index(chan, p, 0);
-	if (idx < 0) {
+	if (idx == ANALOG_SUB_ERROR) {
 		ast_hangup(chan);
 		goto quit;
 	}
@@ -2682,7 +2683,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 	ast_debug(1, "%s %d\n", __FUNCTION__, p->channel);
 
 	idx = analog_get_index(ast, p, 0);
-	if (idx < 0) {
+	if (idx == ANALOG_SUB_ERROR) {
 		return &ast_null_frame;
 	}
 	if (idx != ANALOG_SUB_REAL) {
@@ -3534,13 +3535,13 @@ winkflashdone:
 struct ast_frame *analog_exception(struct analog_pvt *p, struct ast_channel *ast)
 {
 	int res;
-	int idx;
+	enum analog_sub idx;
 	struct ast_frame *f;
 
 	ast_debug(1, "%s %d\n", __FUNCTION__, p->channel);
 
 	idx = analog_get_index(ast, p, 1);
-	if (idx < 0) {
+	if (idx == ANALOG_SUB_ERROR) {
 		idx = ANALOG_SUB_REAL;
 	}
 
