@@ -4704,7 +4704,7 @@ static int drc_sample(int sample, float drc)
 	neg = (sample < 0 ? -1 : 1);
 	steep = drc*sample;
 	shallow = neg*(max-max/drc)+(float)sample/drc;
-	if (abs(steep) < abs(shallow)) {
+	if (fabsf(steep) < fabsf(shallow)) {
 		sample = steep;
 	}
 	else {

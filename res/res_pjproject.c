@@ -137,7 +137,9 @@ int ast_pjproject_get_buildopt(char *option, char *format_string, ...)
 	for (i = 0; i < AST_VECTOR_SIZE(&buildopts); i++) {
 		va_list arg_ptr;
 		va_start(arg_ptr, format_string);
+#pragma GCC diagnostic ignored "-Wformat-nonliteral"
 		res = vsscanf(AST_VECTOR_GET(&buildopts, i), format_temp, arg_ptr);
+#pragma GCC diagnostic warning "-Wformat-nonliteral"
 		va_end(arg_ptr);
 		if (res) {
 			break;
