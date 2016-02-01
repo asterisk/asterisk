@@ -125,6 +125,7 @@ static void capture_buildopts_cb(int level, const char *data, int len)
 	AST_VECTOR_ADD_SORTED(&buildopts, ast_strdup(ast_skip_blanks(data)), strcmp);
 }
 
+#pragma GCC diagnostic ignored "-Wformat-nonliteral"
 int ast_pjproject_get_buildopt(char *option, char *format_string, ...)
 {
 	int res = 0;
@@ -146,6 +147,7 @@ int ast_pjproject_get_buildopt(char *option, char *format_string, ...)
 
 	return res;
 }
+#pragma GCC diagnostic warning "-Wformat-nonliteral"
 
 void ast_pjproject_log_intercept_begin(int fd)
 {
