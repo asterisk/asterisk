@@ -70,7 +70,7 @@ static char analog_defaultozz[64] = "";
 
 static const struct {
 	enum analog_sigtype sigtype;
-	const char const *name;
+	const char *name;
 } sigtypes[] = {
 	{ ANALOG_SIG_FXOLS, "fxo_ls" },
 	{ ANALOG_SIG_FXOKS, "fxo_ks" },
@@ -97,7 +97,7 @@ static const struct {
 
 static const struct {
 	unsigned int cid_type;
-	const char const *name;
+	const char *name;
 } cidtypes[] = {
 	{ CID_SIG_BELL,   "bell" },
 	{ CID_SIG_V23,    "v23" },
@@ -2671,7 +2671,7 @@ static struct ast_frame *__analog_handle_event(struct analog_pvt *p, struct ast_
 {
 	int res, x;
 	int mysig;
-	enum analog_sub idx;
+	int idx;
 	char *c;
 	pthread_t threadid;
 	struct ast_channel *chan;

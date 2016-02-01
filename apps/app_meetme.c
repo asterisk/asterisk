@@ -2936,7 +2936,7 @@ static void meetme_menu_admin(enum menu_modes *menu_mode, int *dtmf, struct ast_
 		tweak_talk_volume(user, VOL_UP);
 		break;
 	default:
-		menu_mode = MENU_DISABLED;
+		*menu_mode = MENU_DISABLED;
 		/* Play an error message! */
 		if (!ast_streamfile(chan, "conf-errormenu", ast_channel_language(chan))) {
 			ast_waitstream(chan, "");
