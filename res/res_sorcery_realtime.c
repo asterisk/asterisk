@@ -223,7 +223,11 @@ static void sorcery_realtime_retrieve_regex(const struct ast_sorcery *sorcery, v
 
 	/* The realtime API provides no direct ability to do regex so for now we support a limited subset using pattern matching */
 	snprintf(field, sizeof(field), "%s LIKE", UUID_FIELD);
-	snprintf(value, sizeof(value), "%%%s%%", regex);
+	if (regex[0] == '^') {
+		snprintf(value, sizeof(value), "%s%%", regex + 1);
+	} else {
+		snprintf(value, sizeof(value), "%%%s%%", regex);
+	}
 
 	if (!(fields = ast_variable_new(field, value, ""))) {
 		return;
