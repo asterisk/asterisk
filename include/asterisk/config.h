@@ -495,6 +495,17 @@ int ast_unload_realtime(const char *family);
  *
  * \note You should use the constant SENTINEL to terminate arguments, in
  * order to preserve cross-platform compatibility.
+ *
+ * TODO The return value of this function is routinely ignored. Ignoring
+ * the return value means that it's mostly pointless to be calling this.
+ * You'll see some warning messages potentially, but that's it.
+ *
+ * XXX This function is super useful for detecting configuration problems
+ * early, but unfortunately, the latest in configuration management, sorcery,
+ * doesn't work well with this. Users of sorcery are familiar with the fields
+ * they will need to write but don't know if realtime is being used. Sorcery
+ * knows what storage mechanism is being used but has no high-level knowledge
+ * of what sort of data is going to be written.
  */
 int ast_realtime_require_field(const char *family, ...) attribute_sentinel;
 
