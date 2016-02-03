@@ -86,7 +86,15 @@ enum ast_ssl_flags {
 	/*! Use SSLv3 for outgoing client connections */
 	AST_SSL_SSLV3_CLIENT = (1 << 4),
 	/*! Use TLSv1 for outgoing client connections */
-	AST_SSL_TLSV1_CLIENT = (1 << 5)
+	AST_SSL_TLSV1_CLIENT = (1 << 5),
+	/*! Use server cipher order instead of the client order */
+	AST_SSL_SERVER_CIPHER_ORDER = (1 << 6),
+	/*! Disable TLSv1 support */
+	AST_SSL_DISABLE_TLSV1 = (1 << 7),
+	/*! Disable TLSv1.1 support */
+	AST_SSL_DISABLE_TLSV11 = (1 << 8),
+	/*! Disable TLSv1.2 support */
+	AST_SSL_DISABLE_TLSV12 = (1 << 9),
 };
 
 struct ast_tls_config {
