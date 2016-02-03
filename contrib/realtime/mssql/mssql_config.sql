@@ -998,7 +998,35 @@ ALTER TABLE ps_globals ADD endpoint_identifier_order VARCHAR(40) NULL;
 
 GO
 
-INSERT INTO alembic_version (version_num) VALUES ('45e3f47c6c44');
+-- Running upgrade 45e3f47c6c44 -> 498357a710ae
+
+ALTER TABLE ps_endpoints ADD rtp_keepalive INTEGER NULL;
+
+GO
+
+-- Running upgrade 498357a710ae -> 5a6ccc758633
+
+ALTER TABLE ps_endpoints ADD rtp_timeout INTEGER NULL;
+
+GO
+
+ALTER TABLE ps_endpoints ADD rtp_timeout_hold INTEGER NULL;
+
+GO
+
+-- Running upgrade 5a6ccc758633 -> 154177371065
+
+ALTER TABLE ps_globals ADD default_from_user VARCHAR(80) NULL;
+
+GO
+
+-- Running upgrade 154177371065 -> 28ce1e718f05
+
+ALTER TABLE ps_registrations ADD fatal_retry_interval INTEGER NULL;
+
+GO
+
+INSERT INTO alembic_version (version_num) VALUES ('28ce1e718f05');
 
 GO
 

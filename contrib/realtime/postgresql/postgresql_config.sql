@@ -741,7 +741,25 @@ ALTER TABLE ps_endpoints ADD COLUMN user_eq_phone yesno_values;
 
 ALTER TABLE ps_globals ADD COLUMN endpoint_identifier_order VARCHAR(40);
 
-INSERT INTO alembic_version (version_num) VALUES ('45e3f47c6c44');
+-- Running upgrade 45e3f47c6c44 -> 498357a710ae
+
+ALTER TABLE ps_endpoints ADD COLUMN rtp_keepalive INTEGER;
+
+-- Running upgrade 498357a710ae -> 5a6ccc758633
+
+ALTER TABLE ps_endpoints ADD COLUMN rtp_timeout INTEGER;
+
+ALTER TABLE ps_endpoints ADD COLUMN rtp_timeout_hold INTEGER;
+
+-- Running upgrade 5a6ccc758633 -> 154177371065
+
+ALTER TABLE ps_globals ADD COLUMN default_from_user VARCHAR(80);
+
+-- Running upgrade 154177371065 -> 28ce1e718f05
+
+ALTER TABLE ps_registrations ADD COLUMN fatal_retry_interval INTEGER;
+
+INSERT INTO alembic_version (version_num) VALUES ('28ce1e718f05');
 
 COMMIT;
 
