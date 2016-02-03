@@ -940,6 +940,15 @@
                         ; 407 become subject to this retry interval.
 ;server_uri=    ; SIP URI of the server to register against (default: "")
 ;transport=     ; Transport used for outbound authentication (default: "")
+;line=          ; When enabled this option will cause a 'line' parameter to be
+                ; added to the Contact header placed into the outgoing
+                ; registration request. If the remote server sends a call
+                ; this line parameter will be used to establish a relationship
+                ; to the outbound registration, ultimately causing the
+                ; configured endpoint to be used (default: "no")
+;endpoint=      ; When line support is enabled this configured endpoint name
+                ; is used for incoming calls that are related to the outbound
+                ; registration (default: "")
 ;type=  ; Must be of type registration (default: "")
 
 
