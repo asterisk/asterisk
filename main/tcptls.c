@@ -759,7 +759,8 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 	return 0;
 #else
 	int disable_ssl = 0;
- 
+	long ssl_opts = 0;
+
 	if (!cfg->enabled) {
 		return 0;
 	}
@@ -807,11 +808,24 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 	 * them. SSLv23_*_method supports TLSv1+.
 	 */
 	if (disable_ssl) {
-		long ssl_opts;
-
-		ssl_opts = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
-		SSL_CTX_set_options(cfg->ssl_ctx, ssl_opts);
+		ssl_opts |= SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
 	}
+
+	if (ast_test_flag(&cfg->flags, AST_SSL_SERVER_CIPHER_ORDER)) {
+		ssl_opts |= SSL_OP_CIPHER_SERVER_PREFERENCE;
+	}
+
+	if (ast_test_flag(&cfg->flags, AST_SSL_DISABLE_TLSV1)) {
+		ssl_opts |= SSL_OP_NO_TLSv1;
+	}
+	if (ast_test_flag(&cfg->flags, AST_SSL_DISABLE_TLSV11)) {
+		ssl_opts |= SSL_OP_NO_TLSv1_1;
+	}
+	if (ast_test_flag(&cfg->flags, AST_SSL_DISABLE_TLSV12)) {
+		ssl_opts |= SSL_OP_NO_TLSv1_2;
+	}
+
+	SSL_CTX_set_options(cfg->ssl_ctx, ssl_opts);
 
 	SSL_CTX_set_verify(cfg->ssl_ctx,
 		ast_test_flag(&cfg->flags, AST_SSL_VERIFY_CLIENT) ? SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT : SSL_VERIFY_NONE,
@@ -1164,6 +1178,14 @@ int ast_tls_read_conf(struct ast_tls_config *tls_cfg, struct ast_tcptls_session_
 			ast_clear_flag(&tls_cfg->flags, AST_SSL_TLSV1_CLIENT);
 			ast_clear_flag(&tls_cfg->flags, AST_SSL_SSLV3_CLIENT);
 		}
+	} else if (!strcasecmp(varname, "tlsservercipherorder")) {
+		ast_set2_flag(&tls_cfg->flags, ast_true(value), AST_SSL_SERVER_CIPHER_ORDER);
+	} else if (!strcasecmp(varname, "tlsdisablev1")) {
+		ast_set2_flag(&tls_cfg->flags, ast_true(value), AST_SSL_DISABLE_TLSV1);
+	} else if (!strcasecmp(varname, "tlsdisablev11")) {
+		ast_set2_flag(&tls_cfg->flags, ast_true(value), AST_SSL_DISABLE_TLSV11);
+	} else if (!strcasecmp(varname, "tlsdisablev12")) {
+		ast_set2_flag(&tls_cfg->flags, ast_true(value), AST_SSL_DISABLE_TLSV12);
 	} else {
 		return -1;
 	}

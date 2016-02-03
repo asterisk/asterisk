@@ -90,6 +90,26 @@ bindaddr=127.0.0.1
 ; private in same .pem file.
 ; openssl req -new -x509 -days 365 -nodes -out /tmp/foo.pem -keyout /tmp/foo.pem
 ;
+; tlscipher=                             ; The list of allowed ciphers
+;                                        ; if none are specified the following cipher
+;                                        ; list will be used instead:
+; ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:
+; ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:
+; kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:
+; ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:
+; ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:
+; DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:
+; AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:
+; AES:CAMELLIA:DES-CBC3-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:
+; !EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA
+;
+; tlsdisablev1=yes                ; Disable TLSv1 support - if not set this defaults to "yes"
+; tlsdisablev11=yes               ; Disable TLSv1.1 support - if not set this defaults to "no"
+; tlsdisablev12=yes               ; Disable TLSv1.2 support - if not set this defaults to "no"
+;
+; tlsservercipherorder=yes        ; Use the server preference order instead of the client order
+;                                 ; Defaults to "yes"
+;
 ; The post_mappings section maps URLs to real paths on the filesystem.  If a
 ; POST is done from within an authenticated manager session to one of the
 ; configured POST mappings, then any files in the POST will be placed in the
