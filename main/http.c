@@ -2102,10 +2102,13 @@ static int __ast_http_load(int reload)
 	}
 	http_tls_cfg.pvtfile = ast_strdup("");
 
+	/* Apply modern intermediate settings according to the Mozilla OpSec team as of July 30th, 2015 but disable TLSv1 */
+	ast_set_flag(&http_tls_cfg.flags, AST_SSL_DISABLE_TLSV1 | AST_SSL_SERVER_CIPHER_ORDER);
+
 	if (http_tls_cfg.cipher) {
 		ast_free(http_tls_cfg.cipher);
 	}
-	http_tls_cfg.cipher = ast_strdup("");
+	http_tls_cfg.cipher = ast_strdup("ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:AES:CAMELLIA:DES-CBC3-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA");
 
 	AST_RWLIST_WRLOCK(&uri_redirects);
 	while ((redirect = AST_RWLIST_REMOVE_HEAD(&uri_redirects, entry))) {
@@ -2131,8 +2134,6 @@ static int __ast_http_load(int reload)
 			&& strcasecmp(v->name, "tlsdontverifyserver")
 			&& strcasecmp(v->name, "tlsclientmethod")
 			&& strcasecmp(v->name, "sslclientmethod")
-			&& strcasecmp(v->name, "tlscipher")
-			&& strcasecmp(v->name, "sslcipher")
 			&& !ast_tls_read_conf(&http_tls_cfg, &https_desc, v->name, v->value)) {
 			continue;
 		}
