@@ -1,3 +1,68 @@
+2016-02-03 21:23 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 11.21.1 Released.
+
+2016-02-03 15:23 +0000 [6e031593e0]  Kevin Harwell <kharwell@lunkwill.digium.internal>
+
+	* Release summaries: Remove previous versions
+
+2016-02-03 15:23 +0000 [0b1f512c8a]  Kevin Harwell <kharwell@lunkwill>
+
+	* .version: Update for 11.21.1
+
+2016-02-03 15:23 +0000 [cc77ff5a61]  Kevin Harwell <kharwell@lunkwill>
+
+	* .lastclean: Update for 11.21.1
+
+2016-02-03 12:02 +0000 [013a1ed35a]  Joshua Colp <jcolp@digium.com>
+
+	* AST-2016-001 http: Provide greater control of TLS and set modern defaults.
+
+	  This change exposes the configuration of various aspects of the TLS
+	  support and sets the default to the modern standards.
+
+	  The TLS cipher is now set to the best values according to the
+	  Mozilla OpSec team, different TLS versions can now be disabled, and
+	  the cipher order can be forced to be that of the server instead of
+	  the client.
+
+	  ASTERISK-24972 #close
+
+	  Change-Id: I7485bc48585979a93a131b01d435e54e6e7d5b97
+2015-12-07 12:46 +0000 [f7c933c260]  Richard Mudgett <rmudgett@digium.com>
+
+	* AST-2016-003 udptl.c: Fix uninitialized values.
+
+	  Sending UDPTL packets to Asterisk with the right amount of missing
+	  sequence numbers and enough redundant 0-length IFP packets, can make
+	  Asterisk crash.
+
+	  ASTERISK-25603 #close
+	  Reported by: Walter Doekes
+
+	  ASTERISK-25742 #close
+	  Reported by: Torrey Searle
+
+	  Change-Id: I97df8375041be986f3f266ac1946a538023a5255
+2015-09-28 17:07 +0000 [ec13bf2caa]  Richard Mudgett <rmudgett@digium.com>
+
+	* AST-2016-002 chan_sip.c: Fix retransmission timeout integer overflow.
+
+	  Setting the sip.conf timert1 value to a value higher than 1245 can cause
+	  an integer overflow and result in large retransmit timeout times.  These
+	  large timeout times hold system file descriptors hostage and can cause the
+	  system to run out of file descriptors.
+
+	  NOTE: The default sip.conf timert1 value is 500 which does not expose the
+	  vulnerability.
+
+	  * The overflow is now detected and the previous timeout time is
+	  calculated.
+
+	  ASTERISK-25397 #close
+	  Reported by: Alexander Traud
+
+	  Change-Id: Ia7231f2f415af1cbf90b923e001b9219cff46290
 2016-01-15 18:44 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 11.21.0 Released.
