@@ -271,6 +271,9 @@ static int decode_open_type(uint8_t *buf, unsigned int limit, unsigned int *len,
 		*p_num_octets = octet_cnt;
 		*p_object = &buf[*len];
 		*len += octet_cnt;
+	} else {
+		*p_num_octets = 0;
+		*p_object = NULL;
 	}
 
 	return 0;
