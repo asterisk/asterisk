@@ -1,0 +1,401 @@
+                                Release Summary
+
+                         asterisk-certified/11.6-cert12
+
+                                Date: 2016-02-03
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release has been made to address one or more security vulnerabilities
+   that have been identified. A security advisory document has been published
+   for each vulnerability that includes additional information. Users of
+   versions of Asterisk that are affected are strongly encouraged to review
+   the advisories and determine what action they should take to protect their
+   systems from these issues.
+
+   Security Advisories:
+
+     * AST-2016-001,AST-2016-002,AST-2016-003
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-certified/11.6-cert11.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                             Testers           Reporters             
+   7 Matt Jordan                      2 gtjoseph        8 Matt Jordan         
+   7 Richard Mudgett                  1 Richard Mudgett 3 Michael Keuter      
+   4 Joshua Colp                                        2 Gareth Palmer       
+   4 gtjoseph                                           2 Ben Klang           
+   3 Malcolm Davenport                                  1 Walter Doekes       
+   2 Kevin Harwell                                      1 Denis Martinez      
+   2 Jonathan Rose                                      1 Richard Miller      
+   2 Kevin Harwell                                      1 Kevin Harwell       
+   2 Mark Michelson                                     1 Walter Doekes       
+   1 Gareth Palmer (license 5169)                       1 Maciej Szmigiero    
+   1 Clod Patry (modified)                              1 Martin CisA!rik     
+   1 Maciej Szmigiero (license 6085)                    1 Hiroaki Komatsu     
+   1 Andreas Steinmetz (license 6523)                   1 Andreas Steinmetz   
+   1 Steve Davies                                       1 Jonathan Rose       
+   1 Corey Farrell                                      1 Joshua Colp         
+                                                        1 Andreas Steinmetz   
+                                                        1 Alexander Traud     
+                                                        1 Jonathan White      
+                                                        1 Alex A. Welzl       
+                                                        1 Badalian Vyacheslav 
+                                                        1 David M. Lee        
+                                                        1 Jonathan Rose       
+                                                        1 Thomas Airmont      
+                                                        1 Badalian Vyacheslav 
+                                                        1 Guenther Kelleter   
+                                                        1 Gareth Palmer       
+                                                        1 Richard Mudgett     
+                                                        1 Alexander Traud     
+                                                        1 Torrey Searle       
+                                                        1 Ben Klang           
+                                                        1 Jonathan White      
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Applications/app_confbridge
+
+   ASTERISK-19983: ConfBridge does not expose a mechanism to change the
+   language on the Bridging channel, defaulting to 'en'
+   Reported by: Jonathan White
+     * [64fce13486] Clod Patry -- app_confbridge: Set the language used for
+       announcements to the conference.
+   ASTERISK-24490: Security Vulnerability: CONFBRIDGE function's
+   record_command option allows arbitrary parameters to be passed to
+   MixMonitor, allowing remote execution of commands
+   Reported by: Matt Jordan
+     * [7d03c1ec5f] Kevin Harwell -- AST-2014-017 - app_confbridge:
+       permission escalation/ class authorization.
+   ASTERISK-24440: Call leak in Confbridge
+   Reported by: Ben Klang
+     * [601bdf3dd6] Joshua Colp -- AST-2014-014: Fix race condition where
+       channels may get stuck in ConfBridge under load.
+
+    Category: Channels/chan_sip/General
+
+   ASTERISK-25397: [patch]chan_sip: File descriptor leak with non-default
+   timert1
+   Reported by: Alexander Traud
+     * [68a6a721b5] Richard Mudgett -- AST-2016-002 chan_sip.c: Fix
+       retransmission timeout integer overflow.
+   ASTERISK-25364: [patch]Issue a TCP connection(kernel) and thread of
+   asterisk is not released
+   Reported by: Hiroaki Komatsu
+     * [b5fb4f7e89] Jonathan Rose -- chan_sip: Add TCP/TLS keepalive to
+       TCP/TLS server
+   ASTERISK-25476: chan_sip loses registrations after a while
+   Reported by: Michael Keuter
+     * [85ca86cd13] Richard Mudgett -- sched.c: Make not return a sched id of
+       0.
+     * [13152fe53c] Richard Mudgett -- Audit improper usage of scheduler
+       exposed by 5c713fdf18f.
+     * [69cc1f700f] Steve Davies -- Further fixes to improper usage of
+       scheduler
+   ASTERISK-25346: chan_sip: Overwriting answered elsewhere hangup cause on
+   call pickup
+   Reported by: Joshua Colp
+     * [059591091a] Joshua Colp -- chan_sip: Allow call pickup to set the
+       hangup cause.
+
+    Category: Channels/chan_sip/Security Framework
+
+   ASTERISK-25320: chan_sip.c: sip_report_security_event searches for wrong
+   or non existent peer on invite
+   Reported by: Kevin Harwell
+     * [c11ec74f1d] Kevin Harwell -- chan_sip.c: wrong peer searched in
+       sip_report_security_event
+
+    Category: Channels/chan_sip/T.38
+
+   ASTERISK-24449: Reinvite for T.38 UDPTL fails if SRTP is enabled
+   Reported by: Andreas Steinmetz
+     * [b1dd2375a7] Andreas Steinmetz -- chan_sip: Allow T.38 switch-over
+       when SRTP is in use.
+
+    Category: Channels/chan_sip/TCP-TLS
+
+   ASTERISK-24847: [security] [patch] tcptls: certificate CN NULL byte prefix
+   bug
+   Reported by: Matt Jordan
+     * [a6a98c7ef1] Maciej Szmigiero -- Security/tcptls: MitM Attack
+       potential from certificate with NULL byte in CN.
+
+    Category: Core/BuildSystem
+
+   ASTERISK-24954: Git migration: Asterisk version numbers are incompatible
+   with the Test Suite
+   Reported by: Matt Jordan
+     * [d38f08c744] Matt Jordan -- build_tools/make_version: Update version
+       parsing for Git migration
+
+    Category: Core/General
+
+   ASTERISK-25449: main/sched: Regression introduced by 5c713fdf18f causes
+   erroneous duplicate RTCP messages; other potential scheduling issues in
+   chan_sip/chan_skinny
+   Reported by: Matt Jordan
+     * [69cc1f700f] Steve Davies -- Further fixes to improper usage of
+       scheduler
+     * [a78beb6d4d] Matt Jordan -- res/res_rtp_asterisk: Fix assignment after
+       ao2 decrement
+     * [6851c42eeb] Matt Jordan -- Fix improper usage of scheduler exposed by
+       5c713fdf18f
+   ASTERISK-25083: Message.c: Message channel becomes saturated with frames
+   leading to spammy log messages
+   Reported by: Jonathan Rose
+     * [7c65465298] Jonathan Rose -- Message.c: Clear message channel frames
+       on cleanup
+   ASTERISK-24614: Deadlock when DEBUG_THREADS compiler flag enabled
+   Reported by: Richard Mudgett
+     * [d2ac3e5b01] Richard Mudgett -- DEBUG_THREADS: Fix regression and lock
+       tracking initialization problems.
+
+    Category: Core/Netsock
+
+   ASTERISK-24469: Security Vulnerability: Mixed IPv4/IPv6 ACLs allow blocked
+   addresses through
+   Reported by: Matt Jordan
+     * [ad80a0c4e3] Matt Jordan -- Fix error with mixed address family ACLs.
+
+    Category: Core/UDPTL
+
+   ASTERISK-25603: [patch]udptl: Uninitialized lengths and bufs in
+   udptl_rx_packet cause ast_frdup crash
+   Reported by: Walter Doekes
+     * [431326b174] Richard Mudgett -- AST-2016-003 udptl.c: Fix
+       uninitialized values.
+   ASTERISK-25742: Secondary IFP Packets can result in accessing
+   uninitialized pointers and a crash
+   Reported by: Torrey Searle
+     * [431326b174] Richard Mudgett -- AST-2016-003 udptl.c: Fix
+       uninitialized values.
+
+    Category: Documentation
+
+   ASTERISK-24419: Incorrect syntax for setting language in
+   configs/extensions.conf.sample
+   Reported by: Ben Klang
+     * [2d7a0360b2] Malcolm Davenport -- ASTERISK-24419, fix incorrect syntax
+       for setting language in extensions.conf.sample
+
+    Category: Functions/func_curl
+
+   ASTERISK-24676: Security Vulnerability: URL request injection in libCURL
+   (CVE-2014-8150)
+   Reported by: Matt Jordan
+     * [d3f4cea69e] Mark Michelson -- Multiple revisions 431297-431298
+
+    Category: Functions/func_db
+
+   ASTERISK-24534: [patch]Register DB() as escalating to prevent users from
+   writing to astdb
+   Reported by: Gareth Palmer
+     * [009d95c79a] Gareth Palmer -- AST-2014-018 - func_db: DB Dialplan
+       function permission escalation via AMI.
+
+    Category: Resources/res_agi
+
+   ASTERISK-24323: Bug in documentation AGI STREAM FILE CONTROL
+   Reported by: Martin CisA!rik
+     * [1cfc97ae0e] Malcolm Davenport -- ASTERISK-24323, fix bug in
+       documentation of AGI STREAM FILE CONTROL
+
+    Category: Resources/res_config_curl
+
+   ASTERISK-24676: Security Vulnerability: URL request injection in libCURL
+   (CVE-2014-8150)
+   Reported by: Matt Jordan
+     * [d3f4cea69e] Mark Michelson -- Multiple revisions 431297-431298
+
+    Category: Resources/res_http_websocket
+
+   ASTERISK-24972: Transport Layer Security (TLS) Protocol BEAST
+   Vulnerability - Investigate vulnerability of HTTP server
+   Reported by: Alex A. Welzl
+     * [1ae95cdef3] Joshua Colp -- AST-2016-001 http: Provide greater control
+       of TLS and set modern defaults.
+   ASTERISK-24472: Asterisk Crash in OpenSSL when calling over WSS from JSSIP
+   Reported by: Badalian Vyacheslav
+     * [7a206a0799] Joshua Colp -- res_http_websocket: Fix crash due to
+       double freeing memory when receiving a payload length of zero.
+
+  Improvement
+
+    Category: Documentation
+
+   ASTERISK-23512: Inaccurate comment in manager.conf.sample
+   Reported by: Richard Miller
+     * [ab694992b4] Malcolm Davenport -- ASTERISK-23512, correct inaccurate
+       comment in manager.conf.sample
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author          | Summary                                 |
+   |------------+-----------------+-----------------------------------------|
+   | 1a7e98eeac | Kevin Harwell   | .version: Update for                    |
+   |            |                 | certified/11.6-cert12                   |
+   |------------+-----------------+-----------------------------------------|
+   | a1394f3919 | Kevin Harwell   | .lastclean: Update for                  |
+   |            |                 | certified/11.6-cert12                   |
+   |------------+-----------------+-----------------------------------------|
+   | c3b6fcf028 | Mark Michelson  | scheduler: Use queue for allocating     |
+   |            |                 | sched IDs.                              |
+   |------------+-----------------+-----------------------------------------|
+   | f7c83499d2 | gtjoseph        | More .gitignore updates                 |
+   |------------+-----------------+-----------------------------------------|
+   | 3116f0e73b | gtjoseph        | Backport menuselect to 12,11,1.8        |
+   |------------+-----------------+-----------------------------------------|
+   | a10e548a7e | gtjoseph        | .gitignore updates for 11               |
+   |------------+-----------------+-----------------------------------------|
+   | 7175c668f1 | Matt Jordan     | git migration: Remove support for file  |
+   |            |                 | versions                                |
+   |------------+-----------------+-----------------------------------------|
+   | d783053f3d | Corey Farrell   | main/editline: Add .gitignore.          |
+   |------------+-----------------+-----------------------------------------|
+   | 4d061198cf | Matt Jordan     | .gitignore: Ignore tarballs (*.gz)      |
+   |------------+-----------------+-----------------------------------------|
+   | eb43a4d989 | gtjoseph        | Add .gitignore and .gitreview files     |
+   |------------+-----------------+-----------------------------------------|
+   | c12a800aea | Richard Mudgett | queue_log: Post QUEUESTART entry when   |
+   |            |                 | Asterisk fully boots.                   |
+   |------------+-----------------+-----------------------------------------|
+   | c00dc51636 | Matt Jordan     | stun: correct attribute string padding  |
+   |            |                 | to match rfc                            |
+   |------------+-----------------+-----------------------------------------|
+   | 61d40b749d | Richard Mudgett | chan_dahdi: Don't ignore setvar when    |
+   |            |                 | using configuration section scheme.     |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ b/.gitignore                                  |   31
+ b/.gitreview                                  |    4
+ b/.version                                    |    2
+ b/ChangeLog                                   |  831 ---
+ b/UPGRADE.txt                                 |   29
+ b/addons/.gitignore                           |    1
+ b/agi/.gitignore                              |    3
+ b/apps/app_confbridge.c                       |    3
+ b/apps/confbridge/conf_config_parser.c        |    2
+ b/apps/confbridge/include/confbridge.h        |    1
+ b/build_tools/.gitignore                      |    1
+ b/build_tools/make_version                    |    8
+ b/channels/chan_dahdi.c                       |   15
+ b/channels/chan_iax2.c                        |   21
+ b/channels/chan_sip.c                         |   63
+ b/channels/chan_skinny.c                      |   26
+ b/channels/h323/.gitignore                    |    1
+ b/channels/sip/config_parser.c                |    9
+ b/channels/sip/include/security_events.h      |    3
+ b/channels/sip/security_events.c              |    5
+ b/configs/confbridge.conf.sample              |    3
+ b/configs/extensions.conf.sample              |    2
+ b/configs/http.conf.sample                    |   21
+ b/configs/manager.conf.sample                 |    2
+ b/doc/.gitignore                              |    1
+ b/include/asterisk.h                          |   23
+ b/include/asterisk/.gitignore                 |    3
+ b/include/asterisk/_private.h                 |    1
+ b/include/asterisk/lock.h                     |   47
+ b/include/asterisk/tcptls.h                   |   10
+ b/main/.gitignore                             |    3
+ b/main/asterisk.c                             |   91
+ b/main/channel.c                              |    1
+ b/main/editline/.gitignore                    |   13
+ b/main/http.c                                 |    7
+ b/main/lock.c                                 |  570 --
+ b/main/logger.c                               |   42
+ b/main/manager.c                              |   10
+ b/main/message.c                              |    8
+ b/main/sched.c                                |  175
+ b/main/stun.c                                 |   11
+ b/main/tcptls.c                               |   30
+ b/main/udptl.c                                |   15
+ b/menuselect/.gitignore                       |    7
+ b/menuselect/Makefile                         |  123
+ b/menuselect/README                           |  178
+ b/menuselect/aclocal.m4                       |   19
+ b/menuselect/autoconfig.h.in                  |  137
+ b/menuselect/bootstrap.sh                     |   41
+ b/menuselect/config.guess                     | 1420 ++++++
+ b/menuselect/config.sub                       | 1794 +++++++
+ b/menuselect/configure                        | 6138 ++++++++++++++++++++++++++
+ b/menuselect/configure.ac                     |  154
+ b/menuselect/contrib/Makefile-dummy           |   17
+ b/menuselect/contrib/menuselect-dummy         |  741 +++
+ b/menuselect/example_menuselect-tree          |  487 ++
+ b/menuselect/install-sh                       |  323 +
+ b/menuselect/linkedlists.h                    |  372 +
+ b/menuselect/make_version                     |   56
+ b/menuselect/makeopts.in                      |   26
+ b/menuselect/menuselect.c                     | 2149 +++++++++
+ b/menuselect/menuselect.h                     |  162
+ b/menuselect/menuselect_curses.c              | 1034 ++++
+ b/menuselect/menuselect_gtk.c                 |  358 +
+ b/menuselect/menuselect_newt.c                |  427 +
+ b/menuselect/menuselect_stub.c                |   39
+ b/menuselect/missing                          |  360 +
+ b/menuselect/strcompat.c                      |  243 +
+ b/menuselect/test/build_tools/menuselect-deps |   52
+ b/menuselect/test/menuselect-tree             |  716 +++
+ b/pbx/pbx_dundi.c                             |    1
+ certified-asterisk-11.6-cert11-summary.html   |   62
+ certified-asterisk-11.6-cert11-summary.txt    |   93
+ 73 files changed, 18333 insertions(+), 1544 deletions(-)

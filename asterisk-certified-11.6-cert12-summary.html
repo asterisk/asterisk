@@ -1,0 +1,154 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-certified/11.6-cert12</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-certified/11.6-cert12</h3><h3 align="center">Date: 2016-02-03</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release has been made to address one or more security vulnerabilities that have been identified. A security advisory document has been published for each vulnerability that includes additional information. Users of versions of Asterisk that are affected are strongly encouraged to review the advisories and determine what action they should take to protect their systems from these issues.</p><p>Security Advisories:</p><ul>
+<li><a href="http://downloads.asterisk.org/pub/security/AST-2016-001,AST-2016-002,AST-2016-003.html">AST-2016-001,AST-2016-002,AST-2016-003</a></li>
+</ul><p>The data in this summary reflects changes that have been made since the previous release, asterisk-certified/11.6-cert11.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">7 Matt Jordan <mjordan@digium.com><br/>7 Richard Mudgett <rmudgett@digium.com><br/>4 Joshua Colp <jcolp@digium.com><br/>4 gtjoseph <george.joseph@fairview5.com><br/>3 Malcolm Davenport <malcolmd@digium.com><br/>2 Kevin Harwell <kharwell@digium.com><br/>2 Jonathan Rose <jrose@digium.com><br/>2 Kevin Harwell <kharwell@lunkwill><br/>2 Mark Michelson <mmichelson@digium.com><br/>1 Gareth Palmer (license 5169)<br/>1 Clod Patry <cpatry@gmail.com> (modified)<br/>1 Maciej Szmigiero <mail@maciej.szmigiero.name> (license 6085)<br/>1 Andreas Steinmetz (license 6523)<br/>1 Steve Davies <steve@one47.co.uk><br/>1 Corey Farrell <git@cfware.com><br/></td><td width="33%">2 gtjoseph <george.joseph@fairview5.com><br/>1 Richard Mudgett <rmudgett@digium.com><br/></td><td width="33%">8 Matt Jordan <mjordan@digium.com><br/>3 Michael Keuter <lists@mksolutions.info><br/>2 Gareth Palmer<br/>2 Ben Klang <bklang@mojolingo.com><br/>1 Walter Doekes <walter+asterisk@wjd.nu><br/>1 Denis Martinez<br/>1 Richard Miller <rich@ndpcci.com><br/>1 Kevin Harwell <kharwell@digium.com><br/>1 Walter Doekes<br/>1 Maciej Szmigiero<br/>1 Martin Cisárik <martin.cisarik@gmail.com><br/>1 Hiroaki Komatsu <komatsu.hiroaki@po.ntts.co.jp><br/>1 Andreas Steinmetz <ast@domdv.de><br/>1 Jonathan Rose<br/>1 Joshua Colp <jcolp@digium.com><br/>1 Andreas Steinmetz<br/>1 Alexander Traud <pabstraud@compuserve.com><br/>1 Jonathan White<br/>1 Alex A. Welzl <a.welzl@sportradar.com><br/>1 Badalian Vyacheslav <slavon.net@gmail.com><br/>1 David M. Lee <dlee@digium.com><br/>1 Jonathan Rose <jrose@digium.com><br/>1 Thomas Airmont<br/>1 Badalian Vyacheslav<br/>1 Guenther Kelleter<br/>1 Gareth Palmer <gareth@acsdata.co.nz><br/>1 Richard Mudgett <rmudgett@digium.com><br/>1 Alexander Traud<br/>1 Torrey Searle <tsearle@gmail.com><br/>1 Ben Klang<br/>1 Jonathan White <jw@uvacity.com><br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Bug</h3><h4>Category: Applications/app_confbridge</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19983">ASTERISK-19983</a>: ConfBridge does not expose a mechanism to change the language on the Bridging channel, defaulting to 'en'<br/>Reported by: Jonathan White<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=64fce13486f2b7ea3e07d7daff812340dc563fbf">[64fce13486]</a> Clod Patry -- app_confbridge: Set the language used for announcements to the conference.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24490">ASTERISK-24490</a>: Security Vulnerability: CONFBRIDGE function's record_command option allows arbitrary parameters to be passed to MixMonitor, allowing remote execution of commands<br/>Reported by: Matt Jordan<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7d03c1ec5fa963096e43965de066e6c511469483">[7d03c1ec5f]</a> Kevin Harwell -- AST-2014-017 - app_confbridge: permission escalation/ class authorization.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24440">ASTERISK-24440</a>: Call leak in Confbridge<br/>Reported by: Ben Klang<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=601bdf3dd62912d1c0771288ee2439b8ee40b3b7">[601bdf3dd6]</a> Joshua Colp -- AST-2014-014: Fix race condition where channels may get stuck in ConfBridge under load.</li>
+</ul><br><h4>Category: Channels/chan_sip/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25397">ASTERISK-25397</a>: [patch]chan_sip: File descriptor leak with non-default timert1<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=68a6a721b5f42c1707a0d10de9f89d91f6fdb31c">[68a6a721b5]</a> Richard Mudgett -- AST-2016-002 chan_sip.c: Fix retransmission timeout integer overflow.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25364">ASTERISK-25364</a>: [patch]Issue a TCP connection(kernel) and thread of asterisk is not released<br/>Reported by: Hiroaki Komatsu<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b5fb4f7e8909ff63911ba6b088faba2db1859dac">[b5fb4f7e89]</a> Jonathan Rose -- chan_sip: Add TCP/TLS keepalive to TCP/TLS server</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25476">ASTERISK-25476</a>: chan_sip loses registrations after a while<br/>Reported by: Michael Keuter<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=85ca86cd13bb0eeaa7869cb06fb06e6dfa15f245">[85ca86cd13]</a> Richard Mudgett -- sched.c: Make not return a sched id of 0.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=13152fe53c1ad3a8c5c1d6af293dca8491791cf9">[13152fe53c]</a> Richard Mudgett -- Audit improper usage of scheduler exposed by 5c713fdf18f.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=69cc1f700f3c287cb6daac2715d4b0071541e819">[69cc1f700f]</a> Steve Davies -- Further fixes to improper usage of scheduler</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25346">ASTERISK-25346</a>: chan_sip: Overwriting answered elsewhere hangup cause on call pickup<br/>Reported by: Joshua Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=059591091a69d35b200dcc5c4b6bb8f802bbb08f">[059591091a]</a> Joshua Colp -- chan_sip: Allow call pickup to set the hangup cause.</li>
+</ul><br><h4>Category: Channels/chan_sip/Security Framework</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25320">ASTERISK-25320</a>: chan_sip.c: sip_report_security_event searches for wrong or non existent peer on invite<br/>Reported by: Kevin Harwell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c11ec74f1d4b0b96313eae7b4e1689fca82e0967">[c11ec74f1d]</a> Kevin Harwell -- chan_sip.c: wrong peer searched in sip_report_security_event</li>
+</ul><br><h4>Category: Channels/chan_sip/T.38</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24449">ASTERISK-24449</a>: Reinvite for T.38 UDPTL fails if SRTP is enabled<br/>Reported by: Andreas Steinmetz<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b1dd2375a7db8842f178a498cc67d8325f7c70cf">[b1dd2375a7]</a> Andreas Steinmetz -- chan_sip: Allow T.38 switch-over when SRTP is in use.</li>
+</ul><br><h4>Category: Channels/chan_sip/TCP-TLS</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24847">ASTERISK-24847</a>: [security] [patch] tcptls: certificate CN NULL byte prefix bug<br/>Reported by: Matt Jordan<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a6a98c7ef1e209fe1caafd8c79cfcb6ff2d192d1">[a6a98c7ef1]</a> Maciej Szmigiero -- Security/tcptls: MitM Attack potential from certificate with NULL byte in CN.</li>
+</ul><br><h4>Category: Core/BuildSystem</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24954">ASTERISK-24954</a>: Git migration: Asterisk version numbers are incompatible with the Test Suite<br/>Reported by: Matt Jordan<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d38f08c74445594511eed2bd8f04264141335e50">[d38f08c744]</a> Matt Jordan -- build_tools/make_version: Update version parsing for Git migration</li>
+</ul><br><h4>Category: Core/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25449">ASTERISK-25449</a>: main/sched: Regression introduced by 5c713fdf18f causes erroneous duplicate RTCP messages; other potential scheduling issues in chan_sip/chan_skinny<br/>Reported by: Matt Jordan<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=69cc1f700f3c287cb6daac2715d4b0071541e819">[69cc1f700f]</a> Steve Davies -- Further fixes to improper usage of scheduler</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a78beb6d4dc4de79eb2d18c021f18e2c4993c1e9">[a78beb6d4d]</a> Matt Jordan -- res/res_rtp_asterisk: Fix assignment after ao2 decrement</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6851c42eeb198d1452a768331bc7fa7ce8d0962c">[6851c42eeb]</a> Matt Jordan -- Fix improper usage of scheduler exposed by 5c713fdf18f</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25083">ASTERISK-25083</a>: Message.c: Message channel becomes saturated with frames leading to spammy log messages<br/>Reported by: Jonathan Rose<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7c6546529821b2c0ebae14c2b1e45123b69cfbc8">[7c65465298]</a> Jonathan Rose -- Message.c: Clear message channel frames on cleanup</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24614">ASTERISK-24614</a>: Deadlock when DEBUG_THREADS compiler flag enabled<br/>Reported by: Richard Mudgett<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d2ac3e5b013d633a44026b06698a3294068cda2c">[d2ac3e5b01]</a> Richard Mudgett -- DEBUG_THREADS: Fix regression and lock tracking initialization problems.</li>
+</ul><br><h4>Category: Core/Netsock</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24469">ASTERISK-24469</a>: Security Vulnerability: Mixed IPv4/IPv6 ACLs allow blocked addresses through<br/>Reported by: Matt Jordan<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ad80a0c4e3c1fd2a3410a6e84cf37996f6d796b0">[ad80a0c4e3]</a> Matt Jordan -- Fix error with mixed address family ACLs.</li>
+</ul><br><h4>Category: Core/UDPTL</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25603">ASTERISK-25603</a>: [patch]udptl: Uninitialized lengths and bufs in udptl_rx_packet cause ast_frdup crash<br/>Reported by: Walter Doekes<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=431326b1744f2b3bc22b9ae8ea306286d21de811">[431326b174]</a> Richard Mudgett -- AST-2016-003 udptl.c: Fix uninitialized values.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25742">ASTERISK-25742</a>: Secondary IFP Packets can result in accessing uninitialized pointers and a crash<br/>Reported by: Torrey Searle<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=431326b1744f2b3bc22b9ae8ea306286d21de811">[431326b174]</a> Richard Mudgett -- AST-2016-003 udptl.c: Fix uninitialized values.</li>
+</ul><br><h4>Category: Documentation</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24419">ASTERISK-24419</a>: Incorrect syntax for setting language in configs/extensions.conf.sample<br/>Reported by: Ben Klang<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2d7a0360b2446716030fe6c67e26f6ec219a8978">[2d7a0360b2]</a> Malcolm Davenport -- ASTERISK-24419, fix incorrect syntax for setting language in extensions.conf.sample</li>
+</ul><br><h4>Category: Functions/func_curl</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24676">ASTERISK-24676</a>: Security Vulnerability: URL request injection in libCURL (CVE-2014-8150)<br/>Reported by: Matt Jordan<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d3f4cea69e699f398b4260837a1a6b9bfd7c01a8">[d3f4cea69e]</a> Mark Michelson -- Multiple revisions 431297-431298</li>
+</ul><br><h4>Category: Functions/func_db</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24534">ASTERISK-24534</a>: [patch]Register DB() as escalating to prevent users from writing to astdb<br/>Reported by: Gareth Palmer<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=009d95c79a3a83816f01c67218bcb74a9bf2097e">[009d95c79a]</a> Gareth Palmer -- AST-2014-018 - func_db: DB Dialplan function permission escalation via AMI.</li>
+</ul><br><h4>Category: Resources/res_agi</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24323">ASTERISK-24323</a>: Bug in documentation AGI STREAM FILE CONTROL<br/>Reported by: Martin Cisárik<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1cfc97ae0e937dbb7808bd1ea7d4006a757ee8cd">[1cfc97ae0e]</a> Malcolm Davenport -- ASTERISK-24323, fix bug in documentation of AGI STREAM FILE CONTROL</li>
+</ul><br><h4>Category: Resources/res_config_curl</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24676">ASTERISK-24676</a>: Security Vulnerability: URL request injection in libCURL (CVE-2014-8150)<br/>Reported by: Matt Jordan<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d3f4cea69e699f398b4260837a1a6b9bfd7c01a8">[d3f4cea69e]</a> Mark Michelson -- Multiple revisions 431297-431298</li>
+</ul><br><h4>Category: Resources/res_http_websocket</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24972">ASTERISK-24972</a>: Transport Layer Security (TLS) Protocol BEAST Vulnerability - Investigate vulnerability of HTTP server<br/>Reported by: Alex A. Welzl<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1ae95cdef385691fc71fa8cc005d937dfe6f2567">[1ae95cdef3]</a> Joshua Colp -- AST-2016-001 http: Provide greater control of TLS and set modern defaults.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24472">ASTERISK-24472</a>: Asterisk Crash in OpenSSL when calling over WSS from JSSIP<br/>Reported by: Badalian Vyacheslav<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7a206a0799300178f0175cca3b3d51598ebb0f57">[7a206a0799]</a> Joshua Colp -- res_http_websocket: Fix crash due to double freeing memory when receiving a payload length of zero.</li>
+</ul><br><h3>Improvement</h3><h4>Category: Documentation</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-23512">ASTERISK-23512</a>: Inaccurate comment in manager.conf.sample<br/>Reported by: Richard Miller<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ab694992b4dd9769cdc7e21f07aafdd94e289276">[ab694992b4]</a> Malcolm Davenport -- ASTERISK-23512, correct inaccurate comment in manager.conf.sample</li>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1a7e98eeac941597fb8367f248c69382a312c94d">1a7e98eeac</a></td><td>Kevin Harwell</td><td>.version: Update for certified/11.6-cert12</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a1394f39198ee6f78c345ff44bc4b1c95332f5ce">a1394f3919</a></td><td>Kevin Harwell</td><td>.lastclean: Update for certified/11.6-cert12</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c3b6fcf028c55a9cba5c8fdaa743a993dce3c7fa">c3b6fcf028</a></td><td>Mark Michelson</td><td>scheduler: Use queue for allocating sched IDs.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f7c83499d240461a4bba3f5b6e79a7a99789f23d">f7c83499d2</a></td><td>gtjoseph</td><td>More .gitignore updates</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3116f0e73bedeb2d0cbd6fe782145d21b57adb78">3116f0e73b</a></td><td>gtjoseph</td><td>Backport menuselect to 12,11,1.8</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a10e548a7e4ce01290ae5316dceb0037ec977e6f">a10e548a7e</a></td><td>gtjoseph</td><td>.gitignore updates for 11</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7175c668f12e78ea4a4bbe37d1f8b25b85963618">7175c668f1</a></td><td>Matt Jordan</td><td>git migration: Remove support for file versions</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d783053f3da2fd9fb0378f2b4184720b34e11d9b">d783053f3d</a></td><td>Corey Farrell</td><td>main/editline: Add .gitignore.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4d061198cfccc452eb753818574d12aa629cb69c">4d061198cf</a></td><td>Matt Jordan</td><td>.gitignore: Ignore tarballs (*.gz)</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=eb43a4d989c9a600ba628baef64b51e1b646915d">eb43a4d989</a></td><td>gtjoseph</td><td>Add .gitignore and .gitreview files</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c12a800aeac341c0fdeba12a7ccb0c69c97c8d3b">c12a800aea</a></td><td>Richard Mudgett</td><td>queue_log: Post QUEUESTART entry when Asterisk fully boots.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c00dc51636b1fedead1c570aef76b32db6208f44">c00dc51636</a></td><td>Matt Jordan</td><td>stun: correct attribute string padding to match rfc</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=61d40b749d9a7e2f531fcd9fad6c95d9f5132727">61d40b749d</a></td><td>Richard Mudgett</td><td>chan_dahdi: Don't ignore setvar when using configuration section scheme.</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>b/.gitignore                                  |   31
+b/.gitreview                                  |    4
+b/.version                                    |    2
+b/ChangeLog                                   |  831 ---
+b/UPGRADE.txt                                 |   29
+b/addons/.gitignore                           |    1
+b/agi/.gitignore                              |    3
+b/apps/app_confbridge.c                       |    3
+b/apps/confbridge/conf_config_parser.c        |    2
+b/apps/confbridge/include/confbridge.h        |    1
+b/build_tools/.gitignore                      |    1
+b/build_tools/make_version                    |    8
+b/channels/chan_dahdi.c                       |   15
+b/channels/chan_iax2.c                        |   21
+b/channels/chan_sip.c                         |   63
+b/channels/chan_skinny.c                      |   26
+b/channels/h323/.gitignore                    |    1
+b/channels/sip/config_parser.c                |    9
+b/channels/sip/include/security_events.h      |    3
+b/channels/sip/security_events.c              |    5
+b/configs/confbridge.conf.sample              |    3
+b/configs/extensions.conf.sample              |    2
+b/configs/http.conf.sample                    |   21
+b/configs/manager.conf.sample                 |    2
+b/doc/.gitignore                              |    1
+b/include/asterisk.h                          |   23
+b/include/asterisk/.gitignore                 |    3
+b/include/asterisk/_private.h                 |    1
+b/include/asterisk/lock.h                     |   47
+b/include/asterisk/tcptls.h                   |   10
+b/main/.gitignore                             |    3
+b/main/asterisk.c                             |   91
+b/main/channel.c                              |    1
+b/main/editline/.gitignore                    |   13
+b/main/http.c                                 |    7
+b/main/lock.c                                 |  570 --
+b/main/logger.c                               |   42
+b/main/manager.c                              |   10
+b/main/message.c                              |    8
+b/main/sched.c                                |  175
+b/main/stun.c                                 |   11
+b/main/tcptls.c                               |   30
+b/main/udptl.c                                |   15
+b/menuselect/.gitignore                       |    7
+b/menuselect/Makefile                         |  123
+b/menuselect/README                           |  178
+b/menuselect/aclocal.m4                       |   19
+b/menuselect/autoconfig.h.in                  |  137
+b/menuselect/bootstrap.sh                     |   41
+b/menuselect/config.guess                     | 1420 ++++++
+b/menuselect/config.sub                       | 1794 +++++++
+b/menuselect/configure                        | 6138 ++++++++++++++++++++++++++
+b/menuselect/configure.ac                     |  154
+b/menuselect/contrib/Makefile-dummy           |   17
+b/menuselect/contrib/menuselect-dummy         |  741 +++
+b/menuselect/example_menuselect-tree          |  487 ++
+b/menuselect/install-sh                       |  323 +
+b/menuselect/linkedlists.h                    |  372 +
+b/menuselect/make_version                     |   56
+b/menuselect/makeopts.in                      |   26
+b/menuselect/menuselect.c                     | 2149 +++++++++
+b/menuselect/menuselect.h                     |  162
+b/menuselect/menuselect_curses.c              | 1034 ++++
+b/menuselect/menuselect_gtk.c                 |  358 +
+b/menuselect/menuselect_newt.c                |  427 +
+b/menuselect/menuselect_stub.c                |   39
+b/menuselect/missing                          |  360 +
+b/menuselect/strcompat.c                      |  243 +
+b/menuselect/test/build_tools/menuselect-deps |   52
+b/menuselect/test/menuselect-tree             |  716 +++
+b/pbx/pbx_dundi.c                             |    1
+certified-asterisk-11.6-cert11-summary.html   |   62
+certified-asterisk-11.6-cert11-summary.txt    |   93
+73 files changed, 18333 insertions(+), 1544 deletions(-)</pre><br></html>
