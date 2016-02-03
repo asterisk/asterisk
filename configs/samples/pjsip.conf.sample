@@ -837,6 +837,8 @@
 ;==========================SYSTEM SECTION OPTIONS=========================
 ;[system]
 ;  SYNOPSIS: Options that apply to the SIP stack as well as other system-wide settings
+;  NOTE:  Although this section's name can be set to anything, naming it "system"
+;         will allow the object to be cached internally.
 ;timer_t1=500   ; Set transaction timer T1 value milliseconds (default: "500")
 ;timer_b=32000  ; Set transaction timer B value milliseconds (default: "32000")
 ;compact_headers=no     ; Use the short forms of common SIP header names
@@ -860,6 +862,8 @@
 ;==========================GLOBAL SECTION OPTIONS=========================
 ;[global]
 ;  SYNOPSIS: Options that apply globally to all SIP communications
+;  NOTE:  Although this section's name can be set to anything, naming it "global"
+;         will allow the object to be cached internally.
 ;max_forwards=70        ; Value used in Max Forwards header for SIP requests
                         ; (default: "70")
 ;type=  ; Must be of type global (default: "")

@@ -98,14 +98,17 @@ static struct global_config *get_global_cfg(void)
 	struct global_config *cfg;
 	struct ao2_container *globals;
 
-	globals = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "global",
-		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
-	if (!globals) {
-		return NULL;
+	cfg = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "global", "global");
+	if (!cfg) {
+		globals = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "global",
+			AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+		if (!globals) {
+			return NULL;
+		}
+		cfg = ao2_find(globals, NULL, 0);
+		ao2_ref(globals, -1);
 	}
 
-	cfg = ao2_find(globals, NULL, 0);
-	ao2_ref(globals, -1);
 	return cfg;
 }
 
@@ -241,21 +244,28 @@ static void global_loaded_observer(const char *name, const struct ast_sorcery *s
 		int count;
 
 		count = ao2_container_count(globals);
-		ao2_ref(globals, -1);
 
 		if (1 < count) {
 			ast_log(LOG_ERROR,
 				"At most one pjsip.conf type=global object can be defined.  You have %d defined.\n",
 				count);
+			ao2_ref(globals, -1);
 			return;
 		}
+
 		if (count) {
+			cfg = ao2_find(globals, NULL, OBJ_NOLOCK);
+			if (strcmp(ast_sorcery_object_get_id(cfg), "global")) {
+				ast_log(LOG_NOTICE, "Consider renaming the pjsip '%s' global object to 'global' to enable caching\n", ast_sorcery_object_get_id(cfg));
+			}
+			ao2_ref(cfg, -1);
+			ao2_ref(globals, -1);
 			return;
 		}
 	}
 
 	ast_debug(1, "No pjsip.conf type=global object exists so applying defaults.\n");
-	cfg = ast_sorcery_alloc(sorcery, "global", NULL);
+	cfg = ast_sorcery_alloc(sorcery, "global", "global");
 	if (!cfg) {
 		return;
 	}
