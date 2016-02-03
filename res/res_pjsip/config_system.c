@@ -117,17 +117,79 @@ static struct system_config *get_system_cfg(void)
 {
 	struct system_config *cfg;
 	struct ao2_container *systems;
-	systems = ast_sorcery_retrieve_by_fields(system_sorcery, "system",
-		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
 
-	if (!systems) {
-		return NULL;
+	cfg = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "system", "system");
+	if (!cfg) {
+		systems = ast_sorcery_retrieve_by_fields(system_sorcery, "system",
+			AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+		if (!systems) {
+			return NULL;
+		}
+
+		cfg = ao2_find(systems, NULL, 0);
+		ao2_ref(systems, -1);
 	}
-
-	cfg = ao2_find(systems, NULL, 0);
-	ao2_ref(systems, -1);
 	return cfg;
 }
+
+/*!
+ * \internal
+ * \brief Observer to set default system object if none exist.
+ *
+ * \param name Module name owning the sorcery instance.
+ * \param sorcery Instance being observed.
+ * \param object_type Name of object being observed.
+ * \param reloaded Non-zero if the object is being reloaded.
+ *
+ * \return Nothing
+ */
+static void system_loaded_observer(const char *name, const struct ast_sorcery *sorcery, const char *object_type, int reloaded)
+{
+	RAII_VAR(struct ao2_container *, systems, NULL, ao2_cleanup);
+	struct system_config *cfg;
+
+	if (strcmp(object_type, "system")) {
+		/* Not interested */
+		return;
+	}
+
+	systems = ast_sorcery_retrieve_by_fields(sorcery, "system",
+		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	if (systems) {
+		int count;
+
+		count = ao2_container_count(systems);
+
+		if (1 < count) {
+			ast_log(LOG_ERROR,
+				"At most one pjsip.conf type=system object can be defined.  You have %d defined.\n",
+				count);
+			return;
+		}
+
+		if (count) {
+			cfg = ao2_find(systems, NULL, OBJ_NOLOCK);
+			if (strcmp(ast_sorcery_object_get_id(cfg), "system")) {
+				ast_log(LOG_NOTICE, "Consider renaming the pjsip '%s' system object to 'system' to enable caching\n", ast_sorcery_object_get_id(cfg));
+			}
+			ao2_ref(cfg, -1);
+			return;
+		}
+	}
+
+	ast_debug(1, "No pjsip.conf type=system object exists so applying defaults.\n");
+	cfg = ast_sorcery_alloc(sorcery, "system", "system");
+	if (!cfg) {
+		return;
+	}
+	system_apply(sorcery, cfg);
+	ao2_ref(cfg, -1);
+}
+
+static const struct ast_sorcery_instance_observer observer_callbacks_system = {
+	.object_type_loaded = system_loaded_observer,
+};
+
 
 int sip_cli_print_system(struct ast_sip_cli_context *context)
 {
@@ -149,9 +211,6 @@ int sip_cli_print_system(struct ast_sip_cli_context *context)
 
 int ast_sip_initialize_system(void)
 {
-	RAII_VAR(struct ao2_container *, system_configs, NULL, ao2_cleanup);
-	RAII_VAR(struct system_config *, system, NULL, ao2_cleanup);
-
 	system_sorcery = ast_sorcery_open();
 	if (!system_sorcery) {
 		ast_log(LOG_ERROR, "Failed to open SIP system sorcery\n");
@@ -185,35 +244,24 @@ int ast_sip_initialize_system(void)
 	ast_sorcery_object_field_register(system_sorcery, "system", "disable_tcp_switch", "yes",
 			OPT_BOOL_T, 1, FLDSET(struct system_config, disable_tcp_switch));
 
+	if (ast_sorcery_instance_observer_add(system_sorcery, &observer_callbacks_system)) {
+		ast_sorcery_unref(system_sorcery);
+		system_sorcery = NULL;
+		return -1;
+	}
+
 	ast_sorcery_load(system_sorcery);
-
-	system_configs = ast_sorcery_retrieve_by_fields(system_sorcery, "system",
-		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
-
-	if (ao2_container_count(system_configs)) {
-		return 0;
-	}
-
-	/* No config present, allocate one and apply defaults */
-	system = ast_sorcery_alloc(system_sorcery, "system", NULL);
-	if (!system) {
-		ast_log(LOG_ERROR, "Unable to allocate default system config.\n");
-		ast_sorcery_unref(system_sorcery);
-		return -1;
-	}
-
-	if (system_apply(system_sorcery, system)) {
-		ast_log(LOG_ERROR, "Failed to apply default system config.\n");
-		ast_sorcery_unref(system_sorcery);
-		return -1;
-	}
 
 	return 0;
 }
 
 void ast_sip_destroy_system(void)
 {
-	ast_sorcery_unref(system_sorcery);
+	if (system_sorcery) {
+		ast_sorcery_instance_observer_remove(system_sorcery, &observer_callbacks_system);
+		ast_sorcery_unref(system_sorcery);
+		system_sorcery = NULL;
+	}
 }
 
 static int system_create_resolver_and_set_nameservers(void *data)
