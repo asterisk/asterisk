@@ -1022,6 +1022,9 @@ ASTERISK_REGISTER_FILE()
 				<parameter name="LastCall">
 					<para>The time this member last took a call, expressed in seconds since 00:00, Jan 1, 1970 UTC.</para>
 				</parameter>
+				<parameter name="LastPause">
+					<para>The time when started last paused the queue member.</para>
+				</parameter>
 				<parameter name="InCall">
 					<para>Set to 1 if member is in call. Set to 0 after LastCall time is updated.</para>
 					<enumlist>
@@ -1546,6 +1549,7 @@ struct member {
 	char reason_paused[80];              /*!< Reason of paused if member is paused */
 	int queuepos;                        /*!< In what order (pertains to certain strategies) should this member be called? */
 	time_t lastcall;                     /*!< When last successful call was hungup */
+	time_t lastpause;                    /*!< When started the last pause */
 	unsigned int in_call:1;              /*!< True if member is still in call. (so lastcall is not actual) */
 	struct call_queue *lastqueue;        /*!< Last queue we received a call */
 	unsigned int dead:1;                 /*!< Used to detect members deleted in realtime */
@@ -2184,7 +2188,7 @@ static void queue_publish_member_blob(struct stasis_message_type *type, struct a
 
 static struct ast_json *queue_member_blob_create(struct call_queue *q, struct member *mem)
 {
-	return ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: i, s: i, s: i, s: i, s: i, s: i, s: s, s: i}",
+	return ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: i, s: i, s: i, s: i, s: i, s: i, s: i, s: s, s: i}",
 		"Queue", q->name,
 		"MemberName", mem->membername,
 		"Interface", mem->interface,
@@ -2193,6 +2197,7 @@ static struct ast_json *queue_member_blob_create(struct call_queue *q, struct me
 		"Penalty", mem->penalty,
 		"CallsTaken", mem->calls,
 		"LastCall", (int)mem->lastcall,
+		"LastPause", (int)mem->lastpause,
 		"InCall", mem->in_call,
 		"Status", mem->status,
 		"Paused", mem->paused,
@@ -2514,6 +2519,9 @@ static struct member *create_queue_member(const char *interface, const char *mem
 		cur->ringinuse = ringinuse;
 		cur->penalty = penalty;
 		cur->paused = paused;
+		if (paused) {
+			time(&cur->lastpause); /* Update time of last pause */
+		}
 		ast_copy_string(cur->interface, interface, sizeof(cur->interface));
 		if (!ast_strlen_zero(state_interface)) {
 			ast_copy_string(cur->state_interface, state_interface, sizeof(cur->state_interface));
@@ -7139,6 +7147,7 @@ static void set_queue_member_pause(struct call_queue *q, struct member *mem, con
 		if (!ast_strlen_zero(reason)) {
 			ast_copy_string(mem->reason_paused, reason, sizeof(mem->reason_paused));
 		}
+		time(&mem->lastpause); /* update last pause field */
 	} else {
 		ast_copy_string(mem->reason_paused, "", sizeof(mem->reason_paused));
 	}
@@ -9321,11 +9330,11 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
 					mem->in_call ? ast_term_color(COLOR_BROWN, COLOR_BLACK) : "", mem->in_call ? " (in call)" : "", ast_term_reset());
 				if (mem->paused) {
 					if (ast_strlen_zero(mem->reason_paused)) {
-						ast_str_append(&out, 0, " %s(paused)%s",
-							ast_term_color(COLOR_BROWN, COLOR_BLACK), ast_term_reset());
+						ast_str_append(&out, 0, " %s(paused was %ld secs ago)%s",
+							ast_term_color(COLOR_BROWN, COLOR_BLACK), (long) (time(NULL) - mem->lastpause), ast_term_reset());
 					} else {
-						ast_str_append(&out, 0, " %s(paused:%s)%s", ast_term_color(COLOR_BROWN, COLOR_BLACK),
-							mem->reason_paused, ast_term_reset());
+						ast_str_append(&out, 0, " %s(paused:%s was %ld secs ago)%s", ast_term_color(COLOR_BROWN, COLOR_BLACK),
+							mem->reason_paused,  (long) (time(NULL) - mem->lastcall), ast_term_reset());
 					}
 				}
 
@@ -9697,6 +9706,7 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 						"Penalty: %d\r\n"
 						"CallsTaken: %d\r\n"
 						"LastCall: %d\r\n"
+						"LastPause: %d\r\n"
 						"InCall: %d\r\n"
 						"Status: %d\r\n"
 						"Paused: %d\r\n"
@@ -9704,7 +9714,7 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 						"%s"
 						"\r\n",
 						q->name, mem->membername, mem->interface, mem->state_interface, mem->dynamic ? "dynamic" : "static",
-						mem->penalty, mem->calls, (int)mem->lastcall, mem->in_call, mem->status,
+						mem->penalty, mem->calls, (int)mem->lastcall, (int)mem->lastpause, mem->in_call, mem->status,
 						mem->paused, mem->reason_paused, idText);
 					++q_items;
 				}
