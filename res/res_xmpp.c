@@ -2994,6 +2994,10 @@ done:
 /*! \brief Internal function called when we authenticated as a component */
 static int xmpp_component_authenticating(struct ast_xmpp_client *client, struct ast_xmpp_client_config *cfg, int type, iks *node)
 {
+	if (!strcmp(iks_name(node), "stream:features")) {
+		return 0;
+	}
+
 	if (strcmp(iks_name(node), "handshake")) {
 		ast_log(LOG_ERROR, "Failed to authenticate component '%s'\n", client->name);
 		return -1;
@@ -3149,6 +3153,11 @@ static int xmpp_pak_presence(struct ast_xmpp_client *client, struct ast_xmpp_cli
 	char *type = iks_find_attrib(pak->x, "type");
 	int status = pak->show ? pak->show : STATUS_DISAPPEAR;
 
+	/* If this is a component presence probe request answer immediately with our presence status */
+	if (ast_test_flag(&cfg->flags, XMPP_COMPONENT) && !ast_strlen_zero(type) && !strcasecmp(type, "probe")) {
+		xmpp_client_set_presence(client, pak->from->full, iks_find_attrib(pak->x, "to"), cfg->status, cfg->statusmsg);
+	}
+
 	/* If no resource is available this is a general buddy presence update, which we will ignore */
 	if (!pak->from->resource) {
 		return 0;
@@ -3161,11 +3170,6 @@ static int xmpp_pak_presence(struct ast_xmpp_client *client, struct ast_xmpp_cli
 				pak->from->partial, client->name);
 		}
 		return 0;
-	}
-
-	/* If this is a component presence probe request answer immediately with our presence status */
-	if (ast_test_flag(&cfg->flags, XMPP_COMPONENT) && !ast_strlen_zero(type) && !strcasecmp(type, "probe")) {
-		xmpp_client_set_presence(client, pak->from->full, iks_find_attrib(pak->x, "to"), cfg->status, cfg->statusmsg);
 	}
 
 	ao2_lock(buddy->resources);
@@ -3702,7 +3706,7 @@ static int xmpp_client_config_post_apply(void *obj, void *arg, int flags)
 			cfg->client->jid = iks_id_new(cfg->client->stack, cfg->user);
 		}
 
-		if (!cfg->client->jid || ast_strlen_zero(cfg->client->jid->user)) {
+		if (!cfg->client->jid || (ast_strlen_zero(cfg->client->jid->user) && !ast_test_flag(&cfg->flags, XMPP_COMPONENT))) {
 			ast_log(LOG_ERROR, "Jabber identity '%s' could not be created for client '%s' - client not active\n", cfg->user, cfg->name);
 			return -1;
 		}
