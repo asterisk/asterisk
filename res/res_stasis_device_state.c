@@ -303,6 +303,12 @@ static void device_state_cb(void *data, struct stasis_subscription *sub,
 {
 	struct ast_device_state_message *device_state;
 
+	if (stasis_subscription_final_message(sub, msg)) {
+		/* Remove stasis subscription's reference to device_state_subscription */
+		ao2_ref(data, -1);
+		return;
+	}
+
 	if (ast_device_state_message_type() != stasis_message_type(msg)) {
 		return;
 	}
@@ -365,10 +371,12 @@ static int subscribe_device_state(struct stasis_app *app, void *obj)
 
 	ast_debug(3, "Subscribing to device %s\n", sub->device_name);
 
-	sub->sub = stasis_subscribe_pool(topic, device_state_cb, sub);
+	sub->sub = stasis_subscribe_pool(topic, device_state_cb, ao2_bump(sub));
 	if (!sub->sub) {
 		ast_log(LOG_ERROR, "Unable to subscribe to device %s\n",
 			sub->device_name);
+		/* Reference we added when attempting to stasis_subscribe_pool */
+		ao2_ref(sub, -1);
 		return -1;
 	}
 
