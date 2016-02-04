@@ -2170,6 +2170,12 @@ then
         AST_C_DECLARE_CHECK([OPENSSL_ECDH_AUTO], [SSL_CTX_set_ecdh_auto], [openssl/ssl.h])
 fi
 
+if test "$PBX_OPENSSL" = "1";
+then
+        AST_C_DEFINE_CHECK([SSL_OP_NO_TLSV1_1], [SSL_OP_NO_TLSv1_1], [openssl/ssl.h])
+        AST_C_DEFINE_CHECK([SSL_OP_NO_TLSV1_2], [SSL_OP_NO_TLSv1_2], [openssl/ssl.h])
+fi
+
 AST_EXT_LIB_CHECK([SRTP], [srtp], [srtp_init], [srtp/srtp.h])
 
 if test "$PBX_SRTP" = "1";

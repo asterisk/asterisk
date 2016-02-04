@@ -778,6 +778,12 @@
 /* Define to 1 if you have the ISDN SS7 library. */
 #undef HAVE_SS7
 
+/* Define if your system has the SSL_OP_NO_TLSV1_1 headers. */
+#undef HAVE_SSL_OP_NO_TLSV1_1
+
+/* Define if your system has the SSL_OP_NO_TLSV1_2 headers. */
+#undef HAVE_SSL_OP_NO_TLSV1_2
+
 /* Define to 1 if `stat' has the bug that it succeeds when given the
    zero-length file name argument. */
 #undef HAVE_STAT_EMPTY_STRING_BUG
