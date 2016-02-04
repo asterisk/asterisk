@@ -651,6 +651,8 @@ PBX_MSG_NOSIGNAL
 PBX_IXJUSER
 GMIME_LIBS
 GMIME_CFLAGS
+PBX_SSL_OP_NO_TLSV1_2
+PBX_SSL_OP_NO_TLSV1_1
 OPENH323_BUILD
 OPENH323_SUFFIX
 OPENH323_LIBDIR
@@ -13519,7 +13521,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -13565,7 +13567,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -13589,7 +13591,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -13634,7 +13636,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -13658,7 +13660,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -30368,6 +30370,102 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 
         CPPFLAGS="${saved_cppflags}"
     fi
+
+fi
+
+if test "$PBX_OPENSSL" = "1";
+then
+
+    if test "x${PBX_SSL_OP_NO_TLSV1_1}" != "x1"; then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for SSL_OP_NO_TLSv1_1 in openssl/ssl.h" >&5
+$as_echo_n "checking for SSL_OP_NO_TLSv1_1 in openssl/ssl.h... " >&6; }
+	saved_cppflags="${CPPFLAGS}"
+	if test "x${SSL_OP_NO_TLSV1_1_DIR}" != "x"; then
+	    SSL_OP_NO_TLSV1_1_INCLUDE="-I${SSL_OP_NO_TLSV1_1_DIR}/include"
+	fi
+	CPPFLAGS="${CPPFLAGS} ${SSL_OP_NO_TLSV1_1_INCLUDE}"
+
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ #include <openssl/ssl.h>
+int
+main ()
+{
+#if defined(SSL_OP_NO_TLSv1_1)
+				int foo = 0;
+			        #else
+			        int foo = bar;
+			        #endif
+				0
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		PBX_SSL_OP_NO_TLSV1_1=1
+
+$as_echo "#define HAVE_SSL_OP_NO_TLSV1_1 1" >>confdefs.h
+
+
+
+else
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+	CPPFLAGS="${saved_cppflags}"
+    fi
+
+
+
+    if test "x${PBX_SSL_OP_NO_TLSV1_2}" != "x1"; then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for SSL_OP_NO_TLSv1_2 in openssl/ssl.h" >&5
+$as_echo_n "checking for SSL_OP_NO_TLSv1_2 in openssl/ssl.h... " >&6; }
+	saved_cppflags="${CPPFLAGS}"
+	if test "x${SSL_OP_NO_TLSV1_2_DIR}" != "x"; then
+	    SSL_OP_NO_TLSV1_2_INCLUDE="-I${SSL_OP_NO_TLSV1_2_DIR}/include"
+	fi
+	CPPFLAGS="${CPPFLAGS} ${SSL_OP_NO_TLSV1_2_INCLUDE}"
+
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ #include <openssl/ssl.h>
+int
+main ()
+{
+#if defined(SSL_OP_NO_TLSv1_2)
+				int foo = 0;
+			        #else
+			        int foo = bar;
+			        #endif
+				0
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		PBX_SSL_OP_NO_TLSV1_2=1
+
+$as_echo "#define HAVE_SSL_OP_NO_TLSV1_2 1" >>confdefs.h
+
+
+
+else
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+	CPPFLAGS="${saved_cppflags}"
+    fi
+
 
 fi
 
