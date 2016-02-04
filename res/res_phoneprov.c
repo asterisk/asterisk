@@ -1476,7 +1476,6 @@ static int reload(void)
 	ao2_lock(providers);
 	i = ao2_iterator_init(providers, 0);
 	for(; (provider = ao2_iterator_next(&i)); ao2_ref(provider, -1)) {
-		ast_log(LOG_VERBOSE, "Reloading provider '%s' users.\n", provider->provider_name);
 		if (provider->load_users()) {
 			ast_log(LOG_ERROR, "Unable to load provider '%s' users. Reload aborted.\n", provider->provider_name);
 			continue;
@@ -1553,7 +1552,6 @@ int ast_phoneprov_provider_register(char *provider_name,
 		return -1;
 	}
 
-	ast_log(LOG_VERBOSE, "Registered phoneprov provider '%s'.\n", provider_name);
 	return 0;
 }
 
@@ -1606,7 +1604,6 @@ void ast_phoneprov_provider_unregister(char *provider_name)
 
 	ast_phoneprov_delete_extensions(provider_name);
 	ao2_find(providers, provider_name, OBJ_SEARCH_KEY | OBJ_NODATA | OBJ_UNLINK);
-	ast_log(LOG_VERBOSE, "Unegistered phoneprov provider '%s'.\n", provider_name);
 }
 
 int ast_phoneprov_add_extension(char *provider_name, struct varshead *vars)
@@ -1679,7 +1676,6 @@ int ast_phoneprov_add_extension(char *provider_name, struct varshead *vars)
 			ast_log(LOG_WARNING, "Could not create http routes for '%s' - skipping\n", user->macaddress);
 			return -1;
 		}
-		ast_log(LOG_VERBOSE, "Created %s/%s for provider '%s'.\n", username, mac, provider_name);
 		ao2_link(users, user);
 
 	} else {
@@ -1698,7 +1694,6 @@ int ast_phoneprov_add_extension(char *provider_name, struct varshead *vars)
 			exten = delete_extension(exten);
 			return -1;
 		}
-		ast_log(LOG_VERBOSE, "Added %s/%s for provider '%s'.\n", username, mac, provider_name);
 	}
 
 	return 0;
