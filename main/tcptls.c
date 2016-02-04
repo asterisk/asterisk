@@ -804,12 +804,17 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 	if (ast_test_flag(&cfg->flags, AST_SSL_DISABLE_TLSV1)) {
 		ssl_opts |= SSL_OP_NO_TLSv1;
 	}
+#if defined(HAVE_SSL_OP_NO_TLSV1_1) && defined(HAVE_SSL_OP_NO_TLSV1_2)
 	if (ast_test_flag(&cfg->flags, AST_SSL_DISABLE_TLSV11)) {
 		ssl_opts |= SSL_OP_NO_TLSv1_1;
 	}
 	if (ast_test_flag(&cfg->flags, AST_SSL_DISABLE_TLSV12)) {
 		ssl_opts |= SSL_OP_NO_TLSv1_2;
 	}
+#else
+	ast_log(LOG_WARNING, "Your version of OpenSSL leaves you potentially vulnerable "
+			"to the SSL BEAST attack. Please upgrade to OpenSSL 1.0.1 or later\n");
+#endif
 
 	SSL_CTX_set_options(cfg->ssl_ctx, ssl_opts);
 
