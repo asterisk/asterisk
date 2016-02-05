@@ -342,8 +342,8 @@ struct hold_info {
 	int channel;
 };
 
-#define chan_list_ref(obj, debug) (ao2_t_ref((obj), +1, (debug)), (obj))
-#define chan_list_unref(obj, debug) (ao2_t_ref((obj), -1, (debug)), NULL)
+#define chan_list_ref(obj, debug) ao2_t_ref((obj), +1, (debug))
+#define chan_list_unref(obj, debug) ao2_t_ref((obj), -1, (debug))
 
 /*!
  * \brief Channel call record structure
