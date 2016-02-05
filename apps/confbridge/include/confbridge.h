@@ -210,7 +210,7 @@ struct conference_bridge {
 	unsigned int markedusers;                                         /*!< Number of marked users present */
 	unsigned int waitingusers;                                        /*!< Number of waiting users present */
 	unsigned int locked:1;                                            /*!< Is this conference bridge locked? */
-	unsigned int muted:1;                                            /*!< Is this conference bridge muted? */
+	unsigned int muted:1;                                             /*!< Is this conference bridge muted? */
 	unsigned int record_state:2;                                      /*!< Whether recording is started, stopped, or should exit */
 	struct ast_channel *playback_chan;                                /*!< Channel used for playback into the conference bridge */
 	struct ast_channel *record_chan;                                  /*!< Channel used for recording the conference */
@@ -238,6 +238,7 @@ struct conference_bridge_user {
 	struct ast_bridge_features features;         /*!< Bridge features structure */
 	struct ast_bridge_tech_optimizations tech_args; /*!< Bridge technology optimizations for talk detection */
 	unsigned int suspended_moh;                  /*!< Count of active suspended MOH actions. */
+	unsigned int muted:1;                        /*!< Has the user requested to be muted? */
 	unsigned int kicked:1;                       /*!< User has been kicked from the conference */
 	unsigned int playing_moh:1;                  /*!< MOH is currently being played to the user */
 	AST_LIST_HEAD_NOLOCK(, post_join_action) post_join_list; /*!< List of sounds to play after joining */;
@@ -362,6 +363,15 @@ int play_sound_file(struct conference_bridge *conference_bridge, const char *fil
  * \param conference_bridge The conference bridge
  */
 void conf_ended(struct conference_bridge *conference_bridge);
+
+/*!
+ * \brief Update the actual mute status of the user and set it on the bridge.
+ *
+ * \param user User to update the mute status.
+ *
+ * \return Nothing
+ */
+void conf_update_user_mute(struct conference_bridge_user *user);
 
 /*!
  * \brief Stop MOH for the conference user.
