@@ -1,0 +1,131 @@
+                                Release Summary
+
+                                asterisk-13.7.2
+
+                                Date: 2016-02-05
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-13.7.1.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                           Testers           Reporters               
+   3 Mark Michelson                                   1 Nic Colledge          
+   2 Mark Michelson                                   1 Nic Colledge          
+   1 Alexei Gradinari License #5691 
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Channels/chan_pjsip
+
+   ASTERISK-25702: PjSip realtime DB and Cache Errors since upgrade to
+   asterisk-13.7.0 from asterisk-13.7.0-rc2
+   Reported by: Nic Colledge
+     * [8de94229ba] Alexei Gradinari License #5691 -- res_sorcery_realtime:
+       Fix regex regression.
+
+    Category: Core/Sorcery
+
+   ASTERISK-25702: PjSip realtime DB and Cache Errors since upgrade to
+   asterisk-13.7.0 from asterisk-13.7.0-rc2
+   Reported by: Nic Colledge
+     * [8de94229ba] Alexei Gradinari License #5691 -- res_sorcery_realtime:
+       Fix regex regression.
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-25702: PjSip realtime DB and Cache Errors since upgrade to
+   asterisk-13.7.0 from asterisk-13.7.0-rc2
+   Reported by: Nic Colledge
+     * [8de94229ba] Alexei Gradinari License #5691 -- res_sorcery_realtime:
+       Fix regex regression.
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author         | Summary                                  |
+   |------------+----------------+------------------------------------------|
+   | 0ba44bd6f3 | Mark Michelson | Release summaries: Remove previous       |
+   |            |                | versions                                 |
+   |------------+----------------+------------------------------------------|
+   | b750dfe202 | Mark Michelson | .version: Update for 13.7.2              |
+   |------------+----------------+------------------------------------------|
+   | c1b94ffe78 | Mark Michelson | .lastclean: Update for 13.7.2            |
+   |------------+----------------+------------------------------------------|
+   | 932ed1ab5b | Mark Michelson | realtime: Add database scripts for       |
+   |            |                | 13.7.2                                   |
+   |------------+----------------+------------------------------------------|
+   | a56f55d566 | Mark Michelson | Check for OpenSSL defines before trying  |
+   |            |                | to use them.                             |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ asterisk-13.7.1-summary.html |   34 ---------
+ asterisk-13.7.1-summary.txt  |  155 -------------------------------------------
+ b/.version                   |    2
+ b/configure                  |   89 ++++++++++++++++++++++++
+ 4 files changed, 90 insertions(+), 190 deletions(-)
