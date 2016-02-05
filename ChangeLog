@@ -1,3 +1,65 @@
+2016-02-05 20:32 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.7.2 Released.
+
+2016-02-05 14:32 +0000 [0ba44bd6f3]  Mark Michelson <mmichelson@lunkwill.digium.internal>
+
+	* Release summaries: Remove previous versions
+
+2016-02-05 14:32 +0000 [b750dfe202]  Mark Michelson <mmichelson@lunkwill>
+
+	* .version: Update for 13.7.2
+
+2016-02-05 14:32 +0000 [c1b94ffe78]  Mark Michelson <mmichelson@lunkwill>
+
+	* .lastclean: Update for 13.7.2
+
+2016-02-05 14:32 +0000 [932ed1ab5b]  Mark Michelson <mmichelson@lunkwill>
+
+	* realtime: Add database scripts for 13.7.2
+
+2016-02-02 10:52 +0000 [8de94229ba]  Alexei Gradinari License #5691
+
+	* res_sorcery_realtime: Fix regex regression.
+
+	  A regression was introduced where searching for realtime PJSIP objects
+	  by regex by starting the regex with a leading "^" would cause no items
+	  to be returned.
+
+	  This was due to a change which attempted to drop the requirement for a
+	  leading "^" to be present due to how some CLI commands formulate their
+	  regexes. However, the change, rather than simply eliminating the
+	  requirement, caused any regexes that did begin with "^" to end up not
+	  returning the expected results.
+
+	  This change fixes the problem by inspecting the regex and formulating
+	  the realtime query differently depending on if it begins with "^".
+
+	  ASTERISK-25702 #close
+	  Reported by Nic Colledge
+
+	  Patches:
+	      realtime_retrieve_regex.patch submitted by Alexei Gradinari License #5691
+
+	  Change-Id: I055df608a6e6a10732044fa737a9fe8dca602693
+	  (cherry picked from commit 32fc784284b570a05841d95c6d9a373b4bf3a35d)
+
+2016-02-04 16:17 +0000 [a56f55d566]  Mark Michelson <mmichelson@digium.com>
+
+	* Check for OpenSSL defines before trying to use them.
+
+	  The SSL_OP_NO_TLSv1_1 and SSL_OP_NO_TLSv1_2 defines did not exist prior
+	  to OpenSSL version 1.0.1. A recent commit attempts to, by default, set
+	  these options, which can cause problems on systems with older OpenSSL
+	  installations.
+
+	  This commit adds a configure script check for those defines and will not
+	  attempt to make use of those if they do not exist. We will print a
+	  warning urging the user to upgrade their OpenSSL installation if those
+	  defines are not present.
+
+	  Change-Id: I6a2eb9a43fd0738b404d8f6f2cf4b5c22d9d752d
+
 2016-02-03 21:33 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.7.1 Released.
