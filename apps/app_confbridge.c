@@ -130,32 +130,51 @@ ASTERISK_REGISTER_FILE()
 	</application>
 	<function name="CONFBRIDGE" language="en_US">
 		<synopsis>
-			Set a custom dynamic bridge, user, or menu profile on a channel for the ConfBridge application using the same options defined in confbridge.conf.
+			Set a custom dynamic bridge, user, or menu profile on a channel for the
+			ConfBridge application using the same options available in confbridge.conf.
 		</synopsis>
 		<syntax>
 			<parameter name="type" required="true">
-				<para>Type refers to which type of profile the option belongs too.  Type can be <literal>bridge</literal>, <literal>user</literal>, or
-				<literal>menu</literal>.</para>
+				<para>To what type of conference profile the option applies.</para>
+				<enumlist>
+					<enum name="bridge"></enum>
+					<enum name="menu"></enum>
+					<enum name="user"></enum>
+				</enumlist>
 			</parameter>
 			<parameter name="option" required="true">
-				<para>Option refers to <filename>confbridge.conf</filename> option that is being set dynamically on this channel, or
-				<literal>clear</literal> to remove already applied options from the channel.</para>
+				<para>Option refers to a <filename>confbridge.conf</filename> option
+				that is being set dynamically on this channel, or <literal>clear</literal>
+				to remove already applied profile options from the channel.</para>
 			</parameter>
 		</syntax>
 		<description>
+			<para>A custom profile uses the default profile type settings defined in
+			<filename>confbridge.conf</filename> as defaults if the profile template
+			is not explicitly specified first.</para>
+			<para>For <literal>bridge</literal> profiles the default template is <literal>default_bridge</literal>.</para>
+			<para>For <literal>menu</literal> profiles the default template is <literal>default_menu</literal>.</para>
+			<para>For <literal>user</literal> profiles the default template is <literal>default_user</literal>.</para>
 			<para>---- Example 1 ----</para>
-			<para>In this example the custom set user profile on this channel will automatically be used by the ConfBridge app.</para>
-			<para>exten => 1,1,Answer() </para>
-			<para>exten => 1,n,Set(CONFBRIDGE(user,announce_join_leave)=yes)</para>
-			<para>exten => 1,n,Set(CONFBRIDGE(user,startmuted)=yes)</para>
-			<para>exten => 1,n,ConfBridge(1) </para>
+			<para>In this example the custom user profile set on the channel will
+			automatically be used by the ConfBridge application.</para>
+			<para>exten => 1,1,Answer()</para>
+			<para>; In this example the effect of the following line is</para>
+			<para>; implied:</para>
+			<para>; same => n,Set(CONFBRIDGE(user,template)=default_user)</para>
+			<para>same => n,Set(CONFBRIDGE(user,announce_join_leave)=yes)</para>
+			<para>same => n,Set(CONFBRIDGE(user,startmuted)=yes)</para>
+			<para>same => n,ConfBridge(1) </para>
 			<para>---- Example 2 ----</para>
-			<para>This example shows how to use a predefined user or bridge profile in confbridge.conf as a template for a dynamic profile. Here we make a admin/marked user out of the default_user profile that is already defined in confbridge.conf.</para>
-			<para>exten => 1,1,Answer() </para>
-			<para>exten => 1,n,Set(CONFBRIDGE(user,template)=default_user)</para>
-			<para>exten => 1,n,Set(CONFBRIDGE(user,admin)=yes)</para>
-			<para>exten => 1,n,Set(CONFBRIDGE(user,marked)=yes)</para>
-			<para>exten => 1,n,ConfBridge(1)</para>
+			<para>This example shows how to use a predefined user profile in
+			<filename>confbridge.conf</filename> as a template for a dynamic profile.
+			Here we make an admin/marked user out of the <literal>my_user</literal>
+			profile that you define in <filename>confbridge.conf</filename>.</para>
+			<para>exten => 1,1,Answer()</para>
+			<para>same => n,Set(CONFBRIDGE(user,template)=my_user)</para>
+			<para>same => n,Set(CONFBRIDGE(user,admin)=yes)</para>
+			<para>same => n,Set(CONFBRIDGE(user,marked)=yes)</para>
+			<para>same => n,ConfBridge(1)</para>
 		</description>
 	</function>
 	<function name="CONFBRIDGE_INFO" language="en_US">
@@ -164,14 +183,32 @@ ASTERISK_REGISTER_FILE()
 		</synopsis>
 		<syntax>
 			<parameter name="type" required="true">
-				<para>Type can be <literal>parties</literal>, <literal>admins</literal>, <literal>marked</literal>, or <literal>locked</literal>.</para>
+				<para>What conference information is requested.</para>
+				<enumlist>
+					<enum name="admins">
+						<para>Get the number of admin users in the conference.</para>
+					</enum>
+					<enum name="locked">
+						<para>Determine if the conference is locked. (0 or 1)</para>
+					</enum>
+					<enum name="marked">
+						<para>Get the number of marked users in the conference.</para>
+					</enum>
+					<enum name="muted">
+						<para>Determine if the conference is muted. (0 or 1)</para>
+					</enum>
+					<enum name="parties">
+						<para>Get the number of users in the conference.</para>
+					</enum>
+				</enumlist>
 			</parameter>
 			<parameter name="conf" required="true">
-				<para>Conf refers to the name of the conference being referenced.</para>
+				<para>The name of the conference being referenced.</para>
 			</parameter>
 		</syntax>
 		<description>
-			<para>This function returns a non-negative integer for valid conference identifiers (0 or 1 for <literal>locked</literal>) and "" for invalid conference identifiers.</para>
+			<para>This function returns a non-negative integer for valid conference
+			names and an empty string for invalid conference names.</para>
 		</description>
 	</function>
 	<manager name="ConfbridgeList" language="en_US">
@@ -1313,6 +1350,13 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 
 	ao2_lock(conference);
 
+	/* Determine if the new user should join the conference muted. */
+	if (ast_test_flag(&user->u_profile, USER_OPT_STARTMUTED)
+		|| (!ast_test_flag(&user->u_profile, USER_OPT_ADMIN) && conference->muted)) {
+		/* Set user level mute request. */
+		user->muted = 1;
+	}
+
 	/*
 	 * Suspend any MOH until the user actually joins the bridge of
 	 * the conference.  This way any pre-join file playback does not
@@ -1728,12 +1772,6 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 			res = -1;
 			goto confbridge_cleanup;
 		}
-	}
-
-	/* If the caller should be joined already muted, set the flag before we join. */
-	if (ast_test_flag(&user.u_profile, USER_OPT_STARTMUTED)) {
-		/* Set user level mute request. */
-		user.muted = 1;
 	}
 
 	/* Look for a conference bridge matching the provided name */
@@ -2451,11 +2489,16 @@ static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct
 	if (a->argc == 2) {
 		struct ao2_iterator iter;
 
-		ast_cli(a->fd, "Conference Bridge Name           Users  Marked Locked?\n");
-		ast_cli(a->fd, "================================ ====== ====== ========\n");
+		ast_cli(a->fd, "Conference Bridge Name           Users  Marked Locked Muted\n");
+		ast_cli(a->fd, "================================ ====== ====== ====== =====\n");
 		iter = ao2_iterator_init(conference_bridges, 0);
 		while ((conference = ao2_iterator_next(&iter))) {
-			ast_cli(a->fd, "%-32s %6u %6u %s\n", conference->name, conference->activeusers + conference->waitingusers, conference->markedusers, (conference->locked ? "locked" : "unlocked"));
+			ast_cli(a->fd, "%-32s %6u %6u %-6s %s\n",
+				conference->name,
+				conference->activeusers + conference->waitingusers,
+				conference->markedusers,
+				AST_CLI_YESNO(conference->locked),
+				AST_CLI_YESNO(conference->muted));
 			ao2_ref(conference, -1);
 		}
 		ao2_iterator_destroy(&iter);
@@ -2945,12 +2988,14 @@ static int action_confbridgelistrooms(struct mansession *s, const struct message
 		"Parties: %u\r\n"
 		"Marked: %u\r\n"
 		"Locked: %s\r\n"
+		"Muted: %s\r\n"
 		"\r\n",
 		id_text,
 		conference->name,
 		conference->activeusers + conference->waitingusers,
 		conference->markedusers,
-		conference->locked ? "Yes" : "No");
+		AST_YESNO(conference->locked),
+		AST_YESNO(conference->muted));
 		ao2_unlock(conference);
 
 		ao2_ref(conference, -1);
@@ -3221,30 +3266,31 @@ static int func_confbridge_info(struct ast_channel *chan, const char *cmd, char 
 
 	/* get the correct count for the type requested */
 	ao2_lock(conference);
-	if (!strncasecmp(args.type, "parties", 7)) {
+	if (!strcasecmp(args.type, "parties")) {
 		AST_LIST_TRAVERSE(&conference->active_list, user, list) {
 			count++;
 		}
 		AST_LIST_TRAVERSE(&conference->waiting_list, user, list) {
 			count++;
 		}
-	} else if (!strncasecmp(args.type, "admins", 6)) {
+	} else if (!strcasecmp(args.type, "admins")) {
 		AST_LIST_TRAVERSE(&conference->active_list, user, list) {
 			if (ast_test_flag(&user->u_profile, USER_OPT_ADMIN)) {
 				count++;
 			}
 		}
-	} else if (!strncasecmp(args.type, "marked", 6)) {
+	} else if (!strcasecmp(args.type, "marked")) {
 		AST_LIST_TRAVERSE(&conference->active_list, user, list) {
 			if (ast_test_flag(&user->u_profile, USER_OPT_MARKEDUSER)) {
 				count++;
 			}
 		}
-	} else if (!strncasecmp(args.type, "locked", 6)) {
+	} else if (!strcasecmp(args.type, "locked")) {
 		count = conference->locked;
+	} else if (!strcasecmp(args.type, "muted")) {
+		count = conference->muted;
 	} else {
-		ast_log(LOG_ERROR, "Invalid keyword '%s' passed to CONFBRIDGE_INFO.  Should be one of: "
-			"parties, admins, marked, or locked.\n", args.type);
+		ast_log(LOG_ERROR, "Invalid keyword '%s' passed to CONFBRIDGE_INFO.\n", args.type);
 	}
 	snprintf(buf, len, "%d", count);
 	ao2_unlock(conference);
