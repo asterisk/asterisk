@@ -31,6 +31,14 @@ res_pjproject
    This displays the compiled-in options of the pjproject installation
    Asterisk is currently running against.
 
+ * Another feature of this module is the ability to map pjproject log levels
+   to Asterisk log levels, or to suppress the pjproject log messages
+   altogether.  Many of the messages emitted by pjproject itself are the result
+   of errors which Asterisk will ultimately handle so the messages can be
+   misleading or just noise.  A new config file (pjproject.conf) has been added
+   to configure the mapping and a new CLI command (pjproject show log mappings)
+   has been added to display the mappings currently in use.
+
 res_pjsip
 ------------------
  * Added new global option (regcontext) to pjsip. When set, Asterisk will
