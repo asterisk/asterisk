@@ -37,6 +37,44 @@
 	<support_level>core</support_level>
  ***/
 
+/*** DOCUMENTATION
+	<configInfo name="res_pjproject" language="en_US">
+		<synopsis>pjproject common configuration</synopsis>
+		<configFile name="pjproject.conf">
+			<configObject name="log_mappings">
+				<synopsis>PJPROJECT to Asterisk Log Level Mapping</synopsis>
+				<description><para>Warnings and errors in the pjproject libraries are generally handled
+					by Asterisk.  In many cases, Asterisk wouldn't even consider them to
+					be warnings or errors so the messages emitted by pjproject directly
+					are either superfluous or misleading.  The 'log_mappings'
+					object allows mapping the pjproject levels to Asterisk levels, or nothing.
+					</para>
+					<note><para>The id of this object, as well as its type, must be
+					'log_mappings' or it won't be found.</para></note>
+				</description>
+				<configOption name="type">
+					<synopsis>Must be of type 'log_mappings'.</synopsis>
+				</configOption>
+				<configOption name="asterisk_error" default="0,1">
+					<synopsis>A comma separated list of pjproject log levels to map to Asterisk LOG_ERROR.</synopsis>
+				</configOption>
+				<configOption name="asterisk_warning" default="2">
+					<synopsis>A comma separated list of pjproject log levels to map to Asterisk LOG_WARNING.</synopsis>
+				</configOption>
+				<configOption name="asterisk_notice" default="">
+					<synopsis>A comma separated list of pjproject log levels to map to Asterisk LOG_NOTICE.</synopsis>
+				</configOption>
+				<configOption name="asterisk_debug" default="3,4,5">
+					<synopsis>A comma separated list of pjproject log levels to map to Asterisk LOG_DEBUG.</synopsis>
+				</configOption>
+				<configOption name="asterisk_verbose" default="">
+					<synopsis>A comma separated list of pjproject log levels to map to Asterisk LOG_VERBOSE.</synopsis>
+				</configOption>
+			</configObject>
+		</configFile>
+	</configInfo>
+ ***/
+
 #include "asterisk.h"
 
 ASTERISK_REGISTER_FILE()
@@ -51,7 +89,9 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/cli.h"
 #include "asterisk/res_pjproject.h"
 #include "asterisk/vector.h"
+#include "asterisk/sorcery.h"
 
+static struct ast_sorcery *pjproject_sorcery;
 static pj_log_func *log_cb_orig;
 static unsigned decor_orig;
 
@@ -69,6 +109,60 @@ static struct pjproject_log_intercept_data pjproject_log_intercept = {
 	.thread = AST_PTHREADT_NULL,
 	.fd = -1,
 };
+
+struct log_mappings {
+	/*! Sorcery object details */
+	SORCERY_OBJECT(details);
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(asterisk_error);
+		AST_STRING_FIELD(asterisk_warning);
+		AST_STRING_FIELD(asterisk_notice);
+		AST_STRING_FIELD(asterisk_verbose);
+		AST_STRING_FIELD(asterisk_debug);
+	);
+};
+
+static struct log_mappings *default_log_mappings;
+
+static struct log_mappings *get_log_mappings(void)
+{
+	struct log_mappings *mappings;
+
+	mappings = ast_sorcery_retrieve_by_id(pjproject_sorcery, "log_mappings", "log_mappings");
+	if (!mappings) {
+		return ao2_bump(default_log_mappings);
+	}
+
+	return mappings;
+}
+
+#define __LOG_SUPPRESS -1
+
+static int get_log_level(int pj_level)
+{
+	RAII_VAR(struct log_mappings *, mappings, get_log_mappings(), ao2_cleanup);
+	unsigned char l;
+
+	if (!mappings) {
+		return __LOG_ERROR;
+	}
+
+	l = '0' + fmin(pj_level, 9);
+
+	if (strchr(mappings->asterisk_error, l)) {
+		return __LOG_ERROR;
+	} else if (strchr(mappings->asterisk_warning, l)) {
+		return __LOG_WARNING;
+	} else if (strchr(mappings->asterisk_notice, l)) {
+		return __LOG_NOTICE;
+	} else if (strchr(mappings->asterisk_verbose, l)) {
+		return __LOG_VERBOSE;
+	} else if (strchr(mappings->asterisk_debug, l)) {
+		return __LOG_DEBUG;
+	}
+
+	return __LOG_SUPPRESS;
+}
 
 static void log_forwarder(int level, const char *data, int len)
 {
@@ -89,25 +183,19 @@ static void log_forwarder(int level, const char *data, int len)
 		return;
 	}
 
-	/* Lower number indicates higher importance */
-	switch (level) {
-	case 0: /* level zero indicates fatal error, according to docs */
-	case 1: /* 1 seems to be used for errors */
-		ast_level = __LOG_ERROR;
-		break;
-	case 2: /* 2 seems to be used for warnings and errors */
-		ast_level = __LOG_WARNING;
-		break;
-	default:
-		ast_level = __LOG_DEBUG;
+	ast_level = get_log_level(level);
 
+	if (ast_level == __LOG_SUPPRESS) {
+		return;
+	}
+
+	if (ast_level == __LOG_DEBUG) {
 		/* For levels 3 and up, obey the debug level for res_pjproject */
 		mod_level = ast_opt_dbg_module ?
 			ast_debug_get_by_module("res_pjproject") : 0;
 		if (option_debug < level && mod_level < level) {
 			return;
 		}
-		break;
 	}
 
 	/* PJPROJECT uses indention to indicate function call depth. We'll prepend
@@ -201,13 +289,104 @@ static char *handle_pjproject_show_buildopts(struct ast_cli_entry *e, int cmd, s
 	return CLI_SUCCESS;
 }
 
+static void mapping_destroy(void *object)
+{
+	struct log_mappings *mappings = object;
+
+	ast_string_field_free_memory(mappings);
+}
+
+static void *mapping_alloc(const char *name)
+{
+	struct log_mappings *mappings = ast_sorcery_generic_alloc(sizeof(*mappings), mapping_destroy);
+	if (!mappings) {
+		return NULL;
+	}
+	ast_string_field_init(mappings, 128);
+
+	return mappings;
+}
+
+static char *handle_pjproject_show_log_mappings(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ast_variable *objset;
+	struct ast_variable *i;
+	struct log_mappings *mappings;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "pjproject show log mappings";
+		e->usage =
+			"Usage: pjproject show log mappings\n"
+			"       Show pjproject to Asterisk log mappings\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	ast_cli(a->fd, "PJPROJECT to Asterisk log mappings:\n");
+	ast_cli(a->fd, "Asterisk Level   : PJPROJECT log levels\n");
+
+	mappings = get_log_mappings();
+	if (!mappings) {
+		ast_log(LOG_ERROR, "Unable to retrieve pjproject log_mappings\n");
+		return CLI_SUCCESS;
+	}
+
+	objset = ast_sorcery_objectset_create(pjproject_sorcery, mappings);
+	if (!objset) {
+		ao2_ref(mappings, -1);
+		return CLI_SUCCESS;
+	}
+
+	for (i = objset; i; i = i->next) {
+		ast_cli(a->fd, "%-16s : %s\n", i->name, i->value);
+	}
+	ast_variables_destroy(objset);
+
+	ao2_ref(mappings, -1);
+	return CLI_SUCCESS;
+}
+
 static struct ast_cli_entry pjproject_cli[] = {
 	AST_CLI_DEFINE(handle_pjproject_show_buildopts, "Show the compiled config of the pjproject in use"),
+	AST_CLI_DEFINE(handle_pjproject_show_log_mappings, "Show pjproject to Asterisk log mappings"),
 };
 
 static int load_module(void)
 {
 	ast_debug(3, "Starting PJPROJECT logging to Asterisk logger\n");
+
+	if (!(pjproject_sorcery = ast_sorcery_open())) {
+		ast_log(LOG_ERROR, "Failed to open SIP sorcery failed to open\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	ast_sorcery_apply_default(pjproject_sorcery, "log_mappings", "config", "pjproject.conf,criteria=type=log_mappings");
+	if (ast_sorcery_object_register(pjproject_sorcery, "log_mappings", mapping_alloc, NULL, NULL)) {
+		ast_log(LOG_WARNING, "Failed to register pjproject log_mappings object with sorcery\n");
+		ast_sorcery_unref(pjproject_sorcery);
+		pjproject_sorcery = NULL;
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	ast_sorcery_object_field_register(pjproject_sorcery, "log_mappings", "type", "", OPT_NOOP_T, 0, 0);
+	ast_sorcery_object_field_register(pjproject_sorcery, "log_mappings", "asterisk_debug", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct log_mappings, asterisk_debug));
+	ast_sorcery_object_field_register(pjproject_sorcery, "log_mappings", "asterisk_error", "",  OPT_STRINGFIELD_T, 0, STRFLDSET(struct log_mappings, asterisk_error));
+	ast_sorcery_object_field_register(pjproject_sorcery, "log_mappings", "asterisk_warning", "",  OPT_STRINGFIELD_T, 0, STRFLDSET(struct log_mappings, asterisk_warning));
+	ast_sorcery_object_field_register(pjproject_sorcery, "log_mappings", "asterisk_notice", "",  OPT_STRINGFIELD_T, 0, STRFLDSET(struct log_mappings, asterisk_notice));
+	ast_sorcery_object_field_register(pjproject_sorcery, "log_mappings", "asterisk_verbose", "",  OPT_STRINGFIELD_T, 0, STRFLDSET(struct log_mappings, asterisk_verbose));
+
+	default_log_mappings = ast_sorcery_alloc(pjproject_sorcery, "log_mappings", "log_mappings");
+	if (!default_log_mappings) {
+		ast_log(LOG_ERROR, "Unable to allocate memory for pjproject log_mappings\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}
+	ast_string_field_set(default_log_mappings, asterisk_error, "0,1");
+	ast_string_field_set(default_log_mappings, asterisk_warning, "2");
+	ast_string_field_set(default_log_mappings, asterisk_debug, "3,4,5");
+
+	ast_sorcery_load(pjproject_sorcery);
 
 	pj_init();
 
@@ -247,12 +426,27 @@ static int unload_module(void)
 
 	pj_shutdown();
 
+	ao2_cleanup(default_log_mappings);
+	default_log_mappings = NULL;
+
+	ast_sorcery_unref(pjproject_sorcery);
+
 	return 0;
+}
+
+static int reload_module(void)
+{
+	if (pjproject_sorcery) {
+		ast_sorcery_reload(pjproject_sorcery);
+	}
+
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "PJPROJECT Log and Utility Support",
 	.support_level = AST_MODULE_SUPPORT_CORE,
 	.load = load_module,
 	.unload = unload_module,
+	.reload = reload_module,
 	.load_pri = AST_MODPRI_CHANNEL_DEPEND - 6,
 );
