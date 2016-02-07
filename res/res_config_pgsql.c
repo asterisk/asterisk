@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999-2010, Digium, Inc.
+ * Copyright (C) 1999 - 2016, Digium, Inc.
  *
  * Manuel Guesdon <mguesdon@oxymium.net> - PostgreSQL RealTime Driver Author/Adaptor
  * Mark Spencer <markster@digium.com>  - Asterisk Author
@@ -1588,17 +1588,17 @@ static char *handle_cli_realtime_pgsql_status(struct ast_cli_entry *e, int cmd, 
 	if (a->argc != 4)
 		return CLI_SHOWUSAGE;
 
+	if (!ast_strlen_zero(dbhost))
+		snprintf(status, sizeof(status), "%s@%s, port %d", dbname, dbhost, dbport);
+	else if (!ast_strlen_zero(dbsock))
+		snprintf(status, sizeof(status), "%s on socket file %s", dbname, dbsock);
+	else
+		snprintf(status, sizeof(status), "%s@%s", dbname, dbhost);
+
+	if (!ast_strlen_zero(dbuser))
+		snprintf(credentials, sizeof(credentials), " with username %s", dbuser);
+
 	if (pgsqlConn && PQstatus(pgsqlConn) == CONNECTION_OK) {
-		if (!ast_strlen_zero(dbhost))
-			snprintf(status, sizeof(status), "Connected to %s@%s, port %d", dbname, dbhost, dbport);
-		else if (!ast_strlen_zero(dbsock))
-			snprintf(status, sizeof(status), "Connected to %s on socket file %s", dbname, dbsock);
-		else
-			snprintf(status, sizeof(status), "Connected to %s@%s", dbname, dbhost);
-
-		if (!ast_strlen_zero(dbuser))
-			snprintf(credentials, sizeof(credentials), " with username %s", dbuser);
-
 		if (ctimesec > 31536000)
 			ast_cli(a->fd, "%s%s for %d years, %d days, %d hours, %d minutes, %d seconds.\n",
 					status, credentials, ctimesec / 31536000, (ctimesec % 31536000) / 86400,
@@ -1614,10 +1614,11 @@ static char *handle_cli_realtime_pgsql_status(struct ast_cli_entry *e, int cmd, 
 			ast_cli(a->fd, "%s%s for %d minutes, %d seconds.\n", status, credentials, ctimesec / 60,
 					ctimesec % 60);
 		else
-			ast_cli(a->fd, "%s%s for %d seconds.\n", status, credentials, ctimesec);
+			ast_cli(a->fd, "Connected to %s%s for %d seconds.\n", status, credentials, ctimesec);
 
 		return CLI_SUCCESS;
 	} else {
+		ast_cli(a->fd, "Unable to connect %s%s\n", status, credentials);
 		return CLI_FAILURE;
 	}
 }
