@@ -698,7 +698,7 @@ void misdn_cfg_get_desc (enum misdn_cfg_elements elem, void *buf, int bufsize, v
 	else if ((elem > MISDN_GEN_FIRST) && (elem < MISDN_GEN_LAST))
 		spec = (struct misdn_cfg_spec *)gen_spec;
 
-	if (!spec || !spec[place].desc)
+	if (!spec)
 		memset(buf, 0, 1);
 	else {
 		ast_copy_string(buf, spec[place].desc, bufsize);
