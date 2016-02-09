@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999-2010, Digium, Inc.
+ * Copyright (C) 1999 - 2016, Digium, Inc.
  *
  * Manuel Guesdon <mguesdon@oxymium.net> - PostgreSQL RealTime Driver Author/Adaptor
  * Mark Spencer <markster@digium.com>  - Asterisk Author
@@ -1571,7 +1571,7 @@ static char *handle_cli_realtime_pgsql_cache(struct ast_cli_entry *e, int cmd, s
 
 static char *handle_cli_realtime_pgsql_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char status[256], credentials[100] = "";
+	char connection_info[256], credentials[100] = "";
 	int ctimesec = time(NULL) - connect_time;
 
 	switch (cmd) {
@@ -1588,36 +1588,37 @@ static char *handle_cli_realtime_pgsql_status(struct ast_cli_entry *e, int cmd, 
 	if (a->argc != 4)
 		return CLI_SHOWUSAGE;
 
+	if (!ast_strlen_zero(dbhost))
+		snprintf(connection_info, sizeof(connection_info), "%s@%s, port %d", dbname, dbhost, dbport);
+	else if (!ast_strlen_zero(dbsock))
+		snprintf(connection_info, sizeof(connection_info), "%s on socket file %s", dbname, dbsock);
+	else
+		snprintf(connection_info, sizeof(connection_info), "%s@%s", dbname, dbhost);
+
+	if (!ast_strlen_zero(dbuser))
+		snprintf(credentials, sizeof(credentials), " with username %s", dbuser);
+
 	if (pgsqlConn && PQstatus(pgsqlConn) == CONNECTION_OK) {
-		if (!ast_strlen_zero(dbhost))
-			snprintf(status, sizeof(status), "Connected to %s@%s, port %d", dbname, dbhost, dbport);
-		else if (!ast_strlen_zero(dbsock))
-			snprintf(status, sizeof(status), "Connected to %s on socket file %s", dbname, dbsock);
-		else
-			snprintf(status, sizeof(status), "Connected to %s@%s", dbname, dbhost);
-
-		if (!ast_strlen_zero(dbuser))
-			snprintf(credentials, sizeof(credentials), " with username %s", dbuser);
-
 		if (ctimesec > 31536000)
-			ast_cli(a->fd, "%s%s for %d years, %d days, %d hours, %d minutes, %d seconds.\n",
-					status, credentials, ctimesec / 31536000, (ctimesec % 31536000) / 86400,
+			ast_cli(a->fd, "Connected to %s%s for %d years, %d days, %d hours, %d minutes, %d seconds.\n",
+					connection_info, credentials, ctimesec / 31536000, (ctimesec % 31536000) / 86400,
 					(ctimesec % 86400) / 3600, (ctimesec % 3600) / 60, ctimesec % 60);
 		else if (ctimesec > 86400)
-			ast_cli(a->fd, "%s%s for %d days, %d hours, %d minutes, %d seconds.\n", status,
+			ast_cli(a->fd, "Connected to %s%s for %d days, %d hours, %d minutes, %d seconds.\n", connection_info,
 					credentials, ctimesec / 86400, (ctimesec % 86400) / 3600, (ctimesec % 3600) / 60,
 					ctimesec % 60);
 		else if (ctimesec > 3600)
-			ast_cli(a->fd, "%s%s for %d hours, %d minutes, %d seconds.\n", status, credentials,
+			ast_cli(a->fd, "Connected to %s%s for %d hours, %d minutes, %d seconds.\n", connection_info, credentials,
 					ctimesec / 3600, (ctimesec % 3600) / 60, ctimesec % 60);
 		else if (ctimesec > 60)
-			ast_cli(a->fd, "%s%s for %d minutes, %d seconds.\n", status, credentials, ctimesec / 60,
+			ast_cli(a->fd, "Connected to %s%s for %d minutes, %d seconds.\n", connection_info, credentials, ctimesec / 60,
 					ctimesec % 60);
 		else
-			ast_cli(a->fd, "%s%s for %d seconds.\n", status, credentials, ctimesec);
+			ast_cli(a->fd, "Connected to %s%s for %d seconds.\n", connection_info, credentials, ctimesec);
 
 		return CLI_SUCCESS;
 	} else {
+		ast_cli(a->fd, "Unable to connect %s%s\n", connection_info, credentials);
 		return CLI_FAILURE;
 	}
 }
