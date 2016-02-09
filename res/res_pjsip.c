@@ -3940,31 +3940,59 @@ static int reload_configuration_task(void *obj)
 	return 0;
 }
 
-static int load_module(void)
+static int unload_pjsip(void *data)
 {
+	/*
+	 * These calls need the pjsip endpoint and serializer to clean up.
+	 * If they're not set, then there's nothing to clean up anyway.
+	 */
+	if (ast_pjsip_endpoint && serializer_pool[0]) {
+		ast_res_pjsip_cleanup_options_handling();
+		internal_sip_unregister_service(&supplement_module);
+		ast_sip_destroy_distributor();
+		ast_sip_destroy_global_headers();
+	}
+
+	/* Safe to call anytime (now) */
+	ast_res_pjsip_destroy_configuration();
+	ast_sip_destroy_system();
+
+	if (monitor_thread) {
+		stop_monitor_thread();
+		monitor_thread = NULL;
+	}
+
+	if (memory_pool) {
+		pj_pool_release(memory_pool);
+		memory_pool = NULL;
+	}
+
+	if (ast_pjsip_endpoint) {
+		pjsip_endpt_destroy(ast_pjsip_endpoint);
+		ast_pjsip_endpoint = NULL;
+	}
+
+	if (caching_pool.lock) {
+		pj_caching_pool_destroy(&caching_pool);
+	}
+
+	pj_shutdown();
+
+	return 0;
+}
+
+static int load_pjsip(void)
+{
+	pj_status_t status;
+
 	/* The third parameter is just copied from
 	 * example code from PJLIB. This can be adjusted
 	 * if necessary.
 	 */
-	pj_status_t status;
-	struct ast_threadpool_options options;
-
-	CHECK_PJPROJECT_MODULE_LOADED();
-
-	if (pj_init() != PJ_SUCCESS) {
-		return AST_MODULE_LOAD_DECLINE;
-	}
-
-	if (pjlib_util_init() != PJ_SUCCESS) {
-		pj_shutdown();
-		return AST_MODULE_LOAD_DECLINE;
-	}
-
 	pj_caching_pool_init(&caching_pool, NULL, 1024 * 1024);
 	if (pjsip_endpt_create(&caching_pool.factory, "SIP", &ast_pjsip_endpoint) != PJ_SUCCESS) {
 		ast_log(LOG_ERROR, "Failed to create PJSIP endpoint structure. Aborting load\n");
-		pj_caching_pool_destroy(&caching_pool);
-		return AST_MODULE_LOAD_DECLINE;
+		goto error;
 	}
 
 	/* PJSIP will automatically try to add a Max-Forwards header. Since we want to control that,
@@ -3975,10 +4003,7 @@ static int load_module(void)
 	memory_pool = pj_pool_create(&caching_pool.factory, "SIP", 1024, 1024, NULL);
 	if (!memory_pool) {
 		ast_log(LOG_ERROR, "Failed to create memory pool for SIP. Aborting load\n");
-		pjsip_endpt_destroy(ast_pjsip_endpoint);
-		ast_pjsip_endpoint = NULL;
-		pj_caching_pool_destroy(&caching_pool);
-		return AST_MODULE_LOAD_DECLINE;
+		goto error;
 	}
 
 	if (!pj_gethostip(pj_AF_INET(), &host_ip_ipv4)) {
@@ -3991,42 +4016,6 @@ static int load_module(void)
 		ast_verb(3, "Local IPv6 address determined to be: %s\n", host_ip_ipv6_string);
 	}
 
-	if (ast_sip_initialize_system()) {
-		ast_log(LOG_ERROR, "Failed to initialize SIP 'system' configuration section. Aborting load\n");
-		pj_pool_release(memory_pool);
-		memory_pool = NULL;
-		pjsip_endpt_destroy(ast_pjsip_endpoint);
-		ast_pjsip_endpoint = NULL;
-		pj_caching_pool_destroy(&caching_pool);
-		return AST_MODULE_LOAD_DECLINE;
-	}
-
-	sip_get_threadpool_options(&options);
-	options.thread_start = sip_thread_start;
-	sip_threadpool = ast_threadpool_create("SIP", NULL, &options);
-	if (!sip_threadpool) {
-		ast_log(LOG_ERROR, "Failed to create SIP threadpool. Aborting load\n");
-		ast_sip_destroy_system();
-		pj_pool_release(memory_pool);
-		memory_pool = NULL;
-		pjsip_endpt_destroy(ast_pjsip_endpoint);
-		ast_pjsip_endpoint = NULL;
-		pj_caching_pool_destroy(&caching_pool);
-		return AST_MODULE_LOAD_DECLINE;
-	}
-
-	if (serializer_pool_setup()) {
-		ast_log(LOG_ERROR, "Failed to create SIP serializer pool. Aborting load\n");
-		ast_threadpool_shutdown(sip_threadpool);
-		ast_sip_destroy_system();
-		pj_pool_release(memory_pool);
-		memory_pool = NULL;
-		pjsip_endpt_destroy(ast_pjsip_endpoint);
-		ast_pjsip_endpoint = NULL;
-		pj_caching_pool_destroy(&caching_pool);
-		return AST_MODULE_LOAD_DECLINE;
-	}
-
 	pjsip_tsx_layer_init_module(ast_pjsip_endpoint);
 	pjsip_ua_init_module(ast_pjsip_endpoint, NULL);
 
@@ -4035,28 +4024,61 @@ static int load_module(void)
 			NULL, PJ_THREAD_DEFAULT_STACK_SIZE * 2, 0, &monitor_thread);
 	if (status != PJ_SUCCESS) {
 		ast_log(LOG_ERROR, "Failed to start SIP monitor thread. Aborting load\n");
-		ast_sip_destroy_system();
-		pj_pool_release(memory_pool);
-		memory_pool = NULL;
-		pjsip_endpt_destroy(ast_pjsip_endpoint);
-		ast_pjsip_endpoint = NULL;
-		pj_caching_pool_destroy(&caching_pool);
+		goto error;
+	}
+
+	return AST_MODULE_LOAD_SUCCESS;
+
+error:
+	unload_pjsip(NULL);
+	return AST_MODULE_LOAD_DECLINE;
+}
+
+static int load_module(void)
+{
+	struct ast_threadpool_options options;
+
+	CHECK_PJPROJECT_MODULE_LOADED();
+
+	/* pjproject and config_system need to be initialized before all else */
+	if (pj_init() != PJ_SUCCESS) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
+
+	if (pjlib_util_init() != PJ_SUCCESS) {
+		goto error;
+	}
+
+	if (ast_sip_initialize_system()) {
+		ast_log(LOG_ERROR, "Failed to initialize SIP 'system' configuration section. Aborting load\n");
+		goto error;
+	}
+
+	/* The serializer needs threadpool and threadpool needs pjproject to be initialized so it's next */
+	sip_get_threadpool_options(&options);
+	options.thread_start = sip_thread_start;
+	sip_threadpool = ast_threadpool_create("SIP", NULL, &options);
+	if (!sip_threadpool) {
+		goto error;
+	}
+
+	if (serializer_pool_setup()) {
+		ast_log(LOG_ERROR, "Failed to create SIP serializer pool. Aborting load\n");
+		goto error;
+	}
+
+	/* Now load all the pjproject infrastructure. */
+	if (load_pjsip()) {
+		goto error;
+	}
+
+	ast_sip_initialize_dns();
 
 	ast_sip_initialize_global_headers();
 
 	if (ast_res_pjsip_initialize_configuration()) {
 		ast_log(LOG_ERROR, "Failed to initialize SIP configuration. Aborting load\n");
-		ast_sip_destroy_global_headers();
-		stop_monitor_thread();
-		ast_sip_destroy_system();
-		pj_pool_release(memory_pool);
-		memory_pool = NULL;
-		pjsip_endpt_destroy(ast_pjsip_endpoint);
-		ast_pjsip_endpoint = NULL;
-		pj_caching_pool_destroy(&caching_pool);
-		return AST_MODULE_LOAD_DECLINE;
+		goto error;
 	}
 
 	ast_sip_initialize_resolver();
@@ -4064,31 +4086,12 @@ static int load_module(void)
 
 	if (ast_sip_initialize_distributor()) {
 		ast_log(LOG_ERROR, "Failed to register distributor module. Aborting load\n");
-		ast_res_pjsip_destroy_configuration();
-		ast_sip_destroy_global_headers();
-		stop_monitor_thread();
-		ast_sip_destroy_system();
-		pj_pool_release(memory_pool);
-		memory_pool = NULL;
-		pjsip_endpt_destroy(ast_pjsip_endpoint);
-		ast_pjsip_endpoint = NULL;
-		pj_caching_pool_destroy(&caching_pool);
-		return AST_MODULE_LOAD_DECLINE;
+		goto error;
 	}
 
 	if (internal_sip_register_service(&supplement_module)) {
 		ast_log(LOG_ERROR, "Failed to initialize supplement hooks. Aborting load\n");
-		ast_sip_destroy_distributor();
-		ast_res_pjsip_destroy_configuration();
-		ast_sip_destroy_global_headers();
-		stop_monitor_thread();
-		ast_sip_destroy_system();
-		pj_pool_release(memory_pool);
-		memory_pool = NULL;
-		pjsip_endpt_destroy(ast_pjsip_endpoint);
-		ast_pjsip_endpoint = NULL;
-		pj_caching_pool_destroy(&caching_pool);
-		return AST_MODULE_LOAD_DECLINE;
+		goto error;
 	}
 
 	ast_res_pjsip_init_options_handling(0);
@@ -4100,6 +4103,14 @@ static int load_module(void)
 	ast_pjproject_ref();
 
 	return AST_MODULE_LOAD_SUCCESS;
+
+error:
+	/* These functions all check for NULLs and are safe to call at any time */
+	unload_pjsip(NULL);
+	serializer_pool_shutdown();
+	ast_threadpool_shutdown(sip_threadpool);
+
+	return AST_MODULE_LOAD_DECLINE;
 }
 
 static int reload_module(void)
@@ -4116,32 +4127,11 @@ static int reload_module(void)
 	return 0;
 }
 
-static int unload_pjsip(void *data)
-{
-	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
-	ast_res_pjsip_cleanup_options_handling();
-	ast_sip_destroy_distributor();
-	ast_res_pjsip_destroy_configuration();
-	ast_sip_destroy_system();
-	ast_sip_destroy_global_headers();
-	internal_sip_unregister_service(&supplement_module);
-	if (monitor_thread) {
-		stop_monitor_thread();
-	}
-	if (memory_pool) {
-		pj_pool_release(memory_pool);
-		memory_pool = NULL;
-	}
-	ast_pjsip_endpoint = NULL;
-	pj_caching_pool_destroy(&caching_pool);
-	pj_shutdown();
-	return 0;
-}
-
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(xml_sanitization_end_null);
 	AST_TEST_UNREGISTER(xml_sanitization_exceeds_buffer);
+	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
 
 	/* The thread this is called from cannot call PJSIP/PJLIB functions,
 	 * so we have to push the work to the threadpool to handle
@@ -4151,7 +4141,6 @@ static int unload_module(void)
 	serializer_pool_shutdown();
 	ast_threadpool_shutdown(sip_threadpool);
 
-	ast_sip_destroy_cli();
 	ast_pjproject_unref();
 
 	return 0;
