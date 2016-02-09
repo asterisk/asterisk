@@ -302,6 +302,15 @@ static void sorcery_memory_cache_thrash_stop(struct sorcery_memory_cache_thrash 
 		}
 
 		thread->stop = 1;
+	}
+
+	for (idx = 0; idx < AST_VECTOR_SIZE(&thrash->threads); ++idx) {
+		struct sorcery_memory_cache_thrash_thread *thread;
+
+		thread = AST_VECTOR_GET(&thrash->threads, idx);
+		if (thread->thread == AST_PTHREADT_NULL) {
+			continue;
+		}
 
 		pthread_join(thread->thread, NULL);
 
