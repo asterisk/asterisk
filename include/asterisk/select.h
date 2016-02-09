@@ -58,9 +58,7 @@ typedef struct {
 #define FD_SET(fd, fds) \
 	do { \
 		TYPEOF_FD_SET_FDS_BITS *bytes = (TYPEOF_FD_SET_FDS_BITS *) fds; \
-		/* 32bit: FD / 32 + ((FD + 1) % 32 ? 1 : 0) < 1024 */ \
-		/* 64bit: FD / 64 + ((FD + 1) % 64 ? 1 : 0) < 512 */ \
-		if (fd / _bitsize(*bytes) + ((fd + 1) % _bitsize(*bytes) ? 1 : 0) < sizeof(*(fds)) / SIZEOF_FD_SET_FDS_BITS) { \
+		if (fd < ast_FDMAX) { \
 			bytes[fd / _bitsize(*bytes)] |= ((TYPEOF_FD_SET_FDS_BITS) 1) << (fd % _bitsize(*bytes)); \
 		} else { \
 			fprintf(stderr, "FD %d exceeds the maximum size of ast_fdset!\n", fd); \
