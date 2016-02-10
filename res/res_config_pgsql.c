@@ -1351,6 +1351,9 @@ static int parse_config(int is_reload)
 
 	config = ast_config_load(RES_CONFIG_PGSQL_CONF, config_flags);
 	if (config == CONFIG_STATUS_FILEUNCHANGED) {
+		if (is_reload && pgsqlConn && PQstatus(pgsqlConn) != CONNECTION_OK) {
+			ast_log(LOG_WARNING,  "PostgreSQL RealTime: Not connected\n");
+		}
 		return 0;
 	}
 
