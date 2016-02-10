@@ -1,3 +1,105 @@
+2016-02-10 19:57 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/11.6-cert13 Released.
+
+2016-02-10 13:57 +0000 [0155bca888]  Kevin Harwell <kharwell@lunkwill.digium.internal>
+
+	* Release summaries: Remove previous versions
+
+2016-02-10 13:57 +0000 [a56256867f]  Kevin Harwell <kharwell@lunkwill>
+
+	* .version: Update for certified/11.6-cert13
+
+2016-02-10 13:57 +0000 [843ebf253a]  Kevin Harwell <kharwell@lunkwill>
+
+	* .lastclean: Update for certified/11.6-cert13
+
+2016-02-04 16:17 +0000 [6386a9a819]  Mark Michelson <mmichelson@digium.com>
+
+	* Check for OpenSSL defines before trying to use them.
+
+	  The SSL_OP_NO_TLSv1_1 and SSL_OP_NO_TLSv1_2 defines did not exist prior
+	  to OpenSSL version 1.0.1. A recent commit attempts to, by default, set
+	  these options, which can cause problems on systems with older OpenSSL
+	  installations.
+
+	  This commit adds a configure script check for those defines and will not
+	  attempt to make use of those if they do not exist. We will print a
+	  warning urging the user to upgrade their OpenSSL installation if those
+	  defines are not present.
+
+	  Change-Id: I6a2eb9a43fd0738b404d8f6f2cf4b5c22d9d752d
+
+2016-01-25 15:48 +0000 [d45cba3804]  Richard Mudgett <rmudgett@digium.com>
+
+	* app_confbridge: Make non-admin users join a muted conference muted.
+
+	  ASTERISK-20987 #close
+	  Reported by: hristo
+
+	  Change-Id: Ic61a2b524ab3a4cfadf227fc6b3506527bc03f38
+
+2014-06-05 09:32 +0000 [b45be25f45]  Andrew Nagy <andrew.nagy@the159.com> (License 6524)
+
+	* app_confbridge: Allow muting of users waiting to enter a ConfBridge
+
+	  Prior to this patch, users waiting to enter a ConfBridge were not considered
+	  when muted via the CLI or via AMI. Instead, a confusing message would be
+	  emitted stating that the channel did not exist.
+
+	  This patch allows a user to be muted when waiting to enter a ConfBridge
+	  conference. This is equivalent to start when muted, only toggled via the CLI
+	  or AMI.
+
+	  Review: https://reviewboard.asterisk.org/r/3582
+
+	  ASTERISK-23824 #close
+	  patches:
+	    rb3582.patch uploaded by tm1000 (License 6524)
+
+	  Cherry-picked to support ASTERISK-20987
+
+	  Change-Id: I61d5475a1cd53adfde3c2d0ab6ab45c5b100cae8
+
+2014-03-20 17:46 +0000 [3b45b52bb9]  Jonathan Rose <jrose@digium.com>
+
+	* app_confbridge: Fix bug - users with startmuted set don't start muted
+
+	  (closes issue ASTERISK-23461)
+	  Reported by: Chico Manobela
+	  Review: https://reviewboard.asterisk.org/r/3373/
+
+	  Cherry-picked to support ASTERISK-20987
+
+	  Change-Id: I69f41779d2ae39b69ab7e7bd93d60eaccfbe3eda
+
+2013-11-01 21:11 +0000 [53e23608d1]  Richard Mudgett <rmudgett@digium.com>
+
+	* confbridge: Separate user muting from system muting overrides.
+
+	  The system overrides the user muting requests when MOH is playing or a
+	  waitmarked user is waiting for a marked user to join.  System muting
+	  overrides interfere with what the user may wish the muting to be when the
+	  system override ends.
+
+	  * User muting requests are now independent of the system muting overrides.
+	  The effective muting is now the logical or of the user request and system
+	  override.
+
+	  * Added a Muted column to the CLI "confbridge list <conference>" command.
+
+	  * Added a Muted header to the AMI ConfbridgeList action ConfbridgeList
+	  event.
+
+	  (closes issue AST-1102)
+	  Reported by: John Bigelow
+
+	  Review: https://reviewboard.asterisk.org/r/2960/
+
+	  Cherry-picked to support ASTERISK-20987
+
+	  Change-Id: Iec7bd77736847af6a5f70b8d279f85c6e2082ee2
+
 2016-02-03 21:55 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/11.6-cert12 Released.
