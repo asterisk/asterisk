@@ -697,6 +697,10 @@ AST_TRAMPOLINES
 AST_DECLARATION_AFTER_STATEMENT
 GC_LDFLAGS
 GC_CFLAGS
+AST_UNDEFINED_SANITIZER
+AST_LEAK_SANITIZER
+AST_THREAD_SANITIZER
+AST_ADDRESS_SANITIZER
 PBX_PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
 PBX_PTHREAD_RWLOCK_INITIALIZER
 AST_ASTERISKSSL
@@ -17611,6 +17615,134 @@ fi
 
 CFLAGS="$saved_CFLAGS"
 
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for -fsanitize=address support" >&5
+$as_echo_n "checking for -fsanitize=address support... " >&6; }
+saved_sanitize_CFLAGS="${CFLAGS}"
+saved_sanitize_LDFLAGS="${LDFLAGS}"
+CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
+LDFLAGS="-fsanitize=address"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+int x = 1;
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	AST_ADDRESS_SANITIZER=1
+else
+  AST_ADDRESS_SANITIZER=
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+CFLAGS="${saved_sanitize_CFLAGS}"
+LDFLAGS="${saved_sanitize_LDFLAGS}"
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for -fsanitize=thread support" >&5
+$as_echo_n "checking for -fsanitize=thread support... " >&6; }
+saved_sanitize_CFLAGS="${CFLAGS}"
+saved_sanitize_LDFLAGS="${LDFLAGS}"
+CFLAGS="-fno-omit-frame-pointer -pie -fPIE -fsanitize=thread"
+LDFLAGS="-fsanitize=thread -pie -fPIE"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+int x = 1;
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	AST_THREAD_SANITIZER=1
+else
+  AST_THREAD_SANITIZER=
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+CFLAGS="${saved_sanitize_CFLAGS}"
+LDFLAGS="${saved_sanitize_LDFLAGS}"
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for -fsanitize=leak support" >&5
+$as_echo_n "checking for -fsanitize=leak support... " >&6; }
+saved_sanitize_CFLAGS="${CFLAGS}"
+saved_sanitize_LDFLAGS="${LDFLAGS}"
+CFLAGS="-fno-omit-frame-pointer -fsanitize=leak"
+LDFLAGS="-fsanitize=leak"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+int x = 1;
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	AST_LEAK_SANITIZER=1
+else
+  AST_LEAK_SANITIZER=
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+CFLAGS="${saved_sanitize_CFLAGS}"
+LDFLAGS="${saved_sanitize_LDFLAGS}"
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for -fsanitize=undefined support" >&5
+$as_echo_n "checking for -fsanitize=undefined support... " >&6; }
+saved_sanitize_CFLAGS="${CFLAGS}"
+saved_sanitize_LDFLAGS="${LDFLAGS}"
+CFLAGS="-fno-omit-frame-pointer -fsanitize=undefined"
+LDFLAGS="-fsanitize=undefined"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+int x = 1;
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	AST_UNDEFINED_SANITIZER=1
+else
+  AST_UNDEFINED_SANITIZER=
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+CFLAGS="${saved_sanitize_CFLAGS}"
+LDFLAGS="${saved_sanitize_LDFLAGS}"
 
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -ffunction-sections support" >&5
