@@ -1,3 +1,36 @@
+2016-02-10 17:05 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 11.21.2 Released.
+
+2016-02-10 11:05 +0000 [886911ec5c]  Kevin Harwell <kharwell@lunkwill.digium.internal>
+
+	* Release summaries: Remove previous versions
+
+2016-02-10 11:05 +0000 [f594015df0]  Kevin Harwell <kharwell@lunkwill>
+
+	* .version: Update for 11.21.2
+
+2016-02-10 11:05 +0000 [1524003a45]  Kevin Harwell <kharwell@lunkwill>
+
+	* .lastclean: Update for 11.21.2
+
+2016-02-04 16:17 +0000 [e4138cca63]  Mark Michelson <mmichelson@digium.com>
+
+	* Check for OpenSSL defines before trying to use them.
+
+	  The SSL_OP_NO_TLSv1_1 and SSL_OP_NO_TLSv1_2 defines did not exist prior
+	  to OpenSSL version 1.0.1. A recent commit attempts to, by default, set
+	  these options, which can cause problems on systems with older OpenSSL
+	  installations.
+
+	  This commit adds a configure script check for those defines and will not
+	  attempt to make use of those if they do not exist. We will print a
+	  warning urging the user to upgrade their OpenSSL installation if those
+	  defines are not present.
+
+	  Change-Id: I6a2eb9a43fd0738b404d8f6f2cf4b5c22d9d752d
+	  (cherry picked from commit f9068438188712e50899d6e7b90664791315f8a0)
+
 2016-02-03 21:23 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 11.21.1 Released.
