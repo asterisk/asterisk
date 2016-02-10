@@ -1233,10 +1233,12 @@ static struct varshead *get_defaults(void)
 	if (!value) {
 		if ((cfg = ast_config_load("sip.conf", config_flags)) && cfg != CONFIG_STATUS_FILEINVALID) {
 			value = ast_variable_retrieve(cfg, "general", "bindport");
-			ast_config_destroy(cfg);
 		}
 	}
 	var = ast_var_assign(variable_lookup[AST_PHONEPROV_STD_SERVER_PORT], S_OR(value, "5060"));
+	if(cfg && cfg != CONFIG_STATUS_FILEINVALID) {
+		ast_config_destroy(cfg);
+	}
 	AST_VAR_LIST_INSERT_TAIL(defaults, var);
 
 	value = ast_variable_retrieve(phoneprov_cfg, "general", pp_general_lookup[AST_PHONEPROV_STD_PROFILE]);
@@ -1288,6 +1290,7 @@ static int load_users(void)
 	if (!(cfg = ast_config_load("users.conf", config_flags))
 		|| cfg == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_WARNING, "Unable to load users.conf\n");
+		ast_var_list_destroy(defaults);
 		return -1;
 	}
 
@@ -1337,6 +1340,7 @@ static int load_users(void)
 		}
 	}
 	ast_config_destroy(cfg);
+	ast_var_list_destroy(defaults);
 	return 0;
 }
 
