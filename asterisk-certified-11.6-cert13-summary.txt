@@ -1,0 +1,145 @@
+                                Release Summary
+
+                         asterisk-certified/11.6-cert13
+
+                                Date: 2016-02-10
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-certified/11.6-cert12.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                       Testers              Reporters                
+   2 Richard Mudgett                                 4 hristo                 
+   2 Kevin Harwell                                   1 John Bigelow           
+   1 Andrew Nagy (License 6524)                      1 Chico Manobela         
+   1 Kevin Harwell                                   1 Matt Jordan            
+   1 Mark Michelson                                  1 Chico Manobela         
+   1 Jonathan Rose              
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Applications/app_confbridge
+
+   ASTERISK-20987: non-admin users, who join muted conference are not being
+   muted
+   Reported by: hristo
+     * [d45cba3804] Richard Mudgett -- app_confbridge: Make non-admin users
+       join a muted conference muted.
+     * [b45be25f45] Andrew Nagy -- app_confbridge: Allow muting of users
+       waiting to enter a ConfBridge
+     * [3b45b52bb9] Jonathan Rose -- app_confbridge: Fix bug - users with
+       startmuted set don't start muted
+     * [53e23608d1] Richard Mudgett -- confbridge: Separate user muting from
+       system muting overrides.
+   ASTERISK-23824: ConfBridge: Users cannot be muted via CLI or AMI when
+   waiting to enter a conference
+   Reported by: Matt Jordan
+     * [b45be25f45] Andrew Nagy -- app_confbridge: Allow muting of users
+       waiting to enter a ConfBridge
+   ASTERISK-23461: Only first user is muted when joining confbridge with
+   'startmuted=yes'
+   Reported by: Chico Manobela
+     * [3b45b52bb9] Jonathan Rose -- app_confbridge: Fix bug - users with
+       startmuted set don't start muted
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author          | Summary                                 |
+   |------------+-----------------+-----------------------------------------|
+   | 0155bca888 | Kevin Harwell   | Release summaries: Remove previous      |
+   |            |                 | versions                                |
+   |------------+-----------------+-----------------------------------------|
+   | a56256867f | Kevin Harwell   | .version: Update for                    |
+   |            |                 | certified/11.6-cert13                   |
+   |------------+-----------------+-----------------------------------------|
+   | 843ebf253a | Kevin Harwell   | .lastclean: Update for                  |
+   |            |                 | certified/11.6-cert13                   |
+   |------------+-----------------+-----------------------------------------|
+   | 6386a9a819 | Mark Michelson  | Check for OpenSSL defines before trying |
+   |            |                 | to use them.                            |
+   |------------+-----------------+-----------------------------------------|
+   | 53e23608d1 | Richard Mudgett | confbridge: Separate user muting from   |
+   |            |                 | system muting overrides.                |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ asterisk-certified-11.6-cert12-summary.html  |  154 ------
+ asterisk-certified-11.6-cert12-summary.txt   |  401 -----------------
+ b/.version                                   |    2
+ b/apps/app_confbridge.c                      |  136 ++++--
+ b/apps/confbridge/conf_state.c               |    3
+ b/apps/confbridge/conf_state_inactive.c      |    2
+ b/apps/confbridge/conf_state_multi.c         |    2
+ b/apps/confbridge/conf_state_multi_marked.c  |   22
+ b/apps/confbridge/conf_state_single.c        |    2
+ b/apps/confbridge/conf_state_single_marked.c |    2
+ b/apps/confbridge/include/confbridge.h       |   12
+ b/configs/confbridge.conf.sample             |   10
+ b/configure                                  |  610 +++++++++++++++------------
+ 13 files changed, 501 insertions(+), 857 deletions(-)
