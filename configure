@@ -935,6 +935,10 @@ PBX_PJ_TRANSACTION_GRP_LOCK
 PJ_TRANSACTION_GRP_LOCK_DIR
 PJ_TRANSACTION_GRP_LOCK_INCLUDE
 PJ_TRANSACTION_GRP_LOCK_LIB
+PBX_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK
+PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_DIR
+PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_INCLUDE
+PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_LIB
 PBX_POPT
 POPT_DIR
 POPT_INCLUDE
@@ -10475,6 +10479,18 @@ fi
 
 
 
+PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_DESCRIP="PJSIP Dialog Create UAS with Incremented Lock"
+PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_OPTION=pjsip
+PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_DIR=${PJPROJECT_DIR}
+
+PBX_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK=0
+
+
+
+
+
+
+
 PJ_TRANSACTION_GRP_LOCK_DESCRIP="PJSIP Transaction Group Lock Support"
 PJ_TRANSACTION_GRP_LOCK_OPTION=pjsip
 PJ_TRANSACTION_GRP_LOCK_DIR=${PJPROJECT_DIR}
@@ -13701,7 +13717,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -13747,7 +13763,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -13771,7 +13787,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -13816,7 +13832,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -13840,7 +13856,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -24512,6 +24528,110 @@ $as_echo "#define HAVE_PJPROJECT 1" >>confdefs.h
 
 fi
    fi
+
+
+
+if test "x${PBX_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK}" != "x1" -a "${USE_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK}" != "no"; then
+   pbxlibdir=""
+   # if --with-PJSIP_DLG_CREATE_UAS_AND_INC_LOCK=DIR has been specified, use it.
+   if test "x${PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_DIR}" != "x"; then
+      if test -d ${PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_DIR}/lib; then
+         pbxlibdir="-L${PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_DIR}/lib"
+      else
+         pbxlibdir="-L${PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_DIR}"
+      fi
+   fi
+   pbxfuncname="pjsip_dlg_create_uas_and_inc_lock"
+   if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
+      AST_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_FOUND=yes
+   else
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} $PJPROJECT_CFLAGS"
+      as_ac_Lib=`$as_echo "ac_cv_lib_pjsip_${pbxfuncname}" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -lpjsip" >&5
+$as_echo_n "checking for ${pbxfuncname} in -lpjsip... " >&6; }
+if eval \${$as_ac_Lib+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lpjsip ${pbxlibdir} $PJPROJECT_LIBS $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char ${pbxfuncname} ();
+int
+main ()
+{
+return ${pbxfuncname} ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  eval "$as_ac_Lib=yes"
+else
+  eval "$as_ac_Lib=no"
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+eval ac_res=\$$as_ac_Lib
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
+  AST_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_FOUND=yes
+else
+  AST_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+   fi
+
+   # now check for the header.
+   if test "${AST_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_FOUND}" = "yes"; then
+      PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_LIB="${pbxlibdir} -lpjsip $PJPROJECT_LIBS"
+      # if --with-PJSIP_DLG_CREATE_UAS_AND_INC_LOCK=DIR has been specified, use it.
+      if test "x${PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_DIR}" != "x"; then
+         PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_INCLUDE="-I${PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_DIR}/include"
+      fi
+      PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_INCLUDE="${PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_INCLUDE} $PJPROJECT_CFLAGS"
+      if test "xpjsip.h" = "x" ; then	# no header, assume found
+         PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_HEADER_FOUND="1"
+      else				# check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "pjsip.h" "ac_cv_header_pjsip_h" "$ac_includes_default"
+if test "x$ac_cv_header_pjsip_h" = xyes; then :
+  PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_HEADER_FOUND=1
+else
+  PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+      fi
+      if test "x${PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_HEADER_FOUND}" = "x0" ; then
+         PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_LIB=""
+         PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_INCLUDE=""
+      else
+         if test "x${pbxfuncname}" = "x" ; then		# only checking headers -> no library
+            PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_LIB=""
+         fi
+         PBX_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK 1
+_ACEOF
+
+      fi
+   fi
+fi
 
 
 

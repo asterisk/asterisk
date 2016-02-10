@@ -580,6 +580,10 @@
 /* Define if your system has the PJPROJECT libraries. */
 #undef HAVE_PJPROJECT
 
+/* Define to 1 if PJPROJECT has the PJSIP Dialog Create UAS with Incremented
+   Lock feature. */
+#undef HAVE_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK
+
 /* Define to 1 if PJPROJECT has the PJSIP External Resolver Support feature.
    */
 #undef HAVE_PJSIP_EXTERNAL_RESOLVER
