@@ -2713,7 +2713,11 @@ pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint,
 			(type != PJSIP_TRANSPORT_UDP && type != PJSIP_TRANSPORT_UDP6) ? ";transport=" : "",
 			(type != PJSIP_TRANSPORT_UDP && type != PJSIP_TRANSPORT_UDP6) ? pjsip_transport_get_type_name(type) : "");
 
+#ifdef HAVE_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK
+	*status = pjsip_dlg_create_uas_and_inc_lock(pjsip_ua_instance(), rdata, &contact, &dlg);
+#else
 	*status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact, &dlg);
+#endif
 	if (*status != PJ_SUCCESS) {
 		char err[PJ_ERR_MSG_SIZE];
 
@@ -2726,6 +2730,9 @@ pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint,
 	dlg->sess_count++;
 	pjsip_dlg_set_transport(dlg, &selector);
 	dlg->sess_count--;
+#ifdef HAVE_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK
+	pjsip_dlg_dec_lock(dlg);
+#endif
 
 	return dlg;
 }

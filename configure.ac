@@ -459,6 +459,7 @@ AST_EXT_LIB_SETUP([OSS], [Open Sound System], [oss])
 AST_EXT_LIB_SETUP([PGSQL], [PostgreSQL], [postgres])
 AST_EXT_LIB_SETUP([PJPROJECT], [PJPROJECT], [pjproject])
 AST_EXT_LIB_SETUP([POPT], [popt], [popt])
+AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_DLG_CREATE_UAS_AND_INC_LOCK], [PJSIP Dialog Create UAS with Incremented Lock], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJ_TRANSACTION_GRP_LOCK], [PJSIP Transaction Group Lock Support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_REPLACE_MEDIA_STREAM], [PJSIP Media Stream Replacement Support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_GET_DEST_INFO], [pjsip_get_dest_info support], [PJPROJECT], [pjsip])
@@ -2142,6 +2143,7 @@ fi
 
 AST_PKG_CONFIG_CHECK([PJPROJECT], [libpjproject])
 
+AST_EXT_LIB_CHECK([PJSIP_DLG_CREATE_UAS_AND_INC_LOCK], [pjsip], [pjsip_dlg_create_uas_and_inc_lock], [pjsip.h], [$PJPROJECT_LIBS], [$PJPROJECT_CFLAGS])
 AST_EXT_LIB_CHECK([PJ_TRANSACTION_GRP_LOCK], [pjsip], [pjsip_tsx_create_uac2], [pjsip.h], [$PJPROJECT_LIBS], [$PJPROJECT_CFLAGS])
 
 saved_cppflags="${CPPFLAGS}"
