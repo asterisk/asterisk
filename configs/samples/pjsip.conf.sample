@@ -818,6 +818,12 @@
                                 ; clients are slow to process the received
                                 ; information. Value is in milliseconds; default
                                 ; is 100 ms.
+;allow_reload=no    ; Although transports can now be reloaded, that may not be
+                    ; desirable because of the slight possibility of dropped
+                    ; calls. To make sure there are no unintentional drops, if
+                    ; this option is set to 'no' (the default) changes to the
+                    ; particular transport will be ignored. If set to 'yes',
+                    ; changes (if any) will be applied.
 
 ;==========================AOR SECTION OPTIONS=========================
 ;[aor]
