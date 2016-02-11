@@ -1,0 +1,30 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-certified/13.1-cert4</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-certified/13.1-cert4</h3><h3 align="center">Date: 2016-02-11</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-certified/13.1-cert3.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">3 Kevin Harwell <kharwell@lunkwill><br/>2 Mark Michelson <mmichelson@digium.com><br/>1 Richard Mudgett <rmudgett@digium.com><br/>1 Kevin Harwell <kharwell@lunkwill.digium.internal><br/></td><td width="33%"><td width="33%">1 hristo <htrendev@gmail.com><br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Bug</h3><h4>Category: Applications/app_confbridge</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-20987">ASTERISK-20987</a>: non-admin users, who join muted conference are not being muted<br/>Reported by: hristo<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0eb43ea9ee8a3ae2646d04a6a4e9e8ba095808b9">[0eb43ea9ee]</a> Richard Mudgett -- app_confbridge: Make non-admin users join a muted conference muted.</li>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7df413fbb37f58b7916b66782a87fcd3205613e4">7df413fbb3</a></td><td>Kevin Harwell</td><td>Release summaries: Remove previous versions</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1423445b23e6e6da8d02519e22d6de50699569a7">1423445b23</a></td><td>Kevin Harwell</td><td>.version: Update for certified/13.1-cert4</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9a8b627f267101a9d85791c655dc07e92d0eb1b2">9a8b627f26</a></td><td>Kevin Harwell</td><td>.lastclean: Update for certified/13.1-cert4</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d424452711362504589b13cb1dd313875f26a21d">d424452711</a></td><td>Kevin Harwell</td><td>realtime: Add database scripts for certified/13.1-cert4</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=59ccc89054dd3f8e535f2c183a68955c87af0e10">59ccc89054</a></td><td>Mark Michelson</td><td>Check for OpenSSL defines before trying to use them.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=bffd954a635ce777f257b55a1060adf31be08511">bffd954a63</a></td><td>Mark Michelson</td><td>res_stasis_device_state: Fix refcounting error.</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>asterisk-certified-13.1-cert3-summary.html |  536 -----------
+asterisk-certified-13.1-cert3-summary.txt  | 1315 -----------------------------
+b/.version                                 |    2
+b/apps/app_confbridge.c                    |   13
+b/configs/samples/confbridge.conf.sample   |   10
+b/configure                                |  100 ++
+b/configure.ac                             |    6
+b/include/asterisk/autoconfig.h.in         |    6
+b/main/tcptls.c                            |    5
+b/res/res_stasis_device_state.c            |    7
+10 files changed, 136 insertions(+), 1864 deletions(-)</pre><br></html>
