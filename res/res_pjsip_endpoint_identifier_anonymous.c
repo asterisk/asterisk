@@ -42,14 +42,14 @@ static int get_endpoint_details(pjsip_rx_data *rdata, char *domain, size_t domai
 	return 0;
 }
 
-static int find_transport_in_use(void *obj, void *arg, int flags)
+static int find_transport_state_in_use(void *obj, void *arg, int flags)
 {
-	struct ast_sip_transport *transport = obj;
+	struct ast_sip_transport_state *transport_state = obj;
 	pjsip_rx_data *rdata = arg;
 
-	if ((transport->state->transport == rdata->tp_info.transport) ||
-		(transport->state->factory && !pj_strcmp(&transport->state->factory->addr_name.host, &rdata->tp_info.transport->local_name.host) &&
-			transport->state->factory->addr_name.port == rdata->tp_info.transport->local_name.port)) {
+	if (transport_state && ((transport_state->transport == rdata->tp_info.transport) ||
+		(transport_state->factory && !pj_strcmp(&transport_state->factory->addr_name.host, &rdata->tp_info.transport->local_name.host) &&
+			transport_state->factory->addr_name.port == rdata->tp_info.transport->local_name.port))) {
 		return CMP_MATCH | CMP_STOP;
 	}
 
@@ -61,7 +61,8 @@ static struct ast_sip_endpoint *anonymous_identify(pjsip_rx_data *rdata)
 	char domain_name[64], id[AST_UUID_STR_LEN];
 	struct ast_sip_endpoint *endpoint;
 	RAII_VAR(struct ast_sip_domain_alias *, alias, NULL, ao2_cleanup);
-	RAII_VAR(struct ao2_container *, transports, NULL, ao2_cleanup);
+	RAII_VAR(struct ao2_container *, transport_states, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_sip_transport_state *, transport_state, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_sip_transport *, transport, NULL, ao2_cleanup);
 
 	if (get_endpoint_details(rdata, domain_name, sizeof(domain_name))) {
@@ -83,9 +84,10 @@ static struct ast_sip_endpoint *anonymous_identify(pjsip_rx_data *rdata)
 	}
 
 	/* See if the transport this came in on has a provided domain */
-	if ((transports = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "transport", AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL)) &&
-		(transport = ao2_callback(transports, 0, find_transport_in_use, rdata)) &&
-		!ast_strlen_zero(transport->domain)) {
+	if ((transport_states = ast_sip_get_transport_states())
+		&& (transport_state = ao2_callback(transport_states, 0, find_transport_state_in_use, rdata))
+		&& (transport = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport", transport_state->id))
+		&& !ast_strlen_zero(transport->domain)) {
 		snprintf(id, sizeof(id), "anonymous@%s", transport->domain);
 		if ((endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", id))) {
 			goto done;
