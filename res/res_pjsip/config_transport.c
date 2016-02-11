@@ -18,6 +18,7 @@
 
 #include "asterisk.h"
 
+#include <math.h>
 #include <pjsip.h>
 #include <pjlib.h>
 
@@ -347,6 +348,44 @@ static void copy_state_to_transport(struct ast_sip_transport *transport)
 	memcpy(&transport->external_address, &transport->state->external_address, sizeof(transport->external_address));
 }
 
+static int has_state_changed(struct ast_sip_transport_state *a, struct ast_sip_transport_state *b)
+{
+	if (a->type != b->type) {
+		return -1;
+	}
+
+	if (pj_sockaddr_cmp(&a->host, &b->host)) {
+		return -1;
+	}
+
+	if ((a->localnet || b->localnet)
+		&& ((!a->localnet != !b->localnet)
+		|| ast_sockaddr_cmp(&a->localnet->addr, &b->localnet->addr)
+		|| ast_sockaddr_cmp(&a->localnet->netmask, &b->localnet->netmask)))
+	{
+		return -1;
+	}
+
+	if (ast_sockaddr_cmp(&a->external_address, &b->external_address)) {
+		return -1;
+	}
+
+	if (a->tls.method != b->tls.method
+		|| a->tls.ciphers_num != b->tls.ciphers_num
+		|| a->tls.proto != b->tls.proto
+		|| a->tls.verify_client != b->tls.verify_client
+		|| a->tls.verify_server != b->tls.verify_server
+		|| a->tls.require_client_cert != b->tls.require_client_cert) {
+		return -1;
+	}
+
+	if (memcmp(a->ciphers, b->ciphers, sizeof(pj_ssl_cipher) * fmax(a->tls.ciphers_num, b->tls.ciphers_num))) {
+		return -1;
+	}
+
+	return 0;
+}
+
 static void states_cleanup(void *states)
 {
 	if (states) {
@@ -376,32 +415,39 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 	 */
 	ao2_wrlock(states);
 
+	temp_state = internal_state_alloc(transport);
+	if (!temp_state) {
+		ast_log(LOG_ERROR, "Transport '%s' failed to allocate memory\n", transport_id);
+		return -1;
+	}
+
 	perm_state = find_internal_state_by_transport(transport);
 	if (perm_state) {
 		ast_sorcery_diff(sorcery, perm_state->transport, transport, &changes);
-		if (changes) {
+		if (!changes && !has_state_changed(perm_state->state, temp_state->state)) {
+			/* In case someone is using the deprecated fields, reset them */
+			transport->state = perm_state->state;
+			copy_state_to_transport(transport);
+			ao2_replace(perm_state->transport, transport);
+			return 0;
+		}
+
+		if (!transport->allow_reload) {
 			if (!perm_state->change_detected) {
 				perm_state->change_detected = 1;
 				ast_log(LOG_WARNING, "Transport '%s' is not reloadable, maintaining previous values\n", transport_id);
 			}
+			/* In case someone is using the deprecated fields, reset them */
+			transport->state = perm_state->state;
+			copy_state_to_transport(transport);
+			ao2_replace(perm_state->transport, transport);
+			return 0;
 		}
-
-		/* In case someone is using the deprecated fields, reset them */
-		transport->state = perm_state->state;
-		copy_state_to_transport(transport);
-		ao2_replace(perm_state->transport, transport);
-		return 0;
-	}
-
-	temp_state = internal_state_alloc(transport);
-	if (!temp_state) {
-		ast_log(LOG_ERROR, "Transport '%s' failed to allocate memory\n", transport_id);
-		goto error;
 	}
 
 	if (temp_state->state->host.addr.sa_family != PJ_AF_INET && temp_state->state->host.addr.sa_family != PJ_AF_INET6) {
 		ast_log(LOG_ERROR, "Transport '%s' could not be started as binding not specified\n", transport_id);
-		goto error;
+		return -1;
 	}
 
 	/* Set default port if not present */
@@ -418,16 +464,25 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		} else {
 			ast_log(LOG_ERROR, "Unknown address family for transport '%s', could not get external signaling address\n",
 					transport_id);
-			goto error;
+			return -1;
 		}
 
 		if (ast_dnsmgr_lookup(transport->external_signaling_address, &temp_state->state->external_address, &temp_state->state->external_address_refresher, NULL) < 0) {
 			ast_log(LOG_ERROR, "Could not create dnsmgr for external signaling address on '%s'\n", transport_id);
-			goto error;
+			return -1;
 		}
 	}
 
 	if (transport->type == AST_TRANSPORT_UDP) {
+		if (perm_state && perm_state->state && perm_state->state->transport) {
+			pjsip_udp_transport_pause(perm_state->state->transport, PJSIP_UDP_TRANSPORT_DESTROY_SOCKET);
+			/*
+			 * We need to sleep for a bit to allow the OS to release the socket or we'll get an
+			 * Address in Use error when we try to re-open.
+			 */
+			usleep(100000);
+		}
+
 		if (temp_state->state->host.addr.sa_family == pj_AF_INET()) {
 			res = pjsip_udp_transport_start(ast_sip_get_pjsip_endpoint(), &temp_state->state->host.ipv4, NULL, transport->async_operations, &temp_state->state->transport);
 		} else if (temp_state->state->host.addr.sa_family == pj_AF_INET6()) {
@@ -446,21 +501,36 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 	} else if (transport->type == AST_TRANSPORT_TCP) {
 		pjsip_tcp_transport_cfg cfg;
 
+		if (perm_state && perm_state->state && perm_state->state->factory && perm_state->state->factory->destroy) {
+			perm_state->state->factory->destroy(perm_state->state->factory);
+			usleep(100000);
+		}
+
 		pjsip_tcp_transport_cfg_default(&cfg, temp_state->state->host.addr.sa_family);
 		cfg.bind_addr = temp_state->state->host;
 		cfg.async_cnt = transport->async_operations;
 		set_qos(transport, &cfg.qos_params);
+
+		if (perm_state && perm_state->state && perm_state->state->factory && perm_state->state->factory->destroy) {
+			perm_state->state->factory->destroy(perm_state->state->factory);
+			usleep(100000);
+		}
 
 		res = pjsip_tcp_transport_start3(ast_sip_get_pjsip_endpoint(), &cfg, &temp_state->state->factory);
 	} else if (transport->type == AST_TRANSPORT_TLS) {
 		if (transport->async_operations > 1 && ast_compare_versions(pj_get_version(), "2.5.0") < 0) {
 			ast_log(LOG_ERROR, "Transport: %s: When protocol=tls and pjproject version < 2.5.0, async_operations can't be > 1\n",
 					ast_sorcery_object_get_id(obj));
-			goto error;
+			return -1;
 		}
 
 		temp_state->state->tls.password = pj_str((char*)transport->password);
 		set_qos(transport, &temp_state->state->tls.qos_params);
+
+		if (perm_state && perm_state->state && perm_state->state->factory && perm_state->state->factory->destroy) {
+			perm_state->state->factory->destroy(perm_state->state->factory);
+			usleep(100000);
+		}
 
 		res = pjsip_tls_transport_start2(ast_sip_get_pjsip_endpoint(), &temp_state->state->tls, &temp_state->state->host, NULL, transport->async_operations, &temp_state->state->factory);
 	} else if ((transport->type == AST_TRANSPORT_WS) || (transport->type == AST_TRANSPORT_WSS)) {
@@ -475,17 +545,16 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 
 		pj_strerror(res, msg, sizeof(msg));
 		ast_log(LOG_ERROR, "Transport '%s' could not be started: %s\n", ast_sorcery_object_get_id(obj), msg);
-		goto error;
+		return -1;
 	}
 
 	copy_state_to_transport(transport);
-	ao2_link(states, temp_state);
+	if (perm_state) {
+		ao2_unlink_flags(states, perm_state, OBJ_NOLOCK);
+	}
+	ao2_link_flags(states, temp_state, OBJ_NOLOCK);
 
 	return 0;
-
-error:
-	ao2_unlink(states, temp_state);
-	return -1;
 }
 
 /*! \brief Custom handler for type just makes sure the state is created */
@@ -1209,6 +1278,7 @@ int ast_sip_initialize_sorcery_transport(void)
 	ast_sorcery_object_field_register_custom(sorcery, "transport", "tos", "0", transport_tos_handler, tos_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "transport", "cos", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_transport, cos));
 	ast_sorcery_object_field_register(sorcery, "transport", "websocket_write_timeout", AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT_STR, OPT_INT_T, PARSE_IN_RANGE, FLDSET(struct ast_sip_transport, write_timeout), 1, INT_MAX);
+	ast_sorcery_object_field_register(sorcery, "transport", "allow_reload", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_transport, allow_reload));
 
 	internal_sip_register_endpoint_formatter(&endpoint_transport_formatter);
 
