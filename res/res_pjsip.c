@@ -1029,6 +1029,14 @@
 						Value is in milliseconds; default is 100 ms.</para>
 					</description>
 				</configOption>
+				<configOption name="allow_reload" default="no">
+					<synopsis>Allow this transport to be reloaded.</synopsis>
+					<description>
+						<para>Allow this transport to be reloaded when res_pjsip is reloaded.
+						This option defaults to "no" because reloading a transport may disrupt
+						in-progress calls.</para>
+					</description>
+				</configOption>
 			</configObject>
 			<configObject name="contact">
 				<synopsis>A way of creating an aliased name to a SIP URI</synopsis>
