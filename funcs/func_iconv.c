@@ -83,7 +83,7 @@ static int iconv_read(struct ast_channel *chan, const char *cmd, char *arguments
 		AST_APP_ARG(text);
 	);
 	iconv_t cd;
-	size_t incount, outcount = len;
+	size_t incount, outcount = len - 1;
 	char *parse;
 
 	if (ast_strlen_zero(arguments)) {
@@ -120,6 +120,7 @@ static int iconv_read(struct ast_channel *chan, const char *cmd, char *arguments
 		else
 			ast_log(LOG_WARNING,  "Iconv: error %d: %s.\n", errno, strerror(errno));
 	}
+	*buf = '\0';
 	iconv_close(cd);
 
 	return 0;
