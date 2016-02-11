@@ -1,6 +1,26 @@
-2016-02-10 19:57 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2016-02-11 15:36 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/11.6-cert13 Released.
+
+2016-02-11 09:35 +0000 [86a30204cc]  Kevin Harwell <kharwell@lunkwill.digium.internal>
+
+	* Release summaries: Remove previous versions
+
+2016-02-11 09:35 +0000 [45d44b602f]  Kevin Harwell <kharwell@lunkwill>
+
+	* .version: Update for certified/11.6-cert13
+
+2016-02-11 09:35 +0000 [4e0dea3354]  Kevin Harwell <kharwell@lunkwill>
+
+	* .lastclean: Update for certified/11.6-cert13
+
+2016-02-10 13:57 +0000 [8f41b84e92]  Kevin Harwell <kharwell@lunkwill>
+
+	* ChangeLog: Updated for certified/11.6-cert13
+
+2016-02-10 13:57 +0000 [6e2a580c2c]  Kevin Harwell <kharwell@lunkwill>
+
+	* Release summaries: Add summaries for certified/11.6-cert13
 
 2016-02-10 13:57 +0000 [0155bca888]  Kevin Harwell <kharwell@lunkwill.digium.internal>
 
