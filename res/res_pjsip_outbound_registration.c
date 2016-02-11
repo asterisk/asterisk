@@ -508,6 +508,7 @@ static pj_status_t registration_client_send(struct sip_outbound_registration_cli
 {
 	pj_status_t status;
 	int *callback_invoked;
+	pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
 
 	callback_invoked = ast_threadstorage_get(&register_callback_invoked, sizeof(int));
 	if (!callback_invoked) {
@@ -517,6 +518,12 @@ static pj_status_t registration_client_send(struct sip_outbound_registration_cli
 
 	/* Due to the message going out the callback may now be invoked, so bump the count */
 	ao2_ref(client_state, +1);
+	/*
+	 * Set the transport in case transports were reloaded.
+	 * When pjproject removes the extraneous error messages produced,
+	 * we can check status and only set the transport and resend if there was an error
+	 */
+	pjsip_regc_set_transport(client_state->client, &selector);
 	status = pjsip_regc_send(client_state->client, tdata);
 
 	/* If the attempt to send the message failed and the callback was not invoked we need to
