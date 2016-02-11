@@ -1,3 +1,64 @@
+2016-02-11 18:31 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.1-cert4 Released.
+
+2016-02-11 12:31 +0000 [7df413fbb3]  Kevin Harwell <kharwell@lunkwill.digium.internal>
+
+	* Release summaries: Remove previous versions
+
+2016-02-11 12:31 +0000 [1423445b23]  Kevin Harwell <kharwell@lunkwill>
+
+	* .version: Update for certified/13.1-cert4
+
+2016-02-11 12:31 +0000 [9a8b627f26]  Kevin Harwell <kharwell@lunkwill>
+
+	* .lastclean: Update for certified/13.1-cert4
+
+2016-02-11 12:31 +0000 [d424452711]  Kevin Harwell <kharwell@lunkwill>
+
+	* realtime: Add database scripts for certified/13.1-cert4
+
+2016-02-04 16:17 +0000 [59ccc89054]  Mark Michelson <mmichelson@digium.com>
+
+	* Check for OpenSSL defines before trying to use them.
+
+	  The SSL_OP_NO_TLSv1_1 and SSL_OP_NO_TLSv1_2 defines did not exist prior
+	  to OpenSSL version 1.0.1. A recent commit attempts to, by default, set
+	  these options, which can cause problems on systems with older OpenSSL
+	  installations.
+
+	  This commit adds a configure script check for those defines and will not
+	  attempt to make use of those if they do not exist. We will print a
+	  warning urging the user to upgrade their OpenSSL installation if those
+	  defines are not present.
+
+	  Change-Id: I6a2eb9a43fd0738b404d8f6f2cf4b5c22d9d752d
+
+2016-02-04 11:39 +0000 [bffd954a63]  Mark Michelson <mmichelson@digium.com>
+
+	* res_stasis_device_state: Fix refcounting error.
+
+	  Device state subscription lifetimes were governed by when the
+	  subscription was established and unsubscribed from. However, it is
+	  possible that at the time of unsubscription, there could be device state
+	  events still in flight. When those device state events occur, the device
+	  state callback could attempt to dereference a freed pointer. Crash.
+
+	  This change ensures that the lifetime of the device state subscription
+	  does not end until the underlying stasis subscription has confirmed that
+	  its final message has been sent.
+
+	  Change-Id: I25a0f1472894c1a562252fb7129671478e25e9b2
+
+2016-01-25 15:48 +0000 [0eb43ea9ee]  Richard Mudgett <rmudgett@digium.com>
+
+	* app_confbridge: Make non-admin users join a muted conference muted.
+
+	  ASTERISK-20987 #close
+	  Reported by: hristo
+
+	  Change-Id: Ic61a2b524ab3a4cfadf227fc6b3506527bc03f38
+
 2016-02-03 22:14 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.1-cert3 Released.
