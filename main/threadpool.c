@@ -1027,7 +1027,6 @@ static void *worker_start(void *arg)
 		}
 		threadpool_active_thread_idle(worker->pool, worker);
 	}
-	ast_mutex_unlock(&worker->lock);
 
 	/* Reaching this portion means the thread is
 	 * on death's door. It may have been killed while
@@ -1038,7 +1037,10 @@ static void *worker_start(void *arg)
 	 * list of zombie threads.
 	 */
 	if (worker->state == ZOMBIE) {
+		ast_mutex_unlock(&worker->lock);
 		threadpool_zombie_thread_dead(worker->pool, worker);
+	} else {
+		ast_mutex_unlock(&worker->lock);
 	}
 
 	if (worker->options.thread_end) {
