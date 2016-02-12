@@ -1012,6 +1012,7 @@ static void worker_thread_destroy(void *obj)
 static void *worker_start(void *arg)
 {
 	struct worker_thread *worker = arg;
+	enum worker_state saved_state;
 
 	if (worker->options.thread_start) {
 		worker->options.thread_start();
@@ -1027,6 +1028,7 @@ static void *worker_start(void *arg)
 		}
 		threadpool_active_thread_idle(worker->pool, worker);
 	}
+	saved_state = worker->state;
 	ast_mutex_unlock(&worker->lock);
 
 	/* Reaching this portion means the thread is
@@ -1037,7 +1039,7 @@ static void *worker_start(void *arg)
 	 * that the thread can be removed from the
 	 * list of zombie threads.
 	 */
-	if (worker->state == ZOMBIE) {
+	if (saved_state == ZOMBIE) {
 		threadpool_zombie_thread_dead(worker->pool, worker);
 	}
 
