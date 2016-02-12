@@ -1794,29 +1794,38 @@ void ast_sip_session_terminate(struct ast_sip_session *session, int response)
 		response = 603;
 	}
 
-	if ((session->inv_session->state == PJSIP_INV_STATE_CONFIRMED) && session->inv_session->invite_tsx) {
-		ast_debug(3, "Delay sending BYE to %s because of outstanding transaction...\n",
-				ast_sorcery_object_get_id(session->endpoint));
-		/* If this is delayed the only thing that will happen is a BYE request so we don't
-		 * actually need to store the response code for when it happens.
-		 */
-		delay_request(session, NULL, NULL, NULL, 0, DELAYED_METHOD_BYE);
-	} else if (session->inv_session->state == PJSIP_INV_STATE_NULL) {
+	switch (session->inv_session->state) {
+	case PJSIP_INV_STATE_NULL:
 		pjsip_inv_terminate(session->inv_session, response, PJ_TRUE);
-	} else if (((status = pjsip_inv_end_session(session->inv_session, response, NULL, &packet)) == PJ_SUCCESS)
-		&& packet) {
-		struct ast_sip_session_delayed_request *delay;
-
-		/* Flush any delayed requests so they cannot overlap this transaction. */
-		while ((delay = AST_LIST_REMOVE_HEAD(&session->delayed_requests, next))) {
-			ast_free(delay);
+		break;
+	case PJSIP_INV_STATE_CONFIRMED:
+		if (session->inv_session->invite_tsx) {
+			ast_debug(3, "Delay sending BYE to %s because of outstanding transaction...\n",
+					ast_sorcery_object_get_id(session->endpoint));
+			/* If this is delayed the only thing that will happen is a BYE request so we don't
+			 * actually need to store the response code for when it happens.
+			 */
+			delay_request(session, NULL, NULL, NULL, 0, DELAYED_METHOD_BYE);
+			break;
 		}
+		/* Fall through */
+	default:
+		status = pjsip_inv_end_session(session->inv_session, response, NULL, &packet);
+		if (status == PJ_SUCCESS && packet) {
+			struct ast_sip_session_delayed_request *delay;
 
-		if (packet->msg->type == PJSIP_RESPONSE_MSG) {
-			ast_sip_session_send_response(session, packet);
-		} else {
-			ast_sip_session_send_request(session, packet);
+			/* Flush any delayed requests so they cannot overlap this transaction. */
+			while ((delay = AST_LIST_REMOVE_HEAD(&session->delayed_requests, next))) {
+				ast_free(delay);
+			}
+
+			if (packet->msg->type == PJSIP_RESPONSE_MSG) {
+				ast_sip_session_send_response(session, packet);
+			} else {
+				ast_sip_session_send_request(session, packet);
+			}
 		}
+		break;
 	}
 }
 
