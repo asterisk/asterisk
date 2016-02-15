@@ -1241,7 +1241,6 @@ static struct sip_subscription_tree *allocate_subscription_tree(struct ast_sip_e
 	sub_tree->endpoint = ao2_bump(endpoint);
 	sub_tree->notify_sched_id = -1;
 
-	add_subscription(sub_tree);
 	return sub_tree;
 }
 
@@ -1314,6 +1313,8 @@ static struct sip_subscription_tree *create_subscription_tree(const struct ast_s
 	if (AST_VECTOR_SIZE(&sub_tree->root->children) > 0) {
 		sub_tree->is_list = 1;
 	}
+
+	add_subscription(sub_tree);
 
 	return sub_tree;
 }
@@ -1601,6 +1602,8 @@ struct ast_sip_subscription *ast_sip_create_subscription(const struct ast_sip_su
 		ao2_ref(sub_tree, -1);
 		return NULL;
 	}
+
+	add_subscription(sub_tree);
 
 	return sub;
 }
