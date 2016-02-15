@@ -511,9 +511,22 @@ static void add_pai_header(pjsip_tx_data *tdata, const struct ast_party_id *id)
 	 */
 	old_pai = pjsip_msg_find_hdr_by_name(tdata->msg, &pj_pai_name, NULL);
 	if (old_pai) {
-		modify_id_header(tdata->pool, old_pai, id);
-		add_privacy_header(tdata, id);
-		return;
+		/* If type is OTHER, then the existing header was most likely
+		 * added by the PJSIP_HEADER dial plan function as a simple
+		 * name/value pair.  We can't pass this to modify_id_header because
+		 * there are no virtual functions to get the uri.  We could parse
+		 * it into a pjsip_fromto_hdr but it isn't worth it since
+		 * modify_id_header is just going to overwrite the name and number
+		 * anyway.  We'll just remove it from the header list instead
+		 * and create a new one.
+		 */
+		if (old_pai->type == PJSIP_H_OTHER) {
+			pj_list_erase(old_pai);
+		} else {
+			modify_id_header(tdata->pool, old_pai, id);
+			add_privacy_header(tdata, id);
+			return;
+		}
 	}
 
 	pai_hdr = create_new_id_hdr(&pj_pai_name, tdata, id);
@@ -600,9 +613,22 @@ static void add_rpid_header(pjsip_tx_data *tdata, const struct ast_party_id *id)
 	 */
 	old_rpid = pjsip_msg_find_hdr_by_name(tdata->msg, &pj_rpid_name, NULL);
 	if (old_rpid) {
-		modify_id_header(tdata->pool, old_rpid, id);
-		add_privacy_params(tdata, old_rpid, id);
-		return;
+		/* If type is OTHER, then the existing header was most likely
+		 * added by the PJSIP_HEADER dial plan function as a simple
+		 * name/value pair.  We can't pass this to modify_id_header because
+		 * there are no virtual functions to get the uri.  We could parse
+		 * it into a pjsip_fromto_hdr but it isn't worth it since
+		 * modify_id_header is just going to overwrite the name and number
+		 * anyway.  We'll just remove it from the header list instead
+		 * and create a new one.
+		 */
+		if (old_rpid->type == PJSIP_H_OTHER) {
+			pj_list_erase(old_rpid);
+		} else {
+			modify_id_header(tdata->pool, old_rpid, id);
+			add_privacy_params(tdata, old_rpid, id);
+			return;
+		}
 	}
 
 	rpid_hdr = create_new_id_hdr(&pj_rpid_name, tdata, id);
