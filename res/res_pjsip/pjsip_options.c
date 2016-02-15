@@ -107,6 +107,8 @@ static void *contact_status_alloc(const char *name)
 	return status;
 }
 
+AST_MUTEX_DEFINE_STATIC(creation_lock);
+
 /*!
  * \brief Retrieve a ast_sip_contact_status object from sorcery creating
  *        one if not found.
@@ -114,6 +116,7 @@ static void *contact_status_alloc(const char *name)
 struct ast_sip_contact_status *ast_res_pjsip_find_or_create_contact_status(const struct ast_sip_contact *contact)
 {
 	struct ast_sip_contact_status *status;
+	SCOPED_MUTEX(lock, &creation_lock);
 
 	status = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), CONTACT_STATUS,
 		ast_sorcery_object_get_id(contact));
