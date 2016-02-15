@@ -98,7 +98,21 @@ static int sorcery_memory_cmp(void *obj, void *arg, int flags)
 
 static int sorcery_memory_create(const struct ast_sorcery *sorcery, void *data, void *object)
 {
-	ao2_link(data, object);
+	void *existing;
+
+	ao2_lock(data);
+
+	existing = ao2_find(data, ast_sorcery_object_get_id(object), OBJ_KEY | OBJ_NOLOCK);
+	if (existing) {
+		ao2_ref(existing, -1);
+		ao2_unlock(data);
+		return -1;
+	}
+
+	ao2_link_flags(data, object, OBJ_NOLOCK);
+
+	ao2_unlock(data);
+
 	return 0;
 }
 
