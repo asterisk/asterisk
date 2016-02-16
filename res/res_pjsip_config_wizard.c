@@ -45,6 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <pjsip.h>
 
 #include "asterisk/astobj2.h"
+#include "asterisk/cli.h"
 #include "asterisk/res_pjsip.h"
 #include "asterisk/module.h"
 #include "asterisk/pbx.h"
@@ -276,7 +277,7 @@ struct object_type_wizard {
 	struct ast_config *last_config;
 	char object_type[];
 };
-static AST_VECTOR(object_type_wizards, struct object_type_wizard *) object_type_wizards;
+static AST_VECTOR_RW(object_type_wizards, struct object_type_wizard *) object_type_wizards;
 
 /*! \brief Callbacks for vector deletes */
 #define NOT_EQUALS(a, b) (a != b)
@@ -304,12 +305,15 @@ static struct object_type_wizard *find_wizard(const char *object_type)
 {
 	int idx;
 
+	AST_VECTOR_RW_RDLOCK(&object_type_wizards);
 	for(idx = 0; idx < AST_VECTOR_SIZE(&object_type_wizards); idx++) {
 		struct object_type_wizard *otw = AST_VECTOR_GET(&object_type_wizards, idx);
 		if (!strcmp(otw->object_type, object_type)) {
+			AST_VECTOR_RW_UNLOCK(&object_type_wizards);
 			return otw;
 		}
 	}
+	AST_VECTOR_RW_UNLOCK(&object_type_wizards);
 
 	return NULL;
 }
@@ -1137,7 +1141,9 @@ static void wizard_mapped_observer(const char *name, struct ast_sorcery *sorcery
 		otw->wizard_data = wizard_data;
 		otw->last_config = NULL;
 		strcpy(otw->object_type, object_type); /* Safe */
+		AST_VECTOR_RW_WRLOCK(&object_type_wizards);
 		AST_VECTOR_APPEND(&object_type_wizards, otw);
+		AST_VECTOR_RW_UNLOCK(&object_type_wizards);
 		ast_debug(1, "Wizard mapped for object_type '%s'\n", object_type);
 	}
 }
@@ -1177,19 +1183,118 @@ static void instance_destroying_observer(const char *name, struct ast_sorcery *s
 	ast_module_unref(ast_module_info->self);
 }
 
+static char *handle_export_primitives(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ast_sorcery *sorcery;
+	int idx;
+	FILE *f = NULL;
+	const char *fn = NULL;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "pjsip export config_wizard primitives [to]";
+		e->usage =
+			"Usage: pjsip export config_wizard primitives [ to <filename ]\n"
+			"       Export the config_wizard objects as pjsip primitives to\n"
+			"       the console or to <filename>\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc > 5) {
+		char date[256]="";
+		time_t t;
+		fn = a->argv[5];
+
+		time(&t);
+		ast_copy_string(date, ctime(&t), sizeof(date));
+		f = fopen(fn, "w");
+		if (!f) {
+			ast_log(LOG_ERROR, "Unable to write %s (%s)\n", fn, strerror(errno));
+			return CLI_FAILURE;
+		}
+
+		fprintf(f, ";!\n");
+		fprintf(f, ";! Automatically generated configuration file\n");
+		fprintf(f, ";! Filename: %s\n", fn);
+		fprintf(f, ";! Generator: %s\n", "'pjsip export config_wizard primitives'");
+		fprintf(f, ";! Creation Date: %s", date);
+		fprintf(f, ";!\n");
+	}
+
+	sorcery = ast_sip_get_sorcery();
+
+	AST_VECTOR_RW_RDLOCK(&object_type_wizards);
+	for(idx = 0; idx < AST_VECTOR_SIZE(&object_type_wizards); idx++) {
+		struct object_type_wizard *otw = AST_VECTOR_GET(&object_type_wizards, idx);
+		struct ao2_container *container;
+		struct ao2_iterator i;
+		void *o;
+
+		container = ast_sorcery_retrieve_by_fields(sorcery, otw->object_type, AST_RETRIEVE_FLAG_MULTIPLE, NULL);
+		if (!container) {
+			continue;
+		}
+
+		i = ao2_iterator_init(container, 0);
+		while ((o = ao2_iterator_next(&i))) {
+			struct ast_variable *vars;
+			struct ast_variable *v;
+
+			vars = ast_sorcery_objectset_create(sorcery, o);
+			if (vars && ast_variable_find_in_list(vars, "@pjsip_wizard")) {
+				if (f) {
+					fprintf(f, "\n[%s]\ntype = %s\n", ast_sorcery_object_get_id(o), otw->object_type);
+				} else {
+					ast_cli(a->fd, "\n[%s]\ntype = %s\n", ast_sorcery_object_get_id(o), otw->object_type);
+				}
+				for (v = vars; v; v = v->next) {
+					if (!ast_strlen_zero(v->value)) {
+						if (f) {
+							fprintf(f, "%s = %s\n", v->name, v->value);
+						} else {
+							ast_cli(a->fd, "%s = %s\n", v->name, v->value);
+						}
+					}
+				}
+			}
+			ast_variables_destroy(vars);
+			ao2_ref(o, -1);
+		}
+		ao2_iterator_destroy(&i);
+		ao2_cleanup(container);
+	}
+	AST_VECTOR_RW_UNLOCK(&object_type_wizards);
+
+	if (f) {
+		fclose(f);
+		ast_cli(a->fd, "Wrote configuration to %s\n", fn);
+	}
+
+
+	return CLI_SUCCESS;
+}
+
+static struct ast_cli_entry config_wizard_cli[] = {
+	AST_CLI_DEFINE(handle_export_primitives, "Export config wizard primitives"),
+};
+
 static int load_module(void)
 {
-	AST_VECTOR_INIT(&object_type_wizards, 12);
+	AST_VECTOR_RW_INIT(&object_type_wizards, 12);
 	ast_sorcery_global_observer_add(&global_observer);
+	ast_cli_register_multiple(config_wizard_cli, ARRAY_LEN(config_wizard_cli));
 
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
+	ast_cli_unregister_multiple(config_wizard_cli, ARRAY_LEN(config_wizard_cli));
 	ast_sorcery_global_observer_remove(&global_observer);
 	AST_VECTOR_REMOVE_CMP_UNORDERED(&object_type_wizards, NULL, NOT_EQUALS, OTW_DELETE_CB);
-	AST_VECTOR_FREE(&object_type_wizards);
+	AST_VECTOR_RW_FREE(&object_type_wizards);
 
 	return 0;
 }
