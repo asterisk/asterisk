@@ -12,6 +12,12 @@
 --- Functionality changes from Asterisk 13.7.0 to Asterisk 13.8.0 ------------
 ------------------------------------------------------------------------------
 
+res_pjsip_config_wizard
+------------------
+ * A new command (pjsip export config_wizard primitives) has been added that
+   will export all the pjsip objects it created to the console or a file
+   suitable for reuse in a pjsip.conf file.
+
 app_confbridge
 ------------------
  * Added CONFBRIDGE_INFO(muted,) for querying the muted conference state.
