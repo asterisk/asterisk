@@ -127,8 +127,14 @@ static inline const char *sqlite3_escape_string_helper(struct ast_threadstorage 
 	 * add two quotes, and convert NULL pointers to the word "NULL", but we
 	 * don't allow those anyway. Just going to use %q for now. */
 	struct ast_str *buf = ast_str_thread_get(ts, maxlen);
-	char *tmp = ast_str_buffer(buf);
 	char q = ts == &escape_value_buf ? '\'' : '"';
+	char *tmp;
+
+	if (ast_str_size(buf) < maxlen) {
+		/* realloc if buf is too small */
+		ast_str_make_space(&buf, maxlen);
+	}
+	tmp = ast_str_buffer(buf);
 
 	ast_str_reset(buf);
 	*tmp++ = q; /* Initial quote */
@@ -160,8 +166,14 @@ static const char *sqlite3_escape_column_op(const char *param)
 {
 	size_t maxlen = strlen(param) * 2 + sizeof("\"\" =");
 	struct ast_str *buf = ast_str_thread_get(&escape_column_buf, maxlen);
-	char *tmp = ast_str_buffer(buf);
+	char *tmp;
 	int space = 0;
+
+	if (ast_str_size(buf) < maxlen) {
+		/* realloc if buf is too small */
+		ast_str_make_space(&buf, maxlen);
+	}
+	tmp = ast_str_buffer(buf);
 
 	ast_str_reset(buf);
 	*tmp++ = '"';
