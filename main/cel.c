@@ -541,7 +541,7 @@ static int ast_cel_track_event(enum ast_cel_event_type et)
 		return 0;
 	}
 
-	return (cfg->general->events & ((int64_t) 1 << et));
+	return (cfg->general->events & ((int64_t) 1 << et)) ? 1 : 0;
 }
 
 static int events_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
