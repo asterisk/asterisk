@@ -4950,9 +4950,13 @@ static int update_queue(struct call_queue *q, struct member *member, int callcom
 	if (callcompletedinsl) {
 		q->callscompletedinsl++;
 	}
-	/* Calculate talktime using the same exponential average as holdtime code*/
-	oldtalktime = q->talktime;
-	q->talktime = (((oldtalktime << 2) - oldtalktime) + newtalktime) >> 2;
+	if (q->callscompletedinsl == 1) {
+		q->talktime = newtalktime;
+	} else {
+		/* Calculate talktime using the same exponential average as holdtime code */
+		oldtalktime = q->talktime;
+		q->talktime = (((oldtalktime << 2) - oldtalktime) + newtalktime) >> 2;
+	}
 	ao2_unlock(q);
 	return 0;
 }
