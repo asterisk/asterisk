@@ -267,7 +267,7 @@ enum ast_cel_event_type ast_cel_str_to_event_type(const char *name)
 
 static int ast_cel_track_event(enum ast_cel_event_type et)
 {
-	return (eventset & ((int64_t) 1 << et));
+	return (eventset & ((int64_t) 1 << et)) ? 1 : 0;
 }
 
 static void parse_events(const char *val)
