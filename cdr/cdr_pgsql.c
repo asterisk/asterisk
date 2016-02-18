@@ -139,7 +139,9 @@ static char *handle_cdr_pgsql_status(struct ast_cli_entry *e, int cmd, struct as
 		return CLI_SHOWUSAGE;
 
 	if (connected) {
-		char status[256], status2[100] = "";
+		char status[256];
+		char status2[100];
+		char buf[365];
 		int ctime = time(NULL) - connect_time;
 
 		if (pgdbport) {
@@ -154,17 +156,10 @@ static char *handle_cdr_pgsql_status(struct ast_cli_entry *e, int cmd, struct as
 		if (table && *table) {
 			snprintf(status2, 99, " using table %s", table);
 		}
-		if (ctime > 31536000) {
-			ast_cli(a->fd, "%s%s for %d years, %d days, %d hours, %d minutes, %d seconds.\n", status, status2, ctime / 31536000, (ctime % 31536000) / 86400, (ctime % 86400) / 3600, (ctime % 3600) / 60, ctime % 60);
-		} else if (ctime > 86400) {
-			ast_cli(a->fd, "%s%s for %d days, %d hours, %d minutes, %d seconds.\n", status, status2, ctime / 86400, (ctime % 86400) / 3600, (ctime % 3600) / 60, ctime % 60);
-		} else if (ctime > 3600) {
-			ast_cli(a->fd, "%s%s for %d hours, %d minutes, %d seconds.\n", status, status2, ctime / 3600, (ctime % 3600) / 60, ctime % 60);
-		} else if (ctime > 60) {
-			ast_cli(a->fd, "%s%s for %d minutes, %d seconds.\n", status, status2, ctime / 60, ctime % 60);
-		} else {
-			ast_cli(a->fd, "%s%s for %d seconds.\n", status, status2, ctime);
-		}
+
+		snprintf(buf, sizeof(buf), "%s%s for ", status, status2);
+		ast_cli_print_timestr_fromseconds(a->fd, ctime, buf);
+
 		if (records == totalrecords) {
 			ast_cli(a->fd, "  Wrote %d records since last restart.\n", totalrecords);
 		} else {
