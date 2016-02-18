@@ -315,6 +315,17 @@ char **ast_cli_completion_matches(const char *, const char *);
  */
 char *ast_complete_channels(const char *line, const char *word, int pos, int state, int rpos);
 
+/*!
+ * \since 13.8
+ * \brief Print on cli a duration inseconds in format
+ * %s year(s) %s week(s) %s day(s) %s hour(s) %s second(s).
+ *
+ * \param ast_cli_args fd to print by ast_cli
+ * \param duration The time (in seconds) to print
+ * \param prefix A Prefix string to add before of duration formatted
+ */
+void ast_cli_print_timestr_fromseconds(int fd, int seconds, const char *prefix);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
