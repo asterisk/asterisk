@@ -893,7 +893,7 @@ static void sip_outbound_publish_callback(struct pjsip_publishc_cbparam *param)
 		pjsip_publishc_destroy(client->client);
 		client->client = NULL;
 
-		if (sip_outbound_publish_client_alloc(publish)) {
+		if (sip_outbound_publish_client_alloc(client)) {
 			ast_log(LOG_ERROR, "Failed to create a new outbound publish client for '%s' on 412 response\n",
 				ast_sorcery_object_get_id(publish));
 			goto end;
