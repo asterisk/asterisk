@@ -119,7 +119,9 @@ static char *handle_cli_cdr_mysql_status(struct ast_cli_entry *e, int cmd, struc
 		return CLI_SHOWUSAGE;
 
 	if (connected) {
-		char status[256], status2[100] = "";
+		char status[256];
+		char status2[100] = "";
+		char buf[362]; /* 256+100+" for "+NULL */
 		int ctime = time(NULL) - connect_time;
 		if (dbport)
 			snprintf(status, 255, "Connected to %s@%s, port %d", ast_str_buffer(dbname), ast_str_buffer(hostname), dbport);
@@ -132,17 +134,10 @@ static char *handle_cli_cdr_mysql_status(struct ast_cli_entry *e, int cmd, struc
 			snprintf(status2, 99, " with username %s", ast_str_buffer(dbuser));
 		if (ast_str_strlen(dbtable))
 			snprintf(status2, 99, " using table %s", ast_str_buffer(dbtable));
-		if (ctime > 31536000) {
-			ast_cli(a->fd, "%s%s for %d years, %d days, %d hours, %d minutes, %d seconds.\n", status, status2, ctime / 31536000, (ctime % 31536000) / 86400, (ctime % 86400) / 3600, (ctime % 3600) / 60, ctime % 60);
-		} else if (ctime > 86400) {
-			ast_cli(a->fd, "%s%s for %d days, %d hours, %d minutes, %d seconds.\n", status, status2, ctime / 86400, (ctime % 86400) / 3600, (ctime % 3600) / 60, ctime % 60);
-		} else if (ctime > 3600) {
-			ast_cli(a->fd, "%s%s for %d hours, %d minutes, %d seconds.\n", status, status2, ctime / 3600, (ctime % 3600) / 60, ctime % 60);
-		} else if (ctime > 60) {
-			ast_cli(a->fd, "%s%s for %d minutes, %d seconds.\n", status, status2, ctime / 60, ctime % 60);
-		} else {
-			ast_cli(a->fd, "%s%s for %d seconds.\n", status, status2, ctime);
-		}
+
+		snprintf(buf, sizeof(buf), "%s%s for ", status, status2);
+		ast_cli_print_timestr_fromseconds(a->fd, ctime, buf);
+
 		if (records == totalrecords)
 			ast_cli(a->fd, "  Wrote %d records since last restart.\n", totalrecords);
 		else

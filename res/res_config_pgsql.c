@@ -1574,7 +1574,9 @@ static char *handle_cli_realtime_pgsql_cache(struct ast_cli_entry *e, int cmd, s
 
 static char *handle_cli_realtime_pgsql_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char connection_info[256], credentials[100] = "";
+	char connection_info[256];
+	char credentials[100] = "";
+	char buf[376]; /* 256+100+"Connected to "+" for "+NULL */
 	int ctimesec = time(NULL) - connect_time;
 
 	switch (cmd) {
@@ -1601,24 +1603,10 @@ static char *handle_cli_realtime_pgsql_status(struct ast_cli_entry *e, int cmd, 
 	if (!ast_strlen_zero(dbuser))
 		snprintf(credentials, sizeof(credentials), " with username %s", dbuser);
 
-	if (pgsqlConn && PQstatus(pgsqlConn) == CONNECTION_OK) {
-		if (ctimesec > 31536000)
-			ast_cli(a->fd, "Connected to %s%s for %d years, %d days, %d hours, %d minutes, %d seconds.\n",
-					connection_info, credentials, ctimesec / 31536000, (ctimesec % 31536000) / 86400,
-					(ctimesec % 86400) / 3600, (ctimesec % 3600) / 60, ctimesec % 60);
-		else if (ctimesec > 86400)
-			ast_cli(a->fd, "Connected to %s%s for %d days, %d hours, %d minutes, %d seconds.\n", connection_info,
-					credentials, ctimesec / 86400, (ctimesec % 86400) / 3600, (ctimesec % 3600) / 60,
-					ctimesec % 60);
-		else if (ctimesec > 3600)
-			ast_cli(a->fd, "Connected to %s%s for %d hours, %d minutes, %d seconds.\n", connection_info, credentials,
-					ctimesec / 3600, (ctimesec % 3600) / 60, ctimesec % 60);
-		else if (ctimesec > 60)
-			ast_cli(a->fd, "Connected to %s%s for %d minutes, %d seconds.\n", connection_info, credentials, ctimesec / 60,
-					ctimesec % 60);
-		else
-			ast_cli(a->fd, "Connected to %s%s for %d seconds.\n", connection_info, credentials, ctimesec);
+	snprintf(buf, sizeof(buf), "Connected to %s%s for ", connection_info, credentials);
 
+	if (pgsqlConn && PQstatus(pgsqlConn) == CONNECTION_OK) {
+		ast_cli_print_timestr_fromseconds(a->fd, ctimesec, buf);
 		return CLI_SUCCESS;
 	} else {
 		ast_cli(a->fd, "Unable to connect %s%s\n", connection_info, credentials);
