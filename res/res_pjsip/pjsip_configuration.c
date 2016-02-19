@@ -1812,6 +1812,50 @@ static struct ast_cli_entry cli_commands[] = {
 struct ast_sip_cli_formatter_entry *channel_formatter;
 struct ast_sip_cli_formatter_entry *endpoint_formatter;
 
+static void prune_tcp_contacts(void)
+{
+	struct ao2_container *contacts = ast_sorcery_retrieve_by_fields(sip_sorcery, "contact",
+		AST_RETRIEVE_FLAG_MULTIPLE, NULL);
+	struct ao2_iterator i;
+	struct ast_sip_contact *contact;
+	pjsip_uri *uri;
+	pjsip_sip_uri *sip_uri;
+	pj_pool_t *pool;
+
+	if (!contacts) {
+		return;
+	}
+
+	if (!(pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "contact pruning", 512, 512))) {
+		ast_log(LOG_ERROR, "Unable to allocate pool for contact pruning\n");
+		ao2_ref(contacts, -1);
+		return;
+	}
+
+	i = ao2_iterator_init(contacts, 0);
+	while ((contact = ao2_iterator_next(&i))) {
+		if (!(uri = pjsip_parse_uri(pool, (char *) contact->uri, strlen(contact->uri), 0)) ||
+			(!PJSIP_URI_SCHEME_IS_SIP(uri) && !PJSIP_URI_SCHEME_IS_SIPS(uri))) {
+			ao2_ref(contact, -1);
+			continue;
+		}
+
+		sip_uri = pjsip_uri_get_uri(uri);
+
+		if (sip_uri->transport_param.slen
+			&& (!strncasecmp(sip_uri->transport_param.ptr, "tcp", sip_uri->transport_param.slen)
+				|| !strncasecmp(sip_uri->transport_param.ptr, "tls", sip_uri->transport_param.slen))) {
+			ast_debug(1, "Pruning tcp/tls contact at startup: %s\n", contact->uri);
+			ast_sorcery_delete(sip_sorcery, contact);
+		}
+
+		ao2_ref(contact, -1);
+	}
+	ao2_iterator_destroy(&i);
+	ao2_ref(contacts, -1);
+	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+}
+
 int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_module_info)
 {
 	if (ast_manager_register_xml(AMI_SHOW_ENDPOINTS, EVENT_FLAG_SYSTEM, ami_show_endpoints) ||
@@ -2020,6 +2064,8 @@ int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_mod
 	ast_cli_register_multiple(cli_commands, ARRAY_LEN(cli_commands));
 
 	ast_sorcery_load(sip_sorcery);
+
+	prune_tcp_contacts();
 
 	return 0;
 }
