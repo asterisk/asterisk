@@ -173,8 +173,6 @@ struct ast_channel {
 							 *   See \arg \ref AstFileDesc */
 	int softhangup;				/*!< Whether or not we have been hung up...  Do not set this value
 							 *   directly, use ast_softhangup() */
-	int unbridged;              /*!< If non-zero, the bridge core needs to re-evaluate the current
-	                                 bridging technology which is in use by this channel's bridge. */
 	int fdno;					/*!< Which fd had an event detected on */
 	int streamid;					/*!< For streaming playback, the schedule ID */
 	int vstreamid;					/*!< For streaming video playback, the schedule ID */
@@ -216,6 +214,9 @@ struct ast_channel {
 	char exten[AST_MAX_EXTENSION];			/*!< Dialplan: Current extension number */
 	char macrocontext[AST_MAX_CONTEXT];		/*!< Macro: Current non-macro context. See app_macro.c */
 	char macroexten[AST_MAX_EXTENSION];		/*!< Macro: Current non-macro extension. See app_macro.c */
+	char unbridged;							/*!< non-zero if the bridge core needs to re-evaluate the current
+											 bridging technology which is in use by this channel's bridge. */
+	char is_t38_active;						/*!< non-zero if T.38 is active on this channel. */
 	char dtmf_digit_to_emulate;			/*!< Digit being emulated */
 	char sending_dtmf_digit;			/*!< Digit this channel is currently sending out. (zero if not sending) */
 	struct timeval sending_dtmf_tv;		/*!< The time this channel started sending the current digit. (Invalid if sending_dtmf_digit is zero.) */
@@ -1146,7 +1147,7 @@ int ast_channel_unbridged(struct ast_channel *chan)
 
 void ast_channel_set_unbridged_nolock(struct ast_channel *chan, int value)
 {
-	chan->unbridged = value;
+	chan->unbridged = !!value;
 	ast_queue_frame(chan, &ast_null_frame);
 }
 
@@ -1154,6 +1155,33 @@ void ast_channel_set_unbridged(struct ast_channel *chan, int value)
 {
 	ast_channel_lock(chan);
 	ast_channel_set_unbridged_nolock(chan, value);
+	ast_channel_unlock(chan);
+}
+
+int ast_channel_is_t38_active_nolock(struct ast_channel *chan)
+{
+	return chan->is_t38_active;
+}
+
+int ast_channel_is_t38_active(struct ast_channel *chan)
+{
+	int res;
+
+	ast_channel_lock(chan);
+	res = ast_channel_is_t38_active_nolock(chan);
+	ast_channel_unlock(chan);
+	return res;
+}
+
+void ast_channel_set_is_t38_active_nolock(struct ast_channel *chan, int is_t38_active)
+{
+	chan->is_t38_active = !!is_t38_active;
+}
+
+void ast_channel_set_is_t38_active(struct ast_channel *chan, int is_t38_active)
+{
+	ast_channel_lock(chan);
+	ast_channel_set_is_t38_active_nolock(chan, is_t38_active);
 	ast_channel_unlock(chan);
 }
 
