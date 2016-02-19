@@ -570,41 +570,6 @@ static struct ast_sip_session_supplement t38_supplement = {
 	.outgoing_request = t38_outgoing_invite_request,
 };
 
-static int t38_incoming_bye_request(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
-{
-	struct ast_datastore *datastore;
-	struct ast_sip_session_media *session_media;
-
-	if (!session->channel) {
-		return 0;
-	}
-
-	datastore = ast_sip_session_get_datastore(session, "t38");
-	if (!datastore) {
-		return 0;
-	}
-
-	session_media = ao2_find(session->media, "image", OBJ_KEY);
-	if (!session_media) {
-		ao2_ref(datastore, -1);
-		return 0;
-	}
-
-	t38_change_state(session, session_media, datastore->data, T38_REJECTED);
-
-	ao2_ref(datastore, -1);
-	ao2_ref(session_media, -1);
-
-	return 0;
-}
-
-/*! \brief Supplement for handling a remote termination of T.38 state */
-static struct ast_sip_session_supplement t38_bye_supplement = {
-	.method = "BYE",
-	.priority = AST_SIP_SUPPLEMENT_PRIORITY_CHANNEL + 1,
-	.incoming_request = t38_incoming_bye_request,
-};
-
 /*! \brief Parse a T.38 image stream and store the attribute information */
 static void t38_interpret_sdp(struct t38_state *state, struct ast_sip_session *session, struct ast_sip_session_media *session_media,
 	const struct pjmedia_sdp_media *stream)
@@ -935,7 +900,6 @@ static int unload_module(void)
 {
 	ast_sip_session_unregister_sdp_handler(&image_sdp_handler, "image");
 	ast_sip_session_unregister_supplement(&t38_supplement);
-	ast_sip_session_unregister_supplement(&t38_bye_supplement);
 
 	return 0;
 }
@@ -959,11 +923,6 @@ static int load_module(void)
 
 	if (ast_sip_session_register_supplement(&t38_supplement)) {
 		ast_log(LOG_ERROR, "Unable to register T.38 session supplement\n");
-		goto end;
-	}
-
-	if (ast_sip_session_register_supplement(&t38_bye_supplement)) {
-		ast_log(LOG_ERROR, "Unable to register T.38 BYE session supplement\n");
 		goto end;
 	}
 
