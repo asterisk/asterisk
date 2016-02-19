@@ -29680,7 +29680,8 @@ static int sip_devicestate(const char *data)
  *	or	SIP/devicename/extension/IPorHost
  *	or	SIP/username@domain//IPorHost
  *	and there is an optional [!dnid] argument you can append to alter the
- *	To: header.
+ *	To: header. And after that, a [![fromuser][@fromdomain]] argument.
+ *	Leave those blank to use the defaults.
  * \endverbatim
  */
 static struct ast_channel *sip_request_call(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *dest, int *cause)
@@ -29752,11 +29753,49 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 	/* Save the destination, the SIP dial string */
 	ast_copy_string(tmp, dest, sizeof(tmp));
 
-	/* Find DNID and take it away */
+	/* Find optional DNID (SIP to-uri) and From-CLI (SIP from-uri)
+	 * and strip it from the dial string:
+	 *   [!touser[@todomain][![fromuser][@fromdomain]]]
+	 * For historical reasons, the touser@todomain is passed as dnid
+	 * while fromuser@fromdomain are split immediately. Passing a
+	 * todomain without touser will create an invalid SIP message. */
 	dnid = strchr(tmp, '!');
 	if (dnid != NULL) {
+		char *fromuser_and_domain;
+
 		*dnid++ = '\0';
-		ast_string_field_set(p, todnid, dnid);
+		if ((fromuser_and_domain = strchr(dnid, '!'))) {
+			char *forward_compat;
+			char *fromdomain;
+
+			*fromuser_and_domain++ = '\0';
+
+			/* Cut it at a trailing NUL or trailing '!' for
+			 * forward compatibility with extra arguments
+			 * in the future. */
+			if ((forward_compat = strchr(fromuser_and_domain, '!'))) {
+				/* Ignore the rest.. */
+				*forward_compat = '\0';
+			}
+
+			if ((fromdomain = strchr(fromuser_and_domain, '@'))) {
+				*fromdomain++ = '\0';
+				/* Set fromdomain. */
+				if (!ast_strlen_zero(fromdomain)) {
+					ast_string_field_set(p, fromdomain, fromdomain);
+				}
+			}
+
+			/* Set fromuser. */
+			if (!ast_strlen_zero(fromuser_and_domain)) {
+				ast_string_field_set(p, fromuser, fromuser_and_domain);
+			}
+		}
+
+		/* Set DNID (touser/todomain). */
+		if (!ast_strlen_zero(dnid)) {
+			ast_string_field_set(p, todnid, dnid);
+		}
 	}
 
 	/* Divvy up the items separated by slashes */

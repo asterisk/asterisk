@@ -24,6 +24,9 @@
 ;        SIP/devicename/extension
 ;        SIP/devicename/extension/IPorHost
 ;        SIP/username@domain//IPorHost
+; And to alter the To: or the From: header, you can additionally append
+; the following to any of the above strings:
+;        [![touser[@todomain]][![fromuser][@fromdomain]]]
 ;
 ;
 ; Devicename
@@ -56,6 +59,14 @@
 ; exclamation mark after the dial string, like
 ;
 ;         SIP/sales@mysipproxy!sales@edvina.net
+;
+; (Specifying only @todomain without touser will create an invalid SIP
+; request.)
+;
+; Similarly, you can specify the From header as well, after a second
+; exclamation mark:
+;
+;         SIP/customer@mysipproxy!!customersupport@wearespindle.com
 ;
 ; A new feature for 1.8 allows one to specify a host or IP address to use
 ; when routing the call. This is typically used in tandem with func_srv if
