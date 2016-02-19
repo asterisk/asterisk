@@ -921,6 +921,41 @@ end:
 	return res;
 }
 
+static enum ast_test_result_state wait_until_thread_state_task_pushed(struct ast_test *test,
+		struct test_listener_data *tld, int num_active, int num_idle, int num_tasks)
+{
+	enum ast_test_result_state res = AST_TEST_PASS;
+	struct timeval start;
+	struct timespec end;
+
+	res = wait_until_thread_state(test, tld, num_active, num_idle);
+	if (res == AST_TEST_FAIL) {
+		return res;
+	}
+
+	start = ast_tvnow();
+	end.tv_sec = start.tv_sec + 5;
+	end.tv_nsec = start.tv_usec * 1000;
+
+	ast_mutex_lock(&tld->lock);
+
+	while (tld->num_tasks != num_tasks) {
+		if (ast_cond_timedwait(&tld->cond, &tld->lock, &end) == ETIMEDOUT) {
+			break;
+		}
+	}
+
+	if (tld->num_tasks != num_tasks) {
+		ast_test_status_update(test, "Number of tasks pushed %d does not match expected %d\n",
+				tld->num_tasks, num_tasks);
+		res = AST_TEST_FAIL;
+	}
+
+	ast_mutex_unlock(&tld->lock);
+
+	return res;
+}
+
 AST_TEST_DEFINE(threadpool_auto_increment)
 {
 	struct ast_threadpool *pool = NULL;
@@ -1021,11 +1056,10 @@ AST_TEST_DEFINE(threadpool_auto_increment)
 		goto end;
 	}
 
-	res = wait_until_thread_state(test, tld, 0, 3);
+	res = wait_until_thread_state_task_pushed(test, tld, 0, 3, 4);
 	if (res == AST_TEST_FAIL) {
 		goto end;
 	}
-	res = listener_check(test, listener, 1, 0, 4, 0, 3, 1);
 
 end:
 	ast_threadpool_shutdown(pool);
