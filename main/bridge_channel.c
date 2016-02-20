@@ -675,6 +675,22 @@ static int bridge_channel_write_frame(struct ast_bridge_channel *bridge_channel,
 	return 0;
 }
 
+/*!
+ * \internal
+ * \brief Cancel owed events by the channel to the bridge.
+ * \since 13.8.0
+ *
+ * \param bridge_channel Channel that owes events to the bridge.
+ *
+ * \note On entry, the bridge_channel->bridge is already locked.
+ *
+ * \return Nothing
+ */
+static void bridge_channel_cancel_owed_events(struct ast_bridge_channel *bridge_channel)
+{
+	bridge_channel->owed.dtmf_digit = '\0';
+}
+
 void bridge_channel_settle_owed_events(struct ast_bridge *orig_bridge, struct ast_bridge_channel *bridge_channel)
 {
 	if (bridge_channel->owed.dtmf_digit) {
@@ -2037,7 +2053,7 @@ void bridge_channel_internal_pull(struct ast_bridge_channel *bridge_channel)
 	ast_bridge_publish_leave(bridge, bridge_channel->chan);
 }
 
-int bridge_channel_internal_push(struct ast_bridge_channel *bridge_channel)
+int bridge_channel_internal_push_full(struct ast_bridge_channel *bridge_channel, int optimized)
 {
 	struct ast_bridge *bridge = bridge_channel->bridge;
 	struct ast_bridge_channel *swap;
@@ -2073,6 +2089,9 @@ int bridge_channel_internal_push(struct ast_bridge_channel *bridge_channel)
 		/* This flag is cleared so the act of this channel leaving does not cause it to dissolve if need be */
 		ast_clear_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_DISSOLVE_EMPTY);
 
+		if (optimized) {
+			bridge_channel_cancel_owed_events(swap);
+		}
 		ast_bridge_channel_leave_bridge(swap, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, 0);
 		bridge_channel_internal_pull(swap);
 
@@ -2110,6 +2129,11 @@ int bridge_channel_internal_push(struct ast_bridge_channel *bridge_channel)
 
 	bridge->reconfigured = 1;
 	return 0;
+}
+
+int bridge_channel_internal_push(struct ast_bridge_channel *bridge_channel)
+{
+	return bridge_channel_internal_push_full(bridge_channel, 0);
 }
 
 /*!
