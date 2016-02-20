@@ -2185,7 +2185,7 @@ int bridge_do_move(struct ast_bridge *dst_bridge, struct ast_bridge_channel *bri
 
 	bridge_channel_moving(bridge_channel, orig_bridge, dst_bridge);
 
-	if (bridge_channel_internal_push(bridge_channel)) {
+	if (bridge_channel_internal_push_full(bridge_channel, optimized)) {
 		/* Try to put the channel back into the original bridge. */
 		ast_bridge_features_remove(bridge_channel->features,
 			AST_BRIDGE_HOOK_REMOVE_ON_PULL);
@@ -2198,7 +2198,6 @@ int bridge_do_move(struct ast_bridge *dst_bridge, struct ast_bridge_channel *bri
 					AST_BRIDGE_HOOK_REMOVE_ON_PULL);
 				ast_bridge_channel_leave_bridge(bridge_channel,
 					BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, bridge_channel->bridge->cause);
-				bridge_channel_settle_owed_events(orig_bridge, bridge_channel);
 			}
 		} else {
 			ast_bridge_channel_leave_bridge(bridge_channel,
@@ -2206,7 +2205,7 @@ int bridge_do_move(struct ast_bridge *dst_bridge, struct ast_bridge_channel *bri
 			bridge_channel_settle_owed_events(orig_bridge, bridge_channel);
 		}
 		res = -1;
-	} else {
+	} else if (!optimized) {
 		bridge_channel_settle_owed_events(orig_bridge, bridge_channel);
 	}
 
