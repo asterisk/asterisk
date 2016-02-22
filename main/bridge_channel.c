@@ -637,6 +637,8 @@ void ast_bridge_channel_kick(struct ast_bridge_channel *bridge_channel, int caus
  */
 static int bridge_channel_write_frame(struct ast_bridge_channel *bridge_channel, struct ast_frame *frame)
 {
+	const struct ast_control_t38_parameters *t38_parameters;
+
 	ast_assert(frame->frametype != AST_FRAME_BRIDGE_ACTION_SYNC);
 
 	ast_bridge_channel_lock_bridge(bridge_channel);
@@ -663,6 +665,27 @@ static int bridge_channel_write_frame(struct ast_bridge_channel *bridge_channel,
 		 * We explicitly will not remember HOLD/UNHOLD frames because
 		 * things like attended transfers will handle them.
 		 */
+		switch (frame->subclass.integer) {
+		case AST_CONTROL_T38_PARAMETERS:
+			t38_parameters = frame->data.ptr;
+			switch (t38_parameters->request_response) {
+			case AST_T38_REQUEST_NEGOTIATE:
+			case AST_T38_NEGOTIATED:
+				bridge_channel->owed_t38_terminate = 1;
+				break;
+			case AST_T38_REQUEST_TERMINATE:
+			case AST_T38_TERMINATED:
+			case AST_T38_REFUSED:
+				bridge_channel->owed_t38_terminate = 0;
+				break;
+			default:
+				break;
+			}
+			break;
+		default:
+			break;
+		}
+		break;
 	default:
 		break;
 	}
@@ -689,6 +712,7 @@ static int bridge_channel_write_frame(struct ast_bridge_channel *bridge_channel,
 static void bridge_channel_cancel_owed_events(struct ast_bridge_channel *bridge_channel)
 {
 	bridge_channel->owed.dtmf_digit = '\0';
+	bridge_channel->owed_t38_terminate = 0;
 }
 
 void bridge_channel_settle_owed_events(struct ast_bridge *orig_bridge, struct ast_bridge_channel *bridge_channel)
@@ -708,6 +732,23 @@ void bridge_channel_settle_owed_events(struct ast_bridge *orig_bridge, struct as
 			bridge_channel->owed.dtmf_digit, orig_bridge->uniqueid,
 			ast_channel_name(bridge_channel->chan), frame.len);
 		bridge_channel->owed.dtmf_digit = '\0';
+		orig_bridge->technology->write(orig_bridge, NULL, &frame);
+	}
+	if (bridge_channel->owed_t38_terminate) {
+		struct ast_control_t38_parameters t38_parameters = {
+			.request_response = AST_T38_TERMINATED,
+		};
+		struct ast_frame frame = {
+			.frametype = AST_FRAME_CONTROL,
+			.subclass.integer = AST_CONTROL_T38_PARAMETERS,
+			.data.ptr = &t38_parameters,
+			.datalen = sizeof(t38_parameters),
+			.src = "Bridge channel owed T.38 terminate",
+		};
+
+		ast_debug(1, "T.38 terminate simulated to bridge %s because %s left.\n",
+			orig_bridge->uniqueid, ast_channel_name(bridge_channel->chan));
+		bridge_channel->owed_t38_terminate = 0;
 		orig_bridge->technology->write(orig_bridge, NULL, &frame);
 	}
 }
@@ -2734,6 +2775,18 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel,
 		ast_channel_end_dtmf(bridge_channel->chan,
 			ast_channel_sending_dtmf_digit(bridge_channel->chan),
 			ast_channel_sending_dtmf_tv(bridge_channel->chan), "bridge end");
+	}
+
+	/* Complete any T.38 session before exiting the bridge. */
+	if (ast_channel_is_t38_active(bridge_channel->chan)) {
+		struct ast_control_t38_parameters t38_parameters = {
+			.request_response = AST_T38_TERMINATED,
+		};
+
+		ast_debug(1, "Channel %s simulating T.38 terminate for bridge end.\n",
+			ast_channel_name(bridge_channel->chan));
+		ast_indicate_data(bridge_channel->chan, AST_CONTROL_T38_PARAMETERS,
+			&t38_parameters, sizeof(t38_parameters));
 	}
 
 	/* Indicate a source change since this channel is leaving the bridge system. */
