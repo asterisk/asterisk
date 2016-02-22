@@ -7517,8 +7517,10 @@ static int interpret_t38_parameters(struct sip_pvt *p, const struct ast_control_
 			AST_SCHED_DEL_UNREF(sched, p->t38id, dialog_unref(p, "when you delete the t38id sched, you should dec the refcount for the stored dialog ptr"));
 			change_t38_state(p, T38_REJECTED);
 			transmit_response_reliable(p, "488 Not acceptable here", &p->initreq);
-		} else if (p->t38.state == T38_ENABLED)
+		} else if (p->t38.state == T38_ENABLED) {
+			change_t38_state(p, T38_DISABLED);
 			transmit_reinvite_with_sdp(p, FALSE, FALSE);
+		}
 		break;
 	case AST_T38_REQUEST_PARMS: {		/* Application wants remote's parameters re-sent */
 		struct ast_control_t38_parameters parameters = p->t38.their_parms;
@@ -10676,6 +10678,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 		} else if (udptlportno > 0) {
 			if (debug)
 				ast_verbose("Got T.38 Re-invite without audio. Keeping RTP active during T.38 session.\n");
+
+			/* Force media to go through us for T.38. */
+			memset(&p->redirip, 0, sizeof(p->redirip));
+
 			/* Prevent audio RTCP reads */
 			if (p->owner) {
 				ast_channel_set_fd(p->owner, 1, -1);
@@ -13786,6 +13792,29 @@ static int determine_firstline_parts(struct sip_request *req)
 static int transmit_reinvite_with_sdp(struct sip_pvt *p, int t38version, int oldsdp)
 {
 	struct sip_request req;
+
+	if (t38version) {
+		/* Force media to go through us for T.38. */
+		memset(&p->redirip, 0, sizeof(p->redirip));
+	}
+	if (p->rtp) {
+		if (t38version) {
+			/* Silence RTCP while audio RTP is inactive */
+			ast_rtp_instance_set_prop(p->rtp, AST_RTP_PROPERTY_RTCP, 0);
+			if (p->owner) {
+				/* Prevent audio RTCP reads */
+				ast_channel_set_fd(p->owner, 1, -1);
+			}
+		} else if (ast_sockaddr_isnull(&p->redirip)) {
+			/* Enable RTCP since it will be inactive if we're coming back
+			 * with this reinvite */
+			ast_rtp_instance_set_prop(p->rtp, AST_RTP_PROPERTY_RTCP, 1);
+			if (p->owner) {
+				/* Enable audio RTCP reads */
+				ast_channel_set_fd(p->owner, 1, ast_rtp_instance_fd(p->rtp, 1));
+			}
+		}
+	}
 
 	reqprep(&req, p, ast_test_flag(&p->flags[0], SIP_REINVITE_UPDATE) ?  SIP_UPDATE : SIP_INVITE, 0, 1);
 
@@ -32683,14 +32712,6 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *i
 	} else if (!ast_sockaddr_isnull(&p->redirip)) {
 		memset(&p->redirip, 0, sizeof(p->redirip));
 		changed = 1;
-
-		if (p->rtp) {
-			/* Enable RTCP since it will be inactive if we're coming back
-			 * from a reinvite */
-			ast_rtp_instance_set_prop(p->rtp, AST_RTP_PROPERTY_RTCP, 1);
-			/* Enable audio RTCP reads */
-			ast_channel_set_fd(chan, 1, ast_rtp_instance_fd(p->rtp, 1));
-		}
 	}
 
 	if (vinstance) {
