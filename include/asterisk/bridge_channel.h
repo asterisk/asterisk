@@ -162,6 +162,8 @@ struct ast_bridge_channel {
 		struct timeval dtmf_tv;
 		/*! Digit currently sending into the bridge. (zero if not sending) */
 		char dtmf_digit;
+		/*! Non-zero if a T.38 session terminate is owed to the bridge. */
+		char t38_terminate;
 	} owed;
 	/*! DTMF hook sequence state */
 	struct {
