@@ -2698,11 +2698,15 @@ int ast_cli_command_full(int uid, int gid, int fd, const char *s)
 
 	AST_RWLIST_RDLOCK(&helpers);
 	e = find_cli(args + 1, 0);
-	if (e)
-		ast_atomic_fetchadd_int(&e->inuse, 1);
 	AST_RWLIST_UNLOCK(&helpers);
+
 	if (e == NULL) {
 		ast_cli(fd, "No such command '%s' (type 'core show help %s' for other possible commands)\n", s, find_best(args + 1));
+		goto done;
+	}
+
+	if (ast_shutting_down() && !e->allow_on_shutdown) {
+		ast_cli(fd, "Command '%s' cannot be run during shutdown\n", s);
 		goto done;
 	}
 
@@ -2714,6 +2718,7 @@ int ast_cli_command_full(int uid, int gid, int fd, const char *s)
 		return 0;
 	}
 
+	ast_atomic_fetchadd_int(&e->inuse, 1);
 	/*
 	 * Within the handler, argv[-1] contains a pointer to the ast_cli_entry.
 	 * Remember that the array returned by parse_args is NULL-terminated.

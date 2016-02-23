@@ -2680,7 +2680,7 @@ static char *show_license(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
  * unregistered.
  */
 static struct ast_cli_entry cli_asterisk_shutdown[] = {
-	AST_CLI_DEFINE(handle_stop_now, "Shut down Asterisk immediately"),
+	AST_CLI_DEFINE_SHUTDOWN(handle_stop_now, "Shut down Asterisk immediately"),
 	AST_CLI_DEFINE(handle_stop_gracefully, "Gracefully shut down Asterisk"),
 	AST_CLI_DEFINE(handle_stop_when_convenient, "Shut down Asterisk at empty call volume"),
 	AST_CLI_DEFINE(handle_restart_now, "Restart Asterisk immediately"),
@@ -2689,7 +2689,7 @@ static struct ast_cli_entry cli_asterisk_shutdown[] = {
 };
 
 static struct ast_cli_entry cli_asterisk[] = {
-	AST_CLI_DEFINE(handle_abort_shutdown, "Cancel a running shutdown"),
+	AST_CLI_DEFINE_SHUTDOWN(handle_abort_shutdown, "Cancel a running shutdown"),
 	AST_CLI_DEFINE(show_warranty, "Show the warranty (if any) for this copy of Asterisk"),
 	AST_CLI_DEFINE(show_license, "Show the license(s) for this copy of Asterisk"),
 	AST_CLI_DEFINE(handle_version, "Display version info"),

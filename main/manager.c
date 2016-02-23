@@ -6106,10 +6106,19 @@ static int process_message(struct mansession *s, const struct message *m)
 	const char *action;
 
 	action = __astman_get_header(m, "Action", GET_HEADER_SKIP_EMPTY);
+
 	if (ast_strlen_zero(action)) {
 		report_req_bad_format(s, "NONE");
 		mansession_lock(s);
 		astman_send_error(s, m, "Missing action in request");
+		mansession_unlock(s);
+		return 0;
+	}
+
+	if (ast_shutting_down()) {
+		ast_log(LOG_ERROR, "Unable to process manager action '%s'. Asterisk is shutting down.\n", action);
+		mansession_lock(s);
+		astman_send_error(s, m, "Asterisk is shutting down");
 		mansession_unlock(s);
 		return 0;
 	}
