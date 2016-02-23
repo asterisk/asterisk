@@ -935,7 +935,7 @@ int ast_rtp_instance_set_requested_target_address(struct ast_rtp_instance *insta
  * \since 1.8
  */
 #define ast_rtp_instance_set_remote_address(instance, address) \
-	ast_rtp_instance_set_requested_target_address((instance), (address));
+	ast_rtp_instance_set_requested_target_address((instance), (address))
 
 /*!
  * \brief Set the address that we are expecting to receive RTP on
@@ -1047,7 +1047,7 @@ void ast_rtp_instance_get_requested_target_address(struct ast_rtp_instance *inst
  * \since 1.8
  */
 #define ast_rtp_instance_get_remote_address(instance, address) \
-	ast_rtp_instance_get_incoming_source_address((instance), (address));
+	ast_rtp_instance_get_incoming_source_address((instance), (address))
 
 /*!
  * \brief Get the requested target address of the remote endpoint and
@@ -1083,7 +1083,7 @@ int ast_rtp_instance_get_and_cmp_requested_target_address(struct ast_rtp_instanc
  * \since 1.8
  */
 #define ast_rtp_instance_get_and_cmp_remote_address(instance, address) \
-	ast_rtp_instance_get_and_cmp_requested_target_address((instance), (address));
+	ast_rtp_instance_get_and_cmp_requested_target_address((instance), (address))
 
 /*!
  * \brief Set the value of an RTP instance extended property
