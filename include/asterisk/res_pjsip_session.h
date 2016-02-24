@@ -151,6 +151,10 @@ struct ast_sip_session {
 	enum ast_sip_session_t38state t38state;
 	/*! The AOR associated with this session */
 	struct ast_sip_aor *aor;
+	/*! Caller ID saved at invite_creation */
+	struct ast_party_id saved_connected_id;
+	/*! From header saved at invite creation */
+	pjsip_fromto_hdr *saved_from_hdr;
 };
 
 typedef int (*ast_sip_session_request_creation_cb)(struct ast_sip_session *session, pjsip_tx_data *tdata);

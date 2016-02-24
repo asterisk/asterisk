@@ -215,6 +215,11 @@ Queue
 --- Functionality changes from Asterisk 13.7.0 to Asterisk 13.8.0 ------------
 ------------------------------------------------------------------------------
 
+res_pjsip_caller_id
+------------------
+ * Per RFC3325, the 'From' header is now anonymized on outgoing calls when
+   caller id presentation is prohibited.
+
 res_pjsip_config_wizard
 ------------------
  * A new command (pjsip export config_wizard primitives) has been added that

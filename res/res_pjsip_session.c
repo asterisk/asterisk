@@ -30,6 +30,7 @@
 
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_session.h"
+#include "asterisk/callerid.h"
 #include "asterisk/datastore.h"
 #include "asterisk/module.h"
 #include "asterisk/logger.h"
@@ -1082,6 +1083,7 @@ static pjsip_module session_reinvite_module = {
 	.on_rx_request = session_reinvite_on_rx_request,
 };
 
+
 void ast_sip_session_send_request_with_cb(struct ast_sip_session *session, pjsip_tx_data *tdata,
 		ast_sip_session_response_cb on_response)
 {
@@ -1094,19 +1096,6 @@ void ast_sip_session_send_request_with_cb(struct ast_sip_session *session, pjsip
 
 	ast_sip_mod_data_set(tdata->pool, tdata->mod_data, session_module.id,
 			     MOD_DATA_ON_RESPONSE, on_response);
-
-	if (!ast_strlen_zero(session->endpoint->fromuser) ||
-		!ast_strlen_zero(session->endpoint->fromdomain)) {
-		pjsip_fromto_hdr *from = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_FROM, tdata->msg->hdr.next);
-		pjsip_sip_uri *uri = pjsip_uri_get_uri(from->uri);
-
-		if (!ast_strlen_zero(session->endpoint->fromuser)) {
-			pj_strdup2(tdata->pool, &uri->user, session->endpoint->fromuser);
-		}
-		if (!ast_strlen_zero(session->endpoint->fromdomain)) {
-			pj_strdup2(tdata->pool, &uri->host, session->endpoint->fromdomain);
-		}
-	}
 
 	handle_outgoing_request(session, tdata);
 	internal_pjsip_inv_send_msg(session->inv_session, session->endpoint->transport, tdata);
@@ -1122,6 +1111,12 @@ void ast_sip_session_send_request(struct ast_sip_session *session, pjsip_tx_data
 int ast_sip_session_create_invite(struct ast_sip_session *session, pjsip_tx_data **tdata)
 {
 	pjmedia_sdp_session *offer;
+	struct ast_party_id effective_id;
+	pj_pool_t *dlg_pool;
+	pjsip_fromto_hdr *dlg_info;
+	pjsip_name_addr *dlg_info_name_addr;
+	pjsip_sip_uri *dlg_info_uri;
+	int restricted;
 
 	if (!(offer = create_local_sdp(session->inv_session, session, NULL))) {
 		pjsip_inv_terminate(session->inv_session, 500, PJ_FALSE);
@@ -1133,9 +1128,67 @@ int ast_sip_session_create_invite(struct ast_sip_session *session, pjsip_tx_data
 #ifdef PJMEDIA_SDP_NEG_ANSWER_MULTIPLE_CODECS
 	pjmedia_sdp_neg_set_answer_multiple_codecs(session->inv_session->neg, PJ_TRUE);
 #endif
+
+	/* We need to save off connected_id for RPID/PAI generation */
+	ast_channel_lock(session->channel);
+	effective_id = ast_channel_connected_effective_id(session->channel);
+	ast_party_id_copy(&session->saved_connected_id, &effective_id);
+	ast_channel_unlock(session->channel);
+
+	restricted =
+		((ast_party_id_presentation(&session->saved_connected_id) & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED);
+
+	/* Now set up dlg->local.info so pjsip can correctly generate From */
+
+	dlg_pool = session->inv_session->dlg->pool;
+	dlg_info = session->inv_session->dlg->local.info;
+	dlg_info_name_addr = (pjsip_name_addr *) dlg_info->uri;
+	dlg_info_uri = pjsip_uri_get_uri(dlg_info_name_addr);
+
+	if (session->endpoint->id.trust_outbound || !restricted) {
+		ast_sip_modify_id_header(dlg_pool, dlg_info, &session->saved_connected_id);
+	}
+
+	if (!ast_strlen_zero(session->endpoint->fromuser)) {
+		dlg_info_name_addr->display.ptr = NULL;
+		dlg_info_name_addr->display.slen = 0;
+		pj_strdup2(dlg_pool, &dlg_info_uri->user, session->endpoint->fromuser);
+	}
+
+	if (!ast_strlen_zero(session->endpoint->fromdomain)) {
+		pj_strdup2(dlg_pool, &dlg_info_uri->host, session->endpoint->fromdomain);
+	}
+
+	ast_sip_add_usereqphone(session->endpoint, dlg_pool, dlg_info->uri);
+
+	/* We need to save off the non-anonymized From for RPID/PAI generation (for domain) */
+	session->saved_from_hdr = pjsip_hdr_clone(dlg_pool, dlg_info);
+
+	/* In chan_sip, fromuser and fromdomain trump restricted so we only
+	 * anonymize if they're not set.
+	 */
+	if (restricted) {
+		/* fromuser doesn't provide a display name so we always set it */
+		pj_strdup2(dlg_pool, &dlg_info_name_addr->display, "Anonymous");
+
+		if (ast_strlen_zero(session->endpoint->fromuser)) {
+			pj_strdup2(dlg_pool, &dlg_info_uri->user, "anonymous");
+		}
+
+		if (ast_strlen_zero(session->endpoint->fromdomain)) {
+			pj_strdup2(dlg_pool, &dlg_info_uri->host, "anonymous.invalid");
+		}
+	}
+
+	/*
+	 * Now that dlg->local.info is set/anonymized correctly, we can create
+	 * the invite message.  All future messages should also have the correct From.
+	 */
+
 	if (pjsip_inv_invite(session->inv_session, tdata) != PJ_SUCCESS) {
 		return -1;
 	}
+
 	return 0;
 }
 
@@ -1209,6 +1262,7 @@ static void session_destructor(void *obj)
 		ast_free(delay);
 	}
 	ast_party_id_free(&session->id);
+	ast_party_id_free(&session->saved_connected_id);
 	ao2_cleanup(session->endpoint);
 	ao2_cleanup(session->aor);
 	ao2_cleanup(session->contact);
@@ -1362,6 +1416,7 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	session->direct_media_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 	AST_LIST_HEAD_INIT_NOLOCK(&session->delayed_requests);
 	ast_party_id_init(&session->id);
+	ast_party_id_init(&session->saved_connected_id);
 	ao2_ref(session, +1);
 	return session;
 }
