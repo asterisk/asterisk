@@ -693,6 +693,9 @@ static void caller_id_outgoing_request(struct ast_sip_session *session, pjsip_tx
 	ast_party_id_copy(&connected_id, &effective_id);
 	ast_channel_unlock(session->channel);
 
+	/* We need to add pai/rpid before anonymizing From */
+	add_id_headers(session, tdata, &connected_id);
+
 	if (session->inv_session->state < PJSIP_INV_STATE_CONFIRMED) {
 		/* Only change the From header on the initial outbound INVITE. Switching it
 		 * mid-call might confuse some UAs.
@@ -703,17 +706,32 @@ static void caller_id_outgoing_request(struct ast_sip_session *session, pjsip_tx
 		from = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_FROM, tdata->msg->hdr.next);
 		dlg = session->inv_session->dlg;
 
-		if (ast_strlen_zero(session->endpoint->fromuser)
-			&& (session->endpoint->id.trust_outbound
-				|| (ast_party_id_presentation(&connected_id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED)) {
-			modify_id_header(tdata->pool, from, &connected_id);
-			modify_id_header(dlg->pool, dlg->local.info, &connected_id);
+		if ((ast_party_id_presentation(&connected_id) & AST_PRES_RESTRICTION) == AST_PRES_ALLOWED) {
+			if (ast_strlen_zero(session->endpoint->fromuser) && session->endpoint->id.trust_outbound) {
+				modify_id_header(tdata->pool, from, &connected_id);
+				modify_id_header(dlg->pool, dlg->local.info, &connected_id);
+			}
+		} else {
+			/* Regardless of whether fromuser was specified or we trust the peer, if presentation
+			 * is prohibited, we're going to anonymize From.
+			 */
+			pjsip_name_addr *id_name_addr = (pjsip_name_addr *) from->uri;
+			pjsip_sip_uri *id_uri = pjsip_uri_get_uri(id_name_addr);
+
+			pj_strdup2(tdata->pool, &id_name_addr->display, "Anonymous");
+			pj_strdup2(tdata->pool, &id_uri->user, "anonymous");
+			pj_strdup2(tdata->pool, &id_uri->host, "anonymous.invalid");
+
+			id_name_addr = (pjsip_name_addr *) dlg->local.info->uri;
+			id_uri = pjsip_uri_get_uri(id_name_addr);
+			pj_strdup2(dlg->pool, &id_name_addr->display, "Anonymous");
+			pj_strdup2(dlg->pool, &id_uri->user, "anonymous");
+			pj_strdup2(dlg->pool, &id_uri->host, "anonymous.invalid");
 		}
 
 		ast_sip_add_usereqphone(session->endpoint, tdata->pool, from->uri);
 		ast_sip_add_usereqphone(session->endpoint, dlg->pool, dlg->local.info->uri);
 	}
-	add_id_headers(session, tdata, &connected_id);
 	ast_party_id_free(&connected_id);
 }
 
