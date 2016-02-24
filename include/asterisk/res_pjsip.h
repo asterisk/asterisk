@@ -2284,4 +2284,14 @@ int ast_sip_set_tpselector_from_transport(const struct ast_sip_transport *transp
  */
 int ast_sip_set_tpselector_from_transport_name(const char *transport_name, pjsip_tpselector *selector);
 
+/*!
+ * \brief Set name and number information on an identity header.
+ *
+ * \param pool Memory pool to use for string duplication
+ * \param id_hdr A From, P-Asserted-Identity, or Remote-Party-ID header to modify
+ * \param id The identity information to apply to the header
+ */
+void ast_sip_modify_id_header(pj_pool_t *pool, pjsip_fromto_hdr *id_hdr,
+	const struct ast_party_id *id);
+
 #endif /* _RES_PJSIP_H */
