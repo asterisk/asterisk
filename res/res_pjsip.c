@@ -3869,6 +3869,35 @@ const char *ast_sip_get_host_ip_string(int af)
 	return NULL;
 }
 
+/*!
+ * \brief Set name and number information on an identity header.
+ *
+ * \param pool Memory pool to use for string duplication
+ * \param id_hdr A From, P-Asserted-Identity, or Remote-Party-ID header to modify
+ * \param id The identity information to apply to the header
+ */
+void ast_sip_modify_id_header(pj_pool_t *pool, pjsip_fromto_hdr *id_hdr, const struct ast_party_id *id)
+{
+	pjsip_name_addr *id_name_addr;
+	pjsip_sip_uri *id_uri;
+
+	id_name_addr = (pjsip_name_addr *) id_hdr->uri;
+	id_uri = pjsip_uri_get_uri(id_name_addr->uri);
+
+	if (id->name.valid) {
+		int name_buf_len = strlen(id->name.str) * 2 + 1;
+		char *name_buf = ast_alloca(name_buf_len);
+
+		ast_escape_quoted(id->name.str, name_buf, name_buf_len);
+		pj_strdup2(pool, &id_name_addr->display, name_buf);
+	}
+
+	if (id->number.valid) {
+		pj_strdup2(pool, &id_uri->user, id->number.str);
+	}
+}
+
+
 static void remove_request_headers(pjsip_endpoint *endpt)
 {
 	const pjsip_hdr *request_headers = pjsip_endpt_get_request_headers(endpt);
