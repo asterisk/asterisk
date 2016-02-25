@@ -1,0 +1,14 @@
+# Version 0.0.2
+FROM centos:7
+MAINTAINER Leif Madsen <leif@leifmadsen.com>
+ENV REFRESHED_AT 2016-02-25
+ENV STARTDIR /tmp
+ENV RPMPATH ./out
+
+COPY $RPMPATH/*.rpm $STARTDIR
+RUN yum install epel-release -y
+WORKDIR $STARTDIR
+RUN yum install -y *.rpm && yum clean all && yum autoremove -y && /sbin/ldconfig
+
+ENTRYPOINT ["/usr/sbin/asterisk"]
+CMD ["-c", "-vvvv", "-g"]
