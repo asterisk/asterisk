@@ -31,6 +31,11 @@ chan_dahdi:
    ring-ring-ring pattern would exceed the pattern limits and stop
    Caller-ID detection.
 
+chan_sip:
+ - The SIP dial string has been extended past the [!dnid] option by another
+   exclamation mark: [!dnid[!fromuri].  An exclamation mark in the To-URI
+   will now mean changes to the From-URI.
+
 Core:
  - The REF_DEBUG compiler flag is now used to enable refdebug by default.
    The setting can be overridden in asterisk.conf by setting refdebug in

@@ -81,6 +81,11 @@ chan_sip
  * DTLS related configuration options can now be set at a general level.
    Enabling DTLS support, though, requires enabling it at the user
    or peer level.
+ * Added the possibility to set the From: header through the the SIP dial
+   string (populating the fromuser/fromdomain fields), complementing the
+   [!dnid] option for the To: header that has existed since 1.6.0 (1d6b192).
+   NOTE: This is again separated by an exclamation mark, so the To: header may
+   not contain one of those.
 
 chan_pjsip
 ------------------
