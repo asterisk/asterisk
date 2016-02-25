@@ -448,7 +448,7 @@ static void send_unsolicited_mwi_notify(struct mwi_subscription *sub,
 
 		contacts = ast_sip_location_retrieve_aor_contacts(aor);
 		if (!contacts || (ao2_container_count(contacts) == 0)) {
-			ast_log(LOG_NOTICE, "No contacts bound to AOR %s. Cannot send unsolicited MWI until a contact registers.\n", aor_name);
+			ast_debug(3, "No contacts bound to AOR %s. Cannot send unsolicited MWI until a contact registers.\n", aor_name);
 			continue;
 		}
 
@@ -600,7 +600,7 @@ static int mwi_validate_for_aor(void *obj, void *arg, int flags)
 	mailboxes = ast_strdupa(aor->mailboxes);
 	while ((mailbox = strsep(&mailboxes, ","))) {
 		if (endpoint_receives_unsolicited_mwi_for_mailbox(endpoint, mailbox)) {
-			ast_log(LOG_NOTICE, "Endpoint '%s' already configured for unsolicited MWI for mailbox '%s'. "
+			ast_debug(3, "Endpoint '%s' already configured for unsolicited MWI for mailbox '%s'. "
 					"Denying MWI subscription to %s\n", ast_sorcery_object_get_id(endpoint), mailbox,
 					ast_sorcery_object_get_id(aor));
 			return -1;
@@ -710,13 +710,13 @@ static int mwi_new_subscribe(struct ast_sip_endpoint *endpoint,
 
 	aor = ast_sip_location_retrieve_aor(resource);
 	if (!aor) {
-		ast_log(LOG_WARNING, "Unable to locate aor %s. MWI subscription failed.\n",
+		ast_debug(3, "Unable to locate aor %s. MWI subscription failed.\n",
 			resource);
 		return 404;
 	}
 
 	if (ast_strlen_zero(aor->mailboxes)) {
-		ast_log(LOG_NOTICE, "AOR %s has no configured mailboxes. MWI subscription failed.\n",
+		ast_debug(3, "AOR %s has no configured mailboxes. MWI subscription failed.\n",
 			resource);
 		return 404;
 	}
