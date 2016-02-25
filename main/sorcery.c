@@ -1957,7 +1957,12 @@ static int sorcery_wizard_create(void *obj, void *arg, int flags)
 		ast_debug(5, "Sorcery wizard '%s' does not support creation\n", object_wizard->wizard->callbacks.name);
 		return 0;
 	}
-	return (!object_wizard->caching && !object_wizard->wizard->callbacks.create(details->sorcery, object_wizard->data, details->obj)) ? CMP_MATCH | CMP_STOP : 0;
+
+	if (object_wizard->wizard->callbacks.create(details->sorcery, object_wizard->data, details->obj)) {
+		return 0;
+	}
+
+	return CMP_MATCH;
 }
 
 /*! \brief Internal callback function which notifies an individual observer that an object has been created */
@@ -2002,17 +2007,31 @@ int ast_sorcery_create(const struct ast_sorcery *sorcery, void *object)
 	AST_VECTOR_RW_RDLOCK(&object_type->wizards);
 	for (i = 0; i < AST_VECTOR_SIZE(&object_type->wizards); i++) {
 		found_wizard = AST_VECTOR_GET(&object_type->wizards, i);
-		if (sorcery_wizard_create(found_wizard, &sdetails, 0) == (CMP_MATCH | CMP_STOP)) {
+		if (!found_wizard->caching && sorcery_wizard_create(found_wizard, &sdetails, 0) == CMP_MATCH) {
 			object_wizard = found_wizard;
-			if(ao2_container_count(object_type->observers)) {
-				struct sorcery_observer_invocation *invocation = sorcery_observer_invocation_alloc(object_type, object);
+		}
+	}
 
-				if (invocation && ast_taskprocessor_push(object_type->serializer, sorcery_observers_notify_create, invocation)) {
-					ao2_cleanup(invocation);
-				}
+	if (object_wizard) {
+		for (i = 0; i < AST_VECTOR_SIZE(&object_type->wizards); i++) {
+			found_wizard = AST_VECTOR_GET(&object_type->wizards, i);
+			if (found_wizard->caching) {
+				sorcery_wizard_create(found_wizard, &sdetails, 0);
+			}
+		}
+
+		if (ao2_container_count(object_type->observers)) {
+			struct sorcery_observer_invocation *invocation = sorcery_observer_invocation_alloc(
+				object_type, object);
+
+			if (invocation
+				&& ast_taskprocessor_push(object_type->serializer, sorcery_observers_notify_create,
+					invocation)) {
+				ao2_cleanup(invocation);
 			}
 		}
 	}
+
 	AST_VECTOR_RW_UNLOCK(&object_type->wizards);
 
 	return object_wizard ? 0 : -1;
@@ -2052,8 +2071,11 @@ static int sorcery_wizard_update(void *obj, void *arg, int flags)
 		return 0;
 	}
 
-	return (!object_wizard->wizard->callbacks.update(details->sorcery, object_wizard->data, details->obj) &&
-		!object_wizard->caching) ? CMP_MATCH | CMP_STOP : 0;
+	if (object_wizard->wizard->callbacks.update(details->sorcery, object_wizard->data, details->obj)) {
+		return 0;
+	}
+
+	return CMP_MATCH;
 }
 
 int ast_sorcery_update(const struct ast_sorcery *sorcery, void *object)
@@ -2075,17 +2097,31 @@ int ast_sorcery_update(const struct ast_sorcery *sorcery, void *object)
 	AST_VECTOR_RW_RDLOCK(&object_type->wizards);
 	for (i = 0; i < AST_VECTOR_SIZE(&object_type->wizards); i++) {
 		found_wizard = AST_VECTOR_GET(&object_type->wizards, i);
-		if (sorcery_wizard_update(found_wizard, &sdetails, 0) == (CMP_MATCH | CMP_STOP)) {
+		if (!found_wizard->caching && sorcery_wizard_update(found_wizard, &sdetails, 0) == CMP_MATCH) {
 			object_wizard = found_wizard;
-			if (ao2_container_count(object_type->observers)) {
-				struct sorcery_observer_invocation *invocation = sorcery_observer_invocation_alloc(object_type, object);
+		}
+	}
 
-				if (invocation && ast_taskprocessor_push(object_type->serializer, sorcery_observers_notify_update, invocation)) {
-					ao2_cleanup(invocation);
-				}
+	if (object_wizard) {
+		for (i = 0; i < AST_VECTOR_SIZE(&object_type->wizards); i++) {
+			found_wizard = AST_VECTOR_GET(&object_type->wizards, i);
+			if (found_wizard->caching) {
+				sorcery_wizard_update(found_wizard, &sdetails, 0);
+			}
+		}
+
+		if (ao2_container_count(object_type->observers)) {
+			struct sorcery_observer_invocation *invocation = sorcery_observer_invocation_alloc(
+				object_type, object);
+
+			if (invocation
+				&& ast_taskprocessor_push(object_type->serializer, sorcery_observers_notify_update,
+					invocation)) {
+				ao2_cleanup(invocation);
 			}
 		}
 	}
+
 	AST_VECTOR_RW_UNLOCK(&object_type->wizards);
 
 	return object_wizard ? 0 : -1;
@@ -2125,8 +2161,11 @@ static int sorcery_wizard_delete(void *obj, void *arg, int flags)
 		return 0;
 	}
 
-	return (!object_wizard->wizard->callbacks.delete(details->sorcery, object_wizard->data, details->obj) &&
-		!object_wizard->caching) ? CMP_MATCH | CMP_STOP : 0;
+	if (object_wizard->wizard->callbacks.delete(details->sorcery, object_wizard->data, details->obj)) {
+		return 0;
+	}
+
+	return CMP_MATCH;
 }
 
 int ast_sorcery_delete(const struct ast_sorcery *sorcery, void *object)
@@ -2148,17 +2187,31 @@ int ast_sorcery_delete(const struct ast_sorcery *sorcery, void *object)
 	AST_VECTOR_RW_RDLOCK(&object_type->wizards);
 	for (i = 0; i < AST_VECTOR_SIZE(&object_type->wizards); i++) {
 		found_wizard = AST_VECTOR_GET(&object_type->wizards, i);
-		if (sorcery_wizard_delete(found_wizard, &sdetails, 0) == (CMP_MATCH | CMP_STOP)) {
+		if (!found_wizard->caching && sorcery_wizard_delete(found_wizard, &sdetails, 0) == CMP_MATCH) {
 			object_wizard = found_wizard;
-			if (ao2_container_count(object_type->observers)) {
-				struct sorcery_observer_invocation *invocation = sorcery_observer_invocation_alloc(object_type, object);
+		}
+	}
 
-				if (invocation && ast_taskprocessor_push(object_type->serializer, sorcery_observers_notify_delete, invocation)) {
-					ao2_cleanup(invocation);
-				}
+	if (object_wizard) {
+		for (i = 0; i < AST_VECTOR_SIZE(&object_type->wizards); i++) {
+			found_wizard = AST_VECTOR_GET(&object_type->wizards, i);
+			if (found_wizard->caching) {
+				sorcery_wizard_delete(found_wizard, &sdetails, 0);
+			}
+		}
+
+		if (ao2_container_count(object_type->observers)) {
+			struct sorcery_observer_invocation *invocation = sorcery_observer_invocation_alloc(
+				object_type, object);
+
+			if (invocation
+				&& ast_taskprocessor_push(object_type->serializer, sorcery_observers_notify_delete,
+					invocation)) {
+				ao2_cleanup(invocation);
 			}
 		}
 	}
+
 	AST_VECTOR_RW_UNLOCK(&object_type->wizards);
 
 	return object_wizard ? 0 : -1;
