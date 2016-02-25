@@ -1953,7 +1953,9 @@ static int sorcery_wizard_create(void *obj, void *arg, int flags)
 		ast_debug(5, "Sorcery wizard '%s' does not support creation\n", object_wizard->wizard->callbacks.name);
 		return 0;
 	}
-	return (!object_wizard->caching && !object_wizard->wizard->callbacks.create(details->sorcery, object_wizard->data, details->obj)) ? CMP_MATCH | CMP_STOP : 0;
+
+	return (!object_wizard->wizard->callbacks.create(details->sorcery, object_wizard->data, details->obj) &&
+		!object_wizard->caching) ? CMP_MATCH | CMP_STOP : 0;
 }
 
 /*! \brief Internal callback function which notifies an individual observer that an object has been created */
