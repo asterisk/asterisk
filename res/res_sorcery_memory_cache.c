@@ -1830,7 +1830,7 @@ static char *sorcery_memory_cache_expire(struct ast_cli_entry *e, int cmd, struc
 		}
 	}
 
-	if (a->argc > 6) {
+	if (a->argc < 5 || a->argc > 6) {
 		return CLI_SHOWUSAGE;
 	}
 
@@ -1884,7 +1884,7 @@ static char *sorcery_memory_cache_stale(struct ast_cli_entry *e, int cmd, struct
 		}
 	}
 
-	if (a->argc > 6) {
+	if (a->argc < 5 || a->argc > 6) {
 		return CLI_SHOWUSAGE;
 	}
 
@@ -1943,7 +1943,7 @@ static char *sorcery_memory_cache_populate(struct ast_cli_entry *e, int cmd, str
 		}
 	}
 
-	if (a->argc > 5) {
+	if (a->argc != 5) {
 		return CLI_SHOWUSAGE;
 	}
 
