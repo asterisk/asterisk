@@ -47,7 +47,8 @@
 #define SEND_TO_VM_HEADER_VALUE "feature_send_to_vm"
 
 #define SEND_TO_VM_REDIRECT "REDIRECTING(reason)"
-#define SEND_TO_VM_REDIRECT_VALUE "\"send_to_vm\""
+#define SEND_TO_VM_REDIRECT_VALUE "send_to_vm"
+#define SEND_TO_VM_REDIRECT_QUOTED_VALUE "\"" SEND_TO_VM_REDIRECT_VALUE "\""
 
 static void send_response(struct ast_sip_session *session, int code, struct pjsip_rx_data *rdata)
 {
@@ -102,9 +103,13 @@ static int has_diversion_reason(pjsip_rx_data *rdata)
 	pjsip_param *reason;
 	pjsip_fromto_hdr *hdr = get_diversion_header(rdata);
 
-	return hdr &&
-		(reason = get_diversion_reason(hdr)) &&
-		!pj_stricmp2(&reason->value, SEND_TO_VM_REDIRECT_VALUE);
+	if (!hdr) {
+		return 0;
+	}
+	reason = get_diversion_reason(hdr);
+	return reason
+		&& (!pj_stricmp2(&reason->value, SEND_TO_VM_REDIRECT_QUOTED_VALUE)
+			|| !pj_stricmp2(&reason->value, SEND_TO_VM_REDIRECT_VALUE));
 }
 
 static int has_call_feature(pjsip_rx_data *rdata)
