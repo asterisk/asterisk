@@ -1026,6 +1026,14 @@
 						Value is in milliseconds; default is 100 ms.</para>
 					</description>
 				</configOption>
+				<configOption name="allow_reload" default="no">
+					<synopsis>Allow this transport to be reloaded.</synopsis>
+					<description>
+						<para>Allow this transport to be reloaded when res_pjsip is reloaded.
+						This option defaults to "no" because reloading a transport may disrupt
+						in-progress calls.</para>
+					</description>
+				</configOption>
 			</configObject>
 			<configObject name="contact">
 				<synopsis>A way of creating an aliased name to a SIP URI</synopsis>
@@ -2483,22 +2491,14 @@ static int sip_dialog_create_from(pj_pool_t *pool, pj_str_t *from, const char *u
 	return 0;
 }
 
-static int sip_get_tpselector_from_endpoint(const struct ast_sip_endpoint *endpoint, pjsip_tpselector *selector)
+int ast_sip_set_tpselector_from_transport(const struct ast_sip_transport *transport, pjsip_tpselector *selector)
 {
-	RAII_VAR(struct ast_sip_transport *, transport, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_sip_transport_state *, transport_state, NULL, ao2_cleanup);
-	const char *transport_name = endpoint->transport;
 
-	if (ast_strlen_zero(transport_name)) {
-		return 0;
-	}
-
-	transport = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport", transport_name);
-	transport_state = ast_sip_get_transport_state(transport_name);
-
-	if (!transport || !transport_state) {
-		ast_log(LOG_ERROR, "Unable to retrieve PJSIP transport '%s' for endpoint '%s'\n",
-			transport_name, ast_sorcery_object_get_id(endpoint));
+	transport_state = ast_sip_get_transport_state(ast_sorcery_object_get_id(transport));
+	if (!transport_state) {
+		ast_log(LOG_ERROR, "Unable to retrieve PJSIP transport state for '%s'\n",
+			ast_sorcery_object_get_id(transport));
 		return -1;
 	}
 
@@ -2519,6 +2519,35 @@ static int sip_get_tpselector_from_endpoint(const struct ast_sip_endpoint *endpo
 	}
 
 	return 0;
+}
+
+int ast_sip_set_tpselector_from_transport_name(const char *transport_name, pjsip_tpselector *selector)
+{
+	RAII_VAR(struct ast_sip_transport *, transport, NULL, ao2_cleanup);
+
+	if (ast_strlen_zero(transport_name)) {
+		return 0;
+	}
+
+	transport = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport", transport_name);
+	if (!transport) {
+		ast_log(LOG_ERROR, "Unable to retrieve PJSIP transport '%s'\n",
+			transport_name);
+		return -1;
+	}
+
+	return ast_sip_set_tpselector_from_transport(transport, selector);
+}
+
+static int sip_get_tpselector_from_endpoint(const struct ast_sip_endpoint *endpoint, pjsip_tpselector *selector)
+{
+	const char *transport_name = endpoint->transport;
+
+	if (ast_strlen_zero(transport_name)) {
+		return 0;
+	}
+
+	return ast_sip_set_tpselector_from_transport_name(endpoint->transport, selector);
 }
 
 void ast_sip_add_usereqphone(const struct ast_sip_endpoint *endpoint, pj_pool_t *pool, pjsip_uri *uri)
