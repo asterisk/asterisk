@@ -37,6 +37,39 @@
 
 static const pj_str_t diversion_name = { "Diversion", 9 };
 
+/*!
+ * \internal
+ * \brief Determine if the given string is a SIP token.
+ * \since 13.8.0
+ *
+ * \param str String to determine if is a SIP token.
+ *
+ * \note A token is defined by RFC3261 Section 25.1
+ *
+ * \return Non-zero if the string is a SIP token.
+ */
+static int sip_is_token(const char *str)
+{
+	int is_token;
+
+	if (ast_strlen_zero(str)) {
+		/* An empty string is not a token. */
+		return 0;
+	}
+
+	is_token = 1;
+	do {
+		if (!isalnum(*str)
+			&& !strchr("-.!%*_+`'~", *str)) {
+			/* The character is not allowed in a token. */
+			is_token = 0;
+			break;
+		}
+	} while (*++str);
+
+	return is_token;
+}
+
 /*! \brief Diversion header reasons
  *
  * The core defines a bunch of constants used to define
@@ -46,7 +79,7 @@ static const pj_str_t diversion_name = { "Diversion", 9 };
  */
 static const struct reasons {
 	enum AST_REDIRECTING_REASON code;
-	char *const text;
+	const char *text;
 } reason_table[] = {
 	{ AST_REDIRECTING_REASON_UNKNOWN, "unknown" },
 	{ AST_REDIRECTING_REASON_USER_BUSY, "user-busy" },
@@ -59,39 +92,28 @@ static const struct reasons {
 	{ AST_REDIRECTING_REASON_FOLLOW_ME, "follow-me" },
 	{ AST_REDIRECTING_REASON_OUT_OF_ORDER, "out-of-service" },
 	{ AST_REDIRECTING_REASON_AWAY, "away" },
-	{ AST_REDIRECTING_REASON_CALL_FWD_DTE, "unknown"},
-	{ AST_REDIRECTING_REASON_SEND_TO_VM, "send_to_vm"},
+	{ AST_REDIRECTING_REASON_CALL_FWD_DTE, "cf_dte" },		/* Non-standard */
+	{ AST_REDIRECTING_REASON_SEND_TO_VM, "send_to_vm" },	/* Non-standard */
 };
 
 static const char *reason_code_to_str(const struct ast_party_redirecting_reason *reason)
 {
-	int code = reason->code;
+	int idx;
+	int code;
 
 	/* use specific string if given */
 	if (!ast_strlen_zero(reason->str)) {
 		return reason->str;
 	}
 
-	if (code >= 0 && code < ARRAY_LEN(reason_table)) {
-		return reason_table[code].text;
-	}
-
-	return "unknown";
-}
-
-static enum AST_REDIRECTING_REASON reason_str_to_code(const char *text)
-{
-	enum AST_REDIRECTING_REASON code = AST_REDIRECTING_REASON_UNKNOWN;
-	int i;
-
-	for (i = 0; i < ARRAY_LEN(reason_table); ++i) {
-		if (!strcasecmp(text, reason_table[i].text)) {
-			code = reason_table[i].code;
-			break;
+	code = reason->code;
+	for (idx = 0; idx < ARRAY_LEN(reason_table); ++idx) {
+		if (code == reason_table[idx].code) {
+			return reason_table[idx].text;
 		}
 	}
 
-	return code;
+	return "unknown";
 }
 
 static pjsip_fromto_hdr *get_diversion_header(pjsip_rx_data *rdata)
@@ -159,13 +181,31 @@ static void set_redirecting_reason(pjsip_fromto_hdr *hdr,
 {
 	static const pj_str_t reason_name = { "reason", 6 };
 	pjsip_param *reason = pjsip_param_find(&hdr->other_param, &reason_name);
+	char *reason_str;
 
 	if (!reason) {
 		return;
 	}
 
 	set_redirecting_value(&data->str, &reason->value);
-	data->code = reason_str_to_code(data->str);
+	if (!data->str) {
+		/* Oops, allocation failure */
+		return;
+	}
+	reason_str = ast_strdupa(data->str);
+
+	/* Remove any enclosing double-quotes */
+	if (*reason_str == '"') {
+		reason_str = ast_strip_quoted(reason_str, "\"", "\"");
+	}
+
+	data->code = ast_redirecting_reason_parse(reason_str);
+	if (data->code < 0) {
+		data->code = AST_REDIRECTING_REASON_UNKNOWN;
+	} else {
+		ast_free(data->str);
+		data->str = ast_strdup("");
+	}
 }
 
 static void set_redirecting(struct ast_sip_session *session,
@@ -251,6 +291,9 @@ static void add_diversion_header(pjsip_tx_data *tdata, struct ast_party_redirect
 	pjsip_sip_uri *uri;
 	pjsip_param *param;
 	pjsip_fromto_hdr *old_hdr;
+	const char *reason_str;
+	const char *quote_str;
+	char *reason_buf;
 
 	struct ast_party_id *id = &data->from;
 	pjsip_uri *base = PJSIP_MSG_FROM_HDR(tdata->msg)->uri;
@@ -272,7 +315,17 @@ static void add_diversion_header(pjsip_tx_data *tdata, struct ast_party_redirect
 
 	param = PJ_POOL_ALLOC_T(tdata->pool, pjsip_param);
 	param->name = pj_str("reason");
-	param->value = pj_str((char*)reason_code_to_str(&data->reason));
+
+	reason_str = reason_code_to_str(&data->reason);
+
+	/* Reason is either already quoted or it is a token to not need quotes added. */
+	quote_str = *reason_str == '\"' || sip_is_token(reason_str) ? "" : "\"";
+
+	reason_buf = pj_pool_alloc(tdata->pool, strlen(reason_str) + 3);
+	sprintf(reason_buf, "%s%s%s", quote_str, reason_str, quote_str);/* Safe */
+
+	param->value = pj_str(reason_buf);
+
 	pj_list_insert_before(&hdr->other_param, param);
 
 	hdr->uri = (pjsip_uri *) name_addr;

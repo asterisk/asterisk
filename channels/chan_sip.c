@@ -710,7 +710,7 @@ static const struct  cfsip_methods {
  */
 static const struct sip_reasons {
 	enum AST_REDIRECTING_REASON code;
-	char * const text;
+	const char *text;
 } sip_reason_table[] = {
 	{ AST_REDIRECTING_REASON_UNKNOWN, "unknown" },
 	{ AST_REDIRECTING_REASON_USER_BUSY, "user-busy" },
@@ -723,8 +723,8 @@ static const struct sip_reasons {
 	{ AST_REDIRECTING_REASON_FOLLOW_ME, "follow-me" },
 	{ AST_REDIRECTING_REASON_OUT_OF_ORDER, "out-of-service" },
 	{ AST_REDIRECTING_REASON_AWAY, "away" },
-	{ AST_REDIRECTING_REASON_CALL_FWD_DTE, "unknown"},
-	{ AST_REDIRECTING_REASON_SEND_TO_VM, "send_to_vm"},
+	{ AST_REDIRECTING_REASON_CALL_FWD_DTE, "cf_dte" },		/* Non-standard */
+	{ AST_REDIRECTING_REASON_SEND_TO_VM, "send_to_vm" },	/* Non-standard */
 };
 
 
@@ -2370,52 +2370,54 @@ static int map_s_x(const struct _map_x_s *table, const char *s, int errorvalue)
 	return errorvalue;
 }
 
-static enum AST_REDIRECTING_REASON sip_reason_str_to_code(const char *text)
+/*!
+ * \internal
+ * \brief Determine if the given string is a SIP token.
+ * \since 13.8.0
+ *
+ * \param str String to determine if is a SIP token.
+ *
+ * \note A token is defined by RFC3261 Section 25.1
+ *
+ * \return Non-zero if the string is a SIP token.
+ */
+static int sip_is_token(const char *str)
 {
-	enum AST_REDIRECTING_REASON ast = AST_REDIRECTING_REASON_UNKNOWN;
-	int i;
+	int is_token;
 
-	for (i = 0; i < ARRAY_LEN(sip_reason_table); ++i) {
-		if (!strcasecmp(text, sip_reason_table[i].text)) {
-			ast = sip_reason_table[i].code;
-			break;
-		}
+	if (ast_strlen_zero(str)) {
+		/* An empty string is not a token. */
+		return 0;
 	}
 
-	return ast;
+	is_token = 1;
+	do {
+		if (!isalnum(*str)
+			&& !strchr("-.!%*_+`'~", *str)) {
+			/* The character is not allowed in a token. */
+			is_token = 0;
+			break;
+		}
+	} while (*++str);
+
+	return is_token;
 }
 
-static const char *sip_reason_code_to_str(struct ast_party_redirecting_reason *reason, int *table_lookup)
+static const char *sip_reason_code_to_str(struct ast_party_redirecting_reason *reason)
 {
-	int code = reason->code;
+	int idx;
+	int code;
 
-	/* If there's a specific string set, then we just
-	 * use it.
-	 */
+	/* use specific string if given */
 	if (!ast_strlen_zero(reason->str)) {
-		/* If we care about whether this can be found in
-		 * the table, then we need to check about that.
-		 */
-		if (table_lookup) {
-			/* If the string is literally "unknown" then don't bother with the lookup
-			 * because it can lead to a false negative.
-			 */
-			if (!strcasecmp(reason->str, "unknown") ||
-					sip_reason_str_to_code(reason->str) != AST_REDIRECTING_REASON_UNKNOWN) {
-				*table_lookup = TRUE;
-			} else {
-				*table_lookup = FALSE;
-			}
-		}
 		return reason->str;
 	}
 
-	if (table_lookup) {
-		*table_lookup = TRUE;
-	}
-
-	if (code >= 0 && code < ARRAY_LEN(sip_reason_table)) {
-		return sip_reason_table[code].text;
+	code = reason->code;
+	for (idx = 0; idx < ARRAY_LEN(sip_reason_table); ++idx) {
+		if (code == sip_reason_table[idx].code) {
+			return sip_reason_table[idx].text;
+		}
 	}
 
 	return "unknown";
@@ -14218,7 +14220,7 @@ static void add_diversion(struct sip_request *req, struct sip_pvt *pvt)
 {
 	struct ast_party_id diverting_from;
 	const char *reason;
-	int found_in_table;
+	const char *quote_str;
 	char header_text[256];
 	char encoded_number[SIPBUFSIZE/2];
 
@@ -14243,17 +14245,18 @@ static void add_diversion(struct sip_request *req, struct sip_pvt *pvt)
 		ast_copy_string(encoded_number, diverting_from.number.str, sizeof(encoded_number));
 	}
 
-	reason = sip_reason_code_to_str(&ast_channel_redirecting(pvt->owner)->reason, &found_in_table);
+	reason = sip_reason_code_to_str(&ast_channel_redirecting(pvt->owner)->reason);
+
+	/* Reason is either already quoted or it is a token to not need quotes added. */
+	quote_str = *reason == '\"' || sip_is_token(reason) ? "" : "\"";
 
 	/* We at least have a number to place in the Diversion header, which is enough */
 	if (!diverting_from.name.valid
 		|| ast_strlen_zero(diverting_from.name.str)) {
 		snprintf(header_text, sizeof(header_text), "<sip:%s@%s>;reason=%s%s%s",
-				encoded_number,
-				ast_sockaddr_stringify_host_remote(&pvt->ourip),
-				found_in_table ? "" : "\"",
-				reason,
-				found_in_table ? "" : "\"");
+			encoded_number,
+			ast_sockaddr_stringify_host_remote(&pvt->ourip),
+			quote_str, reason, quote_str);
 	} else {
 		char escaped_name[SIPBUFSIZE/2];
 		if (sip_cfg.pedanticsipchecking) {
@@ -14262,12 +14265,10 @@ static void add_diversion(struct sip_request *req, struct sip_pvt *pvt)
 			ast_copy_string(escaped_name, diverting_from.name.str, sizeof(escaped_name));
 		}
 		snprintf(header_text, sizeof(header_text), "\"%s\" <sip:%s@%s>;reason=%s%s%s",
-				escaped_name,
-				encoded_number,
-				ast_sockaddr_stringify_host_remote(&pvt->ourip),
-				found_in_table ? "" : "\"",
-				reason,
-				found_in_table ? "" : "\"");
+			escaped_name,
+			encoded_number,
+			ast_sockaddr_stringify_host_remote(&pvt->ourip),
+			quote_str, reason, quote_str);
 	}
 
 	add_header(req, "Diversion", header_text);
@@ -17696,6 +17697,9 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, c
 	char *params, *reason_param = NULL;
 	struct sip_request *req;
 
+	ast_assert(reason_code != NULL);
+	ast_assert(reason_str != NULL);
+
 	req = oreq ? oreq : &p->initreq;
 
 	ast_copy_string(tmp, sip_get_header(req, "Diversion"), sizeof(tmp));
@@ -17729,16 +17733,6 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, c
 			if ((end = strchr(reason_param, ';'))) {
 				*end = '\0';
 			}
-			/* Remove enclosing double-quotes */
-			if (*reason_param == '"')
-				reason_param = ast_strip_quoted(reason_param, "\"", "\"");
-			if (!ast_strlen_zero(reason_param)) {
-				sip_set_redirstr(p, reason_param);
-				if (p->owner) {
-					pbx_builtin_setvar_helper(p->owner, "__PRIREDIRECTREASON", p->redircause);
-					pbx_builtin_setvar_helper(p->owner, "__SIPREDIRECTREASON", reason_param);
-				}
-			}
 		}
 	}
 
@@ -17770,12 +17764,27 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq, char **name, c
 	}
 
 	if (!ast_strlen_zero(reason_param)) {
-		if (reason_code) {
-			*reason_code = sip_reason_str_to_code(reason_param);
+		*reason_str = ast_strdup(reason_param);
+
+		/* Remove any enclosing double-quotes */
+		if (*reason_param == '"') {
+			reason_param = ast_strip_quoted(reason_param, "\"", "\"");
 		}
 
-		if (reason_str) {
-			*reason_str = ast_strdup(reason_param);
+		*reason_code = ast_redirecting_reason_parse(reason_param);
+		if (*reason_code < 0) {
+			*reason_code = AST_REDIRECTING_REASON_UNKNOWN;
+		} else {
+			ast_free(*reason_str);
+			*reason_str = ast_strdup("");
+		}
+
+		if (!ast_strlen_zero(reason_param)) {
+			sip_set_redirstr(p, reason_param);
+			if (p->owner) {
+				pbx_builtin_setvar_helper(p->owner, "__PRIREDIRECTREASON", p->redircause);
+				pbx_builtin_setvar_helper(p->owner, "__SIPREDIRECTREASON", reason_param);
+			}
 		}
 	}
 
@@ -22650,10 +22659,11 @@ static void change_redirecting_information(struct sip_pvt *p, struct sip_request
 		redirecting->to.name.str = redirecting_to_name;
 	}
 	redirecting->reason.code = reason;
+	ast_free(redirecting->reason.str);
+	redirecting->reason.str = reason_str;
 	if (reason_str) {
-		ast_debug(3, "Got redirecting reason %s\n", reason_str);
-		ast_free(redirecting->reason.str);
-		redirecting->reason.str = reason_str;
+		ast_debug(3, "Got redirecting reason %s\n", ast_strlen_zero(reason_str)
+			? sip_reason_code_to_str(&redirecting->reason) : reason_str);
 	}
 }
 
@@ -23453,14 +23463,22 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		if (p->owner && !req->ignore) {
 			struct ast_party_redirecting redirecting;
 			struct ast_set_party_redirecting update_redirecting;
+			char *quoted_rest = ast_alloca(strlen(rest) + 3);
+
 			ast_party_redirecting_set_init(&redirecting, ast_channel_redirecting(p->owner));
 			memset(&update_redirecting, 0, sizeof(update_redirecting));
 
-			redirecting.reason.code = sip_reason_str_to_code(rest);
-			redirecting.reason.str = ast_strdup(rest);
+			redirecting.reason.code = ast_redirecting_reason_parse(rest);
+			if (redirecting.reason.code < 0) {
+				sprintf(quoted_rest, "\"%s\"", rest);/* Safe */
+
+				redirecting.reason.code = AST_REDIRECTING_REASON_UNKNOWN;
+				redirecting.reason.str = quoted_rest;
+			} else {
+				redirecting.reason.str = "";
+			}
 
 			ast_channel_queue_redirecting_update(p->owner, &redirecting, &update_redirecting);
-			ast_party_redirecting_free(&redirecting);
 
 			ast_queue_control(p->owner, AST_CONTROL_BUSY);
 		}
