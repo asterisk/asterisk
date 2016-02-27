@@ -346,6 +346,8 @@ struct sip_outbound_registration_client_state {
 	unsigned int destroy:1;
 	/*! \brief Non-zero if we have attempted sending a REGISTER with authentication */
 	unsigned int auth_attempted:1;
+	/*! \brief The name of the transport to be used for the registration */
+	char *transport_name;
 };
 
 /*! \brief Outbound registration state information (persists for lifetime that registration should exist) */
@@ -508,6 +510,7 @@ static pj_status_t registration_client_send(struct sip_outbound_registration_cli
 {
 	pj_status_t status;
 	int *callback_invoked;
+	pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
 
 	callback_invoked = ast_threadstorage_get(&register_callback_invoked, sizeof(int));
 	if (!callback_invoked) {
@@ -517,6 +520,13 @@ static pj_status_t registration_client_send(struct sip_outbound_registration_cli
 
 	/* Due to the message going out the callback may now be invoked, so bump the count */
 	ao2_ref(client_state, +1);
+	/*
+	 * Set the transport in case transports were reloaded.
+	 * When pjproject removes the extraneous error messages produced,
+	 * we can check status and only set the transport and resend if there was an error
+	 */
+	ast_sip_set_tpselector_from_transport_name(client_state->transport_name, &selector);
+	pjsip_regc_set_transport(client_state->client, &selector);
 	status = pjsip_regc_send(client_state->client, tdata);
 
 	/* If the attempt to send the message failed and the callback was not invoked we need to
@@ -966,6 +976,7 @@ static void sip_outbound_registration_client_state_destroy(void *obj)
 {
 	struct sip_outbound_registration_client_state *client_state = obj;
 
+	ast_free(client_state->transport_name);
 	ast_statsd_log_string("PJSIP.registrations.count", AST_STATSD_GAUGE, "-1", 1.0);
 	ast_statsd_log_string_va("PJSIP.registrations.state.%s", AST_STATSD_GAUGE, "-1", 1.0,
 		sip_outbound_registration_status_str(client_state->status));
@@ -1003,6 +1014,7 @@ static struct sip_outbound_registration_state *sip_outbound_registration_state_a
 	state->client_state->status = SIP_REGISTRATION_UNREGISTERED;
 	state->client_state->timer.user_data = state->client_state;
 	state->client_state->timer.cb = sip_outbound_registration_timer_cb;
+	state->client_state->transport_name = ast_strdup(registration->transport);
 
 	ast_statsd_log_string("PJSIP.registrations.count", AST_STATSD_GAUGE, "+1", 1.0);
 	ast_statsd_log_string_va("PJSIP.registrations.state.%s", AST_STATSD_GAUGE, "+1", 1.0,
@@ -1171,25 +1183,6 @@ static int sip_outbound_registration_regc_alloc(void *data)
 
 	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
 
-	if (!ast_strlen_zero(registration->transport)) {
-		RAII_VAR(struct ast_sip_transport_state *, transport_state, ast_sip_get_transport_state(registration->transport), ao2_cleanup);
-
-		if (!transport_state) {
-			ast_log(LOG_ERROR, "Unable to retrieve PJSIP transport '%s' "
-				" for outbound registration", registration->transport);
-			return -1;
-		}
-
-		if (transport_state->transport) {
-			selector.type = PJSIP_TPSELECTOR_TRANSPORT;
-			selector.u.transport = transport_state->transport;
-		} else if (transport_state->factory) {
-			selector.type = PJSIP_TPSELECTOR_LISTENER;
-			selector.u.listener = transport_state->factory;
-		} else {
-			return -1;
-		}
-	}
 
 	ast_assert(state->client_state->client == NULL);
 	if (pjsip_regc_create(ast_sip_get_pjsip_endpoint(), state->client_state,
@@ -1198,6 +1191,7 @@ static int sip_outbound_registration_regc_alloc(void *data)
 		return -1;
 	}
 
+	ast_sip_set_tpselector_from_transport_name(registration->transport, &selector);
 	pjsip_regc_set_transport(state->client_state->client, &selector);
 
 	if (!ast_strlen_zero(registration->outbound_proxy)) {

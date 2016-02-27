@@ -185,6 +185,8 @@ struct ast_sip_transport {
 	unsigned int cos;
 	/*! Write timeout */
 	int write_timeout;
+	/*! Allow reload */
+	int allow_reload;
 };
 
 #define SIP_SORCERY_DOMAIN_ALIAS_TYPE "domain_alias"
@@ -2222,5 +2224,27 @@ struct ast_sip_transport_state *ast_sip_get_transport_state(const char *transpor
  * \note ao2_cleanup(...) or ao2_ref(...,  -1) must be called on the returned object
  */
 struct ao2_container *ast_sip_get_transport_states(void);
+
+/*!
+ * \brief Sets pjsip_tpselector from ast_sip_transport
+ * \since 13.8.0
+ *
+ * \param transport The transport to be used
+ * \param selector The selector to be populated
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_sip_set_tpselector_from_transport(const struct ast_sip_transport *transport, pjsip_tpselector *selector);
+
+/*!
+ * \brief Sets pjsip_tpselector from ast_sip_transport
+ * \since 13.8.0
+ *
+ * \param transport_name The name of the transport to be used
+ * \param selector The selector to be populated
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_sip_set_tpselector_from_transport_name(const char *transport_name, pjsip_tpselector *selector);
 
 #endif /* _RES_PJSIP_H */
