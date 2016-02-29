@@ -1112,6 +1112,8 @@ static int control_streamfile(struct ast_channel *chan,
 		if (!strcasecmp(end, ":end")) {
 			*end = '\0';
 			end++;
+		} else {
+			end = NULL;
 		}
 	}
 
