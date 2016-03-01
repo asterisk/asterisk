@@ -84,7 +84,7 @@ struct ast_bridge_channel *bridge_channel_internal_alloc(struct ast_bridge *brid
 
 /*!
  * \internal
- * \brief Clear owed events by the channel to the original bridge.
+ * \brief Settle owed events by the channel to the original bridge.
  * \since 12.0.0
  *
  * \param orig_bridge Original bridge the channel was in before leaving.
@@ -115,6 +115,27 @@ void bridge_channel_settle_owed_events(struct ast_bridge *orig_bridge, struct as
  * ast_bridge_features_remove(bridge_channel->features, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
  */
 int bridge_channel_internal_push(struct ast_bridge_channel *bridge_channel);
+
+/*!
+ * \internal
+ * \brief Push the bridge channel into its specified bridge.
+ * \since 13.8.0
+ *
+ * \param bridge_channel Channel to push.
+ * \param optimized non-zero if the push with swap is for an optimization.
+ *
+ * \note A ref is not held by bridge_channel->swap when calling because the
+ * push with swap happens immediately.
+ *
+ * \note On entry, bridge_channel->bridge is already locked.
+ *
+ * \retval 0 on success.
+ * \retval -1 on failure.  The channel did not get pushed.
+ *
+ * \note On failure the caller must call
+ * ast_bridge_features_remove(bridge_channel->features, AST_BRIDGE_HOOK_REMOVE_ON_PULL);
+ */
+int bridge_channel_internal_push_full(struct ast_bridge_channel *bridge_channel, int optimized);
 
 /*!
  * \internal
