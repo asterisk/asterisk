@@ -235,6 +235,45 @@ struct local_pvt {
 	char exten[AST_MAX_EXTENSION];
 };
 
+void ast_local_lock_all(struct ast_channel *chan, struct ast_channel **outchan,
+			struct ast_channel **outowner)
+{
+	struct local_pvt *p = ast_channel_tech_pvt(chan);
+
+	*outchan = NULL;
+	*outowner = NULL;
+
+	if (p) {
+		ao2_ref(p, 1);
+		ast_unreal_lock_all(&p->base, outchan, outowner);
+	}
+}
+
+void ast_local_unlock_all(struct ast_channel *chan)
+{
+	struct local_pvt *p = ast_channel_tech_pvt(chan);
+	struct ast_unreal_pvt *base;
+
+	if (!p) {
+		return;
+	}
+
+	base = &p->base;
+
+	if (base->owner) {
+		ast_channel_unlock(base->owner);
+		ast_channel_unref(base->owner);
+	}
+
+	if (base->chan) {
+		ast_channel_unlock(base->chan);
+		ast_channel_unref(base->chan);
+	}
+
+	ao2_unlock(base);
+	ao2_ref(p, -1);
+}
+
 struct ast_channel *ast_local_get_peer(struct ast_channel *ast)
 {
 	struct local_pvt *p = ast_channel_tech_pvt(ast);
