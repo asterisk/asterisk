@@ -4479,6 +4479,7 @@ static int indicate_data_internal(struct ast_channel *chan, int _condition, cons
 	 * in switch statements. */
 	enum ast_control_frame_type condition = _condition;
 	struct ast_tone_zone_sound *ts = NULL;
+	const struct ast_control_t38_parameters *t38_parameters;
 	int res;
 
 	switch (condition) {
@@ -4497,6 +4498,22 @@ static int indicate_data_internal(struct ast_channel *chan, int _condition, cons
 	case AST_CONTROL_HOLD:
 	case AST_CONTROL_UNHOLD:
 		ast_channel_hold_state_set(chan, _condition);
+		break;
+	case AST_CONTROL_T38_PARAMETERS:
+		t38_parameters = data;
+		switch (t38_parameters->request_response) {
+		case AST_T38_REQUEST_NEGOTIATE:
+		case AST_T38_NEGOTIATED:
+			ast_channel_set_is_t38_active_nolock(chan, 1);
+			break;
+		case AST_T38_REQUEST_TERMINATE:
+		case AST_T38_TERMINATED:
+		case AST_T38_REFUSED:
+			ast_channel_set_is_t38_active_nolock(chan, 0);
+			break;
+		default:
+			break;
+		}
 		break;
 	default:
 		break;
