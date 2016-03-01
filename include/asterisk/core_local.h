@@ -42,6 +42,38 @@ struct stasis_message_type;
 /* ------------------------------------------------------------------- */
 
 /*!
+ * \brief Lock the "chan" and "owner" channels (and return them) on the base
+ *        private structure as well as the base private structure itself.
+ *
+ * \note This also adds references to each of the above mentioned elements and
+ *       also the underlying private local structure.
+ * \note None of these locks should be held prior to calling this function.
+ * \note To undo this process call ast_local_unlock_all.
+ *
+ * \since 13.8.0
+ *
+ * \param chan Must be a local channel
+ * \param outchan The local channel's "chan" channel
+ * \param outowner The local channel's "owner" channel
+ */
+void ast_local_lock_all(struct ast_channel *chan, struct ast_channel **outchan,
+			struct ast_channel **outowner);
+
+/*!
+ * \brief Unlock the "chan" and "owner" channels on the base private structure
+ *        as well as the base private structure itself.
+ *
+ * \note This also removes references to each of the above mentioned elements and
+ *       also the underlying private local structure.
+ * \note This function should be used in conjunction with ast_local_lock_all.
+ *
+ * \since 13.8.0
+ *
+ * \param chan Must be a local channel
+ */
+void ast_local_unlock_all(struct ast_channel *chan);
+
+/*!
  * \brief Get the other local channel in the pair.
  * \since 12.0.0
  *
