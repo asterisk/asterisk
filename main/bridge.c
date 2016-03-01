@@ -3979,8 +3979,8 @@ static enum ast_transfer_result attended_transfer_bridge(struct ast_channel *cha
 		} \
 	} while (0)
 
+	RAII_VAR(struct ast_channel *, local_chan, NULL, ao2_cleanup);
 	static const char *dest = "_attended@transfer/m";
-	struct ast_channel *local_chan;
 	int cause;
 	int res;
 	const char *app = NULL;
@@ -4005,7 +4005,6 @@ static enum ast_transfer_result attended_transfer_bridge(struct ast_channel *cha
 	}
 
 	if (res) {
-		ast_hangup(local_chan);
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}
 
@@ -4029,31 +4028,36 @@ static enum ast_transfer_result attended_transfer_bridge(struct ast_channel *cha
 	if (ast_bridge_impart(bridge1, local_chan, chan1, NULL,
 		AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
 		ast_hangup(local_chan);
-		ao2_cleanup(local_chan);
 		BRIDGE_LOCK_ONE_OR_BOTH(bridge1, bridge2);
 		return AST_BRIDGE_TRANSFER_FAIL;
 	}
 	BRIDGE_LOCK_ONE_OR_BOTH(bridge1, bridge2);
 
 	if (bridge2) {
-		RAII_VAR(struct ast_channel *, local_chan2, NULL, ao2_cleanup);
 		struct ast_channel *locals[2];
 
-		ast_channel_lock(local_chan);
-		local_chan2 = ast_local_get_peer(local_chan);
-		ast_channel_unlock(local_chan);
+		/* Have to lock everything just in case a hangup comes in early */
+		ast_local_lock_all(local_chan, &locals[0], &locals[1]);
+		if (!locals[0] || !locals[1]) {
+			ast_log(LOG_ERROR, "Transfer failed probably due to an early hangup - "
+				"missing other half of '%s'\n", ast_channel_name(local_chan));
+			ast_local_unlock_all(local_chan);
+			return AST_BRIDGE_TRANSFER_FAIL;
+		}
 
-		ast_assert(local_chan2 != NULL);
-
-		locals[0] = local_chan;
-		locals[1] = local_chan2;
+		/* Make sure the peer is properly set */
+		if (local_chan != locals[0]) {
+			struct ast_channel *tmp = locals[0];
+			locals[0] = locals[1];
+			locals[1] = tmp;
+		}
 
 		ast_attended_transfer_message_add_link(transfer_msg, locals);
+		ast_local_unlock_all(local_chan);
 	} else {
 		ast_attended_transfer_message_add_app(transfer_msg, app, local_chan);
 	}
 
-	ao2_cleanup(local_chan);
 	return AST_BRIDGE_TRANSFER_SUCCESS;
 }
 
