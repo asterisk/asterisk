@@ -160,12 +160,10 @@ static int handle_incoming_request(struct ast_sip_session *session, struct pjsip
 	sip_session_datastore->data = other_party;
 
 	if (ast_sip_session_add_datastore(session, sip_session_datastore)) {
-		ast_channel_unref(other_party);
 		ao2_ref(sip_session_datastore, -1);
 		send_response(session, 500, rdata);
 		return -1;
 	}
-	ao2_ref(sip_session_datastore, -1);
 
 	if (has_feature) {
 		pbx_builtin_setvar_helper(other_party, SEND_TO_VM_HEADER,
@@ -177,6 +175,7 @@ static int handle_incoming_request(struct ast_sip_session *session, struct pjsip
 					  SEND_TO_VM_REDIRECT_VALUE);
 	}
 
+	ao2_ref(sip_session_datastore, -1);
 	return 0;
 }
 
