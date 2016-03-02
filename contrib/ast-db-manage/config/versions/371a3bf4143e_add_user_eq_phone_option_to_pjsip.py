@@ -27,4 +27,5 @@ def upgrade():
     op.add_column('ps_endpoints', sa.Column('user_eq_phone', yesno_values))
 
 def downgrade():
-    op.drop_column('ps_endpoints', 'user_eq_phone')
+    with op.batch_alter_table('ps_endpoints') as batch_op:
+        batch_op.drop_column('user_eq_phone')

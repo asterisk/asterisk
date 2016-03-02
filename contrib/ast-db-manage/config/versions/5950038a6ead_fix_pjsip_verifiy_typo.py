@@ -19,11 +19,13 @@ YESNO_VALUES = ['yes', 'no']
 
 def upgrade():
     yesno_values = ENUM(*YESNO_VALUES, name=YESNO_NAME, create_type=False)
-    op.alter_column('ps_transports', 'verifiy_server', type_=yesno_values,
+    with op.batch_alter_table('ps_transports') as batch_op:
+        batch_op.alter_column('verifiy_server', type_=yesno_values,
                     new_column_name='verify_server')
 
 
 def downgrade():
     yesno_values = ENUM(*YESNO_VALUES, name=YESNO_NAME, create_type=False)
-    op.alter_column('ps_transports', 'verify_server', type_=yesno_values,
+    with op.batch_alter_table('ps_transports') as batch_op:
+        batch_op.alter_column('verify_server', type_=yesno_values,
                     new_column_name='verifiy_server')

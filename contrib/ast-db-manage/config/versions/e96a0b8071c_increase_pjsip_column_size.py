@@ -15,25 +15,28 @@ import sqlalchemy as sa
 
 
 def upgrade():
-    op.alter_column('ps_globals', 'user_agent', type_=sa.String(255))
+    with op.batch_alter_table('ps_globals') as batch_op:
+        batch_op.alter_column('user_agent', type_=sa.String(255))
 
-    op.alter_column('ps_contacts', 'id', type_=sa.String(255))
-    op.alter_column('ps_contacts', 'uri', type_=sa.String(255))
-    op.alter_column('ps_contacts', 'user_agent', type_=sa.String(255))
+    with op.batch_alter_table('ps_contacts') as batch_op:
+        batch_op.alter_column('id', type_=sa.String(255))
+        batch_op.alter_column('uri', type_=sa.String(255))
+        batch_op.alter_column('user_agent', type_=sa.String(255))
 
-    op.alter_column('ps_registrations', 'client_uri', type_=sa.String(255))
-    op.alter_column('ps_registrations', 'server_uri', type_=sa.String(255))
+    with op.batch_alter_table('ps_registrations') as batch_op:
+        batch_op.alter_column('client_uri', type_=sa.String(255))
+        batch_op.alter_column('server_uri', type_=sa.String(255))
 
 
 def downgrade():
-    op.alter_column('ps_registrations', 'server_uri', type_=sa.String(40))
-    op.alter_column('ps_registrations', 'client_uri', type_=sa.String(40))
+    with op.batch_alter_table('ps_globals') as batch_op:
+        batch_op.alter_column('user_agent', type_=sa.String(40))
 
-    op.alter_column('ps_contacts', 'user_agent', type_=sa.String(40))
-    op.alter_column('ps_contacts', 'uri', type_=sa.String(40))
-    op.alter_column('ps_contacts', 'id', type_=sa.String(40))
+    with op.batch_alter_table('ps_contacts') as batch_op:
+        batch_op.alter_column('id', type_=sa.String(40))
+        batch_op.alter_column('uri', type_=sa.String(40))
+        batch_op.alter_column('user_agent', type_=sa.String(40))
 
-    op.alter_column('ps_globals', 'user_agent', type_=sa.String(40))
-
-
-
+    with op.batch_alter_table('ps_registrations') as batch_op:
+        batch_op.alter_column('client_uri', type_=sa.String(40))
+        batch_op.alter_column('server_uri', type_=sa.String(40))

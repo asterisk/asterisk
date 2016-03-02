@@ -23,5 +23,6 @@ def upgrade():
     pass
 
 def downgrade():
-    op.drop_column('ps_transports', 'allow_reload')
+    with op.batch_alter_table('ps_transports') as batch_op:
+        batch_op.drop_column('allow_reload')
     pass
