@@ -124,6 +124,9 @@ static struct ast_sip_endpoint* get_outbound_endpoint(
 	RAII_VAR(struct ast_sip_aor *, aor, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_sip_contact *, contact, NULL, ao2_cleanup);
 
+	if (ast_strlen_zero(to)) {
+		return NULL;
+	}
 	name = ast_strdupa(skip_sip(to));
 
 	/* attempt to extract the endpoint name */
