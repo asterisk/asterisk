@@ -20,8 +20,7 @@ YESNO_VALUES = ['yes', 'no']
 def upgrade():
     yesno_values = ENUM(*YESNO_VALUES, name=YESNO_NAME, create_type=False)
     op.add_column('ps_transports', sa.Column('allow_reload', yesno_values))
-    pass
 
 def downgrade():
-    op.drop_column('ps_transports', 'allow_reload')
-    pass
+    with op.batch_alter_table('ps_transports') as batch_op:
+        batch_op.drop_column('allow_reload')

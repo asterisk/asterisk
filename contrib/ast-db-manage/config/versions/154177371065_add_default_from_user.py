@@ -19,4 +19,5 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_column('ps_globals', 'default_from_user')
+    with op.batch_alter_table('ps_globals') as batch_op:
+        batch_op.drop_column('default_from_user')
