@@ -398,7 +398,7 @@ static void msg_destructor(void *obj)
 	struct ast_msg *msg = obj;
 
 	ast_string_field_free_memory(msg);
-	ao2_ref(msg->vars, -1);
+	ao2_cleanup(msg->vars);
 }
 
 struct ast_msg *ast_msg_alloc(void)
