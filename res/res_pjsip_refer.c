@@ -59,6 +59,8 @@ struct refer_progress {
 	struct transfer_channel_data *transfer_data;
 	/*! \brief Uniqueid of transferee channel */
 	char *transferee;
+	/*! \brief Non-zero if the 100 notify has been sent */
+	int sent_100;
 };
 
 /*! \brief REFER Progress notification structure */
@@ -131,6 +133,18 @@ static int refer_progress_notify(void *data)
 		ao2_cleanup(notification->progress);
 
 		notification->progress->sub = NULL;
+	}
+
+	/* Send a deferred initial 100 Trying SIP frag NOTIFY if we haven't already. */
+	if (!notification->progress->sent_100) {
+		notification->progress->sent_100 = 1;
+		if (notification->response != 100) {
+			ast_debug(3, "Sending initial 100 Trying NOTIFY for progress monitor '%p'\n",
+				notification->progress);
+			if (pjsip_xfer_notify(sub, PJSIP_EVSUB_STATE_ACTIVE, 100, NULL, &tdata) == PJ_SUCCESS) {
+				pjsip_xfer_send_request(sub, tdata);
+			}
+		}
 	}
 
 	ast_debug(3, "Sending NOTIFY with response '%d' and state '%u' on subscription '%p' and progress monitor '%p'\n",
@@ -340,7 +354,6 @@ static int refer_progress_alloc(struct ast_sip_session *session, pjsip_rx_data *
 	const pj_str_t str_refer_sub = { "Refer-Sub", 9 };
 	pjsip_generic_string_hdr *refer_sub = NULL;
 	const pj_str_t str_true = { "true", 4 };
-	pjsip_tx_data *tdata;
 	pjsip_hdr hdr_list;
 	char tps_name[AST_TASKPROCESSOR_MAX_NAME + 1];
 
@@ -391,12 +404,6 @@ static int refer_progress_alloc(struct ast_sip_session *session, pjsip_rx_data *
 	/* Accept the REFER request */
 	ast_debug(3, "Accepting REFER request for progress monitor '%p'\n", *progress);
 	pjsip_xfer_accept((*progress)->sub, rdata, 202, &hdr_list);
-
-	/* Send initial NOTIFY Request */
-	ast_debug(3, "Sending initial 100 Trying NOTIFY for progress monitor '%p'\n", *progress);
-	if (pjsip_xfer_notify((*progress)->sub, PJSIP_EVSUB_STATE_ACTIVE, 100, NULL, &tdata) == PJ_SUCCESS) {
-		pjsip_xfer_send_request((*progress)->sub, tdata);
-	}
 
 	return 0;
 
