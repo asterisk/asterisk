@@ -18,4 +18,5 @@ def upgrade():
     op.add_column('ps_globals', sa.Column('endpoint_identifier_order', sa.String(40)))
 
 def downgrade():
-    op.drop_column('ps_globals', 'endpoint_identifier_order')
+    with op.batch_alter_table('ps_globals') as batch_op:
+        batch_op.drop_column('endpoint_identifier_order')

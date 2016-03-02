@@ -17,4 +17,5 @@ def upgrade():
     op.add_column('ps_globals', sa.Column('max_initial_qualify_time', sa.Integer))
 
 def downgrade():
-    op.drop_column('ps_globals', 'max_initial_qualify_time')
+    with op.batch_alter_table('ps_globals') as batch_op:
+        batch_op.drop_column('max_initial_qualify_time')

@@ -19,4 +19,5 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_column('ps_globals', 'keep_alive_interval')
+    with op.batch_alter_table('ps_globals') as batch_op:
+        batch_op.drop_column('keep_alive_interval')
