@@ -28,4 +28,5 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_column('ps_endpoints', 'media_encryption_optimistic')
+    with op.batch_alter_table('ps_endpoints') as batch_op:
+        batch_op.drop_column('media_encryption_optimistic')
