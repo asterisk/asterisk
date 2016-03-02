@@ -530,6 +530,10 @@ static struct msg_data* msg_data_create(const struct ast_msg *msg, const char *t
 	/* Make sure we start with sip: */
 	mdata->to = ast_begins_with(to, "sip:") ? ast_strdup(++to) : ast_strdup(to - 3);
 	mdata->from = ast_strdup(from);
+	if (!mdata->from) {
+		ao2_ref(mdata, -1);
+		return NULL;
+	}
 
 	/* sometimes from can still contain the tag at this point, so remove it */
 	if ((tag = strchr(mdata->from, ';'))) {
