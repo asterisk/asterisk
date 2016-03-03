@@ -601,7 +601,7 @@ static int sip_msg_send(const struct ast_msg *msg, const char *to, const char *f
 
 	if (!(mdata = msg_data_create(msg, to, from)) ||
 	    ast_sip_push_task(message_serializer, msg_send, mdata)) {
-		ao2_ref(mdata, -1);
+		ao2_cleanup(mdata);
 		return -1;
 	}
 	return 0;
