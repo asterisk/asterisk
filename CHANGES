@@ -18,6 +18,24 @@ res_pjsip_config_wizard
    will export all the pjsip objects it created to the console or a file
    suitable for reuse in a pjsip.conf file.
 
+Build System
+------------------
+ * To help insure that Asterisk is compiled and run with the same known
+   version of pjproject, a new option (--with-pjproject-bundled) has been
+   added to ./configure.  When specified, the version of pjproject specified
+   in third-party/versions.mak will be downloaded and configured.  When you
+   make Asterisk, the build process will also automatically build pjproject
+   and Asterisk will be statically linked to it.  Once a particular version
+   of pjproject is configured and built, it won't be configured or built
+   again unless you run a 'make distclean'.
+
+   To facilitate testing, when 'make install' is run, the pjsua and pjsystest
+   utilities and the pjproject python bindings will be installed in
+   ASTDATADIR/third-party/pjproject.
+
+   The default behavior remains building with the shared pjproject
+   installation, if any.
+
 app_confbridge
 ------------------
  * Added CONFBRIDGE_INFO(muted,) for querying the muted conference state.
