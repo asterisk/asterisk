@@ -373,22 +373,27 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			fields get/set a combined value for the corresponding
 			<replaceable>...-name-pres</replaceable> and <replaceable>...-num-pres</replaceable>
 			fields.</para>
-			<para>The allowable values for the <replaceable>reason</replaceable>
+			<para>The recognized values for the <replaceable>reason</replaceable>
 			and <replaceable>orig-reason</replaceable> fields are the following:</para>
 			<enumlist>
-				<enum name = "unknown"><para>Unknown</para></enum>
-				<enum name = "cfb"><para>Call Forwarding Busy</para></enum>
-				<enum name = "cfnr"><para>Call Forwarding No Reply</para></enum>
-				<enum name = "unavailable"><para>Callee is Unavailable</para></enum>
-				<enum name = "time_of_day"><para>Time of Day</para></enum>
-				<enum name = "dnd"><para>Do Not Disturb</para></enum>
-				<enum name = "deflection"><para>Call Deflection</para></enum>
-				<enum name = "follow_me"><para>Follow Me</para></enum>
-				<enum name = "out_of_order"><para>Called DTE Out-Of-Order</para></enum>
 				<enum name = "away"><para>Callee is Away</para></enum>
 				<enum name = "cf_dte"><para>Call Forwarding By The Called DTE</para></enum>
+				<enum name = "cfb"><para>Call Forwarding Busy</para></enum>
+				<enum name = "cfnr"><para>Call Forwarding No Reply</para></enum>
 				<enum name = "cfu"><para>Call Forwarding Unconditional</para></enum>
+				<enum name = "deflection"><para>Call Deflection</para></enum>
+				<enum name = "dnd"><para>Do Not Disturb</para></enum>
+				<enum name = "follow_me"><para>Follow Me</para></enum>
+				<enum name = "out_of_order"><para>Called DTE Out-Of-Order</para></enum>
+				<enum name = "send_to_vm"><para>Send the call to voicemail</para></enum>
+				<enum name = "time_of_day"><para>Time of Day</para></enum>
+				<enum name = "unavailable"><para>Callee is Unavailable</para></enum>
+				<enum name = "unknown"><para>Unknown</para></enum>
 			</enumlist>
+			<note><para>You can set a user defined reason string that SIP can
+			send/receive instead.  The user defined reason string my need to be
+			quoted depending upon SIP or the peer's requirements.  These strings
+			are treated as unknown by the non-SIP channel drivers.</para></note>
 			<para>The allowable values for the <replaceable>xxx-name-charset</replaceable>
 			field are the following:</para>
 			<enumlist>
