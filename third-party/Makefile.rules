@@ -14,12 +14,12 @@ else
 endif
 
 DOWNLOAD :=
-DOWNLOAD != which wget 2>/dev/null
-DOWNLOAD:=$(if $(DOWNLOAD),$(DOWNLOAD) -O- ,)
+DOWNLOAD := $(shell which wget 2>/dev/null)
+DOWNLOAD := $(if $(DOWNLOAD),$(DOWNLOAD) -O- ,)
 
 ifeq ($(DOWNLOAD),)
-DOWNLOAD != which curl 2>/dev/null
-DOWNLOAD:=$(if $(DOWNLOAD), $(DOWNLOAD) -L ,)
+DOWNLOAD := $(shell which curl 2>/dev/null)
+DOWNLOAD := $(if $(DOWNLOAD), $(DOWNLOAD) -L ,)
 endif
 
 ifeq ($(DOWNLOAD),)
