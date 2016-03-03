@@ -978,6 +978,7 @@ static int refer_incoming_refer_request(struct ast_sip_session *session, struct 
 {
 	pjsip_generic_string_hdr *refer_to;
 	char *uri;
+	size_t uri_size;
 	pjsip_uri *target;
 	pjsip_sip_uri *target_uri;
 	RAII_VAR(struct refer_progress *, progress, NULL, ao2_cleanup);
@@ -1011,20 +1012,19 @@ static int refer_incoming_refer_request(struct ast_sip_session *session, struct 
 		return 0;
 	}
 
-	/* This is done on purpose (and is safe) - it's done so that the value passed to
-	 * pjsip_parse_uri is NULL terminated as required
+	/* The ast_copy_pj_str to uri is needed because it puts the NULL terminator to the uri
+	 * as pjsip_parse_uri require a NULL terminated uri
 	 */
-	uri = refer_to->hvalue.ptr;
-	uri[refer_to->hvalue.slen] = '\0';
 
-	target = pjsip_parse_uri(rdata->tp_info.pool, refer_to->hvalue.ptr, refer_to->hvalue.slen, 0);
+	uri_size = pj_strlen(&refer_to->hvalue) + 1;
+	uri = ast_alloca(uri_size);
+	ast_copy_pj_str(uri, &refer_to->hvalue, uri_size);
+
+	target = pjsip_parse_uri(rdata->tp_info.pool, uri, uri_size, 0);
+
 	if (!target
 		|| (!PJSIP_URI_SCHEME_IS_SIP(target)
 			&& !PJSIP_URI_SCHEME_IS_SIPS(target))) {
-		size_t uri_size = pj_strlen(&refer_to->hvalue) + 1;
-		char *uri = ast_alloca(uri_size);
-
-		ast_copy_pj_str(uri, &refer_to->hvalue, uri_size);
 
 		pjsip_dlg_respond(session->inv_session->dlg, rdata, 400, NULL, NULL, NULL);
 		ast_debug(3, "Received a REFER without a parseable Refer-To ('%s') on channel '%s' from endpoint '%s'\n",
