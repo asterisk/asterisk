@@ -28,6 +28,9 @@ res_pjsip:
    res_pjproject must be explicitly loaded or res_pjsip and all of its
    dependents will fail to load.
 
+REDIRECTING(reason):
+ - See the CHANGES file for a description of the behavior change.
+
 ODBC:
  - Connection pooling/sharing has been completely removed from Asterisk
    in favor of letting ODBC take care of it instead. It is strongly

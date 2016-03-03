@@ -29,6 +29,36 @@ app_confbridge
    conference state and made the locked column a yes/no value instead of a
    locked/unlocked value.
 
+REDIRECTING(reason)
+------------------
+ * The REDIRECTING(reason) value is now treated consistently between
+   chan_sip and chan_pjsip.
+
+   Both channel drivers match incoming reason values with values documented
+   by REDIRECTING(reason) and values documented by RFC5806 regardless of
+   whether they are quoted or not.  RFC5806 values are mapped to the
+   equivalent REDIRECTING(reason) documented value and is set in
+   REDIRECTING(reason).  e.g., an incoming RFC5806 'unconditional' value or a
+   quoted string version ('"unconditional"') is converted to
+   REDIRECTING(reason)'s 'cfu' value.  The user's dialplan only needs to deal
+   with 'cfu' instead of any of the aliases.
+
+   The incoming 480 response reason text supported by chan_sip checks for
+   known reason values and if not matched then puts quotes around the reason
+   string and assigns that to REDIRECTING(reason).
+
+   Both channel drivers send outgoing known REDIRECTING(reason) values as the
+   unquoted RFC5806 equivalent.  User custom values are either sent as is or
+   with added quotes if SIP doesn't allow a character within the value as
+   part of a RFC3261 Section 25.1 token.  Note that there are still
+   limitations on what characters can be put in a custom user value.  e.g.,
+   embedding quotes in the middle of the reason string is just going to cause
+   you grief.
+
+ * Setting a REDIRECTING(reason) value now recognizes RFC5806 aliases.
+   e.g., Setting REDIRECTING(reason) to 'unconditional' is converted to the
+   'cfu' value.
+
 res_pjproject
 ------------------
  * This module is the successor of res_pjsip_log_forwarder.  As well as
