@@ -82,14 +82,13 @@ static char get_event(const char *c)
 static int dtmf_info_incoming_request(struct ast_sip_session *session, struct pjsip_rx_data *rdata)
 {
 	pjsip_msg_body *body = rdata->msg_info.msg->body;
-	char buf[body ? body->len : 0];
+	char buf[body ? body->len + 1 : 1];
 	char *cur = buf;
 	char *line;
-
 	char event = '\0';
 	unsigned int duration = 100;
-
 	char is_dtmf;
+	int res;
 
 	if (!session->channel) {
 		return 0;
@@ -107,7 +106,12 @@ static int dtmf_info_incoming_request(struct ast_sip_session *session, struct pj
 		return 0;
 	}
 
-	body->print_body(body, buf, body->len);
+	res = body->print_body(body, buf, body->len);
+	if (res < 0) {
+		send_response(session, rdata, 500);
+		return 0;
+	}
+	buf[res] = '\0';
 
 	if (is_dtmf) {
 		/* directly use what is in the message body */
