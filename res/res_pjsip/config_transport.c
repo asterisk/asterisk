@@ -108,6 +108,56 @@ static int internal_state_cmp(void *obj, void *arg, int flags)
 	return CMP_MATCH;
 }
 
+/*! \brief hashing function for state objects */
+static int transport_state_hash(const void *obj, const int flags)
+{
+	const struct ast_sip_transport_state *object;
+	const char *key;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		key = obj;
+		break;
+	case OBJ_SEARCH_OBJECT:
+		object = obj;
+		key = object->id;
+		break;
+	default:
+		ast_assert(0);
+		return 0;
+	}
+	return ast_str_hash(key);
+}
+
+/*! \brief comparator function for state objects */
+static int transport_state_cmp(void *obj, void *arg, int flags)
+{
+	const struct ast_sip_transport_state *object_left = obj;
+	const struct ast_sip_transport_state *object_right = arg;
+	const char *right_key = arg;
+	int cmp;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = object_right->id;
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(object_left->id, right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		/* Not supported by container. */
+		ast_assert(0);
+		return 0;
+	default:
+		cmp = 0;
+		break;
+	}
+	if (cmp) {
+		return 0;
+	}
+	return CMP_MATCH;
+}
+
 static int sip_transport_to_ami(const struct ast_sip_transport *transport,
 				struct ast_str **buf)
 {
@@ -499,7 +549,6 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		if (res == PJ_SUCCESS && (transport->tos || transport->cos)) {
 			pj_sock_t sock;
 			pj_qos_params qos_params;
-
 			sock = pjsip_udp_transport_get_socket(temp_state->state->transport);
 			pj_sock_get_qos_params(sock, &qos_params);
 			set_qos(transport, &qos_params);
@@ -657,6 +706,11 @@ static int privkey_file_to_str(const void *obj, const intptr_t *args, char **buf
 static int transport_protocol_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct ast_sip_transport *transport = obj;
+	RAII_VAR(struct ast_sip_transport_state *, state, find_or_create_temporary_state(transport), ao2_cleanup);
+
+	if (!state) {
+		return -1;
+	}
 
 	if (!strcasecmp(var->value, "udp")) {
 		transport->type = AST_TRANSPORT_UDP;
@@ -671,6 +725,8 @@ static int transport_protocol_handler(const struct aco_option *opt, struct ast_v
 	} else {
 		return -1;
 	}
+
+	state->type = transport->type;
 
 	return 0;
 }
@@ -1240,9 +1296,26 @@ struct ast_sip_transport_state *ast_sip_get_transport_state(const char *transpor
 	return state->state;
 }
 
+static int populate_transport_states(void *obj, void *arg, int flags)
+{
+	struct internal_state *state = obj;
+	struct ao2_container *container = arg;
+
+	ao2_link(container, state->state);
+
+	return CMP_MATCH;
+}
+
 struct ao2_container *ast_sip_get_transport_states(void)
 {
-	return ao2_container_clone(transport_states, 0);
+	struct ao2_container *states = ao2_container_alloc(DEFAULT_STATE_BUCKETS, transport_state_hash, transport_state_cmp);
+
+	if (!states) {
+		return NULL;
+	}
+
+	ao2_callback(transport_states, OBJ_NODATA | OBJ_MULTIPLE, populate_transport_states, states);
+	return states;
 }
 
 /*! \brief Initialize sorcery with transport support */
