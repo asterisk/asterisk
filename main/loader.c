@@ -519,9 +519,11 @@ static void unload_dynamic_module(struct ast_module *mod)
 #endif
 }
 
-static enum ast_module_load_result load_resource(const char *resource_name, unsigned int global_symbols_only, struct ast_heap *resource_heap, int required);
+static enum ast_module_load_result load_resource(const char *resource_name, unsigned int global_symbols_only, unsigned int suppress_logging, struct ast_heap *resource_heap, int required);
 
-static struct ast_module *load_dynamic_module(const char *resource_in, unsigned int global_symbols_only, struct ast_heap *resource_heap)
+#define MODULE_LOCAL_ONLY (void *)-1
+
+static struct ast_module *load_dynamic_module(const char *resource_in, unsigned int global_symbols_only, unsigned int suppress_logging, struct ast_heap *resource_heap)
 {
 	char fn[PATH_MAX] = "";
 	void *lib = NULL;
@@ -549,8 +551,10 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 	if (missing_so)
 		strcat(resource_being_loaded->resource, ".so");
 
-	if (!(lib = dlopen(fn, RTLD_LAZY | RTLD_LOCAL))) {
-		ast_log(LOG_WARNING, "Error loading module '%s': %s\n", resource_in, dlerror());
+	if (!(lib = dlopen(fn, RTLD_LAZY | RTLD_GLOBAL))) {
+		if (!suppress_logging) {
+			ast_log(LOG_WARNING, "Error loading module '%s': %s\n", resource_in, dlerror());
+		}
 		ast_free(resource_being_loaded);
 		return NULL;
 	}
@@ -577,7 +581,7 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 	   and this one does not, then close it and return */
 	if (global_symbols_only && !wants_global) {
 		logged_dlclose(resource_in, lib);
-		return NULL;
+		return MODULE_LOCAL_ONLY;
 	}
 
 	logged_dlclose(resource_in, lib);
@@ -1059,7 +1063,7 @@ static enum ast_module_load_result start_resource(struct ast_module *mod)
  *
  *  If the ast_heap is not provided, the module's load function will be executed
  *  immediately */
-static enum ast_module_load_result load_resource(const char *resource_name, unsigned int global_symbols_only, struct ast_heap *resource_heap, int required)
+static enum ast_module_load_result load_resource(const char *resource_name, unsigned int global_symbols_only, unsigned int suppress_logging, struct ast_heap *resource_heap, int required)
 {
 	struct ast_module *mod;
 	enum ast_module_load_result res = AST_MODULE_LOAD_SUCCESS;
@@ -1073,14 +1077,15 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 			return AST_MODULE_LOAD_SKIP;
 	} else {
 #ifdef LOADABLE_MODULES
-		if (!(mod = load_dynamic_module(resource_name, global_symbols_only, resource_heap))) {
-			/* don't generate a warning message during load_modules() */
+		mod = load_dynamic_module(resource_name, global_symbols_only, suppress_logging, resource_heap);
+		if (mod == MODULE_LOCAL_ONLY) {
+				return AST_MODULE_LOAD_SKIP;
+		}
+		if (!mod) {
 			if (!global_symbols_only) {
 				ast_log(LOG_WARNING, "Module '%s' could not be loaded.\n", resource_name);
-				return required ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_DECLINE;
-			} else {
-				return required ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SKIP;
 			}
+			return required ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_DECLINE;
 		}
 #else
 		ast_log(LOG_WARNING, "Module support is not available. Module '%s' could not be loaded.\n", resource_name);
@@ -1117,7 +1122,7 @@ int ast_load_resource(const char *resource_name)
 {
 	int res;
 	AST_DLLIST_LOCK(&module_list);
-	res = load_resource(resource_name, 0, NULL, 0);
+	res = load_resource(resource_name, 0, 0, NULL, 0);
 	if (!res) {
 		ast_test_suite_event_notify("MODULE_LOAD", "Message: %s", resource_name);
 	}
@@ -1174,6 +1179,8 @@ static int mod_load_cmp(void *a, void *b)
 	return b_pri - a_pri;
 }
 
+AST_LIST_HEAD_NOLOCK(load_retries, load_order_entry);
+
 /*! loads modules in order by load_pri, updates mod_count
 	\return -1 on failure to load module, -2 on failure to load required module, otherwise 0
 */
@@ -1182,8 +1189,13 @@ static int load_resource_list(struct load_order *load_order, unsigned int global
 	struct ast_heap *resource_heap;
 	struct load_order_entry *order;
 	struct ast_module *mod;
+	struct load_retries load_retries;
 	int count = 0;
 	int res = 0;
+	int i = 0;
+#define LOAD_RETRIES 4
+
+	AST_LIST_HEAD_INIT_NOLOCK(&load_retries);
 
 	if(!(resource_heap = ast_heap_create(8, mod_load_cmp, -1))) {
 		return -1;
@@ -1191,21 +1203,34 @@ static int load_resource_list(struct load_order *load_order, unsigned int global
 
 	/* first, add find and add modules to heap */
 	AST_LIST_TRAVERSE_SAFE_BEGIN(load_order, order, entry) {
-		switch (load_resource(order->resource, global_symbols, resource_heap, order->required)) {
+		enum ast_module_load_result lres;
+
+		/* Suppress log messages unless this is the last pass */
+		lres = load_resource(order->resource, global_symbols, 1, resource_heap, order->required);
+		ast_debug(3, "PASS 0: %-46s %d %d\n", order->resource, lres, global_symbols);
+		switch (lres) {
 		case AST_MODULE_LOAD_SUCCESS:
-		case AST_MODULE_LOAD_DECLINE:
-			AST_LIST_REMOVE_CURRENT(entry);
-			ast_free(order->resource);
-			ast_free(order);
+			/* We're supplying a heap so SUCCESS isn't possible but we still have to test for it. */
 			break;
 		case AST_MODULE_LOAD_FAILURE:
-			ast_log(LOG_ERROR, "*** Failed to load module %s - %s\n", order->resource, order->required ? "Required" : "Not required");
-			fprintf(stderr, "*** Failed to load module %s - %s\n", order->resource, order->required ? "Required" : "Not required");
-			res = order->required ? -2 : -1;
-			goto done;
+		case AST_MODULE_LOAD_DECLINE:
+			/*
+			 * DECLINE or FAILURE means there was an issue with dlopen or module_register
+			 * which might be retryable.  LOAD_FAILURE only happens for required modules
+			 * but we're still going to retry.  We need to remove the entry from the
+			 * load_order list and add it to the load_retries list.
+			 */
+			AST_LIST_REMOVE_CURRENT(entry);
+			AST_LIST_INSERT_TAIL(&load_retries, order, entry);
+			break;
 		case AST_MODULE_LOAD_SKIP:
+			/*
+			 * SKIP means that dlopen worked but global_symbols was set and this module doesn't qualify.
+			 * Leave it in load_order for the next call of load_resource_list.
+			 */
 			break;
 		case AST_MODULE_LOAD_PRIORITY:
+			/* load_resource worked and the module was added to the priority heap */
 			AST_LIST_REMOVE_CURRENT(entry);
 			ast_free(order->resource);
 			ast_free(order);
@@ -1214,9 +1239,56 @@ static int load_resource_list(struct load_order *load_order, unsigned int global
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
 
+	/* Retry the failures until the list is empty or we reach LOAD_RETRIES */
+	for (i = 0; !AST_LIST_EMPTY(&load_retries) && i < LOAD_RETRIES; i++) {
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&load_retries, order, entry) {
+			enum ast_module_load_result lres;
+
+			/* Suppress log messages unless this is the last pass */
+			lres = load_resource(order->resource, global_symbols, (i < LOAD_RETRIES - 1), resource_heap, order->required);
+			ast_debug(3, "PASS %d %-46s %d %d\n", i + 1, order->resource, lres, global_symbols);
+			switch (lres) {
+			/* These are all retryable. */
+			case AST_MODULE_LOAD_SUCCESS:
+			case AST_MODULE_LOAD_DECLINE:
+				break;
+			case AST_MODULE_LOAD_FAILURE:
+				/* LOAD_FAILURE only happens for required modules */
+				if (i == LOAD_RETRIES - 1) {
+					/* This was the last chance to load a required module*/
+					ast_log(LOG_ERROR, "*** Failed to load module %s - Required\n", order->resource);
+					fprintf(stderr, "*** Failed to load module %s - Required\n", order->resource);
+					res =  -2;
+					goto done;
+				}
+				break;;
+			case AST_MODULE_LOAD_SKIP:
+				/*
+				 * SKIP means that dlopen worked but global_symbols was set and this module
+				 * doesn't qualify.  Put it back in load_order for the next call of
+				 * load_resource_list.
+				 */
+				AST_LIST_REMOVE_CURRENT(entry);
+				AST_LIST_INSERT_TAIL(load_order, order, entry);
+				break;
+			case AST_MODULE_LOAD_PRIORITY:
+				/* load_resource worked and the module was added to the priority heap */
+				AST_LIST_REMOVE_CURRENT(entry);
+				ast_free(order->resource);
+				ast_free(order);
+				break;
+			}
+		}
+		AST_LIST_TRAVERSE_SAFE_END;
+	}
+
 	/* second remove modules from heap sorted by priority */
 	while ((mod = ast_heap_pop(resource_heap))) {
-		switch (start_resource(mod)) {
+		enum ast_module_load_result lres;
+
+		lres = start_resource(mod);
+		ast_debug(3, "START: %-46s %d %d\n", mod->resource, lres, global_symbols);
+		switch (lres) {
 		case AST_MODULE_LOAD_SUCCESS:
 			count++;
 		case AST_MODULE_LOAD_DECLINE:
@@ -1231,6 +1303,12 @@ static int load_resource_list(struct load_order *load_order, unsigned int global
 	}
 
 done:
+
+	while ((order = AST_LIST_REMOVE_HEAD(&load_retries, entry))) {
+		ast_free(order->resource);
+		ast_free(order);
+	}
+
 	if (mod_count) {
 		*mod_count += count;
 	}
