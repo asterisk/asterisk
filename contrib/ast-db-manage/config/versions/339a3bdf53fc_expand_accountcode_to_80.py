@@ -15,14 +15,20 @@ import sqlalchemy as sa
 
 
 def upgrade():
-    op.alter_column('ps_endpoints', 'accountcode', type_=sa.String(80))
-    op.alter_column('sippeers', 'accountcode', type_=sa.String(80))
-    op.alter_column('iaxfriends', 'accountcode', type_=sa.String(80))
+    with op.batch_alter_table('ps_endpoints') as batch_op:
+        batch_op.alter_column('accountcode', type_=sa.String(80))
+    with op.batch_alter_table('sippeers') as batch_op:
+        batch_op.alter_column('accountcode', type_=sa.String(80))
+    with op.batch_alter_table('iaxfriends') as batch_op:
+        batch_op.alter_column('accountcode', type_=sa.String(80))
     pass
 
 
 def downgrade():
-    op.alter_column('ps_endpoints', 'accountcode', type_=sa.String(20))
-    op.alter_column('sippeers', 'accountcode', type_=sa.String(40))
-    op.alter_column('iaxfriends', 'accountcode', type_=sa.String(20))
+    with op.batch_alter_table('ps_endpoints') as batch_op:
+        batch_op.alter_column('accountcode', type_=sa.String(20))
+    with op.batch_alter_table('sippeers') as batch_op:
+        batch_op.alter_column('accountcode', type_=sa.String(40))
+    with op.batch_alter_table('iaxfriends') as batch_op:
+        batch_op.alter_column('accountcode', type_=sa.String(20))
     pass

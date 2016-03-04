@@ -27,4 +27,5 @@ def upgrade():
     op.add_column('ps_endpoints', sa.Column('moh_passthrough', yesno_values))
 
 def downgrade():
-    op.drop_column('ps_endpoints', 'moh_passthrough')
+    with op.batch_alter_table('ps_endpoints') as batch_op:
+        batch_op.drop_column('moh_passthrough')

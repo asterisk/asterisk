@@ -20,5 +20,7 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_column('ps_contacts', 'user_agent')
-    op.drop_column('ps_endpoints', 'message_context')
+    with op.batch_alter_table('ps_contacts') as batch_op:
+        batch_op.drop_column('user_agent')
+    with op.batch_alter_table('ps_endpoints') as batch_op:
+        batch_op.drop_column('message_context')
