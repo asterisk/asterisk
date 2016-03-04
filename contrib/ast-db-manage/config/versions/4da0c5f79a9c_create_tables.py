@@ -30,7 +30,7 @@ down_revision = None
 
 from alembic import op
 import sqlalchemy as sa
-
+from sqlalchemy.dialects.postgresql import ENUM
 
 YESNO_VALUES = ['yes', 'no']
 TYPE_VALUES = ['friend', 'user', 'peer']
@@ -323,8 +323,20 @@ def upgrade():
 
 
 def downgrade():
+    context = op.get_context()
+
     op.drop_table('sippeers')
     op.drop_table('iaxfriends')
     op.drop_table('voicemail')
     op.drop_table('meetme')
     op.drop_table('musiconhold')
+
+    enums = ['type_values', 'yes_no_values',
+             'sip_transport_values','sip_dtmfmode_values','sip_directmedia_values',
+             'sip_progressinband_values','sip_session_timers_values','sip_session_refresher_values',
+             'sip_callingpres_values','iax_requirecalltoken_values','iax_encryption_values',
+             'iax_transfer_values','moh_mode_values']
+
+    if context.bind.dialect.name == 'postgresql':
+        for e in enums:
+            ENUM(name=e).drop(op.get_bind(), checkfirst=False)

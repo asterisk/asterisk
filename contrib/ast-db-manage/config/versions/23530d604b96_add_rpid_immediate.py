@@ -45,4 +45,5 @@ def upgrade():
     op.add_column('ps_endpoints', sa.Column('rpid_immediate', yesno_values))
 
 def downgrade():
-    op.drop_column('ps_endpoints', 'rpid_immediate')
+    with op.batch_alter_table('ps_endpoints') as batch_op:
+        batch_op.drop_column('rpid_immediate')

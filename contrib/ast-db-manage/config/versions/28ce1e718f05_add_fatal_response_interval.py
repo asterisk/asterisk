@@ -19,4 +19,5 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_column('ps_registrations', 'fatal_retry_interval')
+    with op.batch_alter_table('ps_registrations') as batch_op:
+        batch_op.drop_column('fatal_retry_interval')
