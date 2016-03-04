@@ -1,25 +1,24 @@
 
 ifeq ($(NOISY_BUILD),)
-	SUBMAKE?=$(MAKE) --quiet --no-print-directory
-    ECHO_PREFIX?=@
-    CMD_PREFIX?=@
-    QUIET_CONFIGURE=-q
-    REALLY_QUIET=&>/dev/null
+SUBMAKE?=$(MAKE) --quiet --no-print-directory
+ECHO_PREFIX?=@
+CMD_PREFIX?=@
+QUIET_CONFIGURE=-q
+REALLY_QUIET=&>/dev/null
 else
-	SUBMAKE?=$(MAKE)
-    ECHO_PREFIX?=@\#
-    CMD_PREFIX?=
-    QUIET_CONFIGURE=
-    REALLY_QUIET=
+SUBMAKE?=$(MAKE)
+ECHO_PREFIX?=@\#
+CMD_PREFIX?=
+QUIET_CONFIGURE=
+REALLY_QUIET=
 endif
 
-DOWNLOAD :=
-DOWNLOAD != which wget 2>/dev/null
-DOWNLOAD:=$(if $(DOWNLOAD),$(DOWNLOAD) -O- ,)
+DOWNLOAD := $(shell which wget 2>/dev/null)
+DOWNLOAD := $(if $(DOWNLOAD),$(DOWNLOAD) -O- ,)
 
 ifeq ($(DOWNLOAD),)
-DOWNLOAD != which curl 2>/dev/null
-DOWNLOAD:=$(if $(DOWNLOAD), $(DOWNLOAD) -L ,)
+DOWNLOAD := $(shell which curl 2>/dev/null)
+DOWNLOAD := $(if $(DOWNLOAD), $(DOWNLOAD) -L ,)
 endif
 
 ifeq ($(DOWNLOAD),)
