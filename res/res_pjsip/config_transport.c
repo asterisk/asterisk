@@ -985,8 +985,7 @@ static int transport_tls_cipher_handler(const struct aco_option *opt, struct ast
 	}
 
 	parse = ast_strdupa(S_OR(var->value, ""));
-	while ((name = strsep(&parse, ","))) {
-		name = ast_strip(name);
+	while ((name = ast_strip(strsep(&parse, ",")))) {
 		if (ast_strlen_zero(name)) {
 			continue;
 		}

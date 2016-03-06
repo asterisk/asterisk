@@ -210,7 +210,7 @@ void ast_sip_location_retrieve_contact_and_aor_from_list(const char *aor_list, s
 	*aor = NULL;
 	*contact = NULL;
 
-	while ((aor_name = strsep(&rest, ","))) {
+	while ((aor_name = ast_strip(strsep(&rest, ",")))) {
 		*aor = ast_sip_location_retrieve_aor(aor_name);
 
 		if (!(*aor)) {
@@ -382,11 +382,15 @@ static int permanent_uri_handler(const struct aco_option *opt, struct ast_variab
 	}
 
 	contacts = ast_strdupa(var->value);
-	while ((contact_uri = strsep(&contacts, ","))) {
+	while ((contact_uri = ast_strip(strsep(&contacts, ",")))) {
 		struct ast_sip_contact *contact;
 		struct ast_sip_contact_status *status;
 		char hash[33];
 		char contact_id[strlen(aor_id) + sizeof(hash) + 2];
+
+		if (ast_strlen_zero(contact_uri)) {
+			continue;
+		}
 
 		if (!aor->permanent_contacts) {
 			aor->permanent_contacts = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK,
@@ -447,7 +451,7 @@ int ast_sip_for_each_aor(const char *aors, ao2_callback_fn on_aor, void *arg)
 	}
 
 	copy = ast_strdupa(aors);
-	while ((name = strsep(&copy, ","))) {
+	while ((name = ast_strip(strsep(&copy, ",")))) {
 		RAII_VAR(struct ast_sip_aor *, aor,
 			 ast_sip_location_retrieve_aor(name), ao2_cleanup);
 
@@ -459,7 +463,6 @@ int ast_sip_for_each_aor(const char *aors, ao2_callback_fn on_aor, void *arg)
 			return -1;
 		}
 	}
-	ast_free(copy);
 	return 0;
 }
 
