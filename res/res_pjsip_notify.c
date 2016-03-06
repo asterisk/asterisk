@@ -615,7 +615,7 @@ static int notify_endpoint(void *obj)
 
 	aors = ast_strdupa(data->endpoint->aors);
 
-	while ((aor_name = strsep(&aors, ","))) {
+	while ((aor_name = ast_strip(strsep(&aors, ",")))) {
 		RAII_VAR(struct ast_sip_aor *, aor,
 			 ast_sip_location_retrieve_aor(aor_name), ao2_cleanup);
 		RAII_VAR(struct ao2_container *, contacts, NULL, ao2_cleanup);
