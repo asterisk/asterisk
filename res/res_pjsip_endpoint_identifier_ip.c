@@ -164,10 +164,14 @@ static int ip_identify_match_handler(const struct aco_option *opt, struct ast_va
 		return 0;
 	}
 
-	while ((current_string = strsep(&input_string, ","))) {
+	while ((current_string = ast_strip(strsep(&input_string, ",")))) {
 		struct ast_sockaddr *addrs;
 		int num_addrs = 0, error = 0, i;
 		char *mask = strrchr(current_string, '/');
+
+		if (ast_strlen_zero(current_string)) {
+			continue;
+		}
 
 		if (mask) {
 			identify->matches = ast_append_ha("d", current_string, identify->matches, &error);

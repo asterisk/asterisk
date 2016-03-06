@@ -819,7 +819,7 @@ int pjsip_acf_dial_contacts_read(struct ast_channel *chan, const char *cmd, char
 		return -1;
 	}
 
-	while ((aor_name = strsep(&rest, ","))) {
+	while ((aor_name = ast_strip(strsep(&rest, ",")))) {
 		RAII_VAR(struct ast_sip_aor *, aor, ast_sip_location_retrieve_aor(aor_name), ao2_cleanup);
 		RAII_VAR(struct ao2_container *, contacts, NULL, ao2_cleanup);
 		struct ao2_iterator it_contacts;

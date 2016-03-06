@@ -651,8 +651,12 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 	configured_aors = ast_strdupa(endpoint->aors);
 
 	/* Iterate the configured AORs to see if the user or the user+domain match */
-	while ((aor_name = strsep(&configured_aors, ","))) {
+	while ((aor_name = ast_strip(strsep(&configured_aors, ",")))) {
 		struct ast_sip_domain_alias *alias = NULL;
+
+		if (ast_strlen_zero(aor_name)) {
+			continue;
+		}
 
 		if (!pj_strcmp2(&uri->user, aor_name)) {
 			break;
