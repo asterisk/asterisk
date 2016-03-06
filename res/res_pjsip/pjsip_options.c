@@ -270,7 +270,7 @@ static int on_endpoint(void *obj, void *arg, int flags)
 	}
 
 	aors = ast_strdupa(endpoint->aors);
-	while ((aor_name = strsep(&aors, ","))) {
+	while ((aor_name = ast_strip(strsep(&aors, ",")))) {
 		struct ast_sip_aor *aor;
 		struct ao2_container *contacts;
 
@@ -795,7 +795,7 @@ static int cli_qualify_contacts(void *data)
 	}
 
 	aors = ast_strdupa(endpoint->aors);
-	while ((aor_name = strsep(&aors, ","))) {
+	while ((aor_name = ast_strip(strsep(&aors, ",")))) {
 		struct ast_sip_aor *aor;
 		struct ao2_container *contacts;
 
@@ -899,7 +899,7 @@ static int ami_sip_qualify(struct mansession *s, const struct message *m)
 	}
 
 	aors = ast_strdupa(endpoint->aors);
-	while ((aor_name = strsep(&aors, ","))) {
+	while ((aor_name = ast_strip(strsep(&aors, ",")))) {
 		struct ast_sip_aor *aor;
 		struct ao2_container *contacts;
 
@@ -1087,7 +1087,7 @@ static int qualify_and_schedule_all_cb(void *obj, void *arg, int flags)
 	}
 
 	aors = ast_strdupa(endpoint->aors);
-	while ((aor_name = strsep(&aors, ","))) {
+	while ((aor_name = ast_strip(strsep(&aors, ",")))) {
 		struct ast_sip_aor *aor;
 		struct ao2_container *contacts;
 

@@ -145,8 +145,12 @@ static int force_inline attribute_pure ast_ends_with(const char *str, const char
 AST_INLINE_API(
 char * attribute_pure ast_skip_blanks(const char *str),
 {
-	while (*str && ((unsigned char) *str) < 33)
-		str++;
+	if (str) {
+		while (*str && ((unsigned char) *str) < 33) {
+			str++;
+		}
+	}
+
 	return (char *) str;
 }
 )
@@ -184,8 +188,12 @@ char *ast_trim_blanks(char *str),
 AST_INLINE_API(
 char * attribute_pure ast_skip_nonblanks(const char *str),
 {
-	while (*str && ((unsigned char) *str) > 32)
-		str++;
+	if (str) {
+		while (*str && ((unsigned char) *str) > 32) {
+			str++;
+		}
+	}
+
 	return (char *) str;
 }
 )
