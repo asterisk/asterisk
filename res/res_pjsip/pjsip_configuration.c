@@ -413,11 +413,7 @@ int ast_sip_auth_vector_init(struct ast_sip_auth_vector *auths, const char *valu
 		return -1;
 	}
 
-	while ((val = strsep(&auth_names, ","))) {
-		if (ast_strlen_zero(val)) {
-			continue;
-		}
-
+	while ((val = strtok_r(NULL, ", ", &auth_names))) {
 		val = ast_strdup(val);
 		if (!val) {
 			goto failure;
@@ -480,7 +476,7 @@ static int ident_handler(const struct aco_option *opt, struct ast_variable *var,
 	char *idents = ast_strdupa(var->value);
 	char *val;
 
-	while ((val = strsep(&idents, ","))) {
+	while ((val = strtok_r(NULL, ", ", &idents))) {
 		if (!strcasecmp(val, "username")) {
 			endpoint->ident_method |= AST_SIP_ENDPOINT_IDENTIFY_BY_USERNAME;
 		} else {

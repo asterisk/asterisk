@@ -3654,7 +3654,7 @@ static int list_item_handler(const struct aco_option *opt,
 	char *items = ast_strdupa(var->value);
 	char *item;
 
-	while ((item = strsep(&items, ","))) {
+	while ((item = strtok_r(NULL, ", ", &items))) {
 		if (item_in_vector(list, item)) {
 			ast_log(LOG_WARNING, "Ignoring duplicated list item '%s'\n", item);
 			continue;

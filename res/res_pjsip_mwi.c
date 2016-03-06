@@ -432,7 +432,7 @@ static void send_unsolicited_mwi_notify(struct mwi_subscription *sub,
 	ast_debug(5, "Sending unsolicited MWI NOTIFY to endpoint %s, new messages: %d, old messages: %d\n",
 			sub->id, counter->new_msgs, counter->old_msgs);
 
-	while ((aor_name = strsep(&endpoint_aors, ","))) {
+	while ((aor_name = strtok_r(NULL, ", ", &endpoint_aors))) {
 		RAII_VAR(struct ast_sip_aor *, aor, ast_sip_location_retrieve_aor(aor_name), ao2_cleanup);
 		RAII_VAR(struct ao2_container *, contacts, NULL, ao2_cleanup);
 		struct unsolicited_mwi_data mwi_data = {
@@ -598,7 +598,7 @@ static int mwi_validate_for_aor(void *obj, void *arg, int flags)
 	}
 
 	mailboxes = ast_strdupa(aor->mailboxes);
-	while ((mailbox = strsep(&mailboxes, ","))) {
+	while ((mailbox = strtok_r(NULL, ", ", &mailboxes))) {
 		if (endpoint_receives_unsolicited_mwi_for_mailbox(endpoint, mailbox)) {
 			ast_debug(1, "Endpoint '%s' already configured for unsolicited MWI for mailbox '%s'. "
 					"Denying MWI subscription to %s\n", ast_sorcery_object_get_id(endpoint), mailbox,
@@ -622,7 +622,7 @@ static int mwi_on_aor(void *obj, void *arg, int flags)
 	}
 
 	mailboxes = ast_strdupa(aor->mailboxes);
-	while ((mailbox = strsep(&mailboxes, ","))) {
+	while ((mailbox = strtok_r(NULL, ", ", &mailboxes))) {
 		struct mwi_stasis_subscription *mwi_stasis_sub;
 
 		mwi_stasis_sub = mwi_stasis_subscription_alloc(mailbox, sub);
@@ -890,7 +890,7 @@ static int create_mwi_subscriptions_for_endpoint(void *obj, void *arg, int flags
 
 	endpoint_aors = ast_strdupa(endpoint->aors);
 
-	while ((aor_name = strsep(&endpoint_aors, ","))) {
+	while ((aor_name = strtok_r(NULL, ", ", &endpoint_aors))) {
 		RAII_VAR(struct ast_sip_aor *, aor, ast_sip_location_retrieve_aor(aor_name), ao2_cleanup);
 
 		if (!aor) {
@@ -921,7 +921,7 @@ static int create_mwi_subscriptions_for_endpoint(void *obj, void *arg, int flags
 	}
 
 	mailboxes = ast_strdupa(endpoint->subscription.mwi.mailboxes);
-	while ((mailbox = strsep(&mailboxes, ","))) {
+	while ((mailbox = strtok_r(NULL, ", ", &mailboxes))) {
 		struct mwi_subscription *sub = aggregate_sub ?:
 			mwi_subscription_alloc(endpoint, 0, NULL);
 		struct mwi_stasis_subscription *mwi_stasis_sub;
