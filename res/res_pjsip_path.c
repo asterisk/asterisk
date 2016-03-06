@@ -53,7 +53,7 @@ static struct ast_sip_aor *find_aor(struct ast_sip_endpoint *endpoint, pjsip_uri
 	configured_aors = ast_strdupa(endpoint->aors);
 
 	/* Iterate the configured AORs to see if the user or the user+domain match */
-	while ((aor_name = strsep(&configured_aors, ","))) {
+	while ((aor_name = strtok_r(NULL, ", ", &configured_aors))) {
 		struct ast_sip_domain_alias *alias = NULL;
 
 		if (!pj_strcmp2(&sip_uri->user, aor_name)) {
