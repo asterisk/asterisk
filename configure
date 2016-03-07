@@ -680,6 +680,8 @@ ILBC_CFLAGS
 ILBC_INTERNAL
 GSM_INTERNAL
 PBX_DAHDI_HALF_FULL
+MONGOCLIENT_LIBS
+MONGOCLIENT_CFLAGS
 PKG_CONFIG_LIBDIR
 PKG_CONFIG_PATH
 PKG_CONFIG
@@ -1156,6 +1158,10 @@ PBX_BKTR
 BKTR_DIR
 BKTR_INCLUDE
 BKTR_LIB
+PBX_MONGOCLIENT
+MONGOCLIENT_DIR
+MONGOCLIENT_INCLUDE
+MONGOCLIENT_LIB
 PBX_BFD
 BFD_DIR
 BFD_INCLUDE
@@ -1315,6 +1321,7 @@ enable_dev_mode
 enable_coverage
 with_asound
 with_bfd
+with_mongo_client
 with_execinfo
 with_bluetooth
 with_cap
@@ -1415,6 +1422,8 @@ CXXCPP
 PKG_CONFIG
 PKG_CONFIG_PATH
 PKG_CONFIG_LIBDIR
+MONGOCLIENT_CFLAGS
+MONGOCLIENT_LIBS
 ILBC_CFLAGS
 ILBC_LIBS
 LIBEDIT_CFLAGS
@@ -2052,6 +2061,8 @@ Optional Packages:
   --with-gnu-ld           assume the C compiler uses GNU ld [default=no]
   --with-asound=PATH      use Advanced Linux Sound Architecture files in PATH
   --with-bfd=PATH         use Debug symbol decoding files in PATH
+  --with-mongo-client=PATH
+                          use MongoDB C Driver files in PATH
   --with-execinfo=PATH    use Stack Backtrace files in PATH
   --with-bluetooth=PATH   use Bluetooth files in PATH
   --with-cap=PATH         use POSIX 1.e capabilities files in PATH
@@ -2154,6 +2165,10 @@ Some influential environment variables:
               directories to add to pkg-config's search path
   PKG_CONFIG_LIBDIR
               path overriding pkg-config's built-in search path
+  MONGOCLIENT_CFLAGS
+              C compiler flags for MONGOCLIENT, overriding pkg-config
+  MONGOCLIENT_LIBS
+              linker flags for MONGOCLIENT, overriding pkg-config
   ILBC_CFLAGS C compiler flags for ILBC, overriding pkg-config
   ILBC_LIBS   linker flags for ILBC, overriding pkg-config
   LIBEDIT_CFLAGS
@@ -8507,6 +8522,38 @@ fi
 
 
 
+    MONGOCLIENT_DESCRIP="MongoDB C Driver"
+    MONGOCLIENT_OPTION="mongo-client"
+    PBX_MONGOCLIENT=0
+
+# Check whether --with-mongo-client was given.
+if test "${with_mongo_client+set}" = set; then :
+  withval=$with_mongo_client;
+	case ${withval} in
+	n|no)
+	USE_MONGOCLIENT=no
+	# -1 is a magic value used by menuselect to know that the package
+	# was disabled, other than 'not found'
+	PBX_MONGOCLIENT=-1
+	;;
+	y|ye|yes)
+	ac_mandatory_list="${ac_mandatory_list} MONGOCLIENT"
+	;;
+	*)
+	MONGOCLIENT_DIR="${withval}"
+	ac_mandatory_list="${ac_mandatory_list} MONGOCLIENT"
+	;;
+	esac
+
+fi
+
+
+
+
+
+
+
+
 # BKTR is used for backtrace support on platforms that do not
 # have it natively.
 
@@ -13746,7 +13793,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -13792,7 +13839,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -13816,7 +13863,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -13861,7 +13908,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -13885,7 +13932,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -18979,6 +19026,96 @@ _ACEOF
    fi
 fi
 
+
+
+# Tested in ubuntu with mongdb c driver from source code
+
+   if test "x${PBX_MONGOCLIENT}" != "x1" -a "${USE_MONGOCLIENT}" != "no"; then
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for MONGOCLIENT" >&5
+$as_echo_n "checking for MONGOCLIENT... " >&6; }
+
+if test -n "$MONGOCLIENT_CFLAGS"; then
+    pkg_cv_MONGOCLIENT_CFLAGS="$MONGOCLIENT_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libmongoc-1.0\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libmongoc-1.0") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_MONGOCLIENT_CFLAGS=`$PKG_CONFIG --cflags "libmongoc-1.0" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$MONGOCLIENT_LIBS"; then
+    pkg_cv_MONGOCLIENT_LIBS="$MONGOCLIENT_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libmongoc-1.0\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libmongoc-1.0") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_MONGOCLIENT_LIBS=`$PKG_CONFIG --libs "libmongoc-1.0" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        MONGOCLIENT_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libmongoc-1.0" 2>&1`
+        else
+	        MONGOCLIENT_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libmongoc-1.0" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$MONGOCLIENT_PKG_ERRORS" >&5
+
+
+            PBX_MONGOCLIENT=0
+
+
+elif test $pkg_failed = untried; then
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+            PBX_MONGOCLIENT=0
+
+
+else
+	MONGOCLIENT_CFLAGS=$pkg_cv_MONGOCLIENT_CFLAGS
+	MONGOCLIENT_LIBS=$pkg_cv_MONGOCLIENT_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+            PBX_MONGOCLIENT=1
+            MONGOCLIENT_INCLUDE="$MONGOCLIENT_CFLAGS"
+            MONGOCLIENT_LIB="$MONGOCLIENT_LIBS"
+
+$as_echo "#define HAVE_MONGOCLIENT 1" >>confdefs.h
+
+
+fi
+   fi
 
 
 
