@@ -90,6 +90,8 @@ struct tables {
 
 static AST_RWLIST_HEAD_STATIC(odbc_tables, tables);
 
+static int connected = 0;
+
 static int load_config(void)
 {
 	struct ast_config *cfg;
@@ -117,8 +119,9 @@ static int load_config(void)
 
 	for (catg = ast_category_browse(cfg, NULL); catg; catg = ast_category_browse(cfg, catg)) {
 		var = ast_variable_browse(cfg, catg);
-		if (!var)
+		if (!var) {
 			continue;
+		}
 
 		if (ast_strlen_zero(tmp = ast_variable_retrieve(cfg, catg, "connection"))) {
 			ast_log(LOG_WARNING, "No connection parameter found in '%s'.  Skipping.\n", catg);
@@ -298,6 +301,7 @@ static int load_config(void)
 			/* Insert column info into column list */
 			AST_LIST_INSERT_TAIL(&(tableptr->columns), entry, list);
 			res = 0;
+			connected = 1;
 		}
 
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
@@ -322,6 +326,20 @@ static int free_config(void)
 		}
 		ast_free(table);
 	}
+	return 0;
+}
+
+
+static int reload_config(void)
+{
+	if (AST_RWLIST_WRLOCK(&odbc_tables)) {
+		ast_log(LOG_ERROR, "Unable to lock column list.  Reload failed.\n");
+		return -1;
+	}
+
+	free_config();
+	load_config();
+	AST_RWLIST_UNLOCK(&odbc_tables);
 	return 0;
 }
 
@@ -396,6 +414,12 @@ static int odbc_log(struct ast_cdr *cdr)
 		if (sql2)
 			ast_free(sql2);
 		return -1;
+	}
+
+	// check was a connection on load by flag connection
+	if (!connected) {
+		ast_log(LOG_WARNING, "The initial connection is load is not work. Reload module...\n");
+		reload_config();
 	}
 
 	if (AST_RWLIST_RDLOCK(&odbc_tables)) {
@@ -814,15 +838,7 @@ static int load_module(void)
 
 static int reload(void)
 {
-	if (AST_RWLIST_WRLOCK(&odbc_tables)) {
-		ast_log(LOG_ERROR, "Unable to lock column list.  Reload failed.\n");
-		return -1;
-	}
-
-	free_config();
-	load_config();
-	AST_RWLIST_UNLOCK(&odbc_tables);
-	return 0;
+	return reload_config();
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Adaptive ODBC CDR backend",
@@ -832,4 +848,3 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Adaptive ODBC CDR bac
 	.reload = reload,
 	.load_pri = AST_MODPRI_CDR_DRIVER,
 );
-
