@@ -484,6 +484,9 @@
 /* Define to 1 if you have a working `mmap' system call. */
 #undef HAVE_MMAP
 
+/* Define if your system has the MONGOCLIENT libraries. */
+#undef HAVE_MONGOCLIENT
+
 /* Define if your system has the MSG_NOSIGNAL headers. */
 #undef HAVE_MSG_NOSIGNAL
 

@@ -398,6 +398,7 @@ AST_CHECK_STRSEP_ARRAY_BOUNDS()
 
 AST_EXT_LIB_SETUP([ALSA], [Advanced Linux Sound Architecture], [asound])
 AST_EXT_LIB_SETUP([BFD], [Debug symbol decoding], [bfd])
+AST_EXT_LIB_SETUP([MONGOCLIENT], [MongoDB C Driver], [mongo-client])
 
 # BKTR is used for backtrace support on platforms that do not
 # have it natively.
@@ -1374,6 +1375,9 @@ PKG_PROG_PKG_CONFIG()
 # do the package library checks now
 
 AST_EXT_LIB_CHECK([ALSA], [asound], [snd_spcm_init], [alsa/asoundlib.h], [-lm -ldl])
+
+# Tested in ubuntu with mongdb c driver from source code
+AST_PKG_CONFIG_CHECK([MONGOCLIENT], [libmongoc-1.0])
 
 AST_EXT_LIB_CHECK([BFD], [bfd], [bfd_openr], [bfd.h])
 
