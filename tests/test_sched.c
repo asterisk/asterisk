@@ -45,6 +45,67 @@ static int sched_cb(const void *data)
 	return 0;
 }
 
+static int order_check;
+static int order_check_failed;
+
+static void sched_order_check(struct ast_test *test, int order)
+{
+	++order_check;
+	if (order_check != order) {
+		ast_test_status_update(test, "Unexpected execution order: expected:%d got:%d\n",
+			order, order_check);
+		order_check_failed = 1;
+	}
+}
+
+static int sched_order_1_cb(const void *data)
+{
+	sched_order_check((void *) data, 1);
+	return 0;
+}
+
+static int sched_order_2_cb(const void *data)
+{
+	sched_order_check((void *) data, 2);
+	return 0;
+}
+
+static int sched_order_3_cb(const void *data)
+{
+	sched_order_check((void *) data, 3);
+	return 0;
+}
+
+static int sched_order_4_cb(const void *data)
+{
+	sched_order_check((void *) data, 4);
+	return 0;
+}
+
+static int sched_order_5_cb(const void *data)
+{
+	sched_order_check((void *) data, 5);
+	return 0;
+}
+
+static int sched_order_6_cb(const void *data)
+{
+	sched_order_check((void *) data, 6);
+	return 0;
+}
+
+static int sched_order_7_cb(const void *data)
+{
+	sched_order_check((void *) data, 7);
+	return 0;
+}
+
+static int sched_order_8_cb(const void *data)
+{
+	sched_order_check((void *) data, 8);
+	return 0;
+}
+
 AST_TEST_DEFINE(sched_test_order)
 {
 	struct ast_sched_context *con;
@@ -144,6 +205,49 @@ AST_TEST_DEFINE(sched_test_order)
 		ast_test_status_update(test, "Failed to remove scheduler entry\n");
 		goto return_cleanup;
 	}
+
+	if ((wait = ast_sched_wait(con)) != -1) {
+		ast_test_status_update(test,
+				"ast_sched_wait() should have returned -1, returned '%d'\n",
+				wait);
+		goto return_cleanup;
+	}
+
+	/*
+	 * Schedule immediate and delayed entries to check the order
+	 * that they get executed.  They must get executed at the
+	 * time they expire in the order they were added.
+	 */
+#define DELAYED_SAME_EXPIRE		300 /* ms */
+	ast_test_validate_cleanup(test, -1 < ast_sched_add(con, DELAYED_SAME_EXPIRE, sched_order_1_cb, test), res, return_cleanup);
+	ast_test_validate_cleanup(test, -1 < ast_sched_add(con, 0, sched_order_1_cb, test), res, return_cleanup);
+	ast_test_validate_cleanup(test, -1 < ast_sched_add(con, DELAYED_SAME_EXPIRE, sched_order_2_cb, test), res, return_cleanup);
+	ast_test_validate_cleanup(test, -1 < ast_sched_add(con, 0, sched_order_2_cb, test), res, return_cleanup);
+	ast_test_validate_cleanup(test, -1 < ast_sched_add(con, DELAYED_SAME_EXPIRE, sched_order_3_cb, test), res, return_cleanup);
+	ast_test_validate_cleanup(test, -1 < ast_sched_add(con, 0, sched_order_3_cb, test), res, return_cleanup);
+	ast_test_validate_cleanup(test, -1 < ast_sched_add(con, DELAYED_SAME_EXPIRE, sched_order_4_cb, test), res, return_cleanup);
+	ast_test_validate_cleanup(test, -1 < ast_sched_add(con, 0, sched_order_4_cb, test), res, return_cleanup);
+	ast_test_validate_cleanup(test, -1 < ast_sched_add(con, DELAYED_SAME_EXPIRE, sched_order_5_cb, test), res, return_cleanup);
+	ast_test_validate_cleanup(test, -1 < ast_sched_add(con, 0, sched_order_5_cb, test), res, return_cleanup);
+	ast_test_validate_cleanup(test, -1 < ast_sched_add(con, DELAYED_SAME_EXPIRE, sched_order_6_cb, test), res, return_cleanup);
+	ast_test_validate_cleanup(test, -1 < ast_sched_add(con, 0, sched_order_6_cb, test), res, return_cleanup);
+	ast_test_validate_cleanup(test, -1 < ast_sched_add(con, DELAYED_SAME_EXPIRE, sched_order_7_cb, test), res, return_cleanup);
+	ast_test_validate_cleanup(test, -1 < ast_sched_add(con, 0, sched_order_7_cb, test), res, return_cleanup);
+	ast_test_validate_cleanup(test, -1 < ast_sched_add(con, DELAYED_SAME_EXPIRE, sched_order_8_cb, test), res, return_cleanup);
+
+	/* Check order of scheduled immediate entries. */
+	order_check = 0;
+	order_check_failed = 0;
+	usleep(50 * 1000);/* Ensure that all the immediate entries are ready to expire */
+	ast_test_validate_cleanup(test, 7 == ast_sched_runq(con), res, return_cleanup);
+	ast_test_validate_cleanup(test, !order_check_failed, res, return_cleanup);
+
+	/* Check order of scheduled entries expiring at the same time. */
+	order_check = 0;
+	order_check_failed = 0;
+	usleep((DELAYED_SAME_EXPIRE + 50) * 1000);/* Ensure that all the delayed entries are ready to expire */
+	ast_test_validate_cleanup(test, 8 == ast_sched_runq(con), res, return_cleanup);
+	ast_test_validate_cleanup(test, !order_check_failed, res, return_cleanup);
 
 	if ((wait = ast_sched_wait(con)) != -1) {
 		ast_test_status_update(test,
