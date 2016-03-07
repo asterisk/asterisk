@@ -4254,6 +4254,7 @@ static int __sip_autodestruct(const void *data)
 	/* If this is a subscription, tell the phone that we got a timeout */
 	if (p->subscribed && p->subscribed != MWI_NOTIFICATION && p->subscribed != CALL_COMPLETION) {
 		struct state_notify_data data = { 0, };
+
 		data.state = AST_EXTENSION_DEACTIVATED;
 
 		transmit_state_notify(p, &data, 1, TRUE);	/* Send last notification */
@@ -4267,6 +4268,7 @@ static int __sip_autodestruct(const void *data)
 	if (p->packets) {
 		if (!p->needdestroy) {
 			char method_str[31];
+
 			ast_debug(3, "Re-scheduled destruction of SIP call %s\n", p->callid ? p->callid : "<unknown>");
 			append_history(p, "ReliableXmit", "timeout");
 			if (sscanf(p->lastmsg, "Tx: %30s", method_str) == 1 || sscanf(p->lastmsg, "Rx: %30s", method_str) == 1) {
@@ -4281,65 +4283,117 @@ static int __sip_autodestruct(const void *data)
 		}
 	}
 
-	/* Reset schedule ID */
-	p->autokillid = -1;
-
 	/*
 	 * Lock both the pvt and the channel safely so that we can queue up a frame.
 	 */
 	owner = sip_pvt_lock_full(p);
 	if (owner) {
-		ast_log(LOG_WARNING, "Autodestruct on dialog '%s' with owner %s in place (Method: %s). Rescheduling destruction for 10000 ms\n", p->callid, ast_channel_name(owner), sip_methods[p->method].text);
+		ast_log(LOG_WARNING,
+			"Autodestruct on dialog '%s' with owner %s in place (Method: %s). Rescheduling destruction for 10000 ms\n",
+			p->callid, ast_channel_name(owner), sip_methods[p->method].text);
 		ast_queue_hangup_with_cause(owner, AST_CAUSE_PROTOCOL_ERROR);
 		ast_channel_unlock(owner);
 		ast_channel_unref(owner);
 		sip_pvt_unlock(p);
 		return 10000;
-	} else if (p->refer && !p->alreadygone) {
+	}
+
+	/* Reset schedule ID */
+	p->autokillid = -1;
+
+	if (p->refer && !p->alreadygone) {
 		ast_debug(3, "Finally hanging up channel after transfer: %s\n", p->callid);
 		stop_media_flows(p);
 		transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
 		append_history(p, "ReferBYE", "Sending BYE on transferer call leg %s", p->callid);
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+		sip_pvt_unlock(p);
 	} else {
 		append_history(p, "AutoDestroy", "%s", p->callid);
 		ast_debug(3, "Auto destroying SIP dialog '%s'\n", p->callid);
 		sip_pvt_unlock(p);
 		dialog_unlink_all(p); /* once it's unlinked and unrefd everywhere, it'll be freed automagically */
-		sip_pvt_lock(p);
-		/* dialog_unref(p, "unref dialog-- no other matching conditions"); -- unlink all now should finish off the dialog's references and free it. */
-		/* sip_destroy(p); */		/* Go ahead and destroy dialog. All attempts to recover is done */
-		/* sip_destroy also absorbs the reference */
 	}
 
-	sip_pvt_unlock(p);
-
-	dialog_unref(p, "The ref to a dialog passed to this sched callback is going out of scope; unref it.");
+	dialog_unref(p, "autokillid complete");
 
 	return 0;
 }
 
-/*! \brief Schedule final destruction of SIP dialog.  This can not be canceled.
- *  This function is used to keep a dialog around for a period of time in order
- *  to properly respond to any retransmits. */
-void sip_scheddestroy_final(struct sip_pvt *p, int ms)
+static void do_cancel_destroy(struct sip_pvt *pvt)
 {
-	if (p->final_destruction_scheduled) {
-		return; /* already set final destruction */
-	}
-
-	sip_scheddestroy(p, ms);
-	if (p->autokillid != -1) {
-		p->final_destruction_scheduled = 1;
+	if (-1 < pvt->autokillid) {
+		append_history(pvt, "CancelDestroy", "");
+		AST_SCHED_DEL_UNREF(sched, pvt->autokillid,
+			dialog_unref(pvt, "Stop scheduled autokillid"));
 	}
 }
 
-/*! \brief Schedule destruction of SIP dialog */
-void sip_scheddestroy(struct sip_pvt *p, int ms)
+/* Run by the sched thread. */
+static int __sip_cancel_destroy(const void *data)
 {
-	if (p->final_destruction_scheduled) {
-		return; /* already set final destruction */
+	struct sip_pvt *pvt = (void *) data;
+
+	sip_pvt_lock(pvt);
+	do_cancel_destroy(pvt);
+	sip_pvt_unlock(pvt);
+	dialog_unref(pvt, "Cancel destroy action");
+	return 0;
+}
+
+void sip_cancel_destroy(struct sip_pvt *pvt)
+{
+	if (pvt->final_destruction_scheduled) {
+		return;
 	}
+
+	dialog_ref(pvt, "Cancel destroy action");
+	if (ast_sched_add(sched, 0, __sip_cancel_destroy, pvt) < 0) {
+		/* Uh Oh.  Expect bad behavior. */
+		dialog_unref(pvt, "Failed to schedule cancel destroy action");
+		ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
+	}
+}
+
+struct sip_scheddestroy_data {
+	struct sip_pvt *pvt;
+	int ms;
+};
+
+/* Run by the sched thread. */
+static int __sip_scheddestroy(const void *data)
+{
+	struct sip_scheddestroy_data *sched_data = (void *) data;
+	struct sip_pvt *pvt = sched_data->pvt;
+	int ms = sched_data->ms;
+
+	ast_free(sched_data);
+
+	sip_pvt_lock(pvt);
+	do_cancel_destroy(pvt);
+
+	if (pvt->do_history) {
+		append_history(pvt, "SchedDestroy", "%d ms", ms);
+	}
+
+	dialog_ref(pvt, "Schedule autokillid");
+	pvt->autokillid = ast_sched_add(sched, ms, __sip_autodestruct, pvt);
+	if (pvt->autokillid < 0) {
+		/* Uh Oh.  Expect bad behavior. */
+		dialog_unref(pvt, "Failed to schedule autokillid");
+	}
+
+	if (pvt->stimer) {
+		stop_session_timer(pvt);
+	}
+	sip_pvt_unlock(pvt);
+	dialog_unref(pvt, "Destroy action");
+	return 0;
+}
+
+static int sip_scheddestroy_full(struct sip_pvt *p, int ms)
+{
+	struct sip_scheddestroy_data *sched_data;
 
 	if (ms < 0) {
 		if (p->timer_t1 == 0) {
@@ -4351,37 +4405,44 @@ void sip_scheddestroy(struct sip_pvt *p, int ms)
 		ms = p->timer_t1 * 64;
 	}
 	if (sip_debug_test_pvt(p)) {
-		ast_verbose("Scheduling destruction of SIP dialog '%s' in %d ms (Method: %s)\n", p->callid, ms, sip_methods[p->method].text);
-	}
-	if (sip_cancel_destroy(p)) {
-		ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
+		ast_verbose("Scheduling destruction of SIP dialog '%s' in %d ms (Method: %s)\n",
+			p->callid, ms, sip_methods[p->method].text);
 	}
 
-	if (p->do_history) {
-		append_history(p, "SchedDestroy", "%d ms", ms);
+	sched_data = ast_malloc(sizeof(*sched_data));
+	if (!sched_data) {
+		/* Uh Oh.  Expect bad behavior. */
+		return -1;
 	}
-	p->autokillid = ast_sched_add(sched, ms, __sip_autodestruct, dialog_ref(p, "setting ref as passing into ast_sched_add for __sip_autodestruct"));
-
-	if (p->stimer && p->stimer->st_active == TRUE && p->stimer->st_schedid > -1) {
-		stop_session_timer(p);
-	}
-}
-
-/*! \brief Cancel destruction of SIP dialog.
- * Be careful as this also absorbs the reference - if you call it
- * from within the scheduler, this might be the last reference.
- */
-int sip_cancel_destroy(struct sip_pvt *p)
-{
-	if (p->final_destruction_scheduled) {
-		return 0;
-	}
-
-	if (p->autokillid > -1) {
-		append_history(p, "CancelDestroy", "");
-		AST_SCHED_DEL_UNREF(sched, p->autokillid, dialog_unref(p, "remove ref for autokillid"));
+	sched_data->pvt = p;
+	sched_data->ms = ms;
+	dialog_ref(p, "Destroy action");
+	if (ast_sched_add(sched, 0, __sip_scheddestroy, sched_data) < 0) {
+		/* Uh Oh.  Expect bad behavior. */
+		dialog_unref(p, "Failed to schedule destroy action");
+		ast_free(sched_data);
+		return -1;
 	}
 	return 0;
+}
+
+void sip_scheddestroy(struct sip_pvt *p, int ms)
+{
+	if (p->final_destruction_scheduled) {
+		return; /* already set final destruction */
+	}
+	sip_scheddestroy_full(p, ms);
+}
+
+void sip_scheddestroy_final(struct sip_pvt *p, int ms)
+{
+	if (p->final_destruction_scheduled) {
+		return; /* already set final destruction */
+	}
+
+	if (!sip_scheddestroy_full(p, ms)) {
+		p->final_destruction_scheduled = 1;
+	}
 }
 
 /*! \brief Acknowledges receipt of a packet and stops retransmission
@@ -7161,9 +7222,8 @@ static int sip_hangup(struct ast_channel *ast)
 				ast_set_flag(&p->flags[0], SIP_PENDINGBYE);
 				ast_clear_flag(&p->flags[0], SIP_NEEDREINVITE);
 				AST_SCHED_DEL_UNREF(sched, p->waitid, dialog_unref(p, "when you delete the waitid sched, you should dec the refcount for the stored dialog ptr"));
-				if (sip_cancel_destroy(p)) {
-					ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
-				}
+				sip_cancel_destroy(p);
+
 				/* If we have an ongoing reinvite, there is a chance that we have gotten a provisional
 				 * response, but something weird has happened and we will never receive a final response.
 				 * So, just in case, check for pending actions after a bit of time to trigger the pending
@@ -17329,8 +17389,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 			ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_NAT_FORCE_RPORT);
 
 			if (!(res = check_auth(p, req, peer->name, peer->secret, peer->md5secret, SIP_REGISTER, uri2, XMIT_UNRELIABLE))) {
-				if (sip_cancel_destroy(p))
-					ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
+				sip_cancel_destroy(p);
 
 				if (check_request_transport(peer, req)) {
 					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);
@@ -17384,8 +17443,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 				ao2_t_link(peers_by_ip, peer, "link peer into peers-by-ip table");
 			}
 			ao2_lock(peer);
-			if (sip_cancel_destroy(p))
-				ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
+			sip_cancel_destroy(p);
 			switch (parse_register_contact(p, peer, req)) {
 			case PARSE_REGISTER_DENIED:
 				ast_log(LOG_WARNING, "Registration denied because of contact ACL\n");
@@ -23137,16 +23195,16 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 	switch (resp) {
 	case 100:	/* Trying */
 	case 101:	/* Dialog establishment */
-		if (!req->ignore && p->invitestate != INV_CANCELLED && sip_cancel_destroy(p)) {
-			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
+		if (!req->ignore && p->invitestate != INV_CANCELLED) {
+			sip_cancel_destroy(p);
 		}
 		check_pendings(p);
 		break;
 
 	case 180:	/* 180 Ringing */
 	case 182:       /* 182 Queued */
-		if (!req->ignore && p->invitestate != INV_CANCELLED && sip_cancel_destroy(p)) {
-			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
+		if (!req->ignore && p->invitestate != INV_CANCELLED) {
+			sip_cancel_destroy(p);
 		}
 		/* Store Route-set from provisional SIP responses so
 		 * early-dialog request can be routed properly
@@ -23202,8 +23260,9 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		break;
 
 	case 181:	/* Call Is Being Forwarded */
-		if (!req->ignore && (p->invitestate != INV_CANCELLED) && sip_cancel_destroy(p))
-			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
+		if (!req->ignore && p->invitestate != INV_CANCELLED) {
+			sip_cancel_destroy(p);
+		}
 		/* Store Route-set from provisional SIP responses so
 		 * early-dialog request can be routed properly
 		 * */
@@ -23234,8 +23293,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		break;
 
 	case 183:	/* Session progress */
-		if (!req->ignore && (p->invitestate != INV_CANCELLED) && sip_cancel_destroy(p)) {
-			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
+		if (!req->ignore && p->invitestate != INV_CANCELLED) {
+			sip_cancel_destroy(p);
 		}
 		/* Store Route-set from provisional SIP responses so
 		 * early-dialog request can be routed properly
@@ -23295,8 +23354,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		break;
 
 	case 200:	/* 200 OK on invite - someone's answering our call */
-		if (!req->ignore && (p->invitestate != INV_CANCELLED) && sip_cancel_destroy(p)) {
-			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
+		if (!req->ignore && p->invitestate != INV_CANCELLED) {
+			sip_cancel_destroy(p);
 		}
 		p->authtries = 0;
 		if (find_sdp(req)) {
@@ -24585,8 +24644,9 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 				}
 			} else if ((resp >= 100) && (resp < 200)) {
 				if (sipmethod == SIP_INVITE) {
-					if (!req->ignore && sip_cancel_destroy(p))
-						ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
+					if (!req->ignore) {
+						sip_cancel_destroy(p);
+					}
 					if (find_sdp(req))
 						process_sdp(p, req, SDP_T38_NONE);
 					if (p->owner) {
@@ -24652,8 +24712,9 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 		default:	/* Errors without handlers */
 			if ((resp >= 100) && (resp < 200)) {
 				if (sipmethod == SIP_INVITE) {	/* re-invite */
-					if (!req->ignore && sip_cancel_destroy(p))
-						ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
+					if (!req->ignore) {
+						sip_cancel_destroy(p);
+					}
 				}
 			} else if ((resp >= 200) && (resp < 300)) { /* on any unrecognized 2XX response do the following */
 				if (sipmethod == SIP_INVITE) {
@@ -24670,10 +24731,10 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 				case 502: /* Bad gateway */
 				case 503: /* Service Unavailable */
 				case 504: /* Server timeout */
-
 					/* re-invite failed */
-					if (sipmethod == SIP_INVITE && sip_cancel_destroy(p))
-						ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
+					if (sipmethod == SIP_INVITE) {
+						sip_cancel_destroy(p);
+					}
 					break;
 				}
 			}
@@ -25621,8 +25682,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 	if (!req->ignore) {
 		int newcall = (p->initreq.headers ? TRUE : FALSE);
 
-		if (sip_cancel_destroy(p))
-			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
+		sip_cancel_destroy(p);
+
 		/* This also counts as a pending invite */
 		p->pendinginvite = seqno;
 		check_via(p, req);
@@ -27893,10 +27954,13 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 						action, p->exten, p->context, p->username);
 			}
 		}
-		if (p->autokillid > -1 && sip_cancel_destroy(p))	/* Remove subscription expiry for renewals */
-			ast_log(LOG_WARNING, "Unable to cancel SIP destruction.  Expect bad things.\n");
-		if (p->expiry > 0)
-			sip_scheddestroy(p, (p->expiry + 10) * 1000);	/* Set timer for destruction of call at expiration */
+
+		/* Remove subscription expiry for renewals */
+		sip_cancel_destroy(p);
+		if (p->expiry > 0) {
+			/* Set timer for destruction of call at expiration */
+			sip_scheddestroy(p, (p->expiry + 10) * 1000);
+		}
 
 		if (p->subscribed == MWI_NOTIFICATION) {
 			ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
