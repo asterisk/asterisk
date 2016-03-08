@@ -29,7 +29,7 @@
 #include "asterisk/res_pjsip.h"
 #include "asterisk/module.h"
 
-static int get_endpoint_details(pjsip_rx_data *rdata, char *endpoint, size_t endpoint_size, char *domain, size_t domain_size)
+static int get_from_header(pjsip_rx_data *rdata, char *username, size_t username_size, char *domain, size_t domain_size)
 {
 	pjsip_uri *from = rdata->msg_info.from->uri;
 	pjsip_sip_uri *sip_from;
@@ -37,9 +37,26 @@ static int get_endpoint_details(pjsip_rx_data *rdata, char *endpoint, size_t end
 		return -1;
 	}
 	sip_from = (pjsip_sip_uri *) pjsip_uri_get_uri(from);
-	ast_copy_pj_str(endpoint, &sip_from->user, endpoint_size);
+	ast_copy_pj_str(username, &sip_from->user, username_size);
 	ast_copy_pj_str(domain, &sip_from->host, domain_size);
 	return 0;
+}
+
+static pjsip_authorization_hdr *get_auth_header(pjsip_rx_data *rdata, char *username,
+	size_t username_size, char *realm, size_t realm_size, pjsip_authorization_hdr *start)
+{
+	pjsip_authorization_hdr *header;
+
+	header = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_AUTHORIZATION, start);
+
+	if (!header || pj_stricmp2(&header->scheme, "digest")) {
+		return NULL;
+	}
+
+	ast_copy_pj_str(username, &header->credential.digest.username, username_size);
+	ast_copy_pj_str(realm, &header->credential.digest.realm, realm_size);
+
+	return header;
 }
 
 static int find_transport_state_in_use(void *obj, void *arg, int flags)
@@ -56,30 +73,26 @@ static int find_transport_state_in_use(void *obj, void *arg, int flags)
 	return 0;
 }
 
-static struct ast_sip_endpoint *username_identify(pjsip_rx_data *rdata)
+static struct ast_sip_endpoint *find_endpoint(pjsip_rx_data *rdata, char *endpoint_name, char *domain_name)
 {
-	char endpoint_name[64], domain_name[64], id[AST_UUID_STR_LEN];
+	char id[AST_UUID_STR_LEN];
 	struct ast_sip_endpoint *endpoint;
 	RAII_VAR(struct ast_sip_domain_alias *, alias, NULL, ao2_cleanup);
 	RAII_VAR(struct ao2_container *, transport_states, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_sip_transport_state *, transport_state, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_sip_transport *, transport, NULL, ao2_cleanup);
 
-	if (get_endpoint_details(rdata, endpoint_name, sizeof(endpoint_name), domain_name, sizeof(domain_name))) {
-		return NULL;
-	}
-
 	/* Attempt to find the endpoint given the name and domain provided */
 	snprintf(id, sizeof(id), "%s@%s", endpoint_name, domain_name);
 	if ((endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", id))) {
-		goto done;
+		return endpoint;
 	}
 
 	/* See if an alias exists for the domain provided */
 	if ((alias = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "domain_alias", domain_name))) {
 		snprintf(id, sizeof(id), "%s@%s", endpoint_name, alias->domain);
 		if ((endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", id))) {
-			goto done;
+			return endpoint;
 		}
 	}
 
@@ -90,40 +103,96 @@ static struct ast_sip_endpoint *username_identify(pjsip_rx_data *rdata)
 		&& !ast_strlen_zero(transport->domain)) {
 		snprintf(id, sizeof(id), "anonymous@%s", transport->domain);
 		if ((endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", id))) {
-			goto done;
+			return endpoint;
 		}
 	}
 
 	/* Fall back to no domain */
 	endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", endpoint_name);
 
-done:
-	if (endpoint) {
-		if (!(endpoint->ident_method & AST_SIP_ENDPOINT_IDENTIFY_BY_USERNAME)) {
-			ao2_ref(endpoint, -1);
-			return NULL;
-		}
-		ast_debug(3, "Retrieved endpoint %s\n", ast_sorcery_object_get_id(endpoint));
-	} else {
-		ast_debug(3, "Could not identify endpoint by username '%s'\n", endpoint_name);
-	}
 	return endpoint;
 }
+
+static struct ast_sip_endpoint *username_identify(pjsip_rx_data *rdata)
+{
+	char username[64], domain[64];
+	struct ast_sip_endpoint *endpoint;
+
+	if (get_from_header(rdata, username, sizeof(username), domain, sizeof(domain))) {
+		return NULL;
+	}
+	ast_debug(3, "Attempting identify by From username '%s' domain '%s'\n", username, domain);
+
+	endpoint = find_endpoint(rdata, username, domain);
+	if (!endpoint) {
+		ast_debug(3, "Endpoint not found for From username '%s' domain '%s'\n", username, domain);
+		ao2_cleanup(endpoint);
+		return NULL;
+	}
+	if (!(endpoint->ident_method & AST_SIP_ENDPOINT_IDENTIFY_BY_USERNAME)) {
+		ast_debug(3, "Endpoint found for '%s' but 'username' method not supported'\n", username);
+		ao2_cleanup(endpoint);
+		return NULL;
+	}
+	ast_debug(3, "Identified by From username '%s' domain '%s'\n", username, domain);
+
+	return endpoint;
+}
+
+static struct ast_sip_endpoint *auth_username_identify(pjsip_rx_data *rdata)
+{
+	char username[64], realm[64];
+	struct ast_sip_endpoint *endpoint;
+	pjsip_authorization_hdr *auth_header = NULL;
+
+	while ((auth_header = get_auth_header(rdata, username, sizeof(username), realm, sizeof(realm),
+		auth_header ? auth_header->next : NULL))) {
+		ast_debug(3, "Attempting identify by Authorization username '%s' realm '%s'\n", username,
+			realm);
+
+		endpoint = find_endpoint(rdata, username, realm);
+		if (!endpoint) {
+			ast_debug(3, "Endpoint not found for Authentication username '%s' realm '%s'\n",
+				username, realm);
+			ao2_cleanup(endpoint);
+			continue;
+		}
+		if (!(endpoint->ident_method & AST_SIP_ENDPOINT_IDENTIFY_BY_AUTH_USERNAME)) {
+			ast_debug(3, "Endpoint found for '%s' but 'auth_username' method not supported'\n",
+				username);
+			ao2_cleanup(endpoint);
+			continue;
+		}
+		ast_debug(3, "Identified by Authorization username '%s' realm '%s'\n", username, realm);
+
+		return endpoint;
+	}
+
+	return NULL;
+}
+
 
 static struct ast_sip_endpoint_identifier username_identifier = {
 	.identify_endpoint = username_identify,
 };
+
+static struct ast_sip_endpoint_identifier auth_username_identifier = {
+	.identify_endpoint = auth_username_identify,
+};
+
 
 static int load_module(void)
 {
 	CHECK_PJSIP_MODULE_LOADED();
 
 	ast_sip_register_endpoint_identifier_with_name(&username_identifier, "username");
+	ast_sip_register_endpoint_identifier_with_name(&auth_username_identifier, "auth_username");
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
 {
+	ast_sip_unregister_endpoint_identifier(&auth_username_identifier);
 	ast_sip_unregister_endpoint_identifier(&username_identifier);
 	return 0;
 }
