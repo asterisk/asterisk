@@ -807,7 +807,7 @@ static void print_uptimestr(int fd, struct timeval timeval, const char *prefix, 
 		return;
 
 	if (printsec)  {	/* plain seconds output */
-		ast_cli(fd, "%s: %lu\n", prefix, (u_long)timeval.tv_sec);
+		ast_cli(fd, "%s%lu\n", prefix, (u_long)timeval.tv_sec);
 		return;
 	}
 	out = ast_str_alloca(256);
@@ -841,7 +841,7 @@ static void print_uptimestr(int fd, struct timeval timeval, const char *prefix, 
 		/* if there is nothing, print 0 seconds */
 		ast_str_append(&out, 0, "%d second%s", x, ESS(x));
 	}
-	ast_cli(fd, "%s: %s\n", prefix, ast_str_buffer(out));
+	ast_cli(fd, "%s%s\n", prefix, ast_str_buffer(out));
 }
 
 static struct ast_cli_entry *cli_next(struct ast_cli_entry *e)
@@ -877,10 +877,12 @@ static char * handle_showuptime(struct ast_cli_entry *e, int cmd, struct ast_cli
 		printsec = 0;
 	else
 		return CLI_SHOWUSAGE;
-	if (ast_startuptime.tv_sec)
-		print_uptimestr(a->fd, ast_tvsub(curtime, ast_startuptime), "System uptime", printsec);
-	if (ast_lastreloadtime.tv_sec)
-		print_uptimestr(a->fd, ast_tvsub(curtime, ast_lastreloadtime), "Last reload", printsec);
+	if (ast_startuptime.tv_sec) {
+		print_uptimestr(a->fd, ast_tvsub(curtime, ast_startuptime), "System uptime: ", printsec);
+	}
+	if (ast_lastreloadtime.tv_sec) {
+		print_uptimestr(a->fd, ast_tvsub(curtime, ast_lastreloadtime), "Last reload: ", printsec);
+	}
 	return CLI_SUCCESS;
 }
 
@@ -972,7 +974,7 @@ static char *handle_showcalls(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	ast_cli(a->fd, "%d call%s processed\n", ast_processed_calls(), ESS(ast_processed_calls()));
 
 	if (ast_startuptime.tv_sec && showuptime) {
-		print_uptimestr(a->fd, ast_tvsub(curtime, ast_startuptime), "System uptime", printsec);
+		print_uptimestr(a->fd, ast_tvsub(curtime, ast_startuptime), "System uptime: ", printsec);
 	}
 
 	return RESULT_SUCCESS;
@@ -2743,4 +2745,9 @@ int ast_cli_command_multiple_full(int uid, int gid, int fd, size_t size, const c
 		}
 	}
 	return count;
+}
+
+void ast_cli_print_timestr_fromseconds(int fd, int seconds, const char *prefix)
+{
+	print_uptimestr(fd, ast_tv(seconds, 0), prefix, 0);
 }
