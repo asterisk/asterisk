@@ -24,6 +24,7 @@
 #include "include/res_pjsip_private.h"
 #include "asterisk/taskprocessor.h"
 #include "asterisk/threadpool.h"
+#include "asterisk/cli.h"
 
 static int distribute(void *data);
 static pj_bool_t distributor(pjsip_rx_data *rdata);
@@ -35,6 +36,26 @@ static pjsip_module distributor_mod = {
 	.on_tx_request = record_serializer,
 	.on_rx_request = distributor,
 	.on_rx_response = distributor,
+};
+
+struct ast_sched_context *prune_context;
+
+/* From the auth/realm realtime column size */
+#define MAX_REALM_LENGTH 40
+static char default_realm[MAX_REALM_LENGTH + 1];
+
+#define DEFAULT_SUSPECTS_BUCKETS 53
+
+static struct ao2_container *unidentified_requests;
+static unsigned int unidentified_count;
+static unsigned int unidentified_period;
+static unsigned int unidentified_prune_interval;
+static int using_auth_username;
+
+struct unidentified_request{
+	struct timeval first_seen;
+	int count;
+	char src_name[];
 };
 
 /*!
@@ -322,7 +343,7 @@ static int create_artificial_auth(void)
 		return -1;
 	}
 
-	ast_string_field_set(artificial_auth, realm, "asterisk");
+	ast_string_field_set(artificial_auth, realm, default_realm);
 	ast_string_field_set(artificial_auth, auth_user, "");
 	ast_string_field_set(artificial_auth, auth_pass, "");
 	artificial_auth->type = AST_SIP_AUTH_TYPE_ARTIFICIAL;
@@ -359,27 +380,33 @@ struct ast_sip_endpoint *ast_sip_get_artificial_endpoint(void)
 	return artificial_endpoint;
 }
 
-static void log_unidentified_request(pjsip_rx_data *rdata)
+static void log_unidentified_request(pjsip_rx_data *rdata, unsigned int count, unsigned int period)
 {
 	char from_buf[PJSIP_MAX_URL_SIZE];
 	char callid_buf[PJSIP_MAX_URL_SIZE];
 	pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, rdata->msg_info.from->uri, from_buf, PJSIP_MAX_URL_SIZE);
 	ast_copy_pj_str(callid_buf, &rdata->msg_info.cid->id, PJSIP_MAX_URL_SIZE);
-	ast_log(LOG_NOTICE, "Request from '%s' failed for '%s:%d' (callid: %s) - No matching endpoint found\n",
-		from_buf, rdata->pkt_info.src_name, rdata->pkt_info.src_port, callid_buf);
+	ast_log(LOG_NOTICE, "Request from '%s' failed for '%s:%d' (callid: %s) - No matching endpoint found"
+		" after %u tries in %.3f ms\n",
+		from_buf, rdata->pkt_info.src_name, rdata->pkt_info.src_port, callid_buf, count, period / 1000.0);
 }
 
 static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata)
 {
 	struct ast_sip_endpoint *endpoint;
+	struct unidentified_request *unid;
 	int is_ack = rdata->msg_info.msg->line.req.method.id == PJSIP_ACK_METHOD;
 
 	endpoint = rdata->endpt_info.mod_data[endpoint_mod.id];
 	if (endpoint) {
+		ao2_find(unidentified_requests, rdata->pkt_info.src_name, OBJ_SEARCH_KEY | OBJ_NODATA | OBJ_UNLINK);
 		return PJ_FALSE;
 	}
 
 	endpoint = ast_sip_identify_endpoint(rdata);
+	if (endpoint) {
+		ao2_find(unidentified_requests, rdata->pkt_info.src_name, OBJ_SEARCH_KEY | OBJ_NODATA | OBJ_UNLINK);
+	}
 
 	if (!endpoint && !is_ack) {
 		char name[AST_UUID_STR_LEN] = "";
@@ -397,8 +424,35 @@ static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata)
 			ast_copy_pj_str(name, &sip_from->user, sizeof(name));
 		}
 
-		log_unidentified_request(rdata);
-		ast_sip_report_invalid_endpoint(name, rdata);
+		if ((unid = ao2_find(unidentified_requests, rdata->pkt_info.src_name, OBJ_SEARCH_KEY | OBJ_NOLOCK))) {
+			int64_t ms = ast_tvdiff_ms(ast_tvnow(), unid->first_seen);
+
+			ao2_wrlock(unid);
+			unid->count++;
+
+			if (ms < (unidentified_period * 1000) && unid->count >= unidentified_count) {
+				log_unidentified_request(rdata, unid->count, ms);
+				ast_sip_report_invalid_endpoint(name, rdata);
+			}
+			ao2_unlock(unid);
+			ao2_ref(unid, -1);
+
+		} else if (using_auth_username) {
+			unid = ao2_alloc_options(sizeof(*unid) + strlen(rdata->pkt_info.src_name) + 1, NULL,
+				AO2_ALLOC_OPT_LOCK_RWLOCK);
+			if (!unid) {
+				return PJ_TRUE;
+			}
+			strcpy(unid->src_name, rdata->pkt_info.src_name); /* Safe */
+			if (!unid->src_name) {
+				return PJ_TRUE;
+			}
+			unid->first_seen = ast_tvnow();
+			unid->count = 1;
+			ao2_link(unidentified_requests, unid);
+			ao2_ref(unid, -1);
+		}
+
 	}
 	rdata->endpt_info.mod_data[endpoint_mod.id] = endpoint;
 	return PJ_FALSE;
@@ -421,6 +475,7 @@ static pj_bool_t authenticate(pjsip_rx_data *rdata)
 			pjsip_endpt_send_response2(ast_sip_get_pjsip_endpoint(), rdata, tdata, NULL, NULL);
 			return PJ_TRUE;
 		case AST_SIP_AUTHENTICATION_SUCCESS:
+			ao2_find(unidentified_requests, rdata->pkt_info.src_name, OBJ_SEARCH_KEY | OBJ_NODATA | OBJ_UNLINK);
 			ast_sip_report_auth_success(endpoint, rdata);
 			pjsip_tx_data_dec_ref(tdata);
 			return PJ_FALSE;
@@ -480,31 +535,228 @@ struct ast_sip_endpoint *ast_pjsip_rdata_get_endpoint(pjsip_rx_data *rdata)
 	return endpoint;
 }
 
+static int suspects_sort(const void *obj, const void *arg, int flags)
+{
+	const struct unidentified_request *object_left = obj;
+	const struct unidentified_request *object_right = arg;
+	const char *right_key = arg;
+	int cmp;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = object_right->src_name;
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(object_left->src_name, right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		cmp = strncmp(object_left->src_name, right_key, strlen(right_key));
+		break;
+	default:
+		cmp = 0;
+		break;
+	}
+	return cmp;
+}
+
+static int suspects_compare(void *obj, void *arg, int flags)
+{
+	const struct unidentified_request *object_left = obj;
+	const struct unidentified_request *object_right = arg;
+	const char *right_key = arg;
+	int cmp = 0;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = object_right->src_name;
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		if (strcmp(object_left->src_name, right_key) == 0) {
+			cmp = CMP_MATCH | CMP_STOP;
+		}
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		if (strncmp(object_left->src_name, right_key, strlen(right_key)) == 0) {
+			cmp = CMP_MATCH;
+		}
+		break;
+	default:
+		cmp = 0;
+		break;
+	}
+	return cmp;
+}
+
+static int suspects_hash(const void *obj, int flags) {
+	const struct unidentified_request *object_left = obj;
+
+	if (flags & OBJ_SEARCH_OBJECT) {
+		return ast_str_hash(object_left->src_name);
+	} else if (flags & OBJ_SEARCH_KEY) {
+		return ast_str_hash(obj);
+	}
+	return -1;
+}
+
+static char *cli_show_unidentified_requests(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ao2_iterator i;
+	struct unidentified_request *unid;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "pjsip show unidentified_requests";
+		e->usage = "Usage: pjsip show unidentified_requests\n"
+		            "      Show all pending unidenified requests\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3) {
+		return CLI_SHOWUSAGE;
+	}
+
+	ast_cli(a->fd, "Pending Unidentified Requests:\n\n");
+
+	ast_cli(a->fd, " %-32s : %7s %10s\n", "IP Address", "Count", "Age(sec)");
+	ast_cli(a->fd, " ================================ : ======= ==========\n");
+
+	/* Don't lock the container or someone pressing CTRL-S on a console will cause a deadlock */
+	i = ao2_iterator_init(unidentified_requests, AO2_ITERATOR_DONTLOCK);
+	while ((unid = ao2_iterator_next(&i))) {
+		int64_t ms = ast_tvdiff_ms(ast_tvnow(), unid->first_seen);
+
+		ast_cli(a->fd, " %-32s : %7d %10.3f\n", unid->src_name, unid->count,  ms / 1000.0);
+		ao2_cleanup(unid);
+	}
+	ao2_iterator_destroy(&i);
+	ast_cli(a->fd, "\n");
+
+	return CLI_SUCCESS;
+}
+
+static struct ast_cli_entry cli_commands[] = {
+	AST_CLI_DEFINE(cli_show_unidentified_requests, "Show all pending unidenified requests"),
+};
+
+static int expire_requests(void *object, void *arg, int flags)
+{
+	struct unidentified_request *unid = object;
+	int *maxage = arg;
+	int64_t ms = ast_tvdiff_ms(ast_tvnow(), unid->first_seen);
+
+	if (ms > (*maxage) * 2 * 1000) {
+		return CMP_MATCH;
+	}
+
+	return 0;
+}
+
+static int prune_task(const void *data)
+{
+	unsigned int maxage;
+
+	ast_sip_get_unidentified_request_thresholds(&unidentified_count, &unidentified_period, &unidentified_prune_interval);
+	maxage = unidentified_period * 2;
+	ao2_callback(unidentified_requests, OBJ_MULTIPLE | OBJ_NODATA | OBJ_UNLINK, expire_requests, &maxage);
+
+	return unidentified_prune_interval * 1000;
+}
+
+static int clean_task(const void *data)
+{
+	return 0;
+}
+
+static void global_loaded(const char *object_type)
+{
+	char *identifier_order = ast_sip_get_endpoint_identifier_order();
+	char *io_copy = ast_strdupa(identifier_order);
+
+	ast_free(identifier_order);
+	if (ast_strip(strsep(&io_copy, ","))) {
+		using_auth_username = 1;
+	} else {
+		using_auth_username = 0;
+	}
+
+	ast_sip_get_default_realm(default_realm, sizeof(default_realm));
+	ast_sip_get_unidentified_request_thresholds(&unidentified_count, &unidentified_period, &unidentified_prune_interval);
+
+	/* Clean out the old task, if any */
+	ast_sched_clean_by_callback(prune_context, prune_task, clean_task);
+	if (ast_sched_add_variable(prune_context, unidentified_prune_interval * 1000, prune_task, NULL, 1) < 0) {
+		return;
+	}
+}
+
+/*! \brief Observer which is used to update our interval and default_realm when the global setting changes */
+static struct ast_sorcery_observer global_observer = {
+	.loaded = global_loaded,
+};
+
+
 int ast_sip_initialize_distributor(void)
 {
+	unidentified_requests = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_RWLOCK, AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE,
+		DEFAULT_SUSPECTS_BUCKETS, suspects_hash, suspects_sort, suspects_compare);
+	if (!unidentified_requests) {
+		return -1;
+	}
+
+	prune_context = ast_sched_context_create();
+	if (!prune_context) {
+		ast_sip_destroy_distributor();
+		return -1;
+	}
+
+	if (ast_sched_start_thread(prune_context)) {
+		ast_sip_destroy_distributor();
+		return -1;
+	}
+
+	ast_sorcery_observer_add(ast_sip_get_sorcery(), "global", &global_observer);
+	ast_sorcery_reload_object(ast_sip_get_sorcery(), "global");
+
 	if (create_artificial_endpoint() || create_artificial_auth()) {
+		ast_sip_destroy_distributor();
 		return -1;
 	}
 
 	if (internal_sip_register_service(&distributor_mod)) {
+		ast_sip_destroy_distributor();
 		return -1;
 	}
 	if (internal_sip_register_service(&endpoint_mod)) {
+		ast_sip_destroy_distributor();
 		return -1;
 	}
 	if (internal_sip_register_service(&auth_mod)) {
+		ast_sip_destroy_distributor();
 		return -1;
 	}
+
+	ast_cli_register_multiple(cli_commands, ARRAY_LEN(cli_commands));
 
 	return 0;
 }
 
 void ast_sip_destroy_distributor(void)
 {
+	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
+
 	internal_sip_unregister_service(&distributor_mod);
 	internal_sip_unregister_service(&endpoint_mod);
 	internal_sip_unregister_service(&auth_mod);
 
 	ao2_cleanup(artificial_auth);
 	ao2_cleanup(artificial_endpoint);
+	ao2_cleanup(unidentified_requests);
+
+	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "global", &global_observer);
+
+	if (prune_context) {
+		ast_sched_context_destroy(prune_context);
+	}
 }
