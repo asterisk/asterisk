@@ -252,18 +252,22 @@
 				<configOption name="identify_by" default="username,location">
 					<synopsis>Way(s) for Endpoint to be identified</synopsis>
 					<description><para>
-						An endpoint can be identified in multiple ways. Currently, the only supported
-						option is <literal>username</literal>, which matches the endpoint based on the
-						username in the From header.
+						Endpoints and aors can be identified in multiple ways. Currently, the supported
+						options are <literal>username</literal>, which matches the endpoint or aor id based on
+						the username and domain in the From header (or To header for aors), and
+						<literal>auth_username</literal>, which matches the endpoint or aor id based on the
+						username and realm in the Authentication header.  In all cases, if an exact match
+						on both username and domain/realm fails, the match will be retried with just the username.
 						</para>
 						<note><para>Endpoints can also be identified by IP address; however, that method
 						of identification is not handled by this configuration option. See the documentation
 						for the <literal>identify</literal> configuration section for more details on that
-						method of endpoint identification. If this option is set to <literal>username</literal>
-						and an <literal>identify</literal> configuration section exists for the endpoint, then
-						the endpoint can be identified in multiple ways.</para></note>
+						method of endpoint identification. If this option is set and an <literal>identify</literal>
+						configuration section exists for the endpoint, then the endpoint can be identified in
+						multiple ways.</para></note>
 						<enumlist>
 							<enum name="username" />
+							<enum name="auth_username" />
 						</enumlist>
 					</description>
 				</configOption>
@@ -1303,7 +1307,9 @@
 				<configOption name="endpoint_identifier_order" default="ip,username,anonymous">
 					<synopsis>The order by which endpoint identifiers are processed and checked.
                                         Identifier names are usually derived from and can be found in the endpoint
-                                        identifier module itself (res_pjsip_endpoint_identifier_*)</synopsis>
+                                        identifier module itself (res_pjsip_endpoint_identifier_*).
+                                        You can use the CLI command "pjsip show identifiers" to see the
+                                        identifiers currently available.</synopsis>
 				</configOption>
 				<configOption name="default_from_user" default="asterisk">
 					<synopsis>When Asterisk generates an outgoing SIP request, the From header username will be
