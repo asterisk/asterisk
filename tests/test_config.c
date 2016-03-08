@@ -1672,6 +1672,66 @@ out:
 	return res;
 }
 
+AST_TEST_DEFINE(variable_lists_match)
+{
+	RAII_VAR(struct ast_variable *, left, NULL, ast_variables_destroy);
+	RAII_VAR(struct ast_variable *, right, NULL, ast_variables_destroy);
+	struct ast_variable *var;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "variable_lists_match";
+		info->category = "/main/config/";
+		info->summary = "Test ast_variable_lists_match";
+		info->description =	"Test ast_variable_lists_match";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	var = ast_variable_new("aaa", "111", "");
+	ast_test_validate(test, var);
+	left = var;
+	var = ast_variable_new("bbb", "222", "");
+	ast_test_validate(test, var);
+	ast_variable_list_append(&left, var);
+
+	var = ast_variable_new("aaa", "111", "");
+	ast_test_validate(test, var);
+	right = var;
+
+	ast_test_validate(test, ast_variable_lists_match(left, right, 0));
+	ast_test_validate(test, !ast_variable_lists_match(left, right, 1));
+
+	var = ast_variable_new("bbb", "222", "");
+	ast_test_validate(test, var);
+	ast_variable_list_append(&right, var);
+
+	ast_test_validate(test, ast_variable_lists_match(left, right, 0));
+	ast_test_validate(test, ast_variable_lists_match(left, right, 1));
+
+	var = ast_variable_new("ccc >", "333", "");
+	ast_test_validate(test, var);
+	ast_variable_list_append(&right, var);
+
+	ast_test_validate(test, !ast_variable_lists_match(left, right, 0));
+	ast_test_validate(test, !ast_variable_lists_match(left, right, 1));
+
+	var = ast_variable_new("ccc", "444", "");
+	ast_test_validate(test, var);
+	ast_variable_list_append(&left, var);
+
+	ast_test_validate(test, ast_variable_lists_match(left, right, 0));
+	ast_test_validate(test, !ast_variable_lists_match(left, right, 1));
+
+	ast_test_validate(test, !ast_variable_lists_match(left, NULL, 0));
+	ast_test_validate(test, ast_variable_lists_match(NULL, NULL, 0));
+	ast_test_validate(test, !ast_variable_lists_match(NULL, right, 0));
+	ast_test_validate(test, ast_variable_lists_match(left, left, 0));
+
+	return AST_TEST_PASS;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(config_basic_ops);
@@ -1682,6 +1742,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(ast_parse_arg_test);
 	AST_TEST_UNREGISTER(config_options_test);
 	AST_TEST_UNREGISTER(config_dialplan_function);
+	AST_TEST_UNREGISTER(variable_lists_match);
 	return 0;
 }
 
@@ -1695,6 +1756,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(ast_parse_arg_test);
 	AST_TEST_REGISTER(config_options_test);
 	AST_TEST_REGISTER(config_dialplan_function);
+	AST_TEST_REGISTER(variable_lists_match);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
