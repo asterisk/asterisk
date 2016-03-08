@@ -723,6 +723,86 @@ const char *ast_variable_find(const struct ast_category *category, const char *v
 	return ast_variable_find_in_list(category->root, variable);
 }
 
+const struct ast_variable *ast_variable_find_variable_in_list(const struct ast_variable *list, const char *variable_name)
+{
+	const struct ast_variable *v;
+
+	for (v = list; v; v = v->next) {
+		if (!strcasecmp(variable_name, v->name)) {
+			return v;
+		}
+	}
+	return NULL;
+}
+
+int ast_variables_match(const struct ast_variable *left, const struct ast_variable *right)
+{
+	char *op;
+
+	if (left == right) {
+		return 1;
+	}
+
+	if (!(left && right)) {
+		return 0;
+	}
+
+	op = strrchr(right->name, ' ');
+	if (op) {
+		op++;
+	}
+
+	return ast_strings_match(left->value, op ? ast_strdupa(op) : NULL, right->value);
+}
+
+int ast_variable_lists_match(const struct ast_variable *left, const struct ast_variable *right, int exact_match)
+{
+	const struct ast_variable *field;
+
+	if (left == right) {
+		return 1;
+	}
+
+	if (!(left && right)) {
+		return 0;
+	}
+
+	for (field = right; field; field = field->next) {
+		char *space = strrchr(field->name, ' ');
+		const struct ast_variable *old;
+		char *name = (char *)field->name;
+
+		if (space) {
+			name = ast_strdupa(field->name);
+			name[space - field->name] = '\0';
+		}
+
+		old = ast_variable_find_variable_in_list(left, name);
+
+		if (exact_match) {
+			if (!old || strcmp(old->value, field->value)) {
+				return 0;
+			}
+		} else {
+			if (!ast_variables_match(old, field)) {
+				return 0;
+			}
+		}
+	}
+
+	if (exact_match) {
+		for (field = left; field; field = field->next) {
+			const struct ast_variable *new = ast_variable_find_variable_in_list(right, field->name);
+
+			if (!new || strcmp(new->value, field->value)) {
+				return 0;
+			}
+		}
+	}
+
+	return 1;
+}
+
 const char *ast_variable_find_in_list(const struct ast_variable *list, const char *variable)
 {
 	const struct ast_variable *v;

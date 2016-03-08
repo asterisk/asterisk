@@ -39,6 +39,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include <regex.h>
 #include "asterisk/strings.h"
 #include "asterisk/pbx.h"
 
@@ -228,3 +229,128 @@ char *ast_generate_random_string(char *buf, size_t size)
 
 	return buf;
 }
+
+int ast_strings_match(const char *left, const char *op, const char *right)
+{
+	char *internal_op = (char *)op;
+	char *internal_right = (char *)right;
+	float left_num;
+	float right_num;
+	int scan_numeric = 0;
+
+	if (!(left && right)) {
+		return 0;
+	}
+
+	if (ast_strlen_zero(op)) {
+		if (ast_strlen_zero(left) && ast_strlen_zero(right)) {
+			return 1;
+		}
+
+		if (right[0] == '/' && right[strlen(left) - 1] == '/') {
+			internal_op = "regex";
+			internal_right = ast_strdupa(left);
+			internal_right++;
+			internal_right[strlen(internal_right) - 1] = '\0';
+			goto regex;
+		} else {
+			internal_op = "=";
+			goto equals;
+		}
+	}
+
+	if (!strcasecmp(op, "like")) {
+		char *tok;
+		struct ast_str *buffer = ast_str_alloca(128);
+
+		if (!strchr(right, '%')) {
+			return !strcmp(left, right);
+		} else {
+			internal_op = "regex";
+			internal_right = ast_strdupa(right);
+			tok = strsep(&internal_right, "%");
+			ast_str_set(&buffer, 0, "^%s", tok);
+
+			while ((tok = strsep(&internal_right, "%"))) {
+				ast_str_append(&buffer, 0, ".*%s", tok);
+			}
+			ast_str_append(&buffer, 0, "%s", "$");
+
+			internal_right = ast_str_buffer(buffer);
+			/* fall thgouth to regex */
+		}
+	}
+
+regex:
+	if (!strcasecmp(internal_op, "regex")) {
+		regex_t expression;
+		int rc;
+
+		if (regcomp(&expression, internal_right, REG_EXTENDED | REG_NOSUB)) {
+			return 0;
+		}
+
+		rc = regexec(&expression, left, 0, NULL, 0);
+		regfree(&expression);
+		return !rc;
+	}
+
+equals:
+	scan_numeric = (sscanf(left, "%f", &left_num) && sscanf(internal_right, "%f", &right_num));
+
+	if (internal_op[0] == '=') {
+		if (ast_strlen_zero(left) && ast_strlen_zero(internal_right)) {
+			return 1;
+		}
+
+		if (scan_numeric) {
+			return (left_num == right_num);
+		} else {
+			return (!strcmp(left, internal_right));
+		}
+	}
+
+	if (internal_op[0] == '!' && internal_op[1] == '=') {
+		if (scan_numeric) {
+			return (left_num != right_num);
+		} else {
+			return !!strcmp(left, internal_right);
+		}
+	}
+
+	if (internal_op[0] == '<') {
+		if (scan_numeric) {
+			if (internal_op[1] == '=') {
+				return (left_num <= right_num);
+			} else {
+				return (left_num < right_num);
+			}
+		} else {
+			if (internal_op[1] == '=') {
+				return strcmp(left, internal_right) <= 0;
+			} else {
+				return strcmp(left, internal_right) < 0;
+			}
+		}
+	}
+
+	if (internal_op[0] == '>') {
+		if (scan_numeric) {
+			if (internal_op[1] == '=') {
+				return (left_num >= right_num);
+			} else {
+				return (left_num > right_num);
+			}
+		} else {
+			if (internal_op[1] == '=') {
+				return strcmp(left, internal_right) >= 0;
+			} else {
+				return strcmp(left, internal_right) > 0;
+			}
+		}
+	}
+
+	return 0;
+}
+
+

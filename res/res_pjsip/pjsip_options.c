@@ -1089,31 +1089,13 @@ static int qualify_and_schedule_cb(void *obj, void *arg, int flags)
  */
 static int qualify_and_schedule_all_cb(void *obj, void *arg, int flags)
 {
-	struct ast_sip_endpoint *endpoint = obj;
-	char *aors;
-	char *aor_name;
+	struct ast_sip_aor *aor = obj;
+	struct ao2_container *contacts;
 
-	if (ast_strlen_zero(endpoint->aors)) {
-		return 0;
-	}
-
-	aors = ast_strdupa(endpoint->aors);
-	while ((aor_name = ast_strip(strsep(&aors, ",")))) {
-		struct ast_sip_aor *aor;
-		struct ao2_container *contacts;
-
-		aor = ast_sip_location_retrieve_aor(aor_name);
-		if (!aor) {
-			continue;
-		}
-
-		contacts = ast_sip_location_retrieve_aor_contacts(aor);
-		if (contacts) {
-			ao2_callback(contacts, OBJ_NODATA, qualify_and_schedule_cb, aor);
-			ao2_ref(contacts, -1);
-		}
-
-		ao2_ref(aor, -1);
+	contacts = ast_sip_location_retrieve_aor_contacts(aor);
+	if (contacts) {
+		ao2_callback(contacts, OBJ_NODATA, qualify_and_schedule_cb, aor);
+		ao2_ref(contacts, -1);
 	}
 
 	return 0;
@@ -1134,16 +1116,20 @@ static int unschedule_all_cb(void *obj, void *arg, int flags)
 
 static void qualify_and_schedule_all(void)
 {
-	struct ao2_container *endpoints = ast_sip_get_endpoints();
+	struct ast_variable *var = ast_variable_new("qualify_frequency >", "0", "");
+	struct ao2_container *aors = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(),
+		"aor", AST_RETRIEVE_FLAG_MULTIPLE, var);
+
+	ast_variables_destroy(var);
 
 	ao2_callback(sched_qualifies, OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK, unschedule_all_cb, NULL);
 
-	if (!endpoints) {
+	if (!aors) {
 		return;
 	}
 
-	ao2_callback(endpoints, OBJ_NODATA, qualify_and_schedule_all_cb, NULL);
-	ao2_ref(endpoints, -1);
+	ao2_callback(aors, OBJ_NODATA, qualify_and_schedule_all_cb, NULL);
+	ao2_ref(aors, -1);
 }
 
 static int format_contact_status(void *obj, void *arg, int flags)

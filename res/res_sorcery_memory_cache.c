@@ -1251,8 +1251,7 @@ static int sorcery_memory_cache_fields_cmp(void *obj, void *arg, int flags)
 		}
 		return 0;
 	} else if (params->fields &&
-	     (ast_sorcery_changeset_create(cached->objectset, params->fields, &diff) ||
-	     diff)) {
+	     (!ast_variable_lists_match(cached->objectset, params->fields, 0))) {
 		/* If we can't turn the object into an object set OR if differences exist between the fields
 		 * passed in and what are present on the object they are not a match.
 		 */
