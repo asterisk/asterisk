@@ -370,6 +370,14 @@ res_pjsip
    dynamically create and destroy a NoOp priority 1 extension
    for a given endpoint who registers or unregisters with us.
 
+ * Endpoints and aors can now be identified by the username and realm in an
+   incoming Authorization header.  To use this feature, add "auth_username"
+   to your endpoint's "identify_by" list.  You can combine "auth_username"
+   and the original "username" to test both the From/To and Authorization
+   headers.  For endpoints, the order is controlled by the global
+   "endpoint_identifier_order" setting.  For matching aors to an endpoint
+   for inbound registration, the order is controlled by this option.
+
 res_pjsip_history
 ------------------
  * A new module, res_pjsip_history, has been added that provides SIP history
