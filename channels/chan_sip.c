@@ -1510,6 +1510,9 @@ static void sip_send_all_mwi_subscriptions(void);
 static int sip_subscribe_mwi_do(const void *data);
 static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi);
 
+/* Scheduler id start/stop/reschedule functions. */
+static void stop_provisional_keepalive(struct sip_pvt *pvt);
+
 /*! \brief Definition of this channel for PBX channel registration */
 struct ast_channel_tech sip_tech = {
 	.type = "SIP",
@@ -4511,25 +4514,14 @@ static void add_blank(struct sip_request *req)
 	}
 }
 
+/* Run by the sched thread. */
 static int send_provisional_keepalive_full(struct sip_pvt *pvt, int with_sdp)
 {
 	const char *msg = NULL;
 	struct ast_channel *chan;
 	int res = 0;
-	int old_sched_id = pvt->provisional_keepalive_sched_id;
 
 	chan = sip_pvt_lock_full(pvt);
-	/* Check that nothing has changed while we were waiting for the lock */
-	if (old_sched_id != pvt->provisional_keepalive_sched_id) {
-		/* Keepalive has been cancelled or rescheduled, clean up and leave */
-		if (chan) {
-			ast_channel_unlock(chan);
-			chan = ast_channel_unref(chan);
-		}
-		sip_pvt_unlock(pvt);
-		dialog_unref(pvt, "dialog ref for provisional keepalive");
-		return 0;
-	}
 
 	if (!pvt->last_provisional || !strncasecmp(pvt->last_provisional, "100", 3)) {
 		msg = "183 Session Progress";
@@ -4542,25 +4534,23 @@ static int send_provisional_keepalive_full(struct sip_pvt *pvt, int with_sdp)
 			transmit_response(pvt, S_OR(msg, pvt->last_provisional), &pvt->initreq);
 		}
 		res = PROVIS_KEEPALIVE_TIMEOUT;
-	}
-
-	if (chan) {
-		ast_channel_unlock(chan);
-		chan = ast_channel_unref(chan);
-	}
-
-	if (!res) {
+	} else {
 		pvt->provisional_keepalive_sched_id = -1;
 	}
 
 	sip_pvt_unlock(pvt);
+	if (chan) {
+		ast_channel_unlock(chan);
+		ast_channel_unref(chan);
+	}
 
 	if (!res) {
-		dialog_unref(pvt, "dialog ref for provisional keepalive");
+		dialog_unref(pvt, "Schedule provisional keepalive complete");
 	}
 	return res;
 }
 
+/* Run by the sched thread. */
 static int send_provisional_keepalive(const void *data)
 {
 	struct sip_pvt *pvt = (struct sip_pvt *) data;
@@ -4568,6 +4558,7 @@ static int send_provisional_keepalive(const void *data)
 	return send_provisional_keepalive_full(pvt, 0);
 }
 
+/* Run by the sched thread. */
 static int send_provisional_keepalive_with_sdp(const void *data)
 {
 	struct sip_pvt *pvt = (void *) data;
@@ -4575,12 +4566,73 @@ static int send_provisional_keepalive_with_sdp(const void *data)
 	return send_provisional_keepalive_full(pvt, 1);
 }
 
+/* Run by the sched thread. */
+static int __update_provisional_keepalive_full(struct sip_pvt *pvt, int with_sdp)
+{
+	AST_SCHED_DEL_UNREF(sched, pvt->provisional_keepalive_sched_id,
+		dialog_unref(pvt, "Stop scheduled provisional keepalive for update"));
+
+	sip_pvt_lock(pvt);
+	if (pvt->invitestate < INV_COMPLETED) {
+		/* Provisional keepalive is still needed. */
+		dialog_ref(pvt, "Schedule provisional keepalive");
+		pvt->provisional_keepalive_sched_id = ast_sched_add(sched, PROVIS_KEEPALIVE_TIMEOUT,
+			with_sdp ? send_provisional_keepalive_with_sdp : send_provisional_keepalive,
+			pvt);
+		if (pvt->provisional_keepalive_sched_id < 0) {
+			dialog_unref(pvt, "Failed to schedule provisional keepalive");
+		}
+	}
+	sip_pvt_unlock(pvt);
+
+	dialog_unref(pvt, "Update provisional keepalive action");
+	return 0;
+}
+
+/* Run by the sched thread. */
+static int __update_provisional_keepalive(const void *data)
+{
+	struct sip_pvt *pvt = (void *) data;
+
+	return __update_provisional_keepalive_full(pvt, 0);
+}
+
+/* Run by the sched thread. */
+static int __update_provisional_keepalive_with_sdp(const void *data)
+{
+	struct sip_pvt *pvt = (void *) data;
+
+	return __update_provisional_keepalive_full(pvt, 1);
+}
+
 static void update_provisional_keepalive(struct sip_pvt *pvt, int with_sdp)
 {
-	AST_SCHED_DEL_UNREF(sched, pvt->provisional_keepalive_sched_id, dialog_unref(pvt, "when you delete the provisional_keepalive_sched_id, you should dec the refcount for the stored dialog ptr"));
+	dialog_ref(pvt, "Update provisional keepalive action");
+	if (ast_sched_add(sched, 0,
+		with_sdp ? __update_provisional_keepalive_with_sdp : __update_provisional_keepalive,
+		pvt) < 0) {
+		dialog_unref(pvt, "Failed to schedule update provisional keepalive action");
+	}
+}
 
-	pvt->provisional_keepalive_sched_id = ast_sched_add(sched, PROVIS_KEEPALIVE_TIMEOUT,
-		with_sdp ? send_provisional_keepalive_with_sdp : send_provisional_keepalive, dialog_ref(pvt, "Increment refcount to pass dialog pointer to sched callback"));
+/* Run by the sched thread. */
+static int __stop_provisional_keepalive(const void *data)
+{
+	struct sip_pvt *pvt = (void *) data;
+
+	AST_SCHED_DEL_UNREF(sched, pvt->provisional_keepalive_sched_id,
+		dialog_unref(pvt, "Stop scheduled provisional keepalive"));
+	dialog_unref(pvt, "Stop provisional keepalive action");
+	return 0;
+}
+
+static void stop_provisional_keepalive(struct sip_pvt *pvt)
+{
+	dialog_ref(pvt, "Stop provisional keepalive action");
+	if (ast_sched_add(sched, 0, __stop_provisional_keepalive, pvt) < 0) {
+		/* Uh Oh.  Expect bad behavior. */
+		dialog_unref(pvt, "Failed to schedule stop provisional keepalive action");
+	}
 }
 
 static void add_required_respheader(struct sip_request *req)
@@ -4636,7 +4688,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 
 	/* If we are sending a final response to an INVITE, stop retransmitting provisional responses */
 	if (p->initreq.method == SIP_INVITE && reliable == XMIT_CRITICAL) {
-		AST_SCHED_DEL_UNREF(sched, p->provisional_keepalive_sched_id, dialog_unref(p, "when you delete the provisional_keepalive_sched_id, you should dec the refcount for the stored dialog ptr"));
+		stop_provisional_keepalive(p);
 	}
 
 	res = (reliable) ?
@@ -7061,7 +7113,8 @@ static int sip_hangup(struct ast_channel *ast)
 				}
 			} else {	/* Incoming call, not up */
 				const char *res;
-				AST_SCHED_DEL_UNREF(sched, p->provisional_keepalive_sched_id, dialog_unref(p, "when you delete the provisional_keepalive_sched_id, you should dec the refcount for the stored dialog ptr"));
+
+				stop_provisional_keepalive(p);
 				if (p->hangupcause && (res = hangup_cause2sip(p->hangupcause)))
 					transmit_response_reliable(p, res, &p->initreq);
 				else
@@ -9111,7 +9164,7 @@ static void forked_invite_init(struct sip_request *req, const char *new_theirtag
  * \post pvt is locked
  * \post pvt->owner is locked and its reference count is increased (if pvt->owner is not NULL)
  *
- * \returns a pointer to the locked and reffed pvt->owner channel if it exists.
+ * \return a pointer to the locked and reffed pvt->owner channel if it exists.
  */
 static struct ast_channel *sip_pvt_lock_full(struct sip_pvt *pvt)
 {
