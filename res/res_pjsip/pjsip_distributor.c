@@ -363,10 +363,14 @@ static void log_unidentified_request(pjsip_rx_data *rdata)
 {
 	char from_buf[PJSIP_MAX_URL_SIZE];
 	char callid_buf[PJSIP_MAX_URL_SIZE];
-	pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, rdata->msg_info.from->uri, from_buf, PJSIP_MAX_URL_SIZE);
-	ast_copy_pj_str(callid_buf, &rdata->msg_info.cid->id, PJSIP_MAX_URL_SIZE);
-	ast_log(LOG_NOTICE, "Request from '%s' failed for '%s:%d' (callid: %s) - No matching endpoint found\n",
-		from_buf, rdata->pkt_info.src_name, rdata->pkt_info.src_port, callid_buf);
+#define DEBUG_LEVEL 1
+
+	if (option_debug >= DEBUG_LEVEL || ast_debug_get_by_module(AST_MODULE) >= DEBUG_LEVEL) {
+		pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, rdata->msg_info.from->uri, from_buf, PJSIP_MAX_URL_SIZE);
+		ast_copy_pj_str(callid_buf, &rdata->msg_info.cid->id, PJSIP_MAX_URL_SIZE);
+		ast_debug(DEBUG_LEVEL, "Request from '%s' failed for '%s:%d' (callid: %s) - No matching endpoint found\n",
+			from_buf, rdata->pkt_info.src_name, rdata->pkt_info.src_port, callid_buf);
+	}
 }
 
 static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata)

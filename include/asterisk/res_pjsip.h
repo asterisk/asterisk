@@ -2193,6 +2193,14 @@ void ast_sip_get_default_from_user(char *from_user, size_t size);
 unsigned int ast_sip_get_keep_alive_interval(void);
 
 /*!
+ * \brief Retrieve the system contact expiration check interval setting.
+ *
+ * \retval the contact expiration check interval.
+ */
+unsigned int ast_sip_get_contact_expiration_check_interval(void);
+
+
+/*!
  * \brief Retrieve the system max initial qualify time.
  *
  * \retval the maximum initial qualify time.
