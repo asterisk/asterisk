@@ -42,60 +42,12 @@ ASTERISK_FILE_VERSION(__FILE__, "")
 /*! \brief Configuration structure which contains all stored objects */
 static struct ast_config *realtime_objects;
 
-/*! \brief Helper function which finds a given variable */
-static const struct ast_variable *realtime_find_variable(const struct ast_variable *fields, const char *name)
-{
-	const struct ast_variable *variable;
-
-	for (variable = fields; variable; variable = variable->next) {
-		if (!strcmp(variable->name, name)) {
-			return variable;
-		}
-	}
-
-	return NULL;
-}
-
-/*! \brief Helper function which returns if an object is matching or not */
-static int realtime_is_object_matching(const char *object_id, const struct ast_variable *fields)
-{
-	const struct ast_variable *field;
-
-	for (field = fields; field; field = field->next) {
-		char *name = ast_strdupa(field->name), *like;
-		const char *value;
-
-		/* If we are doing a pattern matching we need to remove the LIKE from the name */
-		if ((like = strstr(name, " LIKE"))) {
-			char *field_value = ast_strdupa(field->value);
-
-			*like = '\0';
-
-			value = ast_strdupa(ast_variable_retrieve(realtime_objects, object_id, name));
-
-			field_value = ast_strip_quoted(field_value, "%", "%");
-
-			if (strncmp(value, field_value, strlen(field_value))) {
-				return 0;
-			}
-		} else {
-			value = ast_variable_retrieve(realtime_objects, object_id, name);
-
-			if (ast_strlen_zero(value) || strcmp(value, field->value)) {
-				return 0;
-			}
-		}
-	}
-
-	return 1;
-}
-
 static struct ast_variable *realtime_sorcery(const char *database, const char *table, const struct ast_variable *fields)
 {
 	char *object_id = NULL;
 
 	while ((object_id = ast_category_browse(realtime_objects, object_id))) {
-		if (!realtime_is_object_matching(object_id, fields)) {
+		if (!ast_variable_lists_match(ast_category_root(realtime_objects, object_id), fields, 0)) {
 			continue;
 		}
 
@@ -116,8 +68,9 @@ static struct ast_config *realtime_sorcery_multi(const char *database, const cha
 
 	while ((object_id = ast_category_browse(realtime_objects, object_id))) {
 		struct ast_category *object;
+		const struct ast_variable *object_fields = ast_category_root(realtime_objects, object_id);
 
-		if (!realtime_is_object_matching(object_id, fields)) {
+		if (!ast_variable_lists_match(object_fields, fields, 0)) {
 			continue;
 		}
 
@@ -154,7 +107,7 @@ static int realtime_sorcery_update(const char *database, const char *table, cons
 static int realtime_sorcery_store(const char *database, const char *table, const struct ast_variable *fields)
 {
 	/* The key field is explicit within res_sorcery_realtime */
-	const struct ast_variable *keyfield = realtime_find_variable(fields, "id");
+	const struct ast_variable *keyfield = ast_variable_find_variable_in_list(fields, "id");
 	struct ast_category *object;
 
 	if (!keyfield || ast_category_exist(realtime_objects, keyfield->value, NULL) || !(object = ast_category_new(keyfield->value, "", 0))) {
@@ -201,7 +154,7 @@ static void *test_sorcery_object_alloc(const char *id)
 	return ast_sorcery_generic_alloc(sizeof(struct test_sorcery_object), NULL);
 }
 
-static struct ast_sorcery *alloc_and_initialize_sorcery(void)
+static struct ast_sorcery *alloc_and_initialize_sorcery(char *table)
 {
 	struct ast_sorcery *sorcery;
 
@@ -209,7 +162,7 @@ static struct ast_sorcery *alloc_and_initialize_sorcery(void)
 		return NULL;
 	}
 
-	if ((ast_sorcery_apply_default(sorcery, "test", "realtime", "sorcery_realtime_test") != AST_SORCERY_APPLY_SUCCESS) ||
+	if ((ast_sorcery_apply_default(sorcery, "test", "realtime", table) != AST_SORCERY_APPLY_SUCCESS) ||
 		ast_sorcery_internal_object_register(sorcery, "test", test_sorcery_object_alloc, NULL, NULL) ||
 		!(realtime_objects = ast_config_new())) {
 		ast_sorcery_unref(sorcery);
@@ -246,7 +199,7 @@ AST_TEST_DEFINE(object_create)
 		break;
 	}
 
-	if (!(sorcery = alloc_and_initialize_sorcery())) {
+	if (!(sorcery = alloc_and_initialize_sorcery("sorcery_realtime_test"))) {
 		ast_test_status_update(test, "Failed to open sorcery structure\n");
 		return AST_TEST_FAIL;
 	}
@@ -281,7 +234,7 @@ AST_TEST_DEFINE(object_retrieve_id)
 		break;
 	}
 
-	if (!(sorcery = alloc_and_initialize_sorcery())) {
+	if (!(sorcery = alloc_and_initialize_sorcery("sorcery_realtime_test"))) {
 		ast_test_status_update(test, "Failed to open sorcery structure\n");
 		return AST_TEST_FAIL;
 	}
@@ -344,7 +297,7 @@ AST_TEST_DEFINE(object_retrieve_field)
 		return AST_TEST_FAIL;
 	}
 
-	if (!(sorcery = alloc_and_initialize_sorcery())) {
+	if (!(sorcery = alloc_and_initialize_sorcery("sorcery_realtime_test"))) {
 		ast_test_status_update(test, "Failed to open sorcery structure\n");
 		return AST_TEST_FAIL;
 	}
@@ -402,7 +355,7 @@ AST_TEST_DEFINE(object_retrieve_multiple_all)
 		break;
 	}
 
-	if (!(sorcery = alloc_and_initialize_sorcery())) {
+	if (!(sorcery = alloc_and_initialize_sorcery("sorcery_realtime_test"))) {
 		ast_test_status_update(test, "Failed to open sorcery structure\n");
 		return AST_TEST_FAIL;
 	}
@@ -440,6 +393,63 @@ AST_TEST_DEFINE(object_retrieve_multiple_all)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(object_retrieve_multiple_all_nofetch)
+{
+	RAII_VAR(struct ast_sorcery *, sorcery, NULL, deinitialize_sorcery);
+	RAII_VAR(struct test_sorcery_object *, obj, NULL, ao2_cleanup);
+	RAII_VAR(struct ao2_container *, objects, NULL, ao2_cleanup);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "object_retrieve_multiple_all_nofetch";
+		info->category = "/res/sorcery_realtime/";
+		info->summary = "sorcery multiple object retrieval unit test";
+		info->description =
+			"Test multiple object retrieval in sorcery using realtime wizard";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(sorcery = alloc_and_initialize_sorcery("sorcery_realtime_test,allow_unqualified_fetch=no"))) {
+		ast_test_status_update(test, "Failed to open sorcery structure\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!(obj = ast_sorcery_alloc(sorcery, "test", "blah"))) {
+		ast_test_status_update(test, "Failed to allocate a known object type\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_sorcery_create(sorcery, obj)) {
+		ast_test_status_update(test, "Failed to create object using realtime wizard\n");
+		return AST_TEST_FAIL;
+	}
+
+	ao2_cleanup(obj);
+
+	if (!(obj = ast_sorcery_alloc(sorcery, "test", "blah2"))) {
+		ast_test_status_update(test, "Failed to allocate second instance of a known object type\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_sorcery_create(sorcery, obj)) {
+		ast_test_status_update(test, "Failed to create second object using realtime wizard\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!(objects = ast_sorcery_retrieve_by_fields(sorcery, "test", AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL))) {
+		ast_test_status_update(test, "Failed to retrieve a container of all objects\n");
+		return AST_TEST_FAIL;
+	} else if (ao2_container_count(objects) != 0) {
+		ast_test_status_update(test, "Received a container with objects in it when there should be none\n");
+		return AST_TEST_FAIL;
+	}
+
+	return AST_TEST_PASS;
+}
+
+
 AST_TEST_DEFINE(object_retrieve_multiple_field)
 {
 	RAII_VAR(struct ast_sorcery *, sorcery, NULL, deinitialize_sorcery);
@@ -464,7 +474,7 @@ AST_TEST_DEFINE(object_retrieve_multiple_field)
 		return AST_TEST_FAIL;
 	}
 
-	if (!(sorcery = alloc_and_initialize_sorcery())) {
+	if (!(sorcery = alloc_and_initialize_sorcery("sorcery_realtime_test"))) {
 		ast_test_status_update(test, "Failed to open sorcery structure\n");
 		return AST_TEST_FAIL;
 	}
@@ -524,7 +534,7 @@ AST_TEST_DEFINE(object_retrieve_regex)
 		break;
 	}
 
-	if (!(sorcery = alloc_and_initialize_sorcery())) {
+	if (!(sorcery = alloc_and_initialize_sorcery("sorcery_realtime_test"))) {
 		ast_test_status_update(test, "Failed to open sorcery structure\n");
 		return AST_TEST_FAIL;
 	}
@@ -574,6 +584,74 @@ AST_TEST_DEFINE(object_retrieve_regex)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(object_retrieve_regex_nofetch)
+{
+	RAII_VAR(struct ast_sorcery *, sorcery, NULL, deinitialize_sorcery);
+	RAII_VAR(struct test_sorcery_object *, obj, NULL, ao2_cleanup);
+	RAII_VAR(struct ao2_container *, objects, NULL, ao2_cleanup);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "object_retrieve_regex_nofetch";
+		info->category = "/res/sorcery_realtime/";
+		info->summary = "sorcery multiple object retrieval using regex unit test";
+		info->description =
+			"Test multiple object retrieval in sorcery using regular expression for matching using realtime wizard";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (!(sorcery = alloc_and_initialize_sorcery("sorcery_realtime_test,allow_unqualified_fetch=no"))) {
+		ast_test_status_update(test, "Failed to open sorcery structure\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!(obj = ast_sorcery_alloc(sorcery, "test", "blah-98joe"))) {
+		ast_test_status_update(test, "Failed to allocate a known object type\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_sorcery_create(sorcery, obj)) {
+		ast_test_status_update(test, "Failed to create object using realtime wizard\n");
+		return AST_TEST_FAIL;
+	}
+
+	ao2_cleanup(obj);
+
+	if (!(obj = ast_sorcery_alloc(sorcery, "test", "blah-93joe"))) {
+		ast_test_status_update(test, "Failed to allocate second instance of a known object type\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_sorcery_create(sorcery, obj)) {
+		ast_test_status_update(test, "Failed to create second object using astdb wizard\n");
+		return AST_TEST_FAIL;
+	}
+
+	ao2_cleanup(obj);
+
+	if (!(obj = ast_sorcery_alloc(sorcery, "test", "neener-93joe"))) {
+		ast_test_status_update(test, "Failed to allocate third instance of a known object type\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_sorcery_create(sorcery, obj)) {
+		ast_test_status_update(test, "Failed to create third object using astdb wizard\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (!(objects = ast_sorcery_retrieve_by_regex(sorcery, "test", ""))) {
+		ast_test_status_update(test, "Failed to retrieve a container of objects\n");
+		return AST_TEST_FAIL;
+	} else if (ao2_container_count(objects) != 0) {
+		ast_test_status_update(test, "Received a container with incorrect number of objects in it: %d instead of 0\n", ao2_container_count(objects));
+		return AST_TEST_FAIL;
+	}
+
+	return AST_TEST_PASS;
+}
+
 AST_TEST_DEFINE(object_update)
 {
 	RAII_VAR(struct ast_sorcery *, sorcery, NULL, deinitialize_sorcery);
@@ -592,7 +670,7 @@ AST_TEST_DEFINE(object_update)
 		break;
 	}
 
-	if (!(sorcery = alloc_and_initialize_sorcery())) {
+	if (!(sorcery = alloc_and_initialize_sorcery("sorcery_realtime_test"))) {
 		ast_test_status_update(test, "Failed to open sorcery structure\n");
 		return AST_TEST_FAIL;
 	}
@@ -650,7 +728,7 @@ AST_TEST_DEFINE(object_update_uncreated)
 		break;
 	}
 
-	if (!(sorcery = alloc_and_initialize_sorcery())) {
+	if (!(sorcery = alloc_and_initialize_sorcery("sorcery_realtime_test"))) {
 		ast_test_status_update(test, "Failed to open sorcery structure\n");
 		return AST_TEST_FAIL;
 	}
@@ -685,7 +763,7 @@ AST_TEST_DEFINE(object_delete)
 		break;
 	}
 
-	if (!(sorcery = alloc_and_initialize_sorcery())) {
+	if (!(sorcery = alloc_and_initialize_sorcery("sorcery_realtime_test"))) {
 		ast_test_status_update(test, "Failed to open sorcery structure\n");
 		return AST_TEST_FAIL;
 	}
@@ -732,7 +810,7 @@ AST_TEST_DEFINE(object_delete_uncreated)
 		break;
 	}
 
-	if (!(sorcery = alloc_and_initialize_sorcery())) {
+	if (!(sorcery = alloc_and_initialize_sorcery("sorcery_realtime_test"))) {
 		ast_test_status_update(test, "Failed to open sorcery structure\n");
 		return AST_TEST_FAIL;
 	}
@@ -770,7 +848,7 @@ AST_TEST_DEFINE(object_allocate_on_retrieval)
 		break;
 	}
 
-	if (!(sorcery = alloc_and_initialize_sorcery())) {
+	if (!(sorcery = alloc_and_initialize_sorcery("sorcery_realtime_test"))) {
 		ast_test_status_update(test, "Failed to open sorcery structure\n");
 		return AST_TEST_FAIL;
 	}
@@ -823,7 +901,7 @@ AST_TEST_DEFINE(object_filter)
 		break;
 	}
 
-	if (!(sorcery = alloc_and_initialize_sorcery())) {
+	if (!(sorcery = alloc_and_initialize_sorcery("sorcery_realtime_test"))) {
 		ast_test_status_update(test, "Failed to open sorcery structure\n");
 		return AST_TEST_FAIL;
 	}
@@ -859,8 +937,10 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(object_retrieve_id);
 	AST_TEST_UNREGISTER(object_retrieve_field);
 	AST_TEST_UNREGISTER(object_retrieve_multiple_all);
+	AST_TEST_UNREGISTER(object_retrieve_multiple_all_nofetch);
 	AST_TEST_UNREGISTER(object_retrieve_multiple_field);
 	AST_TEST_UNREGISTER(object_retrieve_regex);
+	AST_TEST_UNREGISTER(object_retrieve_regex_nofetch);
 	AST_TEST_UNREGISTER(object_update);
 	AST_TEST_UNREGISTER(object_update_uncreated);
 	AST_TEST_UNREGISTER(object_delete);
@@ -879,8 +959,10 @@ static int load_module(void)
 	AST_TEST_REGISTER(object_retrieve_id);
 	AST_TEST_REGISTER(object_retrieve_field);
 	AST_TEST_REGISTER(object_retrieve_multiple_all);
+	AST_TEST_REGISTER(object_retrieve_multiple_all_nofetch);
 	AST_TEST_REGISTER(object_retrieve_multiple_field);
 	AST_TEST_REGISTER(object_retrieve_regex);
+	AST_TEST_REGISTER(object_retrieve_regex_nofetch);
 	AST_TEST_REGISTER(object_update);
 	AST_TEST_REGISTER(object_update_uncreated);
 	AST_TEST_REGISTER(object_delete);
