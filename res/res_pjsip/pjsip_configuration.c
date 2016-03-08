@@ -479,6 +479,16 @@ static int ident_handler(const struct aco_option *opt, struct ast_variable *var,
 	struct ast_sip_endpoint *endpoint = obj;
 	char *idents = ast_strdupa(var->value);
 	char *val;
+	enum ast_sip_endpoint_identifier_type method;
+
+	/*
+	 * If there's already something in the vector when we get here,
+	 * it's the default value so we need to clean it out.
+	 */
+	if (AST_VECTOR_SIZE(&endpoint->ident_method_order)) {
+		AST_VECTOR_RESET(&endpoint->ident_method_order, AST_VECTOR_ELEM_CLEANUP_NOOP);
+		endpoint->ident_method = 0;
+	}
 
 	while ((val = ast_strip(strsep(&idents, ",")))) {
 		if (ast_strlen_zero(val)) {
@@ -486,27 +496,55 @@ static int ident_handler(const struct aco_option *opt, struct ast_variable *var,
 		}
 
 		if (!strcasecmp(val, "username")) {
-			endpoint->ident_method |= AST_SIP_ENDPOINT_IDENTIFY_BY_USERNAME;
+			method = AST_SIP_ENDPOINT_IDENTIFY_BY_USERNAME;
+		} else	if (!strcasecmp(val, "auth_username")) {
+			method = AST_SIP_ENDPOINT_IDENTIFY_BY_AUTH_USERNAME;
 		} else {
 			ast_log(LOG_ERROR, "Unrecognized identification method %s specified for endpoint %s\n",
 					val, ast_sorcery_object_get_id(endpoint));
+			AST_VECTOR_RESET(&endpoint->ident_method_order, AST_VECTOR_ELEM_CLEANUP_NOOP);
+			endpoint->ident_method = 0;
 			return -1;
 		}
+
+		endpoint->ident_method |= method;
+		AST_VECTOR_APPEND(&endpoint->ident_method_order, method);
 	}
+
 	return 0;
 }
 
 static int ident_to_str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct ast_sip_endpoint *endpoint = obj;
-	switch (endpoint->ident_method) {
-	case AST_SIP_ENDPOINT_IDENTIFY_BY_USERNAME :
-		*buf = "username"; break;
-	default:
+	int methods;
+	char *method;
+	int i;
+	int j = 0;
+
+	methods = AST_VECTOR_SIZE(&endpoint->ident_method_order);
+	if (!methods) {
 		return 0;
 	}
 
-	*buf = ast_strdup(*buf);
+	if (!(*buf = ast_calloc(MAX_OBJECT_FIELD, sizeof(char)))) {
+		return -1;
+	}
+
+	for (i = 0; i < methods; i++) {
+		switch (AST_VECTOR_GET(&endpoint->ident_method_order, i)) {
+		case AST_SIP_ENDPOINT_IDENTIFY_BY_USERNAME :
+			method = "username";
+			break;
+		case AST_SIP_ENDPOINT_IDENTIFY_BY_AUTH_USERNAME :
+			method = "auth_username";
+			break;
+		default:
+			continue;
+		}
+		j = sprintf(*buf + j, "%s%s", method, i < methods - 1 ? "," : "");
+	}
+
 	return 0;
 }
 
@@ -2092,6 +2130,7 @@ static void endpoint_destructor(void* obj)
 	endpoint->pickup.named_pickupgroups = ast_unref_namedgroups(endpoint->pickup.named_pickupgroups);
 	ao2_cleanup(endpoint->persistent);
 	ast_variables_destroy(endpoint->channel_vars);
+	AST_VECTOR_FREE(&endpoint->ident_method_order);
 }
 
 static int init_subscription_configuration(struct ast_sip_endpoint_subscription_configuration *subscription)
@@ -2136,6 +2175,11 @@ void *ast_sip_endpoint_alloc(const char *name)
 		return NULL;
 	}
 	ast_party_id_init(&endpoint->id.self);
+
+	if (AST_VECTOR_INIT(&endpoint->ident_method_order, 1)) {
+		return NULL;
+	}
+
 	return endpoint;
 }
 
