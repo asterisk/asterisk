@@ -959,7 +959,6 @@ struct sip_st_dlg {
 	int st_cached_max_se;              /*!< Session-Timers cached Session-Expires */
 	enum st_mode st_cached_mode;       /*!< Session-Timers cached M.O. */
 	enum st_refresher st_cached_ref;   /*!< Session-Timers session refresher */
-	unsigned char quit_flag:1;         /*!< Stop trying to lock; just quit */
 };
 
 
