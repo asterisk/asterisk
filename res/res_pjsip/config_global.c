@@ -35,9 +35,13 @@
 #define DEFAULT_ENDPOINT_IDENTIFIER_ORDER "ip,username,anonymous"
 #define DEFAULT_MAX_INITIAL_QUALIFY_TIME 0
 #define DEFAULT_FROM_USER "asterisk"
+#define DEFAULT_REALM "asterisk"
 #define DEFAULT_REGCONTEXT ""
 #define DEFAULT_CONTACT_EXPIRATION_CHECK_INTERVAL 30
 #define DEFAULT_VOICEMAIL_EXTENSION ""
+#define DEFAULT_UNIDENTIFIED_REQUEST_COUNT 5
+#define DEFAULT_UNIDENTIFIED_REQUEST_PERIOD 5
+#define DEFAULT_UNIDENTIFIED_REQUEST_PRUNE_INTERVAL 30
 
 static char default_useragent[256];
 
@@ -55,6 +59,8 @@ struct global_config {
 		AST_STRING_FIELD(default_from_user);
 		/*! Default voicemail extension */
 		AST_STRING_FIELD(default_voicemail_extension);
+		/*! Realm to use in challenges before an endpoint is identified */
+		AST_STRING_FIELD(default_realm);
 	);
 	/* Value to put in Max-Forwards header */
 	unsigned int max_forwards;
@@ -64,6 +70,12 @@ struct global_config {
 	unsigned int max_initial_qualify_time;
 	/* The interval at which to check for expired contacts */
 	unsigned int contact_expiration_check_interval;
+	/* The maximum number of unidentified requests per source IP address before a security event is logged */
+	unsigned int unidentified_request_count;
+	/* The period during which unidentified requests are accumulated */
+	unsigned int unidentified_request_period;
+	/* Interval at which expired unidentifed requests will be pruned */
+	unsigned int unidentified_request_prune_interval;
 };
 
 static void global_destructor(void *obj)
@@ -237,6 +249,40 @@ unsigned int ast_sip_get_max_initial_qualify_time(void)
 	return time;
 }
 
+void ast_sip_get_unidentified_request_thresholds(unsigned int *count, unsigned int *period,
+	unsigned int *prune_interval)
+{
+	struct global_config *cfg;
+
+	cfg = get_global_cfg();
+	if (!cfg) {
+		*count = DEFAULT_UNIDENTIFIED_REQUEST_COUNT;
+		*period = DEFAULT_UNIDENTIFIED_REQUEST_PERIOD;
+		*prune_interval = DEFAULT_UNIDENTIFIED_REQUEST_PRUNE_INTERVAL;
+		return;
+	}
+
+	*count = cfg->unidentified_request_count;
+	*period = cfg->unidentified_request_period;
+	*prune_interval = cfg->unidentified_request_prune_interval;
+
+	ao2_ref(cfg, -1);
+	return;
+}
+
+void ast_sip_get_default_realm(char *realm, size_t size)
+{
+	struct global_config *cfg;
+
+	cfg = get_global_cfg();
+	if (!cfg) {
+		ast_copy_string(realm, DEFAULT_REALM, size);
+	} else {
+		ast_copy_string(realm, cfg->default_realm, size);
+		ao2_ref(cfg, -1);
+	}
+}
+
 void ast_sip_get_default_from_user(char *from_user, size_t size)
 {
 	struct global_config *cfg;
@@ -369,10 +415,21 @@ int ast_sip_initialize_sorcery_global(void)
 		DEFAULT_VOICEMAIL_EXTENSION, OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config,
 		default_voicemail_extension));
 	ast_sorcery_object_field_register(sorcery, "global", "regcontext", DEFAULT_REGCONTEXT,
-		OPT_UINT_T, 0, FLDSET(struct global_config, contact_expiration_check_interval));
+		OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, regcontext));
 	ast_sorcery_object_field_register(sorcery, "global", "contact_expiration_check_interval",
 		__stringify(DEFAULT_CONTACT_EXPIRATION_CHECK_INTERVAL),
-		OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, regcontext));
+		OPT_UINT_T, 0, FLDSET(struct global_config, contact_expiration_check_interval));
+	ast_sorcery_object_field_register(sorcery, "global", "unidentified_request_count",
+		__stringify(DEFAULT_UNIDENTIFIED_REQUEST_COUNT),
+		OPT_UINT_T, 0, FLDSET(struct global_config, unidentified_request_count));
+	ast_sorcery_object_field_register(sorcery, "global", "unidentified_request_period",
+		__stringify(DEFAULT_UNIDENTIFIED_REQUEST_PERIOD),
+		OPT_UINT_T, 0, FLDSET(struct global_config, unidentified_request_period));
+	ast_sorcery_object_field_register(sorcery, "global", "unidentified_request_prune_interval",
+		__stringify(DEFAULT_UNIDENTIFIED_REQUEST_PRUNE_INTERVAL),
+		OPT_UINT_T, 0, FLDSET(struct global_config, unidentified_request_prune_interval));
+	ast_sorcery_object_field_register(sorcery, "global", "default_realm", DEFAULT_REALM,
+		OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, default_realm));
 
 	if (ast_sorcery_instance_observer_add(sorcery, &observer_callbacks_global)) {
 		return -1;
