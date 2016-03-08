@@ -523,6 +523,68 @@ AST_TEST_DEFINE(escape_test)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(strings_match)
+{
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "strings_match";
+		info->category = "/main/strings/";
+		info->summary = "Test ast_strings_match";
+		info->description = "Test ast_strings_match";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	ast_test_validate(test, ast_strings_match("aaa", NULL, "aaa"));
+	ast_test_validate(test, ast_strings_match("aaa", "", "aaa"));
+	ast_test_validate(test, ast_strings_match("aaa", "=", "aaa"));
+	ast_test_validate(test, !ast_strings_match("aaa", "!=", "aaa"));
+	ast_test_validate(test, !ast_strings_match("aaa", NULL, "aba"));
+	ast_test_validate(test, !ast_strings_match("aaa", "", "aba"));
+	ast_test_validate(test, !ast_strings_match("aaa", "=", "aba"));
+	ast_test_validate(test, ast_strings_match("aaa", "!=", "aba"));
+
+	ast_test_validate(test, ast_strings_match("aaa", "<=", "aba"));
+	ast_test_validate(test, ast_strings_match("aaa", "<=", "aaa"));
+	ast_test_validate(test, !ast_strings_match("aaa", "<", "aaa"));
+
+	ast_test_validate(test, !ast_strings_match("aaa", ">=", "aba"));
+	ast_test_validate(test, ast_strings_match("aaa", ">=", "aaa"));
+	ast_test_validate(test, !ast_strings_match("aaa", ">", "aaa"));
+
+	ast_test_validate(test, !ast_strings_match("aaa", "=", "aa"));
+	ast_test_validate(test, ast_strings_match("aaa", ">", "aa"));
+	ast_test_validate(test, !ast_strings_match("aaa", "<", "aa"));
+
+	ast_test_validate(test, ast_strings_match("1", "=", "1"));
+	ast_test_validate(test, !ast_strings_match("1", "!=", "1"));
+	ast_test_validate(test, !ast_strings_match("2", "=", "1"));
+	ast_test_validate(test, ast_strings_match("2", ">", "1"));
+	ast_test_validate(test, ast_strings_match("2", ">=", "1"));
+	ast_test_validate(test, ast_strings_match("2", ">", "1.9888"));
+	ast_test_validate(test, ast_strings_match("2.9", ">", "1"));
+	ast_test_validate(test, ast_strings_match("2", ">", "1"));
+	ast_test_validate(test, ast_strings_match("2.999", "<", "3"));
+	ast_test_validate(test, ast_strings_match("2", ">", "#"));
+
+	ast_test_validate(test, ast_strings_match("abcccc", "like", "%a%c"));
+	ast_test_validate(test, !ast_strings_match("abcccx", "like", "%a%c"));
+	ast_test_validate(test, ast_strings_match("abcccc", "regex", "a[bc]+c"));
+	ast_test_validate(test, !ast_strings_match("abcccx", "regex", "^a[bxdfgtc]+c$"));
+
+	ast_test_validate(test, !ast_strings_match("neener-93joe", "LIKE", "%blah-%"));
+	ast_test_validate(test, ast_strings_match("blah-93joe", "LIKE", "%blah-%"));
+
+	ast_test_validate(test, !ast_strings_match("abcccx", "regex", NULL));
+	ast_test_validate(test, !ast_strings_match("abcccx", NULL, NULL));
+	ast_test_validate(test, !ast_strings_match(NULL, "regex", NULL));
+	ast_test_validate(test, !ast_strings_match(NULL, NULL, "abc"));
+	ast_test_validate(test, !ast_strings_match(NULL, NULL, NULL));
+
+	return AST_TEST_PASS;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(str_test);
@@ -531,6 +593,7 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(strsep_test);
 	AST_TEST_UNREGISTER(escape_semicolons_test);
 	AST_TEST_UNREGISTER(escape_test);
+	AST_TEST_UNREGISTER(strings_match);
 	return 0;
 }
 
@@ -542,6 +605,7 @@ static int load_module(void)
 	AST_TEST_REGISTER(strsep_test);
 	AST_TEST_REGISTER(escape_semicolons_test);
 	AST_TEST_REGISTER(escape_test);
+	AST_TEST_REGISTER(strings_match);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
