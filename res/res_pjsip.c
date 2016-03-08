@@ -252,18 +252,35 @@
 				<configOption name="identify_by" default="username,location">
 					<synopsis>Way(s) for Endpoint to be identified</synopsis>
 					<description><para>
-						An endpoint can be identified in multiple ways. Currently, the only supported
-						option is <literal>username</literal>, which matches the endpoint based on the
-						username in the From header.
+						Endpoints and aors can be identified in multiple ways. Currently, the supported
+						options are <literal>username</literal>, which matches the endpoint or aor id based on
+						the username and domain in the From header (or To header for aors), and
+						<literal>auth_username</literal>, which matches the endpoint or aor id based on the
+						username and realm in the Authentication header.  In all cases, if an exact match
+						on both username and domain/realm fails, the match will be retried with just the username.
 						</para>
+						<note><para>
+						Identification by auth_username has some security considerations because an
+						Authentication header is not present on the first message of a dialog when
+						digest authentication is used.  The client can't generate it until the server
+						sends the challenge in a 401 response.  Since Asterisk normally sends a security
+						event when an incoming request can't be matched to an endpoint, using auth_username
+						requires that the security event be deferred until a request is received with
+						the Authentication header and only generated if the username doesn't result in a
+						match.  This may result in a delay before an attack is recognized.  You can control
+						how many unmatched requests are received from a single ip address before a security
+						event is generated using the unidentified_request parameters in the "global"
+						configuration object.
+						</para></note>
 						<note><para>Endpoints can also be identified by IP address; however, that method
 						of identification is not handled by this configuration option. See the documentation
 						for the <literal>identify</literal> configuration section for more details on that
-						method of endpoint identification. If this option is set to <literal>username</literal>
-						and an <literal>identify</literal> configuration section exists for the endpoint, then
-						the endpoint can be identified in multiple ways.</para></note>
+						method of endpoint identification. If this option is set and an <literal>identify</literal>
+						configuration section exists for the endpoint, then the endpoint can be identified in
+						multiple ways.</para></note>
 						<enumlist>
 							<enum name="username" />
+							<enum name="auth_username" />
 						</enumlist>
 					</description>
 				</configOption>
@@ -1298,6 +1315,24 @@
 					<synopsis>The maximum amount of time from startup that qualifies should be attempted on all contacts.
 					If greater than the qualify_frequency for an aor, qualify_frequency will be used instead.</synopsis>
 				</configOption>
+				<configOption name="unidentified_request_period" default="5">
+					<synopsis>The number of seconds over which to accumulate unidentified requests.</synopsis>
+					<description><para>
+					If <literal>unidentified_request_count</literal> unidentified requests are received
+					during <literal>unidentified_request_period</literal>, a security event will be generated.
+					</para></description>
+				</configOption>
+				<configOption name="unidentified_request_count" default="5">
+					<synopsis>The number of unidentified requests from a single IP to allow.</synopsis>
+					<description><para>
+					If <literal>unidentified_request_count</literal> unidentified requests are received
+					during <literal>unidentified_request_period</literal>, a security event will be generated.
+					</para></description>
+				</configOption>
+				<configOption name="unidentified_request_prune_interval" default="30">
+					<synopsis>The interval at which unidentified requests are older than
+					twice the unidentified_request_period are pruned.</synopsis>
+				</configOption>
 				<configOption name="type">
 					<synopsis>Must be of type 'global'.</synopsis>
 				</configOption>
@@ -1321,11 +1356,33 @@
 				<configOption name="endpoint_identifier_order" default="ip,username,anonymous">
 					<synopsis>The order by which endpoint identifiers are processed and checked.
                                         Identifier names are usually derived from and can be found in the endpoint
-                                        identifier module itself (res_pjsip_endpoint_identifier_*)</synopsis>
+                                        identifier module itself (res_pjsip_endpoint_identifier_*).
+                                        You can use the CLI command "pjsip show identifiers" to see the
+                                        identifiers currently available.</synopsis>
+                    <description>
+						<note><para>
+						One of the identifiers is "auth_username" which matches on the username in
+						an Authentication header.  This method has some security considerations because an
+						Authentication header is not present on the first message of a dialog when
+						digest authentication is used.  The client can't generate it until the server
+						sends the challenge in a 401 response.  Since Asterisk normally sends a security
+						event when an incoming request can't be matched to an endpoint, using auth_username
+						requires that the security event be deferred until a request is received with
+						the Authentication header and only generated if the username doesn't result in a
+						match.  This may result in a delay before an attack is recognized.  You can control
+						how many unmatched requests are received from a single ip address before a security
+						event is generated using the unidentified_request parameters.
+						</para></note>
+                    </description>
 				</configOption>
 				<configOption name="default_from_user" default="asterisk">
 					<synopsis>When Asterisk generates an outgoing SIP request, the From header username will be
                                         set to this value if there is no better option (such as CallerID) to be
+                                        used.</synopsis>
+				</configOption>
+				<configOption name="default_realm" default="asterisk">
+					<synopsis>When Asterisk generates an challenge, the digest will be
+                                        set to this value if there is no better option (such as auth/realm) to be
                                         used.</synopsis>
 				</configOption>
 			</configObject>
