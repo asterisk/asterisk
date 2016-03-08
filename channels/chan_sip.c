@@ -1486,7 +1486,6 @@ static void change_t38_state(struct sip_pvt *p, int state);
 
 /*------ Session-Timers functions --------- */
 static void proc_422_rsp(struct sip_pvt *p, struct sip_request *rsp);
-static int  proc_session_timer(const void *vp);
 static void stop_session_timer(struct sip_pvt *p);
 static void start_session_timer(struct sip_pvt *p);
 static void restart_session_timer(struct sip_pvt *p);
@@ -1510,6 +1509,7 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi);
 
 /* Scheduler id start/stop/reschedule functions. */
 static void stop_provisional_keepalive(struct sip_pvt *pvt);
+static void do_stop_session_timer(struct sip_pvt *pvt);
 
 /*! \brief Definition of this channel for PBX channel registration */
 struct ast_channel_tech sip_tech = {
@@ -3283,7 +3283,8 @@ static void do_dialog_unlink_sched_items(struct sip_pvt *dialog)
 		dialog_unref(dialog, "Stop scheduled t38id"));
 
 	if (dialog->stimer) {
-		stop_session_timer(dialog);
+		dialog->stimer->st_active = FALSE;
+		do_stop_session_timer(dialog);
 	}
 }
 
@@ -6516,12 +6517,8 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	struct sip_request *req;
 
 	/* Destroy Session-Timers if allocated */
- 	if (p->stimer) {
-		p->stimer->quit_flag = 1;
-		stop_session_timer(p);
-		ast_free(p->stimer);
-		p->stimer = NULL;
-	}
+	ast_free(p->stimer);
+	p->stimer = NULL;
 
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Really destroying SIP dialog '%s' Method: %s\n", p->callid, sip_methods[p->method].text);
@@ -7178,7 +7175,7 @@ static int sip_hangup(struct ast_channel *ast)
 				p->invitestate = INV_TERMINATED;
 			}
 		} else {	/* Call is in UP state, send BYE */
-			if (p->stimer->st_active == TRUE) {
+			if (p->stimer) {
 				stop_session_timer(p);
 			}
 
@@ -7351,8 +7348,8 @@ static int sip_answer(struct ast_channel *ast)
 		ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
 		/* RFC says the session timer starts counting on 200,
 		 * not on INVITE. */
-		if (p->stimer->st_active == TRUE) {
-			start_session_timer(p);
+		if (p->stimer) {
+			restart_session_timer(p);
 		}
 	}
 	sip_pvt_unlock(p);
@@ -8744,12 +8741,12 @@ static struct sip_st_dlg* sip_st_alloc(struct sip_pvt *const p)
 		return p->stimer;
 	}
 
-	if (!(stp = ast_calloc(1, sizeof(struct sip_st_dlg))))
+	if (!(stp = ast_calloc(1, sizeof(struct sip_st_dlg)))) {
 		return NULL;
+	}
+	stp->st_schedid = -1;           /* Session-Timers ast_sched scheduler id */
 
 	p->stimer = stp;
-
-	stp->st_schedid = -1;           /* Session-Timers ast_sched scheduler id */
 
 	return p->stimer;
 }
@@ -25973,7 +25970,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 	/* Check if OLI/ANI-II is present in From: */
 	parse_oli(req, p->owner);
 
-	if (reinvite && p->stimer->st_active == TRUE) {
+	if (reinvite && p->stimer) {
 		restart_session_timer(p);
 	}
 
@@ -29195,41 +29192,110 @@ static void acl_change_stasis_cb(void *data, struct stasis_subscription *sub,
 	restart_monitor();
 }
 
-/*! \brief Session-Timers: Restart session timer */
-static void restart_session_timer(struct sip_pvt *p)
+/*!
+ * \brief Session-Timers: Process session refresh timeout event
+ *
+ * \note Run by the sched thread.
+ */
+static int proc_session_timer(const void *vp)
 {
-	if (p->stimer->st_active == TRUE) {
-		ast_debug(2, "Session timer stopped: %d - %s\n", p->stimer->st_schedid, p->callid);
-		AST_SCHED_DEL_UNREF(sched, p->stimer->st_schedid,
-				dialog_unref(p, "Removing session timer ref"));
-		start_session_timer(p);
+	struct sip_pvt *p = (struct sip_pvt *) vp;
+	struct sip_st_dlg *stimer = p->stimer;
+	int res = 0;
+
+	ast_assert(stimer != NULL);
+
+	ast_debug(2, "Session timer expired: %d - %s\n", stimer->st_schedid, p->callid);
+
+	if (!p->owner) {
+		goto return_unref;
+	}
+
+	if ((stimer->st_active != TRUE) || (ast_channel_state(p->owner) != AST_STATE_UP)) {
+		goto return_unref;
+	}
+
+	if (stimer->st_ref == SESSION_TIMER_REFRESHER_US) {
+		res = 1;
+		if (T38_ENABLED == p->t38.state) {
+			transmit_reinvite_with_sdp(p, TRUE, TRUE);
+		} else {
+			transmit_reinvite_with_sdp(p, FALSE, TRUE);
+		}
+	} else {
+		struct ast_channel *owner;
+
+		ast_log(LOG_WARNING, "Session-Timer expired - %s\n", p->callid);
+
+		owner = sip_pvt_lock_full(p);
+		if (owner) {
+			send_session_timeout(owner, "SIPSessionTimer");
+			ast_softhangup_nolock(owner, AST_SOFTHANGUP_DEV);
+			ast_channel_unlock(owner);
+			ast_channel_unref(owner);
+		}
+		sip_pvt_unlock(p);
+	}
+
+return_unref:
+	if (!res) {
+		/* Session timer processing is no longer needed. */
+		ast_debug(2, "Session timer stopped: %d - %s\n",
+			stimer->st_schedid, p->callid);
+		/* Don't pass go, don't collect $200.. we are the scheduled
+		 * callback. We can rip ourself out here. */
+		stimer->st_schedid = -1;
+		stimer->st_active = FALSE;
+
+		/* If we are not asking to be rescheduled, then we need to release our
+		 * reference to the dialog. */
+		dialog_unref(p, "Session timer st_schedid complete");
+	}
+
+	return res;
+}
+
+static void do_stop_session_timer(struct sip_pvt *pvt)
+{
+	struct sip_st_dlg *stimer = pvt->stimer;
+
+	if (-1 < stimer->st_schedid) {
+		ast_debug(2, "Session timer stopped: %d - %s\n",
+			stimer->st_schedid, pvt->callid);
+		AST_SCHED_DEL_UNREF(sched, stimer->st_schedid,
+			dialog_unref(pvt, "Stop scheduled session timer st_schedid"));
 	}
 }
 
+/* Run by the sched thread. */
+static int __stop_session_timer(const void *data)
+{
+	struct sip_pvt *pvt = (void *) data;
+
+	do_stop_session_timer(pvt);
+	dialog_unref(pvt, "Stop session timer action");
+	return 0;
+}
 
 /*! \brief Session-Timers: Stop session timer */
-static void stop_session_timer(struct sip_pvt *p)
+static void stop_session_timer(struct sip_pvt *pvt)
 {
-	if (p->stimer->st_active == TRUE) {
-		p->stimer->st_active = FALSE;
-		ast_debug(2, "Session timer stopped: %d - %s\n", p->stimer->st_schedid, p->callid);
-		AST_SCHED_DEL_UNREF(sched, p->stimer->st_schedid,
-				dialog_unref(p, "removing session timer ref"));
+	struct sip_st_dlg *stimer = pvt->stimer;
+
+	stimer->st_active = FALSE;
+	dialog_ref(pvt, "Stop session timer action");
+	if (ast_sched_add(sched, 0, __stop_session_timer, pvt) < 0) {
+		/* Uh Oh.  Expect bad behavior. */
+		dialog_unref(pvt, "Failed to schedule stop session timer action");
 	}
 }
 
-
-/*! \brief Session-Timers: Start session timer */
-static void start_session_timer(struct sip_pvt *p)
+/* Run by the sched thread. */
+static int __start_session_timer(const void *data)
 {
+	struct sip_pvt *pvt = (void *) data;
+	struct sip_st_dlg *stimer = pvt->stimer;
 	unsigned int timeout_ms;
-
-	if (p->stimer->st_schedid > -1) {
-		/* in the event a timer is already going, stop it */
-		ast_debug(2, "Session timer stopped: %d - %s\n", p->stimer->st_schedid, p->callid);
-		AST_SCHED_DEL_UNREF(sched, p->stimer->st_schedid,
-			dialog_unref(p, "unref stimer->st_schedid from dialog"));
-	}
 
 	/*
 	 * RFC 4028 Section 10
@@ -29240,96 +29306,49 @@ static void start_session_timer(struct sip_pvt *p)
 	 * interval is RECOMMENDED.
 	 */
 
-	timeout_ms = (1000 * p->stimer->st_interval);
-	if (p->stimer->st_ref == SESSION_TIMER_REFRESHER_US) {
+	timeout_ms = (1000 * stimer->st_interval);
+	if (stimer->st_ref == SESSION_TIMER_REFRESHER_US) {
 		timeout_ms /= 2;
 	} else {
 		timeout_ms -= MIN(timeout_ms / 3, 32000);
 	}
 
-	p->stimer->st_schedid = ast_sched_add(sched, timeout_ms, proc_session_timer,
-			dialog_ref(p, "adding session timer ref"));
+	/* in the event a timer is already going, stop it */
+	do_stop_session_timer(pvt);
 
-	if (p->stimer->st_schedid < 0) {
-		dialog_unref(p, "removing session timer ref");
-		ast_log(LOG_ERROR, "ast_sched_add failed - %s\n", p->callid);
+	dialog_ref(pvt, "Schedule session timer st_schedid");
+	stimer->st_schedid = ast_sched_add(sched, timeout_ms, proc_session_timer, pvt);
+	if (stimer->st_schedid < 0) {
+		dialog_unref(pvt, "Failed to schedule session timer st_schedid");
 	} else {
-		p->stimer->st_active = TRUE;
-		ast_debug(2, "Session timer started: %d - %s %ums\n", p->stimer->st_schedid, p->callid, timeout_ms);
+		ast_debug(2, "Session timer started: %d - %s %ums\n",
+			stimer->st_schedid, pvt->callid, timeout_ms);
 	}
+
+	dialog_unref(pvt, "Start session timer action");
+	return 0;
 }
 
-
-/*! \brief Session-Timers: Process session refresh timeout event */
-static int proc_session_timer(const void *vp)
+/*! \brief Session-Timers: Start session timer */
+static void start_session_timer(struct sip_pvt *pvt)
 {
-	struct sip_pvt *p = (struct sip_pvt *) vp;
-	int res = 0;
+	struct sip_st_dlg *stimer = pvt->stimer;
 
-	if (!p->stimer) {
-		ast_log(LOG_WARNING, "Null stimer in proc_session_timer - %s\n", p->callid);
-		goto return_unref;
+	stimer->st_active = TRUE;
+	dialog_ref(pvt, "Start session timer action");
+	if (ast_sched_add(sched, 0, __start_session_timer, pvt) < 0) {
+		/* Uh Oh.  Expect bad behavior. */
+		dialog_unref(pvt, "Failed to schedule start session timer action");
 	}
-
-	ast_debug(2, "Session timer expired: %d - %s\n", p->stimer->st_schedid, p->callid);
-
-	if (!p->owner) {
-		goto return_unref;
-	}
-
-	if ((p->stimer->st_active != TRUE) || (ast_channel_state(p->owner) != AST_STATE_UP)) {
-		goto return_unref;
-	}
-
-	if (p->stimer->st_ref == SESSION_TIMER_REFRESHER_US) {
-		res = 1;
-		if (T38_ENABLED == p->t38.state) {
-			transmit_reinvite_with_sdp(p, TRUE, TRUE);
-		} else {
-			transmit_reinvite_with_sdp(p, FALSE, TRUE);
-		}
-	} else {
-		if (p->stimer->quit_flag) {
-			goto return_unref;
-		}
-		ast_log(LOG_WARNING, "Session-Timer expired - %s\n", p->callid);
-		sip_pvt_lock(p);
-		while (p->owner && ast_channel_trylock(p->owner)) {
-			sip_pvt_unlock(p);
-			usleep(1);
-			if (p->stimer && p->stimer->quit_flag) {
-				goto return_unref;
-			}
-			sip_pvt_lock(p);
-		}
-
-		send_session_timeout(p->owner, "SIPSessionTimer");
-		ast_softhangup_nolock(p->owner, AST_SOFTHANGUP_DEV);
-		ast_channel_unlock(p->owner);
-		sip_pvt_unlock(p);
-	}
-
-return_unref:
-	if (!res) {
-		/* An error occurred.  Stop session timer processing */
-		if (p->stimer) {
-			ast_debug(2, "Session timer stopped: %d - %s\n", p->stimer->st_schedid, p->callid);
-			/* Don't pass go, don't collect $200.. we are the scheduled
-			 * callback. We can rip ourself out here. */
-			p->stimer->st_schedid = -1;
-			/* Calling stop_session_timer is nice for consistent debug
-			 * logs. */
-			stop_session_timer(p);
-		}
-
-		/* If we are not asking to be rescheduled, then we need to release our
-		 * reference to the dialog. */
-		dialog_unref(p, "removing session timer ref");
-	}
-
-	return res;
 }
 
+/*! \brief Session-Timers: Restart session timer */
+static void restart_session_timer(struct sip_pvt *p)
+{
+	if (p->stimer->st_active == TRUE) {
+		start_session_timer(p);
+	}
+}
 
 /*! \brief Session-Timers: Function for parsing Min-SE header */
 int parse_minse (const char *p_hdrval, int *const p_interval)
