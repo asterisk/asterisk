@@ -1335,4 +1335,34 @@ void ast_str_container_remove(struct ao2_container *str_container, const char *r
  * \return A pointer to buf
  */
 char *ast_generate_random_string(char *buf, size_t size);
+
+/*!
+ * \brief Compares 2 strings using realtime-style operators
+ * \since 13.9.0
+ *
+ * \param left The left side of the equation
+ * \param op The operator to apply
+ * \param right The right side of the equation
+ *
+ * \retval 1 matches
+ * \retval 0 doesn't match
+ *
+ * \details
+ *
+ * Operators:
+ * 	"=", "!=", "<", "<=", ">", ">=":
+ * 	   If both left and right can be converted to float, then they will be
+ * 	   compared as such. Otherwise the result will be derived from strcmp(left, right).
+ * "regex":
+ *     The right value will be compiled as a regular expression and matched against the left
+ *     value.
+ * "like":
+ *     Any '%' character in the right value will be converted to '.*' and the resulting
+ *     string will be handled as a regex.
+ * NULL , "":
+ *     If the right value starts and ends with a '/' then it will be processed as a regex.
+ *     Otherwise, same as "=".
+ */
+int ast_strings_match(const char *left, const char *op, const char *right);
+
 #endif /* _ASTERISK_STRINGS_H */
