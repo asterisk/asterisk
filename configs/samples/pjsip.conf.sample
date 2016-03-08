@@ -620,8 +620,13 @@
                                 ; the specified address. (default: "no")
 ;force_rport=yes        ; Force use of return port (default: "yes")
 ;ice_support=no ; Enable the ICE mechanism to help traverse NAT (default: "no")
-;identify_by=username   ; Way s for Endpoint to be identified (default:
-                        ; "username")
+;identify_by=username   ; A comma-separated list of ways the Endpoint or AoR can be
+                        ; identified.
+                        ; "username": Identify by the From or To username and domain
+                        ; "auth_username": Identify by the Authorization username and realm
+                        : In all cases, if an exact match on username and domain/realm fails,
+                        ; the match will be retried with just the username.
+                        ; (default: "username")
 ;redirect_method=user   ; How redirects received from an endpoint are handled
                         ; (default: "user")
 ;mailboxes=     ; NOTIFY the endpoint when state changes for any of the specified mailboxes.
@@ -909,8 +914,12 @@
                         ; The interval (in seconds) to check for expired contacts.
 ;endpoint_identifier_order=ip,username,anonymous
             ; The order by which endpoint identifiers are given priority.
-            ; Identifier names are derived from res_pjsip_endpoint_identifier_*
-            ; modules. (default: ip,username,anonymous)
+            ; Currently, "ip", "username", "auth_username" and "anonymous" are valid
+            ; identifiers as registered by the res_pjsip_endpoint_identifier_* modules.
+            ; Some modules like res_pjsip_endpoint_identifier_user register more than
+            ; one identifier. Use the CLI command "pjsip show identifiers" to see the
+            ; identifiers currently available.
+            ; (default: ip,username,anonymous)
 ;max_initial_qualify_time=4 ; The maximum amount of time (in seconds) from
                             ; startup that qualifies should be attempted on all
                             ; contacts.  If greater than the qualify_frequency
@@ -923,7 +932,28 @@
                    ; The voicemail extension to send in the NOTIFY Message-Account header
                    ; if not set on endpoint or aor.
                    ; (default: "")
-
+;
+; The following unidentified_request options are only used when "auth_username"
+; matching is enabled in "endpoint_identifier_order".
+;
+;unidentified_request_count=5   ; The number of unidentified requests that can be
+                                ; received from a single IP address in
+                                ; unidentified_request_period seconds before a security
+                                ; event is generated. (default: 5)
+;unidentified_request_period=5  ; See above.  (default: 5 seconds)
+;unidentified_request_prune_interval=30
+                                ; The interval at which unidentified requests
+                                ; are check to see if they can be pruned.  If they're
+                                ; older than twice the unidentified_request_period,
+                                ; they're pruned.
+;
+;default_from_user=asterisk     ; When Asterisk generates an outgoing SIP request, the
+                                ; From header username will be set to this value if
+                                ; there is no better option (such as CallerID or
+                                ; endpoint/from_user) to be used
+;default_realm=asterisk         ; When Asterisk generates a challenge, the realm will be
+                                ; set to this value if there is no better option (such as
+                                ; auth/realm) to be used
 
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_acl
 ;==========================ACL SECTION OPTIONS=========================

@@ -391,7 +391,10 @@ AST_VECTOR(ast_sip_auth_vector, const char *);
 enum ast_sip_endpoint_identifier_type {
 	/*! Identify based on user name in From header */
 	AST_SIP_ENDPOINT_IDENTIFY_BY_USERNAME = (1 << 0),
+	/*! Identify based on user name in Auth header first, then From header */
+	AST_SIP_ENDPOINT_IDENTIFY_BY_AUTH_USERNAME = (1 << 1),
 };
+AST_VECTOR(ast_sip_identify_by_vector, enum ast_sip_endpoint_identifier_type);
 
 enum ast_sip_session_refresh_method {
 	/*! Use reinvite to negotiate direct media */
@@ -705,6 +708,8 @@ struct ast_sip_endpoint {
 	enum ast_sip_dtmf_mode dtmf;
 	/*! Method(s) by which the endpoint should be identified. */
 	enum ast_sip_endpoint_identifier_type ident_method;
+	/*! Order of the method(s) by which the endpoint should be identified. */
+	struct ast_sip_identify_by_vector ident_method_order;
 	/*! Boolean indicating if ringing should be sent as inband progress */
 	unsigned int inband_progress;
 	/*! Pointer to the persistent Asterisk endpoint */
@@ -2177,6 +2182,18 @@ char *ast_sip_get_endpoint_identifier_order(void);
 char *ast_sip_get_default_voicemail_extension(void);
 
 /*!
+ * \brief Retrieve the global default realm.
+ *
+ * This is the value placed in outbound challenges' realm if there
+ * is no better option (such as an auth-configured realm).
+ *
+ * \param[out] realm The default realm
+ * \param size The buffer size of realm
+ * \return nothing
+ */
+void ast_sip_get_default_realm(char *realm, size_t size);
+
+/*!
  * \brief Retrieve the global default from user.
  *
  * This is the value placed in outbound requests' From header if there
@@ -2324,5 +2341,15 @@ int ast_sip_set_tpselector_from_transport_name(const char *transport_name, pjsip
 void ast_sip_modify_id_header(pj_pool_t *pool, pjsip_fromto_hdr *id_hdr,
 	const struct ast_party_id *id);
 
+/*!
+ * \brief Retrieve the unidentified request security event thresholds
+ * \since 13.8.0
+ *
+ * \param count The maximum number of unidentified requests per source ip to accumulate before emitting a security event
+ * \param period The period in seconds over which to accumulate unidentified requests
+ * \param prune_interval The interval in seconds at which expired entries will be pruned
+ */
+void ast_sip_get_unidentified_request_thresholds(unsigned int *count, unsigned int *period,
+	unsigned int *prune_interval);
 
 #endif /* _RES_PJSIP_H */
