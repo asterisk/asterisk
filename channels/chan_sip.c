@@ -6340,10 +6340,13 @@ static void offered_media_list_destroy(struct sip_pvt *p)
 	}
 }
 
-/*! \brief Execute destruction of SIP dialog structure, release memory */
-void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
+/*! \brief ao2 destructor for SIP dialog structure */
+static void sip_pvt_dtor(void *vdoomed)
 {
+	struct sip_pvt *p = vdoomed;
 	struct sip_request *req;
+
+	ast_debug(3, "Destroying SIP dialog %s\n", p->callid);
 
 	/* Destroy Session-Timers if allocated */
  	if (p->stimer) {
@@ -6363,14 +6366,12 @@ void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 
 	/* Unlink us from the owner if we have one */
 	if (p->owner) {
-		if (lockowner)
-			ast_channel_lock(p->owner);
+		ast_channel_lock(p->owner);
 		ast_debug(1, "Detaching from %s\n", ast_channel_name(p->owner));
 		ast_channel_tech_pvt_set(p->owner, NULL);
 		/* Make sure that the channel knows its backend is going away */
 		ast_channel_softhangup_internal_flag_add(p->owner, AST_SOFTHANGUP_DEV);
-		if (lockowner)
-			ast_channel_unlock(p->owner);
+		ast_channel_unlock(p->owner);
 		/* Give the channel a chance to react before deallocation */
 		usleep(1);
 	}
@@ -6681,24 +6682,6 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 		sip_unref_peer(p, "update_call_counter: sip_unref_peer from call counter");
 	}
 	return 0;
-}
-
-
-static void sip_destroy_fn(void *p)
-{
-	sip_destroy(p);
-}
-
-/*! \brief Destroy SIP call structure.
- * Make it return NULL so the caller can do things like
- *	foo = sip_destroy(foo);
- * and reduce the chance of bugs due to dangling pointers.
- */
-struct sip_pvt *sip_destroy(struct sip_pvt *p)
-{
-	ast_debug(3, "Destroying SIP dialog %s\n", p->callid);
-	__sip_destroy(p, TRUE, TRUE);
-	return NULL;
 }
 
 /*! \brief Convert SIP hangup causes to Asterisk hangup causes */
@@ -8508,8 +8491,10 @@ struct sip_pvt *sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
 {
 	struct sip_pvt *p;
 
-	if (!(p = ao2_t_alloc(sizeof(*p), sip_destroy_fn, "allocate a dialog(pvt) struct")))
+	p = ao2_t_alloc(sizeof(*p), sip_pvt_dtor, "allocate a dialog(pvt) struct");
+	if (!p) {
 		return NULL;
+	}
 
 	if (ast_string_field_init(p, 512)) {
 		ao2_t_ref(p, -1, "failed to string_field_init, drop p");
