@@ -387,7 +387,10 @@ AST_VECTOR(ast_sip_auth_vector, const char *);
 enum ast_sip_endpoint_identifier_type {
 	/*! Identify based on user name in From header */
 	AST_SIP_ENDPOINT_IDENTIFY_BY_USERNAME = (1 << 0),
+	/*! Identify based on user name in Auth header first, then From header */
+	AST_SIP_ENDPOINT_IDENTIFY_BY_AUTH_USERNAME = (1 << 1),
 };
+AST_VECTOR(ast_sip_identify_by_vector, enum ast_sip_endpoint_identifier_type);
 
 enum ast_sip_session_refresh_method {
 	/*! Use reinvite to negotiate direct media */
@@ -713,6 +716,8 @@ struct ast_sip_endpoint {
 	unsigned int usereqphone;
 	/*! Do we send messages for connected line updates for unanswered incoming calls immediately to this endpoint? */
 	unsigned int rpid_immediate;
+	/*! Order of the method(s) by which the endpoint should be identified. */
+	struct ast_sip_identify_by_vector ident_method_order;
 };
 
 /*!
