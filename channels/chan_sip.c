@@ -1512,6 +1512,7 @@ static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi);
 /* Scheduler id start/stop/reschedule functions. */
 static void stop_provisional_keepalive(struct sip_pvt *pvt);
 static void do_stop_session_timer(struct sip_pvt *pvt);
+static void stop_reinvite_retry(struct sip_pvt *pvt);
 
 /*! \brief Definition of this channel for PBX channel registration */
 struct ast_channel_tech sip_tech = {
@@ -7240,7 +7241,7 @@ static int sip_hangup(struct ast_channel *ast)
 				   but we can't send one while we have "INVITE" outstanding. */
 				ast_set_flag(&p->flags[0], SIP_PENDINGBYE);
 				ast_clear_flag(&p->flags[0], SIP_NEEDREINVITE);
-				AST_SCHED_DEL_UNREF(sched, p->waitid, dialog_unref(p, "when you delete the waitid sched, you should dec the refcount for the stored dialog ptr"));
+				stop_reinvite_retry(p);
 				sip_cancel_destroy(p);
 
 				/* If we have an ongoing reinvite, there is a chance that we have gotten a provisional
@@ -22965,10 +22966,13 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req, char
 	}
 }
 
-/*! \brief Check pending actions on SIP call
+/*!
+ * \brief Check pending actions on SIP call
  *
  * \note both sip_pvt and sip_pvt's owner channel (if present)
  *  must be locked for this function.
+ *
+ * \note Run by the sched thread.
  */
 static void check_pendings(struct sip_pvt *p)
 {
@@ -23003,7 +23007,11 @@ static void check_pendings(struct sip_pvt *p)
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	} else if (ast_test_flag(&p->flags[0], SIP_NEEDREINVITE)) {
 		/* if we can't REINVITE, hold it for later */
-		if (p->pendinginvite || p->invitestate == INV_CALLING || p->invitestate == INV_PROCEEDING || p->invitestate == INV_EARLY_MEDIA || p->waitid > -1) {
+		if (p->pendinginvite
+			|| p->invitestate == INV_CALLING
+			|| p->invitestate == INV_PROCEEDING
+			|| p->invitestate == INV_EARLY_MEDIA
+			|| p->waitid > -1) {
 			ast_debug(2, "NOT Sending pending reinvite (yet) on '%s'\n", p->callid);
 		} else {
 			ast_debug(2, "Sending pending reinvite on '%s'\n", p->callid);
@@ -23014,10 +23022,39 @@ static void check_pendings(struct sip_pvt *p)
 	}
 }
 
-/*! \brief Reset the NEEDREINVITE flag after waiting when we get 491 on a Re-invite
-	to avoid race conditions between asterisk servers.
-	Called from the scheduler.
-*/
+/* Run by the sched thread. */
+static int __sched_check_pendings(const void *data)
+{
+	struct sip_pvt *pvt = (void *) data;
+	struct ast_channel *owner;
+
+	owner = sip_pvt_lock_full(pvt);
+	check_pendings(pvt);
+	if (owner) {
+		ast_channel_unlock(owner);
+		ast_channel_unref(owner);
+	}
+	sip_pvt_unlock(pvt);
+
+	dialog_unref(pvt, "Check pending actions action");
+	return 0;
+}
+
+static void sched_check_pendings(struct sip_pvt *pvt)
+{
+	dialog_ref(pvt, "Check pending actions action");
+	if (ast_sched_add(sched, 0, __sched_check_pendings, pvt) < 0) {
+		/* Uh Oh.  Expect bad behavior. */
+		dialog_unref(pvt, "Failed to schedule check pending actions action");
+	}
+}
+
+/*!
+ * \brief Reset the NEEDREINVITE flag after waiting when we get 491 on a Re-invite
+ * to avoid race conditions between asterisk servers.
+ *
+ * \note Run by the sched thread.
+ */
 static int sip_reinvite_retry(const void *data)
 {
 	struct sip_pvt *p = (struct sip_pvt *) data;
@@ -23036,8 +23073,28 @@ static int sip_reinvite_retry(const void *data)
 	if (owner) {
 		ast_channel_unlock(owner);
 	}
-	dialog_unref(p, "unref the dialog ptr from sip_reinvite_retry, because it held a dialog ptr");
+	dialog_unref(p, "Schedule waitid complete");
 	return 0;
+}
+
+/* Run by the sched thread. */
+static int __stop_reinvite_retry(const void *data)
+{
+	struct sip_pvt *pvt = (void *) data;
+
+	AST_SCHED_DEL_UNREF(sched, pvt->waitid,
+		dialog_unref(pvt, "Stop scheduled waitid"));
+	dialog_unref(pvt, "Stop reinvite retry action");
+	return 0;
+}
+
+static void stop_reinvite_retry(struct sip_pvt *pvt)
+{
+	dialog_ref(pvt, "Stop reinvite retry action");
+	if (ast_sched_add(sched, 0, __stop_reinvite_retry, pvt) < 0) {
+		/* Uh Oh.  Expect bad behavior. */
+		dialog_unref(pvt, "Failed to schedule stop reinvite retry action");
+	}
 }
 
 /*!
@@ -23264,7 +23321,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		if (!req->ignore && p->invitestate != INV_CANCELLED) {
 			sip_cancel_destroy(p);
 		}
-		check_pendings(p);
+		sched_check_pendings(p);
 		break;
 
 	case 180:	/* 180 Ringing */
@@ -23322,7 +23379,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 			}
 			ast_rtp_instance_activate(p->rtp);
 		}
-		check_pendings(p);
+		sched_check_pendings(p);
 		break;
 
 	case 181:	/* Call Is Being Forwarded */
@@ -23355,7 +23412,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 			ast_party_redirecting_free(&redirecting);
 			sip_handle_cc(p, req, AST_CC_CCNR);
 		}
-		check_pendings(p);
+		sched_check_pendings(p);
 		break;
 
 	case 183:	/* Session progress */
@@ -23416,7 +23473,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 				ast_queue_control(p->owner, AST_CONTROL_RINGING);
 			}
 		}
-		check_pendings(p);
+		sched_check_pendings(p);
 		break;
 
 	case 200:	/* 200 OK on invite - someone's answering our call */
@@ -23567,7 +23624,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 		p->invitestate = INV_TERMINATED;
 		ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, TRUE);
-		check_pendings(p);
+		sched_check_pendings(p);
 		break;
 
 	case 407: /* Proxy authentication */
@@ -23679,7 +23736,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 			update_call_counter(p, DEC_CALL_LIMIT);
 			append_history(p, "Hangup", "Got 487 on CANCEL request from us on call without owner. Killing this dialog.");
 		}
-		check_pendings(p);
+		sched_check_pendings(p);
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		break;
 	case 415: /* Unsupported media type */
@@ -23711,6 +23768,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 				/* Reset the flag after a while
 				 */
 				int wait;
+
 				/* RFC 3261, if owner of call, wait between 2.1 to 4 seconds,
 				 * if not owner of call, wait 0 to 2 seconds */
 				if (p->outgoing_call) {
@@ -23718,7 +23776,12 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 				} else {
 					wait = ast_random() % 2000;
 				}
-				p->waitid = ast_sched_add(sched, wait, sip_reinvite_retry, dialog_ref(p, "passing dialog ptr into sched structure based on waitid for sip_reinvite_retry."));
+				dialog_ref(p, "Schedule waitid for sip_reinvite_retry.");
+				p->waitid = ast_sched_add(sched, wait, sip_reinvite_retry, p);
+				if (p->waitid < 0) {
+					/* Uh Oh.  Expect bad behavior. */
+					dialog_ref(p, "Failed to schedule waitid");
+				}
 				ast_debug(2, "Reinvite race. Scheduled sip_reinvite_retry in %d secs in handle_response_invite (waitid %d, dialog '%s')\n",
 						wait, p->waitid, p->callid);
 			}
@@ -26931,7 +26994,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 
 	/* Destroy any pending invites so we won't try to do another
 	 * scheduled reINVITE. */
-	AST_SCHED_DEL_UNREF(sched, p->waitid, dialog_unref(p, "decrement refcount from sip_destroy because waitid won't be scheduled"));
+	stop_reinvite_retry(p);
 
 	return 1;
 }
@@ -28463,7 +28526,7 @@ static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct as
 					ast_queue_control(p->owner, AST_CONTROL_SRCCHANGE);
 				}
 			}
-			check_pendings(p);
+			sched_check_pendings(p);
 		} else if (p->glareinvite == seqno) {
 			/* handle ack for the 491 pending sent for glareinvite */
 			p->glareinvite = 0;
