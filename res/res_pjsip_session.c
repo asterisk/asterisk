@@ -30,6 +30,7 @@
 
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_session.h"
+#include "asterisk/callerid.h"
 #include "asterisk/datastore.h"
 #include "asterisk/module.h"
 #include "asterisk/logger.h"
@@ -800,6 +801,75 @@ static pjmedia_sdp_session *generate_session_refresh_sdp(struct ast_sip_session 
 	return create_local_sdp(inv_session, session, previous_sdp);
 }
 
+static void set_from_header(struct ast_sip_session *session)
+{
+	struct ast_party_id effective_id;
+	struct ast_party_id connected_id;
+	pj_pool_t *dlg_pool;
+	pjsip_fromto_hdr *dlg_info;
+	pjsip_name_addr *dlg_info_name_addr;
+	pjsip_sip_uri *dlg_info_uri;
+	int restricted;
+
+	if (!session->channel || session->saved_from_hdr) {
+		return;
+	}
+
+	/* We need to save off connected_id for RPID/PAI generation */
+	ast_party_id_init(&connected_id);
+	ast_channel_lock(session->channel);
+	effective_id = ast_channel_connected_effective_id(session->channel);
+	ast_party_id_copy(&connected_id, &effective_id);
+	ast_channel_unlock(session->channel);
+
+	restricted =
+		((ast_party_id_presentation(&connected_id) & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED);
+
+	/* Now set up dlg->local.info so pjsip can correctly generate From */
+
+	dlg_pool = session->inv_session->dlg->pool;
+	dlg_info = session->inv_session->dlg->local.info;
+	dlg_info_name_addr = (pjsip_name_addr *) dlg_info->uri;
+	dlg_info_uri = pjsip_uri_get_uri(dlg_info_name_addr);
+
+	if (session->endpoint->id.trust_outbound || !restricted) {
+		ast_sip_modify_id_header(dlg_pool, dlg_info, &connected_id);
+	}
+
+	ast_party_id_free(&connected_id);
+
+	if (!ast_strlen_zero(session->endpoint->fromuser)) {
+		dlg_info_name_addr->display.ptr = NULL;
+		dlg_info_name_addr->display.slen = 0;
+		pj_strdup2(dlg_pool, &dlg_info_uri->user, session->endpoint->fromuser);
+	}
+
+	if (!ast_strlen_zero(session->endpoint->fromdomain)) {
+		pj_strdup2(dlg_pool, &dlg_info_uri->host, session->endpoint->fromdomain);
+	}
+
+	ast_sip_add_usereqphone(session->endpoint, dlg_pool, dlg_info->uri);
+
+	/* We need to save off the non-anonymized From for RPID/PAI generation (for domain) */
+	session->saved_from_hdr = pjsip_hdr_clone(dlg_pool, dlg_info);
+
+	/* In chan_sip, fromuser and fromdomain trump restricted so we only
+	 * anonymize if they're not set.
+	 */
+	if (restricted) {
+		/* fromuser doesn't provide a display name so we always set it */
+		pj_strdup2(dlg_pool, &dlg_info_name_addr->display, "Anonymous");
+
+		if (ast_strlen_zero(session->endpoint->fromuser)) {
+			pj_strdup2(dlg_pool, &dlg_info_uri->user, "anonymous");
+		}
+
+		if (ast_strlen_zero(session->endpoint->fromdomain)) {
+			pj_strdup2(dlg_pool, &dlg_info_uri->host, "anonymous.invalid");
+		}
+	}
+}
+
 int ast_sip_session_refresh(struct ast_sip_session *session,
 		ast_sip_session_request_creation_cb on_request_creation,
 		ast_sip_session_sdp_creation_cb on_sdp_creation,
@@ -866,6 +936,12 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
 			}
 		}
 	}
+
+	/*
+	 * We MUST call set_from_header() before pjsip_inv_(reinvite|update).  If we don't, the
+	 * From in the reINVITE/UPDATE will be wrong but the rest of the messages will be OK.
+	 */
+	set_from_header(session);
 
 	if (method == AST_SIP_SESSION_REFRESH_METHOD_INVITE) {
 		if (pjsip_inv_reinvite(inv_session, NULL, new_sdp, &tdata)) {
@@ -1082,6 +1158,7 @@ static pjsip_module session_reinvite_module = {
 	.on_rx_request = session_reinvite_on_rx_request,
 };
 
+
 void ast_sip_session_send_request_with_cb(struct ast_sip_session *session, pjsip_tx_data *tdata,
 		ast_sip_session_response_cb on_response)
 {
@@ -1094,19 +1171,6 @@ void ast_sip_session_send_request_with_cb(struct ast_sip_session *session, pjsip
 
 	ast_sip_mod_data_set(tdata->pool, tdata->mod_data, session_module.id,
 			     MOD_DATA_ON_RESPONSE, on_response);
-
-	if (!ast_strlen_zero(session->endpoint->fromuser) ||
-		!ast_strlen_zero(session->endpoint->fromdomain)) {
-		pjsip_fromto_hdr *from = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_FROM, tdata->msg->hdr.next);
-		pjsip_sip_uri *uri = pjsip_uri_get_uri(from->uri);
-
-		if (!ast_strlen_zero(session->endpoint->fromuser)) {
-			pj_strdup2(tdata->pool, &uri->user, session->endpoint->fromuser);
-		}
-		if (!ast_strlen_zero(session->endpoint->fromdomain)) {
-			pj_strdup2(tdata->pool, &uri->host, session->endpoint->fromdomain);
-		}
-	}
 
 	handle_outgoing_request(session, tdata);
 	internal_pjsip_inv_send_msg(session->inv_session, session->endpoint->transport, tdata);
@@ -1133,9 +1197,17 @@ int ast_sip_session_create_invite(struct ast_sip_session *session, pjsip_tx_data
 #ifdef PJMEDIA_SDP_NEG_ANSWER_MULTIPLE_CODECS
 	pjmedia_sdp_neg_set_answer_multiple_codecs(session->inv_session->neg, PJ_TRUE);
 #endif
+
+	/*
+	 * We MUST call set_from_header() before pjsip_inv_invite.  If we don't, the
+	 * From in the initial INVITE will be wrong but the rest of the messages will be OK.
+	 */
+	set_from_header(session);
+
 	if (pjsip_inv_invite(session->inv_session, tdata) != PJ_SUCCESS) {
 		return -1;
 	}
+
 	return 0;
 }
 
