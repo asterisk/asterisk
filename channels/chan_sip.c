@@ -3240,6 +3240,60 @@ static void ref_proxy(struct sip_pvt *pvt, struct sip_proxy *proxy)
 	}
 }
 
+static void do_dialog_unlink_sched_items(struct sip_pvt *dialog)
+{
+	struct sip_pkt *cp;
+
+	/* remove all current packets in this dialog */
+	sip_pvt_lock(dialog);
+	while ((cp = dialog->packets)) {
+		/* Unlink the node from the list. */
+		dialog->packets = dialog->packets->next;
+
+		/* Destroy the packet object. */
+		AST_SCHED_DEL(sched, cp->retransid);
+		dialog_unref(cp->owner, "Unlink dialog removing all retransmitable packets");
+		ast_free(cp->data);
+		ast_free(cp);
+	}
+	sip_pvt_unlock(dialog);
+
+	AST_SCHED_DEL_UNREF(sched, dialog->waitid,
+		dialog_unref(dialog, "Stop scheduled waitid"));
+
+	AST_SCHED_DEL_UNREF(sched, dialog->initid,
+		dialog_unref(dialog, "Stop scheduled initid"));
+
+	AST_SCHED_DEL_UNREF(sched, dialog->reinviteid,
+		dialog_unref(dialog, "Stop scheduled reinviteid"));
+
+	AST_SCHED_DEL_UNREF(sched, dialog->autokillid,
+		dialog_unref(dialog, "Stop scheduled autokillid"));
+
+	AST_SCHED_DEL_UNREF(sched, dialog->request_queue_sched_id,
+		dialog_unref(dialog, "Stop scheduled request_queue_sched_id"));
+
+	AST_SCHED_DEL_UNREF(sched, dialog->provisional_keepalive_sched_id,
+		dialog_unref(dialog, "Stop scheduled provisional keepalive"));
+
+	AST_SCHED_DEL_UNREF(sched, dialog->t38id,
+		dialog_unref(dialog, "Stop scheduled t38id"));
+
+	if (dialog->stimer) {
+		stop_session_timer(dialog);
+	}
+}
+
+/* Run by the sched thread. */
+static int __dialog_unlink_sched_items(const void *data)
+{
+	struct sip_pvt *dialog = (void *) data;
+
+	do_dialog_unlink_sched_items(dialog);
+	dialog_unref(dialog, "Stop scheduled items for unlink action");
+	return 0;
+}
+
 /*!
  * \brief Unlink a dialog from the dialogs container, as well as any other places
  * that it may be currently stored.
@@ -3249,7 +3303,6 @@ static void ref_proxy(struct sip_pvt *pvt, struct sip_proxy *proxy)
  */
 void dialog_unlink_all(struct sip_pvt *dialog)
 {
-	struct sip_pkt *cp;
 	struct ast_channel *owner;
 
 	dialog_ref(dialog, "Let's bump the count in the unlink so it doesn't accidentally become dead before we are done");
@@ -3287,41 +3340,14 @@ void dialog_unlink_all(struct sip_pvt *dialog)
 		dialog->relatedpeer->call = dialog_unref(dialog->relatedpeer->call, "unset the relatedpeer->call field in tandem with relatedpeer field itself");
 	}
 
-	/* remove all current packets in this dialog */
-	while((cp = dialog->packets)) {
-		dialog->packets = dialog->packets->next;
-		AST_SCHED_DEL(sched, cp->retransid);
-		dialog_unref(cp->owner, "remove all current packets in this dialog, and the pointer to the dialog too as part of __sip_destroy");
-		if (cp->data) {
-			ast_free(cp->data);
-		}
-		ast_free(cp);
-	}
-
-	AST_SCHED_DEL_UNREF(sched, dialog->waitid, dialog_unref(dialog, "when you delete the waitid sched, you should dec the refcount for the stored dialog ptr"));
-
-	AST_SCHED_DEL_UNREF(sched, dialog->initid, dialog_unref(dialog, "when you delete the initid sched, you should dec the refcount for the stored dialog ptr"));
-
-	if (dialog->reinviteid > -1) {
-		AST_SCHED_DEL_UNREF(sched, dialog->reinviteid, dialog_unref(dialog, "clear ref for reinvite_timeout"));
-	}
-
-	if (dialog->autokillid > -1) {
-		AST_SCHED_DEL_UNREF(sched, dialog->autokillid, dialog_unref(dialog, "when you delete the autokillid sched, you should dec the refcount for the stored dialog ptr"));
-	}
-
-	if (dialog->request_queue_sched_id > -1) {
-		AST_SCHED_DEL_UNREF(sched, dialog->request_queue_sched_id, dialog_unref(dialog, "when you delete the request_queue_sched_id sched, you should dec the refcount for the stored dialog ptr"));
-	}
-
-	AST_SCHED_DEL_UNREF(sched, dialog->provisional_keepalive_sched_id, dialog_unref(dialog, "when you delete the provisional_keepalive_sched_id, you should dec the refcount for the stored dialog ptr"));
-
-	if (dialog->t38id > -1) {
-		AST_SCHED_DEL_UNREF(sched, dialog->t38id, dialog_unref(dialog, "when you delete the t38id sched, you should dec the refcount for the stored dialog ptr"));
-	}
-
-	if (dialog->stimer) {
-		stop_session_timer(dialog);
+	dialog_ref(dialog, "Stop scheduled items for unlink action");
+	if (ast_sched_add(sched, 0, __dialog_unlink_sched_items, dialog) < 0) {
+		/*
+		 * Uh Oh.  Fall back to unscheduling things immediately
+		 * despite the potential deadlock risk.
+		 */
+		dialog_unref(dialog, "Failed to schedule stop scheduled items for unlink action");
+		do_dialog_unlink_sched_items(dialog);
 	}
 
 	dialog_unref(dialog, "Let's unbump the count in the unlink so the poor pvt can disappear if it is time");
