@@ -7063,19 +7063,42 @@ const char *hangup_cause2sip(int cause)
 	return 0;
 }
 
+/* Run by the sched thread. */
 static int reinvite_timeout(const void *data)
 {
 	struct sip_pvt *dialog = (struct sip_pvt *) data;
-	struct ast_channel *owner = sip_pvt_lock_full(dialog);
+	struct ast_channel *owner;
+
+	owner = sip_pvt_lock_full(dialog);
 	dialog->reinviteid = -1;
 	check_pendings(dialog);
 	if (owner) {
 		ast_channel_unlock(owner);
 		ast_channel_unref(owner);
 	}
-	ao2_unlock(dialog);
-	dialog_unref(dialog, "unref for reinvite timeout");
+	sip_pvt_unlock(dialog);
+	dialog_unref(dialog, "reinviteid complete");
 	return 0;
+}
+
+/* Run by the sched thread. */
+static int __stop_reinviteid(const void *data)
+{
+	struct sip_pvt *pvt = (void *) data;
+
+	AST_SCHED_DEL_UNREF(sched, pvt->reinviteid,
+		dialog_unref(pvt, "Stop scheduled reinviteid"));
+	dialog_unref(pvt, "Stop reinviteid action");
+	return 0;
+}
+
+static void stop_reinviteid(struct sip_pvt *pvt)
+{
+	dialog_ref(pvt, "Stop reinviteid action");
+	if (ast_sched_add(sched, 0, __stop_reinviteid, pvt) < 0) {
+		/* Uh Oh.  Expect bad behavior. */
+		dialog_unref(pvt, "Failed to schedule stop reinviteid action");
+	}
 }
 
 /*! \brief  sip_hangup: Hangup SIP call
@@ -7269,7 +7292,12 @@ static int sip_hangup(struct ast_channel *ast)
 				 * So, just in case, check for pending actions after a bit of time to trigger the pending
 				 * bye that we are setting above */
 				if (p->ongoing_reinvite && p->reinviteid < 0) {
-					p->reinviteid = ast_sched_add(sched, 32 * p->timer_t1, reinvite_timeout, dialog_ref(p, "ref for reinvite_timeout"));
+					p->reinviteid = ast_sched_add(sched, 32 * p->timer_t1,
+						reinvite_timeout, dialog_ref(p, "Schedule reinviteid"));
+					if (p->reinviteid < 0) {
+						/* Uh Oh.  Expect bad behavior. */
+						dialog_unref(p, "Failed to schedule reinviteid");
+					}
 				}
 			}
 		}
@@ -23000,13 +23028,14 @@ static void check_pendings(struct sip_pvt *p)
 		if (p->reinviteid > -1) {
 			/* Outstanding p->reinviteid timeout, so wait... */
 			return;
-		} else if (p->invitestate == INV_PROCEEDING || p->invitestate == INV_EARLY_MEDIA) {
+		}
+		if (p->invitestate == INV_PROCEEDING || p->invitestate == INV_EARLY_MEDIA) {
 			/* if we can't BYE, then this is really a pending CANCEL */
 			p->invitestate = INV_CANCELLED;
 			transmit_request(p, SIP_CANCEL, p->lastinvite, XMIT_RELIABLE, FALSE);
 			/* If the cancel occurred on an initial invite, cancel the pending BYE */
 			if (!ast_test_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED)) {
-				ast_clear_flag(&p->flags[0], SIP_PENDINGBYE);
+				ast_clear_flag(&p->flags[0], SIP_PENDINGBYE | SIP_NEEDREINVITE);
 			}
 			/* Actually don't destroy us yet, wait for the 487 on our original
 			   INVITE, but do set an autodestruct just in case we never get it. */
@@ -23022,7 +23051,7 @@ static void check_pendings(struct sip_pvt *p)
 			}
 			/* Perhaps there is an SD change INVITE outstanding */
 			transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, TRUE);
-			ast_clear_flag(&p->flags[0], SIP_PENDINGBYE);
+			ast_clear_flag(&p->flags[0], SIP_PENDINGBYE | SIP_NEEDREINVITE);
 		}
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	} else if (ast_test_flag(&p->flags[0], SIP_NEEDREINVITE)) {
@@ -23318,9 +23347,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 
 	if ((resp >= 200 && reinvite)) {
 		p->ongoing_reinvite = 0;
-		if (p->reinviteid > -1) {
-			AST_SCHED_DEL_UNREF(sched, p->reinviteid, dialog_unref(p, "unref dialog for reinvite timeout because of a final response"));
-		}
+		stop_reinviteid(p);
 	}
 
 	/* Final response, clear out pending invite */
