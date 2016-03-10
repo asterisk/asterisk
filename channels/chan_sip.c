@@ -1373,7 +1373,6 @@ static void ast_sip_ouraddrfor(const struct ast_sockaddr *them, struct ast_socka
 static void sip_registry_destroy(void *reg);
 static int sip_register(const char *value, int lineno);
 static const char *regstate2str(enum sipregistrystate regstate) attribute_const;
-static int sip_reregister(const void *data);
 static int __sip_do_register(struct sip_registry *r);
 static int sip_reg_timeout(const void *data);
 static void sip_send_all_registers(void);
@@ -6514,8 +6513,6 @@ static void sip_registry_destroy(void *obj)
 		reg->call = dialog_unref(reg->call, "unref reg->call");
 		/* reg->call = sip_destroy(reg->call); */
 	}
-	AST_SCHED_DEL(sched, reg->expire);
-	AST_SCHED_DEL(sched, reg->timeout);
 
 	ast_string_field_free_memory(reg);
 }
@@ -15487,7 +15484,7 @@ static const struct _map_x_s regstatestrings[] = {
 	{ REG_STATE_AUTHSENT, "Auth. Sent"},
 	{ REG_STATE_REGISTERED, "Registered"},
 	{ REG_STATE_REJECTED, "Rejected"},
-	{ REG_STATE_TIMEOUT, "Timeout"},
+	{ REG_STATE_TIMEOUT, "Registered"},/* Hidden state.  We are renewing registration. */
 	{ REG_STATE_NOAUTH, "No Authentication"},
 	{ -1, NULL } /* terminator */
 };
@@ -15503,21 +15500,21 @@ static void sip_publish_registry(const char *username, const char *domain, const
 	ast_system_publish_registry("SIP", username, domain, status, NULL);
 }
 
-/*! \brief Update registration with SIP Proxy.
+/*!
+ * \brief Update registration with SIP Proxy.
+ *
+ * \details
  * Called from the scheduler when the previous registration expires,
  * so we don't have to cancel the pending event.
  * We assume the reference so the sip_registry is valid, since it
  * is stored in the scheduled event anyways.
+ *
+ * \note Run by the sched thread.
  */
 static int sip_reregister(const void *data)
 {
 	/* if we are here, we know that we need to reregister. */
 	struct sip_registry *r = (struct sip_registry *) data;
-
-	/* if we couldn't get a reference to the registry object, punt */
-	if (!r) {
-		return 0;
-	}
 
 	if (r->call && r->call->do_history) {
 		append_history(r->call, "RegistryRenew", "Account: %s@%s", r->username, r->hostname);
@@ -15530,8 +15527,25 @@ static int sip_reregister(const void *data)
 
 	r->expire = -1;
 	r->expiry = r->configured_expiry;
+	switch (r->regstate) {
+	case REG_STATE_UNREGISTERED:
+	case REG_STATE_REGSENT:
+	case REG_STATE_AUTHSENT:
+		break;
+	case REG_STATE_REJECTED:
+	case REG_STATE_NOAUTH:
+	case REG_STATE_FAILED:
+		/* Restarting registration as unregistered */
+		r->regstate = REG_STATE_UNREGISTERED;
+		break;
+	case REG_STATE_TIMEOUT:
+	case REG_STATE_REGISTERED:
+		/* Registration needs to be renewed. */
+		r->regstate = REG_STATE_TIMEOUT;
+		break;
+	}
 	__sip_do_register(r);
-	ao2_t_ref(r, -1, "unref the re-register scheduled event");
+	ao2_t_ref(r, -1, "Scheduled reregister timeout complete");
 	return 0;
 }
 
@@ -15546,21 +15560,83 @@ static int __sip_do_register(struct sip_registry *r)
 	return res;
 }
 
-/*! \brief Registration timeout, register again
+struct reregister_data {
+	struct sip_registry *reg;
+	int ms;
+};
+
+/* Run by the sched thread. */
+static int __start_reregister_timeout(const void *data)
+{
+	struct reregister_data *sched_data = (void *) data;
+	struct sip_registry *reg = sched_data->reg;
+	int ms = sched_data->ms;
+
+	ast_free(sched_data);
+
+	AST_SCHED_DEL_UNREF(sched, reg->expire,
+		ao2_t_ref(reg, -1, "Stop scheduled reregister timeout"));
+
+	ao2_t_ref(reg, +1, "Schedule reregister timeout");
+	reg->expire = ast_sched_add(sched, ms, sip_reregister, reg);
+	if (reg->expire < 0) {
+		/* Uh Oh.  Expect bad behavior. */
+		ao2_t_ref(reg, -1, "Failed to schedule reregister timeout");
+	}
+
+	ao2_t_ref(reg, -1, "Start reregister timeout action");
+	return 0;
+}
+
+static void start_reregister_timeout(struct sip_registry *reg, int ms)
+{
+	struct reregister_data *sched_data;
+
+	sched_data = ast_malloc(sizeof(*sched_data));
+	if (!sched_data) {
+		/* Uh Oh.  Expect bad behavior. */
+		return;
+	}
+	sched_data->reg = reg;
+	sched_data->ms = ms;
+	ao2_t_ref(reg, +1, "Start reregister timeout action");
+	if (ast_sched_add(sched, 0, __start_reregister_timeout, sched_data) < 0) {
+		/* Uh Oh.  Expect bad behavior. */
+		ao2_t_ref(reg, -1, "Failed to schedule start reregister timeout action");
+		ast_free(sched_data);
+	}
+}
+
+/*!
+ * \brief Registration request timeout, register again
+ *
+ * \details
  * Registered as a timeout handler during transmit_register(),
  * to retransmit the packet if a reply does not come back.
- * This is called by the scheduler so the event is not pending anymore when
+ *
+ * \note This is called by the scheduler so the event is not pending anymore when
  * we are called.
+ *
+ * \note Run by the sched thread.
  */
 static int sip_reg_timeout(const void *data)
 {
-
-	/* if we are here, our registration timed out, so we'll just do it over */
 	struct sip_registry *r = (struct sip_registry *)data; /* the ref count should have been bumped when the sched item was added */
 	struct sip_pvt *p;
 
-	/* if we couldn't get a reference to the registry object, punt */
-	if (!r) {
+	switch (r->regstate) {
+	case REG_STATE_UNREGISTERED:
+	case REG_STATE_REGSENT:
+	case REG_STATE_AUTHSENT:
+	case REG_STATE_TIMEOUT:
+		break;
+	default:
+		/*
+		 * Registration completed because we got a request response
+		 * and we couldn't stop the scheduled entry in time.
+		 */
+		r->timeout = -1;
+		ao2_t_ref(r, -1, "Scheduled register timeout completed early");
 		return 0;
 	}
 
@@ -15602,8 +15678,58 @@ static int sip_reg_timeout(const void *data)
 		ast_log(LOG_NOTICE, "   -- Registration for '%s@%s' timed out, trying again (Attempt #%d)\n", r->username, r->hostname, r->regattempts);
 	}
 	sip_publish_registry(r->username, r->hostname, regstate2str(r->regstate));
-	ao2_t_ref(r, -1, "unreffing registry_unref r");
+	ao2_t_ref(r, -1, "Scheduled register timeout complete");
 	return 0;
+}
+
+/* Run by the sched thread. */
+static int __stop_register_timeout(const void *data)
+{
+	struct sip_registry *reg = (struct sip_registry *) data;
+
+	AST_SCHED_DEL_UNREF(sched, reg->timeout,
+		ao2_t_ref(reg, -1, "Stop scheduled register timeout"));
+	ao2_t_ref(reg, -1, "Stop register timeout action");
+	return 0;
+}
+
+static void stop_register_timeout(struct sip_registry *reg)
+{
+	ao2_t_ref(reg, +1, "Stop register timeout action");
+	if (ast_sched_add(sched, 0, __stop_register_timeout, reg) < 0) {
+		/* Uh Oh.  Expect bad behavior. */
+		ao2_t_ref(reg, -1, "Failed to schedule stop register timeout action");
+	}
+}
+
+/* Run by the sched thread. */
+static int __start_register_timeout(const void *data)
+{
+	struct sip_registry *reg = (struct sip_registry *) data;
+
+	AST_SCHED_DEL_UNREF(sched, reg->timeout,
+		ao2_t_ref(reg, -1, "Stop scheduled register timeout"));
+
+	ao2_t_ref(reg, +1, "Schedule register timeout");
+	reg->timeout = ast_sched_add(sched, global_reg_timeout * 1000, sip_reg_timeout, reg);
+	if (reg->timeout < 0) {
+		/* Uh Oh.  Expect bad behavior. */
+		ao2_t_ref(reg, -1, "Failed to schedule register timeout");
+	}
+	ast_debug(1, "Scheduled a registration timeout for %s id  #%d \n",
+		reg->hostname, reg->timeout);
+
+	ao2_t_ref(reg, -1, "Start register timeout action");
+	return 0;
+}
+
+static void start_register_timeout(struct sip_registry *reg)
+{
+	ao2_t_ref(reg, +1, "Start register timeout action");
+	if (ast_sched_add(sched, 0, __start_register_timeout, reg) < 0) {
+		/* Uh Oh.  Expect bad behavior. */
+		ao2_t_ref(reg, -1, "Failed to schedule start register timeout action");
+	}
 }
 
 static const char *sip_sanitized_host(const char *host)
@@ -15719,16 +15845,9 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			 * probably DNS.  We need to reschedule a registration try */
 			dialog_unlink_all(p);
 			p = dialog_unref(p, "unref dialog after unlink_all");
-			if (r->timeout > -1) {
-				AST_SCHED_REPLACE_UNREF(r->timeout, sched, global_reg_timeout * 1000, sip_reg_timeout, r,
-										ao2_t_ref(_data, -1, "del for REPLACE of registry ptr"),
-										ao2_t_ref(r, -1, "object ptr dec when SCHED_REPLACE add failed"),
-										ao2_t_ref(r, +1, "add for REPLACE registry ptr"));
-				ast_log(LOG_WARNING, "Still have a registration timeout for %s@%s (create_addr() error), %d\n", r->username, r->hostname, r->timeout);
-			} else {
-				r->timeout = ast_sched_add(sched, global_reg_timeout * 1000, sip_reg_timeout, ao2_t_bump(r, "add for REPLACE registry ptr"));
-				ast_log(LOG_WARNING, "Probably a DNS error for registration to %s@%s, trying REGISTER again (after %d seconds)\n", r->username, r->hostname, global_reg_timeout);
-			}
+			ast_log(LOG_WARNING, "Probably a DNS error for registration to %s@%s, trying REGISTER again (after %d seconds)\n",
+				r->username, r->hostname, global_reg_timeout);
+			start_register_timeout(r);
 			r->regattempts++;
 			return 0;
 		}
@@ -15791,14 +15910,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 
 	/* set up a timeout */
 	if (auth == NULL)  {
-		if (r->timeout > -1) {
-			ast_log(LOG_WARNING, "Still have a registration timeout, #%d - deleting it\n", r->timeout);
-		}
-		AST_SCHED_REPLACE_UNREF(r->timeout, sched, global_reg_timeout * 1000, sip_reg_timeout, r,
-								ao2_t_ref(_data, -1, "reg ptr unrefed from del in SCHED_REPLACE"),
-								ao2_t_ref(r, -1, "reg ptr unrefed from add failure in SCHED_REPLACE"),
-								ao2_t_ref(r, +1, "reg ptr reffed from add in SCHED_REPLACE"));
-		ast_debug(1, "Scheduled a registration timeout for %s id  #%d \n", r->hostname, r->timeout);
+		start_register_timeout(r);
 	}
 
 	snprintf(from, sizeof(from), "<sip:%s@%s>;tag=%s", r->username, S_OR(r->regdomain, sip_sanitized_host(p->tohost)), p->tag);
@@ -24117,8 +24229,8 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 			break;
 		}
 		ast_log(LOG_WARNING, "Forbidden - wrong password on authentication for REGISTER for '%s' to '%s'\n", p->registry->username, p->registry->hostname);
-		AST_SCHED_DEL_UNREF(sched, r->timeout, ao2_t_ref(r, -1, "reg ptr unref from handle_response_register 403"));
 		r->regstate = REG_STATE_NOAUTH;
+		stop_register_timeout(r);
 		sip_publish_registry(r->username, r->hostname, regstate2str(r->regstate));
 		pvt_set_needdestroy(p, "received 403 response");
 		break;
@@ -24128,8 +24240,8 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 		if (r->call)
 			r->call = dialog_unref(r->call, "unsetting registry->call pointer-- case 404");
 		r->regstate = REG_STATE_REJECTED;
+		stop_register_timeout(r);
 		sip_publish_registry(r->username, r->hostname, regstate2str(r->regstate));
-		AST_SCHED_DEL_UNREF(sched, r->timeout, ao2_t_ref(r, -1, "reg ptr unref from handle_response_register 404"));
 		break;
 	case 407:	/* Proxy auth */
 		if (p->authtries == MAX_AUTHTRIES || do_register_auth(p, req, resp)) {
@@ -24148,7 +24260,6 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 	case 423:	/* Interval too brief */
 		r->expiry = atoi(sip_get_header(req, "Min-Expires"));
 		ast_log(LOG_WARNING, "Got 423 Interval too brief for service %s@%s, minimum is %d seconds\n", p->registry->username, p->registry->hostname, r->expiry);
-		AST_SCHED_DEL_UNREF(sched, r->timeout, ao2_t_ref(r, -1, "reg ptr unref from handle_response_register 423"));
 		if (r->call) {
 			r->call = dialog_unref(r->call, "unsetting registry->call pointer-- case 423");
 			pvt_set_needdestroy(p, "received 423 response");
@@ -24157,6 +24268,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 			ast_log(LOG_WARNING, "Required expiration time from %s@%s is too high, giving up\n", p->registry->username, p->registry->hostname);
 			r->expiry = r->configured_expiry;
 			r->regstate = REG_STATE_REJECTED;
+			stop_register_timeout(r);
 		} else {
 			r->regstate = REG_STATE_UNREGISTERED;
 			transmit_register(r, SIP_REGISTER, NULL, NULL);
@@ -24172,8 +24284,8 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 		if (r->call)
 			r->call = dialog_unref(r->call, "unsetting registry->call pointer-- case 4xx");
 		r->regstate = REG_STATE_REJECTED;
+		stop_register_timeout(r);
 		sip_publish_registry(r->username, r->hostname, regstate2str(r->regstate));
-		AST_SCHED_DEL_UNREF(sched, r->timeout, ao2_t_ref(r, -1, "reg ptr unref from handle_response_register 479"));
 		break;
 	case 200:	/* 200 OK */
 		if (!r) {
@@ -24182,15 +24294,15 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 			return 0;
 		}
 
-		r->regstate = REG_STATE_REGISTERED;
-		r->regtime = ast_tvnow();		/* Reset time of last successful registration */
-		sip_publish_registry(r->username, r->hostname, regstate2str(r->regstate));
-		r->regattempts = 0;
 		ast_debug(1, "Registration successful\n");
 		if (r->timeout > -1) {
 			ast_debug(1, "Cancelling timeout %d\n", r->timeout);
 		}
-		AST_SCHED_DEL_UNREF(sched, r->timeout, ao2_t_ref(r, -1, "reg ptr unref from handle_response_register 200"));
+		r->regstate = REG_STATE_REGISTERED;
+		stop_register_timeout(r);
+		r->regtime = ast_tvnow();		/* Reset time of last successful registration */
+		sip_publish_registry(r->username, r->hostname, regstate2str(r->regstate));
+		r->regattempts = 0;
 		if (r->call)
 			r->call = dialog_unref(r->call, "unsetting registry->call pointer-- case 200");
 		ao2_t_replace(p->registry, NULL, "unref registry entry p->registry");
@@ -24244,10 +24356,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, const char *res
 		r->refresh= (int) expires_ms / 1000;
 
 		/* Schedule re-registration before we expire */
-		AST_SCHED_REPLACE_UNREF(r->expire, sched, expires_ms, sip_reregister, r,
-								ao2_t_ref(_data, -1, "unref in REPLACE del fail"),
-								ao2_t_ref(r, -1, "unref in REPLACE add fail"),
-								ao2_t_ref(r, +1, "The Addition side of REPLACE"));
+		start_reregister_timeout(r, expires_ms);
 	}
 	return 1;
 }
@@ -31703,9 +31812,11 @@ static void display_nat_warning(const char *cat, int reason, struct ast_flags *f
 	}
 }
 
-static int cleanup_registration(void *obj, void *arg, int flags)
+/* Run by the sched thread. */
+static int __cleanup_registration(const void *data)
 {
-	struct sip_registry *reg = obj;
+	struct sip_registry *reg = (struct sip_registry *) data;
+
 	ao2_lock(reg);
 
 	if (reg->call) {
@@ -31714,12 +31825,12 @@ static int cleanup_registration(void *obj, void *arg, int flags)
 		dialog_unlink_all(reg->call);
 		reg->call = dialog_unref(reg->call, "remove iterator->call from registry traversal");
 	}
-	if (reg->expire > -1) {
-		AST_SCHED_DEL_UNREF(sched, reg->expire, ao2_t_ref(reg, -1, "reg ptr unref from reload config"));
-	}
-	if (reg->timeout > -1) {
-		AST_SCHED_DEL_UNREF(sched, reg->timeout, ao2_t_ref(reg, -1, "reg ptr unref from reload config"));
-	}
+
+	AST_SCHED_DEL_UNREF(sched, reg->expire,
+		ao2_t_ref(reg, -1, "Stop scheduled reregister timeout"));
+	AST_SCHED_DEL_UNREF(sched, reg->timeout,
+		ao2_t_ref(reg, -1, "Stop scheduled register timeout"));
+
 	if (reg->dnsmgr) {
 		ast_dnsmgr_release(reg->dnsmgr);
 		reg->dnsmgr = NULL;
@@ -31727,6 +31838,21 @@ static int cleanup_registration(void *obj, void *arg, int flags)
 	}
 
 	ao2_unlock(reg);
+
+	ao2_t_ref(reg, -1, "cleanup_registration action");
+	return 0;
+}
+
+static int cleanup_registration(void *obj, void *arg, int flags)
+{
+	struct sip_registry *reg = obj;
+
+	ao2_t_ref(reg, +1, "cleanup_registration action");
+	if (ast_sched_add(sched, 0, __cleanup_registration, reg) < 0) {
+		/* Uh Oh.  Expect bad behavior. */
+		ao2_t_ref(reg, -1, "Failed to schedule cleanup_registration action");
+	}
+
 	return CMP_MATCH;
 }
 
@@ -33541,10 +33667,7 @@ static void sip_send_all_registers(void)
 	while ((iterator = ao2_t_iterator_next(&iter, "sip_send_all_registers iter"))) {
 		ao2_lock(iterator);
 		ms += regspacing;
-		AST_SCHED_REPLACE_UNREF(iterator->expire, sched, ms, sip_reregister, iterator,
-								ao2_t_ref(_data, -1, "REPLACE sched del decs the refcount"),
-								ao2_t_ref(iterator, -1, "REPLACE sched add failure decs the refcount"),
-								ao2_t_ref(iterator, +1, "REPLACE sched add incs the refcount"));
+		start_reregister_timeout(iterator, ms);
 		ao2_unlock(iterator);
 		ao2_t_ref(iterator, -1, "sip_send_all_registers iter");
 	}
