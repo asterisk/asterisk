@@ -6114,6 +6114,14 @@ static int process_message(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
+	if (ast_shutting_down()) {
+		ast_log(LOG_ERROR, "Unable to process manager action '%s'. Asterisk is shutting down.\n", action);
+		mansession_lock(s);
+		astman_send_error(s, m, "Asterisk is shutting down");
+		mansession_unlock(s);
+		return 0;
+	}
+
 	if (!s->session->authenticated
 		&& strcasecmp(action, "Login")
 		&& strcasecmp(action, "Logoff")
