@@ -310,6 +310,18 @@ char **ast_cli_completion_matches(const char *, const char *);
  */
 char *ast_complete_channels(const char *line, const char *word, int pos, int state, int rpos);
 
+/*!
+ * \brief Allow a CLI command to be executed while Asterisk is shutting down.
+ *
+ * CLI commands by defeault are disabled when Asterisk is shutting down. This is
+ * to ensure the safety of the shutdown since CLI commands may attempt to access
+ * resources that have been freed as a result of the shutdown.
+ *
+ * If a CLI command should be allowed at shutdown, then the best way to enable this
+ * is to call ast_cli_allow_at_shutdown during the CLI_INIT state of the CLI handler.
+ */
+int ast_cli_allow_at_shutdown(struct ast_cli_entry *e);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
