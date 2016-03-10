@@ -63,6 +63,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/bridge.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stasis_bridges.h"
+#include "asterisk/vector.h"
 
 /*!
  * \brief List of restrictions per user.
@@ -108,6 +109,8 @@ AST_RWLIST_HEAD(module_level_list, module_level);
 static struct module_level_list debug_modules = AST_RWLIST_HEAD_INIT_VALUE;
 
 AST_THREADSTORAGE(ast_cli_buf);
+
+static AST_VECTOR(, struct ast_cli_entry *) shutdown_commands;
 
 /*! \brief Initial buffer size for resulting strings in ast_cli() */
 #define AST_CLI_INITLEN   256
@@ -1808,6 +1811,8 @@ static char *handle_cli_wait_fullybooted(struct ast_cli_entry *e, int cmd, struc
 
 static char *handle_help(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
+#define HORSE " HORSE"
+
 static struct ast_cli_entry cli_cli[] = {
 	/* Deprecated, but preferred command is now consolidated (and already has a deprecated command for it). */
 	AST_CLI_DEFINE(handle_commandcomplete, "Command complete"),
@@ -1816,7 +1821,7 @@ static struct ast_cli_entry cli_cli[] = {
 
 	AST_CLI_DEFINE(handle_nodebugchan_deprecated, "Disable debugging on channel(s)"),
 
-	AST_CLI_DEFINE(handle_chanlist, "Display information on channels"),
+	AST_CLI_DEFINE(handle_chanlist, "Display information on channels" HORSE),
 
 	AST_CLI_DEFINE(handle_showcalls, "Display information on calls"),
 
@@ -2030,6 +2035,7 @@ static void cli_shutdown(void)
 /*! \brief initialize the _full_cmd string in * each of the builtins. */
 void ast_builtins_init(void)
 {
+	AST_VECTOR_INIT(&shutdown_commands, 0);
 	ast_cli_register_multiple(cli_cli, ARRAY_LEN(cli_cli));
 	ast_register_cleanup(cli_shutdown);
 }
@@ -2679,10 +2685,23 @@ char *ast_cli_generator(const char *text, const char *word, int state)
 	return __ast_cli_generator(text, word, state, 1);
 }
 
+static int cli_allow_on_shutdown(struct ast_cli_entry *e)
+{
+	int i;
+	
+	for (i = 0; i < AST_VECTOR_SIZE(&shutdown_commands); ++i) {
+		if (e == AST_VECTOR_GET(&shutdown_commands, i)) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 int ast_cli_command_full(int uid, int gid, int fd, const char *s)
 {
 	const char *args[AST_MAX_ARGS + 1];
-	struct ast_cli_entry *e;
+	struct ast_cli_entry *e = NULL;
 	int x;
 	char *duplicate = parse_args(s, &x, args + 1, AST_MAX_ARGS, NULL);
 	char tmp[AST_MAX_ARGS + 1];
@@ -2703,6 +2722,11 @@ int ast_cli_command_full(int uid, int gid, int fd, const char *s)
 	AST_RWLIST_UNLOCK(&helpers);
 	if (e == NULL) {
 		ast_cli(fd, "No such command '%s' (type 'core show help %s' for other possible commands)\n", s, find_best(args + 1));
+		goto done;
+	}
+
+	if (ast_shutting_down() && !cli_allow_on_shutdown(e)) {
+		ast_cli(fd, "Command '%s' cannot be run during shutdown\n", s);
 		goto done;
 	}
 
@@ -2728,8 +2752,11 @@ int ast_cli_command_full(int uid, int gid, int fd, const char *s)
 		if (retval == CLI_FAILURE)
 			ast_cli(fd, "Command '%s' failed.\n", s);
 	}
-	ast_atomic_fetchadd_int(&e->inuse, -1);
+
 done:
+	if (e) {
+		ast_atomic_fetchadd_int(&e->inuse, -1);
+	}
 	ast_free(duplicate);
 	return 0;
 }
@@ -2749,4 +2776,9 @@ int ast_cli_command_multiple_full(int uid, int gid, int fd, size_t size, const c
 		}
 	}
 	return count;
+}
+
+int ast_cli_allow_at_shutdown(struct ast_cli_entry *e)
+{
+	return AST_VECTOR_APPEND(&shutdown_commands, e);
 }
