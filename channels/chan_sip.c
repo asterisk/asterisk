@@ -1512,6 +1512,7 @@ static void stop_provisional_keepalive(struct sip_pvt *pvt);
 static void do_stop_session_timer(struct sip_pvt *pvt);
 static void stop_reinvite_retry(struct sip_pvt *pvt);
 static void stop_retrans_pkt(struct sip_pkt *pkt);
+static void stop_t38_abort_timer(struct sip_pvt *pvt);
 
 /*! \brief Definition of this channel for PBX channel registration */
 struct ast_channel_tech sip_tech = {
@@ -7661,13 +7662,13 @@ static int interpret_t38_parameters(struct sip_pvt *p, const struct ast_control_
 		/* Negotiation can not take place without a valid max_ifp value. */
 		if (!parameters->max_ifp) {
 			if (p->t38.state == T38_PEER_REINVITE) {
-				AST_SCHED_DEL_UNREF(sched, p->t38id, dialog_unref(p, "when you delete the t38id sched, you should dec the refcount for the stored dialog ptr"));
+				stop_t38_abort_timer(p);
 				transmit_response_reliable(p, "488 Not acceptable here", &p->initreq);
 			}
 			change_t38_state(p, T38_REJECTED);
 			break;
 		} else if (p->t38.state == T38_PEER_REINVITE) {
-			AST_SCHED_DEL_UNREF(sched, p->t38id, dialog_unref(p, "when you delete the t38id sched, you should dec the refcount for the stored dialog ptr"));
+			stop_t38_abort_timer(p);
 			p->t38.our_parms = *parameters;
 			/* modify our parameters to conform to the peer's parameters,
 			 * based on the rules in the ITU T.38 recommendation
@@ -7701,7 +7702,7 @@ static int interpret_t38_parameters(struct sip_pvt *p, const struct ast_control_
 	case AST_T38_REFUSED:
 	case AST_T38_REQUEST_TERMINATE:         /* Shutdown T38 */
 		if (p->t38.state == T38_PEER_REINVITE) {
-			AST_SCHED_DEL_UNREF(sched, p->t38id, dialog_unref(p, "when you delete the t38id sched, you should dec the refcount for the stored dialog ptr"));
+			stop_t38_abort_timer(p);
 			change_t38_state(p, T38_REJECTED);
 			transmit_response_reliable(p, "488 Not acceptable here", &p->initreq);
 		} else if (p->t38.state == T38_ENABLED) {
@@ -7713,7 +7714,7 @@ static int interpret_t38_parameters(struct sip_pvt *p, const struct ast_control_
 		struct ast_control_t38_parameters parameters = p->t38.their_parms;
 
 		if (p->t38.state == T38_PEER_REINVITE) {
-			AST_SCHED_DEL_UNREF(sched, p->t38id, dialog_unref(p, "when you delete the t38id sched, you should dec the refcount for the stored dialog ptr"));
+			stop_t38_abort_timer(p);
 			parameters.max_ifp = ast_udptl_get_far_max_ifp(p->udptl);
 			parameters.request_response = AST_T38_REQUEST_NEGOTIATE;
 			if (p->owner) {
@@ -25319,25 +25320,87 @@ static int do_magic_pickup(struct ast_channel *channel, const char *extension, c
 	return 0;
 }
 
-/*! \brief Called to deny a T38 reinvite if the core does not respond to our request */
+/*!
+ * \brief Called to deny a T38 reinvite if the core does not respond to our request
+ *
+ * \note Run by the sched thread.
+ */
 static int sip_t38_abort(const void *data)
 {
-	struct sip_pvt *p = (struct sip_pvt *) data;
+	struct sip_pvt *pvt = (struct sip_pvt *) data;
+	struct ast_channel *owner;
 
-	sip_pvt_lock(p);
-	/* an application may have taken ownership of the T.38 negotiation on this
-	 * channel while we were waiting to grab the lock... if it did, the scheduler
-	 * id will have been reset to -1, which is our indication that we do *not*
-	 * want to abort the negotiation process
+	owner = sip_pvt_lock_full(pvt);
+	pvt->t38id = -1;
+
+	/*
+	 * An application may have taken ownership of the T.38 negotiation
+	 * on the channel while we were waiting to grab the lock.  If it
+	 * did, the T.38 state will have been changed.  This is our
+	 * indication that we do *not* want to abort the negotiation
+	 * process.
 	 */
-	if (p->t38id != -1) {
-		change_t38_state(p, T38_REJECTED);
-		transmit_response_reliable(p, "488 Not acceptable here", &p->initreq);
-		p->t38id = -1;
-		dialog_unref(p, "unref the dialog ptr from sip_t38_abort, because it held a dialog ptr");
+	if (pvt->t38.state == T38_PEER_REINVITE) {
+		/* Still waiting for a response on timeout so reject the offer. */
+		change_t38_state(pvt, T38_REJECTED);
+		transmit_response_reliable(pvt, "488 Not acceptable here", &pvt->initreq);
 	}
-	sip_pvt_unlock(p);
+
+	if (owner) {
+		ast_channel_unlock(owner);
+		ast_channel_unref(owner);
+	}
+	sip_pvt_unlock(pvt);
+	dialog_unref(pvt, "t38id complete");
 	return 0;
+}
+
+/* Run by the sched thread. */
+static int __stop_t38_abort_timer(const void *data)
+{
+	struct sip_pvt *pvt = (void *) data;
+
+	AST_SCHED_DEL_UNREF(sched, pvt->t38id,
+		dialog_unref(pvt, "Stop scheduled t38id"));
+	dialog_unref(pvt, "Stop t38id action");
+	return 0;
+}
+
+static void stop_t38_abort_timer(struct sip_pvt *pvt)
+{
+	dialog_ref(pvt, "Stop t38id action");
+	if (ast_sched_add(sched, 0, __stop_t38_abort_timer, pvt) < 0) {
+		/* Uh Oh.  Expect bad behavior. */
+		dialog_unref(pvt, "Failed to schedule stop t38id action");
+	}
+}
+
+/* Run by the sched thread. */
+static int __start_t38_abort_timer(const void *data)
+{
+	struct sip_pvt *pvt = (void *) data;
+
+	AST_SCHED_DEL_UNREF(sched, pvt->t38id,
+		dialog_unref(pvt, "Stop scheduled t38id"));
+
+	dialog_ref(pvt, "Schedule t38id");
+	pvt->t38id = ast_sched_add(sched, 5000, sip_t38_abort, pvt);
+	if (pvt->t38id < 0) {
+		/* Uh Oh.  Expect bad behavior. */
+		dialog_unref(pvt, "Failed to schedule t38id");
+	}
+
+	dialog_unref(pvt, "Start t38id action");
+	return 0;
+}
+
+static void start_t38_abort_timer(struct sip_pvt *pvt)
+{
+	dialog_ref(pvt, "Start t38id action");
+	if (ast_sched_add(sched, 0, __start_t38_abort_timer, pvt) < 0) {
+		/* Uh Oh.  Expect bad behavior. */
+		dialog_unref(pvt, "Failed to schedule start t38id action");
+	}
 }
 
 /*!
@@ -26222,11 +26285,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 			transmit_response(p, "100 Trying", req);
 
 			if (p->t38.state == T38_PEER_REINVITE) {
-				if (p->t38id > -1) {
-					/* reset t38 abort timer */
-					AST_SCHED_DEL_UNREF(sched, p->t38id, dialog_unref(p, "remove ref for t38id"));
-				}
-				p->t38id = ast_sched_add(sched, 5000, sip_t38_abort, dialog_ref(p, "passing dialog ptr into sched structure based on t38id for sip_t38_abort."));
+				start_t38_abort_timer(p);
 			} else if (p->t38.state == T38_ENABLED) {
 				ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
 				transmit_response_with_t38_sdp(p, "200 OK", req, (reinvite ? XMIT_RELIABLE : (req->ignore ?  XMIT_UNRELIABLE : XMIT_CRITICAL)));
