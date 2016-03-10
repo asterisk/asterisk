@@ -547,8 +547,7 @@ enum sipregistrystate {
 		 * recover (not sure how correctly).
 		 */
 
-	REG_STATE_TIMEOUT,	/*!< Registration timed out
-		* \note XXX unused */
+	REG_STATE_TIMEOUT,	/*!< Registration about to expire, renewing registration */
 
 	REG_STATE_NOAUTH,	/*!< We have no accepted credentials
 		 * \note fatal - no chance to proceed */
