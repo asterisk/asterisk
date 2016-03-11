@@ -56,7 +56,27 @@ struct ast_autochan {
  * to save off the pointer using ast_channel_ref and to unref the channel when you
  * are finished with the pointer. If you do not do this and a masquerade occurs on
  * the channel, then it is possible that your saved pointer will become invalid.
+ *
+ * 3. If you want to lock the autochan->chan channel, be sure to use
+ * ast_autochan_channel_lock and ast_autochan_channel_unlock. An attempt to lock
+ * the autochan->chan directly may result in it being changed after you've
+ * retrieved the value of chan, but before you've had a chance to lock it.
+ * First when chan is locked, the autochan structure is guaranteed to keep the
+ * same channel.
  */
+
+#define ast_autochan_channel_lock(autochan) \
+	do { \
+		struct ast_channel *autochan_chan = autochan->chan; \
+		ast_channel_lock(autochan_chan); \
+		if (autochan->chan == autochan_chan) { \
+			break; \
+		} \
+		ast_channel_unlock(autochan_chan); \
+	} while (1)
+
+#define ast_autochan_channel_unlock(autochan) \
+	ast_channel_unlock(autochan->chan)
 
 /*!
  * \brief set up a new ast_autochan structure

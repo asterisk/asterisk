@@ -726,11 +726,11 @@ static void *mixmonitor_thread(void *obj)
 
 	ast_audiohook_unlock(&mixmonitor->audiohook);
 
-	ast_channel_lock(mixmonitor->autochan->chan);
+	ast_autochan_channel_lock(mixmonitor->autochan);
 	if (ast_test_flag(mixmonitor, MUXFLAG_BEEP_STOP)) {
 		ast_stream_and_wait(mixmonitor->autochan->chan, "beep", "");
 	}
-	ast_channel_unlock(mixmonitor->autochan->chan);
+	ast_autochan_channel_unlock(mixmonitor->autochan);
 
 	ast_autochan_destroy(mixmonitor->autochan);
 
@@ -802,11 +802,11 @@ static int setup_mixmonitor_ds(struct mixmonitor *mixmonitor, struct ast_channel
 		return -1;
 	}
 
-	ast_channel_lock(mixmonitor->autochan->chan);
+	ast_autochan_channel_lock(mixmonitor->autochan);
 	if (ast_test_flag(mixmonitor, MUXFLAG_BEEP_START)) {
 		ast_stream_and_wait(mixmonitor->autochan->chan, "beep", "");
 	}
-	ast_channel_unlock(mixmonitor->autochan->chan);
+	ast_autochan_channel_unlock(mixmonitor->autochan);
 
 	mixmonitor_ds->samp_rate = 8000;
 	mixmonitor_ds->audiohook = &mixmonitor->audiohook;

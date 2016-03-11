@@ -51,7 +51,7 @@ struct ast_autochan *ast_autochan_setup(struct ast_channel *chan)
 
 	autochan->chan = ast_channel_ref(chan);
 
-	ast_channel_lock(autochan->chan);
+	ast_channel_lock(autochan->chan); /* autochan is still private, no need for ast_autochan_channel_lock() */
 	AST_LIST_INSERT_TAIL(ast_channel_autochans(autochan->chan), autochan, list);
 	ast_channel_unlock(autochan->chan);
 
@@ -64,7 +64,7 @@ void ast_autochan_destroy(struct ast_autochan *autochan)
 {
 	struct ast_autochan *autochan_iter;
 
-	ast_channel_lock(autochan->chan);
+	ast_autochan_channel_lock(autochan);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(ast_channel_autochans(autochan->chan), autochan_iter, list) {
 		if (autochan_iter == autochan) {
 			AST_LIST_REMOVE_CURRENT(list);
@@ -73,7 +73,7 @@ void ast_autochan_destroy(struct ast_autochan *autochan)
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
-	ast_channel_unlock(autochan->chan);
+	ast_autochan_channel_unlock(autochan);
 
 	autochan->chan = ast_channel_unref(autochan->chan);
 
