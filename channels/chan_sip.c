@@ -1501,9 +1501,7 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp_instance *i
 
 /*!--- SIP MWI Subscription support */
 static int sip_subscribe_mwi(const char *value, int lineno);
-static void sip_subscribe_mwi_destroy(void *data);
 static void sip_send_all_mwi_subscriptions(void);
-static int sip_subscribe_mwi_do(const void *data);
 static int __sip_subscribe_mwi_do(struct sip_subscription_mwi *mwi);
 
 /* Scheduler id start/stop/reschedule functions. */
@@ -6511,12 +6509,12 @@ static void sip_registry_destroy(void *obj)
 static void sip_subscribe_mwi_destroy(void *data)
 {
 	struct sip_subscription_mwi *mwi = data;
+
 	if (mwi->call) {
 		mwi->call->mwi = NULL;
 		mwi->call = dialog_unref(mwi->call, "sip_subscription_mwi destruction");
 	}
 
-	AST_SCHED_DEL(sched, mwi->resub);
 	ast_string_field_free_memory(mwi);
 }
 
@@ -14662,20 +14660,94 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init, 
 	return send_request(p, &req, init ? XMIT_CRITICAL : XMIT_RELIABLE, p->ocseq);
 }
 
-/*! \brief Send a subscription or resubscription for MWI */
+/*!
+ * \brief Send a subscription or resubscription for MWI
+ *
+ * \note Run by the sched thread.
+ */
 static int sip_subscribe_mwi_do(const void *data)
 {
-	struct sip_subscription_mwi *mwi = (struct sip_subscription_mwi*)data;
-
-	if (!mwi) {
-		return -1;
-	}
+	struct sip_subscription_mwi *mwi = (struct sip_subscription_mwi *) data;
 
 	mwi->resub = -1;
 	__sip_subscribe_mwi_do(mwi);
-	ao2_t_ref(mwi, -1, "unref mwi to balance ast_sched_add");
+	ao2_t_ref(mwi, -1, "Scheduled mwi resub complete");
 
 	return 0;
+}
+
+/* Run by the sched thread. */
+static int __shutdown_mwi_subscription(const void *data)
+{
+	struct sip_subscription_mwi *mwi = (void *) data;
+
+	AST_SCHED_DEL_UNREF(sched, mwi->resub,
+		ao2_t_ref(mwi, -1, "Stop scheduled mwi resub"));
+
+	if (mwi->dnsmgr) {
+		ast_dnsmgr_release(mwi->dnsmgr);
+		mwi->dnsmgr = NULL;
+		ao2_t_ref(mwi, -1, "dnsmgr release");
+	}
+
+	ao2_t_ref(mwi, -1, "Shutdown MWI subscription action");
+	return 0;
+}
+
+static void shutdown_mwi_subscription(struct sip_subscription_mwi *mwi)
+{
+	ao2_t_ref(mwi, +1, "Shutdown MWI subscription action");
+	if (ast_sched_add(sched, 0, __shutdown_mwi_subscription, mwi) < 0) {
+		/* Uh Oh.  Expect bad behavior. */
+		ao2_t_ref(mwi, -1, "Failed to schedule shutdown MWI subscription action");
+	}
+}
+
+struct mwi_subscription_data {
+	struct sip_subscription_mwi *mwi;
+	int ms;
+};
+
+/* Run by the sched thread. */
+static int __start_mwi_subscription(const void *data)
+{
+	struct mwi_subscription_data *sched_data = (void *) data;
+	struct sip_subscription_mwi *mwi = sched_data->mwi;
+	int ms = sched_data->ms;
+
+	ast_free(sched_data);
+
+	AST_SCHED_DEL_UNREF(sched, mwi->resub,
+		ao2_t_ref(mwi, -1, "Stop scheduled mwi resub"));
+
+	ao2_t_ref(mwi, +1, "Schedule mwi resub");
+	mwi->resub = ast_sched_add(sched, ms, sip_subscribe_mwi_do, mwi);
+	if (mwi->resub < 0) {
+		/* Uh Oh.  Expect bad behavior. */
+		ao2_t_ref(mwi, -1, "Failed to schedule mwi resub");
+	}
+
+	ao2_t_ref(mwi, -1, "Start MWI subscription action");
+	return 0;
+}
+
+static void start_mwi_subscription(struct sip_subscription_mwi *mwi, int ms)
+{
+	struct mwi_subscription_data *sched_data;
+
+	sched_data = ast_malloc(sizeof(*sched_data));
+	if (!sched_data) {
+		/* Uh Oh.  Expect bad behavior. */
+		return;
+	}
+	sched_data->mwi = mwi;
+	sched_data->ms = ms;
+	ao2_t_ref(mwi, +1, "Start MWI subscription action");
+	if (ast_sched_add(sched, 0, __start_mwi_subscription, sched_data) < 0) {
+		/* Uh Oh.  Expect bad behavior. */
+		ao2_t_ref(mwi, -1, "Failed to schedule start MWI subscription action");
+		ast_free(sched_data);
+	}
 }
 
 static void on_dns_update_registry(struct ast_sockaddr *old, struct ast_sockaddr *new, void *data)
@@ -17176,6 +17248,7 @@ static void acl_change_event_stasis_unsubscribe(void)
 	acl_change_sub = stasis_unsubscribe_and_join(acl_change_sub);
 }
 
+/* Run by the sched thread. */
 static int network_change_sched_cb(const void *data)
 {
 	network_change_sched_id = -1;
@@ -24007,9 +24080,7 @@ static void handle_response_subscribe(struct sip_pvt *p, int resp, const char *r
 			p->options = NULL;
 		}
 		p->mwi->subscribed = 1;
-		if ((p->mwi->resub = ast_sched_add(sched, mwi_expiry * 1000, sip_subscribe_mwi_do, ao2_t_bump(p->mwi, "mwi ast_sched_add"))) < 0) {
-			ao2_t_ref(p->mwi, -1, "mwi ast_sched_add < 0");
-		}
+		start_mwi_subscription(p->mwi, mwi_expiry * 1000);
 		break;
 	case 401:
 	case 407:
@@ -33581,18 +33652,12 @@ static void sip_send_all_registers(void)
 static void sip_send_all_mwi_subscriptions(void)
 {
 	struct ao2_iterator iter;
-	struct sip_subscription_mwi *iterator;
+	struct sip_subscription_mwi *mwi;
 
 	iter = ao2_iterator_init(subscription_mwi_list, 0);
-	while ((iterator = ao2_t_iterator_next(&iter, "sip_send_all_mwi_subscriptions iter"))) {
-		ao2_lock(iterator);
-		AST_SCHED_DEL(sched, iterator->resub);
-		ao2_t_ref(iterator, +1, "mwi added to schedule");
-		if ((iterator->resub = ast_sched_add(sched, 1, sip_subscribe_mwi_do, iterator)) < 0) {
-			ao2_t_ref(iterator, -1, "mwi failed to schedule");
-		}
-		ao2_unlock(iterator);
-		ao2_t_ref(iterator, -1, "sip_send_all_mwi_subscriptions iter");
+	while ((mwi = ao2_t_iterator_next(&iter, "sip_send_all_mwi_subscriptions iter"))) {
+		start_mwi_subscription(mwi, 1);
+		ao2_t_ref(mwi, -1, "sip_send_all_mwi_subscriptions iter");
 	}
 	ao2_iterator_destroy(&iter);
 }
@@ -35254,18 +35319,12 @@ static int unload_module(void)
 
 	{
 		struct ao2_iterator iter;
-		struct sip_subscription_mwi *iterator;
+		struct sip_subscription_mwi *mwi;
 
 		iter = ao2_iterator_init(subscription_mwi_list, 0);
-		while ((iterator = ao2_t_iterator_next(&iter, "unload_module iter"))) {
-			ao2_lock(iterator);
-			if (iterator->dnsmgr) {
-				ast_dnsmgr_release(iterator->dnsmgr);
-				iterator->dnsmgr = NULL;
-				ao2_t_ref(iterator, -1, "dnsmgr release");
-			}
-			ao2_unlock(iterator);
-			ao2_t_ref(iterator, -1, "unload_module iter");
+		while ((mwi = ao2_t_iterator_next(&iter, "unload_module iter"))) {
+			shutdown_mwi_subscription(mwi);
+			ao2_t_ref(mwi, -1, "unload_module iter");
 		}
 		ao2_iterator_destroy(&iter);
 	}
