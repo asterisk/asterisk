@@ -2866,6 +2866,7 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 	pj_pool_t *pool;
 	pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
 	pjsip_uri *sip_uri;
+	const char *fromuser;
 
 	if (ast_strlen_zero(uri)) {
 		if (!endpoint && (!contact || ast_strlen_zero(contact->uri))) {
@@ -2912,7 +2913,8 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 		return -1;
 	}
 
-	if (sip_dialog_create_from(pool, &from, endpoint ? endpoint->fromuser : NULL,
+	fromuser = endpoint ? (!ast_strlen_zero(endpoint->fromuser) ? endpoint->fromuser : ast_sorcery_object_get_id(endpoint)) : NULL;
+	if (sip_dialog_create_from(pool, &from, fromuser,
 				endpoint ? endpoint->fromdomain : NULL, &remote_uri, &selector)) {
 		ast_log(LOG_ERROR, "Unable to create From header for %.*s request to endpoint %s\n",
 				(int) pj_strlen(&method->name), pj_strbuf(&method->name),
