@@ -532,12 +532,12 @@ static int attach_barge(struct ast_autochan *spyee_autochan,
 		return -1;
 	}
 
-	ast_channel_lock(internal_bridge_autochan->chan);
+	ast_autochan_channel_lock(internal_bridge_autochan);
 	if (start_spying(internal_bridge_autochan, spyer_name, bridge_whisper_audiohook)) {
 		ast_log(LOG_WARNING, "Unable to attach barge audiohook on spyee '%s'. Barge mode disabled.\n", name);
 		retval = -1;
 	}
-	ast_channel_unlock(internal_bridge_autochan->chan);
+	ast_autochan_channel_unlock(internal_bridge_autochan);
 
 	*spyee_bridge_autochan = internal_bridge_autochan;
 
@@ -569,9 +569,9 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 		return 0;
 	}
 
-	ast_channel_lock(spyee_autochan->chan);
+	ast_autochan_channel_lock(spyee_autochan);
 	name = ast_strdupa(ast_channel_name(spyee_autochan->chan));
-	ast_channel_unlock(spyee_autochan->chan);
+	ast_autochan_channel_unlock(spyee_autochan);
 
 	ast_verb(2, "Spying on channel %s\n", name);
 	/*** DOCUMENTATION
