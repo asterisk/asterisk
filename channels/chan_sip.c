@@ -34896,6 +34896,26 @@ static int unload_module(void)
 		ast_mutex_unlock(&monlock);
 	}
 
+	cleanup_all_regs();
+
+	{
+		struct ao2_iterator iter;
+		struct sip_subscription_mwi *iterator;
+
+		iter = ao2_iterator_init(subscription_mwi_list, 0);
+		while ((iterator = ao2_t_iterator_next(&iter, "unload_module iter"))) {
+			ao2_lock(iterator);
+			if (iterator->dnsmgr) {
+				ast_dnsmgr_release(iterator->dnsmgr);
+				iterator->dnsmgr = NULL;
+				ao2_t_ref(iterator, -1, "dnsmgr release");
+			}
+			ao2_unlock(iterator);
+			ao2_t_ref(iterator, -1, "unload_module iter");
+		}
+		ao2_iterator_destroy(&iter);
+	}
+
 	/* Destroy all the dialogs and free their memory */
 	i = ao2_iterator_init(dialogs, 0);
 	while ((p = ao2_t_iterator_next(&i, "iterate thru dialogs"))) {
@@ -34903,6 +34923,13 @@ static int unload_module(void)
 		ao2_t_ref(p, -1, "throw away iterator result");
 	}
 	ao2_iterator_destroy(&i);
+
+	/*
+	 * Since the monitor thread runs the scheduled events and we
+	 * just stopped the monitor thread above, we have to run any
+	 * pending scheduled immediate events in this thread.
+	 */
+	ast_sched_runq(sched);
 
 	/* Free memory for local network address mask */
 	ast_free_ha(localaddr);
@@ -34925,28 +34952,6 @@ static int unload_module(void)
 
 	ast_rtp_dtls_cfg_free(&default_dtls_cfg);
 
-	cleanup_all_regs();
-	ao2_cleanup(registry_list);
-
-	{
-		struct ao2_iterator iter;
-		struct sip_subscription_mwi *iterator;
-
-		iter = ao2_iterator_init(subscription_mwi_list, 0);
-		while ((iterator = ao2_t_iterator_next(&iter, "unload_module iter"))) {
-			ao2_lock(iterator);
-			if (iterator->dnsmgr) {
-				ast_dnsmgr_release(iterator->dnsmgr);
-				iterator->dnsmgr = NULL;
-				ao2_t_ref(iterator, -1, "dnsmgr release");
-			}
-			ao2_unlock(iterator);
-			ao2_t_ref(iterator, -1, "unload_module iter");
-		}
-		ao2_iterator_destroy(&iter);
-	}
-	ao2_cleanup(subscription_mwi_list);
-
 	/*
 	 * Wait awhile for the TCP/TLS thread container to become empty.
 	 *
@@ -34961,6 +34966,9 @@ static int unload_module(void)
 	if (!wait_count) {
 		ast_debug(2, "TCP/TLS thread container did not become empty :(\n");
 	}
+
+	ao2_cleanup(registry_list);
+	ao2_cleanup(subscription_mwi_list);
 
 	ao2_t_global_obj_release(g_bogus_peer, "Release the bogus peer.");
 
@@ -34981,6 +34989,7 @@ static int unload_module(void)
 	close(sipsock);
 	io_context_destroy(io);
 	ast_sched_context_destroy(sched);
+	sched = NULL;
 	ast_context_destroy_by_name(used_context, "SIP");
 	ast_unload_realtime("sipregs");
 	ast_unload_realtime("sippeers");
