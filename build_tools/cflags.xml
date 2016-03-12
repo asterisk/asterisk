@@ -2,6 +2,9 @@
 		<member name="DONT_OPTIMIZE" displayname="Disable Optimizations by the Compiler">
 			<support_level>core</support_level>
 		</member>
+		<member name="COMPILE_DOUBLE" displayname="Double Compile Through Intermediate Files">
+			<support_level>core</support_level>
+		</member>
 		<member name="DEBUG_THREADS" displayname="Enable Thread Debugging">
 			<support_level>core</support_level>
 		</member>
