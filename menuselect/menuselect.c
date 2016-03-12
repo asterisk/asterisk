@@ -357,6 +357,10 @@ static int process_xml_ref_node(xmlNode *node, struct member *mem, struct refere
 		}
 	}
 
+	if ((tmp = (const char *) xmlGetProp(node, BAD_CAST "autoselect"))) {
+		ref->autoselect = !strcasecmp(tmp, "yes");
+	}
+
 	tmp = (const char *) xmlNodeGetContent(node);
 
 	if (tmp && !strlen_zero(tmp)) {
@@ -1154,8 +1158,16 @@ unsigned int enable_member(struct member *mem)
 	}
 
 	if ((mem->enabled = can_enable)) {
+		struct reference *use;
+
 		print_debug("Just set %s enabled to %d\n", mem->name, mem->enabled);
 		while (calc_dep_failures(1, 0) || calc_conflict_failures(1, 0));
+
+		AST_LIST_TRAVERSE(&mem->uses, use, list) {
+			if (use->member && use->autoselect && !use->member->enabled) {
+				enable_member(use->member);
+			}
+		}
 	}
 
 	return can_enable;
