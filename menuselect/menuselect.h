@@ -43,6 +43,8 @@ struct reference {
 	struct member *member;
 	/*! if this package was found */
 	unsigned char met:1;
+	/*! if this package should be autoselected */
+	unsigned char autoselect:1;
 	/*! for linking */
 	AST_LIST_ENTRY(reference) list;
 };
