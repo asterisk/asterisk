@@ -43,4 +43,5 @@ AC_DEFUN([PJPROJECT_CONFIGURE],
 	PJPROJECT_SYMBOL_CHECK([PJSIP_GET_DEST_INFO], [pjsip_get_dest_info], [pjsip.h])
 	PJPROJECT_SYMBOL_CHECK([PJ_SSL_CERT_LOAD_FROM_FILES2], [pj_ssl_cert_load_from_files2], [pjlib.h])
 	PJPROJECT_SYMBOL_CHECK([PJSIP_EXTERNAL_RESOLVER], [pjsip_endpt_set_ext_resolver], [pjsip.h])
+	AC_DEFINE([HAVE_PJSIP_TLS_TRANSPORT_PROTO], 1, [Define if your system has PJSIP_TLS_TRANSPORT_PROTO])
 ])

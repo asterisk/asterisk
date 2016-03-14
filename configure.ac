@@ -486,6 +486,7 @@ AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_REPLACE_MEDIA_STREAM], [PJSIP Media Stream Rep
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_GET_DEST_INFO], [pjsip_get_dest_info support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJ_SSL_CERT_LOAD_FROM_FILES2], [pj_ssl_cert_load_from_files2 support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_EXTERNAL_RESOLVER], [PJSIP External Resolver Support], [PJPROJECT], [pjsip])
+AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_TLS_TRANSPORT_PROTO], [PJSIP TLS Transport proto field support], [PJPROJECT], [pjsip])
 
 AST_EXT_LIB_SETUP([POPT], [popt], [popt])
 AST_EXT_LIB_SETUP([PORTAUDIO], [PortAudio], [portaudio])
@@ -2186,6 +2187,14 @@ if test "$USE_PJPROJECT" != "no" ; then
       AST_EXT_LIB_CHECK([PJSIP_GET_DEST_INFO], [pjsip], [pjsip_get_dest_info], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
       AST_EXT_LIB_CHECK([PJ_SSL_CERT_LOAD_FROM_FILES2], [pj], [pjsip/include/pjsip/sip_util.h], [pjlib.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
       AST_EXT_LIB_CHECK([PJSIP_EXTERNAL_RESOLVER], [pjsip], [pjsip_endpt_set_ext_resolver], [pjsip.h], [$PJPROJECT_LIBS], [$PJPROJECT_CFLAGS])
+
+      saved_cppflags="${CPPFLAGS}"
+      saved_libs="${LIBS}"
+      CPPFLAGS="${CPPFLAGS} ${PJPROJECT_CFLAGS}"
+      LIBS="${LIBS} ${PJPROJECT_LIB}"
+      AST_C_COMPILE_CHECK([PJSIP_TLS_TRANSPORT_PROTO], [struct pjsip_tls_setting setting; int proto; proto = setting.proto;], [pjsip.h])
+      LIBS="${saved_libs}"
+      CPPFLAGS="${saved_cppflags}"
    fi
 fi
 
