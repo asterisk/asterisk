@@ -919,6 +919,10 @@ PBX_POPT
 POPT_DIR
 POPT_INCLUDE
 POPT_LIB
+PBX_PJSIP_TLS_TRANSPORT_PROTO
+PJSIP_TLS_TRANSPORT_PROTO_DIR
+PJSIP_TLS_TRANSPORT_PROTO_INCLUDE
+PJSIP_TLS_TRANSPORT_PROTO_LIB
 PBX_PJSIP_EXTERNAL_RESOLVER
 PJSIP_EXTERNAL_RESOLVER_DIR
 PJSIP_EXTERNAL_RESOLVER_INCLUDE
@@ -10547,6 +10551,18 @@ PBX_PJSIP_EXTERNAL_RESOLVER=0
 
 
 
+PJSIP_TLS_TRANSPORT_PROTO_DESCRIP="PJSIP TLS Transport proto field support"
+PJSIP_TLS_TRANSPORT_PROTO_OPTION=pjsip
+PJSIP_TLS_TRANSPORT_PROTO_DIR=${PJPROJECT_DIR}
+
+PBX_PJSIP_TLS_TRANSPORT_PROTO=0
+
+
+
+
+
+
+
 
     POPT_DESCRIP="popt"
     POPT_OPTION="popt"
@@ -13746,7 +13762,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -13792,7 +13808,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -13816,7 +13832,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -13861,7 +13877,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -13885,7 +13901,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
+#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -25370,6 +25386,58 @@ _ACEOF
 fi
 
 
+
+      saved_cppflags="${CPPFLAGS}"
+      saved_libs="${LIBS}"
+      CPPFLAGS="${CPPFLAGS} ${PJPROJECT_CFLAGS}"
+      LIBS="${LIBS} ${PJPROJECT_LIB}"
+
+    if test "x${PBX_PJSIP_TLS_TRANSPORT_PROTO}" != "x1" -a "${USE_PJSIP_TLS_TRANSPORT_PROTO}" != "no"; then
+        if test "x" != "x"; then
+            { $as_echo "$as_me:${as_lineno-$LINENO}: checking for " >&5
+$as_echo_n "checking for ... " >&6; }
+	else
+            { $as_echo "$as_me:${as_lineno-$LINENO}: checking if \"struct pjsip_tls_setting setting; int proto; proto = setting.proto;\" compiles using pjsip.h" >&5
+$as_echo_n "checking if \"struct pjsip_tls_setting setting; int proto; proto = setting.proto;\" compiles using pjsip.h... " >&6; }
+	fi
+	saved_cppflags="${CPPFLAGS}"
+	if test "x${PJSIP_TLS_TRANSPORT_PROTO_DIR}" != "x"; then
+	    PJSIP_TLS_TRANSPORT_PROTO_INCLUDE="-I${PJSIP_TLS_TRANSPORT_PROTO_DIR}/include"
+	fi
+	CPPFLAGS="${CPPFLAGS} ${PJSIP_TLS_TRANSPORT_PROTO_INCLUDE}"
+
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ #include <pjsip.h>
+int
+main ()
+{
+ struct pjsip_tls_setting setting; int proto; proto = setting.proto;;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		PBX_PJSIP_TLS_TRANSPORT_PROTO=1
+
+$as_echo "#define HAVE_PJSIP_TLS_TRANSPORT_PROTO 1" >>confdefs.h
+
+
+
+else
+         { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+	CPPFLAGS="${saved_cppflags}"
+    fi
+
+      LIBS="${saved_libs}"
+      CPPFLAGS="${saved_cppflags}"
    fi
 fi
 
