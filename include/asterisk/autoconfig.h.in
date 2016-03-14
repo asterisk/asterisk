@@ -596,6 +596,9 @@
 /* Define if your system has the PJSIP_REPLACE_MEDIA_STREAM headers. */
 #undef HAVE_PJSIP_REPLACE_MEDIA_STREAM
 
+/* Define if your system has the PJSIP_TLS_TRANSPORT_PROTO headers. */
+#undef HAVE_PJSIP_TLS_TRANSPORT_PROTO
+
 /* Define if your system has pj_ssl_cert_load_from_files2 declared. */
 #undef HAVE_PJ_SSL_CERT_LOAD_FROM_FILES2
 
