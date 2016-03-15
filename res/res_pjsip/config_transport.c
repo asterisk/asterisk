@@ -422,7 +422,9 @@ static int has_state_changed(struct ast_sip_transport_state *a, struct ast_sip_t
 
 	if (a->tls.method != b->tls.method
 		|| a->tls.ciphers_num != b->tls.ciphers_num
+#ifdef HAVE_PJSIP_TLS_TRANSPORT_PROTO
 		|| a->tls.proto != b->tls.proto
+#endif
 		|| a->tls.verify_client != b->tls.verify_client
 		|| a->tls.verify_server != b->tls.verify_server
 		|| a->tls.require_client_cert != b->tls.require_client_cert) {
