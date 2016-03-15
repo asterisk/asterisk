@@ -1,59 +1,87 @@
 .SUFFIXES:
 .PHONY: _all all _install install clean distclean echo_cflags configure
 
-ifeq ($(MAKECMDGOALS),install)
-include ../../makeopts
-else
--include ../../makeopts
+include ../versions.mak
+
+SPECIAL_TARGETS :=
+
+ifneq ($(findstring configure,$(MAKECMDGOALS))$(findstring echo_cflags,$(MAKECMDGOALS)),)
+# Run from $(ASTTOPDIR)/configure
+    SPECIAL_TARGETS += configure
+    include ../Makefile.rules
+    include Makefile.rules
 endif
 
-include ../versions.mak
-include ../Makefile.rules
-include Makefile.rules
+ifeq ($(findstring echo_cflags,$(MAKECMDGOALS)),echo_cflags)
+    -include build.mak
+    ECHO_PREFIX=@\#
+endif
+
+ifeq ($(findstring clean,$(MAKECMDGOALS)),clean)
+# clean or distclean
+    SPECIAL_TARGETS += clean
+    include ../Makefile.rules
+    include Makefile.rules
+endif
+
+ifeq ($(SPECIAL_TARGETS),)
+# Run locally or from $(ASTTOPDIR)/Makefile.  All include files should be present
+    ifeq ($(wildcard ../../makeopts),)
+        $(error ASTTOPDIR/configure hasn't been run)
+    endif
+    include ../../makeopts
+
+    ifeq ($(PJPROJECT_BUNDLED),yes)
+        -include ../../menuselect.makeopts
+        include ../Makefile.rules
+
+        all: _all
+        install: _install
+
+        include ../../Makefile.rules
+        include Makefile.rules
+        include build.mak
+        CF := $(filter-out -W%,$(CC_CFLAGS))
+        CF := $(filter-out -I%,$(CF))
+        export CFLAGS += $(CF)
+        export LDFLAGS += $(CC_LDFLAGS)
+    else
+        all install:
+    endif
+endif
 
 ECHO_PREFIX := $(ECHO_PREFIX) echo '[pjproject] '
 
-ifeq ($(MAKECMDGOALS),echo_cflags)
--include build.mak
-ECHO_PREFIX=@\#
-endif
-
-ifneq ($(PJPROJECT_BUNDLED),yes)
-all install:
-	@echo '[pjproject] Not enabled'
-else
-
-ifneq ($(findstring clean,$(MAKECMDGOALS)),clean)
-include build.mak
-endif
-
-all: _all
-install: _install
-endif
-
 ifndef $(TMPDIR)
-ifneq ($(wildcard /tmp),)
-TMPDIR=/tmp
-else
-TMPDIR=.
-endif
+    ifneq ($(wildcard /tmp),)
+        TMPDIR=/tmp
+    else
+        TMPDIR=.
+    endif
 endif
 
 $(TMPDIR)/pjproject-$(PJPROJECT_VERSION).tar.bz2 : ../versions.mak
 	$(ECHO_PREFIX) Downloading $@ with $(DOWNLOAD)
 	$(CMD_PREFIX) $(DOWNLOAD) $(PJPROJECT_URL)/$(@F) > $@
 
-source/user.mak source/pjlib/include/pj/config_site.h: $(TMPDIR)/pjproject-$(PJPROJECT_VERSION).tar.bz2 patches/config_site.h patches/user.mak 
+source/.unpacked: $(TMPDIR)/pjproject-$(PJPROJECT_VERSION).tar.bz2
 	$(ECHO_PREFIX) Unpacking $<
 	-@rm -rf source &>/dev/null
 	-@mkdir source &>/dev/null
 	$(CMD_PREFIX) tar --strip-components=1 -C source -xjf $<
-	$(ECHO_PREFIX) Applying patches and custom files
+	$(ECHO_PREFIX) Applying patches
 	$(CMD_PREFIX) ./apply_patches $(QUIET_CONFIGURE) ./patches ./source
-	$(CMD_PREFIX) cp -f ./patches/config_site.h ./source/pjlib/include/pj/
+	-@touch source/.unpacked
+
+source/user.mak: source/.unpacked ./patches/user.mak
+	$(ECHO_PREFIX) Applying user.mak
 	$(CMD_PREFIX) cp -f ./patches/user.mak ./source/
 
-build.mak: source/pjlib/include/pj/config_site.h source/user.mak Makefile.rules
+source/pjlib/include/pj/config_site.h: source/.unpacked ./patches/config_site.h
+	$(ECHO_PREFIX) Applying config_site.h
+	$(CMD_PREFIX) cp -f ./patches/config_site.h ./source/pjlib/include/pj/
+
+build.mak: source/.unpacked source/pjlib/include/pj/config_site.h source/user.mak Makefile.rules
 	$(ECHO_PREFIX) Configuring with $(PJPROJECT_CONFIG_OPTS)
 	$(CMD_PREFIX) (cd source ; autoconf aconfigure.ac > aconfigure && ./aconfigure $(QUIET_CONFIGURE) $(PJPROJECT_CONFIG_OPTS))
 	@sed -r -e "/prefix|export PJ_SHARED_LIBRARIES|MACHINE_NAME|OS_NAME|HOST_NAME|CC_NAME|CROSS_COMPILE|LINUX_POLL/d" source/build.mak > build.mak
@@ -67,7 +95,13 @@ source/pjlib/build/.pjlib-$(TARGET_NAME).depend: build.mak
 	$(ECHO_PREFIX) "Making dependencies"
 	+$(CMD_PREFIX) $(SUBMAKE) -C source dep
 
-source/pjlib/lib/libpj-$(TARGET_NAME).a: source/pjlib/build/.pjlib-$(TARGET_NAME).depend
+
+menuselect: ../../menuselect.makeopts ../../makeopts
+	-$(CMD_PREFIX) test -d source && ($(SUBMAKE) -C source clean ; find source -name *.a -delete ; rm -rf source/pjsip-apps/src/python/build) || :
+	-$(CMD_PREFIX) rm -rf pjproject.symbols
+
+
+source/pjlib/lib/libpj-$(TARGET_NAME).a: menuselect source/pjlib/build/.pjlib-$(TARGET_NAME).depend
 	$(ECHO_PREFIX) Compiling libs
 	+$(CMD_PREFIX) $(SUBMAKE) -C source lib $(REALLY_QUIET)
 
@@ -82,6 +116,7 @@ source/pjsip-apps/bin/pjsua-$(TARGET_NAME): source/pjlib/lib/libpj-$(TARGET_NAME
 source/pjsip-apps/src/python/build/_pjsua.so: source/pjlib/lib/libpj-$(TARGET_NAME).a
 	$(ECHO_PREFIX) Compiling python bindings
 	$(CMD_PREFIX) (cd source/pjsip-apps/src/python ; python setup.py build --build-platlib=./build $(REALLY_QUIET))
+
 
 _all: pjproject.symbols source/pjsip-apps/bin/pjsua-$(TARGET_NAME) source/pjsip-apps/src/python/build/_pjsua.so
 
