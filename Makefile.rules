@@ -103,13 +103,15 @@ CC_LIBS=$(PTHREAD_LIBS) $(LIBS)
 CXX_LIBS=$(PTHREAD_LIBS) $(LIBS)
 
 # determine whether to double-compile so that the optimizer can report code path problems
-# this is only done when developer mode and DONT_OPTIMIZE are both enabled
-# in that case, we run the preprocessor to produce a .i or .ii file from the source
+# In this case, we run the preprocessor to produce a .i or .ii file from the source
 # code, then compile once with optimizer enabled (and the output to /dev/null),
 # and if that doesn't fail then compile again with optimizer disabled
-ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS))$(AST_DEVMODE),DONT_OPTIMIZEyes)
+
+ifeq ($(findstring COMPILE_DOUBLE,$(MENUSELECT_CFLAGS)),COMPILE_DOUBLE)
 COMPILE_DOUBLE=yes
-else
+endif
+
+ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS))$(AST_DEVMODE),)
 _ASTCFLAGS+=$(AST_FORTIFY_SOURCE)
 endif
 

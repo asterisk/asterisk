@@ -1,5 +1,10 @@
 <category name="MENUSELECT_CFLAGS" displayname="Compiler Flags" positive_output="yes" remove_on_change=".lastclean">
 		<member name="DONT_OPTIMIZE" displayname="Disable Optimizations by the Compiler">
+			<use autoselect="yes">COMPILE_DOUBLE</use>
+			<support_level>core</support_level>
+		</member>
+		<member name="COMPILE_DOUBLE" displayname="Pre-compile with optimizations to detect errors, then discard and recompile with DONT_OPTIMIZE.  Creates intermediate .i files">
+			<depend>DONT_OPTIMIZE</depend>
 			<support_level>core</support_level>
 		</member>
 		<member name="DEBUG_THREADS" displayname="Enable Thread Debugging">
