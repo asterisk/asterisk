@@ -111,6 +111,8 @@ static int app_exec(struct ast_channel *chan, const char *data)
 	}
 
 	if (ret == -1) {
+	    /* set ret to 0 so pbx_core doesnt hangup the channel */		
+	    ret = 0; 
 	    pbx_builtin_setvar_helper(chan, "STASISSTATUS", "FAILED");
 	} else {
 	    pbx_builtin_setvar_helper(chan, "STASISSTATUS", "SUCCESS");
