@@ -110,10 +110,16 @@ static int app_exec(struct ast_channel *chan, const char *data)
 		                      args.app_argv);
 	}
 
-	if (ret == -1) {
-	    pbx_builtin_setvar_helper(chan, "STASISSTATUS", "FAILED");
+	if (ret) {
+		/* set ret to 0 so pbx_core doesnt hangup the channel */
+		if (!ast_check_hangup(chan)) {
+			ret = 0;
+		} else {
+			ret = -1;
+		}
+		pbx_builtin_setvar_helper(chan, "STASISSTATUS", "FAILED");
 	} else {
-	    pbx_builtin_setvar_helper(chan, "STASISSTATUS", "SUCCESS");
+		pbx_builtin_setvar_helper(chan, "STASISSTATUS", "SUCCESS");
 	}
 
 	return ret;
