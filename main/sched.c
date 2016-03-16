@@ -83,6 +83,14 @@ struct sched {
 	/*! The ID that has been popped off the scheduler context's queue */
 	struct sched_id *sched_id;
 	struct timeval when;          /*!< Absolute time event should take place */
+	/*!
+	 * \brief Tie breaker in case the when is the same for multiple entries.
+	 *
+	 * \note The oldest expiring entry in the scheduler heap goes first.
+	 * This is possible when multiple events are scheduled to expire at
+	 * the same time by internal coding.
+	 */
+	unsigned int tie_breaker;
 	int resched;                  /*!< When to reschedule */
 	int variable;                 /*!< Use return value from callback to reschedule */
 	const void *data;             /*!< Data */
@@ -107,6 +115,8 @@ struct ast_sched_context {
 	ast_mutex_t lock;
 	unsigned int eventcnt;                  /*!< Number of events processed */
 	unsigned int highwater;					/*!< highest count so far */
+	/*! Next tie breaker in case events expire at the same time. */
+	unsigned int tie_breaker;
 	struct ast_heap *sched_heap;
 	struct sched_thread *sched_thread;
 	/*! The scheduled task that is currently executing */
@@ -213,9 +223,17 @@ int ast_sched_start_thread(struct ast_sched_context *con)
 	return 0;
 }
 
-static int sched_time_cmp(void *a, void *b)
+static int sched_time_cmp(void *va, void *vb)
 {
-	return ast_tvcmp(((struct sched *) b)->when, ((struct sched *) a)->when);
+	struct sched *a = va;
+	struct sched *b = vb;
+	int cmp;
+
+	cmp = ast_tvcmp(b->when, a->when);
+	if (!cmp) {
+		cmp = b->tie_breaker - a->tie_breaker;
+	}
+	return cmp;
 }
 
 struct ast_sched_context *ast_sched_context_create(void)
@@ -442,11 +460,28 @@ int ast_sched_wait(struct ast_sched_context *con)
  */
 static void schedule(struct ast_sched_context *con, struct sched *s)
 {
-	ast_heap_push(con->sched_heap, s);
+	size_t size;
 
-	if (ast_heap_size(con->sched_heap) > con->highwater) {
-		con->highwater = ast_heap_size(con->sched_heap);
+	size = ast_heap_size(con->sched_heap);
+
+	/* Record the largest the scheduler heap became for reporting purposes. */
+	if (con->highwater <= size) {
+		con->highwater = size + 1;
 	}
+
+	/* Determine the tie breaker value for the new entry. */
+	if (size) {
+		++con->tie_breaker;
+	} else {
+		/*
+		 * Restart the sequence for the first entry to make integer
+		 * roll over more unlikely.
+		 */
+		con->tie_breaker = 0;
+	}
+	s->tie_breaker = con->tie_breaker;
+
+	ast_heap_push(con->sched_heap, s);
 }
 
 /*! \brief
