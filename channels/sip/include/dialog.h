@@ -40,19 +40,6 @@ void sip_scheddestroy_final(struct sip_pvt *p, int ms);
 void sip_scheddestroy(struct sip_pvt *p, int ms);
 int sip_cancel_destroy(struct sip_pvt *p);
 
-/*! \brief Destroy SIP call structure.
- * Make it return NULL so the caller can do things like
- *	foo = sip_destroy(foo);
- * and reduce the chance of bugs due to dangling pointers.
- */
-struct sip_pvt *sip_destroy(struct sip_pvt *p);
-
-/*! \brief Destroy SIP call structure.
- * Make it return NULL so the caller can do things like
- *	foo = sip_destroy(foo);
- * and reduce the chance of bugs due to dangling pointers.
- */
-void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist);
 /*!
  * \brief Unlink a dialog from the dialogs container, as well as any other places
  * that it may be currently stored.
