@@ -20,6 +20,7 @@
 #include "asterisk/compat.h"
 #include "asterisk/lock.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/inline_api.h"
 
 /*! \file
  * \ref AstObj2
@@ -407,6 +408,16 @@ void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, unsigned in
 
 /*! @} */
 
+/*! \brief Test if a pointer is a valid ao2 object
+ * \since 13.8.0
+ *
+ * \param obj Object to be tested
+ * \retval 1 if the object is a valid ao2 object
+ * \retval 0 if not
+ */
+int ao2_is_object_valid(void *obj);
+
+
 /*! \brief
  * Reference/unreference an object and return the old refcount.
  *
@@ -724,6 +735,50 @@ int __ao2_trylock(void *a, enum ao2_lock_req lock_how, const char *file, const c
  */
 void *ao2_object_get_lockaddr(void *obj);
 
+
+/*!
+ * \brief Increment reference count on an object and lock it
+ * \since 13.8.0
+ *
+ * \param[in] obj A pointer to the ao2 object
+ * \retval 0 The object is not an ao2 object or wasn't locked successfully
+ * \retval 1 The object's reference count was incremented and was locked
+ */
+AST_INLINE_API(
+int ao2_ref_and_lock(void *obj),
+{
+	if (ao2_is_object_valid(obj)) {
+		ao2_ref(obj, +1);
+		if (ao2_lock(obj)) {
+			ao2_ref(obj, -1);
+			return 0;
+		}
+		return 1;
+	}
+
+	return 0;
+}
+)
+
+/*!
+ * \brief Unlock an object and decrement its reference count
+ * \since 13.8.0
+ *
+ * \param[in] obj A pointer to the ao2 object
+ * \retval 0 The object is not an ao2 object or wasn't unlocked successfully
+ * \retval 1 The object was unlocked and it's reference count was decremented
+ */
+AST_INLINE_API(
+int ao2_unlock_and_unref(void *obj),
+{
+	if (!ao2_is_object_valid(obj) || ao2_unlock(obj)) {
+		return 0;
+	}
+	ao2_ref(obj, -1);
+
+	return 1;
+}
+)
 
 /*! Global ao2 object holder structure. */
 struct ao2_global_obj {
@@ -1902,5 +1957,99 @@ void ao2_iterator_cleanup(struct ao2_iterator *iter);
  * \retval The number of objects in the iterated container
  */
 int ao2_iterator_count(struct ao2_iterator *iter);
+
+
+/*!
+ * \brief Creates a hash function for a structure string field.
+ * \param stype The structure type
+ * \param field The string field in the structure to hash
+ *
+ * AO2_STRING_FIELD_HASH_CB(mystruct, myfield) will produce a function
+ * named mystruct_hash_fn which hashes mystruct->myfield.
+ */
+#define AO2_STRING_FIELD_HASH_FN(stype, field) \
+static int stype ## _hash_fn(const void *obj, const int flags) \
+{ \
+	const struct stype *object = obj; \
+	const char *key; \
+	switch (flags & OBJ_SEARCH_MASK) { \
+	case OBJ_SEARCH_KEY: \
+		key = obj; \
+		break; \
+	case OBJ_SEARCH_OBJECT: \
+		key = object->field; \
+		break; \
+	default: \
+		ast_assert(0); \
+		return 0; \
+	} \
+	return ast_str_hash(key); \
+}
+
+/*!
+ * \brief Creates a compare function for a structure string field.
+ * \param stype The structure type
+ * \param field The string field in the structure to compare
+ *
+ * AO2_STRING_FIELD_CMP_FN(mystruct, myfield) will produce a function
+ * named mystruct_cmp_fn which compares mystruct->myfield.
+ */
+#define AO2_STRING_FIELD_CMP_FN(stype, field) \
+static int stype ## _cmp_fn(void *obj, void *arg, int flags) \
+{ \
+	const struct stype *object_left = obj, *object_right = arg; \
+	const char *right_key = arg; \
+	int cmp; \
+	switch (flags & OBJ_SEARCH_MASK) { \
+	case OBJ_SEARCH_OBJECT: \
+		right_key = object_right->field; \
+	case OBJ_SEARCH_KEY: \
+		cmp = strcmp(object_left->field, right_key); \
+		break; \
+	case OBJ_SEARCH_PARTIAL_KEY: \
+		cmp = strncmp(object_left->field, right_key, strlen(right_key)); \
+		break; \
+	default: \
+		cmp = 0; \
+		break; \
+	} \
+	if (cmp) { \
+		return 0; \
+	} \
+	return CMP_MATCH; \
+}
+
+/*!
+ * \brief Creates a sort function for a structure string field.
+ * \param stype The structure type
+ * \param field The string field in the structure to compare
+ *
+ * AO2_STRING_FIELD_SORT_FN(mystruct, myfield) will produce a function
+ * named mystruct_sort_fn which compares mystruct->myfield.
+ */
+#define AO2_STRING_FIELD_SORT_FN(stype, field) \
+static int stype ## _sort_fn(const void *obj, const void *arg, int flags) \
+{ \
+	const struct stype *object_left = obj; \
+	const struct stype *object_right = arg; \
+	const char *right_key = arg; \
+	int cmp; \
+\
+	switch (flags & OBJ_SEARCH_MASK) { \
+	case OBJ_SEARCH_OBJECT: \
+		right_key = object_right->field; \
+		/* Fall through */ \
+	case OBJ_SEARCH_KEY: \
+		cmp = strcmp(object_left->field, right_key); \
+		break; \
+	case OBJ_SEARCH_PARTIAL_KEY: \
+		cmp = strncmp(object_left->field, right_key, strlen(right_key)); \
+		break; \
+	default: \
+		cmp = 0; \
+		break; \
+	} \
+	return cmp; \
+}
 
 #endif /* _ASTERISK_ASTOBJ2_H */

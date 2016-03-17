@@ -161,6 +161,19 @@ int internal_is_ao2_object(void *user_data)
 	return !p || IS_AO2_MAGIC_BAD(p) ? 0 : 1;
 }
 
+int ao2_is_object_valid(void *user_data)
+{
+	struct astobj2 *p;
+
+	if (!user_data) {
+		return 0;
+	}
+
+	p = (struct astobj2 *) ((char *) user_data - sizeof(*p));
+
+	return (AO2_MAGIC == p->priv_data.magic);
+}
+
 void log_bad_ao2(void *user_data, const char *file, int line, const char *func)
 {
 	struct astobj2 *p;
