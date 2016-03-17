@@ -3630,11 +3630,7 @@ int ast_sip_push_task(struct ast_taskprocessor *serializer, int (*sip_task)(void
 		serializer = serializer_pool[pos];
 	}
 
-	if (serializer) {
-		return ast_taskprocessor_push(serializer, sip_task, task_data);
-	} else {
-		return ast_threadpool_push(sip_threadpool, sip_task, task_data);
-	}
+	return ast_taskprocessor_push(serializer, sip_task, task_data);
 }
 
 struct sync_task_data {
@@ -4152,6 +4148,11 @@ static int load_module(void)
 		goto error;
 	}
 
+	if (ast_sip_initialize_scheduler()) {
+		ast_log(LOG_ERROR, "Failed to start scheduler. Aborting load\n");
+		goto error;
+	}
+
 	/* Now load all the pjproject infrastructure. */
 	if (load_pjsip()) {
 		goto error;
@@ -4190,8 +4191,10 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 
 error:
-	/* These functions all check for NULLs and are safe to call at any time */
 	unload_pjsip(NULL);
+
+	/* These functions all check for NULLs and are safe to call at any time */
+	ast_sip_destroy_scheduler();
 	serializer_pool_shutdown();
 	ast_threadpool_shutdown(sip_threadpool);
 
@@ -4222,7 +4225,7 @@ static int unload_module(void)
 	 * so we have to push the work to the threadpool to handle
 	 */
 	ast_sip_push_task_synchronous(NULL, unload_pjsip, NULL);
-
+	ast_sip_destroy_scheduler();
 	serializer_pool_shutdown();
 	ast_threadpool_shutdown(sip_threadpool);
 
