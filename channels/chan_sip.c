@@ -23278,18 +23278,14 @@ static int sip_reinvite_retry(const void *data)
 	struct sip_pvt *p = (struct sip_pvt *) data;
 	struct ast_channel *owner;
 
-	sip_pvt_lock(p); /* called from schedule thread which requires a lock */
-	while ((owner = p->owner) && ast_channel_trylock(owner)) {
-		sip_pvt_unlock(p);
-		usleep(1);
-		sip_pvt_lock(p);
-	}
+	owner = sip_pvt_lock_full(p);
 	ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);
 	p->waitid = -1;
 	check_pendings(p);
 	sip_pvt_unlock(p);
 	if (owner) {
 		ast_channel_unlock(owner);
+		ast_channel_unref(owner);
 	}
 	dialog_unref(p, "Schedule waitid complete");
 	return 0;
