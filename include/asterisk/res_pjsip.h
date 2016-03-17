@@ -19,6 +19,13 @@
 #ifndef _RES_PJSIP_H
 #define _RES_PJSIP_H
 
+#include <pjsip.h>
+/* Needed for SUBSCRIBE, NOTIFY, and PUBLISH method definitions */
+#include <pjsip_simple.h>
+#include <pjsip/sip_transaction.h>
+#include <pj/timer.h>
+#include <pjlib.h>
+
 #include "asterisk/stringfields.h"
 /* Needed for struct ast_sockaddr */
 #include "asterisk/netsock2.h"
@@ -1174,8 +1181,9 @@ struct ast_sip_auth *ast_sip_get_artificial_auth(void);
  */
 struct ast_sip_endpoint *ast_sip_get_artificial_endpoint(void);
 
-/*!
- * \page Threading model for SIP
+/*! \defgroup pjsip_threading PJSIP Threading Model
+ * @{
+ * \page PJSIP PJSIP Threading Model
  *
  * There are three major types of threads that SIP will have to deal with:
  * \li Asterisk threads
@@ -1224,6 +1232,19 @@ struct ast_sip_endpoint *ast_sip_get_artificial_endpoint(void);
  * previous tasks pushed with the same serializer have completed. For more information
  * on serializers and the benefits they provide, see \ref ast_threadpool_serializer
  *
+ * \par Scheduler
+ *
+ * Some situations require that a task run periodically or at a future time.  Normally
+ * the ast_sched functionality would be used but ast_sched only uses 1 thread for all
+ * tasks and that thread isn't registered with PJLIB and therefore can't do any PJSIP
+ * related work.
+ *
+ * ast_sip_sched uses ast_sched only as a scheduled queue.  When a task is ready to run,
+ * it's pushed to a Serializer to be invoked asynchronously by a Servant.  This ensures
+ * that the task is executed in a PJLIB registered thread and allows the ast_sched thread
+ * to immediately continue processing the queue.  The Serializer used by ast_sip_sched
+ * is one of your choosing or a random one from the res_pjsip pool if you don't choose one.
+ *
  * \note
  *
  * Do not make assumptions about individual threads based on a corresponding serializer.
@@ -1231,6 +1252,8 @@ struct ast_sip_endpoint *ast_sip_get_artificial_endpoint(void);
  * to servants, it does not mean that the same thread is necessarily going to execute those
  * tasks, even though they are all guaranteed to be executed in sequence.
  */
+
+typedef int (*ast_sip_task)(void *user_data);
 
 /*!
  * \brief Create a new serializer for SIP tasks
@@ -1367,6 +1390,214 @@ int ast_sip_push_task_synchronous(struct ast_taskprocessor *serializer, int (*si
  * \retval 1 This is a SIP servant thread
  */
 int ast_sip_thread_is_servant(void);
+
+/*!
+ * \brief Task flags for the res_pjsip scheduler
+ *
+ * The default is AST_SIP_SCHED_TASK_FIXED
+ *                | AST_SIP_SCHED_TASK_DATA_NOT_AO2
+ *                | AST_SIP_SCHED_TASK_DATA_NO_CLEANUP
+ *                | AST_SIP_SCHED_TASK_PERIODIC
+ */
+enum ast_sip_scheduler_task_flags {
+	/*!
+	 * The defaults
+	 */
+	AST_SIP_SCHED_TASK_DEFAULTS = (0 << 0),
+
+	/*!
+	 * Run at a fixed interval.
+	 * Stop scheduling if the callback returns 0.
+	 * Any other value is ignored.
+	 */
+	AST_SIP_SCHED_TASK_FIXED = (0 << 0),
+	/*!
+	 * Run at a variable interval.
+	 * Stop scheduling if the callback returns 0.
+	 * Any other return value is used as the new interval.
+	 */
+	AST_SIP_SCHED_TASK_VARIABLE = (1 << 0),
+
+	/*!
+	 * The task data is not an AO2 object.
+	 */
+	AST_SIP_SCHED_TASK_DATA_NOT_AO2 = (0 << 1),
+	/*!
+	 * The task data is an AO2 object.
+	 * A reference count will be held by the scheduler until
+	 * after the task has run for the final time (if ever).
+	 */
+	AST_SIP_SCHED_TASK_DATA_AO2 = (1 << 1),
+
+	/*!
+	 * Don't take any cleanup action on the data
+	 */
+	AST_SIP_SCHED_TASK_DATA_NO_CLEANUP = (0 << 3),
+	/*!
+	 * If AST_SIP_SCHED_TASK_DATA_AO2 is set, decrement the reference count
+	 * otherwise call ast_free on it.
+	 */
+	AST_SIP_SCHED_TASK_DATA_FREE = ( 1 << 3 ),
+
+	/*! \brief AST_SIP_SCHED_TASK_PERIODIC
+	 * The task is scheduled at multiples of interval
+	 * \see Interval
+	 */
+	AST_SIP_SCHED_TASK_PERIODIC = (0 << 4),
+	/*! \brief AST_SIP_SCHED_TASK_DELAY
+	 * The next invocation of the task is at last finish + interval
+	 * \see Interval
+	 */
+	AST_SIP_SCHED_TASK_DELAY = (1 << 4),
+};
+
+/*!
+ * \brief Scheduler task data structure
+ */
+struct ast_sip_sched_task;
+
+/*!
+ * \brief Schedule a task to run in the res_pjsip thread pool
+ * \since 13.8.0
+ *
+ * \param serializer The serializer to use.  If NULL, don't use a serializer (see note below)
+ * \param interval The invocation interval in milliseconds (see note below)
+ * \param sip_task The task to invoke
+ * \param name An optional name to associate with the task
+ * \param task_data Optional data to pass to the task
+ * \param flags One of enum ast_sip_scheduler_task_type
+ *
+ * \returns Pointer to \ref ast_sip_sched_task ao2 object which must be dereferenced when done.
+ *
+ * \paragraph Serialization
+ *
+ * Specifying a serializer guarantees serialized execution but NOT specifying a serializer
+ * may still result in tasks being effectively serialized if the thread pool is busy.
+ * The point of the serializer BTW is not to prevent parallel executions of the SAME task.
+ * That happens automatically (see below).  It's to prevent the task from running at the same
+ * time as other work using the same serializer, whether or not it's being run by the scheduler.
+ *
+ * \paragraph Interval
+ *
+ * The interval is used to calculate the next time the task should run.  There are two models.
+ *
+ * \ref AST_SIP_SCHED_TASK_PERIODIC specifies that the invocations of the task occur at the
+ * specific interval.  That is, every \ref "interval" milliseconds, regardless of how long the task
+ * takes. If the task takes longer than \ref interval, it will be scheduled at the next available
+ * multiple of \ref interval.  For exmaple: If the task has an interval of 60 seconds and the task
+ * takes 70 seconds, the next invocation will happen at 120 seconds.
+ *
+ * \ref AST_SIP_SCHED_TASK_DELAY specifies that the next invocation of the task should start
+ * at \ref interval milliseconds after the current invocation has finished.
+ *
+ */
+struct ast_sip_sched_task *ast_sip_schedule_task(struct ast_taskprocessor *serializer,
+	int interval, ast_sip_task sip_task, char *name, void *task_data,
+	enum ast_sip_scheduler_task_flags flags);
+
+/*!
+ * \brief Cancels the next invocation of a task
+ * \since 13.8.0
+ *
+ * \param schtd The task structure pointer
+ * \retval 0 Success
+ * \retval -1 Failure
+ * \note Only cancels future invocations not the currently running invocation.
+ */
+int ast_sip_sched_task_cancel(struct ast_sip_sched_task *schtd);
+
+/*!
+ * \brief Cancels the next invocation of a task by name
+ * \since 13.8.0
+ *
+ * \param name The task name
+ * \retval 0 Success
+ * \retval -1 Failure
+ * \note Only cancels future invocations not the currently running invocation.
+ */
+int ast_sip_sched_task_cancel_by_name(const char *name);
+
+/*!
+ * \brief Gets the last start and end times of the task
+ * \since 13.8.0
+ *
+ * \param schtd The task structure pointer
+ * \param[out] when_queued Pointer to a timeval structure to contain the time when queued
+ * \param[out] last_start Pointer to a timeval structure to contain the time when last started
+ * \param[out] last_end Pointer to a timeval structure to contain the time when last ended
+ * \retval 0 Success
+ * \retval -1 Failure
+ * \note Any of the pointers can be NULL if you don't need them.
+ */
+int ast_sip_sched_task_get_times(struct ast_sip_sched_task *schtd,
+	struct timeval *when_queued, struct timeval *last_start, struct timeval *last_end);
+
+/*!
+ * \brief Gets the last start and end times of the task by name
+ * \since 13.8.0
+ *
+ * \param name The task name
+ * \param[out] when_queued Pointer to a timeval structure to contain the time when queued
+ * \param[out] last_start Pointer to a timeval structure to contain the time when last started
+ * \param[out] last_end Pointer to a timeval structure to contain the time when last ended
+ * \retval 0 Success
+ * \retval -1 Failure
+ * \note Any of the pointers can be NULL if you don't need them.
+ */
+int ast_sip_sched_task_get_times_by_name(const char *name,
+	struct timeval *when_queued, struct timeval *last_start, struct timeval *last_end);
+
+/*!
+ * \brief Gets the number of milliseconds until the next invocation
+ * \since 13.8.0
+ *
+ * \param schtd The task structure pointer
+ * \return The number of milliseconds until the next invocation or -1 if the task isn't scheduled
+ */
+int ast_sip_sched_task_get_next_run(struct ast_sip_sched_task *schtd);
+
+/*!
+ * \brief Gets the number of milliseconds until the next invocation
+ * \since 13.8.0
+ *
+ * \param name The task name
+ * \return The number of milliseconds until the next invocation or -1 if the task isn't scheduled
+ */
+int ast_sip_sched_task_get_next_run_by_name(const char *name);
+
+/*!
+ * \brief Checks if the task is currently running
+ * \since 13.8.0
+ *
+ * \param schtd The task structure pointer
+ * \retval 0 not running
+ * \retval 1 running
+ */
+int ast_sip_sched_is_task_running(struct ast_sip_sched_task *schtd);
+
+/*!
+ * \brief Checks if the task is currently running
+ * \since 13.8.0
+ *
+ * \param name The task name
+ * \retval 0 not running or not found
+ * \retval 1 running
+ */
+int ast_sip_sched_is_task_running_by_name(const char *name);
+
+/*!
+ * \brief Gets the task name
+ * \since 13.8.0
+ *
+ * \param schtd The task structure pointer
+ * \retval 0 success
+ * \retval 1 failure
+ */
+int ast_sip_sched_task_get_name(struct ast_sip_sched_task *schtd, char *name, size_t maxlen);
+
+/*!
+ *  @}
+ */
 
 /*!
  * \brief SIP body description
