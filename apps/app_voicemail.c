@@ -1641,12 +1641,12 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, const char *contex
 	}
 	if (cur) {
 		/* Make a copy, so that on a reload, we have no race */
-		if ((vmu = (ivm ? ivm : ast_malloc(sizeof(*vmu))))) {
+		if ((vmu = (ivm ? ivm : ast_calloc(1, sizeof(*vmu))))) {
+			ast_free(vmu->emailbody);
+			ast_free(vmu->emailsubject);
 			*vmu = *cur;
-			if (!ivm) {
-				vmu->emailbody = ast_strdup(cur->emailbody);
-				vmu->emailsubject = ast_strdup(cur->emailsubject);
-			}
+			vmu->emailbody = ast_strdup(cur->emailbody);
+			vmu->emailsubject = ast_strdup(cur->emailsubject);
 			ast_set2_flag(vmu, !ivm, VM_ALLOCED);
 			AST_LIST_NEXT(vmu, list) = NULL;
 		}
@@ -1924,14 +1924,16 @@ static int get_folder_by_name(const char *name)
 
 static void free_user(struct ast_vm_user *vmu)
 {
+	if (!vmu) {
+		return;
+	}
+
+	ast_free(vmu->emailbody);
+	vmu->emailbody = NULL;
+	ast_free(vmu->emailsubject);
+	vmu->emailsubject = NULL;
+
 	if (ast_test_flag(vmu, VM_ALLOCED)) {
-
-		ast_free(vmu->emailbody);
-		vmu->emailbody = NULL;
-
-		ast_free(vmu->emailsubject);
-		vmu->emailsubject = NULL;
-
 		ast_free(vmu);
 	}
 }
@@ -2369,14 +2371,17 @@ static int __messagecount(const char *context, const char *mailbox, const char *
 		return 0;
 
 	/* We have to get the user before we can open the stream! */
+	memset(&vmus, 0, sizeof(vmus));
 	vmu = find_user(&vmus, context, mailbox);
 	if (!vmu) {
 		ast_log(AST_LOG_WARNING, "Couldn't find mailbox %s in context %s\n", mailbox, context);
+		free_user(vmu);
 		return -1;
 	} else {
 		/* No IMAP account available */
 		if (vmu->imapuser[0] == '\0') {
 			ast_log(AST_LOG_WARNING, "IMAP user not set for mailbox %s\n", vmu->mailbox);
+			free_user(vmu);
 			return -1;
 		}
 	}
@@ -2396,9 +2401,11 @@ static int __messagecount(const char *context, const char *mailbox, const char *
 	if (vms_p) {
 		ast_debug(3, "Returning before search - user is logged in\n");
 		if (fold == 0) { /* INBOX */
+			free_user(vmu);
 			return urgent ? vms_p->urgentmessages : vms_p->newmessages;
 		}
 		if (fold == 1) { /* Old messages */
+			free_user(vmu);
 			return vms_p->oldmessages;
 		}
 	}
@@ -2415,6 +2422,7 @@ static int __messagecount(const char *context, const char *mailbox, const char *
 	ret = init_mailstream(vms_p, fold);
 	if (!vms_p->mailstream) {
 		ast_log(AST_LOG_ERROR, "Houston we have a problem - IMAP mailstream is NULL\n");
+		free_user(vmu);
 		return -1;
 	}
 	if (ret == 0) {
@@ -2458,6 +2466,7 @@ static int __messagecount(const char *context, const char *mailbox, const char *
 		/*Freeing the searchpgm also frees the searchhdr*/
 		mail_free_searchpgm(&pgm);
 		ast_mutex_unlock(&vms_p->lock);
+		free_user(vmu);
 		vms_p->updated = 0;
 		return vms_p->vmArrayIndex;
 	} else {
@@ -2465,6 +2474,7 @@ static int __messagecount(const char *context, const char *mailbox, const char *
 		mail_ping(vms_p->mailstream);
 		ast_mutex_unlock(&vms_p->lock);
 	}
+	free_user(vmu);
 	return 0;
 }
 
@@ -6067,6 +6077,7 @@ static int msg_create_from_file(struct ast_vm_recording_data *recdata)
 		return -1;
 	}
 
+	memset(&svm, 0, sizeof(svm));
 	if (!(recipient = find_user(&svm, recdata->context, recdata->mailbox))) {
 		ast_log(LOG_ERROR, "No entry in voicemail config file for '%s@%s'\n", recdata->mailbox, recdata->context);
 		return -1;
@@ -6383,6 +6394,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	}
 
 	ast_debug(3, "Before find_user\n");
+	memset(&svm, 0, sizeof(svm));
 	if (!(vmu = find_user(&svm, context, ext))) {
 		ast_log(AST_LOG_WARNING, "No entry in voicemail config file for '%s'\n", ext);
 		pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
@@ -6412,6 +6424,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	snprintf(tempfile, sizeof(tempfile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, ext);
 	if ((res = create_dirpath(tmpdir, sizeof(tmpdir), vmu->context, ext, "tmp"))) {
 		ast_log(AST_LOG_WARNING, "Failed to make directory (%s)\n", tempfile);
+		free_user(vmu);
 		ast_free(tmp);
 		return -1;
 	}
@@ -6555,9 +6568,9 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			}
 			ast_play_and_wait(chan, "transfer");
 			ast_channel_priority_set(chan, 0);
-			free_user(vmu);
 			pbx_builtin_setvar_helper(chan, "VMSTATUS", "USEREXIT");
 		}
+		free_user(vmu);
 		ast_free(tmp);
 		return OPERATOR_EXIT;
 	}
@@ -6591,6 +6604,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		res = inboxcount(ext_context, &newmsgs, &oldmsgs);
 		if (res < 0) {
 			ast_log(AST_LOG_NOTICE, "Can not leave voicemail, unable to count messages\n");
+			free_user(vmu);
 			ast_free(tmp);
 			return -1;
 		}
@@ -6601,6 +6615,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		 */
 			if (!(vms = create_vm_state_from_user(vmu))) {
 				ast_log(AST_LOG_ERROR, "Couldn't allocate necessary space\n");
+				free_user(vmu);
 				ast_free(tmp);
 				return -1;
 			}
@@ -6795,6 +6810,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 							*cntx = '\0';
 							cntx++;
 						}
+						memset(&recipu, 0, sizeof(recipu));
 						if ((recip = find_user(&recipu, cntx, exten))) {
 							copy_message(chan, vmu, 0, msgnum, duration, recip, fmt, dir, flag, NULL);
 							free_user(recip);
@@ -10640,6 +10656,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 		}
 
 		ast_debug(1, "Before find user for mailbox %s\n", mailbox);
+		memset(&vmus, 0, sizeof(vmus));
 		vmu = find_user(&vmus, context, mailbox);
 		if (vmu && (vmu->password[0] == '\0' || (vmu->password[0] == '-' && vmu->password[1] == '\0'))) {
 			/* saved password is blank, so don't bother asking */
@@ -10647,10 +10664,12 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 		} else {
 			if (ast_streamfile(chan, vm_password, ast_channel_language(chan))) {
 				ast_log(AST_LOG_WARNING, "Unable to stream password file\n");
+				free_user(vmu);
 				return -1;
 			}
 			if (ast_readstring(chan, password, sizeof(password) - 1, 2000, 10000, "#") < 0) {
 				ast_log(AST_LOG_WARNING, "Unable to read password\n");
+				free_user(vmu);
 				return -1;
 			} else if (password[0] == '*') {
 				/* user entered '*' */
@@ -10658,11 +10677,13 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 				if (ast_exists_extension(chan, ast_channel_context(chan), "a", 1,
 					S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
 					mailbox[0] = '*';
+					free_user(vmu);
 					return -1;
 				}
 				ast_verb(4, "Jump to extension 'a' failed; setting mailbox and user to NULL\n");
 				mailbox[0] = '\0';
 				/* if the password entered was '*', do not let a user mailbox be created if the extension 'a' is not defined */
+				free_user(vmu);
 				vmu = NULL;
 			}
 		}
@@ -10683,6 +10704,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 			if (skipuser || logretries >= max_logins) {
 				if (ast_streamfile(chan, "vm-incorrect", ast_channel_language(chan))) {
 					ast_log(AST_LOG_WARNING, "Unable to stream incorrect message\n");
+					free_user(vmu);
 					return -1;
 				}
 			} else {
@@ -10690,16 +10712,20 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 					adsi_login(chan);
 				if (ast_streamfile(chan, "vm-incorrect-mailbox", ast_channel_language(chan))) {
 					ast_log(AST_LOG_WARNING, "Unable to stream incorrect mailbox message\n");
+					free_user(vmu);
 					return -1;
 				}
 			}
-			if (ast_waitstream(chan, ""))	/* Channel is hung up */
+			if (ast_waitstream(chan, "")) {	/* Channel is hung up */
+				free_user(vmu);
 				return -1;
+			}
 		}
 	}
 	if (!valid && (logretries >= max_logins)) {
 		ast_stopstream(chan);
 		ast_play_and_wait(chan, "vm-goodbye");
+		free_user(vmu);
 		return -1;
 	}
 	if (vmu && !skipuser) {
@@ -10806,6 +10832,8 @@ play_msg_cleanup:
 		vmstate_delete(&vms);
 	}
 #endif
+
+	free_user(vmu);
 
 	return res;
 }
@@ -11990,7 +12018,7 @@ AST_TEST_DEFINE(test_voicemail_vmuser)
 
 static int vm_box_exists(struct ast_channel *chan, const char *data) 
 {
-	struct ast_vm_user svm;
+	struct ast_vm_user svm, *vmu;
 	char *context, *box;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(mbox);
@@ -12020,8 +12048,10 @@ static int vm_box_exists(struct ast_channel *chan, const char *data)
 		context++;
 	}
 
-	if (find_user(&svm, context, args.mbox)) {
+	vmu = find_user(&svm, context, args.mbox);
+	if (vmu) {
 		pbx_builtin_setvar_helper(chan, "VMBOXEXISTSSTATUS", "SUCCESS");
+		free_user(vmu);
 	} else
 		pbx_builtin_setvar_helper(chan, "VMBOXEXISTSSTATUS", "FAILED");
 
@@ -12030,7 +12060,7 @@ static int vm_box_exists(struct ast_channel *chan, const char *data)
 
 static int acf_mailbox_exists(struct ast_channel *chan, const char *cmd, char *args, char *buf, size_t len)
 {
-	struct ast_vm_user svm;
+	struct ast_vm_user svm, *vmu;
 	AST_DECLARE_APP_ARGS(arg,
 		AST_APP_ARG(mbox);
 		AST_APP_ARG(context);
@@ -12049,7 +12079,10 @@ static int acf_mailbox_exists(struct ast_channel *chan, const char *cmd, char *a
 		ast_log(AST_LOG_WARNING, "MAILBOX_EXISTS is deprecated.  Please use ${VM_INFO(%s,exists)} instead.\n", args);
 	}
 
-	ast_copy_string(buf, find_user(&svm, ast_strlen_zero(arg.context) ? "default" : arg.context, arg.mbox) ? "1" : "0", len);
+	vmu = find_user(&svm, ast_strlen_zero(arg.context) ? "default" : arg.context, arg.mbox);
+	ast_copy_string(buf, vmu ? "1" : "0", len);
+	free_user(vmu);
+
 	return 0;
 }
 
@@ -12089,10 +12122,12 @@ static int acf_vm_info(struct ast_channel *chan, const char *cmd, char *args, ch
 		 context = "default";
 	}
 
+	memset(&svm, 0, sizeof(svm));
 	vmu = find_user(&svm, context, mailbox);
 
 	if (!strncasecmp(arg.attribute, "exists", 5)) {
 		ast_copy_string(buf, vmu ? "1" : "0", len);
+		free_user(vmu);
 		return 0;
 	}
 
@@ -12118,13 +12153,16 @@ static int acf_vm_info(struct ast_channel *chan, const char *cmd, char *args, ch
 			res = messagecount(context, mailbox, arg.folder);
 			if (res < 0) {
 				ast_log(LOG_ERROR, "Unable to retrieve message count for mailbox %s\n", arg.mailbox_context);
+				free_user(vmu);
 				return -1;
 			}
 			snprintf(buf, len, "%d", res);
 		} else {
 			ast_log(LOG_ERROR, "Unknown attribute '%s' for VM_INFO\n", arg.attribute);
+			free_user(vmu);
 			return -1;
 		}
+		free_user(vmu);
 	}
 
 	return 0;
@@ -13869,6 +13907,7 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 	}
 #endif
 
+	memset(&svm, 0, sizeof(svm));
 	if (!(vmu = find_user(&svm, testcontext, testmailbox)) &&
 		!(vmu = find_or_create(testcontext, testmailbox))) {
 		ast_test_status_update(test, "Cannot create vmu structure\n");
@@ -13898,6 +13937,7 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 #ifdef IMAP_STORAGE
 				chan = ast_channel_unref(chan);
 #endif
+				free_user(vmu);
 				return AST_TEST_FAIL;
 			}
 		}
@@ -13981,6 +14021,7 @@ AST_TEST_DEFINE(test_voicemail_msgcount)
 			syserr > 0 ? strerror(syserr) : "unable to fork()");
 	}
 
+	free_user(vmu);
 	return res;
 }
 
@@ -14090,6 +14131,7 @@ AST_TEST_DEFINE(test_voicemail_notify_endl)
 		}
 	}
 	fclose(file);
+	free_user(vmu);
 	return res;
 }
 
@@ -14250,6 +14292,7 @@ AST_TEST_DEFINE(test_voicemail_vm_info)
 	}
 
 	chan = ast_channel_unref(chan);
+	free_user(vmu);
 	return res;
 }
 #endif /* defined(TEST_FRAMEWORK) */
@@ -14583,8 +14626,9 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 			ast_config_destroy(msg_cfg);
 			return res;
 		} else {
-			struct ast_vm_user vmu2;
-			if (find_user(&vmu2, vmu->context, num)) {
+			struct ast_vm_user vmu2, *vmu3;
+			vmu3 = find_user(&vmu2, vmu->context, num);
+			if (vmu3) {
 				struct leave_vm_options leave_options;
 				char mailbox[AST_MAX_EXTENSION * 2 + 2];
 				snprintf(mailbox, sizeof(mailbox), "%s@%s", num, vmu->context);
@@ -14597,6 +14641,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 				if (!res)
 					res = 't';
 				ast_config_destroy(msg_cfg);
+				free_user(vmu3);
 				return res;
 			} else {
 				/* Sender has no mailbox, can't reply */
@@ -15091,11 +15136,13 @@ static struct ast_vm_mailbox_snapshot *vm_mailbox_snapshot_create(const char *ma
 
 	if (!(mailbox_snapshot = ast_calloc(1, sizeof(*mailbox_snapshot)))) {
 		ast_log(AST_LOG_ERROR, "Failed to allocate memory for mailbox snapshot\n");
+		free_user(vmu);
 		return NULL;
 	}
 
 	if (!(mailbox_snapshot->snapshots = ast_calloc(ARRAY_LEN(mailbox_folders), sizeof(*mailbox_snapshot->snapshots)))) {
 		ast_free(mailbox_snapshot);
+		free_user(vmu);
 		return NULL;
 	}
 
@@ -15156,6 +15203,7 @@ snapshot_cleanup:
 	}
 #endif
 
+	free_user(vmu);
 	return mailbox_snapshot;
 }
 
@@ -15309,6 +15357,7 @@ static int vm_msg_forward(const char *from_mailbox,
 
 	if (!(to_vmu = find_user(&to_vmus, to_context, to_mailbox))) {
 		ast_log(LOG_WARNING, "Can't find voicemail user to forward to (%s@%s)\n", to_mailbox, to_context);
+		free_user(vmu);
 		return -1;
 	}
 
@@ -15389,6 +15438,8 @@ vm_forward_cleanup:
 		notify_new_state(to_vmu);
 	}
 
+	free_user(vmu);
+	free_user(to_vmu);
 	return res;
 }
 
@@ -15492,6 +15543,7 @@ vm_move_cleanup:
 		notify_new_state(vmu);
 	}
 
+	free_user(vmu);
 	return res;
 }
 
@@ -15589,6 +15641,7 @@ vm_remove_cleanup:
 		notify_new_state(vmu);
 	}
 
+	free_user(vmu);
 	return res;
 }
 
@@ -15702,6 +15755,7 @@ play2_msg_cleanup:
 		notify_new_state(vmu);
 	}
 
+	free_user(vmu);
 	return res;
 }
 
