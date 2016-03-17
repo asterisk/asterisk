@@ -137,6 +137,19 @@ static struct astobj2 *INTERNAL_OBJ(void *user_data)
 	return p;
 }
 
+int ao2_is_object_valid(void *user_data)
+{
+	struct astobj2 *p;
+
+	if (!user_data) {
+		return 0;
+	}
+
+	p = (struct astobj2 *) ((char *) user_data - sizeof(*p));
+
+	return (AO2_MAGIC == p->priv_data.magic);
+}
+
 /*!
  * \brief convert from a pointer _p to an astobj2 object
  *
