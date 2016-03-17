@@ -306,4 +306,25 @@ int internal_sip_unregister_endpoint_formatter(struct ast_sip_endpoint_formatter
  * \brief Finds or creates contact_status for a contact
  */
 struct ast_sip_contact_status *ast_res_pjsip_find_or_create_contact_status(const struct ast_sip_contact *contact);
+
+/*!
+ * \internal
+ * \brief Initialize scheduler
+ * \since 13.8.0
+ *
+ * \retval -1 failure
+ * \retval 0 success
+ */
+int ast_sip_initialize_scheduler(void);
+
+/*!
+ * \internal
+ * \brief Destroy scheduler
+ * \since 13.8.0
+ *
+ * \retval -1 failure
+ * \retval 0 success
+ */
+int ast_sip_destroy_scheduler(void);
+
 #endif /* RES_PJSIP_PRIVATE_H_ */
