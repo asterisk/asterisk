@@ -238,6 +238,7 @@ static struct ast_channel *park_local_transfer(struct ast_channel *parker, const
 	ast_channel_req_accountcodes(parkee, parker, AST_CHANNEL_REQUESTOR_REPLACEMENT);
 	ast_connected_line_copy_from_caller(ast_channel_connected(parkee), ast_channel_caller(parker));
 	ast_channel_inherit_variables(parker, parkee);
+	ast_bridge_set_transfer_variables(parkee, ast_channel_name(parker), 0);
 	ast_channel_datastore_inherit(parker, parkee);
 	ast_channel_unlock(parker);
 
@@ -251,8 +252,6 @@ static struct ast_channel *park_local_transfer(struct ast_channel *parker, const
 		ast_hangup(parkee);
 		return NULL;
 	}
-
-	ast_bridge_set_transfer_variables(parkee_side_2, ast_channel_name(parker), 0);
 
 	ast_channel_unref(parkee_side_2);
 
