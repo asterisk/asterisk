@@ -348,6 +348,7 @@ static int send_direct_media_request(void *data)
 
 	if (direct_media_mitigate_glare(cdata->session)) {
 		ast_debug(4, "Disregarding setting RTP on %s: mitigating re-INVITE glare\n", ast_channel_name(cdata->chan));
+		ao2_ref(cdata, -1);
 		return 0;
 	}
 
