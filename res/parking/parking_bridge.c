@@ -167,7 +167,7 @@ static struct parked_user *generate_parked_user(struct parking_lot *lot, struct 
 	if (parker_dial_string) {
 		new_parked_user->parker_dial_string = ast_strdup(parker_dial_string);
 	} else {
-		if (parked_user_set_parker_dial_string(new_parked_user, parker)) {
+		if (!parker || parked_user_set_parker_dial_string(new_parked_user, parker)) {
 			ao2_ref(new_parked_user, -1);
 			ao2_unlock(lot);
 			return NULL;
@@ -269,14 +269,11 @@ static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridg
 	 * the park application. It's possible that the channel that transferred it is still alive (particularly
 	 * when a multichannel bridge is parked), so try to get the real parker if possible. */
 	ast_channel_lock(bridge_channel->chan);
-	blind_transfer = S_OR(pbx_builtin_getvar_helper(bridge_channel->chan, "BLINDTRANSFER"),
-		ast_channel_name(bridge_channel->chan));
-	if (blind_transfer) {
-		blind_transfer = ast_strdupa(blind_transfer);
-	}
+	blind_transfer = pbx_builtin_getvar_helper(bridge_channel->chan, "BLINDTRANSFER");
+	blind_transfer = ast_strdupa(S_OR(blind_transfer, ""));
 	ast_channel_unlock(bridge_channel->chan);
-
-	if (parker == bridge_channel->chan) {
+	if ((!parker || parker == bridge_channel->chan)
+		&& !ast_strlen_zero(blind_transfer)) {
 		struct ast_channel *real_parker = ast_channel_get_by_name(blind_transfer);
 
 		if (real_parker) {
@@ -300,8 +297,8 @@ static int bridge_parking_push(struct ast_bridge_parking *self, struct ast_bridg
 	/* Generate ParkedCall Stasis Message */
 	publish_parked_call(pu, PARKED_CALL);
 
-	/* If the parkee and the parker are the same and silence_announce isn't set, play the announcement to the parkee */
-	if (!strcmp(blind_transfer, ast_channel_name(bridge_channel->chan)) && !park_datastore->silence_announce) {
+	/* If not a blind transfer and silence_announce isn't set, play the announcement to the parkee */
+	if (ast_strlen_zero(blind_transfer) && !park_datastore->silence_announce) {
 		char saynum_buf[16];
 
 		snprintf(saynum_buf, sizeof(saynum_buf), "%d %d", 0, pu->parking_space);
