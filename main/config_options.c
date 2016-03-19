@@ -771,7 +771,7 @@ static int int_handler_fn(const struct aco_option *opt, struct ast_variable *var
  */
 static int uint_handler_fn(const struct aco_option *opt, struct ast_variable *var, void *obj) {
 	unsigned int *field = (unsigned int *)(obj + opt->args[0]);
-	unsigned int flags = PARSE_INT32 | opt->flags;
+	unsigned int flags = PARSE_UINT32 | opt->flags;
 	int res = 0;
 	if (opt->flags & PARSE_IN_RANGE) {
 		res = opt->flags & PARSE_DEFAULT ?
