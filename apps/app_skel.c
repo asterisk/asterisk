@@ -739,7 +739,7 @@ static int load_module(void)
 
 	/* Level options */
 	aco_option_register(&cfg_info, "max_number", ACO_EXACT, level_options, NULL, OPT_UINT_T, 0, FLDSET(struct skel_level, max_num));
-	aco_option_register(&cfg_info, "max_guesses", ACO_EXACT, level_options, NULL, OPT_UINT_T, 1, FLDSET(struct skel_level, max_guesses));
+	aco_option_register(&cfg_info, "max_guesses", ACO_EXACT, level_options, NULL, OPT_UINT_T, 0, FLDSET(struct skel_level, max_guesses));
 
 	if (aco_process_config(&cfg_info, 0) == ACO_PROCESS_ERROR) {
 		goto error;
