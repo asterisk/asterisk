@@ -146,7 +146,7 @@ static int aes_helper(struct ast_channel *chan, const char *cmd, char *data,
 	}
 
 	if (encrypt) {                            /* if encrypting encode result to base64 */
-		ast_base64encode(buf, (unsigned char *) tmp, strlen(tmp), len);
+		ast_base64encode(buf, (unsigned char *) tmp, tmpP - tmp, len);
 	} else {
 		memcpy(buf, tmp, len);
 	}
