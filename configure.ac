@@ -2168,7 +2168,6 @@ fi
 
 if test "$USE_PJPROJECT" != "no" ; then
    if test "$PJPROJECT_BUNDLED" = "yes" ; then
-       AC_CONFIG_MACRO_DIR(third-party/pjproject)
        PJPROJECT_CONFIGURE([$PJPROJECT_DIR])
    else
       AST_PKG_CONFIG_CHECK([PJPROJECT], [libpjproject])

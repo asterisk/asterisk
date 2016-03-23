@@ -29,6 +29,7 @@
 #define PJ_HAS_STRICMP_ALNUM		0
 #define PJ_HASH_USE_OWN_TOLOWER		1
 #define PJSIP_UNESCAPE_IN_PLACE		1
+#define PJSIP_MAX_PKT_LEN			6000
 
 #undef PJ_TODO
 #define PJ_TODO(x)

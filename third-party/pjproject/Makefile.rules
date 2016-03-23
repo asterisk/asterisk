@@ -2,6 +2,6 @@ PJPROJECT_URL = http://www.pjsip.org/release/$(PJPROJECT_VERSION)
 
 # Even though we're not installing pjproject, we're setting prefix to /opt/pjproject to be safe
 PJPROJECT_CONFIG_OPTS = --prefix=/opt/pjproject --with-external-speex --with-external-gsm --with-external-srtp \
-	--with-external-pa --disable-video --disable-v4l2 --disable-sound \
-	--disable-opencore-amr --disable-ilbc-codec --without-libyuv --disable-g7221-codec \
+	--disable-video --disable-v4l2 --disable-sound --disable-opencore-amr --disable-ilbc-codec \
+	--without-libyuv --disable-g7221-codec \
 	--enable-epoll
