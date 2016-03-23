@@ -474,18 +474,11 @@ static int parking_park_bridge_channel(struct ast_bridge_channel *bridge_channel
 static int parking_park_call(struct ast_bridge_channel *parker, char *exten, size_t length)
 {
 	RAII_VAR(struct parking_lot *, lot, NULL, ao2_cleanup);
-	const char *lot_name = NULL;
+	const char *lot_name;
 
 	ast_channel_lock(parker->chan);
-	lot_name = find_channel_parking_lot_name(parker->chan);
-	if (!ast_strlen_zero(lot_name)) {
-		lot_name = ast_strdupa(lot_name);
-	}
+	lot_name = ast_strdupa(find_channel_parking_lot_name(parker->chan));
 	ast_channel_unlock(parker->chan);
-
-	if (ast_strlen_zero(lot_name)) {
-		return -1;
-	}
 
 	lot = parking_lot_find_by_name(lot_name);
 	if (!lot) {
