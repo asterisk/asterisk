@@ -308,8 +308,9 @@ struct parking_lot *parking_create_dynamic_lot_forced(const char *name, struct a
  *
  * \param chan The channel we want the parking lot name for
  *
- * \retval name of the channel's assigned parking lot if it is defined by the channel in some way
- * \retval name of the default parking lot if it is not
+ * \return name of the parking lot to use for the channel.
+ *
+ * \note Always returns a parking lot name.
  *
  * \note Channel needs to be locked while the returned string is in use.
  */
