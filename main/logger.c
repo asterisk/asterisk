@@ -1322,7 +1322,8 @@ static void ast_log_vsyslog(struct logmsg *msg, int facility)
 		return;
 	}
 
-	syslog_level = LOG_MAKEPRI(facility, syslog_level);
+	/* Don't use LOG_MAKEPRI because it's broken in glibc<2.17 */
+	syslog_level = facility | syslog_level; /* LOG_MAKEPRI(facility, syslog_level); */
 
 	snprintf(buf, sizeof(buf), "%s[%d]%s: %s:%d in %s: %s",
 		 levels[msg->level], msg->lwp, call_identifier_str, msg->file, msg->line, msg->function, msg->message);
