@@ -173,12 +173,10 @@ static int http_callback(struct ast_tcptls_session_instance *ser, const struct a
 		ast_http_send(ser, method, options.status_code, options.status_text, http_header, NULL, send_file ? fd : 0, 1);
 	} else {
 		ast_http_send(ser, method, 304, "Not Modified", http_header, NULL, 0, 1);
-		if (send_file) {
-			close(fd);
-		}
 	}
 
 	if (send_file) {
+		close(fd);
 		unlink(file_name);
 	}
 
