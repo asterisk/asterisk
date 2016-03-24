@@ -13531,7 +13531,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		}
 
 		/* Finally our remaining audio/video codecs */
-		for (x = 0; ast_test_flag(&p->flags[0], SIP_OUTGOING) && x < ast_format_cap_count(p->caps); x++) {
+		for (x = 0; p->outgoing_call && x < ast_format_cap_count(p->caps); x++) {
 			tmp_fmt = ast_format_cap_get_format(p->caps, x);
 
 			if (ast_format_cap_iscompatible_format(alreadysent, tmp_fmt) != AST_FORMAT_CMP_NOT_EQUAL) {
