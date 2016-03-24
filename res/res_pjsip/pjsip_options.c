@@ -1038,14 +1038,14 @@ int ast_sip_initialize_sorcery_qualify(void)
 
 	snprintf(status_value_unknown, sizeof(status_value_unknown), "%u", UNKNOWN);
 	ast_sorcery_object_field_register_nodoc(sorcery, CONTACT_STATUS, "last_status",
-		status_value_unknown, OPT_UINT_T, 1, FLDSET(struct ast_sip_contact_status, last_status));
+		status_value_unknown, OPT_UINT_T, 0, FLDSET(struct ast_sip_contact_status, last_status));
 	snprintf(status_value_created, sizeof(status_value_created), "%u", CREATED);
 	ast_sorcery_object_field_register_nodoc(sorcery, CONTACT_STATUS, "status",
-		status_value_created, OPT_UINT_T, 1, FLDSET(struct ast_sip_contact_status, status));
+		status_value_created, OPT_UINT_T, 0, FLDSET(struct ast_sip_contact_status, status));
 	ast_sorcery_object_field_register_custom_nodoc(sorcery, CONTACT_STATUS, "rtt_start",
 		"0.0", rtt_start_handler, rtt_start_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register_nodoc(sorcery, CONTACT_STATUS, "rtt",
-		"0", OPT_UINT_T, 1, FLDSET(struct ast_sip_contact_status, rtt));
+		"0", OPT_UINT_T, 0, FLDSET(struct ast_sip_contact_status, rtt));
 
 	return 0;
 }
