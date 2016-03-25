@@ -35,6 +35,7 @@ static void aor_destroy(void *obj)
 
 	ao2_cleanup(aor->permanent_contacts);
 	ast_string_field_free_memory(aor);
+	ast_free(aor->voicemail_extension);
 }
 
 /*! \brief Allocator for AOR */
@@ -438,6 +439,24 @@ static int contacts_to_var_list(const void *obj, struct ast_variable **fields)
 	const struct ast_sip_aor *aor = obj;
 
 	ast_sip_for_each_contact(aor, contact_to_var_list, fields);
+
+	return 0;
+}
+
+static int voicemail_extension_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct ast_sip_aor *aor = obj;
+
+	aor->voicemail_extension = ast_strdup(var->value);
+
+	return aor->voicemail_extension ? 0 : -1;
+}
+
+static int voicemail_extension_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_aor *aor = obj;
+
+	*buf = ast_strdup(aor->voicemail_extension);
 
 	return 0;
 }
@@ -992,6 +1011,7 @@ int ast_sip_initialize_sorcery_location(void)
 	ast_sorcery_object_field_register(sorcery, "aor", "remove_existing", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_aor, remove_existing));
 	ast_sorcery_object_field_register_custom(sorcery, "aor", "contact", "", permanent_uri_handler, contacts_to_str, contacts_to_var_list, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "aor", "mailboxes", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_aor, mailboxes));
+	ast_sorcery_object_field_register_custom(sorcery, "aor", "voicemail_extension", "", voicemail_extension_handler, voicemail_extension_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "aor", "outbound_proxy", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_aor, outbound_proxy));
 	ast_sorcery_object_field_register(sorcery, "aor", "support_path", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_aor, support_path));
 
