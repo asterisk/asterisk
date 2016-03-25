@@ -1982,19 +1982,20 @@ static int dtls_srtp_renegotiate(const void *data)
 	return 0;
 }
 
-static int dtls_srtp_setup(struct ast_rtp *rtp, struct ast_srtp *srtp, struct ast_rtp_instance *instance)
+static int dtls_srtp_setup(struct ast_rtp *rtp, struct ast_srtp *srtp, struct ast_rtp_instance *instance, int rtcp)
 {
 	unsigned char material[SRTP_MASTER_LEN * 2];
 	unsigned char *local_key, *local_salt, *remote_key, *remote_salt;
 	struct ast_srtp_policy *local_policy, *remote_policy = NULL;
 	struct ast_rtp_instance_stats stats = { 0, };
 	int res = -1;
+	struct dtls_details *dtls = !rtcp ? &rtp->dtls : &rtp->rtcp->dtls;
 
 	/* If a fingerprint is present in the SDP make sure that the peer certificate matches it */
 	if (rtp->dtls_verify & AST_RTP_DTLS_VERIFY_FINGERPRINT) {
 		X509 *certificate;
 
-		if (!(certificate = SSL_get_peer_certificate(rtp->dtls.ssl))) {
+		if (!(certificate = SSL_get_peer_certificate(dtls->ssl))) {
 			ast_log(LOG_WARNING, "No certificate was provided by the peer on RTP instance '%p'\n", instance);
 			return -1;
 		}
@@ -2028,14 +2029,14 @@ static int dtls_srtp_setup(struct ast_rtp *rtp, struct ast_srtp *srtp, struct as
 	}
 
 	/* Ensure that certificate verification was successful */
-	if ((rtp->dtls_verify & AST_RTP_DTLS_VERIFY_CERTIFICATE) && SSL_get_verify_result(rtp->dtls.ssl) != X509_V_OK) {
+	if ((rtp->dtls_verify & AST_RTP_DTLS_VERIFY_CERTIFICATE) && SSL_get_verify_result(dtls->ssl) != X509_V_OK) {
 		ast_log(LOG_WARNING, "Peer certificate on RTP instance '%p' failed verification test\n",
 			instance);
 		return -1;
 	}
 
 	/* Produce key information and set up SRTP */
-	if (!SSL_export_keying_material(rtp->dtls.ssl, material, SRTP_MASTER_LEN * 2, "EXTRACTOR-dtls_srtp", 19, NULL, 0, 0)) {
+	if (!SSL_export_keying_material(dtls->ssl, material, SRTP_MASTER_LEN * 2, "EXTRACTOR-dtls_srtp", 19, NULL, 0, 0)) {
 		ast_log(LOG_WARNING, "Unable to extract SRTP keying material from DTLS-SRTP negotiation on RTP instance '%p'\n",
 			instance);
 		return -1;
@@ -2090,7 +2091,7 @@ static int dtls_srtp_setup(struct ast_rtp *rtp, struct ast_srtp *srtp, struct as
 
 	res_srtp_policy->set_ssrc(remote_policy, 0, 1);
 
-	if (ast_rtp_instance_add_srtp_policy(instance, remote_policy, local_policy)) {
+	if (ast_rtp_instance_add_srtp_policy(instance, remote_policy, local_policy, rtcp)) {
 		ast_log(LOG_WARNING, "Could not set policies when setting up DTLS-SRTP on '%p'\n", rtp);
 		goto error;
 	}
@@ -2121,7 +2122,7 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 {
 	int len;
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-	struct ast_srtp *srtp = ast_rtp_instance_get_srtp(instance);
+	struct ast_srtp *srtp = ast_rtp_instance_get_srtp(instance, rtcp);
 	char *in = buf;
 #ifdef HAVE_PJPROJECT
 	struct ast_sockaddr *loop = rtcp ? &rtp->rtcp_loop : &rtp->rtp_loop;
@@ -2178,10 +2179,8 @@ static int __rtp_recvfrom(struct ast_rtp_instance *instance, void *buf, size_t s
 		if (SSL_is_init_finished(dtls->ssl)) {
 			/* Any further connections will be existing since this is now established */
 			dtls->connection = AST_RTP_DTLS_CONNECTION_EXISTING;
-			if (!rtcp) {
-				/* Use the keying material to set up key/salt information */
-				res = dtls_srtp_setup(rtp, srtp, instance);
-			}
+			/* Use the keying material to set up key/salt information */
+			res = dtls_srtp_setup(rtp, srtp, instance, rtcp);
 		} else {
 			/* Since we've sent additional traffic start the timeout timer for retransmission */
 			dtls_srtp_start_timeout_timer(instance, rtp, rtcp);
@@ -2250,7 +2249,7 @@ static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t siz
 	int len = size;
 	void *temp = buf;
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-	struct ast_srtp *srtp = ast_rtp_instance_get_srtp(instance);
+	struct ast_srtp *srtp = ast_rtp_instance_get_srtp(instance, rtcp);
 	int res;
 
 	*ice = 0;
@@ -2950,7 +2949,8 @@ static void ast_rtp_update_source(struct ast_rtp_instance *instance)
 static void ast_rtp_change_source(struct ast_rtp_instance *instance)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-	struct ast_srtp *srtp = ast_rtp_instance_get_srtp(instance);
+	struct ast_srtp *srtp = ast_rtp_instance_get_srtp(instance, 0);
+	struct ast_srtp *rtcp_srtp = ast_rtp_instance_get_srtp(instance, 1);
 	unsigned int ssrc = ast_random();
 
 	if (!rtp->lastts) {
@@ -2966,6 +2966,9 @@ static void ast_rtp_change_source(struct ast_rtp_instance *instance)
 	if (srtp) {
 		ast_debug(3, "Changing ssrc for SRTP from %u to %u\n", rtp->ssrc, ssrc);
 		res_srtp->change_source(srtp, rtp->ssrc, ssrc);
+		if (rtcp_srtp != srtp) {
+			res_srtp->change_source(srtp, rtp->ssrc, ssrc);
+		}
 	}
 
 	rtp->ssrc = ssrc;
