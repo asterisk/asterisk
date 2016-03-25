@@ -58,6 +58,7 @@ static const char app[] = "Echo";
 static int echo_exec(struct ast_channel *chan, const char *data)
 {
 	int res = -1;
+	int fir_sent = 0;
 
 	while (ast_waitfor(chan, -1) > -1) {
 		struct ast_frame *f = ast_read(chan);
@@ -66,6 +67,22 @@ static int echo_exec(struct ast_channel *chan, const char *data)
 		}
 		f->delivery.tv_sec = 0;
 		f->delivery.tv_usec = 0;
+		if (f->frametype == AST_FRAME_CONTROL
+			&& f->subclass.integer == AST_CONTROL_VIDUPDATE) {
+			if (ast_write(chan, f) < 0) {
+				ast_frfree(f);
+				goto end;
+			}
+			fir_sent = 1;
+		}
+		if (!fir_sent && f->frametype == AST_FRAME_VIDEO) {
+			struct ast_frame frame = {
+				.frametype = AST_FRAME_CONTROL,
+				.subclass.integer = AST_CONTROL_VIDUPDATE,
+			};
+			ast_write(chan, &frame);
+			fir_sent = 1;
+		}
 		if (f->frametype != AST_FRAME_CONTROL
 			&& f->frametype != AST_FRAME_MODEM
 			&& f->frametype != AST_FRAME_NULL
