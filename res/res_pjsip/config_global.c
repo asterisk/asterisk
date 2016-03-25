@@ -36,6 +36,7 @@
 #define DEFAULT_MAX_INITIAL_QUALIFY_TIME 0
 #define DEFAULT_FROM_USER "asterisk"
 #define DEFAULT_REGCONTEXT ""
+#define DEFAULT_VOICEMAIL_EXTENSION ""
 
 static char default_useragent[256];
 
@@ -51,6 +52,8 @@ struct global_config {
 		AST_STRING_FIELD(endpoint_identifier_order);
 		/*! User name to place in From header if there is no better option */
 		AST_STRING_FIELD(default_from_user);
+		/*! Default voicemail extension */
+		AST_STRING_FIELD(default_voicemail_extension);
 	);
 	/* Value to put in Max-Forwards header */
 	unsigned int max_forwards;
@@ -141,20 +144,35 @@ char *ast_sip_get_debug(void)
 
 char *ast_sip_get_regcontext(void)
 {
-        char *res;
-        struct global_config *cfg;
+	char *res;
+	struct global_config *cfg;
 
-        cfg = get_global_cfg();
-        if (!cfg) {
-                return ast_strdup(DEFAULT_REGCONTEXT);
-        }
+	cfg = get_global_cfg();
+	if (!cfg) {
+		return ast_strdup(DEFAULT_REGCONTEXT);
+	}
 
-        res = ast_strdup(cfg->regcontext);
-        ao2_ref(cfg, -1);
+	res = ast_strdup(cfg->regcontext);
+	ao2_ref(cfg, -1);
 
-        return res;
+	return res;
 }
 
+char *ast_sip_get_default_voicemail_extension(void)
+{
+	char *res;
+	struct global_config *cfg;
+
+	cfg = get_global_cfg();
+	if (!cfg) {
+		return ast_strdup(DEFAULT_VOICEMAIL_EXTENSION);
+	}
+
+	res = ast_strdup(cfg->default_voicemail_extension);
+	ao2_ref(cfg, -1);
+
+	return res;
+}
 
 char *ast_sip_get_endpoint_identifier_order(void)
 {
@@ -329,8 +347,11 @@ int ast_sip_initialize_sorcery_global(void)
 		OPT_UINT_T, 0, FLDSET(struct global_config, max_initial_qualify_time));
 	ast_sorcery_object_field_register(sorcery, "global", "default_from_user", DEFAULT_FROM_USER,
 		OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, default_from_user));
+	ast_sorcery_object_field_register(sorcery, "global", "default_voicemail_extension",
+		DEFAULT_VOICEMAIL_EXTENSION, OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config,
+		default_voicemail_extension));
 	ast_sorcery_object_field_register(sorcery, "global", "regcontext", DEFAULT_REGCONTEXT,
-                OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, regcontext));
+		OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, regcontext));
 
 
 	if (ast_sorcery_instance_observer_add(sorcery, &observer_callbacks_global)) {
