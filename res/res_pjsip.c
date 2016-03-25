@@ -302,6 +302,12 @@
 						configuration.
 					</para></description>
 				</configOption>
+				<configOption name="mwi_subscribe_replaces_unsolicited">
+					<synopsis>An MWI subscribe will replace sending unsolicited NOTIFYs</synopsis>
+				</configOption>
+				<configOption name="voicemail_extension">
+					<synopsis>The voicemail extension to send in the NOTIFY Message-Account header</synopsis>
+				</configOption>
 				<configOption name="moh_suggest" default="default">
 					<synopsis>Default Music On Hold class</synopsis>
 				</configOption>
@@ -1135,6 +1141,9 @@
 						endpoint configuration section to enable unsolicited MWI NOTIFYs to the endpoint.
 					</para></description>
 				</configOption>
+				<configOption name="voicemail_extension">
+					<synopsis>The voicemail extension to send in the NOTIFY Message-Account header</synopsis>
+				</configOption>
 				<configOption name="maximum_expiration" default="7200">
 					<synopsis>Maximum time to keep an AoR</synopsis>
 					<description><para>
@@ -1298,6 +1307,9 @@
                                 </configOption>
 				<configOption name="default_outbound_endpoint" default="default_outbound_endpoint">
 					<synopsis>Endpoint to use when sending an outbound request to a URI without a specified endpoint.</synopsis>
+				</configOption>
+				<configOption name="default_voicemail_extension">
+					<synopsis>The voicemail extension to send in the NOTIFY Message-Account header if not specified on endpoint or aor</synopsis>
 				</configOption>
 				<configOption name="debug" default="no">
 					<synopsis>Enable/Disable SIP debug logging.  Valid options include yes|no or
