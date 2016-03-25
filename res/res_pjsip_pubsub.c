@@ -1644,6 +1644,12 @@ struct ast_sip_subscription *ast_sip_create_subscription(const struct ast_sip_su
 	return sub;
 }
 
+pjsip_dialog *ast_sip_subscription_get_dialog(struct ast_sip_subscription *sub)
+{
+	ast_assert(sub->tree->dlg != NULL);
+	return sub->tree->dlg;
+}
+
 struct ast_sip_endpoint *ast_sip_subscription_get_endpoint(struct ast_sip_subscription *sub)
 {
 	ast_assert(sub->tree->endpoint != NULL);
@@ -2269,6 +2275,11 @@ int ast_sip_subscription_notify(struct ast_sip_subscription *sub, struct ast_sip
 
 	pjsip_dlg_dec_lock(dlg);
 	return res;
+}
+
+pjsip_sip_uri *ast_sip_subscription_get_sip_uri(struct ast_sip_subscription *sub)
+{
+	return sub->uri;
 }
 
 void ast_sip_subscription_get_local_uri(struct ast_sip_subscription *sub, char *buf, size_t size)
