@@ -624,7 +624,14 @@
                         ; "username")
 ;redirect_method=user   ; How redirects received from an endpoint are handled
                         ; (default: "user")
-;mailboxes=     ; Mailbox es to be associated with (default: "")
+;mailboxes=     ; NOTIFY the endpoint when state changes for any of the specified mailboxes.
+                ; Asterisk will send unsolicited MWI NOTIFY messages to the endpoint when state
+                ; changes happen for any of the specified mailboxes. (default: "")
+;voicemail_extension= ; The voicemail extension to send in the NOTIFY Message-Account header
+                      ; (default: global/default_voicemail_extension)
+;mwi_subscribe_replaces_unsolicited=no
+                      ; An MWI subscribe will replace unsoliticed NOTIFYs
+                      ; (default: "no")
 ;moh_suggest=default    ; Default Music On Hold class (default: "default")
 ;moh_passthrough=yes    ; Pass Music On Hold through using SIP re-invites with sendonly
                         ; when placing on hold and sendrecv when taking off hold
@@ -832,7 +839,11 @@
 ;default_expiration=3600        ; Default expiration time in seconds for
                                 ; contacts that are dynamically bound to an AoR
                                 ; (default: "3600")
-;mailboxes=     ; Mailbox es to be associated with (default: "")
+;mailboxes=           ; Allow subscriptions for the specified mailbox(es)
+                      ; This option applies when an external entity subscribes to an AoR
+                      ; for Message Waiting Indications. (default: "")
+;voicemail_extension= ; The voicemail extension to send in the NOTIFY Message-Account header
+                      ; (default: global/default_voicemail_extension)
 ;maximum_expiration=7200        ; Maximum time to keep an AoR (default: "7200")
 ;max_contacts=0 ; Maximum number of contacts that can bind to an AoR (default:
                 ; "0")
@@ -902,10 +913,15 @@
                             ; startup that qualifies should be attempted on all
                             ; contacts.  If greater than the qualify_frequency
                             ; for an aor, qualify_frequency will be used instead.
-; If regcontext is specified, Asterisk will dynamically create and destroy a
-; NoOp priority 1 extension for a given endpoint who registers or unregisters
-; with us. The extension added is the name of the endpoint.
-;regcontext=sipregistrations
+;regcontext=sipregistrations  ; If regcontext is specified, Asterisk will dynamically
+                              ; create and destroy a NoOp priority 1 extension for a
+                              ; given endpoint who registers or unregisters with us.
+                              ; The extension added is the name of the endpoint.
+;default_voicemail_extension=asterisk
+                   ; The voicemail extension to send in the NOTIFY Message-Account header
+                   ; if not set on endpoint or aor.
+                   ; (default: "")
+
 
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_acl
 ;==========================ACL SECTION OPTIONS=========================
