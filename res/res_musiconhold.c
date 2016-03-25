@@ -1379,6 +1379,18 @@ static struct mohclass *_moh_class_malloc(const char *file, int line, const char
 	return class;
 }
 
+static struct ast_variable *load_realtime_musiconhold(const char *name)
+{
+	struct ast_variable *var = ast_load_realtime("musiconhold", "name", name, SENTINEL);
+	if (!var) {
+		ast_log(LOG_WARNING,
+			"Music on Hold class '%s' not found in memory/database. "
+			"Verify your configuration.\n",
+			name);
+	}
+	return var;
+}
+
 static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, const char *interpclass)
 {
 	struct mohclass *mohclass = NULL;
@@ -1387,6 +1399,7 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 	int res = 0;
 	int i;
 	int realtime_possible = ast_check_realtime("musiconhold");
+	int warn_if_not_in_memory = !realtime_possible;
 	const char *classes[] = {NULL, NULL, interpclass, "default"};
 
 	if (ast_test_flag(global_flags, MOH_PREFERCHANNELCLASS)) {
@@ -1414,9 +1427,9 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 
 	for (i = 0; i < ARRAY_LEN(classes); ++i) {
 		if (!ast_strlen_zero(classes[i])) {
-			mohclass = get_mohbyname(classes[i], 1, 0);
+			mohclass = get_mohbyname(classes[i], warn_if_not_in_memory, 0);
 			if (!mohclass && realtime_possible) {
-				var = ast_load_realtime("musiconhold", "name", classes[i], SENTINEL);
+				var = load_realtime_musiconhold(classes[i]);
 			}
 			if (mohclass || var) {
 				break;
