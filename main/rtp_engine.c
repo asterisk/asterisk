@@ -188,6 +188,8 @@ struct ast_rtp_instance {
 	struct ast_rtp_glue *glue;
 	/*! SRTP info associated with the instance */
 	struct ast_srtp *srtp;
+	/*! SRTP info dedicated for RTCP associated with the instance */
+	struct ast_srtp *rtcp_srtp;
 	/*! Channel unique ID */
 	char channel_uniqueid[AST_MAX_UNIQUEID];
 	/*! Time of last packet sent */
@@ -362,6 +364,10 @@ static void instance_destructor(void *obj)
 
 	if (instance->srtp) {
 		res_srtp->destroy(instance->srtp);
+	}
+
+	if (instance->rtcp_srtp) {
+		res_srtp->destroy(instance->rtcp_srtp);
 	}
 
 	ast_rtp_codecs_payloads_destroy(&instance->codecs);
@@ -1568,29 +1574,38 @@ int ast_rtp_engine_srtp_is_registered(void)
 	return res_srtp && res_srtp_policy;
 }
 
-int ast_rtp_instance_add_srtp_policy(struct ast_rtp_instance *instance, struct ast_srtp_policy *remote_policy, struct ast_srtp_policy *local_policy)
+int ast_rtp_instance_add_srtp_policy(struct ast_rtp_instance *instance, struct ast_srtp_policy *remote_policy, struct ast_srtp_policy *local_policy, int rtcp)
 {
 	int res = 0;
+	struct ast_srtp **srtp;
 
 	if (!res_srtp) {
 		return -1;
 	}
 
-	if (!instance->srtp) {
-		res = res_srtp->create(&instance->srtp, instance, remote_policy);
+
+	srtp = rtcp ? &instance->rtcp_srtp : &instance->srtp;
+
+	if (!*srtp) {
+		res = res_srtp->create(srtp, instance, remote_policy);
 	} else {
-		res = res_srtp->replace(&instance->srtp, instance, remote_policy);
+		res = res_srtp->replace(srtp, instance, remote_policy);
 	}
 	if (!res) {
-		res = res_srtp->add_stream(instance->srtp, local_policy);
+		res = res_srtp->add_stream(*srtp, local_policy);
 	}
 
 	return res;
 }
 
-struct ast_srtp *ast_rtp_instance_get_srtp(struct ast_rtp_instance *instance)
+struct ast_srtp *ast_rtp_instance_get_srtp(struct ast_rtp_instance *instance, int rtcp)
 {
-	return instance->srtp;
+	if (rtcp && instance->rtcp_srtp) {
+		return instance->rtcp_srtp;
+	}
+	else {
+		return instance->srtp;
+	}
 }
 
 int ast_rtp_instance_sendcng(struct ast_rtp_instance *instance, int level)
