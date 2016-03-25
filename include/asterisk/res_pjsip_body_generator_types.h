@@ -65,6 +65,8 @@ struct ast_sip_message_accumulator {
 	int old_msgs;
 	/*! Number of new messages */
 	int new_msgs;
+	/*! Message-Account */
+	char message_account[PJSIP_MAX_URL_SIZE];
 };
 
 #endif /* _RES_PJSIP_BODY_GENERATOR_TYPES_H */
