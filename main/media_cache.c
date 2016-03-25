@@ -248,7 +248,7 @@ int ast_media_cache_retrieve(const char *uri, const char *preferred_file_name,
 	 */
 	bucket_file = ast_bucket_file_retrieve(uri);
 	if (!bucket_file) {
-		ast_log(LOG_WARNING, "Failed to obtain media at '%s'\n", uri);
+		ast_debug(2, "Failed to obtain media at '%s'\n", uri);
 		return -1;
 	}
 
