@@ -17,6 +17,7 @@
  */
 
 /*! \file
+  \page Stringfields String Fields
   \brief String fields in structures
 
   This file contains objects and macros used to manage string
@@ -93,6 +94,79 @@
   ast_free(x);
   \endcode
 
+  A new feature "Extended String Fields" has been added in 13.9.0.
+
+  An extended field is one that is declared outside the AST_DECLARE_STRING_FIELDS
+  block but still inside the parent structure.  It's most useful for extending
+  structures where adding a new string field to an existing AST_DECLARE_STRING_FIELDS
+  block would break ABI compatibility.
+
+  Example:
+
+  \code
+  struct original_structure_version {
+      AST_DECLARE_STRING_FIELDS(
+          AST_STRING_FIELD(foo);
+          AST_STRING_FIELD(bar);
+      );
+      int x1;
+      int x2;
+  };
+  \endcode
+
+  Adding "blah" to the existing string fields breaks ABI compatibility because it changes
+  the offsets of x1 and x2.
+
+  \code
+  struct new_structure_version {
+      AST_DECLARE_STRING_FIELDS(
+          AST_STRING_FIELD(foo);
+          AST_STRING_FIELD(bar);
+          AST_STRING_FIELD(blah);
+      );
+      int x1;
+      int x2;
+  };
+  \endcode
+
+  However, adding "blah" as an extended string field to the end of the structure doesn't break
+  ABI compatibility but still allows the use of the existing pool.
+
+  \code
+  struct new_structure_version {
+      AST_DECLARE_STRING_FIELDS(
+          AST_STRING_FIELD(foo);
+          AST_STRING_FIELD(bar);
+      );
+      int x1;
+      int x2;
+      AST_STRING_FIELD_EXTENDED(blah);
+  };
+  \endcode
+
+  The only additional step required is to call ast_string_field_init_extended so the
+  pool knows about the new field.  It must be called AFTER ast_string_field_init or
+  ast_calloc_with_stringfields.  Although ast_calloc_with_stringfields is used in the
+  sample below, it's not necessary for extended string fields.
+
+  \code
+
+  struct new_structure_version *x = ast_calloc_with_stringfields(1, struct new_structure_version, 252);
+  if (!x) {
+      return;
+  }
+
+  ast_string_field_init_extended(x, blah);
+  \endcode
+
+  The new field can now be treated just like any other string field and it's storage will
+  be released with the rest of the string fields.
+
+  \code
+  ast_string_field_set(x, foo, "infinite loop");
+  ast_calloc_with_stringfields_field_free(x, -1);
+  \endcode
+
   This completes the API description.
 */
 
@@ -100,6 +174,7 @@
 #define _ASTERISK_STRINGFIELDS_H
 
 #include "asterisk/inline_api.h"
+#include "asterisk/vector.h"
 
 /*!
   \internal
@@ -139,11 +214,28 @@ struct ast_string_field_pool {
 
 /*!
   \internal
+  \brief The definition for the string field vector used for compare and copy
+  \since 13.9.0
+*/
+AST_VECTOR(ast_string_field_vector, const char **);
+
+/*!
+  \internal
+  \brief Structure used to hold a pointer to the embedded pool and the field vector
+  \since 13.9.0
+*/
+struct ast_string_field_header {
+	struct ast_string_field_pool *embedded_pool;	/*!< pointer to the embedded pool, if any */
+	struct ast_string_field_vector string_fields;	/*!< field vector for compare and copy */
+};
+
+/*!
+  \internal
   \brief Structure used to manage the storage for a set of string fields.
 */
 struct ast_string_field_mgr {
 	ast_string_field last_alloc;			/*!< the last field allocated */
- 	struct ast_string_field_pool *embedded_pool;	/*!< pointer to the embedded pool, if any */
+	struct ast_string_field_header *header;	/*!< pointer to the header */
 #if defined(__AST_DEBUG_MALLOC)
 	const char *owner_file;				/*!< filename of owner */
 	const char *owner_func;				/*!< function name of owner */
@@ -218,6 +310,34 @@ void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 #define AST_STRING_FIELD(name) const ast_string_field name
 
 /*!
+  \brief Declare an extended string field
+  \since 13.9.0
+
+  \param name The field name
+*/
+#define AST_STRING_FIELD_EXTENDED(name) AST_STRING_FIELD(name)
+
+enum ast_stringfield_cleanup_type {
+	/*!
+	 * Reset all string fields and free all extra pools that may have been created
+	 * The allocation or structure can be reused as is.
+	 */
+	AST_STRINGFIELD_CLEANUP_RESET = 0,
+	/*!
+	 * Reset all string fields and free all pools.
+	 * If the pointer was returned by ast_calloc_with_stringfields, it can NOT be reused
+	 * and should be immediately freed.  Otherwise, you must call ast_string_field_init
+	 * again if you want to reuse it.
+	 */
+	AST_STRINGFIELD_CLEANUP_FREE_POOLS = -1,
+	/*!
+	 * Can only be used on a pointer allocated with ast_calloc_with_stringfields.
+	 * In addition to performing a FREE_POOLS, it also calls ast_free on the pointer.
+	 */
+	AST_STRINGFIELD_CLEANUP_FREE_ALL = -2,
+};
+
+/*!
   \brief Declare the fields needed in a structure
   \param field_list The list of fields to declare, using AST_STRING_FIELD() for each one.
   Internally, string fields are stored as a pointer to the head of the pool,
@@ -245,11 +365,77 @@ void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
   \return 0 on success, non-zero on failure
 */
 #define ast_string_field_init(x, size) \
-	__ast_string_field_init(&(x)->__field_mgr, &(x)->__field_mgr_pool, size, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+({ \
+	int __res__ = -1; \
+	if (((void *)(x)) != NULL) { \
+		__res__ = __ast_string_field_init(&(x)->__field_mgr, &(x)->__field_mgr_pool, size, __FILE__, __LINE__, __PRETTY_FUNCTION__); \
+	} \
+	__res__ ; \
+})
 
-/*! \brief free all memory - to be called before destroying the object */
-#define ast_string_field_free_memory(x)	\
-	__ast_string_field_init(&(x)->__field_mgr, &(x)->__field_mgr_pool, -1, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+/*!
+ * \brief free all memory - to be called before destroying the object
+ *
+ * \param x
+ *
+ */
+#define ast_string_field_free_memory(x)	 \
+	ast_string_field_free(x, AST_STRINGFIELD_CLEANUP_FREE_POOLS)
+
+/*!
+ * \brief Free sting field
+ * \since 13.9.0
+ *
+ * \param x The string field structure or the pointer returned by ast_calloc_with_stringfields()
+ * \param cleanup_type One of the ast_stringfield_cleanup_types
+ * \retval  0 Success
+ * \retval -1 Failure
+ *
+ * \note
+ * If ast_string_field_free returns -1 when called with a pointer returned by
+ * ast_calloc_with_stringfields(), you'll need to free the memory yourself with ast_free.
+ */
+#define ast_string_field_free(x, cleanup_type)	 \
+({ \
+	int __res__ = -1; \
+	if (((void *)(x)) != NULL) { \
+		int __embedded_pool__ = !!&(x)->__field_mgr.header->embedded_pool; \
+		__res__ = __ast_string_field_free_memory(&(x)->__field_mgr, &(x)->__field_mgr_pool, \
+			cleanup_type, __FILE__, __LINE__, __PRETTY_FUNCTION__); \
+		if (!__res__ && __embedded_pool__ && cleanup_type == AST_STRINGFIELD_CLEANUP_FREE_ALL) { \
+			ast_free((x)); \
+		} \
+	} \
+	__res__ ; \
+})
+
+int __ast_string_field_free_memory(struct ast_string_field_mgr *mgr,
+	struct ast_string_field_pool **pool_head, enum ast_stringfield_cleanup_type cleanup_type,
+	const char *file, int lineno, const char *func);
+
+/*!
+ * \brief Initialize an extended string field
+ * \since 13.9.0
+ *
+ * \param x Pointer to a structure containing the field
+ * \param field The extended field to initialize
+ * \retval zero on success
+ * \retval non-zero on error
+ *
+ * \note
+ * This macro must be called on ALL fields defined with AST_STRING_FIELD_EXTENDED after
+ * ast_string_field_init has been called.
+ */
+#define ast_string_field_init_extended(x, field) \
+({ \
+	int __res__ = -1; \
+	if (((void *)(x)) != NULL && (x)->__field_mgr.header != NULL) { \
+		ast_string_field *non_const = (ast_string_field *)&(x)->field; \
+		*non_const = __ast_string_field_empty; \
+		__res__ = AST_VECTOR_APPEND(&(x)->__field_mgr.header->string_fields, non_const); \
+	} \
+	__res__; \
+})
 
 /*!
  * \internal
@@ -263,6 +449,7 @@ int __ast_string_field_init(struct ast_string_field_mgr *mgr, struct ast_string_
  * \param n Number of structures to allocate (see ast_calloc)
  * \param type The type of structure to allocate
  * \param size The number of bytes of space (minimum) to allocate for stringfields to use
+ *             in each structure
  *
  * This function will allocate memory for one or more structures that use stringfields, and
  * also allocate space for the stringfields and initialize the stringfield management
@@ -271,16 +458,16 @@ int __ast_string_field_init(struct ast_string_field_mgr *mgr, struct ast_string_
  * \since 1.8
  */
 #define ast_calloc_with_stringfields(n, type, size) \
-	__ast_calloc_with_stringfields(n, sizeof(type), offsetof(type, __field_mgr), offsetof(type, __field_mgr_pool), \
-				       size, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ast_calloc_with_stringfields(n, sizeof(type), offsetof(type, __field_mgr), \
+		offsetof(type, __field_mgr_pool), size, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*!
  * \internal
  * \brief internal version of ast_calloc_with_stringfields
  */
-void * attribute_malloc __ast_calloc_with_stringfields(unsigned int num_structs, size_t struct_size, size_t field_mgr_offset,
-						       size_t field_mgr_pool_offset, size_t pool_size, const char *file,
-						       int lineno, const char *func);
+void * attribute_malloc __ast_calloc_with_stringfields(unsigned int num_structs,
+	size_t struct_size, size_t field_mgr_offset, size_t field_mgr_pool_offset, size_t pool_size,
+	const char *file, int lineno, const char *func);
 
 /*!
   \internal
@@ -314,7 +501,14 @@ void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
   \retval zero on success
   \retval non-zero on error
 */
-#define ast_string_field_ptr_set(x, ptr, data) ast_string_field_ptr_set_by_fields((x)->__field_mgr_pool, (x)->__field_mgr, ptr, data)
+#define ast_string_field_ptr_set(x, ptr, data) \
+({ \
+	int __res__ = -1; \
+	if (((void *)(x)) != NULL) { \
+		__res__ = ast_string_field_ptr_set_by_fields((x)->__field_mgr_pool, (x)->__field_mgr, ptr, data); \
+	} \
+	__res__; \
+})
 
 #define ast_string_field_ptr_set_by_fields(field_mgr_pool, field_mgr, ptr, data)               \
 ({                                                                                             \
@@ -348,7 +542,14 @@ void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
   \retval zero on success
   \retval non-zero on error
 */
-#define ast_string_field_set(x, field, data) ast_string_field_ptr_set(x, &(x)->field, data)
+#define ast_string_field_set(x, field, data) \
+({ \
+	int __res__ = -1; \
+	if (((void *)(x)) != NULL) { \
+		__res__ = ast_string_field_ptr_set(x, &(x)->field, data); \
+	} \
+	__res__; \
+})
 
 /*!
   \brief Set a field to a complex (built) value
@@ -359,7 +560,14 @@ void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
   \return nothing
 */
 #define ast_string_field_ptr_build(x, ptr, fmt, args...) \
-	__ast_string_field_ptr_build(&(x)->__field_mgr, &(x)->__field_mgr_pool, (ast_string_field *) ptr, fmt, args)
+({ \
+	int __res__ = -1; \
+	if (((void *)(x)) != NULL) { \
+		__ast_string_field_ptr_build(&(x)->__field_mgr, &(x)->__field_mgr_pool, (ast_string_field *) ptr, fmt, args); \
+		__res__ = 0; \
+	} \
+	__res__; \
+})
 
 /*!
   \brief Set a field to a complex (built) value
@@ -370,7 +578,14 @@ void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
   \return nothing
 */
 #define ast_string_field_build(x, field, fmt, args...) \
-	__ast_string_field_ptr_build(&(x)->__field_mgr, &(x)->__field_mgr_pool, (ast_string_field *) &(x)->field, fmt, args)
+({ \
+	int __res__ = -1; \
+	if (((void *)(x)) != NULL) { \
+		__ast_string_field_ptr_build(&(x)->__field_mgr, &(x)->__field_mgr_pool, (ast_string_field *) &(x)->field, fmt, args); \
+		__res__ = 0; \
+	} \
+	__res__; \
+})
 
 /*!
   \brief Set a field to a complex (built) value with prebuilt va_lists.
@@ -381,7 +596,14 @@ void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
   \return nothing
 */
 #define ast_string_field_ptr_build_va(x, ptr, fmt, args) \
-	__ast_string_field_ptr_build_va(&(x)->__field_mgr, &(x)->__field_mgr_pool, (ast_string_field *) ptr, fmt, args)
+({ \
+	int __res__ = -1; \
+	if (((void *)(x)) != NULL) { \
+		__ast_string_field_ptr_build_va(&(x)->__field_mgr, &(x)->__field_mgr_pool, (ast_string_field *) ptr, fmt, args); \
+		__res__ = 0; \
+	} \
+	__res__; \
+})
 
 /*!
   \brief Set a field to a complex (built) value
@@ -392,7 +614,14 @@ void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
   \return nothing
 */
 #define ast_string_field_build_va(x, field, fmt, args) \
-	__ast_string_field_ptr_build_va(&(x)->__field_mgr, &(x)->__field_mgr_pool, (ast_string_field *) &(x)->field, fmt, args)
+({ \
+	int __res__ = -1; \
+	if (((void *)(x)) != NULL) { \
+		__ast_string_field_ptr_build_va(&(x)->__field_mgr, &(x)->__field_mgr_pool, (ast_string_field *) &(x)->field, fmt, args); \
+		__res__ = 0; \
+	} \
+	__res__; \
+})
 
 /*!
   \brief Compare the string fields in two instances of the same structure
@@ -404,24 +633,15 @@ void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
 */
 #define ast_string_fields_cmp(instance1, instance2) \
 ({ \
-	int __res__ = 0; \
-	size_t __ptr_size__ = sizeof(char *); \
-	int __len__ = ((void *)&(instance1)->__field_mgr - (void *)&(instance1)->__field_mgr_pool)/__ptr_size__ - 1; \
-	int __len2__ = ((void *)&(instance2)->__field_mgr - (void *)&(instance2)->__field_mgr_pool)/__ptr_size__ - 1; \
-	if (__len__ == __len2__) { \
-		char **__head1__ = (void *)&(instance1)->__field_mgr_pool + __ptr_size__; \
-		char **__head2__ = (void *)&(instance2)->__field_mgr_pool + __ptr_size__; \
-		for (__len__ -= 1; __len__ >= 0; __len__--) { \
-			__res__ = strcmp(__head1__[__len__], __head2__[__len__]); \
-			if (__res__) { \
-				break; \
-			} \
-		} \
-	} else { \
-		__res__ = -1; \
+	int __res__ = -1; \
+	if (((void *)(instance1)) != NULL && ((void *)(instance2)) != NULL) { \
+		__res__ = __ast_string_fields_cmp(&(instance1)->__field_mgr.header->string_fields, \
+			&(instance2)->__field_mgr.header->string_fields); \
 	} \
 	__res__; \
 })
+
+int __ast_string_fields_cmp(struct ast_string_field_vector *left, struct ast_string_field_vector *right);
 
 /*!
   \brief Copy all string fields from one instance to another of the same structure
@@ -433,27 +653,16 @@ void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
 */
 #define ast_string_fields_copy(copy, orig) \
 ({ \
-	int __outer_res__ = 0; \
-	size_t __ptr_size__ = sizeof(char *); \
-	int __len__ = ((void *)&(copy)->__field_mgr - (void *)&(copy)->__field_mgr_pool)/__ptr_size__ - 1; \
-	int __len2__ = ((void *)&(orig)->__field_mgr - (void *)&(orig)->__field_mgr_pool)/__ptr_size__ - 1; \
-	if (__len__ == __len2__) { \
-		ast_string_field *__copy_head__ = (void *)&(copy)->__field_mgr_pool + __ptr_size__; \
-		ast_string_field *__orig_head__ = (void *)&(orig)->__field_mgr_pool + __ptr_size__; \
-		for (__len2__ -= 1; __len2__ >= 0; __len2__--) { \
-			__ast_string_field_release_active((copy)->__field_mgr_pool, __copy_head__[__len2__]); \
-			__copy_head__[__len2__] = __ast_string_field_empty; \
-		} \
-		for (__len__ -= 1; __len__ >= 0; __len__--) { \
-			if (ast_string_field_ptr_set((copy), &__copy_head__[__len__], __orig_head__[__len__])) { \
-				__outer_res__ = -1; \
-				break; \
-			} \
-		} \
-	} else { \
-		__outer_res__ = -1; \
+	int __res__ = -1; \
+	if (((void *)(copy)) != NULL && ((void *)(orig)) != NULL) { \
+		__res__ = __ast_string_fields_copy(((copy)->__field_mgr_pool), \
+			(struct ast_string_field_mgr *)&((copy)->__field_mgr), \
+			(struct ast_string_field_mgr *)&((orig)->__field_mgr)); \
 	} \
-	__outer_res__; \
+	__res__; \
 })
+
+int __ast_string_fields_copy(struct ast_string_field_pool *copy_pool,
+	struct ast_string_field_mgr *copy_mgr, struct ast_string_field_mgr *orig_mgr);
 
 #endif /* _ASTERISK_STRINGFIELDS_H */
