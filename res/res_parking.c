@@ -613,14 +613,13 @@ const char *find_channel_parking_lot_name(struct ast_channel *chan)
 
 	/* The channel variable overrides everything */
 	name = pbx_builtin_getvar_helper(chan, "PARKINGLOT");
-	if (ast_strlen_zero(name) && !ast_strlen_zero(ast_channel_parkinglot(chan))) {
-		/* Use the channel's parking lot. */
-		name = ast_channel_parkinglot(chan);
-	}
-
-	/* If the name couldn't be pulled from that either, use the default parking lot name. */
 	if (ast_strlen_zero(name)) {
-		name = DEFAULT_PARKING_LOT;
+		/* Try the channel's parking lot. */
+		name = ast_channel_parkinglot(chan);
+		if (ast_strlen_zero(name)) {
+			/* Fall back to the default parking lot. */
+			name = DEFAULT_PARKING_LOT;
+		}
 	}
 
 	return name;
