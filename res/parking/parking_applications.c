@@ -608,7 +608,7 @@ static int parked_call_app_exec(struct ast_channel *chan, const char *data)
 	int target_space = -1;
 	struct ast_bridge_features chan_features;
 	char *parse;
-	char *lot_name;
+	const char *lot_name;
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(lot_name);
