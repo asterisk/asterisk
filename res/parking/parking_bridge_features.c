@@ -236,6 +236,7 @@ static struct ast_channel *park_local_transfer(struct ast_channel *parker, const
 	/* Before we actually dial out let's inherit appropriate information. */
 	ast_channel_lock_both(parker, parkee);
 	ast_channel_req_accountcodes(parkee, parker, AST_CHANNEL_REQUESTOR_REPLACEMENT);
+	ast_channel_parkinglot_set(parkee, ast_channel_parkinglot(parker));
 	ast_connected_line_copy_from_caller(ast_channel_connected(parkee), ast_channel_caller(parker));
 	ast_channel_inherit_variables(parker, parkee);
 	ast_channel_datastore_inherit(parker, parkee);
@@ -482,6 +483,9 @@ static int parking_park_call(struct ast_bridge_channel *parker, char *exten, siz
 
 	lot = parking_lot_find_by_name(lot_name);
 	if (!lot) {
+		lot = parking_create_dynamic_lot(lot_name, parker->chan);
+	}
+	if (!lot) {
 		ast_log(AST_LOG_WARNING, "Cannot Park %s: lot %s unknown\n",
 			ast_channel_name(parker->chan), lot_name);
 		return -1;
@@ -497,7 +501,8 @@ static int feature_park_call(struct ast_bridge_channel *bridge_channel, void *ho
 {
 	SCOPED_MODULE_USE(AST_MODULE_SELF);
 
-	return parking_park_call(bridge_channel, NULL, 0);
+	parking_park_call(bridge_channel, NULL, 0);
+	return 0;
 }
 
 /*!
