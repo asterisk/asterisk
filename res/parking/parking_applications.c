@@ -455,7 +455,7 @@ struct ast_bridge *park_common_setup(struct ast_channel *parkee, struct ast_chan
 
 	lot = parking_lot_find_by_name(lot_name);
 	if (!lot) {
-		lot = parking_create_dynamic_lot(lot_name, parkee);
+		lot = parking_create_dynamic_lot(lot_name, parker);
 	}
 
 	if (!lot) {
