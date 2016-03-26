@@ -24,7 +24,6 @@
  *
  * Test module for string fields API
  * \ingroup tests
- * \todo need to test ast_calloc_with_stringfields
  */
 
 /*** MODULEINFO
@@ -50,16 +49,16 @@ AST_TEST_DEFINE(string_field_test)
 	struct {
 		AST_DECLARE_STRING_FIELDS (
 			AST_STRING_FIELD(string1);
-			AST_STRING_FIELD(string2);
 		);
+		AST_STRING_FIELD_EXTENDED(string2);
 	} test_struct;
 
 	struct {
 		AST_DECLARE_STRING_FIELDS (
 			AST_STRING_FIELD(string1);
 			AST_STRING_FIELD(string2);
-			AST_STRING_FIELD(string3);
 		);
+		AST_STRING_FIELD_EXTENDED(string3);
 	} test_struct2;
 
 	switch (cmd) {
@@ -82,6 +81,7 @@ AST_TEST_DEFINE(string_field_test)
 	} else {
 		ast_test_status_update(test, "All right! Successfully allocated! Now let's get down to business\n");
 	}
+	ast_string_field_init_extended(&test_struct, string2);
 
 	ast_test_status_update(test,"We're going to set some string fields and perform some checks\n");
 
@@ -255,6 +255,8 @@ AST_TEST_DEFINE(string_field_test)
 
 	ast_string_field_init(&test_struct2, 32);
 	ast_test_status_update(test, "Now using a totally separate area of memory we're going to test a basic pool freeing scenario\n");
+	ast_string_field_init_extended(&test_struct2, string3);
+
 
 	ast_string_field_set(&test_struct2, string1, "first");
 	ast_string_field_set(&test_struct2, string2, "second");
@@ -294,15 +296,21 @@ error:
 	return AST_TEST_FAIL;
 }
 
+struct test_struct {
+	int foo;
+	AST_DECLARE_STRING_FIELDS (
+		AST_STRING_FIELD(string1);
+	);
+	int foo2;
+	AST_STRING_FIELD_EXTENDED(string2);
+};
+
 AST_TEST_DEFINE(string_field_aggregate_test)
 {
-	struct test_struct {
-		AST_DECLARE_STRING_FIELDS (
-			AST_STRING_FIELD(string1);
-			AST_STRING_FIELD(string2);
-		);
-		int foo;
-	} inst1, inst2, inst3, inst4;
+	struct test_struct *inst1 = NULL;
+	struct test_struct *inst2 = NULL;
+	struct test_struct *inst3 = NULL;
+	struct test_struct *inst4 = NULL;
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -316,87 +324,118 @@ AST_TEST_DEFINE(string_field_aggregate_test)
 		break;
 	}
 
-	ast_string_field_init(&inst1, 32);
-	ast_string_field_init(&inst2, 32);
-	ast_string_field_init(&inst3, 32);
-	ast_string_field_init(&inst4, 32);
+	inst1 = ast_calloc_with_stringfields(1, struct test_struct, 32);
+	if (!inst1) {
+		ast_test_status_update(test, "Unable to allocate structure 1!\n");
+		goto error;
+	}
+	ast_string_field_init_extended(inst1, string2);
 
-	ast_string_field_set(&inst1, string1, "foo");
-	ast_string_field_set(&inst1, string2, "bar");
-	inst1.foo = 1;
+	inst2 = ast_calloc_with_stringfields(1, struct test_struct, 32);
+	if (!inst2) {
+		ast_test_status_update(test, "Unable to allocate structure 2!\n");
+		goto error;
+	}
+	ast_string_field_init_extended(inst2, string2);
 
-	ast_string_field_set(&inst2, string2, "bar");
-	ast_string_field_set(&inst2, string1, "foo");
-	inst2.foo = 2;
+	inst3 = ast_calloc_with_stringfields(1, struct test_struct, 32);
+	if (!inst3) {
+		ast_test_status_update(test, "Unable to allocate structure 3!\n");
+		goto error;
+	}
+	ast_string_field_init_extended(inst3, string2);
 
-	ast_string_field_set(&inst3, string1, "foo");
-	ast_string_field_set(&inst3, string2, "baz");
-	inst3.foo = 3;
+	inst4 = ast_calloc_with_stringfields(1, struct test_struct, 32);
+	if (!inst4) {
+		ast_test_status_update(test, "Unable to allocate structure 4!\n");
+		goto error;
+	}
+	ast_string_field_init_extended(inst4, string2);
 
-	ast_string_field_set(&inst4, string1, "faz");
-	ast_string_field_set(&inst4, string2, "baz");
-	inst4.foo = 3;
+	ast_string_field_set(inst1, string1, "foo");
+	ast_string_field_set(inst1, string2, "bar");
+	inst1->foo = 1;
 
-	if (ast_string_fields_cmp(&inst1, &inst2)) {
+	ast_string_field_ptr_set_by_fields(inst2->__field_mgr_pool, inst2->__field_mgr, &inst2->string2, "bar");
+	ast_string_field_ptr_set_by_fields(inst2->__field_mgr_pool, inst2->__field_mgr, &inst2->string1, "foo");
+	inst2->foo = 2;
+
+	ast_string_field_set(inst3, string1, "foo");
+	ast_string_field_set(inst3, string2, "baz");
+	inst3->foo = 3;
+
+	ast_string_field_set(inst4, string1, "faz");
+	ast_string_field_set(inst4, string2, "baz");
+	inst4->foo = 4;
+
+	if (ast_string_fields_cmp(inst1, inst2)) {
 		ast_test_status_update(test, "Structures 1/2 should be equal!\n");
 		goto error;
 	} else {
 		ast_test_status_update(test, "Structures 1/2 are equal as expected.\n");
 	}
 
-	if (!ast_string_fields_cmp(&inst1, &inst3)) {
+	if (!ast_string_fields_cmp(inst1, inst3)) {
 		ast_test_status_update(test, "Structures 1/3 should be different!\n");
 		goto error;
 	} else {
 		ast_test_status_update(test, "Structures 1/3 are different as expected.\n");
 	}
 
-	if (!ast_string_fields_cmp(&inst2, &inst3)) {
+	if (!ast_string_fields_cmp(inst2, inst3)) {
 		ast_test_status_update(test, "Structures 2/3 should be different!\n");
 		goto error;
 	} else {
 		ast_test_status_update(test, "Structures 2/3 are different as expected.\n");
 	}
 
-	if (!ast_string_fields_cmp(&inst3, &inst4)) {
+	if (!ast_string_fields_cmp(inst3, inst4)) {
 		ast_test_status_update(test, "Structures 3/4 should be different!\n");
 		goto error;
 	} else {
 		ast_test_status_update(test, "Structures 3/4 are different as expected.\n");
 	}
 
-	if (ast_string_fields_copy(&inst1, &inst3)) {
-		ast_test_status_update(test, "Copying from structure 3 to structure 4 failed!\n");
+	if (ast_string_fields_copy(inst1, inst3)) {
+		ast_test_status_update(test, "Copying from structure 3 to structure 1 failed!\n");
 		goto error;
 	} else {
-		ast_test_status_update(test, "Copying from structure 3 to structure 4 succeeded!\n");
+		ast_test_status_update(test, "Copying from structure 3 to structure 1 succeeded!\n");
 	}
 
 	/* inst1 and inst3 should now be equal and inst1 should no longer be equal to inst2 */
-	if (ast_string_fields_cmp(&inst1, &inst3)) {
+	if (ast_string_fields_cmp(inst1, inst3)) {
 		ast_test_status_update(test, "Structures 1/3 should be equal!\n");
 		goto error;
 	} else {
 		ast_test_status_update(test, "Structures 1/3 are equal as expected.\n");
 	}
 
-	if (!ast_string_fields_cmp(&inst1, &inst2)) {
+	if (!ast_string_fields_cmp(inst1, inst2)) {
 		ast_test_status_update(test, "Structures 1/2 should be different!\n");
 		goto error;
 	} else {
 		ast_test_status_update(test, "Structures 1/2 are different as expected.\n");
 	}
 
-	ast_string_field_free_memory(&inst1);
-	ast_string_field_free_memory(&inst2);
-	ast_string_field_free_memory(&inst3);
-	ast_string_field_free_memory(&inst4);
+	ast_string_field_free_memory(inst1);
+	ast_free(inst1);
+	ast_string_field_free_memory(inst2);
+	ast_free(inst2);
+	ast_string_field_free_memory(inst3);
+	ast_free(inst3);
+	ast_string_field_free_memory(inst4);
+	ast_free(inst4);
 	return AST_TEST_PASS;
 error:
-	ast_string_field_free_memory(&inst1);
-	ast_string_field_free_memory(&inst2);
-	ast_string_field_free_memory(&inst3);
-	ast_string_field_free_memory(&inst4);
+	ast_string_field_free_memory(inst1);
+	ast_free(inst1);
+	ast_string_field_free_memory(inst2);
+	ast_free(inst2);
+	ast_string_field_free_memory(inst3);
+	ast_free(inst3);
+	ast_string_field_free_memory(inst4);
+	ast_free(inst4);
 	return AST_TEST_FAIL;
 }
 
