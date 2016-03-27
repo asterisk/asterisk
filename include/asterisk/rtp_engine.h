@@ -228,6 +228,10 @@ enum ast_rtp_instance_stat {
 	AST_RTP_INSTANCE_STAT_REMOTE_SSRC,
 	/*! Retrieve channel unique ID */
 	AST_RTP_INSTANCE_STAT_CHANNEL_UNIQUEID,
+	/*! Retrieve number of octets transmitted */
+	AST_RTP_INSTANCE_STAT_TXOCTETCOUNT,
+	/*! Retrieve number of octets received */
+	AST_RTP_INSTANCE_STAT_RXOCTETCOUNT,
 };
 
 /* Codes for RTP-specific data - not defined by our AST_FORMAT codes */
@@ -359,6 +363,10 @@ struct ast_rtp_instance_stats {
 	unsigned int remote_ssrc;
 	/*! The Asterisk channel's unique ID that owns this instance */
 	char channel_uniqueid[MAX_CHANNEL_ID];
+	/*! Number of octets transmitted */
+	unsigned int txoctetcount;
+	/*! Number of octets received */
+	unsigned int rxoctetcount;
 };
 
 #define AST_RTP_STAT_SET(current_stat, combined, placement, value) \
