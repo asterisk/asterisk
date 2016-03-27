@@ -1435,235 +1435,6 @@ static struct ao2_container *cli_endpoint_get_container(const char *regex)
 	return s_container;
 }
 
-static int cli_channel_populate_container(void *obj, void *arg, int flags)
-{
-	struct ast_channel_snapshot *snapshot = obj;
-
-	ao2_link(arg, snapshot);
-
-	return 0;
-}
-
-static int cli_channel_iterate(void *container, ao2_callback_fn callback, void *args)
-{
-	const struct ast_sip_endpoint *endpoint = container;
-
-	ast_sip_for_each_channel(endpoint, callback, args);
-
-	return 0;
-}
-
-static int cli_channel_sort(const void *obj, const void *arg, int flags)
-{
-	const struct ast_channel_snapshot *left_obj = obj;
-	const struct ast_channel_snapshot *right_obj = arg;
-	const char *right_key = arg;
-	int cmp;
-
-	switch (flags & OBJ_SEARCH_MASK) {
-	case OBJ_SEARCH_OBJECT:
-		right_key = right_obj->name;
-		/* Fall through */
-	case OBJ_SEARCH_KEY:
-		cmp = strcmp(left_obj->name, right_key);
-		break;
-	case OBJ_SEARCH_PARTIAL_KEY:
-		cmp = strncmp(left_obj->name, right_key, strlen(right_key));
-		break;
-	default:
-		cmp = 0;
-		break;
-	}
-
-	return cmp;
-}
-
-static int cli_channel_compare(void *obj, void *arg, int flags)
-{
-	const struct ast_channel_snapshot *left_obj = obj;
-	const struct ast_channel_snapshot *right_obj = arg;
-	const char *right_key = arg;
-	int cmp = 0;
-
-	switch (flags & OBJ_SEARCH_MASK) {
-	case OBJ_SEARCH_OBJECT:
-		right_key = right_obj->name;
-		/* Fall through */
-	case OBJ_SEARCH_KEY:
-		if (strcmp(left_obj->name, right_key) == 0) {
-			cmp = CMP_MATCH | CMP_STOP;
-		}
-		break;
-	case OBJ_SEARCH_PARTIAL_KEY:
-		if (strncmp(left_obj->name, right_key, strlen(right_key)) == 0) {
-			cmp = CMP_MATCH;
-		}
-		break;
-	default:
-		cmp = 0;
-		break;
-	}
-
-	return cmp;
-}
-
-static int cli_channel_hash(const void *obj, int flags)
-{
-	const struct ast_channel_snapshot *snapshot = obj;
-
-	if (flags & OBJ_SEARCH_OBJECT) {
-		return ast_str_hash(snapshot->name);
-	} else if (flags & OBJ_SEARCH_KEY) {
-		return ast_str_hash(obj);
-	}
-
-	return -1;
-}
-
-static int cli_endpoint_gather_channels(void *obj, void *arg, int flags)
-{
-	struct ast_sip_endpoint *endpoint = obj;
-	struct ao2_container *channels = arg;
-
-	ast_sip_for_each_channel(endpoint, cli_channel_populate_container, channels);
-
-	return 0;
-}
-
-static int cli_filter_channels(void *obj, void *arg, int flags)
-{
-	struct ast_channel_snapshot *channel = obj;
-	regex_t *regexbuf = arg;
-
-	if (!regexec(regexbuf, channel->name, 0, NULL, 0)
-		|| !regexec(regexbuf, channel->appl, 0, NULL, 0)) {
-		return 0;
-	}
-
-	return CMP_MATCH;
-}
-
-static struct ao2_container *cli_channel_get_container(const char *regex)
-{
-	RAII_VAR(struct ao2_container *, parent_container, NULL, ao2_cleanup);
-	struct ao2_container *child_container;
-	regex_t regexbuf;
-
-	parent_container = cli_endpoint_get_container("");
-	if (!parent_container) {
-		return NULL;
-	}
-	child_container = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, 17,
-		cli_channel_hash, cli_channel_sort, cli_channel_compare);
-	if (!child_container) {
-		return NULL;
-	}
-
-	ao2_callback(parent_container, OBJ_NODATA, cli_endpoint_gather_channels, child_container);
-
-	if (!ast_strlen_zero(regex)) {
-		if (regcomp(&regexbuf, regex, REG_EXTENDED | REG_NOSUB)) {
-			ao2_ref(child_container, -1);
-			return NULL;
-		}
-		ao2_callback(child_container, OBJ_UNLINK | OBJ_MULTIPLE | OBJ_NODATA, cli_filter_channels, &regexbuf);
-		regfree(&regexbuf);
-	}
-
-	return child_container;
-}
-
-static const char *cli_channel_get_id(const void *obj)
-{
-	const struct ast_channel_snapshot *snapshot = obj;
-
-	return snapshot->name;
-}
-
-static void *cli_channel_retrieve_by_id(const char *id)
-{
-	RAII_VAR(struct ao2_container *, container, cli_channel_get_container(""), ao2_cleanup);
-
-	return ao2_find(container, id, OBJ_KEY | OBJ_NOLOCK);
-}
-
-static int cli_channel_print_header(void *obj, void *arg, int flags)
-{
-	struct ast_sip_cli_context *context = arg;
-	int indent = CLI_INDENT_TO_SPACES(context->indent_level);
-	int filler = CLI_LAST_TABSTOP - indent - 13;
-
-	ast_assert(context->output_buffer != NULL);
-
-	ast_str_append(&context->output_buffer, 0,
-		"%*s:  <ChannelId%*.*s>  <State.....>  <Time(sec)>\n",
-		indent, "Channel", filler, filler, CLI_HEADER_FILLER);
-	if (context->recurse) {
-		context->indent_level++;
-		indent = CLI_INDENT_TO_SPACES(context->indent_level);
-		filler = CLI_LAST_TABSTOP - indent - 38;
-		ast_str_append(&context->output_buffer, 0,
-			"%*s: <DialedExten%*.*s>  CLCID: <ConnectedLineCID.......>\n",
-			indent, "Exten", filler, filler, CLI_HEADER_FILLER);
-		context->indent_level--;
-	}
-
-	return 0;
-}
-
-static int cli_channel_print_body(void *obj, void *arg, int flags)
-{
-	const struct ast_channel_snapshot *snapshot = obj;
-	struct ast_sip_cli_context *context = arg;
-	struct timeval current_time;
-	char *print_name = NULL;
-	int print_name_len;
-	int indent;
-	int flexwidth;
-
-	ast_assert(context->output_buffer != NULL);
-
-	gettimeofday(&current_time, NULL);
-
-	print_name_len = strlen(snapshot->name) + strlen(snapshot->appl) + 2;
-	if (!(print_name = alloca(print_name_len))) {
-		return -1;
-	}
-
-	snprintf(print_name, print_name_len, "%s/%s", snapshot->name, snapshot->appl);
-
-	indent = CLI_INDENT_TO_SPACES(context->indent_level);
-	flexwidth = CLI_LAST_TABSTOP - indent;
-
-	ast_str_append(&context->output_buffer, 0, "%*s: %-*.*s %-12.12s  %11ld\n",
-		CLI_INDENT_TO_SPACES(context->indent_level), "Channel",
-		flexwidth, flexwidth,
-		print_name,
-		ast_state2str(snapshot->state),
-		current_time.tv_sec - snapshot->creationtime.tv_sec);
-
-	if (context->recurse) {
-		context->indent_level++;
-		indent = CLI_INDENT_TO_SPACES(context->indent_level);
-		flexwidth = CLI_LAST_TABSTOP - indent - 25;
-
-		ast_str_append(&context->output_buffer, 0,
-			"%*s: %-*.*s  CLCID: \"%s\" <%s>\n",
-			indent, "Exten",
-			flexwidth, flexwidth,
-			snapshot->exten,
-			snapshot->connected_name,
-			snapshot->connected_number
-			);
-		context->indent_level--;
-		if (context->indent_level == 0) {
-			ast_str_append(&context->output_buffer, 0, "\n");
-		}
-	}
-
-	return 0;
-}
-
 static int cli_endpoint_iterate(void *obj, ao2_callback_fn callback, void *args)
 {
 	ao2_callback(obj, OBJ_NODATA, callback, args);
@@ -1782,21 +1553,6 @@ static int cli_endpoint_print_body(void *obj, void *arg, int flags)
 }
 
 static struct ast_cli_entry cli_commands[] = {
-	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "List PJSIP Channels",
-		.command = "pjsip list channels",
-		.usage = "Usage: pjsip list channels [ like <pattern> ]\n"
-				"       List the active PJSIP channels\n"
-				"       Optional regular expression pattern is used to filter the list.\n"),
-	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "Show PJSIP Channels",
-		.command = "pjsip show channels",
-		.usage = "Usage: pjsip show channels [ like <pattern> ]\n"
-				"       List(detailed) the active PJSIP channels\n"
-				"       Optional regular expression pattern is used to filter the list.\n"),
-	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "Show PJSIP Channel",
-		.command = "pjsip show channel",
-		.usage = "Usage: pjsip show channel\n"
-				 "       List(detailed) the active PJSIP channel\n"),
-
 	AST_CLI_DEFINE(ast_sip_cli_traverse_objects, "List PJSIP Endpoints",
 		.command = "pjsip list endpoints",
 		.usage = "Usage: pjsip list endpoints [ like <pattern> ]\n"
@@ -1989,21 +1745,6 @@ int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_mod
 		return -1;
 	}
 
-	channel_formatter = ao2_alloc(sizeof(struct ast_sip_cli_formatter_entry), NULL);
-	if (!channel_formatter) {
-		ast_log(LOG_ERROR, "Unable to allocate memory for channel_formatter\n");
-		ast_sorcery_unref(sip_sorcery);
-		sip_sorcery = NULL;
-		return -1;
-	}
-	channel_formatter->name = "channel";
-	channel_formatter->print_header = cli_channel_print_header;
-	channel_formatter->print_body = cli_channel_print_body;
-	channel_formatter->get_container = cli_channel_get_container;
-	channel_formatter->iterate = cli_channel_iterate;
-	channel_formatter->retrieve_by_id = cli_channel_retrieve_by_id;
-	channel_formatter->get_id = cli_channel_get_id;
-
 	endpoint_formatter = ao2_alloc(sizeof(struct ast_sip_cli_formatter_entry), NULL);
 	if (!endpoint_formatter) {
 		ast_log(LOG_ERROR, "Unable to allocate memory for endpoint_formatter\n");
@@ -2019,7 +1760,6 @@ int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_mod
 	endpoint_formatter->retrieve_by_id = cli_endpoint_retrieve_by_id;
 	endpoint_formatter->get_id = ast_sorcery_object_get_id;
 
-	ast_sip_register_cli_formatter(channel_formatter);
 	ast_sip_register_cli_formatter(endpoint_formatter);
 	ast_cli_register_multiple(cli_commands, ARRAY_LEN(cli_commands));
 
@@ -2046,7 +1786,6 @@ void ast_res_pjsip_destroy_configuration(void)
 	ast_manager_unregister(AMI_SHOW_ENDPOINTS);
 	ast_cli_unregister_multiple(cli_commands, ARRAY_LEN(cli_commands));
 	ast_sip_unregister_cli_formatter(endpoint_formatter);
-	ast_sip_unregister_cli_formatter(channel_formatter);
 	ast_sip_destroy_cli();
 	ao2_cleanup(persistent_endpoints);
 }

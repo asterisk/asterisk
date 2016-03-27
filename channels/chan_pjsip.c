@@ -69,6 +69,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "pjsip/include/chan_pjsip.h"
 #include "pjsip/include/dialplan_functions.h"
+#include "pjsip/include/cli_functions.h"
 
 AST_THREADSTORAGE(uniqueid_threadbuf);
 #define UNIQUEID_BUFSIZE 256
@@ -2419,6 +2420,15 @@ static int load_module(void)
 		goto end;
 	}
 
+	if (pjsip_channel_cli_register()) {
+		ast_log(LOG_ERROR, "Unable to register PJSIP Channel CLI\n");
+		ast_sip_session_unregister_supplement(&chan_pjsip_ack_supplement);
+		ast_sip_session_unregister_supplement(&pbx_start_supplement);
+		ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
+		ast_sip_session_unregister_supplement(&call_pickup_supplement);
+		goto end;
+	}
+
 	/* since endpoints are loaded before the channel driver their device
 	   states get set to 'invalid', so they need to be updated */
 	if ((endpoints = ast_sip_get_endpoints())) {
@@ -2444,6 +2454,8 @@ static int unload_module(void)
 {
 	ao2_cleanup(pjsip_uids_onhold);
 	pjsip_uids_onhold = NULL;
+
+	pjsip_channel_cli_unregister();
 
 	ast_sip_session_unregister_supplement(&chan_pjsip_supplement);
 	ast_sip_session_unregister_supplement(&pbx_start_supplement);
