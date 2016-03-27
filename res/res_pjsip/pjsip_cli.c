@@ -197,7 +197,7 @@ char *ast_sip_cli_traverse_objects(struct ast_cli_entry *e, int cmd, struct ast_
 	ast_str_append(&context.output_buffer, 0, "\n");
 	formatter_entry->print_header(NULL, &context, 0);
 	ast_str_append(&context.output_buffer, 0,
-		" =========================================================================================\n\n");
+		"==========================================================================================\n\n");
 
 	if (is_container || cmd == CLI_GENERATE) {
 		container = formatter_entry->get_container(regex);
