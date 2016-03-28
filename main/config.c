@@ -793,7 +793,7 @@ static int does_category_match(struct ast_category *cat, const char *category_na
 
 	dupmatch = ast_strdupa(match);
 
-	while ((nvp = ast_strsep(&dupmatch, ',', AST_STRSEP_STRIP))) {
+	while ((nvp = ast_strsep2(&dupmatch, ",&", AST_STRSEP_STRIP))) {
 		struct ast_variable *v;
 		char *match_name;
 		char *match_value = NULL;
@@ -1687,8 +1687,12 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 			while ((cur = strsep(&c, ","))) {
 				if (!strcasecmp(cur, "!")) {
 					(*cat)->ignored = 1;
-				} else if (!strcasecmp(cur, "+")) {
-					*cat = ast_category_get(cfg, catname, NULL);
+				} else if (cur[0] == '+') {
+					char *filter = NULL;
+					if (cur[1] != ',') {
+						filter = &cur[1];
+					}
+					*cat = ast_category_get(cfg, catname, filter);
 					if (!(*cat)) {
 						if (newcat) {
 							ast_category_destroy(newcat);
