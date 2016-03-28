@@ -157,6 +157,11 @@ Core
    - 'media cache delete <item>' - remove an item from the cache
    - 'media cache create <uri>' - retrieve a URI and store it in the cache
 
+ * The ability for hints to be automatically created as a result of device state
+   changes now exists in the PBX. This functionality is referred to as "autohints"
+   and is configurable in extensions.conf by placing "autohints=yes" in the
+   context. If enabled then a hint will be automatically created with the name of
+   the device.
 
 Functions
 ------------------

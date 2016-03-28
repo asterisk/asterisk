@@ -288,6 +288,15 @@ int pbx_exec(struct ast_channel *c, struct ast_app *app, const char *data);
 struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts, struct ast_hashtab *exttable, const char *name, const char *registrar);
 
 /*!
+ * \brief Enable or disable autohints support on a context
+ *
+ * \param con pointer to the context
+ * \param enabled whether autohints are enabled
+ *
+ */
+void ast_context_set_autohints(struct ast_context *con, int enabled);
+
+/*!
  * \brief Merge the temporary contexts into a global contexts list and delete from the
  *        global list the ones that are being added
  *
