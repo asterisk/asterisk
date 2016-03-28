@@ -1900,6 +1900,10 @@ process_extension:
 						"Unable to include switch '%s' in context '%s' at line %d of %s\n",
 						v->value, cxt, v->lineno, vfile);
 				}
+			} else if (!strcasecmp(v->name, "autohints")) {
+				if (ast_true(v->value)) {
+					ast_context_enable_autohints(con);
+				}
 			} else {
 				ast_log(LOG_WARNING,
 					"==!!== Unknown directive: %s at line %d of %s -- IGNORING!!!\n",
