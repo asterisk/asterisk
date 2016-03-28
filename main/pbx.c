@@ -317,6 +317,7 @@ struct ast_context {
 	struct ast_ignorepat *ignorepats;	/*!< Patterns for which to continue playing dialtone */
 	char *registrar;			/*!< Registrar -- make sure you malloc this, as the registrar may have to survive module unloads */
 	int refcount;                   /*!< each module that would have created this context should inc/dec this as appropriate */
+	int autohints;                  /*!< Whether autohints support is enabled or not */
 	AST_LIST_HEAD_NOLOCK(, ast_sw) alts;	/*!< Alternative switches */
 	ast_mutex_t macrolock;			/*!< A lock to implement "exclusive" macros - held whilst a call is executing in the macro */
 	char name[0];				/*!< Name of the context */
@@ -400,6 +401,19 @@ struct ast_hintdevice {
 	char hintdevice[1];
 };
 
+/*! \brief Container for autohint contexts */
+static struct ao2_container *autohints;
+
+/*!
+ * \brief Structure for dial plan autohints
+ */
+struct ast_autohint {
+	/*! \brief Name of the registrar */
+	char *registrar;
+	/*! \brief Name of the context */
+	char context[1];
+};
+
 /*!
  * \note Using the device for hash
  */
@@ -423,6 +437,7 @@ static int hintdevice_hash_cb(const void *obj, const int flags)
 
 	return ast_str_case_hash(key);
 }
+
 /*!
  * \note Devices on hints are not unique so no CMP_STOP is returned
  * Dont use ao2_find against hintdevices container cause there always
@@ -455,6 +470,59 @@ static int hintdevice_cmp_multiple(void *obj, void *arg, int flags)
 		break;
 	}
 	return cmp ? 0 : CMP_MATCH;
+}
+
+/*!
+ * \note Using the context name for hash
+ */
+static int autohint_hash_cb(const void *obj, const int flags)
+{
+	const struct ast_autohint *autohint;
+	const char *key;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		key = obj;
+		break;
+	case OBJ_SEARCH_OBJECT:
+		autohint = obj;
+		key = autohint->context;
+		break;
+	default:
+		ast_assert(0);
+		return 0;
+	}
+
+	return ast_str_case_hash(key);
+}
+
+static int autohint_cmp(void *obj, void *arg, int flags)
+{
+	struct ast_autohint *left = obj;
+	struct ast_autohint *right = arg;
+	const char *right_key = arg;
+	int cmp;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = right->context;
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcasecmp(left->context, right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		/*
+		* We could also use a partial key struct containing a length
+		* so strlen() does not get called for every comparison instead.
+		*/
+		cmp = strncmp(left->context, right_key, strlen(right_key));
+		break;
+	default:
+		ast_assert(0);
+		cmp = 0;
+		break;
+	}
+	return cmp ? 0 : CMP_MATCH | CMP_STOP;
 }
 
 /*! \internal \brief \c ao2_callback function to remove hintdevices */
@@ -2334,6 +2402,7 @@ struct fake_context /* this struct is purely for matching in the hashtab */
 	struct ast_ignorepat *ignorepats;
 	const char *registrar;
 	int refcount;
+	int autohints;
 	AST_LIST_HEAD_NOLOCK(, ast_sw) alts;
 	ast_mutex_t macrolock;
 	char name[256];
@@ -3460,6 +3529,11 @@ static void device_state_cb(void *unused, struct stasis_subscription *sub, struc
 	struct ast_hintdevice *device;
 	struct ast_hintdevice *cmpdevice;
 	struct ao2_iterator *dev_iter;
+	struct ao2_iterator auto_iter;
+	struct ast_autohint *autohint;
+	char *virtual_device;
+	char *type;
+	char *device_name;
 
 	if (handle_hint_change_message_type(msg, AST_HINT_UPDATE_DEVICE)) {
 		return;
@@ -3475,7 +3549,7 @@ static void device_state_cb(void *unused, struct stasis_subscription *sub, struc
 		return;
 	}
 
-	if (ao2_container_count(hintdevices) == 0) {
+	if (ao2_container_count(hintdevices) == 0 && ao2_container_count(autohints) == 0) {
 		/* There are no hints monitoring devices. */
 		return;
 	}
@@ -3489,25 +3563,61 @@ static void device_state_cb(void *unused, struct stasis_subscription *sub, struc
 	strcpy(cmpdevice->hintdevice, dev_state->device);
 
 	ast_mutex_lock(&context_merge_lock);/* Hold off ast_merge_contexts_and_delete */
+
+	/* Initially we find all hints for the device and notify them */
 	dev_iter = ao2_t_callback(hintdevices,
 		OBJ_SEARCH_OBJECT | OBJ_MULTIPLE,
 		hintdevice_cmp_multiple,
 		cmpdevice,
 		"find devices in container");
-	if (!dev_iter) {
-		ast_mutex_unlock(&context_merge_lock);
-		ast_free(hint_app);
-		return;
-	}
-
-	for (; (device = ao2_iterator_next(dev_iter)); ao2_t_ref(device, -1, "Next device")) {
-		if (device->hint) {
-			device_state_notify_callbacks(device->hint, &hint_app);
+	if (dev_iter) {
+		for (; (device = ao2_iterator_next(dev_iter)); ao2_t_ref(device, -1, "Next device")) {
+			if (device->hint) {
+				device_state_notify_callbacks(device->hint, &hint_app);
+			}
 		}
+		ao2_iterator_destroy(dev_iter);
 	}
-	ast_mutex_unlock(&context_merge_lock);
 
-	ao2_iterator_destroy(dev_iter);
+	/* Second stage we look for any autohint contexts and if the device is not already in the hints
+	 * we create it.
+	 */
+	type = ast_strdupa(dev_state->device);
+	if (ast_strlen_zero(type)) {
+		goto end;
+	}
+
+	/* Determine if this is a virtual/custom device or a real device */
+	virtual_device = strchr(type, ':');
+	device_name = strchr(type, '/');
+	if (virtual_device && (!device_name || (virtual_device < device_name))) {
+		device_name = virtual_device;
+	}
+
+	/* Invalid device state name - not a virtual/custom device and not a real device */
+	if (ast_strlen_zero(device_name)) {
+		goto end;
+	}
+
+	*device_name++ = '\0';
+
+	auto_iter = ao2_iterator_init(autohints, 0);
+	for (; (autohint = ao2_iterator_next(&auto_iter)); ao2_t_ref(autohint, -1, "Next autohint")) {
+		if (ast_get_hint(NULL, 0, NULL, 0, NULL, autohint->context, device_name)) {
+			continue;
+		}
+
+		/* The device has no hint in the context referenced by this autohint so create one */
+		ast_add_extension(autohint->context, 0, device_name,
+			PRIORITY_HINT, NULL, NULL, dev_state->device,
+			ast_strdup(dev_state->device), ast_free_ptr, autohint->registrar);
+
+		/* Since this hint was just created there are no watchers, so we don't need to notify anyone */
+	}
+	ao2_iterator_destroy(&auto_iter);
+
+end:
+	ast_mutex_unlock(&context_merge_lock);
 	ast_free(hint_app);
 	return;
 }
@@ -5322,6 +5432,9 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 			dpc->total_context++;
 			ast_cli(fd, "[ Context '%s' created by '%s' ]\n",
 				ast_get_context_name(c), ast_get_context_registrar(c));
+			if (c->autohints) {
+				ast_cli(fd, "Autohints support enabled\n");
+			}
 			context_info_printed = 1;
 		}
 
@@ -5344,6 +5457,9 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 				} else {
 					ast_cli(fd, "[ Context '%s' created by '%s' ]\n",
 						ast_get_context_name(c), ast_get_context_registrar(c));
+					if (c->autohints) {
+						ast_cli(fd, "Autohints support enabled\n");
+					}
 				}
 				context_info_printed = 1;
 			}
@@ -6016,6 +6132,11 @@ struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts,
 	return tmp;
 }
 
+void ast_context_enable_autohints(struct ast_context *con)
+{
+	con->autohints = 1;
+}
+
 void __ast_context_destroy(struct ast_context *list, struct ast_hashtab *contexttab, struct ast_context *con, const char *registrar);
 
 struct store_hint {
@@ -6063,6 +6184,27 @@ static void context_merge_incls_swits_igps_other_registrars(struct ast_context *
 	}
 }
 
+/*! Set up an autohint placeholder in the hints container */
+static void context_create_autohint_placeholder(struct ast_context *con)
+{
+	struct ast_autohint *autohint;
+	size_t name_len = strlen(con->name) + 1;
+	size_t registrar_len = strlen(con->registrar) + 1;
+
+	autohint = ao2_alloc_options(sizeof(*autohint) + name_len + registrar_len, NULL, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!autohint) {
+		return;
+	}
+
+	ast_copy_string(autohint->context, con->name, name_len);
+	autohint->registrar = autohint->context + name_len;
+	ast_copy_string(autohint->registrar, con->registrar, registrar_len);
+
+	ao2_link(autohints, autohint);
+	ao2_ref(autohint, -1);
+
+	ast_verb(3, "Enabled autohints support on context '%s'\n", con->name);
+}
 
 /* the purpose of this routine is to duplicate a context, with all its substructure,
    except for any extens that have a matching registrar */
@@ -6104,6 +6246,9 @@ static void context_merge(struct ast_context **extcontexts, struct ast_hashtab *
 				/* make sure the new context exists, so we have somewhere to stick this exten/prio */
 				if (!new) {
 					new = ast_context_find_or_create(extcontexts, exttable, context->name, prio_item->registrar); /* a new context created via priority from a different context in the old dialplan, gets its registrar from the prio's registrar */
+					if (new) {
+						new->autohints = context->autohints;
+					}
 				}
 
 				/* copy in the includes, switches, and ignorepats */
@@ -6150,6 +6295,10 @@ static void context_merge(struct ast_context **extcontexts, struct ast_hashtab *
 		   but that's not available, so we give it the registrar we know about */
 		new = ast_context_find_or_create(extcontexts, exttable, context->name, context->registrar);
 
+		if (new) {
+			new->autohints = context->autohints;
+		}
+
 		/* copy in the includes, switches, and ignorepats */
 		context_merge_incls_swits_igps_other_registrars(new, context, registrar);
 	}
@@ -6194,6 +6343,16 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 	ast_wrlock_contexts();
 
 	if (!contexts_table) {
+		/* Create any autohint contexts */
+		iter = ast_hashtab_start_traversal(exttable);
+		while ((tmp = ast_hashtab_next(iter))) {
+			if (!tmp->autohints) {
+				continue;
+			}
+			context_create_autohint_placeholder(tmp);
+		}
+		ast_hashtab_end_traversal(iter);
+
 		/* Well, that's odd. There are no contexts. */
 		contexts_table = exttable;
 		contexts = *extcontexts;
@@ -6315,6 +6474,19 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, struct ast_
 			ast_free(saved_hint);
 		}
 	}
+
+	/* Remove all autohints as the below iteration will recreate them */
+	ao2_callback(autohints, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL);
+
+	/* Create all applicable autohint contexts */
+	iter = ast_hashtab_start_traversal(contexts_table);
+	while ((tmp = ast_hashtab_next(iter))) {
+		if (!tmp->autohints) {
+			continue;
+		}
+		context_create_autohint_placeholder(tmp);
+	}
+	ast_hashtab_end_traversal(iter);
 
 	ao2_unlock(hints);
 	ast_unlock_contexts();
@@ -8526,6 +8698,11 @@ static void pbx_shutdown(void)
 		ao2_ref(hintdevices, -1);
 		hintdevices = NULL;
 	}
+	if (autohints) {
+		ao2_container_unregister("autohints");
+		ao2_ref(autohints, -1);
+		autohints = NULL;
+	}
 	if (statecbs) {
 		ao2_container_unregister("statecbs");
 		ao2_ref(statecbs, -1);
@@ -8559,6 +8736,16 @@ static void print_hintdevices_key(void *v_obj, void *where, ao2_prnt_fn *prnt)
 		ast_get_context_name(ast_get_extension_context(hintdevice->hint->exten)));
 }
 
+static void print_autohint_key(void *v_obj, void *where, ao2_prnt_fn *prnt)
+{
+	struct ast_autohint *autohint = v_obj;
+
+	if (!autohint) {
+		return;
+	}
+	prnt(where, "%s", autohint->context);
+}
+
 static void print_statecbs_key(void *v_obj, void *where, ao2_prnt_fn *prnt)
 {
 	struct ast_state_cb *state_cb = v_obj;
@@ -8579,6 +8766,12 @@ int ast_pbx_init(void)
 	if (hintdevices) {
 		ao2_container_register("hintdevices", hintdevices, print_hintdevices_key);
 	}
+	/* This is protected by the context_and_merge lock */
+	autohints = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, HASH_EXTENHINT_SIZE,
+		autohint_hash_cb, autohint_cmp);
+	if (hintdevices) {
+		ao2_container_register("autohints", autohints, print_autohint_key);
+	}
 	statecbs = ao2_container_alloc(1, NULL, statecbs_cmp);
 	if (statecbs) {
 		ao2_container_register("statecbs", statecbs, print_statecbs_key);
@@ -8590,5 +8783,5 @@ int ast_pbx_init(void)
 		return -1;
 	}
 
-	return (hints && hintdevices && statecbs) ? 0 : -1;
+	return (hints && hintdevices && autohints && statecbs) ? 0 : -1;
 }
