@@ -72,7 +72,8 @@ static char *extconfig_conf = "extconfig.conf";
 static struct ao2_container *cfg_hooks;
 static void config_hook_exec(const char *filename, const char *module, const struct ast_config *cfg);
 static inline struct ast_variable *variable_list_switch(struct ast_variable *l1, struct ast_variable *l2);
-static int does_category_match(struct ast_category *cat, const char *category_name, const char *match);
+static int does_category_match(struct ast_category *cat, const char *category_name,
+	const char *match, const char sep);
 
 /*! \brief Structure to keep comments for rewriting configuration files */
 struct ast_comment {
@@ -864,7 +865,8 @@ static void move_variables(struct ast_category *old, struct ast_category *new)
 /*! \brief Returns true if ALL of the regex expressions and category name match.
  * Both can be NULL (I.E. no predicate) which results in a true return;
  */
-static int does_category_match(struct ast_category *cat, const char *category_name, const char *match)
+static int does_category_match(struct ast_category *cat, const char *category_name,
+	const char *match, const char sep)
 {
 	char *dupmatch;
 	char *nvp = NULL;
@@ -883,7 +885,7 @@ static int does_category_match(struct ast_category *cat, const char *category_na
 
 	dupmatch = ast_strdupa(match);
 
-	while ((nvp = ast_strsep(&dupmatch, ',', AST_STRSEP_STRIP))) {
+	while ((nvp = ast_strsep(&dupmatch, sep, AST_STRSEP_STRIP))) {
 		struct ast_variable *v;
 		char *match_name;
 		char *match_value = NULL;
@@ -982,24 +984,30 @@ struct ast_category *ast_category_new_template(const char *name, const char *in_
 	return new_category(name, in_file, lineno, 1);
 }
 
-struct ast_category *ast_category_get(const struct ast_config *config,
-	const char *category_name, const char *filter)
+struct ast_category *ast_category_get_sep(const struct ast_config *config,
+	const char *category_name, const char *filter, const char sep)
 {
 	struct ast_category *cat;
 
 	for (cat = config->root; cat; cat = cat->next) {
-		if (cat->name == category_name && does_category_match(cat, category_name, filter)) {
+		if (cat->name == category_name && does_category_match(cat, category_name, filter, sep)) {
 			return cat;
 		}
 	}
 
 	for (cat = config->root; cat; cat = cat->next) {
-		if (does_category_match(cat, category_name, filter)) {
+		if (does_category_match(cat, category_name, filter, sep)) {
 			return cat;
 		}
 	}
 
 	return NULL;
+}
+
+struct ast_category *ast_category_get(const struct ast_config *config,
+	const char *category_name, const char *filter)
+{
+	return ast_category_get_sep(config, category_name, filter, ',');
 }
 
 const char *ast_category_get_name(const struct ast_category *category)
@@ -1125,7 +1133,7 @@ static void ast_includes_destroy(struct ast_config_include *incls)
 static struct ast_category *next_available_category(struct ast_category *cat,
 	const char *name, const char *filter)
 {
-	for (; cat && !does_category_match(cat, name, filter); cat = cat->next);
+	for (; cat && !does_category_match(cat, name, filter, ','); cat = cat->next);
 
 	return cat;
 }
@@ -1777,8 +1785,12 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat,
 			while ((cur = strsep(&c, ","))) {
 				if (!strcasecmp(cur, "!")) {
 					(*cat)->ignored = 1;
-				} else if (!strcasecmp(cur, "+")) {
-					*cat = ast_category_get(cfg, catname, NULL);
+				} else if (cur[0] == '+') {
+					char *filter = NULL;
+					if (cur[1] != ',') {
+						filter = &cur[1];
+					}
+					*cat = ast_category_get_sep(cfg, catname, filter, '&');
 					if (!(*cat)) {
 						if (newcat) {
 							ast_category_destroy(newcat);

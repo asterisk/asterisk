@@ -388,6 +388,29 @@ struct ast_category *ast_category_get(const struct ast_config *config,
 	const char *category_name, const char *filter);
 
 /*!
+ * \brief Retrieve a category if it exists
+ * \since 13.9.0
+ *
+ * \param config which config to use
+ * \param category_name name of the category you're looking for
+ * \param filter If a config contains more than 1 category with the same name,
+ * you can specify a filter to narrow the search.  The filter is a comma-separated
+ * list of <name_regex>=<value_regex> pairs.  Only a category with matching
+ * variables will be returned. The special name 'TEMPLATES' can be used with the
+ * special values 'include' or 'restrict' to include templates in the result or
+ * restrict the result to only templates.
+ * \param sep The separator to use when parsing the filter
+ *
+ * \details
+ * This will search through the categories within a given config file for a match.
+ *
+ * \retval pointer to category if found
+ * \retval NULL if not.
+ */
+struct ast_category *ast_category_get_sep(const struct ast_config *config,
+	const char *category_name, const char *filter, const char sep);
+
+/*!
  * \brief Return the name of the category
  *
  * \param category category structure
