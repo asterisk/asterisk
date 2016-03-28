@@ -1516,7 +1516,7 @@ char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes)
 	return s;
 }
 
-char *ast_strsep(char **iss, const char sep, uint32_t flags)
+char *ast_strsep2(char **iss, const char *sep, uint32_t flags)
 {
 	char *st = *iss;
 	char *is;
@@ -1524,7 +1524,7 @@ char *ast_strsep(char **iss, const char sep, uint32_t flags)
 	int found = 0;
 	char stack[8];
 
-	if (iss == NULL || *iss == '\0') {
+	if (!iss || *iss == '\0' || !sep) {
 		return NULL;
 	}
 
@@ -1550,7 +1550,7 @@ char *ast_strsep(char **iss, const char sep, uint32_t flags)
 			}
 		}
 
-		if (*is == sep && !inquote) {
+		if (strchr(sep, *is) && !inquote) {
 			*is = '\0';
 			found = 1;
 			*iss = is + 1;
@@ -1575,6 +1575,14 @@ char *ast_strsep(char **iss, const char sep, uint32_t flags)
 
 	return st;
 }
+
+char *ast_strsep(char **iss, const char sep, uint32_t flags)
+{
+	const char string_sep[] = { sep, '\0' };
+
+	return ast_strsep2(iss, string_sep, flags);
+}
+
 
 char *ast_unescape_semicolon(char *s)
 {
