@@ -297,10 +297,11 @@ static void *bridge_channel_control_thread(void *data)
 	thread_data = NULL;
 
 	stasis_app_control_execute_until_exhausted(bridge_channel, control);
+	stasis_app_control_flush_queue(control);
 
-	ast_hangup(bridge_channel);
-	ao2_cleanup(control);
 	stasis_forward_cancel(forward);
+	ao2_cleanup(control);
+	ast_hangup(bridge_channel);
 	return NULL;
 }
 

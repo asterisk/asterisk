@@ -358,6 +358,7 @@ static void recording_dtor(void *obj)
 	struct stasis_app_recording *recording = obj;
 
 	ast_free(recording->absolute_name);
+	ao2_cleanup(recording->control);
 	ao2_cleanup(recording->options);
 }
 
@@ -413,6 +414,7 @@ struct stasis_app_recording *stasis_app_control_record(
 
 	ao2_ref(options, +1);
 	recording->options = options;
+	ao2_ref(control, +1);
 	recording->control = control;
 	recording->state = STASIS_APP_RECORDING_STATE_QUEUED;
 
