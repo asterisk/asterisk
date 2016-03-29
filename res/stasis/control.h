@@ -41,6 +41,16 @@
 struct stasis_app_control *control_create(struct ast_channel *channel, struct stasis_app *app);
 
 /*!
+ * \brief Flush the control command queue.
+ * \since 13.9.0
+ *
+ * \param control Control object to flush command queue.
+ *
+ * \return Nothing
+ */
+void control_flush_queue(struct stasis_app_control *control);
+
+/*!
  * \brief Dispatch all commands enqueued to this control.
  *
  * \param control Control object to dispatch.

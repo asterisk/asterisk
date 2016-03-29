@@ -251,6 +251,11 @@ static struct stasis_app_command *exec_command_on_condition(
 	}
 
 	ao2_lock(control->command_queue);
+	if (control->is_done) {
+		ao2_unlock(control->command_queue);
+		ao2_ref(command, -1);
+		return NULL;
+	}
 	if (can_exec_fn && (retval = can_exec_fn(control))) {
 		ao2_unlock(control->command_queue);
 		command_complete(command, retval);
@@ -402,7 +407,10 @@ int control_is_done(struct stasis_app_control *control)
 
 void control_mark_done(struct stasis_app_control *control)
 {
+	/* Locking necessary to sync with other threads adding commands to the queue. */
+	ao2_lock(control->command_queue);
 	control->is_done = 1;
+	ao2_unlock(control->command_queue);
 }
 
 struct stasis_app_control_continue_data {
@@ -427,7 +435,7 @@ static int app_control_continue(struct stasis_app_control *control,
 	/* Called from stasis_app_exec thread; no lock needed */
 	ast_explicit_goto(control->channel, continue_data->context, continue_data->extension, continue_data->priority);
 
-	control->is_done = 1;
+	control_mark_done(control);
 
 	return 0;
 }
@@ -1115,24 +1123,36 @@ int stasis_app_control_queue_control(struct stasis_app_control *control,
 	return ast_queue_control(control->channel, frame_type);
 }
 
+void control_flush_queue(struct stasis_app_control *control)
+{
+	struct ao2_iterator iter;
+	struct stasis_app_command *command;
+
+	iter = ao2_iterator_init(control->command_queue, AO2_ITERATOR_UNLINK);
+	while ((command = ao2_iterator_next(&iter))) {
+		command_complete(command, -1);
+		ao2_ref(command, -1);
+	}
+	ao2_iterator_destroy(&iter);
+}
+
 int control_dispatch_all(struct stasis_app_control *control,
 	struct ast_channel *chan)
 {
 	int count = 0;
-	struct ao2_iterator i;
-	void *obj;
+	struct ao2_iterator iter;
+	struct stasis_app_command *command;
 
 	ast_assert(control->channel == chan);
 
-	i = ao2_iterator_init(control->command_queue, AO2_ITERATOR_UNLINK);
-
-	while ((obj = ao2_iterator_next(&i))) {
-		RAII_VAR(struct stasis_app_command *, command, obj, ao2_cleanup);
+	iter = ao2_iterator_init(control->command_queue, AO2_ITERATOR_UNLINK);
+	while ((command = ao2_iterator_next(&iter))) {
 		command_invoke(command, control, chan);
+		ao2_ref(command, -1);
 		++count;
 	}
+	ao2_iterator_destroy(&iter);
 
-	ao2_iterator_destroy(&i);
 	return count;
 }
 
