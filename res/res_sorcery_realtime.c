@@ -40,6 +40,18 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! \brief They key field used to store the unique identifier for the object */
 #define UUID_FIELD "id"
 
+enum unqualified_fetch {
+	UNQUALIFIED_FETCH_NO,
+	UNQUALIFIED_FETCH_WARN,
+	UNQUALIFIED_FETCH_YES,
+	UNQUALIFIED_FETCH_ERROR,
+};
+
+struct sorcery_config {
+	enum unqualified_fetch fetch;
+	char family[];
+};
+
 static void *sorcery_realtime_open(const char *data);
 static int sorcery_realtime_create(const struct ast_sorcery *sorcery, void *data, void *object);
 static void *sorcery_realtime_retrieve_id(const struct ast_sorcery *sorcery, void *data, const char *type, const char *id);
@@ -66,7 +78,7 @@ static struct ast_sorcery_wizard realtime_object_wizard = {
 
 static int sorcery_realtime_create(const struct ast_sorcery *sorcery, void *data, void *object)
 {
-	const char *family = data;
+	struct sorcery_config *config = data;
 	RAII_VAR(struct ast_variable *, fields, ast_sorcery_objectset_create(sorcery, object), ast_variables_destroy);
 	struct ast_variable *id = ast_variable_new(UUID_FIELD, ast_sorcery_object_get_id(object), "");
 
@@ -79,7 +91,7 @@ static int sorcery_realtime_create(const struct ast_sorcery *sorcery, void *data
 	id->next = fields;
 	fields = id;
 
-	return (ast_store_realtime_fields(family, fields) <= 0) ? -1 : 0;
+	return (ast_store_realtime_fields(config->family, fields) <= 0) ? -1 : 0;
 }
 
 /*! \brief Internal helper function which returns a filtered objectset. 
@@ -149,12 +161,12 @@ static struct ast_variable *sorcery_realtime_filter_objectset(struct ast_variabl
 
 static void *sorcery_realtime_retrieve_fields(const struct ast_sorcery *sorcery, void *data, const char *type, const struct ast_variable *fields)
 {
-	const char *family = data;
+	struct sorcery_config *config = data;
 	RAII_VAR(struct ast_variable *, objectset, NULL, ast_variables_destroy);
 	RAII_VAR(struct ast_variable *, id, NULL, ast_variables_destroy);
 	void *object = NULL;
 
-	if (!(objectset = ast_load_realtime_fields(family, fields))) {
+	if (!(objectset = ast_load_realtime_fields(config->family, fields))) {
 		return NULL;
 	}
 
@@ -178,13 +190,25 @@ static void *sorcery_realtime_retrieve_id(const struct ast_sorcery *sorcery, voi
 
 static void sorcery_realtime_retrieve_multiple(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects, const struct ast_variable *fields)
 {
-	const char *family = data;
+	struct sorcery_config *config = data;
 	RAII_VAR(struct ast_config *, rows, NULL, ast_config_destroy);
 	RAII_VAR(struct ast_variable *, all, NULL, ast_variables_destroy);
 	struct ast_category *row = NULL;
 
 	if (!fields) {
 		char field[strlen(UUID_FIELD) + 6], value[2];
+
+		if (config->fetch == UNQUALIFIED_FETCH_NO) {
+			return;
+		}
+		if (config->fetch == UNQUALIFIED_FETCH_ERROR) {
+			ast_log(LOG_ERROR, "Unqualified fetch prevented on %s\n", config->family);
+			return;
+		}
+		if (config->fetch == UNQUALIFIED_FETCH_WARN) {
+			ast_log(LOG_WARNING, "Unqualified fetch attempted on %s\n", config->family);
+			return;
+		}
 
 		/* If no fields have been specified we want all rows, so trick realtime into doing it */
 		snprintf(field, sizeof(field), "%s LIKE", UUID_FIELD);
@@ -197,7 +221,7 @@ static void sorcery_realtime_retrieve_multiple(const struct ast_sorcery *sorcery
 		fields = all;
 	}
 
-	if (!(rows = ast_load_realtime_multientry_fields(family, fields))) {
+	if (!(rows = ast_load_realtime_multientry_fields(config->family, fields))) {
 		return;
 	}
 
@@ -221,16 +245,18 @@ static void sorcery_realtime_retrieve_regex(const struct ast_sorcery *sorcery, v
 	char field[strlen(UUID_FIELD) + 6], value[strlen(regex) + 3];
 	RAII_VAR(struct ast_variable *, fields, NULL, ast_variables_destroy);
 
-	/* The realtime API provides no direct ability to do regex so for now we support a limited subset using pattern matching */
-	snprintf(field, sizeof(field), "%s LIKE", UUID_FIELD);
-	if (regex[0] == '^') {
-		snprintf(value, sizeof(value), "%s%%", regex + 1);
-	} else {
-		snprintf(value, sizeof(value), "%%%s%%", regex);
-	}
+	if (!ast_strlen_zero(regex)) {
+		/* The realtime API provides no direct ability to do regex so for now we support a limited subset using pattern matching */
+		snprintf(field, sizeof(field), "%s LIKE", UUID_FIELD);
+		if (regex[0] == '^') {
+			snprintf(value, sizeof(value), "%s%%", regex + 1);
+		} else {
+			snprintf(value, sizeof(value), "%%%s%%", regex);
+		}
 
-	if (!(fields = ast_variable_new(field, value, ""))) {
-		return;
+		if (!(fields = ast_variable_new(field, value, ""))) {
+			return;
+		}
 	}
 
 	sorcery_realtime_retrieve_multiple(sorcery, data, type, objects, fields);
@@ -238,31 +264,74 @@ static void sorcery_realtime_retrieve_regex(const struct ast_sorcery *sorcery, v
 
 static int sorcery_realtime_update(const struct ast_sorcery *sorcery, void *data, void *object)
 {
-	const char *family = data;
+	struct sorcery_config *config = data;
 	RAII_VAR(struct ast_variable *, fields, ast_sorcery_objectset_create(sorcery, object), ast_variables_destroy);
 
 	if (!fields) {
 		return -1;
 	}
 
-	return (ast_update_realtime_fields(family, UUID_FIELD, ast_sorcery_object_get_id(object), fields) <= 0) ? -1 : 0;
+	return (ast_update_realtime_fields(config->family, UUID_FIELD, ast_sorcery_object_get_id(object), fields) <= 0) ? -1 : 0;
 }
 
 static int sorcery_realtime_delete(const struct ast_sorcery *sorcery, void *data, void *object)
 {
-	const char *family = data;
+	struct sorcery_config *config = data;
 
-	return (ast_destroy_realtime_fields(family, UUID_FIELD, ast_sorcery_object_get_id(object), NULL) <= 0) ? -1 : 0;
+	return (ast_destroy_realtime_fields(config->family, UUID_FIELD, ast_sorcery_object_get_id(object), NULL) <= 0) ? -1 : 0;
 }
 
 static void *sorcery_realtime_open(const char *data)
 {
+	struct sorcery_config *config;
+	char *tmp;
+	char *family;
+	char *option;
+
 	/* We require a prefix for family string generation, or else stuff could mix together */
-	if (ast_strlen_zero(data) || !ast_realtime_is_mapping_defined(data)) {
+	if (ast_strlen_zero(data)) {
 		return NULL;
 	}
 
-	return ast_strdup(data);
+	tmp = ast_strdupa(data);
+	family = strsep(&tmp, ",");
+
+	if (!ast_realtime_is_mapping_defined(family)) {
+		return NULL;
+	}
+
+	config = ast_calloc(1, sizeof(*config) + strlen(family) + 1);
+	if (!config) {
+		return NULL;
+	}
+
+	strcpy(config->family, family); /* Safe */
+	config->fetch = UNQUALIFIED_FETCH_YES;
+
+	while ((option = strsep(&tmp, ","))) {
+		char *name = strsep(&option, "=");
+		char *value = option;
+
+		if (!strcasecmp(name, "allow_unqualified_fetch")) {
+			if (ast_strlen_zero(value) || !strcasecmp(value, "yes")) {
+				config->fetch = UNQUALIFIED_FETCH_YES;
+			} else if (!strcasecmp(value, "no")) {
+				config->fetch = UNQUALIFIED_FETCH_NO;
+			} else if (!strcasecmp(value, "warn")) {
+				config->fetch = UNQUALIFIED_FETCH_WARN;
+			} else if (!strcasecmp(value, "error")) {
+				config->fetch = UNQUALIFIED_FETCH_ERROR;
+			} else {
+				ast_log(LOG_ERROR, "Unrecognized value in %s:%s: '%s'\n", family, name, value);
+				return NULL;
+			}
+		} else {
+			ast_log(LOG_ERROR, "Unrecognized option in %s: '%s'\n", family, name);
+			return NULL;
+		}
+	}
+
+	return config;
 }
 
 static void sorcery_realtime_close(void *data)
