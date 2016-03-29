@@ -1,3 +1,27 @@
+2016-03-29 19:39 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.8.0 Released.
+
+2016-03-29 14:39 +0000 [0f885f0076]  Mark Michelson <mmichelson@digium.com>
+
+	* Release summaries: Add summaries for 13.8.0
+
+2016-03-29 14:34 +0000 [a1fa37aebd]  Mark Michelson <mmichelson@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-03-29 14:34 +0000 [e7de5fd439]  Mark Michelson <mmichelson@digium.com>
+
+	* .version: Update for 13.8.0
+
+2016-03-29 14:34 +0000 [8baf813848]  Mark Michelson <mmichelson@digium.com>
+
+	* .lastclean: Update for 13.8.0
+
+2016-03-29 14:34 +0000 [42469df205]  Mark Michelson <mmichelson@digium.com>
+
+	* realtime: Add database scripts for 13.8.0
+
 2016-03-22 18:31 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.8.0-rc1 Released.
