@@ -966,9 +966,14 @@ static int unsubscribe(void *obj, void *arg, int flags)
 static void create_mwi_subscriptions(void)
 {
 	struct ao2_container *endpoints;
+	struct ast_variable *var;
+
+	var = ast_variable_new("mailboxes !=", "", "");
 
 	endpoints = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "endpoint",
-		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+		AST_RETRIEVE_FLAG_MULTIPLE, var);
+
+	ast_variables_destroy(var);
 	if (!endpoints) {
 		return;
 	}

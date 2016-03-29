@@ -36,6 +36,7 @@
 #define DEFAULT_MAX_INITIAL_QUALIFY_TIME 0
 #define DEFAULT_FROM_USER "asterisk"
 #define DEFAULT_REGCONTEXT ""
+#define DEFAULT_CONTACT_EXPIRATION_CHECK_INTERVAL 30
 
 static char default_useragent[256];
 
@@ -58,6 +59,8 @@ struct global_config {
 	unsigned int keep_alive_interval;
 	/* The maximum time for all contacts to be qualified at startup */
 	unsigned int max_initial_qualify_time;
+	/* The interval at which to check for expired contacts */
+	unsigned int contact_expiration_check_interval;
 };
 
 static void global_destructor(void *obj)
@@ -182,6 +185,21 @@ unsigned int ast_sip_get_keep_alive_interval(void)
 	}
 
 	interval = cfg->keep_alive_interval;
+	ao2_ref(cfg, -1);
+	return interval;
+}
+
+unsigned int ast_sip_get_contact_expiration_check_interval(void)
+{
+	unsigned int interval;
+	struct global_config *cfg;
+
+	cfg = get_global_cfg();
+	if (!cfg) {
+		return DEFAULT_CONTACT_EXPIRATION_CHECK_INTERVAL;
+	}
+
+	interval = cfg->contact_expiration_check_interval;
 	ao2_ref(cfg, -1);
 	return interval;
 }
@@ -331,6 +349,9 @@ int ast_sip_initialize_sorcery_global(void)
 		OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, default_from_user));
 	ast_sorcery_object_field_register(sorcery, "global", "regcontext", DEFAULT_REGCONTEXT,
                 OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, regcontext));
+	ast_sorcery_object_field_register(sorcery, "global", "contact_expiration_check_interval",
+		__stringify(DEFAULT_CONTACT_EXPIRATION_CHECK_INTERVAL),
+		OPT_UINT_T, 0, FLDSET(struct global_config, contact_expiration_check_interval));
 
 
 	if (ast_sorcery_instance_observer_add(sorcery, &observer_callbacks_global)) {
