@@ -526,9 +526,7 @@ static enum play_found_result ari_bridges_play_found(const char *args_media,
 
 	control = stasis_app_control_find_by_channel(play_channel);
 	if (!control) {
-		ast_ari_response_error(
-			response, 500, "Internal Error", "Failed to get control snapshot");
-		return PLAY_FOUND_FAILURE;
+		return PLAY_FOUND_CHANNEL_UNAVAILABLE;
 	}
 
 	ao2_lock(control);
