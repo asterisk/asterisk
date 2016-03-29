@@ -1,3 +1,23 @@
+2016-03-29 19:25 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 11.22.0 Released.
+
+2016-03-29 14:25 +0000 [d395d7d1a4]  Mark Michelson <mmichelson@digium.com>
+
+	* Release summaries: Add summaries for 11.22.0
+
+2016-03-29 14:23 +0000 [6888d6f374]  Mark Michelson <mmichelson@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-03-29 14:23 +0000 [eb671163fa]  Mark Michelson <mmichelson@digium.com>
+
+	* .version: Update for 11.22.0
+
+2016-03-29 14:23 +0000 [5d94b7d61b]  Mark Michelson <mmichelson@digium.com>
+
+	* .lastclean: Update for 11.22.0
+
 2016-03-22 19:23 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 11.22.0-rc1 Released.
