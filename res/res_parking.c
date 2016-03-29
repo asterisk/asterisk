@@ -782,31 +782,21 @@ int parking_lot_cfg_create_extensions(struct parking_lot_cfg *lot_cfg)
 	}
 
 	/* We need the contexts list locked to safely be able to both read and lock the specific context within */
-	if (ast_wrlock_contexts()) {
-		ast_log(LOG_ERROR, "Failed to lock the contexts list.\n");
-		return -1;
-	}
+	ast_wrlock_contexts();
 
 	if (!(lot_context = ast_context_find_or_create(NULL, NULL, lot_cfg->parking_con, parkext_registrar_pointer))) {
 		ast_log(LOG_ERROR, "Parking lot '%s' -- Needs a context '%s' which does not exist and Asterisk was unable to create\n",
 			lot_cfg->name, lot_cfg->parking_con);
-		if (ast_unlock_contexts()) {
-			ast_assert(0);
-		}
+		ast_unlock_contexts();
 		return -1;
 	}
 
 	/* Once we know what context we will be modifying, we need to write lock it because we will be reading extensions
 	 * and we don't want something else to destroy them while we are looking at them.
 	 */
-	if (ast_wrlock_context(lot_context)) {
-		ast_log(LOG_ERROR, "failed to obtain write lock on context\n");
-		return -1;
-	}
+	ast_wrlock_context(lot_context);
 
-	if (ast_unlock_contexts()) {
-		ast_assert(0);
-	}
+	ast_unlock_contexts();
 
 	/* Handle generation/confirmation for the Park extension */
 	if ((existing_exten = pbx_find_extension(NULL, NULL, &find_info, lot_cfg->parking_con, lot_cfg->parkext, 1, NULL, NULL, E_MATCH))) {
@@ -874,9 +864,7 @@ int parking_lot_cfg_create_extensions(struct parking_lot_cfg *lot_cfg)
 		}
 	}
 
-	if (ast_unlock_context(lot_context)) {
-		ast_assert(0);
-	}
+	ast_unlock_context(lot_context);
 
 	return 0;
 }

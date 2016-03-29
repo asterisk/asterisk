@@ -537,12 +537,12 @@ static int manager_park(struct mansession *s, const struct message *m)
 	}
 
 	if (!ast_strlen_zero(timeout)) {
-		if (sscanf(timeout, "%30d", &timeout_override) != 1 || timeout < 0) {
+		if (sscanf(timeout, "%30d", &timeout_override) != 1 || timeout_override < 0) {
 			astman_send_error(s, m, "Invalid Timeout value.");
 			return 0;
 		}
 
-		if (timeout_override > 0) {
+		if (timeout_override) {
 			/* If greater than zero, convert to seconds for internal use. Must be >= 1 second. */
 			timeout_override = MAX(1, timeout_override / 1000);
 		}
@@ -554,11 +554,11 @@ static int manager_park(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	ast_channel_lock(chan);
 	if (!ast_strlen_zero(timeout_channel)) {
+		ast_channel_lock(chan);
 		ast_bridge_set_transfer_variables(chan, timeout_channel, 0);
+		ast_channel_unlock(chan);
 	}
-	ast_channel_unlock(chan);
 
 	parker_chan = ast_channel_bridge_peer(chan);
 	if (!parker_chan || strcmp(ast_channel_name(parker_chan), timeout_channel)) {
