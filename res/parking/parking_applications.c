@@ -380,16 +380,17 @@ static int setup_park_common_datastore(struct ast_channel *parkee, const char *p
 		ast_datastore_free(datastore);
 		return -1;
 	}
+	datastore->data = park_datastore;
 
-	if (parker_uuid) {
-		park_datastore->parker_uuid = ast_strdup(parker_uuid);
+	park_datastore->parker_uuid = ast_strdup(parker_uuid);
+	if (!park_datastore->parker_uuid) {
+		ast_datastore_free(datastore);
+		return -1;
 	}
 
 	ast_channel_lock(parkee);
-
 	attended_transfer = pbx_builtin_getvar_helper(parkee, "ATTENDEDTRANSFER");
 	blind_transfer = pbx_builtin_getvar_helper(parkee, "BLINDTRANSFER");
-
 	if (!ast_strlen_zero(attended_transfer)) {
 		parker_dial_string = ast_strdupa(attended_transfer);
 	} else if (!ast_strlen_zero(blind_transfer)) {
@@ -397,7 +398,6 @@ static int setup_park_common_datastore(struct ast_channel *parkee, const char *p
 		/* Ensure that attended_transfer is NULL and not an empty string. */
 		attended_transfer = NULL;
 	}
-
 	ast_channel_unlock(parkee);
 
 	if (!ast_strlen_zero(parker_dial_string)) {
@@ -406,6 +406,10 @@ static int setup_park_common_datastore(struct ast_channel *parkee, const char *p
 			parker_dial_string,
 			attended_transfer ? "ATTENDEDTRANSFER" : "BLINDTRANSFER");
 		park_datastore->parker_dial_string = ast_strdup(parker_dial_string);
+		if (!park_datastore->parker_dial_string) {
+			ast_datastore_free(datastore);
+			return -1;
+		}
 	}
 
 	park_datastore->randomize = randomize;
@@ -414,10 +418,13 @@ static int setup_park_common_datastore(struct ast_channel *parkee, const char *p
 
 	if (comeback_override) {
 		park_datastore->comeback_override = ast_strdup(comeback_override);
+		if (!park_datastore->comeback_override) {
+			ast_datastore_free(datastore);
+			return -1;
+		}
 	}
 
 
-	datastore->data = park_datastore;
 	ast_channel_lock(parkee);
 	ast_channel_datastore_add(parkee, datastore);
 	ast_channel_unlock(parkee);
@@ -432,23 +439,23 @@ struct park_common_datastore *get_park_common_datastore_copy(struct ast_channel 
 	struct park_common_datastore *data_copy;
 
 	SCOPED_CHANNELLOCK(lock, parkee);
+
 	if (!(datastore = ast_channel_datastore_find(parkee, &park_common_info, NULL))) {
 		return NULL;
 	}
 
 	data = datastore->data;
 
-	if (!data) {
-		/* This data should always be populated if this datastore was appended to the channel */
-		ast_assert(0);
-	}
+	/* This data should always be populated if this datastore was appended to the channel */
+	ast_assert(data != NULL);
 
 	data_copy = ast_calloc(1, sizeof(*data_copy));
 	if (!data_copy) {
 		return NULL;
 	}
 
-	if (!(data_copy->parker_uuid = ast_strdup(data->parker_uuid))) {
+	data_copy->parker_uuid = ast_strdup(data->parker_uuid);
+	if (!data_copy->parker_uuid) {
 		park_common_datastore_free(data_copy);
 		return NULL;
 	}
@@ -498,7 +505,6 @@ struct ast_bridge *park_common_setup(struct ast_channel *parkee, struct ast_chan
 	if (!lot) {
 		lot = parking_create_dynamic_lot(lot_name, parker);
 	}
-
 	if (!lot) {
 		ast_log(LOG_ERROR, "Could not find parking lot: '%s'\n", lot_name);
 		return NULL;
@@ -545,7 +551,7 @@ static int park_app_exec(struct ast_channel *chan, const char *data)
 	struct ast_bridge_features chan_features;
 	int res;
 	int silence_announcements = 0;
-	const char *transferer;
+	int blind_transfer;
 
 	/* Answer the channel if needed */
 	if (ast_channel_state(chan) != AST_STATE_UP) {
@@ -553,15 +559,12 @@ static int park_app_exec(struct ast_channel *chan, const char *data)
 	}
 
 	ast_channel_lock(chan);
-	if (!(transferer = pbx_builtin_getvar_helper(chan, "ATTENDEDTRANSFER"))) {
-		transferer = pbx_builtin_getvar_helper(chan, "BLINDTRANSFER");
-	}
-	transferer = ast_strdupa(S_OR(transferer, ""));
+	blind_transfer = !ast_strlen_zero(pbx_builtin_getvar_helper(chan, "BLINDTRANSFER"));
 	ast_channel_unlock(chan);
 
 	/* Handle the common parking setup stuff */
 	if (!(parking_bridge = park_application_setup(chan, NULL, data, &silence_announcements))) {
-		if (!silence_announcements && !transferer) {
+		if (!silence_announcements && !blind_transfer) {
 			ast_stream_and_wait(chan, "pbx-parkingfailed", "");
 		}
 		publish_parked_call_failure(chan);
@@ -634,7 +637,6 @@ static int parked_call_app_exec(struct ast_channel *chan, const char *data)
 	}
 
 	lot = parking_lot_find_by_name(lot_name);
-
 	if (!lot) {
 		ast_log(LOG_ERROR, "Could not find the requested parking lot\n");
 		ast_stream_and_wait(chan, "pbx-invalidpark", "");
