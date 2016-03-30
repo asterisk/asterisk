@@ -2252,16 +2252,12 @@ static int __rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t siz
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	struct ast_srtp *srtp = ast_rtp_instance_get_srtp(instance);
 	int res;
-	int hdrlen = 12;
 
 	*ice = 0;
 
 	if (use_srtp && res_srtp && srtp && res_srtp->protect(srtp, &temp, &len, rtcp) < 0) {
 		return -1;
 	}
-
-	rtp->txcount++;
-	rtp->txoctetcount += (len - hdrlen);
 
 #ifdef HAVE_PJPROJECT
 	if (rtp->ice) {
@@ -2289,7 +2285,16 @@ static int rtcp_sendto(struct ast_rtp_instance *instance, void *buf, size_t size
 
 static int rtp_sendto(struct ast_rtp_instance *instance, void *buf, size_t size, int flags, struct ast_sockaddr *sa, int *ice)
 {
-	return __rtp_sendto(instance, buf, size, flags, sa, 0, ice, 1);
+	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+	int hdrlen = 12;
+	int res;
+
+	if ((res = __rtp_sendto(instance, buf, size, flags, sa, 0, ice, 1)) > 0) {
+		rtp->txcount++;
+		rtp->txoctetcount += (res - hdrlen);
+	}
+
+	return res;
 }
 
 static int rtp_get_rate(struct ast_format *format)
