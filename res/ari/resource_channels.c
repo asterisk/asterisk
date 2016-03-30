@@ -1461,3 +1461,112 @@ void ast_ari_channels_snoop_channel_with_id(struct ast_variable *headers,
 		args->snoop_id,
 		response);
 }
+
+struct ari_channel_thread_data {
+	struct ast_channel *chan;
+	struct ast_str *stasis_stuff;
+};
+
+static void chan_data_destroy(struct ari_channel_thread_data *chan_data)
+{
+	ast_free(chan_data->stasis_stuff);
+	ast_hangup(chan_data->chan);
+	ast_free(chan_data);
+}
+
+/*!
+ * \brief Thread that owns stasis-created channel.
+ *
+ * The channel enters into a Stasis application immediately upon creation. In this
+ * way, the channel can be manipulated by the Stasis application. Once the channel
+ * exits the Stasis application, it is hung up.
+ */
+static void *ari_channel_thread(void *data)
+{
+	struct ari_channel_thread_data *chan_data = data;
+	struct ast_app *stasis_app;
+
+	stasis_app = pbx_findapp("Stasis");
+	if (!stasis_app) {
+		ast_log(LOG_ERROR, "Stasis dialplan application is not registered");
+		chan_data_destroy(chan_data);
+		return NULL;
+	}
+
+	pbx_exec(chan_data->chan, stasis_app, ast_str_buffer(chan_data->stasis_stuff));
+
+	chan_data_destroy(chan_data);
+
+	return NULL;
+}
+
+void ast_ari_channels_create(struct ast_variable *headers,
+	struct ast_ari_channels_create_args *args,
+	struct ast_ari_response *response)
+{
+	struct ast_assigned_ids assignedids = {
+		.uniqueid = args->channel_id,
+		.uniqueid2 = args->other_channel_id,
+	};
+	struct ari_channel_thread_data *chan_data;
+	struct ast_channel_snapshot *snapshot;
+	pthread_t thread;
+	char *dialtech;
+	char dialdevice[AST_CHANNEL_NAME];
+	char *stuff;
+	int cause;
+	struct ast_format_cap *request_cap;
+	struct ast_channel *originator;
+
+	chan_data = ast_calloc(1, sizeof(*chan_data));
+	if (!chan_data) {
+		ast_ari_response_alloc_failed(response);
+		return;
+	}
+
+	chan_data->stasis_stuff = ast_str_create(32);
+	if (!chan_data->stasis_stuff) {
+		ast_ari_response_alloc_failed(response);
+		chan_data_destroy(chan_data);
+		return;
+	}
+
+	ast_str_append(&chan_data->stasis_stuff, 0, "%s", args->app);
+	if (!ast_strlen_zero(args->app_args)) {
+		ast_str_append(&chan_data->stasis_stuff, 0, ",%s", args->app_args);
+	}
+
+	dialtech = ast_strdupa(args->endpoint);
+	if ((stuff = strchr(dialtech, '/'))) {
+		*stuff++ = '\0';
+		ast_copy_string(dialdevice, stuff, sizeof(dialdevice));
+	}
+
+	originator = ast_channel_get_by_name(args->originator);
+	if (originator) {
+		request_cap = ao2_bump(ast_channel_nativeformats(originator));
+	} else {
+		request_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+		ast_format_cap_append_by_type(request_cap, AST_MEDIA_TYPE_AUDIO);
+	}
+
+	chan_data->chan = ast_request(dialtech, request_cap, &assignedids, originator, dialdevice, &cause);
+	ao2_cleanup(request_cap);
+	ast_channel_cleanup(originator);
+	if (!chan_data->chan) {
+		ast_ari_response_alloc_failed(response);
+		chan_data_destroy(chan_data);
+		return;
+	}
+
+	snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(chan_data->chan));
+
+	if (ast_pthread_create_detached(&thread, NULL, ari_channel_thread, chan_data)) {
+		ast_ari_response_alloc_failed(response);
+		chan_data_destroy(chan_data);
+	} else {
+		ast_ari_response_ok(response, ast_channel_snapshot_to_json(snapshot, NULL));
+	}
+
+	ao2_ref(snapshot, -1);
+}
