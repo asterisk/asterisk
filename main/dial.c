@@ -248,22 +248,9 @@ struct ast_dial *ast_dial_create(void)
 	return dial;
 }
 
-/*! \brief Append a channel
- * \note Appends a channel to a dialing structure
- * \return Returns channel reference number on success, -1 on failure
- */
-int ast_dial_append(struct ast_dial *dial, const char *tech, const char *device, const struct ast_assigned_ids *assignedids)
+static int dial_append_common(struct ast_dial *dial, struct ast_dial_channel *channel,
+		const char *tech, const char *device, const struct ast_assigned_ids *assignedids)
 {
-	struct ast_dial_channel *channel = NULL;
-
-	/* Make sure we have required arguments */
-	if (!dial || !tech || !device)
-		return -1;
-
-	/* Allocate new memory for dialed channel structure */
-	if (!(channel = ast_calloc(1, sizeof(*channel))))
-		return -1;
-
 	/* Record technology and device for when we actually dial */
 	channel->tech = ast_strdup(tech);
 	channel->device = ast_strdup(device);
@@ -287,6 +274,59 @@ int ast_dial_append(struct ast_dial *dial, const char *tech, const char *device,
 	AST_LIST_INSERT_TAIL(&dial->channels, channel, list);
 
 	return channel->num;
+
+}
+
+/*! \brief Append a channel
+ * \note Appends a channel to a dialing structure
+ * \return Returns channel reference number on success, -1 on failure
+ */
+int ast_dial_append(struct ast_dial *dial, const char *tech, const char *device, const struct ast_assigned_ids *assignedids)
+{
+	struct ast_dial_channel *channel = NULL;
+
+	/* Make sure we have required arguments */
+	if (!dial || !tech || !device)
+		return -1;
+
+	/* Allocate new memory for dialed channel structure */
+	if (!(channel = ast_calloc(1, sizeof(*channel))))
+		return -1;
+
+	return dial_append_common(dial, channel, tech, device, assignedids);
+}
+
+int ast_dial_append_channel(struct ast_dial *dial, struct ast_channel *chan)
+{
+	struct ast_dial_channel *channel;
+	const char *tech;
+	char *device;
+	const char *dash;
+
+	if (!dial || !chan) {
+		return -1;
+	}
+
+	channel = ast_calloc(1, sizeof(*channel));
+	if (!channel) {
+		return -1;
+	}
+	channel->owner = chan;
+
+	tech = ast_strdupa(ast_channel_name(chan));
+
+	device = strchr(tech, '/');
+	if (!device) {
+		return -1;
+	}
+	*device++ = '\0';
+
+	dash = strchr(device, '-');
+	if (dash) {
+		dash = '\0';
+	}
+
+	return dial_append_common(dial, channel, tech, device, NULL);
 }
 
 /*! \brief Helper function that requests all channels */
@@ -315,27 +355,29 @@ static int begin_dial_prerun(struct ast_dial_channel *channel, struct ast_channe
 		}
 	}
 
-	/* Copy device string over */
-	ast_copy_string(numsubst, channel->device, sizeof(numsubst));
+	if (!channel->owner) {
+		/* Copy device string over */
+		ast_copy_string(numsubst, channel->device, sizeof(numsubst));
 
-	if (cap && ast_format_cap_count(cap)) {
-		cap_request = cap;
-	} else if (requester_cap) {
-		cap_request = requester_cap;
-	} else {
-		cap_all_audio = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
-		ast_format_cap_append_by_type(cap_all_audio, AST_MEDIA_TYPE_AUDIO);
-		cap_request = cap_all_audio;
-	}
+		if (cap && ast_format_cap_count(cap)) {
+			cap_request = cap;
+		} else if (requester_cap) {
+			cap_request = requester_cap;
+		} else {
+			cap_all_audio = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+			ast_format_cap_append_by_type(cap_all_audio, AST_MEDIA_TYPE_AUDIO);
+			cap_request = cap_all_audio;
+		}
 
-	/* If we fail to create our owner channel bail out */
-	if (!(channel->owner = ast_request(channel->tech, cap_request, &assignedids, chan, numsubst, &channel->cause))) {
+		/* If we fail to create our owner channel bail out */
+		if (!(channel->owner = ast_request(channel->tech, cap_request, &assignedids, chan, numsubst, &channel->cause))) {
+			ao2_cleanup(cap_all_audio);
+			return -1;
+		}
+		cap_request = NULL;
+		ao2_cleanup(requester_cap);
 		ao2_cleanup(cap_all_audio);
-		return -1;
 	}
-	cap_request = NULL;
-	ao2_cleanup(requester_cap);
-	ao2_cleanup(cap_all_audio);
 
 	if (chan) {
 		ast_channel_lock_both(chan, channel->owner);
