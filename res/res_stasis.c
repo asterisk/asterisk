@@ -1188,10 +1188,11 @@ void stasis_app_channel_set_stasis_end_published(struct ast_channel *chan)
 	struct ast_datastore *datastore;
 
 	datastore = ast_datastore_alloc(&set_end_published_info, NULL);
-
-	ast_channel_lock(chan);
-	ast_channel_datastore_add(chan, datastore);
-	ast_channel_unlock(chan);
+	if (datastore) {
+		ast_channel_lock(chan);
+		ast_channel_datastore_add(chan, datastore);
+		ast_channel_unlock(chan);
+	}
 }
 
 int stasis_app_channel_is_stasis_end_published(struct ast_channel *chan)
@@ -1211,12 +1212,11 @@ static void remove_stasis_end_published(struct ast_channel *chan)
 
 	ast_channel_lock(chan);
 	datastore = ast_channel_datastore_find(chan, &set_end_published_info, NULL);
-	ast_channel_unlock(chan);
-
 	if (datastore) {
 		ast_channel_datastore_remove(chan, datastore);
 		ast_datastore_free(datastore);
 	}
+	ast_channel_unlock(chan);
 }
 
 /*! /brief Stasis dialplan application callback */
