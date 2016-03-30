@@ -739,5 +739,33 @@ int ast_ari_channels_snoop_channel_with_id_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_snoop_channel_with_id(struct ast_variable *headers, struct ast_ari_channels_snoop_channel_with_id_args *args, struct ast_ari_response *response);
+/*! Argument struct for ast_ari_channels_dial() */
+struct ast_ari_channels_dial_args {
+	/*! Channel's id */
+	const char *channel_id;
+	/*! Channel ID of caller */
+	const char *caller;
+	/*! Dial timeout */
+	int timeout;
+};
+/*!
+ * \brief Body parsing function for /channels/{channelId}/dial.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_channels_dial_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_dial_args *args);
+
+/*!
+ * \brief Dial a created channel.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_channels_dial(struct ast_variable *headers, struct ast_ari_channels_dial_args *args, struct ast_ari_response *response);
 
 #endif /* _ASTERISK_RESOURCE_CHANNELS_H */

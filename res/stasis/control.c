@@ -78,6 +78,10 @@ struct stasis_app_control {
 	 */
 	struct stasis_app *app;
 	/*!
+	 * If channel is being dialed, the dial structure.
+	 */
+	struct ast_dial *dial;
+	/*!
 	 * When set, /c app_stasis should exit and continue in the dialplan.
 	 */
 	int is_done:1;
@@ -270,89 +274,6 @@ static struct stasis_app_command *exec_command(
 	void *data, command_data_destructor_fn data_destructor)
 {
 	return exec_command_on_condition(control, command_fn, data, data_destructor, NULL);
-}
-
-struct stasis_app_control_dial_data {
-	char endpoint[AST_CHANNEL_NAME];
-	int timeout;
-};
-
-static int app_control_dial(struct stasis_app_control *control,
-	struct ast_channel *chan, void *data)
-{
-	RAII_VAR(struct ast_dial *, dial, ast_dial_create(), ast_dial_destroy);
-	struct stasis_app_control_dial_data *dial_data = data;
-	enum ast_dial_result res;
-	char *tech, *resource;
-	struct ast_channel *new_chan;
-	RAII_VAR(struct ast_bridge *, bridge, NULL, ao2_cleanup);
-
-	tech = dial_data->endpoint;
-	if (!(resource = strchr(tech, '/'))) {
-		return -1;
-	}
-	*resource++ = '\0';
-
-	if (!dial) {
-		ast_log(LOG_ERROR, "Failed to create dialing structure.\n");
-		return -1;
-	}
-
-	if (ast_dial_append(dial, tech, resource, NULL) < 0) {
-		ast_log(LOG_ERROR, "Failed to add %s/%s to dialing structure.\n", tech, resource);
-		return -1;
-	}
-
-	ast_dial_set_global_timeout(dial, dial_data->timeout);
-
-	res = ast_dial_run(dial, NULL, 0);
-	if (res != AST_DIAL_RESULT_ANSWERED || !(new_chan = ast_dial_answered_steal(dial))) {
-		return -1;
-	}
-
-	if (!(bridge = ast_bridge_basic_new())) {
-		ast_log(LOG_ERROR, "Failed to create basic bridge.\n");
-		return -1;
-	}
-
-	if (ast_bridge_impart(bridge, new_chan, NULL, NULL,
-		AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
-		ast_hangup(new_chan);
-	} else {
-		control_add_channel_to_bridge(control, chan, bridge);
-	}
-
-	return 0;
-}
-
-int stasis_app_control_dial(struct stasis_app_control *control, const char *endpoint, const char *exten, const char *context,
-			    int timeout)
-{
-	struct stasis_app_control_dial_data *dial_data;
-
-	if (!(dial_data = ast_calloc(1, sizeof(*dial_data)))) {
-		return -1;
-	}
-
-	if (!ast_strlen_zero(endpoint)) {
-		ast_copy_string(dial_data->endpoint, endpoint, sizeof(dial_data->endpoint));
-	} else if (!ast_strlen_zero(exten) && !ast_strlen_zero(context)) {
-		snprintf(dial_data->endpoint, sizeof(dial_data->endpoint), "Local/%s@%s", exten, context);
-	} else {
-		return -1;
-	}
-
-	if (timeout > 0) {
-		dial_data->timeout = timeout * 1000;
-	} else if (timeout == -1) {
-		dial_data->timeout = -1;
-	} else {
-		dial_data->timeout = 30000;
-	}
-
-	stasis_app_send_command_async(control, app_control_dial, dial_data, ast_free_ptr);
-
-	return 0;
 }
 
 static int app_control_add_role(struct stasis_app_control *control,
@@ -1184,4 +1105,85 @@ int control_prestart_dispatch_all(struct stasis_app_control *control,
 struct stasis_app *control_app(struct stasis_app_control *control)
 {
 	return control->app;
+}
+
+static void app_control_dial_destroy(void *data)
+{
+	struct ast_dial *dial = data;
+
+	ast_dial_join(dial);
+	ast_dial_destroy(dial);
+}
+
+static int app_control_remove_dial(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
+{
+	if (ast_dial_state(control->dial) != AST_DIAL_RESULT_ANSWERED) {
+		ast_softhangup(chan, AST_SOFTHANGUP_EXPLICIT);
+	}
+	control->dial = NULL;
+	return 0;
+}
+
+static void on_dial_state(struct ast_dial *dial)
+{
+	enum ast_dial_result state;
+	struct stasis_app_control *control;
+	struct ast_channel *chan;
+
+	state = ast_dial_state(dial);
+	control = ast_dial_get_user_data(dial);
+
+	switch (state) {
+	case AST_DIAL_RESULT_ANSWERED:
+		/* Need to steal the reference to the answered channel so that dial doesn't
+		 * try to hang it up when we destroy the dial structure.
+		 */
+		chan = ast_dial_answered_steal(dial);
+		ast_channel_unref(chan);
+		/* Fall through intentionally */
+	case AST_DIAL_RESULT_INVALID:
+	case AST_DIAL_RESULT_FAILED:
+	case AST_DIAL_RESULT_TIMEOUT:
+	case AST_DIAL_RESULT_HANGUP:
+	case AST_DIAL_RESULT_UNANSWERED:
+		/* The dial has completed, so we need to break the Stasis loop so
+		 * that the channel's frames are handled in the proper place now.
+		 */
+		stasis_app_send_command_async(control, app_control_remove_dial, dial, app_control_dial_destroy);
+		break;
+	case AST_DIAL_RESULT_TRYING:
+	case AST_DIAL_RESULT_RINGING:
+	case AST_DIAL_RESULT_PROGRESS:
+	case AST_DIAL_RESULT_PROCEEDING:
+		break;
+	}
+}
+
+static int app_control_dial(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
+{
+	struct ast_dial *dial = data;
+
+	ast_dial_set_state_callback(dial, on_dial_state);
+	/* The dial API gives the option of providing a caller channel, but for
+	 * Stasis, we really don't want to do that. The Dial API will take liberties such
+	 * as passing frames along to the calling channel (think ringing, progress, etc.).
+	 * This is not desirable in ARI applications since application writers should have
+	 * control over what does/does not get indicated to the calling channel
+	 */
+	ast_dial_run(dial, NULL, 1);
+	control->dial = dial;
+
+	return 0;
+}
+
+struct ast_dial *stasis_app_get_dial(struct stasis_app_control *control)
+{
+	return control->dial;
+}
+
+int stasis_app_control_dial(struct stasis_app_control *control, struct ast_dial *dial)
+{
+	return stasis_app_send_command_async(control, app_control_dial, dial, NULL);
 }
