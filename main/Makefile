@@ -224,11 +224,11 @@ endif
 
 $(ASTSSL_LIB): $(ASTSSL_LIB).$(ASTSSL_SO_VERSION)
 	$(ECHO_PREFIX) echo "   [LN] $< -> $@"
-ifneq ($(LDCONFIG),)
-	$(CMD_PREFIX) $(LDCONFIG) $(LDCONFIG_FLAGS) . 2>/dev/null
-else
-	$(CMD_PREFIX) $(LN) -sf $< $@
-endif
+	$(CMD_PREFIX) if [ -x "$(LDCONFIG)" ] ; then \
+		$(LDCONFIG) $(LDCONFIG_FLAGS) . 2>/dev/null ;\
+	else \
+		$(LN) -sf $< $@ ;\
+	fi
 
 else # Darwin
 ASTSSL_LIB:=libasteriskssl.dylib
@@ -304,11 +304,11 @@ $(ASTPJ_LIB).$(ASTPJ_SO_VERSION): libasteriskpj.o libasteriskpj.exports
 
 $(ASTPJ_LIB): $(ASTPJ_LIB).$(ASTPJ_SO_VERSION)
 	$(ECHO_PREFIX) echo "   [LN] $< -> $@"
-ifneq ($(LDCONFIG),)
-	$(CMD_PREFIX) $(LDCONFIG) $(LDCONFIG_FLAGS) . 2>/dev/null
-else
-	$(CMD_PREFIX) $(LN) -sf $< $@
-endif
+	$(CMD_PREFIX) if [ -x "$(LDCONFIG)" ] ; then \
+		$(LDCONFIG) $(LDCONFIG_FLAGS) . 2>/dev/null ;\
+	else \
+		$(LN) -sf $< $@ ;\
+	fi
 
 else # Darwin
 ASTPJ_LIB:=libasteriskpj.dylib
