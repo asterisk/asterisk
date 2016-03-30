@@ -140,6 +140,68 @@
 			]
 		},
 		{
+			"path": "/channels/create",
+			"description": "Create a channel and place it in a Stasis app, but do not dial the channel yet.",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Create channel.",
+					"nickname": "create",
+					"responseClass": "Channel",
+					"parameters": [
+						{
+							"name": "endpoint",
+							"description": "Endpoint for channel communication",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "app",
+							"description": "Stasis Application to place channel into",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "appArgs",
+							"description": "The application arguments to pass to the Stasis application provided by 'app'. Mutually exclusive with 'context', 'extension', 'priority', and 'label'.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "channelId",
+							"description": "The unique id to assign the channel on creation.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "otherChannelId",
+							"description": "The unique id to assign the second channel when using local channels.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "originator",
+							"description": "Unique ID of the calling channel",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					]
+				}
+			]
+		},
+		{
 			"path": "/channels/{channelId}",
 			"description": "Active channel",
 			"operations": [
