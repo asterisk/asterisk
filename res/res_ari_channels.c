@@ -268,6 +268,131 @@ static void ast_ari_channels_originate_cb(
 fin: __attribute__((unused))
 	return;
 }
+int ast_ari_channels_create_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_create_args *args)
+{
+	struct ast_json *field;
+	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "endpoint");
+	if (field) {
+		args->endpoint = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "app");
+	if (field) {
+		args->app = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "appArgs");
+	if (field) {
+		args->app_args = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "channelId");
+	if (field) {
+		args->channel_id = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "otherChannelId");
+	if (field) {
+		args->other_channel_id = ast_json_string_get(field);
+	}
+	field = ast_json_object_get(body, "originator");
+	if (field) {
+		args->originator = ast_json_string_get(field);
+	}
+	return 0;
+}
+
+/*!
+ * \brief Parameter parsing callback for /channels/create.
+ * \param get_params GET parameters in the HTTP request.
+ * \param path_vars Path variables extracted from the request.
+ * \param headers HTTP headers.
+ * \param[out] response Response to the HTTP request.
+ */
+static void ast_ari_channels_create_cb(
+	struct ast_tcptls_session_instance *ser,
+	struct ast_variable *get_params, struct ast_variable *path_vars,
+	struct ast_variable *headers, struct ast_ari_response *response)
+{
+	struct ast_ari_channels_create_args args = {};
+	struct ast_variable *i;
+	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
+#if defined(AST_DEVMODE)
+	int is_valid;
+	int code;
+#endif /* AST_DEVMODE */
+
+	for (i = get_params; i; i = i->next) {
+		if (strcmp(i->name, "endpoint") == 0) {
+			args.endpoint = (i->value);
+		} else
+		if (strcmp(i->name, "app") == 0) {
+			args.app = (i->value);
+		} else
+		if (strcmp(i->name, "appArgs") == 0) {
+			args.app_args = (i->value);
+		} else
+		if (strcmp(i->name, "channelId") == 0) {
+			args.channel_id = (i->value);
+		} else
+		if (strcmp(i->name, "otherChannelId") == 0) {
+			args.other_channel_id = (i->value);
+		} else
+		if (strcmp(i->name, "originator") == 0) {
+			args.originator = (i->value);
+		} else
+		{}
+	}
+	/* Look for a JSON request entity */
+	body = ast_http_get_json(ser, headers);
+	if (!body) {
+		switch (errno) {
+		case EFBIG:
+			ast_ari_response_error(response, 413, "Request Entity Too Large", "Request body too large");
+			goto fin;
+		case ENOMEM:
+			ast_ari_response_error(response, 500, "Internal Server Error", "Error processing request");
+			goto fin;
+		case EIO:
+			ast_ari_response_error(response, 400, "Bad Request", "Error parsing request body");
+			goto fin;
+		}
+	}
+	if (ast_ari_channels_create_parse_body(body, &args)) {
+		ast_ari_response_alloc_failed(response);
+		goto fin;
+	}
+	ast_ari_channels_create(headers, &args, response);
+#if defined(AST_DEVMODE)
+	code = response->response_code;
+
+	switch (code) {
+	case 0: /* Implementation is still a stub, or the code wasn't set */
+		is_valid = response->message == NULL;
+		break;
+	case 500: /* Internal Server Error */
+	case 501: /* Not Implemented */
+		is_valid = 1;
+		break;
+	default:
+		if (200 <= code && code <= 299) {
+			is_valid = ast_ari_validate_channel(
+				response->message);
+		} else {
+			ast_log(LOG_ERROR, "Invalid error response %d for /channels/create\n", code);
+			is_valid = 0;
+		}
+	}
+
+	if (!is_valid) {
+		ast_log(LOG_ERROR, "Response validation failed for /channels/create\n");
+		ast_ari_response_error(response, 500,
+			"Internal Server Error", "Response validation failed");
+	}
+#endif /* AST_DEVMODE */
+
+fin: __attribute__((unused))
+	return;
+}
 /*!
  * \brief Parameter parsing callback for /channels/{channelId}.
  * \param get_params GET parameters in the HTTP request.
@@ -2554,6 +2679,15 @@ fin: __attribute__((unused))
 }
 
 /*! \brief REST handler for /api-docs/channels.{format} */
+static struct stasis_rest_handlers channels_create = {
+	.path_segment = "create",
+	.callbacks = {
+		[AST_HTTP_POST] = ast_ari_channels_create_cb,
+	},
+	.num_children = 0,
+	.children = {  }
+};
+/*! \brief REST handler for /api-docs/channels.{format} */
 static struct stasis_rest_handlers channels_channelId_continue = {
 	.path_segment = "continue",
 	.callbacks = {
@@ -2715,8 +2849,8 @@ static struct stasis_rest_handlers channels = {
 		[AST_HTTP_GET] = ast_ari_channels_list_cb,
 		[AST_HTTP_POST] = ast_ari_channels_originate_cb,
 	},
-	.num_children = 1,
-	.children = { &channels_channelId, }
+	.num_children = 2,
+	.children = { &channels_create,&channels_channelId, }
 };
 
 static int load_module(void)
