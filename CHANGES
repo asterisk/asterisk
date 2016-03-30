@@ -12,6 +12,14 @@
 --- Functionality changes from Asterisk 13 to Asterisk 14 --------------------
 ------------------------------------------------------------------------------
 
+ARI
+-----------------
+ * A new ARI method has been added to the channels resource. "create" allows for
+ you to create a new channel and place that channel into a Stasis application. This
+ is similar to origination except that the specified channel is not dialed. This
+ allows for an application writer to create a channel, perform manipulations on it,
+ and then delay dialing the channel until later.
+
 Applications
 ------------------
 

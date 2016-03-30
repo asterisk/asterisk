@@ -100,6 +100,40 @@ int ast_ari_channels_originate_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_channels_originate(struct ast_variable *headers, struct ast_ari_channels_originate_args *args, struct ast_ari_response *response);
+/*! Argument struct for ast_ari_channels_create() */
+struct ast_ari_channels_create_args {
+	/*! Endpoint for channel communication */
+	const char *endpoint;
+	/*! Stasis Application to place channel into */
+	const char *app;
+	/*! The application arguments to pass to the Stasis application provided by 'app'. Mutually exclusive with 'context', 'extension', 'priority', and 'label'. */
+	const char *app_args;
+	/*! The unique id to assign the channel on creation. */
+	const char *channel_id;
+	/*! The unique id to assign the second channel when using local channels. */
+	const char *other_channel_id;
+	/*! Unique ID of the calling channel */
+	const char *originator;
+};
+/*!
+ * \brief Body parsing function for /channels/create.
+ * \param body The JSON body from which to parse parameters.
+ * \param[out] args The args structure to parse into.
+ * \retval zero on success
+ * \retval non-zero on failure
+ */
+int ast_ari_channels_create_parse_body(
+	struct ast_json *body,
+	struct ast_ari_channels_create_args *args);
+
+/*!
+ * \brief Create channel.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_channels_create(struct ast_variable *headers, struct ast_ari_channels_create_args *args, struct ast_ari_response *response);
 /*! Argument struct for ast_ari_channels_get() */
 struct ast_ari_channels_get_args {
 	/*! Channel's id */
