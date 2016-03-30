@@ -1568,3 +1568,72 @@ void ast_ari_channels_create(struct ast_variable *headers,
 		ast_ari_response_ok(response, ast_channel_snapshot_to_json(snapshot, NULL));
 	}
 }
+
+void ast_ari_channels_dial(struct ast_variable *headers,
+	struct ast_ari_channels_dial_args *args,
+	struct ast_ari_response *response)
+{
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_channel *, caller, NULL, ast_channel_cleanup);
+	struct ast_channel *callee;
+	struct ast_dial *dial;
+
+	control = find_control(response, args->channel_id);
+	if (control == NULL) {
+		/* Response filled in by find_control */
+		return;
+	}
+
+	caller = ast_channel_get_by_name(args->caller);
+
+	callee = ast_channel_get_by_name(args->channel_id);
+	if (!callee) {
+		ast_ari_response_error(response, 404, "Not Found",
+			"Callee not found");
+		return;
+	}
+
+	if (ast_channel_state(callee) != AST_STATE_DOWN) {
+		ast_channel_unref(callee);
+		ast_ari_response_error(response, 409, "Conflict",
+			"Channel is not in the 'Down' state");
+		return;
+	}
+
+	dial = ast_dial_create();
+	if (!dial) {
+		ast_channel_unref(callee);
+		ast_ari_response_alloc_failed(response);
+		return;
+	}
+
+	if (ast_dial_append_channel(dial, callee)) {
+		ast_channel_unref(callee);
+		ast_dial_destroy(dial);
+		ast_ari_response_alloc_failed(response);
+		return;
+	}
+
+	/* From this point, we don't have to unref the callee channel on
+	 * failure paths because the dial owns the reference to the called
+	 * channel and will unref the channel for us
+	 */
+
+	if (ast_dial_prerun(dial, caller, NULL)) {
+		ast_dial_destroy(dial);
+		ast_ari_response_alloc_failed(response);
+		return;
+	}
+
+	ast_dial_set_user_data(dial, control);
+	ast_dial_set_global_timeout(dial, args->timeout * 1000);
+
+	if (stasis_app_control_dial(control, dial)) {
+		ast_channel_cleanup(caller);
+		ast_dial_destroy(dial);
+		ast_ari_response_alloc_failed(response);
+		return;
+	}
+
+	ast_ari_response_no_content(response);
+}

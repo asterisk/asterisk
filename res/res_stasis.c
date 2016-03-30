@@ -1282,6 +1282,7 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 		int r;
 		int command_count;
 		RAII_VAR(struct ast_bridge *, last_bridge, NULL, ao2_cleanup);
+		struct ast_dial *dial;
 
 		/* Check to see if a bridge absorbed our hangup frame */
 		if (ast_check_hangup_locked(chan)) {
@@ -1291,6 +1292,7 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 
 		last_bridge = bridge;
 		bridge = ao2_bump(stasis_app_get_bridge(control));
+		dial = stasis_app_get_dial(control);
 
 		if (bridge != last_bridge) {
 			app_unsubscribe_bridge(app, last_bridge);
@@ -1299,8 +1301,8 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 			}
 		}
 
-		if (bridge) {
-			/* Bridge is handling channel frames */
+		if (bridge || dial) {
+			/* Bridge/dial is handling channel frames */
 			control_wait(control);
 			control_dispatch_all(control, chan);
 			continue;
