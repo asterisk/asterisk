@@ -431,6 +431,45 @@ static int send_unsolicited_mwi_notify_to_contact(void *obj, void *arg, int flag
 	return 0;
 }
 
+static struct ast_sip_aor *find_aor_for_resource(struct ast_sip_endpoint *endpoint, const char *resource)
+{
+	struct ast_sip_aor *aor;
+	char *aor_name;
+	char *aors_copy;
+
+	/* Direct match */
+	if ((aor = ast_sip_location_retrieve_aor(resource))) {
+		return aor;
+	}
+
+	if (!endpoint) {
+		return NULL;
+	}
+
+	/*
+	 * This may be a subscribe to the voicemail_extension.  If so,
+	 * look for an aor belonging to this endpoint that has a matching
+	 * voicemail_extension.
+	 */
+	aors_copy = ast_strdupa(endpoint->aors);
+	while ((aor_name = ast_strip(strsep(&aors_copy, ",")))) {
+		struct ast_sip_aor *check_aor = ast_sip_location_retrieve_aor(aor_name);
+
+		if (!check_aor) {
+			continue;
+		}
+
+		if (!strcasecmp(check_aor->voicemail_extension, resource)) {
+			ast_debug(1, "Found an aor (%s) that matches voicemail_extension %s\n", aor_name, resource);
+			return check_aor;
+		}
+
+		ao2_ref(check_aor, -1);
+	}
+
+	return NULL;
+}
+
 static void send_unsolicited_mwi_notify(struct mwi_subscription *sub,
 		struct ast_sip_message_accumulator *counter)
 {
@@ -490,11 +529,13 @@ static void send_mwi_notify(struct mwi_subscription *sub)
 		.body_type = AST_SIP_MESSAGE_ACCUMULATOR,
 		.body_data = &counter,
 	};
+	const char *resource = ast_sip_subscription_get_resource_name(sub->sip_sub);
 
 	ao2_callback(sub->stasis_subs, OBJ_NODATA, get_message_count, &counter);
 
 	if (sub->is_solicited) {
-		struct ast_sip_aor *aor = ast_sip_location_retrieve_aor(ast_sip_subscription_get_resource_name(sub->sip_sub));
+		struct ast_sip_endpoint *endpoint = ast_sip_subscription_get_endpoint(sub->sip_sub);
+		struct ast_sip_aor *aor = find_aor_for_resource(endpoint, resource);
 		pjsip_dialog *dlg = ast_sip_subscription_get_dialog(sub->sip_sub);
 		pjsip_sip_uri *sip_uri = ast_sip_subscription_get_sip_uri(sub->sip_sub);
 
@@ -503,6 +544,7 @@ static void send_mwi_notify(struct mwi_subscription *sub)
 		}
 
 		ao2_cleanup(aor);
+		ao2_cleanup(endpoint);
 		ast_sip_subscription_notify(sub->sip_sub, &data, 0);
 
 		return;
@@ -707,14 +749,9 @@ static struct mwi_subscription *mwi_subscribe_single(
 	struct ast_sip_aor *aor;
 	struct mwi_subscription *sub;
 
-	aor = ast_sip_location_retrieve_aor(name);
+	aor = find_aor_for_resource(endpoint, name);
 	if (!aor) {
-		/*! I suppose it's possible for the AOR to disappear on us
-		 * between accepting the subscription and sending the first
-		 * NOTIFY...
-		 */
-		ast_log(LOG_WARNING, "Unable to locate aor %s. MWI subscription failed.\n",
-			name);
+		ast_log(LOG_WARNING, "Unable to locate aor %s. MWI subscription failed.\n", name);
 		return NULL;
 	}
 
@@ -753,10 +790,9 @@ static int mwi_new_subscribe(struct ast_sip_endpoint *endpoint,
 		return 200;
 	}
 
-	aor = ast_sip_location_retrieve_aor(resource);
+	aor = find_aor_for_resource(endpoint, resource);
 	if (!aor) {
-		ast_debug(1, "Unable to locate aor %s. MWI subscription failed.\n",
-			resource);
+		ast_debug(1, "Unable to locate aor %s. MWI subscription failed.\n", resource);
 		return 404;
 	}
 
@@ -809,6 +845,7 @@ static void *mwi_get_notify_data(struct ast_sip_subscription *sub)
 	struct mwi_subscription *mwi_sub;
 	struct ast_datastore *mwi_datastore;
 	struct ast_sip_aor *aor;
+	struct ast_sip_endpoint *endpoint = ast_sip_subscription_get_endpoint(sub);
 
 	mwi_datastore = ast_sip_subscription_get_datastore(sub, MWI_DATASTORE);
 	if (!mwi_datastore) {
@@ -822,7 +859,7 @@ static void *mwi_get_notify_data(struct ast_sip_subscription *sub)
 		return NULL;
 	}
 
-	if ((aor = ast_sip_location_retrieve_aor(ast_sip_subscription_get_resource_name(sub)))) {
+	if ((aor = find_aor_for_resource(endpoint, ast_sip_subscription_get_resource_name(sub)))) {
 		pjsip_dialog *dlg = ast_sip_subscription_get_dialog(sub);
 		pjsip_sip_uri *sip_uri = ast_sip_subscription_get_sip_uri(sub);
 
@@ -831,6 +868,7 @@ static void *mwi_get_notify_data(struct ast_sip_subscription *sub)
 		}
 		ao2_ref(aor, -1);
 	}
+	ao2_cleanup(endpoint);
 
 	ao2_callback(mwi_sub->stasis_subs, OBJ_NODATA, get_message_count, counter);
 	ao2_cleanup(mwi_datastore);
