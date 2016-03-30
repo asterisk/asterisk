@@ -1502,6 +1502,59 @@
 					]
 				}
 			]
+		},
+		{
+			"path": "/channels/{channelId}/dial",
+			"description": "Dial a channel",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Dial a created channel.",
+					"nickname": "dial",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "caller",
+							"description": "Channel ID of caller",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "timeout",
+							"description": "Dial timeout",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "int",
+							"defaultValue": 0,
+							"allowableValues": {
+								"valueType": "RANGE",
+								"min": 0
+							}
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Channel cannot be found."
+						},
+						{
+							"code": 409,
+							"reason": "Channel cannot be dialed."
+						}
+					]
+				}
+			]
 		}
 	],
 	"models": {
