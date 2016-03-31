@@ -1371,6 +1371,9 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 		remove_stasis_end_published(chan);
 	}
 
+	/* Stop any lingering silence generator */
+	control_silence_stop_now(control);
+
 	/* There's an off chance that app is ready for cleanup. Go ahead
 	 * and clean up, just in case
 	 */

@@ -87,21 +87,19 @@ static void control_dtor(void *obj)
 {
 	struct stasis_app_control *control = obj;
 
+	ao2_cleanup(control->command_queue);
+
+	ast_channel_cleanup(control->channel);
+	ao2_cleanup(control->app);
+
+	ast_cond_destroy(&control->wait_cond);
 	AST_LIST_HEAD_DESTROY(&control->add_rules);
 	AST_LIST_HEAD_DESTROY(&control->remove_rules);
-
-	/* We may have a lingering silence generator; free it */
-	ast_channel_stop_silence_generator(control->channel, control->silgen);
-	control->silgen = NULL;
-
-	ao2_cleanup(control->command_queue);
-	ast_cond_destroy(&control->wait_cond);
-	ao2_cleanup(control->app);
 }
 
 struct stasis_app_control *control_create(struct ast_channel *channel, struct stasis_app *app)
 {
-	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+	struct stasis_app_control *control;
 	int res;
 
 	control = ao2_alloc(sizeof(*control), control_dtor);
@@ -109,28 +107,29 @@ struct stasis_app_control *control_create(struct ast_channel *channel, struct st
 		return NULL;
 	}
 
-	control->app = ao2_bump(app);
+	AST_LIST_HEAD_INIT(&control->add_rules);
+	AST_LIST_HEAD_INIT(&control->remove_rules);
 
 	res = ast_cond_init(&control->wait_cond, NULL);
 	if (res != 0) {
 		ast_log(LOG_ERROR, "Error initializing ast_cond_t: %s\n",
 			strerror(errno));
+		ao2_ref(control, -1);
 		return NULL;
 	}
+
+	control->app = ao2_bump(app);
+
+	ast_channel_ref(channel);
+	control->channel = channel;
 
 	control->command_queue = ao2_container_alloc_list(
 		AO2_ALLOC_OPT_LOCK_MUTEX, 0, NULL, NULL);
-
 	if (!control->command_queue) {
+		ao2_ref(control, -1);
 		return NULL;
 	}
 
-	control->channel = channel;
-
-	AST_LIST_HEAD_INIT(&control->add_rules);
-	AST_LIST_HEAD_INIT(&control->remove_rules);
-
-	ao2_ref(control, +1);
 	return control;
 }
 
@@ -785,8 +784,7 @@ void stasis_app_control_silence_start(struct stasis_app_control *control)
 	stasis_app_send_command_async(control, app_control_silence_start, NULL, NULL);
 }
 
-static int app_control_silence_stop(struct stasis_app_control *control,
-	struct ast_channel *chan, void *data)
+void control_silence_stop_now(struct stasis_app_control *control)
 {
 	if (control->silgen) {
 		ast_debug(3, "%s: Stopping silence generator\n",
@@ -795,7 +793,12 @@ static int app_control_silence_stop(struct stasis_app_control *control,
 			control->channel, control->silgen);
 		control->silgen = NULL;
 	}
+}
 
+static int app_control_silence_stop(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
+{
+	control_silence_stop_now(control);
 	return 0;
 }
 
