@@ -108,5 +108,13 @@ int control_add_channel_to_bridge(
 	struct stasis_app_control *control,
 	struct ast_channel *chan, void *obj);
 
+/*!
+ * \brief Stop playing silence to a channel right now.
+ * \since 13.9.0
+ *
+ * \param control The control for chan
+ */
+void control_silence_stop_now(struct stasis_app_control *control);
+
 
 #endif /* _ASTERISK_RES_STASIS_CONTROL_H */
