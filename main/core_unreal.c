@@ -808,9 +808,11 @@ int ast_unreal_channel_push_to_bridge(struct ast_channel *ast, struct ast_bridge
 		return -1;
 	}
 
+	/* The bridge thread now controls the chan ref from the ast_unreal_pvt */
 	ao2_lock(p);
 	ast_set_flag(p, AST_UNREAL_CARETAKER_THREAD);
 	ao2_unlock(p);
+
 	ast_channel_unref(chan);
 
 	return 0;
