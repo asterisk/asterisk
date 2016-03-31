@@ -440,6 +440,16 @@ int stasis_app_control_is_done(
 	struct stasis_app_control *control);
 
 /*!
+ * \brief Flush the control command queue.
+ * \since 13.9.0
+ *
+ * \param control Control object to flush command queue.
+ *
+ * \return Nothing
+ */
+void stasis_app_control_flush_queue(struct stasis_app_control *control);
+
+/*!
  * \brief Returns the uniqueid of the channel associated with this control
  *
  * \param control Control object.

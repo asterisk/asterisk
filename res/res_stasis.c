@@ -1179,6 +1179,11 @@ int stasis_app_control_is_done(struct stasis_app_control *control)
 	return control_is_done(control);
 }
 
+void stasis_app_control_flush_queue(struct stasis_app_control *control)
+{
+	control_flush_queue(control);
+}
+
 struct ast_datastore_info set_end_published_info = {
 	.type = "stasis_end_published",
 };
@@ -1370,6 +1375,8 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 	} else {
 		remove_stasis_end_published(chan);
 	}
+
+	control_flush_queue(control);
 
 	/* Stop any lingering silence generator */
 	control_silence_stop_now(control);
