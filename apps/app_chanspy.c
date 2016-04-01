@@ -117,6 +117,10 @@ ASTERISK_REGISTER_FILE()
 						either a single group or a colon-delimited list of groups, such
 						as <literal>sales:support:accounting</literal>.</para></note>
 					</option>
+					<option name="l">
+						<para>Allow usage of a long queue to store audio frames.</para>
+						<note><para>This may introduce some delay in the received audio feed, but will improve the audio quality.</para></note>
+					</option>
 					<option name="n" argsep="@">
 						<para>Say the name of the person being spied on if that person has recorded
 						his/her name. If a context is specified, then that voicemail context will
@@ -262,6 +266,10 @@ ASTERISK_REGISTER_FILE()
 						either a single group or a colon-delimited list of groups, such
 						as <literal>sales:support:accounting</literal>.</para></note>
 					</option>
+					<option name="l">
+						<para>Allow usage of a long queue to store audio frames.</para>
+						<note><para>This may introduce some delay in the received audio feed, but will improve the audio quality.</para></note>
+					</option>
 					<option name="n" argsep="@">
 						<para>Say the name of the person being spied on if that person has recorded
 						his/her name. If a context is specified, then that voicemail context will
@@ -386,6 +394,7 @@ enum {
 	OPTION_STOP              = (1 << 17),
 	OPTION_EXITONHANGUP      = (1 << 18),   /* Hang up when the spied-on channel hangs up. */
 	OPTION_UNIQUEID          = (1 << 19),	/* The chanprefix is a channel uniqueid or fully specified channel name. */
+	OPTION_LONG_QUEUE        = (1 << 20),	/* Allow usage of a long queue to store audio frames. */
 };
 
 enum {
@@ -407,6 +416,7 @@ AST_APP_OPTIONS(spy_opts, {
 	AST_APP_OPTION_ARG('e', OPTION_ENFORCED, OPT_ARG_ENFORCED),
 	AST_APP_OPTION('E', OPTION_EXITONHANGUP),
 	AST_APP_OPTION_ARG('g', OPTION_GROUP, OPT_ARG_GROUP),
+	AST_APP_OPTION('l', OPTION_LONG_QUEUE),
 	AST_APP_OPTION_ARG('n', OPTION_NAME, OPT_ARG_NAME),
 	AST_APP_OPTION('o', OPTION_READONLY),
 	AST_APP_OPTION('q', OPTION_QUIET),
@@ -496,11 +506,17 @@ static struct ast_generator spygen = {
 	.generate = spy_generate,
 };
 
-static int start_spying(struct ast_autochan *autochan, const char *spychan_name, struct ast_audiohook *audiohook)
+static int start_spying(struct ast_autochan *autochan, const char *spychan_name, struct ast_audiohook *audiohook, struct ast_flags *flags)
 {
 	ast_log(LOG_NOTICE, "Attaching %s to %s\n", spychan_name, ast_channel_name(autochan->chan));
-
-	ast_set_flag(audiohook, AST_AUDIOHOOK_TRIGGER_SYNC | AST_AUDIOHOOK_SMALL_QUEUE);
+	if(!ast_test_flag(flags, OPTION_READONLY)) {
+		ast_set_flag(audiohook, AST_AUDIOHOOK_TRIGGER_SYNC);
+	}
+	if(ast_test_flag(flags, OPTION_LONG_QUEUE)) {
+		ast_debug(9, "Using a long queue to store audio frames in spy audiohook\n");
+	} else {
+		ast_set_flag(audiohook, AST_AUDIOHOOK_SMALL_QUEUE);
+	}
 	return ast_audiohook_attach(autochan->chan, audiohook);
 }
 
@@ -581,7 +597,7 @@ static void publish_chanspy_message(struct ast_channel *spyer,
 
 static int attach_barge(struct ast_autochan *spyee_autochan,
 	struct ast_autochan **spyee_bridge_autochan, struct ast_audiohook *bridge_whisper_audiohook,
-	const char *spyer_name, const char *name)
+	const char *spyer_name, const char *name, struct ast_flags *flags)
 {
 	int retval = 0;
 	struct ast_autochan *internal_bridge_autochan;
@@ -599,7 +615,7 @@ static int attach_barge(struct ast_autochan *spyee_autochan,
 	}
 
 	ast_autochan_channel_lock(internal_bridge_autochan);
-	if (start_spying(internal_bridge_autochan, spyer_name, bridge_whisper_audiohook)) {
+	if (start_spying(internal_bridge_autochan, spyer_name, bridge_whisper_audiohook, flags)) {
 		ast_log(LOG_WARNING, "Unable to attach barge audiohook on spyee '%s'. Barge mode disabled.\n", name);
 		retval = -1;
 	}
@@ -647,7 +663,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 	*/
 	ast_audiohook_init(&csth.spy_audiohook, AST_AUDIOHOOK_TYPE_SPY, "ChanSpy", 0);
 
-	if (start_spying(spyee_autochan, spyer_name, &csth.spy_audiohook)) {
+	if (start_spying(spyee_autochan, spyer_name, &csth.spy_audiohook, flags)) {
 		ast_audiohook_destroy(&csth.spy_audiohook);
 		return 0;
 	}
@@ -658,7 +674,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 		*/
 		ast_audiohook_init(&csth.whisper_audiohook, AST_AUDIOHOOK_TYPE_WHISPER, "ChanSpy", 0);
 
-		if (start_spying(spyee_autochan, spyer_name, &csth.whisper_audiohook)) {
+		if (start_spying(spyee_autochan, spyer_name, &csth.whisper_audiohook, flags)) {
 			ast_log(LOG_WARNING, "Unable to attach whisper audiohook to spyee %s. Whisper mode disabled!\n", name);
 		}
 	}
@@ -710,7 +726,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 			 * be attached and we'll need to continue attempting to attach the barge
 			 * audio hook. */
 			if (!bridge_connected && attach_barge(spyee_autochan, &spyee_bridge_autochan,
-					&csth.bridge_whisper_audiohook, spyer_name, name) == 0) {
+					&csth.bridge_whisper_audiohook, spyer_name, name, flags) == 0) {
 				bridge_connected = 1;
 			}
 
