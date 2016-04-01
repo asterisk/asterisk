@@ -990,8 +990,26 @@ struct ast_sip_contact *ast_sip_location_retrieve_first_aor_contact(const struct
  *
  * \retval NULL if no contacts available
  * \retval non-NULL if contacts available
+ *
+ * \warning
+ * Since this function prunes expired contacts before returning, it holds a named write
+ * lock on the aor.  If you already hold the lock, call ast_sip_location_retrieve_aor_contacts_nolock instead.
  */
 struct ao2_container *ast_sip_location_retrieve_aor_contacts(const struct ast_sip_aor *aor);
+
+/*!
+ * \brief Retrieve all contacts currently available for an AOR without locking the AOR
+ * \since 13.9.0
+ *
+ * \param aor Pointer to the AOR
+ *
+ * \retval NULL if no contacts available
+ * \retval non-NULL if contacts available
+ *
+ * \warning
+ * This function should only be called if you already hold a named write lock on the aor.
+ */
+struct ao2_container *ast_sip_location_retrieve_aor_contacts_nolock(const struct ast_sip_aor *aor);
 
 /*!
  * \brief Retrieve the first bound contact from a list of AORs
@@ -1043,8 +1061,33 @@ struct ast_sip_contact *ast_sip_location_retrieve_contact(const char *contact_na
  *
  * \retval -1 failure
  * \retval 0 success
+ *
+ * \warning
+ * This function holds a named write lock on the aor.  If you already hold the lock
+ * you should call ast_sip_location_add_contact_nolock instead.
  */
 int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri,
+	struct timeval expiration_time, const char *path_info, const char *user_agent,
+	struct ast_sip_endpoint *endpoint);
+
+/*!
+ * \brief Add a new contact to an AOR without locking the AOR
+ * \since 13.9.0
+ *
+ * \param aor Pointer to the AOR
+ * \param uri Full contact URI
+ * \param expiration_time Optional expiration time of the contact
+ * \param path_info Path information
+ * \param user_agent User-Agent header from REGISTER request
+ * \param endpoint The endpoint that resulted in the contact being added
+ *
+ * \retval -1 failure
+ * \retval 0 success
+ *
+ * \warning
+ * This function should only be called if you already hold a named write lock on the aor.
+ */
+int ast_sip_location_add_contact_nolock(struct ast_sip_aor *aor, const char *uri,
 	struct timeval expiration_time, const char *path_info, const char *user_agent,
 	struct ast_sip_endpoint *endpoint);
 
