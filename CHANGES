@@ -31,6 +31,13 @@ BridgeAdd
  * A new application in Asterisk, this will join the calling channel
    to an existing bridge containing the named channel prefix.
 
+ChanSpy
+------------------
+ * Added the 'l' option, which forces ChanSpy's audiohook to use a long queue
+   to store the audio frames. This option is useful if audio loss is
+   experienced when using ChanSpy, but may introduce some delay in the audio
+   feed on the listening channel.
+
 ConfBridge
 ------------------
  * Added the ability to pass options to MixMonitor when recording is used with
