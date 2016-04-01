@@ -29,6 +29,7 @@
 #include "asterisk/res_pjsip.h"
 #include "asterisk/module.h"
 #include "asterisk/sched.h"
+#include "asterisk/named_locks.h"
 
 #define CONTACT_AUTOEXPIRE_BUCKETS 977
 
@@ -121,13 +122,60 @@ static int contact_expiration_cmp(void *obj, void *arg, int flags)
 static int contact_expiration_expire(const void *data)
 {
 	struct contact_expiration *expiration = (void *) data;
+	struct ast_sip_contact *fresh_contact;
+	struct ast_named_lock *lock;
+	int reschedule_time = 0;
 
-	expiration->sched = -1;
+	lock = ast_named_lock_get(AST_NAMED_LOCK_TYPE_RWLOCK, "aor", expiration->contact->aor);
+	if (!lock) {
+		/* Uh Oh.  Just expire the contact and don't be nice about it. */
+		expiration->sched = -1;
+		ast_sip_location_delete_contact(expiration->contact);
+		ao2_ref(expiration, -1);
+		return 0;
+	}
 
-	/* This will end up invoking the deleted observer callback, which will perform the unlinking and such */
-	ast_sorcery_delete(ast_sip_get_sorcery(), expiration->contact);
-	ao2_ref(expiration, -1);
-	return 0;
+	/*
+	 * We need to check the expiration again with the aor lock held
+	 * in case another thread is attempting to renew the contact.
+	 */
+	ao2_wrlock(lock);
+
+	fresh_contact = ast_sip_location_retrieve_contact(
+		ast_sorcery_object_get_id(expiration->contact));
+	if (fresh_contact) {
+		int expires;
+
+		expires = ast_tvdiff_ms(fresh_contact->expiration_time, ast_tvnow());
+		if (0 < expires) {
+			/* We need to reschedule for the new expiration time. */
+			reschedule_time = expires;
+		} else {
+			/*
+			 * Contact is expired.
+			 *
+			 * This will end up invoking the deleted observer callback,
+			 * which will perform the unlinking and such.
+			 */
+			expiration->sched = -1;
+			ast_sip_location_delete_contact(fresh_contact);
+			ao2_ref(expiration, -1);
+		}
+		ao2_ref(fresh_contact, -1);
+	} else {
+		/*
+		 * The object no longer exists in sorcery since we
+		 * could not get a fresh copy.
+		 */
+		expiration->sched = -1;
+		ast_sip_location_delete_contact(expiration->contact);
+		ao2_ref(expiration, -1);
+	}
+
+	ao2_unlock(lock);
+	ast_named_lock_put(lock);
+
+	return reschedule_time;
 }
 
 /*! \brief Observer callback for when a contact is created */
@@ -151,7 +199,9 @@ static void contact_expiration_observer_created(const void *object)
 	ao2_ref(expiration->contact, +1);
 
 	ao2_ref(expiration, +1);
-	if ((expiration->sched = ast_sched_add(sched, expires, contact_expiration_expire, expiration)) < 0) {
+	expiration->sched = ast_sched_add_variable(sched, expires, contact_expiration_expire,
+		expiration, 1);
+	if (expiration->sched < 0) {
 		ao2_ref(expiration, -1);
 		ast_log(LOG_ERROR, "Scheduled expiration for contact '%s' could not be performed, contact may persist past life\n",
 			ast_sorcery_object_get_id(contact));
@@ -174,8 +224,9 @@ static void contact_expiration_observer_updated(const void *object)
 		return;
 	}
 
-	AST_SCHED_REPLACE_UNREF(expiration->sched, sched, expires, contact_expiration_expire,
-		expiration, ao2_cleanup(expiration), ao2_cleanup(expiration), ao2_ref(expiration, +1));
+	AST_SCHED_REPLACE_VARIABLE_UNREF(expiration->sched, sched, expires,
+		contact_expiration_expire, expiration, 1,
+		ao2_cleanup(expiration), ao2_cleanup(expiration), ao2_ref(expiration, +1));
 	ao2_ref(expiration, -1);
 }
 
