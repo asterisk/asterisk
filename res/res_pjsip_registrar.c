@@ -429,9 +429,10 @@ static int rx_task(void *data)
 	char *user_agent = NULL;
 	pjsip_user_agent_hdr *user_agent_hdr;
 	pjsip_expires_hdr *expires_hdr;
+	RAII_VAR(struct ast_named_lock *, lock, ast_named_lock_wrlock("aor", aor_name), ast_named_lock_unlock);
 
 	/* Retrieve the current contacts, we'll need to know whether to update or not */
-	contacts = ast_sip_location_retrieve_aor_contacts(task_data->aor);
+	contacts = ast_sip_location_retrieve_aor_contacts_nolock(task_data->aor);
 
 	/* So we don't count static contacts against max_contacts we prune them out from the container */
 	ao2_callback(contacts, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, registrar_prune_static, NULL);
@@ -503,7 +504,7 @@ static int rx_task(void *data)
 				continue;
 			}
 
-			if (ast_sip_location_add_contact(task_data->aor, contact_uri, ast_tvadd(ast_tvnow(),
+			if (ast_sip_location_add_contact_nolock(task_data->aor, contact_uri, ast_tvadd(ast_tvnow(),
 				ast_samp2tv(expiration, 1)), path_str ? ast_str_buffer(path_str) : NULL,
 					user_agent, task_data->endpoint)) {
 				ast_log(LOG_ERROR, "Unable to bind contact '%s' to AOR '%s'\n",
@@ -545,7 +546,7 @@ static int rx_task(void *data)
 			if (ast_sip_location_update_contact(contact_update)) {
 				ast_log(LOG_ERROR, "Failed to update contact '%s' expiration time to %d seconds.\n",
 					contact->uri, expiration);
-				ast_sorcery_delete(ast_sip_get_sorcery(), contact);
+				ast_sip_location_delete_contact(contact);
 				continue;
 			}
 			ast_debug(3, "Refreshed contact '%s' on AOR '%s' with new expiration of %d seconds\n",
@@ -587,7 +588,7 @@ static int rx_task(void *data)
 	/* Update the contacts as things will probably have changed */
 	ao2_cleanup(contacts);
 
-	contacts = ast_sip_location_retrieve_aor_contacts(task_data->aor);
+	contacts = ast_sip_location_retrieve_aor_contacts_nolock(task_data->aor);
 	response_contact = ao2_callback(contacts, 0, NULL, NULL);
 
 	/* Send a response containing all of the contacts (including static) that are present on this AOR */

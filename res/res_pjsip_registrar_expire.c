@@ -41,8 +41,16 @@ static unsigned int check_interval;
 static int expire_contact(void *obj, void *arg, int flags)
 {
 	struct ast_sip_contact *contact = obj;
+	struct ast_named_lock *lock = ast_named_lock_wrlock("aor", contact->aor);
 
-	ast_sorcery_delete(ast_sip_get_sorcery(), contact);
+	/*
+	 * We need to check the expiration again with the aor lock held
+	 * in case another thread is attempting to renew the contact.
+	 */
+	if (ast_tvdiff_ms(ast_tvnow(), contact->expiration_time) > 0) {
+		ast_sip_location_delete_contact(contact);
+	}
+	ast_named_lock_unlock(lock);
 
 	return 0;
 }
