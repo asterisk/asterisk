@@ -1158,7 +1158,7 @@ static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_
 			"Usage: core show locks\n"
 			"       This command is for lock debugging.  It prints out which locks\n"
 			"are owned by each active thread.\n";
-		ast_cli_allow_on_shutdown(e);
+		ast_cli_allow_at_shutdown(e);
 		return NULL;
 
 	case CLI_GENERATE:
