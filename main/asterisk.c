@@ -4339,6 +4339,11 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 		exit(1);
 	}
 
+	if (ast_lock_init()) {
+		printf("Failed: ast_lock_init\n%s", term_quit());
+		exit(1);
+	}
+
 	if (ast_opt_console) {
 		if (el_hist == NULL || el == NULL)
 			ast_el_initialize();
