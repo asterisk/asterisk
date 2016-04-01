@@ -29,8 +29,10 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/astobj2.h"
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
+#include "asterisk/_private.h"
 
 /* Allow direct use of pthread_mutex_* / pthread_cond_* */
 #undef pthread_mutex_init
@@ -1356,4 +1358,162 @@ int __ast_rwlock_trywrlock(const char *filename, int line, const char *func, ast
 #endif /* DEBUG_THREADS */
 
 	return res;
+}
+
+struct ao2_container *named_locks;
+#define NAMED_LOCKS_BUCKETS 101
+
+struct ast_named_lock {
+	char key[0];
+};
+
+static int named_locks_hash(const void *obj, const int flags)
+{
+	const struct ast_named_lock *lock = obj;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		return ast_str_hash(obj);
+	case OBJ_SEARCH_OBJECT:
+		return ast_str_hash(lock->key);
+	default:
+		/* Hash can only work on something with a full key. */
+		ast_assert(0);
+		return 0;
+	}
+}
+
+static int named_locks_cmp(void *obj_left, void *obj_right, int flags)
+{
+	const struct ast_named_lock *object_left = obj_left;
+	const struct ast_named_lock *object_right = obj_right;
+	const char *right_key = obj_right;
+	int cmp;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = object_right->key;
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(object_left->key, right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		cmp = strncmp(object_left->key, right_key, strlen(right_key));
+		break;
+	default:
+		cmp = 0;
+		break;
+	}
+
+	return cmp ? 0 : CMP_MATCH;
+}
+
+int ast_lock_init(void)
+{
+	named_locks = ao2_container_alloc_hash(0, 0, NAMED_LOCKS_BUCKETS, named_locks_hash, NULL, named_locks_cmp);
+	if (!named_locks) {
+		return -1;
+	}
+
+	return 0;
+}
+
+struct ast_named_lock *__ast_named_lock_lock(const char *filename, int lineno, const char *func,
+	enum ast_named_lock_req lock_how, const char *keyspace, const char *key)
+{
+	struct ast_named_lock *lock = NULL;
+	char *concat_key = ast_alloca(strlen(keyspace) + strlen(key) + 2);
+	int res = 0;
+
+	sprintf(concat_key, "%s-%s", keyspace, key);
+
+	ao2_lock(named_locks);
+	lock = ao2_find(named_locks, concat_key, OBJ_SEARCH_KEY | OBJ_NOLOCK);
+	if (!lock) {
+		lock = ao2_alloc_options(sizeof(*lock) + strlen(concat_key) + 1, NULL,
+			lock_how == AST_NAMED_LOCK_REQ_MUTEX ? AO2_ALLOC_OPT_LOCK_MUTEX : AO2_ALLOC_OPT_LOCK_RWLOCK);
+		strcpy(lock->key, concat_key); /* Safe */
+		ao2_link_flags(named_locks, lock, OBJ_NOLOCK);
+	}
+	ao2_unlock(named_locks);
+
+	switch (lock_how) {
+	case AST_NAMED_LOCK_REQ_MUTEX:
+		res = __ao2_lock(lock, AO2_LOCK_REQ_MUTEX, filename, func, lineno, concat_key);
+		break;
+	case AST_NAMED_LOCK_REQ_WRLOCK:
+		res = __ao2_lock(lock, AO2_LOCK_REQ_WRLOCK, filename, func, lineno, concat_key);
+		break;
+	case AST_NAMED_LOCK_REQ_RDLOCK:
+		res = __ao2_lock(lock, AO2_LOCK_REQ_RDLOCK, filename, func, lineno, concat_key);
+		break;
+	}
+
+	if (res) {
+		ao2_ref(lock, -1);
+		if (ao2_ref(lock, 0) == 1) {
+			ao2_unlink(named_locks, lock);
+		}
+		return NULL;
+	}
+
+	return lock;
+}
+
+struct ast_named_lock *__ast_named_lock_trylock(const char *filename, int lineno, const char *func,
+	enum ast_named_lock_req lock_how, const char *keyspace, const char *key)
+{
+	struct ast_named_lock *lock = NULL;
+	char *concat_key = ast_alloca(strlen(keyspace) + strlen(key) + 2);
+	int res = 0;
+
+	sprintf(concat_key, "%s-%s", keyspace, key);
+
+	ao2_lock(named_locks);
+	lock = ao2_find(named_locks, concat_key, OBJ_SEARCH_KEY | OBJ_NOLOCK);
+	if (!lock) {
+		lock = ao2_alloc_options(sizeof(*lock) + strlen(concat_key) + 1, NULL,
+			lock_how == AST_NAMED_LOCK_REQ_MUTEX ? AO2_ALLOC_OPT_LOCK_MUTEX : AO2_ALLOC_OPT_LOCK_RWLOCK);
+		strcpy(lock->key, concat_key); /* Safe */
+		ao2_link_flags(named_locks, lock, OBJ_NOLOCK);
+	}
+	ao2_unlock(named_locks);
+
+	switch (lock_how) {
+	case AST_NAMED_LOCK_REQ_MUTEX:
+		res = __ao2_trylock(lock, AO2_LOCK_REQ_MUTEX, filename, func, lineno, concat_key);
+		break;
+	case AST_NAMED_LOCK_REQ_WRLOCK:
+		res = __ao2_trylock(lock, AO2_LOCK_REQ_WRLOCK, filename, func, lineno, concat_key);
+		break;
+	case AST_NAMED_LOCK_REQ_RDLOCK:
+		res = __ao2_trylock(lock, AO2_LOCK_REQ_RDLOCK, filename, func, lineno, concat_key);
+		break;
+	}
+
+	if (res) {
+		ao2_ref(lock, -1);
+		if (ao2_ref(lock, 0) == 1) {
+			ao2_unlink(named_locks, lock);
+		}
+		return NULL;
+	}
+
+	return lock;
+}
+
+int __ast_named_lock_unlock(const char *filename, int lineno, const char *func, struct ast_named_lock *lock)
+{
+	if (!lock || __ao2_unlock(lock, filename, func, lineno, lock->key)) {
+		return -1;
+	}
+
+	ao2_lock(named_locks);
+	ao2_ref(lock, -1);
+	if (ao2_ref(lock, 0) == 1) {
+		ao2_unlink_flags(named_locks, lock, OBJ_NOLOCK);
+	}
+	ao2_unlock(named_locks);
+
+	return 0;
 }

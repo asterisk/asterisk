@@ -751,4 +751,96 @@ AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
 })
 #endif
 
+/*!
+ * \defgroup named_locks Named mutex and read-write locks
+ * @{
+ * \page NamedLocks Named mutex and read-write locks
+ * \since 13.9.0
+ *
+ * Locking some objects like sorcery objects can be tricky because the underlying
+ * ao2 object may not be the same for all callers.  For instance, two threads that
+ * call ast_sorcery_retrieve_by_id on the same aor name might actually get 2 different
+ * ao2 objects if the underlying wizard had to rehydrate the aor from a database.
+ * Locking one ao2 object doesn't have any effect on the other.
+ *
+ * Named locks allow access control by name.  Now an aor named "1000" can be locked and
+ * any other thread attempting to lock the aor named "1000" will wait regardless of whether
+ * the underlying ao2 object is the same or not.
+ */
+
+/*!
+ * \brief Which lock to request.
+ * \internal
+ */
+enum ast_named_lock_req {
+	/*! Request the mutex lock be acquired. */
+	AST_NAMED_LOCK_REQ_MUTEX,
+	/*! Request the read lock be acquired. */
+	AST_NAMED_LOCK_REQ_RDLOCK,
+	/*! Request the write lock be acquired. */
+	AST_NAMED_LOCK_REQ_WRLOCK,
+};
+
+struct ast_named_lock;
+struct ast_named_lock *__ast_named_lock_lock(const char *filename, int lineno, const char *func,
+	enum ast_named_lock_req lock_how, const char *keyspace, const char *key);
+struct ast_named_lock *__ast_named_lock_trylock(const char *filename, int lineno, const char *func,
+	enum ast_named_lock_req lock_how, const char *keyspace, const char *key);
+
+/*!
+ * \brief Create and/or lock by name
+ * \since 13.9.0
+ *
+ * \param keyspace
+ * \param key
+ * \retval A pointer to an ast_named_lock structure
+ * \retval NULL on error
+ *
+ * \note
+ * keyspace and key can be anything.  For sorcery objects, keyspace could be the object type
+ * and key could be the object id.
+ */
+#define ast_named_lock_lock(keyspace, key) \
+	__ast_named_lock_lock(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_NAMED_LOCK_REQ_MUTEX, keyspace, key)
+#define ast_named_lock_rdlock(keyspace, key) \
+	__ast_named_lock_lock(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_NAMED_LOCK_REQ_RDLOCK, keyspace, key)
+#define ast_named_lock_wrlock(keyspace, key) \
+	__ast_named_lock_lock(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_NAMED_LOCK_REQ_WRLOCK, keyspace, key)
+
+/*!
+ * \brief Try to create and/or lock by name (don't block if fail)
+ * \since 13.9.0
+ *
+ * \param keyspace
+ * \param key
+ * \retval A pointer to an ast_named_lock structure
+ * \retval NULL on error
+ *
+ * \note
+ * keyspace and key can be anything.  For sorcery objects, keyspace could be the object type
+ * and key could be the object id.
+ */
+#define ast_named_lock_trylock(keyspace, key) \
+	__ast_named_lock_trylock(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_NAMED_LOCK_REQ_MUTEX, keyspace, key)
+#define ast_named_lock_tryrdlock(keyspace, key) \
+	__ast_named_lock_trylock(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_NAMED_LOCK_REQ_RDLOCK, keyspace, key)
+#define ast_named_lock_trywrlock(keyspace, key) \
+	__ast_named_lock_trylock(__FILE__, __LINE__, __PRETTY_FUNCTION__, AST_NAMED_LOCK_REQ_WRLOCK, keyspace, key)
+
+/*!
+ * \brief Unlock a named lock
+ * \since 13.9.0
+ *
+ * \param lock The pointer to the ast_named_lock structure returned by one of the lock functions
+ * \retval 0 Success
+ * \retval -1 Failure
+ */
+#define ast_named_lock_unlock(lock) \
+	__ast_named_lock_unlock(__FILE__, __LINE__, __PRETTY_FUNCTION__, lock)
+int __ast_named_lock_unlock(const char *filename, int lineno, const char *func, struct ast_named_lock *lock);
+
+/*!
+ * @}
+ */
+
 #endif /* _ASTERISK_LOCK_H */
