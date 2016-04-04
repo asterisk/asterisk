@@ -339,6 +339,14 @@ struct ast_sip_subscription_handler {
 struct ast_sip_subscription *ast_sip_create_subscription(const struct ast_sip_subscription_handler *handler,
 		struct ast_sip_endpoint *endpoint, const char *resource);
 
+/*!
+ * \brief Get the pjsip dialog that is associated with this subscription
+ * \since 13.9.0
+ *
+ * \retval NULL Could not get dialog
+ * \retval non-NULL The dialog
+ */
+pjsip_dialog *ast_sip_subscription_get_dialog(struct ast_sip_subscription *sub);
 
 /*!
  * \brief Get the endpoint that is associated with this subscription
@@ -377,6 +385,18 @@ struct ast_taskprocessor *ast_sip_subscription_get_serializer(struct ast_sip_sub
  * \retval non-zero Failure
  */
 int ast_sip_subscription_notify(struct ast_sip_subscription *sub, struct ast_sip_body_data *notify_data, int terminate);
+
+/*!
+ * \brief Retrieve the local sip uri for this subscription
+ * \since 13.9.0
+ *
+ * This is the local sip URI of the subscribed resource.
+ *
+ * \param sub The subscription
+ * \retval NULL Could not get uri
+ * \retval non-NULL The local pjsip_sip_uri
+ */
+pjsip_sip_uri *ast_sip_subscription_get_sip_uri(struct ast_sip_subscription *sub);
 
 /*!
  * \brief Retrieve the local URI for this subscription
