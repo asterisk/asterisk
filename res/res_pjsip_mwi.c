@@ -459,7 +459,8 @@ static struct ast_sip_aor *find_aor_for_resource(struct ast_sip_endpoint *endpoi
 			continue;
 		}
 
-		if (!strcasecmp(check_aor->voicemail_extension, resource)) {
+		if (!ast_strlen_zero(check_aor->voicemail_extension)
+			&& !strcasecmp(check_aor->voicemail_extension, resource)) {
 			ast_debug(1, "Found an aor (%s) that matches voicemail_extension %s\n", aor_name, resource);
 			return check_aor;
 		}
