@@ -15,6 +15,11 @@
 chan_pjsip
 ------------------
  * Added 'pjsip show channelstats' CLI command.
+ 
+res_pjsip_outbound_publish
+------------------
+ * Added support for setting the transport used on outbound publish
+   using the transport configuration option.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.7.0 to Asterisk 13.8.0 ------------
