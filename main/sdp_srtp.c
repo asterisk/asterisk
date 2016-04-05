@@ -183,7 +183,7 @@ static int crypto_activate(struct ast_sdp_crypto *p, int suite_val, unsigned cha
 	}
 
 	/* Add the SRTP policies */
-	if (ast_rtp_instance_add_srtp_policy(rtp, remote_policy, local_policy)) {
+	if (ast_rtp_instance_add_srtp_policy(rtp, remote_policy, local_policy, 0)) {
 		ast_log(LOG_WARNING, "Could not set SRTP policies\n");
 		goto err;
 	}
