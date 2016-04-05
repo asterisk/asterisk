@@ -76,6 +76,18 @@ struct ast_dial *ast_dial_create(void);
  */
 int ast_dial_append(struct ast_dial *dial, const char *tech, const char *device, const struct ast_assigned_ids *assignedids);
 
+/*!
+ * \brief Append a channel using an actual channel object
+ *
+ * \param dial The ast_dial to add the channel to
+ * \param chan The channel to add to the dial
+ * \retval -1 Failure
+ * \retval non-zero The position of the channel in the list of dialed channels
+ *
+ * \note The chan ref is stolen with a successful return.
+ */
+int ast_dial_append_channel(struct ast_dial *dial, struct ast_channel *chan);
+
 /*! \brief Request all appended channels, but do not dial
  * \param dial Dialing structure
  * \param chan Optional dialing channel
