@@ -461,23 +461,6 @@ const char *stasis_app_control_get_channel_id(
 	const struct stasis_app_control *control);
 
 /*!
- * \brief Dial an endpoint and bridge it to a channel in \c res_stasis
- *
- * If the channel is no longer in \c res_stasis, this function does nothing.
- *
- * \param control Control for \c res_stasis
- * \param endpoint The endpoint to dial.
- * \param exten Extension to dial if no endpoint specified.
- * \param context Context to use with extension.
- * \param timeout The amount of time to wait for answer, before giving up.
- *
- * \return 0 for success
- * \return -1 for error.
- */
-int stasis_app_control_dial(struct stasis_app_control *control, const char *endpoint, const char *exten,
-                            const char *context, int timeout);
-
-/*!
  * \brief Apply a bridge role to a channel controlled by a stasis app control
  *
  * \param control Control for \c res_stasis
@@ -871,6 +854,20 @@ int stasis_app_channel_unreal_set_internal(struct ast_channel *chan);
  * \retval non-zero Failure
  */
 int stasis_app_channel_set_internal(struct ast_channel *chan);
+
+struct ast_dial;
+
+/*!
+ * \brief Dial a channel
+ * \param control Control for \c res_stasis.
+ * \param dial The ast_dial for the outbound channel
+ */
+int stasis_app_control_dial(struct stasis_app_control *control, struct ast_dial *dial);
+
+/*!
+ * \brief Get dial structure on a control
+ */
+struct ast_dial *stasis_app_get_dial(struct stasis_app_control *control);
 
 /*! @} */
 

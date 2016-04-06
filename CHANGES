@@ -20,6 +20,9 @@ ARI
  allows for an application writer to create a channel, perform manipulations on it,
  and then delay dialing the channel until later.
 
+ * To complement the "create" method, a "dial" method has been added to the channels
+ resource in order to place a call to a created channel.
+
 Applications
 ------------------
 
