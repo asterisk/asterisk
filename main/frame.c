@@ -320,11 +320,10 @@ struct ast_frame *ast_frdup(const struct ast_frame *f)
 	}
 
 	out->frametype = f->frametype;
+	out->subclass = f->subclass;
 	if ((f->frametype == AST_FRAME_VOICE) || (f->frametype == AST_FRAME_VIDEO) ||
 		(f->frametype == AST_FRAME_IMAGE)) {
-		out->subclass.format = ao2_bump(f->subclass.format);
-	} else {
-		memcpy(&out->subclass, &f->subclass, sizeof(out->subclass));
+		ao2_bump(out->subclass.format);
 	}
 	out->datalen = f->datalen;
 	out->samples = f->samples;
