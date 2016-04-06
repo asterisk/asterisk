@@ -369,10 +369,10 @@ int ast_sip_initialize_sorcery_global(void)
 		DEFAULT_VOICEMAIL_EXTENSION, OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config,
 		default_voicemail_extension));
 	ast_sorcery_object_field_register(sorcery, "global", "regcontext", DEFAULT_REGCONTEXT,
-		OPT_UINT_T, 0, FLDSET(struct global_config, contact_expiration_check_interval));
+		OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, regcontext));
 	ast_sorcery_object_field_register(sorcery, "global", "contact_expiration_check_interval",
 		__stringify(DEFAULT_CONTACT_EXPIRATION_CHECK_INTERVAL),
-		OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, regcontext));
+		OPT_UINT_T, 0, FLDSET(struct global_config, contact_expiration_check_interval));
 
 	if (ast_sorcery_instance_observer_add(sorcery, &observer_callbacks_global)) {
 		return -1;
