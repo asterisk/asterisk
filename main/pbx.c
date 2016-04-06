@@ -3231,8 +3231,7 @@ static int execute_state_callback(ast_state_cb_type cb,
 		info.exten_state = AST_EXTENSION_REMOVED;
 	}
 
-	/* NOTE: The casts will not be needed for v10 and later */
-	res = cb((char *) context, (char *) exten, &info, data);
+	res = cb(context, exten, &info, data);
 
 	return res;
 }

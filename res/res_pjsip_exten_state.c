@@ -191,8 +191,9 @@ static void notify_task_data_destructor(void *obj)
 	ast_free(task_data->exten_state_data.user_agent);
 }
 
-static struct notify_task_data *alloc_notify_task_data(char *exten, struct exten_state_subscription *exten_state_sub,
-						       struct ast_state_cb_info *info)
+static struct notify_task_data *alloc_notify_task_data(const char *exten,
+	struct exten_state_subscription *exten_state_sub,
+	struct ast_state_cb_info *info)
 {
 	struct notify_task_data *task_data =
 		ao2_alloc(sizeof(*task_data), notify_task_data_destructor);
@@ -270,8 +271,8 @@ static int notify_task(void *obj)
  *
  * Upon state change, send the appropriate notification to the subscriber.
  */
-static int state_changed(char *context, char *exten,
-			 struct ast_state_cb_info *info, void *data)
+static int state_changed(const char *context, const char *exten,
+	struct ast_state_cb_info *info, void *data)
 {
 	struct notify_task_data *task_data;
 	struct exten_state_subscription *exten_state_sub = data;
