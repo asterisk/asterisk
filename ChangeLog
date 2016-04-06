@@ -1,6 +1,30 @@
-2016-04-06 14:19 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2016-04-06 16:01 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.8-cert1-rc1 Released.
+
+2016-04-06 10:27 +0000 [4fa3428247]  Joshua Colp <jcolp@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-04-06 10:27 +0000 [b418e14998]  Joshua Colp <jcolp@digium.com>
+
+	* .version: Update for certified/13.8-cert1-rc1
+
+2016-04-06 10:27 +0000 [69b6cf2368]  Joshua Colp <jcolp@digium.com>
+
+	* .lastclean: Update for certified/13.8-cert1-rc1
+
+2016-04-06 10:27 +0000 [847dc5c7d7]  Joshua Colp <jcolp@digium.com>
+
+	* realtime: Add database scripts for certified/13.8-cert1-rc1
+
+2016-04-06 09:20 +0000 [c23bf7c8df]  Joshua Colp <jcolp@digium.com>
+
+	* ChangeLog: Updated for certified/13.8-cert1-rc1
+
+2016-04-06 09:19 +0000 [4f94668022]  Joshua Colp <jcolp@digium.com>
+
+	* Release summaries: Add summaries for certified/13.8-cert1-rc1
 
 2016-04-06 08:47 +0000 [454daec0e1]  Joshua Colp <jcolp@digium.com>
 
@@ -41,6 +65,50 @@
 2016-04-06 07:52 +0000 [8ec588b8b1]  Joshua Colp <jcolp@digium.com>
 
 	* realtime: Add database scripts for certified/13.8-cert1-rc1
+
+2016-04-05 14:23 +0000 [4b87a773dc]  Mark Michelson <mmichelson@digium.com>
+
+	* res_pjsip: Handle deferred SDP hold/unhold properly.
+
+	  Some SIP devices indicate hold/unhold using deferred SDP reinvites. In
+	  other words, they provide no SDP in the reinvite.
+
+	  A typical transaction that starts hold might look something like this:
+
+	  * Device sends reinvite with no SDP
+	  * Asterisk sends 200 OK with SDP indicating sendrecv on streams.
+	  * Device sends ACK with SDP indicating sendonly on streams.
+
+	  At this point, PJMedia's SDP negotiator saves Asterisk's local state as
+	  being recvonly.
+
+	  Now, when the device attempts to unhold, it again uses a deferred SDP
+	  reinvite, so we end up doing the following:
+
+	  * Device sends reinvite with no SDP
+	  * Asterisk sends 200 OK with SDP indicating recvonly on streams
+	  * Device sends ACK with SDP indicating sendonly on streams
+
+	  The problem here is that Asterisk offered recvonly, and by RFC 3264's
+	  rules, if an offer is recvonly, the answer has to be sendonly. The
+	  result is that the device is not taken off hold.
+
+	  What is supposed to happen is that Asterisk should indicate sendrecv in
+	  the 200 OK that it sends. This way, the device has the freedom to
+	  indicate sendrecv if it wants the stream taken off hold, or it can
+	  continue to respond with sendonly if the purpose of the reinvite was
+	  something else (like a session timer refresher).
+
+	  The fix here is to alter the SDP negotiator's state when we receive a
+	  reinvite with no SDP. If the negotiator's state is currently in the
+	  recvonly or inactive state, then we alter our local state to be
+	  sendrecv. This way, we allow the device to indicate the stream state as
+	  desired.
+
+	  ASTERISK-25854 #close
+	  Reported by Robert McGilvray
+
+	  Change-Id: I7615737276165eef3a593038413d936247dcc6ed
 
 2016-04-05 09:06 +0000 [c29e2e3fb7]  Joshua Colp <jcolp@digium.com>
 
