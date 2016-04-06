@@ -1,6 +1,30 @@
-2016-04-06 13:25 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2016-04-06 14:19 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.8-cert1-rc1 Released.
+
+2016-04-06 08:47 +0000 [454daec0e1]  Joshua Colp <jcolp@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-04-06 08:47 +0000 [4ba2b5e92c]  Joshua Colp <jcolp@digium.com>
+
+	* .version: Update for certified/13.8-cert1-rc1
+
+2016-04-06 08:47 +0000 [e6f27ca09c]  Joshua Colp <jcolp@digium.com>
+
+	* .lastclean: Update for certified/13.8-cert1-rc1
+
+2016-04-06 08:47 +0000 [08dbdd5996]  Joshua Colp <jcolp@digium.com>
+
+	* realtime: Add database scripts for certified/13.8-cert1-rc1
+
+2016-04-06 08:26 +0000 [ec7a89771d]  Joshua Colp <jcolp@digium.com>
+
+	* ChangeLog: Updated for certified/13.8-cert1-rc1
+
+2016-04-06 08:25 +0000 [ffcb651205]  Joshua Colp <jcolp@digium.com>
+
+	* Release summaries: Add summaries for certified/13.8-cert1-rc1
 
 2016-04-06 07:52 +0000 [97499f717a]  Joshua Colp <jcolp@digium.com>
 
