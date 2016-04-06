@@ -323,6 +323,7 @@ struct ast_frame *ast_frdup(const struct ast_frame *f)
 	if ((f->frametype == AST_FRAME_VOICE) || (f->frametype == AST_FRAME_VIDEO) ||
 		(f->frametype == AST_FRAME_IMAGE)) {
 		out->subclass.format = ao2_bump(f->subclass.format);
+		out->subclass.frame_ending = f->subclass.frame_ending;
 	} else {
 		memcpy(&out->subclass, &f->subclass, sizeof(out->subclass));
 	}
