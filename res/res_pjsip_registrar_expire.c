@@ -91,6 +91,7 @@ static void expiration_global_loaded(const char *object_type)
 	} else {
 		if (check_thread != AST_PTHREADT_NULL) {
 			pthread_kill(check_thread, SIGURG);
+			pthread_join(check_thread, NULL);
 			check_thread = AST_PTHREADT_NULL;
 			ast_debug(3, "Interval = 0, shutting thread down\n");
 		}
@@ -105,7 +106,10 @@ static struct ast_sorcery_observer expiration_global_observer = {
 static int unload_module(void)
 {
 	if (check_thread != AST_PTHREADT_NULL) {
+		check_interval = 0;
 		pthread_kill(check_thread, SIGURG);
+		pthread_join(check_thread, NULL);
+
 		check_thread = AST_PTHREADT_NULL;
 	}
 
