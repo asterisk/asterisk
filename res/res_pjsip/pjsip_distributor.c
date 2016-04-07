@@ -22,6 +22,8 @@
 
 #include "asterisk/res_pjsip.h"
 #include "asterisk/acl.h"
+/* Needed for SUBSCRIBE, NOTIFY, and PUBLISH method definitions */
+#include <pjsip_simple.h>
 #include "include/res_pjsip_private.h"
 #include "asterisk/taskprocessor.h"
 #include "asterisk/threadpool.h"
@@ -360,14 +362,16 @@ struct ast_sip_endpoint *ast_sip_get_artificial_endpoint(void)
 	return artificial_endpoint;
 }
 
-static void log_unidentified_request(pjsip_rx_data *rdata)
+static void log_failed_request(pjsip_rx_data *rdata, char *msg)
 {
 	char from_buf[PJSIP_MAX_URL_SIZE];
 	char callid_buf[PJSIP_MAX_URL_SIZE];
+	char method_buf[PJSIP_MAX_URL_SIZE];
 	pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, rdata->msg_info.from->uri, from_buf, PJSIP_MAX_URL_SIZE);
 	ast_copy_pj_str(callid_buf, &rdata->msg_info.cid->id, PJSIP_MAX_URL_SIZE);
-	ast_log(LOG_NOTICE, "Request from '%s' failed for '%s:%d' (callid: %s) - No matching endpoint found\n",
-		from_buf, rdata->pkt_info.src_name, rdata->pkt_info.src_port, callid_buf);
+	ast_copy_pj_str(method_buf, &rdata->msg_info.msg->line.req.method.name, PJSIP_MAX_URL_SIZE);
+	ast_log(LOG_NOTICE, "Request '%s' from '%s' failed for '%s:%d' (callid: %s) - %s\n",
+		method_buf, from_buf, rdata->pkt_info.src_name, rdata->pkt_info.src_port, callid_buf, msg);
 }
 
 static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata)
@@ -398,8 +402,11 @@ static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata)
 			ast_copy_pj_str(name, &sip_from->user, sizeof(name));
 		}
 
-		log_unidentified_request(rdata);
-		ast_sip_report_invalid_endpoint(name, rdata);
+		if (pjsip_method_cmp(&rdata->msg_info.msg->line.req.method, &pjsip_options_method) &&
+		    pjsip_method_cmp(&rdata->msg_info.msg->line.req.method, &pjsip_notify_method)) {
+			log_failed_request(rdata, "No matching endpoint found");
+			ast_sip_report_invalid_endpoint(name, rdata);
+		}
 	}
 	rdata->endpt_info.mod_data[endpoint_mod.id] = endpoint;
 	return PJ_FALSE;
@@ -508,11 +515,17 @@ static pj_bool_t authenticate(pjsip_rx_data *rdata)
 			pjsip_tx_data_dec_ref(tdata);
 			return PJ_FALSE;
 		case AST_SIP_AUTHENTICATION_FAILED:
-			ast_sip_report_auth_failed_challenge_response(endpoint, rdata);
+			if (endpoint!=artificial_endpoint) {
+				log_failed_request(rdata, "Failed to authenticate");
+				ast_sip_report_auth_failed_challenge_response(endpoint, rdata);
+			}
 			pjsip_endpt_send_response2(ast_sip_get_pjsip_endpoint(), rdata, tdata, NULL, NULL);
 			return PJ_TRUE;
 		case AST_SIP_AUTHENTICATION_ERROR:
-			ast_sip_report_auth_failed_challenge_response(endpoint, rdata);
+			if (endpoint!=artificial_endpoint) {
+				log_failed_request(rdata, "Error to authenticate");
+				ast_sip_report_auth_failed_challenge_response(endpoint, rdata);
+			}
 			pjsip_tx_data_dec_ref(tdata);
 			pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
 			return PJ_TRUE;
