@@ -22,10 +22,7 @@ def upgrade():
 
 
 def downgrade():
-    with op.batch_alter_table('ps_globals') as batch_op:
-        batch_op.drop_column('default_voicemail_extension')
-    with op.batch_alter_table('ps_aors') as batch_op:
-        batch_op.drop_column('voicemail_extension')
-    with op.batch_alter_table('ps_endpoints') as batch_op:
-        batch_op.drop_column('voicemail_extension')
-        batch_op.drop_column('mwi_subscribe_replaces_unsolicited')
+    op.drop_column('ps_globals', 'default_voicemail_extension')
+    op.drop_column('ps_aors', 'voicemail_extension')
+    op.drop_column('ps_endpoints', 'voicemail_extension')
+    op.drop_column('ps_endpoints', 'mwi_subscribe_replaces_unsolicited')

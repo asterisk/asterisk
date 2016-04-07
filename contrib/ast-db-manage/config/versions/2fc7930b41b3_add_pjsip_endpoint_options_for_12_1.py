@@ -120,17 +120,15 @@ def upgrade():
     op.create_index('ps_registrations_id', 'ps_registrations', ['id'])
 
     ########################## add columns ###########################
-    with op.batch_alter_table('ps_endpoints') as batch_op:
     # new columns for endpoints
-        batch_op.add_column(sa.Column('media_address', sa.String(40)))
-        batch_op.add_column(sa.Column('redirect_method',
-                                            pjsip_redirect_method_values))
-        batch_op.add_column(sa.Column('set_var', sa.Text()))
+    op.add_column('ps_endpoints', sa.Column('media_address', sa.String(40)))
+    op.add_column('ps_endpoints', sa.Column('redirect_method',
+        pjsip_redirect_method_values))
+    op.add_column('ps_endpoints', sa.Column('set_var', sa.Text()))
 
     # rename mwi_fromuser to mwi_from_user
-        batch_op.alter_column('mwi_fromuser',
-                    new_column_name='mwi_from_user',
-                    existing_type=sa.String(40))
+    op.alter_column('ps_endpoints', 'mwi_fromuser',
+        new_column_name='mwi_from_user', existing_type=sa.String(40))
 
     # new columns for contacts
     op.add_column('ps_contacts', sa.Column('outbound_proxy', sa.String(40)))
@@ -144,23 +142,19 @@ def upgrade():
 def downgrade():
     ########################## drop columns ##########################
 
-    with op.batch_alter_table('ps_aors') as batch_op:
-        batch_op.drop_column('support_path')
-        batch_op.drop_column('outbound_proxy')
-        batch_op.drop_column('maximum_expiration')
+    op.drop_column('ps_aors', 'support_path')
+    op.drop_column('ps_aors', 'outbound_proxy')
+    op.drop_column('ps_aors', 'maximum_expiration')
 
-    with op.batch_alter_table('ps_contacts') as batch_op:
-        batch_op.drop_column('path')
-        batch_op.drop_column('outbound_proxy')
+    op.drop_column('ps_contacts', 'path')
+    op.drop_column('ps_contacts', 'outbound_proxy')
 
-    with op.batch_alter_table('ps_endpoints') as batch_op:
-        batch_op.alter_column('mwi_from_user',
-                    new_column_name='mwi_fromuser',
-                    existing_type=sa.String(40))
+    op.alter_column('ps_endpoints', 'mwi_from_user',
+        new_column_name='mwi_fromuser', existing_type=sa.String(40))
 
-        batch_op.drop_column('set_var')
-        batch_op.drop_column('redirect_method')
-        batch_op.drop_column('media_address')
+    op.drop_column('ps_endpoints', 'set_var')
+    op.drop_column('ps_endpoints', 'redirect_method')
+    op.drop_column('ps_endpoints', 'media_address')
 
     ########################## drop tables ###########################
 

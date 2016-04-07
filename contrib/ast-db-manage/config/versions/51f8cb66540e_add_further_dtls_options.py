@@ -28,6 +28,5 @@ def upgrade():
     op.add_column('ps_endpoints', sa.Column('media_use_received_transport', yesno_values))
 
 def downgrade():
-    with op.batch_alter_table('ps_endpoints') as batch_op:
-        batch_op.drop_column('force_avp')
-        batch_op.drop_column('media_use_received_transport')
+    op.drop_column('ps_endpoints', 'force_avp')
+    op.drop_column('ps_endpoints', 'media_use_received_transport')

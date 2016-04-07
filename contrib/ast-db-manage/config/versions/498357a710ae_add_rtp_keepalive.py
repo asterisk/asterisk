@@ -19,5 +19,4 @@ def upgrade():
 
 
 def downgrade():
-    with op.batch_alter_table('ps_endpoints') as batch_op:
-        batch_op.drop_column('rtp_keepalive')
+    op.drop_column('ps_endpoints', 'rtp_keepalive')
