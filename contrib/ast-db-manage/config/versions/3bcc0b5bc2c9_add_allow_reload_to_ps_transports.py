@@ -22,5 +22,4 @@ def upgrade():
     op.add_column('ps_transports', sa.Column('allow_reload', yesno_values))
 
 def downgrade():
-    with op.batch_alter_table('ps_transports') as batch_op:
-        batch_op.drop_column('allow_reload')
+    op.drop_column('ps_transports', 'allow_reload')

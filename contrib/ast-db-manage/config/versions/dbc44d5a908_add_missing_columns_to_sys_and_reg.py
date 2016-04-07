@@ -29,8 +29,6 @@ def upgrade():
     op.add_column('ps_registrations', sa.Column('endpoint', sa.String(40)))
 
 def downgrade():
-    with op.batch_alter_table('ps_systems') as batch_op:
-        batch_op.drop_column('disable_tcp_switch')
-    with op.batch_alter_table('ps_registrations') as batch_op:
-        batch_op.drop_column('line')
-        batch_op.drop_column('endpoint')
+    op.drop_column('ps_systems', 'disable_tcp_switch')
+    op.drop_column('ps_registrations', 'line')
+    op.drop_column('ps_registrations', 'endpoint')

@@ -17,5 +17,4 @@ def upgrade():
     op.add_column('ps_endpoints', sa.Column('accountcode', sa.String(20)))
 
 def downgrade():
-    with op.batch_alter_table('ps_endpoints') as batch_op:
-        batch_op.drop_column('accountcode')
+    op.drop_column('ps_endpoints', 'accountcode')
