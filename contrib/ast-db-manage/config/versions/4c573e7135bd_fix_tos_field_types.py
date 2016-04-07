@@ -19,43 +19,35 @@ YESNO_NAME = 'yesno_values'
 YESNO_VALUES = ['yes', 'no']
 
 def upgrade():
-    with op.batch_alter_table('ps_endpoints') as batch_op:
-        batch_op.alter_column('tos_audio',
-                    type_=sa.String(10))
-        batch_op.alter_column('tos_video',
-                    type_=sa.String(10))
-        batch_op.drop_column('cos_audio')
-        batch_op.drop_column('cos_video')
-        batch_op.add_column(sa.Column('cos_audio', sa.Integer))
-        batch_op.add_column(sa.Column('cos_video', sa.Integer))
+    op.alter_column('ps_endpoints', 'tos_audio', type_=sa.String(10))
+    op.alter_column('ps_endpoints', 'tos_video', type_=sa.String(10))
+    op.drop_column('ps_endpoints', 'cos_audio')
+    op.drop_column('ps_endpoints', 'cos_video')
+    op.add_column('ps_endpoints', sa.Column('cos_audio', sa.Integer))
+    op.add_column('ps_endpoints', sa.Column('cos_video', sa.Integer))
 
-    with op.batch_alter_table('ps_transports') as batch_op:
-        batch_op.alter_column('tos',
-                    type_=sa.String(10))
+    op.alter_column('ps_transports', 'tos', type_=sa.String(10))
 
     # Can't cast YENO_VALUES to Integers, so dropping and adding is required
-        batch_op.drop_column('cos')
-
-        batch_op.add_column(sa.Column('cos', sa.Integer))
+    op.drop_column('ps_transports', 'cos')
+    op.add_column('ps_transports', sa.Column('cos', sa.Integer))
 
 def downgrade():
 
     yesno_values = ENUM(*YESNO_VALUES, name=YESNO_NAME, create_type=False)
 
     # Can't cast string to YESNO_VALUES, so dropping and adding is required
-    with op.batch_alter_table('ps_endpoints') as batch_op:
-        batch_op.drop_column('tos_audio')
-        batch_op.drop_column('tos_video')
-        batch_op.add_column(sa.Column('tos_audio', yesno_values))
-        batch_op.add_column(sa.Column('tos_video', yesno_values))
-        batch_op.drop_column('cos_audio')
-        batch_op.drop_column('cos_video')
-        batch_op.add_column(sa.Column('cos_audio', yesno_values))
-        batch_op.add_column(sa.Column('cos_video', yesno_values))
+    op.drop_column('ps_endpoints', 'tos_audio')
+    op.drop_column('ps_endpoints', 'tos_video')
+    op.add_column('ps_endpoints', sa.Column('tos_audio', yesno_values))
+    op.add_column('ps_endpoints', sa.Column('tos_video', yesno_values))
+    op.drop_column('ps_endpoints', 'cos_audio')
+    op.drop_column('ps_endpoints', 'cos_video')
+    op.add_column('ps_endpoints', sa.Column('cos_audio', yesno_values))
+    op.add_column('ps_endpoints', sa.Column('cos_video', yesno_values))
 
-    with op.batch_alter_table('ps_transports') as batch_op:
-        batch_op.drop_column('tos')
-        batch_op.add_column(sa.Column('tos', yesno_values))
+    op.drop_column('ps_transports', 'tos')
+    op.add_column('ps_transports', sa.Column('tos', yesno_values))
     # Can't cast integers to YESNO_VALUES, so dropping and adding is required
-        batch_op.drop_column('cos')
-        batch_op.add_column(sa.Column('cos', yesno_values))
+    op.drop_column('ps_transports', 'cos')
+    op.add_column('ps_transports', sa.Column('cos', yesno_values))
