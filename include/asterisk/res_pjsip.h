@@ -719,6 +719,10 @@ struct ast_sip_endpoint {
 	unsigned int usereqphone;
 	/*! Do we send messages for connected line updates for unanswered incoming calls immediately to this endpoint? */
 	unsigned int rpid_immediate;
+	/* Access control list */
+	struct ast_acl_list *acl;
+	/* Restrict what IPs are allowed in the Contact header (for registration) */
+	struct ast_acl_list *contact_acl;
 };
 
 /*!
