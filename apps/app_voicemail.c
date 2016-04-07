@@ -580,6 +580,8 @@ static AST_LIST_HEAD_STATIC(vmstates, vmstate);
 
 #define INTRO "vm-intro"
 
+#define MAX_MAIL_BODY_CONTENT_SIZE 134217728L // 128 Mbyte
+
 #define MAXMSG 100
 #define MAXMSGLIMIT 9999
 
@@ -3631,15 +3633,22 @@ static int save_body(BODY *body, struct vm_state *vms, char *section, char *form
 	if (!body || body == NIL)
 		return -1;
 
+	len=newlen=0;
 	ast_mutex_lock(&vms->lock);
 	body_content = mail_fetchbody(vms->mailstream, vms->msgArray[vms->curmsg], section, &len);
 	ast_mutex_unlock(&vms->lock);
-	if (body_content != NIL) {
+	if (len > MAX_MAIL_BODY_CONTENT_SIZE) {
+		ast_log(AST_LOG_ERROR,
+			"Msgno %ld, section %s. The body's content size %ld is huge (max %ld). User:%s, mailbox %s\n",
+			vms->msgArray[vms->curmsg], section, len, MAX_MAIL_BODY_CONTENT_SIZE, vms->imapuser, vms->username);
+		return -1;
+	}
+	if (body_content != NIL && len) {
 		snprintf(filename, sizeof(filename), "%s.%s", fn, format);
 		/* ast_debug(1, body_content); */
 		body_decoded = rfc822_base64((unsigned char *) body_content, len, &newlen);
 		/* If the body of the file is empty, return an error */
-		if (!newlen) {
+		if (!newlen || !body_decoded) {
 			return -1;
 		}
 		write_file(filename, (char *) body_decoded, newlen);
