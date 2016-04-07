@@ -622,12 +622,12 @@ static AST_LIST_HEAD_STATIC(vmstates, vmstate);
 #define OPERATOR_EXIT     300
 
 enum vm_box {
-	NEW_FOLDER,
-	OLD_FOLDER,
-	WORK_FOLDER,
-	FAMILY_FOLDER,
-	FRIENDS_FOLDER,
-	GREETINGS_FOLDER
+	NEW_FOLDER = 		0,
+	OLD_FOLDER =		1,
+	WORK_FOLDER =		2,
+	FAMILY_FOLDER =		3,
+	FRIENDS_FOLDER =	4,
+	GREETINGS_FOLDER =	-1
 };
 
 enum vm_option_flags {
