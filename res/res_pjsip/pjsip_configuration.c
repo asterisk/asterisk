@@ -265,6 +265,65 @@ static const struct ast_sorcery_observer endpoint_observers = {
 	.deleted = endpoint_deleted_observer,
 };
 
+static int endpoint_acl_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+	int error = 0;
+	int ignore;
+
+	if (ast_strlen_zero(var->value)) return 0;
+
+	if (!strncmp(var->name, "contact_", 8)) {
+		ast_append_acl(var->name + 8, var->value, &endpoint->contact_acl, &error, &ignore);
+	} else {
+		ast_append_acl(var->name, var->value, &endpoint->acl, &error, &ignore);
+	}
+
+	return error;
+}
+
+static int acl_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_endpoint *endpoint = obj;
+	struct ast_acl_list *acl_list;
+	struct ast_acl *first_acl;
+
+	if (endpoint && !ast_acl_list_is_empty(acl_list=endpoint->acl)) {
+		AST_LIST_LOCK(acl_list);
+		first_acl = AST_LIST_FIRST(acl_list);
+		if (ast_strlen_zero(first_acl->name)) {
+			*buf = "deny/permit";
+		} else {
+			*buf = first_acl->name;
+		}
+		AST_LIST_UNLOCK(acl_list);
+	}
+
+	*buf = ast_strdup(*buf);
+	return 0;
+}
+
+static int contact_acl_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_endpoint *endpoint = obj;
+	struct ast_acl_list *acl_list;
+	struct ast_acl *first_acl;
+
+	if (endpoint && !ast_acl_list_is_empty(acl_list=endpoint->contact_acl)) {
+		AST_LIST_LOCK(acl_list);
+		first_acl = AST_LIST_FIRST(acl_list);
+		if (ast_strlen_zero(first_acl->name)) {
+			*buf = "deny/permit";
+		} else {
+			*buf = first_acl->name;
+		}
+		AST_LIST_UNLOCK(acl_list);
+	}
+
+	*buf = ast_strdup(*buf);
+	return 0;
+}
+
 static int dtmf_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
 	struct ast_sip_endpoint *endpoint = obj;
@@ -1724,6 +1783,12 @@ int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_mod
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "set_var", "", set_var_handler, set_var_to_str, set_var_to_vl, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "message_context", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, message_context));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "accountcode", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, accountcode));
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "deny", "", endpoint_acl_handler, NULL, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "permit", "", endpoint_acl_handler, NULL, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "acl", "", endpoint_acl_handler, acl_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "contact_deny", "", endpoint_acl_handler, NULL, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "contact_permit", "", endpoint_acl_handler, NULL, NULL, 0, 0);
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "contact_acl", "", endpoint_acl_handler, contact_acl_to_str, NULL, 0, 0);
 
 	if (ast_sip_initialize_sorcery_transport()) {
 		ast_log(LOG_ERROR, "Failed to register SIP transport support with sorcery\n");

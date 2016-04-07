@@ -829,6 +829,56 @@
 						channel is hung up. By default this option is set to 0, which means do not check.
 					</para></description>
 				</configOption>
+				<configOption name="acl">
+					<synopsis>List of IP ACL section names in acl.conf</synopsis>
+					<description><para>
+						This matches sections configured in <literal>acl.conf</literal>. The value is
+						defined as a list of comma-delimited section names.
+					</para></description>
+				</configOption>
+				<configOption name="deny">
+					<synopsis>List of IP addresses to deny access from</synopsis>
+					<description><para>
+						The value is a comma-delimited list of IP addresses. IP addresses may
+						have a subnet mask appended. The subnet mask may be written in either
+						CIDR or dotted-decimal notation. Separate the IP address and subnet
+						mask with a slash ('/')
+					</para></description>
+				</configOption>
+				<configOption name="permit">
+					<synopsis>List of IP addresses to permit access from</synopsis>
+					<description><para>
+						The value is a comma-delimited list of IP addresses. IP addresses may
+						have a subnet mask appended. The subnet mask may be written in either
+						CIDR or dotted-decimal notation. Separate the IP address and subnet
+						mask with a slash ('/')
+					</para></description>
+				</configOption>
+				<configOption name="contact_acl">
+					<synopsis>List of Contact ACL section names in acl.conf</synopsis>
+					<description><para>
+						This matches sections configured in <literal>acl.conf</literal>. The value is
+						defined as a list of comma-delimited section names.
+					</para></description>
+				</configOption>
+				<configOption name="contact_deny">
+					<synopsis>List of Contact header addresses to deny</synopsis>
+					<description><para>
+						The value is a comma-delimited list of IP addresses. IP addresses may
+						have a subnet mask appended. The subnet mask may be written in either
+						CIDR or dotted-decimal notation. Separate the IP address and subnet
+						mask with a slash ('/')
+					</para></description>
+				</configOption>
+				<configOption name="contact_permit">
+					<synopsis>List of Contact header addresses to permit</synopsis>
+					<description><para>
+						The value is a comma-delimited list of IP addresses. IP addresses may
+						have a subnet mask appended. The subnet mask may be written in either
+						CIDR or dotted-decimal notation. Separate the IP address and subnet
+						mask with a slash ('/')
+					</para></description>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<synopsis>Authentication type</synopsis>
