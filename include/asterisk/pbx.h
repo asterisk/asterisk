@@ -573,70 +573,80 @@ int ast_hint_presence_state(struct ast_channel *c, const char *context, const ch
 const char *ast_extension_state2str(int extension_state);
 
 /*!
- * \brief Registers a state change callback with destructor.
+ * \brief Add watcher for extension states with destructor.
  * \since 1.8.9
  * \since 10.1.0
  *
  * \param context which context to look in
  * \param exten which extension to get state
  * \param change_cb callback to call if state changed
- * \param destroy_cb callback to call when registration destroyed.
- * \param data to pass to callback
+ * \param destroy_cb callback to call when the watcher is destroyed.
+ * \param data to pass to callbacks
+ *
+ * \note If context and exten are NULL then the added watcher is global.
+ * The change_cb is called for every extension's state change.
  *
  * \note The change_cb is called if the state of an extension is changed.
  *
- * \note The destroy_cb is called when the registration is
- * deleted so the registerer can release any associated
- * resources.
+ * \note The destroy_cb is called when the watcher is deleted so the
+ * watcher can release any associated resources.
  *
  * \retval -1 on failure
+ * \retval 0 Global watcher added successfully
  * \retval ID on success
  */
 int ast_extension_state_add_destroy(const char *context, const char *exten,
 	ast_state_cb_type change_cb, ast_state_cb_destroy_type destroy_cb, void *data);
 
 /*!
- * \brief Registers an extended state change callback with destructor.
+ * \brief Add watcher for extended extension states with destructor.
  * \since 11
  *
  * \param context which context to look in
  * \param exten which extension to get state
  * \param change_cb callback to call if state changed
- * \param destroy_cb callback to call when registration destroyed.
- * \param data to pass to callback
+ * \param destroy_cb callback to call when the watcher is destroyed.
+ * \param data to pass to callbacks
+ *
+ * \note If context and exten are NULL then the added watcher is global.
+ * The change_cb is called for every extension's state change.
  *
  * \note The change_cb is called if the state of an extension is changed.
  * The extended state is passed to the callback in the device_state_info
  * member of ast_state_cb_info.
  *
- * \note The destroy_cb is called when the registration is
- * deleted so the registerer can release any associated
- * resources.
+ * \note The destroy_cb is called when the watcher is deleted so the
+ * watcher can release any associated resources.
  *
  * \retval -1 on failure
+ * \retval 0 Global watcher added successfully
  * \retval ID on success
  */
 int ast_extension_state_add_destroy_extended(const char *context, const char *exten,
 	ast_state_cb_type change_cb, ast_state_cb_destroy_type destroy_cb, void *data);
 
 /*!
- * \brief Registers a state change callback
+ * \brief Add watcher for extension states.
  *
  * \param context which context to look in
  * \param exten which extension to get state
  * \param change_cb callback to call if state changed
  * \param data to pass to callback
  *
+ * \note If context and exten are NULL then the added watcher is global.
+ * The change_cb is called for every extension's state change.
+ *
  * \note The change_cb is called if the state of an extension is changed.
  *
  * \retval -1 on failure
+ * \retval 0 Global watcher added successfully
  * \retval ID on success
  */
 int ast_extension_state_add(const char *context, const char *exten,
 	ast_state_cb_type change_cb, void *data);
 
 /*!
- * \brief Registers an extended state change callback
+ * \brief Add watcher for extended extension states.
  * \since 11
  *
  * \param context which context to look in
@@ -644,20 +654,24 @@ int ast_extension_state_add(const char *context, const char *exten,
  * \param change_cb callback to call if state changed
  * \param data to pass to callback
  *
+ * \note If context and exten are NULL then the added watcher is global.
+ * The change_cb is called for every extension's state change.
+ *
  * \note The change_cb is called if the state of an extension is changed.
  * The extended state is passed to the callback in the device_state_info
  * member of ast_state_cb_info.
  *
  * \retval -1 on failure
+ * \retval 0 Global watcher added successfully
  * \retval ID on success
  */
 int ast_extension_state_add_extended(const char *context, const char *exten,
 	ast_state_cb_type change_cb, void *data);
 
 /*!
- * \brief Deletes a registered state change callback by ID
+ * \brief Deletes a state change watcher by ID
  *
- * \param id of the registered state callback to delete
+ * \param id of the state watcher to delete (0 for global watcher)
  * \param change_cb callback to call if state changed (Used if id == 0 (global))
  *
  * \retval 0 success

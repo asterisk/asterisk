@@ -3655,28 +3655,24 @@ static int extension_state_add_destroy(const char *context, const char *exten,
 	return id;
 }
 
-/*! \brief Add watcher for extension states with destructor */
 int ast_extension_state_add_destroy(const char *context, const char *exten,
 	ast_state_cb_type change_cb, ast_state_cb_destroy_type destroy_cb, void *data)
 {
 	return extension_state_add_destroy(context, exten, change_cb, destroy_cb, data, 0);
 }
 
-/*! \brief Add watcher for extension states */
 int ast_extension_state_add(const char *context, const char *exten,
 	ast_state_cb_type change_cb, void *data)
 {
 	return extension_state_add_destroy(context, exten, change_cb, NULL, data, 0);
 }
 
-/*! \brief Add watcher for extended extension states with destructor */
 int ast_extension_state_add_destroy_extended(const char *context, const char *exten,
 	ast_state_cb_type change_cb, ast_state_cb_destroy_type destroy_cb, void *data)
 {
 	return extension_state_add_destroy(context, exten, change_cb, destroy_cb, data, 1);
 }
 
-/*! \brief Add watcher for extended extension states */
 int ast_extension_state_add_extended(const char *context, const char *exten,
 	ast_state_cb_type change_cb, void *data)
 {
@@ -3698,7 +3694,6 @@ static int find_hint_by_cb_id(void *obj, void *arg, int flags)
 	return 0;
 }
 
-/*! \brief  ast_extension_state_del: Remove a watcher from the callback list */
 int ast_extension_state_del(int id, ast_state_cb_type change_cb)
 {
 	struct ast_state_cb *p_cur;
