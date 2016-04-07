@@ -1829,6 +1829,12 @@
 				<parameter name="EndpointName">
 					<para>The name of the endpoint associated with this information.</para>
 				</parameter>
+				<parameter name="Useragent">
+					<para>Content of the User-Agent header in REGISTER request</para>
+				</parameter>
+				<parameter name="RegExpire">
+					<para>Absolute time that this contact is no longer valid after</para>
+				</parameter>
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
