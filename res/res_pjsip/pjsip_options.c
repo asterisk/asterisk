@@ -42,6 +42,7 @@ static const char *status_map [] = {
 	[UNKNOWN] = "Unknown",
 	[CREATED] = "Created",
 	[REMOVED] = "Removed",
+	[UPDATED] = "Updated",
 };
 
 static const char *short_status_map [] = {
@@ -50,6 +51,7 @@ static const char *short_status_map [] = {
 	[UNKNOWN] = "Unknown",
 	[CREATED] = "Created",
 	[REMOVED] = "Removed",
+	[UPDATED] = "Updated",
 };
 
 const char *ast_sip_get_contact_status_label(const enum ast_sip_contact_status_type status)
@@ -543,6 +545,16 @@ static void contact_created(const void *obj)
 
 /*!
  * \internal
+ * \brief A contact has been updated.
+ */
+static void contact_updated(const void *obj)
+{
+	update_contact_status((struct ast_sip_contact *) obj, UPDATED);
+	qualify_and_schedule((struct ast_sip_contact *) obj);
+}
+
+/*!
+ * \internal
  * \brief A contact has been deleted remove status tracking.
  */
 static void contact_deleted(const void *obj)
@@ -567,7 +579,8 @@ static void contact_deleted(const void *obj)
 
 static const struct ast_sorcery_observer contact_observer = {
 	.created = contact_created,
-	.deleted = contact_deleted
+	.deleted = contact_deleted,
+	.updated = contact_updated
 };
 
 static pj_bool_t options_start(void)

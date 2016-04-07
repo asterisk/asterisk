@@ -254,6 +254,7 @@ enum ast_sip_contact_status_type {
 	UNKNOWN,
 	CREATED,
 	REMOVED,
+	UPDATED,
 };
 
 /*!
