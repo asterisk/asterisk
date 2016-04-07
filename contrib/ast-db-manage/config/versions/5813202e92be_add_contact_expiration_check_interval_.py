@@ -17,5 +17,4 @@ def upgrade():
     op.add_column('ps_globals', sa.Column('contact_expiration_check_interval', sa.Integer))
 
 def downgrade():
-    with op.batch_alter_table('ps_globals') as batch_op:
-        batch_op.drop_column('contact_expiration_check_interval')
+    op.drop_column('ps_globals', 'contact_expiration_check_interval')

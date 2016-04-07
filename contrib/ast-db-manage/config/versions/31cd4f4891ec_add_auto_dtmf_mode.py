@@ -24,10 +24,7 @@ def upgrade():
     context = op.get_context()
 
     # Upgrading to this revision WILL clear your directmedia values.
-    if context.bind.dialect.name == 'sqlite':
-        with op.batch_alter_table('ps_endpoints') as batch_op:
-            batch_op.alter_column('dtmf_mode', type_=new_type)
-    elif context.bind.dialect.name != 'postgresql':
+    if context.bind.dialect.name != 'postgresql':
         op.alter_column('ps_endpoints', 'dtmf_mode',
                         type_=new_type,
                         existing_type=old_type)
@@ -45,10 +42,7 @@ def upgrade():
 def downgrade():
     context = op.get_context()
 
-    if context.bind.dialect.name == 'sqlite':
-        with op.batch_alter_table('ps_endpoints') as batch_op:
-            batch_op.alter_column('dtmf_mode', type_=old_type)
-    elif context.bind.dialect.name != 'postgresql':
+    if context.bind.dialect.name != 'postgresql':
         op.alter_column('ps_endpoints', 'dtmf_mode',
                         type_=old_type,
                         existing_type=new_type)

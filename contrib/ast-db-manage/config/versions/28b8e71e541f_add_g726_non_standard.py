@@ -27,5 +27,4 @@ def upgrade():
 
 
 def downgrade():
-    with op.batch_alter_table('ps_endpoints') as batch_op:
-        batch_op.drop_column('g726_non_standard')
+    op.drop_column('ps_endpoints', 'g726_non_standard')
