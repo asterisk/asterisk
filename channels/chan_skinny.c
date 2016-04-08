@@ -1671,7 +1671,7 @@ static struct ast_channel_tech skinny_tech = {
 	.send_digit_end = skinny_senddigit_end,
 };
 
-static int skinny_extensionstate_cb(char *context, char *id, struct ast_state_cb_info *info, void *data);
+static int skinny_extensionstate_cb(const char *context, const char *exten, struct ast_state_cb_info *info, void *data);
 
 static struct skinny_line *skinny_line_alloc(void)
 {
@@ -3413,7 +3413,7 @@ static void transmit_serviceurlstat(struct skinny_device *d, int instance)
 	transmit_response(d, req);
 }
 
-static int skinny_extensionstate_cb(char *context, char *exten, struct ast_state_cb_info *info, void *data)
+static int skinny_extensionstate_cb(const char *context, const char *exten, struct ast_state_cb_info *info, void *data)
 {
 	struct skinny_container *container = data;
 	struct skinny_device *d = NULL;

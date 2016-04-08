@@ -109,7 +109,7 @@ struct ast_state_cb_info {
 };
 
 /*! \brief Typedef for devicestate and hint callbacks */
-typedef int (*ast_state_cb_type)(char *context, char *id, struct ast_state_cb_info *info, void *data);
+typedef int (*ast_state_cb_type)(const char *context, const char *exten, struct ast_state_cb_info *info, void *data);
 
 /*! \brief Typedef for devicestate and hint callback removal indication callback */
 typedef void (*ast_state_cb_destroy_type)(int id, void *data);

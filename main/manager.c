@@ -6765,7 +6765,7 @@ int ast_manager_unregister(const char *action)
 	return 0;
 }
 
-static int manager_state_cb(char *context, char *exten, struct ast_state_cb_info *info, void *data)
+static int manager_state_cb(const char *context, const char *exten, struct ast_state_cb_info *info, void *data)
 {
 	/* Notify managers of change */
 	char hint[512];

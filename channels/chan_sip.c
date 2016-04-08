@@ -1269,7 +1269,7 @@ static void check_for_nat(const struct ast_sockaddr *them, struct sip_pvt *p);
 
 /*--- Device monitoring and Device/extension state/event handling */
 static int extensionstate_update(const char *context, const char *exten, struct state_notify_data *data, struct sip_pvt *p, int force);
-static int cb_extensionstate(char *context, char *exten, struct ast_state_cb_info *info, void *data);
+static int cb_extensionstate(const char *context, const char *exten, struct ast_state_cb_info *info, void *data);
 static int sip_poke_noanswer(const void *data);
 static int sip_poke_peer(struct sip_peer *peer, int force);
 static void sip_poke_all_peers(void);
@@ -17389,7 +17389,7 @@ static int extensionstate_update(const char *context, const char *exten, struct 
 /*! \brief Callback for the devicestate notification (SUBSCRIBE) support subsystem
 \note	If you add an "hint" priority to the extension in the dial plan,
 	you will get notifications on device state changes */
-static int cb_extensionstate(char *context, char *exten, struct ast_state_cb_info *info, void *data)
+static int cb_extensionstate(const char *context, const char *exten, struct ast_state_cb_info *info, void *data)
 {
 	struct sip_pvt *p = data;
 	struct state_notify_data notify_data = {
