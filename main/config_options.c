@@ -730,8 +730,14 @@ int aco_process_var(struct aco_type *type, const char *cat, struct ast_variable 
 #endif
 
 	if (opt->handler(opt, var, obj)) {
-		ast_log(LOG_ERROR, "Error parsing %s=%s at line %d of %s\n", var->name, var->value, var->lineno, var->file);
-		return -1;
+		switch (opt->type) {
+		case OPT_CODEC_T:
+			ast_log(LOG_WARNING, "Error parsing %s=%s at line %d of %s, ignoring it\n", var->name, var->value, var->lineno, var->file);
+			break;
+		default:
+			ast_log(LOG_ERROR, "Error parsing %s=%s at line %d of %s\n", var->name, var->value, var->lineno, var->file);
+			return -1;
+		}
 	}
 
 	return 0;
