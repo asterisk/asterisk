@@ -568,6 +568,9 @@ int ast_unreal_indicate(struct ast_channel *ast, int condition, const void *data
 		break;
 	default:
 		res = unreal_queue_indicate(p, ast, condition, data, datalen);
+		if (condition == AST_CONTROL_PVT_CAUSE_CODE) {
+			res = -1;
+		}
 		break;
 	}
 
