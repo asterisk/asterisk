@@ -785,6 +785,13 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 			ast_debug(4, "Blocked indication %d\n", condition);
 		}
 		ao2_unlock(p);
+
+		/*
+		 * we need to return -1 here so that asterisk core will correctly set up hangupcauses.
+		 */
+		if (condition == AST_CONTROL_PVT_CAUSE_CODE) {
+			res = -1;
+		}
 	}
 
 	ao2_ref(p, -1);
