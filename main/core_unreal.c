@@ -566,6 +566,11 @@ int ast_unreal_indicate(struct ast_channel *ast, int condition, const void *data
 			res = -1;
 		}
 		break;
+	case AST_CONTROL_PVT_CAUSE_CODE:
+		/* Return -1 so that asterisk core will correctly set up hangupcauses. */
+		unreal_queue_indicate(p, ast, condition, data, datalen);
+		res = -1;
+		break;
 	default:
 		res = unreal_queue_indicate(p, ast, condition, data, datalen);
 		break;
