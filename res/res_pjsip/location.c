@@ -27,6 +27,7 @@
 #include "include/res_pjsip_private.h"
 #include "asterisk/res_pjsip_cli.h"
 #include "asterisk/statsd.h"
+#include "asterisk/named_locks.h"
 
 /*! \brief Destructor for AOR */
 static void aor_destroy(void *obj)
@@ -168,7 +169,7 @@ struct ast_sip_contact *ast_sip_location_retrieve_first_aor_contact(const struct
 	return contact;
 }
 
-struct ao2_container *ast_sip_location_retrieve_aor_contacts(const struct ast_sip_aor *aor)
+struct ao2_container *ast_sip_location_retrieve_aor_contacts_nolock(const struct ast_sip_aor *aor)
 {
 	/* Give enough space for ^ at the beginning and ;@ at the end, since that is our object naming scheme */
 	char regex[strlen(ast_sorcery_object_get_id(aor)) + 4];
@@ -187,6 +188,24 @@ struct ao2_container *ast_sip_location_retrieve_aor_contacts(const struct ast_si
 	if (aor->permanent_contacts) {
 		ao2_callback(aor->permanent_contacts, OBJ_NODATA, contact_link_static, contacts);
 	}
+
+	return contacts;
+}
+
+struct ao2_container *ast_sip_location_retrieve_aor_contacts(const struct ast_sip_aor *aor)
+{
+	struct ao2_container *contacts;
+	struct ast_named_lock *lock;
+
+	lock = ast_named_lock_get(AST_NAMED_LOCK_TYPE_RWLOCK, "aor", ast_sorcery_object_get_id(aor));
+	if (!lock) {
+		return NULL;
+	}
+
+	ao2_wrlock(lock);
+	contacts = ast_sip_location_retrieve_aor_contacts_nolock(aor);
+	ao2_unlock(lock);
+	ast_named_lock_put(lock);
 
 	return contacts;
 }
@@ -274,7 +293,7 @@ struct ast_sip_contact *ast_sip_location_retrieve_contact(const char *contact_na
 	return ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "contact", contact_name);
 }
 
-int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri,
+int ast_sip_location_add_contact_nolock(struct ast_sip_aor *aor, const char *uri,
 		struct timeval expiration_time, const char *path_info, const char *user_agent,
 		struct ast_sip_endpoint *endpoint)
 {
@@ -309,6 +328,27 @@ int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri,
 	contact->endpoint = ao2_bump(endpoint);
 
 	return ast_sorcery_create(ast_sip_get_sorcery(), contact);
+}
+
+int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri,
+		struct timeval expiration_time, const char *path_info, const char *user_agent,
+		struct ast_sip_endpoint *endpoint)
+{
+	int res;
+	struct ast_named_lock *lock;
+
+	lock = ast_named_lock_get(AST_NAMED_LOCK_TYPE_RWLOCK, "aor", ast_sorcery_object_get_id(aor));
+	if (!lock) {
+		return -1;
+	}
+
+	ao2_wrlock(lock);
+	res = ast_sip_location_add_contact_nolock(aor, uri, expiration_time, path_info, user_agent,
+		endpoint);
+	ao2_unlock(lock);
+	ast_named_lock_put(lock);
+
+	return res;
 }
 
 int ast_sip_location_update_contact(struct ast_sip_contact *contact)
