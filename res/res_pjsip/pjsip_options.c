@@ -1130,6 +1130,8 @@ static int format_contact_status(void *obj, void *arg, int flags)
 
 	ast_str_append(&buf, 0, "AOR: %s\r\n", wrapper->aor_id);
 	ast_str_append(&buf, 0, "URI: %s\r\n", contact->uri);
+	ast_str_append(&buf, 0, "UserAgent: %s\r\n", contact->user_agent);
+	ast_str_append(&buf, 0, "RegExpire: %ld\r\n", contact->expiration_time.tv_sec);
 	ast_str_append(&buf, 0, "Status: %s\r\n", ast_sip_get_contact_status_label(status->status));
 	if (status->status == UNKNOWN) {
 		ast_str_append(&buf, 0, "RoundtripUsec: N/A\r\n");
