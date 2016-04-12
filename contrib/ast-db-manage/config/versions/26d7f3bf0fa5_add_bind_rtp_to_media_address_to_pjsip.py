@@ -28,5 +28,4 @@ def upgrade():
 
 
 def downgrade():
-    with op.batch_alter_table('ps_endpoints') as batch_op:
-        batch_op.drop_column('bind_rtp_to_media_address')
+    op.drop_column('ps_endpoints', 'bind_rtp_to_media_address')

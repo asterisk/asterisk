@@ -18,7 +18,5 @@ def upgrade():
     op.add_column('ps_contacts', sa.Column('qualify_timeout', sa.Integer))
 
 def downgrade():
-    with op.batch_alter_table('ps_aors') as batch_op:
-        batch_op.drop_column('qualify_timeout')
-    with op.batch_alter_table('ps_contacts') as batch_op:
-        batch_op.drop_column('qualify_timeout')
+    op.drop_column('ps_aors', 'qualify_timeout')
+    op.drop_column('ps_contacts', 'qualify_timeout')

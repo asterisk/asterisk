@@ -17,5 +17,4 @@ def upgrade():
     op.add_column('ps_globals', sa.Column('regcontext', sa.String(80)))
 
 def downgrade():
-    with op.batch_alter_table('ps_globals') as batch_op:
-        batch_op.drop_column('regcontext')
+    op.drop_column('ps_globals', 'regcontext')
