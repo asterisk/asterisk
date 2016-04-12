@@ -1,0 +1,55 @@
+From ce426249ec1270f27560919791f3e13eaeea9152 Mon Sep 17 00:00:00 2001
+From: George Joseph <george.joseph@fairview5.com>
+Date: Tue, 12 Apr 2016 14:09:53 -0600
+Subject: [PATCH] sip_parser.c:  Remove wholesale '[]' strip from
+ parse_param_impl
+
+The wholesale stripping of '[]' from header parameters causes issues if
+something (like a port) occurrs after the final ']'.
+
+'[2001:a::b]' will correctly parse to '2001:a::b'
+'[2001:a::b]:8080' will correctly parse to '2001:a::b' but the scanner is left
+with ':8080' and parsing stops with a syntax error.
+
+I can't even find a case where stripping the '[]' is a good thing anyway.  Even
+if you continued to parse and resulted in a string that looks like this...
+'2001:a::b:8080', it's not valid.
+
+This came up in Asterisk because Kamailio sends us a Contact with an alias
+URI parameter that has an IPv6 address in it like this:
+Contact: <sip:1171@127.0.0.1:5080;alias=[2001:1:2::3]~43691~6>
+which should be legal but causes a syntax error because of the characters
+after the final ']'.  Even if it didn't, the '[]' should still not be stripped.
+
+I've run the Asterisk Test Suite for PJSIP (252 tests) many of which are IPv6
+enabled.  No issues were caused by removing the code that strips the '[]'.
+
+I tried running 'make pjsip-test' but that fails even without my change. :)
+
+The Asterisk ticket is: https://issues.asterisk.org/jira/browse/ASTERISK-25123
+---
+ pjsip/src/pjsip/sip_parser.c | 8 --------
+ 1 file changed, 8 deletions(-)
+
+diff --git a/pjsip/src/pjsip/sip_parser.c b/pjsip/src/pjsip/sip_parser.c
+index c18faa3..98eb5ea 100644
+--- a/pjsip/src/pjsip/sip_parser.c
++++ b/pjsip/src/pjsip/sip_parser.c
+@@ -1149,14 +1149,6 @@ static void parse_param_imp( pj_scanner *scanner, pj_pool_t *pool,
+ 		    pvalue->ptr++;
+ 		    pvalue->slen -= 2;
+ 		}
+-	    } else if (*scanner->curptr == '[') {
+-		/* pvalue can be a quoted IPv6; in this case, the
+-		 * '[' and ']' quote characters are to be removed
+-		 * from the pvalue. 
+-		 */
+-		pj_scan_get_char(scanner);
+-		pj_scan_get_until_ch(scanner, ']', pvalue);
+-		pj_scan_get_char(scanner);
+ 	    } else if(pj_cis_match(spec, *scanner->curptr)) {
+ 		parser_get_and_unescape(scanner, pool, spec, esc_spec, pvalue);
+ 	    }
+-- 
+2.5.5
+
