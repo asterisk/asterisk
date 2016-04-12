@@ -1549,6 +1549,17 @@ static AST_RWLIST_HEAD_STATIC(manager_hooks, manager_custom_hook);
 /*! \brief A container of event documentation nodes */
 static AO2_GLOBAL_OBJ_STATIC(event_docs);
 
+static int __attribute__((format(printf, 9, 0))) __manager_event_sessions(
+	struct ao2_container *sessions,
+	int category,
+	const char *event,
+	int chancount,
+	struct ast_channel **chans,
+	const char *file,
+	int line,
+	const char *func,
+	const char *fmt,
+	...);
 static enum add_filter_result manager_add_filter(const char *filter_pattern, struct ao2_container *whitefilters, struct ao2_container *blackfilters);
 
 static int match_filter(struct mansession *s, char *eventdata);
@@ -1687,38 +1698,75 @@ struct ast_str *ast_manager_str_from_json_object(struct ast_json *blob, key_excl
 	return res;
 }
 
+#define manager_event_sessions(sessions, category, event, contents , ...)	\
+	__manager_event_sessions(sessions, category, event, 0, NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__, contents , ## __VA_ARGS__)
+
+#define any_manager_listeners(sessions)	\
+	((sessions && ao2_container_count(sessions)) || !AST_RWLIST_EMPTY(&manager_hooks))
+
 static void manager_default_msg_cb(void *data, struct stasis_subscription *sub,
 				    struct stasis_message *message)
 {
+	struct ao2_container *sessions;
 	struct ast_manager_event_blob *ev;
 
-	ev = stasis_message_to_ami(message);
-	if (!ev) {
+	if (!stasis_message_can_be_ami(message)) {
 		/* Not an AMI message; disregard */
 		return;
 	}
 
-	manager_event(ev->event_flags, ev->manager_event, "%s",
-		ev->extra_fields);
+	sessions = ao2_global_obj_ref(mgr_sessions);
+	if (!any_manager_listeners(sessions)) {
+		/* Nobody is listening */
+		ao2_cleanup(sessions);
+		return;
+	}
+
+	ev = stasis_message_to_ami(message);
+	if (!ev) {
+		/* Conversion failure */
+		ao2_cleanup(sessions);
+		return;
+	}
+
+	manager_event_sessions(sessions, ev->event_flags, ev->manager_event,
+		"%s", ev->extra_fields);
 	ao2_ref(ev, -1);
+	ao2_cleanup(sessions);
 }
 
 static void manager_generic_msg_cb(void *data, struct stasis_subscription *sub,
 				    struct stasis_message *message)
 {
-	struct ast_json_payload *payload = stasis_message_data(message);
-	int class_type = ast_json_integer_get(ast_json_object_get(payload->json, "class_type"));
-	const char *type = ast_json_string_get(ast_json_object_get(payload->json, "type"));
-	struct ast_json *event = ast_json_object_get(payload->json, "event");
+	struct ast_json_payload *payload;
+	int class_type;
+	const char *type;
+	struct ast_json *event;
 	struct ast_str *event_buffer;
+	struct ao2_container *sessions;
+
+	sessions = ao2_global_obj_ref(mgr_sessions);
+	if (!any_manager_listeners(sessions)) {
+		/* Nobody is listening */
+		ao2_cleanup(sessions);
+		return;
+	}
+
+	payload = stasis_message_data(message);
+	class_type = ast_json_integer_get(ast_json_object_get(payload->json, "class_type"));
+	type = ast_json_string_get(ast_json_object_get(payload->json, "type"));
+	event = ast_json_object_get(payload->json, "event");
 
 	event_buffer = ast_manager_str_from_json_object(event, NULL);
 	if (!event_buffer) {
 		ast_log(AST_LOG_WARNING, "Error while creating payload for event %s\n", type);
+		ao2_cleanup(sessions);
 		return;
 	}
-	manager_event(class_type, type, "%s", ast_str_buffer(event_buffer));
+	manager_event_sessions(sessions, class_type, type,
+		"%s", ast_str_buffer(event_buffer));
 	ast_free(event_buffer);
+	ao2_cleanup(sessions);
 }
 
 void ast_manager_publish_event(const char *type, int class_type, struct ast_json *obj)
@@ -6645,21 +6693,23 @@ static void append_channel_vars(struct ast_str **pbuf, struct ast_channel *chan)
 AST_THREADSTORAGE(manager_event_buf);
 #define MANAGER_EVENT_BUF_INITSIZE   256
 
-int __ast_manager_event_multichan(int category, const char *event, int chancount,
-	struct ast_channel **chans, const char *file, int line, const char *func,
-	const char *fmt, ...)
+static int __attribute__((format(printf, 9, 0))) __manager_event_sessions_va(
+	struct ao2_container *sessions,
+	int category,
+	const char *event,
+	int chancount,
+	struct ast_channel **chans,
+	const char *file,
+	int line,
+	const char *func,
+	const char *fmt,
+	va_list ap)
 {
-	RAII_VAR(struct ao2_container *, sessions, ao2_global_obj_ref(mgr_sessions), ao2_cleanup);
 	struct ast_str *auth = ast_str_alloca(MAX_AUTH_PERM_STRING);
 	const char *cat_str;
-	va_list ap;
 	struct timeval now;
 	struct ast_str *buf;
 	int i;
-
-	if (!(sessions && ao2_container_count(sessions)) && AST_RWLIST_EMPTY(&manager_hooks)) {
-		return 0;
-	}
 
 	buf = ast_str_thread_get(&manager_event_buf, MANAGER_EVENT_BUF_INITSIZE);
 	if (!buf) {
@@ -6696,9 +6746,7 @@ int __ast_manager_event_multichan(int category, const char *event, int chancount
 			ast_config_AST_SYSTEM_NAME);
 	}
 
-	va_start(ap, fmt);
 	ast_str_append_va(&buf, 0, fmt, ap);
-	va_end(ap);
 	for (i = 0; i < chancount; i++) {
 		append_channel_vars(&buf, chans[i]);
 	}
@@ -6742,6 +6790,50 @@ int __ast_manager_event_multichan(int category, const char *event, int chancount
 	}
 
 	return 0;
+}
+
+static int __attribute__((format(printf, 9, 0))) __manager_event_sessions(
+	struct ao2_container *sessions,
+	int category,
+	const char *event,
+	int chancount,
+	struct ast_channel **chans,
+	const char *file,
+	int line,
+	const char *func,
+	const char *fmt,
+	...)
+{
+	va_list ap;
+	int res;
+
+	va_start(ap, fmt);
+	res = __manager_event_sessions_va(sessions, category, event, chancount, chans,
+		file, line, func, fmt, ap);
+	va_end(ap);
+	return res;
+}
+
+int __ast_manager_event_multichan(int category, const char *event, int chancount,
+	struct ast_channel **chans, const char *file, int line, const char *func,
+	const char *fmt, ...)
+{
+	struct ao2_container *sessions = ao2_global_obj_ref(mgr_sessions);
+	va_list ap;
+	int res;
+
+	if (!any_manager_listeners(sessions)) {
+		/* Nobody is listening */
+		ao2_cleanup(sessions);
+		return 0;
+	}
+
+	va_start(ap, fmt);
+	res = __manager_event_sessions_va(sessions, category, event, chancount, chans,
+		file, line, func, fmt, ap);
+	va_end(ap);
+	ao2_cleanup(sessions);
+	return res;
 }
 
 /*! \brief

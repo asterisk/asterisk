@@ -170,17 +170,17 @@ const struct timeval *stasis_message_timestamp(const struct stasis_message *msg)
 	return &msg->timestamp;
 }
 
-#define INVOKE_VIRTUAL(fn, ...)				\
-	({						\
-		if (msg == NULL) {			\
-			return NULL;			\
-		}					\
-		ast_assert(msg->type != NULL);		\
+#define INVOKE_VIRTUAL(fn, ...)					\
+	({											\
+		if (!msg) {								\
+			return NULL;						\
+		}										\
+		ast_assert(msg->type != NULL);			\
 		ast_assert(msg->type->vtable != NULL);	\
-		if (msg->type->vtable->fn == NULL) {	\
-			return NULL;			\
-		}					\
-		msg->type->vtable->fn(__VA_ARGS__);	\
+		if (!msg->type->vtable->fn) {			\
+			return NULL;						\
+		}										\
+		msg->type->vtable->fn(__VA_ARGS__);		\
 	})
 
 struct ast_manager_event_blob *stasis_message_to_ami(struct stasis_message *msg)
@@ -198,4 +198,19 @@ struct ast_json *stasis_message_to_json(
 struct ast_event *stasis_message_to_event(struct stasis_message *msg)
 {
 	return INVOKE_VIRTUAL(to_event, msg);
+}
+
+#define HAS_VIRTUAL(fn, msg)					\
+	({											\
+		if (!msg) {								\
+			return 0;							\
+		}										\
+		ast_assert(msg->type != NULL);			\
+		ast_assert(msg->type->vtable != NULL);	\
+		!!msg->type->vtable->fn;				\
+	})
+
+int stasis_message_can_be_ami(struct stasis_message *msg)
+{
+	return HAS_VIRTUAL(to_ami, msg);
 }
