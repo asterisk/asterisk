@@ -14077,11 +14077,13 @@ AST_TEST_DEFINE(test_voicemail_notify_endl)
 		rewind(file);
 		while (fgets(buf, sizeof(buf), file)) {
 			if (
+			(strlen(buf) > 1 &&
 #ifdef IMAP_STORAGE
 			buf[strlen(buf) - 2] != '\r'
 #else
 			buf[strlen(buf) - 2] == '\r'
 #endif
+			)
 			|| buf[strlen(buf) - 1] != '\n') {
 				res = AST_TEST_FAIL;
 			}
