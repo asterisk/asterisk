@@ -87,6 +87,13 @@
 				<configOption name="max_auth_attempts" default="5">
 					<synopsis>Maximum number of authentication attempts before stopping the publication.</synopsis>
 				</configOption>
+				<configOption name="transport">
+					<synopsis>Transport used for outbound publish</synopsis>
+					<description>
+						<note><para>A <replaceable>transport</replaceable> configured in
+						<literal>pjsip.conf</literal>. As with other <literal>res_pjsip</literal> modules, this will use the first available transport of the appropriate type if unconfigured.</para></note>
+					</description>
+				</configOption>
 				<configOption name="type">
 					<synopsis>Must be of type 'outbound-publish'.</synopsis>
 				</configOption>
@@ -117,6 +124,8 @@ struct ast_sip_outbound_publish {
 		AST_STRING_FIELD(from_uri);
 		/*! \brief URI for the To header */
 		AST_STRING_FIELD(to_uri);
+		/*! \brief Explicit transport to use for publish */
+		AST_STRING_FIELD(transport);
 		/*! \brief Outbound proxy to use */
 		AST_STRING_FIELD(outbound_proxy);
 		/*! \brief The event type to publish */
@@ -150,6 +159,8 @@ struct ast_sip_outbound_publish_client {
 	unsigned int destroy;
 	/*! \brief Outbound publish information */
 	struct ast_sip_outbound_publish *publish;
+	/*! \brief The name of the transport to be used for the publish */
+	char *transport_name;
 };
 
 /*! \brief Outbound publish state information (persists for lifetime of a publish) */
@@ -331,6 +342,12 @@ static int send_unpublish_task(void *data)
 	pjsip_tx_data *tdata;
 
 	if (pjsip_publishc_unpublish(client->client, &tdata) == PJ_SUCCESS) {
+		if (!ast_strlen_zero(client->transport_name)) {
+			pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
+			ast_sip_set_tpselector_from_transport_name(client->transport_name, &selector);
+			pjsip_tx_data_set_transport(tdata, &selector);
+		}
+
 		pjsip_publishc_send(client->client, tdata);
 	}
 
@@ -566,6 +583,12 @@ static int sip_publish_client_service_queue(void *data)
 		goto fatal;
 	}
 
+	if (!ast_strlen_zero(client->transport_name)) {
+		pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
+		ast_sip_set_tpselector_from_transport_name(client->transport_name, &selector);
+		pjsip_tx_data_set_transport(tdata, &selector);
+	}
+
 	status = pjsip_publishc_send(client->client, tdata);
 	if (status == PJ_EBUSY) {
 		/* We attempted to send the message but something else got there first */
@@ -647,6 +670,7 @@ static void sip_outbound_publish_client_destroy(void *obj)
 
 	ao2_cleanup(client->datastores);
 	ao2_cleanup(client->publish);
+	ast_free(client->transport_name);
 
 	/* if unloading the module and all objects have been unpublished
 	   send the signal to finish unloading */
@@ -869,6 +893,12 @@ static void sip_outbound_publish_callback(struct pjsip_publishc_cbparam *param)
 	if (param->code == 401 || param->code == 407) {
 		if (!ast_sip_create_request_with_auth(&publish->outbound_auths,
 				param->rdata, pjsip_rdata_get_tsx(param->rdata), &tdata)) {
+			if (!ast_strlen_zero(client->transport_name)) {
+				pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
+				ast_sip_set_tpselector_from_transport_name(client->transport_name, &selector);
+				pjsip_tx_data_set_transport(tdata, &selector);
+			}
+
 			pjsip_publishc_send(client->client, tdata);
 		}
 		client->auth_attempts++;
@@ -1028,6 +1058,7 @@ static struct ast_sip_outbound_publish_state *sip_outbound_publish_state_alloc(
 
 	state->client->timer.user_data = state->client;
 	state->client->timer.cb = sip_outbound_publish_timer_cb;
+	state->client->transport_name = ast_strdup(publish->transport);
 	state->client->publish = ao2_bump(publish);
 
 	strcpy(state->id, id);
@@ -1121,6 +1152,7 @@ static int load_module(void)
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "outbound-publish", "outbound_proxy", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_outbound_publish, outbound_proxy));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "outbound-publish", "expiration", "3600", OPT_UINT_T, 0, FLDSET(struct ast_sip_outbound_publish, expiration));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "outbound-publish", "max_auth_attempts", "5", OPT_UINT_T, 0, FLDSET(struct ast_sip_outbound_publish, max_auth_attempts));
+	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "outbound-publish", "transport", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_outbound_publish, transport));
 	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "outbound-publish", "outbound_auth", "", outbound_auth_handler, NULL, NULL, 0, 0);
 
 	ast_sorcery_reload_object(ast_sip_get_sorcery(), "outbound-publish");
