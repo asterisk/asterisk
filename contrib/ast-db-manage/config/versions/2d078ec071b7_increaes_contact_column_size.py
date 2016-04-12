@@ -15,10 +15,8 @@ import sqlalchemy as sa
 
 
 def upgrade():
-    with op.batch_alter_table('ps_aors') as batch_op:
-        batch_op.alter_column('contact', type_=sa.String(255))
+    op.alter_column('ps_aors', 'contact', type_=sa.String(255))
 
 
 def downgrade():
-    with op.batch_alter_table('ps_aors') as batch_op:
-        batch_op.alter_column('contact', type_=sa.String(40))
+    op.alter_column('ps_aors', 'contact', type_=sa.String(40))

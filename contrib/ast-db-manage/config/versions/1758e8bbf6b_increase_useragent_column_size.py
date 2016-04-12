@@ -33,11 +33,9 @@ import sqlalchemy as sa
 
 
 def upgrade():
-    with op.batch_alter_table('sippeers') as batch_op:
-        batch_op.alter_column('useragent', type_=sa.String(255))
+    op.alter_column('sippeers', 'useragent', type_=sa.String(255))
 
 
 def downgrade():
-    with op.batch_alter_table('sippeers') as batch_op:
-        batch_op.alter_column('useragent', type_=sa.String(20))
+    op.alter_column('sippeers', 'useragent', type_=sa.String(20))
 

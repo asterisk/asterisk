@@ -14,13 +14,9 @@ from alembic import op
 import sqlalchemy as sa
 
 def upgrade():
-    with op.batch_alter_table('ps_aors') as batch_op:
-        batch_op.alter_column('qualify_timeout', type_=sa.Float)
-    with op.batch_alter_table('ps_contacts') as batch_op:
-        batch_op.alter_column('qualify_timeout', type_=sa.Float)
+    op.alter_column('ps_aors', 'qualify_timeout', type_=sa.Float)
+    op.alter_column('ps_contacts', 'qualify_timeout', type_=sa.Float)
 
 def downgrade():
-    with op.batch_alter_table('ps_aors') as batch_op:
-        batch_op.alter_column('qualify_timeout', type_=sa.Integer)
-    with op.batch_alter_table('ps_contacts') as batch_op:
-        batch_op.alter_column('qualify_timeout', type_=sa.Integer)
+    op.alter_column('ps_aors', 'qualify_timeout', type_=sa.Integer)
+    op.alter_column('ps_contacts', 'qualify_timeout', type_=sa.Integer)

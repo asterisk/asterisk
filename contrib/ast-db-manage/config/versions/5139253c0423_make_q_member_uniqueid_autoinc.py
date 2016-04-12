@@ -36,28 +36,19 @@ def upgrade():
     context = op.get_context()
     # Was unable to find a way to use op.alter_column() to add the unique
     # index property.
-    if context.bind.dialect.name == 'sqlite':
-        with op.batch_alter_table('queue_members') as batch_op:
-            batch_op.create_primary_key('queue_members_pj', columns='uniqueid')
-    else:
-        op.drop_column('queue_members', 'uniqueid')
-        op.add_column(
-                      'queue_members',
-                      sa.Column(
-                                name='uniqueid', type_=sa.Integer, nullable=False,
-                                unique=True))
+    op.drop_column('queue_members', 'uniqueid')
+    op.add_column('queue_members', sa.Column(name='uniqueid', type_=sa.Integer,
+                                             nullable=False, unique=True))
     # The postgres backend does not like the autoincrement needed for
     # mysql here.  It is just the backend that is giving a warning and
     # not the database itself.
-        op.alter_column(
-                        table_name='queue_members', column_name='uniqueid',
-                        existing_type=sa.Integer, existing_nullable=False,
-                        autoincrement=True)
+    op.alter_column(table_name='queue_members', column_name='uniqueid',
+                    existing_type=sa.Integer, existing_nullable=False,
+                    autoincrement=True)
 
 
 def downgrade():
     # Was unable to find a way to use op.alter_column() to remove the
     # unique index property.
-    with op.batch_alter_table('queue_members') as batch_op:
-        batch_op.drop_column('uniqueid')
-        batch_op.add_column(sa.Column(name='uniqueid', type_=sa.String(80), nullable=False))
+    op.drop_column('queue_members', 'uniqueid')
+    op.add_column('queue_members', sa.Column(name='uniqueid', type_=sa.String(80), nullable=False))

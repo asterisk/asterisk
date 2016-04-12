@@ -20,6 +20,5 @@ def upgrade():
 
 
 def downgrade():
-    with op.batch_alter_table('ps_endpoints') as batch_op:
-        batch_op.drop_column('rtp_timeout')
-        batch_op.drop_column('rtp_timeout_hold')
+    op.drop_column('ps_endpoints', 'rtp_timeout')
+    op.drop_column('ps_endpoints', 'rtp_timeout_hold')
