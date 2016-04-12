@@ -404,6 +404,8 @@ int ast_bridge_channel_queue_control_data(struct ast_bridge_channel *bridge_chan
  */
 int ast_bridge_channel_write_control_data(struct ast_bridge_channel *bridge_channel, enum ast_control_frame_type control, const void *data, size_t datalen);
 
+int ast_bridge_channel_write_frame(struct ast_bridge_channel *bridge_channel, struct ast_frame *fr);
+
 /*!
  * \brief Write a hold frame into the bridge.
  * \since 12.0.0

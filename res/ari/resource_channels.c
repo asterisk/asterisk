@@ -1629,6 +1629,7 @@ void ast_ari_channels_dial(struct ast_variable *headers,
 
 	ast_dial_set_user_data(dial, control);
 	ast_dial_set_global_timeout(dial, args->timeout * 1000);
+	ast_dial_option_global_enable(dial, AST_DIAL_OPTION_DISABLE_CALL_FORWARDING, NULL);
 
 	if (stasis_app_control_dial(control, dial)) {
 		ast_dial_destroy(dial);

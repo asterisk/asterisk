@@ -1038,6 +1038,11 @@ int ast_bridge_channel_write_control_data(struct ast_bridge_channel *bridge_chan
 	return bridge_channel_write_frame(bridge_channel, &frame);
 }
 
+int ast_bridge_channel_write_frame(struct ast_bridge_channel *bridge_channel, struct ast_frame *fr)
+{
+	return bridge_channel_write_frame(bridge_channel, fr);
+}
+
 int ast_bridge_channel_write_hold(struct ast_bridge_channel *bridge_channel, const char *moh_class)
 {
 	struct ast_json *blob;
