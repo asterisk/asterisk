@@ -357,6 +357,7 @@ static void set_softmix_bridge_data(int rate, int interval, struct ast_bridge_ch
 {
 	struct softmix_channel *sc = bridge_channel->tech_pvt;
 	struct ast_format *slin_format;
+	int setup_fail;
 
 	slin_format = ast_format_cache_get_slin_by_rate(rate);
 
@@ -386,17 +387,24 @@ static void set_softmix_bridge_data(int rate, int interval, struct ast_bridge_ch
 	sc->read_slin_format = slin_format;
 
 	/* Setup smoother */
-	ast_slinfactory_init_with_format(&sc->factory, slin_format);
+	setup_fail = ast_slinfactory_init_with_format(&sc->factory, slin_format);
 
 	/* set new read and write formats on channel. */
 	ast_channel_lock(bridge_channel->chan);
-	ast_set_read_format_path(bridge_channel->chan,
+	setup_fail |= ast_set_read_format_path(bridge_channel->chan,
 		ast_channel_rawreadformat(bridge_channel->chan), slin_format);
 	ast_channel_unlock(bridge_channel->chan);
-	ast_set_write_format(bridge_channel->chan, slin_format);
+	setup_fail |= ast_set_write_format(bridge_channel->chan, slin_format);
 
 	/* set up new DSP.  This is on the read side only right before the read frame enters the smoother.  */
 	sc->dsp = ast_dsp_new_with_rate(rate);
+	if (setup_fail || !sc->dsp) {
+		/* Bad news.  Could not setup the channel for softmix. */
+		ast_mutex_unlock(&sc->lock);
+		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END, 0);
+		return;
+	}
+
 	/* we want to aggressively detect silence to avoid feedback */
 	if (bridge_channel->tech_args.talking_threshold) {
 		ast_dsp_set_threshold(sc->dsp, bridge_channel->tech_args.talking_threshold);
@@ -616,7 +624,10 @@ static void softmix_bridge_write_voice(struct ast_bridge *bridge, struct ast_bri
 		ast_channel_unlock(bridge_channel->chan);
 	}
 
-	ast_dsp_silence_with_energy(sc->dsp, frame, &totalsilence, &cur_energy);
+	/* The channel will be leaving soon if there is no dsp. */
+	if (sc->dsp) {
+		ast_dsp_silence_with_energy(sc->dsp, frame, &totalsilence, &cur_energy);
+	}
 
 	if (bridge->softmix.video_mode.mode == AST_BRIDGE_VIDEO_MODE_TALKER_SRC) {
 		int cur_slot = sc->video_talker.energy_history_cur_slot;
