@@ -808,7 +808,6 @@ int ast_unreal_channel_push_to_bridge(struct ast_channel *ast, struct ast_bridge
 	/* Impart the semi2 channel into the bridge */
 	if (ast_bridge_impart(bridge, chan, NULL, features,
 		AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
-		ast_bridge_features_destroy(features);
 		ast_channel_unref(chan);
 		return -1;
 	}
