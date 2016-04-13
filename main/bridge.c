@@ -2318,6 +2318,9 @@ int ast_bridge_add_channel(struct ast_bridge *bridge, struct ast_channel *chan,
 	if (chan_bridge) {
 		struct ast_bridge_channel *bridge_channel;
 
+		/* The channel is in a bridge so it is not getting any new features. */
+		ast_bridge_features_destroy(features);
+
 		ast_bridge_lock_both(bridge, chan_bridge);
 		bridge_channel = bridge_find_channel(chan_bridge, chan);
 
@@ -2340,9 +2343,6 @@ int ast_bridge_add_channel(struct ast_bridge *bridge, struct ast_channel *chan,
 		bridge_dissolve_check_stolen(chan_bridge, bridge_channel);
 		ast_bridge_unlock(chan_bridge);
 		ast_bridge_unlock(bridge);
-
-		/* The channel was in a bridge so it is not getting any new features. */
-		ast_bridge_features_destroy(features);
 	} else {
 		/* Slightly less easy case. We need to yank channel A from
 		 * where he currently is and impart him into our bridge.
@@ -2350,6 +2350,7 @@ int ast_bridge_add_channel(struct ast_bridge *bridge, struct ast_channel *chan,
 		yanked_chan = ast_channel_yank(chan);
 		if (!yanked_chan) {
 			ast_log(LOG_WARNING, "Could not gain control of channel %s\n", ast_channel_name(chan));
+			ast_bridge_features_destroy(features);
 			return -1;
 		}
 		if (ast_channel_state(yanked_chan) != AST_STATE_UP) {
