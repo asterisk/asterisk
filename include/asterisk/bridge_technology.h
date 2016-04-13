@@ -107,6 +107,9 @@ struct ast_bridge_technology {
 	 * \retval -1 on failure
 	 *
 	 * \note On entry, bridge is already locked.
+	 *
+	 * \note The bridge technology must tollerate a failed to join channel
+	 * until it can be kicked from the bridge.
 	 */
 	int (*join)(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel);
 	/*!
