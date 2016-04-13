@@ -51,6 +51,7 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, struct a
 /*!
  * \brief Bridge a call, and add additional flags to the bridge
  *
+ * \details
  * This does the same thing as \ref ast_bridge_call, except that once the bridge
  * is created, the provided flags are set on the bridge. The provided flags are
  * added to the bridge's flags; they will not clear any flags already set.
@@ -70,6 +71,7 @@ int ast_bridge_call_with_flags(struct ast_channel *chan, struct ast_channel *pee
  * \brief Add an arbitrary channel to a bridge
  * \since 12.0.0
  *
+ * \details
  * The channel that is being added to the bridge can be in any state: unbridged,
  * bridged, answered, unanswered, etc. The channel will be added asynchronously,
  * meaning that when this function returns once the channel has been added to
@@ -87,11 +89,16 @@ int ast_bridge_call_with_flags(struct ast_channel *chan, struct ast_channel *pee
  * \param features Features for this channel in the bridge
  * \param play_tone Indicates if a tone should be played to the channel
  * \param xfersound Sound that should be used to indicate transfer with play_tone
+ *
+ * \note The features parameter must be NULL or obtained by
+ * ast_bridge_features_new().  You must not dereference features
+ * after calling even if the call fails.
+ *
  * \retval 0 Success
  * \retval -1 Failure
  */
 int ast_bridge_add_channel(struct ast_bridge *bridge, struct ast_channel *chan,
-		struct ast_bridge_features *features, int play_tone, const char *xfersound);
+	struct ast_bridge_features *features, int play_tone, const char *xfersound);
 
 
 

@@ -199,7 +199,6 @@ int conf_announce_channel_push(struct ast_channel *ast)
 	/* Impart the output channel into the bridge */
 	if (ast_bridge_impart(p->bridge, chan, NULL, features,
 		AST_BRIDGE_IMPART_CHAN_DEPARTABLE)) {
-		ast_bridge_features_destroy(features);
 		ast_channel_unref(chan);
 		return -1;
 	}
