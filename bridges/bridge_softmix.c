@@ -359,6 +359,9 @@ static void set_softmix_bridge_data(int rate, int interval, struct ast_bridge_ch
 	struct ast_format *slin_format;
 	int setup_fail;
 
+	/* The callers have already ensured that sc is never NULL. */
+	ast_assert(sc != NULL);
+
 	slin_format = ast_format_cache_get_slin_by_rate(rate);
 
 	ast_mutex_lock(&sc->lock);
@@ -714,7 +717,7 @@ static int softmix_bridge_write(struct ast_bridge *bridge, struct ast_bridge_cha
 {
 	int res = 0;
 
-	if (!bridge->tech_pvt || (bridge_channel && !bridge_channel->tech_pvt)) {
+	if (!bridge->tech_pvt || !bridge_channel || !bridge_channel->tech_pvt) {
 		/* "Accept" the frame and discard it. */
 		return 0;
 	}
@@ -984,6 +987,11 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 		AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
 			struct softmix_channel *sc = bridge_channel->tech_pvt;
 
+			if (!sc) {
+				/* This channel failed to join successfully. */
+				continue;
+			}
+
 			/* Update the sample rate to match the bridge's native sample rate if necessary. */
 			if (update_all_rates) {
 				set_softmix_bridge_data(softmix_data->internal_rate, softmix_data->internal_mixing_interval, bridge_channel, 1);
@@ -1019,7 +1027,8 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 		AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
 			struct softmix_channel *sc = bridge_channel->tech_pvt;
 
-			if (bridge_channel->suspended) {
+			if (!sc || bridge_channel->suspended) {
+				/* This channel failed to join successfully or is suspended. */
 				continue;
 			}
 

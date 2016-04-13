@@ -40,12 +40,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/bridge.h"
 #include "asterisk/bridge_basic.h"
 #include "asterisk/features.h"
+#include "asterisk/format_cache.h"
 
 #define TEST_CATEGORY "/channels/features/"
 
 #define CHANNEL_TECH_NAME "FeaturesTestChannel"
 
 #define TEST_BACKEND_NAME "Features Test Logging"
+
+#define TEST_CHANNEL_FORMAT		ast_format_slin
 
 /*! \brief A channel technology used for the unit tests */
 static struct ast_channel_tech test_features_chan_tech = {
@@ -94,6 +97,11 @@ static void wait_for_unbridged(struct ast_channel *channel)
 #define START_CHANNEL(channel, name, number) do { \
 	channel = ast_channel_alloc(0, AST_STATE_UP, number, name, number, number, \
 		"default", NULL, NULL, 0, CHANNEL_TECH_NAME "/" name); \
+	ast_channel_nativeformats_set(channel, test_features_chan_tech.capabilities); \
+	ast_channel_set_rawwriteformat(channel, TEST_CHANNEL_FORMAT); \
+	ast_channel_set_rawreadformat(channel, TEST_CHANNEL_FORMAT); \
+	ast_channel_set_writeformat(channel, TEST_CHANNEL_FORMAT); \
+	ast_channel_set_readformat(channel, TEST_CHANNEL_FORMAT); \
 	ast_channel_unlock(channel); \
 	} while (0)
 
@@ -329,12 +337,19 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(test_features_channel_interval);
 
 	ast_channel_unregister(&test_features_chan_tech);
+	ao2_cleanup(test_features_chan_tech.capabilities);
+	test_features_chan_tech.capabilities = NULL;
 
 	return 0;
 }
 
 static int load_module(void)
 {
+	test_features_chan_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!test_features_chan_tech.capabilities) {
+		return AST_MODULE_LOAD_FAILURE;
+	}
+	ast_format_cap_append(test_features_chan_tech.capabilities, TEST_CHANNEL_FORMAT, 0);
 	ast_channel_register(&test_features_chan_tech);
 
 	AST_TEST_REGISTER(test_features_channel_dtmf);

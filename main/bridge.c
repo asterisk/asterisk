@@ -420,10 +420,12 @@ static void bridge_channel_complete_join(struct ast_bridge *bridge, struct ast_b
 		bridge->technology->name);
 	if (bridge->technology->join
 		&& bridge->technology->join(bridge, bridge_channel)) {
-		ast_debug(1, "Bridge %s: %p(%s) failed to join %s technology\n",
+		/* We cannot leave the channel partially in the bridge so we must kick it out */
+		ast_debug(1, "Bridge %s: %p(%s) failed to join %s technology (Kicking it out)\n",
 			bridge->uniqueid, bridge_channel, ast_channel_name(bridge_channel->chan),
 			bridge->technology->name);
 		bridge_channel->just_joined = 1;
+		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END, 0);
 		return;
 	}
 
