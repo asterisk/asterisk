@@ -236,7 +236,7 @@ struct ast_string_field_header {
 */
 struct ast_string_field_mgr {
 	ast_string_field last_alloc;			/*!< the last field allocated */
-	struct ast_string_field_header *header;	/*!< pointer to the header */
+	struct ast_string_field_header header;	/*!< header */
 #if defined(__AST_DEBUG_MALLOC)
 	const char *owner_file;				/*!< filename of owner */
 	const char *owner_func;				/*!< function name of owner */
@@ -407,10 +407,10 @@ int __ast_string_field_free_memory(struct ast_string_field_mgr *mgr,
 #define ast_string_field_init_extended(x, field) \
 ({ \
 	int __res__ = -1; \
-	if (((void *)(x)) != NULL && (x)->__field_mgr.header != NULL) { \
+	if (((void *)(x)) != NULL) { \
 		ast_string_field *non_const = (ast_string_field *)&(x)->field; \
 		*non_const = __ast_string_field_empty; \
-		__res__ = AST_VECTOR_APPEND(&(x)->__field_mgr.header->string_fields, non_const); \
+		__res__ = AST_VECTOR_APPEND(&(x)->__field_mgr.header.string_fields, non_const); \
 	} \
 	__res__; \
 })
@@ -613,8 +613,8 @@ void __ast_string_field_release_active(struct ast_string_field_pool *pool_head,
 ({ \
 	int __res__ = -1; \
 	if (((void *)(instance1)) != NULL && ((void *)(instance2)) != NULL) { \
-		__res__ = __ast_string_fields_cmp(&(instance1)->__field_mgr.header->string_fields, \
-			&(instance2)->__field_mgr.header->string_fields); \
+		__res__ = __ast_string_fields_cmp(&(instance1)->__field_mgr.header.string_fields, \
+			&(instance2)->__field_mgr.header.string_fields); \
 	} \
 	__res__; \
 })
