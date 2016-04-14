@@ -101,10 +101,28 @@ static void *keepalive_transport_thread(void *data)
 	return NULL;
 }
 
+AST_THREADSTORAGE(desc_storage);
+
 static int idle_sched_cb(const void *data)
 {
 	struct monitored_transport *keepalive = (struct monitored_transport *) data;
 	int sip_received = ast_atomic_fetchadd_int(&keepalive->sip_received, 0);
+
+	if (!pj_thread_is_registered()) {
+		pj_thread_t *thread;
+		pj_thread_desc *desc;
+
+		desc = ast_threadstorage_get(&desc_storage, sizeof(pj_thread_desc));
+		if (!desc) {
+			ast_log(LOG_ERROR, "Could not get thread desc from thread-local storage.\n");
+			ao2_ref(keepalive, -1);
+			return 0;
+		}
+
+		pj_bzero(*desc, sizeof(*desc));
+
+		pj_thread_register("Transport Monitor", *desc, &thread);
+	}
 
 	if (!sip_received) {
 		ast_log(LOG_NOTICE, "Shutting down transport '%s' since no request was received in %d seconds\n",
