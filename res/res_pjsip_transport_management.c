@@ -106,6 +106,15 @@ static int idle_sched_cb(const void *data)
 	struct monitored_transport *keepalive = (struct monitored_transport *) data;
 	int sip_received = ast_atomic_fetchadd_int(&keepalive->sip_received, 0);
 
+	if (!pj_thread_is_registered()) {
+		pj_thread_t *thread;
+		pj_thread_desc desc;
+
+		pj_bzero(desc, sizeof(desc));
+
+		pj_thread_register("Transport Monitor", desc, &thread);
+	}
+
 	if (!sip_received) {
 		ast_log(LOG_NOTICE, "Shutting down transport '%s' since no request was received in %d seconds\n",
 				keepalive->transport->info, IDLE_TIMEOUT);
