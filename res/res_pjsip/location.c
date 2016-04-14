@@ -29,6 +29,11 @@
 #include "asterisk/statsd.h"
 #include "asterisk/named_locks.h"
 
+#include "asterisk/res_pjproject.h"
+
+static int pj_max_hostname = PJ_MAX_HOSTNAME;
+static int pjsip_max_url_size = PJSIP_MAX_URL_SIZE;
+
 /*! \brief Destructor for AOR */
 static void aor_destroy(void *obj)
 {
@@ -405,6 +410,43 @@ static int permanent_uri_sort_fn(const void *obj_left, const void *obj_right, in
 	return cmp;
 }
 
+int ast_sip_validate_uri_length(const char *contact_uri)
+{
+	pjsip_uri *uri;
+	pjsip_sip_uri *sip_uri;
+	pj_pool_t *pool;
+	int max_length = pj_max_hostname - 1;
+
+	if (strlen(contact_uri) > pjsip_max_url_size - 1) {
+		return -1;
+	}
+
+	if (!(pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "uri validation", 512, 512))) {
+		ast_log(LOG_ERROR, "Unable to allocate pool for uri validation\n");
+		return -1;
+	}
+
+	if (!(uri = pjsip_parse_uri(pool, (char *)contact_uri, strlen(contact_uri), 0)) ||
+	    (!PJSIP_URI_SCHEME_IS_SIP(uri) && !PJSIP_URI_SCHEME_IS_SIPS(uri))) {
+		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+		return -1;
+	}
+
+	sip_uri = pjsip_uri_get_uri(uri);
+	if (sip_uri->port == 0) {
+		max_length -= strlen("_sips.tcp.");
+	}
+
+	if (sip_uri->host.slen > max_length) {
+		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+		return -1;
+	}
+
+	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+
+	return 0;
+}
+
 /*! \brief Custom handler for permanent URIs */
 static int permanent_uri_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
@@ -426,6 +468,11 @@ static int permanent_uri_handler(const struct aco_option *opt, struct ast_variab
 
 		if (ast_strlen_zero(contact_uri)) {
 			continue;
+		}
+
+		if (ast_sip_validate_uri_length(contact_uri)) {
+			ast_log(LOG_ERROR, "Contact uri or hostname length exceeds pjproject limit: %s\n", contact_uri);
+			return -1;
 		}
 
 		if (!aor->permanent_contacts) {
@@ -1014,6 +1061,10 @@ int ast_sip_initialize_sorcery_location(void)
 {
 	struct ast_sorcery *sorcery = ast_sip_get_sorcery();
 	int i;
+
+	ast_pjproject_get_buildopt("PJ_MAX_HOSTNAME", "%d", &pj_max_hostname);
+	/* As of pjproject 2.4.5, PJSIP_MAX_URL_SIZE isn't exposed yet but we try anyway. */
+	ast_pjproject_get_buildopt("PJSIP_MAX_URL_SIZE", "%d", &pjsip_max_url_size);
 
 	ast_sorcery_apply_default(sorcery, "contact", "astdb", "registrar");
 	ast_sorcery_apply_default(sorcery, "aor", "config", "pjsip.conf,criteria=type=aor");
