@@ -142,6 +142,33 @@ ASTERISK_REGISTER_FILE()
 			</see-also>
 		</managerEventInstance>
 	</managerEvent>
+	<managerEvent language="en_US" name="DialState">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when dial status has changed.</synopsis>
+			<syntax>
+				<channel_snapshot/>
+				<channel_snapshot prefix="Dest"/>
+				<parameter name="DialStatus">
+					<para> The new state of the outbound dial attempt.</para>
+					<enumlist>
+						<enum name="RINGING">
+							<para>The outbound channel is ringing.</para>
+						</enum>
+						<enum name="PROCEEDING">
+							<para>The call to the outbound channel is proceeding.</para>
+						</enum>
+						<enum name="PROGRESS">
+							<para>Progress has been received on the outbound channel.</para>
+						</enum>
+					</enumlist>
+				</parameter>
+				<parameter name="Forward" required="false">
+					<para>If the call was forwarded, where the call was
+					forwarded to.</para>
+				</parameter>
+			</syntax>
+		</managerEventInstance>
+	</managerEvent>
 	<managerEvent language="en_US" name="DialEnd">
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a dial action has completed.</synopsis>
@@ -1026,6 +1053,13 @@ static void channel_monitor_stop_cb(void *data, struct stasis_subscription *sub,
 	publish_basic_channel_event("MonitorStop", EVENT_FLAG_CALL, payload->snapshot);
 }
 
+static int dial_status_end(const char *dialstatus)
+{
+	return (strcmp(dialstatus, "RINGING") &&
+			strcmp(dialstatus, "PROCEEDING") &&
+			strcmp(dialstatus, "PROGRESS"));
+}
+
 /*!
  * \brief Callback processing messages for channel dialing
  */
@@ -1069,7 +1103,7 @@ static void channel_dial_cb(void *data, struct stasis_subscription *sub,
 	} else {
 		int forwarded = !ast_strlen_zero(forward);
 
-		manager_event(EVENT_FLAG_CALL, "DialEnd",
+		manager_event(EVENT_FLAG_CALL, dial_status_end(dialstatus) ? "DialEnd" : "DialState",
 				"%s"
 				"%s"
 				"%s%s%s"

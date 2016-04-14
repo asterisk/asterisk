@@ -12,6 +12,13 @@
 --- Functionality changes from Asterisk 13 to Asterisk 14 --------------------
 ------------------------------------------------------------------------------
 
+AMI
+-----------------
+ * A new event, "DialState" has been added. This is similar to "DialBegin" and
+ "DialEnd" in that it tracks the state of a dialed call. The difference is that
+ this indicates some intermediate state change in the dial attempt, such as
+ "RINGING", "PROGRESS", or "PROCEEDING".
+
 ARI
 -----------------
  * A new ARI method has been added to the channels resource. "create" allows for
@@ -22,6 +29,10 @@ ARI
 
  * To complement the "create" method, a "dial" method has been added to the channels
  resource in order to place a call to a created channel.
+
+ * "Dial" events have been modified to not only be sent when dialing begins and ends.
+ They now are also sent for intermediate states, such as "RINGING", "PROGRESS", and
+ "PROCEEDING".
 
 Applications
 ------------------

@@ -537,6 +537,8 @@ static int handle_call_forward(struct ast_dial *dial, struct ast_dial_channel *c
 		} else {
 			ast_hangup(original);
 		}
+		ast_channel_publish_dial_forward(chan, channel->owner, NULL, NULL, "CANCEL",
+			ast_channel_call_forward(original));
 		channel->owner = NULL;
 		return 0;
 	}
@@ -668,6 +670,7 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 			break;
 		case AST_CONTROL_RINGING:
 			ast_verb(3, "%s is ringing\n", ast_channel_name(channel->owner));
+			ast_channel_publish_dial(chan, channel->owner, channel->device, "RINGING");
 			if (!dial->options[AST_DIAL_OPTION_MUSIC]) {
 				if (bridge_chan) {
 					ast_bridge_channel_write_control_data(bridge_chan, AST_CONTROL_RINGING, NULL, 0);
@@ -678,6 +681,7 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 			set_state(dial, AST_DIAL_RESULT_RINGING);
 			break;
 		case AST_CONTROL_PROGRESS:
+			ast_channel_publish_dial(chan, channel->owner, channel->device, "PROGRESS");
 			if (chan) {
 				ast_verb(3, "%s is making progress, passing it to %s\n", ast_channel_name(channel->owner), ast_channel_name(chan));
 				ast_indicate(chan, AST_CONTROL_PROGRESS);
@@ -732,6 +736,7 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 			}
 			break;
 		case AST_CONTROL_PROCEEDING:
+			ast_channel_publish_dial(chan, channel->owner, channel->device, "PROCEEDING");
 			if (chan) {
 				ast_verb(3, "%s is proceeding, passing it to %s\n", ast_channel_name(channel->owner), ast_channel_name(chan));
 				ast_indicate(chan, AST_CONTROL_PROCEEDING);
