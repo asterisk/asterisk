@@ -1,3 +1,86 @@
+2016-04-14 20:26 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.8.1 Released.
+
+2016-04-14 15:26 +0000 [18e6f12e83]  Kevin Harwell <kharwell@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-04-14 15:26 +0000 [625c07711a]  Kevin Harwell <kharwell@digium.com>
+
+	* .version: Update for 13.8.1
+
+2016-04-14 15:26 +0000 [584f1fb3c7]  Kevin Harwell <kharwell@digium.com>
+
+	* .lastclean: Update for 13.8.1
+
+2016-04-14 15:26 +0000 [1e37a63379]  Kevin Harwell <kharwell@digium.com>
+
+	* realtime: Add database scripts for 13.8.1
+
+2016-04-14 13:49 +0000 [dcf1b3c098]  Mark Michelson <mmichelson@digium.com>
+
+	* transport management: Register thread with PJProject.
+
+	  The scheduler thread that kills idle TCP connections was not registering
+	  with PJProject properly and causing assertions if PJProject was built in
+	  debug mode.
+
+	  This change registers the thread with PJProject the first time that the
+	  scheduler callback executes.
+
+	  AST-2016-005
+
+	  Change-Id: I5f7a37e2c80726a99afe9dc2a4a69bdedf661283
+
+2016-03-08 12:12 +0000 [efafbb1319]  Mark Michelson <mmichelson@digium.com>
+
+	* res_pjsip_transport_management: Kill idle TCP connections.
+
+	  "Idle" here means that someone connects to us and does not send a SIP
+	  request. PJProject will not automatically time out such connections, so
+	  it's up to Asterisk to do it instead.
+
+	  When we receive an incoming TCP connection, we will start a timer
+	  (equivalent to transaction timer D) waiting to receive an incoming
+	  request. If we do not receive a request in that timeframe, then we will
+	  shut down the TCP connection.
+
+	  ASTERISK-25796 #close
+	  Reported by George Joseph
+
+	  AST-2016-005
+
+	  Change-Id: I7b0d303e5d140d0ccaf2f7af562071e3d1130ac6
+
+2016-03-08 10:52 +0000 [159f639770]  Mark Michelson <mmichelson@digium.com>
+
+	* Rename res_pjsip_keepalive res_pjsip_transport_management
+
+	  ASTERISK-25796
+	  Reported by George Joseph
+
+	  AST-2016-005
+
+	  Change-Id: Id322a05f927392293570599730050bc677d99433
+
+2016-04-14 07:15 +0000 [c164ff004d]  Mark Michelson <mmichelson@digium.com>
+
+	* AST-2016-004: Fix crash on REGISTER with long URI.
+
+	  Due to some ignored return values, Asterisk could crash if processing an
+	  incoming REGISTER whose contact URI was above a certain length.
+
+	  ASTERISK-25707 #close
+	  Reported by George Joseph
+
+	  Patches:
+	  	0001-res_pjsip-Validate-that-URIs-don-t-exceed-pjproject-.patch
+
+	  AST-2016-004
+
+	  Change-Id: I0ed3898fe7ab10121b76c8c79046692de3a1be55
+
 2016-03-29 19:39 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.8.0 Released.
