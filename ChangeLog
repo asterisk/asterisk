@@ -1,3 +1,172 @@
+2016-04-14 20:22 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.1-cert5 Released.
+
+2016-04-14 15:22 +0000 [9edfb2c1b8]  Kevin Harwell <kharwell@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-04-14 15:22 +0000 [ec42f1d5e6]  Kevin Harwell <kharwell@digium.com>
+
+	* .version: Update for certified/13.1-cert5
+
+2016-04-14 15:22 +0000 [5fca21d105]  Kevin Harwell <kharwell@digium.com>
+
+	* .lastclean: Update for certified/13.1-cert5
+
+2016-04-14 15:22 +0000 [445e8b9dfc]  Kevin Harwell <kharwell@digium.com>
+
+	* realtime: Add database scripts for certified/13.1-cert5
+
+2016-04-14 13:49 +0000 [b66c7367ec]  Mark Michelson <mmichelson@digium.com>
+
+	* transport management: Register thread with PJProject.
+
+	  The scheduler thread that kills idle TCP connections was not registering
+	  with PJProject properly and causing assertions if PJProject was built in
+	  debug mode.
+
+	  This change registers the thread with PJProject the first time that the
+	  scheduler callback executes.
+
+	  AST-2016-005
+
+	  Change-Id: I5f7a37e2c80726a99afe9dc2a4a69bdedf661283
+
+2016-03-08 12:12 +0000 [023d2936ba]  Mark Michelson <mmichelson@digium.com>
+
+	* res_pjsip_transport_management: Kill idle TCP connections.
+
+	  "Idle" here means that someone connects to us and does not send a SIP
+	  request. PJProject will not automatically time out such connections, so
+	  it's up to Asterisk to do it instead.
+
+	  When we receive an incoming TCP connection, we will start a timer
+	  (equivalent to transaction timer D) waiting to receive an incoming
+	  request. If we do not receive a request in that timeframe, then we will
+	  shut down the TCP connection.
+
+	  ASTERISK-25796 #close
+	  Reported by George Joseph
+
+	  AST-2016-005
+
+	  Change-Id: I7b0d303e5d140d0ccaf2f7af562071e3d1130ac6
+
+2016-03-08 10:52 +0000 [0b1fe6b0ee]  Mark Michelson <mmichelson@digium.com>
+
+	* Rename res_pjsip_keepalive res_pjsip_transport_management
+
+	  ASTERISK-25796
+	  Reported by George Joseph
+
+	  AST-2016-005
+
+	  Change-Id: Id322a05f927392293570599730050bc677d99433
+
+2016-04-14 07:20 +0000 [e2e8699d00]  Mark Michelson <mmichelson@digium.com>
+
+	* AST-2016-004: Fix crash on REGISTER with long URI.
+
+	  Due to some ignored return values, Asterisk could crash if processing an
+	  incoming REGISTER whose contact URI was above a certain length.
+
+	  ASTERISK-25707 #close
+	  Reported by George Joseph
+
+	  Patches:
+	      0001-res_pjsip-Validate-that-URIs-don-t-exceed-pjproject-.patch
+
+	  AST-2016-004
+
+	  Change-Id: Ic4f5e49f1a83fef4951ffeeef8f443a7f6ac15eb
+
+2016-04-05 14:23 +0000 [967bb9eaf7]  Mark Michelson <mmichelson@digium.com>
+
+	* res_pjsip: Handle deferred SDP hold/unhold properly.
+
+	  Some SIP devices indicate hold/unhold using deferred SDP reinvites. In
+	  other words, they provide no SDP in the reinvite.
+
+	  A typical transaction that starts hold might look something like this:
+
+	  * Device sends reinvite with no SDP
+	  * Asterisk sends 200 OK with SDP indicating sendrecv on streams.
+	  * Device sends ACK with SDP indicating sendonly on streams.
+
+	  At this point, PJMedia's SDP negotiator saves Asterisk's local state as
+	  being recvonly.
+
+	  Now, when the device attempts to unhold, it again uses a deferred SDP
+	  reinvite, so we end up doing the following:
+
+	  * Device sends reinvite with no SDP
+	  * Asterisk sends 200 OK with SDP indicating recvonly on streams
+	  * Device sends ACK with SDP indicating sendonly on streams
+
+	  The problem here is that Asterisk offered recvonly, and by RFC 3264's
+	  rules, if an offer is recvonly, the answer has to be sendonly. The
+	  result is that the device is not taken off hold.
+
+	  What is supposed to happen is that Asterisk should indicate sendrecv in
+	  the 200 OK that it sends. This way, the device has the freedom to
+	  indicate sendrecv if it wants the stream taken off hold, or it can
+	  continue to respond with sendonly if the purpose of the reinvite was
+	  something else (like a session timer refresher).
+
+	  The fix here is to alter the SDP negotiator's state when we receive a
+	  reinvite with no SDP. If the negotiator's state is currently in the
+	  recvonly or inactive state, then we alter our local state to be
+	  sendrecv. This way, we allow the device to indicate the stream state as
+	  desired.
+
+	  ASTERISK-25854 #close
+	  Reported by Robert McGilvray
+
+	  Change-Id: I7615737276165eef3a593038413d936247dcc6ed
+
+2016-03-28 18:10 +0000 [6739081385]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_stasis: Fix crash on a hanging up channel.
+
+	  * Give the struct stasis_app_control ao2 object a ref to the channel held
+	  in the object.  Now the channel will still be around if a thread needs to
+	  post a stasis message instead of crash because the topic was destroyed.
+
+	  * Moved stopping any lingering silence generator out of the struct
+	  stasis_app_control destructor and made it a part of exiting the Stasis
+	  application.  Who knows which thread the destructor will be called under
+	  so it cannot affect the channel's silence generator.  Not only was the
+	  channel unprotected when the silence generator was stopped, stasis may no
+	  longer even control the channel.
+
+	  ASTERISK-25882
+
+	  Change-Id: I21728161b5fe638cef7976fa36a605043a7497e4
+
+2016-02-26 18:54 +0000 [a06d6811b6]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_pjsip_send_to_voicemail.c: Allow either quoted or not send_to_vm reason.
+
+	  Change-Id: Id6350b3c7d4ec8df7ec89863566645e2b0f441fd
+
+2016-02-15 12:52 +0000 [b7b193a430]  Joshua Colp <jcolp@digium.com>
+
+	* res_pjsip_pubsub: Move where the subscription is stored to after initialized.
+
+	  A problem arose when testing the AMI subscription listing actions where it
+	  was possible for a subscription that had not been fully initialized to be
+	  listed. This was problematic as the underlying listing code would crash.
+
+	  This change makes it so the subscription tree is fully set up before it is
+	  added to the list of subscriptions. This ensures that when the listing actions
+	  get the subscription it is valid.
+
+	  ASTERISK-25738 #close
+
+	  Change-Id: Iace2b13641c31bbcc0d43a39f99aba1f340c0f48
+	  (cherry picked from commit 1c4f2a920db173412b38aab785ba22c2cc489f89)
+
 2016-02-11 18:31 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.1-cert4 Released.
