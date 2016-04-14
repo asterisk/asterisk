@@ -18,6 +18,7 @@
 
 /*** MODULEINFO
 	<depend>pjproject</depend>
+	<depend>res_pjproject</depend>
 	<depend>res_pjsip</depend>
 	<support_level>core</support_level>
  ***/
@@ -33,6 +34,7 @@
 #include "asterisk/taskprocessor.h"
 #include "asterisk/manager.h"
 #include "asterisk/named_locks.h"
+#include "asterisk/res_pjproject.h"
 #include "res_pjsip/include/res_pjsip_private.h"
 
 /*** DOCUMENTATION
@@ -51,6 +53,9 @@
 		</description>
 	</manager>
  ***/
+
+static int pj_max_hostname = PJ_MAX_HOSTNAME;
+static int pjsip_max_url_size = PJSIP_MAX_URL_SIZE;
 
 /*! \brief Internal function which returns the expiration time for a contact */
 static int registrar_get_expiration(const struct ast_sip_aor *aor, const pjsip_contact_hdr *contact, const pjsip_rx_data *rdata)
@@ -86,7 +91,7 @@ struct registrar_contact_details {
 	/*! \brief Pool used for parsing URI */
 	pj_pool_t *pool;
 	/*! \brief URI being looked for */
-	pjsip_uri *uri;
+	pjsip_sip_uri *uri;
 };
 
 /*! \brief Callback function for finding a contact */
@@ -114,6 +119,7 @@ static int registrar_validate_contacts(const pjsip_rx_data *rdata, struct ao2_co
 	while ((contact = (pjsip_contact_hdr *) pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, contact->next))) {
 		int expiration = registrar_get_expiration(aor, contact, rdata);
 		RAII_VAR(struct ast_sip_contact *, existing, NULL, ao2_cleanup);
+		char contact_uri[pjsip_max_url_size];
 
 		if (contact->star) {
 			/* The expiration MUST be 0 when a '*' contact is used and there must be no other contact */
@@ -134,6 +140,19 @@ static int registrar_validate_contacts(const pjsip_rx_data *rdata, struct ao2_co
 		}
 
 		details.uri = pjsip_uri_get_uri(contact->uri);
+
+		/* pjsip_uri_print returns -1 if there's not enough room in the buffer */
+		if (pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, details.uri, contact_uri, sizeof(contact_uri)) < 0) {
+			/* If the total length of the uri is greater than pjproject can handle, go no further */
+			pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), details.pool);
+			return -1;
+		}
+
+		if (details.uri->host.slen >= pj_max_hostname) {
+			/* If the length of the hostname is greater than pjproject can handle, go no further */
+			pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), details.pool);
+			return -1;
+		}
 
 		/* Determine if this is an add, update, or delete for policy enforcement purposes */
 		if (!(existing = ao2_callback(contacts, 0, registrar_find_contact, &details))) {
@@ -472,7 +491,7 @@ static int rx_task_core(struct rx_task_data *task_data, struct ao2_container *co
 	/* Iterate each provided Contact header and add, update, or delete */
 	while ((contact_hdr = pjsip_msg_find_hdr(task_data->rdata->msg_info.msg, PJSIP_H_CONTACT, contact_hdr ? contact_hdr->next : NULL))) {
 		int expiration;
-		char contact_uri[PJSIP_MAX_URL_SIZE];
+		char contact_uri[pjsip_max_url_size];
 		RAII_VAR(struct ast_sip_contact *, contact, NULL, ao2_cleanup);
 
 		if (contact_hdr->star) {
@@ -826,6 +845,12 @@ static pjsip_module registrar_module = {
 static int load_module(void)
 {
 	const pj_str_t STR_REGISTER = { "REGISTER", 8 };
+
+	CHECK_PJPROJECT_MODULE_LOADED();
+
+	ast_pjproject_get_buildopt("PJ_MAX_HOSTNAME", "%d", &pj_max_hostname);
+	/* As of pjproject 2.4.5, PJSIP_MAX_URL_SIZE isn't exposed yet but we try anyway. */
+	ast_pjproject_get_buildopt("PJSIP_MAX_URL_SIZE", "%d", &pjsip_max_url_size);
 
 	CHECK_PJSIP_MODULE_LOADED();
 

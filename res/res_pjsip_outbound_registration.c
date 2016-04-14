@@ -1290,10 +1290,18 @@ static int sip_outbound_registration_apply(const struct ast_sorcery *sorcery, vo
 		ast_log(LOG_ERROR, "No server URI specified on outbound registration '%s'\n",
 			ast_sorcery_object_get_id(applied));
 		return -1;
+	} else if (ast_sip_validate_uri_length(applied->server_uri)) {
+			ast_log(LOG_ERROR, "Server URI or hostname length exceeds pjpropject limit '%s'\n",
+				ast_sorcery_object_get_id(applied));
+			return -1;
 	} else if (ast_strlen_zero(applied->client_uri)) {
 		ast_log(LOG_ERROR, "No client URI specified on outbound registration '%s'\n",
 			ast_sorcery_object_get_id(applied));
 		return -1;
+	} else if (ast_sip_validate_uri_length(applied->client_uri)) {
+			ast_log(LOG_ERROR, "Client URI or hostname length exceeds pjpropject limit '%s'\n",
+				ast_sorcery_object_get_id(applied));
+			return -1;
 	} else if (applied->line && ast_strlen_zero(applied->endpoint)) {
 		ast_log(LOG_ERROR, "Line support has been enabled on outbound registration '%s' without providing an endpoint\n",
 			ast_sorcery_object_get_id(applied));
