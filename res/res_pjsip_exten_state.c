@@ -20,16 +20,20 @@
 	<depend>pjproject</depend>
 	<depend>res_pjsip</depend>
 	<depend>res_pjsip_pubsub</depend>
+	<depend>res_pjsip_outbound_publish</depend>
 	<support_level>core</support_level>
  ***/
 
 #include "asterisk.h"
+
+#include <regex.h>
 
 #include <pjsip.h>
 #include <pjsip_simple.h>
 #include <pjlib.h>
 
 #include "asterisk/res_pjsip.h"
+#include "asterisk/res_pjsip_outbound_publish.h"
 #include "asterisk/res_pjsip_pubsub.h"
 #include "asterisk/res_pjsip_body_generator_types.h"
 #include "asterisk/module.h"
@@ -41,6 +45,16 @@
 
 #define BODY_SIZE 1024
 #define EVENT_TYPE_SIZE 50
+
+/*!
+ * \brief The number of buckets to use for storing publishers
+ */
+#define PUBLISHER_BUCKETS 31
+
+/*!
+ * \brief Container of active outbound extension state publishers
+ */
+static struct ao2_container *publishers;
 
 /*!
  * \brief A subscription for extension state
@@ -68,6 +82,27 @@ struct exten_state_subscription {
 	enum ast_presence_state last_presence_state;
 };
 
+/*!
+ * \brief An extension state publisher
+ *
+ */
+struct exten_state_publisher {
+	/*! The body type to use for this publisher */
+	char *body_type;
+	/*! Regular expression for context filtering */
+	regex_t context_regex;
+	/*! Whether context filtering is active */
+	unsigned context_filter;
+	/*! Regular expression for extension filtering */
+	regex_t exten_regex;
+	/*! Whether extension filtering is active */
+	unsigned int exten_filter;
+	/*! Publish client to use for sending publish messages */
+	struct ast_sip_outbound_publish_client *client;
+	/*! The name of this publisher */
+	char name[0];
+};
+
 #define DEFAULT_PRESENCE_BODY "application/pidf+xml"
 #define DEFAULT_DIALOG_BODY "application/dialog-info+xml"
 
@@ -77,6 +112,9 @@ static int subscription_established(struct ast_sip_subscription *sub);
 static void *get_notify_data(struct ast_sip_subscription *sub);
 static void to_ami(struct ast_sip_subscription *sub,
 		   struct ast_str **buf);
+static int publisher_start(struct ast_sip_outbound_publish *configuration,
+			   struct ast_sip_outbound_publish_client *client);
+static int publisher_stop(struct ast_sip_outbound_publish_client *client);
 
 struct ast_sip_notifier presence_notifier = {
 	.default_accept = DEFAULT_PRESENCE_BODY,
@@ -101,6 +139,12 @@ struct ast_sip_subscription_handler presence_handler = {
 	.notifier = &presence_notifier,
 };
 
+struct ast_sip_event_publisher_handler presence_publisher = {
+	.event_name = "presence",
+	.start_publishing = publisher_start,
+	.stop_publishing = publisher_stop,
+};
+
 struct ast_sip_subscription_handler dialog_handler = {
 	.event_name = "dialog",
 	.body_type = AST_SIP_EXTEN_STATE_DATA,
@@ -108,6 +152,12 @@ struct ast_sip_subscription_handler dialog_handler = {
 	.subscription_shutdown = subscription_shutdown,
 	.to_ami = to_ami,
 	.notifier = &dialog_notifier,
+};
+
+struct ast_sip_event_publisher_handler dialog_publisher = {
+	.event_name = "dialog",
+	.start_publishing = publisher_start,
+	.stop_publishing = publisher_stop,
 };
 
 static void exten_state_subscription_destructor(void *obj)
@@ -490,31 +540,243 @@ static void to_ami(struct ast_sip_subscription *sub,
 			       exten_state_sub->last_exten_state));
 }
 
+/*!
+ * \brief Global extension state callback function
+ */
+static int exten_state_publisher_state_cb(const char *context, const char *exten, struct ast_state_cb_info *info, void *data)
+{
+	struct ao2_iterator publisher_iter;
+	struct exten_state_publisher *publisher;
+
+	publisher_iter = ao2_iterator_init(publishers, 0);
+	for (; (publisher = ao2_iterator_next(&publisher_iter)); ao2_ref(publisher, -1)) {
+		if ((publisher->context_filter && regexec(&publisher->context_regex, context, 0, NULL, 0)) ||
+		    (publisher->exten_filter && regexec(&publisher->exten_regex, exten, 0, NULL, 0))) {
+			continue;
+		}
+
+	}
+	ao2_iterator_destroy(&publisher_iter);
+
+	return 0;
+}
+
+/*!
+ * \brief Hashing function for extension state publisher
+ */
+static int exten_state_publisher_hash(const void *obj, const int flags)
+{
+	const struct exten_state_publisher *object;
+	const char *key;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		key = obj;
+		break;
+	case OBJ_SEARCH_OBJECT:
+		object = obj;
+		key = object->name;
+		break;
+	default:
+		ast_assert(0);
+		return 0;
+	}
+	return ast_str_hash(key);
+}
+
+/*!
+ * \brief Comparator function for extension state publisher
+ */
+static int exten_state_publisher_cmp(void *obj, void *arg, int flags)
+{
+	const struct exten_state_publisher *object_left = obj;
+	const struct exten_state_publisher *object_right = arg;
+	const char *right_key = arg;
+	int cmp;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = object_right->name;
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(object_left->name, right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		/* Not supported by container. */
+		ast_assert(0);
+		return 0;
+	default:
+		cmp = 0;
+		break;
+	}
+	if (cmp) {
+		return 0;
+	}
+	return CMP_MATCH;
+}
+
+/*!
+ * \brief Destructor for extension state publisher
+ */
+static void exten_state_publisher_destroy(void *obj)
+{
+	struct exten_state_publisher *publisher = obj;
+
+	if (publisher->context_filter) {
+		regfree(&publisher->context_regex);
+	}
+
+	if (publisher->exten_filter) {
+		regfree(&publisher->exten_regex);
+	}
+
+	ao2_cleanup(publisher->client);
+}
+
+static int build_regex(regex_t *regex, const char *text)
+{
+	int res;
+
+	if ((res = regcomp(regex, text, REG_EXTENDED | REG_ICASE | REG_NOSUB))) {
+		size_t len = regerror(res, regex, NULL, 0);
+		char buf[len];
+		regerror(res, regex, buf, len);
+		ast_log(LOG_ERROR, "Could not compile regex '%s': %s\n", text, buf);
+		return -1;
+	}
+
+	return 0;
+}
+
+static int publisher_start(struct ast_sip_outbound_publish *configuration,
+                           struct ast_sip_outbound_publish_client *client)
+{
+	struct exten_state_publisher *publisher;
+	size_t name_size, body_type_size;
+	const char *body_type, *context, *exten;
+
+	name_size = strlen(ast_sorcery_object_get_id(configuration)) + 1;
+
+	body_type = ast_sorcery_object_get_extended(configuration, "body");
+	if (ast_strlen_zero(body_type)) {
+		ast_log(LOG_ERROR, "Outbound extension state publisher '%s' has no body set\n",
+			ast_sorcery_object_get_id(configuration));
+		return -1;
+	}
+	body_type_size = strlen(body_type) + 1;
+
+	publisher = ao2_alloc_options(sizeof(*publisher) + name_size + body_type_size,
+			exten_state_publisher_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!publisher) {
+		return -1;
+	}
+
+	ast_copy_string(publisher->name, ast_sorcery_object_get_id(configuration), name_size);
+	publisher->body_type = publisher->name + name_size;
+	ast_copy_string(publisher->body_type, body_type, body_type_size);
+
+	context = ast_sorcery_object_get_extended(configuration, "context");
+	if (!ast_strlen_zero(context)) {
+		if (build_regex(&publisher->context_regex, context)) {
+			ast_log(LOG_ERROR, "Could not filter context on publisher %s\n",
+				ast_sorcery_object_get_id(configuration));
+			ao2_ref(publisher, -1);
+			return -1;
+		}
+
+		publisher->context_filter = 1;
+	}
+
+	exten = ast_sorcery_object_get_extended(configuration, "exten");
+	if (!ast_strlen_zero(exten)) {
+		if (build_regex(&publisher->exten_regex, exten)) {
+			ast_log(LOG_ERROR, "Could not filter exten on publisher %s\n",
+				ast_sorcery_object_get_id(configuration));
+			ao2_ref(publisher, -1);
+			return -1;
+		}
+
+		publisher->exten_filter = 1;
+	}
+
+	publisher->client = ao2_bump(client);
+
+	ao2_lock(publishers);
+	if (!ao2_container_count(publishers)) {
+		ast_extension_state_add(NULL, NULL, exten_state_publisher_state_cb, NULL);
+	}
+	ao2_link_flags(publishers, publisher, OBJ_NOLOCK);
+	ao2_unlock(publishers);
+
+	ao2_ref(publisher, -1);
+
+	return 0;
+}
+
+static int publisher_stop(struct ast_sip_outbound_publish_client *client)
+{
+	ao2_find(publishers, ast_sorcery_object_get_id(client), OBJ_SEARCH_KEY | OBJ_UNLINK | OBJ_NODATA);
+	return 0;
+}
+
+static int unload_module(void)
+{
+	ast_sip_unregister_event_publisher_handler(&dialog_publisher);
+	ast_sip_unregister_subscription_handler(&dialog_handler);
+	ast_sip_unregister_event_publisher_handler(&presence_publisher);
+	ast_sip_unregister_subscription_handler(&presence_handler);
+
+	if (publishers) {
+		if (ao2_container_count(publishers)) {
+			ast_extension_state_del(0, exten_state_publisher_state_cb);
+		}
+
+		ao2_ref(publishers, -1);
+	}
+
+	return 0;
+}
+
 static int load_module(void)
 {
 	CHECK_PJSIP_MODULE_LOADED();
 
+	publishers = ao2_container_alloc(PUBLISHER_BUCKETS, exten_state_publisher_hash,
+		exten_state_publisher_cmp);
+	if (!publishers) {
+		ast_log(LOG_WARNING, "Unable to create container to store extension state publishers\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
 	if (ast_sip_register_subscription_handler(&presence_handler)) {
 		ast_log(LOG_WARNING, "Unable to register subscription handler %s\n",
 			presence_handler.event_name);
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	if (ast_sip_register_event_publisher_handler(&presence_publisher)) {
+		ast_log(LOG_WARNING, "Unable to register presence publisher %s\n",
+			presence_publisher.event_name);
+		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (ast_sip_register_subscription_handler(&dialog_handler)) {
 		ast_log(LOG_WARNING, "Unable to register subscription handler %s\n",
 			dialog_handler.event_name);
-		ast_sip_unregister_subscription_handler(&presence_handler);
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	if (ast_sip_register_event_publisher_handler(&dialog_publisher)) {
+		ast_log(LOG_WARNING, "Unable to register presence publisher %s\n",
+			dialog_publisher.event_name);
+		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
-}
-
-static int unload_module(void)
-{
-	ast_sip_unregister_subscription_handler(&dialog_handler);
-	ast_sip_unregister_subscription_handler(&presence_handler);
-	return 0;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP Extension State Notifications",
