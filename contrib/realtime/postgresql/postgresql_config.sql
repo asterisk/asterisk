@@ -4,25 +4,25 @@ CREATE TABLE alembic_version (
     version_num VARCHAR(32) NOT NULL
 );
 
--- Running upgrade None -> 4da0c5f79a9c
+-- Running upgrade  -> 4da0c5f79a9c
 
-CREATE TYPE type_values AS ENUM ('friend','user','peer');
+CREATE TYPE type_values AS ENUM ('friend', 'user', 'peer');
 
-CREATE TYPE sip_transport_values AS ENUM ('udp','tcp','tls','ws','wss','udp,tcp','tcp,udp');
+CREATE TYPE sip_transport_values AS ENUM ('udp', 'tcp', 'tls', 'ws', 'wss', 'udp,tcp', 'tcp,udp');
 
-CREATE TYPE sip_dtmfmode_values AS ENUM ('rfc2833','info','shortinfo','inband','auto');
+CREATE TYPE sip_dtmfmode_values AS ENUM ('rfc2833', 'info', 'shortinfo', 'inband', 'auto');
 
-CREATE TYPE sip_directmedia_values AS ENUM ('yes','no','nonat','update');
+CREATE TYPE sip_directmedia_values AS ENUM ('yes', 'no', 'nonat', 'update');
 
-CREATE TYPE yes_no_values AS ENUM ('yes','no');
+CREATE TYPE yes_no_values AS ENUM ('yes', 'no');
 
-CREATE TYPE sip_progressinband_values AS ENUM ('yes','no','never');
+CREATE TYPE sip_progressinband_values AS ENUM ('yes', 'no', 'never');
 
-CREATE TYPE sip_session_timers_values AS ENUM ('accept','refuse','originate');
+CREATE TYPE sip_session_timers_values AS ENUM ('accept', 'refuse', 'originate');
 
-CREATE TYPE sip_session_refresher_values AS ENUM ('uac','uas');
+CREATE TYPE sip_session_refresher_values AS ENUM ('uac', 'uas');
 
-CREATE TYPE sip_callingpres_values AS ENUM ('allowed_not_screened','allowed_passed_screen','allowed_failed_screen','allowed','prohib_not_screened','prohib_passed_screen','prohib_failed_screen','prohib');
+CREATE TYPE sip_callingpres_values AS ENUM ('allowed_not_screened', 'allowed_passed_screen', 'allowed_failed_screen', 'allowed', 'prohib_not_screened', 'prohib_passed_screen', 'prohib_failed_screen', 'prohib');
 
 CREATE TABLE sippeers (
     id SERIAL NOT NULL, 
@@ -126,11 +126,11 @@ CREATE INDEX sippeers_ipaddr_port ON sippeers (ipaddr, port);
 
 CREATE INDEX sippeers_host_port ON sippeers (host, port);
 
-CREATE TYPE iax_requirecalltoken_values AS ENUM ('yes','no','auto');
+CREATE TYPE iax_requirecalltoken_values AS ENUM ('yes', 'no', 'auto');
 
-CREATE TYPE iax_encryption_values AS ENUM ('yes','no','aes128');
+CREATE TYPE iax_encryption_values AS ENUM ('yes', 'no', 'aes128');
 
-CREATE TYPE iax_transfer_values AS ENUM ('yes','no','mediaonly');
+CREATE TYPE iax_transfer_values AS ENUM ('yes', 'no', 'mediaonly');
 
 CREATE TABLE iaxfriends (
     id SERIAL NOT NULL, 
@@ -257,7 +257,7 @@ CREATE TABLE meetme (
 
 CREATE INDEX meetme_confno_start_end ON meetme (confno, starttime, endtime);
 
-CREATE TYPE moh_mode_values AS ENUM ('custom','files','mp3nb','quietmp3nb','quietmp3');
+CREATE TYPE moh_mode_values AS ENUM ('custom', 'files', 'mp3nb', 'quietmp3nb', 'quietmp3');
 
 CREATE TABLE musiconhold (
     name VARCHAR(80) NOT NULL, 
@@ -271,29 +271,31 @@ CREATE TABLE musiconhold (
     PRIMARY KEY (name)
 );
 
+INSERT INTO alembic_version (version_num) VALUES ('4da0c5f79a9c');
+
 -- Running upgrade 4da0c5f79a9c -> 43956d550a44
 
-CREATE TYPE yesno_values AS ENUM ('yes','no');
+CREATE TYPE yesno_values AS ENUM ('yes', 'no');
 
-CREATE TYPE pjsip_connected_line_method_values AS ENUM ('invite','reinvite','update');
+CREATE TYPE pjsip_connected_line_method_values AS ENUM ('invite', 'reinvite', 'update');
 
-CREATE TYPE pjsip_direct_media_glare_mitigation_values AS ENUM ('none','outgoing','incoming');
+CREATE TYPE pjsip_direct_media_glare_mitigation_values AS ENUM ('none', 'outgoing', 'incoming');
 
-CREATE TYPE pjsip_dtmf_mode_values AS ENUM ('rfc4733','inband','info');
+CREATE TYPE pjsip_dtmf_mode_values AS ENUM ('rfc4733', 'inband', 'info');
 
 CREATE TYPE pjsip_identify_by_values AS ENUM ('username');
 
-CREATE TYPE pjsip_timer_values AS ENUM ('forced','no','required','yes');
+CREATE TYPE pjsip_timer_values AS ENUM ('forced', 'no', 'required', 'yes');
 
-CREATE TYPE pjsip_cid_privacy_values AS ENUM ('allowed_not_screened','allowed_passed_screened','allowed_failed_screened','allowed','prohib_not_screened','prohib_passed_screened','prohib_failed_screened','prohib','unavailable');
+CREATE TYPE pjsip_cid_privacy_values AS ENUM ('allowed_not_screened', 'allowed_passed_screened', 'allowed_failed_screened', 'allowed', 'prohib_not_screened', 'prohib_passed_screened', 'prohib_failed_screened', 'prohib', 'unavailable');
 
-CREATE TYPE pjsip_100rel_values AS ENUM ('no','required','yes');
+CREATE TYPE pjsip_100rel_values AS ENUM ('no', 'required', 'yes');
 
-CREATE TYPE pjsip_media_encryption_values AS ENUM ('no','sdes','dtls');
+CREATE TYPE pjsip_media_encryption_values AS ENUM ('no', 'sdes', 'dtls');
 
-CREATE TYPE pjsip_t38udptl_ec_values AS ENUM ('none','fec','redundancy');
+CREATE TYPE pjsip_t38udptl_ec_values AS ENUM ('none', 'fec', 'redundancy');
 
-CREATE TYPE pjsip_dtls_setup_values AS ENUM ('active','passive','actpass');
+CREATE TYPE pjsip_dtls_setup_values AS ENUM ('active', 'passive', 'actpass');
 
 CREATE TABLE ps_endpoints (
     id VARCHAR(40) NOT NULL, 
@@ -380,7 +382,7 @@ CREATE TABLE ps_endpoints (
 
 CREATE INDEX ps_endpoints_id ON ps_endpoints (id);
 
-CREATE TYPE pjsip_auth_type_values AS ENUM ('md5','userpass');
+CREATE TYPE pjsip_auth_type_values AS ENUM ('md5', 'userpass');
 
 CREATE TABLE ps_auths (
     id VARCHAR(40) NOT NULL, 
@@ -437,6 +439,8 @@ CREATE TABLE ps_endpoint_id_ips (
 
 CREATE INDEX ps_endpoint_id_ips_id ON ps_endpoint_id_ips (id);
 
+UPDATE alembic_version SET version_num='43956d550a44' WHERE alembic_version.version_num = '4da0c5f79a9c';
+
 -- Running upgrade 43956d550a44 -> 581a4264e537
 
 CREATE TABLE extensions (
@@ -450,9 +454,11 @@ CREATE TABLE extensions (
     UNIQUE (id)
 );
 
+UPDATE alembic_version SET version_num='581a4264e537' WHERE alembic_version.version_num = '43956d550a44';
+
 -- Running upgrade 581a4264e537 -> 2fc7930b41b3
 
-CREATE TYPE pjsip_redirect_method_values AS ENUM ('user','uri_core','uri_pjsip');
+CREATE TYPE pjsip_redirect_method_values AS ENUM ('user', 'uri_core', 'uri_pjsip');
 
 CREATE TABLE ps_systems (
     id VARCHAR(40) NOT NULL, 
@@ -478,9 +484,9 @@ CREATE TABLE ps_globals (
 
 CREATE INDEX ps_globals_id ON ps_globals (id);
 
-CREATE TYPE pjsip_transport_method_values AS ENUM ('default','unspecified','tlsv1','sslv2','sslv3','sslv23');
+CREATE TYPE pjsip_transport_method_values AS ENUM ('default', 'unspecified', 'tlsv1', 'sslv2', 'sslv3', 'sslv23');
 
-CREATE TYPE pjsip_transport_protocol_values AS ENUM ('udp','tcp','tls','ws','wss');
+CREATE TYPE pjsip_transport_protocol_values AS ENUM ('udp', 'tcp', 'tls', 'ws', 'wss');
 
 CREATE TABLE ps_transports (
     id VARCHAR(40) NOT NULL, 
@@ -545,15 +551,19 @@ ALTER TABLE ps_aors ADD COLUMN outbound_proxy VARCHAR(40);
 
 ALTER TABLE ps_aors ADD COLUMN support_path yesno_values;
 
+UPDATE alembic_version SET version_num='2fc7930b41b3' WHERE alembic_version.version_num = '581a4264e537';
+
 -- Running upgrade 2fc7930b41b3 -> 21e526ad3040
 
 ALTER TABLE ps_globals ADD COLUMN debug VARCHAR(40);
 
+UPDATE alembic_version SET version_num='21e526ad3040' WHERE alembic_version.version_num = '2fc7930b41b3';
+
 -- Running upgrade 21e526ad3040 -> 28887f25a46f
 
-CREATE TYPE queue_autopause_values AS ENUM ('yes','no','all');
+CREATE TYPE queue_autopause_values AS ENUM ('yes', 'no', 'all');
 
-CREATE TYPE queue_strategy_values AS ENUM ('ringall','leastrecent','fewestcalls','random','rrmemory','linear','wrandom','rrordered');
+CREATE TYPE queue_strategy_values AS ENUM ('ringall', 'leastrecent', 'fewestcalls', 'random', 'rrmemory', 'linear', 'wrandom', 'rrordered');
 
 CREATE TABLE queues (
     name VARCHAR(128) NOT NULL, 
@@ -625,6 +635,8 @@ CREATE TABLE queue_members (
     PRIMARY KEY (queue_name, interface)
 );
 
+UPDATE alembic_version SET version_num='28887f25a46f' WHERE alembic_version.version_num = '21e526ad3040';
+
 -- Running upgrade 28887f25a46f -> 4c573e7135bd
 
 ALTER TABLE ps_endpoints ALTER COLUMN tos_audio TYPE VARCHAR(10);
@@ -645,11 +657,15 @@ ALTER TABLE ps_endpoints ADD COLUMN cos_video INTEGER;
 
 ALTER TABLE ps_transports ADD COLUMN cos INTEGER;
 
+UPDATE alembic_version SET version_num='4c573e7135bd' WHERE alembic_version.version_num = '28887f25a46f';
+
 -- Running upgrade 4c573e7135bd -> 3855ee4e5f85
 
 ALTER TABLE ps_endpoints ADD COLUMN message_context VARCHAR(40);
 
 ALTER TABLE ps_contacts ADD COLUMN user_agent VARCHAR(40);
+
+UPDATE alembic_version SET version_num='3855ee4e5f85' WHERE alembic_version.version_num = '4c573e7135bd';
 
 -- Running upgrade 3855ee4e5f85 -> e96a0b8071c
 
@@ -664,6 +680,8 @@ ALTER TABLE ps_contacts ALTER COLUMN user_agent TYPE VARCHAR(255);
 ALTER TABLE ps_registrations ALTER COLUMN client_uri TYPE VARCHAR(255);
 
 ALTER TABLE ps_registrations ALTER COLUMN server_uri TYPE VARCHAR(255);
+
+UPDATE alembic_version SET version_num='e96a0b8071c' WHERE alembic_version.version_num = '3855ee4e5f85';
 
 -- Running upgrade e96a0b8071c -> c6d929b23a8
 
@@ -684,19 +702,27 @@ CREATE TABLE ps_subscription_persistence (
 
 CREATE INDEX ps_subscription_persistence_id ON ps_subscription_persistence (id);
 
+UPDATE alembic_version SET version_num='c6d929b23a8' WHERE alembic_version.version_num = 'e96a0b8071c';
+
 -- Running upgrade c6d929b23a8 -> 51f8cb66540e
 
 ALTER TABLE ps_endpoints ADD COLUMN force_avp yesno_values;
 
 ALTER TABLE ps_endpoints ADD COLUMN media_use_received_transport yesno_values;
 
+UPDATE alembic_version SET version_num='51f8cb66540e' WHERE alembic_version.version_num = 'c6d929b23a8';
+
 -- Running upgrade 51f8cb66540e -> 1d50859ed02e
 
 ALTER TABLE ps_endpoints ADD COLUMN accountcode VARCHAR(20);
 
+UPDATE alembic_version SET version_num='1d50859ed02e' WHERE alembic_version.version_num = '51f8cb66540e';
+
 -- Running upgrade 1d50859ed02e -> 1758e8bbf6b
 
 ALTER TABLE sippeers ALTER COLUMN useragent TYPE VARCHAR(255);
+
+UPDATE alembic_version SET version_num='1758e8bbf6b' WHERE alembic_version.version_num = '1d50859ed02e';
 
 -- Running upgrade 1758e8bbf6b -> 5139253c0423
 
@@ -705,6 +731,8 @@ ALTER TABLE queue_members DROP COLUMN uniqueid;
 ALTER TABLE queue_members ADD COLUMN uniqueid INTEGER NOT NULL;
 
 ALTER TABLE queue_members ADD UNIQUE (uniqueid);
+
+UPDATE alembic_version SET version_num='5139253c0423' WHERE alembic_version.version_num = '1758e8bbf6b';
 
 -- Running upgrade 5139253c0423 -> d39508cb8d8
 
@@ -715,35 +743,49 @@ CREATE TABLE queue_rules (
     max_penalty VARCHAR(32) NOT NULL
 );
 
+UPDATE alembic_version SET version_num='d39508cb8d8' WHERE alembic_version.version_num = '5139253c0423';
+
 -- Running upgrade d39508cb8d8 -> 5950038a6ead
 
 ALTER TABLE ps_transports ALTER COLUMN verifiy_server TYPE yesno_values;
 
 ALTER TABLE ps_transports RENAME verifiy_server TO verify_server;
 
+UPDATE alembic_version SET version_num='5950038a6ead' WHERE alembic_version.version_num = 'd39508cb8d8';
+
 -- Running upgrade 5950038a6ead -> 10aedae86a32
 
-CREATE TYPE sip_directmedia_values_v2 AS ENUM ('yes','no','nonat','update','outgoing');
+CREATE TYPE sip_directmedia_values_v2 AS ENUM ('yes', 'no', 'nonat', 'update', 'outgoing');
 
 ALTER TABLE sippeers ALTER COLUMN directmedia TYPE sip_directmedia_values_v2 USING directmedia::text::sip_directmedia_values_v2;
 
 DROP TYPE sip_directmedia_values;
 
+UPDATE alembic_version SET version_num='10aedae86a32' WHERE alembic_version.version_num = '5950038a6ead';
+
 -- Running upgrade 10aedae86a32 -> eb88a14f2a
 
 ALTER TABLE ps_endpoints ADD COLUMN media_encryption_optimistic yesno_values;
+
+UPDATE alembic_version SET version_num='eb88a14f2a' WHERE alembic_version.version_num = '10aedae86a32';
 
 -- Running upgrade eb88a14f2a -> 371a3bf4143e
 
 ALTER TABLE ps_endpoints ADD COLUMN user_eq_phone yesno_values;
 
+UPDATE alembic_version SET version_num='371a3bf4143e' WHERE alembic_version.version_num = 'eb88a14f2a';
+
 -- Running upgrade 371a3bf4143e -> 45e3f47c6c44
 
 ALTER TABLE ps_globals ADD COLUMN endpoint_identifier_order VARCHAR(40);
 
+UPDATE alembic_version SET version_num='45e3f47c6c44' WHERE alembic_version.version_num = '371a3bf4143e';
+
 -- Running upgrade 45e3f47c6c44 -> 498357a710ae
 
 ALTER TABLE ps_endpoints ADD COLUMN rtp_keepalive INTEGER;
+
+UPDATE alembic_version SET version_num='498357a710ae' WHERE alembic_version.version_num = '45e3f47c6c44';
 
 -- Running upgrade 498357a710ae -> 5a6ccc758633
 
@@ -751,15 +793,19 @@ ALTER TABLE ps_endpoints ADD COLUMN rtp_timeout INTEGER;
 
 ALTER TABLE ps_endpoints ADD COLUMN rtp_timeout_hold INTEGER;
 
+UPDATE alembic_version SET version_num='5a6ccc758633' WHERE alembic_version.version_num = '498357a710ae';
+
 -- Running upgrade 5a6ccc758633 -> 154177371065
 
 ALTER TABLE ps_globals ADD COLUMN default_from_user VARCHAR(80);
+
+UPDATE alembic_version SET version_num='154177371065' WHERE alembic_version.version_num = '5a6ccc758633';
 
 -- Running upgrade 154177371065 -> 28ce1e718f05
 
 ALTER TABLE ps_registrations ADD COLUMN fatal_retry_interval INTEGER;
 
-INSERT INTO alembic_version (version_num) VALUES ('28ce1e718f05');
+UPDATE alembic_version SET version_num='28ce1e718f05' WHERE alembic_version.version_num = '154177371065';
 
 COMMIT;
 

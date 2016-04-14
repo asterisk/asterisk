@@ -2,7 +2,7 @@ CREATE TABLE alembic_version (
     version_num VARCHAR(32) NOT NULL
 );
 
--- Running upgrade None -> a2e9769475e
+-- Running upgrade  -> a2e9769475e
 
 CREATE TABLE voicemail_messages (
     dir VARCHAR(255) NOT NULL, 
@@ -28,7 +28,7 @@ INSERT INTO alembic_version (version_num) VALUES ('a2e9769475e');
 
 -- Running upgrade a2e9769475e -> 39428242f7f5
 
-ALTER TABLE voicemail_messages CHANGE recording recording BLOB(4294967295) NULL;
+ALTER TABLE voicemail_messages MODIFY recording BLOB(4294967295) NULL;
 
-UPDATE alembic_version SET version_num='39428242f7f5';
+UPDATE alembic_version SET version_num='39428242f7f5' WHERE alembic_version.version_num = 'a2e9769475e';
 

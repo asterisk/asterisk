@@ -2,7 +2,7 @@ CREATE TABLE alembic_version (
     version_num VARCHAR(32) NOT NULL
 );
 
--- Running upgrade None -> 210693f3123d
+-- Running upgrade  -> 210693f3123d
 
 CREATE TABLE cdr (
     accountcode VARCHAR(20), 

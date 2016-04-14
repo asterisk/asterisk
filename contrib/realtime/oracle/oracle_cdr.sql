@@ -1,14 +1,10 @@
-SET TRANSACTION READ WRITE
-
-/
-
 CREATE TABLE alembic_version (
     version_num VARCHAR2(32 CHAR) NOT NULL
 )
 
 /
 
--- Running upgrade None -> 210693f3123d
+-- Running upgrade  -> 210693f3123d
 
 CREATE TABLE cdr (
     accountcode VARCHAR2(20 CHAR), 
@@ -37,10 +33,6 @@ CREATE TABLE cdr (
 /
 
 INSERT INTO alembic_version (version_num) VALUES ('210693f3123d')
-
-/
-
-COMMIT
 
 /
 

@@ -1,14 +1,10 @@
-SET TRANSACTION READ WRITE
-
-/
-
 CREATE TABLE alembic_version (
     version_num VARCHAR2(32 CHAR) NOT NULL
 )
 
 /
 
--- Running upgrade None -> 4da0c5f79a9c
+-- Running upgrade  -> 4da0c5f79a9c
 
 CREATE TABLE sippeers (
     id INTEGER NOT NULL, 
@@ -338,6 +334,10 @@ CREATE TABLE musiconhold (
 
 /
 
+INSERT INTO alembic_version (version_num) VALUES ('4da0c5f79a9c')
+
+/
+
 -- Running upgrade 4da0c5f79a9c -> 43956d550a44
 
 CREATE TABLE ps_endpoints (
@@ -374,7 +374,7 @@ CREATE TABLE ps_endpoints (
     callerid VARCHAR2(40 CHAR), 
     callerid_privacy VARCHAR(23 CHAR), 
     callerid_tag VARCHAR2(40 CHAR), 
-    100rel VARCHAR(8 CHAR), 
+    "100rel" VARCHAR(8 CHAR), 
     aggregate_mwi VARCHAR(3 CHAR), 
     trust_id_inbound VARCHAR(3 CHAR), 
     trust_id_outbound VARCHAR(3 CHAR), 
@@ -438,7 +438,7 @@ CREATE TABLE ps_endpoints (
     CONSTRAINT yesno_values CHECK (send_rpid IN ('yes', 'no')), 
     CONSTRAINT pjsip_timer_values CHECK (timers IN ('forced', 'no', 'required', 'yes')), 
     CONSTRAINT pjsip_cid_privacy_values CHECK (callerid_privacy IN ('allowed_not_screened', 'allowed_passed_screened', 'allowed_failed_screened', 'allowed', 'prohib_not_screened', 'prohib_passed_screened', 'prohib_failed_screened', 'prohib', 'unavailable')), 
-    CONSTRAINT pjsip_100rel_values CHECK (100rel IN ('no', 'required', 'yes')), 
+    CONSTRAINT pjsip_100rel_values CHECK ("100rel" IN ('no', 'required', 'yes')), 
     CONSTRAINT yesno_values CHECK (aggregate_mwi IN ('yes', 'no')), 
     CONSTRAINT yesno_values CHECK (trust_id_inbound IN ('yes', 'no')), 
     CONSTRAINT yesno_values CHECK (trust_id_outbound IN ('yes', 'no')), 
@@ -542,6 +542,10 @@ CREATE INDEX ps_endpoint_id_ips_id ON ps_endpoint_id_ips (id)
 
 /
 
+UPDATE alembic_version SET version_num='43956d550a44' WHERE alembic_version.version_num = '4da0c5f79a9c'
+
+/
+
 -- Running upgrade 43956d550a44 -> 581a4264e537
 
 CREATE TABLE extensions (
@@ -554,6 +558,10 @@ CREATE TABLE extensions (
     PRIMARY KEY (id, context, exten, priority), 
     UNIQUE (id)
 )
+
+/
+
+UPDATE alembic_version SET version_num='581a4264e537' WHERE alembic_version.version_num = '43956d550a44'
 
 /
 
@@ -698,9 +706,17 @@ ALTER TABLE ps_aors ADD CONSTRAINT yesno_values CHECK (support_path IN ('yes', '
 
 /
 
+UPDATE alembic_version SET version_num='2fc7930b41b3' WHERE alembic_version.version_num = '581a4264e537'
+
+/
+
 -- Running upgrade 2fc7930b41b3 -> 21e526ad3040
 
 ALTER TABLE ps_globals ADD debug VARCHAR2(40 CHAR)
+
+/
+
+UPDATE alembic_version SET version_num='21e526ad3040' WHERE alembic_version.version_num = '2fc7930b41b3'
 
 /
 
@@ -794,6 +810,10 @@ CREATE TABLE queue_members (
 
 /
 
+UPDATE alembic_version SET version_num='28887f25a46f' WHERE alembic_version.version_num = '21e526ad3040'
+
+/
+
 -- Running upgrade 28887f25a46f -> 4c573e7135bd
 
 ALTER TABLE ps_endpoints MODIFY tos_audio VARCHAR2(10 CHAR)
@@ -832,6 +852,10 @@ ALTER TABLE ps_transports ADD cos INTEGER
 
 /
 
+UPDATE alembic_version SET version_num='4c573e7135bd' WHERE alembic_version.version_num = '28887f25a46f'
+
+/
+
 -- Running upgrade 4c573e7135bd -> 3855ee4e5f85
 
 ALTER TABLE ps_endpoints ADD message_context VARCHAR2(40 CHAR)
@@ -839,6 +863,10 @@ ALTER TABLE ps_endpoints ADD message_context VARCHAR2(40 CHAR)
 /
 
 ALTER TABLE ps_contacts ADD user_agent VARCHAR2(40 CHAR)
+
+/
+
+UPDATE alembic_version SET version_num='3855ee4e5f85' WHERE alembic_version.version_num = '4c573e7135bd'
 
 /
 
@@ -868,6 +896,10 @@ ALTER TABLE ps_registrations MODIFY server_uri VARCHAR2(255 CHAR)
 
 /
 
+UPDATE alembic_version SET version_num='e96a0b8071c' WHERE alembic_version.version_num = '3855ee4e5f85'
+
+/
+
 -- Running upgrade e96a0b8071c -> c6d929b23a8
 
 CREATE TABLE ps_subscription_persistence (
@@ -891,6 +923,10 @@ CREATE INDEX ps_subscription_persistence_id ON ps_subscription_persistence (id)
 
 /
 
+UPDATE alembic_version SET version_num='c6d929b23a8' WHERE alembic_version.version_num = 'e96a0b8071c'
+
+/
+
 -- Running upgrade c6d929b23a8 -> 51f8cb66540e
 
 ALTER TABLE ps_endpoints ADD force_avp VARCHAR(3 CHAR)
@@ -909,15 +945,27 @@ ALTER TABLE ps_endpoints ADD CONSTRAINT yesno_values CHECK (media_use_received_t
 
 /
 
+UPDATE alembic_version SET version_num='51f8cb66540e' WHERE alembic_version.version_num = 'c6d929b23a8'
+
+/
+
 -- Running upgrade 51f8cb66540e -> 1d50859ed02e
 
 ALTER TABLE ps_endpoints ADD accountcode VARCHAR2(20 CHAR)
 
 /
 
+UPDATE alembic_version SET version_num='1d50859ed02e' WHERE alembic_version.version_num = '51f8cb66540e'
+
+/
+
 -- Running upgrade 1d50859ed02e -> 1758e8bbf6b
 
 ALTER TABLE sippeers MODIFY useragent VARCHAR2(255 CHAR)
+
+/
+
+UPDATE alembic_version SET version_num='1758e8bbf6b' WHERE alembic_version.version_num = '1d50859ed02e'
 
 /
 
@@ -935,6 +983,10 @@ ALTER TABLE queue_members ADD UNIQUE (uniqueid)
 
 /
 
+UPDATE alembic_version SET version_num='5139253c0423' WHERE alembic_version.version_num = '1758e8bbf6b'
+
+/
+
 -- Running upgrade 5139253c0423 -> d39508cb8d8
 
 CREATE TABLE queue_rules (
@@ -943,6 +995,10 @@ CREATE TABLE queue_rules (
     min_penalty VARCHAR2(32 CHAR) NOT NULL, 
     max_penalty VARCHAR2(32 CHAR) NOT NULL
 )
+
+/
+
+UPDATE alembic_version SET version_num='d39508cb8d8' WHERE alembic_version.version_num = '5139253c0423'
 
 /
 
@@ -960,6 +1016,10 @@ ALTER TABLE ps_transports ADD CONSTRAINT yesno_values CHECK (verifiy_server IN (
 
 /
 
+UPDATE alembic_version SET version_num='5950038a6ead' WHERE alembic_version.version_num = 'd39508cb8d8'
+
+/
+
 -- Running upgrade 5950038a6ead -> 10aedae86a32
 
 ALTER TABLE sippeers DROP CONSTRAINT sip_directmedia_values
@@ -974,6 +1034,10 @@ ALTER TABLE sippeers ADD CONSTRAINT sip_directmedia_values_v2 CHECK (directmedia
 
 /
 
+UPDATE alembic_version SET version_num='10aedae86a32' WHERE alembic_version.version_num = '5950038a6ead'
+
+/
+
 -- Running upgrade 10aedae86a32 -> eb88a14f2a
 
 ALTER TABLE ps_endpoints ADD media_encryption_optimistic VARCHAR(3 CHAR)
@@ -981,6 +1045,10 @@ ALTER TABLE ps_endpoints ADD media_encryption_optimistic VARCHAR(3 CHAR)
 /
 
 ALTER TABLE ps_endpoints ADD CONSTRAINT yesno_values CHECK (media_encryption_optimistic IN ('yes', 'no'))
+
+/
+
+UPDATE alembic_version SET version_num='eb88a14f2a' WHERE alembic_version.version_num = '10aedae86a32'
 
 /
 
@@ -994,15 +1062,27 @@ ALTER TABLE ps_endpoints ADD CONSTRAINT yesno_values CHECK (user_eq_phone IN ('y
 
 /
 
+UPDATE alembic_version SET version_num='371a3bf4143e' WHERE alembic_version.version_num = 'eb88a14f2a'
+
+/
+
 -- Running upgrade 371a3bf4143e -> 45e3f47c6c44
 
 ALTER TABLE ps_globals ADD endpoint_identifier_order VARCHAR2(40 CHAR)
 
 /
 
+UPDATE alembic_version SET version_num='45e3f47c6c44' WHERE alembic_version.version_num = '371a3bf4143e'
+
+/
+
 -- Running upgrade 45e3f47c6c44 -> 498357a710ae
 
 ALTER TABLE ps_endpoints ADD rtp_keepalive INTEGER
+
+/
+
+UPDATE alembic_version SET version_num='498357a710ae' WHERE alembic_version.version_num = '45e3f47c6c44'
 
 /
 
@@ -1016,9 +1096,17 @@ ALTER TABLE ps_endpoints ADD rtp_timeout_hold INTEGER
 
 /
 
+UPDATE alembic_version SET version_num='5a6ccc758633' WHERE alembic_version.version_num = '498357a710ae'
+
+/
+
 -- Running upgrade 5a6ccc758633 -> 154177371065
 
 ALTER TABLE ps_globals ADD default_from_user VARCHAR2(80 CHAR)
+
+/
+
+UPDATE alembic_version SET version_num='154177371065' WHERE alembic_version.version_num = '5a6ccc758633'
 
 /
 
@@ -1028,11 +1116,7 @@ ALTER TABLE ps_registrations ADD fatal_retry_interval INTEGER
 
 /
 
-INSERT INTO alembic_version (version_num) VALUES ('28ce1e718f05')
-
-/
-
-COMMIT
+UPDATE alembic_version SET version_num='28ce1e718f05' WHERE alembic_version.version_num = '154177371065'
 
 /
 

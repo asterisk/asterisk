@@ -6,7 +6,7 @@ CREATE TABLE alembic_version (
 
 GO
 
--- Running upgrade None -> 210693f3123d
+-- Running upgrade  -> 210693f3123d
 
 CREATE TABLE cdr (
     accountcode VARCHAR(20) NULL, 
@@ -39,4 +39,6 @@ INSERT INTO alembic_version (version_num) VALUES ('210693f3123d');
 GO
 
 COMMIT;
+
+GO
 

@@ -1,14 +1,10 @@
-SET TRANSACTION READ WRITE
-
-/
-
 CREATE TABLE alembic_version (
     version_num VARCHAR2(32 CHAR) NOT NULL
 )
 
 /
 
--- Running upgrade None -> a2e9769475e
+-- Running upgrade  -> a2e9769475e
 
 CREATE TABLE voicemail_messages (
     dir VARCHAR2(255 CHAR) NOT NULL, 
@@ -36,17 +32,17 @@ CREATE INDEX voicemail_messages_dir ON voicemail_messages (dir)
 
 /
 
+INSERT INTO alembic_version (version_num) VALUES ('a2e9769475e')
+
+/
+
 -- Running upgrade a2e9769475e -> 39428242f7f5
 
 ALTER TABLE voicemail_messages MODIFY recording BLOB
 
 /
 
-INSERT INTO alembic_version (version_num) VALUES ('39428242f7f5')
-
-/
-
-COMMIT
+UPDATE alembic_version SET version_num='39428242f7f5' WHERE alembic_version.version_num = 'a2e9769475e'
 
 /
 
