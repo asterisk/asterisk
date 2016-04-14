@@ -87,6 +87,31 @@
 } while (0)
 
 /*!
+ * \internal
+ */
+#define __make_room(idx, vec) ({ \
+	int res = 0;								\
+	do {														\
+		if ((idx) >= (vec)->max) {								\
+			size_t new_max = ((idx) + 1) * 2;				\
+			typeof((vec)->elems) new_elems = ast_calloc(1,		\
+				new_max * sizeof(*new_elems));					\
+			if (new_elems) {									\
+				memcpy(new_elems, (vec)->elems,					\
+					(vec)->current * sizeof(*new_elems)); 		\
+				ast_free((vec)->elems);							\
+				(vec)->elems = new_elems;						\
+				(vec)->max = new_max;							\
+			} else {											\
+				res = -1;										\
+				break;											\
+			}													\
+		}														\
+	} while(0);													\
+	res;														\
+})
+
+/*!
  * \brief Append an element to a vector, growing the vector if needed.
  *
  * \param vec Vector to append to.
@@ -155,6 +180,36 @@
  		}														\
  	} while(0);													\
  	res;														\
+})
+
+/*!
+ * \brief Add an element into a sorted vector
+ *
+ * \param vec Sorted vector to add to.
+ * \param elem Element to insert.
+ * \param cmp A strcmp compatible compare function.
+ *
+ * \return 0 on success.
+ * \return Non-zero on failure.
+ *
+ * \warning Use of this macro on an unsorted vector will produce unpredictable results
+ */
+#define AST_VECTOR_ADD_SORTED(vec, elem, cmp) ({ \
+	int res = 0; \
+	size_t __idx = (vec)->current; \
+	do { \
+		if (__make_room((vec)->current, vec) != 0) { \
+			res = -1; \
+			break; \
+		} \
+		while (__idx > 0 && (cmp((vec)->elems[__idx - 1], elem) > 0)) { \
+			(vec)->elems[__idx] = (vec)->elems[__idx - 1]; \
+			__idx--; \
+		} \
+		(vec)->elems[__idx] = elem; \
+		(vec)->current++; \
+	} while (0); \
+	res; \
 })
 
 /*!

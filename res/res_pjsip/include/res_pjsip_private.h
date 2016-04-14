@@ -112,4 +112,10 @@ char *ast_sip_global_default_outbound_endpoint(void);
 int ast_sip_initialize_cli(void);
 void ast_sip_destroy_cli(void);
 
+/*!
+ * \internal
+ * \brief Validate that the uri meets pjproject length restrictions
+ */
+int ast_sip_validate_uri_length(const char *uri);
+
 #endif /* RES_PJSIP_PRIVATE_H_ */
