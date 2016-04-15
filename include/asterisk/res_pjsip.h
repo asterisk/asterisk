@@ -228,6 +228,8 @@ struct ast_sip_contact {
 		AST_STRING_FIELD(path);
 		/*! Content of the User-Agent header in REGISTER request */
 		AST_STRING_FIELD(user_agent);
+		/*! Asterisk Server name */
+		AST_STRING_FIELD(reg_server);
 	);
 	/*! Absolute time that this contact is no longer valid after */
 	struct timeval expiration_time;
