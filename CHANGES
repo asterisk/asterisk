@@ -12,6 +12,12 @@
 --- Functionality changes from Asterisk 13.8.0 to Asterisk 13.9.0 ------------
 ------------------------------------------------------------------------------
 
+res_pjsip
+------------------
+ * Added new global option (disable_multi_domain) to pjsip.
+   Disabling Multi Domain can improve realtime performace by reducing
+   number of database requsts.
+
 chan_pjsip
 ------------------
  * Added 'pjsip show channelstats' CLI command.
