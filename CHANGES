@@ -9,6 +9,17 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.9.0 to Asterisk 13.10.0 -----------
+------------------------------------------------------------------------------
+
+res_pjsip
+------------------
+ * Added "reg_server" to contacts.
+   If the Asterisk system name is set in asterisk.conf, it will be stored
+   into the "reg_server" field in the ps_contacts table to facilitate
+   multi-server setups.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.8.0 to Asterisk 13.9.0 ------------
 ------------------------------------------------------------------------------
 
