@@ -248,6 +248,8 @@ struct ast_sip_contact {
 	double qualify_timeout;
 	/*! Endpoint that added the contact, only available in observers */
 	struct ast_sip_endpoint *endpoint;
+	/*! Asterisk Server name */
+	AST_STRING_FIELD_EXTENDED(reg_server);
 };
 
 #define CONTACT_STATUS "contact_status"

@@ -30,6 +30,7 @@
 
 #include "asterisk/res_pjsip.h"
 #include "asterisk/module.h"
+#include "asterisk/paths.h"
 #include "asterisk/test.h"
 #include "asterisk/taskprocessor.h"
 #include "asterisk/manager.h"
@@ -554,6 +555,9 @@ static int rx_task_core(struct rx_task_data *task_data, struct ao2_container *co
 			}
 			if (user_agent) {
 				ast_string_field_set(contact_update, user_agent, user_agent);
+			}
+			if (!ast_strlen_zero(ast_config_AST_SYSTEM_NAME)) {
+				ast_string_field_set(contact_update, reg_server, ast_config_AST_SYSTEM_NAME);
 			}
 
 			if (ast_sip_location_update_contact(contact_update)) {
