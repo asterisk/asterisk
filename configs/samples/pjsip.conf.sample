@@ -907,6 +907,11 @@
                         ; (default: "0")
 ;contact_expiration_check_interval=30
                         ; The interval (in seconds) to check for expired contacts.
+;disable_multi_domain=no
+			; Disable Multi Domain support.
+			; If disabled it can improve realtime performace by reducing
+			; number of database requsts
+			; (default: "no")
 ;endpoint_identifier_order=ip,username,anonymous
             ; The order by which endpoint identifiers are given priority.
             ; Identifier names are derived from res_pjsip_endpoint_identifier_*
