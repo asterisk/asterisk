@@ -323,7 +323,7 @@ static int app_control_dial(struct stasis_app_control *control,
 		AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
 		ast_hangup(new_chan);
 	} else {
-		control_add_channel_to_bridge(control, chan, bridge);
+		control_swap_channel_in_bridge(control, bridge, chan, NULL);
 	}
 
 	return 0;
@@ -982,11 +982,8 @@ static void bridge_after_cb_failed(enum ast_bridge_after_cb_reason reason,
 		ast_bridge_after_cb_reason_string(reason));
 }
 
-int control_add_channel_to_bridge(
-	struct stasis_app_control *control,
-	struct ast_channel *chan, void *data)
+int control_swap_channel_in_bridge(struct stasis_app_control *control, struct ast_bridge *bridge, struct ast_channel *chan, struct ast_channel *swap)
 {
-	struct ast_bridge *bridge = data;
 	int res;
 
 	if (!control || !bridge) {
@@ -1039,7 +1036,7 @@ int control_add_channel_to_bridge(
 
 		res = ast_bridge_impart(bridge,
 			chan,
-			NULL, /* swap channel */
+			swap,
 			NULL, /* features */
 			AST_BRIDGE_IMPART_CHAN_DEPARTABLE);
 		if (res != 0) {
@@ -1053,6 +1050,11 @@ int control_add_channel_to_bridge(
 		control->bridge = bridge;
 	}
 	return 0;
+}
+
+int control_add_channel_to_bridge(struct stasis_app_control *control, struct ast_channel *chan, void *data)
+{
+	return control_swap_channel_in_bridge(control, data, chan, NULL);
 }
 
 int stasis_app_control_add_channel_to_bridge(
