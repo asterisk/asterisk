@@ -1294,6 +1294,12 @@
 				<configOption name="contact_expiration_check_interval" default="30">
 					<synopsis>The interval (in seconds) to check for expired contacts.</synopsis>
 				</configOption>
+				<configOption name="disable_multi_domain" default="no">
+					<synopsis>Disable Multi Domain support</synopsis>
+					<description><para>
+						If disabled it can improve realtime performace by reducing number of database requsts.
+					</para></description>
+				</configOption>
 				<configOption name="max_initial_qualify_time" default="0">
 					<synopsis>The maximum amount of time from startup that qualifies should be attempted on all contacts.
 					If greater than the qualify_frequency for an aor, qualify_frequency will be used instead.</synopsis>

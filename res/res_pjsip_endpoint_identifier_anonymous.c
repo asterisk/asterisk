@@ -69,28 +69,30 @@ static struct ast_sip_endpoint *anonymous_identify(pjsip_rx_data *rdata)
 		return NULL;
 	}
 
-	/* Attempt to find the endpoint given the name and domain provided */
-	snprintf(id, sizeof(id), "anonymous@%s", domain_name);
-	if ((endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", id))) {
-		goto done;
-	}
-
-	/* See if an alias exists for the domain provided */
-	if ((alias = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "domain_alias", domain_name))) {
-		snprintf(id, sizeof(id), "anonymous@%s", alias->domain);
+	if (!ast_sip_get_disable_multi_domain()) {
+		/* Attempt to find the endpoint given the name and domain provided */
+		snprintf(id, sizeof(id), "anonymous@%s", domain_name);
 		if ((endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", id))) {
 			goto done;
 		}
-	}
 
-	/* See if the transport this came in on has a provided domain */
-	if ((transport_states = ast_sip_get_transport_states())
-		&& (transport_state = ao2_callback(transport_states, 0, find_transport_state_in_use, rdata))
-		&& (transport = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport", transport_state->id))
-		&& !ast_strlen_zero(transport->domain)) {
-		snprintf(id, sizeof(id), "anonymous@%s", transport->domain);
-		if ((endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", id))) {
-			goto done;
+		/* See if an alias exists for the domain provided */
+		if ((alias = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "domain_alias", domain_name))) {
+			snprintf(id, sizeof(id), "anonymous@%s", alias->domain);
+			if ((endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", id))) {
+				goto done;
+			}
+		}
+
+		/* See if the transport this came in on has a provided domain */
+		if ((transport_states = ast_sip_get_transport_states())
+			&& (transport_state = ao2_callback(transport_states, 0, find_transport_state_in_use, rdata))
+			&& (transport = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport", transport_state->id))
+			&& !ast_strlen_zero(transport->domain)) {
+			snprintf(id, sizeof(id), "anonymous@%s", transport->domain);
+			if ((endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", id))) {
+				goto done;
+			}
 		}
 	}
 
