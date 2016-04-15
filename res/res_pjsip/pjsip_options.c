@@ -1053,22 +1053,49 @@ static int qualify_and_schedule_cb(void *obj, void *arg, int flags)
 	return 0;
 }
 
+static int qualify_and_schedule_contract(void *obj, void *arg, int flags)
+{
+	struct ast_sip_contact *contact = obj;
+	int initial_interval;
+	int max_time = ast_sip_get_max_initial_qualify_time();
+
+	/* Delay initial qualification by a random fraction of the specified interval */
+	if (max_time && max_time < contact->qualify_frequency) {
+		initial_interval = max_time;
+	} else {
+		initial_interval = contact->qualify_frequency;
+	}
+
+	initial_interval = (int)((initial_interval * 1000) * ast_random_double());
+
+	unschedule_qualify(contact);
+	if (contact->qualify_frequency) {
+		schedule_qualify(contact, initial_interval);
+	} else {
+		update_contact_status(contact, UNKNOWN);
+	}
+
+	return 0;
+}
+
 /*!
  * \internal
- * \brief Qualify and schedule an endpoint's contacts
+ * \brief Qualify and schedule an aor's contacts
  *
- * \details For the given endpoint retrieve its list of aors, qualify all
- *         contacts, and schedule for checks if configured.
+ * \details For the given aor check if it has permanent contacts,
+ *         qualify all contacts and schedule for checks if configured.
  */
 static int qualify_and_schedule_all_cb(void *obj, void *arg, int flags)
 {
 	struct ast_sip_aor *aor = obj;
 	struct ao2_container *contacts;
 
-	contacts = ast_sip_location_retrieve_aor_contacts(aor);
-	if (contacts) {
-		ao2_callback(contacts, OBJ_NODATA, qualify_and_schedule_cb, aor);
-		ao2_ref(contacts, -1);
+	if (aor->permanent_contacts) {
+		contacts = ast_sip_location_retrieve_aor_contacts(aor);
+		if (contacts) {
+			ao2_callback(contacts, OBJ_NODATA, qualify_and_schedule_cb, aor);
+			ao2_ref(contacts, -1);
+		}
 	}
 
 	return 0;
@@ -1091,6 +1118,7 @@ static void qualify_and_schedule_all(void)
 {
 	struct ast_variable *var = ast_variable_new("qualify_frequency >", "0", "");
 	struct ao2_container *aors;
+	struct ao2_container *contracts;
 
 	if (!var) {
 		return;
@@ -1098,16 +1126,22 @@ static void qualify_and_schedule_all(void)
 	aors = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(),
 		"aor", AST_RETRIEVE_FLAG_MULTIPLE, var);
 
-	ast_variables_destroy(var);
-
 	ao2_callback(sched_qualifies, OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK, unschedule_all_cb, NULL);
 
-	if (!aors) {
-		return;
+	if (aors) {
+		ao2_callback(aors, OBJ_NODATA, qualify_and_schedule_all_cb, NULL);
+		ao2_ref(aors, -1);
 	}
 
-	ao2_callback(aors, OBJ_NODATA, qualify_and_schedule_all_cb, NULL);
-	ao2_ref(aors, -1);
+	contracts = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(),
+		"contract", AST_RETRIEVE_FLAG_MULTIPLE, var);
+	if (contracts) {
+		ao2_callback(contracts, OBJ_NODATA, qualify_and_schedule_contract, NULL);
+		ao2_ref(contracts, -1);
+	}
+
+	ast_variables_destroy(var);
+
 }
 
 static int format_contact_status(void *obj, void *arg, int flags)
