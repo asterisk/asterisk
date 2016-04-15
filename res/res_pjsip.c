@@ -1095,6 +1095,13 @@
 						If <literal>0</literal> no timeout. Time in fractional seconds.
 					</para></description>
 				</configOption>
+				<configOption name="authenticate_qualify" default="no">
+					<synopsis>Authenticates a qualify request if needed</synopsis>
+					<description><para>
+						If true and a qualify request receives a challenge or authenticate response
+						authentication is attempted before declaring the contact available.
+					</para></description>
+				</configOption>
 				<configOption name="outbound_proxy">
 					<synopsis>Outbound proxy used when sending OPTIONS request</synopsis>
 					<description><para>
