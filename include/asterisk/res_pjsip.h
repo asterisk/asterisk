@@ -2258,6 +2258,12 @@ unsigned int ast_sip_get_keep_alive_interval(void);
  */
 unsigned int ast_sip_get_contact_expiration_check_interval(void);
 
+/*!
+ * \brief Retrieve the system setting 'disable multi domain'.
+ *
+ * \retval non zero if disable multi domain.
+ */
+unsigned int ast_sip_get_disable_multi_domain(void);
 
 /*!
  * \brief Retrieve the system max initial qualify time.
