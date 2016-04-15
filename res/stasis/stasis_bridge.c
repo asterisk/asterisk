@@ -167,10 +167,15 @@ static int bridge_stasis_push(struct ast_bridge *self, struct ast_bridge_channel
 
 	if (!control && !stasis_app_channel_is_internal(bridge_channel->chan)) {
 		/* channel not in Stasis(), get it there */
+		ast_debug(1, "Bridge %s: pushing non-stasis %p(%s) setup to come back in under stasis\n",
+			self->uniqueid, bridge_channel, ast_channel_name(bridge_channel->chan));
+
 		/* Attach after-bridge callback and pass ownership of swap_app to it */
 		if (ast_bridge_set_after_callback(bridge_channel->chan,
 			bridge_stasis_run_cb, NULL, NULL)) {
-			ast_log(LOG_ERROR, "Failed to set after bridge callback\n");
+			ast_log(LOG_ERROR,
+				"Failed to set after bridge callback for bridge %s non-stasis push of %s\n",
+				self->uniqueid, ast_channel_name(bridge_channel->chan));
 			return -1;
 		}
 
