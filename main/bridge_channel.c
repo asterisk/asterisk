@@ -2117,12 +2117,13 @@ int bridge_channel_internal_push_full(struct ast_bridge_channel *bridge_channel,
 	if (bridge->dissolved
 		|| bridge_channel->state != BRIDGE_CHANNEL_STATE_WAIT
 		|| (swap && swap->state != BRIDGE_CHANNEL_STATE_WAIT)
-		|| bridge->v_table->push(bridge, bridge_channel, swap)
-		|| ast_bridge_channel_establish_roles(bridge_channel)) {
+		|| bridge->v_table->push(bridge, bridge_channel, swap)) {
 		ast_debug(1, "Bridge %s: pushing %p(%s) into bridge failed\n",
 			bridge->uniqueid, bridge_channel, ast_channel_name(bridge_channel->chan));
 		return -1;
 	}
+
+	ast_bridge_channel_establish_roles(bridge_channel);
 
 	if (swap) {
 		int dissolve = ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_DISSOLVE_EMPTY);
