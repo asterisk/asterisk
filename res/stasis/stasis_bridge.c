@@ -76,24 +76,54 @@ static void bridge_stasis_run_cb(struct ast_channel *chan, void *data)
 	pbx_exec(chan, app_stasis, app_name);
 }
 
-static int add_channel_to_bridge(
+struct defer_bridge_add_obj {
+	/*! Bridge to join (has ref) */
+	struct ast_bridge *bridge;
+	/*!
+	 * \brief Channel to swap with in the bridge. (has ref)
+	 *
+	 * \note NULL if not swapping with a channel.
+	 */
+	struct ast_channel *swap;
+};
+
+static void defer_bridge_add_dtor(void *obj)
+{
+	struct defer_bridge_add_obj *defer = obj;
+
+	ao2_cleanup(defer->bridge);
+	ast_channel_cleanup(defer->swap);
+}
+
+static int defer_bridge_add(
 	struct stasis_app_control *control,
 	struct ast_channel *chan, void *obj)
 {
-	struct ast_bridge *bridge = obj;
-	int res;
+	struct defer_bridge_add_obj *defer = obj;
 
-	res = control_add_channel_to_bridge(control,
-		chan, bridge);
-	return res;
+	return control_swap_channel_in_bridge(control, defer->bridge, chan, defer->swap);
 }
 
 static void bridge_stasis_queue_join_action(struct ast_bridge *self,
-	struct ast_bridge_channel *bridge_channel)
+	struct ast_bridge_channel *bridge_channel, struct ast_bridge_channel *swap)
 {
+	struct defer_bridge_add_obj *defer;
+
+	defer = ao2_alloc_options(sizeof(*defer), defer_bridge_add_dtor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
+	if (!defer) {
+		return;
+	}
+	ao2_ref(self, +1);
+	defer->bridge = self;
+	if (swap) {
+		ast_channel_ref(swap->chan);
+		defer->swap = swap->chan;
+	}
+
 	ast_channel_lock(bridge_channel->chan);
-	command_prestart_queue_command(bridge_channel->chan, add_channel_to_bridge,
-		ao2_bump(self), __ao2_cleanup);
+	command_prestart_queue_command(bridge_channel->chan, defer_bridge_add,
+		defer, __ao2_cleanup);
 	ast_channel_unlock(bridge_channel->chan);
 }
 
@@ -179,11 +209,7 @@ static int bridge_stasis_push(struct ast_bridge *self, struct ast_bridge_channel
 			return -1;
 		}
 
-		bridge_stasis_queue_join_action(self, bridge_channel);
-		if (swap) {
-			/* nudge the swap channel out of the bridge */
-			ast_bridge_channel_leave_bridge(swap, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, 0);
-		}
+		bridge_stasis_queue_join_action(self, bridge_channel, swap);
 
 		/* Return -1 so the push fails and the after-bridge callback gets called
 		 * This keeps the bridging framework from putting the channel into the bridge
