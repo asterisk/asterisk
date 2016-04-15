@@ -886,6 +886,11 @@
 ;keep_alive_interval=20 ; The interval (in seconds) at which to send keepalive
                         ; messages on all active connection-oriented transports
                         ; (default: "0")
+;disable_multi_domain=no
+			; Disable Multi Domain support.
+			; If disabled it can improve realtime performace by reducing
+			; number of database requsts
+			; (default: "no")
 ;endpoint_identifier_order=ip,username,anonymous
             ; The order by which endpoint identifiers are given priority.
             ; Identifier names are derived from res_pjsip_endpoint_identifier_*

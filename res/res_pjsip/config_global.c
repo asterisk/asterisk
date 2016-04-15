@@ -36,6 +36,7 @@
 #define DEFAULT_MAX_INITIAL_QUALIFY_TIME 0
 #define DEFAULT_FROM_USER "asterisk"
 #define DEFAULT_REGCONTEXT ""
+#define DEFAULT_DISABLE_MULTI_DOMAIN 0
 
 static char default_useragent[256];
 
@@ -58,6 +59,8 @@ struct global_config {
 	unsigned int keep_alive_interval;
 	/* The maximum time for all contacts to be qualified at startup */
 	unsigned int max_initial_qualify_time;
+	/*! Nonzero to disable multi domain support */
+	unsigned int disable_multi_domain;
 };
 
 static void global_destructor(void *obj)
@@ -184,6 +187,21 @@ unsigned int ast_sip_get_keep_alive_interval(void)
 	interval = cfg->keep_alive_interval;
 	ao2_ref(cfg, -1);
 	return interval;
+}
+
+unsigned int ast_sip_get_disable_multi_domain(void)
+{
+	unsigned int disable_multi_domain;
+	struct global_config *cfg;
+
+	cfg = get_global_cfg();
+	if (!cfg) {
+		return DEFAULT_DISABLE_MULTI_DOMAIN;
+	}
+
+	disable_multi_domain = cfg->disable_multi_domain;
+	ao2_ref(cfg, -1);
+	return disable_multi_domain;
 }
 
 unsigned int ast_sip_get_max_initial_qualify_time(void)
@@ -330,8 +348,9 @@ int ast_sip_initialize_sorcery_global(void)
 	ast_sorcery_object_field_register(sorcery, "global", "default_from_user", DEFAULT_FROM_USER,
 		OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, default_from_user));
 	ast_sorcery_object_field_register(sorcery, "global", "regcontext", DEFAULT_REGCONTEXT,
-                OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, regcontext));
-
+		OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, regcontext));
+	ast_sorcery_object_field_register(sorcery, "global", "disable_multi_domain", "no",
+		OPT_BOOL_T, 1, FLDSET(struct global_config, disable_multi_domain));
 
 	if (ast_sorcery_instance_observer_add(sorcery, &observer_callbacks_global)) {
 		return -1;

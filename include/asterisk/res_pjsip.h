@@ -2193,6 +2193,14 @@ void ast_sip_get_default_from_user(char *from_user, size_t size);
 unsigned int ast_sip_get_keep_alive_interval(void);
 
 /*!
+ * \brief Retrieve the system setting 'disable multi domain'.
+ * \since 13.9.0
+ *
+ * \retval non zero if disable multi domain.
+ */
+unsigned int ast_sip_get_disable_multi_domain(void);
+
+/*!
  * \brief Retrieve the system max initial qualify time.
  *
  * \retval the maximum initial qualify time.
