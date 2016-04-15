@@ -241,6 +241,8 @@ struct ast_sip_contact {
 	struct ast_sip_endpoint *endpoint;
 	/*! The name of the aor this contact belongs to */
 	char *aor;
+	/*! Asterisk Server name */
+	AST_STRING_FIELD_EXTENDED(reg_server);
 };
 
 #define CONTACT_STATUS "contact_status"

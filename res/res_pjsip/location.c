@@ -23,6 +23,7 @@
 #include "asterisk/res_pjsip.h"
 #include "asterisk/logger.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/paths.h"
 #include "asterisk/sorcery.h"
 #include "include/res_pjsip_private.h"
 #include "asterisk/res_pjsip_cli.h"
@@ -119,6 +120,8 @@ static void *contact_alloc(const char *name)
 		ao2_cleanup(contact);
 		return NULL;
 	}
+
+        ast_string_field_init_extended(contact, reg_server);
 
 	/* Dynamic contacts are delimited with ";@" and static ones with "@@" */
 	if ((aor_separator = strstr(id, ";@")) || (aor_separator = strstr(id, "@@"))) {
@@ -333,6 +336,10 @@ int ast_sip_location_add_contact_nolock(struct ast_sip_aor *aor, const char *uri
 
 	if (!ast_strlen_zero(user_agent)) {
 		ast_string_field_set(contact, user_agent, user_agent);
+	}
+
+	if (!ast_strlen_zero(ast_config_AST_SYSTEM_NAME)) {
+		ast_string_field_set(contact, reg_server, ast_config_AST_SYSTEM_NAME);
 	}
 
 	contact->endpoint = ao2_bump(endpoint);
@@ -1090,6 +1097,7 @@ int ast_sip_initialize_sorcery_location(void)
 	ast_sorcery_object_field_register(sorcery, "contact", "qualify_timeout", "3.0", OPT_DOUBLE_T, 0, FLDSET(struct ast_sip_contact, qualify_timeout));
 	ast_sorcery_object_field_register(sorcery, "contact", "outbound_proxy", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_contact, outbound_proxy));
 	ast_sorcery_object_field_register(sorcery, "contact", "user_agent", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_contact, user_agent));
+	ast_sorcery_object_field_register(sorcery, "contact", "reg_server", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_contact, reg_server));
 
 	ast_sorcery_object_field_register(sorcery, "aor", "type", "", OPT_NOOP_T, 0, 0);
 	ast_sorcery_object_field_register(sorcery, "aor", "minimum_expiration", "60", OPT_UINT_T, 0, FLDSET(struct ast_sip_aor, minimum_expiration));
