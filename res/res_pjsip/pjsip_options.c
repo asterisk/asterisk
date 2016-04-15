@@ -1065,10 +1065,12 @@ static int qualify_and_schedule_all_cb(void *obj, void *arg, int flags)
 	struct ast_sip_aor *aor = obj;
 	struct ao2_container *contacts;
 
-	contacts = ast_sip_location_retrieve_aor_contacts(aor);
-	if (contacts) {
-		ao2_callback(contacts, OBJ_NODATA, qualify_and_schedule_cb, aor);
-		ao2_ref(contacts, -1);
+	if (aor->permanent_contacts) {
+		contacts = ast_sip_location_retrieve_aor_contacts(aor);
+		if (contacts) {
+			ao2_callback(contacts, OBJ_NODATA, qualify_and_schedule_cb, aor);
+			ao2_ref(contacts, -1);
+		}
 	}
 
 	return 0;
