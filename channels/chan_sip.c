@@ -35267,17 +35267,19 @@ static int load_module(void)
 	/* And start the monitor for the first time */
 	restart_monitor();
 
-	ast_realtime_require_field(ast_check_realtime("sipregs") ? "sipregs" : "sippeers",
-		"name", RQ_CHAR, 10,
-		"ipaddr", RQ_CHAR, INET6_ADDRSTRLEN - 1,
-		"port", RQ_UINTEGER2, 5,
-		"regseconds", RQ_INTEGER4, 11,
-		"defaultuser", RQ_CHAR, 10,
-		"fullcontact", RQ_CHAR, 35,
-		"regserver", RQ_CHAR, 20,
-		"useragent", RQ_CHAR, 20,
-		"lastms", RQ_INTEGER4, 11,
-		SENTINEL);
+	if (sip_cfg.peer_rtupdate) {
+		ast_realtime_require_field(ast_check_realtime("sipregs") ? "sipregs" : "sippeers",
+			"name", RQ_CHAR, 10,
+			"ipaddr", RQ_CHAR, INET6_ADDRSTRLEN - 1,
+			"port", RQ_UINTEGER2, 5,
+			"regseconds", RQ_INTEGER4, 11,
+			"defaultuser", RQ_CHAR, 10,
+			"fullcontact", RQ_CHAR, 35,
+			"regserver", RQ_CHAR, 20,
+			"useragent", RQ_CHAR, 20,
+			"lastms", RQ_INTEGER4, 11,
+			SENTINEL);
+	}
 
 
 	sip_register_tests();
