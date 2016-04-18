@@ -41,6 +41,8 @@ enum stasis_app_playback_state {
 	STASIS_PLAYBACK_STATE_PLAYING,
 	/*! The media is currently playing */
 	STASIS_PLAYBACK_STATE_PAUSED,
+	/*! The media is transitioning to the next in the list */
+	STASIS_PLAYBACK_STATE_CONTINUING,
 	/*! The media has stopped playing */
 	STASIS_PLAYBACK_STATE_COMPLETE,
 	/*! The playback was canceled. */
@@ -84,7 +86,8 @@ enum stasis_app_playback_target_type {
  * available codecs for the channel.
  *
  * \param control Control for \c res_stasis.
- * \param file Base filename for the file to play.
+ * \param media Array of const char * media files to play.
+ * \param media_count The number of media files in \c media.
  * \param language Selects the file based on language.
  * \param target_id ID of the target bridge or channel.
  * \param target_type What the target type is
@@ -95,8 +98,8 @@ enum stasis_app_playback_target_type {
  * \return \c NULL on error.
  */
 struct stasis_app_playback *stasis_app_control_play_uri(
-	struct stasis_app_control *control, const char *file,
-	const char *language, const char *target_id,
+	struct stasis_app_control *control, const char **media,
+	size_t media_count, const char *language, const char *target_id,
 	enum stasis_app_playback_target_type target_type,
 	int skipms, long offsetms, const char *id);
 
@@ -128,6 +131,14 @@ const char *stasis_app_playback_get_id(
  */
 struct stasis_app_playback *stasis_app_playback_find_by_id(const char *id);
 
+/*!
+ * \brief Convert a playback to its JSON representation
+ *
+ * \param playback The playback object to convert to JSON
+ *
+ * \retval \c NULL on error
+ * \retval A JSON object on success
+ */
 struct ast_json *stasis_app_playback_to_json(
 	const struct stasis_app_playback *playback);
 

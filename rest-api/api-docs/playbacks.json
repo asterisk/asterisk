@@ -124,8 +124,13 @@
 				},
 				"media_uri": {
 					"type": "string",
-					"description": "URI for the media to play back.",
+					"description": "The URI for the media currently being played back.",
 					"required": true
+				},
+				"next_media_uri": {
+					"type": "string",
+					"description": "If a list of URIs is being played, the next media URI to be played back.",
+					"required": false
 				},
 				"target_uri": {
 					"type": "string",
@@ -145,7 +150,8 @@
 						"values": [
 							"queued",
 							"playing",
-							"complete"
+							"continuing",
+							"done"
 						]
 					}
 				}
