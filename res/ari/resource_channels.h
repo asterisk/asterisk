@@ -505,11 +505,15 @@ void ast_ari_channels_stop_silence(struct ast_variable *headers, struct ast_ari_
 struct ast_ari_channels_play_args {
 	/*! Channel's id */
 	const char *channel_id;
-	/*! Media's URI to play. */
-	const char *media;
+	/*! Array of Media URIs to play. */
+	const char **media;
+	/*! Length of media array. */
+	size_t media_count;
+	/*! Parsing context for media. */
+	char *media_parse;
 	/*! For sounds, selects language for sound. */
 	const char *lang;
-	/*! Number of media to skip before playing. */
+	/*! Number of milliseconds to skip before playing. Only applies to the first URI if multiple media URIs are specified. */
 	int offsetms;
 	/*! Number of milliseconds to skip for forward/reverse operations. */
 	int skipms;
@@ -543,11 +547,15 @@ struct ast_ari_channels_play_with_id_args {
 	const char *channel_id;
 	/*! Playback ID. */
 	const char *playback_id;
-	/*! Media's URI to play. */
-	const char *media;
+	/*! Array of Media URIs to play. */
+	const char **media;
+	/*! Length of media array. */
+	size_t media_count;
+	/*! Parsing context for media. */
+	char *media_parse;
 	/*! For sounds, selects language for sound. */
 	const char *lang;
-	/*! Number of media to skip before playing. */
+	/*! Number of milliseconds to skip before playing. Only applies to the first URI if multiple media URIs are specified. */
 	int offsetms;
 	/*! Number of milliseconds to skip for forward/reverse operations. */
 	int skipms;

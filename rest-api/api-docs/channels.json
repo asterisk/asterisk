@@ -973,10 +973,10 @@
 						},
 						{
 							"name": "media",
-							"description": "Media's URI to play.",
+							"description": "Media URIs to play.",
 							"paramType": "query",
 							"required": true,
-							"allowMultiple": false,
+							"allowMultiple": true,
 							"dataType": "string"
 						},
 						{
@@ -989,7 +989,7 @@
 						},
 						{
 							"name": "offsetms",
-							"description": "Number of media to skip before playing.",
+							"description": "Number of milliseconds to skip before playing. Only applies to the first URI if multiple media URIs are specified.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
@@ -1055,10 +1055,10 @@
 						},
 						{
 							"name": "media",
-							"description": "Media's URI to play.",
+							"description": "Media URIs to play.",
 							"paramType": "query",
 							"required": true,
-							"allowMultiple": false,
+							"allowMultiple": true,
 							"dataType": "string"
 						},
 						{
@@ -1071,7 +1071,7 @@
 						},
 						{
 							"name": "offsetms",
-							"description": "Number of media to skip before playing.",
+							"description": "Number of milliseconds to skip before playing. Only applies to the first URI if multiple media URIs are specified.",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
