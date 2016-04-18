@@ -575,7 +575,9 @@ static int rx_task(void *data)
 			ao2_cleanup(contact_update);
 		} else {
 			/* We want to report the user agent that was actually in the removed contact */
-			user_agent = ast_strdupa(contact->user_agent);
+			const char *stored_user_agent;
+
+			stored_user_agent = ast_strdupa(contact->user_agent);
 			ast_sip_location_delete_contact(contact);
 			ast_verb(3, "Removed contact '%s' from AOR '%s' due to request\n", contact_uri, aor_name);
 			ast_test_suite_event_notify("AOR_CONTACT_REMOVED",
@@ -584,7 +586,7 @@ static int rx_task(void *data)
 					"UserAgent: %s",
 					contact_uri,
 					aor_name,
-					user_agent);
+					stored_user_agent);
 		}
 	}
 
