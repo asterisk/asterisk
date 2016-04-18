@@ -376,7 +376,7 @@ int ast_format_cap_update_by_allow_disallow(struct ast_format_cap *cap, const ch
 	}
 
 
-	while ((this = strsep(&parse, ",|"))) {
+	while ((this = ast_strip(strsep(&parse, ",|")))) {
 		int framems = 0;
 		struct ast_format *format = NULL;
 
