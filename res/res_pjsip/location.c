@@ -417,38 +417,72 @@ static int permanent_uri_sort_fn(const void *obj_left, const void *obj_right, in
 
 int ast_sip_validate_uri_length(const char *contact_uri)
 {
-	pjsip_uri *uri;
-	pjsip_sip_uri *sip_uri;
-	pj_pool_t *pool;
 	int max_length = pj_max_hostname - 1;
+	char *contact = ast_strdupa(contact_uri);
+	char *host;
+	char *at;
+	int theres_a_port = 0;
 
 	if (strlen(contact_uri) > pjsip_max_url_size - 1) {
 		return -1;
 	}
 
-	if (!(pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "uri validation", 512, 512))) {
-		ast_log(LOG_ERROR, "Unable to allocate pool for uri validation\n");
+	contact = ast_strip_quoted(contact, "<", ">");
+
+	ast_log(LOG_NOTICE, "!!!Contact is %s\n", contact);
+
+	if (strncmp(contact, "sip:", 4)) {
+		host = contact + 4;
+	} else if (strncmp(contact, "sips:", 5)) {
+		host = contact + 5;
+	} else {
+		/* Not a SIP URI */
 		return -1;
 	}
 
-	if (!(uri = pjsip_parse_uri(pool, (char *)contact_uri, strlen(contact_uri), 0)) ||
-	    (!PJSIP_URI_SCHEME_IS_SIP(uri) && !PJSIP_URI_SCHEME_IS_SIPS(uri))) {
-		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
-		return -1;
+	ast_log(LOG_NOTICE, "!!! host is %s\n", host);
+
+	at = strchr(contact, '@');
+	if (at) {
+		/* sip[s]:user@host */
+		host = at + 1;
+	}
+	
+	ast_log(LOG_NOTICE, "!!! Now host is %s\n", host);
+
+	if (host[0] == '[') {
+		/* Host is an IPv6 address. Just get up to the matching bracket */
+		char *close_bracket;
+
+		close_bracket = strchr(host, ']');
+		if (!close_bracket) {
+			return -1;
+		}
+		close_bracket++;
+		if (*close_bracket == ':') {
+			theres_a_port = 1;
+		}
+		*close_bracket = '\0';
+	} else {
+		/* Host is FQDN or IPv4 address. Need to find closing delimiter */
+		if (strchr(host, ':')) {
+			theres_a_port = 1;
+		}
+		host = strsep(&host, ";:?");
 	}
 
-	sip_uri = pjsip_uri_get_uri(uri);
-	if (sip_uri->port == 0) {
+	if (!theres_a_port) {
+		ast_log(LOG_NOTICE, "There's no port\n");
 		max_length -= strlen("_sips.tcp.");
+	} else {
+		ast_log(LOG_NOTICE, "There's a port\n");
 	}
 
-	if (sip_uri->host.slen > max_length) {
-		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+	if (strlen(host) > max_length) {
 		return -1;
 	}
 
-	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
-
+	ast_log(LOG_NOTICE, "!!! Looks good to me\n");
 	return 0;
 }
 
