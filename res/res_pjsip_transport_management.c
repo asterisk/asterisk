@@ -24,6 +24,8 @@
 
 #include "asterisk.h"
 
+#include <signal.h>
+
 #include <pjsip.h>
 #include <pjsip_ua.h>
 
@@ -93,7 +95,7 @@ static void *keepalive_transport_thread(void *data)
 	/* Once loaded this module just keeps on going as it is unsafe to stop and change the underlying
 	 * callback for the transport manager.
 	 */
-	while (1) {
+	while (keepalive_interval) {
 		sleep(keepalive_interval);
 		ao2_callback(transports, OBJ_NODATA, keepalive_transport_cb, NULL);
 	}
@@ -346,7 +348,19 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	/* This will never get called */
+	pjsip_tpmgr *tpmgr = pjsip_endpt_get_tpmgr(ast_sip_get_pjsip_endpoint());
+
+	if (keepalive_interval) {
+		keepalive_interval = 0;
+		pthread_kill(keepalive_thread, SIGURG);
+		pthread_join(keepalive_thread, NULL);
+	}
+
+	ast_sched_context_destroy(sched);
+	ao2_ref(transports, -1);
+
+	ast_sip_unregister_service(&idle_monitor_module);
+	pjsip_tpmgr_set_state_cb(tpmgr, tpmgr_state_callback);
 	return 0;
 }
 
