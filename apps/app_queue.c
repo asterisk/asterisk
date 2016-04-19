@@ -4164,7 +4164,7 @@ static int can_ring_entry(struct queue_ent *qe, struct callattempt *call)
 		return 0;
 	}
 
-	if (call->member->in_call && call->lastqueue->wrapuptime) {
+	if (call->member->in_call && call->lastqueue && call->lastqueue->wrapuptime) {
 		ast_debug(1, "%s is in call, so not available (wrapuptime %d)\n",
 			call->interface, call->lastqueue->wrapuptime);
 		return 0;
