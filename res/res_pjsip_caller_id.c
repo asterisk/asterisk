@@ -424,6 +424,12 @@ static pjsip_fromto_hdr *create_new_id_hdr(const pj_str_t *hdr_name, pjsip_fromt
 
 		ast_escape_quoted(id->name.str, name_buf, name_buf_len);
 		pj_strdup2(tdata->pool, &id_name_addr->display, name_buf);
+	} else {
+		/*
+		 * We need to clear the remnants of the clone or it'll be left set.
+		 * pj_strdup2 is safe to call with a NULL src and it resets both slen and ptr.
+		 */
+		pj_strdup2(tdata->pool, &id_name_addr->display, NULL);
 	}
 
 	pj_strdup2(tdata->pool, &id_uri->user, id->number.str);
