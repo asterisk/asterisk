@@ -583,13 +583,17 @@ static void set_state(struct ast_dial *dial, enum ast_dial_result state)
 		dial->state_callback(dial);
 }
 
-/*! \brief Helper function that handles control frames WITH owner */
+/*! \brief Helper function that handles frames */
 static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel, struct ast_frame *fr, struct ast_channel *chan)
 {
 	if (fr->frametype == AST_FRAME_CONTROL) {
 		switch (fr->subclass.integer) {
 		case AST_CONTROL_ANSWER:
-			ast_verb(3, "%s answered %s\n", ast_channel_name(channel->owner), ast_channel_name(chan));
+			if (chan) {
+				ast_verb(3, "%s answered %s\n", ast_channel_name(channel->owner), ast_channel_name(chan));
+			} else {
+				ast_verb(3, "%s answered\n", ast_channel_name(channel->owner));
+			}
 			AST_LIST_LOCK(&dial->channels);
 			AST_LIST_REMOVE(&dial->channels, channel, list);
 			AST_LIST_INSERT_HEAD(&dial->channels, channel, list);
@@ -613,28 +617,47 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 			break;
 		case AST_CONTROL_INCOMPLETE:
 			ast_verb(3, "%s dialed Incomplete extension %s\n", ast_channel_name(channel->owner), ast_channel_exten(channel->owner));
-			ast_indicate(chan, AST_CONTROL_INCOMPLETE);
+			if (chan) {
+				ast_indicate(chan, AST_CONTROL_INCOMPLETE);
+			} else {
+				ast_hangup(channel->owner);
+				channel->cause = AST_CAUSE_UNALLOCATED;
+				channel->owner = NULL;
+			}
 			break;
 		case AST_CONTROL_RINGING:
 			ast_verb(3, "%s is ringing\n", ast_channel_name(channel->owner));
-			if (!dial->options[AST_DIAL_OPTION_MUSIC])
+			if (chan && !dial->options[AST_DIAL_OPTION_MUSIC])
 				ast_indicate(chan, AST_CONTROL_RINGING);
 			set_state(dial, AST_DIAL_RESULT_RINGING);
 			break;
 		case AST_CONTROL_PROGRESS:
-			ast_verb(3, "%s is making progress, passing it to %s\n", ast_channel_name(channel->owner), ast_channel_name(chan));
-			ast_indicate(chan, AST_CONTROL_PROGRESS);
+			if (chan) {
+				ast_verb(3, "%s is making progress, passing it to %s\n", ast_channel_name(channel->owner), ast_channel_name(chan));
+				ast_indicate(chan, AST_CONTROL_PROGRESS);
+			} else {
+				ast_verb(3, "%s is making progress\n", ast_channel_name(channel->owner));
+			}
 			set_state(dial, AST_DIAL_RESULT_PROGRESS);
 			break;
 		case AST_CONTROL_VIDUPDATE:
+			if (!chan) {
+				break;
+			}
 			ast_verb(3, "%s requested a video update, passing it to %s\n", ast_channel_name(channel->owner), ast_channel_name(chan));
 			ast_indicate(chan, AST_CONTROL_VIDUPDATE);
 			break;
 		case AST_CONTROL_SRCUPDATE:
+			if (!chan) {
+				break;
+			}
 			ast_verb(3, "%s requested a source update, passing it to %s\n", ast_channel_name(channel->owner), ast_channel_name(chan));
 			ast_indicate(chan, AST_CONTROL_SRCUPDATE);
 			break;
 		case AST_CONTROL_CONNECTED_LINE:
+			if (!chan) {
+				break;
+			}
 			ast_verb(3, "%s connected line has changed, passing it to %s\n", ast_channel_name(channel->owner), ast_channel_name(chan));
 			if (ast_channel_connected_line_sub(channel->owner, chan, fr, 1) &&
 				ast_channel_connected_line_macro(channel->owner, chan, fr, 1, 1)) {
@@ -642,6 +665,9 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 			}
 			break;
 		case AST_CONTROL_REDIRECTING:
+			if (!chan) {
+				break;
+			}
 			ast_verb(3, "%s redirecting info has changed, passing it to %s\n", ast_channel_name(channel->owner), ast_channel_name(chan));
 			if (ast_channel_redirecting_sub(channel->owner, chan, fr, 1) &&
 				ast_channel_redirecting_macro(channel->owner, chan, fr, 1, 1)) {
@@ -649,15 +675,25 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 			}
 			break;
 		case AST_CONTROL_PROCEEDING:
-			ast_verb(3, "%s is proceeding, passing it to %s\n", ast_channel_name(channel->owner), ast_channel_name(chan));
-			ast_indicate(chan, AST_CONTROL_PROCEEDING);
+			if (chan) {
+				ast_verb(3, "%s is proceeding, passing it to %s\n", ast_channel_name(channel->owner), ast_channel_name(chan));
+				ast_indicate(chan, AST_CONTROL_PROCEEDING);
+			} else {
+				ast_verb(3, "%s is proceeding\n", ast_channel_name(channel->owner));
+			}
 			set_state(dial, AST_DIAL_RESULT_PROCEEDING);
 			break;
 		case AST_CONTROL_HOLD:
+			if (!chan) {
+				break;
+			}
 			ast_verb(3, "Call on %s placed on hold\n", ast_channel_name(chan));
 			ast_indicate_data(chan, AST_CONTROL_HOLD, fr->data.ptr, fr->datalen);
 			break;
 		case AST_CONTROL_UNHOLD:
+			if (!chan) {
+				break;
+			}
 			ast_verb(3, "Call on %s left from hold\n", ast_channel_name(chan));
 			ast_indicate(chan, AST_CONTROL_UNHOLD);
 			break;
@@ -665,74 +701,19 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 		case AST_CONTROL_FLASH:
 			break;
 		case AST_CONTROL_PVT_CAUSE_CODE:
-			ast_indicate_data(chan, AST_CONTROL_PVT_CAUSE_CODE, fr->data.ptr, fr->datalen);
+			if (chan) {
+				ast_indicate_data(chan, AST_CONTROL_PVT_CAUSE_CODE, fr->data.ptr, fr->datalen);
+			}
 			break;
 		case -1:
-			/* Prod the channel */
-			ast_indicate(chan, -1);
+			if (chan) {
+				/* Prod the channel */
+				ast_indicate(chan, -1);
+			}
 			break;
 		default:
 			break;
 		}
-	}
-}
-
-/*! \brief Helper function that handles control frames WITHOUT owner */
-static void handle_frame_ownerless(struct ast_dial *dial, struct ast_dial_channel *channel, struct ast_frame *fr)
-{
-	/* If we have no owner we can only update the state of the dial structure, so only look at control frames */
-	if (fr->frametype != AST_FRAME_CONTROL)
-		return;
-
-	switch (fr->subclass.integer) {
-	case AST_CONTROL_ANSWER:
-		ast_verb(3, "%s answered\n", ast_channel_name(channel->owner));
-		AST_LIST_LOCK(&dial->channels);
-		AST_LIST_REMOVE(&dial->channels, channel, list);
-		AST_LIST_INSERT_HEAD(&dial->channels, channel, list);
-		AST_LIST_UNLOCK(&dial->channels);
-		ast_channel_publish_dial(NULL, channel->owner, channel->device, "ANSWER");
-		set_state(dial, AST_DIAL_RESULT_ANSWERED);
-		break;
-	case AST_CONTROL_BUSY:
-		ast_verb(3, "%s is busy\n", ast_channel_name(channel->owner));
-		ast_channel_publish_dial(NULL, channel->owner, channel->device, "BUSY");
-		ast_hangup(channel->owner);
-		channel->cause = AST_CAUSE_USER_BUSY;
-		channel->owner = NULL;
-		break;
-	case AST_CONTROL_CONGESTION:
-		ast_verb(3, "%s is circuit-busy\n", ast_channel_name(channel->owner));
-		ast_channel_publish_dial(NULL, channel->owner, channel->device, "CONGESTION");
-		ast_hangup(channel->owner);
-		channel->cause = AST_CAUSE_NORMAL_CIRCUIT_CONGESTION;
-		channel->owner = NULL;
-		break;
-	case AST_CONTROL_INCOMPLETE:
-		/*
-		 * Nothing to do but abort the call since we have no
-		 * controlling channel to ask for more digits.
-		 */
-		ast_verb(3, "%s dialed Incomplete extension %s\n",
-			ast_channel_name(channel->owner), ast_channel_exten(channel->owner));
-		ast_hangup(channel->owner);
-		channel->cause = AST_CAUSE_UNALLOCATED;
-		channel->owner = NULL;
-		break;
-	case AST_CONTROL_RINGING:
-		ast_verb(3, "%s is ringing\n", ast_channel_name(channel->owner));
-		set_state(dial, AST_DIAL_RESULT_RINGING);
-		break;
-	case AST_CONTROL_PROGRESS:
-		ast_verb(3, "%s is making progress\n", ast_channel_name(channel->owner));
-		set_state(dial, AST_DIAL_RESULT_PROGRESS);
-		break;
-	case AST_CONTROL_PROCEEDING:
-		ast_verb(3, "%s is proceeding\n", ast_channel_name(channel->owner));
-		set_state(dial, AST_DIAL_RESULT_PROCEEDING);
-		break;
-	default:
-		break;
 	}
 }
 
@@ -887,10 +868,7 @@ static enum ast_dial_result monitor_dial(struct ast_dial *dial, struct ast_chann
 		}
 
 		/* Process the frame */
-		if (chan)
-			handle_frame(dial, channel, fr, chan);
-		else
-			handle_frame_ownerless(dial, channel, fr);
+		handle_frame(dial, channel, fr, chan);
 
 		/* Free the received frame and start all over */
 		ast_frfree(fr);
