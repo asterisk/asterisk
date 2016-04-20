@@ -1,3 +1,97 @@
+2016-04-20 10:48 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.1-cert6 Released.
+
+2016-04-20 05:48 +0000 [5700190dba]  Joshua Colp <jcolp@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-04-20 05:48 +0000 [21dfb6be03]  Joshua Colp <jcolp@digium.com>
+
+	* .version: Update for certified/13.1-cert6
+
+2016-04-20 05:48 +0000 [58cff8e219]  Joshua Colp <jcolp@digium.com>
+
+	* .lastclean: Update for certified/13.1-cert6
+
+2016-04-20 05:48 +0000 [a98618d0ed]  Joshua Colp <jcolp@digium.com>
+
+	* realtime: Add database scripts for certified/13.1-cert6
+
+2016-04-18 12:12 +0000 [5d390bc4c6]  Mark Michelson <mmichelson@digium.com>
+
+	* PJSIP: Remove PJSIP parsing functions from uri length validation.
+
+	  The PJSIP parsing functions provide a nice concise way to check the
+	  length of a hostname in a SIP URI. The problem is that in order to use
+	  those parsing functions, it's required to use them from a thread that
+	  has registered with PJLib.
+
+	  On startup, when parsing AOR configuration, the permanent URI handler
+	  may not be run from a PJLib-registered thread. Specifically, this could
+	  happen when Asterisk was started in daemon mode rather than
+	  console-mode. If PJProject were compiled with assertions enabled, then
+	  this would cause Asterisk to crash on startup.
+
+	  The solution presented here is to do our own parsing of the contact URI
+	  in order to ensure that the hostname in the URI is not too long. The
+	  parsing does not attempt to perform a full SIP URI parse/validation,
+	  since the hostname in the URI is what is important.
+
+	  ASTERISK-25928 #close
+	  Reported by Joshua Colp
+
+	  Change-Id: Ic3d6c20ff3502507c17244a8b7e2ca761dc7fb60
+
+2016-04-18 17:00 +0000 [204861b305]  Mark Michelson <mmichelson@digium.com>
+
+	* res_pjsip_registrar: Fix bad memory-ness with user_agent.
+
+	  Recent changes to the PJSIP registrar resulted in tests failing due to
+	  missing AOR_CONTACT_ADDED test events. The reason for this was that the
+	  user_agent string had junk values in it, resulting in being unable to
+	  generate the event.
+
+	  I'm going to be honest here, I have no idea why this was happening. Here
+	  are the steps needed for the user_agent variable to get messed up:
+	  * REGISTER is received
+	  * First contact in the REGISTER results in a contact being removed
+	  * Second contact in the REGISTER results in a contact being added
+	  * The contact, AOR, expiration, and user agent all have to be passed as
+	    format parameters to the creation of a string. Any subset of those
+	    parameters would not be enough to cause the problem.
+
+	  Looking into what was happening, the thing that struck me as odd was
+	  that the user_agent variable was meant to be set to the value of the
+	  User-Agent SIP header in the incoming REGISTER. However, when removing a
+	  contact, the user_agent variable would be set (via ast_strdupa inside a
+	  loop) to the stored contact's user_agent. This means that the
+	  user_agent's value would be incorrect when attempting to process further
+	  contacts in the incoming REGISTER.
+
+	  The fix here is to use a different variable for the stored user agent
+	  when removing a contact. Correcting the behavior to be correct also
+	  means the memory usage is less weird, and the issue no longer occurs.
+
+	  ASTERISK-25929 #close
+	  Reported by Joshua Colp
+
+	  Change-Id: I7cd24c86a38dec69ebcc94150614bc25f46b8c08
+
+2016-04-18 13:41 +0000 [08b8a5eea9]  Joshua Colp <jcolp@digium.com>
+
+	* res_pjsip_transport_management: Allow unload to occur.
+
+	  At shutdown it is possible for modules to be unloaded that wouldn't
+	  normally be unloaded. This allows the environment to be cleaned up.
+
+	  The res_pjsip_transport_management module did not have the unload
+	  logic in it to clean itself up causing the res_pjsip module to not
+	  get unloaded. As a result the res_pjsip monitor thread kept going
+	  processing traffic and timers when it shouldn't.
+
+	  Change-Id: Ic8cadee131e3b2c436a81d3ae8bb5775999ae00a
+
 2016-04-14 20:22 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.1-cert5 Released.
