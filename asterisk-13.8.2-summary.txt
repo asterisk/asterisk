@@ -1,0 +1,120 @@
+                                Release Summary
+
+                                asterisk-13.8.2
+
+                                Date: 2016-04-20
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-13.8.1.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                   Testers                  Reporters                
+   5 Joshua Colp                                     2 Joshua Colp            
+   2 Mark Michelson                                  2 Joshua Colp            
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-25928: res_pjsip: URI validation done outside of PJSIP thread
+   Reported by: Joshua Colp
+     * [856931edc2] Mark Michelson -- PJSIP: Remove PJSIP parsing functions
+       from uri length validation.
+
+    Category: Resources/res_pjsip_registrar
+
+   ASTERISK-25929: res_pjsip_registrar: AOR_CONTACT_ADDED events not raised
+   Reported by: Joshua Colp
+     * [91a3e1184f] Mark Michelson -- res_pjsip_registrar: Fix bad
+       memory-ness with user_agent.
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author      | Summary                                     |
+   |------------+-------------+---------------------------------------------|
+   | 26d67ce885 | Joshua Colp | Release summaries: Remove previous versions |
+   |------------+-------------+---------------------------------------------|
+   | d9909232ed | Joshua Colp | .version: Update for 13.8.2                 |
+   |------------+-------------+---------------------------------------------|
+   | fc57bb9b15 | Joshua Colp | .lastclean: Update for 13.8.2               |
+   |------------+-------------+---------------------------------------------|
+   | ac04474f38 | Joshua Colp | realtime: Add database scripts for 13.8.2   |
+   |------------+-------------+---------------------------------------------|
+   | 70e25ced60 | Joshua Colp | res_pjsip_transport_management: Allow       |
+   |            |             | unload to occur.                            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ asterisk-13.8.1-summary.html           |   33 --------
+ asterisk-13.8.1-summary.txt            |  128 ---------------------------------
+ b/.version                             |    2
+ b/res/res_pjsip/location.c             |   56 ++++++++++----
+ b/res/res_pjsip_registrar.c            |    3
+ b/res/res_pjsip_transport_management.c |   17 +++-
+ 6 files changed, 58 insertions(+), 181 deletions(-)
