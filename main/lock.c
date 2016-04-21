@@ -286,17 +286,19 @@ int __ast_pthread_mutex_lock(const char *filename, int lineno, const char *func,
 				if (wait_time > reported_wait && (wait_time % 5) == 0) {
 					__ast_mutex_logger("%s line %d (%s): Deadlock? waited %d sec for mutex '%s'?\n",
 							   filename, lineno, func, (int) wait_time, mutex_name);
-					ast_reentrancy_lock(lt);
+					if (lt) {
+						ast_reentrancy_lock(lt);
 #ifdef HAVE_BKTR
-					__dump_backtrace(&lt->backtrace[lt->reentrancy], canlog);
+						__dump_backtrace(&lt->backtrace[lt->reentrancy], canlog);
 #endif
-					__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
-							   lt->file[ROFFSET], lt->lineno[ROFFSET],
-							   lt->func[ROFFSET], mutex_name);
+						__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
+								   lt->file[ROFFSET], lt->lineno[ROFFSET],
+								   lt->func[ROFFSET], mutex_name);
 #ifdef HAVE_BKTR
-					__dump_backtrace(&lt->backtrace[ROFFSET], canlog);
+						__dump_backtrace(&lt->backtrace[ROFFSET], canlog);
 #endif
-					ast_reentrancy_unlock(lt);
+						ast_reentrancy_unlock(lt);
+					}
 					reported_wait = wait_time;
 				}
 				usleep(200);
