@@ -1675,6 +1675,33 @@ static int get_member_status(struct call_queue *q, int max_penalty, int min_pena
 	return -1;
 }
 
+/*
+ * A "pool" of member objects that calls are currently pending on. If an
+ * agent is a member of multiple queues it's possible for that agent to be
+ * called by each of the queues at the same time. This happens because device
+ * state is slow to notify the queue app of one of it's member's being rung.
+ * This "pool" allows us to track which members are currently being rung while
+ * we wait on the device state change.
+ */
+static struct ao2_container *pending_members;
+#define MAX_CALL_ATTEMPT_BUCKETS 11
+
+static int pending_members_hash(const void *obj, const int flags)
+{
+	const struct member *object = obj;
+	const char *key = (flags & OBJ_KEY) ? obj : object->interface;
+	return ast_str_hash(key);
+}
+
+static int pending_members_cmp(void *obj, void *arg, int flags)
+{
+	const struct member *object_left = obj;
+	const struct member *object_right = arg;
+	const char *right_key = (flags & OBJ_KEY) ? arg : object_right->interface;
+
+	return strcmp(object_left->interface, right_key) ? 0 : CMP_MATCH | CMP_STOP;
+}
+
 struct statechange {
 	AST_LIST_ENTRY(statechange) entry;
 	int state;
@@ -1689,6 +1716,9 @@ struct statechange {
 static int update_status(struct call_queue *q, struct member *m, const int status)
 {
 	m->status = status;
+
+	/* Whatever the status is clear the member from the pending members pool */
+	ao2_find(pending_members, m, OBJ_POINTER | OBJ_NODATA | OBJ_UNLINK);
 
 	if (q->maskmemberstatus) {
 		return 0;
@@ -3662,6 +3692,30 @@ static int can_ring_entry(struct queue_ent *qe, struct callattempt *call)
 	}
 
 	if (!call->member->ringinuse) {
+		struct member *member;
+
+		ao2_lock(pending_members);
+
+		member = ao2_find(pending_members, call->member, OBJ_POINTER | OBJ_NOLOCK);
+		if (member) {
+			/*
+			 * If found that means this member is currently being attempted
+			 * from another calling thread, so stop trying from this thread
+			 */
+			ast_debug(1, "%s has another call trying, can't receive call\n",
+				  call->interface);
+			ao2_ref(member, -1);
+			ao2_unlock(pending_members);
+			return 0;
+		}
+
+		/*
+		 * If not found add it to the container so another queue
+		 * won't attempt to call this member at the same time.
+		 */
+		ao2_link(pending_members, call->member);
+		ao2_unlock(pending_members);
+
 		if (member_call_pending_set(call->member)) {
 			ast_debug(1, "%s has another call pending, can't receive call\n",
 				call->interface);
@@ -10084,6 +10138,7 @@ static int unload_module(void)
 	}
 	ao2_iterator_destroy(&q_iter);
 	devicestate_tps = ast_taskprocessor_unreference(devicestate_tps);
+	ao2_cleanup(pending_members);
 	ao2_ref(queues, -1);
 	ast_unload_realtime("queue_members");
 	return res;
@@ -10096,6 +10151,16 @@ static int load_module(void)
 	struct ast_config *member_config;
 
 	queues = ao2_container_alloc(MAX_QUEUE_BUCKETS, queue_hash_cb, queue_cmp_cb);
+	if (!queues) {
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	pending_members = ao2_container_alloc(
+		MAX_CALL_ATTEMPT_BUCKETS, pending_members_hash, pending_members_cmp);
+	if (!pending_members) {
+		unload_module();
+		return AST_MODULE_LOAD_DECLINE;
+	}
 
 	use_weight = 0;
 
