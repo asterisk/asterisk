@@ -118,29 +118,23 @@ int __ast_string_field_free_memory(struct ast_string_field_mgr *mgr,
 	struct ast_string_field_pool *cur = NULL;
 	struct ast_string_field_pool *preserve = NULL;
 
-	if (!mgr->header) {
-		return -1;
-	}
-
 	/* reset all the fields regardless of cleanup type */
-	AST_VECTOR_CALLBACK_VOID(&mgr->header->string_fields, reset_field);
+	AST_VECTOR_CALLBACK_VOID(&mgr->string_fields, reset_field);
 
 	switch (cleanup_type) {
 	case AST_STRINGFIELD_DESTROY:
-		AST_VECTOR_FREE(&mgr->header->string_fields);
+		AST_VECTOR_FREE(&mgr->string_fields);
 
-		if (mgr->header->embedded_pool) { /* ALWAYS preserve the embedded pool if there is one */
-			preserve = mgr->header->embedded_pool;
+		if (mgr->embedded_pool) { /* ALWAYS preserve the embedded pool if there is one */
+			preserve = mgr->embedded_pool;
 			preserve->used = preserve->active = 0;
 		}
 
-		ast_free(mgr->header);
-		mgr->header = NULL;
 		break;
 	case AST_STRINGFIELD_RESET:
 		/* Preserve the embedded pool if there is one, otherwise the last pool */
-		if (mgr->header->embedded_pool) {
-			preserve = mgr->header->embedded_pool;
+		if (mgr->embedded_pool) {
+			preserve = mgr->embedded_pool;
 		} else {
 			if (*pool_head == NULL) {
 				ast_log(LOG_WARNING, "trying to reset empty pool\n");
@@ -202,27 +196,19 @@ int __ast_string_field_init(struct ast_string_field_mgr *mgr, struct ast_string_
 	mgr->owner_line = lineno;
 #endif
 
-	if (!(mgr->header = calloc_wrapper(1, sizeof(*mgr->header), file, lineno, func))) {
-		return -1;
-	}
-
-	if (AST_VECTOR_INIT(&mgr->header->string_fields, initial_vector_size)) {
-		ast_free(mgr->header);
-		mgr->header = NULL;
+	if (AST_VECTOR_INIT(&mgr->string_fields, initial_vector_size)) {
 		return -1;
 	}
 
 	while ((struct ast_string_field_mgr *) p != mgr) {
-		AST_VECTOR_APPEND(&mgr->header->string_fields, p);
+		AST_VECTOR_APPEND(&mgr->string_fields, p);
 		*p++ = __ast_string_field_empty;
 	}
 
 	*pool_head = NULL;
-	mgr->header->embedded_pool = NULL;
+	mgr->embedded_pool = NULL;
 	if (add_string_pool(mgr, pool_head, needed, file, lineno, func)) {
-		AST_VECTOR_FREE(&mgr->header->string_fields);
-		ast_free(mgr->header);
-		mgr->header = NULL;
+		AST_VECTOR_FREE(&mgr->string_fields);
 		return -1;
 	}
 
@@ -428,33 +414,22 @@ void *__ast_calloc_with_stringfields(unsigned int num_structs, size_t struct_siz
 
 	mgr = allocation + field_mgr_offset;
 
-	/*
-	 * The header is calloced in __ast_string_field_init so it also gets calloced here
-	 * so __ast_string_fields_free_memory can always just free mgr->header.
-	 */
-	mgr->header = calloc_wrapper(1, sizeof(*mgr->header), file, lineno, func);
-	if (!mgr->header) {
-		ast_free(allocation);
-		return NULL;
-	}
-
 	pool = allocation + struct_size;
 	pool_head = allocation + field_mgr_pool_offset;
 	p = (const char **) pool_head + 1;
 	initial_vector_size = ((size_t) (((char *)mgr) - ((char *)p))) / sizeof(*p);
 
-	if (AST_VECTOR_INIT(&mgr->header->string_fields, initial_vector_size)) {
-		ast_free(mgr->header);
+	if (AST_VECTOR_INIT(&mgr->string_fields, initial_vector_size)) {
 		ast_free(allocation);
 		return NULL;
 	}
 
 	while ((struct ast_string_field_mgr *) p != mgr) {
-		AST_VECTOR_APPEND(&mgr->header->string_fields, p);
+		AST_VECTOR_APPEND(&mgr->string_fields, p);
 		*p++ = __ast_string_field_empty;
 	}
 
-	mgr->header->embedded_pool = pool;
+	mgr->embedded_pool = pool;
 	*pool_head = pool;
 	pool->size = size_to_alloc - struct_size - sizeof(*pool);
 #if defined(__AST_DEBUG_MALLOC)
@@ -487,8 +462,8 @@ int __ast_string_fields_copy(struct ast_string_field_pool *copy_pool,
 	struct ast_string_field_mgr *copy_mgr, struct ast_string_field_mgr *orig_mgr)
 {
 	int i;
-	struct ast_string_field_vector *dest = &(copy_mgr->header->string_fields);
-	struct ast_string_field_vector *src = &(orig_mgr->header->string_fields);
+	struct ast_string_field_vector *dest = &(copy_mgr->string_fields);
+	struct ast_string_field_vector *src = &(orig_mgr->string_fields);
 
 	ast_assert(AST_VECTOR_SIZE(dest) == AST_VECTOR_SIZE(src));
 

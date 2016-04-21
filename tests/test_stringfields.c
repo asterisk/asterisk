@@ -369,7 +369,7 @@ AST_TEST_DEFINE(string_field_aggregate_test)
 	ast_string_field_ptr_set_by_fields(inst2->__field_mgr_pool, inst2->__field_mgr, &inst2->string1, "foo");
 	inst2->foo = 2;
 
-	if (inst3->__field_mgr.header->embedded_pool->prev) {
+	if (inst3->__field_mgr.embedded_pool->prev) {
 		ast_test_status_update(test, "Structure 3 embedded pool should not have a previous pool!\n");
 		res = AST_TEST_FAIL;
 		goto error;
@@ -377,13 +377,13 @@ AST_TEST_DEFINE(string_field_aggregate_test)
 
 	ast_string_field_set(inst3, string1, "foo");
 
-	if (inst3->__field_mgr.header->embedded_pool != inst3->__field_mgr_pool) {
+	if (inst3->__field_mgr.embedded_pool != inst3->__field_mgr_pool) {
 		ast_test_status_update(test, "Structure 3 embedded pool should have been the current pool!\n");
 		res = AST_TEST_FAIL;
 		goto error;
 	}
 
-	if (inst3->__field_mgr.header->embedded_pool->prev) {
+	if (inst3->__field_mgr.embedded_pool->prev) {
 		ast_test_status_update(test, "Structure 3 embedded pool should not have a previous pool!\n");
 		res = AST_TEST_FAIL;
 		goto error;
@@ -395,13 +395,13 @@ AST_TEST_DEFINE(string_field_aggregate_test)
 	ast_string_field_set(inst3, string2, "baz 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890");
 	inst3->foo = 3;
 
-	if (inst3->__field_mgr_pool == inst3->__field_mgr.header->embedded_pool) {
+	if (inst3->__field_mgr_pool == inst3->__field_mgr.embedded_pool) {
 		ast_test_status_update(test, "Structure 3 embedded pool should not have been the current pool!\n");
 		res = AST_TEST_FAIL;
 		goto error;
 	}
 
-	if (inst3->__field_mgr.header->embedded_pool != inst3->__field_mgr_pool->prev) {
+	if (inst3->__field_mgr.embedded_pool != inst3->__field_mgr_pool->prev) {
 		ast_test_status_update(test, "Structure 3 embedded pool should be the current pool's previous!\n");
 		res = AST_TEST_FAIL;
 		goto error;
@@ -484,7 +484,7 @@ AST_TEST_DEFINE(string_field_aggregate_test)
 		ast_test_status_update(test, "Structures 1/2 are the same (empty) as expected.\n");
 	}
 
-	if (inst4->__field_mgr.header->embedded_pool != inst4->__field_mgr_pool) {
+	if (inst4->__field_mgr.embedded_pool != inst4->__field_mgr_pool) {
 		ast_test_status_update(test, "Structure 4 embedded pool should have been the current pool!\n");
 		res = AST_TEST_FAIL;
 		goto error;
@@ -492,7 +492,7 @@ AST_TEST_DEFINE(string_field_aggregate_test)
 		ast_test_status_update(test, "Structure 4 embedded pool is the current pool as expected.\n");
 	}
 
-	if (inst4->__field_mgr.header->embedded_pool->prev) {
+	if (inst4->__field_mgr.embedded_pool->prev) {
 		ast_test_status_update(test, "Structure 4 embedded pool should not have a previous pool!\n");
 		res = AST_TEST_FAIL;
 		goto error;
