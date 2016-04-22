@@ -444,14 +444,18 @@ enum ast_bridge_join_flags {
 };
 
 /*!
- * \brief Join (blocking) a channel to a bridge
+ * \brief Join a channel to a bridge (blocking)
  *
  * \param bridge Bridge to join
  * \param chan Channel to join
- * \param swap Channel to swap out if swapping
+ * \param swap Channel to swap out if swapping (A channel reference is stolen.)
  * \param features Bridge features structure
  * \param tech_args Optional Bridging tech optimization parameters for this channel.
  * \param flags defined by enum ast_bridge_join_flags.
+ *
+ * \note The passed in swap channel is always unreffed on return.  It is not a
+ * good idea to access the swap channel on return or for the caller to keep a
+ * reference to it.
  *
  * \note Absolutely _NO_ locks should be held before calling
  * this function since it blocks.
@@ -495,7 +499,7 @@ enum ast_bridge_impart_flags {
 };
 
 /*!
- * \brief Impart (non-blocking) a channel onto a bridge
+ * \brief Impart a channel to a bridge (non-blocking)
  *
  * \param bridge Bridge to impart on
  * \param chan Channel to impart (The channel reference is stolen if impart successful.)
