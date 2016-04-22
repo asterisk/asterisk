@@ -1479,7 +1479,6 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;allow=ulaw
 ;allow=alaw
 ;mailbox=1234@default,1233@default ; Subscribe to status of multiple mailboxes
-;registertrying=yes              ; Send a 100 Trying when the device registers.
 
 ;[snom]
 ;type=friend                     ; Friends place calls and receive calls
