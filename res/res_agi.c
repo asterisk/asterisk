@@ -3754,6 +3754,7 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 	const char *sighup_str;
 	const char *exit_on_hangup_str;
 	int exit_on_hangup;
+	AST_LIST_HEAD_NOLOCK(, ast_frame) deferred_frames = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
 
 	ast_channel_lock(chan);
 	sighup_str = pbx_builtin_getvar_helper(chan, "AGISIGHUP");
@@ -3815,8 +3816,20 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 					/* Write, ignoring errors */
 					if (write(agi->audio, f->data.ptr, f->datalen) < 0) {
 					}
+					ast_frfree(f);
+				} else if (ast_is_deferrable_frame(f)) {
+					struct ast_frame *dup_f;
+
+					if ((dup_f = ast_frisolate(f))) {
+						AST_LIST_INSERT_HEAD(&deferred_frames, dup_f, frame_list);
+					}
+
+					if (dup_f != f) {
+						ast_frfree(f);
+					}
+				} else {
+					ast_frfree(f);
 				}
-				ast_frfree(f);
 			}
 		} else if (outfd > -1) {
 			size_t len = sizeof(buf);
@@ -3864,6 +3877,15 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 				buf[buflen - 1] = '\0';
 			}
 
+			if (!AST_LIST_EMPTY(&deferred_frames)) {
+				ast_channel_lock(chan);
+				while ((f = AST_LIST_REMOVE_HEAD(&deferred_frames, frame_list))) {
+					ast_queue_frame_head(chan, f);
+					ast_frfree(f);
+				}
+				ast_channel_unlock(chan);
+			}
+
 			if (agidebug)
 				ast_verbose("<%s>AGI Rx << %s\n", ast_channel_name(chan), buf);
 			cmd_status = agi_handle_command(chan, agi, buf, dead);
@@ -3885,6 +3907,16 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 			}
 		}
 	}
+
+	if (!AST_LIST_EMPTY(&deferred_frames)) {
+		ast_channel_lock(chan);
+		while ((f = AST_LIST_REMOVE_HEAD(&deferred_frames, frame_list))) {
+			ast_queue_frame_head(chan, f);
+			ast_frfree(f);
+		}
+		ast_channel_unlock(chan);
+	}
+
 	if (agi->speech) {
 		ast_speech_destroy(agi->speech);
 	}
