@@ -115,6 +115,27 @@ static int bridge_stasis_push(struct ast_bridge *self, struct ast_bridge_channel
 {
 	struct stasis_app_control *control = stasis_app_control_find_by_channel(bridge_channel->chan);
 
+	if (swap) {
+		struct ast_channel_snapshot *to_be_replaced = ast_channel_snapshot_get_latest(ast_channel_uniqueid(swap->chan));
+		struct stasis_app_control *swap_control = stasis_app_control_find_by_channel(swap->chan);
+
+		/* set the replace channel snapshot */
+		ast_channel_lock(bridge_channel->chan);
+		app_set_replace_channel_snapshot(bridge_channel->chan, to_be_replaced);
+
+		/* copy the app name from the swap channel */
+		if (swap_control) {
+			ast_debug(3, "Copying stasis app name %s from %s to %s\n",
+				app_name(control_app(swap_control)),
+				ast_channel_name(swap->chan),
+				ast_channel_name(bridge_channel->chan));
+			app_set_replace_channel_app(bridge_channel->chan, app_name(control_app(swap_control)));
+		}
+		ast_channel_unlock(bridge_channel->chan);
+		ao2_cleanup(to_be_replaced);
+		ao2_cleanup(swap_control);
+	}
+
 	if (!control && !stasis_app_channel_is_internal(bridge_channel->chan)) {
 		/* channel not in Stasis(), get it there */
 		/* Attach after-bridge callback and pass ownership of swap_app to it */
@@ -125,8 +146,15 @@ static int bridge_stasis_push(struct ast_bridge *self, struct ast_bridge_channel
 		}
 
 		bridge_stasis_queue_join_action(self, bridge_channel);
+		if (swap) {
+			/* nudge the swap channel out of the bridge */
+			ast_bridge_channel_leave_bridge(swap, BRIDGE_CHANNEL_STATE_END_NO_DISSOLVE, 0);
+		}
 
-		/* Return -1 so the push fails and the after-bridge callback gets called */
+		/* Return -1 so the push fails and the after-bridge callback gets called
+		 * This keeps the bridging framework from putting the channel into the bridge
+		 * until the Stasis thread gets started, and then the channel is put into the bridge.
+		 */
 		return -1;
 	}
 
