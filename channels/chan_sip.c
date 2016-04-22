@@ -17713,6 +17713,10 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct ast_sock
 	if (!peer && sip_cfg.autocreatepeer != AUTOPEERS_DISABLED) {
 		/* Create peer if we have autocreate mode enabled */
 		peer = temp_peer(name);
+		if (peer && !(peer->endpoint = ast_endpoint_create("SIP", name))) {
+			ao2_t_ref(peer, -1, "failed to allocate Stasis endpoint, drop peer");
+			peer = NULL;
+		}
 		if (peer) {
 			ao2_t_link(peers, peer, "link peer into peer table");
 			if (!ast_sockaddr_isnull(&peer->addr)) {
