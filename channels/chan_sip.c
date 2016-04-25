@@ -35272,6 +35272,11 @@ static int unload_module(void)
 	}
 	ao2_iterator_destroy(&i);
 
+	/* Wait for the existing TCP/TLS threads to stop */
+	while (ao2_container_count(threadt)) {
+		usleep(1);
+	}
+
 	/* Hangup all dialogs if they have an owner */
 	i = ao2_iterator_init(dialogs, 0);
 	while ((p = ao2_t_iterator_next(&i, "iterate thru dialogs"))) {
