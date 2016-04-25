@@ -8769,7 +8769,7 @@ static int manager_queues_summary(struct mansession *s, const struct message *m)
 		ao2_lock(q);
 
 		/* List queue properties */
-		if (ast_strlen_zero(queuefilter) || !strcmp(q->name, queuefilter)) {
+		if (ast_strlen_zero(queuefilter) || !strcasecmp(q->name, queuefilter)) {
 			/* Reset the necessary local variables if no queuefilter is set*/
 			qmemcount = 0;
 			qmemavail = 0;
@@ -8845,7 +8845,7 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 		ao2_lock(q);
 
 		/* List queue properties */
-		if (ast_strlen_zero(queuefilter) || !strcmp(q->name, queuefilter)) {
+		if (ast_strlen_zero(queuefilter) || !strcasecmp(q->name, queuefilter)) {
 			sl = ((q->callscompleted > 0) ? 100 * ((float)q->callscompletedinsl / (float)q->callscompleted) : 0);
 			astman_append(s, "Event: QueueParams\r\n"
 				"Queue: %s\r\n"
