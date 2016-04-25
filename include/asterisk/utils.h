@@ -775,6 +775,23 @@ int _ast_vasprintf(char **ret, const char *file, int lineno, const char *func, c
 void ast_enable_packet_fragmentation(int sock);
 
 /*!
+ * \brief Extract directory name from path
+ * \since 13.9.0
+ * \param path
+ * \return directory component of path (see below) or NULL if memory allocation failed.
+ *
+ * This is a portable version of 'basename(3)'.
+ * If path is NULL, empty, or contains no '/', "." is returned.
+ * If path is exactly "/", "/" is returned.
+ * Otherwise the path up to, but not including, the final '/' is returned.
+ *
+ * The original path is not modified.
+ *
+ * In all cases, return value must be released with ast_free.
+ */
+char *ast_dirname(const char *path);
+
+/*!
  * \brief Recursively create directory path
  * \param path The directory path to create
  * \param mode The permissions with which to try to create the directory
