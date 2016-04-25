@@ -34,6 +34,7 @@
 ASTERISK_REGISTER_FILE();
 
 #include <math.h> /* HUGE_VAL */
+#include <sys/stat.h>
 
 #include "asterisk/config.h"
 #include "asterisk/module.h"
@@ -49,6 +50,7 @@ ASTERISK_REGISTER_FILE();
 #include "asterisk/format_cap.h"
 
 #define CONFIG_FILE "test_config.conf"
+#define CONFIG_INCLUDE_FILE "test_config_include.conf"
 
 /*
  * This builds the folowing config:
@@ -879,6 +881,88 @@ static int hook_cb(struct ast_config *cfg)
 	}
 	ast_config_destroy(cfg);
 	return 0;
+}
+
+AST_TEST_DEFINE(config_save)
+{
+	enum ast_test_result_state res = AST_TEST_FAIL;
+	struct ast_flags config_flags = { CONFIG_FLAG_FILEUNCHANGED };
+	struct ast_config *cfg;
+	char config_filename[PATH_MAX];
+	char include_filename[PATH_MAX];
+	struct stat config_stat;
+	off_t before_save;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "config_save";
+		info->category = "/main/config/";
+		info->summary = "Test config save";
+		info->description =
+			"Test configuration save.";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	if (write_config_file()) {
+		ast_test_status_update(test, "Could not write initial config files\n");
+		return res;
+	}
+
+	snprintf(config_filename, PATH_MAX, "%s/%s", ast_config_AST_CONFIG_DIR, CONFIG_FILE);
+	stat(config_filename, &config_stat);
+	before_save = config_stat.st_size;
+
+	cfg = ast_config_load(CONFIG_FILE, config_flags);
+	if (!cfg) {
+		ast_test_status_update(test, "Could not load config\n");
+		goto out;
+	}
+
+	delete_config_file();
+
+	if (!ast_include_new(cfg, CONFIG_FILE, CONFIG_INCLUDE_FILE, 0, NULL, 4, include_filename, PATH_MAX)) {
+		ast_test_status_update(test, "Could not create include\n");
+		goto out;
+	}
+
+	if (ast_config_text_file_save2(CONFIG_FILE, cfg, "TEST", CONFIG_SAVE_FLAG_PRESERVE_EFFECTIVE_CONTEXT)) {
+		ast_test_status_update(test, "Unable to write files\n");
+		goto out;
+	}
+
+	stat(config_filename, &config_stat);
+	if (config_stat.st_size <= before_save) {
+		ast_test_status_update(test, "Did not save config file with #include\n");
+		goto out;
+	}
+	before_save = config_stat.st_size;
+
+	snprintf(include_filename, PATH_MAX, "%s/%s", ast_config_AST_CONFIG_DIR, CONFIG_INCLUDE_FILE);
+
+	chmod(include_filename, S_IRUSR|S_IRGRP|S_IROTH);
+
+	if (!ast_config_text_file_save(CONFIG_FILE, cfg, "TEST")) {
+		ast_test_status_update(test, "Should not have been able to write files\n");
+		goto out;
+	}
+
+	stat(config_filename, &config_stat);
+	if (config_stat.st_size != before_save) {
+		ast_test_status_update(test, "Did not save config file correctly when include isn't writeble\n");
+		goto out;
+	}
+
+	res = AST_TEST_PASS;
+
+out:
+	ast_config_destroy(cfg);
+	chmod(include_filename, S_IRUSR | S_IWUSR);
+	delete_config_file();
+	unlink(include_filename);
+
+	return res;
 }
 
 AST_TEST_DEFINE(config_hook)
@@ -1734,6 +1818,7 @@ AST_TEST_DEFINE(variable_lists_match)
 
 static int unload_module(void)
 {
+	AST_TEST_UNREGISTER(config_save);
 	AST_TEST_UNREGISTER(config_basic_ops);
 	AST_TEST_UNREGISTER(config_filtered_ops);
 	AST_TEST_UNREGISTER(config_template_ops);
@@ -1748,6 +1833,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+	AST_TEST_REGISTER(config_save);
 	AST_TEST_REGISTER(config_basic_ops);
 	AST_TEST_REGISTER(config_filtered_ops);
 	AST_TEST_REGISTER(config_template_ops);
