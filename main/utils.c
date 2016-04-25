@@ -2234,6 +2234,25 @@ void ast_enable_packet_fragmentation(int sock)
 #endif /* HAVE_IP_MTU_DISCOVER */
 }
 
+char *ast_dirname(const char *path)
+{
+	char *last_sep;
+	char *dirname;
+
+	if (ast_strlen_zero(path) || !(last_sep = strrchr(path, '/'))) {
+		return ast_strdup(".");
+	}
+
+	if (strlen(path) == 1) {
+		return ast_strdup(path);
+	}
+
+	dirname = ast_strdup(path);
+	dirname[last_sep - path] = '\0';
+
+	return dirname;
+}
+
 int ast_mkdir(const char *path, int mode)
 {
 	char *ptr;
