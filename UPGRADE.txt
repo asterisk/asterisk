@@ -22,6 +22,7 @@
 === UPGRADE-13.txt  -- Upgrade info for 12 to 13
 ===========================================================
 
+<<<<<<< HEAD
 Channel Drivers:
 
 chan_dahdi:
@@ -78,6 +79,8 @@ app_amd:
    result in detection as a machine.  This means that you should update this
    value to be one higher than your previos value, if your previous value
    was working well for you.
+=======
+>>>>>>> 8b560be... Update UPGRADE file for 13 branch
 
 ===========================================================
 ===========================================================
