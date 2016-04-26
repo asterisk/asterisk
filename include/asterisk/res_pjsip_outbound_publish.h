@@ -162,4 +162,22 @@ void ast_sip_publish_client_remove_datastore(struct ast_sip_outbound_publish_cli
 int ast_sip_publish_client_send(struct ast_sip_outbound_publish_client *client,
 	const struct ast_sip_body *body);
 
+/*!
+ * \brief Send an outgoing PUBLISH message based on the user
+ *
+ * \param user The user send to
+ * \param body An optional body to add to the PUBLISH
+ *
+ * \retval -1 failure
+ * \retval 0 success
+ */
+int ast_sip_publish_user_send(const char *user, const struct ast_sip_body *body);
+
+/*!
+ * \brief Remove the given user and stop outbound publishing for it
+ *
+ * \param user The user to remove
+ */
+void ast_sip_publish_user_remove(const char *user);
+
 #endif /* RES_PJSIP_OUTBOUND_PUBLISH_H */
