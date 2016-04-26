@@ -214,9 +214,9 @@ enum ast_sip_subscription_notify_reason {
 	AST_SIP_SUBSCRIPTION_NOTIFY_REASON_OTHER
 };
 
-/*! Type used for conveying mailbox state */
-#define AST_SIP_EXTEN_STATE_DATA "ast_sip_exten_state_data"
 /*! Type used for extension state/presence */
+#define AST_SIP_EXTEN_STATE_DATA "ast_sip_exten_state_data"
+/*! Type used for conveying mailbox state */
 #define AST_SIP_MESSAGE_ACCUMULATOR "ast_sip_message_accumulator"
 
 /*!
