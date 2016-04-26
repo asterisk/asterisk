@@ -1104,7 +1104,6 @@ static int bridge_exec(struct ast_channel *chan, const char *data)
 		xfer_cfg ? xfer_cfg->xfersound : NULL);
 	ao2_cleanup(xfer_cfg);
 	if (bridge_add_failed) {
-		ast_bridge_features_destroy(peer_features);
 		ast_bridge_features_cleanup(&chan_features);
 		ast_bridge_destroy(bridge, 0);
 		goto done;
