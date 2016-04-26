@@ -9,6 +9,18 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes since Asterisk 11.22 -------------------------------
+------------------------------------------------------------------------------
+
+app_confbridge
+-------------------
+ * Added a bridge profile option called regcontext that allows you to
+   dynamically register the conference bridge name as an extension into
+   the specified context.  This allows tracking down conferences on multi-
+   server installations via alternate means (DUNDI for example). By default
+   this feature is not used.
+
+------------------------------------------------------------------------------
 --- Functionality changes since Asterisk 11.21 -------------------------------
 ------------------------------------------------------------------------------
 
