@@ -649,6 +649,19 @@ int ast_sip_pubsub_generate_body_content(const char *content_type,
 		const char *content_subtype, struct ast_sip_body_data *data, struct ast_str **str);
 
 /*!
+ * \brief Is a body generator registered for the given type/subtype.
+ * \since 14.0.0
+ *
+ * \param type The content type of the body
+ * \param subtype The content subtype of the body
+ *
+ * \note In "plain/text", "plain" is the type and "text" is the subtype.
+ *
+ * \retval non-zero if a generator is registered.
+ */
+int ast_sip_pubsub_is_body_generator_registered(const char *type, const char *subtype);
+
+/*!
  * \since 13.0.0
  * \brief Register a body generator with the pubsub core.
  *

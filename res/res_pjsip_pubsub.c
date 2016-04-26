@@ -3086,6 +3086,11 @@ const char *ast_sip_publication_get_event_configuration(const struct ast_sip_pub
 	return pub->event_configuration_name;
 }
 
+int ast_sip_pubsub_is_body_generator_registered(const char *type, const char *subtype)
+{
+	return !!find_body_generator_type_subtype(type, subtype);
+}
+
 int ast_sip_pubsub_register_body_generator(struct ast_sip_pubsub_body_generator *generator)
 {
 	struct ast_sip_pubsub_body_generator *existing;
