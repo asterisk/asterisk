@@ -930,6 +930,8 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 		break;
 	}
 
+	ast_cli(a->fd,"Registration context: %s\n", b_profile.regcontext);
+
 	ast_cli(a->fd,"sound_only_person:    %s\n", conf_get_sound(CONF_SOUND_ONLY_PERSON, b_profile.sounds));
 	ast_cli(a->fd,"sound_only_one:       %s\n", conf_get_sound(CONF_SOUND_ONLY_ONE, b_profile.sounds));
 	ast_cli(a->fd,"sound_has_joined:     %s\n", conf_get_sound(CONF_SOUND_HAS_JOINED, b_profile.sounds));
@@ -1395,6 +1397,7 @@ int conf_load_config(void)
 	aco_option_register_custom(&cfg_info, "video_mode", ACO_EXACT, bridge_types, NULL, video_mode_handler, 0);
 	aco_option_register(&cfg_info, "max_members", ACO_EXACT, bridge_types, "0", OPT_UINT_T, 0, FLDSET(struct bridge_profile, max_members));
 	aco_option_register(&cfg_info, "record_file", ACO_EXACT, bridge_types, NULL, OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct bridge_profile, rec_file));
+	aco_option_register(&cfg_info, "regcontext", ACO_EXACT, bridge_types, NULL, OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct bridge_profile, regcontext));
 	aco_option_register(&cfg_info, "language", ACO_EXACT, bridge_types, "en", OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct bridge_profile, language));
 	aco_option_register_custom(&cfg_info, "^sound_", ACO_REGEX, bridge_types, NULL, sound_option_handler, 0);
 	/* This option should only be used with the CONFBRIDGE dialplan function */
