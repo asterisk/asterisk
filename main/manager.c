@@ -1549,6 +1549,17 @@ static AST_RWLIST_HEAD_STATIC(manager_hooks, manager_custom_hook);
 /*! \brief A container of event documentation nodes */
 static AO2_GLOBAL_OBJ_STATIC(event_docs);
 
+static int __attribute__((format(printf, 9, 0))) __manager_event_sessions(
+	struct ao2_container *sessions,
+	int category,
+	const char *event,
+	int chancount,
+	struct ast_channel **chans,
+	const char *file,
+	int line,
+	const char *func,
+	const char *fmt,
+	...);
 static enum add_filter_result manager_add_filter(const char *filter_pattern, struct ao2_container *whitefilters, struct ao2_container *blackfilters);
 
 static int match_filter(struct mansession *s, char *eventdata);
@@ -1687,37 +1698,75 @@ struct ast_str *ast_manager_str_from_json_object(struct ast_json *blob, key_excl
 	return res;
 }
 
+#define manager_event_sessions(sessions, category, event, contents , ...)	\
+	__manager_event_sessions(sessions, category, event, 0, NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__, contents , ## __VA_ARGS__)
+
+#define any_manager_listeners(sessions)	\
+	((sessions && ao2_container_count(sessions)) || !AST_RWLIST_EMPTY(&manager_hooks))
+
 static void manager_default_msg_cb(void *data, struct stasis_subscription *sub,
 				    struct stasis_message *message)
 {
-	RAII_VAR(struct ast_manager_event_blob *, ev, NULL, ao2_cleanup);
+	struct ao2_container *sessions;
+	struct ast_manager_event_blob *ev;
 
-	ev = stasis_message_to_ami(message);
-
-	if (ev == NULL) {
-		/* Not and AMI message; disregard */
+	if (!stasis_message_can_be_ami(message)) {
+		/* Not an AMI message; disregard */
 		return;
 	}
 
-	manager_event(ev->event_flags, ev->manager_event, "%s",
-		ev->extra_fields);
+	sessions = ao2_global_obj_ref(mgr_sessions);
+	if (!any_manager_listeners(sessions)) {
+		/* Nobody is listening */
+		ao2_cleanup(sessions);
+		return;
+	}
+
+	ev = stasis_message_to_ami(message);
+	if (!ev) {
+		/* Conversion failure */
+		ao2_cleanup(sessions);
+		return;
+	}
+
+	manager_event_sessions(sessions, ev->event_flags, ev->manager_event,
+		"%s", ev->extra_fields);
+	ao2_ref(ev, -1);
+	ao2_cleanup(sessions);
 }
 
 static void manager_generic_msg_cb(void *data, struct stasis_subscription *sub,
 				    struct stasis_message *message)
 {
-	struct ast_json_payload *payload = stasis_message_data(message);
-	int class_type = ast_json_integer_get(ast_json_object_get(payload->json, "class_type"));
-	const char *type = ast_json_string_get(ast_json_object_get(payload->json, "type"));
-	struct ast_json *event = ast_json_object_get(payload->json, "event");
-	RAII_VAR(struct ast_str *, event_buffer, NULL, ast_free);
+	struct ast_json_payload *payload;
+	int class_type;
+	const char *type;
+	struct ast_json *event;
+	struct ast_str *event_buffer;
+	struct ao2_container *sessions;
+
+	sessions = ao2_global_obj_ref(mgr_sessions);
+	if (!any_manager_listeners(sessions)) {
+		/* Nobody is listening */
+		ao2_cleanup(sessions);
+		return;
+	}
+
+	payload = stasis_message_data(message);
+	class_type = ast_json_integer_get(ast_json_object_get(payload->json, "class_type"));
+	type = ast_json_string_get(ast_json_object_get(payload->json, "type"));
+	event = ast_json_object_get(payload->json, "event");
 
 	event_buffer = ast_manager_str_from_json_object(event, NULL);
 	if (!event_buffer) {
 		ast_log(AST_LOG_WARNING, "Error while creating payload for event %s\n", type);
+		ao2_cleanup(sessions);
 		return;
 	}
-	manager_event(class_type, type, "%s", ast_str_buffer(event_buffer));
+	manager_event_sessions(sessions, class_type, type,
+		"%s", ast_str_buffer(event_buffer));
+	ast_free(event_buffer);
+	ao2_cleanup(sessions);
 }
 
 void ast_manager_publish_event(const char *type, int class_type, struct ast_json *obj)
@@ -4716,7 +4765,7 @@ static int action_blind_transfer(struct mansession *s, const struct message *m)
 	const char *name = astman_get_header(m, "Channel");
 	const char *exten = astman_get_header(m, "Exten");
 	const char *context = astman_get_header(m, "Context");
-	RAII_VAR(struct ast_channel *, chan, NULL, ao2_cleanup);
+	struct ast_channel *chan;
 
 	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
@@ -4753,6 +4802,7 @@ static int action_blind_transfer(struct mansession *s, const struct message *m)
 		break;
 	}
 
+	ast_channel_unref(chan);
 	return 0;
 }
 
@@ -5931,7 +5981,7 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 	const char *actionid = astman_get_header(m, "ActionID");
 	char idText[256];
 	int numchans = 0;
-	RAII_VAR(struct ao2_container *, channels, NULL, ao2_cleanup);
+	struct ao2_container *channels;
 	struct ao2_iterator it_chans;
 	struct stasis_message *msg;
 
@@ -5941,7 +5991,8 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 		idText[0] = '\0';
 	}
 
-	if (!(channels = stasis_cache_dump(ast_channel_cache_by_name(), ast_channel_snapshot_type()))) {
+	channels = stasis_cache_dump(ast_channel_cache_by_name(), ast_channel_snapshot_type());
+	if (!channels) {
 		astman_send_error(s, m, "Could not get cached channels");
 		return 0;
 	}
@@ -5993,6 +6044,7 @@ static int action_coreshowchannels(struct mansession *s, const struct message *m
 	astman_send_list_complete_start(s, m, "CoreShowChannelsComplete", numchans);
 	astman_send_list_complete_end(s);
 
+	ao2_ref(channels, -1);
 	return 0;
 }
 
@@ -6623,11 +6675,10 @@ static int append_event(const char *str, int category)
 
 static void append_channel_vars(struct ast_str **pbuf, struct ast_channel *chan)
 {
-	RAII_VAR(struct varshead *, vars, NULL, ao2_cleanup);
+	struct varshead *vars;
 	struct ast_var_t *var;
 
 	vars = ast_channel_get_manager_vars(chan);
-
 	if (!vars) {
 		return;
 	}
@@ -6635,62 +6686,67 @@ static void append_channel_vars(struct ast_str **pbuf, struct ast_channel *chan)
 	AST_LIST_TRAVERSE(vars, var, entries) {
 		ast_str_append(pbuf, 0, "ChanVariable(%s): %s=%s\r\n", ast_channel_name(chan), var->name, var->value);
 	}
+	ao2_ref(vars, -1);
 }
 
 /* XXX see if can be moved inside the function */
 AST_THREADSTORAGE(manager_event_buf);
 #define MANAGER_EVENT_BUF_INITSIZE   256
 
-int __ast_manager_event_multichan(int category, const char *event, int chancount,
-	struct ast_channel **chans, const char *file, int line, const char *func,
-	const char *fmt, ...)
+static int __attribute__((format(printf, 9, 0))) __manager_event_sessions_va(
+	struct ao2_container *sessions,
+	int category,
+	const char *event,
+	int chancount,
+	struct ast_channel **chans,
+	const char *file,
+	int line,
+	const char *func,
+	const char *fmt,
+	va_list ap)
 {
-	RAII_VAR(struct ao2_container *, sessions, ao2_global_obj_ref(mgr_sessions), ao2_cleanup);
-	struct mansession_session *session;
-	struct manager_custom_hook *hook;
 	struct ast_str *auth = ast_str_alloca(MAX_AUTH_PERM_STRING);
 	const char *cat_str;
-	va_list ap;
 	struct timeval now;
 	struct ast_str *buf;
 	int i;
 
-	if (!(sessions && ao2_container_count(sessions)) && AST_RWLIST_EMPTY(&manager_hooks)) {
-		return 0;
-	}
-
-	if (!(buf = ast_str_thread_get(&manager_event_buf, MANAGER_EVENT_BUF_INITSIZE))) {
+	buf = ast_str_thread_get(&manager_event_buf, MANAGER_EVENT_BUF_INITSIZE);
+	if (!buf) {
 		return -1;
 	}
 
 	cat_str = authority_to_str(category, &auth);
 	ast_str_set(&buf, 0,
-			"Event: %s\r\nPrivilege: %s\r\n",
-			 event, cat_str);
+		"Event: %s\r\n"
+		"Privilege: %s\r\n",
+		event, cat_str);
 
 	if (timestampevents) {
 		now = ast_tvnow();
 		ast_str_append(&buf, 0,
-				"Timestamp: %ld.%06lu\r\n",
-				 (long)now.tv_sec, (unsigned long) now.tv_usec);
+			"Timestamp: %ld.%06lu\r\n",
+			(long)now.tv_sec, (unsigned long) now.tv_usec);
 	}
 	if (manager_debug) {
 		static int seq;
+
 		ast_str_append(&buf, 0,
-				"SequenceNumber: %d\r\n",
-				 ast_atomic_fetchadd_int(&seq, 1));
+			"SequenceNumber: %d\r\n",
+			ast_atomic_fetchadd_int(&seq, 1));
 		ast_str_append(&buf, 0,
-				"File: %s\r\nLine: %d\r\nFunc: %s\r\n", file, line, func);
+			"File: %s\r\n"
+			"Line: %d\r\n"
+			"Func: %s\r\n",
+			file, line, func);
 	}
 	if (!ast_strlen_zero(ast_config_AST_SYSTEM_NAME)) {
 		ast_str_append(&buf, 0,
-				"SystemName: %s\r\n",
-				 ast_config_AST_SYSTEM_NAME);
+			"SystemName: %s\r\n",
+			ast_config_AST_SYSTEM_NAME);
 	}
 
-	va_start(ap, fmt);
 	ast_str_append_va(&buf, 0, fmt, ap);
-	va_end(ap);
 	for (i = 0; i < chancount; i++) {
 		append_channel_vars(&buf, chans[i]);
 	}
@@ -6701,9 +6757,11 @@ int __ast_manager_event_multichan(int category, const char *event, int chancount
 
 	/* Wake up any sleeping sessions */
 	if (sessions) {
-		struct ao2_iterator i;
-		i = ao2_iterator_init(sessions, 0);
-		while ((session = ao2_iterator_next(&i))) {
+		struct ao2_iterator iter;
+		struct mansession_session *session;
+
+		iter = ao2_iterator_init(sessions, 0);
+		while ((session = ao2_iterator_next(&iter))) {
 			ao2_lock(session);
 			if (session->waiting_thread != AST_PTHREADT_NULL) {
 				pthread_kill(session->waiting_thread, SIGURG);
@@ -6718,10 +6776,12 @@ int __ast_manager_event_multichan(int category, const char *event, int chancount
 			ao2_unlock(session);
 			unref_mansession(session);
 		}
-		ao2_iterator_destroy(&i);
+		ao2_iterator_destroy(&iter);
 	}
 
 	if (category != EVENT_FLAG_SHUTDOWN && !AST_RWLIST_EMPTY(&manager_hooks)) {
+		struct manager_custom_hook *hook;
+
 		AST_RWLIST_RDLOCK(&manager_hooks);
 		AST_RWLIST_TRAVERSE(&manager_hooks, hook, list) {
 			hook->helper(category, event, ast_str_buffer(buf));
@@ -6730,6 +6790,50 @@ int __ast_manager_event_multichan(int category, const char *event, int chancount
 	}
 
 	return 0;
+}
+
+static int __attribute__((format(printf, 9, 0))) __manager_event_sessions(
+	struct ao2_container *sessions,
+	int category,
+	const char *event,
+	int chancount,
+	struct ast_channel **chans,
+	const char *file,
+	int line,
+	const char *func,
+	const char *fmt,
+	...)
+{
+	va_list ap;
+	int res;
+
+	va_start(ap, fmt);
+	res = __manager_event_sessions_va(sessions, category, event, chancount, chans,
+		file, line, func, fmt, ap);
+	va_end(ap);
+	return res;
+}
+
+int __ast_manager_event_multichan(int category, const char *event, int chancount,
+	struct ast_channel **chans, const char *file, int line, const char *func,
+	const char *fmt, ...)
+{
+	struct ao2_container *sessions = ao2_global_obj_ref(mgr_sessions);
+	va_list ap;
+	int res;
+
+	if (!any_manager_listeners(sessions)) {
+		/* Nobody is listening */
+		ao2_cleanup(sessions);
+		return 0;
+	}
+
+	va_start(ap, fmt);
+	res = __manager_event_sessions_va(sessions, category, event, chancount, chans,
+		file, line, func, fmt, ap);
+	va_end(ap);
+	ao2_cleanup(sessions);
+	return res;
 }
 
 /*! \brief
@@ -9217,6 +9321,7 @@ int ast_str_append_event_header(struct ast_str **fields_string,
 static void manager_event_blob_dtor(void *obj)
 {
 	struct ast_manager_event_blob *ev = obj;
+
 	ast_string_field_free_memory(ev);
 }
 
@@ -9228,18 +9333,19 @@ ast_manager_event_blob_create(
 	const char *extra_fields_fmt,
 	...)
 {
-	RAII_VAR(struct ast_manager_event_blob *, ev, NULL, ao2_cleanup);
+	struct ast_manager_event_blob *ev;
 	va_list argp;
 
 	ast_assert(extra_fields_fmt != NULL);
 	ast_assert(manager_event != NULL);
 
-	ev = ao2_alloc(sizeof(*ev), manager_event_blob_dtor);
+	ev = ao2_alloc_options(sizeof(*ev), manager_event_blob_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!ev) {
 		return NULL;
 	}
 
 	if (ast_string_field_init(ev, 20)) {
+		ao2_ref(ev, -1);
 		return NULL;
 	}
 
@@ -9247,10 +9353,8 @@ ast_manager_event_blob_create(
 	ev->event_flags = event_flags;
 
 	va_start(argp, extra_fields_fmt);
-	ast_string_field_ptr_build_va(ev, &ev->extra_fields, extra_fields_fmt,
-				      argp);
+	ast_string_field_ptr_build_va(ev, &ev->extra_fields, extra_fields_fmt, argp);
 	va_end(argp);
 
-	ao2_ref(ev, +1);
 	return ev;
 }

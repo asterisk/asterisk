@@ -414,14 +414,14 @@ const struct timeval *stasis_message_timestamp(const struct stasis_message *msg)
  * May return \c NULL, to indicate no representation. The returned object should
  * be ast_json_unref()'ed.
  *
- * \param message Message to convert to JSON string.
+ * \param msg Message to convert to JSON string.
  * \param sanitize Snapshot sanitization callback.
  *
  * \return Newly allocated string with JSON message.
  * \return \c NULL on error.
  * \return \c NULL if JSON format is not supported.
  */
-struct ast_json *stasis_message_to_json(struct stasis_message *message, struct stasis_message_sanitizer *sanitize);
+struct ast_json *stasis_message_to_json(struct stasis_message *msg, struct stasis_message_sanitizer *sanitize);
 
 /*!
  * \brief Build the AMI representation of the message.
@@ -429,12 +429,21 @@ struct ast_json *stasis_message_to_json(struct stasis_message *message, struct s
  * May return \c NULL, to indicate no representation. The returned object should
  * be ao2_cleanup()'ed.
  *
- * \param message Message to convert to AMI.
+ * \param msg Message to convert to AMI.
  * \return \c NULL on error.
  * \return \c NULL if AMI format is not supported.
  */
-struct ast_manager_event_blob *stasis_message_to_ami(
-	struct stasis_message *message);
+struct ast_manager_event_blob *stasis_message_to_ami(struct stasis_message *msg);
+
+/*!
+ * \brief Determine if the given message can be converted to AMI.
+ *
+ * \param msg Message to see if can be converted to AMI.
+ *
+ * \retval 0 Cannot be converted
+ * \retval non-zero Can be converted
+ */
+int stasis_message_can_be_ami(struct stasis_message *msg);
 
 /*!
  * \brief Build the \ref AstGenericEvents representation of the message.
@@ -442,12 +451,11 @@ struct ast_manager_event_blob *stasis_message_to_ami(
  * May return \c NULL, to indicate no representation. The returned object should
  * be disposed of via \ref ast_event_destroy.
  *
- * \param message Message to convert to AMI.
+ * \param msg Message to convert to AMI.
  * \return \c NULL on error.
  * \return \c NULL if AMI format is not supported.
  */
-struct ast_event *stasis_message_to_event(
-	struct stasis_message *message);
+struct ast_event *stasis_message_to_event(struct stasis_message *msg);
 
 /*!
  * \brief A topic to which messages may be posted, and subscribers, well, subscribe

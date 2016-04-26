@@ -232,8 +232,8 @@ static int user_event_hook_cb(int category, const char *event, char *body)
 static int handler_wait_for_message(struct ast_test *test)
 {
 	int error = 0;
-	struct timeval wait_now = ast_tvnow();
-	struct timespec wait_time = { .tv_sec = wait_now.tv_sec + 1, .tv_nsec = wait_now.tv_usec * 1000 };
+	struct timeval wait = ast_tvadd(ast_tvnow(), ast_tv(5 /* seconds */, 0));
+	struct timespec wait_time = { .tv_sec = wait.tv_sec, .tv_nsec = wait.tv_usec * 1000 };
 
 	ast_mutex_lock(&handler_lock);
 	while (!handler_received_message) {
@@ -253,8 +253,8 @@ static int handler_wait_for_message(struct ast_test *test)
 static int user_event_wait_for_events(struct ast_test *test, int expected_events)
 {
 	int error;
-	struct timeval wait_now = ast_tvnow();
-	struct timespec wait_time = { .tv_sec = wait_now.tv_sec + 1, .tv_nsec = wait_now.tv_usec * 1000 };
+	struct timeval wait = ast_tvadd(ast_tvnow(), ast_tv(5 /* seconds */, 0));
+	struct timespec wait_time = { .tv_sec = wait.tv_sec, .tv_nsec = wait.tv_usec * 1000 };
 
 	expected_user_events = expected_events;
 
