@@ -35298,7 +35298,7 @@ static int unload_module(void)
 	struct sip_pvt *p;
 	struct sip_threadinfo *th;
 	struct ao2_iterator i;
-	int wait_count;
+	struct timeval start;
 
 	ast_sip_api_provider_unregister();
 
@@ -35450,11 +35450,11 @@ static int unload_module(void)
 	 * joinable.  They can die on their own and remove themselves
 	 * from the container thus resulting in a huge memory leak.
 	 */
-	wait_count = 1000;
-	while (ao2_container_count(threadt) && --wait_count) {
+	start = ast_tvnow();
+	while (ao2_container_count(threadt) && (ast_tvdiff_sec(ast_tvnow(), start) < 5)) {
 		sched_yield();
 	}
-	if (!wait_count) {
+	if (ao2_container_count(threadt)) {
 		ast_debug(2, "TCP/TLS thread container did not become empty :(\n");
 	}
 
