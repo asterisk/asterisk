@@ -10983,8 +10983,9 @@ static int unload_module(void)
 	ast_extension_state_del(0, extension_state_cb);
 
 	ast_unload_realtime("queue_members");
-	ao2_cleanup(pending_members);
 	ao2_cleanup(queues);
+	ao2_cleanup(pending_members);
+
 	queues = NULL;
 	return 0;
 }
