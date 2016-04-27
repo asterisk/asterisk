@@ -93,6 +93,28 @@ void ast_sip_unregister_event_publisher_handler(struct ast_sip_event_publisher_h
 struct ast_sip_outbound_publish_client *ast_sip_publish_client_get(const char *name);
 
 /*!
+ * \brief Get the From URI the client will use.
+ * \since 14.0.0
+ *
+ * \param client The publication client to get the From URI
+ *
+ * \retval From-uri on success
+ * \retval Empty-string on failure
+ */
+const char *ast_sip_publish_client_get_from_uri(struct ast_sip_outbound_publish_client *client);
+
+/*!
+ * \brief Get the To URI the client will use.
+ * \since 14.0.0
+ *
+ * \param client The publication client to get the To URI
+ *
+ * \retval From-uri on success
+ * \retval Empty-string on failure
+ */
+const char *ast_sip_publish_client_get_to_uri(struct ast_sip_outbound_publish_client *client);
+
+/*!
  * \brief Alternative for ast_datastore_alloc()
  *
  * There are two major differences between this and ast_datastore_alloc()
