@@ -1,3 +1,297 @@
+2016-04-27 16:18 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.1-cert7 Released.
+
+2016-04-27 11:17 +0000 [ac50d4de09]  Kevin Harwell <kharwell@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-04-27 11:17 +0000 [ae138f07b9]  Kevin Harwell <kharwell@digium.com>
+
+	* .version: Update for certified/13.1-cert7
+
+2016-04-27 11:17 +0000 [6887653e56]  Kevin Harwell <kharwell@digium.com>
+
+	* .lastclean: Update for certified/13.1-cert7
+
+2016-04-27 11:17 +0000 [f1dd08373d]  Kevin Harwell <kharwell@digium.com>
+
+	* realtime: Add database scripts for certified/13.1-cert7
+
+2016-04-26 05:48 +0000 [5baf815293]  Joshua Colp <jcolp@digium.com>
+
+	* app_queue: Fix crash when unloading module.
+
+	  When unloading the app_queue module the members in each queue are
+	  destroyed and as part of this they are removed from the pending
+	  members container. Unfortunately a crash would occur as the container
+	  was destroyed before the members were removed.
+
+	  This change tweaks ordering so the container destruction occurs
+	  after the members are destroyed.
+
+	  ASTERISK-16115
+
+	  Change-Id: I48c728668c55aee3d05b751a5d450fb57e87f44b
+
+2016-04-21 14:23 +0000 [1f24863e0c]  Kevin Harwell <kharwell@digium.com>
+
+	* app_queue: queue members can receive multiple calls
+
+	  It was possible for a queue member that is a member of at least 2 or more
+	  queues to receive mulitiple calls at the same time. This happened because
+	  of a race between when a member was being rung and when the device state
+	  notified the other queue(s) member object of the state change.
+
+	  This patch makes it so when a queue member is being rung it gets added to
+	  a global pool of queue members. If that same member is tried again, e.g.
+	  from another queue, and it is found to already exist in the pending member
+	  container then it will not ring that member.
+
+	  ASTERISK-16115 #close
+
+	  Change-Id: I546dd474776d158c2b6be44205353dee5bac7e48
+
+2016-04-22 17:53 +0000 [a2249031ef]  gtjoseph <gjoseph@digium.com>
+
+	* res_agi:  Prevent run_agi from eating frames it shouldn't
+
+	  The run_agi function is eating control frames when it shouldn't be. This is
+	  causing issues when an AGI is run from CONNECTED_LINE_SEND_SUB in a blond
+	  transfer.
+
+	  Alice calls Bob. Bob attended transfers to Charlie but hangs up before Charlie
+	  answers.
+
+	  Alice gets the COLP UPDATE indicating Charlie but Charlie never gets an UPDATE
+	  and is left thinking he's connected to Bob.
+
+	  In this case, when CONNECTED_LINE_SEND_SUB runs on Alice's channel and it calls
+	  an AGI, the extra eaten frames prevent CONNECTED_LINE_SEND_SUB from running on
+	  Charlie's channel.
+
+	  The fix was to accumulate deferrable frames in the "forever" loop instead of
+	  dropping them, and re-queue them just before running the actual agi command
+	  or exiting.
+
+	  ASTERISK-25951 #close
+
+	  Change-Id: I0f4bbfd72fc1126c2aaba41da3233a33d0433645
+
+2016-04-15 14:36 +0000 [c2158c01c2]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_stasis: Handle re-enter stasis bridge with swap channel.
+
+	  We lose the fact that there is a swap channel if there is one.  We
+	  currently wind up rejoining the stasis bridge as a normal join after the
+	  swap channel has already been kicked from the bridge.
+
+	  This patch preserves the swap channel so the AMI/ARI events can note that
+	  the channel joining the bridge is swapping with another channel.  Another
+	  benefit to swaqpping in one operation is if there are any channels that
+	  get lonely (MOH, bridge playback, and bridge record channels).  The lonely
+	  channels won't leave before the joining channel has a chance to come back
+	  in under stasis if the swap channel is the only reason the lonely channels
+	  are staying in the bridge.
+
+	  ASTERISK-25947 #close
+	  Reported by: Richard Mudgett
+
+	  ASTERISK-24649
+	  Reported by: John Bigelow
+
+	  ASTERISK-24782
+	  Reported by: John Bigelow
+
+	  Change-Id: If37ea508831d1fed6dbfac2f191c638fc0a850ee
+
+2016-04-19 16:58 +0000 [4bdc54f66c]  Richard Mudgett <rmudgett@digium.com>
+
+	* bridge: Hold off more than one imparting channel at a time.
+
+	  An earlier patch blocked the ast_bridge_impart() call until the channel
+	  either entered the target bridge or it failed.  Unfortuantely, if the
+	  target bridge is stasis and the imprted channel is not a stasis channel,
+	  stasis bounces the channel out of the bridge to come back into the bridge
+	  as a proper stasis channel.  When the channel is bounced out, that
+	  released the block on ast_bridge_impart() to continue.  If the impart was
+	  a result of a transfer, then it became a race to see if the swap channel
+	  would get hung up before the imparted channel could come back into the
+	  stasis bridge.  If the imparted channel won then everything is fine.  If
+	  the swap channel gets hung up first then the transfer will fail because
+	  the swap channel is leaving the bridge.
+
+	  * Allow a chain of ast_bridge_impart()'s to happen before any are
+	  unblocked to prevent the race condition described above.  When the channel
+	  finally joins the bridge or completely fails to join the bridge then the
+	  ast_bridge_impart() instances are unblocked.
+
+	  ASTERISK-25947
+	  Reported by: Richard Mudgett
+
+	  ASTERISK-24649
+	  Reported by: John Bigelow
+
+	  ASTERISK-24782
+	  Reported by: John Bigelow
+
+	  Change-Id: I8fef369171f295f580024ab4971e95c799d0dde1
+
+2015-07-08 14:56 +0000 [1fa5565fc4]  Kevin Harwell <kharwell@digium.com>
+
+	* bridge.c: Fixed race condition during attended transfer
+
+	  During an attended transfer a thread is started that handles imparting the
+	  bridge channel. From the start of the thread to when the bridge channel is
+	  ready exists a gap that can potentially cause problems (for instance, the
+	  channel being swapped is hung up before the replacement channel enters the
+	  bridge thus stopping the transfer). This patch adds a condition that waits
+	  for the impart thread to get to a point of acceptable readiness before
+	  allowing the initiating thread to continue.
+
+	  ASTERISK-24782
+	  Reported by: John Bigelow
+
+	  This patch is a remedial cherry-pick from v13.
+
+	  Change-Id: I08fe33a2560da924e676df55b181e46fca604577
+
+2015-06-22 15:11 +0000 [ac53e65cb5]  Kevin Harwell <kharwell@digium.com>
+
+	* bridge.c: Hangup attended transfer target if bridged
+
+	  After completing an attended transfer the transfer target channel was not being
+	  hung up after leaving the bridge. Added an explicit softhangup to hangup said
+	  channel, but only if it was previously bridged.
+
+	  ASTERISK-24782 #close
+	  Reported by: John Bigelow
+
+	  This patch is a remedial cherry-pick from v13.
+
+	  Change-Id: Idde9543d56842369384a5e8c00d72a22bbc39ada
+
+2015-04-07 11:40 +0000 [c8e21c4eb9]  Kevin Harwell <kharwell@digium.com>
+
+	* bridge.c: Hangup attended transfer target after it has been swapped out
+
+	  After completing an attended transfer the transfer target channel (the one that
+	  gets swapped out) was not being hung up after leaving the bridge. This resulted
+	  in a channel possibly being left around. Added an explicit softhangup for the
+	  channel in question after the transfer is successfully completed in order to
+	  make sure the channel is hung up.
+
+	  ASTERISK-24782 #close
+	  Reported by: John Bigelow
+	  Review: https://reviewboard.asterisk.org/r/4575/
+
+	  This patch is a remedial cherry-pick from v13.
+
+	  Change-Id: I26cc0c207acf74ade93e6567febf7b9776452058
+
+2015-01-29 17:02 +0000 [b81052d194]  Scott Griepentrog <sgriepentrog@digium.com>
+
+	* stasis transfer: fix stasis bridge push race part two
+
+	  When swapping a Local channel in place of one already
+	  in a bridge (to complete a bridge attended transfer),
+	  the channel that was swapped out can actually be hung
+	  up before the stasis bridge push callback executes on
+	  the independant transfer thread.  This results in the
+	  stasis app loop dropping out and removing the control
+	  that has the the app name which the local replacement
+	  channel needs so it can re-enter stasis.
+
+	  To avoid this race condition a new push_peek callback
+	  has been added, and called from the ast_bridge_impart
+	  thread before it launches the independant thread that
+	  will complete the transfer.  Now the stasis push_peek
+	  callback can copy the stasis app name before the swap
+	  channel can hang up.
+
+	  ASTERISK-24649
+	  Review: https://reviewboard.asterisk.org/r/4382/
+
+	  This patch is a remedial cherry-pick from v13.
+
+	  Change-Id: I307c3b506af5af80ec506f73e8b78a91d79999e0
+
+2015-01-22 12:09 +0000 [a38d044e0a]  Scott Griepentrog <sgriepentrog@digium.com>
+
+	* stasis transfer: fix a race condition on stasis bridge push
+
+	  After a bridge transfer completes where a local replacement
+	  channel is used, a stasis transfer message with the details
+	  of the transfer is sent.  This is processed by stasis which
+	  then sets the stasis app name and replaced channel snapshot
+	  on the replacement channel.
+
+	  However, since a separate thread was already started to run
+	  stasis on the new replacement channel, a race was on to see
+	  if the message processing would be completed before the app
+	  name was needed, otherwise the channel would be hung up.
+
+	  This change moves the calls used to set the stasis app name
+	  and the replace snapshot to the bridge_stasis_push function
+	  callback from the bridge transfer logic, allowing the steps
+	  to be completed earlier and more deterministically, and the
+	  race elimianted.
+
+	  NOTE: the swap channel parameter to bridge_stasis_push (and
+	  thus all bridge push callbacks) must always be present when
+	  performing a swap with another channel.
+
+	  ASTERISK-24649 #close
+	  Reported by: John Bigelow
+	  Review: https://reviewboard.asterisk.org/r/4341/
+
+	  This patch is a remedial cherry-pick from v13.
+
+	  Change-Id: I35c98989786f74cdd7940677002a1a88d34bd2dd
+
+2015-01-22 13:24 +0000 [bc0a8c7bac]  Richard Mudgett <rmudgett@digium.com>
+
+	* Bridge core: Pass a ref with the swap channel when joining a bridge.
+
+	  When code imparts a channel into a bridge to swap with another channel, a
+	  ref needs to be held on the swap channel to ensure that it cannot
+	  dissapear before finding it in the bridge.
+
+	  * The ast_bridge_join() swap channel parameter now always steals a ref for
+	  the swap channel.  This is the only change to the bridge framework's
+	  public API semantics.
+
+	  * bridge_channel_internal_join() now requires the bridge_channel->swap
+	  channel to pass in a ref.
+
+	  ASTERISK-24649
+	  Reported by: John Bigelow
+
+	  Review: https://reviewboard.asterisk.org/r/4354/
+
+	  This patch is a remedial cherry-pick from v13.
+
+	  Change-Id: I73fdf13a3a1042566281c7d06d6e83e2ef87c120
+
+2016-04-19 17:52 +0000 [1feead5760]  gtjoseph <george.joseph@fairview5.com>
+
+	* res_pjsip_callerid:  Clear out display name if id->name is not valid
+
+	  When create_new_id_hdr creates a new RPID or PAI header, it starts by cloning
+	  the From header, then it overwrites the display name and uri from the channel's
+	  connected.id.  If the connected.id.name wasn't valid, create_new_id_hdr was
+	  leaving the display name from the From header in the new RPID or PAI header.
+	  On an attended transfer where the originator had a caller id number set but not
+	  a display name, the re-INVITE to the final transferee had the number of the
+	  originator but the display name of the transferer.
+
+	  Added a check to clear out the display name in the new header if
+	  connected.id.name was invalid.
+
+	  ASTERISK-25942 #close
+
+	  Change-Id: I60b4bf7a7ece9b7425eba74151c0b4969cd2738b
+
 2016-04-20 10:48 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.1-cert6 Released.
