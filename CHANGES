@@ -279,6 +279,12 @@ res_parking:
    for these variables.  The indefinite inheritance is also recommended
    for the PARKINGEXTEN variable.
 
+res_pjsip
+------------------
+ * Added new global option (disable_multi_domain) to pjsip.
+   Disabling Multi Domain can improve realtime performace by reducing
+   number of database requsts.
+
 chan_pjsip
 ------------------
  * Added 'pjsip show channelstats' CLI command.
