@@ -36,6 +36,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/paths.h"	/* use ast_config_AST_CONFIG_DIR */
 #include "asterisk/network.h"	/* we do some sockaddr manipulation here */
+
+#include <string.h>
+#include <libgen.h>
 #include <time.h>
 #include <sys/stat.h>
 
@@ -2512,6 +2515,25 @@ int ast_config_text_file_save(const char *configfile, const struct ast_config *c
 	return ast_config_text_file_save2(configfile, cfg, generator, CONFIG_SAVE_FLAG_PRESERVE_EFFECTIVE_CONTEXT);
 }
 
+static int is_writable(const char *fn)
+{
+	if (access(fn, F_OK)) {
+		char *dn = dirname(ast_strdupa(fn));
+
+		if (access(dn, R_OK | W_OK)) {
+			ast_log(LOG_ERROR, "Unable to write to directory %s (%s)\n", dn, strerror(errno));
+			return 0;
+		}
+	} else {
+		if (access(fn, R_OK | W_OK)) {
+			ast_log(LOG_ERROR, "Unable to write %s (%s)\n", fn, strerror(errno));
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
 int ast_config_text_file_save2(const char *configfile, const struct ast_config *cfg, const char *generator, uint32_t flags)
 {
 	FILE *f;
@@ -2534,20 +2556,20 @@ int ast_config_text_file_save2(const char *configfile, const struct ast_config *
 	for (incl = cfg->includes; incl; incl = incl->next) {
 		/* reset all the output flags in case this isn't our first time saving this data */
 		incl->output = 0;
-		/* now make sure we have write access */
+
 		if (!incl->exec) {
+			/* now make sure we have write access to the include file or its parent directory */
 			make_fn(fn, sizeof(fn), incl->included_file, configfile);
-			if (access(fn, R_OK | W_OK)) {
-				ast_log(LOG_ERROR, "Unable to write %s (%s)\n", fn, strerror(errno));
+			/* If the file itself doesn't exist, make sure we have write access to the directory */
+			if (!is_writable(fn)) {
 				return -1;
 			}
 		}
 	}
 
-	/* now make sure we have write access to the main config file */
+	/* now make sure we have write access to the main config file or its parent directory */
 	make_fn(fn, sizeof(fn), 0, configfile);
-	if (access(fn, R_OK | W_OK)) {
-		ast_log(LOG_ERROR, "Unable to write %s (%s)\n", fn, strerror(errno));
+	if (!is_writable(fn)) {
 		return -1;
 	}
 
