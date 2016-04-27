@@ -243,6 +243,42 @@ static struct dsn *create_dsn(const char *name)
 	return dsn;
 }
 
+static SQLHSTMT silent_execute(struct odbc_obj *obj, void *data);
+
+/*!
+ * \brief Determine if the connection has died.
+ *
+ * \param connection The connection to check
+ * \retval 1 Yep, it's dead
+ * \retval 0 It's alive and well
+ */
+static int connection_dead(struct odbc_obj *connection)
+{
+	SQLINTEGER dead;
+	SQLRETURN res;
+	SQLHSTMT stmt;
+
+	if (!connection) {
+		return 1;
+	}
+
+	res = SQLGetConnectAttr(connection->con, SQL_ATTR_CONNECTION_DEAD, &dead, 0, 0);
+	if (SQL_SUCCEEDED(res)) {
+		return dead == SQL_CD_TRUE ? 1 : 0;
+	}
+
+	/* If the Driver doesn't support SQL_ATTR_CONNECTION_DEAD do a direct
+	 * execute of a probing statement and see if that succeeds instead
+	 */
+	stmt = ast_odbc_direct_execute(connection, silent_execute, "SELECT 1");
+	if (!stmt) {
+		return 1;
+	}
+
+	SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+	return 0;
+}
+
 /*!
  * \brief Retrieve a DSN, or create it if it does not exist.
  *
@@ -271,7 +307,26 @@ static struct dsn *get_dsn(const char *name)
 		return NULL;
 	}
 
-	ao2_lock(dsn->connection);
+	ao2_lock(dsn);
+	if (!dsn->connection) {
+		dsn->connection = ast_odbc_request_obj(name, 0);
+		if (!dsn->connection) {
+			ao2_unlock(dsn);
+			ao2_ref(dsn, -1);
+			return NULL;
+		}
+		return dsn;
+	}
+
+	if (connection_dead(dsn->connection)) {
+		ast_odbc_release_obj(dsn->connection);
+		dsn->connection = ast_odbc_request_obj(name, 0);
+		if (!dsn->connection) {
+			ao2_unlock(dsn);
+			ao2_ref(dsn, -1);
+			return NULL;
+		}
+	}
 
 	return dsn;
 }
@@ -288,7 +343,7 @@ static void *release_dsn(struct dsn *dsn)
 		return NULL;
 	}
 
-	ao2_unlock(dsn->connection);
+	ao2_unlock(dsn);
 	ao2_ref(dsn, -1);
 
 	return NULL;
@@ -323,7 +378,16 @@ static void odbc_datastore_free(void *data)
 	ast_free(result);
 }
 
-static SQLHSTMT generic_execute(struct odbc_obj *obj, void *data)
+/*!
+ * \brief Common execution function for SQL queries.
+ *
+ * \param obj DB connection
+ * \param data The query to execute
+ * \param silent If true, do not print warnings on failure
+ * \retval NULL Failed to execute query
+ * \retval non-NULL The executed statement
+ */
+static SQLHSTMT execute(struct odbc_obj *obj, void *data, int silent)
 {
 	int res;
 	char *sql = data;
@@ -337,7 +401,7 @@ static SQLHSTMT generic_execute(struct odbc_obj *obj, void *data)
 
 	res = SQLExecDirect(stmt, (unsigned char *)sql, SQL_NTS);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO) && (res != SQL_NO_DATA)) {
-		if (res == SQL_ERROR) {
+		if (res == SQL_ERROR && !silent) {
 			int i;
 			SQLINTEGER nativeerror=0, numfields=0;
 			SQLSMALLINT diagbytes=0;
@@ -354,13 +418,25 @@ static SQLHSTMT generic_execute(struct odbc_obj *obj, void *data)
 			}
 		}
 
-		ast_log(LOG_WARNING, "SQL Exec Direct failed (%d)![%s]\n", res, sql);
+		if (!silent) {
+			ast_log(LOG_WARNING, "SQL Exec Direct failed (%d)![%s]\n", res, sql);
+		}
 		SQLCloseCursor(stmt);
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		return NULL;
 	}
 
 	return stmt;
+}
+
+static SQLHSTMT generic_execute(struct odbc_obj *obj, void *data)
+{
+	return execute(obj, data, 0);
+}
+
+static SQLHSTMT silent_execute(struct odbc_obj *obj, void *data)
+{
+	return execute(obj, data, 1);
 }
 
 /*
