@@ -97,11 +97,8 @@ static int dtmf_info_incoming_request(struct ast_sip_session *session, struct pj
 	is_dtmf = is_media_type(rdata, "dtmf");
 
 	if (!is_dtmf && !is_media_type(rdata, "dtmf-relay")) {
-		return 0;
-	}
-
-	if (!body || !body->len) {
 		/* need to return 200 OK on empty body */
+		/* Some SBCs use emtpy INFO as a KEEPALIVE */
 		send_response(session, rdata, 200);
 		return 0;
 	}
