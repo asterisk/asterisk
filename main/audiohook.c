@@ -45,6 +45,7 @@ ASTERISK_REGISTER_FILE()
 
 #define AST_AUDIOHOOK_SYNC_TOLERANCE 100 /*!< Tolerance in milliseconds for audiohooks synchronization */
 #define AST_AUDIOHOOK_SMALL_QUEUE_TOLERANCE 100 /*!< When small queue is enabled, this is the maximum amount of audio that can remain queued at a time. */
+#define AST_AUDIOHOOK_LONG_QUEUE_TOLERANCE 500 /*!< Otheriwise we still don't want the queue to grow indefinitely */
 
 #define DEFAULT_INTERNAL_SAMPLE_RATE 8000
 
@@ -189,6 +190,10 @@ int ast_audiohook_write_frame(struct ast_audiohook *audiohook, enum ast_audiohoo
 	}
 
 	if (ast_test_flag(audiohook, AST_AUDIOHOOK_SMALL_QUEUE) && ((our_factory_ms > AST_AUDIOHOOK_SMALL_QUEUE_TOLERANCE) || (other_factory_ms > AST_AUDIOHOOK_SMALL_QUEUE_TOLERANCE))) {
+		ast_debug(1, "Audiohook %p has stale audio in its factories. Flushing them both\n", audiohook);
+		ast_slinfactory_flush(factory);
+		ast_slinfactory_flush(other_factory);
+	} else if ((our_factory_ms > AST_AUDIOHOOK_LONG_QUEUE_TOLERANCE) || (other_factory_ms > AST_AUDIOHOOK_LONG_QUEUE_TOLERANCE)) {
 		ast_debug(1, "Audiohook %p has stale audio in its factories. Flushing them both\n", audiohook);
 		ast_slinfactory_flush(factory);
 		ast_slinfactory_flush(other_factory);
