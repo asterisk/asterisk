@@ -926,5 +926,5 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP Asterisk Event 
 	.load = load_module,
 	.reload = reload_module,
 	.unload = unload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND,
+	.load_pri = AST_MODPRI_CHANNEL_DEPEND + 5,
 );
