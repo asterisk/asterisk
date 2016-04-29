@@ -389,7 +389,7 @@ static void sip_outbound_publish_synchronize(struct ast_sip_event_publisher_hand
 			} else {
 				state->client->started = 1;
 			}
-		} else if (state->client->started && !handler && removed && !strcmp(publish->event, removed->event_name)) {
+		} else if (!handler && removed && !strcmp(publish->event, removed->event_name)) {
 			/* If the publisher client has been started but it is going away stop it */
 			removed->stop_publishing(state->client);
 			state->client->started = 0;
