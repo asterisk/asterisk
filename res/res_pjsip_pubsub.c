@@ -3179,14 +3179,15 @@ int ast_sip_pubsub_generate_body_content(const char *type, const char *subtype,
 	}
 
 	if (strcmp(data->body_type, generator->body_type)) {
-		ast_log(LOG_WARNING, "Body generator does not accept the type of data provided\n");
+		ast_log(LOG_WARNING, "%s/%s body generator does not accept the type of data provided\n",
+			type, subtype);
 		return -1;
 	}
 
 	body = generator->allocate_body(data->body_data);
 	if (!body) {
-		ast_log(LOG_WARNING, "Unable to allocate a NOTIFY body of type %s/%s\n",
-				type, subtype);
+		ast_log(LOG_WARNING, "%s/%s body generator could not to allocate a body\n",
+			type, subtype);
 		return -1;
 	}
 
