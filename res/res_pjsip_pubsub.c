@@ -2541,20 +2541,28 @@ void ast_sip_unregister_subscription_handler(struct ast_sip_subscription_handler
 	AST_RWLIST_TRAVERSE_SAFE_END;
 }
 
-static struct ast_sip_pubsub_body_generator *find_body_generator_type_subtype(const char *content_type,
-		const char *content_subtype)
+static struct ast_sip_pubsub_body_generator *find_body_generator_type_subtype_nolock(const char *type, const char *subtype)
 {
-	struct ast_sip_pubsub_body_generator *iter;
-	SCOPED_LOCK(lock, &body_generators, AST_RWLIST_RDLOCK, AST_RWLIST_UNLOCK);
+	struct ast_sip_pubsub_body_generator *gen;
 
-	AST_LIST_TRAVERSE(&body_generators, iter, list) {
-		if (!strcmp(iter->type, content_type) &&
-				!strcmp(iter->subtype, content_subtype)) {
+	AST_LIST_TRAVERSE(&body_generators, gen, list) {
+		if (!strcmp(gen->type, type)
+			&& !strcmp(gen->subtype, subtype)) {
 			break;
 		}
-	};
+	}
 
-	return iter;
+	return gen;
+}
+
+static struct ast_sip_pubsub_body_generator *find_body_generator_type_subtype(const char *type, const char *subtype)
+{
+	struct ast_sip_pubsub_body_generator *gen;
+
+	AST_RWLIST_RDLOCK(&body_generators);
+	gen = find_body_generator_type_subtype_nolock(type, subtype);
+	AST_RWLIST_UNLOCK(&body_generators);
+	return gen;
 }
 
 static struct ast_sip_pubsub_body_generator *find_body_generator_accept(const char *accept)
@@ -3092,14 +3100,14 @@ int ast_sip_pubsub_register_body_generator(struct ast_sip_pubsub_body_generator 
 	pj_str_t accept;
 	pj_size_t accept_len;
 
-	existing = find_body_generator_type_subtype(generator->type, generator->subtype);
+	AST_RWLIST_WRLOCK(&body_generators);
+	existing = find_body_generator_type_subtype_nolock(generator->type, generator->subtype);
 	if (existing) {
-		ast_log(LOG_WARNING, "Cannot register body generator of %s/%s."
-				"One is already registered.\n", generator->type, generator->subtype);
+		AST_RWLIST_UNLOCK(&body_generators);
+		ast_log(LOG_WARNING, "A body generator for %s/%s is already registered.\n",
+			generator->type, generator->subtype);
 		return -1;
 	}
-
-	AST_RWLIST_WRLOCK(&body_generators);
 	AST_LIST_INSERT_HEAD(&body_generators, generator, list);
 	AST_RWLIST_UNLOCK(&body_generators);
 
