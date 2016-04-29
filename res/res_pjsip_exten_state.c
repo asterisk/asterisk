@@ -680,6 +680,12 @@ static int publisher_start(struct ast_sip_outbound_publish *configuration, struc
 		return -1;
 	}
 
+	if (!ast_sip_pubsub_is_body_generator_registered(body_type, body_subtype)) {
+		ast_log(LOG_ERROR, "Outbound extension state publisher '%s': '%s' body generator not registered\n",
+			name, body_full);
+		return -1;
+	}
+
 	name_size = strlen(name) + 1;
 	body_type_size = strlen(body_type) + 1;
 	body_subtype_size = strlen(body_subtype) + 1;
