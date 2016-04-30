@@ -24221,16 +24221,16 @@ if test "$USE_PJPROJECT" != "no" ; then
 $as_echo_n "checking for embedded pjproject (may have to download)... " >&6; }
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: configuring" >&5
 $as_echo "configuring" >&6; }
-	make --quiet --no-print-directory -C $PJPROJECT_DIR configure
+	${GNU_MAKE} --quiet --no-print-directory -C $PJPROJECT_DIR configure
 	if test $? -ne 0 ; then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: failed" >&5
 $as_echo "failed" >&6; }
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: Unable to configure $PJPROJECT_DIR" >&5
 $as_echo "$as_me: Unable to configure $PJPROJECT_DIR" >&6;}
-		as_fn_error $? "Run \"make -C $PJPROJECT_DIR NOISY_BUILD=yes configure\" to see error details." "$LINENO" 5
+		as_fn_error $? "Run \"${GNU_MAKE} -C $PJPROJECT_DIR NOISY_BUILD=yes configure\" to see error details." "$LINENO" 5
 	fi
 
-	PJPROJECT_INCLUDE=$(make --quiet --no-print-directory -C $PJPROJECT_DIR echo_cflags)
+	PJPROJECT_INCLUDE=$(${GNU_MAKE} --quiet --no-print-directory -C $PJPROJECT_DIR echo_cflags)
 	PJPROJECT_CFLAGS="$PJPROJECT_INCLUDE"
 	PBX_PJPROJECT=1
 	PJPROJECT_BUNDLED=yes
