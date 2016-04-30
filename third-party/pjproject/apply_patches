@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 if [ "$1" = "-q" ] ; then
 	quiet=1
@@ -27,7 +27,7 @@ if [ ! "$(ls -A $patchdir/*.patch 2>/dev/null)" ] ; then
 fi
 
 for patchfile in $patchdir/*.patch ; do
-	patch -d $sourcedir -p1 -s -r- -f -N --dry-run -i "$patchfile" || (echo "Patchfile $(basename $patchfile) failed to apply >&2" ; exit 1) || exit 1
+	patch -d $sourcedir -p1 -s -r- -f -N --dry-run -i "$patchfile" || (echo "Patchfile $(basename $patchfile) failed to apply" >&2 ; exit 1) || exit 1
 done
 
 for patchfile in "$patchdir"/*.patch ; do

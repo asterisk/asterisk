@@ -115,8 +115,7 @@ source/pjsip-apps/bin/pjsua-$(TARGET_NAME): source/pjlib/lib/libpj-$(TARGET_NAME
 
 source/pjsip-apps/src/python/build/_pjsua.so: source/pjlib/lib/libpj-$(TARGET_NAME).a
 	$(ECHO_PREFIX) Compiling python bindings
-	$(CMD_PREFIX) (cd source/pjsip-apps/src/python ; python setup.py build --build-platlib=./build $(REALLY_QUIET))
-
+	$(CMD_PREFIX) (cd source/pjsip-apps/src/python ; MAKE=$(MAKE) python setup.py build --build-platlib=./build $(REALLY_QUIET))
 
 _all: pjproject.symbols source/pjsip-apps/bin/pjsua-$(TARGET_NAME) source/pjsip-apps/src/python/build/_pjsua.so
 
