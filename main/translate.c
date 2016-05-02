@@ -358,6 +358,7 @@ static struct ast_trans_pvt *newpvt(struct ast_translator *t, struct ast_format 
 	pvt->f.offset = AST_FRIENDLY_OFFSET;
 	pvt->f.src = pvt->t->name;
 	pvt->f.data.ptr = pvt->outbuf.c;
+	pvt->f.seqno = 0x10000;
 
 	/*
 	 * If the translator has not provided a format
@@ -524,13 +525,46 @@ struct ast_trans_pvt *ast_translator_build_path(struct ast_format *dst, struct a
 /*! \brief do the actual translation */
 struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f, int consume)
 {
-	struct ast_trans_pvt *p = path;
-	struct ast_frame *out;
+	const unsigned int rtp_seqno_max_value = 0xffff;
+	struct ast_frame *out_last, *out = NULL;
+	struct ast_trans_pvt *step;
 	struct timeval delivery;
 	int has_timing_info;
 	long ts;
 	long len;
-	int seqno;
+	int seqno, frames_missing;
+
+	/* Determine the amount of lost packets for PLC */
+	/* But not at start with first frame = path->f.seqno is still 0x10000 */
+	/* But not when there is no sequence number = frame created internally */
+	if ((path->f.seqno <= rtp_seqno_max_value) && (path->f.seqno != f->seqno)) {
+		if (f->seqno < path->f.seqno) { /* seqno overrun situation */
+			frames_missing = rtp_seqno_max_value + f->seqno - path->f.seqno - 1;
+		} else {
+			frames_missing = f->seqno - path->f.seqno - 1;
+		}
+		/* Out-of-order packet - more precise: late packet */
+		if ((rtp_seqno_max_value + 1) / 2 < frames_missing) {
+			if (consume) {
+				ast_frfree(f);
+			}
+			/*
+			 * Do not pass late packets to any transcoding module, because that
+			 * confuses the state of any library (packets inter-depend). With
+			 * the next packet, this one is going to be treated as lost packet.
+			 */
+			return NULL;
+		}
+
+		if (frames_missing) > 96) {
+			struct ast_str *str = ast_str_alloca(256);
+
+			/* not DEBUG but NOTICE because of WARNING in main/cannel.c:__ast_queue_frame */
+			ast_log(LOG_NOTICE, "%d lost frame(s) %d/%d %s\n", frames_missing, f->seqno, path->f.seqno, ast_translate_path_to_str(path, &str));
+		}
+	} else {
+		frames_missing = 0;
+	}
 
 	has_timing_info = ast_test_flag(f, AST_FRFLAG_HAS_TIMING_INFO);
 	ts = f->ts;
@@ -560,18 +594,81 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 			 f->samples, ast_format_get_sample_rate(f->subclass.format)));
 	}
 	delivery = f->delivery;
-	for (out = f; out && p ; p = p->next) {
-		struct ast_frame *current = out;
 
-		do {
-			framein(p, current);
-			current = AST_LIST_NEXT(current, frame_list);
-		} while (current);
-		if (out != f) {
-			ast_frfree(out);
+	for (out_last = NULL; frames_missing + 1; frames_missing--) {
+		struct ast_frame *frame_to_translate, *inner_head;
+		struct ast_frame missed = {
+			.frametype = AST_FRAME_VOICE,
+			.subclass.format = f->subclass.format,
+			.datalen = 0,
+			/* In RTP, the amount of samples might change anytime  */
+			/* If that happened while frames got lost, what to do? */
+			.samples = f->samples, /* FIXME */
+			.src = __FUNCTION__,
+			.data.uint32 = 0,
+			.delivery.tv_sec = 0,
+			.delivery.tv_usec = 0,
+			.flags = 0,
+			/* RTP sequence number is between 0x0001 and 0xffff */
+			.seqno = (rtp_seqno_max_value + 1 + f->seqno - frames_missing) & rtp_seqno_max_value,
+		};
+
+		if (frames_missing) {
+			frame_to_translate = &missed;
+		} else {
+			frame_to_translate = f;
 		}
-		out = p->t->frameout(p);
+
+		/* The translation path from one format to another might contain several steps */
+		/* out* collects the result for missed frame(s) and input frame(s) */
+		/* out is the result of the conversion of all frames, translated into the destination format */
+		/* out_last is the last frame in that list, to add frames faster */
+		for (step = path, inner_head = frame_to_translate; step; step = step->next) {
+			struct ast_frame *current, *inner_last, *inner_prev = frame_to_translate;
+
+			/* inner* collects the result of each conversion step, the input for the next step */
+			/* inner_head is a list of frames created by each conversion step */
+			/* inner_last is the last frame in that list, to add frames faster */
+			for (inner_last = NULL, current = inner_head; current; current = AST_LIST_NEXT(current, frame_list)) {
+				struct ast_frame *tmp;
+
+				framein(step, current);
+				tmp = step->t->frameout(step);
+
+				if (inner_last) {
+					struct ast_frame *t;
+
+					/* Determine the last frame of the list before appending to it */
+					while ((t = AST_LIST_NEXT(inner_last, frame_list))) {
+						inner_last = t;
+					}
+					AST_LIST_NEXT(inner_last, frame_list) = tmp;
+				} else {
+					inner_prev = inner_head;
+					inner_head = tmp;
+					inner_last = tmp;
+				}
+			}
+
+			if (inner_prev != frame_to_translate) {
+				ast_frfree(inner_prev); /* Frees just the intermediate lists */
+			}
+		}
+
+		if (out_last) {
+			struct ast_frame *t;
+
+			/* Determine the last frame of the list before appending to it */
+			while ((t = AST_LIST_NEXT(out_last, frame_list))) {
+				out_last = t;
+			}
+			AST_LIST_NEXT(out_last, frame_list) = inner_head;
+		} else {
+			out = inner_head;
+			out_last = inner_head;
+		}
 	}
+
 	if (out) {
 		/* we have a frame, play with times */
 		if (!ast_tvzero(delivery)) {
