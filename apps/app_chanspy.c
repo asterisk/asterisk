@@ -509,8 +509,10 @@ static struct ast_generator spygen = {
 static int start_spying(struct ast_autochan *autochan, const char *spychan_name, struct ast_audiohook *audiohook, struct ast_flags *flags)
 {
 	ast_log(LOG_NOTICE, "Attaching %s to %s\n", spychan_name, ast_channel_name(autochan->chan));
-	if(!ast_test_flag(flags, OPTION_READONLY)) {
-		ast_set_flag(audiohook, AST_AUDIOHOOK_TRIGGER_SYNC | AST_AUDIOHOOK_MUTE_WRITE);
+	if(ast_test_flag(flags, OPTION_READONLY)) {
+		ast_set_flag(audiohook, AST_AUDIOHOOK_MUTE_WRITE);
+	} else {
+		ast_set_flag(audiohook, AST_AUDIOHOOK_TRIGGER_SYNC);
 	}
 	if(ast_test_flag(flags, OPTION_LONG_QUEUE)) {
 		ast_debug(9, "Using a long queue to store audio frames in spy audiohook\n");
