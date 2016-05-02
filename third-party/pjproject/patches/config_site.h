@@ -28,7 +28,11 @@
 #define PJSIP_SAFE_MODULE		0
 #define PJ_HAS_STRICMP_ALNUM		0
 #define PJ_HASH_USE_OWN_TOLOWER		1
-#define PJSIP_UNESCAPE_IN_PLACE		1
+/*
+  It is imperative that PJSIP_UNESCAPE_IN_PLACE remain 0 or undefined.
+  Enabling it will result in SEGFAULTS when URIs containing escape sequences are encountered.
+*/
+#undef PJSIP_UNESCAPE_IN_PLACE
 #define PJSIP_MAX_PKT_LEN			6000
 
 #undef PJ_TODO
