@@ -358,6 +358,7 @@ static struct ast_trans_pvt *newpvt(struct ast_translator *t, struct ast_format 
 	pvt->f.offset = AST_FRIENDLY_OFFSET;
 	pvt->f.src = pvt->t->name;
 	pvt->f.data.ptr = pvt->outbuf.c;
+	pvt->f.seqno = 0x10000;
 
 	/*
 	 * If the translator has not provided a format
@@ -525,7 +526,7 @@ struct ast_trans_pvt *ast_translator_build_path(struct ast_format *dst, struct a
 struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f, int consume)
 {
 	struct ast_trans_pvt *p = path;
-	struct ast_frame *out;
+	struct ast_frame *out, *current;
 	struct timeval delivery;
 	int has_timing_info;
 	long ts;
@@ -560,9 +561,45 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 			 f->samples, ast_format_get_sample_rate(f->subclass.format)));
 	}
 	delivery = f->delivery;
-	for (out = f; out && p ; p = p->next) {
-		struct ast_frame *current = out;
+	for (current = f; current && p ; current = AST_LIST_NEXT(current, frame_list)) {
+		int expect_seqno = (path->f.seqno + 1) & 0xffff;
+		if (current->seqno != expect_seqno && path->f.seqno < 0x10000) {
+			int frames_missing = (current->seqno - expect_seqno) & 0xffff;
+			if (frames_missing > 0x8000) {
+				/* assume out of order and just drop the frame */
+				continue;
+			} else {
+				struct ast_frame missed = {
+					.frametype = AST_FRAME_VOICE,
+					.subclass.format = f->subclass.format,
+					.datalen = 0,
+					.samples = f->samples,
+					.mallocd = 0,
+					.src = __FUNCTION__,
+					.data.uint32 = 0,
+					.delivery.tv_sec = 0,
+					.delivery.tv_usec = 0,
+					.flags = 0,
+					.seqno = expect_seqno,
+				};
 
+				if (frames_missing > 96) {
+					ast_log(LOG_NOTICE, "%d lost frame(s) %d/%d %p\n", frames_missing, f->seqno, path->f.seqno, path);
+				}
+
+				while (missed.seqno != f->seqno) {
+					framein(p, &missed);
+					missed.seqno = (missed.seqno + 1) & 0xffff;
+				}
+			}
+
+		}
+		framein(p, current);
+	}
+	out = p->t->frameout(p);
+	p = p->next;
+	for ( ; out && p ; p = p->next) {
+		current = out;
 		do {
 			framein(p, current);
 			current = AST_LIST_NEXT(current, frame_list);
