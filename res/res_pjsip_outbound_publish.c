@@ -701,8 +701,15 @@ static int explicit_publish_destroy(void *data)
 {
 	struct ast_sip_outbound_publish_client *client = data;
 
-	pjsip_publishc_destroy(client->client);
-	ao2_ref(client, -1);
+	/*
+	 * If there is no pjsip publishing client then we obviously don't need
+	 * to destroy it. Also, the ref for the Asterisk publishing client that
+	 * pjsip had would not exist or should already be gone as well.
+	 */
+	if (client->client) {
+		pjsip_publishc_destroy(client->client);
+		ao2_ref(client, -1);
+	}
 
 	return 0;
 }
