@@ -1112,6 +1112,12 @@
 						REGISTER requests and is not intended to be configured manually.
 					</para></description>
 				</configOption>
+				<configOption name="reg_server">
+					<synopsis>Asterisk Server name</synopsis>
+					<description><para>
+						Asterisk Server name on which SIP endpoint registered.
+					</para></description>
+				</configOption>
 			</configObject>
 			<configObject name="aor">
 				<synopsis>The configuration for a location of an endpoint</synopsis>
