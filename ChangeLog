@@ -1,3 +1,337 @@
+2016-05-03 12:55 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.8-cert1-rc2 Released.
+
+2016-05-03 07:54 +0000 [cadb5c4e64]  Joshua Colp <jcolp@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-05-03 07:54 +0000 [d4d5548ef8]  Joshua Colp <jcolp@digium.com>
+
+	* .version: Update for certified/13.8-cert1-rc2
+
+2016-05-03 07:54 +0000 [a5bc40ae51]  Joshua Colp <jcolp@digium.com>
+
+	* .lastclean: Update for certified/13.8-cert1-rc2
+
+2016-05-03 07:54 +0000 [2b6df52c66]  Joshua Colp <jcolp@digium.com>
+
+	* realtime: Add database scripts for certified/13.8-cert1-rc2
+
+2016-04-15 11:59 +0000 [c4426f1035]  Alexei Gradinari <alex2grad@gmail.com>
+
+	* res_pjsip: disable multi domain to improve realtime performace
+
+	  This patch added new global pjsip option 'disable_multi_domain'.
+	  Disabling Multi Domain can improve Realtime performance by reducing
+	  number of database requests.
+
+	  ASTERISK-25930 #close
+
+	  Change-Id: I2e7160f3aae68475d52742107949a799aa2c7dc7
+
+2016-04-26 05:48 +0000 [c69e0f1813]  Joshua Colp <jcolp@digium.com>
+
+	* app_queue: Fix crash when unloading module.
+
+	  When unloading the app_queue module the members in each queue are
+	  destroyed and as part of this they are removed from the pending
+	  members container. Unfortunately a crash would occur as the container
+	  was destroyed before the members were removed.
+
+	  This change tweaks ordering so the container destruction occurs
+	  after the members are destroyed.
+
+	  ASTERISK-16115
+
+	  Change-Id: I48c728668c55aee3d05b751a5d450fb57e87f44b
+
+2016-04-21 14:23 +0000 [eebe8b3dd3]  Kevin Harwell <kharwell@digium.com>
+
+	* app_queue: queue members can receive multiple calls
+
+	  It was possible for a queue member that is a member of at least 2 or more
+	  queues to receive mulitiple calls at the same time. This happened because
+	  of a race between when a member was being rung and when the device state
+	  notified the other queue(s) member object of the state change.
+
+	  This patch makes it so when a queue member is being rung it gets added to
+	  a global pool of queue members. If that same member is tried again, e.g.
+	  from another queue, and it is found to already exist in the pending member
+	  container then it will not ring that member.
+
+	  ASTERISK-16115 #close
+
+	  Change-Id: I546dd474776d158c2b6be44205353dee5bac7e48
+
+2016-04-22 17:53 +0000 [5cbd4b9799]  gtjoseph <gjoseph@digium.com>
+
+	* res_agi:  Prevent run_agi from eating frames it shouldn't
+
+	  The run_agi function is eating control frames when it shouldn't be. This is
+	  causing issues when an AGI is run from CONNECTED_LINE_SEND_SUB in a blond
+	  transfer.
+
+	  Alice calls Bob. Bob attended transfers to Charlie but hangs up before Charlie
+	  answers.
+
+	  Alice gets the COLP UPDATE indicating Charlie but Charlie never gets an UPDATE
+	  and is left thinking he's connected to Bob.
+
+	  In this case, when CONNECTED_LINE_SEND_SUB runs on Alice's channel and it calls
+	  an AGI, the extra eaten frames prevent CONNECTED_LINE_SEND_SUB from running on
+	  Charlie's channel.
+
+	  The fix was to accumulate deferrable frames in the "forever" loop instead of
+	  dropping them, and re-queue them just before running the actual agi command
+	  or exiting.
+
+	  ASTERISK-25951 #close
+
+	  Change-Id: I0f4bbfd72fc1126c2aaba41da3233a33d0433645
+
+2016-04-15 14:36 +0000 [bc51227ef8]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_stasis: Handle re-enter stasis bridge with swap channel.
+
+	  We lose the fact that there is a swap channel if there is one.  We
+	  currently wind up rejoining the stasis bridge as a normal join after the
+	  swap channel has already been kicked from the bridge.
+
+	  This patch preserves the swap channel so the AMI/ARI events can note that
+	  the channel joining the bridge is swapping with another channel.  Another
+	  benefit to swaqpping in one operation is if there are any channels that
+	  get lonely (MOH, bridge playback, and bridge record channels).  The lonely
+	  channels won't leave before the joining channel has a chance to come back
+	  in under stasis if the swap channel is the only reason the lonely channels
+	  are staying in the bridge.
+
+	  ASTERISK-25947 #close
+	  Reported by: Richard Mudgett
+
+	  ASTERISK-24649
+	  Reported by: John Bigelow
+
+	  ASTERISK-24782
+	  Reported by: John Bigelow
+
+	  Change-Id: If37ea508831d1fed6dbfac2f191c638fc0a850ee
+
+2016-04-19 16:58 +0000 [8dd79720e6]  Richard Mudgett <rmudgett@digium.com>
+
+	* bridge: Hold off more than one imparting channel at a time.
+
+	  An earlier patch blocked the ast_bridge_impart() call until the channel
+	  either entered the target bridge or it failed.  Unfortuantely, if the
+	  target bridge is stasis and the imprted channel is not a stasis channel,
+	  stasis bounces the channel out of the bridge to come back into the bridge
+	  as a proper stasis channel.  When the channel is bounced out, that
+	  released the block on ast_bridge_impart() to continue.  If the impart was
+	  a result of a transfer, then it became a race to see if the swap channel
+	  would get hung up before the imparted channel could come back into the
+	  stasis bridge.  If the imparted channel won then everything is fine.  If
+	  the swap channel gets hung up first then the transfer will fail because
+	  the swap channel is leaving the bridge.
+
+	  * Allow a chain of ast_bridge_impart()'s to happen before any are
+	  unblocked to prevent the race condition described above.  When the channel
+	  finally joins the bridge or completely fails to join the bridge then the
+	  ast_bridge_impart() instances are unblocked.
+
+	  ASTERISK-25947
+	  Reported by: Richard Mudgett
+
+	  ASTERISK-24649
+	  Reported by: John Bigelow
+
+	  ASTERISK-24782
+	  Reported by: John Bigelow
+
+	  Change-Id: I8fef369171f295f580024ab4971e95c799d0dde1
+
+2016-04-19 17:52 +0000 [2a2e754d15]  gtjoseph <george.joseph@fairview5.com>
+
+	* res_pjsip_callerid:  Clear out display name if id->name is not valid
+
+	  When create_new_id_hdr creates a new RPID or PAI header, it starts by cloning
+	  the From header, then it overwrites the display name and uri from the channel's
+	  connected.id.  If the connected.id.name wasn't valid, create_new_id_hdr was
+	  leaving the display name from the From header in the new RPID or PAI header.
+	  On an attended transfer where the originator had a caller id number set but not
+	  a display name, the re-INVITE to the final transferee had the number of the
+	  originator but the display name of the transferer.
+
+	  Added a check to clear out the display name in the new header if
+	  connected.id.name was invalid.
+
+	  ASTERISK-25942 #close
+
+	  Change-Id: I60b4bf7a7ece9b7425eba74151c0b4969cd2738b
+
+2016-04-19 13:02 +0000 [188ce34aff]  Joshua Colp <jcolp@digium.com>
+
+	* app_talkdetect: Make the module core supported.
+
+	  This module is used as part of testsuite tests to confirm
+	  stuff works. I'm accordingly marking it as core as it is
+	  required by those tests.
+
+	  Change-Id: I558e7af7679b22b8ed641d7dd37ee4ca35b11e88
+
+2016-04-19 13:00 +0000 [da80f40014]  Joshua Colp <jcolp@digium.com>
+
+	* app_talkdetect: Enable for testsuite tests.
+
+	  Change-Id: I9acf2e2210f7a15cdd2c63c4c8dcb92de6b47d43
+
+2016-04-18 12:12 +0000 [9f3ecf0a8d]  Mark Michelson <mmichelson@digium.com>
+
+	* PJSIP: Remove PJSIP parsing functions from uri length validation.
+
+	  The PJSIP parsing functions provide a nice concise way to check the
+	  length of a hostname in a SIP URI. The problem is that in order to use
+	  those parsing functions, it's required to use them from a thread that
+	  has registered with PJLib.
+
+	  On startup, when parsing AOR configuration, the permanent URI handler
+	  may not be run from a PJLib-registered thread. Specifically, this could
+	  happen when Asterisk was started in daemon mode rather than
+	  console-mode. If PJProject were compiled with assertions enabled, then
+	  this would cause Asterisk to crash on startup.
+
+	  The solution presented here is to do our own parsing of the contact URI
+	  in order to ensure that the hostname in the URI is not too long. The
+	  parsing does not attempt to perform a full SIP URI parse/validation,
+	  since the hostname in the URI is what is important.
+
+	  ASTERISK-25928 #close
+	  Reported by Joshua Colp
+
+	  Change-Id: Ic3d6c20ff3502507c17244a8b7e2ca761dc7fb60
+
+2016-04-18 17:00 +0000 [39b4742db1]  Mark Michelson <mmichelson@digium.com>
+
+	* res_pjsip_registrar: Fix bad memory-ness with user_agent.
+
+	  Recent changes to the PJSIP registrar resulted in tests failing due to
+	  missing AOR_CONTACT_ADDED test events. The reason for this was that the
+	  user_agent string had junk values in it, resulting in being unable to
+	  generate the event.
+
+	  I'm going to be honest here, I have no idea why this was happening. Here
+	  are the steps needed for the user_agent variable to get messed up:
+	  * REGISTER is received
+	  * First contact in the REGISTER results in a contact being removed
+	  * Second contact in the REGISTER results in a contact being added
+	  * The contact, AOR, expiration, and user agent all have to be passed as
+	    format parameters to the creation of a string. Any subset of those
+	    parameters would not be enough to cause the problem.
+
+	  Looking into what was happening, the thing that struck me as odd was
+	  that the user_agent variable was meant to be set to the value of the
+	  User-Agent SIP header in the incoming REGISTER. However, when removing a
+	  contact, the user_agent variable would be set (via ast_strdupa inside a
+	  loop) to the stored contact's user_agent. This means that the
+	  user_agent's value would be incorrect when attempting to process further
+	  contacts in the incoming REGISTER.
+
+	  The fix here is to use a different variable for the stored user agent
+	  when removing a contact. Correcting the behavior to be correct also
+	  means the memory usage is less weird, and the issue no longer occurs.
+
+	  ASTERISK-25929 #close
+	  Reported by Joshua Colp
+
+	  Change-Id: I7cd24c86a38dec69ebcc94150614bc25f46b8c08
+
+2016-04-18 13:41 +0000 [4caa57f6b3]  Joshua Colp <jcolp@digium.com>
+
+	* res_pjsip_transport_management: Allow unload to occur.
+
+	  At shutdown it is possible for modules to be unloaded that wouldn't
+	  normally be unloaded. This allows the environment to be cleaned up.
+
+	  The res_pjsip_transport_management module did not have the unload
+	  logic in it to clean itself up causing the res_pjsip module to not
+	  get unloaded. As a result the res_pjsip monitor thread kept going
+	  processing traffic and timers when it shouldn't.
+
+	  Change-Id: Ic8cadee131e3b2c436a81d3ae8bb5775999ae00a
+
+2016-04-14 13:49 +0000 [0b35582bbb]  Mark Michelson <mmichelson@digium.com>
+
+	* transport management: Register thread with PJProject.
+
+	  The scheduler thread that kills idle TCP connections was not registering
+	  with PJProject properly and causing assertions if PJProject was built in
+	  debug mode.
+
+	  This change registers the thread with PJProject the first time that the
+	  scheduler callback executes.
+
+	  AST-2016-005
+
+	  Change-Id: I5f7a37e2c80726a99afe9dc2a4a69bdedf661283
+
+2016-03-08 12:12 +0000 [9f8b803a29]  Mark Michelson <mmichelson@digium.com>
+
+	* res_pjsip_transport_management: Kill idle TCP connections.
+
+	  "Idle" here means that someone connects to us and does not send a SIP
+	  request. PJProject will not automatically time out such connections, so
+	  it's up to Asterisk to do it instead.
+
+	  When we receive an incoming TCP connection, we will start a timer
+	  (equivalent to transaction timer D) waiting to receive an incoming
+	  request. If we do not receive a request in that timeframe, then we will
+	  shut down the TCP connection.
+
+	  ASTERISK-25796 #close
+	  Reported by George Joseph
+
+	  AST-2016-005
+
+	  Change-Id: I7b0d303e5d140d0ccaf2f7af562071e3d1130ac6
+
+2016-03-08 10:52 +0000 [a35d3eb73b]  Mark Michelson <mmichelson@digium.com>
+
+	* Rename res_pjsip_keepalive res_pjsip_transport_management
+
+	  ASTERISK-25796
+	  Reported by George Joseph
+
+	  AST-2016-005
+
+	  Change-Id: Id322a05f927392293570599730050bc677d99433
+
+2016-04-14 07:15 +0000 [3de37dee68]  Mark Michelson <mmichelson@digium.com>
+
+	* AST-2016-004: Fix crash on REGISTER with long URI.
+
+	  Due to some ignored return values, Asterisk could crash if processing an
+	  incoming REGISTER whose contact URI was above a certain length.
+
+	  ASTERISK-25707 #close
+	  Reported by George Joseph
+
+	  Patches:
+	  	0001-res_pjsip-Validate-that-URIs-don-t-exceed-pjproject-.patch
+
+	  AST-2016-004
+
+	  Change-Id: I0ed3898fe7ab10121b76c8c79046692de3a1be55
+
+2016-03-23 08:59 +0000 [e378c18815]  gtjoseph <george.joseph@fairview5.com>
+
+	* pjproject-bundled:  Cleanups for reported issues
+
+	  PortAudio should no longer be required
+	  PJSIP_MAX_PKT_LEN is now 6000
+	  Older autoconf issue fixed. (CentOS 6)
+
+	  Change-Id: I463fa9586cbe7c6b3b603289f535bd8e361611dd
+	  (cherry picked from commit d963a3374991c64594cf196e90a5c74964c8ba7c)
+
 2016-04-06 16:01 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.8-cert1-rc1 Released.
