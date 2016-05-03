@@ -1290,6 +1290,20 @@ UPDATE alembic_version SET version_num='3bcc0b5bc2c9' WHERE alembic_version.vers
 
 GO
 
+-- Running upgrade 3bcc0b5bc2c9 -> 8d478ab86e29
+
+ALTER TABLE ps_globals ADD disable_multi_domain VARCHAR(3) NULL;
+
+GO
+
+ALTER TABLE ps_globals ADD CONSTRAINT yesno_values CHECK (disable_multi_domain IN ('yes', 'no'));
+
+GO
+
+UPDATE alembic_version SET version_num='8d478ab86e29' WHERE alembic_version.version_num = '3bcc0b5bc2c9';
+
+GO
+
 COMMIT;
 
 GO

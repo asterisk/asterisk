@@ -891,5 +891,11 @@ ALTER TABLE ps_transports ADD COLUMN allow_reload yesno_values;
 
 UPDATE alembic_version SET version_num='3bcc0b5bc2c9' WHERE alembic_version.version_num = 'dbc44d5a908';
 
+-- Running upgrade 3bcc0b5bc2c9 -> 8d478ab86e29
+
+ALTER TABLE ps_globals ADD COLUMN disable_multi_domain yesno_values;
+
+UPDATE alembic_version SET version_num='8d478ab86e29' WHERE alembic_version.version_num = '3bcc0b5bc2c9';
+
 COMMIT;
 
