@@ -1200,7 +1200,7 @@ static int unload_module(void)
 
 	/* wait for items to unpublish */
 	ast_verb(5, "Waiting to complete unpublishing task(s)\n");
-	while (unloading.count) {
+	while (unloading.count && !res) {
 		res = ast_cond_timedwait(&unloading.cond, &unloading.lock, &end);
 	}
 	ast_mutex_unlock(&unloading.lock);
