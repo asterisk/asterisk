@@ -1,3 +1,61 @@
+2016-05-03 12:22 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.9.0-rc2 Released.
+
+2016-05-03 07:21 +0000 [45b84418ac]  Joshua Colp <jcolp@digium.com>
+
+	* Release summaries: Add summaries for 13.9.0-rc2
+
+2016-05-03 07:21 +0000 [0581fa02e5]  Joshua Colp <jcolp@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-05-03 07:21 +0000 [31b9b476fc]  Joshua Colp <jcolp@digium.com>
+
+	* .version: Update for 13.9.0-rc2
+
+2016-05-03 07:21 +0000 [b64d540059]  Joshua Colp <jcolp@digium.com>
+
+	* .lastclean: Update for 13.9.0-rc2
+
+2016-05-03 07:21 +0000 [a9467ce7d7]  Joshua Colp <jcolp@digium.com>
+
+	* realtime: Add database scripts for 13.9.0-rc2
+
+2016-04-27 13:23 +0000 [b470aabb7b]  Mark Michelson <mmichelson@digium.com>
+
+	* func_odbc: Check connection status before executing queries.
+
+	  A recent change to func_odbc made it so that a single connection was
+	  maintained per DSN. The problem was that the code was optimistic about
+	  the health of the connection after initially opening it and did nothing
+	  to re-connect in case the connection had died.
+
+	  This change adds a check before executing a query to ensure that the
+	  connection to the database is still up and running.
+
+	  ASTERISK-25963 #close
+	  Reported by Ross Beer
+
+	  Change-Id: Id33c86eb04ff48ca088bb2e3086c27b3b683491d
+	  (cherry picked from commit 677d5b515151b51ed8be5e760ce0c7b99dae2761)
+
+2016-04-28 16:54 +0000 [e702b9fc40]  gtjoseph <gjoseph@digium.com>
+
+	* pjproject_bundled:  Disable PJSIP_UNESCAPE_IN_PLACE
+
+	  When pjsip_parse_uri is called with PJSIP_UNESCAPE_IN_PLACE enabled,
+	  the input uri string will become corrupted if it contains escape sequences.
+	  It's not possible to automatically strdup or strdupa the input string because
+	  the output uri pj_str_t's will have pointers to chunks of the input string.
+	  Getting around this would require more memory management code and wouldn't
+	  be worth the savings of doing the unescape in place.
+
+	  ASTERISK-25970 #close
+	  Reported-by: Dmitriy Serov
+
+	  Change-Id: I28dc0e599b5108f7959b9c46dc8278371b372f88
+
 2016-04-25 21:43 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.9.0-rc1 Released.
