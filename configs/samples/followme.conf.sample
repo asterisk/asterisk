@@ -5,6 +5,11 @@ featuredigittimeout=>5000
 ; The number of ms to wait for a digit input for the callee on whether to take the call or
 ; not before we consider them "done" entering digits.
 ;
+enable_callee_prompt=>true
+; Enable prompting a callee to either accept or reject the forwarded call.
+; If disabled, the optional prompting for caller name (option 'a') is
+; likewise disabled. Enabled by default.
+;
 takecall=>1
 ; The global default keypress for the callee to take taking the current call. This can be
 ; a single digit or multiple digits. Default is "1".
@@ -58,6 +63,9 @@ number=>01233456,25
 ; step to make a choice on whether to take the call or not.  That being the case,
 ; you may want to make the timeout on the last step longer to give enough time to
 ; make the choice to accept or not.
+enable_callee_prompt=>true
+; Enable prompting the callee to accept the forwarded call. The default
+; is the global value.
 takecall=>1
 ; The keypress for the callee to take taking the current call. This can be
 ; a single digit or multiple digits. Default is the global default.
