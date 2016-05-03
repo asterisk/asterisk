@@ -56,6 +56,9 @@
  */
 static struct ao2_container *publishers;
 
+/*! Serializer for outbound extension state publishing. */
+static struct ast_taskprocessor *publish_exten_state_serializer;
+
 /*!
  * \brief A subscription for extension state
  *
@@ -542,6 +545,142 @@ static void to_ami(struct ast_sip_subscription *sub,
 			       exten_state_sub->last_exten_state));
 }
 
+struct exten_state_pub_data {
+	/*! Publishers needing state update */
+	AST_VECTOR(name, struct exten_state_publisher *) pubs;
+	/*! Body generator state data */
+	struct ast_sip_exten_state_data exten_state_data;
+};
+
+static void exten_state_pub_data_destroy(struct exten_state_pub_data *doomed)
+{
+	if (!doomed) {
+		return;
+	}
+
+	ast_free((void *) doomed->exten_state_data.exten);
+	ast_free(doomed->exten_state_data.presence_subtype);
+	ast_free(doomed->exten_state_data.presence_message);
+	ao2_cleanup(doomed->exten_state_data.device_state_info);
+
+	AST_VECTOR_CALLBACK_VOID(&doomed->pubs, ao2_ref, -1);
+	AST_VECTOR_FREE(&doomed->pubs);
+
+	ast_free(doomed);
+}
+
+static struct exten_state_pub_data *exten_state_pub_data_alloc(const char *exten, struct ast_state_cb_info *info)
+{
+	struct exten_state_pub_data *pub_data;
+
+	pub_data = ast_calloc(1, sizeof(*pub_data));
+	if (!pub_data) {
+		return NULL;
+	}
+
+	if (AST_VECTOR_INIT(&pub_data->pubs, ao2_container_count(publishers))) {
+		exten_state_pub_data_destroy(pub_data);
+		return NULL;
+	}
+
+	/* Save off currently known information for the body generators. */
+	pub_data->exten_state_data.exten = ast_strdup(exten);
+	pub_data->exten_state_data.exten_state = info->exten_state;
+	pub_data->exten_state_data.presence_state = info->presence_state;
+	pub_data->exten_state_data.presence_subtype = ast_strdup(info->presence_subtype);
+	pub_data->exten_state_data.presence_message = ast_strdup(info->presence_message);
+	pub_data->exten_state_data.device_state_info = ao2_bump(info->device_state_info);
+	if (!pub_data->exten_state_data.exten
+		|| !pub_data->exten_state_data.presence_subtype
+		|| !pub_data->exten_state_data.presence_message) {
+		exten_state_pub_data_destroy(pub_data);
+		return NULL;
+	}
+	return pub_data;
+}
+
+/*!
+ * \internal
+ * \brief Create exten state PUBLISH messages under PJSIP thread.
+ * \since 14.0.0
+ *
+ * \return 0
+ */
+static int exten_state_publisher_cb(void *data)
+{
+	struct exten_state_pub_data *pub_data = data;
+	struct exten_state_publisher *publisher;
+	size_t idx;
+	struct ast_str *body_text;
+	pj_pool_t *pool;
+	struct ast_sip_body_data gen_data = {
+		.body_type = AST_SIP_EXTEN_STATE_DATA,
+		.body_data = &pub_data->exten_state_data,
+	};
+	struct ast_sip_body body;
+
+	body_text = ast_str_create(64);
+	if (!body_text) {
+		exten_state_pub_data_destroy(pub_data);
+		return 0;
+	}
+
+	/* Need a PJSIP memory pool to generate the bodies. */
+	pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "pub_state_body",
+		1024, 1024);
+	if (!pool) {
+		ast_log(LOG_WARNING, "Exten state publishing unable to create memory pool\n");
+		exten_state_pub_data_destroy(pub_data);
+		ast_free(body_text);
+		return 0;
+	}
+	pub_data->exten_state_data.pool = pool;
+
+	for (idx = 0; idx < AST_VECTOR_SIZE(&pub_data->pubs); ++idx) {
+		const char *uri;
+		int res;
+
+		publisher = AST_VECTOR_GET(&pub_data->pubs, idx);
+
+		uri = ast_sip_publish_client_get_from_uri(publisher->client);
+		if (ast_strlen_zero(uri)) {
+			ast_log(LOG_WARNING, "PUBLISH client '%s' has no from_uri or server_uri defined.\n",
+				publisher->name);
+			continue;
+		}
+		ast_copy_string(pub_data->exten_state_data.local, uri, sizeof(pub_data->exten_state_data.local));
+
+		uri = ast_sip_publish_client_get_to_uri(publisher->client);
+		if (ast_strlen_zero(uri)) {
+			ast_log(LOG_WARNING, "PUBLISH client '%s' has no to_uri or server_uri defined.\n",
+				publisher->name);
+			continue;
+		}
+		ast_copy_string(pub_data->exten_state_data.remote, uri, sizeof(pub_data->exten_state_data.remote));
+
+		res = ast_sip_pubsub_generate_body_content(publisher->body_type,
+			publisher->body_subtype, &gen_data, &body_text);
+		pj_pool_reset(pool);
+		if (res) {
+			ast_log(LOG_WARNING,
+				"PUBLISH client '%s' unable to generate %s/%s PUBLISH body.\n",
+				publisher->name, publisher->body_type, publisher->body_subtype);
+			continue;
+		}
+
+		body.type = publisher->body_type;
+		body.subtype = publisher->body_subtype;
+		body.body_text = ast_str_buffer(body_text);
+		ast_sip_publish_client_send(publisher->client, &body);
+	}
+
+	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+
+	ast_free(body_text);
+	exten_state_pub_data_destroy(pub_data);
+	return 0;
+}
+
 /*!
  * \brief Global extension state callback function
  */
@@ -549,16 +688,45 @@ static int exten_state_publisher_state_cb(const char *context, const char *exten
 {
 	struct ao2_iterator publisher_iter;
 	struct exten_state_publisher *publisher;
+	struct exten_state_pub_data *pub_data = NULL;
 
+	ast_debug(5, "Exten state publisher: %s@%s Reason:%s State:%s Presence:%s Subtype:'%s' Message:'%s'\n",
+		exten, context,
+		info->reason == AST_HINT_UPDATE_DEVICE
+			? "Device"
+			: info->reason == AST_HINT_UPDATE_PRESENCE
+				? "Presence"
+				: "Unknown",
+		ast_extension_state2str(info->exten_state),
+		ast_presence_state2str(info->presence_state),
+		S_OR(info->presence_subtype, ""),
+		S_OR(info->presence_message, ""));
 	publisher_iter = ao2_iterator_init(publishers, 0);
 	for (; (publisher = ao2_iterator_next(&publisher_iter)); ao2_ref(publisher, -1)) {
 		if ((publisher->context_filter && regexec(&publisher->context_regex, context, 0, NULL, 0)) ||
 		    (publisher->exten_filter && regexec(&publisher->exten_regex, exten, 0, NULL, 0))) {
 			continue;
 		}
-		/* This is a placeholder for additional code to come */
+
+		if (!pub_data) {
+			pub_data = exten_state_pub_data_alloc(exten, info);
+			if (!pub_data) {
+				ao2_ref(publisher, -1);
+				break;
+			}
+		}
+
+		ao2_ref(publisher, +1);
+		AST_VECTOR_APPEND(&pub_data->pubs, publisher);
+		ast_debug(5, "'%s' will publish exten state\n", publisher->name);
 	}
 	ao2_iterator_destroy(&publisher_iter);
+
+	if (pub_data
+		&& ast_sip_push_task(publish_exten_state_serializer, exten_state_publisher_cb,
+			pub_data)) {
+		exten_state_pub_data_destroy(pub_data);
+	}
 
 	return 0;
 }
@@ -755,6 +923,10 @@ static int unload_module(void)
 	ast_sip_unregister_subscription_handler(&presence_handler);
 
 	ast_extension_state_del(0, exten_state_publisher_state_cb);
+
+	ast_taskprocessor_unreference(publish_exten_state_serializer);
+	publish_exten_state_serializer = NULL;
+
 	ao2_cleanup(publishers);
 	publishers = NULL;
 
@@ -774,6 +946,12 @@ static int load_module(void)
 		exten_state_publisher_cmp);
 	if (!publishers) {
 		ast_log(LOG_WARNING, "Unable to create container to store extension state publishers\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	publish_exten_state_serializer = ast_sip_create_serializer("pjsip/exten_state");
+	if (!publish_exten_state_serializer) {
+		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
 	}
 

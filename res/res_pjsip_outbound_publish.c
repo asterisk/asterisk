@@ -425,6 +425,20 @@ struct ast_sip_outbound_publish_client *ast_sip_publish_client_get(const char *n
 	return state->client;
 }
 
+const char *ast_sip_publish_client_get_from_uri(struct ast_sip_outbound_publish_client *client)
+{
+	struct ast_sip_outbound_publish *publish = client->publish;
+
+	return S_OR(publish->from_uri, S_OR(publish->server_uri, ""));
+}
+
+const char *ast_sip_publish_client_get_to_uri(struct ast_sip_outbound_publish_client *client)
+{
+	struct ast_sip_outbound_publish *publish = client->publish;
+
+	return S_OR(publish->to_uri, S_OR(publish->server_uri, ""));
+}
+
 int ast_sip_register_event_publisher_handler(struct ast_sip_event_publisher_handler *handler)
 {
 	struct ast_sip_event_publisher_handler *existing;
