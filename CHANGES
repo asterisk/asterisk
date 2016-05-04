@@ -284,6 +284,14 @@ res_pjsip
    into the "reg_server" field in the ps_contacts table to facilitate
    multi-server setups.
 
+app_confbridge
+------------------
+ * Added a bridge profile option called regcontext that allows you to
+   dynamically register the conference bridge name as an extension into
+   the specified context.  This allows tracking down conferences on multi-
+   server installations via alternate means (DUNDI for example). By default
+   this feature is not used.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.8.0 to Asterisk 13.9.0 ------------
 ------------------------------------------------------------------------------
