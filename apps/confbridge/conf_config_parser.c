@@ -1563,6 +1563,8 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 		ast_cli(a->fd,"Max Members:          No Limit\n");
 	}
 
+	ast_cli(a->fd,"Registration context: %s\n", b_profile.regcontext);
+
 	switch (b_profile.flags
 		& (BRIDGE_OPT_VIDEO_SRC_LAST_MARKED | BRIDGE_OPT_VIDEO_SRC_FIRST_MARKED
 			| BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER)) {
@@ -2128,6 +2130,7 @@ int conf_load_config(void)
 	aco_option_register(&cfg_info, "record_file_append", ACO_EXACT, bridge_types, "yes", OPT_BOOLFLAG_T, 1, FLDSET(struct bridge_profile, flags), BRIDGE_OPT_RECORD_FILE_APPEND);
 	aco_option_register(&cfg_info, "max_members", ACO_EXACT, bridge_types, "0", OPT_UINT_T, 0, FLDSET(struct bridge_profile, max_members));
 	aco_option_register(&cfg_info, "record_file", ACO_EXACT, bridge_types, NULL, OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct bridge_profile, rec_file));
+	aco_option_register(&cfg_info, "regcontext", ACO_EXACT, bridge_types, NULL, OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct bridge_profile, regcontext));
 	aco_option_register(&cfg_info, "language", ACO_EXACT, bridge_types, "en", OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct bridge_profile, language));
 	aco_option_register_custom(&cfg_info, "^sound_", ACO_REGEX, bridge_types, NULL, sound_option_handler, 0);
 	/* This option should only be used with the CONFBRIDGE dialplan function */
