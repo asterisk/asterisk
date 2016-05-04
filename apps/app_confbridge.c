@@ -1253,9 +1253,17 @@ void conf_handle_second_active(struct confbridge_conference *conference)
 
 void conf_ended(struct confbridge_conference *conference)
 {
+	struct pbx_find_info q = { .stacklen = 0 };
+
 	/* Called with a reference to conference */
 	ao2_unlink(conference_bridges, conference);
 	send_conf_end_event(conference);
+	if (!ast_strlen_zero(conference->b_profile.regcontext) &&
+			pbx_find_extension(NULL, NULL, &q, conference->b_profile.regcontext,
+				conference->name, 1, NULL, "", E_MATCH)) {
+		ast_context_remove_extension(conference->b_profile.regcontext,
+				conference->name, 1, NULL);
+	}
 	ao2_lock(conference);
 	conf_stop_record(conference);
 	ao2_unlock(conference);
@@ -1360,6 +1368,13 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 		}
 
 		send_conf_start_event(conference);
+
+		if (!ast_strlen_zero(conference->b_profile.regcontext)) {
+			if (!ast_exists_extension(NULL, conference->b_profile.regcontext, conference->name, 1, NULL)) {
+				ast_add_extension(conference->b_profile.regcontext, 1, conference->name, 1, NULL, NULL, "Noop", NULL, NULL, "ConfBridge");
+			}
+		}
+
 		ast_debug(1, "Created conference '%s' and linked to container.\n", conference_name);
 	}
 
