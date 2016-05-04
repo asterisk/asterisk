@@ -21,5 +21,5 @@ def upgrade():
 
 def downgrade():
     op.drop_constraint('ps_contacts_uq', 'ps_contacts', type_='unique')
-    op.drop_column('reg_server')
+    op.drop_column('ps_contacts', 'reg_server')
     op.create_unique_constraint(None, 'ps_contacts', 'id')
