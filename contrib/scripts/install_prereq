@@ -29,13 +29,15 @@ PACKAGES_DEBIAN="$PACKAGES_DEBIAN libopenh323-dev libvpb-dev libgtk2.0-dev libmy
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libsnmp-dev libiksemel-dev libcorosync-dev libnewt-dev libpopt-dev libical-dev libspandsp-dev libjack-dev"
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libresample-dev libc-client-dev binutils-dev libsrtp-dev libgsm1-dev libedit-dev doxygen libjansson-dev libldap-dev"
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN subversion git libxslt1-dev automake libsrtp-dev libncurses5-dev python-dev"
-PACKAGES_RH="automake gcc gcc-c++ ncurses-devel openssl-devel libxml2-devel unixODBC-devel libcurl-devel libogg-devel libvorbis-devel speex-devel"
+PACKAGES_RH="automake bzip2 gcc gcc-c++ patch ncurses-devel openssl-devel libxml2-devel unixODBC-devel libcurl-devel libogg-devel libvorbis-devel speex-devel"
 PACKAGES_RH="$PACKAGES_RH spandsp-devel freetds-devel net-snmp-devel iksemel-devel corosynclib-devel newt-devel popt-devel libtool-ltdl-devel lua-devel"
 PACKAGES_RH="$PACKAGES_RH sqlite-devel libsqlite3x-devel radiusclient-ng-devel portaudio-devel postgresql-devel libresample-devel neon-devel libical-devel"
 PACKAGES_RH="$PACKAGES_RH openldap-devel gmime22-devel sqlite2-devel mysql-devel bluez-libs-devel jack-audio-connection-kit-devel gsm-devel libedit-devel libuuid-devel"
 PACKAGES_RH="$PACKAGES_RH jansson-devel libsrtp-devel pjproject-devel subversion git libxslt-devel python-devel"
 
 PACKAGES_OBSD="popt gmake wget libxml libogg libvorbis curl iksemel spandsp speex iodbc freetds-0.63p1-msdblib mysql-client gmime sqlite sqlite3 jack libxslt"
+PACKAGES_FBSD="autoconf gcc binutils popt gmake wget libxml2 libogg libvorbis curl iksemel spandsp speex unixODBC freetds-devel mysql55-client gmime2 sqlite"
+PACKAGES_FBSD="$PACKAGES_FBSD sqlite3 libxslt jansson e2fsprogs-libuuid gsm libsrtp libsamplerate"
 
 KVERS=`uname -r`
 
@@ -95,23 +97,45 @@ check_installed_pkgs() {
 	done
 }
 
+check_installed_fpkgs() {
+	for pack in "$@"
+	do
+		if [ `pkg info -a | grep $pack | wc -l` = 0 ]; then
+		echo $pack
+		fi
+	done
+}
+
 handle_debian() {
 	if ! [ -x "$(command -v aptitude)" ]; then
 		apt-get install aptitude
 	fi
 	extra_packs=`check_installed_debs $PACKAGES_DEBIAN`
 	$testcmd aptitude update
-	$testcmd aptitude install -y $extra_packs
+	if [ x"$extra_packs" != "x" ] ; then
+		$testcmd aptitude install -y $extra_packs
+	fi
 }
 
 handle_rh() {
 	extra_packs=`check_installed_rpms $PACKAGES_RH`
-	$testcmd yum install -y $extra_packs
+	if [ x"$extra_packs" != "x" ] ; then
+		$testcmd yum install -y $extra_packs
+	fi
 }
 
 handle_obsd() {
 	extra_packs=`check_installed_pkgs $PACKAGES_OBSD`
-	$testcmd pkg_add $extra_packs
+	if [ x"$extra_packs" != "x" ] ; then
+		$testcmd pkg_add $extra_packs
+	fi
+}
+
+handle_fbsd() {
+	extra_packs=`check_installed_fpkgs $PACKAGES_FBSD`
+	if [ x"$extra_packs" != "x" ] ; then
+		$testcmd pkg install -y $extra_packs
+	fi
 }
 
 install_unpackaged() {
@@ -188,7 +212,7 @@ OS=`uname -s`
 unsupported_distro=''
 
 # A number of distributions we don't (yet?) support.
-if [ "$OS" != 'Linux' -a "$OS" != 'OpenBSD' ]; then
+if [ "$OS" != 'Linux' -a "$OS" != 'OpenBSD' -a "$OS" != 'FreeBSD' ]; then
 	echo >&2 "$0: Your OS ($OS) is currently not supported. Aborting."
 	exit 1
 fi
@@ -221,6 +245,8 @@ elif [ -r /etc/redhat-release ]; then
 	handle_rh
 elif [ "$OS" = 'OpenBSD' ]; then
 	handle_obsd
+elif [ "$OS" = 'FreeBSD' ]; then
+	handle_fbsd
 fi
 
 if ! in_test_mode; then
