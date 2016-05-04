@@ -49,6 +49,8 @@
 		LINKER_SYMBOL_PREFIXres_srtp;
 		LINKER_SYMBOL_PREFIXres_srtp_policy;
 		LINKER_SYMBOL_PREFIXsecure_call_info;
+		LINKER_SYMBOL_PREFIX__progname;
+		LINKER_SYMBOL_PREFIXenviron;
 		/*
 
 		If _IO_stdin_used is not exported, stdout/stderr may not get
