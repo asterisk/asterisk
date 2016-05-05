@@ -166,6 +166,20 @@ struct ast_datastore *ast_sip_publication_get_datastore(struct ast_sip_publicati
 void ast_sip_publication_remove_datastore(struct ast_sip_publication *publication, const char *name);
 
 /*!
+ * \brief Get the datastores container for a publication
+ *
+ * \param publication The publication to get the datastores container from
+ *
+ * \retval NULL datastores container not present
+ * \retval non-NULL datastores container
+ *
+ * \note The container is NOT returned with reference count bumped
+ *
+ * \since 14.0.0
+ */
+struct ao2_container *ast_sip_publication_get_datastores(const struct ast_sip_publication *publication);
+
+/*!
  * \brief Opaque structure representing an RFC 3265 SIP subscription
  */
 struct ast_sip_subscription;
@@ -516,6 +530,20 @@ struct ast_datastore *ast_sip_subscription_get_datastore(struct ast_sip_subscrip
  * \param name The name of the datastore to remove
  */
 void ast_sip_subscription_remove_datastore(struct ast_sip_subscription *subscription, const char *name);
+
+/*!
+ * \brief Get the datastores container for a subscription
+ *
+ * \param subscription The subscription to get the datastores container from
+ *
+ * \retval NULL datastores container not present
+ * \retval non-NULL datastores container
+ *
+ * \note The container is NOT returned with reference count bumped
+ *
+ * \since 14.0.0
+ */
+struct ao2_container *ast_sip_subscription_get_datastores(const struct ast_sip_subscription *subscription);
 
 /*!
  * \brief Register a subscription handler
