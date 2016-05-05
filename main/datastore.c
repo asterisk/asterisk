@@ -31,6 +31,11 @@ ASTERISK_REGISTER_FILE()
 
 #include "asterisk/datastore.h"
 #include "asterisk/utils.h"
+#include "asterisk/astobj2.h"
+#include "asterisk/uuid.h"
+
+/*! \brief Number of buckets for datastore container */
+#define DATASTORE_BUCKETS 53
 
 struct ast_datastore *__ast_datastore_alloc(const struct ast_datastore_info *info, const char *uid,
 					    const char *file, int line, const char *function)
@@ -82,4 +87,126 @@ int ast_datastore_free(struct ast_datastore *datastore)
 	ast_free(datastore);
 
 	return res;
+}
+
+/*! \brief Hashing function for datastores */
+static int datastore_hash(const void *obj, const int flags)
+{
+	const struct ast_datastore *object;
+	const char *key;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		key = obj;
+		break;
+	case OBJ_SEARCH_OBJECT:
+		object = obj;
+		key = object->uid;
+		break;
+	default:
+		ast_assert(0);
+		return 0;
+	}
+	return ast_str_hash(key);
+}
+
+/*! \brief Comparator function for datastores */
+static int datastore_cmp(void *obj, void *arg, int flags)
+{
+	const struct ast_datastore *object_left = obj;
+	const struct ast_datastore *object_right = arg;
+	const char *right_key = arg;
+	int cmp;
+
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = object_right->uid;
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(object_left->uid, right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		/* Not supported by container. */
+		ast_assert(0);
+		return 0;
+	default:
+		cmp = 0;
+		break;
+	}
+	if (cmp) {
+		return 0;
+	}
+	return CMP_MATCH;
+}
+
+struct ao2_container *ast_datastores_alloc(void)
+{
+	return ao2_container_alloc(DATASTORE_BUCKETS, datastore_hash, datastore_cmp);
+}
+
+int ast_datastores_add(struct ao2_container *datastores, struct ast_datastore *datastore)
+{
+	ast_assert(datastore != NULL);
+	ast_assert(datastore->info != NULL);
+	ast_assert(!ast_strlen_zero(datastore->uid));
+
+	if (!ao2_link(datastores, datastore)) {
+		return -1;
+	}
+
+	return 0;
+}
+
+void ast_datastores_remove(struct ao2_container *datastores, const char *name)
+{
+	ao2_find(datastores, name, OBJ_SEARCH_KEY | OBJ_UNLINK | OBJ_NODATA);
+}
+
+struct ast_datastore *ast_datastores_find(struct ao2_container *datastores, const char *name)
+{
+	return ao2_find(datastores, name, OBJ_KEY);
+}
+
+static void datastore_destroy(void *obj)
+{
+	struct ast_datastore *datastore = obj;
+
+	/* Using the destroy function (if present) destroy the data */
+	if (datastore->info->destroy != NULL && datastore->data != NULL) {
+		datastore->info->destroy(datastore->data);
+		datastore->data = NULL;
+	}
+
+	ast_free((void *) datastore->uid);
+	datastore->uid = NULL;
+}
+
+struct ast_datastore *ast_datastores_alloc_datastore(const struct ast_datastore_info *info, const char *uid)
+{
+	RAII_VAR(struct ast_datastore *, datastore, NULL, ao2_cleanup);
+	char uuid_buf[AST_UUID_STR_LEN];
+	const char *uid_ptr = uid;
+
+	if (!info) {
+		return NULL;
+	}
+
+	datastore = ao2_alloc(sizeof(*datastore), datastore_destroy);
+	if (!datastore) {
+		return NULL;
+	}
+
+	datastore->info = info;
+	if (ast_strlen_zero(uid)) {
+		/* They didn't provide an ID so we'll provide one ourself */
+		uid_ptr = ast_uuid_generate_str(uuid_buf, sizeof(uuid_buf));
+	}
+
+	datastore->uid = ast_strdup(uid_ptr);
+	if (!datastore->uid) {
+		return NULL;
+	}
+
+	ao2_ref(datastore, +1);
+	return datastore;
 }
