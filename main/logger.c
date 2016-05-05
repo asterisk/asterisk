@@ -316,6 +316,7 @@ static struct logchannel *make_logchannel(const char *channel, const char *compo
 
 		chan->type = LOGTYPE_SYSLOG;
 		ast_copy_string(chan->filename, channel, sizeof(chan->filename));
+		openlog("asterisk", LOG_PID, chan->facility);
 	} else {
 		const char *log_dir_prefix = "";
 		const char *log_dir_separator = "";
