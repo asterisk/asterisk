@@ -31,6 +31,11 @@ ASTERISK_REGISTER_FILE()
 
 #include "asterisk/datastore.h"
 #include "asterisk/utils.h"
+#include "asterisk/astobj2.h"
+#include "asterisk/uuid.h"
+
+/*! \brief Number of buckets for datastore container */
+#define DATASTORE_BUCKETS 53
 
 struct ast_datastore *__ast_datastore_alloc(const struct ast_datastore_info *info, const char *uid,
 					    const char *file, int line, const char *function)
@@ -82,4 +87,79 @@ int ast_datastore_free(struct ast_datastore *datastore)
 	ast_free(datastore);
 
 	return res;
+}
+
+AO2_STRING_FIELD_HASH_FN(ast_datastore, uid);
+AO2_STRING_FIELD_CMP_FN(ast_datastore, uid);
+
+struct ao2_container *ast_datastores_alloc(void)
+{
+	return ao2_container_alloc(DATASTORE_BUCKETS, ast_datastore_hash_fn, ast_datastore_cmp_fn);
+}
+
+int ast_datastores_add(struct ao2_container *datastores, struct ast_datastore *datastore)
+{
+	ast_assert(datastore != NULL);
+	ast_assert(datastore->info != NULL);
+	ast_assert(!ast_strlen_zero(datastore->uid));
+
+	if (!ao2_link(datastores, datastore)) {
+		return -1;
+	}
+
+	return 0;
+}
+
+void ast_datastores_remove(struct ao2_container *datastores, const char *name)
+{
+	ao2_find(datastores, name, OBJ_SEARCH_KEY | OBJ_UNLINK | OBJ_NODATA);
+}
+
+struct ast_datastore *ast_datastores_find(struct ao2_container *datastores, const char *name)
+{
+	return ao2_find(datastores, name, OBJ_SEARCH_KEY);
+}
+
+static void datastore_destroy(void *obj)
+{
+	struct ast_datastore *datastore = obj;
+
+	/* Using the destroy function (if present) destroy the data */
+	if (datastore->info->destroy != NULL && datastore->data != NULL) {
+		datastore->info->destroy(datastore->data);
+		datastore->data = NULL;
+	}
+
+	ast_free((void *) datastore->uid);
+	datastore->uid = NULL;
+}
+
+struct ast_datastore *ast_datastores_alloc_datastore(const struct ast_datastore_info *info, const char *uid)
+{
+	struct ast_datastore *datastore;
+	char uuid_buf[AST_UUID_STR_LEN];
+	const char *uid_ptr = uid;
+
+	if (!info) {
+		return NULL;
+	}
+
+	datastore = ao2_alloc(sizeof(*datastore), datastore_destroy);
+	if (!datastore) {
+		return NULL;
+	}
+
+	datastore->info = info;
+	if (ast_strlen_zero(uid)) {
+		/* They didn't provide an ID so we'll provide one ourself */
+		uid_ptr = ast_uuid_generate_str(uuid_buf, sizeof(uuid_buf));
+	}
+
+	datastore->uid = ast_strdup(uid_ptr);
+	if (!datastore->uid) {
+		ao2_ref(datastore, -1);
+		return NULL;
+	}
+
+	return datastore;
 }
