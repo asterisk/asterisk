@@ -61,20 +61,20 @@ static void *dialog_info_allocate_body(void *data)
 	return ast_sip_presence_xml_create_node(state_data->pool, NULL, "dialog-info");
 }
 
-static struct ast_datastore *dialog_info_xml_state_find_or_create(struct ast_sip_subscription *sub)
+static struct ast_datastore *dialog_info_xml_state_find_or_create(struct ao2_container *datastores)
 {
-	struct ast_datastore *datastore = ast_sip_subscription_get_datastore(sub, "dialog-info+xml");
+	struct ast_datastore *datastore = ast_datastores_find(datastores, "dialog-info+xml");
 
 	if (datastore) {
 		return datastore;
 	}
 
-	datastore = ast_sip_subscription_alloc_datastore(&dialog_info_xml_datastore, "dialog-info+xml");
+	datastore = ast_datastores_alloc_datastore(&dialog_info_xml_datastore, "dialog-info+xml");
 	if (!datastore) {
 		return NULL;
 	}
 	datastore->data = ast_calloc(1, sizeof(struct dialog_info_xml_state));
-	if (!datastore->data || ast_sip_subscription_add_datastore(sub, datastore)) {
+	if (!datastore->data || ast_datastores_add(datastores, datastore)) {
 		ao2_ref(datastore, -1);
 		return NULL;
 	}
@@ -82,9 +82,9 @@ static struct ast_datastore *dialog_info_xml_state_find_or_create(struct ast_sip
 	return datastore;
 }
 
-static unsigned int dialog_info_xml_get_version(struct ast_sip_subscription *sub, unsigned int *version)
+static unsigned int dialog_info_xml_get_version(struct ao2_container *datastores, unsigned int *version)
 {
-	struct ast_datastore *datastore = dialog_info_xml_state_find_or_create(sub);
+	struct ast_datastore *datastore = dialog_info_xml_state_find_or_create(datastores);
 	struct dialog_info_xml_state *state;
 
 	if (!datastore) {
@@ -108,11 +108,11 @@ static int dialog_info_generate_body_content(void *body, void *data)
 	unsigned int version;
 	char version_str[32], sanitized[PJSIP_MAX_URL_SIZE];
 
-	if (!local || !state_data->sub) {
+	if (!local || !state_data->datastores) {
 		return -1;
 	}
 
-	if (dialog_info_xml_get_version(state_data->sub, &version)) {
+	if (dialog_info_xml_get_version(state_data->datastores, &version)) {
 		ast_log(LOG_WARNING, "dialog-info+xml version could not be retrieved from datastore\n");
 		return -1;
 	}
