@@ -202,9 +202,16 @@ static int build_nonce(struct ast_str **nonce, const char *timestamp, const pjsi
 	RAII_VAR(char *, eid, ao2_global_obj_ref(entity_id), ao2_cleanup);
 	char hash[33];
 
+	/*
+	 * Note you may be tempted to think why not include the port. The reason
+	 * is that when using TCP the port can potentially differ from before.
+	 */
+	ast_copy_pj_str(ast_str_buffer(str), &rdata->msg_info.cid->id,
+			pj_strlen(&rdata->msg_info.cid->id) + 1);
+	ast_str_update(str);
+
 	ast_str_append(&str, 0, "%s", timestamp);
 	ast_str_append(&str, 0, ":%s", rdata->pkt_info.src_name);
-	ast_str_append(&str, 0, ":%d", rdata->pkt_info.src_port);
 	ast_str_append(&str, 0, ":%s", eid);
 	ast_str_append(&str, 0, ":%s", realm);
 	ast_md5_hash(hash, ast_str_buffer(str));
