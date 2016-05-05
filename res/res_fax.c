@@ -1447,6 +1447,12 @@ static void set_channel_variables(struct ast_channel *chan, struct ast_fax_sessi
 	pbx_builtin_setvar_helper(chan, "FAXBITRATE", S_OR(details->transfer_rate, NULL));
 	pbx_builtin_setvar_helper(chan, "FAXRESOLUTION", S_OR(details->resolution, NULL));
 
+	if (ast_channel_get_t38_state(chan) == T38_STATE_NEGOTIATED) {
+		pbx_builtin_setvar_helper(chan, "FAXMODE", "T38");
+	} else {
+		pbx_builtin_setvar_helper(chan, "FAXMODE", "audio");
+	}
+
 	snprintf(buf, sizeof(buf), "%u", details->pages_transferred);
 	pbx_builtin_setvar_helper(chan, "FAXPAGES", buf);
 }
@@ -2071,6 +2077,7 @@ static int receivefax_exec(struct ast_channel *chan, const char *data)
 	pbx_builtin_setvar_helper(chan, "FAXPAGES", "0");
 	pbx_builtin_setvar_helper(chan, "FAXBITRATE", NULL);
 	pbx_builtin_setvar_helper(chan, "FAXRESOLUTION", NULL);
+	pbx_builtin_setvar_helper(chan, "FAXMODE", NULL);
 
 	/* Get a FAX session details structure from the channel's FAX datastore and create one if
 	 * it does not already exist. */
@@ -2578,6 +2585,7 @@ static int sendfax_exec(struct ast_channel *chan, const char *data)
 	pbx_builtin_setvar_helper(chan, "FAXPAGES", "0");
 	pbx_builtin_setvar_helper(chan, "FAXBITRATE", NULL);
 	pbx_builtin_setvar_helper(chan, "FAXRESOLUTION", NULL);
+	pbx_builtin_setvar_helper(chan, "FAXMODE", NULL);
 
 	/* Get a requirement structure and set it.  This structure is used
 	 * to tell the FAX technology module about the higher level FAX session */
