@@ -86,6 +86,7 @@ ASTERISK_REGISTER_FILE()
 						<enum name="Reachable"/>
 						<enum name="Created"/>
 						<enum name="Removed"/>
+						<enum name="Updated"/>
 					</enumlist>
 				</parameter>
 				<parameter name="AOR">
@@ -96,6 +97,12 @@ ASTERISK_REGISTER_FILE()
 				</parameter>
 				<parameter name="RoundtripUsec">
 					<para>The RTT measured during the last qualify.</para>
+				</parameter>
+				<parameter name="UserAgent">
+					<para>Content of the User-Agent header in REGISTER request</para>
+				</parameter>
+				<parameter name="RegExpire">
+					<para>Absolute time that this contact is no longer valid after</para>
 				</parameter>
 			</syntax>
 		</managerEventInstance>
