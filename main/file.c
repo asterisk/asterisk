@@ -799,7 +799,7 @@ struct ast_filestream *ast_openvstream(struct ast_channel *chan, const char *fil
 	/* As above, but for video. But here we don't have translators
 	 * so we must enforce a format.
 	 */
-	struct ast_format_cap *tmp_cap;
+	struct ast_format_cap *nativeformats, *tmp_cap;
 	char *buf;
 	int buflen;
 	int i, fd;
@@ -810,16 +810,23 @@ struct ast_filestream *ast_openvstream(struct ast_channel *chan, const char *fil
 	buflen = strlen(preflang) + strlen(filename) + 4;
 	buf = ast_alloca(buflen);
 
+	ast_channel_lock(chan);
+	nativeformats = ao2_bump(ast_channel_nativeformats(chan));
+	ast_channel_unlock(chan);
+
 	/* is the channel capable of video without translation ?*/
-	if (!ast_format_cap_has_type(ast_channel_nativeformats(chan), AST_MEDIA_TYPE_VIDEO)) {
+	if (!ast_format_cap_has_type(nativeformats, AST_MEDIA_TYPE_VIDEO)) {
+		ao2_cleanup(nativeformats);
 		return NULL;
 	}
 	if (!(tmp_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
+		ao2_cleanup(nativeformats);
 		return NULL;
 	}
 	/* Video is supported, so see what video formats exist for this file */
 	if (!fileexists_core(filename, NULL, preflang, buf, buflen, tmp_cap)) {
 		ao2_ref(tmp_cap, -1);
+		ao2_cleanup(nativeformats);
 		return NULL;
 	}
 
@@ -828,7 +835,7 @@ struct ast_filestream *ast_openvstream(struct ast_channel *chan, const char *fil
 		struct ast_format *format = ast_format_cap_get_format(tmp_cap, i);
 
 		if ((ast_format_get_type(format) != AST_MEDIA_TYPE_VIDEO) ||
-			!ast_format_cap_iscompatible(ast_channel_nativeformats(chan), tmp_cap)) {
+			!ast_format_cap_iscompatible(nativeformats, tmp_cap)) {
 			ao2_ref(format, -1);
 			continue;
 		}
@@ -837,12 +844,14 @@ struct ast_filestream *ast_openvstream(struct ast_channel *chan, const char *fil
 		if (fd >= 0) {
 			ao2_ref(format, -1);
 			ao2_ref(tmp_cap, -1);
+			ao2_cleanup(nativeformats);
 			return ast_channel_vstream(chan);
 		}
 		ast_log(LOG_WARNING, "File %s has video but couldn't be opened\n", filename);
 		ao2_ref(format, -1);
 	}
 	ao2_ref(tmp_cap, -1);
+	ao2_cleanup(nativeformats);
 
 	return NULL;
 }
@@ -1097,8 +1106,10 @@ int ast_streamfile(struct ast_channel *chan, const char *filename, const char *p
 	fs = ast_openstream(chan, filename, preflang);
 	if (!fs) {
 		struct ast_str *codec_buf = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
+		ast_channel_lock(chan);
 		ast_log(LOG_WARNING, "Unable to open %s (format %s): %s\n",
 			filename, ast_format_cap_get_names(ast_channel_nativeformats(chan), &codec_buf), strerror(errno));
+		ast_channel_unlock(chan);
 		return -1;
 	}
 
@@ -1133,7 +1144,12 @@ int ast_streamfile(struct ast_channel *chan, const char *filename, const char *p
 	res = ast_playstream(fs);
 	if (!res && vfs)
 		res = ast_playstream(vfs);
-	ast_verb(3, "<%s> Playing '%s.%s' (language '%s')\n", ast_channel_name(chan), filename, ast_format_get_name(ast_channel_writeformat(chan)), preflang ? preflang : "default");
+
+	if (VERBOSITY_ATLEAST(3)) {
+		ast_channel_lock(chan);
+		ast_verb(3, "<%s> Playing '%s.%s' (language '%s')\n", ast_channel_name(chan), filename, ast_format_get_name(ast_channel_writeformat(chan)), preflang ? preflang : "default");
+		ast_channel_unlock(chan);
+	}
 
 	return res;
 }
