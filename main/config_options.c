@@ -198,8 +198,8 @@ static int link_option_to_types(struct aco_info *info, struct aco_type **types, 
 #ifdef AST_DEVMODE
 			opt->doc_unavailable = 1;
 #endif
-#endif
 		}
+#endif
 	}
 	/* The container(s) should hold the only ref to opt */
 	ao2_ref(opt, -1);
