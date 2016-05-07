@@ -378,6 +378,10 @@ static struct ast_sip_transport_state *find_or_create_temporary_state(struct ast
 	new_state->type = transport->type;
 
 	pjsip_tls_setting_default(&new_state->tls);
+#ifdef HAVE_PJSIP_TLS_TRANSPORT_PROTO
+	/* proto must be forced to 0 to enable all protocols otherwise only TLS will work */
+	new_state->tls.proto = 0;
+#endif
 	new_state->tls.ciphers = new_state->ciphers;
 
 	ao2_ref(new_state, +1);
