@@ -1050,8 +1050,9 @@ static void *sip_outbound_registration_alloc(const char *name)
 }
 
 /*! \brief Helper function which populates a pj_str_t with a contact header */
-static int sip_dialog_create_contact(pj_pool_t *pool, pj_str_t *contact, const char *user,
-	const pj_str_t *target, pjsip_tpselector *selector, const char *line)
+static int sip_dialog_create_contact(pj_pool_t *pool, pj_str_t *contact,
+	const pj_str_t *contact_scheme, const char *user,	const pj_str_t *target,
+	pjsip_tpselector *selector, const char *line)
 {
 	pj_str_t tmp, local_addr;
 	pjsip_uri *uri;
@@ -1096,7 +1097,8 @@ static int sip_dialog_create_contact(pj_pool_t *pool, pj_str_t *contact, const c
 	contact->ptr = pj_pool_alloc(pool, PJSIP_MAX_URL_SIZE);
 	contact->slen = pj_ansi_snprintf(contact->ptr, PJSIP_MAX_URL_SIZE,
 		"<%s:%s@%s%.*s%s:%d%s%s%s%s>",
-		(pjsip_transport_get_flag_from_type(type) & PJSIP_TRANSPORT_SECURE) ? "sips" : "sip",
+		contact_scheme->slen ? strndupa(contact_scheme->ptr, contact_scheme->slen) :
+			(pjsip_transport_get_flag_from_type(type) & PJSIP_TRANSPORT_SECURE) ? "sips" : "sip",
 		user,
 		(type & PJSIP_TRANSPORT_IPV6) ? "[" : "",
 		(int)local_addr.slen,
@@ -1153,6 +1155,7 @@ static int sip_outbound_registration_regc_alloc(void *data)
 	pj_pool_t *pool;
 	pj_str_t tmp;
 	pjsip_uri *uri;
+	const pj_str_t *client_scheme;
 	pj_str_t server_uri, client_uri, contact_uri;
 	pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
 
@@ -1180,9 +1183,9 @@ static int sip_outbound_registration_regc_alloc(void *data)
 		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
 		return -1;
 	}
+	client_scheme = pjsip_uri_get_scheme(uri);
 
 	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
-
 
 	ast_assert(state->client_state->client == NULL);
 	if (pjsip_regc_create(ast_sip_get_pjsip_endpoint(), state->client_state,
@@ -1221,7 +1224,7 @@ static int sip_outbound_registration_regc_alloc(void *data)
 
 
 	if (sip_dialog_create_contact(pjsip_regc_get_pool(state->client_state->client),
-		&contact_uri, S_OR(registration->contact_user, "s"), &server_uri, &selector,
+		&contact_uri, client_scheme, S_OR(registration->contact_user, "s"), &server_uri, &selector,
 		state->client_state->line)) {
 		return -1;
 	}
