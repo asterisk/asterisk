@@ -731,6 +731,9 @@
 /* Define if your system has the PWLib libraries. */
 #undef HAVE_PWLIB
 
+/* Define if your system has the PYTHONDEV libraries. */
+#undef HAVE_PYTHONDEV
+
 /* Define to 1 if you have the Radius Client library. */
 #undef HAVE_RADIUS
 
