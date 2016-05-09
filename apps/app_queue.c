@@ -4846,6 +4846,8 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 				/* Before processing channel, go ahead and check for forwarding */
 				if (!ast_strlen_zero(ast_channel_call_forward(o->chan)) && !forwardsallowed) {
 					ast_verb(3, "Forwarding %s to '%s' prevented.\n", inchan_name, ast_channel_call_forward(o->chan));
+					ast_channel_publish_dial_forward(qe->chan, o->chan, NULL, NULL,
+						"CANCEL", ast_channel_call_forward(o->chan));
 					numnochan++;
 					do_hang(o);
 					winner = NULL;
@@ -5051,6 +5053,8 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							break;
 						case AST_CONTROL_RINGING:
 							ast_verb(3, "%s is ringing\n", ochan_name);
+
+							ast_channel_publish_dial(qe->chan, o->chan, on, "RINGING");
 
 							/* Start ring indication when the channel is ringing, if specified */
 							if (qe->ring_when_ringing) {
