@@ -673,6 +673,18 @@ int stasis_app_control_queue_control(struct stasis_app_control *control,
 struct ast_bridge *stasis_app_bridge_create(const char *type, const char *name, const char *id);
 
 /*!
+ * \brief Create an invisible bridge of the specified type.
+ *
+ * \param type The type of bridge to be created
+ * \param name Optional name to give to the bridge
+ * \param id Optional Unique ID to give to the bridge
+ *
+ * \return New bridge.
+ * \return \c NULL on error.
+ */
+struct ast_bridge *stasis_app_bridge_create_invisible(const char *type, const char *name, const char *id);
+
+/*!
  * \brief Returns the bridge with the given id.
  * \param bridge_id Uniqueid of the bridge.
  *
@@ -860,15 +872,12 @@ struct ast_dial;
 /*!
  * \brief Dial a channel
  * \param control Control for \c res_stasis.
- * \param dial The ast_dial for the outbound channel
+ * \param calleee The channel to dial.
+ * \param dialstring The dialstring to pass to the channel driver
+ * \param timeout Optional timeout in milliseconds
  */
-int stasis_app_control_dial(struct stasis_app_control *control, struct ast_dial *dial);
-
-/*!
- * \brief Get dial structure on a control
- */
-struct ast_dial *stasis_app_get_dial(struct stasis_app_control *control);
-
+int stasis_app_control_dial(struct stasis_app_control *control, struct ast_channel *callee,
+		const char *dialstring, unsigned int timeout);
 /*! @} */
 
 #endif /* _ASTERISK_STASIS_APP_H */
