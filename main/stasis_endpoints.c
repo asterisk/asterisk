@@ -86,6 +86,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 						<enum name="Reachable"/>
 						<enum name="Created"/>
 						<enum name="Removed"/>
+						<enum name="Updated"/>
 					</enumlist>
 				</parameter>
 				<parameter name="AOR">
@@ -96,6 +97,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				</parameter>
 				<parameter name="RoundtripUsec">
 					<para>The RTT measured during the last qualify.</para>
+				</parameter>
+				<parameter name="UserAgent">
+					<para>Content of the User-Agent header in REGISTER request</para>
+				</parameter>
+				<parameter name="RegExpire">
+					<para>Absolute time that this contact is no longer valid after</para>
 				</parameter>
 			</syntax>
 		</managerEventInstance>
