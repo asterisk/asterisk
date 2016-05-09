@@ -1522,6 +1522,14 @@
 							"dataType": "string"
 						},
 						{
+							"name": "dialstring",
+							"description": "String to dial.",
+							"paramType": "query",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
 							"name": "caller",
 							"description": "Channel ID of caller",
 							"paramType": "query",
