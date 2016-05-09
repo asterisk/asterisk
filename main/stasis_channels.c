@@ -256,7 +256,9 @@ struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *cha
 	ast_string_field_set(snapshot, language, ast_channel_language(chan));
 
 	if ((bridge = ast_channel_get_bridge(chan))) {
-		ast_string_field_set(snapshot, bridgeid, bridge->uniqueid);
+		if (!ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_INVISIBLE)) {
+			ast_string_field_set(snapshot, bridgeid, bridge->uniqueid);
+		}
 		ao2_cleanup(bridge);
 	}
 

@@ -53,6 +53,8 @@ enum ast_bridge_feature_flags {
 	AST_BRIDGE_FLAG_TRANSFER_PROHIBITED = (1 << 8),
 	/*! Bridge transfers require transfer of entire bridge rather than individual channels */
 	AST_BRIDGE_FLAG_TRANSFER_BRIDGE_ONLY = (1 << 9),
+	/*! Bridge is invisible to AMI/CLI/ARI/etc. */
+	AST_BRIDGE_FLAG_INVISIBLE = (1 << 10),
 };
 
 /*! \brief Flags used for per bridge channel features */
