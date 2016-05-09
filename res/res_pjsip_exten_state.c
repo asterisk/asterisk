@@ -96,6 +96,8 @@ struct exten_state_publisher {
 	regex_t exten_regex;
 	/*! Publish client to use for sending publish messages */
 	struct ast_sip_outbound_publish_client *client;
+	/*! Datastores container to hold persistent information */
+	struct ao2_container *datastores;
 	/*! Whether context filtering is active */
 	unsigned int context_filter;
 	/*! Whether extension filtering is active */
@@ -271,6 +273,7 @@ static struct notify_task_data *alloc_notify_task_data(const char *exten,
 	task_data->exten_state_data.user_agent = ast_strdup(exten_state_sub->user_agent);
 	task_data->exten_state_data.device_state_info = ao2_bump(info->device_state_info);
 	task_data->exten_state_data.sub = exten_state_sub->sip_sub;
+	task_data->exten_state_data.datastores = ast_sip_subscription_get_datastores(exten_state_sub->sip_sub);
 
 	if ((info->exten_state == AST_EXTENSION_DEACTIVATED) ||
 	    (info->exten_state == AST_EXTENSION_REMOVED)) {
@@ -311,6 +314,7 @@ static int notify_task(void *obj)
 	}
 
 	task_data->exten_state_data.sub = task_data->exten_state_sub->sip_sub;
+	task_data->exten_state_data.datastores = ast_sip_subscription_get_datastores(task_data->exten_state_sub->sip_sub);
 
 	ast_sip_subscription_notify(task_data->exten_state_sub->sip_sub, &data,
 			task_data->terminate);
@@ -498,6 +502,7 @@ static struct ast_sip_exten_state_data *exten_state_data_alloc(struct ast_sip_su
 	ast_sip_subscription_get_remote_uri(sip_sub, exten_state_data->remote,
 			sizeof(exten_state_data->remote));
 	exten_state_data->sub = sip_sub;
+	exten_state_data->datastores = ast_sip_subscription_get_datastores(sip_sub);
 
 	exten_state_data->exten_state = ast_extension_state_extended(
 			NULL, exten_state_sub->context, exten_state_sub->exten,
@@ -658,6 +663,8 @@ static int exten_state_publisher_cb(void *data)
 		}
 		ast_copy_string(pub_data->exten_state_data.remote, uri, sizeof(pub_data->exten_state_data.remote));
 
+		pub_data->exten_state_data.datastores = publisher->datastores;
+
 		res = ast_sip_pubsub_generate_body_content(publisher->body_type,
 			publisher->body_subtype, &gen_data, &body_text);
 		pj_pool_reset(pool);
@@ -801,6 +808,7 @@ static void exten_state_publisher_destroy(void *obj)
 	}
 
 	ao2_cleanup(publisher->client);
+	ao2_cleanup(publisher->datastores);
 }
 
 static int build_regex(regex_t *regex, const char *text)
@@ -893,6 +901,14 @@ static int publisher_start(struct ast_sip_outbound_publish *configuration, struc
 		}
 
 		publisher->exten_filter = 1;
+	}
+
+	publisher->datastores = ast_datastores_alloc();
+	if (!publisher->datastores) {
+		ast_log(LOG_ERROR, "Outbound extension state publisher '%s': Could not create datastores container\n",
+			name);
+		ao2_ref(publisher, -1);
+		return -1;
 	}
 
 	publisher->client = ao2_bump(client);

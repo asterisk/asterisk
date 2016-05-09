@@ -1001,28 +1001,6 @@ static int build_resource_tree(struct ast_sip_endpoint *endpoint, const struct a
 	}
 }
 
-static int datastore_hash(const void *obj, int flags)
-{
-	const struct ast_datastore *datastore = obj;
-	const char *uid = flags & OBJ_KEY ? obj : datastore->uid;
-
-	ast_assert(uid != NULL);
-
-	return ast_str_hash(uid);
-}
-
-static int datastore_cmp(void *obj, void *arg, int flags)
-{
-	const struct ast_datastore *datastore1 = obj;
-	const struct ast_datastore *datastore2 = arg;
-	const char *uid2 = flags & OBJ_KEY ? arg : datastore2->uid;
-
-	ast_assert(datastore1->uid != NULL);
-	ast_assert(uid2 != NULL);
-
-	return strcmp(datastore1->uid, uid2) ? 0 : CMP_MATCH | CMP_STOP;
-}
-
 static void add_subscription(struct sip_subscription_tree *obj)
 {
 	SCOPED_LOCK(lock, &subscriptions, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
@@ -1086,7 +1064,7 @@ static struct ast_sip_subscription *allocate_subscription(const struct ast_sip_s
 	}
 	strcpy(sub->resource, resource); /* Safe */
 
-	sub->datastores = ao2_container_alloc(DATASTORE_BUCKETS, datastore_hash, datastore_cmp);
+	sub->datastores = ast_datastores_alloc();
 	if (!sub->datastores) {
 		destroy_subscription(sub);
 		return NULL;
@@ -2323,92 +2301,49 @@ static int sip_subscription_accept(struct sip_subscription_tree *sub_tree, pjsip
 	return pjsip_evsub_accept(sub_tree->evsub, rdata, response, &res_hdr) == PJ_SUCCESS ? 0 : -1;
 }
 
-static void subscription_datastore_destroy(void *obj)
-{
-	struct ast_datastore *datastore = obj;
-
-	/* Using the destroy function (if present) destroy the data */
-	if (datastore->info->destroy != NULL && datastore->data != NULL) {
-		datastore->info->destroy(datastore->data);
-		datastore->data = NULL;
-	}
-
-	ast_free((void *) datastore->uid);
-	datastore->uid = NULL;
-}
-
 struct ast_datastore *ast_sip_subscription_alloc_datastore(const struct ast_datastore_info *info, const char *uid)
 {
-	RAII_VAR(struct ast_datastore *, datastore, NULL, ao2_cleanup);
-	char uuid_buf[AST_UUID_STR_LEN];
-	const char *uid_ptr = uid;
-
-	if (!info) {
-		return NULL;
-	}
-
-	datastore = ao2_alloc(sizeof(*datastore), subscription_datastore_destroy);
-	if (!datastore) {
-		return NULL;
-	}
-
-	datastore->info = info;
-	if (ast_strlen_zero(uid)) {
-		/* They didn't provide an ID so we'll provide one ourself */
-		uid_ptr = ast_uuid_generate_str(uuid_buf, sizeof(uuid_buf));
-	}
-
-	datastore->uid = ast_strdup(uid_ptr);
-	if (!datastore->uid) {
-		return NULL;
-	}
-
-	ao2_ref(datastore, +1);
-	return datastore;
+	return ast_datastores_alloc_datastore(info, uid);
 }
 
 int ast_sip_subscription_add_datastore(struct ast_sip_subscription *subscription, struct ast_datastore *datastore)
 {
-	ast_assert(datastore != NULL);
-	ast_assert(datastore->info != NULL);
-	ast_assert(!ast_strlen_zero(datastore->uid));
-
-	if (!ao2_link(subscription->datastores, datastore)) {
-		return -1;
-	}
-	return 0;
+	return ast_datastores_add(subscription->datastores, datastore);
 }
 
 struct ast_datastore *ast_sip_subscription_get_datastore(struct ast_sip_subscription *subscription, const char *name)
 {
-	return ao2_find(subscription->datastores, name, OBJ_KEY);
+	return ast_datastores_find(subscription->datastores, name);
 }
 
 void ast_sip_subscription_remove_datastore(struct ast_sip_subscription *subscription, const char *name)
 {
-	ao2_find(subscription->datastores, name, OBJ_SEARCH_KEY | OBJ_UNLINK | OBJ_NODATA);
+	ast_datastores_remove(subscription->datastores, name);
+}
+
+struct ao2_container *ast_sip_subscription_get_datastores(const struct ast_sip_subscription *subscription)
+{
+	return subscription->datastores;
 }
 
 int ast_sip_publication_add_datastore(struct ast_sip_publication *publication, struct ast_datastore *datastore)
 {
-	ast_assert(datastore != NULL);
-	ast_assert(datastore->info != NULL);
-	ast_assert(!ast_strlen_zero(datastore->uid));
-
-	if (!ao2_link(publication->datastores, datastore)) {
-		return -1;
-	}
-	return 0;
+	return ast_datastores_add(publication->datastores, datastore);
 }
 
 struct ast_datastore *ast_sip_publication_get_datastore(struct ast_sip_publication *publication, const char *name)
 {
-	return ao2_find(publication->datastores, name, OBJ_KEY);
+	return ast_datastores_find(publication->datastores, name);
 }
 
 void ast_sip_publication_remove_datastore(struct ast_sip_publication *publication, const char *name)
 {
-	ao2_callback(publication->datastores, OBJ_KEY | OBJ_UNLINK | OBJ_NODATA, NULL, (void *) name);
+	ast_datastores_remove(publication->datastores, name);
+}
+
+struct ao2_container *ast_sip_publication_get_datastores(const struct ast_sip_publication *publication)
+{
+	return publication->datastores;
 }
 
 AST_RWLIST_HEAD_STATIC(publish_handlers, ast_sip_publish_handler);
@@ -2830,7 +2765,7 @@ static struct ast_sip_publication *sip_create_publication(struct ast_sip_endpoin
 		return NULL;
 	}
 
-	if (!(publication->datastores = ao2_container_alloc(DATASTORE_BUCKETS, datastore_hash, datastore_cmp))) {
+	if (!(publication->datastores = ast_datastores_alloc())) {
 		ao2_ref(publication, -1);
 		return NULL;
 	}
