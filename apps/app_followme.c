@@ -822,9 +822,11 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 						break;
 					case AST_CONTROL_RINGING:
 						ast_verb(3, "%s is ringing\n", ast_channel_name(winner));
+						ast_channel_publish_dial(caller, winner, NULL, "RINGING");
 						break;
 					case AST_CONTROL_PROGRESS:
 						ast_verb(3, "%s is making progress\n", ast_channel_name(winner));
+						ast_channel_publish_dial(caller, winner, NULL, "PROGRESS");
 						break;
 					case AST_CONTROL_VIDUPDATE:
 						ast_verb(3, "%s requested a video update\n", ast_channel_name(winner));
@@ -834,6 +836,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 						break;
 					case AST_CONTROL_PROCEEDING:
 						ast_verb(3, "%s is proceeding\n", ast_channel_name(winner));
+						ast_channel_publish_dial(caller, winner, NULL, "PROCEEDING");
 						break;
 					case AST_CONTROL_HOLD:
 						ast_verb(3, "%s placed call on hold\n", ast_channel_name(winner));

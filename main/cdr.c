@@ -1902,6 +1902,13 @@ static int filter_channel_cache_message(struct ast_channel_snapshot *old_snapsho
 	return ret;
 }
 
+static int dial_status_end(const char *dialstatus)
+{
+	return (strcmp(dialstatus, "RINGING") &&
+			strcmp(dialstatus, "PROCEEDING") &&
+			strcmp(dialstatus, "PROGRESS"));
+}
+
 /* TOPIC ROUTER CALLBACKS */
 
 /*!
@@ -1970,7 +1977,7 @@ static void handle_dial_message(void *data, struct stasis_subscription *sub, str
 			res &= it_cdr->fn_table->process_dial_begin(it_cdr,
 					caller,
 					peer);
-		} else {
+		} else if (dial_status_end(dial_status)) {
 			if (!it_cdr->fn_table->process_dial_end) {
 				continue;
 			}
