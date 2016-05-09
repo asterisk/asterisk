@@ -759,11 +759,13 @@ struct ast_bridge *bridge_base_init(struct ast_bridge *self, uint32_t capabiliti
 	ast_set_flag(&self->feature_flags, flags);
 	self->allowed_capabilities = capabilities;
 
-	if (bridge_topics_init(self) != 0) {
-		ast_log(LOG_WARNING, "Bridge %s: Could not initialize topics\n",
-			self->uniqueid);
-		ao2_ref(self, -1);
-		return NULL;
+	if (!(flags & AST_BRIDGE_FLAG_INVISIBLE)) {
+		if (bridge_topics_init(self) != 0) {
+			ast_log(LOG_WARNING, "Bridge %s: Could not initialize topics\n",
+				self->uniqueid);
+			ao2_ref(self, -1);
+			return NULL;
+		}
 	}
 
 	/* Use our helper function to find the "best" bridge technology. */
@@ -793,9 +795,11 @@ struct ast_bridge *bridge_base_init(struct ast_bridge *self, uint32_t capabiliti
 		return NULL;
 	}
 
-	if (!ast_bridge_topic(self)) {
-		ao2_ref(self, -1);
-		return NULL;
+	if (!(flags & AST_BRIDGE_FLAG_INVISIBLE)) {
+		if (!ast_bridge_topic(self)) {
+			ao2_ref(self, -1);
+			return NULL;
+		}
 	}
 
 	return self;
@@ -2309,6 +2313,11 @@ int ast_bridge_merge(struct ast_bridge *dst_bridge, struct ast_bridge *src_bridg
 	ast_assert(dst_bridge && src_bridge);
 
 	ast_bridge_lock_both(dst_bridge, src_bridge);
+	if (ast_test_flag(&dst_bridge->feature_flags, AST_BRIDGE_FLAG_INVISIBLE) || ast_test_flag(&src_bridge->feature_flags, AST_BRIDGE_FLAG_INVISIBLE)) {
+		ast_bridge_unlock(src_bridge);
+		ast_bridge_unlock(dst_bridge);
+		return -1;
+	}
 	res = bridge_merge_locked(dst_bridge, src_bridge, merge_best_direction, kick_me, num_kick);
 	ast_bridge_unlock(src_bridge);
 	ast_bridge_unlock(dst_bridge);
@@ -4322,7 +4331,7 @@ static struct ast_bridge *acquire_bridge(struct ast_channel *chan)
 	ast_channel_unlock(chan);
 
 	if (bridge
-		&& ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_MASQUERADE_ONLY)) {
+		&& (ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_MASQUERADE_ONLY | AST_BRIDGE_FLAG_INVISIBLE))) {
 		ao2_ref(bridge, -1);
 		bridge = NULL;
 	}
