@@ -2207,6 +2207,10 @@ if test "$USE_PJPROJECT" != "no" ; then
    fi
 fi
 
+AC_SUBST([PYTHONDEV_LIB])
+AC_SUBST([PYTHONDEV_INCLUDE])
+AST_PKG_CONFIG_CHECK([PYTHONDEV], [python])
+
 AST_EXT_LIB_CHECK([POPT], [popt], [poptStrerror], [popt.h])
 
 AST_EXT_LIB_CHECK([PORTAUDIO], [portaudio], [Pa_GetDeviceCount], [portaudio.h])
