@@ -2393,6 +2393,14 @@ static struct ast_frame *bridge_handle_dtmf(struct ast_bridge_channel *bridge_ch
 	return frame;
 }
 
+static const char *controls[] = {
+	[AST_CONTROL_RINGING] = "RINGING",
+	[AST_CONTROL_PROCEEDING] = "PROCEEDING",
+	[AST_CONTROL_PROGRESS] = "PROGRESS",
+	[AST_CONTROL_BUSY] = "BUSY",
+	[AST_CONTROL_CONGESTION] = "CONGESTION",
+	[AST_CONTROL_ANSWER] = "ANSWER",
+};
 
 /*!
  * \internal
@@ -2403,6 +2411,17 @@ static struct ast_frame *bridge_handle_dtmf(struct ast_bridge_channel *bridge_ch
 static void bridge_handle_trip(struct ast_bridge_channel *bridge_channel)
 {
 	struct ast_frame *frame;
+
+	if (!ast_strlen_zero(ast_channel_call_forward(bridge_channel->chan))) {
+		/* TODO If early bridging is ever used by anything other than ARI,
+		 * it's important that we actually attempt to handle the call forward
+		 * attempt, as well as expand features on a bridge channel to allow/disallow
+		 * call forwarding. For now, all we do is raise an event, showing that
+		 * a call forward is being attempted.
+		 */
+		ast_channel_publish_dial_forward(NULL, bridge_channel->chan, NULL, NULL, "CANCEL",
+			ast_channel_call_forward(bridge_channel->chan));
+	}
 
 	if (bridge_channel->features->mute) {
 		frame = ast_read_noaudio(bridge_channel->chan);
@@ -2417,10 +2436,21 @@ static void bridge_handle_trip(struct ast_bridge_channel *bridge_channel)
 	switch (frame->frametype) {
 	case AST_FRAME_CONTROL:
 		switch (frame->subclass.integer) {
+		case AST_CONTROL_CONGESTION:
+		case AST_CONTROL_BUSY:
+			ast_channel_publish_dial(NULL, bridge_channel->chan, NULL, controls[frame->subclass.integer]);
+			ast_bridge_channel_kick(bridge_channel, 0);
+			break;
 		case AST_CONTROL_HANGUP:
 			ast_bridge_channel_kick(bridge_channel, 0);
 			bridge_frame_free(frame);
 			return;
+		case AST_CONTROL_RINGING:
+		case AST_CONTROL_PROGRESS:
+		case AST_CONTROL_PROCEEDING:
+		case AST_CONTROL_ANSWER:
+			ast_channel_publish_dial(NULL, bridge_channel->chan, NULL, controls[frame->subclass.integer]);
+			break;
 		default:
 			break;
 		}
