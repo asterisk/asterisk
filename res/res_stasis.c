@@ -749,7 +749,7 @@ static void control_unlink(struct stasis_app_control *control)
 	ao2_cleanup(control);
 }
 
-struct ast_bridge *stasis_app_bridge_create(const char *type, const char *name, const char *id)
+static struct ast_bridge *bridge_create_common(const char *type, const char *name, const char *id, int invisible)
 {
 	struct ast_bridge *bridge;
 	char *requested_type, *requested_types = ast_strdupa(S_OR(type, "mixing"));
@@ -757,6 +757,10 @@ struct ast_bridge *stasis_app_bridge_create(const char *type, const char *name, 
 	int flags = AST_BRIDGE_FLAG_MERGE_INHIBIT_FROM | AST_BRIDGE_FLAG_MERGE_INHIBIT_TO
 		| AST_BRIDGE_FLAG_SWAP_INHIBIT_FROM | AST_BRIDGE_FLAG_SWAP_INHIBIT_TO
 		| AST_BRIDGE_FLAG_TRANSFER_BRIDGE_ONLY;
+
+	if (invisible) {
+		flags |= AST_BRIDGE_FLAG_INVISIBLE;
+	}
 
 	while ((requested_type = strsep(&requested_types, ","))) {
 		requested_type = ast_strip(requested_type);
@@ -787,6 +791,16 @@ struct ast_bridge *stasis_app_bridge_create(const char *type, const char *name, 
 		}
 	}
 	return bridge;
+}
+
+struct ast_bridge *stasis_app_bridge_create(const char *type, const char *name, const char *id)
+{
+	return bridge_create_common(type, name, id, 0);
+}
+
+struct ast_bridge *stasis_app_bridge_create_invisible(const char *type, const char *name, const char *id)
+{
+	return bridge_create_common(type, name, id, 1);
 }
 
 void stasis_app_bridge_destroy(const char *bridge_id)
@@ -1287,7 +1301,6 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 		int r;
 		int command_count;
 		RAII_VAR(struct ast_bridge *, last_bridge, NULL, ao2_cleanup);
-		struct ast_dial *dial;
 
 		/* Check to see if a bridge absorbed our hangup frame */
 		if (ast_check_hangup_locked(chan)) {
@@ -1297,7 +1310,6 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 
 		last_bridge = bridge;
 		bridge = ao2_bump(stasis_app_get_bridge(control));
-		dial = stasis_app_get_dial(control);
 
 		if (bridge != last_bridge) {
 			app_unsubscribe_bridge(app, last_bridge);
@@ -1306,7 +1318,7 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 			}
 		}
 
-		if (bridge || dial) {
+		if (bridge) {
 			/* Bridge/dial is handling channel frames */
 			control_wait(control);
 			control_dispatch_all(control, chan);

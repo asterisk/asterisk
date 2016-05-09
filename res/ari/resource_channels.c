@@ -48,6 +48,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/format_cache.h"
 #include "asterisk/core_local.h"
 #include "asterisk/dial.h"
+#include "asterisk/max_forwards.h"
 #include "resource_channels.h"
 
 #include <limits.h>
@@ -1577,8 +1578,7 @@ void ast_ari_channels_dial(struct ast_variable *headers,
 {
 	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_channel *, caller, NULL, ast_channel_cleanup);
-	struct ast_channel *callee;
-	struct ast_dial *dial;
+	RAII_VAR(struct ast_channel *, callee, NULL, ast_channel_cleanup);
 
 	control = find_control(response, args->channel_id);
 	if (control == NULL) {
@@ -1596,42 +1596,40 @@ void ast_ari_channels_dial(struct ast_variable *headers,
 	}
 
 	if (ast_channel_state(callee) != AST_STATE_DOWN) {
-		ast_channel_unref(callee);
 		ast_ari_response_error(response, 409, "Conflict",
 			"Channel is not in the 'Down' state");
 		return;
 	}
 
-	dial = ast_dial_create();
-	if (!dial) {
-		ast_channel_unref(callee);
-		ast_ari_response_alloc_failed(response);
-		return;
-	}
-
-	if (ast_dial_append_channel(dial, callee) < 0) {
-		ast_channel_unref(callee);
-		ast_dial_destroy(dial);
-		ast_ari_response_alloc_failed(response);
-		return;
-	}
-
-	/* From this point, we don't have to unref the callee channel on
-	 * failure paths because the dial owns the reference to the called
-	 * channel and will unref the channel for us
+	/* XXX This is straight up copied from main/dial.c. It's probably good
+	 * to separate this to some common method.
+	 *
+	 * XXX Locking of the channels needs to be considered
+	 *
+	 * XXX Probably should stage a channel snapshot of the callee
 	 */
+	if (caller) {
+		ast_channel_inherit_variables(caller, callee);
+		ast_channel_datastore_inherit(caller, callee);
+		ast_max_forwards_decrement(callee);
 
-	if (ast_dial_prerun(dial, caller, NULL)) {
-		ast_dial_destroy(dial);
-		ast_ari_response_alloc_failed(response);
-		return;
+		/* Copy over callerid information */
+		ast_party_redirecting_copy(ast_channel_redirecting(callee), ast_channel_redirecting(caller));
+
+		ast_channel_dialed(callee)->transit_network_select = ast_channel_dialed(caller)->transit_network_select;
+
+		ast_connected_line_copy_from_caller(ast_channel_connected(callee), ast_channel_caller(caller));
+
+		ast_channel_language_set(callee, ast_channel_language(caller));
+		ast_channel_req_accountcodes(callee, caller, AST_CHANNEL_REQUESTOR_BRIDGE_PEER);
+		if (ast_strlen_zero(ast_channel_musicclass(callee)))
+			ast_channel_musicclass_set(callee, ast_channel_musicclass(caller));
+
+		ast_channel_adsicpe_set(callee, ast_channel_adsicpe(caller));
+		ast_channel_transfercapability_set(callee, ast_channel_transfercapability(caller));
 	}
 
-	ast_dial_set_user_data(dial, control);
-	ast_dial_set_global_timeout(dial, args->timeout * 1000);
-
-	if (stasis_app_control_dial(control, dial)) {
-		ast_dial_destroy(dial);
+	if (stasis_app_control_dial(control, callee, args->dialstring, args->timeout)) {
 		ast_ari_response_alloc_failed(response);
 		return;
 	}

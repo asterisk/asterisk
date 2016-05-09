@@ -2683,6 +2683,10 @@ int ast_ari_channels_dial_parse_body(
 {
 	struct ast_json *field;
 	/* Parse query parameters out of it */
+	field = ast_json_object_get(body, "dialstring");
+	if (field) {
+		args->dialstring = ast_json_string_get(field);
+	}
 	field = ast_json_object_get(body, "caller");
 	if (field) {
 		args->caller = ast_json_string_get(field);
@@ -2715,6 +2719,9 @@ static void ast_ari_channels_dial_cb(
 #endif /* AST_DEVMODE */
 
 	for (i = get_params; i; i = i->next) {
+		if (strcmp(i->name, "dialstring") == 0) {
+			args.dialstring = (i->value);
+		} else
 		if (strcmp(i->name, "caller") == 0) {
 			args.caller = (i->value);
 		} else
