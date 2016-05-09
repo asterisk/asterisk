@@ -22,6 +22,14 @@
 === UPGRADE-13.txt  -- Upgrade info for 12 to 13
 ===========================================================
 
+ARI:
+ - The policy for when to send "Dial" events has changed. Previously, "Dial"
+ events were sent on the calling channel's topic. However, starting in Asterisk
+ 14, if there is no calling channel on which to send the event, the event is
+ instead sent on the called channel's topic. Note that for the ARI channels
+ resource's dial operation, this means that the "Dial" events will always be
+ sent on the called channel's topic.
+
 Channel Drivers:
 
 chan_dahdi:
