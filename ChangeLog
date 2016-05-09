@@ -1,3 +1,27 @@
+2016-05-09 13:04 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.9.0 Released.
+
+2016-05-09 08:04 +0000 [3bb17c43b0]  Joshua Colp <jcolp@digium.com>
+
+	* Release summaries: Add summaries for 13.9.0
+
+2016-05-09 08:01 +0000 [549465b89a]  Joshua Colp <jcolp@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-05-09 08:01 +0000 [d805a1c1ab]  Joshua Colp <jcolp@digium.com>
+
+	* .version: Update for 13.9.0
+
+2016-05-09 08:01 +0000 [7c2ff2c29f]  Joshua Colp <jcolp@digium.com>
+
+	* .lastclean: Update for 13.9.0
+
+2016-05-09 08:01 +0000 [addd49f1a4]  Joshua Colp <jcolp@digium.com>
+
+	* realtime: Add database scripts for 13.9.0
+
 2016-05-03 12:22 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.9.0-rc2 Released.
