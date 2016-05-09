@@ -28,6 +28,7 @@
 ASTERISK_REGISTER_FILE()
 
 #include "asterisk/stasis_channels.h"
+#include "asterisk/stasis_app.h"
 
 #include "command.h"
 #include "control.h"
@@ -42,6 +43,11 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/app.h"
 
 AST_LIST_HEAD(app_control_rules, stasis_app_control_rule);
+
+/*!
+ * \brief Indicates if the Stasis app internals are being shut down
+ */
+static int shutting_down;
 
 struct stasis_app_control {
 	ast_cond_t wait_cond;
@@ -77,10 +83,6 @@ struct stasis_app_control {
 	 * The app for which this control was created
 	 */
 	struct stasis_app *app;
-	/*!
-	 * If channel is being dialed, the dial structure.
-	 */
-	struct ast_dial *dial;
 	/*!
 	 * When set, /c app_stasis should exit and continue in the dialplan.
 	 */
@@ -825,6 +827,128 @@ struct ast_bridge *stasis_app_get_bridge(struct stasis_app_control *control)
 	}
 }
 
+/*!
+ * \brief Singleton dial bridge
+ *
+ * The dial bridge is a holding bridge used to hold all
+ * outbound dialed channels that are not in any "real" ARI-created
+ * bridge. The dial bridge is invisible, meaning that it does not
+ * show up in channel snapshots, AMI or ARI output, and no events
+ * get raised for it.
+ *
+ * This is used to keep dialed channels confined to the bridging system
+ * and unify the threading model used for dialing outbound channels.
+ */
+static struct ast_bridge *dial_bridge;
+AST_MUTEX_DEFINE_STATIC(dial_bridge_lock);
+
+/*!
+ * \brief Retrieve a reference to the dial bridge.
+ *
+ * If the dial bridge has not been created yet, it will
+ * be created, otherwise, a reference to the existing bridge
+ * will be returned.
+ *
+ * The caller will need to unreference the dial bridge once
+ * they are finished with it.
+ *
+ * \retval NULL Unable to find/create the dial bridge
+ * \retval non-NULL A reference to teh dial bridge
+ */
+static struct ast_bridge *get_dial_bridge(void)
+{
+	struct ast_bridge *ret_bridge = NULL;
+
+	ast_mutex_lock(&dial_bridge_lock);
+
+	if (shutting_down) {
+		goto end;
+	}
+
+	if (dial_bridge) {
+		ret_bridge = ao2_bump(dial_bridge);
+		goto end;
+	}
+
+	dial_bridge = stasis_app_bridge_create_invisible("holding", "dial_bridge", NULL);
+	if (!dial_bridge) {
+		goto end;
+	}
+	ret_bridge = ao2_bump(dial_bridge);
+
+end:
+	ast_mutex_unlock(&dial_bridge_lock);
+	return ret_bridge;
+}
+
+/*!
+ * \brief after bridge callback for the dial bridge
+ *
+ * The only purpose of this callback is to ensure that the control structure's
+ * bridge pointer is NULLed
+ */
+static void dial_bridge_after_cb(struct ast_channel *chan, void *data)
+{
+	struct stasis_app_control *control = data;
+
+	control->bridge = NULL;
+}
+
+static void dial_bridge_after_cb_failed(enum ast_bridge_after_cb_reason reason, void *data)
+{
+	struct stasis_app_control *control = data;
+
+	dial_bridge_after_cb(control->channel, data);
+}
+
+/*!
+ * \brief Add a channel to the singleton dial bridge.
+ *
+ * \param control The Stasis control structure
+ * \param chan The channel to add to the bridge
+ * \retval -1 Failed
+ * \retval 0 Success
+ */
+static int add_to_dial_bridge(struct stasis_app_control *control, struct ast_channel *chan)
+{
+	struct ast_bridge *bridge;
+
+	bridge = get_dial_bridge();
+	if (!bridge) {
+		return -1;
+	}
+
+	control->bridge = bridge;
+	ast_bridge_set_after_callback(chan, dial_bridge_after_cb, dial_bridge_after_cb_failed, control);
+	if (ast_bridge_impart(bridge, chan, NULL, NULL, AST_BRIDGE_IMPART_CHAN_DEPARTABLE)) {
+		control->bridge = NULL;
+		ao2_ref(bridge, -1);
+		return -1;
+	}
+
+	ao2_ref(bridge, -1);
+
+	return 0;
+}
+
+/*!
+ * \brief Depart a channel from a bridge, and potentially add it back to the dial bridge
+ *
+ * \param control Take a guess
+ * \param chan Take another guess
+ */
+static int depart_channel(struct stasis_app_control *control, struct ast_channel *chan)
+{
+	ast_bridge_depart(chan);
+
+	if (!ast_check_hangup(chan) && ast_channel_state(chan) != AST_STATE_UP) {
+		/* Channel is still being dialed, so put it back in the dialing bridge */
+		add_to_dial_bridge(control, chan);
+	}
+
+	return 0;
+}
+
 static int bridge_channel_depart(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
@@ -843,7 +967,7 @@ static int bridge_channel_depart(struct stasis_app_control *control,
 	ast_debug(3, "%s: Channel departing bridge\n",
 		ast_channel_uniqueid(chan));
 
-	ast_bridge_depart(chan);
+	depart_channel(control, chan);
 
 	return 0;
 }
@@ -901,6 +1025,107 @@ static void bridge_after_cb_failed(enum ast_bridge_after_cb_reason reason,
 
 	ast_debug(3, "  reason: %s\n",
 		ast_bridge_after_cb_reason_string(reason));
+}
+
+/*!
+ * \brief Dial timeout datastore
+ *
+ * A datastore is used because a channel may change
+ * bridges during the course of a dial attempt. This
+ * may be because the channel changes from the dial bridge
+ * to a standard bridge, or it may move between standard
+ * bridges. In order to keep the dial timeout, we need
+ * to keep the timeout information local to the channel.
+ * That is what this datastore is for
+ */
+struct ast_datastore_info timeout_datastore = {
+	.type = "ARI dial timeout",
+};
+
+static int hangup_channel(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data)
+{
+	ast_softhangup(chan, AST_SOFTHANGUP_EXPLICIT);
+	return 0;
+}
+
+/*!
+ * \brief Dial timeout
+ *
+ * This is a bridge interval hook callback. The interval hook triggering
+ * means that the dial timeout has been reached. If the channel has not
+ * been answered by the time this callback is called, then the channel
+ * is hung up
+ *
+ * \param bridge_channel Bridge channel on which interval hook has been called
+ * \param ignore Ignored
+ * \return -1 (i.e. remove the interval hook)
+ */
+static int bridge_timeout(struct ast_bridge_channel *bridge_channel, void *ignore)
+{
+	struct ast_datastore *datastore;
+	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
+
+	control = stasis_app_control_find_by_channel(bridge_channel->chan);
+
+	ast_channel_lock(bridge_channel->chan);
+	if (ast_channel_state(bridge_channel->chan) != AST_STATE_UP) {
+		/* Don't bother removing the datastore because it will happen when the channel is hung up */
+		ast_channel_unlock(bridge_channel->chan);
+		stasis_app_send_command_async(control, hangup_channel, NULL, NULL);
+		return -1;
+	}
+
+	datastore = ast_channel_datastore_find(bridge_channel->chan, &timeout_datastore, NULL);
+	if (!datastore) {
+		ast_channel_unlock(bridge_channel->chan);
+		return -1;
+	}
+	ast_channel_datastore_remove(bridge_channel->chan, datastore);
+	ast_channel_unlock(bridge_channel->chan);
+	ast_datastore_free(datastore);
+
+	return -1;
+}
+
+/*!
+ * \brief Set a dial timeout interval hook on the channel.
+ *
+ * The absolute time that the timeout should occur is stored on
+ * a datastore on the channel. This time is converted into a relative
+ * number of milliseconds in the future. Then an interval hook is set
+ * to trigger in that number of milliseconds.
+ *
+ * \pre chan is locked
+ *
+ * \param chan The channel on which to set the interval hook
+ */
+static void set_interval_hook(struct ast_channel *chan)
+{
+	struct ast_datastore *datastore;
+	struct timeval *hangup_time;
+	int64_t ms;
+	struct ast_bridge_channel *bridge_channel;
+
+	datastore = ast_channel_datastore_find(chan, &timeout_datastore, NULL);
+	if (!datastore) {
+		return;
+	}
+
+	hangup_time = datastore->data;
+
+	ms = ast_tvdiff_ms(*hangup_time, ast_tvnow());
+	bridge_channel = ast_channel_get_bridge_channel(chan);
+	if (!bridge_channel) {
+		return;
+	}
+
+	if (ast_bridge_interval_hook(bridge_channel->features, 0, ms > 0 ? ms : 1,
+			bridge_timeout, NULL, NULL, 0)) {
+		return;
+	}
+
+	ast_queue_frame(bridge_channel->chan, &ast_null_frame);
 }
 
 int control_swap_channel_in_bridge(struct stasis_app_control *control, struct ast_bridge *bridge, struct ast_channel *chan, struct ast_channel *swap)
@@ -969,6 +1194,10 @@ int control_swap_channel_in_bridge(struct stasis_app_control *control, struct as
 
 		ast_assert(stasis_app_get_bridge(control) == NULL);
 		control->bridge = bridge;
+
+		ast_channel_lock(chan);
+		set_interval_hook(chan);
+		ast_channel_unlock(chan);
 	}
 	return 0;
 }
@@ -1011,7 +1240,7 @@ static int app_control_remove_channel_from_bridge(
 		return -1;
 	}
 
-	ast_bridge_depart(chan);
+	depart_channel(control, chan);
 	return 0;
 }
 
@@ -1132,83 +1361,110 @@ struct stasis_app *control_app(struct stasis_app_control *control)
 	return control->app;
 }
 
-static void app_control_dial_destroy(void *data)
-{
-	struct ast_dial *dial = data;
+struct control_dial_args {
+	unsigned int timeout;
+	char dialstring[0];
+};
 
-	ast_dial_join(dial);
-	ast_dial_destroy(dial);
+static struct control_dial_args *control_dial_args_alloc(const char *dialstring,
+	unsigned int timeout)
+{
+	struct control_dial_args *args;
+
+	args = ast_malloc(sizeof(*args) + strlen(dialstring) + 1);
+	if (!args) {
+		return NULL;
+	}
+
+	args->timeout = timeout;
+	/* Safe */
+	strcpy(args->dialstring, dialstring);
+
+	return args;
 }
 
-static int app_control_remove_dial(struct stasis_app_control *control,
-	struct ast_channel *chan, void *data)
+static void control_dial_args_destroy(void *data)
 {
-	if (ast_dial_state(control->dial) != AST_DIAL_RESULT_ANSWERED) {
-		ast_softhangup(chan, AST_SOFTHANGUP_EXPLICIT);
+	struct control_dial_args *args = data;
+
+	ast_free(args);
+}
+
+/*!
+ * \brief Set dial timeout on a channel to be dialed.
+ *
+ * \param chan The channel on which to set the dial timeout
+ * \param timeout The timeout in seconds
+ */
+static int set_timeout(struct ast_channel *chan, unsigned int timeout)
+{
+	struct ast_datastore *datastore;
+	struct timeval *hangup_time;
+
+	hangup_time = ast_malloc(sizeof(struct timeval));
+
+	datastore = ast_datastore_alloc(&timeout_datastore, NULL);
+	if (!datastore) {
+		return -1;
 	}
-	control->dial = NULL;
+	*hangup_time = ast_tvadd(ast_tvnow(), ast_samp2tv(timeout, 1));
+	datastore->data = hangup_time;
+
+	ast_channel_lock(chan);
+	ast_channel_datastore_add(chan, datastore);
+
+	if (ast_channel_is_bridged(chan)) {
+		set_interval_hook(chan);
+	}
+	ast_channel_unlock(chan);
+
 	return 0;
-}
-
-static void on_dial_state(struct ast_dial *dial)
-{
-	enum ast_dial_result state;
-	struct stasis_app_control *control;
-	struct ast_channel *chan;
-
-	state = ast_dial_state(dial);
-	control = ast_dial_get_user_data(dial);
-
-	switch (state) {
-	case AST_DIAL_RESULT_ANSWERED:
-		/* Need to steal the reference to the answered channel so that dial doesn't
-		 * try to hang it up when we destroy the dial structure.
-		 */
-		chan = ast_dial_answered_steal(dial);
-		ast_channel_unref(chan);
-		/* Fall through intentionally */
-	case AST_DIAL_RESULT_INVALID:
-	case AST_DIAL_RESULT_FAILED:
-	case AST_DIAL_RESULT_TIMEOUT:
-	case AST_DIAL_RESULT_HANGUP:
-	case AST_DIAL_RESULT_UNANSWERED:
-		/* The dial has completed, so we need to break the Stasis loop so
-		 * that the channel's frames are handled in the proper place now.
-		 */
-		stasis_app_send_command_async(control, app_control_remove_dial, dial, app_control_dial_destroy);
-		break;
-	case AST_DIAL_RESULT_TRYING:
-	case AST_DIAL_RESULT_RINGING:
-	case AST_DIAL_RESULT_PROGRESS:
-	case AST_DIAL_RESULT_PROCEEDING:
-		break;
-	}
 }
 
 static int app_control_dial(struct stasis_app_control *control,
 	struct ast_channel *chan, void *data)
 {
-	struct ast_dial *dial = data;
+	struct control_dial_args *args = data;
+	int bridged;
 
-	ast_dial_set_state_callback(dial, on_dial_state);
-	/* The dial API gives the option of providing a caller channel, but for
-	 * Stasis, we really don't want to do that. The Dial API will take liberties such
-	 * as passing frames along to the calling channel (think ringing, progress, etc.).
-	 * This is not desirable in ARI applications since application writers should have
-	 * control over what does/does not get indicated to the calling channel
-	 */
-	ast_dial_run(dial, NULL, 1);
-	control->dial = dial;
+	ast_channel_lock(chan);
+	bridged = ast_channel_is_bridged(chan);
+	ast_channel_unlock(chan);
+
+	if (!bridged && add_to_dial_bridge(control, chan)) {
+		return -1;
+	}
+
+	if (args->timeout && set_timeout(chan, args->timeout)) {
+		return -1;
+	}
+
+	if (ast_call(chan, args->dialstring, 0)) {
+		return -1;
+	}
 
 	return 0;
 }
 
-struct ast_dial *stasis_app_get_dial(struct stasis_app_control *control)
+int stasis_app_control_dial(struct stasis_app_control *control,
+		const char *dialstring, unsigned int timeout)
 {
-	return control->dial;
+	struct control_dial_args *args;
+
+	args = control_dial_args_alloc(dialstring, timeout);
+	if (!args) {
+		return -1;
+	}
+
+	return stasis_app_send_command_async(control, app_control_dial,
+		args, control_dial_args_destroy);
 }
 
-int stasis_app_control_dial(struct stasis_app_control *control, struct ast_dial *dial)
+void stasis_app_control_shutdown(void)
 {
-	return stasis_app_send_command_async(control, app_control_dial, dial, NULL);
+	ast_mutex_lock(&dial_bridge_lock);
+	shutting_down = 1;
+	ao2_cleanup(dial_bridge);
+	dial_bridge = NULL;
+	ast_mutex_unlock(&dial_bridge_lock);
 }

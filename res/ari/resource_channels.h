@@ -743,6 +743,8 @@ void ast_ari_channels_snoop_channel_with_id(struct ast_variable *headers, struct
 struct ast_ari_channels_dial_args {
 	/*! Channel's id */
 	const char *channel_id;
+	/*! String to dial. */
+	const char *dialstring;
 	/*! Channel ID of caller */
 	const char *caller;
 	/*! Dial timeout */
