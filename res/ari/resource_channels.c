@@ -48,6 +48,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/format_cache.h"
 #include "asterisk/core_local.h"
 #include "asterisk/dial.h"
+#include "asterisk/max_forwards.h"
 #include "resource_channels.h"
 
 #include <limits.h>
@@ -1500,6 +1501,47 @@ static void *ari_channel_thread(void *data)
 	return NULL;
 }
 
+struct ast_datastore_info dialstring_info = {
+	.type = "ARI Dialstring",
+	.destroy = ast_free_ptr,
+};
+
+/*!
+ * \brief Save dialstring onto a channel datastore
+ *
+ * This will later be retrieved when it comes time to actually dial the channel
+ *
+ * \param chan The channel on which to save the dialstring
+ * \param dialstring The dialstring to save
+ * \retval 0 SUCCESS!
+ * \reval -1 Failure :(
+ */
+static int save_dialstring(struct ast_channel *chan, const char *dialstring)
+{
+	struct ast_datastore *datastore;
+
+	datastore = ast_datastore_alloc(&dialstring_info, NULL);
+	if (!datastore) {
+		return -1;
+	}
+
+	datastore->data = ast_strdup(dialstring);
+	if (!datastore->data) {
+		ast_datastore_free(datastore);
+		return -1;
+	}
+
+	ast_channel_lock(chan);
+	if (ast_channel_datastore_add(chan, datastore)) {
+		ast_channel_unlock(chan);
+		ast_datastore_free(datastore);
+		return -1;
+	}
+	ast_channel_unlock(chan);
+
+	return 0;
+}
+
 void ast_ari_channels_create(struct ast_variable *headers,
 	struct ast_ari_channels_create_args *args,
 	struct ast_ari_response *response)
@@ -1559,6 +1601,12 @@ void ast_ari_channels_create(struct ast_variable *headers,
 		return;
 	}
 
+	if (save_dialstring(chan_data->chan, stuff)) {
+		ast_ari_response_alloc_failed(response);
+		chan_data_destroy(chan_data);
+		return;
+	}
+
 	snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(chan_data->chan));
 
 	if (ast_pthread_create_detached(&thread, NULL, ari_channel_thread, chan_data)) {
@@ -1571,14 +1619,34 @@ void ast_ari_channels_create(struct ast_variable *headers,
 	ao2_ref(snapshot, -1);
 }
 
+/*!
+ * \brief Retrieve the dialstring from the channel datastore
+ *
+ * \pre chan is locked
+ * \param chan Channel that was previously created in ARI
+ * \retval NULL Failed to find datastore
+ * \retval non-NULL The dialstring
+ */
+static char *restore_dialstring(struct ast_channel *chan)
+{
+	struct ast_datastore *datastore;
+
+	datastore = ast_channel_datastore_find(chan, &dialstring_info, NULL);
+	if (!datastore) {
+		return NULL;
+	}
+
+	return datastore->data;
+}
+
 void ast_ari_channels_dial(struct ast_variable *headers,
 	struct ast_ari_channels_dial_args *args,
 	struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_app_control *, control, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_channel *, caller, NULL, ast_channel_cleanup);
-	struct ast_channel *callee;
-	struct ast_dial *dial;
+	RAII_VAR(struct ast_channel *, callee, NULL, ast_channel_cleanup);
+	char *dialstring;
 
 	control = find_control(response, args->channel_id);
 	if (control == NULL) {
@@ -1595,43 +1663,51 @@ void ast_ari_channels_dial(struct ast_variable *headers,
 		return;
 	}
 
-	if (ast_channel_state(callee) != AST_STATE_DOWN) {
-		ast_channel_unref(callee);
+	if (ast_channel_state(callee) != AST_STATE_DOWN
+		&& ast_channel_state(callee) != AST_STATE_RESERVED) {
 		ast_ari_response_error(response, 409, "Conflict",
 			"Channel is not in the 'Down' state");
 		return;
 	}
 
-	dial = ast_dial_create();
-	if (!dial) {
-		ast_channel_unref(callee);
-		ast_ari_response_alloc_failed(response);
-		return;
-	}
-
-	if (ast_dial_append_channel(dial, callee) < 0) {
-		ast_channel_unref(callee);
-		ast_dial_destroy(dial);
-		ast_ari_response_alloc_failed(response);
-		return;
-	}
-
-	/* From this point, we don't have to unref the callee channel on
-	 * failure paths because the dial owns the reference to the called
-	 * channel and will unref the channel for us
+	/* XXX This is straight up copied from main/dial.c. It's probably good
+	 * to separate this to some common method.
 	 */
-
-	if (ast_dial_prerun(dial, caller, NULL)) {
-		ast_dial_destroy(dial);
-		ast_ari_response_alloc_failed(response);
-		return;
+	if (caller) {
+		ast_channel_lock_both(caller, callee);
+	} else {
+		ast_channel_lock(callee);
 	}
 
-	ast_dial_set_user_data(dial, control);
-	ast_dial_set_global_timeout(dial, args->timeout * 1000);
+	dialstring = restore_dialstring(callee);
 
-	if (stasis_app_control_dial(control, dial)) {
-		ast_dial_destroy(dial);
+	ast_channel_stage_snapshot(callee);
+	if (caller) {
+		ast_channel_inherit_variables(caller, callee);
+		ast_channel_datastore_inherit(caller, callee);
+		ast_max_forwards_decrement(callee);
+
+		/* Copy over callerid information */
+		ast_party_redirecting_copy(ast_channel_redirecting(callee), ast_channel_redirecting(caller));
+
+		ast_channel_dialed(callee)->transit_network_select = ast_channel_dialed(caller)->transit_network_select;
+
+		ast_connected_line_copy_from_caller(ast_channel_connected(callee), ast_channel_caller(caller));
+
+		ast_channel_language_set(callee, ast_channel_language(caller));
+		ast_channel_req_accountcodes(callee, caller, AST_CHANNEL_REQUESTOR_BRIDGE_PEER);
+		if (ast_strlen_zero(ast_channel_musicclass(callee)))
+			ast_channel_musicclass_set(callee, ast_channel_musicclass(caller));
+
+		ast_channel_adsicpe_set(callee, ast_channel_adsicpe(caller));
+		ast_channel_transfercapability_set(callee, ast_channel_transfercapability(caller));
+		ast_channel_unlock(caller);
+	}
+
+	ast_channel_stage_snapshot_done(callee);
+	ast_channel_unlock(callee);
+
+	if (stasis_app_control_dial(control, dialstring, args->timeout)) {
 		ast_ari_response_alloc_failed(response);
 		return;
 	}
