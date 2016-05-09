@@ -872,6 +872,8 @@ static void do_forward(struct chanlist *o, struct cause_args *num,
 	/* If we have been told to ignore forwards, just set this channel to null and continue processing extensions normally */
 	if (ast_test_flag64(peerflags, OPT_IGNORE_FORWARDING)) {
 		ast_verb(3, "Forwarding %s to '%s/%s' prevented.\n", ast_channel_name(in), tech, stuff);
+		ast_channel_publish_dial_forward(in, original, NULL, NULL, "CANCEL",
+			ast_channel_call_forward(original));
 		c = o->chan = NULL;
 		cause = AST_CAUSE_BUSY;
 	} else {
@@ -1385,6 +1387,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 							pa->sentringing++;
 						}
 					}
+					ast_channel_publish_dial(in, c, NULL, "RINGING");
 					break;
 				case AST_CONTROL_PROGRESS:
 					ast_verb(3, "%s is making progress passing it to %s\n", ast_channel_name(c), ast_channel_name(in));
@@ -1404,6 +1407,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 							dtmf_progress);
 						ast_dtmf_stream(c, in, dtmf_progress, 250, 0);
 					}
+					ast_channel_publish_dial(in, c, NULL, "PROGRESS");
 					break;
 				case AST_CONTROL_VIDUPDATE:
 				case AST_CONTROL_SRCUPDATE:
@@ -1476,6 +1480,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					}
 					if (!ast_test_flag64(outgoing, OPT_RINGBACK))
 						ast_indicate(in, AST_CONTROL_PROCEEDING);
+					ast_channel_publish_dial(in, c, NULL, "PROCEEDING");
 					break;
 				case AST_CONTROL_HOLD:
 					/* XXX this should be saved like AST_CONTROL_CONNECTED_LINE for !single || caller_entertained */
