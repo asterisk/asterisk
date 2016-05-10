@@ -157,7 +157,7 @@ static int dialog_info_generate_body_content(void *body, void *data)
 /* The maximum number of times the ast_str() for the body text can grow before we declare an XML body
  * too large to send.
  */
-#define MAX_STRING_GROWTHS 3
+#define MAX_STRING_GROWTHS 6
 
 static void dialog_info_to_string(void *body, struct ast_str **str)
 {
