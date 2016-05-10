@@ -190,6 +190,10 @@ struct sip_outbound_publisher {
 	struct ast_sip_outbound_publish_client *owner;
 	/*! \brief Underlying publish client */
 	pjsip_publishc *client;
+	/*! \brief The From URI for this specific publisher */
+	char *from_uri;
+	/*! \brief The To URI for this specific publisher */
+	char *to_uri;
 	/*! \brief Timer entry for refreshing publish */
 	pj_timer_entry timer;
 	/*! \brief The number of auth attempts done */
@@ -525,11 +529,70 @@ const char *ast_sip_publish_client_get_from_uri(struct ast_sip_outbound_publish_
 	return S_OR(publish->from_uri, S_OR(publish->server_uri, ""));
 }
 
+static struct sip_outbound_publisher *sip_outbound_publish_client_add_publisher(
+        struct ast_sip_outbound_publish_client *client, const char *user);
+
+static struct sip_outbound_publisher *sip_outbound_publish_client_get_publisher(
+	struct ast_sip_outbound_publish_client *client, const char *user)
+{
+	struct sip_outbound_publisher *publisher;
+
+	/*
+	 * Lock before searching since there could be a race between searching and adding.
+	 * Just use the load_lock since we might need to lock it anyway (if adding) and
+	 * also it simplifies the code (otherwise we'd have to lock the publishers, no-
+	 * lock the search and pass a flag to 'add publisher to no-lock the potential link).
+	 */
+	ast_rwlock_wrlock(&load_lock);
+	publisher = ao2_find(client->publishers, user, OBJ_SEARCH_KEY);
+	if (!publisher) {
+		if (!(publisher = sip_outbound_publish_client_add_publisher(client, user))) {
+			ast_rwlock_unlock(&load_lock);
+			return NULL;
+		}
+	}
+	ast_rwlock_unlock(&load_lock);
+
+	return publisher;
+}
+
+const char *ast_sip_publish_client_get_user_from_uri(struct ast_sip_outbound_publish_client *client, const char *user,
+	char *uri, size_t size)
+{
+	struct sip_outbound_publisher *publisher;
+
+	publisher = sip_outbound_publish_client_get_publisher(client, user);
+	if (!publisher) {
+		return NULL;
+	}
+
+	ast_copy_string(uri, publisher->from_uri, size);
+	ao2_ref(publisher, -1);
+
+	return uri;
+}
+
 const char *ast_sip_publish_client_get_to_uri(struct ast_sip_outbound_publish_client *client)
 {
 	struct ast_sip_outbound_publish *publish = client->publish;
 
 	return S_OR(publish->to_uri, S_OR(publish->server_uri, ""));
+}
+
+const char *ast_sip_publish_client_get_user_to_uri(struct ast_sip_outbound_publish_client *client, const char *user,
+	char *uri, size_t size)
+{
+	struct sip_outbound_publisher *publisher;
+
+	publisher = sip_outbound_publish_client_get_publisher(client, user);
+	if (!publisher) {
+		return NULL;
+	}
+
+	ast_copy_string(uri, publisher->to_uri, size);
+	ao2_ref(publisher, -1);
+
+	return uri;
 }
 
 int ast_sip_register_event_publisher_handler(struct ast_sip_event_publisher_handler *handler)
@@ -828,12 +891,22 @@ static int sip_outbound_publisher_set_uris(
 		return -1;
 	}
 
+	publisher->to_uri = ast_strdup(to_uri->ptr);
+	if (!publisher->to_uri) {
+		return -1;
+	}
+
 	if (ast_strlen_zero(publish->from_uri)) {
 		from_uri->ptr = server_uri->ptr;
 		from_uri->slen = server_uri->slen;
 	} else if (sip_outbound_publisher_set_uri(pool, publish->from_uri, publisher->user, from_uri)) {
 		ast_log(LOG_ERROR, "Invalid from URI '%s' specified on outbound publish '%s'\n",
 			publish->from_uri, ast_sorcery_object_get_id(publish));
+		return -1;
+	}
+
+	publisher->from_uri = ast_strdup(from_uri->ptr);
+	if (!publisher->from_uri) {
 		return -1;
 	}
 
@@ -936,6 +1009,9 @@ static void sip_outbound_publisher_destroy(void *obj)
 
 	ao2_cleanup(publisher->owner);
 
+	ast_free(publisher->from_uri);
+	ast_free(publisher->to_uri);
+
 	/* if unloading the module and all objects have been unpublished
 	   send the signal to finish unloading */
 	if (unloading.is_unloading) {
@@ -1018,21 +1094,10 @@ int ast_sip_publish_client_user_send(struct ast_sip_outbound_publish_client *cli
 	struct sip_outbound_publisher *publisher;
 	int res;
 
-	/*
-	 * Lock before searching since there could be a race between searching and adding.
-	 * Just use the load_lock since we might need to lock it anyway (if adding) and
-	 * also it simplifies the code (otherwise we'd have to lock the publishers, no-
-	 * lock the search and pass a flag to 'add publisher to no-lock the potential link).
-	 */
-	ast_rwlock_wrlock(&load_lock);
-	publisher = ao2_find(client->publishers, user, OBJ_SEARCH_KEY);
+	publisher = sip_outbound_publish_client_get_publisher(client, user);
 	if (!publisher) {
-		if (!(publisher = sip_outbound_publish_client_add_publisher(client, user))) {
-			ast_rwlock_unlock(&load_lock);
-			return -1;
-		}
+		return -1;
 	}
-	ast_rwlock_unlock(&load_lock);
 
 	publisher_client_send(publisher, (void *)body, &res, 0);
 	ao2_ref(publisher, -1);
