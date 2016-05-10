@@ -26,6 +26,12 @@ res_pjsip
    into the "reg_server" field in the ps_contacts table to facilitate
    multi-server setups.
 
+res_pjsip_info_empty
+--------------------
+ * A new module that can respond to empty Content-Type INFO packets during call.
+   Some SBCs will terminate a call if their empty INFO packets are not responded
+   to within a predefined time.
+
 app_confbridge
 ------------------
  * Added a bridge profile option called regcontext that allows you to
