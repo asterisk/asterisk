@@ -252,6 +252,12 @@ res_pjsip
    will be used instead. The new SIP resolver provides NAPTR support, improved
    SRV support, and AAAA record support.
 
+res_pjsip_info_empty
+--------------------
+ * A new module that can respond to empty Content-Type INFO packets during call.
+   Some SBCs will terminate a call if their empty INFO packets are not responded
+   to within a predefined time.
+
 res_pjsip_outbound_registration
 -------------------------------
 * A new 'fatal_retry_interval' option has been added to outbound registration.
@@ -263,6 +269,7 @@ res_pjsip_outbound_publish
 ------------------
  * Added a new multi_user option that when set to 'yes' allows a given configuration
    to be used for multiple users.
+
 
 CEL Backends
 ------------------
