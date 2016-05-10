@@ -647,21 +647,21 @@ static int exten_state_publisher_cb(void *data)
 
 		publisher = AST_VECTOR_GET(&pub_data->pubs, idx);
 
-		uri = ast_sip_publish_client_get_from_uri(publisher->client);
+		uri = ast_sip_publish_client_get_user_from_uri(publisher->client, pub_data->exten_state_data.exten,
+			pub_data->exten_state_data.local, sizeof(pub_data->exten_state_data.local));
 		if (ast_strlen_zero(uri)) {
 			ast_log(LOG_WARNING, "PUBLISH client '%s' has no from_uri or server_uri defined.\n",
 				publisher->name);
 			continue;
 		}
-		ast_copy_string(pub_data->exten_state_data.local, uri, sizeof(pub_data->exten_state_data.local));
 
-		uri = ast_sip_publish_client_get_to_uri(publisher->client);
+		uri = ast_sip_publish_client_get_user_to_uri(publisher->client, pub_data->exten_state_data.exten,
+			pub_data->exten_state_data.remote, sizeof(pub_data->exten_state_data.remote));
 		if (ast_strlen_zero(uri)) {
 			ast_log(LOG_WARNING, "PUBLISH client '%s' has no to_uri or server_uri defined.\n",
 				publisher->name);
 			continue;
 		}
-		ast_copy_string(pub_data->exten_state_data.remote, uri, sizeof(pub_data->exten_state_data.remote));
 
 		pub_data->exten_state_data.datastores = publisher->datastores;
 
@@ -678,7 +678,7 @@ static int exten_state_publisher_cb(void *data)
 		body.type = publisher->body_type;
 		body.subtype = publisher->body_subtype;
 		body.body_text = ast_str_buffer(body_text);
-		ast_sip_publish_client_send(publisher->client, &body);
+		ast_sip_publish_client_user_send(publisher->client, pub_data->exten_state_data.exten, &body);
 	}
 
 	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
