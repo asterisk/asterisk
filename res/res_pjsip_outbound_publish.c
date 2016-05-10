@@ -190,6 +190,10 @@ struct sip_outbound_publisher {
 	struct ast_sip_outbound_publish_client *owner;
 	/*! \brief Underlying publish client */
 	pjsip_publishc *client;
+	/*! \brief The From URI for this specific publisher */
+	char *from_uri;
+	/*! \brief The To URI for this specific publisher */
+	char *to_uri;
 	/*! \brief Timer entry for refreshing publish */
 	pj_timer_entry timer;
 	/*! \brief The number of auth attempts done */
@@ -525,11 +529,52 @@ const char *ast_sip_publish_client_get_from_uri(struct ast_sip_outbound_publish_
 	return S_OR(publish->from_uri, S_OR(publish->server_uri, ""));
 }
 
+static struct sip_outbound_publisher *sip_outbound_publish_client_add_publisher(
+        struct ast_sip_outbound_publish_client *client, const char *user);
+
+const char *ast_sip_publish_client_get_user_from_uri(struct ast_sip_outbound_publish_client *client, const char *user,
+	char *uri, size_t size)
+{
+	struct sip_outbound_publisher *publisher;
+
+	publisher = ao2_find(client->publishers, user, OBJ_SEARCH_KEY);
+        if (!publisher) {
+		SCOPED_WRLOCK(lock, &load_lock);
+		if (!(publisher = sip_outbound_publish_client_add_publisher(client, user))) {
+			return NULL;
+		}
+	}
+
+	ast_copy_string(uri, publisher->from_uri, size);
+	ao2_ref(publisher, -1);
+
+	return uri;
+}
+
 const char *ast_sip_publish_client_get_to_uri(struct ast_sip_outbound_publish_client *client)
 {
 	struct ast_sip_outbound_publish *publish = client->publish;
 
 	return S_OR(publish->to_uri, S_OR(publish->server_uri, ""));
+}
+
+const char *ast_sip_publish_client_get_user_to_uri(struct ast_sip_outbound_publish_client *client, const char *user,
+	char *uri, size_t size)
+{
+	struct sip_outbound_publisher *publisher;
+
+	publisher = ao2_find(client->publishers, user, OBJ_SEARCH_KEY);
+	if (!publisher) {
+		SCOPED_WRLOCK(lock, &load_lock);
+		if (!(publisher = sip_outbound_publish_client_add_publisher(client, user))) {
+			return NULL;
+		}
+	}
+
+	ast_copy_string(uri, publisher->to_uri, size);
+	ao2_ref(publisher, -1);
+
+	return uri;
 }
 
 int ast_sip_register_event_publisher_handler(struct ast_sip_event_publisher_handler *handler)
@@ -897,6 +942,21 @@ static int sip_outbound_publisher_init(void *data)
 		return -1;
 	}
 
+	/* The sip_outbound_publisher_set_uris ensures the From and To are NULL terminated */
+	publisher->from_uri = ast_strdup(from_uri.ptr);
+	if (!publisher->from_uri) {
+		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+		pjsip_publishc_destroy(publisher->client);
+		return -1;
+	}
+
+	publisher->to_uri = ast_strdup(to_uri.ptr);
+	if (!publisher->to_uri) {
+		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+		pjsip_publishc_destroy(publisher->client);
+		return -1;
+	}
+
 	pj_cstr(&event, publish->event);
 	if (pjsip_publishc_init(publisher->client, &event, &server_uri, &from_uri, &to_uri,
 				publish->expiration != PJ_SUCCESS)) {
@@ -935,6 +995,9 @@ static void sip_outbound_publisher_destroy(void *obj)
 	}
 
 	ao2_cleanup(publisher->owner);
+
+	ast_free(publisher->from_uri);
+	ast_free(publisher->to_uri);
 
 	/* if unloading the module and all objects have been unpublished
 	   send the signal to finish unloading */

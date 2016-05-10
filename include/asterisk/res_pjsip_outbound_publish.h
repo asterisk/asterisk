@@ -104,6 +104,21 @@ struct ast_sip_outbound_publish_client *ast_sip_publish_client_get(const char *n
 const char *ast_sip_publish_client_get_from_uri(struct ast_sip_outbound_publish_client *client);
 
 /*!
+ * \brief Get the From URI the client will use for a specific user.
+ * \since 14.0.0
+ *
+ * \param client The publication client to get the From URI of a user
+ * \param user The user to retrieve the From URI for
+ * \param uri A buffer to place the URI into
+ * \param size The size of the buffer
+ *
+ * \retval From-uri on success
+ * \retval Empty-string on failure
+ */
+const char *ast_sip_publish_client_get_user_from_uri(struct ast_sip_outbound_publish_client *client, const char *user,
+	char *uri, size_t size);
+
+/*!
  * \brief Get the To URI the client will use.
  * \since 14.0.0
  *
@@ -113,6 +128,21 @@ const char *ast_sip_publish_client_get_from_uri(struct ast_sip_outbound_publish_
  * \retval Empty-string on failure
  */
 const char *ast_sip_publish_client_get_to_uri(struct ast_sip_outbound_publish_client *client);
+
+/*!
+ * \brief Get the To URI the client will use for a specific user.
+ * \since 14.0.0
+ *
+ * \param client The publication client to get the To URI of a user
+ * \param user The user to retrieve the To URI for
+ * \param uri A buffer to place the URI into
+ * \param size The size of the buffer
+ *
+ * \retval To-uri on success
+ * \retval Empty-string on failure
+ */
+const char *ast_sip_publish_client_get_user_to_uri(struct ast_sip_outbound_publish_client *client, const char *user,
+	char *uri, size_t size);
 
 /*!
  * \brief Alternative for ast_datastore_alloc()
