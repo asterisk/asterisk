@@ -19,6 +19,12 @@ res_fax
 
 res_pjsip
 ------------------
+ * Added "via_addr", "via_port", "call_id" to contacts.
+   As res_pjsip_nat rewrites contact's address, only the last Via header
+   can contain the source address of registered endpoint.
+   Also Call-Id header may contain the source address of registered endpoint.
+   Added new fields ViaAddress,CallID to AMI event ContactStatus
+
  * Added new status Updated to AMI event ContactStatus on update registration
 
  * Added "reg_server" to contacts.
