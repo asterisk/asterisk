@@ -447,6 +447,12 @@ static int rx_task_core(struct rx_task_data *task_data, struct ao2_container *co
 	char *user_agent = NULL;
 	pjsip_user_agent_hdr *user_agent_hdr;
 	pjsip_expires_hdr *expires_hdr;
+	pjsip_via_hdr *via_hdr;
+	pjsip_via_hdr *via_hdr_last;
+	char *via_addr = NULL;
+	int via_port = 0;
+	pjsip_cid_hdr *call_id_hdr;
+	char *call_id = NULL;
 
 	/* So we don't count static contacts against max_contacts we prune them out from the container */
 	ao2_callback(contacts, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, registrar_prune_static, NULL);
@@ -489,6 +495,27 @@ static int rx_task_core(struct rx_task_data *task_data, struct ao2_container *co
 		ast_copy_pj_str(user_agent, &user_agent_hdr->hvalue, alloc_size);
 	}
 
+	/* Find the first Via header */
+	via_hdr = via_hdr_last = (pjsip_via_hdr*) pjsip_msg_find_hdr(task_data->rdata->msg_info.msg, PJSIP_H_VIA, NULL);
+	if (via_hdr) {
+		/* Find the last Via header */
+		while ( (via_hdr = (pjsip_via_hdr*) pjsip_msg_find_hdr(task_data->rdata->msg_info.msg,
+				PJSIP_H_VIA, via_hdr->next)) != NULL) {
+			via_hdr_last = via_hdr;
+		}
+		size_t alloc_size = pj_strlen(&via_hdr_last->sent_by.host) + 1;
+		via_addr = ast_alloca(alloc_size);
+		ast_copy_pj_str(via_addr, &via_hdr_last->sent_by.host, alloc_size);
+		via_port=via_hdr_last->sent_by.port;
+	}
+
+	call_id_hdr = (pjsip_cid_hdr*) pjsip_msg_find_hdr(task_data->rdata->msg_info.msg, PJSIP_H_CALL_ID, NULL);
+	if (call_id_hdr) {
+		size_t alloc_size = pj_strlen(&call_id_hdr->id) + 1;
+		call_id = ast_alloca(alloc_size);
+		ast_copy_pj_str(call_id, &call_id_hdr->id, alloc_size);
+	}
+
 	/* Iterate each provided Contact header and add, update, or delete */
 	while ((contact_hdr = pjsip_msg_find_hdr(task_data->rdata->msg_info.msg, PJSIP_H_CONTACT, contact_hdr ? contact_hdr->next : NULL))) {
 		int expiration;
@@ -520,7 +547,7 @@ static int rx_task_core(struct rx_task_data *task_data, struct ao2_container *co
 
 			if (ast_sip_location_add_contact_nolock(task_data->aor, contact_uri, ast_tvadd(ast_tvnow(),
 				ast_samp2tv(expiration, 1)), path_str ? ast_str_buffer(path_str) : NULL,
-					user_agent, task_data->endpoint)) {
+					user_agent, via_addr, via_port, call_id, task_data->endpoint)) {
 				ast_log(LOG_ERROR, "Unable to bind contact '%s' to AOR '%s'\n",
 						contact_uri, aor_name);
 				continue;

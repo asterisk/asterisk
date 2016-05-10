@@ -250,6 +250,12 @@ struct ast_sip_contact {
 	char *aor;
 	/*! Asterisk Server name */
 	AST_STRING_FIELD_EXTENDED(reg_server);
+	/*! IP-address of the Via header in REGISTER request */
+	AST_STRING_FIELD_EXTENDED(via_addr);
+	/* Port of the Via header in REGISTER request */
+	int via_port;
+	/*! Content of the Call-ID header in REGISTER request */
+	AST_STRING_FIELD_EXTENDED(call_id);
 };
 
 #define CONTACT_STATUS "contact_status"
@@ -1097,6 +1103,7 @@ struct ast_sip_contact *ast_sip_location_retrieve_contact(const char *contact_na
  */
 int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri,
 	struct timeval expiration_time, const char *path_info, const char *user_agent,
+	const char *via_addr, int via_port, const char *call_id,
 	struct ast_sip_endpoint *endpoint);
 
 /*!
@@ -1118,6 +1125,7 @@ int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri,
  */
 int ast_sip_location_add_contact_nolock(struct ast_sip_aor *aor, const char *uri,
 	struct timeval expiration_time, const char *path_info, const char *user_agent,
+	const char *via_addr, int via_port, const char *call_id,
 	struct ast_sip_endpoint *endpoint);
 
 /*!

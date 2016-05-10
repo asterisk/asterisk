@@ -1145,6 +1145,12 @@ static int format_contact_status(void *obj, void *arg, int flags)
 	ast_str_append(&buf, 0, "URI: %s\r\n", contact->uri);
 	ast_str_append(&buf, 0, "UserAgent: %s\r\n", contact->user_agent);
 	ast_str_append(&buf, 0, "RegExpire: %ld\r\n", contact->expiration_time.tv_sec);
+	if (contact->via_addr) {
+		ast_str_append(&buf, 0, "ViaAddress: %s:%d\r\n", contact->via_addr,contact->via_port);
+	}
+	if (contact->call_id) {
+		ast_str_append(&buf, 0, "CallID: %s\r\n", contact->call_id);
+	}
 	ast_str_append(&buf, 0, "Status: %s\r\n", ast_sip_get_contact_status_label(status->status));
 	if (status->status == UNKNOWN) {
 		ast_str_append(&buf, 0, "RoundtripUsec: N/A\r\n");
