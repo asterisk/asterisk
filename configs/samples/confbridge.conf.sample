@@ -211,6 +211,8 @@ type=bridge
 ;language=en               ; Set the language used for announcements to the conference.
                            ; Default is en (English).
 
+;regcontext=conferences    ; The name of the context into which to register conference names as extensions.
+
 ; All sounds in the conference are customizable using the bridge profile options below.
 ; Simply state the option followed by the filename or full path of the filename after
 ; the option.  Example: sound_had_joined=conf-hasjoin  This will play the conf-hasjoin
