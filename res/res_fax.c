@@ -2545,6 +2545,23 @@ static void destroy_gateway(void *data)
 	}
 }
 
+static struct ast_fax_session *fax_v21_session_new (struct ast_channel *chan) {
+	struct ast_fax_session_details *v21_details;
+	struct ast_fax_session *v21_session;
+
+	if (!chan || !(v21_details = session_details_new())) {
+		return NULL;
+	}
+
+	v21_details->caps = AST_FAX_TECH_V21_DETECT;
+	if (!(v21_session = fax_session_new(v21_details, chan, NULL, NULL))) {
+		ao2_ref(v21_details, -1);
+		return NULL;
+	}
+
+	return v21_session;
+}
+
 /*! \brief Create a new fax gateway object.
  * \param chan the channel the gateway object will be attached to
  * \param details the fax session details
@@ -2553,29 +2570,15 @@ static void destroy_gateway(void *data)
 static struct fax_gateway *fax_gateway_new(struct ast_channel *chan, struct ast_fax_session_details *details)
 {
 	struct fax_gateway *gateway = ao2_alloc(sizeof(*gateway), destroy_gateway);
-	struct ast_fax_session_details *v21_details;
 	if (!gateway) {
 		return NULL;
 	}
 
-	if (!(v21_details = session_details_new())) {
+	if (!(gateway->chan_v21_session = fax_v21_session_new(chan))) {
+		ast_log(LOG_ERROR, "Can't create V21 session on chan %s for T.38 gateway session\n", ast_channel_name(chan));
 		ao2_ref(gateway, -1);
 		return NULL;
 	}
-
-	v21_details->caps = AST_FAX_TECH_V21_DETECT;
-	if (!(gateway->chan_v21_session = fax_session_new(v21_details, chan, NULL, NULL))) {
-		ao2_ref(v21_details, -1);
-		ao2_ref(gateway, -1);
-		return NULL;
-	}
-
-	if (!(gateway->peer_v21_session = fax_session_new(v21_details, chan, NULL, NULL))) {
-		ao2_ref(v21_details, -1);
-		ao2_ref(gateway, -1);
-		return NULL;
-	}
-	ao2_ref(v21_details, -1);
 
 	gateway->framehook = -1;
 
@@ -3055,6 +3058,11 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 
 		ast_channel_make_compatible(chan, peer);
 		gateway->bridged = 1;
+		if (!(gateway->peer_v21_session = fax_v21_session_new(peer))) {
+			ast_log(LOG_ERROR, "Can't create V21 session on chan %s for T.38 gateway session\n", ast_channel_name(peer));
+			ast_framehook_detach(chan, gateway->framehook);
+			return f;
+		}
 	}
 
 	if (gateway->bridged && !ast_tvzero(gateway->timeout_start)) {
@@ -3195,6 +3203,10 @@ static int fax_gateway_attach(struct ast_channel *chan, struct ast_fax_session_d
 		.event_cb = fax_gateway_framehook,
 		.destroy_cb = fax_gateway_framehook_destroy,
 	};
+
+    	if (global_fax_debug) {
+        	details->option.debug = AST_FAX_OPTFLAG_TRUE;
+    	}
 
 	ast_string_field_set(details, result, "SUCCESS");
 	ast_string_field_set(details, resultstr, "gateway operation started successfully");
