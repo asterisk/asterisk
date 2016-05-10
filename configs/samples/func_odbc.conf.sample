@@ -1,6 +1,14 @@
 ;
 ; func_odbc.conf
 ;
+[general]
+; Asterisk uses separate connections for every database operation.
+; If single_db_connection is enabled then func_odbc will use a single
+; database connection per DSN.
+; This option is disabled by default.
+;single_db_connection=no
+;
+;
 ; Each context is a separately defined function.  By convention, all
 ; functions are entirely uppercase, so the defined contexts should also
 ; be all-uppercase, but there is nothing that enforces this.  All functions
