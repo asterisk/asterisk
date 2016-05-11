@@ -97,7 +97,6 @@ static void *sorcery_astdb_retrieve_fields_common(const struct ast_sorcery *sorc
 		const char *key = entry->key + strlen(family) + 2;
 		RAII_VAR(struct ast_json *, json, NULL, ast_json_unref);
 		struct ast_json_error error;
-		RAII_VAR(struct ast_variable *, objset, NULL, ast_variables_destroy);
 		RAII_VAR(struct ast_variable *, existing, NULL, ast_variables_destroy);
 		void *object = NULL;
 
@@ -113,7 +112,7 @@ static void *sorcery_astdb_retrieve_fields_common(const struct ast_sorcery *sorc
 		}
 
 		if (!(object = ast_sorcery_alloc(sorcery, type, key)) ||
-			ast_sorcery_objectset_apply(sorcery, object, objset)) {
+			ast_sorcery_objectset_apply(sorcery, object, existing)) {
 			ao2_cleanup(object);
 			return NULL;
 		}
