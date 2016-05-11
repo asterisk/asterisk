@@ -889,6 +889,11 @@ static int sip_outbound_publish_client_alloc(void *data)
 /*! \brief Callback function for publish client responses */
 static void sip_outbound_publish_callback(struct pjsip_publishc_cbparam *param)
 {
+#define DESTROY_CLIENT() do {			   \
+	pjsip_publishc_destroy(client->client); \
+	client->client = NULL; \
+	ao2_ref(client, -1); } while (0)
+
 	RAII_VAR(struct ast_sip_outbound_publish_client *, client, ao2_bump(param->token), ao2_cleanup);
 	RAII_VAR(struct ast_sip_outbound_publish *, publish, ao2_bump(client->publish), ao2_cleanup);
 	SCOPED_AO2LOCK(lock, client);
@@ -906,8 +911,7 @@ static void sip_outbound_publish_callback(struct pjsip_publishc_cbparam *param)
 			ao2_ref(client, -1);
 		}
 		/* Once the destroy is called this callback will not get called any longer, so drop the client ref */
-		pjsip_publishc_destroy(client->client);
-		ao2_ref(client, -1);
+		DESTROY_CLIENT();
 		return;
 	}
 
@@ -926,9 +930,7 @@ static void sip_outbound_publish_callback(struct pjsip_publishc_cbparam *param)
 		client->auth_attempts++;
 
 		if (client->auth_attempts == publish->max_auth_attempts) {
-			pjsip_publishc_destroy(client->client);
-			client->client = NULL;
-
+			DESTROY_CLIENT();
 			ast_log(LOG_ERROR, "Reached maximum number of PUBLISH authentication attempts on outbound publish '%s'\n",
 				ast_sorcery_object_get_id(publish));
 
@@ -940,9 +942,7 @@ static void sip_outbound_publish_callback(struct pjsip_publishc_cbparam *param)
 	client->auth_attempts = 0;
 
 	if (param->code == 412) {
-		pjsip_publishc_destroy(client->client);
-		client->client = NULL;
-
+		DESTROY_CLIENT();
 		if (sip_outbound_publish_client_alloc(client)) {
 			ast_log(LOG_ERROR, "Failed to create a new outbound publish client for '%s' on 412 response\n",
 				ast_sorcery_object_get_id(publish));
@@ -957,10 +957,9 @@ static void sip_outbound_publish_callback(struct pjsip_publishc_cbparam *param)
 
 		expires = pjsip_msg_find_hdr(param->rdata->msg_info.msg, PJSIP_H_MIN_EXPIRES, NULL);
 		if (!expires || !expires->ivalue) {
+			DESTROY_CLIENT();
 			ast_log(LOG_ERROR, "Received 423 response on outbound publish '%s' without a Min-Expires header\n",
 				ast_sorcery_object_get_id(publish));
-			pjsip_publishc_destroy(client->client);
-			client->client = NULL;
 			goto end;
 		}
 
