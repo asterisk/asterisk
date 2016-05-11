@@ -738,6 +738,10 @@ struct ast_sip_endpoint {
 	unsigned int usereqphone;
 	/*! Whether to pass through hold and unhold using re-invites with recvonly and sendrecv */
 	unsigned int moh_passthrough;
+	/* Access control list */
+	struct ast_acl_list *acl;
+	/* Restrict what IPs are allowed in the Contact header (for registration) */
+	struct ast_acl_list *contact_acl;
 };
 
 /*!
