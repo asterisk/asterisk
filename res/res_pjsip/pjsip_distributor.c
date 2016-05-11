@@ -21,6 +21,7 @@
 #include <pjsip.h>
 
 #include "asterisk/res_pjsip.h"
+#include "asterisk/acl.h"
 #include "include/res_pjsip_private.h"
 #include "asterisk/taskprocessor.h"
 #include "asterisk/threadpool.h"
@@ -380,19 +381,21 @@ struct ast_sip_endpoint *ast_sip_get_artificial_endpoint(void)
 	return artificial_endpoint;
 }
 
-static void log_unidentified_request(pjsip_rx_data *rdata, unsigned int count, unsigned int period)
+static void log_failed_request(pjsip_rx_data *rdata, char *msg, unsigned int count, unsigned int period)
 {
 	char from_buf[PJSIP_MAX_URL_SIZE];
 	char callid_buf[PJSIP_MAX_URL_SIZE];
+	char method_buf[PJSIP_MAX_URL_SIZE];
 	pjsip_uri_print(PJSIP_URI_IN_FROMTO_HDR, rdata->msg_info.from->uri, from_buf, PJSIP_MAX_URL_SIZE);
 	ast_copy_pj_str(callid_buf, &rdata->msg_info.cid->id, PJSIP_MAX_URL_SIZE);
+	ast_copy_pj_str(method_buf, &rdata->msg_info.msg->line.req.method.name, PJSIP_MAX_URL_SIZE);
 	if (count) {
-		ast_log(LOG_NOTICE, "Request from '%s' failed for '%s:%d' (callid: %s) - No matching endpoint found"
+		ast_log(LOG_NOTICE, "Request '%s' from '%s' failed for '%s:%d' (callid: %s) - %s"
 			" after %u tries in %.3f ms\n",
-			from_buf, rdata->pkt_info.src_name, rdata->pkt_info.src_port, callid_buf, count, period / 1000.0);
+			method_buf, from_buf, rdata->pkt_info.src_name, rdata->pkt_info.src_port, callid_buf, msg, count, period / 1000.0);
 	} else {
-		ast_log(LOG_NOTICE, "Request from '%s' failed for '%s:%d' (callid: %s) - No matching endpoint found",
-			from_buf, rdata->pkt_info.src_name, rdata->pkt_info.src_port, callid_buf);
+		ast_log(LOG_NOTICE, "Request '%s' from '%s' failed for '%s:%d' (callid: %s) - %s\n",
+			method_buf, from_buf, rdata->pkt_info.src_name, rdata->pkt_info.src_port, callid_buf, msg);
 	}
 }
 
@@ -405,7 +408,7 @@ static void check_endpoint(pjsip_rx_data *rdata, struct unidentified_request *un
 	unid->count++;
 
 	if (ms < (unidentified_period * 1000) && unid->count >= unidentified_count) {
-		log_unidentified_request(rdata, unid->count, ms);
+		log_failed_request(rdata, "No matching endpoint found", unid->count, ms);
 		ast_sip_report_invalid_endpoint(name, rdata);
 	}
 	ao2_unlock(unid);
@@ -479,12 +482,85 @@ static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata)
 			ao2_ref(unid, -1);
 			ao2_unlock(unidentified_requests);
 		} else {
-			log_unidentified_request(rdata, 0, 0);
+			log_failed_request(rdata, "No matching endpoint found", 0, 0);
 			ast_sip_report_invalid_endpoint(name, rdata);
 		}
 	}
 	rdata->endpt_info.mod_data[endpoint_mod.id] = endpoint;
 	return PJ_FALSE;
+}
+
+static int apply_endpoint_acl(pjsip_rx_data *rdata, struct ast_sip_endpoint *endpoint)
+{
+	struct ast_sockaddr addr;
+
+	if (ast_acl_list_is_empty(endpoint->acl)) {
+		return 0;
+	}
+
+	memset(&addr, 0, sizeof(addr));
+	ast_sockaddr_parse(&addr, rdata->pkt_info.src_name, PARSE_PORT_FORBID);
+	ast_sockaddr_set_port(&addr, rdata->pkt_info.src_port);
+
+	if (ast_apply_acl(endpoint->acl, &addr, "SIP ACL: ") != AST_SENSE_ALLOW) {
+		log_failed_request(rdata, "Not match Endpoint ACL", 0, 0);
+		ast_sip_report_failed_acl(endpoint, rdata, "not_match_endpoint_acl");
+		return 1;
+	}
+	return 0;
+}
+
+static int extract_contact_addr(pjsip_contact_hdr *contact, struct ast_sockaddr **addrs)
+{
+	pjsip_sip_uri *sip_uri;
+	char host[256];
+
+	if (!contact || contact->star) {
+		*addrs = NULL;
+		return 0;
+	}
+	if (!PJSIP_URI_SCHEME_IS_SIP(contact->uri) && !PJSIP_URI_SCHEME_IS_SIPS(contact->uri)) {
+		*addrs = NULL;
+		return 0;
+	}
+	sip_uri = pjsip_uri_get_uri(contact->uri);
+	ast_copy_pj_str(host, &sip_uri->host, sizeof(host));
+	return ast_sockaddr_resolve(addrs, host, PARSE_PORT_FORBID, AST_AF_UNSPEC);
+}
+
+static int apply_endpoint_contact_acl(pjsip_rx_data *rdata, struct ast_sip_endpoint *endpoint)
+{
+	int num_contact_addrs;
+	int forbidden = 0;
+	struct ast_sockaddr *contact_addrs;
+	int i;
+	pjsip_contact_hdr *contact = (pjsip_contact_hdr *)&rdata->msg_info.msg->hdr;
+
+	if (ast_acl_list_is_empty(endpoint->contact_acl)) {
+		return 0;
+	}
+
+	while ((contact = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, contact->next))) {
+		num_contact_addrs = extract_contact_addr(contact, &contact_addrs);
+		if (num_contact_addrs <= 0) {
+			continue;
+		}
+		for (i = 0; i < num_contact_addrs; ++i) {
+			if (ast_apply_acl(endpoint->contact_acl, &contact_addrs[i], "SIP Contact ACL: ") != AST_SENSE_ALLOW) {
+				log_failed_request(rdata, "Not match Endpoint Contact ACL", 0, 0);
+				ast_sip_report_failed_acl(endpoint, rdata, "not_match_endpoint_contact_acl");
+				forbidden = 1;
+				break;
+			}
+		}
+		ast_free(contact_addrs);
+		if (forbidden) {
+			/* No use checking other contacts if we already have failed ACL check */
+			break;
+		}
+	}
+
+	return forbidden;
 }
 
 static pj_bool_t authenticate(pjsip_rx_data *rdata)
@@ -493,6 +569,15 @@ static pj_bool_t authenticate(pjsip_rx_data *rdata)
 	int is_ack = rdata->msg_info.msg->line.req.method.id == PJSIP_ACK_METHOD;
 
 	ast_assert(endpoint != NULL);
+
+	if (endpoint!=artificial_endpoint) {
+		if (apply_endpoint_acl(rdata, endpoint) || apply_endpoint_contact_acl(rdata, endpoint)) {
+			if (!is_ack) {
+				pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
+			}
+			return PJ_TRUE;
+		}
+	}
 
 	if (!is_ack && ast_sip_requires_authentication(endpoint, rdata)) {
 		pjsip_tx_data *tdata;
@@ -515,10 +600,12 @@ static pj_bool_t authenticate(pjsip_rx_data *rdata)
 			pjsip_tx_data_dec_ref(tdata);
 			return PJ_FALSE;
 		case AST_SIP_AUTHENTICATION_FAILED:
+			log_failed_request(rdata, "Failed to authenticate", 0, 0);
 			ast_sip_report_auth_failed_challenge_response(endpoint, rdata);
 			pjsip_endpt_send_response2(ast_sip_get_pjsip_endpoint(), rdata, tdata, NULL, NULL);
 			return PJ_TRUE;
 		case AST_SIP_AUTHENTICATION_ERROR:
+			log_failed_request(rdata, "Error to authenticate", 0, 0);
 			ast_sip_report_auth_failed_challenge_response(endpoint, rdata);
 			pjsip_tx_data_dec_ref(tdata);
 			pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
