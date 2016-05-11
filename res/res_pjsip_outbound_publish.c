@@ -1162,6 +1162,7 @@ static int load_module(void)
 
 	if (ast_sorcery_object_register(ast_sip_get_sorcery(), "outbound-publish", sip_outbound_publish_alloc, NULL,
 		sip_outbound_publish_apply)) {
+		ast_log(LOG_ERROR, "Unable to register 'outbound-publish' type with sorcery\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -1234,6 +1235,7 @@ static int unload_module(void)
 			"in the allowed time\n", unloading.count);
 	} else {
 		ast_verb(5, "All items successfully unpublished\n");
+		ast_sorcery_object_unregister(ast_sip_get_sorcery(), "outbound-publish");
 	}
 
 	return res;
