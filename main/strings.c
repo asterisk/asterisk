@@ -234,8 +234,8 @@ int ast_strings_match(const char *left, const char *op, const char *right)
 {
 	char *internal_op = (char *)op;
 	char *internal_right = (char *)right;
-	float left_num;
-	float right_num;
+	double left_num;
+	double right_num;
 	int scan_numeric = 0;
 
 	if (!(left && right)) {
@@ -297,7 +297,7 @@ regex:
 	}
 
 equals:
-	scan_numeric = (sscanf(left, "%f", &left_num) && sscanf(internal_right, "%f", &right_num));
+	scan_numeric = (sscanf(left, "%lf", &left_num) && sscanf(internal_right, "%lf", &right_num));
 
 	if (internal_op[0] == '=') {
 		if (ast_strlen_zero(left) && ast_strlen_zero(internal_right)) {
