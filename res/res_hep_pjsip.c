@@ -51,13 +51,18 @@ static char *assign_uuid(const pj_str_t *call_id, const pj_str_t *local_tag, con
 	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
 	pjsip_dialog *dlg;
 	char *uuid = NULL;
+	enum hep_uuid_type uuid_type = hepv3_get_uuid_type();
 
-	if ((dlg = pjsip_ua_find_dialog(call_id, local_tag, remote_tag, PJ_FALSE))
+	if ((uuid_type == HEP_UUID_TYPE_CHANNEL)
+		&& (dlg = pjsip_ua_find_dialog(call_id, local_tag, remote_tag, PJ_FALSE))
 	    && (session = ast_sip_dialog_get_session(dlg))
 	    && (session->channel)) {
 
 		uuid = ast_strdup(ast_channel_name(session->channel));
-	} else {
+	}
+
+	/* If we couldn't get the channel or we never wanted it, default to the call-id */
+	if (!uuid) {
 
 		uuid = ast_malloc(pj_strlen(call_id) + 1);
 		if (uuid) {
