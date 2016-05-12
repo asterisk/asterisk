@@ -391,7 +391,7 @@ static void log_unidentified_request(pjsip_rx_data *rdata, unsigned int count, u
 			" after %u tries in %.3f ms\n",
 			from_buf, rdata->pkt_info.src_name, rdata->pkt_info.src_port, callid_buf, count, period / 1000.0);
 	} else {
-		ast_log(LOG_NOTICE, "Request from '%s' failed for '%s:%d' (callid: %s) - No matching endpoint found",
+		ast_log(LOG_NOTICE, "Request from '%s' failed for '%s:%d' (callid: %s) - No matching endpoint found\n",
 			from_buf, rdata->pkt_info.src_name, rdata->pkt_info.src_port, callid_buf);
 	}
 }
