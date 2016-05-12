@@ -289,6 +289,16 @@ res_pjsip
    into the "reg_server" field in the ps_contacts table to facilitate
    multi-server setups.
 
+res_hep
+------------------
+ * Added a new option, 'uuid_type', that sets the preferred source of the Homer
+   correlation UUID. The valid options are:
+   - call-id: Use the PJSIP SIP Call-ID header value
+   - channel: Use the Asterisk channel name
+   The default value is 'call-id'. In the event that a HEP module cannot find a
+   valid value using the specified 'uuid_type', the module may fallback to a
+   more readily available source for the correlation UUID.
+
 app_confbridge
 ------------------
  * Added a bridge profile option called regcontext that allows you to
