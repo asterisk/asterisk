@@ -36,12 +36,43 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/res_hep.h"
 #include "asterisk/module.h"
 #include "asterisk/netsock2.h"
+#include "asterisk/channel.h"
+#include "asterisk/pbx.h"
 #include "asterisk/stasis.h"
 #include "asterisk/rtp_engine.h"
 #include "asterisk/json.h"
 #include "asterisk/config.h"
 
 static struct stasis_subscription *stasis_rtp_subscription;
+
+static char *assign_uuid(struct ast_json *json_channel)
+{
+	const char *channel_name = ast_json_string_get(ast_json_object_get(json_channel, "name"));
+	enum hep_uuid_type uuid_type = hepv3_get_uuid_type();
+	char *uuid = NULL;
+
+	if (!channel_name) {
+		return NULL;
+	}
+
+	if (uuid_type == HEP_UUID_TYPE_CALL_ID && ast_begins_with(channel_name, "PJSIP")) {
+		struct ast_channel *chan = ast_channel_get_by_name(channel_name);
+		char buf[128];
+
+		if (chan && !ast_func_read(chan, "CHANNEL(pjsip,call-id)", buf, sizeof(buf))) {
+			uuid = ast_strdup(buf);
+		}
+
+		ast_channel_cleanup(chan);
+	}
+
+	/* If we couldn't get the call-id or didn't want it, just use the channel name */
+	if (!uuid) {
+		uuid = ast_strdup(channel_name);
+	}
+
+	return uuid;
+}
 
 static void rtcp_message_handler(struct stasis_message *message)
 {
@@ -94,7 +125,7 @@ static void rtcp_message_handler(struct stasis_message *message)
 	ast_sockaddr_parse(&capture_info->src_addr, ast_json_string_get(from), PARSE_PORT_REQUIRE);
 	ast_sockaddr_parse(&capture_info->dst_addr, ast_json_string_get(to), PARSE_PORT_REQUIRE);
 
-	capture_info->uuid = ast_strdup(ast_json_string_get(ast_json_object_get(json_channel, "name")));
+	capture_info->uuid = assign_uuid(json_channel);
 	if (!capture_info->uuid) {
 		ao2_ref(capture_info, -1);
 		return;
