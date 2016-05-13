@@ -66,6 +66,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_channels.h"
 #include "asterisk/max_forwards.h"
 
+#define REC_FORMAT "sln"
+
 /*** DOCUMENTATION
 	<application name="FollowMe" language="en_US">
 		<synopsis>
@@ -1421,7 +1423,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 
 			snprintf(targs->namerecloc, sizeof(targs->namerecloc), "%s/followme.%s",
 				ast_config_AST_SPOOL_DIR, ast_channel_uniqueid(chan));
-			if (ast_play_and_record(chan, "vm-rec-name", targs->namerecloc, 5, "sln", &duration,
+			if (ast_play_and_record(chan, "vm-rec-name", targs->namerecloc, 5, REC_FORMAT, &duration,
 				NULL, ast_dsp_get_threshold_from_settings(THRESHOLD_SILENCE), 0, NULL) < 0) {
 				goto outrun;
 			}
@@ -1522,7 +1524,18 @@ outrun:
 		ast_free(nm);
 	}
 	if (!ast_strlen_zero(targs->namerecloc)) {
-		unlink(targs->namerecloc);
+		int ret;
+		char fn[PATH_MAX];
+
+		snprintf(fn, sizeof(fn), "%s.%s", targs->namerecloc,
+			     REC_FORMAT);
+		ret = unlink(fn);
+		if (ret != 0) {
+			ast_log(LOG_NOTICE, "Failed to delete recorded name file %s: %d (%s)\n",
+					fn, errno, strerror(errno));
+		} else {
+			ast_debug(2, "deleted recorded prompt %s.\n", fn);
+		}
 	}
 	ast_free((char *) targs->predial_callee);
 	ast_party_connected_line_free(&targs->connected_in);
