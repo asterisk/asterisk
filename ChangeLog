@@ -1,3 +1,76 @@
+2016-05-13 17:41 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.9.1 Released.
+
+2016-05-13 12:41 +0000 [1cff642773]  Kevin Harwell <kharwell@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-05-13 12:41 +0000 [03be442bf0]  Kevin Harwell <kharwell@digium.com>
+
+	* .version: Update for 13.9.1
+
+2016-05-13 12:41 +0000 [ee94d92141]  Kevin Harwell <kharwell@digium.com>
+
+	* .lastclean: Update for 13.9.1
+
+2016-05-13 12:41 +0000 [05da780cc7]  Kevin Harwell <kharwell@digium.com>
+
+	* realtime: Add database scripts for 13.9.1
+
+2016-05-12 14:36 +0000 [15c427c64d]  Mark Michelson <mmichelson@digium.com>
+
+	* Use doubles instead of floats for conversions when comparing strings.
+
+	  In 13.9.0, there was an issue where PJSIP contacts added to an AOR would
+	  be deleted at seemingly random times.
+
+	  One reason this was happening was because of an operation to retrieve
+	  the contacts whose expiration time was less than or equal to the current
+	  time. When retrieving existing contacts, the contact's expiration time
+	  and the current time were converted from a string to a float, and those
+	  two floats were compared.
+
+	  On some systems, including mine, this conversion was horribly off. For
+	  instance, I could regularly see the string "1463079214" get converted
+	  into 1463079168.000000. When switching from using a float to using a
+	  double, the conversion was as expected.
+
+	  Why was the conversion to float off? My best guess is that the
+	  conversion to float was attempting to store the entire value in the 23
+	  bit significand of the IEEE-754 floating point number. In particular, if
+	  you take only the 23 most significant bits of 1463079214, you get the
+	  messed up 1463079168 that we were seeing in the conversion. It likely
+	  was possible to get a more precise value by composing the number using
+	  an exponent, but the conversion did not work that way. With a double,
+	  you have a 52 bit significand, allowing the entire value to fit there,
+	  and thereby allowing an accurate conversion.
+
+	  ASTERISK-26007 #close
+	  Reported by Greg Siemon
+
+	  Change-Id: I83ca7944aae8b7cd994b254c78ec02411d321070
+
+2016-05-12 15:18 +0000 [d27ee3b1bf]  Mark Michelson <mmichelson@digium.com>
+
+	* res_sorcery_astdb: Fix creation of retrieved objects.
+
+	  The contents of this commit come from a portion of commit
+	  a01ce2b88912cd802bb045e40fe264906e55bc45 of the 13 branch.
+
+	  The commit referenced above's main point was to introduce some
+	  performance enhancements for realtime. However, mixed in with that was a
+	  bug fix for sorcery's astdb backend. The astdb was using an empty
+	  objectset to create an object.
+
+	  This, combined with the floating point conversion bug, was what was
+	  contributing to contacts being deleted early.
+
+	  ASTERISK-26007 #close
+	  Reported by Greg Siemon
+
+	  Change-Id: I84594079356a6fb2d2f61d56bf644e5409925ee2
+
 2016-05-09 13:04 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.9.0 Released.
