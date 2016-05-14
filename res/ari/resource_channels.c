@@ -524,7 +524,7 @@ static void ari_channels_handle_play(
 		return;
 	}
 
-	if (ast_asprintf(&playback_url, "/playback/%s",
+	if (ast_asprintf(&playback_url, "/playbacks/%s",
 			stasis_app_playback_get_id(playback)) == -1) {
 		playback_url = NULL;
 		ast_ari_response_error(
