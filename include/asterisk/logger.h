@@ -195,11 +195,25 @@ int ast_unregister_verbose(void (*verboser)(const char *string)) attribute_warn_
 void ast_console_puts(const char *string);
 
 /*!
- * \brief log the string to the console, and all attached
- * console clients
+ * \brief log the string to the console, and all attached console clients
+ *
+ * \param string The message to write to the console
+ * \param level The log level of the message
+ *
  * \version 1.6.1 added level parameter
  */
 void ast_console_puts_mutable(const char *string, int level);
+
+/*!
+ * \brief log the string to the console, and all attached console clients
+ * \since 14.0.0
+ *
+ * \param message The message to write to the console
+ * \param sublevel If the log level supports it, the sub-level of the message
+ * \param level The log level of the message
+ */
+void ast_console_puts_mutable_full(const char *message, int level, int sublevel);
+
 void ast_console_toggle_mute(int fd, int silent);
 
 /*!

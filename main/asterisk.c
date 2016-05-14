@@ -1257,14 +1257,15 @@ void ast_console_toggle_mute(int fd, int silent)
 /*!
  * \brief log the string to all attached network console clients
  */
-static void ast_network_puts_mutable(const char *string, int level)
+static void ast_network_puts_mutable(const char *string, int level, int sublevel)
 {
 	int x;
 
 	for (x = 0; x < AST_MAX_CONNECTS; ++x) {
 		if (consoles[x].fd < 0
 			|| consoles[x].mute
-			|| consoles[x].levels[level]) {
+			|| consoles[x].levels[level]
+			|| (level == __LOG_VERBOSE && consoles[x].option_verbose < sublevel)) {
 			continue;
 		}
 		fdprint(consoles[x].p[1], string);
@@ -1277,12 +1278,23 @@ static void ast_network_puts_mutable(const char *string, int level)
  */
 void ast_console_puts_mutable(const char *string, int level)
 {
+	ast_console_puts_mutable_full(string, level, 0);
+}
+
+static int console_print(const char *s);
+
+void ast_console_puts_mutable_full(const char *message, int level, int sublevel)
+{
 	/* Send to the root console */
-	fputs(string, stdout);
-	fflush(stdout);
+	console_print(message);
+
+	/* Wake up a poll()ing console */
+	if (ast_opt_console && consolethread != AST_PTHREADT_NULL) {
+		pthread_kill(consolethread, SIGURG);
+	}
 
 	/* Send to any network console clients */
-	ast_network_puts_mutable(string, level);
+	ast_network_puts_mutable(message, level, sublevel);
 }
 
 /*!
@@ -1312,24 +1324,6 @@ void ast_console_puts(const char *string)
 
 	/* Send to any network console clients */
 	ast_network_puts(string);
-}
-
-static void network_verboser(const char *string)
-{
-	int x;
-	int verb_level;
-
-	/* Send to any network console clients if client verbocity allows. */
-	verb_level = VERBOSE_MAGIC2LEVEL(string);
-	for (x = 0; x < AST_MAX_CONNECTS; ++x) {
-		if (consoles[x].fd < 0
-			|| consoles[x].mute
-			|| consoles[x].levels[__LOG_VERBOSE]
-			|| consoles[x].option_verbose < verb_level) {
-			continue;
-		}
-		fdprint(consoles[x].p[1], string);
-	}
 }
 
 static pthread_t lthread;
@@ -1593,9 +1587,6 @@ static int ast_makesocket(void)
 		close(ast_socket);
 		ast_socket = -1;
 		return -1;
-	}
-	if (ast_register_verbose(network_verboser)) {
-		ast_log(LOG_WARNING, "Unable to register network verboser?\n");
 	}
 
 	if (ast_pthread_create_background(&lthread, NULL, listener, NULL)) {
@@ -2118,7 +2109,7 @@ static int console_state_init(void *ptr)
 
 AST_THREADSTORAGE_CUSTOM(console_state, console_state_init, ast_free_ptr);
 
-static int console_print(const char *s, int local)
+static int console_print(const char *s)
 {
 	struct console_state_data *state =
 		ast_threadstorage_get(&console_state, sizeof(*state));
@@ -2187,18 +2178,6 @@ static int console_print(const char *s, int local)
 	}
 
 	return res;
-}
-
-static void console_verboser(const char *s)
-{
-	if (!console_print(s, 1)) {
-		return;
-	}
-
-	/* Wake up a poll()ing console */
-	if (ast_opt_console && consolethread != AST_PTHREADT_NULL) {
-		pthread_kill(consolethread, SIGURG);
-	}
 }
 
 static int ast_all_zeros(const char *s)
@@ -2713,7 +2692,7 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 				}
 			}
 
-			console_print(buf, 0);
+			console_print(buf);
 
 			if ((res < EL_BUF_SIZE - 1) && ((buf[res-1] == '\n') || (res >= 2 && buf[res-2] == '\n'))) {
 				*cp = CC_REFRESH;
@@ -3786,10 +3765,6 @@ static void env_init(void)
 static void print_intro_message(const char *runuser, const char *rungroup)
 {
  	if (ast_opt_console || option_verbose || (ast_opt_remote && !ast_opt_exec)) {
-		if (ast_register_verbose(console_verboser)) {
-			fprintf(stderr, "Unable to register console verboser?\n");
-			return;
-		}
 		WELCOME_MESSAGE;
 		if (runuser) {
 			ast_verbose("Running as user '%s'\n", runuser);
@@ -4424,6 +4399,11 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 
 	aco_init();
 
+	if (init_logger()) {		/* Start logging subsystem */
+		printf("Failed: init_logger\n%s", term_quit());
+		exit(1);
+	}
+
 	if (ast_bucket_init()) {
 		printf("Failed: ast_bucket_init\n%s", term_quit());
 		exit(1);
@@ -4465,11 +4445,6 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	*/
 	srand((unsigned int) getpid() + (unsigned int) time(NULL));
 	initstate((unsigned int) getpid() * 65536 + (unsigned int) time(NULL), randompool, sizeof(randompool));
-
-	if (init_logger()) {		/* Start logging subsystem */
-		printf("Failed: init_logger\n%s", term_quit());
-		exit(1);
-	}
 
 	threadstorage_init();
 
