@@ -304,10 +304,11 @@ void ast_ari_response_alloc_failed(struct ast_ari_response *response)
 void ast_ari_response_created(struct ast_ari_response *response,
 	const char *url, struct ast_json *message)
 {
+	RAII_VAR(struct stasis_rest_handlers *, root, get_root_handler(), ao2_cleanup);
 	response->message = message;
 	response->response_code = 201;
 	response->response_text = "Created";
-	ast_str_append(&response->headers, 0, "Location: %s\r\n", url);
+	ast_str_append(&response->headers, 0, "Location: /%s%s\r\n", root->path_segment, url);
 }
 
 static void add_allow_header(struct stasis_rest_handlers *handler,
