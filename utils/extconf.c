@@ -120,9 +120,6 @@ void ast_queue_log(const char *queuename, const char *callid, const char *agent,
 /* IN CONFLICT: void ast_verbose(const char *fmt, ...)
    __attribute__((format(printf, 1, 2))); */
 
-int ast_register_verbose(void (*verboser)(const char *string));
-int ast_unregister_verbose(void (*verboser)(const char *string));
-
 void ast_console_puts(const char *string);
 
 #define _A_ __FILE__, __LINE__, __PRETTY_FUNCTION__
