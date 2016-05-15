@@ -15,13 +15,13 @@
 ARI
 -----------------
  * A new ARI method has been added to the channels resource. "create" allows for
- you to create a new channel and place that channel into a Stasis application. This
- is similar to origination except that the specified channel is not dialed. This
- allows for an application writer to create a channel, perform manipulations on it,
- and then delay dialing the channel until later.
+   you to create a new channel and place that channel into a Stasis application.
+   This is similar to origination except that the specified channel is not
+   dialed. This allows for an application writer to create a channel, perform
+   manipulations on it, and then delay dialing the channel until later.
 
- * To complement the "create" method, a "dial" method has been added to the channels
- resource in order to place a call to a created channel.
+ * To complement the "create" method, a "dial" method has been added to the
+   channels resource in order to place a call to a created channel.
 
  * All operations that initiate playback of media on a resource now support
    a list of media URIs. The list of URIs are played in the order they are
@@ -31,6 +31,7 @@ ARI
    "next_media_uri", which specifies the next media URI in the list to be played
    back to the resource. The "PlaybackFinished" event is raised when all media
    URIs are done.
+
 
 Applications
 ------------------
@@ -73,25 +74,22 @@ Playback
    provided, including the file extension. Currently, on HTTP and HTTPS URI
    schemes are supported.
 
+Queue
+-------------------
+ * Added field ReasonPause on QueueMemberStatus if set when paused, the reason
+   the queue member was paused.
+
+ * Added field LastPause on QueueMemberStatus for time when started the last
+   pause for a queue member.
+
+ * Show the time when started the last pause for queue member on CLI for command
+   'queue show'.
+
 SMS
 ------------------
  * Added the 'n' option, which prevents the SMS from being written to the log
    file. This is needed for those countries with privacy laws that require
    providers to not log SMS content.
-
-
-CDRs
-------------------
-cdr_odbc
-------------------
- * Added a new configuration option, "newcdrcolumns", which enables use of the
-   post-1.8 CDR columns 'peeraccount', 'linkedid', and 'sequence'.
-
-------------------
-cdr_csv
-------------------
- * Added a new configuration option, "newcdrcolumns", which enables use of the
-   post-1.8 CDR columns 'peeraccount', 'linkedid', and 'sequence'.
 
 
 Channel Drivers
@@ -101,6 +99,7 @@ chan_dahdi
 ------------------
  * The CALLERID(ani2) value for incoming calls is now populated in featdmf
    signaling mode.  The information was previously discarded.
+
  * Added the force_restart_unavailable_chans compatibility option.  When
    enabled it causes Asterisk to restart the ISDN B channel if an outgoing
    call receives cause 44 (Requested channel not available).
@@ -110,6 +109,7 @@ chan_iax2
  * The iax.conf forcejitterbuffer option has been removed.  It is now always
    forced if you set iax.conf jitterbuffer=yes.  If you put a jitter buffer
    on a channel it will be on the channel.
+
  * A new configuration parameters, 'calltokenexpiration', has been added that
    controls the duration before a call token expires. Default duration is 10
    seconds. Setting this to a higher value may help in lagged networks or those
@@ -120,9 +120,11 @@ chan_sip
  * New 'rtpbindaddr' global setting. This allows a user to define which
    ipaddress to bind the rtpengine to. For example, chan_sip might bind
    to eth0 (10.0.0.2) but rtpengine to eth1 (192.168.1.10).
+
  * DTLS related configuration options can now be set at a general level.
    Enabling DTLS support, though, requires enabling it at the user
    or peer level.
+
  * Added the possibility to set the From: header through the the SIP dial
    string (populating the fromuser/fromdomain fields), complementing the
    [!dnid] option for the To: header that has existed since 1.6.0 (1d6b192).
@@ -132,17 +134,22 @@ chan_sip
 chan_pjsip
 ------------------
  * New 'user_eq_phone' endpoint setting. This adds a 'user=phone' parameter
-   to the request URI and From URI if the user is determined to be a phone number.
- * New 'moh_passthrough' endpoint setting. This will pass hold and unhold requests
-   through using SIP re-invites with sendonly and sendrecv accordingly.
+   to the request URI and From URI if the user is determined to be a phone
+   number.
+
+ * New 'moh_passthrough' endpoint setting. This will pass hold and unhold
+   requests through using SIP re-invites with sendonly and sendrecv accordingly.
+
  * Added the pjsip.conf system type disable_tcp_switch option.  The option
    allows the user to disable switching from UDP to TCP transports described
    by RFC 3261 section 18.1.1.
- * New 'line' and 'endpoint' options added on outbound registrations. This allows some
-   identifying information to be added to the Contact of the outbound registration.
-   If this information is present on messages received from the remote server
-   the message will automatically be associated with the configured endpoint on the
-   outbound registration.
+
+ * New 'line' and 'endpoint' options added on outbound registrations. This
+   allows some identifying information to be added to the Contact of the
+   outbound registration. If this information is present on messages received
+   from the remote server the message will automatically be associated with the
+   configured endpoint on the outbound registration.
+
 
 Core
 ------------------
@@ -190,6 +197,7 @@ Core
    context. If enabled then a hint will be automatically created with the name of
    the device.
 
+
 Functions
 ------------------
 
@@ -208,8 +216,9 @@ CURL
 DTMF Features
 ------------------
  * The transferdialattempts default value has been changed from 1 to 3. The
-   transferinvalidsound has been changed from "pbx-invalid" to "privacy-incorrect".
-   These were changed to make DTMF transfers be more user-friendly by default.
+   transferinvalidsound has been changed from "pbx-invalid" to
+   "privacy-incorrect". These were changed to make DTMF transfers be more
+   user-friendly by default.
 
 
 Resources
@@ -250,6 +259,7 @@ res_pjsip_outbound_registration
   outbound registration, registration is retried at the given interval up to
   'max_retries'.
 
+
 CEL Backends
 ------------------
 
@@ -262,6 +272,7 @@ cel_pgsql
    configurable for cel_pgsql via the 'schema' in configuration file
    cel_pgsql.conf.
 
+
 CDR Backends
 ------------------
 
@@ -272,15 +283,18 @@ cdr_adaptive_odbc
    names. This setting is configurable for cdr_adaptive_odbc via the
    quoted_identifiers in configuration file cdr_adaptive_odbc.conf.
 
-Queue
--------------------
- * Added field ReasonPause on QueueMemberStatus if set when paused, the reason
-   the queue member was paused.
- * Added field LastPause on QueueMemberStatus for time when started the last
-   pause for a queue member.
- * Show the time when started the last pause for queue member on CLI for command
-   'queue show'.
+cdr_odbc
+------------------
+ * Added a new configuration option, "newcdrcolumns", which enables use of the
+   post-1.8 CDR columns 'peeraccount', 'linkedid', and 'sequence'.
 
+cdr_csv
+------------------
+ * Added a new configuration option, "newcdrcolumns", which enables use of the
+   post-1.8 CDR columns 'peeraccount', 'linkedid', and 'sequence'.
+
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.9.0 to Asterisk 13.10.0 -----------
 ------------------------------------------------------------------------------
 
