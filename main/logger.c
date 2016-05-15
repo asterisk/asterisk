@@ -531,6 +531,7 @@ static struct logchannel *make_logchannel(const char *channel, const char *compo
 		}
 
 		chan->type = LOGTYPE_SYSLOG;
+		openlog("asterisk", LOG_PID, chan->facility);
 	} else {
 		if (!(chan->fileptr = fopen(chan->filename, "a"))) {
 			/* Can't do real logging here since we're called with a lock
