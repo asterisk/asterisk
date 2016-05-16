@@ -1,0 +1,39 @@
+[Unit]
+Description=Asterisk PBX
+Documentation=man:asterisk(8)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+ExecStart=__ASTERISK_SBIN_DIR__/asterisk -g -f -U asterisk
+ExecReload=__ASTERISK_SBIN_DIR__/asterisk -rx 'core reload'
+Restart=on-failure
+RestartSec=1
+WorkingDirectory=__ASTERISK_VARLIB_DIR__
+
+# You can run a script to clean up after asterisk. An example script is
+# included in contrib/scripts/asterisk_cleanup.
+#ExecStopPost=/path/to/script
+
+#Nice=0
+#UMask=0002
+#LimitCORE=infinity
+#LimitNOFILE=
+
+# safe_asterisk runs Asterisk in a virtual console. This allows easy
+# access to the asterisk command-line without logging it. on the other
+# hand, it allows anyone with physical access to the console full access
+# to Asterisk. To enable this console, unrem the following lines and add
+# '-c' to the ExecStart line above:
+#TTYPath=/dev/tty9
+#StandardInput=tty
+#StandardOutput=tty
+#StandardError=tty
+
+# For more information on what these parameters mean see:
+#
+# http://0pointer.de/public/systemd-man/systemd.service.html
+# http://0pointer.de/public/systemd-man/systemd.exec.html
+
+[Install]
+WantedBy=multi-user.target

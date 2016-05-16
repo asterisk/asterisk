@@ -175,6 +175,43 @@ gen_live_conf() {
   | sed  -e '/^#* \(Begin\|End\) Samples/d' >"$LIVE_CONF"
 }
 
+# (re?)generate a unit file that could be installed on the system to use
+# this copy of Asterisk.
+gen_ast_live_service() {
+  local service_file="$BASE_DIR/asterisk-live.service"
+  local included_dir='lib'
+  local included_dir_remmed='etc'
+  if [ -f /etc/systemd/system/asterisk.service ]; then
+    included_dir='etc'
+    included_dir_remmed='lib'
+  fi
+  local varlibdir=`awk '/astvarlibdir/ {print $3}' "$AST_CONF" | head -n1`
+  cat <<EOF >"$service_file"
+# This file is based on your existing asterisk systemd service unit, and
+# overrides some fields. If you have an overriding unit in /etc, you
+# need to include it, rather than the one in /lib:
+.include /$included_dir/systemd/system/asterisk.service
+#.include /$included_dir_remmed/systemd/system/asterisk.service
+
+# This file is not installed. If you want to use it, you need to copy it
+# to /etc/systemd/system and run 'systemctl daemon-reload'. You'll then
+# need to be able to start this manually (note that it will not be
+# enabled and thus the standard bash completion will not complete it).
+# If you have multiple live asterisk instances you want to run on the
+# same system, be sure to give each one a unique name.
+
+[Unit]
+Description = Asterisk PBX (Live Asterisk)
+
+# Note: if you changed the parameters passed in the command-line (ExecStart)
+# be sure to copy them over here as well.
+[Service]
+ExecStart = $BASE_DIR/asterisk g -f -U asterisk
+ExecReload = $BASE_DIR/asterisk -rx 'core reload'
+WorkingDirectory = $varlibdir
+EOF
+}
+
 # (re?)generate the ./live/asterisk wrapper script
 gen_live_asterisk() {
   cat <<EOF >"$BASE_DIR/asterisk"
@@ -244,6 +281,7 @@ EOF
   chmod +x "$BASE_DIR/asterisk"
   # Generate a sample config file for live_ast itself:
   gen_live_conf
+  gen_ast_live_service
   ;;
 conf-file)
   # Just regenerate live.conf from the sample if it does not already exist:
