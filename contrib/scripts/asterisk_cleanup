@@ -1,0 +1,18 @@
+#!/bin/sh
+
+# asterisk_cleanup: A script intended to optionally be run when Asterisk
+# has exited. This example script is used to move core files.
+
+VARLIBDIR=${VARLIBDIR:/var/lib/asterisk}
+RUNDIR=${VARRUNDIR:/var/run/asterisk}
+DUMPDROP=${DUMPDROP:-/var/spool/asterisk/cores}
+ASTPIDFILE=${ASTVARRUNDIR}/asterisk.pid
+PID=`cat ${ASTPIDFILE}`
+DATE=`date "+%Y-%m-%dT%H:%M:%S%z"`
+if test -f ${RUNDIR}/core.${PID} ; then
+	mkdir -p "${DUMPDROP}"
+	mv ${RUNDIR}/core.${PID} ${DUMPDROP}/core.`hostname`-$DATE &
+elif test -f ${RUNDIR}/core ; then
+	mkdir -p "${DUMPDROP}"
+	mv ${RUNDIR}/core ${DUMPDROP}/core.`hostname`-$DATE &
+fi
