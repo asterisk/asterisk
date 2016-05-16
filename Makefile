@@ -825,6 +825,8 @@ install-logrotate:
 
 config:
 	@if [ "${OSARCH}" = "linux-gnu" -o "${OSARCH}" = "kfreebsd-gnu" ]; then \
+		$(INSTALL) -d $(DESTDIR)/lib/systemd/system; \
+		./build_tools/install_subst -d contrib/asterisk.service $(DESTDIR)/lib/systemd/system/asterisk.service; \
 		if [ -f /etc/redhat-release -o -f /etc/fedora-release ]; then \
 			./build_tools/install_subst contrib/init.d/rc.redhat.asterisk  "$(DESTDIR)/etc/rc.d/init.d/asterisk"; \
 			if [ ! -f "$(DESTDIR)/etc/sysconfig/asterisk" ] ; then \
