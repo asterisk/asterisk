@@ -824,6 +824,11 @@ install-logrotate:
 	rm -f contrib/scripts/asterisk.logrotate.tmp
 
 config:
+	# FIXME: this is not the final result. Merely a quick and dirty
+	# fix to get the patch applied. A proper condition needs to be
+	# added around it.
+	$(INSTALL) -d $(DESTDIR)$(SYSTEMD_DIR); \
+	./build_tools/install_subst -d contrib/asterisk.service $(DESTDIR)$(SYSTEMD_DIR)/asterisk.service; \
 	if [ -f /etc/redhat-release -o -f /etc/fedora-release ]; then \
 		./build_tools/install_subst contrib/init.d/rc.redhat.asterisk  "$(DESTDIR)/etc/rc.d/init.d/asterisk"; \
 		if [ ! -f "$(DESTDIR)/etc/sysconfig/asterisk" ] ; then \

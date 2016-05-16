@@ -2583,6 +2583,9 @@ AC_SUBST(PBX_LAUNCHD)
 
 AST_PKG_CONFIG_CHECK([GTK2], [gtk+-2.0])
 
+PKG_CHECK_VAR([SYSTEMD_DIR], [systemd], [systemdsystemunitdir])
+AC_SUBST([SYSTEMD_DIR])
+
 # build a GENERIC_ODBC result based on the presence of either UnixODBC (preferred)
 # or iODBC
 
