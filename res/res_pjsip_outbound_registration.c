@@ -1912,6 +1912,26 @@ static const struct ast_sorcery_instance_observer observer_callbacks_registratio
 	.object_type_loaded = registration_loaded_observer,
 };
 
+static void registration_deleted_observer(const void *obj)
+{
+	const struct sip_outbound_registration *registration = obj;
+	struct ao2_container *states;
+
+	states = ao2_global_obj_ref(current_states);
+	if (!states) {
+		/* Global container has gone.  Likely shutting down. */
+		return;
+	}
+
+	ao2_find(states, ast_sorcery_object_get_id(registration), OBJ_UNLINK | OBJ_NODATA | OBJ_SEARCH_KEY);
+
+	ao2_ref(states, -1);
+}
+
+static const struct ast_sorcery_observer registration_observer = {
+	.deleted = registration_deleted_observer,
+};
+
 static int unload_module(void)
 {
 	int remaining;
@@ -2011,7 +2031,9 @@ static int load_module(void)
 	if (ast_sorcery_instance_observer_add(ast_sip_get_sorcery(),
 		&observer_callbacks_registrations)
 		|| ast_sorcery_observer_add(ast_sip_get_sorcery(), "auth",
-			&observer_callbacks_auth)) {
+			&observer_callbacks_auth)
+		|| ast_sorcery_observer_add(ast_sip_get_sorcery(), "registration",
+			&registration_observer)) {
 		ast_log(LOG_ERROR, "Unable to register observers.\n");
 		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
