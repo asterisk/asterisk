@@ -220,6 +220,20 @@ monitor-type = MixMonitor
 ; option applies. Defaults to 'no'.
 ;autopauseunavail=no
 ;
+; The pause_wrapup_after_complete option allows automatic pausing with the
+; reason "wrap-up" after completed queue calls.  The agent would then have 
+; to use another interface to un-pause when they are ready to accept another
+; call.  This is necessary when after-call wrap-up time might require
+; making calls to other parties, among many other possibilities.
+; Management can then use the wrap-up pause time in queue reporting
+; to gauge after-call-work time.  Defaults to 'no'.
+; The wrapuptime option above is still used when the agent comes back from
+; their wrap-up pause, to allow them to re-pause.  For example, if they
+; need to pause for a break immediately after finishing their after-call-
+; work, they can use the seconds in wrapuptime to go on break,
+; instead instantly receiving the next waiting call.
+;pause_wrapup_after_complete=no
+;
 ; Maximum number of people waiting in the queue (0 for unlimited)
 ;
 ;maxlen = 0
