@@ -1358,6 +1358,8 @@ static char *app_upqm = "UnpauseQueueMember" ;
 
 static char *app_ql = "QueueLog" ;
 
+static char *wrap_up = "wrap-up";
+
 /*! \brief Persistent Members astdb family */
 static const char * const pm_family = "Queue/PersistentMembers";
 
@@ -6166,6 +6168,16 @@ static void handle_hangup(void *userdata, struct stasis_subscription *sub,
 			queue_data->holdstart, queue_data->starttime, reason);
 	update_queue(queue_data->queue, queue_data->member, queue_data->callcompletedinsl,
 			time(NULL) - queue_data->starttime);
+
+	/* pause all of the agent's queues after a complete */
+	if (queue_data->queue->pause_wrapup_after_complete) {
+		if (!set_member_paused( (char *) NULL, queue_data->member->interface, wrap_up, 1)) {
+			ast_verb(3, "Paused %s for after-call %s after call complete.\n", queue_data->member->interface, wrap_up);
+		} else {
+			ast_verb(3, "Failed to pause %s for after-call %s after call complete.\n", queue_data->member->interface, wrap_up);
+		}
+	}
+
 	remove_stasis_subscriptions(queue_data);
 }
 
@@ -7172,6 +7184,18 @@ static void set_queue_member_pause(struct call_queue *q, struct member *mem, con
 			ast_copy_string(mem->reason_paused, reason, sizeof(mem->reason_paused));
 		}
 	} else {
+		ast_debug(1, "%s was paused for %s.\n", mem->interface, mem->reason_paused);
+
+		/* if we're using pause_wrapup_after_complete, we want to
+		 * reset lastcall after a wrap-up pause to give a grace 
+		 * period from wrapup after un-pausing for wrap-up.
+		 * e.g., done with wrap-up pause, going on break now.
+		 */
+		if (q->pause_wrapup_after_complete && !strcmp(mem->reason_paused, wrap_up)) {
+			ast_debug(1, "resetting lastcall for %s because they were paused for %s.\n", mem->interface, mem->reason_paused);
+			mem->lastcall = time(NULL);
+		}
+
 		ast_copy_string(mem->reason_paused, "", sizeof(mem->reason_paused));
 	}
 
