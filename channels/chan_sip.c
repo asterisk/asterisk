@@ -14529,10 +14529,12 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init, 
 		add_header(&req, "Require", "replaces");
 	}
 
-	/* Add Session-Timers related headers */
-	if (st_get_mode(p, 0) == SESSION_TIMER_MODE_ORIGINATE
+	/* Add Session-Timers related headers if not already there */
+	if (ast_strlen_zero(sip_get_header(&req, "Session-Expires")) &&
+		(sipmethod == SIP_INVITE || sipmethod == SIP_UPDATE) &&
+		(st_get_mode(p, 0) == SESSION_TIMER_MODE_ORIGINATE
 		|| (st_get_mode(p, 0) == SESSION_TIMER_MODE_ACCEPT
-			&& st_get_se(p, FALSE) != DEFAULT_MIN_SE)) {
+			&& st_get_se(p, FALSE) != DEFAULT_MIN_SE))) {
 		char i2astr[10];
 
 		if (!p->stimer->st_interval) {
