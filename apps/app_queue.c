@@ -1638,6 +1638,7 @@ struct call_queue {
 	int autopause;                      /*!< Auto pause queue members if they fail to answer */
 	int autopausedelay;                 /*!< Delay auto pause for autopausedelay seconds since last call */
 	int timeoutpriority;                /*!< Do we allow a fraction of the timeout to occur for a ring? */
+	int pause_wrapup_after_complete;    /*!< Pause all queues with wrap-up reason after a queue call is complete */
 
 	/* Queue strategy things */
 	int rrpos;                          /*!< Round Robin - position */
@@ -2600,6 +2601,7 @@ static void init_queue(struct call_queue *q)
 	q->randomperiodicannounce = 0;
 	q->numperiodicannounce = 0;
 	q->autopause = QUEUE_AUTOPAUSE_OFF;
+	q->pause_wrapup_after_complete = 0;
 	q->timeoutpriority = TIMEOUT_PRIORITY_APP;
 	q->autopausedelay = 0;
 	if (!q->members) {
@@ -3045,6 +3047,8 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		q->autopausebusy = ast_true(val);
 	} else if (!strcasecmp(param, "autopauseunavail")) {
 		q->autopauseunavail = ast_true(val);
+	} else if (!strcasecmp(param, "pause_wrapup_after_complete")) {
+		q->pause_wrapup_after_complete = ast_true(val);
 	} else if (!strcasecmp(param, "maxlen")) {
 		q->maxlen = atoi(val);
 		if (q->maxlen < 0) {
@@ -6117,6 +6121,16 @@ static void handle_hangup(void *userdata, struct stasis_subscription *sub,
 			queue_data->holdstart, queue_data->starttime, reason);
 	update_queue(queue_data->queue, queue_data->member, queue_data->callcompletedinsl,
 			time(NULL) - queue_data->starttime);
+
+	/* pause all of the agent's queues after a complete */
+	if (queue_data->queue->pause_wrapup_after_complete) {
+		if (!set_member_paused( (char *) NULL, queue_data->member->interface, "wrap-up", 1)) {
+			ast_verb(3, "Paused %s for after-call wrap-up after call complete.\n", queue_data->member->interface);
+		} else {
+			ast_verb(3, "Failed to pause %s for after-call wrap-up after call complete.\n", queue_data->member->interface);
+		}
+	}
+
 	remove_stasis_subscriptions(queue_data);
 }
 
