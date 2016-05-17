@@ -7221,7 +7221,7 @@ static int set_member_paused(const char *queuename, const char *interface, const
 					 * but since this affects all queues, we cannot.
 					 */
 					ast_queue_log("NONE", "NONE", mem->membername,
-						(paused ? "PAUSEALL" : "UNPAUSEALL"), "%s", "");
+						(paused ? "PAUSEALL" : "UNPAUSEALL"), "%s", S_OR(reason, ""));
 				}
 
 				set_queue_member_pause(q, mem, reason, paused);
