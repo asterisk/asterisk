@@ -62,6 +62,24 @@ const char *stasis_app_stored_recording_get_file(
 	return recording->file;
 }
 
+const char *stasis_app_stored_recording_get_filename(
+	struct stasis_app_stored_recording *recording)
+{
+	if (!recording) {
+		return NULL;
+	}
+	return recording->file_with_ext;
+}
+
+const char *stasis_app_stored_recording_get_extension(
+	struct stasis_app_stored_recording *recording)
+{
+	if (!recording) {
+		return NULL;
+	}
+	return recording->format;
+}
+
 /*!
  * \brief Split a path into directory and file, resolving canonical directory.
  *

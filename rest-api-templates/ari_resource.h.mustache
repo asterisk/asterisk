@@ -82,11 +82,19 @@ int ast_ari_{{c_name}}_{{c_nickname}}_parse_body(
  * {{{notes}}}
 {{/notes}}
  *
+{{#is_binary_response}}
+ * \param ser TCP/TLS session instance
+{{/is_binary_response}}
  * \param headers HTTP headers
  * \param args Swagger parameters
  * \param[out] response HTTP response
  */
+{{^is_binary_response}}
 void ast_ari_{{c_name}}_{{c_nickname}}(struct ast_variable *headers, struct ast_ari_{{c_name}}_{{c_nickname}}_args *args, struct ast_ari_response *response);
+{{/is_binary_response}}
+{{#is_binary_response}}
+void ast_ari_{{c_name}}_{{c_nickname}}(struct ast_tcptls_session_instance *ser, struct ast_variable *headers, struct ast_ari_{{c_name}}_{{c_nickname}}_args *args, struct ast_ari_response *response);
+{{/is_binary_response}}
 {{/is_req}}
 {{#is_websocket}}
 

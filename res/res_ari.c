@@ -870,7 +870,7 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 	RAII_VAR(struct ast_ari_conf *, conf, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_str *, response_body, ast_str_create(256), ast_free);
 	RAII_VAR(struct ast_ari_conf_user *, user, NULL, ao2_cleanup);
-	struct ast_ari_response response = {};
+	struct ast_ari_response response = { .fd = -1, 0 };
 	RAII_VAR(struct ast_variable *, post_vars, NULL, ast_variables_destroy);
 
 	if (!response_body) {
@@ -1011,11 +1011,14 @@ request_failed:
 		response.response_text, ast_str_buffer(response.headers), ast_str_buffer(response_body));
 	ast_http_send(ser, method, response.response_code,
 		      response.response_text, response.headers, response_body,
-		      0, 0);
+		      response.fd != -1 ? response.fd : 0, 0);
 	/* ast_http_send takes ownership, so we don't have to free them */
 	response_body = NULL;
 
 	ast_json_unref(response.message);
+	if (response.fd >= 0) {
+		close(response.fd);
+	}
 	return 0;
 }
 
@@ -1023,7 +1026,6 @@ static struct ast_http_uri http_uri = {
 	.callback = ast_ari_callback,
 	.description = "Asterisk RESTful API",
 	.uri = "ari",
-
 	.has_subtree = 1,
 	.data = NULL,
 	.key = __FILE__,

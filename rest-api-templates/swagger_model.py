@@ -332,6 +332,7 @@ class SwaggerType(Stringify):
         self.is_list = None
         self.singular_name = None
         self.is_primitive = None
+        self.is_binary = None
 
     def load(self, type_name, processor, context):
         # Some common errors
@@ -346,6 +347,7 @@ class SwaggerType(Stringify):
         else:
             self.singular_name = self.name
         self.is_primitive = self.singular_name in SWAGGER_PRIMITIVES
+        self.is_binary = (self.singular_name == 'binary')
         processor.process_type(self, context)
         return self
 
@@ -401,6 +403,7 @@ class Operation(Stringify):
         self.has_header_parameters = self.header_parameters and True
         self.has_parameters = self.has_query_parameters or \
             self.has_path_parameters or self.has_header_parameters
+        self.is_binary_response = self.response_class.is_binary
 
         # Body param is different, since there's at most one
         self.body_parameter = [
