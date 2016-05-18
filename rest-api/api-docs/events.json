@@ -146,6 +146,7 @@
 			"subTypes": [
 				"DeviceStateChanged",
 				"PlaybackStarted",
+				"PlaybackContinuing",
 				"PlaybackFinished",
 				"RecordingStarted",
 				"RecordingFinished",
@@ -262,6 +263,17 @@
 		"PlaybackStarted": {
 			"id": "PlaybackStarted",
 			"description": "Event showing the start of a media playback operation.",
+			"properties": {
+				"playback": {
+					"type": "Playback",
+					"description": "Playback control object",
+					"required": true
+				}
+			}
+		},
+		"PlaybackContinuing": {
+			"id": "PlaybackContinuing",
+			"description": "Event showing the continuation of a media playback operation from one media URI to the next in the list.",
 			"properties": {
 				"playback": {
 					"type": "Playback",

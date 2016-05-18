@@ -469,7 +469,8 @@ void ast_ari_channels_stop_silence(struct ast_variable *headers,
 
 static void ari_channels_handle_play(
 	const char *args_channel_id,
-	const char *args_media,
+	const char **args_media,
+	size_t args_media_count,
 	const char *args_lang,
 	int args_offsetms,
 	int args_skipms,
@@ -515,7 +516,7 @@ static void ari_channels_handle_play(
 
 	language = S_OR(args_lang, snapshot->language);
 
-	playback = stasis_app_control_play_uri(control, args_media, language,
+	playback = stasis_app_control_play_uri(control, args_media, args_media_count, language,
 		args_channel_id, STASIS_PLAYBACK_TARGET_CHANNEL, args_skipms, args_offsetms, args_playback_id);
 	if (!playback) {
 		ast_ari_response_error(
@@ -551,6 +552,7 @@ void ast_ari_channels_play(struct ast_variable *headers,
 	ari_channels_handle_play(
 		args->channel_id,
 		args->media,
+		args->media_count,
 		args->lang,
 		args->offsetms,
 		args->skipms,
@@ -565,6 +567,7 @@ void ast_ari_channels_play_with_id(struct ast_variable *headers,
 	ari_channels_handle_play(
 		args->channel_id,
 		args->media,
+		args->media_count,
 		args->lang,
 		args->offsetms,
 		args->skipms,

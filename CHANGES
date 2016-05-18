@@ -23,6 +23,15 @@ ARI
  * To complement the "create" method, a "dial" method has been added to the channels
  resource in order to place a call to a created channel.
 
+ * All operations that initiate playback of media on a resource now support
+   a list of media URIs. The list of URIs are played in the order they are
+   presented to the resource. A new event, "PlaybackContinuing", is raised when
+   a media URI finishes but before the next media URI starts. When a list is
+   played, the "Playback" model will contain the optional attribute
+   "next_media_uri", which specifies the next media URI in the list to be played
+   back to the resource. The "PlaybackFinished" event is raised when all media
+   URIs are done.
+
 Applications
 ------------------
 
