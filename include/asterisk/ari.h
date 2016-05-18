@@ -95,6 +95,8 @@ struct ast_ari_response {
 	/*! HTTP response code.
 	 * See http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html */
 	int response_code;
+	/*! File descriptor for whatever file we want to respond with */
+	int fd;
 	/*! Corresponding text for the response code */
 	const char *response_text; /* Shouldn't http.c handle this? */
 	/*! Flag to indicate that no further response is needed */

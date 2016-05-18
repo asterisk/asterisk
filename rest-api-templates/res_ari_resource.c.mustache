@@ -91,7 +91,12 @@ static void ast_ari_{{c_name}}_{{c_nickname}}_cb(
 #endif /* AST_DEVMODE */
 
 {{> param_parsing}}
+{{^is_binary_response}}
 	ast_ari_{{c_name}}_{{c_nickname}}(headers, &args, response);
+{{/is_binary_response}}
+{{#is_binary_response}}
+	ast_ari_{{c_name}}_{{c_nickname}}(ser, headers, &args, response);
+{{/is_binary_response}}
 #if defined(AST_DEVMODE)
 	code = response->response_code;
 
@@ -114,8 +119,14 @@ static void ast_ari_{{c_name}}_{{c_nickname}}_cb(
 				ast_ari_validate_{{c_singular_name}}_fn());
 {{/is_list}}
 {{^is_list}}
+{{^is_binary_response}}
 			is_valid = ast_ari_validate_{{c_name}}(
 				response->message);
+{{/is_binary_response}}
+{{#is_binary_response}}
+			/* No validation on a raw binary response */
+			is_valid = 1;
+{{/is_binary_response}}
 {{/is_list}}
 {{/response_class}}
 		} else {
