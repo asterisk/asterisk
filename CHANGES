@@ -45,6 +45,12 @@ res_hep
    valid value using the specified 'uuid_type', the module may fallback to a
    more readily available source for the correlation UUID.
 
+res_pjsip_info_empty
+--------------------
+ * A new module that can respond to empty Content-Type INFO packets during call.
+   Some SBCs will terminate a call if their empty INFO packets are not responded
+   to within a predefined time.
+
 app_confbridge
 ------------------
  * Added a bridge profile option called regcontext that allows you to
