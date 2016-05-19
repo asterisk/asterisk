@@ -19,6 +19,15 @@ res_fax
 
 res_pjsip
 ------------------
+ * Endpoint IP Access Controls
+   Added new configuration Endpoint options:
+    "acl" - list of IP ACL section names in acl.conf
+    "deny" - List of IP addresses to deny access from
+    "permit" - List of IP addresses to permit access from
+    "contact_acl" - List of Contact ACL section names in acl.conf
+    "contact_deny" - List of Contact header addresses to deny
+    "contact_permit" - List of Contact header addresses to permit
+
  * Added new status Updated to AMI event ContactStatus on update registration
 
  * Added "reg_server" to contacts.
