@@ -103,13 +103,13 @@ static int dtmf_info_incoming_request(struct ast_sip_session *session, struct pj
 	if (!body || !body->len) {
 		/* need to return 200 OK on empty body */
 		send_response(session, rdata, 200);
-		return 0;
+		return 1;
 	}
 
 	res = body->print_body(body, buf, body->len);
 	if (res < 0) {
 		send_response(session, rdata, 500);
-		return 0;
+		return 1;
 	}
 	buf[res] = '\0';
 
@@ -150,11 +150,12 @@ static int dtmf_info_incoming_request(struct ast_sip_session *session, struct pj
 	}
 
 	send_response(session, rdata, event ? 200 : 500);
-	return event ? 0 : -1;
+	return 1;
 }
 
 static struct ast_sip_session_supplement dtmf_info_supplement = {
 	.method = "INFO",
+	.priority = AST_SIP_SUPPLEMENT_PRIORITY_FIRST,
 	.incoming_request = dtmf_info_incoming_request,
 };
 
