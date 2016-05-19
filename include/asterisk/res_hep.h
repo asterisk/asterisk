@@ -49,6 +49,11 @@ enum hepv3_capture_type {
 	HEPV3_CAPTURE_TYPE_IAX    = 0x10,
 };
 
+enum hep_uuid_type {
+	HEP_UUID_TYPE_CALL_ID = 0,
+	HEP_UUID_TYPE_CHANNEL,
+};
+
 /*! \brief HEPv3 Capture Info */
 struct hepv3_capture_info {
 	/*! The source address of the packet */
@@ -103,6 +108,15 @@ struct hepv3_capture_info *hepv3_create_capture_info(const void *payload, size_t
  * \retval -1 on error
  */
 int hepv3_send_packet(struct hepv3_capture_info *capture_info);
+
+/*!
+ * \brief Get the preferred UUID type
+ *
+ * \since 13.10.0
+ *
+ * \retval The type of UUID the packet should use
+ */
+enum hep_uuid_type hepv3_get_uuid_type(void);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
