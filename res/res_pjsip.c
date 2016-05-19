@@ -1175,6 +1175,28 @@
 						Asterisk Server name on which SIP endpoint registered.
 					</para></description>
 				</configOption>
+				<configOption name="via_addr">
+					<synopsis>IP-address of the last Via header from registration.</synopsis>
+					<description><para>
+						The last Via header should contain the address of UA which sent the request.
+						The IP-address of the last Via header is automatically stored based on data present
+						in incoming SIP REGISTER requests and is not intended to be configured manually.
+					</para></description>
+				</configOption>
+				<configOption name="via_port">
+					<synopsis>IP-port of the last Via header from registration.</synopsis>
+					<description><para>
+						The IP-port of the last Via header is automatically stored based on data present
+						in incoming SIP REGISTER requests and is not intended to be configured manually.
+					</para></description>
+				</configOption>
+				<configOption name="call_id">
+					<synopsis>Call-ID header from registration.</synopsis>
+					<description><para>
+						The Call-ID header is automatically stored based on data present
+						in incoming SIP REGISTER requests and is not intended to be configured manually.
+					</para></description>
+				</configOption>
 			</configObject>
 			<configObject name="aor">
 				<synopsis>The configuration for a location of an endpoint</synopsis>
@@ -1966,6 +1988,12 @@
 				</parameter>
 				<parameter name="RegExpire">
 					<para>Absolute time that this contact is no longer valid after</para>
+				</parameter>
+				<parameter name="ViaAddress">
+					<para>IP address:port of the last Via header in REGISTER request</para>
+				</parameter>
+				<parameter name="CallID">
+					<para>Content of the Call-ID header in REGISTER request</para>
 				</parameter>
 			</syntax>
 		</managerEventInstance>
