@@ -79,6 +79,58 @@ static int sorcery_astdb_create(const struct ast_sorcery *sorcery, void *data, v
 	return ast_db_put(family, ast_sorcery_object_get_id(object), value);
 }
 
+/*! \brief Internal helper function which returns a filtered objectset.
+ *
+ * The following are filtered out of the objectset:
+ * \li Fields that are not registered with sorcery.
+ *
+ * \param objectset Objectset to filter.
+ * \param sorcery The sorcery instance that is requesting an objectset.
+ * \param type The object type
+ *
+ * \return The filtered objectset
+ */
+static struct ast_variable *sorcery_astdb_filter_objectset(struct ast_variable *objectset, const struct ast_sorcery *sorcery,
+	const char *type)
+{
+	struct ast_variable *previous = NULL, *field = objectset;
+	struct ast_sorcery_object_type *object_type;
+
+	object_type = ast_sorcery_get_object_type(sorcery, type);
+	if (!object_type) {
+		ast_log(LOG_WARNING, "Unknown sorcery object type %s. Expect errors\n", type);
+		return objectset;
+	}
+
+	while (field) {
+		struct ast_variable *removed;
+
+		if (ast_sorcery_is_object_field_registered(object_type, field->name)) {
+			previous = field;
+			field = field->next;
+			continue;
+		}
+
+		ast_debug(1, "Filtering out astdb field '%s' from retrieval\n", field->name);
+
+		if (previous) {
+			previous->next = field->next;
+		} else {
+			objectset = field->next;
+		}
+
+		removed = field;
+		field = field->next;
+		removed->next = NULL;
+
+		ast_variables_destroy(removed);
+	}
+
+	ao2_cleanup(object_type);
+
+	return objectset;
+}
+
 /*! \brief Internal helper function which retrieves an object, or multiple objects, using fields for criteria */
 static void *sorcery_astdb_retrieve_fields_common(const struct ast_sorcery *sorcery, void *data, const char *type, const struct ast_variable *fields, struct ao2_container *objects)
 {
@@ -103,9 +155,12 @@ static void *sorcery_astdb_retrieve_fields_common(const struct ast_sorcery *sorc
 		if (!(json = ast_json_load_string(entry->data, &error))) {
 			return NULL;
 		}
+
 		if (ast_json_to_ast_variables(json, &existing) != AST_JSON_TO_AST_VARS_CODE_SUCCESS) {
 			return NULL;
 		}
+
+		existing = sorcery_astdb_filter_objectset(existing, sorcery, type);
 
 		if (fields && !ast_variable_lists_match(existing, fields, 0)) {
 			continue;
@@ -148,6 +203,7 @@ static void *sorcery_astdb_retrieve_id(const struct ast_sorcery *sorcery, void *
 	if (ast_db_get_allocated(family, id, &value)
 		|| !(json = ast_json_load_string(value, &error))
 		|| (ast_json_to_ast_variables(json, &objset) != AST_JSON_TO_AST_VARS_CODE_SUCCESS)
+		|| !(objset = sorcery_astdb_filter_objectset(objset, sorcery, type))
 		|| !(object = ast_sorcery_alloc(sorcery, type, id))
 		|| ast_sorcery_objectset_apply(sorcery, object, objset)) {
 		ast_debug(3, "Failed to retrieve object '%s' from astdb\n", id);
@@ -260,6 +316,7 @@ static void sorcery_astdb_retrieve_regex(const struct ast_sorcery *sorcery, void
 			continue;
 		} else if (!(json = ast_json_load_string(entry->data, &error))
 			|| (ast_json_to_ast_variables(json, &objset) != AST_JSON_TO_AST_VARS_CODE_SUCCESS)
+			|| !(objset = sorcery_astdb_filter_objectset(objset, sorcery, type))
 			|| !(object = ast_sorcery_alloc(sorcery, type, key))
 			|| ast_sorcery_objectset_apply(sorcery, object, objset)) {
 			regfree(&expression);
