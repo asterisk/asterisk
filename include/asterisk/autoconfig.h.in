@@ -704,6 +704,9 @@
    */
 #undef HAVE_PTHREAD_MUTEX_RECURSIVE_NP
 
+/* Have PTHREAD_PRIO_INHERIT. */
+#undef HAVE_PTHREAD_PRIO_INHERIT
+
 /* Define if your system has the PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
    headers. */
 #undef HAVE_PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
@@ -1213,8 +1216,20 @@
 /* Defined if libcurl supports HTTPS */
 #undef LIBCURL_PROTOCOL_HTTPS
 
+/* Defined if libcurl supports IMAP */
+#undef LIBCURL_PROTOCOL_IMAP
+
 /* Defined if libcurl supports LDAP */
 #undef LIBCURL_PROTOCOL_LDAP
+
+/* Defined if libcurl supports POP3 */
+#undef LIBCURL_PROTOCOL_POP3
+
+/* Defined if libcurl supports RTSP */
+#undef LIBCURL_PROTOCOL_RTSP
+
+/* Defined if libcurl supports SMTP */
+#undef LIBCURL_PROTOCOL_SMTP
 
 /* Defined if libcurl supports TELNET */
 #undef LIBCURL_PROTOCOL_TELNET
@@ -1253,9 +1268,6 @@
 
 /* Define if your system needs braces around PTHREAD_ONCE_INIT */
 #undef PTHREAD_ONCE_INIT_NEEDS_BRACES
-
-/* Define as the return type of signal handlers (`int' or `void'). */
-#undef RETSIGTYPE
 
 /* Define to the type of arg 1 for `select'. */
 #undef SELECT_TYPE_ARG1
