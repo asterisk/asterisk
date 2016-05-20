@@ -231,20 +231,33 @@ static pjsip_dialog *find_dialog(pjsip_rx_data *rdata)
 	if (rdata->msg_info.msg->type == PJSIP_RESPONSE_MSG ||
 			pjsip_method_cmp(&rdata->msg_info.msg->line.req.method, &pjsip_cancel_method) ||
 			rdata->msg_info.to->tag.slen != 0) {
-		return pjsip_ua_find_dialog(&rdata->msg_info.cid->id, local_tag,
+		dlg = pjsip_ua_find_dialog(&rdata->msg_info.cid->id, local_tag,
 				remote_tag, PJ_TRUE);
+		if (dlg) {
+			return dlg;
+		}
 	}
 
-	/* Incoming CANCEL without a to-tag can't use same method for finding the
-	 * dialog. Instead, we have to find the matching INVITE transaction and
-	 * then get the dialog from the transaction
+	/*
+	 * There may still be a matching dialog if this is
+	 * 1) an incoming CANCEL request without a to-tag
+	 * 2) an incoming response to a dialog-creating request.
 	 */
-	pjsip_tsx_create_key(rdata->tp_info.pool, &tsx_key, PJSIP_ROLE_UAS,
-			pjsip_get_invite_method(), rdata);
+	if (rdata->msg_info.msg->type == PJSIP_REQUEST_MSG) {
+		/* CANCEL requests will need to match the INVITE we initially received. Any
+		 * other request type will either have been matched already or is not in
+		 * dialog
+		 */
+		pjsip_tsx_create_key(rdata->tp_info.pool, &tsx_key, PJSIP_ROLE_UAS,
+				pjsip_get_invite_method(), rdata);
+	} else {
+		pjsip_tsx_create_key(rdata->tp_info.pool, &tsx_key, PJSIP_ROLE_UAC,
+				&rdata->msg_info.cseq->method, rdata);
+	}
 
 	tsx = pjsip_tsx_layer_find_tsx(&tsx_key, PJ_TRUE);
 	if (!tsx) {
-		ast_log(LOG_ERROR, "Could not find matching INVITE transaction for CANCEL request\n");
+		ast_debug(3, "Could not find matching transaction for %s\n", rdata->msg_info.info);
 		return NULL;
 	}
 
