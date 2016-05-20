@@ -47,7 +47,7 @@ check_for_app aclocal${MY_AM_VER}
 echo "Generating the configure script ..."
 
 aclocal${MY_AM_VER} -I autoconf
-autoconf${MY_AC_VER}
+autoconf${MY_AC_VER} --warnings=all,no-cross
 autoheader${MY_AC_VER}
 automake${MY_AM_VER} --add-missing --copy 2>/dev/null
 
