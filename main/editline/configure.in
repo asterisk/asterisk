@@ -1,7 +1,8 @@
 dnl 
 dnl Process this file with autoconf to produce a configure script.
 dnl 
-AC_INIT(Makefile.in)
+AC_INIT
+AC_CONFIG_SRCDIR([Makefile.in])
 
 dnl If CFLAGS isn't defined and using gcc, set CFLAGS to something reasonable.
 dnl Otherwise, just prevent autoconf from molesting CFLAGS.
@@ -274,5 +275,6 @@ AC_SUBST(TEST)
 AC_SUBST(TCSRCS)
 
 AC_CONFIG_HEADER(config.h)
-AC_OUTPUT([Makefile makelist])
+AC_CONFIG_FILES([Makefile makelist])
+AC_OUTPUT
 
