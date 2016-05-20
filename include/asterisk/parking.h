@@ -211,11 +211,18 @@ int ast_parking_is_exten_park(const char *context, const char *exten);
  * \brief Park the bridge and/or callers that this channel is in
  *
  * \param parker The bridge_channel parking the bridge
- * \param exten Optional. The extension the channel or bridge was parked at if the
- * call succeeds.
+ * \param[out] exten Optional.  The parking exten to access the parking lot.
  * \param length Optional. If \c exten is specified, the size of the buffer.
  *
  * \note This is safe to be called outside of the \ref AstBridging Bridging API.
+ *
+ * \note The exten parameter was intended to return the extension the channel or
+ * bridge was parked at if the call succeeds.  However, accessing that information
+ * is very difficult to do with the new asynchronous design.  That information may
+ * not be available anywhere by the time this function currently returns.
+ *
+ * Only, chan_skinny is known to call this function and use the exten parameter
+ * for the phone display.
  *
  * \retval 0 on success
  * \retval non-zero on error
