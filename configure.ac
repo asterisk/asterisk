@@ -352,7 +352,7 @@ if test "${MD5}" = "digest" ; then
    MD5="${MD5} -a md5"
 fi
 
-ACX_PTHREAD
+AX_PTHREAD
 
 AC_LANG(C)
 
@@ -682,8 +682,6 @@ AC_PROG_GCC_TRADITIONAL
 AC_FUNC_MEMCMP
 AC_FUNC_MMAP
 AC_FUNC_SELECT_ARGTYPES
-AC_FUNC_SETVBUF_REVERSED
-AC_TYPE_SIGNAL
 AC_FUNC_STAT
 AC_FUNC_STRCOLL
 AC_FUNC_STRFTIME
@@ -1230,7 +1228,7 @@ AC_SUBST(AST_NATIVE_ARCH)
 
 dnl Check to see if rpath should be set in LDFLAGS
 AC_ARG_ENABLE(rpath,
-	[AC_HELP_STRING([--disable-rpath],
+	[AS_HELP_STRING([--disable-rpath],
 			[Disables rpath linker option checking])],
 	[case "${enableval}" in
 		y|ye|yes) check_rpath=yes ;;
