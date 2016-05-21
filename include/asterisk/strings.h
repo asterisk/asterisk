@@ -469,7 +469,7 @@ void ast_str_trim_blanks(struct ast_str *buf),
 	if (!buf) {
 		return;
 	}
-	while (buf->__AST_STR_USED && buf->__AST_STR_STR[buf->__AST_STR_USED - 1] < 33) {
+	while (buf->__AST_STR_USED && ((unsigned char) buf->__AST_STR_STR[buf->__AST_STR_USED - 1]) < 33) {
 		buf->__AST_STR_STR[--(buf->__AST_STR_USED)] = '\0';
 	}
 }
