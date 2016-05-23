@@ -825,60 +825,56 @@ install-logrotate:
 	rm -f contrib/scripts/asterisk.logrotate.tmp
 
 config:
-	@if [ "${OSARCH}" = "linux-gnu" -o "${OSARCH}" = "kfreebsd-gnu" ]; then \
-		if [ -f /etc/redhat-release -o -f /etc/fedora-release ]; then \
-			./build_tools/install_subst contrib/init.d/rc.redhat.asterisk  "$(DESTDIR)/etc/rc.d/init.d/asterisk"; \
-			if [ ! -f "$(DESTDIR)/etc/sysconfig/asterisk" ] ; then \
-				$(INSTALL) -m 644 contrib/init.d/etc_default_asterisk "$(DESTDIR)/etc/sysconfig/asterisk" ; \
-			fi ; \
-			if [ -z "$(DESTDIR)" ] ; then \
-				/sbin/chkconfig --add asterisk ; \
-			fi ; \
-		elif [ -f /etc/debian_version ] ; then \
-			./build_tools/install_subst contrib/init.d/rc.debian.asterisk  "$(DESTDIR)/etc/init.d/asterisk"; \
-			if [ ! -f "$(DESTDIR)/etc/default/asterisk" ] ; then \
-				$(INSTALL) -m 644 contrib/init.d/etc_default_asterisk "$(DESTDIR)/etc/default/asterisk" ; \
-			fi ; \
-			if [ -z "$(DESTDIR)" ] ; then \
-				/usr/sbin/update-rc.d asterisk defaults 50 91 ; \
-			fi ; \
-		elif [ -f /etc/gentoo-release ] ; then \
-			./build_tools/install_subst contrib/init.d/rc.gentoo.asterisk  "$(DESTDIR)/etc/init.d/asterisk"; \
-			if [ -z "$(DESTDIR)" ] ; then \
-				/sbin/rc-update add asterisk default ; \
-			fi ; \
-		elif [ -f /etc/mandrake-release -o -f /etc/mandriva-release ] ; then \
-			./build_tools/install_subst contrib/init.d/rc.mandriva.asterisk  "$(DESTDIR)/etc/rc.d/init.d/asterisk"; \
-			if [ ! -f /etc/sysconfig/asterisk ] ; then \
-				$(INSTALL) -m 644 contrib/init.d/etc_default_asterisk "$(DESTDIR)/etc/sysconfig/asterisk" ; \
-			fi ; \
-			if [ -z "$(DESTDIR)" ] ; then \
-				/sbin/chkconfig --add asterisk ; \
-			fi ; \
-		elif [ -f /etc/SuSE-release -o -f /etc/novell-release ] ; then \
-			./build_tools/install_subst contrib/init.d/rc.suse.asterisk  "$(DESTDIR)/etc/init.d/asterisk"; \
-			if [ ! -f /etc/sysconfig/asterisk ] ; then \
-				$(INSTALL) -m 644 contrib/init.d/etc_default_asterisk "$(DESTDIR)/etc/sysconfig/asterisk" ; \
-			fi ; \
-			if [ -z "$(DESTDIR)" ] ; then \
-				/sbin/chkconfig --add asterisk ; \
-			fi ; \
-		elif [ -f /etc/arch-release -o -f /etc/arch-release ] ; then \
-			./build_tools/install_subst contrib/init.d/rc.archlinux.asterisk  "$(DESTDIR)/etc/init.d/asterisk"; \
-		elif [ -d "$(DESTDIR)/Library/LaunchDaemons" ]; then \
-			if [ ! -f "$(DESTDIR)/Library/LaunchDaemons/org.asterisk.asterisk.plist" ]; then \
-				./build_tools/install_subst contrib/init.d/org.asterisk.asterisk.plist "$(DESTDIR)/Library/LaunchDaemons/org.asterisk.asterisk.plist"; \
-			fi; \
-			if [ ! -f "$(DESTDIR)/Library/LaunchDaemons/org.asterisk.muted.plist" ]; then \
-				./build_tools/install_subst contrib/init.d/org.asterisk.muted.plist "$(DESTDIR)/Library/LaunchDaemons/org.asterisk.muted.plist"; \
-			fi; \
-		elif [ -f /etc/slackware-version ]; then \
-			echo "Slackware is not currently supported, although an init script does exist for it."; \
-		else \
-			echo "We could not install init scripts for your distribution." ; \
-		fi \
+	if [ -f /etc/redhat-release -o -f /etc/fedora-release ]; then \
+		./build_tools/install_subst contrib/init.d/rc.redhat.asterisk  "$(DESTDIR)/etc/rc.d/init.d/asterisk"; \
+		if [ ! -f "$(DESTDIR)/etc/sysconfig/asterisk" ] ; then \
+			$(INSTALL) -m 644 contrib/init.d/etc_default_asterisk "$(DESTDIR)/etc/sysconfig/asterisk" ; \
+		fi ; \
+		if [ -z "$(DESTDIR)" ] ; then \
+			/sbin/chkconfig --add asterisk ; \
+		fi ; \
+	elif [ -f /etc/debian_version ] ; then \
+		./build_tools/install_subst contrib/init.d/rc.debian.asterisk  "$(DESTDIR)/etc/init.d/asterisk"; \
+		if [ ! -f "$(DESTDIR)/etc/default/asterisk" ] ; then \
+			$(INSTALL) -m 644 contrib/init.d/etc_default_asterisk "$(DESTDIR)/etc/default/asterisk" ; \
+		fi ; \
+		if [ -z "$(DESTDIR)" ] ; then \
+			/usr/sbin/update-rc.d asterisk defaults 50 91 ; \
+		fi ; \
+	elif [ -f /etc/gentoo-release ] ; then \
+		./build_tools/install_subst contrib/init.d/rc.gentoo.asterisk  "$(DESTDIR)/etc/init.d/asterisk"; \
+		if [ -z "$(DESTDIR)" ] ; then \
+			/sbin/rc-update add asterisk default ; \
+		fi ; \
+	elif [ -f /etc/mandrake-release -o -f /etc/mandriva-release ] ; then \
+		./build_tools/install_subst contrib/init.d/rc.mandriva.asterisk  "$(DESTDIR)/etc/rc.d/init.d/asterisk"; \
+		if [ ! -f /etc/sysconfig/asterisk ] ; then \
+			$(INSTALL) -m 644 contrib/init.d/etc_default_asterisk "$(DESTDIR)/etc/sysconfig/asterisk" ; \
+		fi ; \
+		if [ -z "$(DESTDIR)" ] ; then \
+			/sbin/chkconfig --add asterisk ; \
+		fi ; \
+	elif [ -f /etc/SuSE-release -o -f /etc/novell-release ] ; then \
+		./build_tools/install_subst contrib/init.d/rc.suse.asterisk  "$(DESTDIR)/etc/init.d/asterisk"; \
+		if [ ! -f /etc/sysconfig/asterisk ] ; then \
+			$(INSTALL) -m 644 contrib/init.d/etc_default_asterisk "$(DESTDIR)/etc/sysconfig/asterisk" ; \
+		fi ; \
+		if [ -z "$(DESTDIR)" ] ; then \
+			/sbin/chkconfig --add asterisk ; \
+		fi ; \
+	elif [ -f /etc/arch-release -o -f /etc/arch-release ] ; then \
+		./build_tools/install_subst contrib/init.d/rc.archlinux.asterisk  "$(DESTDIR)/etc/init.d/asterisk"; \
+	elif [ -d "$(DESTDIR)/Library/LaunchDaemons" ]; then \
+		if [ ! -f "$(DESTDIR)/Library/LaunchDaemons/org.asterisk.asterisk.plist" ]; then \
+			./build_tools/install_subst contrib/init.d/org.asterisk.asterisk.plist "$(DESTDIR)/Library/LaunchDaemons/org.asterisk.asterisk.plist"; \
+		fi; \
+		if [ ! -f "$(DESTDIR)/Library/LaunchDaemons/org.asterisk.muted.plist" ]; then \
+			./build_tools/install_subst contrib/init.d/org.asterisk.muted.plist "$(DESTDIR)/Library/LaunchDaemons/org.asterisk.muted.plist"; \
+		fi; \
+	elif [ -f /etc/slackware-version ]; then \
+		echo "Slackware is not currently supported, although an init script does exist for it."; \
 	else \
-		echo "We could not install init scripts for your operating system." ; \
+		echo "We could not install init scripts for your distribution." ; \
 	fi
 
 sounds:
