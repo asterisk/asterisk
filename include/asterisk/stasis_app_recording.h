@@ -49,6 +49,30 @@ const char *stasis_app_stored_recording_get_file(
 	struct stasis_app_stored_recording *recording);
 
 /*!
+ * \brief Returns the full filename, with extension, for this recording.
+ * \since 14.0.0
+ *
+ * \param recording Recording to query.
+ *
+ * \return Absolute path to the recording file, with the extension.
+ * \return \c NULL on error
+ */
+const char *stasis_app_stored_recording_get_filename(
+	struct stasis_app_stored_recording *recording);
+
+/*!
+ * \brief Returns the extension for this recording.
+ * \since 14.0.0
+ *
+ * \param recording Recording to query.
+ *
+ * \return The extension associated with this recording.
+ * \return \c NULL on error
+ */
+const char *stasis_app_stored_recording_get_extension(
+	struct stasis_app_stored_recording *recording);
+
+/*!
  * \brief Convert stored recording info to JSON.
  *
  * \param recording Recording to convert.

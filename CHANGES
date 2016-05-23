@@ -32,6 +32,10 @@ ARI
    back to the resource. The "PlaybackFinished" event is raised when all media
    URIs are done.
 
+ * Stored recordings now allow for the media associated with a stored recording
+   to be retrieved. The new route, GET /recordings/stored/{name}/file, will
+   transmit the raw media file to the requester as binary.
+
 
 Applications
 ------------------

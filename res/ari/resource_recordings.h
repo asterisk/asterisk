@@ -76,6 +76,20 @@ struct ast_ari_recordings_delete_stored_args {
  * \param[out] response HTTP response
  */
 void ast_ari_recordings_delete_stored(struct ast_variable *headers, struct ast_ari_recordings_delete_stored_args *args, struct ast_ari_response *response);
+/*! Argument struct for ast_ari_recordings_get_stored_file() */
+struct ast_ari_recordings_get_stored_file_args {
+	/*! The name of the recording */
+	const char *recording_name;
+};
+/*!
+ * \brief Get the file associated with the stored recording.
+ *
+ * \param ser TCP/TLS session instance
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_recordings_get_stored_file(struct ast_tcptls_session_instance *ser, struct ast_variable *headers, struct ast_ari_recordings_get_stored_file_args *args, struct ast_ari_response *response);
 /*! Argument struct for ast_ari_recordings_copy_stored() */
 struct ast_ari_recordings_copy_stored_args {
 	/*! The name of the recording to copy */
