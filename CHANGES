@@ -204,6 +204,8 @@ Core
 
 Functions
 ------------------
+ * The func_odbc global option "single_db_connection" default value has been
+   changed to 'no'.
 
 CHANNEL
 ------------------
@@ -312,6 +314,12 @@ cdr_csv
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.9.0 to Asterisk 13.10.0 -----------
 ------------------------------------------------------------------------------
+
+func_odbc
+------------------
+ * Added new global option "single_db_connection".
+   Enabling this option func_odbc will use a single database connection per DSN.
+   This option is enabled by default.
 
 res_fax
 ------------------

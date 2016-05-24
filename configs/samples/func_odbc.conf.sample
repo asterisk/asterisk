@@ -1,6 +1,20 @@
 ;
 ; func_odbc.conf
 ;
+[general]
+;
+; Asterisk uses separate connections for every database operation.
+; If single_db_connection is enabled then func_odbc will use a single
+; database connection per DSN.
+; This option exists for those who expect that a second func_odbc call
+; works on the same connection. That allows you to do a LAST_INSERT_ID()
+; in a second func_odbc call.
+; Note that you'll need additional dialplan locks for this behaviour to work.
+; There are better ways: using stored procedures/functions instead.
+; This option is disabled by default.
+;single_db_connection=no
+;
+;
 ; Each context is a separately defined function.  By convention, all
 ; functions are entirely uppercase, so the defined contexts should also
 ; be all-uppercase, but there is nothing that enforces this.  All functions
