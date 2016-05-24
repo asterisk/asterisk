@@ -131,7 +131,7 @@ static int persistent_endpoint_update_state(void *obj, void *arg, int flags)
 			}
 		}
 
-		ast_verb(1, "Endpoint %s is now Reachable\n", ast_endpoint_get_resource(endpoint));
+		ast_verb(2, "Endpoint %s is now Reachable\n", ast_endpoint_get_resource(endpoint));
 	} else {
 		ast_endpoint_set_state(endpoint, AST_ENDPOINT_OFFLINE);
 		blob = ast_json_pack("{s: s}", "peer_status", "Unreachable");
@@ -144,7 +144,7 @@ static int persistent_endpoint_update_state(void *obj, void *arg, int flags)
 			}
 		}
 
-		ast_verb(1, "Endpoint %s is now Unreachable\n", ast_endpoint_get_resource(endpoint));
+		ast_verb(2, "Endpoint %s is now Unreachable\n", ast_endpoint_get_resource(endpoint));
 	}
 
 	ast_free(regcontext);
@@ -173,7 +173,7 @@ static void persistent_endpoint_contact_created_observer(const void *object)
 
 	contact_status->status = CREATED;
 
-	ast_verb(1, "Contact %s/%s has been created\n",contact->aor, contact->uri);
+	ast_verb(2, "Contact %s/%s has been created\n",contact->aor, contact->uri);
 
 	ao2_callback(persistent_endpoints, OBJ_NODATA, persistent_endpoint_update_state, contact_status);
 	ao2_cleanup(contact_status);
@@ -192,7 +192,7 @@ static void persistent_endpoint_contact_deleted_observer(const void *object)
 		return;
 	}
 
-	ast_verb(1, "Contact %s/%s has been deleted\n", contact->aor, contact->uri);
+	ast_verb(2, "Contact %s/%s has been deleted\n", contact->aor, contact->uri);
 	ast_statsd_log_string_va("PJSIP.contacts.states.%s", AST_STATSD_GAUGE,
 		"-1", 1.0, ast_sip_get_contact_status_label(contact_status->status));
 	ast_statsd_log_string_va("PJSIP.contacts.states.%s", AST_STATSD_GAUGE,
@@ -220,7 +220,7 @@ static void persistent_endpoint_contact_status_observer(const void *object)
 	}
 
 	if (contact_status->status != contact_status->last_status) {
-		ast_verb(1, "Contact %s/%s is now %s.  RTT: %.3f msec\n", contact_status->aor, contact_status->uri,
+		ast_verb(3, "Contact %s/%s is now %s.  RTT: %.3f msec\n", contact_status->aor, contact_status->uri,
 			ast_sip_get_contact_status_label(contact_status->status),
 			contact_status->rtt / 1000.0);
 
