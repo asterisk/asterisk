@@ -1125,6 +1125,8 @@ static int explicit_publish_destroy(void *data)
 		ao2_ref(publisher, -1);
 	}
 
+	ao2_ref(publisher, -1);
+
 	return 0;
 }
 
@@ -1140,7 +1142,9 @@ static int cancel_and_unpublish(void *obj, void *arg, int flags)
 		/* If the publisher was never started, there's nothing to unpublish, so just
 		 * destroy the publication and remove its reference to the publisher.
 		 */
-		ast_sip_push_task(NULL, explicit_publish_destroy, publisher);
+		if (ast_sip_push_task(NULL, explicit_publish_destroy, ao2_bump(publisher))) {
+			ao2_ref(publisher, -1);
+		}
 		return 0;
 	}
 
