@@ -2162,9 +2162,10 @@ int bridge_channel_internal_push_full(struct ast_bridge_channel *bridge_channel,
 
 	ast_bridge_publish_enter(bridge, bridge_channel->chan, swap ? swap->chan : NULL);
 
-	/* Clear any BLINDTRANSFER and ATTENDEDTRANSFER since the transfer has completed. */
+	/* Clear any BLINDTRANSFER,ATTENDEDTRANSFER and FORWARDERNAME since the transfer has completed. */
 	pbx_builtin_setvar_helper(bridge_channel->chan, "BLINDTRANSFER", NULL);
 	pbx_builtin_setvar_helper(bridge_channel->chan, "ATTENDEDTRANSFER", NULL);
+	pbx_builtin_setvar_helper(bridge_channel->chan, "FORWARDERNAME", NULL);
 
 	/* Wake up the bridge channel thread to reevaluate any interval timers. */
 	ast_queue_frame(bridge_channel->chan, &ast_null_frame);

@@ -331,6 +331,11 @@ cdr_csv
 --- Functionality changes from Asterisk 13.9.0 to Asterisk 13.10.0 -----------
 ------------------------------------------------------------------------------
 
+Core
+------------------
+ * A channel variable FORWARDERNAME is now set which indicates which channel
+   was responsible for a forwarding requests received on dial attempt.
+
 func_odbc
 ------------------
  * Added new global option "single_db_connection".

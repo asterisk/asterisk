@@ -4854,16 +4854,22 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 					continue;
 				} else if (!ast_strlen_zero(ast_channel_call_forward(o->chan))) {
 					struct ast_channel *original = o->chan;
+					char forwarder[AST_CHANNEL_NAME];
 					char tmpchan[256];
 					char *stuff;
 					char *tech;
 
 					ast_copy_string(tmpchan, ast_channel_call_forward(o->chan), sizeof(tmpchan));
+					ast_copy_string(forwarder, ast_channel_name(o->chan), sizeof(forwarder));
 					if ((stuff = strchr(tmpchan, '/'))) {
 						*stuff++ = '\0';
 						tech = tmpchan;
 					} else {
-						snprintf(tmpchan, sizeof(tmpchan), "%s@%s", ast_channel_call_forward(o->chan), ast_channel_context(o->chan));
+						const char *forward_context;
+						ast_channel_lock(o->chan);
+						forward_context = pbx_builtin_getvar_helper(o->chan, "FORWARD_CONTEXT");
+						snprintf(tmpchan, sizeof(tmpchan), "%s@%s", ast_channel_call_forward(o->chan), forward_context ? forward_context : ast_channel_context(o->chan));
+						ast_channel_unlock(o->chan);
 						stuff = tmpchan;
 						tech = "Local";
 					}
@@ -4895,6 +4901,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						ast_channel_lock_both(o->chan, in);
 						ast_channel_inherit_variables(in, o->chan);
 						ast_channel_datastore_inherit(in, o->chan);
+						pbx_builtin_setvar_helper(o->chan, "FORWARDERNAME", forwarder);
 						ast_max_forwards_decrement(o->chan);
 
 						if (o->pending_connected_update) {
