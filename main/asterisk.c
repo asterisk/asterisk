@@ -1021,8 +1021,10 @@ static void publish_fully_booted(void)
 {
 	RAII_VAR(struct ast_json *, json_object, NULL, ast_json_unref);
 
-	json_object = ast_json_pack("{s: s}",
-			"Status", "Fully Booted");
+	json_object = ast_json_pack("{s: s, s: s, s: s}",
+			"Status", "Fully Booted",
+			"Uptime", "0",
+			"LastReload", "0");
 	ast_manager_publish_event("FullyBooted", EVENT_FLAG_SYSTEM, json_object);
 }
 
