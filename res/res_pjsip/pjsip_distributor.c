@@ -257,7 +257,8 @@ static pjsip_dialog *find_dialog(pjsip_rx_data *rdata)
 
 	tsx = pjsip_tsx_layer_find_tsx(&tsx_key, PJ_TRUE);
 	if (!tsx) {
-		ast_debug(3, "Could not find matching transaction for %s\n", rdata->msg_info.info);
+		ast_debug(3, "Could not find matching transaction for %s\n",
+			pjsip_rx_data_get_info(rdata));
 		return NULL;
 	}
 
