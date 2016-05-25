@@ -260,6 +260,12 @@ int daemon(int, int);  /* defined in libresolv of all places */
 				<parameter name="Status">
 					<para>Informational message</para>
 				</parameter>
+				<parameter name="Uptime">
+					<para>Seconds since start</para>
+				</parameter>
+				<parameter name="LastReload">
+					<para>Seconds since last reload</para>
+				</parameter>
 			</syntax>
 		</managerEventInstance>
 	</managerEvent>
@@ -1020,9 +1026,22 @@ static char *handle_clear_profile(struct ast_cli_entry *e, int cmd, struct ast_c
 static void publish_fully_booted(void)
 {
 	RAII_VAR(struct ast_json *, json_object, NULL, ast_json_unref);
+	struct timeval uptime;
+	struct timeval lastreloaded;
+	struct timeval curtime = ast_tvnow();
 
-	json_object = ast_json_pack("{s: s}",
-			"Status", "Fully Booted");
+	if (ast_startuptime.tv_sec) {
+		uptime = ast_tvsub(curtime, ast_startuptime);
+	}
+
+	if (ast_lastreloadtime.tv_sec) {
+		lastreloaded = ast_tvsub(curtime, ast_lastreloadtime);
+	}
+
+	json_object = ast_json_pack("{s: s, s: i, s: i}",
+			"Status", "Fully Booted",
+			"Uptime", (int) uptime.tv_sec,
+			"LastReload", (int) lastreloaded.tv_sec);
 	ast_manager_publish_event("FullyBooted", EVENT_FLAG_SYSTEM, json_object);
 }
 
@@ -4221,6 +4240,9 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	char *buf;
 	int moduleresult;         /*!< Result from the module load subsystem */
 
+	/* Set time as soon as possible */
+	ast_lastreloadtime = ast_startuptime = ast_tvnow();
+
 	/* This needs to remain as high up in the initial start up as possible.
 	 * daemon causes a fork to occur, which has all sorts of unintended
 	 * consequences for things that interact with threads.  This call *must*
@@ -4689,7 +4711,6 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	__ast_mm_init_phase_2();
 #endif	/* defined(__AST_DEBUG_MALLOC) */
 
-	ast_lastreloadtime = ast_startuptime = ast_tvnow();
 	ast_cli_register_multiple(cli_asterisk_shutdown, ARRAY_LEN(cli_asterisk_shutdown));
 	ast_cli_register_multiple(cli_asterisk, ARRAY_LEN(cli_asterisk));
 	ast_register_cleanup(main_atexit);
