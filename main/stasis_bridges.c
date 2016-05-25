@@ -232,6 +232,10 @@ struct ast_bridge_snapshot *ast_bridge_snapshot_create(struct ast_bridge *bridge
 	RAII_VAR(struct ast_bridge_snapshot *, snapshot, NULL, ao2_cleanup);
 	struct ast_bridge_channel *bridge_channel;
 
+	if (ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_INVISIBLE)) {
+		return NULL;
+	}
+
 	snapshot = ao2_alloc_options(sizeof(*snapshot), bridge_snapshot_dtor,
 		AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!snapshot || ast_string_field_init(snapshot, 128)) {
@@ -371,6 +375,8 @@ void ast_bridge_publish_merge(struct ast_bridge *to, struct ast_bridge *from)
 
 	ast_assert(to != NULL);
 	ast_assert(from != NULL);
+	ast_assert(ast_test_flag(&to->feature_flags, AST_BRIDGE_FLAG_INVISIBLE) == 0);
+	ast_assert(ast_test_flag(&from->feature_flags, AST_BRIDGE_FLAG_INVISIBLE) == 0);
 
 	merge_msg = bridge_merge_message_create(to, from);
 	if (!merge_msg) {
@@ -447,6 +453,10 @@ void ast_bridge_publish_enter(struct ast_bridge *bridge, struct ast_channel *cha
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
+	if (ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_INVISIBLE)) {
+		return;
+	}
+
 	if (swap) {
 		blob = ast_json_pack("{s: s}", "swap", ast_channel_uniqueid(swap));
 		if (!blob) {
@@ -468,6 +478,9 @@ void ast_bridge_publish_leave(struct ast_bridge *bridge, struct ast_channel *cha
 {
 	RAII_VAR(struct stasis_message *, msg, NULL, ao2_cleanup);
 
+	if (ast_test_flag(&bridge->feature_flags, AST_BRIDGE_FLAG_INVISIBLE)) {
+		return;
+	}
 	msg = ast_bridge_blob_create(ast_channel_left_bridge_type(), bridge, chan, NULL);
 	if (!msg) {
 		return;
