@@ -4157,10 +4157,23 @@ static int action_login(struct mansession *s, const struct message *m)
 		&& ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)) {
 		struct ast_str *auth = ast_str_alloca(MAX_AUTH_PERM_STRING);
 		const char *cat_str = authority_to_str(EVENT_FLAG_SYSTEM, &auth);
+		struct timeval uptime;
+		struct timeval lastreloaded;
+		struct timeval curtime = ast_tvnow();
+
+		if(ast_startuptime.tv_sec){
+		        uptime = ast_tvsub(curtime, ast_startuptime);
+		}
+
+		if(ast_startuptime.tv_sec){
+		        lastreloaded = ast_tvsub(curtime, ast_lastreloadtime);
+		}
 
 		astman_append(s, "Event: FullyBooted\r\n"
 			"Privilege: %s\r\n"
-			"Status: Fully Booted\r\n\r\n", cat_str);
+			"Uptime: %ld\r\n"
+			"LastReload: %ld\r\n"
+			"Status: Fully Booted\r\n\r\n", cat_str, (long) uptime.tv_sec, (long) lastreloaded.tv_sec);
 	}
 	return 0;
 }
