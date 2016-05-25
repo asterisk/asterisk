@@ -834,6 +834,7 @@ static void do_forward(struct chanlist *o, struct cause_args *num,
 	struct ast_party_id *forced_clid, struct ast_party_id *stored_clid)
 {
 	char tmpchan[256];
+	char forwarder[AST_CHANNEL_NAME];
 	struct ast_channel *original = o->chan;
 	struct ast_channel *c = o->chan; /* the winner */
 	struct ast_channel *in = num->chan; /* the input channel */
@@ -842,6 +843,7 @@ static void do_forward(struct chanlist *o, struct cause_args *num,
 	int cause;
 	struct ast_party_caller caller;
 
+	ast_copy_string(forwarder, ast_channel_name(c), sizeof(forwarder));
 	ast_copy_string(tmpchan, ast_channel_call_forward(c), sizeof(tmpchan));
 	if ((stuff = strchr(tmpchan, '/'))) {
 		*stuff++ = '\0';
@@ -893,6 +895,7 @@ static void do_forward(struct chanlist *o, struct cause_args *num,
 			ast_channel_lock_both(in, o->chan);
 			ast_channel_inherit_variables(in, o->chan);
 			ast_channel_datastore_inherit(in, o->chan);
+			pbx_builtin_setvar_helper(o->chan, "FORWARDERNAME", forwarder);
 			ast_max_forwards_decrement(o->chan);
 			ast_channel_unlock(in);
 			ast_channel_unlock(o->chan);

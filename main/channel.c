@@ -5663,6 +5663,7 @@ static void call_forward_inherit(struct ast_channel *new_chan, struct ast_channe
 struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_channel *orig, int *timeout, struct ast_format_cap *cap, struct outgoing_helper *oh, int *outstate)
 {
 	char tmpchan[256];
+	char forwarder[AST_CHANNEL_NAME];
 	struct ast_channel *new_chan = NULL;
 	char *data, *type;
 	int cause = 0;
@@ -5670,6 +5671,7 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 
 	/* gather data and request the new forward channel */
 	ast_copy_string(tmpchan, ast_channel_call_forward(orig), sizeof(tmpchan));
+	ast_copy_string(forwarder, ast_channel_name(orig), sizeof(forwarder));
 	if ((data = strchr(tmpchan, '/'))) {
 		*data++ = '\0';
 		type = tmpchan;
@@ -5713,6 +5715,7 @@ struct ast_channel *ast_call_forward(struct ast_channel *caller, struct ast_chan
 	ast_set_flag(ast_channel_flags(new_chan), AST_FLAG_ORIGINATED);
 
 	ast_channel_lock_both(orig, new_chan);
+	pbx_builtin_setvar_helper(new_chan, "FORWARDERNAME", forwarder);
 	ast_party_connected_line_copy(ast_channel_connected(new_chan), ast_channel_connected(orig));
 	ast_party_redirecting_copy(ast_channel_redirecting(new_chan), ast_channel_redirecting(orig));
 	ast_channel_req_accountcodes(new_chan, orig, AST_CHANNEL_REQUESTOR_REPLACEMENT);
