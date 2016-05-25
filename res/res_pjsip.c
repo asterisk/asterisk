@@ -3513,46 +3513,48 @@ static void send_request_cb(void *token, pjsip_event *e)
 	pjsip_rx_data *challenge;
 	struct ast_sip_supplement *supplement;
 
-	switch(e->body.tsx_state.type) {
-	case PJSIP_EVENT_TRANSPORT_ERROR:
-	case PJSIP_EVENT_TIMER:
-		/*
-		 * Check the request status on transport error or timeout. A transport
-		 * error can occur when a TCP socket closes and that can be the result
-		 * of a 503. Also we may need to failover on a timeout (408).
-		 */
-		if (check_request_status(req_data, e)) {
-			return;
-		}
-		break;
-	case PJSIP_EVENT_RX_MSG:
-		challenge = e->body.tsx_state.src.rdata;
-
-		/*
-		 * Call any supplements that want to know about a response
-		 * with any received data.
-		 */
-		AST_RWLIST_RDLOCK(&supplements);
-		AST_LIST_TRAVERSE(&supplements, supplement, next) {
-			if (supplement->incoming_response
-				&& does_method_match(&challenge->msg_info.cseq->method.name,
-					supplement->method)) {
-				supplement->incoming_response(req_data->endpoint, challenge);
-			}
-		}
-		AST_RWLIST_UNLOCK(&supplements);
-
-		if (check_request_status(req_data, e)) {
+	if (e->type == PJSIP_EVENT_TSX_STATE) {
+		switch(e->body.tsx_state.type) {
+		case PJSIP_EVENT_TRANSPORT_ERROR:
+		case PJSIP_EVENT_TIMER:
 			/*
-			 * Request with challenge response or failover sent.
-			 * Passed our req_data ref to the new request.
+			 * Check the request status on transport error or timeout. A transport
+			 * error can occur when a TCP socket closes and that can be the result
+			 * of a 503. Also we may need to failover on a timeout (408).
 			 */
-			return;
+			if (check_request_status(req_data, e)) {
+				return;
+			}
+			break;
+		case PJSIP_EVENT_RX_MSG:
+			challenge = e->body.tsx_state.src.rdata;
+
+			/*
+			 * Call any supplements that want to know about a response
+			 * with any received data.
+			 */
+			AST_RWLIST_RDLOCK(&supplements);
+			AST_LIST_TRAVERSE(&supplements, supplement, next) {
+				if (supplement->incoming_response
+					&& does_method_match(&challenge->msg_info.cseq->method.name,
+						supplement->method)) {
+					supplement->incoming_response(req_data->endpoint, challenge);
+				}
+			}
+			AST_RWLIST_UNLOCK(&supplements);
+
+			if (check_request_status(req_data, e)) {
+				/*
+				 * Request with challenge response or failover sent.
+				 * Passed our req_data ref to the new request.
+				 */
+				return;
+			}
+			break;
+		default:
+			ast_log(LOG_ERROR, "Unexpected PJSIP event %u\n", e->body.tsx_state.type);
+			break;
 		}
-		break;
-	default:
-		ast_log(LOG_ERROR, "Unexpected PJSIP event %u\n", e->body.tsx_state.type);
-		break;
 	}
 
 	if (req_data->callback) {
