@@ -1201,11 +1201,7 @@ static struct ast_endpoint *persistent_endpoint_find_or_create(const struct ast_
 
 		persistent->aors = ast_strdup(endpoint->aors);
 
-		if (ast_strlen_zero(persistent->aors)) {
-			ast_endpoint_set_state(persistent->endpoint, AST_ENDPOINT_UNKNOWN);
-		} else {
-			persistent_endpoint_update_state(persistent, NULL, 0);
-		}
+		ast_endpoint_set_state(persistent->endpoint, AST_ENDPOINT_UNKNOWN);
 
 		ao2_link_flags(persistent_endpoints, persistent, OBJ_NOLOCK);
 	}
