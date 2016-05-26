@@ -1336,6 +1336,17 @@ struct ast_taskprocessor *ast_sip_create_serializer_group(struct ast_serializer_
 struct ast_taskprocessor *ast_sip_create_serializer_group_named(const char *name, struct ast_serializer_shutdown_group *shutdown_group);
 
 /*!
+ * \brief Determine the distributor serializer for the SIP message.
+ * \since 13.10.0
+ *
+ * \param rdata The incoming message.
+ *
+ * \retval Calculated distributor serializer on success.
+ * \retval NULL on error.
+ */
+struct ast_taskprocessor *ast_sip_get_distributor_serializer(pjsip_rx_data *rdata);
+
+/*!
  * \brief Set a serializer on a SIP dialog so requests and responses are automatically serialized
  *
  * Passing a NULL serializer is a way to remove a serializer from a dialog.
