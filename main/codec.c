@@ -135,8 +135,8 @@ static char *show_codecs(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 				"\tIt does not indicate anything about your configuration.\n");
 	}
 
-	ast_cli(a->fd, "%8s %5s %8s %s\n","ID","TYPE","NAME","DESCRIPTION");
-	ast_cli(a->fd, "-----------------------------------------------------------------------------------\n");
+	ast_cli(a->fd, "%8s %-5s %-12s %-16s %s\n","ID","TYPE","NAME","FORMAT","DESCRIPTION");
+	ast_cli(a->fd, "------------------------------------------------------------------------------------------------\n");
 
 	ao2_rdlock(codecs);
 	i = ao2_iterator_init(codecs, AO2_ITERATOR_DONTLOCK);
@@ -164,10 +164,11 @@ static char *show_codecs(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 			}
 		}
 
-		ast_cli(a->fd, "%8u %5s %8s (%s)\n",
+		ast_cli(a->fd, "%8u %-5s %-12s %-16s (%s)\n",
 			codec->id,
 			ast_codec_media_type2str(codec->type),
 			codec->name,
+			S_OR(codec->format_name, "no cached format"),
 			codec->description);
 	}
 
@@ -216,7 +217,8 @@ static char *show_codec(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 		return CLI_SUCCESS;
 	}
 
-	ast_cli(a->fd, "%11u %s\n", (unsigned int) codec->id, codec->description);
+	ast_cli(a->fd, "%11u %s (%s)\n", (unsigned int) codec->id, codec->description,
+		S_OR(codec->format_name, "no format"));
 
 	ao2_ref(codec, -1);
 

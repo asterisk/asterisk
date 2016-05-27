@@ -128,6 +128,14 @@
 							"required": false,
 							"allowMultiple": false,
 							"dataType": "string"
+						},
+						{
+							"name": "formats",
+							"description": "The format name capability list to use if originator is not specified. Ex. \"ulaw,slin16\".  Format names an be found with \"core show codecs\".",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
 						}
 					],
 					"errorResponses": [
@@ -192,6 +200,14 @@
 						{
 							"name": "originator",
 							"description": "Unique ID of the calling channel",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "formats",
+							"description": "The format name capability list to use if originator is not specified. Ex. \"ulaw,slin16\".  Format names an be found with \"core show codecs\".",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
@@ -334,6 +350,14 @@
 						{
 							"name": "originator",
 							"description": "The unique id of the channel which is originating this one.",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "formats",
+							"description": "The format name capability list to use if originator is not specified. Ex. \"ulaw,slin16\".  Format names an be found with \"core show codecs\".",
 							"paramType": "query",
 							"required": false,
 							"allowMultiple": false,
