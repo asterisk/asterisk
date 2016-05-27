@@ -77,6 +77,8 @@ struct ast_codec {
 	unsigned int smooth;
 	/*! \brief The module that registered this codec */
 	struct ast_module *mod;
+	/*! \brief The format name for this codec */
+	const char *format_name;
 };
 
 /*!
