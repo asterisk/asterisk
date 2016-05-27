@@ -71,6 +71,18 @@ app_confbridge
    server installations via alternate means (DUNDI for example). By default
    this feature is not used.
 
+Codecs
+------------------
+ * Added the associated format name to 'core show codecs'.
+
+res_ari_channels
+------------------
+ * Added 'formats' to channel create/originate to allow setting the allowed
+   formats for a channel when no originator channel is available.  Especially
+   useful for Local channel creation where no other format information is
+   available.  'core show codecs' can now be used to look up suitable format
+   names.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.8.0 to Asterisk 13.9.0 ------------
 ------------------------------------------------------------------------------
