@@ -128,6 +128,14 @@
 							"required": false,
 							"allowMultiple": false,
 							"dataType": "string"
+						},
+						{
+							"name": "formats",
+							"description": "The format name capability list to use if originator is not specified. Ex. \"ulaw,slin16\".  Format names can be found with \"core show codecs\".",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
 						}
 					],
 					"errorResponses": [
@@ -276,6 +284,14 @@
 							"required": false,
 							"allowMultiple": false,
 							"dataType": "string"
+						},
+						{
+							"name": "formats",
+							"description": "The format name capability list to use if originator is not specified. Ex. \"ulaw,slin16\".  Format names can be found with \"core show codecs\".",
+							"paramType": "query",
+							"required": false,
+							"allowMultiple": false,
+							"dataType": "string"
 						}
 					],
 					"errorResponses": [
@@ -284,7 +300,6 @@
 							"reason": "Invalid parameters for originating a channel."
 						}
 					]
-
 				},
 				{
 					"httpMethod": "DELETE",
