@@ -406,9 +406,10 @@ struct ast_sip_channel_pvt *ast_sip_channel_pvt_alloc(void *pvt, struct ast_sip_
  * \param endpoint The endpoint that this session communicates with
  * \param contact The contact associated with this session
  * \param inv_session The PJSIP INVITE session data
+ * \param rdata INVITE request received (NULL if for outgoing allocation)
  */
 struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
-	struct ast_sip_contact *contact, pjsip_inv_session *inv);
+	struct ast_sip_contact *contact, pjsip_inv_session *inv, pjsip_rx_data *rdata);
 
 /*!
  * \brief Request and wait for the session serializer to be suspended.

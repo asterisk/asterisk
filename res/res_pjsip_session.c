@@ -1403,12 +1403,11 @@ struct ast_sip_channel_pvt *ast_sip_channel_pvt_alloc(void *pvt, struct ast_sip_
 }
 
 struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
-	struct ast_sip_contact *contact, pjsip_inv_session *inv_session)
+	struct ast_sip_contact *contact, pjsip_inv_session *inv_session, pjsip_rx_data *rdata)
 {
 	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
 	struct ast_sip_session_supplement *iter;
 	int dsp_features = 0;
-	char tps_name[AST_TASKPROCESSOR_MAX_NAME + 1];
 
 	session = ao2_alloc(sizeof(*session), session_destructor);
 	if (!session) {
@@ -1429,11 +1428,24 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	/* fill session->media with available types */
 	ao2_callback(sdp_handlers, OBJ_NODATA, add_session_media, session);
 
-	/* Create name with seq number appended. */
-	ast_taskprocessor_build_name(tps_name, sizeof(tps_name), "pjsip/session/%s",
-		ast_sorcery_object_get_id(endpoint));
+	if (rdata) {
+		/*
+		 * We must continue using the serializer that the original
+		 * INVITE came in on for the dialog.  There may be
+		 * retransmissions already enqueued in the original
+		 * serializer that can result in reentrancy and message
+		 * sequencing problems.
+		 */
+		session->serializer = ast_sip_get_distributor_serializer(rdata);
+	} else {
+		char tps_name[AST_TASKPROCESSOR_MAX_NAME + 1];
 
-	session->serializer = ast_sip_create_serializer_named(tps_name);
+		/* Create name with seq number appended. */
+		ast_taskprocessor_build_name(tps_name, sizeof(tps_name), "pjsip/outsess/%s",
+			ast_sorcery_object_get_id(endpoint));
+
+		session->serializer = ast_sip_create_serializer_named(tps_name);
+	}
 	if (!session->serializer) {
 		return NULL;
 	}
@@ -1731,7 +1743,9 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 	timer.sess_expires = endpoint->extensions.timer.sess_expires;
 	pjsip_timer_init_session(inv_session, &timer);
 
-	if (!(session = ast_sip_session_alloc(endpoint, found_contact ? found_contact : contact, inv_session))) {
+	session = ast_sip_session_alloc(endpoint, found_contact ? found_contact : contact,
+		inv_session, NULL);
+	if (!session) {
 		pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
 		return NULL;
 	}
@@ -2142,7 +2156,7 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 		return;
 	}
 
-	session = ast_sip_session_alloc(endpoint, NULL, inv_session);
+	session = ast_sip_session_alloc(endpoint, NULL, inv_session, rdata);
 	if (!session) {
 		if (pjsip_inv_initial_answer(inv_session, rdata, 500, NULL, NULL, &tdata) == PJ_SUCCESS) {
 			pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
