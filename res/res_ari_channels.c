@@ -157,6 +157,10 @@ int ast_ari_channels_originate_parse_body(
 	if (field) {
 		args->originator = ast_json_string_get(field);
 	}
+	field = ast_json_object_get(body, "formats");
+	if (field) {
+		args->formats = ast_json_string_get(field);
+	}
 	return 0;
 }
 
@@ -216,6 +220,9 @@ static void ast_ari_channels_originate_cb(
 		} else
 		if (strcmp(i->name, "originator") == 0) {
 			args.originator = (i->value);
+		} else
+		if (strcmp(i->name, "formats") == 0) {
+			args.formats = (i->value);
 		} else
 		{}
 	}
@@ -377,6 +384,10 @@ int ast_ari_channels_originate_with_id_parse_body(
 	if (field) {
 		args->originator = ast_json_string_get(field);
 	}
+	field = ast_json_object_get(body, "formats");
+	if (field) {
+		args->formats = ast_json_string_get(field);
+	}
 	return 0;
 }
 
@@ -433,6 +444,9 @@ static void ast_ari_channels_originate_with_id_cb(
 		} else
 		if (strcmp(i->name, "originator") == 0) {
 			args.originator = (i->value);
+		} else
+		if (strcmp(i->name, "formats") == 0) {
+			args.formats = (i->value);
 		} else
 		{}
 	}
