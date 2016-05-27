@@ -1207,10 +1207,9 @@ static void subscription_setup_dialog(struct sip_subscription_tree *sub_tree, pj
 	pjsip_dlg_inc_session(dlg, &pubsub_module);
 }
 
-static struct sip_subscription_tree *allocate_subscription_tree(struct ast_sip_endpoint *endpoint)
+static struct sip_subscription_tree *allocate_subscription_tree(struct ast_sip_endpoint *endpoint, pjsip_rx_data *rdata)
 {
 	struct sip_subscription_tree *sub_tree;
-	char tps_name[AST_TASKPROCESSOR_MAX_NAME + 1];
 
 	sub_tree = ao2_alloc(sizeof *sub_tree, subscription_tree_destructor);
 	if (!sub_tree) {
@@ -1219,11 +1218,24 @@ static struct sip_subscription_tree *allocate_subscription_tree(struct ast_sip_e
 
 	ast_module_ref(ast_module_info->self);
 
-	/* Create name with seq number appended. */
-	ast_taskprocessor_build_name(tps_name, sizeof(tps_name), "pjsip/pubsub/%s",
-		ast_sorcery_object_get_id(endpoint));
+	if (rdata) {
+		/*
+		 * We must continue using the serializer that the original
+		 * SUBSCRIBE came in on for the dialog.  There may be
+		 * retransmissions already enqueued in the original
+		 * serializer that can result in reentrancy and message
+		 * sequencing problems.
+		 */
+		sub_tree->serializer = ast_sip_get_distributor_serializer(rdata);
+	} else {
+		char tps_name[AST_TASKPROCESSOR_MAX_NAME + 1];
 
-	sub_tree->serializer = ast_sip_create_serializer(tps_name);
+		/* Create name with seq number appended. */
+		ast_taskprocessor_build_name(tps_name, sizeof(tps_name), "pjsip/pubsub/%s",
+			ast_sorcery_object_get_id(endpoint));
+
+		sub_tree->serializer = ast_sip_create_serializer(tps_name);
+	}
 	if (!sub_tree->serializer) {
 		ao2_ref(sub_tree, -1);
 		return NULL;
@@ -1264,7 +1276,7 @@ static struct sip_subscription_tree *create_subscription_tree(const struct ast_s
 	pjsip_dialog *dlg;
 	struct subscription_persistence *persistence;
 
-	sub_tree = allocate_subscription_tree(endpoint);
+	sub_tree = allocate_subscription_tree(endpoint, rdata);
 	if (!sub_tree) {
 		*dlg_status = PJ_ENOMEM;
 		return NULL;
@@ -1571,7 +1583,7 @@ struct ast_sip_subscription *ast_sip_create_subscription(const struct ast_sip_su
 	pjsip_evsub *evsub;
 	struct sip_subscription_tree *sub_tree = NULL;
 
-	sub_tree = allocate_subscription_tree(endpoint);
+	sub_tree = allocate_subscription_tree(endpoint, NULL);
 	if (!sub_tree) {
 		return NULL;
 	}
