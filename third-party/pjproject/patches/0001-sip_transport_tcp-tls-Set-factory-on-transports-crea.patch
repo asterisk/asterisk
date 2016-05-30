@@ -1,0 +1,48 @@
+From b7cb93b0e1729589a71e8b30d9a9893f0918e2a2 Mon Sep 17 00:00:00 2001
+From: George Joseph <george.joseph@fairview5.com>
+Date: Mon, 30 May 2016 11:58:22 -0600
+Subject: [PATCH] sip_transport_tcp/tls:  Set factory on transports created
+ from accept
+
+The ability to re-use tcp and tls transports when a factory is
+specified now depends on transport->factory being set which is a new field
+in 2.5.  This was being set only on new outgoing sockets not on
+incoming sockets.  The result was that a client REGISTER created a new
+socket but without the factory set, the next outgoing request to the
+client, OPTIONS, INVITE, etc, would attempt to create another socket
+which the client would refuse.
+
+This patch sets the factory on transports created as a result of an
+accept.
+---
+ pjsip/src/pjsip/sip_transport_tcp.c | 1 +
+ pjsip/src/pjsip/sip_transport_tls.c | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/pjsip/src/pjsip/sip_transport_tcp.c b/pjsip/src/pjsip/sip_transport_tcp.c
+index 1bbb324..00eb8fc 100644
+--- a/pjsip/src/pjsip/sip_transport_tcp.c
++++ b/pjsip/src/pjsip/sip_transport_tcp.c
+@@ -713,6 +713,7 @@ static pj_status_t tcp_create( struct tcp_listener *listener,
+     tcp->base.send_msg = &tcp_send_msg;
+     tcp->base.do_shutdown = &tcp_shutdown;
+     tcp->base.destroy = &tcp_destroy_transport;
++    tcp->base.factory = &listener->factory;
+ 
+     /* Create group lock */
+     status = pj_grp_lock_create(pool, NULL, &tcp->grp_lock);
+diff --git a/pjsip/src/pjsip/sip_transport_tls.c b/pjsip/src/pjsip/sip_transport_tls.c
+index a83ac32..36ee70d 100644
+--- a/pjsip/src/pjsip/sip_transport_tls.c
++++ b/pjsip/src/pjsip/sip_transport_tls.c
+@@ -742,6 +742,7 @@ static pj_status_t tls_create( struct tls_listener *listener,
+     tls->base.send_msg = &tls_send_msg;
+     tls->base.do_shutdown = &tls_shutdown;
+     tls->base.destroy = &tls_destroy_transport;
++    tls->base.factory = &listener->factory;
+ 
+     tls->ssock = ssock;
+ 
+-- 
+2.5.5
+
