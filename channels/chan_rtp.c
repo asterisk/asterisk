@@ -43,6 +43,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/rtp_engine.h"
 #include "asterisk/causes.h"
 #include "asterisk/format_cache.h"
+#include "asterisk/multicast_rtp.h"
 
 /* Forward declarations */
 static struct ast_channel *multicast_rtp_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause);
@@ -132,7 +133,9 @@ static struct ast_channel *multicast_rtp_request(const char *type, struct ast_fo
 		AST_APP_ARG(type);
 		AST_APP_ARG(destination);
 		AST_APP_ARG(control);
+		AST_APP_ARG(options);
 	);
+	struct ast_multicast_rtp_options *mcast_options = NULL;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_ERROR, "A multicast type and destination must be given to the 'MulticastRTP' channel\n");
@@ -163,7 +166,15 @@ static struct ast_channel *multicast_rtp_request(const char *type, struct ast_fo
 		goto failure;
 	}
 
-	fmt = ast_format_cap_get_format(cap, 0);
+	mcast_options = ast_multicast_rtp_create_options(args.type, args.options);
+	if (!mcast_options) {
+		goto failure;
+	}
+
+	fmt = ast_multicast_rtp_options_get_format(mcast_options);
+	if (!fmt) {
+		fmt = ast_format_cap_get_format(cap, 0);
+	}
 	if (!fmt) {
 		ast_log(LOG_ERROR, "No format available for sending RTP to '%s'\n",
 			args.destination);
@@ -175,7 +186,7 @@ static struct ast_channel *multicast_rtp_request(const char *type, struct ast_fo
 		goto failure;
 	}
 
-	instance = ast_rtp_instance_new("multicast", NULL, &control_address, args.type);
+	instance = ast_rtp_instance_new("multicast", NULL, &control_address, mcast_options);
 	if (!instance) {
 		ast_log(LOG_ERROR,
 			"Could not create '%s' multicast RTP instance for sending media to '%s'\n",
@@ -207,12 +218,14 @@ static struct ast_channel *multicast_rtp_request(const char *type, struct ast_fo
 
 	ao2_ref(fmt, -1);
 	ao2_ref(caps, -1);
+	ast_multicast_rtp_free_options(mcast_options);
 
 	return chan;
 
 failure:
 	ao2_cleanup(fmt);
 	ao2_cleanup(caps);
+	ast_multicast_rtp_free_options(mcast_options);
 	*cause = AST_CAUSE_FAILURE;
 	return NULL;
 }
