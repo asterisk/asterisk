@@ -362,7 +362,7 @@ static void ast_channel_publish_dial_internal(struct ast_channel *caller,
 		return;
 	}
 
-	publish_message_for_channel_topics(msg, caller);
+	publish_message_for_channel_topics(msg, caller ?: peer);
 }
 
 static void remove_dial_masquerade(struct ast_channel *peer);
