@@ -14155,9 +14155,10 @@ static void build_contact(struct sip_pvt *p, struct sip_request *req, int incomi
 /*! \brief Initiate new SIP request to peer/user */
 static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, const char * const explicit_uri)
 {
-	struct ast_str *invite = ast_str_alloca(256);
-	char from[256];
-	char to[256];
+#define SIPHEADER 256
+	struct ast_str *invite = ast_str_create(SIPHEADER);
+	struct ast_str *from = ast_str_create(SIPHEADER);
+	struct ast_str *to = ast_str_create(SIPHEADER);
 	char tmp_n[SIPBUFSIZE/2];	/* build a local copy of 'n' if needed */
 	char tmp_l[SIPBUFSIZE/2];	/* build a local copy of 'l' if needed */
 	const char *l = NULL;	/* XXX what is this, exactly ? */
@@ -14259,34 +14260,41 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	ourport = (p->fromdomainport && (p->fromdomainport != STANDARD_SIP_PORT)) ? p->fromdomainport : ast_sockaddr_port(&p->ourip);
 
 	if (!sip_standard_port(p->socket.type, ourport)) {
-		ret = snprintf(from, sizeof(from), "<sip:%s@%s:%d>;tag=%s", tmp_l, d, ourport, p->tag);
+		ret = ast_str_set(&from, 0, "<sip:%s@%s:%d>;tag=%s", tmp_l, d, ourport, p->tag);
 	} else {
-		ret = snprintf(from, sizeof(from), "<sip:%s@%s>;tag=%s", tmp_l, d, p->tag);
+		ret = ast_str_set(&from, 0, "<sip:%s@%s>;tag=%s", tmp_l, d, p->tag);
 	}
-	if (ret < 0 || ret >= sizeof(from)) { /* a return value of size or more means that the output was truncated */
+	if (ret == AST_DYNSTR_BUILD_FAILED) {
 		/* We don't have an escape path from here... */
-		ast_log(LOG_ERROR, "The From header was truncated in call '%s'. This call setup will fail.\n", p->callid);
+		ast_log(LOG_ERROR, "The From header was truncated in call '%s'. This call setup will probably fail.\n", p->callid);
+		/* Make sure that the field contains something non-broken.
+		   See https://issues.asterisk.org/jira/browse/ASTERISK-26069
+		*/
+		ast_str_set(&from, 3, "<>");
+
 	}
 
 	/* If a caller id name was specified, prefix a display name, if there is enough room. */
 	if (cid_has_name || !cid_has_num) {
-		size_t written = strlen(from);
-		ssize_t left = sizeof(from) - written - 4; /* '"" \0' */
-		if (left > 0) {
-			size_t name_len;
-			if (sip_cfg.pedanticsipchecking) {
-				ast_escape_quoted(n, tmp_n, MIN(left + 1, sizeof(tmp_n)));
-				n = tmp_n;
-			}
-			name_len = strlen(n);
-			if (left < name_len) {
-				name_len = left;
-			}
-			memmove(from + name_len + 3, from, written + 1);
-			from[0] = '"';
-			memcpy(from + 1, n, name_len);
-			from[name_len + 1] = '"';
-			from[name_len + 2] = ' ';
+		char *from_buf = ast_str_buffer(from);
+		size_t written = ast_str_strlen(from);
+		size_t name_len;
+		if (sip_cfg.pedanticsipchecking) {
+			ast_escape_quoted(n, tmp_n, sizeof(tmp_n));
+			n = tmp_n;
+		}
+		name_len = strlen(n);
+		ret = ast_str_make_space(&from, name_len + written + 4);
+
+		if (ret == 0) {
+			/* needed again, as ast_str_make_space coud've changed the pointer */
+			from_buf = ast_str_buffer(from);
+
+			memmove(from_buf + name_len + 3, from_buf, written + 1);
+			from_buf[0] = '"';
+			memcpy(from_buf + 1, n, name_len);
+			from_buf[name_len + 1] = '"';
+			from_buf[name_len + 2] = ' ';
 		}
 	}
 
@@ -14329,24 +14337,28 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
  		/*! \todo Need to add back the VXML URL here at some point, possibly use build_string for all this junk */
  		if (!strchr(p->todnid, '@')) {
  			/* We have no domain in the dnid */
-			ret = snprintf(to, sizeof(to), "<sip:%s@%s>%s%s", p->todnid, p->tohost, ast_strlen_zero(p->theirtag) ? "" : ";tag=", p->theirtag);
+			ret = ast_str_set(&to, 0, "<sip:%s@%s>%s%s", p->todnid, p->tohost, ast_strlen_zero(p->theirtag) ? "" : ";tag=", p->theirtag);
  		} else {
-			ret = snprintf(to, sizeof(to), "<sip:%s>%s%s", p->todnid, ast_strlen_zero(p->theirtag) ? "" : ";tag=", p->theirtag);
+			ret = ast_str_set(&to, 0, "<sip:%s>%s%s", p->todnid, ast_strlen_zero(p->theirtag) ? "" : ";tag=", p->theirtag);
  		}
  	} else {
  		if (sipmethod == SIP_NOTIFY && !ast_strlen_zero(p->theirtag)) {
  			/* If this is a NOTIFY, use the From: tag in the subscribe (RFC 3265) */
-			ret = snprintf(to, sizeof(to), "<%s%s>;tag=%s", (strncasecmp(p->uri, "sip:", 4) ? "sip:" : ""), p->uri, p->theirtag);
+			ret = ast_str_set(&to, 0, "<%s%s>;tag=%s", (strncasecmp(p->uri, "sip:", 4) ? "sip:" : ""), p->uri, p->theirtag);
  		} else if (p->options && p->options->vxml_url) {
  			/* If there is a VXML URL append it to the SIP URL */
-			ret = snprintf(to, sizeof(to), "<%s>;%s", p->uri, p->options->vxml_url);
+			ret = ast_str_set(&to, 0, "<%s>;%s", p->uri, p->options->vxml_url);
  		} else {
-			ret = snprintf(to, sizeof(to), "<%s>", p->uri);
+			ret = ast_str_set(&to, 0, "<%s>", p->uri);
 		}
  	}
-	if (ret < 0 || ret >= sizeof(to)) { /* a return value of size or more means that the output was truncated */
+	if (ret == AST_DYNSTR_BUILD_FAILED) {
 		/* We don't have an escape path from here... */
-		ast_log(LOG_ERROR, "The To header was truncated in call '%s'. This call setup will fail.\n", p->callid);
+		ast_log(LOG_ERROR, "The To header was truncated in call '%s'. This call setup will probably fail.\n", p->callid);
+		/* Make sure that the field contains something non-broken.
+		   See https://issues.asterisk.org/jira/browse/ASTERISK-26069
+		*/
+		ast_str_set(&to, 3, "<>");
 	}
 
 	init_req(req, sipmethod, p->uri);
@@ -14361,8 +14373,8 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	 */
 	add_route(req, &p->route, 0);
 
-	add_header(req, "From", from);
-	add_header(req, "To", to);
+	add_header(req, "From", ast_str_buffer(from));
+	add_header(req, "To", ast_str_buffer(to));
 	ast_string_field_set(p, exten, l);
 	build_contact(p, req, 0);
 	add_header(req, "Contact", p->our_contact);
@@ -14371,6 +14383,10 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	if (!ast_strlen_zero(global_useragent)) {
 		add_header(req, "User-Agent", global_useragent);
 	}
+
+	ast_free(from);
+	ast_free(to);
+	ast_free(invite);
 }
 
 /*! \brief Add "Diversion" header to outgoing message
