@@ -68,6 +68,11 @@ ControlPlayback
  * Remote files can now be retrieved and played back. See the Playback
    dialplan application for more details.
 
+FollowMe
+------------------
+ * It is now possible to disable the prompt from a callee by setting
+   'enable_callee_prompt = no' in followme.conf.
+
 Playback
 ------------------
  * Remote files can now be retrieved and played back via the Playback and other
