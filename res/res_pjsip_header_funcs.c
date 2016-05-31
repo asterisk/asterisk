@@ -39,7 +39,8 @@
 /*** DOCUMENTATION
 	<function name="PJSIP_HEADER" language="en_US">
 		<synopsis>
-			Gets, adds, updates or removes the specified SIP header from a PJSIP session.
+			Gets headers from an inbound PJSIP channel. Adds, updates or removes the
+			specified SIP header from an outbound PJSIP channel.
 		</synopsis>
 		<syntax>
 			<parameter name="action" required="true">
@@ -75,6 +76,10 @@
 
 		</syntax>
 		<description>
+			<para>PJSIP_HEADER allows you to read specific SIP headers from the inbound
+			PJSIP channel as well as write(add, update, remove) headers on the outbound
+			channel. One exception is that you can read headers that you have already
+			added on the outbound channel.</para>
 			<para>Examples:</para>
 			<para>;</para>
 			<para>; Set 'somevar' to the value of the 'From' header.</para>
@@ -120,7 +125,7 @@
 
 			<note><para>If you call PJSIP_HEADER in a normal dialplan context you'll be
 			operating on the <emphasis>caller's (incoming)</emphasis> channel which
-			may not be what you want.  To operate on the <emphasis>callee's (outgoing)</emphasis>
+			may not be what you want. To operate on the <emphasis>callee's (outgoing)</emphasis>
 			channel call PJSIP_HEADER in a pre-dial handler. </para>
 			<para>Example:</para>
 			<para>;</para>
