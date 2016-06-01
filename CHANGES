@@ -135,6 +135,32 @@ chan_iax2
    seconds. Setting this to a higher value may help in lagged networks or those
    experiencing high packet loss.
 
+chan_rtp (was chan_multicast_rtp)
+------------------
+ * Added unicast RTP support and renamed chan_multicast_rtp to chan_rtp.
+
+ * The format for dialing a unicast RTP channel is:
+   UnicastRTP/<destination-addr>[/[<options>]]
+   Where <destination-addr> is something like '127.0.0.1:5060'.
+   Where <options> are in standard Asterisk flag options format:
+   c(<codec>) - Specify which codec/format to use such as 'ulaw'.
+   e(<engine>) - Specify which RTP engine to use such as 'asterisk'.
+
+ * New options were added for a multicast RTP channel.  The format for
+   dialing a multicast RTP channel is:
+   MulticastRTP/<type>/<destination-addr>[/[<control-addr>][/[<options>]]]
+   Where <type> can be either 'basic' or 'linksys'.
+   Where <destination-addr> is something like '224.0.0.3:5060'.
+   Where <control-addr> is something like '127.0.0.1:5060'.
+   Where <options> are in standard Asterisk flag options format:
+   c(<codec>) - Specify which codec/format to use such as 'ulaw'.
+   i(<address>) - Specify the interface address from which multicast RTP
+     is sent.
+   l(<enable>) - Set whether packets are looped back to the sender.  The
+     enable value can be 0 to set looping to off and non-zero to set
+     looping on.
+   t(<ttl>) - Set the time-to-live (TTL) value for multicast packets.
+
 chan_sip
 ------------------
  * New 'rtpbindaddr' global setting. This allows a user to define which
