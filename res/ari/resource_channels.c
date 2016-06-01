@@ -54,6 +54,50 @@ ASTERISK_REGISTER_FILE()
 #include <limits.h>
 
 /*!
+ * \brief Ensure channel is in a state that allows operation to be performed.
+ *
+ * Since Asterisk 14, it has been possible for down channels, as well as unanswered
+ * outbound channels to enter Stasis. While some operations are fine to perform on
+ * such channels, operations that
+ *
+ * - Attempt to manipulate channel state
+ * - Attempt to play media
+ * - Attempt to control the channel's location in the dialplan
+ *
+ * are invalid. This function can be used to determine if the channel is in an
+ * appropriate state.
+ *
+ * \note When this function returns an error, the HTTP response is taken care of.
+ *
+ * \param control The app control
+ * \param response Response to fill in if there is an error
+ *
+ * \retval 0 Channel is in a valid state. Continue on!
+ * \retval non-zero Channel is in an invalid state. Bail!
+ */
+static int channel_state_invalid(struct stasis_app_control *control,
+	struct ast_ari_response *response)
+{
+	struct ast_channel_snapshot *snapshot;
+
+	snapshot = stasis_app_control_get_snapshot(control);
+	if (!snapshot) {
+		ast_ari_response_error(response, 404, "Not Found", "Channel not found");
+		return -1;
+	}
+
+	if (snapshot->state == AST_STATE_DOWN
+		|| snapshot->state == AST_STATE_RESERVED
+		|| snapshot->state == AST_STATE_RINGING) {
+		ast_ari_response_error(response, 412, "Precondition Failed",
+			"Channel in invalid state");
+		return -1;
+	}
+
+	return 0;
+}
+
+/*!
  * \brief Finds the control object for a channel, filling the response with an
  * error, if appropriate.
  * \param[out] response Response to fill with an error if control is not found.
@@ -104,6 +148,10 @@ void ast_ari_channels_continue_in_dialplan(
 
 	control = find_control(response, args->channel_id);
 	if (control == NULL) {
+		return;
+	}
+
+	if (channel_state_invalid(control, response)) {
 		return;
 	}
 
@@ -175,6 +223,10 @@ void ast_ari_channels_redirect(struct ast_variable *headers,
 		return;
 	}
 
+	if (channel_state_invalid(control, response)) {
+		return;
+	}
+
 	if (ast_strlen_zero(args->endpoint)) {
 		ast_ari_response_error(response, 400, "Not Found",
 			"Required parameter 'endpoint' not provided.");
@@ -229,6 +281,10 @@ void ast_ari_channels_answer(struct ast_variable *headers,
 		return;
 	}
 
+	if (channel_state_invalid(control, response)) {
+		return;
+	}
+
 	if (stasis_app_control_answer(control) != 0) {
 		ast_ari_response_error(
 			response, 500, "Internal Server Error",
@@ -250,6 +306,10 @@ void ast_ari_channels_ring(struct ast_variable *headers,
 		return;
 	}
 
+	if (channel_state_invalid(control, response)) {
+		return;
+	}
+
 	stasis_app_control_ring(control);
 
 	ast_ari_response_no_content(response);
@@ -263,6 +323,10 @@ void ast_ari_channels_ring_stop(struct ast_variable *headers,
 
 	control = find_control(response, args->channel_id);
 	if (control == NULL) {
+		return;
+	}
+
+	if (channel_state_invalid(control, response)) {
 		return;
 	}
 
@@ -358,6 +422,10 @@ void ast_ari_channels_send_dtmf(struct ast_variable *headers,
 		return;
 	}
 
+	if (channel_state_invalid(control, response)) {
+		return;
+	}
+
 	if (ast_strlen_zero(args->dtmf)) {
 		ast_ari_response_error(
 			response, 400, "Bad Request",
@@ -382,6 +450,10 @@ void ast_ari_channels_hold(struct ast_variable *headers,
 		return;
 	}
 
+	if (channel_state_invalid(control, response)) {
+		return;
+	}
+
 	stasis_app_control_hold(control);
 
 	ast_ari_response_no_content(response);
@@ -396,6 +468,10 @@ void ast_ari_channels_unhold(struct ast_variable *headers,
 	control = find_control(response, args->channel_id);
 	if (control == NULL) {
 		/* Response filled in by find_control */
+		return;
+	}
+
+	if (channel_state_invalid(control, response)) {
 		return;
 	}
 
@@ -416,6 +492,10 @@ void ast_ari_channels_start_moh(struct ast_variable *headers,
 		return;
 	}
 
+	if (channel_state_invalid(control, response)) {
+		return;
+	}
+
 	stasis_app_control_moh_start(control, args->moh_class);
 	ast_ari_response_no_content(response);
 }
@@ -429,6 +509,10 @@ void ast_ari_channels_stop_moh(struct ast_variable *headers,
 	control = find_control(response, args->channel_id);
 	if (control == NULL) {
 		/* Response filled in by find_control */
+		return;
+	}
+
+	if (channel_state_invalid(control, response)) {
 		return;
 	}
 
@@ -448,6 +532,10 @@ void ast_ari_channels_start_silence(struct ast_variable *headers,
 		return;
 	}
 
+	if (channel_state_invalid(control, response)) {
+		return;
+	}
+
 	stasis_app_control_silence_start(control);
 	ast_ari_response_no_content(response);
 }
@@ -461,6 +549,10 @@ void ast_ari_channels_stop_silence(struct ast_variable *headers,
 	control = find_control(response, args->channel_id);
 	if (control == NULL) {
 		/* Response filled in by find_control */
+		return;
+	}
+
+	if (channel_state_invalid(control, response)) {
 		return;
 	}
 
@@ -490,6 +582,10 @@ static void ari_channels_handle_play(
 	control = find_control(response, args_channel_id);
 	if (control == NULL) {
 		/* Response filled in by find_control */
+		return;
+	}
+
+	if (channel_state_invalid(control, response)) {
 		return;
 	}
 
