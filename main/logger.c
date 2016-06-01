@@ -168,6 +168,7 @@ static void logmsg_free(struct logmsg *msg)
 	if (msg->callid) {
 		ast_callid_unref(msg->callid);
 	}
+	ast_string_field_free_memory(msg);
 	ast_free(msg);
 }
 
