@@ -297,13 +297,13 @@ static pj_bool_t distributor(pjsip_rx_data *rdata)
 
 	if (dlg) {
 		ast_debug(3, "Searching for serializer on dialog %s for %s\n",
-				dlg->obj_name, rdata->msg_info.info);
+			dlg->obj_name, pjsip_rx_data_get_info(rdata));
 		dist = pjsip_dlg_get_mod_data(dlg, distributor_mod.id);
 		if (dist) {
 			serializer = ao2_bump(dist->serializer);
 			if (serializer) {
 				ast_debug(3, "Found serializer %s on dialog %s\n",
-						ast_taskprocessor_name(serializer), dlg->obj_name);
+					ast_taskprocessor_name(serializer), dlg->obj_name);
 			}
 		}
 		pjsip_dlg_dec_lock(dlg);
@@ -313,7 +313,7 @@ static pj_bool_t distributor(pjsip_rx_data *rdata)
 		/* We have a serializer so we know where to send the message. */
 	} else if (rdata->msg_info.msg->type == PJSIP_RESPONSE_MSG) {
 		ast_debug(3, "No dialog serializer for response %s. Using request transaction as basis\n",
-				rdata->msg_info.info);
+			pjsip_rx_data_get_info(rdata));
 		serializer = find_request_serializer(rdata);
 	} else if (!pjsip_method_cmp(&rdata->msg_info.msg->line.req.method, &pjsip_cancel_method)
 		|| !pjsip_method_cmp(&rdata->msg_info.msg->line.req.method, &pjsip_bye_method)) {
