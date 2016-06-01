@@ -76,8 +76,10 @@ static AST_RWLIST_HEAD_STATIC(sinks, cdr_syslog_config);
 static void free_config(void)
 {
 	struct cdr_syslog_config *sink;
+
 	while ((sink = AST_RWLIST_REMOVE_HEAD(&sinks, list))) {
 		ast_mutex_destroy(&sink->lock);
+		ast_string_field_free_memory(sink);
 		ast_free(sink);
 	}
 }
