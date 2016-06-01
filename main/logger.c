@@ -174,6 +174,7 @@ struct logmsg {
 
 static void logmsg_free(struct logmsg *msg)
 {
+	ast_string_field_free_memory(msg);
 	ast_free(msg);
 }
 
