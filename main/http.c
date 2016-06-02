@@ -451,11 +451,13 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 	struct timeval now = ast_tvnow();
 	struct ast_tm tm;
 	char timebuf[80];
+	char buf[256];
+	int len;
 	int content_length = 0;
 	int close_connection;
 	struct ast_str *server_header_field = ast_str_create(MAX_SERVER_NAME_LENGTH);
 
-	if (!ser || !ser->f || !server_header_field) {
+	if (!ser || !server_header_field) {
 		/* The connection is not open. */
 		ast_free(http_header);
 		ast_free(out);
@@ -505,7 +507,7 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 	}
 
 	/* send http header */
-	fprintf(ser->f,
+	len = snprintf(buf, sizeof(buf),
 		"HTTP/1.1 %d %s\r\n"
 		"%s"
 		"Date: %s\r\n"
@@ -522,22 +524,21 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 		http_header ? ast_str_buffer(http_header) : "",
 		content_length
 		);
+	ast_iostream_write(ser->stream, buf, len);
 
 	/* send content */
 	if (method != AST_HTTP_HEAD || status_code >= 400) {
 		if (out && ast_str_strlen(out)) {
-			if (fwrite(ast_str_buffer(out), ast_str_strlen(out), 1, ser->f) != 1) {
+			len = ast_str_strlen(out);
+			if (ast_iostream_write(ser->stream, ast_str_buffer(out), len) != len) {
 				ast_log(LOG_ERROR, "fwrite() failed: %s\n", strerror(errno));
 				close_connection = 1;
 			}
 		}
 
 		if (fd) {
-			char buf[256];
-			int len;
-
 			while ((len = read(fd, buf, sizeof(buf))) > 0) {
-				if (fwrite(buf, len, 1, ser->f) != 1) {
+				if (ast_iostream_write(ser->stream, buf, len) != len) {
 					ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
 					close_connection = 1;
 					break;
@@ -569,7 +570,7 @@ void ast_http_create_response(struct ast_tcptls_session_instance *ser, int statu
 		ast_free(http_header_data);
 		ast_free(server_address);
 		ast_free(out);
-		if (ser && ser->f) {
+		if (ser) {
 			ast_debug(1, "HTTP closing session. OOM.\n");
 			ast_tcptls_close_session_file(ser);
 		}
@@ -921,9 +922,9 @@ static int http_body_read_contents(struct ast_tcptls_session_instance *ser, char
 {
 	int res;
 
-	/* Stay in fread until get all the expected data or timeout. */
-	res = fread(buf, length, 1, ser->f);
-	if (res < 1) {
+	/* Stream is in exclusive mode so we get it all if possible. */
+	res = ast_iostream_read(ser->stream, buf, length);
+	if (res < length) {
 		ast_log(LOG_WARNING, "Short HTTP request %s (Wanted %d)\n",
 			what_getting, length);
 		return -1;
@@ -945,23 +946,12 @@ static int http_body_read_contents(struct ast_tcptls_session_instance *ser, char
  */
 static int http_body_discard_contents(struct ast_tcptls_session_instance *ser, int length, const char *what_getting)
 {
-	int res;
-	char buf[MAX_HTTP_LINE_LENGTH];/* Discard buffer */
+	ssize_t res;
 
-	/* Stay in fread until get all the expected data or timeout. */
-	while (sizeof(buf) < length) {
-		res = fread(buf, sizeof(buf), 1, ser->f);
-		if (res < 1) {
-			ast_log(LOG_WARNING, "Short HTTP request %s (Wanted %zu of remaining %d)\n",
-				what_getting, sizeof(buf), length);
-			return -1;
-		}
-		length -= sizeof(buf);
-	}
-	res = fread(buf, length, 1, ser->f);
-	if (res < 1) {
-		ast_log(LOG_WARNING, "Short HTTP request %s (Wanted %d of remaining %d)\n",
-			what_getting, length, length);
+	res = ast_iostream_discard(ser->stream, length);
+	if (res < length) {
+		ast_log(LOG_WARNING, "Short HTTP request %s (Wanted %d but got %zd)\n",
+			what_getting, length, res);
 		return -1;
 	}
 	return 0;
@@ -1037,7 +1027,7 @@ static int http_body_get_chunk_length(struct ast_tcptls_session_instance *ser)
 	char header_line[MAX_HTTP_LINE_LENGTH];
 
 	/* get the line of hexadecimal giving chunk-size w/ optional chunk-extension */
-	if (!fgets(header_line, sizeof(header_line), ser->f)) {
+	if (ast_iostream_gets(ser->stream, header_line, sizeof(header_line)) <= 0) {
 		ast_log(LOG_WARNING, "Short HTTP read of chunked header\n");
 		return -1;
 	}
@@ -1065,8 +1055,8 @@ static int http_body_check_chunk_sync(struct ast_tcptls_session_instance *ser)
 	char chunk_sync[2];
 
 	/* Stay in fread until get the expected CRLF or timeout. */
-	res = fread(chunk_sync, sizeof(chunk_sync), 1, ser->f);
-	if (res < 1) {
+	res = ast_iostream_read(ser->stream, chunk_sync, sizeof(chunk_sync));
+	if (res < sizeof(chunk_sync)) {
 		ast_log(LOG_WARNING, "Short HTTP chunk sync read (Wanted %zu)\n",
 			sizeof(chunk_sync));
 		return -1;
@@ -1095,7 +1085,7 @@ static int http_body_discard_chunk_trailer_headers(struct ast_tcptls_session_ins
 	char header_line[MAX_HTTP_LINE_LENGTH];
 
 	for (;;) {
-		if (!fgets(header_line, sizeof(header_line), ser->f)) {
+		if (ast_iostream_gets(ser->stream, header_line, sizeof(header_line)) <= 0) {
 			ast_log(LOG_WARNING, "Short HTTP read of chunked trailer header\n");
 			return -1;
 		}
@@ -1758,7 +1748,7 @@ static int http_request_headers_get(struct ast_tcptls_session_instance *ser, str
 		char *name;
 		char *value;
 
-		if (!fgets(header_line, sizeof(header_line), ser->f)) {
+		if (ast_iostream_gets(ser->stream, header_line, sizeof(header_line)) <= 0) {
 			ast_http_error(ser, 400, "Bad Request", "Timeout");
 			return -1;
 		}
@@ -1832,7 +1822,7 @@ static int httpd_process_request(struct ast_tcptls_session_instance *ser)
 	int res;
 	char request_line[MAX_HTTP_LINE_LENGTH];
 
-	if (!fgets(request_line, sizeof(request_line), ser->f)) {
+	if (ast_iostream_gets(ser->stream, request_line, sizeof(request_line)) <= 0) {
 		return -1;
 	}
 
@@ -1913,11 +1903,10 @@ static int httpd_process_request(struct ast_tcptls_session_instance *ser)
 static void *httpd_helper_thread(void *data)
 {
 	struct ast_tcptls_session_instance *ser = data;
-	struct protoent *p;
-	int flags;
 	int timeout;
+	int arg = 1;
 
-	if (!ser || !ser->f) {
+	if (!ser) {
 		ao2_cleanup(ser);
 		return NULL;
 	}
@@ -1934,23 +1923,10 @@ static void *httpd_helper_thread(void *data)
 	 * This is necessary to prevent delays (caused by buffering) as we
 	 * write to the socket in bits and pieces.
 	 */
-	p = getprotobyname("tcp");
-	if (p) {
-		int arg = 1;
-
-		if (setsockopt(ser->fd, p->p_proto, TCP_NODELAY, (char *) &arg, sizeof(arg) ) < 0) {
-			ast_log(LOG_WARNING, "Failed to set TCP_NODELAY on HTTP connection: %s\n", strerror(errno));
-			ast_log(LOG_WARNING, "Some HTTP requests may be slow to respond.\n");
-		}
-	} else {
-		ast_log(LOG_WARNING, "Failed to set TCP_NODELAY on HTTP connection, getprotobyname(\"tcp\") failed\n");
+	if (setsockopt(ast_iostream_get_fd(ser->stream), IPPROTO_TCP, TCP_NODELAY, (char *) &arg, sizeof(arg) ) < 0) {
+		ast_log(LOG_WARNING, "Failed to set TCP_NODELAY on HTTP connection: %s\n", strerror(errno));
 		ast_log(LOG_WARNING, "Some HTTP requests may be slow to respond.\n");
 	}
-
-	/* make sure socket is non-blocking */
-	flags = fcntl(ser->fd, F_GETFL);
-	flags |= O_NONBLOCK;
-	fcntl(ser->fd, F_SETFL, flags);
 
 	/* Setup HTTP worker private data to keep track of request body reading. */
 	ao2_cleanup(ser->private_data);
@@ -1973,22 +1949,12 @@ static void *httpd_helper_thread(void *data)
 	}
 
 	/* We can let the stream wait for data to arrive. */
-	ast_tcptls_stream_set_exclusive_input(ser->stream_cookie, 1);
+	ast_iostream_set_exclusive_input(ser->stream, 1);
 
 	for (;;) {
-		int ch;
-
 		/* Wait for next potential HTTP request message. */
-		ast_tcptls_stream_set_timeout_inactivity(ser->stream_cookie, timeout);
-		ch = fgetc(ser->f);
-		if (ch == EOF || ungetc(ch, ser->f) == EOF) {
-			/* Between request idle timeout */
-			ast_debug(1, "HTTP idle timeout or peer closed connection.\n");
-			break;
-		}
-
-		ast_tcptls_stream_set_timeout_inactivity(ser->stream_cookie, session_inactivity);
-		if (httpd_process_request(ser) || !ser->f || feof(ser->f)) {
+		ast_iostream_set_timeout_idle_inactivity(ser->stream, timeout, session_inactivity);
+		if (httpd_process_request(ser)) {
 			/* Break the connection or the connection closed */
 			break;
 		}
@@ -2003,10 +1969,9 @@ static void *httpd_helper_thread(void *data)
 done:
 	ast_atomic_fetchadd_int(&session_count, -1);
 
-	if (ser->f) {
-		ast_debug(1, "HTTP closing session.  Top level\n");
-		ast_tcptls_close_session_file(ser);
-	}
+	ast_debug(1, "HTTP closing session.  Top level\n");
+	ast_tcptls_close_session_file(ser);
+
 	ao2_ref(ser, -1);
 	return NULL;
 }
