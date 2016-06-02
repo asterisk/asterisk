@@ -152,10 +152,12 @@ struct gen_state {
 };
 
 static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u, 
-	int *eivr_events_fd, int *eivr_commands_fd, int *eivr_errors_fd, 
+	struct ast_iostream *eivr_events,
+	struct ast_iostream *eivr_commands,
+	struct ast_iostream *eivr_errors,
 	const struct ast_str *args, const struct ast_flags flags);
 
-static void send_eivr_event(FILE *handle, const char event, const char *data,
+static void send_eivr_event(struct ast_iostream *stream, const char event, const char *data,
 	const struct ast_channel *chan)
 {
 	struct ast_str *tmp = ast_str_create(12);
@@ -164,9 +166,10 @@ static void send_eivr_event(FILE *handle, const char event, const char *data,
 	if (data) {
 		ast_str_append(&tmp, 0, ",%s", data);
 	}
+	ast_str_append(&tmp, 0, "\n");
+	ast_iostream_write(stream, ast_str_buffer(tmp), strlen(ast_str_buffer(tmp)));
 
-	fprintf(handle, "%s\n", ast_str_buffer(tmp));
-	ast_debug(1, "sent '%s'\n", ast_str_buffer(tmp));
+	ast_debug(1, "sent '%s'", ast_str_buffer(tmp));
 	ast_free(tmp);
 }
 
@@ -395,6 +398,8 @@ static int app_exec(struct ast_channel *chan, const char *data)
 	int child_stdin[2] = { -1, -1 };
 	int child_stdout[2] = { -1, -1 };
 	int child_stderr[2] = { -1, -1 };
+	struct ast_iostream *stream_stdin = NULL, *stream_stdout = NULL,
+		*stream_stderr = NULL;
 	int res = -1;
 	int pid;
 
@@ -526,7 +531,7 @@ static int app_exec(struct ast_channel *chan, const char *data)
 			goto exit;
 		}
 
-		res = eivr_comm(chan, u, &ser->fd, &ser->fd, NULL, comma_delim_args, flags);
+		res = eivr_comm(chan, u, ser->stream, ser->stream, NULL, comma_delim_args, flags);
 
 	} else {
 		if (pipe(child_stdin)) {
@@ -568,13 +573,27 @@ static int app_exec(struct ast_channel *chan, const char *data)
 			child_stdout[1] = -1;
 			close(child_stderr[1]);
 			child_stderr[1] = -1;
-			res = eivr_comm(chan, u, &child_stdin[1], &child_stdout[0], &child_stderr[0], comma_delim_args, flags);
+
+			stream_stdin  = ast_iostream_from_fd(&child_stdin[1]);
+			stream_stdout = ast_iostream_from_fd(&child_stdout[0]);
+			stream_stderr = ast_iostream_from_fd(&child_stderr[0]);
+
+			res = eivr_comm(chan, u, stream_stdin, stream_stdout, stream_stderr, comma_delim_args, flags);
 		}
 	}
 
 	exit:
 	if (u->gen_active) {
 		ast_deactivate_generator(chan);
+	}
+	if (stream_stdin) {
+		ast_iostream_close(stream_stdin);
+	}
+	if (stream_stdout) {
+		ast_iostream_close(stream_stdout);
+	}
+	if (stream_stderr) {
+		ast_iostream_close(stream_stderr);
 	}
 	if (child_stdin[0] > -1) {
 		close(child_stdin[0]);
@@ -604,46 +623,25 @@ static int app_exec(struct ast_channel *chan, const char *data)
 }
 
 static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u, 
- 				int *eivr_events_fd, int *eivr_commands_fd, int *eivr_errors_fd, 
- 				const struct ast_str *args, const struct ast_flags flags)
+				struct ast_iostream *eivr_events,
+				struct ast_iostream *eivr_commands,
+				struct ast_iostream *eivr_errors,
+				const struct ast_str *args, const struct ast_flags flags)
 {
+	char input[1024];
 	struct playlist_entry *entry;
 	struct ast_frame *f;
 	int ms;
  	int exception;
  	int ready_fd;
-	int waitfds[2] = { *eivr_commands_fd, (eivr_errors_fd) ? *eivr_errors_fd : -1 };
+	int waitfds[2];
+	int r;
  	struct ast_channel *rchan;
  	int res = -1;
-	int test_available_fd = -1;
 	int hangup_info_sent = 0;
-  
- 	FILE *eivr_commands = NULL;
- 	FILE *eivr_errors = NULL;
- 	FILE *eivr_events = NULL;
 
-	if (!(eivr_events = fdopen(*eivr_events_fd, "w"))) {
-		ast_chan_log(LOG_ERROR, chan, "Could not open stream to send events\n");
-		goto exit;
-	}
-	if (!(eivr_commands = fdopen(*eivr_commands_fd, "r"))) {
-		ast_chan_log(LOG_ERROR, chan, "Could not open stream to receive commands\n");
-		goto exit;
-	}
-	if (eivr_errors_fd) {  /* if opening a socket connection, error stream will not be used */
- 		if (!(eivr_errors = fdopen(*eivr_errors_fd, "r"))) {
- 			ast_chan_log(LOG_ERROR, chan, "Could not open stream to receive errors\n");
- 			goto exit;
- 		}
-	}
-
-	test_available_fd = open("/dev/null", O_RDONLY);
- 
- 	setvbuf(eivr_events, NULL, _IONBF, 0);
- 	setvbuf(eivr_commands, NULL, _IONBF, 0);
- 	if (eivr_errors) {
-		setvbuf(eivr_errors, NULL, _IONBF, 0);
-	}
+	waitfds[0] = ast_iostream_get_fd(eivr_commands);
+	waitfds[1] = eivr_errors ? ast_iostream_get_fd(eivr_errors) : -1;
 
  	while (1) {
  		if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE)) {
@@ -667,7 +665,7 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  		errno = 0;
  		exception = 0;
  
- 		rchan = ast_waitfor_nandfds(&chan, 1, waitfds, (eivr_errors_fd) ? 2 : 1, &exception, &ready_fd, &ms);
+		rchan = ast_waitfor_nandfds(&chan, 1, waitfds, (eivr_errors) ? 2 : 1, &exception, &ready_fd, &ms);
  
  		if (ast_channel_state(chan) == AST_STATE_UP && !AST_LIST_EMPTY(&u->finishlist)) {
  			AST_LIST_LOCK(&u->finishlist);
@@ -715,15 +713,18 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  				break;
  			}
  			ast_frfree(f);
- 		} else if (ready_fd == *eivr_commands_fd) {
- 			char input[1024];
- 
- 			if (exception || (dup2(*eivr_commands_fd, test_available_fd) == -1) || feof(eivr_commands)) {
+ 		} else if (ready_fd == waitfds[0]) {
+ 			if (exception) {
  				ast_chan_log(LOG_ERROR, chan, "Child process went away\n");
   				break;
   			}
   
-			if (!fgets(input, sizeof(input), eivr_commands)) {
+			r = ast_iostream_gets(eivr_commands, input, sizeof(input));
+			if (r <= 0) {
+				if (r == 0) {
+					ast_chan_log(LOG_ERROR, chan, "Child process went away\n");
+					break;
+				}
 				continue;
 			}
 
@@ -869,16 +870,19 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  				else
  					ast_chan_log(LOG_WARNING, chan, "Unknown option requested: %s\n", &input[2]);
  			}
- 		} else if (eivr_errors_fd && (ready_fd == *eivr_errors_fd)) {
- 			char input[1024];
-  
- 			if (exception || feof(eivr_errors)) {
+ 		} else if (ready_fd == waitfds[1]) {
+ 			if (exception) {
  				ast_chan_log(LOG_ERROR, chan, "Child process went away\n");
  				break;
  			}
- 			if (fgets(input, sizeof(input), eivr_errors)) {
+ 
+ 			r = ast_iostream_gets(eivr_errors, input, sizeof(input));
+ 			if (r > 0) {
  				ast_chan_log(LOG_NOTICE, chan, "stderr: %s\n", ast_strip(input));
- 			}
+ 			} else if (r == 0) {
+ 				ast_chan_log(LOG_ERROR, chan, "Child process went away\n");
+ 				break;
+			}
  		} else if ((ready_fd < 0) && ms) { 
  			if (errno == 0 || errno == EINTR)
  				continue;
@@ -888,23 +892,7 @@ static int eivr_comm(struct ast_channel *chan, struct ivr_localuser *u,
  		}
  	}
  
-	exit:
-	if (test_available_fd > -1) {
-		close(test_available_fd);
-	}
-	if (eivr_events) {
- 		fclose(eivr_events);
-		*eivr_events_fd = -1;
-	}
-	if (eivr_commands) {
-		fclose(eivr_commands);
-		*eivr_commands_fd = -1;
-	}
-	if (eivr_errors) {
-		fclose(eivr_errors);
-		*eivr_errors_fd = -1;
-	}
-  	return res;
+	return res;
 }
 
 static int unload_module(void)
