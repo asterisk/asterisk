@@ -275,6 +275,8 @@ struct ast_bridge_features {
 	unsigned int usable:1;
 	/*! TRUE if the channel/bridge is muted. */
 	unsigned int mute:1;
+	/*! TRUE if the channel/bridge is deaf. */
+	unsigned int deaf:1;
 	/*! TRUE if DTMF should be passed into the bridge tech.  */
 	unsigned int dtmf_passthrough:1;
 };

@@ -42,6 +42,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/app.h"
 #include "asterisk/pbx.h"
 #include "asterisk/channel.h"
+#include "asterisk/format_cache.h"
 #include "asterisk/timing.h"
 #include "asterisk/bridge.h"
 #include "asterisk/bridge_channel.h"
@@ -971,7 +972,21 @@ int ast_bridge_channel_queue_frame(struct ast_bridge_channel *bridge_channel, st
 		return 0;
 	}
 
-	dup = ast_frdup(fr);
+	if (fr->frametype == AST_FRAME_VOICE &&
+	    (bridge_channel->features && bridge_channel->features->deaf)) {
+		short buf[fr->samples];
+		struct ast_frame sframe = {
+			.frametype = AST_FRAME_VOICE,
+			.subclass.format = ast_format_slin,
+			.data.ptr = buf,
+			.samples = fr->samples,
+			.datalen = sizeof(buf),
+		};
+		memset(buf, 0, sizeof(buf));
+		dup = ast_frdup(&sframe);
+	} else {
+		dup = ast_frdup(fr);
+	}
 	if (!dup) {
 		return -1;
 	}
