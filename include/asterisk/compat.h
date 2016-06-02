@@ -68,7 +68,7 @@
 #endif
 
 #ifndef AST_POLL_COMPAT
-#include <sys/poll.h>
+#include <poll.h>
 #else
 #include "asterisk/poll-compat.h"
 #endif
