@@ -333,8 +333,6 @@ static pjsip_module endpoint_mod = {
 	.on_rx_request = endpoint_lookup,
 };
 
-#define SIP_MAX_QUEUE (AST_TASKPROCESSOR_HIGH_WATER_LEVEL * 3)
-
 static pj_bool_t distributor(pjsip_rx_data *rdata)
 {
 	pjsip_dialog *dlg;
@@ -372,6 +370,13 @@ static pj_bool_t distributor(pjsip_rx_data *rdata)
 				rdata->msg_info.info);
 		serializer = find_request_serializer(rdata);
 		if (!serializer) {
+			if (ast_taskprocessor_alert_get()) {
+				/* We're overloaded, ignore the unmatched response. */
+				ast_debug(3, "Taskprocessor overload alert: Ignoring unmatched '%s'.\n",
+					pjsip_rx_data_get_info(rdata));
+				return PJ_TRUE;
+			}
+
 			/*
 			 * Pick a serializer for the unmatched response.  Maybe
 			 * the stack can figure out what it is for, or we really
@@ -386,6 +391,21 @@ static pj_bool_t distributor(pjsip_rx_data *rdata)
 			PJSIP_SC_CALL_TSX_DOES_NOT_EXIST, NULL, NULL, NULL);
 		return PJ_TRUE;
 	} else {
+		if (ast_taskprocessor_alert_get()) {
+			/*
+			 * When taskprocessors get backed up, there is a good chance that
+			 * we are being overloaded and need to defer adding new work to
+			 * the system.  To defer the work we will ignore the request and
+			 * rely on the peer's transport layer to retransmit the message.
+			 * We usually work off the overload within a few seconds.  The
+			 * alternative is to send back a 503 response to these requests
+			 * and be done with it.
+			 */
+			ast_debug(3, "Taskprocessor overload alert: Ignoring '%s'.\n",
+				pjsip_rx_data_get_info(rdata));
+			return PJ_TRUE;
+		}
+
 		/* Pick a serializer for the out-of-dialog request. */
 		serializer = ast_sip_get_distributor_serializer(rdata);
 	}
@@ -396,21 +416,9 @@ static pj_bool_t distributor(pjsip_rx_data *rdata)
 		clone->endpt_info.mod_data[endpoint_mod.id] = ao2_bump(dist->endpoint);
 	}
 
-	if (ast_sip_threadpool_queue_size() > SIP_MAX_QUEUE) {
-		/* When the threadpool is backed up this much, there is a good chance that we have encountered
-		 * some sort of terrible condition and don't need to be adding more work to the threadpool.
-		 * It's in our best interest to send back a 503 response and be done with it.
-		 */
-		if (rdata->msg_info.msg->type == PJSIP_REQUEST_MSG) {
-			pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 503, NULL, NULL, NULL);
-		}
+	if (ast_sip_push_task(serializer, distribute, clone)) {
 		ao2_cleanup(clone->endpt_info.mod_data[endpoint_mod.id]);
 		pjsip_rx_data_free_cloned(clone);
-	} else {
-		if (ast_sip_push_task(serializer, distribute, clone)) {
-			ao2_cleanup(clone->endpt_info.mod_data[endpoint_mod.id]);
-			pjsip_rx_data_free_cloned(clone);
-		}
 	}
 
 	ast_taskprocessor_unreference(serializer);
