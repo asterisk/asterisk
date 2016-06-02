@@ -254,12 +254,10 @@ static int dns_search_res(const char *dname, int rr_class, int rr_type,
 {
 
 	int ret = AST_DNS_SEARCH_FAILURE;
-	struct __res_state dns_state;
 
 	ast_mutex_lock(&res_lock);
 	res_init();
-	ret = res_search(&dns_state,
-	                 dname,
+	ret = res_search(dname,
 	                 rr_class,
 	                 rr_type,
 	                 dns_response,
