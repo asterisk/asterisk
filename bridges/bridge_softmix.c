@@ -1034,15 +1034,21 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 
 			ast_mutex_lock(&sc->lock);
 
-			/* Make SLINEAR write frame from local buffer */
-			ao2_t_replace(sc->write_frame.subclass.format, cur_slin,
-				"Replace softmix channel slin format");
-			sc->write_frame.datalen = softmix_datalen;
-			sc->write_frame.samples = softmix_samples;
-			memcpy(sc->final_buf, buf, softmix_datalen);
+			if (bridge_channel->features && bridge_channel->features->deaf) {
+				/* For deaf channels post a null frame */
+				sc->write_frame.frametype = AST_FRAME_NULL;
+			} else {
+				/* Make SLINEAR write frame from local buffer */
+				sc->write_frame.frametype = AST_FRAME_VOICE;
+				ao2_t_replace(sc->write_frame.subclass.format, cur_slin,
+					"Replace softmix channel slin format");
+				sc->write_frame.datalen = softmix_datalen;
+				sc->write_frame.samples = softmix_samples;
+				memcpy(sc->final_buf, buf, softmix_datalen);
 
-			/* process the softmix channel's new write audio */
-			softmix_process_write_audio(&trans_helper, ast_channel_rawwriteformat(bridge_channel->chan), sc);
+				/* process the softmix channel's new write audio */
+				softmix_process_write_audio(&trans_helper, ast_channel_rawwriteformat(bridge_channel->chan), sc);
+			}
 
 			ast_mutex_unlock(&sc->lock);
 

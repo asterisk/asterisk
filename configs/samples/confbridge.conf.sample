@@ -20,6 +20,7 @@ type=user
 ;admin=yes     ; Sets if the user is an admin or not. Off by default.
 ;marked=yes    ; Sets if this is a marked user or not. Off by default.
 ;startmuted=yes; Sets if all users should start out muted. Off by default
+;startdeaf=yes ; Sets if all users should start out deaf. Off by default.
 ;music_on_hold_when_empty=yes  ; Sets whether MOH should be played when only
                                ; one person is in the conference or when the
                                ; the user is waiting on a marked user to enter
@@ -236,6 +237,8 @@ type=bridge
 ;sound_kicked ; The sound played to a user who has been kicked from the conference.
 ;sound_muted  ; The sound played when the mute option it toggled on.
 ;sound_unmuted  ; The sound played when the mute option it toggled off.
+;sound_deafened  ; The sound played when the deaf option is toggled on.
+;sound_undeafened  ; The sound played when the deaf option is toggled off.
 ;sound_only_person ; The sound played when the user is the only person in the conference.
 ;sound_only_one ; The sound played to a user when there is only one other
                 ; person is in the conference.
@@ -297,6 +300,8 @@ type=bridge
                                        ; using the '&' character as a delimiter.
 ; toggle_mute      ; Toggle turning on and off mute.  Mute will make the user silent
                    ; to everyone else, but the user will still be able to listen in.
+; toggle_deaf      ; Toggle turning on and off deaf.  Deaf will make the user to hear
+                   ; only silence, but the user will still be able to talk.
 
 ; no_op ; This action does nothing (No Operation). Its only real purpose exists for
         ; being able to reserve a sequence in the config as a menu exit sequence.
