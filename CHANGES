@@ -9,6 +9,16 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.9.0 to Asterisk 13.10.0 -----------
+------------------------------------------------------------------------------
+
+res_odbc
+------------------
+ * A new option has been added, 'max_connections', which sets the maximum number
+   of concurrent connections to the database. This option defaults to 1 which
+   returns the behavior to that of Asterisk 13.7 and prior.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.8.0 to Asterisk 13.9.0 ------------
 ------------------------------------------------------------------------------
 
