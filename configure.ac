@@ -808,10 +808,6 @@ AC_ARG_ENABLE([asteriskssl],
 	esac], [AST_ASTERISKSSL=yes])
 AC_SUBST(AST_ASTERISKSSL)
 
-# https support (in main/http.c) uses funopen on BSD systems,
-# fopencookie on linux
-AC_CHECK_FUNCS([funopen fopencookie])
-
 AC_CHECK_FUNCS([inet_aton])
 
 # check if we have IP_PKTINFO constant defined

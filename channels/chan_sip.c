@@ -2542,7 +2542,7 @@ static struct sip_threadinfo *sip_threadinfo_create(struct ast_tcptls_session_in
 	}
 	ao2_t_ref(tcptls_session, +1, "tcptls_session ref for sip_threadinfo object");
 	th->tcptls_session = tcptls_session;
-	th->type = transport ? transport : (tcptls_session->ssl ? AST_TRANSPORT_TLS: AST_TRANSPORT_TCP);
+	th->type = transport ? transport : (ast_iostream_get_ssl(tcptls_session->stream) ? AST_TRANSPORT_TLS: AST_TRANSPORT_TCP);
 	ao2_t_link(threadt, th, "Adding new tcptls helper thread");
 	ao2_t_ref(th, -1, "Decrementing threadinfo ref from alloc, only table ref remains");
 	return th;
@@ -2565,8 +2565,7 @@ static int sip_tcptls_write(struct ast_tcptls_session_instance *tcptls_session, 
 
 	ao2_lock(tcptls_session);
 
-	if ((tcptls_session->fd == -1) ||
-		!(th = ao2_t_find(threadt, &tmp, OBJ_POINTER, "ao2_find, getting sip_threadinfo in tcp helper thread")) ||
+	if (!(th = ao2_t_find(threadt, &tmp, OBJ_POINTER, "ao2_find, getting sip_threadinfo in tcp helper thread")) ||
 		!(packet = ao2_alloc(sizeof(*packet), tcptls_packet_destructor)) ||
 		!(packet->data = ast_str_create(len))) {
 		goto tcptls_write_setup_error;
@@ -2879,7 +2878,7 @@ static int sip_tcptls_read(struct sip_request *req, struct ast_tcptls_session_in
 			} else {
 				timeout = -1;
 			}
-			res = ast_wait_for_input(tcptls_session->fd, timeout);
+			res = ast_wait_for_input(ast_iostream_get_fd(tcptls_session->stream), timeout);
 			if (res < 0) {
 				ast_debug(2, "SIP TCP/TLS server :: ast_wait_for_input returned %d\n", res);
 				return -1;
@@ -2888,7 +2887,7 @@ static int sip_tcptls_read(struct sip_request *req, struct ast_tcptls_session_in
 				return -1;
 			}
 
-			res = ast_tcptls_server_read(tcptls_session, readbuf, sizeof(readbuf) - 1);
+			res = ast_iostream_read(tcptls_session->stream, readbuf, sizeof(readbuf) - 1);
 			if (res < 0) {
 				if (errno == EAGAIN || errno == EINTR) {
 					continue;
@@ -2949,18 +2948,8 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 			goto cleanup;
 		}
 
-		if ((flags = fcntl(tcptls_session->fd, F_GETFL)) == -1) {
-			ast_log(LOG_ERROR, "error setting socket to non blocking mode, fcntl() failed: %s\n", strerror(errno));
-			goto cleanup;
-		}
-
-		flags |= O_NONBLOCK;
-		if (fcntl(tcptls_session->fd, F_SETFL, flags) == -1) {
-			ast_log(LOG_ERROR, "error setting socket to non blocking mode, fcntl() failed: %s\n", strerror(errno));
-			goto cleanup;
-		}
-
-		if (!(me = sip_threadinfo_create(tcptls_session, tcptls_session->ssl ? AST_TRANSPORT_TLS : AST_TRANSPORT_TCP))) {
+		ast_iostream_nonblock(tcptls_session->stream);
+		if (!(me = sip_threadinfo_create(tcptls_session, ast_iostream_get_ssl(tcptls_session->stream) ? AST_TRANSPORT_TLS : AST_TRANSPORT_TCP))) {
 			goto cleanup;
 		}
 		ao2_t_ref(me, +1, "Adding threadinfo ref for tcp_helper_thread");
@@ -2977,16 +2966,16 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 	}
 
 	flags = 1;
-	if (setsockopt(tcptls_session->fd, SOL_SOCKET, SO_KEEPALIVE, &flags, sizeof(flags))) {
+	if (setsockopt(ast_iostream_get_fd(tcptls_session->stream), SOL_SOCKET, SO_KEEPALIVE, &flags, sizeof(flags))) {
 		ast_log(LOG_ERROR, "error enabling TCP keep-alives on sip socket: %s\n", strerror(errno));
 		goto cleanup;
 	}
 
 	me->threadid = pthread_self();
-	ast_debug(2, "Starting thread for %s server\n", tcptls_session->ssl ? "TLS" : "TCP");
+	ast_debug(2, "Starting thread for %s server\n", ast_iostream_get_ssl(tcptls_session->stream) ? "TLS" : "TCP");
 
 	/* set up pollfd to watch for reads on both the socket and the alert_pipe */
-	fds[0].fd = tcptls_session->fd;
+	fds[0].fd = ast_iostream_get_fd(tcptls_session->stream);
 	fds[1].fd = me->alert_pipe[0];
 	fds[0].events = fds[1].events = POLLIN | POLLPRI;
 
@@ -3006,9 +2995,9 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 	 * We cannot let the stream exclusively wait for data to arrive.
 	 * We have to wake up the task to send outgoing messages.
 	 */
-	ast_tcptls_stream_set_exclusive_input(tcptls_session->stream_cookie, 0);
+	ast_iostream_set_exclusive_input(tcptls_session->stream, 0);
 
-	ast_tcptls_stream_set_timeout_sequence(tcptls_session->stream_cookie, ast_tvnow(),
+	ast_iostream_set_timeout_sequence(tcptls_session->stream, ast_tvnow(),
 		tcptls_session->client ? -1 : (authtimeout * 1000));
 
 	for (;;) {
@@ -3016,7 +3005,7 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 
 		if (!tcptls_session->client && req.authenticated && !authenticated) {
 			authenticated = 1;
-			ast_tcptls_stream_set_timeout_disable(tcptls_session->stream_cookie);
+			ast_iostream_set_timeout_disable(tcptls_session->stream);
 			ast_atomic_fetchadd_int(&unauth_sessions, -1);
 		}
 
@@ -3027,7 +3016,7 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 			}
 
 			if (timeout == 0) {
-				ast_debug(2, "SIP %s server timed out\n", tcptls_session->ssl ? "TLS": "TCP");
+				ast_debug(2, "SIP %s server timed out\n", ast_iostream_get_ssl(tcptls_session->stream) ? "TLS": "TCP");
 				goto cleanup;
 			}
 		} else {
@@ -3037,11 +3026,11 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 		if (ast_str_strlen(tcptls_session->overflow_buf) == 0) {
 			res = ast_poll(fds, 2, timeout); /* polls for both socket and alert_pipe */
 			if (res < 0) {
-				ast_debug(2, "SIP %s server :: ast_wait_for_input returned %d\n", tcptls_session->ssl ? "TLS": "TCP", res);
+				ast_debug(2, "SIP %s server :: ast_wait_for_input returned %d\n", ast_iostream_get_ssl(tcptls_session->stream) ? "TLS": "TCP", res);
 				goto cleanup;
 			} else if (res == 0) {
 				/* timeout */
-				ast_debug(2, "SIP %s server timed out\n", tcptls_session->ssl ? "TLS": "TCP");
+				ast_debug(2, "SIP %s server timed out\n", ast_iostream_get_ssl(tcptls_session->stream) ? "TLS": "TCP");
 				goto cleanup;
 			}
 		}
@@ -3066,14 +3055,14 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 
 			memset(buf, 0, sizeof(buf));
 
-			if (tcptls_session->ssl) {
+			if (ast_iostream_get_ssl(tcptls_session->stream)) {
 				set_socket_transport(&req.socket, AST_TRANSPORT_TLS);
 				req.socket.port = htons(ourport_tls);
 			} else {
 				set_socket_transport(&req.socket, AST_TRANSPORT_TCP);
 				req.socket.port = htons(ourport_tcp);
 			}
-			req.socket.fd = tcptls_session->fd;
+			req.socket.fd = ast_iostream_get_fd(tcptls_session->stream);
 
 			res = sip_tcptls_read(&req, tcptls_session, authenticated, start);
 			if (res < 0) {
@@ -3107,7 +3096,7 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 				ao2_unlock(me);
 
 				if (packet) {
-					if (ast_tcptls_server_write(tcptls_session, ast_str_buffer(packet->data), packet->len) == -1) {
+					if (ast_iostream_write(tcptls_session->stream, ast_str_buffer(packet->data), packet->len) == -1) {
 						ast_log(LOG_WARNING, "Failure to write to tcp/tls socket\n");
 					}
 					ao2_t_ref(packet, -1, "tcptls packet sent, this is no longer needed");
@@ -3119,7 +3108,7 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 		}
 	}
 
-	ast_debug(2, "Shutting down thread for %s server\n", tcptls_session->ssl ? "TLS" : "TCP");
+	ast_debug(2, "Shutting down thread for %s server\n", ast_iostream_get_ssl(tcptls_session->stream) ? "TLS" : "TCP");
 
 cleanup:
 	if (tcptls_session && !tcptls_session->client && !authenticated) {
@@ -29055,9 +29044,8 @@ static int sip_prepare_socket(struct sip_pvt *p)
 		return s->fd;
 	}
 	if ((s->type & (AST_TRANSPORT_TCP | AST_TRANSPORT_TLS)) &&
-			(s->tcptls_session) &&
-			(s->tcptls_session->fd != -1)) {
-		return s->tcptls_session->fd;
+			s->tcptls_session) {
+		return ast_iostream_get_fd(s->tcptls_session->stream);
 	}
 	if ((s->type & (AST_TRANSPORT_WS | AST_TRANSPORT_WSS))) {
 		return s->ws_session ? ast_websocket_fd(s->ws_session) : -1;
@@ -29087,7 +29075,7 @@ static int sip_prepare_socket(struct sip_pvt *p)
 	/* 1.  check for existing threads */
 	ast_sockaddr_copy(&sa_tmp, sip_real_dst(p));
 	if ((tcptls_session = sip_tcp_locate(&sa_tmp))) {
-		s->fd = tcptls_session->fd;
+		s->fd = ast_iostream_get_fd(tcptls_session->stream);
 		if (s->tcptls_session) {
 			ao2_ref(s->tcptls_session, -1);
 			s->tcptls_session = NULL;
@@ -29134,7 +29122,7 @@ static int sip_prepare_socket(struct sip_pvt *p)
 		goto create_tcptls_session_fail;
 	}
 
-	s->fd = s->tcptls_session->fd;
+	s->fd = ast_iostream_get_fd(s->tcptls_session->stream);
 
 	/* client connections need to have the sip_threadinfo object created before
 	 * the thread is detached.  This ensures the alert_pipe is up before it will
@@ -29934,8 +29922,7 @@ static int sip_send_keepalive(const void *data)
 	if ((peer->socket.fd != -1) && (peer->socket.type == AST_TRANSPORT_UDP)) {
 		res = ast_sendto(peer->socket.fd, keepalive, sizeof(keepalive), 0, &peer->addr);
 	} else if ((peer->socket.type & (AST_TRANSPORT_TCP | AST_TRANSPORT_TLS)) &&
-		   (peer->socket.tcptls_session) &&
-		   (peer->socket.tcptls_session->fd != -1)) {
+		   peer->socket.tcptls_session) {
 		res = sip_tcptls_write(peer->socket.tcptls_session, keepalive, sizeof(keepalive));
 	} else if (peer->socket.type == AST_TRANSPORT_UDP) {
 		res = ast_sendto(sipsock, keepalive, sizeof(keepalive), 0, &peer->addr);
