@@ -1161,6 +1161,20 @@ int __ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type,
 	return 0;
 }
 
+int ast_sorcery_object_set_congestion_levels(struct ast_sorcery *sorcery, const char *type, long low_water, long high_water)
+{
+	struct ast_sorcery_object_type *object_type;
+	int res = -1;
+
+	object_type = ao2_find(sorcery->types, type, OBJ_SEARCH_KEY);
+	if (object_type) {
+		res = ast_taskprocessor_alert_set_levels(object_type->serializer,
+			low_water, high_water);
+		ao2_ref(object_type, -1);
+	}
+	return res;
+}
+
 void ast_sorcery_object_set_copy_handler(struct ast_sorcery *sorcery, const char *type, sorcery_copy_handler copy)
 {
 	RAII_VAR(struct ast_sorcery_object_type *, object_type, ao2_find(sorcery->types, type, OBJ_KEY), ao2_cleanup);

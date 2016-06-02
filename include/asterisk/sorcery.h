@@ -692,6 +692,20 @@ int __ast_sorcery_object_register(struct ast_sorcery *sorcery, const char *type,
 	__ast_sorcery_object_register((sorcery), (type), 1, 1, (alloc), (transform), (apply))
 
 /*!
+ * \brief Set the high and low alert water marks of the sorcery object type.
+ * \since 13.10.0
+ *
+ * \param sorcery Pointer to a sorcery structure
+ * \param type Type of object
+ * \param low_water New queue low water mark. (-1 to set as 90% of high_water)
+ * \param high_water New queue high water mark.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error (water marks not changed).
+ */
+int ast_sorcery_object_set_congestion_levels(struct ast_sorcery *sorcery, const char *type, long low_water, long high_water);
+
+/*!
  * \brief Set the copy handler for an object type
  *
  * \param sorcery Pointer to a sorcery structure
