@@ -51,6 +51,11 @@ pre-connect => yes
 ; that we should attempt?
 ;limit => 5
 ;
+; The maximum number of connections to have open at any given time.
+; This defaults to 1 and it is highly recommended to only set this higher
+; if using a version of UnixODBC greater than 2.3.1.
+;max_connections => 20
+;
 ; When the channel is destroyed, should any uncommitted open transactions
 ; automatically be committed?
 ;forcecommit => no
