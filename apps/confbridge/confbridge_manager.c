@@ -189,6 +189,38 @@ ASTERISK_REGISTER_FILE()
 			</see-also>
 		</managerEventInstance>
 	</managerEvent>
+	<managerEvent language="en_US" name="ConfbridgeDeafen">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when a Confbridge participant deafens.</synopsis>
+			<syntax>
+				<parameter name="Conference">
+					<para>The name of the Confbridge conference.</para>
+				</parameter>
+				<bridge_snapshot/>
+				<channel_snapshot/>
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">ConfbridgeUndeafen</ref>
+				<ref type="application">ConfBridge</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
+	<managerEvent language="en_US" name="ConfbridgeUndeafen">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when a confbridge participant undeafens.</synopsis>
+			<syntax>
+				<parameter name="Conference">
+					<para>The name of the Confbridge conference.</para>
+				</parameter>
+				<bridge_snapshot/>
+				<channel_snapshot/>
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">ConfbridgeMute</ref>
+				<ref type="application">ConfBridge</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
 	<managerEvent language="en_US" name="ConfbridgeTalking">
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a confbridge participant unmutes.</synopsis>
@@ -338,6 +370,18 @@ static void confbridge_unmute_cb(void *data, struct stasis_subscription *sub,
 	ast_free(extra_text);
 }
 
+static void confbridge_deafen_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_message *message)
+{
+	confbridge_publish_manager_event(message, "ConfbridgeDeafen", NULL);
+}
+
+static void confbridge_undeafen_cb(void *data, struct stasis_subscription *sub,
+	struct stasis_message *message)
+{
+	confbridge_publish_manager_event(message, "ConfbridgeUndeafen", NULL);
+}
+
 static void confbridge_talking_cb(void *data, struct stasis_subscription *sub,
 	struct stasis_message *message)
 {
@@ -366,6 +410,8 @@ STASIS_MESSAGE_TYPE_DEFN(confbridge_start_record_type);
 STASIS_MESSAGE_TYPE_DEFN(confbridge_stop_record_type);
 STASIS_MESSAGE_TYPE_DEFN(confbridge_mute_type);
 STASIS_MESSAGE_TYPE_DEFN(confbridge_unmute_type);
+STASIS_MESSAGE_TYPE_DEFN(confbridge_deafen_type);
+STASIS_MESSAGE_TYPE_DEFN(confbridge_undeafen_type);
 STASIS_MESSAGE_TYPE_DEFN(confbridge_talking_type);
 
 void manager_confbridge_shutdown(void) {
@@ -377,6 +423,8 @@ void manager_confbridge_shutdown(void) {
 	STASIS_MESSAGE_TYPE_CLEANUP(confbridge_stop_record_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(confbridge_mute_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(confbridge_unmute_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(confbridge_deafen_type);
+	STASIS_MESSAGE_TYPE_CLEANUP(confbridge_undeafen_type);
 	STASIS_MESSAGE_TYPE_CLEANUP(confbridge_talking_type);
 
 	if (bridge_state_router) {
@@ -400,6 +448,8 @@ int manager_confbridge_init(void)
 	STASIS_MESSAGE_TYPE_INIT(confbridge_stop_record_type);
 	STASIS_MESSAGE_TYPE_INIT(confbridge_mute_type);
 	STASIS_MESSAGE_TYPE_INIT(confbridge_unmute_type);
+	STASIS_MESSAGE_TYPE_INIT(confbridge_deafen_type);
+	STASIS_MESSAGE_TYPE_INIT(confbridge_undeafen_type);
 	STASIS_MESSAGE_TYPE_INIT(confbridge_talking_type);
 
 	bridge_state_router = stasis_message_router_create(
@@ -461,6 +511,20 @@ int manager_confbridge_init(void)
 	if (stasis_message_router_add(bridge_state_router,
 			confbridge_unmute_type(),
 			confbridge_unmute_cb,
+			NULL)) {
+		manager_confbridge_shutdown();
+		return -1;
+	}
+	if (stasis_message_router_add(bridge_state_router,
+			confbridge_deafen_type(),
+			confbridge_deafen_cb,
+			NULL)) {
+		manager_confbridge_shutdown();
+		return -1;
+	}
+	if (stasis_message_router_add(bridge_state_router,
+			confbridge_undeafen_type(),
+			confbridge_undeafen_cb,
 			NULL)) {
 		manager_confbridge_shutdown();
 		return -1;
@@ -533,6 +597,20 @@ int manager_confbridge_init(void)
 	if (stasis_message_router_add(channel_state_router,
 			confbridge_unmute_type(),
 			confbridge_unmute_cb,
+			NULL)) {
+		manager_confbridge_shutdown();
+		return -1;
+	}
+	if (stasis_message_router_add(channel_state_router,
+			confbridge_deafen_type(),
+			confbridge_deafen_cb,
+			NULL)) {
+		manager_confbridge_shutdown();
+		return -1;
+	}
+	if (stasis_message_router_add(channel_state_router,
+			confbridge_undeafen_type(),
+			confbridge_undeafen_cb,
 			NULL)) {
 		manager_confbridge_shutdown();
 		return -1;

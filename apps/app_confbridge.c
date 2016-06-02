@@ -272,6 +272,38 @@ ASTERISK_REGISTER_FILE()
 		<description>
 		</description>
 	</manager>
+	<manager name="ConfbridgeDeafen" language="en_US">
+		<synopsis>
+			Deafen a Confbridge user.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Conference" required="true" />
+			<parameter name="Channel" required="true">
+				<para>If this parameter is not a complete channel name, the first channel with this prefix will be used.</para>
+				<para>If this parameter is "all", all channels will be deafened.</para>
+				<para>If this parameter is "participants", all non-admin channels will be deafened.</para>
+			</parameter>
+		</syntax>
+		<description>
+		</description>
+	</manager>
+	<manager name="ConfbridgeUndeafen" language="en_US">
+		<synopsis>
+			Undeafen a Confbridge user.
+		</synopsis>
+		<syntax>
+			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
+			<parameter name="Conference" required="true" />
+			<parameter name="Channel" required="true">
+				<para>If this parameter is not a complete channel name, the first channel with this prefix will be used.</para>
+				<para>If this parameter is "all", all channels will be undeafened.</para>
+				<para>If this parameter is "participants", all non-admin channels will be undeafened.</para>
+			</parameter>
+		</syntax>
+		<description>
+		</description>
+	</manager>
 	<manager name="ConfbridgeKick" language="en_US">
 		<synopsis>
 			Kick a Confbridge user.
@@ -368,6 +400,13 @@ static const char app[] = "ConfBridge";
 /*! Initial recording filename space. */
 #define RECORD_FILENAME_INITIAL_SPACE	128
 
+enum confbridge_feature_action {
+	CONFBRIDGE_FEATURE_MUTE,
+	CONFBRIDGE_FEATURE_UNMUTE,
+	CONFBRIDGE_FEATURE_DEAFEN,
+	CONFBRIDGE_FEATURE_UNDEAFEN
+};
+
 /*! \brief Container to hold all conference bridges in progress */
 struct ao2_container *conference_bridges;
 
@@ -439,6 +478,10 @@ const char *conf_get_sound(enum conf_sounds sound, struct bridge_profile_sounds 
 		return S_OR(custom_sounds->muted, "conf-muted");
 	case CONF_SOUND_UNMUTED:
 		return S_OR(custom_sounds->unmuted, "conf-unmuted");
+	case CONF_SOUND_DEAFENED:
+		return S_OR(custom_sounds->deafened, "conf-deafened");
+	case CONF_SOUND_UNDEAFENED:
+		return S_OR(custom_sounds->undeafened, "conf-undeafened");
 	case CONF_SOUND_ONLY_ONE:
 		return S_OR(custom_sounds->onlyone, "conf-onlyone");
 	case CONF_SOUND_THERE_ARE:
@@ -587,6 +630,16 @@ static void send_unmute_event(struct confbridge_user *user, struct confbridge_co
 	}
 	send_conf_stasis(conference, user->chan, confbridge_unmute_type(), json_object, 1);
 	ast_json_unref(json_object);
+}
+
+static void send_deafen_event(struct confbridge_user *user, struct confbridge_conference *conference)
+{
+	send_conf_stasis(conference, user->chan, confbridge_deafen_type(), NULL, 1);
+}
+
+static void send_undeafen_event(struct confbridge_user *user, struct confbridge_conference *conference)
+{
+	send_conf_stasis(conference, user->chan, confbridge_undeafen_type(), NULL, 1);
 }
 
 static void set_rec_filename(struct confbridge_conference *conference, struct ast_str **filename, int is_new)
@@ -1091,26 +1144,53 @@ void conf_update_user_mute(struct confbridge_user *user)
 
 /*
  * \internal
- * \brief Mute/unmute a single user.
+ * \brief Send feature change test event.
  */
-static void generic_mute_unmute_user(struct confbridge_conference *conference, struct confbridge_user *user, int mute)
+static void test_suite_feature_action_event_notify(
+	struct confbridge_conference *conference,
+	struct confbridge_user *user,
+	const char *state, const char *verb)
 {
-	/* Set user level mute request. */
-	user->muted = mute ? 1 : 0;
-
-	conf_update_user_mute(user);
-	ast_test_suite_event_notify("CONF_MUTE",
+	ast_test_suite_event_notify(state,
 		"Message: participant %s %s\r\n"
 		"Conference: %s\r\n"
 		"Channel: %s",
 		ast_channel_name(user->chan),
-		mute ? "muted" : "unmuted",
+		verb,
 		conference->b_profile.name,
 		ast_channel_name(user->chan));
-	if (mute) {
+}
+
+/* \internal
+ * \brief Change a feature for one conference user.
+ */
+static void generic_feature_action_helper_user(
+	struct confbridge_conference *conference, struct confbridge_user *user,
+	enum confbridge_feature_action action)
+{
+	switch (action) {
+	case CONFBRIDGE_FEATURE_DEAFEN:
+		user->features.deaf = 1;
+		test_suite_feature_action_event_notify(conference, user, "CONF_DEAF", "deafened");
+		send_deafen_event(user, conference);
+		break;
+	case CONFBRIDGE_FEATURE_UNDEAFEN:
+		user->features.deaf = 0;
+		test_suite_feature_action_event_notify(conference, user, "CONF_DEAF", "undeafened");
+		send_undeafen_event(user, conference);
+		break;
+	case CONFBRIDGE_FEATURE_MUTE:
+		user->muted = 1;
+		conf_update_user_mute(user);
+		test_suite_feature_action_event_notify(conference, user, "CONF_MUTE", "muted");
 		send_mute_event(user, conference);
-	} else {
+		break;
+	case CONFBRIDGE_FEATURE_UNMUTE:
+		user->muted = 0;
+		conf_update_user_mute(user);
+		test_suite_feature_action_event_notify(conference, user, "CONF_MUTE", "unmuted");
 		send_unmute_event(user, conference);
+		break;
 	}
 }
 
@@ -1784,6 +1864,11 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	if (args.argc > 3 && !ast_strlen_zero(args.menu_profile_name)) {
 		menu_profile_name = args.menu_profile_name;
 	}
+	/* If the caller should be joined already deafened, set the flag before we join. */
+	if (ast_test_flag(&user.u_profile, USER_OPT_STARTDEAF)) {
+		/* Set user level deaf request */
+		user.features.deaf = 1;
+	}
 
 	if (conf_set_menu_to_user(chan, &user, menu_profile_name)) {
 		pbx_builtin_setvar_helper(chan, "CONFBRIDGE_RESULT", "FAILED");
@@ -1969,7 +2054,7 @@ static int action_toggle_mute(struct confbridge_conference *conference,
 
 	/* Toggle user level mute request. */
 	mute = !user->muted;
-	generic_mute_unmute_user(conference, user, mute);
+	generic_feature_action_helper_user(conference, user, mute ? CONFBRIDGE_FEATURE_MUTE : CONFBRIDGE_FEATURE_UNMUTE);
 
 	return play_file(bridge_channel, NULL,
 		conf_get_sound(mute ? CONF_SOUND_MUTED : CONF_SOUND_UNMUTED,
@@ -2011,6 +2096,22 @@ static int action_toggle_mute_participants(struct confbridge_conference *confere
 	ast_autoservice_stop(user->chan);
 
 	return 0;
+}
+
+static int action_toggle_deaf(struct confbridge_conference *conference,
+			      struct confbridge_user *user,
+			      struct ast_bridge_channel *bridge_channel)
+{
+	int deaf;
+
+	/* Deafen or undeafen yourself */
+	deaf = !user->features.deaf;
+	generic_feature_action_helper_user(conference, user,
+		deaf ? CONFBRIDGE_FEATURE_DEAFEN : CONFBRIDGE_FEATURE_UNDEAFEN);
+
+	return play_file(bridge_channel, NULL,
+		conf_get_sound(deaf ? CONF_SOUND_DEAFENED : CONF_SOUND_UNDEAFENED,
+			user->b_profile.sounds)) < 0;
 }
 
 static int action_playback(struct ast_bridge_channel *bridge_channel, const char *playback_file)
@@ -2197,6 +2298,9 @@ static int execute_menu_entry(struct confbridge_conference *conference,
 			break;
 		case MENU_ACTION_PARTICIPANT_COUNT:
 			announce_user_count(conference, user, bridge_channel);
+			break;
+		case MENU_ACTION_TOGGLE_DEAF:
+			res |= action_toggle_deaf(conference, user, bridge_channel);
 			break;
 		case MENU_ACTION_PLAYBACK:
 			if (!stop_prompts) {
@@ -2453,7 +2557,7 @@ static char *handle_cli_confbridge_kick(struct ast_cli_entry *e, int cmd, struct
 
 static void handle_cli_confbridge_list_item(struct ast_cli_args *a, struct confbridge_user *user, int waiting)
 {
-	char flag_str[6 + 1];/* Max flags + terminator */
+	char flag_str[7 + 1];/* Max flags + terminator */
 	int pos = 0;
 
 	/* Build flags column string. */
@@ -2472,12 +2576,15 @@ static void handle_cli_confbridge_list_item(struct ast_cli_args *a, struct confb
 	if (user->muted) {
 		flag_str[pos++] = 'm';
 	}
+	if (user->features.deaf) {
+		flag_str[pos++] = 'd';
+	}
 	if (waiting) {
 		flag_str[pos++] = 'w';
 	}
 	flag_str[pos] = '\0';
 
-	ast_cli(a->fd, "%-30s %-6s %-16s %-16s %-16s %s\n",
+	ast_cli(a->fd, "%-30s %-7s %-16s %-16s %-16s %s\n",
 		ast_channel_name(user->chan),
 		flag_str,
 		user->u_profile.name,
@@ -2507,6 +2614,7 @@ static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct
 			"         W - The user must wait for a marked user to join\n"
 			"         E - The user will be kicked after the last marked user leaves the conference\n"
 			"         m - The user is muted\n"
+			"         d - The user is deafened\n"
 			"         w - The user is waiting for a marked user to join\n";
 		return NULL;
 	case CLI_GENERATE:
@@ -2543,8 +2651,8 @@ static char *handle_cli_confbridge_list(struct ast_cli_entry *e, int cmd, struct
 			ast_cli(a->fd, "No conference bridge named '%s' found!\n", a->argv[2]);
 			return CLI_SUCCESS;
 		}
-		ast_cli(a->fd, "Channel                        Flags  User Profile     Bridge Profile   Menu             CallerID\n");
-		ast_cli(a->fd, "============================== ====== ================ ================ ================ ================\n");
+		ast_cli(a->fd, "Channel                        Flags   User Profile     Bridge Profile   Menu             CallerID\n");
+		ast_cli(a->fd, "============================== ======= ================ ================ ================ ================\n");
 		ao2_lock(conference);
 		AST_LIST_TRAVERSE(&conference->active_list, user, list) {
 			handle_cli_confbridge_list_item(a, user, 0);
@@ -2585,14 +2693,14 @@ static int generic_lock_unlock_helper(int lock, const char *conference_name)
 }
 
 /* \internal
- * \brief finds a conference user by channel name and mutes/unmutes them.
+ * \brief finds a conference user by channel name and changes feature bits on it.
  *
  * \retval 0 success
  * \retval -1 conference not found
  * \retval -2 user not found
  */
-static int generic_mute_unmute_helper(int mute, const char *conference_name,
-	const char *chan_name)
+static int generic_feature_action_helper(enum confbridge_feature_action action,
+	const char *conference_name, const char *chan_name)
 {
 	RAII_VAR(struct confbridge_conference *, conference, NULL, ao2_cleanup);
 	struct confbridge_user *user;
@@ -2612,7 +2720,7 @@ static int generic_mute_unmute_helper(int mute, const char *conference_name,
 				strlen(chan_name));
 			if (match || all
 				|| (participants && !ast_test_flag(&user->u_profile, USER_OPT_ADMIN))) {
-				generic_mute_unmute_user(conference, user, mute);
+				generic_feature_action_helper_user(conference, user, action);
 				res = 0;
 				if (match) {
 					return res;
@@ -2625,7 +2733,7 @@ static int generic_mute_unmute_helper(int mute, const char *conference_name,
 				strlen(chan_name));
 			if (match || all
 				|| (participants && !ast_test_flag(&user->u_profile, USER_OPT_ADMIN))) {
-				generic_mute_unmute_user(conference, user, mute);
+				generic_feature_action_helper_user(conference, user, action);
 				res = 0;
 				if (match) {
 					return res;
@@ -2637,9 +2745,10 @@ static int generic_mute_unmute_helper(int mute, const char *conference_name,
 	return res;
 }
 
-static int cli_mute_unmute_helper(int mute, struct ast_cli_args *a)
+static int cli_feature_action_helper(enum confbridge_feature_action action, struct ast_cli_args *a)
 {
-	int res = generic_mute_unmute_helper(mute, a->argv[2], a->argv[3]);
+	const char *verb = "";
+	int res = generic_feature_action_helper(action, a->argv[2], a->argv[3]);
 
 	if (res == -1) {
 		ast_cli(a->fd, "No conference bridge named '%s' found!\n", a->argv[2]);
@@ -2652,7 +2761,23 @@ static int cli_mute_unmute_helper(int mute, struct ast_cli_args *a)
 		}
 		return -1;
 	}
-	ast_cli(a->fd, "%s %s from confbridge %s\n", mute ? "Muting" : "Unmuting", a->argv[3], a->argv[2]);
+
+	switch (action) {
+	case CONFBRIDGE_FEATURE_DEAFEN:
+		verb = "Deafening";
+		break;
+	case CONFBRIDGE_FEATURE_UNDEAFEN:
+		verb = "Undeafening";
+		break;
+	case CONFBRIDGE_FEATURE_MUTE:
+		verb = "Muting";
+		break;
+	case CONFBRIDGE_FEATURE_UNMUTE:
+		verb = "Unmuting";
+		break;
+	}
+
+	ast_cli(a->fd, "%s %s from confbridge %s\n", verb, a->argv[3], a->argv[2]);
 	return 0;
 }
 
@@ -2682,7 +2807,7 @@ static char *handle_cli_confbridge_mute(struct ast_cli_entry *e, int cmd, struct
 		return CLI_SHOWUSAGE;
 	}
 
-	cli_mute_unmute_helper(1, a);
+	cli_feature_action_helper(CONFBRIDGE_FEATURE_MUTE, a);
 
 	return CLI_SUCCESS;
 }
@@ -2713,7 +2838,69 @@ static char *handle_cli_confbridge_unmute(struct ast_cli_entry *e, int cmd, stru
 		return CLI_SHOWUSAGE;
 	}
 
-	cli_mute_unmute_helper(0, a);
+	cli_feature_action_helper(CONFBRIDGE_FEATURE_UNMUTE, a);
+
+	return CLI_SUCCESS;
+}
+
+static char *handle_cli_confbridge_deafen(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "confbridge deafen";
+		e->usage =
+			"Usage: confbridge deafen <conference> <channel>\n"
+			"       Deafen a channel in a conference.\n"
+			"              (all to deafen everyone, participants to deafen non-admins)\n"
+			"       If the specified channel is a prefix,\n"
+			"       the action will be taken on the first\n"
+			"       matching channel.\n";
+		return NULL;
+	case CLI_GENERATE:
+		if (a->pos == 2) {
+			return complete_confbridge_name(a->line, a->word, a->pos, a->n);
+		}
+		if (a->pos == 3) {
+			return complete_confbridge_participant(a->argv[2], a->line, a->word, a->pos, a->n);
+		}
+		return NULL;
+	}
+	if (a->argc != 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	cli_feature_action_helper(CONFBRIDGE_FEATURE_DEAFEN, a);
+
+	return CLI_SUCCESS;
+}
+
+static char *handle_cli_confbridge_undeafen(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "confbridge undeafen";
+		e->usage =
+			"Usage: confbridge undeafen <conference> <channel>\n"
+			"       Undeafen a channel in a conference.\n"
+			"              (all to undeafen everyone, participants to undeafen non-admins)\n"
+			"       If the specified channel is a prefix,\n"
+			"       the action will be taken on the first\n"
+			"       matching channel.\n";
+		return NULL;
+	case CLI_GENERATE:
+		if (a->pos == 2) {
+			return complete_confbridge_name(a->line, a->word, a->pos, a->n);
+		}
+		if (a->pos == 3) {
+			return complete_confbridge_participant(a->argv[2], a->line, a->word, a->pos, a->n);
+		}
+		return NULL;
+	}
+	if (a->argc != 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	cli_feature_action_helper(CONFBRIDGE_FEATURE_UNDEAFEN, a);
 
 	return CLI_SUCCESS;
 }
@@ -2868,6 +3055,8 @@ static struct ast_cli_entry cli_confbridge[] = {
 	AST_CLI_DEFINE(handle_cli_confbridge_kick, "Kick participants out of conference bridges."),
 	AST_CLI_DEFINE(handle_cli_confbridge_mute, "Mute participants."),
 	AST_CLI_DEFINE(handle_cli_confbridge_unmute, "Unmute participants."),
+	AST_CLI_DEFINE(handle_cli_confbridge_deafen, "Deafen a participant."),
+	AST_CLI_DEFINE(handle_cli_confbridge_undeafen, "Undeafen a participant."),
 	AST_CLI_DEFINE(handle_cli_confbridge_lock, "Lock a conference."),
 	AST_CLI_DEFINE(handle_cli_confbridge_unlock, "Unlock a conference."),
 	AST_CLI_DEFINE(handle_cli_confbridge_start_record, "Start recording a conference"),
@@ -2899,6 +3088,7 @@ static void action_confbridgelist_item(struct mansession *s, const char *id_text
 		"EndMarked: %s\r\n"
 		"Waiting: %s\r\n"
 		"Muted: %s\r\n"
+		"Deafened: %s\r\n"
 		"AnsweredTime: %d\r\n"
 		"\r\n",
 		id_text,
@@ -2912,6 +3102,7 @@ static void action_confbridgelist_item(struct mansession *s, const char *id_text
 		ast_test_flag(&user->u_profile, USER_OPT_ENDMARKED) ? "Yes" : "No",
 		waiting ? "Yes" : "No",
 		user->muted ? "Yes" : "No",
+		user->features.deaf ? "Yes" : "No",
 		ast_channel_get_up_time(user->chan));
 }
 
@@ -3014,10 +3205,11 @@ static int action_confbridgelistrooms(struct mansession *s, const struct message
 	return 0;
 }
 
-static int action_mute_unmute_helper(struct mansession *s, const struct message *m, int mute)
+static int action_feature_action_helper(struct mansession *s, const struct message *m, enum confbridge_feature_action action)
 {
 	const char *conference_name = astman_get_header(m, "Conference");
 	const char *channel_name = astman_get_header(m, "Channel");
+	char *verb = "";
 	int res = 0;
 
 	if (ast_strlen_zero(conference_name)) {
@@ -3033,7 +3225,7 @@ static int action_mute_unmute_helper(struct mansession *s, const struct message 
 		return 0;
 	}
 
-	res = generic_mute_unmute_helper(mute, conference_name, channel_name);
+	res = generic_feature_action_helper(action, conference_name, channel_name);
 
 	if (res == -1) {
 		astman_send_error(s, m, "No Conference by that name found.");
@@ -3043,17 +3235,40 @@ static int action_mute_unmute_helper(struct mansession *s, const struct message 
 		return 0;
 	}
 
-	astman_send_ack(s, m, mute ? "User muted" : "User unmuted");
+	switch (action) {
+	case CONFBRIDGE_FEATURE_DEAFEN:
+		verb = "User deafened";
+		break;
+	case CONFBRIDGE_FEATURE_UNDEAFEN:
+		verb = "User undeafened";
+		break;
+	case CONFBRIDGE_FEATURE_MUTE:
+		verb = "User muted";
+		break;
+	case CONFBRIDGE_FEATURE_UNMUTE:
+		verb = "User unmuted";
+		break;
+	}
+
+	astman_send_ack(s, m, verb);
 	return 0;
 }
 
 static int action_confbridgeunmute(struct mansession *s, const struct message *m)
 {
-	return action_mute_unmute_helper(s, m, 0);
+	return action_feature_action_helper(s, m, CONFBRIDGE_FEATURE_UNMUTE);
 }
 static int action_confbridgemute(struct mansession *s, const struct message *m)
 {
-	return action_mute_unmute_helper(s, m, 1);
+	return action_feature_action_helper(s, m, CONFBRIDGE_FEATURE_MUTE);
+}
+static int action_confbridgeundeafen(struct mansession *s, const struct message *m)
+{
+	return action_feature_action_helper(s, m, CONFBRIDGE_FEATURE_UNDEAFEN);
+}
+static int action_confbridgedeafen(struct mansession *s, const struct message *m)
+{
+	return action_feature_action_helper(s, m, CONFBRIDGE_FEATURE_DEAFEN);
 }
 
 static int action_lock_unlock_helper(struct mansession *s, const struct message *m, int lock)
@@ -3407,6 +3622,8 @@ static int unload_module(void)
 	ast_manager_unregister("ConfbridgeListRooms");
 	ast_manager_unregister("ConfbridgeMute");
 	ast_manager_unregister("ConfbridgeUnmute");
+	ast_manager_unregister("ConfbridgeDeafen");
+	ast_manager_unregister("ConfbridgeUndeafen");
 	ast_manager_unregister("ConfbridgeKick");
 	ast_manager_unregister("ConfbridgeUnlock");
 	ast_manager_unregister("ConfbridgeLock");
@@ -3476,6 +3693,8 @@ static int load_module(void)
 	res |= ast_manager_register_xml("ConfbridgeListRooms", EVENT_FLAG_REPORTING, action_confbridgelistrooms);
 	res |= ast_manager_register_xml("ConfbridgeMute", EVENT_FLAG_CALL, action_confbridgemute);
 	res |= ast_manager_register_xml("ConfbridgeUnmute", EVENT_FLAG_CALL, action_confbridgeunmute);
+	res |= ast_manager_register_xml("ConfbridgeDeafen", EVENT_FLAG_CALL, action_confbridgedeafen);
+	res |= ast_manager_register_xml("ConfbridgeUndeafen", EVENT_FLAG_CALL, action_confbridgeundeafen);
 	res |= ast_manager_register_xml("ConfbridgeKick", EVENT_FLAG_CALL, action_confbridgekick);
 	res |= ast_manager_register_xml("ConfbridgeUnlock", EVENT_FLAG_CALL, action_confbridgeunlock);
 	res |= ast_manager_register_xml("ConfbridgeLock", EVENT_FLAG_CALL, action_confbridgelock);

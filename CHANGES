@@ -74,6 +74,9 @@ ConfBridge
    - record_command: a command to execute when recording is finished
    Note that these options may also be with the CONFBRIDGE function.
 
+ * Added support for deaf participants with CLI commands, manager actions
+   and ConfBridge DTMF actions to toggle the deaf state.
+
 ControlPlayback
 ------------------
  * Remote files can now be retrieved and played back. See the Playback
