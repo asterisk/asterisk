@@ -57,20 +57,7 @@
 
 #include "asterisk/netsock2.h"
 #include "asterisk/utils.h"
-
-#if defined(HAVE_OPENSSL) && (defined(HAVE_FUNOPEN) || defined(HAVE_FOPENCOOKIE))
-#define DO_SSL  /* comment in/out if you want to support ssl */
-#endif
-
-#ifdef DO_SSL
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-#include <openssl/x509v3.h>
-#else
-/* declare dummy types so we can define a pointer to them */
-typedef struct {} SSL;
-typedef struct {} SSL_CTX;
-#endif /* DO_SSL */
+#include "asterisk/iostream.h"
 
 /*! SSL support */
 #define AST_CERTFILE "asterisk.pem"
@@ -153,72 +140,10 @@ struct ast_tcptls_session_args {
 	const char *name;
 };
 
-struct ast_tcptls_stream;
-
-/*!
- * \brief Disable the TCP/TLS stream timeout timer.
- *
- * \param stream TCP/TLS stream control data.
- *
- * \return Nothing
- */
-void ast_tcptls_stream_set_timeout_disable(struct ast_tcptls_stream *stream);
-
-/*!
- * \brief Set the TCP/TLS stream inactivity timeout timer.
- *
- * \param stream TCP/TLS stream control data.
- * \param timeout Number of milliseconds to wait for data transfer with the peer.
- *
- * \details This is basically how much time we are willing to spend
- * in an I/O call before we declare the peer unresponsive.
- *
- * \note Setting timeout to -1 disables the timeout.
- * \note Setting this timeout replaces the I/O sequence timeout timer.
- *
- * \return Nothing
- */
-void ast_tcptls_stream_set_timeout_inactivity(struct ast_tcptls_stream *stream, int timeout);
-
-/*!
- * \brief Set the TCP/TLS stream I/O sequence timeout timer.
- *
- * \param stream TCP/TLS stream control data.
- * \param start Time the I/O sequence timer starts.
- * \param timeout Number of milliseconds from the start time before timeout.
- *
- * \details This is how much time are we willing to allow the peer
- * to complete an operation that can take several I/O calls.  The
- * main use is as an authentication timer with us.
- *
- * \note Setting timeout to -1 disables the timeout.
- * \note Setting this timeout replaces the inactivity timeout timer.
- *
- * \return Nothing
- */
-void ast_tcptls_stream_set_timeout_sequence(struct ast_tcptls_stream *stream, struct timeval start, int timeout);
-
-/*!
- * \brief Set the TCP/TLS stream I/O if it can exclusively depend upon the set timeouts.
- *
- * \param stream TCP/TLS stream control data.
- * \param exclusive_input TRUE if stream can exclusively wait for fd input.
- * Otherwise, the stream will not wait for fd input.  It will wait while
- * trying to send data.
- *
- * \note The stream timeouts still need to be set.
- *
- * \return Nothing
- */
-void ast_tcptls_stream_set_exclusive_input(struct ast_tcptls_stream *stream, int exclusive_input);
-
 /*! \brief
  * describes a server instance
  */
 struct ast_tcptls_session_instance {
-	FILE *f;    /*!< fopen/funopen result */
-	int fd;     /*!< the socket returned by accept() */
-	SSL *ssl;   /*!< ssl state */
 	int client;
 	struct ast_sockaddr remote_address;
 	struct ast_tcptls_session_args *parent;
@@ -228,19 +153,11 @@ struct ast_tcptls_session_instance {
 	 * extra data.
 	 */
 	struct ast_str *overflow_buf;
-	/*! ao2 FILE stream cookie object associated with f. */
-	struct ast_tcptls_stream *stream_cookie;
+	/*! ao2 stream object associated with this session. */
+	struct ast_iostream *stream;
 	/*! ao2 object private data of parent->worker_fn */
 	void *private_data;
 };
-
-#if defined(HAVE_FUNOPEN)
-#define HOOK_T int
-#define LEN_T int
-#else
-#define HOOK_T ssize_t
-#define LEN_T size_t
-#endif
 
 /*! 
   * \brief attempts to connect and start tcptls session, on error the tcptls_session's
@@ -296,8 +213,5 @@ void ast_ssl_teardown(struct ast_tls_config *cfg);
  * \brief Used to parse conf files containing tls/ssl options.
  */
 int ast_tls_read_conf(struct ast_tls_config *tls_cfg, struct ast_tcptls_session_args *tls_desc, const char *varname, const char *value);
-
-HOOK_T ast_tcptls_server_read(struct ast_tcptls_session_instance *ser, void *buf, size_t count);
-HOOK_T ast_tcptls_server_write(struct ast_tcptls_session_instance *ser, const void *buf, size_t count);
 
 #endif /* _ASTERISK_TCPTLS_H */
