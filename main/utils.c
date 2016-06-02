@@ -1429,68 +1429,6 @@ int ast_carefulwrite(int fd, char *s, int len, int timeoutms)
 	return res;
 }
 
-int ast_careful_fwrite(FILE *f, int fd, const char *src, size_t len, int timeoutms)
-{
-	struct timeval start = ast_tvnow();
-	int n = 0;
-	int elapsed = 0;
-
-	while (len) {
-		if (wait_for_output(fd, timeoutms - elapsed)) {
-			/* poll returned a fatal error, so bail out immediately. */
-			return -1;
-		}
-
-		/* Clear any errors from a previous write */
-		clearerr(f);
-
-		n = fwrite(src, 1, len, f);
-
-		if (ferror(f) && errno != EINTR && errno != EAGAIN) {
-			/* fatal error from fwrite() */
-			if (!feof(f)) {
-				/* Don't spam the logs if it was just that the connection is closed. */
-				ast_log(LOG_ERROR, "fwrite() returned error: %s\n", strerror(errno));
-			}
-			n = -1;
-			break;
-		}
-
-		/* Update for data already written to the socket */
-		len -= n;
-		src += n;
-
-		elapsed = ast_tvdiff_ms(ast_tvnow(), start);
-		if (elapsed >= timeoutms) {
-			/* We've taken too long to write
-			 * This is only an error condition if we haven't finished writing. */
-			n = len ? -1 : 0;
-			break;
-		}
-	}
-
-	errno = 0;
-	while (fflush(f)) {
-		if (errno == EAGAIN || errno == EINTR) {
-			/* fflush() does not appear to reset errno if it flushes
-			 * and reaches EOF at the same time. It returns EOF with
-			 * the last seen value of errno, causing a possible loop.
-			 * Also usleep() to reduce CPU eating if it does loop */
-			errno = 0;
-			usleep(1);
-			continue;
-		}
-		if (errno && !feof(f)) {
-			/* Don't spam the logs if it was just that the connection is closed. */
-			ast_log(LOG_ERROR, "fflush() returned error: %s\n", strerror(errno));
-		}
-		n = -1;
-		break;
-	}
-
-	return n < 0 ? -1 : 0;
-}
-
 char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes)
 {
 	char *e;
