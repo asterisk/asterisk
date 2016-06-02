@@ -68,6 +68,12 @@ res_pjsip_info_empty
    Some SBCs will terminate a call if their empty INFO packets are not responded
    to within a predefined time.
 
+res_odbc
+------------------
+ * A new option has been added, 'max_connections', which sets the maximum number
+   of concurrent connections to the database. This option defaults to 1 which
+   returns the behavior to that of Asterisk 13.7 and prior.
+
 app_confbridge
 ------------------
  * Added a bridge profile option called regcontext that allows you to
