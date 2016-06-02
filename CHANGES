@@ -9,6 +9,80 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.9.0 to Asterisk 13.10.0 -----------
+------------------------------------------------------------------------------
+
+Core
+------------------
+ * A channel variable FORWARDERNAME is now set which indicates which channel
+   was responsible for a forwarding requests received on dial attempt.
+
+func_odbc
+------------------
+ * Added new global option "single_db_connection".
+   Enabling this option func_odbc will use a single database connection per DSN.
+   This option is enabled by default.
+
+res_fax
+------------------
+ * Added FAXMODE variable to let dialplan know what fax transport was used.
+   FAXMODE variable is set to either "audio" or "T38".
+
+res_pjsip
+------------------
+ * Added "via_addr", "via_port", "call_id" to contacts.
+   As res_pjsip_nat rewrites contact's address, only the last Via header
+   can contain the source address of registered endpoint.
+   Also Call-Id header may contain the source address of registered endpoint.
+   Added new fields ViaAddress,CallID to AMI event ContactStatus
+
+ * Endpoint IP Access Controls
+   Added new configuration Endpoint options:
+    "acl" - list of IP ACL section names in acl.conf
+    "deny" - List of IP addresses to deny access from
+    "permit" - List of IP addresses to permit access from
+    "contact_acl" - List of Contact ACL section names in acl.conf
+    "contact_deny" - List of Contact header addresses to deny
+    "contact_permit" - List of Contact header addresses to permit
+
+ * Added new status Updated to AMI event ContactStatus on update registration
+
+ * Added "reg_server" to contacts.
+   If the Asterisk system name is set in asterisk.conf, it will be stored
+   into the "reg_server" field in the ps_contacts table to facilitate
+   multi-server setups.
+
+res_hep
+------------------
+ * Added a new option, 'uuid_type', that sets the preferred source of the Homer
+   correlation UUID. The valid options are:
+   - call-id: Use the PJSIP SIP Call-ID header value
+   - channel: Use the Asterisk channel name
+   The default value is 'call-id'. In the event that a HEP module cannot find a
+   valid value using the specified 'uuid_type', the module may fallback to a
+   more readily available source for the correlation UUID.
+
+res_pjsip_info_empty
+--------------------
+ * A new module that can respond to empty Content-Type INFO packets during call.
+   Some SBCs will terminate a call if their empty INFO packets are not responded
+   to within a predefined time.
+
+res_odbc
+------------------
+ * A new option has been added, 'max_connections', which sets the maximum number
+   of concurrent connections to the database. This option defaults to 1 which
+   returns the behavior to that of Asterisk 13.7 and prior.
+
+app_confbridge
+------------------
+ * Added a bridge profile option called regcontext that allows you to
+   dynamically register the conference bridge name as an extension into
+   the specified context.  This allows tracking down conferences on multi-
+   server installations via alternate means (DUNDI for example). By default
+   this feature is not used.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.8.0 to Asterisk 13.9.0 ------------
 ------------------------------------------------------------------------------
 
