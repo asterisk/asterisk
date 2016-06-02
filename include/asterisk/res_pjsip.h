@@ -246,6 +246,8 @@ struct ast_sip_contact {
 	double qualify_timeout;
 	/*! Endpoint that added the contact, only available in observers */
 	struct ast_sip_endpoint *endpoint;
+	/*! The name of the endpoint this contact belongs to */
+	AST_STRING_FIELD_EXTENDED(endpoint_name);
 	/*! The name of the aor this contact belongs to */
 	char *aor;
 	/*! Asterisk Server name */
@@ -984,6 +986,16 @@ void ast_sip_unregister_endpoint_identifier(struct ast_sip_endpoint_identifier *
  * \retval non-NULL The newly allocated endpoint
  */
 void *ast_sip_endpoint_alloc(const char *name);
+
+/*!
+ * \brief Change state of a persistent endpoint.
+ *
+ * \param endpoint The SIP endpoint name to change state.
+ * \param state The new state
+ * \retval 0 Success
+ * \retval -1 Endpoint not found
+ */
+int ast_sip_persistent_endpoint_update_state(const char *endpoint_name, enum ast_endpoint_state state);
 
 /*!
  * \brief Get a pointer to the PJSIP endpoint.
