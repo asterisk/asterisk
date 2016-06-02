@@ -9,7 +9,7 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
---- Functionality changes from Asterisk 13.9.0 to Asterisk 13.10.0 -----------
+--- Functionality changes from Asterisk 13.8.0 to Asterisk 13.8-cert1 --------
 ------------------------------------------------------------------------------
 
 res_odbc
@@ -18,15 +18,14 @@ res_odbc
    of concurrent connections to the database. This option defaults to 1 which
    returns the behavior to that of Asterisk 13.7 and prior.
 
-------------------------------------------------------------------------------
---- Functionality changes from Asterisk 13.8.0 to Asterisk 13.9.0 ------------
-------------------------------------------------------------------------------
-
 res_pjsip
 ------------------
  * Added new global option (disable_multi_domain) to pjsip.
    Disabling Multi Domain can improve realtime performace by reducing
    number of database requsts.
+
+ * When starting Asterisk, received traffic will now be ignored until Asterisk
+   has loaded all modules and is fully booted.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.7.0 to Asterisk 13.8.0 ------------
