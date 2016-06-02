@@ -9,6 +9,15 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.1.0-cert4 to Asterisk 13.1-cert8 --
+------------------------------------------------------------------------------
+
+res_pjsip
+------------------
+ * When starting Asterisk, received traffic will now be ignored until Asterisk
+   has loaded all modules and is fully booted.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.1.0-cert3 to Asterisk 13.1-cert4 --
 ------------------------------------------------------------------------------
 
