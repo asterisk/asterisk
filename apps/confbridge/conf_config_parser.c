@@ -910,6 +910,10 @@ static int set_sound(const char *sound_name, const char *sound_file, struct brid
 		ast_string_field_set(sounds, muted, sound_file);
 	} else if (!strcasecmp(sound_name, "sound_unmuted")) {
 		ast_string_field_set(sounds, unmuted, sound_file);
+	} else if (!strcasecmp(sound_name, "sound_deafened")) {
+		ast_string_field_set(sounds, deafened, sound_file);
+	} else if (!strcasecmp(sound_name, "sound_undeafened")) {
+		ast_string_field_set(sounds, undeafened, sound_file);
 	} else if (!strcasecmp(sound_name, "sound_there_are")) {
 		ast_string_field_set(sounds, thereare, sound_file);
 	} else if (!strcasecmp(sound_name, "sound_other_in_party")) {
@@ -1135,6 +1139,7 @@ static int add_action_to_menu_entry(struct conf_menu_entry *menu_entry, enum con
 	switch (id) {
 	case MENU_ACTION_NOOP:
 	case MENU_ACTION_TOGGLE_MUTE:
+	case MENU_ACTION_TOGGLE_DEAF:
 	case MENU_ACTION_INCREASE_LISTENING:
 	case MENU_ACTION_DECREASE_LISTENING:
 	case MENU_ACTION_INCREASE_TALKING:
@@ -1425,6 +1430,9 @@ static char *handle_cli_confbridge_show_user_profile(struct ast_cli_entry *e, in
 	ast_cli(a->fd,"Start Muted:             %s\n",
 		u_profile.flags & USER_OPT_STARTMUTED?
 		"true" : "false");
+	ast_cli(a->fd,"Start Deaf:              %s\n",
+		u_profile.flags & USER_OPT_STARTDEAF?
+		"true" : "false");
 	ast_cli(a->fd,"MOH When Empty:          %s\n",
 		u_profile.flags & USER_OPT_MUSICONHOLD ?
 		"enabled" : "disabled");
@@ -1641,6 +1649,8 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 	ast_cli(a->fd,"sound_kicked:         %s\n", conf_get_sound(CONF_SOUND_KICKED, b_profile.sounds));
 	ast_cli(a->fd,"sound_muted:          %s\n", conf_get_sound(CONF_SOUND_MUTED, b_profile.sounds));
 	ast_cli(a->fd,"sound_unmuted:        %s\n", conf_get_sound(CONF_SOUND_UNMUTED, b_profile.sounds));
+	ast_cli(a->fd,"sound_deafened:       %s\n", conf_get_sound(CONF_SOUND_DEAFENED, b_profile.sounds));
+	ast_cli(a->fd,"sound_undeafened:     %s\n", conf_get_sound(CONF_SOUND_UNDEAFENED, b_profile.sounds));
 	ast_cli(a->fd,"sound_there_are:      %s\n", conf_get_sound(CONF_SOUND_THERE_ARE, b_profile.sounds));
 	ast_cli(a->fd,"sound_other_in_party: %s\n", conf_get_sound(CONF_SOUND_OTHER_IN_PARTY, b_profile.sounds));
 	ast_cli(a->fd,"sound_place_into_conference: %s\n", conf_get_sound(CONF_SOUND_PLACE_IN_CONF, b_profile.sounds));
@@ -1768,6 +1778,9 @@ static char *handle_cli_confbridge_show_menu(struct ast_cli_entry *e, int cmd, s
 			switch (menu_action->id) {
 			case MENU_ACTION_TOGGLE_MUTE:
 				ast_cli(a->fd, "toggle_mute");
+				break;
+			case MENU_ACTION_TOGGLE_DEAF:
+				ast_cli(a->fd, "toggle_deaf");
 				break;
 			case MENU_ACTION_NOOP:
 				ast_cli(a->fd, "no_op");
@@ -2142,6 +2155,7 @@ int conf_load_config(void)
 	aco_option_register(&cfg_info, "admin", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_ADMIN);
 	aco_option_register(&cfg_info, "marked", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_MARKEDUSER);
 	aco_option_register(&cfg_info, "startmuted", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_STARTMUTED);
+	aco_option_register(&cfg_info, "startdeaf", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_STARTDEAF);
 	aco_option_register(&cfg_info, "music_on_hold_when_empty", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_MUSICONHOLD);
 	aco_option_register(&cfg_info, "quiet", ACO_EXACT, user_types, "no", OPT_BOOLFLAG_T, 1, FLDSET(struct user_profile, flags), USER_OPT_QUIET);
 	aco_option_register_custom(&cfg_info, "announce_user_count_all", ACO_EXACT, user_types, "no", announce_user_count_all_handler, 0);

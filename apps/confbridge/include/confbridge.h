@@ -62,6 +62,7 @@ enum user_profile_flags {
 	USER_OPT_ANNOUNCEUSERCOUNTALL = (1 << 14), /*!< Sets if the number of users should be announced to everyone. */
 	USER_OPT_JITTERBUFFER =  (1 << 15), /*!< Places a jitterbuffer on the user. */
 	USER_OPT_ANNOUNCE_JOIN_LEAVE_REVIEW = (1 << 16), /*!< modifies ANNOUNCE_JOIN_LEAVE - user reviews the recording before continuing */
+	USER_OPT_STARTDEAF =     (1 << 17), /*!< Set if the caller should be initially set deaf */
 };
 
 enum bridge_profile_flags {
@@ -75,6 +76,7 @@ enum bridge_profile_flags {
 
 enum conf_menu_action_id {
 	MENU_ACTION_TOGGLE_MUTE = 1,
+	MENU_ACTION_TOGGLE_DEAF,
 	MENU_ACTION_PLAYBACK,
 	MENU_ACTION_PLAYBACK_AND_CONTINUE,
 	MENU_ACTION_INCREASE_LISTENING,
@@ -151,6 +153,8 @@ enum conf_sounds {
 	CONF_SOUND_KICKED,
 	CONF_SOUND_MUTED,
 	CONF_SOUND_UNMUTED,
+	CONF_SOUND_DEAFENED,
+	CONF_SOUND_UNDEAFENED,
 	CONF_SOUND_ONLY_ONE,
 	CONF_SOUND_THERE_ARE,
 	CONF_SOUND_OTHER_IN_PARTY,
@@ -178,6 +182,8 @@ struct bridge_profile_sounds {
 		AST_STRING_FIELD(kicked);
 		AST_STRING_FIELD(muted);
 		AST_STRING_FIELD(unmuted);
+		AST_STRING_FIELD(deafened);
+		AST_STRING_FIELD(undeafened);
 		AST_STRING_FIELD(onlyone);
 		AST_STRING_FIELD(thereare);
 		AST_STRING_FIELD(otherinparty);
@@ -371,6 +377,8 @@ int conf_handle_dtmf(
 	struct conf_menu_entry *menu_entry,
 	struct conf_menu *menu);
 
+struct stasis_message_type *confbridge_deafen_type(void);
+struct stasis_message_type *confbridge_undeafen_type(void);
 
 /*! \brief Looks to see if sound file is stored in bridge profile sounds, if not
  *  default sound is provided.*/
