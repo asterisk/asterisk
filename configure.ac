@@ -181,6 +181,9 @@ case "${host_os}" in
      linux-gnueabi* |  linux-gnuspe)
      OSARCH=linux-gnu
      ;;
+     linux-musl*)
+     OSARCH=linux-musl
+     ;;
      kfreebsd*-gnu)
      OSARCH=kfreebsd-gnu
      ;;
@@ -1388,9 +1391,11 @@ if test "${PBX_BFD}" = "0"; then
   AST_EXT_LIB_CHECK([BFD], [bfd], [bfd_check_format], [bfd.h], [-ldl -liberty -lz])
 fi
 
-if test "x${OSARCH}" = "xlinux-gnu" ; then
+case "${OSARCH}" in
+linux*)
   AST_EXT_LIB_CHECK([CAP], [cap], [cap_from_text], [sys/capability.h])
-fi
+  ;;
+esac
 
 AST_C_DEFINE_CHECK([DAHDI], [DAHDI_RESET_COUNTERS], [dahdi/user.h], [230])
 AST_C_DEFINE_CHECK([DAHDI], [DAHDI_DEFAULT_MTU_MRU], [dahdi/user.h], [220])

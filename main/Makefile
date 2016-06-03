@@ -46,7 +46,7 @@ AST_LIBS+=$(CRYPT_LIB)
 AST_LIBS+=$(AST_CLANG_BLOCKS_LIBS)
 AST_LIBS+=$(RT_LIB)
 
-ifneq ($(findstring $(OSARCH), linux-gnu uclinux linux-uclibc kfreebsd-gnu),)
+ifneq ($(findstring $(OSARCH), linux-gnu uclinux linux-uclibc linux-musl kfreebsd-gnu),)
   ifneq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)
   AST_LIBS+=-ldl
   endif
