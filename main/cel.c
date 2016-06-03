@@ -59,6 +59,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/parking.h"
 #include "asterisk/pickup.h"
 #include "asterisk/core_local.h"
+#include "asterisk/taskprocessor.h"
 
 /*** DOCUMENTATION
 	<configInfo name="cel" language="en_US">
@@ -1575,6 +1576,8 @@ static int create_routes(void)
 	if (!cel_state_router) {
 		return -1;
 	}
+	stasis_message_router_set_congestion_limits(cel_state_router, -1,
+		6 * AST_TASKPROCESSOR_HIGH_WATER_LEVEL);
 
 	ret |= stasis_message_router_add(cel_state_router,
 		stasis_cache_update_type(),
