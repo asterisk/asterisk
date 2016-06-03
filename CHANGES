@@ -249,6 +249,13 @@ Functions
  * The func_odbc global option "single_db_connection" default value has been
    changed to 'no'.
 
+
+Formats
+------------------
+ * New module format_ogg_speex added which supports Speex codec inside
+   Ogg containers (filename extension .spx).
+
+
 CHANNEL
 ------------------
  * Added CHANNEL(onhold) item that returns 1 (onhold) and 0 (not-onhold) for
