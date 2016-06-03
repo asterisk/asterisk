@@ -839,6 +839,12 @@ ASTERISK_REGISTER_FILE()
 #if !defined(GLOB_ABORTED)
 #define GLOB_ABORTED GLOB_ABEND
 #endif
+#if !defined(GLOB_BRACE)
+#define GLOB_BRACE 0
+#endif
+#if !defined(GLOB_NOMAGIC)
+#define GLOB_NOMAGIC 0
+#endif
 
 #include "asterisk/logger.h"
 #include "asterisk/utils.h"
