@@ -100,6 +100,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/rtp_engine.h"
 #include "asterisk/format_cache.h"
 #include "asterisk/translate.h"
+#include "asterisk/taskprocessor.h"
 
 /*** DOCUMENTATION
 	<manager name="Ping" language="en_US">
@@ -8538,6 +8539,8 @@ static int manager_subscriptions_init(void)
 	if (!stasis_router) {
 		return -1;
 	}
+	stasis_message_router_set_congestion_limits(stasis_router, -1,
+		6 * AST_TASKPROCESSOR_HIGH_WATER_LEVEL);
 
 	res |= stasis_message_router_set_default(stasis_router,
 		manager_default_msg_cb, NULL);

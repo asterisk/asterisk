@@ -593,6 +593,20 @@ struct stasis_subscription *stasis_unsubscribe(
 	struct stasis_subscription *subscription);
 
 /*!
+ * \brief Set the high and low alert water marks of the stasis subscription.
+ * \since 13.10.0
+ *
+ * \param subscription Pointer to a stasis subscription
+ * \param low_water New queue low water mark. (-1 to set as 90% of high_water)
+ * \param high_water New queue high water mark.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error (water marks not changed).
+ */
+int stasis_subscription_set_congestion_limits(struct stasis_subscription *subscription,
+	long low_water, long high_water);
+
+/*!
  * \brief Block until the last message is processed on a subscription.
  *
  * This function will not return until the \a subscription's callback for the
