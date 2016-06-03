@@ -43,7 +43,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/network.h"
 #include <sys/ioctl.h>
 #include <zlib.h>
-#include <sys/signal.h>
+#include <signal.h>
 #include <pthread.h>
 #include <net/if.h>
 

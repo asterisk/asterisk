@@ -68,7 +68,7 @@ ASTERISK_REGISTER_FILE()
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <sys/time.h>
-#include <sys/signal.h>
+#include <signal.h>
 #include <signal.h>
 #include <strings.h>
 #include <netdb.h>

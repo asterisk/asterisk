@@ -49,7 +49,7 @@ ASTERISK_REGISTER_FILE()
 #include <fcntl.h>
 #include <netdb.h>
 #include <arpa/inet.h>
-#include <sys/signal.h>
+#include <signal.h>
 #include <signal.h>
 #include <ctype.h>
 

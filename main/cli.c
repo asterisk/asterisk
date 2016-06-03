@@ -42,7 +42,7 @@ ASTERISK_REGISTER_FILE()
 
 #include "asterisk/_private.h"
 #include "asterisk/paths.h"	/* use ast_config_AST_MODULE_DIR */
-#include <sys/signal.h>
+#include <signal.h>
 #include <signal.h>
 #include <ctype.h>
 #include <regex.h>

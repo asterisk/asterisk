@@ -38,7 +38,7 @@ ASTERISK_REGISTER_FILE()
 #endif
 
 #include <signal.h>
-#include <sys/signal.h>
+#include <signal.h>
 
 #include "asterisk/compat.h"
 #include "asterisk/tcptls.h"

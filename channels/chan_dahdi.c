@@ -60,7 +60,7 @@ ASTERISK_REGISTER_FILE()
 #include <pthread.h>
 #include <signal.h>
 #else
-#include <sys/signal.h>
+#include <signal.h>
 #endif
 #include <sys/stat.h>
 #include <math.h>

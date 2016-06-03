@@ -46,7 +46,7 @@ ASTERISK_REGISTER_FILE()
 #include <pthread.h>
 #include <signal.h>
 #include <sys/time.h>
-#include <sys/signal.h>
+#include <signal.h>
 #include <netinet/in.h>
 
 #include "asterisk/lock.h"

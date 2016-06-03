@@ -37,7 +37,7 @@ ASTERISK_REGISTER_FILE()
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 #ifdef __linux__
-#include <sys/signal.h>
+#include <signal.h>
 #else
 #include <signal.h>
 #endif /* __linux__ */
