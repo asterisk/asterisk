@@ -224,7 +224,6 @@
 ASTERISK_REGISTER_FILE()
 
 #include <signal.h>
-#include <sys/signal.h>
 #include <regex.h>
 #include <inttypes.h>
 

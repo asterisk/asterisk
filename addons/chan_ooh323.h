@@ -38,7 +38,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
-#include <sys/signal.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/channel.h"

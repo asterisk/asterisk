@@ -51,7 +51,7 @@ ASTERISK_REGISTER_FILE()
 #include <netdb.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <sys/signal.h>
+#include <signal.h>
 #include <iksemel.h>
 #include <pthread.h>
 
