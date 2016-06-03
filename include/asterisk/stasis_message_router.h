@@ -127,6 +127,20 @@ void stasis_message_router_publish_sync(struct stasis_message_router *router,
 	struct stasis_message *message);
 
 /*!
+ * \brief Set the high and low alert water marks of the stasis message router.
+ * \since 13.10.0
+ *
+ * \param router Pointer to a stasis message router
+ * \param low_water New queue low water mark. (-1 to set as 90% of high_water)
+ * \param high_water New queue high water mark.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error (water marks not changed).
+ */
+int stasis_message_router_set_congestion_limits(struct stasis_message_router *router,
+	long low_water, long high_water);
+
+/*!
  * \brief Add a route to a message router.
  *
  * A particular \a message_type may have at most one route per \a router. If

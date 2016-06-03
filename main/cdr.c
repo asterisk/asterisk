@@ -71,6 +71,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_bridges.h"
 #include "asterisk/stasis_message_router.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/taskprocessor.h"
 
 /*** DOCUMENTATION
 	<configInfo name="cdr" language="en_US">
@@ -4184,6 +4185,8 @@ int ast_cdr_engine_init(void)
 	if (!stasis_router) {
 		return -1;
 	}
+	stasis_message_router_set_congestion_limits(stasis_router, -1,
+		10 * AST_TASKPROCESSOR_HIGH_WATER_LEVEL);
 
 	if (STASIS_MESSAGE_TYPE_INIT(cdr_sync_message_type)) {
 		return -1;

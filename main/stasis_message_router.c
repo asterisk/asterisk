@@ -289,6 +289,18 @@ void stasis_message_router_publish_sync(struct stasis_message_router *router,
 	ao2_cleanup(router);
 }
 
+int stasis_message_router_set_congestion_limits(struct stasis_message_router *router,
+	long low_water, long high_water)
+{
+	int res = -1;
+
+	if (router) {
+		res = stasis_subscription_set_congestion_limits(router->subscription,
+			low_water, high_water);
+	}
+	return res;
+}
+
 int stasis_message_router_add(struct stasis_message_router *router,
 	struct stasis_message_type *message_type,
 	stasis_subscription_cb callback, void *data)
