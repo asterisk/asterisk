@@ -231,155 +231,11 @@ static void registrar_add_date_header(pjsip_tx_data *tdata)
 	ast_sip_add_header(tdata, "Date", date);
 }
 
-#define SERIALIZER_BUCKETS 59
-
-static struct ao2_container *serializers;
-
-/*! \brief Serializer with associated aor key */
-struct serializer {
-	/* Serializer to distribute tasks to */
-	struct ast_taskprocessor *serializer;
-	/* The name of the aor to associate with the serializer */
-	char aor_name[0];
-};
-
-static void serializer_destroy(void *obj)
-{
-	struct serializer *ser = obj;
-
-	ast_taskprocessor_unreference(ser->serializer);
-}
-
-static struct serializer *serializer_create(const char *aor_name)
-{
-	char tps_name[AST_TASKPROCESSOR_MAX_NAME + 1];
-	size_t size = strlen(aor_name) + 1;
-	struct serializer *ser = ao2_alloc(
-		sizeof(*ser) + size, serializer_destroy);
-
-	if (!ser) {
-		return NULL;
-	}
-
-	/* Create name with seq number appended. */
-	ast_taskprocessor_build_name(tps_name, sizeof(tps_name), "pjsip/aor/%s",
-		aor_name);
-
-	if (!(ser->serializer = ast_sip_create_serializer(tps_name))) {
-		ao2_ref(ser, -1);
-		return NULL;
-	}
-
-	strcpy(ser->aor_name, aor_name);
-	return ser;
-}
-
-static struct serializer *serializer_find_or_create(const char *aor_name)
-{
-	struct serializer *ser = ao2_find(serializers, aor_name, OBJ_SEARCH_KEY);
-
-	if (ser) {
-		return ser;
-	}
-
-	if (!(ser = serializer_create(aor_name))) {
-		return NULL;
-	}
-
-	ao2_link(serializers, ser);
-	return ser;
-}
-
-static int serializer_hash(const void *obj, const int flags)
-{
-	const struct serializer *object;
-	const char *key;
-
-	switch (flags & OBJ_SEARCH_MASK) {
-	case OBJ_SEARCH_KEY:
-		key = obj;
-		return ast_str_hash(key);
-	case OBJ_SEARCH_OBJECT:
-		object = obj;
-		return ast_str_hash(object->aor_name);
-	default:
-		/* Hash can only work on something with a full key. */
-		ast_assert(0);
-		return 0;
-	}
-}
-
-static int serializer_cmp(void *obj_left, void *obj_right, int flags)
-{
-	const struct serializer *object_left = obj_left;
-	const struct serializer *object_right = obj_right;
-	const char *right_key = obj_right;
-	int cmp;
-
-	switch (flags & OBJ_SEARCH_MASK) {
-	case OBJ_SEARCH_OBJECT:
-		right_key = object_right->aor_name;
-		/* Fall through */
-	case OBJ_SEARCH_KEY:
-		cmp = strcmp(object_left->aor_name, right_key);
-		break;
-	case OBJ_SEARCH_PARTIAL_KEY:
-		/*
-		 * We could also use a partial key struct containing a length
-		 * so strlen() does not get called for every comparison instead.
-		 */
-		cmp = strncmp(object_left->aor_name, right_key, strlen(right_key));
-		break;
-	default:
-		cmp = 0;
-		break;
-	}
-
-	return cmp ? 0 : CMP_MATCH;
-}
-
-struct rx_task_data {
-	pjsip_rx_data *rdata;
-	struct ast_sip_endpoint *endpoint;
-	struct ast_sip_aor *aor;
-};
-
-static void rx_task_data_destroy(void *obj)
-{
-	struct rx_task_data *task_data = obj;
-
-	pjsip_rx_data_free_cloned(task_data->rdata);
-	ao2_cleanup(task_data->endpoint);
-	ao2_cleanup(task_data->aor);
-}
-
-static struct rx_task_data *rx_task_data_create(pjsip_rx_data *rdata,
-						struct ast_sip_endpoint *endpoint,
-						struct ast_sip_aor *aor)
-{
-	struct rx_task_data *task_data = ao2_alloc(
-		sizeof(*task_data), rx_task_data_destroy);
-
-	if (!task_data) {
-		return NULL;
-	}
-
-	pjsip_rx_data_clone(rdata, 0, &task_data->rdata);
-
-	task_data->endpoint = endpoint;
-	ao2_ref(task_data->endpoint, +1);
-
-	task_data->aor = aor;
-	ao2_ref(task_data->aor, +1);
-
-	return task_data;
-}
-
 static const pj_str_t path_hdr_name = { "Path", 4 };
 
-static int build_path_data(struct rx_task_data *task_data, struct ast_str **path_str)
+static int build_path_data(pjsip_rx_data *rdata, struct ast_str **path_str)
 {
-	pjsip_generic_string_hdr *path_hdr = pjsip_msg_find_hdr_by_name(task_data->rdata->msg_info.msg, &path_hdr_name, NULL);
+	pjsip_generic_string_hdr *path_hdr = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &path_hdr_name, NULL);
 
 	if (!path_hdr) {
 		return 0;
@@ -392,24 +248,24 @@ static int build_path_data(struct rx_task_data *task_data, struct ast_str **path
 
 	ast_str_set(path_str, 0, "%.*s", (int)path_hdr->hvalue.slen, path_hdr->hvalue.ptr);
 
-	while ((path_hdr = (pjsip_generic_string_hdr *) pjsip_msg_find_hdr_by_name(task_data->rdata->msg_info.msg, &path_hdr_name, path_hdr->next))) {
+	while ((path_hdr = (pjsip_generic_string_hdr *) pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &path_hdr_name, path_hdr->next))) {
 		ast_str_append(path_str, 0, ",%.*s", (int)path_hdr->hvalue.slen, path_hdr->hvalue.ptr);
 	}
 
 	return 0;
 }
 
-static int registrar_validate_path(struct rx_task_data *task_data, struct ast_str **path_str)
+static int registrar_validate_path(pjsip_rx_data *rdata, struct ast_sip_aor *aor, struct ast_str **path_str)
 {
 	const pj_str_t path_supported_name = { "path", 4 };
 	pjsip_supported_hdr *supported_hdr;
 	int i;
 
-	if (!task_data->aor->support_path) {
+	if (!aor->support_path) {
 		return 0;
 	}
 
-	if (build_path_data(task_data, path_str)) {
+	if (build_path_data(rdata, path_str)) {
 		return -1;
 	}
 
@@ -417,7 +273,7 @@ static int registrar_validate_path(struct rx_task_data *task_data, struct ast_st
 		return 0;
 	}
 
-	supported_hdr = pjsip_msg_find_hdr(task_data->rdata->msg_info.msg, PJSIP_H_SUPPORTED, NULL);
+	supported_hdr = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_SUPPORTED, NULL);
 	if (!supported_hdr) {
 		return -1;
 	}
@@ -433,8 +289,11 @@ static int registrar_validate_path(struct rx_task_data *task_data, struct ast_st
 	return -1;
 }
 
-static int rx_task_core(struct rx_task_data *task_data, struct ao2_container *contacts,
-	const char *aor_name)
+static int register_aor_core(pjsip_rx_data *rdata,
+	struct ast_sip_endpoint *endpoint,
+	struct ast_sip_aor *aor,
+	const char *aor_name,
+	struct ao2_container *contacts)
 {
 	static const pj_str_t USER_AGENT = { "User-Agent", 10 };
 
@@ -458,38 +317,38 @@ static int rx_task_core(struct rx_task_data *task_data, struct ao2_container *co
 	/* So we don't count static contacts against max_contacts we prune them out from the container */
 	ao2_callback(contacts, OBJ_NODATA | OBJ_UNLINK | OBJ_MULTIPLE, registrar_prune_static, NULL);
 
-	if (registrar_validate_contacts(task_data->rdata, contacts, task_data->aor, &added, &updated, &deleted)) {
+	if (registrar_validate_contacts(rdata, contacts, aor, &added, &updated, &deleted)) {
 		/* The provided Contact headers do not conform to the specification */
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), task_data->rdata, 400, NULL, NULL, NULL);
-		ast_sip_report_failed_acl(task_data->endpoint, task_data->rdata, "registrar_invalid_contacts_provided");
+		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 400, NULL, NULL, NULL);
+		ast_sip_report_failed_acl(endpoint, rdata, "registrar_invalid_contacts_provided");
 		ast_log(LOG_WARNING, "Failed to validate contacts in REGISTER request from '%s'\n",
-				ast_sorcery_object_get_id(task_data->endpoint));
+				ast_sorcery_object_get_id(endpoint));
 		return PJ_TRUE;
 	}
 
-	if (registrar_validate_path(task_data, &path_str)) {
+	if (registrar_validate_path(rdata, aor, &path_str)) {
 		/* Ensure that intervening proxies did not make invalid modifications to the request */
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), task_data->rdata, 420, NULL, NULL, NULL);
+		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 420, NULL, NULL, NULL);
 		ast_log(LOG_WARNING, "Invalid modifications made to REGISTER request from '%s' by intervening proxy\n",
-				ast_sorcery_object_get_id(task_data->endpoint));
+				ast_sorcery_object_get_id(endpoint));
 		return PJ_TRUE;
 	}
 
-	if ((MAX(added - deleted, 0) + (!task_data->aor->remove_existing ? ao2_container_count(contacts) : 0)) > task_data->aor->max_contacts) {
+	if ((MAX(added - deleted, 0) + (!aor->remove_existing ? ao2_container_count(contacts) : 0)) > aor->max_contacts) {
 		/* Enforce the maximum number of contacts */
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), task_data->rdata, 403, NULL, NULL, NULL);
-		ast_sip_report_failed_acl(task_data->endpoint, task_data->rdata, "registrar_attempt_exceeds_maximum_configured_contacts");
+		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
+		ast_sip_report_failed_acl(endpoint, rdata, "registrar_attempt_exceeds_maximum_configured_contacts");
 		ast_log(LOG_WARNING, "Registration attempt from endpoint '%s' to AOR '%s' will exceed max contacts of %u\n",
-				ast_sorcery_object_get_id(task_data->endpoint), ast_sorcery_object_get_id(task_data->aor), task_data->aor->max_contacts);
+				ast_sorcery_object_get_id(endpoint), aor_name, aor->max_contacts);
 		return PJ_TRUE;
 	}
 
 	if (!(details.pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "Contact Comparison", 256, 256))) {
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), task_data->rdata, 500, NULL, NULL, NULL);
+		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
 		return PJ_TRUE;
 	}
 
-	user_agent_hdr = pjsip_msg_find_hdr_by_name(task_data->rdata->msg_info.msg, &USER_AGENT, NULL);
+	user_agent_hdr = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &USER_AGENT, NULL);
 	if (user_agent_hdr) {
 		alloc_size = pj_strlen(&user_agent_hdr->hvalue) + 1;
 		user_agent = ast_alloca(alloc_size);
@@ -497,10 +356,10 @@ static int rx_task_core(struct rx_task_data *task_data, struct ao2_container *co
 	}
 
 	/* Find the first Via header */
-	via_hdr = via_hdr_last = (pjsip_via_hdr*) pjsip_msg_find_hdr(task_data->rdata->msg_info.msg, PJSIP_H_VIA, NULL);
+	via_hdr = via_hdr_last = (pjsip_via_hdr*) pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_VIA, NULL);
 	if (via_hdr) {
 		/* Find the last Via header */
-		while ( (via_hdr = (pjsip_via_hdr*) pjsip_msg_find_hdr(task_data->rdata->msg_info.msg,
+		while ( (via_hdr = (pjsip_via_hdr*) pjsip_msg_find_hdr(rdata->msg_info.msg,
 				PJSIP_H_VIA, via_hdr->next)) != NULL) {
 			via_hdr_last = via_hdr;
 		}
@@ -510,7 +369,7 @@ static int rx_task_core(struct rx_task_data *task_data, struct ao2_container *co
 		via_port=via_hdr_last->sent_by.port;
 	}
 
-	call_id_hdr = (pjsip_cid_hdr*) pjsip_msg_find_hdr(task_data->rdata->msg_info.msg, PJSIP_H_CALL_ID, NULL);
+	call_id_hdr = (pjsip_cid_hdr*) pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CALL_ID, NULL);
 	if (call_id_hdr) {
 		alloc_size = pj_strlen(&call_id_hdr->id) + 1;
 		call_id = ast_alloca(alloc_size);
@@ -518,7 +377,7 @@ static int rx_task_core(struct rx_task_data *task_data, struct ao2_container *co
 	}
 
 	/* Iterate each provided Contact header and add, update, or delete */
-	while ((contact_hdr = pjsip_msg_find_hdr(task_data->rdata->msg_info.msg, PJSIP_H_CONTACT, contact_hdr ? contact_hdr->next : NULL))) {
+	while ((contact_hdr = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, contact_hdr ? contact_hdr->next : NULL))) {
 		int expiration;
 		char contact_uri[pjsip_max_url_size];
 		RAII_VAR(struct ast_sip_contact *, contact, NULL, ao2_cleanup);
@@ -534,7 +393,7 @@ static int rx_task_core(struct rx_task_data *task_data, struct ao2_container *co
 			continue;
 		}
 
-		expiration = registrar_get_expiration(task_data->aor, contact_hdr, task_data->rdata);
+		expiration = registrar_get_expiration(aor, contact_hdr, rdata);
 		details.uri = pjsip_uri_get_uri(contact_hdr->uri);
 		pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, details.uri, contact_uri, sizeof(contact_uri));
 
@@ -546,9 +405,9 @@ static int rx_task_core(struct rx_task_data *task_data, struct ao2_container *co
 				continue;
 			}
 
-			if (ast_sip_location_add_contact_nolock(task_data->aor, contact_uri, ast_tvadd(ast_tvnow(),
+			if (ast_sip_location_add_contact_nolock(aor, contact_uri, ast_tvadd(ast_tvnow(),
 				ast_samp2tv(expiration, 1)), path_str ? ast_str_buffer(path_str) : NULL,
-					user_agent, via_addr, via_port, call_id, task_data->endpoint)) {
+					user_agent, via_addr, via_port, call_id, endpoint)) {
 				ast_log(LOG_ERROR, "Unable to bind contact '%s' to AOR '%s'\n",
 						contact_uri, aor_name);
 				continue;
@@ -576,8 +435,8 @@ static int rx_task_core(struct rx_task_data *task_data, struct ao2_container *co
 			}
 
 			contact_update->expiration_time = ast_tvadd(ast_tvnow(), ast_samp2tv(expiration, 1));
-			contact_update->qualify_frequency = task_data->aor->qualify_frequency;
-			contact_update->authenticate_qualify = task_data->aor->authenticate_qualify;
+			contact_update->qualify_frequency = aor->qualify_frequency;
+			contact_update->authenticate_qualify = aor->authenticate_qualify;
 			if (path_str) {
 				ast_string_field_set(contact_update, path, ast_str_buffer(path_str));
 			}
@@ -625,16 +484,16 @@ static int rx_task_core(struct rx_task_data *task_data, struct ao2_container *co
 	/* If the AOR is configured to remove any existing contacts that have not been updated/added as a result of this REGISTER
 	 * do so
 	 */
-	if (task_data->aor->remove_existing) {
+	if (aor->remove_existing) {
 		ao2_callback(contacts, OBJ_NODATA | OBJ_MULTIPLE, registrar_delete_contact, NULL);
 	}
 
 	/* Re-retrieve contacts.  Caller will clean up the original container. */
-	contacts = ast_sip_location_retrieve_aor_contacts_nolock(task_data->aor);
+	contacts = ast_sip_location_retrieve_aor_contacts_nolock(aor);
 	response_contact = ao2_callback(contacts, 0, NULL, NULL);
 
 	/* Send a response containing all of the contacts (including static) that are present on this AOR */
-	if (ast_sip_create_response(task_data->rdata, 200, response_contact, &tdata) != PJ_SUCCESS) {
+	if (ast_sip_create_response(rdata, 200, response_contact, &tdata) != PJ_SUCCESS) {
 		ao2_cleanup(response_contact);
 		ao2_cleanup(contacts);
 		return PJ_TRUE;
@@ -647,44 +506,42 @@ static int rx_task_core(struct rx_task_data *task_data, struct ao2_container *co
 	ao2_callback(contacts, 0, registrar_add_contact, tdata);
 	ao2_cleanup(contacts);
 
-	if ((expires_hdr = pjsip_msg_find_hdr(task_data->rdata->msg_info.msg, PJSIP_H_EXPIRES, NULL))) {
-		expires_hdr = pjsip_expires_hdr_create(tdata->pool, registrar_get_expiration(task_data->aor, NULL, task_data->rdata));
+	if ((expires_hdr = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_EXPIRES, NULL))) {
+		expires_hdr = pjsip_expires_hdr_create(tdata->pool, registrar_get_expiration(aor, NULL, rdata));
 		pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr*)expires_hdr);
 	}
 
-	ast_sip_send_stateful_response(task_data->rdata, tdata, task_data->endpoint);
+	ast_sip_send_stateful_response(rdata, tdata, endpoint);
 
 	return PJ_TRUE;
 }
 
-static int rx_task(void *data)
+static int register_aor(pjsip_rx_data *rdata,
+	struct ast_sip_endpoint *endpoint,
+	struct ast_sip_aor *aor,
+	const char *aor_name)
 {
 	int res;
-	struct rx_task_data *task_data = data;
 	struct ao2_container *contacts = NULL;
 	struct ast_named_lock *lock;
-	const char *aor_name = ast_sorcery_object_get_id(task_data->aor);
 
 	lock = ast_named_lock_get(AST_NAMED_LOCK_TYPE_RWLOCK, "aor", aor_name);
 	if (!lock) {
-		ao2_cleanup(task_data);
 		return PJ_TRUE;
 	}
 
 	ao2_wrlock(lock);
-	contacts = ast_sip_location_retrieve_aor_contacts_nolock(task_data->aor);
+	contacts = ast_sip_location_retrieve_aor_contacts_nolock(aor);
 	if (!contacts) {
 		ao2_unlock(lock);
 		ast_named_lock_put(lock);
-		ao2_cleanup(task_data);
 		return PJ_TRUE;
 	}
 
-	res = rx_task_core(task_data, contacts, aor_name);
+	res = register_aor_core(rdata, endpoint, aor, aor_name, contacts);
 	ao2_cleanup(contacts);
 	ao2_unlock(lock);
 	ast_named_lock_put(lock);
-	ao2_cleanup(task_data);
 
 	return res;
 }
@@ -748,44 +605,20 @@ static char *find_aor_name(const char *username, const char *domain, const char 
 	return NULL;
 }
 
-static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
+static struct ast_sip_aor *find_registrar_aor(struct pjsip_rx_data *rdata, struct ast_sip_endpoint *endpoint)
 {
-	RAII_VAR(struct serializer *, ser, NULL, ao2_cleanup);
-	struct rx_task_data *task_data;
-
-	RAII_VAR(struct ast_sip_endpoint *, endpoint,
-		 ast_pjsip_rdata_get_endpoint(rdata), ao2_cleanup);
-	RAII_VAR(struct ast_sip_aor *, aor, NULL, ao2_cleanup);
-	char *domain_name = NULL;
+	struct ast_sip_aor *aor = NULL;
+	char *aor_name = NULL;
+	char *domain_name;
 	char *username = NULL;
-	RAII_VAR(char *, aor_name, NULL, ast_free);
 	int i;
 
-	if (pjsip_method_cmp(&rdata->msg_info.msg->line.req.method, &pjsip_register_method) || !endpoint) {
-		return PJ_FALSE;
-	}
-
-	if (ast_strlen_zero(endpoint->aors)) {
-		/* Short circuit early if the endpoint has no AORs configured on it, which means no registration possible */
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
-		ast_sip_report_failed_acl(endpoint, rdata, "registrar_attempt_without_configured_aors");
-		ast_log(LOG_WARNING, "Endpoint '%s' has no configured AORs\n", ast_sorcery_object_get_id(endpoint));
-		return PJ_TRUE;
-	}
-
-	if (!PJSIP_URI_SCHEME_IS_SIP(rdata->msg_info.to->uri) && !PJSIP_URI_SCHEME_IS_SIPS(rdata->msg_info.to->uri)) {
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 416, NULL, NULL, NULL);
-		ast_sip_report_failed_acl(endpoint, rdata, "registrar_invalid_uri_in_to_received");
-		ast_log(LOG_WARNING, "Endpoint '%s' attempted to register to an AOR with a non-SIP URI\n", ast_sorcery_object_get_id(endpoint));
-		return PJ_TRUE;
-	}
-
-	for (i = 0; i < AST_VECTOR_SIZE(&endpoint->ident_method_order); i++) {
+	for (i = 0; i < AST_VECTOR_SIZE(&endpoint->ident_method_order); ++i) {
 		pjsip_sip_uri *uri;
 		pjsip_authorization_hdr *header = NULL;
 
 		switch (AST_VECTOR_GET(&endpoint->ident_method_order, i)) {
-		case AST_SIP_ENDPOINT_IDENTIFY_BY_USERNAME :
+		case AST_SIP_ENDPOINT_IDENTIFY_BY_USERNAME:
 			uri = pjsip_uri_get_uri(rdata->msg_info.to->uri);
 
 			domain_name = ast_alloca(uri->host.slen + 1);
@@ -798,7 +631,7 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 				ast_debug(3, "Matched aor '%s' by To username\n", aor_name);
 			}
 			break;
-		case AST_SIP_ENDPOINT_IDENTIFY_BY_AUTH_USERNAME :
+		case AST_SIP_ENDPOINT_IDENTIFY_BY_AUTH_USERNAME:
 			while ((header = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_AUTHORIZATION,
 				header ? header->next : NULL))) {
 				if (header && !pj_stricmp2(&header->scheme, "digest")) {
@@ -828,42 +661,57 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 		/* The provided AOR name was not found (be it within the configuration or sorcery itself) */
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 404, NULL, NULL, NULL);
 		ast_sip_report_req_no_support(endpoint, rdata, "registrar_requested_aor_not_found");
-		ast_log(LOG_WARNING, "AOR '%s' not found for endpoint '%s'\n", username, ast_sorcery_object_get_id(endpoint));
+		ast_log(LOG_WARNING, "AOR '%s' not found for endpoint '%s'\n",
+			username ?: "", ast_sorcery_object_get_id(endpoint));
+	}
+	ast_free(aor_name);
+	return aor;
+}
+
+static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
+{
+	RAII_VAR(struct ast_sip_endpoint *, endpoint,
+		 ast_pjsip_rdata_get_endpoint(rdata), ao2_cleanup);
+	struct ast_sip_aor *aor;
+	const char *aor_name;
+
+	if (pjsip_method_cmp(&rdata->msg_info.msg->line.req.method, &pjsip_register_method) || !endpoint) {
+		return PJ_FALSE;
+	}
+
+	if (ast_strlen_zero(endpoint->aors)) {
+		/* Short circuit early if the endpoint has no AORs configured on it, which means no registration possible */
+		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
+		ast_sip_report_failed_acl(endpoint, rdata, "registrar_attempt_without_configured_aors");
+		ast_log(LOG_WARNING, "Endpoint '%s' has no configured AORs\n", ast_sorcery_object_get_id(endpoint));
 		return PJ_TRUE;
 	}
+
+	if (!PJSIP_URI_SCHEME_IS_SIP(rdata->msg_info.to->uri) && !PJSIP_URI_SCHEME_IS_SIPS(rdata->msg_info.to->uri)) {
+		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 416, NULL, NULL, NULL);
+		ast_sip_report_failed_acl(endpoint, rdata, "registrar_invalid_uri_in_to_received");
+		ast_log(LOG_WARNING, "Endpoint '%s' attempted to register to an AOR with a non-SIP URI\n", ast_sorcery_object_get_id(endpoint));
+		return PJ_TRUE;
+	}
+
+	aor = find_registrar_aor(rdata, endpoint);
+	if (!aor) {
+		/* We've already responded about not finding an AOR. */
+		return PJ_TRUE;
+	}
+
+	aor_name = ast_sorcery_object_get_id(aor);
 
 	if (!aor->max_contacts) {
 		/* Registration is not permitted for this AOR */
 		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
 		ast_sip_report_req_no_support(endpoint, rdata, "registrar_attempt_without_registration_permitted");
 		ast_log(LOG_WARNING, "AOR '%s' has no configured max_contacts. Endpoint '%s' unable to register\n",
-				ast_sorcery_object_get_id(aor), ast_sorcery_object_get_id(endpoint));
-		return PJ_TRUE;
+			aor_name, ast_sorcery_object_get_id(endpoint));
+	} else {
+		register_aor(rdata, endpoint, aor, aor_name);
 	}
-
-	if (!(ser = serializer_find_or_create(aor_name))) {
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
-		ast_sip_report_mem_limit(endpoint, rdata);
-		ast_log(LOG_WARNING, "Endpoint '%s' unable to register on AOR '%s' - could not get serializer\n",
-			ast_sorcery_object_get_id(endpoint), ast_sorcery_object_get_id(aor));
-		return PJ_TRUE;
-	}
-
-	if (!(task_data = rx_task_data_create(rdata, endpoint, aor))) {
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
-		ast_sip_report_mem_limit(endpoint, rdata);
-		ast_log(LOG_WARNING, "Endpoint '%s' unable to register on AOR '%s' - could not create rx_task_data\n",
-			ast_sorcery_object_get_id(endpoint), ast_sorcery_object_get_id(aor));
-		return PJ_TRUE;
-	}
-
-	if (ast_sip_push_task(ser->serializer, rx_task, task_data)) {
-		pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 403, NULL, NULL, NULL);
-		ast_sip_report_mem_limit(endpoint, rdata);
-		ast_log(LOG_WARNING, "Endpoint '%s' unable to register on AOR '%s' - could not serialize task\n",
-			ast_sorcery_object_get_id(endpoint), ast_sorcery_object_get_id(aor));
-		ao2_ref(task_data, -1);
-	}
+	ao2_ref(aor, -1);
 	return PJ_TRUE;
 }
 
@@ -952,11 +800,6 @@ static int load_module(void)
 
 	CHECK_PJSIP_MODULE_LOADED();
 
-	if (!(serializers = ao2_container_alloc(
-		      SERIALIZER_BUCKETS, serializer_hash, serializer_cmp))) {
-		return AST_MODULE_LOAD_DECLINE;
-	}
-
 	if (ast_sip_register_service(&registrar_module)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
@@ -976,8 +819,6 @@ static int unload_module(void)
 {
 	ast_manager_unregister(AMI_SHOW_REGISTRATIONS);
 	ast_sip_unregister_service(&registrar_module);
-
-	ao2_cleanup(serializers);
 	return 0;
 }
 
