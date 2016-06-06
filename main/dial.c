@@ -411,14 +411,22 @@ int ast_dial_prerun(struct ast_dial *dial, struct ast_channel *chan, struct ast_
 }
 
 /*! \brief Helper function that does the beginning dialing per-appended channel */
-static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_channel *chan, int async, const char *predial_string)
+static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_channel *chan, int async, const char *predial_string, struct ast_channel *forwarder_chan)
 {
 	char numsubst[AST_MAX_EXTENSION];
 	int res = 1;
+	char forwarder[AST_CHANNEL_NAME];
 
 	/* If no owner channel exists yet execute pre-run */
 	if (!channel->owner && begin_dial_prerun(channel, chan, NULL, predial_string)) {
 		return 0;
+	}
+
+	if (forwarder_chan) {
+		ast_copy_string(forwarder, ast_channel_name(forwarder_chan), sizeof(forwarder));
+		ast_channel_lock(channel->owner);
+		pbx_builtin_setvar_helper(channel->owner, "FORWARDERNAME", forwarder);
+		ast_channel_unlock(channel->owner);
 	}
 
 	/* Copy device string over */
@@ -451,7 +459,7 @@ static int begin_dial(struct ast_dial *dial, struct ast_channel *chan, int async
 	/* Iterate through channel list, requesting and calling each one */
 	AST_LIST_LOCK(&dial->channels);
 	AST_LIST_TRAVERSE(&dial->channels, channel, list) {
-		success += begin_dial_channel(channel, chan, async, predial_string);
+		success += begin_dial_channel(channel, chan, async, predial_string, NULL);
 	}
 	AST_LIST_UNLOCK(&dial->channels);
 
@@ -507,7 +515,7 @@ static int handle_call_forward(struct ast_dial *dial, struct ast_dial_channel *c
 	channel->owner = NULL;
 
 	/* Finally give it a go... send it out into the world */
-	begin_dial_channel(channel, chan, chan ? 0 : 1, predial_string);
+	begin_dial_channel(channel, chan, chan ? 0 : 1, predial_string, original);
 
 	ast_channel_publish_dial_forward(chan, original, channel->owner, NULL, "CANCEL",
 		ast_channel_call_forward(original));
