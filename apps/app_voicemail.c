@@ -8527,6 +8527,8 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, ast_channel_language(chan), "'vm-received' Q 'digits/at' HM", NULL);
 	} else if (!strncasecmp(ast_channel_language(chan), "gr", 2)) {     /* GREEK syntax */
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, ast_channel_language(chan), "'vm-received' q  H 'digits/kai' M ", NULL);
+	} else if (!strncasecmp(ast_channel_language(chan), "is", 2)) {     /* ICELANDIC syntax */
+		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, ast_channel_language(chan), "'vm-received' Q 'digits/at' HM", NULL);
 	} else if (!strncasecmp(ast_channel_language(chan), "it", 2)) {     /* ITALIAN syntax */
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, ast_channel_language(chan), "'vm-received' q 'digits/at' 'digits/hours' k 'digits/e' M 'digits/minutes'", NULL);
 	} else if (!strcasecmp(ast_channel_language(chan),"ja")) {     /* Japanese syntax */
@@ -8752,6 +8754,12 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 				res = wait_file2(chan, vms, "vm-message");
 				res = wait_file2(chan, vms, "vm-number");
 				res = ast_say_number(chan, vms->curmsg + 1, AST_DIGIT_ANY, ast_channel_language(chan), "f");
+			}
+		/* ICELANDIC syntax */
+		} else if (!strncasecmp(ast_channel_language(chan), "is", 2)) {
+			res = wait_file2(chan, vms, "vm-message");
+			if (vms->curmsg && (vms->curmsg != vms->lastmsg)) {
+				res = ast_say_number(chan, vms->curmsg + 1, AST_DIGIT_ANY, ast_channel_language(chan), "n");
 			}
 		/* VIETNAMESE syntax */
 		} else if (!strncasecmp(ast_channel_language(chan), "vi", 2)) {
@@ -9492,6 +9500,75 @@ static int vm_intro_en(struct ast_channel *chan, struct vm_state *vms)
 	return res;
 }
 
+/* ICELANDIC syntax */
+static int vm_intro_is(struct ast_channel *chan, struct vm_state *vms)
+{
+	int res;
+
+	/* Introduce messages they have */
+	res = ast_play_and_wait(chan, "vm-youhave");
+	if (!res) {
+		if (vms->urgentmessages) {
+			/* Digits 1-4 are spoken in neutral and plural when talking about messages,
+			   however, feminine is used for 1 as it is the same as the neutral for plural,
+			   and singular neutral is the same after 1. */
+			if (vms->urgentmessages < 5) {
+				char recname[16];
+				if (vms->urgentmessages == 1)
+					snprintf(recname, sizeof(recname), "digits/1kvk");
+				else
+					snprintf(recname, sizeof(recname), "digits/%dhk", vms->urgentmessages);
+				res = ast_play_and_wait(chan, recname);
+			} else if (!res)
+				res = ast_play_and_wait(chan, "vm-Urgent");
+			if ((vms->oldmessages || vms->newmessages) && !res) {
+				res = ast_play_and_wait(chan, "vm-and");
+			} else if (!res)
+				res = ast_play_and_wait(chan, "vm-messages");
+		}
+		if (vms->newmessages) {
+			if (vms->newmessages < 5) {
+				char recname[16];
+				if (vms->newmessages == 1)
+					snprintf(recname, sizeof(recname), "digits/1kvk");
+				else
+					snprintf(recname, sizeof(recname), "digits/%dhk", vms->newmessages);
+				res = ast_play_and_wait(chan, recname);
+			} else
+				res = say_and_wait(chan, vms->newmessages, ast_channel_language(chan));
+			if (!res)
+				res = ast_play_and_wait(chan, "vm-INBOX");
+			if (vms->oldmessages && !res)
+				res = ast_play_and_wait(chan, "vm-and");
+			else if (!res)
+				res = ast_play_and_wait(chan, "vm-messages");
+		}
+		if (!res && vms->oldmessages) {
+			if (vms->oldmessages < 5) {
+				char recname[16];
+				if (vms->oldmessages == 1)
+					snprintf(recname, sizeof(recname), "digits/1kvk");
+				else
+					snprintf(recname, sizeof(recname), "digits/%dhk", vms->oldmessages);
+				res = ast_play_and_wait(chan, recname);
+			} else
+				res = say_and_wait(chan, vms->oldmessages, ast_channel_language(chan));
+			if (!res)
+				res = ast_play_and_wait(chan, "vm-Old");
+			if (!res)
+				res = ast_play_and_wait(chan, "vm-messages");
+		}
+		if (!res) {
+			if (!vms->urgentmessages && !vms->oldmessages && !vms->newmessages) {
+				res = ast_play_and_wait(chan, "vm-no");
+				if (!res)
+					res = ast_play_and_wait(chan, "vm-messages");
+			}
+		}
+	}
+	return res;
+}
+
 /* ITALIAN syntax */
 static int vm_intro_it(struct ast_channel *chan, struct vm_state *vms)
 {
@@ -10156,6 +10233,8 @@ static int vm_intro(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm
 		return vm_intro_gr(chan, vms);
 	} else if (!strncasecmp(ast_channel_language(chan), "he", 2)) {  /* HEBREW syntax */
 		return vm_intro_he(chan, vms);
+	} else if (!strncasecmp(ast_channel_language(chan), "is", 2)) {  /* ICELANDIC syntax */
+		return vm_intro_is(chan, vms);
 	} else if (!strncasecmp(ast_channel_language(chan), "it", 2)) {  /* ITALIAN syntax */
 		return vm_intro_it(chan, vms);
 	} else if (!strncasecmp(ast_channel_language(chan), "ja", 2)) {  /* JAPANESE syntax */
