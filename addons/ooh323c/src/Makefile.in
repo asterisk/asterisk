@@ -104,7 +104,7 @@ CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
 LIBRARIES = $(noinst_LIBRARIES)
 
-libooh323c_a_AR = $(AR) cru
+libooh323c_a_AR = $(AR) cr
 libooh323c_a_LIBADD =
 am_libooh323c_a_OBJECTS = ooLogChan.$(OBJEXT) ooUtils.$(OBJEXT) \
 	ooGkClient.$(OBJEXT) context.$(OBJEXT) ooDateTime.$(OBJEXT) \
