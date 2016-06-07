@@ -187,7 +187,7 @@ distclean : clean
 #
 
 $(LIB_A) : $(BGCSRCS:.c=.o_a) $(CCSRCS:.c=.o_a)
-	$(AR) cru $@ $?
+	$(AR) cr $@ $?
 	$(RANLIB) $@
 
 $(LIB_S) : $(BGCSRCS:.c=.o_s) $(CCSRCS:.c=.o_s)
