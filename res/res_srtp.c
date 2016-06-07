@@ -40,7 +40,11 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <srtp/srtp.h>
+#ifdef HAVE_OPENSSL
+#include <openssl/rand.h>
+#else
 #include <srtp/crypto_kernel.h>
+#endif
 
 #include "asterisk/lock.h"
 #include "asterisk/sched.h"
@@ -305,7 +309,11 @@ static int ast_srtp_policy_set_master_key(struct ast_srtp_policy *policy, const 
 
 static int ast_srtp_get_random(unsigned char *key, size_t len)
 {
+#ifdef HAVE_OPENSSL
+	return RAND_bytes(key, len) > 0 ? 0: -1;
+#else
 	return crypto_get_random(key, len) != err_status_ok ? -1: 0;
+#endif
 }
 
 static void ast_srtp_set_cb(struct ast_srtp *srtp, const struct ast_srtp_cb *cb, void *data)
