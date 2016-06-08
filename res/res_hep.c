@@ -409,7 +409,19 @@ enum hep_uuid_type hepv3_get_uuid_type(void)
 {
 	RAII_VAR(struct module_config *, config, ao2_global_obj_ref(global_config), ao2_cleanup);
 
+	if (!config) {
+		/* Well, that's unfortunate. Return something. */
+		return HEP_UUID_TYPE_CALL_ID;
+	}
+
 	return config->general->uuid_type;
+}
+
+int hepv3_is_loaded(void)
+{
+	RAII_VAR(struct module_config *, config, ao2_global_obj_ref(global_config), ao2_cleanup);
+
+	return (config != NULL) ? 1 : 0;
 }
 
 struct hepv3_capture_info *hepv3_create_capture_info(const void *payload, size_t len)

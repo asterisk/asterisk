@@ -118,6 +118,14 @@ int hepv3_send_packet(struct hepv3_capture_info *capture_info);
  */
 enum hep_uuid_type hepv3_get_uuid_type(void);
 
+/*!
+ * \brief Return whether or not we're currently loaded and active
+ *
+ * \retval 0 The module is not loaded
+ * \retval 1 The module is loaded
+ */
+int hepv3_is_loaded(void);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
