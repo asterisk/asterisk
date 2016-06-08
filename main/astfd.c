@@ -276,12 +276,7 @@ static char *handle_show_fd(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		return NULL;
 	}
 	getrlimit(RLIMIT_NOFILE, &rl);
-	if (rl.rlim_cur == RLIM_INFINITY || rl.rlim_max == RLIM_INFINITY) {
-		ast_copy_string(line, "unlimited", sizeof(line));
-	} else {
-		snprintf(line, sizeof(line), "%d/%d", (int) rl.rlim_cur, (int) rl.rlim_max);
-	}
-	ast_cli(a->fd, "Current maxfiles: %s\n", line);
+	ast_cli(a->fd, "Current maxfiles: %d\n", (int) rl.rlim_cur);
 	for (i = 0; i < ARRAY_LEN(fdleaks); i++) {
 		if (fdleaks[i].isopen) {
 			struct ast_tm tm = {0};
