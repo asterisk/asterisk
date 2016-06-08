@@ -257,6 +257,7 @@ static void ast_ari_recordings_get_stored_file_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 403: /* The recording file could not be opened */
 	case 404: /* Recording not found */
 		is_valid = 1;
 		break;
