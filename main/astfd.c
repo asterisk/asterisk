@@ -271,7 +271,7 @@ static char *handle_show_fd(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	case CLI_GENERATE:
 		return NULL;
 	}
-	getrlimit(RLIMIT_FSIZE, &rl);
+	getrlimit(RLIMIT_NOFILE, &rl);
 	if (rl.rlim_cur == RLIM_INFINITY || rl.rlim_max == RLIM_INFINITY) {
 		ast_copy_string(line, "unlimited", sizeof(line));
 	} else {
