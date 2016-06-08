@@ -912,6 +912,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 	const char *args_channel_id,
 	const char *args_other_channel_id,
 	const char *args_originator,
+	const char *args_formats,
 	struct ast_ari_response *response)
 {
 	char *dialtech;
@@ -930,6 +931,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 	};
 	struct ari_origination *origination;
 	pthread_t thread;
+	struct ast_format_cap *format_cap = NULL;
 
 	if ((assignedids.uniqueid && AST_MAX_PUBLIC_UNIQUEID < strlen(assignedids.uniqueid))
 		|| (assignedids.uniqueid2 && AST_MAX_PUBLIC_UNIQUEID < strlen(assignedids.uniqueid2))) {
@@ -941,6 +943,12 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 	if (ast_strlen_zero(args_endpoint)) {
 		ast_ari_response_error(response, 400, "Bad Request",
 			"Endpoint must be specified");
+		return;
+	}
+
+	if (!ast_strlen_zero(args_originator) && !ast_strlen_zero(args_formats)) {
+		ast_ari_response_error(response, 400, "Bad Request",
+			"Originator and formats can't both be specified");
 		return;
 	}
 
@@ -1066,7 +1074,41 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 		}
 	}
 
-	if (ast_dial_prerun(dial, other, NULL)) {
+	if (!ast_strlen_zero(args_formats)) {
+		char *format_name;
+		char *formats_copy = ast_strdupa(args_formats);
+
+		if (!(format_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
+			ast_ari_response_alloc_failed(response);
+			ast_dial_destroy(dial);
+			ast_free(origination);
+			ast_channel_cleanup(other);
+			return;
+		}
+
+		while ((format_name = ast_strip(strsep(&formats_copy, ",")))) {
+			struct ast_format *fmt = ast_format_cache_get(format_name);
+
+			if (!fmt || ast_format_cap_append(format_cap, fmt, 0)) {
+				if (!fmt) {
+					ast_ari_response_error(
+						response, 400, "Bad Request",
+						"Provided format (%s) was not found", format_name);
+				} else {
+					ast_ari_response_alloc_failed(response);
+				}
+				ast_dial_destroy(dial);
+				ast_free(origination);
+				ast_channel_cleanup(other);
+				ao2_ref(format_cap, -1);
+				ao2_cleanup(fmt);
+				return;
+			}
+			ao2_ref(fmt, -1);
+		}
+	}
+
+	if (ast_dial_prerun(dial, other, format_cap)) {
 		ast_ari_response_alloc_failed(response);
 		ast_dial_destroy(dial);
 		ast_free(origination);
@@ -1075,6 +1117,7 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 	}
 
 	ast_channel_cleanup(other);
+	ao2_cleanup(format_cap);
 
 	chan = ast_dial_get_channel(dial, 0);
 	if (!chan) {
@@ -1215,6 +1258,7 @@ void ast_ari_channels_originate_with_id(struct ast_variable *headers,
 		args->channel_id,
 		args->other_channel_id,
 		args->originator,
+		args->formats,
 		response);
 	ast_variables_destroy(variables);
 }
@@ -1251,6 +1295,7 @@ void ast_ari_channels_originate(struct ast_variable *headers,
 		args->channel_id,
 		args->other_channel_id,
 		args->originator,
+		args->formats,
 		response);
 	ast_variables_destroy(variables);
 }
