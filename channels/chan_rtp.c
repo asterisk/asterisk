@@ -176,7 +176,7 @@ static struct ast_channel *multicast_rtp_request(const char *type, struct ast_fo
 		fmt = ast_format_cap_get_format(cap, 0);
 	}
 	if (!fmt) {
-		ast_log(LOG_ERROR, "No format available for sending RTP to '%s'\n",
+		ast_log(LOG_ERROR, "No codec available for sending RTP to '%s'\n",
 			args.destination);
 		goto failure;
 	}
@@ -230,6 +230,25 @@ failure:
 	return NULL;
 }
 
+enum {
+	OPT_RTP_CODEC =  (1 << 0),
+	OPT_RTP_ENGINE = (1 << 1),
+};
+
+enum {
+	OPT_ARG_RTP_CODEC,
+	OPT_ARG_RTP_ENGINE,
+	/* note: this entry _MUST_ be the last one in the enum */
+	OPT_ARG_ARRAY_SIZE
+};
+
+AST_APP_OPTIONS(unicast_rtp_options, BEGIN_OPTIONS
+	/*! Set the codec to be used for unicast RTP */
+	AST_APP_OPTION_ARG('c', OPT_RTP_CODEC, OPT_ARG_RTP_CODEC),
+	/*! Set the RTP engine to use for unicast RTP */
+	AST_APP_OPTION_ARG('e', OPT_RTP_ENGINE, OPT_ARG_RTP_ENGINE),
+END_OPTIONS );
+
 /*! \brief Function called when we should prepare to call the unicast destination */
 static struct ast_channel *unicast_rtp_request(const char *type, struct ast_format_cap *cap, const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *data, int *cause)
 {
@@ -240,11 +259,13 @@ static struct ast_channel *unicast_rtp_request(const char *type, struct ast_form
 	struct ast_channel *chan;
 	struct ast_format_cap *caps = NULL;
 	struct ast_format *fmt = NULL;
+	const char *engine_name;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(destination);
-		AST_APP_ARG(engine);
-		AST_APP_ARG(format);
+		AST_APP_ARG(options);
 	);
+	struct ast_flags opts = { 0, };
+	char *opt_args[OPT_ARG_ARRAY_SIZE];
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_ERROR, "Destination is required for the 'UnicastRTP' channel\n");
@@ -262,17 +283,26 @@ static struct ast_channel *unicast_rtp_request(const char *type, struct ast_form
 		goto failure;
 	}
 
-	if (!ast_strlen_zero(args.format)) {
-		fmt = ast_format_cache_get(args.format);
+	if (!ast_strlen_zero(args.options)
+		&& ast_app_parse_options(unicast_rtp_options, &opts, opt_args,
+			ast_strdupa(args.options))) {
+		ast_log(LOG_ERROR, "'UnicastRTP' channel options '%s' parse error\n",
+			args.options);
+		goto failure;
+	}
+
+	if (ast_test_flag(&opts, OPT_RTP_CODEC)
+		&& !ast_strlen_zero(opt_args[OPT_ARG_RTP_CODEC])) {
+		fmt = ast_format_cache_get(opt_args[OPT_ARG_RTP_CODEC]);
 		if (!fmt) {
-			ast_log(LOG_ERROR, "Format '%s' not found for sending RTP to '%s'\n",
-				args.format, args.destination);
+			ast_log(LOG_ERROR, "Codec '%s' not found for sending RTP to '%s'\n",
+				opt_args[OPT_ARG_RTP_CODEC], args.destination);
 			goto failure;
 		}
 	} else {
 		fmt = ast_format_cap_get_format(cap, 0);
 		if (!fmt) {
-			ast_log(LOG_ERROR, "No format available for sending RTP to '%s'\n",
+			ast_log(LOG_ERROR, "No codec available for sending RTP to '%s'\n",
 				args.destination);
 			goto failure;
 		}
@@ -283,12 +313,15 @@ static struct ast_channel *unicast_rtp_request(const char *type, struct ast_form
 		goto failure;
 	}
 
+	engine_name = S_COR(ast_test_flag(&opts, OPT_RTP_ENGINE),
+		opt_args[OPT_ARG_RTP_ENGINE], NULL);
+
 	ast_ouraddrfor(&address, &local_address);
-	instance = ast_rtp_instance_new(args.engine, NULL, &local_address, NULL);
+	instance = ast_rtp_instance_new(engine_name, NULL, &local_address, NULL);
 	if (!instance) {
 		ast_log(LOG_ERROR,
 			"Could not create %s RTP instance for sending media to '%s'\n",
-			S_OR(args.engine, "default"), args.destination);
+			S_OR(engine_name, "default"), args.destination);
 		goto failure;
 	}
 
