@@ -70,7 +70,10 @@ static char server_uri[512];
 	int actual_expires; \
 	ast_test_validate(test, metadata != NULL); \
 	ast_test_validate(test, sscanf(metadata->value, "%d", &actual_expires) == 1); \
-	ast_test_validate(test, (((expected) + (delta) > actual_expires) && ((expected) - (delta) < actual_expires))); \
+	ast_test_status_update(test, "Checking %d >= %d and %d <= %d\n", \
+			(int) (expected) + (delta), actual_expires, \
+			(int)  (expected) - (delta), actual_expires); \
+	ast_test_validate(test, (((expected) + (delta) >= actual_expires) && ((expected) - (delta) <= actual_expires))); \
 } while (0)
 
 #define VALIDATE_STR_METADATA(test, bucket_file, key, expected) do { \
@@ -266,7 +269,7 @@ AST_TEST_DEFINE(retrieve_cache_control_directives)
 	options.cache_control.maxage = 300;
 	bucket_file = ast_bucket_file_retrieve(uri);
 	ast_test_validate(test, bucket_file != NULL);
-	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec + 300, 1);
+	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec + 300, 3);
 	ast_test_validate(test, ast_bucket_file_is_stale(bucket_file) == 1);
 	bucket_file_cleanup(bucket_file);
 
@@ -295,7 +298,7 @@ AST_TEST_DEFINE(retrieve_cache_control_directives)
 	options.cache_control.maxage = 300;
 	bucket_file = ast_bucket_file_retrieve(uri);
 	ast_test_validate(test, bucket_file != NULL);
-	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec + 300, 1);
+	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec + 300, 3);
 	ast_test_validate(test, ast_bucket_file_is_stale(bucket_file) == 1);
 
 	return AST_TEST_PASS;
@@ -332,7 +335,7 @@ AST_TEST_DEFINE(retrieve_cache_control_age)
 	options.cache_control.maxage = 300;
 	bucket_file = ast_bucket_file_retrieve(uri);
 	ast_test_validate(test, bucket_file != NULL);
-	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec + 300, 1);
+	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec + 300, 3);
 	ast_test_validate(test, ast_bucket_file_is_stale(bucket_file) == 0);
 	bucket_file_cleanup(bucket_file);
 
@@ -342,7 +345,7 @@ AST_TEST_DEFINE(retrieve_cache_control_age)
 	options.cache_control.s_maxage = 300;
 	bucket_file = ast_bucket_file_retrieve(uri);
 	ast_test_validate(test, bucket_file != NULL);
-	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec + 300, 1);
+	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec + 300, 3);
 	ast_test_validate(test, ast_bucket_file_is_stale(bucket_file) == 0);
 	bucket_file_cleanup(bucket_file);
 
@@ -352,7 +355,7 @@ AST_TEST_DEFINE(retrieve_cache_control_age)
 	options.cache_control.s_maxage = 600;
 	bucket_file = ast_bucket_file_retrieve(uri);
 	ast_test_validate(test, bucket_file != NULL);
-	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec + 600, 1);
+	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec + 600, 3);
 	ast_test_validate(test, ast_bucket_file_is_stale(bucket_file) == 0);
 	bucket_file_cleanup(bucket_file);
 
@@ -363,7 +366,7 @@ AST_TEST_DEFINE(retrieve_cache_control_age)
 	options.expires.tv_sec = now.tv_sec + 3000;
 	bucket_file = ast_bucket_file_retrieve(uri);
 	ast_test_validate(test, bucket_file != NULL);
-	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec + 300, 1);
+	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec + 300, 3);
 	ast_test_validate(test, ast_bucket_file_is_stale(bucket_file) == 0);
 	bucket_file_cleanup(bucket_file);
 
@@ -374,7 +377,7 @@ AST_TEST_DEFINE(retrieve_cache_control_age)
 	options.expires.tv_sec = now.tv_sec + 3000;
 	bucket_file = ast_bucket_file_retrieve(uri);
 	ast_test_validate(test, bucket_file != NULL);
-	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec + 300, 1);
+	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec + 300, 3);
 	ast_test_validate(test, ast_bucket_file_is_stale(bucket_file) == 0);
 	bucket_file_cleanup(bucket_file);
 
@@ -385,7 +388,7 @@ AST_TEST_DEFINE(retrieve_cache_control_age)
 	options.expires.tv_sec = now.tv_sec + 3000;
 	bucket_file = ast_bucket_file_retrieve(uri);
 	ast_test_validate(test, bucket_file != NULL);
-	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec + 300, 1);
+	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec + 300, 3);
 	ast_test_validate(test, ast_bucket_file_is_stale(bucket_file) == 0);
 	bucket_file_cleanup(bucket_file);
 
@@ -396,7 +399,7 @@ AST_TEST_DEFINE(retrieve_cache_control_age)
 	options.expires.tv_sec = now.tv_sec + 3000;
 	bucket_file = ast_bucket_file_retrieve(uri);
 	ast_test_validate(test, bucket_file != NULL);
-	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec + 600, 1);
+	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec + 600, 3);
 	ast_test_validate(test, ast_bucket_file_is_stale(bucket_file) == 0);
 
 	return AST_TEST_PASS;
@@ -436,7 +439,7 @@ AST_TEST_DEFINE(retrieve_etag_expired)
 	ast_test_validate(test, !strcmp(uri, ast_sorcery_object_get_id(bucket_file)));
 	ast_test_validate(test, !ast_strlen_zero(bucket_file->path));
 	VALIDATE_STR_METADATA(test, bucket_file, "etag", options.etag);
-	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec - 1, 1);
+	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec - 1, 3);
 
 	ast_test_validate(test, ast_bucket_file_is_stale(bucket_file) == 0);
 
@@ -476,7 +479,7 @@ AST_TEST_DEFINE(retrieve_expires)
 	ast_test_validate(test, bucket_file != NULL);
 	ast_test_validate(test, !strcmp(uri, ast_sorcery_object_get_id(bucket_file)));
 	ast_test_validate(test, !ast_strlen_zero(bucket_file->path));
-	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec + 3000, 1);
+	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec + 3000, 3);
 
 	ast_test_validate(test, ast_bucket_file_is_stale(bucket_file) == 0);
 
@@ -486,7 +489,7 @@ AST_TEST_DEFINE(retrieve_expires)
 	options.expires.tv_sec = now.tv_sec - 1;
 	bucket_file = ast_bucket_file_retrieve(uri);
 	ast_test_validate(test, bucket_file != NULL);
-	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec - 1, 1);
+	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec - 1, 3);
 
 	ast_test_validate(test, ast_bucket_file_is_stale(bucket_file) == 1);
 
@@ -526,7 +529,7 @@ AST_TEST_DEFINE(retrieve_etag)
 	ast_test_validate(test, !strcmp(uri, ast_sorcery_object_get_id(bucket_file)));
 	ast_test_validate(test, !ast_strlen_zero(bucket_file->path));
 	VALIDATE_STR_METADATA(test, bucket_file, "etag", options.etag);
-	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec, 1);
+	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec, 3);
 
 	ast_test_validate(test, ast_bucket_file_is_stale(bucket_file) == 0);
 
@@ -564,7 +567,7 @@ AST_TEST_DEFINE(retrieve_nominal)
 	ast_test_validate(test, bucket_file != NULL);
 	ast_test_validate(test, !strcmp(uri, ast_sorcery_object_get_id(bucket_file)));
 	ast_test_validate(test, !ast_strlen_zero(bucket_file->path));
-	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec, 1);
+	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec, 3);
 
 	return AST_TEST_PASS;
 }
@@ -597,7 +600,7 @@ AST_TEST_DEFINE(create_nominal)
 	ast_test_validate(test, bucket_file != NULL);
 	ast_test_validate(test, ast_bucket_file_temporary_create(bucket_file) == 0);
 	ast_test_validate(test, ast_bucket_file_create(bucket_file) == 0);
-	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec, 1);
+	VALIDATE_EXPIRES(test, bucket_file, now.tv_sec, 3);
 
 	return AST_TEST_PASS;
 }
