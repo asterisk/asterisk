@@ -606,6 +606,7 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	char buf[BUFSIZ];
 	struct ast_tm tm;
 	char eid_str[128];
+	struct rlimit limits;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -627,10 +628,17 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 		ast_cli(a->fd, "  Maximum calls:               %d (Current %d)\n", ast_option_maxcalls, ast_active_channels());
 	else
 		ast_cli(a->fd, "  Maximum calls:               Not set\n");
-	if (ast_option_maxfiles)
-		ast_cli(a->fd, "  Maximum open file handles:   %d\n", ast_option_maxfiles);
-	else
-		ast_cli(a->fd, "  Maximum open file handles:   Not set\n");
+
+	if (getrlimit(RLIMIT_NOFILE, &limits)) {
+		ast_cli(a->fd, "  Maximum open file handles:   Error because of %s\n", strerror(errno));
+	} else if (limits.rlim_cur == RLIM_INFINITY) {
+		ast_cli(a->fd, "  Maximum open file handles:   Unlimited\n");
+	} else if (limits.rlim_cur < ast_option_maxfiles) {
+		ast_cli(a->fd, "  Maximum open file handles:   %d (is) %d (requested)\n", (int) limits.rlim_cur, ast_option_maxfiles);
+	} else {
+		ast_cli(a->fd, "  Maximum open file handles:   %d\n", (int) limits.rlim_cur);
+	}
+
 	ast_cli(a->fd, "  Root console verbosity:      %d\n", option_verbose);
 	ast_cli(a->fd, "  Current console verbosity:   %d\n", ast_verb_console_get());
 	ast_cli(a->fd, "  Debug level:                 %d\n", option_debug);
