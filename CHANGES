@@ -1028,6 +1028,8 @@ Say
    language. The 'language' parameter in say.conf now recognizes a setting of
    'ja', which will enable Japanese language specific mechanisms for playing
    back numbers, dates, and other items.
+ * Counting, enumeration and dates now supports Icelandic grammar with the
+   'language' parameter set to 'is'.
 
 SayCountPL
 ------------------
@@ -5181,6 +5183,7 @@ Voicemail Changes
      the message as urgent after he has recorded a voicemail by following the voice instructions.
     When listening to voicemails using VoiceMailMain urgent messages will be presented before other
      messages
+  * Added "is" language support
 
 Queue changes
 -------------
