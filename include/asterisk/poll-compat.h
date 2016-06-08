@@ -83,7 +83,7 @@
 
 #ifndef AST_POLL_COMPAT
 
-#include <sys/poll.h>
+#include <poll.h>
 
 #define ast_poll(a, b, c) poll(a, b, c)
 
