@@ -12995,7 +12995,7 @@ static void add_codec_to_sdp(const struct sip_pvt *p,
 	/* Opus mandates 2 channels in rtpmap */
 	if (ast_format_cmp(format, ast_format_opus) == AST_FORMAT_CMP_EQUAL) {
 		ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%u/2\r\n", rtp_code, mime, rate);
-	} else {
+	} else if ((35 <= rtp_code) || !(sip_cfg.compactheaders)) {
 		ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%u\r\n", rtp_code, mime, rate);
 	}
 
