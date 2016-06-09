@@ -25,6 +25,7 @@
 #include "asterisk/astobj2.h"
 #include "asterisk/paths.h"
 #include "asterisk/sorcery.h"
+#include "asterisk/taskprocessor.h"
 #include "include/res_pjsip_private.h"
 #include "asterisk/res_pjsip_cli.h"
 #include "asterisk/statsd.h"
@@ -1114,6 +1115,8 @@ int ast_sip_initialize_sorcery_location(void)
 	ast_pjproject_get_buildopt("PJSIP_MAX_URL_SIZE", "%d", &pjsip_max_url_size);
 
 	ast_sorcery_apply_default(sorcery, "contact", "astdb", "registrar");
+	ast_sorcery_object_set_congestion_levels(sorcery, "contact", -1,
+		3 * AST_TASKPROCESSOR_HIGH_WATER_LEVEL);
 	ast_sorcery_apply_default(sorcery, "aor", "config", "pjsip.conf,criteria=type=aor");
 
 	if (ast_sorcery_object_register(sorcery, "contact", contact_alloc, NULL, contact_apply_handler) ||

@@ -31,6 +31,7 @@
 #include "asterisk/test.h"
 #include "asterisk/statsd.h"
 #include "include/res_pjsip_private.h"
+#include "asterisk/taskprocessor.h"
 
 #define DEFAULT_LANGUAGE "en"
 #define DEFAULT_ENCODING "text/plain"
@@ -1004,6 +1005,8 @@ int ast_sip_initialize_sorcery_qualify(void)
 
 	/* initialize sorcery ast_sip_contact_status resource */
 	ast_sorcery_apply_default(sorcery, CONTACT_STATUS, "memory", NULL);
+	ast_sorcery_object_set_congestion_levels(sorcery, CONTACT_STATUS, -1,
+		3 * AST_TASKPROCESSOR_HIGH_WATER_LEVEL);
 
 	if (ast_sorcery_internal_object_register(sorcery, CONTACT_STATUS,
 					contact_status_alloc, NULL, NULL)) {
