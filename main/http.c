@@ -49,7 +49,7 @@ ASTERISK_REGISTER_FILE()
 #include <time.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-#include <sys/signal.h>
+#include <signal.h>
 #include <fcntl.h>
 
 #include "asterisk/paths.h"	/* use ast_config_AST_DATA_DIR */

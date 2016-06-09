@@ -47,7 +47,6 @@ ASTERISK_REGISTER_FILE()
 #include <net/if.h>
 #include <fcntl.h>
 #include <netdb.h>
-#include <sys/signal.h>
 #include <signal.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>

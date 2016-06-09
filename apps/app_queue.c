@@ -72,7 +72,7 @@
 ASTERISK_REGISTER_FILE()
 
 #include <sys/time.h>
-#include <sys/signal.h>
+#include <signal.h>
 #include <netinet/in.h>
 #include <ctype.h>
 

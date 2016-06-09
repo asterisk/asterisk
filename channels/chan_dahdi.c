@@ -58,10 +58,8 @@ ASTERISK_REGISTER_FILE()
 
 #if defined(__NetBSD__) || defined(__FreeBSD__)
 #include <pthread.h>
-#include <signal.h>
-#else
-#include <sys/signal.h>
 #endif
+#include <signal.h>
 #include <sys/stat.h>
 #include <math.h>
 
