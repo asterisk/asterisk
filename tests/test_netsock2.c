@@ -75,7 +75,7 @@ AST_TEST_DEFINE(parsing)
 	};
 
 	size_t x;
-	struct ast_sockaddr addr = { { 0, 0, } };
+	struct ast_sockaddr addr;
 	int parse_result;
 
 	switch (cmd) {
@@ -91,15 +91,17 @@ AST_TEST_DEFINE(parsing)
 	}
 
 	for (x = 0; x < ARRAY_LEN(test_vals); x++) {
+		memset(&addr, 0, sizeof(addr));
 		if ((parse_result = ast_sockaddr_parse(&addr, test_vals[x].address, 0)) != test_vals[x].expected_result) {
 			ast_test_status_update(test, "On '%s' expected %d but got %d\n", test_vals[x].address, test_vals[x].expected_result, parse_result);
 			res = AST_TEST_FAIL;
 		}
 		if (parse_result) {
-			struct ast_sockaddr tmp_addr = { { 0, 0, } };
+			struct ast_sockaddr tmp_addr;
 			const char *tmp;
 
 			tmp = ast_sockaddr_stringify(&addr);
+			memset(&tmp_addr, 0, sizeof(tmp_addr));
 			ast_sockaddr_parse(&tmp_addr, tmp, 0);
 			if (ast_sockaddr_cmp_addr(&addr, &tmp_addr)) {
 				char buf[64];
