@@ -15790,11 +15790,12 @@ static void start_register_timeout(struct sip_registry *reg)
 
 static const char *sip_sanitized_host(const char *host)
 {
-	struct ast_sockaddr addr = { { 0, 0, }, };
+	struct ast_sockaddr addr;
 
 	/* peer/sip_pvt->tohost and sip_registry->hostname should never have a port
 	 * in them, so we use PARSE_PORT_FORBID here. If this lookup fails, we return
 	 * the original host which is most likely a host name and not an IP. */
+	memset(&addr, 0, sizeof(addr));
 	if (!ast_sockaddr_parse(&addr, host, PARSE_PORT_FORBID)) {
 		return host;
 	}
