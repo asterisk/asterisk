@@ -290,11 +290,20 @@ static pjsip_module endpoint_mod = {
 
 static pj_bool_t distributor(pjsip_rx_data *rdata)
 {
-	pjsip_dialog *dlg = find_dialog(rdata);
+	pjsip_dialog *dlg;
 	struct distributor_dialog_data *dist = NULL;
 	struct ast_taskprocessor *serializer = NULL;
 	pjsip_rx_data *clone;
 
+	if (!ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)) {
+		/*
+		 * Ignore everything until we are fully booted.  Let the
+		 * peer retransmit messages until we are ready.
+		 */
+		return PJ_TRUE;
+	}
+
+	dlg = find_dialog(rdata);
 	if (dlg) {
 		ast_debug(3, "Searching for serializer on dialog %s for %s\n",
 			dlg->obj_name, pjsip_rx_data_get_info(rdata));

@@ -52,6 +52,9 @@ res_pjsip
    into the "reg_server" field in the ps_contacts table to facilitate
    multi-server setups.
 
+ * When starting Asterisk, received traffic will now be ignored until Asterisk
+   has loaded all modules and is fully booted.
+
 res_hep
 ------------------
  * Added a new option, 'uuid_type', that sets the preferred source of the Homer
