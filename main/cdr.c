@@ -1415,8 +1415,6 @@ static int base_process_bridge_leave(struct cdr_object *cdr, struct ast_bridge_s
 
 static int base_process_dial_end(struct cdr_object *cdr, struct ast_channel_snapshot *caller, struct ast_channel_snapshot *peer, const char *dial_status)
 {
-	/* In general, most things shouldn't get a dial end. */
-	ast_assert(0);
 	return 0;
 }
 
