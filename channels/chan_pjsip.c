@@ -269,6 +269,9 @@ static int direct_media_mitigate_glare(struct ast_sip_session *session)
 	return 0;
 }
 
+/*!
+ * \pre chan is locked
+ */
 static int check_for_rtp_changes(struct ast_channel *chan, struct ast_rtp_instance *rtp,
 		struct ast_sip_session_media *media, int rtcp_fd)
 {
@@ -338,6 +341,11 @@ static int send_direct_media_request(void *data)
 	int changed = 0;
 	int res = 0;
 
+	/* The channel needs to be locked when checking for RTP changes.
+	 * Otherwise, we could end up destroying an underlying RTCP structure
+	 * at the same time that the channel thread is attempting to read RTCP
+	 */
+	ast_channel_lock(cdata->chan);
 	if (pvt->media[SIP_MEDIA_AUDIO]) {
 		changed |= check_for_rtp_changes(
 			cdata->chan, cdata->rtp, pvt->media[SIP_MEDIA_AUDIO], 1);
@@ -346,6 +354,7 @@ static int send_direct_media_request(void *data)
 		changed |= check_for_rtp_changes(
 			cdata->chan, cdata->vrtp, pvt->media[SIP_MEDIA_VIDEO], 3);
 	}
+	ast_channel_unlock(cdata->chan);
 
 	if (direct_media_mitigate_glare(cdata->session)) {
 		ast_debug(4, "Disregarding setting RTP on %s: mitigating re-INVITE glare\n", ast_channel_name(cdata->chan));
