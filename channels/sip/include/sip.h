@@ -1167,6 +1167,7 @@ struct sip_pvt {
 	int reinviteid;                     /*!< Reinvite in case of provisional, but no final response */
 	int autokillid;                     /*!< Auto-kill ID (scheduler) */
 	int t38id;                          /*!< T.38 Response ID */
+	int t38id_accepted;                 /*!< T.38 Already accepted Re-Invite */
 	struct sip_refer *refer;            /*!< REFER: SIP transfer data structure */
 	enum subscriptiontype subscribed;   /*!< SUBSCRIBE: Is this dialog a subscription?  */
 	int stateid;                        /*!< SUBSCRIBE: ID for devicestate subscriptions */
