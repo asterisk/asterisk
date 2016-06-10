@@ -832,6 +832,7 @@ static void ast_ari_channels_continue_in_dialplan_cb(
 	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
+	case 412: /* Channel in invalid state */
 		is_valid = 1;
 		break;
 	default:
@@ -932,6 +933,7 @@ static void ast_ari_channels_redirect_cb(
 	case 404: /* Channel or endpoint not found */
 	case 409: /* Channel not in a Stasis application */
 	case 422: /* Endpoint is not the same type as the channel */
+	case 412: /* Channel in invalid state */
 		is_valid = 1;
 		break;
 	default:
@@ -992,6 +994,7 @@ static void ast_ari_channels_answer_cb(
 	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
+	case 412: /* Channel in invalid state */
 		is_valid = 1;
 		break;
 	default:
@@ -1052,6 +1055,7 @@ static void ast_ari_channels_ring_cb(
 	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
+	case 412: /* Channel in invalid state */
 		is_valid = 1;
 		break;
 	default:
@@ -1112,6 +1116,7 @@ static void ast_ari_channels_ring_stop_cb(
 	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
+	case 412: /* Channel in invalid state */
 		is_valid = 1;
 		break;
 	default:
@@ -1239,6 +1244,7 @@ static void ast_ari_channels_send_dtmf_cb(
 	case 400: /* DTMF is required */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
+	case 412: /* Channel in invalid state */
 		is_valid = 1;
 		break;
 	default:
@@ -1337,6 +1343,7 @@ static void ast_ari_channels_mute_cb(
 	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
+	case 412: /* Channel in invalid state */
 		is_valid = 1;
 		break;
 	default:
@@ -1435,6 +1442,7 @@ static void ast_ari_channels_unmute_cb(
 	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
+	case 412: /* Channel in invalid state */
 		is_valid = 1;
 		break;
 	default:
@@ -1495,6 +1503,7 @@ static void ast_ari_channels_hold_cb(
 	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
+	case 412: /* Channel in invalid state */
 		is_valid = 1;
 		break;
 	default:
@@ -1555,6 +1564,7 @@ static void ast_ari_channels_unhold_cb(
 	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
+	case 412: /* Channel in invalid state */
 		is_valid = 1;
 		break;
 	default:
@@ -1653,6 +1663,7 @@ static void ast_ari_channels_start_moh_cb(
 	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
+	case 412: /* Channel in invalid state */
 		is_valid = 1;
 		break;
 	default:
@@ -1713,6 +1724,7 @@ static void ast_ari_channels_stop_moh_cb(
 	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
+	case 412: /* Channel in invalid state */
 		is_valid = 1;
 		break;
 	default:
@@ -1773,6 +1785,7 @@ static void ast_ari_channels_start_silence_cb(
 	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
+	case 412: /* Channel in invalid state */
 		is_valid = 1;
 		break;
 	default:
@@ -1833,6 +1846,7 @@ static void ast_ari_channels_stop_silence_cb(
 	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
+	case 412: /* Channel in invalid state */
 		is_valid = 1;
 		break;
 	default:
@@ -2024,6 +2038,7 @@ static void ast_ari_channels_play_cb(
 	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
+	case 412: /* Channel in invalid state */
 		is_valid = 1;
 		break;
 	default:
@@ -2213,6 +2228,7 @@ static void ast_ari_channels_play_with_id_cb(
 	case 501: /* Not Implemented */
 	case 404: /* Channel not found */
 	case 409: /* Channel not in a Stasis application */
+	case 412: /* Channel in invalid state */
 		is_valid = 1;
 		break;
 	default:

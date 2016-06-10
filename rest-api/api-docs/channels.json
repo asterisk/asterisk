@@ -477,6 +477,10 @@
 						{
 							"code": 409,
 							"reason": "Channel not in a Stasis application"
+						},
+						{
+							"code": 412,
+							"reason": "Channel in invalid state"
 						}
 					]
 				}
@@ -525,6 +529,10 @@
 						{
 							"code": 422,
 							"reason": "Endpoint is not the same type as the channel"
+						},
+						{
+							"code": 412,
+							"reason": "Channel in invalid state"
 						}
 					]
 				}
@@ -557,6 +565,10 @@
 						{
 							"code": 409,
 							"reason": "Channel not in a Stasis application"
+						},
+						{
+							"code": 412,
+							"reason": "Channel in invalid state"
 						}
 					]
 				}
@@ -589,6 +601,10 @@
 						{
 							"code": 409,
 							"reason": "Channel not in a Stasis application"
+						},
+						{
+							"code": 412,
+							"reason": "Channel in invalid state"
 						}
 					]
 				},
@@ -615,6 +631,10 @@
 						{
 							"code": 409,
 							"reason": "Channel not in a Stasis application"
+						},
+						{
+							"code": 412,
+							"reason": "Channel in invalid state"
 						}
 					]
 				}
@@ -695,6 +715,10 @@
 						{
 							"code": 409,
 							"reason": "Channel not in a Stasis application"
+						},
+						{
+							"code": 412,
+							"reason": "Channel in invalid state"
 						}
 					]
 				}
@@ -744,6 +768,10 @@
 						{
 							"code": 409,
 							"reason": "Channel not in a Stasis application"
+						},
+						{
+							"code": 412,
+							"reason": "Channel in invalid state"
 						}
 					]
 				},
@@ -787,6 +815,10 @@
 						{
 							"code": 409,
 							"reason": "Channel not in a Stasis application"
+						},
+						{
+							"code": 412,
+							"reason": "Channel in invalid state"
 						}
 					]
 				}
@@ -819,6 +851,10 @@
 						{
 							"code": 409,
 							"reason": "Channel not in a Stasis application"
+						},
+						{
+							"code": 412,
+							"reason": "Channel in invalid state"
 						}
 					]
 				},
@@ -845,6 +881,10 @@
 						{
 							"code": 409,
 							"reason": "Channel not in a Stasis application"
+						},
+						{
+							"code": 412,
+							"reason": "Channel in invalid state"
 						}
 					]
 				}
@@ -886,6 +926,10 @@
 						{
 							"code": 409,
 							"reason": "Channel not in a Stasis application"
+						},
+						{
+							"code": 412,
+							"reason": "Channel in invalid state"
 						}
 					]
 				},
@@ -912,6 +956,10 @@
 						{
 							"code": 409,
 							"reason": "Channel not in a Stasis application"
+						},
+						{
+							"code": 412,
+							"reason": "Channel in invalid state"
 						}
 					]
 				}
@@ -945,6 +993,10 @@
 						{
 							"code": 409,
 							"reason": "Channel not in a Stasis application"
+						},
+						{
+							"code": 412,
+							"reason": "Channel in invalid state"
 						}
 					]
 				},
@@ -971,6 +1023,10 @@
 						{
 							"code": 409,
 							"reason": "Channel not in a Stasis application"
+						},
+						{
+							"code": 412,
+							"reason": "Channel in invalid state"
 						}
 					]
 				}
@@ -1045,6 +1101,10 @@
 						{
 							"code": 409,
 							"reason": "Channel not in a Stasis application"
+						},
+						{
+							"code": 412,
+							"reason": "Channel in invalid state"
 						}
 					]
 				}
@@ -1119,6 +1179,10 @@
 						{
 							"code": 409,
 							"reason": "Channel not in a Stasis application"
+						},
+						{
+							"code": 412,
+							"reason": "Channel in invalid state"
 						}
 					]
 				}
