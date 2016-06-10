@@ -31,14 +31,12 @@
 #include "asterisk/test.h"
 #include "asterisk/channel.h"
 #include "asterisk/app.h"
+#include "asterisk/astobj.h"
 #include "asterisk/indications.h"
 #include "asterisk/security_events.h"
 #include "asterisk/features.h"
+#include "asterisk/http_websocket.h"
 #include "asterisk/rtp_engine.h"
-#include "asterisk/netsock2.h"
-#include "asterisk/features_config.h"
-
-#include "route.h"
 
 #ifndef FALSE
 #define FALSE    0
@@ -211,7 +209,7 @@
 #define DEFAULT_ALLOW_EXT_DOM  TRUE    /*!< Allow external domains */
 #define DEFAULT_REALM          "asterisk" /*!< Realm for HTTP digest authentication */
 #define DEFAULT_DOMAINSASREALM FALSE    /*!< Use the domain option to guess the realm for registration and invite requests */
-#define DEFAULT_NOTIFYRINGING  NOTIFYRINGING_ENABLED /*!< Notify devicestate system on ringing state */
+#define DEFAULT_NOTIFYRINGING  TRUE     /*!< Notify devicestate system on ringing state */
 #define DEFAULT_NOTIFYCID      DISABLED	/*!< Include CID with ringing notifications */
 #define DEFAULT_PEDANTIC       TRUE     /*!< Follow SIP standards for dialog matching */
 #define DEFAULT_AUTOCREATEPEER AUTOPEERS_DISABLED    /*!< Don't create peers automagically */
@@ -219,6 +217,7 @@
 #define DEFAULT_QUALIFY        FALSE    /*!< Don't monitor devices */
 #define DEFAULT_KEEPALIVE      0        /*!< Don't send keep alive packets */
 #define DEFAULT_KEEPALIVE_INTERVAL 60   /*!< Send keep alive packets at 60 second intervals */
+#define DEFAULT_CALLEVENTS     FALSE    /*!< Extra manager SIP call events */
 #define DEFAULT_ALWAYSAUTHREJECT  TRUE  /*!< Don't reject authentication requests always */
 #define DEFAULT_AUTH_OPTIONS  FALSE
 #define DEFAULT_AUTH_MESSAGE  TRUE
@@ -291,11 +290,10 @@
 
 /* Sending PROGRESS in-band settings */
 #define SIP_PROG_INBAND        (3 << 25) /*!< DP: three settings, uses two bits */
-#define SIP_PROG_INBAND_NO     (0 << 25)
-#define SIP_PROG_INBAND_NEVER  (1 << 25)
+#define SIP_PROG_INBAND_NEVER  (0 << 25)
+#define SIP_PROG_INBAND_NO     (1 << 25)
 #define SIP_PROG_INBAND_YES    (2 << 25)
 
-#define SIP_USEPATH          (1 << 27) /*!< GDP: Trust and use incoming Path headers? */
 #define SIP_SENDRPID         (3 << 29) /*!< DP: Remote Party-ID Support */
 #define SIP_SENDRPID_NO      (0 << 29)
 #define SIP_SENDRPID_PAI     (1 << 29) /*!< Use "P-Asserted-Identity" for rpid */
@@ -306,7 +304,7 @@
 #define SIP_FLAGS_TO_COPY \
 	(SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_SENDRPID | SIP_DTMF | SIP_REINVITE | \
 	 SIP_PROG_INBAND | SIP_USECLIENTCODE | SIP_NAT_FORCE_RPORT | SIP_G726_NONSTANDARD | \
-	 SIP_USEREQPHONE | SIP_INSECURE | SIP_USEPATH)
+	 SIP_USEREQPHONE | SIP_INSECURE)
 /*@}*/
 
 /*! \name SIPflags2
@@ -381,14 +379,11 @@
 #define SIP_PAGE3_DIRECT_MEDIA_OUTGOING  (1 << 4)  /*!< DP: Only send direct media reinvites on outgoing calls */
 #define SIP_PAGE3_USE_AVPF               (1 << 5)  /*!< DGP: Support a minimal AVPF-compatible profile */
 #define SIP_PAGE3_ICE_SUPPORT            (1 << 6)  /*!< DGP: Enable ICE support */
-#define SIP_PAGE3_IGNORE_PREFCAPS        (1 << 7)  /*!< DP: Ignore prefcaps when setting up an outgoing call leg */
-#define SIP_PAGE3_DISCARD_REMOTE_HOLD_RETRIEVAL  (1 << 8)  /*!< DGP: Stop telling the peer to start music on hold */
-#define SIP_PAGE3_FORCE_AVP              (1 << 9)  /*!< DGP: Force 'RTP/AVP' for all streams, even DTLS */
+#define SIP_PAGE3_FORCE_AVP              (1 << 7)  /*!< DGP: Force 'RTP/AVP' for all streams, even DTLS */
 
 #define SIP_PAGE3_FLAGS_TO_COPY \
 	(SIP_PAGE3_SNOM_AOC | SIP_PAGE3_SRTP_TAG_32 | SIP_PAGE3_NAT_AUTO_RPORT | SIP_PAGE3_NAT_AUTO_COMEDIA | \
-	 SIP_PAGE3_DIRECT_MEDIA_OUTGOING | SIP_PAGE3_USE_AVPF | SIP_PAGE3_ICE_SUPPORT | SIP_PAGE3_IGNORE_PREFCAPS | \
-	 SIP_PAGE3_DISCARD_REMOTE_HOLD_RETRIEVAL | SIP_PAGE3_FORCE_AVP)
+	 SIP_PAGE3_DIRECT_MEDIA_OUTGOING | SIP_PAGE3_USE_AVPF | SIP_PAGE3_ICE_SUPPORT | SIP_PAGE3_FORCE_AVP)
 
 #define CHECK_AUTH_BUF_INITLEN   256
 
@@ -475,7 +470,7 @@ enum subscriptiontype {
 /*! \brief The number of media types in enum \ref media_type below. */
 #define OFFERED_MEDIA_COUNT	4
 
-/*! \brief Media types generate different "dummy answers" for not accepting the offer of
+/*! \brief Media types generate different "dummy answers" for not accepting the offer of 
 	a media stream. We need to add definitions for each RTP profile. Secure RTP is not
 	the same as normal RTP and will require a new definition */
 enum media_type {
@@ -547,7 +542,8 @@ enum sipregistrystate {
 		 * recover (not sure how correctly).
 		 */
 
-	REG_STATE_TIMEOUT,	/*!< Registration about to expire, renewing registration */
+	REG_STATE_TIMEOUT,	/*!< Registration timed out
+		* \note XXX unused */
 
 	REG_STATE_NOAUTH,	/*!< We have no accepted credentials
 		 * \note fatal - no chance to proceed */
@@ -575,6 +571,17 @@ enum st_refresher_param {
 	SESSION_TIMER_REFRESHER_PARAM_UNKNOWN,
 	SESSION_TIMER_REFRESHER_PARAM_UAC,
 	SESSION_TIMER_REFRESHER_PARAM_UAS,
+};
+
+/*! \brief Define some implemented SIP transports
+	\note Asterisk does not support SCTP or UDP/DTLS
+*/
+enum sip_transport {
+	SIP_TRANSPORT_UDP = 1,         /*!< Unreliable transport for SIP, needs retransmissions */
+	SIP_TRANSPORT_TCP = 1 << 1,    /*!< Reliable, but unsecure */
+	SIP_TRANSPORT_TLS = 1 << 2,    /*!< TCP/TLS - reliable and secure transport for signalling */
+        SIP_TRANSPORT_WS  = 1 << 3,    /*!< WebSocket, unsecure */
+        SIP_TRANSPORT_WSS = 1 << 4,    /*!< WebSocket, secure */
 };
 
 /*! \brief Automatic peer registration behavior
@@ -619,13 +626,6 @@ enum sipmethod {
 	SIP_CANCEL,     /*!< Cancel an INVITE */
 	SIP_PUBLISH,    /*!< Not supported in Asterisk */
 	SIP_PING,       /*!< Not supported at all, no standard but still implemented out there */
-};
-
-/*! \brief Setting for the 'notifyringing' option, see sip.conf.sample for details. */
-enum notifyringing_setting {
-	NOTIFYRINGING_DISABLED = 0,
-	NOTIFYRINGING_ENABLED = 1,
-	NOTIFYRINGING_NOTINUSE = 2,
 };
 
 /*! \brief Settings for the 'notifycid' option, see sip.conf.sample for details. */
@@ -715,7 +715,7 @@ struct sip_proxy {
 	struct ast_sockaddr ip;          /*!< Currently used IP address and port */
 	int port;
 	time_t last_dnsupdate;          /*!< When this was resolved */
-	enum ast_transport transport;
+	enum sip_transport transport;
 	int force;                      /*!< If it's an outbound proxy, Force use of this outbound proxy for all outbound requests */
 	/* Room for a SRV record chain based on the name */
 };
@@ -741,7 +741,6 @@ struct __show_chan_arg {
 struct sip_settings {
 	int peer_rtupdate;          /*!< G: Update database with registration data for peer? */
 	int rtsave_sysname;         /*!< G: Save system name at registration? */
-	int rtsave_path;            /*!< G: Save path header on registration */
 	int ignore_regexpire;       /*!< G: Ignore expiration of peer  */
 	int rtautoclear;            /*!< Realtime ?? */
 	int directrtpsetup;         /*!< Enable support for Direct RTP setup (no re-invites) */
@@ -755,6 +754,7 @@ struct sip_settings {
 	int accept_outofcall_message; /*!< Accept MESSAGE outside of a call */
 	int compactheaders;         /*!< send compact sip headers */
 	int allow_external_domains; /*!< Accept calls to external SIP domains? */
+	int callevents;             /*!< Whether we send manager events or not */
 	int regextenonqualify;      /*!< Whether to add/remove regexten when qualifying peers */
 	int legacy_useroption_parsing; /*!< Whether to strip useroptions in URI via semicolons */
 	int send_diversion;	        /*!< Whether to Send SIP Diversion headers */
@@ -773,21 +773,18 @@ struct sip_settings {
 	struct sip_proxy outboundproxy; /*!< Outbound proxy */
 	char default_context[AST_MAX_CONTEXT];
 	char default_subscribecontext[AST_MAX_CONTEXT];
-	char default_record_on_feature[AST_FEATURE_MAX_LEN];
-	char default_record_off_feature[AST_FEATURE_MAX_LEN];
+	char default_record_on_feature[FEATURE_MAX_LEN];
+	char default_record_off_feature[FEATURE_MAX_LEN];
 	struct ast_acl_list *contact_acl;  /*! \brief Global list of addresses dynamic peers are not allowed to use */
 	struct ast_format_cap *caps; /*!< Supported codecs */
 	int tcp_enabled;
 	int default_max_forwards;    /*!< Default max forwards (SIP Anti-loop) */
 	int websocket_write_timeout; /*!< Socket write timeout for websocket transports, in ms */
-	int websocket_enabled;       /*!< Are websockets enabled? */
 };
-
-struct ast_websocket;
 
 /*! \brief The SIP socket definition */
 struct sip_socket {
-	enum ast_transport type;  /*!< UDP, TCP or TLS */
+	enum sip_transport type;  /*!< UDP, TCP or TLS */
 	int fd;                   /*!< Filed descriptor, the actual socket */
 	uint16_t port;
 	struct ast_tcptls_session_instance *tcptls_session;  /* If tcp or tls, a socket manager */
@@ -832,7 +829,7 @@ struct sip_request {
 	char authenticated;     /*!< non-zero if this request was authenticated */
 	ptrdiff_t header[SIP_MAX_HEADERS]; /*!< Array of offsets into the request string of each SIP header*/
 	ptrdiff_t line[SIP_MAX_LINES];     /*!< Array of offsets into the request string of each SDP line*/
-	struct ast_str *data;
+	struct ast_str *data;	
 	struct ast_str *content;
 	/* XXX Do we need to unref socket.ser when the request goes away? */
 	struct sip_socket socket;          /*!< The socket used for this request */
@@ -849,6 +846,16 @@ struct sip_request {
  */
 #define REQ_OFFSET_TO_STR(req,offset) (ast_str_buffer((req)->data) + ((req)->offset))
 
+/*! \brief structure used in transfers */
+struct sip_dual {
+	struct ast_channel *chan1;   /*!< First channel involved */
+	struct ast_channel *chan2;   /*!< Second channel involved */
+	struct sip_request req;      /*!< Request that caused the transfer (REFER) */
+	uint32_t seqno;              /*!< Sequence number */
+	char *park_exten;
+	char *park_context;
+};
+
 /*! \brief Parameters to the transmit_invite function */
 struct sip_invite_param {
 	int addsipheaders;          /*!< Add extra SIP headers */
@@ -860,6 +867,12 @@ struct sip_invite_param {
 	const char *replaces;       /*!< Replaces header for call transfers */
 	int transfer;               /*!< Flag - is this Invite part of a SIP transfer? (invite/replaces) */
 	struct sip_proxy *outboundproxy; /*!< Outbound proxy URI */
+};
+
+/*! \brief Structure to save routing information for a SIP session */
+struct sip_route {
+	struct sip_route *next;
+	char hop[0];
 };
 
 /*! \brief Structure to store Via information */
@@ -934,6 +947,10 @@ struct sip_refer {
 		AST_STRING_FIELD(replaces_callid_totag);   /*!< Replace info: to-tag */
 		AST_STRING_FIELD(replaces_callid_fromtag); /*!< Replace info: from-tag */
 	);
+	struct sip_pvt *refer_call;                     /*!< Call we are referring. This is just a reference to a
+							 * dialog owned by someone else, so we should not destroy
+							 * it when the sip_refer object goes.
+							 */
 	int attendedtransfer;                           /*!< Attended or blind transfer? */
 	int localtransfer;                              /*!< Transfer to local domain? */
 	enum referstatus status;                        /*!< REFER status */
@@ -958,6 +975,7 @@ struct sip_st_dlg {
 	int st_cached_max_se;              /*!< Session-Timers cached Session-Expires */
 	enum st_mode st_cached_mode;       /*!< Session-Timers cached M.O. */
 	enum st_refresher st_cached_ref;   /*!< Session-Timers session refresher */
+	unsigned char quit_flag:1;         /*!< Stop trying to lock; just quit */
 };
 
 
@@ -997,7 +1015,7 @@ struct sip_msg_hdr {
 struct sip_pvt {
 	struct sip_pvt *next;                   /*!< Next dialog in chain */
 	enum invitestates invitestate;          /*!< Track state of SIP_INVITEs */
-	ast_callid logger_callid;               /*!< Identifier for call used in log messages */
+	struct ast_callid *logger_callid;		/*!< Identifier for call used in log messages */
 	int method;                             /*!< SIP method that opened this dialog */
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(callid);       /*!< Global CallID */
@@ -1050,7 +1068,6 @@ struct sip_pvt {
 		AST_STRING_FIELD(last_presence_subtype);   /*!< The last presence subtype sent for a subscription. */
 		AST_STRING_FIELD(last_presence_message);   /*!< The last presence message for a subscription */
 		AST_STRING_FIELD(msg_body);     /*!< Text for a MESSAGE body */
-		AST_STRING_FIELD(tel_phone_context);       /*!< The phone-context portion of a TEL URI */
 	);
 	char via[128];                          /*!< Via: header */
 	int maxforwards;                        /*!< SIP Loop prevention */
@@ -1083,10 +1100,12 @@ struct sip_pvt {
 	                                       */
 	unsigned short req_secure_signaling:1;/*!< Whether we are required to have secure signaling or not */
 	unsigned short natdetected:1;         /*!< Whether we detected a NAT when processing the Via */
+	unsigned short invitereplaces:1;      /*!< Whether we are doing an Invite: Replaces */
 	int timer_t1;                     /*!< SIP timer T1, ms rtt */
 	int timer_b;                      /*!< SIP timer B, ms */
 	unsigned int sipoptions;          /*!< Supported SIP options on the other end */
 	unsigned int reqsipoptions;       /*!< Required SIP options on the other end */
+	struct ast_codec_pref prefs;      /*!< codec prefs */
 	struct ast_format_cap *caps;             /*!< Special capability (codec) */
 	struct ast_format_cap *jointcaps;        /*!< Supported capability at both ends (codecs) */
 	struct ast_format_cap *peercaps;         /*!< Supported peer capability */
@@ -1094,8 +1113,8 @@ struct sip_pvt {
 	struct ast_format_cap *prefcaps;         /*!< Preferred codec (outbound only) */
 	int noncodeccapability;	          /*!< DTMF RFC2833 telephony-event */
 	int jointnoncodeccapability;      /*!< Joint Non codec capability */
-	int maxcallbitrate;               /*!< Maximum Call Bitrate for Video Calls */
-	int t38_maxdatagram;              /*!< T.38 FaxMaxDatagram override */
+	int maxcallbitrate;               /*!< Maximum Call Bitrate for Video Calls */	
+	unsigned int t38_maxdatagram;              /*!< T.38 FaxMaxDatagram override */
 	int request_queue_sched_id;       /*!< Scheduler ID of any scheduled action to process queued requests */
 	int provisional_keepalive_sched_id;   /*!< Scheduler ID for provisional responses that need to be sent out to avoid cancellation */
 	const char *last_provisional;         /*!< The last successfully transmitted provisonal response message */
@@ -1127,7 +1146,7 @@ struct sip_pvt {
 	struct ast_sockaddr ourip;           /*!< Our IP (as seen from the outside) */
 	enum transfermodes allowtransfer;   /*!< REFER: restriction scheme */
 	struct ast_channel *owner;          /*!< Who owns us (if we have an owner) */
-	struct sip_route route;             /*!< List of routing steps (fm Record-Route) */
+	struct sip_route *route;            /*!< Head of linked list of routing steps (fm Record-Route) */
 	struct sip_notify *notify;          /*!< Custom notify type */
 	struct sip_auth_container *peerauth;/*!< Realm authentication credentials */
 	int noncecount;                     /*!< Nonce-count */
@@ -1148,6 +1167,7 @@ struct sip_pvt {
 	int reinviteid;                     /*!< Reinvite in case of provisional, but no final response */
 	int autokillid;                     /*!< Auto-kill ID (scheduler) */
 	int t38id;                          /*!< T.38 Response ID */
+	int t38id_accepted;                 /*!< T.38 Already accepted Re-Invite */
 	struct sip_refer *refer;            /*!< REFER: SIP transfer data structure */
 	enum subscriptiontype subscribed;   /*!< SUBSCRIBE: Is this dialog a subscription?  */
 	int stateid;                        /*!< SUBSCRIBE: ID for devicestate subscriptions */
@@ -1173,9 +1193,9 @@ struct sip_pvt {
 	AST_LIST_HEAD_NOLOCK(request_queue, sip_request) request_queue; /*!< Requests that arrived but could not be processed immediately */
 	struct sip_invite_param *options;   /*!< Options for INVITE */
 	struct sip_st_dlg *stimer;          /*!< SIP Session-Timers */
-	struct ast_sdp_srtp *srtp;              /*!< Structure to hold Secure RTP session data for audio */
-	struct ast_sdp_srtp *vsrtp;             /*!< Structure to hold Secure RTP session data for video */
-	struct ast_sdp_srtp *tsrtp;             /*!< Structure to hold Secure RTP session data for text */
+	struct sip_srtp *srtp;              /*!< Structure to hold Secure RTP session data for audio */
+	struct sip_srtp *vsrtp;             /*!< Structure to hold Secure RTP session data for video */
+	struct sip_srtp *tsrtp;             /*!< Structure to hold Secure RTP session data for text */
 
 	int red;                            /*!< T.140 RTP Redundancy */
 	int hangupcause;                    /*!< Storage of hangupcause copied from our owner before we disconnect from the AST channel (only used at hangup) */
@@ -1240,15 +1260,16 @@ struct sip_pkt {
 /*!
  * \brief A peer's mailbox
  *
- * We could use STRINGFIELDS here, but for only one string, its
+ * We could use STRINGFIELDS here, but for only two strings, it seems like
  * too much effort ...
  */
 struct sip_mailbox {
 	/*! Associated MWI subscription */
-	struct stasis_subscription *event_sub;
+	struct ast_event_sub *event_sub;
 	AST_LIST_ENTRY(sip_mailbox) entry;
 	unsigned int delme:1;
-	char id[1];
+	char *context;
+	char mailbox[2];
 };
 
 /*! \brief Structure for SIP peer data, we place calls to peers if registered  or fixed IP address (host)
@@ -1289,15 +1310,15 @@ struct sip_peer {
 		AST_STRING_FIELD(callback); /*!< Callback extension */
 		);
 	struct sip_socket socket;       /*!< Socket used for this peer */
-	enum ast_transport default_outbound_transport;   /*!< Peer Registration may change the default outbound transport.
+	enum sip_transport default_outbound_transport;   /*!< Peer Registration may change the default outbound transport.
 	                                                     If register expires, default should be reset. to this value */
 	/* things that don't belong in flags */
-	unsigned short transports:5;    /*!< Transports (enum ast_transport) that are acceptable for this peer */
+	unsigned short transports:5;    /*!< Transports (enum sip_transport) that are acceptable for this peer */
 	unsigned short is_realtime:1;   /*!< this is a 'realtime' peer */
 	unsigned short rt_fromcontact:1;/*!< copy fromcontact from realtime */
 	unsigned short host_dynamic:1;  /*!< Dynamic Peers register with Asterisk */
 	unsigned short selfdestruct:1;  /*!< Automatic peers need to destruct themselves */
-	unsigned short the_mark:1;      /*!< That which bears the_mark should be deleted! */
+	unsigned short the_mark:1;      /*!< moved out of ASTOBJ into struct proper; That which bears the_mark should be deleted! */
 	unsigned short autoframing:1;   /*!< Whether to use our local configuration for frame sizes (off)
 	                                 *   or respect the other endpoint's request for frame sizes (on)
 	                                 *   for incoming calls
@@ -1314,6 +1335,7 @@ struct sip_peer {
 	int busy_level;                 /*!< Level of active channels where we signal busy */
 	int maxforwards;                /*!< SIP Loop prevention */
 	enum transfermodes allowtransfer;   /*! SIP Refer restriction scheme */
+	struct ast_codec_pref prefs;    /*!<  codec prefs */
 	int lastmsgssent;				/*!< The last known VM message counts (new/old) */
 	unsigned int sipoptions;        /*!<  Supported SIP options */
 	struct ast_flags flags[3];      /*!<  SIP_ flags */
@@ -1353,14 +1375,11 @@ struct sip_peer {
 	int timer_t1;                   /*!<  The maximum T1 value for the peer */
 	int timer_b;                    /*!<  The maximum timer B (transaction timeouts) */
 	int fromdomainport;             /*!<  The From: domain port */
-	struct sip_route path;          /*!<  List of out-of-dialog outgoing routing steps (fm Path headers) */
 
 	/*XXX Seems like we suddenly have two flags with the same content. Why? To be continued... */
 	enum sip_peer_type type; /*!< Distinguish between "user" and "peer" types. This is used solely for CLI and manager commands */
 	unsigned int disallowed_methods;
 	struct ast_cc_config_params *cc_params;
-
-	struct ast_endpoint *endpoint;
 
 	struct ast_rtp_dtls_cfg dtls_cfg;
 };
@@ -1376,10 +1395,12 @@ struct sip_peer {
  * or once the previously completed registration one expires).
  * The registration can be in one of many states, though at the moment
  * the handling is a bit mixed.
+ *
+ * \todo Convert this to astobj2
  */
 struct sip_registry {
+	ASTOBJ_COMPONENTS_FULL(struct sip_registry, 80, 1);
 	AST_DECLARE_STRING_FIELDS(
-		AST_STRING_FIELD(configvalue);/*!< register string from config */
 		AST_STRING_FIELD(callid);     /*!< Global Call-ID */
 		AST_STRING_FIELD(realm);      /*!< Authorization realm */
 		AST_STRING_FIELD(nonce);      /*!< Authorization nonce */
@@ -1396,7 +1417,7 @@ struct sip_registry {
 		AST_STRING_FIELD(peername);   /*!< Peer registering to */
 		AST_STRING_FIELD(localtag);   /*!< Local tag generated same time as callid */
 	);
-	enum ast_transport transport;   /*!< Transport for this registration UDP, TCP or TLS */
+	enum sip_transport transport;   /*!< Transport for this registration UDP, TCP or TLS */
 	int portno;                     /*!< Optional port override */
 	int regdomainport;              /*!< Port override for domainport */
 	int expire;                     /*!< Sched ID of expiration */
@@ -1428,14 +1449,17 @@ struct sip_threadinfo {
 	int alert_pipe[2];          /*! Used to alert tcptls thread when packet is ready to be written */
 	pthread_t threadid;
 	struct ast_tcptls_session_instance *tcptls_session;
-	enum ast_transport type;    /*!< We keep a copy of the type here so we can display it in the connection list */
+	enum sip_transport type;    /*!< We keep a copy of the type here so we can display it in the connection list */
 	AST_LIST_HEAD_NOLOCK(, tcptls_packet) packet_q;
 };
 
 /*!
  * \brief Definition of an MWI subscription to another server
+ * 
+ * \todo Convert this to astobj2.
  */
 struct sip_subscription_mwi {
+	ASTOBJ_COMPONENTS_FULL(struct sip_subscription_mwi,1,1);
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(username);     /*!< Who we are sending the subscription as */
 		AST_STRING_FIELD(authuser);     /*!< Who we *authenticate* as */
@@ -1443,7 +1467,7 @@ struct sip_subscription_mwi {
 		AST_STRING_FIELD(secret);       /*!< Password in clear text */
 		AST_STRING_FIELD(mailbox);      /*!< Mailbox store to put MWI into */
 		);
-	enum ast_transport transport;    /*!< Transport to use */
+	enum sip_transport transport;    /*!< Transport to use */
 	int portno;                      /*!< Optional port override */
 	int resub;                       /*!< Sched ID of resubscription */
 	unsigned int subscribed:1;       /*!< Whether we are currently subscribed or not */
@@ -1583,7 +1607,7 @@ enum sip_publish_type {
 	SIP_PUBLISH_MODIFY,
 	/*!
 	 * \brief Remove
-	 *
+	 * 
 	 * \details
 	 * Used to remove published state from an ESC. This will contain
 	 * an Expires header set to 0 and likely no body.
@@ -1806,6 +1830,34 @@ struct sip_monitor_instance {
 	struct sip_epa_entry *suspension_entry;
 };
 
+/*!
+ * \brief uri parameters
+ *
+ */
+
+struct uriparams {
+	char *transport;
+	char *user;
+	char *method;
+	char *ttl;
+	char *maddr;
+	int lr;
+};
+
+struct contact {
+	AST_LIST_ENTRY(contact) list;
+	char *name;
+	char *user;
+	char *pass;
+	char *hostport;
+	struct uriparams params;
+	char *headers;
+	char *expires;
+	char *q;
+};
+
+AST_LIST_HEAD_NOLOCK(contactliststruct, contact);
+
 /*! \brief List of well-known SIP options. If we get this in a require,
    we should check the list and answer accordingly. */
 static const struct cfsip_options {
@@ -1873,9 +1925,16 @@ AST_THREADSTORAGE(check_auth_buf);
 struct sip_peer *sip_find_peer(const char *peer, struct ast_sockaddr *addr, int realtime, int which_objects, int devstate_only, int transport);
 void sip_auth_headers(enum sip_auth_type code, char **header, char **respheader);
 const char *sip_get_header(const struct sip_request *req, const char *name);
-const char *sip_get_transport(enum ast_transport t);
+const char *sip_get_transport(enum sip_transport t);
 
-#define sip_ref_peer(peer, tag) ao2_t_bump(peer, tag)
-#define sip_unref_peer(peer, tag) ({ ao2_t_cleanup(peer, tag); (NULL); })
+#ifdef REF_DEBUG
+#define sip_ref_peer(arg1,arg2) _ref_peer((arg1),(arg2), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+#define sip_unref_peer(arg1,arg2) _unref_peer((arg1),(arg2), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+struct sip_peer *_ref_peer(struct sip_peer *peer, char *tag, char *file, int line, const char *func);
+void *_unref_peer(struct sip_peer *peer, char *tag, char *file, int line, const char *func);
+#else
+struct sip_peer *sip_ref_peer(struct sip_peer *peer, char *tag);
+void *sip_unref_peer(struct sip_peer *peer, char *tag);
+#endif /* REF_DEBUG */
 
 #endif
