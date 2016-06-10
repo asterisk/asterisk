@@ -54,6 +54,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/rtp_engine.h"
 #include "asterisk/format_cache.h"
+#include "asterisk/multicast_rtp.h"
+#include "asterisk/app.h"
 
 /*! Command value used for Linksys paging to indicate we are starting */
 #define LINKSYS_MCAST_STARTCMD 6
@@ -63,8 +65,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /*! \brief Type of paging to do */
 enum multicast_type {
+	/*! Type has not been set yet */
+	MULTICAST_TYPE_UNSPECIFIED = 0,
 	/*! Simple multicast enabled client/receiver paging like Snom and Barix uses */
-	MULTICAST_TYPE_BASIC = 0,
+	MULTICAST_TYPE_BASIC,
 	/*! More advanced Linksys type paging which requires a start and stop packet */
 	MULTICAST_TYPE_LINKSYS,
 };
@@ -95,6 +99,91 @@ struct multicast_rtp {
 	struct timeval txcore;
 };
 
+enum {
+	OPT_CODEC = (1 << 0),
+	OPT_LOOP =  (1 << 1),
+	OPT_TTL =   (1 << 2),
+	OPT_IF =    (1 << 3),
+};
+
+enum {
+	OPT_ARG_CODEC = 0,
+	OPT_ARG_LOOP,
+	OPT_ARG_TTL,
+	OPT_ARG_IF,
+	OPT_ARG_ARRAY_SIZE,
+};
+
+AST_APP_OPTIONS(multicast_rtp_options, BEGIN_OPTIONS
+	/*! Set the codec to be used for multicast RTP */
+	AST_APP_OPTION_ARG('c', OPT_CODEC, OPT_ARG_CODEC),
+	/*! Set whether multicast RTP is looped back to the sender */
+	AST_APP_OPTION_ARG('l', OPT_LOOP, OPT_ARG_LOOP),
+	/*! Set the hop count for multicast RTP */
+	AST_APP_OPTION_ARG('t', OPT_TTL, OPT_ARG_TTL),
+	/*! Set the interface from which multicast RTP is sent */
+	AST_APP_OPTION_ARG('i', OPT_IF, OPT_ARG_IF),
+END_OPTIONS );
+
+struct ast_multicast_rtp_options {
+	char *type;
+	char *options;
+	struct ast_format *fmt;
+	struct ast_flags opts;
+	char *opt_args[OPT_ARG_ARRAY_SIZE];
+	/*! The type and options are stored in this buffer */
+	char buf[0];
+};
+
+struct ast_multicast_rtp_options *ast_multicast_rtp_create_options(const char *type,
+	const char *options)
+{
+	struct ast_multicast_rtp_options *mcast_options;
+	char *pos;
+
+	mcast_options = ast_calloc(1, sizeof(*mcast_options)
+			+ strlen(type)
+			+ strlen(options) + 2);
+	if (!mcast_options) {
+		return NULL;
+	}
+
+	pos = mcast_options->buf;
+
+	/* Safe */
+	strcpy(pos, type);
+	mcast_options->type = pos;
+	pos += strlen(type) + 1;
+
+	/* Safe */
+	strcpy(pos, options);
+	mcast_options->options = pos;
+
+	if (ast_app_parse_options(multicast_rtp_options, &mcast_options->opts,
+		mcast_options->opt_args, mcast_options->options)) {
+		ast_log(LOG_WARNING, "Error parsing multicast RTP options\n");
+		ast_multicast_rtp_free_options(mcast_options);
+		return NULL;
+	}
+
+	return mcast_options;
+}
+
+void ast_multicast_rtp_free_options(struct ast_multicast_rtp_options *mcast_options)
+{
+	ast_free(mcast_options);
+}
+
+struct ast_format *ast_multicast_rtp_options_get_format(struct ast_multicast_rtp_options *mcast_options)
+{
+	if (ast_test_flag(&mcast_options->opts, OPT_CODEC)
+		&& !ast_strlen_zero(mcast_options->opt_args[OPT_ARG_CODEC])) {
+		return ast_format_cache_get(mcast_options->opt_args[OPT_ARG_CODEC]);
+	}
+
+	return NULL;
+}
+
 /* Forward Declarations */
 static int multicast_rtp_new(struct ast_rtp_instance *instance, struct ast_sched_context *sched, struct ast_sockaddr *addr, void *data);
 static int multicast_rtp_activate(struct ast_rtp_instance *instance);
@@ -112,21 +201,93 @@ static struct ast_rtp_engine multicast_rtp_engine = {
 	.read = multicast_rtp_read,
 };
 
-/*! \brief Function called to create a new multicast instance */
-static int multicast_rtp_new(struct ast_rtp_instance *instance, struct ast_sched_context *sched, struct ast_sockaddr *addr, void *data)
+static int set_type(struct multicast_rtp *multicast, const char *type)
 {
-	struct multicast_rtp *multicast;
-	const char *type = data;
-
-	if (!(multicast = ast_calloc(1, sizeof(*multicast)))) {
-		return -1;
-	}
-
 	if (!strcasecmp(type, "basic")) {
 		multicast->type = MULTICAST_TYPE_BASIC;
 	} else if (!strcasecmp(type, "linksys")) {
 		multicast->type = MULTICAST_TYPE_LINKSYS;
 	} else {
+		ast_log(LOG_WARNING, "Unrecognized multicast type '%s' specified.\n", type);
+		return -1;
+	}
+
+	return 0;
+}
+
+static void set_ttl(int sock, const char *ttl_str)
+{
+	int ttl;
+
+	if (ast_strlen_zero(ttl_str)) {
+		return;
+	}
+
+	ast_debug(3, "Setting multicast TTL to %s\n", ttl_str);
+
+	if (sscanf(ttl_str, "%30d", &ttl) < 1) {
+		ast_log(LOG_WARNING, "Inavlid multicast ttl option '%s'\n", ttl_str);
+		return;
+	}
+
+	if (setsockopt(sock, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl)) < 0) {
+		ast_log(LOG_WARNING, "Could not set multicast ttl to '%s': %s\n",
+			ttl_str, strerror(errno));
+	}
+}
+
+static void set_loop(int sock, const char *loop_str)
+{
+	unsigned char loop;
+
+	if (ast_strlen_zero(loop_str)) {
+		return;
+	}
+
+	ast_debug(3, "Setting multicast loop to %s\n", loop_str);
+
+	if (sscanf(loop_str, "%30hhu", &loop) < 1) {
+		ast_log(LOG_WARNING, "Invalid multicast loop option '%s'\n", loop_str);
+		return;
+	}
+
+	if (setsockopt(sock, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop)) < 0) {
+		ast_log(LOG_WARNING, "Could not set multicast loop to '%s': %s\n",
+			loop_str, strerror(errno));
+	}
+}
+
+static void set_if(int sock, const char *if_str)
+{
+	struct in_addr iface;
+
+	if (ast_strlen_zero(if_str)) {
+		return;
+	}
+
+	ast_debug(3, "Setting multicast if to %s\n", if_str);
+
+	if (!inet_aton(if_str, &iface)) {
+		ast_log(LOG_WARNING, "Cannot parse if option '%s'\n", if_str);
+	}
+
+	if (setsockopt(sock, IPPROTO_IP, IP_MULTICAST_IF, &iface, sizeof(iface)) < 0) {
+		ast_log(LOG_WARNING, "Could not set multicast if to '%s': %s\n",
+			if_str, strerror(errno));
+	}
+}
+
+/*! \brief Function called to create a new multicast instance */
+static int multicast_rtp_new(struct ast_rtp_instance *instance, struct ast_sched_context *sched, struct ast_sockaddr *addr, void *data)
+{
+	struct multicast_rtp *multicast;
+	struct ast_multicast_rtp_options *mcast_options = data;
+
+	if (!(multicast = ast_calloc(1, sizeof(*multicast)))) {
+		return -1;
+	}
+
+	if (set_type(multicast, mcast_options->type)) {
 		ast_free(multicast);
 		return -1;
 	}
@@ -134,6 +295,18 @@ static int multicast_rtp_new(struct ast_rtp_instance *instance, struct ast_sched
 	if ((multicast->socket = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		ast_free(multicast);
 		return -1;
+	}
+
+	if (ast_test_flag(&mcast_options->opts, OPT_LOOP)) {
+		set_loop(multicast->socket, mcast_options->opt_args[OPT_ARG_LOOP]);
+	}
+
+	if (ast_test_flag(&mcast_options->opts, OPT_TTL)) {
+		set_ttl(multicast->socket, mcast_options->opt_args[OPT_ARG_TTL]);
+	}
+
+	if (ast_test_flag(&mcast_options->opts, OPT_IF)) {
+		set_if(multicast->socket, mcast_options->opt_args[OPT_ARG_IF]);
 	}
 
 	multicast->ssrc = ast_random();
@@ -314,7 +487,7 @@ static int unload_module(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Multicast RTP Engine",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Multicast RTP Engine",
 	.support_level = AST_MODULE_SUPPORT_CORE,
 	.load = load_module,
 	.unload = unload_module,

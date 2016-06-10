@@ -28,7 +28,8 @@
  */
 
 /*** MODULEINFO
-	<support_level>core</support_level>
+	<support_level>deprecated</support_level>
+	<defaultenabled>no</defaultenabled>
  ***/
 
 #include "asterisk.h"
@@ -215,8 +216,8 @@ static int unload_module(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Multicast RTP Paging Channel",
-	.support_level = AST_MODULE_SUPPORT_CORE,
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Multicast RTP Paging Channel (use chan_rtp instead)",
+	.support_level = AST_MODULE_SUPPORT_DEPRECATED,
 	.load = load_module,
 	.unload = unload_module,
 	.load_pri = AST_MODPRI_CHANNEL_DRIVER,

@@ -17,6 +17,36 @@ Core
  * A channel variable FORWARDERNAME is now set which indicates which channel
    was responsible for a forwarding requests received on dial attempt.
 
+chan_multicast_rtp
+------------------
+ * Deprecated in favor of chan_rtp which is basically chan_multicast_rtp
+   renamed to chan_rtp with UnicastRTP channels added and some internal code
+   improvements.
+
+chan_rtp
+------------------
+ * The format for dialing a unicast RTP channel is:
+   UnicastRTP/<destination-addr>[/[<options>]]
+   Where <destination-addr> is something like '127.0.0.1:5060'.
+   Where <options> are in standard Asterisk flag options format:
+   c(<codec>) - Specify which codec/format to use such as 'ulaw'.
+   e(<engine>) - Specify which RTP engine to use such as 'asterisk'.
+
+ * More options are available over what chan_multicast_rtp supports.
+   The format for dialing a multicast RTP channel is:
+   MulticastRTP/<type>/<destination-addr>[/[<control-addr>][/[<options>]]]
+   Where <type> can be either 'basic' or 'linksys'.
+   Where <destination-addr> is something like '224.0.0.3:5060'.
+   Where <control-addr> is something like '127.0.0.1:5060'.
+   Where <options> are in standard Asterisk flag options format:
+   c(<codec>) - Specify which codec/format to use such as 'ulaw'.
+   i(<address>) - Specify the interface address from which multicast RTP
+     is sent.
+   l(<enable>) - Set whether packets are looped back to the sender.  The
+     enable value can be 0 to set looping to off and non-zero to set
+     looping on.
+   t(<ttl>) - Set the time-to-live (TTL) value for multicast packets.
+
 func_odbc
 ------------------
  * Added new global option "single_db_connection".
