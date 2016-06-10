@@ -786,7 +786,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; A similar effect can be achieved by adding a "callbackextension" option in a peer section.
 ; this is equivalent to having the following line in the general section:
 ;
-;        register => username:secret@host/callbackextension
+;        register => fromuser:secret:username@host/callbackextension
 ;
 ; and more readable because you don't have to write the parameters in two places
 ; (note that the "port" is ignored - this is a bug that should be fixed).
