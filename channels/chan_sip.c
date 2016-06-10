@@ -5636,6 +5636,7 @@ static void change_t38_state(struct sip_pvt *p, int state)
 
 	p->t38.state = state;
 	ast_debug(2, "T38 state changed to %u on channel %s\n", p->t38.state, chan ? ast_channel_name(chan) : "<none>");
+	ast_debug(2, "T38_PEER_REINVITE: %u, T38_ENABLED: %u, T38_REJECTED: %u, T38_DISABLED: %u, T38_LOCAL_REINVITE: %u\n", T38_PEER_REINVITE, T38_ENABLED, T38_REJECTED, T38_DISABLED, T38_LOCAL_REINVITE);
 
 	/* If no channel was provided we can't send off a control frame */
 	if (!chan)
@@ -7387,6 +7388,7 @@ static int interpret_t38_parameters(struct sip_pvt *p, const struct ast_control_
 	if (!ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT) || !p->udptl) {
 		return -1;
 	}
+
 	switch (parameters->request_response) {
 	case AST_T38_NEGOTIATED:
 	case AST_T38_REQUEST_NEGOTIATE:         /* Request T38 */
@@ -7417,8 +7419,10 @@ static int interpret_t38_parameters(struct sip_pvt *p, const struct ast_control_
 			p->t38.our_parms.rate_management = p->t38.their_parms.rate_management;
 			ast_udptl_set_local_max_ifp(p->udptl, p->t38.our_parms.max_ifp);
 			change_t38_state(p, T38_ENABLED);
-			transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL);
+
+			if(!p->t38id_accepted) transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, XMIT_CRITICAL);
 		} else if (p->t38.state != T38_ENABLED) {
+			p->t38id_accepted = 0;
 			p->t38.our_parms = *parameters;
 			ast_udptl_set_local_max_ifp(p->udptl, p->t38.our_parms.max_ifp);
 			change_t38_state(p, T38_LOCAL_REINVITE);
@@ -10614,7 +10618,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 	}
 
 	/* Setup image address and port */
-	if (p->udptl) {
+	if (p->udptl && p->t38.state != 3) {
 		if (isa && udptlportno > 0) {
 			if (ast_test_flag(&p->flags[1], SIP_PAGE2_SYMMETRICRTP) && ast_test_flag(&p->flags[1], SIP_PAGE2_UDPTL_DESTINATION)) {
 				ast_rtp_instance_get_remote_address(p->rtp, isa);
@@ -10624,6 +10628,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			}
 			ast_sockaddr_set_port(isa, udptlportno);
 			ast_udptl_set_peer(p->udptl, isa);
+			ast_verbose("Peer T.38 UDPTL is at port %s\n", ast_sockaddr_stringify(isa));
 			if (debug)
 				ast_debug(1,"Peer T.38 UDPTL is at port %s\n", ast_sockaddr_stringify(isa));
 
@@ -10634,11 +10639,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 			}
 
 			/* Remote party offers T38, we need to update state */
-			if ((t38action == SDP_T38_ACCEPT) &&
-			    (p->t38.state == T38_LOCAL_REINVITE)) {
+			if ((t38action == SDP_T38_ACCEPT) && (p->t38.state == T38_LOCAL_REINVITE)) {
 				change_t38_state(p, T38_ENABLED);
-			} else if ((t38action == SDP_T38_INITIATE) &&
-				   p->owner && p->lastinvite) {
+			} else if ((t38action == SDP_T38_INITIATE) && p->owner && p->lastinvite) {
 				change_t38_state(p, T38_PEER_REINVITE); /* T38 Offered in re-invite from remote party */
 				/* If fax detection is enabled then send us off to the fax extension */
 				if (ast_test_flag(&p->flags[1], SIP_PAGE2_FAX_DETECT_T38)) {
@@ -13290,6 +13293,8 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p, int 
 		/* We don't use directmedia for T.38, so keep the destination the same as our IP address. */
 		ast_sockaddr_copy(&udptldest, &p->ourip);
 		ast_sockaddr_set_port(&udptldest, ast_sockaddr_port(&udptladdr));
+
+		ast_verbose("T.38 UDPTL is at %s port %d\n", ast_sockaddr_stringify_addr(&p->ourip), ast_sockaddr_port(&udptladdr));
 
 		if (debug) {
 			ast_debug(1, "T.38 UDPTL is at %s port %d\n", ast_sockaddr_stringify_addr(&p->ourip), ast_sockaddr_port(&udptladdr));
@@ -25138,27 +25143,6 @@ static int do_magic_pickup(struct ast_channel *channel, const char *extension, c
 	return 0;
 }
 
-/*! \brief Called to deny a T38 reinvite if the core does not respond to our request */
-static int sip_t38_abort(const void *data)
-{
-	struct sip_pvt *p = (struct sip_pvt *) data;
-
-	sip_pvt_lock(p);
-	/* an application may have taken ownership of the T.38 negotiation on this
-	 * channel while we were waiting to grab the lock... if it did, the scheduler
-	 * id will have been reset to -1, which is our indication that we do *not*
-	 * want to abort the negotiation process
-	 */
-	if (p->t38id != -1) {
-		change_t38_state(p, T38_REJECTED);
-		transmit_response_reliable(p, "488 Not acceptable here", &p->initreq);
-		p->t38id = -1;
-		dialog_unref(p, "unref the dialog ptr from sip_t38_abort, because it held a dialog ptr");
-	}
-	sip_pvt_unlock(p);
-	return 0;
-}
-
 /*! \brief Checks state of the p->refer->refer_call state: can it be picked up?
  *
  * It will terminate the call if it cannot be picked up; e.g. because it
@@ -26121,7 +26105,11 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 					/* reset t38 abort timer */
 					AST_SCHED_DEL_UNREF(sched, p->t38id, dialog_unref(p, "remove ref for t38id"));
 				}
-				p->t38id = ast_sched_add(sched, 5000, sip_t38_abort, dialog_ref(p, "passing dialog ptr into sched structure based on t38id for sip_t38_abort."));
+
+				p->t38id_accepted = 1;
+				process_sdp(p, &p->initreq, SDP_T38_INITIATE);
+				ast_queue_control(p->owner, AST_CONTROL_SRCUPDATE);
+				transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, (reinvite ? XMIT_RELIABLE : (req->ignore ?  XMIT_UNRELIABLE : XMIT_CRITICAL)));
 			} else if (p->t38.state == T38_ENABLED) {
 				ast_set_flag(&p->flags[1], SIP_PAGE2_DIALOG_ESTABLISHED);
 				transmit_response_with_t38_sdp(p, "200 OK", req, (reinvite ? XMIT_RELIABLE : (req->ignore ?  XMIT_UNRELIABLE : XMIT_CRITICAL)));
