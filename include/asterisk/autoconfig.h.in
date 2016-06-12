@@ -587,6 +587,9 @@
 /* Define if your system has pjsip_dlg_create_uas_and_inc_lock declared. */
 #undef HAVE_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK
 
+/* Define if your system has PJSIP_EVSUB_GRP_LOCK */
+#undef HAVE_PJSIP_EVSUB_GRP_LOCK
+
 /* Define if your system has pjsip_endpt_set_ext_resolver declared. */
 #undef HAVE_PJSIP_EXTERNAL_RESOLVER
 
