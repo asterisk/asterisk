@@ -1,0 +1,169 @@
+From 4ac720578daf0110b62a804ac63235ea69df13ed Mon Sep 17 00:00:00 2001
+From: George Joseph <george.joseph@fairview5.com>
+Date: Thu, 16 Jun 2016 19:18:21 -0600
+Subject: [PATCH] evsub:  Add state PJSIP_EVSUB_STATE_DESTROYED
+
+This state is set when the final group lock on the pjsip_evsub
+structure is released.  This allows apps to detect that the pointer
+to the evsub structure they may have is no longer valid.  This can
+happen if the app does asynchronous operations outside the
+pjsip_evsub_user callbacks.  This can happen if between the time
+the callback returns and the async process starts another event, like
+timer_b or the subscription timer expires, occurs that causes
+evsub_destroy to destroy the pjsip_evsub structure.
+---
+ pjsip/include/pjsip-simple/evsub.h |  6 ++++--
+ pjsip/src/pjsip-simple/evsub.c     | 36 ++++++++++++++++++++++++++++++++++--
+ 2 files changed, 38 insertions(+), 4 deletions(-)
+
+diff --git a/pjsip/include/pjsip-simple/evsub.h b/pjsip/include/pjsip-simple/evsub.h
+index 2dc4d69..3961225 100644
+--- a/pjsip/include/pjsip-simple/evsub.h
++++ b/pjsip/include/pjsip-simple/evsub.h
+@@ -70,6 +70,10 @@ typedef enum pjsip_evsub_state
+     PJSIP_EVSUB_STATE_UNKNOWN,	 /**< Subscription state can not be determined.
+ 				      Application can query the state by 
+ 				      calling #pjsip_evsub_get_state_name().*/
++    PJSIP_EVSUB_STATE_DESTROYED, /**< Subscription is destroyed.  Attempts to
++                                      use any data other than the state and
++                                      state name could result in a crash.   */
++
+ } pjsip_evsub_state;
+ 
+ 
+@@ -489,8 +493,6 @@ PJ_DECL(void) pjsip_evsub_set_mod_data( pjsip_evsub *sub, unsigned mod_id,
+  */
+ PJ_DECL(void*) pjsip_evsub_get_mod_data( pjsip_evsub *sub, unsigned mod_id );
+ 
+-
+-
+ PJ_END_DECL
+ 
+ /**
+diff --git a/pjsip/src/pjsip-simple/evsub.c b/pjsip/src/pjsip-simple/evsub.c
+index 7cd8859..80ca02f 100644
+--- a/pjsip/src/pjsip-simple/evsub.c
++++ b/pjsip/src/pjsip-simple/evsub.c
+@@ -98,7 +98,8 @@ static pj_str_t evsub_state_names[] =
+     { "PENDING",    7},
+     { "ACTIVE",	    6},
+     { "TERMINATED", 10},
+-    { "UNKNOWN",    7}
++    { "UNKNOWN",    7},
++    { "DESTROYED",  9}
+ };
+ 
+ /*
+@@ -536,6 +537,12 @@ static void evsub_on_destroy(void *obj)
+ 
+     /* Decrement dialog's session */
+     pjsip_dlg_dec_session(sub->dlg, &mod_evsub.mod);
++#if defined(PJ_DEBUG) && (PJ_DEBUG==1)
++    /* Fill the evsub structure with a known value */
++    memset(sub, 0xab, sizeof(*sub));
++#endif
++    sub->state = PJSIP_EVSUB_STATE_DESTROYED;
++    sub->state_str = evsub_state_names[PJSIP_EVSUB_STATE_DESTROYED];
+ }
+ 
+ 
+@@ -548,6 +555,9 @@ static void evsub_destroy( pjsip_evsub *sub )
+ 
+     PJ_LOG(4,(sub->obj_name, "Subscription destroyed"));
+ 
++    /* Make sure that the subscription hasn't already been destroyed */
++    pj_assert(sub->state != PJSIP_EVSUB_STATE_DESTROYED);
++
+     /* Kill timer */
+     set_timer(sub, TIMER_TYPE_NONE, 0);
+ 
+@@ -640,6 +650,9 @@ static void on_timer( pj_timer_heap_t *timer_heap,
+ 
+     sub = (pjsip_evsub*) entry->user_data;
+ 
++    /* Make sure that the subscription hasn't already been destroyed */
++    pj_assert(sub->state != PJSIP_EVSUB_STATE_DESTROYED);
++
+     pjsip_dlg_inc_lock(sub->dlg);
+ 
+     /* If this timer entry has just been rescheduled or cancelled
+@@ -988,7 +1001,6 @@ on_return:
+     return status;
+ }
+ 
+-
+ /*
+  * Forcefully destroy subscription.
+  */
+@@ -997,6 +1009,9 @@ PJ_DEF(pj_status_t) pjsip_evsub_terminate( pjsip_evsub *sub,
+ {
+     PJ_ASSERT_RETURN(sub, PJ_EINVAL);
+ 
++    /* Make sure that the subscription hasn't already been destroyed */
++    PJ_ASSERT_RETURN(sub->state != PJSIP_EVSUB_STATE_DESTROYED, PJ_EINVAL);
++
+     pjsip_dlg_inc_lock(sub->dlg);
+ 
+     /* I think it's pretty safe to disable this check.
+@@ -1052,6 +1067,9 @@ PJ_DEF(pj_status_t) pjsip_evsub_initiate( pjsip_evsub *sub,
+ 
+     PJ_ASSERT_RETURN(sub!=NULL && p_tdata!=NULL, PJ_EINVAL);
+ 
++    /* Make sure that the subscription hasn't already been destroyed */
++    PJ_ASSERT_RETURN(sub->state != PJSIP_EVSUB_STATE_DESTROYED, PJ_EINVAL);
++
+     /* Use SUBSCRIBE if method is not specified */
+     if (method == NULL)
+ 	method = &pjsip_subscribe_method;
+@@ -1132,6 +1150,9 @@ PJ_DEF(pj_status_t) pjsip_evsub_add_header( pjsip_evsub *sub,
+ 
+     PJ_ASSERT_RETURN(sub && hdr_list, PJ_EINVAL);
+ 
++    /* Make sure that the subscription hasn't already been destroyed */
++    PJ_ASSERT_RETURN(sub->state != PJSIP_EVSUB_STATE_DESTROYED, PJ_EINVAL);
++
+     hdr = hdr_list->next;
+     while (hdr != hdr_list) {
+         pj_list_push_back(&sub->sub_hdr_list, (pjsip_hdr*)
+@@ -1158,6 +1179,9 @@ PJ_DEF(pj_status_t) pjsip_evsub_accept( pjsip_evsub *sub,
+     /* Check arguments */
+     PJ_ASSERT_RETURN(sub && rdata, PJ_EINVAL);
+ 
++    /* Make sure that the subscription hasn't already been destroyed */
++    PJ_ASSERT_RETURN(sub->state != PJSIP_EVSUB_STATE_DESTROYED, PJ_EINVAL);
++
+     /* Can only be for server subscription: */
+     PJ_ASSERT_RETURN(sub->role == PJSIP_ROLE_UAS, PJ_EINVALIDOP);
+ 
+@@ -1287,6 +1311,9 @@ PJ_DEF(pj_status_t) pjsip_evsub_notify( pjsip_evsub *sub,
+     /* Check arguments. */
+     PJ_ASSERT_RETURN(sub!=NULL && p_tdata!=NULL, PJ_EINVAL);
+ 
++    /* Make sure that the subscription hasn't already been destroyed */
++    PJ_ASSERT_RETURN(sub->state != PJSIP_EVSUB_STATE_DESTROYED, PJ_EINVAL);
++
+     /* Lock dialog. */
+     pjsip_dlg_inc_lock(sub->dlg);
+ 
+@@ -1356,6 +1383,9 @@ PJ_DEF(pj_status_t) pjsip_evsub_send_request( pjsip_evsub *sub,
+     PJ_ASSERT_RETURN(tdata->msg->type == PJSIP_REQUEST_MSG,
+ 		     PJSIP_ENOTREQUESTMSG);
+ 
++    /* Make sure that the subscription hasn't already been destroyed */
++    PJ_ASSERT_RETURN(sub->state != PJSIP_EVSUB_STATE_DESTROYED, PJ_EINVAL);
++
+     /* Lock */
+     pjsip_dlg_inc_lock(sub->dlg);
+ 
+@@ -2242,6 +2272,8 @@ static void mod_evsub_on_tsx_state(pjsip_transaction *tsx, pjsip_event *event)
+ 	    return;
+     }
+ 
++    /* Make sure that the subscription hasn't already been destroyed */
++    PJ_ASSERT_RETURN(sub->state != PJSIP_EVSUB_STATE_DESTROYED, PJ_EINVAL);
+ 
+     /* Call on_tsx_state callback, if any. */
+     if (sub->user.on_tsx_state && sub->call_cb)
+-- 
+2.5.5
+
