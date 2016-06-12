@@ -2264,10 +2264,17 @@ static int send_notify(struct sip_subscription_tree *sub_tree, unsigned int forc
 	return 0;
 }
 
+struct send_notify_params {
+	struct sip_subscription_tree *sub_tree;
+	int terminate;
+	int scheduled;
+	int force_full_state;
+};
+
 static int serialized_send_notify(void *userdata)
 {
-	struct sip_subscription_tree *sub_tree = userdata;
-	pjsip_dialog *dlg = sub_tree->dlg;
+	struct send_notify_params *notify_params = userdata;
+	pjsip_dialog *dlg = notify_params->sub_tree->dlg;
 
 	pjsip_dlg_inc_lock(dlg);
 	/* It's possible that between when the notification was scheduled
@@ -2275,45 +2282,66 @@ static int serialized_send_notify(void *userdata)
 	 * sent out in an immediate NOTIFY. If that has happened, we need to
 	 * bail out here instead of sending the batched NOTIFY.
 	 */
-	if (!sub_tree->send_scheduled_notify) {
+
+	if (!notify_params->sub_tree->evsub) {
 		pjsip_dlg_dec_lock(dlg);
-		ao2_cleanup(sub_tree);
+		ao2_cleanup(notify_params);
 		return 0;
 	}
 
-	send_notify(sub_tree, 0);
-	ast_test_suite_event_notify("SUBSCRIPTION_STATE_CHANGED",
+	if (notify_params->scheduled && !notify_params->sub_tree->send_scheduled_notify) {
+		pjsip_dlg_dec_lock(dlg);
+		ao2_cleanup(notify_params);
+		return 0;
+	}
+
+	send_notify(notify_params->sub_tree, notify_params->force_full_state);
+
+	ast_test_suite_event_notify(notify_params->terminate ? "SUBSCRIPTION_TERMINATED" : "SUBSCRIPTION_STATE_CHANGED",
 			"Resource: %s",
-			sub_tree->root->resource);
-	sub_tree->notify_sched_id = -1;
+			notify_params->sub_tree->root->resource);
+
+	if (notify_params->scheduled) {
+		notify_params->sub_tree->notify_sched_id = -1;
+	}
+
 	pjsip_dlg_dec_lock(dlg);
-	ao2_cleanup(sub_tree);
+	ao2_cleanup(notify_params);
 	return 0;
 }
 
 static int sched_cb(const void *data)
 {
-	struct sip_subscription_tree *sub_tree = (struct sip_subscription_tree *) data;
+	struct send_notify_params *notify_params = (struct send_notify_params *) data;
 
 	/* We don't need to bump the refcount of sub_tree since we bumped it when scheduling this task */
-	ast_sip_push_task(sub_tree->serializer, serialized_send_notify, sub_tree);
+	ast_sip_push_task(notify_params->sub_tree->serializer, serialized_send_notify, notify_params);
 	return 0;
 }
 
-static int schedule_notification(struct sip_subscription_tree *sub_tree)
+static int schedule_notification(struct send_notify_params *notify_params)
 {
 	/* There's already a notification scheduled */
-	if (sub_tree->notify_sched_id > -1) {
-		return 0;
-	}
-
-	sub_tree->notify_sched_id = ast_sched_add(sched, sub_tree->notification_batch_interval, sched_cb, ao2_bump(sub_tree));
-	if (sub_tree->notify_sched_id < 0) {
+	if (notify_params->sub_tree->notify_sched_id > -1) {
 		return -1;
 	}
 
-	sub_tree->send_scheduled_notify = 1;
+	notify_params->scheduled = 1;
+	notify_params->sub_tree->notify_sched_id = ast_sched_add(sched,
+		notify_params->sub_tree->notification_batch_interval, sched_cb, notify_params);
+
+	if (notify_params->sub_tree->notify_sched_id < 0) {
+		return -1;
+	}
+
+	notify_params->sub_tree->send_scheduled_notify = 1;
 	return 0;
+}
+
+static void send_notify_params_destructor(void *data) {
+	struct send_notify_params *notify_params = data;
+
+	ao2_cleanup(notify_params->sub_tree);
 }
 
 int ast_sip_subscription_notify(struct ast_sip_subscription *sub, struct ast_sip_body_data *notify_data,
@@ -2321,6 +2349,7 @@ int ast_sip_subscription_notify(struct ast_sip_subscription *sub, struct ast_sip
 {
 	int res;
 	pjsip_dialog *dlg = sub->tree->dlg;
+	struct send_notify_params *notify_params;
 
 	pjsip_dlg_inc_lock(dlg);
 
@@ -2340,16 +2369,25 @@ int ast_sip_subscription_notify(struct ast_sip_subscription *sub, struct ast_sip
 		sub->subscription_state = PJSIP_EVSUB_STATE_TERMINATED;
 	}
 
+	notify_params = ao2_alloc(sizeof(*notify_params), send_notify_params_destructor);
+	if (!notify_params) {
+		pjsip_dlg_dec_lock(dlg);
+		return -1;
+	}
+
+	/* See the note in pubsub_on_rx_refresh() for why sub->tree is refbumped here */
+	notify_params->sub_tree = ao2_bump(sub->tree);
+	notify_params->force_full_state = 0;
+
 	if (sub->tree->notification_batch_interval) {
-		res = schedule_notification(sub->tree);
+		res = schedule_notification(notify_params);
 	} else {
-		/* See the note in pubsub_on_rx_refresh() for why sub->tree is refbumped here */
-		ao2_ref(sub->tree, +1);
-		res = send_notify(sub->tree, 0);
-		ast_test_suite_event_notify(terminate ? "SUBSCRIPTION_TERMINATED" : "SUBSCRIPTION_STATE_CHANGED",
-				"Resource: %s",
-				sub->tree->root->resource);
-		ao2_ref(sub->tree, -1);
+		notify_params->terminate = terminate;
+		res = ast_sip_push_task(sub->tree->serializer, serialized_send_notify, notify_params);
+	}
+
+	if (res) {
+		ao2_cleanup(notify_params);
 	}
 
 	pjsip_dlg_dec_lock(dlg);
@@ -3386,10 +3424,10 @@ static int serialized_pubsub_on_server_timeout(void *userdata)
  * There is no guarantee that this function will be called from a serializer
  * thread since it can be called due to a transaction timeout. Therefore
  * synchronization primitives are necessary to ensure that no operations
- * step on each others' toes. The dialog lock is always held when this
- * callback is called, so we ensure that relevant structures that may
- * be touched in this function are always protected by the dialog lock
- * elsewhere as well. The dialog lock in particular protects
+ * step on each others' toes. The dialog lock NOT held when this
+ * callback is called, so we lock it ourselves to ensure that relevant
+ * structures that may be touched in this function are always protected by
+ * the dialog lock elsewhere as well. The dialog lock in particular protects
  *
  * \li The subscription tree's last_notify field
  * \li The subscription tree's evsub pointer
@@ -3408,12 +3446,14 @@ static void pubsub_on_evsub_state(pjsip_evsub *evsub, pjsip_event *event)
 	if (!sub_tree) {
 		return;
 	}
-
+	pjsip_dlg_inc_lock(sub_tree->dlg);
 	if (!sub_tree->last_notify) {
+		sub_tree->last_notify = 1;
 		if (ast_sip_push_task(sub_tree->serializer, serialized_pubsub_on_server_timeout, ao2_bump(sub_tree))) {
 			ast_log(LOG_ERROR, "Failed to push task to send final NOTIFY.\n");
 			ao2_ref(sub_tree, -1);
 		} else {
+			pjsip_dlg_dec_lock(sub_tree->dlg);
 			return;
 		}
 	}
@@ -3428,6 +3468,7 @@ static void pubsub_on_evsub_state(pjsip_evsub *evsub, pjsip_event *event)
 
 	/* Remove evsub's reference to the sub_tree */
 	ao2_ref(sub_tree, -1);
+	pjsip_dlg_dec_lock(sub_tree->dlg);
 }
 
 static int serialized_pubsub_on_rx_refresh(void *userdata)
@@ -3477,6 +3518,7 @@ static void pubsub_on_rx_refresh(pjsip_evsub *evsub, pjsip_rx_data *rdata,
 		return;
 	}
 
+	pjsip_dlg_inc_lock(sub_tree->dlg);
 	/* PJSIP will set the evsub's state to terminated before calling into this function
 	 * if the Expires value of the incoming SUBSCRIBE is 0.
 	 */
@@ -3490,6 +3532,8 @@ static void pubsub_on_rx_refresh(pjsip_evsub *evsub, pjsip_rx_data *rdata,
 	if (sub_tree->is_list) {
 		pj_list_insert_before(res_hdr, create_require_eventlist(rdata->tp_info.pool));
 	}
+
+	pjsip_dlg_dec_lock(sub_tree->dlg);
 }
 
 static void pubsub_on_rx_notify(pjsip_evsub *evsub, pjsip_rx_data *rdata, int *p_st_code,
@@ -3547,8 +3591,13 @@ static void pubsub_on_server_timeout(pjsip_evsub *evsub)
         return;
 	}
 
-	ao2_ref(sub_tree, +1);
-	ast_sip_push_task(sub_tree->serializer, serialized_pubsub_on_server_timeout, sub_tree);
+	if (!sub_tree->last_notify) {
+		sub_tree->last_notify = 1;
+		if (ast_sip_push_task(sub_tree->serializer, serialized_pubsub_on_server_timeout, ao2_bump(sub_tree))) {
+			ast_log(LOG_ERROR, "Failed to push task to send final NOTIFY.\n");
+			ao2_ref(sub_tree, -1);
+		}
+	}
 }
 
 static int ami_subscription_detail(struct sip_subscription_tree *sub_tree,
