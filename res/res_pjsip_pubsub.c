@@ -411,8 +411,8 @@ struct sip_subscription_tree {
 	int is_list;
 	/*! Next item in the list */
 	AST_LIST_ENTRY(sip_subscription_tree) next;
-	/*! Indicates that a NOTIFY is currently being sent on the SIP subscription */
-	int last_notify;
+	/*! Indicates how many terminate operations are pending */
+	int pending_terminates;
 };
 
 /*!
@@ -2230,9 +2230,6 @@ static int send_notify(struct sip_subscription_tree *sub_tree, unsigned int forc
 		pjsip_msg_add_hdr(tdata->msg, (pjsip_hdr *) require);
 	}
 
-	if (sub_tree->root->subscription_state == PJSIP_EVSUB_STATE_TERMINATED) {
-		sub_tree->last_notify = 1;
-	}
 	if (sip_subscription_send_request(sub_tree, tdata)) {
 		return -1;
 	}
@@ -2242,12 +2239,28 @@ static int send_notify(struct sip_subscription_tree *sub_tree, unsigned int forc
 	return 0;
 }
 
+static int is_evsub_destroyed(pjsip_evsub *evsub)
+{
+#ifdef HAVE_PJSIP_EVSUB_STATE_DESTROYED
+	return (pjsip_evsub_get_state(evsub) == PJSIP_EVSUB_STATE_DESTROYED);
+#else
+	return 0;
+#endif
+}
+
 static int serialized_send_notify(void *userdata)
 {
 	struct sip_subscription_tree *sub_tree = userdata;
 	pjsip_dialog *dlg = sub_tree->dlg;
 
 	pjsip_dlg_inc_lock(dlg);
+
+	if (is_evsub_destroyed(sub_tree->evsub) || sub_tree->pending_terminates) {
+		pjsip_dlg_dec_lock(dlg);
+		ao2_cleanup(sub_tree);
+		return 0;
+	}
+
 	/* It's possible that between when the notification was scheduled
 	 * and now, that a new SUBSCRIBE arrived, requiring full state to be
 	 * sent out in an immediate NOTIFY. If that has happened, we need to
@@ -2274,7 +2287,10 @@ static int sched_cb(const void *data)
 	struct sip_subscription_tree *sub_tree = (struct sip_subscription_tree *) data;
 
 	/* We don't need to bump the refcount of sub_tree since we bumped it when scheduling this task */
-	ast_sip_push_task(sub_tree->serializer, serialized_send_notify, sub_tree);
+	if (ast_sip_push_task(sub_tree->serializer, serialized_send_notify, sub_tree)) {
+		ao2_cleanup(sub_tree);
+	}
+
 	return 0;
 }
 
@@ -2287,6 +2303,7 @@ static int schedule_notification(struct sip_subscription_tree *sub_tree)
 
 	sub_tree->notify_sched_id = ast_sched_add(sched, sub_tree->notification_batch_interval, sched_cb, ao2_bump(sub_tree));
 	if (sub_tree->notify_sched_id < 0) {
+		ao2_cleanup(sub_tree);
 		return -1;
 	}
 
@@ -2302,7 +2319,7 @@ int ast_sip_subscription_notify(struct ast_sip_subscription *sub, struct ast_sip
 
 	pjsip_dlg_inc_lock(dlg);
 
-	if (!sub->tree->evsub) {
+	if (!sub->tree->evsub || is_evsub_destroyed(sub->tree->evsub) || sub->tree->pending_terminates) {
 		pjsip_dlg_dec_lock(dlg);
 		return 0;
 	}
@@ -2316,6 +2333,7 @@ int ast_sip_subscription_notify(struct ast_sip_subscription *sub, struct ast_sip
 	sub->body_changed = 1;
 	if (terminate) {
 		sub->subscription_state = PJSIP_EVSUB_STATE_TERMINATED;
+		sub->tree->pending_terminates++;
 	}
 
 	if (sub->tree->notification_batch_interval) {
@@ -3275,10 +3293,19 @@ static int serialized_pubsub_on_server_timeout(void *userdata)
 	pjsip_dialog *dlg = sub_tree->dlg;
 
 	pjsip_dlg_inc_lock(dlg);
-	if (!sub_tree->evsub) {
+	if (!sub_tree->evsub || is_evsub_destroyed(sub_tree->evsub)) {
 		pjsip_dlg_dec_lock(dlg);
+		ao2_cleanup(sub_tree);
 		return 0;
 	}
+
+	if (sub_tree->pending_terminates > 1) {
+		sub_tree->pending_terminates--;
+		pjsip_dlg_dec_lock(dlg);
+		ao2_cleanup(sub_tree);
+		return 0;
+	}
+
 	set_state_terminated(sub_tree->root);
 	send_notify(sub_tree, 1);
 	ast_test_suite_event_notify("SUBSCRIPTION_TERMINATED",
@@ -3340,22 +3367,22 @@ static void pubsub_on_evsub_state(pjsip_evsub *evsub, pjsip_event *event)
 
 	ast_debug(3, "on_evsub_state called with state %s\n", pjsip_evsub_get_state_name(evsub));
 
-	if (pjsip_evsub_get_state(evsub) != PJSIP_EVSUB_STATE_TERMINATED) {
+	if (pjsip_evsub_get_state(evsub) != PJSIP_EVSUB_STATE_TERMINATED
+		|| !(sub_tree = pjsip_evsub_get_mod_data(evsub, pubsub_module.id))) {
 		return;
 	}
 
-	sub_tree = pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
-	if (!sub_tree) {
-		return;
-	}
-
-	if (!sub_tree->last_notify) {
+	if (!sub_tree->pending_terminates) {
+		sub_tree->pending_terminates++;
 		if (ast_sip_push_task(sub_tree->serializer, serialized_pubsub_on_server_timeout, ao2_bump(sub_tree))) {
 			ast_log(LOG_ERROR, "Failed to push task to send final NOTIFY.\n");
+			sub_tree->pending_terminates--;
 			ao2_ref(sub_tree, -1);
 		} else {
 			return;
 		}
+	} else if (sub_tree->pending_terminates > 1) {
+		return;
 	}
 
 	remove_subscription(sub_tree);
@@ -3376,8 +3403,9 @@ static int serialized_pubsub_on_rx_refresh(void *userdata)
 	pjsip_dialog *dlg = sub_tree->dlg;
 
 	pjsip_dlg_inc_lock(dlg);
-	if (!sub_tree->evsub) {
+	if (!sub_tree->evsub || is_evsub_destroyed(sub_tree->evsub) || sub_tree->pending_terminates) {
 		pjsip_dlg_dec_lock(dlg);
+		ao2_cleanup(sub_tree);
 		return 0;
 	}
 
@@ -3412,8 +3440,8 @@ static void pubsub_on_rx_refresh(pjsip_evsub *evsub, pjsip_rx_data *rdata,
 {
 	struct sip_subscription_tree *sub_tree;
 
-	sub_tree = pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
-	if (!sub_tree) {
+	if ((!(sub_tree = pjsip_evsub_get_mod_data(evsub, pubsub_module.id)))
+		 || is_evsub_destroyed(sub_tree->evsub)) {
 		return;
 	}
 
@@ -3435,9 +3463,9 @@ static void pubsub_on_rx_refresh(pjsip_evsub *evsub, pjsip_rx_data *rdata,
 static void pubsub_on_rx_notify(pjsip_evsub *evsub, pjsip_rx_data *rdata, int *p_st_code,
 		pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body)
 {
-	struct ast_sip_subscription *sub = pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
+	struct ast_sip_subscription *sub;
 
-	if (!sub) {
+	if (!(sub = pjsip_evsub_get_mod_data(evsub, pubsub_module.id))) {
 		return;
 	}
 
@@ -3450,28 +3478,40 @@ static int serialized_pubsub_on_client_refresh(void *userdata)
 	struct sip_subscription_tree *sub_tree = userdata;
 	pjsip_tx_data *tdata;
 
+	if (!sub_tree->evsub) {
+		ao2_cleanup(sub_tree);
+		return 0;
+	}
+
 	if (pjsip_evsub_initiate(sub_tree->evsub, NULL, -1, &tdata) == PJ_SUCCESS) {
 		pjsip_evsub_send_request(sub_tree->evsub, tdata);
 	} else {
 		pjsip_evsub_terminate(sub_tree->evsub, PJ_TRUE);
 	}
+
 	ao2_cleanup(sub_tree);
 	return 0;
 }
 
 static void pubsub_on_client_refresh(pjsip_evsub *evsub)
 {
-	struct sip_subscription_tree *sub_tree = pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
+	struct sip_subscription_tree *sub_tree;
 
-	ao2_ref(sub_tree, +1);
-	ast_sip_push_task(sub_tree->serializer, serialized_pubsub_on_client_refresh, sub_tree);
+	if (!(sub_tree = pjsip_evsub_get_mod_data(evsub, pubsub_module.id))) {
+		return;
+	}
+
+	if (ast_sip_push_task(sub_tree->serializer, serialized_pubsub_on_client_refresh, ao2_bump(sub_tree))) {
+		ao2_cleanup(sub_tree);
+	}
 }
 
 static void pubsub_on_server_timeout(pjsip_evsub *evsub)
 {
+	struct sip_subscription_tree *sub_tree;
 
-	struct sip_subscription_tree *sub_tree = pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
-	if (!sub_tree) {
+	if (!(sub_tree = pjsip_evsub_get_mod_data(evsub, pubsub_module.id))
+		 || is_evsub_destroyed(sub_tree->evsub) || sub_tree->pending_terminates) {
 		/* PJSIP does not terminate the server timeout timer when a SUBSCRIBE
 		 * with Expires: 0 arrives to end a subscription, nor does it terminate
 		 * this timer when we send a NOTIFY request in response to receiving such
@@ -3487,8 +3527,11 @@ static void pubsub_on_server_timeout(pjsip_evsub *evsub)
         return;
 	}
 
-	ao2_ref(sub_tree, +1);
-	ast_sip_push_task(sub_tree->serializer, serialized_pubsub_on_server_timeout, sub_tree);
+	sub_tree->pending_terminates++;
+	if (ast_sip_push_task(sub_tree->serializer, serialized_pubsub_on_server_timeout, ao2_bump(sub_tree))) {
+		sub_tree->pending_terminates--;
+		ao2_cleanup(sub_tree);
+	}
 }
 
 static int ami_subscription_detail(struct sip_subscription_tree *sub_tree,
