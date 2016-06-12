@@ -879,7 +879,7 @@ static void build_node_children(struct ast_sip_endpoint *endpoint, const struct 
 							"allocation error afterwards\n", resource);
 					continue;
 				}
-				ast_debug(1, "Subscription to leaf resource %s resulted in success. Adding to parent %s\n",
+				ast_debug(3, "Subscription to leaf resource %s resulted in success. Adding to parent %s\n",
 						resource, parent->resource);
 				AST_VECTOR_APPEND(&parent->children, current);
 			} else {
@@ -887,7 +887,7 @@ static void build_node_children(struct ast_sip_endpoint *endpoint, const struct 
 						resource, resp);
 			}
 		} else {
-			ast_debug(1, "Resource %s (child of %s) is a list\n", resource, parent->resource);
+			ast_debug(3, "Resource %s (child of %s) is a list\n", resource, parent->resource);
 			current = tree_node_alloc(resource, visited, child_list->full_state);
 			if (!current) {
 				ast_debug(1, "Cannot build children of resource %s due to allocation failure\n", resource);
@@ -895,10 +895,10 @@ static void build_node_children(struct ast_sip_endpoint *endpoint, const struct 
 			}
 			build_node_children(endpoint, handler, child_list, current, visited);
 			if (AST_VECTOR_SIZE(&current->children) > 0) {
-				ast_debug(1, "List %s had no successful children.\n", resource);
+				ast_debug(3, "List %s had no successful children.\n", resource);
 				AST_VECTOR_APPEND(&parent->children, current);
 			} else {
-				ast_debug(1, "List %s had successful children. Adding to parent %s\n",
+				ast_debug(3, "List %s had successful children. Adding to parent %s\n",
 						resource, parent->resource);
 				tree_node_destroy(current);
 			}
@@ -970,7 +970,7 @@ static int build_resource_tree(struct ast_sip_endpoint *endpoint, const struct a
 	struct resources visited;
 
 	if (!has_eventlist_support || !(list = retrieve_resource_list(resource, handler->event_name))) {
-		ast_debug(1, "Subscription to resource %s is not to a list\n", resource);
+		ast_debug(3, "Subscription to resource %s is not to a list\n", resource);
 		tree->root = tree_node_alloc(resource, NULL, 0);
 		if (!tree->root) {
 			return 500;
@@ -978,7 +978,7 @@ static int build_resource_tree(struct ast_sip_endpoint *endpoint, const struct a
 		return handler->notifier->new_subscribe(endpoint, resource);
 	}
 
-	ast_debug(1, "Subscription to resource %s is a list\n", resource);
+	ast_debug(3, "Subscription to resource %s is a list\n", resource);
 	if (AST_VECTOR_INIT(&visited, AST_VECTOR_SIZE(&list->items))) {
 		return 500;
 	}
@@ -1037,7 +1037,7 @@ static void remove_subscription(struct sip_subscription_tree *obj)
 		if (i == obj) {
 			AST_RWLIST_REMOVE_CURRENT(next);
 			if (i->root) {
-				ast_debug(1, "Removing subscription to resource %s from list of subscriptions\n",
+				ast_debug(3, "Removing subscription to resource %s from list of subscriptions\n",
 						ast_sip_subscription_get_resource_name(i->root));
 			}
 			break;
@@ -2329,6 +2329,11 @@ int ast_sip_subscription_notify(struct ast_sip_subscription *sub, struct ast_sip
 		return 0;
 	}
 
+	if (sub->tree->last_notify) {
+		pjsip_dlg_dec_lock(dlg);
+		return 0;
+	}
+
 	if (ast_sip_pubsub_generate_body_content(ast_sip_subscription_get_body_type(sub),
 				ast_sip_subscription_get_body_subtype(sub), notify_data, &sub->body_text)) {
 		pjsip_dlg_dec_lock(dlg);
@@ -3329,24 +3334,34 @@ static void set_state_terminated(struct ast_sip_subscription *sub)
 }
 
 /* XXX This function and serialized_pubsub_on_rx_refresh are nearly identical */
-static int serialized_pubsub_on_server_timeout(void *userdata)
+static int serialized_pubsub_terminate(void *userdata)
 {
 	struct sip_subscription_tree *sub_tree = userdata;
-	pjsip_dialog *dlg = sub_tree->dlg;
 
-	pjsip_dlg_inc_lock(dlg);
-	if (!sub_tree->evsub) {
-		pjsip_dlg_dec_lock(dlg);
+	if (!(sub_tree->evsub && sub_tree->dlg)) {
+		ast_debug(1, "sub_tree is already destroyed\n");
 		return 0;
 	}
+
+	pjsip_dlg_inc_lock(sub_tree->dlg);
+
+	if (sub_tree->last_notify > 1) {
+		ast_debug(1, "Possible terminate conflict. evsub: %p  Last Notify: %d\n", sub_tree->evsub, sub_tree->last_notify);
+		sub_tree->last_notify--;
+		pjsip_dlg_dec_lock(sub_tree->dlg);
+		ao2_ref(sub_tree, -1);
+		return 0;
+	}
+
 	set_state_terminated(sub_tree->root);
 	send_notify(sub_tree, 1);
 	ast_test_suite_event_notify("SUBSCRIPTION_TERMINATED",
 			"Resource: %s",
 			sub_tree->root->resource);
 
-	pjsip_dlg_dec_lock(dlg);
+	pjsip_dlg_dec_lock(sub_tree->dlg);
 	ao2_cleanup(sub_tree);
+
 	return 0;
 }
 
@@ -3405,12 +3420,14 @@ static void pubsub_on_evsub_state(pjsip_evsub *evsub, pjsip_event *event)
 	}
 
 	sub_tree = pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
-	if (!sub_tree) {
+	if (!(sub_tree && sub_tree->evsub && sub_tree->dlg)) {
+		ast_debug(1, "sub_tree is already destroyed\n");
 		return;
 	}
 
 	if (!sub_tree->last_notify) {
-		if (ast_sip_push_task(sub_tree->serializer, serialized_pubsub_on_server_timeout, ao2_bump(sub_tree))) {
+		sub_tree->last_notify++;
+		if (ast_sip_push_task(sub_tree->serializer, serialized_pubsub_terminate, ao2_bump(sub_tree))) {
 			ast_log(LOG_ERROR, "Failed to push task to send final NOTIFY.\n");
 			ao2_ref(sub_tree, -1);
 		} else {
@@ -3433,11 +3450,18 @@ static void pubsub_on_evsub_state(pjsip_evsub *evsub, pjsip_event *event)
 static int serialized_pubsub_on_rx_refresh(void *userdata)
 {
 	struct sip_subscription_tree *sub_tree = userdata;
-	pjsip_dialog *dlg = sub_tree->dlg;
 
-	pjsip_dlg_inc_lock(dlg);
-	if (!sub_tree->evsub) {
-		pjsip_dlg_dec_lock(dlg);
+	if (!(sub_tree->evsub && sub_tree->dlg)) {
+		ast_debug(1, "sub_tree is already destroyed\n");
+		return 0;
+	}
+
+	pjsip_dlg_inc_lock(sub_tree->dlg);
+
+	if (sub_tree->last_notify) {
+		ast_debug(1, "Possible terminate conflict. evsub: %p  Last Notify: %d\n", sub_tree->evsub, sub_tree->last_notify);
+		pjsip_dlg_dec_lock(sub_tree->dlg);
+		ao2_ref(sub_tree, -1);
 		return 0;
 	}
 
@@ -3451,8 +3475,9 @@ static int serialized_pubsub_on_rx_refresh(void *userdata)
 			"SUBSCRIPTION_TERMINATED" : "SUBSCRIPTION_REFRESHED",
 			"Resource: %s", sub_tree->root->resource);
 
-	pjsip_dlg_dec_lock(dlg);
+	pjsip_dlg_dec_lock(sub_tree->dlg);
 	ao2_cleanup(sub_tree);
+
 	return 0;
 }
 
@@ -3473,16 +3498,23 @@ static void pubsub_on_rx_refresh(pjsip_evsub *evsub, pjsip_rx_data *rdata,
 	struct sip_subscription_tree *sub_tree;
 
 	sub_tree = pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
-	if (!sub_tree) {
+	if (!(sub_tree && sub_tree->evsub && sub_tree->dlg)) {
+		ast_debug(1, "sub_tree is already destroyed\n");
+		return;
+	}
+
+	if (sub_tree->last_notify) {
+		ast_debug(1, "Possible terminate conflict. evsub: %p  Last Notify: %d\n", sub_tree->evsub, sub_tree->last_notify);
 		return;
 	}
 
 	/* PJSIP will set the evsub's state to terminated before calling into this function
 	 * if the Expires value of the incoming SUBSCRIBE is 0.
 	 */
+
 	if (pjsip_evsub_get_state(sub_tree->evsub) != PJSIP_EVSUB_STATE_TERMINATED) {
 		if (ast_sip_push_task(sub_tree->serializer, serialized_pubsub_on_rx_refresh, ao2_bump(sub_tree))) {
-			/* If we can't push the NOTIFY refreshing task...we'll just go with it. */
+			ast_log(LOG_ERROR, "Failed to push task\n");
 			ao2_ref(sub_tree, -1);
 		}
 	}
@@ -3498,6 +3530,7 @@ static void pubsub_on_rx_notify(pjsip_evsub *evsub, pjsip_rx_data *rdata, int *p
 	struct ast_sip_subscription *sub = pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
 
 	if (!sub) {
+		ast_debug(1, "sub is already destroyed\n");
 		return;
 	}
 
@@ -3510,12 +3543,29 @@ static int serialized_pubsub_on_client_refresh(void *userdata)
 	struct sip_subscription_tree *sub_tree = userdata;
 	pjsip_tx_data *tdata;
 
+	if (!(sub_tree->evsub && sub_tree->dlg)) {
+		ast_debug(1, "sub_tree is already destroyed\n");
+		return 0;
+	}
+
+	pjsip_dlg_inc_lock(sub_tree->dlg);
+
+	if (sub_tree->last_notify) {
+		ast_debug(1, "Possible terminate conflict. evsub: %p  Last Notify: %d\n", sub_tree->evsub, sub_tree->last_notify);
+		pjsip_dlg_dec_lock(sub_tree->dlg);
+		ao2_ref(sub_tree, -1);
+		return 0;
+	}
+
 	if (pjsip_evsub_initiate(sub_tree->evsub, NULL, -1, &tdata) == PJ_SUCCESS) {
 		pjsip_evsub_send_request(sub_tree->evsub, tdata);
 	} else {
 		pjsip_evsub_terminate(sub_tree->evsub, PJ_TRUE);
 	}
+
+	pjsip_dlg_dec_lock(sub_tree->dlg);
 	ao2_cleanup(sub_tree);
+
 	return 0;
 }
 
@@ -3523,32 +3573,52 @@ static void pubsub_on_client_refresh(pjsip_evsub *evsub)
 {
 	struct sip_subscription_tree *sub_tree = pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
 
-	ao2_ref(sub_tree, +1);
-	ast_sip_push_task(sub_tree->serializer, serialized_pubsub_on_client_refresh, sub_tree);
-}
-
-static void pubsub_on_server_timeout(pjsip_evsub *evsub)
-{
-
-	struct sip_subscription_tree *sub_tree = pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
-	if (!sub_tree) {
-		/* PJSIP does not terminate the server timeout timer when a SUBSCRIBE
-		 * with Expires: 0 arrives to end a subscription, nor does it terminate
-		 * this timer when we send a NOTIFY request in response to receiving such
-		 * a SUBSCRIBE. PJSIP does not stop the server timeout timer until the
-		 * NOTIFY transaction has finished (either through receiving a response
-		 * or through a transaction timeout).
-		 *
-		 * Therefore, it is possible that we can be told that a server timeout
-		 * occurred after we already thought that the subscription had been
-		 * terminated. In such a case, we will have already removed the sub_tree
-		 * from the evsub's mod_data array.
-		 */
-        return;
+	if (!(sub_tree && sub_tree->evsub && sub_tree->dlg)) {
+		ast_debug(1, "sub_tree is already destroyed\n");
+		return;
 	}
 
-	ao2_ref(sub_tree, +1);
-	ast_sip_push_task(sub_tree->serializer, serialized_pubsub_on_server_timeout, sub_tree);
+	if (!sub_tree->last_notify) {
+		if (ast_sip_push_task(sub_tree->serializer, serialized_pubsub_on_client_refresh, ao2_bump(sub_tree))) {
+			ast_log(LOG_ERROR, "Failed to push task\n");
+			ao2_ref(sub_tree, -1);
+		}
+	} else {
+		ast_debug(1, "Possible terminate conflict. evsub: %p  Last Notify: %d\n", sub_tree->evsub, sub_tree->last_notify);
+	}
+}
+
+/*!
+ * PJSIP does not terminate the server timeout timer when a SUBSCRIBE
+ * with Expires: 0 arrives to end a subscription, nor does it terminate
+ * this timer when we send a NOTIFY request in response to receiving such
+ * a SUBSCRIBE. PJSIP does not stop the server timeout timer until the
+ * NOTIFY transaction has finished (either through receiving a response
+ * or through a transaction timeout).
+ *
+ * Therefore, it is possible that we can be told that a server timeout
+ * occurred after we already thought that the subscription had been
+ * terminated. In such a case, we will have already removed the sub_tree
+ * from the evsub's mod_data array.
+ */
+static void pubsub_on_server_timeout(pjsip_evsub *evsub)
+{
+	struct sip_subscription_tree *sub_tree = pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
+
+	if (!(sub_tree && sub_tree->evsub && sub_tree->dlg)) {
+		ast_debug(1, "sub_tree is already destroyed\n");
+		return;
+	}
+
+	if (!sub_tree->last_notify) {
+		sub_tree->last_notify++;
+		if (ast_sip_push_task(sub_tree->serializer, serialized_pubsub_terminate, ao2_bump(sub_tree))) {
+			ast_log(LOG_ERROR, "Failed to push task to send final NOTIFY.\n");
+			ao2_ref(sub_tree, -1);
+		}
+	} else {
+		ast_debug(1, "Possible terminate conflict. evsub: %p  Last Notify: %d\n", sub_tree->evsub, sub_tree->last_notify);
+	}
 }
 
 static int ami_subscription_detail(struct sip_subscription_tree *sub_tree,
