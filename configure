@@ -915,6 +915,10 @@ PBX_POPT
 POPT_DIR
 POPT_INCLUDE
 POPT_LIB
+PBX_PJSIP_EVSUB_STATE_DESTROYED
+PJSIP_EVSUB_STATE_DESTROYED_DIR
+PJSIP_EVSUB_STATE_DESTROYED_INCLUDE
+PJSIP_EVSUB_STATE_DESTROYED_LIB
 PBX_PJSIP_TLS_TRANSPORT_PROTO
 PJSIP_TLS_TRANSPORT_PROTO_DIR
 PJSIP_TLS_TRANSPORT_PROTO_INCLUDE
@@ -10563,6 +10567,18 @@ PBX_PJSIP_TLS_TRANSPORT_PROTO=0
 
 
 
+PJSIP_EVSUB_STATE_DESTROYED_DESCRIP="PJSIP EVSUB Destroyed state support"
+PJSIP_EVSUB_STATE_DESTROYED_OPTION=pjsip
+PJSIP_EVSUB_STATE_DESTROYED_DIR=${PJPROJECT_DIR}
+
+PBX_PJSIP_EVSUB_STATE_DESTROYED=0
+
+
+
+
+
+
+
 
     POPT_DESCRIP="popt"
     POPT_OPTION="popt"
@@ -13612,7 +13628,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -13658,7 +13674,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -13682,7 +13698,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -13727,7 +13743,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -13751,7 +13767,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -24463,6 +24479,9 @@ rm -f conftest*
 $as_echo "#define HAVE_PJSIP_TLS_TRANSPORT_PROTO 1" >>confdefs.h
 
 
+$as_echo "#define HAVE_PJSIP_EVSUB_STATE_DESTROYED 1" >>confdefs.h
+
+
    else
 
    if test "x${PBX_PJPROJECT}" != "x1" -a "${USE_PJPROJECT}" != "no"; then
@@ -25164,6 +25183,58 @@ $as_echo "yes" >&6; }
 		PBX_PJSIP_TLS_TRANSPORT_PROTO=1
 
 $as_echo "#define HAVE_PJSIP_TLS_TRANSPORT_PROTO 1" >>confdefs.h
+
+
+
+else
+         { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+	CPPFLAGS="${saved_cppflags}"
+    fi
+
+      LIBS="${saved_libs}"
+      CPPFLAGS="${saved_cppflags}"
+
+      saved_cppflags="${CPPFLAGS}"
+      saved_libs="${LIBS}"
+      CPPFLAGS="${CPPFLAGS} ${PJPROJECT_CFLAGS}"
+      LIBS="${LIBS} ${PJPROJECT_LIB}"
+
+    if test "x${PBX_PJSIP_EVSUB_STATE_DESTROYED}" != "x1" -a "${USE_PJSIP_EVSUB_STATE_DESTROYED}" != "no"; then
+        if test "x" != "x"; then
+            { $as_echo "$as_me:${as_lineno-$LINENO}: checking for " >&5
+$as_echo_n "checking for ... " >&6; }
+	else
+            { $as_echo "$as_me:${as_lineno-$LINENO}: checking if \"pjsip_evsub_state state = PJSIP_EVSUB_STATE_DESTROYED;\" compiles using pjsip.h" >&5
+$as_echo_n "checking if \"pjsip_evsub_state state = PJSIP_EVSUB_STATE_DESTROYED;\" compiles using pjsip.h... " >&6; }
+	fi
+	saved_cppflags="${CPPFLAGS}"
+	if test "x${PJSIP_EVSUB_STATE_DESTROYED_DIR}" != "x"; then
+	    PJSIP_EVSUB_STATE_DESTROYED_INCLUDE="-I${PJSIP_EVSUB_STATE_DESTROYED_DIR}/include"
+	fi
+	CPPFLAGS="${CPPFLAGS} ${PJSIP_EVSUB_STATE_DESTROYED_INCLUDE}"
+
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ #include <pjsip.h>
+int
+main ()
+{
+ pjsip_evsub_state state = PJSIP_EVSUB_STATE_DESTROYED;;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		PBX_PJSIP_EVSUB_STATE_DESTROYED=1
+
+$as_echo "#define HAVE_PJSIP_EVSUB_STATE_DESTROYED 1" >>confdefs.h
 
 
 
