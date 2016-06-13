@@ -226,7 +226,7 @@ static void set_ttl(int sock, const char *ttl_str)
 	ast_debug(3, "Setting multicast TTL to %s\n", ttl_str);
 
 	if (sscanf(ttl_str, "%30d", &ttl) < 1) {
-		ast_log(LOG_WARNING, "Inavlid multicast ttl option '%s'\n", ttl_str);
+		ast_log(LOG_WARNING, "Invalid multicast ttl option '%s'\n", ttl_str);
 		return;
 	}
 
