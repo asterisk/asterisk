@@ -745,6 +745,10 @@ int stasis_app_bridge_playback_channel_add(struct ast_bridge *bridge,
 	struct ast_channel *chan,
 	struct stasis_app_control *control);
 
+void stasis_app_bridge_playback_channel_remove(char *bridge_id,
+	struct ast_channel *chan,
+	struct stasis_app_control *control);
+
 /*!
  * \brief Result codes used when adding/removing channels to/from bridges.
  */
