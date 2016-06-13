@@ -713,6 +713,22 @@ int stasis_app_bridge_playback_channel_add(struct ast_bridge *bridge,
 	return 0;
 }
 
+void stasis_app_bridge_playback_channel_remove(char *bridge_id,
+	struct stasis_app_control *control)
+{
+	struct stasis_app_bridge_channel_wrapper *wrapper;
+
+	wrapper = ao2_find(app_bridges_playback, bridge_id, OBJ_SEARCH_KEY | OBJ_UNLINK);
+	if (wrapper) {
+		/* If wrapper is not found, then that means the after bridge callback has been
+		 * called or is in progress. No need to unlink the control here since that has
+		 * been done or is about to be done in the after bridge callback
+		 */
+		ao2_unlink(app_controls, control);
+		ao2_ref(wrapper, -1);
+	}
+}
+
 struct ast_channel *stasis_app_bridge_playback_channel_find(struct ast_bridge *bridge)
 {
 	struct stasis_app_bridge_channel_wrapper *playback_wrapper;
