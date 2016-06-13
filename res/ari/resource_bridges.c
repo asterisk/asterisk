@@ -278,6 +278,7 @@ struct bridge_channel_control_thread_data {
 	struct ast_channel *bridge_channel;
 	struct stasis_app_control *control;
 	struct stasis_forward *forward;
+	char bridge_id[0];
 };
 
 static void *bridge_channel_control_thread(void *data)
@@ -286,6 +287,7 @@ static void *bridge_channel_control_thread(void *data)
 	struct ast_channel *bridge_channel = thread_data->bridge_channel;
 	struct stasis_app_control *control = thread_data->control;
 	struct stasis_forward *forward = thread_data->forward;
+	char *bridge_id = ast_strdupa(thread_data->bridge_id);
 
 	RAII_VAR(struct ast_callid *, callid, ast_channel_callid(bridge_channel), ast_callid_cleanup);
 
@@ -299,6 +301,7 @@ static void *bridge_channel_control_thread(void *data)
 	stasis_app_control_execute_until_exhausted(bridge_channel, control);
 	stasis_app_control_flush_queue(control);
 
+	stasis_app_bridge_playback_channel_remove(bridge_id, control);
 	stasis_forward_cancel(forward);
 	ao2_cleanup(control);
 	ast_hangup(bridge_channel);
@@ -464,8 +467,9 @@ static void ari_bridges_play_new(const char *args_media,
 	}
 
 	/* Give play_channel and control reference to the thread data */
-	thread_data = ast_calloc(1, sizeof(*thread_data));
+	thread_data = ast_malloc(sizeof(*thread_data) + strlen(bridge->uniqueid) + 1);
 	if (!thread_data) {
+		stasis_app_bridge_playback_channel_remove((char *)bridge->uniqueid, control);
 		ast_ari_response_alloc_failed(response);
 		return;
 	}
@@ -473,8 +477,11 @@ static void ari_bridges_play_new(const char *args_media,
 	thread_data->bridge_channel = play_channel;
 	thread_data->control = control;
 	thread_data->forward = channel_forward;
+	/* Safe */
+	strcpy(thread_data->bridge_id, bridge->uniqueid);
 
 	if (ast_pthread_create_detached(&threadid, NULL, bridge_channel_control_thread, thread_data)) {
+		stasis_app_bridge_playback_channel_remove((char *)bridge->uniqueid, control);
 		ast_ari_response_alloc_failed(response);
 		ast_free(thread_data);
 		return;
