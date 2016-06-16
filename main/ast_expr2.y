@@ -1662,11 +1662,16 @@ op_tildetilde (struct val *a, struct val *b)
 	strip_quotes(a);
 	strip_quotes(b);
 	
-	vs = malloc(strlen(a->u.s)+strlen(b->u.s)+1);
+	if (!(vs = malloc(strlen(a->u.s)+strlen(b->u.s)+1))) {
+		return NULL;
+	}
+
 	strcpy(vs,a->u.s);
 	strcat(vs,b->u.s);
 
 	v = make_str(vs);
+
+	free(vs);
 
 	/* free arguments */
 	free_value(a);
