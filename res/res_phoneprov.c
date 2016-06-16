@@ -410,10 +410,13 @@ static int load_file(const char *filename, char **ret)
 	fseek(f, 0, SEEK_END);
 	len = ftell(f);
 	fseek(f, 0, SEEK_SET);
-	if (!(*ret = ast_malloc(len + 1)))
+	if (!(*ret = ast_malloc(len + 1))) {
+		fclose(f);
 		return -2;
+	}
 
 	if (len != fread(*ret, sizeof(char), len, f)) {
+		fclose(f);
 		free(*ret);
 		*ret = NULL;
 		return -3;

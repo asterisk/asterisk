@@ -7949,8 +7949,9 @@ int ast_say_date_with_format_ja(struct ast_channel *chan, time_t time, const cha
                      case '\'':
                              /* Literal name of a sound file */
                              sndoffset=0;
-                             for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < 256) ; sndoffset++)
+                             for (sndoffset = 0 ; (format[++offset] != '\'') && (sndoffset < sizeof(sndfile) - 1) ; sndoffset++) {
                                      sndfile[sndoffset] = format[offset];
+                             }
                              sndfile[sndoffset] = '\0';
                              res = wait_file(chan,ints,sndfile,lang);
                              break;
