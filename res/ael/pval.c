@@ -3355,9 +3355,9 @@ static int gen_prios(struct ael_extension *exten, char *label, pval *statement, 
 #ifdef OLD_RAND_ACTION
 	struct ael_priority *rand_test, *rand_end, *rand_skip;
 #endif
-	char *buf1;
-	char *buf2;
-	char *new_label;
+	RAII_VAR(char *, buf1, NULL, free);
+	RAII_VAR(char *, buf2, NULL, free);
+	RAII_VAR(char *, new_label, NULL, free);
 	char *strp, *strp2;
 	int default_exists;
 	int local_control_statement_count;
@@ -4191,9 +4191,6 @@ static int gen_prios(struct ael_extension *exten, char *label, pval *statement, 
 			break;
 		}
 	}
-	free(buf1);
-	free(buf2);
-	free(new_label);
 	return 0;
 }
 
@@ -5052,7 +5049,10 @@ int  pvalCheckType( pval *p, char *funcname, pvaltype type )
 pval *pvalCreateNode( pvaltype type )
 {
 	pval *p = calloc(1,sizeof(pval)); /* why, oh why, don't I use ast_calloc? Way, way, way too messy if I do! */
-	p->type = type;                   /* remember, this can be used externally or internally to asterisk */
+					  /* remember, this can be used externally or internally to asterisk */
+	if (p) {
+		p->type = type;
+	}
 	return p;
 }
 
@@ -5413,14 +5413,30 @@ void pvalIncludesAddInclude( pval *p, const char *include )
 
 void pvalIncludesAddIncludeWithTimeConstraints( pval *p, const char *include, char *hour_range, char *dom_range, char *dow_range, char *month_range )
 {
-	pval *hr = pvalCreateNode(PV_WORD);
-	pval *dom = pvalCreateNode(PV_WORD);
-	pval *dow = pvalCreateNode(PV_WORD);
-	pval *mon = pvalCreateNode(PV_WORD);
-	pval *s = pvalCreateNode(PV_WORD);
-	
-	if (!pvalCheckType(p, "pvalIncludeAddIncludeWithTimeConstraints", PV_INCLUDES))
+	pval *hr;
+	pval *dom;
+	pval *dow;
+	pval *mon;
+	pval *s;
+
+	if (!pvalCheckType(p, "pvalIncludeAddIncludeWithTimeConstraints", PV_INCLUDES)) {
 		return;
+	}
+
+	hr = pvalCreateNode(PV_WORD);
+	dom = pvalCreateNode(PV_WORD);
+	dow = pvalCreateNode(PV_WORD);
+	mon = pvalCreateNode(PV_WORD);
+	s = pvalCreateNode(PV_WORD);
+
+	if (!hr || !dom || !dow || !mon || !s) {
+		destroy_pval(hr);
+		destroy_pval(dom);
+		destroy_pval(dow);
+		destroy_pval(mon);
+		destroy_pval(s);
+		return;
+	}
 
 	s->u1.str = (char *)include;
 	p->u1.list = linku1(p->u1.list, s);
@@ -5667,12 +5683,28 @@ char* pvalIfGetCondition( pval *p )
 
 void pvalIfTimeSetCondition( pval *p, char *hour_range, char *dow_range, char *dom_range, char *mon_range )  /* time range format: 24-hour format begin-end|dow range|dom range|month range */
 {
-	pval *hr = pvalCreateNode(PV_WORD);
-	pval *dow = pvalCreateNode(PV_WORD);
-	pval *dom = pvalCreateNode(PV_WORD);
-	pval *mon = pvalCreateNode(PV_WORD);
-	if (!pvalCheckType(p, "pvalIfTimeSetCondition", PV_IFTIME))
+	pval *hr;
+	pval *dow;
+	pval *dom;
+	pval *mon;
+
+	if (!pvalCheckType(p, "pvalIfTimeSetCondition", PV_IFTIME)) {
 		return;
+	}
+
+	hr = pvalCreateNode(PV_WORD);
+	dow = pvalCreateNode(PV_WORD);
+	dom = pvalCreateNode(PV_WORD);
+	mon = pvalCreateNode(PV_WORD);
+
+	if (!hr || !dom || !dow || !mon) {
+		destroy_pval(hr);
+		destroy_pval(dom);
+		destroy_pval(dow);
+		destroy_pval(mon);
+		return;
+	}
+
 	pvalWordSetString(hr, hour_range);
 	pvalWordSetString(dow, dow_range);
 	pvalWordSetString(dom, dom_range);

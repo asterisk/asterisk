@@ -420,7 +420,7 @@ static pjmedia_sdp_attr* generate_fmtp_attr(pj_pool_t *pool, struct ast_format *
 		*++tmp = '\0';
 		/* ast...generate gives us everything, just need value */
 		tmp = strchr(ast_str_buffer(fmtp0), ':');
-		if (tmp && tmp + 1) {
+		if (tmp && tmp[1] != '\0') {
 			fmtp1 = pj_str(tmp + 1);
 		} else {
 			fmtp1 = pj_str(ast_str_buffer(fmtp0));
