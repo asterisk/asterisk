@@ -3263,7 +3263,8 @@ void mm_lsub(MAILSTREAM * stream, int delim, char *mailbox, long attributes)
 void mm_status(MAILSTREAM * stream, char *mailbox, MAILSTATUS * status)
 {
 	struct ast_str *str;
-	if (!DEBUG_ATLEAST(5) || !(str = ast_str_create(MAX_OBJECT_FIELD))) {
+
+	if (!DEBUG_ATLEAST(5) || !(str = ast_str_create(256))) {
 	    return;
 	}
 
