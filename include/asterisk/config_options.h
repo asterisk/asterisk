@@ -281,6 +281,28 @@ enum aco_option_type {
 	 */
 	OPT_BOOL_T,
 
+	/*! \brief Type for default option handler for bools (ast_true/ast_false)
+	 * \note aco_option_register flags:
+	 *   non-zero : process via ast_true
+	 *   0        : process via ast_false
+	 * aco_option_register varargs:
+	 *   FLDSET macro with the field of type int. It is important to note that the field
+	 *   cannot be a bitfield. If bitfields are required, they must be set via a custom handler.
+	 *
+	 * This is nearly exactly the same as OPT_BOOL_T. The only difference is that when
+	 * translated to a string, OPT_BOOL_T becomes "true" or "false"; OPT_YESNO_T becomes
+	 * "yes" or "no".
+	 *
+	 * Example:
+	 * {code}
+	 * struct test_item {
+	 *     int enabled;
+	 * };
+	 * aco_option_register(&cfg_info, "enabled", ACO_EXACT, my_types, "no", OPT_YESNO_T, 1, FLDSET(struct test_item, enabled));
+	 * {endcode}
+	 */
+	OPT_YESNO_T,
+
 	/*! \brief Type for default option handler for bools (ast_true/ast_false) that are stored in a flag
 	 * \note aco_option_register flags:
 	 *   non-zero : process via ast_true

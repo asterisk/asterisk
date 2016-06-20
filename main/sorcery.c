@@ -293,6 +293,12 @@ static int bool_handler_fn(const void *obj, const intptr_t *args, char **buf)
 	return !(*buf = ast_strdup(*field ? "true" : "false")) ? -1 : 0;
 }
 
+static int yesno_handler_fn(const void *obj, const intptr_t *args, char **buf)
+{
+	unsigned int *field = (unsigned int *)(obj + args[0]);
+	return !(*buf = ast_strdup(*field ? "yes" : "no")) ? -1 : 0;
+}
+
 static int sockaddr_handler_fn(const void *obj, const intptr_t *args, char **buf)
 {
 	struct ast_sockaddr *field = (struct ast_sockaddr *)(obj + args[0]);
@@ -316,6 +322,7 @@ static sorcery_field_handler sorcery_field_default_handler(enum aco_option_type 
 {
 	switch(type) {
 	case OPT_BOOL_T: return bool_handler_fn;
+	case OPT_YESNO_T: return yesno_handler_fn;
 	case OPT_CHAR_ARRAY_T: return chararray_handler_fn;
 	case OPT_CODEC_T: return codec_handler_fn;
 	case OPT_DOUBLE_T: return double_handler_fn;
