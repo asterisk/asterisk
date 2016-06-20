@@ -16,10 +16,8 @@ import sqlalchemy as sa
 
 def upgrade():
     op.add_column('ps_contacts', sa.Column('reg_server', sa.String(20)))
-    op.drop_constraint('id', 'ps_contacts', type_='unique')
     op.create_unique_constraint('ps_contacts_uq', 'ps_contacts', ['id','reg_server'])
 
 def downgrade():
     op.drop_constraint('ps_contacts_uq', 'ps_contacts', type_='unique')
     op.drop_column('ps_contacts', 'reg_server')
-    op.create_unique_constraint(None, 'ps_contacts', 'id')
