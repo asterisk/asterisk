@@ -2315,7 +2315,8 @@ static void reschedule_reinvite(struct ast_sip_session *session, ast_sip_session
 
 static void __print_debug_details(const char *function, pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e)
 {
-	struct ast_sip_session *session;
+	int id = session_module.id;
+	struct ast_sip_session *session = NULL;
 
 	if (!DEBUG_ATLEAST(5)) {
 		/* Debug not spamy enough */
@@ -2330,7 +2331,9 @@ static void __print_debug_details(const char *function, pjsip_inv_session *inv, 
 			pjsip_tsx_state_str(tsx->state));
 		return;
 	}
-	session = inv->mod_data[session_module.id];
+	if (id > -1) {
+		session = inv->mod_data[session_module.id];
+	}
 	if (!session) {
 		ast_log(LOG_DEBUG, "inv_session %p has no ast session\n", inv);
 	} else {
@@ -2552,8 +2555,21 @@ static void session_inv_on_new_session(pjsip_inv_session *inv, pjsip_event *e)
 static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e)
 {
 	ast_sip_session_response_cb cb;
-	struct ast_sip_session *session = inv->mod_data[session_module.id];
+	int id = session_module.id;
+	struct ast_sip_session *session;
 	pjsip_tx_data *tdata;
+
+	/*
+	 * A race condition exists at shutdown where the res_pjsip_session can be
+	 * unloaded but this callback may still get called afterwards. In this case
+	 * the id may end up being -1 which is useless to us. To work around this
+	 * we store the current value and check/use it.
+	 */
+	if (id < 0) {
+		return;
+	}
+
+	session = inv->mod_data[id];
 
 	print_debug_details(inv, tsx, e);
 	if (!session) {
@@ -2568,10 +2584,10 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 		 * we transfer the data into the transaction. This way, when we receive a response, we
 		 * can dig this data out again
 		 */
-		tsx->mod_data[session_module.id] = e->body.tsx_state.src.tdata->mod_data[session_module.id];
+		tsx->mod_data[id] = e->body.tsx_state.src.tdata->mod_data[id];
 		break;
 	case PJSIP_EVENT_RX_MSG:
-		cb = ast_sip_mod_data_get(tsx->mod_data, session_module.id, MOD_DATA_ON_RESPONSE);
+		cb = ast_sip_mod_data_get(tsx->mod_data, id, MOD_DATA_ON_RESPONSE);
 		/* As the PJSIP invite session implementation responds with a 200 OK before we have a
 		 * chance to be invoked session supplements for BYE requests actually end up executing
 		 * in the invite session state callback as well. To prevent session supplements from
@@ -2650,7 +2666,7 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 		 * Clear the module data now to block session_inv_on_state_changed()
 		 * from calling session_end() if it hasn't already done so.
 		 */
-		inv->mod_data[session_module.id] = NULL;
+		inv->mod_data[id] = NULL;
 
 		if (inv->state != PJSIP_INV_STATE_DISCONNECTED) {
 			session_end(session);
@@ -2673,8 +2689,8 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 			 * the dialog locked to get the session by other threads.
 			 */
 			pjsip_dlg_inc_lock(inv->dlg);
-			session = inv->mod_data[session_module.id];
-			inv->mod_data[session_module.id] = NULL;
+			session = inv->mod_data[id];
+			inv->mod_data[id] = NULL;
 			pjsip_dlg_dec_lock(inv->dlg);
 
 			/*
