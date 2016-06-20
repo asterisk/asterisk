@@ -2668,13 +2668,25 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 		 * by the session serializer.
 		 */
 		if (inv->state == PJSIP_INV_STATE_DISCONNECTED) {
+			int id = session_module.id;
+
+			/*
+			 * A race condition exists at shutdown where the res_pjsip_session can be
+			 * unloaded but this callback may still get called afterwards. In this case
+			 * the id may end up being -1 which is useless to us. To work around this
+			 * we store the current value and check/use it.
+			 */
+			if (id < 0) {
+				return;
+			}
+
 			/*
 			 * We are locking because ast_sip_dialog_get_session() needs
 			 * the dialog locked to get the session by other threads.
 			 */
 			pjsip_dlg_inc_lock(inv->dlg);
-			session = inv->mod_data[session_module.id];
-			inv->mod_data[session_module.id] = NULL;
+			session = inv->mod_data[id];
+			inv->mod_data[id] = NULL;
 			pjsip_dlg_dec_lock(inv->dlg);
 
 			/*
