@@ -2220,7 +2220,7 @@ static int __ast_http_load(int reload)
 		 * the non-TLS bindaddress here.
 		 */
 		if (ast_sockaddr_isnull(&https_desc.local_address) && http_desc.accept_fd != -1) {
-			ast_sockaddr_copy(&https_desc.local_address, &https_desc.local_address);
+			ast_sockaddr_copy(&https_desc.local_address, &http_desc.local_address);
 			/* Of course, we can't use the same port though.
 			 * Since no bind address was specified, we just use the
 			 * default TLS port
