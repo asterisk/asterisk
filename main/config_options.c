@@ -87,6 +87,7 @@ static struct ao2_container *xmldocs;
 static char *aco_option_type_string[] = {
 	"ACL",				/* OPT_ACL_T, */
 	"Boolean",			/* OPT_BOOL_T, */
+	"Boolean",			/* OPT_YESNO_T, */
 	"Boolean",			/* OPT_BOOLFLAG_T, */
 	"String",			/* OPT_CHAR_ARRAY_T, */
 	"Codec",			/* OPT_CODEC_T, */
@@ -139,6 +140,7 @@ static aco_option_handler ast_config_option_default_handler(enum aco_option_type
 	switch(type) {
 	case OPT_ACL_T: return acl_handler_fn;
 	case OPT_BOOL_T: return bool_handler_fn;
+	case OPT_YESNO_T: return bool_handler_fn;
 	case OPT_BOOLFLAG_T: return boolflag_handler_fn;
 	case OPT_CHAR_ARRAY_T: return chararray_handler_fn;
 	case OPT_CODEC_T: return codec_handler_fn;
