@@ -290,7 +290,7 @@ static int stringfield_handler_fn(const void *obj, const intptr_t *args, char **
 static int bool_handler_fn(const void *obj, const intptr_t *args, char **buf)
 {
 	unsigned int *field = (unsigned int *)(obj + args[0]);
-	return !(*buf = ast_strdup(*field ? "true" : "false")) ? -1 : 0;
+	return !(*buf = ast_strdup(*field ? "yes" : "no")) ? -1 : 0;
 }
 
 static int sockaddr_handler_fn(const void *obj, const intptr_t *args, char **buf)
