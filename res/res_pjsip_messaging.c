@@ -476,6 +476,24 @@ static enum pjsip_status_code rx_data_to_ast_msg(pjsip_rx_data *rdata, struct as
 	field = pj_sockaddr_print(&rdata->pkt_info.src_addr, buf, sizeof(buf) - 1, 1);
 	res |= ast_msg_set_var(msg, "PJSIP_RECVADDR", field);
 
+	switch (rdata->tp_info.transport->key.type) {
+	case PJSIP_TRANSPORT_UDP:
+	case PJSIP_TRANSPORT_UDP6:
+		field = "udp";
+		break;
+	case PJSIP_TRANSPORT_TCP:
+	case PJSIP_TRANSPORT_TCP6:
+		field = "tcp";
+		break;
+	case PJSIP_TRANSPORT_TLS:
+	case PJSIP_TRANSPORT_TLS6:
+		field = "tls";
+		break;
+	default:
+		field = rdata->tp_info.transport->type_name;
+	}
+	ast_msg_set_var(msg, "PJSIP_TRANSPORT", field);
+
 	if (print_body(rdata, buf, sizeof(buf) - 1) > 0) {
 		res |= ast_msg_set_body(msg, "%s", buf);
 	}
