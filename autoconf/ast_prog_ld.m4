@@ -3,7 +3,7 @@
 # find the pathname to the GNU or non-GNU linker
 AC_DEFUN([AST_PROG_LD],
 [AC_ARG_WITH([gnu-ld],
-    [AC_HELP_STRING([--with-gnu-ld],
+    [AS_HELP_STRING([--with-gnu-ld],
 	[assume the C compiler uses GNU ld @<:@default=no@:>@])],
     [test "$withval" = no || with_gnu_ld=yes],
     [with_gnu_ld=no])
