@@ -1340,9 +1340,6 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	int res;
-#ifndef HAVE_OPENSSL_ECDH_AUTO
-	EC_KEY *ecdh;
-#endif
 
 	if (!dtls_cfg->enabled) {
 		return 0;
@@ -1368,15 +1365,41 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 
 	SSL_CTX_set_read_ahead(rtp->ssl_ctx, 1);
 
-#ifdef HAVE_OPENSSL_ECDH_AUTO
-	SSL_CTX_set_ecdh_auto(rtp->ssl_ctx, 1);
-#else
-	ecdh = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
-	if (ecdh) {
-		SSL_CTX_set_tmp_ecdh(rtp->ssl_ctx, ecdh);
-		EC_KEY_free(ecdh);
+#ifdef HAVE_OPENSSL_EC
+
+	if (!ast_strlen_zero(dtls_cfg->pvtfile)) {
+		BIO *bio = BIO_new_file(dtls_cfg->pvtfile, "r");
+		if (bio != NULL) {
+			DH *dh = PEM_read_bio_DHparams(bio, NULL, NULL, NULL);
+			if (dh != NULL) {
+				if (SSL_CTX_set_tmp_dh(rtp->ssl_ctx, dh)) {
+					long options = SSL_OP_CIPHER_SERVER_PREFERENCE | SSL_OP_SINGLE_DH_USE | SSL_OP_SINGLE_ECDH_USE;
+					options = SSL_CTX_set_options(rtp->ssl_ctx, options);
+					ast_verb(2, "DTLS DH initialized, PFS cipher-suites enabled\n");
+				}
+				DH_free(dh);
+			}
+			BIO_free(bio);
+		}
 	}
-#endif
+	#ifndef SSL_CTRL_SET_ECDH_AUTO
+		#define SSL_CTRL_SET_ECDH_AUTO 94
+	#endif
+	/* SSL_CTX_set_ecdh_auto(rtp->ssl_ctx, on); requires OpenSSL 1.0.2 which wraps: */
+	if (SSL_CTX_ctrl(rtp->ssl_ctx, SSL_CTRL_SET_ECDH_AUTO, 1, NULL)) {
+		ast_verb(2, "DTLS ECDH initialized (automatic), faster PFS cipher-suites enabled\n");
+	} else {
+		/* enables AES-128 ciphers, to get AES-256 use NID_secp384r1 */
+		EC_KEY *ecdh = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+		if (ecdh != NULL) {
+			if (SSL_CTX_set_tmp_ecdh(rtp->ssl_ctx, ecdh)) {
+				ast_verb(2, "DTLS ECDH initialized (secp256r1), faster PFS cipher-suites enabled\n");
+			}
+			EC_KEY_free(ecdh);
+		}
+	}
+
+#endif /* #ifdef HAVE_OPENSSL_EC */
 
 	rtp->dtls_verify = dtls_cfg->verify;
 
