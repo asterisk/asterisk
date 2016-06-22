@@ -19,6 +19,24 @@ res_pjsip
    extension in the indicated context. If no "subscribe_context" is specified,
    then the "context" setting is used.
 
+res_rtp_asterisk
+------------------
+ * The DTLS part in Asterisk now supports Perfect Forward Secrecy (PFS).
+   Enabling PFS is attempted by default, and is dependent on the configuration
+   of the module using TLS.
+   - Ephemeral ECDH (ECDHE) is enabled by default. To disable it, do not
+     specify a ECDHE cipher suite in sip.conf, for example:
+       dtlscipher=AES128-SHA
+   - Ephemeral DH (DHE) is disabled by default. To enable it, add DH parameters
+     into the private key file, e.g., sip.conf dtlsprivatekey. For example:
+       openssl dhparam -out ./dh.pem 2048
+   - Because clients expect the server to prefer PFS, and because OpenSSL sorts
+     its cipher suites by bit strength, see "openssl ciphers -v DEFAULT".
+     Consider re-ordering your cipher suites in the respective configuration
+     file. For example:
+       dtlscipher=ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256
+     which forces PFS and requires at least DTLS 1.2.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.9.0 to Asterisk 13.10.0 -----------
 ------------------------------------------------------------------------------
