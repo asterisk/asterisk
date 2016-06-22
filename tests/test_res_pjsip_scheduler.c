@@ -26,6 +26,7 @@
 
 /*** MODULEINFO
 	<depend>TEST_FRAMEWORK</depend>
+	<depend>pjproject</depend>
 	<depend>res_pjsip</depend>
 	<support_level>core</support_level>
  ***/
