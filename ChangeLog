@@ -1,3 +1,517 @@
+2016-06-22 21:15 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.8-cert1-rc3 Released.
+
+2016-06-22 16:14 +0000 [4df81def29]  Mark Michelson <mmichelson@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-06-22 16:14 +0000 [286d58affc]  Mark Michelson <mmichelson@digium.com>
+
+	* .version: Update for certified/13.8-cert1-rc3
+
+2016-06-22 16:14 +0000 [8b7fe94df7]  Mark Michelson <mmichelson@digium.com>
+
+	* .lastclean: Update for certified/13.8-cert1-rc3
+
+2016-06-22 16:14 +0000 [0449fd2e1e]  Mark Michelson <mmichelson@digium.com>
+
+	* realtime: Add database scripts for certified/13.8-cert1-rc3
+
+2016-06-09 09:20 +0000 [a6610fbe2f]  gtjoseph <gjoseph@digium.com>
+
+	* build:  Fix ast_sockaddr initialization to be more portable
+
+	  A change to glibc 2.22 changed the order of the sockadddr_storage
+	  members which caused the places where we do an initialization of
+	  ast_sockaddr with '{ { 0, 0, } }' to fail compilation.  Those
+	  initializers (which we shouldn't have been using anyway) have been
+	  replaced with memsets.
+
+	  Change-Id: Idd1b3b320903d8771bfe221f0b015685de628fa4
+
+2016-06-12 11:19 +0000 [102d88e791]  gtjoseph <gjoseph@digium.com>
+
+	* res_pjsip_pubsub: Address SEGV when attempting to terminate a subscription
+
+	  Occasionally under load we'll attempt to send a final NOTIFY on a
+	  subscription that's already been terminated and a SEGV will occur
+	  down in pjproject's evsub_destroy function.  This is a result of a
+	  race condition between all the paths that can generate a notify
+	  and/or destroy the underlying pjproject evsub object:
+
+	   * The client can send a SUBSCRIBE with Expires: 0.
+	   * The client can send a SUBSCRIBE/refresh.
+	   * The subscription timer can expire.
+	   * An extension state can change.
+	   * An MWI event can be generated.
+	   * The pjproject transaction timer (timer_b) can expire.
+
+	  Normally when our pubsub_on_evsub_state is called with a terminate,
+	  we push a task to the serializer and return at which point the dialog
+	  is unlocked.  This is usually not a problem because the task runs
+	  immediately and locks the dialog again.  When the system is heavily
+	  loaded though, there may be a delay between the unlock and relock
+	  during which another event may occur such as the subscription timer
+	  or timer_b expiring, an extension state change, etc.  These may also
+	  cause a terminate to be processed and if so, we could cause pjproject
+	  to try to destroy the evsub structure twice.  There's no way for us to
+	  tell that the evsub was already destroyed and the evsub's group lock
+	  can't tolerate this and SEGVs.
+
+	  The remedy is twofold.
+
+	   * A patch has been submitted to Teluu and added to the bundled
+	     pjproject which adds add/decrement operations on evsub's group lock.
+
+	   * In res_pjsip_pubsub:
+	     * configure.ac and pjproject-bundled's configure.m4 were updated
+	       to check for the new evsub group lock APIs.
+	     * We now add a reference to the evsub group lock when we create
+	       the subscription and remove the reference when we clean up the
+	       subscription.  This prevents evsub from being destroyed before
+	       we're done with it.
+	     * A state has been added to the subscription tree structure so
+	       termination progress can be tracked through the asyncronous tasks.
+	     * The pubsub_on_evsub_state callback has been split so it's not doing
+	       double duty.  It now only handles the final cleanup of the
+	       subscription tree.  pubsub_on_rx_refresh now handles both client
+	       refreshes and client terminates.  It was always being called for
+	       both anyway.
+	     * The serialized_on_server_timeout task was removed since
+	       serialized_pubsub_on_rx_refresh was almost identical.
+	     * Missing state checks and ao2_cleanups were added.
+	     * Some debug levels were adjusted to make seeing only off-nominal
+	       things at level 1 and nominal or progress things at level 2+.
+
+	  ASTERISK-26099 #close
+	  Reported-by: Ross Beer.
+
+	  Change-Id: I779d11802cf672a51392e62a74a1216596075ba1
+
+2016-06-13 13:33 +0000 [d9ab222edc]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_rtp_multicast.c: Fix warning message typo.
+
+	  Change-Id: Ic9928208b9957e09866abe3d9649030942ec52b3
+
+2016-06-10 12:35 +0000 [39329a9e66]  Richard Mudgett <rmudgett@digium.com>
+
+	* chan_rtp: Backport changes from master.
+
+	  * Deprecate chan_multicast_rtp.
+
+	  Change-Id: Ib5a45e58c75ee8abd0b4f9575379b5321feb853e
+
+2016-06-10 16:13 +0000 [6d45341963]  Richard Mudgett <rmudgett@digium.com>
+
+	* chan_rtp.c: Copy file from chan_multicast_rtp.c
+
+	  Change-Id: I1119b53f2152ab1cbec74b5be7ea44844dbda8ef
+
+2016-06-03 22:44 +0000 [0322479ff7]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_pjsip_registrar.c: Eliminate rx REGISTER request race condition.
+
+	  This patch fixes a race condition processing received REGISTER requests
+	  and their retransmissions caused by REGISTER requests being processed by
+	  two threads.  The "sip_transaction Unable to register REGISTER transaction
+	  (key exists)" message is a notable symptom of this issue.
+
+	  This issue was more likely to happen before the pjsip/distributor
+	  serializers were created.  Instead of steps one and two below placing the
+	  REGISTER messages into the same pjsip/distributor they were placed in
+	  random pjsip/default serializers.
+
+	  1) REGISTER requests come in and get placed on the pjsip/distributor
+	  serializer.
+
+	  2) Before the first request is processed a retransmission comes in and is
+	  placed on the same pjsip/distributor serializer.
+
+	  3) The first request goes up the pjsip stack and is then shunted off to
+	  the pjsip/aor/<aor> serializer.
+
+	  4) Before the first request is completed processing in the pjsip/aor/<aor>
+	  serializer, the second request goes up the pjsip stack and is also shunted
+	  off to the pjsip/aor/<aor> serializer.
+
+	  5) The first request completes processing and sends out its response.
+
+	  6) The second request completes processing and tries to send out its
+	  response but pjlib complains that the REGISTER transaction key already
+	  exists.
+
+	  7) Sadness ensues.
+
+	  * The race is eliminated by removing the pjsip/aor/<aor> serializer and
+	  continuing the processing in the pjsip/distributor serializer.  Now any
+	  retransmissions queued in the pjsip/distributor serializer will be
+	  processed after the first message is completely processed.
+
+	  ASTERISK-26088 #close
+	  Reported by:  Richard Mudgett
+
+	  Change-Id: I842d714346088bf717ea27437f1dd85bff0bab5a
+
+2016-06-03 11:35 +0000 [942fa0c95b]  Richard Mudgett <rmudgett@digium.com>
+
+	* stasis: Add setting subscription congestion levels.
+
+	  Stasis subscriptions and message routers create taskprocessors to process
+	  the event messages.  API calls are needed to be able to set the congestion
+	  levels of these taskprocessors for selected subscriptions and message
+	  routers.
+
+	  * Updated CDR, CEL, and manager's stasis subscription congestion levels
+	  based upon stress testing.  Increased the congestion levels to reduce the
+	  potential for bursty call setup/teardown activity from triggering the
+	  taskprocessor overload alert.  CDRs in particular need an extra high
+	  congestion level because they can take awhile to process the stasis
+	  messages.
+
+	  ASTERISK-26088
+	  Reported by:  Richard Mudgett
+
+	  Change-Id: Id0a716394b4eee746dd158acc63d703902450244
+
+2016-06-02 18:19 +0000 [b046fa1907]  Richard Mudgett <rmudgett@digium.com>
+
+	* sorcery: Add setting object type congestion levels.
+
+	  Sorcery creates taskprocessors for object types to process object observer
+	  callbacks.  An API call is needed to be able to set the congestion levels
+	  of these taskprocessors for selected object types.
+
+	  * Updated PJSIP's contact and contact_status sorcery object type observer
+	  default congestion levels based upon stress testing.  Increased the
+	  congestion levels to reduce the potential for bursty register/unregister
+	  and subscribe/unsubscribe activity from triggering the taskprocessor
+	  overload alert.
+
+	  ASTERISK-26088
+	  Reported by:  Richard Mudgett
+
+	  Change-Id: I4542e83b556f0714009bfeff89505c801f1218c6
+
+2016-06-02 16:08 +0000 [237f9ef7af]  Richard Mudgett <rmudgett@digium.com>
+
+	* taskprocessors: Implement high/low water mark alerts.
+
+	  When taskprocessors get backed up, there is a good chance that we are
+	  being overloaded and need to defer adding new work to the system.
+
+	  * Implemented a high/low water alert mechanism for modules to check if the
+	  system is being overloaded and take appropriate action.  When a
+	  taskprocessor is created it has default congestion levels set.  A
+	  taskprocessor can later have those congestion levels altered for specific
+	  needs if stress testing shows that the taskprocessor is a symptom of
+	  overloading or needs to handle bursty activity without triggering an
+	  overload alert.
+
+	  * Add CLI "core show taskprocessor" low/high water columns.
+
+	  * Fixed __allocate_taskprocessor() to not use RAII_VAR().  RAII_VAR() was
+	  never a good thing to use when creating a taskprocessor because of the
+	  nature of how its references needed to be cleaned up on a partial
+	  creation.
+
+	  * Made res_pjsip's distributor check if the taskprocessor overload alert
+	  is active before placing a message representing brand new work onto a
+	  distributor serializer.
+
+	  ASTERISK-26088
+	  Reported by:  Richard Mudgett
+
+	  Change-Id: I182f1be603529cd665958661c4c05ff9901825fa
+
+2016-05-27 17:31 +0000 [ff70f04a37]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_pjsip_session: Use distributor serializer for incoming calls.
+
+	  We must continue using the serializer that the original INVITE came in on
+	  for the dialog.  There may be retransmissions already enqueued in the
+	  original serializer that can result in reentrancy and message sequencing
+	  problems.
+
+	  Outgoing call legs create the pjsip/outsess/<endpoint> serializers for
+	  their dialogs.
+
+	  ASTERISK-26088
+	  Reported by:  Richard Mudgett
+
+	  Change-Id: I24d7948749c582b8045d5389ba3f6588508adbbc
+
+2016-05-27 16:28 +0000 [4b26c9ead8]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_pjsip_pubsub.c: Recreate subscriptions using distributor serializer.
+
+	  * Resolves potential reentrancy problems if system restarted in the middle
+	  of subscription message transactions.
+
+	  * Fixes memory leak recreating persistent subscriptions when the
+	  subscription resource tree could not be created.
+
+	  ASTERISK-26088
+	  Reported by:  Richard Mudgett
+
+	  Change-Id: I71e34d7ae8ed35a694f1030e820e2548c48697be
+
+2016-05-27 12:50 +0000 [a137d1822e]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_pjsip_pubsub.c: Use distributor serializer for incoming subscriptions.
+
+	  We must continue using the serializer that the original SUBSCRIBE came in
+	  on for the dialog.  There may be retransmissions already enqueued in the
+	  original serializer that can result in reentrancy and message sequencing
+	  problems.  The "sip_transaction Unable to register SUBSCRIBE transaction
+	  (key exists)" message is a notable symptom of this issue.
+
+	  Outgoing subscriptions still create the pjsip/pubsub/<endpoint>
+	  serializers for their dialogs.
+
+	  ASTERISK-26088
+	  Reported by:  Richard Mudgett
+
+	  Change-Id: I18b00bb74a56747b2c8c29543a82440b110bf0b0
+
+2016-05-26 17:35 +0000 [9a7a5aec18]  Richard Mudgett <rmudgett@digium.com>
+
+	* pjsip_distributor.c: Consistently pick a serializer for messages.
+
+	  Incoming messages that are not part of a dialog or a recognized response
+	  to one of our requests need to be sent to a consistent serializer.  Under
+	  load we may be queueing retransmissions before we can process the original
+	  message.  We don't need to throw these messages onto random serializers
+	  and cause reentrancy and message sequencing problems.
+
+	  * Created a pool of pjsip/distributor serializers that get picked by
+	  hashing the call-id and remote tag strings of the received messages.
+
+	  * Made ast_sip_destroy_distributor() destroy items in the reverse order of
+	  creation.
+
+	  ASTERISK-26088
+	  Reported by:  Richard Mudgett
+
+	  Change-Id: I2ce769389fc060d9f379977f559026fbcb632407
+
+2016-06-02 12:51 +0000 [f2a76c4292]  Richard Mudgett <rmudgett@digium.com>
+
+	* pjsip_distributor.c: Ignore messages until fully booted.
+
+	  We should not be processing any incoming messages until we are fully
+	  booted.  We may not have dialplan or other needed configuration loaded
+	  yet.
+
+	  ASTERISK-26089 #close
+	  Reported by: Scott Griepentrog
+
+	  ASTERISK-26088
+	  Reported by:  Richard Mudgett
+
+	  Change-Id: I584aefb4f34b885a8927e1f13a2c64babd606264
+
+2016-04-01 13:30 +0000 [51e45e5ca5]  gtjoseph <george.joseph@fairview5.com>
+
+	* res_pjsip contact:  Lock expiration/addition of contacts
+
+	  Contact expiration can occur in several places:  res_pjsip_registrar,
+	  res_pjsip_registrar_expire, and automatically when anyone calls
+	  ast_sip_location_retrieve_aor_contact.  At the same time, res_pjsip_registrar
+	  may also be attempting to renew or add a contact.  Since none of this was locked
+	  it was possible for one thread to be renewing a contact and another thread to
+	  expire it immediately because it was working off of stale data.  This was the
+	  casue of intermittent registration/inbound/nominal/multiple_contacts test
+	  failures.
+
+	  Now, the new named lock functionality is used to lock the aor during contact
+	  expire and add operations and res_pjsip_registrar_expire now checks the
+	  expiration with the lock held before deleting the contact.
+
+	  ASTERISK-25885 #close
+	  Reported-by: Josh Colp
+
+	  Change-Id: I83d413c46a47796f3ab052ca3b349f21cca47059
+
+2016-03-31 20:04 +0000 [880d502141]  gtjoseph <george.joseph@fairview5.com>
+
+	* lock:  Add named lock capability
+
+	  Locking some objects like sorcery objects can be tricky because the underlying
+	  ao2 object may not be the same for all callers.  For instance, two threads that
+	  call ast_sorcery_retrieve_by_id on the same aor name might actually get 2
+	  different ao2 objects if the underlying wizard had to rehydrate the aor from a
+	  database. Locking one ao2 object doesn't have any effect on the other even if
+	  those objects had locks in the first place.
+
+	  Named locks allow access control by keyspace and key strings.  Now an "aor"
+	  named "1000" can be locked and any other thread attempting to lock "aor" "1000"
+	  will wait regardless of whether the underlying ao2 object is the same or not.
+	  Mutex and rwlocks are supported.
+
+	  This capability will initially be used to lock an aor when multiple threads may
+	  be attempting to prune expired contacts from it.
+
+	  Change-Id: If258c0b7f92b02d07243ce70e535821a1ea7fb45
+
+2016-06-02 12:04 +0000 [a81feefde9]  Joshua Colp <jcolp@digium.com>
+
+	* res_odbc: Implement a connection pool.
+
+	  Testing has shown that our usage of UnixODBC is problematic
+	  due to bugs within UnixODBC itself as well as the heavy weight
+	  cost of connecting and disconnecting database connections, even
+	  when pooling is enabled.
+
+	  For users of UnixODBC 2.3.1 and earlier crashes would occur due
+	  to insufficient protection of the disconnect operation. This was
+	  fixed in UnixODBC 2.3.2 and above.
+
+	  For users of UnixODBC 2.3.3 and higher a slow-down would occur
+	  under heavy database use due to repeated connection establishment.
+	  A regression is present where on each connection the database
+	  configuration is cached again, with the cache growing out of
+	  control.
+
+	  The connection pool implementation present in this change helps
+	  to mitigate these issues by reducing how much we connect and
+	  disconnect database connections. We also solve the issue of
+	  crashes under UnixODBC 2.3.1 by defaulting the maximum number of
+	  connections to 1, returning us to the previous working behavior.
+	  For users who may have a fixed version the maximum concurrent
+	  connection limit can be increased helping with performance.
+
+	  The connection pool works by keeping a list of active connections.
+	  If the connection limit has not been reached a new connection is
+	  established. If the connection limit has been reached then the
+	  request waits until a connection becomes available before
+	  continuing.
+
+	  ASTERISK-26074 #close
+	  ASTERISK-26054 #close
+
+	  Change-Id: I6774bf4bac49a0b30242c76a09c403d2e856ecff
+
+2016-05-30 10:58 +0000 [aab8bc5d31]  gtjoseph <gjoseph@digium.com>
+
+	* pjproject_bundled:  Move to pjproject 2.5
+
+	  Although all the patches we had against 2.4.5 were applied by Teluu,
+	  a new bug was introduced preventing re-use of tcp and tls transports
+	  This patch removes all the previous patches against 2.4.5, updates
+	  the version to 2.5, and adds a new patch to correct the transport
+	  re-use problem.
+
+	  Change-Id: I0dc6c438c3910f7887418a5832ca186aea23d068
+	  (cherry picked from commit e8abfdcdc5ce4d32d1fe281e75b13fd652f9e5f7)
+
+2016-05-18 07:54 +0000 [b9a28ccbd4]  gtjoseph <gjoseph@digium.com>
+
+	* udptl:  Don't eat sequence numbers until OK is received
+
+	  Scenario:
+	  Local fax -> Asterisk w/ firewall -> Provider -> Remote fax
+
+	  * Local fax starts rtp call to remote fax
+	  * Remote fax starts t38 call back to local fax.
+	  * Local fax sends t38 no-signal to Asterisk before sending an OK.
+	  * udptl processes the frame and increments the expected sequence number.
+	  * chan_sip drops the frame because the call isn't up so nothing goes out
+	    the external interface to open the port for incoming packets.
+	  * Local fax sends OK and Asterisk sends OK to the remote fax.
+	  * Remote fax sends t38 packets which are dropped by the firewall.
+	  * Local fax re-sends t38 no-signal with the same sequence number.
+	  * udptl drops the frame because it thinks it's a dup.
+	  * Still no outgoing packets to open the firewall.
+	  * t38 negotiation fails.
+
+	  The patch drops frames t38 received before udptl sequence processing
+	  when the call hasn't been answered yet.  The second no-signal frame
+	  is then seen as new and is relayed out the external interface which
+	  opens the port and allows negotiation to continue.
+
+	  ASTERISK-26034 #close
+
+	  Change-Id: I11744b39748bd2ecbbe8ea84cdb4f3c5943c5af9
+
+2016-05-17 11:14 +0000 [f85c77a9e1]  gtjoseph <gjoseph@digium.com>
+
+	* chan_sip:  Prevent extra Session-Expires headers from being added
+
+	  When chan_sip does a re-INVITE to refresh a session and authentication
+	  is required, the INVITE with the Authorization header containes a
+	  second Session-Expires header without the ";refersher=" parameter.
+	  This is causing some proxies to return a 400.  Also, when Asterisk is
+	  the uas and the refresher, it is including the Session-Expires and
+	  Min-SE headers in OPTIONS messages which is not allowed per RFC4028.
+
+	  This patch (based on the reporter's) Checks to see if a Session-Expires
+	  header is already in the message before adding another one.  It also
+	  checks that the method is INVITE or UPDATE.
+
+	  ASTERISK-26030 #close
+
+	  Change-Id: I58a7b07bab5a3177748d8a7034fb8ad8e11ce1d9
+
+2016-05-07 14:39 +0000 [8bf050b853]  gtjoseph <gjoseph@digium.com>
+
+	* config_transport:  Tell pjproject to allow all SSL/TLS protocols
+
+	  The default tls settings for pjproject only allow TLS 1, TLS 1.1 and TLS 1.2.
+	  SSL is not allowed.   So, even if you specify "sslv3" for a transport method,
+	  it's silently ignored and one of the TLS protocols is used.  This was a new
+	  behavior of pjsip_tls_setting_default() in 2.4 (when tls.proto was added) that
+	  we never caught.
+
+	  Now we need to set tls.proto = 0 after we call pjsip_tls_setting_default().
+	  This tells pjproject to set the socket protocol to match the method.
+
+	  ASTERISK-26004 #close
+
+	  Change-Id: Icfb55c1ebe921298dedb4b1a1d3bdc3ca41dd078
+
+2016-05-05 11:37 +0000 [4fc2c98369]  Kevin Harwell <kharwell@digium.com>
+
+	* res_pjsip_authenticator_digest: Don't use source port in nonce verification
+
+	  From the issue reporter:
+	  "res_pjsip_outbound_authenticator_digest builds a nonce that is a hash of
+	  the timestamp, the source address, the source port, a server UUID that is
+	  calculated at startup, and the authentication realm.
+
+	  Rather than caching nonces that we create, we instead attempt to re-calculate
+	  the nonce when receiving an incoming request with authentication. We then
+	  compare the re-calculated nonce to the incoming nonce, and if they don't match,
+	  then authentication has failed early.
+
+	  The problem is that it is possible, especially when using TCP, to receive two
+	  requests from the same endpoint but have differing source ports for those
+	  requests. Asterisk itself commonly will use different source ports for
+	  outbound TCP requests."
+
+	  This patch removes the source port dependency when building the nonce.
+
+	  ASTERISK-25978 #close
+
+	  Change-Id: I871b5f4adce102df1c4988066283095ec509dffe
+
+2016-05-05 05:07 +0000 [4e7791d483]  Joshua Colp <jcolp@digium.com>
+
+	* file: Ensure nativeformats remains valid for lifetime of use.
+
+	  It is possible for the nativeformats of a channel to change
+	  throughout its lifetime. As a result a user of it needs to either
+	  ensure the channel is locked when accessing the formats or keep
+	  a reference to the nativeformats themselves.
+
+	  This change fixes the file playback support so it keeps a
+	  reference to the nativeformats when accessing things.
+
+	  ASTERISK-25998 #close
+
+	  Change-Id: Ie45b65475e1481ddf05b874ee48f63e39fff8915
+
 2016-05-03 12:55 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.8-cert1-rc2 Released.
