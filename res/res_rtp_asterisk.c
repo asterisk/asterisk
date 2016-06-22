@@ -1339,7 +1339,7 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 	if (!ast_strlen_zero(dtls_cfg->certfile)) {
 		char *private = ast_strlen_zero(dtls_cfg->pvtfile) ? dtls_cfg->certfile : dtls_cfg->pvtfile;
 		BIO *certbio;
-		X509 *cert;
+		X509 *cert = NULL;
 		const EVP_MD *type;
 		unsigned int size, i;
 		unsigned char fingerprint[EVP_MAX_MD_SIZE];
@@ -1381,6 +1381,9 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 			ast_log(LOG_ERROR, "Could not produce fingerprint from certificate '%s' for RTP instance '%p'\n",
 				dtls_cfg->certfile, instance);
 			BIO_free_all(certbio);
+			if (cert) {
+				X509_free(cert);
+			}
 			return -1;
 		}
 
@@ -1392,6 +1395,7 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 		*(local_fingerprint-1) = 0;
 
 		BIO_free_all(certbio);
+		X509_free(cert);
 	}
 
 	if (!ast_strlen_zero(dtls_cfg->cipher)) {
