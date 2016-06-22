@@ -177,7 +177,6 @@ static void log_forwarder(int level, const char *data, int len)
 	const char * log_source = "pjproject";
 	int log_line = 0;
 	const char *log_func = "<?>";
-	int mod_level;
 
 	if (pjproject_log_intercept.fd != -1
 		&& pjproject_log_intercept.thread == pthread_self()) {
@@ -196,10 +195,8 @@ static void log_forwarder(int level, const char *data, int len)
 	}
 
 	if (ast_level == __LOG_DEBUG) {
-		/* For levels 3 and up, obey the debug level for res_pjproject */
-		mod_level = ast_opt_dbg_module ?
-			ast_debug_get_by_module("res_pjproject") : 0;
-		if (option_debug < level && mod_level < level) {
+		/* Obey the debug level for res_pjproject */
+		if (!DEBUG_ATLEAST(level)) {
 			return;
 		}
 	}
