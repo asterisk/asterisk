@@ -11332,25 +11332,7 @@ static int process_sdp_a_audio(const char *a, struct sip_pvt *p, struct ast_rtp_
 				ast_rtp_codecs_payloads_unset(newaudiortp, NULL, codec);
 			}
 
-			if (ast_format_cmp(format, ast_format_siren7) == AST_FORMAT_CMP_EQUAL) {
-				if (sscanf(fmtp_string, "bitrate=%30u", &bit_rate) == 1) {
-					if (bit_rate != 32000) {
-						ast_log(LOG_WARNING, "Got Siren7 offer at %u bps, but only 32000 bps supported; ignoring.\n", bit_rate);
-						ast_rtp_codecs_payloads_unset(newaudiortp, NULL, codec);
-					} else {
-						found = TRUE;
-					}
-				}
-			} else if (ast_format_cmp(format, ast_format_siren14) == AST_FORMAT_CMP_EQUAL) {
-				if (sscanf(fmtp_string, "bitrate=%30u", &bit_rate) == 1) {
-					if (bit_rate != 48000) {
-						ast_log(LOG_WARNING, "Got Siren14 offer at %u bps, but only 48000 bps supported; ignoring.\n", bit_rate);
-						ast_rtp_codecs_payloads_unset(newaudiortp, NULL, codec);
-					} else {
-						found = TRUE;
-					}
-				}
-			} else if (ast_format_cmp(format, ast_format_g719) == AST_FORMAT_CMP_EQUAL) {
+			if (ast_format_cmp(format, ast_format_g719) == AST_FORMAT_CMP_EQUAL) {
 				if (sscanf(fmtp_string, "bitrate=%30u", &bit_rate) == 1) {
 					if (bit_rate != 64000) {
 						ast_log(LOG_WARNING, "Got G.719 offer at %u bps, but only 64000 bps supported; ignoring.\n", bit_rate);
@@ -13009,12 +12991,6 @@ static void add_codec_to_sdp(const struct sip_pvt *p,
 	} else if (ast_format_cmp(format, ast_format_g723) == AST_FORMAT_CMP_EQUAL) {
 		/* Indicate that we don't support VAD (G.723.1 annex A) */
 		ast_str_append(a_buf, 0, "a=fmtp:%d annexa=no\r\n", rtp_code);
-	} else if (ast_format_cmp(format, ast_format_siren7) == AST_FORMAT_CMP_EQUAL) {
-		/* Indicate that we only expect 32Kbps */
-		ast_str_append(a_buf, 0, "a=fmtp:%d bitrate=32000\r\n", rtp_code);
-	} else if (ast_format_cmp(format, ast_format_siren14) == AST_FORMAT_CMP_EQUAL) {
-		/* Indicate that we only expect 48Kbps */
-		ast_str_append(a_buf, 0, "a=fmtp:%d bitrate=48000\r\n", rtp_code);
 	} else if (ast_format_cmp(format, ast_format_g719) == AST_FORMAT_CMP_EQUAL) {
 		/* Indicate that we only expect 64Kbps */
 		ast_str_append(a_buf, 0, "a=fmtp:%d bitrate=64000\r\n", rtp_code);
