@@ -15327,13 +15327,6 @@ _ACEOF
 
 rm -f conftest*
 
-if ${ac_cv_func_setvbuf_reversed+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_cv_func_setvbuf_reversed=no
-fi
-
-
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking return type of signal handlers" >&5
 $as_echo_n "checking return type of signal handlers... " >&6; }
 if ${ac_cv_type_signal+:} false; then :
