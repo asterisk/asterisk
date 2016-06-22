@@ -969,7 +969,8 @@ inv_replace_failed:
 		session->defer_terminate = 1;
 		ast_hangup(session->channel);
 
-		if (pjsip_inv_end_session(session->inv_session, response, NULL, &packet) == PJ_SUCCESS) {
+		if (pjsip_inv_end_session(session->inv_session, response, NULL, &packet) == PJ_SUCCESS
+			&& packet) {
 			ast_sip_session_send_response(session, packet);
 		}
 	} else {
