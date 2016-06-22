@@ -46,6 +46,7 @@
 #include "asterisk/acl.h"
 #include "asterisk/features_config.h"
 #include "asterisk/pickup.h"
+#include "asterisk/test.h"
 
 #define SDP_HANDLER_BUCKETS 11
 
@@ -2687,14 +2688,49 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 					}
 				} else if (tsx->state == PJSIP_TSX_STATE_TERMINATED) {
 					if (inv->cancelling && tsx->status_code == PJSIP_SC_OK) {
-						/* This is a race condition detailed in RFC 5407 section 3.1.2.
-						 * We sent a CANCEL at the same time that the UAS sent us a 200 OK for
-						 * the original INVITE. As a result, we have now received a 200 OK for
-						 * a cancelled call. Our role is to immediately send a BYE to end the
-						 * dialog.
+						int sdp_negotiation_done =
+							pjmedia_sdp_neg_get_state(inv->neg) == PJMEDIA_SDP_NEG_STATE_DONE;
+
+						/*
+						 * We can get here for the following reasons.
+						 *
+						 * 1) The race condition detailed in RFC5407 section 3.1.2.
+						 * We sent a CANCEL at the same time that the UAS sent us a
+						 * 200 OK with a valid SDP for the original INVITE.  As a
+						 * result, we have now received a 200 OK for a cancelled
+						 * call and the SDP negotiation is complete.  We need to
+						 * immediately send a BYE to end the dialog.
+						 *
+						 * 2) We sent a CANCEL and hit the race condition but the
+						 * UAS sent us an invalid SDP with the 200 OK.  In this case
+						 * the SDP negotiation is incomplete and PJPROJECT has
+						 * already sent the BYE for us because of the invalid SDP.
+						 *
+						 * 3) We didn't send a CANCEL but the UAS sent us an invalid
+						 * SDP with the 200 OK.  In this case the SDP negotiation is
+						 * incomplete and PJPROJECT has already sent the BYE for us
+						 * because of the invalid SDP.
 						 */
-						if (pjsip_inv_end_session(inv, 500, NULL, &tdata) == PJ_SUCCESS
+						ast_test_suite_event_notify("PJSIP_SESSION_CANCELED",
+							"Endpoint: %s\r\n"
+							"Channel: %s\r\n"
+							"Message: %s\r\n"
+							"SDP: %s",
+							ast_sorcery_object_get_id(session->endpoint),
+							session->channel ? ast_channel_name(session->channel) : "",
+							pjsip_rx_data_get_info(e->body.tsx_state.src.rdata),
+							sdp_negotiation_done ? "complete" : "incomplete");
+						if (!sdp_negotiation_done) {
+							ast_debug(1, "Endpoint '%s(%s)': Incomplete SDP negotiation cancelled session.  %s\n",
+								ast_sorcery_object_get_id(session->endpoint),
+								session->channel ? ast_channel_name(session->channel) : "",
+								pjsip_rx_data_get_info(e->body.tsx_state.src.rdata));
+						} else if (pjsip_inv_end_session(inv, 500, NULL, &tdata) == PJ_SUCCESS
 							&& tdata) {
+							ast_debug(1, "Endpoint '%s(%s)': Ending session due to RFC5407 race condition.  %s\n",
+								ast_sorcery_object_get_id(session->endpoint),
+								session->channel ? ast_channel_name(session->channel) : "",
+								pjsip_rx_data_get_info(e->body.tsx_state.src.rdata));
 							ast_sip_session_send_request(session, tdata);
 						}
 					}
