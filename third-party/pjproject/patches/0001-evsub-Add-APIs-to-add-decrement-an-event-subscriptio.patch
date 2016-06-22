@@ -1,0 +1,73 @@
+From a5030c9b33b2c936879fbacb1d2ea5edc2979181 Mon Sep 17 00:00:00 2001
+From: George Joseph <gjoseph@digium.com>
+Date: Sat, 18 Jun 2016 10:14:34 -0600
+Subject: [PATCH] evsub:  Add APIs to add/decrement an event  subscription's
+ group lock
+
+These APIs can be used to ensure that the evsub isn't destroyed before
+an application is finished using it.
+---
+ pjsip/include/pjsip-simple/evsub.h | 20 ++++++++++++++++++++
+ pjsip/src/pjsip-simple/evsub.c     | 14 ++++++++++++++
+ 2 files changed, 34 insertions(+)
+
+diff --git a/pjsip/include/pjsip-simple/evsub.h b/pjsip/include/pjsip-simple/evsub.h
+index 2dc4d69..31f85f8 100644
+--- a/pjsip/include/pjsip-simple/evsub.h
++++ b/pjsip/include/pjsip-simple/evsub.h
+@@ -490,6 +490,26 @@ PJ_DECL(void) pjsip_evsub_set_mod_data( pjsip_evsub *sub, unsigned mod_id,
+ PJ_DECL(void*) pjsip_evsub_get_mod_data( pjsip_evsub *sub, unsigned mod_id );
+ 
+ 
++/**
++ * Increment the event subscription's group lock.
++ *
++ * @param sub		The server subscription instance.
++ *
++ * @return		PJ_SUCCESS on success.
++ */
++PJ_DEF(pj_status_t) pjsip_evsub_add_ref(pjsip_evsub *sub);
++
++
++/**
++ * Decrement the event subscription's group lock.
++ *
++ * @param sub		The server subscription instance.
++ *
++ * @return		PJ_SUCCESS on success.
++ */
++PJ_DEF(pj_status_t) pjsip_evsub_dec_ref(pjsip_evsub *sub);
++
++
+ 
+ PJ_END_DECL
+ 
+diff --git a/pjsip/src/pjsip-simple/evsub.c b/pjsip/src/pjsip-simple/evsub.c
+index 7cd8859..68a9564 100644
+--- a/pjsip/src/pjsip-simple/evsub.c
++++ b/pjsip/src/pjsip-simple/evsub.c
+@@ -831,7 +831,21 @@ static pj_status_t evsub_create( pjsip_dialog *dlg,
+     return PJ_SUCCESS;
+ }
+ 
++/*
++ * Increment the event subscription's group lock.
++ */
++PJ_DEF(pj_status_t) pjsip_evsub_add_ref(pjsip_evsub *sub)
++{
++    return pj_grp_lock_add_ref(sub->grp_lock);
++}
+ 
++/*
++ * Decrement the event subscription's group lock.
++ */
++PJ_DEF(pj_status_t) pjsip_evsub_dec_ref(pjsip_evsub *sub)
++{
++    return pj_grp_lock_dec_ref(sub->grp_lock);
++}
+ 
+ /*
+  * Create client subscription session.
+-- 
+2.5.5
+
