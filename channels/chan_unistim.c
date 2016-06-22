@@ -1021,7 +1021,7 @@ static int get_to_address(int fd, struct sockaddr_in *toAddr)
 	memcpy(&toAddr->sin_addr, &ip_msg.address, sizeof(struct in_addr));
 	return err;
 #else
-	memcpy(&toAddr, &public_ip, sizeof(&toAddr));
+	memcpy(toAddr, &public_ip, sizeof(*toAddr));
 	return 0;
 #endif
 }
