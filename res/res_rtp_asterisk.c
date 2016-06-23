@@ -484,8 +484,8 @@ static int ice_candidate_cmp(void *obj, void *arg, int flags)
 
 	if (strcmp(candidate1->foundation, candidate2->foundation) ||
 			candidate1->id != candidate2->id ||
-			ast_sockaddr_cmp(&candidate1->address, &candidate2->address) ||
-			candidate1->type != candidate1->type) {
+			candidate1->type != candidate2->type ||
+			ast_sockaddr_cmp(&candidate1->address, &candidate2->address)) {
 		return 0;
 	}
 
