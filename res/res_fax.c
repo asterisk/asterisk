@@ -2554,11 +2554,8 @@ static struct ast_fax_session *fax_v21_session_new (struct ast_channel *chan) {
 	}
 
 	v21_details->caps = AST_FAX_TECH_V21_DETECT;
-	if (!(v21_session = fax_session_new(v21_details, chan, NULL, NULL))) {
-		ao2_ref(v21_details, -1);
-		return NULL;
-	}
-
+	v21_session = fax_session_new(v21_details, chan, NULL, NULL);
+	ao2_ref(v21_details, -1);
 	return v21_session;
 }
 
