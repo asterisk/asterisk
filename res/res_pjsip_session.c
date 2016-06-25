@@ -791,12 +791,14 @@ static int delay_request(struct ast_sip_session *session,
 static pjmedia_sdp_session *generate_session_refresh_sdp(struct ast_sip_session *session)
 {
 	pjsip_inv_session *inv_session = session->inv_session;
-	const pjmedia_sdp_session *previous_sdp;
+	const pjmedia_sdp_session *previous_sdp = NULL;
 
-	if (pjmedia_sdp_neg_was_answer_remote(inv_session->neg)) {
-		pjmedia_sdp_neg_get_active_remote(inv_session->neg, &previous_sdp);
-	} else {
-		pjmedia_sdp_neg_get_active_local(inv_session->neg, &previous_sdp);
+	if (inv_session->neg) {
+		if (pjmedia_sdp_neg_was_answer_remote(inv_session->neg)) {
+			pjmedia_sdp_neg_get_active_remote(inv_session->neg, &previous_sdp);
+		} else {
+			pjmedia_sdp_neg_get_active_local(inv_session->neg, &previous_sdp);
+		}
 	}
 	return create_local_sdp(inv_session, session, previous_sdp);
 }
@@ -916,7 +918,7 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
 
 	if (generate_new_sdp) {
 		/* SDP can only be generated if current negotiation has already completed */
-		if (pjmedia_sdp_neg_get_state(inv_session->neg) != PJMEDIA_SDP_NEG_STATE_DONE) {
+		if (inv_session->neg && pjmedia_sdp_neg_get_state(inv_session->neg) != PJMEDIA_SDP_NEG_STATE_DONE) {
 			ast_debug(3, "Delay session refresh with new SDP to %s because SDP negotiation is not yet done...\n",
 				ast_sorcery_object_get_id(session->endpoint));
 			return delay_request(session, on_request_creation, on_sdp_creation,
