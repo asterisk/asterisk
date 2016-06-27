@@ -2513,6 +2513,36 @@ static int check_request_status(pjsip_inv_session *inv, pjsip_event *e)
 	return 1;
 }
 
+static void handle_incoming_before_media(pjsip_inv_session *inv,
+	struct ast_sip_session *session, pjsip_rx_data *rdata)
+{
+	pjsip_msg *msg;
+
+	handle_incoming(session, rdata, AST_SIP_SESSION_BEFORE_MEDIA);
+	msg = rdata->msg_info.msg;
+	if (msg->type == PJSIP_REQUEST_MSG
+		&& msg->line.req.method.id == PJSIP_ACK_METHOD
+		&& pjmedia_sdp_neg_get_state(inv->neg) != PJMEDIA_SDP_NEG_STATE_DONE) {
+		pjsip_tx_data *tdata;
+
+		/*
+		 * SDP negotiation failed on an incoming call that delayed
+		 * negotiation and then gave us an invalid SDP answer.  We
+		 * need to send a BYE to end the call because of the invalid
+		 * SDP answer.
+		 */
+		ast_debug(1,
+			"Endpoint '%s(%s)': Ending session due to incomplete SDP negotiation.  %s\n",
+			ast_sorcery_object_get_id(session->endpoint),
+			session->channel ? ast_channel_name(session->channel) : "",
+			pjsip_rx_data_get_info(rdata));
+		if (pjsip_inv_end_session(inv, 400, NULL, &tdata) == PJ_SUCCESS
+			&& tdata) {
+			ast_sip_session_send_request(session, tdata);
+		}
+	}
+}
+
 static void session_inv_on_state_changed(pjsip_inv_session *inv, pjsip_event *e)
 {
 	struct ast_sip_session *session = inv->mod_data[session_module.id];
@@ -2534,8 +2564,7 @@ static void session_inv_on_state_changed(pjsip_inv_session *inv, pjsip_event *e)
 		handle_outgoing(session, e->body.tx_msg.tdata);
 		break;
 	case PJSIP_EVENT_RX_MSG:
-		handle_incoming(session, e->body.rx_msg.rdata,
-			AST_SIP_SESSION_BEFORE_MEDIA);
+		handle_incoming_before_media(inv, session, e->body.rx_msg.rdata);
 		break;
 	case PJSIP_EVENT_TSX_STATE:
 		ast_debug(3, "Source of transaction state change is %s\n", pjsip_event_str(e->body.tsx_state.type));
@@ -2546,8 +2575,7 @@ static void session_inv_on_state_changed(pjsip_inv_session *inv, pjsip_event *e)
 			break;
 		case PJSIP_EVENT_RX_MSG:
 			if (!check_request_status(inv, e)) {
-				handle_incoming(session, e->body.tsx_state.src.rdata,
-					AST_SIP_SESSION_BEFORE_MEDIA);
+				handle_incoming_before_media(inv, session, e->body.tsx_state.src.rdata);
 			}
 			break;
 		case PJSIP_EVENT_TRANSPORT_ERROR:
