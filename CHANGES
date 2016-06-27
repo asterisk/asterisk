@@ -347,6 +347,10 @@ Core
    in the context. If enabled a device state hint will be automatically created
    with the name of the device.
 
+* If Asterisk is built with systemd support, and run under systemd, it will
+  notify systemd of its state using sd_notify. Use 'Type=notify' in
+  asterisk.service.
+
 Functions
 ------------------
  * The func_odbc global option "single_db_connection" default value has been
