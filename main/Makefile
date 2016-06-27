@@ -45,6 +45,9 @@ AST_LIBS+=$(UUID_LIB)
 AST_LIBS+=$(CRYPT_LIB)
 AST_LIBS+=$(AST_CLANG_BLOCKS_LIBS)
 AST_LIBS+=$(RT_LIB)
+ifeq ($(HAVE_SYSTEMD),1)
+AST_LIBS+=$(SYSTEMD_LIB)
+endif
 
 ifneq ($(findstring $(OSARCH), linux-gnu uclinux linux-uclibc linux-musl kfreebsd-gnu),)
   ifneq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)

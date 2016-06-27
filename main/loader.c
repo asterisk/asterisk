@@ -891,6 +891,7 @@ enum ast_module_reload_result ast_module_reload(const char *name)
 		res = AST_MODULE_RELOAD_IN_PROGRESS;
 		goto module_reload_exit;
 	}
+	ast_sd_notify("RELOAD=1");
 	ast_lastreloadtime = ast_tvnow();
 
 	if (ast_opt_lock_confdir) {
@@ -966,6 +967,7 @@ enum ast_module_reload_result ast_module_reload(const char *name)
 	if (ast_opt_lock_confdir) {
 		ast_unlock_path(ast_config_AST_CONFIG_DIR);
 	}
+	ast_sd_notify("READY=1");
 	ast_mutex_unlock(&reloadlock);
 
 module_reload_exit:

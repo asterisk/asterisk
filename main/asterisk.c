@@ -1990,6 +1990,9 @@ static void really_quit(int num, shutdown_nice_t niceness, int restart)
 		ast_module_shutdown();
 	}
 
+	if (!restart) {
+		ast_sd_notify("STOPPING=1");
+	}
 	if (ast_opt_console || (ast_opt_remote && !ast_opt_exec)) {
 		ast_el_write_default_histfile();
 		if (consolethread == AST_PTHREADT_NULL || consolethread == pthread_self()) {
@@ -4727,6 +4730,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	ast_register_cleanup(main_atexit);
 
 	run_startup_commands();
+	ast_sd_notify("READY=1");
 
 	ast_verb(0, COLORIZE_FMT "\n", COLORIZE(COLOR_BRGREEN, 0, "Asterisk Ready."));
 
