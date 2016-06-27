@@ -77,6 +77,12 @@ app_confbridge
     instance, allows a channel to immediately exit the ConfBridge without having
     to wait for a leave announcement to play.
 
+Core
+------------------
+  * If Asterisk is built with systemd support, and run under systemd, it will
+    notify systemd of its state using sd_notify. Use 'Type=notify' in
+    asterisk.service.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.10.0 to Asterisk 13.11.0 ----------
 ------------------------------------------------------------------------------
