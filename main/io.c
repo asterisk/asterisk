@@ -384,3 +384,11 @@ int ast_get_termcols(int fd)
 	return cols;
 }
 
+int ast_sd_notify(const char *state) {
+#ifdef HAVE_SYSTEMD
+#include <systemd/sd-daemon.h>
+	return sd_notify(0, state);
+#else
+	return 0;
+#endif
+}
