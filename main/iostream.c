@@ -462,10 +462,12 @@ int ast_iostream_close(struct ast_iostream *stream)
 					SSL_get_error(stream->ssl, res));
 			}
 
+#if !defined(OPENSSL_API_COMPAT) || OPENSSL_API_COMPAT < 0x10100000L
 			if (!stream->ssl->server) {
 				/* For client threads, ensure that the error stack is cleared */
 				ERR_remove_state(0);
 			}
+#endif  /* !defined(OPENSSL_API_COMPAT) || OPENSSL_API_COMPAT < 0x10100000L */
 
 			SSL_free(stream->ssl);
 			stream->ssl = NULL;
