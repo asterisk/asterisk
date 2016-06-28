@@ -397,13 +397,15 @@ static int tcptls_stream_close(void *cookie)
 					SSL_get_error(stream->ssl, res));
 			}
 
-			if (!stream->ssl->server) {
+			if (!SSL_is_server(stream->ssl)) {
 				/* For client threads, ensure that the error stack is cleared */
+#if OPENSSL_API_COMPAT < 0x10100000L
 #if OPENSSL_VERSION_NUMBER >= 0x10000000L
 				ERR_remove_thread_state(NULL);
 #else
 				ERR_remove_state(0);
 #endif	/* OPENSSL_VERSION_NUMBER >= 0x10000000L */
+#endif  /* OPENSSL_API_COMPAT < 0x10100000L */
 			}
 
 			SSL_free(stream->ssl);
@@ -830,7 +832,7 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 	}
 
 	if (client) {
-#ifndef OPENSSL_NO_SSL2
+#if !defined(OPENSSL_NO_SSL2) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
 		if (ast_test_flag(&cfg->flags, AST_SSL_SSLV2_CLIENT)) {
 			ast_log(LOG_WARNING, "Usage of SSLv2 is discouraged due to known vulnerabilities. Please use 'tlsv1' or leave the TLS method unspecified!\n");
 			cfg->ssl_ctx = SSL_CTX_new(SSLv2_client_method());
