@@ -212,7 +212,6 @@ static char moh[80] = "default";
 #define AST_MAX_BUF	256
 #define AST_MAX_FILENAME_LEN	256
 
-static const char pa_family[] = "Agents";          /*!< Persistent Agents astdb family */
 #define PA_MAX_LEN 2048                             /*!< The maximum length of each persistent member agent database entry */
 
 #define DEFAULT_ACCEPTDTMF '#'
@@ -1857,11 +1856,6 @@ static char *agents_show_online(struct ast_cli_entry *e, int cmd, struct ast_cli
 	ast_cli(a->fd, "\n");
 	return CLI_SUCCESS;
 }
-
-static const char agent_logoff_usage[] =
-"Usage: agent logoff <channel> [soft]\n"
-"       Sets an agent as no longer logged in.\n"
-"       If 'soft' is specified, do not hangup existing calls.\n";
 
 static struct ast_cli_entry cli_agents[] = {
 	AST_CLI_DEFINE(agents_show, "Show status of agents"),
