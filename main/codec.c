@@ -49,6 +49,66 @@ static int codec_id = 1;
 /*! \brief Registered codecs */
 static struct ao2_container *codecs;
 
+/*!
+ * \brief Internal codec structure
+ *
+ * External codecs won't know about the format_name field so the public
+ * ast_codec structure has to leave it out.  This structure will be used
+ * for the internal codecs.
+ *
+ */
+struct internal_ast_codec {
+	/*! \brief Internal unique identifier for this codec, set at registration time (starts at 1) */
+	unsigned int id;
+	/*! \brief Name for this codec */
+	const char *name;
+	/*! \brief Brief description */
+	const char *description;
+	/*! \brief Type of media this codec contains */
+	enum ast_media_type type;
+	/*! \brief Sample rate (number of samples carried in a second) */
+	unsigned int sample_rate;
+	/*! \brief Minimum length of media that can be carried (in milliseconds) in a frame */
+	unsigned int minimum_ms;
+	/*! \brief Maximum length of media that can be carried (in milliseconds) in a frame */
+	unsigned int maximum_ms;
+	/*! \brief Default length of media carried (in milliseconds) in a frame */
+	unsigned int default_ms;
+	/*! \brief Length in bytes of the data payload of a minimum_ms frame */
+	unsigned int minimum_bytes;
+	/*!
+	 * \brief Retrieve the number of samples in a frame
+	 *
+	 * \param frame The frame to examine
+	 *
+	 * \return the number of samples
+	 */
+	int (*samples_count)(struct ast_frame *frame);
+	/*!
+	 * \brief Retrieve the length of media from number of samples
+	 *
+	 * \param samples The number of samples
+	 *
+	 * \return The length of media in milliseconds
+	 */
+	int (*get_length)(unsigned int samples);
+	/*! \brief Whether the media can be smoothed or not */
+	unsigned int smooth;
+	/*! \brief The module that registered this codec */
+	struct ast_module *mod;
+	/*! \brief A format name for a default sane format using this codec */
+	const char *format_name;
+};
+
+/*!
+ * \brief Internal function for registration with format name
+ *
+ * This function is only used by codec.c and codec_builtin.c and
+ * will be removed in Asterisk 14
+ */
+int __ast_codec_register_with_format(struct ast_codec *codec, const char *format_name,
+	struct ast_module *mod);
+
 static int codec_hash(const void *obj, int flags)
 {
 	const struct ast_codec *codec;
@@ -113,7 +173,7 @@ static int codec_cmp(void *obj, void *arg, int flags)
 static char *show_codecs(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ao2_iterator i;
-	struct ast_codec *codec;
+	struct internal_ast_codec *codec;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -190,7 +250,7 @@ static int codec_id_cmp(void *obj, void *arg, int flags)
 static char *show_codec(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int type_punned_codec;
-	struct ast_codec *codec;
+	struct internal_ast_codec *codec;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -263,8 +323,13 @@ static void codec_dtor(void *obj)
 
 int __ast_codec_register(struct ast_codec *codec, struct ast_module *mod)
 {
+	return __ast_codec_register_with_format(codec, NULL, mod);
+}
+
+int __ast_codec_register_with_format(struct ast_codec *codec, const char *format_name, struct ast_module *mod)
+{
 	SCOPED_AO2WRLOCK(lock, codecs);
-	struct ast_codec *codec_new;
+	struct internal_ast_codec *codec_new;
 
 	/* Some types have specific requirements */
 	if (codec->type == AST_MEDIA_TYPE_UNKNOWN) {
@@ -293,7 +358,8 @@ int __ast_codec_register(struct ast_codec *codec, struct ast_module *mod)
 			codec->name, ast_codec_media_type2str(codec->type), codec->sample_rate);
 		return -1;
 	}
-	*codec_new = *codec;
+	memcpy(codec_new, codec, sizeof(*codec));
+	codec_new->format_name = format_name;
 	codec_new->id = codec_id++;
 
 	ao2_link_flags(codecs, codec_new, OBJ_NOLOCK);
