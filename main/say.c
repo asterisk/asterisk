@@ -5201,13 +5201,14 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t t, const char *
 			case 'I':
 			case 'l':
 				/* 12-Hour */
-				if (tm.tm_hour == 0)
+				if (tm.tm_hour == 0) {
 					ast_copy_string(nextmsg, "digits/12", sizeof(nextmsg));
-				else if (tm.tm_hour > 12)
+				} else if (tm.tm_hour > 12) {
 					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
-				else
+				} else {
 					snprintf(nextmsg, sizeof(nextmsg), "digits/%d", tm.tm_hour);
-					res = wait_file(chan, ints, nextmsg, lang);
+				}
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'H':
 			case 'k':
@@ -5227,11 +5228,12 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t t, const char *
 			case 'P':
 			case 'p':
 				/* AM/PM */
-				if (tm.tm_hour > 11)
+				if (tm.tm_hour > 11) {
 					ast_copy_string(nextmsg, "digits/p-m", sizeof(nextmsg));
-				else
+				} else {
 					ast_copy_string(nextmsg, "digits/a-m", sizeof(nextmsg));
-					res = wait_file(chan, ints, nextmsg, lang);
+				}
+				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'Q':
 				/* Shorthand for "Today", "Yesterday", or ABdY */
