@@ -1849,13 +1849,14 @@ void ast_get_dst_info(const time_t * const timep, int *dst_enabled, time_t *dst_
 		*dst_enabled = 0;
 		/* Find where I can get gmtoff */
 		i = 0;
-		while (sp->ttis[i].tt_isdst)
+		while (sp->ttis[i].tt_isdst) {
 			if (++i >= sp->typecnt) {
-			i = 0;
-			break;
+				i = 0;
+				break;
 			}
-			*gmt_off = sp->ttis[i].tt_gmtoff;
-			return;
+		}
+		*gmt_off = sp->ttis[i].tt_gmtoff;
+		return;
 	}
 
 	for (i = 1; i < sp->timecnt; ++i) {
