@@ -567,8 +567,10 @@ static const unsigned char packet_send_stream_based_tone_off[] =
 	{ 0x16, 0x05, 0x1c, 0x00, 0x00 };
 
 static const unsigned char packet_send_mute[] = { 0x16, 0x05, 0x04, 0x00, 0x00 };
+#ifdef NOT_USED
 static const unsigned char packet_send_CloseAudioStreamRX[] = { 0x16, 0x05, 0x31, 0x00, 0xff };
 static const unsigned char packet_send_CloseAudioStreamTX[] = { 0x16, 0x05, 0x31, 0xff, 0x00 };
+#endif
 static const unsigned char packet_send_stream_based_tone_on[] =
 	{ 0x16, 0x06, 0x1b, 0x00, 0x00, 0x05 };
 static const unsigned char packet_send_stream_based_tone_single_freq[] =
