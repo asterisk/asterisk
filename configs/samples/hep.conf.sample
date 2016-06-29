@@ -4,7 +4,7 @@
 
 ; All settings are currently set in the general section.
 [general]
-enabled = yes                      ; Enable/disable forwarding of packets to a
+enabled = no                       ; Enable/disable forwarding of packets to a
                                    ; HEP server. Default is "yes".
 capture_address = 192.168.1.1:9061 ; The address of the HEP capture server.
 capture_password = foo             ; If specified, the authorization passsword
