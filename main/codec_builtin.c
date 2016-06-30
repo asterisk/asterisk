@@ -772,6 +772,65 @@ static struct ast_codec t140 = {
 	.type = AST_MEDIA_TYPE_TEXT,
 };
 
+static int silk_samples(struct ast_frame *frame)
+{
+	/* XXX This is likely not at all what's intended from this callback. However,
+	 * since SILK is variable bit rate, I have no idea how to take a frame of data
+	 * and determine the number of samples present. Instead, we base this on the
+	 * sample rate of the codec and the expected number of samples to receive in 20ms.
+	 * In testing, this has worked just fine.
+	 */
+	return ast_format_get_sample_rate(frame->subclass.format) / 50;
+}
+
+static struct ast_codec silk8 = {
+	.name = "silk",
+	.description = "SILK Codec (8 KHz)",
+	.type = AST_MEDIA_TYPE_AUDIO,
+	.sample_rate = 8000,
+	.minimum_ms = 20,
+	.maximum_ms = 100,
+	.default_ms = 20,
+	.minimum_bytes = 160,
+	.samples_count = silk_samples
+};
+
+static struct ast_codec silk12 = {
+	.name = "silk",
+	.description = "SILK Codec (12 KHz)",
+	.type = AST_MEDIA_TYPE_AUDIO,
+	.sample_rate = 12000,
+	.minimum_ms = 20,
+	.maximum_ms = 100,
+	.default_ms = 20,
+	.minimum_bytes = 240,
+	.samples_count = silk_samples
+};
+
+static struct ast_codec silk16 = {
+	.name = "silk",
+	.description = "SILK Codec (16 KHz)",
+	.type = AST_MEDIA_TYPE_AUDIO,
+	.sample_rate = 16000,
+	.minimum_ms = 20,
+	.maximum_ms = 100,
+	.default_ms = 20,
+	.minimum_bytes = 320,
+	.samples_count = silk_samples
+};
+
+static struct ast_codec silk24 = {
+	.name = "silk",
+	.description = "SILK Codec (24 KHz)",
+	.type = AST_MEDIA_TYPE_AUDIO,
+	.sample_rate = 24000,
+	.minimum_ms = 20,
+	.maximum_ms = 100,
+	.default_ms = 20,
+	.minimum_bytes = 480,
+	.samples_count = silk_samples
+};
+
 #define CODEC_REGISTER_AND_CACHE(codec) \
 	({ \
 		int __res_ ## __LINE__ = 0; \
@@ -843,6 +902,10 @@ int ast_codec_builtin_init(void)
 	res |= CODEC_REGISTER_AND_CACHE(t140red);
 	res |= CODEC_REGISTER_AND_CACHE(t140);
 	res |= CODEC_REGISTER_AND_CACHE(none);
+	res |= CODEC_REGISTER_AND_CACHE_NAMED("silk8", silk8);
+	res |= CODEC_REGISTER_AND_CACHE_NAMED("silk12", silk12);
+	res |= CODEC_REGISTER_AND_CACHE_NAMED("silk16", silk16);
+	res |= CODEC_REGISTER_AND_CACHE_NAMED("silk24", silk24);
 
 	return res;
 }
