@@ -224,6 +224,14 @@ extern struct ast_format *ast_format_t140_red;
 extern struct ast_format *ast_format_none;
 
 /*!
+ * \brief Built-in SILK format.
+ */
+extern struct ast_format *ast_format_silk8;
+extern struct ast_format *ast_format_silk12;
+extern struct ast_format *ast_format_silk16;
+extern struct ast_format *ast_format_silk24;
+
+/*!
  * \brief Initialize format cache support within the core.
  *
  * \retval 0 success
