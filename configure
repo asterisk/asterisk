@@ -25199,7 +25199,7 @@ if test "x${PBX_PJSIP_EVSUB_GRP_LOCK}" != "x1" -a "${USE_PJSIP_EVSUB_GRP_LOCK}" 
          pbxlibdir="-L${PJSIP_EVSUB_GRP_LOCK_DIR}"
       fi
    fi
-   pbxfuncname="pjsip_evsub_add_lock"
+   pbxfuncname="pjsip_evsub_add_ref"
    if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
       AST_PJSIP_EVSUB_GRP_LOCK_FOUND=yes
    else
