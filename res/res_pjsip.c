@@ -1166,6 +1166,12 @@
 						REGISTER requests and is not intended to be configured manually.
 					</para></description>
 				</configOption>
+				<configOption name="endpoint">
+					<synopsis>Endpoint name</synopsis>
+					<description><para>
+						The name of the endpoint this contact belongs to
+					</para></description>
+				</configOption>
 				<configOption name="reg_server">
 					<synopsis>Asterisk Server name</synopsis>
 					<description><para>

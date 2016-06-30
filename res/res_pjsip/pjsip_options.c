@@ -341,7 +341,12 @@ static int qualify_contact(struct ast_sip_endpoint *endpoint, struct ast_sip_con
 	if (endpoint) {
 		endpoint_local = ao2_bump(endpoint);
 	} else {
-		endpoint_local = find_an_endpoint(contact);
+		if (!ast_strlen_zero(contact->endpoint_name)) {
+			endpoint_local = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", contact->endpoint_name);
+		}
+		if (!endpoint_local) {
+			endpoint_local = find_an_endpoint(contact);
+		}
 		if (!endpoint_local) {
 			ast_log(LOG_ERROR, "Unable to find an endpoint to qualify contact %s\n",
 				contact->uri);
@@ -1251,6 +1256,126 @@ static const struct ast_sorcery_observer observer_callbacks_options = {
 	.deleted = aor_observer_deleted
 };
 
+static int aor_update_endpoint_state(void *obj, void *arg, int flags)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+	const char *endpoint_name = ast_sorcery_object_get_id(endpoint);
+	char *aor = arg;
+	char *endpoint_aor;
+	char *endpoint_aors;
+
+	if (ast_strlen_zero(aor) || ast_strlen_zero(endpoint->aors)) {
+		return 0;
+	}
+
+	endpoint_aors = ast_strdupa(endpoint->aors);
+	while ((endpoint_aor = ast_strip(strsep(&endpoint_aors, ",")))) {
+		if (!strcmp(aor, endpoint_aor)) {
+			if (ast_sip_persistent_endpoint_update_state(endpoint_name, AST_ENDPOINT_ONLINE) == -1) {
+				ast_log(LOG_WARNING, "Unable to find persistent endpoint '%s' for aor '%s'\n",
+					endpoint_name, aor);
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int on_aor_update_endpoint_state(void *obj, void *arg, int flags)
+{
+	struct ast_sip_aor *aor = obj;
+	struct ao2_container *endpoints;
+	RAII_VAR(struct ast_variable *, var, NULL, ast_variables_destroy);
+	const char *aor_name = ast_sorcery_object_get_id(aor);
+	char *aor_like;
+
+	if (ast_strlen_zero(aor_name)) {
+		return -1;
+	}
+
+	if (aor->permanent_contacts && ((int)(aor->qualify_frequency * 1000)) <= 0) {
+		aor_like = ast_alloca(strlen(aor_name) + 3);
+		sprintf(aor_like, "%%%s%%", aor_name);
+		var = ast_variable_new("aors LIKE", aor_like, "");
+		if (!var) {
+			return -1;
+		}
+		endpoints = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(),
+			"endpoint", AST_RETRIEVE_FLAG_MULTIPLE, var);
+
+		if (endpoints) {
+		    /*
+		     * Because aors are a string list, we have to use a pattern match but since a simple
+		     * pattern match could return an endpoint that has an aor of "aaabccc" when searching
+		     * for "abc", we still have to iterate over them to find an exact aor match.
+		     */
+		    ao2_callback(endpoints, 0, aor_update_endpoint_state, (char *)aor_name);
+		    ao2_ref(endpoints, -1);
+		}
+	}
+
+	return 0;
+}
+
+static int contact_update_endpoint_state(void *obj, void *arg, int flags)
+{
+	const struct ast_sip_contact *contact = obj;
+	struct timeval tv = ast_tvnow();
+
+	if (!ast_strlen_zero(contact->endpoint_name) && ((int)(contact->qualify_frequency * 1000)) <= 0 &&
+		contact->expiration_time.tv_sec > tv.tv_sec) {
+
+		if (ast_sip_persistent_endpoint_update_state(contact->endpoint_name, AST_ENDPOINT_ONLINE) == -1) {
+			ast_log(LOG_WARNING, "Unable to find persistent endpoint '%s' for contact '%s/%s'\n",
+				contact->endpoint_name, contact->aor, contact->uri);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+static void update_all_unqualified_endpoints(void)
+{
+	struct ao2_container *aors;
+	struct ao2_container *contacts;
+	RAII_VAR(struct ast_variable *, var_aor, NULL, ast_variables_destroy);
+	RAII_VAR(struct ast_variable *, var_contact, NULL, ast_variables_destroy);
+	RAII_VAR(char *, time_now, NULL, ast_free);
+	struct timeval tv = ast_tvnow();
+
+	if (!(var_aor = ast_variable_new("contact !=", "", ""))) {
+		return;
+	}
+	if (!(var_aor->next = ast_variable_new("qualify_frequency <=", "0", ""))) {
+		return;
+	}
+
+	if (ast_asprintf(&time_now, "%ld", tv.tv_sec) == -1) {
+		return;
+	}
+	if (!(var_contact = ast_variable_new("expiration_time >", time_now, ""))) {
+		return;
+	}
+	if (!(var_contact->next = ast_variable_new("qualify_frequency <=", "0", ""))) {
+		return;
+	}
+
+	aors = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(),
+		"aor", AST_RETRIEVE_FLAG_MULTIPLE, var_aor);
+	if (aors) {
+		ao2_callback(aors, OBJ_NODATA, on_aor_update_endpoint_state, NULL);
+		ao2_ref(aors, -1);
+	}
+
+	contacts = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(),
+		"contact", AST_RETRIEVE_FLAG_MULTIPLE, var_contact);
+	if (contacts) {
+		ao2_callback(contacts, OBJ_NODATA, contact_update_endpoint_state, NULL);
+		ao2_ref(contacts, -1);
+	}
+}
+
 int ast_res_pjsip_init_options_handling(int reload)
 {
 	static const pj_str_t STR_OPTIONS = { "OPTIONS", 7 };
@@ -1292,6 +1417,7 @@ int ast_res_pjsip_init_options_handling(int reload)
 	ast_manager_register2("PJSIPQualify", EVENT_FLAG_SYSTEM | EVENT_FLAG_REPORTING, ami_sip_qualify, NULL, NULL, NULL);
 	ast_cli_register_multiple(cli_options, ARRAY_LEN(cli_options));
 
+	update_all_unqualified_endpoints();
 	qualify_and_schedule_all();
 
 	return 0;

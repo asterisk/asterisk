@@ -122,6 +122,7 @@ static void *contact_alloc(const char *name)
 		return NULL;
 	}
 
+	ast_string_field_init_extended(contact, endpoint_name);
 	ast_string_field_init_extended(contact, reg_server);
 	ast_string_field_init_extended(contact, via_addr);
 	ast_string_field_init_extended(contact, call_id);
@@ -356,6 +357,10 @@ int ast_sip_location_add_contact_nolock(struct ast_sip_aor *aor, const char *uri
 	}
 
 	contact->endpoint = ao2_bump(endpoint);
+
+	if (endpoint) {
+		ast_string_field_set(contact, endpoint_name, ast_sorcery_object_get_id(endpoint));
+	}
 
 	return ast_sorcery_create(ast_sip_get_sorcery(), contact);
 }
@@ -1141,6 +1146,7 @@ int ast_sip_initialize_sorcery_location(void)
 	ast_sorcery_object_field_register(sorcery, "contact", "authenticate_qualify", "no", OPT_YESNO_T, 1, FLDSET(struct ast_sip_contact, authenticate_qualify));
 	ast_sorcery_object_field_register(sorcery, "contact", "outbound_proxy", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_contact, outbound_proxy));
 	ast_sorcery_object_field_register(sorcery, "contact", "user_agent", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_contact, user_agent));
+	ast_sorcery_object_field_register(sorcery, "contact", "endpoint", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_contact, endpoint_name));
 	ast_sorcery_object_field_register(sorcery, "contact", "reg_server", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_contact, reg_server));
 	ast_sorcery_object_field_register(sorcery, "contact", "via_addr", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_contact, via_addr));
 	ast_sorcery_object_field_register(sorcery, "contact", "via_port", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_contact, via_port));
