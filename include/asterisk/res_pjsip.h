@@ -256,6 +256,8 @@ struct ast_sip_contact {
 	int via_port;
 	/*! Content of the Call-ID header in REGISTER request */
 	AST_STRING_FIELD_EXTENDED(call_id);
+	/*! The name of the endpoint that added the contact */
+	AST_STRING_FIELD_EXTENDED(endpoint_name);
 };
 
 #define CONTACT_STATUS "contact_status"
@@ -976,6 +978,16 @@ void ast_sip_unregister_endpoint_identifier(struct ast_sip_endpoint_identifier *
  * \retval non-NULL The newly allocated endpoint
  */
 void *ast_sip_endpoint_alloc(const char *name);
+
+/*!
+ * \brief Change state of a persistent endpoint.
+ *
+ * \param endpoint The SIP endpoint name to change state.
+ * \param state The new state
+ * \retval 0 Success
+ * \retval -1 Endpoint not found
+ */
+int ast_sip_persistent_endpoint_update_state(const char *endpoint_name, enum ast_endpoint_state state);
 
 /*!
  * \brief Get a pointer to the PJSIP endpoint.
