@@ -1466,7 +1466,8 @@ static void transfer_redirect(struct ast_sip_session *session, const char *targe
 	pjsip_contact_hdr *contact;
 	pj_str_t tmp;
 
-	if (pjsip_inv_end_session(session->inv_session, 302, NULL, &packet) != PJ_SUCCESS) {
+	if (pjsip_inv_end_session(session->inv_session, 302, NULL, &packet) != PJ_SUCCESS
+		|| !packet) {
 		ast_log(LOG_WARNING, "Failed to redirect PJSIP session for channel %s\n",
 			ast_channel_name(session->channel));
 		message = AST_TRANSFER_FAILED;
@@ -2231,7 +2232,8 @@ static int chan_pjsip_incoming_request(struct ast_sip_session *session, struct p
 	ast_sip_session_add_datastore(session, datastore);
 
 	if (!(session->channel = chan_pjsip_new(session, AST_STATE_RING, session->exten, NULL, NULL, NULL, NULL))) {
-		if (pjsip_inv_end_session(session->inv_session, 503, NULL, &packet) == PJ_SUCCESS) {
+		if (pjsip_inv_end_session(session->inv_session, 503, NULL, &packet) == PJ_SUCCESS
+			&& packet) {
 			ast_sip_session_send_response(session, packet);
 		}
 
