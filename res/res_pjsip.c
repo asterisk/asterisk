@@ -24,6 +24,7 @@
 #include <pjsip/sip_transaction.h>
 #include <pj/timer.h>
 #include <pjlib.h>
+#include <pjmedia/errno.h>
 
 #include "asterisk/res_pjsip.h"
 #include "res_pjsip/include/res_pjsip_private.h"
@@ -4293,6 +4294,19 @@ error:
 	return AST_MODULE_LOAD_DECLINE;
 }
 
+/*
+ * This is a place holder function to ensure that pjmedia_strerr() is at
+ * least directly referenced by this module to ensure that the loader
+ * linker will link to the function.  If a module only indirectly
+ * references a function from another module, such as a callback parameter
+ * to a function, the loader linker has been known to miss the link.
+ */
+void never_called_res_pjsip(void);
+void never_called_res_pjsip(void)
+{
+	pjmedia_strerror(0, NULL, 0);
+}
+
 static int load_module(void)
 {
 	struct ast_threadpool_options options;
@@ -4306,6 +4320,12 @@ static int load_module(void)
 
 	if (pjlib_util_init() != PJ_SUCCESS) {
 		goto error;
+	}
+
+	/* Register PJMEDIA error codes for SDP parsing errors */
+	if (pj_register_strerror(PJMEDIA_ERRNO_START, PJ_ERRNO_SPACE_SIZE, pjmedia_strerror)
+		!= PJ_SUCCESS) {
+		ast_log(LOG_WARNING, "Failed to register pjmedia error codes.  Codes will not be decoded.\n");
 	}
 
 	if (ast_sip_initialize_system()) {
