@@ -130,7 +130,7 @@ static void __frame_free(struct ast_frame *fr, int cache)
 		    (frames->size < FRAME_CACHE_MAX_SIZE)) {
 			if ((fr->frametype == AST_FRAME_VOICE) || (fr->frametype == AST_FRAME_VIDEO) ||
 				(fr->frametype == AST_FRAME_IMAGE)) {
-				ao2_cleanup(fr->subclass.format);
+				ao2_s_cleanup(&fr->subclass.format);
 			}
 
 			AST_LIST_INSERT_HEAD(&frames->list, fr, frame_list);
@@ -151,7 +151,7 @@ static void __frame_free(struct ast_frame *fr, int cache)
 	if (fr->mallocd & AST_MALLOCD_HDR) {
 		if ((fr->frametype == AST_FRAME_VOICE) || (fr->frametype == AST_FRAME_VIDEO) ||
 			(fr->frametype == AST_FRAME_IMAGE)) {
-			ao2_cleanup(fr->subclass.format);
+			ao2_s_cleanup(&fr->subclass.format);
 		}
 
 		ast_free(fr);
@@ -210,7 +210,7 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 		out->frametype = fr->frametype;
 		if ((fr->frametype == AST_FRAME_VOICE) || (fr->frametype == AST_FRAME_VIDEO) ||
 			(fr->frametype == AST_FRAME_IMAGE)) {
-			out->subclass.format = ao2_bump(fr->subclass.format);
+			ao2_s_set(&out->subclass.format, fr->subclass.format);
 		} else {
 			memcpy(&out->subclass, &fr->subclass, sizeof(out->subclass));
 		}
@@ -323,7 +323,7 @@ struct ast_frame *ast_frdup(const struct ast_frame *f)
 	out->subclass = f->subclass;
 	if ((f->frametype == AST_FRAME_VOICE) || (f->frametype == AST_FRAME_VIDEO) ||
 		(f->frametype == AST_FRAME_IMAGE)) {
-		ao2_bump(out->subclass.format);
+		ao2_bump_full(out->subclass.format, "", &out->subclass.format);
 	}
 	out->datalen = f->datalen;
 	out->samples = f->samples;

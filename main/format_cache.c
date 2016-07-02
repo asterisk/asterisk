@@ -458,13 +458,13 @@ int ast_format_cache_set(struct ast_format *format)
 }
 
 struct ast_format *__ast_format_cache_get(const char *name,
-	const char *tag, const char *file, int line, const char *func)
+	const char *tag, void *debugstorage, const char *file, int line, const char *func)
 {
 	if (ast_strlen_zero(name)) {
 		return NULL;
 	}
 
-	return __ao2_find(formats, name, OBJ_SEARCH_KEY, tag, file, line, func);
+	return __ao2_find_full(formats, name, OBJ_SEARCH_KEY, tag, debugstorage, file, line, func);
 }
 
 struct ast_format *ast_format_cache_get_slin_by_rate(unsigned int rate)

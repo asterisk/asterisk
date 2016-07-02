@@ -470,7 +470,8 @@ struct stasis_topic;
  * \return \c NULL on error.
  * \since 12
  */
-struct stasis_topic *stasis_topic_create(const char *name);
+#define stasis_topic_create(name) __stasis_topic_create((name), NULL);
+struct stasis_topic *__stasis_topic_create(const char *name, void *debugstorage);
 
 /*!
  * \brief Return the name of a topic.
@@ -960,8 +961,10 @@ struct stasis_cache *stasis_cache_create_full(snapshot_get_id id_fn, cache_aggre
  * \return \c NULL on error
  * \since 12
  */
-struct stasis_caching_topic *stasis_caching_topic_create(
-	struct stasis_topic *original_topic, struct stasis_cache *cache);
+#define stasis_caching_topic_create(original_topic, cache) \
+	__stasis_caching_topic_create((original_topic), (cache), NULL)
+struct stasis_caching_topic *__stasis_caching_topic_create(
+	struct stasis_topic *original_topic, struct stasis_cache *cache, void *debugstorage);
 
 /*!
  * \brief Unsubscribes a caching topic from its upstream topic.

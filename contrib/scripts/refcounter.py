@@ -24,7 +24,7 @@ import os
 from optparse import OptionParser
 
 
-def parse_line(line):
+def parse_line(line, processpointers):
     """Parse out a line into its constituent parts.
 
     Keyword Arguments:
@@ -33,8 +33,8 @@ def parse_line(line):
     Returns:
     A dictionary containing the options, or None
     """
-    tokens = line.strip().split(',', 7)
-    if len(tokens) < 8:
+    tokens = line.strip().split(',', 8)
+    if len(tokens) < 9:
         print "ERROR: ref debug line '%s' contains fewer tokens than " \
               "expected: %d" % (line.strip(), len(tokens))
         return None
@@ -46,9 +46,30 @@ def parse_line(line):
                       'line': tokens[4],
                       'function': tokens[5],
                       'state': tokens[6],
-                      'tag': tokens[7],
+                      'ptr': tokens[7],
+                      'tag': tokens[8],
                       }
-    return processed_line
+
+    line_obj = {
+        'addr': processed_line['addr'],
+        'delta': processed_line['delta'],
+        'tag': processed_line['tag'],
+        'ptr': processed_line['ptr'],
+        'state': processed_line['state'],
+        'text': "[%s] %s:%s %s" % (processed_line['thread_id'],
+                                   processed_line['file'],
+                                   processed_line['line'],
+                                   processed_line['function']),
+        'is_ptr': False
+    }
+
+    if line_obj['ptr'] != '(nil)':
+        line_obj['is_ptr'] = processpointers
+        line_obj['ptr'] = ' ptr:%s' % line_obj['ptr']
+    else:
+        line_obj['ptr'] = ''
+
+    return line_obj
 
 
 def process_file(options):
@@ -74,71 +95,69 @@ def process_file(options):
     leaked_objects = []
     skewed_objects = []
     current_objects = {}
+    byptr = {}
     filename = options.filepath
 
     with open(filename, 'r') as ref_file:
-        for line in ref_file:
-            parsed_line = parse_line(line)
-            if not parsed_line:
+        for txtline in ref_file:
+            line = parsed_line = parse_line(txtline, options.processpointers)
+            if not line:
                 continue
 
             invalid = False
-            obj = parsed_line['addr']
+            obj = line['addr']
 
             if obj not in current_objects:
-                current_objects[obj] = {'log': [], 'curcount': 1}
-                if 'constructor' in parsed_line['state']:
+                currobj = {'log': [], 'curcount': 1, 'size': "unknown"}
+                current_objects[obj] = currobj
+                if 'constructor' in line['state']:
+                    currobj['size'] = line['state'].split("**")[2]
                     # This is the normal expected case
                     pass
-                elif 'invalid' in parsed_line['state']:
+                elif 'invalid' in line['state']:
                     invalid = True
-                    current_objects[obj]['curcount'] = 0
+                    currobj['curcount'] = 0
                     if options.invalid:
-                        invalid_objects.append((obj, current_objects[obj]))
-                elif 'destructor' in parsed_line['state']:
-                    current_objects[obj]['curcount'] = 0
+                        invalid_objects.append((obj, currobj))
+                elif 'destructor' in line['state']:
+                    currobj['curcount'] = 0
                     if options.skewed:
-                        skewed_objects.append((obj, current_objects[obj]))
+                        skewed_objects.append((obj, currobj))
                 else:
-                    current_objects[obj]['curcount'] = int(
-                        parsed_line['state'])
+                    currobj['curcount'] = int(line['state'])
                     if options.skewed:
-                        skewed_objects.append((obj, current_objects[obj]))
+                        skewed_objects.append((obj, currobj))
             else:
-                current_objects[obj]['curcount'] += int(parsed_line['delta'])
+                currobj = current_objects[obj]
+                currobj['curcount'] += int(line['delta'])
 
-            current_objects[obj]['log'].append(
-                "[%s] %s:%s %s: %s %s - [%s]" % (
-                    parsed_line['thread_id'],
-                    parsed_line['file'],
-                    parsed_line['line'],
-                    parsed_line['function'],
-                    parsed_line['delta'],
-                    parsed_line['tag'],
-                    parsed_line['state']))
+            if line['is_ptr']:
+                ptr = line['ptr']
+                if line['delta'] == "-1":
+                    if ptr in byptr and byptr[ptr]['addr'] == obj:
+                        currobj['log'].remove(byptr[ptr])
+                        del byptr[ptr]
+                    else:
+                        currobj['log'].append(line)
+                elif line['delta'] == "+1":
+                    byptr[ptr] = line
+                    currobj['log'].append(line)
+            else:
+                currobj['log'].append(line)
 
             # It is possible for curcount to go below zero if someone
             # unrefs an object by two or more when there aren't that
             # many refs remaining.  This condition abnormally finishes
             # the object.
-            if current_objects[obj]['curcount'] <= 0:
-                if current_objects[obj]['curcount'] < 0:
-                    current_objects[obj]['log'].append(
-                        "[%s] %s:%s %s: %s %s - [%s]" % (
-                            parsed_line['thread_id'],
-                            parsed_line['file'],
-                            parsed_line['line'],
-                            parsed_line['function'],
-                            "+0",
-                            "Object abnormally finalized",
-                            "**implied destructor**"))
+            if currobj['curcount'] <= 0:
+                if currobj['curcount'] < 0:
                     # Highlight the abnormally finished object in the
                     # invalid section as well as reporting it in the normal
                     # finished section.
                     if options.invalid:
-                        invalid_objects.append((obj, current_objects[obj]))
+                        invalid_objects.append((obj, currobj))
                 if not invalid and options.normal:
-                    finished_objects.append((obj, current_objects[obj]))
+                    finished_objects.append((obj, currobj))
                 del current_objects[obj]
 
     if options.leaks:
@@ -159,9 +178,11 @@ def print_objects(objects, prefix=""):
     print "======== %s Objects ========" % prefix
     print "\n"
     for obj in objects:
-        print "==== %s Object %s history ====" % (prefix, obj[0])
+        print "==== %s Object %s (%s bytes) history ====" % (prefix, obj[0], obj[1]['size'])
+        current_count = 0;
         for line in obj[1]['log']:
-            print line
+            print "%s: %s%s %s - [%d]" % (line['text'], line['delta'], line['ptr'], line['tag'], current_count)
+            current_count += int(line['delta'])
         print "\n"
 
 
@@ -193,6 +214,9 @@ def main(argv=None):
                       dest="skewed", default=True,
                       help="If specified, don't output objects with a "
                            "skewed lifetime")
+    parser.add_option("--ignorepointers", action="store_false",
+                      dest="processpointers", default=True,
+                      help="If specified, don't check for matching pointers in unrefs")
 
     (options, args) = parser.parse_args(argv)
 
