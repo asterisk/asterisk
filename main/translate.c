@@ -297,7 +297,7 @@ static void destroy(struct ast_trans_pvt *pvt)
 	if (t->destroy) {
 		t->destroy(pvt);
 	}
-	ao2_cleanup(pvt->f.subclass.format);
+	ao2_s_cleanup(&pvt->f.subclass.format);
 	if (pvt->explicit_dst) {
 		ao2_ref(pvt->explicit_dst, -1);
 		pvt->explicit_dst = NULL;
@@ -366,10 +366,10 @@ static struct ast_trans_pvt *newpvt(struct ast_translator *t, struct ast_format 
 	 * C) create one.
 	 */
 	if (!pvt->f.subclass.format) {
-		pvt->f.subclass.format = ao2_bump(pvt->explicit_dst);
+		ao2_s_set(&pvt->f.subclass.format, pvt->explicit_dst);
 
 		if (!pvt->f.subclass.format && !ast_strlen_zero(pvt->t->format)) {
-			pvt->f.subclass.format = ast_format_cache_get(pvt->t->format);
+			pvt->f.subclass.format = ast_format_cache_get_full(pvt->t->format, "", &pvt->f.subclass.format);
 		}
 
 		if (!pvt->f.subclass.format) {
@@ -380,7 +380,7 @@ static struct ast_trans_pvt *newpvt(struct ast_translator *t, struct ast_format 
 				destroy(pvt);
 				return NULL;
 			}
-			pvt->f.subclass.format = ast_format_create(codec);
+			pvt->f.subclass.format = __ast_format_create(codec, &pvt->f.subclass.format);
 			ao2_ref(codec, -1);
 		}
 
@@ -1140,17 +1140,19 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 {
 	struct ast_translator *u;
 	char tmp[80];
-	RAII_VAR(struct ast_codec *, src_codec, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_codec *, dst_codec, NULL, ao2_cleanup);
+	RAII_AO2_S(struct ast_codec *, src_codec, NULL);
+	RAII_AO2_S(struct ast_codec *, dst_codec, NULL);
 
-	src_codec = ast_codec_get(t->src_codec.name, t->src_codec.type, t->src_codec.sample_rate);
+	src_codec = __ast_codec_get(
+		t->src_codec.name, t->src_codec.type, t->src_codec.sample_rate, &src_codec);
 	if (!src_codec) {
 		ast_assert(0);
 		ast_log(LOG_WARNING, "Failed to register translator: unknown source codec %s\n", t->src_codec.name);
 		return -1;
 	}
 
-	dst_codec = ast_codec_get(t->dst_codec.name, t->dst_codec.type, t->dst_codec.sample_rate);
+	dst_codec = __ast_codec_get(
+		t->dst_codec.name, t->dst_codec.type, t->dst_codec.sample_rate, &dst_codec);
 	if (!dst_codec) {
 		ast_log(LOG_WARNING, "Failed to register translator: unknown destination codec %s\n", t->dst_codec.name);
 		return -1;

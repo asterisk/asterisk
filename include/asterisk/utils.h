@@ -1039,6 +1039,11 @@ static inline void _raii_cleanup_block(_raii_cleanup_block_t *b) { (*b)(); }
     __block vartype varname = initval;                                                                           \
     _raii_cleanup_ ## varname = ^{ {(void)dtor(varname);} }
 
+#define RAII_AO2_S(vartype, varname, initval)                                                              \
+    _raii_cleanup_block_t _raii_cleanup_ ## varname __attribute__((cleanup(_raii_cleanup_block),unused)) = NULL; \
+    __block vartype varname = initval;                                                                           \
+    _raii_cleanup_ ## varname = ^{ {(void)ao2_s_cleanup(&(varname));} }
+
 #elif defined(__GNUC__)
 
 #define RAII_VAR(vartype, varname, initval, dtor)                              \
@@ -1046,9 +1051,18 @@ static inline void _raii_cleanup_block(_raii_cleanup_block_t *b) { (*b)(); }
     void _dtor_ ## varname (vartype * v) { dtor(*v); }                         \
     vartype varname __attribute__((cleanup(_dtor_ ## varname))) = (initval)
 
+#define RAII_AO2_S(vartype, varname, initval)                                  \
+    auto void _dtor_ ## varname (vartype * v);                                 \
+    void _dtor_ ## varname (vartype * v) { ao2_s_cleanup(v); }                 \
+    vartype varname __attribute__((cleanup(_dtor_ ## varname))) = (initval)
+
 #else
     #error "Cannot compile Asterisk: unknown and unsupported compiler."
 #endif /* #if __GNUC__ */
+
+#define RAII_AO2_S_GLOBAL(vartype, varname, holder) \
+	RAII_AO2_S(vartype, varname, \
+		__ao2_global_obj_ref((&holder), "", &varname, __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder))
 
 /*!
  * \brief Asterisk wrapper around crypt(3).

@@ -54,9 +54,9 @@ static void all_dtor(void *obj)
 {
 	struct stasis_cp_all *all = obj;
 
-	ao2_cleanup(all->topic);
+	ao2_s_cleanup(&all->topic);
 	all->topic = NULL;
-	ao2_cleanup(all->topic_cached);
+	ao2_s_cleanup(&all->topic_cached);
 	all->topic_cached = NULL;
 	ao2_cleanup(all->cache);
 	all->cache = NULL;
@@ -68,9 +68,8 @@ struct stasis_cp_all *stasis_cp_all_create(const char *name,
 	snapshot_get_id id_fn)
 {
 	RAII_VAR(char *, cached_name, NULL, ast_free);
-	RAII_VAR(struct stasis_cp_all *, all, NULL, ao2_cleanup);
+	RAII_AO2_S(struct stasis_cp_all *, all, ao2_s_alloc(&all, sizeof(*all), all_dtor));
 
-	all = ao2_t_alloc(sizeof(*all), all_dtor, name);
 	if (!all) {
 		return NULL;
 	}
@@ -80,8 +79,8 @@ struct stasis_cp_all *stasis_cp_all_create(const char *name,
 		return NULL;
 	}
 
-	all->topic = stasis_topic_create(name);
-	all->topic_cached = stasis_topic_create(cached_name);
+	all->topic = stasis_topic_create_debug(name, &all->topic);
+	all->topic_cached = stasis_topic_create_debug(cached_name, &all->topic_cached);
 	all->cache = stasis_cache_create(id_fn);
 	all->forward_all_to_cached =
 		stasis_forward_all(all->topic, all->topic_cached);
@@ -91,7 +90,7 @@ struct stasis_cp_all *stasis_cp_all_create(const char *name,
 		return NULL;
 	}
 
-	ao2_ref(all, +1);
+	ao2_t_ref(all, +1, name);
 	return all;
 }
 
@@ -129,7 +128,7 @@ static void one_dtor(void *obj)
 	ast_assert(one->forward_topic_to_all == NULL);
 	ast_assert(one->forward_cached_to_all == NULL);
 
-	ao2_cleanup(one->topic);
+	ao2_s_cleanup(&one->topic);
 	one->topic = NULL;
 }
 
@@ -160,14 +159,13 @@ struct stasis_cp_single *stasis_cp_single_create(struct stasis_cp_all *all,
 struct stasis_cp_single *stasis_cp_sink_create(struct stasis_cp_all *all,
 	const char *name)
 {
-	RAII_VAR(struct stasis_cp_single *, one, NULL, ao2_cleanup);
+	RAII_AO2_S(struct stasis_cp_single *, one, ao2_s_alloc(&one, sizeof(*one), one_dtor));
 
-	one = ao2_t_alloc(sizeof(*one), one_dtor, name);
 	if (!one) {
 		return NULL;
 	}
 
-	one->topic = stasis_topic_create(name);
+	one->topic = stasis_topic_create_debug(name, &one->topic);
 	if (!one->topic) {
 		return NULL;
 	}
@@ -176,7 +174,7 @@ struct stasis_cp_single *stasis_cp_sink_create(struct stasis_cp_all *all,
 		return NULL;
 	}
 
-	ao2_ref(one, +1);
+	ao2_t_ref(one, +1, name);
 	return one;
 }
 

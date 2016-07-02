@@ -403,8 +403,15 @@ enum ao2_alloc_opts {
 #define ao2_alloc(data_size, destructor_fn) \
 	__ao2_alloc((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX, "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
-void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, unsigned int options,
-	const char *tag, const char *file, int line, const char *func) attribute_warn_unused_result;
+void *__ao2_alloc_full(size_t data_size, ao2_destructor_fn destructor_fn, unsigned int options,
+	const char *tag, void *debugstorage, const char *file, int line, const char *func)
+	attribute_warn_unused_result;
+#define __ao2_alloc(data_size, destructor_fn, options, tag, file, line, func) \
+	__ao2_alloc_full((data_size), (destructor_fn), (options), (tag), NULL, (file), (line), (func))
+
+#define ao2_alloc_full(data_size, destructor_fn, options, tag, debugstorage) \
+	__ao2_alloc_full((data_size), (destructor_fn), (options), (tag), (debugstorage), \
+		__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*! @} */
 
@@ -453,18 +460,61 @@ unsigned int ao2_options_get(void *obj);
  * \param obj AO2 object to bump the refcount on.
  * \retval The given \a obj pointer.
  */
-#define ao2_t_bump(obj, tag)						\
+#define ao2_bump_full(obj, tag, debugstorage) \
 	({							\
 		typeof(obj) __obj_ ## __LINE__ = (obj);		\
 		if (__obj_ ## __LINE__) {			\
-			ao2_t_ref(__obj_ ## __LINE__, +1, (tag));	\
+			ao2_ref_full(__obj_ ## __LINE__, +1, (tag), (debugstorage));	\
 		}						\
 		__obj_ ## __LINE__;				\
 	})
+#define ao2_t_bump(obj, tag) \
+	ao2_bump_full(obj, tag, NULL)
 #define ao2_bump(obj) \
 	ao2_t_bump((obj), "")
 
-int __ao2_ref(void *o, int delta, const char *tag, const char *file, int line, const char *func);
+int __ao2_ref_full(void *o, int delta, const char *tag, void *debugstorage,
+	const char *file, int line, const char *func);
+
+#define __ao2_ref(o, delta, tag, file, line, func) \
+	__ao2_ref_full((o), (delta), (tag), NULL, (file), (line), (func))
+
+#define ao2_ref_full(o, delta, tag, debugstorage) \
+	__ao2_ref_full((o), (delta), (tag) ?: "", (debugstorage), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+#define ao2_s_alloc(storage, data_size, destructor_fn) \
+	{ \
+		typeof(storage) __dst ## __LINE__ = (storage); \
+		*__dst ## __LINE__ = ao2_alloc_full((data_size), (destructor_fn), \
+			AO2_ALLOC_OPT_LOCK_MUTEX, "", __dst ## __LINE__); \
+	}
+
+#define ao2_s_set(storage, obj) \
+	{ \
+		typeof(storage) __dst ## __LINE__ = (storage); \
+		*__dst ## __LINE__ = obj; \
+		if (*__dst ## __LINE__) { \
+			ao2_ref_full(*__dst ## __LINE__, +1, "", __dst ## __LINE__); \
+		} \
+	}
+
+#define ao2_s_replace(storage, newval) \
+	{ \
+		typeof(storage) __dst ## __LINE__ = (storage); \
+		typeof(newval) __src ## __LINE__ = (newval); \
+		if (*__dst ## __LINE__ != __src ## __LINE__) { \
+			ao2_s_cleanup(__dst ## __LINE__); \
+			ao2_s_set(__dst ## __LINE__, __src ## __LINE__); \
+		} \
+	}
+
+#define ao2_s_cleanup(storage) \
+	{ \
+		typeof(storage) __dst ## __LINE__ = (storage); \
+		if (*__dst ## __LINE__) { \
+			ao2_ref_full(*__dst ## __LINE__, -1, "", __dst ## __LINE__); \
+		} \
+	} \
 
 /*!
  * \since 12.4.0
@@ -889,11 +939,11 @@ int __ao2_global_obj_replace_unref(struct ao2_global_obj *holder, void *obj, con
  * \retval NULL if no object available.
  */
 #define ao2_t_global_obj_ref(holder, tag)	\
-	__ao2_global_obj_ref(&holder, (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+	__ao2_global_obj_ref(&holder, (tag), NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
 #define ao2_global_obj_ref(holder)	\
-	__ao2_global_obj_ref(&holder, "", __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+	__ao2_global_obj_ref(&holder, "", NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
 
-void *__ao2_global_obj_ref(struct ao2_global_obj *holder, const char *tag, const char *file, int line, const char *func, const char *name) attribute_warn_unused_result;
+void *__ao2_global_obj_ref(struct ao2_global_obj *holder, const char *tag, void *debugstorage, const char *file, int line, const char *func, const char *name) attribute_warn_unused_result;
 
 
 /*!
@@ -1703,9 +1753,12 @@ void *__ao2_unlink(struct ao2_container *c, void *obj, int flags,
 #define ao2_callback(c, flags, cb_fn, arg) \
 	__ao2_callback((c), (flags), (cb_fn), (arg), "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
-void *__ao2_callback(struct ao2_container *c, enum search_flags flags,
-	ao2_callback_fn *cb_fn, void *arg, const char *tag, const char *file, int line,
+void *__ao2_callback_full(struct ao2_container *c, enum search_flags flags,
+	ao2_callback_fn *cb_fn, void *arg, const char *tag, void *debugstorage, const char *file, int line,
 	const char *func);
+
+#define __ao2_callback(c, flags, cb_fn, arg, tag, file, line, func) \
+	__ao2_callback_full((c), (flags), (cb_fn), (arg), (tag), NULL, (file), (line), (func))
 
 /*! @} */
 
@@ -1730,9 +1783,12 @@ void *__ao2_callback(struct ao2_container *c, enum search_flags flags,
 #define ao2_callback_data(container, flags, cb_fn, arg, data) \
 	__ao2_callback_data((container), (flags), (cb_fn), (arg), (data), "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
-void *__ao2_callback_data(struct ao2_container *c, enum search_flags flags,
-	ao2_callback_data_fn *cb_fn, void *arg, void *data, const char *tag, const char *file,
-	int line, const char *func);
+void *__ao2_callback_data_full(struct ao2_container *c, enum search_flags flags,
+	ao2_callback_data_fn *cb_fn, void *arg, void *data, const char *tag, void *debugstorage,
+	const char *file, int line, const char *func);
+
+#define __ao2_callback_data(c, flags, cb_fn, arg, data, tag, file, line, func) \
+	__ao2_callback_data_full((c), (flags), (cb_fn), (arg), (data), (tag), NULL, (file), (line), (func))
 
 /*! ao2_find() is a short hand for ao2_callback(c, flags, c->cmp_fn, arg)
  * XXX possibly change order of arguments ?
@@ -1743,8 +1799,13 @@ void *__ao2_callback_data(struct ao2_container *c, enum search_flags flags,
 #define ao2_find(container, arg, flags) \
 	__ao2_find((container), (arg), (flags), "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
-void *__ao2_find(struct ao2_container *c, const void *arg, enum search_flags flags,
-	const char *tag, const char *file, int line, const char *func);
+void *__ao2_find_full(struct ao2_container *c, const void *arg, enum search_flags flags,
+	const char *tag, void *debugstorage, const char *file, int line, const char *func);
+#define ao2_find_full(container, arg, flags, tag, debugstorage) \
+	__ao2_find_full((container), (arg), (flags), (tag), (debugstorage), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+#define __ao2_find(container, arg, flags, tag, file, line, func) \
+	__ao2_find_full((container), (arg), (flags), (tag), NULL, (file), (line), (func))
 
 /*! \brief
  *

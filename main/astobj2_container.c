@@ -229,7 +229,7 @@ static int cb_true_data(void *user_data, void *arg, void *data, int flags)
  */
 static void *internal_ao2_traverse(struct ao2_container *self, enum search_flags flags,
 	void *cb_fn, void *arg, void *data, enum ao2_callback_type type,
-	const char *tag, const char *file, int line, const char *func)
+	const char *tag, void *debugstorage, const char *file, int line, const char *func)
 {
 	void *ret;
 	ao2_callback_fn *cb_default = NULL;
@@ -358,7 +358,7 @@ static void *internal_ao2_traverse(struct ao2_container *self, enum search_flags
 						 * Bump the ref count since we are not going to unlink and
 						 * transfer the container's object ref to the returned object.
 						 */
-						__ao2_ref(ret, 1, tag ?: "Traversal found object", file, line, func);
+						__ao2_ref_full(ret, 1, tag ?: "Traversal found object", debugstorage, file, line, func);
 					}
 				}
 			}
@@ -403,25 +403,25 @@ static void *internal_ao2_traverse(struct ao2_container *self, enum search_flags
 	}
 }
 
-void *__ao2_callback(struct ao2_container *c, enum search_flags flags,
-	ao2_callback_fn *cb_fn, void *arg, const char *tag, const char *file, int line,
-	const char *func)
+void *__ao2_callback_full(struct ao2_container *c, enum search_flags flags,
+	ao2_callback_fn *cb_fn, void *arg, const char *tag, void *debugstorage,
+	const char *file, int line, const char *func)
 {
-	return internal_ao2_traverse(c, flags, cb_fn, arg, NULL, AO2_CALLBACK_DEFAULT, tag, file, line, func);
+	return internal_ao2_traverse(c, flags, cb_fn, arg, NULL, AO2_CALLBACK_DEFAULT, tag, debugstorage, file, line, func);
 }
 
-void *__ao2_callback_data(struct ao2_container *c, enum search_flags flags,
-	ao2_callback_data_fn *cb_fn, void *arg, void *data, const char *tag, const char *file,
-	int line, const char *func)
+void *__ao2_callback_data_full(struct ao2_container *c, enum search_flags flags,
+	ao2_callback_data_fn *cb_fn, void *arg, void *data, const char *tag, void *debugstorage,
+	const char *file, int line, const char *func)
 {
-	return internal_ao2_traverse(c, flags, cb_fn, arg, data, AO2_CALLBACK_WITH_DATA, tag, file, line, func);
+	return internal_ao2_traverse(c, flags, cb_fn, arg, data, AO2_CALLBACK_WITH_DATA, tag, debugstorage, file, line, func);
 }
 
 /*!
  * the find function just invokes the default callback with some reasonable flags.
  */
-void *__ao2_find(struct ao2_container *c, const void *arg, enum search_flags flags,
-	const char *tag, const char *file, int line, const char *func)
+void *__ao2_find_full(struct ao2_container *c, const void *arg, enum search_flags flags,
+	const char *tag, void *debugstorage, const char *file, int line, const char *func)
 {
 	void *arged = (void *) arg;/* Done to avoid compiler const warning */
 
@@ -430,7 +430,7 @@ void *__ao2_find(struct ao2_container *c, const void *arg, enum search_flags fla
 		ast_assert(0);
 		return NULL;
 	}
-	return __ao2_callback(c, flags, c->cmp_fn, arged, tag, file, line, func);
+	return __ao2_callback_full(c, flags, c->cmp_fn, arged, tag, debugstorage, file, line, func);
 }
 
 /*!

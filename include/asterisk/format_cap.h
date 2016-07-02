@@ -187,7 +187,10 @@ size_t ast_format_cap_count(const struct ast_format_cap *cap);
  * \note The reference count of the returned format is increased. It must be released using ao2_ref
  * or ao2_cleanup.
  */
-struct ast_format *ast_format_cap_get_format(const struct ast_format_cap *cap, int position);
+#define ast_format_cap_get_format(cap, position) \
+	__ast_format_cap_get_format((cap), (position), NULL)
+struct ast_format *__ast_format_cap_get_format(const struct ast_format_cap *cap, int position,
+	void *debugstorage);
 
 /*!
  * \brief Get the most preferred format for a particular media type

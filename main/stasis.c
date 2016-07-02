@@ -345,12 +345,12 @@ static void topic_dtor(void *obj)
 	AST_VECTOR_FREE(&topic->upstream_topics);
 }
 
-struct stasis_topic *stasis_topic_create(const char *name)
+struct stasis_topic *stasis_topic_create_debug(const char *name, void *debugstorage)
 {
 	struct stasis_topic *topic;
 	int res = 0;
 
-	topic = ao2_t_alloc(sizeof(*topic), topic_dtor, name);
+	topic = ao2_alloc_full(sizeof(*topic), topic_dtor, AO2_ALLOC_OPT_LOCK_MUTEX, name, debugstorage);
 	if (!topic) {
 		return NULL;
 	}
@@ -359,7 +359,7 @@ struct stasis_topic *stasis_topic_create(const char *name)
 	res |= AST_VECTOR_INIT(&topic->subscribers, INITIAL_SUBSCRIBERS_MAX);
 	res |= AST_VECTOR_INIT(&topic->upstream_topics, 0);
 	if (!topic->name || res) {
-		ao2_cleanup(topic);
+		ao2_ref_full(topic, -1, "", debugstorage);
 		return NULL;
 	}
 
@@ -405,7 +405,7 @@ static void subscription_dtor(void *obj)
 	 * be bad. */
 	ast_assert(stasis_subscription_is_done(sub));
 
-	ao2_cleanup(sub->topic);
+	ao2_s_cleanup(&sub->topic);
 	sub->topic = NULL;
 	ast_taskprocessor_unreference(sub->mailbox);
 	sub->mailbox = NULL;
@@ -494,8 +494,7 @@ struct stasis_subscription *internal_stasis_subscribe(
 		ao2_ref(sub, +1);
 	}
 
-	ao2_ref(topic, +1);
-	sub->topic = topic;
+	ao2_s_set(&sub->topic, topic);
 	sub->callback = callback;
 	sub->data = data;
 	ast_cond_init(&sub->join_cond, NULL);
@@ -536,8 +535,8 @@ struct stasis_subscription *stasis_unsubscribe(struct stasis_subscription *sub)
 {
 	/* The subscription may be the last ref to this topic. Hold
 	 * the topic ref open until after the unlock. */
-	RAII_VAR(struct stasis_topic *, topic,
-		ao2_bump(sub ? sub->topic : NULL), ao2_cleanup);
+	RAII_AO2_S(struct stasis_topic *, topic,
+		ao2_bump_full(sub ? sub->topic : NULL, "", &topic));
 
 	if (!sub) {
 		return NULL;
@@ -824,7 +823,7 @@ static void publish_msg(struct stasis_topic *topic,
 	 * The topic may be unref'ed by the subscription invocation.
 	 * Make sure we hold onto a reference while dispatching.
 	 */
-	ao2_ref(topic, +1);
+	ao2_ref_full(topic, +1, "", &topic);
 	ao2_lock(topic);
 	for (i = 0; i < AST_VECTOR_SIZE(&topic->subscribers); ++i) {
 		struct stasis_subscription *sub = AST_VECTOR_GET(&topic->subscribers, i);
@@ -834,7 +833,7 @@ static void publish_msg(struct stasis_topic *topic,
 		dispatch_message(sub, message, (sub == sync_sub));
 	}
 	ao2_unlock(topic);
-	ao2_ref(topic, -1);
+	ao2_ref_full(topic, -1, "", &topic);
 }
 
 void stasis_publish(struct stasis_topic *topic, struct stasis_message *message)
@@ -868,9 +867,9 @@ static void forward_dtor(void *obj)
 {
 	struct stasis_forward *forward = obj;
 
-	ao2_cleanup(forward->from_topic);
+	ao2_s_cleanup(&forward->from_topic);
 	forward->from_topic = NULL;
-	ao2_cleanup(forward->to_topic);
+	ao2_s_cleanup(&forward->to_topic);
 	forward->to_topic = NULL;
 }
 
@@ -925,8 +924,8 @@ struct stasis_forward *stasis_forward_all(struct stasis_topic *from_topic,
 		return ao2_bump(forward);
 	}
 
-	forward->from_topic = ao2_bump(from_topic);
-	forward->to_topic = ao2_bump(to_topic);
+	ao2_s_set(&forward->from_topic, from_topic);
+	ao2_s_set(&forward->to_topic, to_topic);
 
 	topic_lock_both(to_topic, from_topic);
 	res = AST_VECTOR_APPEND(&to_topic->upstream_topics, from_topic);
@@ -950,7 +949,7 @@ static void subscription_change_dtor(void *obj)
 	struct stasis_subscription_change *change = obj;
 
 	ast_string_field_free_memory(change);
-	ao2_cleanup(change->topic);
+	ao2_s_cleanup(&change->topic);
 }
 
 static struct stasis_subscription_change *subscription_change_alloc(struct stasis_topic *topic, const char *uniqueid, const char *description)
@@ -965,8 +964,7 @@ static struct stasis_subscription_change *subscription_change_alloc(struct stasi
 
 	ast_string_field_set(change, uniqueid, uniqueid);
 	ast_string_field_set(change, description, description);
-	ao2_ref(topic, +1);
-	change->topic = topic;
+	ao2_s_set(&change->topic, topic);
 
 	return change;
 }
@@ -1042,7 +1040,7 @@ static void topic_pool_entry_dtor(void *obj)
 	struct topic_pool_entry *entry = obj;
 
 	entry->forward = stasis_forward_cancel(entry->forward);
-	ao2_cleanup(entry->topic);
+	ao2_s_cleanup(&entry->topic);
 	entry->topic = NULL;
 }
 
@@ -1161,7 +1159,7 @@ struct stasis_topic *stasis_topic_pool_get_topic(struct stasis_topic_pool *pool,
 		return NULL;
 	}
 
-	topic_pool_entry->topic = stasis_topic_create(topic_name);
+	topic_pool_entry->topic = stasis_topic_create_debug(topic_name, &topic_pool_entry->topic);
 	if (!topic_pool_entry->topic) {
 		return NULL;
 	}
@@ -1477,7 +1475,7 @@ static void stasis_config_destructor(void *obj)
 {
 	struct stasis_config *cfg = obj;
 
-	ao2_cleanup(cfg->declined_message_types);
+	ao2_s_cleanup(&cfg->declined_message_types);
 	ast_free(cfg->threadpool_options);
 }
 
@@ -1495,7 +1493,7 @@ static void *stasis_config_alloc(void)
 		return NULL;
 	}
 
-	cfg->declined_message_types = ao2_alloc(sizeof(*cfg->declined_message_types),
+	ao2_s_alloc(&cfg->declined_message_types, sizeof(*cfg->declined_message_types),
 		stasis_declined_config_destructor);
 	if (!cfg->declined_message_types) {
 		ao2_ref(cfg, -1);
@@ -1513,7 +1511,7 @@ static void *stasis_config_alloc(void)
 
 int stasis_message_type_declined(const char *name)
 {
-	RAII_VAR(struct stasis_config *, cfg, ao2_global_obj_ref(globals), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct stasis_config *, cfg, globals);
 	char *name_in_declined;
 	int res;
 
@@ -1521,9 +1519,9 @@ int stasis_message_type_declined(const char *name)
 		return 0;
 	}
 
-	name_in_declined = ao2_find(cfg->declined_message_types->declined, name, OBJ_SEARCH_KEY);
+	name_in_declined = ao2_find_full(cfg->declined_message_types->declined, name, OBJ_SEARCH_KEY, "", &name_in_declined);
 	res = name_in_declined ? 1 : 0;
-	ao2_cleanup(name_in_declined);
+	ao2_s_cleanup(&name_in_declined);
 	if (res) {
 		ast_log(LOG_NOTICE, "Declining to allocate Stasis message type '%s' due to configuration\n", name);
 	}

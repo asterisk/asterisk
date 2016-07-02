@@ -131,7 +131,10 @@ int __ast_codec_register(struct ast_codec *codec, struct ast_module *mod);
  * \note The returned codec is reference counted and ao2_ref or ao2_cleanup
  * must be used to release the reference.
  */
-struct ast_codec *ast_codec_get(const char *name, enum ast_media_type type, unsigned int sample_rate);
+#define ast_codec_get(name, type, sample_rate) \
+	__ast_codec_get((name), (type), (sample_rate), NULL)
+struct ast_codec *__ast_codec_get(const char *name, enum ast_media_type type,
+	unsigned int sample_rate, void *debugstorage);
 
 /*!
  * \brief Retrieve a codec given the unique identifier
@@ -146,7 +149,8 @@ struct ast_codec *ast_codec_get(const char *name, enum ast_media_type type, unsi
  * \note The returned codec is reference counted and ao2_ref or ao2_cleanup
  * must be used to release the reference.
  */
-struct ast_codec *ast_codec_get_by_id(int id);
+#define ast_codec_get_by_id(id) __ast_codec_get_by_id((id), NULL)
+struct ast_codec *__ast_codec_get_by_id(int id, void *debugstorage);
 
 /*!
  * \brief Retrieve the current maximum identifier for codec iteration

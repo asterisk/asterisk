@@ -186,21 +186,22 @@ static void format_destroy(void *obj)
 		format->interface->format_destroy(format);
 	}
 
-	ao2_cleanup(format->codec);
+	ao2_s_cleanup(&format->codec);
 }
 
-struct ast_format *ast_format_create_named(const char *format_name, struct ast_codec *codec)
+struct ast_format *__ast_format_create_named(const char *format_name, struct ast_codec *codec,
+	void *debugstorage)
 {
 	struct ast_format *format;
 	struct format_interface *format_interface;
 
-	format = ao2_t_alloc_options(sizeof(*format), format_destroy,
-		AO2_ALLOC_OPT_LOCK_NOLOCK, S_OR(codec->description, ""));
+	format = ao2_alloc_full(sizeof(*format), format_destroy,
+		AO2_ALLOC_OPT_LOCK_NOLOCK, S_OR(codec->description, ""), debugstorage);
 	if (!format) {
 		return NULL;
 	}
 	format->name = format_name;
-	format->codec = ao2_bump(codec);
+	ao2_s_set(&format->codec, codec);
 
 	format_interface = ao2_find(interfaces, codec->name, OBJ_SEARCH_KEY);
 	if (format_interface) {
@@ -227,9 +228,9 @@ struct ast_format *ast_format_clone(const struct ast_format *format)
 	return cloned;
 }
 
-struct ast_format *ast_format_create(struct ast_codec *codec)
+struct ast_format *__ast_format_create(struct ast_codec *codec, void *debugstorage)
 {
-	return ast_format_create_named(codec->name, codec);
+	return __ast_format_create_named(codec->name, codec, debugstorage);
 }
 
 enum ast_format_cmp_res ast_format_cmp(const struct ast_format *format1, const struct ast_format *format2)
@@ -355,9 +356,9 @@ void ast_format_generate_sdp_fmtp(const struct ast_format *format, unsigned int 
 	interface->format_generate_sdp_fmtp(format, payload, str);
 }
 
-struct ast_codec *ast_format_get_codec(const struct ast_format *format)
+struct ast_codec *__ast_format_get_codec(const struct ast_format *format, void *debugstorage)
 {
-	return ao2_bump(format->codec);
+	return ao2_bump_full(format->codec, "", debugstorage);
 }
 
 unsigned int ast_format_get_codec_id(const struct ast_format *format)

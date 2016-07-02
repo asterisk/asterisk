@@ -103,8 +103,8 @@ struct stasis_message {
 static void stasis_message_dtor(void *obj)
 {
 	struct stasis_message *message = obj;
-	ao2_cleanup(message->type);
-	ao2_cleanup(message->data);
+	ao2_s_cleanup(&message->type);
+	ao2_s_cleanup(&message->data);
 }
 
 struct stasis_message *stasis_message_create_full(struct stasis_message_type *type, void *data, const struct ast_eid *eid)
@@ -121,10 +121,8 @@ struct stasis_message *stasis_message_create_full(struct stasis_message_type *ty
 	}
 
 	message->timestamp = ast_tvnow();
-	ao2_ref(type, +1);
-	message->type = type;
-	ao2_ref(data, +1);
-	message->data = data;
+	ao2_s_set(&message->type, type);
+	ao2_s_set(&message->data, data);
 	if (eid) {
 		message->eid_ptr = &message->eid;
 		message->eid = *eid;
