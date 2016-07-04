@@ -271,7 +271,7 @@ static int sorcery_realtime_update(const struct ast_sorcery *sorcery, void *data
 		return -1;
 	}
 
-	return (ast_update_realtime_fields(config->family, UUID_FIELD, ast_sorcery_object_get_id(object), fields) <= 0) ? -1 : 0;
+	return (ast_update_realtime_fields(config->family, UUID_FIELD, ast_sorcery_object_get_id(object), fields) < 0) ? -1 : 0;
 }
 
 static int sorcery_realtime_delete(const struct ast_sorcery *sorcery, void *data, void *object)
