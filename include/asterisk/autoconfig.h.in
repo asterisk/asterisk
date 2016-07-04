@@ -1216,8 +1216,20 @@
 /* Defined if libcurl supports HTTPS */
 #undef LIBCURL_PROTOCOL_HTTPS
 
+/* Defined if libcurl supports IMAP */
+#undef LIBCURL_PROTOCOL_IMAP
+
 /* Defined if libcurl supports LDAP */
 #undef LIBCURL_PROTOCOL_LDAP
+
+/* Defined if libcurl supports POP3 */
+#undef LIBCURL_PROTOCOL_POP3
+
+/* Defined if libcurl supports RTSP */
+#undef LIBCURL_PROTOCOL_RTSP
+
+/* Defined if libcurl supports SMTP */
+#undef LIBCURL_PROTOCOL_SMTP
 
 /* Defined if libcurl supports TELNET */
 #undef LIBCURL_PROTOCOL_TELNET
