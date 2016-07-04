@@ -711,41 +711,6 @@ AST_TEST_DEFINE(object_update)
 	return AST_TEST_PASS;
 }
 
-AST_TEST_DEFINE(object_update_uncreated)
-{
-	RAII_VAR(struct ast_sorcery *, sorcery, NULL, deinitialize_sorcery);
-	RAII_VAR(struct test_sorcery_object *, obj, NULL, ao2_cleanup);
-
-	switch (cmd) {
-	case TEST_INIT:
-		info->name = "object_update_uncreated";
-		info->category = "/res/sorcery_realtime/";
-		info->summary = "sorcery object update unit test";
-		info->description =
-			"Test updating of an uncreated object in sorcery using realtime wizard";
-		return AST_TEST_NOT_RUN;
-	case TEST_EXECUTE:
-		break;
-	}
-
-	if (!(sorcery = alloc_and_initialize_sorcery("sorcery_realtime_test"))) {
-		ast_test_status_update(test, "Failed to open sorcery structure\n");
-		return AST_TEST_FAIL;
-	}
-
-	if (!(obj = ast_sorcery_alloc(sorcery, "test", "blah"))) {
-		ast_test_status_update(test, "Failed to allocate a known object type\n");
-		return AST_TEST_FAIL;
-	}
-
-	if (!ast_sorcery_update(sorcery, obj)) {
-		ast_test_status_update(test, "Successfully updated an object which has not been created yet\n");
-		return AST_TEST_FAIL;
-	}
-
-	return AST_TEST_PASS;
-}
-
 AST_TEST_DEFINE(object_delete)
 {
 	RAII_VAR(struct ast_sorcery *, sorcery, NULL, deinitialize_sorcery);
@@ -942,7 +907,6 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(object_retrieve_regex);
 	AST_TEST_UNREGISTER(object_retrieve_regex_nofetch);
 	AST_TEST_UNREGISTER(object_update);
-	AST_TEST_UNREGISTER(object_update_uncreated);
 	AST_TEST_UNREGISTER(object_delete);
 	AST_TEST_UNREGISTER(object_delete_uncreated);
 	AST_TEST_UNREGISTER(object_allocate_on_retrieval);
@@ -964,7 +928,6 @@ static int load_module(void)
 	AST_TEST_REGISTER(object_retrieve_regex);
 	AST_TEST_REGISTER(object_retrieve_regex_nofetch);
 	AST_TEST_REGISTER(object_update);
-	AST_TEST_REGISTER(object_update_uncreated);
 	AST_TEST_REGISTER(object_delete);
 	AST_TEST_REGISTER(object_delete_uncreated);
 	AST_TEST_REGISTER(object_allocate_on_retrieval);
