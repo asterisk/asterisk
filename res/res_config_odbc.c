@@ -137,6 +137,7 @@ static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
 
 	if (!ast_strlen_zero(cps->extra)) {
 		const char *newval = cps->extra;
+		ast_debug(1, "Parameter %d = '%s'\n", x, newval);
 		if (strchr(newval, ';') || strchr(newval, '^')) {
 			ENCODE_CHUNK(encodebuf, newval);
 			ast_string_field_set(cps, encoding[x], encodebuf);
