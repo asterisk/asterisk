@@ -1861,6 +1861,7 @@ int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_mod
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "contact_deny", "", endpoint_acl_handler, NULL, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "contact_permit", "", endpoint_acl_handler, NULL, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "contact_acl", "", endpoint_acl_handler, contact_acl_to_str, NULL, 0, 0);
+	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "subscribe_context", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, subscription.context));
 
 	if (ast_sip_initialize_sorcery_transport()) {
 		ast_log(LOG_ERROR, "Failed to register SIP transport support with sorcery\n");
@@ -1960,6 +1961,7 @@ static void subscription_configuration_destroy(struct ast_sip_endpoint_subscript
 {
 	ast_string_field_free_memory(&subscription->mwi);
 	ast_free(subscription->mwi.voicemail_extension);
+	ast_string_field_free_memory(subscription);
 }
 
 static void info_configuration_destroy(struct ast_sip_endpoint_info_configuration *info)
@@ -1995,7 +1997,7 @@ static void endpoint_destructor(void* obj)
 
 static int init_subscription_configuration(struct ast_sip_endpoint_subscription_configuration *subscription)
 {
-	return ast_string_field_init(&subscription->mwi, 64);
+	return ast_string_field_init(subscription, 64) || ast_string_field_init(&subscription->mwi, 64);
 }
 
 static int init_info_configuration(struct ast_sip_endpoint_info_configuration *info)

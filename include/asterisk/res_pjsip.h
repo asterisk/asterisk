@@ -497,6 +497,10 @@ struct ast_sip_mwi_configuration {
  * \brief Endpoint subscription configuration
  */
 struct ast_sip_endpoint_subscription_configuration {
+	AST_DECLARE_STRING_FIELDS(
+		/* Context for SUBSCRIBE requests */
+		AST_STRING_FIELD(context);
+	);
 	/*! Indicates if endpoint is allowed to initiate subscriptions */
 	unsigned int allow;
 	/*! The minimum allowed expiration for subscriptions from endpoint */
