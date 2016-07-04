@@ -897,6 +897,15 @@
 						mask with a slash ('/')
 					</para></description>
 				</configOption>
+				<configOption name="subscribe_context">
+					<synopsis>Context for incoming MESSAGE requests.</synopsis>
+					<description><para>
+						If specified, incoming SUBSCRIBE requests will be searched for the matching
+						extension in the indicated context.
+						If no <replaceable>subscribe_context</replaceable> is specified,
+						then the <replaceable>context</replaceable> setting is used.
+					</para></description>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<synopsis>Authentication type</synopsis>
@@ -1957,6 +1966,9 @@
 				</parameter>
 				<parameter name="ActiveChannels">
 					<para>The number of active channels associated with this endpoint.</para>
+				</parameter>
+				<parameter name="SubscribeContext">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='subscribe_context']/synopsis/node())"/></para>
 				</parameter>
 			</syntax>
 		</managerEventInstance>
