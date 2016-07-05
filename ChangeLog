@@ -1,3 +1,56 @@
+2016-07-05 16:07 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.10.0-rc2 Released.
+
+2016-07-05 11:07 +0000 [d579dce147]  Mark Michelson <mmichelson@digium.com>
+
+	* Release summaries: Add summaries for 13.10.0-rc2
+
+2016-07-05 11:06 +0000 [486fbce3d5]  Mark Michelson <mmichelson@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-07-05 11:06 +0000 [fb6bd30291]  Mark Michelson <mmichelson@digium.com>
+
+	* .version: Update for 13.10.0-rc2
+
+2016-07-05 11:06 +0000 [f6bd754584]  Mark Michelson <mmichelson@digium.com>
+
+	* .lastclean: Update for 13.10.0-rc2
+
+2016-07-05 11:06 +0000 [40cd52de7e]  Mark Michelson <mmichelson@digium.com>
+
+	* realtime: Add database scripts for 13.10.0-rc2
+
+2016-06-30 08:25 +0000 [78dcdd3010]  gtjoseph <gjoseph@digium.com>
+
+	* configure:  Fix HAVE_PJSIP_EVSUB_GRP_LOCK not set with external pjproject
+
+	  There was a typo in configure.ac preventing HAVE_PJSIP_EVSUB_GRP_LOCK
+	  from getting set when using an external pjproject.
+
+	  ASTERISK-26099 #close
+	  Reported-by: Ross Beer
+
+	  Change-Id: I709af70428e125fb5ccd44b171d25dd29141f0ae
+
+2016-06-28 09:00 +0000 [1529e62f42]  gtjoseph <gjoseph@digium.com>
+
+	* codecs:  Fix ABI incompatibility created by adding format_name to ast_codec
+
+	  Adding format_name even to the end of ast_codec caused issued with
+	  binary codec modules because the pointer would be garbage in asterisk
+	  when they registered.  So, the ast_codec structure was reverted and an
+	  internal_ast_codec structure was created just for use in codec.c.  A new
+	  internal-only API was also added (__ast_codec_register_with_format) so
+	  that codec_builtin could register codecs with the format_name in a
+	  separate parameter rather than in the ast_codec structure.
+
+	  ASTERISK-26144 #close
+	  Reported-by: Alexei Gradinari
+
+	  Change-Id: I6df1b08f6a6ae089db23adfe1ebc8636330265ba
+
 2016-06-23 13:47 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.10.0-rc1 Released.
