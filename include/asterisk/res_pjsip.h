@@ -505,6 +505,8 @@ struct ast_sip_endpoint_subscription_configuration {
 	unsigned int minexpiry;
 	/*! Message waiting configuration */
 	struct ast_sip_mwi_configuration mwi;
+	/* Context for SUBSCRIBE requests */
+	char context[AST_MAX_CONTEXT];
 };
 
 /*!
