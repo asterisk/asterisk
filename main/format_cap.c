@@ -121,8 +121,8 @@ struct ast_format_cap *__ast_format_cap_alloc(enum ast_format_cap_flags flags,
 {
 	struct ast_format_cap *cap;
 
-	cap = __ao2_alloc(sizeof(*cap), format_cap_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK,
-		tag, file, line, func);
+	cap = __ao2_alloc_full(sizeof(*cap), format_cap_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK,
+		tag, file, line, func, NULL);
 	if (!cap) {
 		return NULL;
 	}

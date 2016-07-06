@@ -204,7 +204,7 @@ static struct mydata *my_alloc_debug(void *data,
 {
 	struct mydata *p;
 
-	p = __ao2_alloc(sizeof(*p), NULL, AO2_ALLOC_OPT_LOCK_MUTEX, tag, file, line, func);
+	p = __ao2_t_alloc(sizeof(*p), NULL, tag, file, line, func);
 	if (p) {
 		p->data = data;
 	}
@@ -394,17 +394,40 @@ enum ao2_alloc_opts {
  */
 
 #define ao2_t_alloc_options(data_size, destructor_fn, options, debug_msg) \
-	__ao2_alloc((data_size), (destructor_fn), (options), (debug_msg),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_alloc_full((data_size), (destructor_fn), (options), (debug_msg),  __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
 #define ao2_alloc_options(data_size, destructor_fn, options) \
-	__ao2_alloc((data_size), (destructor_fn), (options), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_alloc_full((data_size), (destructor_fn), (options), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
 
 #define ao2_t_alloc(data_size, destructor_fn, debug_msg) \
-	__ao2_alloc((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX, (debug_msg),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_alloc_full((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX, (debug_msg), __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
 #define ao2_alloc(data_size, destructor_fn) \
-	__ao2_alloc((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX, "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_alloc_full((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX, "", __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
 
-void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, unsigned int options,
-	const char *tag, const char *file, int line, const char *func) attribute_warn_unused_result;
+void *__ao2_alloc_full(size_t data_size, ao2_destructor_fn destructor_fn, unsigned int options,
+	const char *tag, const char *file, int line, const char *func, void *debugstorage)
+	attribute_warn_unused_result;
+
+#define __ao2_t_alloc(data_size, destructor_fn, tag, file, line, func) \
+	__ao2_alloc_full((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX, (tag), (file), (line), (func), NULL)
+
+#define __ao2_alloc(data_size, destructor_fn, file, line, func) \
+	__ao2_alloc_full((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX, "", (file), (line), (func), NULL)
+
+#define ao2_alloc_full(data_size, destructor_fn, options, tag, debugstorage) \
+	__ao2_alloc_full((data_size), (destructor_fn), (options), \
+		(tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, (debugstorage))
+
+#define ao2_s_alloc(storage, data_size, destructor_fn, options, tag) \
+	ao2_s_getter(storage, __ao2_alloc_full, (data_size), (destructor_fn), (options), (tag))
+
+#define __ao2_s_getter(storage, method, ...) \
+	({ \
+		typeof(storage) __dst ## __LINE__ = (storage); \
+		*__dst ## __LINE__ = method(__VA_ARGS__, __dst ## __LINE__); \
+		((*__dst ## __LINE__) ? 1 : 0); \
+	})
+#define ao2_s_getter(storage, method, ...) \
+	__ao2_s_getter(storage, method, __VA_ARGS__, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 /*! @} */
 
@@ -453,18 +476,71 @@ unsigned int ao2_options_get(void *obj);
  * \param obj AO2 object to bump the refcount on.
  * \retval The given \a obj pointer.
  */
-#define ao2_t_bump(obj, tag)						\
+#define ao2_bump_full(obj, tag, debugstorage)					\
 	({							\
 		typeof(obj) __obj_ ## __LINE__ = (obj);		\
 		if (__obj_ ## __LINE__) {			\
-			ao2_t_ref(__obj_ ## __LINE__, +1, (tag));	\
+			ao2_ref_full(__obj_ ## __LINE__, +1, (tag), (debugstorage));	\
 		}						\
 		__obj_ ## __LINE__;				\
 	})
+#define ao2_t_bump(obj, tag) \
+	ao2_bump_full((obj), (tag), NULL)
 #define ao2_bump(obj) \
-	ao2_t_bump((obj), "")
+	ao2_bump_full((obj), "", NULL)
 
-int __ao2_ref(void *o, int delta, const char *tag, const char *file, int line, const char *func);
+#define RAII_AO2_S_BUMP(vartype, varname, src) \
+	RAII_AO2_S(vartype, varname, ao2_bump_full((src), #varname, &varname))
+
+int __ao2_ref_full(void *o, int delta,
+	const char *tag, const char *file, int line, const char *func, void *debugstorage);
+
+#define __ao2_ref(o, delta, tag, file, line, func) \
+	__ao2_ref_full((o), (delta), (tag), (file), (line), (func), NULL)
+
+#define ao2_ref_full(o, delta, tag, debugstorage) \
+	__ao2_ref_full((o), (delta), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, (debugstorage))
+
+void __ao2_ref_move(void *o, const char *tag, void *debugto, void *debugfrom,
+	const char *file, int line, const char *func);
+
+#define ao2_ref_move(o, tag, to, from) \
+	__ao2_ref_move(o, tag, to, from, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+#define ao2_s_ref(storage, delta, tag) \
+	{ \
+		typeof(storage) __ref_ ## __LINE__ = (storage); \
+		if (*__ref_ ## __LINE__) { \
+			ao2_ref_full(*__ref_ ## __LINE__, (delta), (tag), __ref_ ## __LINE__); \
+		} \
+	}
+
+#define ao2_s_init(storage) \
+	ao2_s_ref(storage, +1, "")
+
+#define ao2_s_cleanup(storage) \
+	ao2_s_ref(storage, -1, "")
+
+#define ao2_s_set(storage, obj) \
+	{ \
+		typeof(storage) __set_ ## __LINE__ = (storage); \
+		*__set_ ## __LINE__ = obj; \
+		ao2_s_init(__set_ ## __LINE__); \
+	}
+
+#define ao2_s_replace(storage, newval) \
+	{ \
+		typeof(storage) __dst_ ## __LINE__ = (storage); \
+		typeof(newval) __src_ ## __LINE__ = (newval); \
+		if (__src_ ## __LINE__ != *__dst_ ## __LINE__) { \
+			if (__src_ ## __LINE__) {\
+				ao2_ref_full(__src_ ## __LINE__, +1, "", __dst_ ## __LINE__); \
+			} \
+			ao2_s_cleanup(__dst_ ## __LINE__); \
+			*__dst_ ## __LINE__ = __src_ ## __LINE__; \
+		} \
+	}
+
 
 /*!
  * \since 12.4.0
@@ -522,13 +598,14 @@ struct ao2_weakproxy {
  *       This can be done by using AO2_WEAKPROXY to declare your structure.
  */
 void *__ao2_weakproxy_alloc(size_t data_size, ao2_destructor_fn destructor_fn,
-	const char *tag, const char *file, int line, const char *func) attribute_warn_unused_result;
+	const char *tag, const char *file, int line, const char *func, void *debugstorage)
+	attribute_warn_unused_result;
 
 #define ao2_weakproxy_alloc(data_size, destructor_fn) \
-	__ao2_weakproxy_alloc(data_size, destructor_fn, "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_weakproxy_alloc(data_size, destructor_fn, "", __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
 
 #define ao2_t_weakproxy_alloc(data_size, destructor_fn, tag) \
-	__ao2_weakproxy_alloc(data_size, destructor_fn, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_weakproxy_alloc(data_size, destructor_fn, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
 
 /*!
  * \since 14.0.0
@@ -889,12 +966,15 @@ int __ao2_global_obj_replace_unref(struct ao2_global_obj *holder, void *obj, con
  * \retval NULL if no object available.
  */
 #define ao2_t_global_obj_ref(holder, tag)	\
-	__ao2_global_obj_ref(&holder, (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+	__ao2_global_obj_ref(&holder, (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder, NULL)
 #define ao2_global_obj_ref(holder)	\
-	__ao2_global_obj_ref(&holder, "", __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+	__ao2_global_obj_ref(&holder, "", __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder, NULL)
 
-void *__ao2_global_obj_ref(struct ao2_global_obj *holder, const char *tag, const char *file, int line, const char *func, const char *name) attribute_warn_unused_result;
+void *__ao2_global_obj_ref(struct ao2_global_obj *holder, const char *tag, const char *file, int line, const char *func, const char *name, void *debugstorage) attribute_warn_unused_result;
 
+#define RAII_AO2_S_GLOBAL(vartype, varname, holder) \
+	RAII_AO2_S(vartype, varname, \
+		__ao2_global_obj_ref((&holder), "", __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder, &varname))
 
 /*!
  \page AstObj2_Containers AstObj2 Containers
@@ -1315,14 +1395,17 @@ struct ao2_container;
  */
 
 #define ao2_t_container_alloc_hash(ao2_options, container_options, n_buckets, hash_fn, sort_fn, cmp_fn, tag) \
-	__ao2_container_alloc_hash((ao2_options), (container_options), (n_buckets), (hash_fn), (sort_fn), (cmp_fn), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_container_alloc_hash((ao2_options), (container_options), (n_buckets), (hash_fn), (sort_fn), (cmp_fn), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
 #define ao2_container_alloc_hash(ao2_options, container_options, n_buckets, hash_fn, sort_fn, cmp_fn) \
-	__ao2_container_alloc_hash((ao2_options), (container_options), (n_buckets), (hash_fn), (sort_fn), (cmp_fn), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_container_alloc_hash((ao2_options), (container_options), (n_buckets), (hash_fn), (sort_fn), (cmp_fn), "", __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
 
 struct ao2_container *__ao2_container_alloc_hash(unsigned int ao2_options,
 	unsigned int container_options, unsigned int n_buckets, ao2_hash_fn *hash_fn,
 	ao2_sort_fn *sort_fn, ao2_callback_fn *cmp_fn,
-	const char *tag, const char *file, int line, const char *func) attribute_warn_unused_result;
+	const char *tag, const char *file, int line, const char *func, void *debugstorage) attribute_warn_unused_result;
+
+#define ao2_s_container_alloc_hash(storage, ao2_options, container_options, n_buckets, hash_fn, sort_fn, cmp_fn, tag) \
+	ao2_s_getter(storage, __ao2_container_alloc_hash, (ao2_options), (container_options), (n_buckets), (hash_fn), (sort_fn), (cmp_fn), (tag))
 
 /*!
  * \brief Allocate and initialize a list container.
@@ -1340,13 +1423,16 @@ struct ao2_container *__ao2_container_alloc_hash(unsigned int ao2_options,
  */
 
 #define ao2_t_container_alloc_list(ao2_options, container_options, sort_fn, cmp_fn, tag) \
-	__ao2_container_alloc_list((ao2_options), (container_options), (sort_fn), (cmp_fn), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_container_alloc_list((ao2_options), (container_options), (sort_fn), (cmp_fn), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
 #define ao2_container_alloc_list(ao2_options, container_options, sort_fn, cmp_fn) \
-	__ao2_container_alloc_list((ao2_options), (container_options), (sort_fn), (cmp_fn), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_container_alloc_list((ao2_options), (container_options), (sort_fn), (cmp_fn), "", __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
 
 struct ao2_container *__ao2_container_alloc_list(unsigned int ao2_options,
 	unsigned int container_options, ao2_sort_fn *sort_fn, ao2_callback_fn *cmp_fn,
-	const char *tag, const char *file, int line, const char *func) attribute_warn_unused_result;
+	const char *tag, const char *file, int line, const char *func, void *debugstorage) attribute_warn_unused_result;
+
+#define ao2_s_container_alloc_list(storage, ao2_options, container_options, sort_fn, cmp_fn, tag) \
+	ao2_s_getter(storage, __ao2_container_alloc_list, (ao2_options), (container_options), (sort_fn), (cmp_fn), (tag))
 
 /*!
  * \brief Allocate and initialize a red-black tree container.
@@ -1363,13 +1449,13 @@ struct ao2_container *__ao2_container_alloc_list(unsigned int ao2_options,
  */
 
 #define ao2_t_container_alloc_rbtree(ao2_options, container_options, sort_fn, cmp_fn, tag) \
-	__ao2_container_alloc_rbtree((ao2_options), (container_options), (sort_fn), (cmp_fn), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_container_alloc_rbtree((ao2_options), (container_options), (sort_fn), (cmp_fn), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
 #define ao2_container_alloc_rbtree(ao2_options, container_options, sort_fn, cmp_fn) \
-	__ao2_container_alloc_rbtree((ao2_options), (container_options), (sort_fn), (cmp_fn), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_container_alloc_rbtree((ao2_options), (container_options), (sort_fn), (cmp_fn), "", __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
 
 struct ao2_container *__ao2_container_alloc_rbtree(unsigned int ao2_options, unsigned int container_options,
 	ao2_sort_fn *sort_fn, ao2_callback_fn *cmp_fn,
-	const char *tag, const char *file, int line, const char *func) attribute_warn_unused_result;
+	const char *tag, const char *file, int line, const char *func, void *debugstorage) attribute_warn_unused_result;
 
 /*! \brief
  * Returns the number of elements in a container.
@@ -1410,12 +1496,14 @@ int ao2_container_dup(struct ao2_container *dest, struct ao2_container *src, enu
  * \retval NULL on error.
  */
 struct ao2_container *__ao2_container_clone(struct ao2_container *orig, enum search_flags flags,
-	const char *tag, const char *file, int line, const char *func) attribute_warn_unused_result;
+	const char *tag, const char *file, int line, const char *func, void *debugstorage)
+	attribute_warn_unused_result;
 
 #define ao2_t_container_clone(orig, flags, tag) \
-	__ao2_container_clone(orig, flags, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_container_clone(orig, flags, tag, __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
 #define ao2_container_clone(orig, flags) \
-	__ao2_container_clone(orig, flags, "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_container_clone(orig, flags, "", __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
+
 
 /*!
  * \brief Print output.
@@ -1699,13 +1787,19 @@ void *__ao2_unlink(struct ao2_container *c, void *obj, int flags,
  */
 
 #define ao2_t_callback(c, flags, cb_fn, arg, tag) \
-	__ao2_callback((c), (flags), (cb_fn), (arg), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_callback_full((c), (flags), (cb_fn), (arg), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
 #define ao2_callback(c, flags, cb_fn, arg) \
-	__ao2_callback((c), (flags), (cb_fn), (arg), "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_callback_full((c), (flags), (cb_fn), (arg), "", __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
+#define __ao2_callback(c, flags, cb_fn, arg, tag, file, line, func) \
+	__ao2_callback_full((c), (flags), (cb_fn), (arg), (tag), (file), (line), (func), NULL)
+#define ao2_callback_full(c, flags, cb_fn, arg, tag, debugstorage) \
+	__ao2_callback_full((c), (flags), (cb_fn), (arg), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, (debugstorage))
+#define ao2_s_callback(storage, c, flags, cb_fn, arg, tag) \
+	ao2_s_getter(storage, __ao2_callback_full, (c), (flags), (cb_fn), (arg), (tag))
 
-void *__ao2_callback(struct ao2_container *c, enum search_flags flags,
+void *__ao2_callback_full(struct ao2_container *c, enum search_flags flags,
 	ao2_callback_fn *cb_fn, void *arg, const char *tag, const char *file, int line,
-	const char *func);
+	const char *func, void *debugstorage);
 
 /*! @} */
 
@@ -1726,25 +1820,38 @@ void *__ao2_callback(struct ao2_container *c, enum search_flags flags,
  */
 
 #define ao2_t_callback_data(container, flags, cb_fn, arg, data, tag) \
-	__ao2_callback_data((container), (flags), (cb_fn), (arg), (data), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_callback_data_full((container), (flags), (cb_fn), (arg), (data), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
 #define ao2_callback_data(container, flags, cb_fn, arg, data) \
-	__ao2_callback_data((container), (flags), (cb_fn), (arg), (data), "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_callback_data_full((container), (flags), (cb_fn), (arg), (data), "", __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
+#define __ao2_callback_data(c, flags, cb_fn, arg, data, tag, file, line, func) \
+	__ao2_callback_data_full((c), (flags), (cb_fn), (arg), (data), (tag), (file), (line), (func), NULL)
+#define ao2_callback_data_full(debugstorage, c, flags, cb_fn, arg, data, tag) \
+	__ao2_callback_data_full((c), (flags), (cb_fn), (arg), (data), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, (debugstorage))
+#define ao2_s_callback_data(storage, c, flags, cb_fn, arg, data, tag) \
+	ao2_s_getter(storage, __ao2_callback_data_full, (c), (flags), (cb_fn), (arg), (data), (tag))
 
-void *__ao2_callback_data(struct ao2_container *c, enum search_flags flags,
+void *__ao2_callback_data_full(struct ao2_container *c, enum search_flags flags,
 	ao2_callback_data_fn *cb_fn, void *arg, void *data, const char *tag, const char *file,
-	int line, const char *func);
+	int line, const char *func, void *debugstorage);
 
 /*! ao2_find() is a short hand for ao2_callback(c, flags, c->cmp_fn, arg)
  * XXX possibly change order of arguments ?
  */
 
 #define ao2_t_find(container, arg, flags, tag) \
-	__ao2_find((container), (arg), (flags), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_find_full((container), (arg), (flags), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
 #define ao2_find(container, arg, flags) \
-	__ao2_find((container), (arg), (flags), "", __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_find_full((container), (arg), (flags), "", __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
+#define __ao2_find(container, arg, flags, tag, file, line, func) \
+	__ao2_find_full((container), (arg), (flags), (tag), (file), (line), (func), NULL)
+#define ao2_find_full(container, arg, flags, tag, debugstorage) \
+	__ao2_find_full((container), (arg), (flags), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, (debugstorage))
 
-void *__ao2_find(struct ao2_container *c, const void *arg, enum search_flags flags,
-	const char *tag, const char *file, int line, const char *func);
+#define ao2_s_find(storage, container, arg, flags, tag) \
+	ao2_s_getter(storage, __ao2_find_full, (container), (arg), (flags), (tag))
+
+void *__ao2_find_full(struct ao2_container *c, const void *arg, enum search_flags flags,
+	const char *tag, const char *file, int line, const char *func, void *debugstorage);
 
 /*! \brief
  *
@@ -1869,7 +1976,24 @@ enum ao2_iterator_flags {
 	 * iteration.
 	 */
 	AO2_ITERATOR_DESCENDING = (1 << 3),
+	/*!
+	 * Reference to the container is stored in the iterator.
+	 *
+	 * \note This flag is set within __ao2_iterator_init if debugstorage != NULL.
+	 */
+	AO2_ITERATOR_STOREDCONTAINER = (1 << 4),
 };
+
+/*!
+ * \brief Initialize an iterator for a container
+ *
+ * \param iter Iterator to initialize.  Must point to valid memory.
+ * \param c the container
+ * \param flags one or more flags from ao2_iterator_flags.
+ *
+ * This function will take a reference on the container being iterated.
+ */
+void ao2_s_iterator_init(struct ao2_iterator *iter, struct ao2_container *c, int flags);
 
 /*!
  * \brief Create an iterator for a container
@@ -1905,12 +2029,16 @@ void ao2_iterator_destroy(struct ao2_iterator *iter);
 #endif	/* defined(TEST_FRAMEWORK) */
 
 #define ao2_t_iterator_next(iter, tag) \
-	__ao2_iterator_next((iter), (tag),  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_iterator_next((iter), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
 #define ao2_iterator_next(iter) \
-	__ao2_iterator_next((iter), "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ao2_iterator_next((iter), "", __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
+
+#define ao2_s_iterator_next(storage, iter) \
+	ao2_s_getter(storage, __ao2_iterator_next, (iter), "")
 
 void *__ao2_iterator_next(struct ao2_iterator *iter,
-	const char *tag, const char *file, int line, const char *func) attribute_warn_unused_result;
+	const char *tag, const char *file, int line, const char *func, void *debugstorage)
+	attribute_warn_unused_result;
 
 /*!
  * \brief Restart an iteration.

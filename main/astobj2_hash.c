@@ -116,7 +116,7 @@ struct hash_traversal_state_check {
  * \retval NULL on error.
  */
 static struct ao2_container *hash_ao2_alloc_empty_clone(struct ao2_container_hash *self,
-	const char *tag, const char *file, int line, const char *func)
+	const char *tag, const char *file, int line, const char *func, void *debugstorage)
 {
 	if (!__is_ao2_object(self, file, line, func)) {
 		return NULL;
@@ -124,7 +124,7 @@ static struct ao2_container *hash_ao2_alloc_empty_clone(struct ao2_container_has
 
 	return __ao2_container_alloc_hash(ao2_options_get(self), self->common.options,
 		self->n_buckets, self->hash_fn, self->common.sort_fn, self->common.cmp_fn,
-		tag, file, line, func);
+		tag, file, line, func, debugstorage);
 }
 
 /*!
@@ -217,7 +217,7 @@ static struct hash_bucket_node *hash_ao2_new_node(struct ao2_container_hash *sel
 
 	i = abs(self->hash_fn(obj_new, OBJ_SEARCH_OBJECT) % self->n_buckets);
 
-	__ao2_ref(obj_new, +1, tag ?: "Container node creation", file, line, func);
+	__ao2_ref_full(obj_new, +1, tag ?: "Container node creation", file, line, func, self);
 	node->common.obj = obj_new;
 	node->common.my_container = (struct ao2_container *) self;
 	node->my_bucket = i;
@@ -1078,7 +1078,7 @@ static struct ao2_container *hash_ao2_container_init(
 struct ao2_container *__ao2_container_alloc_hash(unsigned int ao2_options,
 	unsigned int container_options, unsigned int n_buckets, ao2_hash_fn *hash_fn,
 	ao2_sort_fn *sort_fn, ao2_callback_fn *cmp_fn,
-	const char *tag, const char *file, int line, const char *func)
+	const char *tag, const char *file, int line, const char *func, void *debugstorage)
 {
 	unsigned int num_buckets;
 	size_t container_size;
@@ -1087,17 +1087,17 @@ struct ao2_container *__ao2_container_alloc_hash(unsigned int ao2_options,
 	num_buckets = hash_fn ? n_buckets : 1;
 	container_size = sizeof(struct ao2_container_hash) + num_buckets * sizeof(struct hash_bucket);
 
-	self = __ao2_alloc(container_size, container_destruct, ao2_options,
-		tag ?: __PRETTY_FUNCTION__, file, line, func);
+	self = __ao2_alloc_full(container_size, container_destruct, ao2_options,
+		tag ?: __PRETTY_FUNCTION__, file, line, func, debugstorage);
 	return hash_ao2_container_init(self, container_options, num_buckets, hash_fn,
 		sort_fn, cmp_fn);
 }
 
 struct ao2_container *__ao2_container_alloc_list(unsigned int ao2_options,
 	unsigned int container_options, ao2_sort_fn *sort_fn, ao2_callback_fn *cmp_fn,
-	const char *tag, const char *file, int line, const char *func)
+	const char *tag, const char *file, int line, const char *func, void *debugstorage)
 {
 	return __ao2_container_alloc_hash(ao2_options, container_options, 1, NULL,
-		sort_fn, cmp_fn, tag, file, line, func);
+		sort_fn, cmp_fn, tag, file, line, func, debugstorage);
 }
 

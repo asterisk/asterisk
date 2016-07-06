@@ -1369,7 +1369,7 @@ static struct mohclass *_moh_class_malloc(const char *file, int line, const char
 {
 	struct mohclass *class;
 
-	class = __ao2_alloc(sizeof(*class), moh_class_destructor, AO2_ALLOC_OPT_LOCK_MUTEX,
+	class = __ao2_t_alloc(sizeof(*class), moh_class_destructor,
 		"Allocating new moh class", file, line, funcname);
 	if (class) {
 		class->format = ao2_bump(ast_format_slin);

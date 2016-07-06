@@ -558,14 +558,14 @@ static void rb_rotate_right(struct ao2_container_rbtree *self, struct rbtree_nod
  * \retval NULL on error.
  */
 static struct ao2_container *rb_ao2_alloc_empty_clone(struct ao2_container_rbtree *self,
-	const char *tag, const char *file, int line, const char *func)
+	const char *tag, const char *file, int line, const char *func, void *debugstorage)
 {
 	if (!__is_ao2_object(self, file, line, func)) {
 		return NULL;
 	}
 
 	return __ao2_container_alloc_rbtree(ao2_options_get(self), self->common.options,
-		self->common.sort_fn, self->common.cmp_fn, tag, file, line, func);
+		self->common.sort_fn, self->common.cmp_fn, tag, file, line, func, debugstorage);
 }
 
 /*!
@@ -910,7 +910,7 @@ static struct rbtree_node *rb_ao2_new_node(struct ao2_container_rbtree *self, vo
 		return NULL;
 	}
 
-	__ao2_ref(obj_new, +1, tag ?: "Container node creation", file, line, func);
+	__ao2_ref_full(obj_new, +1, tag ?: "Container node creation", file, line, func, self);
 	node->common.obj = obj_new;
 	node->common.my_container = (struct ao2_container *) self;
 
@@ -2036,9 +2036,9 @@ static struct ao2_container *rb_ao2_container_init(struct ao2_container_rbtree *
 	return (struct ao2_container *) self;
 }
 
-struct ao2_container *__ao2_container_alloc_rbtree(unsigned int ao2_options, unsigned int container_options,
-	ao2_sort_fn *sort_fn, ao2_callback_fn *cmp_fn,
-	const char *tag, const char *file, int line, const char *func)
+struct ao2_container *__ao2_container_alloc_rbtree(unsigned int ao2_options,
+	unsigned int container_options, ao2_sort_fn *sort_fn, ao2_callback_fn *cmp_fn,
+	const char *tag, const char *file, int line, const char *func, void *debugstorage)
 {
 	struct ao2_container_rbtree *self;
 
@@ -2048,8 +2048,8 @@ struct ao2_container *__ao2_container_alloc_rbtree(unsigned int ao2_options, uns
 		return NULL;
 	}
 
-	self = __ao2_alloc(sizeof(*self), container_destruct, ao2_options,
-		tag ?: __PRETTY_FUNCTION__, file, line, func);
+	self = __ao2_alloc_full(sizeof(*self), container_destruct, ao2_options,
+		tag ?: __PRETTY_FUNCTION__, file, line, func, debugstorage);
 	return rb_ao2_container_init(self, container_options, sort_fn, cmp_fn);
 }
 
