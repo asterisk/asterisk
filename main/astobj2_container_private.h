@@ -95,7 +95,7 @@ typedef void (*ao2_container_destroy_fn)(struct ao2_container *self);
  * \retval empty-container on success.
  * \retval NULL on error.
  */
-typedef struct ao2_container *(*ao2_container_alloc_empty_clone_fn)(struct ao2_container *self, const char *tag, const char *file, int line, const char *func);
+typedef struct ao2_container *(*ao2_container_alloc_empty_clone_fn)(struct ao2_container *self, const char *tag, const char *file, int line, const char *func, void *debugstorage);
 
 /*!
  * \brief Create a new container node.
