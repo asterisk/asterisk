@@ -182,6 +182,15 @@ void log_bad_ao2(void *user_data, const char *file, int line, const char *func)
 	}
 }
 
+void __ao2_ref_move(void *o, const char *tag, void *debugto, void *debugfrom,
+	const char *file, int line, const char *func)
+{
+	if (ast_opt_ref_debug) {
+		__ao2_ref_full(o, +1, tag, file, line, func, debugto);
+		__ao2_ref_full(o, -1, tag, file, line, func, debugfrom);
+	}
+}
+
 int __ao2_lock(void *user_data, enum ao2_lock_req lock_how, const char *file, const char *func, int line, const char *var)
 {
 	struct astobj2 *obj = __INTERNAL_OBJ_CHECK(user_data, file, line, func);
@@ -435,8 +444,8 @@ void *ao2_object_get_lockaddr(void *user_data)
 	return NULL;
 }
 
-int __ao2_ref(void *user_data, int delta,
-	const char *tag, const char *file, int line, const char *func)
+int __ao2_ref_full(void *user_data, int delta,
+	const char *tag, const char *file, int line, const char *func, void *debugstorage)
 {
 	struct astobj2 *obj = __INTERNAL_OBJ_CHECK(user_data, file, line, func);
 	struct astobj2_lock *obj_mutex;
@@ -447,8 +456,8 @@ int __ao2_ref(void *user_data, int delta,
 
 	if (obj == NULL) {
 		if (ref_log && user_data) {
-			fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**invalid**,%s\n",
-				user_data, delta, ast_get_tid(), file, line, func, tag ?: "");
+			fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**invalid**,%p,%s\n",
+				user_data, delta, ast_get_tid(), file, line, func, debugstorage, tag ?: "");
 			fflush(ref_log);
 		}
 		ast_assert(0);
@@ -500,9 +509,9 @@ int __ao2_ref(void *user_data, int delta,
 	if (0 < current_value) {
 		/* The object still lives. */
 		if (ref_log && tag) {
-			fprintf(ref_log, "%p,%s%d,%d,%s,%d,%s,%d,%s\n", user_data,
+			fprintf(ref_log, "%p,%s%d,%d,%s,%d,%s,%d,%p,%s\n", user_data,
 				(delta < 0 ? "" : "+"), delta, ast_get_tid(),
-				file, line, func, ret, tag);
+				file, line, func, ret, debugstorage, tag);
 			fflush(ref_log);
 		}
 		return ret;
@@ -513,9 +522,8 @@ int __ao2_ref(void *user_data, int delta,
 		ast_log(__LOG_ERROR, file, line, func,
 			"Invalid refcount %d on ao2 object %p\n", current_value, user_data);
 		if (ref_log) {
-			/* Log to ref_log invalid even if (tag == NULL) */
-			fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**invalid**,%s\n",
-				user_data, delta, ast_get_tid(), file, line, func, tag ?: "");
+			fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**invalid**,%p,%s\n",
+				user_data, delta, ast_get_tid(), file, line, func, debugstorage, tag ?: "");
 			fflush(ref_log);
 		}
 		ast_assert(0);
@@ -559,8 +567,8 @@ int __ao2_ref(void *user_data, int delta,
 	}
 
 	if (ref_log && tag) {
-		fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**destructor**,%s\n",
-			user_data, delta, ast_get_tid(), file, line, func, tag);
+		fprintf(ref_log, "%p,%d,%d,%s,%d,%s,**destructor**,%p,%s\n",
+			user_data, delta, ast_get_tid(), file, line, func, debugstorage, "");
 		fflush(ref_log);
 	}
 
@@ -581,8 +589,8 @@ void __ao2_cleanup(void *obj)
 	}
 }
 
-void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, unsigned int options,
-	const char *tag, const char *file, int line, const char *func)
+void *__ao2_alloc_full(size_t data_size, ao2_destructor_fn destructor_fn, unsigned int options,
+	const char *tag, const char *file, int line, const char *func, void *debugstorage)
 {
 	/* allocation */
 	struct astobj2 *obj;
@@ -646,8 +654,8 @@ void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, unsigned in
 #endif
 
 	if (ref_log && tag) {
-		fprintf(ref_log, "%p,+1,%d,%s,%d,%s,**constructor**,%s\n",
-			EXTERNAL_OBJ(obj), ast_get_tid(), file, line, func, tag);
+		fprintf(ref_log, "%p,+1,%d,%s,%d,%s,**constructor**%zu**,%p,%s\n",
+			EXTERNAL_OBJ(obj), ast_get_tid(), file, line, func, data_size, debugstorage, tag);
 		fflush(ref_log);
 	}
 
@@ -729,7 +737,7 @@ int __ao2_global_obj_replace_unref(struct ao2_global_obj *holder, void *obj, con
 	return 0;
 }
 
-void *__ao2_global_obj_ref(struct ao2_global_obj *holder, const char *tag, const char *file, int line, const char *func, const char *name)
+void *__ao2_global_obj_ref(struct ao2_global_obj *holder, const char *tag, const char *file, int line, const char *func, const char *name, void *debugstorage)
 {
 	void *obj;
 
@@ -748,7 +756,7 @@ void *__ao2_global_obj_ref(struct ao2_global_obj *holder, const char *tag, const
 
 	obj = holder->obj;
 	if (obj) {
-		__ao2_ref(obj, +1, tag, file, line, func);
+		__ao2_ref_full(obj, +1, tag, file, line, func, debugstorage);
 	}
 
 	__ast_rwlock_unlock(file, line, func, &holder->lock, name);
@@ -768,7 +776,7 @@ static void weakproxy_run_callbacks(struct ao2_weakproxy *weakproxy)
 }
 
 void *__ao2_weakproxy_alloc(size_t data_size, ao2_destructor_fn destructor_fn,
-	const char *tag, const char *file, int line, const char *func)
+	const char *tag, const char *file, int line, const char *func, void *debugstorage)
 {
 	struct ao2_weakproxy *weakproxy;
 
@@ -778,8 +786,8 @@ void *__ao2_weakproxy_alloc(size_t data_size, ao2_destructor_fn destructor_fn,
 		return NULL;
 	}
 
-	weakproxy = __ao2_alloc(data_size, destructor_fn, AO2_ALLOC_OPT_LOCK_MUTEX,
-		tag, file, line, func);
+	weakproxy = __ao2_alloc_full(data_size, destructor_fn, AO2_ALLOC_OPT_LOCK_MUTEX,
+		tag, file, line, func, debugstorage);
 
 	if (weakproxy) {
 		struct astobj2 *weakproxy_internal;

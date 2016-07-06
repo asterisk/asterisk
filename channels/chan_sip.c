@@ -8798,9 +8798,9 @@ struct sip_pvt *__sip_alloc(ast_string_field callid, struct ast_sockaddr *addr,
 {
 	struct sip_pvt *p;
 
-	p = __ao2_alloc(sizeof(*p), sip_pvt_dtor,
+	p = __ao2_alloc_full(sizeof(*p), sip_pvt_dtor,
 		AO2_ALLOC_OPT_LOCK_MUTEX, "allocate a dialog(pvt) struct",
-		file, line, func);
+		file, line, func, NULL);
 	if (!p) {
 		return NULL;
 	}

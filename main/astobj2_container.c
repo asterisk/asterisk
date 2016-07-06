@@ -49,7 +49,7 @@ int __container_unlink_node_debug(struct ao2_container_node *node, uint32_t flag
 
 	if ((flags & AO2_UNLINK_NODE_UNLINK_OBJECT)
 		&& !(flags & AO2_UNLINK_NODE_NOUNREF_OBJECT)) {
-		__ao2_ref(node->obj, -1, tag ?: "Remove obj from container", file, line, func);
+		__ao2_ref_full(node->obj, -1, tag ?: "Remove obj from container", file, line, func, container);
 	}
 
 	node->obj = NULL;
@@ -229,7 +229,7 @@ static int cb_true_data(void *user_data, void *arg, void *data, int flags)
  */
 static void *internal_ao2_traverse(struct ao2_container *self, enum search_flags flags,
 	void *cb_fn, void *arg, void *data, enum ao2_callback_type type,
-	const char *tag, const char *file, int line, const char *func)
+	const char *tag, const char *file, int line, const char *func, void *debugstorage)
 {
 	void *ret;
 	ao2_callback_fn *cb_default = NULL;
@@ -261,13 +261,13 @@ static void *internal_ao2_traverse(struct ao2_container *self, enum search_flags
 		 * is destroyed, the container will be automatically
 		 * destroyed as well.
 		 */
-		multi_container = ao2_t_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, NULL,
-			NULL, "OBJ_MULTIPLE return container creation");
+		ao2_s_container_alloc_list(&multi_container, AO2_ALLOC_OPT_LOCK_NOLOCK, 0, NULL, NULL,
+			"OBJ_MULTIPLE return container");
 		if (!multi_container) {
 			return NULL;
 		}
 		if (!(multi_iterator = ast_calloc(1, sizeof(*multi_iterator)))) {
-			ao2_t_ref(multi_container, -1, "OBJ_MULTIPLE interator creation failed.");
+			ao2_s_cleanup(&multi_container);
 			return NULL;
 		}
 	}
@@ -358,7 +358,10 @@ static void *internal_ao2_traverse(struct ao2_container *self, enum search_flags
 						 * Bump the ref count since we are not going to unlink and
 						 * transfer the container's object ref to the returned object.
 						 */
-						__ao2_ref(ret, 1, tag ?: "Traversal found object", file, line, func);
+						__ao2_ref_full(ret, +1, tag ?: "Traversal found object", file, line, func, debugstorage);
+					} else if (ast_opt_ref_debug) {
+						/* move the reference to debugstorage from self */
+						__ao2_ref_move(ret, "Traversal found object for OBJ_UNLINK", debugstorage, self, file, line, func);
 					}
 				}
 			}
@@ -393,35 +396,35 @@ static void *internal_ao2_traverse(struct ao2_container *self, enum search_flags
 
 	/* if multi_container was created, we are returning multiple objects */
 	if (multi_container) {
-		*multi_iterator = ao2_iterator_init(multi_container,
+		ao2_s_iterator_init(multi_iterator, multi_container,
 			AO2_ITERATOR_UNLINK | AO2_ITERATOR_MALLOCD);
-		ao2_t_ref(multi_container, -1,
-			"OBJ_MULTIPLE for multiple objects traversal complete.");
+
+		ao2_s_cleanup(&multi_container);
 		return multi_iterator;
 	} else {
 		return ret;
 	}
 }
 
-void *__ao2_callback(struct ao2_container *c, enum search_flags flags,
+void *__ao2_callback_full(struct ao2_container *c, enum search_flags flags,
 	ao2_callback_fn *cb_fn, void *arg, const char *tag, const char *file, int line,
-	const char *func)
+	const char *func, void *debugstorage)
 {
-	return internal_ao2_traverse(c, flags, cb_fn, arg, NULL, AO2_CALLBACK_DEFAULT, tag, file, line, func);
+	return internal_ao2_traverse(c, flags, cb_fn, arg, NULL, AO2_CALLBACK_DEFAULT, tag, file, line, func, debugstorage);
 }
 
-void *__ao2_callback_data(struct ao2_container *c, enum search_flags flags,
+void *__ao2_callback_data_full(struct ao2_container *c, enum search_flags flags,
 	ao2_callback_data_fn *cb_fn, void *arg, void *data, const char *tag, const char *file,
-	int line, const char *func)
+	int line, const char *func, void *debugstorage)
 {
-	return internal_ao2_traverse(c, flags, cb_fn, arg, data, AO2_CALLBACK_WITH_DATA, tag, file, line, func);
+	return internal_ao2_traverse(c, flags, cb_fn, arg, data, AO2_CALLBACK_WITH_DATA, tag, file, line, func, debugstorage);
 }
 
 /*!
  * the find function just invokes the default callback with some reasonable flags.
  */
-void *__ao2_find(struct ao2_container *c, const void *arg, enum search_flags flags,
-	const char *tag, const char *file, int line, const char *func)
+void *__ao2_find_full(struct ao2_container *c, const void *arg, enum search_flags flags,
+	const char *tag, const char *file, int line, const char *func, void *debugstorage)
 {
 	void *arged = (void *) arg;/* Done to avoid compiler const warning */
 
@@ -430,7 +433,7 @@ void *__ao2_find(struct ao2_container *c, const void *arg, enum search_flags fla
 		ast_assert(0);
 		return NULL;
 	}
-	return __ao2_callback(c, flags, c->cmp_fn, arged, tag, file, line, func);
+	return __ao2_callback_full(c, flags, c->cmp_fn, arged, tag, file, line, func, debugstorage);
 }
 
 /*!
@@ -440,12 +443,19 @@ struct ao2_iterator ao2_iterator_init(struct ao2_container *c, int flags)
 {
 	struct ao2_iterator a = {
 		.c = c,
-		.flags = flags
+		.flags = flags & ~AO2_ITERATOR_STOREDCONTAINER
 	};
 
 	ao2_t_ref(c, +1, "Init iterator with container.");
 
 	return a;
+}
+
+void ao2_s_iterator_init(struct ao2_iterator *iter, struct ao2_container *c, int flags)
+{
+	memset(iter, 0, sizeof(*iter));
+	ao2_s_set(&iter->c, c);
+	iter->flags = flags | AO2_ITERATOR_STOREDCONTAINER;
 }
 
 void ao2_iterator_restart(struct ao2_iterator *iter)
@@ -498,7 +508,8 @@ void ao2_iterator_destroy(struct ao2_iterator *iter)
 	ao2_iterator_restart(iter);
 
 	/* Release the iterated container reference. */
-	ao2_t_ref(iter->c, -1, "Unref iterator in ao2_iterator_destroy");
+	ao2_ref_full(iter->c, -1, "Unref iterator in ao2_iterator_destroy",
+		iter->flags & AO2_ITERATOR_STOREDCONTAINER ? &iter->c : NULL);
 	iter->c = NULL;
 
 	/* Free the malloced iterator. */
@@ -515,7 +526,7 @@ void ao2_iterator_cleanup(struct ao2_iterator *iter)
 }
 
 void *__ao2_iterator_next(struct ao2_iterator *iter,
-	const char *tag, const char *file, int line, const char *func)
+	const char *tag, const char *file, int line, const char *func, void *debugstorage)
 {
 	enum ao2_lock_req orig_lock;
 	struct ao2_container_node *node;
@@ -552,15 +563,13 @@ void *__ao2_iterator_next(struct ao2_iterator *iter,
 	if (node) {
 		ret = node->obj;
 
+		/* Bump ref of returned object */
+		__ao2_ref_full(ret, +1, tag ?: "Next iterator object.", file, line, func, debugstorage);
+
 		if (iter->flags & AO2_ITERATOR_UNLINK) {
-			/* Transfer the object ref from the container to the returned object. */
-			__container_unlink_node_debug(node, AO2_UNLINK_NODE_DEC_COUNT, tag, file, line, func);
-
 			/* Transfer the container's node ref to the iterator. */
+			__container_unlink_node_debug(node, AO2_UNLINK_NODE_DEC_COUNT | AO2_UNLINK_NODE_UNLINK_OBJECT, tag, file, line, func);
 		} else {
-			/* Bump ref of returned object */
-			__ao2_ref(ret, +1, tag ?: "Next iterator object.", file, line, func);
-
 			/* Bump the container's node ref for the iterator. */
 			ao2_t_ref(node, +1, NULL);
 		}
@@ -655,7 +664,7 @@ int ao2_container_dup(struct ao2_container *dest, struct ao2_container *src, enu
 	return res;
 }
 
-struct ao2_container *__ao2_container_clone(struct ao2_container *orig, enum search_flags flags, const char *tag, const char *file, int line, const char *func)
+struct ao2_container *__ao2_container_clone(struct ao2_container *orig, enum search_flags flags, const char *tag, const char *file, int line, const char *func, void *debugstorage)
 {
 	struct ao2_container *clone;
 	int failed;
@@ -667,7 +676,7 @@ struct ao2_container *__ao2_container_clone(struct ao2_container *orig, enum sea
 		ast_assert(0);
 		return NULL;
 	}
-	clone = orig->v_table->alloc_empty_clone(orig, tag, file, line, func);
+	clone = orig->v_table->alloc_empty_clone(orig, tag, file, line, func, debugstorage);
 	if (!clone) {
 		return NULL;
 	}

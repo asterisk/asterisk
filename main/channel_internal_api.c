@@ -1477,8 +1477,7 @@ struct ast_channel *__ast_channel_internal_alloc(void (*destructor)(void *obj), 
 {
 	struct ast_channel *tmp;
 
-	tmp = __ao2_alloc(sizeof(*tmp), destructor,
-		AO2_ALLOC_OPT_LOCK_MUTEX, "", file, line, function);
+	tmp = __ao2_alloc(sizeof(*tmp), destructor, file, line, function);
 
 	if (!tmp) {
 		return NULL;
