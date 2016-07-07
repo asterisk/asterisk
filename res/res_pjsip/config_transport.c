@@ -562,7 +562,7 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 		}
 	} else if (transport->type == AST_TRANSPORT_TCP) {
 		pjsip_tcp_transport_cfg cfg;
-		int option = 1;
+		static int option = 1;
 
 		pjsip_tcp_transport_cfg_default(&cfg, temp_state->state->host.addr.sa_family);
 		cfg.bind_addr = temp_state->state->host;
