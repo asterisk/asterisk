@@ -274,7 +274,7 @@ static enum ao2_container_insert hash_ao2_insert_node(struct ao2_container_hash 
 					break;
 				case AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE:
 					SWAP(cur->common.obj, node->common.obj);
-					ao2_t_ref(node, -1, "Discard the new node.");
+					ao2_t_ref(node, -1, NULL);
 					return AO2_CONTAINER_INSERT_NODE_OBJ_REPLACED;
 				}
 			}
@@ -307,7 +307,7 @@ static enum ao2_container_insert hash_ao2_insert_node(struct ao2_container_hash 
 					break;
 				case AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE:
 					SWAP(cur->common.obj, node->common.obj);
-					ao2_t_ref(node, -1, "Discard the new node.");
+					ao2_t_ref(node, -1, NULL);
 					return AO2_CONTAINER_INSERT_NODE_OBJ_REPLACED;
 				}
 			}
