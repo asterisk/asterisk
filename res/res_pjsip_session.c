@@ -1325,19 +1325,19 @@ static void session_destructor(void *obj)
 	}
 
 	ast_taskprocessor_unreference(session->serializer);
-	ao2_cleanup(session->datastores);
-	ao2_cleanup(session->media);
+	ao2_s_cleanup(&session->datastores);
+	ao2_s_cleanup(&session->media);
 
 	AST_LIST_HEAD_DESTROY(&session->supplements);
 	while ((delay = AST_LIST_REMOVE_HEAD(&session->delayed_requests, next))) {
 		ast_free(delay);
 	}
 	ast_party_id_free(&session->id);
-	ao2_cleanup(session->endpoint);
-	ao2_cleanup(session->aor);
-	ao2_cleanup(session->contact);
-	ao2_cleanup(session->req_caps);
-	ao2_cleanup(session->direct_media_cap);
+	ao2_s_cleanup(&session->endpoint);
+	ao2_s_cleanup(&session->aor);
+	ao2_s_cleanup(&session->contact);
+	ao2_s_cleanup(&session->req_caps);
+	ao2_s_cleanup(&session->direct_media_cap);
 
 	if (session->dsp) {
 		ast_dsp_free(session->dsp);
@@ -1410,23 +1410,25 @@ struct ast_sip_channel_pvt *ast_sip_channel_pvt_alloc(void *pvt, struct ast_sip_
 struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	struct ast_sip_contact *contact, pjsip_inv_session *inv_session, pjsip_rx_data *rdata)
 {
-	RAII_VAR(struct ast_sip_session *, session, NULL, ao2_cleanup);
+	RAII_AO2_S(struct ast_sip_session *, session, NULL);
 	struct ast_sip_session_supplement *iter;
 	int dsp_features = 0;
 
-	session = ao2_alloc(sizeof(*session), session_destructor);
+	ao2_s_alloc(&session, sizeof(*session), session_destructor, AO2_ALLOC_OPT_LOCK_MUTEX, "");
 	if (!session) {
 		return NULL;
 	}
 	AST_LIST_HEAD_INIT(&session->supplements);
-	session->datastores = ao2_container_alloc(DATASTORE_BUCKETS, datastore_hash, datastore_cmp);
+	ao2_s_container_alloc_hash(&session->datastores, AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		DATASTORE_BUCKETS, datastore_hash, NULL, datastore_cmp, "");
 	if (!session->datastores) {
 		return NULL;
 	}
 
-	session->endpoint = ao2_bump(endpoint);
+	ao2_s_set(&session->endpoint, endpoint);
 
-	session->media = ao2_container_alloc(MEDIA_BUCKETS, session_media_hash, session_media_cmp);
+	ao2_s_container_alloc_hash(&session->media, AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		MEDIA_BUCKETS, session_media_hash, NULL, session_media_cmp, "");
 	if (!session->media) {
 		return NULL;
 	}
@@ -1458,9 +1460,9 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 	ast_sip_dialog_set_endpoint(inv_session->dlg, endpoint);
 	pjsip_dlg_inc_session(inv_session->dlg, &session_module);
 	inv_session->mod_data[session_module.id] = ao2_bump(session);
-	session->contact = ao2_bump(contact);
+	ao2_s_set(&session->contact, contact);
 	session->inv_session = inv_session;
-	session->req_caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	ast_s_format_cap_alloc(&session->req_caps, AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!session->req_caps) {
 		/* Release the ref held by session->inv_session */
 		ao2_ref(session, -1);
@@ -1495,7 +1497,7 @@ struct ast_sip_session *ast_sip_session_alloc(struct ast_sip_endpoint *endpoint,
 			iter->session_begin(session);
 		}
 	}
-	session->direct_media_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	ast_s_format_cap_alloc(&session->direct_media_cap, AST_FORMAT_CAP_FLAG_DEFAULT);
 	AST_LIST_HEAD_INIT_NOLOCK(&session->delayed_requests);
 	ast_party_id_init(&session->id);
 	ao2_ref(session, +1);
@@ -1763,7 +1765,7 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 		pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
 		return NULL;
 	}
-	session->aor = ao2_bump(found_aor);
+	ao2_s_set(&session->aor, found_aor);
 	ast_party_id_copy(&session->id, &endpoint->id.self);
 
 	if (ast_format_cap_count(req_caps)) {

@@ -770,7 +770,7 @@ static void cdr_object_snapshot_copy(struct cdr_object_snapshot *dst, struct cdr
  */
 static void cdr_object_transition_state(struct cdr_object *cdr, struct cdr_object_fn_table *fn_table)
 {
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 
 	CDR_DEBUG(mod_cfg, "%p - Transitioning CDR for %s from state %s to %s\n",
 		cdr, cdr->party_a.snapshot->name,
@@ -865,7 +865,7 @@ static void cdr_object_dtor(void *obj)
  */
 static struct cdr_object *cdr_object_alloc(struct ast_channel_snapshot *chan)
 {
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 	struct cdr_object *cdr;
 
 	ast_assert(chan != NULL);
@@ -953,8 +953,7 @@ static struct cdr_object *cdr_object_create_and_append(struct cdr_object *cdr)
 static int snapshot_cep_changed(struct ast_channel_snapshot *old_snapshot,
 	struct ast_channel_snapshot *new_snapshot)
 {
-	RAII_VAR(struct module_config *, mod_cfg,
-		ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 
 	/* If we ignore hangup logic, don't indicate that we're executing anything new */
 	if (ast_test_flag(&mod_cfg->general->settings, CDR_END_BEFORE_H_EXTEN)
@@ -1041,7 +1040,7 @@ static long cdr_object_get_duration(struct cdr_object *cdr)
  */
 static long cdr_object_get_billsec(struct cdr_object *cdr)
 {
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 	long int ms;
 
 	if (ast_tvzero(cdr->answer)) {
@@ -1192,8 +1191,7 @@ static struct ast_cdr *cdr_object_create_public_records(struct cdr_object *cdr)
  */
 static void cdr_object_dispatch(struct cdr_object *cdr)
 {
-	RAII_VAR(struct module_config *, mod_cfg,
-			ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 	struct ast_cdr *pub_cdr;
 
 	CDR_DEBUG(mod_cfg, "%p - Dispatching CDR for Party A %s, Party B %s\n", cdr,
@@ -1210,8 +1208,7 @@ static void cdr_object_dispatch(struct cdr_object *cdr)
  */
 static void cdr_object_set_disposition(struct cdr_object *cdr, int hangupcause)
 {
-	RAII_VAR(struct module_config *, mod_cfg,
-			ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 
 	/* Change the disposition based on the hang up cause */
 	switch (hangupcause) {
@@ -1286,7 +1283,7 @@ static void cdr_object_finalize(struct cdr_object *cdr)
  */
 static void cdr_object_check_party_a_hangup(struct cdr_object *cdr)
 {
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 
 	if (ast_test_flag(&mod_cfg->general->settings, CDR_END_BEFORE_H_EXTEN)
 		&& ast_test_flag(&cdr->party_a.snapshot->softhangup_flags, AST_SOFTHANGUP_HANGUP_EXEC)) {
@@ -1304,7 +1301,7 @@ static void cdr_object_check_party_a_hangup(struct cdr_object *cdr)
  * Note that this is safe to call as much as you want - we won't answer twice
  */
 static void cdr_object_check_party_a_answer(struct cdr_object *cdr) {
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 
 	if (cdr->party_a.snapshot->state == AST_STATE_UP && ast_tvzero(cdr->answer)) {
 		cdr->answer = ast_tvnow();
@@ -1356,7 +1353,7 @@ static void cdr_object_swap_snapshot(struct cdr_object_snapshot *old_snapshot,
 
 static int base_process_party_a(struct cdr_object *cdr, struct ast_channel_snapshot *snapshot)
 {
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 
 	ast_assert(strcasecmp(snapshot->name, cdr->party_a.snapshot->name) == 0);
 
@@ -1460,7 +1457,7 @@ static void single_state_process_party_b(struct cdr_object *cdr, struct ast_chan
 
 static int single_state_process_dial_begin(struct cdr_object *cdr, struct ast_channel_snapshot *caller, struct ast_channel_snapshot *peer)
 {
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 
 	if (caller && !strcasecmp(cdr->party_a.snapshot->name, caller->name)) {
 		base_process_party_a(cdr, caller);
@@ -1501,7 +1498,7 @@ static int single_state_process_dial_begin(struct cdr_object *cdr, struct ast_ch
 static int single_state_bridge_enter_comparison(struct cdr_object *cdr,
 		struct cdr_object *cand_cdr)
 {
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 	struct cdr_object_snapshot *party_a;
 
 	/* Don't match on ourselves */
@@ -1637,8 +1634,7 @@ static int dial_state_process_dial_begin(struct cdr_object *cdr, struct ast_chan
  */
 static enum ast_cdr_disposition dial_status_to_disposition(const char *dial_status)
 {
-	RAII_VAR(struct module_config *, mod_cfg,
-		ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 
 	if (!strcmp(dial_status, "ANSWER")) {
 		return AST_CDR_ANSWERED;
@@ -1858,8 +1854,7 @@ static void finalized_state_init_function(struct cdr_object *cdr)
 
 static int finalized_state_process_party_a(struct cdr_object *cdr, struct ast_channel_snapshot *snapshot)
 {
-	RAII_VAR(struct module_config *, mod_cfg,
-		ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 
 	if (ast_test_flag(&snapshot->softhangup_flags, AST_SOFTHANGUP_HANGUP_EXEC)
 			&& ast_test_flag(&mod_cfg->general->settings, CDR_END_BEFORE_H_EXTEN)) {
@@ -1917,7 +1912,7 @@ static int dial_status_end(const char *dialstatus)
  */
 static void handle_dial_message(void *data, struct stasis_subscription *sub, struct stasis_message *message)
 {
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 	RAII_VAR(struct cdr_object *, cdr, NULL, ao2_cleanup);
 	struct ast_multi_channel_blob *payload = stasis_message_data(message);
 	struct ast_channel_snapshot *caller;
@@ -2043,8 +2038,7 @@ static int cdr_object_update_party_b(void *obj, void *arg, int flags)
 static int check_new_cdr_needed(struct ast_channel_snapshot *old_snapshot,
 		struct ast_channel_snapshot *new_snapshot)
 {
-	RAII_VAR(struct module_config *, mod_cfg,
-			ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 
 	/* If we're dead, we don't need a new CDR */
 	if (!new_snapshot
@@ -2075,7 +2069,7 @@ static int check_new_cdr_needed(struct ast_channel_snapshot *old_snapshot,
 static void handle_channel_cache_message(void *data, struct stasis_subscription *sub, struct stasis_message *message)
 {
 	RAII_VAR(struct cdr_object *, cdr, NULL, ao2_cleanup);
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 	struct stasis_cache_update *update = stasis_message_data(message);
 	struct ast_channel_snapshot *old_snapshot;
 	struct ast_channel_snapshot *new_snapshot;
@@ -2208,8 +2202,7 @@ static void handle_bridge_leave_message(void *data, struct stasis_subscription *
 	struct ast_bridge_blob *update = stasis_message_data(message);
 	struct ast_bridge_snapshot *bridge = update->bridge;
 	struct ast_channel_snapshot *channel = update->channel;
-	RAII_VAR(struct module_config *, mod_cfg,
-			ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 	RAII_VAR(struct cdr_object *, cdr,
 			ao2_find(active_cdrs_by_channel, channel->uniqueid, OBJ_KEY),
 			ao2_cleanup);
@@ -2274,8 +2267,7 @@ static void handle_bridge_leave_message(void *data, struct stasis_subscription *
 static void bridge_candidate_add_to_cdr(struct cdr_object *cdr,
 		struct cdr_object_snapshot *party_b)
 {
-	RAII_VAR(struct module_config *,  mod_cfg,
-		ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 	struct cdr_object *new_cdr;
 
 	new_cdr = cdr_object_create_and_append(cdr);
@@ -2305,8 +2297,7 @@ static void bridge_candidate_add_to_cdr(struct cdr_object *cdr,
  */
 static int bridge_candidate_process(struct cdr_object *cdr, struct cdr_object *base_cand_cdr)
 {
-	RAII_VAR(struct module_config *, mod_cfg,
-		ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 	struct cdr_object_snapshot *party_a;
 	struct cdr_object *cand_cdr;
 
@@ -2392,8 +2383,7 @@ static void handle_parking_bridge_enter_message(struct cdr_object *cdr,
 		struct ast_bridge_snapshot *bridge,
 		struct ast_channel_snapshot *channel)
 {
-	RAII_VAR(struct module_config *, mod_cfg,
-			ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 	int res = 1;
 	struct cdr_object *it_cdr;
 	struct cdr_object *new_cdr;
@@ -2432,8 +2422,7 @@ static void handle_standard_bridge_enter_message(struct cdr_object *cdr,
 		struct ast_bridge_snapshot *bridge,
 		struct ast_channel_snapshot *channel)
 {
-	RAII_VAR(struct module_config *, mod_cfg,
-			ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 	enum process_bridge_enter_results result;
 	struct cdr_object *it_cdr;
 	struct cdr_object *new_cdr;
@@ -2516,8 +2505,7 @@ static void handle_bridge_enter_message(void *data, struct stasis_subscription *
 	RAII_VAR(struct cdr_object *, cdr,
 			ao2_find(active_cdrs_by_channel, channel->uniqueid, OBJ_KEY),
 			ao2_cleanup);
-	RAII_VAR(struct module_config *, mod_cfg,
-			ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 
 	if (filter_bridge_messages(bridge)) {
 		return;
@@ -2558,8 +2546,7 @@ static void handle_parked_call_message(void *data, struct stasis_subscription *s
 	struct ast_parked_call_payload *payload = stasis_message_data(message);
 	struct ast_channel_snapshot *channel = payload->parkee;
 	RAII_VAR(struct cdr_object *, cdr, NULL, ao2_cleanup);
-	RAII_VAR(struct module_config *, mod_cfg,
-			ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 	int unhandled = 1;
 	struct cdr_object *it_cdr;
 
@@ -2627,14 +2614,14 @@ static void handle_cdr_sync_message(void *data, struct stasis_subscription *sub,
 
 struct ast_cdr_config *ast_cdr_get_config(void)
 {
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 	ao2_ref(mod_cfg->general, +1);
 	return mod_cfg->general;
 }
 
 void ast_cdr_set_config(struct ast_cdr_config *config)
 {
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 
 	ao2_cleanup(mod_cfg->general);
 	mod_cfg->general = config;
@@ -2645,7 +2632,7 @@ void ast_cdr_set_config(struct ast_cdr_config *config)
 
 int ast_cdr_is_enabled(void)
 {
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 	return ast_test_flag(&mod_cfg->general->settings, CDR_ENABLED);
 }
 
@@ -3137,8 +3124,7 @@ int ast_cdr_serialize_variables(const char *channel_name, struct ast_str **buf, 
 	int total = 0, x = 0, i;
 
 	if (!cdr) {
-		RAII_VAR(struct module_config *, mod_cfg,
-			 ao2_global_obj_ref(module_configs), ao2_cleanup);
+		RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 
 		if (ast_test_flag(&mod_cfg->general->settings, CDR_ENABLED)) {
 			ast_log(AST_LOG_ERROR, "Unable to find CDR for channel %s\n", channel_name);
@@ -3277,7 +3263,7 @@ void ast_cdr_setuserfield(const char *channel_name, const char *userfield)
 
 static void post_cdr(struct ast_cdr *cdr)
 {
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 	struct cdr_beitem *i;
 
 	for (; cdr ; cdr = cdr->next) {
@@ -3519,7 +3505,7 @@ static void *do_batch_backend_process(void *data)
 
 static void cdr_submit_batch(int do_shutdown)
 {
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 	struct cdr_batch_item *oldbatchitems = NULL;
 	pthread_t batch_post_thread = AST_PTHREADT_NULL;
 
@@ -3551,7 +3537,7 @@ static void cdr_submit_batch(int do_shutdown)
 
 static int submit_scheduled_batch(const void *data)
 {
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 	cdr_submit_batch(0);
 	/* manually reschedule from this point in time */
 
@@ -3583,7 +3569,7 @@ static void cdr_detach(struct ast_cdr *cdr)
 {
 	struct cdr_batch_item *newtail;
 	int curr;
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 	int submit_batch = 0;
 
 	if (!cdr) {
@@ -3669,7 +3655,7 @@ static void *do_cdr(void *data)
 
 static char *handle_cli_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -3878,7 +3864,7 @@ static char *handle_cli_show(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 static char *handle_cli_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct cdr_beitem *beitem = NULL;
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 	int cnt = 0;
 	long nextbatchtime = 0;
 
@@ -3938,7 +3924,7 @@ static char *handle_cli_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 
 static char *handle_cli_submit(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -4181,8 +4167,7 @@ static void cdr_container_print_fn(void *v_obj, void *where, ao2_prnt_fn *prnt)
  */
 static int cdr_toggle_runtime_options(void)
 {
-	RAII_VAR(struct module_config *, mod_cfg,
-		ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 
 	if (ast_test_flag(&mod_cfg->general->settings, CDR_ENABLED)) {
 		if (create_subscriptions()) {
@@ -4254,7 +4239,7 @@ int ast_cdr_engine_init(void)
 
 void ast_cdr_engine_term(void)
 {
-	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, mod_cfg, module_configs);
 	RAII_VAR(void *, payload, NULL, ao2_cleanup);
 	RAII_VAR(struct stasis_message *, message, NULL, ao2_cleanup);
 
@@ -4287,14 +4272,15 @@ void ast_cdr_engine_term(void)
 
 int ast_cdr_engine_reload(void)
 {
-	RAII_VAR(struct module_config *, old_mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
-	RAII_VAR(struct module_config *, mod_cfg, NULL, ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct module_config *, old_mod_cfg, module_configs);
+	RAII_AO2_S(struct module_config *, mod_cfg, NULL);
 
 	if (process_config(1)) {
 		return -1;
 	}
 
-	mod_cfg = ao2_global_obj_ref(module_configs);
+	mod_cfg = __ao2_global_obj_ref(&module_configs, "",
+		__FILE__, __LINE__, __PRETTY_FUNCTION__, "module_configs", &mod_cfg);
 
 	if (!ast_test_flag(&mod_cfg->general->settings, CDR_ENABLED) ||
 			!(ast_test_flag(&mod_cfg->general->settings, CDR_BATCHMODE))) {

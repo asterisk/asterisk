@@ -370,7 +370,7 @@ static int threadpool_execute(struct ast_threadpool *pool)
 static void threadpool_destructor(void *obj)
 {
 	struct ast_threadpool *pool = obj;
-	ao2_cleanup(pool->listener);
+	ao2_s_cleanup(&pool->listener);
 }
 
 /*
@@ -913,8 +913,7 @@ struct ast_threadpool *ast_threadpool_create(const char *name,
 
 	pool->tps = tps;
 	if (listener) {
-		ao2_ref(listener, +1);
-		pool->listener = listener;
+		ao2_s_set(&pool->listener, listener);
 	}
 	ast_threadpool_set_size(pool, pool->options.initial_size);
 	ao2_ref(pool, +1);
@@ -1291,10 +1290,8 @@ static void serializer_dtor(void *obj)
 {
 	struct serializer *ser = obj;
 
-	ao2_cleanup(ser->pool);
-	ser->pool = NULL;
-	ao2_cleanup(ser->shutdown_group);
-	ser->shutdown_group = NULL;
+	ao2_s_cleanup(&ser->pool);
+	ao2_s_cleanup(&ser->shutdown_group);
 }
 
 static struct serializer *serializer_create(struct ast_threadpool *pool,
@@ -1306,9 +1303,8 @@ static struct serializer *serializer_create(struct ast_threadpool *pool,
 	if (!ser) {
 		return NULL;
 	}
-	ao2_ref(pool, +1);
-	ser->pool = pool;
-	ser->shutdown_group = ao2_bump(shutdown_group);
+	ao2_s_set(&ser->pool, pool);
+	ao2_s_set(&ser->shutdown_group, shutdown_group);
 	return ser;
 }
 

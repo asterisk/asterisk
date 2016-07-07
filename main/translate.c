@@ -302,11 +302,8 @@ static void destroy(struct ast_trans_pvt *pvt)
 	if (t->destroy) {
 		t->destroy(pvt);
 	}
-	ao2_cleanup(pvt->f.subclass.format);
-	if (pvt->explicit_dst) {
-		ao2_ref(pvt->explicit_dst, -1);
-		pvt->explicit_dst = NULL;
-	}
+	ao2_s_cleanup(&pvt->f.subclass.format);
+	ao2_s_cleanup(&pvt->explicit_dst);
 	ast_free(pvt);
 	ast_module_unref(t->module);
 }
@@ -346,7 +343,7 @@ static struct ast_trans_pvt *newpvt(struct ast_translator *t, struct ast_format 
 	 * result of the SDP negotiation. For example with the Opus Codec, the format
 	 * knows whether both parties want to do forward-error correction (FEC).
 	 */
-	pvt->explicit_dst = ao2_bump(explicit_dst);
+	ao2_s_set(&pvt->explicit_dst, explicit_dst);
 
 	ast_module_ref(t->module);
 
@@ -372,22 +369,24 @@ static struct ast_trans_pvt *newpvt(struct ast_translator *t, struct ast_format 
 	 * C) create one.
 	 */
 	if (!pvt->f.subclass.format) {
-		pvt->f.subclass.format = ao2_bump(pvt->explicit_dst);
+		ao2_s_set(&pvt->f.subclass.format, pvt->explicit_dst);
 
 		if (!pvt->f.subclass.format && !ast_strlen_zero(pvt->t->format)) {
-			pvt->f.subclass.format = ast_format_cache_get(pvt->t->format);
+			ast_s_format_cache_get(&pvt->f.subclass.format, pvt->t->format);
 		}
 
 		if (!pvt->f.subclass.format) {
-			struct ast_codec *codec = ast_codec_get(t->dst_codec.name,
+			struct ast_codec *codec;
+
+			ast_s_codec_get(&codec, t->dst_codec.name,
 				t->dst_codec.type, t->dst_codec.sample_rate);
 			if (!codec) {
 				ast_log(LOG_ERROR, "Unable to get destination codec\n");
 				destroy(pvt);
 				return NULL;
 			}
-			pvt->f.subclass.format = ast_format_create(codec);
-			ao2_ref(codec, -1);
+			ast_s_format_create(&pvt->f.subclass.format, codec);
+			ao2_s_cleanup(&codec);
 		}
 
 		if (!pvt->f.subclass.format) {
@@ -1266,17 +1265,17 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 {
 	struct ast_translator *u;
 	char tmp[80];
-	RAII_VAR(struct ast_codec *, src_codec, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_codec *, dst_codec, NULL, ao2_cleanup);
+	RAII_AO2_S(struct ast_codec *, src_codec, NULL);
+	RAII_AO2_S(struct ast_codec *, dst_codec, NULL);
 
-	src_codec = ast_codec_get(t->src_codec.name, t->src_codec.type, t->src_codec.sample_rate);
+	ast_s_codec_get(&src_codec, t->src_codec.name, t->src_codec.type, t->src_codec.sample_rate);
 	if (!src_codec) {
 		ast_assert(0);
 		ast_log(LOG_WARNING, "Failed to register translator: unknown source codec %s\n", t->src_codec.name);
 		return -1;
 	}
 
-	dst_codec = ast_codec_get(t->dst_codec.name, t->dst_codec.type, t->dst_codec.sample_rate);
+	ast_s_codec_get(&dst_codec, t->dst_codec.name, t->dst_codec.type, t->dst_codec.sample_rate);
 	if (!dst_codec) {
 		ast_log(LOG_WARNING, "Failed to register translator: unknown destination codec %s\n", t->dst_codec.name);
 		return -1;
@@ -1430,8 +1429,8 @@ int ast_translator_best_choice(struct ast_format_cap *dst_cap,
 	struct ast_format *fmt;
 	struct ast_format *dst;
 	struct ast_format *src;
-	RAII_VAR(struct ast_format *, best, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_format *, bestdst, NULL, ao2_cleanup);
+	RAII_AO2_S(struct ast_format *, best, NULL);
+	RAII_AO2_S(struct ast_format *, bestdst, NULL);
 	struct ast_format_cap *joint_cap;
 	int i;
 	int j;
@@ -1441,76 +1440,84 @@ int ast_translator_best_choice(struct ast_format_cap *dst_cap,
 		return -1;
 	}
 
-	joint_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	ast_s_format_cap_alloc(&joint_cap, AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!joint_cap) {
 		return -1;
 	}
 	ast_format_cap_get_compatible(dst_cap, src_cap, joint_cap);
 
-	for (i = 0; i < ast_format_cap_count(joint_cap); ++i, ao2_cleanup(fmt)) {
-		fmt = ast_format_cap_get_format(joint_cap, i);
+	for (i = 0; i < ast_format_cap_count(joint_cap); ++i) {
+		ast_s_format_cap_get_format(&fmt, joint_cap, i);
 		if (!fmt
 			|| ast_format_get_type(fmt) != AST_MEDIA_TYPE_AUDIO) {
+			ao2_s_cleanup(&fmt);
 			continue;
 		}
 
 		if (!best
 			|| ast_format_get_sample_rate(best) < ast_format_get_sample_rate(fmt)) {
-			ao2_replace(best, fmt);
+			ao2_s_replace(&best, fmt);
 		}
+
+		ao2_s_cleanup(&fmt);
 	}
-	ao2_ref(joint_cap, -1);
+	ao2_s_cleanup(&joint_cap);
 
 	if (best) {
-		ao2_replace(*dst_fmt_out, best);
-		ao2_replace(*src_fmt_out, best);
+		ao2_s_replace(dst_fmt_out, best);
+		ao2_s_replace(src_fmt_out, best);
 		return 0;
 	}
 
 	/* need to translate */
 	AST_RWLIST_RDLOCK(&translators);
-	for (i = 0; i < ast_format_cap_count(dst_cap); ++i, ao2_cleanup(dst)) {
-		dst = ast_format_cap_get_format(dst_cap, i);
+	for (i = 0; i < ast_format_cap_count(dst_cap); ++i) {
+		ast_s_format_cap_get_format(&dst, dst_cap, i);
 		if (!dst
 			|| ast_format_get_type(dst) != AST_MEDIA_TYPE_AUDIO) {
+			ao2_s_cleanup(&dst);
 			continue;
 		}
 
-		for (j = 0; j < ast_format_cap_count(src_cap); ++j, ao2_cleanup(src)) {
+		for (j = 0; j < ast_format_cap_count(src_cap); ++j) {
 			int x;
 			int y;
 
-			src = ast_format_cap_get_format(src_cap, j);
+			ast_s_format_cap_get_format(&src, src_cap, j);
 			if (!src
 				|| ast_format_get_type(src) != AST_MEDIA_TYPE_AUDIO) {
-				continue;
+				goto cleanup_src;
 			}
 
 			x = format2index(src);
 			y = format2index(dst);
 			if (x < 0 || y < 0) {
-				continue;
+				goto cleanup_src;
 			}
 			if (!matrix_get(x, y) || !(matrix_get(x, y)->step)) {
-				continue;
+				goto cleanup_src;
 			}
 			if (matrix_get(x, y)->table_cost < besttablecost
 				|| matrix_get(x, y)->multistep < beststeps) {
 				/* better than what we have so far */
-				ao2_replace(best, src);
-				ao2_replace(bestdst, dst);
+				ao2_s_replace(&best, src);
+				ao2_s_replace(&bestdst, dst);
 				besttablecost = matrix_get(x, y)->table_cost;
 				beststeps = matrix_get(x, y)->multistep;
 			}
+cleanup_src:
+			ao2_s_cleanup(&src)
 		}
+
+		ao2_s_cleanup(&dst);
 	}
 	AST_RWLIST_UNLOCK(&translators);
 
 	if (!best) {
 		return -1;
 	}
-	ao2_replace(*dst_fmt_out, bestdst);
-	ao2_replace(*src_fmt_out, best);
+	ao2_s_replace(dst_fmt_out, bestdst);
+	ao2_s_replace(src_fmt_out, best);
 	return 0;
 }
 

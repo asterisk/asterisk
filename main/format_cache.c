@@ -300,49 +300,49 @@ static void format_cache_shutdown(void)
 	ao2_cleanup(formats);
 	formats = NULL;
 
-	ao2_replace(ast_format_g723, NULL);
-	ao2_replace(ast_format_ulaw, NULL);
-	ao2_replace(ast_format_alaw, NULL);
-	ao2_replace(ast_format_gsm, NULL);
-	ao2_replace(ast_format_g726, NULL);
-	ao2_replace(ast_format_g726_aal2, NULL);
-	ao2_replace(ast_format_adpcm, NULL);
-	ao2_replace(ast_format_slin, NULL);
-	ao2_replace(ast_format_slin12, NULL);
-	ao2_replace(ast_format_slin16, NULL);
-	ao2_replace(ast_format_slin24, NULL);
-	ao2_replace(ast_format_slin32, NULL);
-	ao2_replace(ast_format_slin44, NULL);
-	ao2_replace(ast_format_slin48, NULL);
-	ao2_replace(ast_format_slin96, NULL);
-	ao2_replace(ast_format_slin192, NULL);
-	ao2_replace(ast_format_lpc10, NULL);
-	ao2_replace(ast_format_g729, NULL);
-	ao2_replace(ast_format_speex, NULL);
-	ao2_replace(ast_format_speex16, NULL);
-	ao2_replace(ast_format_speex32, NULL);
-	ao2_replace(ast_format_ilbc, NULL);
-	ao2_replace(ast_format_g722, NULL);
-	ao2_replace(ast_format_siren7, NULL);
-	ao2_replace(ast_format_siren14, NULL);
-	ao2_replace(ast_format_testlaw, NULL);
-	ao2_replace(ast_format_g719, NULL);
-	ao2_replace(ast_format_opus, NULL);
-	ao2_replace(ast_format_jpeg, NULL);
-	ao2_replace(ast_format_png, NULL);
-	ao2_replace(ast_format_h261, NULL);
-	ao2_replace(ast_format_h263, NULL);
-	ao2_replace(ast_format_h263p, NULL);
-	ao2_replace(ast_format_h264, NULL);
-	ao2_replace(ast_format_mp4, NULL);
-	ao2_replace(ast_format_vp8, NULL);
-	ao2_replace(ast_format_t140_red, NULL);
-	ao2_replace(ast_format_t140, NULL);
-	ao2_replace(ast_format_none, NULL);
-	ao2_replace(ast_format_silk8, NULL);
-	ao2_replace(ast_format_silk12, NULL);
-	ao2_replace(ast_format_silk16, NULL);
-	ao2_replace(ast_format_silk24, NULL);
+	ao2_s_replace(&ast_format_g723, NULL);
+	ao2_s_replace(&ast_format_ulaw, NULL);
+	ao2_s_replace(&ast_format_alaw, NULL);
+	ao2_s_replace(&ast_format_gsm, NULL);
+	ao2_s_replace(&ast_format_g726, NULL);
+	ao2_s_replace(&ast_format_g726_aal2, NULL);
+	ao2_s_replace(&ast_format_adpcm, NULL);
+	ao2_s_replace(&ast_format_slin, NULL);
+	ao2_s_replace(&ast_format_slin12, NULL);
+	ao2_s_replace(&ast_format_slin16, NULL);
+	ao2_s_replace(&ast_format_slin24, NULL);
+	ao2_s_replace(&ast_format_slin32, NULL);
+	ao2_s_replace(&ast_format_slin44, NULL);
+	ao2_s_replace(&ast_format_slin48, NULL);
+	ao2_s_replace(&ast_format_slin96, NULL);
+	ao2_s_replace(&ast_format_slin192, NULL);
+	ao2_s_replace(&ast_format_lpc10, NULL);
+	ao2_s_replace(&ast_format_g729, NULL);
+	ao2_s_replace(&ast_format_speex, NULL);
+	ao2_s_replace(&ast_format_speex16, NULL);
+	ao2_s_replace(&ast_format_speex32, NULL);
+	ao2_s_replace(&ast_format_ilbc, NULL);
+	ao2_s_replace(&ast_format_g722, NULL);
+	ao2_s_replace(&ast_format_siren7, NULL);
+	ao2_s_replace(&ast_format_siren14, NULL);
+	ao2_s_replace(&ast_format_testlaw, NULL);
+	ao2_s_replace(&ast_format_g719, NULL);
+	ao2_s_replace(&ast_format_opus, NULL);
+	ao2_s_replace(&ast_format_jpeg, NULL);
+	ao2_s_replace(&ast_format_png, NULL);
+	ao2_s_replace(&ast_format_h261, NULL);
+	ao2_s_replace(&ast_format_h263, NULL);
+	ao2_s_replace(&ast_format_h263p, NULL);
+	ao2_s_replace(&ast_format_h264, NULL);
+	ao2_s_replace(&ast_format_mp4, NULL);
+	ao2_s_replace(&ast_format_vp8, NULL);
+	ao2_s_replace(&ast_format_t140_red, NULL);
+	ao2_s_replace(&ast_format_t140, NULL);
+	ao2_s_replace(&ast_format_none, NULL);
+	ao2_s_replace(&ast_format_silk8, NULL);
+	ao2_s_replace(&ast_format_silk12, NULL);
+	ao2_s_replace(&ast_format_silk16, NULL);
+	ao2_s_replace(&ast_format_silk24, NULL);
 }
 
 int ast_format_cache_init(void)
@@ -361,91 +361,91 @@ int ast_format_cache_init(void)
 static void set_cached_format(const char *name, struct ast_format *format)
 {
 	if (!strcmp(name, "g723")) {
-		ao2_replace(ast_format_g723, format);
+		ao2_s_replace(&ast_format_g723, format);
 	} else if (!strcmp(name, "ulaw")) {
-		ao2_replace(ast_format_ulaw, format);
+		ao2_s_replace(&ast_format_ulaw, format);
 	} else if (!strcmp(name, "alaw")) {
-		ao2_replace(ast_format_alaw, format);
+		ao2_s_replace(&ast_format_alaw, format);
 	} else if (!strcmp(name, "gsm")) {
-		ao2_replace(ast_format_gsm, format);
+		ao2_s_replace(&ast_format_gsm, format);
 	} else if (!strcmp(name, "g726")) {
-		ao2_replace(ast_format_g726, format);
+		ao2_s_replace(&ast_format_g726, format);
 	} else if (!strcmp(name, "g726aal2")) {
-		ao2_replace(ast_format_g726_aal2, format);
+		ao2_s_replace(&ast_format_g726_aal2, format);
 	} else if (!strcmp(name, "adpcm")) {
-		ao2_replace(ast_format_adpcm, format);
+		ao2_s_replace(&ast_format_adpcm, format);
 	} else if (!strcmp(name, "slin")) {
-		ao2_replace(ast_format_slin, format);
+		ao2_s_replace(&ast_format_slin, format);
 	} else if (!strcmp(name, "slin12")) {
-		ao2_replace(ast_format_slin12, format);
+		ao2_s_replace(&ast_format_slin12, format);
 	} else if (!strcmp(name, "slin16")) {
-		ao2_replace(ast_format_slin16, format);
+		ao2_s_replace(&ast_format_slin16, format);
 	} else if (!strcmp(name, "slin24")) {
-		ao2_replace(ast_format_slin24, format);
+		ao2_s_replace(&ast_format_slin24, format);
 	} else if (!strcmp(name, "slin32")) {
-		ao2_replace(ast_format_slin32, format);
+		ao2_s_replace(&ast_format_slin32, format);
 	} else if (!strcmp(name, "slin44")) {
-		ao2_replace(ast_format_slin44, format);
+		ao2_s_replace(&ast_format_slin44, format);
 	} else if (!strcmp(name, "slin48")) {
-		ao2_replace(ast_format_slin48, format);
+		ao2_s_replace(&ast_format_slin48, format);
 	} else if (!strcmp(name, "slin96")) {
-		ao2_replace(ast_format_slin96, format);
+		ao2_s_replace(&ast_format_slin96, format);
 	} else if (!strcmp(name, "slin192")) {
-		ao2_replace(ast_format_slin192, format);
+		ao2_s_replace(&ast_format_slin192, format);
 	} else if (!strcmp(name, "lpc10")) {
-		ao2_replace(ast_format_lpc10, format);
+		ao2_s_replace(&ast_format_lpc10, format);
 	} else if (!strcmp(name, "g729")) {
-		ao2_replace(ast_format_g729, format);
+		ao2_s_replace(&ast_format_g729, format);
 	} else if (!strcmp(name, "speex")) {
-		ao2_replace(ast_format_speex, format);
+		ao2_s_replace(&ast_format_speex, format);
 	} else if (!strcmp(name, "speex16")) {
-		ao2_replace(ast_format_speex16, format);
+		ao2_s_replace(&ast_format_speex16, format);
 	} else if (!strcmp(name, "speex32")) {
-		ao2_replace(ast_format_speex32, format);
+		ao2_s_replace(&ast_format_speex32, format);
 	} else if (!strcmp(name, "ilbc")) {
-		ao2_replace(ast_format_ilbc, format);
+		ao2_s_replace(&ast_format_ilbc, format);
 	} else if (!strcmp(name, "g722")) {
-		ao2_replace(ast_format_g722, format);
+		ao2_s_replace(&ast_format_g722, format);
 	} else if (!strcmp(name, "siren7")) {
-		ao2_replace(ast_format_siren7, format);
+		ao2_s_replace(&ast_format_siren7, format);
 	} else if (!strcmp(name, "siren14")) {
-		ao2_replace(ast_format_siren14, format);
+		ao2_s_replace(&ast_format_siren14, format);
 	} else if (!strcmp(name, "testlaw")) {
-		ao2_replace(ast_format_testlaw, format);
+		ao2_s_replace(&ast_format_testlaw, format);
 	} else if (!strcmp(name, "g719")) {
-		ao2_replace(ast_format_g719, format);
+		ao2_s_replace(&ast_format_g719, format);
 	} else if (!strcmp(name, "opus")) {
-		ao2_replace(ast_format_opus, format);
+		ao2_s_replace(&ast_format_opus, format);
 	} else if (!strcmp(name, "jpeg")) {
-		ao2_replace(ast_format_jpeg, format);
+		ao2_s_replace(&ast_format_jpeg, format);
 	} else if (!strcmp(name, "png")) {
-		ao2_replace(ast_format_png, format);
+		ao2_s_replace(&ast_format_png, format);
 	} else if (!strcmp(name, "h261")) {
-		ao2_replace(ast_format_h261, format);
+		ao2_s_replace(&ast_format_h261, format);
 	} else if (!strcmp(name, "h263")) {
-		ao2_replace(ast_format_h263, format);
+		ao2_s_replace(&ast_format_h263, format);
 	} else if (!strcmp(name, "h263p")) {
-		ao2_replace(ast_format_h263p, format);
+		ao2_s_replace(&ast_format_h263p, format);
 	} else if (!strcmp(name, "h264")) {
-		ao2_replace(ast_format_h264, format);
+		ao2_s_replace(&ast_format_h264, format);
 	} else if (!strcmp(name, "mpeg4")) {
-		ao2_replace(ast_format_mp4, format);
+		ao2_s_replace(&ast_format_mp4, format);
 	} else if (!strcmp(name, "vp8")) {
-		ao2_replace(ast_format_vp8, format);
+		ao2_s_replace(&ast_format_vp8, format);
 	} else if (!strcmp(name, "red")) {
-		ao2_replace(ast_format_t140_red, format);
+		ao2_s_replace(&ast_format_t140_red, format);
 	} else if (!strcmp(name, "t140")) {
-		ao2_replace(ast_format_t140, format);
+		ao2_s_replace(&ast_format_t140, format);
 	} else if (!strcmp(name, "none")) {
-		ao2_replace(ast_format_none, format);
+		ao2_s_replace(&ast_format_none, format);
 	} else if (!strcmp(name, "silk8")) {
-		ao2_replace(ast_format_silk8, format);
+		ao2_s_replace(&ast_format_silk8, format);
 	} else if (!strcmp(name, "silk12")) {
-		ao2_replace(ast_format_silk12, format);
+		ao2_s_replace(&ast_format_silk12, format);
 	} else if (!strcmp(name, "silk16")) {
-		ao2_replace(ast_format_silk16, format);
+		ao2_s_replace(&ast_format_silk16, format);
 	} else if (!strcmp(name, "silk24")) {
-		ao2_replace(ast_format_silk24, format);
+		ao2_s_replace(&ast_format_silk24, format);
 	}
 }
 
@@ -478,13 +478,14 @@ int ast_format_cache_set(struct ast_format *format)
 }
 
 struct ast_format *__ast_format_cache_get(const char *name,
-	const char *tag, const char *file, int line, const char *func)
+	const char *tag, const char *file, int line, const char *func, void *debugstorage)
 {
 	if (ast_strlen_zero(name)) {
 		return NULL;
 	}
 
-	return __ao2_find(formats, name, OBJ_SEARCH_KEY, tag, file, line, func);
+	return __ao2_find_full(formats, name, OBJ_SEARCH_KEY,
+		tag ?: __PRETTY_FUNCTION__, file, line, func, debugstorage);
 }
 
 struct ast_format *ast_format_cache_get_slin_by_rate(unsigned int rate)

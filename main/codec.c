@@ -309,15 +309,15 @@ int __ast_codec_register_with_format(struct ast_codec *codec, const char *format
 		}
 	}
 
-	codec_new = ao2_find(codecs, codec, OBJ_SEARCH_OBJECT | OBJ_NOLOCK);
+	codec_new = ao2_find_full(codecs, codec, OBJ_SEARCH_OBJECT | OBJ_NOLOCK, "", &codec_new);
 	if (codec_new) {
 		ast_log(LOG_ERROR, "A codec with name '%s' of type '%s' and sample rate '%u' is already registered\n",
 			codec->name, ast_codec_media_type2str(codec->type), codec->sample_rate);
-		ao2_ref(codec_new, -1);
+		ao2_s_cleanup(&codec_new);
 		return -1;
 	}
 
-	codec_new = ao2_t_alloc_options(sizeof(*codec_new), codec_dtor,
+	ao2_s_alloc(&codec_new, sizeof(*codec_new), codec_dtor,
 		AO2_ALLOC_OPT_LOCK_NOLOCK, S_OR(codec->description, ""));
 	if (!codec_new) {
 		ast_log(LOG_ERROR, "Could not allocate a codec with name '%s' of type '%s' and sample rate '%u'\n",
@@ -336,12 +336,13 @@ int __ast_codec_register_with_format(struct ast_codec *codec, const char *format
 	ast_verb(2, "Registered '%s' codec '%s' at sample rate '%u' with id '%u'\n",
 		ast_codec_media_type2str(codec->type), codec->name, codec->sample_rate, codec_new->external.id);
 
-	ao2_ref(codec_new, -1);
+	ao2_s_cleanup(&codec_new);
 
 	return 0;
 }
 
-struct ast_codec *ast_codec_get(const char *name, enum ast_media_type type, unsigned int sample_rate)
+struct ast_codec *__ast_codec_get(const char *name, enum ast_media_type type,
+	unsigned int sample_rate, void *debugstorage)
 {
 	struct ast_codec codec = {
 		.name = name,
@@ -349,12 +350,12 @@ struct ast_codec *ast_codec_get(const char *name, enum ast_media_type type, unsi
 		.sample_rate = sample_rate,
 	};
 
-	return ao2_find(codecs, &codec, OBJ_SEARCH_OBJECT);
+	return ao2_find_full(codecs, &codec, OBJ_SEARCH_OBJECT, NULL, debugstorage);
 }
 
-struct ast_codec *ast_codec_get_by_id(int id)
+struct ast_codec *__ast_codec_get_by_id(int id, void *debugstorage)
 {
-	return ao2_callback(codecs, 0, codec_id_cmp, &id);
+	return ao2_callback_full(codecs, 0, codec_id_cmp, &id, NULL, debugstorage);
 }
 
 int ast_codec_get_max(void)

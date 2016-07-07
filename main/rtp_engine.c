@@ -2227,7 +2227,7 @@ void ast_rtp_dtls_cfg_free(struct ast_rtp_dtls_cfg *dtls_cfg)
  */
 static void rtp_engine_mime_type_cleanup(int i)
 {
-	ao2_cleanup(ast_rtp_mime_types[i].payload_type.format);
+	ao2_s_cleanup(&ast_rtp_mime_types[i].payload_type.format);
 	memset(&ast_rtp_mime_types[i], 0, sizeof(struct ast_rtp_mime_type));
 }
 
@@ -2247,7 +2247,7 @@ static void set_next_mime_type(struct ast_format *format, int rtp_code, const ch
 	memset(&ast_rtp_mime_types[x], 0, sizeof(struct ast_rtp_mime_type));	
 	if (format) {
 		ast_rtp_mime_types[x].payload_type.asterisk_format = 1;
-		ast_rtp_mime_types[x].payload_type.format = ao2_bump(format);
+		ao2_s_set(&ast_rtp_mime_types[x].payload_type.format, format);
 	} else {
 		ast_rtp_mime_types[x].payload_type.rtp_code = rtp_code;
 	}

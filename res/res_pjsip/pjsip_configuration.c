@@ -2092,7 +2092,7 @@ void *ast_sip_endpoint_alloc(const char *name)
 		ao2_cleanup(endpoint);
 		return NULL;
 	}
-	if (!(endpoint->media.codecs = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
+	if (!ast_s_format_cap_alloc(&endpoint->media.codecs, AST_FORMAT_CAP_FLAG_DEFAULT)) {
 		ao2_cleanup(endpoint);
 		return NULL;
 	}

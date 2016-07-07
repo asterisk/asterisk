@@ -87,7 +87,13 @@ static struct stasis_message_route *route_table_find(struct route_table *table,
  *
  * \return Nothing
  */
-#define ROUTE_TABLE_ELEM_CLEANUP(elem)  ao2_cleanup((elem).message_type)
+#define ROUTE_TABLE_ELEM_CLEANUP(elem)  \
+	{ \
+		struct stasis_message_type *_dtor_mt = (elem).message_type; \
+		if (_dtor_mt) { \
+			ao2_ref_full(_dtor_mt, -1, "", table); \
+		} \
+	}
 
 static int route_table_remove(struct route_table *table,
 	struct stasis_message_type *message_type)
@@ -106,7 +112,7 @@ static int route_table_add(struct route_table *table,
 	ast_assert(callback != NULL);
 	ast_assert(route_table_find(table, message_type) == NULL);
 
-	route.message_type = ao2_bump(message_type);
+	route.message_type = ao2_bump_full(message_type, "", table);
 	route.callback = callback;
 	route.data = data;
 
@@ -210,9 +216,9 @@ static struct stasis_message_router *stasis_message_router_create_internal(
 	struct stasis_topic *topic, int use_thread_pool)
 {
 	int res;
-	RAII_VAR(struct stasis_message_router *, router, NULL, ao2_cleanup);
+	RAII_AO2_S(struct stasis_message_router *, router, NULL);
 
-	router = ao2_t_alloc(sizeof(*router), router_dtor, stasis_topic_name(topic));
+	ao2_s_alloc(&router, sizeof(*router), router_dtor, AO2_ALLOC_OPT_LOCK_MUTEX, stasis_topic_name(topic));
 	if (!router) {
 		return NULL;
 	}

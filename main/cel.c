@@ -455,8 +455,8 @@ unsigned int ast_cel_check_enabled(void)
 static char *handle_cli_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	unsigned int i;
-	RAII_VAR(struct cel_config *, cfg, ao2_global_obj_ref(cel_configs), ao2_cleanup);
-	RAII_VAR(struct ao2_container *, backends, ao2_global_obj_ref(cel_backends), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct cel_config *, cfg, cel_configs);
+	RAII_AO2_S_GLOBAL(struct ao2_container *, backends, cel_backends);
 	struct ao2_iterator iter;
 	char *app;
 
@@ -533,7 +533,7 @@ enum ast_cel_event_type ast_cel_str_to_event_type(const char *name)
 
 static int ast_cel_track_event(enum ast_cel_event_type et)
 {
-	RAII_VAR(struct cel_config *, cfg, ao2_global_obj_ref(cel_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct cel_config *, cfg, cel_configs);
 
 	if (!cfg || !cfg->general) {
 		return 0;
@@ -597,8 +597,8 @@ const char *ast_cel_get_type_name(enum ast_cel_event_type type)
 
 static int cel_track_app(const char *const_app)
 {
-	RAII_VAR(struct cel_config *, cfg, ao2_global_obj_ref(cel_configs), ao2_cleanup);
-	RAII_VAR(char *, app, NULL, ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct cel_config *, cfg, cel_configs);
+	RAII_AO2_S(char *, app, NULL);
 	char *app_lower;
 
 	if (!cfg || !cfg->general) {
@@ -606,7 +606,7 @@ static int cel_track_app(const char *const_app)
 	}
 
 	app_lower = ast_str_to_lower(ast_strdupa(const_app));
-	app = ao2_find(cfg->general->apps, app_lower, OBJ_SEARCH_KEY);
+	ao2_s_find(&app, cfg->general->apps, app_lower, OBJ_SEARCH_KEY, "");
 	if (!app) {
 		return 0;
 	}
@@ -664,8 +664,8 @@ static int cel_report_event(struct ast_channel_snapshot *snapshot,
 		struct ast_json *extra, const char *peer_str)
 {
 	struct ast_event *ev;
-	RAII_VAR(struct cel_config *, cfg, ao2_global_obj_ref(cel_configs), ao2_cleanup);
-	RAII_VAR(struct ao2_container *, backends, ao2_global_obj_ref(cel_backends), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct cel_config *, cfg, cel_configs);
+	RAII_AO2_S_GLOBAL(struct ao2_container *, backends, cel_backends);
 
 	if (!cfg || !cfg->general || !cfg->general->enable || !backends) {
 		return 0;
@@ -705,7 +705,7 @@ static int cel_report_event(struct ast_channel_snapshot *snapshot,
  * potentially emit a CEL_LINKEDID_END event */
 static void check_retire_linkedid(struct ast_channel_snapshot *snapshot)
 {
-	RAII_VAR(struct ao2_container *, linkedids, ao2_global_obj_ref(cel_linkedids), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct ao2_container *, linkedids, cel_linkedids);
 	struct cel_linkedid *lid;
 
 	if (!linkedids || ast_strlen_zero(snapshot->linkedid)) {
@@ -715,7 +715,7 @@ static void check_retire_linkedid(struct ast_channel_snapshot *snapshot)
 
 	ao2_lock(linkedids);
 
-	lid = ao2_find(linkedids, (void *) snapshot->linkedid, OBJ_SEARCH_KEY);
+	ao2_s_find(&lid, linkedids, (void *) snapshot->linkedid, OBJ_SEARCH_KEY, "");
 	if (!lid) {
 		ao2_unlock(linkedids);
 
@@ -738,7 +738,7 @@ static void check_retire_linkedid(struct ast_channel_snapshot *snapshot)
 	} else {
 		ao2_unlock(linkedids);
 	}
-	ao2_ref(lid, -1);
+	ao2_s_cleanup(&lid);
 }
 
 /* Note that no 'chan_fixup' function is provided for this datastore type,
@@ -761,7 +761,7 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 	};
 	struct ast_datastore *datastore;
 	char *app_data;
-	RAII_VAR(struct cel_config *, cfg, ao2_global_obj_ref(cel_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct cel_config *, cfg, cel_configs);
 
 	if (!cfg || !cfg->general) {
 		return NULL;
@@ -872,7 +872,7 @@ struct ast_channel *ast_cel_fabricate_channel_from_event(const struct ast_event 
 
 static int cel_linkedid_ref(const char *linkedid)
 {
-	RAII_VAR(struct ao2_container *, linkedids, ao2_global_obj_ref(cel_linkedids), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct ao2_container *, linkedids, cel_linkedids);
 	struct cel_linkedid *lid;
 
 	if (ast_strlen_zero(linkedid)) {
@@ -1843,7 +1843,7 @@ struct stasis_topic *ast_cel_topic(void)
 
 struct ast_cel_general_config *ast_cel_get_config(void)
 {
-	RAII_VAR(struct cel_config *, mod_cfg, ao2_global_obj_ref(cel_configs), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct cel_config *, mod_cfg, cel_configs);
 
 	if (!mod_cfg || !mod_cfg->general) {
 		return NULL;
@@ -1893,7 +1893,7 @@ int ast_cel_backend_unregister(const char *name)
 
 int ast_cel_backend_register(const char *name, ast_cel_backend_cb backend_callback)
 {
-	RAII_VAR(struct ao2_container *, backends, ao2_global_obj_ref(cel_backends), ao2_cleanup);
+	RAII_AO2_S_GLOBAL(struct ao2_container *, backends, cel_backends);
 	struct cel_backend *backend;
 
 	if (!backends || ast_strlen_zero(name) || !backend_callback) {

@@ -5414,8 +5414,8 @@ static int set_format(struct ast_channel *chan, struct ast_format_cap *cap_set, 
 	const struct set_format_access *access;
 	struct ast_format *rawformat;
 	struct ast_format *format;
-	RAII_VAR(struct ast_format *, best_set_fmt, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_format *, best_native_fmt, NULL, ao2_cleanup);
+	RAII_AO2_S(struct ast_format *, best_set_fmt, NULL);
+	RAII_AO2_S(struct ast_format *, best_native_fmt, NULL);
 	int res;
 
 	if (!direction) {
@@ -5426,7 +5426,7 @@ static int set_format(struct ast_channel *chan, struct ast_format_cap *cap_set, 
 		access = &set_format_access_write;
 	}
 
-	best_set_fmt = ast_format_cap_get_best_by_type(cap_set, AST_MEDIA_TYPE_AUDIO);
+	ast_s_format_cap_get_best_by_type(&best_set_fmt, cap_set, AST_MEDIA_TYPE_AUDIO);
 	if (!best_set_fmt) {
 		/*
 		 * Not setting any audio formats?
@@ -6024,22 +6024,22 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
 
 	AST_RWLIST_TRAVERSE(&backends, chan, list) {
 		struct ast_format_cap *tmp_cap;
-		RAII_VAR(struct ast_format *, tmp_fmt, NULL, ao2_cleanup);
-		RAII_VAR(struct ast_format *, best_audio_fmt, NULL, ao2_cleanup);
+		RAII_AO2_S(struct ast_format *, tmp_fmt, NULL);
+		RAII_AO2_S(struct ast_format *, best_audio_fmt, NULL);
 		struct ast_format_cap *joint_cap;
 
 		if (strcasecmp(type, chan->tech->type))
 			continue;
 
 		/* find the best audio format to use */
-		tmp_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+		ast_s_format_cap_alloc(&tmp_cap, AST_FORMAT_CAP_FLAG_DEFAULT);
 		if (tmp_cap) {
 			ast_format_cap_append_from_cap(tmp_cap, request_cap, AST_MEDIA_TYPE_AUDIO);
 			/* We have audio - is it possible to connect the various calls to each other?
 				(Avoid this check for calls without audio, like text+video calls)
 			*/
 			res = ast_translator_best_choice(tmp_cap, chan->tech->capabilities, &tmp_fmt, &best_audio_fmt);
-			ao2_ref(tmp_cap, -1);
+			ao2_s_cleanup(&tmp_cap);
 			if (res < 0) {
 				struct ast_str *tech_codecs = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 				struct ast_str *request_codecs = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
@@ -6061,7 +6061,7 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
 		 * to signal to the initiator which one of their codecs that was offered is
 		 * the one that was selected, particularly in a chain of Local channels.
 		 */
-		joint_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+		ast_s_format_cap_alloc(&joint_cap, AST_FORMAT_CAP_FLAG_DEFAULT);
 		if (!joint_cap) {
 			return NULL;
 		}
@@ -6070,7 +6070,7 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
 		ast_format_cap_append(joint_cap, best_audio_fmt, 0);
 
 		if (!(c = chan->tech->requester(type, joint_cap, assignedids, requestor, addr, cause))) {
-			ao2_ref(joint_cap, -1);
+			ao2_s_cleanup(&joint_cap);
 			return NULL;
 		}
 
@@ -6089,7 +6089,7 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
 			ast_channel_unlock((struct ast_channel *) requestor);
 		}
 
-		ao2_ref(joint_cap, -1);
+		ao2_s_cleanup(&joint_cap);
 
 		if (set_security_requirements(requestor, c)) {
 			ast_log(LOG_WARNING, "Setting security requirements failed\n");
@@ -6368,8 +6368,8 @@ static int ast_channel_make_compatible_helper(struct ast_channel *from, struct a
 {
 	struct ast_format_cap *src_cap;
 	struct ast_format_cap *dst_cap;
-	RAII_VAR(struct ast_format *, best_src_fmt, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_format *, best_dst_fmt, NULL, ao2_cleanup);
+	RAII_AO2_S(struct ast_format *, best_src_fmt, NULL);
+	RAII_AO2_S(struct ast_format *, best_dst_fmt, NULL);
 	int no_path;
 
 	/*
@@ -6422,7 +6422,7 @@ static int ast_channel_make_compatible_helper(struct ast_channel *from, struct a
 				ast_format_get_sample_rate(best_src_fmt) : ast_format_get_sample_rate(best_dst_fmt);
 
 			/* pick the best signed linear format based upon what preserves the sample rate the best. */
-			ao2_replace(best_src_fmt, ast_format_cache_get_slin_by_rate(best_sample_rate));
+			ao2_s_replace(&best_src_fmt, ast_format_cache_get_slin_by_rate(best_sample_rate));
 		}
 	}
 
