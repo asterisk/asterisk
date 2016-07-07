@@ -1905,9 +1905,9 @@ static int iax2_parse_allow_disallow(struct iax2_codec_pref *pref, iax2_format *
 	struct ast_format_cap *cap;
 
 	/* We want to add the formats to the cap in the preferred order */
-	cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	ast_s_format_cap_alloc(&cap, AST_FORMAT_CAP_FLAG_DEFAULT);
 	if (!cap || iax2_codec_pref_to_cap(pref, cap)) {
-		ao2_cleanup(cap);
+		ao2_s_cleanup(&cap);
 		return 1;
 	}
 
@@ -1918,13 +1918,14 @@ static int iax2_parse_allow_disallow(struct iax2_codec_pref *pref, iax2_format *
 	iax2_codec_pref_remove_missing(pref, *formats);
 
 	for (i = 0; i < ast_format_cap_count(cap); i++) {
-		struct ast_format *fmt = ast_format_cap_get_format(cap, i);
+		struct ast_format *fmt;
 
+		ast_s_format_cap_get_format(&fmt, cap, i);
 		iax2_codec_pref_append(pref, fmt, ast_format_cap_get_format_framing(cap, fmt));
-		ao2_ref(fmt, -1);
+		ao2_s_cleanup(&fmt);
 	}
 
-	ao2_ref(cap, -1);
+	ao2_s_cleanup(&cap);
 
 	return res;
 }

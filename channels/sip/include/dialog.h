@@ -34,10 +34,13 @@
 
 struct sip_pvt *__sip_alloc(ast_string_field callid, struct ast_sockaddr *sin,
 				 int useglobal_nat, const int intended_method, struct sip_request *req, ast_callid logger_callid,
-				 const char *file, int line, const char *func);
+				 const char *file, int line, const char *func, void *debugstorage);
 
 #define sip_alloc(callid, addr, useglobal_nat, intended_method, req, logger_callid) \
-	__sip_alloc(callid, addr, useglobal_nat, intended_method, req, logger_callid, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__sip_alloc(callid, addr, useglobal_nat, intended_method, req, logger_callid, __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
+
+#define sip_s_alloc(storage, callid, addr, useglobal_nat, intended_method, req, logger_callid) \
+	ao2_s_getter((storage), __sip_alloc, (callid), (addr), (useglobal_nat), (intended_method), (req), (logger_callid))
 
 /*!
  * \brief Schedule final destruction of SIP dialog.
