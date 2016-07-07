@@ -348,9 +348,10 @@ static int iax_template_parse(struct iax_template *cur, struct ast_config *cfg, 
 				ast_log(LOG_WARNING, "Ignoring invalid %s '%s' for '%s' at line %d\n", v->name, v->value, s, v->lineno);
 		} else if (!strcasecmp(v->name, "codec")) {
 			struct ast_format *tmpfmt;
-			if ((tmpfmt = ast_format_cache_get(v->value))) {
+			ast_s_format_cache_get(&tmpfmt, v->value);
+			if (tmpfmt) {
 				cur->format = ast_format_compatibility_format2bitfield(tmpfmt);
-				ao2_ref(tmpfmt, -1);
+				ao2_s_cleanup(&tmpfmt);
 			} else
 				ast_log(LOG_WARNING, "Ignoring invalid codec '%s' for '%s' at line %d\n", v->value, s, v->lineno);
 		} else if (!strcasecmp(v->name, "tos")) {

@@ -297,11 +297,8 @@ static void destroy(struct ast_trans_pvt *pvt)
 	if (t->destroy) {
 		t->destroy(pvt);
 	}
-	ao2_cleanup(pvt->f.subclass.format);
-	if (pvt->explicit_dst) {
-		ao2_ref(pvt->explicit_dst, -1);
-		pvt->explicit_dst = NULL;
-	}
+	ao2_s_cleanup(&pvt->f.subclass.format);
+	ao2_s_cleanup(&pvt->explicit_dst);
 	ast_free(pvt);
 	ast_module_unref(t->module);
 }
@@ -341,7 +338,7 @@ static struct ast_trans_pvt *newpvt(struct ast_translator *t, struct ast_format 
 	 * result of the SDP negotiation. For example with the Opus Codec, the format
 	 * knows whether both parties want to do forward-error correction (FEC).
 	 */
-	pvt->explicit_dst = ao2_bump(explicit_dst);
+	ao2_s_set(&pvt->explicit_dst, explicit_dst);
 
 	ast_module_ref(t->module);
 
@@ -366,22 +363,24 @@ static struct ast_trans_pvt *newpvt(struct ast_translator *t, struct ast_format 
 	 * C) create one.
 	 */
 	if (!pvt->f.subclass.format) {
-		pvt->f.subclass.format = ao2_bump(pvt->explicit_dst);
+		ao2_s_set(&pvt->f.subclass.format, pvt->explicit_dst);
 
 		if (!pvt->f.subclass.format && !ast_strlen_zero(pvt->t->format)) {
-			pvt->f.subclass.format = ast_format_cache_get(pvt->t->format);
+			ast_s_format_cache_get(&pvt->f.subclass.format, pvt->t->format);
 		}
 
 		if (!pvt->f.subclass.format) {
-			struct ast_codec *codec = ast_codec_get(t->dst_codec.name,
+			struct ast_codec *codec;
+
+			ast_s_codec_get(&codec, t->dst_codec.name,
 				t->dst_codec.type, t->dst_codec.sample_rate);
 			if (!codec) {
 				ast_log(LOG_ERROR, "Unable to get destination codec\n");
 				destroy(pvt);
 				return NULL;
 			}
-			pvt->f.subclass.format = ast_format_create(codec);
-			ao2_ref(codec, -1);
+			ast_s_format_create(&pvt->f.subclass.format, codec);
+			ao2_s_cleanup(&codec);
 		}
 
 		if (!pvt->f.subclass.format) {
@@ -1140,17 +1139,17 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 {
 	struct ast_translator *u;
 	char tmp[80];
-	RAII_VAR(struct ast_codec *, src_codec, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_codec *, dst_codec, NULL, ao2_cleanup);
+	RAII_AO2_S(struct ast_codec *, src_codec, NULL);
+	RAII_AO2_S(struct ast_codec *, dst_codec, NULL);
 
-	src_codec = ast_codec_get(t->src_codec.name, t->src_codec.type, t->src_codec.sample_rate);
+	ast_s_codec_get(&src_codec, t->src_codec.name, t->src_codec.type, t->src_codec.sample_rate);
 	if (!src_codec) {
 		ast_assert(0);
 		ast_log(LOG_WARNING, "Failed to register translator: unknown source codec %s\n", t->src_codec.name);
 		return -1;
 	}
 
-	dst_codec = ast_codec_get(t->dst_codec.name, t->dst_codec.type, t->dst_codec.sample_rate);
+	ast_s_codec_get(&dst_codec, t->dst_codec.name, t->dst_codec.type, t->dst_codec.sample_rate);
 	if (!dst_codec) {
 		ast_log(LOG_WARNING, "Failed to register translator: unknown destination codec %s\n", t->dst_codec.name);
 		return -1;

@@ -72,13 +72,9 @@ static void stasis_caching_topic_dtor(void *obj)
 	ast_assert(stasis_subscription_is_done(caching_topic->sub));
 
 	ao2_cleanup(caching_topic->sub);
-	caching_topic->sub = NULL;
-	ao2_cleanup(caching_topic->cache);
-	caching_topic->cache = NULL;
+	ao2_s_cleanup(&caching_topic->cache);
 	ao2_cleanup(caching_topic->topic);
-	caching_topic->topic = NULL;
-	ao2_cleanup(caching_topic->original_topic);
-	caching_topic->original_topic = NULL;
+	ao2_s_cleanup(&caching_topic->original_topic);
 }
 
 struct stasis_topic *stasis_caching_get_topic(struct stasis_caching_topic *caching_topic)
@@ -289,8 +285,7 @@ static void cache_dtor(void *obj)
 {
 	struct stasis_cache *cache = obj;
 
-	ao2_cleanup(cache->entries);
-	cache->entries = NULL;
+	ao2_s_cleanup(&cache->entries);
 }
 
 struct stasis_cache *stasis_cache_create_full(snapshot_get_id id_fn,
@@ -305,8 +300,8 @@ struct stasis_cache *stasis_cache_create_full(snapshot_get_id id_fn,
 		return NULL;
 	}
 
-	cache->entries = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_RWLOCK, 0,
-		NUM_CACHE_BUCKETS, cache_entry_hash, NULL, cache_entry_cmp);
+	ao2_s_container_alloc_hash(&cache->entries, AO2_ALLOC_OPT_LOCK_RWLOCK, 0,
+		NUM_CACHE_BUCKETS, cache_entry_hash, NULL, cache_entry_cmp, "");
 	if (!cache->entries) {
 		ao2_cleanup(cache);
 		return NULL;
@@ -870,7 +865,7 @@ static void caching_topic_exec(void *data, struct stasis_subscription *sub,
 
 struct stasis_caching_topic *stasis_caching_topic_create(struct stasis_topic *original_topic, struct stasis_cache *cache)
 {
-	RAII_VAR(struct stasis_caching_topic *, caching_topic, NULL, ao2_cleanup);
+	RAII_AO2_S(struct stasis_caching_topic *, caching_topic, NULL);
 	struct stasis_subscription *sub;
 	RAII_VAR(char *, new_name, NULL, ast_free);
 	int ret;
@@ -880,8 +875,8 @@ struct stasis_caching_topic *stasis_caching_topic_create(struct stasis_topic *or
 		return NULL;
 	}
 
-	caching_topic = ao2_alloc_options(sizeof(*caching_topic),
-		stasis_caching_topic_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	caching_topic = ao2_alloc_full(sizeof(*caching_topic),
+		stasis_caching_topic_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK, "", &caching_topic);
 	if (caching_topic == NULL) {
 		return NULL;
 	}
@@ -891,16 +886,14 @@ struct stasis_caching_topic *stasis_caching_topic_create(struct stasis_topic *or
 		return NULL;
 	}
 
-	ao2_ref(cache, +1);
-	caching_topic->cache = cache;
+	ao2_s_set(&caching_topic->cache, cache);
 
 	sub = internal_stasis_subscribe(original_topic, caching_topic_exec, caching_topic, 0, 0);
 	if (sub == NULL) {
 		return NULL;
 	}
 
-	ao2_ref(original_topic, +1);
-	caching_topic->original_topic = original_topic;
+	ao2_s_set(&caching_topic->original_topic, original_topic);
 
 	/* This is for the reference contained in the subscription above */
 	ao2_ref(caching_topic, +1);

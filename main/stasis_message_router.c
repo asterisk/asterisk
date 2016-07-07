@@ -210,8 +210,10 @@ static struct stasis_message_router *stasis_message_router_create_internal(
 	struct stasis_topic *topic, int use_thread_pool)
 {
 	int res;
-	RAII_VAR(struct stasis_message_router *, router, NULL, ao2_cleanup);
+	RAII_AO2_S(struct stasis_message_router *, router, NULL);
 
+	router = ao2_alloc_full(sizeof(*router), router_dtor, AO2_ALLOC_OPT_LOCK_MUTEX,
+		stasis_topic_name(topic), &router);
 	router = ao2_t_alloc(sizeof(*router), router_dtor, stasis_topic_name(topic));
 	if (!router) {
 		return NULL;

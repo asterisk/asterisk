@@ -153,7 +153,11 @@ int ast_format_init(void);
  * \note The format is returned with reference count incremented. It must be released using
  * ao2_ref or ao2_cleanup.
  */
-struct ast_format *ast_format_create(struct ast_codec *codec);
+#define ast_format_create(codec) \
+	__ast_format_create((codec), NULL)
+struct ast_format *__ast_format_create(struct ast_codec *codec, void *debugstorage);
+#define ast_s_format_create(storage, codec) \
+	__ao2_s_getter(storage, __ast_format_create, (codec))
 
 /*!
  * \brief Create a new media format with a specific name
@@ -171,7 +175,12 @@ struct ast_format *ast_format_create(struct ast_codec *codec);
  * \retval non-NULL success
  * \retval NULL failure
  */
-struct ast_format *ast_format_create_named(const char *format_name, struct ast_codec *codec);
+#define ast_format_create_named(format_name, codec) \
+	__ast_format_create_named((format_name), (codec), NULL)
+struct ast_format *__ast_format_create_named(const char *format_name,
+	struct ast_codec *codec, void *debugstorage);
+#define ast_s_format_create_named(storage, format_name, codec) \
+	__ao2_s_getter(storage, __ast_format_create_named, (format_name), (codec))
 
 /*!
  * \brief Clone an existing media format so it can be modified
@@ -183,7 +192,11 @@ struct ast_format *ast_format_create_named(const char *format_name, struct ast_c
  * \retval non-NULL success
  * \retval NULL failure
  */
-struct ast_format *ast_format_clone(const struct ast_format *format);
+#define ast_format_clone(format) \
+	__ast_format_clone((format), NULL)
+struct ast_format *__ast_format_clone(const struct ast_format *format, void *debugstorage);
+#define ast_s_format_clone(storage, format) \
+	__ao2_s_getter(storage, __ast_format_clone, (format))
 
 /*!
  * \brief Compare two formats
@@ -307,7 +320,11 @@ const char *ast_format_get_name(const struct ast_format *format);
  *
  * \note The reference count of the returned codec is increased by 1 and must be decremented
  */
-struct ast_codec *ast_format_get_codec(const struct ast_format *format);
+#define ast_format_get_codec(format) \
+	__ast_format_get_codec((format), NULL)
+struct ast_codec *__ast_format_get_codec(const struct ast_format *format, void *debugstorage);
+#define ast_s_format_get_codec(storage, format) \
+	__ao2_s_getter(storage, __ast_format_get_codec, (format))
 
 /*!
  * \brief Get the codec identifier associated with a format

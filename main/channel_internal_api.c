@@ -829,7 +829,7 @@ struct ast_format_cap *ast_channel_nativeformats(const struct ast_channel *chan)
 }
 void ast_channel_nativeformats_set(struct ast_channel *chan, struct ast_format_cap *value)
 {
-	ao2_replace(chan->nativeformats, value);
+	ao2_s_replace(&chan->nativeformats, value);
 }
 struct ast_framehook_list *ast_channel_framehooks(const struct ast_channel *chan)
 {
@@ -948,23 +948,23 @@ void ast_channel_state_set(struct ast_channel *chan, enum ast_channel_state valu
 }
 void ast_channel_set_oldwriteformat(struct ast_channel *chan, struct ast_format *format)
 {
-	ao2_replace(chan->oldwriteformat, format);
+	ao2_s_replace(&chan->oldwriteformat, format);
 }
 void ast_channel_set_rawreadformat(struct ast_channel *chan, struct ast_format *format)
 {
-	ao2_replace(chan->rawreadformat, format);
+	ao2_s_replace(&chan->rawreadformat, format);
 }
 void ast_channel_set_rawwriteformat(struct ast_channel *chan, struct ast_format *format)
 {
-	ao2_replace(chan->rawwriteformat, format);
+	ao2_s_replace(&chan->rawwriteformat, format);
 }
 void ast_channel_set_readformat(struct ast_channel *chan, struct ast_format *format)
 {
-	ao2_replace(chan->readformat, format);
+	ao2_s_replace(&chan->readformat, format);
 }
 void ast_channel_set_writeformat(struct ast_channel *chan, struct ast_format *format)
 {
-	ao2_replace(chan->writeformat, format);
+	ao2_s_replace(&chan->writeformat, format);
 }
 struct ast_format *ast_channel_oldwriteformat(struct ast_channel *chan)
 {

@@ -46,14 +46,15 @@ enum ast_format_cap_flags {
  * \retval ast_format_cap object on success.
  * \retval NULL on failure.
  */
-struct ast_format_cap *__ast_format_cap_alloc(enum ast_format_cap_flags flags,
-	const char *tag, const char *file, int line, const char *func);
-
 #define ast_format_cap_alloc(flags) \
-	__ast_format_cap_alloc((flags), "ast_format_cap_alloc", \
-		__FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ast_format_cap_alloc((flags), NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
+struct ast_format_cap *__ast_format_cap_alloc(enum ast_format_cap_flags flags,
+	const char *tag, const char *file, int line, const char *func, void *debugstorage);
+
 #define ast_t_format_cap_alloc(flags, tag) \
-	__ast_format_cap_alloc((flags), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+	__ast_format_cap_alloc((flags), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, NULL)
+#define ast_s_format_cap_alloc(storage, flags) \
+	ao2_s_getter(storage, __ast_format_cap_alloc, (flags), NULL)
 
 /*!
  * \brief Set the global framing.
@@ -101,7 +102,7 @@ int __ast_format_cap_append(struct ast_format_cap *cap, struct ast_format *forma
 	const char *tag, const char *file, int line, const char *func);
 
 #define ast_format_cap_append(cap, format, framing) \
-	__ast_format_cap_append((cap), (format), (framing), "ast_format_cap_append", \
+	__ast_format_cap_append((cap), (format), (framing), NULL, \
 		__FILE__, __LINE__, __PRETTY_FUNCTION__)
 #define ast_t_format_cap_append(cap, format, framing, tag) \
 	__ast_format_cap_append((cap), (format), (framing), (tag), \
@@ -187,7 +188,12 @@ size_t ast_format_cap_count(const struct ast_format_cap *cap);
  * \note The reference count of the returned format is increased. It must be released using ao2_ref
  * or ao2_cleanup.
  */
-struct ast_format *ast_format_cap_get_format(const struct ast_format_cap *cap, int position);
+#define ast_format_cap_get_format(cap, position) \
+	__ast_format_cap_get_format((cap), (position), NULL)
+struct ast_format *__ast_format_cap_get_format(const struct ast_format_cap *cap,
+	int position, void *debugstorage);
+#define ast_s_format_cap_get_format(storage, cap, position) \
+	__ao2_s_getter(storage, __ast_format_cap_get_format, (cap), (position))
 
 /*!
  * \brief Get the most preferred format for a particular media type
@@ -201,7 +207,12 @@ struct ast_format *ast_format_cap_get_format(const struct ast_format_cap *cap, i
  * \note The reference count of the returned format is increased. It must be released using ao2_ref
  * or ao2_cleanup.
  */
-struct ast_format *ast_format_cap_get_best_by_type(const struct ast_format_cap *cap, enum ast_media_type type);
+#define ast_format_cap_get_best_by_type(cap, type) \
+	__ast_format_cap_get_best_by_type((cap), (type), NULL)
+struct ast_format *__ast_format_cap_get_best_by_type(const struct ast_format_cap *cap,
+	enum ast_media_type type, void *debugstorage);
+#define ast_s_format_cap_get_best_by_type(storage, cap, type) \
+	__ao2_s_getter(storage, __ast_format_cap_get_best_by_type, (cap), (type))
 
 /*!
  * \brief Get the framing for a format

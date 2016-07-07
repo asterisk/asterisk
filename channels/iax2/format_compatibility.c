@@ -48,11 +48,13 @@ uint64_t iax2_format_compatibility_cap2bitfield(const struct ast_format_cap *cap
 	int x;
 
 	for (x = 0; x < ast_format_cap_count(cap); x++) {
-		struct ast_format *format = ast_format_cap_get_format(cap, x);
+		struct ast_format *format;
+
+		ast_s_format_cap_get_format(&format, cap, x);
 
 		bitfield |= ast_format_compatibility_format2bitfield(format);
 
-		ao2_ref(format, -1);
+		ao2_s_cleanup(&format);
 	}
 
 	return bitfield;
