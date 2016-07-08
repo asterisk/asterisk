@@ -361,7 +361,9 @@ static int t38_interpret_parameters(void *obj)
 			ast_udptl_set_local_max_ifp(session_media->udptl, state->our_parms.max_ifp);
 			t38_change_state(data->session, session_media, state, T38_ENABLED);
 			ast_sip_session_resume_reinvite(data->session);
-		} else if (data->session->t38state != T38_ENABLED) {
+		} else if ((data->session->t38state != T38_ENABLED) ||
+				((data->session->t38state == T38_ENABLED) &&
+                                (parameters->request_response == AST_T38_REQUEST_NEGOTIATE))) {
 			if (t38_initialize_session(data->session, session_media)) {
 				break;
 			}
