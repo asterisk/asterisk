@@ -269,7 +269,6 @@ enum ast_sip_contact_status_type {
 	UNKNOWN,
 	CREATED,
 	REMOVED,
-	UPDATED,
 };
 
 /*!
@@ -292,6 +291,8 @@ struct ast_sip_contact_status {
 	char *aor;
 	/*! The original contact's URI */
 	char *uri;
+	/*! TRUE if the contact was refreshed. e.g., re-registered */
+	unsigned int refresh:1;
 };
 
 /*!

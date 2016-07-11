@@ -75,8 +75,6 @@ res_pjsip
     "contact_deny" - List of Contact header addresses to deny
     "contact_permit" - List of Contact header addresses to permit
 
- * Added new status Updated to AMI event ContactStatus on update registration
-
  * Added "reg_server" to contacts.
    If the Asterisk system name is set in asterisk.conf, it will be stored
    into the "reg_server" field in the ps_contacts table to facilitate
