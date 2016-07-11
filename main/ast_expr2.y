@@ -1665,6 +1665,8 @@ op_tildetilde (struct val *a, struct val *b)
 	vs = malloc(strlen(a->u.s)+strlen(b->u.s)+1);
 	if (vs == NULL) {
 		ast_log(LOG_WARNING, "malloc() failed\n");
+		free_value(a);
+		free_value(b);
 		return NULL;
 	}
 
