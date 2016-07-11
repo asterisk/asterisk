@@ -744,6 +744,22 @@ static int aoro2_class_cb(void *obj, void *arg, int flags)
 	return 0;
 }
 
+unsigned int ast_odbc_get_max_connections(const char *name)
+{
+	struct odbc_class *class;
+	unsigned int max_connections;
+
+	class = ao2_callback(class_container, 0, aoro2_class_cb, (char *) name);
+	if (!class) {
+		return 0;
+	}
+
+	max_connections = class->maxconnections;
+	ao2_ref(class, -1);
+
+	return max_connections;
+}
+
 /*
  * \brief Determine if the connection has died.
  *

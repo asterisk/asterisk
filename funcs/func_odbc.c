@@ -388,9 +388,25 @@ static struct odbc_obj *get_odbc_obj(const char *dsn_name, struct dsn **dsn)
 static inline void release_obj_or_dsn(struct odbc_obj **obj, struct dsn **dsn)
 {
 	if (dsn && *dsn) {
+		/* If multiple connections are not enabled then the guarantee
+		 * of a single connection already exists and holding on to the
+		 * connection would prevent any other user from acquiring it
+		 * indefinitely.
+		 */
+		if (ast_odbc_get_max_connections((*dsn)->name) < 2) {
+			ast_odbc_release_obj((*dsn)->connection);
+			(*dsn)->connection = NULL;
+		}
 		ao2_unlock(*dsn);
 		ao2_ref(*dsn, -1);
 		*dsn = NULL;
+		/* Some callers may provide both an obj and dsn. To ensure that
+		 * the connection is not released twice we set it to NULL here if
+		 * present.
+		 */
+		if (obj) {
+			*obj = NULL;
+		}
 	} else if (obj && *obj) {
 		ast_odbc_release_obj(*obj);
 		*obj = NULL;
