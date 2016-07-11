@@ -243,4 +243,9 @@ int ast_odbc_text2isolation(const char *txt);
  */
 const char *ast_odbc_isolation2text(int iso);
 
+/*!
+ * \brief Return the current configured maximum number of connections for a class
+ */
+unsigned int ast_odbc_get_max_connections(const char *name);
+
 #endif /* _ASTERISK_RES_ODBC_H */
