@@ -468,8 +468,6 @@ struct fax_gateway {
 struct fax_detect {
 	/*! \brief the start of our timeout counter */
 	struct timeval timeout_start;
-	/*! \brief faxdetect timeout */
-	int timeout;
 	/*! \brief DSP Processor */
 	struct ast_dsp *dsp;
 	/*! \brief original audio formats */
@@ -3520,13 +3518,13 @@ static void destroy_faxdetect(void *data)
 		ast_dsp_free(faxdetect->dsp);
 		faxdetect->dsp = NULL;
 	}
-	ao2_ref(faxdetect->details, -1);
+	ao2_cleanup(faxdetect->details);
 	ao2_cleanup(faxdetect->orig_format);
 }
 
 /*! \brief Create a new fax detect object.
  * \param chan the channel attaching to
- * \param timeout remove framehook in this time if set
+ * \param timeout in ms to remove framehook in this time if not zero
  * \param flags required options
  * \return NULL or a fax gateway object
  */
@@ -3633,8 +3631,9 @@ static struct ast_frame *fax_detect_framehook(struct ast_channel *chan, struct a
 		return f;
 	}
 
-	if ((!ast_tvzero(faxdetect->timeout_start) &&
-	    (ast_tvdiff_ms(ast_tvnow(), faxdetect->timeout_start) > faxdetect->timeout))) {
+	if (!ast_tvzero(faxdetect->timeout_start)
+		&& ast_tvdiff_ms(ast_tvnow(), faxdetect->timeout_start) > details->faxdetect_timeout) {
+		ast_debug(1, "FAXOPT(faxdetect) timeout on %s\n", ast_channel_name(chan));
 		ast_framehook_detach(chan, details->faxdetect_id);
 		details->faxdetect_id = -1;
 		return f;
@@ -3713,7 +3712,7 @@ static struct ast_frame *fax_detect_framehook(struct ast_channel *chan, struct a
 
 /*! \brief Attach a faxdetect framehook object to a channel.
  * \param chan the channel to attach to
- * \param timeout remove framehook in this time if set
+ * \param timeout in ms to remove framehook in this time if not zero
  * \return the faxdetect structure or NULL on error
  * \param flags required options
  * \retval -1 error
@@ -4461,8 +4460,14 @@ static int acf_faxopt_write(struct ast_channel *chan, const char *cmd, char *dat
 				details->gateway_timeout = 0;
 				if (timeout) {
 					unsigned int gwtimeout;
-					if (sscanf(timeout, "%u", &gwtimeout) == 1) {
-						details->gateway_timeout = gwtimeout * 1000;
+
+					if (sscanf(timeout, "%30u", &gwtimeout) == 1) {
+						if (gwtimeout >= 0) {
+							details->gateway_timeout = gwtimeout * 1000;
+						} else {
+							ast_log(LOG_WARNING, "%s(%s) timeout cannot be negative.  Ignoring timeout\n",
+								cmd, data);
+						}
 					} else {
 						ast_log(LOG_WARNING, "Unsupported timeout '%s' passed to FAXOPT(%s).\n", timeout, data);
 					}
@@ -4497,11 +4502,18 @@ static int acf_faxopt_write(struct ast_channel *chan, const char *cmd, char *dat
 
 		if (ast_true(val) || !strcasecmp(val, "t38") || !strcasecmp(val, "cng")) {
 			if (details->faxdetect_id < 0) {
-				if (timeout && (sscanf(timeout, "%u", &fdtimeout) == 1)) {
-					if (fdtimeout > 0) {
-						fdtimeout = fdtimeout * 1000;
+				if (timeout) {
+					if (sscanf(timeout, "%30u", &fdtimeout) == 1) {
+						if (fdtimeout >= 0) {
+							fdtimeout *= 1000;
+						} else {
+							ast_log(LOG_WARNING, "%s(%s) timeout cannot be negative.  Ignoring timeout\n",
+								cmd, data);
+							fdtimeout = 0;
+						}
 					} else {
-						ast_log(LOG_WARNING, "Timeout cannot be negative ignoring timeout\n");
+						ast_log(LOG_WARNING, "Unsupported timeout '%s' passed to FAXOPT(%s).\n",
+							timeout, data);
 					}
 				}
 
