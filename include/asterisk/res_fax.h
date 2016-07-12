@@ -179,11 +179,11 @@ struct ast_fax_session_details {
 	unsigned int t38timeout;
 	/*! the id of the t.38 gateway framehook for this channel */
 	int gateway_id;
-	/*! the timeout for this gateway in seconds */
+	/*! The timeout for this gateway in ms */
 	int gateway_timeout;
 	/*! the id of the faxdetect framehook for this channel */
 	int faxdetect_id;
-	/*! The timeout for this fax detect in seconds */
+	/*! The timeout for this fax detect in ms */
 	int faxdetect_timeout;
 	/*! flags used for fax detection */
 	int faxdetect_flags;
