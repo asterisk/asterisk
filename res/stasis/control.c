@@ -881,6 +881,9 @@ end:
 	return ret_bridge;
 }
 
+static int bridge_channel_depart(struct stasis_app_control *control,
+	struct ast_channel *chan, void *data);
+
 /*!
  * \brief after bridge callback for the dial bridge
  *
@@ -890,6 +893,15 @@ end:
 static void dial_bridge_after_cb(struct ast_channel *chan, void *data)
 {
 	struct stasis_app_control *control = data;
+	struct ast_bridge_channel *bridge_channel;
+
+	ast_channel_lock(chan);
+	bridge_channel = ast_channel_get_bridge_channel(chan);
+	ast_channel_unlock(chan);
+
+	ast_debug(3, "Channel: <%s>  Reason: %d\n", ast_channel_name(control->channel), ast_channel_hangupcause(chan));
+
+	stasis_app_send_command_async(control, bridge_channel_depart, bridge_channel, __ao2_cleanup);
 
 	control->bridge = NULL;
 }
@@ -898,6 +910,7 @@ static void dial_bridge_after_cb_failed(enum ast_bridge_after_cb_reason reason, 
 {
 	struct stasis_app_control *control = data;
 
+	ast_debug(3, "Channel: <%s>  Reason: %d\n", ast_channel_name(control->channel), reason);
 	dial_bridge_after_cb(control->channel, data);
 }
 
@@ -1442,6 +1455,8 @@ static int app_control_dial(struct stasis_app_control *control,
 	if (ast_call(chan, args->dialstring, 0)) {
 		return -1;
 	}
+
+	ast_channel_publish_dial(NULL, chan, args->dialstring, NULL);
 
 	return 0;
 }

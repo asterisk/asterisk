@@ -1776,6 +1776,9 @@ void ast_ari_channels_create(struct ast_variable *headers,
 	originator = ast_channel_get_by_name(args->originator);
 	if (originator) {
 		request_cap = ao2_bump(ast_channel_nativeformats(originator));
+		if (!ast_strlen_zero(args->app)) {
+			stasis_app_subscribe_channel(args->app, originator);
+		}
 	} else if (!ast_strlen_zero(args->formats)) {
 		char *format_name;
 		char *formats_copy = ast_strdupa(args->formats);
@@ -1816,12 +1819,19 @@ void ast_ari_channels_create(struct ast_variable *headers,
 
 	chan_data->chan = ast_request(dialtech, request_cap, &assignedids, originator, dialdevice, &cause);
 	ao2_cleanup(request_cap);
-	ast_channel_cleanup(originator);
+
 	if (!chan_data->chan) {
 		ast_ari_response_alloc_failed(response);
+		ast_channel_cleanup(originator);
 		chan_data_destroy(chan_data);
 		return;
 	}
+
+	if (!ast_strlen_zero(args->app)) {
+		stasis_app_subscribe_channel(args->app, chan_data->chan);
+	}
+
+	ast_channel_cleanup(originator);
 
 	if (save_dialstring(chan_data->chan, stuff)) {
 		ast_ari_response_alloc_failed(response);
