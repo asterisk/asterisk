@@ -2002,7 +2002,8 @@ Optional Packages:
   --with-jack=PATH        use Jack Audio Connection Kit files in PATH
   --with-kqueue=PATH      use kqueue support files in PATH
   --with-ldap=PATH        use OpenLDAP files in PATH
-  --with-libcurl=DIR      look for the curl library in DIR
+  --with-libcurl=PREFIX   look for the curl library in PREFIX/lib and headers
+                          in PREFIX/include
   --with-libedit=PATH     use NetBSD Editline library files in PATH, use
                           'internal' Editline otherwise
   --with-libxml2=PATH     use LibXML2 files in PATH
@@ -9136,6 +9137,10 @@ fi
 
 
 
+
+
+
+
 # Check whether --with-libcurl was given.
 if test "${with_libcurl+set}" = set; then :
   withval=$with_libcurl; _libcurl_with=$withval
@@ -9223,7 +9228,6 @@ done
   done
 IFS=$as_save_IFS
 
-  test -z "$ac_cv_path__libcurl_config" && ac_cv_path__libcurl_config=""$withval/bin""
   ;;
 esac
 fi
@@ -9373,10 +9377,11 @@ int x;
 curl_easy_setopt(NULL,CURLOPT_URL,NULL);
 x=CURL_ERROR_SIZE;
 x=CURLOPT_WRITEFUNCTION;
-x=CURLOPT_FILE;
+x=CURLOPT_WRITEDATA;
 x=CURLOPT_ERRORBUFFER;
 x=CURLOPT_STDERR;
 x=CURLOPT_VERBOSE;
+if (x) {;}
 
   ;
   return 0;
@@ -9443,16 +9448,22 @@ _ACEOF
 
               # We don't have --protocols, so just assume that all
               # protocols are available
-              _libcurl_protocols="HTTP FTP FILE TELNET LDAP DICT"
+              _libcurl_protocols="HTTP FTP FILE TELNET LDAP DICT TFTP"
 
               if test x$libcurl_feature_SSL = xyes ; then
                  _libcurl_protocols="$_libcurl_protocols HTTPS"
 
                  # FTPS wasn't standards-compliant until version
-                 # 7.11.0
+                 # 7.11.0 (0x070b00 == 461568)
                  if test $_libcurl_version -ge 461568; then
                     _libcurl_protocols="$_libcurl_protocols FTPS"
                  fi
+              fi
+
+              # RTSP, IMAP, POP3 and SMTP were added in
+              # 7.20.0 (0x071400 == 463872)
+              if test $_libcurl_version -ge 463872; then
+                 _libcurl_protocols="$_libcurl_protocols RTSP IMAP POP3 SMTP"
               fi
            fi
 
