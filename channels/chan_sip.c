@@ -18386,7 +18386,7 @@ static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_re
 static int get_sip_pvt_from_replaces(const char *callid, const char *totag,
 		const char *fromtag, struct sip_pvt **out_pvt, struct ast_channel **out_chan)
 {
-	struct sip_pvt *sip_pvt_ptr;
+	RAII_VAR(struct sip_pvt *, sip_pvt_ptr, NULL, ao2_cleanup);
 	struct sip_pvt tmp_dialog = {
 		.callid = callid,
 	};
@@ -18460,6 +18460,9 @@ static int get_sip_pvt_from_replaces(const char *callid, const char *totag,
 			*out_chan = sip_pvt_ptr->owner ? ast_channel_ref(sip_pvt_ptr->owner) : NULL;
 		}
 	}
+
+	/* If we're here sip_pvt_ptr has been copied to *out_pvt, prevent RAII_VAR cleanup */
+	sip_pvt_ptr = NULL;
 
 	return 0;
 }
@@ -31095,6 +31098,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			return NULL;
 		}
 		if (!(peer->endpoint = ast_endpoint_create("SIP", name))) {
+			ao2_t_ref(peer, -1, "failed to allocate endpoint, drop peer");
 			return NULL;
 		}
 		if (!(peer->caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
