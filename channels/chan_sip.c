@@ -284,6 +284,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/features_config.h"
 #include "asterisk/http_websocket.h"
 #include "asterisk/format_cache.h"
+#include "asterisk/linkedlists.h"	/* for AST_LIST_NEXT */
 
 /*** DOCUMENTATION
 	<application name="SIPDtmfMode" language="en_US">
@@ -13220,21 +13221,26 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo, int needtext
 
 static char *crypto_get_attrib(struct ast_sdp_srtp *srtp, int dtls_enabled, int default_taglen_32)
 {
-	char *a_crypto;
+	struct ast_sdp_srtp *tmp = srtp;
+	char *a_crypto = "";
 	const char *orig_crypto;
 
-	if (!srtp || dtls_enabled) {
+	if (!tmp || dtls_enabled) {
 		return NULL;
 	}
 
-	orig_crypto = ast_sdp_srtp_get_attrib(srtp, dtls_enabled, default_taglen_32);
-	if (ast_strlen_zero(orig_crypto)) {
-		return NULL;
-	}
+	do {
+		char *copy = a_crypto;
 
-	if (ast_asprintf(&a_crypto, "a=crypto:%s\r\n", orig_crypto) == -1) {
-		return NULL;
-	}
+		orig_crypto = ast_sdp_srtp_get_attrib(tmp, dtls_enabled, default_taglen_32);
+		if (ast_strlen_zero(orig_crypto)) {
+			return NULL;
+		}
+		if (ast_asprintf(&a_crypto, "%sa=crypto:%s\r\n", copy, orig_crypto) == -1) {
+			return NULL;
+		}
+	} while ((tmp = AST_LIST_NEXT(tmp, sdp_srtp_list)));
+
 	return a_crypto;
 }
 
