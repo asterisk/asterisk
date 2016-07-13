@@ -175,7 +175,9 @@ install_unpackaged() {
 			cd libsrtp
 			git pull
 		fi
-		./configure CFLAGS=-fPIC && make libsrtp.a && make uninstall && make install
+		git checkout "1_5_x_throttle"
+		./configure --disable-debug --disable-stdout --enable-openssl
+		make shared_library uninstall install
 		cd ..
 		echo "/usr/local/lib" > /etc/ld.so.conf.d/usr_local.conf
 		/sbin/ldconfig
