@@ -1,6 +1,84 @@
-2016-06-22 21:15 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2016-07-13 14:09 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
-	* asterisk certified/13.8-cert1-rc3 Released.
+	* asterisk certified/13.8-cert1 Released.
+
+2016-07-13 08:34 +0000 [482561f1e3]  Joshua Colp <jcolp@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-07-13 08:34 +0000 [3cb116d75a]  Joshua Colp <jcolp@digium.com>
+
+	* .version: Update for certified/13.8-cert1
+
+2016-07-13 08:34 +0000 [797d39c81c]  Joshua Colp <jcolp@digium.com>
+
+	* .lastclean: Update for certified/13.8-cert1
+
+2016-07-13 08:34 +0000 [f5fbfe9a6a]  Joshua Colp <jcolp@digium.com>
+
+	* realtime: Add database scripts for certified/13.8-cert1
+
+2016-07-07 10:38 +0000 [22a36e5b10]  Joshua Colp <jcolp@digium.com>
+
+	* chan_sip/res_pjsip_t38: Handle a request to negotiate T.38 after it is enabled.
+
+	  Some T.38 implementations may send another re-invite after the initial
+	  one which adds additional negotiation details (such as the max bitrate).
+	  Currently this will fail when passthrough is being done in chan_sip as we
+	  do nothing if T.38 is already active.
+
+	  Other handlers of T.38 inside of Asterisk (such as res_fax) handle this
+	  scenario so this change adds support for it to chan_sip and res_pjsip_t38.
+	  If a request to negotiate is received while T.38 is already enabled a
+	  new re-INVITE is sent and negotiation is done again.
+
+	  ASTERISK-26179 #close
+
+	  Change-Id: I0298494d3da6df3219bbfa4be9aa04015043145c
+
+2016-06-22 13:41 +0000 [d0c04c8986]  gtjoseph <gjoseph@digium.com>
+
+	* res_rtp_asterisk:  Fix a self-comparison identified by gcc 6
+
+	  gcc 6 caught a previously unidentified self-comparison in
+	  ice_candidate_cmp.  Fixed it and re-ordered the predicates for better
+	  short-circuiting.
+
+	  ASTERISK-26140 #close
+
+	  Change-Id: I3da713c568e24064430257b3502fbdafd35af7a7
+
+2016-06-30 08:25 +0000 [0d694ce9b8]  gtjoseph <gjoseph@digium.com>
+
+	* configure:  Fix HAVE_PJSIP_EVSUB_GRP_LOCK not set with external pjproject
+
+	  There was a typo in configure.ac preventing HAVE_PJSIP_EVSUB_GRP_LOCK
+	  from getting set when using an external pjproject.
+
+	  ASTERISK-26099 #close
+	  Reported-by: Ross Beer
+
+	  Change-Id: I709af70428e125fb5ccd44b171d25dd29141f0ae
+
+2016-06-28 08:22 +0000 [5f444b1f5b]  gtjoseph <gjoseph@digium.com>
+
+	* BuildSystem:  Fix a few issues hightlighted by gcc 6.x
+
+	  gcc 6.1.1 caught a few more issues.
+	  Made sure the unit tests still pass for the func_env and stdtime
+	  issues.
+
+	  ASTERISK-26157 #close
+
+	  Change-Id: I6664d8f34a45bc1481d2a854481c7878b0c1cf8e
+
+2016-06-22 16:15 +0000 [f282a88ee4]  Mark Michelson <mmichelson@digium.com>
+
+	* ChangeLog: Updated for certified/13.8-cert1-rc3
+
+2016-06-22 16:15 +0000 [bd6da93116]  Mark Michelson <mmichelson@digium.com>
+
+	* Release summaries: Add summaries for certified/13.8-cert1-rc3
 
 2016-06-22 16:14 +0000 [4df81def29]  Mark Michelson <mmichelson@digium.com>
 
@@ -512,9 +590,13 @@
 
 	  Change-Id: Ie45b65475e1481ddf05b874ee48f63e39fff8915
 
-2016-05-03 12:55 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2016-05-03 07:55 +0000 [601602f44b]  Joshua Colp <jcolp@digium.com>
 
-	* asterisk certified/13.8-cert1-rc2 Released.
+	* ChangeLog: Updated for certified/13.8-cert1-rc2
+
+2016-05-03 07:55 +0000 [13461bb9a6]  Joshua Colp <jcolp@digium.com>
+
+	* Release summaries: Add summaries for certified/13.8-cert1-rc2
 
 2016-05-03 07:54 +0000 [cadb5c4e64]  Joshua Colp <jcolp@digium.com>
 
@@ -846,9 +928,13 @@
 	  Change-Id: I463fa9586cbe7c6b3b603289f535bd8e361611dd
 	  (cherry picked from commit d963a3374991c64594cf196e90a5c74964c8ba7c)
 
-2016-04-06 16:01 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2016-04-06 11:02 +0000 [dd93204a84]  Joshua Colp <jcolp@digium.com>
 
-	* asterisk certified/13.8-cert1-rc1 Released.
+	* ChangeLog: Updated for certified/13.8-cert1-rc1
+
+2016-04-06 11:01 +0000 [6d29a919d4]  Joshua Colp <jcolp@digium.com>
+
+	* Release summaries: Add summaries for certified/13.8-cert1-rc1
 
 2016-04-06 10:27 +0000 [4fa3428247]  Joshua Colp <jcolp@digium.com>
 
@@ -18912,6 +18998,563 @@
 
 
 	  git-svn-id: https://origsvn.digium.com/svn/asterisk/branches/13@429128 65c4cc65-6c06-0410-ace0-fbb531ad65f3
+
+2016-04-27 16:18 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.1-cert7 Released.
+
+2016-04-27 11:17 +0000 [ac50d4de09]  Kevin Harwell <kharwell@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-04-27 11:17 +0000 [ae138f07b9]  Kevin Harwell <kharwell@digium.com>
+
+	* .version: Update for certified/13.1-cert7
+
+2016-04-27 11:17 +0000 [6887653e56]  Kevin Harwell <kharwell@digium.com>
+
+	* .lastclean: Update for certified/13.1-cert7
+
+2016-04-27 11:17 +0000 [f1dd08373d]  Kevin Harwell <kharwell@digium.com>
+
+	* realtime: Add database scripts for certified/13.1-cert7
+
+2016-04-26 05:48 +0000 [5baf815293]  Joshua Colp <jcolp@digium.com>
+
+	* app_queue: Fix crash when unloading module.
+
+	  When unloading the app_queue module the members in each queue are
+	  destroyed and as part of this they are removed from the pending
+	  members container. Unfortunately a crash would occur as the container
+	  was destroyed before the members were removed.
+
+	  This change tweaks ordering so the container destruction occurs
+	  after the members are destroyed.
+
+	  ASTERISK-16115
+
+	  Change-Id: I48c728668c55aee3d05b751a5d450fb57e87f44b
+
+2016-04-21 14:23 +0000 [1f24863e0c]  Kevin Harwell <kharwell@digium.com>
+
+	* app_queue: queue members can receive multiple calls
+
+	  It was possible for a queue member that is a member of at least 2 or more
+	  queues to receive mulitiple calls at the same time. This happened because
+	  of a race between when a member was being rung and when the device state
+	  notified the other queue(s) member object of the state change.
+
+	  This patch makes it so when a queue member is being rung it gets added to
+	  a global pool of queue members. If that same member is tried again, e.g.
+	  from another queue, and it is found to already exist in the pending member
+	  container then it will not ring that member.
+
+	  ASTERISK-16115 #close
+
+	  Change-Id: I546dd474776d158c2b6be44205353dee5bac7e48
+
+2016-04-22 17:53 +0000 [a2249031ef]  gtjoseph <gjoseph@digium.com>
+
+	* res_agi:  Prevent run_agi from eating frames it shouldn't
+
+	  The run_agi function is eating control frames when it shouldn't be. This is
+	  causing issues when an AGI is run from CONNECTED_LINE_SEND_SUB in a blond
+	  transfer.
+
+	  Alice calls Bob. Bob attended transfers to Charlie but hangs up before Charlie
+	  answers.
+
+	  Alice gets the COLP UPDATE indicating Charlie but Charlie never gets an UPDATE
+	  and is left thinking he's connected to Bob.
+
+	  In this case, when CONNECTED_LINE_SEND_SUB runs on Alice's channel and it calls
+	  an AGI, the extra eaten frames prevent CONNECTED_LINE_SEND_SUB from running on
+	  Charlie's channel.
+
+	  The fix was to accumulate deferrable frames in the "forever" loop instead of
+	  dropping them, and re-queue them just before running the actual agi command
+	  or exiting.
+
+	  ASTERISK-25951 #close
+
+	  Change-Id: I0f4bbfd72fc1126c2aaba41da3233a33d0433645
+
+2016-04-15 14:36 +0000 [c2158c01c2]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_stasis: Handle re-enter stasis bridge with swap channel.
+
+	  We lose the fact that there is a swap channel if there is one.  We
+	  currently wind up rejoining the stasis bridge as a normal join after the
+	  swap channel has already been kicked from the bridge.
+
+	  This patch preserves the swap channel so the AMI/ARI events can note that
+	  the channel joining the bridge is swapping with another channel.  Another
+	  benefit to swaqpping in one operation is if there are any channels that
+	  get lonely (MOH, bridge playback, and bridge record channels).  The lonely
+	  channels won't leave before the joining channel has a chance to come back
+	  in under stasis if the swap channel is the only reason the lonely channels
+	  are staying in the bridge.
+
+	  ASTERISK-25947 #close
+	  Reported by: Richard Mudgett
+
+	  ASTERISK-24649
+	  Reported by: John Bigelow
+
+	  ASTERISK-24782
+	  Reported by: John Bigelow
+
+	  Change-Id: If37ea508831d1fed6dbfac2f191c638fc0a850ee
+
+2016-04-19 16:58 +0000 [4bdc54f66c]  Richard Mudgett <rmudgett@digium.com>
+
+	* bridge: Hold off more than one imparting channel at a time.
+
+	  An earlier patch blocked the ast_bridge_impart() call until the channel
+	  either entered the target bridge or it failed.  Unfortuantely, if the
+	  target bridge is stasis and the imprted channel is not a stasis channel,
+	  stasis bounces the channel out of the bridge to come back into the bridge
+	  as a proper stasis channel.  When the channel is bounced out, that
+	  released the block on ast_bridge_impart() to continue.  If the impart was
+	  a result of a transfer, then it became a race to see if the swap channel
+	  would get hung up before the imparted channel could come back into the
+	  stasis bridge.  If the imparted channel won then everything is fine.  If
+	  the swap channel gets hung up first then the transfer will fail because
+	  the swap channel is leaving the bridge.
+
+	  * Allow a chain of ast_bridge_impart()'s to happen before any are
+	  unblocked to prevent the race condition described above.  When the channel
+	  finally joins the bridge or completely fails to join the bridge then the
+	  ast_bridge_impart() instances are unblocked.
+
+	  ASTERISK-25947
+	  Reported by: Richard Mudgett
+
+	  ASTERISK-24649
+	  Reported by: John Bigelow
+
+	  ASTERISK-24782
+	  Reported by: John Bigelow
+
+	  Change-Id: I8fef369171f295f580024ab4971e95c799d0dde1
+
+2015-07-08 14:56 +0000 [1fa5565fc4]  Kevin Harwell <kharwell@digium.com>
+
+	* bridge.c: Fixed race condition during attended transfer
+
+	  During an attended transfer a thread is started that handles imparting the
+	  bridge channel. From the start of the thread to when the bridge channel is
+	  ready exists a gap that can potentially cause problems (for instance, the
+	  channel being swapped is hung up before the replacement channel enters the
+	  bridge thus stopping the transfer). This patch adds a condition that waits
+	  for the impart thread to get to a point of acceptable readiness before
+	  allowing the initiating thread to continue.
+
+	  ASTERISK-24782
+	  Reported by: John Bigelow
+
+	  This patch is a remedial cherry-pick from v13.
+
+	  Change-Id: I08fe33a2560da924e676df55b181e46fca604577
+
+2015-06-22 15:11 +0000 [ac53e65cb5]  Kevin Harwell <kharwell@digium.com>
+
+	* bridge.c: Hangup attended transfer target if bridged
+
+	  After completing an attended transfer the transfer target channel was not being
+	  hung up after leaving the bridge. Added an explicit softhangup to hangup said
+	  channel, but only if it was previously bridged.
+
+	  ASTERISK-24782 #close
+	  Reported by: John Bigelow
+
+	  This patch is a remedial cherry-pick from v13.
+
+	  Change-Id: Idde9543d56842369384a5e8c00d72a22bbc39ada
+
+2015-04-07 11:40 +0000 [c8e21c4eb9]  Kevin Harwell <kharwell@digium.com>
+
+	* bridge.c: Hangup attended transfer target after it has been swapped out
+
+	  After completing an attended transfer the transfer target channel (the one that
+	  gets swapped out) was not being hung up after leaving the bridge. This resulted
+	  in a channel possibly being left around. Added an explicit softhangup for the
+	  channel in question after the transfer is successfully completed in order to
+	  make sure the channel is hung up.
+
+	  ASTERISK-24782 #close
+	  Reported by: John Bigelow
+	  Review: https://reviewboard.asterisk.org/r/4575/
+
+	  This patch is a remedial cherry-pick from v13.
+
+	  Change-Id: I26cc0c207acf74ade93e6567febf7b9776452058
+
+2015-01-29 17:02 +0000 [b81052d194]  Scott Griepentrog <sgriepentrog@digium.com>
+
+	* stasis transfer: fix stasis bridge push race part two
+
+	  When swapping a Local channel in place of one already
+	  in a bridge (to complete a bridge attended transfer),
+	  the channel that was swapped out can actually be hung
+	  up before the stasis bridge push callback executes on
+	  the independant transfer thread.  This results in the
+	  stasis app loop dropping out and removing the control
+	  that has the the app name which the local replacement
+	  channel needs so it can re-enter stasis.
+
+	  To avoid this race condition a new push_peek callback
+	  has been added, and called from the ast_bridge_impart
+	  thread before it launches the independant thread that
+	  will complete the transfer.  Now the stasis push_peek
+	  callback can copy the stasis app name before the swap
+	  channel can hang up.
+
+	  ASTERISK-24649
+	  Review: https://reviewboard.asterisk.org/r/4382/
+
+	  This patch is a remedial cherry-pick from v13.
+
+	  Change-Id: I307c3b506af5af80ec506f73e8b78a91d79999e0
+
+2015-01-22 12:09 +0000 [a38d044e0a]  Scott Griepentrog <sgriepentrog@digium.com>
+
+	* stasis transfer: fix a race condition on stasis bridge push
+
+	  After a bridge transfer completes where a local replacement
+	  channel is used, a stasis transfer message with the details
+	  of the transfer is sent.  This is processed by stasis which
+	  then sets the stasis app name and replaced channel snapshot
+	  on the replacement channel.
+
+	  However, since a separate thread was already started to run
+	  stasis on the new replacement channel, a race was on to see
+	  if the message processing would be completed before the app
+	  name was needed, otherwise the channel would be hung up.
+
+	  This change moves the calls used to set the stasis app name
+	  and the replace snapshot to the bridge_stasis_push function
+	  callback from the bridge transfer logic, allowing the steps
+	  to be completed earlier and more deterministically, and the
+	  race elimianted.
+
+	  NOTE: the swap channel parameter to bridge_stasis_push (and
+	  thus all bridge push callbacks) must always be present when
+	  performing a swap with another channel.
+
+	  ASTERISK-24649 #close
+	  Reported by: John Bigelow
+	  Review: https://reviewboard.asterisk.org/r/4341/
+
+	  This patch is a remedial cherry-pick from v13.
+
+	  Change-Id: I35c98989786f74cdd7940677002a1a88d34bd2dd
+
+2015-01-22 13:24 +0000 [bc0a8c7bac]  Richard Mudgett <rmudgett@digium.com>
+
+	* Bridge core: Pass a ref with the swap channel when joining a bridge.
+
+	  When code imparts a channel into a bridge to swap with another channel, a
+	  ref needs to be held on the swap channel to ensure that it cannot
+	  dissapear before finding it in the bridge.
+
+	  * The ast_bridge_join() swap channel parameter now always steals a ref for
+	  the swap channel.  This is the only change to the bridge framework's
+	  public API semantics.
+
+	  * bridge_channel_internal_join() now requires the bridge_channel->swap
+	  channel to pass in a ref.
+
+	  ASTERISK-24649
+	  Reported by: John Bigelow
+
+	  Review: https://reviewboard.asterisk.org/r/4354/
+
+	  This patch is a remedial cherry-pick from v13.
+
+	  Change-Id: I73fdf13a3a1042566281c7d06d6e83e2ef87c120
+
+2016-04-19 17:52 +0000 [1feead5760]  gtjoseph <george.joseph@fairview5.com>
+
+	* res_pjsip_callerid:  Clear out display name if id->name is not valid
+
+	  When create_new_id_hdr creates a new RPID or PAI header, it starts by cloning
+	  the From header, then it overwrites the display name and uri from the channel's
+	  connected.id.  If the connected.id.name wasn't valid, create_new_id_hdr was
+	  leaving the display name from the From header in the new RPID or PAI header.
+	  On an attended transfer where the originator had a caller id number set but not
+	  a display name, the re-INVITE to the final transferee had the number of the
+	  originator but the display name of the transferer.
+
+	  Added a check to clear out the display name in the new header if
+	  connected.id.name was invalid.
+
+	  ASTERISK-25942 #close
+
+	  Change-Id: I60b4bf7a7ece9b7425eba74151c0b4969cd2738b
+
+2016-04-20 10:48 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.1-cert6 Released.
+
+2016-04-20 05:48 +0000 [5700190dba]  Joshua Colp <jcolp@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-04-20 05:48 +0000 [21dfb6be03]  Joshua Colp <jcolp@digium.com>
+
+	* .version: Update for certified/13.1-cert6
+
+2016-04-20 05:48 +0000 [58cff8e219]  Joshua Colp <jcolp@digium.com>
+
+	* .lastclean: Update for certified/13.1-cert6
+
+2016-04-20 05:48 +0000 [a98618d0ed]  Joshua Colp <jcolp@digium.com>
+
+	* realtime: Add database scripts for certified/13.1-cert6
+
+2016-04-18 12:12 +0000 [5d390bc4c6]  Mark Michelson <mmichelson@digium.com>
+
+	* PJSIP: Remove PJSIP parsing functions from uri length validation.
+
+	  The PJSIP parsing functions provide a nice concise way to check the
+	  length of a hostname in a SIP URI. The problem is that in order to use
+	  those parsing functions, it's required to use them from a thread that
+	  has registered with PJLib.
+
+	  On startup, when parsing AOR configuration, the permanent URI handler
+	  may not be run from a PJLib-registered thread. Specifically, this could
+	  happen when Asterisk was started in daemon mode rather than
+	  console-mode. If PJProject were compiled with assertions enabled, then
+	  this would cause Asterisk to crash on startup.
+
+	  The solution presented here is to do our own parsing of the contact URI
+	  in order to ensure that the hostname in the URI is not too long. The
+	  parsing does not attempt to perform a full SIP URI parse/validation,
+	  since the hostname in the URI is what is important.
+
+	  ASTERISK-25928 #close
+	  Reported by Joshua Colp
+
+	  Change-Id: Ic3d6c20ff3502507c17244a8b7e2ca761dc7fb60
+
+2016-04-18 17:00 +0000 [204861b305]  Mark Michelson <mmichelson@digium.com>
+
+	* res_pjsip_registrar: Fix bad memory-ness with user_agent.
+
+	  Recent changes to the PJSIP registrar resulted in tests failing due to
+	  missing AOR_CONTACT_ADDED test events. The reason for this was that the
+	  user_agent string had junk values in it, resulting in being unable to
+	  generate the event.
+
+	  I'm going to be honest here, I have no idea why this was happening. Here
+	  are the steps needed for the user_agent variable to get messed up:
+	  * REGISTER is received
+	  * First contact in the REGISTER results in a contact being removed
+	  * Second contact in the REGISTER results in a contact being added
+	  * The contact, AOR, expiration, and user agent all have to be passed as
+	    format parameters to the creation of a string. Any subset of those
+	    parameters would not be enough to cause the problem.
+
+	  Looking into what was happening, the thing that struck me as odd was
+	  that the user_agent variable was meant to be set to the value of the
+	  User-Agent SIP header in the incoming REGISTER. However, when removing a
+	  contact, the user_agent variable would be set (via ast_strdupa inside a
+	  loop) to the stored contact's user_agent. This means that the
+	  user_agent's value would be incorrect when attempting to process further
+	  contacts in the incoming REGISTER.
+
+	  The fix here is to use a different variable for the stored user agent
+	  when removing a contact. Correcting the behavior to be correct also
+	  means the memory usage is less weird, and the issue no longer occurs.
+
+	  ASTERISK-25929 #close
+	  Reported by Joshua Colp
+
+	  Change-Id: I7cd24c86a38dec69ebcc94150614bc25f46b8c08
+
+2016-04-18 13:41 +0000 [08b8a5eea9]  Joshua Colp <jcolp@digium.com>
+
+	* res_pjsip_transport_management: Allow unload to occur.
+
+	  At shutdown it is possible for modules to be unloaded that wouldn't
+	  normally be unloaded. This allows the environment to be cleaned up.
+
+	  The res_pjsip_transport_management module did not have the unload
+	  logic in it to clean itself up causing the res_pjsip module to not
+	  get unloaded. As a result the res_pjsip monitor thread kept going
+	  processing traffic and timers when it shouldn't.
+
+	  Change-Id: Ic8cadee131e3b2c436a81d3ae8bb5775999ae00a
+
+2016-04-14 20:22 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.1-cert5 Released.
+
+2016-04-14 15:22 +0000 [9edfb2c1b8]  Kevin Harwell <kharwell@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-04-14 15:22 +0000 [ec42f1d5e6]  Kevin Harwell <kharwell@digium.com>
+
+	* .version: Update for certified/13.1-cert5
+
+2016-04-14 15:22 +0000 [5fca21d105]  Kevin Harwell <kharwell@digium.com>
+
+	* .lastclean: Update for certified/13.1-cert5
+
+2016-04-14 15:22 +0000 [445e8b9dfc]  Kevin Harwell <kharwell@digium.com>
+
+	* realtime: Add database scripts for certified/13.1-cert5
+
+2016-04-14 13:49 +0000 [b66c7367ec]  Mark Michelson <mmichelson@digium.com>
+
+	* transport management: Register thread with PJProject.
+
+	  The scheduler thread that kills idle TCP connections was not registering
+	  with PJProject properly and causing assertions if PJProject was built in
+	  debug mode.
+
+	  This change registers the thread with PJProject the first time that the
+	  scheduler callback executes.
+
+	  AST-2016-005
+
+	  Change-Id: I5f7a37e2c80726a99afe9dc2a4a69bdedf661283
+
+2016-03-08 12:12 +0000 [023d2936ba]  Mark Michelson <mmichelson@digium.com>
+
+	* res_pjsip_transport_management: Kill idle TCP connections.
+
+	  "Idle" here means that someone connects to us and does not send a SIP
+	  request. PJProject will not automatically time out such connections, so
+	  it's up to Asterisk to do it instead.
+
+	  When we receive an incoming TCP connection, we will start a timer
+	  (equivalent to transaction timer D) waiting to receive an incoming
+	  request. If we do not receive a request in that timeframe, then we will
+	  shut down the TCP connection.
+
+	  ASTERISK-25796 #close
+	  Reported by George Joseph
+
+	  AST-2016-005
+
+	  Change-Id: I7b0d303e5d140d0ccaf2f7af562071e3d1130ac6
+
+2016-03-08 10:52 +0000 [0b1fe6b0ee]  Mark Michelson <mmichelson@digium.com>
+
+	* Rename res_pjsip_keepalive res_pjsip_transport_management
+
+	  ASTERISK-25796
+	  Reported by George Joseph
+
+	  AST-2016-005
+
+	  Change-Id: Id322a05f927392293570599730050bc677d99433
+
+2016-04-14 07:20 +0000 [e2e8699d00]  Mark Michelson <mmichelson@digium.com>
+
+	* AST-2016-004: Fix crash on REGISTER with long URI.
+
+	  Due to some ignored return values, Asterisk could crash if processing an
+	  incoming REGISTER whose contact URI was above a certain length.
+
+	  ASTERISK-25707 #close
+	  Reported by George Joseph
+
+	  Patches:
+	      0001-res_pjsip-Validate-that-URIs-don-t-exceed-pjproject-.patch
+
+	  AST-2016-004
+
+	  Change-Id: Ic4f5e49f1a83fef4951ffeeef8f443a7f6ac15eb
+
+2016-04-05 14:23 +0000 [967bb9eaf7]  Mark Michelson <mmichelson@digium.com>
+
+	* res_pjsip: Handle deferred SDP hold/unhold properly.
+
+	  Some SIP devices indicate hold/unhold using deferred SDP reinvites. In
+	  other words, they provide no SDP in the reinvite.
+
+	  A typical transaction that starts hold might look something like this:
+
+	  * Device sends reinvite with no SDP
+	  * Asterisk sends 200 OK with SDP indicating sendrecv on streams.
+	  * Device sends ACK with SDP indicating sendonly on streams.
+
+	  At this point, PJMedia's SDP negotiator saves Asterisk's local state as
+	  being recvonly.
+
+	  Now, when the device attempts to unhold, it again uses a deferred SDP
+	  reinvite, so we end up doing the following:
+
+	  * Device sends reinvite with no SDP
+	  * Asterisk sends 200 OK with SDP indicating recvonly on streams
+	  * Device sends ACK with SDP indicating sendonly on streams
+
+	  The problem here is that Asterisk offered recvonly, and by RFC 3264's
+	  rules, if an offer is recvonly, the answer has to be sendonly. The
+	  result is that the device is not taken off hold.
+
+	  What is supposed to happen is that Asterisk should indicate sendrecv in
+	  the 200 OK that it sends. This way, the device has the freedom to
+	  indicate sendrecv if it wants the stream taken off hold, or it can
+	  continue to respond with sendonly if the purpose of the reinvite was
+	  something else (like a session timer refresher).
+
+	  The fix here is to alter the SDP negotiator's state when we receive a
+	  reinvite with no SDP. If the negotiator's state is currently in the
+	  recvonly or inactive state, then we alter our local state to be
+	  sendrecv. This way, we allow the device to indicate the stream state as
+	  desired.
+
+	  ASTERISK-25854 #close
+	  Reported by Robert McGilvray
+
+	  Change-Id: I7615737276165eef3a593038413d936247dcc6ed
+
+2016-03-28 18:10 +0000 [6739081385]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_stasis: Fix crash on a hanging up channel.
+
+	  * Give the struct stasis_app_control ao2 object a ref to the channel held
+	  in the object.  Now the channel will still be around if a thread needs to
+	  post a stasis message instead of crash because the topic was destroyed.
+
+	  * Moved stopping any lingering silence generator out of the struct
+	  stasis_app_control destructor and made it a part of exiting the Stasis
+	  application.  Who knows which thread the destructor will be called under
+	  so it cannot affect the channel's silence generator.  Not only was the
+	  channel unprotected when the silence generator was stopped, stasis may no
+	  longer even control the channel.
+
+	  ASTERISK-25882
+
+	  Change-Id: I21728161b5fe638cef7976fa36a605043a7497e4
+
+2016-02-26 18:54 +0000 [a06d6811b6]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_pjsip_send_to_voicemail.c: Allow either quoted or not send_to_vm reason.
+
+	  Change-Id: Id6350b3c7d4ec8df7ec89863566645e2b0f441fd
+
+2016-02-15 12:52 +0000 [b7b193a430]  Joshua Colp <jcolp@digium.com>
+
+	* res_pjsip_pubsub: Move where the subscription is stored to after initialized.
+
+	  A problem arose when testing the AMI subscription listing actions where it
+	  was possible for a subscription that had not been fully initialized to be
+	  listed. This was problematic as the underlying listing code would crash.
+
+	  This change makes it so the subscription tree is fully set up before it is
+	  added to the list of subscriptions. This ensures that when the listing actions
+	  get the subscription it is valid.
+
+	  ASTERISK-25738 #close
+
+	  Change-Id: Iace2b13641c31bbcc0d43a39f99aba1f340c0f48
+	  (cherry picked from commit 1c4f2a920db173412b38aab785ba22c2cc489f89)
 
 2016-02-11 18:31 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
