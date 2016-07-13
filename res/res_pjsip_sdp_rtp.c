@@ -51,6 +51,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/acl.h"
 #include "asterisk/sdp_srtp.h"
 #include "asterisk/dsp.h"
+#include "asterisk/linkedlists.h"       /* for AST_LIST_NEXT */
 
 #include "asterisk/res_pjsip.h"
 #include "asterisk/res_pjsip_session.h"
@@ -938,6 +939,7 @@ static int add_crypto_to_stream(struct ast_sip_session *session,
 	enum ast_rtp_dtls_hash hash;
 	const char *crypto_attribute;
 	struct ast_rtp_engine_dtls *dtls;
+	struct ast_sdp_srtp *tmp;
 	static const pj_str_t STR_NEW = { "new", 3 };
 	static const pj_str_t STR_EXISTING = { "existing", 8 };
 	static const pj_str_t STR_ACTIVE = { "active", 6 };
@@ -957,16 +959,22 @@ static int add_crypto_to_stream(struct ast_sip_session *session,
 			}
 		}
 
-		crypto_attribute = ast_sdp_srtp_get_attrib(session_media->srtp,
-			0 /* DTLS running? No */,
-			session->endpoint->media.rtp.srtp_tag_32 /* 32 byte tag length? */);
-		if (!crypto_attribute) {
-			/* No crypto attribute to add, bad news */
-			return -1;
-		}
+		tmp = session_media->srtp;
 
-		attr = pjmedia_sdp_attr_create(pool, "crypto", pj_cstr(&stmp, crypto_attribute));
-		media->attr[media->attr_count++] = attr;
+		do {
+			crypto_attribute = ast_sdp_srtp_get_attrib(tmp,
+				0 /* DTLS running? No */,
+				session->endpoint->media.rtp.srtp_tag_32 /* 32 byte tag length? */);
+			if (!crypto_attribute) {
+				/* No crypto attribute to add, bad news */
+				return -1;
+			}
+
+			attr = pjmedia_sdp_attr_create(pool, "crypto",
+				pj_cstr(&stmp, crypto_attribute));
+			media->attr[media->attr_count++] = attr;
+		} while ((tmp = AST_LIST_NEXT(tmp, sdp_srtp_list)));
+
 		break;
 	case AST_SIP_MEDIA_ENCRYPT_DTLS:
 		if (setup_dtls_srtp(session, session_media)) {

@@ -20,8 +20,7 @@
  *
  * \brief SRTP and SDP Security descriptions
  *
- * Specified in RFC 4568
- * Specified in RFC 3711
+ * Specified in RFC 3711, 6188, 7714, and 4568
  *
  * \author Mikael Magnusson <mikma@users.sourceforge.net>
  */
@@ -29,7 +28,8 @@
 #ifndef _SDP_SRTP_H
 #define _SDP_SRTP_H
 
-#include <asterisk/rtp_engine.h>
+#include "asterisk/linkedlists.h"       /* for AST_LIST_ENTRY */
+#include "asterisk/rtp_engine.h"        /* for ast_rtp_instance */
 
 struct ast_sdp_crypto;
 
@@ -37,12 +37,18 @@ struct ast_sdp_crypto;
 struct ast_sdp_srtp {
 	unsigned int flags;
 	struct ast_sdp_crypto *crypto;
+	AST_LIST_ENTRY(ast_sdp_srtp) sdp_srtp_list;
 };
 
 /* SRTP flags */
-#define AST_SRTP_CRYPTO_OFFER_OK	(1 << 1)
-#define AST_SRTP_CRYPTO_TAG_32		(1 << 2)
-#define AST_SRTP_CRYPTO_TAG_80		(1 << 3)
+#define AST_SRTP_CRYPTO_OFFER_OK (1 << 1)
+#define AST_SRTP_CRYPTO_TAG_32   (1 << 2)
+#define AST_SRTP_CRYPTO_TAG_80   (1 << 3)
+#define AST_SRTP_CRYPTO_TAG_16   (1 << 4)
+#define AST_SRTP_CRYPTO_TAG_8    (1 << 5)
+#define AST_SRTP_CRYPTO_AES_192  (1 << 6)
+#define AST_SRTP_CRYPTO_AES_256  (1 << 7)
+#define AST_SRTP_CRYPTO_OLD_NAME (1 << 8)
 
 /*!
  * \brief allocate a ast_sdp_srtp structure
