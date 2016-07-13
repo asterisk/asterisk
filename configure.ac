@@ -1213,16 +1213,11 @@ AC_SUBST(AST_SHADOW_WARNINGS)
 
 AC_MSG_CHECKING(for -march=native support)
 if $(${CC} -march=native -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
-	if test "${CONFIG_CFLAGS}" = ""; then
-		AC_MSG_RESULT(yes)
-		AST_NATIVE_ARCH=1
-	else
-		AC_MSG_RESULT(user CFLAGS present)
-		AST_NATIVE_ARCH=
-	fi
+	AC_MSG_RESULT(yes)
+	AST_NATIVE_ARCH=1
 else
 	AC_MSG_RESULT(no)
-	AST_NATIVE_ARCH=
+	AST_NATIVE_ARCH=0
 fi
 AC_SUBST(AST_NATIVE_ARCH)
 

@@ -17767,19 +17767,13 @@ fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -march=native support" >&5
 $as_echo_n "checking for -march=native support... " >&6; }
 if $(${CC} -march=native -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
-	if test "${CONFIG_CFLAGS}" = ""; then
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
-		AST_NATIVE_ARCH=1
-	else
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: user CFLAGS present" >&5
-$as_echo "user CFLAGS present" >&6; }
-		AST_NATIVE_ARCH=
-	fi
+	AST_NATIVE_ARCH=1
 else
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-	AST_NATIVE_ARCH=
+	AST_NATIVE_ARCH=0
 fi
 
 
