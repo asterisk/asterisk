@@ -271,7 +271,6 @@ enum ast_sip_contact_status_type {
 	UNKNOWN,
 	CREATED,
 	REMOVED,
-	UPDATED,
 };
 
 /*!
@@ -296,6 +295,8 @@ struct ast_sip_contact_status {
 	int64_t rtt;
 	/*! Last status for a contact (default - unavailable) */
 	enum ast_sip_contact_status_type last_status;
+	/*! TRUE if the contact was refreshed. e.g., re-registered */
+	unsigned int refresh:1;
 };
 
 /*!
