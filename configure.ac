@@ -331,7 +331,7 @@ if test "${MD5}" = "digest" ; then
    MD5="${MD5} -a md5"
 fi
 
-ACX_PTHREAD
+AX_PTHREAD
 
 AC_LANG(C)
 
