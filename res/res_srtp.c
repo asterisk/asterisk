@@ -35,7 +35,7 @@
 
 /* See https://wiki.asterisk.org/wiki/display/AST/Secure+Calling */
 
-#include "asterisk.h"
+#include "asterisk.h"                   /* for NULL, size_t, memcpy, etc */
 
 ASTERISK_REGISTER_FILE()
 
@@ -46,12 +46,13 @@ ASTERISK_REGISTER_FILE()
 #include <srtp/crypto_kernel.h>
 #endif
 
-#include "asterisk/lock.h"
-#include "asterisk/sched.h"
-#include "asterisk/module.h"
-#include "asterisk/options.h"
-#include "asterisk/rtp_engine.h"
-#include "asterisk/astobj2.h"
+#include "asterisk/astobj2.h"           /* for ao2_t_ref, etc */
+#include "asterisk/frame.h"             /* for AST_FRIENDLY_OFFSET */
+#include "asterisk/logger.h"            /* for ast_log, ast_debug, etc */
+#include "asterisk/module.h"            /* for ast_module_info, etc */
+#include "asterisk/res_srtp.h"          /* for ast_srtp_cb, ast_srtp_suite, etc */
+#include "asterisk/rtp_engine.h"        /* for ast_rtp_engine_register_srtp, etc */
+#include "asterisk/utils.h"             /* for ast_free, ast_calloc */
 
 struct ast_srtp {
 	struct ast_rtp_instance *rtp;
@@ -257,22 +258,48 @@ static int policy_set_suite(crypto_policy_t *p, enum ast_srtp_suite suite)
 {
 	switch (suite) {
 	case AST_AES_CM_128_HMAC_SHA1_80:
-		p->cipher_type = AES_128_ICM;
-		p->cipher_key_len = 30;
-		p->auth_type = HMAC_SHA1;
-		p->auth_key_len = 20;
-		p->auth_tag_len = 10;
-		p->sec_serv = sec_serv_conf_and_auth;
+		crypto_policy_set_aes_cm_128_hmac_sha1_80(p);
 		return 0;
 
 	case AST_AES_CM_128_HMAC_SHA1_32:
-		p->cipher_type = AES_128_ICM;
-		p->cipher_key_len = 30;
-		p->auth_type = HMAC_SHA1;
-		p->auth_key_len = 20;
-		p->auth_tag_len = 4;
-		p->sec_serv = sec_serv_conf_and_auth;
+		crypto_policy_set_aes_cm_128_hmac_sha1_32(p);
 		return 0;
+
+#ifdef HAVE_SRTP_192
+	case AST_AES_CM_192_HMAC_SHA1_80:
+		crypto_policy_set_aes_cm_192_hmac_sha1_80(p);
+		return 0;
+
+	case AST_AES_CM_192_HMAC_SHA1_32:
+		crypto_policy_set_aes_cm_192_hmac_sha1_32(p);
+		return 0;
+#endif
+#ifdef HAVE_SRTP_256
+	case AST_AES_CM_256_HMAC_SHA1_80:
+		crypto_policy_set_aes_cm_256_hmac_sha1_80(p);
+		return 0;
+
+	case AST_AES_CM_256_HMAC_SHA1_32:
+		crypto_policy_set_aes_cm_256_hmac_sha1_32(p);
+		return 0;
+#endif
+#ifdef HAVE_SRTP_GCM
+	case AST_AES_GCM_128:
+		crypto_policy_set_aes_gcm_128_16_auth(p);
+		return 0;
+
+	case AST_AES_GCM_256:
+		crypto_policy_set_aes_gcm_256_16_auth(p);
+		return 0;
+
+	case AST_AES_GCM_128_8:
+		crypto_policy_set_aes_gcm_128_8_auth(p);
+		return 0;
+
+	case AST_AES_GCM_256_8:
+		crypto_policy_set_aes_gcm_256_8_auth(p);
+		return 0;
+#endif
 
 	default:
 		ast_log(LOG_ERROR, "Invalid crypto suite: %u\n", suite);
