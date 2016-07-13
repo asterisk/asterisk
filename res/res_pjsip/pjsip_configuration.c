@@ -105,6 +105,40 @@ static void endpoint_update_state(struct ast_endpoint *endpoint, enum ast_endpoi
 	ast_devstate_changed(AST_DEVICE_UNKNOWN, AST_DEVSTATE_CACHABLE, "PJSIP/%s", ast_endpoint_get_resource(endpoint));
 }
 
+static void endpoint_publish_contact_status(struct ast_endpoint *endpoint, struct ast_sip_contact_status *contact)
+{
+	struct ast_json *blob;
+	char rtt[32];
+
+	snprintf(rtt, sizeof(rtt), "%" PRId64, contact->rtt);
+	blob = ast_json_pack("{s: s, s: s, s: s, s: s, s: s}",
+		"contact_status", ast_sip_get_contact_status_label(contact->status),
+		"aor", contact->aor,
+		"uri", contact->uri,
+		"roundtrip_usec", rtt,
+		"endpoint_name", ast_endpoint_get_resource(endpoint));
+	if (blob) {
+		ast_endpoint_blob_publish(endpoint, ast_endpoint_contact_state_type(), blob);
+		ast_json_unref(blob);
+	}
+}
+
+/*! \brief Callback function for publishing the status of an endpoint */
+static int persistent_endpoint_publish_status(void *obj, void *arg, int flags)
+{
+	struct sip_persistent_endpoint *persistent = obj;
+	struct ast_endpoint *endpoint = persistent->endpoint;
+	struct ast_sip_contact_status *status = arg;
+
+	/* If the status' aor isn't one of the endpoint's, we skip */
+	if (!strstr(persistent->aors, status->aor)) {
+		return 0;
+	}
+
+	endpoint_publish_contact_status(endpoint, status);
+	return 0;
+}
+
 /*! \brief Callback function for changing the state of an endpoint */
 static int persistent_endpoint_update_state(void *obj, void *arg, int flags)
 {
@@ -112,29 +146,16 @@ static int persistent_endpoint_update_state(void *obj, void *arg, int flags)
 	struct ast_endpoint *endpoint = persistent->endpoint;
 	struct ast_sip_contact_status *status = arg;
 	struct ao2_container *contacts;
-	struct ast_json *blob;
 	struct ao2_iterator i;
 	struct ast_sip_contact *contact;
 	enum ast_endpoint_state state = AST_ENDPOINT_OFFLINE;
 
-	if (status) {
-		char rtt[32];
-
-		/* If the status' aor isn't one of the endpoint's, we skip */
-		if (!strstr(persistent->aors, status->aor)) {
-			return 0;
-		}
-
-		snprintf(rtt, sizeof(rtt), "%" PRId64, status->rtt);
-		blob = ast_json_pack("{s: s, s: s, s: s, s: s, s: s}",
-			"contact_status", ast_sip_get_contact_status_label(status->status),
-			"aor", status->aor,
-			"uri", status->uri,
-			"roundtrip_usec", rtt,
-			"endpoint_name", ast_endpoint_get_resource(endpoint));
-		ast_endpoint_blob_publish(endpoint, ast_endpoint_contact_state_type(), blob);
-		ast_json_unref(blob);
+	/* If the status' aor isn't one of the endpoint's, we skip */
+	if (!strstr(persistent->aors, status->aor)) {
+		return 0;
 	}
+
+	endpoint_publish_contact_status(endpoint, status);
 
 	/* Find all the contacts for this endpoint.  If ANY are available,
 	 * mark the endpoint as ONLINE.
@@ -224,6 +245,13 @@ static const struct ast_sorcery_observer state_contact_observer = {
 static void persistent_endpoint_contact_status_observer(const void *object)
 {
 	struct ast_sip_contact_status *contact_status = (struct ast_sip_contact_status *)object;
+
+	if (contact_status->refresh) {
+		/* We are only re-publishing the contact status. */
+		ao2_callback(persistent_endpoints, OBJ_NODATA,
+			persistent_endpoint_publish_status, contact_status);
+		return;
+	}
 
 	/* If rtt_start is set (this is the outgoing OPTIONS), ignore. */
 	if (contact_status->rtt_start.tv_sec > 0) {
