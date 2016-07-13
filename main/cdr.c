@@ -1409,9 +1409,7 @@ static int base_process_party_a(struct cdr_object *cdr, struct ast_channel_snaps
 
 static int base_process_bridge_leave(struct cdr_object *cdr, struct ast_bridge_snapshot *bridge, struct ast_channel_snapshot *channel)
 {
-	/* In general, most things shouldn't get a bridge leave */
-	ast_assert(0);
-	return 1;
+	return 0;
 }
 
 static int base_process_dial_end(struct cdr_object *cdr, struct ast_channel_snapshot *caller, struct ast_channel_snapshot *peer, const char *dial_status)
