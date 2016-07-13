@@ -628,16 +628,19 @@ static struct ast_frame *chan_pjsip_cng_tone_detected(struct ast_sip_session *se
 
 	target_context = S_OR(ast_channel_macrocontext(session->channel), ast_channel_context(session->channel));
 
-	/* We need to unlock the channel here because ast_exists_extension has the
+	/*
+	 * We need to unlock the channel here because ast_exists_extension has the
 	 * potential to start and stop an autoservice on the channel. Such action
 	 * is prone to deadlock if the channel is locked.
+	 *
+	 * ast_async_goto() has its own restriction on not holding the channel lock.
 	 */
 	ast_channel_unlock(session->channel);
+	ast_frfree(f);
+	f = &ast_null_frame;
 	exists = ast_exists_extension(session->channel, target_context, "fax", 1,
 		S_COR(ast_channel_caller(session->channel)->id.number.valid,
 			ast_channel_caller(session->channel)->id.number.str, NULL));
-	ast_channel_lock(session->channel);
-
 	if (exists) {
 		ast_verb(2, "Redirecting '%s' to fax extension due to CNG detection\n",
 			ast_channel_name(session->channel));
@@ -646,12 +649,11 @@ static struct ast_frame *chan_pjsip_cng_tone_detected(struct ast_sip_session *se
 			ast_log(LOG_ERROR, "Failed to async goto '%s' into fax extension in '%s'\n",
 				ast_channel_name(session->channel), target_context);
 		}
-		ast_frfree(f);
-		f = &ast_null_frame;
 	} else {
 		ast_log(LOG_NOTICE, "FAX CNG detected on '%s' but no fax extension in '%s'\n",
 			ast_channel_name(session->channel), target_context);
 	}
+	ast_channel_lock(session->channel);
 
 	return f;
 }
