@@ -4682,6 +4682,13 @@ static struct ast_context *find_context_locked(const char *context)
 	return c;
 }
 
+/*! \brief Free an ast_include and associated data. */
+static void include_free(struct ast_include *include)
+{
+	ast_destroy_timing(&(include->timing));
+	ast_free(include);
+}
+
 /*!
  * \brief Remove included contexts.
  * This function locks contexts list by &conlist, search for the right context
@@ -4729,8 +4736,7 @@ int ast_context_remove_include2(struct ast_context *con, const char *include, co
 			else
 				con->includes = i->next;
 			/* free include and return */
-			ast_destroy_timing(&(i->timing));
-			ast_free(i);
+			include_free(i);
 			ret = 0;
 			break;
 		}
@@ -6481,8 +6487,7 @@ int ast_context_add_include2(struct ast_context *con, const char *value,
 	/* ... go to last include and check if context is already included too... */
 	for (i = con->includes; i; i = i->next) {
 		if (!strcasecmp(i->name, new_include->name)) {
-			ast_destroy_timing(&(new_include->timing));
-			ast_free(new_include);
+			include_free(new_include);
 			ast_unlock_context(con);
 			errno = EEXIST;
 			return -1;
@@ -7706,7 +7711,7 @@ static void __ast_internal_context_destroy( struct ast_context *con)
 	for (tmpi = tmp->includes; tmpi; ) { /* Free includes */
 		struct ast_include *tmpil = tmpi;
 		tmpi = tmpi->next;
-		ast_free(tmpil);
+		include_free(tmpil);
 	}
 	for (ipi = tmp->ignorepats; ipi; ) { /* Free ignorepats */
 		struct ast_ignorepat *ipl = ipi;
@@ -7800,12 +7805,12 @@ void __ast_context_destroy(struct ast_context *list, struct ast_hashtab *context
 					if (pi) {
 						pi->next = i->next;
 						/* free include */
-						ast_free(i);
+						include_free(i);
 						continue; /* don't change pi */
 					} else {
 						tmp->includes = i->next;
 						/* free include */
-						ast_free(i);
+						include_free(i);
 						continue; /* don't change pi */
 					}
 				}
