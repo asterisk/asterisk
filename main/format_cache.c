@@ -232,6 +232,14 @@ struct ast_format *ast_format_t140_red;
  */
 struct ast_format *ast_format_none;
 
+/*!
+ * \brief Built-in "silk" format
+ */
+struct ast_format *ast_format_silk8;
+struct ast_format *ast_format_silk12;
+struct ast_format *ast_format_silk16;
+struct ast_format *ast_format_silk24;
+
 /*! \brief Number of buckets to use for the media format cache (should be prime for performance reasons) */
 #define CACHE_BUCKETS 53
 
@@ -331,6 +339,10 @@ static void format_cache_shutdown(void)
 	ao2_replace(ast_format_t140_red, NULL);
 	ao2_replace(ast_format_t140, NULL);
 	ao2_replace(ast_format_none, NULL);
+	ao2_replace(ast_format_silk8, NULL);
+	ao2_replace(ast_format_silk12, NULL);
+	ao2_replace(ast_format_silk16, NULL);
+	ao2_replace(ast_format_silk24, NULL);
 }
 
 int ast_format_cache_init(void)
@@ -426,6 +438,14 @@ static void set_cached_format(const char *name, struct ast_format *format)
 		ao2_replace(ast_format_t140, format);
 	} else if (!strcmp(name, "none")) {
 		ao2_replace(ast_format_none, format);
+	} else if (!strcmp(name, "silk8")) {
+		ao2_replace(ast_format_silk8, format);
+	} else if (!strcmp(name, "silk12")) {
+		ao2_replace(ast_format_silk12, format);
+	} else if (!strcmp(name, "silk16")) {
+		ao2_replace(ast_format_silk16, format);
+	} else if (!strcmp(name, "silk24")) {
+		ao2_replace(ast_format_silk24, format);
 	}
 }
 

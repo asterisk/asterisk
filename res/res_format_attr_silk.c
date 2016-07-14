@@ -40,7 +40,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * \note The only attribute that affects compatibility here is the sample rate.
  */
 struct silk_attr {
-	unsigned int samplerate;
 	unsigned int maxbitrate;
 	unsigned int dtx;
 	unsigned int fec;
@@ -54,10 +53,15 @@ static void silk_destroy(struct ast_format *format)
 	ast_free(attr);
 }
 
+static void attr_init(struct silk_attr *attr)
+{
+	memset(attr, 0, sizeof(*attr));
+}
+
 static int silk_clone(const struct ast_format *src, struct ast_format *dst)
 {
 	struct silk_attr *original = ast_format_get_attribute_data(src);
-	struct silk_attr *attr = ast_calloc(1, sizeof(*attr));
+	struct silk_attr *attr = ast_malloc(sizeof(*attr));
 
 	if (!attr) {
 		return -1;
@@ -65,6 +69,8 @@ static int silk_clone(const struct ast_format *src, struct ast_format *dst)
 
 	if (original) {
 		*attr = *original;
+	} else {
+		attr_init(attr);
 	}
 
 	ast_format_set_attribute_data(dst, attr);
@@ -109,17 +115,17 @@ static void silk_generate_sdp_fmtp(const struct ast_format *format, unsigned int
 		ast_str_append(str, 0, "a=fmtp:%u maxaveragebitrate=%u\r\n", payload, attr->maxbitrate);
 	}
 
-	ast_str_append(str, 0, "a=fmtp:%u usedtx=%u\r\n", payload, attr->dtx);
-	ast_str_append(str, 0, "a=fmtp:%u useinbandfec=%u\r\n", payload, attr->fec);
+	if (attr->dtx) {
+		ast_str_append(str, 0, "a=fmtp:%u usedtx=%u\r\n", payload, attr->dtx);
+	}
+	if (attr->fec) {
+		ast_str_append(str, 0, "a=fmtp:%u useinbandfec=%u\r\n", payload, attr->fec);
+	}
 }
 
 static enum ast_format_cmp_res silk_cmp(const struct ast_format *format1, const struct ast_format *format2)
 {
-	struct silk_attr *attr1 = ast_format_get_attribute_data(format1);
-	struct silk_attr *attr2 = ast_format_get_attribute_data(format2);
-
-	if (((!attr1 || !attr1->samplerate) && (!attr2 || !attr2->samplerate)) ||
-		(attr1->samplerate == attr2->samplerate)) {
+	if (ast_format_get_sample_rate(format1) == ast_format_get_sample_rate(format2)) {
 		return AST_FORMAT_CMP_EQUAL;
 	}
 
@@ -130,13 +136,10 @@ static struct ast_format *silk_getjoint(const struct ast_format *format1, const 
 {
 	struct silk_attr *attr1 = ast_format_get_attribute_data(format1);
 	struct silk_attr *attr2 = ast_format_get_attribute_data(format2);
-	unsigned int samplerate;
 	struct ast_format *jointformat;
 	struct silk_attr *attr_res;
 
-	samplerate = attr1->samplerate & attr2->samplerate;
-	/* sample rate is the only attribute that has any bearing on if joint capabilities exist or not */
-	if (samplerate) {
+	if (ast_format_get_sample_rate(format1) != ast_format_get_sample_rate(format2)) {
 		return NULL;
 	}
 
@@ -145,22 +148,25 @@ static struct ast_format *silk_getjoint(const struct ast_format *format1, const 
 		return NULL;
 	}
 	attr_res = ast_format_get_attribute_data(jointformat);
-	attr_res->samplerate = samplerate;
 
-	/* Take the lowest max bitrate */
-	attr_res->maxbitrate = MIN(attr1->maxbitrate, attr2->maxbitrate);
+	if (!attr1 || !attr2) {
+		attr_init(attr_res);
+	} else {
+		/* Take the lowest max bitrate */
+		attr_res->maxbitrate = MIN(attr1->maxbitrate, attr2->maxbitrate);
 
-	/* Only do dtx if both sides want it. DTX is a trade off between
-	 * computational complexity and bandwidth. */
-	attr_res->dtx = attr1->dtx && attr2->dtx ? 1 : 0;
+		/* Only do dtx if both sides want it. DTX is a trade off between
+		 * computational complexity and bandwidth. */
+		attr_res->dtx = attr1->dtx && attr2->dtx ? 1 : 0;
 
-	/* Only do FEC if both sides want it.  If a peer specifically requests not
-	 * to receive with FEC, it may be a waste of bandwidth. */
-	attr_res->fec = attr1->fec && attr2->fec ? 1 : 0;
+		/* Only do FEC if both sides want it.  If a peer specifically requests not
+		 * to receive with FEC, it may be a waste of bandwidth. */
+		attr_res->fec = attr1->fec && attr2->fec ? 1 : 0;
 
-	/* Use the maximum packetloss percentage between the two attributes. This affects how
-	 * much redundancy is used in the FEC. */
-	attr_res->packetloss_percentage = MAX(attr1->packetloss_percentage, attr2->packetloss_percentage);
+		/* Use the maximum packetloss percentage between the two attributes. This affects how
+		 * much redundancy is used in the FEC. */
+		attr_res->packetloss_percentage = MAX(attr1->packetloss_percentage, attr2->packetloss_percentage);
+	}
 
 	return jointformat;
 }
@@ -183,9 +189,7 @@ static struct ast_format *silk_set(const struct ast_format *format, const char *
 	}
 	attr = ast_format_get_attribute_data(cloned);
 
-	if (!strcasecmp(name, "sample_rate")) {
-		attr->samplerate = val;
-	} else if (!strcasecmp(name, "max_bitrate")) {
+	if (!strcasecmp(name, "max_bitrate")) {
 		attr->maxbitrate = val;
 	} else if (!strcasecmp(name, "dtx")) {
 		attr->dtx = val;
@@ -205,9 +209,7 @@ static const void *silk_get(const struct ast_format *format, const char *name)
 	struct silk_attr *attr = ast_format_get_attribute_data(format);
 	unsigned int *val;
 
-	if (!strcasecmp(name, "sample_rate")) {
-		val = &attr->samplerate;
-	} else if (!strcasecmp(name, "max_bitrate")) {
+	if (!strcasecmp(name, "max_bitrate")) {
 		val = &attr->maxbitrate;
 	} else if (!strcasecmp(name, "dtx")) {
 		val = &attr->dtx;
