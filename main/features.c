@@ -64,7 +64,6 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/cli.h"
 #include "asterisk/manager.h"
 #include "asterisk/utils.h"
-#include "asterisk/adsi.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/audiohook.h"
 #include "asterisk/global_datastores.h"
