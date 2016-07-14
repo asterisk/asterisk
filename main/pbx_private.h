@@ -31,6 +31,15 @@ void set_ext_pri(struct ast_channel *c, const char *exten, int pri);
 /*! pbx.c function needed by pbx_app.c */
 void unreference_cached_app(struct ast_app *app);
 
+/*! pbx_includes.c */
+struct ast_include;
+AST_VECTOR(ast_includes, struct ast_include *);
+
+struct ast_include *include_alloc(const char *value, const char *registrar);
+void include_free(struct ast_include *include);
+int include_valid(struct ast_include *i);
+const char *include_rname(struct ast_include *inc);
+
 /*! pbx_builtins.c functions needed by pbx.c */
 int indicate_congestion(struct ast_channel *, const char *);
 int indicate_busy(struct ast_channel *, const char *);
