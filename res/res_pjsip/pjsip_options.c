@@ -1274,7 +1274,7 @@ static void aor_observer_deleted(const void *obj)
 
 	contacts = ast_sip_location_retrieve_aor_contacts(aor);
 	if (contacts) {
-		ao2_callback(contacts, OBJ_NODATA, unschedule_contact_cb, NULL);
+		ao2_callback(contacts, OBJ_NODATA | OBJ_MULTIPLE, unschedule_contact_cb, NULL);
 		ao2_ref(contacts, -1);
 	}
 }
