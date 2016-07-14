@@ -664,8 +664,8 @@ struct ast_exten *ast_walk_context_extensions(struct ast_context *con, struct as
 	return NULL;
 }
 
-struct ast_include *ast_walk_context_includes(struct ast_context *con, struct ast_include *inc);
-struct ast_include *ast_walk_context_includes(struct ast_context *con, struct ast_include *inc)
+const struct ast_include *ast_walk_context_includes(const struct ast_context *con, const struct ast_include *inc);
+const struct ast_include *ast_walk_context_includes(const struct ast_context *con, const struct ast_include *inc)
 {
 	return NULL;
 }

@@ -189,15 +189,25 @@ static char *handle_cli_dialplan_remove_include(struct ast_cli_entry *e, int cmd
 /*! \brief return true if 'name' is included by context c */
 static int lookup_ci(struct ast_context *c, const char *name)
 {
-	struct ast_include *i = NULL;
+	int idx;
+	int ret = 0;
 
-	if (ast_rdlock_context(c))	/* error, skip */
+	if (ast_rdlock_context(c)) {
+		/* error, skip */
 		return 0;
-	while ( (i = ast_walk_context_includes(c, i)) )
-		if (!strcmp(name, ast_get_include_name(i)))
+	}
+
+	for (idx = 0; idx < ast_context_includes_count(c); idx++) {
+		const struct ast_include *i = ast_context_includes_get(c, idx);
+
+		if (!strcmp(name, ast_get_include_name(i))) {
+			ret = -1;
 			break;
+		}
+	}
 	ast_unlock_context(c);
-	return i ? -1 /* success */ : 0;
+
+	return ret;
 }
 
 /*! \brief return true if 'name' is in the ignorepats for context c */
@@ -282,12 +292,13 @@ static char *complete_dialplan_remove_include(struct ast_cli_args *a)
 		}
 		/* walk contexts and their includes, return the n-th match */
 		while (!res && (c = ast_walk_contexts(c))) {
-			struct ast_include *i = NULL;
+			int idx;
 
 			if (ast_rdlock_context(c))	/* error ? skip this one */
 				continue;
 
-			while ( !res && (i = ast_walk_context_includes(c, i)) ) {
+			for (idx = 0; idx < ast_context_includes_count(c); idx++) {
+				const struct ast_include *i = ast_context_includes_get(c, idx);
 				const char *i_name = ast_get_include_name(i);
 				struct ast_context *nc = NULL;
 				int already_served = 0;
@@ -906,7 +917,7 @@ static char *handle_cli_dialplan_save(struct ast_cli_entry *e, int cmd, struct a
 	for (c = NULL; (c = ast_walk_contexts(c)); ) {
 		int context_header_written = 0;
 		struct ast_exten *ext, *last_written_e = NULL;
-		struct ast_include *i;
+		int idx;
 		struct ast_ignorepat *ip;
 		struct ast_sw *sw;
 
@@ -983,14 +994,17 @@ static char *handle_cli_dialplan_save(struct ast_cli_entry *e, int cmd, struct a
 			fprintf(output, "\n");
 
 		/* walk through includes */
-		for (i = NULL; (i = ast_walk_context_includes(c, i)) ; ) {
+		for (idx = 0; idx < ast_context_includes_count(c); idx++) {
+			const struct ast_include *i = ast_context_includes_get(c, idx);
+
 			if (strcmp(ast_get_include_registrar(i), registrar) != 0)
 				continue; /* not mine */
 			PUT_CTX_HDR;
 			fprintf(output, "include => %s\n", ast_get_include_name(i));
 		}
-		if (ast_walk_context_includes(c, NULL))
+		if (ast_context_includes_count(c)) {
 			fprintf(output, "\n");
+		}
 
 		/* walk through switches */
 		for (sw = NULL; (sw = ast_walk_context_switches(c, sw)) ; ) {
