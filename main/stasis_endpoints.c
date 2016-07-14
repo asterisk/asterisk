@@ -253,6 +253,7 @@ static struct ast_json *contactstatus_to_json(struct stasis_message *msg, const 
 	struct ast_endpoint_blob *obj = stasis_message_data(msg);
 	struct ast_json *json_endpoint;
 	struct ast_json *json_final;
+	const char *rtt;
 	const struct timeval *tv = stasis_message_timestamp(msg);
 
 	json_endpoint = ast_endpoint_snapshot_to_json(obj->snapshot, NULL);
@@ -260,15 +261,30 @@ static struct ast_json *contactstatus_to_json(struct stasis_message *msg, const 
 		return NULL;
 	}
 
-	json_final = ast_json_pack("{s: s, s: o, s: o, s: { s: s, s: s, s: s, s: s } } ",
-		"type", "ContactStatusChange",
-		"timestamp", ast_json_timeval(*tv, NULL),
-		"endpoint", json_endpoint,
-		"contact_info",
-		"uri", ast_json_string_get(ast_json_object_get(obj->blob, "uri")),
-		"contact_status", ast_json_string_get(ast_json_object_get(obj->blob, "contact_status")),
-		"aor", ast_json_string_get(ast_json_object_get(obj->blob, "aor")),
-		"roundtrip_usec", ast_json_string_get(ast_json_object_get(obj->blob, "roundtrip_usec")));
+	/* The roundtrip time is optional. */
+	rtt = ast_json_string_get(ast_json_object_get(obj->blob, "roundtrip_usec"));
+	if (!ast_strlen_zero(rtt)) {
+		json_final = ast_json_pack("{s: s, s: o, s: o, s: { s: s, s: s, s: s, s: s } } ",
+			"type", "ContactStatusChange",
+			"timestamp", ast_json_timeval(*tv, NULL),
+			"endpoint", json_endpoint,
+			"contact_info",
+			"uri", ast_json_string_get(ast_json_object_get(obj->blob, "uri")),
+			"contact_status", ast_json_string_get(ast_json_object_get(obj->blob,
+				"contact_status")),
+			"aor", ast_json_string_get(ast_json_object_get(obj->blob, "aor")),
+			"roundtrip_usec", rtt);
+	} else {
+		json_final = ast_json_pack("{s: s, s: o, s: o, s: { s: s, s: s, s: s } } ",
+			"type", "ContactStatusChange",
+			"timestamp", ast_json_timeval(*tv, NULL),
+			"endpoint", json_endpoint,
+			"contact_info",
+			"uri", ast_json_string_get(ast_json_object_get(obj->blob, "uri")),
+			"contact_status", ast_json_string_get(ast_json_object_get(obj->blob,
+				"contact_status")),
+			"aor", ast_json_string_get(ast_json_object_get(obj->blob, "aor")));
+	}
 	if (!json_final) {
 		ast_json_unref(json_endpoint);
 	}
