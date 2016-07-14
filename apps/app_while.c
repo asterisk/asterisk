@@ -117,8 +117,8 @@ static const char *get_index(struct ast_channel *chan, const char *prefix, int i
 static struct ast_exten *find_matching_priority(struct ast_context *c, const char *exten, int priority, const char *callerid)
 {
 	struct ast_exten *e;
-	struct ast_include *i;
 	struct ast_context *c2;
+	int idx;
 
 	for (e=ast_walk_context_extensions(c, NULL); e; e=ast_walk_context_extensions(c, e)) {
 		if (ast_extension_match(ast_get_extension_name(e), exten)) {
@@ -137,7 +137,9 @@ static struct ast_exten *find_matching_priority(struct ast_context *c, const cha
 	}
 
 	/* No match; run through includes */
-	for (i=ast_walk_context_includes(c, NULL); i; i=ast_walk_context_includes(c, i)) {
+	for (idx = 0; idx < ast_context_includes_count(c); idx++) {
+		const struct ast_include *i = ast_context_includes_get(c, idx);
+
 		for (c2=ast_walk_contexts(NULL); c2; c2=ast_walk_contexts(c2)) {
 			if (!strcmp(ast_get_context_name(c2), ast_get_include_name(i))) {
 				e = find_matching_priority(c2, exten, priority, callerid);

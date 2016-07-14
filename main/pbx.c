@@ -255,17 +255,6 @@ struct ast_exten {
 	char stuff[0];
 };
 
-/*! \brief ast_include: include= support in extensions.conf */
-struct ast_include {
-	const char *name;
-	const char *rname;			/*!< Context to include */
-	const char *registrar;			/*!< Registrar */
-	int hastime;				/*!< If time construct exists */
-	struct ast_timing timing;               /*!< time construct */
-	struct ast_include *next;		/*!< Link them together */
-	char stuff[0];
-};
-
 /*! \brief ast_sw: Switch statement in extensions.conf */
 struct ast_sw {
 	char *name;
@@ -313,7 +302,7 @@ struct ast_context {
 	struct ast_hashtab *root_table;            /*!< For exact matches on the extensions in the pattern tree, and for traversals of the pattern_tree  */
 	struct match_char *pattern_tree;        /*!< A tree to speed up extension pattern matching */
 	struct ast_context *next;		/*!< Link them together */
-	struct ast_include *includes;		/*!< Include other contexts */
+	struct ast_includes includes;		/*!< Include other contexts */
 	struct ast_ignorepat *ignorepats;	/*!< Patterns for which to continue playing dialtone */
 	char *registrar;			/*!< Registrar -- make sure you malloc this, as the registrar may have to survive module unloads */
 	int refcount;                   /*!< each module that would have created this context should inc/dec this as appropriate */
@@ -1000,14 +989,6 @@ int check_contexts(char *file, int line )
 	return 0;
 }
 #endif
-
-static inline int include_valid(struct ast_include *i)
-{
-	if (!i->hastime)
-		return 1;
-
-	return ast_check_timing(&(i->timing));
-}
 
 static void pbx_destroy(struct ast_pbx *p)
 {
@@ -2399,7 +2380,7 @@ struct fake_context /* this struct is purely for matching in the hashtab */
 	struct ast_hashtab *root_table;
 	struct match_char *pattern_tree;
 	struct ast_context *next;
-	struct ast_include *includes;
+	struct ast_includes includes;
 	struct ast_ignorepat *ignorepats;
 	const char *registrar;
 	int refcount;
@@ -2459,11 +2440,11 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	int x, res;
 	struct ast_context *tmp = NULL;
 	struct ast_exten *e = NULL, *eroot = NULL;
-	struct ast_include *i = NULL;
 	struct ast_sw *sw = NULL;
 	struct ast_exten pattern = {NULL, };
 	struct scoreboard score = {0, };
 	struct ast_str *tmpdata = NULL;
+	int idx;
 
 	pattern.label = label;
 	pattern.priority = priority;
@@ -2729,9 +2710,11 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	}
 	q->incstack[q->stacklen++] = tmp->name;	/* Setup the stack */
 	/* Now try any includes we have in this context */
-	for (i = tmp->includes; i; i = i->next) {
+	for (idx = 0; idx < AST_VECTOR_SIZE(&tmp->includes); idx++) {
+		struct ast_include *i = AST_VECTOR_GET(&tmp->includes, idx);
+
 		if (include_valid(i)) {
-			if ((e = pbx_find_extension(chan, bypass, q, i->rname, exten, priority, label, callerid, action))) {
+			if ((e = pbx_find_extension(chan, bypass, q, include_rname(i), exten, priority, label, callerid, action))) {
 #ifdef NEED_DEBUG_HERE
 				ast_log(LOG_NOTICE,"Returning recursive match of %s\n", e->exten);
 #endif
@@ -4755,13 +4738,6 @@ static struct ast_context *find_context_locked(const char *context)
 	return c;
 }
 
-/*! \brief Free an ast_include and associated data. */
-static void include_free(struct ast_include *include)
-{
-	ast_destroy_timing(&(include->timing));
-	ast_free(include);
-}
-
 /*!
  * \brief Remove included contexts.
  * This function locks contexts list by &conlist, search for the right context
@@ -4793,21 +4769,22 @@ int ast_context_remove_include(const char *context, const char *include, const c
  */
 int ast_context_remove_include2(struct ast_context *con, const char *include, const char *registrar)
 {
-	struct ast_include *i, *pi = NULL;
 	int ret = -1;
+	int idx;
 
 	ast_wrlock_context(con);
 
 	/* find our include */
-	for (i = con->includes; i; pi = i, i = i->next) {
-		if (!strcmp(i->name, include) &&
-				(!registrar || !strcmp(i->registrar, registrar))) {
+	for (idx = 0; idx < AST_VECTOR_SIZE(&con->includes); idx++) {
+		struct ast_include *i = AST_VECTOR_GET(&con->includes, idx);
+
+		if (!strcmp(ast_get_include_name(i), include) &&
+				(!registrar || !strcmp(ast_get_include_registrar(i), registrar))) {
+
 			/* remove from list */
 			ast_verb(3, "Removing inclusion of context '%s' in context '%s; registrar=%s'\n", include, ast_get_context_name(con), registrar);
-			if (pi)
-				pi->next = i->next;
-			else
-				con->includes = i->next;
+			AST_VECTOR_REMOVE_ORDERED(&con->includes, idx);
+
 			/* free include and return */
 			include_free(i);
 			ret = 0;
@@ -5415,8 +5392,8 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 
 	/* walk all contexts ... */
 	while ( (c = ast_walk_contexts(c)) ) {
+		int idx;
 		struct ast_exten *e;
-		struct ast_include *i;
 		struct ast_ignorepat *ip;
 #ifndef LOW_MEMORY
 		char buf[1024], buf2[1024];
@@ -5504,8 +5481,9 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 		}
 
 		/* walk included and write info ... */
-		i = NULL;
-		while ( (i = ast_walk_context_includes(c, i)) ) {
+		for (idx = 0; idx < AST_VECTOR_SIZE(&c->includes); idx++) {
+			struct ast_include *i = AST_VECTOR_GET(&c->includes, idx);
+
 			snprintf(buf, sizeof(buf), "'%s'", ast_get_include_name(i));
 			if (exten) {
 				/* Check all includes for the requested extension */
@@ -5778,8 +5756,8 @@ static int manager_show_dialplan_helper(struct mansession *s, const struct messa
 
 	c = NULL;		/* walk all contexts ... */
 	while ( (c = ast_walk_contexts(c)) ) {
+		int idx;
 		struct ast_exten *e;
-		struct ast_include *i;
 		struct ast_ignorepat *ip;
 
 		if (context && strcmp(ast_get_context_name(c), context) != 0)
@@ -5835,8 +5813,9 @@ static int manager_show_dialplan_helper(struct mansession *s, const struct messa
 			}
 		}
 
-		i = NULL;		/* walk included and write info ... */
-		while ( (i = ast_walk_context_includes(c, i)) ) {
+		for (idx = 0; idx < AST_VECTOR_SIZE(&c->includes); idx++) {
+			struct ast_include *i = AST_VECTOR_GET(&c->includes, idx);
+
 			if (exten) {
 				/* Check all includes for the requested extension */
 				manager_show_dialplan_helper(s, m, actionidtext, ast_get_include_name(i), exten, dpc, i);
@@ -6114,7 +6093,7 @@ struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts,
 		tmp->root = NULL;
 		tmp->root_table = NULL;
 		tmp->registrar = ast_strdup(registrar);
-		tmp->includes = NULL;
+		AST_VECTOR_INIT(&tmp->includes, 0);
 		tmp->ignorepats = NULL;
 		tmp->refcount = 1;
 	} else {
@@ -6166,16 +6145,19 @@ AST_LIST_HEAD_NOLOCK(store_hints, store_hint);
 
 static void context_merge_incls_swits_igps_other_registrars(struct ast_context *new, struct ast_context *old, const char *registrar)
 {
-	struct ast_include *i;
+	int idx;
 	struct ast_ignorepat *ip;
 	struct ast_sw *sw;
 
 	ast_verb(3, "merging incls/swits/igpats from old(%s) to new(%s) context, registrar = %s\n", ast_get_context_name(old), ast_get_context_name(new), registrar);
 	/* copy in the includes, switches, and ignorepats */
 	/* walk through includes */
-	for (i = NULL; (i = ast_walk_context_includes(old, i)) ; ) {
-		if (strcmp(ast_get_include_registrar(i), registrar) == 0)
+	for (idx = 0; idx < AST_VECTOR_SIZE(&old->includes); idx++) {
+		struct ast_include *i = AST_VECTOR_GET(&old->includes, idx);
+
+		if (strcmp(ast_get_include_registrar(i), registrar) == 0) {
 			continue; /* not mine */
+		}
 		ast_context_add_include2(new, ast_get_include_name(i), ast_get_include_registrar(i));
 	}
 
@@ -6586,53 +6568,32 @@ int ast_context_add_include2(struct ast_context *con, const char *value,
 	const char *registrar)
 {
 	struct ast_include *new_include;
-	char *c;
-	struct ast_include *i, *il = NULL; /* include, include_last */
-	int length;
-	char *p;
-
-	length = sizeof(struct ast_include);
-	length += 2 * (strlen(value) + 1);
+	int idx;
 
 	/* allocate new include structure ... */
-	if (!(new_include = ast_calloc(1, length)))
+	new_include = include_alloc(value, registrar);
+	if (!new_include) {
 		return -1;
-	/* Fill in this structure. Use 'p' for assignments, as the fields
-	 * in the structure are 'const char *'
-	 */
-	p = new_include->stuff;
-	new_include->name = p;
-	strcpy(p, value);
-	p += strlen(value) + 1;
-	new_include->rname = p;
-	strcpy(p, value);
-	/* Strip off timing info, and process if it is there */
-	if ( (c = strchr(p, ',')) ) {
-		*c++ = '\0';
-		new_include->hastime = ast_build_timing(&(new_include->timing), c);
 	}
-	new_include->next      = NULL;
-	new_include->registrar = registrar;
 
 	ast_wrlock_context(con);
 
 	/* ... go to last include and check if context is already included too... */
-	for (i = con->includes; i; i = i->next) {
-		if (!strcasecmp(i->name, new_include->name)) {
+	for (idx = 0; idx < AST_VECTOR_SIZE(&con->includes); idx++) {
+		struct ast_include *i = AST_VECTOR_GET(&con->includes, idx);
+
+		if (!strcasecmp(ast_get_include_name(i), ast_get_include_name(new_include))) {
 			include_free(new_include);
 			ast_unlock_context(con);
 			errno = EEXIST;
 			return -1;
 		}
-		il = i;
 	}
 
 	/* ... include new context into context list, unlock, return */
-	if (il)
-		il->next = new_include;
-	else
-		con->includes = new_include;
-	ast_verb(3, "Including context '%s' in context '%s'\n", new_include->name, ast_get_context_name(con));
+	AST_VECTOR_APPEND(&con->includes, new_include);
+	ast_verb(3, "Including context '%s' in context '%s'\n",
+		ast_get_include_name(new_include), ast_get_context_name(con));
 
 	ast_unlock_context(con);
 
@@ -7834,17 +7795,15 @@ int ast_pbx_outgoing_app(const char *type, struct ast_format_cap *cap, const cha
 
 static void __ast_internal_context_destroy( struct ast_context *con)
 {
-	struct ast_include *tmpi;
 	struct ast_sw *sw;
 	struct ast_exten *e, *el, *en;
 	struct ast_ignorepat *ipi;
 	struct ast_context *tmp = con;
 
-	for (tmpi = tmp->includes; tmpi; ) { /* Free includes */
-		struct ast_include *tmpil = tmpi;
-		tmpi = tmpi->next;
-		include_free(tmpil);
-	}
+	/* Free includes */
+	AST_VECTOR_CALLBACK_VOID(&tmp->includes, include_free);
+	AST_VECTOR_FREE(&tmp->includes);
+
 	for (ipi = tmp->ignorepats; ipi; ) { /* Free ignorepats */
 		struct ast_ignorepat *ipl = ipi;
 		ipi = ipi->next;
@@ -7910,8 +7869,8 @@ void __ast_context_destroy(struct ast_context *list, struct ast_hashtab *context
 			struct ast_hashtab_iter *exten_iter;
 			struct ast_hashtab_iter *prio_iter;
 			struct ast_ignorepat *ip, *ipl = NULL, *ipn = NULL;
-			struct ast_include *i, *pi = NULL, *ni = NULL;
 			struct ast_sw *sw = NULL;
+			int idx;
 
 			/* remove any ignorepats whose registrar matches */
 			for (ip = tmp->ignorepats; ip; ip = ipn) {
@@ -7930,23 +7889,14 @@ void __ast_context_destroy(struct ast_context *list, struct ast_hashtab *context
 				ipl = ip;
 			}
 			/* remove any includes whose registrar matches */
-			for (i = tmp->includes; i; i = ni) {
-				ni = i->next;
-				if (strcmp(i->registrar, registrar) == 0) {
-					/* remove from list */
-					if (pi) {
-						pi->next = i->next;
-						/* free include */
-						include_free(i);
-						continue; /* don't change pi */
-					} else {
-						tmp->includes = i->next;
-						/* free include */
-						include_free(i);
-						continue; /* don't change pi */
-					}
+			for (idx = 0; idx < AST_VECTOR_SIZE(&tmp->includes); idx++) {
+				struct ast_include *i = AST_VECTOR_GET(&tmp->includes, idx);
+
+				if (!strcmp(ast_get_include_registrar(i), registrar)) {
+					AST_VECTOR_REMOVE_ORDERED(&tmp->includes, idx);
+					include_free(i);
+					idx--;
 				}
-				pi = i;
 			}
 			/* remove any switches whose registrar matches */
 			AST_LIST_TRAVERSE_SAFE_BEGIN(&tmp->alts, sw, list) {
@@ -8006,7 +7956,7 @@ void __ast_context_destroy(struct ast_context *list, struct ast_hashtab *context
 			/* delete the context if it's registrar matches, is empty, has refcount of 1, */
 			/* it's not empty, if it has includes, ignorepats, or switches that are registered from
 			   another registrar. It's not empty if there are any extensions */
-			if (strcmp(tmp->registrar, registrar) == 0 && tmp->refcount < 2 && !tmp->root && !tmp->ignorepats && !tmp->includes && AST_LIST_EMPTY(&tmp->alts)) {
+			if (strcmp(tmp->registrar, registrar) == 0 && tmp->refcount < 2 && !tmp->root && !tmp->ignorepats && !AST_VECTOR_SIZE(&tmp->includes) && AST_LIST_EMPTY(&tmp->alts)) {
 				ast_debug(1, "delete ctx %s %s\n", tmp->name, tmp->registrar);
 				ast_hashtab_remove_this_object(contexttab, tmp);
 
@@ -8407,11 +8357,6 @@ const char *ast_get_extension_label(struct ast_exten *exten)
 	return exten ? exten->label : NULL;
 }
 
-const char *ast_get_include_name(struct ast_include *inc)
-{
-	return inc ? inc->name : NULL;
-}
-
 const char *ast_get_ignorepat_name(struct ast_ignorepat *ip)
 {
 	return ip ? ip->pattern : NULL;
@@ -8433,11 +8378,6 @@ const char *ast_get_context_registrar(struct ast_context *c)
 const char *ast_get_extension_registrar(struct ast_exten *e)
 {
 	return e ? e->registrar : NULL;
-}
-
-const char *ast_get_include_registrar(struct ast_include *i)
-{
-	return i ? i->registrar : NULL;
 }
 
 const char *ast_get_ignorepat_registrar(struct ast_ignorepat *ip)
@@ -8517,13 +8457,43 @@ struct ast_exten *ast_walk_extension_priorities(struct ast_exten *exten,
 	return priority ? priority->peer : exten;
 }
 
+int ast_context_includes_count(const struct ast_context *con)
+{
+	return AST_VECTOR_SIZE(&con->includes);
+}
+
 struct ast_include *ast_walk_context_includes(struct ast_context *con,
 	struct ast_include *inc)
 {
-	if (!inc)
-		return con ? con->includes : NULL;
-	else
-		return inc->next;
+	if (inc) {
+		int idx;
+		int next = 0;
+
+		for (idx = 0; idx < AST_VECTOR_SIZE(&con->includes); idx++) {
+			struct ast_include *include = AST_VECTOR_GET(&con->includes, idx);
+
+			if (next) {
+				return include;
+			}
+
+			if (inc == include) {
+				next = 1;
+			}
+		}
+
+		return NULL;
+	}
+
+	if (!AST_VECTOR_SIZE(&con->includes)) {
+		return NULL;
+	}
+
+	return AST_VECTOR_GET(&con->includes, 0);
+}
+
+const struct ast_include *ast_context_includes_get(const struct ast_context *con, int idx)
+{
+	return AST_VECTOR_GET(&con->includes, idx);
 }
 
 struct ast_ignorepat *ast_walk_context_ignorepats(struct ast_context *con,
@@ -8537,16 +8507,19 @@ struct ast_ignorepat *ast_walk_context_ignorepats(struct ast_context *con,
 
 int ast_context_verify_includes(struct ast_context *con)
 {
-	struct ast_include *inc = NULL;
+	int idx;
 	int res = 0;
 
-	while ( (inc = ast_walk_context_includes(con, inc)) ) {
-		if (ast_context_find(inc->rname))
+	for (idx = 0; idx < AST_VECTOR_SIZE(&con->includes); idx++) {
+		struct ast_include *inc = AST_VECTOR_GET(&con->includes, idx);
+
+		if (ast_context_find(include_rname(inc))) {
 			continue;
+		}
 
 		res = -1;
 		ast_log(LOG_WARNING, "Context '%s' tries to include nonexistent context '%s'\n",
-			ast_get_context_name(con), inc->rname);
+			ast_get_context_name(con), include_rname(inc));
 		break;
 	}
 

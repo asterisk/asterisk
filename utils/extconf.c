@@ -4381,6 +4381,19 @@ static struct ast_include *ast_walk_context_includes(struct ast_context *con,
 		return inc->next;
 }
 
+int ast_context_includes_count(struct ast_context *con);
+int ast_context_includes_count(struct ast_context *con)
+{
+	int c = 0;
+	struct ast_include *inc = NULL;
+
+	while ((inc = ast_walk_context_includes(con, inc))) {
+		c++;
+	}
+
+	return c;
+}
+
 struct ast_include *localized_walk_context_includes(struct ast_context *con,
 													struct ast_include *inc);
 struct ast_include *localized_walk_context_includes(struct ast_context *con,
