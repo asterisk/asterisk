@@ -1384,10 +1384,12 @@ struct ast_taskprocessor *ast_threadpool_serializer_group(const char *name,
 		ao2_ref(ser, -1);
 		return NULL;
 	}
-	/* ser ref transferred to listener */
 
 	tps = ast_taskprocessor_create_with_listener(name, listener);
-	if (tps && shutdown_group) {
+	if (!tps) {
+		/* ser ref transferred to listener but not cleaned without tps */
+		ao2_ref(ser, -1);
+	} else if (shutdown_group) {
 		serializer_shutdown_group_inc(shutdown_group);
 	}
 
