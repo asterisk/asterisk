@@ -1,0 +1,137 @@
+                                Release Summary
+
+                              asterisk-13.10.0-rc3
+
+                                Date: 2016-07-14
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-13.10.0-rc2.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                   Testers                  Reporters                
+   4 Mark Michelson                                  1 Leandro Dardini        
+   1 Richard Mudgett                                 1 Matt Jordan            
+   1 Joshua Colp                                     1 Alexei Gradinari       
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Functions/func_odbc
+
+   ASTERISK-26177: func_odbc: Database handle is kept when it should be
+   released
+   Reported by: Leandro Dardini
+     * [21b5d56f39] Joshua Colp -- func_odbc: Fix connection deadlock.
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-26160: pjsip: Updated->Reachable during qualify
+   Reported by: Matt Jordan
+     * [25a42c176f] Richard Mudgett -- res_pjsip: Fix statsd regression.
+
+  New Feature
+
+    Category: Core/ManagerInterface/NewFeature
+
+   ASTERISK-25904: PJSIP: add contact.updated event
+   Reported by: Alexei Gradinari
+     * [25a42c176f] Richard Mudgett -- res_pjsip: Fix statsd regression.
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-25904: PJSIP: add contact.updated event
+   Reported by: Alexei Gradinari
+     * [25a42c176f] Richard Mudgett -- res_pjsip: Fix statsd regression.
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author         | Summary                                  |
+   |------------+----------------+------------------------------------------|
+   | b3df380e56 | Mark Michelson | Release summaries: Remove previous       |
+   |            |                | versions                                 |
+   |------------+----------------+------------------------------------------|
+   | ac5a6c8cad | Mark Michelson | .version: Update for 13.10.0-rc3         |
+   |------------+----------------+------------------------------------------|
+   | d3c10e5de3 | Mark Michelson | .lastclean: Update for 13.10.0-rc3       |
+   |------------+----------------+------------------------------------------|
+   | 305a6dbc85 | Mark Michelson | realtime: Add database scripts for       |
+   |            |                | 13.10.0-rc3                              |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ asterisk-13.10.0-rc2-summary.html     |   28 -------
+ asterisk-13.10.0-rc2-summary.txt      |  124 ----------------------------------
+ b/.version                            |    2
+ b/CHANGES                             |    2
+ b/funcs/func_odbc.c                   |   16 ++++
+ b/include/asterisk/res_odbc.h         |    5 +
+ b/include/asterisk/res_pjsip.h        |    3
+ b/res/res_odbc.c                      |   16 ++++
+ b/res/res_pjsip/pjsip_configuration.c |   53 +++++++++++---
+ b/res/res_pjsip/pjsip_options.c       |   46 +++++++++---
+ 10 files changed, 118 insertions(+), 177 deletions(-)
