@@ -1,3 +1,79 @@
+2016-07-14 17:52 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.10.0-rc3 Released.
+
+2016-07-14 12:51 +0000 [d456aa0519]  Mark Michelson <mmichelson@digium.com>
+
+	* Release summaries: Add summaries for 13.10.0-rc3
+
+2016-07-14 12:51 +0000 [b3df380e56]  Mark Michelson <mmichelson@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-07-14 12:51 +0000 [ac5a6c8cad]  Mark Michelson <mmichelson@digium.com>
+
+	* .version: Update for 13.10.0-rc3
+
+2016-07-14 12:51 +0000 [d3c10e5de3]  Mark Michelson <mmichelson@digium.com>
+
+	* .lastclean: Update for 13.10.0-rc3
+
+2016-07-14 12:51 +0000 [305a6dbc85]  Mark Michelson <mmichelson@digium.com>
+
+	* realtime: Add database scripts for 13.10.0-rc3
+
+2016-07-11 10:25 +0000 [25a42c176f]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_pjsip: Fix statsd regression.
+
+	  The ASTERISK-25904 change-id I8fad8aae9305481469c38d2146e1ba3a56d3108f
+	  patch introduced several regressions when the newly created "Updated"
+	  state goes out for each endpoint registration refresh.
+
+	  1) It restarted any OPTIONS RTT ping cycle.
+
+	  2) It would interfere with a currently active ping and throw off that
+	  ping's resulting RTT calculation.
+
+	  3) It cleared the RTT time each time the endpoint was refreshed.
+
+	  4) The cleared RTT time was sent out as a statsd update each time.
+
+	  5) It created two AMI events for each update.
+
+	  * Revert the original patch and reimplement it.  Now the current contact
+	  status state is re-sent instead of the state being momentarily toggled
+	  every time the endpoint refreshes its registration.  The statsd events are
+	  not created for the re-sent refresh because they are sent after every
+	  OPTIONS ping.
+
+	  ASTERISK-26160 #close
+	  Reported by: Matt Jordan
+
+	  Change-Id: Ie072be790fbb2a8f5c1c874266e4143fa31f66d1
+
+2016-07-10 19:08 +0000 [21b5d56f39]  Joshua Colp <jcolp@digium.com>
+
+	* func_odbc: Fix connection deadlock.
+
+	  The func_odbc module was modified to ensure that the
+	  previous behavior of using a single database connection
+	  was maintained. This was done by getting a single database
+	  connection and holding on to it. With the new multiple
+	  connection support in res_odbc this will actually starve
+	  every other thread from getting access to the database as
+	  it also maintains the previous behavior of having only
+	  a single database connection.
+
+	  This change disables the func_odbc specific behavior if
+	  the res_odbc module is running with only a single database
+	  connection active. The connection is only kept for the
+	  duration of the request.
+
+	  ASTERISK-26177 #close
+
+	  Change-Id: I9bdbd8a300fb3233877735ad3fd07bce38115b7f
+
 2016-07-05 16:07 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.10.0-rc2 Released.
