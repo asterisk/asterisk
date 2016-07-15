@@ -213,15 +213,25 @@ static int lookup_ci(struct ast_context *c, const char *name)
 /*! \brief return true if 'name' is in the ignorepats for context c */
 static int lookup_c_ip(struct ast_context *c, const char *name)
 {
-	struct ast_ignorepat *ip = NULL;
+	int idx;
+	int ret = 0;
 
-	if (ast_rdlock_context(c))	/* error, skip */
+	if (ast_rdlock_context(c)) {
+		/* error, skip */
 		return 0;
-	while ( (ip = ast_walk_context_ignorepats(c, ip)) )
-		if (!strcmp(name, ast_get_ignorepat_name(ip)))
+	}
+
+	for (idx = 0; idx < ast_context_ignorepats_count(c); idx++) {
+		const struct ast_include *ip = ast_context_ignorepats_get(c, idx);
+
+		if (!strcmp(name, ast_get_ignorepat_name(i))) {
+			ret = -1;
 			break;
+		}
+	}
 	ast_unlock_context(c);
-	return ip ? -1 /* success */ : 0;
+
+	return ret;
 }
 
 /*! \brief moves to the n-th word in the string, or empty string if none */
@@ -918,7 +928,6 @@ static char *handle_cli_dialplan_save(struct ast_cli_entry *e, int cmd, struct a
 		int context_header_written = 0;
 		struct ast_exten *ext, *last_written_e = NULL;
 		int idx;
-		struct ast_ignorepat *ip;
 		struct ast_sw *sw;
 
 		/* try to lock context and fireout all info */	
@@ -1019,7 +1028,9 @@ static char *handle_cli_dialplan_save(struct ast_cli_entry *e, int cmd, struct a
 			fprintf(output, "\n");
 
 		/* fireout ignorepats ... */
-		for (ip = NULL; (ip = ast_walk_context_ignorepats(c, ip)); ) {
+		for (idx = 0; idx < ast_context_ignorepats_count(c); idx++) {
+			const struct ast_ignorepat *ip = ast_context_ignorepats_get(c, idx);
+
 			if (strcmp(ast_get_ignorepat_registrar(ip), registrar) != 0)
 				continue; /* not mine */
 			PUT_CTX_HDR;
@@ -1486,12 +1497,13 @@ static char *complete_dialplan_remove_ignorepat(struct ast_cli_args *a)
 		}
 
 		for (c = NULL; !ret && (c = ast_walk_contexts(c));) {
-			struct ast_ignorepat *ip;
+			int idx;
 
 			if (ast_rdlock_context(c))	/* error, skip it */
 				continue;
-			
-			for (ip = NULL; !ret && (ip = ast_walk_context_ignorepats(c, ip));) {
+			for (idx = 0; idx < ast_context_ignorepats_count(c); idx++) {
+				const struct ast_ignorepat *ip = ast_context_ignorepats_get(c, idx);
+
 				if (partial_match(ast_get_ignorepat_name(ip), a->word, len) && ++which > a->n) {
 					/* n-th match */
 					struct ast_context *cw = NULL;

@@ -265,13 +265,6 @@ struct ast_sw {
 	char stuff[0];
 };
 
-/*! \brief ast_ignorepat: Ignore patterns in dial plan */
-struct ast_ignorepat {
-	const char *registrar;
-	struct ast_ignorepat *next;
-	const char pattern[0];
-};
-
 /*! \brief match_char: forms a syntax tree for quick matching of extension patterns */
 struct match_char
 {
@@ -303,7 +296,7 @@ struct ast_context {
 	struct match_char *pattern_tree;        /*!< A tree to speed up extension pattern matching */
 	struct ast_context *next;		/*!< Link them together */
 	struct ast_includes includes;		/*!< Include other contexts */
-	struct ast_ignorepat *ignorepats;	/*!< Patterns for which to continue playing dialtone */
+	struct ast_ignorepats ignorepats;	/*!< Patterns for which to continue playing dialtone */
 	char *registrar;			/*!< Registrar -- make sure you malloc this, as the registrar may have to survive module unloads */
 	int refcount;                   /*!< each module that would have created this context should inc/dec this as appropriate */
 	int autohints;                  /*!< Whether autohints support is enabled or not */
@@ -2381,7 +2374,7 @@ struct fake_context /* this struct is purely for matching in the hashtab */
 	struct match_char *pattern_tree;
 	struct ast_context *next;
 	struct ast_includes includes;
-	struct ast_ignorepat *ignorepats;
+	struct ast_ignorepats ignorepats;
 	const char *registrar;
 	int refcount;
 	int autohints;
@@ -5394,7 +5387,6 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 	while ( (c = ast_walk_contexts(c)) ) {
 		int idx;
 		struct ast_exten *e;
-		struct ast_ignorepat *ip;
 #ifndef LOW_MEMORY
 		char buf[1024], buf2[1024];
 #else
@@ -5512,10 +5504,11 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 		}
 
 		/* walk ignore patterns and write info ... */
-		ip = NULL;
-		while ( (ip = ast_walk_context_ignorepats(c, ip)) ) {
+		for (idx = 0; idx < ast_context_ignorepats_count(c); idx++) {
+			const struct ast_ignorepat *ip = ast_context_ignorepats_get(c, idx);
 			const char *ipname = ast_get_ignorepat_name(ip);
 			char ignorepat[AST_MAX_EXTENSION];
+
 			snprintf(buf, sizeof(buf), "'%s'", ipname);
 			snprintf(ignorepat, sizeof(ignorepat), "_%s.", ipname);
 			if (!exten || ast_extension_match(ignorepat, exten)) {
@@ -5758,7 +5751,6 @@ static int manager_show_dialplan_helper(struct mansession *s, const struct messa
 	while ( (c = ast_walk_contexts(c)) ) {
 		int idx;
 		struct ast_exten *e;
-		struct ast_ignorepat *ip;
 
 		if (context && strcmp(ast_get_context_name(c), context) != 0)
 			continue;	/* not the name we want */
@@ -5829,8 +5821,8 @@ static int manager_show_dialplan_helper(struct mansession *s, const struct messa
 			}
 		}
 
-		ip = NULL;	/* walk ignore patterns and write info ... */
-		while ( (ip = ast_walk_context_ignorepats(c, ip)) ) {
+		for (idx = 0; idx < ast_context_ignorepats_count(c); idx++) {
+			const struct ast_ignorepat *ip = ast_context_ignorepats_get(c, idx);
 			const char *ipname = ast_get_ignorepat_name(ip);
 			char ignorepat[AST_MAX_EXTENSION];
 
@@ -6094,7 +6086,7 @@ struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts,
 		tmp->root_table = NULL;
 		tmp->registrar = ast_strdup(registrar);
 		AST_VECTOR_INIT(&tmp->includes, 0);
-		tmp->ignorepats = NULL;
+		AST_VECTOR_INIT(&tmp->ignorepats, 0);
 		tmp->refcount = 1;
 	} else {
 		ast_log(LOG_ERROR, "Danger! We failed to allocate a context for %s!\n", name);
@@ -6146,7 +6138,6 @@ AST_LIST_HEAD_NOLOCK(store_hints, store_hint);
 static void context_merge_incls_swits_igps_other_registrars(struct ast_context *new, struct ast_context *old, const char *registrar)
 {
 	int idx;
-	struct ast_ignorepat *ip;
 	struct ast_sw *sw;
 
 	ast_verb(3, "merging incls/swits/igpats from old(%s) to new(%s) context, registrar = %s\n", ast_get_context_name(old), ast_get_context_name(new), registrar);
@@ -6169,9 +6160,12 @@ static void context_merge_incls_swits_igps_other_registrars(struct ast_context *
 	}
 
 	/* walk thru ignorepats ... */
-	for (ip = NULL; (ip = ast_walk_context_ignorepats(old, ip)); ) {
-		if (strcmp(ast_get_ignorepat_registrar(ip), registrar) == 0)
+	for (idx = 0; idx < ast_context_ignorepats_count(old); idx++) {
+		const struct ast_ignorepat *ip = ast_context_ignorepats_get(old, idx);
+
+		if (strcmp(ast_get_ignorepat_registrar(ip), registrar) == 0) {
 			continue; /* not mine */
+		}
 		ast_context_add_ignorepat2(new, ast_get_ignorepat_name(ip), ast_get_ignorepat_registrar(ip));
 	}
 }
@@ -6700,24 +6694,20 @@ int ast_context_remove_ignorepat(const char *context, const char *ignorepat, con
 
 int ast_context_remove_ignorepat2(struct ast_context *con, const char *ignorepat, const char *registrar)
 {
-	struct ast_ignorepat *ip, *ipl = NULL;
+	int idx;
 
 	ast_wrlock_context(con);
 
-	for (ip = con->ignorepats; ip; ip = ip->next) {
-		if (!strcmp(ip->pattern, ignorepat) &&
-			(!registrar || (registrar == ip->registrar))) {
-			if (ipl) {
-				ipl->next = ip->next;
-				ast_free(ip);
-			} else {
-				con->ignorepats = ip->next;
-				ast_free(ip);
-			}
+	for (idx = 0; idx < ast_context_ignorepats_count(con); idx++) {
+		struct ast_ignorepat *ip = AST_VECTOR_GET(&con->ignorepats, idx);
+
+		if (!strcmp(ast_get_ignorepat_name(ip), ignorepat) &&
+			(!registrar || (registrar == ast_get_ignorepat_registrar(ip)))) {
+			AST_VECTOR_REMOVE_ORDERED(&con->ignorepats, idx);
+			ignorepat_free(ip);
 			ast_unlock_context(con);
 			return 0;
 		}
-		ipl = ip;
 	}
 
 	ast_unlock_context(con);
@@ -6744,41 +6734,29 @@ int ast_context_add_ignorepat(const char *context, const char *value, const char
 
 int ast_context_add_ignorepat2(struct ast_context *con, const char *value, const char *registrar)
 {
-	struct ast_ignorepat *ignorepat, *ignorepatc, *ignorepatl = NULL;
-	int length;
-	char *pattern;
-	length = sizeof(struct ast_ignorepat);
-	length += strlen(value) + 1;
-	if (!(ignorepat = ast_calloc(1, length)))
+	struct ast_ignorepat *ignorepat = ignorepat_alloc(value, registrar);
+	int idx;
+
+	if (!ignorepat) {
 		return -1;
-	/* The cast to char * is because we need to write the initial value.
-	 * The field is not supposed to be modified otherwise.  Also, gcc 4.2
-	 * sees the cast as dereferencing a type-punned pointer and warns about
-	 * it.  This is the workaround (we're telling gcc, yes, that's really
-	 * what we wanted to do).
-	 */
-	pattern = (char *) ignorepat->pattern;
-	strcpy(pattern, value);
-	ignorepat->next = NULL;
-	ignorepat->registrar = registrar;
+	}
+
 	ast_wrlock_context(con);
-	for (ignorepatc = con->ignorepats; ignorepatc; ignorepatc = ignorepatc->next) {
-		ignorepatl = ignorepatc;
-		if (!strcasecmp(ignorepatc->pattern, value)) {
+	for (idx = 0; idx < ast_context_ignorepats_count(con); idx++) {
+		const struct ast_ignorepat *i = ast_context_ignorepats_get(con, idx);
+
+		if (!strcasecmp(ast_get_ignorepat_name(i), value)) {
 			/* Already there */
 			ast_unlock_context(con);
-			ast_free(ignorepat);
+			ignorepat_free(ignorepat);
 			errno = EEXIST;
 			return -1;
 		}
 	}
-	if (ignorepatl)
-		ignorepatl->next = ignorepat;
-	else
-		con->ignorepats = ignorepat;
+	AST_VECTOR_APPEND(&con->ignorepats, ignorepat);
 	ast_unlock_context(con);
-	return 0;
 
+	return 0;
 }
 
 int ast_ignore_pattern(const char *context, const char *pattern)
@@ -6789,10 +6767,12 @@ int ast_ignore_pattern(const char *context, const char *pattern)
 	ast_rdlock_contexts();
 	con = ast_context_find(context);
 	if (con) {
-		struct ast_ignorepat *pat;
+		int idx;
 
-		for (pat = con->ignorepats; pat; pat = pat->next) {
-			if (ast_extension_match(pat->pattern, pattern)) {
+		for (idx = 0; idx < ast_context_ignorepats_count(con); idx++) {
+			const struct ast_ignorepat *pat = ast_context_ignorepats_get(con, idx);
+
+			if (ast_extension_match(ast_get_ignorepat_name(pat), pattern)) {
 				ret = 1;
 				break;
 			}
@@ -7797,18 +7777,16 @@ static void __ast_internal_context_destroy( struct ast_context *con)
 {
 	struct ast_sw *sw;
 	struct ast_exten *e, *el, *en;
-	struct ast_ignorepat *ipi;
 	struct ast_context *tmp = con;
 
 	/* Free includes */
 	AST_VECTOR_CALLBACK_VOID(&tmp->includes, include_free);
 	AST_VECTOR_FREE(&tmp->includes);
 
-	for (ipi = tmp->ignorepats; ipi; ) { /* Free ignorepats */
-		struct ast_ignorepat *ipl = ipi;
-		ipi = ipi->next;
-		ast_free(ipl);
-	}
+	/* Free ignorepats */
+	AST_VECTOR_CALLBACK_VOID(&tmp->ignorepats, ignorepat_free);
+	AST_VECTOR_FREE(&tmp->ignorepats);
+
 	if (tmp->registrar)
 		ast_free(tmp->registrar);
 
@@ -7868,25 +7846,18 @@ void __ast_context_destroy(struct ast_context *list, struct ast_hashtab *context
 			/* then search thru and remove any extens that match registrar. */
 			struct ast_hashtab_iter *exten_iter;
 			struct ast_hashtab_iter *prio_iter;
-			struct ast_ignorepat *ip, *ipl = NULL, *ipn = NULL;
 			struct ast_sw *sw = NULL;
 			int idx;
 
 			/* remove any ignorepats whose registrar matches */
-			for (ip = tmp->ignorepats; ip; ip = ipn) {
-				ipn = ip->next;
-				if (!strcmp(ip->registrar, registrar)) {
-					if (ipl) {
-						ipl->next = ip->next;
-						ast_free(ip);
-						continue; /* don't change ipl */
-					} else {
-						tmp->ignorepats = ip->next;
-						ast_free(ip);
-						continue; /* don't change ipl */
-					}
+			for (idx = 0; idx < ast_context_ignorepats_count(tmp); idx++) {
+				struct ast_ignorepat *ip = AST_VECTOR_GET(&tmp->ignorepats, idx);
+
+				if (!strcmp(ast_get_ignorepat_registrar(ip), registrar)) {
+					AST_VECTOR_REMOVE_ORDERED(&tmp->ignorepats, idx);
+					ignorepat_free(ip);
+					idx--;
 				}
-				ipl = ip;
 			}
 			/* remove any includes whose registrar matches */
 			for (idx = ast_context_includes_count(tmp) - 1; idx >= 0; idx--) {
@@ -7955,7 +7926,7 @@ void __ast_context_destroy(struct ast_context *list, struct ast_hashtab *context
 			/* delete the context if it's registrar matches, is empty, has refcount of 1, */
 			/* it's not empty, if it has includes, ignorepats, or switches that are registered from
 			   another registrar. It's not empty if there are any extensions */
-			if (strcmp(tmp->registrar, registrar) == 0 && tmp->refcount < 2 && !tmp->root && !tmp->ignorepats && !ast_context_includes_count(tmp) && AST_LIST_EMPTY(&tmp->alts)) {
+			if (strcmp(tmp->registrar, registrar) == 0 && tmp->refcount < 2 && !tmp->root && !ast_context_ignorepats_count(tmp) && !ast_context_includes_count(tmp) && AST_LIST_EMPTY(&tmp->alts)) {
 				ast_debug(1, "delete ctx %s %s\n", tmp->name, tmp->registrar);
 				ast_hashtab_remove_this_object(contexttab, tmp);
 
@@ -8356,11 +8327,6 @@ const char *ast_get_extension_label(struct ast_exten *exten)
 	return exten ? exten->label : NULL;
 }
 
-const char *ast_get_ignorepat_name(struct ast_ignorepat *ip)
-{
-	return ip ? ip->pattern : NULL;
-}
-
 int ast_get_extension_priority(struct ast_exten *exten)
 {
 	return exten ? exten->priority : -1;
@@ -8377,11 +8343,6 @@ const char *ast_get_context_registrar(struct ast_context *c)
 const char *ast_get_extension_registrar(struct ast_exten *e)
 {
 	return e ? e->registrar : NULL;
-}
-
-const char *ast_get_ignorepat_registrar(struct ast_ignorepat *ip)
-{
-	return ip ? ip->registrar : NULL;
 }
 
 int ast_get_extension_matchcid(struct ast_exten *e)
@@ -8498,10 +8459,44 @@ const struct ast_include *ast_context_includes_get(const struct ast_context *con
 struct ast_ignorepat *ast_walk_context_ignorepats(struct ast_context *con,
 	struct ast_ignorepat *ip)
 {
-	if (!ip)
-		return con ? con->ignorepats : NULL;
-	else
-		return ip->next;
+	if (!con) {
+		return NULL;
+	}
+
+	if (ip) {
+		int idx;
+		int next = 0;
+
+		for (idx = 0; idx < ast_context_ignorepats_count(con); idx++) {
+			struct ast_ignorepat *i = AST_VECTOR_GET(&con->ignorepats, idx);
+
+			if (next) {
+				return i;
+			}
+
+			if (ip == i) {
+				next = 1;
+			}
+		}
+
+		return NULL;
+	}
+
+	if (!ast_context_ignorepats_count(con)) {
+		return NULL;
+	}
+
+	return AST_VECTOR_GET(&con->ignorepats, 0);
+}
+
+int ast_context_ignorepats_count(const struct ast_context *con)
+{
+	return AST_VECTOR_SIZE(&con->ignorepats);
+}
+
+const struct ast_ignorepat *ast_context_ignorepats_get(const struct ast_context *con, int idx)
+{
+	return AST_VECTOR_GET(&con->ignorepats, idx);
 }
 
 int ast_context_verify_includes(struct ast_context *con)
