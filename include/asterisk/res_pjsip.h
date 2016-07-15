@@ -749,9 +749,9 @@ struct ast_sip_endpoint {
 	unsigned int usereqphone;
 	/*! Whether to pass through hold and unhold using re-invites with recvonly and sendrecv */
 	unsigned int moh_passthrough;
-	/* Access control list */
+	/*! Access control list */
 	struct ast_acl_list *acl;
-	/* Restrict what IPs are allowed in the Contact header (for registration) */
+	/*! Restrict what IPs are allowed in the Contact header (for registration) */
 	struct ast_acl_list *contact_acl;
 	/*! The number of seconds into call to disable fax detection.  (0 = disabled) */
 	unsigned int faxdetect_timeout;

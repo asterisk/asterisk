@@ -672,7 +672,7 @@
                         ; usage of media encryption for this endpoint (default:
                         ; "no")
 ;media_encryption_optimistic=no ; Use encryption if possible but don't fail the call
-								; if not possible.
+                                ; if not possible.
 ;g726_non_standard=no   ; When set to "yes" and an endpoint negotiates g.726
                         ; audio then g.726 for AAL2 packing order is used contrary
                         ; to what is recommended in RFC3551. Note, 'g726aal2' also
@@ -752,7 +752,7 @@
 ;srtp_tag_32=no ; Determines whether 32 byte tags should be used instead of 80
                 ; byte tags (default: "no")
 ;set_var=       ; Variable set on a channel involving the endpoint. For multiple
-		; channel variables specify multiple 'set_var'(s)
+                ; channel variables specify multiple 'set_var'(s)
 ;rtp_keepalive= ; Interval, in seconds, between comfort noise RTP packets if
                 ; RTP is not flowing. This setting is useful for ensuring that
                 ; holes in NATs and firewalls are kept open throughout a call.
@@ -794,7 +794,7 @@
                 ; (default: "")
 ;ca_list_path=  ; Path to directory containing certificates to read TLS ONLY.
                 ; PJProject version 2.4 or higher is required for this option to
-				; be used.
+                ; be used.
                 ; (default: "")
 ;cert_file=     ; Certificate file for endpoint TLS ONLY
                 ; Will read .crt or .pem file but only uses cert,
@@ -886,8 +886,8 @@
 ;disable_tcp_switch=yes ; Disable automatic switching from UDP to TCP transports
                         ; if outgoing request is too large.
                         ; See RFC 3261 section 18.1.1.
-						; Disabling this option has been known to cause interoperability
-						; issues, so disable at your own risk.
+                        ; Disabling this option has been known to cause interoperability
+                        ; issues, so disable at your own risk.
                         ; (default: "yes")
 ;type=  ; Must be of type system (default: "")
 
@@ -917,10 +917,10 @@
 ;contact_expiration_check_interval=30
                         ; The interval (in seconds) to check for expired contacts.
 ;disable_multi_domain=no
-			; Disable Multi Domain support.
-			; If disabled it can improve realtime performace by reducing
-			; number of database requsts
-			; (default: "no")
+            ; Disable Multi Domain support.
+            ; If disabled it can improve realtime performace by reducing
+            ; number of database requsts
+            ; (default: "no")
 ;endpoint_identifier_order=ip,username,anonymous
             ; The order by which endpoint identifiers are given priority.
             ; Currently, "ip", "username", "auth_username" and "anonymous" are valid
