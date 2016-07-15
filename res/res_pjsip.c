@@ -510,10 +510,10 @@
 				<configOption name="g726_non_standard" default="no">
 					<synopsis>Force g.726 to use AAL2 packing order when negotiating g.726 audio</synopsis>
 					<description><para>
-                                                When set to "yes" and an endpoint negotiates g.726 audio then use g.726 for AAL2
-                                                packing order instead of what is recommended by RFC3551. Since this essentially
-                                                replaces the underlying 'g726' codec with 'g726aal2' then 'g726aal2' needs to be
-                                                specified in the endpoint's allowed codec list.
+						When set to "yes" and an endpoint negotiates g.726 audio then use g.726 for AAL2
+						packing order instead of what is recommended by RFC3551. Since this essentially
+						replaces the underlying 'g726' codec with 'g726aal2' then 'g726aal2' needs to be
+						specified in the endpoint's allowed codec list.
 					</para></description>
 				</configOption>
 				<configOption name="inband_progress" default="no">
@@ -1452,9 +1452,9 @@
 					<synopsis>Value used in User-Agent header for SIP requests and Server header for SIP responses.</synopsis>
 				</configOption>
 				<configOption name="regcontext" default="">
-                                        <synopsis>When set, Asterisk will dynamically create and destroy a NoOp priority 1 extension for a given
-					peer who registers or unregisters with us.</synopsis>
-                                </configOption>
+					<synopsis>When set, Asterisk will dynamically create and destroy a NoOp priority 1 extension for a given
+						peer who registers or unregisters with us.</synopsis>
+				</configOption>
 				<configOption name="default_outbound_endpoint" default="default_outbound_endpoint">
 					<synopsis>Endpoint to use when sending an outbound request to a URI without a specified endpoint.</synopsis>
 				</configOption>
@@ -1463,15 +1463,15 @@
 				</configOption>
 				<configOption name="debug" default="no">
 					<synopsis>Enable/Disable SIP debug logging.  Valid options include yes|no or
-                                        a host address</synopsis>
+						a host address</synopsis>
 				</configOption>
 				<configOption name="endpoint_identifier_order" default="ip,username,anonymous">
 					<synopsis>The order by which endpoint identifiers are processed and checked.
-                                        Identifier names are usually derived from and can be found in the endpoint
-                                        identifier module itself (res_pjsip_endpoint_identifier_*).
-                                        You can use the CLI command "pjsip show identifiers" to see the
-                                        identifiers currently available.</synopsis>
-                    <description>
+						Identifier names are usually derived from and can be found in the endpoint
+						identifier module itself (res_pjsip_endpoint_identifier_*).
+						You can use the CLI command "pjsip show identifiers" to see the
+						identifiers currently available.</synopsis>
+					<description>
 						<note><para>
 						One of the identifiers is "auth_username" which matches on the username in
 						an Authentication header.  This method has some security considerations because an
@@ -1485,17 +1485,17 @@
 						how many unmatched requests are received from a single ip address before a security
 						event is generated using the unidentified_request parameters.
 						</para></note>
-                    </description>
+					</description>
 				</configOption>
 				<configOption name="default_from_user" default="asterisk">
 					<synopsis>When Asterisk generates an outgoing SIP request, the From header username will be
-                                        set to this value if there is no better option (such as CallerID) to be
-                                        used.</synopsis>
+						set to this value if there is no better option (such as CallerID) to be
+						used.</synopsis>
 				</configOption>
 				<configOption name="default_realm" default="asterisk">
 					<synopsis>When Asterisk generates an challenge, the digest will be
-                                        set to this value if there is no better option (such as auth/realm) to be
-                                        used.</synopsis>
+						set to this value if there is no better option (such as auth/realm) to be
+						used.</synopsis>
 				</configOption>
 			</configObject>
 		</configFile>
@@ -2060,7 +2060,7 @@
 			Provides a listing of all endpoints.  For each endpoint an <literal>EndpointList</literal> event
 			is raised that contains relevant attributes and status information.  Once all
 			endpoints have been listed an <literal>EndpointListComplete</literal> event is issued.
-                        </para>
+			</para>
 		</description>
 		<responses>
 			<list-elements>
@@ -2096,7 +2096,7 @@
 			<literal>IdentifyDetail</literal>.  Some events may be listed multiple times if multiple objects are
 			associated (for instance AoRs).  Once all detail events have been raised a final
 			<literal>EndpointDetailComplete</literal> event is issued.
-                        </para>
+			</para>
 		</description>
 		<responses>
 			<list-elements>
