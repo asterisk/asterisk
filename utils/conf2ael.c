@@ -670,12 +670,6 @@ const struct ast_include *ast_walk_context_includes(const struct ast_context *co
 	return NULL;
 }
 
-struct ast_ignorepat *ast_walk_context_ignorepats(struct ast_context *con, struct ast_ignorepat *ip);
-struct ast_ignorepat *ast_walk_context_ignorepats(struct ast_context *con, struct ast_ignorepat *ip)
-{
-	return NULL;
-}
-
 struct ast_sw *ast_walk_context_switches(struct ast_context *con, struct ast_sw *sw);
 struct ast_sw *ast_walk_context_switches(struct ast_context *con, struct ast_sw *sw)
 {

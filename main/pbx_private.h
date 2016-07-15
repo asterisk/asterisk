@@ -31,6 +31,13 @@ void set_ext_pri(struct ast_channel *c, const char *exten, int pri);
 /*! pbx.c function needed by pbx_app.c */
 void unreference_cached_app(struct ast_app *app);
 
+/*! pbx_ignorepat.c */
+struct ast_ignorepat;
+AST_VECTOR(ast_ignorepats, struct ast_ignorepat *);
+
+struct ast_ignorepat *ignorepat_alloc(const char *value, const char *registrar);
+void ignorepat_free(struct ast_ignorepat *ip);
+
 /*! pbx_includes.c */
 struct ast_include;
 AST_VECTOR(ast_includes, struct ast_include *);

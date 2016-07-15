@@ -4402,6 +4402,31 @@ struct ast_include *localized_walk_context_includes(struct ast_context *con,
 	return ast_walk_context_includes(con, inc);
 }
 
+static struct ast_ignorepat *ast_walk_context_ignorepats(struct ast_context *con,
+	struct ast_ignorepat *ip);
+
+static struct ast_ignorepat *ast_walk_context_ignorepats(struct ast_context *con,
+	struct ast_ignorepat *ip)
+{
+	if (!ip)
+		return con ? con->ignorepats : NULL;
+	else
+		return ip->next;
+}
+
+int ast_context_ignorepats_count(struct ast_context *con);
+int ast_context_ignorepats_count(struct ast_context *con)
+{
+	int c = 0;
+	struct ast_ignorepat *ip = NULL;
+
+	while ((ip = ast_walk_context_ignorepats(con, ip))) {
+		c++;
+	}
+
+	return c;
+}
+
 
 static struct ast_sw *ast_walk_context_switches(struct ast_context *con,
 													 struct ast_sw *sw);
