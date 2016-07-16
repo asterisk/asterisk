@@ -4410,7 +4410,7 @@ static int context_used(struct ael_extension *exten_list, struct ast_context *co
 {
 	struct ael_extension *exten;
 	/* Check the simple elements first */
-	if (ast_walk_context_extensions(context, NULL) || ast_context_includes_count(context) || ast_context_ignorepats_count(context) || ast_walk_context_switches(context, NULL)) {
+	if (ast_walk_context_extensions(context, NULL) || ast_context_includes_count(context) || ast_context_ignorepats_count(context) || ast_context_switches_count(context)) {
 		return 1;
 	}
 	for (exten = exten_list; exten; exten = exten->next_exten) {

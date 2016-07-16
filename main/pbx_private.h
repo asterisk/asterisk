@@ -49,6 +49,12 @@ void include_free(struct ast_include *inc);
 int include_valid(const struct ast_include *inc);
 const char *include_rname(const struct ast_include *inc);
 
+/*! pbx_sw.c */
+struct ast_sw;
+AST_VECTOR(ast_sws, struct ast_sw *);
+struct ast_sw *sw_alloc(const char *value, const char *data, int eval, const char *registrar);
+void sw_free(struct ast_sw *sw);
+
 /*! pbx_builtins.c functions needed by pbx.c */
 int indicate_congestion(struct ast_channel *, const char *);
 int indicate_busy(struct ast_channel *, const char *);

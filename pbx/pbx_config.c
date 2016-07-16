@@ -928,7 +928,6 @@ static char *handle_cli_dialplan_save(struct ast_cli_entry *e, int cmd, struct a
 		int context_header_written = 0;
 		struct ast_exten *ext, *last_written_e = NULL;
 		int idx;
-		struct ast_sw *sw;
 
 		/* try to lock context and fireout all info */	
 		if (ast_rdlock_context(c)) { /* lock failure */
@@ -1016,7 +1015,9 @@ static char *handle_cli_dialplan_save(struct ast_cli_entry *e, int cmd, struct a
 		}
 
 		/* walk through switches */
-		for (sw = NULL; (sw = ast_walk_context_switches(c, sw)) ; ) {
+		for (idx = 0; idx < ast_context_switches_count(c); idx++) {
+			const struct ast_sw *sw = ast_context_switches_get(c, idx);
+
 			if (strcmp(ast_get_switch_registrar(sw), registrar) != 0)
 				continue; /* not mine */
 			PUT_CTX_HDR;
@@ -1024,8 +1025,9 @@ static char *handle_cli_dialplan_save(struct ast_cli_entry *e, int cmd, struct a
 				    ast_get_switch_name(sw), ast_get_switch_data(sw));
 		}
 
-		if (ast_walk_context_switches(c, NULL))
+		if (ast_context_switches_count(c)) {
 			fprintf(output, "\n");
+		}
 
 		/* fireout ignorepats ... */
 		for (idx = 0; idx < ast_context_ignorepats_count(c); idx++) {
