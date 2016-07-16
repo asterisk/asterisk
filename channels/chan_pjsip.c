@@ -602,10 +602,12 @@ static struct ast_frame *chan_pjsip_cng_tone_detected(struct ast_sip_session *se
 {
 	const char *target_context;
 	int exists;
+	int dsp_features;
 
-	/* If we only needed this DSP for fax detection purposes we can just drop it now */
-	if (session->endpoint->dtmf == AST_SIP_DTMF_INBAND || session->endpoint->dtmf == AST_SIP_DTMF_AUTO) {
-		ast_dsp_set_features(session->dsp, DSP_FEATURE_DIGIT_DETECT);
+	dsp_features = ast_dsp_get_features(session->dsp);
+	dsp_features &= ~DSP_FEATURE_FAX_DETECT;
+	if (dsp_features) {
+		ast_dsp_set_features(session->dsp, dsp_features);
 	} else {
 		ast_dsp_free(session->dsp);
 		session->dsp = NULL;
@@ -650,6 +652,7 @@ static struct ast_frame *chan_pjsip_cng_tone_detected(struct ast_sip_session *se
 static struct ast_frame *chan_pjsip_read(struct ast_channel *ast)
 {
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
+	struct ast_sip_session *session;
 	struct chan_pjsip_pvt *pvt = channel->pvt;
 	struct ast_frame *f;
 	struct ast_sip_session_media *media = NULL;
@@ -687,22 +690,42 @@ static struct ast_frame *chan_pjsip_read(struct ast_channel *ast)
 		return f;
 	}
 
-	if (ast_format_cap_iscompatible_format(channel->session->endpoint->media.codecs, f->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
+	session = channel->session;
+
+	if (ast_format_cap_iscompatible_format(session->endpoint->media.codecs, f->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
 		ast_debug(1, "Oooh, got a frame with format of %s on channel '%s' when endpoint '%s' is not configured for it\n",
 			ast_format_get_name(f->subclass.format), ast_channel_name(ast),
-			ast_sorcery_object_get_id(channel->session->endpoint));
+			ast_sorcery_object_get_id(session->endpoint));
 
 		ast_frfree(f);
 		return &ast_null_frame;
 	}
 
-	if (channel->session->dsp) {
-		f = ast_dsp_process(ast, channel->session->dsp, f);
+	if (session->dsp) {
+		int dsp_features;
 
+		dsp_features = ast_dsp_get_features(session->dsp);
+		if ((dsp_features & DSP_FEATURE_FAX_DETECT)
+			&& session->endpoint->faxdetect_timeout
+			&& session->endpoint->faxdetect_timeout <= ast_channel_get_up_time(ast)) {
+			dsp_features &= ~DSP_FEATURE_FAX_DETECT;
+			if (dsp_features) {
+				ast_dsp_set_features(session->dsp, dsp_features);
+			} else {
+				ast_dsp_free(session->dsp);
+				session->dsp = NULL;
+			}
+			ast_debug(3, "Channel driver fax CNG detection timeout on %s\n",
+				ast_channel_name(ast));
+		}
+	}
+	if (session->dsp) {
+		f = ast_dsp_process(ast, session->dsp, f);
 		if (f && (f->frametype == AST_FRAME_DTMF)) {
 			if (f->subclass.integer == 'f') {
-				ast_debug(3, "Fax CNG detected on %s\n", ast_channel_name(ast));
-				f = chan_pjsip_cng_tone_detected(channel->session, f);
+				ast_debug(3, "Channel driver fax CNG detected on %s\n",
+					ast_channel_name(ast));
+				f = chan_pjsip_cng_tone_detected(session, f);
 			} else {
 				ast_debug(3, "* Detected inband DTMF '%c' on '%s'\n", f->subclass.integer,
 					ast_channel_name(ast));
