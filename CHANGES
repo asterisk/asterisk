@@ -12,6 +12,12 @@
 --- Functionality changes from Asterisk 13.8-cert1 to Asterisk 13.8-cert2 ----
 ------------------------------------------------------------------------------
 
+chan_dahdi
+------------------
+ * Added "faxdetect_timeout" option.
+   The option determines how many seconds into a call before faxdetect
+   is disabled for the call.  Setting the value to zero disables the timeout.
+
 res_pjsip
 ------------------
  * Added "fax_detect_timeout" to endpoint.
