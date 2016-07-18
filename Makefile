@@ -824,7 +824,7 @@ install-logrotate:
 	rm -f contrib/scripts/asterisk.logrotate.tmp
 
 config:
-	if [ -f /etc/redhat-release -o -f /etc/fedora-release ]; then \
+	@if [ -f /etc/redhat-release -o -f /etc/fedora-release ]; then \
 		./build_tools/install_subst contrib/init.d/rc.redhat.asterisk  "$(DESTDIR)/etc/rc.d/init.d/asterisk"; \
 		if [ ! -f "$(DESTDIR)/etc/sysconfig/asterisk" ] ; then \
 			$(INSTALL) -m 644 contrib/init.d/etc_default_asterisk "$(DESTDIR)/etc/sysconfig/asterisk" ; \
