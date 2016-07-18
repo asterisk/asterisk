@@ -12307,6 +12307,7 @@ static int append_mailbox(const char *context, const char *box, const char *data
 	return 0;
 }
 
+#ifdef TEST_FRAMEWORK
 AST_TEST_DEFINE(test_voicemail_vmuser)
 {
 	int res = 0;
@@ -12494,6 +12495,7 @@ AST_TEST_DEFINE(test_voicemail_vmuser)
 	free_user(vmu);
 	return res ? AST_TEST_FAIL : AST_TEST_PASS;
 }
+#endif
 
 static int vm_box_exists(struct ast_channel *chan, const char *data) 
 {
