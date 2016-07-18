@@ -4118,6 +4118,7 @@ long ast_sip_threadpool_queue_size(void)
 	return ast_threadpool_queue_size(sip_threadpool);
 }
 
+#ifdef TEST_FRAMEWORK
 AST_TEST_DEFINE(xml_sanitization_end_null)
 {
 	char sanitized[8];
@@ -4168,6 +4169,7 @@ AST_TEST_DEFINE(xml_sanitization_exceeds_buffer)
 
 	return AST_TEST_PASS;
 }
+#endif
 
 /*!
  * \internal

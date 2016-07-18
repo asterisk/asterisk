@@ -794,6 +794,7 @@ static struct ast_custom_function acf_curlopt = {
 	.write = acf_curlopt_write,
 };
 
+#ifdef TEST_FRAMEWORK
 AST_TEST_DEFINE(vulnerable_url)
 {
 	const char *bad_urls [] = {
@@ -841,6 +842,7 @@ AST_TEST_DEFINE(vulnerable_url)
 
 	return res;
 }
+#endif
 
 static int unload_module(void)
 {

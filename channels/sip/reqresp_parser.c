@@ -258,7 +258,7 @@ int parse_uri_full(char *uri, const char *scheme, char **user, char **pass,
 	return error;
 }
 
-
+#ifdef TEST_FRAMEWORK
 AST_TEST_DEFINE(sip_parse_uri_full_test)
 {
 	int res = AST_TEST_PASS;
@@ -514,7 +514,7 @@ AST_TEST_DEFINE(sip_parse_uri_full_test)
 
 	return res;
 }
-
+#endif
 
 int parse_uri(char *uri, const char *scheme, char **user, char **pass,
 	      char **hostport, char **transport) {
@@ -530,6 +530,7 @@ int parse_uri(char *uri, const char *scheme, char **user, char **pass,
 	return ret;
 }
 
+#ifdef TEST_FRAMEWORK
 AST_TEST_DEFINE(sip_parse_uri_test)
 {
 	int res = AST_TEST_PASS;
@@ -687,6 +688,7 @@ AST_TEST_DEFINE(sip_parse_uri_test)
 
 	return res;
 }
+#endif
 
 /*! \brief  Get caller id name from SIP headers, copy into output buffer
  *
@@ -817,6 +819,7 @@ const char *get_calleridname(const char *input, char *output, size_t outputsize)
 	return input;
 }
 
+#ifdef TEST_FRAMEWORK
 AST_TEST_DEFINE(get_calleridname_test)
 {
 	int res = AST_TEST_PASS;
@@ -899,6 +902,7 @@ AST_TEST_DEFINE(get_calleridname_test)
 
 	return res;
 }
+#endif
 
 int get_name_and_number(const char *hdr, char **name, char **number)
 {
@@ -940,6 +944,7 @@ int get_name_and_number(const char *hdr, char **name, char **number)
 	return 0;
 }
 
+#ifdef TEST_FRAMEWORK
 AST_TEST_DEFINE(get_name_and_number_test)
 {
 	int res = AST_TEST_PASS;
@@ -1044,6 +1049,7 @@ AST_TEST_DEFINE(get_name_and_number_test)
 
 	return res;
 }
+#endif
 
 int get_in_brackets_const(const char *src,const char **start,int *length)
 {
@@ -1176,6 +1182,7 @@ char *get_in_brackets(char *tmp)
 	return out;
 }
 
+#ifdef TEST_FRAMEWORK
 AST_TEST_DEFINE(get_in_brackets_test)
 {
 	int res = AST_TEST_PASS;
@@ -1252,7 +1259,7 @@ AST_TEST_DEFINE(get_in_brackets_test)
 
 	return res;
 }
-
+#endif
 
 int parse_name_andor_addr(char *uri, const char *scheme, char **name,
 			  char **user, char **pass, char **hostport,
@@ -1298,6 +1305,7 @@ int parse_name_andor_addr(char *uri, const char *scheme, char **name,
 	return parse_uri_full(uri, scheme, user, pass, hostport, params, headers, residue2);
 }
 
+#ifdef TEST_FRAMEWORK
 AST_TEST_DEFINE(parse_name_andor_addr_test)
 {
 	int res = AST_TEST_PASS;
@@ -1427,6 +1435,7 @@ AST_TEST_DEFINE(parse_name_andor_addr_test)
 
 	return res;
 }
+#endif
 
 int get_comma(char *in, char **out)
 {
@@ -1523,6 +1532,7 @@ int parse_contact_header(char *contactheader, struct contactliststruct *contactl
 	return last;
 }
 
+#ifdef TEST_FRAMEWORK
 AST_TEST_DEFINE(parse_contact_header_test)
 {
 	int res = AST_TEST_PASS;
@@ -1668,6 +1678,7 @@ AST_TEST_DEFINE(parse_contact_header_test)
 
 	return res;
 }
+#endif
 
 /*!
  * \brief Parse supported header in incoming packet
@@ -1755,6 +1766,7 @@ unsigned int parse_sip_options(const char *options, char *unsupported, size_t un
 	return profile;
 }
 
+#ifdef TEST_FRAMEWORK
 AST_TEST_DEFINE(sip_parse_options_test)
 {
 	int res = AST_TEST_PASS;
@@ -1892,6 +1904,7 @@ AST_TEST_DEFINE(sip_parse_options_test)
 
 	return res;
 }
+#endif
 
 /*! \brief helper routine for sip_uri_cmp to compare URI parameters
  *
@@ -2246,6 +2259,7 @@ int sip_uri_cmp(const char *input1, const char *input2)
 #define URI_CMP_MATCH 0
 #define URI_CMP_NOMATCH 1
 
+#ifdef TEST_FRAMEWORK
 AST_TEST_DEFINE(sip_uri_cmp_test)
 {
 	static const struct {
@@ -2362,6 +2376,7 @@ AST_TEST_DEFINE(sip_uri_cmp_test)
 
 	return test_res;
 }
+#endif
 
 void free_via(struct sip_via *v)
 {
@@ -2448,6 +2463,7 @@ struct sip_via *parse_via(const char *header)
 	return v;
 }
 
+#ifdef TEST_FRAMEWORK
 AST_TEST_DEFINE(parse_via_test)
 {
 	int res = AST_TEST_PASS;
@@ -2625,6 +2641,7 @@ AST_TEST_DEFINE(parse_via_test)
 	}
 	return res;
 }
+#endif
 
 void sip_request_parser_register_tests(void)
 {
