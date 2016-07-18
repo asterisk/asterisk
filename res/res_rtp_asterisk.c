@@ -2592,7 +2592,7 @@ static int ast_rtp_new(struct ast_rtp_instance *instance,
 
 	/* Set default parameters on the newly created RTP structure */
 	rtp->ssrc = ast_random();
-	rtp->seqno = ast_random() & 0xffff;
+	rtp->seqno = ast_random() & 0x7fff;
 	rtp->strict_rtp_state = (strictrtp ? STRICT_RTP_LEARN : STRICT_RTP_OPEN);
 	if (strictrtp) {
 		rtp_learning_seq_init(&rtp->rtp_source_learn, (uint16_t)rtp->seqno);
