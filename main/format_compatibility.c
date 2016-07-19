@@ -40,7 +40,9 @@ ASTERISK_REGISTER_FILE()
 
 uint64_t ast_format_compatibility_format2bitfield(const struct ast_format *format)
 {
-	if (ast_format_cmp(format, ast_format_g723) == AST_FORMAT_CMP_EQUAL) {
+	if (ast_format_cmp(format, ast_format_codec2) == AST_FORMAT_CMP_EQUAL) {
+		return AST_FORMAT_CODEC2;
+	} else if (ast_format_cmp(format, ast_format_g723) == AST_FORMAT_CMP_EQUAL) {
 		return AST_FORMAT_G723;
 	} else if (ast_format_cmp(format, ast_format_gsm) == AST_FORMAT_CMP_EQUAL) {
 		return AST_FORMAT_GSM;
@@ -107,7 +109,9 @@ uint64_t ast_format_compatibility_format2bitfield(const struct ast_format *forma
 
 uint64_t ast_format_compatibility_codec2bitfield(const struct ast_codec *codec)
 {
-	if (codec->id == ast_format_get_codec_id(ast_format_g723)) {
+	if (codec->id == ast_format_get_codec_id(ast_format_codec2)) {
+		return AST_FORMAT_CODEC2;
+	} else if (codec->id == ast_format_get_codec_id(ast_format_g723)) {
 		return AST_FORMAT_G723;
 	} else if (codec->id == ast_format_get_codec_id(ast_format_gsm)) {
 		return AST_FORMAT_GSM;
@@ -175,6 +179,8 @@ uint64_t ast_format_compatibility_codec2bitfield(const struct ast_codec *codec)
 struct ast_format *ast_format_compatibility_bitfield2format(uint64_t bitfield)
 {
 	switch (bitfield) {
+	case AST_FORMAT_CODEC2:
+		return ast_format_codec2;
 	/*! G.723.1 compression */
 	case AST_FORMAT_G723:
 		return ast_format_g723;
