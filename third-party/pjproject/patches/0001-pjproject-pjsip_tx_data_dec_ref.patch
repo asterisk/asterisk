@@ -1,0 +1,28 @@
+Index: pjlib/src/pj/os_core_unix.c
+===================================================================
+--- a/pjlib/src/pj/os_core_unix.c	(revision 5389)
++++ b/pjlib/src/pj/os_core_unix.c	(working copy)
+@@ -958,6 +958,10 @@
+ 
+     PJ_CHECK_STACK();
+ 
++    if (!atomic_var) {
++	return -1;
++    }
++
+ #if PJ_HAS_THREADS
+     pj_mutex_lock( atomic_var->mutex );
+ #endif
+Index: pjsip/src/pjsip/sip_transport.c
+===================================================================
+--- a/pjsip/src/pjsip/sip_transport.c	(revision 5389)
++++ b/pjsip/src/pjsip/sip_transport.c	(working copy)
+@@ -492,7 +492,7 @@
+ PJ_DEF(pj_status_t) pjsip_tx_data_dec_ref( pjsip_tx_data *tdata )
+ {
+     pj_assert( pj_atomic_get(tdata->ref_cnt) > 0);
+-    if (pj_atomic_dec_and_get(tdata->ref_cnt) <= 0) {
++    if (pj_atomic_dec_and_get(tdata->ref_cnt) == 0) {
+ 	tx_data_destroy(tdata);
+ 	return PJSIP_EBUFDESTROYED;
+     } else {
