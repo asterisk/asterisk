@@ -7,6 +7,9 @@
  *
  */
 
+#include "asterisk/format_cache.h"      /* for ast_format_ilbc */
+#include "asterisk/frame.h"             /* for ast_frame, etc */
+
 static uint8_t ex_ilbc[] = {
 	0xff, 0xa0, 0xff, 0xfa, 0x0f, 0x60, 0x12, 0x11, 0xa2, 0x47, 
 	0x22, 0x8c, 0x00, 0x00, 0x01, 0x02, 0x80, 0x43, 0xa0, 0x40, 
@@ -20,8 +23,8 @@ static struct ast_frame *ilbc_sample(void)
 	static struct ast_frame f = {
 		.frametype = AST_FRAME_VOICE,
 		.datalen = sizeof(ex_ilbc),
-		/* All frames are 30 ms long */
-		.samples = ILBC_SAMPLES,
+		/* example frames are default long (30 ms) */
+		.samples = 240,
 		.mallocd = 0,
 		.offset = 0,
 		.src = __PRETTY_FUNCTION__,
