@@ -2643,6 +2643,7 @@ int ast_rtp_engine_init(void)
 	ast_register_cleanup(rtp_engine_shutdown);
 
 	/* Define all the RTP mime types available */
+	set_next_mime_type(ast_format_codec2, 0,  "audio", "CODEC2", 8000);
 	set_next_mime_type(ast_format_g723, 0, "audio", "G723", 8000);
 	set_next_mime_type(ast_format_gsm, 0, "audio", "GSM", 8000);
 	set_next_mime_type(ast_format_ulaw, 0, "audio", "PCMU", 8000);
@@ -2701,6 +2702,7 @@ int ast_rtp_engine_init(void)
 	#ifdef USE_DEPRECATED_G726
 	add_static_payload(2, ast_format_g726, 0);/* Technically this is G.721, but if Cisco can do it, so can we... */
 	#endif
+	add_static_payload(126, ast_format_codec2, 0);
 	add_static_payload(3, ast_format_gsm, 0);
 	add_static_payload(4, ast_format_g723, 0);
 	add_static_payload(5, ast_format_adpcm, 0);/* 8 kHz */

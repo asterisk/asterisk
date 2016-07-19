@@ -218,6 +218,11 @@ struct ast_format *ast_format_siren7;
 struct ast_format *ast_format_opus;
 
 /*!
+ * \brief Built-in cached codec2 format.
+ */
+struct ast_format *ast_format_codec2;
+
+/*!
  * \brief Built-in cached t140 format.
  */
 struct ast_format *ast_format_t140;
@@ -300,6 +305,7 @@ static void format_cache_shutdown(void)
 	ao2_cleanup(formats);
 	formats = NULL;
 
+	ao2_replace(ast_format_codec2, NULL);
 	ao2_replace(ast_format_g723, NULL);
 	ao2_replace(ast_format_ulaw, NULL);
 	ao2_replace(ast_format_alaw, NULL);
@@ -360,7 +366,9 @@ int ast_format_cache_init(void)
 
 static void set_cached_format(const char *name, struct ast_format *format)
 {
-	if (!strcmp(name, "g723")) {
+	if (!strcmp(name, "codec2")) {
+		ao2_replace(ast_format_codec2, format);
+	} else if (!strcmp(name, "g723")) {
 		ao2_replace(ast_format_g723, format);
 	} else if (!strcmp(name, "ulaw")) {
 		ao2_replace(ast_format_ulaw, format);

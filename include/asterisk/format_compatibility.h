@@ -33,6 +33,7 @@ struct ast_codec;
  * Legacy bitfields for specific formats
  */
 
+#define AST_FORMAT_CODEC2 (1ULL << 42)
 /*! G.723.1 compression */
 #define AST_FORMAT_G723 (1ULL << 0)
 /*! GSM compression */
