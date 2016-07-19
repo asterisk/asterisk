@@ -10613,6 +10613,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					} else if (!processed_crypto && process_crypto(p, p->rtp, &p->srtp, value, secure_audio)) {
 						processed_crypto = TRUE;
 						processed = TRUE;
+						if (secure_audio == FALSE) {
+							ast_log(AST_LOG_NOTICE, "Processed audio crypto attribute without SAVP specified; accepting anyway\n");
+							secure_audio = TRUE;
+						}
 					} else if (process_sdp_a_audio(value, p, &newaudiortp, &last_rtpmap_codec)) {
 						processed = TRUE;
 					}
@@ -10630,6 +10634,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					} else if (!processed_crypto && process_crypto(p, p->vrtp, &p->vsrtp, value, secure_video)) {
 						processed_crypto = TRUE;
 						processed = TRUE;
+						if (secure_video == FALSE) {
+							ast_log(AST_LOG_NOTICE, "Processed video crypto attribute without SAVP specified; accepting anyway\n");
+							secure_video = TRUE;
+						}
 					} else if (process_sdp_a_video(value, p, &newvideortp, &last_rtpmap_codec)) {
 						processed = TRUE;
 					}
@@ -33767,23 +33775,6 @@ static int process_crypto(struct sip_pvt *p, struct ast_rtp_instance *rtp, struc
 	}
 	/* skip "crypto:" */
 	a += strlen("crypto:");
-
-	if (!secure_transport) {
-		/* > The Secure Real-time Transport Protocol (SRTP)
-		 * > [RFC3711] provides security services for RTP media
-		 * > and is signaled by use of secure RTP transport (e.g.,
-		 * > "RTP/SAVP" or "RTP/SAVPF") in an SDP media (m=) line.
-		 * > ...
-		 * > The "crypto" attribute MUST only appear at the SDP
-		 * > media level (not at the session level).
-		 *
-		 * Ergo, we can trust RTP/(S)AVP to be read from the m=
-		 * line before we get here. If it was RTP/AVP, then this
-		 * is SNOM-specific optional SRTP. Ignore it.
-		 */
-		ast_log(LOG_WARNING, "Ignoring crypto attribute in SDP because RTP transport is insecure\n");
-		return FALSE;
-	}
 
 	if (!*srtp) {
 		if (ast_test_flag(&p->flags[0], SIP_OUTGOING)) {

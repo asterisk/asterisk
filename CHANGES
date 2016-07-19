@@ -12,6 +12,13 @@
 --- Functionality changes from Asterisk 14 to Asterisk 15 --------------------
 ------------------------------------------------------------------------------
 
+chan_sip
+------------------
+ * If an offer is received with optional SRTP (a media stream with RTP/AVP but
+   which contains a crypto line) chan_sip will now accept it and enable SRTP.
+   If you would like to do optional SRTP on outbound you will need to create
+   a dialplan that dials with it enabled initially and if it fails fall back to
+   without.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 14.0.0 to Asterisk 14.1.0 ----------
