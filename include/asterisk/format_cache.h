@@ -209,6 +209,11 @@ extern struct ast_format *ast_format_siren7;
 extern struct ast_format *ast_format_opus;
 
 /*!
+ * \brief Built-in cached Codec 2 format.
+ */
+extern struct ast_format *ast_format_codec2;
+
+/*!
  * \brief Built-in cached t140 format.
  */
 extern struct ast_format *ast_format_t140;
