@@ -107,6 +107,30 @@ static struct ast_codec g723 = {
 	.get_length = g723_length,
 };
 
+static int codec2_samples(struct ast_frame *frame)
+{
+	return 160 * (frame->datalen / 6);
+}
+
+static int codec2_length(unsigned int samples)
+{
+	return (samples / 160) * 6;
+}
+
+static struct ast_codec codec2 = {
+	.name = "codec2",
+	.description = "Codec 2",
+	.type = AST_MEDIA_TYPE_AUDIO,
+	.sample_rate = 8000,
+	.minimum_ms = 20,
+	.maximum_ms = 300,
+	.default_ms = 20,
+	.minimum_bytes = 6,
+	.samples_count = codec2_samples,
+	.get_length = codec2_length,
+	.smooth = 1,
+};
+
 static int none_samples(struct ast_frame *frame)
 {
 	return frame->datalen;
@@ -863,6 +887,7 @@ int ast_codec_builtin_init(void)
 {
 	int res = 0;
 
+	res |= CODEC_REGISTER_AND_CACHE(codec2);
 	res |= CODEC_REGISTER_AND_CACHE(g723);
 	res |= CODEC_REGISTER_AND_CACHE(ulaw);
 	res |= CODEC_REGISTER_AND_CACHE(alaw);
