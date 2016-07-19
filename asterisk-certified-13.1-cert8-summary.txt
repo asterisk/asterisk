@@ -1,0 +1,210 @@
+                                Release Summary
+
+                         asterisk-certified/13.1-cert8
+
+                                Date: 2016-07-19
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-certified/13.1-cert7.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                   Testers                  Reporters                
+   4 Mark Michelson                                  2 George Joseph          
+   3 gtjoseph                                        2 Joshua Colp            
+   2 Joshua Colp                                     1 Jacques Peacock        
+   1 Richard Mudgett                                 1 Peter Whisker          
+   1 Corey Farrell                                   1 Richard Mudgett        
+                                                     1 Scott Griepentrog      
+                                                     1 Scott Griepentrog      
+                                                     1 Peter Whisker          
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Channels/chan_sip/Interoperability
+
+   ASTERISK-26030: call cut because of double Session-Expires header in
+   re-invite after proxy authentication is required
+   Reported by: George Joseph
+     * [ce3620caab] gtjoseph -- chan_sip: Prevent extra Session-Expires
+       headers from being added
+
+    Category: Channels/chan_sip/T.38
+
+   ASTERISK-26179: chan_sip: Second T.38 request fails
+   Reported by: Joshua Colp
+     * [690e23433b] Joshua Colp -- chan_sip/res_pjsip_t38: Handle a request
+       to negotiate T.38 after it is enabled.
+
+    Category: Core/FileFormatInterface
+
+   ASTERISK-25998: file: Crash when using nativeformats
+   Reported by: Joshua Colp
+     * [6d4928a135] Joshua Colp -- file: Ensure nativeformats remains valid
+       for lifetime of use.
+
+    Category: Core/UDPTL
+
+   ASTERISK-26034: T.38 passthrough problem behind firewall due to early
+   nosignal packet
+   Reported by: George Joseph
+     * [08a7e1d0b0] gtjoseph -- udptl: Don't eat sequence numbers until OK is
+       received
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-25337: Crash on PJSIP_HEADER Add P-Asserted-Identity when calling
+   from Gosub
+   Reported by: Jacques Peacock
+     * [3294ac1efe] gtjoseph -- res_pjsip_caller_id: Fix segfault when
+       replacing rpid or pai header
+   ASTERISK-25033: Asterisk 13 (branch head) won't compile without PJSip
+   Reported by: Peter Whisker
+     * [23554d74ab] Corey Farrell -- res_pjsip_dlg_options: Fix MODULEINFO
+       section.
+
+    Category: pjproject/pjsip
+
+   ASTERISK-26089: Invalid security events during boot using PJSIP Realtime
+   Reported by: Scott Griepentrog
+     * [8b16e992c8] Richard Mudgett -- pjsip_distributor.c: Ignore messages
+       until fully booted.
+   ASTERISK-25337: Crash on PJSIP_HEADER Add P-Asserted-Identity when calling
+   from Gosub
+   Reported by: Jacques Peacock
+     * [3294ac1efe] gtjoseph -- res_pjsip_caller_id: Fix segfault when
+       replacing rpid or pai header
+
+  Improvement
+
+    Category: Core/Sorcery
+
+   ASTERISK-26088: Investigate heavy memory utilization by res_pjsip_pubsub
+   Reported by: Richard Mudgett
+     * [8b16e992c8] Richard Mudgett -- pjsip_distributor.c: Ignore messages
+       until fully booted.
+
+    Category: Core/Stasis
+
+   ASTERISK-26088: Investigate heavy memory utilization by res_pjsip_pubsub
+   Reported by: Richard Mudgett
+     * [8b16e992c8] Richard Mudgett -- pjsip_distributor.c: Ignore messages
+       until fully booted.
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-26088: Investigate heavy memory utilization by res_pjsip_pubsub
+   Reported by: Richard Mudgett
+     * [8b16e992c8] Richard Mudgett -- pjsip_distributor.c: Ignore messages
+       until fully booted.
+
+    Category: Resources/res_pjsip_pubsub
+
+   ASTERISK-26088: Investigate heavy memory utilization by res_pjsip_pubsub
+   Reported by: Richard Mudgett
+     * [8b16e992c8] Richard Mudgett -- pjsip_distributor.c: Ignore messages
+       until fully booted.
+
+    Category: Resources/res_pjsip_registrar
+
+   ASTERISK-26088: Investigate heavy memory utilization by res_pjsip_pubsub
+   Reported by: Richard Mudgett
+     * [8b16e992c8] Richard Mudgett -- pjsip_distributor.c: Ignore messages
+       until fully booted.
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author         | Summary                                  |
+   |------------+----------------+------------------------------------------|
+   | 6837d582bc | Mark Michelson | Release summaries: Remove previous       |
+   |            |                | versions                                 |
+   |------------+----------------+------------------------------------------|
+   | 81bda18275 | Mark Michelson | .version: Update for                     |
+   |            |                | certified/13.1-cert8                     |
+   |------------+----------------+------------------------------------------|
+   | 8cfe7d9aac | Mark Michelson | .lastclean: Update for                   |
+   |            |                | certified/13.1-cert8                     |
+   |------------+----------------+------------------------------------------|
+   | cca43b1a2f | Mark Michelson | realtime: Add database scripts for       |
+   |            |                | certified/13.1-cert8                     |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ asterisk-certified-13.1-cert7-summary.html |   62 --------
+ asterisk-certified-13.1-cert7-summary.txt  |  203 -----------------------------
+ b/.version                                 |    2
+ b/CHANGES                                  |    9 +
+ b/build_tools/get_moduleinfo               |    1
+ b/channels/chan_sip.c                      |   11 +
+ b/main/file.c                              |   24 ++-
+ b/main/udptl.c                             |   12 +
+ b/res/res_pjsip/pjsip_distributor.c        |   11 +
+ b/res/res_pjsip_caller_id.c                |   38 ++++-
+ b/res/res_pjsip_dlg_options.c              |    2
+ b/res/res_pjsip_t38.c                      |    1
+ 12 files changed, 93 insertions(+), 283 deletions(-)

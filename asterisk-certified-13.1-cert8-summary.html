@@ -1,0 +1,54 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-certified/13.1-cert8</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-certified/13.1-cert8</h3><h3 align="center">Date: 2016-07-19</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-certified/13.1-cert7.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">4 Mark Michelson <mmichelson@digium.com><br/>3 gtjoseph <gjoseph@digium.com><br/>2 Joshua Colp <jcolp@digium.com><br/>1 Richard Mudgett <rmudgett@digium.com><br/>1 Corey Farrell <git@cfware.com><br/></td><td width="33%"><td width="33%">2 George Joseph <gjoseph@digium.com><br/>2 Joshua Colp <jcolp@digium.com><br/>1 Jacques Peacock <jpeacock@callconnection.com><br/>1 Peter Whisker<br/>1 Richard Mudgett <rmudgett@digium.com><br/>1 Scott Griepentrog <sgriepentrog@digium.com><br/>1 Scott Griepentrog<br/>1 Peter Whisker <peter@whisker.org.uk><br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Bug</h3><h4>Category: Channels/chan_sip/Interoperability</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26030">ASTERISK-26030</a>: call cut because of double Session-Expires header in re-invite after proxy authentication is required<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ce3620caab5bc370bcf07d750046233167e2b825">[ce3620caab]</a> gtjoseph -- chan_sip:  Prevent extra Session-Expires headers from being added</li>
+</ul><br><h4>Category: Channels/chan_sip/T.38</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26179">ASTERISK-26179</a>: chan_sip: Second T.38 request fails<br/>Reported by: Joshua Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=690e23433b4accc422afdf28bb00d062a0d4d797">[690e23433b]</a> Joshua Colp -- chan_sip/res_pjsip_t38: Handle a request to negotiate T.38 after it is enabled.</li>
+</ul><br><h4>Category: Core/FileFormatInterface</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25998">ASTERISK-25998</a>: file: Crash when using nativeformats<br/>Reported by: Joshua Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6d4928a1352ceeb4d0996511ddc5ddfc64793514">[6d4928a135]</a> Joshua Colp -- file: Ensure nativeformats remains valid for lifetime of use.</li>
+</ul><br><h4>Category: Core/UDPTL</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26034">ASTERISK-26034</a>: T.38 passthrough problem behind firewall due to early nosignal packet<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=08a7e1d0b0a7ae9d72d2ee1505601801e7a6ffa6">[08a7e1d0b0]</a> gtjoseph -- udptl:  Don't eat sequence numbers until OK is received</li>
+</ul><br><h4>Category: Resources/res_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25337">ASTERISK-25337</a>: Crash on PJSIP_HEADER Add P-Asserted-Identity when calling from Gosub<br/>Reported by: Jacques Peacock<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3294ac1efe241256e994baeb24b6c48c9abbb20c">[3294ac1efe]</a> gtjoseph -- res_pjsip_caller_id: Fix segfault when replacing rpid or pai header</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25033">ASTERISK-25033</a>: Asterisk 13 (branch head) won't compile without PJSip<br/>Reported by: Peter Whisker<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=23554d74ab38feb17cd9c47a0f5d0702cbe657b6">[23554d74ab]</a> Corey Farrell -- res_pjsip_dlg_options: Fix MODULEINFO section.</li>
+</ul><br><h4>Category: pjproject/pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26089">ASTERISK-26089</a>: Invalid security events during boot using PJSIP Realtime<br/>Reported by: Scott Griepentrog<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8b16e992c86dc61afda4ea10ec95c696fef082f1">[8b16e992c8]</a> Richard Mudgett -- pjsip_distributor.c: Ignore messages until fully booted.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25337">ASTERISK-25337</a>: Crash on PJSIP_HEADER Add P-Asserted-Identity when calling from Gosub<br/>Reported by: Jacques Peacock<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3294ac1efe241256e994baeb24b6c48c9abbb20c">[3294ac1efe]</a> gtjoseph -- res_pjsip_caller_id: Fix segfault when replacing rpid or pai header</li>
+</ul><br><h3>Improvement</h3><h4>Category: Core/Sorcery</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26088">ASTERISK-26088</a>: Investigate heavy memory utilization by res_pjsip_pubsub<br/>Reported by: Richard Mudgett<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8b16e992c86dc61afda4ea10ec95c696fef082f1">[8b16e992c8]</a> Richard Mudgett -- pjsip_distributor.c: Ignore messages until fully booted.</li>
+</ul><br><h4>Category: Core/Stasis</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26088">ASTERISK-26088</a>: Investigate heavy memory utilization by res_pjsip_pubsub<br/>Reported by: Richard Mudgett<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8b16e992c86dc61afda4ea10ec95c696fef082f1">[8b16e992c8]</a> Richard Mudgett -- pjsip_distributor.c: Ignore messages until fully booted.</li>
+</ul><br><h4>Category: Resources/res_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26088">ASTERISK-26088</a>: Investigate heavy memory utilization by res_pjsip_pubsub<br/>Reported by: Richard Mudgett<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8b16e992c86dc61afda4ea10ec95c696fef082f1">[8b16e992c8]</a> Richard Mudgett -- pjsip_distributor.c: Ignore messages until fully booted.</li>
+</ul><br><h4>Category: Resources/res_pjsip_pubsub</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26088">ASTERISK-26088</a>: Investigate heavy memory utilization by res_pjsip_pubsub<br/>Reported by: Richard Mudgett<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8b16e992c86dc61afda4ea10ec95c696fef082f1">[8b16e992c8]</a> Richard Mudgett -- pjsip_distributor.c: Ignore messages until fully booted.</li>
+</ul><br><h4>Category: Resources/res_pjsip_registrar</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26088">ASTERISK-26088</a>: Investigate heavy memory utilization by res_pjsip_pubsub<br/>Reported by: Richard Mudgett<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8b16e992c86dc61afda4ea10ec95c696fef082f1">[8b16e992c8]</a> Richard Mudgett -- pjsip_distributor.c: Ignore messages until fully booted.</li>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6837d582bca7f9a09597d124c55145cf8b0370a1">6837d582bc</a></td><td>Mark Michelson</td><td>Release summaries: Remove previous versions</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=81bda182755f06705f27c52113427f8eca31eb4e">81bda18275</a></td><td>Mark Michelson</td><td>.version: Update for certified/13.1-cert8</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8cfe7d9aacfc5b8cc1f200c5490969333e005528">8cfe7d9aac</a></td><td>Mark Michelson</td><td>.lastclean: Update for certified/13.1-cert8</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=cca43b1a2fb86b9efb879ac62114667576f3cf25">cca43b1a2f</a></td><td>Mark Michelson</td><td>realtime: Add database scripts for certified/13.1-cert8</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>asterisk-certified-13.1-cert7-summary.html |   62 --------
+asterisk-certified-13.1-cert7-summary.txt  |  203 -----------------------------
+b/.version                                 |    2
+b/CHANGES                                  |    9 +
+b/build_tools/get_moduleinfo               |    1
+b/channels/chan_sip.c                      |   11 +
+b/main/file.c                              |   24 ++-
+b/main/udptl.c                             |   12 +
+b/res/res_pjsip/pjsip_distributor.c        |   11 +
+b/res/res_pjsip_caller_id.c                |   38 ++++-
+b/res/res_pjsip_dlg_options.c              |    2
+b/res/res_pjsip_t38.c                      |    1
+12 files changed, 93 insertions(+), 283 deletions(-)</pre><br></html>
