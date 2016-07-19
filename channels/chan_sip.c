@@ -10626,6 +10626,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					} else if (!processed_crypto && process_crypto(p, p->rtp, &p->srtp, value)) {
 						processed_crypto = TRUE;
 						processed = TRUE;
+						if (secure_audio == FALSE) {
+							ast_log(AST_LOG_NOTICE, "Processed audio crypto attribute without SAVP specified; accepting anyway\n");
+							secure_audio = TRUE;
+						}
 					} else if (process_sdp_a_audio(value, p, &newaudiortp, &last_rtpmap_codec)) {
 						processed = TRUE;
 					}
@@ -10643,6 +10647,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 					} else if (!processed_crypto && process_crypto(p, p->vrtp, &p->vsrtp, value)) {
 						processed_crypto = TRUE;
 						processed = TRUE;
+						if (secure_video == FALSE) {
+							ast_log(AST_LOG_NOTICE, "Processed video crypto attribute without SAVP specified; accepting anyway\n");
+							secure_video = TRUE;
+						}
 					} else if (process_sdp_a_video(value, p, &newvideortp, &last_rtpmap_codec)) {
 						processed = TRUE;
 					}
