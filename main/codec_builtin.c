@@ -31,6 +31,7 @@
 
 ASTERISK_REGISTER_FILE()
 
+#include "asterisk/ilbc.h"
 #include "asterisk/logger.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/codec.h"
@@ -588,7 +589,12 @@ static struct ast_codec speex32 = {
 
 static int ilbc_samples(struct ast_frame *frame)
 {
-	return 240 * (frame->datalen / 50);
+	struct ilbc_attr *attr = ast_format_get_attribute_data(frame->subclass.format);
+	const unsigned int mode = attr ? attr->mode : 30;
+	const unsigned int samples_per_frame = mode * ast_format_get_sample_rate(frame->subclass.format) / 1000;
+	const unsigned int octets_per_frame = (mode == 20) ? 38 : 50;
+
+	return samples_per_frame * frame->datalen / octets_per_frame;
 }
 
 static struct ast_codec ilbc = {
@@ -596,12 +602,12 @@ static struct ast_codec ilbc = {
 	.description = "iLBC",
 	.type = AST_MEDIA_TYPE_AUDIO,
 	.sample_rate = 8000,
-	.minimum_ms = 30,
+	.minimum_ms = 20,
 	.maximum_ms = 300,
-	.default_ms = 30,
-	.minimum_bytes = 50,
+	.default_ms = 20,
+	.minimum_bytes = 38,
 	.samples_count = ilbc_samples,
-	.smooth = 1,
+	.smooth = 0,
 };
 
 static struct ast_codec g722 = {
