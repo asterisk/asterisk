@@ -1,3 +1,160 @@
+2016-07-19 15:29 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.1-cert8 Released.
+
+2016-07-19 10:29 +0000 [6837d582bc]  Mark Michelson <mmichelson@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-07-19 10:29 +0000 [81bda18275]  Mark Michelson <mmichelson@digium.com>
+
+	* .version: Update for certified/13.1-cert8
+
+2016-07-19 10:29 +0000 [8cfe7d9aac]  Mark Michelson <mmichelson@digium.com>
+
+	* .lastclean: Update for certified/13.1-cert8
+
+2016-07-19 10:29 +0000 [cca43b1a2f]  Mark Michelson <mmichelson@digium.com>
+
+	* realtime: Add database scripts for certified/13.1-cert8
+
+2016-07-07 10:38 +0000 [690e23433b]  Joshua Colp <jcolp@digium.com>
+
+	* chan_sip/res_pjsip_t38: Handle a request to negotiate T.38 after it is enabled.
+
+	  Some T.38 implementations may send another re-invite after the initial
+	  one which adds additional negotiation details (such as the max bitrate).
+	  Currently this will fail when passthrough is being done in chan_sip as we
+	  do nothing if T.38 is already active.
+
+	  Other handlers of T.38 inside of Asterisk (such as res_fax) handle this
+	  scenario so this change adds support for it to chan_sip and res_pjsip_t38.
+	  If a request to negotiate is received while T.38 is already enabled a
+	  new re-INVITE is sent and negotiation is done again.
+
+	  ASTERISK-26179 #close
+
+	  Change-Id: I0298494d3da6df3219bbfa4be9aa04015043145c
+
+2016-06-02 12:51 +0000 [8b16e992c8]  Richard Mudgett <rmudgett@digium.com>
+
+	* pjsip_distributor.c: Ignore messages until fully booted.
+
+	  We should not be processing any incoming messages until we are fully
+	  booted.  We may not have dialplan or other needed configuration loaded
+	  yet.
+
+	  ASTERISK-26089 #close
+	  Reported by: Scott Griepentrog
+
+	  ASTERISK-26088
+	  Reported by:  Richard Mudgett
+
+	  Change-Id: I584aefb4f34b885a8927e1f13a2c64babd606264
+
+2016-05-18 07:54 +0000 [08a7e1d0b0]  gtjoseph <gjoseph@digium.com>
+
+	* udptl:  Don't eat sequence numbers until OK is received
+
+	  Scenario:
+	  Local fax -> Asterisk w/ firewall -> Provider -> Remote fax
+
+	  * Local fax starts rtp call to remote fax
+	  * Remote fax starts t38 call back to local fax.
+	  * Local fax sends t38 no-signal to Asterisk before sending an OK.
+	  * udptl processes the frame and increments the expected sequence number.
+	  * chan_sip drops the frame because the call isn't up so nothing goes out
+	    the external interface to open the port for incoming packets.
+	  * Local fax sends OK and Asterisk sends OK to the remote fax.
+	  * Remote fax sends t38 packets which are dropped by the firewall.
+	  * Local fax re-sends t38 no-signal with the same sequence number.
+	  * udptl drops the frame because it thinks it's a dup.
+	  * Still no outgoing packets to open the firewall.
+	  * t38 negotiation fails.
+
+	  The patch drops frames t38 received before udptl sequence processing
+	  when the call hasn't been answered yet.  The second no-signal frame
+	  is then seen as new and is relayed out the external interface which
+	  opens the port and allows negotiation to continue.
+
+	  ASTERISK-26034 #close
+
+	  Change-Id: I11744b39748bd2ecbbe8ea84cdb4f3c5943c5af9
+
+2016-05-17 11:14 +0000 [ce3620caab]  gtjoseph <gjoseph@digium.com>
+
+	* chan_sip:  Prevent extra Session-Expires headers from being added
+
+	  When chan_sip does a re-INVITE to refresh a session and authentication
+	  is required, the INVITE with the Authorization header containes a
+	  second Session-Expires header without the ";refersher=" parameter.
+	  This is causing some proxies to return a 400.  Also, when Asterisk is
+	  the uas and the refresher, it is including the Session-Expires and
+	  Min-SE headers in OPTIONS messages which is not allowed per RFC4028.
+
+	  This patch (based on the reporter's) Checks to see if a Session-Expires
+	  header is already in the message before adding another one.  It also
+	  checks that the method is INVITE or UPDATE.
+
+	  ASTERISK-26030 #close
+
+	  Change-Id: I58a7b07bab5a3177748d8a7034fb8ad8e11ce1d9
+
+2016-05-05 05:07 +0000 [6d4928a135]  Joshua Colp <jcolp@digium.com>
+
+	* file: Ensure nativeformats remains valid for lifetime of use.
+
+	  It is possible for the nativeformats of a channel to change
+	  throughout its lifetime. As a result a user of it needs to either
+	  ensure the channel is locked when accessing the formats or keep
+	  a reference to the nativeformats themselves.
+
+	  This change fixes the file playback support so it keeps a
+	  reference to the nativeformats when accessing things.
+
+	  ASTERISK-25998 #close
+
+	  Change-Id: Ie45b65475e1481ddf05b874ee48f63e39fff8915
+
+2016-02-15 15:37 +0000 [3294ac1efe]  gtjoseph <george.joseph@fairview5.com>
+
+	* res_pjsip_caller_id: Fix segfault when replacing rpid or pai header
+
+	  If the PJSIP_HEADER dialplan function adds a PAI or RPID header and send_rpid
+	  or send_pai is set, res_pjsip_caller_id attemps to retrieve, parse and modify
+	  the header added by the dialplan function.  Since the header added by the
+	  dialplan function is generic string, there are no virtual functions to parse
+	  the uri and we get a segfault when we try.  Since the modify, was really only
+	  an overwrite, we now just delete the old header if it was type PJSIP_H_OTHER
+	  and recreate it.
+
+	  This raises a question for another time though:  What should happen with
+	  duplicate headers?  Right now res_pjsip_header_funcs doesn't check for dups
+	  so if it's session supplement is loaded after res_pjsip_caller_id's (or any
+	  other module that adds headers), there'll be dups in the message.
+
+	  ASTERISK-25337 #close
+
+	  Change-Id: I5e296b52d30f106b822c0eb27c4c2b0e0f71c7fa
+	  (cherry picked from commit 34c64707d1aa346fb0e9c7f97e375d22dedf67d9)
+
+2015-05-02 02:15 +0000 [23554d74ab]  Corey Farrell <git@cfware.com>
+
+	* res_pjsip_dlg_options: Fix MODULEINFO section.
+
+	  Removed the extra space before "MODULEINFO" in res_pjsip_dlg_options.
+	  This extra space prevented any of the dependencies from being seen by
+	  menuselect, so building with default options would fail if PJSIP was
+	  not installed.
+
+	  This also makes the tool that extracts information for menuselect
+	  tolerant of multiple spaces in the future.
+
+	  ASTERISK-25033 #close
+	  Reported by: Peter Whisker
+
+	  Change-Id: Iccd54846f70c4a7a50cb5bf70b7bb5cb4bab3698
+
 2016-04-27 16:18 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.1-cert7 Released.
