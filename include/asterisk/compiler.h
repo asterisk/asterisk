@@ -71,6 +71,12 @@
 #define attribute_warn_unused_result
 #endif
 
+#ifdef HAVE_ATTRIBUTE_noreturn
+#define attribute_noreturn __attribute__((noreturn))
+#else
+#define attribute_noreturn
+#endif
+
 /* Some older version of GNU gcc (3.3.5 on OpenBSD 4.3 for example) dont like 'NULL' as sentinel */
 #define SENTINEL ((char *)NULL)
 
