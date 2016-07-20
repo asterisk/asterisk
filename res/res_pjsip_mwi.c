@@ -976,37 +976,11 @@ static int create_mwi_subscriptions_for_endpoint(void *obj, void *arg, int flags
 {
 	RAII_VAR(struct mwi_subscription *, aggregate_sub, NULL, ao2_cleanup);
 	struct ast_sip_endpoint *endpoint = obj;
-	char *endpoint_aors, *aor_name, *mailboxes, *mailbox;
-	struct ao2_container *contacts = NULL;
+	char *mailboxes, *mailbox;
 
 	if (ast_strlen_zero(endpoint->subscription.mwi.mailboxes)) {
 		return 0;
 	}
-
-	endpoint_aors = ast_strdupa(endpoint->aors);
-
-	while ((aor_name = ast_strip(strsep(&endpoint_aors, ",")))) {
-		RAII_VAR(struct ast_sip_aor *, aor, ast_sip_location_retrieve_aor(aor_name), ao2_cleanup);
-
-		if (!aor) {
-			continue;
-		}
-
-		contacts = ast_sip_location_retrieve_aor_contacts(aor);
-		if (!contacts || (ao2_container_count(contacts) == 0)) {
-			ao2_cleanup(contacts);
-			contacts = NULL;
-			continue;
-		}
-
-		break;
-	}
-
-	if (!contacts) {
-		return 0;
-	}
-
-	ao2_ref(contacts, -1);
 
 	if (endpoint->subscription.mwi.aggregate) {
 		aggregate_sub = mwi_subscription_alloc(endpoint, 0, NULL);
