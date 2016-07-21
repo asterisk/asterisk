@@ -670,12 +670,6 @@ const struct ast_include *ast_walk_context_includes(const struct ast_context *co
 	return NULL;
 }
 
-struct ast_sw *ast_walk_context_switches(struct ast_context *con, struct ast_sw *sw);
-struct ast_sw *ast_walk_context_switches(struct ast_context *con, struct ast_sw *sw)
-{
-	return NULL;
-}
-
 struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 									 struct ast_context *bypass,
 									 struct pbx_find_info *q,

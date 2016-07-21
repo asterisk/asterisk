@@ -255,16 +255,6 @@ struct ast_exten {
 	char stuff[0];
 };
 
-/*! \brief ast_sw: Switch statement in extensions.conf */
-struct ast_sw {
-	char *name;
-	const char *registrar;			/*!< Registrar */
-	char *data;				/*!< Data load */
-	int eval;
-	AST_LIST_ENTRY(ast_sw) list;
-	char stuff[0];
-};
-
 /*! \brief match_char: forms a syntax tree for quick matching of extension patterns */
 struct match_char
 {
@@ -297,10 +287,10 @@ struct ast_context {
 	struct ast_context *next;		/*!< Link them together */
 	struct ast_includes includes;		/*!< Include other contexts */
 	struct ast_ignorepats ignorepats;	/*!< Patterns for which to continue playing dialtone */
+	struct ast_sws alts;			/*!< Alternative switches */
 	char *registrar;			/*!< Registrar -- make sure you malloc this, as the registrar may have to survive module unloads */
 	int refcount;                   /*!< each module that would have created this context should inc/dec this as appropriate */
 	int autohints;                  /*!< Whether autohints support is enabled or not */
-	AST_LIST_HEAD_NOLOCK(, ast_sw) alts;	/*!< Alternative switches */
 	ast_mutex_t macrolock;			/*!< A lock to implement "exclusive" macros - held whilst a call is executing in the macro */
 	char name[0];				/*!< Name of the context */
 };
@@ -2375,10 +2365,10 @@ struct fake_context /* this struct is purely for matching in the hashtab */
 	struct ast_context *next;
 	struct ast_includes includes;
 	struct ast_ignorepats ignorepats;
+	struct ast_sws alts;
 	const char *registrar;
 	int refcount;
 	int autohints;
-	AST_LIST_HEAD_NOLOCK(, ast_sw) alts;
 	ast_mutex_t macrolock;
 	char name[256];
 };
@@ -2433,7 +2423,6 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	int x, res;
 	struct ast_context *tmp = NULL;
 	struct ast_exten *e = NULL, *eroot = NULL;
-	struct ast_sw *sw = NULL;
 	struct ast_exten pattern = {NULL, };
 	struct scoreboard score = {0, };
 	struct ast_str *tmpdata = NULL;
@@ -2657,23 +2646,28 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	}
 
 	/* Check alternative switches */
-	AST_LIST_TRAVERSE(&tmp->alts, sw, list) {
-		struct ast_switch *asw = pbx_findswitch(sw->name);
+	for (idx = 0; idx < ast_context_switches_count(tmp); idx++) {
+		const struct ast_sw *sw = ast_context_switches_get(tmp, idx);
+		struct ast_switch *asw = pbx_findswitch(ast_get_switch_name(sw));
 		ast_switch_f *aswf = NULL;
-		char *datap;
+		const char *datap;
 
 		if (!asw) {
-			ast_log(LOG_WARNING, "No such switch '%s'\n", sw->name);
+			ast_log(LOG_WARNING, "No such switch '%s'\n", ast_get_switch_name(sw));
 			continue;
 		}
 
 		/* Substitute variables now */
-		if (sw->eval) {
+		if (ast_get_switch_eval(sw)) {
 			if (!(tmpdata = ast_str_thread_get(&switch_data, 512))) {
 				ast_log(LOG_WARNING, "Can't evaluate switch?!\n");
 				continue;
 			}
-			pbx_substitute_variables_helper(chan, sw->data, ast_str_buffer(tmpdata), ast_str_size(tmpdata));
+			pbx_substitute_variables_helper(chan, ast_get_switch_data(sw),
+				ast_str_buffer(tmpdata), ast_str_size(tmpdata));
+			datap = ast_str_buffer(tmpdata);
+		} else {
+			datap = ast_get_switch_data(sw);
 		}
 
 		/* equivalent of extension_match_core() at the switch level */
@@ -2683,7 +2677,6 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 			aswf = asw->matchmore;
 		else /* action == E_MATCH */
 			aswf = asw->exists;
-		datap = sw->eval ? ast_str_buffer(tmpdata) : sw->data;
 		if (!aswf)
 			res = 0;
 		else {
@@ -4819,24 +4812,29 @@ int ast_context_remove_switch(const char *context, const char *sw, const char *d
  */
 int ast_context_remove_switch2(struct ast_context *con, const char *sw, const char *data, const char *registrar)
 {
-	struct ast_sw *i;
+	int idx;
 	int ret = -1;
 
 	ast_wrlock_context(con);
 
 	/* walk switches */
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&con->alts, i, list) {
-		if (!strcmp(i->name, sw) && !strcmp(i->data, data) &&
-			(!registrar || !strcmp(i->registrar, registrar))) {
+	for (idx = 0; idx < ast_context_switches_count(con); idx++) {
+		struct ast_sw *i = AST_VECTOR_GET(&con->alts, idx);
+
+		if (!strcmp(ast_get_switch_name(i), sw) &&
+			!strcmp(ast_get_switch_data(i), data) &&
+			(!registrar || !strcmp(ast_get_switch_registrar(i), registrar))) {
+
 			/* found, remove from list */
 			ast_verb(3, "Removing switch '%s' from context '%s; registrar=%s'\n", sw, ast_get_context_name(con), registrar);
-			AST_LIST_REMOVE_CURRENT(list);
-			ast_free(i); /* free switch and return */
+			AST_VECTOR_REMOVE_ORDERED(&con->alts, idx);
+
+			/* free switch and return */
+			sw_free(i);
 			ret = 0;
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END;
 
 	ast_unlock_context(con);
 
@@ -5517,8 +5515,9 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 			}
 		}
 		if (!rinclude) {
-			struct ast_sw *sw = NULL;
-			while ( (sw = ast_walk_context_switches(c, sw)) ) {
+			for (idx = 0; idx < ast_context_switches_count(c); idx++) {
+				const struct ast_sw *sw = ast_context_switches_get(c, idx);
+
 				snprintf(buf, sizeof(buf), "'%s/%s'",
 					ast_get_switch_name(sw),
 					ast_get_switch_data(sw));
@@ -5836,8 +5835,9 @@ static int manager_show_dialplan_helper(struct mansession *s, const struct messa
 			}
 		}
 		if (!rinclude) {
-			struct ast_sw *sw = NULL;
-			while ( (sw = ast_walk_context_switches(c, sw)) ) {
+			for (idx = 0; idx < ast_context_switches_count(c); idx++) {
+				const struct ast_sw *sw = ast_context_switches_get(c, idx);
+
 				if (!dpc->total_items++)
 					manager_dpsendack(s, m);
 				astman_append(s, "Event: ListDialplan\r\n%s", actionidtext);
@@ -6087,6 +6087,7 @@ struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts,
 		tmp->registrar = ast_strdup(registrar);
 		AST_VECTOR_INIT(&tmp->includes, 0);
 		AST_VECTOR_INIT(&tmp->ignorepats, 0);
+		AST_VECTOR_INIT(&tmp->alts, 0);
 		tmp->refcount = 1;
 	} else {
 		ast_log(LOG_ERROR, "Danger! We failed to allocate a context for %s!\n", name);
@@ -6138,7 +6139,6 @@ AST_LIST_HEAD_NOLOCK(store_hints, store_hint);
 static void context_merge_incls_swits_igps_other_registrars(struct ast_context *new, struct ast_context *old, const char *registrar)
 {
 	int idx;
-	struct ast_sw *sw;
 
 	ast_verb(3, "merging incls/swits/igpats from old(%s) to new(%s) context, registrar = %s\n", ast_get_context_name(old), ast_get_context_name(new), registrar);
 	/* copy in the includes, switches, and ignorepats */
@@ -6153,9 +6153,12 @@ static void context_merge_incls_swits_igps_other_registrars(struct ast_context *
 	}
 
 	/* walk through switches */
-	for (sw = NULL; (sw = ast_walk_context_switches(old, sw)) ; ) {
-		if (strcmp(ast_get_switch_registrar(sw), registrar) == 0)
+	for (idx = 0; idx < ast_context_switches_count(old); idx++) {
+		const struct ast_sw *sw = ast_context_switches_get(old, idx);
+
+		if (!strcmp(ast_get_switch_registrar(sw), registrar)) {
 			continue; /* not mine */
+		}
 		ast_context_add_switch2(new, ast_get_switch_name(sw), ast_get_switch_data(sw), ast_get_switch_eval(sw), ast_get_switch_registrar(sw));
 	}
 
@@ -6622,43 +6625,24 @@ int ast_context_add_switch(const char *context, const char *sw, const char *data
 int ast_context_add_switch2(struct ast_context *con, const char *value,
 	const char *data, int eval, const char *registrar)
 {
+	int idx;
 	struct ast_sw *new_sw;
-	struct ast_sw *i;
-	int length;
-	char *p;
-
-	length = sizeof(struct ast_sw);
-	length += strlen(value) + 1;
-	if (data)
-		length += strlen(data);
-	length++;
 
 	/* allocate new sw structure ... */
-	if (!(new_sw = ast_calloc(1, length)))
+	if (!(new_sw = sw_alloc(value, data, eval, registrar))) {
 		return -1;
-	/* ... fill in this structure ... */
-	p = new_sw->stuff;
-	new_sw->name = p;
-	strcpy(new_sw->name, value);
-	p += strlen(value) + 1;
-	new_sw->data = p;
-	if (data) {
-		strcpy(new_sw->data, data);
-		p += strlen(data) + 1;
-	} else {
-		strcpy(new_sw->data, "");
-		p++;
 	}
-	new_sw->eval	  = eval;
-	new_sw->registrar = registrar;
 
 	/* ... try to lock this context ... */
 	ast_wrlock_context(con);
 
 	/* ... go to last sw and check if context is already swd too... */
-	AST_LIST_TRAVERSE(&con->alts, i, list) {
-		if (!strcasecmp(i->name, new_sw->name) && !strcasecmp(i->data, new_sw->data)) {
-			ast_free(new_sw);
+	for (idx = 0; idx < ast_context_switches_count(con); idx++) {
+		const struct ast_sw *i = ast_context_switches_get(con, idx);
+
+		if (!strcasecmp(ast_get_switch_name(i), ast_get_switch_name(new_sw)) &&
+			!strcasecmp(ast_get_switch_data(i), ast_get_switch_data(new_sw))) {
+			sw_free(new_sw);
 			ast_unlock_context(con);
 			errno = EEXIST;
 			return -1;
@@ -6666,9 +6650,10 @@ int ast_context_add_switch2(struct ast_context *con, const char *value,
 	}
 
 	/* ... sw new context into context list, unlock, return */
-	AST_LIST_INSERT_TAIL(&con->alts, new_sw, list);
+	AST_VECTOR_APPEND(&con->alts, new_sw);
 
-	ast_verb(3, "Including switch '%s/%s' in context '%s'\n", new_sw->name, new_sw->data, ast_get_context_name(con));
+	ast_verb(3, "Including switch '%s/%s' in context '%s'\n",
+		ast_get_switch_name(new_sw), ast_get_switch_data(new_sw), ast_get_context_name(con));
 
 	ast_unlock_context(con);
 
@@ -7775,7 +7760,6 @@ int ast_pbx_outgoing_app(const char *type, struct ast_format_cap *cap, const cha
 
 static void __ast_internal_context_destroy( struct ast_context *con)
 {
-	struct ast_sw *sw;
 	struct ast_exten *e, *el, *en;
 	struct ast_context *tmp = con;
 
@@ -7786,6 +7770,10 @@ static void __ast_internal_context_destroy( struct ast_context *con)
 	/* Free ignorepats */
 	AST_VECTOR_CALLBACK_VOID(&tmp->ignorepats, ignorepat_free);
 	AST_VECTOR_FREE(&tmp->ignorepats);
+
+	/* Free switches */
+	AST_VECTOR_CALLBACK_VOID(&tmp->alts, sw_free);
+	AST_VECTOR_FREE(&tmp->alts);
 
 	if (tmp->registrar)
 		ast_free(tmp->registrar);
@@ -7798,8 +7786,6 @@ static void __ast_internal_context_destroy( struct ast_context *con)
 	if (tmp->pattern_tree)
 		destroy_pattern_tree(tmp->pattern_tree);
 
-	while ((sw = AST_LIST_REMOVE_HEAD(&tmp->alts, list)))
-		ast_free(sw);
 	for (e = tmp->root; e;) {
 		for (en = e->peer; en;) {
 			el = en;
@@ -7846,7 +7832,6 @@ void __ast_context_destroy(struct ast_context *list, struct ast_hashtab *context
 			/* then search thru and remove any extens that match registrar. */
 			struct ast_hashtab_iter *exten_iter;
 			struct ast_hashtab_iter *prio_iter;
-			struct ast_sw *sw = NULL;
 			int idx;
 
 			/* remove any ignorepats whose registrar matches */
@@ -7868,13 +7853,14 @@ void __ast_context_destroy(struct ast_context *list, struct ast_hashtab *context
 				}
 			}
 			/* remove any switches whose registrar matches */
-			AST_LIST_TRAVERSE_SAFE_BEGIN(&tmp->alts, sw, list) {
-				if (strcmp(sw->registrar,registrar) == 0) {
-					AST_LIST_REMOVE_CURRENT(list);
-					ast_free(sw);
+			for (idx = ast_context_switches_count(tmp) - 1; idx >= 0; idx--) {
+				struct ast_sw *sw = AST_VECTOR_GET(&tmp->alts, idx);
+
+				if (!strcmp(ast_get_switch_registrar(sw), registrar)) {
+					AST_VECTOR_REMOVE_ORDERED(&tmp->alts, idx);
+					sw_free(sw);
 				}
 			}
-			AST_LIST_TRAVERSE_SAFE_END;
 
 			if (tmp->root_table) { /* it is entirely possible that the context is EMPTY */
 				exten_iter = ast_hashtab_start_traversal(tmp->root_table);
@@ -7925,7 +7911,7 @@ void __ast_context_destroy(struct ast_context *list, struct ast_hashtab *context
 			/* delete the context if it's registrar matches, is empty, has refcount of 1, */
 			/* it's not empty, if it has includes, ignorepats, or switches that are registered from
 			   another registrar. It's not empty if there are any extensions */
-			if (strcmp(tmp->registrar, registrar) == 0 && tmp->refcount < 2 && !tmp->root && !ast_context_ignorepats_count(tmp) && !ast_context_includes_count(tmp) && AST_LIST_EMPTY(&tmp->alts)) {
+			if (strcmp(tmp->registrar, registrar) == 0 && tmp->refcount < 2 && !tmp->root && !ast_context_ignorepats_count(tmp) && !ast_context_includes_count(tmp) && !ast_context_switches_count(tmp)) {
 				ast_debug(1, "delete ctx %s %s\n", tmp->name, tmp->registrar);
 				ast_hashtab_remove_this_object(contexttab, tmp);
 
@@ -8364,26 +8350,6 @@ void *ast_get_extension_app_data(struct ast_exten *e)
 	return e ? e->data : NULL;
 }
 
-const char *ast_get_switch_name(struct ast_sw *sw)
-{
-	return sw ? sw->name : NULL;
-}
-
-const char *ast_get_switch_data(struct ast_sw *sw)
-{
-	return sw ? sw->data : NULL;
-}
-
-int ast_get_switch_eval(struct ast_sw *sw)
-{
-	return sw->eval;
-}
-
-const char *ast_get_switch_registrar(struct ast_sw *sw)
-{
-	return sw ? sw->registrar : NULL;
-}
-
 /*
  * Walking functions ...
  */
@@ -8401,13 +8367,43 @@ struct ast_exten *ast_walk_context_extensions(struct ast_context *con,
 		return exten->next;
 }
 
-struct ast_sw *ast_walk_context_switches(struct ast_context *con,
-	struct ast_sw *sw)
+const struct ast_sw *ast_walk_context_switches(const struct ast_context *con,
+	const struct ast_sw *sw)
 {
-	if (!sw)
-		return con ? AST_LIST_FIRST(&con->alts) : NULL;
-	else
-		return AST_LIST_NEXT(sw, list);
+	if (sw) {
+		int idx;
+		int next = 0;
+
+		for (idx = 0; idx < ast_context_switches_count(con); idx++) {
+			const struct ast_sw *s = ast_context_switches_get(con, idx);
+
+			if (next) {
+				return s;
+			}
+
+			if (sw == s) {
+				next = 1;
+			}
+		}
+
+		return NULL;
+	}
+
+	if (!ast_context_switches_count(con)) {
+		return NULL;
+	}
+
+	return ast_context_switches_get(con, 0);
+}
+
+int ast_context_switches_count(const struct ast_context *con)
+{
+	return AST_VECTOR_SIZE(&con->alts);
+}
+
+const struct ast_sw *ast_context_switches_get(const struct ast_context *con, int idx)
+{
+	return AST_VECTOR_GET(&con->alts, idx);
 }
 
 struct ast_exten *ast_walk_extension_priorities(struct ast_exten *exten,

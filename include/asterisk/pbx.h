@@ -1229,9 +1229,9 @@ const char *ast_get_extension_name(struct ast_exten *exten);
 struct ast_context *ast_get_extension_context(struct ast_exten *exten);
 const char *ast_get_include_name(const struct ast_include *include);
 const char *ast_get_ignorepat_name(const struct ast_ignorepat *ip);
-const char *ast_get_switch_name(struct ast_sw *sw);
-const char *ast_get_switch_data(struct ast_sw *sw);
-int ast_get_switch_eval(struct ast_sw *sw);
+const char *ast_get_switch_name(const struct ast_sw *sw);
+const char *ast_get_switch_data(const struct ast_sw *sw);
+int ast_get_switch_eval(const struct ast_sw *sw);
 
 /*! @} */
 
@@ -1251,7 +1251,7 @@ const char *ast_get_context_registrar(struct ast_context *c);
 const char *ast_get_extension_registrar(struct ast_exten *e);
 const char *ast_get_include_registrar(const struct ast_include *i);
 const char *ast_get_ignorepat_registrar(const struct ast_ignorepat *ip);
-const char *ast_get_switch_registrar(struct ast_sw *sw);
+const char *ast_get_switch_registrar(const struct ast_sw *sw);
 /*! @} */
 
 /*! @name Walking functions ... */
@@ -1265,7 +1265,8 @@ const struct ast_include *ast_walk_context_includes(const struct ast_context *co
 	const struct ast_include *inc);
 const struct ast_ignorepat *ast_walk_context_ignorepats(const struct ast_context *con,
 	const struct ast_ignorepat *ip);
-struct ast_sw *ast_walk_context_switches(struct ast_context *con, struct ast_sw *sw);
+const struct ast_sw *ast_walk_context_switches(const struct ast_context *con,
+	const struct ast_sw *sw);
 /*! @} */
 
 /*! @name Iterator functions ... */
@@ -1274,6 +1275,8 @@ int ast_context_includes_count(const struct ast_context *con);
 const struct ast_include *ast_context_includes_get(const struct ast_context *con, int idx);
 int ast_context_ignorepats_count(const struct ast_context *con);
 const struct ast_ignorepat *ast_context_ignorepats_get(const struct ast_context *con, int idx);
+int ast_context_switches_count(const struct ast_context *con);
+const struct ast_sw *ast_context_switches_get(const struct ast_context *con, int idx);
 /*! @} */
 
 /*!
