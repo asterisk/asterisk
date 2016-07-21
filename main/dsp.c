@@ -238,9 +238,13 @@ static const int DEFAULT_SILENCE_THRESHOLD = 256;
 #define CONFIG_FILE_NAME "dsp.conf"
 
 typedef struct {
+	/*! The previous previous sample calculation (No binary point just plain int) */
 	int v2;
+	/*! The previous sample calculation (No binary point just plain int) */
 	int v3;
+	/*! v2 and v3 power of two exponent to keep value in int range */
 	int chunky;
+	/*! 15 bit fixed point goertzel coefficient = 2 * cos(2 * pi * freq / sample_rate) */
 	int fac;
 } goertzel_state_t;
 
@@ -326,12 +330,22 @@ static inline void goertzel_sample(goertzel_state_t *s, short sample)
 {
 	int v1;
 
+	/*
+	 * Shift previous values so
+	 * v1 is previous previous value
+	 * v2 is previous value
+	 * until the new v3 is calculated.
+	 */
 	v1 = s->v2;
 	s->v2 = s->v3;
 
+	/* Discard the binary fraction introduced by s->fac */
 	s->v3 = (s->fac * s->v2) >> 15;
+	/* Scale sample to match previous values */
 	s->v3 = s->v3 - v1 + (sample >> s->chunky);
-	if (abs(s->v3) > 32768) {
+
+	if (abs(s->v3) > (1 << 15)) {
+		/* The result is now too large so increase the chunky power. */
 		s->chunky++;
 		s->v3 = s->v3 >> 1;
 		s->v2 = s->v2 >> 1;
@@ -341,21 +355,26 @@ static inline void goertzel_sample(goertzel_state_t *s, short sample)
 static inline float goertzel_result(goertzel_state_t *s)
 {
 	goertzel_result_t r;
+
 	r.value = (s->v3 * s->v3) + (s->v2 * s->v2);
 	r.value -= ((s->v2 * s->v3) >> 15) * s->fac;
+	/*
+	 * We have to double the exponent because we multiplied the
+	 * previous sample calculation values together.
+	 */
 	r.power = s->chunky * 2;
 	return (float)r.value * (float)(1 << r.power);
 }
 
 static inline void goertzel_init(goertzel_state_t *s, float freq, unsigned int sample_rate)
 {
-	s->v2 = s->v3 = s->chunky = 0.0;
+	s->v2 = s->v3 = s->chunky = 0;
 	s->fac = (int)(32768.0 * 2.0 * cos(2.0 * M_PI * freq / sample_rate));
 }
 
 static inline void goertzel_reset(goertzel_state_t *s)
 {
-	s->v2 = s->v3 = s->chunky = 0.0;
+	s->v2 = s->v3 = s->chunky = 0;
 }
 
 typedef struct {
