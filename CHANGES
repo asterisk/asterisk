@@ -364,6 +364,12 @@ cdr_csv
 --- Functionality changes from Asterisk 13.10.0 to Asterisk 13.11.0 ----------
 ------------------------------------------------------------------------------
 
+chan_dahdi
+------------------
+ * Added "faxdetect_timeout" option.
+   The option determines how many seconds into a call before faxdetect
+   is disabled for the call.  Setting the value to zero disables the timeout.
+
 res_pjsip
 ------------------
  * Added "fax_detect_timeout" to endpoint.

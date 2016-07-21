@@ -612,6 +612,11 @@ struct dahdi_pvt {
 	 */
 	int dialtone_detect;
 	int dialtone_scanning_time_elapsed;	/*!< Amount of audio scanned for dialtone, in frames */
+	/*!
+	 * \brief The number of seconds into call to disable fax detection.  (0 = disabled)
+	 * \note Set from the "faxdetect_timeout" value read in from chan_dahdi.conf
+	 */
+	unsigned int faxdetect_timeout;
 	struct timeval waitingfordt;			/*!< Time we started waiting for dialtone */
 	struct timeval flashtime;			/*!< Last flash-hook time */
 	/*! \brief Opaque DSP configuration structure. */
