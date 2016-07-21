@@ -1,3 +1,23 @@
+2016-07-21 14:56 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 11.23.0 Released.
+
+2016-07-21 09:56 +0000 [9a0768384c]  Joshua Colp <jcolp@digium.com>
+
+	* Release summaries: Add summaries for 11.23.0
+
+2016-07-21 09:55 +0000 [ad439c5ffe]  Joshua Colp <jcolp@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-07-21 09:55 +0000 [70f9a858a6]  Joshua Colp <jcolp@digium.com>
+
+	* .version: Update for 11.23.0
+
+2016-07-21 09:55 +0000 [4a0378f4ce]  Joshua Colp <jcolp@digium.com>
+
+	* .lastclean: Update for 11.23.0
+
 2016-06-23 14:14 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 11.23.0-rc1 Released.
