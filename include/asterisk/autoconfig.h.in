@@ -91,6 +91,9 @@
 /* Define to 1 if your GCC C compiler supports the 'malloc' attribute. */
 #undef HAVE_ATTRIBUTE_malloc
 
+/* Define to 1 if your GCC C compiler supports the 'noreturn' attribute. */
+#undef HAVE_ATTRIBUTE_noreturn
+
 /* Define to 1 if your GCC C compiler supports the 'pure' attribute. */
 #undef HAVE_ATTRIBUTE_pure
 

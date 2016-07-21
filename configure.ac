@@ -930,6 +930,7 @@ AST_GCC_ATTRIBUTE(always_inline)
 AST_GCC_ATTRIBUTE(deprecated)
 AST_GCC_ATTRIBUTE(sentinel)
 AST_GCC_ATTRIBUTE(warn_unused_result)
+AST_GCC_ATTRIBUTE(noreturn,noreturn)
 
 # Support weak symbols on a platform specific basis.  The Mac OS X
 # (Darwin) support must be isolated from the other platforms because
