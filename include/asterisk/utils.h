@@ -843,9 +843,14 @@ struct ast_http_digest {
  */
 int ast_parse_digest(const char *digest, struct ast_http_digest *d, int request, int pedantic);
 
+#ifdef DO_CRASH
+#define DO_CRASH_NORETURN attribute_noreturn
+#else
+#define DO_CRASH_NORETURN
+#endif
 
 #ifdef AST_DEVMODE
-void __ast_assert_failed(int condition, const char *condition_str, const char *file, int line, const char *function);
+void DO_CRASH_NORETURN __ast_assert_failed(int condition, const char *condition_str, const char *file, int line, const char *function);
 #define ast_assert(a) _ast_assert(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 static void force_inline _ast_assert(int condition, const char *condition_str, const char *file, int line, const char *function)
 {
@@ -864,7 +869,7 @@ static void force_inline _ast_assert(int condition, const char *condition_str, c
  *
  * \return Nothing
  */
-void ast_do_crash(void);
+void DO_CRASH_NORETURN ast_do_crash(void);
 
 #include "asterisk/strings.h"
 
