@@ -1072,6 +1072,7 @@ AST_GCC_ATTRIBUTE(warn_unused_result)
 AST_GCC_ATTRIBUTE(may_alias)
 AST_GCC_ATTRIBUTE(constructor)
 AST_GCC_ATTRIBUTE(destructor)
+AST_GCC_ATTRIBUTE(noreturn,noreturn)
 
 AC_MSG_CHECKING(for -fsanitize=address support)
 saved_sanitize_CFLAGS="${CFLAGS}"

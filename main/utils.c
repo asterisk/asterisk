@@ -2425,7 +2425,7 @@ char *ast_utils_which(const char *binary, char *fullpath, size_t fullpath_size)
 	return NULL;
 }
 
-void ast_do_crash(void)
+void DO_CRASH_NORETURN ast_do_crash(void)
 {
 #if defined(DO_CRASH)
 	abort();
@@ -2438,7 +2438,7 @@ void ast_do_crash(void)
 }
 
 #if defined(AST_DEVMODE)
-void __ast_assert_failed(int condition, const char *condition_str, const char *file, int line, const char *function)
+void DO_CRASH_NORETURN __ast_assert_failed(int condition, const char *condition_str, const char *file, int line, const char *function)
 {
 	/*
 	 * Attempt to put it into the logger, but hope that at least
