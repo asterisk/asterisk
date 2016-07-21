@@ -1,0 +1,428 @@
+                                Release Summary
+
+                                asterisk-11.23.0
+
+                                Date: 2016-07-21
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Open Issues
+    5. Other Changes
+    6. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-11.22.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                   Testers                  Reporters                
+   8 Alexander Traud        1 Etienne Lessard        7 Alexander Traud        
+   6 George Joseph          1 Andrew Nagy            4 Alexei Gradinari       
+   5 Alexei Gradinari                                4 George Joseph          
+   4 Mark Michelson                                  2 Jaco Kroon             
+   4 Joshua Colp                                     2 Javier Acosta          
+   2 Walter Doekes                                   2 Tzafrir Cohen          
+   2 Tzafrir Cohen                                   1 John Campbell          
+   2 Jaco Kroon                                      1 nik600                 
+   1 Andrew Nagy                                     1 Vasil Kolev            
+   1 ibercom                                         1 Jesper                 
+   1 Diederik de Groot                               1 SA(c)bastien Couture   
+   1 Francesco Castellano                            1 Patrick Laimbock       
+   1 darkskiez                                       1 Corey Farrell          
+   1 Timo TerACURs                                   1 Jonathan R. Rose       
+   1 Torrey Searle                                   1 Diederik de Groot      
+   1 Jesper                                          1 Badalian Vyacheslav    
+   1 Vasil Kolev                                     1 Elazar Broad           
+   1 Kevin Harwell                                   1 Jonathan Rose          
+   1 Corey Farrell                                   1 Conrad de Wet          
+                                                     1 Michael Newton         
+                                                     1 Martin Vit             
+                                                     1 Torrey Searle          
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Applications/app_followme
+
+   ASTERISK-26008: app_followme does not delete recorded name prompt
+   Reported by: Tzafrir Cohen
+     * [120dcdd3df] Tzafrir Cohen -- followme: delete the right recorded name
+       file
+
+    Category: Applications/app_queue
+
+   ASTERISK-25954: Manager QueueSummary and QueueStatus Actions are case
+   sensitive to QueueName
+   Reported by: Javier Acosta
+     * [d8c85768c0] Javier Acosta -- Fix case sensitive actions in AMI
+       QueueSummary and QueueStatus
+   ASTERISK-16115: [patch] problem with ringinuse=no, queue members receive
+   sometimes two calls
+   Reported by: nik600
+     * [79d7284b8b] Kevin Harwell -- app_queue: queue members can receive
+       multiple calls
+   ASTERISK-25888: Frequent segfaults in function can_ring_entry() of
+   app_queue.c
+   Reported by: SA(c)bastien Couture
+     * [32b4320d62] ibercom -- app_queue: Frequent segfaults in function
+       can_ring_entry()
+
+    Category: Applications/app_voicemail
+
+   ASTERISK-24463: Voicemail email address corrupt or not sent when message
+   is in the process of being recorded during reload
+   Reported by: John Campbell
+     * [42ab8d8ef3] Andrew Nagy -- app_voicemail: always copy dynamic struct
+       to avoid race condition
+   ASTERISK-25917: [patch]app_voicemail: passwordlocation=spooldir only works
+   if you manually add secret.conf yourself
+   Reported by: Jonathan R. Rose
+     * [bd050e2782] gtjoseph -- config: Fix ast_config_text_file_save
+       writability check for missing files
+   ASTERISK-25874: app_voicemail: Stack buffer overflow in
+   test_voicemail_notify_endl
+   Reported by: Badalian Vyacheslav
+     * [1dc00f5077] Joshua Colp -- app_voicemail: Fix
+       test_voicemail_notify_endl test.
+
+    Category: Channels/chan_local
+
+   ASTERISK-25912: chan_local passes AST_CONTROL_PVT_CAUSE_CODE without
+   adding them to the local hangupcauses via ast_channel_hangupcause_hash_set
+   Reported by: Jaco Kroon
+     * [7be8c6bec9] Jaco Kroon -- chan_local: Fix hangupcauses not getting
+       set on Local channels
+
+    Category: Channels/chan_sip/DatabaseSupport
+
+   ASTERISK-25934: chan_sip should not require sipregs or updateable sippeers
+   table unless rt
+   Reported by: Jaco Kroon
+     * [b8bfb8f072] Jaco Kroon -- chan_sip: Don't verify table if rtupdate=no
+
+    Category: Channels/chan_sip/General
+
+   ASTERISK-26069: Asterisk truncates To: header, dropping the closing '>'
+   Reported by: Vasil Kolev
+     * [673fa4431e] Vasil Kolev -- chan_sip: bigger buffers for headers,
+       better failure mode
+
+    Category: Channels/chan_sip/Interoperability
+
+   ASTERISK-26030: call cut because of double Session-Expires header in
+   re-invite after proxy authentication is required
+   Reported by: George Joseph
+     * [76787842dd] gtjoseph -- chan_sip: Prevent extra Session-Expires
+       headers from being added
+
+    Category: Channels/chan_unistim
+
+   ASTERISK-26138: chan_unistim: Under FreeBSD, chan_unistim generates a
+   compile error
+   Reported by: George Joseph
+     * [de169f14e6] gtjoseph -- chan_unistim: Fix memcpy in get_to_address
+
+    Category: Core/BuildSystem
+
+   ASTERISK-26046: [patch] Avoid obsolete warnings on autoconf.
+   Reported by: Alexander Traud
+     * [877502a396] Alexander Traud -- BuildSystem: Avoid obsolete warning
+       with AC_FUNC_SETVBUF_REVERSED on autoconf.
+     * [6fb6ed3c53] Alexander Traud -- BuildSystem: Avoid obsolete warning
+       with HELP_STRING on autoconf.
+   ASTERISK-26091: [patch] ar cru creates warning, instead use ar cr
+   Reported by: Alexander Traud
+     * [8263f21cba] Alexander Traud -- BuildSystem: Avoid 'ar cru' and use
+       'ar cr' instead.
+   ASTERISK-26038: 'make install' doesn't seem to install OS/X init files
+   Reported by: Tzafrir Cohen
+     * [9a9e34ea81] Tzafrir Cohen -- Makefile: remove OSARCH check for init
+       install
+
+    Category: Core/General
+
+   ASTERISK-26119: [patch] fix: memory leaks, resource leaks, out of bounds
+   and bugs
+   Reported by: Alexei Gradinari
+     * [7133572cf8] Alexei Gradinari -- fix: memory and resource leaks
+   ASTERISK-26097: [patch] CLI: show maximum file descriptors
+   Reported by: Alexander Traud
+     * [769dbce0a5] Alexander Traud -- core: Not the configured but granted
+       number of possible file descriptors.
+     * [8598b9b267] Alexander Traud -- astfd: Not maximum size of a single
+       file but maximum file descriptors.
+
+    Category: Core/HTTP
+
+   ASTERISK-26126: [patch] leverage 'bindaddr' for TLS in http.conf
+   Reported by: Alexander Traud
+     * [0c69337405] Alexander Traud -- http: leverage 'bindaddr' for TLS in
+       http.conf
+
+    Category: Core/Logging
+
+   ASTERISK-25407: Asterisk fails to log to multiple syslog destinations
+   Reported by: Elazar Broad
+     * [70ca50d96a] Walter Doekes -- core/logging: Fix broken syslog levels
+       on older glibc.
+   ASTERISK-25510: [patch]Log to syslog failing
+   Reported by: Michael Newton
+     * [70ca50d96a] Walter Doekes -- core/logging: Fix broken syslog levels
+       on older glibc.
+
+    Category: Core/UDPTL
+
+   ASTERISK-26034: T.38 passthrough problem behind firewall due to early
+   nosignal packet
+   Reported by: George Joseph
+     * [1cd2f25943] gtjoseph -- udptl: Don't eat sequence numbers until OK is
+       received
+
+    Category: Functions/func_curl
+
+   ASTERISK-25669: [patch]CURL incorrect trim for non ASCII characters
+   Reported by: Jesper
+     * [7e44c80715] Jesper -- func_curl: Don't trim response text on
+       non-ASCII characters
+
+    Category: Functions/func_strings
+
+   ASTERISK-25669: [patch]CURL incorrect trim for non ASCII characters
+   Reported by: Jesper
+     * [7e44c80715] Jesper -- func_curl: Don't trim response text on
+       non-ASCII characters
+
+    Category: Resources/res_fax
+
+   ASTERISK-26141: res_fax: fax_v21_session_new leaks reference to
+   v21_details
+   Reported by: Corey Farrell
+     * [d4f0cc5ec5] Corey Farrell -- res_fax: Fix reference leak in
+       fax_v21_session_new.
+
+    Category: Resources/res_phoneprov
+
+   ASTERISK-26119: [patch] fix: memory leaks, resource leaks, out of bounds
+   and bugs
+   Reported by: Alexei Gradinari
+     * [7133572cf8] Alexei Gradinari -- fix: memory and resource leaks
+
+    Category: Resources/res_pjsip_sdp_rtp
+
+   ASTERISK-26119: [patch] fix: memory leaks, resource leaks, out of bounds
+   and bugs
+   Reported by: Alexei Gradinari
+     * [7133572cf8] Alexei Gradinari -- fix: memory and resource leaks
+
+    Category: Resources/res_rtp_asterisk
+
+   ASTERISK-26140: res_rtp_asterisk: gcc 6 caught a self-comparison
+   Reported by: George Joseph
+     * [9548ccca0e] gtjoseph -- res_rtp_asterisk: Fix a self-comparison
+       identified by gcc 6
+   ASTERISK-26130: [patch] WebRTC: Should use latest DTLS version.
+   Reported by: Alexander Traud
+     * [eeae30db50] Alexander Traud -- res_rtp_asterisk: Use latest DTLS
+       version available by underlying platform.
+
+    Category: Resources/res_srtp
+
+   ASTERISK-24436: Missing header in res/res_srtp.c when compiling against
+   libsrtp-1.5.0
+   Reported by: Patrick Laimbock
+     * [effa207bc4] Alexander Traud -- res_srtp: Instead of libSRTP use
+       OpenSSL as random source.
+
+  Improvement
+
+    Category: Resources/res_musiconhold
+
+   ASTERISK-25444: [patch]Music On Hold Warning misleading
+   Reported by: Conrad de Wet
+     * [7878141198] Walter Doekes -- musiconhold: Only warn if music class is
+       not found in memory and database.
+
+     ----------------------------------------------------------------------
+
+                                  Open Issues
+
+                                 [Back to Top]
+
+   This is a list of all open issues from the issue tracker that were
+   referenced by changes that went into this release.
+
+  Bug
+
+    Category: Applications/app_voicemail/IMAP
+
+   ASTERISK-24927: app_voicemail (IMAP support) function save_to_folder:
+   creates wrong folder
+   Reported by: Alexei Gradinari
+     * [981ed6091e] Alexei Gradinari -- app_voicemail/IMAP: function
+       'save_to_folder' creates wrong folder
+   ASTERISK-25899: IMAP access FATAL error: Out of memory
+   Reported by: Alexei Gradinari
+     * [628b613a6a] Alexei Gradinari -- app_voicemail/IMAP: IMAP access FATAL
+       error: Out of memory
+
+    Category: Channels/chan_sip/General
+
+   ASTERISK-21301: ERROR and failure to resolve socket address due to
+   whitespace after port number in SIP Via header
+   Reported by: Martin Vit
+     * [d5fcd74fb5] Francesco Castellano -- chan_sip.c: Space after port
+       causes unnecessary resolution attempt
+
+    Category: Core/Logging
+
+   ASTERISK-25538: [patch]Missing PID in syslog logger messages
+   Reported by: Javier Acosta
+     * [d2a2677c8d] Alexei Gradinari -- logger: Add PID to syslog messages.
+
+    Category: General
+
+   ASTERISK-25948: ast_pthread_mutex_lock calling ast_reentrancy_lock with
+   lt=0x0
+   Reported by: Diederik de Groot
+     * [0cc0839f49] Diederik de Groot -- lock.c: Check *lt before
+       dereferencing it
+
+    Category: Resources/res_fax
+
+   ASTERISK-25982: [patch]res_fax/t38_gateway: Peer V.21 session is created
+   on wrong channel
+   Reported by: Alexei Gradinari
+     * [987ec85681] Alexei Gradinari -- res_fax/t38_gateway: Peer V.21
+       session is created on wrong channel
+
+    Category: Resources/res_rtp_asterisk
+
+   ASTERISK-26129: res_rtp_asterisk: Memory leak of CERT bio in DTLS
+   implementation
+   Reported by: Torrey Searle
+     * [63f041dc6b] Torrey Searle -- res_rtp_asterisk: fix memory leak in
+       dtls
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author         | Summary                                  |
+   |------------+----------------+------------------------------------------|
+   | ad439c5ffe | Joshua Colp    | Release summaries: Remove previous       |
+   |            |                | versions                                 |
+   |------------+----------------+------------------------------------------|
+   | 70f9a858a6 | Joshua Colp    | .version: Update for 11.23.0             |
+   |------------+----------------+------------------------------------------|
+   | 4a0378f4ce | Joshua Colp    | .lastclean: Update for 11.23.0           |
+   |------------+----------------+------------------------------------------|
+   | b40583a6e7 | Mark Michelson | ChangeLog: Updated for 11.23.0-rc1       |
+   |------------+----------------+------------------------------------------|
+   | 638b840510 | Mark Michelson | Release summaries: Add summaries for     |
+   |            |                | 11.23.0-rc1                              |
+   |------------+----------------+------------------------------------------|
+   | 6615d6f90e | Mark Michelson | .version: Update for 11.23.0-rc1         |
+   |------------+----------------+------------------------------------------|
+   | e97ccd7e0c | Mark Michelson | .lastclean: Update for 11.23.0-rc1       |
+   |------------+----------------+------------------------------------------|
+   | fd5467ce01 | gtjoseph       | build: Fix ast_sockaddr initialization   |
+   |            |                | to be more portable                      |
+   |------------+----------------+------------------------------------------|
+   | 1716830c5a | Timo TerACURs  | Fix #include poll.h and sys/cdefs.h      |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ asterisk-11.22.0-summary.html    |  162 ------------
+ asterisk-11.22.0-summary.txt     |  507 -------------------------------------
+ b/.version                       |    2
+ b/ChangeLog                      |  525 ++++++++++++++++++++++++++++++++++++++-
+ b/Makefile                       |  134 ++++-----
+ b/addons/ooh323c/src/Makefile.in |    2
+ b/apps/app_followme.c            |   17 +
+ b/apps/app_queue.c               |  121 +++++---
+ b/apps/app_voicemail.c           |  123 ++++++---
+ b/autoconf/ast_ext_lib.m4        |    2
+ b/autoconf/ast_prog_ld.m4        |    2
+ b/channels/chan_local.c          |    7
+ b/channels/chan_sip.c            |  114 ++++----
+ b/channels/chan_unistim.c        |    2
+ b/configure                      |    7
+ b/configure.ac                   |    3
+ b/include/asterisk/compat.h      |    2
+ b/include/asterisk/poll-compat.h |    2
+ b/include/asterisk/strings.h     |    2
+ b/main/ast_expr2.c               |   10
+ b/main/ast_expr2.y               |   10
+ b/main/asterisk.c                |   16 -
+ b/main/astfd.c                   |    2
+ b/main/config.c                  |   33 ++
+ b/main/editline/Makefile.in      |    2
+ b/main/http.c                    |    2
+ b/main/lock.c                    |   16 -
+ b/main/logger.c                  |    4
+ b/main/udptl.c                   |   12
+ b/res/ael/pval.c                 |   70 +++--
+ b/res/res_fax.c                  |   41 +--
+ b/res/res_musiconhold.c          |   29 +-
+ b/res/res_phoneprov.c            |    5
+ b/res/res_rtp_asterisk.c         |   17 -
+ b/res/res_srtp.c                 |    8
+ b/tests/test_config.c            |    2
+ 36 files changed, 1054 insertions(+), 961 deletions(-)

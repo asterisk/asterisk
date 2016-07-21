@@ -1,0 +1,134 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-11.23.0</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-11.23.0</h3><h3 align="center">Date: 2016-07-21</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#open_issues">Open Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-11.22.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">8 Alexander Traud <pabstraud@compuserve.com><br/>6 George Joseph <gjoseph@digium.com><br/>5 Alexei Gradinari <alex2grad@gmail.com><br/>4 Mark Michelson <mmichelson@digium.com><br/>4 Joshua Colp <jcolp@digium.com><br/>2 Walter Doekes <walter+asterisk@wjd.nu><br/>2 Tzafrir Cohen <tzafrir.cohen@xorcom.com><br/>2 Jaco Kroon <jaco@uls.co.za><br/>1 Andrew Nagy <andrew.nagy@the159.com><br/>1 ibercom <ibercom123@gmail.com><br/>1 Diederik de Groot <dkgroot@talon.nl><br/>1 Francesco Castellano <francesco.castellano@messagenet.it><br/>1 darkskiez <digium@darkskiez.co.uk><br/>1 Timo Teräs <timo.teras@iki.fi><br/>1 Torrey Searle <tsearle@gmail.com><br/>1 Jesper <jpl@ipnordic.dk><br/>1 Vasil Kolev <vasil.kolev@securax.org><br/>1 Kevin Harwell <kharwell@digium.com><br/>1 Corey Farrell <git@cfware.com><br/></td><td width="33%">1 Etienne Lessard <elessard@proformatique.com><br/>1 Andrew Nagy <andrew.nagy@the159.com><br/></td><td width="33%">7 Alexander Traud <pabstraud@compuserve.com><br/>4 Alexei Gradinari <alex2grad@gmail.com><br/>4 George Joseph <gjoseph@digium.com><br/>2 Jaco Kroon <jaco@uls.co.za><br/>2 Javier Acosta <javier.acosta@beeonline.es><br/>2 Tzafrir Cohen <tzafrir.cohen@xorcom.com><br/>1 John Campbell <campbellj@gordonstoun.org.uk><br/>1 nik600 <nik600@gmail.com><br/>1 Vasil Kolev <vasil.kolev@securax.org><br/>1 Jesper <jpl@ipnordic.dk><br/>1 Sébastien Couture <scouture@ubity.com><br/>1 Patrick Laimbock <patrick@laimbock.com><br/>1 Corey Farrell <git@cfware.com><br/>1 Jonathan R. Rose <jonathan.rose@motorolasolutions.com><br/>1 Diederik de Groot <dkgroot@talon.nl><br/>1 Badalian Vyacheslav <slavon.net@gmail.com><br/>1 Elazar Broad <elazar@thebroadfamily.com><br/>1 Jonathan Rose <jrose@digium.com><br/>1 Conrad de Wet <conrad@euphoria.co.za><br/>1 Michael Newton <miken32@gmail.com><br/>1 Martin Vit <festr@lam.cz><br/>1 Torrey Searle <tsearle@gmail.com><br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Bug</h3><h4>Category: Applications/app_followme</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26008">ASTERISK-26008</a>: app_followme does not delete recorded name prompt<br/>Reported by: Tzafrir Cohen<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=120dcdd3df1a2eb004c9d36ad0df5760fb8ea76a">[120dcdd3df]</a> Tzafrir Cohen -- followme: delete the right recorded name file</li>
+</ul><br><h4>Category: Applications/app_queue</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25954">ASTERISK-25954</a>: Manager QueueSummary and QueueStatus Actions are case sensitive to QueueName<br/>Reported by: Javier Acosta<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d8c85768c0cf7450d43e404b226ef104928bbfc2">[d8c85768c0]</a> Javier Acosta -- Fix case sensitive actions in AMI QueueSummary and QueueStatus</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-16115">ASTERISK-16115</a>: [patch] problem with ringinuse=no, queue members receive sometimes two calls<br/>Reported by: nik600<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=79d7284b8b74b488e80f729814fa97e92998b008">[79d7284b8b]</a> Kevin Harwell -- app_queue: queue members can receive multiple calls</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25888">ASTERISK-25888</a>: Frequent segfaults in function can_ring_entry() of app_queue.c<br/>Reported by: Sébastien Couture<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=32b4320d620ffff5c55f111fc22f22fdb07f8c60">[32b4320d62]</a> ibercom -- app_queue: Frequent segfaults in function can_ring_entry()</li>
+</ul><br><h4>Category: Applications/app_voicemail</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24463">ASTERISK-24463</a>: Voicemail email address corrupt or not sent when message is in the process of being recorded during reload<br/>Reported by: John Campbell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=42ab8d8ef3c656de44881bfdce3ad81d819f165b">[42ab8d8ef3]</a> Andrew Nagy -- app_voicemail: always copy dynamic struct to avoid race condition</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25917">ASTERISK-25917</a>: [patch]app_voicemail: passwordlocation=spooldir only works if you manually add secret.conf yourself<br/>Reported by: Jonathan R. Rose<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=bd050e2782ee15a814cb0b1878f565510592c9b4">[bd050e2782]</a> gtjoseph -- config:  Fix ast_config_text_file_save writability check for missing files</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25874">ASTERISK-25874</a>: app_voicemail: Stack buffer overflow in test_voicemail_notify_endl<br/>Reported by: Badalian Vyacheslav<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1dc00f50772d280e2dd4e46e3bb42e9c44fb5a03">[1dc00f5077]</a> Joshua Colp -- app_voicemail: Fix test_voicemail_notify_endl test.</li>
+</ul><br><h4>Category: Channels/chan_local</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25912">ASTERISK-25912</a>: chan_local passes AST_CONTROL_PVT_CAUSE_CODE without adding them to the local hangupcauses via ast_channel_hangupcause_hash_set<br/>Reported by: Jaco Kroon<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7be8c6bec9dff90dd930ee40e04b28b79cadc8ff">[7be8c6bec9]</a> Jaco Kroon -- chan_local: Fix hangupcauses not getting set on Local channels</li>
+</ul><br><h4>Category: Channels/chan_sip/DatabaseSupport</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25934">ASTERISK-25934</a>: chan_sip should not require sipregs or updateable sippeers table unless rt<br/>Reported by: Jaco Kroon<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b8bfb8f072438cf67d4a03fc5b2dd3be0a6812cf">[b8bfb8f072]</a> Jaco Kroon -- chan_sip: Don't verify table if rtupdate=no</li>
+</ul><br><h4>Category: Channels/chan_sip/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26069">ASTERISK-26069</a>: Asterisk truncates To: header, dropping the closing '>'<br/>Reported by: Vasil Kolev<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=673fa4431e2c5d056ba0d76d05748af10fdbd5f9">[673fa4431e]</a> Vasil Kolev -- chan_sip: bigger buffers for headers, better failure mode</li>
+</ul><br><h4>Category: Channels/chan_sip/Interoperability</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26030">ASTERISK-26030</a>: call cut because of double Session-Expires header in re-invite after proxy authentication is required<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=76787842ddacc493f2a4131004dbf8b48eb4ce47">[76787842dd]</a> gtjoseph -- chan_sip:  Prevent extra Session-Expires headers from being added</li>
+</ul><br><h4>Category: Channels/chan_unistim</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26138">ASTERISK-26138</a>: chan_unistim:  Under FreeBSD, chan_unistim generates a compile error<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=de169f14e6885934a0ebcdf7564eeb1e6fe99a21">[de169f14e6]</a> gtjoseph -- chan_unistim:  Fix memcpy in get_to_address</li>
+</ul><br><h4>Category: Core/BuildSystem</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26046">ASTERISK-26046</a>: [patch] Avoid obsolete warnings on autoconf.<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=877502a396f9a563a09f5134a75cc80d534b5ea9">[877502a396]</a> Alexander Traud -- BuildSystem: Avoid obsolete warning with AC_FUNC_SETVBUF_REVERSED on autoconf.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6fb6ed3c530735e59e8bff9050f58987ce06499f">[6fb6ed3c53]</a> Alexander Traud -- BuildSystem: Avoid obsolete warning with HELP_STRING on autoconf.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26091">ASTERISK-26091</a>: [patch] ar cru creates warning, instead use ar cr<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8263f21cbae4db1a4573c120283874bda2783a83">[8263f21cba]</a> Alexander Traud -- BuildSystem: Avoid 'ar cru' and use 'ar cr' instead.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26038">ASTERISK-26038</a>: 'make install' doesn't seem to install OS/X init files<br/>Reported by: Tzafrir Cohen<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9a9e34ea81d04c235f39a9ca628436e2a0946ad0">[9a9e34ea81]</a> Tzafrir Cohen -- Makefile: remove OSARCH check for init install</li>
+</ul><br><h4>Category: Core/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26119">ASTERISK-26119</a>: [patch] fix: memory leaks, resource leaks, out of bounds and bugs<br/>Reported by: Alexei Gradinari<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7133572cf8b6a1c4cd7bddf399e9e19ac668c69e">[7133572cf8]</a> Alexei Gradinari -- fix: memory and resource leaks</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26097">ASTERISK-26097</a>: [patch] CLI: show maximum file descriptors<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=769dbce0a5d2dce47942ad7d7caeb9a19ed8268b">[769dbce0a5]</a> Alexander Traud -- core: Not the configured but granted number of possible file descriptors.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8598b9b26712d1a8bf0f844064f44081cd44c372">[8598b9b267]</a> Alexander Traud -- astfd: Not maximum size of a single file but maximum file descriptors.</li>
+</ul><br><h4>Category: Core/HTTP</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26126">ASTERISK-26126</a>: [patch] leverage 'bindaddr' for TLS in http.conf<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0c693374055f59db2d64ff4717f69c5140233df0">[0c69337405]</a> Alexander Traud -- http: leverage 'bindaddr' for TLS in http.conf</li>
+</ul><br><h4>Category: Core/Logging</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25407">ASTERISK-25407</a>: Asterisk fails to log to multiple syslog destinations<br/>Reported by: Elazar Broad<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=70ca50d96a4f63accaee8e6847ff723d766f2b1a">[70ca50d96a]</a> Walter Doekes -- core/logging: Fix broken syslog levels on older glibc.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25510">ASTERISK-25510</a>: [patch]Log to syslog failing<br/>Reported by: Michael Newton<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=70ca50d96a4f63accaee8e6847ff723d766f2b1a">[70ca50d96a]</a> Walter Doekes -- core/logging: Fix broken syslog levels on older glibc.</li>
+</ul><br><h4>Category: Core/UDPTL</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26034">ASTERISK-26034</a>: T.38 passthrough problem behind firewall due to early nosignal packet<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1cd2f25943862c4d3d80279b2b2df8a551149688">[1cd2f25943]</a> gtjoseph -- udptl:  Don't eat sequence numbers until OK is received</li>
+</ul><br><h4>Category: Functions/func_curl</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25669">ASTERISK-25669</a>: [patch]CURL incorrect trim for non ASCII characters<br/>Reported by: Jesper<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7e44c8071583117605c6f207cb78b2c93424e829">[7e44c80715]</a> Jesper -- func_curl: Don't trim response text on non-ASCII characters</li>
+</ul><br><h4>Category: Functions/func_strings</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25669">ASTERISK-25669</a>: [patch]CURL incorrect trim for non ASCII characters<br/>Reported by: Jesper<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7e44c8071583117605c6f207cb78b2c93424e829">[7e44c80715]</a> Jesper -- func_curl: Don't trim response text on non-ASCII characters</li>
+</ul><br><h4>Category: Resources/res_fax</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26141">ASTERISK-26141</a>: res_fax: fax_v21_session_new leaks reference to v21_details<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d4f0cc5ec5613a69744ec26f731e2f7b49435163">[d4f0cc5ec5]</a> Corey Farrell -- res_fax: Fix reference leak in fax_v21_session_new.</li>
+</ul><br><h4>Category: Resources/res_phoneprov</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26119">ASTERISK-26119</a>: [patch] fix: memory leaks, resource leaks, out of bounds and bugs<br/>Reported by: Alexei Gradinari<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7133572cf8b6a1c4cd7bddf399e9e19ac668c69e">[7133572cf8]</a> Alexei Gradinari -- fix: memory and resource leaks</li>
+</ul><br><h4>Category: Resources/res_pjsip_sdp_rtp</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26119">ASTERISK-26119</a>: [patch] fix: memory leaks, resource leaks, out of bounds and bugs<br/>Reported by: Alexei Gradinari<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7133572cf8b6a1c4cd7bddf399e9e19ac668c69e">[7133572cf8]</a> Alexei Gradinari -- fix: memory and resource leaks</li>
+</ul><br><h4>Category: Resources/res_rtp_asterisk</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26140">ASTERISK-26140</a>: res_rtp_asterisk: gcc 6 caught a self-comparison<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=9548ccca0e56470c9a32360da73f687ae05376f5">[9548ccca0e]</a> gtjoseph -- res_rtp_asterisk:  Fix a self-comparison identified by gcc 6</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26130">ASTERISK-26130</a>: [patch] WebRTC: Should use latest DTLS version.<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=eeae30db50cf41bc5125f0d23d727c5a080672c5">[eeae30db50]</a> Alexander Traud -- res_rtp_asterisk: Use latest DTLS version available by underlying platform.</li>
+</ul><br><h4>Category: Resources/res_srtp</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24436">ASTERISK-24436</a>: Missing header in res/res_srtp.c when compiling against libsrtp-1.5.0<br/>Reported by: Patrick Laimbock<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=effa207bc420893d7d62e2acc674746b888d09eb">[effa207bc4]</a> Alexander Traud -- res_srtp: Instead of libSRTP use OpenSSL as random source.</li>
+</ul><br><h3>Improvement</h3><h4>Category: Resources/res_musiconhold</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25444">ASTERISK-25444</a>: [patch]Music On Hold Warning misleading<br/>Reported by: Conrad de Wet<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7878141198ed1cad7e49340b8e69e7c44d18dad8">[7878141198]</a> Walter Doekes -- musiconhold: Only warn if music class is not found in memory and database.</li>
+</ul><br><hr><a name="open_issues"><h2 align="center">Open Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all open issues from the issue tracker that were referenced by changes that went into this release.</p><h3>Bug</h3><h4>Category: Applications/app_voicemail/IMAP</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24927">ASTERISK-24927</a>: app_voicemail (IMAP support) function save_to_folder: creates wrong folder<br/>Reported by: Alexei Gradinari<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=981ed6091e513bc81d4863d409762638495c2ed1">[981ed6091e]</a> Alexei Gradinari -- app_voicemail/IMAP: function 'save_to_folder' creates wrong folder</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25899">ASTERISK-25899</a>: IMAP access FATAL error: Out of memory<br/>Reported by: Alexei Gradinari<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=628b613a6ac3bc207818d28bb9a2045b974611ff">[628b613a6a]</a> Alexei Gradinari -- app_voicemail/IMAP: IMAP access FATAL error: Out of memory</li>
+</ul><br><h4>Category: Channels/chan_sip/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-21301">ASTERISK-21301</a>: ERROR and failure to resolve socket address due to whitespace after port number in SIP Via header<br/>Reported by: Martin Vit<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d5fcd74fb522026730976615ea67f6492915bc33">[d5fcd74fb5]</a> Francesco Castellano -- chan_sip.c: Space after port causes unnecessary resolution attempt</li>
+</ul><br><h4>Category: Core/Logging</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25538">ASTERISK-25538</a>: [patch]Missing PID in syslog logger messages<br/>Reported by: Javier Acosta<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d2a2677c8d3d55e375d4e7c09eb077a1eddc96ec">[d2a2677c8d]</a> Alexei Gradinari -- logger: Add PID to syslog messages.</li>
+</ul><br><h4>Category: General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25948">ASTERISK-25948</a>: ast_pthread_mutex_lock calling ast_reentrancy_lock with lt=0x0<br/>Reported by: Diederik de Groot<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0cc0839f491ba576d37cee597ac150cc1e9c851d">[0cc0839f49]</a> Diederik de Groot -- lock.c: Check *lt before dereferencing it</li>
+</ul><br><h4>Category: Resources/res_fax</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25982">ASTERISK-25982</a>: [patch]res_fax/t38_gateway: Peer V.21 session is created on wrong channel<br/>Reported by: Alexei Gradinari<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=987ec8568169c9bfe741ee12c0b0ecff8c6eb0bd">[987ec85681]</a> Alexei Gradinari -- res_fax/t38_gateway: Peer V.21 session is created on wrong channel</li>
+</ul><br><h4>Category: Resources/res_rtp_asterisk</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26129">ASTERISK-26129</a>: res_rtp_asterisk: Memory leak of CERT bio in DTLS implementation<br/>Reported by: Torrey Searle<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=63f041dc6b001984c1786a4915ffbdfdf624f817">[63f041dc6b]</a> Torrey Searle -- res_rtp_asterisk: fix memory leak in dtls</li>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=ad439c5ffe0475884fc76cfcc020cc9c731e80a7">ad439c5ffe</a></td><td>Joshua Colp</td><td>Release summaries: Remove previous versions</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=70f9a858a6c3598fe72beb02b9357d12febf3cd9">70f9a858a6</a></td><td>Joshua Colp</td><td>.version: Update for 11.23.0</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4a0378f4ce2f6a19d8a03ea33bb4b4c564defd41">4a0378f4ce</a></td><td>Joshua Colp</td><td>.lastclean: Update for 11.23.0</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b40583a6e7b4bcc930cd0dd7954336bfdee879d3">b40583a6e7</a></td><td>Mark Michelson</td><td>ChangeLog: Updated for 11.23.0-rc1</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=638b840510ff17f5b5614164c20d485e9ce4b3ed">638b840510</a></td><td>Mark Michelson</td><td>Release summaries: Add summaries for 11.23.0-rc1</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6615d6f90ef254b4e3fbdd0cdc05293ed9b5c062">6615d6f90e</a></td><td>Mark Michelson</td><td>.version: Update for 11.23.0-rc1</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e97ccd7e0c02f74279f8384fd0cbc708eab64dd9">e97ccd7e0c</a></td><td>Mark Michelson</td><td>.lastclean: Update for 11.23.0-rc1</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=fd5467ce01643e51f0f80c07af0098ab49591947">fd5467ce01</a></td><td>gtjoseph</td><td>build:  Fix ast_sockaddr initialization to be more portable</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1716830c5af36c46d6c599cd023d0f43074467e9">1716830c5a</a></td><td>Timo Teräs</td><td>Fix #include poll.h and sys/cdefs.h</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>asterisk-11.22.0-summary.html    |  162 ------------
+asterisk-11.22.0-summary.txt     |  507 -------------------------------------
+b/.version                       |    2
+b/ChangeLog                      |  525 ++++++++++++++++++++++++++++++++++++++-
+b/Makefile                       |  134 ++++-----
+b/addons/ooh323c/src/Makefile.in |    2
+b/apps/app_followme.c            |   17 +
+b/apps/app_queue.c               |  121 +++++---
+b/apps/app_voicemail.c           |  123 ++++++---
+b/autoconf/ast_ext_lib.m4        |    2
+b/autoconf/ast_prog_ld.m4        |    2
+b/channels/chan_local.c          |    7
+b/channels/chan_sip.c            |  114 ++++----
+b/channels/chan_unistim.c        |    2
+b/configure                      |    7
+b/configure.ac                   |    3
+b/include/asterisk/compat.h      |    2
+b/include/asterisk/poll-compat.h |    2
+b/include/asterisk/strings.h     |    2
+b/main/ast_expr2.c               |   10
+b/main/ast_expr2.y               |   10
+b/main/asterisk.c                |   16 -
+b/main/astfd.c                   |    2
+b/main/config.c                  |   33 ++
+b/main/editline/Makefile.in      |    2
+b/main/http.c                    |    2
+b/main/lock.c                    |   16 -
+b/main/logger.c                  |    4
+b/main/udptl.c                   |   12
+b/res/ael/pval.c                 |   70 +++--
+b/res/res_fax.c                  |   41 +--
+b/res/res_musiconhold.c          |   29 +-
+b/res/res_phoneprov.c            |    5
+b/res/res_rtp_asterisk.c         |   17 -
+b/res/res_srtp.c                 |    8
+b/tests/test_config.c            |    2
+36 files changed, 1054 insertions(+), 961 deletions(-)</pre><br></html>
