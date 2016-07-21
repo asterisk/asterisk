@@ -2249,7 +2249,7 @@ static int send_notify(struct sip_subscription_tree *sub_tree, unsigned int forc
 	}
 
 	if (sip_subscription_send_request(sub_tree, tdata)) {
-		pjsip_tx_data_dec_ref(tdata);
+		/* do not call pjsip_tx_data_dec_ref(tdata). The pjsip_dlg_send_request deletes the message on error */
 		return -1;
 	}
 
