@@ -1,0 +1,13 @@
+Index: pjsip/src/pjsip-simple/evsub.c
+===================================================================
+--- a/pjsip/src/pjsip-simple/evsub.c	(revision 5389)
++++ b/pjsip/src/pjsip-simple/evsub.c	(working copy)
+@@ -412,8 +412,6 @@
+     unsigned i;
+ 
+     PJ_ASSERT_RETURN(pkg_mod && event_name, PJ_EINVAL);
+-    PJ_ASSERT_RETURN(accept_cnt < PJ_ARRAY_SIZE(pkg->pkg_accept->values), 
+-		     PJ_ETOOMANY);
+ 
+     /* Make sure evsub module has been initialized */
+     PJ_ASSERT_RETURN(mod_evsub.mod.id != -1, PJ_EINVALIDOP);
