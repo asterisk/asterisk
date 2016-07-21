@@ -137,7 +137,7 @@ struct ast_sip_session {
 	struct ast_party_id id;
 	/*! Requested capabilities */
 	struct ast_format_cap *req_caps;
-	/*! Optional DSP, used only for inband DTMF detection if configured */
+	/*! Optional DSP, used only for inband DTMF/Fax-CNG detection if configured */
 	struct ast_dsp *dsp;
 	/*! Whether the termination of the session should be deferred */
 	unsigned int defer_terminate:1;

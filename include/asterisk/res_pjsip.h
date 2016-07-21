@@ -749,6 +749,8 @@ struct ast_sip_endpoint {
 	struct ast_acl_list *acl;
 	/* Restrict what IPs are allowed in the Contact header (for registration) */
 	struct ast_acl_list *contact_acl;
+	/*! The number of seconds into call to disable fax detection.  (0 = disabled) */
+	unsigned int faxdetect_timeout;
 };
 
 /*!

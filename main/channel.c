@@ -2692,10 +2692,28 @@ void ast_hangup(struct ast_channel *chan)
 	ast_channel_unref(chan);
 }
 
+/*!
+ * \internal
+ * \brief Set channel answered time if not already set.
+ * \since 13.11.0
+ *
+ * \param chan Channel to set answered time.
+ *
+ * \return Nothing
+ */
+static void set_channel_answer_time(struct ast_channel *chan)
+{
+	if (ast_tvzero(ast_channel_answertime(chan))) {
+		struct timeval answertime;
+
+		answertime = ast_tvnow();
+		ast_channel_answertime_set(chan, &answertime);
+	}
+}
+
 int ast_raw_answer(struct ast_channel *chan)
 {
 	int res = 0;
-	struct timeval answertime;
 
 	ast_channel_lock(chan);
 
@@ -2711,8 +2729,11 @@ int ast_raw_answer(struct ast_channel *chan)
 		return -1;
 	}
 
-	answertime = ast_tvnow();
-	ast_channel_answertime_set(chan, &answertime);
+	/*
+	 * Mark when incoming channel answered so we can know how
+	 * long the channel has been up.
+	 */
+	set_channel_answer_time(chan);
 
 	ast_channel_unlock(chan);
 
@@ -3911,6 +3932,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					ast_frfree(f);
 					f = &ast_null_frame;
 				} else {
+					/*
+					 * Mark when outgoing channel answered so we can know how
+					 * long the channel has been up.
+					 */
+					set_channel_answer_time(chan);
+
 					ast_setstate(chan, AST_STATE_UP);
 				}
 			} else if (f->subclass.integer == AST_CONTROL_READ_ACTION) {
