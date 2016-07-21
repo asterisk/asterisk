@@ -21044,6 +21044,8 @@ static const struct cfsubscription_types *find_subscription_type(enum subscripti
 #define FORMAT3 "%-15.15s  %-15.15s  %-15.15s  %-15.15s  %-13.13s  %-15.15s %-10.10s %-6.6s\n"
 #define FORMAT2 "%-15.15s  %-15.15s  %-15.15s  %-15.15s  %-7.7s  %-15.15s %-10.10s %-10.10s\n"
 #define FORMAT  "%-15.15s  %-15.15s  %-15.15s  %-15.15s  %-3.3s %-3.3s  %-15.15s %-10.10s %-10.10s\n"
+#define SHOW_CHANNELS_RETRIES 10
+#define SHOW_CHANNELS_WAIT 100
 
 /*! \brief callback for show channel|subscription */
 static int show_channels_cb(void *__cur, void *__arg, int flags)
@@ -21051,8 +21053,23 @@ static int show_channels_cb(void *__cur, void *__arg, int flags)
 	struct sip_pvt *cur = __cur;
 	struct __show_chan_arg *arg = __arg;
 	const struct ast_sockaddr *dst;
+	int tries = 0;
 
-	sip_pvt_lock(cur);
+	/*
+	 * sip_show_channels locks dialogs and sip_pvt in the reverse order than normal
+	 * dialog processing.  In order to prevent a deadlock, we have to trylock the sip_pvt
+	 * a few times and return if we can't get the lock.
+	 */
+	for (tries = 0; tries < SHOW_CHANNELS_RETRIES; tries++) {
+		if (sip_pvt_trylock(cur) == 0) {
+			goto locked;
+		}
+		usleep(SHOW_CHANNELS_WAIT);
+	}
+
+	return 0;
+
+locked:
 	dst = sip_real_dst(cur);
 
 	/* XXX indentation preserved to reduce diff. Will be fixed later */
