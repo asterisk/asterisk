@@ -600,6 +600,14 @@
 						detected.
 					</para></description>
 				</configOption>
+				<configOption name="fax_detect_timeout">
+					<synopsis>How long into a call before fax_detect is disabled for the call</synopsis>
+					<description><para>
+						The option determines how many seconds into a call before the
+						fax_detect option is disabled for the call.  Setting the value
+						to zero disables the timeout.
+					</para></description>
+				</configOption>
 				<configOption name="t38_udptl_nat" default="no">
 					<synopsis>Whether NAT support is enabled on UDPTL sessions</synopsis>
 					<description><para>

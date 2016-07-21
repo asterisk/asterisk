@@ -693,6 +693,10 @@
 ;t38_udptl_maxdatagram=0        ; T 38 UDPTL maximum datagram size (default:
                                 ; "0")
 ;fax_detect=no  ; Whether CNG tone detection is enabled (default: "no")
+;fax_detect_timeout=30  ; How many seconds into a call before fax_detect is
+                        ; disabled for the call.
+                        ; Zero disables the timeout.
+                        ; (default: "0")
 ;t38_udptl_nat=no       ; Whether NAT support is enabled on UDPTL sessions
                         ; (default: "no")
 ;t38_udptl_ipv6=no      ; Whether IPv6 is used for UDPTL Sessions (default:
