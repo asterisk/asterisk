@@ -21278,15 +21278,13 @@ static char *sip_unregister(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 }
 
 /*! \brief Callback for show_chanstats */
-static int show_chanstats_cb(void *__cur, void *__arg, int flags)
+static int show_chanstats_cb(struct sip_pvt *cur, struct __show_chan_arg *arg)
 {
 #define FORMAT2 "%-15.15s  %-11.11s  %-8.8s %-10.10s  %-10.10s (     %%) %-6.6s %-10.10s  %-10.10s (     %%) %-6.6s\n"
 #define FORMAT  "%-15.15s  %-11.11s  %-8.8s %-10.10u%-1.1s %-10.10u (%5.2f%%) %-6.4lf %-10.10u%-1.1s %-10.10u (%5.2f%%) %-6.4lf\n"
-	struct sip_pvt *cur = __cur;
 	struct ast_rtp_instance_stats stats;
 	char durbuf[10];
 	struct ast_channel *c;
-	struct __show_chan_arg *arg = __arg;
 	int fd = arg->fd;
 
 	sip_pvt_lock(cur);
@@ -21346,6 +21344,8 @@ static int show_chanstats_cb(void *__cur, void *__arg, int flags)
 static char *sip_show_channelstats(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct __show_chan_arg arg = { .fd = a->fd, .numchans = 0 };
+	struct sip_pvt *cur;
+	struct ao2_iterator i;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -21363,8 +21363,14 @@ static char *sip_show_channelstats(struct ast_cli_entry *e, int cmd, struct ast_
 		return CLI_SHOWUSAGE;
 
 	ast_cli(a->fd, FORMAT2, "Peer", "Call ID", "Duration", "Recv: Pack", "Lost", "Jitter", "Send: Pack", "Lost", "Jitter");
+
 	/* iterate on the container and invoke the callback on each item */
-	ao2_t_callback(dialogs, OBJ_NODATA, show_chanstats_cb, &arg, "callback to sip show chanstats");
+	i = ao2_iterator_init(dialogs, 0);
+	for (; (cur = ao2_iterator_next(&i)); ao2_ref(cur, -1)) {
+		show_chanstats_cb(cur, &arg);
+	}
+	ao2_iterator_destroy(&i);
+
 	ast_cli(a->fd, "%d active SIP channel%s\n", arg.numchans, (arg.numchans != 1) ? "s" : "");
 	return CLI_SUCCESS;
 }
@@ -21680,10 +21686,8 @@ static const struct cfsubscription_types *find_subscription_type(enum subscripti
 #define FORMAT  "%-15.15s  %-15.15s  %-15.15s  %-15.15s  %-3.3s %-3.3s  %-15.15s %-10.10s %-10.10s\n"
 
 /*! \brief callback for show channel|subscription */
-static int show_channels_cb(void *__cur, void *__arg, int flags)
+static int show_channels_cb(struct sip_pvt *cur, struct __show_chan_arg *arg)
 {
-	struct sip_pvt *cur = __cur;
-	struct __show_chan_arg *arg = __arg;
 	const struct ast_sockaddr *dst;
 
 	sip_pvt_lock(cur);
@@ -21735,7 +21739,8 @@ static int show_channels_cb(void *__cur, void *__arg, int flags)
 static char *sip_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct __show_chan_arg arg = { .fd = a->fd, .numchans = 0 };
-
+	struct sip_pvt *cur;
+	struct ao2_iterator i;
 
 	if (cmd == CLI_INIT) {
 		e->command = "sip show {channels|subscriptions}";
@@ -21757,8 +21762,12 @@ static char *sip_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		ast_cli(arg.fd, FORMAT3, "Peer", "User", "Call ID", "Extension", "Last state", "Type", "Mailbox", "Expiry");
 
 	/* iterate on the container and invoke the callback on each item */
-	ao2_t_callback(dialogs, OBJ_NODATA, show_channels_cb, &arg, "callback to show channels");
-
+	i = ao2_iterator_init(dialogs, 0);
+	for (; (cur = ao2_iterator_next(&i)); ao2_ref(cur, -1)) {
+		show_channels_cb(cur, &arg);
+	}
+	ao2_iterator_destroy(&i);
+	
 	/* print summary information */
 	ast_cli(arg.fd, "%d active SIP %s%s\n", arg.numchans,
 		(arg.subscriptions ? "subscription" : "dialog"),
