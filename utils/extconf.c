@@ -4448,6 +4448,19 @@ struct ast_sw *localized_walk_context_switches(struct ast_context *con,
 	return ast_walk_context_switches(con, sw);
 }
 
+int ast_context_switches_count(struct ast_context *con);
+int ast_context_switches_count(struct ast_context *con)
+{
+	int c = 0;
+	struct ast_sw *sw = NULL;
+
+	while ((sw = ast_walk_context_switches(con, sw))) {
+		c++;
+	}
+
+	return c;
+}
+
 
 static struct ast_context *ast_context_find(const char *name);
 
