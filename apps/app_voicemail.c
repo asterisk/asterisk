@@ -13453,6 +13453,7 @@ static int actual_load_config(int reload, struct ast_config *cfg, struct ast_con
 	int x;
 	unsigned int tmpadsi[4];
 	char secretfn[PATH_MAX] = "";
+	long tps_queue_low, tps_queue_high;
 
 #ifdef IMAP_STORAGE
 	ast_copy_string(imapparentfolder, "\0", sizeof(imapparentfolder));
@@ -14026,6 +14027,26 @@ static int actual_load_config(int reload, struct ast_config *cfg, struct ast_con
 		}
 		if ((val = ast_variable_retrieve(cfg, "general", "pagerbody"))) {
 			pagerbody = ast_strdup(substitute_escapes(val));
+		}
+
+		tps_queue_high = AST_TASKPROCESSOR_HIGH_WATER_LEVEL;
+		if ((val = ast_variable_retrieve(cfg, "general", "tps_queue_high"))) {
+			tps_queue_high = atoi(val);
+			if (tps_queue_high <= 0) {
+				ast_log(AST_LOG_WARNING, "Invalid the taskprocessor high water alert trigger level '%s'. Using default value.\n", val);
+				tps_queue_high = AST_TASKPROCESSOR_HIGH_WATER_LEVEL;
+			}
+		}
+		tps_queue_low = -1;
+		if ((val = ast_variable_retrieve(cfg, "general", "tps_queue_low"))) {
+			tps_queue_low = atoi(val);
+			if (tps_queue_low <= 0 || tps_queue_low >= tps_queue_high) {
+				ast_log(AST_LOG_WARNING, "Invalid the taskprocessor low water clear alert level '%s'. Using default value.\n", val);
+				tps_queue_low = -1;
+			}
+		}
+		if (ast_taskprocessor_alert_set_levels(mwi_subscription_tps, tps_queue_low, tps_queue_high)) {
+			ast_log(AST_LOG_WARNING, "failed to set alert levels for mwi subscription taskprocessor.\n");
 		}
 
 		/* load mailboxes from users.conf */

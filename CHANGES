@@ -12,6 +12,13 @@
 --- Functionality changes from Asterisk 13.10.0 to Asterisk 13.11.0 ----------
 ------------------------------------------------------------------------------
 
+app_voicemail
+------------------
+ * Added "tps_queue_high" and "tps_queue_low" options.
+   The options can modify the taskprocessor alert levels for this module.
+   Additional information can be found in the sample configuration file at
+   config/samples/voicemail.conf.sample.
+
 chan_dahdi
 ------------------
  * Added "faxdetect_timeout" option.
