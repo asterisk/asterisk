@@ -956,6 +956,27 @@
                                 ; set to this value if there is no better option (such as
                                 ; auth/realm) to be used
 
+                    ; Asterisk Task Processor Queue Size
+                    ; On heavy loaded system with DB storage you may need to increase
+                    ; taskprocessor queue.
+                    ; If the taskprocessor queue size reached high water level,
+                    ; the alert is triggered.
+                    ; If the alert is set the pjsip distibutor stops processing incoming
+                    ; requests until the alert is cleared.
+                    ; The alert is cleared when taskprocessor queue size drops bellow
+                    ; low water clear level.
+                    ; The next options set taskprocessor queue levels for MWI.
+;mwi_tps_queue_high=500 ; Taskprocessor high water alert trigger level.
+;mwi_tps_queue_low=450  ; Taskprocessor low water clear alert level.
+                    ; The default is 90% of high water level.
+
+                    ; Unsolicited MWI
+                    ; If there are endpoints configured with unsolicited MWI
+                    ; then res_pjsip_mwi module tries to send MWI to all endpoints on startup.
+;mwi_disable_initial_unsolicited=no ; Disable sending unsolicited mwi to all endpoints on startup.
+                    ; If disabled then unsolicited mwi will start processing
+                    ; on next endpoint's contact update.
+
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_acl
 ;==========================ACL SECTION OPTIONS=========================
 ;[acl]
@@ -1038,3 +1059,4 @@
                 ; Common variables include LINE, LINEKEYS, etc.
                 ; See phoneprov.conf.sample for others.
 ;type=          ; Must be of type phoneprov (default: "")
+
