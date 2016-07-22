@@ -4205,19 +4205,6 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, uint32_t seqno, in
 		p->pendinginvite = seqno;
 	}
 
-	/* If the transport is something reliable (TCP or TLS) then don't really send this reliably */
-	/* I removed the code from retrans_pkt that does the same thing so it doesn't get loaded into the scheduler */
-	/*! \todo According to the RFC some packets need to be retransmitted even if its TCP, so this needs to get revisited */
-	if (!(p->socket.type & AST_TRANSPORT_UDP)) {
-		xmitres = __sip_xmit(p, data);	/* Send packet */
-		if (xmitres == XMIT_ERROR) {	/* Serious network trouble, no need to try again */
-			append_history(p, "XmitErr", "%s", fatal ? "(Critical)" : "(Non-critical)");
-			return AST_FAILURE;
-		} else {
-			return AST_SUCCESS;
-		}
-	}
-
 	pkt = ao2_alloc_options(sizeof(*pkt), sip_pkt_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!pkt) {
 		return AST_FAILURE;
@@ -4253,6 +4240,10 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, uint32_t seqno, in
 
 	pkt->time_sent = ast_tvnow(); /* time packet was sent */
 	pkt->retrans_stop_time = 64 * (pkt->timer_t1 ? pkt->timer_t1 : DEFAULT_TIMER_T1); /* time in ms after pkt->time_sent to stop retransmission */
+
+	if (!(p->socket.type & AST_TRANSPORT_UDP)) {
+		pkt->retrans_stop = 1;
+	}
 
 	/* Schedule retransmission */
 	ao2_t_ref(pkt, +1, "Schedule packet retransmission");
@@ -24654,6 +24645,7 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 	char *c_copy = ast_strdupa(c);
 	/* Skip the Cseq and its subsequent spaces */
 	const char *msg = ast_skip_blanks(ast_skip_nonblanks(c_copy));
+	int ack_res = FALSE;
 
 	if (!msg)
 		msg = "";
@@ -24668,28 +24660,24 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 		}
 	}
 
-	if (p->socket.type == AST_TRANSPORT_UDP) {
-		int ack_res = FALSE;
+	/* Acknowledge whatever it is destined for */
+	if ((resp >= 100) && (resp <= 199)) {
+		/* NON-INVITE messages do not ack a 1XX response. RFC 3261 section 17.1.2.2 */
+		if (sipmethod == SIP_INVITE) {
+			ack_res = __sip_semi_ack(p, seqno, 0, sipmethod);
+		}
+	} else {
+		ack_res = __sip_ack(p, seqno, 0, sipmethod);
+	}
 
-		/* Acknowledge whatever it is destined for */
-		if ((resp >= 100) && (resp <= 199)) {
-			/* NON-INVITE messages do not ack a 1XX response. RFC 3261 section 17.1.2.2 */
-			if (sipmethod == SIP_INVITE) {
-				ack_res = __sip_semi_ack(p, seqno, 0, sipmethod);
-			}
-		} else {
-			ack_res = __sip_ack(p, seqno, 0, sipmethod);
+	if (ack_res == FALSE) {
+		/* RFC 3261 13.2.2.4 and 17.1.1.2 - We must re-send ACKs to re-transmitted final responses */
+		if (sipmethod == SIP_INVITE && resp >= 200) {
+			transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, resp < 300 ? TRUE: FALSE);
 		}
 
-		if (ack_res == FALSE) {
-			/* RFC 3261 13.2.2.4 and 17.1.1.2 - We must re-send ACKs to re-transmitted final responses */
-			if (sipmethod == SIP_INVITE && resp >= 200) {
-				transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, resp < 300 ? TRUE: FALSE);
-			}
-
-			append_history(p, "Ignore", "Ignoring this retransmit\n");
-			return;
-		}
+		append_history(p, "Ignore", "Ignoring this retransmit\n");
+		return;
 	}
 
 	/* If this is a NOTIFY for a subscription clear the flag that indicates that we have a NOTIFY pending */
