@@ -1696,26 +1696,28 @@ static void my_handle_dtmf(void *pvt, struct ast_channel *ast, enum analog_sub a
 				if (strcmp(ast_channel_exten(ast), "fax")) {
 					const char *target_context = S_OR(ast_channel_macrocontext(ast), ast_channel_context(ast));
 
-					/* We need to unlock 'ast' here because ast_exists_extension has the
+					/*
+					 * We need to unlock 'ast' here because ast_exists_extension has the
 					 * potential to start autoservice on the channel. Such action is prone
-					 * to deadlock.
+					 * to deadlock if the channel is locked.
+					 *
+					 * ast_async_goto() has its own restriction on not holding the
+					 * channel lock.
 					 */
 					ast_mutex_unlock(&p->lock);
 					ast_channel_unlock(ast);
 					if (ast_exists_extension(ast, target_context, "fax", 1,
 						S_COR(ast_channel_caller(ast)->id.number.valid, ast_channel_caller(ast)->id.number.str, NULL))) {
-						ast_channel_lock(ast);
-						ast_mutex_lock(&p->lock);
 						ast_verb(3, "Redirecting %s to fax extension\n", ast_channel_name(ast));
 						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
 						pbx_builtin_setvar_helper(ast, "FAXEXTEN", ast_channel_exten(ast));
 						if (ast_async_goto(ast, target_context, "fax", 1))
 							ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast_channel_name(ast), target_context);
 					} else {
-						ast_channel_lock(ast);
-						ast_mutex_lock(&p->lock);
 						ast_log(LOG_NOTICE, "Fax detected, but no fax extension\n");
 					}
+					ast_channel_lock(ast);
+					ast_mutex_lock(&p->lock);
 				} else {
 					ast_debug(1, "Already in a fax extension, not redirecting\n");
 				}
@@ -7202,26 +7204,28 @@ static void dahdi_handle_dtmf(struct ast_channel *ast, int idx, struct ast_frame
 				if (strcmp(ast_channel_exten(ast), "fax")) {
 					const char *target_context = S_OR(ast_channel_macrocontext(ast), ast_channel_context(ast));
 
-					/* We need to unlock 'ast' here because ast_exists_extension has the
+					/*
+					 * We need to unlock 'ast' here because ast_exists_extension has the
 					 * potential to start autoservice on the channel. Such action is prone
-					 * to deadlock.
+					 * to deadlock if the channel is locked.
+					 *
+					 * ast_async_goto() has its own restriction on not holding the
+					 * channel lock.
 					 */
 					ast_mutex_unlock(&p->lock);
 					ast_channel_unlock(ast);
 					if (ast_exists_extension(ast, target_context, "fax", 1,
 						S_COR(ast_channel_caller(ast)->id.number.valid, ast_channel_caller(ast)->id.number.str, NULL))) {
-						ast_channel_lock(ast);
-						ast_mutex_lock(&p->lock);
 						ast_verb(3, "Redirecting %s to fax extension\n", ast_channel_name(ast));
 						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
 						pbx_builtin_setvar_helper(ast, "FAXEXTEN", ast_channel_exten(ast));
 						if (ast_async_goto(ast, target_context, "fax", 1))
 							ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast_channel_name(ast), target_context);
 					} else {
-						ast_channel_lock(ast);
-						ast_mutex_lock(&p->lock);
 						ast_log(LOG_NOTICE, "Fax detected, but no fax extension\n");
 					}
+					ast_channel_lock(ast);
+					ast_mutex_lock(&p->lock);
 				} else {
 					ast_debug(1, "Already in a fax extension, not redirecting\n");
 				}
