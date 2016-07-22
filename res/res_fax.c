@@ -3700,30 +3700,36 @@ static struct ast_frame *fax_detect_framehook(struct ast_channel *chan, struct a
 	}
 
 	if (result) {
-		const char *target_context = S_OR(ast_channel_macrocontext(chan), ast_channel_context(chan));
+		const char *target_context;
+
 		switch (result) {
 		case 'f':
 		case 't':
+			target_context = S_OR(ast_channel_macrocontext(chan), ast_channel_context(chan));
+
 			ast_channel_unlock(chan);
+			ast_frfree(f);
+			f = &ast_null_frame;
 			if (ast_exists_extension(chan, target_context, "fax", 1,
 			    S_COR(ast_channel_caller(chan)->id.number.valid, ast_channel_caller(chan)->id.number.str, NULL))) {
-				ast_channel_lock(chan);
 				ast_verb(2, "Redirecting '%s' to fax extension due to %s detection\n",
 					ast_channel_name(chan), (result == 'f') ? "CNG" : "T38");
 				pbx_builtin_setvar_helper(chan, "FAXEXTEN", ast_channel_exten(chan));
 				if (ast_async_goto(chan, target_context, "fax", 1)) {
 					ast_log(LOG_NOTICE, "Failed to async goto '%s' into fax of '%s'\n", ast_channel_name(chan), target_context);
 				}
-				ast_frfree(f);
-				f = &ast_null_frame;
 			} else {
-				ast_channel_lock(chan);
 				ast_log(LOG_NOTICE, "FAX %s detected but no fax extension in context (%s)\n",
 					(result == 'f') ? "CNG" : "T38", target_context);
 			}
+			ast_channel_lock(chan);
+
+			ast_framehook_detach(chan, details->faxdetect_id);
+			details->faxdetect_id = -1;
+			break;
+		default:
+			break;
 		}
-		ast_framehook_detach(chan, details->faxdetect_id);
-		details->faxdetect_id = -1;
 	}
 
 	return f;
