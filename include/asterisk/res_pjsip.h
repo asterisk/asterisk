@@ -2463,6 +2463,32 @@ int ast_sip_register_supplement(struct ast_sip_supplement *supplement);
 void ast_sip_unregister_supplement(struct ast_sip_supplement *supplement);
 
 /*!
+ * \brief Retrieve the global MWI taskprocessor high water alert trigger level.
+ *
+ * \since 13.12.0
+ *
+ * \retval the system MWI taskprocessor high water alert trigger level
+ */
+unsigned int ast_sip_get_mwi_tps_queue_high(void);
+
+/*!
+ * \brief Retrieve the global MWI taskprocessor low water clear alert level.
+ *
+ * \since 13.12.0
+ *
+ * \retval the system MWI taskprocessor low water clear alert level
+ */
+int ast_sip_get_mwi_tps_queue_low(void);
+
+/*!
+ * \brief Retrieve the global setting 'disable sending unsolicited mwi on startup'.
+ * \since 13.12.0
+ *
+ * \retval non zero if disable.
+ */
+unsigned int ast_sip_get_mwi_disable_initial_unsolicited(void);
+
+/*!
  * \brief Retrieve the system debug setting (yes|no|host).
  *
  * \note returned string needs to be de-allocated by caller.

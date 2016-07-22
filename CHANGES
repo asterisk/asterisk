@@ -9,6 +9,19 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.11.0 to Asterisk 13.12.0 ----------
+------------------------------------------------------------------------------
+
+res_pjsip_mwi
+------------------
+ * Added "mwi_tps_queue_high" and "mwi_tps_queue_low" global configuration
+   options to tune taskprocessor alert levels.
+ * Added "mwi_disable_initial_unsolicited" global configuration option
+   to disable sending unsolicited MWI to all endpoints on startup.
+   Additional information can be found in the sample configuration file at
+   config/samples/pjsip.conf.sample.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.10.0 to Asterisk 13.11.0 ----------
 ------------------------------------------------------------------------------
 
