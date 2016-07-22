@@ -21,6 +21,8 @@
 #ifndef _ASTERISK_RES_SRTP_H
 #define _ASTERISK_RES_SRTP_H
 
+#include "asterisk.h"                   /* for size_t */
+
 struct ast_srtp;
 struct ast_srtp_policy;
 struct ast_rtp_instance;
@@ -52,9 +54,17 @@ struct ast_srtp_res {
 
 /* Crypto suites */
 enum ast_srtp_suite {
+	/* https://www.iana.org/assignments/srtp-protection/srtp-protection.xhtml */
 	AST_AES_CM_128_HMAC_SHA1_80 = 1,
-	AST_AES_CM_128_HMAC_SHA1_32 = 2,
-	AST_F8_128_HMAC_SHA1_80     = 3
+	AST_AES_CM_128_HMAC_SHA1_32,
+	AST_AES_CM_256_HMAC_SHA1_80,
+	AST_AES_CM_256_HMAC_SHA1_32,
+	AST_AES_GCM_128             = 7,
+	AST_AES_GCM_256,
+	AST_AES_GCM_128_8,
+	AST_AES_GCM_256_8,
+	AST_AES_CM_192_HMAC_SHA1_80,
+	AST_AES_CM_192_HMAC_SHA1_32,
 };
 
 struct ast_srtp_policy_res {
