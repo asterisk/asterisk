@@ -1496,6 +1496,48 @@
 						set to this value if there is no better option (such as auth/realm) to be
 						used.</synopsis>
 				</configOption>
+				<configOption name="mwi_tps_queue_high" default="500">
+					<synopsis>MWI taskprocessor high water alert trigger level.</synopsis>
+					<description>
+						<para>On a heavily loaded system you may need to adjust the
+						taskprocessor queue limits.  If any taskprocessor queue size
+						reaches its high water level then pjsip will stop processing
+						new requests until the alert is cleared.  The alert clears
+						when all alerting taskprocessor queues have dropped to their
+						low water clear level.
+						</para>
+					</description>
+				</configOption>
+				<configOption name="mwi_tps_queue_low" default="-1">
+					<synopsis>MWI taskprocessor low water clear alert level.</synopsis>
+					<description>
+						<para>On a heavily loaded system you may need to adjust the
+						taskprocessor queue limits.  If any taskprocessor queue size
+						reaches its high water level then pjsip will stop processing
+						new requests until the alert is cleared.  The alert clears
+						when all alerting taskprocessor queues have dropped to their
+						low water clear level.
+						</para>
+						<note><para>Set to -1 for the low water level to be 90% of
+						the high water level.</para></note>
+					</description>
+				</configOption>
+				<configOption name="mwi_disable_initial_unsolicited" default="no">
+					<synopsis>Enable/Disable sending unsolicited MWI to all endpoints on startup.</synopsis>
+					<description>
+						<para>When the initial unsolicited MWI notification are
+						enabled on startup then the initial notifications
+						get sent at startup.  If you have a lot of endpoints
+						(thousands) that use unsolicited MWI then you may
+						want to consider disabling the initial startup
+						notifications.
+						</para>
+						<para>When the initial unsolicited MWI notifications are
+						disabled on startup then the notifications will start
+						on the endpoint's next contact update.
+						</para>
+					</description>
+				</configOption>
 			</configObject>
 		</configFile>
 	</configInfo>
