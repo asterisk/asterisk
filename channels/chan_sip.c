@@ -8605,29 +8605,31 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 	if (faxdetected && ast_test_flag(&p->flags[1], SIP_PAGE2_FAX_DETECT_CNG)) {
 		if (strcmp(ast_channel_exten(ast), "fax")) {
 			const char *target_context = S_OR(ast_channel_macrocontext(ast), ast_channel_context(ast));
-			/* We need to unlock 'ast' here because
+			/*
+			 * We need to unlock 'ast' here because
 			 * ast_exists_extension has the potential to start and
 			 * stop an autoservice on the channel. Such action is
 			 * prone to deadlock if the channel is locked.
+			 *
+			 * ast_async_goto() has its own restriction on not holding
+			 * the channel lock.
 			 */
 			sip_pvt_unlock(p);
 			ast_channel_unlock(ast);
+			ast_frfree(fr);
+			fr = &ast_null_frame;
 			if (ast_exists_extension(ast, target_context, "fax", 1,
 				S_COR(ast_channel_caller(ast)->id.number.valid, ast_channel_caller(ast)->id.number.str, NULL))) {
-				ast_channel_lock(ast);
-				sip_pvt_lock(p);
 				ast_verb(2, "Redirecting '%s' to fax extension due to CNG detection\n", ast_channel_name(ast));
 				pbx_builtin_setvar_helper(ast, "FAXEXTEN", ast_channel_exten(ast));
 				if (ast_async_goto(ast, target_context, "fax", 1)) {
 					ast_log(LOG_NOTICE, "Failed to async goto '%s' into fax of '%s'\n", ast_channel_name(ast), target_context);
 				}
-				ast_frfree(fr);
-				fr = &ast_null_frame;
 			} else {
-				ast_channel_lock(ast);
-				sip_pvt_lock(p);
 				ast_log(LOG_NOTICE, "FAX CNG detected but no fax extension\n");
 			}
+			ast_channel_lock(ast);
+			sip_pvt_lock(p);
 		}
 	}
 
