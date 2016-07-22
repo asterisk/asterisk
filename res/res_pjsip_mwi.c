@@ -35,6 +35,7 @@
 #include "asterisk/module.h"
 #include "asterisk/logger.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/taskprocessor.h"
 #include "asterisk/sorcery.h"
 #include "asterisk/stasis.h"
 #include "asterisk/app.h"
@@ -346,6 +347,8 @@ static void set_voicemail_extension(pj_pool_t *pool, pjsip_sip_uri *local_uri,
 		pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, account_uri, counter->message_account, sizeof(counter->message_account));
 	}
 }
+
+static struct ast_taskprocessor *unsolicited_mwi_tps;
 
 struct unsolicited_mwi_data {
 	struct mwi_subscription *sub;
@@ -945,7 +948,7 @@ static int send_notify(void *obj, void *arg, int flags)
 	struct mwi_subscription *mwi_sub = obj;
 	struct ast_taskprocessor *serializer = mwi_sub->is_solicited
 		? ast_sip_subscription_get_serializer(mwi_sub->sip_sub)
-		: NULL;
+		: unsolicited_mwi_tps;
 
 	if (ast_sip_push_task(serializer, serialized_notify, ao2_bump(mwi_sub))) {
 		ao2_ref(mwi_sub, -1);
@@ -1063,7 +1066,7 @@ static int send_contact_notify(void *obj, void *arg, int flags)
 		return 0;
 	}
 
-	if (ast_sip_push_task(NULL, serialized_notify, ao2_bump(mwi_sub))) {
+	if (ast_sip_push_task(unsolicited_mwi_tps, serialized_notify, ao2_bump(mwi_sub))) {
 		ao2_ref(mwi_sub, -1);
 	}
 
@@ -1140,7 +1143,7 @@ static void mwi_startup_event_cb(void *data, struct stasis_subscription *sub, st
 		return;
 	}
 
-	ast_sip_push_task(NULL, send_initial_notify_all, NULL);
+	ast_sip_push_task(unsolicited_mwi_tps, send_initial_notify_all, NULL);
 
 	stasis_unsubscribe(sub);
 }
@@ -1174,6 +1177,12 @@ static int load_module(void)
 		ast_sip_unregister_subscription_handler(&mwi_handler);
 		return AST_MODULE_LOAD_DECLINE;
 	}
+	if (!(unsolicited_mwi_tps = ast_taskprocessor_get("unsolicited_mwi", 0))) {
+		ast_log(AST_LOG_WARNING, "failed to reference unsolicited mwi taskprocessor.  Unsolicited MWI will not work\n");
+	}
+	if (taskprocessor_alert_set_levels(unsolicited_mwi_tps, -1, 3 * AST_TASKPROCESSOR_HIGH_WATER_LEVEL)) {
+		ast_log(AST_LOG_WARNING, "failed to set alert levels for unsolicited mwi taskprocessor.\n");
+	}
 
 	create_mwi_subscriptions();
 	ast_sorcery_observer_add(ast_sip_get_sorcery(), "contact", &mwi_contact_observer);
@@ -1181,7 +1190,7 @@ static int load_module(void)
 	ast_sorcery_reload_object(ast_sip_get_sorcery(), "global");
 
 	if (ast_test_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED)) {
-		ast_sip_push_task(NULL, send_initial_notify_all, NULL);
+		ast_sip_push_task(unsolicited_mwi_tps, send_initial_notify_all, NULL);
 	} else {
 		stasis_subscribe_pool(ast_manager_get_topic(), mwi_startup_event_cb, NULL);
 	}
@@ -1191,6 +1200,7 @@ static int load_module(void)
 
 static int unload_module(void)
 {
+	unsolicited_mwi_tps = ast_taskprocessor_unreference(unsolicited_mwi_tps);
 	ao2_callback(unsolicited_mwi, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, unsubscribe, NULL);
 	ao2_ref(unsolicited_mwi, -1);
 	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "global", &global_observer);
