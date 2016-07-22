@@ -1,3 +1,10 @@
+"""
+Copyright (C) 2016, Digium, Inc.
+
+This program is free software, distributed under the terms of
+the GNU General Public License Version 2.
+"""
+
 import re
 import itertools
 
@@ -43,6 +50,12 @@ class Section(MultiOrderedDict):
         Use self.id as means of determining equality
         """
         return cmp(self.id, other.id)
+
+    def __eq__(self, other):
+        """
+        Use self.id as means of determining equality
+        """
+        return self.id == other.id
 
     def get(self, key, from_self=True, from_templates=True,
             from_defaults=True):
@@ -184,9 +197,15 @@ def remove_comment(line, is_comment):
         # otherwise it was an embedded comment so combine
         return ''.join([part[0].strip(), ' ', line]).rstrip(), False
 
-    # check for eol comment
-    return line.partition(COMMENT)[0].strip(), False
+    # find the first occurence of a comment that is not escaped
+    match = re.match(r'(?<!\\)(?:\\\\)*;', line)
 
+    if match:
+         # the end of where the real string is is where the escaped part is
+         end = match.start()
+         line = line[0:end]
+
+    return line.replace("\\", "").strip(), False
 
 def try_include(line):
     """
@@ -224,7 +243,7 @@ def try_section(line):
 
 def try_option(line):
     """Parses the line as an option, returning the key/value pair."""
-    data = re.split('=>?', line)
+    data = re.split('=>?', line, 1)
     # should split in two (key/val), but either way use first two elements
     return data[0].rstrip(), data[1].lstrip()
 
