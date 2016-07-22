@@ -2345,7 +2345,6 @@ static void my_pri_ss7_open_media(void *p)
 
 	if (pvt->dsp_features && pvt->dsp) {
 		ast_dsp_set_features(pvt->dsp, pvt->dsp_features);
-		pvt->dsp_features = 0;
 	}
 }
 #endif	/* defined(HAVE_PRI) || defined(HAVE_SS7) */
@@ -8640,6 +8639,15 @@ static struct ast_frame *dahdi_read(struct ast_channel *ast)
 		/* Perform busy detection etc on the dahdi line */
 		int mute;
 
+		if ((p->dsp_features & DSP_FEATURE_FAX_DETECT)
+			&& p->faxdetect_timeout
+			&& p->faxdetect_timeout <= ast_channel_get_up_time(ast)) {
+			p->dsp_features &= ~DSP_FEATURE_FAX_DETECT;
+			ast_dsp_set_features(p->dsp, p->dsp_features);
+			ast_debug(1, "Channel driver fax CNG detection timeout on %s\n",
+				ast_channel_name(ast));
+		}
+
 		f = ast_dsp_process(ast, p->dsp, &p->subs[idx].f);
 
 		/* Check if DSP code thinks we should be muting this frame and mute the conference if so */
@@ -12539,6 +12547,7 @@ static struct dahdi_pvt *mkintf(int channel, const struct dahdi_chan_conf *conf,
 		tmp->callprogress = conf->chan.callprogress;
 		tmp->waitfordialtone = conf->chan.waitfordialtone;
 		tmp->dialtone_detect = conf->chan.dialtone_detect;
+		tmp->faxdetect_timeout = conf->chan.faxdetect_timeout;
 		tmp->cancallforward = conf->chan.cancallforward;
 		tmp->dtmfrelax = conf->chan.dtmfrelax;
 		tmp->callwaiting = tmp->permcallwaiting;
@@ -17790,6 +17799,10 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				confp->chan.callprogress |= CALLPROGRESS_FAX_OUTGOING;
 			} else if (!strcasecmp(v->value, "both") || ast_true(v->value))
 				confp->chan.callprogress |= CALLPROGRESS_FAX_INCOMING | CALLPROGRESS_FAX_OUTGOING;
+		} else if (!strcasecmp(v->name, "faxdetect_timeout")) {
+			if (sscanf(v->value, "%30u", &confp->chan.faxdetect_timeout) != 1) {
+				confp->chan.faxdetect_timeout = 0;
+			}
 		} else if (!strcasecmp(v->name, "echocancel")) {
 			process_echocancel(confp, v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "echotraining")) {

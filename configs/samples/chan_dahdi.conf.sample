@@ -1119,6 +1119,15 @@ pickupgroup=1
 ;faxdetect=outgoing
 ;faxdetect=no
 ;
+; When 'faxdetect' is enabled, one could use 'faxdetect_timeout' to disable fax
+; detection after the specified number of seconds into a call.  Be aware that
+; outgoing analog channels may consider the channel is answered immediately
+; when dialing completes.  Analog does not have a reliable method of detecting
+; when the far end answers.  Zero disables the timeout.
+; Default is 0 to disable the timeout.
+;
+;faxdetect_timeout=30
+;
 ; When 'faxdetect' is used, one could use 'faxbuffers' to configure the DAHDI
 ; transmit buffer policy.  The default is *OFF*.  When this configuration
 ; option is used, the faxbuffer policy will be used for the life of the call
