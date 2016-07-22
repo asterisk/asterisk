@@ -14871,6 +14871,12 @@ static int load_module(void)
 		ast_log(AST_LOG_WARNING, "failed to reference mwi subscription taskprocessor.  MWI will not work\n");
 	}
 
+#ifdef IMAP_STORAGE
+	if (ast_taskprocessor_alert_set_levels(mwi_subscription_tps, -1, 3 * AST_TASKPROCESSOR_HIGH_WATER_LEVEL)) {
+		ast_log(AST_LOG_WARNING, "failed to set alert levels for mwi subscription taskprocessor.\n");
+	}
+#endif
+
 	if ((res = load_config(0))) {
 		unload_module();
 		return AST_MODULE_LOAD_DECLINE;
