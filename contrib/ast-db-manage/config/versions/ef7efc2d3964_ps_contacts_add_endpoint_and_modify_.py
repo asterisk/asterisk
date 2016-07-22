@@ -24,10 +24,10 @@ def upgrade():
     else:
         op.execute('ALTER TABLE ps_contacts ALTER COLUMN expiration_time TYPE BIGINT USING expiration_time::bigint')
 
-    op.create_index('ps_contacts_qualifyfreq_exptime', 'ps_contacts', ['qualify_frequency', 'expiration_time'])
+    op.create_index('ps_contacts_qualifyfreq_exp', 'ps_contacts', ['qualify_frequency', 'expiration_time'])
     op.create_index('ps_aors_qualifyfreq_contact', 'ps_aors', ['qualify_frequency', 'contact'])
 def downgrade():
     op.drop_index('ps_aors_qualifyfreq_contact')
-    op.drop_index('ps_contacts_qualifyfreq_exptime')
+    op.drop_index('ps_contacts_qualifyfreq_exp')
     op.drop_column('ps_contacts', 'endpoint')
     op.alter_column('ps_contacts', 'expiration_time', type_=sa.String(40))
