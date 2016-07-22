@@ -171,8 +171,7 @@ enum gsamp_thresh {
  */
 
 #define DTMF_THRESHOLD		8.0e7
-#define FAX_THRESHOLD		8.0e7
-#define FAX_2ND_HARMONIC	2.0     /* 4dB */
+#define TONE_THRESHOLD		7.8e7
 
 #define DEF_DTMF_NORMAL_TWIST		6.31	 /* 8.0dB */
 #define DEF_RELAX_DTMF_NORMAL_TWIST	6.31	 /* 8.0dB */
@@ -187,8 +186,6 @@ enum gsamp_thresh {
 
 #define DTMF_RELATIVE_PEAK_ROW	6.3     /* 8dB */
 #define DTMF_RELATIVE_PEAK_COL	6.3     /* 8dB */
-#define DTMF_2ND_HARMONIC_ROW       (relax ? 1.7 : 2.5)     /* 4dB normal */
-#define DTMF_2ND_HARMONIC_COL	63.1    /* 18dB */
 #define DTMF_TO_TOTAL_ENERGY	42.0
 
 #define BELL_MF_THRESHOLD	1.6e9
@@ -583,7 +580,8 @@ static int tone_detect(struct ast_dsp *dsp, tone_detect_state_t *s, int16_t *amp
 
 		ast_debug(10, "tone %d, Ew=%.2E, Et=%.2E, s/n=%10.2f\n", s->freq, tone_energy, s->energy, tone_energy / (s->energy - tone_energy));
 		hit = 0;
-		if (tone_energy > s->energy * s->threshold) {
+		if (TONE_THRESHOLD <= tone_energy
+			&& tone_energy > s->energy * s->threshold) {
 			ast_debug(10, "Hit! count=%d\n", s->hit_count);
 			hit = 1;
 		}
