@@ -24,6 +24,7 @@
 #include "asterisk/res_pjsip.h"
 #include "include/res_pjsip_private.h"
 #include "asterisk/sorcery.h"
+#include "asterisk/taskprocessor.h"
 #include "asterisk/ast_version.h"
 #include "asterisk/res_pjsip_cli.h"
 
@@ -43,6 +44,9 @@
 #define DEFAULT_UNIDENTIFIED_REQUEST_COUNT 5
 #define DEFAULT_UNIDENTIFIED_REQUEST_PERIOD 5
 #define DEFAULT_UNIDENTIFIED_REQUEST_PRUNE_INTERVAL 30
+#define DEFAULT_MWI_TPS_QUEUE_HIGH AST_TASKPROCESSOR_HIGH_WATER_LEVEL
+#define DEFAULT_MWI_TPS_QUEUE_LOW -1
+#define DEFAULT_MWI_DISABLE_INITIAL_UNSOLICITED 0
 
 static char default_useragent[256];
 
@@ -79,6 +83,14 @@ struct global_config {
 	unsigned int unidentified_request_period;
 	/* Interval at which expired unidentifed requests will be pruned */
 	unsigned int unidentified_request_prune_interval;
+	struct {
+		/*! Taskprocessor high water alert trigger level */
+		unsigned int tps_queue_high;
+		/*! Taskprocessor low water clear alert level. */
+		int tps_queue_low;
+		/*! Nonzero to disable sending unsolicited mwi to all endpoints on startup */
+		unsigned int disable_initial_unsolicited;
+	} mwi;
 };
 
 static void global_destructor(void *obj)
@@ -314,6 +326,53 @@ void ast_sip_get_default_from_user(char *from_user, size_t size)
 	}
 }
 
+
+unsigned int ast_sip_get_mwi_tps_queue_high(void)
+{
+	unsigned int tps_queue_high;
+	struct global_config *cfg;
+
+	cfg = get_global_cfg();
+	if (!cfg) {
+		return DEFAULT_MWI_TPS_QUEUE_HIGH;
+	}
+
+	tps_queue_high = cfg->mwi.tps_queue_high;
+	ao2_ref(cfg, -1);
+	return tps_queue_high;
+}
+
+int ast_sip_get_mwi_tps_queue_low(void)
+{
+	int tps_queue_low;
+	struct global_config *cfg;
+
+	cfg = get_global_cfg();
+	if (!cfg) {
+		return DEFAULT_MWI_TPS_QUEUE_LOW;
+	}
+
+	tps_queue_low = cfg->mwi.tps_queue_low;
+	ao2_ref(cfg, -1);
+	return tps_queue_low;
+}
+
+unsigned int ast_sip_get_mwi_disable_initial_unsolicited(void)
+{
+	unsigned int disable_initial_unsolicited;
+	struct global_config *cfg;
+
+	cfg = get_global_cfg();
+	if (!cfg) {
+		return DEFAULT_MWI_DISABLE_INITIAL_UNSOLICITED;
+	}
+
+	disable_initial_unsolicited = cfg->mwi.disable_initial_unsolicited;
+	ao2_ref(cfg, -1);
+	return disable_initial_unsolicited;
+}
+
+
 /*!
  * \internal
  * \brief Observer to set default global object if none exist.
@@ -450,6 +509,15 @@ int ast_sip_initialize_sorcery_global(void)
 		OPT_UINT_T, 0, FLDSET(struct global_config, unidentified_request_prune_interval));
 	ast_sorcery_object_field_register(sorcery, "global", "default_realm", DEFAULT_REALM,
 		OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, default_realm));
+	ast_sorcery_object_field_register(sorcery, "global", "mwi_tps_queue_high",
+		__stringify(DEFAULT_MWI_TPS_QUEUE_HIGH),
+		OPT_UINT_T, 0, FLDSET(struct global_config, mwi.tps_queue_high));
+	ast_sorcery_object_field_register(sorcery, "global", "mwi_tps_queue_low",
+		__stringify(DEFAULT_MWI_TPS_QUEUE_LOW),
+		OPT_INT_T, 0, FLDSET(struct global_config, mwi.tps_queue_low));
+	ast_sorcery_object_field_register(sorcery, "global", "mwi_disable_initial_unsolicited",
+		DEFAULT_MWI_DISABLE_INITIAL_UNSOLICITED? "yes" : "no",
+		OPT_BOOL_T, 1, FLDSET(struct global_config, mwi.disable_initial_unsolicited));
 
 	if (ast_sorcery_instance_observer_add(sorcery, &observer_callbacks_global)) {
 		return -1;
