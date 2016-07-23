@@ -890,7 +890,7 @@ ASTERISK_REGISTER_FILE()
 		</syntax>
 		<description>
 			<para>Using 'EAGI' provides enhanced AGI, with incoming audio available out of band
-			on file descriptor 3.</para>
+			on file descriptor 3. The audio format may be set by using the variable EAGI_AUDIO_FORMAT prior to calling EAGI, for example Set(EAGI_AUDIO_FORMAT=slin48). If the variable is not set then the default audio format is 8kHz mono slin.</para>
 			<xi:include xpointer="xpointer(/docs/application[@name='AGI']/description/para)" />
 			<xi:include xpointer="xpointer(/docs/application[@name='AGI']/description/variablelist)" />
 		</description>
@@ -4232,14 +4232,28 @@ static int eagi_exec(struct ast_channel *chan, const char *data)
 {
 	int res;
 	struct ast_format *readformat;
+	struct ast_format *requested_format;
+	char *ret;
+	char tempstr[1024] = "";
 
 	if (ast_check_hangup(chan)) {
 		ast_log(LOG_ERROR, "EAGI cannot be run on a dead/hungup channel, please use AGI.\n");
 		return 0;
 	}
 	readformat = ao2_bump(ast_channel_readformat(chan));
-	if (ast_set_read_format(chan, ast_format_slin)) {
-		ast_log(LOG_WARNING, "Unable to set channel '%s' to linear mode\n", ast_channel_name(chan));
+
+	// set format according to EAGI_AUDIO_FORMAT variable else use slin
+	pbx_retrieve_variable(chan, "EAGI_AUDIO_FORMAT", &ret, tempstr, sizeof(tempstr), NULL);
+	ast_verb(3, "EAGI_AUDIO_FORMAT = %s\n", tempstr);
+	requested_format = ast_format_cache_get(tempstr);
+	if (requested_format == NULL) {
+		requested_format = ast_format_slin;
+		ast_verb(3, "Setting EAGI audio format to default slin\n");
+	} else  {
+		ast_verb(3, "Setting EAGI audio format to requested %s\n",tempstr);
+	}
+	if (ast_set_read_format(chan, requested_format)) {
+		ast_log(LOG_WARNING, "Unable to set channel '%s' to requested mode\n", ast_channel_name(chan));
 		ao2_ref(readformat, -1);
 		return -1;
 	}
