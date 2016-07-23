@@ -18,24 +18,47 @@
 
 /*!
  * \file
- * \brief Opus Format Attributes (http://tools.ietf.org/html/draft-ietf-payload-rtp-opus)
+ * \brief Codec opus externals and format attributes
  *
- * \author Lorenzo Miniero <lorenzo@meetecho.com>
+ * RFC - https://tools.ietf.org/rfc/rfc7587.txt
  */
 #ifndef _AST_FORMAT_OPUS_H_
 #define _AST_FORMAT_OPUS_H_
 
-/*! Opus format attribute key value pairs, all are accessible through ast_format_get_value()*/
-enum opus_attr_keys {
-	OPUS_ATTR_KEY_MAX_BITRATE, /*! value is an int (6000-510000 in spec). */
-	OPUS_ATTR_KEY_MAX_PLAYRATE, /*! value is an int (8000-48000), maximum output rate the receiver can render. */
-	OPUS_ATTR_KEY_MINPTIME, /*! value is an int (3-120 in spec, 10-60 in format.c), decoder's minimum length of time in milliseconds. */
-	OPUS_ATTR_KEY_STEREO, /*! value is an int, 1 prefer receiving stereo, 0 prefer mono. */
-	OPUS_ATTR_KEY_CBR, /*! value is an int, 1 use constant bitrate, 0 use variable bitrate. */
-	OPUS_ATTR_KEY_FEC, /*! value is an int, 1 encode with FEC, 0 do not use FEC. */
-	OPUS_ATTR_KEY_DTX, /*! value is an int, 1 dtx is enabled, 0 dtx not enabled. */
-	OPUS_ATTR_KEY_SPROP_CAPTURE_RATE, /*! value is an int (8000-48000), likely input rate we're going to produce. */
-	OPUS_ATTR_KEY_SPROP_STEREO, /*! value is an int, 1 likely to send stereo, 0 likely to send mono. */
-};
+/*! \brief Maximum sampling rate an endpoint is capable of receiving */
+#define CODEC_OPUS_ATTR_MAX_PLAYBACK_RATE "maxplaybackrate"
+/*! \brief An alias for maxplaybackrate (used in older versions) */
+#define CODEC_OPUS_ATTR_MAX_CODED_AUDIO_BANDWIDTH "maxcodedaudiobandwidth"
+/*! \brief Maximum sampling rate an endpoint is capable of sending */
+#define CODEC_OPUS_ATTR_SPROP_MAX_CAPTURE_RATE "sprop-maxcapturerate"
+/*! \brief Maximum duration of packet (in milliseconds) */
+#define CODEC_OPUS_ATTR_MAX_PTIME "maxptime"
+/*! \brief Duration of packet (in milliseconds) */
+#define CODEC_OPUS_ATTR_PTIME "ptime"
+/*! \brief Maximum average received bit rate (in bits per second) */
+#define CODEC_OPUS_ATTR_MAX_AVERAGE_BITRATE "maxaveragebitrate"
+/*! \brief Decode stereo (1) vs mono (0) */
+#define CODEC_OPUS_ATTR_STEREO "stereo"
+/*! \brief Likeliness of sender producing stereo (1) vs mono (0) */
+#define CODEC_OPUS_ATTR_SPROP_STEREO "sprop-stereo"
+/*! \brief Decoder prefers a constant (1) vs variable (0) bitrate */
+#define CODEC_OPUS_ATTR_CBR "cbr"
+/*! \brief Use forward error correction (1) or not (0) */
+#define CODEC_OPUS_ATTR_FEC "useinbandfec"
+/*! \brief Use discontinuous transmission (1) or not (0) */
+#define CODEC_OPUS_ATTR_DTX "usedtx"
+/*! \brief Custom data object */
+#define CODEC_OPUS_ATTR_DATA "data"
+
+/*! \brief Default attribute values */
+#define CODEC_OPUS_DEFAULT_SAMPLE_RATE 48000
+#define CODEC_OPUS_DEFAULT_MAX_PLAYBACK_RATE 48000
+#define CODEC_OPUS_DEFAULT_MAX_PTIME 120
+#define CODEC_OPUS_DEFAULT_PTIME 20
+#define CODEC_OPUS_DEFAULT_BITRATE -1000 /* OPUS_AUTO */
+#define CODEC_OPUS_DEFAULT_CBR 0
+#define CODEC_OPUS_DEFAULT_FEC 0
+#define CODEC_OPUS_DEFAULT_DTX 0
+#define CODEC_OPUS_DEFAULT_STEREO 0
 
 #endif /* _AST_FORMAT_OPUS_H */
