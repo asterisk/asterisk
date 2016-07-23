@@ -4245,7 +4245,7 @@ static int eagi_exec(struct ast_channel *chan, const char *data)
 	// set format according to EAGI_AUDIO_FORMAT variable else use sln
 	pbx_retrieve_variable(chan, "EAGI_AUDIO_FORMAT", &ret, tempstr, sizeof(tempstr), NULL);
 	ast_verb(3, "EAGI_AUDIO_FORMAT = %s\n", tempstr);
-	requested_format = __ast_format_cache_get(tempstr);
+	requested_format = ast_format_cache_get(tempstr);
 	if (requested_format == NULL) {
 		requested_format = ast_format_slin;
 		ast_verb(3, "Setting EAGI audio format to default slin\n");
