@@ -2808,6 +2808,11 @@ res_agi (Asterisk Gateway Interface)
    whether it specifies the case of uppercase, lowercase, or all letters to
    provide functionality similar to SayAlphaCase.
 
+ * The audio format output on file descriptor 3 when using EAGI can now be
+   set by using the EAGI_AUDIO_FORMAT variable in the dialplan before calling
+   the EAGI script, for example: Set(EAGI_AUDIO_FORMAT=slin48). If the variable
+   is not set then the format defaults to the existing behaviour (slin).
+
 res_ari (Asterisk RESTful Interface) (and others)
 ------------------
  * The Asterisk RESTful Interface (ARI) provides a mechanism to expose and
