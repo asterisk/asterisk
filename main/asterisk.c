@@ -248,6 +248,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/endpoints.h"
 #include "asterisk/codec.h"
 #include "asterisk/format_cache.h"
+#include "asterisk/astdb.h"
 
 #include "../defaults.h"
 
@@ -600,6 +601,11 @@ void ast_unregister_thread(void *id)
 	}
 }
 
+int ast_pbx_uuid_get(char *pbx_uuid, int length)
+{
+	return ast_db_get("pbx", "UUID", pbx_uuid, length);
+}
+
 /*! \brief Give an overview of core settings */
 static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -607,6 +613,7 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	struct ast_tm tm;
 	char eid_str[128];
 	struct rlimit limits;
+	char pbx_uuid[AST_UUID_STR_LEN];
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -619,6 +626,7 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	}
 
 	ast_eid_to_str(eid_str, sizeof(eid_str), &ast_eid_default);
+	ast_pbx_uuid_get(pbx_uuid, sizeof(pbx_uuid));
 
 	ast_cli(a->fd, "\nPBX Core settings\n");
 	ast_cli(a->fd, "-----------------\n");
@@ -657,6 +665,7 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "  System:                      %s/%s built by %s on %s %s\n", ast_build_os, ast_build_kernel, ast_build_user, ast_build_machine, ast_build_date);
 	ast_cli(a->fd, "  System name:                 %s\n", ast_config_AST_SYSTEM_NAME);
 	ast_cli(a->fd, "  Entity ID:                   %s\n", eid_str);
+	ast_cli(a->fd, "  PBX UUID:                    %s\n", pbx_uuid);
 	ast_cli(a->fd, "  Default language:            %s\n", ast_defaultlanguage);
 	ast_cli(a->fd, "  Language prefix:             %s\n", ast_language_is_prefix ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  User name and group:         %s/%s\n", ast_config_AST_RUN_USER, ast_config_AST_RUN_GROUP);
@@ -4305,6 +4314,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	int num;
 	char *buf;
 	int moduleresult;         /*!< Result from the module load subsystem */
+	char pbx_uuid[AST_UUID_STR_LEN];
 
 	/* This needs to remain as high up in the initial start up as possible.
 	 * daemon causes a fork to occur, which has all sorts of unintended
@@ -4410,6 +4420,24 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 		ast_el_read_default_histfile();
 	}
 
+#ifdef AST_XML_DOCS
+	/* Load XML documentation. */
+	ast_xmldoc_load_documentation();
+#endif
+
+	if (astdb_init()) {
+		printf("Failed: astdb_init\n%s", term_quit());
+		exit(1);
+	}
+
+	ast_uuid_init();
+
+	if (ast_pbx_uuid_get(pbx_uuid, sizeof(pbx_uuid))) {
+		ast_uuid_generate_str(pbx_uuid, sizeof(pbx_uuid));
+		ast_db_put("pbx", "UUID", pbx_uuid);
+	}
+	ast_verb(0, "PBX UUID: %s\n", pbx_uuid);
+
 	ast_json_init();
 	ast_ulaw_init();
 	ast_alaw_init();
@@ -4450,7 +4478,6 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	}
 
 	ast_aoc_cli_init();
-	ast_uuid_init();
 
 	if (ast_sorcery_init()) {
 		printf("Failed: ast_sorcery_init\n%s", term_quit());
@@ -4476,11 +4503,6 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 		printf("Failed: ast_codec_builtin_init\n%s", term_quit());
 		exit(1);
 	}
-
-#ifdef AST_XML_DOCS
-	/* Load XML documentation. */
-	ast_xmldoc_load_documentation();
-#endif
 
 	aco_init();
 
@@ -4562,11 +4584,6 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 
 	if (devstate_init()) {
 		printf("Device state core initialization failed.\n%s", term_quit());
-		exit(1);
-	}
-
-	if (astdb_init()) {
-		printf("Failed: astdb_init\n%s", term_quit());
 		exit(1);
 	}
 
