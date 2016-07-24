@@ -16,6 +16,8 @@ enum {
 	COLUMN_USES,
 	/*! Conflicts */
 	COLUMN_CNFS,
+	/*! Description */
+	COLUMN_DESC,
 	/*! Number of columns, must be the last element in the enum */
 	NUM_COLUMNS,
 };
@@ -254,7 +256,8 @@ int run_menu(void)
 		G_TYPE_BOOLEAN,  /* COLUMN_SELECTED */
 		G_TYPE_STRING,   /* COLUMN_DEPS */
 		G_TYPE_STRING,   /* COLUMN_USES */
-		G_TYPE_STRING);  /* COLUMN_CNFS */
+		G_TYPE_STRING,  /* COLUMN_CNFS */
+		G_TYPE_STRING);  /* COLUMN_DESC */
 
 	AST_LIST_TRAVERSE(&categories, cat, list) {
 		GtkTreeIter iter, iter2;
@@ -307,6 +310,7 @@ int run_menu(void)
 				COLUMN_DEPS, dep_buf,
 				COLUMN_USES, use_buf,
 				COLUMN_CNFS, cnf_buf,
+				COLUMN_DESC, mem->displayname,
 				-1);
 		}
 	}
@@ -344,6 +348,11 @@ int run_menu(void)
 				renderer, "text", COLUMN_CNFS, NULL);
 	gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
 	
+	renderer = gtk_cell_renderer_text_new();
+	column = gtk_tree_view_column_new_with_attributes("Description",
+				renderer, "text", COLUMN_DESC, NULL);
+	gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
+
 	g_signal_connect(tree, "row-activated", (GCallback) row_activated_handler, store);
 
 	gtk_container_add(GTK_CONTAINER(s_window), GTK_WIDGET(tree));
