@@ -17,6 +17,10 @@
 
 -include $(ASTTOPDIR)/makeopts
 
+# Helpful functions
+# call with $(call function,...)
+tolower = $(shell echo $(1) | tr '[:upper:]' '[:lower:]')
+
 .PHONY: dist-clean
 
 # If 'make' decides to create intermediate files to satisfy a build requirement
