@@ -194,46 +194,49 @@ static void display_mem_info(WINDOW *menu, struct member *mem, int start_y, int 
 	int start_x = (max_x / 2 - MEMBER_INFO_LEFT_ADJ);
 	int maxlen = (max_x - start_x);
 
-	wmove(menu, end - start_y + 1, start_x);
+	wmove(menu, end - start_y + 1, 0);
 	wclrtoeol(menu);
-	wmove(menu, end - start_y + 2, start_x);
+	wmove(menu, end - start_y + 2, 0);
 	wclrtoeol(menu);
-	wmove(menu, end - start_y + 3, start_x);
+	wmove(menu, end - start_y + 3, 0);
 	wclrtoeol(menu);
-	wmove(menu, end - start_y + 4, start_x);
+	wmove(menu, end - start_y + 4, 0);
 	wclrtoeol(menu);
-	wmove(menu, end - start_y + 5, start_x);
+	wmove(menu, end - start_y + 5, 0);
 	wclrtoeol(menu);
-	wmove(menu, end - start_y + 6, start_x);
+	wmove(menu, end - start_y + 6, 0);
+	wclrtoeol(menu);
+	wmove(menu, end - start_y + 7, 0);
 	wclrtoeol(menu);
 
 	if (mem->displayname) {
-		int name_len = strlen(mem->displayname);
+		char buf[maxlen + 1];
+		char *displayname = strdupa(mem->displayname);
+		char *word;
+		int current_line = 1;
+		int new_line = 1;
 
+		buf[0] = '\0';
 		wmove(menu, end - start_y + 1, start_x);
-		if (name_len >  maxlen) {
-			char *last_space;
-			char *line_1 = strdup(mem->displayname);
 
-			if (line_1) {
-				line_1[maxlen] = '\0';
-				last_space = strrchr(line_1, ' ');
-				if (last_space) {
-					*last_space = '\0';
-				}
-				waddstr(menu, line_1);
-				wmove(menu, end - start_y + 2, start_x);
-				waddstr(menu, &mem->displayname[last_space - line_1]);
-				free(line_1);
-			} else {
-				waddstr(menu, (char *) mem->displayname);
+		while ((word = strsep(&displayname, " "))) {
+			if ((strlen(buf) + strlen(word) + 1) > maxlen) {
+				waddstr(menu, buf);
+				current_line++;
+				wmove(menu, end - start_y + current_line, start_x);
+				buf[0] = '\0';
+				new_line = 1;
 			}
-		} else {
-			waddstr(menu, (char *) mem->displayname);
+			sprintf(buf, "%s%*.*s%s", buf, new_line ? 0 : 1, new_line ? 0 : 1, " ", word);
+			new_line = 0;
+		}
+		if (strlen(buf)) {
+			waddstr(menu, buf);
 		}
 	}
+
 	if (!AST_LIST_EMPTY(&mem->deps)) {
-		wmove(menu, end - start_y + 3, start_x);
+		wmove(menu, end - start_y + 4, start_x);
 		strcpy(buf, "Depends on: ");
 		AST_LIST_TRAVERSE(&mem->deps, dep, list) {
 			strncat(buf, dep->displayname, sizeof(buf) - strlen(buf) - 1);
@@ -244,7 +247,7 @@ static void display_mem_info(WINDOW *menu, struct member *mem, int start_y, int 
 		waddstr(menu, buf);
 	}
 	if (!AST_LIST_EMPTY(&mem->uses)) {
-		wmove(menu, end - start_y + 4, start_x);
+		wmove(menu, end - start_y + 5, start_x);
 		strcpy(buf, "Can use: ");
 		AST_LIST_TRAVERSE(&mem->uses, use, list) {
 			strncat(buf, use->displayname, sizeof(buf) - strlen(buf) - 1);
@@ -255,7 +258,7 @@ static void display_mem_info(WINDOW *menu, struct member *mem, int start_y, int 
 		waddstr(menu, buf);
 	}
 	if (!AST_LIST_EMPTY(&mem->conflicts)) {
-		wmove(menu, end - start_y + 5, start_x);
+		wmove(menu, end - start_y + 6, start_x);
 		strcpy(buf, "Conflicts with: ");
 		AST_LIST_TRAVERSE(&mem->conflicts, con, list) {
 			strncat(buf, con->displayname, sizeof(buf) - strlen(buf) - 1);
@@ -268,7 +271,7 @@ static void display_mem_info(WINDOW *menu, struct member *mem, int start_y, int 
 
 	if (!mem->is_separator) { /* Separators lack support levels */
 		{ /* support level */
-			wmove(menu, end - start_y + 6, start_x);
+			wmove(menu, end - start_y + 7, start_x);
 			snprintf(buf, sizeof(buf), "Support Level: %s", mem->support_level);
 			if (mem->replacement && *mem->replacement) {
 				char buf2[64];
