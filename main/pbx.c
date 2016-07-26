@@ -7278,52 +7278,38 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 		 * so insert in the main list right before 'e' (if any)
 		 */
 		tmp->next = e;
-		if (el) {  /* there is another exten already in this context */
-			el->next = tmp;
-			tmp->peer_table = ast_hashtab_create(13,
-							hashtab_compare_exten_numbers,
+		tmp->peer_table = ast_hashtab_create(13,
+						hashtab_compare_exten_numbers,
+						ast_hashtab_resize_java,
+						ast_hashtab_newsize_java,
+						hashtab_hash_priority,
+						0);
+		tmp->peer_label_table = ast_hashtab_create(7,
+							hashtab_compare_exten_labels,
 							ast_hashtab_resize_java,
 							ast_hashtab_newsize_java,
-							hashtab_hash_priority,
+							hashtab_hash_labels,
 							0);
-			tmp->peer_label_table = ast_hashtab_create(7,
-								hashtab_compare_exten_labels,
-								ast_hashtab_resize_java,
-								ast_hashtab_newsize_java,
-								hashtab_hash_labels,
-								0);
-			if (label) {
-				ast_hashtab_insert_safe(tmp->peer_label_table, tmp);
-			}
-			ast_hashtab_insert_safe(tmp->peer_table, tmp);
+
+		if (el) {  /* there is another exten already in this context */
+			el->next = tmp;
 		} else {  /* this is the first exten in this context */
-			if (!con->root_table)
+			if (!con->root_table) {
 				con->root_table = ast_hashtab_create(27,
 													hashtab_compare_extens,
 													ast_hashtab_resize_java,
 													ast_hashtab_newsize_java,
 													hashtab_hash_extens,
 													0);
-			con->root = tmp;
-			con->root->peer_table = ast_hashtab_create(13,
-								hashtab_compare_exten_numbers,
-								ast_hashtab_resize_java,
-								ast_hashtab_newsize_java,
-								hashtab_hash_priority,
-								0);
-			con->root->peer_label_table = ast_hashtab_create(7,
-									hashtab_compare_exten_labels,
-									ast_hashtab_resize_java,
-									ast_hashtab_newsize_java,
-									hashtab_hash_labels,
-									0);
-			if (label) {
-				ast_hashtab_insert_safe(con->root->peer_label_table, tmp);
 			}
-			ast_hashtab_insert_safe(con->root->peer_table, tmp);
-
+			con->root = tmp;
 		}
+		if (label) {
+			ast_hashtab_insert_safe(tmp->peer_label_table, tmp);
+		}
+		ast_hashtab_insert_safe(tmp->peer_table, tmp);
 		ast_hashtab_insert_safe(con->root_table, tmp);
+
 		if (lock_context) {
 			ast_unlock_context(con);
 		}
