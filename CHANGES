@@ -382,6 +382,11 @@ cdr_csv
 --- Functionality changes from Asterisk 13.10.0 to Asterisk 13.11.0 ----------
 ------------------------------------------------------------------------------
 
+Core
+------------------
+ * The dsp.conf DTMF normal and reverse twist tolerances were applied
+   backwards before.
+
 chan_dahdi
 ------------------
  * Added "faxdetect_timeout" option.

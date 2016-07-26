@@ -718,8 +718,8 @@ static int dtmf_detect(struct ast_dsp *dsp, digit_detect_state_t *s, int16_t amp
 		/* Basic signal level test and the twist test */
 		if (row_energy[best_row] >= DTMF_THRESHOLD &&
 		    col_energy[best_col] >= DTMF_THRESHOLD &&
-		    col_energy[best_col] < row_energy[best_row] * (relax ? relax_dtmf_reverse_twist : dtmf_reverse_twist) &&
-		    row_energy[best_row] < col_energy[best_col] * (relax ? relax_dtmf_normal_twist : dtmf_normal_twist)) {
+		    col_energy[best_col] < row_energy[best_row] * (relax ? relax_dtmf_normal_twist : dtmf_normal_twist) &&
+		    row_energy[best_row] < col_energy[best_col] * (relax ? relax_dtmf_reverse_twist : dtmf_reverse_twist)) {
 			/* Relative peak test */
 			for (i = 0; i < 4; i++) {
 				if ((i != best_col &&
