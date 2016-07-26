@@ -63,6 +63,12 @@ ChanSpy
    experienced when using ChanSpy, but may introduce some delay in the audio
    feed on the listening channel.
 
+Codecs
+------------------
+ * Added format attribute negotiation for the iLBC audio codec. Format attribute
+   negotiation is provided by the res_format_attr_ilbc module. iLBC 20 is the
+   default now. Falls back to iLBC 30, when the remote party requests this.
+
 ConfBridge
 ------------------
  * Added the ability to pass options to MixMonitor when recording is used with
