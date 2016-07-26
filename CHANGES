@@ -12,6 +12,11 @@
 --- Functionality changes since Asterisk 11.24 -------------------------------
 ------------------------------------------------------------------------------
 
+Core
+------------------
+ * The dsp.conf DTMF normal and reverse twist tolerances were applied
+   backwards before.
+
 chan_sip
 -----------
  * Session-Timers (RFC 4028) work for TCP (and TLS) transports as well now.
