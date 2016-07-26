@@ -1,6 +1,30 @@
-2016-07-26 20:59 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2016-07-26 23:19 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
-	* asterisk 14.0.0 Released.
+	* asterisk 14.0.0-beta1 Released.
+
+2016-07-26 17:22 +0000 [a7233fbf3e]  Mark Michelson <mmichelson@digium.com>
+
+	* Release summaries: Add summaries for 14.0.0-beta1
+
+2016-07-26 16:24 +0000 [c327430ea0]  Mark Michelson <mmichelson@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-07-26 16:24 +0000 [763a18bc9d]  Mark Michelson <mmichelson@digium.com>
+
+	* .version: Update for 14.0.0-beta1
+
+2016-07-26 16:24 +0000 [ce6898bd3c]  Mark Michelson <mmichelson@digium.com>
+
+	* .lastclean: Update for 14.0.0-beta1
+
+2016-07-26 16:24 +0000 [ebc477aa5d]  Mark Michelson <mmichelson@digium.com>
+
+	* realtime: Add database scripts for 14.0.0-beta1
+
+2016-07-26 16:00 +0000 [1838b283aa]  Mark Michelson <mmichelson@digium.com>
+
+	* ChangeLog: Updated for 14.0.0
 
 2016-07-26 15:02 +0000 [f196cf975d]  Mark Michelson <mmichelson@digium.com>
 
