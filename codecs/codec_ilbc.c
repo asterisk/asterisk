@@ -34,10 +34,13 @@
 
 ASTERISK_REGISTER_FILE()
 
-#include "asterisk/translate.h"
+#include "asterisk/codec.h"             /* for AST_MEDIA_TYPE_AUDIO */
+#include "asterisk/format.h"            /* for ast_format_get_attribute_data */
+#include "asterisk/frame.h"             /* for ast_frame, etc */
+#include "asterisk/linkedlists.h"       /* for AST_LIST_NEXT, etc */
+#include "asterisk/logger.h"            /* for ast_log, ast_debug, etc */
 #include "asterisk/module.h"
-#include "asterisk/utils.h"
-#include "asterisk/linkedlists.h"
+#include "asterisk/translate.h"         /* for ast_trans_pvt, etc */
 
 #ifdef ILBC_WEBRTC
 #include <ilbc.h>
@@ -52,13 +55,10 @@ typedef float         ilbc_block;
 #define BUF_TYPE uc
 #endif
 
-#define USE_ILBC_ENHANCER	0
-#define ILBC_MS 			30
-/* #define ILBC_MS			20 */
+#include "asterisk/ilbc.h"
 
-#define	ILBC_FRAME_LEN	50	/* apparently... */
-#define	ILBC_SAMPLES	240	/* 30ms at 8000 hz */
-#define	BUFFER_SAMPLES	8000
+#define USE_ILBC_ENHANCER 0
+#define BUFFER_SAMPLES    8000
 
 /* Sample frame data */
 #include "asterisk/slin.h"
@@ -69,13 +69,16 @@ struct ilbc_coder_pvt {
 	iLBC_Dec_Inst_t dec;
 	/* Enough to store a full second */
 	int16_t buf[BUFFER_SAMPLES];
+	int16_t inited;
 };
 
 static int lintoilbc_new(struct ast_trans_pvt *pvt)
 {
 	struct ilbc_coder_pvt *tmp = pvt->pvt;
+	struct ilbc_attr *attr = pvt->explicit_dst ? ast_format_get_attribute_data(pvt->explicit_dst) : NULL;
+	const unsigned int mode = attr ? attr->mode : 30;
 
-	initEncode(&tmp->enc, ILBC_MS);
+	initEncode(&tmp->enc, mode);
 
 	return 0;
 }
@@ -84,7 +87,7 @@ static int ilbctolin_new(struct ast_trans_pvt *pvt)
 {
 	struct ilbc_coder_pvt *tmp = pvt->pvt;
 
-	initDecode(&tmp->dec, ILBC_MS, USE_ILBC_ENHANCER);
+	tmp->inited = 0; /* we do not know the iLBC mode, yet */
 
 	return 0;
 }
@@ -93,13 +96,19 @@ static int ilbctolin_new(struct ast_trans_pvt *pvt)
 static int ilbctolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
 	struct ilbc_coder_pvt *tmp = pvt->pvt;
+	struct ilbc_attr *attr = ast_format_get_attribute_data(f->subclass.format);
+	const unsigned int mode = attr ? attr->mode : 30;
+	const unsigned int sample_rate = pvt->t->dst_codec.sample_rate;
+	const unsigned int samples_per_frame = mode * sample_rate / 1000;
+	const unsigned int octets_per_frame = (mode == 20) ? 38 : 50;
+
 	int plc_mode = 1; /* 1 = normal data, 0 = plc */
 	/* Assuming there's space left, decode into the current buffer at
 	   the tail location.  Read in as many frames as there are */
 	int x,i;
 	int datalen = f->datalen;
 	int16_t *dst = pvt->outbuf.i16;
-	ilbc_block tmpf[ILBC_SAMPLES];
+	ilbc_block tmpf[samples_per_frame];
 
 	if (!f->data.ptr && datalen) {
 		ast_debug(1, "issue 16070, ILIB ERROR. data = NULL datalen = %d src = %s\n", datalen, f->src ? f->src : "no src set");
@@ -108,27 +117,32 @@ static int ilbctolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	}
 
 	if (datalen == 0) { /* native PLC, set fake datalen and clear plc_mode */
-		datalen = ILBC_FRAME_LEN;
-		f->samples = ILBC_SAMPLES;
+		datalen = octets_per_frame;
+		f->samples = samples_per_frame;
 		plc_mode = 0;	/* do native plc */
-		pvt->samples += ILBC_SAMPLES;
+		pvt->samples += samples_per_frame;
 	}
 
-	if (datalen % ILBC_FRAME_LEN) {
-		ast_log(LOG_WARNING, "Huh?  An ilbc frame that isn't a multiple of 50 bytes long from %s (%d)?\n", f->src, datalen);
+	if (datalen % octets_per_frame) {
+		ast_log(LOG_WARNING, "Huh?  An ilbc frame that isn't a multiple of %u bytes long from %s (%d)?\n", octets_per_frame, f->src, datalen);
 		return -1;
 	}
 
-	for (x=0; x < datalen ; x += ILBC_FRAME_LEN) {
-		if (pvt->samples + ILBC_SAMPLES > BUFFER_SAMPLES) {
+	if (!tmp->inited) {
+		initDecode(&tmp->dec, mode, USE_ILBC_ENHANCER);
+		tmp->inited = 1;
+	}
+
+	for (x = 0; x < datalen; x += octets_per_frame) {
+		if (pvt->samples + samples_per_frame > BUFFER_SAMPLES) {
 			ast_log(LOG_WARNING, "Out of buffer space\n");
 			return -1;
 		}
 		iLBC_decode(tmpf, plc_mode ? f->data.ptr + x : NULL, &tmp->dec, plc_mode);
-		for ( i=0; i < ILBC_SAMPLES; i++)
+		for (i = 0; i < samples_per_frame; i++)
 			dst[pvt->samples + i] = tmpf[i];
-		pvt->samples += ILBC_SAMPLES;
-		pvt->datalen += 2*ILBC_SAMPLES;
+		pvt->samples += samples_per_frame;
+		pvt->datalen += samples_per_frame * 2;
 	}
 	return 0;
 }
@@ -155,20 +169,26 @@ static struct ast_frame *lintoilbc_frameout(struct ast_trans_pvt *pvt)
 	struct ast_frame *last = NULL;
 	int samples = 0; /* output samples */
 
-	while (pvt->samples >= ILBC_SAMPLES) {
+	struct ilbc_attr *attr = ast_format_get_attribute_data(pvt->f.subclass.format);
+	const unsigned int mode = attr ? attr->mode : 30;
+	const unsigned int sample_rate = pvt->t->dst_codec.sample_rate;
+	const unsigned int samples_per_frame = mode * sample_rate / 1000;
+	const unsigned int octets_per_frame = (mode == 20) ? 38 : 50;
+
+	while (pvt->samples >= samples_per_frame) {
 		struct ast_frame *current;
-		ilbc_block tmpf[ILBC_SAMPLES];
+		ilbc_block tmpf[samples_per_frame];
 		int i;
 
 		/* Encode a frame of data */
-		for (i = 0 ; i < ILBC_SAMPLES ; i++)
+		for (i = 0; i < samples_per_frame; i++)
 			tmpf[i] = tmp->buf[samples + i];
 		iLBC_encode((ilbc_bytes *) pvt->outbuf.BUF_TYPE, tmpf, &tmp->enc);
 
-		samples += ILBC_SAMPLES;
-		pvt->samples -= ILBC_SAMPLES;
+		samples += samples_per_frame;
+		pvt->samples -= samples_per_frame;
 
-		current = ast_trans_frameout(pvt, ILBC_FRAME_LEN, ILBC_SAMPLES);
+		current = ast_trans_frameout(pvt, octets_per_frame, samples_per_frame);
 		if (!current) {
 			continue;
 		} else if (last) {
@@ -226,7 +246,8 @@ static struct ast_translator lintoilbc = {
 	.frameout = lintoilbc_frameout,
 	.sample = slin8_sample,
 	.desc_size = sizeof(struct ilbc_coder_pvt),
-	.buf_size = (BUFFER_SAMPLES * ILBC_FRAME_LEN + ILBC_SAMPLES - 1) / ILBC_SAMPLES,
+	/* frame len (38 bytes), frame size (160 samples), ceil (+ 160 - 1) */
+	.buf_size = (BUFFER_SAMPLES * 38 + 160 - 1) / 160,
 };
 
 static int unload_module(void)
