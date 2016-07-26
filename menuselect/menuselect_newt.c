@@ -326,7 +326,7 @@ int run_menu(void)
 	newtFormAddComponent(form, subOptions);
 	newtComponentAddCallback(subOptions, category_menu_callback, NULL);
 
-	memberNameTextbox       = newtTextbox(2, y - 13, x - 10, 1, 0);
+	memberNameTextbox       = newtTextbox(2, y - 13, x - 10, 2, NEWT_FLAG_WRAP);
 	dependsLabel            = newtLabel(2, y - 11, "    Depends on:");
 	usesLabel               = newtLabel(2, y - 10, "       Can use:");
 	conflictsLabel          = newtLabel(2, y - 9,  "Conflicts with:");

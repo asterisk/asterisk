@@ -246,6 +246,10 @@ static enum support_level_values string_to_support_level(const char *support_lev
 		return SUPPORT_DEPRECATED;
 	}
 
+	if (!strcasecmp(support_level, "external")) {
+		return SUPPORT_EXTERNAL;
+	}
+
 	return SUPPORT_UNSPECIFIED;
 }
 
@@ -259,6 +263,8 @@ static const char *support_level_to_string(enum support_level_values support_lev
 		return "Extended";
 	case SUPPORT_DEPRECATED:
 		return "Deprecated";
+	case SUPPORT_EXTERNAL:
+		return "External";
 	default:
 		return "Unspecified";
 	}
