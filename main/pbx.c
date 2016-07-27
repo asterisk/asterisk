@@ -7153,13 +7153,25 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 
 	/* If we are adding a hint evalulate in variables and global variables */
 	if (priority == PRIORITY_HINT && strstr(application, "${") && extension[0] != '_') {
+		int inhibited;
 		struct ast_channel *c = ast_dummy_channel_alloc();
 
 		if (c) {
 			ast_channel_exten_set(c, extension);
 			ast_channel_context_set(c, con->name);
 		}
+
+		/*
+		 * We can allow dangerous functions when adding a hint since
+		 * altering dialplan is itself a privileged activity.  Otherwise,
+		 * we could never execute dangerous functions.
+		 */
+		inhibited = ast_thread_inhibit_escalations_swap(0);
 		pbx_substitute_variables_helper(c, application, expand_buf, sizeof(expand_buf));
+		if (0 < inhibited) {
+			ast_thread_inhibit_escalations();
+		}
+
 		application = expand_buf;
 		if (c) {
 			ast_channel_unref(c);
