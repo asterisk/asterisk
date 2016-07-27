@@ -4249,7 +4249,6 @@ int ast_thread_inhibit_escalations(void)
 
 	thread_inhibit_escalations = ast_threadstorage_get(
 		&thread_inhibit_escalations_tl, sizeof(*thread_inhibit_escalations));
-
 	if (thread_inhibit_escalations == NULL) {
 		ast_log(LOG_ERROR, "Error inhibiting privilege escalations for current thread\n");
 		return -1;
@@ -4257,6 +4256,23 @@ int ast_thread_inhibit_escalations(void)
 
 	*thread_inhibit_escalations = 1;
 	return 0;
+}
+
+int ast_thread_inhibit_escalations_swap(int inhibit)
+{
+	int *thread_inhibit_escalations;
+	int orig;
+
+	thread_inhibit_escalations = ast_threadstorage_get(
+		&thread_inhibit_escalations_tl, sizeof(*thread_inhibit_escalations));
+	if (thread_inhibit_escalations == NULL) {
+		ast_log(LOG_ERROR, "Error swapping privilege escalations inhibit for current thread\n");
+		return -1;
+	}
+
+	orig = *thread_inhibit_escalations;
+	*thread_inhibit_escalations = !!inhibit;
+	return orig;
 }
 
 /*!
@@ -4272,7 +4288,6 @@ static int thread_inhibits_escalations(void)
 
 	thread_inhibit_escalations = ast_threadstorage_get(
 		&thread_inhibit_escalations_tl, sizeof(*thread_inhibit_escalations));
-
 	if (thread_inhibit_escalations == NULL) {
 		ast_log(LOG_ERROR, "Error checking thread's ability to run dangerous functions\n");
 		/* On error, assume that we are inhibiting */
@@ -10248,13 +10263,25 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 
 	/* If we are adding a hint evalulate in variables and global variables */
 	if (priority == PRIORITY_HINT && strstr(application, "${") && extension[0] != '_') {
+		int inhibited;
 		struct ast_channel *c = ast_dummy_channel_alloc();
 
 		if (c) {
 			ast_channel_exten_set(c, extension);
 			ast_channel_context_set(c, con->name);
 		}
+
+		/*
+		 * We can allow dangerous functions when adding a hint since
+		 * altering dialplan is itself a privileged activity.  Otherwise,
+		 * we could never execute dangerous functions.
+		 */
+		inhibited = ast_thread_inhibit_escalations_swap(0);
 		pbx_substitute_variables_helper(c, application, expand_buf, sizeof(expand_buf));
+		if (0 < inhibited) {
+			ast_thread_inhibit_escalations();
+		}
+
 		application = expand_buf;
 		if (c) {
 			ast_channel_unref(c);
