@@ -211,7 +211,7 @@ static void display_mem_info(WINDOW *menu, struct member *mem, int start_y, int 
 
 	if (mem->displayname) {
 		char buf[maxlen + 1];
-		char *displayname = strdupa(mem->displayname);
+		char *displayname = ast_strdupa(mem->displayname);
 		char *word;
 		int current_line = 1;
 		int new_line = 1;

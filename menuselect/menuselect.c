@@ -103,18 +103,6 @@ struct dep_file {
 };
 AST_LIST_HEAD_NOLOCK_STATIC(deps_file, dep_file);
 
-#if !defined(ast_strdupa) && defined(__GNUC__)
-#define ast_strdupa(s)                                                    \
-	(__extension__                                                    \
-	({                                                                \
-		const char *__old = (s);                                  \
-		size_t __len = strlen(__old) + 1;                         \
-		char *__new = __builtin_alloca(__len);                    \
-		memcpy (__new, __old, __len);                             \
-		__new;                                                    \
-	}))
-#endif
-
 /*! \brief return a pointer to the first non-whitespace character */
 static inline char *skip_blanks(char *str)
 {
