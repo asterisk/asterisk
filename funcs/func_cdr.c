@@ -223,9 +223,11 @@ STASIS_MESSAGE_TYPE_DEFN_LOCAL(cdr_prop_write_message_type);
 
 static struct timeval cdr_retrieve_time(struct ast_channel *chan, const char *time_name)
 {
-	struct timeval time;
+	struct timeval time = { 0 };
 	char *value = NULL;
 	char tempbuf[128];
+	long int tv_sec;
+	long int tv_usec;
 
 	if (ast_strlen_zero(ast_channel_name(chan))) {
 		/* Format request on a dummy channel */
@@ -234,7 +236,11 @@ static struct timeval cdr_retrieve_time(struct ast_channel *chan, const char *ti
 		ast_cdr_getvar(ast_channel_name(chan), time_name, tempbuf, sizeof(tempbuf));
 	}
 
-	if (sscanf(tempbuf, "%ld.%ld", &time.tv_sec, &time.tv_usec) != 2) {
+	/* time.tv_usec is suseconds_t, which could be int or long */
+	if (sscanf(tempbuf, "%ld.%ld", &tv_sec, &tv_usec) == 2) {
+		time.tv_sec = tv_sec;
+		time.tv_usec = tv_usec;
+	} else {
 		ast_log(AST_LOG_WARNING, "Failed to fully extract '%s' from CDR\n", time_name);
 	}
 
