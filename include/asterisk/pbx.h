@@ -1598,6 +1598,18 @@ void pbx_live_dangerously(int new_live_dangerously);
  */
 int ast_thread_inhibit_escalations(void);
 
+/*!
+ * \brief Swap the current thread escalation inhibit setting.
+ * \since 11.24.0
+ *
+ * \param inhibit New setting.  Non-zero to inhibit.
+ *
+ * \retval 1 if dangerous function execution was inhibited.
+ * \retval 0 if dangerous function execution was allowed.
+ * \retval -1 on error.
+ */
+int ast_thread_inhibit_escalations_swap(int inhibit);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
