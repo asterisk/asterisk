@@ -237,9 +237,11 @@ AST_THREADSTORAGE(extensionstate_buf);
 	priority.
 */
 struct ast_exten {
-	char *exten;			/*!< Extension name */
+	char *exten;			/*!< Clean Extension id */
+	char *name;			/*!< Extension name (may include '-' eye candy) */
 	int matchcid;			/*!< Match caller id ? */
 	const char *cidmatch;		/*!< Caller id to match for this extension */
+	const char *cidmatch_display;	/*!< Caller id to match (display version) */
 	int priority;			/*!< Priority */
 	const char *label;		/*!< Label */
 	struct ast_context *parent;	/*!< The context this extension belongs to  */
@@ -654,6 +656,7 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 static struct ast_context *find_context_locked(const char *context);
 static struct ast_context *find_context(const char *context);
 static void get_device_state_causing_channels(struct ao2_container *c);
+static int ext_strncpy(char *dst, const char *src, int len, int nofluff);
 
 /*!
  * \internal
@@ -878,9 +881,13 @@ int check_contexts(char *file, int line )
 				e2 = ast_hashtab_lookup(c1->root_table, &ex);
 				if (!e2) {
 					if (e1->matchcid == AST_EXT_MATCHCID_ON) {
-						ast_log(LOG_NOTICE,"Called from: %s:%d: The %s context records the exten %s (CID match: %s) but it is not in its root_table\n", file, line, c2->name, dummy_name, e1->cidmatch );
+						ast_log(LOG_NOTICE, "Called from: %s:%d: The %s context records "
+							"the exten %s (CID match: %s) but it is not in its root_table\n",
+							file, line, c2->name, dummy_name, e1->cidmatch_display);
 					} else {
-						ast_log(LOG_NOTICE,"Called from: %s:%d: The %s context records the exten %s but it is not in its root_table\n", file, line, c2->name, dummy_name );
+						ast_log(LOG_NOTICE, "Called from: %s:%d: The %s context records "
+							"the exten %s but it is not in its root_table\n",
+							file, line, c2->name, dummy_name);
 					}
 					check_contexts_trouble();
 				}
@@ -1113,11 +1120,11 @@ static void cli_match_char_tree(struct match_char *node, char *prefix, int fd)
 	if (strlen(node->x) > 1) {
 		ast_cli(fd, "%s[%s]:%c:%c:%d:%s%s%s\n", prefix, node->x, node->is_pattern ? 'Y' : 'N',
 			node->deleted ? 'D' : '-', node->specificity, node->exten? "EXTEN:" : "",
-			node->exten ? node->exten->exten : "", extenstr);
+			node->exten ? node->exten->name : "", extenstr);
 	} else {
 		ast_cli(fd, "%s%s:%c:%c:%d:%s%s%s\n", prefix, node->x, node->is_pattern ? 'Y' : 'N',
 			node->deleted ? 'D' : '-', node->specificity, node->exten? "EXTEN:" : "",
-			node->exten ? node->exten->exten : "", extenstr);
+			node->exten ? node->exten->name : "", extenstr);
 	}
 
 	ast_str_set(&my_prefix, 0, "%s+       ", prefix);
@@ -1232,7 +1239,7 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 										return;                                                                                          \
 									}                                                                                                    \
 								} else {                                                                                                 \
-									ast_debug(4, "returning an exact match-- first found-- %s\n", p->exten->exten);                       \
+									ast_debug(4, "returning an exact match-- first found-- %s\n", p->exten->name);                       \
 									return; /* the first match, by definition, will be the best, because of the sorted tree */           \
 								}                                                                                                        \
 							}                                                                                                            \
@@ -1245,13 +1252,13 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 						if (*(str + 1) || p->next_char->x[0] == '!') {                                                         \
 							new_find_extension(str + 1, score, p->next_char, length + 1, spec + p->specificity, callerid, label, action); \
 							if (score->exten)  {                                                                             \
-						        ast_debug(4 ,"returning an exact match-- %s\n", score->exten->exten);                         \
+						        ast_debug(4 ,"returning an exact match-- %s\n", score->exten->name);                         \
 								return; /* the first match is all we need */                                                 \
 							}												                                                 \
 						} else {                                                                                             \
 							new_find_extension("/", score, p->next_char, length + 1, spec + p->specificity, callerid, label, action);	 \
 							if (score->exten || ((action == E_CANMATCH || action == E_MATCHMORE) && score->canmatch)) {      \
-						        ast_debug(4,"returning a (can/more) match--- %s\n", score->exten ? score->exten->exten :     \
+						        ast_debug(4,"returning a (can/more) match--- %s\n", score->exten ? score->exten->name :      \
 		                               "NULL");                                                                        \
 								return; /* the first match is all we need */                                                 \
 							}												                                                 \
@@ -1289,14 +1296,17 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 				if (p->exten && *str2 != '/') {
 					update_scoreboard(score, length + i, spec + (i * p->specificity), p->exten, '.', callerid, p->deleted, p);
 					if (score->exten) {
-						ast_debug(4,"return because scoreboard has a match with '/'--- %s\n", score->exten->exten);
+						ast_debug(4, "return because scoreboard has a match with '/'--- %s\n",
+							score->exten->name);
 						return; /* the first match is all we need */
 					}
 				}
 				if (p->next_char && p->next_char->x[0] == '/' && p->next_char->x[1] == 0) {
 					new_find_extension("/", score, p->next_char, length + i, spec+(p->specificity*i), callerid, label, action);
 					if (score->exten || ((action == E_CANMATCH || action == E_MATCHMORE) && score->canmatch)) {
-						ast_debug(4, "return because scoreboard has exact match OR CANMATCH/MATCHMORE & canmatch set--- %s\n", score->exten ? score->exten->exten : "NULL");
+						ast_debug(4, "return because scoreboard has exact match OR "
+							"CANMATCH/MATCHMORE & canmatch set--- %s\n",
+							score->exten ? score->exten->name : "NULL");
 						return; /* the first match is all we need */
 					}
 				}
@@ -1311,14 +1321,17 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 				if (p->exten && *str2 != '/') {
 					update_scoreboard(score, length + 1, spec + (p->specificity * i), p->exten, '!', callerid, p->deleted, p);
 					if (score->exten) {
-						ast_debug(4, "return because scoreboard has a '!' match--- %s\n", score->exten->exten);
+						ast_debug(4, "return because scoreboard has a '!' match--- %s\n",
+							score->exten->name);
 						return; /* the first match is all we need */
 					}
 				}
 				if (p->next_char && p->next_char->x[0] == '/' && p->next_char->x[1] == 0) {
 					new_find_extension("/", score, p->next_char, length + i, spec + (p->specificity * i), callerid, label, action);
 					if (score->exten || ((action == E_CANMATCH || action == E_MATCHMORE) && score->canmatch)) {
-						ast_debug(4, "return because scoreboard has exact match OR CANMATCH/MATCHMORE & canmatch set with '/' and '!'--- %s\n", score->exten ? score->exten->exten : "NULL");
+						ast_debug(4, "return because scoreboard has exact match OR "
+							"CANMATCH/MATCHMORE & canmatch set with '/' and '!'--- %s\n",
+							score->exten ? score->exten->name : "NULL");
 						return; /* the first match is all we need */
 					}
 				}
@@ -1327,7 +1340,9 @@ static void new_find_extension(const char *str, struct scoreboard *score, struct
 				if (p->next_char && callerid && *callerid) {
 					new_find_extension(callerid, score, p->next_char, length + 1, spec, callerid, label, action);
 					if (score->exten || ((action == E_CANMATCH || action == E_MATCHMORE) && score->canmatch)) {
-						ast_debug(4, "return because scoreboard has exact match OR CANMATCH/MATCHMORE & canmatch set with '/'--- %s\n", score->exten ? score->exten->exten : "NULL");
+						ast_debug(4, "return because scoreboard has exact match OR "
+							"CANMATCH/MATCHMORE & canmatch set with '/'--- %s\n",
+							score->exten ? score->exten->name : "NULL");
 						return; /* the first match is all we need */
 					}
 				}
@@ -1680,7 +1695,7 @@ static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, str
 				}
 				if (m2->exten) {
 					ast_log(LOG_WARNING, "Found duplicate exten. Had %s found %s\n",
-						m2->deleted ? "(deleted/invalid)" : m2->exten->exten, e1->exten);
+						m2->deleted ? "(deleted/invalid)" : m2->exten->name, e1->name);
 				}
 				m2->exten = e1;
 				m2->deleted = 0;
@@ -1706,7 +1721,7 @@ static struct match_char *add_exten_to_pattern_tree(struct ast_context *con, str
 			if (!pat_node[idx_next].buf[0]) {
 				if (m2 && m2->exten) {
 					ast_log(LOG_WARNING, "Found duplicate exten. Had %s found %s\n",
-						m2->deleted ? "(deleted/invalid)" : m2->exten->exten, e1->exten);
+						m2->deleted ? "(deleted/invalid)" : m2->exten->name, e1->name);
 				}
 				m1->deleted = 0;
 				m1->exten = e1;
@@ -2111,6 +2126,41 @@ static int ext_cmp(const char *left, const char *right)
 	 * Skip past the underscores
 	 */
 	return ext_cmp_pattern(left + 1, right + 1);
+}
+
+static int ext_fluff_count(const char *exten)
+{
+	int fluff = 0;
+
+	if (*exten != '_') {
+		/* not a pattern, simple check. */
+		while (*exten) {
+			if (*exten == '-') {
+				fluff++;
+			}
+			exten++;
+		}
+
+		return fluff;
+	}
+
+	/* do pattern check */
+	while (*exten) {
+		if (*exten == '-') {
+			fluff++;
+		} else if (*exten == '[') {
+			/* skip set, dashes here matter. */
+			exten = strchr(exten, ']');
+
+			if (!exten) {
+				/* we'll end up warning about this later, don't spam logs */
+				return fluff;
+			}
+		}
+		exten++;
+	}
+
+	return fluff;
 }
 
 int ast_extension_cmp(const char *a, const char *b)
@@ -4883,6 +4933,7 @@ int ast_context_remove_extension_callerid2(struct ast_context *con, const char *
 	struct ast_exten *peer;
 	struct ast_exten ex, *exten2, *exten3;
 	char dummy_name[1024];
+	char dummy_cid[1024];
 	struct ast_exten *previous_peer = NULL;
 	struct ast_exten *next_peer = NULL;
 	int found = 0;
@@ -4898,9 +4949,14 @@ int ast_context_remove_extension_callerid2(struct ast_context *con, const char *
 #endif
 	/* find this particular extension */
 	ex.exten = dummy_name;
+	ext_strncpy(dummy_name, extension, sizeof(dummy_name), 1);
 	ex.matchcid = matchcallerid;
-	ex.cidmatch = callerid;
-	ast_copy_string(dummy_name, extension, sizeof(dummy_name));
+	if (callerid) {
+		ex.cidmatch = dummy_cid;
+		ext_strncpy(dummy_cid, callerid, sizeof(dummy_cid), 1);
+	} else {
+		ex.cidmatch = NULL;
+	}
 	exten = ast_hashtab_lookup(con->root_table, &ex);
 	if (exten) {
 		if (priority == 0) {
@@ -4923,13 +4979,19 @@ int ast_context_remove_extension_callerid2(struct ast_context *con, const char *
 			if (exten2) {
 				if (exten2->label) { /* if this exten has a label, remove that, too */
 					exten3 = ast_hashtab_remove_this_object(exten->peer_label_table,exten2);
-					if (!exten3)
-						ast_log(LOG_ERROR,"Did not remove this priority label (%d/%s) from the peer_label_table of context %s, extension %s!\n", priority, exten2->label, con->name, exten2->exten);
+					if (!exten3) {
+						ast_log(LOG_ERROR, "Did not remove this priority label (%d/%s) "
+							"from the peer_label_table of context %s, extension %s!\n",
+							priority, exten2->label, con->name, exten2->name);
+					}
 				}
 
 				exten3 = ast_hashtab_remove_this_object(exten->peer_table, exten2);
-				if (!exten3)
-					ast_log(LOG_ERROR,"Did not remove this priority (%d) from the peer_table of context %s, extension %s!\n", priority, con->name, exten2->exten);
+				if (!exten3) {
+					ast_log(LOG_ERROR, "Did not remove this priority (%d) from the "
+						"peer_table of context %s, extension %s!\n",
+						priority, con->name, exten2->name);
+				}
 				if (exten2 == exten && exten2->peer) {
 					exten2 = ast_hashtab_remove_this_object(con->root_table, exten);
 					ast_hashtab_insert_immediate(con->root_table, exten2->peer);
@@ -4938,8 +5000,11 @@ int ast_context_remove_extension_callerid2(struct ast_context *con, const char *
 					/* well, if the last priority of an exten is to be removed,
 					   then, the extension is removed, too! */
 					exten3 = ast_hashtab_remove_this_object(con->root_table, exten);
-					if (!exten3)
-						ast_log(LOG_ERROR,"Did not remove this exten (%s) from the context root_table (%s) (priority %d)\n", exten->exten, con->name, priority);
+					if (!exten3) {
+						ast_log(LOG_ERROR, "Did not remove this exten (%s) from the "
+							"context root_table (%s) (priority %d)\n",
+							exten->name, con->name, priority);
+					}
 					if (con->pattern_tree) {
 						struct match_char *x = add_exten_to_pattern_tree(con, exten, 1);
 						if (x->exten) { /* this test for safety purposes */
@@ -4950,7 +5015,7 @@ int ast_context_remove_extension_callerid2(struct ast_context *con, const char *
 				}
 			} else {
 				ast_log(LOG_ERROR,"Could not find priority %d of exten %s in context %s!\n",
-						priority, exten->exten, con->name);
+						priority, exten->name, con->name);
 			}
 		}
 	} else {
@@ -4967,7 +5032,7 @@ int ast_context_remove_extension_callerid2(struct ast_context *con, const char *
 
 	/* scan the extension list to find first matching extension-registrar */
 	for (exten = con->root; exten; prev_exten = exten, exten = exten->next) {
-		if (!strcmp(exten->exten, extension) &&
+		if (!strcmp(exten->exten, ex.exten) &&
 			(!registrar || !strcmp(exten->registrar, registrar)) &&
 			(!matchcallerid || (!ast_strlen_zero(callerid) && !ast_strlen_zero(exten->cidmatch) && !strcmp(exten->cidmatch, callerid)) || (ast_strlen_zero(callerid) && ast_strlen_zero(exten->cidmatch))))
 			break;
@@ -4981,7 +5046,7 @@ int ast_context_remove_extension_callerid2(struct ast_context *con, const char *
 
 	/* scan the priority list to remove extension with exten->priority == priority */
 	for (peer = exten, next_peer = exten->peer ? exten->peer : exten->next;
-		 peer && !strcmp(peer->exten, extension) &&
+		 peer && !strcmp(peer->exten, ex.exten) &&
 			(!callerid || (!matchcallerid && !peer->matchcid) || (matchcallerid && peer->matchcid && !strcmp(peer->cidmatch, callerid))) ;
 			peer = next_peer, next_peer = next_peer ? (next_peer->peer ? next_peer->peer : next_peer->next) : NULL) {
 
@@ -6271,11 +6336,11 @@ static void context_merge(struct ast_context **extcontexts, struct ast_hashtab *
 
 				dupdstr = ast_strdup(prio_item->data);
 
-				res1 = ast_add_extension2(new, 0, prio_item->exten, prio_item->priority, prio_item->label,
+				res1 = ast_add_extension2(new, 0, prio_item->name, prio_item->priority, prio_item->label,
 										  prio_item->matchcid ? prio_item->cidmatch : NULL, prio_item->app, dupdstr, ast_free_ptr, prio_item->registrar);
 				if (!res1 && new_exten_item && new_prio_item){
 					ast_verb(3,"Dropping old dialplan item %s/%s/%d [%s(%s)] (registrar=%s) due to conflict with new dialplan\n",
-							context->name, prio_item->exten, prio_item->priority, prio_item->app, (char*)prio_item->data, prio_item->registrar);
+							context->name, prio_item->name, prio_item->priority, prio_item->app, (char*)prio_item->data, prio_item->registrar);
 				} else {
 					/* we do NOT pass the priority data from the old to the new -- we pass a copy of it, so no changes to the current dialplan take place,
 					 and no double frees take place, either! */
@@ -6880,8 +6945,8 @@ int ast_async_goto_by_name(const char *channame, const char *context, const char
 	return res;
 }
 
-/*! \brief copy a string skipping whitespace */
-static int ext_strncpy(char *dst, const char *src, int len)
+/*! \brief copy a string skipping whitespace and dashes */
+static int ext_strncpy(char *dst, const char *src, int len, int nofluff)
 {
 	int count = 0;
 	int insquares = 0;
@@ -6892,6 +6957,9 @@ static int ext_strncpy(char *dst, const char *src, int len)
 		} else if (*src == ']') {
 			insquares = 0;
 		} else if (*src == ' ' && !insquares) {
+			src++;
+			continue;
+		} else if (*src == '-' && !insquares && nofluff) {
 			src++;
 			continue;
 		}
@@ -6919,14 +6987,14 @@ static int add_priority(struct ast_context *con, struct ast_exten *tmp,
 
 	for (ep = NULL; e ; ep = e, e = e->peer) {
 		if (e->label && tmp->label && e->priority != tmp->priority && !strcmp(e->label, tmp->label)) {
-			if (strcmp(e->exten, tmp->exten)) {
+			if (strcmp(e->name, tmp->name)) {
 				ast_log(LOG_WARNING,
 					"Extension '%s' priority %d in '%s', label '%s' already in use at aliased extension '%s' priority %d\n",
-					tmp->exten, tmp->priority, con->name, tmp->label, e->exten, e->priority);
+					tmp->name, tmp->priority, con->name, tmp->label, e->name, e->priority);
 			} else {
 				ast_log(LOG_WARNING,
 					"Extension '%s' priority %d in '%s', label '%s' already in use at priority %d\n",
-					tmp->exten, tmp->priority, con->name, tmp->label, e->priority);
+					tmp->name, tmp->priority, con->name, tmp->label, e->priority);
 			}
 			repeated_label = 1;
 		}
@@ -6952,14 +7020,14 @@ static int add_priority(struct ast_context *con, struct ast_exten *tmp,
 		/* Can't have something exactly the same.  Is this a
 		   replacement?  If so, replace, otherwise, bonk. */
 		if (!replace) {
-			if (strcmp(e->exten, tmp->exten)) {
+			if (strcmp(e->name, tmp->name)) {
 				ast_log(LOG_WARNING,
 					"Unable to register extension '%s' priority %d in '%s', already in use by aliased extension '%s'\n",
-					tmp->exten, tmp->priority, con->name, e->exten);
+					tmp->name, tmp->priority, con->name, e->name);
 			} else {
 				ast_log(LOG_WARNING,
 					"Unable to register extension '%s' priority %d in '%s', already in use\n",
-					tmp->exten, tmp->priority, con->name);
+					tmp->name, tmp->priority, con->name);
 			}
 
 			return -1;
@@ -7144,6 +7212,8 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 	char expand_buf[VAR_BUF_SIZE];
 	struct ast_exten dummy_exten = {0};
 	char dummy_name[1024];
+	int exten_fluff;
+	int callerid_fluff;
 
 	if (ast_strlen_zero(extension)) {
 		ast_log(LOG_ERROR,"You have to be kidding-- add exten '' to context %s? Figure out a name and call me back. Action ignored.\n",
@@ -7166,15 +7236,26 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 		}
 	}
 
+	exten_fluff = ext_fluff_count(extension);
+	callerid_fluff = callerid ? ext_fluff_count(callerid) : 0;
+
 	length = sizeof(struct ast_exten);
 	length += strlen(extension) + 1;
+	if (exten_fluff) {
+		length += strlen(extension) + 1 - exten_fluff;
+	}
 	length += strlen(application) + 1;
-	if (label)
+	if (label) {
 		length += strlen(label) + 1;
-	if (callerid)
+	}
+	if (callerid) {
 		length += strlen(callerid) + 1;
-	else
+		if (callerid_fluff) {
+			length += strlen(callerid) + 1 - callerid_fluff;
+		}
+	} else {
 		length ++;	/* just the '\0' */
+	}
 
 	/* Be optimistic:  Build the extension structure first */
 	if (!(tmp = ast_calloc(1, length)))
@@ -7190,14 +7271,25 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 		strcpy(p, label);
 		p += strlen(label) + 1;
 	}
-	tmp->exten = p;
-	p += ext_strncpy(p, extension, strlen(extension) + 1) + 1;
+	tmp->name = p;
+	p += ext_strncpy(p, extension, strlen(extension) + 1, 0) + 1;
+	if (exten_fluff) {
+		tmp->exten = p;
+		p += ext_strncpy(p, extension, strlen(extension) + 1, 1) + 1;
+	} else {
+		/* no fluff, we don't need a copy. */
+		tmp->exten = tmp->name;
+	}
 	tmp->priority = priority;
-	tmp->cidmatch = p;	/* but use p for assignments below */
+	tmp->cidmatch_display = tmp->cidmatch = p;	/* but use p for assignments below */
 
 	/* Blank callerid and NULL callerid are two SEPARATE things.  Do NOT confuse the two!!! */
 	if (callerid) {
-		p += ext_strncpy(p, callerid, strlen(callerid) + 1) + 1;
+		p += ext_strncpy(p, callerid, strlen(callerid) + 1, 0) + 1;
+		if (callerid_fluff) {
+			tmp->cidmatch = p;
+			p += ext_strncpy(p, callerid, strlen(callerid) + 1, 1) + 1;
+		}
 		tmp->matchcid = AST_EXT_MATCHCID_ON;
 	} else {
 		*p++ = '\0';
@@ -7216,7 +7308,7 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 
 	if (con->pattern_tree) { /* usually, on initial load, the pattern_tree isn't formed until the first find_exten; so if we are adding
 								an extension, and the trie exists, then we need to incrementally add this pattern to it. */
-		ast_copy_string(dummy_name, extension, sizeof(dummy_name));
+		ext_strncpy(dummy_name, tmp->exten, sizeof(dummy_name), 1);
 		dummy_exten.exten = dummy_name;
 		dummy_exten.matchcid = AST_EXT_MATCHCID_OFF;
 		dummy_exten.cidmatch = 0;
@@ -7320,19 +7412,19 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 	if (option_debug) {
 		if (tmp->matchcid == AST_EXT_MATCHCID_ON) {
 			ast_debug(1, "Added extension '%s' priority %d (CID match '%s') to %s (%p)\n",
-					  tmp->exten, tmp->priority, tmp->cidmatch, con->name, con);
+					  tmp->name, tmp->priority, tmp->cidmatch_display, con->name, con);
 		} else {
 			ast_debug(1, "Added extension '%s' priority %d to %s (%p)\n",
-					  tmp->exten, tmp->priority, con->name, con);
+					  tmp->name, tmp->priority, con->name, con);
 		}
 	}
 
 	if (tmp->matchcid == AST_EXT_MATCHCID_ON) {
 		ast_verb(3, "Added extension '%s' priority %d (CID match '%s') to %s\n",
-				 tmp->exten, tmp->priority, tmp->cidmatch, con->name);
+				 tmp->name, tmp->priority, tmp->cidmatch_display, con->name);
 	} else {
 		ast_verb(3, "Added extension '%s' priority %d to %s\n",
-				 tmp->exten, tmp->priority, con->name);
+				 tmp->name, tmp->priority, con->name);
 	}
 
 	return 0;
@@ -7870,7 +7962,7 @@ void __ast_context_destroy(struct ast_context *list, struct ast_hashtab *context
 							continue;
 						}
 						ast_verb(3, "Remove %s/%s/%d, registrar=%s; con=%s(%p); con->root=%p\n",
-								 tmp->name, prio_item->exten, prio_item->priority, registrar, con? con->name : "<nil>", con, con? con->root_table: NULL);
+								 tmp->name, prio_item->name, prio_item->priority, registrar, con? con->name : "<nil>", con, con? con->root_table: NULL);
 						ast_copy_string(extension, prio_item->exten, sizeof(extension));
 						if (prio_item->cidmatch) {
 							ast_copy_string(cidmatch, prio_item->cidmatch, sizeof(cidmatch));
@@ -8290,7 +8382,7 @@ struct ast_context *ast_get_extension_context(struct ast_exten *exten)
 
 const char *ast_get_extension_name(struct ast_exten *exten)
 {
-	return exten ? exten->exten : NULL;
+	return exten ? exten->name : NULL;
 }
 
 const char *ast_get_extension_label(struct ast_exten *exten)
@@ -8323,7 +8415,7 @@ int ast_get_extension_matchcid(struct ast_exten *e)
 
 const char *ast_get_extension_cidmatch(struct ast_exten *e)
 {
-	return e ? e->cidmatch : NULL;
+	return e ? e->cidmatch_display : NULL;
 }
 
 const char *ast_get_extension_app(struct ast_exten *e)
