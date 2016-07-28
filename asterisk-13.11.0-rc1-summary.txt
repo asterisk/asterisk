@@ -1,0 +1,655 @@
+                                Release Summary
+
+                              asterisk-13.11.0-rc1
+
+                                Date: 2016-07-28
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Open Issues
+    5. Other Changes
+    6. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-13.10.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                          Testers           Reporters                
+   20 Richard Mudgett              1 Eugene Voityuk  8 Richard Mudgett        
+   9 Alexander Traud               1 Alexander Traud 8 Richard Mudgett        
+   8 Corey Farrell                                   7 Corey Farrell          
+   6 Matt Jordan                                     6 Alexei Gradinari       
+   5 Alexei Gradinari                                5 Alexander Traud        
+   5 Mark Michelson                                  3 Ross Beer              
+   4 gtjoseph                                        3 Dmitriy Serov          
+   3 Joshua Colp                                     2 Scott Griepentrog      
+   1 Richard Miller (license 5685)                   2 Matt Jordan            
+   1 Kevin Harwell                                   2 Alexei Gradinari       
+   1 Scott Griepentrog                               1 Dmitriy Serov          
+   1 Alexander Traud                                 1 Ben Smithurst          
+   1 Eugene Voityuk                                  1 Richard Miller         
+                                                     1 Daniel Denson          
+                                                     1 Edwin Vandamme         
+                                                     1 Scott Griepentrog      
+                                                     1 JoshE                  
+                                                     1 Joshua Colp            
+                                                     1 Leandro Dardini        
+                                                     1 Ross Beer              
+                                                     1 Tzafrir Cohen          
+                                                     1 Jeffrey Walton         
+                                                     1 George Joseph          
+                                                     1 StefanEng86, urbaniak, 
+                                                     pay123                   
+                                                     1 Mark Michelson         
+                                                     1 Aaron Hamstra          
+                                                     1 Mark Michelson         
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  New Feature
+
+    Category: Core/ManagerInterface/NewFeature
+
+   ASTERISK-25904: PJSIP: add contact.updated event
+   Reported by: Alexei Gradinari
+     * [97b4c7a5b4] Richard Mudgett -- res_pjsip: Fix statsd regression.
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-25904: PJSIP: add contact.updated event
+   Reported by: Alexei Gradinari
+     * [97b4c7a5b4] Richard Mudgett -- res_pjsip: Fix statsd regression.
+
+  Bug
+
+    Category: Applications/app_queue
+
+   ASTERISK-26133: app_queue: Queue members receive multiple calls
+   Reported by: Richard Miller
+     * [43b5f8d57b] Richard Miller -- app_queue: Only remove queue member
+       from pending when state changes.
+
+    Category: Applications/app_voicemail
+
+   ASTERISK-26211: Unit tests: AST_TEST_DEFINE should be used in conditional
+   code.
+   Reported by: Corey Farrell
+     * [c8e41d14a1] Corey Farrell -- Unit tests: Use AST_TEST_DEFINE in
+       conditional code only.
+
+    Category: Channels/chan_dahdi
+
+   ASTERISK-26216: res_fax: Deadlock when detect fax while channel executing
+   Playback
+   Reported by: Richard Mudgett
+     * [dcb8aa8c1c] Richard Mudgett -- chan_dahdi.c: Fix deadlock potential
+       in fax redirection.
+     * [fa91cf3eec] Richard Mudgett -- chan_sip.c: Fix deadlock potential in
+       fax redirection.
+     * [2e1bdc3775] Richard Mudgett -- chan_pjsip.c: Fix deadlock potential
+       in fax redirection.
+     * [628e8c91d5] Richard Mudgett -- res_fax.c: Fix deadlock potential in
+       FAXOPT(faxdetect) framehook.
+
+    Category: Channels/chan_dahdi/NewFeature
+
+   ASTERISK-26214: Allow arbitrary time for fax detection to end on a channel
+   Reported by: Richard Mudgett
+     * [676aeede36] Richard Mudgett -- res_fax: Fix FAXOPT(faxdetect) timeout
+       option.
+     * [652130feb2] Richard Mudgett -- chan_dahdi: Add faxdetect_timeout
+       option.
+     * [851b1c3a17] Richard Mudgett -- res_pjsip: Add fax_detect_timeout
+       endpoint option.
+
+    Category: Channels/chan_pjsip
+
+   ASTERISK-26216: res_fax: Deadlock when detect fax while channel executing
+   Playback
+   Reported by: Richard Mudgett
+     * [dcb8aa8c1c] Richard Mudgett -- chan_dahdi.c: Fix deadlock potential
+       in fax redirection.
+     * [fa91cf3eec] Richard Mudgett -- chan_sip.c: Fix deadlock potential in
+       fax redirection.
+     * [2e1bdc3775] Richard Mudgett -- chan_pjsip.c: Fix deadlock potential
+       in fax redirection.
+     * [628e8c91d5] Richard Mudgett -- res_fax.c: Fix deadlock potential in
+       FAXOPT(faxdetect) framehook.
+   ASTERISK-26214: Allow arbitrary time for fax detection to end on a channel
+   Reported by: Richard Mudgett
+     * [676aeede36] Richard Mudgett -- res_fax: Fix FAXOPT(faxdetect) timeout
+       option.
+     * [652130feb2] Richard Mudgett -- chan_dahdi: Add faxdetect_timeout
+       option.
+     * [851b1c3a17] Richard Mudgett -- res_pjsip: Add fax_detect_timeout
+       endpoint option.
+
+    Category: Channels/chan_sip/General
+
+   ASTERISK-23013: [patch] Deadlock between 'sip show channels' command and
+   attended transfer handling
+   Reported by: Ben Smithurst
+     * [52ab0bf258] gtjoseph -- chan_sip: Prevent deadlock when issuing "sip
+       show channels"
+   ASTERISK-26216: res_fax: Deadlock when detect fax while channel executing
+   Playback
+   Reported by: Richard Mudgett
+     * [dcb8aa8c1c] Richard Mudgett -- chan_dahdi.c: Fix deadlock potential
+       in fax redirection.
+     * [fa91cf3eec] Richard Mudgett -- chan_sip.c: Fix deadlock potential in
+       fax redirection.
+     * [2e1bdc3775] Richard Mudgett -- chan_pjsip.c: Fix deadlock potential
+       in fax redirection.
+     * [628e8c91d5] Richard Mudgett -- res_fax.c: Fix deadlock potential in
+       FAXOPT(faxdetect) framehook.
+   ASTERISK-26211: Unit tests: AST_TEST_DEFINE should be used in conditional
+   code.
+   Reported by: Corey Farrell
+     * [c8e41d14a1] Corey Farrell -- Unit tests: Use AST_TEST_DEFINE in
+       conditional code only.
+   ASTERISK-26193: chan_sip: reference leak in mwi_event_cb
+   Reported by: Corey Farrell
+     * [2be13d62fd] Corey Farrell -- chan_sip: Fix reference leak in
+       mwi_event_cb
+   ASTERISK-26184: chan_sip: Reference leaks in error paths.
+   Reported by: Corey Farrell
+     * [06ba533bc7] Corey Farrell -- chan_sip: Fix reference leaks in error
+       paths.
+
+    Category: Channels/chan_sip/T.38
+
+   ASTERISK-26179: chan_sip: Second T.38 request fails
+   Reported by: Joshua Colp
+     * [77b0145a25] Joshua Colp -- chan_sip/res_pjsip_t38: Handle a request
+       to negotiate T.38 after it is enabled.
+
+    Category: Channels/chan_sip/TCP-TLS
+
+   ASTERISK-19968: TCP Session-Timers not dropping call
+   Reported by: Aaron Hamstra
+     * [66c9dfb272] Alexander Traud -- chan_sip: Enable Session-Timers for
+       SIP over TCP (and TLS).
+
+    Category: Codecs/General
+
+   ASTERISK-26144: Crash on loading codecs g729/g723
+   Reported by: Alexei Gradinari
+     * [d07c8a0504] gtjoseph -- codecs: Fix ABI incompatibility created by
+       adding format_name to ast_codec
+
+    Category: Codecs/codec_siren14
+
+   ASTERISK-26021: Build codecs siren7 and siren14 for Asterisk 13
+   Reported by: Daniel Denson
+     * [1dfc286418] Joshua Colp -- siren: Add format attribute modules for
+       Siren7 and Siren14.
+
+    Category: Codecs/codec_siren7
+
+   ASTERISK-26021: Build codecs siren7 and siren14 for Asterisk 13
+   Reported by: Daniel Denson
+     * [1dfc286418] Joshua Colp -- siren: Add format attribute modules for
+       Siren7 and Siren14.
+
+    Category: Core/AstMM
+
+   ASTERISK-26181: REF_DEBUG: Node object incorrectly logged during duplicate
+   replacement
+   Reported by: Corey Farrell
+     * [9d4e664f62] Corey Farrell -- REF_DEBUG: Prevent logging of container
+       node objects.
+
+    Category: Core/BuildSystem
+
+   ASTERISK-26038: 'make install' doesn't seem to install OS/X init files
+   Reported by: Tzafrir Cohen
+     * [5f24874ebb] Alexander Traud -- Makefile: Suppress echoing of target
+       'config' again.
+   ASTERISK-26046: [patch] Avoid obsolete warnings on autoconf.
+   Reported by: Alexander Traud
+     * [148cd1b319] Alexander Traud -- BuildSystem: Avoid obsolete warning
+       with pthread.m4 on autoconf.
+     * [a1bd57884d] Alexander Traud -- BuildSystem: Avoid obsolete warning
+       with libcurl.m4 on autoconf.
+     * [5f0a098243] Alexander Traud -- BuildSystem: Avoid obsolete warning
+       with AC_TYPE_SIGNAL on autoconf.
+   ASTERISK-25289: Build System does not respect CFLAGS and CXXFLAGS when
+   building menuselect
+   Reported by: Jeffrey Walton
+     * [3be6fa1e4b] Alexander Traud -- BuildSystem: Allow own CFLAGS on
+       ./configure.
+   ASTERISK-26157: Build: Fix errors highlighted by GCC 6.x
+   Reported by: George Joseph
+     * [f3d236ca7f] gtjoseph -- BuildSystem: Fix a few issues hightlighted by
+       gcc 6.x
+
+    Category: Core/General
+
+   ASTERISK-26237: Fax is detected on regular calls.
+   Reported by: Richard Mudgett
+     * [159e437e5a] Richard Mudgett -- dsp.c: Fix erroneous fax tone
+       detection.
+   ASTERISK-26191: threadpool: Leak on duplicate taskprocessor for
+   ast_threadpool_serializer_group
+   Reported by: Corey Farrell
+     * [672a64bda3] Corey Farrell -- threadpool: Fix leak in
+       ast_threadpool_serializer_group error path.
+   ASTERISK-26119: [patch] fix: memory leaks, resource leaks, out of bounds
+   and bugs
+   Reported by: Alexei Gradinari
+     * [5ee205d8bb] Richard Mudgett -- ast_expr2: Fix off-nominal memory
+       leak.
+
+    Category: Core/PBX
+
+   ASTERISK-26196: pbx: Time based includes can leak timezone string
+   Reported by: Corey Farrell
+     * [a17b071e36] Corey Farrell -- pbx: Fix leak of timezone for time based
+       includes.
+
+    Category: Documentation
+
+   ASTERISK-26212: [patch] Makefile: Retain XML Declaration and DTD in docs.
+   Reported by: Alexander Traud
+     * [021d4892cd] Alexander Traud -- Makefile: Retain XML Declaration and
+       DTD in docs.
+
+    Category: Functions/func_curl
+
+   ASTERISK-26211: Unit tests: AST_TEST_DEFINE should be used in conditional
+   code.
+   Reported by: Corey Farrell
+     * [c8e41d14a1] Corey Farrell -- Unit tests: Use AST_TEST_DEFINE in
+       conditional code only.
+
+    Category: Functions/func_odbc
+
+   ASTERISK-26177: func_odbc: Database handle is kept when it should be
+   released
+   Reported by: Leandro Dardini
+     * [17efed6cf7] Joshua Colp -- func_odbc: Fix connection deadlock.
+
+    Category: Resources/res_fax
+
+   ASTERISK-26216: res_fax: Deadlock when detect fax while channel executing
+   Playback
+   Reported by: Richard Mudgett
+     * [dcb8aa8c1c] Richard Mudgett -- chan_dahdi.c: Fix deadlock potential
+       in fax redirection.
+     * [fa91cf3eec] Richard Mudgett -- chan_sip.c: Fix deadlock potential in
+       fax redirection.
+     * [2e1bdc3775] Richard Mudgett -- chan_pjsip.c: Fix deadlock potential
+       in fax redirection.
+     * [628e8c91d5] Richard Mudgett -- res_fax.c: Fix deadlock potential in
+       FAXOPT(faxdetect) framehook.
+   ASTERISK-26214: Allow arbitrary time for fax detection to end on a channel
+   Reported by: Richard Mudgett
+     * [676aeede36] Richard Mudgett -- res_fax: Fix FAXOPT(faxdetect) timeout
+       option.
+     * [652130feb2] Richard Mudgett -- chan_dahdi: Add faxdetect_timeout
+       option.
+     * [851b1c3a17] Richard Mudgett -- res_pjsip: Add fax_detect_timeout
+       endpoint option.
+
+    Category: Resources/res_phoneprov
+
+   ASTERISK-26119: [patch] fix: memory leaks, resource leaks, out of bounds
+   and bugs
+   Reported by: Alexei Gradinari
+     * [5ee205d8bb] Richard Mudgett -- ast_expr2: Fix off-nominal memory
+       leak.
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-26211: Unit tests: AST_TEST_DEFINE should be used in conditional
+   code.
+   Reported by: Corey Farrell
+     * [c8e41d14a1] Corey Farrell -- Unit tests: Use AST_TEST_DEFINE in
+       conditional code only.
+   ASTERISK-26160: pjsip: Updated->Reachable during qualify
+   Reported by: Matt Jordan
+     * [97b4c7a5b4] Richard Mudgett -- res_pjsip: Fix statsd regression.
+   ASTERISK-25772: res_pjsip: Unexpected two BYE when answered
+   Reported by: Dmitriy Serov
+     * [359134c8d3] Richard Mudgett -- res_pjsip_session.c: Don't send extra
+       BYE if SDP invalid.
+     * [5fabcf2ca1] Richard Mudgett -- res_pjsip_session.c: End call on
+       initial invalid SDP negotiation.
+     * [38a4e983dc] Richard Mudgett -- res_pjsip.c: Register PJMEDIA error
+       code decoder.
+
+    Category: Resources/res_pjsip_pubsub
+
+   ASTERISK-26099: res_pjsip_pubsub: Crash when sending request due to server
+   timeout
+   Reported by: Ross Beer
+     * [43a78100c0] gtjoseph -- configure: Fix HAVE_PJSIP_EVSUB_GRP_LOCK not
+       set with external pjproject
+
+    Category: Resources/res_pjsip_sdp_rtp
+
+   ASTERISK-26119: [patch] fix: memory leaks, resource leaks, out of bounds
+   and bugs
+   Reported by: Alexei Gradinari
+     * [5ee205d8bb] Richard Mudgett -- ast_expr2: Fix off-nominal memory
+       leak.
+
+    Category: Resources/res_rtp_asterisk
+
+   ASTERISK-26207: [patch] sRTP: Count a roll-over of the sequence number
+   even on lost packets.
+   Reported by: Alexander Traud
+     * [e404f51b42] Alexander Traud -- res_rtp_asterisk: Count a roll-over of
+       the sequence number even on lost packets.
+   ASTERISK-25659: res_rtp_asterisk: ECDH not negotiated causing DTLS failure
+   occurred on RTP instance
+   Reported by: Edwin Vandamme
+     * [332beb27d8] Eugene Voityuk,Alexander Traud -- res_rtp_asterisk:
+       Enable Forward Secrecy (PFS) for DTLS.
+
+    Category: Tests/General
+
+   ASTERISK-26211: Unit tests: AST_TEST_DEFINE should be used in conditional
+   code.
+   Reported by: Corey Farrell
+     * [c8e41d14a1] Corey Farrell -- Unit tests: Use AST_TEST_DEFINE in
+       conditional code only.
+
+  Improvement
+
+    Category: Channels/chan_pjsip
+
+   ASTERISK-22131: Update the make dependencies script to pull, build, and
+   install the correct pjproject
+   Reported by: Matt Jordan
+     * [f5e9872016] Alexander Traud -- install_prereq: Checkout of libSRTP
+       1.5.x.
+   ASTERISK-25471: [patch]Add subscribe_context to res_pjsip
+   Reported by: JoshE
+     * [2c16a81dd5] Alexei Gradinari -- res_pjsip: Added "subscribe_context"
+       to endpoint
+
+    Category: Core/BuildSystem
+
+   ASTERISK-26220: Add support for noreturn function attributes.
+   Reported by: Corey Farrell
+     * [7fdf7c3d4c] Corey Farrell -- Add conditional support for noreturn
+       functions.
+
+    Category: Resources/res_hep
+
+   ASTERISK-26159: res_hep: enabled by default and information sent to
+   default address
+   Reported by: Ross Beer
+     * [99eff80e76] Matt Jordan -- hep.conf.sample: Default 'enabled' to 'no'
+
+     ----------------------------------------------------------------------
+
+                                  Open Issues
+
+                                 [Back to Top]
+
+   This is a list of all open issues from the issue tracker that were
+   referenced by changes that went into this release.
+
+  Bug
+
+    Category: Core/Sorcery
+
+   ASTERISK-26172: res_sorcery_realtime: fix bug when successful sql UPDATE
+   is treated as failed if there is no affected rows.
+   Reported by: Alexei Gradinari
+     * [b4a9fa2c9e] Alexei Gradinari -- res_sorcery_realtime: fix bug when
+       successful UPDATE is treated as failed
+
+    Category: Resources/res_config_odbc
+
+   ASTERISK-26172: res_sorcery_realtime: fix bug when successful sql UPDATE
+   is treated as failed if there is no affected rows.
+   Reported by: Alexei Gradinari
+     * [b4a9fa2c9e] Alexei Gradinari -- res_sorcery_realtime: fix bug when
+       successful UPDATE is treated as failed
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-26174: res_pjsip: Crash when freeing cloned message in
+   distributor
+   Reported by: Ross Beer
+     * [5997ec7c9e] Alexei Gradinari -- res_pjsip_pubsub: fixed a bug when
+       pjsip_tx_data_dec_ref is called twice.
+   ASTERISK-26061: [patch] res_pjsip: improve realtime performance - remove
+   updating all endpoints status on startup
+   Reported by: Alexei Gradinari
+     * [b3c787d1dd] Alexei Gradinari -- res_pjsip: improve realtime
+       performance #2
+
+    Category: Resources/res_pjsip_mwi
+
+   ASTERISK-26200: [patch] res_pjsip_mwi: improve realtime performance -
+   remove unneeded check on endpoint's contacts.
+   Reported by: Alexei Gradinari
+     * [cb58f853e1] Alexei Gradinari -- res_pjsip_mwi: remove unneeded check
+       on endpoint's contacts.
+
+    Category: Resources/res_pjsip_pubsub
+
+   ASTERISK-26166: res_pjsip_pubsub: Crash when decrementing reference count
+   of message
+   Reported by: Ross Beer
+     * [5997ec7c9e] Alexei Gradinari -- res_pjsip_pubsub: fixed a bug when
+       pjsip_tx_data_dec_ref is called twice.
+
+    Category: Resources/res_realtime
+
+   ASTERISK-26172: res_sorcery_realtime: fix bug when successful sql UPDATE
+   is treated as failed if there is no affected rows.
+   Reported by: Alexei Gradinari
+     * [b4a9fa2c9e] Alexei Gradinari -- res_sorcery_realtime: fix bug when
+       successful UPDATE is treated as failed
+
+    Category: pjproject/pjsip
+
+   ASTERISK-26199: PJSIP: tx_data_destroy called twice
+   Reported by: Scott Griepentrog
+     * [5997ec7c9e] Alexei Gradinari -- res_pjsip_pubsub: fixed a bug when
+       pjsip_tx_data_dec_ref is called twice.
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author         | Summary                                  |
+   |------------+----------------+------------------------------------------|
+   | ca145e1807 | Mark Michelson | .version: Update for 13.11.0-rc1         |
+   |------------+----------------+------------------------------------------|
+   | 918ebf79ff | Mark Michelson | .lastclean: Update for 13.11.0-rc1       |
+   |------------+----------------+------------------------------------------|
+   | d7afc1cf9d | Mark Michelson | realtime: Add database scripts for       |
+   |            |                | 13.11.0-rc1                              |
+   |------------+----------------+------------------------------------------|
+   | 33716106e0 | Richard        | res_pjsip: Whitespace and comment        |
+   |            | Mudgett        | cleanup.                                 |
+   |------------+----------------+------------------------------------------|
+   | 76d4983c15 | Corey Farrell  | features.c: Remove unneeded adsi.h       |
+   |            |                | include.                                 |
+   |------------+----------------+------------------------------------------|
+   | 28501051b4 | Mark Michelson | Update support for SILK format.          |
+   |------------+----------------+------------------------------------------|
+   | 8cef8f35e7 | Kevin Harwell  | translate: explicit format destination   |
+   |            |                | not properly set                         |
+   |------------+----------------+------------------------------------------|
+   | afbd10b0c5 | Richard        | stasis_endpoint.c: Fix                   |
+   |            | Mudgett        | contactstatus_to_json().                 |
+   |------------+----------------+------------------------------------------|
+   | fea201f7e6 | Richard        | pjsip_options.c: Fix container           |
+   |            | Mudgett        | operation.                               |
+   |------------+----------------+------------------------------------------|
+   | 02877b4b4f | Richard        | pjsip_configuration.c: Misc cleanups.    |
+   |            | Mudgett        |                                          |
+   |------------+----------------+------------------------------------------|
+   | 1dfd3fc995 | Matt Jordan    | res/res_pjsip_session: Check for         |
+   |            |                | presence of an active negotiator         |
+   |------------+----------------+------------------------------------------|
+   | 9dd0aeeb44 | Matt Jordan    | res/res_pjsip_pubsub: Add additional     |
+   |            |                | debug statements                         |
+   |------------+----------------+------------------------------------------|
+   | 1ec4f8dd00 | Matt Jordan    | res/res_corosync: Raise a Stasis message |
+   |            |                | on node join/leave events                |
+   |------------+----------------+------------------------------------------|
+   | 640fbbbe28 | Richard        | features: Fix channel datastore access.  |
+   |            | Mudgett        |                                          |
+   |------------+----------------+------------------------------------------|
+   | 1952434df5 | Richard        | res_pjsip_session.c: Remove unused       |
+   |            | Mudgett        | parameter from handle_incoming().        |
+   |------------+----------------+------------------------------------------|
+   | 28928ba5c4 | Richard        | res_pjsip: Add missing NULL checks when  |
+   |            | Mudgett        | using pjsip_inv_end_session().           |
+   |------------+----------------+------------------------------------------|
+   | 78960975f2 | Matt Jordan    | pjproject/patches/config_site: Increase  |
+   |            |                | the max number of ICE candidates         |
+   |------------+----------------+------------------------------------------|
+   | 9d5b0934d9 | Matt Jordan    | configs/basic-pbx/modules.conf: Remove   |
+   |            |                | 'bad' modules                            |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ ChangeLog                                                                                    |41319 ----------
+ asterisk-13.10.0-summary.html                                                                |  488
+ asterisk-13.10.0-summary.txt                                                                 | 1217
+ autoconf/acx_pthread.m4                                                                      |  243
+ b/.version                                                                                   |    2
+ b/CHANGES                                                                                    |   49
+ b/Makefile                                                                                   |    6
+ b/apps/app_queue.c                                                                           |   15
+ b/apps/app_voicemail.c                                                                       |    2
+ b/autoconf/ax_pthread.m4                                                                     |  485
+ b/autoconf/libcurl.m4                                                                        |   49
+ b/channels/chan_dahdi.c                                                                      |   43
+ b/channels/chan_dahdi.h                                                                      |    5
+ b/channels/chan_pjsip.c                                                                      |   59
+ b/channels/chan_sip.c                                                                        |  136
+ b/channels/chan_unistim.c                                                                    |    2
+ b/channels/sip/config_parser.c                                                               |    7
+ b/channels/sip/reqresp_parser.c                                                              |   23
+ b/configs/basic-pbx/modules.conf                                                             |    4
+ b/configs/samples/chan_dahdi.conf.sample                                                     |    9
+ b/configs/samples/hep.conf.sample                                                            |    2
+ b/configs/samples/pjsip.conf.sample                                                          |   22
+ b/configure                                                                                  |  783
+ b/configure.ac                                                                               |   21
+ b/contrib/ast-db-manage/config/versions/4a6c67fa9b7a_add_fax_detect_timeout_option.py        |   23
+ b/contrib/ast-db-manage/config/versions/9deac0ae4717_pjsip_add_subscribe_context.py          |   21
+ b/contrib/ast-db-manage/config/versions/ef7efc2d3964_ps_contacts_add_endpoint_and_modify_.py |   33
+ b/contrib/realtime/mssql/mssql_config.sql                                                    |   42
+ b/contrib/realtime/mysql/mysql_config.sql                                                    |   24
+ b/contrib/realtime/oracle/oracle_config.sql                                                  |   42
+ b/contrib/realtime/postgresql/postgresql_config.sql                                          |   24
+ b/contrib/scripts/install_prereq                                                             |    4
+ b/funcs/func_curl.c                                                                          |    2
+ b/funcs/func_env.c                                                                           |    4
+ b/include/asterisk/autoconfig.h.in                                                           |   24
+ b/include/asterisk/compiler.h                                                                |    6
+ b/include/asterisk/event_defs.h                                                              |   13
+ b/include/asterisk/format_cache.h                                                            |    8
+ b/include/asterisk/res_fax.h                                                                 |    4
+ b/include/asterisk/res_pjsip.h                                                               |   20
+ b/include/asterisk/res_pjsip_session.h                                                       |    2
+ b/include/asterisk/stasis_system.h                                                           |    6
+ b/include/asterisk/utils.h                                                                   |    9
+ b/main/ast_expr2.c                                                                           |    2
+ b/main/ast_expr2.y                                                                           |    2
+ b/main/astobj2_hash.c                                                                        |    4
+ b/main/astobj2_rbtree.c                                                                      |    2
+ b/main/bridge_channel.c                                                                      |    9
+ b/main/channel.c                                                                             |   33
+ b/main/codec_builtin.c                                                                       |   63
+ b/main/dsp.c                                                                                 |    8
+ b/main/features.c                                                                            |    7
+ b/main/format_cache.c                                                                        |   20
+ b/main/pbx.c                                                                                 |   19
+ b/main/rtp_engine.c                                                                          |   10
+ b/main/say.c                                                                                 |   16
+ b/main/stasis_endpoints.c                                                                    |   34
+ b/main/stasis_system.c                                                                       |    6
+ b/main/stdtime/localtime.c                                                                   |   11
+ b/main/threadpool.c                                                                          |    6
+ b/main/translate.c                                                                           |    2
+ b/main/utils.c                                                                               |    4
+ b/res/res_config_odbc.c                                                                      |    1
+ b/res/res_corosync.c                                                                         |  273
+ b/res/res_fax.c                                                                              |   58
+ b/res/res_format_attr_silk.c                                                                 |   64
+ b/res/res_format_attr_siren14.c                                                              |   94
+ b/res/res_format_attr_siren7.c                                                               |   94
+ b/res/res_pjsip.c                                                                            |   99
+ b/res/res_pjsip/config_transport.c                                                           |    3
+ b/res/res_pjsip/location.c                                                                   |    6
+ b/res/res_pjsip/pjsip_configuration.c                                                        |  168
+ b/res/res_pjsip/pjsip_options.c                                                              |  130
+ b/res/res_pjsip_exten_state.c                                                                |   10
+ b/res/res_pjsip_mwi.c                                                                        |   28
+ b/res/res_pjsip_pubsub.c                                                                     |    6
+ b/res/res_pjsip_refer.c                                                                      |    3
+ b/res/res_pjsip_session.c                                                                    |  129
+ b/res/res_pjsip_t38.c                                                                        |    4
+ b/res/res_rtp_asterisk.c                                                                     |   43
+ b/res/res_sorcery_realtime.c                                                                 |    2
+ b/tests/test_sorcery_realtime.c                                                              |   36
+ 82 files changed, 2831 insertions(+), 43980 deletions(-)
