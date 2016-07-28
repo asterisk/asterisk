@@ -983,6 +983,7 @@ int ast_rtp_codecs_payloads_set_rtpmap_type_rate(struct ast_rtp_codecs *codecs, 
 		} else {
 			new_type->format = t->payload_type.format;
 		}
+
 		if (new_type->format) {
 			/* SDP parsing automatically increases the reference count */
 			new_type->format = ast_format_parse_sdp_fmtp(new_type->format, "");
@@ -2257,7 +2258,11 @@ static void add_static_payload(int map, struct ast_format *format, int rtp_code)
 	int x;
 	struct ast_rtp_payload_type *type;
 
-	ast_assert(map < ARRAY_LEN(static_RTP_PT));
+	/*
+	 * ARRAY_LEN's result is cast to an int so 'map' is not autocast to a size_t,
+	 * which if negative would cause an assertion.
+	 */
+	ast_assert(map < (int)ARRAY_LEN(static_RTP_PT));
 
 	ast_rwlock_wrlock(&static_RTP_PT_lock);
 	if (map < 0) {
@@ -2268,6 +2273,7 @@ static void add_static_payload(int map, struct ast_format *format, int rtp_code)
 				break;
 			}
 		}
+
 		if (map < 0) {
 			if (format) {
 				ast_log(LOG_WARNING, "No Dynamic RTP mapping available for format %s\n",
@@ -2300,14 +2306,10 @@ static void add_static_payload(int map, struct ast_format *format, int rtp_code)
 
 int ast_rtp_engine_load_format(struct ast_format *format)
 {
-	char *codec_name = ast_strdupa(ast_format_get_name(format));
-
-	codec_name = ast_str_to_upper(codec_name);
-
 	set_next_mime_type(format,
 		0,
 		ast_codec_media_type2str(ast_format_get_type(format)),
-		codec_name,
+		ast_format_get_codec_name(format),
 		ast_format_get_sample_rate(format));
 	add_static_payload(-1, format, 0);
 
