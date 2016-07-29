@@ -200,7 +200,7 @@ enum gsamp_thresh {
  * followed by a 3 second silent (2100 Hz OFF) period.
  */
 #define FAX_TONE_CNG_FREQ	1100
-#define FAX_TONE_CNG_DURATION	500
+#define FAX_TONE_CNG_DURATION	500	/* ms */
 #define FAX_TONE_CNG_DB		16
 
 /* This signal may be sent by the Terminating FAX machine anywhere between
@@ -208,7 +208,7 @@ enum gsamp_thresh {
  * of a 2100 Hz tone that is from 2.6 to 4 seconds in duration.
 */
 #define FAX_TONE_CED_FREQ	2100
-#define FAX_TONE_CED_DURATION	2600
+#define FAX_TONE_CED_DURATION	2600	/* ms */
 #define FAX_TONE_CED_DB		16
 
 #define DEFAULT_SAMPLE_RATE		8000
@@ -601,7 +601,7 @@ static int tone_detect(struct ast_dsp *dsp, tone_detect_state_t *s, int16_t *amp
 		}
 
 		if (s->hit_count == s->hits_required) {
-			ast_debug(1, "%d Hz done detected\n", s->freq);
+			ast_debug(1, "%d Hz tone detected\n", s->freq);
 			res = 1;
 		}
 
@@ -1620,7 +1620,7 @@ done:
 		for (x = 0; x < len; x++) {
 			odata[x] = AST_LIN2MU((unsigned short) shortdata[x]);
 		}
-	} else if (ast_format_cmp(af->subclass.format, ast_format_ulaw) == AST_FORMAT_CMP_EQUAL) {
+	} else if (ast_format_cmp(af->subclass.format, ast_format_alaw) == AST_FORMAT_CMP_EQUAL) {
 		for (x = 0; x < len; x++) {
 			odata[x] = AST_LIN2A((unsigned short) shortdata[x]);
 		}
