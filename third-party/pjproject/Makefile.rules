@@ -1,9 +1,34 @@
 PJPROJECT_URL = http://www.pjsip.org/release/$(PJPROJECT_VERSION)
 
 # Even though we're not installing pjproject, we're setting prefix to /opt/pjproject to be safe
-PJPROJECT_CONFIG_OPTS = --prefix=/opt/pjproject --disable-speex-codec --disable-speex-aec \
-	--disable-gsm-codec --disable-video --disable-v4l2 --disable-sound --disable-opencore-amr \
-	--disable-ilbc-codec --without-libyuv --disable-g7221-codec --disable-resample
+
+PJPROJECT_CONFIG_OPTS = --prefix=/opt/pjproject \
+	--disable-speex-codec \
+	--disable-speex-aec \
+	--disable-speex-aec \
+	--disable-gsm-codec \
+	--disable-ilbc-codec \
+	--disable-l16-codec \
+	--disable-g711-codec \
+	--disable-g722-codec \
+	--disable-g7221-codec \
+	--disable-opencore-amr \
+	--disable-webrtc \
+	--disable-silk \
+	--disable-opus \
+	--disable-video \
+	--disable-v4l2 \
+	--disable-sound \
+	--disable-ext-sound \
+	--disable-oss \
+	--disable-sdl \
+	--disable-libyuv \
+	--disable-resample \
+	--disable-ffmpeg \
+	--disable-openh264 \
+	--disable-ipp \
+	--without-external-pa \
+	--with-external-srtp
 
 ifeq ($(shell uname -s),Linux)
    PJPROJECT_CONFIG_OPTS +=  --enable-epoll
