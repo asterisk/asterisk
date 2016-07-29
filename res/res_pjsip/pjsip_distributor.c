@@ -965,7 +965,7 @@ static int clean_task(const void *data)
 static void global_loaded(const char *object_type)
 {
 	char *identifier_order = ast_sip_get_endpoint_identifier_order();
-	char *io_copy = ast_strdupa(identifier_order);
+	char *io_copy = identifier_order ? ast_strdupa(identifier_order) : NULL;
 	char *identify_method;
 
 	ast_free(identifier_order);
@@ -982,6 +982,7 @@ static void global_loaded(const char *object_type)
 
 	/* Clean out the old task, if any */
 	ast_sched_clean_by_callback(prune_context, prune_task, clean_task);
+	/* Have to do something with the return value to shut up the stupid compiler. */
 	if (ast_sched_add_variable(prune_context, unidentified_prune_interval * 1000, prune_task, NULL, 1) < 0) {
 		return;
 	}
