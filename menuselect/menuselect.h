@@ -162,4 +162,16 @@ static inline int strlen_zero(const char *s)
 	return (!s || (*s == '\0'));
 }
 
+#if !defined(ast_strdupa) && defined(__GNUC__)
+#define ast_strdupa(s)                                                    \
+	(__extension__                                                    \
+	({                                                                \
+		const char *__old = (s);                                  \
+		size_t __len = strlen(__old) + 1;                         \
+		char *__new = __builtin_alloca(__len);                    \
+		memcpy (__new, __old, __len);                             \
+		__new;                                                    \
+	}))
+#endif
+
 #endif /* MENUSELECT_H */
