@@ -827,3 +827,9 @@ ALTER TABLE ps_globals ADD COLUMN disable_multi_domain ENUM('yes','no');
 
 UPDATE alembic_version SET version_num='8d478ab86e29' WHERE alembic_version.version_num = '3bcc0b5bc2c9';
 
+-- Running upgrade 8d478ab86e29 -> 4a6c67fa9b7a
+
+ALTER TABLE ps_endpoints ADD COLUMN fax_detect_timeout INTEGER;
+
+UPDATE alembic_version SET version_num='4a6c67fa9b7a' WHERE alembic_version.version_num = '8d478ab86e29';
+

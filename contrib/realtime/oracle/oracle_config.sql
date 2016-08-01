@@ -1302,3 +1302,13 @@ UPDATE alembic_version SET version_num='8d478ab86e29' WHERE alembic_version.vers
 
 /
 
+-- Running upgrade 8d478ab86e29 -> 4a6c67fa9b7a
+
+ALTER TABLE ps_endpoints ADD fax_detect_timeout INTEGER
+
+/
+
+UPDATE alembic_version SET version_num='4a6c67fa9b7a' WHERE alembic_version.version_num = '8d478ab86e29'
+
+/
+
