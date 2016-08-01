@@ -748,7 +748,6 @@ static int endpoint_receives_unsolicited_mwi_for_mailbox(struct ast_sip_endpoint
 	int ret = 0;
 
 	mwi_subs = ao2_find(unsolicited_mwi, endpoint_id, OBJ_SEARCH_KEY | OBJ_MULTIPLE);
-
 	if (!mwi_subs) {
 		return 0;
 	}
@@ -1089,7 +1088,7 @@ static void mwi_stasis_cb(void *userdata, struct stasis_subscription *sub,
 	}
 }
 
-/*! \note Called with the unsolicited_mwi conainer lock held. */
+/*! \note Called with the unsolicited_mwi container lock held. */
 static int create_mwi_subscriptions_for_endpoint(void *obj, void *arg, int flags)
 {
 	RAII_VAR(struct mwi_subscription *, aggregate_sub, NULL, ao2_cleanup);
@@ -1212,7 +1211,8 @@ static void mwi_contact_added(const void *object)
 
 	ao2_lock(unsolicited_mwi);
 
-	mwi_subs = ao2_find(unsolicited_mwi, endpoint_id, OBJ_SEARCH_KEY | OBJ_MULTIPLE | OBJ_NOLOCK | OBJ_UNLINK);
+	mwi_subs = ao2_find(unsolicited_mwi, endpoint_id,
+		OBJ_SEARCH_KEY | OBJ_MULTIPLE | OBJ_NOLOCK | OBJ_UNLINK);
 	if (mwi_subs) {
 		for (; (mwi_sub = ao2_iterator_next(mwi_subs)); ao2_cleanup(mwi_sub)) {
 			unsubscribe(mwi_sub, NULL, 0);
@@ -1288,17 +1288,19 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	unsolicited_mwi = ao2_container_alloc(MWI_BUCKETS, mwi_sub_hash, mwi_sub_cmp);
-	if (!unsolicited_mwi) {
-		ast_sip_unregister_subscription_handler(&mwi_handler);
-		return AST_MODULE_LOAD_DECLINE;
-	}
-
 	if (mwi_serializer_pool_setup()) {
 		ast_log(AST_LOG_WARNING, "Failed to create MWI serializer pool. The default SIP pool will be used for MWI\n");
 	}
 
+	unsolicited_mwi = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, MWI_BUCKETS,
+		mwi_sub_hash, NULL, mwi_sub_cmp);
+	if (!unsolicited_mwi) {
+		mwi_serializer_pool_shutdown();
+		ast_sip_unregister_subscription_handler(&mwi_handler);
+		return AST_MODULE_LOAD_DECLINE;
+	}
 	create_mwi_subscriptions();
+
 	ast_sorcery_observer_add(ast_sip_get_sorcery(), "contact", &mwi_contact_observer);
 	ast_sorcery_observer_add(ast_sip_get_sorcery(), "global", &global_observer);
 	ast_sorcery_reload_object(ast_sip_get_sorcery(), "global");
@@ -1316,13 +1318,19 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	ao2_callback(unsolicited_mwi, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, unsubscribe, NULL);
-	ao2_ref(unsolicited_mwi, -1);
-	mwi_serializer_pool_shutdown();
 	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "global", &global_observer);
 	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "contact", &mwi_contact_observer);
+
+	ao2_callback(unsolicited_mwi, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, unsubscribe, NULL);
+	ao2_ref(unsolicited_mwi, -1);
+	unsolicited_mwi = NULL;
+
+	mwi_serializer_pool_shutdown();
+
 	ast_sip_unregister_subscription_handler(&mwi_handler);
+
 	ast_free(default_voicemail_extension);
+	default_voicemail_extension = NULL;
 	return 0;
 }
 
