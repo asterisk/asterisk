@@ -1,3 +1,248 @@
+2016-08-01 11:54 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/11.6-cert14-rc1 Released.
+
+2016-08-01 06:53 +0000 [8c2f8c4b08]  Joshua Colp <jcolp@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-08-01 06:53 +0000 [c4be815da4]  Joshua Colp <jcolp@digium.com>
+
+	* .version: Update for certified/11.6-cert14-rc1
+
+2016-08-01 06:53 +0000 [4bf8df9de3]  Joshua Colp <jcolp@digium.com>
+
+	* .lastclean: Update for certified/11.6-cert14-rc1
+
+2016-07-21 09:05 +0000 [4dec4b5c17]  gtjoseph <gjoseph@digium.com>
+
+	* chan_sip: Prevent deadlock when issuing "sip show channels"
+
+	  sip_show_channels locks the dialogs container first then locks each
+	  sip_pvt so it can spit out the details.  The rest of sip dialog
+	  processing locks the sip_pvt first then locks the dialogs container
+	  if it needs to.  Both lock in the order they need but deadlocks can
+	  result.  To fix, sip_show_channels and sip_show_channelstats have
+	  been converted to use an iterator rather than ao2_callback.  This way
+	  the container is locked only while getting the next entry and is
+	  unlocked when the callback is called.
+
+	  ASTERISK-23013 #close
+
+
+	  Change-Id: Id9980419909e811f89484950ed46ef117b9eb990
+
+2015-10-24 13:08 +0000 [0df57f8f36]  gtjoseph <george.joseph@fairview5.com>
+
+	* build: GCC 5.1.x catches some new const, array bounds and missing paren issues
+
+	  Fixed 1 issue in each of the affected files.
+
+	  ASTERISK-25494 #close
+	  Reported-by: George Joseph
+	  Tested-by: George Joseph
+
+	  Change-Id: I818f149cd66a93b062df421e1c73c7942f5a4a77
+
+2016-06-09 09:20 +0000 [9937f60ba7]  gtjoseph <gjoseph@digium.com>
+
+	* build:  Fix ast_sockaddr initialization to be more portable
+
+	  A change to glibc 2.22 changed the order of the sockadddr_storage
+	  members which caused the places where we do an initialization of
+	  ast_sockaddr with '{ { 0, 0, } }' to fail compilation.  Those
+	  initializers (which we shouldn't have been using anyway) have been
+	  replaced with memsets.
+
+
+	  Change-Id: Idd1b3b320903d8771bfe221f0b015685de628fa4
+	  (cherry picked from commit fd5467ce01643e51f0f80c07af0098ab49591947)
+
+2015-04-06 13:58 +0000 [abb37129d3]  gtjoseph <george.joseph@fairview5.com>
+
+	* build: Fixes for gcc 5 compilation
+
+	  These are fixes for compilation under gcc 5.0...
+
+	  chan_sip.c:    In parse_request needed to make 'lim' unsigned.
+	  inline_api.h:  Needed to add a check for '__GNUC_STDC_INLINE__' to detect C99
+	                 inline semantics (same as clang).
+	  ccss.c:        In ast_cc_set_parm, needed to fix weird comparison.
+	  dsp.c:         Needed to work around a possible compiler bug.  It was throwing
+	                 an array-bounds error but neither
+	                 sgriepentrog, rmudgett nor I could figure out why.
+	  manager.c:     In action_atxfer, needed to correct an array allocation.
+
+	  This patch will go to 11, 13, trunk.
+
+	  Review: https://reviewboard.asterisk.org/r/4581/
+	  Reported-by: Jeffrey Ollie
+	  Tested-by: George Joseph
+	  ASTERISK-24932 #close
+
+
+	  Change-Id: I967d296cdf2c7834a2bdffd401b077a8a968d09b
+
+2016-06-22 10:37 +0000 [2d1e655844]  gtjoseph <gjoseph@digium.com>
+
+	* chan_unistim:  Fix memcpy in get_to_address
+
+	  A code block only enabled when HAVE_PKTINFO is not defined (FreeBSD)
+	  was using a pointer to a pointer as the destination of a memcpy and a
+	  '&' instead of '*' in the sizeof.
+
+	  ASTERISK-26138 #close
+
+
+	  Change-Id: Id4927ff256c0e470bdf7bcfc025146a2f656e708
+	  (cherry picked from commit de169f14e6885934a0ebcdf7564eeb1e6fe99a21)
+
+2016-06-28 08:22 +0000 [07fc46490c]  gtjoseph <gjoseph@digium.com>
+
+	* BuildSystem:  Fix a few issues hightlighted by gcc 6.x
+
+	  gcc 6.1.1 caught a few more issues.
+	  Made sure the unit tests still pass for the func_env and stdtime
+	  issues.
+
+	  ASTERISK-26157 #close
+
+
+	  Change-Id: I6664d8f34a45bc1481d2a854481c7878b0c1cf8e
+	  (cherry picked from commit 95d8b057602e35f2469f7c1d568677b29178ccdf)
+
+2014-03-26 17:44 +0000 [d99d5c0f83]  Joshua Colp <jcolp@digium.com>
+
+	* say: Fix a bug where SayNumber in Polish tries to play incorrect sound.
+
+	  This change fixes a bug where calling SayNumber with a number divisible by
+	  100 using the Polish language would cause the code to attempt to play a
+	  sound file with an empty name.
+
+	  (closes issue ASTERISK-23509)
+	  Reported by: zvision
+
+
+	  Review: https://reviewboard.asterisk.org/r/3378/
+	  ........
+
+	  Merged revisions 411243 from http://svn.asterisk.org/svn/asterisk/branches/1.8
+
+	  Change-Id: If91e16115badaf13255db36cfffc845df9dfe476
+
+2016-06-22 13:41 +0000 [c974fab940]  gtjoseph <gjoseph@digium.com>
+
+	* res_rtp_asterisk:  Fix a self-comparison identified by gcc 6
+
+	  gcc 6 caught a previously unidentified self-comparison in
+	  ice_candidate_cmp.  Fixed it and re-ordered the predicates for better
+	  short-circuiting.
+
+	  ASTERISK-26140 #close
+
+
+	  Change-Id: I3da713c568e24064430257b3502fbdafd35af7a7
+	  (cherry picked from commit 9548ccca0e56470c9a32360da73f687ae05376f5)
+
+2014-10-26 20:46 +0000 [203fb86874]  Matt Jordan <mjordan@digium.com>
+
+	* res/res_srtp: Fix include issue for libsrtp 1.5.0
+
+	  In libsrtp 1.5.0, crypto_get_random is no longer resolved simply by including
+	  srtp.h. Now, one must include crypto_kernel.h as well. As it turns out, this
+	  header file has been provided by the library since 2006, so this is a
+	  relatively benign change.
+
+	  ASTERISK-24436 #close
+	  Reported by: Patrick Laimbock
+	  ........
+
+	  Merged revisions 426140 from http://svn.asterisk.org/svn/asterisk/branches/1.8
+
+	  Change-Id: Ica091f2e42fd63756c33fdbbdf36f1859faa4b70
+
+2014-11-12 07:44 +0000 [b92332b575]  Corey Farrell <git@cfware.com>
+
+	* Fix compiler error when using ./configure --enable-dev-mode --enable-coverage
+
+	  When DONT_OPTIMIZE is enabled with dev-mode, it causes a shadow compilation
+	  to be done with output to /dev/null.  This can cause errors with coverage
+	  when GCC attempts to write to /dev/null.gcno.  This change disables
+	  coverage for the shadow compilation.
+
+
+	  ASTERISK-24502 #close
+	  Reported by: Corey Farrell
+	  Review: https://reviewboard.asterisk.org/r/4151/
+
+	  Change-Id: I64e321f0dc38adf9389f5455f88c3cd740d38470
+
+2016-07-07 10:38 +0000 [abe901e682]  Joshua Colp <jcolp@digium.com>
+
+	* chan_sip: Handle a request to negotiate T.38 after it is enabled
+
+	  Some T.38 implementations may send another re-invite after the initial
+	  one which adds additional negotiation details (such as the max bitrate).
+	  Currently this will fail when passthrough is being done in chan_sip as we
+	  do nothing if T.38 is already active.
+
+	  Other handlers of T.38 inside of Asterisk (such as res_fax) handle this
+	  scenario so this change adds support for it to chan_sip. If a request
+	  to negotiate is received while T.38 is already enabled a new re-INVITE is
+	  sent and negotiation is done again.
+
+	  ASTERISK-26179 #close
+
+	  Change-Id: I0298494d3da6df3219bbfa4be9aa04015043145c
+
+2016-05-18 07:54 +0000 [1597ef14ed]  gtjoseph <gjoseph@digium.com>
+
+	* udptl: Don't eat sequence numbers until OK is received
+
+	  Scenario:
+	  Local fax -> Asterisk w/ firewall -> Provider -> Remote fax
+
+	  * Local fax starts rtp call to remote fax
+	  * Remote fax starts t38 call back to local fax.
+	  * Local fax sends t38 no-signal to Asterisk before sending an OK.
+	  * udptl processes the frame and increments the expected sequence number.
+	  * chan_sip drops the frame because the call isn't up so nothing goes out
+	    the external interface to open the port for incoming packets.
+	  * Local fax sends OK and Asterisk sends OK to the remote fax.
+	  * Remote fax sends t38 packets which are dropped by the firewall.
+	  * Local fax re-sends t38 no-signal with the same sequence number.
+	  * udptl drops the frame because it thinks it's a dup.
+	  * Still no outgoing packets to open the firewall.
+	  * t38 negotiation fails.
+
+	  The patch drops frames t38 received before udptl sequence processing
+	  when the call hasn't been answered yet.  The second no-signal frame
+	  is then seen as new and is relayed out the external interface which
+	  opens the port and allows negotiation to continue.
+
+	  ASTERISK-26034 #close
+
+	  Change-Id: I11744b39748bd2ecbbe8ea84cdb4f3c5943c5af9
+
+2016-05-17 11:14 +0000 [e7dacdbba6]  gtjoseph <gjoseph@digium.com>
+
+	* chan_sip: Prevent extra Session-Expires headers from being added
+
+	  When chan_sip does a re-INVITE to refresh a session and authentication
+	  is required, the INVITE with the Authorization header containes a
+	  second Session-Expires header without the ";refersher=" parameter.
+	  This is causing some proxies to return a 400.  Also, when Asterisk is
+	  the uas and the refresher, it is including the Session-Expires and
+	  Min-SE headers in OPTIONS messages which is not allowed per RFC4028.
+
+	  This patch (based on the reporter's) Checks to see if a Session-Expires
+	  header is already in the message before adding another one.  It also
+	  checks that the method is INVITE or UPDATE.
+
+	  ASTERISK-26030 #close
+
+	  Change-Id: I58a7b07bab5a3177748d8a7034fb8ad8e11ce1d9
+
 2016-02-11 15:36 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/11.6-cert13 Released.
