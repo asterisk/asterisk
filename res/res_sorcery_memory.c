@@ -188,6 +188,10 @@ static void sorcery_memory_retrieve_regex(const struct ast_sorcery *sorcery, voi
 		.regex = &expression,
 	};
 
+	if (ast_strlen_zero(regex)) {
+		regex = ".";
+	}
+
 	if (regcomp(&expression, regex, REG_EXTENDED | REG_NOSUB)) {
 		return;
 	}
