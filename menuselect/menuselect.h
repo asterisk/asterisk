@@ -70,6 +70,8 @@ struct member {
 	const char *touch_on_change;
 	const char *support_level;
 	const char *replacement;
+	/*! member_data is just an opaque, member-specific string */
+	const char *member_data;
 	/*! This module is currently selected */
 	unsigned int enabled:1;
 	/*! This module was enabled when the config was loaded */

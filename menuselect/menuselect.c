@@ -398,6 +398,11 @@ static int process_xml_use_node(xmlNode *node, struct member *mem)
 	return process_xml_ref_node(node, mem, &mem->uses);
 }
 
+static int process_xml_member_data_node(xmlNode *node, struct member *mem)
+{
+	return 0;
+}
+
 static int process_xml_unknown_node(xmlNode *node, struct member *mem)
 {
 	fprintf(stderr, "Encountered unknown node: %s\n", node->name);
@@ -416,6 +421,7 @@ static const struct {
 	{ "depend",         process_xml_depend_node         },
 	{ "conflict",       process_xml_conflict_node       },
 	{ "use",            process_xml_use_node            },
+	{ "member_data",    process_xml_member_data_node    },
 };
 
 static node_handler lookup_node_handler(xmlNode *node)
