@@ -1,3 +1,127 @@
+2016-08-01 11:57 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.8-cert2-rc1 Released.
+
+2016-08-01 06:57 +0000 [b2cc9b4879]  Joshua Colp <jcolp@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-08-01 06:57 +0000 [20e25657fa]  Joshua Colp <jcolp@digium.com>
+
+	* .version: Update for certified/13.8-cert2-rc1
+
+2016-08-01 06:57 +0000 [08c26fba06]  Joshua Colp <jcolp@digium.com>
+
+	* .lastclean: Update for certified/13.8-cert2-rc1
+
+2016-08-01 06:57 +0000 [b539479f10]  Joshua Colp <jcolp@digium.com>
+
+	* realtime: Add database scripts for certified/13.8-cert2-rc1
+
+2016-06-21 10:53 +0000 [164bfc8574]  Scott Griepentrog <scott@griepentrog.com>
+
+	* PJSIP: provide transport type with received messages
+
+	  The receipt of a SIP MESSAGE may occur over any transport including TCP
+	  and TLS. When the message is received, the original URI is added to the
+	  message in the field PJSIP_RECVADDR, but this is insufficient to ensure
+	  a reply message can reach the originating endpoint. This patch adds the
+	  PJSIP_TRANSPORT field populated with the transport type.
+
+	  ASTERISK-26132 #close
+
+	  Change-Id: I28c4b1e40d573a056c81deb213ecf53e968f725e
+	  (cherry picked from commit 69d58a1e377938e5236f51200e222eb219739441)
+
+2016-07-21 22:28 +0000 [7809034c0d]  Richard Mudgett <rmudgett@digium.com>
+
+	* dsp.c: Fix erroneous fax tone detection.
+
+	  The Goertzel calculations get less accurate the lower the signal level
+	  being worked with becomes because there is less resolution remaining.
+	  If it is too low we can erroneously detect a tone where none really
+	  exists.  The searched for fax frequencies not only need to be so much
+	  stronger than the background noise they must also be a minimum strength.
+
+	  * Add needed minimum threshold test to tone_detect().
+
+	  * Set TONE_THRESHOLD to allow low volume frequency spread detection.
+
+	  ASTERISK-26237 #close
+	  Reported by: Richard Mudgett
+
+	  Change-Id: I84dbba7f7628fa13720add6a88eae3b129e066fc
+
+2016-07-21 09:05 +0000 [5bc48a290b]  gtjoseph <gjoseph@digium.com>
+
+	* chan_sip: Prevent deadlock when issuing "sip show channels"
+
+	  sip_show_channels locks the dialogs container first then locks each
+	  sip_pvt so it can spit out the details.  The rest of sip dialog
+	  processing locks the sip_pvt first then locks the dialogs container
+	  if it needs to.  Both lock in the order they need but deadlocks can
+	  result.  To fix, sip_show_channels and sip_show_channelstats have
+	  been converted to use an iterator rather than ao2_callback.  This way
+	  the container is locked only while getting the next entry and is
+	  unlocked when the callback is called.
+
+	  ASTERISK-23013 #close
+
+	  Change-Id: Id9980419909e811f89484950ed46ef117b9eb990
+
+2016-07-12 17:24 +0000 [49defa5578]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_fax: Fix FAXOPT(faxdetect) timeout option.
+
+	  The fax detection timeout option did not work because basically the wrong
+	  variable was checked in fax_detect_framehook().  As a result, the timer
+	  would timeout immediately and disable fax detection.
+
+	  * Fixed ignoring negative timeout values.  We'd complain and then go right
+	  on using the negative value.
+
+	  * Fixed destroy_faxdetect() in the off-nominal case of an incomplete
+	  object creation.
+
+	  * Added more range checking to FAXOPT(gateway) timeout parameter.
+
+	  ASTERISK-26214 #close
+	  Reported by: Richard Mudgett
+
+	  Change-Id: Idc5e698dfe33572de9840bc68cd9fc043cbad976
+
+2016-07-18 16:16 +0000 [a0485fe851]  Richard Mudgett <rmudgett@digium.com>
+
+	* chan_dahdi: Add faxdetect_timeout option.
+
+	  The new option allows the channel driver's faxdetect option to timeout on
+	  a call after the specified number of seconds into a call.  The new feature
+	  is disabled if the timeout is set to zero.  The option is disabled by
+	  default.
+
+	  * Don't clear dsp_features after passing them to the dsp code in
+	  my_pri_ss7_open_media().  We should still remember them especially for the
+	  new faxdetect_timeout option.
+
+	  ASTERISK-26214
+	  Reported by: Richard Mudgett
+
+	  Change-Id: Ieffd3fe788788d56282844774365546dce8ac810
+
+2016-07-15 20:44 +0000 [d172104e12]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_pjsip: Add fax_detect_timeout endpoint option.
+
+	  The new endpoint option allows the PJSIP channel driver's fax_detect
+	  endpoint option to timeout on a call after the specified number of
+	  seconds into a call.  The new feature is disabled if the timeout is set
+	  to zero.  The option is disabled by default.
+
+	  ASTERISK-26214
+	  Reported by: Richard Mudgett
+
+	  Change-Id: Id5a87375fb2c4f9dc1d4b44c78ec8735ba65453d
+
 2016-07-13 14:09 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.8-cert1 Released.
