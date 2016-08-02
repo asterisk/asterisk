@@ -608,7 +608,7 @@ int ast_taskprocessor_alert_set_levels(struct ast_taskprocessor *tps, long low_w
 			tps_alert_add(tps, -1);
 		}
 	} else {
-		if (high_water <= tps->tps_queue_size) {
+		if (high_water < tps->tps_queue_size) {
 			/* Update water mark alert immediately */
 			tps->high_water_alert = 1;
 			tps_alert_add(tps, +1);
@@ -883,11 +883,11 @@ static int taskprocessor_push(struct ast_taskprocessor *tps, struct tps_task *t)
 	AST_LIST_INSERT_TAIL(&tps->tps_queue, t, list);
 	previous_size = tps->tps_queue_size++;
 
-	if (previous_size >= tps->tps_queue_high) {
+	if (tps->tps_queue_high <= tps->tps_queue_size) {
 		if (!tps->high_water_warned) {
 			tps->high_water_warned = 1;
-			ast_log(LOG_WARNING, "The '%s' task processor queue reached %d scheduled tasks.\n",
-				tps->name, previous_size);
+			ast_log(LOG_WARNING, "The '%s' task processor queue reached %ld scheduled tasks.\n",
+				tps->name, tps->tps_queue_size);
 		}
 		if (!tps->high_water_alert) {
 			tps->high_water_alert = 1;
