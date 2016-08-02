@@ -17,6 +17,17 @@
 --- Functionality changes from Asterisk 14.0.0 to Asterisk 14.1.0 ----------
 ------------------------------------------------------------------------------
 
+Build System
+------------------
+ * The res_digium_phone, codec_g729a, codec_silk, codec_siren7 and
+   codec_siren14 binary modules hosted at downloads.digium.com can now be
+   automatically downloaded and installed during the Asterisk install
+   process.  If selected in menuselect, when 'make install' is run, the
+   script will check the downloads site for a new version and download
+   and install it if needed.  The '--with-externals-cache' option to
+   ./configure can be used to specify a location to cache the latest
+   tarballs so they don't have to be re-downloaded for every install.
+
 app_voicemail
 ------------------
  * Added "tps_queue_high" and "tps_queue_low" options.
