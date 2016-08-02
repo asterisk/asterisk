@@ -91,3 +91,10 @@ endif
 
 $(call MOD_ADD_C,codec_resample,speex/resample.c)
 speex/resample.o: _ASTCFLAGS+=$(SPEEX_RESAMPLE_CFLAGS)
+
+ifneq ($(XMLSTARLET),:)
+EXTERNAL_MODS := $(shell $(XMLSTARLET) sel -t -v "/category/member[support_level = 'external']/@name" .moduleinfo)
+
+install::
+	$(foreach MODULE,$(filter-out $(MENUSELECT_CODECS),$(EXTERNAL_MODS)),$(ASTTOPDIR)/build_tools/download_externals $(MODULE) || exit 1;)
+endif

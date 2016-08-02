@@ -71,3 +71,10 @@ $(call MOD_ADD_C,res_stasis_recording,stasis_recording/stored.c)
 
 # Dependencies for res_ari_*.so are generated, so they're in this file
 include ari.make
+
+ifneq ($(XMLSTARLET),:)
+EXTERNAL_MODS := $(shell $(XMLSTARLET) sel -t -v "/category/member[support_level = 'external']/@name" .moduleinfo)
+
+install::
+	$(foreach MODULE,$(filter-out $(EMBEDDED_MODS),$(EXTERNAL_MODS)),$(ASTTOPDIR)/build_tools/download_externals $(MODULE))
+endif
