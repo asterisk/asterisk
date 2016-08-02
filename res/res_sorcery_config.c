@@ -210,6 +210,10 @@ static void sorcery_config_retrieve_regex(const struct ast_sorcery *sorcery, voi
 		.regex = &expression,
 	};
 
+	if (ast_strlen_zero(regex)) {
+		regex = ".";
+	}
+
 	if (!config_objects || regcomp(&expression, regex, REG_EXTENDED | REG_NOSUB)) {
 		return;
 	}
