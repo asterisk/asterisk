@@ -97,3 +97,10 @@ stasis_recording/stored.o:  _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_stasis_recordin
 
 # Dependencies for res_ari_*.so are generated, so they're in this file
 include ari.make
+
+ifneq ($(XMLSTARLET),:)
+EXTERNAL_MODS := $(shell $(XMLSTARLET) sel -t -v "/category/member[support_level = 'external']/@name" .moduleinfo)
+
+install::
+	$(foreach MODULE,$(filter-out $(EMBEDDED_MODS),$(EXTERNAL_MODS)),$(ASTTOPDIR)/build_tools/download_externals $(MODULE))
+endif

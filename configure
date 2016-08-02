@@ -802,6 +802,7 @@ PBX_SPANDSP
 SPANDSP_DIR
 SPANDSP_INCLUDE
 SPANDSP_LIB
+EXTERNALS_CACHE_DIR
 SOUNDS_CACHE_DIR
 PBX_SDL_IMAGE
 SDL_IMAGE_DIR
@@ -1178,6 +1179,7 @@ PTHREAD_CC
 ax_pthread_config
 MD5
 SOXMIX
+PBX_XMLSTARLET
 PBX_FLEX
 PBX_BISON
 OPENSSL
@@ -1373,6 +1375,7 @@ with_resample
 with_sdl
 with_SDL_image
 with_sounds_cache
+with_externals_cache
 with_spandsp
 with_ss7
 with_speex
@@ -2117,6 +2120,8 @@ Optional Packages:
   --with-SDL_image=PATH   use Sdl Image files in PATH
   --with-sounds-cache=PATH
                           use cached sound tarfiles in PATH
+  --with-externals-cache=PATH
+                          use cached external module tarfiles in PATH
   --with-spandsp=PATH     use SPANDSP files in PATH
   --with-ss7=PATH         use ISDN SS7 files in PATH
   --with-speex=PATH       use Speex files in PATH
@@ -7765,6 +7770,14 @@ else
 fi
 
 
+if test "x${XMLSTARLET}" = "x:" ; then
+	PBX_XMLSTARLET=0
+else
+	PBX_XMLSTARLET=1
+fi
+
+
+
 if test -n "$ac_tool_prefix"; then
   # Extract the first word of "${ac_tool_prefix}soxmix", so it can be a program name with args.
 set dummy ${ac_tool_prefix}soxmix; ac_word=$2
@@ -11452,6 +11465,30 @@ if test "${with_sounds_cache+set}" = set; then :
 			:
 		else
 			SOUNDS_CACHE_DIR="${withval}"
+		fi
+		;;
+	esac
+
+else
+  :
+fi
+
+
+
+
+
+# Check whether --with-externals-cache was given.
+if test "${with_externals_cache+set}" = set; then :
+  withval=$with_externals_cache;
+	case ${withval} in
+	n|no)
+		unset EXTERNALS_CACHE_DIR
+		;;
+	*)
+		if test "x${withval}" = "x"; then
+			:
+		else
+			EXTERNALS_CACHE_DIR="${withval}"
 		fi
 		;;
 	esac

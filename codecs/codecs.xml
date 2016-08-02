@@ -1,0 +1,21 @@
+<member name="codec_silk" displayname="Download the SILK codec from Digium.  See http://downloads.digium.com/pub/telephony/codec_silk/README.">
+	<support_level>external</support_level>
+	<depend>xmlstarlet</depend>
+	<defaultenabled>no</defaultenabled>
+</member>
+<member name="codec_siren7" displayname="Download the Siren7 codec from Digium.  See http://downloads.digium.com/pub/telephony/codec_siren7/README.">
+	<support_level>external</support_level>
+	<depend>xmlstarlet</depend>
+	<defaultenabled>no</defaultenabled>
+</member>
+<member name="codec_siren14" displayname="Download the Siren14 codec from Digium.  See http://downloads.digium.com/pub/telephony/codec_siren14/README.">
+	<support_level>external</support_level>
+	<depend>xmlstarlet</depend>
+	<defaultenabled>no</defaultenabled>
+</member>
+<member name="codec_g729a" displayname="Download the g729a codec from Digium.  A license must be purchased for this codec.  See http://downloads.digium.com/pub/telephony/codec_g729/README.">
+	<support_level>external</support_level>
+	<depend>xmlstarlet</depend>
+	<defaultenabled>no</defaultenabled>
+	<member_data><downloader directory_name="codec_g729"/></member_data>
+</member>
