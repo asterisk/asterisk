@@ -2144,13 +2144,13 @@ static struct ast_threadpool *sip_threadpool;
 static pj_sockaddr host_ip_ipv4;
 
 /*! Local host address for IPv4 (string form) */
-static char host_ip_ipv4_string[PJ_INET6_ADDRSTRLEN + 2];
+static char host_ip_ipv4_string[PJ_INET6_ADDRSTRLEN];
 
 /*! Local host address for IPv6 */
 static pj_sockaddr host_ip_ipv6;
 
 /*! Local host address for IPv6 (string form) */
-static char host_ip_ipv6_string[PJ_INET6_ADDRSTRLEN + 2];
+static char host_ip_ipv6_string[PJ_INET6_ADDRSTRLEN];
 
 static int register_service_noref(void *data)
 {
@@ -4264,6 +4264,7 @@ static int unload_pjsip(void *data)
 
 static int load_pjsip(void)
 {
+	const unsigned int flags = 0; /* no port, no brackets */
 	pj_status_t status;
 
 	/* The third parameter is just copied from
@@ -4288,12 +4289,12 @@ static int load_pjsip(void)
 	}
 
 	if (!pj_gethostip(pj_AF_INET(), &host_ip_ipv4)) {
-		pj_sockaddr_print(&host_ip_ipv4, host_ip_ipv4_string, sizeof(host_ip_ipv4_string), 2);
+		pj_sockaddr_print(&host_ip_ipv4, host_ip_ipv4_string, sizeof(host_ip_ipv4_string), flags);
 		ast_verb(3, "Local IPv4 address determined to be: %s\n", host_ip_ipv4_string);
 	}
 
 	if (!pj_gethostip(pj_AF_INET6(), &host_ip_ipv6)) {
-		pj_sockaddr_print(&host_ip_ipv6, host_ip_ipv6_string, sizeof(host_ip_ipv6_string), 2);
+		pj_sockaddr_print(&host_ip_ipv6, host_ip_ipv6_string, sizeof(host_ip_ipv6_string), flags);
 		ast_verb(3, "Local IPv6 address determined to be: %s\n", host_ip_ipv6_string);
 	}
 
