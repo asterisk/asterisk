@@ -822,6 +822,7 @@ PBX_SPANDSP
 SPANDSP_DIR
 SPANDSP_INCLUDE
 SPANDSP_LIB
+EXTERNALS_CACHE_DIR
 SOUNDS_CACHE_DIR
 PBX_SDL_IMAGE
 SDL_IMAGE_DIR
@@ -1202,6 +1203,8 @@ PTHREAD_CC
 ax_pthread_config
 MD5
 SOXMIX
+PBX_BASH
+PBX_XMLSTARLET
 PBX_FLEX
 PBX_BISON
 OPENSSL
@@ -1211,6 +1214,7 @@ DOWNLOAD
 FETCH
 ALEMBIC
 GIT
+BASH
 XMLSTARLET
 XMLLINT
 KPATHSEA
@@ -1398,6 +1402,7 @@ with_resample
 with_sdl
 with_SDL_image
 with_sounds_cache
+with_externals_cache
 with_spandsp
 with_ss7
 with_speex
@@ -2144,6 +2149,8 @@ Optional Packages:
   --with-SDL_image=PATH   use Sdl Image files in PATH
   --with-sounds-cache=PATH
                           use cached sound tarfiles in PATH
+  --with-externals-cache=PATH
+                          use cached external module tarfiles in PATH
   --with-spandsp=PATH     use SPANDSP files in PATH
   --with-ss7=PATH         use ISDN SS7 files in PATH
   --with-speex=PATH       use Speex files in PATH
@@ -7489,6 +7496,47 @@ $as_echo "no" >&6; }
 fi
 
 
+# Extract the first word of "bash", so it can be a program name with args.
+set dummy bash; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_BASH+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $BASH in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_BASH="$BASH" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_BASH="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  test -z "$ac_cv_path_BASH" && ac_cv_path_BASH=":"
+  ;;
+esac
+fi
+BASH=$ac_cv_path_BASH
+if test -n "$BASH"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $BASH" >&5
+$as_echo "$BASH" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
 # Extract the first word of "git", so it can be a program name with args.
 set dummy git; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
@@ -7793,6 +7841,20 @@ if test "x${FLEX}" = "x:" ; then
 	PBX_FLEX=0
 else
 	PBX_FLEX=1
+fi
+
+
+if test "x${XMLSTARLET}" = "x:" ; then
+	PBX_XMLSTARLET=0
+else
+	PBX_XMLSTARLET=1
+fi
+
+
+if test "x${BASH}" = "x:" ; then
+	PBX_BASH=0
+else
+	PBX_BASH=1
 fi
 
 
@@ -11515,6 +11577,30 @@ if test "${with_sounds_cache+set}" = set; then :
 			:
 		else
 			SOUNDS_CACHE_DIR="${withval}"
+		fi
+		;;
+	esac
+
+else
+  :
+fi
+
+
+
+
+
+# Check whether --with-externals-cache was given.
+if test "${with_externals_cache+set}" = set; then :
+  withval=$with_externals_cache;
+	case ${withval} in
+	n|no)
+		unset EXTERNALS_CACHE_DIR
+		;;
+	*)
+		if test "x${withval}" = "x"; then
+			:
+		else
+			EXTERNALS_CACHE_DIR="${withval}"
 		fi
 		;;
 	esac

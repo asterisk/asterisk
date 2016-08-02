@@ -618,9 +618,10 @@ $(SUBDIRS_INSTALL):
 
 NEWMODS:=$(foreach d,$(MOD_SUBDIRS),$(notdir $(wildcard $(d)/*.so)))
 OLDMODS=$(filter-out $(NEWMODS) $(notdir $(DESTDIR)$(ASTMODDIR)),$(notdir $(wildcard $(DESTDIR)$(ASTMODDIR)/*.so)))
+BADMODS=$(strip $(filter-out $(shell ./build_tools/list_valid_installed_externals),$(OLDMODS)))
 
 oldmodcheck:
-	@if [ -n "$(OLDMODS)" ]; then \
+	@if [ -n "$(BADMODS)" ]; then \
 		echo " WARNING WARNING WARNING" ;\
 		echo "" ;\
 		echo " Your Asterisk modules directory, located at" ;\
@@ -630,7 +631,7 @@ oldmodcheck:
 		echo " modules are compatible with this version before" ;\
 		echo " attempting to run Asterisk." ;\
 		echo "" ;\
-		for f in $(OLDMODS); do \
+		for f in $(BADMODS); do \
 			echo "    $$f" ;\
 		done ;\
 		echo "" ;\
@@ -980,7 +981,7 @@ menuselect/nmenuselect: menuselect/makeopts .lastclean
 menuselect/makeopts: makeopts .lastclean
 	+$(MAKE_MENUSELECT) makeopts
 
-menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(dir)/*.c) $(wildcard $(dir)/*.cc)) build_tools/cflags.xml build_tools/cflags-devmode.xml sounds/sounds.xml build_tools/embed_modules.xml utils/utils.xml agi/agi.xml configure makeopts
+menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(dir)/*.c) $(wildcard $(dir)/*.cc) $(wildcard $(dir)/*.xml)) build_tools/cflags.xml build_tools/cflags-devmode.xml sounds/sounds.xml build_tools/embed_modules.xml utils/utils.xml agi/agi.xml configure makeopts
 	@echo "Generating input for menuselect ..."
 	@echo "<?xml version=\"1.0\"?>" > $@
 	@echo >> $@
