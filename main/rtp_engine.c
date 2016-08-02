@@ -2200,11 +2200,6 @@ int ast_rtp_engine_init(void)
 	/* Opus and VP8 */
 	set_next_mime_type(ast_format_opus, 0,  "audio", "opus", 48000);
 	set_next_mime_type(ast_format_vp8, 0,  "video", "VP8", 90000);
-	/* DA SILK */
-	set_next_mime_type(ast_format_silk8, 0, "audio", "silk", 8000);
-	set_next_mime_type(ast_format_silk12, 0, "audio", "silk", 12000);
-	set_next_mime_type(ast_format_silk16, 0, "audio", "silk", 16000);
-	set_next_mime_type(ast_format_silk24, 0, "audio", "silk", 24000);
 
 	/* Define the static rtp payload mappings */
 	add_static_payload(0, ast_format_ulaw, 0);
@@ -2249,11 +2244,6 @@ int ast_rtp_engine_init(void)
 	/* Opus and VP8 */
 	add_static_payload(100, ast_format_vp8, 0);
 	add_static_payload(107, ast_format_opus, 0);
-
-	add_static_payload(108, ast_format_silk8, 0);
-	add_static_payload(109, ast_format_silk12, 0);
-	add_static_payload(113, ast_format_silk16, 0);
-	add_static_payload(114, ast_format_silk24, 0);
 
 	return 0;
 }
