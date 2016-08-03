@@ -4452,7 +4452,10 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 		exit(1);
 	}
 
-	aco_init();
+	if (aco_init()) {
+		printf("Failed: aco_init\n%s", term_quit());
+		exit(1);
+	}
 
 	if (init_logger()) {		/* Start logging subsystem */
 		printf("Failed: init_logger\n%s", term_quit());
@@ -4546,7 +4549,10 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 		exit(1);
 	}
 
-	ast_channels_init();
+	if (ast_channels_init()) {
+		printf("Failed: ast_channels_init\n%s", term_quit());
+		exit(1);
+	}
 
 	if (ast_endpoint_init()) {
 		printf ("Failed: ast_endpoint_init\n%s", term_quit());
