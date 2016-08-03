@@ -4235,10 +4235,17 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 
 	threadstorage_init();
 
-	ast_format_attr_init();
-	ast_format_list_init();
-	ast_rtp_engine_init();
+	if (ast_format_attr_init()) {
+		printf("Failed: ast_format_attr_init\n%s", term_quit());
+		exit(1);
+	}
 
+	if (ast_format_list_init()) {
+		printf("Failed: ast_format_list_init\n%s", term_quit());
+		exit(1);
+	}
+
+	ast_rtp_engine_init();
 	ast_autoservice_init();
 
 	if (ast_timing_init()) {
@@ -4272,7 +4279,10 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 		exit(1);
 	}
 
-	ast_channels_init();
+	if (ast_channels_init()) {
+		printf("Failed: ast_channels_init\n%s", term_quit());
+		exit(1);
+	}
 
 	if ((moduleresult = load_modules(1))) {		/* Load modules, pre-load only */
 		printf("Failed: load_modules(1)\n%s", term_quit());
