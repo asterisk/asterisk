@@ -7803,13 +7803,14 @@ static void channels_shutdown(void)
 	ast_channel_unregister(&surrogate_tech);
 }
 
-void ast_channels_init(void)
+int ast_channels_init(void)
 {
 	channels = ao2_container_alloc(NUM_CHANNEL_BUCKETS,
 			ast_channel_hash_cb, ast_channel_cmp_cb);
-	if (channels) {
-		ao2_container_register("channels", channels, prnt_channel_key);
+	if (!channels) {
+		return -1;
 	}
+	ao2_container_register("channels", channels, prnt_channel_key);
 
 	ast_channel_register(&surrogate_tech);
 
@@ -7823,6 +7824,7 @@ void ast_channels_init(void)
 
 	ast_register_cleanup(channels_shutdown);
 
+	return 0;
 }
 
 /*! \brief Print call group and pickup group ---*/

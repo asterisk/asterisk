@@ -29,7 +29,7 @@ void logger_queue_start(void);		/*!< Provided by logger.c */
 void clean_time_zones(void);			/*!< Provided by localtime.c */
 int ast_term_init(void);		/*!< Provided by term.c */
 int astdb_init(void);			/*!< Provided by db.c */
-void ast_channels_init(void);		/*!< Provided by channel.c */
+int ast_channels_init(void);		/*!< Provided by channel.c */
 void ast_builtins_init(void);		/*!< Provided by cli.c */
 int ast_cli_perms_init(int reload);	/*!< Provided by cli.c */
 int dnsmgr_init(void);			/*!< Provided by dnsmgr.c */
