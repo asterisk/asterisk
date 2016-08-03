@@ -1222,18 +1222,30 @@ static int find_static_payload_type(int asterisk_format, const struct ast_format
  */
 static int rtp_codecs_find_empty_dynamic_rx(struct ast_rtp_codecs *codecs)
 {
-	struct ast_rtp_payload_type *type;
-	int idx;
+	int x = AST_RTP_PT_FIRST_DYNAMIC;
 	int payload = -1;
 
-	idx = AST_RTP_PT_FIRST_DYNAMIC;
-	for (; idx < AST_VECTOR_SIZE(&codecs->payload_mapping_rx); ++idx) {
-		type = AST_VECTOR_GET(&codecs->payload_mapping_rx, idx);
+        ast_rwlock_rdlock(&static_RTP_PT_lock);
+
+	for (; x < AST_RTP_MAX_PT; ++x) {
+		struct ast_rtp_payload_type *type;
+
+		if (static_RTP_PT[x]) {
+			continue;
+		} else if (x > AST_VECTOR_SIZE(&codecs->payload_mapping_rx)) {
+			payload = x;
+			break;
+		}
+
+		type = AST_VECTOR_GET(&codecs->payload_mapping_rx, x);
 		if (!type) {
-			payload = idx;
+			payload = x;
 			break;
 		}
 	}
+
+	ast_rwlock_unlock(&static_RTP_PT_lock);
+
 	return payload;
 }
 
@@ -1291,7 +1303,7 @@ static int rtp_codecs_assign_payload_code_rx(struct ast_rtp_codecs *codecs, int 
 	struct ast_rtp_payload_type *new_type;
 
 	payload = find_static_payload_type(asterisk_format, format, code);
-	if (payload < 0) {
+	if (payload >= 0) {
 		return payload;
 	}
 
@@ -1306,9 +1318,9 @@ static int rtp_codecs_assign_payload_code_rx(struct ast_rtp_codecs *codecs, int 
 	new_type->primary_mapping = 1;
 
 	ast_rwlock_wrlock(&codecs->codecs_lock);
-	if (payload < AST_RTP_PT_FIRST_DYNAMIC
+	if ((payload > -1) && (payload < AST_RTP_PT_FIRST_DYNAMIC
 		|| AST_VECTOR_SIZE(&codecs->payload_mapping_rx) <= payload
-		|| !AST_VECTOR_GET(&codecs->payload_mapping_rx, payload)) {
+		|| !AST_VECTOR_GET(&codecs->payload_mapping_rx, payload))) {
 		/*
 		 * The payload type is a static assignment
 		 * or our default dynamic position is available.
@@ -2255,7 +2267,6 @@ static void set_next_mime_type(struct ast_format *format, int rtp_code, const ch
 
 static void add_static_payload(int map, struct ast_format *format, int rtp_code)
 {
-	int x;
 	struct ast_rtp_payload_type *type;
 
 	/*
@@ -2264,29 +2275,15 @@ static void add_static_payload(int map, struct ast_format *format, int rtp_code)
 	 */
 	ast_assert(map < (int)ARRAY_LEN(static_RTP_PT));
 
-	ast_rwlock_wrlock(&static_RTP_PT_lock);
+	/*
+	 * An RTP code is required, if not then one will be dynamically allocated
+	 * per instance.
+	 */
 	if (map < 0) {
-		/* find next available dynamic payload slot */
-		for (x = AST_RTP_PT_FIRST_DYNAMIC; x < AST_RTP_MAX_PT; ++x) {
-			if (!static_RTP_PT[x]) {
-				map = x;
-				break;
-			}
-		}
-
-		if (map < 0) {
-			if (format) {
-				ast_log(LOG_WARNING, "No Dynamic RTP mapping available for format %s\n",
-					ast_format_get_name(format));
-			} else {
-				ast_log(LOG_WARNING, "No Dynamic RTP mapping available for RTP code %d\n",
-					rtp_code);
-			}
-			ast_rwlock_unlock(&static_RTP_PT_lock);
-			return;
-		}
+		return;
 	}
 
+	ast_rwlock_wrlock(&static_RTP_PT_lock);
 	type = ast_rtp_engine_alloc_payload_type();
 	if (type) {
 		if (format) {
@@ -2311,7 +2308,6 @@ int ast_rtp_engine_load_format(struct ast_format *format)
 		ast_codec_media_type2str(ast_format_get_type(format)),
 		ast_format_get_codec_name(format),
 		ast_format_get_sample_rate(format));
-	add_static_payload(-1, format, 0);
 
 	return 0;
 }
@@ -2715,35 +2711,8 @@ int ast_rtp_engine_init(void)
 	add_static_payload(26, ast_format_jpeg, 0);
 	add_static_payload(31, ast_format_h261, 0);
 	add_static_payload(34, ast_format_h263, 0);
-	add_static_payload(97, ast_format_ilbc, 0);
-	add_static_payload(98, ast_format_h263p, 0);
-	add_static_payload(99, ast_format_h264, 0);
 	add_static_payload(101, NULL, AST_RTP_DTMF);
-	add_static_payload(102, ast_format_siren7, 0);
-	add_static_payload(103, ast_format_h263p, 0);
-	add_static_payload(104, ast_format_mp4, 0);
-	add_static_payload(105, ast_format_t140_red, 0);   /* Real time text chat (with redundancy encoding) */
-	add_static_payload(106, ast_format_t140, 0);     /* Real time text chat */
-	add_static_payload(110, ast_format_speex, 0);
-	add_static_payload(111, ast_format_g726, 0);
-	add_static_payload(112, ast_format_g726_aal2, 0);
-	add_static_payload(115, ast_format_siren14, 0);
-	add_static_payload(116, ast_format_g719, 0);
-	add_static_payload(117, ast_format_speex16, 0);
-	add_static_payload(118, ast_format_slin16, 0); /* 16 Khz signed linear */
-	add_static_payload(119, ast_format_speex32, 0);
 	add_static_payload(121, NULL, AST_RTP_CISCO_DTMF);   /* Must be type 121 */
-	add_static_payload(122, ast_format_slin12, 0);
-	add_static_payload(123, ast_format_slin24, 0);
-	add_static_payload(124, ast_format_slin32, 0);
-	add_static_payload(125, ast_format_slin44, 0);
-	add_static_payload(126, ast_format_slin48, 0);
-	add_static_payload(127, ast_format_slin96, 0);
-	/* payload types above 127 are not valid */
-	add_static_payload(96, ast_format_slin192, 0);
-	/* Opus and VP8 */
-	add_static_payload(100, ast_format_vp8, 0);
-	add_static_payload(107, ast_format_opus, 0);
 
 	return 0;
 }
