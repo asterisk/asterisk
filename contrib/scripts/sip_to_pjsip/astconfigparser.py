@@ -203,7 +203,7 @@ def remove_comment(line, is_comment):
     if match:
          # the end of where the real string is is where the comment starts
          line = line[0:(match.end()-1)]
-    elif line.startswith(";"):
+    if line.startswith(";"):
          # if the line is actually a comment just ignore it all
          line = ""
 
