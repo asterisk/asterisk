@@ -313,4 +313,11 @@ struct ast_sched_context;
 #define __stringify_1(x)	#x
 #define __stringify(x)		__stringify_1(x)
 
+/*!
+ * \brief Retrieve the PBX UUID
+ * \param pbx_uuid A buffer of at least AST_UUID_STR_LEN (36 + 1) size to receive the UUID
+ * \param length The buffer length
+ */
+int ast_pbx_uuid_get(char *pbx_uuid, int length);
+
 #endif /* _ASTERISK_H */
