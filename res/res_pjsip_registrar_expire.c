@@ -44,7 +44,7 @@ static int expire_contact(void *obj, void *arg, int flags)
 	struct ast_sip_contact *contact = obj;
 	struct ast_named_lock *lock;
 
-	lock = ast_named_lock_get(AST_NAMED_LOCK_TYPE_RWLOCK, "aor", contact->aor);
+	lock = ast_named_lock_get(AST_NAMED_LOCK_TYPE_MUTEX, "aor", contact->aor);
 	if (!lock) {
 		return 0;
 	}
@@ -53,7 +53,7 @@ static int expire_contact(void *obj, void *arg, int flags)
 	 * We need to check the expiration again with the aor lock held
 	 * in case another thread is attempting to renew the contact.
 	 */
-	ao2_wrlock(lock);
+	ao2_lock(lock);
 	if (ast_tvdiff_ms(ast_tvnow(), contact->expiration_time) > 0) {
 		ast_sip_location_delete_contact(contact);
 	}
