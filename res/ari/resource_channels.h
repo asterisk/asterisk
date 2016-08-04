@@ -116,7 +116,7 @@ struct ast_ari_channels_create_args {
 	const char *other_channel_id;
 	/*! Unique ID of the calling channel */
 	const char *originator;
-	/*! The format name capability list to use if originator is not specified. Ex. "ulaw,slin16".  Format names an be found with "core show codecs". */
+	/*! The format name capability list to use if originator is not specified. Ex. "ulaw,slin16".  Format names can be found with "core show codecs". */
 	const char *formats;
 };
 /*!
