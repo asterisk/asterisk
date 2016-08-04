@@ -168,16 +168,15 @@ static int contact_link_static(void *obj, void *arg, int flags)
 
 struct ast_sip_contact *ast_sip_location_retrieve_first_aor_contact(const struct ast_sip_aor *aor)
 {
-	RAII_VAR(struct ao2_container *, contacts, NULL, ao2_cleanup);
-	struct ast_sip_contact *contact;
+	struct ao2_container *contacts;
+	struct ast_sip_contact *contact = NULL;
 
 	contacts = ast_sip_location_retrieve_aor_contacts(aor);
-	if (!contacts || (ao2_container_count(contacts) == 0)) {
-		return NULL;
+	if (contacts && ao2_container_count(contacts)) {
+		/* Get the first AOR contact in the container. */
+		contact = ao2_callback(contacts, 0, NULL, NULL);
 	}
-
-	/* Get the first AOR contact in the container. */
-	contact = ao2_callback(contacts, 0, NULL, NULL);
+	ao2_cleanup(contacts);
 	return contact;
 }
 
@@ -310,14 +309,16 @@ int ast_sip_location_add_contact_nolock(struct ast_sip_aor *aor, const char *uri
 		const char *via_addr, int via_port, const char *call_id,
 		struct ast_sip_endpoint *endpoint)
 {
+	struct ast_sip_contact *contact;
+	int res;
 	char name[MAX_OBJECT_FIELD * 2 + 3];
-	RAII_VAR(struct ast_sip_contact *, contact, NULL, ao2_cleanup);
 	char hash[33];
 
 	ast_md5_hash(hash, uri);
 	snprintf(name, sizeof(name), "%s;@%s", ast_sorcery_object_get_id(aor), hash);
 
-	if (!(contact = ast_sorcery_alloc(ast_sip_get_sorcery(), "contact", name))) {
+	contact = ast_sorcery_alloc(ast_sip_get_sorcery(), "contact", name);
+	if (!contact) {
 		return -1;
 	}
 
@@ -357,7 +358,9 @@ int ast_sip_location_add_contact_nolock(struct ast_sip_aor *aor, const char *uri
 		ast_string_field_set(contact, endpoint_name, ast_sorcery_object_get_id(endpoint));
 	}
 
-	return ast_sorcery_create(ast_sip_get_sorcery(), contact);
+	res = ast_sorcery_create(ast_sip_get_sorcery(), contact);
+	ao2_ref(contact, -1);
+	return res;
 }
 
 int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri,
@@ -598,7 +601,9 @@ static int voicemail_extension_to_str(const void *obj, const intptr_t *args, cha
 
 int ast_sip_for_each_aor(const char *aors, ao2_callback_fn on_aor, void *arg)
 {
-	char *copy, *name;
+	char *copy;
+	char *name;
+	int res;
 
 	if (!on_aor || ast_strlen_zero(aors)) {
 		return 0;
@@ -606,15 +611,15 @@ int ast_sip_for_each_aor(const char *aors, ao2_callback_fn on_aor, void *arg)
 
 	copy = ast_strdupa(aors);
 	while ((name = ast_strip(strsep(&copy, ",")))) {
-		RAII_VAR(struct ast_sip_aor *, aor,
-			 ast_sip_location_retrieve_aor(name), ao2_cleanup);
+		struct ast_sip_aor *aor;
 
-		if (!aor) {
-			continue;
-		}
-
-		if (on_aor(aor, arg, 0)) {
-			return -1;
+		aor = ast_sip_location_retrieve_aor(name);
+		if (aor) {
+			res = on_aor(aor, arg, 0);
+			ao2_ref(aor, -1);
+			if (res) {
+				return -1;
+			}
 		}
 	}
 	return 0;
@@ -623,15 +628,16 @@ int ast_sip_for_each_aor(const char *aors, ao2_callback_fn on_aor, void *arg)
 static void contact_wrapper_destroy(void *obj)
 {
 	struct ast_sip_contact_wrapper *wrapper = obj;
+
 	ast_free(wrapper->aor_id);
 	ast_free(wrapper->contact_id);
-	ao2_ref(wrapper->contact, -1);
+	ao2_cleanup(wrapper->contact);
 }
 
 int ast_sip_for_each_contact(const struct ast_sip_aor *aor,
 		ao2_callback_fn on_contact, void *arg)
 {
-	RAII_VAR(struct ao2_container *, contacts, NULL, ao2_cleanup);
+	struct ao2_container *contacts;
 	struct ao2_iterator i;
 	int res = 0;
 	void *object = NULL;
@@ -647,7 +653,8 @@ int ast_sip_for_each_contact(const struct ast_sip_aor *aor,
 		RAII_VAR(struct ast_sip_contact_wrapper *, wrapper, NULL, ao2_cleanup);
 		const char *aor_id = ast_sorcery_object_get_id(aor);
 
-		wrapper = ao2_alloc(sizeof(struct ast_sip_contact_wrapper), contact_wrapper_destroy);
+		wrapper = ao2_alloc_options(sizeof(struct ast_sip_contact_wrapper),
+			contact_wrapper_destroy, AO2_ALLOC_OPT_LOCK_NOLOCK);
 		if (!wrapper) {
 			res = -1;
 			break;
@@ -671,6 +678,7 @@ int ast_sip_for_each_contact(const struct ast_sip_aor *aor,
 		}
 	}
 	ao2_iterator_destroy(&i);
+	ao2_ref(contacts, -1);
 	return res;
 }
 
@@ -686,10 +694,11 @@ int ast_sip_contact_to_str(void *object, void *arg, int flags)
 
 static int sip_aor_to_ami(const struct ast_sip_aor *aor, struct ast_str **buf)
 {
-	RAII_VAR(struct ast_variable *, objset, ast_sorcery_objectset_create2(
-			 ast_sip_get_sorcery(), aor, AST_HANDLER_ONLY_STRING), ast_variables_destroy);
+	struct ast_variable *objset;
 	struct ast_variable *i;
 
+	objset = ast_sorcery_objectset_create2(ast_sip_get_sorcery(), aor,
+		AST_HANDLER_ONLY_STRING);
 	if (!objset) {
 		return -1;
 	}
@@ -701,6 +710,7 @@ static int sip_aor_to_ami(const struct ast_sip_aor *aor, struct ast_str **buf)
 
 	for (i = objset; i; i = i->next) {
 		char *camel = ast_to_camel_case(i->name);
+
 		if (strcmp(camel, "Contact") == 0) {
 			ast_free(camel);
 			camel = NULL;
@@ -709,23 +719,28 @@ static int sip_aor_to_ami(const struct ast_sip_aor *aor, struct ast_str **buf)
 		ast_free(camel);
 	}
 
+	ast_variables_destroy(objset);
 	return 0;
 }
 
 static int contacts_to_str(const void *obj, const intptr_t *args, char **buf)
 {
 	const struct ast_sip_aor *aor = obj;
-	RAII_VAR(struct ast_str *, str, ast_str_create(MAX_OBJECT_FIELD), ast_free);
+	struct ast_str *str;
+
+	str = ast_str_create(MAX_OBJECT_FIELD);
+	if (!str) {
+		*buf = NULL;
+		return -1;
+	}
 
 	ast_sip_for_each_contact(aor, ast_sip_contact_to_str, &str);
 	ast_str_truncate(str, -1);
 
 	*buf = ast_strdup(ast_str_buffer(str));
-	if (!*buf) {
-		return -1;
-	}
+	ast_free(str);
 
-	return 0;
+	return *buf ? 0 : -1;
 }
 
 static int format_ami_aor_handler(void *obj, void *arg, int flags)
@@ -733,15 +748,18 @@ static int format_ami_aor_handler(void *obj, void *arg, int flags)
 	struct ast_sip_aor *aor = obj;
 	struct ast_sip_ami *ami = arg;
 	const struct ast_sip_endpoint *endpoint = ami->arg;
-	RAII_VAR(struct ast_str *, buf,
-		 ast_sip_create_ami_event("AorDetail", ami), ast_free);
-
+	struct ast_str *buf;
+	struct ao2_container *contacts;
 	int total_contacts;
 	int num_permanent;
-	RAII_VAR(struct ao2_container *, contacts,
-		 ast_sip_location_retrieve_aor_contacts(aor), ao2_cleanup);
 
+	buf = ast_sip_create_ami_event("AorDetail", ami);
 	if (!buf) {
+		return -1;
+	}
+	contacts = ast_sip_location_retrieve_aor_contacts(aor);
+	if (!contacts) {
+		ast_free(buf);
 		return -1;
 	}
 
@@ -759,6 +777,8 @@ static int format_ami_aor_handler(void *obj, void *arg, int flags)
 	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
 	ami->count++;
 
+	ast_free(buf);
+	ao2_ref(contacts, -1);
 	return 0;
 }
 
@@ -776,7 +796,7 @@ struct ast_sip_endpoint_formatter endpoint_aor_formatter = {
 
 static struct ao2_container *cli_aor_get_container(const char *regex)
 {
-	RAII_VAR(struct ao2_container *, container, NULL, ao2_cleanup);
+	struct ao2_container *container;
 	struct ao2_container *s_container;
 
 	container = ast_sorcery_retrieve_by_regex(ast_sip_get_sorcery(), "aor", regex);
@@ -784,16 +804,15 @@ static struct ao2_container *cli_aor_get_container(const char *regex)
 		return NULL;
 	}
 
+	/* Create a sorted container of aors. */
 	s_container = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
 		ast_sorcery_object_id_sort, ast_sorcery_object_id_compare);
-	if (!s_container) {
-		return NULL;
-	}
-
-	if (ao2_container_dup(s_container, container, 0)) {
+	if (s_container
+		&& ao2_container_dup(s_container, container, 0)) {
 		ao2_ref(s_container, -1);
-		return NULL;
+		s_container = NULL;
 	}
+	ao2_ref(container, -1);
 
 	return s_container;
 }
@@ -895,7 +914,7 @@ static struct ao2_container *cli_contact_get_container(const char *regex)
 	struct ao2_container *child_container;
 	regex_t regexbuf;
 
-	parent_container =  cli_aor_get_container("");
+	parent_container = cli_aor_get_container("");
 	if (!parent_container) {
 		return NULL;
 	}
@@ -922,9 +941,17 @@ static struct ao2_container *cli_contact_get_container(const char *regex)
 
 static void *cli_contact_retrieve_by_id(const char *id)
 {
-	RAII_VAR(struct ao2_container *, container, cli_contact_get_container(""), ao2_cleanup);
+	struct ao2_container *container;
+	void *obj;
 
-	return ao2_find(container, id, OBJ_KEY | OBJ_NOLOCK);
+	container = cli_contact_get_container("");
+	if (!container) {
+		return NULL;
+	}
+
+	obj = ao2_find(container, id, OBJ_SEARCH_KEY);
+	ao2_ref(container, -1);
+	return obj;
 }
 
 static int cli_contact_print_header(void *obj, void *arg, int flags)
@@ -951,13 +978,12 @@ static int cli_contact_print_body(void *obj, void *arg, int flags)
 	int flexwidth;
 	const char *contact_id = ast_sorcery_object_get_id(contact);
 	const char *hash_start = contact_id + strlen(contact->aor) + 2;
-
-	RAII_VAR(struct ast_sip_contact_status *, status,
-		ast_sorcery_retrieve_by_id( ast_sip_get_sorcery(), CONTACT_STATUS, contact_id),
-		ao2_cleanup);
+	struct ast_sip_contact_status *status;
 
 	ast_assert(contact->uri != NULL);
 	ast_assert(context->output_buffer != NULL);
+
+	status = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), CONTACT_STATUS, contact_id);
 
 	indent = CLI_INDENT_TO_SPACES(context->indent_level);
 	flexwidth = CLI_LAST_TABSTOP - indent - 9 - strlen(contact->aor) + 1;
@@ -972,6 +998,7 @@ static int cli_contact_print_body(void *obj, void *arg, int flags)
 		ast_sip_get_contact_short_status_label(status ? status->status : UNKNOWN),
 		(status && (status->status != UNKNOWN) ? ((long long) status->rtt) / 1000.0 : NAN));
 
+	ao2_cleanup(status);
 	return 0;
 }
 
@@ -995,8 +1022,6 @@ static const char *cli_aor_get_id(const void *obj)
 static int cli_aor_print_header(void *obj, void *arg, int flags)
 {
 	struct ast_sip_cli_context *context = arg;
-	RAII_VAR(struct ast_sip_cli_formatter_entry *, formatter_entry, NULL, ao2_cleanup);
-
 	int indent = CLI_INDENT_TO_SPACES(context->indent_level);
 	int filler = CLI_LAST_TABSTOP - indent - 7;
 
@@ -1007,10 +1032,13 @@ static int cli_aor_print_header(void *obj, void *arg, int flags)
 		indent, "Aor", filler, filler, CLI_HEADER_FILLER);
 
 	if (context->recurse) {
+		struct ast_sip_cli_formatter_entry *formatter_entry;
+
 		context->indent_level++;
 		formatter_entry = ast_sip_lookup_cli_formatter("contact");
 		if (formatter_entry) {
 			formatter_entry->print_header(NULL, context, 0);
+			ao2_ref(formatter_entry, -1);
 		}
 		context->indent_level--;
 	}
@@ -1022,7 +1050,6 @@ static int cli_aor_print_body(void *obj, void *arg, int flags)
 {
 	struct ast_sip_aor *aor = obj;
 	struct ast_sip_cli_context *context = arg;
-	RAII_VAR(struct ast_sip_cli_formatter_entry *, formatter_entry, NULL, ao2_cleanup);
 	int indent;
 	int flexwidth;
 
@@ -1040,11 +1067,14 @@ static int cli_aor_print_body(void *obj, void *arg, int flags)
 		ast_sorcery_object_get_id(aor), aor->max_contacts);
 
 	if (context->recurse) {
+		struct ast_sip_cli_formatter_entry *formatter_entry;
+
 		context->indent_level++;
 
 		formatter_entry = ast_sip_lookup_cli_formatter("contact");
 		if (formatter_entry) {
 			formatter_entry->iterate(aor, formatter_entry->print_body, context);
+			ao2_ref(formatter_entry, -1);
 		}
 
 		context->indent_level--;
