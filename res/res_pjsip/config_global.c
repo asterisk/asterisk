@@ -48,6 +48,15 @@
 #define DEFAULT_MWI_TPS_QUEUE_LOW -1
 #define DEFAULT_MWI_DISABLE_INITIAL_UNSOLICITED 0
 
+/*!
+ * \brief Cached global config object
+ *
+ * \details
+ * Cached so we don't have to keep asking sorcery for the config.
+ * We could ask for it hundreds of times a second if not more.
+ */
+static AO2_GLOBAL_OBJ_STATIC(global_cfg);
+
 static char default_useragent[256];
 
 struct global_config {
@@ -123,23 +132,14 @@ static int global_apply(const struct ast_sorcery *sorcery, void *obj)
 	ast_sip_add_global_request_header("Max-Forwards", max_forwards, 1);
 	ast_sip_add_global_request_header("User-Agent", cfg->useragent, 1);
 	ast_sip_add_global_response_header("Server", cfg->useragent, 1);
+
+	ao2_t_global_obj_replace_unref(global_cfg, cfg, "Applying global settings");
 	return 0;
 }
 
 static struct global_config *get_global_cfg(void)
 {
-	struct global_config *cfg;
-	struct ao2_container *globals;
-
-	globals = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "global",
-		AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
-	if (!globals) {
-		return NULL;
-	}
-
-	cfg = ao2_find(globals, NULL, 0);
-	ao2_ref(globals, -1);
-	return cfg;
+	return ao2_global_obj_ref(global_cfg);
 }
 
 char *ast_sip_global_default_outbound_endpoint(void)
@@ -449,6 +449,8 @@ int ast_sip_destroy_sorcery_global(void)
 	struct ast_sorcery *sorcery = ast_sip_get_sorcery();
 
 	ast_sorcery_instance_observer_remove(sorcery, &observer_callbacks_global);
+
+	ao2_t_global_obj_release(global_cfg, "Module is unloading");
 
 	return 0;
 }
