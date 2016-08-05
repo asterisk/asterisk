@@ -48,6 +48,12 @@ res_pjsip
    when set will override the default user set on Contact headers in outgoing
    requests.
 
+ * If you are using a sorcery realtime backend to store global res_pjsip
+   options (ps_globals table) then you now have to do a res_pjsip reload for
+   changes to these options to take effect.  If you are using pjsip.conf to
+   configure these options then you already had to do a reload after making
+   changes.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13 to Asterisk 14 --------------------
 ------------------------------------------------------------------------------
