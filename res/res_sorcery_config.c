@@ -112,17 +112,50 @@ static void sorcery_config_destructor(void *obj)
 /*! \brief Hashing function for sorcery objects */
 static int sorcery_config_hash(const void *obj, const int flags)
 {
-	const char *id = obj;
+	const char *key;
 
-	return ast_str_hash(flags & OBJ_KEY ? id : ast_sorcery_object_get_id(obj));
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_KEY:
+		key = obj;
+		break;
+	case OBJ_SEARCH_OBJECT:
+		key = ast_sorcery_object_get_id(obj);
+		break;
+	default:
+		/* Hash can only work on something with a full key. */
+		ast_assert(0);
+		return 0;
+	}
+	return ast_str_hash(key);
 }
 
 /*! \brief Comparator function for sorcery objects */
 static int sorcery_config_cmp(void *obj, void *arg, int flags)
 {
-	const char *id = arg;
+	const void *object_left = obj;
+	const void *object_right = arg;
+	const char *right_key = arg;
+	int cmp;
 
-	return !strcmp(ast_sorcery_object_get_id(obj), flags & OBJ_KEY ? id : ast_sorcery_object_get_id(arg)) ? CMP_MATCH | CMP_STOP : 0;
+	switch (flags & OBJ_SEARCH_MASK) {
+	case OBJ_SEARCH_OBJECT:
+		right_key = ast_sorcery_object_get_id(object_right);
+		/* Fall through */
+	case OBJ_SEARCH_KEY:
+		cmp = strcmp(ast_sorcery_object_get_id(object_left), right_key);
+		break;
+	case OBJ_SEARCH_PARTIAL_KEY:
+		/* Not supported by container. */
+		ast_assert(0);
+		return 0;
+	default:
+		cmp = 0;
+		break;
+	}
+	if (cmp) {
+		return 0;
+	}
+	return CMP_MATCH;
 }
 
 static int sorcery_config_fields_cmp(void *obj, void *arg, int flags)
@@ -145,14 +178,16 @@ static int sorcery_config_fields_cmp(void *obj, void *arg, int flags)
 		return 0;
 	}
 
+	/* We want this object */
 	if (params->container) {
+		/*
+		 * We are putting the found objects into the given container instead
+		 * of the normal container traversal return mechanism.
+		 */
 		ao2_link(params->container, obj);
-
-		/* As multiple objects are being returned keep going */
 		return 0;
 	} else {
-		/* Immediately stop and return, we only want a single object */
-		return CMP_MATCH | CMP_STOP;
+		return CMP_MATCH;
 	}
 }
 
@@ -179,7 +214,7 @@ static void *sorcery_config_retrieve_id(const struct ast_sorcery *sorcery, void 
 	struct sorcery_config *config = data;
 	RAII_VAR(struct ao2_container *, objects, ao2_global_obj_ref(config->objects), ao2_cleanup);
 
-	return objects ? ao2_find(objects, id, OBJ_KEY) : NULL;
+	return objects ? ao2_find(objects, id, OBJ_SEARCH_KEY) : NULL;
 }
 
 static void sorcery_config_retrieve_multiple(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects, const struct ast_variable *fields)
@@ -196,7 +231,7 @@ static void sorcery_config_retrieve_multiple(const struct ast_sorcery *sorcery, 
 		return;
 	}
 
-	ao2_callback(config_objects, 0, sorcery_config_fields_cmp, &params);
+	ao2_callback(config_objects, OBJ_NODATA | OBJ_MULTIPLE, sorcery_config_fields_cmp, &params);
 }
 
 static void sorcery_config_retrieve_regex(const struct ast_sorcery *sorcery, void *data, const char *type, struct ao2_container *objects, const char *regex)
@@ -218,7 +253,7 @@ static void sorcery_config_retrieve_regex(const struct ast_sorcery *sorcery, voi
 		return;
 	}
 
-	ao2_callback(config_objects, 0, sorcery_config_fields_cmp, &params);
+	ao2_callback(config_objects, OBJ_NODATA | OBJ_MULTIPLE, sorcery_config_fields_cmp, &params);
 	regfree(&expression);
 }
 
@@ -280,8 +315,9 @@ static void sorcery_config_internal_load(void *data, const struct ast_sorcery *s
 	ast_debug(2, "Using bucket size of '%d' for objects of type '%s' from '%s'\n",
 		buckets, type, config->filename);
 
-	if (!(objects = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, buckets,
-		sorcery_config_hash, sorcery_config_cmp))) {
+	objects = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_NOLOCK, 0, buckets,
+		sorcery_config_hash, NULL, sorcery_config_cmp);
+	if (!objects) {
 		ast_log(LOG_ERROR, "Could not create bucket for new objects from '%s', keeping existing objects\n",
 			config->filename);
 		ast_config_destroy(cfg);
@@ -300,8 +336,7 @@ static void sorcery_config_internal_load(void *data, const struct ast_sorcery *s
 		/*  Confirm an object with this id does not already exist in the bucket.
 		 *  If it exists, however, the configuration is invalid so stop
 		 *  processing and destroy it. */
-		obj = ao2_find(objects, id, OBJ_KEY);
-
+		obj = ao2_find(objects, id, OBJ_SEARCH_KEY);
 		if (obj) {
 			ast_log(LOG_ERROR, "Config file '%s' could not be loaded; configuration contains a duplicate object: '%s' of type '%s'\n",
 				config->filename, id, type);
