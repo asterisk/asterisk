@@ -668,10 +668,14 @@ static char *handle_cli_odbc_show(struct ast_cli_entry *e, int cmd, struct ast_c
 			char timestr[80];
 			struct ast_tm tm;
 
-			ast_localtime(&class->last_negative_connect, &tm, NULL);
-			ast_strftime(timestr, sizeof(timestr), "%Y-%m-%d %T", &tm);
 			ast_cli(a->fd, "  Name:   %s\n  DSN:    %s\n", class->name, class->dsn);
-			ast_cli(a->fd, "    Last connection attempt: %s\n", timestr);
+
+			if (class->last_negative_connect.tv_sec > 0) {
+				ast_localtime(&class->last_negative_connect, &tm, NULL);
+				ast_strftime(timestr, sizeof(timestr), "%Y-%m-%d %T", &tm);
+				ast_cli(a->fd, "    Last fail connection attempt: %s\n", timestr);
+			}
+
 			ast_cli(a->fd, "    Number of active connections: %zd (out of %d)\n", class->connection_cnt, class->maxconnections);
 			ast_cli(a->fd, "\n");
 		}
