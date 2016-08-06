@@ -1559,6 +1559,11 @@ void ast_sip_session_suspend(struct ast_sip_session *session)
 		return;
 	}
 
+	if (ast_taskprocessor_is_suspended(session->serializer)) {
+		/* The serializer already suspended. */
+		return;
+	}
+
 	suspender = ao2_alloc(sizeof(*suspender), sip_session_suspender_dtor);
 	if (!suspender) {
 		/* We will just have to hope that the system does not deadlock */
@@ -1583,6 +1588,8 @@ void ast_sip_session_suspend(struct ast_sip_session *session)
 		ast_cond_wait(&suspender->cond_suspended, ao2_object_get_lockaddr(suspender));
 	}
 	ao2_unlock(suspender);
+
+	ast_taskprocessor_suspend(session->serializer);
 }
 
 void ast_sip_session_unsuspend(struct ast_sip_session *session)
@@ -1602,6 +1609,8 @@ void ast_sip_session_unsuspend(struct ast_sip_session *session)
 	ao2_unlock(suspender);
 
 	ao2_ref(suspender, -1);
+
+	ast_taskprocessor_unsuspend(session->serializer);
 }
 
 /*!
