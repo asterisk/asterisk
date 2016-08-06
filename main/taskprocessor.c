@@ -91,6 +91,8 @@ struct ast_taskprocessor {
 	unsigned int high_water_warned:1;
 	/*! Indicates that a high water alert is active on this taskprocessor */
 	unsigned int high_water_alert:1;
+	/*! Indicates if the taskprocessor is currently suspended */
+	unsigned int suspended:1;
 };
 
 /*!
@@ -908,6 +910,33 @@ int ast_taskprocessor_push(struct ast_taskprocessor *tps, int (*task_exe)(void *
 int ast_taskprocessor_push_local(struct ast_taskprocessor *tps, int (*task_exe)(struct ast_taskprocessor_local *datap), void *datap)
 {
 	return taskprocessor_push(tps, tps_task_alloc_local(task_exe, datap));
+}
+
+int ast_taskprocessor_suspend(struct ast_taskprocessor *tps)
+{
+	if (tps) {
+		ao2_lock(tps);
+		tps->suspended = 1;
+		ao2_unlock(tps);
+		return 0;
+	}
+	return -1;
+}
+
+int ast_taskprocessor_unsuspend(struct ast_taskprocessor *tps)
+{
+	if (tps) {
+		ao2_lock(tps);
+		tps->suspended = 0;
+		ao2_unlock(tps);
+		return 0;
+	}
+	return -1;
+}
+
+int ast_taskprocessor_is_suspended(struct ast_taskprocessor *tps)
+{
+	return tps ? tps->suspended : -1;
 }
 
 int ast_taskprocessor_execute(struct ast_taskprocessor *tps)

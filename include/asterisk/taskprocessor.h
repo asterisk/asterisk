@@ -242,6 +242,38 @@ int ast_taskprocessor_push_local(struct ast_taskprocessor *tps,
 	int (*task_exe)(struct ast_taskprocessor_local *local), void *datap);
 
 /*!
+ * \brief Indicate the taskprocessor is suspended.
+ *
+ * \since 13.12.0
+ *
+ * \param tps Task processor.
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_taskprocessor_suspend(struct ast_taskprocessor *tps);
+
+/*!
+ * \brief Indicate the taskprocessor is unsuspended.
+ *
+ * \since 13.12.0
+ *
+ * \param tps Task processor.
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_taskprocessor_unsuspend(struct ast_taskprocessor *tps);
+
+/*!
+ * \brief Get the task processor suspend status
+ *
+ * \since 13.12.0
+ *
+ * \param tps Task processor.
+ * \retval non-zero if the task processor is suspended
+ */
+int ast_taskprocessor_is_suspended(struct ast_taskprocessor *tps);
+
+/*!
  * \brief Pop a task off the taskprocessor and execute it.
  *
  * \since 12.0.0
