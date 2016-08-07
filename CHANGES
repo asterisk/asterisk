@@ -23,10 +23,19 @@ res_pjsip_mwi
 ------------------
  * Added "mwi_tps_queue_high" and "mwi_tps_queue_low" global configuration
    options to tune taskprocessor alert levels.
+
  * Added "mwi_disable_initial_unsolicited" global configuration option
    to disable sending unsolicited MWI to all endpoints on startup.
    Additional information can be found in the sample configuration file at
    config/samples/pjsip.conf.sample.
+
+chan_pjsip
+------------------
+ * A new dialplan function, PJSIP_SEND_SESSION_REFRESH, has been added. When
+   invoked, a re-INVITE or UPDATE request will be sent immediately to the
+   endpoint underlying the channel. When used in combination with the existing
+   dialplan function PJSIP_MEDIA_OFFER, this allows the formats on a PJSIP
+   channel to be re-negotiated and updated after session set up.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.10.0 to Asterisk 13.11.0 ----------
