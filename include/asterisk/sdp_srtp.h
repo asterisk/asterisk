@@ -63,6 +63,100 @@ struct ast_sdp_srtp *ast_sdp_srtp_alloc(void);
 */
 void ast_sdp_srtp_destroy(struct ast_sdp_srtp *srtp);
 
+/*! \brief Destroy a previously allocated ast_sdp_crypto struct */
+typedef void (*sdp_crypto_destroy_cb)(struct ast_sdp_crypto *crypto);
+
+/*!
+ * \brief Initialize and return an ast_sdp_crypto struct
+ *
+ * \details
+ * This function allocates a new ast_sdp_crypto struct and initializes its values
+ *
+ * \retval NULL on failure
+ * \retval a pointer to a  new ast_sdp_crypto structure
+ */
+typedef struct ast_sdp_crypto *(*sdp_crypto_alloc_cb)(void);
+
+/*!
+ * \brief Generate an SRTP a=crypto offer
+ *
+ * \details
+ * The offer is stored on the ast_sdp_crypto struct in a_crypto
+ *
+ * \param crypto A valid ast_sdp_crypto struct
+ * \param taglen Length
+ *
+ * \retval 0 success
+ * \retval nonzero failure
+ */
+typedef int (*sdp_crypto_build_offer_cb)(struct ast_sdp_crypto *crypto, int taglen);
+
+/*!
+ * \brief Parse the a=crypto line from SDP and set appropriate values on the
+ * ast_sdp_crypto struct.
+ *
+ * The attribute line should already have "a=crypto:" removed.
+ *
+ * \param p A valid ast_sdp_crypto struct
+ * \param attr the a:crypto line from SDP
+ * \param rtp The rtp instance associated with the SDP being parsed
+ * \param srtp SRTP structure
+ *
+ * \retval 0 success
+ * \retval nonzero failure
+ */
+typedef int (*sdp_crypto_parse_offer_cb)(struct ast_rtp_instance *rtp, struct ast_sdp_srtp *srtp, const char *attr);
+
+/*!
+ * \brief Get the crypto attribute line for the srtp structure
+ *
+ * \details
+ * The attribute line does not contain the initial "a=crypto:" and does
+ * not terminate with "\r\n".
+ *
+ * \param srtp The ast_sdp_srtp structure for which to get an attribute line
+ * \param dtls_enabled Whether this connection is encrypted with datagram TLS
+ * \param default_taglen_32 Whether to default to a tag length of 32 instead of 80
+ *
+ * \retval An attribute line containing cryptographic information
+ * \retval NULL if the srtp structure does not require an attribute line containing crypto information
+ */
+typedef const char *(*sdp_srtp_get_attr_cb)(struct ast_sdp_srtp *srtp, int dtls_enabled, int default_taglen_32);
+
+struct ast_sdp_crypto_api {
+	/*! Destroy a crypto struct */
+	sdp_crypto_destroy_cb dtor;
+	/*! Allocate a crypto struct */
+	sdp_crypto_alloc_cb alloc;
+	/*! Build a SDP a=crypto offer line parameter string */
+	sdp_crypto_build_offer_cb build_offer;
+	/*! Parse a SDP a=crypto offer line parameter string */
+	sdp_crypto_parse_offer_cb parse_offer;
+	/*! Get the SDP a=crypto offer line parameter string */
+	sdp_srtp_get_attr_cb get_attr;
+};
+
+/*!
+ * \brief Register SDP SRTP crypto processing routines.
+ * \since 14.0.0
+ *
+ * \param api Callbacks to register.
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int ast_sdp_crypto_register(struct ast_sdp_crypto_api *api);
+
+/*!
+ * \brief Unregister SDP SRTP crypto processing routines.
+ * \since 14.0.0
+ *
+ * \param api Callbacks to unregister.
+ *
+ * \return Nothing
+ */
+void ast_sdp_crypto_unregister(struct ast_sdp_crypto_api *api);
+
 /*! \brief Initialize an return an ast_sdp_crypto struct
  *
  * \details
@@ -103,7 +197,6 @@ int ast_sdp_crypto_process(struct ast_rtp_instance *rtp, struct ast_sdp_srtp *sr
  * \retval nonzero failure
  */
 int ast_sdp_crypto_build_offer(struct ast_sdp_crypto *p, int taglen);
-
 
 /*! \brief Get the crypto attribute line for the srtp structure
  *
