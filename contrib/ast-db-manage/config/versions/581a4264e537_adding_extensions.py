@@ -31,7 +31,6 @@ down_revision = '43956d550a44'
 from alembic import op
 import sqlalchemy as sa
 
-
 def upgrade():
     op.create_table(
         'extensions',
@@ -39,8 +38,7 @@ def upgrade():
                   unique=True, autoincrement=True),
         sa.Column('context', sa.String(40), primary_key=True, nullable=False),
         sa.Column('exten', sa.String(40), primary_key=True, nullable=False),
-        sa.Column('priority', sa.Integer, primary_key=True, nullable=False,
-                  autoincrement=True),
+        sa.Column('priority', sa.Integer, primary_key=True, nullable=False),
         sa.Column('app', sa.String(40), nullable=False),
         sa.Column('appdata', sa.String(256), nullable=False),
     )
