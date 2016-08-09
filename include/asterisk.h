@@ -286,6 +286,10 @@ struct ast_module;
 /* Internal/forward declaration, AST_MODULE_SELF should be used instead. */
 struct ast_module *AST_MODULE_SELF_SYM(void);
 
+#else
+
+#error "Externally compiled modules must declare AST_MODULE_SELF_SYM."
+
 #endif
 
 /*!
