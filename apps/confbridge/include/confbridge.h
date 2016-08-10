@@ -225,9 +225,9 @@ struct confbridge_conference {
 	struct ast_channel *record_chan;                                  /*!< Channel used for recording the conference */
 	struct ast_str *record_filename;                                  /*!< Recording filename. */
 	struct ast_str *orig_rec_file;                                    /*!< Previous b_profile.rec_file. */
-	ast_mutex_t playback_lock;                                        /*!< Lock used for playback channel */
 	AST_LIST_HEAD_NOLOCK(, confbridge_user) active_list;              /*!< List of users participating in the conference bridge */
 	AST_LIST_HEAD_NOLOCK(, confbridge_user) waiting_list;             /*!< List of users waiting to join the conference bridge */
+	struct ast_taskprocessor *playback_queue;                         /*!< Queue for playing back bridge announcements and managing the announcer channel */
 };
 
 extern struct ao2_container *conference_bridges;
@@ -385,6 +385,23 @@ int func_confbridge_helper(struct ast_channel *chan, const char *cmd, char *data
  * \retval -1 failure
  */
 int play_sound_file(struct confbridge_conference *conference, const char *filename);
+
+/*!
+ * \brief Play sound file into conference bridge asynchronously
+ *
+ * If the initiator parameter is non-NULL, then the playback will wait for
+ * that initiator channel to get back in the bridge before playing the sound
+ * file. This way, the initiator has no danger of hearing a "clipped" file.
+ *
+ * \param conference The conference bridge to play sound file into
+ * \param filename Sound file to play
+ * \param initiator Channel that initiated playback.
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int async_play_sound_file(struct confbridge_conference *conference, const char *filename,
+	struct ast_channel *initiator);
 
 /*! \brief Callback to be called when the conference has become empty
  * \param conference The conference bridge
@@ -605,16 +622,6 @@ struct ast_channel_tech *conf_record_get_tech(void);
  * \return ConfBridge announce channel technology.
  */
 struct ast_channel_tech *conf_announce_get_tech(void);
-
-/*!
- * \brief Remove the announcer channel from the conference.
- * \since 12.0.0
- *
- * \param chan Either channel in the announcer channel pair.
- *
- * \return Nothing
- */
-void conf_announce_channel_depart(struct ast_channel *chan);
 
 /*!
  * \brief Push the announcer channel into the conference.
