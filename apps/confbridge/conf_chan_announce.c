@@ -143,31 +143,6 @@ struct ast_channel_tech *conf_announce_get_tech(void)
 	return &announce_tech;
 }
 
-void conf_announce_channel_depart(struct ast_channel *chan)
-{
-	struct announce_pvt *p = ast_channel_tech_pvt(chan);
-
-	if (!p) {
-		return;
-	}
-
-	ao2_ref(p, +1);
-	ao2_lock(p);
-	if (!ast_test_flag(&p->base, AST_UNREAL_CARETAKER_THREAD)) {
-		ao2_unlock(p);
-		ao2_ref(p, -1);
-		return;
-	}
-	ast_clear_flag(&p->base, AST_UNREAL_CARETAKER_THREAD);
-	chan = p->base.chan;
-	ao2_unlock(p);
-	ao2_ref(p, -1);
-	if (chan) {
-		ast_bridge_depart(chan);
-		ast_channel_unref(chan);
-	}
-}
-
 int conf_announce_channel_push(struct ast_channel *ast)
 {
 	struct ast_bridge_features *features;
@@ -186,7 +161,6 @@ int conf_announce_channel_push(struct ast_channel *ast)
 		if (!chan) {
 			return -1;
 		}
-		ast_channel_ref(chan);
 	}
 
 	features = ast_bridge_features_new();
@@ -198,8 +172,7 @@ int conf_announce_channel_push(struct ast_channel *ast)
 
 	/* Impart the output channel into the bridge */
 	if (ast_bridge_impart(p->bridge, chan, NULL, features,
-		AST_BRIDGE_IMPART_CHAN_DEPARTABLE)) {
-		ast_channel_unref(chan);
+		AST_BRIDGE_IMPART_CHAN_INDEPENDENT)) {
 		return -1;
 	}
 	ao2_lock(p);
