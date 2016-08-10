@@ -902,6 +902,10 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
+	if (ast_eid_is_empty(&ast_eid_default)) {
+		ast_log(LOG_WARNING, "Entity ID is not set.\n");
+	}
+
 	asterisk_publication_send_refresh();
 
 	return AST_MODULE_LOAD_SUCCESS;

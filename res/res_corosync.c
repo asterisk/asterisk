@@ -1162,6 +1162,10 @@ static int load_module(void)
 
 	ast_cli_register_multiple(corosync_cli, ARRAY_LEN(corosync_cli));
 
+	if (ast_eid_is_empty(&ast_eid_default)) {
+		ast_log(LOG_WARNING, "Entity ID is not set.\n");
+	}
+
 	return AST_MODULE_LOAD_SUCCESS;
 
 failed:
