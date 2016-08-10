@@ -407,6 +407,12 @@ struct ast_rtcp {
 #ifdef HAVE_OPENSSL_SRTP
 	struct dtls_details dtls; /*!< DTLS state information */
 #endif
+
+	/* Cached local address string allows us to generate
+	 * RTCP stasis messages without having to look up our
+	 * own address every time
+	 */
+	char *local_addr_str;
 };
 
 struct rtp_red {
@@ -2700,6 +2706,7 @@ static int ast_rtp_destroy(struct ast_rtp_instance *instance)
 		 * RTP instance while it's active.
 		 */
 		close(rtp->rtcp->s);
+		ast_free(rtp->rtcp->local_addr_str);
 		ast_free(rtp->rtcp);
 	}
 
@@ -3112,12 +3119,7 @@ static int ast_rtcp_write_report(struct ast_rtp_instance *instance, int sr)
 	int rate = rtp_get_rate(rtp->f.subclass.format);
 	int ice;
 	int header_offset = 0;
-	char *str_remote_address;
-	char *str_local_address;
 	struct ast_sockaddr remote_address = { { 0, } };
-	struct ast_sockaddr local_address = { { 0, } };
-	struct ast_sockaddr real_remote_address = { { 0, } };
-	struct ast_sockaddr real_local_address = { { 0, } };
 	struct ast_rtp_rtcp_report_block *report_block = NULL;
 	RAII_VAR(struct ast_rtp_rtcp_report *, rtcp_report,
 			ast_rtp_rtcp_report_alloc(rtp->themssrc ? 1 : 0),
@@ -3244,22 +3246,9 @@ static int ast_rtcp_write_report(struct ast_rtp_instance *instance, int sr)
 		}
 	}
 
-	ast_rtp_instance_get_local_address(instance, &local_address);
-	if (!ast_find_ourip(&real_local_address, &local_address, 0)) {
-		str_local_address = ast_strdupa(ast_sockaddr_stringify(&real_local_address));
-	} else {
-		str_local_address = ast_strdupa(ast_sockaddr_stringify(&local_address));
-	}
-
-	if (!ast_find_ourip(&real_remote_address, &remote_address, 0)) {
-		str_remote_address = ast_strdupa(ast_sockaddr_stringify(&real_remote_address));
-	} else {
-		str_remote_address = ast_strdupa(ast_sockaddr_stringify(&remote_address));
-	}
-
 	message_blob = ast_json_pack("{s: s, s: s}",
-			"to", str_remote_address,
-			"from", str_local_address);
+			"to", ast_sockaddr_stringify(&remote_address),
+			"from", rtp->rtcp->local_addr_str);
 	ast_rtp_publish_rtcp_message(instance, ast_rtp_rtcp_sent_type(),
 			rtcp_report,
 			message_blob);
@@ -4067,11 +4056,6 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 	int report_counter = 0;
 	struct ast_rtp_rtcp_report_block *report_block;
 	struct ast_frame *f = &ast_null_frame;
-	char *str_local_address;
-	char *str_remote_address;
-	struct ast_sockaddr local_address = { { 0,} };
-	struct ast_sockaddr real_local_address = { { 0, } };
-	struct ast_sockaddr real_remote_address = { { 0, } };
 
 	/* Read in RTCP data from the socket */
 	if ((res = rtcp_recvfrom(instance, rtcpdata + AST_FRIENDLY_OFFSET,
@@ -4127,8 +4111,6 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 	}
 
 	ast_debug(1, "Got RTCP report of %d bytes\n", res);
-
-	ast_rtp_instance_get_local_address(instance, &local_address);
 
 	while (position < packetwords) {
 		int i, pt, rc;
@@ -4245,21 +4227,10 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 			/* If and when we handle more than one report block, this should occur outside
 			 * this loop.
 			 */
-			if (!ast_find_ourip(&real_local_address, &local_address, 0)) {
-				str_local_address = ast_strdupa(ast_sockaddr_stringify(&real_local_address));
-			} else {
-				str_local_address = ast_strdupa(ast_sockaddr_stringify(&local_address));
-			}
-
-			if (!ast_find_ourip(&real_remote_address, &addr, 0)) {
-				str_remote_address = ast_strdupa(ast_sockaddr_stringify(&real_remote_address));
-			} else {
-				str_remote_address = ast_strdupa(ast_sockaddr_stringify(&addr));
-			}
 
 			message_blob = ast_json_pack("{s: s, s: s, s: f}",
-					"from", str_remote_address,
-					"to", str_local_address,
+					"from", ast_sockaddr_stringify(&rtp->rtcp->them),
+					"to", rtp->rtcp->local_addr_str,
 					"rtt", rtp->rtcp->rtt);
 			ast_rtp_publish_rtcp_message(instance, ast_rtp_rtcp_received_type(),
 					rtcp_report,
@@ -4822,6 +4793,8 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 
 	if (property == AST_RTP_PROPERTY_RTCP) {
 		if (value) {
+			struct ast_sockaddr local_addr;
+
 			if (rtp->rtcp) {
 				ast_debug(1, "Ignoring duplicate RTCP property on RTP instance '%p'\n", instance);
 				return;
@@ -4836,6 +4809,19 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 			ast_sockaddr_set_port(&rtp->rtcp->us,
 					      ast_sockaddr_port(&rtp->rtcp->us) + 1);
 
+			if (!ast_find_ourip(&local_addr, &rtp->rtcp->us, 0)) {
+				ast_sockaddr_set_port(&local_addr, ast_sockaddr_port(&rtp->rtcp->us));
+			} else {
+				ast_sockaddr_copy(&local_addr, &rtp->rtcp->us);
+			}
+
+			rtp->rtcp->local_addr_str = ast_strdup(ast_sockaddr_stringify(&local_addr));
+			if (!rtp->rtcp->local_addr_str) {
+				ast_free(rtp->rtcp);
+				rtp->rtcp = NULL;
+				return;
+			}
+
 			if ((rtp->rtcp->s =
 			     create_new_socket("RTCP",
 					       ast_sockaddr_is_ipv4(&rtp->rtcp->us) ?
@@ -4843,6 +4829,7 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 					       ast_sockaddr_is_ipv6(&rtp->rtcp->us) ?
 					       AF_INET6 : -1)) < 0) {
 				ast_debug(1, "Failed to create a new socket for RTCP on instance '%p'\n", instance);
+				ast_free(rtp->rtcp->local_addr_str);
 				ast_free(rtp->rtcp);
 				rtp->rtcp = NULL;
 				return;
@@ -4852,6 +4839,7 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 			if (ast_bind(rtp->rtcp->s, &rtp->rtcp->us)) {
 				ast_debug(1, "Failed to setup RTCP on RTP instance '%p'\n", instance);
 				close(rtp->rtcp->s);
+				ast_free(rtp->rtcp->local_addr_str);
 				ast_free(rtp->rtcp);
 				rtp->rtcp = NULL;
 				return;
@@ -4891,6 +4879,7 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 					SSL_free(rtp->rtcp->dtls.ssl);
 				}
 #endif
+				ast_free(rtp->rtcp->local_addr_str);
 				ast_free(rtp->rtcp);
 				rtp->rtcp = NULL;
 			}
