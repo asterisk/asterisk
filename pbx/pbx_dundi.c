@@ -4847,6 +4847,9 @@ static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
 		ast_log(LOG_WARNING, "Unable to get host name!\n");
 	AST_LIST_LOCK(&peers);
 
+	if (ast_eid_is_empty(&ast_eid_default)) {
+		ast_log(LOG_WARNING, "Entity ID is not set.\n");
+	}
 	memcpy(&global_eid, &ast_eid_default, sizeof(global_eid));
 
 	global_storehistory = 0;
