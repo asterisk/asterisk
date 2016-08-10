@@ -49,6 +49,12 @@ res_pjsip
    configure these options then you already had to do a reload after making
    changes.
 
+app_confbridge
+------------------
+  * Some sounds played into the bridge are played asynchronously. This, for
+    instance, allows a channel to immediately exit the ConfBridge without having
+    to wait for a leave announcement to play.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.10.0 to Asterisk 13.11.0 ----------
 ------------------------------------------------------------------------------
