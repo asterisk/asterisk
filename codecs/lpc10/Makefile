@@ -25,7 +25,7 @@ CFLAGS+= -fPIC -Wno-comment
 
 # The code here generates lots of warnings, so compiling with -Werror
 # fails miserably. Remove it for the time being.
-_ASTCFLAGS:=$(_ASTCFLAGS:-Werror=)
+_ASTCFLAGS:=$(_ASTCFLAGS:-Werror=) -DAST_MODULE_SELF_SYM=__internal_codec_lpc10_self
 
 LIB = $(LIB_TARGET_DIR)/liblpc10.a
 
