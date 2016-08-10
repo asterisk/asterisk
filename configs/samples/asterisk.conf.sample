@@ -88,6 +88,14 @@ documentation_language = en_US	; Set the language you want documentation
 				; considered dangerous because they can allow
 				; privilege escalation.
 				; Default no
+;entityid=00:11:22:33:44:55	; Entity ID.
+				; This is in the form of a MAC address.
+				; It should be universally unique.
+				; It must be unique between servers communicating
+				; with a protocol that uses this value.
+				; This is currently is used by DUNDi and
+				; Exchanging Device and Mailbox State
+				; using protocols: XMPP, Corosync and PJSIP.
 
 ; Changing the following lines may compromise your security.
 ;[files]
