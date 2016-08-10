@@ -389,6 +389,37 @@ int func_confbridge_helper(struct ast_channel *chan, const char *cmd, char *data
  */
 int play_sound_file(struct confbridge_conference *conference, const char *filename);
 
+/*!
+ * \brief Play sound file into conference bridge asynchronously
+ *
+ * If the initiator parameter is non-NULL, then the playback will wait for
+ * that initiator channel to get back in the bridge before playing the sound
+ * file. This way, the initiator has no danger of hearing a "clipped" file.
+ *
+ * \param conference The conference bridge to play sound file into
+ * \param filename Sound file to play
+ * \param initiator Channel that initiated playback.
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int async_play_sound_file(struct confbridge_conference *conference, const char *filename,
+	struct ast_channel *initiator);
+
+/*!
+ * \brief Indicate the initiator of an async sound file is ready for it to play.
+ *
+ * When playing an async sound file, the initiator is typically either out of the bridge
+ * or not in a position to hear the queued announcement. This function lets the announcement
+ * thread know that the initiator is now ready for the sound to play.
+ *
+ * If an async announcement was queued and no initiator channel was provided, then this is
+ * a no-op
+ *
+ * \param chan The channel that initiated the async announcement
+ */
+void async_play_sound_ready(struct ast_channel *chan);
+
 /*! \brief Callback to be called when the conference has become empty
  * \param conference The conference bridge
  */
