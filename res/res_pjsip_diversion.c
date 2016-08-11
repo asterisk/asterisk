@@ -305,7 +305,7 @@ static void add_diversion_header(pjsip_tx_data *tdata, struct ast_party_redirect
 	hdr = pjsip_from_hdr_create(tdata->pool);
 	hdr->type = PJSIP_H_OTHER;
 	pj_strdup(tdata->pool, &hdr->name, &diversion_name);
-	hdr->sname.slen = 0;
+	hdr->sname = hdr->name;
 
 	name_addr = pjsip_uri_clone(tdata->pool, base);
 	uri = pjsip_uri_get_uri(name_addr->uri);
