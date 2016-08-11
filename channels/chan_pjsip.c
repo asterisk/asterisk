@@ -2384,6 +2384,11 @@ static struct ast_custom_function media_offer_function = {
 	.write = pjsip_acf_media_offer_write
 };
 
+static struct ast_custom_function session_refresh_function = {
+	.name = "PJSIP_SEND_SESSION_REFRESH",
+	.write = pjsip_acf_session_refresh_write,
+};
+
 /*!
  * \brief Load the module
  *
@@ -2420,6 +2425,11 @@ static int load_module(void)
 
 	if (ast_custom_function_register(&media_offer_function)) {
 		ast_log(LOG_WARNING, "Unable to register PJSIP_MEDIA_OFFER dialplan function\n");
+		goto end;
+	}
+
+	if (ast_custom_function_register(&session_refresh_function)) {
+		ast_log(LOG_WARNING, "Unable to register PJSIP_SEND_SESSION_REFRESH dialplan function\n");
 		goto end;
 	}
 
@@ -2479,6 +2489,7 @@ end:
 	pjsip_uids_onhold = NULL;
 	ast_custom_function_unregister(&media_offer_function);
 	ast_custom_function_unregister(&chan_pjsip_dial_contacts_function);
+	ast_custom_function_unregister(&session_refresh_function);
 	ast_channel_unregister(&chan_pjsip_tech);
 	ast_rtp_glue_unregister(&chan_pjsip_rtp_glue);
 
@@ -2500,6 +2511,7 @@ static int unload_module(void)
 
 	ast_custom_function_unregister(&media_offer_function);
 	ast_custom_function_unregister(&chan_pjsip_dial_contacts_function);
+	ast_custom_function_unregister(&session_refresh_function);
 
 	ast_channel_unregister(&chan_pjsip_tech);
 	ao2_ref(chan_pjsip_tech.capabilities, -1);
