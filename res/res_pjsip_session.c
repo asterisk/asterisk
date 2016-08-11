@@ -2877,7 +2877,12 @@ static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv, stru
 	static const pj_str_t STR_IP6 = { "IP6", 3 };
 	pjmedia_sdp_session *local;
 
-	if (!(local = PJ_POOL_ZALLOC_T(inv->pool_prov, pjmedia_sdp_session))) {
+	if (inv->state == PJSIP_INV_STATE_DISCONNECTED) {
+		ast_log(LOG_ERROR, "Failed to create session SDP. Session has been aready disconnected\n");
+		return NULL;
+	}
+
+	if (!inv->pool_prov || !(local = PJ_POOL_ZALLOC_T(inv->pool_prov, pjmedia_sdp_session))) {
 		return NULL;
 	}
 
