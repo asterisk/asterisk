@@ -12,6 +12,42 @@
 --- Functionality changes from Asterisk 13.8-cert1 to Asterisk 13.8-cert2 ----
 ------------------------------------------------------------------------------
 
+app_voicemail
+------------------
+ * Added "tps_queue_high" and "tps_queue_low" options.
+   The options can modify the taskprocessor alert levels for this module.
+   Additional information can be found in the sample configuration file at
+   config/samples/voicemail.conf.sample.
+
+res_pjsip_mwi
+------------------
+ * Added "mwi_tps_queue_high" and "mwi_tps_queue_low" global configuration
+   options to tune taskprocessor alert levels.
+
+ * Added "mwi_disable_initial_unsolicited" global configuration option
+   to disable sending unsolicited MWI to all endpoints on startup.
+   Additional information can be found in the sample configuration file at
+   config/samples/pjsip.conf.sample.
+
+chan_pjsip
+------------------
+ * A new dialplan function, PJSIP_SEND_SESSION_REFRESH, has been added. When
+   invoked, a re-INVITE or UPDATE request will be sent immediately to the
+   endpoint underlying the channel. When used in combination with the existing
+   dialplan function PJSIP_MEDIA_OFFER, this allows the formats on a PJSIP
+   channel to be re-negotiated and updated after session set up.
+
+app_confbridge
+------------------
+  * Some sounds played into the bridge are played asynchronously. This, for
+    instance, allows a channel to immediately exit the ConfBridge without having
+	to wait for a leave announcement to play.
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.10.0 to Asterisk 13.11.0 ----------
+>>>>>>> 45b3546... ConfBridge: Make some announcements asynchronous.
+------------------------------------------------------------------------------
+
 chan_dahdi
 ------------------
  * Added "faxdetect_timeout" option.
