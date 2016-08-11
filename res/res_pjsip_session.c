@@ -213,6 +213,11 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 	int i;
 	int handled = 0;
 
+	if (session->inv_session && session->inv_session->state == PJSIP_INV_STATE_DISCONNECTED) {
+		ast_log(LOG_ERROR, "Failed to handle incoming SDP. Session has been already disconnected\n");
+		return -1;
+	}
+
 	for (i = 0; i < sdp->media_count; ++i) {
 		/* See if there are registered handlers for this media stream type */
 		char media[20];
@@ -2087,6 +2092,13 @@ static int new_invite(void *data)
 	 * so that we will be notified so we can destroy the session properly
 	 */
 
+	if (invite->session->inv_session->state == PJSIP_INV_STATE_DISCONNECTED) {
+		ast_log(LOG_ERROR, "Session already DISCONNECTED [reason=%d (%s)]\n",
+			invite->session->inv_session->cause,
+			pjsip_get_status_text(invite->session->inv_session->cause)->ptr);
+		return 0;
+	}
+
 	switch (get_destination(invite->session, invite->rdata)) {
 	case SIP_GET_DEST_EXTEN_FOUND:
 		/* Things worked. Keep going */
@@ -2877,7 +2889,12 @@ static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv, stru
 	static const pj_str_t STR_IP6 = { "IP6", 3 };
 	pjmedia_sdp_session *local;
 
-	if (!(local = PJ_POOL_ZALLOC_T(inv->pool_prov, pjmedia_sdp_session))) {
+	if (inv->state == PJSIP_INV_STATE_DISCONNECTED) {
+		ast_log(LOG_ERROR, "Failed to create session SDP. Session has been already disconnected\n");
+		return NULL;
+	}
+
+	if (!inv->pool_prov || !(local = PJ_POOL_ZALLOC_T(inv->pool_prov, pjmedia_sdp_session))) {
 		return NULL;
 	}
 
