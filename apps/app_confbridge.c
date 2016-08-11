@@ -1627,6 +1627,26 @@ static void leave_conference(struct confbridge_user *user)
 	user->conference = NULL;
 }
 
+static void playback_common(struct confbridge_conference *conference, const char *filename, int say_number)
+{
+	/* Don't try to play if the playback channel has been hung up */
+	if (!conference->playback_chan) {
+		return;
+	}
+
+	ast_autoservice_stop(conference->playback_chan);
+
+	/* The channel is all under our control, in goes the prompt */
+	if (!ast_strlen_zero(filename)) {
+		ast_stream_and_wait(conference->playback_chan, filename, "");
+	} else if (say_number >= 0) {
+		ast_say_number(conference->playback_chan, say_number, "",
+			ast_channel_language(conference->playback_chan), NULL);
+	}
+
+	ast_autoservice_start(conference->playback_chan);
+}
+
 struct playback_task_data {
 	struct confbridge_conference *conference;
 	const char *filename;
@@ -1653,21 +1673,7 @@ static int playback_task(void *data)
 {
 	struct playback_task_data *ptd = data;
 
-	/* Don't try to play if the playback channel has been hung up */
-	if (!ptd->conference->playback_chan) {
-		return 0;
-	}
-
-	ast_autoservice_stop(ptd->conference->playback_chan);
-
-	/* The channel is all under our control, in goes the prompt */
-	if (!ast_strlen_zero(ptd->filename)) {
-		ast_stream_and_wait(ptd->conference->playback_chan, ptd->filename, "");
-	} else if (ptd->say_number >= 0) {
-		ast_say_number(ptd->conference->playback_chan, ptd->say_number, "",
-			ast_channel_language(ptd->conference->playback_chan), NULL);
-	}
-	ast_autoservice_start(ptd->conference->playback_chan);
+	playback_common(ptd->conference, ptd->filename, ptd->say_number);
 
 	ast_mutex_lock(&ptd->lock);
 	ptd->playback_finished = 1;
@@ -1730,6 +1736,102 @@ static int play_sound_helper(struct confbridge_conference *conference, const cha
 int play_sound_file(struct confbridge_conference *conference, const char *filename)
 {
 	return play_sound_helper(conference, filename, -1);
+}
+
+struct async_playback_task_data {
+	struct confbridge_conference *conference;
+	int say_number;
+	char filename[0];
+};
+
+static struct async_playback_task_data *async_playback_task_data_alloc(
+	struct confbridge_conference *conference, const char *filename, int say_number)
+{
+	struct async_playback_task_data *aptd;
+
+	aptd = ast_malloc(sizeof(*aptd) + strlen(filename) + 1);
+	if (!aptd) {
+		return NULL;
+	}
+
+	/* Safe */
+	strcpy(aptd->filename, filename);
+	aptd->say_number = say_number;
+
+	/* You may think that we need to bump the conference refcount since we are pushing
+	 * this task to the taskprocessor.
+	 *
+	 * In this case, that actually causes a problem. The destructor for the conference
+	 * pushes a hangup task into the taskprocessor and waits for it to complete before
+	 * continuing. If the destructor gets called from a taskprocessor task, we're
+	 * deadlocked.
+	 *
+	 * So is there a risk of the conference being freed out from under us? No. Since
+	 * the destructor pushes a task into the taskprocessor and waits for it to complete,
+	 * the destructor cannot free the conference out from under us. No further tasks
+	 * can be queued onto the taskprocessor after the hangup since no channels are referencing
+	 * the conference at that point any more.
+	 */
+	aptd->conference = conference;
+
+	return aptd;
+}
+
+static void async_playback_task_data_destroy(struct async_playback_task_data *aptd)
+{
+	ast_free(aptd);
+}
+
+/*!
+ * \brief Play an announcement into a confbridge asynchronously
+ *
+ * This runs in the playback queue taskprocessor. This ensures that
+ * all playbacks are handled in sequence and do not play over top one
+ * another.
+ *
+ * \param data An async_playback_task_data
+ * \return 0
+ */
+static int async_playback_task(void *data)
+{
+	struct async_playback_task_data *aptd = data;
+
+	playback_common(aptd->conference, aptd->filename, aptd->say_number);
+
+	async_playback_task_data_destroy(aptd);
+	return 0;
+}
+
+static int async_play_sound_helper(struct confbridge_conference *conference, const char *filename, int say_number)
+{
+	struct async_playback_task_data *aptd;
+
+	/* Do not waste resources trying to play files that do not exist */
+	if (!ast_strlen_zero(filename) && !sound_file_exists(filename)) {
+		return 0;
+	}
+
+	aptd = async_playback_task_data_alloc(conference, filename, say_number);
+	if (!aptd) {
+		return -1;
+	}
+
+	if (ast_taskprocessor_push(conference->playback_queue, async_playback_task, aptd)) {
+		if (!ast_strlen_zero(filename)) {
+			ast_log(LOG_WARNING, "Unable to play file '%s' to conference\n", filename);
+		} else {
+			ast_log(LOG_WARNING, "Unable to say number '%d' to conference\n", say_number);
+		}
+		async_playback_task_data_destroy(aptd);
+		return -1;
+	}
+
+	return 0;
+}
+
+int async_play_sound_file(struct confbridge_conference *conference, const char *filename)
+{
+	return async_play_sound_helper(conference, filename, -1);
 }
 
 /*!
@@ -2041,10 +2143,7 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 	if (!quiet) {
 		const char *join_sound = conf_get_sound(CONF_SOUND_JOIN, conference->b_profile.sounds);
 
-		ast_stream_and_wait(chan, join_sound, "");
-		ast_autoservice_start(chan);
-		play_sound_file(conference, join_sound);
-		ast_autoservice_stop(chan);
+		async_play_sound_file(conference, join_sound);
 	}
 
 	if (user.u_profile.timeout) {
@@ -2095,19 +2194,15 @@ static int confbridge_exec(struct ast_channel *chan, const char *data)
 
 	/* if this user has a intro, play it when leaving */
 	if (!quiet && !ast_strlen_zero(user.name_rec_location)) {
-		ast_autoservice_start(chan);
-		play_sound_file(conference, user.name_rec_location);
-		play_sound_file(conference,
+		async_play_sound_file(conference, user.name_rec_location);
+		async_play_sound_file(conference,
 			conf_get_sound(CONF_SOUND_HAS_LEFT, conference->b_profile.sounds));
-		ast_autoservice_stop(chan);
 	}
 
 	/* play the leave sound */
 	if (!quiet) {
 		const char *leave_sound = conf_get_sound(CONF_SOUND_LEAVE, conference->b_profile.sounds);
-		ast_autoservice_start(chan);
-		play_sound_file(conference, leave_sound);
-		ast_autoservice_stop(chan);
+		async_play_sound_file(conference, leave_sound);
 	}
 
 	/* If the user was kicked from the conference play back the audio prompt for it */
@@ -2180,13 +2275,8 @@ static int action_toggle_mute_participants(struct confbridge_conference *confere
 		mute ? CONF_SOUND_PARTICIPANTS_MUTED : CONF_SOUND_PARTICIPANTS_UNMUTED,
 		conference->b_profile.sounds);
 
-	/* The host needs to hear it seperately, as they don't get the audio from play_sound_helper */
-	ast_stream_and_wait(user->chan, sound_to_play, "");
-
-	/* Announce to the group that all participants are muted */
-	ast_autoservice_start(user->chan);
-	play_sound_helper(conference, sound_to_play, 0);
-	ast_autoservice_stop(user->chan);
+	/* Playing the sound asynchronously lets the sound be heard by everyone at once */
+	async_play_sound_helper(conference, sound_to_play, 0);
 
 	return 0;
 }
