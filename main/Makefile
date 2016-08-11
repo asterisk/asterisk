@@ -233,7 +233,7 @@ ASTSSL_LIB:=libasteriskssl.dylib
 # -install_name allows library to be found if installed somewhere other than
 # /lib or /usr/lib
 $(ASTSSL_LIB): _ASTLDFLAGS+=-dynamiclib -install_name $(ASTLIBDIR)/$(ASTSSL_LIB)
-$(ASTSSL_LIB): _ASTCFLAGS+=-fPIC -DAST_MODULE=\"asteriskssl\"
+$(ASTSSL_LIB): _ASTCFLAGS+=-fPIC -DAST_MODULE=\"asteriskssl\" -DAST_NOT_MODULE
 $(ASTSSL_LIB): LIBS+=$(ASTSSL_LIBS)
 $(ASTSSL_LIB): SOLINK=$(DYLINK)
 
@@ -309,7 +309,7 @@ ASTPJ_LIB:=libasteriskpj.dylib
 # -install_name allows library to be found if installed somewhere other than
 # /lib or /usr/lib
 $(ASTPJ_LIB): _ASTLDFLAGS+=-dynamiclib -install_name $(ASTLIBDIR)/$(ASTPJ_LIB) $(PJ_LDFLAGS)
-$(ASTPJ_LIB): _ASTCFLAGS+=-fPIC -DAST_MODULE=\"asteriskpj\" $(PJ_CFLAGS)
+$(ASTPJ_LIB): _ASTCFLAGS+=-fPIC -DAST_MODULE=\"asteriskpj\" $(PJ_CFLAGS) -DAST_NOT_MODULE
 $(ASTPJ_LIB): LIBS+=$(PJPROJECT_LIBS)  -lssl -lcrypto -luuid -lm -lrt -lpthread
 $(ASTPJ_LIB): SOLINK=$(DYLINK)
 
