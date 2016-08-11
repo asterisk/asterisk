@@ -386,6 +386,17 @@ int func_confbridge_helper(struct ast_channel *chan, const char *cmd, char *data
  */
 int play_sound_file(struct confbridge_conference *conference, const char *filename);
 
+/*!
+ * \brief Play sound file into conference bridge asynchronously
+ *
+ * \param conference The conference bridge to play sound file into
+ * \param filename Sound file to play
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int async_play_sound_file(struct confbridge_conference *conference, const char *filename);
+
 /*! \brief Callback to be called when the conference has become empty
  * \param conference The conference bridge
  */
