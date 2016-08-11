@@ -59,8 +59,55 @@
 		</parameter>
 	</syntax>
 	<description>
-		<para>Returns the codecs offered based upon the media choice</para>
+		<para>When read, returns the codecs offered based upon the media choice.</para>
+		<para>When written, sets the codecs to offer when an outbound dial attempt is made,
+		or when a session refresh is sent using <replaceable>PJSIP_SEND_SESSION_REFRESH</replaceable>.
+		</para>
 	</description>
+	<see-also>
+		<ref type="function">PJSIP_SEND_SESSION_REFRESH</ref>
+	</see-also>
+</function>
+<function name="PJSIP_SEND_SESSION_REFRESH" language="en_US">
+	<synopsis>
+		W/O: Initiate a session refresh via an UPDATE or re-INVITE on an established media session
+	</synopsis>
+	<syntax>
+		<parameter name="update_type" required="false">
+			<para>The type of update to send. Default is <literal>invite</literal>.</para>
+			<enumlist>
+				<enum name="invite">
+					<para>Send the session refresh as a re-INVITE.</para>
+				</enum>
+				<enum name="update">
+					<para>Send the session refresh as an UPDATE.</para>
+				</enum>
+			</enumlist>
+		</parameter>
+	</syntax>
+	<description>
+		<para>This function will cause the PJSIP stack to immediately refresh
+		the media session for the channel. This will be done using either a
+		re-INVITE (default) or an UPDATE request.
+		</para>
+		<para>This is most useful when combined with the <replaceable>PJSIP_MEDIA_OFFER</replaceable>
+		dialplan function, as it allows the formats in use on a channel to be
+		re-negotiated after call setup.</para>
+		<warning>
+			<para>The formats the endpoint supports are <emphasis>not</emphasis>
+			checked or enforced by this function. Using this function to offer
+			formats not supported by the endpoint <emphasis>may</emphasis> result
+			in a loss of media.</para>
+		</warning>
+		<example title="Re-negotiate format to g722">
+		 ; Within some existing extension on an answered channel
+		 same => n,Set(PJSIP_MEDIA_OFFER(audio)=!all,g722)
+		 same => n,Set(PJSIP_SEND_SESSION_REFRESH()=invite)
+		</example>
+	</description>
+	<see-also>
+		<ref type="function">PJSIP_MEDIA_OFFER</ref>
+	</see-also>
 </function>
 <info name="PJSIPCHANNEL" language="en_US" tech="PJSIP">
 	<enumlist>
@@ -960,4 +1007,71 @@ int pjsip_acf_media_offer_write(struct ast_channel *chan, const char *cmd, char 
 	}
 
 	return ast_sip_push_task_synchronous(channel->session->serializer, media_offer_write_av, &mdata);
+}
+
+struct refresh_data {
+	struct ast_sip_session *session;
+	enum ast_sip_session_refresh_method method;
+};
+
+static int sip_session_response_cb(struct ast_sip_session *session, pjsip_rx_data *rdata)
+{
+	struct ast_format *fmt;
+
+	if (!session->channel) {
+		/* Egads! */
+		return 0;
+	}
+
+	fmt = ast_format_cap_get_best_by_type(ast_channel_nativeformats(session->channel), AST_MEDIA_TYPE_AUDIO);
+	if (!fmt) {
+		/* No format? That's weird. */
+		return 0;
+	}
+	ast_channel_set_writeformat(session->channel, fmt);
+	ast_channel_set_rawwriteformat(session->channel, fmt);
+	ast_channel_set_readformat(session->channel, fmt);
+	ast_channel_set_rawreadformat(session->channel, fmt);
+	ao2_ref(fmt, -1);
+
+	return 0;
+}
+
+static int refresh_write_cb(void *obj)
+{
+	struct refresh_data *data = obj;
+
+	ast_sip_session_refresh(data->session, NULL, NULL,
+		sip_session_response_cb, data->method, 1);
+
+	return 0;
+}
+
+int pjsip_acf_session_refresh_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
+{
+	struct ast_sip_channel_pvt *channel;
+	struct refresh_data rdata = {
+		.method = AST_SIP_SESSION_REFRESH_METHOD_INVITE,
+	};
+
+	if (!chan) {
+		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
+		return -1;
+	}
+
+	if (strcmp(ast_channel_tech(chan)->type, "PJSIP")) {
+		ast_log(LOG_WARNING, "Cannot call %s on a non-PJSIP channel\n", cmd);
+		return -1;
+	}
+
+	channel = ast_channel_tech_pvt(chan);
+	rdata.session = channel->session;
+
+	if (!strcmp(value, "invite")) {
+		rdata.method = AST_SIP_SESSION_REFRESH_METHOD_INVITE;
+	} else if (!strcmp(value, "update")) {
+		rdata.method = AST_SIP_SESSION_REFRESH_METHOD_UPDATE;
+	}
+
+	return ast_sip_push_task_synchronous(channel->session->serializer, refresh_write_cb, &rdata);
 }
