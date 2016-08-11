@@ -23683,7 +23683,7 @@ if test "x${PBX_UNBOUND}" != "x1" -a "${USE_UNBOUND}" != "no"; then
          pbxlibdir="-L${UNBOUND_DIR}"
       fi
    fi
-   pbxfuncname="ub_ctx_add_ta_autr"
+   pbxfuncname="ub_ctx_delete"
    if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
       AST_UNBOUND_FOUND=yes
    else
@@ -23775,6 +23775,49 @@ _ACEOF
    fi
 fi
 
+
+
+    if test "x${PBX_UNBOUND_CONST_PARAMS}" != "x1" -a "${USE_UNBOUND_CONST_PARAMS}" != "no"; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for UNBOUND_VERSION_MAJOR declared in unbound.h" >&5
+$as_echo_n "checking for UNBOUND_VERSION_MAJOR declared in unbound.h... " >&6; }
+        saved_cppflags="${CPPFLAGS}"
+        if test "x${UNBOUND_CONST_PARAMS_DIR}" != "x"; then
+            UNBOUND_CONST_PARAMS_INCLUDE="-I${UNBOUND_CONST_PARAMS_DIR}/include"
+        fi
+        CPPFLAGS="${CPPFLAGS} ${UNBOUND_CONST_PARAMS_INCLUDE}"
+
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ #include <unbound.h>
+int
+main ()
+{
+#if !defined(UNBOUND_VERSION_MAJOR)
+                                    (void) UNBOUND_VERSION_MAJOR;
+                                #endif
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+                PBX_UNBOUND_CONST_PARAMS=1
+
+$as_echo "#define HAVE_UNBOUND_CONST_PARAMS 1" >>confdefs.h
+
+
+
+else
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+        CPPFLAGS="${saved_cppflags}"
+    fi
 
 
 

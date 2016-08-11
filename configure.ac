@@ -2101,7 +2101,8 @@ AST_EXT_LIB_CHECK([NEWT], [newt], [newtBell], [newt.h])
 # script bug which does not find the ldns library.  The bug is fixed in
 # v1.4.22 but that version is not easily detectable.
 #
-AST_EXT_LIB_CHECK([UNBOUND], [unbound], [ub_ctx_add_ta_autr], [unbound.h], [])
+AST_EXT_LIB_CHECK([UNBOUND], [unbound], [ub_ctx_delete], [unbound.h], [])
+AST_C_DECLARE_CHECK([UNBOUND_CONST_PARAMS], [UNBOUND_VERSION_MAJOR], [unbound.h])
 
 AST_EXT_LIB_CHECK([UNIXODBC], [odbc], [SQLConnect], [sql.h], [])
 
