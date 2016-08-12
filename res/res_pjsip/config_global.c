@@ -106,6 +106,18 @@ static int global_apply(const struct ast_sorcery *sorcery, void *obj)
 	struct global_config *cfg = obj;
 	char max_forwards[10];
 
+	if (ast_strlen_zero(cfg->debug)) {
+		ast_log(LOG_ERROR,
+			"Global option 'debug' can't be empty.  Set it to a valid value or remove the entry to accept 'no' as the default\n");
+		return -1;
+	}
+
+	if (ast_strlen_zero(cfg->default_from_user)) {
+		ast_log(LOG_ERROR,
+			"Global option 'default_from_user' can't be empty.  Set it to a valid value or remove the entry to accept 'asterisk' as the default\n");
+		return -1;
+	}
+
 	snprintf(max_forwards, sizeof(max_forwards), "%u", cfg->max_forwards);
 
 	ast_sip_add_global_request_header("Max-Forwards", max_forwards, 1);
