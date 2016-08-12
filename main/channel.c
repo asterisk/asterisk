@@ -5407,7 +5407,7 @@ static const struct set_format_access set_format_access_write = {
 	.setoption = AST_OPTION_FORMAT_WRITE,
 };
 
-static int set_format(struct ast_channel *chan, struct ast_format_cap *cap_set, const int direction)
+static int set_format(struct ast_channel *chan, struct ast_format_cap *cap_set, const int direction, int interleaved_stereo)
 {
 	struct ast_trans_pvt *trans_pvt;
 	struct ast_format_cap *cap_native;
@@ -5512,9 +5512,14 @@ static int set_format(struct ast_channel *chan, struct ast_format_cap *cap_set, 
 	if ((ast_format_cmp(rawformat, best_native_fmt) != AST_FORMAT_CMP_NOT_EQUAL) &&
 		(ast_format_cmp(format, best_set_fmt) != AST_FORMAT_CMP_NOT_EQUAL) &&
 		((ast_format_cmp(rawformat, format) != AST_FORMAT_CMP_NOT_EQUAL) || access->get_trans(chan))) {
-		/* the channel is already in these formats, so nothing to do */
-		ast_channel_unlock(chan);
-		return 0;
+		/* the channel is already in these formats, so nothing to do, unless the interleaved format is not set correctly */
+		trans_pvt = access->get_trans(chan);
+		if (trans_pvt != NULL) {
+			if (trans_pvt->interleaved_stereo == interleaved_stereo) {
+				ast_channel_unlock(chan);
+				return 0;
+			}
+		}
 	}
 
 	/* Free any translation we have right now */
@@ -5536,9 +5541,11 @@ static int set_format(struct ast_channel *chan, struct ast_format_cap *cap_set, 
 		if (!direction) {
 			/* reading */
 			trans_pvt = ast_translator_build_path(best_set_fmt, best_native_fmt);
+			trans_pvt->interleaved_stereo = 0;
 		} else {
 			/* writing */
 			trans_pvt = ast_translator_build_path(best_native_fmt, best_set_fmt);
+			trans_pvt->interleaved_stereo = interleaved_stereo;
 		}
 		access->set_trans(chan, trans_pvt);
 		res = trans_pvt ? 0 : -1;
@@ -5578,7 +5585,7 @@ int ast_set_read_format(struct ast_channel *chan, struct ast_format *format)
 	}
 	ast_format_cap_append(cap, format, 0);
 
-	res = set_format(chan, cap, 0);
+	res = set_format(chan, cap, 0, 0);
 
 	ao2_cleanup(cap);
 	return res;
@@ -5586,7 +5593,25 @@ int ast_set_read_format(struct ast_channel *chan, struct ast_format *format)
 
 int ast_set_read_format_from_cap(struct ast_channel *chan, struct ast_format_cap *cap)
 {
-	return set_format(chan, cap, 0);
+	return set_format(chan, cap, 0, 0);
+}
+
+int ast_set_write_format_interleaved_stereo(struct ast_channel *chan, struct ast_format *format)
+{
+	struct ast_format_cap *cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	int res;
+
+	ast_assert(format != NULL);
+
+	if (!cap) {
+		return -1;
+	}
+	ast_format_cap_append(cap, format, 0);
+
+	res = set_format(chan, cap, 1, 1);
+
+	ao2_cleanup(cap);
+	return res;
 }
 
 int ast_set_write_format(struct ast_channel *chan, struct ast_format *format)
@@ -5601,7 +5626,7 @@ int ast_set_write_format(struct ast_channel *chan, struct ast_format *format)
 	}
 	ast_format_cap_append(cap, format, 0);
 
-	res = set_format(chan, cap, 1);
+	res = set_format(chan, cap, 1, 0);
 
 	ao2_cleanup(cap);
 	return res;
@@ -5609,7 +5634,7 @@ int ast_set_write_format(struct ast_channel *chan, struct ast_format *format)
 
 int ast_set_write_format_from_cap(struct ast_channel *chan, struct ast_format_cap *cap)
 {
-	return set_format(chan, cap, 1);
+	return set_format(chan, cap, 1, 0);
 }
 
 const char *ast_channel_reason2str(int reason)
