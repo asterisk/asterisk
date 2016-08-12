@@ -209,6 +209,7 @@ struct bridge_profile {
 	unsigned int max_members;          /*!< The maximum number of participants allowed in the conference */
 	unsigned int internal_sample_rate; /*!< The internal sample rate of the bridge. 0 when set to auto adjust mode. */
 	unsigned int mix_interval;  /*!< The internal mixing interval used by the bridge. When set to 0 the bridgewill use a default interval. */
+	unsigned int binaural_active; /*!< TRUE if binaural is activated. */
 	struct bridge_profile_sounds *sounds;
 	char regcontext[AST_MAX_CONTEXT];
 };
