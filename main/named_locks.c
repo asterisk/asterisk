@@ -87,8 +87,8 @@ static void named_locks_shutdown(void)
 
 int ast_named_locks_init(void)
 {
-	named_locks = ao2_container_alloc_hash(0, 0, NAMED_LOCKS_BUCKETS, named_locks_hash, NULL,
-		named_locks_cmp);
+	named_locks = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		NAMED_LOCKS_BUCKETS, named_locks_hash, NULL, named_locks_cmp);
 	if (!named_locks) {
 		return -1;
 	}
