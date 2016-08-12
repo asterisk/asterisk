@@ -214,12 +214,12 @@ struct ao2_container *ast_sip_location_retrieve_aor_contacts(const struct ast_si
 	struct ao2_container *contacts;
 	struct ast_named_lock *lock;
 
-	lock = ast_named_lock_get(AST_NAMED_LOCK_TYPE_RWLOCK, "aor", ast_sorcery_object_get_id(aor));
+	lock = ast_named_lock_get(AST_NAMED_LOCK_TYPE_MUTEX, "aor", ast_sorcery_object_get_id(aor));
 	if (!lock) {
 		return NULL;
 	}
 
-	ao2_wrlock(lock);
+	ao2_lock(lock);
 	contacts = ast_sip_location_retrieve_aor_contacts_nolock(aor);
 	ao2_unlock(lock);
 	ast_named_lock_put(lock);
@@ -373,12 +373,12 @@ int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri,
 	int res;
 	struct ast_named_lock *lock;
 
-	lock = ast_named_lock_get(AST_NAMED_LOCK_TYPE_RWLOCK, "aor", ast_sorcery_object_get_id(aor));
+	lock = ast_named_lock_get(AST_NAMED_LOCK_TYPE_MUTEX, "aor", ast_sorcery_object_get_id(aor));
 	if (!lock) {
 		return -1;
 	}
 
-	ao2_wrlock(lock);
+	ao2_lock(lock);
 	res = ast_sip_location_add_contact_nolock(aor, uri, expiration_time, path_info, user_agent,
 		via_addr, via_port, call_id,
 		endpoint);
