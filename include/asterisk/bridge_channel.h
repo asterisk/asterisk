@@ -127,6 +127,10 @@ struct ast_bridge_channel {
 	unsigned int inhibit_colp:1;
 	/*! TRUE if the channel must wait for an ast_bridge_depart to reclaim the channel. */
 	unsigned int depart_wait:1;
+	/*! TRUE if binaural is suspended. */
+	unsigned int binaural_suspended:1;
+	/*! TRUE if a change of binaural positions has to be performed. */
+	unsigned int binaural_pos_change:1;
 	/* ^-- These flags change while the bridge is locked or before the channel is in the bridge. */
 	/*! Features structure for features that are specific to this channel */
 	struct ast_bridge_features *features;
