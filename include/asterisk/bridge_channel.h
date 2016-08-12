@@ -172,6 +172,10 @@ struct ast_bridge_channel {
 		/*! Collected DTMF digits for DTMF hooks. */
 		char collected[MAXIMUM_DTMF_FEATURE_STRING];
 	} dtmf_hook_state;
+	/*! TRUE if binaural is suspended. */
+	unsigned int binaural_suspended:1;
+	/*! TRUE if a change of binaural positions has to be performed. */
+	unsigned int binaural_pos_change:1;
 };
 
 /*!

@@ -2670,6 +2670,9 @@ else
 	touch makeopts.acbak
 fi
 
+# conf_bridge (binaural rendering): check if HRIRs are available
+AC_CHECK_FILES([bridges/bridge_softmix/include/hrirs.h])
+
 AC_CONFIG_FILES([build_tools/menuselect-deps makeopts])
 AST_CHECK_MANDATORY
 

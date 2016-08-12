@@ -93,6 +93,7 @@ clean:
 	rm -f db1-ast/.*.d
 	@$(MAKE) -C db1-ast clean
 
+
 md5.c: $(ASTTOPDIR)/main/md5.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
 	$(CMD_PREFIX) cp "$<" "$@"
@@ -187,6 +188,9 @@ smsq: smsq.o strcompat.o
 smsq: LIBS+=$(POPT_LIB)
 
 streamplayer: streamplayer.o
+
+conf_bridge_binaural_hrir_importer: conf_bridge_binaural_hrir_importer.c
+	$(CC) -std=c90 $(ASTCFLAGS)  $< -o $@ -lsndfile
 
 muted: muted.o
 muted: LIBS+=$(AUDIO_LIBS)
