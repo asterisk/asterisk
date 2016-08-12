@@ -231,6 +231,7 @@ struct ast_trans_pvt {
 	 * explicit_dst contains an attribute which describes whether both parties
 	 * want to do forward-error correction (FEC). */
 	struct ast_format *explicit_dst;
+	int interleaved_stereo;     /*!< indicates if samples are in interleaved order, for stereo lin */
 };
 
 /*! \brief generic frameout function */
