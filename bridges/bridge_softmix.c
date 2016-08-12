@@ -34,7 +34,7 @@
 #include "bridge_softmix/include/bridge_softmix_internal.h"
 
 /*! The minimum sample rate of the bridge. */
-#define SOFTMIX_MIN_SAMPLE_RATE 8000		/* 8 kHz sample rate */
+#define SOFTMIX_MIN_SAMPLE_RATE 8000	/* 8 kHz sample rate */
 /*! \brief Interval at which mixing will take place. Valid options are 10, 20, and 40. */
 #define DEFAULT_SOFTMIX_INTERVAL 20
 /*! \brief Size of the buffer used for sample manipulation */
@@ -66,7 +66,7 @@ struct softmix_stats {
 
 struct softmix_translate_helper_entry {
 	int num_times_requested; /*!< Once this entry is no longer requested, free the trans_pvt
-	and re-init if it was usable. */
+		                          and re-init if it was usable. */
 	struct ast_format *dst_format; /*!< The destination format for this helper */
 	struct ast_trans_pvt *trans_pvt; /*!< the translator for this slot. */
 	struct ast_frame *out_frame; /*!< The output frame from the last translation */
@@ -86,7 +86,7 @@ static struct softmix_translate_helper_entry *softmix_translate_helper_entry_all
 	}
 	entry->dst_format = ao2_bump(dst);
 	/* initialize this to one so that the first time through the cleanup code after
-		 allocation it won't be removed from the entry list */
+	 allocation it won't be removed from the entry list */
 	entry->num_times_requested = 1;
 	return entry;
 }
@@ -178,7 +178,7 @@ static void softmix_process_write_audio(struct softmix_translate_helper *trans_h
 			ast_slinear_saturated_subtract(&sc->final_buf[i], &sc->our_buf[i]);
 		}
 		/* check to see if any entries exist for the format. if not we'll want
-			 to remove it during cleanup */
+		 to remove it during cleanup */
 		AST_LIST_TRAVERSE(&trans_helper->entries, entry, entry) {
 			if (ast_format_cmp(entry->dst_format, raw_write_fmt) == AST_FORMAT_CMP_EQUAL) {
 				++entry->num_times_requested;
@@ -196,31 +196,32 @@ static void softmix_process_write_audio(struct softmix_translate_helper *trans_h
 	}
 
 	/* Attempt to optimize channels using the same translation path/codec. Build a list of entries
-		 of translation paths and track the number of references for each type. Each one of the same
-		 type should be able to use the same out_frame. Since the optimization is only necessary for
-		 multiple channels (>=2) using the same codec make sure resources are allocated only when
-		 needed and released when not (see also softmix_translate_helper_cleanup */
+	 of translation paths and track the number of references for each type. Each one of the same
+	 type should be able to use the same out_frame. Since the optimization is only necessary for
+	 multiple channels (>=2) using the same codec make sure resources are allocated only when
+	 needed and released when not (see also softmix_translate_helper_cleanup */
 	AST_LIST_TRAVERSE(&trans_helper->entries, entry, entry) {
-		if (sc->binaural == 0) {
-			if (ast_format_cmp(entry->dst_format, raw_write_fmt) == AST_FORMAT_CMP_EQUAL) {
-				entry->num_times_requested++;
-			} else {
-				continue;
-			}
-			if (!entry->trans_pvt && (entry->num_times_requested > 1)) {
-				entry->trans_pvt = ast_translator_build_path(entry->dst_format, trans_helper->slin_src);
-			}
-			if (entry->trans_pvt && !entry->out_frame) {
-				entry->out_frame = ast_translate(entry->trans_pvt, &sc->write_frame, 0);
-			}
-			if (entry->out_frame && (entry->out_frame->datalen < MAX_DATALEN)) {
-				ao2_replace(sc->write_frame.subclass.format, entry->out_frame->subclass.format);
-				memcpy(sc->final_buf, entry->out_frame->data.ptr, entry->out_frame->datalen);
-				sc->write_frame.datalen = entry->out_frame->datalen;
-				sc->write_frame.samples = entry->out_frame->samples;
-			}
-			break;
+		if (sc->binaural != 0) {
+			continue;
 		}
+		if (ast_format_cmp(entry->dst_format, raw_write_fmt) == AST_FORMAT_CMP_EQUAL) {
+			entry->num_times_requested++;
+		} else {
+			continue;
+		}
+		if (!entry->trans_pvt && (entry->num_times_requested > 1)) {
+			entry->trans_pvt = ast_translator_build_path(entry->dst_format, trans_helper->slin_src);
+		}
+		if (entry->trans_pvt && !entry->out_frame) {
+			entry->out_frame = ast_translate(entry->trans_pvt, &sc->write_frame, 0);
+		}
+		if (entry->out_frame && (entry->out_frame->datalen < MAX_DATALEN)) {
+			ao2_replace(sc->write_frame.subclass.format, entry->out_frame->subclass.format);
+			memcpy(sc->final_buf, entry->out_frame->data.ptr, entry->out_frame->datalen);
+			sc->write_frame.datalen = entry->out_frame->datalen;
+			sc->write_frame.samples = entry->out_frame->samples;
+		}
+		break;
 	}
 
 	/* add new entry into list if this format destination was not matched. */
@@ -247,15 +248,15 @@ static void softmix_translate_helper_cleanup(struct softmix_translate_helper *tr
 		}
 
 		/* nothing is optimized for a single path reference, so there is
-			 no reason to continue to hold onto the codec */
+		 no reason to continue to hold onto the codec */
 		if (entry->num_times_requested == 1 && entry->trans_pvt) {
 			ast_translator_free_path(entry->trans_pvt);
 			entry->trans_pvt = NULL;
 		}
 
 		/* for each iteration (a mixing run) in the bridge softmix thread the number
-			 of references to a given entry is recalculated, so reset the number of
-			 times requested */
+		 of references to a given entry is recalculated, so reset the number of
+		 times requested */
 		entry->num_times_requested = 0;
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
@@ -289,7 +290,7 @@ static void set_softmix_bridge_data(int rate, int interval, struct ast_bridge_ch
 	/*
 	 * NOTE: The write_frame format holds a reference because translation
 	 * could be needed and the format changed to the translated format
-	 * for the channel.	The translated format may not be a
+	 * for the channel.  The translated format may not be a
 	 * static cached format.
 	 */
 	ao2_replace(sc->write_frame.subclass.format, slin_format);
@@ -339,10 +340,10 @@ static void set_softmix_bridge_data(int rate, int interval, struct ast_bridge_ch
 		setup_fail |= ast_set_write_format(bridge_channel->chan, slin_format);
 	}
 
-	/* set up new DSP.	This is on the read side only right before the read frame enters the smoother.	*/
+	/* set up new DSP.  This is on the read side only right before the read frame enters the smoother.	*/
 	sc->dsp = ast_dsp_new_with_rate(rate);
 	if (setup_fail || !sc->dsp) {
-		/* Bad news.	Could not setup the channel for softmix. */
+		/* Bad news.  Could not setup the channel for softmix. */
 		ast_mutex_unlock(&sc->lock);
 		ast_bridge_channel_leave_bridge(bridge_channel, BRIDGE_CHANNEL_STATE_END, 0);
 		return;
@@ -573,24 +574,24 @@ static void softmix_bridge_write_voice(struct ast_bridge *bridge, struct ast_bri
 	int silence_threshold = bridge_channel->tech_args.silence_threshold ?
 		bridge_channel->tech_args.silence_threshold :
 		DEFAULT_SOFTMIX_SILENCE_THRESHOLD;
-	char update_talking = -1;	/* if this is set to 0 or 1, tell the bridge that the channel has started or stopped talking. */
+	char update_talking = -1;  /* if this is set to 0 or 1, tell the bridge that the channel has started or stopped talking. */
 
 	/* Write the frame into the conference */
 	ast_mutex_lock(&sc->lock);
 
 	if (ast_format_cmp(frame->subclass.format, sc->read_slin_format) != AST_FORMAT_CMP_EQUAL) {
 		/*
-		 * The incoming frame is not the expected format.	Update
+		 * The incoming frame is not the expected format.  Update
 		 * the channel's translation path to get us slinear from
 		 * the new format for the next frame.
 		 *
 		 * There is the possibility that this frame is an old slinear
 		 * rate frame that was in flight when the softmix bridge
-		 * changed rates.	If so it will self correct on subsequent
+		 * changed rates.  If so it will self correct on subsequent
 		 * frames.
 		 */
 		ast_channel_lock(bridge_channel->chan);
-		ast_debug(1, "Channel %s wrote unexpected format into bridge.	Got %s, expected %s.\n",
+		ast_debug(1, "Channel %s wrote unexpected format into bridge.  Got %s, expected %s.\n",
 			ast_channel_name(bridge_channel->chan),
 			ast_format_get_name(frame->subclass.format),
 			ast_format_get_name(sc->read_slin_format));
@@ -705,7 +706,7 @@ static int softmix_bridge_write(struct ast_bridge *bridge, struct ast_bridge_cha
 
 	/*
 	 * XXX Softmix needs to use channel roles to determine who gets
-	 * what frame.	Possible roles: announcer, recorder, agent,
+	 * what frame.  Possible roles: announcer, recorder, agent,
 	 * supervisor.
 	 */
 	switch (frame->frametype) {
@@ -796,7 +797,7 @@ static unsigned int analyse_softmix_stats(struct softmix_stats *stats, struct so
 	/*
 	 * Re-adjust the internal bridge sample rate if
 	 * 1. The bridge's internal sample rate is locked in at a sample
-	 *		rate other than the current sample rate being used.
+	 *    rate other than the current sample rate being used.
 	 * 2. two or more channels support a higher sample rate
 	 * 3. no channels support the current sample rate or a higher rate
 	 */
@@ -804,7 +805,7 @@ static unsigned int analyse_softmix_stats(struct softmix_stats *stats, struct so
 		/* if the rate is locked by the bridge, only update it if it differs
 		 * from the current rate we are using. */
 		if (softmix_data->internal_rate != stats->locked_rate) {
-			ast_debug(1, "Locking at new rate.	Bridge changed from %u to %u.\n",
+			ast_debug(1, "Locking at new rate.  Bridge changed from %u to %u.\n",
 				softmix_data->internal_rate, stats->locked_rate);
 			softmix_data->internal_rate = stats->locked_rate;
 			return 1;
@@ -840,7 +841,7 @@ static unsigned int analyse_softmix_stats(struct softmix_stats *stats, struct so
 				/*
 				 * It is possible that multiple channels exist with native sample
 				 * rates above the internal sample rate, but none of those channels
-				 * have the same rate in common.	In this case, the lowest sample
+				 * have the same rate in common.  In this case, the lowest sample
 				 * rate among those channels is picked. Over time as additional
 				 * statistic runs are made the internal sample rate number will
 				 * adjust to the most optimal sample rate, but it may take multiple
@@ -850,13 +851,13 @@ static unsigned int analyse_softmix_stats(struct softmix_stats *stats, struct so
 			}
 		}
 
-		ast_debug(1, "Multiple above internal rate.	Bridge changed from %u to %u.\n",
+		ast_debug(1, "Multiple above internal rate.  Bridge changed from %u to %u.\n",
 			softmix_data->internal_rate, best_rate);
 		softmix_data->internal_rate = best_rate;
 		return 1;
 	} else if (!stats->num_at_internal_rate && !stats->num_above_internal_rate) {
 		/* In this case, the highest supported rate is actually lower than the internal rate */
-		ast_debug(1, "All below internal rate.	Bridge changed from %u to %u.\n",
+		ast_debug(1, "All below internal rate.  Bridge changed from %u to %u.\n",
 			softmix_data->internal_rate, stats->highest_supported_rate);
 		softmix_data->internal_rate = stats->highest_supported_rate;
 		return 1;
@@ -958,7 +959,7 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 
 		if (softmix_datalen > MAX_DATALEN) {
 			/* This should NEVER happen, but if it does we need to know about it. Almost
-			 * all the memcpys used during this process depend on this assumption.	Rather
+			 * all the memcpys used during this process depend on this assumption.  Rather
 			 * than checking this over and over again through out the code, this single
 			 * verification is done on each iteration. */
 			ast_log(LOG_WARNING,
@@ -1115,7 +1116,7 @@ softmix_cleanup:
  * \since 12.0.0
  *
  * \note The thread does not have its own reference to the
- * bridge.	The lifetime of the thread is tied to the lifetime
+ * bridge.  The lifetime of the thread is tied to the lifetime
  * of the mixing technology association with the bridge.
  */
 static void *softmix_mixing_thread(void *data)
@@ -1129,7 +1130,6 @@ static void *softmix_mixing_thread(void *data)
 	}
 
 	ast_debug(1, "Bridge %s: starting mixing thread\n", bridge->uniqueid);
-
 
 	while (!softmix_data->stop) {
 		if (!bridge->num_active) {
