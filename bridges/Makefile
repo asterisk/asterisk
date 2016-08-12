@@ -18,3 +18,6 @@ MENUSELECT_DESCRIPTION=Bridging Modules
 all: _all
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
+
+$(call MOD_ADD_C,bridge_softmix,$(wildcard bridge_softmix/*.c))
+LIBS+= -lfftw3
