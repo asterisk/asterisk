@@ -4058,13 +4058,21 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
+static inline void check_init(int init_result, const char *name)
+{
+	if (init_result) {
+		printf("%s initialization failed.\n%s", name, term_quit());
+		ast_run_atexits(0);
+		exit(init_result == -2 ? 2 : 1);
+	}
+}
+
 static void asterisk_daemon(int isroot, const char *runuser, const char *rungroup)
 {
 	FILE *f;
 	sigset_t sigs;
 	int num;
 	char *buf;
-	int moduleresult;         /*!< Result from the module load subsystem */
 	char tmp[80];
 
 	/* This needs to remain as high up in the initial start up as possible.
@@ -4169,42 +4177,15 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	callerid_init();
 	ast_builtins_init();
 
-	if (ast_utils_init()) {
-		printf("Failed: ast_utils_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_tps_init()) {
-		printf("Failed: ast_tps_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_fd_init()) {
-		printf("Failed: ast_fd_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_pbx_init()) {
-		printf("Failed: ast_pbx_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_event_init()) {
-		printf("Failed: ast_event_init\n%s", term_quit());
-		exit(1);
-	}
-
+	check_init(ast_utils_init(), "Utilities");
+	check_init(ast_tps_init(), "Task Processor Core");
+	check_init(ast_fd_init(), "File Descriptor Debugging");
+	check_init(ast_pbx_init(), "ast_pbx_init");
+	check_init(ast_event_init(), "Generic Event System");
 #ifdef TEST_FRAMEWORK
-	if (ast_test_init()) {
-		printf("Failed: ast_test_init\n%s", term_quit());
-		exit(1);
-	}
+	check_init(ast_test_init(), "Test Framework");
 #endif
-
-	if (ast_translate_init()) {
-		printf("Failed: ast_translate_init\n%s", term_quit());
-		exit(1);
-	}
+	check_init(ast_translate_init(), "Translator Core");
 
 	ast_aoc_cli_init();
 
@@ -4228,151 +4209,52 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	srand((unsigned int) getpid() + (unsigned int) time(NULL));
 	initstate((unsigned int) getpid() * 65536 + (unsigned int) time(NULL), randompool, sizeof(randompool));
 
-	if (init_logger()) {		/* Start logging subsystem */
-		printf("Failed: init_logger\n%s", term_quit());
-		exit(1);
-	}
+	check_init(init_logger(), "Logger");
 
 	threadstorage_init();
 
-	if (ast_format_attr_init()) {
-		printf("Failed: ast_format_attr_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_format_list_init()) {
-		printf("Failed: ast_format_list_init\n%s", term_quit());
-		exit(1);
-	}
+	check_init(ast_format_attr_init(), "Format Attributes");
+	check_init(ast_format_list_init(), "Format Lists");
 
 	ast_rtp_engine_init();
 	ast_autoservice_init();
 
-	if (ast_timing_init()) {
-		printf("Failed: ast_timing_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_ssl_init()) {
-		printf("Failed: ast_ssl_init\n%s", term_quit());
-		exit(1);
-	}
+	check_init(ast_timing_init(), "Timing");
+	check_init(ast_ssl_init(), "SSL");
 
 #ifdef AST_XML_DOCS
 	/* Load XML documentation. */
 	ast_xmldoc_load_documentation();
 #endif
 
-	if (astdb_init()) {
-		printf("Failed: astdb_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_msg_init()) {
-		printf("Failed: ast_msg_init\n%s", term_quit());
-		exit(1);
-	}
-
-	/* initialize the data retrieval API */
-	if (ast_data_init()) {
-		printf("Failed: ast_data_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_channels_init()) {
-		printf("Failed: ast_channels_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if ((moduleresult = load_modules(1))) {		/* Load modules, pre-load only */
-		printf("Failed: load_modules(1)\n%s", term_quit());
-		exit(moduleresult == -2 ? 2 : 1);
-	}
-
-	if (dnsmgr_init()) {		/* Initialize the DNS manager */
-		printf("Failed: dnsmgr_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_named_acl_init()) { /* Initialize the Named ACL system */
-		printf("Failed: ast_named_acl_init\n%s", term_quit());
-		exit(1);
-	}
+	check_init(astdb_init(), "ASTdb");
+	check_init(ast_msg_init(), "Messaging API");
+	check_init(ast_data_init(), "Data Retrieval API");
+	check_init(ast_channels_init(), "Channel");
+	check_init(load_modules(1), "Module Preload");
+	check_init(dnsmgr_init(), "DNS manager");
+	check_init(ast_named_acl_init(), "Named ACL system");
 
 	ast_http_init();		/* Start the HTTP server, if needed */
 
-	if (init_manager()) {
-		printf("Failed: init_manager\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_cdr_engine_init()) {
-		printf("Failed: ast_cdr_engine_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_cel_engine_init()) {
-		printf("Failed: ast_cel_engine_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_device_state_engine_init()) {
-		printf("Failed: ast_device_state_engine_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_presence_state_engine_init()) {
-		printf("Failed: ast_presence_state_engine_init\n%s", term_quit());
-		exit(1);
-	}
+	check_init(init_manager(), "Asterisk Manager Interface");
+	check_init(ast_cdr_engine_init(), "CDR Engine");
+	check_init(ast_cel_engine_init(), "CEL Engine");
+	check_init(ast_device_state_engine_init(), "Device State Engine");
+	check_init(ast_presence_state_engine_init(), "Presence State Engine");
 
 	ast_dsp_init();
 	ast_udptl_init();
 
-	if (ast_image_init()) {
-		printf("Failed: ast_image_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_file_init()) {
-		printf("Failed: ast_file_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (load_pbx()) {
-		printf("Failed: load_pbx\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_indications_init()) {
-		printf("Failed: ast_indications_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_features_init()) {
-		printf("Failed: ast_features_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (init_framer()) {
-		printf("Failed: init_framer\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_enum_init()) {
-		printf("Failed: ast_enum_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_cc_init()) {
-		printf("Failed: ast_cc_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if ((moduleresult = load_modules(0))) {		/* Load modules */
-		printf("Failed: load_modules(0)\n%s", term_quit());
-		exit(moduleresult == -2 ? 2 : 1);
-	}
+	check_init(ast_image_init(), "Image");
+	check_init(ast_file_init(), "Generic File Format Support");
+	check_init(load_pbx(), "load_pbx");
+	check_init(ast_indications_init(), "Indication Tone Handling");
+	check_init(ast_features_init(), "Call Features");
+	check_init(init_framer(), "init_framer");
+	check_init(ast_enum_init(), "ENUM Support");
+	check_init(ast_cc_init(), "Call Completion Supplementary Services");
+	check_init(load_modules(0), "Module");
 
 	/* loads the cli_permissoins.conf file needed to implement cli restrictions. */
 	ast_cli_perms_init(0);
