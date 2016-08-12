@@ -75,7 +75,7 @@ static void opus_destroy(struct ast_format *format)
 static int opus_clone(const struct ast_format *src, struct ast_format *dst)
 {
 	struct opus_attr *original = ast_format_get_attribute_data(src);
-	struct opus_attr *attr = ast_malloc(sizeof(*attr));
+	struct opus_attr *attr = ast_malloc(sizeof(struct opus_attr));
 
 	if (!attr) {
 		return -1;
@@ -281,9 +281,10 @@ static struct ast_format *opus_getjoint(const struct ast_format *format1, const 
 	attr_res->cbr = attr1->cbr || attr2->cbr ? 1 : 0;
 	attr_res->spropstereo = attr1->spropstereo || attr2->spropstereo ? 1 : 0;
 
-	/* Only do stereo if both sides want it.  If a peer specifically requests not
-	 * to receive stereo signals, it may be a waste of bandwidth. */
-	attr_res->stereo = attr1->stereo && attr2->stereo ? 1 : 0;
+	if (attr1->stereo || attr2->stereo) {  
+			attr_res->stereo = 1;
+			attr_res->spropstereo = 1;
+	}
 
 	attr_res->maxbitrate = MIN(attr1->maxbitrate, attr2->maxbitrate);
 	attr_res->spropmaxcapturerate = MIN(attr1->spropmaxcapturerate, attr2->spropmaxcapturerate);

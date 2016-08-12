@@ -38,6 +38,7 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/format.h"
 #include "asterisk/format_cache.h"
 #include "asterisk/frame.h"
+#include <opus/opus.h>
 
 int __ast_codec_register_with_format(struct ast_codec *codec, const char *format_name,
 	struct ast_module *mod);
@@ -88,6 +89,11 @@ static int g723_samples(struct ast_frame *frame)
 	}
 
 	return samples;
+}
+
+static int opus_samples(struct ast_frame *frame)
+{
+	return opus_packet_get_nb_samples(frame->data.ptr, frame->datalen, 48000);
 }
 
 static int g723_length(unsigned int samples)
@@ -716,6 +722,7 @@ static struct ast_codec opus = {
 	.maximum_ms = 60,
 	.default_ms = 20,
 	.minimum_bytes = 10,
+	.samples_count = opus_samples,
 };
 
 static struct ast_codec jpeg = {
