@@ -169,7 +169,6 @@ static int persistent_endpoint_update_state(void *obj, void *arg, int flags)
 
 			contact_status = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(),
 				CONTACT_STATUS, contact_id);
-
 			if (contact_status && contact_status->status != UNAVAILABLE) {
 				state = AST_ENDPOINT_ONLINE;
 			}
@@ -296,7 +295,8 @@ static void endpoint_deleted_observer(const void *object)
 {
 	const struct ast_sip_endpoint *endpoint = object;
 
-	ao2_find(persistent_endpoints, ast_endpoint_get_resource(endpoint->persistent), OBJ_SEARCH_KEY | OBJ_UNLINK | OBJ_NODATA);
+	ao2_find(persistent_endpoints, ast_endpoint_get_resource(endpoint->persistent),
+		OBJ_SEARCH_KEY | OBJ_UNLINK | OBJ_NODATA);
 }
 
 static const struct ast_sorcery_observer endpoint_observers = {
@@ -1224,16 +1224,16 @@ static void persistent_endpoint_destroy(void *obj)
 
 int ast_sip_persistent_endpoint_update_state(const char *endpoint_name, enum ast_endpoint_state state)
 {
-	RAII_VAR(struct sip_persistent_endpoint *, persistent, NULL, ao2_cleanup);
-	SCOPED_AO2LOCK(lock, persistent_endpoints);
+	struct sip_persistent_endpoint *persistent;
 
-	if (!(persistent = ao2_find(persistent_endpoints, endpoint_name, OBJ_KEY | OBJ_NOLOCK))) {
-		return -1;
+	ao2_lock(persistent_endpoints);
+	persistent = ao2_find(persistent_endpoints, endpoint_name, OBJ_SEARCH_KEY | OBJ_NOLOCK);
+	if (persistent) {
+		endpoint_update_state(persistent->endpoint, state);
+		ao2_ref(persistent, -1);
 	}
-
-	endpoint_update_state(persistent->endpoint, state);
-
-	return 0;
+	ao2_unlock(persistent_endpoints);
+	return persistent ? 0 : -1;
 }
 
 /*! \brief Internal function which finds (or creates) persistent endpoint information */
@@ -1242,16 +1242,25 @@ static struct ast_endpoint *persistent_endpoint_find_or_create(const struct ast_
 	RAII_VAR(struct sip_persistent_endpoint *, persistent, NULL, ao2_cleanup);
 	SCOPED_AO2LOCK(lock, persistent_endpoints);
 
-	if (!(persistent = ao2_find(persistent_endpoints, ast_sorcery_object_get_id(endpoint), OBJ_KEY | OBJ_NOLOCK))) {
-		if (!(persistent = ao2_alloc(sizeof(*persistent), persistent_endpoint_destroy))) {
+	persistent = ao2_find(persistent_endpoints, ast_sorcery_object_get_id(endpoint),
+		OBJ_SEARCH_KEY | OBJ_NOLOCK);
+	if (!persistent) {
+		persistent = ao2_alloc_options(sizeof(*persistent), persistent_endpoint_destroy,
+			AO2_ALLOC_OPT_LOCK_NOLOCK);
+		if (!persistent) {
 			return NULL;
 		}
 
-		if (!(persistent->endpoint = ast_endpoint_create("PJSIP", ast_sorcery_object_get_id(endpoint)))) {
+		persistent->endpoint = ast_endpoint_create("PJSIP",
+			ast_sorcery_object_get_id(endpoint));
+		if (!persistent->endpoint) {
 			return NULL;
 		}
 
 		persistent->aors = ast_strdup(endpoint->aors);
+		if (!persistent->aors) {
+			return NULL;
+		}
 
 		ast_endpoint_set_state(persistent->endpoint, AST_ENDPOINT_UNKNOWN);
 
@@ -1757,7 +1766,9 @@ int ast_res_pjsip_initialize_configuration(void)
 		return -1;
 	}
 
-	if (!(persistent_endpoints = ao2_container_alloc(PERSISTENT_BUCKETS, persistent_endpoint_hash, persistent_endpoint_cmp))) {
+	persistent_endpoints = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0,
+		PERSISTENT_BUCKETS, persistent_endpoint_hash, NULL, persistent_endpoint_cmp);
+	if (!persistent_endpoints) {
 		return -1;
 	}
 
@@ -1979,6 +1990,7 @@ void ast_res_pjsip_destroy_configuration(void)
 	ast_sip_unregister_cli_formatter(endpoint_formatter);
 	ast_sip_destroy_cli();
 	ao2_cleanup(persistent_endpoints);
+	persistent_endpoints = NULL;
 }
 
 int ast_res_pjsip_reload_configuration(void)
