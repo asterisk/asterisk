@@ -31,29 +31,7 @@
 	<support_level>core</support_level>
  ***/
 
-#include "asterisk.h"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/time.h>
-#include <signal.h>
-#include <errno.h>
-#include <unistd.h>
-
-#include "asterisk/module.h"
-#include "asterisk/channel.h"
-#include "asterisk/bridge.h"
-#include "asterisk/bridge_technology.h"
-#include "asterisk/frame.h"
-#include "asterisk/options.h"
-#include "asterisk/logger.h"
-#include "asterisk/slinfactory.h"
-#include "asterisk/astobj2.h"
-#include "asterisk/timing.h"
-#include "asterisk/translate.h"
-
-#define MAX_DATALEN 8096
+#include "bridge_softmix/include/bridge_softmix_internal.h"
 
 /*! The minimum sample rate of the bridge. */
 #define SOFTMIX_MIN_SAMPLE_RATE 8000	/* 8 kHz sample rate */
@@ -75,75 +53,10 @@
 #define DEFAULT_SOFTMIX_SILENCE_THRESHOLD 2500
 #define DEFAULT_SOFTMIX_TALKING_THRESHOLD 160
 
-#define DEFAULT_ENERGY_HISTORY_LEN 150
-
-struct video_follow_talker_data {
-	/*! audio energy history */
-	int energy_history[DEFAULT_ENERGY_HISTORY_LEN];
-	/*! The current slot being used in the history buffer, this
-	 *  increments and wraps around */
-	int energy_history_cur_slot;
-	/*! The current energy sum used for averages. */
-	int energy_accum;
-	/*! The current energy average */
-	int energy_average;
-};
-
-/*! \brief Structure which contains per-channel mixing information */
-struct softmix_channel {
-	/*! Lock to protect this structure */
-	ast_mutex_t lock;
-	/*! Factory which contains audio read in from the channel */
-	struct ast_slinfactory factory;
-	/*! Frame that contains mixed audio to be written out to the channel */
-	struct ast_frame write_frame;
-	/*! Current expected read slinear format. */
-	struct ast_format *read_slin_format;
-	/*! DSP for detecting silence */
-	struct ast_dsp *dsp;
-	/*!
-	 * \brief TRUE if a channel is talking.
-	 *
-	 * \note This affects how the channel's audio is mixed back to
-	 * it.
-	 */
-	unsigned int talking:1;
-	/*! TRUE if the channel provided audio for this mixing interval */
-	unsigned int have_audio:1;
-	/*! Buffer containing final mixed audio from all sources */
-	short final_buf[MAX_DATALEN];
-	/*! Buffer containing only the audio from the channel */
-	short our_buf[MAX_DATALEN];
-	/*! Data pertaining to talker mode for video conferencing */
-	struct video_follow_talker_data video_talker;
-};
-
-struct softmix_bridge_data {
-	struct ast_timer *timer;
-	/*!
-	 * \brief Bridge pointer passed to the softmix mixing thread.
-	 *
-	 * \note Does not need a reference because the bridge will
-	 * always exist while the mixing thread exists even if the
-	 * bridge is no longer actively using the softmix technology.
-	 */
-	struct ast_bridge *bridge;
-	/*! Lock for signaling the mixing thread. */
-	ast_mutex_t lock;
-	/*! Condition, used if we need to wake up the mixing thread. */
-	ast_cond_t cond;
-	/*! Thread handling the mixing */
-	pthread_t thread;
-	unsigned int internal_rate;
-	unsigned int internal_mixing_interval;
-	/*! TRUE if the mixing thread should stop */
-	unsigned int stop:1;
-};
-
 struct softmix_stats {
 	/*! Each index represents a sample rate used above the internal rate. */
 	unsigned int sample_rates[16];
-	/*! Each index represents the number of channels using the same index in the sample_rates array.  */
+	/*! Each index represents the number of channels using the same index in the sample_rates array.	*/
 	unsigned int num_channels[16];
 	/*! The number of channels above the internal sample rate */
 	unsigned int num_above_internal_rate;
@@ -155,15 +68,9 @@ struct softmix_stats {
 	unsigned int locked_rate;
 };
 
-struct softmix_mixing_array {
-	unsigned int max_num_entries;
-	unsigned int used_entries;
-	int16_t **buffers;
-};
-
 struct softmix_translate_helper_entry {
 	int num_times_requested; /*!< Once this entry is no longer requested, free the trans_pvt
-	                              and re-init if it was usable. */
+	                          and re-init if it was usable. */
 	struct ast_format *dst_format; /*!< The destination format for this helper */
 	struct ast_trans_pvt *trans_pvt; /*!< the translator for this slot. */
 	struct ast_frame *out_frame; /*!< The output frame from the last translation */
@@ -263,14 +170,14 @@ static int16_t *softmix_process_read_audio(struct softmix_channel *sc, unsigned 
  */
 static void softmix_process_write_audio(struct softmix_translate_helper *trans_helper,
 	struct ast_format *raw_write_fmt,
-	struct softmix_channel *sc)
+	struct softmix_channel *sc, unsigned int default_sample_size)
 {
 	struct softmix_translate_helper_entry *entry = NULL;
 	int i;
 
 	/* If we provided audio that was not determined to be silence,
 	 * then take it out while in slinear format. */
-	if (sc->have_audio && sc->talking) {
+	if (sc->have_audio && sc->talking && !sc->binaural) {
 		for (i = 0; i < sc->write_frame.samples; i++) {
 			ast_slinear_saturated_subtract(&sc->final_buf[i], &sc->our_buf[i]);
 		}
@@ -285,6 +192,11 @@ static void softmix_process_write_audio(struct softmix_translate_helper *trans_h
 		/* do not do any special write translate optimization if we had to make
 		 * a special mix for them to remove their own audio. */
 		return;
+	} else if (sc->have_audio && sc->talking && sc->binaural > 0) {
+		/* Binaural audio requires special saturated substract since we have two
+		 * audio signals per channel now. */
+		softmix_process_write_binaural_audio(sc, default_sample_size);
+		return;
 	}
 
 	/* Attempt to optimize channels using the same translation path/codec. Build a list of entries
@@ -293,6 +205,9 @@ static void softmix_process_write_audio(struct softmix_translate_helper *trans_h
 	   multiple channels (>=2) using the same codec make sure resources are allocated only when
 	   needed and released when not (see also softmix_translate_helper_cleanup */
 	AST_LIST_TRAVERSE(&trans_helper->entries, entry, entry) {
+		if (sc->binaural != 0) {
+			continue;
+		}
 		if (ast_format_cmp(entry->dst_format, raw_write_fmt) == AST_FORMAT_CMP_EQUAL) {
 			entry->num_times_requested++;
 		} else {
@@ -351,11 +266,17 @@ static void softmix_translate_helper_cleanup(struct softmix_translate_helper *tr
 	AST_LIST_TRAVERSE_SAFE_END;
 }
 
-static void set_softmix_bridge_data(int rate, int interval, struct ast_bridge_channel *bridge_channel, int reset)
+static void set_softmix_bridge_data(int rate, int interval, struct ast_bridge_channel *bridge_channel, int reset, int set_binaural, int binaural_pos_id, int is_announcement)
 {
 	struct softmix_channel *sc = bridge_channel->tech_pvt;
 	struct ast_format *slin_format;
 	int setup_fail;
+
+#ifdef BINAURAL_RENDERING
+	if (interval != BINAURAL_MIXING_INTERVAL) {
+		interval = BINAURAL_MIXING_INTERVAL;
+	}
+#endif
 
 	/* The callers have already ensured that sc is never NULL. */
 	ast_assert(sc != NULL);
@@ -381,6 +302,26 @@ static void set_softmix_bridge_data(int rate, int interval, struct ast_bridge_ch
 	sc->write_frame.datalen = SOFTMIX_DATALEN(rate, interval);
 	sc->write_frame.samples = SOFTMIX_SAMPLES(rate, interval);
 
+	/* We will store the rate here cause we need to set the data again when a channel is unsuspended */
+	sc->rate = rate;
+
+	/* If the channel will contain binaural data we will set a identifier in the channel
+	 * if set_binaural == -1 this is just a sample rate update, will ignore it. */
+	if (set_binaural == 1) {
+		sc->binaural = 1;
+	} else if (set_binaural == 0) {
+		sc->binaural = 0;
+	}
+
+	/* Setting the binaural position. This doesn't require a change of the overlaying channel infos
+	 * and doesn't have to be done if we just updating sample rates. */
+	if (binaural_pos_id != -1) {
+		sc->binaural_pos = binaural_pos_id;
+	}
+	if (is_announcement != -1) {
+		sc->is_announcement = is_announcement;
+	}
+
 	/*
 	 * NOTE: The read_slin_format does not hold a reference because it
 	 * will always be a signed linear format.
@@ -395,7 +336,13 @@ static void set_softmix_bridge_data(int rate, int interval, struct ast_bridge_ch
 	setup_fail |= ast_set_read_format_path(bridge_channel->chan,
 		ast_channel_rawreadformat(bridge_channel->chan), slin_format);
 	ast_channel_unlock(bridge_channel->chan);
-	setup_fail |= ast_set_write_format(bridge_channel->chan, slin_format);
+
+	/* If channel contains binaural data we will set it here for the trans_pvt. */
+	if (set_binaural == 1 || (set_binaural == -1 && sc->binaural == 1)) {
+		setup_fail |= ast_set_write_format_interleaved_stereo(bridge_channel->chan, slin_format);
+	} else if (set_binaural == 0) {
+		setup_fail |= ast_set_write_format(bridge_channel->chan, slin_format);
+	}
 
 	/* set up new DSP.  This is on the read side only right before the read frame enters the smoother.  */
 	sc->dsp = ast_dsp_new_with_rate(rate);
@@ -435,6 +382,15 @@ static void softmix_poke_thread(struct softmix_bridge_data *softmix_data)
 /*! \brief Function called when a channel is unsuspended from the bridge */
 static void softmix_bridge_unsuspend(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
+#ifdef BINAURAL_RENDERING
+	struct softmix_channel *sc = bridge_channel->tech_pvt;
+	if (sc->binaural) {
+		/* Restore some usefull data if it was a binaural channel */
+		struct ast_format *slin_format;
+		slin_format = ast_format_cache_get_slin_by_rate(sc->rate);
+		ast_set_write_format_interleaved_stereo(bridge_channel->chan, slin_format);
+	}
+#endif
 	if (bridge->tech_pvt) {
 		softmix_poke_thread(bridge->tech_pvt);
 	}
@@ -445,6 +401,13 @@ static int softmix_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chan
 {
 	struct softmix_channel *sc;
 	struct softmix_bridge_data *softmix_data;
+	int set_binaural = 0;
+	/* If false, the channel will be convolved, but since it is a non stereo channel, output
+	 * will be mono. */
+	int skip_binaural_output = 1;
+	int pos_id;
+	int is_announcement = 0;
+	int samplerate_change;
 
 	softmix_data = bridge->tech_pvt;
 	if (!softmix_data) {
@@ -454,6 +417,30 @@ static int softmix_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chan
 	/* Create a new softmix_channel structure and allocate various things on it */
 	if (!(sc = ast_calloc(1, sizeof(*sc)))) {
 		return -1;
+	}
+
+	samplerate_change = softmix_data->internal_rate;
+	pos_id = -1;
+	if (bridge->softmix.binaural_active) {
+		if (strncmp(ast_channel_name(bridge_channel->chan), "CBAnn", 5) != 0) {
+			set_binaural = ast_format_get_channel_count(bridge_channel->write_format) > 1 ? 1 : 0;
+			if (set_binaural) {
+				softmix_data->internal_rate = samplerate_change;
+			}
+			skip_binaural_output = 0;
+		} else {
+			is_announcement = 1;
+		}
+		if (set_binaural) {
+			softmix_data->convolve.binaural_active = 1;
+		}
+		if (!skip_binaural_output)	{
+			pos_id = set_binaural_data_join(&softmix_data->convolve, softmix_data->default_sample_size);
+			if (pos_id == -1) {
+				ast_log(LOG_ERROR, "Bridge %s: Failed to join channel %s. Could not allocate enough memory.\n", bridge->uniqueid, ast_channel_name(bridge_channel->chan));
+				return -1;
+			}
+		}
 	}
 
 	/* Can't forget the lock */
@@ -466,7 +453,7 @@ static int softmix_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chan
 		softmix_data->internal_mixing_interval
 			? softmix_data->internal_mixing_interval
 			: DEFAULT_SOFTMIX_INTERVAL,
-		bridge_channel, 0);
+		bridge_channel, 0, set_binaural, pos_id, is_announcement);
 
 	softmix_poke_thread(softmix_data);
 	return 0;
@@ -475,11 +462,22 @@ static int softmix_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chan
 /*! \brief Function called when a channel leaves the bridge */
 static void softmix_bridge_leave(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
-	struct softmix_channel *sc = bridge_channel->tech_pvt;
+
+	struct softmix_channel *sc;
+	struct softmix_bridge_data *softmix_data;
+	softmix_data = bridge->tech_pvt;
+	sc = bridge_channel->tech_pvt;
 
 	if (!sc) {
 		return;
 	}
+
+	if (bridge->softmix.binaural_active) {
+		if (sc->binaural) {
+			set_binaural_data_leave(&softmix_data->convolve, sc->binaural_pos, softmix_data->default_sample_size);
+		}
+	}
+
 	bridge_channel->tech_pvt = NULL;
 
 	/* Drop mutex lock */
@@ -793,9 +791,12 @@ static void gather_softmix_stats(struct softmix_stats *stats,
  * \retval 0, no changes to internal rate
  * \retval 1, internal rate was changed, update all the channels on the next mixing iteration.
  */
-static unsigned int analyse_softmix_stats(struct softmix_stats *stats, struct softmix_bridge_data *softmix_data)
+static unsigned int analyse_softmix_stats(struct softmix_stats *stats, struct softmix_bridge_data *softmix_data, int binaural_active)
 {
 	int i;
+	if (binaural_active) {
+		stats->locked_rate = SOFTMIX_BINAURAL_SAMPLE_RATE;
+	}
 
 	/*
 	 * Re-adjust the internal bridge sample rate if
@@ -868,7 +869,7 @@ static unsigned int analyse_softmix_stats(struct softmix_stats *stats, struct so
 	return 0;
 }
 
-static int softmix_mixing_array_init(struct softmix_mixing_array *mixing_array, unsigned int starting_num_entries)
+static int softmix_mixing_array_init(struct softmix_mixing_array *mixing_array, unsigned int starting_num_entries, unsigned int binaural_active)
 {
 	memset(mixing_array, 0, sizeof(*mixing_array));
 	mixing_array->max_num_entries = starting_num_entries;
@@ -876,15 +877,24 @@ static int softmix_mixing_array_init(struct softmix_mixing_array *mixing_array, 
 		ast_log(LOG_NOTICE, "Failed to allocate softmix mixing structure.\n");
 		return -1;
 	}
+	if (binaural_active) {
+		if (!(mixing_array->chan_pairs = ast_calloc(mixing_array->max_num_entries, sizeof(struct convolve_channel_pair *)))) {
+			ast_log(LOG_NOTICE, "Failed to allocate softmix mixing structure.\n");
+			return -1;
+		}
+	}
 	return 0;
 }
 
-static void softmix_mixing_array_destroy(struct softmix_mixing_array *mixing_array)
+static void softmix_mixing_array_destroy(struct softmix_mixing_array *mixing_array, unsigned int binaural_active)
 {
 	ast_free(mixing_array->buffers);
+	if (binaural_active) {
+		ast_free(mixing_array->chan_pairs);
+	}
 }
 
-static int softmix_mixing_array_grow(struct softmix_mixing_array *mixing_array, unsigned int num_entries)
+static int softmix_mixing_array_grow(struct softmix_mixing_array *mixing_array, unsigned int num_entries, unsigned int binaural_active)
 {
 	int16_t **tmp;
 	/* give it some room to grow since memory is cheap but allocations can be expensive */
@@ -892,6 +902,14 @@ static int softmix_mixing_array_grow(struct softmix_mixing_array *mixing_array, 
 	if (!(tmp = ast_realloc(mixing_array->buffers, (mixing_array->max_num_entries * sizeof(int16_t *))))) {
 		ast_log(LOG_NOTICE, "Failed to re-allocate softmix mixing structure.\n");
 		return -1;
+	}
+	if (binaural_active) {
+		struct convolve_channel_pair **tmp2;
+		if (!(tmp2 = ast_realloc(mixing_array->chan_pairs, (mixing_array->max_num_entries * sizeof(struct convolve_channel_pair *))))) {
+			ast_log(LOG_NOTICE, "Failed to re-allocate softmix mixing structure.\n");
+			return -1;
+		}
+		mixing_array->chan_pairs = tmp2;
 	}
 	mixing_array->buffers = tmp;
 	return 0;
@@ -911,6 +929,10 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 	struct ast_timer *timer;
 	struct softmix_translate_helper trans_helper;
 	int16_t buf[MAX_DATALEN];
+#ifdef BINAURAL_RENDERING
+	int16_t bin_buf[MAX_DATALEN];
+	int16_t ann_buf[MAX_DATALEN];
+#endif
 	unsigned int stat_iteration_counter = 0; /* counts down, gather stats at zero and reset. */
 	int timingfd;
 	int update_all_rates = 0; /* set this when the internal sample rate has changed */
@@ -924,7 +946,7 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 	ast_timer_set_rate(timer, (1000 / softmix_data->internal_mixing_interval));
 
 	/* Give the mixing array room to grow, memory is cheap but allocations are expensive. */
-	if (softmix_mixing_array_init(&mixing_array, bridge->num_channels + 10)) {
+	if (softmix_mixing_array_init(&mixing_array, bridge->num_channels + 10, bridge->softmix.binaural_active)) {
 		goto softmix_cleanup;
 	}
 
@@ -952,7 +974,7 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 
 		/* Grow the mixing array buffer as participants are added. */
 		if (mixing_array.max_num_entries < bridge->num_channels
-			&& softmix_mixing_array_grow(&mixing_array, bridge->num_channels + 5)) {
+			&& softmix_mixing_array_grow(&mixing_array, bridge->num_channels + 5, bridge->softmix.binaural_active)) {
 			goto softmix_cleanup;
 		}
 
@@ -971,6 +993,10 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 			softmix_translate_helper_change_rate(&trans_helper, softmix_data->internal_rate);
 		}
 
+#ifdef BINAURAL_RENDERING
+		check_binaural_position_change(bridge, softmix_data, bridge_channel);
+#endif
+
 		/* Go through pulling audio from each factory that has it available */
 		AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
 			struct softmix_channel *sc = bridge_channel->tech_pvt;
@@ -982,7 +1008,7 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 
 			/* Update the sample rate to match the bridge's native sample rate if necessary. */
 			if (update_all_rates) {
-				set_softmix_bridge_data(softmix_data->internal_rate, softmix_data->internal_mixing_interval, bridge_channel, 1);
+				set_softmix_bridge_data(softmix_data->internal_rate, softmix_data->internal_mixing_interval, bridge_channel, 1, -1, -1, -1);
 			}
 
 			/* If stat_iteration_counter is 0, then collect statistics during this mixing interation */
@@ -998,18 +1024,25 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 			/* Try to get audio from the factory if available */
 			ast_mutex_lock(&sc->lock);
 			if ((mixing_array.buffers[mixing_array.used_entries] = softmix_process_read_audio(sc, softmix_samples))) {
+#ifdef BINAURAL_RENDERING
+				add_binaural_mixing(bridge, softmix_data, softmix_samples, &mixing_array, sc, ast_channel_name(bridge_channel->chan));
+#endif
 				mixing_array.used_entries++;
 			}
 			ast_mutex_unlock(&sc->lock);
 		}
 
-		/* mix it like crazy */
+		/* mix it like crazy (non binaural channels)*/
 		memset(buf, 0, softmix_datalen);
 		for (idx = 0; idx < mixing_array.used_entries; ++idx) {
 			for (x = 0; x < softmix_samples; ++x) {
 				ast_slinear_saturated_add(buf + x, mixing_array.buffers[idx] + x);
 			}
 		}
+
+#ifdef BINAURAL_RENDERING
+		binaural_mixing(bridge, softmix_data, &mixing_array, bin_buf, ann_buf);
+#endif
 
 		/* Next step go through removing the channel's own audio and creating a good frame... */
 		AST_LIST_TRAVERSE(&bridge->channels, bridge_channel, entry) {
@@ -1025,12 +1058,18 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 			/* Make SLINEAR write frame from local buffer */
 			ao2_t_replace(sc->write_frame.subclass.format, cur_slin,
 				"Replace softmix channel slin format");
-			sc->write_frame.datalen = softmix_datalen;
-			sc->write_frame.samples = softmix_samples;
-			memcpy(sc->final_buf, buf, softmix_datalen);
-
+#ifdef BINAURAL_RENDERING
+			if (bridge->softmix.binaural_active && softmix_data->convolve.binaural_active && sc->binaural) {
+				create_binaural_frame(bridge_channel, sc, bin_buf, ann_buf, softmix_datalen, softmix_samples, buf);
+			} else
+#endif
+			{
+				sc->write_frame.datalen = softmix_datalen;
+				sc->write_frame.samples = softmix_samples;
+				memcpy(sc->final_buf, buf, softmix_datalen);
+			}
 			/* process the softmix channel's new write audio */
-			softmix_process_write_audio(&trans_helper, ast_channel_rawwriteformat(bridge_channel->chan), sc);
+			softmix_process_write_audio(&trans_helper, ast_channel_rawwriteformat(bridge_channel->chan), sc, softmix_data->default_sample_size);
 
 			ast_mutex_unlock(&sc->lock);
 
@@ -1040,7 +1079,7 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 
 		update_all_rates = 0;
 		if (!stat_iteration_counter) {
-			update_all_rates = analyse_softmix_stats(&stats, softmix_data);
+			update_all_rates = analyse_softmix_stats(&stats, softmix_data, bridge->softmix.binaural_active);
 			stat_iteration_counter = SOFTMIX_STAT_INTERVAL;
 		}
 		stat_iteration_counter--;
@@ -1071,7 +1110,7 @@ static int softmix_mixing_loop(struct ast_bridge *bridge)
 
 softmix_cleanup:
 	softmix_translate_helper_destroy(&trans_helper);
-	softmix_mixing_array_destroy(&mixing_array);
+	softmix_mixing_array_destroy(&mixing_array, bridge->softmix.binaural_active);
 	return res;
 }
 
@@ -1109,9 +1148,30 @@ static void *softmix_mixing_thread(void *data)
 			continue;
 		}
 
+		if (bridge->softmix.binaural_active && !softmix_data->binaural_init) {
+#ifndef BINAURAL_RENDERING
+			ast_bridge_lock(bridge);
+			bridge->softmix.binaural_active = 0;
+			ast_bridge_unlock(bridge);
+			ast_log(LOG_WARNING, "Bridge: %s: Binaural rendering active by config but not compiled.\n", bridge->uniqueid);
+#else
+			/* Set and init binaural data if binaural is activated in the configuration. */
+			softmix_data->internal_rate = SOFTMIX_BINAURAL_SAMPLE_RATE;
+			softmix_data->default_sample_size = SOFTMIX_SAMPLES(softmix_data->internal_rate, softmix_data->internal_mixing_interval);
+			/* If init for binaural processing fails we will fall back to mono audio processing. */
+			if (init_convolve_data(&softmix_data->convolve, softmix_data->default_sample_size) == -1) {
+				ast_bridge_lock(bridge);
+				bridge->softmix.binaural_active = 0;
+				ast_bridge_unlock(bridge);
+				ast_log(LOG_ERROR, "Bridge: %s: Unable to allocate memory for binaural processing, will only process mono audio.\n", bridge->uniqueid);
+			}
+			softmix_data->binaural_init = 1;
+#endif
+		}
+
 		if (softmix_mixing_loop(bridge)) {
 			/*
-			 * A mixing error occurred.  Sleep and try again later so we
+			 * A mixing error occurred.	Sleep and try again later so we
 			 * won't flood the logs.
 			 */
 			ast_bridge_unlock(bridge);
@@ -1159,6 +1219,13 @@ static int softmix_bridge_create(struct ast_bridge *bridge)
 	/* start at minimum rate, let it grow from there */
 	softmix_data->internal_rate = SOFTMIX_MIN_SAMPLE_RATE;
 	softmix_data->internal_mixing_interval = DEFAULT_SOFTMIX_INTERVAL;
+
+#if defined(HAVE_FFTW3) && !defined(BINAURAL_RENDERING)
+	ast_log(AST_LOG_WARNING, "Binaural rending active but HRIR missing (bridges/bridge_softmix/include/hrirs.h).\n");
+#endif
+#ifdef BINAURAL_RENDERING
+	softmix_data->default_sample_size = SOFTMIX_SAMPLES(softmix_data->internal_rate, softmix_data->internal_mixing_interval);
+#endif
 
 	bridge->tech_pvt = softmix_data;
 
@@ -1219,7 +1286,9 @@ static void softmix_bridge_destroy(struct ast_bridge *bridge)
 		ast_debug(1, "Bridge %s: Waiting for mixing thread to die.\n", bridge->uniqueid);
 		pthread_join(thread, NULL);
 	}
-
+#ifdef BINAURAL_RENDERING
+	free_convolve_data(&softmix_data->convolve);
+#endif
 	softmix_bridge_data_destroy(softmix_data);
 	bridge->tech_pvt = NULL;
 }
