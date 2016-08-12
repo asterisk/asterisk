@@ -259,6 +259,8 @@ type=bridge
 ;sound_unlocked_now; The sound played to an admin after toggling the conference to unlocked mode.
 ;sound_error_menu ; The sound played when an invalid menu option is entered.
 ;sound_begin ; The sound played to the conference when the first marked user enters the conference.
+;sound_binaural_on ; The sound played when binaural audio is turned on
+;sound_binaural_off ; The sound played when binaural audio is turned off
 
 ; --- ConfBridge Menu Options ---
 ; The ConfBridge application also has the ability to
@@ -297,6 +299,7 @@ type=bridge
                                        ; using the '&' character as a delimiter.
 ; toggle_mute      ; Toggle turning on and off mute.  Mute will make the user silent
                    ; to everyone else, but the user will still be able to listen in.
+; toggle_binaural  ; Toggle on or off binaural audio processing.
 
 ; no_op ; This action does nothing (No Operation). Its only real purpose exists for
         ; being able to reserve a sequence in the config as a menu exit sequence.
