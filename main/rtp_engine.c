@@ -102,6 +102,9 @@
 					and sending this report.</para>
 				</parameter>
 			</syntax>
+			<see-also>
+				<ref type="managerEvent">RTCPReceived</ref>
+			</see-also>
 		</managerEventInstance>
 	</managerEvent>
 	<managerEvent language="en_US" name="RTCPReceived">
@@ -131,6 +134,9 @@
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='RTCPSent']/managerEventInstance/syntax/parameter[@name='SentOctets'])" />
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='RTCPSent']/managerEventInstance/syntax/parameter[contains(@name, 'ReportX')])" />
 			</syntax>
+			<see-also>
+				<ref type="managerEvent">RTCPSent</ref>
+			</see-also>
 		</managerEventInstance>
 	</managerEvent>
  ***/
