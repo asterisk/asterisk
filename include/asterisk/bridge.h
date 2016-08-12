@@ -263,6 +263,8 @@ struct ast_bridge_softmix {
 	 * for itself.
 	 */
 	unsigned int internal_mixing_interval;
+	/*! TRUE if binaural convolve is activated in configuration. */
+	unsigned int binaural_active;
 };
 
 /*!
@@ -866,6 +868,14 @@ void ast_bridge_set_internal_sample_rate(struct ast_bridge *bridge, unsigned int
  * the bridge tech is free to choose any mixing interval it uses by default.
  */
 void ast_bridge_set_mixing_interval(struct ast_bridge *bridge, unsigned int mixing_interval);
+
+/*!
+ * \brief Activates the use of binaural signals in a conference bridge.
+ *
+ *  \param bridge Channel to activate the binaural signals.
+ *  \param binaural_active If true binaural signal processing will be active for the bridge.
+ */
+void ast_bridge_set_binaural_active(struct ast_bridge *bridge, unsigned int binaural_active);
 
 /*!
  * \brief Set a bridge to feed a single video source to all participants.

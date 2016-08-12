@@ -36253,6 +36253,31 @@ else
 	touch makeopts.acbak
 fi
 
+# conf_bridge (binaural rendering): check if HRIRs are available
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for bridges/bridge_softmix/include/hrirs.h" >&5
+$as_echo_n "checking for bridges/bridge_softmix/include/hrirs.h... " >&6; }
+if ${ac_cv_file_bridges_bridge_softmix_include_hrirs_h+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  test "$cross_compiling" = yes &&
+  as_fn_error $? "cannot check for file existence when cross compiling" "$LINENO" 5
+if test -r "bridges/bridge_softmix/include/hrirs.h"; then
+  ac_cv_file_bridges_bridge_softmix_include_hrirs_h=yes
+else
+  ac_cv_file_bridges_bridge_softmix_include_hrirs_h=no
+fi
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_file_bridges_bridge_softmix_include_hrirs_h" >&5
+$as_echo "$ac_cv_file_bridges_bridge_softmix_include_hrirs_h" >&6; }
+if test "x$ac_cv_file_bridges_bridge_softmix_include_hrirs_h" = xyes; then :
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_BRIDGES_BRIDGE_SOFTMIX_INCLUDE_HRIRS_H 1
+_ACEOF
+
+fi
+
+
 ac_config_files="$ac_config_files build_tools/menuselect-deps makeopts"
 
 
