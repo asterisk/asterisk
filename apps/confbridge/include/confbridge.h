@@ -92,6 +92,7 @@ enum conf_menu_action_id {
 	MENU_ACTION_RELEASE_SINGLE_VIDEO_SRC,
 	MENU_ACTION_PARTICIPANT_COUNT,
 	MENU_ACTION_ADMIN_TOGGLE_MUTE_PARTICIPANTS,
+	MENU_ACTION_TOGGLE_BINAURAL,
 };
 
 /*! The conference menu action contains both
@@ -169,6 +170,8 @@ enum conf_sounds {
 	CONF_SOUND_PARTICIPANTS_MUTED,
 	CONF_SOUND_PARTICIPANTS_UNMUTED,
 	CONF_SOUND_BEGIN,
+	CONF_SOUND_BINAURAL_ON,
+	CONF_SOUND_BINAURAL_OFF,
 };
 
 struct bridge_profile_sounds {
@@ -196,6 +199,8 @@ struct bridge_profile_sounds {
 		AST_STRING_FIELD(participantsmuted);
 		AST_STRING_FIELD(participantsunmuted);
 		AST_STRING_FIELD(begin);
+		AST_STRING_FIELD(binauralon);
+		AST_STRING_FIELD(binauraloff);
 	);
 };
 
