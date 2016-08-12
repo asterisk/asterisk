@@ -3726,6 +3726,14 @@ void ast_bridge_set_mixing_interval(struct ast_bridge *bridge, unsigned int mixi
 	ast_bridge_unlock(bridge);
 }
 
+void ast_bridge_set_binaural_active(struct ast_bridge *bridge, unsigned int binaural_active)
+{
+	ast_bridge_lock(bridge);
+	bridge->softmix.binaural_active.active = binaural_active;
+	ast_bridge_unlock(bridge);
+}
+
+
 void ast_bridge_set_internal_sample_rate(struct ast_bridge *bridge, unsigned int sample_rate)
 {
 	ast_bridge_lock(bridge);

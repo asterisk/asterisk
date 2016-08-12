@@ -1347,6 +1347,10 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 		ast_bridge_set_internal_sample_rate(conference->bridge, conference->b_profile.internal_sample_rate);
 		/* Set the internal mixing interval on the bridge from the bridge profile */
 		ast_bridge_set_mixing_interval(conference->bridge, conference->b_profile.mix_interval);
+		ast_bridge_set_binaural_active(conference->bridge, conference->b_profile.binaural_active);
+		
+		/* Release the lock that the mixing loop can start working. */
+		ast_mutex_unlock(&conference->bridge->softmix.binaural_active.settings_lock);
 
 		if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER)) {
 			ast_bridge_set_talker_src_video_mode(conference->bridge);
