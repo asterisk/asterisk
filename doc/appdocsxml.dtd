@@ -67,7 +67,7 @@
   <!ELEMENT field (#PCDATA)>
   <!ATTLIST field name CDATA #REQUIRED>
 
-  <!ELEMENT info (para|note|warning|variablelist|enumlist|info|xi:include)*>
+  <!ELEMENT info (para|example|note|warning|variablelist|enumlist|info|xi:include)*>
   <!ATTLIST info name CDATA #REQUIRED>
   <!ATTLIST info language CDATA #REQUIRED>
   <!ATTLIST info tech CDATA #REQUIRED>
