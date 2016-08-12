@@ -917,6 +917,12 @@ static int set_sound(const char *sound_name, const char *sound_file, struct brid
 		ast_string_field_set(sounds, muted, sound_file);
 	} else if (!strcasecmp(sound_name, "sound_unmuted")) {
 		ast_string_field_set(sounds, unmuted, sound_file);
+	} else if (!strcasecmp(sound_name, "sound_binaural_on")) {
+		ast_string_field_set(sounds, binauralon, sound_file);
+	} else if (!strcasecmp(sound_name, "sound_binaural_off")) {
+		ast_string_field_set(sounds, binauraloff, sound_file);
+	} else if (!strcasecmp(sound_name, "random_pos")) {
+		ast_string_field_set(sounds, randompos, sound_file);
 	} else if (!strcasecmp(sound_name, "sound_there_are")) {
 		ast_string_field_set(sounds, thereare, sound_file);
 	} else if (!strcasecmp(sound_name, "sound_other_in_party")) {
@@ -1142,6 +1148,8 @@ static int add_action_to_menu_entry(struct conf_menu_entry *menu_entry, enum con
 	switch (id) {
 	case MENU_ACTION_NOOP:
 	case MENU_ACTION_TOGGLE_MUTE:
+	case MENU_ACTION_TOGGLE_BINAURAL:
+	case MENU_ACTION_RANDOM_POS:
 	case MENU_ACTION_INCREASE_LISTENING:
 	case MENU_ACTION_DECREASE_LISTENING:
 	case MENU_ACTION_INCREASE_TALKING:
@@ -1250,6 +1258,10 @@ static int add_menu_entry(struct conf_menu *menu, const char *dtmf, const char *
 		ast_copy_string(menu_entry->dtmf, dtmf, sizeof(menu_entry->dtmf));
 		if (!strcasecmp(action, "toggle_mute")) {
 			res |= add_action_to_menu_entry(menu_entry, MENU_ACTION_TOGGLE_MUTE, NULL);
+		} else if (!strcasecmp(action, "toggle_binaural")) {
+			res |= add_action_to_menu_entry(menu_entry, MENU_ACTION_TOGGLE_BINAURAL, NULL);
+		} else if (!strcasecmp(action, "random_pos")) {
+			res |= add_action_to_menu_entry(menu_entry, MENU_ACTION_RANDOM_POS, NULL);	
 		} else if (!strcasecmp(action, "no_op")) {
 			res |= add_action_to_menu_entry(menu_entry, MENU_ACTION_NOOP, NULL);
 		} else if (!strcasecmp(action, "increase_listening_volume")) {
@@ -1648,6 +1660,9 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 	ast_cli(a->fd,"sound_kicked:         %s\n", conf_get_sound(CONF_SOUND_KICKED, b_profile.sounds));
 	ast_cli(a->fd,"sound_muted:          %s\n", conf_get_sound(CONF_SOUND_MUTED, b_profile.sounds));
 	ast_cli(a->fd,"sound_unmuted:        %s\n", conf_get_sound(CONF_SOUND_UNMUTED, b_profile.sounds));
+	ast_cli(a->fd,"binaural_on:          %s\n", conf_get_sound(CONF_SOUND_BINAURAL_ON, b_profile.sounds));
+	ast_cli(a->fd,"binaural_off:         %s\n", conf_get_sound(CONF_SOUND_BINAURAL_OFF, b_profile.sounds));
+	ast_cli(a->fd,"random_pos:           %s\n", conf_get_sound(CONF_SOUND_RANDOM_POS, b_profile.sounds));
 	ast_cli(a->fd,"sound_there_are:      %s\n", conf_get_sound(CONF_SOUND_THERE_ARE, b_profile.sounds));
 	ast_cli(a->fd,"sound_other_in_party: %s\n", conf_get_sound(CONF_SOUND_OTHER_IN_PARTY, b_profile.sounds));
 	ast_cli(a->fd,"sound_place_into_conference: %s\n", conf_get_sound(CONF_SOUND_PLACE_IN_CONF, b_profile.sounds));
@@ -1775,6 +1790,12 @@ static char *handle_cli_confbridge_show_menu(struct ast_cli_entry *e, int cmd, s
 			switch (menu_action->id) {
 			case MENU_ACTION_TOGGLE_MUTE:
 				ast_cli(a->fd, "toggle_mute");
+				break;
+			case MENU_ACTION_TOGGLE_BINAURAL:
+				ast_cli(a->fd, "toggle_binaural");
+				break;
+			case MENU_ACTION_RANDOM_POS:
+				ast_cli(a->fd, "random_pos");
 				break;
 			case MENU_ACTION_NOOP:
 				ast_cli(a->fd, "no_op");
