@@ -210,6 +210,7 @@ struct ast_trans_pvt {
 	struct ast_translator *t;
 	struct ast_frame f;         /*!< used in frameout */
 	int samples;                /*!< samples available in outbuf */
+	int interleaved_stereo; 	/*!< indicates if samples are in interleaved order, for stereo lin */
 	/*! \brief actual space used in outbuf */
 	int datalen;
 	void *pvt;                  /*!< more private data, if any */
