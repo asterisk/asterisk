@@ -439,6 +439,12 @@ const char *conf_get_sound(enum conf_sounds sound, struct bridge_profile_sounds 
 		return S_OR(custom_sounds->muted, "conf-muted");
 	case CONF_SOUND_UNMUTED:
 		return S_OR(custom_sounds->unmuted, "conf-unmuted");
+	case CONF_SOUND_BINAURAL_ON:
+		return S_OR(custom_sounds->binauralon, "confbridge-binaural-on");
+	case CONF_SOUND_BINAURAL_OFF:
+		return S_OR(custom_sounds->binauraloff, "confbridge-binaural-off");
+	case CONF_SOUND_RANDOM_POS:
+		return S_OR(custom_sounds->randompos, "confbridge-switching-positions");
 	case CONF_SOUND_ONLY_ONE:
 		return S_OR(custom_sounds->onlyone, "conf-onlyone");
 	case CONF_SOUND_THERE_ARE:
@@ -1980,6 +1986,40 @@ static int action_toggle_mute(struct confbridge_conference *conference,
 			conference->b_profile.sounds)) < 0;
 }
 
+static int action_toggle_binaural(struct confbridge_conference *conference,
+		struct confbridge_user *user, 
+		struct ast_bridge_channel *bridge_channel) 
+{
+	unsigned int binaural;
+	ast_bridge_channel_lock_bridge(bridge_channel);
+	binaural = !bridge_channel->binaural_suspended;
+	bridge_channel->binaural_suspended = binaural;
+	ast_bridge_unlock(bridge_channel->bridge);
+	return play_file(bridge_channel, NULL, (binaural ?
+				conf_get_sound(CONF_SOUND_BINAURAL_OFF, user->b_profile.sounds) :
+				conf_get_sound(CONF_SOUND_BINAURAL_ON, user->b_profile.sounds))) < 0;
+}
+
+static int action_random_pos(struct confbridge_conference *conference,
+		struct confbridge_user *user, 
+		struct ast_bridge_channel *bridge_channel) 
+{
+	/* The action is only allowed for admin users! */
+	/* An announcement will be played for each user in the conference. */
+	if (ast_test_flag(&user->u_profile, USER_OPT_ADMIN)) {
+		const char *sound_to_play;
+		sound_to_play = conf_get_sound(CONF_SOUND_RANDOM_POS,user->b_profile.sounds);
+		ast_stream_and_wait(user->chan, sound_to_play, "");
+		ast_autoservice_start(user->chan);
+		play_sound_helper(conference, sound_to_play, 0);
+		ast_autoservice_stop(user->chan);
+		ast_bridge_channel_lock_bridge(bridge_channel);
+		bridge_channel->binaural_pos_change = 1;
+		ast_bridge_unlock(bridge_channel->bridge);
+	}
+	return 0;
+}
+
 static int action_toggle_mute_participants(struct confbridge_conference *conference, struct confbridge_user *user)
 {
 	struct confbridge_user *cur_user = NULL;
@@ -2192,6 +2232,12 @@ static int execute_menu_entry(struct confbridge_conference *conference,
 		switch (menu_action->id) {
 		case MENU_ACTION_TOGGLE_MUTE:
 			res |= action_toggle_mute(conference, user, bridge_channel);
+			break;
+		case MENU_ACTION_TOGGLE_BINAURAL:
+			action_toggle_binaural(conference, user, bridge_channel);
+			break;
+		case MENU_ACTION_RANDOM_POS:
+			action_random_pos(conference, user, bridge_channel);
 			break;
 		case MENU_ACTION_ADMIN_TOGGLE_MUTE_PARTICIPANTS:
 			if (!isadmin) {
