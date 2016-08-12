@@ -411,6 +411,19 @@
 		</enum>
 	</enumlist>
 </info>
+<info name="PJSIPCHANNEL_EXAMPLES" language="en_US" tech="PJSIP">
+	<example title="PJSIP specific CHANNEL examples">
+		; Log the current Call-ID
+		same => n,Log(NOTICE, ${CHANNEL(pjsip,call-id)})
+
+		; Log the destination address of the audio stream
+		same => n,Log(NOTICE, ${CHANNEL(rtp,dest)})
+
+		; Store the round-trip time associated with a
+		; video stream in the CDR field video-rtt
+		same => n,Set(CDR(video-rtt)=${CHANNEL(rtcp,rtt,video)})
+	</example>
+</info>
 ***/
 
 #include "asterisk.h"

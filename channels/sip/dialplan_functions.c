@@ -23,6 +23,88 @@
 	<support_level>extended</support_level>
  ***/
 
+/*** DOCUMENTATION
+<info name="SIPCHANNEL" language="en_US" tech="SIP">
+	<enumlist>
+		<enum name="peerip">
+			<para>R/O Get the IP address of the peer.</para>
+		</enum>
+		<enum name="recvip">
+			<para>R/O Get the source IP address of the peer.</para>
+		</enum>
+		<enum name="recvport">
+			<para>R/O Get the source port of the peer.</para>
+		</enum>
+		<enum name="from">
+			<para>R/O Get the URI from the From: header.</para>
+		</enum>
+		<enum name="uri">
+			<para>R/O Get the URI from the Contact: header.</para>
+		</enum>
+		<enum name="useragent">
+			<para>R/O Get the useragent.</para>
+		</enum>
+		<enum name="peername">
+			<para>R/O Get the name of the peer.</para>
+		</enum>
+		<enum name="t38passthrough">
+			<para>R/O <literal>1</literal> if T38 is offered or enabled in this channel,
+			otherwise <literal>0</literal></para>
+		</enum>
+		<enum name="rtpqos">
+			<para>R/O Get QOS information about the RTP stream</para>
+			<para>    This option takes two additional arguments:</para>
+			<para>    Argument 1:</para>
+			<para>     <literal>audio</literal>             Get data about the audio stream</para>
+			<para>     <literal>video</literal>             Get data about the video stream</para>
+			<para>     <literal>text</literal>              Get data about the text stream</para>
+			<para>    Argument 2:</para>
+			<para>     <literal>local_ssrc</literal>        Local SSRC (stream ID)</para>
+			<para>     <literal>local_lostpackets</literal> Local lost packets</para>
+			<para>     <literal>local_jitter</literal>      Local calculated jitter</para>
+			<para>     <literal>local_maxjitter</literal>   Local calculated jitter (maximum)</para>
+			<para>     <literal>local_minjitter</literal>   Local calculated jitter (minimum)</para>
+			<para>     <literal>local_normdevjitter</literal>Local calculated jitter (normal deviation)</para>
+			<para>     <literal>local_stdevjitter</literal> Local calculated jitter (standard deviation)</para>
+			<para>     <literal>local_count</literal>       Number of received packets</para>
+			<para>     <literal>remote_ssrc</literal>       Remote SSRC (stream ID)</para>
+			<para>     <literal>remote_lostpackets</literal>Remote lost packets</para>
+			<para>     <literal>remote_jitter</literal>     Remote reported jitter</para>
+			<para>     <literal>remote_maxjitter</literal>  Remote calculated jitter (maximum)</para>
+			<para>     <literal>remote_minjitter</literal>  Remote calculated jitter (minimum)</para>
+			<para>     <literal>remote_normdevjitter</literal>Remote calculated jitter (normal deviation)</para>
+			<para>     <literal>remote_stdevjitter</literal>Remote calculated jitter (standard deviation)</para>
+			<para>     <literal>remote_count</literal>      Number of transmitted packets</para>
+			<para>     <literal>rtt</literal>               Round trip time</para>
+			<para>     <literal>maxrtt</literal>            Round trip time (maximum)</para>
+			<para>     <literal>minrtt</literal>            Round trip time (minimum)</para>
+			<para>     <literal>normdevrtt</literal>        Round trip time (normal deviation)</para>
+			<para>     <literal>stdevrtt</literal>          Round trip time (standard deviation)</para>
+			<para>     <literal>all</literal>               All statistics (in a form suited to logging,
+			but not for parsing)</para>
+		</enum>
+		<enum name="rtpdest">
+			<para>R/O Get remote RTP destination information.</para>
+			<para>   This option takes one additional argument:</para>
+			<para>    Argument 1:</para>
+			<para>     <literal>audio</literal>             Get audio destination</para>
+			<para>     <literal>video</literal>             Get video destination</para>
+			<para>     <literal>text</literal>              Get text destination</para>
+			<para>   Defaults to <literal>audio</literal> if unspecified.</para>
+		</enum>
+		<enum name="rtpsource">
+			<para>R/O Get source RTP destination information.</para>
+			<para>   This option takes one additional argument:</para>
+			<para>    Argument 1:</para>
+			<para>     <literal>audio</literal>             Get audio destination</para>
+			<para>     <literal>video</literal>             Get video destination</para>
+			<para>     <literal>text</literal>              Get text destination</para>
+			<para>   Defaults to <literal>audio</literal> if unspecified.</para>
+		</enum>
+	</enumlist>
+</info>
+ ***/
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
