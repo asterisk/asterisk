@@ -29,6 +29,7 @@
 
 /*** MODULEINFO
 	<support_level>core</support_level>
+	<depend>FFTW3</depend>
  ***/
 
 #include "asterisk.h"
@@ -54,6 +55,14 @@ ASTERISK_REGISTER_FILE()
 #include "asterisk/astobj2.h"
 #include "asterisk/timing.h"
 #include "asterisk/translate.h"
+
+#include <fftw3.h>
+
+#if defined(__Darwin__) || defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__CYGWIN__)
+#include <float.h>
+#else
+#include <values.h>
+#endif
 
 #define MAX_DATALEN 8096
 
