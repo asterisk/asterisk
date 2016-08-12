@@ -4252,13 +4252,21 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
+static inline void check_init(int init_result, const char *name)
+{
+	if (init_result) {
+		printf("%s initialization failed.\n%s", name, term_quit());
+		ast_run_atexits(0);
+		exit(init_result == -2 ? 2 : 1);
+	}
+}
+
 static void asterisk_daemon(int isroot, const char *runuser, const char *rungroup)
 {
 	FILE *f;
 	sigset_t sigs;
 	int num;
 	char *buf;
-	int moduleresult;         /*!< Result from the module load subsystem */
 	char pbx_uuid[AST_UUID_STR_LEN];
 
 	/* Set time as soon as possible */
@@ -4352,15 +4360,8 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	register_config_cli();
 	read_config_maps();
 
-	if (astobj2_init()) {
-		printf("Failed: astobj2_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_named_locks_init()) {
-		printf("Failed: ast_named_locks_init\n%s", term_quit());
-		exit(1);
-	}
+	check_init(astobj2_init(), "AO2");
+	check_init(ast_named_locks_init(), "Named Locks");
 
 	if (ast_opt_console) {
 		if (el_hist == NULL || el == NULL)
@@ -4373,10 +4374,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	ast_xmldoc_load_documentation();
 #endif
 
-	if (astdb_init()) {
-		printf("Failed: astdb_init\n%s", term_quit());
-		exit(1);
-	}
+	check_init(astdb_init(), "ASTdb");
 
 	ast_uuid_init();
 
@@ -4393,94 +4391,28 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	callerid_init();
 	ast_builtins_init();
 
-	if (ast_utils_init()) {
-		printf("Failed: ast_utils_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_tps_init()) {
-		printf("Failed: ast_tps_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_fd_init()) {
-		printf("Failed: ast_fd_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_pbx_init()) {
-		printf("Failed: ast_pbx_init\n%s", term_quit());
-		exit(1);
-	}
-
+	check_init(ast_utils_init(), "Utilities");
+	check_init(ast_tps_init(), "Task Processor Core");
+	check_init(ast_fd_init(), "File Descriptor Debugging");
+	check_init(ast_pbx_init(), "ast_pbx_init");
 #ifdef TEST_FRAMEWORK
-	if (ast_test_init()) {
-		printf("Failed: ast_test_init\n%s", term_quit());
-		exit(1);
-	}
+	check_init(ast_test_init(), "Test Framework");
 #endif
-
-	if (ast_translate_init()) {
-		printf("Failed: ast_translate_init\n%s", term_quit());
-		exit(1);
-	}
+	check_init(ast_translate_init(), "Translator Core");
 
 	ast_aoc_cli_init();
 
-	if (ast_sorcery_init()) {
-		printf("Failed: ast_sorcery_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_codec_init()) {
-		printf("Failed: ast_codec_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_format_init()) {
-		printf("Failed: ast_format_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_format_cache_init()) {
-		printf("Failed: ast_format_cache_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_codec_builtin_init()) {
-		printf("Failed: ast_codec_builtin_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (aco_init()) {
-		printf("Failed: aco_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (init_logger()) {		/* Start logging subsystem */
-		printf("Failed: init_logger\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_bucket_init()) {
-		printf("Failed: ast_bucket_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (stasis_init()) {
-		printf("Stasis initialization failed.\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_stasis_system_init()) {
-		printf("Stasis system-level information initialization failed.\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_endpoint_stasis_init()) {
-		printf("Endpoint initialization failed.\n%s", term_quit());
-		exit(1);
-	}
+	check_init(ast_sorcery_init(), "Sorcery");
+	check_init(ast_codec_init(), "Codecs");
+	check_init(ast_format_init(), "Formats");
+	check_init(ast_format_cache_init(), "Format Cache");
+	check_init(ast_codec_builtin_init(), "Built-in Codecs");
+	check_init(aco_init(), "Configuration Option Framework");
+	check_init(init_logger(), "Logger");
+	check_init(ast_bucket_init(), "Bucket API");
+	check_init(stasis_init(), "Stasis");
+	check_init(ast_stasis_system_init(), "Stasis system-level information");
+	check_init(ast_endpoint_stasis_init(), "Stasis Endpoint");
 
 	ast_makesocket();
 	/* GCC 4.9 gives a bogus "right-hand operand of comma expression has
@@ -4506,218 +4438,62 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 
 	threadstorage_init();
 
-	if (ast_rtp_engine_init()) {
-		printf("Failed: ast_rtp_engine_init\n%s", term_quit());
-		exit(1);
-	}
+	check_init(ast_rtp_engine_init(), "RTP Engine");
 
 	ast_autoservice_init();
 
-	if (ast_timing_init()) {
-		printf("Failed: ast_timing_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_ssl_init()) {
-		printf("Failed: ast_ssl_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_pj_init()) {
-		printf("Failed: ast_pj_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (app_init()) {
-		printf("App core initialization failed.\n%s", term_quit());
-		exit(1);
-	}
-
-	if (devstate_init()) {
-		printf("Device state core initialization failed.\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_msg_init()) {
-		printf("Failed: ast_msg_init\n%s", term_quit());
-		exit(1);
-	}
-
-	/* initialize the data retrieval API */
-	if (ast_data_init()) {
-		printf("Failed: ast_data_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_channels_init()) {
-		printf("Failed: ast_channels_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_endpoint_init()) {
-		printf ("Failed: ast_endpoint_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_pickup_init()) {
-		printf("Failed: ast_pickup_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_bridging_init()) {
-		printf("Failed: ast_bridging_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_parking_stasis_init()) {
-		printf("Failed: ast_parking_stasis_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_device_state_engine_init()) {
-		printf("Failed: ast_device_state_engine_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_presence_state_engine_init()) {
-		printf("Failed: ast_presence_state_engine_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_dns_system_resolver_init()) {		/* Initialize the default DNS resolver */
-		printf("Failed: ast_dns_system_resolver_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if ((moduleresult = load_modules(1))) {		/* Load modules, pre-load only */
-		printf("Failed: load_modules\n%s", term_quit());
-		exit(moduleresult == -2 ? 2 : 1);
-	}
-
-	if (ast_features_init()) {
-		printf("Failed: ast_features_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (dnsmgr_init()) {		/* Initialize the DNS manager */
-		printf("Failed: dnsmgr_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_security_stasis_init()) {		/* Initialize Security Stasis Topic and Events */
-		printf("Failed: ast_security_stasis_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_named_acl_init()) { /* Initialize the Named ACL system */
-		printf("Failed: ast_named_acl_init\n%s", term_quit());
-		exit(1);
-	}
+	check_init(ast_timing_init(), "Timing");
+	check_init(ast_ssl_init(), "SSL");
+	check_init(ast_pj_init(), "Embedded PJProject");
+	check_init(app_init(), "App Core");
+	check_init(devstate_init(), "Device State Core");
+	check_init(ast_msg_init(), "Messaging API");
+	check_init(ast_data_init(), "Data Retrieval API");
+	check_init(ast_channels_init(), "Channel");
+	check_init(ast_endpoint_init(), "Endpoints");
+	check_init(ast_pickup_init(), "Call Pickup");
+	check_init(ast_bridging_init(), "Bridging");
+	check_init(ast_parking_stasis_init(), "Parking Core");
+	check_init(ast_device_state_engine_init(), "Device State Engine");
+	check_init(ast_presence_state_engine_init(), "Presence State Engine");
+	check_init(ast_dns_system_resolver_init(), "Default DNS resolver");
+	check_init(load_modules(1), "Module Preload");
+	check_init(ast_features_init(), "Call Features");
+	check_init(dnsmgr_init(), "DNS manager");
+	check_init(ast_security_stasis_init(), "Security Stasis Topic and Events");
+	check_init(ast_named_acl_init(), "Named ACL system");
 
 	ast_http_init();		/* Start the HTTP server, if needed */
 
-	if (ast_indications_init()) {
-		printf("Failed: ast_indications_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_cdr_engine_init()) {
-		printf("Failed: ast_cdr_engine_init\n%s", term_quit());
-		exit(1);
-	}
+	check_init(ast_indications_init(), "Indication Tone Handling");
+	check_init(ast_cdr_engine_init(), "CDR Engine");
 
 	ast_dsp_init();
 	ast_udptl_init();
 
-	if (ast_image_init()) {
-		printf("Failed: ast_image_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_file_init()) {
-		printf("Failed: ast_file_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (load_pbx()) {
-		printf("Failed: load_pbx\n%s", term_quit());
-		exit(1);
-	}
-
-	if (load_pbx_builtins()) {
-		printf("Failed: load_pbx_builtins\n%s", term_quit());
-		exit(1);
-	}
-
-	if (load_pbx_functions_cli()) {
-		printf("Failed: load_pbx_functions_cli\n%s", term_quit());
-		exit(1);
-	}
-
-	if (load_pbx_variables()) {
-		printf("Failed: load_pbx_variables\n%s", term_quit());
-		exit(1);
-	}
-
-	if (load_pbx_switch()) {
-		printf("Failed: load_pbx_switch\n%s", term_quit());
-		exit(1);
-	}
-
-	if (load_pbx_app()) {
-		printf("Failed: load_pbx_app\n%s", term_quit());
-		exit(1);
-	}
-
-	if (load_pbx_hangup_handler()) {
-		printf("Failed: load_pbx_hangup_handler\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_local_init()) {
-		printf("Failed: ast_local_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_cel_engine_init()) {
-		printf("Failed: ast_cel_engine_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (init_manager()) {
-		printf("Failed: init_manager\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_enum_init()) {
-		printf("Failed: ast_enum_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_cc_init()) {
-		printf("Failed: ast_cc_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if (ast_sounds_index_init()) {
-		printf("Failed: ast_sounds_index_init\n%s", term_quit());
-		exit(1);
-	}
-
-	if ((moduleresult = load_modules(0))) {		/* Load modules */
-		printf("%s", term_quit());
-		exit(moduleresult == -2 ? 2 : 1);
-	}
+	check_init(ast_image_init(), "Image");
+	check_init(ast_file_init(), "Generic File Format Support");
+	check_init(load_pbx(), "load_pbx");
+	check_init(load_pbx_builtins(), "Builtin PBX Applications");
+	check_init(load_pbx_functions_cli(), "PBX Functions Support");
+	check_init(load_pbx_variables(), "PBX Variables Support");
+	check_init(load_pbx_switch(), "PBX Switch Support");
+	check_init(load_pbx_app(), "PBX Application Support");
+	check_init(load_pbx_hangup_handler(), "PBX Hangup Handler Support");
+	check_init(ast_local_init(), "Local Proxy Channel Driver");
+	check_init(ast_cel_engine_init(), "CEL Engine");
+	check_init(init_manager(), "Asterisk Manager Interface");
+	check_init(ast_enum_init(), "ENUM Support");
+	check_init(ast_cc_init(), "Call Completion Supplementary Services");
+	check_init(ast_sounds_index_init(), "Sounds Indexer");
+	check_init(load_modules(0), "Module");
 
 	/*
 	 * This has to load after the dynamic modules load, as items in the media
 	 * cache can't be constructed from items in the AstDB without their
 	 * bucket backends.
 	 */
-	if (ast_media_cache_init()) {
-		printf("Failed: ast_media_cache_init\n%s", term_quit());
-		exit(1);
-	}
+	check_init(ast_media_cache_init(), "Media Cache");
 
 	/* loads the cli_permissoins.conf file needed to implement cli restrictions. */
 	ast_cli_perms_init(0);
