@@ -71,6 +71,7 @@ enum bridge_profile_flags {
 	BRIDGE_OPT_VIDEO_SRC_FOLLOW_TALKER = (1 << 3), /*!< Set if conference set the video feed to follow the loudest talker.  */
 	BRIDGE_OPT_RECORD_FILE_APPEND = (1 << 4), /*!< Set if the record file should be appended to between start/stops.  */
 	BRIDGE_OPT_RECORD_FILE_TIMESTAMP = (1 << 5), /*< Set if the record file should have a timestamp appended */
+	BRIDGE_OPT_BINAURAL_ACTIVE = (1 << 6), /*< Set if binaural convolution is activated */
 };
 
 enum conf_menu_action_id {
