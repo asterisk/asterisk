@@ -51,11 +51,8 @@
 #include "asterisk/timing.h"
 #include "asterisk/translate.h"
 
-#if defined(HAVE_FFTW3) && defined(HAVE_BRIDGES_BRIDGE_SOFTMIX_INCLUDE_HRIRS_H)
+#ifdef BINAURAL_RENDERING
 #include <fftw3.h>
-#define BINAURAL_RENDERING 1
-#else
-#undef BINAURAL_RENDERING
 #endif
 
 #if defined(__Darwin__) || defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__CYGWIN__)
@@ -73,14 +70,6 @@
 #define BINAURAL_MIXING_INTERVAL 20
 
 struct convolve_channel {
-
-#ifdef BINAURAL_RENDERING
-	/*! The fftw plan for binaural signaling */
-	fftw_plan fftw_plan;
-	/*! The inverse fftw plan for binaural signaling */
-	fftw_plan fftw_plan_inverse;
-#endif
-
 	/*! The head related transfer function used for convolving */
 	double *hrtf;
 	/*! Input signals for fftw */
@@ -91,6 +80,12 @@ struct convolve_channel {
 	float *overlap_add;
 	/*! The resulting data after the convolution */
 	int16_t *out_data;
+#ifdef BINAURAL_RENDERING
+	/*! The fftw plan for binaural signaling */
+	fftw_plan fftw_plan;
+	/*! The inverse fftw plan for binaural signaling */
+	fftw_plan fftw_plan_inverse;
+#endif
 };
 
 struct convolve_channel_pair {
@@ -199,7 +194,9 @@ struct softmix_bridge_data {
 	unsigned int default_sample_size;
 	/*! All data needed for binaural signaling */
 	struct convolve_data convolve;
-	/*! TRUE if the first attempt to init binaural rendering data was done (does not guarantee success) */
+	/*! TRUE if the first attempt to init binaural rendering data was done
+	 * (does not guarantee success)
+	 */
 	unsigned int binaural_init;
 };
 
@@ -217,7 +214,8 @@ struct softmix_mixing_array {
  * \param channel_pair The channel pair which contains the left and right audio channel.
  * \param default_sample_size The sample size which the channel pair uses.
  */
-void reset_channel_pair(struct convolve_channel_pair *channel_pair, unsigned int default_sample_size);
+void reset_channel_pair(struct convolve_channel_pair *channel_pair,
+		unsigned int default_sample_size);
 
 /*!
  * \brief Randomly changes the virtual positions of conference participants.
@@ -232,12 +230,13 @@ void random_binaural_pos_change(struct softmix_bridge_data *softmix_data);
  * \param chan The channel that will contain the binaural audio data as result.
  * \param in_samples The audio data which will be convolved.
  * \param in_sample_size The size of the audio data.
- * \param hrtf_length The length of the head related transfer function, used to convolve the audio data.
+ * \param hrtf_length The length of the head related transfer function used to convolve the audio.
  *
  * \retval 0 success
  * \retval -1 failure
  */
-int do_convolve(struct convolve_channel *chan, int16_t *in_samples, unsigned int in_sample_size, unsigned int hrtf_length);
+int do_convolve(struct convolve_channel *chan, int16_t *in_samples,
+		unsigned int in_sample_size, unsigned int hrtf_length);
 
 /*!
  * \brief Binaural convolving of audio data for a channel pair (left and right channel).
@@ -251,15 +250,19 @@ int do_convolve(struct convolve_channel *chan, int16_t *in_samples, unsigned int
  * \retval The channel pair with convolved audio on success.
  * \retval NULL failure
  */
-struct convolve_channel_pair *do_convolve_pair(struct convolve_data *data, unsigned int pos_id, int16_t *in_samples, unsigned int in_sample_size, const char *channel_name);
+struct convolve_channel_pair *do_convolve_pair(struct convolve_data *data,
+		unsigned int pos_id, int16_t *in_samples, unsigned int in_sample_size,
+		const char *channel_name);
 
 /*!
- * \brief Provides a head related impulse response for the given position in the virtual enviroment.
+ * \brief Provides a head related impulse response for the given position in the virtual
+ * enviroment.
  *
  * \param chan_pos The position of the channel in the virtual enviroment.
- * \param chan_side If the hrir is for the left audio channel left_right has to be 0, for the right 1.
+ * \param chan_side 0 for the left audio channel, 1 for the right.
  *
- * \retval The hrir for the given position in the virtual room for either the left audio channel or the right.
+ * \retval The hrir for the given position in the virtual room for either the left or right
+ *  channels.
  * \retval NULL on failure.
  *
  */
@@ -271,16 +274,18 @@ float *get_hrir(unsigned int chan_pos, unsigned int chan_side);
  * \param channel The channel used for binaural audio processing.
  * \param hrtf_len The length of the head related impulse response used for binaural processing.
  * \param chan_pos The position of the channel in the virtual enviroment.
- * \param chan_side If the initialization is for the left audio channel left_right has to be 0, for the right 1.
+ * \param chan_side 0 for the left audio channel, 1 for the right.
  * \param default_sample_size The default size of audio samples.
  *
  * \retval 0 on success
  * \retval -1 on failure
  */
-int init_convolve_channel(struct convolve_channel *channel, unsigned int hrtf_len, unsigned int chan_pos, unsigned int chan_side, unsigned int default_sample_size);
+int init_convolve_channel(struct convolve_channel *channel, unsigned int hrtf_len,
+		unsigned int chan_pos, unsigned int chan_side, unsigned int default_sample_size);
 
 /*!
- * \brief Initializies all data needed for binaural audio processing of a channel pair (left and right).
+ * \brief Initializies all data needed for binaural audio processing of a channel pair
+ * (left and right).
  *
  * \param cchan_pair The channel pair used for binaural audio processing.
  * \param hrtf_len The length of the head related impulse response used for binaural processing.
@@ -290,12 +295,15 @@ int init_convolve_channel(struct convolve_channel *channel, unsigned int hrtf_le
  * \retval 0 on success
  * \retval -1 on failure
  */
-int init_convolve_channel_pair(struct convolve_channel_pair *cchan_pair, unsigned int hrtf_len, unsigned int chan_pos, unsigned int default_sample_size);
+int init_convolve_channel_pair(struct convolve_channel_pair *cchan_pair,
+		unsigned int hrtf_len, unsigned int chan_pos, unsigned int default_sample_size);
 
 /*!
- * \brief Preinits a specific number of channels (CONVOVLE_CHANNEL_PREALLOC) at the beginning of a conference.
+ * \brief Preinits a specific number of channels (CONVOVLE_CHANNEL_PREALLOC)
+ * at the beginning of a conference.
  *
- * \param data Contains all channels and data needed for binaural processing (e.g. head related transfer functions).
+ * \param data Contains all channels and data needed for binaural processing
+ *  (e.g. head related transfer functions).
  * \param default_sample_size The default size of audio samples.
  *
  * \retval 0 on success
@@ -311,7 +319,8 @@ int init_convolve_data(struct convolve_data *data, unsigned int default_sample_s
 void free_convolve_channel(struct convolve_channel *cchan);
 
 /*!
- * \brief Frees all data needed for binaural processing by a pair of audio channels (left and right).
+ * \brief Frees all data needed for binaural processing by a pair of audio channels
+ *  (left and right).
  *
  * \param cchan_pair The channel pair to clean up.
  */
@@ -327,7 +336,8 @@ void free_convolve_data(struct convolve_data *data);
 /*!
  * \brief Joins a channel into a virtual enviroment build with the help of binaural sythesis.
  *
- * \param data Contains all channels and data needed for binaural processing (e.g. head related transfer functions).
+ * \param data Contains all channels and data needed for binaural processing
+ *  (e.g. head related transfer functions).
  * \param default_sample_size The default size of audio samples.
  *
  * \retval The position of the channel in the virtual enviroment.
@@ -336,14 +346,17 @@ void free_convolve_data(struct convolve_data *data);
 int set_binaural_data_join(struct convolve_data *data, unsigned int default_sample_size);
 
 /*!
- * \brief Removes a channel from the binaural conference bridge. Marks the position in the virtual room as unused that it can be reused
- * by the next channel which enters the conference.
+ * \brief Removes a channel from the binaural conference bridge. Marks the position in
+ *  the virtual room as unused that it can be reused by the next channel which enters the
+ *  conference.
  *
- * \param data Contains all channels and data needed for binaural processing (e.g. head related transfer functions).
+ * \param data Contains all channels and data needed for binaural processing
+ *  (e.g. head related transfer functions).
  * \param pos The position of the channel in the virtual enviroment.
  * \param default_sample_size The default size of audio samples.
  */
-void set_binaural_data_leave(struct convolve_data *data, unsigned int pos, unsigned int default_sample_size);
+void set_binaural_data_leave(struct convolve_data *data, unsigned int pos,
+		unsigned int default_sample_size);
 
 /*!
  * \brief Writes the binaural audio to a channel.
@@ -351,16 +364,19 @@ void set_binaural_data_leave(struct convolve_data *data, unsigned int pos, unsig
  * \param sc The softmix channel.
  * \param default_sample_size The default size of audio samples.
  */
-void softmix_process_write_binaural_audio(struct softmix_channel *sc, unsigned int default_sample_size);
+void softmix_process_write_binaural_audio(struct softmix_channel *sc,
+		unsigned int default_sample_size);
 
 /*!
- * \brief Checks if a position change in the virual enviroment is requested by one of the participants.
+ * \brief Checks if a position change in the virual enviroment is requested by one of
+ * the participants.
  *
  * \param bridge The conference bridge.
  * \param softmix_data The data used by the softmix bridge.
  * \param bridge_channel The bridge channel.
  */
-void check_binaural_position_change(struct ast_bridge *bridge, struct softmix_bridge_data *softmix_data, struct ast_bridge_channel *bridge_channel);
+void check_binaural_position_change(struct ast_bridge *bridge,
+		struct softmix_bridge_data *softmix_data, struct ast_bridge_channel *bridge_channel);
 
 /*!
  * \brief Processes audio data with the binaural synthesis and adds the result to the mixing array.
@@ -372,7 +388,9 @@ void check_binaural_position_change(struct ast_bridge *bridge, struct softmix_br
  * \param sc The channel which contains the audio data to process.
  * \param channel_name The name of the channel
  */
-void add_binaural_mixing(struct ast_bridge *bridge, struct softmix_bridge_data *softmix_data, unsigned int softmix_samples, struct softmix_mixing_array *mixing_array, struct softmix_channel *sc, const char *channel_name);
+void add_binaural_mixing(struct ast_bridge *bridge, struct softmix_bridge_data *softmix_data,
+		unsigned int softmix_samples, struct softmix_mixing_array *mixing_array,
+		struct softmix_channel *sc, const char *channel_name);
 
 /*!
  * \brief Mixes all binaural audio data contained in the mixing array.
@@ -383,19 +401,25 @@ void add_binaural_mixing(struct ast_bridge *bridge, struct softmix_bridge_data *
  * \param bin_buf The buffer that will contain the mixing results.
  * \param ann_buf The buffer that will contain mixed announcements in an interleaved format.
  */
-void binaural_mixing(struct ast_bridge *bridge, struct softmix_bridge_data *softmix_data, struct softmix_mixing_array *mixing_array, int16_t *bin_buf, int16_t *ann_buf);
+void binaural_mixing(struct ast_bridge *bridge, struct softmix_bridge_data *softmix_data,
+		struct softmix_mixing_array *mixing_array, int16_t *bin_buf, int16_t *ann_buf);
 
 /*!
  * \brief Creates a frame out of binaural audio data.
  *
- * \param bridge_channel Contains the information if binaural processing is active or not. If active binaural audio data will be copied, if not mono data will be provided in an interleaved format.
+ * \param bridge_channel Contains the information if binaural processing is active or not.
+ *  If active binaural audio data will be copied, if not mono data will be provided in an
+ *  interleaved format.
  * \param sc The softmix channel holding all informations for the process.
  * \param bin_buf The buffer that contains all mixing results.
  * \param ann_buf The buffer that contains mixed announcements in an interleaved format.
  * \param softmix_datalen The size of the audio data.
  * \param softmix_samples The number of audio samples.
- * \param buf The buffer that contains all mono mixing results, used if binaural processing is inactive.
+ * \param buf The buffer that contains all mono mixing results, used if binaural processing is
+ *  inactive.
  */
-void create_binaural_frame(struct ast_bridge_channel *bridge_channel, struct softmix_channel *sc, int16_t *bin_buf, int16_t *ann_buf, unsigned int softmix_datalen, unsigned int softmix_samples, int16_t *buf);
+void create_binaural_frame(struct ast_bridge_channel *bridge_channel,
+		struct softmix_channel *sc, int16_t *bin_buf, int16_t *ann_buf,
+		unsigned int softmix_datalen, unsigned int softmix_samples, int16_t *buf);
 
 #endif /* _ASTERISK_BRIDGE_SOFTMIX_INTERNAL_H */

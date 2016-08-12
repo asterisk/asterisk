@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2016, Digium, Inc.
+ * Copyright (C) 2016, Frank Haase, Dennis Guse
  *
  * Frank Haase <fra.haase@gmail.com>
  * Dennis Guse <dennis.guse@alumni.tu-berlin.de>
@@ -30,6 +30,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sndfile.h>
+#include "conf_bridge_binaural_hrir_importer.h"
 
 int main (int argc, char **argv)
 {
@@ -99,46 +100,44 @@ int main (int argc, char **argv)
 	impulse_response_index_end = (binaural_index_end + 1) * 2;
 
 	/* Write header */
-	printf("//Used hrirs database: %s\n", hrir_filename);
-	printf("//Start index in database: %d\n", impulse_response_index_start);
-	printf("//End index in database: %d\n", impulse_response_index_end);
+	printf(FILE_HEADER, hrir_filename, binaural_index_start, binaural_index_end);
 
 	printf("#define HRIRS_IMPULSE_LEN %ld\n", hrir_info.frames);
 	printf("#define HRIRS_IMPULSE_SIZE %d\n", binaural_index_end - binaural_index_start + 1);
-	printf("#define HRIRS_SAMPLE_RATE %d\n", hrir_info.samplerate);
+	printf("#define HRIRS_SAMPLE_RATE %d\n\n", hrir_info.samplerate);
 
 	printf("float hrirs_left[HRIRS_IMPULSE_SIZE][HRIRS_IMPULSE_LEN] = {\n");
 	for (ir_current = impulse_response_index_start; ir_current < impulse_response_index_end; ir_current += 2) {
-			printf("{");
+		printf("{");
 
-			for (j = 0; j < hrir_info.frames - 1; j++) {
-				printf("%.16f,", hrir_data[ir_current * hrir_info.frames + j]);
-			}
-			/* Write last without trailing "," */
-			printf("%.16f", hrir_data[ir_current * hrir_info.frames + hrir_info.frames - 1]);
+		for (j = 0; j < hrir_info.frames - 1; j++) {
+			printf("%.16f,%s", hrir_data[ir_current * hrir_info.frames + j], ((j + 1) % 4 ? " " : "\n"));
+		}
+		/* Write last without trailing "," */
+		printf("%.16f", hrir_data[ir_current * hrir_info.frames + hrir_info.frames - 1]);
 
-			if (ir_current + 2 < impulse_response_index_end) {
-				printf("},\n");
-			}	else {
-				printf("}};");
-			}
+		if (ir_current + 2 < impulse_response_index_end) {
+			printf("},\n");
+		}	else {
+			printf("}};");
+		}
 	}
 
 	printf("\nfloat hrirs_right[HRIRS_IMPULSE_SIZE][HRIRS_IMPULSE_LEN] = {\n");
 	for (ir_current = impulse_response_index_start + 1; ir_current < impulse_response_index_end + 1; ir_current += 2) {
-			printf("{");
+		printf("{");
 
-			for (j = 0; j < hrir_info.frames - 1; j++) {
-				printf("%.16f,", hrir_data[ir_current * hrir_info.frames + j]);
-			}
-			 /* Write last without trailing "," */
-			printf("%.16f", hrir_data[ir_current * hrir_info.frames + hrir_info.frames - 1]);
+		for (j = 0; j < hrir_info.frames - 1; j++) {
+			printf("%.16f,%s", hrir_data[ir_current * hrir_info.frames + j], ((j + 1) % 4 ? " " : "\n"));
+		}
+		 /* Write last without trailing "," */
+		printf("%.16f", hrir_data[ir_current * hrir_info.frames + hrir_info.frames - 1]);
 
-			if (ir_current + 2 < impulse_response_index_end) {
-				printf("},\n");
-			}	else {
-				printf("}};");
-			}
+		if (ir_current + 2 < impulse_response_index_end) {
+			printf("},\n");
+		}	else {
+			printf("}};");
+		}
 	}
 
 	fprintf(stderr, "INFO: Successfully converted: imported %d impulse responses.\n", impulse_response_index_end - impulse_response_index_start);

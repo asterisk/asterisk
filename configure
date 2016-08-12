@@ -29419,7 +29419,7 @@ if eval \${$as_ac_Lib+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lfftw3 ${pbxlibdir} -lfftw3 $LIBS"
+LIBS="-lfftw3 ${pbxlibdir}  $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -29461,7 +29461,7 @@ fi
 
    # now check for the header.
    if test "${AST_FFTW3_FOUND}" = "yes"; then
-      FFTW3_LIB="${pbxlibdir} -lfftw3 -lfftw3"
+      FFTW3_LIB="${pbxlibdir} -lfftw3 "
       # if --with-FFTW3=DIR has been specified, use it.
       if test "x${FFTW3_DIR}" != "x"; then
          FFTW3_INCLUDE="-I${FFTW3_DIR}/include"
@@ -29499,11 +29499,6 @@ _ACEOF
 fi
 
 
-if test "$PBX_FFTW3" = "1"; then
-
-$as_echo "#define HAVE_FFTW 1" >>confdefs.h
-
-fi
 
 if test "x${PBX_SNDFILE}" != "x1" -a "${USE_SNDFILE}" != "no"; then
    pbxlibdir=""
@@ -29528,7 +29523,7 @@ if eval \${$as_ac_Lib+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lsndfile ${pbxlibdir} -lsndfile $LIBS"
+LIBS="-lsndfile ${pbxlibdir}  $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -29570,7 +29565,7 @@ fi
 
    # now check for the header.
    if test "${AST_SNDFILE_FOUND}" = "yes"; then
-      SNDFILE_LIB="${pbxlibdir} -lsndfile -lsndfile"
+      SNDFILE_LIB="${pbxlibdir} -lsndfile "
       # if --with-SNDFILE=DIR has been specified, use it.
       if test "x${SNDFILE_DIR}" != "x"; then
          SNDFILE_INCLUDE="-I${SNDFILE_DIR}/include"
@@ -29606,8 +29601,6 @@ _ACEOF
       fi
    fi
 fi
-
-
 
 
 
