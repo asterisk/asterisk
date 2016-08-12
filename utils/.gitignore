@@ -23,3 +23,4 @@ stereorize
 strcompat.c
 streamplayer
 threadstorage.c
+conf_bridge_binaural_hrir_importer

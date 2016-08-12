@@ -1,0 +1,8 @@
+	<member name="binaural_rendering_in_bridge_softmix"
+	displayname="Enable binaural rendering in bridge_softmix"
+	remove_on_change="bridges/bridge_softmix.o bridges/bridge_softmix.so bridges/bridge_softmix/bridge_softmix_binaural.o">
+		<support_level>option</support_level>
+		<depend>bridge_softmix</depend>
+		<depend>fftw3</depend>
+		<defaultenabled>no</defaultenabled>
+	</member>

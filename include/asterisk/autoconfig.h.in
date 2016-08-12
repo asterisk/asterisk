@@ -124,6 +124,10 @@
 /* Define to 1 if you have the Bluetooth library. */
 #undef HAVE_BLUETOOTH
 
+/* Define to 1 if you have the file `bridges/bridge_softmix/include/hrirs.h'.
+   */
+#undef HAVE_BRIDGES_BRIDGE_SOFTMIX_INCLUDE_HRIRS_H
+
 /* Define to 1 if byteswap.h macros are available. */
 #undef HAVE_BYTESWAP_H
 
@@ -235,9 +239,6 @@
 
 /* Define to 1 if you have the `ffsll' function. */
 #undef HAVE_FFSLL
-
-/* Define 1 if your system has fftw. */
-#undef HAVE_FFTW
 
 /* Define to 1 if you have the LIBFFTW3 library. */
 #undef HAVE_FFTW3
