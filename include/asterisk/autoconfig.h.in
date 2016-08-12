@@ -236,6 +236,12 @@
 /* Define to 1 if you have the `ffsll' function. */
 #undef HAVE_FFSLL
 
+/* Define 1 if your system has fftw. */
+#undef HAVE_FFTW
+
+/* Define to 1 if you have the LIBFFTW3 library. */
+#undef HAVE_FFTW3
+
 /* Define to 1 if you have the `floor' function. */
 #undef HAVE_FLOOR
 

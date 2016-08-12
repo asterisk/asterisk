@@ -835,6 +835,10 @@ PBX_RESAMPLE
 RESAMPLE_DIR
 RESAMPLE_INCLUDE
 RESAMPLE_LIB
+PBX_FFTW3
+FFTW3_DIR
+FFTW3_INCLUDE
+FFTW3_LIB
 PBX_RADIUS
 RADIUS_DIR
 RADIUS_INCLUDE
@@ -1308,6 +1312,7 @@ infodir
 docdir
 oldincludedir
 includedir
+runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -1389,6 +1394,7 @@ with_portaudio
 with_pri
 with_pwlib
 with_radius
+with_fftw3
 with_resample
 with_sdl
 with_SDL_image
@@ -1485,6 +1491,7 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
+runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1737,6 +1744,15 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
+  -runstatedir | --runstatedir | --runstatedi | --runstated \
+  | --runstate | --runstat | --runsta | --runst | --runs \
+  | --run | --ru | --r)
+    ac_prev=runstatedir ;;
+  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
+  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
+  | --run=* | --ru=* | --r=*)
+    runstatedir=$ac_optarg ;;
+
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1874,7 +1890,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir
+		libdir localedir mandir runstatedir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -2027,6 +2043,7 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
+  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -2133,6 +2150,7 @@ Optional Packages:
   --with-pri=PATH         use ISDN PRI files in PATH
   --with-pwlib=PATH       use PWlib files in PATH
   --with-radius=PATH      use Radius Client files in PATH
+  --with-fftw3=PATH       use LIBFFTW3 files in PATH
   --with-resample=PATH    use LIBRESAMPLE files in PATH
   --with-sdl=PATH         use Sdl files in PATH
   --with-SDL_image=PATH   use Sdl Image files in PATH
@@ -11356,6 +11374,38 @@ if test "${with_radius+set}" = set; then :
 	*)
 	RADIUS_DIR="${withval}"
 	ac_mandatory_list="${ac_mandatory_list} RADIUS"
+	;;
+	esac
+
+fi
+
+
+
+
+
+
+
+
+    FFTW3_DESCRIP="LIBFFTW3"
+    FFTW3_OPTION="fftw3"
+    PBX_FFTW3=0
+
+# Check whether --with-fftw3 was given.
+if test "${with_fftw3+set}" = set; then :
+  withval=$with_fftw3;
+	case ${withval} in
+	n|no)
+	USE_FFTW3=no
+	# -1 is a magic value used by menuselect to know that the package
+	# was disabled, other than 'not found'
+	PBX_FFTW3=-1
+	;;
+	y|ye|yes)
+	ac_mandatory_list="${ac_mandatory_list} FFTW3"
+	;;
+	*)
+	FFTW3_DIR="${withval}"
+	ac_mandatory_list="${ac_mandatory_list} FFTW3"
 	;;
 	esac
 
@@ -28606,6 +28656,115 @@ _ACEOF
 fi
 
 
+
+if test "x${PBX_FFTW3}" != "x1" -a "${USE_FFTW3}" != "no"; then
+   pbxlibdir=""
+   # if --with-FFTW3=DIR has been specified, use it.
+   if test "x${FFTW3_DIR}" != "x"; then
+      if test -d ${FFTW3_DIR}/lib; then
+         pbxlibdir="-L${FFTW3_DIR}/lib"
+      else
+         pbxlibdir="-L${FFTW3_DIR}"
+      fi
+   fi
+   pbxfuncname="fftw_alloc_real"
+   if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
+      AST_FFTW3_FOUND=yes
+   else
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      as_ac_Lib=`$as_echo "ac_cv_lib_fftw3_${pbxfuncname}" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -lfftw3" >&5
+$as_echo_n "checking for ${pbxfuncname} in -lfftw3... " >&6; }
+if eval \${$as_ac_Lib+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lfftw3 ${pbxlibdir} -lfftw3 $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char ${pbxfuncname} ();
+int
+main ()
+{
+return ${pbxfuncname} ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  eval "$as_ac_Lib=yes"
+else
+  eval "$as_ac_Lib=no"
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+eval ac_res=\$$as_ac_Lib
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
+  AST_FFTW3_FOUND=yes
+else
+  AST_FFTW3_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+   fi
+
+   # now check for the header.
+   if test "${AST_FFTW3_FOUND}" = "yes"; then
+      FFTW3_LIB="${pbxlibdir} -lfftw3 -lfftw3"
+      # if --with-FFTW3=DIR has been specified, use it.
+      if test "x${FFTW3_DIR}" != "x"; then
+         FFTW3_INCLUDE="-I${FFTW3_DIR}/include"
+      fi
+      FFTW3_INCLUDE="${FFTW3_INCLUDE} "
+      if test "xfftw3.h" = "x" ; then	# no header, assume found
+         FFTW3_HEADER_FOUND="1"
+      else				# check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${FFTW3_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "fftw3.h" "ac_cv_header_fftw3_h" "$ac_includes_default"
+if test "x$ac_cv_header_fftw3_h" = xyes; then :
+  FFTW3_HEADER_FOUND=1
+else
+  FFTW3_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+      fi
+      if test "x${FFTW3_HEADER_FOUND}" = "x0" ; then
+         FFTW3_LIB=""
+         FFTW3_INCLUDE=""
+      else
+         if test "x${pbxfuncname}" = "x" ; then		# only checking headers -> no library
+            FFTW3_LIB=""
+         fi
+         PBX_FFTW3=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_FFTW3 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+if test "$PBX_FFTW3" = "1"; then
+
+$as_echo "#define HAVE_FFTW 1" >>confdefs.h
+
+fi
 
 
     if test "x${PBX_SPANDSP}" != "x1" -a "${USE_SPANDSP}" != "no"; then
