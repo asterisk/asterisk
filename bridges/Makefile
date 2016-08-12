@@ -1,6 +1,6 @@
 #
 # Asterisk -- An open source telephony toolkit.
-# 
+#
 # Makefile for bridging modules
 #
 # Copyright (C) 2005-2007, Digium, Inc.
@@ -18,3 +18,7 @@ MENUSELECT_DESCRIPTION=Bridging Modules
 all: _all
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
+
+$(call MOD_ADD_C,bridge_softmix,$(wildcard bridge_softmix/*.c))
+
+LIBS+=$(FFTW3_LIB)
