@@ -38,6 +38,10 @@
 		<description>
 			<para>Returns detailed information about the available bridging technologies.</para>
 		</description>
+		<see-also>
+			<ref type="manager">BridgeTechnologySuspend</ref>
+			<ref type="manager">BridgeTechnologyUnsuspend</ref>
+		</see-also>
 	</manager>
 	<manager name="BridgeTechnologySuspend" language="en_US">
 		<synopsis>
@@ -52,6 +56,10 @@
 		<description>
 			<para>Marks a bridging technology as suspended, which prevents subsequently created bridges from using it.</para>
 		</description>
+		<see-also>
+			<ref type="manager">BridgeTechnologySuspend</ref>
+			<ref type="manager">BridgeTechnologyUnsuspend</ref>
+		</see-also>
 	</manager>
 	<manager name="BridgeTechnologyUnsuspend" language="en_US">
 		<synopsis>
@@ -66,6 +74,10 @@
 		<description>
 			<para>Clears a previously suspended bridging technology, which allows subsequently created bridges to use it.</para>
 		</description>
+		<see-also>
+			<ref type="manager">BridgeTechnologyList</ref>
+			<ref type="manager">BridgeTechnologySuspend</ref>
+		</see-also>
 	</manager>
 ***/
 
