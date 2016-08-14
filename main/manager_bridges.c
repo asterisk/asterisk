@@ -42,6 +42,11 @@ static struct stasis_message_router *bridge_state_router;
 			<syntax>
 				<bridge_snapshot/>
 			</syntax>
+			<see-also>
+				<ref type="managerEvent">BridgeDestroy</ref>
+				<ref type="managerEvent">BridgeEnter</ref>
+				<ref type="managerEvent">BridgeLeave</ref>
+			</see-also>
 		</managerEventInstance>
 	</managerEvent>
 	<managerEvent language="en_US" name="BridgeDestroy">
@@ -50,6 +55,11 @@ static struct stasis_message_router *bridge_state_router;
 			<syntax>
 				<bridge_snapshot/>
 			</syntax>
+			<see-also>
+				<ref type="managerEvent">BridgeCreate</ref>
+				<ref type="managerEvent">BridgeEnter</ref>
+				<ref type="managerEvent">BridgeLeave</ref>
+			</see-also>
 		</managerEventInstance>
 	</managerEvent>
 	<managerEvent language="en_US" name="BridgeEnter">
@@ -62,6 +72,11 @@ static struct stasis_message_router *bridge_state_router;
 					<para>The uniqueid of the channel being swapped out of the bridge</para>
 				</parameter>
 			</syntax>
+			<see-also>
+				<ref type="managerEvent">BridgeCreate</ref>
+				<ref type="managerEvent">BridgeDestroy</ref>
+				<ref type="managerEvent">BridgeLeave</ref>
+			</see-also>
 		</managerEventInstance>
 	</managerEvent>
 	<managerEvent language="en_US" name="BridgeLeave">
@@ -71,6 +86,11 @@ static struct stasis_message_router *bridge_state_router;
 				<bridge_snapshot/>
 				<channel_snapshot/>
 			</syntax>
+			<see-also>
+				<ref type="managerEvent">BridgeCreate</ref>
+				<ref type="managerEvent">BridgeDestroy</ref>
+				<ref type="managerEvent">BridgeEnter</ref>
+			</see-also>
 		</managerEventInstance>
 	</managerEvent>
 	<manager name="BridgeList" language="en_US">
@@ -86,6 +106,12 @@ static struct stasis_message_router *bridge_state_router;
 		<description>
 			<para>Returns a list of bridges, optionally filtering on a bridge type.</para>
 		</description>
+		<see-also>
+			<ref type="manager">Bridge</ref>
+			<ref type="manager">BridgeDestroy</ref>
+			<ref type="manager">BridgeInfo</ref>
+			<ref type="manager">BridgeKick</ref>
+		</see-also>
 	</manager>
 	<manager name="BridgeInfo" language="en_US">
 		<synopsis>
@@ -100,6 +126,12 @@ static struct stasis_message_router *bridge_state_router;
 		<description>
 			<para>Returns detailed information about a bridge and the channels in it.</para>
 		</description>
+		<see-also>
+			<ref type="manager">Bridge</ref>
+			<ref type="manager">BridgeDestroy</ref>
+			<ref type="manager">BridgeKick</ref>
+			<ref type="manager">BridgeList</ref>
+		</see-also>
 		<responses>
 			<list-elements>
 				<managerEvent language="en_US" name="BridgeInfoChannel">
@@ -134,6 +166,13 @@ static struct stasis_message_router *bridge_state_router;
 		<description>
 			<para>Deletes the bridge, causing channels to continue or hang up.</para>
 		</description>
+		<see-also>
+			<ref type="manager">Bridge</ref>
+			<ref type="manager">BridgeInfo</ref>
+			<ref type="manager">BridgeKick</ref>
+			<ref type="manager">BridgeList</ref>
+			<ref type="managerEvent">BridgeDestroy</ref>
+		</see-also>
 	</manager>
 	<manager name="BridgeKick" language="en_US">
 		<synopsis>
@@ -153,6 +192,13 @@ static struct stasis_message_router *bridge_state_router;
 		<description>
 			<para>The channel is removed from the bridge.</para>
 		</description>
+		<see-also>
+			<ref type="manager">Bridge</ref>
+			<ref type="manager">BridgeDestroy</ref>
+			<ref type="manager">BridgeInfo</ref>
+			<ref type="manager">BridgeList</ref>
+			<ref type="managerEvent">BridgeLeave</ref>
+		</see-also>
 	</manager>
  ***/
 
