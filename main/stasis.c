@@ -59,6 +59,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 			</description>
 			<see-also>
 				<ref type="application">UserEvent</ref>
+				<ref type="managerEvent">UserEvent</ref>
 			</see-also>
 		</managerEventInstance>
 	</managerEvent>
