@@ -85,6 +85,10 @@ ASTERISK_REGISTER_FILE();
 				</parameter>
 				<parameter name="SpecialCode" />
 			</syntax>
+			<see-also>
+				<ref type="managerEvent">AOC-D</ref>
+				<ref type="managerEvent">AOC-E</ref>
+			</see-also>
 		</managerEventInstance>
 	</managerEvent>
 	<managerEvent language="en_US" name="AOC-D">
@@ -138,6 +142,11 @@ ASTERISK_REGISTER_FILE();
 				<parameter name="NumberOf" />
 				<parameter name="TypeOf" />
 			</syntax>
+			<see-also>
+				<ref type="manager">AOCMessage</ref>
+				<ref type="managerEvent">AOC-S</ref>
+				<ref type="managerEvent">AOC-E</ref>
+			</see-also>
 		</managerEventInstance>
 	</managerEvent>
 	<managerEvent language="en_US" name="AOC-E">
@@ -151,6 +160,11 @@ ASTERISK_REGISTER_FILE();
 				<parameter name="ID" />
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='AOC-D']/managerEventInstance/syntax/parameter)" />
 			</syntax>
+			<see-also>
+				<ref type="manager">AOCMessage</ref>
+				<ref type="managerEvent">AOC-S</ref>
+				<ref type="managerEvent">AOC-D</ref>
+			</see-also>
 		</managerEventInstance>
 	</managerEvent>
 ***/
