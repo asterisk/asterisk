@@ -59,6 +59,7 @@ ASTERISK_REGISTER_FILE();
 			</description>
 			<see-also>
 				<ref type="application">UserEvent</ref>
+				<ref type="managerEvent">UserEvent</ref>
 			</see-also>
 		</managerEventInstance>
 	</managerEvent>
