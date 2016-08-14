@@ -1108,6 +1108,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		<description>
 			<para>Generates an AOC-D or AOC-E message on a channel.</para>
 		</description>
+		<see-also>
+			<ref type="managerEvent">AOC-D</ref>
+			<ref type="managerEvent">AOC-E</ref>
+		</see-also>
 	</manager>
 	<function name="AMI_CLIENT" language="en_US">
 		<synopsis>
