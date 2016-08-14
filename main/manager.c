@@ -149,6 +149,9 @@ ASTERISK_REGISTER_FILE()
 		<description>
 			<para>Logoff the current manager session.</para>
 		</description>
+		<see-also>
+			<ref type="manager">Login</ref>
+		</see-also>
 	</manager>
 	<manager name="Login" language="en_US">
 		<synopsis>
@@ -168,6 +171,9 @@ ASTERISK_REGISTER_FILE()
 		<description>
 			<para>Login Manager.</para>
 		</description>
+		<see-also>
+			<ref type="manager">Logoff</ref>
+		</see-also>
 	</manager>
 	<manager name="Challenge" language="en_US">
 		<synopsis>
@@ -329,6 +335,9 @@ ASTERISK_REGISTER_FILE()
 				<para>If a channel name is not provided then the variable is considered global.</para>
 			</note>
 		</description>
+		<see-also>
+			<ref type="manager">Getvar</ref>
+		</see-also>
 	</manager>
 	<manager name="Getvar" language="en_US">
 		<synopsis>
@@ -349,6 +358,9 @@ ASTERISK_REGISTER_FILE()
 				<para>If a channel name is not provided then the variable is considered global.</para>
 			</note>
 		</description>
+		<see-also>
+			<ref type="manager">Setvar</ref>
+		</see-also>
 	</manager>
 	<manager name="GetConfig" language="en_US">
 		<synopsis>
@@ -381,6 +393,12 @@ ASTERISK_REGISTER_FILE()
 			In the case where a category name is non-unique, a filter may be specified
 			to match only categories with matching variable values.</para>
 		</description>
+		<see-also>
+			<ref type="manager">GetConfigJSON</ref>
+			<ref type="manager">UpdateConfig</ref>
+			<ref type="manager">CreateConfig</ref>
+			<ref type="manager">ListCategories</ref>
+		</see-also>
 	</manager>
 	<manager name="GetConfigJSON" language="en_US">
 		<synopsis>
@@ -405,6 +423,12 @@ ASTERISK_REGISTER_FILE()
 			In the case where a category name is non-unique, a filter may be specified
 			to match only categories with matching variable values.</para>
 		</description>
+		<see-also>
+			<ref type="manager">GetConfig</ref>
+			<ref type="manager">UpdateConfig</ref>
+			<ref type="manager">CreateConfig</ref>
+			<ref type="manager">ListCategories</ref>
+		</see-also>
 	</manager>
 	<manager name="UpdateConfig" language="en_US">
 		<synopsis>
@@ -496,6 +520,12 @@ ASTERISK_REGISTER_FILE()
 			<para>This action will modify, create, or delete configuration elements
 			in Asterisk configuration files.</para>
 		</description>
+		<see-also>
+			<ref type="manager">GetConfig</ref>
+			<ref type="manager">GetConfigJSON</ref>
+			<ref type="manager">CreateConfig</ref>
+			<ref type="manager">ListCategories</ref>
+		</see-also>
 	</manager>
 	<manager name="CreateConfig" language="en_US">
 		<synopsis>
@@ -512,6 +542,12 @@ ASTERISK_REGISTER_FILE()
 			directory. This action is intended to be used before an UpdateConfig
 			action.</para>
 		</description>
+		<see-also>
+			<ref type="manager">GetConfig</ref>
+			<ref type="manager">GetConfigJSON</ref>
+			<ref type="manager">UpdateConfig</ref>
+			<ref type="manager">ListCategories</ref>
+		</see-also>
 	</manager>
 	<manager name="ListCategories" language="en_US">
 		<synopsis>
@@ -526,6 +562,12 @@ ASTERISK_REGISTER_FILE()
 		<description>
 			<para>This action will dump the categories in a given file.</para>
 		</description>
+		<see-also>
+			<ref type="manager">GetConfig</ref>
+			<ref type="manager">GetConfigJSON</ref>
+			<ref type="manager">UpdateConfig</ref>
+			<ref type="manager">CreateConfig</ref>
+		</see-also>
 	</manager>
 	<manager name="Redirect" language="en_US">
 		<synopsis>
@@ -561,6 +603,9 @@ ASTERISK_REGISTER_FILE()
 		<description>
 			<para>Redirect (transfer) a call.</para>
 		</description>
+		<see-also>
+			<ref type="manager">BlindTransfer</ref>
+		</see-also>
 	</manager>
 	<manager name="Atxfer" language="en_US">
 		<synopsis>
@@ -581,6 +626,9 @@ ASTERISK_REGISTER_FILE()
 		<description>
 			<para>Attended transfer.</para>
 		</description>
+		<see-also>
+			<ref type="managerEvent">AttendedTransfer</ref>
+		</see-also>
 	</manager>
 	<manager name="Originate" language="en_US">
 		<synopsis>
@@ -705,6 +753,9 @@ ASTERISK_REGISTER_FILE()
 			<para>Will return an <literal>Extension Status</literal> message. The response will include
 			the hint for the extension and the status.</para>
 		</description>
+		<see-also>
+			<ref type="managerEvent">ExtensionStatus</ref>
+		</see-also>
 	</manager>
 	<manager name="PresenceState" language="en_US">
 		<synopsis>
@@ -721,6 +772,9 @@ ASTERISK_REGISTER_FILE()
 			<para>Will return a <literal>Presence State</literal> message. The response will include the
 			presence state and, if set, a presence subtype and custom message.</para>
 		</description>
+		<see-also>
+			<ref type="managerEvent">PresenceStatus</ref>
+		</see-also>
 	</manager>
 	<manager name="AbsoluteTimeout" language="en_US">
 		<synopsis>
@@ -758,6 +812,9 @@ ASTERISK_REGISTER_FILE()
 			<para>Waiting: <literal>0</literal> if messages waiting, <literal>1</literal>
 			if no messages waiting.</para>
 		</description>
+		<see-also>
+			<ref type="manager">MailboxCount</ref>
+		</see-also>
 	</manager>
 	<manager name="MailboxCount" language="en_US">
 		<synopsis>
@@ -778,6 +835,9 @@ ASTERISK_REGISTER_FILE()
 			<para>NewMessages: <replaceable>count</replaceable></para>
 			<para>OldMessages: <replaceable>count</replaceable></para>
 		</description>
+		<see-also>
+			<ref type="manager">MailboxStatus</ref>
+		</see-also>
 	</manager>
 	<manager name="ListCommands" language="en_US">
 		<synopsis>
@@ -879,6 +939,9 @@ ASTERISK_REGISTER_FILE()
 		<description>
 			<para>Send a reload event.</para>
 		</description>
+		<see-also>
+			<ref type="manager">ModuleLoad</ref>
+		</see-also>
 	</manager>
 	<managerEvent language="en_US" name="CoreShowChannel">
 		<managerEventInstance class="EVENT_FLAG_CALL">
@@ -991,6 +1054,10 @@ ASTERISK_REGISTER_FILE()
 		<description>
 			<para>Loads, unloads or reloads an Asterisk module in a running system.</para>
 		</description>
+		<see-also>
+			<ref type="manager">Reload</ref>
+			<ref type="manager">ModuleCheck</ref>
+		</see-also>
 	</manager>
 	<manager name="ModuleCheck" language="en_US">
 		<synopsis>
@@ -1006,6 +1073,9 @@ ASTERISK_REGISTER_FILE()
 			<para>Checks if Asterisk module is loaded. Will return Success/Failure.
 			For success returns, the module revision number is included.</para>
 		</description>
+		<see-also>
+			<ref type="manager">ModuleLoad</ref>
+		</see-also>
 	</manager>
 	<manager name="AOCMessage" language="en_US">
 		<synopsis>
@@ -1171,6 +1241,9 @@ ASTERISK_REGISTER_FILE()
 			this command can be used to create filters that may bypass
 			filters defined in manager.conf</para>
 		</description>
+		<see-also>
+			<ref type="manager">FilterList</ref>
+		</see-also>
 	</manager>
 	<manager name="FilterList" language="en_US">
 		<synopsis>
@@ -1180,6 +1253,9 @@ ASTERISK_REGISTER_FILE()
 			<para>The filters displayed are for the current session.  Only those filters defined in
                         manager.conf will be present upon starting a new session.</para>
 		</description>
+		<see-also>
+			<ref type="manager">Filter</ref>
+		</see-also>
 	</manager>
 	<manager name="BlindTransfer" language="en_US">
 		<synopsis>
@@ -1198,6 +1274,7 @@ ASTERISK_REGISTER_FILE()
 		</description>
 		<see-also>
 			<ref type="manager">Redirect</ref>
+			<ref type="managerEvent">BlindTransfer</ref>
 		</see-also>
 	</manager>
 	<managerEvent name="ExtensionStatus" language="en_US">
@@ -1275,6 +1352,9 @@ ASTERISK_REGISTER_FILE()
 					</enumlist>
 				</parameter>
 			</syntax>
+			<see-also>
+				<ref type="manager">ExtensionState</ref>
+			</see-also>
 		</managerEventInstance>
 	</managerEvent>
 	<managerEvent name="PresenceStatus" language="en_US">
@@ -1288,6 +1368,9 @@ ASTERISK_REGISTER_FILE()
 				<parameter name="Subtype" />
 				<parameter name="Message" />
 			</syntax>
+			<see-also>
+				<ref type="manager">PresenceState</ref>
+			</see-also>
 		</managerEventInstance>
 	</managerEvent>
  ***/
