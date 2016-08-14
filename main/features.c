@@ -202,6 +202,11 @@ ASTERISK_REGISTER_FILE()
 				</variable>
 			</variablelist>
 		</description>
+		<see-also>
+			<ref type="manager">Bridge</ref>
+			<ref type="managerEvent">BridgeCreate</ref>
+			<ref type="managerEvent">BridgeEnter</ref>
+		</see-also>
 	</application>
 	<manager name="Bridge" language="en_US">
 		<synopsis>
@@ -228,6 +233,15 @@ ASTERISK_REGISTER_FILE()
 		<description>
 			<para>Bridge together two channels already in the PBX.</para>
 		</description>
+		<see-also>
+			<ref type="application">Bridge</ref>
+			<ref type="managerEvent">BridgeCreate</ref>
+			<ref type="managerEvent">BridgeEnter</ref>
+			<ref type="manager">BridgeDestroy</ref>
+			<ref type="manager">BridgeInfo</ref>
+			<ref type="manager">BridgeKick</ref>
+			<ref type="manager">BridgeList</ref>
+		</see-also>
 	</manager>
  ***/
 
