@@ -103,15 +103,16 @@ ASTERISK_REGISTER_FILE()
 				<option name="a">
 					<para>Immediately answer the calling channel when the called channel answers in
 					all cases. Normally, the calling channel is answered when the called channel
-					answers, but when options such as A() and M() are used, the calling channel is
+					answers, but when options such as <literal>A()</literal> and
+					<literal>M()</literal> are used, the calling channel is
 					not answered until all actions on the called channel (such as playing an
 					announcement) are completed.  This option can be used to answer the calling
 					channel before doing anything on the called channel. You will rarely need to use
 					this option, the default behavior is adequate in most cases.</para>
 				</option>
 				<option name="b" argsep="^">
-					<para>Before initiating an outgoing call, Gosub to the specified
-					location using the newly created channel.  The Gosub will be
+					<para>Before initiating an outgoing call, <literal>Gosub</literal> to the specified
+					location using the newly created channel.  The <literal>Gosub</literal> will be
 					executed for each destination channel.</para>
 					<argument name="context" required="false" />
 					<argument name="exten" required="false" />
@@ -121,8 +122,8 @@ ASTERISK_REGISTER_FILE()
 					</argument>
 				</option>
 				<option name="B" argsep="^">
-					<para>Before initiating the outgoing call(s), Gosub to the specified
-					location using the current channel.</para>
+					<para>Before initiating the outgoing call(s), <literal>Gosub</literal> to the
+					specified location using the current channel.</para>
 					<argument name="context" required="false" />
 					<argument name="exten" required="false" />
 					<argument name="priority" required="true" hasparams="optional" argsep="^">
@@ -134,7 +135,8 @@ ASTERISK_REGISTER_FILE()
 					<para>Reset the call detail record (CDR) for this call.</para>
 				</option>
 				<option name="c">
-					<para>If the Dial() application cancels this call, always set HANGUPCAUSE to 'answered elsewhere'</para>
+					<para>If the Dial() application cancels this call, always set
+					<variable>HANGUPCAUSE</variable> to 'answered elsewhere'</para>
 				</option>
 				<option name="d">
 					<para>Allow the calling user to dial a 1 digit extension while waiting for
@@ -156,8 +158,8 @@ ASTERISK_REGISTER_FILE()
 					<replaceable>called</replaceable> DTMF string is sent to the called party, and the
 					<replaceable>calling</replaceable> DTMF string is sent to the calling party.  Both arguments
 					can be used alone.  If <replaceable>progress</replaceable> is specified, its DTMF is sent
-					to the called party immediately after receiving a PROGRESS message.</para>
-					<para>See SendDTMF for valid digits.</para>
+					to the called party immediately after receiving a <literal>PROGRESS</literal> message.</para>
+					<para>See <literal>SendDTMF</literal> for valid digits.</para>
 				</option>
 				<option name="e">
 					<para>Execute the <literal>h</literal> extension for peer after the call ends</para>
@@ -165,7 +167,7 @@ ASTERISK_REGISTER_FILE()
 				<option name="f">
 					<argument name="x" required="false" />
 					<para>If <replaceable>x</replaceable> is not provided, force the CallerID sent on a call-forward or
-					deflection to the dialplan extension of this Dial() using a dialplan <literal>hint</literal>.
+					deflection to the dialplan extension of this <literal>Dial()</literal> using a dialplan <literal>hint</literal>.
 					For example, some PSTNs do not allow CallerID to be set to anything
 					other than the numbers assigned to you.
 					If <replaceable>x</replaceable> is provided, force the CallerID sent to <replaceable>x</replaceable>.</para>
@@ -318,11 +320,11 @@ ASTERISK_REGISTER_FILE()
 					<note>
 						<para>You cannot use any additional action post answer options in conjunction
 						with this option. Also, pbx services are run on the peer (called) channel,
-						so you will not be able to set timeouts via the TIMEOUT() function in this macro.</para>
+						so you will not be able to set timeouts via the <literal>TIMEOUT()</literal> function in this macro.</para>
 					</note>
 					<warning><para>Be aware of the limitations that macros have, specifically with regards to use of
 					the <literal>WaitExten</literal> application. For more information, see the documentation for
-					Macro()</para></warning>
+					<literal>Macro()</literal>.</para></warning>
 				</option>
 				<option name="n">
 					<argument name="delete">
@@ -339,7 +341,7 @@ ASTERISK_REGISTER_FILE()
 				</option>
 				<option name="N">
 					<para>This option is a modifier for the call screening/privacy mode. It specifies
-					that if Caller*ID is present, do not screen the call.</para>
+					that if CallerID is present, do not screen the call.</para>
 				</option>
 				<option name="o">
 					<argument name="x" required="false" />
@@ -347,7 +349,7 @@ ASTERISK_REGISTER_FILE()
 					<emphasis>calling</emphasis> channel be stored as the CallerID on the <emphasis>called</emphasis> channel.
 					This was the behavior of Asterisk 1.0 and earlier.
 					If <replaceable>x</replaceable> is provided, specify the CallerID stored on the <emphasis>called</emphasis> channel.
-					Note that o(${CALLERID(all)}) is similar to option o without the parameter.</para>
+					Note that <literal>o(${CALLERID(all)})</literal> is similar to option <literal>o</literal> without the parameter.</para>
 				</option>
 				<option name="O">
 					<argument name="mode">
@@ -377,13 +379,13 @@ ASTERISK_REGISTER_FILE()
 					<para>Default: Indicate ringing to the calling party, even if the called party isn't actually ringing. Pass no audio to the calling
 					party until the called channel has answered.</para>
 					<argument name="tone" required="false">
-						<para>Indicate progress to calling party. Send audio 'tone' from the indications.conf tonezone currently in use.</para>
+						<para>Indicate progress to calling party. Send audio 'tone' from the <filename>indications.conf</filename> tonezone currently in use.</para>
 					</argument>
 				</option>
-                                <option name="R">
-                                        <para>Default: Indicate ringing to the calling party, even if the called party isn't actually ringing. 
+				<option name="R">
+					<para>Default: Indicate ringing to the calling party, even if the called party isn't actually ringing. 
 					Allow interruption of the ringback if early media is received on the channel.</para>
-                                </option>
+				</option>
 				<option name="S">
 					<argument name="x" required="true" />
 					<para>Hang up the call <replaceable>x</replaceable> seconds <emphasis>after</emphasis> the called party has
@@ -391,8 +393,8 @@ ASTERISK_REGISTER_FILE()
 				</option>
 				<option name="s">
 					<argument name="x" required="true" />
-					<para>Force the outgoing callerid tag parameter to be set to the string <replaceable>x</replaceable>.</para>
-					<para>Works with the f option.</para>
+					<para>Force the outgoing CallerID tag parameter to be set to the string <replaceable>x</replaceable>.</para>
+					<para>Works with the <literal>f</literal> option.</para>
 				</option>
 				<option name="t">
 					<para>Allow the called party to transfer the calling party by sending the
@@ -406,15 +408,15 @@ ASTERISK_REGISTER_FILE()
 				</option>
 				<option name="U" argsep="^">
 					<argument name="x" required="true">
-						<para>Name of the subroutine to execute via Gosub</para>
+						<para>Name of the subroutine to execute via <literal>Gosub</literal></para>
 					</argument>
 					<argument name="arg" multiple="true" required="false">
-						<para>Arguments for the Gosub routine</para>
+						<para>Arguments for the <literal>Gosub</literal> routine</para>
 					</argument>
-					<para>Execute via Gosub the routine <replaceable>x</replaceable> for the <emphasis>called</emphasis> channel before connecting
-					to the calling channel. Arguments can be specified to the Gosub
-					using <literal>^</literal> as a delimiter. The Gosub routine can set the variable
-					<variable>GOSUB_RESULT</variable> to specify the following actions after the Gosub returns.</para>
+					<para>Execute via <literal>Gosub</literal> the routine <replaceable>x</replaceable> for the <emphasis>called</emphasis> channel before connecting
+					to the calling channel. Arguments can be specified to the <literal>Gosub</literal>
+					using <literal>^</literal> as a delimiter. The <literal>Gosub</literal> routine can set the variable
+					<variable>GOSUB_RESULT</variable> to specify the following actions after the <literal>Gosub</literal> returns.</para>
 					<variablelist>
 						<variable name="GOSUB_RESULT">
 							<value name="ABORT">
@@ -438,7 +440,7 @@ ASTERISK_REGISTER_FILE()
 					<note>
 						<para>You cannot use any additional action post answer options in conjunction
 						with this option. Also, pbx services are run on the peer (called) channel,
-						so you will not be able to set timeouts via the TIMEOUT() function in this routine.</para>
+						so you will not be able to set timeouts via the <literal>TIMEOUT()</literal> function in this routine.</para>
 					</note>
 				</option>
 				<option name="u">
@@ -455,7 +457,7 @@ ASTERISK_REGISTER_FILE()
 						<literal>prohib</literal>
 						<literal>unavailable</literal></para>
 					</argument>
-					<para>Works with the f option.</para>
+					<para>Works with the <literal>f</literal> option.</para>
 				</option>
 				<option name="w">
 					<para>Allow the called party to enable recording of the call by sending
@@ -497,11 +499,59 @@ ASTERISK_REGISTER_FILE()
 			hangs up, or if the call is bridged and either of the parties in the bridge
 			ends the call.</para>
 			<para>If the <variable>OUTBOUND_GROUP</variable> variable is set, all peer channels created by this
-			application will be put into that group (as in Set(GROUP()=...).
+			application will be put into that group (as in <literal>Set(GROUP()=...</literal>).
 			If the <variable>OUTBOUND_GROUP_ONCE</variable> variable is set, all peer channels created by this
-			application will be put into that group (as in Set(GROUP()=...). Unlike <variable>OUTBOUND_GROUP</variable>,
+			application will be put into that group (as in <literal>Set(GROUP()=...</literal>). Unlike <variable>OUTBOUND_GROUP</variable>,
 			however, the variable will be unset after use.</para>
 
+			<example title="Dial with 30 second timeout">
+			 same => n,Dial(PJSIP/alice,30)
+			</example>
+			<example title="Parallel dial with 45 second timeout">
+			 same => n,Dial(PJSIP/alice&amp;PJIP/bob,45)
+			</example>
+			<example title="Dial with 'g' continuation option">
+			 same => n,Dial(PJSIP/alice,,g)
+			 same => n,Log(NOTICE, Alice call result: ${DIALSTATUS})
+			</example>
+			<example title="Dial with transfer/recording features for calling party">
+			 same => n,Dial(PJSIP/alice,,TX)
+			</example>
+			<example title="Dial with call length limit">
+			 same => n,Dial(PJSIP/alice,,L(60000:30000:10000))
+			</example>
+			<example title="Dial with pre-dial subroutines">
+			[default]
+
+			exten => callee_channel,1,NoOp()
+			 same => n,Log(NOTICE, I'm called on channel ${CHANNEL} prior to it starting the dial attempt)
+			 same => n,Return()
+
+			exten => called_channel,1,NoOp()
+			 same => n,Log(NOTICE, I'm called on outbound channel ${CHANNEL} prior to it being used to dial someone)
+			 same => n,Return()
+
+			exten => _X.,1,NoOp()
+			 same => n,Dial(PJSIP/alice,,b(default^called_channel^1)B(default^callee_channel^1))
+			 same => n,Hangup()
+			</example>
+			<example title="Dial with post-answer subroutine executed on outbound channel">
+			[default]
+
+			exten => called_channel,1,NoOp()
+			 same => n,Playback(hello)
+			 same => n,Return()
+
+			exten => _X.,1,NoOp()
+			 same => n,Dial(PJSIP/alice,,U(default^called_channel^1))
+			 same => n,Hangup()
+			</example>
+			<example title="Dial into ConfBridge using 'G' option">
+			 same => n,Dial(PJSIP/alice,,G(jump_to_here))
+			 same => n(jump_to_here),Goto(confbridge)
+			 same => n,Goto(confbridge)
+			 same => n(confbridge),ConfBridge(${EXTEN})
+			</example>
 			<para>This application sets the following channel variables:</para>
 			<variablelist>
 				<variable name="DIALEDTIME">
@@ -509,6 +559,15 @@ ASTERISK_REGISTER_FILE()
 				</variable>
 				<variable name="ANSWEREDTIME">
 					<para>This is the amount of time for actual call.</para>
+				</variable>
+				<variable name="DIALEDPEERNAME">
+					<para>The name of the outbound channel that answered the call.</para>
+				</variable>
+				<variable name="DIALEDPEERNUMBER">
+					<para>The number that was dialed for the answered outbound channel.</para>
+				</variable>
+				<variable name="FORWARDERNAME">
+					<para>If a call forward occurred, the name of the forwarded channel.</para>
 				</variable>
 				<variable name="DIALSTATUS">
 					<para>This is the status of the call</para>
@@ -530,6 +589,12 @@ ASTERISK_REGISTER_FILE()
 				</variable>
 			</variablelist>
 		</description>
+		<see-also>
+			<ref type="application">RetryDial</ref>
+			<ref type="application">SendDTMF</ref>
+			<ref type="application">Gosub</ref>
+			<ref type="application">Macro</ref>
+		</see-also>
 	</application>
 	<application name="RetryDial" language="en_US">
 		<synopsis>
@@ -562,6 +627,9 @@ ASTERISK_REGISTER_FILE()
 			The <replaceable>dialargs</replaceable> are specified in the same format that arguments are provided
 			to the Dial application.</para>
 		</description>
+		<see-also>
+			<ref type="application">Dial</ref>
+		</see-also>
 	</application>
  ***/
 
