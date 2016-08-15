@@ -44,6 +44,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<syntax>
 				<channel_snapshot/>
 			</syntax>
+			<see-also>
+				<ref type="managerEvent">Newstate</ref>
+				<ref type="managerEvent">Hangup</ref>
+			</see-also>
 		</managerEventInstance>
 	</managerEvent>
 	<managerEvent language="en_US" name="Newstate">
@@ -52,6 +56,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<syntax>
 				<channel_snapshot/>
 			</syntax>
+			<see-also>
+				<ref type="managerEvent">Newchannel</ref>
+				<ref type="managerEvent">Hangup</ref>
+			</see-also>
 		</managerEventInstance>
 	</managerEvent>
 	<managerEvent language="en_US" name="Hangup">
@@ -66,6 +74,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<para>A description of why the channel was hung up.</para>
 				</parameter>
 			</syntax>
+			<see-also>
+				<ref type="managerEvent">Newchannel</ref>
+				<ref type="managerEvent">SoftHangupRequest</ref>
+				<ref type="managerEvent">HangupRequest</ref>
+				<ref type="managerEvent">Newstate</ref>
+			</see-also>
 		</managerEventInstance>
 	</managerEvent>
 	<managerEvent language="en_US" name="HangupRequest">
@@ -75,6 +89,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<channel_snapshot/>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Hangup']/managerEventInstance/syntax/parameter[@name='Cause'])" />
 			</syntax>
+			<see-also>
+				<ref type="managerEvent">SoftHangupRequest</ref>
+				<ref type="managerEvent">Hangup</ref>
+			</see-also>
 		</managerEventInstance>
 	</managerEvent>
 	<managerEvent language="en_US" name="SoftHangupRequest">
@@ -84,6 +102,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<channel_snapshot/>
 				<xi:include xpointer="xpointer(/docs/managerEvent[@name='Hangup']/managerEventInstance/syntax/parameter[@name='Cause'])" />
 			</syntax>
+			<see-also>
+				<ref type="managerEvent">HangupRequest</ref>
+				<ref type="managerEvent">Hangup</ref>
+			</see-also>
 		</managerEventInstance>
 	</managerEvent>
 	<managerEvent language="en_US" name="NewExten">
@@ -114,6 +136,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<para>A description of the Caller ID presentation.</para>
 				</parameter>
 			</syntax>
+			<see-also>
+				<ref type="function">CALLERID</ref>
+			</see-also>
 		</managerEventInstance>
 	</managerEvent>
 	<managerEvent language="en_US" name="NewAccountCode">
@@ -125,6 +150,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<para>The channel's previous account code</para>
 				</parameter>
 			</syntax>
+			<see-also>
+				<ref type="function">CHANNEL</ref>
+			</see-also>
 		</managerEventInstance>
 	</managerEvent>
 	<managerEvent language="en_US" name="DialBegin">
@@ -139,6 +167,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</syntax>
 			<see-also>
 				<ref type="application">Dial</ref>
+				<ref type="application">Originate</ref>
+				<ref type="manager">Originate</ref>
+				<ref type="managerEvent">DialEnd</ref>
 			</see-also>
 		</managerEventInstance>
 	</managerEvent>
@@ -192,6 +223,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</syntax>
 			<see-also>
 				<ref type="application">Dial</ref>
+				<ref type="application">Originate</ref>
+				<ref type="manager">Originate</ref>
+				<ref type="managerEvent">DialBegin</ref>
 			</see-also>
 		</managerEventInstance>
 	</managerEvent>
@@ -204,6 +238,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<para>The suggested MusicClass, if provided.</para>
 				</parameter>
 			</syntax>
+			<see-also>
+				<ref type="managerEvent">Unhold</ref>
+			</see-also>
 		</managerEventInstance>
 	</managerEvent>
 	<managerEvent language="en_US" name="Unhold">
@@ -212,6 +249,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<syntax>
 				<channel_snapshot/>
 			</syntax>
+			<see-also>
+				<ref type="managerEvent">Hold</ref>
+			</see-also>
 		</managerEventInstance>
 	</managerEvent>
 	<managerEvent language="en_US" name="ChanSpyStart">
@@ -222,7 +262,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<channel_snapshot prefix="Spyee"/>
 			</syntax>
 			<see-also>
-				<ref type="application">ChanSpyStop</ref>
+				<ref type="managerEvent">ChanSpyStop</ref>
+				<ref type="application">ChanSpy</ref>
 			</see-also>
 		</managerEventInstance>
 	</managerEvent>
@@ -234,7 +275,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<channel_snapshot prefix="Spyee"/>
 			</syntax>
 			<see-also>
-				<ref type="application">ChanSpyStart</ref>
+				<ref type="managerEvent">ChanSpyStart</ref>
+				<ref type="application">ChanSpy</ref>
 			</see-also>
 		</managerEventInstance>
 	</managerEvent>
@@ -247,6 +289,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<para>Hangup handler parameter string passed to the Gosub application.</para>
 				</parameter>
 			</syntax>
+			<see-also>
+				<ref type="function">CHANNEL</ref>
+			</see-also>
 		</managerEventInstance>
 	</managerEvent>
 	<managerEvent language="en_US" name="HangupHandlerPop">
@@ -353,6 +398,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</syntax>
 			<see-also>
 				<ref type="managerEvent">MusicOnHoldStop</ref>
+				<ref type="application">StartMusicOnHold</ref>
 				<ref type="application">MusicOnHold</ref>
 			</see-also>
 		</managerEventInstance>
@@ -829,6 +875,9 @@ static void channel_dtmf_begin_cb(void *data, struct stasis_subscription *sub,
 						</enumlist>
 					</parameter>
 				</syntax>
+				<see-also>
+					<ref type="managerEvent">DTMFEnd</ref>
+				</see-also>
 		</managerEventInstance>
 	***/
 	manager_event(EVENT_FLAG_DTMF, "DTMFBegin",
@@ -875,6 +924,9 @@ static void channel_dtmf_end_cb(void *data, struct stasis_subscription *sub,
 						</enumlist>
 					</parameter>
 				</syntax>
+				<see-also>
+					<ref type="managerEvent">DTMFBegin</ref>
+				</see-also>
 		</managerEventInstance>
 	***/
 	manager_event(EVENT_FLAG_DTMF, "DTMFEnd",
