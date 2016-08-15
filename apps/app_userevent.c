@@ -62,6 +62,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<replaceable>eventname</replaceable> under the
 			<literal>eventname</literal> key.</para>
 		</description>
+		<see-also>
+			<ref type="manager">UserEvent</ref>
+			<ref type="managerEvent">UserEvent</ref>
+		</see-also>
 	</application>
  ***/
 
