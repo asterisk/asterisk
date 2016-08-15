@@ -22,6 +22,54 @@
 	<support_level>extended</support_level>
  ***/
 
+/*** DOCUMENTATION
+<info name="OOH323CHANNEL" language="en_US" tech="OOH323">
+	<enumlist>
+		<enum name="faxdetect">
+			<para>R/W Fax Detect</para>
+			<para>Returns 0 or 1</para>
+			<para>Write yes or no</para>
+		</enum>
+		<enum name="t38support">
+			<para>R/W t38support</para>
+			<para>Returns 0 or 1</para>
+			<para>Write yes or no</para>
+		</enum>
+		<enum name="h323id_url">
+			<para>R/0 Returns caller URL</para>
+			</enum>
+		<enum name="caller_h323id">
+			<para>R/0 Returns caller h323id</para>
+		</enum>
+		<enum name="caller_dialeddigits">
+			<para>R/0 Returns caller dialed digits</para>
+		</enum>
+		<enum name="caller_email">
+			<para>R/0 Returns caller email</para>
+		</enum>
+		<enum name="callee_email">
+			<para>R/0 Returns callee email</para>
+		</enum>
+		<enum name="callee_dialeddigits">
+			<para>R/0 Returns callee dialed digits</para>
+		</enum>
+		<enum name="caller_url">
+			<para>R/0 Returns caller URL</para>
+		</enum>
+		<enum name="max_forwards">
+			<para>R/W Get or set the maximum number of call forwards for this channel.
+
+			This number describes the number of times a call may be forwarded by this channel
+			before the call fails. "Forwards" in this case refers to redirects by phones as well
+			as calls to local channels.
+
+			Note that this has no relation to the SIP Max-Forwards header.
+			</para>
+		</enum>
+	</enumlist>
+</info>
+ ***/
+
 #include "chan_ooh323.h"
 #include <math.h>
 

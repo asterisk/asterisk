@@ -229,207 +229,41 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name="linkedid">
 						<para>R/O returns the linkedid if available, otherwise returns the uniqueid.</para>
 					</enum>
-				</enumlist>
-				<para><emphasis>chan_sip</emphasis> provides the following additional options:</para>
-				<enumlist>
-					<enum name="peerip">
-						<para>R/O Get the IP address of the peer.</para>
-					</enum>
-					<enum name="recvip">
-						<para>R/O Get the source IP address of the peer.</para>
-					</enum>
-					<enum name="recvport">
-						<para>R/O Get the source port of the peer.</para>
-					</enum>
-					<enum name="from">
-						<para>R/O Get the URI from the From: header.</para>
-					</enum>
-					<enum name="uri">
-						<para>R/O Get the URI from the Contact: header.</para>
-					</enum>
-					<enum name="useragent">
-						<para>R/O Get the useragent.</para>
-					</enum>
-					<enum name="peername">
-						<para>R/O Get the name of the peer.</para>
-					</enum>
-					<enum name="t38passthrough">
-						<para>R/O <literal>1</literal> if T38 is offered or enabled in this channel,
-						otherwise <literal>0</literal></para>
-					</enum>
-					<enum name="rtpqos">
-						<para>R/O Get QOS information about the RTP stream</para>
-						<para>    This option takes two additional arguments:</para>
-						<para>    Argument 1:</para>
-						<para>     <literal>audio</literal>             Get data about the audio stream</para>
-						<para>     <literal>video</literal>             Get data about the video stream</para>
-						<para>     <literal>text</literal>              Get data about the text stream</para>
-						<para>    Argument 2:</para>
-						<para>     <literal>local_ssrc</literal>        Local SSRC (stream ID)</para>
-						<para>     <literal>local_lostpackets</literal> Local lost packets</para>
-						<para>     <literal>local_jitter</literal>      Local calculated jitter</para>
-						<para>     <literal>local_maxjitter</literal>   Local calculated jitter (maximum)</para>
-						<para>     <literal>local_minjitter</literal>   Local calculated jitter (minimum)</para>
-						<para>     <literal>local_normdevjitter</literal>Local calculated jitter (normal deviation)</para>
-						<para>     <literal>local_stdevjitter</literal> Local calculated jitter (standard deviation)</para>
-						<para>     <literal>local_count</literal>       Number of received packets</para>
-						<para>     <literal>remote_ssrc</literal>       Remote SSRC (stream ID)</para>
-						<para>     <literal>remote_lostpackets</literal>Remote lost packets</para>
-						<para>     <literal>remote_jitter</literal>     Remote reported jitter</para>
-						<para>     <literal>remote_maxjitter</literal>  Remote calculated jitter (maximum)</para>
-						<para>     <literal>remote_minjitter</literal>  Remote calculated jitter (minimum)</para>
-						<para>     <literal>remote_normdevjitter</literal>Remote calculated jitter (normal deviation)</para>
-						<para>     <literal>remote_stdevjitter</literal>Remote calculated jitter (standard deviation)</para>
-						<para>     <literal>remote_count</literal>      Number of transmitted packets</para>
-						<para>     <literal>rtt</literal>               Round trip time</para>
-						<para>     <literal>maxrtt</literal>            Round trip time (maximum)</para>
-						<para>     <literal>minrtt</literal>            Round trip time (minimum)</para>
-						<para>     <literal>normdevrtt</literal>        Round trip time (normal deviation)</para>
-						<para>     <literal>stdevrtt</literal>          Round trip time (standard deviation)</para>
-						<para>     <literal>all</literal>               All statistics (in a form suited to logging,
-						but not for parsing)</para>
-					</enum>
-					<enum name="rtpdest">
-						<para>R/O Get remote RTP destination information.</para>
-						<para>   This option takes one additional argument:</para>
-						<para>    Argument 1:</para>
-						<para>     <literal>audio</literal>             Get audio destination</para>
-						<para>     <literal>video</literal>             Get video destination</para>
-						<para>     <literal>text</literal>              Get text destination</para>
-						<para>   Defaults to <literal>audio</literal> if unspecified.</para>
-					</enum>
-					<enum name="rtpsource">
-						<para>R/O Get source RTP destination information.</para>
-						<para>   This option takes one additional argument:</para>
-						<para>    Argument 1:</para>
-						<para>     <literal>audio</literal>             Get audio destination</para>
-						<para>     <literal>video</literal>             Get video destination</para>
-						<para>     <literal>text</literal>              Get text destination</para>
-						<para>   Defaults to <literal>audio</literal> if unspecified.</para>
-					</enum>
-				</enumlist>
-				<xi:include xpointer="xpointer(/docs/info[@name='PJSIPCHANNEL'])" />
-				<para><emphasis>chan_iax2</emphasis> provides the following additional options:</para>
-				<enumlist>
-					<enum name="osptoken">
-						<para>R/O Get the peer's osptoken.</para>
-					</enum>
-					<enum name="peerip">
-						<para>R/O Get the peer's ip address.</para>
-					</enum>
-					<enum name="peername">
-						<para>R/O Get the peer's username.</para>
-					</enum>
-					<enum name="secure_signaling">
-						<para>R/O Get the if the IAX channel is secured.</para>
-					</enum>
-					<enum name="secure_media">
-						<para>R/O Get the if the IAX channel is secured.</para>
-					</enum>
-				</enumlist>
-				<para><emphasis>chan_dahdi</emphasis> provides the following additional options:</para>
-				<enumlist>
-					<enum name="dahdi_channel">
-						<para>R/O DAHDI channel related to this channel.</para>
-					</enum>
-					<enum name="dahdi_span">
-						<para>R/O DAHDI span related to this channel.</para>
-					</enum>
-					<enum name="dahdi_type">
-						<para>R/O DAHDI channel type, one of:</para>
-						<enumlist>
-							<enum name="analog" />
-							<enum name="mfc/r2" />
-							<enum name="pri" />
-							<enum name="pseudo" />
-							<enum name="ss7" />
-						</enumlist>
-					</enum>
-					<enum name="keypad_digits">
-						<para>R/O PRI Keypad digits that came in with the SETUP message.</para>
-					</enum>
-					<enum name="reversecharge">
-						<para>R/O PRI Reverse Charging Indication, one of:</para>
-						<enumlist>
-							<enum name="-1"> <para>None</para></enum>
-							<enum name=" 1"> <para>Reverse Charging Requested</para></enum>
-						</enumlist>
-					</enum>
-					<enum name="no_media_path">
-						<para>R/O PRI Nonzero if the channel has no B channel.
-						The channel is either on hold or a call waiting call.</para>
-					</enum>
-					<enum name="buffers">
-						<para>W/O Change the channel's buffer policy (for the current call only)</para>
-						<para>This option takes two arguments:</para>
-						<para>	Number of buffers,</para>
-						<para>	Buffer policy being one of:</para>
-						<para>	    <literal>full</literal></para>
-						<para>	    <literal>immediate</literal></para>
-						<para>	    <literal>half</literal></para>
-					</enum>
-					<enum name="echocan_mode">
-						<para>W/O Change the configuration of the active echo
-						canceller on the channel (if any), for the current call
-						only.</para>
-						<para>Possible values are:</para>
-						<para>	<literal>on</literal>	Normal mode (the echo canceller is actually reinitalized)</para>
-						<para>	<literal>off</literal>	Disabled</para>
-						<para>	<literal>fax</literal>	FAX/data mode (NLP disabled if possible, otherwise
-							completely disabled)</para>
-						<para>	<literal>voice</literal>	Voice mode (returns from FAX mode, reverting the changes that were made)</para>
-					</enum>
-				</enumlist>
-				<para><emphasis>chan_ooh323</emphasis> provides the following additional options:</para>
-				<enumlist>
-					<enum name="faxdetect">
-						<para>R/W Fax Detect</para>
-						<para>Returns 0 or 1</para>
-						<para>Write yes or no</para>
-					</enum>
-					<enum name="t38support">
-						<para>R/W t38support</para>
-						<para>Returns 0 or 1</para>
-						<para>Write yes or no</para>
-					</enum>
-					<enum name="h323id_url">
-						<para>R/0 Returns caller URL</para>
- 					</enum>
-					<enum name="caller_h323id">
-						<para>R/0 Returns caller h323id</para>
-					</enum>
-					<enum name="caller_dialeddigits">
-						<para>R/0 Returns caller dialed digits</para>
-					</enum>
-					<enum name="caller_email">
-						<para>R/0 Returns caller email</para>
-					</enum>
-					<enum name="callee_email">
-						<para>R/0 Returns callee email</para>
-					</enum>
-					<enum name="callee_dialeddigits">
-						<para>R/0 Returns callee dialed digits</para>
-					</enum>
-					<enum name="caller_url">
-						<para>R/0 Returns caller URL</para>
-					</enum>
 					<enum name="max_forwards">
-						<para>R/W Get or set the maximum number of call forwards for this channel.
-
-						This number describes the number of times a call may be forwarded by this channel
-						before the call fails. "Forwards" in this case refers to redirects by phones as well
-						as calls to local channels.
-
-						Note that this has no relation to the SIP Max-Forwards header.
-						</para>
+						<para>R/W The maximum number of forwards allowed.</para>
 					</enum>
 				</enumlist>
+				<xi:include xpointer="xpointer(/docs/info[@name='SIPCHANNEL'])" />
+				<xi:include xpointer="xpointer(/docs/info[@name='PJSIPCHANNEL'])" />
+				<xi:include xpointer="xpointer(/docs/info[@name='IAXCHANNEL'])" />
+				<xi:include xpointer="xpointer(/docs/info[@name='DAHDICHANNEL'])" />
+				<xi:include xpointer="xpointer(/docs/info[@name='OOH323CHANNEL'])" />
 			</parameter>
 		</syntax>
 		<description>
 			<para>Gets/sets various pieces of information about the channel, additional <replaceable>item</replaceable> may
 			be available from the channel driver; see its documentation for details. Any <replaceable>item</replaceable>
 			requested that is not available on the current channel will return an empty string.</para>
+			<example title="Standard CHANNEL item examples">
+				; Push a hangup handler subroutine existing at dialplan
+				; location default,s,1 onto the current channel
+				same => n,Set(CHANNEL(hangup_handler_push)=default,s,1)
+
+				; Set the current tonezone to Germany (de)
+				same => n,Set(CHANNEL(tonezone)=de)
+
+				; Set the allowed maximum number of forwarding attempts
+				same => n,Set(CHANNEL(max_forwards)=10)
+
+				; If this channel is ejected from its next bridge, and if
+				; the channel is not hung up, begin executing dialplan at
+				; location default,after-bridge,1
+				same => n,Set(CHANNEL(after_bridge_goto)=default,after-bridge,1)
+
+				; Log the current state of the channel
+				same => n,Log(NOTICE, This channel is: ${CHANNEL(state)})
+			</example>
+			<xi:include xpointer="xpointer(/docs/info[@name='PJSIPCHANNEL_EXAMPLES'])" />
 		</description>
 	</function>
  ***/
