@@ -125,7 +125,9 @@ bindaddr = 0.0.0.0
 ;
 ; all       - All event classes below (including any we may have missed).
 ; system    - General information about the system and ability to run system
-;             management commands, such as Shutdown, Restart, and Reload.
+;             management commands, such as Shutdown, Restart, and Reload. This
+;             class also includes dialplan manipulation actions such as
+;             DialplanExtensionAdd and DialplanExtensionRemove.
 ; call      - Information about channels and ability to set information in a
 ;             running channel.
 ; log       - Logging information.  Read-only. (Defined but not yet used.)
