@@ -79,6 +79,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<para>Destination extension for the blind transfer.</para>
 				</parameter>
 			</syntax>
+			<see-also>
+				<ref type="manager">BlindTransfer</ref>
+			</see-also>
 		</managerEventInstance>
 	</managerEvent>
 	<managerEvent language="en_US" name="AttendedTransfer">
@@ -131,6 +134,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 				<para>	<replaceable>SecondTransfererChannel</replaceable>: Alice's channel in the bridge with Bob.</para>
 				<para>	<replaceable>SecondBridgeUniqueid</replaceable>: The bridge between Alice and Bob.</para>
 			</description>
+			<see-also>
+				<ref type="manager">AtxFer</ref>
+			</see-also>
 		</managerEventInstance>
 	</managerEvent>
  ***/
