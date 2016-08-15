@@ -236,11 +236,7 @@ ASTERISK_REGISTER_FILE()
 						<para>R/W The maximum number of forwards allowed.</para>
 					</enum>
 				</enumlist>
-				<xi:include xpointer="xpointer(/docs/info[@name='SIPCHANNEL'])" />
-				<xi:include xpointer="xpointer(/docs/info[@name='PJSIPCHANNEL'])" />
-				<xi:include xpointer="xpointer(/docs/info[@name='IAXCHANNEL'])" />
-				<xi:include xpointer="xpointer(/docs/info[@name='DAHDICHANNEL'])" />
-				<xi:include xpointer="xpointer(/docs/info[@name='OOH323CHANNEL'])" />
+				<xi:include xpointer="xpointer(/docs/info[@name='CHANNEL'])" />
 			</parameter>
 		</syntax>
 		<description>
@@ -266,7 +262,7 @@ ASTERISK_REGISTER_FILE()
 				; Log the current state of the channel
 				same => n,Log(NOTICE, This channel is: ${CHANNEL(state)})
 			</example>
-			<xi:include xpointer="xpointer(/docs/info[@name='PJSIPCHANNEL_EXAMPLES'])" />
+			<xi:include xpointer="xpointer(/docs/info[@name='CHANNEL_EXAMPLES'])" />
 		</description>
 	</function>
  ***/

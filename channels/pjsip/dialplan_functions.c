@@ -109,7 +109,7 @@
 		<ref type="function">PJSIP_MEDIA_OFFER</ref>
 	</see-also>
 </function>
-<info name="PJSIPCHANNEL" language="en_US" tech="PJSIP">
+<info name="CHANNEL" language="en_US" tech="PJSIP">
 	<enumlist>
 		<enum name="rtp">
 			<para>R/O Retrieve media related information.</para>
@@ -411,7 +411,7 @@
 		</enum>
 	</enumlist>
 </info>
-<info name="PJSIPCHANNEL_EXAMPLES" language="en_US" tech="PJSIP">
+<info name="CHANNEL_EXAMPLES" language="en_US" tech="PJSIP">
 	<example title="PJSIP specific CHANNEL examples">
 		; Log the current Call-ID
 		same => n,Log(NOTICE, ${CHANNEL(pjsip,call-id)})

@@ -23,7 +23,7 @@
  ***/
 
 /*** DOCUMENTATION
-<info name="OOH323CHANNEL" language="en_US" tech="OOH323">
+<info name="CHANNEL" language="en_US" tech="OOH323">
 	<enumlist>
 		<enum name="faxdetect">
 			<para>R/W Fax Detect</para>
