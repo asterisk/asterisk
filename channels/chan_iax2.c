@@ -212,7 +212,7 @@ ASTERISK_REGISTER_FILE()
 			<para>Gets or sets a variable that is sent to a remote IAX2 peer during call setup.</para>
 		</description>
 	</function>
-	<info name="IAXCHANNEL" language="en_US" tech="IAX">
+	<info name="CHANNEL" language="en_US" tech="IAX">
 		<enumlist>
 			<enum name="osptoken">
 				<para>R/O Get the peer's osptoken.</para>

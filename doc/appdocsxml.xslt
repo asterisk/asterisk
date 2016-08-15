@@ -6,7 +6,10 @@
 
     <xsl:template match="node()|@*">
         <xsl:copy>
-            <xsl:apply-templates select="node()|@*"/>
+            <xsl:for-each select="node()|@*">
+                <xsl:sort select="@tech"/>
+                <xsl:apply-templates select="."/>
+            </xsl:for-each>
         </xsl:copy>
     </xsl:template>
 
