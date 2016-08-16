@@ -37,7 +37,6 @@ chan_pjsip
    dialplan function PJSIP_MEDIA_OFFER, this allows the formats on a PJSIP
    channel to be re-negotiated and updated after session set up.
 
-
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13 to Asterisk 14 --------------------
 ------------------------------------------------------------------------------
@@ -394,6 +393,15 @@ cdr_csv
  * Added a new configuration option, "newcdrcolumns", which enables use of the
    post-1.8 CDR columns 'peeraccount', 'linkedid', and 'sequence'.
 
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.11.0 to Asterisk 13.12.0 ----------
+------------------------------------------------------------------------------
+
+res_pjsip
+------------------
+ * A new endpoint configuration parameter 'contact_user' has been added which
+   when set will override the default user set on Contact headers in outgoing
+   requests.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.10.0 to Asterisk 13.11.0 ----------
