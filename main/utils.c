@@ -2488,7 +2488,7 @@ void ast_set_default_eid(struct ast_eid *eid)
 		return;
 	}
 	for (x = 0; x < MAXIF; x++) {
-		static const char *prefixes[] = { "eth", "em" };
+		static const char *prefixes[] = { "eth", "em", "eno", "ens" };
 		unsigned int i;
 
 		for (i = 0; i < ARRAY_LEN(prefixes); i++) {
@@ -2539,7 +2539,7 @@ void ast_set_default_eid(struct ast_eid *eid)
 	}
 #endif
 #endif
-	ast_debug(1, "No ethernet interface found for seeding global EID. You will have to set it manually.\n");
+	ast_log(LOG_WARNING, "No ethernet interface found for seeding global EID. You will have to set it manually.\n");
 }
 
 int ast_str_to_eid(struct ast_eid *eid, const char *s)
@@ -2562,6 +2562,14 @@ int ast_str_to_eid(struct ast_eid *eid, const char *s)
 int ast_eid_cmp(const struct ast_eid *eid1, const struct ast_eid *eid2)
 {
 	return memcmp(eid1, eid2, sizeof(*eid1));
+}
+
+int ast_eid_is_empty(const struct ast_eid *eid)
+{
+	struct ast_eid empty_eid;
+
+	memset(&empty_eid, 0, sizeof(empty_eid));
+	return memcmp(eid, &empty_eid, sizeof(empty_eid)) ? 0 : 1;
 }
 
 int ast_file_is_readable(const char *filename)

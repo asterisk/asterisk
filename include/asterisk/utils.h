@@ -973,6 +973,14 @@ int ast_str_to_eid(struct ast_eid *eid, const char *s);
 int ast_eid_cmp(const struct ast_eid *eid1, const struct ast_eid *eid2);
 
 /*!
+ * \brief Check if EID is empty
+ *
+ * \return 1 if the EID is empty, zero otherwise
+ * \since 13.12.0
+ */
+int ast_eid_is_empty(const struct ast_eid *eid);
+
+/*!
  * \brief Get current thread ID
  * \return the ID if platform is supported, else -1
  */

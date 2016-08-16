@@ -4652,6 +4652,10 @@ static int load_module(void)
 	ast_mutex_init(&messagelock);
 	ast_cond_init(&message_received_condition, NULL);
 
+	if (ast_eid_is_empty(&ast_eid_default)) {
+		ast_log(LOG_WARNING, "Entity ID is not set. The distributing device state or MWI will not work.\n");
+	}
+
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
