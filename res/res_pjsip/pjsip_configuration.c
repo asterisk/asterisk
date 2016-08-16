@@ -1211,6 +1211,31 @@ static int voicemail_extension_to_str(const void *obj, const intptr_t *args, cha
 	return 0;
 }
 
+static int contact_user_handler(const struct aco_option *opt,
+	struct ast_variable *var, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+
+	endpoint->contact_user = ast_strdup(var->value);
+	if (!endpoint->contact_user) {
+		return -1;
+	}
+
+	return 0;
+}
+
+static int contact_user_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_endpoint *endpoint = obj;
+
+	*buf = ast_strdup(endpoint->contact_user);
+	if (!(*buf)) {
+		return -1;
+	}
+
+	return 0;
+}
+
 static void *sip_nat_hook_alloc(const char *name)
 {
 	return ast_sorcery_generic_alloc(sizeof(struct ast_sip_nat_hook), NULL);
@@ -1907,6 +1932,7 @@ int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_mod
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "contact_permit", "", endpoint_acl_handler, NULL, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "contact_acl", "", endpoint_acl_handler, contact_acl_to_str, NULL, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "subscribe_context", "", OPT_CHAR_ARRAY_T, 0, CHARFLDSET(struct ast_sip_endpoint, subscription.context));
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "contact_user", "", contact_user_handler, contact_user_to_str, NULL, 0, 0);
 
 	if (ast_sip_initialize_sorcery_transport()) {
 		ast_log(LOG_ERROR, "Failed to register SIP transport support with sorcery\n");
@@ -2038,6 +2064,7 @@ static void endpoint_destructor(void* obj)
 	ao2_cleanup(endpoint->persistent);
 	ast_variables_destroy(endpoint->channel_vars);
 	AST_VECTOR_FREE(&endpoint->ident_method_order);
+	ast_free(endpoint->contact_user);
 }
 
 static int init_subscription_configuration(struct ast_sip_endpoint_subscription_configuration *subscription)
