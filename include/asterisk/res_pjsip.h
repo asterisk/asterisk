@@ -715,6 +715,8 @@ struct ast_sip_endpoint {
 	unsigned int rpid_immediate;
 	/*! The number of seconds into call to disable fax detection.  (0 = disabled) */
 	unsigned int faxdetect_timeout;
+	/*! Override the user on the outgoing Contact header with this value. */
+	char *contact_user;
 };
 
 /*!

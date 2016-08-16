@@ -831,6 +831,12 @@
 						channel is hung up. By default this option is set to 0, which means do not check.
 					</para></description>
 				</configOption>
+				<configOption name="contact_user" default="">
+					<synopsis>Force the user on the outgoing Contact header to this value.</synopsis>
+					<description><para>
+						On outbound requests, force the user portion of the Contact header to this value.
+					</para></description>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<synopsis>Authentication type</synopsis>
@@ -2640,7 +2646,15 @@ pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
 	/* Update the dialog with the new local URI, we do it afterwards so we can use the dialog pool for construction */
 	pj_strdup_with_null(dlg->pool, &dlg->local.info_str, &local_uri);
 	dlg->local.info->uri = pjsip_parse_uri(dlg->pool, dlg->local.info_str.ptr, dlg->local.info_str.slen, 0);
+
 	dlg->local.contact = pjsip_parse_hdr(dlg->pool, &HCONTACT, local_uri.ptr, local_uri.slen, NULL);
+
+	if (!ast_strlen_zero(endpoint->contact_user)) {
+		pjsip_sip_uri *sip_uri;
+
+		sip_uri = pjsip_uri_get_uri(dlg->local.contact->uri);
+		pj_strdup2(dlg->pool, &sip_uri->user, endpoint->contact_user);
+	}
 
 	/* If a request user has been specified and we are permitted to change it, do so */
 	if (!ast_strlen_zero(request_user)) {
@@ -2939,6 +2953,18 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 				endpoint ? ast_sorcery_object_get_id(endpoint) : "<none>");
 		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
 		return -1;
+	}
+
+	if (endpoint && !ast_strlen_zero(endpoint->contact_user)){
+		pjsip_contact_hdr *contact_hdr;
+		pjsip_sip_uri *contact_uri;
+		static const pj_str_t HCONTACT = { "Contact", 7 };
+
+		contact_hdr = pjsip_msg_find_hdr_by_name((*tdata)->msg, &HCONTACT, NULL);
+		if (contact_hdr) {
+			contact_uri = pjsip_uri_get_uri(contact_hdr->uri);
+			pj_strdup2(pool, &contact_uri->user, endpoint->contact_user);
+		}
 	}
 
 	/* Add the user=phone parameter if applicable */

@@ -9,6 +9,16 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.8-cert2 to Asterisk 13.8-cert3 ----
+------------------------------------------------------------------------------
+
+res_pjsip
+------------------
+ * A new endpoint configuration parameter 'contact_user' has been added which
+   when set will override the default user set on Contact headers in outgoing
+   requests.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.8-cert1 to Asterisk 13.8-cert2 ----
 ------------------------------------------------------------------------------
 

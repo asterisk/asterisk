@@ -1056,6 +1056,31 @@ static int set_var_to_vl(const void *obj, struct ast_variable **fields)
 }
 
 
+static int contact_user_handler(const struct aco_option *opt,
+	struct ast_variable *var, void *obj)
+{
+	struct ast_sip_endpoint *endpoint = obj;
+
+	endpoint->contact_user = ast_strdup(var->value);
+	if (!endpoint->contact_user) {
+		return -1;
+	}
+
+	return 0;
+}
+
+static int contact_user_to_str(const void *obj, const intptr_t *args, char **buf)
+{
+	const struct ast_sip_endpoint *endpoint = obj;
+
+	*buf = ast_strdup(endpoint->contact_user);
+	if (!(*buf)) {
+		return -1;
+	}
+
+	return 0;
+}
+
 static void *sip_nat_hook_alloc(const char *name)
 {
 	return ast_sorcery_generic_alloc(sizeof(struct ast_sip_nat_hook), NULL);
@@ -1950,6 +1975,7 @@ int ast_res_pjsip_initialize_configuration(const struct ast_module_info *ast_mod
 	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "set_var", "", set_var_handler, set_var_to_str, set_var_to_vl, 0, 0);
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "message_context", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, message_context));
 	ast_sorcery_object_field_register(sip_sorcery, "endpoint", "accountcode", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ast_sip_endpoint, accountcode));
+	ast_sorcery_object_field_register_custom(sip_sorcery, "endpoint", "contact_user", "", contact_user_handler, contact_user_to_str, NULL, 0, 0);
 
 	if (ast_sip_initialize_sorcery_transport()) {
 		ast_log(LOG_ERROR, "Failed to register SIP transport support with sorcery\n");
@@ -2093,6 +2119,7 @@ static void endpoint_destructor(void* obj)
 	endpoint->pickup.named_pickupgroups = ast_unref_namedgroups(endpoint->pickup.named_pickupgroups);
 	ao2_cleanup(endpoint->persistent);
 	ast_variables_destroy(endpoint->channel_vars);
+	ast_free(endpoint->contact_user);
 }
 
 static int init_subscription_configuration(struct ast_sip_endpoint_subscription_configuration *subscription)
