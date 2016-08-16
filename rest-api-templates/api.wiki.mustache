@@ -1,7 +1,8 @@
 {{#api_declaration}}
 h1. {{name_title}}
 
-|| Method || Path || Return Model || Summary ||
+|| Method || Path<br>h5. Parameters are case-sensitive || Return Model || Summary ||
+
 {{#apis}}
 {{#operations}}
 | {{http_method}} | [{{wiki_path}}|#{{nickname}}] | {{#response_class}}{{#is_primitive}}{{name}}{{/is_primitive}}{{^is_primitive}}[{{wiki_name}}|{{wiki_prefix}} REST Data Models#{{singular_name}}]{{/is_primitive}}{{/response_class}} | {{summary}} |
@@ -17,6 +18,7 @@ h2. {{nickname}}: {{http_method}} {{wiki_path}}
 {{#has_path_parameters}}
 
 h3. Path parameters
+Parameters are case-sensitive.
 {{#path_parameters}}
 * {{name}}: _{{data_type}}_ - {{{wiki_description}}}
 {{#default_value}}
