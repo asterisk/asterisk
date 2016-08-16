@@ -1103,6 +1103,11 @@ static int load_module(void)
 	cs_error_t cs_err;
 	struct cpg_name name;
 
+	if (ast_eid_is_empty(&ast_eid_default)) {
+		ast_log(LOG_ERROR, "Entity ID is not set.\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
 	nodes = ao2_container_alloc(23, corosync_node_hash_fn, corosync_node_cmp_fn);
 	if (!nodes) {
 		goto failed;
@@ -1161,6 +1166,7 @@ static int load_module(void)
 	}
 
 	ast_cli_register_multiple(corosync_cli, ARRAY_LEN(corosync_cli));
+
 
 	return AST_MODULE_LOAD_SUCCESS;
 
