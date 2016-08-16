@@ -4992,9 +4992,11 @@ int ast_context_remove_extension_callerid2(struct ast_context *con, const char *
 	/* scan the extension list to find first matching extension-registrar */
 	for (exten = con->root; exten; prev_exten = exten, exten = exten->next) {
 		if (!strcmp(exten->exten, ex.exten) &&
-			(!registrar || !strcmp(exten->registrar, registrar)) &&
-			(!matchcallerid || (!ast_strlen_zero(callerid) && !ast_strlen_zero(exten->cidmatch) && !strcmp(exten->cidmatch, callerid)) || (ast_strlen_zero(callerid) && ast_strlen_zero(exten->cidmatch))))
+			(!matchcallerid ||
+				(!ast_strlen_zero(ex.cidmatch) && !ast_strlen_zero(exten->cidmatch) && !strcmp(exten->cidmatch, ex.cidmatch)) ||
+				(ast_strlen_zero(ex.cidmatch) && ast_strlen_zero(exten->cidmatch)))) {
 			break;
+		}
 	}
 	if (!exten) {
 		/* we can't find right extension */
@@ -5006,7 +5008,7 @@ int ast_context_remove_extension_callerid2(struct ast_context *con, const char *
 	/* scan the priority list to remove extension with exten->priority == priority */
 	for (peer = exten, next_peer = exten->peer ? exten->peer : exten->next;
 		 peer && !strcmp(peer->exten, ex.exten) &&
-			(!callerid || (!matchcallerid && !peer->matchcid) || (matchcallerid && peer->matchcid && !strcmp(peer->cidmatch, callerid))) ;
+			(!callerid || (!matchcallerid && !peer->matchcid) || (matchcallerid && peer->matchcid && !strcmp(peer->cidmatch, ex.cidmatch))) ;
 			peer = next_peer, next_peer = next_peer ? (next_peer->peer ? next_peer->peer : next_peer->next) : NULL) {
 
 		if ((priority == 0 || peer->priority == priority) &&
