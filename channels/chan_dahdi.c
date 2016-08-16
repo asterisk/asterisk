@@ -180,7 +180,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<para>This application will Accept the R2 call either with charge or no charge.</para>
 		</description>
 	</application>
-	<info name="DAHDICHANNEL" language="en_US" tech="DAHDI">
+	<info name="CHANNEL" language="en_US" tech="DAHDI">
 		<enumlist>
 			<enum name="dahdi_channel">
 				<para>R/O DAHDI channel related to this channel.</para>

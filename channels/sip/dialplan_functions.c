@@ -24,7 +24,7 @@
  ***/
 
 /*** DOCUMENTATION
-<info name="SIPCHANNEL" language="en_US" tech="SIP">
+<info name="CHANNEL" language="en_US" tech="SIP">
 	<enumlist>
 		<enum name="peerip">
 			<para>R/O Get the IP address of the peer.</para>
