@@ -571,9 +571,7 @@ static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata)
 		}
 	}
 
-	if (!endpoint && !is_ack) {
-		char name[AST_UUID_STR_LEN] = "";
-		pjsip_uri *from = rdata->msg_info.from->uri;
+	if (!endpoint) {
 
 		/* always use an artificial endpoint - per discussion no reason
 		   to have "alwaysauthreject" as an option.  It is felt using it
@@ -581,6 +579,13 @@ static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata)
 		   breaking old stuff and we really don't want to enable the discovery
 		   of SIP accounts */
 		endpoint = ast_sip_get_artificial_endpoint();
+	}
+
+	rdata->endpt_info.mod_data[endpoint_mod.id] = endpoint;
+
+	if (!is_ack) {
+		char name[AST_UUID_STR_LEN] = "";
+		pjsip_uri *from = rdata->msg_info.from->uri;
 
 		if (PJSIP_URI_SCHEME_IS_SIP(from) || PJSIP_URI_SCHEME_IS_SIPS(from)) {
 			pjsip_sip_uri *sip_from = pjsip_uri_get_uri(from);
@@ -614,7 +619,6 @@ static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata)
 			ast_sip_report_invalid_endpoint(name, rdata);
 		}
 	}
-	rdata->endpt_info.mod_data[endpoint_mod.id] = endpoint;
 	return PJ_FALSE;
 }
 
