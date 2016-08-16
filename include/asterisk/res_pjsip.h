@@ -619,6 +619,8 @@ struct ast_sip_endpoint {
 	struct ast_variable *channel_vars;
 	/*! Whether to place a 'user=phone' parameter into the request URI if user is a number */
 	unsigned int usereqphone;
+	/*! Override the user on the outgoing Contact header with this value. */
+	char *contact_user;
 };
 
 /*!
