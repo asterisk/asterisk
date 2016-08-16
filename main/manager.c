@@ -887,6 +887,10 @@ ASTERISK_REGISTER_FILE()
 		<description>
 			<para>Send an event to manager sessions.</para>
 		</description>
+		<see-also>
+			<ref type="managerEvent">UserEvent</ref>
+			<ref type="application">UserEvent</ref>
+		</see-also>
 	</manager>
 	<manager name="WaitEvent" language="en_US">
 		<synopsis>
