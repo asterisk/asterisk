@@ -505,13 +505,15 @@ int ast_sorcery_init(void)
 	};
 	ast_assert(wizards == NULL);
 
-	if (!(threadpool = ast_threadpool_create("Sorcery", NULL, &options))) {
-		threadpool = NULL;
+	threadpool = ast_threadpool_create("Sorcery", NULL, &options);
+	if (!threadpool) {
 		return -1;
 	}
 
-	if (!(wizards = ao2_container_alloc(WIZARD_BUCKETS, sorcery_wizard_hash, sorcery_wizard_cmp))) {
-		ast_threadpool_shutdown(threadpool);
+	wizards = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_MUTEX, 0, WIZARD_BUCKETS,
+		sorcery_wizard_hash, NULL, sorcery_wizard_cmp);
+	if (!wizards) {
+		sorcery_cleanup();
 		return -1;
 	}
 
@@ -521,8 +523,8 @@ int ast_sorcery_init(void)
 		return -1;
 	}
 
-	instances = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK, INSTANCE_BUCKETS,
-		sorcery_instance_hash, sorcery_instance_cmp);
+	instances = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_RWLOCK, 0, INSTANCE_BUCKETS,
+		sorcery_instance_hash, NULL, sorcery_instance_cmp);
 	if (!instances) {
 		sorcery_cleanup();
 		return -1;
@@ -839,23 +841,30 @@ static struct ast_sorcery_object_type *sorcery_object_type_alloc(const char *typ
 		return NULL;
 	}
 
-	if (!(object_type->fields = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, OBJECT_FIELD_BUCKETS,
-					object_type_field_hash, object_type_field_cmp))) {
+	object_type->fields = ao2_container_alloc_hash(AO2_ALLOC_OPT_LOCK_NOLOCK, 0,
+		OBJECT_FIELD_BUCKETS, object_type_field_hash, NULL, object_type_field_cmp);
+	if (!object_type->fields) {
 		ao2_ref(object_type, -1);
 		return NULL;
 	}
 
-	if (!(object_type->observers = ao2_container_alloc_options(AO2_ALLOC_OPT_LOCK_RWLOCK, 1, NULL, NULL))) {
+	object_type->observers = ao2_container_alloc_list(AO2_ALLOC_OPT_LOCK_RWLOCK, 0,
+		NULL, NULL);
+	if (!object_type->observers) {
 		ao2_ref(object_type, -1);
 		return NULL;
 	}
 
-	if (!(object_type->info = ast_calloc(1, sizeof(*object_type->info) + 2 * sizeof(object_type->info->files[0])))) {
+	object_type->info = ast_calloc(1,
+		sizeof(*object_type->info) + 2 * sizeof(object_type->info->files[0]));
+	if (!object_type->info) {
 		ao2_ref(object_type, -1);
 		return NULL;
 	}
 
-	if (!(object_type->file = ast_calloc(1, sizeof(*object_type->file) + 2 * sizeof(object_type->file->types[0])))) {
+	object_type->file = ast_calloc(1,
+		sizeof(*object_type->file) + 2 * sizeof(object_type->file->types[0]));
+	if (!object_type->file) {
 		ao2_ref(object_type, -1);
 		return NULL;
 	}
