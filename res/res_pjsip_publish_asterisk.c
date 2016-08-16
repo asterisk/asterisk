@@ -858,6 +858,11 @@ static int load_module(void)
 {
 	CHECK_PJSIP_PUBSUB_MODULE_LOADED();
 
+	if (ast_eid_is_empty(&ast_eid_default)) {
+		ast_log(LOG_ERROR, "Entity ID is not set.\n");
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
 	ast_sorcery_apply_config(ast_sip_get_sorcery(), "asterisk-publication");
 	ast_sorcery_apply_default(ast_sip_get_sorcery(), "asterisk-publication", "config", "pjsip.conf,criteria=type=asterisk-publication");
 

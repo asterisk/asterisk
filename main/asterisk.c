@@ -3752,10 +3752,10 @@ static void ast_readconfig(void)
 		} else if (!strcasecmp(v->name, "entityid")) {
 			struct ast_eid tmp_eid;
 			if (!ast_str_to_eid(&tmp_eid, v->value)) {
-				ast_verbose("Successfully set global EID to '%s'\n", v->value);
 				ast_eid_default = tmp_eid;
-			} else
-				ast_verbose("Invalid Entity ID '%s' provided\n", v->value);
+			} else {
+				ast_log(LOG_WARNING, "Invalid Entity ID '%s' provided\n", v->value);
+			}
 		} else if (!strcasecmp(v->name, "lightbackground")) {
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_LIGHT_BACKGROUND);
 		} else if (!strcasecmp(v->name, "forceblackbackground")) {
