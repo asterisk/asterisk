@@ -579,7 +579,7 @@ void ast_ari_invoke(struct ast_tcptls_session_instance *ser,
 	}
 }
 
-void ast_ari_get_docs(const char *uri, struct ast_variable *headers,
+void ast_ari_get_docs(const char *uri, const char *prefix, struct ast_variable *headers,
 			  struct ast_ari_response *response)
 {
 	RAII_VAR(struct ast_str *, absolute_path_builder, NULL, ast_free);
@@ -685,9 +685,15 @@ void ast_ari_get_docs(const char *uri, struct ast_variable *headers,
 			}
 		}
 		if (host != NULL) {
-			ast_json_object_set(
-				obj, "basePath",
-				ast_json_stringf("http://%s/ari", host->value));
+			if (prefix != NULL && strlen(prefix) > 0) {
+				ast_json_object_set(
+					obj, "basePath",
+					ast_json_stringf("http://%s%s/ari", host->value,prefix));
+			} else {
+				ast_json_object_set(
+					obj, "basePath",
+					ast_json_stringf("http://%s/ari", host->value));
+			}
 		} else {
 			/* Without the host, we don't have the basePath */
 			ast_json_object_del(obj, "basePath");
@@ -969,7 +975,7 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 			ast_ari_response_error(&response, 405, "Method Not Allowed", "Unsupported method");
 		} else {
 			/* Skip the api-docs prefix */
-			ast_ari_get_docs(strchr(uri, '/') + 1, headers, &response);
+			ast_ari_get_docs(strchr(uri, '/') + 1, urih->prefix, headers, &response);
 		}
 	} else {
 		/* Other RESTful resources */
