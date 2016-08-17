@@ -144,10 +144,11 @@ void ast_ari_invoke(struct ast_tcptls_session_instance *ser,
  * for unit testing.
  *
  * \param uri Requested URI, relative to the docs path.
+ * \param prefix prefix that prefixes all http requests
  * \param headers HTTP headers.
  * \param[out] response RESTful HTTP response.
  */
-void ast_ari_get_docs(const char *uri, struct ast_variable *headers, struct ast_ari_response *response);
+void ast_ari_get_docs(const char *uri, const char *prefix, struct ast_variable *headers, struct ast_ari_response *response);
 
 /*! \brief Abstraction for reading/writing JSON to a WebSocket */
 struct ast_ari_websocket_session;
