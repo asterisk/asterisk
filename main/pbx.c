@@ -6151,6 +6151,8 @@ static int handle_hint_change(void *data)
 
 	device_state_notify_callbacks(hint, &hint_app);
 
+	memset(&presence_state, 0, sizeof(presence_state));
+
 	state = extension_presence_state_helper(
 		hint->exten, &presence_state.subtype, &presence_state.message);
 
