@@ -6143,7 +6143,7 @@ static int handle_hint_change(void *data)
 	struct ast_hint *hint = data;
 	struct ast_str *hint_app;
 	int state;
-	struct presencechange presence_state;
+	struct presencechange presence_state = {};
 
 	if (!(hint_app = ast_str_create(1024))) {
 		return -1;
