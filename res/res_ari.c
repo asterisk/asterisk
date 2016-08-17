@@ -694,10 +694,10 @@ void ast_ari_get_docs(const char *uri, const char *prefix, struct ast_variable *
 					obj, "basePath",
 					ast_json_stringf("http://%s/ari", host->value));
 			}
+		} else {
+			/* Without the host, we don't have the basePath */
+			ast_json_object_del(obj, "basePath");
 		}
-	} else {
-		/* Without the host, we don't have the basePath */
-		ast_json_object_del(obj, "basePath");
 	}
 
 	ast_ari_response_ok(response, obj);
