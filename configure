@@ -25697,7 +25697,7 @@ if test "x${PBX_PJ_SSL_CERT_LOAD_FROM_FILES2}" != "x1" -a "${USE_PJ_SSL_CERT_LOA
          pbxlibdir="-L${PJ_SSL_CERT_LOAD_FROM_FILES2_DIR}"
       fi
    fi
-   pbxfuncname="pjsip/include/pjsip/sip_util.h"
+   pbxfuncname="pj_ssl_cert_load_from_files2"
    if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
       AST_PJ_SSL_CERT_LOAD_FROM_FILES2_FOUND=yes
    else
