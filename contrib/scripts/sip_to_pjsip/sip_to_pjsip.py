@@ -467,6 +467,7 @@ peer_map = [
 #        bind
 #        async_operations
 #        ca_list_file
+#        ca_list_path
 #        cert_file
 #        privkey_file
 #        password
@@ -700,6 +701,12 @@ def set_tls_bindaddr(val, pjsip, nmapped):
     set_value('bind', bind, 'transport-tls', pjsip, nmapped, 'transport')
 
 
+def set_tls_cert_file(val, pjsip, section, nmapped):
+    """Sets cert_file based on sip.conf tlscertfile"""
+    set_value('cert_file', val, section, pjsip, nmapped,
+              'transport')
+
+
 def set_tls_private_key(val, pjsip, nmapped):
     """Sets privkey_file based on sip.conf tlsprivatekey or sslprivatekey"""
     set_value('priv_key_file', val, 'transport-tls', pjsip, nmapped,
@@ -714,6 +721,12 @@ def set_tls_cipher(val, pjsip, nmapped):
 def set_tls_cafile(val, pjsip, nmapped):
     """Sets ca_list_file based on sip.conf tlscafile"""
     set_value('ca_list_file', val, 'transport-tls', pjsip, nmapped,
+              'transport')
+
+
+def set_tls_capath(val, pjsip, nmapped):
+    """Sets ca_list_path based on sip.conf tlscapath"""
+    set_value('ca_list_path', val, 'transport-tls', pjsip, nmapped,
               'transport')
 
 
@@ -753,9 +766,11 @@ def create_tls(sip, pjsip, nmapped):
 
     tls_map = [
         (['tlsbindaddr', 'sslbindaddr'], set_tls_bindaddr),
+        (['tlscertfile', 'sslcert', 'tlscert'], set_tls_cert_file),
         (['tlsprivatekey', 'sslprivatekey'], set_tls_private_key),
         (['tlscipher', 'sslcipher'], set_tls_cipher),
         (['tlscafile'], set_tls_cafile),
+        (['tlscapath', 'tlscadir'], set_tls_capath),
         (['tlsverifyclient'], set_tls_verifyclient),
         (['tlsdontverifyserver'], set_tls_verifyserver)
     ]
