@@ -575,7 +575,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;
 ;tlsclientmethod=tlsv1     ; values include tlsv1, sslv3, sslv2.
                            ; Specify protocol for outbound client connections.
-                           ; If left unspecified, the default is sslv2.
+                           ; If left unspecified, the default is sslv23.
 ;
 ;--------------------------- SIP timers ----------------------------------------------------
 ; These timers are used primarily in INVITE transactions.
