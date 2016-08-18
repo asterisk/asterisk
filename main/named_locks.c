@@ -35,13 +35,17 @@ ASTERISK_REGISTER_FILE()
 struct ao2_container *named_locks;
 #define NAMED_LOCKS_BUCKETS 101
 
-struct ast_named_lock {
+struct named_lock_proxy {
+	AO2_WEAKPROXY();
 	char key[0];
+};
+
+struct ast_named_lock {
 };
 
 static int named_locks_hash(const void *obj, const int flags)
 {
-	const struct ast_named_lock *lock = obj;
+	const struct named_lock_proxy *lock = obj;
 
 	switch (flags & OBJ_SEARCH_MASK) {
 	case OBJ_SEARCH_KEY:
@@ -57,8 +61,8 @@ static int named_locks_hash(const void *obj, const int flags)
 
 static int named_locks_cmp(void *obj_left, void *obj_right, int flags)
 {
-	const struct ast_named_lock *object_left = obj_left;
-	const struct ast_named_lock *object_right = obj_right;
+	const struct named_lock_proxy *object_left = obj_left;
+	const struct named_lock_proxy *object_right = obj_right;
 	const char *right_key = obj_right;
 	int cmp;
 
@@ -98,31 +102,74 @@ int ast_named_locks_init(void)
 	return 0;
 }
 
+static void named_lock_proxy_cb(void *weakproxy, void *data)
+{
+	ao2_unlink(named_locks, weakproxy);
+}
+
 struct ast_named_lock *__ast_named_lock_get(const char *filename, int lineno, const char *func,
 	enum ast_named_lock_type lock_type, const char *keyspace, const char *key)
 {
+	struct named_lock_proxy *proxy = NULL;
 	struct ast_named_lock *lock = NULL;
-	int concat_key_buff_len = strlen(keyspace) + strlen(key) + 2;
-	char *concat_key = ast_alloca(concat_key_buff_len);
+	int keylen = strlen(keyspace) + strlen(key) + 2;
+	char *concat_key = ast_alloca(keylen);
 
 	sprintf(concat_key, "%s-%s", keyspace, key); /* Safe */
 
 	ao2_lock(named_locks);
-	lock = ao2_find(named_locks, concat_key, OBJ_SEARCH_KEY | OBJ_NOLOCK);
-	if (lock) {
+	proxy = ao2_find(named_locks, concat_key, OBJ_SEARCH_KEY | OBJ_NOLOCK);
+	if (proxy) {
 		ao2_unlock(named_locks);
-		ast_assert((ao2_options_get(lock) & AO2_ALLOC_OPT_LOCK_MASK) == lock_type);
-		return lock;
+		lock = __ao2_weakproxy_get_object(proxy, 0, __PRETTY_FUNCTION__, filename, lineno, func);
+
+		if (lock) {
+			/* We have an existing lock and it's not being destroyed. */
+			ao2_ref(proxy, -1);
+			ast_assert((ao2_options_get(lock) & AO2_ALLOC_OPT_LOCK_MASK) == lock_type);
+
+			return lock;
+		}
+
+		/* the old proxy is being destroyed, clean list before creating/adding new one */
+		ao2_lock(named_locks);
+		ao2_unlink_flags(named_locks, proxy, OBJ_NOLOCK);
+		ao2_ref(proxy, -1);
 	}
 
-	lock = ao2_alloc_options(sizeof(*lock) + concat_key_buff_len, NULL, lock_type);
-	if (lock) {
-		strcpy(lock->key, concat_key); /* Safe */
-		ao2_link_flags(named_locks, lock, OBJ_NOLOCK);
+	proxy = ao2_t_weakproxy_alloc(sizeof(*proxy) + keylen, NULL, concat_key);
+	if (!proxy) {
+		goto failure_cleanup;
 	}
+
+	lock = __ao2_alloc(sizeof(*lock) + keylen, NULL, lock_type, concat_key, filename, lineno, func);
+	if (!lock) {
+		goto failure_cleanup;
+	}
+
+	/* We have exclusive access to proxy and lock, no need for locking here. */
+	if (ao2_weakproxy_set_object(proxy, lock, OBJ_NOLOCK)) {
+		goto failure_cleanup;
+	}
+
+	if (ao2_weakproxy_subscribe(proxy, named_lock_proxy_cb, NULL, OBJ_NOLOCK)) {
+		goto failure_cleanup;
+	}
+
+	strcpy(proxy->key, concat_key); /* Safe */
+	ao2_link_flags(named_locks, proxy, OBJ_NOLOCK);
 	ao2_unlock(named_locks);
+	ao2_t_ref(proxy, -1, "Release allocation reference");
 
 	return lock;
+
+failure_cleanup:
+	ao2_unlock(named_locks);
+
+	ao2_cleanup(proxy);
+	ao2_cleanup(lock);
+
+	return NULL;
 }
 
 int __ast_named_lock_put(const char *filename, int lineno, const char *func,
@@ -132,11 +179,7 @@ int __ast_named_lock_put(const char *filename, int lineno, const char *func,
 		return -1;
 	}
 
-	ao2_lock(named_locks);
-	if (ao2_ref(lock, -1) == 2) {
-		ao2_unlink_flags(named_locks, lock, OBJ_NOLOCK);
-	}
-	ao2_unlock(named_locks);
+	__ao2_ref(lock, -1, __PRETTY_FUNCTION__, file, lineno, func);
 
 	return 0;
 }
