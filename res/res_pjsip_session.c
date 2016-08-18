@@ -2773,22 +2773,21 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 		}
 		break;
 	case PJSIP_EVENT_TRANSPORT_ERROR:
-		/*
-		 * Clear the module data now to block session_inv_on_state_changed()
-		 * from calling session_end() if it hasn't already done so.
-		 */
-		inv->mod_data[id] = NULL;
+		if (inv->state == PJSIP_INV_STATE_DISCONNECTED) {
+			/*
+			 * Clear the module data now to block session_inv_on_state_changed()
+			 * from calling session_end() if it hasn't already done so.
+			 */
+			inv->mod_data[id] = NULL;
 
-		if (inv->state != PJSIP_INV_STATE_DISCONNECTED) {
-			session_end(session);
+			/*
+			 * Pass the session ref held by session->inv_session to
+			 * session_end_completion().
+			 */
+			session_end_completion(session);
+			return;
 		}
-
-		/*
-		 * Pass the session ref held by session->inv_session to
-		 * session_end_completion().
-		 */
-		session_end_completion(session);
-		return;
+		break;
 	case PJSIP_EVENT_TIMER:
 		/*
 		 * The timer event is run by the pjsip monitor thread and not
@@ -2808,7 +2807,8 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 			 * Pass the session ref held by session->inv_session to
 			 * session_end_completion().
 			 */
-			if (ast_sip_push_task(session->serializer, session_end_completion, session)) {
+			if (session
+				&& ast_sip_push_task(session->serializer, session_end_completion, session)) {
 				/* Do it anyway even though this is not the right thread. */
 				session_end_completion(session);
 			}
