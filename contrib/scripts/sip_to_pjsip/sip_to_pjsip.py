@@ -54,10 +54,11 @@ def set_value(key=None, val=None, section=None, pjsip=None,
 
 
 def merge_value(key=None, val=None, section=None, pjsip=None,
-                nmapped=None, type='endpoint', section_to=None):
+                nmapped=None, type='endpoint', section_to=None,
+                key_to=None):
     """Merge values from the given section with those from the default."""
     def _merge_value(k, v, s, r, n):
-        merge_value(key if key else k, v, s, r, n, type, section_to)
+        merge_value(key if key else k, v, s, r, n, type, section_to, key_to)
 
     # if no value or section return the merge_value
     # function with the enclosed key and type
@@ -71,7 +72,8 @@ def merge_value(key=None, val=None, section=None, pjsip=None,
         sect = sip.default(section)[0]
     # for each merged value add it to pjsip.conf
     for i in sect.get_merged(key):
-        set_value(key, i, section_to if section_to else section,
+        set_value(key_to if key_to else key, i,
+                  section_to if section_to else section,
                   pjsip, nmapped, type)
 
 
@@ -454,9 +456,9 @@ peer_map = [
     ['permit',             merge_value(type='acl', section_to='acl')],
     ['deny',               merge_value(type='acl', section_to='acl')],
     ['acl',                merge_value(type='acl', section_to='acl')],
-    ['contactpermit',      merge_value('contact_permit', type='acl', section_to='acl')],
-    ['contactdeny',        merge_value('contact_deny', type='acl', section_to='acl')],
-    ['contactacl',         merge_value('contact_acl', type='acl', section_to='acl')],
+    ['contactpermit',      merge_value(type='acl', section_to='acl', key_to='contact_permit')],
+    ['contactdeny',        merge_value(type='acl', section_to='acl', key_to='contact_deny')],
+    ['contactacl',         merge_value(type='acl', section_to='acl', key_to='contact_acl')],
 
 ########################### maps to transport #################################
 #        type = transport
@@ -499,21 +501,6 @@ peer_map = [
 ]
 
 
-def add_localnet(section, pjsip, nmapped):
-    """
-    Adds localnet values from sip.conf's general section to a transport in
-    pjsip.conf. Ideally, we would have just created a template with the
-    localnet sections, but because this is a script, it's not hard to add
-    the same thing on to every transport.
-    """
-    try:
-        merge_value('local_net', sip.get('general', 'localnet')[0], 'general',
-                    pjsip, nmapped, 'transport', section)
-    except LookupError:
-        # No localnet options configured. No biggie!
-        pass
-
-
 def set_transport_common(section, pjsip, nmapped):
     """
     sip.conf has several global settings that in pjsip.conf apply to individual
@@ -527,8 +514,8 @@ def set_transport_common(section, pjsip, nmapped):
     """
 
     try:
-        merge_value('local_net', sip.get('general', 'localnet')[0], 'general',
-                    pjsip, nmapped, 'transport', section)
+        merge_value('localnet', sip.get('general', 'localnet')[0], 'general',
+                    pjsip, nmapped, 'transport', section, "local_net")
     except LookupError:
         # No localnet options configured. Move on.
         pass
