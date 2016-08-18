@@ -981,9 +981,8 @@ class Registration:
         if hasattr(self, 'secret') and self.secret:
             set_value('password', self.secret, auth_section, pjsip, nmapped,
                       'auth')
-            if hasattr(self, 'authuser'):
-                set_value('username', self.authuser or self.user, auth_section,
-                          pjsip, nmapped, 'auth')
+            set_value('username', self.authuser if hasattr(self, 'authuser')
+                      else self.user, auth_section, pjsip, nmapped, 'auth')
             set_value('outbound_auth', auth_section, section, pjsip, nmapped,
                       'registration')
 
