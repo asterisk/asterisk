@@ -797,7 +797,7 @@ def create_tls(sip, pjsip, nmapped):
         'sslv23' as default when unspecified, which gives TLSv1.0 and v1.2.
         """
         method = 'sslv23'
-    set_value('method', val, 'transport-tls', pjsip, nmapped, 'transport')
+    set_value('method', method, 'transport-tls', pjsip, nmapped, 'transport')
 
     set_transport_common('transport-tls', pjsip, nmapped)
     try:
