@@ -213,6 +213,11 @@ static int handle_incoming_sdp(struct ast_sip_session *session, const pjmedia_sd
 	int i;
 	int handled = 0;
 
+	if (session->inv_session && session->inv_session->state == PJSIP_INV_STATE_DISCONNECTED) {
+		ast_log(LOG_ERROR, "Failed to handle incoming SDP. Session has been already disconnected\n");
+		return -1;
+	}
+
 	for (i = 0; i < sdp->media_count; ++i) {
 		/* See if there are registered handlers for this media stream type */
 		char media[20];
@@ -2087,6 +2092,16 @@ static int new_invite(void *data)
 	 * so that we will be notified so we can destroy the session properly
 	 */
 
+	if (invite->session->inv_session->state == PJSIP_INV_STATE_DISCONNECTED) {
+		ast_log(LOG_ERROR, "Session already DISCONNECTED [reason=%d (%s)]\n",
+			invite->session->inv_session->cause,
+			pjsip_get_status_text(invite->session->inv_session->cause)->ptr);
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+		pjsip_inv_dec_ref(invite->session->inv_session);
+#endif
+		return -1;
+	}
+
 	switch (get_destination(invite->session, invite->rdata)) {
 	case SIP_GET_DEST_EXTEN_FOUND:
 		/* Things worked. Keep going */
@@ -2097,7 +2112,7 @@ static int new_invite(void *data)
 		} else  {
 			pjsip_inv_terminate(invite->session->inv_session, 416, PJ_TRUE);
 		}
-		return 0;
+		goto end;
 	case SIP_GET_DEST_EXTEN_NOT_FOUND:
 	case SIP_GET_DEST_EXTEN_PARTIAL:
 	default:
@@ -2110,7 +2125,7 @@ static int new_invite(void *data)
 		} else  {
 			pjsip_inv_terminate(invite->session->inv_session, 404, PJ_TRUE);
 		}
-		return 0;
+		goto end;
 	};
 
 	if ((sdp_info = pjsip_rdata_get_sdp_info(invite->rdata)) && (sdp_info->sdp_err == PJ_SUCCESS) && sdp_info->sdp) {
@@ -2120,7 +2135,7 @@ static int new_invite(void *data)
 			} else  {
 				pjsip_inv_terminate(invite->session->inv_session, 488, PJ_TRUE);
 			}
-			return 0;
+			goto end;
 		}
 		/* We are creating a local SDP which is an answer to their offer */
 		local = create_local_sdp(invite->session->inv_session, invite->session, sdp_info->sdp);
@@ -2136,7 +2151,7 @@ static int new_invite(void *data)
 		} else  {
 			pjsip_inv_terminate(invite->session->inv_session, 500, PJ_TRUE);
 		}
-		return 0;
+		goto end;
 	} else {
 		pjsip_inv_set_local_sdp(invite->session->inv_session, local);
 		pjmedia_sdp_neg_set_prefer_remote_codec_order(invite->session->inv_session->neg, PJ_FALSE);
@@ -2153,12 +2168,16 @@ static int new_invite(void *data)
 	/* At this point, we've verified what we can, so let's go ahead and send a 100 Trying out */
 	if (pjsip_inv_initial_answer(invite->session->inv_session, invite->rdata, 100, NULL, NULL, &tdata) != PJ_SUCCESS) {
 		pjsip_inv_terminate(invite->session->inv_session, 500, PJ_TRUE);
-		return 0;
+		goto end;
 	}
 	ast_sip_session_send_response(invite->session, tdata);
 
 	handle_incoming_request(invite->session, invite->rdata);
 
+end:
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+	pjsip_inv_dec_ref(invite->session->inv_session);
+#endif
 	return 0;
 }
 
@@ -2179,6 +2198,20 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 		return;
 	}
 
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+	if (pjsip_inv_add_ref(inv_session) != PJ_SUCCESS) {
+		ast_log(LOG_ERROR, "Can't increase the session reference counter\n");
+		if (inv_session->state != PJSIP_INV_STATE_DISCONNECTED) {
+			if (pjsip_inv_initial_answer(inv_session, rdata, 500, NULL, NULL, &tdata) == PJ_SUCCESS) {
+				pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
+			} else {
+				internal_pjsip_inv_send_msg(inv_session, endpoint->transport, tdata);
+			}
+		}
+		return;
+	}
+#endif
+
 	session = ast_sip_session_alloc(endpoint, NULL, inv_session, rdata);
 	if (!session) {
 		if (pjsip_inv_initial_answer(inv_session, rdata, 500, NULL, NULL, &tdata) == PJ_SUCCESS) {
@@ -2186,6 +2219,9 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 		} else {
 			internal_pjsip_inv_send_msg(inv_session, endpoint->transport, tdata);
 		}
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+		pjsip_inv_dec_ref(inv_session);
+#endif
 		return;
 	}
 
@@ -2196,6 +2232,9 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 		} else {
 			internal_pjsip_inv_send_msg(inv_session, endpoint->transport, tdata);
 		}
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+		pjsip_inv_dec_ref(inv_session);
+#endif
 		ao2_cleanup(invite);
 	}
 	ao2_ref(session, -1);
@@ -2467,8 +2506,9 @@ static void handle_outgoing(struct ast_sip_session *session, pjsip_tx_data *tdat
 	}
 }
 
-static void session_end(struct ast_sip_session *session)
+static int session_end(void *vsession)
 {
+	struct ast_sip_session *session = vsession;
 	struct ast_sip_session_supplement *iter;
 
 	/* Stop the scheduled termination */
@@ -2480,6 +2520,7 @@ static void session_end(struct ast_sip_session *session)
 			iter->session_end(session);
 		}
 	}
+	return 0;
 }
 
 /*!
@@ -2617,7 +2658,10 @@ static void session_inv_on_state_changed(pjsip_inv_session *inv, pjsip_event *e)
 	}
 
 	if (inv->state == PJSIP_INV_STATE_DISCONNECTED) {
-		session_end(session);
+		if (ast_sip_push_task(session->serializer, session_end, session)) {
+			/* Do it anyway even though this is not the right thread. */
+			session_end(session);
+		}
 	}
 }
 
@@ -2784,7 +2828,11 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 			 * Pass the session ref held by session->inv_session to
 			 * session_end_completion().
 			 */
-			session_end_completion(session);
+			if (session
+				&& ast_sip_push_task(session->serializer, session_end_completion, session)) {
+				/* Do it anyway even though this is not the right thread. */
+				session_end_completion(session);
+			}
 			return;
 		}
 		break;
@@ -2909,7 +2957,12 @@ static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv, stru
 	static const pj_str_t STR_IP6 = { "IP6", 3 };
 	pjmedia_sdp_session *local;
 
-	if (!(local = PJ_POOL_ZALLOC_T(inv->pool_prov, pjmedia_sdp_session))) {
+	if (inv->state == PJSIP_INV_STATE_DISCONNECTED) {
+		ast_log(LOG_ERROR, "Failed to create session SDP. Session has been already disconnected\n");
+		return NULL;
+	}
+
+	if (!inv->pool_prov || !(local = PJ_POOL_ZALLOC_T(inv->pool_prov, pjmedia_sdp_session))) {
 		return NULL;
 	}
 
