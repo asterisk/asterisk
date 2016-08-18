@@ -48,7 +48,7 @@
  * To use a named lock:
  * 	Call ast_named_lock_get with the appropriate keyspace and key.
  * 	Use the standard ao2 lock/unlock functions as needed.
- * 	Call ast_named_lock_put when you're finished with it.
+ * 	Call ao2_cleanup when you're finished with it.
  */
 
 /*!
@@ -65,9 +65,6 @@ struct ast_named_lock;
 
 struct ast_named_lock *__ast_named_lock_get(const char *filename, int lineno, const char *func,
 	enum ast_named_lock_type lock_type, const char *keyspace, const char *key);
-
-int __ast_named_lock_put(const char *filename, int lineno, const char *func,
-	struct ast_named_lock *lock);
 
 /*!
  * \brief Geta named lock handle
@@ -92,11 +89,8 @@ int __ast_named_lock_put(const char *filename, int lineno, const char *func,
  * \since 13.9.0
  *
  * \param lock The pointer to the ast_named_lock structure returned by ast_named_lock_get
- * \retval 0 Success
- * \retval -1 Failure
  */
-#define ast_named_lock_put(lock) \
-	__ast_named_lock_put(__FILE__, __LINE__, __PRETTY_FUNCTION__, lock)
+#define ast_named_lock_put(lock) ao2_cleanup(lock)
 
 /*!
  * @}
