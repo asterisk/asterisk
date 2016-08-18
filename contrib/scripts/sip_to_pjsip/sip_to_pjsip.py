@@ -133,11 +133,14 @@ def set_timers(key, val, section, pjsip, nmapped):
     found in sip.conf.
     """
     # pjsip.conf values can be yes/no, required, always
+    # 'required' is a new feature of chan_pjsip, which rejects
+    #            all SIP clients not supporting Session Timers
+    # 'Accept' is the default value of chan_sip and maps to 'yes'
+    # chan_sip ignores the case, for example 'session-timers=Refuse'
+    val = val.lower()
     if val == 'originate':
         set_value('timers', 'always', section, pjsip, nmapped)
-    elif val == 'accept':
-        set_value('timers', 'required', section, pjsip, nmapped)
-    elif val == 'never':
+    elif val == 'refuse':
         set_value('timers', 'no', section, pjsip, nmapped)
     else:
         set_value('timers', 'yes', section, pjsip, nmapped)
