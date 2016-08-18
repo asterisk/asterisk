@@ -907,6 +907,17 @@ class Registration:
         the right of the user, then finish by using rpartition calls to remove
         everything to the left of the user.
         """
+        self.peer = ''
+        self.protocol = 'udp'
+        protocols = ['udp', 'tcp', 'tls']
+        for protocol in protocols:
+            position = user_part.find(protocol + '://')
+            if -1 < position:
+                post_transport = user_part[position + 6:]
+                self.peer, sep, self.protocol = user_part[:position + 3].rpartition('?')
+                user_part = post_transport
+                break
+
         colons = user_part.count(':')
         if (colons == 3):
             # :domainport:secret:authuser
@@ -927,11 +938,7 @@ class Registration:
             # Invalid setting
             raise
 
-        pre_domain, sep, self.domain = pre_auth.partition('@')
-        self.peer, sep, post_peer = pre_domain.rpartition('?')
-        transport, sep, self.user = post_peer.rpartition('://')
-
-        self.protocol = transport if transport else 'udp'
+        self.user, sep, self.domain = pre_auth.partition('@')
 
     def write(self, pjsip, nmapped):
         """
