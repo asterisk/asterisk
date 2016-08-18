@@ -534,14 +534,14 @@ def set_transport_common(section, pjsip, nmapped):
         pass
 
     try:
-        set_value('tos', sip.get('general', 'sip_tos')[0], 'general', pjsip,
-                  nmapped, 'transport', section)
+        set_value('tos', sip.get('general', 'tos_sip')[0], section, pjsip,
+                  nmapped, 'transport')
     except LookupError:
         pass
 
     try:
-        set_value('cos', sip.get('general', 'sip_cos')[0], 'general', pjsip,
-                  nmapped, 'transport', section)
+        set_value('cos', sip.get('general', 'cos_sip')[0], section, pjsip,
+                  nmapped, 'transport')
     except LookupError:
         pass
 
