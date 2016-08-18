@@ -320,7 +320,7 @@ fin: __attribute__((unused))
 	return;
 }
 
-/*! \brief REST handler for /api-docs/deviceStates.{format} */
+/*! \brief REST handler for /api-docs/deviceStates.json */
 static struct stasis_rest_handlers deviceStates_deviceName = {
 	.path_segment = "deviceName",
 	.is_wildcard = 1,
@@ -332,7 +332,7 @@ static struct stasis_rest_handlers deviceStates_deviceName = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/deviceStates.{format} */
+/*! \brief REST handler for /api-docs/deviceStates.json */
 static struct stasis_rest_handlers deviceStates = {
 	.path_segment = "deviceStates",
 	.callbacks = {

@@ -1178,7 +1178,7 @@ fin: __attribute__((unused))
 	return;
 }
 
-/*! \brief REST handler for /api-docs/asterisk.{format} */
+/*! \brief REST handler for /api-docs/asterisk.json */
 static struct stasis_rest_handlers asterisk_config_dynamic_configClass_objectType_id = {
 	.path_segment = "id",
 	.is_wildcard = 1,
@@ -1190,7 +1190,7 @@ static struct stasis_rest_handlers asterisk_config_dynamic_configClass_objectTyp
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/asterisk.{format} */
+/*! \brief REST handler for /api-docs/asterisk.json */
 static struct stasis_rest_handlers asterisk_config_dynamic_configClass_objectType = {
 	.path_segment = "objectType",
 	.is_wildcard = 1,
@@ -1199,7 +1199,7 @@ static struct stasis_rest_handlers asterisk_config_dynamic_configClass_objectTyp
 	.num_children = 1,
 	.children = { &asterisk_config_dynamic_configClass_objectType_id, }
 };
-/*! \brief REST handler for /api-docs/asterisk.{format} */
+/*! \brief REST handler for /api-docs/asterisk.json */
 static struct stasis_rest_handlers asterisk_config_dynamic_configClass = {
 	.path_segment = "configClass",
 	.is_wildcard = 1,
@@ -1208,7 +1208,7 @@ static struct stasis_rest_handlers asterisk_config_dynamic_configClass = {
 	.num_children = 1,
 	.children = { &asterisk_config_dynamic_configClass_objectType, }
 };
-/*! \brief REST handler for /api-docs/asterisk.{format} */
+/*! \brief REST handler for /api-docs/asterisk.json */
 static struct stasis_rest_handlers asterisk_config_dynamic = {
 	.path_segment = "dynamic",
 	.callbacks = {
@@ -1216,7 +1216,7 @@ static struct stasis_rest_handlers asterisk_config_dynamic = {
 	.num_children = 1,
 	.children = { &asterisk_config_dynamic_configClass, }
 };
-/*! \brief REST handler for /api-docs/asterisk.{format} */
+/*! \brief REST handler for /api-docs/asterisk.json */
 static struct stasis_rest_handlers asterisk_config = {
 	.path_segment = "config",
 	.callbacks = {
@@ -1224,7 +1224,7 @@ static struct stasis_rest_handlers asterisk_config = {
 	.num_children = 1,
 	.children = { &asterisk_config_dynamic, }
 };
-/*! \brief REST handler for /api-docs/asterisk.{format} */
+/*! \brief REST handler for /api-docs/asterisk.json */
 static struct stasis_rest_handlers asterisk_info = {
 	.path_segment = "info",
 	.callbacks = {
@@ -1233,7 +1233,7 @@ static struct stasis_rest_handlers asterisk_info = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/asterisk.{format} */
+/*! \brief REST handler for /api-docs/asterisk.json */
 static struct stasis_rest_handlers asterisk_modules_moduleName = {
 	.path_segment = "moduleName",
 	.is_wildcard = 1,
@@ -1246,7 +1246,7 @@ static struct stasis_rest_handlers asterisk_modules_moduleName = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/asterisk.{format} */
+/*! \brief REST handler for /api-docs/asterisk.json */
 static struct stasis_rest_handlers asterisk_modules = {
 	.path_segment = "modules",
 	.callbacks = {
@@ -1255,7 +1255,7 @@ static struct stasis_rest_handlers asterisk_modules = {
 	.num_children = 1,
 	.children = { &asterisk_modules_moduleName, }
 };
-/*! \brief REST handler for /api-docs/asterisk.{format} */
+/*! \brief REST handler for /api-docs/asterisk.json */
 static struct stasis_rest_handlers asterisk_logging_logChannelName_rotate = {
 	.path_segment = "rotate",
 	.callbacks = {
@@ -1264,7 +1264,7 @@ static struct stasis_rest_handlers asterisk_logging_logChannelName_rotate = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/asterisk.{format} */
+/*! \brief REST handler for /api-docs/asterisk.json */
 static struct stasis_rest_handlers asterisk_logging_logChannelName = {
 	.path_segment = "logChannelName",
 	.is_wildcard = 1,
@@ -1275,7 +1275,7 @@ static struct stasis_rest_handlers asterisk_logging_logChannelName = {
 	.num_children = 1,
 	.children = { &asterisk_logging_logChannelName_rotate, }
 };
-/*! \brief REST handler for /api-docs/asterisk.{format} */
+/*! \brief REST handler for /api-docs/asterisk.json */
 static struct stasis_rest_handlers asterisk_logging = {
 	.path_segment = "logging",
 	.callbacks = {
@@ -1284,7 +1284,7 @@ static struct stasis_rest_handlers asterisk_logging = {
 	.num_children = 1,
 	.children = { &asterisk_logging_logChannelName, }
 };
-/*! \brief REST handler for /api-docs/asterisk.{format} */
+/*! \brief REST handler for /api-docs/asterisk.json */
 static struct stasis_rest_handlers asterisk_variable = {
 	.path_segment = "variable",
 	.callbacks = {
@@ -1294,7 +1294,7 @@ static struct stasis_rest_handlers asterisk_variable = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/asterisk.{format} */
+/*! \brief REST handler for /api-docs/asterisk.json */
 static struct stasis_rest_handlers asterisk = {
 	.path_segment = "asterisk",
 	.callbacks = {
