@@ -731,11 +731,6 @@ def set_tls_verifyserver(val, pjsip, nmapped):
                   'transport')
 
 
-def set_tls_method(val, pjsip, nmapped):
-    """Sets method based on sip.conf tlsclientmethod or sslclientmethod"""
-    set_value('method', val, 'transport-tls', pjsip, nmapped, 'transport')
-
-
 def create_tls(sip, pjsip, nmapped):
     """
     Creates a 'transport-tls' section in pjsip.conf based on the following
@@ -759,8 +754,7 @@ def create_tls(sip, pjsip, nmapped):
         (['tlscipher', 'sslcipher'], set_tls_cipher),
         (['tlscafile'], set_tls_cafile),
         (['tlsverifyclient'], set_tls_verifyclient),
-        (['tlsdontverifyserver'], set_tls_verifyserver),
-        (['tlsclientmethod', 'sslclientmethod'], set_tls_method)
+        (['tlsdontverifyserver'], set_tls_verifyserver)
     ]
 
     try:
@@ -779,6 +773,23 @@ def create_tls(sip, pjsip, nmapped):
             i[1](sip.multi_get('general', i[0])[0], pjsip, nmapped)
         except LookupError:
             pass
+
+    try:
+        method = sip.multi_get('general', ['tlsclientmethod', 'sslclientmethod'])[0]
+        print 'In chan_sip, you specified the TLS version. With chan_sip, this was just for outbound client connections. In chan_pjsip, this value is for client and server. Instead, consider not to specify \'tlsclientmethod\' for chan_sip and \'method = sslv23\' for chan_pjsip.'
+    except LookupError:
+        """
+        OpenSSL emerged during the 90s. SSLv2 and SSLv3 were the only
+        existing methods at that time. The OpenSSL project continued. And as
+        of today (OpenSSL 1.0.2) this does not start SSLv2 and SSLv3 anymore
+        but TLSv1.0 and v1.2. Or stated differently: This method should
+        have been called 'method = secure' or 'method = automatic' back in
+        the 90s. The PJProject did not realize this and uses 'tlsv1' as
+        default when unspecified, which disables TLSv1.2. chan_sip used
+        'sslv23' as default when unspecified, which gives TLSv1.0 and v1.2.
+        """
+        method = 'sslv23'
+    set_value('method', val, 'transport-tls', pjsip, nmapped, 'transport')
 
     set_transport_common('transport-tls', pjsip, nmapped)
     try:
