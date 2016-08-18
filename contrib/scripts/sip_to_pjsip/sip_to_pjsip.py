@@ -1083,6 +1083,35 @@ def find_non_mapped(sections, nmapped):
             pass
 
 
+def map_system(sip, pjsip, nmapped):
+    section = 'system' # Just a label; you as user can change that
+    type = 'system' # Not a label, therefore not the same as section
+
+    try:
+        user_agent = sip.get('general', 'useragent')[0]
+        set_value('user_agent', user_agent, 'global', pjsip, nmapped, 'global')
+    except LookupError:
+        pass
+
+    try:
+        timer_t1 = sip.get('general', 'timert1')[0]
+        set_value('timer_t1', timer_t1, section, pjsip, nmapped, type)
+    except LookupError:
+        pass
+
+    try:
+        timer_b = sip.get('general', 'timerb')[0]
+        set_value('timer_b', timer_b, section, pjsip, nmapped, type)
+    except LookupError:
+        pass
+
+    try:
+        compact_headers = sip.get('general', 'compactheaders')[0]
+        set_value('compact_headers', compact_headers, section, pjsip, nmapped, type)
+    except LookupError:
+        pass
+
+
 def convert(sip, filename, non_mappings, include):
     """
     Entry point for configuration file conversion. This
@@ -1095,6 +1124,7 @@ def convert(sip, filename, non_mappings, include):
     nmapped = non_mapped(non_mappings[filename])
     if not include:
         # Don't duplicate transport and registration configs
+        map_system(sip, pjsip, nmapped)
         map_transports(sip, pjsip, nmapped)
         map_registrations(sip, pjsip, nmapped)
     map_auth(sip, pjsip, nmapped)
