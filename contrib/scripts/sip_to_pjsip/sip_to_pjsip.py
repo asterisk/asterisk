@@ -440,6 +440,9 @@ peer_map = [
 
     ['host',               from_host],           # contact, max_contacts
     ['qualifyfreq',        set_value('qualify_frequency', type='aor')],
+    ['maxexpiry',          set_value('maximum_expiration', type='aor')],
+    ['minexpiry',          set_value('minimum_expiration', type='aor')],
+    ['defaultexpiry',      set_value('default_expiration', type='aor')],
 
 ############################# maps to auth#####################################
 #        type = auth
