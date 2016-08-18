@@ -487,6 +487,7 @@ AST_EXT_LIB_SETUP_OPTIONAL([PJ_SSL_CERT_LOAD_FROM_FILES2], [pj_ssl_cert_load_fro
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_EXTERNAL_RESOLVER], [PJSIP External Resolver Support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_TLS_TRANSPORT_PROTO], [PJSIP TLS Transport proto field support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_EVSUB_GRP_LOCK], [PJSIP EVSUB Group Lock support], [PJPROJECT], [pjsip])
+AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_INV_SESSION_REF], [PJSIP INVITE Session Reference Count support], [PJPROJECT], [pjsip])
 
 AST_EXT_LIB_SETUP([POPT], [popt], [popt])
 AST_EXT_LIB_SETUP([PORTAUDIO], [PortAudio], [portaudio])
@@ -2190,6 +2191,7 @@ if test "$USE_PJPROJECT" != "no" ; then
       CPPFLAGS="${saved_cppflags}"
 
       AST_EXT_LIB_CHECK([PJSIP_EVSUB_GRP_LOCK], [pjsip], [pjsip_evsub_add_ref], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
+      AST_EXT_LIB_CHECK([PJSIP_INV_SESSION_REF], [pjsip], [pjsip_inv_session_add_ref], [pjsip.h], [$PJPROJECT_LIB], [$PJPROJECT_CFLAGS])
    fi
 fi
 

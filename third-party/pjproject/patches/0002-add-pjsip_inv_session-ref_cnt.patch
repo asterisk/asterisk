@@ -1,0 +1,226 @@
+When a transport error occured on an INVITE session
+the pjproject calls on_tsx_state_changed with new
+state PJSIP_INV_STATE_DISCONNECTED and immediately
+destroys the INVITE session.
+At the same time this INVITE session could being
+processed on another thread.
+This thread could use the session's memory pools which
+were already freed, so we get segfault.
+
+This patch adds a reference counter and new functions:
+pjsip_inv_session_add_ref and pjsip_inv_session_dec_ref.
+The INVITE session is destroyed only when the reference
+counter has reached zero.
+
+To avoid race condition an application should call
+pjsip_inv_session_add_ref/pjsip_inv_session_dec_ref.
+
+
+Index: pjsip/include/pjsip/sip_errno.h
+===================================================================
+--- a/pjsip/include/pjsip/sip_errno.h	(revision 5422)
++++ b/pjsip/include/pjsip/sip_errno.h	(working copy)
+@@ -440,6 +440,12 @@
+  * transport.
+  */
+ #define PJSIP_ESESSIONINSECURE	(PJSIP_ERRNO_START_PJSIP+142)	/* 171142 */
++/**
++ * @hideinitializer
++ * This is not really an error, it just informs application that
++ * the session has been destroyed on return of pjsip_inv_session_dec_ref().
++ */
++#define PJSIP_ESESSIONDESTROYED	(PJSIP_ERRNO_START_PJSIP + 143)	/* 171143 */
+ 
+ /************************************************************
+  * TLS TRANSPORT ERRORS
+Index: pjsip/include/pjsip-ua/sip_inv.h
+===================================================================
+--- a/pjsip/include/pjsip-ua/sip_inv.h	(revision 5422)
++++ b/pjsip/include/pjsip-ua/sip_inv.h	(working copy)
+@@ -383,6 +383,11 @@
+  * Other applications that want to use these pools must understand
+  * that the flip-flop pool's lifetimes are synchronized to the
+  * SDP offer-answer negotiation.
++ *
++ * The lifetime of this session is controlled by the reference counter in this
++ * structure, which is manipulated by calling #pjsip_inv_session_add_ref and
++ * #pjsip_inv_session_dec_ref. When the reference counter has reached zero, then
++ * this session will be destroyed.
+  */
+ struct pjsip_inv_session
+ {
+@@ -412,6 +417,7 @@
+     struct pjsip_timer	*timer;			    /**< Session Timers.    */
+     pj_bool_t		 following_fork;	    /**< Internal, following
+ 							 forked media?	    */
++    pj_atomic_t		*ref_cnt;		    /**< Reference counter. */
+ };
+ 
+ 
+@@ -631,6 +637,28 @@
+ 
+ 
+ /**
++ * Add reference counter to the INVITE session. The reference counter controls
++ * the life time of the session, ie. when the counter reaches zero, then it 
++ * will be destroyed.
++ *
++ * @param inv       The INVITE session.
++ */
++PJ_DECL(void) pjsip_inv_session_add_ref( pjsip_inv_session *inv );
++
++/**
++ * Decrement reference counter of the INVITE session.
++ * When the session is no longer used, it will be destroyed and
++ * caller is informed with PJSIP_EBUFDESTROYED return status.
++ *
++ * @param inv       The INVITE session.
++ * @return          This function will always succeeded eventhough the return
++ *                  status is non-zero. A status PJSIP_ESESSIONDESTROYED will be
++ *                  returned to inform that session is destroyed.
++ */
++PJ_DECL(pj_status_t) pjsip_inv_session_dec_ref( pjsip_inv_session *inv );
++
++
++/**
+  * Forcefully terminate and destroy INVITE session, regardless of
+  * the state of the session. Note that this function should only be used
+  * when there is failure in the INVITE session creation. After the
+Index: pjsip/src/pjsip-ua/sip_inv.c
+===================================================================
+--- a/pjsip/src/pjsip-ua/sip_inv.c	(revision 5422)
++++ b/pjsip/src/pjsip-ua/sip_inv.c	(working copy)
+@@ -195,6 +195,62 @@
+ }
+ 
+ /*
++ * Add reference to INVITE session.
++ */
++PJ_DEF(void) pjsip_inv_session_add_ref( pjsip_inv_session *inv )
++{
++    pj_atomic_inc(inv->ref_cnt);
++}
++
++static void inv_session_destroy(pjsip_inv_session *inv)
++{
++    if (inv->last_ack) {
++    pjsip_tx_data_dec_ref(inv->last_ack);
++    inv->last_ack = NULL;
++    }
++    if (inv->invite_req) {
++    pjsip_tx_data_dec_ref(inv->invite_req);
++    inv->invite_req = NULL;
++    }
++    if (inv->pending_bye) {
++    pjsip_tx_data_dec_ref(inv->pending_bye);
++    inv->pending_bye = NULL;
++    }
++    pjsip_100rel_end_session(inv);
++    pjsip_timer_end_session(inv);
++    pjsip_dlg_dec_session(inv->dlg, &mod_inv.mod);
++
++    /* Release the flip-flop pools */
++    pj_pool_release(inv->pool_prov);
++    inv->pool_prov = NULL;
++    pj_pool_release(inv->pool_active);
++    inv->pool_active = NULL;
++
++    pj_atomic_destroy(inv->ref_cnt);
++    inv->ref_cnt = NULL;
++}
++
++/*
++ * Decrease INVITE session reference, destroy it when the reference count
++ * reaches zero.
++ */
++PJ_DEF(pj_status_t) pjsip_inv_session_dec_ref( pjsip_inv_session *inv )
++{
++    pj_atomic_value_t ref_cnt;
++
++    PJ_ASSERT_RETURN(inv && inv->ref_cnt, PJ_EINVAL);
++
++    ref_cnt = pj_atomic_dec_and_get(inv->ref_cnt);
++    pj_assert( ref_cnt >= 0);
++    if (ref_cnt == 0) {
++        inv_session_destroy(inv);
++        return PJSIP_ESESSIONDESTROYED;
++    } else {
++        return PJ_SUCCESS;
++    }
++}
++
++/*
+  * Set session state.
+  */
+ static void inv_set_state(pjsip_inv_session *inv, pjsip_inv_state state,
+@@ -261,27 +317,7 @@
+     if (inv->state == PJSIP_INV_STATE_DISCONNECTED &&
+ 	prev_state != PJSIP_INV_STATE_DISCONNECTED) 
+     {
+-	if (inv->last_ack) {
+-	    pjsip_tx_data_dec_ref(inv->last_ack);
+-	    inv->last_ack = NULL;
+-	}
+-	if (inv->invite_req) {
+-	    pjsip_tx_data_dec_ref(inv->invite_req);
+-	    inv->invite_req = NULL;
+-	}
+-	if (inv->pending_bye) {
+-	    pjsip_tx_data_dec_ref(inv->pending_bye);
+-	    inv->pending_bye = NULL;
+-	}
+-	pjsip_100rel_end_session(inv);
+-	pjsip_timer_end_session(inv);
+-	pjsip_dlg_dec_session(inv->dlg, &mod_inv.mod);
+-
+-	/* Release the flip-flop pools */
+-	pj_pool_release(inv->pool_prov);
+-	inv->pool_prov = NULL;
+-	pj_pool_release(inv->pool_active);
+-	inv->pool_active = NULL;
++	pjsip_inv_session_dec_ref(inv);
+     }
+ }
+ 
+@@ -838,6 +874,12 @@
+     inv = PJ_POOL_ZALLOC_T(dlg->pool, pjsip_inv_session);
+     pj_assert(inv != NULL);
+ 
++    status = pj_atomic_create(dlg->pool, 0, &inv->ref_cnt);
++    if (status != PJ_SUCCESS) {
++	pjsip_dlg_dec_lock(dlg);
++	return status;
++    }
++
+     inv->pool = dlg->pool;
+     inv->role = PJSIP_ROLE_UAC;
+     inv->state = PJSIP_INV_STATE_NULL;
+@@ -881,6 +923,7 @@
+     pjsip_100rel_attach(inv);
+ 
+     /* Done */
++    pjsip_inv_session_add_ref(inv);
+     *p_inv = inv;
+ 
+     pjsip_dlg_dec_lock(dlg);
+@@ -1471,6 +1514,12 @@
+     inv = PJ_POOL_ZALLOC_T(dlg->pool, pjsip_inv_session);
+     pj_assert(inv != NULL);
+ 
++    status = pj_atomic_create(dlg->pool, 0, &inv->ref_cnt);
++    if (status != PJ_SUCCESS) {
++	pjsip_dlg_dec_lock(dlg);
++	return status;
++    }
++
+     inv->pool = dlg->pool;
+     inv->role = PJSIP_ROLE_UAS;
+     inv->state = PJSIP_INV_STATE_NULL;
+@@ -1540,6 +1589,7 @@
+     }
+ 
+     /* Done */
++    pjsip_inv_session_add_ref(inv);
+     pjsip_dlg_dec_lock(dlg);
+     *p_inv = inv;
+ 
