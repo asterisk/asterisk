@@ -434,7 +434,7 @@ fin: __attribute__((unused))
 	return;
 }
 
-/*! \brief REST handler for /api-docs/endpoints.{format} */
+/*! \brief REST handler for /api-docs/endpoints.json */
 static struct stasis_rest_handlers endpoints_sendMessage = {
 	.path_segment = "sendMessage",
 	.callbacks = {
@@ -443,7 +443,7 @@ static struct stasis_rest_handlers endpoints_sendMessage = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/endpoints.{format} */
+/*! \brief REST handler for /api-docs/endpoints.json */
 static struct stasis_rest_handlers endpoints_tech_resource_sendMessage = {
 	.path_segment = "sendMessage",
 	.callbacks = {
@@ -452,7 +452,7 @@ static struct stasis_rest_handlers endpoints_tech_resource_sendMessage = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/endpoints.{format} */
+/*! \brief REST handler for /api-docs/endpoints.json */
 static struct stasis_rest_handlers endpoints_tech_resource = {
 	.path_segment = "resource",
 	.is_wildcard = 1,
@@ -462,7 +462,7 @@ static struct stasis_rest_handlers endpoints_tech_resource = {
 	.num_children = 1,
 	.children = { &endpoints_tech_resource_sendMessage, }
 };
-/*! \brief REST handler for /api-docs/endpoints.{format} */
+/*! \brief REST handler for /api-docs/endpoints.json */
 static struct stasis_rest_handlers endpoints_tech = {
 	.path_segment = "tech",
 	.is_wildcard = 1,
@@ -472,7 +472,7 @@ static struct stasis_rest_handlers endpoints_tech = {
 	.num_children = 1,
 	.children = { &endpoints_tech_resource, }
 };
-/*! \brief REST handler for /api-docs/endpoints.{format} */
+/*! \brief REST handler for /api-docs/endpoints.json */
 static struct stasis_rest_handlers endpoints = {
 	.path_segment = "endpoints",
 	.callbacks = {

@@ -1318,7 +1318,7 @@ fin: __attribute__((unused))
 	return;
 }
 
-/*! \brief REST handler for /api-docs/bridges.{format} */
+/*! \brief REST handler for /api-docs/bridges.json */
 static struct stasis_rest_handlers bridges_bridgeId_addChannel = {
 	.path_segment = "addChannel",
 	.callbacks = {
@@ -1327,7 +1327,7 @@ static struct stasis_rest_handlers bridges_bridgeId_addChannel = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/bridges.{format} */
+/*! \brief REST handler for /api-docs/bridges.json */
 static struct stasis_rest_handlers bridges_bridgeId_removeChannel = {
 	.path_segment = "removeChannel",
 	.callbacks = {
@@ -1336,7 +1336,7 @@ static struct stasis_rest_handlers bridges_bridgeId_removeChannel = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/bridges.{format} */
+/*! \brief REST handler for /api-docs/bridges.json */
 static struct stasis_rest_handlers bridges_bridgeId_moh = {
 	.path_segment = "moh",
 	.callbacks = {
@@ -1346,7 +1346,7 @@ static struct stasis_rest_handlers bridges_bridgeId_moh = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/bridges.{format} */
+/*! \brief REST handler for /api-docs/bridges.json */
 static struct stasis_rest_handlers bridges_bridgeId_play_playbackId = {
 	.path_segment = "playbackId",
 	.is_wildcard = 1,
@@ -1356,7 +1356,7 @@ static struct stasis_rest_handlers bridges_bridgeId_play_playbackId = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/bridges.{format} */
+/*! \brief REST handler for /api-docs/bridges.json */
 static struct stasis_rest_handlers bridges_bridgeId_play = {
 	.path_segment = "play",
 	.callbacks = {
@@ -1365,7 +1365,7 @@ static struct stasis_rest_handlers bridges_bridgeId_play = {
 	.num_children = 1,
 	.children = { &bridges_bridgeId_play_playbackId, }
 };
-/*! \brief REST handler for /api-docs/bridges.{format} */
+/*! \brief REST handler for /api-docs/bridges.json */
 static struct stasis_rest_handlers bridges_bridgeId_record = {
 	.path_segment = "record",
 	.callbacks = {
@@ -1374,7 +1374,7 @@ static struct stasis_rest_handlers bridges_bridgeId_record = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/bridges.{format} */
+/*! \brief REST handler for /api-docs/bridges.json */
 static struct stasis_rest_handlers bridges_bridgeId = {
 	.path_segment = "bridgeId",
 	.is_wildcard = 1,
@@ -1386,7 +1386,7 @@ static struct stasis_rest_handlers bridges_bridgeId = {
 	.num_children = 5,
 	.children = { &bridges_bridgeId_addChannel,&bridges_bridgeId_removeChannel,&bridges_bridgeId_moh,&bridges_bridgeId_play,&bridges_bridgeId_record, }
 };
-/*! \brief REST handler for /api-docs/bridges.{format} */
+/*! \brief REST handler for /api-docs/bridges.json */
 static struct stasis_rest_handlers bridges = {
 	.path_segment = "bridges",
 	.callbacks = {

@@ -2567,7 +2567,7 @@ fin: __attribute__((unused))
 	return;
 }
 
-/*! \brief REST handler for /api-docs/channels.{format} */
+/*! \brief REST handler for /api-docs/channels.json */
 static struct stasis_rest_handlers channels_channelId_continue = {
 	.path_segment = "continue",
 	.callbacks = {
@@ -2576,7 +2576,7 @@ static struct stasis_rest_handlers channels_channelId_continue = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/channels.{format} */
+/*! \brief REST handler for /api-docs/channels.json */
 static struct stasis_rest_handlers channels_channelId_redirect = {
 	.path_segment = "redirect",
 	.callbacks = {
@@ -2585,7 +2585,7 @@ static struct stasis_rest_handlers channels_channelId_redirect = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/channels.{format} */
+/*! \brief REST handler for /api-docs/channels.json */
 static struct stasis_rest_handlers channels_channelId_answer = {
 	.path_segment = "answer",
 	.callbacks = {
@@ -2594,7 +2594,7 @@ static struct stasis_rest_handlers channels_channelId_answer = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/channels.{format} */
+/*! \brief REST handler for /api-docs/channels.json */
 static struct stasis_rest_handlers channels_channelId_ring = {
 	.path_segment = "ring",
 	.callbacks = {
@@ -2604,7 +2604,7 @@ static struct stasis_rest_handlers channels_channelId_ring = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/channels.{format} */
+/*! \brief REST handler for /api-docs/channels.json */
 static struct stasis_rest_handlers channels_channelId_dtmf = {
 	.path_segment = "dtmf",
 	.callbacks = {
@@ -2613,7 +2613,7 @@ static struct stasis_rest_handlers channels_channelId_dtmf = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/channels.{format} */
+/*! \brief REST handler for /api-docs/channels.json */
 static struct stasis_rest_handlers channels_channelId_mute = {
 	.path_segment = "mute",
 	.callbacks = {
@@ -2623,7 +2623,7 @@ static struct stasis_rest_handlers channels_channelId_mute = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/channels.{format} */
+/*! \brief REST handler for /api-docs/channels.json */
 static struct stasis_rest_handlers channels_channelId_hold = {
 	.path_segment = "hold",
 	.callbacks = {
@@ -2633,7 +2633,7 @@ static struct stasis_rest_handlers channels_channelId_hold = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/channels.{format} */
+/*! \brief REST handler for /api-docs/channels.json */
 static struct stasis_rest_handlers channels_channelId_moh = {
 	.path_segment = "moh",
 	.callbacks = {
@@ -2643,7 +2643,7 @@ static struct stasis_rest_handlers channels_channelId_moh = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/channels.{format} */
+/*! \brief REST handler for /api-docs/channels.json */
 static struct stasis_rest_handlers channels_channelId_silence = {
 	.path_segment = "silence",
 	.callbacks = {
@@ -2653,7 +2653,7 @@ static struct stasis_rest_handlers channels_channelId_silence = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/channels.{format} */
+/*! \brief REST handler for /api-docs/channels.json */
 static struct stasis_rest_handlers channels_channelId_play_playbackId = {
 	.path_segment = "playbackId",
 	.is_wildcard = 1,
@@ -2663,7 +2663,7 @@ static struct stasis_rest_handlers channels_channelId_play_playbackId = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/channels.{format} */
+/*! \brief REST handler for /api-docs/channels.json */
 static struct stasis_rest_handlers channels_channelId_play = {
 	.path_segment = "play",
 	.callbacks = {
@@ -2672,7 +2672,7 @@ static struct stasis_rest_handlers channels_channelId_play = {
 	.num_children = 1,
 	.children = { &channels_channelId_play_playbackId, }
 };
-/*! \brief REST handler for /api-docs/channels.{format} */
+/*! \brief REST handler for /api-docs/channels.json */
 static struct stasis_rest_handlers channels_channelId_record = {
 	.path_segment = "record",
 	.callbacks = {
@@ -2681,7 +2681,7 @@ static struct stasis_rest_handlers channels_channelId_record = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/channels.{format} */
+/*! \brief REST handler for /api-docs/channels.json */
 static struct stasis_rest_handlers channels_channelId_variable = {
 	.path_segment = "variable",
 	.callbacks = {
@@ -2691,7 +2691,7 @@ static struct stasis_rest_handlers channels_channelId_variable = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/channels.{format} */
+/*! \brief REST handler for /api-docs/channels.json */
 static struct stasis_rest_handlers channels_channelId_snoop_snoopId = {
 	.path_segment = "snoopId",
 	.is_wildcard = 1,
@@ -2701,7 +2701,7 @@ static struct stasis_rest_handlers channels_channelId_snoop_snoopId = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/channels.{format} */
+/*! \brief REST handler for /api-docs/channels.json */
 static struct stasis_rest_handlers channels_channelId_snoop = {
 	.path_segment = "snoop",
 	.callbacks = {
@@ -2710,7 +2710,7 @@ static struct stasis_rest_handlers channels_channelId_snoop = {
 	.num_children = 1,
 	.children = { &channels_channelId_snoop_snoopId, }
 };
-/*! \brief REST handler for /api-docs/channels.{format} */
+/*! \brief REST handler for /api-docs/channels.json */
 static struct stasis_rest_handlers channels_channelId = {
 	.path_segment = "channelId",
 	.is_wildcard = 1,
@@ -2722,7 +2722,7 @@ static struct stasis_rest_handlers channels_channelId = {
 	.num_children = 13,
 	.children = { &channels_channelId_continue,&channels_channelId_redirect,&channels_channelId_answer,&channels_channelId_ring,&channels_channelId_dtmf,&channels_channelId_mute,&channels_channelId_hold,&channels_channelId_moh,&channels_channelId_silence,&channels_channelId_play,&channels_channelId_record,&channels_channelId_variable,&channels_channelId_snoop, }
 };
-/*! \brief REST handler for /api-docs/channels.{format} */
+/*! \brief REST handler for /api-docs/channels.json */
 static struct stasis_rest_handlers channels = {
 	.path_segment = "channels",
 	.callbacks = {
