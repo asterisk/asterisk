@@ -396,7 +396,7 @@ peer_map = [
     ['trustpid',           set_value('trust_id_inbound')],
     ['sendrpid',           from_sendrpid],       # send_pai, send_rpid
     ['send_diversion',     set_value],
-    ['encrpytion',         set_media_encryption],
+    ['encryption',         set_media_encryption],
     ['avpf',               set_value('use_avpf')],
     ['recordonfeature',    set_record_on_feature],  # automixon
     ['recordofffeature',   set_record_off_feature],  # automixon
