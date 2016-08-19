@@ -760,6 +760,8 @@
 ;rtp_timeout_hold= ; Hang up channel if RTP is not received for the specified
                    ; number of seconds when the channel is on hold (default:
                    ; "0" or not enabled)
+;contact_user= ; On outgoing requests, force the user portion of the Contact
+               ; header to this value (default: "")
 
 ;==========================AUTH SECTION OPTIONS=========================
 ;[auth]
