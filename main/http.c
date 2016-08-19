@@ -671,6 +671,8 @@ int ast_http_uri_link(struct ast_http_uri *urih)
 
 	AST_RWLIST_WRLOCK(&uris);
 
+	urih->prefix = prefix;
+
 	if ( AST_RWLIST_EMPTY(&uris) || strlen(AST_RWLIST_FIRST(&uris)->uri) <= len ) {
 		AST_RWLIST_INSERT_HEAD(&uris, urih, entry);
 		AST_RWLIST_UNLOCK(&uris);
