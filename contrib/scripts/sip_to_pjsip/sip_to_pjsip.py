@@ -691,9 +691,9 @@ def set_tls_bindaddr(val, pjsip, nmapped):
     set_value('bind', bind, 'transport-tls', pjsip, nmapped, 'transport')
 
 
-def set_tls_cert_file(val, pjsip, section, nmapped):
+def set_tls_cert_file(val, pjsip, nmapped):
     """Sets cert_file based on sip.conf tlscertfile"""
-    set_value('cert_file', val, section, pjsip, nmapped,
+    set_value('cert_file', val, 'transport-tls', pjsip, nmapped,
               'transport')
 
 
