@@ -270,7 +270,7 @@ fin: __attribute__((unused))
 	return;
 }
 
-/*! \brief REST handler for /api-docs/playbacks.{format} */
+/*! \brief REST handler for /api-docs/playbacks.json */
 static struct stasis_rest_handlers playbacks_playbackId_control = {
 	.path_segment = "control",
 	.callbacks = {
@@ -279,7 +279,7 @@ static struct stasis_rest_handlers playbacks_playbackId_control = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/playbacks.{format} */
+/*! \brief REST handler for /api-docs/playbacks.json */
 static struct stasis_rest_handlers playbacks_playbackId = {
 	.path_segment = "playbackId",
 	.is_wildcard = 1,
@@ -290,7 +290,7 @@ static struct stasis_rest_handlers playbacks_playbackId = {
 	.num_children = 1,
 	.children = { &playbacks_playbackId_control, }
 };
-/*! \brief REST handler for /api-docs/playbacks.{format} */
+/*! \brief REST handler for /api-docs/playbacks.json */
 static struct stasis_rest_handlers playbacks = {
 	.path_segment = "playbacks",
 	.callbacks = {

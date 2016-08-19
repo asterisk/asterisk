@@ -208,7 +208,7 @@ fin: __attribute__((unused))
 	return;
 }
 
-/*! \brief REST handler for /api-docs/sounds.{format} */
+/*! \brief REST handler for /api-docs/sounds.json */
 static struct stasis_rest_handlers sounds_soundId = {
 	.path_segment = "soundId",
 	.is_wildcard = 1,
@@ -218,7 +218,7 @@ static struct stasis_rest_handlers sounds_soundId = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/sounds.{format} */
+/*! \brief REST handler for /api-docs/sounds.json */
 static struct stasis_rest_handlers sounds = {
 	.path_segment = "sounds",
 	.callbacks = {

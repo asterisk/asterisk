@@ -326,7 +326,7 @@ fin: __attribute__((unused))
 	return;
 }
 
-/*! \brief REST handler for /api-docs/mailboxes.{format} */
+/*! \brief REST handler for /api-docs/mailboxes.json */
 static struct stasis_rest_handlers mailboxes_mailboxName = {
 	.path_segment = "mailboxName",
 	.is_wildcard = 1,
@@ -338,7 +338,7 @@ static struct stasis_rest_handlers mailboxes_mailboxName = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/mailboxes.{format} */
+/*! \brief REST handler for /api-docs/mailboxes.json */
 static struct stasis_rest_handlers mailboxes = {
 	.path_segment = "mailboxes",
 	.callbacks = {
