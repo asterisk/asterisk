@@ -755,6 +755,8 @@ struct ast_sip_endpoint {
 	struct ast_acl_list *contact_acl;
 	/*! The number of seconds into call to disable fax detection.  (0 = disabled) */
 	unsigned int faxdetect_timeout;
+	/*! Override the user on the outgoing Contact header with this value. */
+	char *contact_user;
 };
 
 /*!
