@@ -966,7 +966,9 @@ static int dtls_handler(const struct aco_option *opt,
 {
 	struct ast_sip_endpoint *endpoint = obj;
 	char *name = ast_strdupa(var->name);
-	char *front, *back, *buf = name;
+	char *front = NULL;
+	char *back = NULL;
+	char *buf = name;
 
 	/* strip out underscores in the name */
 	front = strtok_r(buf, "_", &back);
