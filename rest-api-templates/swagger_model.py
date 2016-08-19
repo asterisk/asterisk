@@ -688,7 +688,7 @@ class ResourceApi(Stringify):
     def load(self, api_json, processor, context):
         context = context.next_stack(api_json, 'path')
         validate_required_fields(api_json, self.required_fields, context)
-        self.path = api_json['path']
+        self.path = api_json['path'].replace('{format}', 'json')
         self.description = api_json['description']
 
         if not self.path or self.path[0] != '/':
@@ -697,7 +697,7 @@ class ResourceApi(Stringify):
         return self
 
     def load_api_declaration(self, base_dir, processor):
-        self.file = (base_dir + self.path).replace('{format}', 'json')
+        self.file = (base_dir + self.path)
         self.api_declaration = ApiDeclaration().load_file(self.file, processor)
         processor.process_resource_api(self, [self.file])
 

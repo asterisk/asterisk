@@ -737,7 +737,7 @@ fin: __attribute__((unused))
 	return;
 }
 
-/*! \brief REST handler for /api-docs/recordings.{format} */
+/*! \brief REST handler for /api-docs/recordings.json */
 static struct stasis_rest_handlers recordings_stored_recordingName_copy = {
 	.path_segment = "copy",
 	.callbacks = {
@@ -746,7 +746,7 @@ static struct stasis_rest_handlers recordings_stored_recordingName_copy = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/recordings.{format} */
+/*! \brief REST handler for /api-docs/recordings.json */
 static struct stasis_rest_handlers recordings_stored_recordingName = {
 	.path_segment = "recordingName",
 	.is_wildcard = 1,
@@ -757,7 +757,7 @@ static struct stasis_rest_handlers recordings_stored_recordingName = {
 	.num_children = 1,
 	.children = { &recordings_stored_recordingName_copy, }
 };
-/*! \brief REST handler for /api-docs/recordings.{format} */
+/*! \brief REST handler for /api-docs/recordings.json */
 static struct stasis_rest_handlers recordings_stored = {
 	.path_segment = "stored",
 	.callbacks = {
@@ -766,7 +766,7 @@ static struct stasis_rest_handlers recordings_stored = {
 	.num_children = 1,
 	.children = { &recordings_stored_recordingName, }
 };
-/*! \brief REST handler for /api-docs/recordings.{format} */
+/*! \brief REST handler for /api-docs/recordings.json */
 static struct stasis_rest_handlers recordings_live_recordingName_stop = {
 	.path_segment = "stop",
 	.callbacks = {
@@ -775,7 +775,7 @@ static struct stasis_rest_handlers recordings_live_recordingName_stop = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/recordings.{format} */
+/*! \brief REST handler for /api-docs/recordings.json */
 static struct stasis_rest_handlers recordings_live_recordingName_pause = {
 	.path_segment = "pause",
 	.callbacks = {
@@ -785,7 +785,7 @@ static struct stasis_rest_handlers recordings_live_recordingName_pause = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/recordings.{format} */
+/*! \brief REST handler for /api-docs/recordings.json */
 static struct stasis_rest_handlers recordings_live_recordingName_mute = {
 	.path_segment = "mute",
 	.callbacks = {
@@ -795,7 +795,7 @@ static struct stasis_rest_handlers recordings_live_recordingName_mute = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/recordings.{format} */
+/*! \brief REST handler for /api-docs/recordings.json */
 static struct stasis_rest_handlers recordings_live_recordingName = {
 	.path_segment = "recordingName",
 	.is_wildcard = 1,
@@ -806,7 +806,7 @@ static struct stasis_rest_handlers recordings_live_recordingName = {
 	.num_children = 3,
 	.children = { &recordings_live_recordingName_stop,&recordings_live_recordingName_pause,&recordings_live_recordingName_mute, }
 };
-/*! \brief REST handler for /api-docs/recordings.{format} */
+/*! \brief REST handler for /api-docs/recordings.json */
 static struct stasis_rest_handlers recordings_live = {
 	.path_segment = "live",
 	.callbacks = {
@@ -814,7 +814,7 @@ static struct stasis_rest_handlers recordings_live = {
 	.num_children = 1,
 	.children = { &recordings_live_recordingName, }
 };
-/*! \brief REST handler for /api-docs/recordings.{format} */
+/*! \brief REST handler for /api-docs/recordings.json */
 static struct stasis_rest_handlers recordings = {
 	.path_segment = "recordings",
 	.callbacks = {

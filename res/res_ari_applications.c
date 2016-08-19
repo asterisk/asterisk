@@ -496,7 +496,7 @@ fin: __attribute__((unused))
 	return;
 }
 
-/*! \brief REST handler for /api-docs/applications.{format} */
+/*! \brief REST handler for /api-docs/applications.json */
 static struct stasis_rest_handlers applications_applicationName_subscription = {
 	.path_segment = "subscription",
 	.callbacks = {
@@ -506,7 +506,7 @@ static struct stasis_rest_handlers applications_applicationName_subscription = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/applications.{format} */
+/*! \brief REST handler for /api-docs/applications.json */
 static struct stasis_rest_handlers applications_applicationName = {
 	.path_segment = "applicationName",
 	.is_wildcard = 1,
@@ -516,7 +516,7 @@ static struct stasis_rest_handlers applications_applicationName = {
 	.num_children = 1,
 	.children = { &applications_applicationName_subscription, }
 };
-/*! \brief REST handler for /api-docs/applications.{format} */
+/*! \brief REST handler for /api-docs/applications.json */
 static struct stasis_rest_handlers applications = {
 	.path_segment = "applications",
 	.callbacks = {
