@@ -388,8 +388,6 @@ peer_map = [
     ['session-timers',     set_timers],          # timers
     ['session-minse',      set_value('timers_min_se')],
     ['session-expires',    set_value('timers_sess_expires')],
-    ['externip',           set_value('external_media_address')],
-    ['externhost',         set_value('external_media_address')],
     # identify_by ?
     ['directmedia',        set_direct_media],    # direct_media
                                                  # direct_media_method
@@ -592,6 +590,8 @@ def create_udp(sip, pjsip, nmapped):
         extern_addr = sip.multi_get('general', ['externaddr', 'externip',
                                     'externhost'])[0]
         host, port = split_hostport(extern_addr)
+        set_value('external_media_address', host, 'transport-udp', pjsip,
+                  nmapped, 'transport')
         set_value('external_signaling_address', host, 'transport-udp', pjsip,
                   nmapped, 'transport')
         if port:
@@ -639,6 +639,8 @@ def create_tcp(sip, pjsip, nmapped):
             tcpport = sip.get('general', 'externtcpport')[0]
         except:
             tcpport = port
+        set_value('external_media_address', host, 'transport-tcp', pjsip,
+                  nmapped, 'transport')
         set_value('external_signaling_address', host, 'transport-tcp', pjsip,
                   nmapped, 'transport')
         if tcpport:
@@ -808,6 +810,8 @@ def create_tls(sip, pjsip, nmapped):
             tlsport = sip.get('general', 'externtlsport')[0]
         except:
             tlsport = port
+        set_value('external_media_address', host, 'transport-tls', pjsip,
+                  nmapped, 'transport')
         set_value('external_signaling_address', host, 'transport-tls', pjsip,
                   nmapped, 'transport')
         if tlsport:
