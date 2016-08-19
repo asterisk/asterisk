@@ -592,7 +592,16 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;
 ;tlsclientmethod=tlsv1     ; values include tlsv1, sslv3, sslv2.
                            ; Specify protocol for outbound client connections.
-                           ; If left unspecified, the default is sslv2.
+                           ; If left unspecified, the default is the general-
+                           ; purpose version-flexible SSL/TLS method (sslv23).
+                           ; With that, the actual protocol version used will
+                           ; be negotiated to the highest version mutually
+                           ; supported by Asterisk and the remote server, i.e.
+                           ; TLSv1.2. The supported protocols are listed at
+                           ; http://www.openssl.org/docs/ssl/SSL_CTX_new.html
+                           ; SSLv2 and SSLv3 are disabled within Asterisk.
+                           ; Your distribution might have changed that list
+                           ; further.
 ;
 ;--------------------------- SIP timers ----------------------------------------------------
 ; These timers are used primarily in INVITE transactions.
