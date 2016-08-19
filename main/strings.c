@@ -53,7 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  *	ast_str_append_va(...)
  */
 
-#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+#ifdef __AST_DEBUG_MALLOC
 int __ast_debug_str_helper(struct ast_str **buf, ssize_t max_len,
 	int append, const char *fmt, va_list ap, const char *file, int lineno, const char *function)
 #else
@@ -112,7 +112,7 @@ int __ast_str_helper(struct ast_str **buf, ssize_t max_len,
 		}
 
 		if (
-#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+#ifdef __AST_DEBUG_MALLOC
 			_ast_str_make_space(buf, need, file, lineno, function)
 #else
 			ast_str_make_space(buf, need)

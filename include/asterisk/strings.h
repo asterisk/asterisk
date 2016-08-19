@@ -616,7 +616,7 @@ int ast_regex_string_to_regex_pattern(const char *regex_string, struct ast_str *
  * \note The result of this function is dynamically allocated memory, and must
  *       be free()'d after it is no longer needed.
  */
-#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+#ifdef __AST_DEBUG_MALLOC
 #define	ast_str_create(a)	_ast_str_create(a,__FILE__,__LINE__,__PRETTY_FUNCTION__)
 AST_INLINE_API(
 struct ast_str * attribute_malloc _ast_str_create(size_t init_len,
@@ -771,7 +771,7 @@ char *ast_str_truncate(struct ast_str *buf, ssize_t len),
 /*!
  * Make space in a new string (e.g. to read in data from a file)
  */
-#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+#ifdef __AST_DEBUG_MALLOC
 AST_INLINE_API(
 int _ast_str_make_space(struct ast_str **buf, size_t new_len, const char *file, int lineno, const char *function),
 {
@@ -964,7 +964,7 @@ enum {
  *       through calling one of the other functions or macros defined in this
  *       file.
  */
-#if (defined(MALLOC_DEBUG) && !defined(STANDALONE))
+#ifdef __AST_DEBUG_MALLOC
 int __attribute__((format(printf, 4, 0))) __ast_debug_str_helper(struct ast_str **buf, ssize_t max_len,
 							   int append, const char *fmt, va_list ap, const char *file, int lineno, const char *func);
 #define __ast_str_helper(a,b,c,d,e)	__ast_debug_str_helper(a,b,c,d,e,__FILE__,__LINE__,__PRETTY_FUNCTION__)

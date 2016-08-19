@@ -35,7 +35,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/strings.h"
 #include "asterisk/utils.h"
 
-#ifdef MALLOC_DEBUG
+#ifdef __AST_DEBUG_MALLOC
 struct ast_var_t *_ast_var_assign(const char *name, const char *value, const char *file, int lineno, const char *function)
 #else
 struct ast_var_t *ast_var_assign(const char *name, const char *value)
@@ -45,7 +45,7 @@ struct ast_var_t *ast_var_assign(const char *name, const char *value)
 	int name_len = strlen(name) + 1;
 	int value_len = strlen(value) + 1;
 
-#ifdef MALLOC_DEBUG
+#ifdef __AST_DEBUG_MALLOC
 	if (!(var = __ast_calloc(sizeof(*var) + name_len + value_len, sizeof(char), file, lineno, function))) {
 #else
 	if (!(var = ast_calloc(sizeof(*var) + name_len + value_len, sizeof(char)))) {

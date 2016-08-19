@@ -907,7 +907,7 @@ void ast_category_destroy(struct ast_category *cat);
 struct ast_variable *ast_category_detach_variables(struct ast_category *cat);
 void ast_category_rename(struct ast_category *cat, const char *name);
 
-#ifdef MALLOC_DEBUG
+#ifdef __AST_DEBUG_MALLOC
 struct ast_variable *_ast_variable_new(const char *name, const char *value, const char *filename, const char *file, const char *function, int lineno);
 #define ast_variable_new(a, b, c) _ast_variable_new(a, b, c, __FILE__, __PRETTY_FUNCTION__, __LINE__)
 #else
