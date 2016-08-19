@@ -408,7 +408,7 @@ fin: __attribute__((unused))
 	return;
 }
 
-/*! \brief REST handler for /api-docs/events.{format} */
+/*! \brief REST handler for /api-docs/events.json */
 static struct stasis_rest_handlers events_user_eventName = {
 	.path_segment = "eventName",
 	.is_wildcard = 1,
@@ -418,7 +418,7 @@ static struct stasis_rest_handlers events_user_eventName = {
 	.num_children = 0,
 	.children = {  }
 };
-/*! \brief REST handler for /api-docs/events.{format} */
+/*! \brief REST handler for /api-docs/events.json */
 static struct stasis_rest_handlers events_user = {
 	.path_segment = "user",
 	.callbacks = {
@@ -426,7 +426,7 @@ static struct stasis_rest_handlers events_user = {
 	.num_children = 1,
 	.children = { &events_user_eventName, }
 };
-/*! \brief REST handler for /api-docs/events.{format} */
+/*! \brief REST handler for /api-docs/events.json */
 static struct stasis_rest_handlers events = {
 	.path_segment = "events",
 	.callbacks = {
