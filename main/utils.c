@@ -2369,7 +2369,7 @@ int ast_parse_digest(const char *digest, struct ast_http_digest *d, int request,
 }
 
 #ifndef __AST_DEBUG_MALLOC
-int _ast_asprintf(char **ret, const char *file, int lineno, const char *func, const char *fmt, ...)
+int __ast_asprintf(const char *file, int lineno, const char *func, char **ret, const char *fmt, ...)
 {
 	int res;
 	va_list ap;

@@ -174,34 +174,10 @@ void __ast_mm_init_phase_2(void);
 
 #endif
 
-/* Provide our own definitions */
-
-#define ast_calloc(a,b) \
-	__ast_calloc(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
-
-#define ast_calloc_cache(a,b) \
-	__ast_calloc_cache(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
-
-#define ast_malloc(a) \
-	__ast_malloc(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+/* Provide our own definition for ast_free */
 
 #define ast_free(a) \
 	__ast_free(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
-
-#define ast_realloc(a,b) \
-	__ast_realloc(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
-
-#define ast_strdup(a) \
-	__ast_strdup(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)
-
-#define ast_strndup(a,b) \
-	__ast_strndup(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
-
-#define ast_asprintf(a, b, c...) \
-	__ast_asprintf(__FILE__, __LINE__, __PRETTY_FUNCTION__, a, b, c)
-
-#define ast_vasprintf(a,b,c) \
-	__ast_vasprintf(a,b,c,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #endif /* !STANDALONE */
 
