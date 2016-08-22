@@ -25,7 +25,7 @@
 
 /*** MODULEINFO
 	<support_level>extended</support_level>
-	<defaultenabled>no</defaultenabled>
+	<defaultenabled>yes</defaultenabled>
  ***/
 
 #include "asterisk.h"
