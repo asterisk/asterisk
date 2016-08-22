@@ -2694,12 +2694,15 @@ static struct ast_frame *fax_gateway_detect_v21(struct fax_gateway *gateway, str
 	return f;
 }
 
-static int fax_gateway_indicate_t38(struct ast_channel *chan, struct ast_channel *active, struct ast_control_t38_parameters *control_params)
+/*! \pre chan is locked on entry */
+static void fax_gateway_indicate_t38(struct ast_channel *chan, struct ast_channel *active, struct ast_control_t38_parameters *control_params)
 {
 	if (active == chan) {
-		return ast_indicate_data(chan, AST_CONTROL_T38_PARAMETERS, control_params, sizeof(*control_params));
+		ast_channel_unlock(chan);
+		ast_indicate_data(chan, AST_CONTROL_T38_PARAMETERS, control_params, sizeof(*control_params));
+		ast_channel_lock(chan);
 	} else {
-		return ast_queue_control_data(chan, AST_CONTROL_T38_PARAMETERS, control_params, sizeof(*control_params));
+		ast_queue_control_data(chan, AST_CONTROL_T38_PARAMETERS, control_params, sizeof(*control_params));
 	}
 }
 
