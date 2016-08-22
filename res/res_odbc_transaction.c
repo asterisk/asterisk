@@ -26,6 +26,7 @@
 #include "asterisk/module.h"
 
 /*** MODULEINFO
+	<depend>generic_odbc</depend>
 	<support_level>core</support_level>
  ***/
 
