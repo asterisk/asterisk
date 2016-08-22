@@ -101,6 +101,7 @@ struct ast_http_uri {
 	AST_LIST_ENTRY(ast_http_uri) entry;
 	const char *description;
 	const char *uri;
+	const char *prefix;
 	ast_http_callback callback;
 	unsigned int has_subtree:1;
 	/*! Structure is malloc'd */
