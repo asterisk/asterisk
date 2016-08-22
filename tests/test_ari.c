@@ -218,7 +218,7 @@ AST_TEST_DEFINE(get_docs)
 
 	response = response_alloc();
 	headers = ast_variable_new("Host", "stasis.asterisk.org", __FILE__);
-	ast_ari_get_docs("resources.json", headers, response);
+	ast_ari_get_docs("resources.json", "", headers, response);
 	ast_test_validate(test, 200 == response->response_code);
 
 	/* basePath should be relative to the Host header */
@@ -248,7 +248,7 @@ AST_TEST_DEFINE(get_docs_nohost)
 	}
 
 	response = response_alloc();
-	ast_ari_get_docs("resources.json", headers, response);
+	ast_ari_get_docs("resources.json",  "", headers, response);
 	ast_test_validate(test, 200 == response->response_code);
 
 	/* basePath should be relative to the Host header */
@@ -275,7 +275,7 @@ AST_TEST_DEFINE(get_docs_notfound)
 	}
 
 	response = response_alloc();
-	ast_ari_get_docs("i-am-not-a-resource.json", headers, response);
+	ast_ari_get_docs("i-am-not-a-resource.json", "", headers, response);
 	ast_test_validate(test, 404 == response->response_code);
 
 	return AST_TEST_PASS;
@@ -298,7 +298,7 @@ AST_TEST_DEFINE(get_docs_hackerz)
 	}
 
 	response = response_alloc();
-	ast_ari_get_docs("../../../../sbin/asterisk", headers, response);
+	ast_ari_get_docs("../../../../sbin/asterisk", "", headers, response);
 	ast_test_validate(test, 404 == response->response_code);
 
 	return AST_TEST_PASS;
