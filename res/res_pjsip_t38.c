@@ -501,25 +501,27 @@ static void t38_attach_framehook(struct ast_sip_session *session)
 		return;
 	}
 
-	/* Skip attaching the framehook if the T.38 datastore already exists for the channel */
 	ast_channel_lock(session->channel);
-	if ((datastore = ast_channel_datastore_find(session->channel, &t38_framehook_datastore, NULL))) {
+
+	/* Skip attaching the framehook if the T.38 datastore already exists for the channel */
+	datastore = ast_channel_datastore_find(session->channel, &t38_framehook_datastore,
+		NULL);
+	if (datastore) {
 		ast_channel_unlock(session->channel);
 		return;
 	}
-	ast_channel_unlock(session->channel);
 
 	framehook_id = ast_framehook_attach(session->channel, &hook);
 	if (framehook_id < 0) {
-		ast_log(LOG_WARNING, "Could not attach T.38 Frame hook to channel, T.38 will be unavailable on '%s'\n",
+		ast_log(LOG_WARNING, "Could not attach T.38 Frame hook, T.38 will be unavailable on '%s'\n",
 			ast_channel_name(session->channel));
+		ast_channel_unlock(session->channel);
 		return;
 	}
 
-	ast_channel_lock(session->channel);
 	datastore = ast_datastore_alloc(&t38_framehook_datastore, NULL);
 	if (!datastore) {
-		ast_log(LOG_ERROR, "Could not attach T.38 Frame hook to channel, T.38 will be unavailable on '%s'\n",
+		ast_log(LOG_ERROR, "Could not alloc T.38 Frame hook datastore, T.38 will be unavailable on '%s'\n",
 			ast_channel_name(session->channel));
 		ast_framehook_detach(session->channel, framehook_id);
 		ast_channel_unlock(session->channel);
