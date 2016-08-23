@@ -3001,8 +3001,14 @@ static struct ast_frame *fax_gateway_detect_v21(struct fax_gateway *gateway, str
 	}
 
 	if (gateway->detected_v21) {
+		enum ast_t38_state state_other;
+
 		destroy_v21_sessions(gateway);
-		if (ast_channel_get_t38_state(other) == T38_STATE_UNKNOWN) {
+
+		ast_channel_unlock(chan);
+		state_other = ast_channel_get_t38_state(other);
+		ast_channel_lock(chan);
+		if (state_other == T38_STATE_UNKNOWN) {
 			ast_debug(1, "detected v21 preamble from %s\n", ast_channel_name(active));
 			return fax_gateway_request_t38(gateway, chan, f);
 		} else {
@@ -3043,6 +3049,7 @@ static struct ast_frame *fax_gateway_detect_t38(struct fax_gateway *gateway, str
 	struct ast_control_t38_parameters *control_params = f->data.ptr;
 	struct ast_channel *other = (active == chan) ? peer : chan;
 	struct ast_fax_session_details *details;
+	enum ast_t38_state state_other;
 
 	if (f->datalen != sizeof(struct ast_control_t38_parameters)) {
 		/* invalaid AST_CONTROL_T38_PARAMETERS frame, we can't
@@ -3065,9 +3072,11 @@ static struct ast_frame *fax_gateway_detect_t38(struct fax_gateway *gateway, str
 	}
 
 	if (control_params->request_response == AST_T38_REQUEST_NEGOTIATE) {
-		enum ast_t38_state state = ast_channel_get_t38_state(other);
+		ast_channel_unlock(chan);
+		state_other = ast_channel_get_t38_state(other);
+		ast_channel_lock(chan);
 
-		if (state == T38_STATE_UNKNOWN) {
+		if (state_other == T38_STATE_UNKNOWN) {
 			/* we detected a request to negotiate T.38 and the
 			 * other channel appears to support T.38, we'll pass
 			 * the request through and only step in if the other
@@ -3080,7 +3089,7 @@ static struct ast_frame *fax_gateway_detect_t38(struct fax_gateway *gateway, str
 			details->gateway_timeout = FAX_GATEWAY_TIMEOUT;
 			ao2_ref(details, -1);
 			return f;
-		} else if (state == T38_STATE_UNAVAILABLE || state == T38_STATE_REJECTED) {
+		} else if (state_other == T38_STATE_UNAVAILABLE || state_other == T38_STATE_REJECTED) {
 			/* the other channel does not support T.38, we need to
 			 * step in here */
 			ast_debug(1, "%s is attempting to negotiate T.38 but %s does not support it\n", ast_channel_name(active), ast_channel_name(other));
@@ -3160,7 +3169,10 @@ static struct ast_frame *fax_gateway_detect_t38(struct fax_gateway *gateway, str
 		/* our request to negotiate T.38 was refused, if the other
 		 * channel supports T.38, they might still reinvite and save
 		 * the day.  Otherwise disable the gateway. */
-		if (ast_channel_get_t38_state(other) == T38_STATE_UNKNOWN) {
+		ast_channel_unlock(chan);
+		state_other = ast_channel_get_t38_state(other);
+		ast_channel_lock(chan);
+		if (state_other == T38_STATE_UNKNOWN) {
 			gateway->t38_state = T38_STATE_UNAVAILABLE;
 		} else {
 			ast_framehook_detach(chan, details->gateway_id);
@@ -3366,8 +3378,16 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 	}
 
 	if (!gateway->bridged) {
+		enum ast_t38_state state_chan;
+		enum ast_t38_state state_peer;
+
+		ast_channel_unlock(chan);
+		state_chan = ast_channel_get_t38_state(chan);
+		state_peer = ast_channel_get_t38_state(peer);
+		ast_channel_lock(chan);
+
 		/* don't start a gateway if neither channel can handle T.38 */
-		if (ast_channel_get_t38_state(chan) == T38_STATE_UNAVAILABLE && ast_channel_get_t38_state(peer) == T38_STATE_UNAVAILABLE) {
+		if (state_chan == T38_STATE_UNAVAILABLE && state_peer == T38_STATE_UNAVAILABLE) {
 			ast_debug(1, "not starting gateway for %s and %s; neither channel supports T.38\n", ast_channel_name(chan), ast_channel_name(peer));
 			ast_framehook_detach(chan, gateway->framehook);
 			details->gateway_id = -1;
