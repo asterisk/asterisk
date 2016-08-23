@@ -5875,6 +5875,38 @@ static void copy_socket_data(struct sip_socket *to_sock, const struct sip_socket
 	*to_sock = *from_sock;
 }
 
+/*! Cleanup the RTP and SRTP portions of a dialog
+ *
+ * \note This procedure excludes vsrtp as it is initialized differently.
+ */
+static void dialog_clean_rtp(struct sip_pvt *p)
+{
+	if (p->rtp) {
+		ast_rtp_instance_destroy(p->rtp);
+		p->rtp = NULL;
+	}
+
+	if (p->vrtp) {
+		ast_rtp_instance_destroy(p->vrtp);
+		p->vrtp = NULL;
+	}
+
+	if (p->trtp) {
+		ast_rtp_instance_destroy(p->trtp);
+		p->trtp = NULL;
+	}
+
+	if (p->srtp) {
+		ast_sdp_srtp_destroy(p->srtp);
+		p->srtp = NULL;
+	}
+
+	if (p->tsrtp) {
+		ast_sdp_srtp_destroy(p->tsrtp);
+		p->tsrtp = NULL;
+	}
+}
+
 /*! \brief Initialize DTLS-SRTP support on an RTP instance */
 static int dialog_initialize_dtls_srtp(const struct sip_pvt *dialog, struct ast_rtp_instance *rtp, struct ast_sdp_srtp **srtp)
 {
@@ -5927,6 +5959,9 @@ static int dialog_initialize_rtp(struct sip_pvt *dialog)
 	} else {
 		ast_sockaddr_copy(&bindaddr_tmp, &bindaddr);
 	}
+
+	/* Make sure previous RTP instances/FD's do not leak */
+	dialog_clean_rtp(dialog);
 
 	if (!(dialog->rtp = ast_rtp_instance_new(dialog->engine, sched, &bindaddr_tmp, NULL))) {
 		return -1;
@@ -6603,18 +6638,10 @@ static void sip_pvt_dtor(void *vdoomed)
 		ast_free(p->notify);
 		p->notify = NULL;
 	}
-	if (p->rtp) {
-		ast_rtp_instance_destroy(p->rtp);
-		p->rtp = NULL;
-	}
-	if (p->vrtp) {
-		ast_rtp_instance_destroy(p->vrtp);
-		p->vrtp = NULL;
-	}
-	if (p->trtp) {
-		ast_rtp_instance_destroy(p->trtp);
-		p->trtp = NULL;
-	}
+
+	/* Free RTP and SRTP instances */
+	dialog_clean_rtp(p);
+
 	if (p->udptl) {
 		ast_udptl_destroy(p->udptl);
 		p->udptl = NULL;
@@ -6647,19 +6674,9 @@ static void sip_pvt_dtor(void *vdoomed)
 
 	destroy_msg_headers(p);
 
-	if (p->srtp) {
-		ast_sdp_srtp_destroy(p->srtp);
-		p->srtp = NULL;
-	}
-
 	if (p->vsrtp) {
 		ast_sdp_srtp_destroy(p->vsrtp);
 		p->vsrtp = NULL;
-	}
-
-	if (p->tsrtp) {
-		ast_sdp_srtp_destroy(p->tsrtp);
-		p->tsrtp = NULL;
 	}
 
 	if (p->directmediaacl) {
