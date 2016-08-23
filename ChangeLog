@@ -1,3 +1,38 @@
+2016-08-23 15:51 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/11.6-cert14-rc2 Released.
+
+2016-08-23 10:50 +0000 [3fce1fc785]  Kevin Harwell <kharwell@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-08-23 10:50 +0000 [fdb4384ad5]  Kevin Harwell <kharwell@digium.com>
+
+	* .version: Update for certified/11.6-cert14-rc2
+
+2016-08-23 10:50 +0000 [3f2b343955]  Kevin Harwell <kharwell@digium.com>
+
+	* .lastclean: Update for certified/11.6-cert14-rc2
+
+2016-08-22 13:08 +0000 [9f9d7c9fa9]  Mark Michelson <mmichelson@digium.com>
+
+	* res_http_websocket: Enable by default
+
+	  res_http_websocket is an extended support module. Extended support
+	  modules are disabled by default in certified Asterisk.
+
+	  Unfortunately, res_http_websocket is a dependency for chan_sip. This
+	  means that by default, chan_sip is not built on a fresh checkout of
+	  11.6 certified branches (specifically since release 11.6-cert5). Since
+	  chan_sip is a very important and fundamental module in Asterisk 11, this
+	  is inconvenient.
+
+	  This commit fixes the problem by making res_http_websocket enabled by
+	  default in menuselect. This in turn causes chan_sip to be built by
+	  default as well.
+
+	  Change-Id: I291492ea776f05324f2ee138573d109833fe1ce6
+
 2016-08-01 11:54 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/11.6-cert14-rc1 Released.
