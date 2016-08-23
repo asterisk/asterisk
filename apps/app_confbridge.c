@@ -71,6 +71,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stasis_bridges.h"
 #include "asterisk/json.h"
 #include "asterisk/format_cache.h"
+#include "asterisk/taskprocessor.h"
 
 /*** DOCUMENTATION
 	<application name="ConfBridge" language="en_US">
@@ -959,6 +960,59 @@ static void handle_video_on_exit(struct confbridge_conference *conference, struc
 	ao2_unlock(conference);
 }
 
+struct hangup_data
+{
+	struct confbridge_conference *conference;
+	ast_mutex_t lock;
+	ast_cond_t cond;
+	int hungup;
+};
+
+/*!
+ * \brief Hang up the announcer channel
+ *
+ * This hangs up the announcer channel in the conference. This
+ * runs in the playback queue taskprocessor since we do not want
+ * to hang up the channel while it's trying to play an announcement.
+ *
+ * This task is performed synchronously, so there is no need to
+ * perform any cleanup on the passed-in data.
+ *
+ * \param data A hangup_data structure
+ * \return 0
+ */
+static int hangup_playback(void *data)
+{
+	struct hangup_data *hangup = data;
+
+	ast_autoservice_stop(hangup->conference->playback_chan);
+
+	ast_hangup(hangup->conference->playback_chan);
+	hangup->conference->playback_chan = NULL;
+
+	ast_mutex_lock(&hangup->lock);
+	hangup->hungup = 1;
+	ast_cond_signal(&hangup->cond);
+	ast_mutex_unlock(&hangup->lock);
+
+	return 0;
+}
+
+static void hangup_data_init(struct hangup_data *hangup, struct confbridge_conference *conference)
+{
+	ast_mutex_init(&hangup->lock);
+	ast_cond_init(&hangup->cond, NULL);
+
+	hangup->conference = conference;
+	hangup->hungup = 0;
+}
+
+static void hangup_data_destroy(struct hangup_data *hangup)
+{
+	ast_mutex_destroy(&hangup->lock);
+	ast_cond_destroy(&hangup->cond);
+}
+
 /*!
  * \brief Destroy a conference bridge
  *
@@ -973,9 +1027,22 @@ static void destroy_conference_bridge(void *obj)
 	ast_debug(1, "Destroying conference bridge '%s'\n", conference->name);
 
 	if (conference->playback_chan) {
-		conf_announce_channel_depart(conference->playback_chan);
-		ast_hangup(conference->playback_chan);
-		conference->playback_chan = NULL;
+		if (conference->playback_queue) {
+			struct hangup_data hangup;
+			hangup_data_init(&hangup, conference);
+			ast_taskprocessor_push(conference->playback_queue, hangup_playback, &hangup);
+
+			ast_mutex_lock(&hangup.lock);
+			while (!hangup.hungup) {
+				ast_cond_wait(&hangup.cond, &hangup.lock);
+			}
+			ast_mutex_unlock(&hangup.lock);
+			hangup_data_destroy(&hangup);
+		} else {
+			/* Playback queue is not yet allocated. Just hang up the channel straight */
+			ast_hangup(conference->playback_chan);
+			conference->playback_chan = NULL;
+		}
 	}
 
 	/* Destroying a conference bridge is simple, all we have to do is destroy the bridging object */
@@ -989,7 +1056,7 @@ static void destroy_conference_bridge(void *obj)
 	ast_free(conference->record_filename);
 
 	conf_bridge_profile_destroy(&conference->b_profile);
-	ast_mutex_destroy(&conference->playback_lock);
+	ast_taskprocessor_unreference(conference->playback_queue);
 }
 
 /*! \brief Call the proper join event handler for the user for the conference bridge's current state
@@ -1270,6 +1337,72 @@ void conf_ended(struct confbridge_conference *conference)
 }
 
 /*!
+ * \internal
+ * \brief Allocate playback channel for a conference.
+ * \pre expects conference to be locked before calling this function
+ */
+static int alloc_playback_chan(struct confbridge_conference *conference)
+{
+	struct ast_format_cap *cap;
+	char taskprocessor_name[AST_TASKPROCESSOR_MAX_NAME + 1];
+
+	cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!cap) {
+		return -1;
+	}
+	ast_format_cap_append(cap, ast_format_slin, 0);
+	conference->playback_chan = ast_request("CBAnn", cap, NULL, NULL,
+		conference->name, NULL);
+	ao2_ref(cap, -1);
+	if (!conference->playback_chan) {
+		return -1;
+	}
+
+	/* To make sure playback_chan has the same language as the bridge */
+	ast_channel_lock(conference->playback_chan);
+	ast_channel_language_set(conference->playback_chan, conference->b_profile.language);
+	ast_channel_unlock(conference->playback_chan);
+
+	ast_debug(1, "Created announcer channel '%s' to conference bridge '%s'\n",
+		ast_channel_name(conference->playback_chan), conference->name);
+
+	ast_taskprocessor_build_name(taskprocessor_name, sizeof(taskprocessor_name),
+		"Confbridge/%s", conference->name);
+	conference->playback_queue = ast_taskprocessor_get(taskprocessor_name, TPS_REF_DEFAULT);
+	if (!conference->playback_queue) {
+		ast_hangup(conference->playback_chan);
+		conference->playback_chan = NULL;
+		return -1;
+	}
+	return 0;
+}
+
+/*!
+ * \brief Push the announcer channel into the bridge
+ *
+ * This runs in the playback queue taskprocessor.
+ *
+ * \param data A confbridge_conference
+ * \retval 0 Success
+ * \retval -1 Failed to push the channel to the bridge
+ */
+static int push_announcer(void *data)
+{
+	struct confbridge_conference *conference = data;
+
+	if (conf_announce_channel_push(conference->playback_chan)) {
+		ast_hangup(conference->playback_chan);
+		conference->playback_chan = NULL;
+		ao2_cleanup(conference);
+		return -1;
+	}
+
+	ast_autoservice_start(conference->playback_chan);
+	ao2_cleanup(conference);
+	return 0;
+}
+
+/*!
  * \brief Join a conference bridge
  *
  * \param conference_name The conference name
@@ -1314,9 +1447,6 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 			return NULL;
 		}
 
-		/* Setup lock for playback channel */
-		ast_mutex_init(&conference->playback_lock);
-
 		/* Setup for the record channel */
 		conference->record_filename = ast_str_create(RECORD_FILENAME_INITIAL_SPACE);
 		if (!conference->record_filename) {
@@ -1360,6 +1490,22 @@ static struct confbridge_conference *join_conference_bridge(const char *conferen
 
 		/* Set the initial state to EMPTY */
 		conference->state = CONF_STATE_EMPTY;
+
+		if (alloc_playback_chan(conference)) {
+			ao2_unlink(conference_bridges, conference);
+			ao2_ref(conference, -1);
+			ao2_unlock(conference_bridges);
+			ast_log(LOG_ERROR, "Could not allocate announcer channel for conference '%s'\n", conference_name);
+			return NULL;
+		}
+
+		if (ast_taskprocessor_push(conference->playback_queue, push_announcer, ao2_bump(conference))) {
+			ao2_unlink(conference_bridges, conference);
+			ao2_ref(conference, -1);
+			ao2_unlock(conference_bridges);
+			ast_log(LOG_ERROR, "Could not add announcer channel for conference '%s' bridge\n", conference_name);
+			return NULL;
+		}
 
 		if (ast_test_flag(&conference->b_profile, BRIDGE_OPT_RECORD_CONFERENCE)) {
 			ao2_lock(conference);
@@ -1481,67 +1627,105 @@ static void leave_conference(struct confbridge_user *user)
 	user->conference = NULL;
 }
 
+struct playback_task_data {
+	struct confbridge_conference *conference;
+	const char *filename;
+	int say_number;
+	int playback_finished;
+	ast_mutex_t lock;
+	ast_cond_t cond;
+};
+
 /*!
- * \internal
- * \brief Allocate playback channel for a conference.
- * \pre expects conference to be locked before calling this function
+ * \brief Play an announcement into a confbridge
+ *
+ * This runs in the playback queue taskprocessor. This ensures that
+ * all playbacks are handled in sequence and do not play over top one
+ * another.
+ *
+ * This task runs synchronously so there is no need for performing any
+ * sort of cleanup on the input parameter.
+ *
+ * \param data A playback_task_data
+ * \return 0
  */
-static int alloc_playback_chan(struct confbridge_conference *conference)
+static int playback_task(void *data)
 {
-	struct ast_format_cap *cap;
+	struct playback_task_data *ptd = data;
 
-	cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
-	if (!cap) {
-		return -1;
-	}
-	ast_format_cap_append(cap, ast_format_slin, 0);
-	conference->playback_chan = ast_request("CBAnn", cap, NULL, NULL,
-		conference->name, NULL);
-	ao2_ref(cap, -1);
-	if (!conference->playback_chan) {
-		return -1;
+	/* Don't try to play if the playback channel has been hung up */
+	if (!ptd->conference->playback_chan) {
+		goto end;
 	}
 
-	/* To make sure playback_chan has the same language of that profile */
-	ast_channel_lock(conference->playback_chan);
-	ast_channel_language_set(conference->playback_chan, conference->b_profile.language);
-	ast_channel_unlock(conference->playback_chan);
+	ast_autoservice_stop(ptd->conference->playback_chan);
 
-	ast_debug(1, "Created announcer channel '%s' to conference bridge '%s'\n",
-		ast_channel_name(conference->playback_chan), conference->name);
+	/* The channel is all under our control, in goes the prompt */
+	if (!ast_strlen_zero(ptd->filename)) {
+		ast_stream_and_wait(ptd->conference->playback_chan, ptd->filename, "");
+	} else if (ptd->say_number >= 0) {
+		ast_say_number(ptd->conference->playback_chan, ptd->say_number, "",
+			ast_channel_language(ptd->conference->playback_chan), NULL);
+	}
+	ast_autoservice_start(ptd->conference->playback_chan);
+
+end:
+	ast_mutex_lock(&ptd->lock);
+	ptd->playback_finished = 1;
+	ast_cond_signal(&ptd->cond);
+	ast_mutex_unlock(&ptd->lock);
+
 	return 0;
+}
+
+static void playback_task_data_init(struct playback_task_data *ptd, struct confbridge_conference *conference,
+		const char *filename, int say_number)
+{
+	ast_mutex_init(&ptd->lock);
+	ast_cond_init(&ptd->cond, NULL);
+
+	ptd->filename = filename;
+	ptd->say_number = say_number;
+	ptd->conference = conference;
+	ptd->playback_finished = 0;
+}
+
+static void playback_task_data_destroy(struct playback_task_data *ptd)
+{
+	ast_mutex_destroy(&ptd->lock);
+	ast_cond_destroy(&ptd->cond);
 }
 
 static int play_sound_helper(struct confbridge_conference *conference, const char *filename, int say_number)
 {
+	struct playback_task_data ptd;
+
 	/* Do not waste resources trying to play files that do not exist */
 	if (!ast_strlen_zero(filename) && !sound_file_exists(filename)) {
 		return 0;
 	}
 
-	ast_mutex_lock(&conference->playback_lock);
-	if (!conference->playback_chan && alloc_playback_chan(conference)) {
-		ast_mutex_unlock(&conference->playback_lock);
+	playback_task_data_init(&ptd, conference, filename, say_number);
+	if (ast_taskprocessor_push(conference->playback_queue, playback_task, &ptd)) {
+		if (!ast_strlen_zero(filename)) {
+			ast_log(LOG_WARNING, "Unable to play file '%s' to conference %s\n",
+				filename, conference->name);
+		} else {
+			ast_log(LOG_WARNING, "Unable to say number '%d' to conference %s\n",
+				say_number, conference->name);
+		}
+		playback_task_data_destroy(&ptd);
 		return -1;
 	}
-	if (conf_announce_channel_push(conference->playback_chan)) {
-		ast_mutex_unlock(&conference->playback_lock);
-		return -1;
+
+	/* Wait for the playback to complete */
+	ast_mutex_lock(&ptd.lock);
+	while (!ptd.playback_finished) {
+		ast_cond_wait(&ptd.cond, &ptd.lock);
 	}
+	ast_mutex_unlock(&ptd.lock);
 
-	/* The channel is all under our control, in goes the prompt */
-	if (!ast_strlen_zero(filename)) {
-		ast_stream_and_wait(conference->playback_chan, filename, "");
-	} else if (say_number >= 0) {
-		ast_say_number(conference->playback_chan, say_number, "",
-			ast_channel_language(conference->playback_chan), NULL);
-	}
-
-	ast_debug(1, "Departing announcer channel '%s' from conference bridge '%s'\n",
-		ast_channel_name(conference->playback_chan), conference->name);
-	conf_announce_channel_depart(conference->playback_chan);
-
-	ast_mutex_unlock(&conference->playback_lock);
+	playback_task_data_destroy(&ptd);
 
 	return 0;
 }
