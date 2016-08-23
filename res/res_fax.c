@@ -641,6 +641,7 @@ static void fixup_callback(void *data, struct ast_channel *old_chan, struct ast_
 		struct ast_fax_session_details *new_details = find_or_create_details(new_chan);
 
 		ast_framehook_detach(old_chan, old_details->gateway_id);
+		new_details->is_t38_negotiated = old_details->is_t38_negotiated;
 		fax_gateway_attach(new_chan, new_details);
 		ao2_cleanup(new_details);
 	}
@@ -1439,6 +1440,7 @@ static int report_fax_status(struct ast_channel *chan, struct ast_fax_session_de
 static void set_channel_variables(struct ast_channel *chan, struct ast_fax_session_details *details)
 {
 	char buf[10];
+
 	pbx_builtin_setvar_helper(chan, "FAXSTATUS", S_OR(details->result, NULL));
 	pbx_builtin_setvar_helper(chan, "FAXERROR", S_OR(details->error, NULL));
 	pbx_builtin_setvar_helper(chan, "FAXSTATUSSTRING", S_OR(details->resultstr, NULL));
@@ -1447,7 +1449,7 @@ static void set_channel_variables(struct ast_channel *chan, struct ast_fax_sessi
 	pbx_builtin_setvar_helper(chan, "FAXBITRATE", S_OR(details->transfer_rate, NULL));
 	pbx_builtin_setvar_helper(chan, "FAXRESOLUTION", S_OR(details->resolution, NULL));
 
-	if (ast_channel_get_t38_state(chan) == T38_STATE_NEGOTIATED) {
+	if (details->is_t38_negotiated) {
 		pbx_builtin_setvar_helper(chan, "FAXMODE", "T38");
 	} else {
 		pbx_builtin_setvar_helper(chan, "FAXMODE", "audio");
@@ -1656,6 +1658,7 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 	ast_string_field_set(details, result, "");
 	ast_string_field_set(details, resultstr, "");
 	ast_string_field_set(details, error, "");
+	details->is_t38_negotiated = t38negotiated;
 	set_channel_variables(chan, details);
 
 	if (fax->tech->start_session(fax) < 0) {
@@ -1706,12 +1709,18 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 					 * do T.38 as well
 					 */
 					t38_parameters_fax_to_ast(&t38_parameters, &details->our_t38_parameters);
-					t38_parameters.request_response = (details->caps & AST_FAX_TECH_T38) ? AST_T38_NEGOTIATED : AST_T38_REFUSED;
+					if (details->caps & AST_FAX_TECH_T38) {
+						details->is_t38_negotiated = 1;
+						t38_parameters.request_response = AST_T38_NEGOTIATED;
+					} else {
+						t38_parameters.request_response = AST_T38_REFUSED;
+					}
 					ast_indicate_data(chan, AST_CONTROL_T38_PARAMETERS, &t38_parameters, sizeof(t38_parameters));
 					break;
 				case AST_T38_NEGOTIATED:
 					t38_parameters_ast_to_fax(&details->their_t38_parameters, parameters);
 					t38negotiated = 1;
+					details->is_t38_negotiated = 1;
 					break;
 				default:
 					break;
@@ -2902,6 +2911,7 @@ static int fax_gateway_start(struct fax_gateway *gateway, struct ast_fax_session
 		ast_string_field_set(details, result, "FAILED");
 		ast_string_field_set(details, resultstr, "error starting gateway session");
 		ast_string_field_set(details, error, "INIT_ERROR");
+		details->is_t38_negotiated = 0;
 		set_channel_variables(chan, details);
 		report_fax_status(chan, details, "No Available Resource");
 		ast_log(LOG_ERROR, "Can't create a FAX session, gateway attempt failed.\n");
@@ -2922,6 +2932,7 @@ static int fax_gateway_start(struct fax_gateway *gateway, struct ast_fax_session
 		ast_string_field_set(details, result, "FAILED");
 		ast_string_field_set(details, resultstr, "error starting gateway session");
 		ast_string_field_set(details, error, "INIT_ERROR");
+		details->is_t38_negotiated = 0;
 		set_channel_variables(chan, details);
 		return -1;
 	}
@@ -2967,6 +2978,7 @@ static struct ast_frame *fax_gateway_request_t38(struct fax_gateway *gateway, st
 
 	gateway->t38_state = T38_STATE_NEGOTIATING;
 	gateway->timeout_start = ast_tvnow();
+	details->is_t38_negotiated = 0;
 	details->gateway_timeout = FAX_GATEWAY_TIMEOUT;
 
 	ast_debug(1, "requesting T.38 for gateway session for %s\n", ast_channel_name(chan));
@@ -3064,6 +3076,7 @@ static struct ast_frame *fax_gateway_detect_t38(struct fax_gateway *gateway, str
 			t38_parameters_ast_to_fax(&details->their_t38_parameters, control_params);
 			gateway->t38_state = T38_STATE_UNKNOWN;
 			gateway->timeout_start = ast_tvnow();
+			details->is_t38_negotiated = 0;
 			details->gateway_timeout = FAX_GATEWAY_TIMEOUT;
 			ao2_ref(details, -1);
 			return f;
@@ -3079,12 +3092,14 @@ static struct ast_frame *fax_gateway_detect_t38(struct fax_gateway *gateway, str
 			if (fax_gateway_start(gateway, details, chan)) {
 				ast_log(LOG_ERROR, "error starting T.38 gateway for T.38 channel %s and G.711 channel %s\n", ast_channel_name(active), ast_channel_name(other));
 				gateway->t38_state = T38_STATE_REJECTED;
+				details->is_t38_negotiated = 0;
 				control_params->request_response = AST_T38_REFUSED;
 
 				ast_framehook_detach(chan, details->gateway_id);
 				details->gateway_id = -1;
 			} else {
 				gateway->t38_state = T38_STATE_NEGOTIATED;
+				details->is_t38_negotiated = chan == active;
 				control_params->request_response = AST_T38_NEGOTIATED;
 				report_fax_status(chan, details, "T.38 Negotiated");
 			}
@@ -3102,6 +3117,7 @@ static struct ast_frame *fax_gateway_detect_t38(struct fax_gateway *gateway, str
 			t38_parameters_ast_to_fax(&details->their_t38_parameters, control_params);
 			gateway->t38_state = T38_STATE_UNKNOWN;
 			gateway->timeout_start = ast_tvnow();
+			details->is_t38_negotiated = 0;
 			details->gateway_timeout = FAX_GATEWAY_TIMEOUT;
 
 			ast_debug(1, "%s is attempting to negotiate T.38 after we already sent a negotiation request based on v21 preamble detection\n", ast_channel_name(active));
@@ -3124,6 +3140,7 @@ static struct ast_frame *fax_gateway_detect_t38(struct fax_gateway *gateway, str
 			ast_string_field_set(details, result, "SUCCESS");
 			ast_string_field_set(details, resultstr, "no gateway necessary");
 			ast_string_field_set(details, error, "NATIVE_T38");
+			details->is_t38_negotiated = 1;
 			set_channel_variables(chan, details);
 
 			ast_debug(1, "%s is attempting to negotiate T.38 after we already negotiated T.38 with %s, disabling the gateway\n", ast_channel_name(active), ast_channel_name(other));
@@ -3138,6 +3155,7 @@ static struct ast_frame *fax_gateway_detect_t38(struct fax_gateway *gateway, str
 		&& control_params->request_response == AST_T38_REFUSED) {
 
 		ast_debug(1, "unable to negotiate T.38 on %s for fax gateway\n", ast_channel_name(active));
+		details->is_t38_negotiated = 0;
 
 		/* our request to negotiate T.38 was refused, if the other
 		 * channel supports T.38, they might still reinvite and save
@@ -3166,11 +3184,13 @@ static struct ast_frame *fax_gateway_detect_t38(struct fax_gateway *gateway, str
 		if (fax_gateway_start(gateway, details, chan)) {
 			ast_log(LOG_ERROR, "error starting T.38 gateway for T.38 channel %s and G.711 channel %s\n", ast_channel_name(active), ast_channel_name(other));
 			gateway->t38_state = T38_STATE_NEGOTIATING;
+			details->is_t38_negotiated = 0;
 			control_params->request_response = AST_T38_REQUEST_TERMINATE;
 
 			fax_gateway_indicate_t38(chan, active, control_params);
 		} else {
 			gateway->t38_state = T38_STATE_NEGOTIATED;
+			details->is_t38_negotiated = chan == active;
 			report_fax_status(chan, details, "T.38 Negotiated");
 		}
 
@@ -3186,14 +3206,16 @@ static struct ast_frame *fax_gateway_detect_t38(struct fax_gateway *gateway, str
 		t38_parameters_fax_to_ast(control_params, &details->our_t38_parameters);
 
 		if (fax_gateway_start(gateway, details, chan)) {
-			ast_log(LOG_ERROR, "error starting T.38 gateway for T.38 channel %s and G.711 channel %s\n", ast_channel_name(active), ast_channel_name(other));
+			ast_log(LOG_ERROR, "error starting T.38 gateway for T.38 channel %s and G.711 channel %s\n", ast_channel_name(other), ast_channel_name(active));
 			gateway->t38_state = T38_STATE_REJECTED;
+			details->is_t38_negotiated = 0;
 			control_params->request_response = AST_T38_REFUSED;
 
 			ast_framehook_detach(chan, details->gateway_id);
 			details->gateway_id = -1;
 		} else {
 			gateway->t38_state = T38_STATE_NEGOTIATED;
+			details->is_t38_negotiated = chan == other;
 			control_params->request_response = AST_T38_NEGOTIATED;
 		}
 
@@ -3209,6 +3231,7 @@ static struct ast_frame *fax_gateway_detect_t38(struct fax_gateway *gateway, str
 		details->gateway_id = -1;
 
 		gateway->t38_state = T38_STATE_REJECTED;
+		details->is_t38_negotiated = 0;
 		control_params->request_response = AST_T38_TERMINATED;
 
 		fax_gateway_indicate_t38(chan, active, control_params);
@@ -3224,6 +3247,7 @@ static struct ast_frame *fax_gateway_detect_t38(struct fax_gateway *gateway, str
 		ast_string_field_set(details, result, "SUCCESS");
 		ast_string_field_set(details, resultstr, "no gateway necessary");
 		ast_string_field_set(details, error, "NATIVE_T38");
+		details->is_t38_negotiated = 1;
 		set_channel_variables(chan, details);
 
 		ao2_ref(details, -1);
@@ -3351,6 +3375,7 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 			ast_string_field_set(details, result, "FAILED");
 			ast_string_field_set(details, resultstr, "neither channel supports T.38");
 			ast_string_field_set(details, error, "T38_NEG_ERROR");
+			details->is_t38_negotiated = 0;
 			set_channel_variables(chan, details);
 			return f;
 		}
@@ -3395,6 +3420,7 @@ static struct ast_frame *fax_gateway_framehook(struct ast_channel *chan, struct 
 			ast_string_field_set(details, result, "FAILED");
 			ast_string_field_build(details, resultstr, "no fax activity after %d ms", details->gateway_timeout);
 			ast_string_field_set(details, error, "TIMEOUT");
+			details->is_t38_negotiated = 0;
 			set_channel_variables(chan, details);
 			return f;
 		}
@@ -3525,6 +3551,7 @@ static int fax_gateway_attach(struct ast_channel *chan, struct ast_fax_session_d
 		ast_string_field_set(details, result, "FAILED");
 		ast_string_field_set(details, resultstr, "error initializing gateway session");
 		ast_string_field_set(details, error, "INIT_ERROR");
+		details->is_t38_negotiated = 0;
 		set_channel_variables(chan, details);
 		report_fax_status(chan, details, "No Available Resource");
 		return -1;
@@ -3540,6 +3567,7 @@ static int fax_gateway_attach(struct ast_channel *chan, struct ast_fax_session_d
 		ast_string_field_set(details, result, "FAILED");
 		ast_string_field_set(details, resultstr, "error attaching gateway to channel");
 		ast_string_field_set(details, error, "INIT_ERROR");
+		details->is_t38_negotiated = 0;
 		set_channel_variables(chan, details);
 		return -1;
 	}
