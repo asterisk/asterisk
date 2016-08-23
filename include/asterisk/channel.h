@@ -2569,7 +2569,11 @@ static inline int ast_fdisset(struct pollfd *pfds, int fd, int maximum, int *sta
 	return 0;
 }
 
-/*! \brief Retrieves the current T38 state of a channel */
+/*!
+ * \brief Retrieves the current T38 state of a channel
+ *
+ * \note Absolutely _NO_ channel locks should be held before calling this function.
+ */
 static inline enum ast_t38_state ast_channel_get_t38_state(struct ast_channel *chan)
 {
 	enum ast_t38_state state = T38_STATE_UNAVAILABLE;
