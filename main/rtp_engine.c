@@ -1795,6 +1795,50 @@ static void add_static_payload(int map, struct ast_format *format, int rtp_code)
 				break;
 			}
 		}
+		/* http://www.iana.org/assignments/rtp-parameters/rtp-parameters.xhtml
+		 * RFC 3551, Section 3: "[...] applications which need to define more
+		 * than 32 dynamic payload types MAY bind codes below
+		 * [AST_RTP_PT_FIRST_DYNAMIC], in which case it is RECOMMENDED that
+		 * unassigned payload type numbers be used first."
+		 */
+		if (map < 0) {
+			for (x = 77; x < AST_RTP_PT_FIRST_DYNAMIC; ++x) {
+				if (!static_RTP_PT[x]) {
+					map = x;
+					break;
+				}
+			}
+		}
+		if (map < 0) {
+			for (x = 35; x < 77; ++x) {
+				if (!static_RTP_PT[x]) {
+					map = x;
+					break;
+				}
+			}
+		}
+		/* Yet, reusing mappings below 35 is not supported in Asterisk because
+		 * when Compact Headers are activated, no rtpmap is send for those below
+		 * 35. Therefore, you have to remove that code in chan_sip/res_pjsip or
+		 * add a flag that this RTP Payload Type got reassigned dynamically and
+		 * and requires a rtpmap even with Compact Headers enabled.
+		if (map < 0) {
+			for (x = 20; x < 35; ++x) {
+				if (!static_RTP_PT[x]) {
+					map = x;
+					break;
+				}
+			}
+		}
+		if (map < 0) {
+			for (x = 0; x < 20; ++x) {
+				if (!static_RTP_PT[x]) {
+					map = x;
+					break;
+				}
+			}
+		}
+		*/
 
 		if (map < 0) {
 			if (format) {
