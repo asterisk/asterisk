@@ -641,7 +641,9 @@ static void refer_blind_callback(struct ast_channel *chan, struct transfer_chann
 				refer_progress_notify(notification);
 			}
 
+			ast_channel_lock(chan);
 			ast_framehook_detach(chan, refer->progress->framehook);
+			ast_channel_unlock(chan);
 
 			ao2_cleanup(refer->progress);
 		}
