@@ -20,6 +20,15 @@ chan_sip
    a dialplan that dials with it enabled initially and if it fails fall back to
    without.
 
+RTP
+------------------
+ * New setting "rtp_pt_dynamic = 35" in asterisk.conf:
+   Normally the Dynamic RTP Payload Type numbers are 96-127, which allow just 32
+   formats. To avoid the message "No Dynamic RTP mapping available", the range
+   was changed to 35-127. This is allowed by RFC 3551 section 3. However, when
+   you use more than 32 formats and calls are not accepted by a remote
+   implementation, please report this and go back to rtp_pt_dynamic = 96.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 14.0.0 to Asterisk 14.1.0 ----------
 ------------------------------------------------------------------------------

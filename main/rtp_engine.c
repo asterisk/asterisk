@@ -145,23 +145,35 @@
 
 ASTERISK_REGISTER_FILE()
 
-#include <math.h>
+#include <math.h>                       /* for sqrt, MAX */
+#include <sched.h>                      /* for sched_yield */
+#include <sys/time.h>                   /* for timeval */
+#include <time.h>                       /* for time_t */
 
-#include "asterisk/channel.h"
-#include "asterisk/frame.h"
-#include "asterisk/module.h"
-#include "asterisk/rtp_engine.h"
+#include "asterisk/astobj2.h"           /* for ao2_cleanup, ao2_ref, etc */
+#include "asterisk/channel.h"           /* for ast_channel_name, etc */
+#include "asterisk/codec.h"             /* for ast_codec_media_type2str, etc */
+#include "asterisk/config.h"            /* for ast_config_load2, etc */
+#include "asterisk/format.h"            /* for ast_format_cmp, etc */
+#include "asterisk/format_cache.h"      /* for ast_format_adpcm, etc */
+#include "asterisk/format_cap.h"        /* for ast_format_cap_alloc, etc */
+#include "asterisk/json.h"              /* for ast_json_ref, etc */
+#include "asterisk/linkedlists.h"       /* for ast_rtp_engine::<anonymous>, etc */
+#include "asterisk/lock.h"              /* for ast_rwlock_unlock, etc */
+#include "asterisk/logger.h"            /* for ast_log, ast_debug, etc */
 #include "asterisk/manager.h"
-#include "asterisk/options.h"
-#include "asterisk/astobj2.h"
-#include "asterisk/pbx.h"
-#include "asterisk/translate.h"
-#include "asterisk/netsock2.h"
-#include "asterisk/_private.h"
-#include "asterisk/framehook.h"
-#include "asterisk/stasis.h"
-#include "asterisk/json.h"
-#include "asterisk/stasis_channels.h"
+#include "asterisk/module.h"            /* for ast_module_unref, etc */
+#include "asterisk/netsock2.h"          /* for ast_sockaddr_copy, etc */
+#include "asterisk/pbx.h"               /* for pbx_builtin_setvar_helper */
+#include "asterisk/res_srtp.h"          /* for ast_srtp_res */
+#include "asterisk/rtp_engine.h"        /* for ast_rtp_codecs, etc */
+#include "asterisk/stasis.h"            /* for stasis_message_data, etc */
+#include "asterisk/stasis_channels.h"   /* for ast_channel_stage_snapshot, etc */
+#include "asterisk/strings.h"           /* for ast_str_append, etc */
+#include "asterisk/time.h"              /* for ast_tvdiff_ms, ast_tvnow */
+#include "asterisk/translate.h"         /* for ast_translate_available_formats */
+#include "asterisk/utils.h"             /* for ast_free, ast_strdup, etc */
+#include "asterisk/vector.h"            /* for AST_VECTOR_GET, etc */
 
 struct ast_srtp_res *res_srtp = NULL;
 struct ast_srtp_policy_res *res_srtp_policy = NULL;
@@ -238,6 +250,7 @@ static int mime_types_len = 0;
  * assigned values
  */
 static struct ast_rtp_payload_type *static_RTP_PT[AST_RTP_MAX_PT];
+static unsigned int static_RTP_PT_DYNAMIC = 35;
 static ast_rwlock_t static_RTP_PT_lock;
 
 /*! \brief \ref stasis topic for RTP related messages */
@@ -2279,7 +2292,52 @@ static void add_static_payload(int map, struct ast_format *format, int rtp_code)
 				break;
 			}
 		}
-
+		/* http://www.iana.org/assignments/rtp-parameters/rtp-parameters.xhtml
+		 * RFC 3551, Section 3: "[...] applications which need to define more
+		 * than 32 dynamic payload types MAY bind codes below
+		 * [AST_RTP_PT_FIRST_DYNAMIC], in which case it is RECOMMENDED that
+		 * unassigned payload type numbers be used first."
+		 */
+		if (map < 0) {
+			for (x = MAX(static_RTP_PT_DYNAMIC, 77); x < AST_RTP_PT_FIRST_DYNAMIC; ++x) {
+				if (!static_RTP_PT[x]) {
+					map = x;
+					break;
+				}
+			}
+		}
+		if (map < 0) {
+			for (x = MAX(static_RTP_PT_DYNAMIC, 35); x < 77; ++x) {
+				if (!static_RTP_PT[x]) {
+					map = x;
+					break;
+				}
+			}
+		}
+		/* Yet, reusing mappings below 35 is not supported in Asterisk because
+		 * when Compact Headers are activated, no rtpmap is send for those below
+		 * 35. If you want to use 35 and below
+		 * A) do not use Compact Headers,
+		 * B) remove that code in chan_sip/res_pjsip, or
+		 * C) add a flag that this RTP Payload Type got reassigned dynamically
+		 *    and requires a rtpmap even with Compact Headers enabled.
+		 */
+		if (map < 0) {
+			for (x = MAX(static_RTP_PT_DYNAMIC, 20); x < 35; ++x) {
+				if (!static_RTP_PT[x]) {
+					map = x;
+					break;
+				}
+			}
+		}
+		if (map < 0) {
+			for (x = MAX(static_RTP_PT_DYNAMIC, 0); x < 20; ++x) {
+				if (!static_RTP_PT[x]) {
+					map = x;
+					break;
+				}
+			}
+		}
 		if (map < 0) {
 			if (format) {
 				ast_log(LOG_WARNING, "No Dynamic RTP mapping available for format %s\n",
@@ -2639,6 +2697,17 @@ static void rtp_engine_shutdown(void)
 
 int ast_rtp_engine_init(void)
 {
+	struct ast_flags cnfflags = { 0 };
+	struct ast_config *cfg = ast_config_load2("asterisk.conf", "", cnfflags);
+
+	if (0 < cfg) {
+		const char *s = ast_variable_retrieve(cfg, "options", "rtp_pt_dynamic");
+		ast_parse_arg(s, PARSE_UINT32|PARSE_IN_RANGE, &static_RTP_PT_DYNAMIC,
+			0, AST_RTP_PT_FIRST_DYNAMIC);
+		ast_config_destroy(cfg);
+	}
+	ast_debug(3, "rtp_pt_dynamic = %d\n", static_RTP_PT_DYNAMIC);
+
 	ast_rwlock_init(&mime_types_lock);
 	ast_rwlock_init(&static_RTP_PT_lock);
 
