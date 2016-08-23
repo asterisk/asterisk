@@ -2577,11 +2577,17 @@ static struct fax_gateway *fax_gateway_new(struct ast_channel *chan, struct ast_
 	return gateway;
 }
 
-/*! \brief Create a fax session and start T.30<->T.38 gateway mode
+/*!
+ * \brief Create a fax session and start T.30<->T.38 gateway mode
+ *
  * \param gateway a fax gateway object
  * \param details fax session details
  * \param chan active channel
- * \return 0 on error 1 on success*/
+ *
+ * \pre chan is locked on entry
+ *
+ * \return 0 on error 1 on success
+ */
 static int fax_gateway_start(struct fax_gateway *gateway, struct ast_fax_session_details *details, struct ast_channel *chan)
 {
 	struct ast_fax_session *s;
@@ -2621,6 +2627,7 @@ static int fax_gateway_start(struct fax_gateway *gateway, struct ast_fax_session
 	return 0;
 }
 
+/*! \pre chan is locked on entry */
 static struct ast_frame *fax_gateway_request_t38(struct fax_gateway *gateway, struct ast_channel *chan, struct ast_frame *f)
 {
 	struct ast_frame *fp;
@@ -2659,6 +2666,7 @@ static struct ast_frame *fax_gateway_request_t38(struct fax_gateway *gateway, st
 	return fp;
 }
 
+/*! \pre chan is locked on entry */
 static struct ast_frame *fax_gateway_detect_v21(struct fax_gateway *gateway, struct ast_channel *chan, struct ast_channel *peer, struct ast_channel *active, struct ast_frame *f)
 {
 	struct ast_channel *other = (active == chan) ? peer : chan;
@@ -2695,12 +2703,17 @@ static int fax_gateway_indicate_t38(struct ast_channel *chan, struct ast_channel
 	}
 }
 
-/*! \brief T38 Gateway Negotiate t38 parameters
+/*!
+ * \brief T38 Gateway Negotiate t38 parameters
+ *
  * \param gateway gateway object
  * \param chan channel running the gateway
  * \param peer channel im bridged too
  * \param active channel the frame originated on
  * \param f the control frame to process
+ *
+ * \pre chan is locked on entry
+ *
  * \return processed control frame or null frame
  */
 static struct ast_frame *fax_gateway_detect_t38(struct fax_gateway *gateway, struct ast_channel *chan, struct ast_channel *peer, struct ast_channel *active, struct ast_frame *f)
@@ -2943,7 +2956,8 @@ static void fax_gateway_framehook_destroy(void *data)
 	ao2_ref(gateway, -1);
 }
 
-/*! \brief T.30<->T.38 gateway framehook.
+/*!
+ * \brief T.30<->T.38 gateway framehook.
  *
  * Intercept packets on bridged channels and determine if a T.38 gateway is
  * required. If a gateway is required, start a gateway and handle T.38
@@ -2953,6 +2967,8 @@ static void fax_gateway_framehook_destroy(void *data)
  * \param f frame to handle may be NULL
  * \param event framehook event
  * \param data framehook data (struct fax_gateway *)
+ *
+ * \pre chan is locked on entry
  *
  * \return processed frame or NULL when f is NULL or a null frame
  */
@@ -3185,9 +3201,9 @@ static int fax_gateway_attach(struct ast_channel *chan, struct ast_fax_session_d
 		.destroy_cb = fax_gateway_framehook_destroy,
 	};
 
-    	if (global_fax_debug) {
-        	details->option.debug = AST_FAX_OPTFLAG_TRUE;
-    	}
+	if (global_fax_debug) {
+		details->option.debug = AST_FAX_OPTFLAG_TRUE;
+	}
 
 	ast_string_field_set(details, result, "SUCCESS");
 	ast_string_field_set(details, resultstr, "gateway operation started successfully");
