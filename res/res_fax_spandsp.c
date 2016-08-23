@@ -831,10 +831,14 @@ static int spandsp_fax_gateway_start(struct ast_fax_session *s)
 
 	p->ist38 = 1;
 	p->ast_t38_state = ast_channel_get_t38_state(s->chan);
-	if (!(peer = ast_bridged_channel(s->chan))) {
+	ast_channel_lock(s->chan);
+	peer = ast_bridged_channel(s->chan);
+	if (!peer) {
 		ast_channel_unlock(s->chan);
 		return -1;
 	}
+	ao2_ref(peer, +1);
+	ast_channel_unlock(s->chan);
 
 	/* we can be in T38_STATE_NEGOTIATING or T38_STATE_NEGOTIATED when the
 	 * gateway is started. We treat both states the same. */
@@ -843,6 +847,7 @@ static int spandsp_fax_gateway_start(struct ast_fax_session *s)
 	}
 
 	ast_activate_generator(p->ast_t38_state == T38_STATE_NEGOTIATED ? peer : s->chan, &t30_gen , s);
+	ao2_ref(peer, -1);
 
 	set_logging(&p->t38_gw_state.logging, s->details);
 	set_logging(&p->t38_core_state->logging, s->details);

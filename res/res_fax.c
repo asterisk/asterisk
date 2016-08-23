@@ -1365,7 +1365,7 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 	report_fax_status(chan, details, "Allocating Resources");
 
 	if (details->caps & AST_FAX_TECH_AUDIO) {
-		expected_frametype = AST_FRAME_VOICE;;
+		expected_frametype = AST_FRAME_VOICE;
 		ast_format_set(&expected_framesubclass.format, AST_FORMAT_SLINEAR, 0);
 		ast_format_copy(&orig_write_format, ast_channel_writeformat(chan));
 		if (ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR) < 0) {
@@ -2591,6 +2591,7 @@ static struct fax_gateway *fax_gateway_new(struct ast_channel *chan, struct ast_
 static int fax_gateway_start(struct fax_gateway *gateway, struct ast_fax_session_details *details, struct ast_channel *chan)
 {
 	struct ast_fax_session *s;
+	int start_res;
 
 	/* create the FAX session */
 	if (!(s = fax_session_new(details, chan, gateway->s, gateway->token))) {
@@ -2611,7 +2612,10 @@ static int fax_gateway_start(struct fax_gateway *gateway, struct ast_fax_session
 	gateway->s = s;
 	gateway->token = NULL;
 
-	if (gateway->s->tech->start_session(gateway->s) < 0) {
+	ast_channel_unlock(chan);
+	start_res = gateway->s->tech->start_session(gateway->s);
+	ast_channel_lock(chan);
+	if (start_res < 0) {
 		ast_string_field_set(details, result, "FAILED");
 		ast_string_field_set(details, resultstr, "error starting gateway session");
 		ast_string_field_set(details, error, "INIT_ERROR");
@@ -3316,7 +3320,11 @@ static struct ast_frame *fax_detect_framehook(struct ast_channel *chan, struct a
 	struct ast_fax_session_details *details;
 	struct ast_control_t38_parameters *control_params;
 	struct ast_channel *peer;
+	RAII_VAR(struct ast_channel *, chan_ref, chan, ao2_cleanup);
 	int result = 0;
+
+	/* Ref bump the channel for when we have to unlock it */
+	ao2_ref(chan, 1);
 
 	details = faxdetect->details;
 
@@ -3340,8 +3348,13 @@ static struct ast_frame *fax_detect_framehook(struct ast_channel *chan, struct a
 	case AST_FRAMEHOOK_EVENT_DETACHED:
 		/* restore audio formats when we are detached */
 		ast_set_read_format(chan, &faxdetect->orig_format);
-		if ((peer = ast_bridged_channel(chan))) {
+		peer = ast_bridged_channel(chan);
+		if (peer) {
+			ao2_ref(peer, +1);
+			ast_channel_unlock(chan);
 			ast_channel_make_compatible(chan, peer);
+			ast_channel_lock(chan);
+			ao2_ref(peer, -1);
 		}
 		return NULL;
 	case AST_FRAMEHOOK_EVENT_READ:
