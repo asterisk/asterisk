@@ -228,9 +228,9 @@ struct confbridge_conference {
 	struct ast_channel *record_chan;                                  /*!< Channel used for recording the conference */
 	struct ast_str *record_filename;                                  /*!< Recording filename. */
 	struct ast_str *orig_rec_file;                                    /*!< Previous b_profile.rec_file. */
+	ast_mutex_t playback_lock;                                        /*!< Lock used for playback channel */
 	AST_LIST_HEAD_NOLOCK(, confbridge_user) active_list;              /*!< List of users participating in the conference bridge */
 	AST_LIST_HEAD_NOLOCK(, confbridge_user) waiting_list;             /*!< List of users waiting to join the conference bridge */
-	struct ast_taskprocessor *playback_queue;                         /*!< Queue for playing back bridge announcements and managing the announcer channel */
 };
 
 extern struct ao2_container *conference_bridges;
@@ -608,6 +608,16 @@ struct ast_channel_tech *conf_record_get_tech(void);
  * \return ConfBridge announce channel technology.
  */
 struct ast_channel_tech *conf_announce_get_tech(void);
+
+/*!
+ * \brief Remove the announcer channel from the conference.
+ * \since 12.0.0
+ *
+ * \param chan Either channel in the announcer channel pair.
+ *
+ * \return Nothing
+ */
+void conf_announce_channel_depart(struct ast_channel *chan);
 
 /*!
  * \brief Push the announcer channel into the conference.
