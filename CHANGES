@@ -181,6 +181,8 @@ chan_iax2
    seconds. Setting this to a higher value may help in lagged networks or those
    experiencing high packet loss.
 
+ * Plaintext auth mode is deprecated and removed from possible default modes.
+
 chan_rtp (was chan_multicast_rtp)
 ------------------
  * Added unicast RTP support and renamed chan_multicast_rtp to chan_rtp.
