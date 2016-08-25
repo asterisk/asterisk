@@ -4077,6 +4077,17 @@ static void hangupcalls(struct queue_ent *qe, struct callattempt *outgoing, stru
 				ast_channel_hangupcause_set(outgoing->chan, AST_CAUSE_ANSWERED_ELSEWHERE);
 			}
 			ast_channel_publish_dial(qe->chan, outgoing->chan, outgoing->interface, "CANCEL");
+
+			/* When dialing channels it is possible that they may not ever
+			 * leave the not in use state (Local channels in particular) by
+			 * the time we cancel them. If this occurs but we know they were
+			 * dialed we explicitly remove them from the pending members
+			 * container so that subsequent call attempts occur.
+			 */
+			if (outgoing->member->status == AST_DEVICE_NOT_INUSE) {
+				pending_members_remove(outgoing->member);
+			}
+
 			ast_hangup(outgoing->chan);
 		}
 		oo = outgoing;
