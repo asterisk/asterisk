@@ -992,6 +992,17 @@ int ast_sorcery_changeset_create(const struct ast_variable *original, const stru
 void *ast_sorcery_generic_alloc(size_t size, ao2_destructor_fn destructor);
 
 /*!
+ * \brief Allocate a generic sorcery capable object
+ *
+ * \param size Size of the object
+ * \param destructor Optional destructor function
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ */
+void *ast_sorcery_lockable_alloc(size_t size, ao2_destructor_fn destructor, void *lockobj);
+
+/*!
  * \brief Allocate an object
  *
  * \param sorcery Pointer to a sorcery structure
