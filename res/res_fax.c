@@ -4509,7 +4509,9 @@ static int acf_faxopt_write(struct ast_channel *chan, const char *cmd, char *dat
 				ast_log(LOG_WARNING, "Attempt to attach a T.38 gateway on channel (%s) with gateway already running.\n", ast_channel_name(chan));
 			}
 		} else if (ast_false(val)) {
+			ast_channel_lock(chan);
 			ast_framehook_detach(chan, details->gateway_id);
+			ast_channel_unlock(chan);
 			details->gateway_id = -1;
 		} else {
 			ast_log(LOG_WARNING, "Unsupported value '%s' passed to FAXOPT(%s).\n", value, data);
@@ -4561,7 +4563,9 @@ static int acf_faxopt_write(struct ast_channel *chan, const char *cmd, char *dat
 				ast_log(LOG_WARNING, "Attempt to attach a FAX detect on channel (%s) with FAX detect already running.\n", ast_channel_name(chan));
 			}
 		} else if (ast_false(val)) {
+			ast_channel_lock(chan);
 			ast_framehook_detach(chan, details->faxdetect_id);
+			ast_channel_unlock(chan);
 			details->faxdetect_id = -1;
 		} else {
 			ast_log(LOG_WARNING, "Unsupported value '%s' passed to FAXOPT(%s).\n", value, data);
