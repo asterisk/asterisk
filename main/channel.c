@@ -2220,8 +2220,12 @@ static void ast_channel_destructor(void *obj)
 	ast_channel_unlock(chan);
 
 	if (ast_channel_tech_pvt(chan)) {
-		ast_log_callid(LOG_WARNING, callid, "Channel '%s' may not have been hung up properly\n", ast_channel_name(chan));
-		ast_free(ast_channel_tech_pvt(chan));
+		ast_log_callid(LOG_WARNING, callid, "Channel '%s' may not have been hung up" \
+			" properly; leaking memory. Please report via http://issues.asterisk.org." \
+			" If feasible, please include" \
+			" http://wiki.asterisk.org/wiki/display/AST/Getting+a+Backtrace" \
+			" via an interactive session in the GNU Debugger (gdb).\n",
+			ast_channel_name(chan));
 	}
 
 	if (ast_channel_sched(chan)) {
