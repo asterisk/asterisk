@@ -368,6 +368,8 @@ enum ao2_alloc_opts {
 	AO2_ALLOC_OPT_LOCK_NOLOCK = (2 << 0),
 	/*! The ao2 object locking option field mask. */
 	AO2_ALLOC_OPT_LOCK_MASK = (3 << 0),
+	/*! The ao2 object uses a separate object for locking. */
+	AO2_ALLOC_OPT_LOCK_OBJ = AO2_ALLOC_OPT_LOCK_MASK,
 };
 
 /*!
@@ -404,6 +406,12 @@ enum ao2_alloc_opts {
 	__ao2_alloc((data_size), (destructor_fn), AO2_ALLOC_OPT_LOCK_MUTEX, "",  __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, unsigned int options,
+	const char *tag, const char *file, int line, const char *func) attribute_warn_unused_result;
+
+#define ao2_alloc_with_lockobj(data_size, destructor_fn, lockobj, tag) \
+	__ao2_alloc_with_lockobj((data_size), (destructor_fn), (lockobj), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+void *__ao2_alloc_with_lockobj(size_t data_size, ao2_destructor_fn destructor_fn, void *lockobj,
 	const char *tag, const char *file, int line, const char *func) attribute_warn_unused_result;
 
 /*! @} */
