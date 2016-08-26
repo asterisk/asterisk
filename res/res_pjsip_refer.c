@@ -607,7 +607,10 @@ static void refer_blind_callback(struct ast_channel *chan, struct transfer_chann
 		ao2_ref(refer->progress, +1);
 
 		/* If we can't attach a frame hook for whatever reason send a notification of success immediately */
-		if ((refer->progress->framehook = ast_framehook_attach(chan, &hook)) < 0) {
+		ast_channel_lock(chan);
+		refer->progress->framehook = ast_framehook_attach(chan, &hook);
+		ast_channel_unlock(chan);
+		if (refer->progress->framehook < 0) {
 			struct refer_progress_notification *notification = refer_progress_notification_alloc(refer->progress, 200,
 				PJSIP_EVSUB_STATE_TERMINATED);
 
