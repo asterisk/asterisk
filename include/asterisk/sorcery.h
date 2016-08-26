@@ -988,8 +988,28 @@ int ast_sorcery_changeset_create(const struct ast_variable *original, const stru
  *
  * \retval non-NULL success
  * \retval NULL failure
+ *
+ * \note The returned object does not support AO2 locking.
  */
 void *ast_sorcery_generic_alloc(size_t size, ao2_destructor_fn destructor);
+
+/*!
+ * \since 14.1.0
+ * \brief Allocate a generic sorcery capable object with locking.
+ *
+ * \details Sorcery objects may be replaced with new allocations during reloads.
+ * If locking is required on sorcery objects it must be shared between the old
+ * object and the new one.  lockobj can be any AO2 object with locking enabled,
+ * but in most cases named locks should be used to provide stable locking.
+ *
+ * \param size Size of the object
+ * \param destructor Optional destructor function
+ * \param lockobj An AO2 object that will provide locking.
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ */
+void *ast_sorcery_lockable_alloc(size_t size, ao2_destructor_fn destructor, void *lockobj);
 
 /*!
  * \brief Allocate an object
