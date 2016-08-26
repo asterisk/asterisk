@@ -591,11 +591,7 @@ void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, unsigned in
 
 	switch (options & AO2_ALLOC_OPT_LOCK_MASK) {
 	case AO2_ALLOC_OPT_LOCK_MUTEX:
-#if defined(__AST_DEBUG_MALLOC)
 		obj_mutex = __ast_calloc(1, sizeof(*obj_mutex) + data_size, file, line, func);
-#else
-		obj_mutex = ast_calloc(1, sizeof(*obj_mutex) + data_size);
-#endif
 		if (obj_mutex == NULL) {
 			return NULL;
 		}
@@ -604,11 +600,7 @@ void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, unsigned in
 		obj = (struct astobj2 *) &obj_mutex->priv_data;
 		break;
 	case AO2_ALLOC_OPT_LOCK_RWLOCK:
-#if defined(__AST_DEBUG_MALLOC)
 		obj_rwlock = __ast_calloc(1, sizeof(*obj_rwlock) + data_size, file, line, func);
-#else
-		obj_rwlock = ast_calloc(1, sizeof(*obj_rwlock) + data_size);
-#endif
 		if (obj_rwlock == NULL) {
 			return NULL;
 		}
@@ -617,11 +609,7 @@ void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, unsigned in
 		obj = (struct astobj2 *) &obj_rwlock->priv_data;
 		break;
 	case AO2_ALLOC_OPT_LOCK_NOLOCK:
-#if defined(__AST_DEBUG_MALLOC)
 		obj = __ast_calloc(1, sizeof(*obj) + data_size, file, line, func);
-#else
-		obj = ast_calloc(1, sizeof(*obj) + data_size);
-#endif
 		if (obj == NULL) {
 			return NULL;
 		}
