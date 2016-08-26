@@ -49,11 +49,22 @@ static void aor_destroy(void *obj)
 /*! \brief Allocator for AOR */
 static void *aor_alloc(const char *name)
 {
-	struct ast_sip_aor *aor = ast_sorcery_generic_alloc(sizeof(struct ast_sip_aor), aor_destroy);
+	void *lock;
+	struct ast_sip_aor *aor;
+
+	lock = ast_named_lock_get(AST_NAMED_LOCK_TYPE_MUTEX, "aor", name);
+	if (!lock) {
+		return NULL;
+	}
+
+	aor = ast_sorcery_lockable_alloc(sizeof(struct ast_sip_aor), aor_destroy, lock);
+	ao2_ref(lock, -1);
+
 	if (!aor) {
 		return NULL;
 	}
 	ast_string_field_init(aor, 128);
+
 	return aor;
 }
 
@@ -206,17 +217,11 @@ struct ao2_container *ast_sip_location_retrieve_aor_contacts_nolock(const struct
 struct ao2_container *ast_sip_location_retrieve_aor_contacts(const struct ast_sip_aor *aor)
 {
 	struct ao2_container *contacts;
-	struct ast_named_lock *lock;
 
-	lock = ast_named_lock_get(AST_NAMED_LOCK_TYPE_MUTEX, "aor", ast_sorcery_object_get_id(aor));
-	if (!lock) {
-		return NULL;
-	}
-
-	ao2_lock(lock);
+	/* ao2_lock / ao2_unlock do not actually write aor since it has an ao2 lockobj. */
+	ao2_lock((void*)aor);
 	contacts = ast_sip_location_retrieve_aor_contacts_nolock(aor);
-	ao2_unlock(lock);
-	ast_named_lock_put(lock);
+	ao2_unlock((void*)aor);
 
 	return contacts;
 }
@@ -369,19 +374,12 @@ int ast_sip_location_add_contact(struct ast_sip_aor *aor, const char *uri,
 		struct ast_sip_endpoint *endpoint)
 {
 	int res;
-	struct ast_named_lock *lock;
 
-	lock = ast_named_lock_get(AST_NAMED_LOCK_TYPE_MUTEX, "aor", ast_sorcery_object_get_id(aor));
-	if (!lock) {
-		return -1;
-	}
-
-	ao2_lock(lock);
+	ao2_lock(aor);
 	res = ast_sip_location_add_contact_nolock(aor, uri, expiration_time, path_info, user_agent,
 		via_addr, via_port, call_id,
 		endpoint);
-	ao2_unlock(lock);
-	ast_named_lock_put(lock);
+	ao2_unlock(aor);
 
 	return res;
 }
