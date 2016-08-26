@@ -6093,7 +6093,7 @@ struct ast_channel *ast_request(const char *type, struct ast_format_cap *request
 
 		if (set_security_requirements(requestor, c)) {
 			ast_log(LOG_WARNING, "Setting security requirements failed\n");
-			c = ast_channel_release(c);
+			c = ast_hangup(c);
 			*cause = AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;
 			return NULL;
 		}
