@@ -20,16 +20,16 @@
 #ifndef _ASTERISK_RES_FAX_H
 #define _ASTERISK_RES_FAX_H
 
-#include <asterisk.h>
-#include <asterisk/lock.h>
-#include <asterisk/linkedlists.h>
-#include <asterisk/module.h>
-#include <asterisk/utils.h>
-#include <asterisk/options.h>
-#include <asterisk/frame.h>
-#include <asterisk/cli.h>
-#include <asterisk/stringfields.h>
-#include <asterisk/manager.h>
+#include "asterisk.h"
+#include "asterisk/lock.h"
+#include "asterisk/linkedlists.h"
+#include "asterisk/module.h"
+#include "asterisk/utils.h"
+#include "asterisk/options.h"
+#include "asterisk/frame.h"
+#include "asterisk/cli.h"
+#include "asterisk/stringfields.h"
+#include "asterisk/manager.h"
 
 /*! \brief capabilities for res_fax to locate a fax technology module */
 enum ast_fax_capabilities {
@@ -187,6 +187,8 @@ struct ast_fax_session_details {
 	int faxdetect_timeout;
 	/*! flags used for fax detection */
 	int faxdetect_flags;
+	/*! Non-zero if T.38 is negotiated */
+	int is_t38_negotiated;
 };
 
 struct ast_fax_tech;
