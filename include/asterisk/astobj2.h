@@ -1201,6 +1201,20 @@ enum ao2_container_opts {
 	 * ao2_sort_fn.
 	 */
 	AO2_CONTAINER_ALLOC_OPT_DUPS_REPLACE = (3 << 1),
+	/*!
+	 * \brief This container holds ao2_weakproxy objects.
+	 *
+	 * \details The container itself will always operate on weakproxy objects.
+	 * The weakproxy (and not it's object) should be used with \ref ao2_link and
+	 * \ref ao2_unlink.  The weakproxy will always be passed to container callback
+	 * functions (hash, compare and sort).  ao2_callback / ao2_find will return
+	 * return the object held by the weakproxy instead of the weakproxy itself.
+	 *
+	 * \note Removal of NULL weakproxy objects is automatic.  If a weakproxy does
+	 * not point to a real object it will be unlinked immediately.  It is even
+	 * possible for ao2_callback or ao2_find to unlink an object.
+	 */
+	AO2_CONTAINER_ALLOC_OPT_WEAKPROXY_HOLDER = (8 << 0),
 };
 
 /*!
