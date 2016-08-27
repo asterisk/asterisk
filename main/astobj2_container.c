@@ -78,6 +78,12 @@ int __container_unlink_node_debug(struct ao2_container_node *node, uint32_t flag
 	return 1;
 }
 
+static void node_obj_proxy_cb(void *obj, void *self)
+{
+	ao2_unlink(self, obj);
+	ao2_ref(self, -1);
+}
+
 /*!
  * \internal
  * \brief Link an object into this container.  (internal)
@@ -116,7 +122,17 @@ int __ao2_link(struct ao2_container *self, void *obj_new, int flags,
 	}
 
 	res = 0;
-	node = self->v_table->new_node(self, obj_new, tag, file, line, func);
+	if (self->options & AO2_CONTAINER_ALLOC_OPT_WEAKPROXY_HOLDER) {
+		/* verify obj_new is active weakproxy */
+		if (ao2_weakproxy_ref_object(obj_new, 0, 0) > 1) {
+			node = self->v_table->new_node(self, obj_new, tag, file, line, func);
+		} else {
+			node = NULL;
+		}
+	} else {
+		node = self->v_table->new_node(self, obj_new, tag, file, line, func);
+	}
+
 	if (node) {
 #if defined(AO2_DEBUG)
 		if (ao2_container_check(self, OBJ_NOLOCK)) {
@@ -154,6 +170,15 @@ int __ao2_link(struct ao2_container *self, void *obj_new, int flags,
 		__adjust_lock(self, orig_lock, 0);
 	} else {
 		ao2_unlock(self);
+	}
+
+	if (self->options & AO2_CONTAINER_ALLOC_OPT_WEAKPROXY_HOLDER) {
+		ao2_t_ref(self, +1, "hold for node_obj_proxy_cb");
+		if (ao2_weakproxy_subscribe(obj_new, node_obj_proxy_cb, self, 0)) {
+			/* This is a bit of a problem, obj_new will not get cleaned from the list.
+			 * Maybe we should ao2_unlink right now? */
+			ao2_t_ref(self, -1, "release hold for node_obj_proxy_cb");
+		}
 	}
 
 	return res;
@@ -349,11 +374,22 @@ static void *internal_ao2_traverse(struct ao2_container *self, enum search_flags
 					 * Link the object into the container that will hold the
 					 * results.
 					 */
-					__ao2_link(multi_container, node->obj, flags, tag, file, line, func);
+					if (self->options & AO2_CONTAINER_ALLOC_OPT_WEAKPROXY_HOLDER) {
+						void *obj = ao2_weakproxy_get_object(node->obj, 0);
+
+						if (obj) {
+							__ao2_link(multi_container, obj, flags, tag, file, line, func);
+							ao2_ref(obj, -1);
+						}
+					} else {
+						__ao2_link(multi_container, node->obj, flags, tag, file, line, func);
+					}
 				} else {
 					ret = node->obj;
 					/* Returning a single object. */
-					if (!(flags & OBJ_UNLINK)) {
+					if (self->options & AO2_CONTAINER_ALLOC_OPT_WEAKPROXY_HOLDER) {
+						ret = ao2_weakproxy_get_object(ret, 0);
+					} else if (!(flags & OBJ_UNLINK)) {
 						/*
 						 * Bump the ref count since we are not going to unlink and
 						 * transfer the container's object ref to the returned object.
