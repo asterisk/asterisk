@@ -93,13 +93,21 @@ static int mp3play(const char *filename, int fd)
 	ast_close_fds_above_n(STDERR_FILENO);
 
 	/* Execute mpg123, but buffer if it's a net connection */
-	if (!strncasecmp(filename, "http://", 7)) {
+	if (!strncasecmp(filename, "http://", 7) && strstr(filename, ".m3u")) {
 		/* Most commonly installed in /usr/local/bin */
-	    execl(LOCAL_MPG_123, "mpg123", "-q", "-s", "-b", "1024", "-f", "8192", "--mono", "-r", "8000", filename, (char *)NULL);
+	    execl(LOCAL_MPG_123, "mpg123", "-q", "-s", "-b", "1", "-f", "8192", "--mono", "-r", "8000", "-@", filename, (char *)NULL);
 		/* But many places has it in /usr/bin */
-	    execl(MPG_123, "mpg123", "-q", "-s", "-b", "1024","-f", "8192", "--mono", "-r", "8000", filename, (char *)NULL);
+	    execl(MPG_123, "mpg123", "-q", "-s", "-b", "1", "-f", "8192", "--mono", "-r", "8000", "-@", filename, (char *)NULL);
 		/* As a last-ditch effort, try to use PATH */
-	    execlp("mpg123", "mpg123", "-q", "-s", "-b", "1024",  "-f", "8192", "--mono", "-r", "8000", filename, (char *)NULL);
+	    execlp("mpg123", "mpg123", "-q", "-s", "-b", "1", "-f", "8192", "--mono", "-r", "8000", "-@", filename, (char *)NULL);
+	}
+	else if (!strncasecmp(filename, "http://", 7)) {
+		/* Most commonly installed in /usr/local/bin */
+	    execl(LOCAL_MPG_123, "mpg123", "-q", "-s", "-b", "1", "-f", "8192", "--mono", "-r", "8000", filename, (char *)NULL);
+		/* But many places has it in /usr/bin */
+	    execl(MPG_123, "mpg123", "-q", "-s", "-b", "1", "-f", "8192", "--mono", "-r", "8000", filename, (char *)NULL);
+		/* As a last-ditch effort, try to use PATH */
+	    execlp("mpg123", "mpg123", "-q", "-s", "-b", "1", "-f", "8192", "--mono", "-r", "8000", filename, (char *)NULL);
 	}
 	else if (strstr(filename, ".m3u")) {
 		/* Most commonly installed in /usr/local/bin */
