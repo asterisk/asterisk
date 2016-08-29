@@ -1,3 +1,201 @@
+2016-08-29 12:30 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 14.0.0-beta2 Released.
+
+2016-08-29 07:29 +0000 [9cdf44668d]  Joshua Colp <jcolp@digium.com>
+
+	* Release summaries: Add summaries for 14.0.0-beta2
+
+2016-08-29 07:29 +0000 [73d39f2029]  Joshua Colp <jcolp@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-08-29 07:29 +0000 [e8a97775ee]  Joshua Colp <jcolp@digium.com>
+
+	* .version: Update for 14.0.0-beta2
+
+2016-08-29 07:29 +0000 [345409825a]  Joshua Colp <jcolp@digium.com>
+
+	* .lastclean: Update for 14.0.0-beta2
+
+2016-08-29 07:29 +0000 [105c1168f7]  Joshua Colp <jcolp@digium.com>
+
+	* realtime: Add database scripts for 14.0.0-beta2
+
+2016-08-29 06:31 +0000 [8927b52634]  Joshua Colp <jcolp@digium.com>
+
+	* alembic: Fix downgrade path.
+
+	  The 3772f8f828da version was referencing a previous version
+	  that did not exist in the 14.0 branch. It has been fixed to
+	  reference the correct previous version.
+
+	  Change-Id: I004d0fcfdfe1d1bb6f01c6dac2b69f6b1f40ae51
+
+2016-08-11 12:18 +0000 [9a95c6dea3]  gtjoseph <gjoseph@digium.com>
+
+	* res_pjsip:  Fail global load if debug or default_from_user are empty
+
+	  If debug was specified in the global configuration but left blank,
+	  the logger would treat it as a wildcard and log all hosts.  If
+	  default_from_user was empty, a crash would result.
+
+	  The global apply handler now checks for empty strings.
+
+	  ASTERISK-26239 #close
+	  ASTERISK-26238 #close
+
+	  Change-Id: Ie75727f5cd5808845d92cc81f5713842fb203336
+
+2016-08-11 11:24 +0000 [aaee8160bc]  gtjoseph <gjoseph@digium.com>
+
+	* res_pjsip_caller_id:  Copy header name to short header name
+
+	  When compact_headers was set, we were sending a zero-length header name
+	  for PAI and RPID because we always forced the short header name length
+	  to 0.  We did this because we cloned the header from "From" and wanted
+	  to clear "f" from the sname.  By cloning however, we bypass pjproject's
+	  automatic logic that sets sname to name if there's no compact form of
+	  the header, which there isn't for PAI and RPID.  So now we force sname
+	  to be the same as name right after we set name.
+
+	  res_pjsip_diversion needed the same treatment for the Diversion header.
+
+	  ASTERISK-26241 #close
+
+	  Change-Id: I633ec139630cd83809aae00336cee4a10077e467
+
+2016-08-11 12:01 +0000 [7af0eac02a]  gtjoseph <gjoseph@digium.com>
+
+	* autohints:  Update CHANGES and extensions.conf.sample
+
+	  Make it clear that we're talking about device state hints and add
+	  an entry to the sample config.
+
+	  Change-Id: Iaef58ffb960191a21b713e8e0b51ce1fcd47e433
+
+2016-08-11 10:50 +0000 [ef0bf47bb3]  Kevin Harwell <kharwell@digium.com>
+
+	* alembic: add auth_username to endpoint's identify_by enum
+
+	  A new identify_by option was added recently, auth_username. However, this
+	  setting was not added as an allowable choice in the database enumeration
+	  value.
+
+	  This patch updates the current enumeration, adding in the new setting.
+
+	  ASTERISK-26268 #close
+
+	  Change-Id: Ib4788e8485e4cd40172ec0abbf5810a147ab8bf8
+
+2016-08-08 14:50 +0000 [a1d6b14c40]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_srtp: Move SDP SRTP code from the core to res_srtp.
+
+	  A patch made to the master branch (Now the 14 branch) inadvertently made
+	  libsrtp a required dependency in order to compile Asterisk.  Rather than
+	  create dummy defines to substitute for the defines supplied by libsrtp
+	  when libsrtp is not available, most of the code in sdp_srtp.c is moved
+	  into res_srtp.c.  This gets more code out of Asterisk's core that isn't
+	  used when SRTP is not available.  This also makes another inadvertent
+	  required dependency on libsrtp by Asterisk's core unlikely.
+
+	  ASTERISK-26253 #close
+	  Reported by: Ben Merrills
+
+	  Change-Id: I0a46cde81501c0405399c2588633ae32706d1ee7
+
+2016-08-09 12:07 +0000 [a783e1e60d]  Kevin Harwell <kharwell@digium.com>
+
+	* alembic/sqlalchemy: auto increment only allowed on a single column
+
+	  The extensions table defined two columns (id and priority) as primary key
+	  autoincrement columns. However only one is allowed when defining the primary
+	  key.
+
+	  This patch removes the autoincrement attribute from the priority column since
+	  it does not need to be as such and really should not have been on there in the
+	  first place.
+
+	  This patch also removes 'context', 'exten', and 'priority' from the primary key
+	  index and creates a new combined unique contraint index on them.
+
+	  ASTERISK-26183 #close
+
+	  Change-Id: Ib9c712c612a4d7ec1edb0dcb77f1bae0905a470b
+
+2016-08-10 11:47 +0000 [9c56f798f6]  gtjoseph <gjoseph@digium.com>
+
+	* res_resolver_unbound:  Allow compilation with libunbound version < 1.5
+
+	  libunbound at version 1.4.20 (which CentOS still uses) declared all
+	  of their string function parameters as as 'char *'.  1.4.21 changed
+	  them all to 'const char *'.  Thankfully 1.4.21 also introduced the
+	  UNBOUND_VERSION_MAJOR define so configure now checks for that and
+	  sets HAVE_UNBOUND_CONST_PARAMS.  res_resolver_unbound then checks
+	  that and casts away the 'const' if it's not set.
+
+	  Tested compile and testsuite on CentOS6 (1.4.20), Ubuntu14 (1.4.22) and
+	  Fedora24 (1.5.4).  There are a few failing tests to be addressed though.
+
+	  ASTERISK-26283 #close
+
+	  Change-Id: Ib708b19b706c5d0ba7b7d5473e6df339d9ae4148
+
+2016-08-01 16:13 +0000 [1ad00c1c30]  gtjoseph <gjoseph@digium.com>
+
+	* menuselect:  Add an opaque "member_data" string to the acceptable xml
+
+	  Change-Id: Id5ac43b95c8d7395f3be37f983632169db3d1afe
+
+2016-07-17 18:28 +0000 [815b6f72f8]  gtjoseph <gjoseph@digium.com>
+
+	* pjproject_bundled:  Update for pjproject 2.5.5
+
+	  Add more --disable-* switches to Makefile.rules including
+	  --disable-opus which was causing bundled pjproject to fail with
+	  "undefined reference" errors in libasteriskpj.
+
+	  Changed PJ_ENABLE_EXTRA_CHECK to 1.
+
+	  Removed 2 obsolete patches and added a new one.
+	  The new one was merged by Teluu on 6/27/2016.
+
+	  ASTERISK-26148 #close
+
+	  Change-Id: Ib8af6c6a9d31f7238ce65b336134c2efdc855063
+	  (cherry picked from commit 4cf02b5584ce33bb0a64408c27bf20c19bc4ce13)
+
+2016-07-29 13:13 +0000 [c95b611a73]  Mark Michelson <mmichelson@digium.com>
+
+	* Remove SILK payload mappings from Asterisk core.
+
+	  SILK is a bit of a hog when it comes to using up our limited number of
+	  dynamic payload types in the RTP engine. By freeing up four slots, it
+	  allows for other codecs to potentially take the place.
+
+	  Now, codec_silk.so will dynamically use the payload slots in the RTP
+	  engine when it loads.
+
+	  A better fix would be make RTP dynamic payload types actually
+	  dynamic. However, at this stage of Asterisk 14 development, this is a
+	  risky move that would be imprudent.
+
+	  Change-Id: I5774e09408f9a203db189529eabdc0d3f4c1e612
+
+2016-07-27 12:36 +0000 [bc94ccbcdd]  Kevin Harwell <kharwell@digium.com>
+
+	* rtp_engine: Failed assertion and wrong name given for codec
+
+	  Fixed an assert check that would trigger when the passed in value was negative.
+	  The negative value was being cast to an unsigned value. This resulted in the
+	  check failing.
+
+	  Also fixed another problem when loading formats in the engine. When setting the
+	  mime type the format's name was being passed in instead of the codec's name.
+
+	  Change-Id: I1a201cd419ba4d8e9a40d337e36b6fbe1737192c
+
 2016-07-26 23:19 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 14.0.0-beta1 Released.
