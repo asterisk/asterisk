@@ -47,6 +47,7 @@
 #define DEFAULT_MWI_TPS_QUEUE_HIGH AST_TASKPROCESSOR_HIGH_WATER_LEVEL
 #define DEFAULT_MWI_TPS_QUEUE_LOW -1
 #define DEFAULT_MWI_DISABLE_INITIAL_UNSOLICITED 0
+#define DEFAULT_IGNORE_URI_USER_OPTIONS 0
 
 /*!
  * \brief Cached global config object
@@ -100,6 +101,8 @@ struct global_config {
 		/*! Nonzero to disable sending unsolicited mwi to all endpoints on startup */
 		unsigned int disable_initial_unsolicited;
 	} mwi;
+	/*! Nonzero if URI user field options are ignored. */
+	unsigned int ignore_uri_user_options;
 };
 
 static void global_destructor(void *obj)
@@ -384,6 +387,20 @@ unsigned int ast_sip_get_mwi_disable_initial_unsolicited(void)
 	return disable_initial_unsolicited;
 }
 
+unsigned int ast_sip_get_ignore_uri_user_options(void)
+{
+	unsigned int ignore_uri_user_options;
+	struct global_config *cfg;
+
+	cfg = get_global_cfg();
+	if (!cfg) {
+		return DEFAULT_IGNORE_URI_USER_OPTIONS;
+	}
+
+	ignore_uri_user_options = cfg->ignore_uri_user_options;
+	ao2_ref(cfg, -1);
+	return ignore_uri_user_options;
+}
 
 /*!
  * \internal
@@ -533,6 +550,9 @@ int ast_sip_initialize_sorcery_global(void)
 	ast_sorcery_object_field_register(sorcery, "global", "mwi_disable_initial_unsolicited",
 		DEFAULT_MWI_DISABLE_INITIAL_UNSOLICITED ? "yes" : "no",
 		OPT_BOOL_T, 1, FLDSET(struct global_config, mwi.disable_initial_unsolicited));
+	ast_sorcery_object_field_register(sorcery, "global", "ignore_uri_user_options",
+		DEFAULT_IGNORE_URI_USER_OPTIONS ? "yes" : "no",
+		OPT_BOOL_T, 1, FLDSET(struct global_config, ignore_uri_user_options));
 
 	if (ast_sorcery_instance_observer_add(sorcery, &observer_callbacks_global)) {
 		return -1;
