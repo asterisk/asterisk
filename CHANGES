@@ -79,6 +79,17 @@ res_pjsip
    configure these options then you already had to do a reload after making
    changes.
 
+ * Added "ignore_uri_user_options" global configuration option for
+   compatibility with an ITSP that sends URI user field options.  When enabled
+   the user field is truncated at the first semicolon.
+   Example:
+   URI: "sip:1235557890;phone-context=national@x.x.x.x;user=phone"
+   The user field is "1235557890;phone-context=national"
+   Which is truncated to this: "1235557890"
+
+   Note: The caller-id and redirecting number strings obtained from incoming
+   SIP URI user fields are now always truncated at the first semicolon.
+
 app_confbridge
 ------------------
   * Some sounds played into the bridge are played asynchronously. This, for

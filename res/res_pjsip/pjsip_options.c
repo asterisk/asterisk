@@ -750,8 +750,7 @@ static pj_bool_t options_on_rx_request(pjsip_rx_data *rdata)
 	pjsip_sip_uri *sip_ruri;
 	char exten[AST_MAX_EXTENSION];
 
-	if (pjsip_method_cmp(&rdata->msg_info.msg->line.req.method,
-			     &pjsip_options_method)) {
+	if (pjsip_method_cmp(&rdata->msg_info.msg->line.req.method, &pjsip_options_method)) {
 		return PJ_FALSE;
 	}
 
@@ -768,13 +767,20 @@ static pj_bool_t options_on_rx_request(pjsip_rx_data *rdata)
 	sip_ruri = pjsip_uri_get_uri(ruri);
 	ast_copy_pj_str(exten, &sip_ruri->user, sizeof(exten));
 
+	/*
+	 * We may want to match in the dialplan without any user
+	 * options getting in the way.
+	 */
+	AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(exten);
+
 	if (ast_shutting_down()) {
 		/*
 		 * Not taking any new calls at this time.
 		 * Likely a server availability OPTIONS poll.
 		 */
 		send_options_response(rdata, 503);
-	} else if (!ast_strlen_zero(exten) && !ast_exists_extension(NULL, endpoint->context, exten, 1, NULL)) {
+	} else if (!ast_strlen_zero(exten)
+		&& !ast_exists_extension(NULL, endpoint->context, exten, 1, NULL)) {
 		send_options_response(rdata, 404);
 	} else {
 		send_options_response(rdata, 200);

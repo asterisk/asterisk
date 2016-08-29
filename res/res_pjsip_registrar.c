@@ -626,6 +626,12 @@ static struct ast_sip_aor *find_registrar_aor(struct pjsip_rx_data *rdata, struc
 			username = ast_alloca(uri->user.slen + 1);
 			ast_copy_pj_str(username, &uri->user, uri->user.slen + 1);
 
+			/*
+			 * We may want to match without any user options getting
+			 * in the way.
+			 */
+			AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(username);
+
 			aor_name = find_aor_name(username, domain_name, endpoint->aors);
 			if (aor_name) {
 				ast_debug(3, "Matched aor '%s' by To username\n", aor_name);

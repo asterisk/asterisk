@@ -33,6 +33,7 @@ static int get_from_header(pjsip_rx_data *rdata, char *username, size_t username
 {
 	pjsip_uri *from = rdata->msg_info.from->uri;
 	pjsip_sip_uri *sip_from;
+
 	if (!PJSIP_URI_SCHEME_IS_SIP(from) && !PJSIP_URI_SCHEME_IS_SIPS(from)) {
 		return -1;
 	}
@@ -115,18 +116,25 @@ static struct ast_sip_endpoint *find_endpoint(pjsip_rx_data *rdata, char *endpoi
 
 static struct ast_sip_endpoint *username_identify(pjsip_rx_data *rdata)
 {
-	char username[64], domain[64];
+	char username[64];
+	char domain[64];
 	struct ast_sip_endpoint *endpoint;
 
 	if (get_from_header(rdata, username, sizeof(username), domain, sizeof(domain))) {
 		return NULL;
 	}
+
+	/*
+	 * We may want to be matched without any user options getting
+	 * in the way.
+	 */
+	AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(username);
+
 	ast_debug(3, "Attempting identify by From username '%s' domain '%s'\n", username, domain);
 
 	endpoint = find_endpoint(rdata, username, domain);
 	if (!endpoint) {
 		ast_debug(3, "Endpoint not found for From username '%s' domain '%s'\n", username, domain);
-		ao2_cleanup(endpoint);
 		return NULL;
 	}
 	if (!(endpoint->ident_method & AST_SIP_ENDPOINT_IDENTIFY_BY_USERNAME)) {
