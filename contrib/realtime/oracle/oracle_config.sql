@@ -555,7 +555,8 @@ CREATE TABLE extensions (
     priority INTEGER NOT NULL, 
     app VARCHAR2(40 CHAR) NOT NULL, 
     appdata VARCHAR2(256 CHAR) NOT NULL, 
-    PRIMARY KEY (id, context, exten, priority), 
+    PRIMARY KEY (id), 
+    UNIQUE (context, exten, priority), 
     UNIQUE (id)
 )
 
@@ -1503,6 +1504,20 @@ ALTER TABLE ps_endpoints ADD fax_detect_timeout INTEGER
 /
 
 UPDATE alembic_version SET version_num='4a6c67fa9b7a' WHERE alembic_version.version_num = '9deac0ae4717'
+
+/
+
+-- Running upgrade 4a6c67fa9b7a -> 3772f8f828da
+
+ALTER TABLE ps_endpoints MODIFY identify_by VARCHAR(13 CHAR)
+
+/
+
+ALTER TABLE ps_endpoints ADD CONSTRAINT pjsip_identify_by_values CHECK (identify_by IN ('username', 'auth_username'))
+
+/
+
+UPDATE alembic_version SET version_num='3772f8f828da' WHERE alembic_version.version_num = '4a6c67fa9b7a'
 
 /
 
