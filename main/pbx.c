@@ -5745,7 +5745,8 @@ static void manager_dpsendack(struct mansession *s, const struct message *m)
 static int manager_show_dialplan_helper(struct mansession *s, const struct message *m,
 					const char *actionidtext, const char *context,
 					const char *exten, struct dialplan_counters *dpc,
-					struct ast_include *rinclude)
+					struct ast_include *rinclude,
+					int includecount, const char *includes[])
 {
 	struct ast_context *c;
 	int res = 0, old_total_exten = dpc->total_exten;
@@ -5827,7 +5828,24 @@ static int manager_show_dialplan_helper(struct mansession *s, const struct messa
 		while ( (i = ast_walk_context_includes(c, i)) ) {
 			if (exten) {
 				/* Check all includes for the requested extension */
-				manager_show_dialplan_helper(s, m, actionidtext, ast_get_include_name(i), exten, dpc, i);
+				if (includecount >= AST_PBX_MAX_STACK) {
+					ast_log(LOG_WARNING, "Maximum include depth exceeded!\n");
+				} else {
+					int dupe = 0;
+					int x;
+					for (x = 0; x < includecount; x++) {
+						if (!strcasecmp(includes[x], ast_get_include_name(i))) {
+							dupe++;
+							break;
+						}
+					}
+					if (!dupe) {
+						includes[includecount] = ast_get_include_name(i);
+						manager_show_dialplan_helper(s, m, actionidtext, ast_get_include_name(i), exten, dpc, i, includecount + 1, includes);
+					} else {
+						ast_log(LOG_WARNING, "Avoiding circular include of %s within %s\n", ast_get_include_name(i), context);
+					}
+				}
 			} else {
 				if (!dpc->total_items++)
 					manager_dpsendack(s, m);
@@ -5882,6 +5900,7 @@ static int manager_show_dialplan(struct mansession *s, const struct message *m)
 {
 	const char *exten, *context;
 	const char *id = astman_get_header(m, "ActionID");
+	const char *incstack[AST_PBX_MAX_STACK];
 	char idtext[256];
 
 	/* Variables used for different counters */
@@ -5897,7 +5916,7 @@ static int manager_show_dialplan(struct mansession *s, const struct message *m)
 	exten = astman_get_header(m, "Extension");
 	context = astman_get_header(m, "Context");
 
-	manager_show_dialplan_helper(s, m, idtext, context, exten, &counters, NULL);
+	manager_show_dialplan_helper(s, m, idtext, context, exten, &counters, NULL, 0, incstack);
 
 	if (!ast_strlen_zero(context) && !counters.context_existence) {
 		char errorbuf[BUFSIZ];
