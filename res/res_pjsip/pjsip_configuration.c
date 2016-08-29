@@ -1292,7 +1292,7 @@ static struct ast_endpoint *persistent_endpoint_find_or_create(const struct ast_
 			return NULL;
 		}
 
-		ast_endpoint_set_state(persistent->endpoint, AST_ENDPOINT_UNKNOWN);
+		ast_endpoint_set_state(persistent->endpoint, AST_ENDPOINT_OFFLINE);
 
 		ao2_link_flags(persistent_endpoints, persistent, OBJ_NOLOCK);
 	}
