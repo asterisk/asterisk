@@ -603,6 +603,10 @@ static int ident_handler(const struct aco_option *opt, struct ast_variable *var,
 			endpoint->ident_method = 0;
 			return -1;
 		}
+		if (endpoint->ident_method & method) {
+			/* We are already indentifying by this method.  No need to do it again. */
+			continue;
+		}
 
 		endpoint->ident_method |= method;
 		AST_VECTOR_APPEND(&endpoint->ident_method_order, method);
