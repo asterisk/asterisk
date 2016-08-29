@@ -2193,6 +2193,38 @@ int ast_sip_register_supplement(struct ast_sip_supplement *supplement);
 void ast_sip_unregister_supplement(struct ast_sip_supplement *supplement);
 
 /*!
+ * \brief Retrieve the global setting 'ignore_uri_user_options'.
+ * \since 13.12.0
+ *
+ * \retval non zero if ignore the user field options.
+ */
+unsigned int ast_sip_get_ignore_uri_user_options(void);
+
+/*!
+ * \brief Truncate the URI user field options string if enabled.
+ * \since 13.12.0
+ *
+ * \param str URI user field string to truncate if enabled
+ *
+ * \details
+ * We need to be able to handle URI's looking like
+ * "sip:1235557890;phone-context=national@x.x.x.x;user=phone"
+ *
+ * Where the URI user field is:
+ * "1235557890;phone-context=national"
+ *
+ * When truncated the string will become:
+ * "1235557890"
+ */
+#define AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(str)				\
+	do {														\
+		char *__semi = strchr((str), ';');						\
+		if (__semi && ast_sip_get_ignore_uri_user_options()) {	\
+			*__semi = '\0';										\
+		}														\
+	} while (0)
+
+/*!
  * \brief Retrieve the system debug setting (yes|no|host).
  *
  * \note returned string needs to be de-allocated by caller.

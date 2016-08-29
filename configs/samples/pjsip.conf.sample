@@ -910,6 +910,22 @@
 ; with us. The extension added is the name of the endpoint.
 ;regcontext=sipregistrations
 
+;ignore_uri_user_options=no ; Enable/Disable ignoring SIP URI user field options.
+                    ; If you have this option enabled and there are semicolons
+                    ; in the user field of a SIP URI then the field is truncated
+                    ; at the first semicolon.  This effectively makes the semicolon
+                    ; a non-usable character for PJSIP endpoint names, extensions,
+                    ; and AORs.  This can be useful for improving compatability with
+                    ; an ITSP that likes to use user options for whatever reason.
+                    ; Example:
+                    ; URI: "sip:1235557890;phone-context=national@x.x.x.x;user=phone"
+                    ; The user field is "1235557890;phone-context=national"
+                    ; Which becomes this: "1235557890"
+                    ;
+                    ; Note: The caller-id and redirecting number strings obtained
+                    ; from incoming SIP URI user fields are always truncated at the
+                    ; first semicolon.
+
 ; MODULE PROVIDING BELOW SECTION(S): res_pjsip_acl
 ;==========================ACL SECTION OPTIONS=========================
 ;[acl]

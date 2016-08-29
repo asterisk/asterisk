@@ -33,6 +33,7 @@ static int get_endpoint_details(pjsip_rx_data *rdata, char *endpoint, size_t end
 {
 	pjsip_uri *from = rdata->msg_info.from->uri;
 	pjsip_sip_uri *sip_from;
+
 	if (!PJSIP_URI_SCHEME_IS_SIP(from) && !PJSIP_URI_SCHEME_IS_SIPS(from)) {
 		return -1;
 	}
@@ -68,6 +69,12 @@ static struct ast_sip_endpoint *username_identify(pjsip_rx_data *rdata)
 	if (get_endpoint_details(rdata, endpoint_name, sizeof(endpoint_name), domain_name, sizeof(domain_name))) {
 		return NULL;
 	}
+
+	/*
+	 * We may want to be matched without any user options getting
+	 * in the way.
+	 */
+	AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(endpoint_name);
 
 	if (!ast_sip_get_disable_multi_domain()) {
 		/* Attempt to find the endpoint given the name and domain provided */
