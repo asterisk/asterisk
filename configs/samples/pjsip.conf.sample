@@ -764,6 +764,10 @@
                    ; "0" or not enabled)
 ;contact_user= ; On outgoing requests, force the user portion of the Contact
                ; header to this value (default: "")
+;preferred_codec_only=yes       ; Respond to a SIP invite with the single most preferred codec
+                                ; rather than advertising all joint codec capabilities. This
+                                ; limits the other side's codec choice to exactly what we prefer.
+                                ; default is no.
 
 ;==========================AUTH SECTION OPTIONS=========================
 ;[auth]
