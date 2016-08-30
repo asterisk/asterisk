@@ -1,3 +1,107 @@
+2016-08-30 14:53 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.11.0-rc2 Released.
+
+2016-08-30 09:53 +0000 [9c8a7bf1e9]  Kevin Harwell <kharwell@digium.com>
+
+	* Release summaries: Add summaries for 13.11.0-rc2
+
+2016-08-30 09:53 +0000 [c29eb6cad1]  Kevin Harwell <kharwell@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-08-30 09:53 +0000 [53ab4718ac]  Kevin Harwell <kharwell@digium.com>
+
+	* .version: Update for 13.11.0-rc2
+
+2016-08-30 09:53 +0000 [98b7b9e101]  Kevin Harwell <kharwell@digium.com>
+
+	* .lastclean: Update for 13.11.0-rc2
+
+2016-08-30 09:53 +0000 [9de68f3d44]  Kevin Harwell <kharwell@digium.com>
+
+	* realtime: Add database scripts for 13.11.0-rc2
+
+2016-08-22 17:08 +0000 [6da8511a6a]  Mark Michelson <mmichelson@digium.com>
+
+	* res_pjsip: Default endpoints to the "offline" status.
+
+	  A recent change attempted to optimize startup by not updating contact
+	  status. Instead, code responsible for qualifying contacts updates the
+	  status as it becomes known. The code even accounts for contacts/AORs
+	  that are not set to be qualified.
+
+	  The problem, though, is when there are no contacts associated with an
+	  endpoint. A common case is when an endpoint is set to register its
+	  contacts but has not done so yet. In this case, prior to registration,
+	  the endpoint's device state will appear to be "not in use" and hints
+	  associated with that device will appear to be "idle". In actuality, the
+	  device state and hint should both appear as "unavailable". The reason
+	  for the failure is that the optimization change made all persistent
+	  endpoint states set to "unknown".
+
+	  The fix here is to change the hard-coded "unknown" to be "offline"
+	  instead. The default state will be offline until the qualifying code
+	  determines that the contact is actually online. This way, if there are
+	  no contacts at all, then the state stays as offline, and device state
+	  and hints appear correctly.
+
+	  ASTERISK-26269 #close
+	  Reported by nappsoft
+
+	  Change-Id: Ie99b84169393983453076f5e9c0d35ff313a456a
+	  (cherry picked from commit c16ef02318201f9db2e26512ec66cd62ec878d04)
+
+2016-08-25 07:06 +0000 [884db40142]  Joshua Colp <jcolp@digium.com>
+
+	* app_queue: Ensure member is removed from pending when hanging up.
+
+	  When dialing channels it is possible that they may not ever
+	  leave the not in use state (Local channels in particular) by
+	  the time we cancel them. If this occurs but we know they were
+	  dialed we explicitly remove them from the pending members
+	  container so that subsequent call attempts occur.
+
+	  ASTERISK-26299 #close
+
+	  Change-Id: I6ad0d17c36480c92cebf840626228ce3f7e4bd65
+
+2016-07-17 18:28 +0000 [ba7582ba75]  gtjoseph <gjoseph@digium.com>
+
+	* pjproject_bundled:  Update for pjproject 2.5.5
+
+	  Add more --disable-* switches to Makefile.rules including
+	  --disable-opus which was causing bundled pjproject to fail with
+	  "undefined reference" errors in libasteriskpj.
+
+	  Changed PJ_ENABLE_EXTRA_CHECK to 1.
+
+	  Removed 2 obsolete patches and added a new one.
+	  The new one was merged by Teluu on 6/27/2016.
+
+	  ASTERISK-26148 #close
+
+	  Change-Id: Ib8af6c6a9d31f7238ce65b336134c2efdc855063
+	  (cherry picked from commit 972cee2e4c402df3ddce237951e9d54281093be4)
+
+2016-07-29 13:13 +0000 [e6c2a29ad2]  Mark Michelson <mmichelson@digium.com>
+
+	* Remove SILK payload mappings from Asterisk core.
+
+	  SILK is a bit of a hog when it comes to using up our limited number of
+	  dynamic payload types in the RTP engine. By freeing up four slots, it
+	  allows for other codecs to potentially take the place.
+
+	  Now, codec_silk.so will dynamically use the payload slots in the RTP
+	  engine when it loads.
+
+	  A better fix would be make RTP dynamic payload types actually
+	  dynamic. However, at this stage of Asterisk 14 development, this is a
+	  risky move that would be imprudent.
+
+	  Change-Id: I5774e09408f9a203db189529eabdc0d3f4c1e612
+	  (cherry picked from commit d50895c7b04036aeaad58990089399e46db4c817)
+
 2016-07-28 14:32 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.11.0-rc1 Released.
