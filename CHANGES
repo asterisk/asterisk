@@ -12,6 +12,12 @@
 --- Functionality changes from Asterisk 14 to Asterisk 15 --------------------
 ------------------------------------------------------------------------------
 
+res_pjsip
+------------------
+ * Added endpoint configuration parameter "preferred_codec_only". 
+   This allow asterisk response to a SIP invite with the single most 
+   preferred codec rather than advertising all joint codec capabilities. 
+   This limits the other side's codec choice to exactly what we prefer.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 14.0.0 to Asterisk 14.1.0 ----------
@@ -42,7 +48,6 @@ chan_pjsip
    dialplan function PJSIP_MEDIA_OFFER, this allows the formats on a PJSIP
    channel to be re-negotiated and updated after session set up.
 
-res_pjsip
 ------------------
  * A new endpoint configuration parameter 'contact_user' has been added which
    when set will override the default user set on Contact headers in outgoing
