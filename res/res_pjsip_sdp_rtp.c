@@ -360,8 +360,11 @@ static int set_caps(struct ast_sip_session *session,
 		ast_format_cap_append_from_cap(caps, ast_channel_nativeformats(session->channel),
 			AST_MEDIA_TYPE_UNKNOWN);
 		ast_format_cap_remove_by_type(caps, media_type);
-		ast_format_cap_append_from_cap(caps, joint, media_type);
-
+		if (session->endpoint->preferred_codec_only){
+			ast_format_cap_append(caps, ast_format_cap_get_format(joint,0), 0);
+		} else {
+			ast_format_cap_append_from_cap(caps, joint, media_type);
+		}
 		/*
 		 * Apply the new formats to the channel, potentially changing
 		 * raw read/write formats and translation path while doing so.
