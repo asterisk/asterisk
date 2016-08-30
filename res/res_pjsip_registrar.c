@@ -563,6 +563,7 @@ static int match_aor(const char *aor_name, const char *id)
 static char *find_aor_name(const char *username, const char *domain, const char *aors)
 {
 	char *configured_aors;
+	char *aors_buf;
 	char *aor_name;
 	char *id_domain;
 	struct ast_sip_domain_alias *alias;
@@ -570,8 +571,10 @@ static char *find_aor_name(const char *username, const char *domain, const char 
 	id_domain = ast_alloca(strlen(username) + strlen(domain) + 2);
 	sprintf(id_domain, "%s@%s", username, domain);
 
+	aors_buf = ast_strdupa(aors);
+
 	/* Look for exact match on username@domain */
-	configured_aors = ast_strdupa(aors);
+	configured_aors = aors_buf;
 	while ((aor_name = ast_strip(strsep(&configured_aors, ",")))) {
 		if (match_aor(aor_name, id_domain)) {
 			return ast_strdup(aor_name);
@@ -586,7 +589,7 @@ static char *find_aor_name(const char *username, const char *domain, const char 
 		sprintf(id_domain, "%s@%s", username, alias->domain);
 		ao2_cleanup(alias);
 
-		configured_aors = ast_strdupa(aors);
+		configured_aors = strcpy(aors_buf, aors);/* Safe */
 		while ((aor_name = ast_strip(strsep(&configured_aors, ",")))) {
 			if (match_aor(aor_name, id_domain_alias)) {
 				return ast_strdup(aor_name);
@@ -594,8 +597,13 @@ static char *find_aor_name(const char *username, const char *domain, const char 
 		}
 	}
 
+	if (ast_strlen_zero(username)) {
+		/* No username, no match */
+		return NULL;
+	}
+
 	/* Look for exact match on username only */
-	configured_aors = ast_strdupa(aors);
+	configured_aors = strcpy(aors_buf, aors);/* Safe */
 	while ((aor_name = ast_strip(strsep(&configured_aors, ",")))) {
 		if (match_aor(aor_name, username)) {
 			return ast_strdup(aor_name);
