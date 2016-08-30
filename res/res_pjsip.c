@@ -833,6 +833,9 @@
 						have this accountcode set on it.
 					</para></description>
 				</configOption>
+				<configOption name="preferred_codec_only" default="no">
+					<synopsis>Respond to a SIP invite with the single most preferred codec rather than advertising all joint codec capabilities. This limits the other side's codec choice to exactly what we prefer.</synopsis>
+				</configOption>
 				<configOption name="rtp_keepalive">
 					<synopsis>Number of seconds between RTP comfort noise keepalive packets.</synopsis>
 					<description><para>
@@ -2021,6 +2024,9 @@
 				</parameter>
 				<parameter name="Accountcode">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='accountcode']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="PreferredCodecOnly">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='preferred_codec_only']/synopsis/node())"/></para>
 				</parameter>
 				<parameter name="DeviceState">
 					<para>The aggregate device state for this endpoint.</para>
