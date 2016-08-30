@@ -1330,6 +1330,27 @@
                                         set to this value if there is no better option (such as CallerID) to be
                                         used.</synopsis>
 				</configOption>
+				<configOption name="ignore_uri_user_options">
+					<synopsis>Enable/Disable ignoring SIP URI user field options.</synopsis>
+					<description>
+						<para>If you have this option enabled and there are semicolons
+						in the user field of a SIP URI then the field is truncated
+						at the first semicolon.  This effectively makes the semicolon
+						a non-usable character for PJSIP endpoint names, extensions,
+						and AORs.  This can be useful for improving compatability with
+						an ITSP that likes to use user options for whatever reason.
+						</para>
+						<example title="Sample SIP URI">
+							sip:1235557890;phone-context=national@x.x.x.x;user=phone
+						</example>
+						<example title="Sample SIP URI user field">
+							1235557890;phone-context=national
+						</example>
+						<example title="Sample SIP URI user field truncated">
+							1235557890
+						</example>
+					</description>
+				</configOption>
 			</configObject>
 		</configFile>
 	</configInfo>

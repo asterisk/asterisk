@@ -9,6 +9,20 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 13.8-cert3 to Asterisk 13.8-cert4 ----
+------------------------------------------------------------------------------
+
+res_pjsip
+------------------
+ * Added "ignore_uri_user_options" global configuration option for
+   compatibility with an ITSP that sends URI user field options.  When enabled
+   the user field is truncated at the first semicolon.
+   Example:
+   URI: "sip:1235557890;phone-context=national@x.x.x.x;user=phone"
+   The user field is "1235557890;phone-context=national"
+   Which is truncated to this: "1235557890"
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.8-cert2 to Asterisk 13.8-cert3 ----
 ------------------------------------------------------------------------------
 

@@ -519,6 +519,7 @@ static struct ast_sip_aor *find_registrar_aor(struct pjsip_rx_data *rdata, struc
 	struct ast_sip_aor *aor = NULL;
 	pjsip_sip_uri *uri;
 	char *domain_name;
+	char *username;
 	char *configured_aors;
 	char *aor_name;
 	struct ast_str *id = NULL;
@@ -526,6 +527,14 @@ static struct ast_sip_aor *find_registrar_aor(struct pjsip_rx_data *rdata, struc
 	uri = pjsip_uri_get_uri(rdata->msg_info.to->uri);
 	domain_name = ast_alloca(uri->host.slen + 1);
 	ast_copy_pj_str(domain_name, &uri->host, uri->host.slen + 1);
+	username = ast_alloca(uri->user.slen + 1);
+	ast_copy_pj_str(username, &uri->user, uri->user.slen + 1);
+
+	/*
+	 * We may want to match without any user options getting
+	 * in the way.
+	 */
+	AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(username);
 
 	configured_aors = ast_strdupa(endpoint->aors);
 
@@ -537,16 +546,16 @@ static struct ast_sip_aor *find_registrar_aor(struct pjsip_rx_data *rdata, struc
 			continue;
 		}
 
-		if (!pj_strcmp2(&uri->user, aor_name)) {
+		if (!strcmp(username, aor_name)) {
 			break;
 		}
 
-		if (!id && !(id = ast_str_create(uri->user.slen + uri->host.slen + 2))) {
+		if (!id && !(id = ast_str_create(strlen(username) + uri->host.slen + 2))) {
 			aor_name = NULL;
 			break;
 		}
 
-		ast_str_set(&id, 0, "%.*s@", (int)uri->user.slen, uri->user.ptr);
+		ast_str_set(&id, 0, "%s@", username);
 		if ((alias = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "domain_alias", domain_name))) {
 			ast_str_append(&id, 0, "%s", alias->domain);
 			ao2_cleanup(alias);

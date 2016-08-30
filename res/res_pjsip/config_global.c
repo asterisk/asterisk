@@ -37,6 +37,7 @@
 #define DEFAULT_FROM_USER "asterisk"
 #define DEFAULT_REGCONTEXT ""
 #define DEFAULT_DISABLE_MULTI_DOMAIN 0
+#define DEFAULT_IGNORE_URI_USER_OPTIONS 0
 
 static char default_useragent[256];
 
@@ -61,6 +62,8 @@ struct global_config {
 	unsigned int max_initial_qualify_time;
 	/*! Nonzero to disable multi domain support */
 	unsigned int disable_multi_domain;
+	/*! Nonzero if URI user field options are ignored. */
+	unsigned int ignore_uri_user_options;
 };
 
 static void global_destructor(void *obj)
@@ -232,6 +235,21 @@ void ast_sip_get_default_from_user(char *from_user, size_t size)
 	}
 }
 
+unsigned int ast_sip_get_ignore_uri_user_options(void)
+{
+	unsigned int ignore_uri_user_options;
+	struct global_config *cfg;
+
+	cfg = get_global_cfg();
+	if (!cfg) {
+		return DEFAULT_IGNORE_URI_USER_OPTIONS;
+	}
+
+	ignore_uri_user_options = cfg->ignore_uri_user_options;
+	ao2_ref(cfg, -1);
+	return ignore_uri_user_options;
+}
+
 /*!
  * \internal
  * \brief Observer to set default global object if none exist.
@@ -351,6 +369,9 @@ int ast_sip_initialize_sorcery_global(void)
 		OPT_STRINGFIELD_T, 0, STRFLDSET(struct global_config, regcontext));
 	ast_sorcery_object_field_register(sorcery, "global", "disable_multi_domain", "no",
 		OPT_BOOL_T, 1, FLDSET(struct global_config, disable_multi_domain));
+	ast_sorcery_object_field_register(sorcery, "global", "ignore_uri_user_options",
+		DEFAULT_IGNORE_URI_USER_OPTIONS ? "yes" : "no",
+		OPT_BOOL_T, 1, FLDSET(struct global_config, ignore_uri_user_options));
 
 	if (ast_sorcery_instance_observer_add(sorcery, &observer_callbacks_global)) {
 		return -1;
