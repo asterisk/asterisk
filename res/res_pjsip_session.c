@@ -1980,6 +1980,12 @@ static enum sip_get_destination_result get_destination(struct ast_sip_session *s
 	sip_ruri = pjsip_uri_get_uri(ruri);
 	ast_copy_pj_str(session->exten, &sip_ruri->user, sizeof(session->exten));
 
+	/*
+	 * We may want to match in the dialplan without any user
+	 * options getting in the way.
+	 */
+	AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(session->exten);
+
 	pickup_cfg = ast_get_chan_features_pickup_config(session->channel);
 	if (!pickup_cfg) {
 		ast_log(LOG_ERROR, "Unable to retrieve pickup configuration options. Unable to detect call pickup extension\n");
@@ -3059,6 +3065,13 @@ static pjsip_redirect_op session_inv_on_redirected(pjsip_inv_session *inv, const
 		char exten[AST_MAX_EXTENSION];
 
 		ast_copy_pj_str(exten, &uri->user, sizeof(exten));
+
+		/*
+		 * We may want to match in the dialplan without any user
+		 * options getting in the way.
+		 */
+		AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(exten);
+
 		ast_channel_call_forward_set(session->channel, exten);
 	} else if (session->endpoint->redirect_method == AST_SIP_REDIRECT_URI_CORE) {
 		char target_uri[PJSIP_MAX_URL_SIZE];
