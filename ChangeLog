@@ -1,6 +1,39 @@
-2016-08-30 14:53 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2016-08-30 18:12 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.11.0-rc2 Released.
+
+2016-08-30 13:11 +0000 [3d2ed81c1b]  Kevin Harwell <kharwell@digium.com>
+
+	* Release summaries: Add summaries for 13.11.0-rc2
+
+2016-08-30 13:11 +0000 [313683b96d]  Kevin Harwell <kharwell@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-08-30 13:11 +0000 [2a99049ea4]  Kevin Harwell <kharwell@digium.com>
+
+	* .version: Update for 13.11.0-rc2
+
+2016-08-30 13:11 +0000 [620046255f]  Kevin Harwell <kharwell@digium.com>
+
+	* .lastclean: Update for 13.11.0-rc2
+
+2016-08-30 13:11 +0000 [09647449e4]  Kevin Harwell <kharwell@digium.com>
+
+	* realtime: Add database scripts for 13.11.0-rc2
+
+2016-08-24 14:42 +0000 [e64170e493]  gtjoseph <gjoseph@digium.com>
+
+	* res_rtp_multicast:  Fix SEGV in ast_multicast_rtp_create_options
+
+	  ast_multicast_rtp_create_options now checks for NULL or empty options
+
+	  Change-Id: Ib845eae46a67a9787e89a87ebd1027344e5e0362
+	  (cherry picked from commit c9e83f6d0be9d89a3beaa509b46c423d78fac6d1)
+
+2016-08-30 09:53 +0000 [91e415b970]  Kevin Harwell <kharwell@digium.com>
+
+	* ChangeLog: Updated for 13.11.0-rc2
 
 2016-08-30 09:53 +0000 [9c8a7bf1e9]  Kevin Harwell <kharwell@digium.com>
 
