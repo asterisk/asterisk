@@ -76,21 +76,21 @@ struct global_config {
 		/*! Realm to use in challenges before an endpoint is identified */
 		AST_STRING_FIELD(default_realm);
 	);
-	/* Value to put in Max-Forwards header */
+	/*! Value to put in Max-Forwards header */
 	unsigned int max_forwards;
-	/* The interval at which to send keep alive messages to active connection-oriented transports */
+	/*! The interval at which to send keep alive messages to active connection-oriented transports */
 	unsigned int keep_alive_interval;
-	/* The maximum time for all contacts to be qualified at startup */
+	/*! The maximum time for all contacts to be qualified at startup */
 	unsigned int max_initial_qualify_time;
-	/* The interval at which to check for expired contacts */
+	/*! The interval at which to check for expired contacts */
 	unsigned int contact_expiration_check_interval;
 	/*! Nonzero to disable multi domain support */
 	unsigned int disable_multi_domain;
-	/* The maximum number of unidentified requests per source IP address before a security event is logged */
+	/*! The maximum number of unidentified requests per source IP address before a security event is logged */
 	unsigned int unidentified_request_count;
-	/* The period during which unidentified requests are accumulated */
+	/*! The period during which unidentified requests are accumulated */
 	unsigned int unidentified_request_period;
-	/* Interval at which expired unidentifed requests will be pruned */
+	/*! Interval at which expired unidentifed requests will be pruned */
 	unsigned int unidentified_request_prune_interval;
 	struct {
 		/*! Taskprocessor high water alert trigger level */
@@ -510,7 +510,8 @@ int ast_sip_initialize_sorcery_global(void)
 	ast_sorcery_object_field_register(sorcery, "global", "contact_expiration_check_interval",
 		__stringify(DEFAULT_CONTACT_EXPIRATION_CHECK_INTERVAL),
 		OPT_UINT_T, 0, FLDSET(struct global_config, contact_expiration_check_interval));
-	ast_sorcery_object_field_register(sorcery, "global", "disable_multi_domain", "no",
+	ast_sorcery_object_field_register(sorcery, "global", "disable_multi_domain",
+		DEFAULT_DISABLE_MULTI_DOMAIN ? "yes" : "no",
 		OPT_BOOL_T, 1, FLDSET(struct global_config, disable_multi_domain));
 	ast_sorcery_object_field_register(sorcery, "global", "unidentified_request_count",
 		__stringify(DEFAULT_UNIDENTIFIED_REQUEST_COUNT),
