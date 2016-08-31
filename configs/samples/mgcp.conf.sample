@@ -11,12 +11,12 @@
 ;cos=3			; Sets 802.1p priority for signaling packets.
 ;cos_audio=5		; Sets 802.1p priority for RTP audio packets.
 
-;---------------------- DIGIT TIMEOUTS ----------------------------
+; --------------------- DIGIT TIMEOUTS ----------------------------
 firstdigittimeout = 30000 ; default 16000 = 16s
 gendigittimeout = 10000   ; default  8000 = 8s 
 matchdigittimeout = 5000  ; defaults 3000 = 3s
 
-;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
+; ----------------------------- JITTER BUFFER CONFIGURATION --------------------------
 ; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of a
                               ; MGCP channel. Defaults to "no". An enabled jitterbuffer will
                               ; be used only if the sending side can create and the receiving
@@ -48,7 +48,7 @@ matchdigittimeout = 5000  ; defaults 3000 = 3s
                               ; network normally has low jitter, but occasionally has spikes.
 
 ; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
-;-----------------------------------------------------------------------------------
+; ----------------------------------------------------------------------------------
 
 ;[dlinkgw]
 ;host = 192.168.0.64
