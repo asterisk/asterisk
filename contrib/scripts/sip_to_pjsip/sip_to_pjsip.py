@@ -1102,6 +1102,12 @@ def map_system(sip, pjsip, nmapped):
         pass
 
     try:
+        useroption_parsing = sip.get('general', 'legacy_useroption_parsing')[0]
+        set_value('ignore_uri_user_options', useroption_parsing, 'global', pjsip, nmapped, 'global')
+    except LookupError:
+        pass
+
+    try:
         timer_t1 = sip.get('general', 'timert1')[0]
         set_value('timer_t1', timer_t1, section, pjsip, nmapped, type)
     except LookupError:
