@@ -17,7 +17,7 @@ PREFIX = 'pjsip_'
 def section_by_type(section, pjsip, type):
     """Finds a section based upon the given type, adding it if not found."""
     def __find_dict(mdicts, key, val):
-        """Given a list of mult-dicts, return the multi-dict that contains
+        """Given a list of multi-dicts, return the multi-dict that contains
            the given key/value pair."""
 
         def found(d):
@@ -1181,7 +1181,7 @@ def cli_options():
     """
     global PREFIX
     usage = "usage: %prog [options] [input-file [output-file]]\n\n" \
-		"Converts the chan_sip configuration input-file to the chan_pjsip output-file.\n"\
+        "Converts the chan_sip configuration input-file to the chan_pjsip output-file.\n" \
         "The input-file defaults to 'sip.conf'.\n" \
         "The output-file defaults to 'pjsip.conf'."
     parser = optparse.OptionParser(usage=usage)
