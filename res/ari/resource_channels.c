@@ -886,6 +886,8 @@ void ast_ari_channels_hangup(struct ast_variable *headers,
 		cause = AST_CAUSE_CONGESTION;
 	} else if (!strcmp(args->reason, "no_answer")) {
 		cause = AST_CAUSE_NOANSWER;
+	} else if(!strcmp(args->reason, "answered_elsewhere")) {
+		cause = AST_CAUSE_ANSWERED_ELSEWHERE;
 	} else {
 		ast_ari_response_error(
 			response, 400, "Invalid Reason",
