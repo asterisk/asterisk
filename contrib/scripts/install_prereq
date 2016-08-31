@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id$
+# $Id: install_prereq 408733 2014-02-21 19:04:21Z kharwell $
 #
 
 # install_prereq: a script to install distribution-specific
@@ -10,7 +10,7 @@ set -e
 
 usage() {
   echo "$0: a script to install distribution-specific prerequirement"
-  echo 'Revision: $Id$'
+  echo 'Revision: $Id: install_prereq 408733 2014-02-21 19:04:21Z kharwell $'
   echo ""
   echo "Usage: $0:                    Shows this message."
   echo "Usage: $0 test                Prints commands it is about to run."
@@ -27,7 +27,7 @@ PACKAGES_DEBIAN="$PACKAGES_DEBIAN libcurl-dev libspeex-dev libspeexdsp-dev libog
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libpq-dev unixodbc-dev libsqlite0-dev libmysqlclient15-dev libneon27-dev libgmime-dev libusb-dev liblua5.1-0-dev lua5.1"
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libopenh323-dev libvpb-dev libgtk2.0-dev libmysqlclient-dev libbluetooth-dev libradiusclient-ng-dev freetds-dev"
 PACKAGES_DEBIAN="$PACKAGES_DEBIAN libsnmp-dev libiksemel-dev libcorosync-dev libnewt-dev libpopt-dev libical-dev libspandsp-dev libjack-dev"
-PACKAGES_DEBIAN="$PACKAGES_DEBIAN libresample-dev libc-client-dev binutils-dev libsrtp-dev libgsm1-dev libedit-dev libldap-dev"
+PACKAGES_DEBIAN="$PACKAGES_DEBIAN libresample-dev libc-client-dev binutils-dev libsrtp-dev libgsm1-dev libedit-dev libldap-dev libjansson-dev"
 PACKAGES_RH="automake gcc gcc-c++ ncurses-devel openssl-devel libxml2-devel unixODBC-devel libcurl-devel libogg-devel libvorbis-devel speex-devel"
 PACKAGES_RH="$PACKAGES_RH spandsp-devel freetds-devel net-snmp-devel iksemel-devel corosynclib-devel newt-devel popt-devel libtool-ltdl-devel lua-devel"
 PACKAGES_RH="$PACKAGES_RH libsqlite3x-devel radiusclient-ng-devel portaudio-devel postgresql-devel libresample-devel neon-devel libical-devel"
@@ -55,8 +55,7 @@ check_installed_debs() {
 		tocheck="${tocheck} ^${pack}$"
 	done
 	aptitude -F '%c %p' search ${tocheck} 2>/dev/null \
-		| awk '/^p/{print $2}' \
-		| grep -v ':i386$'
+ 	| awk '/^p/{print $2}'
 }
 
 # parsing the output of yum is close to impossible.

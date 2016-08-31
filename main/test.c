@@ -31,7 +31,7 @@
 
 #include "asterisk.h"
 
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
+ASTERISK_FILE_VERSION(__FILE__, "$Revision: 416733 $");
 
 #include "asterisk/_private.h"
 
@@ -936,6 +936,15 @@ static void test_shutdown(void)
 	ast_cli_unregister_multiple(test_cli, ARRAY_LEN(test_cli));
 }
 
+enum ast_test_result_state __ast_test_check(const char *file, const char *function, int line, struct ast_test *test, const char *condition_str, enum ast_test_result_state current_res, int condition)
+{
+	if (!condition) {
+		__ast_test_status_update(file, function, line, test, "Condition failed: %s\n", condition_str);
+		return AST_TEST_FAIL;
+	}
+	return current_res;
+}
+
 #endif /* TEST_FRAMEWORK */
 
 int ast_test_init()
@@ -943,7 +952,7 @@ int ast_test_init()
 #ifdef TEST_FRAMEWORK
 	/* Register cli commands */
 	ast_cli_register_multiple(test_cli, ARRAY_LEN(test_cli));
-	ast_register_cleanup(test_shutdown);
+	ast_register_atexit(test_shutdown);
 #endif
 
 	return 0;

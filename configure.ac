@@ -20,7 +20,7 @@ AC_CONFIG_SRCDIR([main/asterisk.c])
 AC_CONFIG_AUX_DIR(`pwd`)
 
 AC_COPYRIGHT("Asterisk")
-AC_REVISION($Revision$)
+AC_REVISION($Revision: 421228 $)
 
 # preserve any CFLAGS or LDFLAGS that may be set
 # NOTE: This must be done before calling any macros that end up
@@ -366,9 +366,6 @@ AC_ARG_ENABLE([coverage],
 	esac])
 AC_SUBST(AST_CODE_COVERAGE)
 
-AST_CHECK_RAII()
-AST_CHECK_STRSEP_ARRAY_BOUNDS()
-
 # AST_EXT_LIB_SETUP is used to tell configure to handle variables for
 # various packages.
 # $1 is the prefix for the variables in makeopts and autoconfig.h
@@ -408,6 +405,7 @@ AST_EXT_LIB_SETUP([INOTIFY], [inotify support], [inotify])
 AST_EXT_LIB_SETUP([IODBC], [iODBC], [iodbc])
 AST_EXT_LIB_SETUP([ISDNNET], [ISDN4Linux], [isdnnet])
 AST_EXT_LIB_SETUP([JACK], [Jack Audio Connection Kit], [jack])
+AST_EXT_LIB_SETUP([JANSSON], [Jansson JSON library], [jansson])
 AST_EXT_LIB_SETUP([KQUEUE], [kqueue support], [kqueue])
 AST_EXT_LIB_SETUP([LDAP], [OpenLDAP], [ldap])
 AST_LIBCURL_CHECK_CONFIG([], [7.10.1])
@@ -998,7 +996,7 @@ fi
 AC_SUBST(AST_DECLARATION_AFTER_STATEMENT)
 
 AC_MSG_CHECKING(for -Wtrampolines support)
-if $(${CC} -Wtrampolines -Werror -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
+if $(${CC} -Wtrampolines -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
 	AC_MSG_RESULT(yes)
 	AST_TRAMPOLINES=-Wtrampolines
 else
@@ -1052,6 +1050,17 @@ else
 fi
 AC_SUBST(AST_NATIVE_ARCH)
 
+dnl Nested functions required for RAII implementation
+AC_MSG_CHECKING(for -fnested-functions)
+AC_COMPILE_IFELSE(
+	dnl Prototype needed due to http://gcc.gnu.org/bugzilla/show_bug.cgi?id=36774
+	[AC_LANG_PROGRAM([], [auto void foo(void); void foo(void) {}])],
+	AC_MSG_RESULT(no)
+	[AST_NESTED_FUNCTIONS=],
+	AC_MSG_RESULT(required)
+	[AST_NESTED_FUNCTIONS=-fnested-functions]
+)
+AC_SUBST(AST_NESTED_FUNCTIONS)
 
 dnl Check to see if rpath should be set in LDFLAGS
 AC_ARG_ENABLE(rpath,
@@ -1883,6 +1892,8 @@ AST_EXT_LIB_CHECK([INOTIFY], [c], [inotify_init], [sys/inotify.h])
 
 AST_EXT_LIB_CHECK([JACK], [jack], [jack_activate], [jack/jack.h])
 
+AST_EXT_LIB_CHECK([JANSSON], [jansson], [json_dumps], [jansson.h])
+
 # BSD (and OS X) equivalent of inotify
 AST_EXT_LIB_CHECK([KQUEUE], [c], [kqueue], [sys/event.h])
 
@@ -2146,8 +2157,8 @@ AST_EXT_LIB_CHECK([SQLITE], [sqlite], [sqlite_exec], [sqlite.h])
 AST_EXT_LIB_CHECK([SQLITE3], [sqlite3], [sqlite3_open], [sqlite3.h], [${PTHREAD_LIBS}], [${PTHREAD_CFLAGS}])
 
 if test "${PBX_SQLITE3}" != 1; then
-	AC_MSG_ERROR(*** Asterisk now uses SQLite3 for the internal Asterisk database.)
-	AC_MSG_ERROR(*** Please install the SQLite3 development package.)
+	AC_MSG_WARN(*** Asterisk now uses SQLite3 for the internal Asterisk database.)
+	AC_MSG_WARN(*** Please install the SQLite3 development package.)
 	exit 1
 fi
 
