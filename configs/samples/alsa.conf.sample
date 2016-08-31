@@ -46,7 +46,7 @@ extension=s
 ; systems where there will be no return audio path, such as overhead pagers.
 ;noaudiocapture=true
 
-;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
+; ----------------------------- JITTER BUFFER CONFIGURATION --------------------------
 ; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of an
                               ; ALSA channel. Defaults to "no". An enabled jitterbuffer will
                               ; be used only if the sending side can create and the receiving
@@ -74,5 +74,5 @@ extension=s
                               ; network normally has low jitter, but occasionally has spikes.
 
 ; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
-;-----------------------------------------------------------------------------------
+; ----------------------------------------------------------------------------------
 

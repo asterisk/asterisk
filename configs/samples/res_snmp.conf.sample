@@ -1,6 +1,6 @@
 ;
 ; Configuration file for res_snmp
-;---------------------------------
+; --------------------------------
 ;
 ; Res_snmp can run as a subagent or standalone SNMP agent. The standalone snmp
 ; agent is based on net-snmp and will read a configuration file called

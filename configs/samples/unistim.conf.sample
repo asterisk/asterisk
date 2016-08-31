@@ -17,7 +17,7 @@ port=5000                    ; UDP port
 ;autoprovisioning=no         ; Allow undeclared phones to register an extension. See README for important
                              ; informations. no (default), yes, tn.
 ;mohsuggest=default
-;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
+; ----------------------------- JITTER BUFFER CONFIGURATION --------------------------
 ; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of a
                               ; SIP channel. Defaults to "no". An enabled jitterbuffer will
                               ; be used only if the sending side can create and the receiving
@@ -41,7 +41,7 @@ port=5000                    ; UDP port
                               ; variable size, actually the new jb of IAX2). Defaults to fixed.
 
 ; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
-;-----------------------------------------------------------------------------------
+; ----------------------------------------------------------------------------------
 
 
 ;[black]                     ; name of the device
