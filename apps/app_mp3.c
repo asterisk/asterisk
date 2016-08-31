@@ -47,6 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/translate.h"
 #include "asterisk/app.h"
+#include "asterisk/format.h"
 
 #define LOCAL_MPG_123 "/usr/local/bin/mpg123"
 #define MPG_123 "/usr/bin/mpg123"
@@ -76,9 +77,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  ***/
 static char *app = "MP3Player";
 
-static int mp3play(const char *filename, int fd)
+static int mp3play(const char *filename, unsigned int sampling_rate, int fd)
 {
 	int res;
+	char sampling_rate_str[8];
 
 	res = ast_safe_fork(0);
 	if (res < 0) 
@@ -92,30 +94,44 @@ static int mp3play(const char *filename, int fd)
 	dup2(fd, STDOUT_FILENO);
 	ast_close_fds_above_n(STDERR_FILENO);
 
+	snprintf(sampling_rate_str, 8, "%u", sampling_rate);
+
 	/* Execute mpg123, but buffer if it's a net connection */
-	if (!strncasecmp(filename, "http://", 7)) {
+	if (!strncasecmp(filename, "http://", 7) && strstr(filename, ".m3u")) {
+	    char buffer_size_str[8];
+	    snprintf(buffer_size_str, 8, "%u", (int) 0.5*2*sampling_rate/1000); // 0.5 seconds for a live stream
 		/* Most commonly installed in /usr/local/bin */
-	    execl(LOCAL_MPG_123, "mpg123", "-q", "-s", "-b", "1024", "-f", "8192", "--mono", "-r", "8000", filename, (char *)NULL);
+	    execl(LOCAL_MPG_123, "mpg123", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
 		/* But many places has it in /usr/bin */
-	    execl(MPG_123, "mpg123", "-q", "-s", "-b", "1024","-f", "8192", "--mono", "-r", "8000", filename, (char *)NULL);
+	    execl(MPG_123, "mpg123", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
 		/* As a last-ditch effort, try to use PATH */
-	    execlp("mpg123", "mpg123", "-q", "-s", "-b", "1024",  "-f", "8192", "--mono", "-r", "8000", filename, (char *)NULL);
+	    execlp("mpg123", "mpg123", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
+	}
+	else if (!strncasecmp(filename, "http://", 7)) {
+	    char buffer_size_str[8];
+	    snprintf(buffer_size_str, 8, "%u", 6*2*sampling_rate/1000); // 6 seconds for a remote MP3 file
+		/* Most commonly installed in /usr/local/bin */
+	    execl(LOCAL_MPG_123, "mpg123", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
+		/* But many places has it in /usr/bin */
+	    execl(MPG_123, "mpg123", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
+		/* As a last-ditch effort, try to use PATH */
+	    execlp("mpg123", "mpg123", "-q", "-s", "-b", buffer_size_str, "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
 	}
 	else if (strstr(filename, ".m3u")) {
 		/* Most commonly installed in /usr/local/bin */
-	    execl(LOCAL_MPG_123, "mpg123", "-q", "-z", "-s", "-b", "1024", "-f", "8192", "--mono", "-r", "8000", "-@", filename, (char *)NULL);
+	    execl(LOCAL_MPG_123, "mpg123", "-q", "-z", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
 		/* But many places has it in /usr/bin */
-	    execl(MPG_123, "mpg123", "-q", "-z", "-s", "-b", "1024","-f", "8192", "--mono", "-r", "8000", "-@", filename, (char *)NULL);
+	    execl(MPG_123, "mpg123", "-q", "-z", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
 		/* As a last-ditch effort, try to use PATH */
-	    execlp("mpg123", "mpg123", "-q", "-z", "-s", "-b", "1024",  "-f", "8192", "--mono", "-r", "8000", "-@", filename, (char *)NULL);
+	    execlp("mpg123", "mpg123", "-q", "-z", "-s",  "-f", "8192", "--mono", "-r", sampling_rate_str, "-@", filename, (char *)NULL);
 	}
 	else {
 		/* Most commonly installed in /usr/local/bin */
-	    execl(MPG_123, "mpg123", "-q", "-s", "-f", "8192", "--mono", "-r", "8000", filename, (char *)NULL);
+	    execl(MPG_123, "mpg123", "-q", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
 		/* But many places has it in /usr/bin */
-	    execl(LOCAL_MPG_123, "mpg123", "-q", "-s", "-f", "8192", "--mono", "-r", "8000", filename, (char *)NULL);
+	    execl(LOCAL_MPG_123, "mpg123", "-q", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
 		/* As a last-ditch effort, try to use PATH */
-	    execlp("mpg123", "mpg123", "-q", "-s", "-f", "8192", "--mono", "-r", "8000", filename, (char *)NULL);
+	    execlp("mpg123", "mpg123", "-q", "-s", "-f", "8192", "--mono", "-r", sampling_rate_str, filename, (char *)NULL);
 	}
 	/* Can't use ast_log since FD's are closed */
 	fprintf(stderr, "Execute of mpg123 failed\n");
@@ -154,6 +170,9 @@ static int mp3_exec(struct ast_channel *chan, const char *data)
 	} myf = {
 		.f = { 0, },
 	};
+	struct ast_format native_format;
+	unsigned int sampling_rate;
+	enum ast_format_id write_format;
 
 	ast_format_clear(&owriteformat);
 	if (ast_strlen_zero(data)) {
@@ -168,14 +187,18 @@ static int mp3_exec(struct ast_channel *chan, const char *data)
 	
 	ast_stopstream(chan);
 
+	ast_best_codec(ast_channel_nativeformats(chan), &native_format);
+	sampling_rate = ast_format_rate(&native_format);
+	write_format = ast_format_slin_by_rate(sampling_rate);
+
 	ast_format_copy(&owriteformat, ast_channel_writeformat(chan));
-	res = ast_set_write_format_by_id(chan, AST_FORMAT_SLINEAR);
+	res = ast_set_write_format_by_id(chan, write_format);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set write format to signed linear\n");
 		return -1;
 	}
 	
-	res = mp3play(data, fds[1]);
+	res = mp3play(data, sampling_rate, fds[1]);
 	if (!strncasecmp(data, "http://", 7)) {
 		timeout = 10000;
 	}
@@ -192,7 +215,7 @@ static int mp3_exec(struct ast_channel *chan, const char *data)
 				res = timed_read(fds[0], myf.frdata, sizeof(myf.frdata), timeout);
 				if (res > 0) {
 					myf.f.frametype = AST_FRAME_VOICE;
-					ast_format_set(&myf.f.subclass.format, AST_FORMAT_SLINEAR, 0);
+					ast_format_set(&myf.f.subclass.format, write_format, 0);
 					myf.f.datalen = res;
 					myf.f.samples = res / 2;
 					myf.f.mallocd = 0;
@@ -210,7 +233,7 @@ static int mp3_exec(struct ast_channel *chan, const char *data)
 					res = 0;
 					break;
 				}
-				next = ast_tvadd(next, ast_samp2tv(myf.f.samples, 8000));
+				next = ast_tvadd(next, ast_samp2tv(myf.f.samples, sampling_rate));
 			} else {
 				ms = ast_waitfor(chan, ms);
 				if (ms < 0) {
