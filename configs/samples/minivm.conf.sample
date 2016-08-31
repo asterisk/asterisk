@@ -12,7 +12,7 @@
 ; this configuration file or realtime. The idea is to build voicemail as building blocks so that
 ; a complete and adaptive voicemail system can be built in the dialplan
 ;
-;------------------------------ Variables to use in subject, from and message body ------------------
+; ----------------------------- Variables to use in subject, from and message body ------------------
 ; Change the from, body and/or subject, variables:
 ;     MVM_NAME, MVM_DUR, MVM_MSGNUM, VM_MAILBOX, MVM_CALLERID, MVM_CIDNUM,
 ;     MVM_CIDNAME, MVM_DATE
@@ -24,7 +24,7 @@
 ; Note: The emailbody config row can only be up to 512 characters due to a
 ;       limitation in the Asterisk configuration subsystem.
 ;	To create longer mails, use the templatefile option when creating the template
-;----------------------------------------------------------------------------------------------------
+; ---------------------------------------------------------------------------------------------------
 
 [general]
 ; Default format for storing and sending voicemail
@@ -64,7 +64,7 @@ silencethreshold=128
 ; This is used both for e-mail and pager messages
 ;mailcmd=/usr/sbin/sendmail -t
 ;
-;--------------Default e-mail message template (used if no templates are used) ------
+; -------------Default e-mail message template (used if no templates are used) ------
 ;fromstring=The Asterisk PBX
 ;
 
@@ -82,7 +82,7 @@ emaildateformat=%A, %B %d, %Y at %r
 ; 24h date format
 ;emaildateformat=%A, %d %B %Y at %H:%M:%S
 ;
-;--------------Default pager message template (used if no templates are used) ------
+; -------------Default pager message template (used if no templates are used) ------
 ; You can also change the Pager From: string, the pager body and/or subject.
 ; The above defined variables also can be used here
 ;pagerfromstring=The Asterisk PBX
@@ -90,7 +90,7 @@ emaildateformat=%A, %B %d, %Y at %r
 ;pagerbody=New ${MVM_DUR} long msg in box ${MVM_MAILBOX}\nfrom ${MVM_CALLERID}, on ${MVM_DATE}
 ;
 ;
-;--------------Timezone definitions (used in voicemail accounts) -------------------
+; -------------Timezone definitions (used in voicemail accounts) -------------------
 ;
 ; Users may be located in different timezones, or may have different
 ; message announcements for their introductory message when they enter
@@ -133,7 +133,7 @@ central=America/Chicago|'vm-received' Q 'digits/at' IMp
 central24=America/Chicago|'vm-received' q 'digits/at' H N 'hours'
 military=Zulu|'vm-received' q 'digits/at' H N 'hours' 'phonetic/z_p'
 
-;----------------------- Message body templates---------------------
+; ---------------------- Message body templates---------------------
 ; [template-name]	; "template-" is a verbatim marker
 ; fromaddress = Your Friendly Asterisk Server
 ; fromemail = asteriskvm@digium.com
@@ -187,7 +187,7 @@ dateformat=%A, %B %d, %Y at %r
 ;subject = Dear old chap, you've got an electronic communique
 ;charset=ascii
 
-;----------------------- Mailbox accounts --------------------------
+; ---------------------- Mailbox accounts --------------------------
 ;Template for mailbox definition - all options
 ;
 ;	[username@domain]		; Has to be unique within domain (MWM_USERNAME, MWM_DOMAIN)
