@@ -1,6 +1,30 @@
-2016-09-01 16:14 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2016-09-01 16:23 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.11.0 Released.
+
+2016-09-01 11:23 +0000 [ca795030aa]  Kevin Harwell <kharwell@digium.com>
+
+	* Release summaries: Add summaries for 13.11.0
+
+2016-09-01 11:20 +0000 [7d843d0bb5]  Kevin Harwell <kharwell@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-09-01 11:20 +0000 [e29b6f0326]  Kevin Harwell <kharwell@digium.com>
+
+	* .version: Update for 13.11.0
+
+2016-09-01 11:20 +0000 [7b5be70a53]  Kevin Harwell <kharwell@digium.com>
+
+	* .lastclean: Update for 13.11.0
+
+2016-09-01 11:20 +0000 [e22edb0481]  Kevin Harwell <kharwell@digium.com>
+
+	* realtime: Add database scripts for 13.11.0
+
+2016-09-01 11:14 +0000 [9cb51fb550]  Kevin Harwell <kharwell@digium.com>
+
+	* ChangeLog: Updated for 13.11.0
 
 2016-09-01 11:14 +0000 [5c3bffce09]  Kevin Harwell <kharwell@digium.com>
 
