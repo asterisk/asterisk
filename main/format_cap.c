@@ -737,7 +737,7 @@ const char *ast_format_cap_get_names(struct ast_format_cap *cap, struct ast_str 
 
 	ast_str_set(buf, 0, "(");
 
-	if (!AST_VECTOR_SIZE(&cap->preference_order)) {
+	if (!cap || !AST_VECTOR_SIZE(&cap->preference_order)) {
 		ast_str_append(buf, 0, "nothing)");
 		return ast_str_buffer(*buf);
 	}
