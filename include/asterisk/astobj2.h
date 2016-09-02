@@ -479,14 +479,13 @@ unsigned int ao2_options_get(void *obj);
  *
  * \param obj AO2 object to bump the refcount on.
  * \retval The given \a obj pointer.
+ * \retval NULL if \a obj is not a valid AO2 object.
  */
 #define ao2_t_bump(obj, tag)						\
 	({							\
 		typeof(obj) __obj_ ## __LINE__ = (obj);		\
-		if (__obj_ ## __LINE__) {			\
-			ao2_t_ref(__obj_ ## __LINE__, +1, (tag));	\
-		}						\
-		__obj_ ## __LINE__;				\
+		(__obj_ ## __LINE__ && ao2_t_ref(__obj_ ## __LINE__, +1, (tag)) > 0) ? \
+			__obj_ ## __LINE__ : NULL;		\
 	})
 #define ao2_bump(obj) \
 	ao2_t_bump((obj), "")
@@ -504,14 +503,18 @@ int __ao2_ref(void *o, int delta, const char *tag, const char *file, int line, c
 	{\
 		typeof(dst) *__dst_ ## __LINE__ = &dst; \
 		typeof(src) __src_ ## __LINE__ = src; \
+		int __had_error_ ## __LINE__ = 0; \
 		if (__src_ ## __LINE__ != *__dst_ ## __LINE__) { \
 			if (__src_ ## __LINE__) {\
-				ao2_t_ref(__src_ ## __LINE__, +1, (tag)); \
+				if (ao2_t_ref(__src_ ## __LINE__, +1, (tag)) < 1) { \
+					__had_error_ ## __LINE__ = 1; \
+				} \
 			} \
 			if (*__dst_ ## __LINE__) {\
 				ao2_t_ref(*__dst_ ## __LINE__, -1, (tag)); \
 			} \
-			*__dst_ ## __LINE__ = __src_ ## __LINE__; \
+			*__dst_ ## __LINE__ = __had_error_ ## __LINE__ ? \
+				NULL : __src_ ## __LINE__; \
 		} \
 	}
 #define ao2_replace(dst, src) \
@@ -764,7 +767,9 @@ void *ao2_object_get_lockaddr(void *obj);
 AST_INLINE_API(
 int ao2_ref_and_lock(void *obj),
 {
-	ao2_ref(obj, +1);
+	if (ao2_ref(obj, +1) < 1) {
+		return 0;
+	}
 	if (ao2_lock(obj)) {
 		ao2_ref(obj, -1);
 		return 0;
