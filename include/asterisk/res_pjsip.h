@@ -757,8 +757,8 @@ struct ast_sip_endpoint {
 	unsigned int faxdetect_timeout;
 	/*! Override the user on the outgoing Contact header with this value. */
 	char *contact_user;
-    /*! Whether to response SDP offer with single most preferred codec. */
-    unsigned int preferred_codec_only;
+	/*! Whether to response SDP offer with single most preferred codec. */
+	unsigned int preferred_codec_only;
 };
 
 /*!
