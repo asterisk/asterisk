@@ -1914,9 +1914,10 @@ static int do_privacy(struct ast_channel *chan, struct ast_channel *peer,
 		ast_copy_string(pa->status, "DONTCALL", sizeof(pa->status));
 		break;
 	case '5':
-		/* XXX should we set status to DENY ? */
-		if (ast_test_flag64(opts, OPT_PRIVACY))
+		if (ast_test_flag64(opts, OPT_PRIVACY)) {
+			ast_copy_string(pa->status, "NOANSWER", sizeof(pa->status));
 			break;
+		}
 		/* if not privacy, then 5 is the same as "default" case */
 	default: /* bad input or -1 if failure to start autoservice */
 		/* well, if the user messes up, ... he had his chance... What Is The Best Thing To Do?  */
