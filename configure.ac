@@ -407,6 +407,7 @@ AST_EXT_LIB_SETUP([BFD], [Debug symbol decoding], [bfd])
 AST_EXT_LIB_SETUP([BKTR], [Stack Backtrace], [execinfo])
 AST_EXT_LIB_SETUP([BLUETOOTH], [Bluetooth], [bluetooth])
 AST_EXT_LIB_SETUP([CAP], [POSIX 1.e capabilities], [cap])
+AST_EXT_LIB_SETUP([CODEC2], [Codec 2 Audio Decoder/Encoder], [codec2])
 AST_EXT_LIB_SETUP([COROSYNC], [Corosync], [cpg])
 AST_EXT_LIB_SETUP_OPTIONAL([COROSYNC_CFG_STATE_TRACK], [A callback only in corosync 1.x], [COROSYNC], [cfg])
 AST_EXT_LIB_SETUP([CURSES], [curses], [curses])
@@ -2340,6 +2341,8 @@ if test "x${PBX_RADIUS}" = "x1"; then
 else
 	AST_EXT_LIB_CHECK([RADIUS], [radiusclient-ng], [rc_read_config], [radiusclient-ng.h])
 fi
+
+AST_EXT_LIB_CHECK([CODEC2], [codec2], [codec2_create], [codec2/codec2.h])
 
 AST_EXT_LIB_CHECK([COROSYNC], [cpg], [cpg_join], [corosync/cpg.h], [-lcfg])
 AST_EXT_LIB_CHECK([COROSYNC_CFG_STATE_TRACK], [cfg], [corosync_cfg_state_track], [corosync/cfg.h], [-lcfg])

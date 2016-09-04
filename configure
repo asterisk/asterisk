@@ -1164,6 +1164,10 @@ PBX_COROSYNC
 COROSYNC_DIR
 COROSYNC_INCLUDE
 COROSYNC_LIB
+PBX_CODEC2
+CODEC2_DIR
+CODEC2_INCLUDE
+CODEC2_LIB
 PBX_CAP
 CAP_DIR
 CAP_INCLUDE
@@ -1338,6 +1342,7 @@ with_bfd
 with_execinfo
 with_bluetooth
 with_cap
+with_codec2
 with_cpg
 with_curses
 with_crypt
@@ -2077,6 +2082,7 @@ Optional Packages:
   --with-execinfo=PATH    use Stack Backtrace files in PATH
   --with-bluetooth=PATH   use Bluetooth files in PATH
   --with-cap=PATH         use POSIX 1.e capabilities files in PATH
+  --with-codec2=PATH      use Codec 2 Audio Decoder/Encoder files in PATH
   --with-cpg=PATH         use Corosync files in PATH
   --with-curses=PATH      use curses files in PATH
   --with-crypt=PATH       use password and data encryption files in PATH
@@ -8988,6 +8994,38 @@ if test "${with_cap+set}" = set; then :
 	*)
 	CAP_DIR="${withval}"
 	ac_mandatory_list="${ac_mandatory_list} CAP"
+	;;
+	esac
+
+fi
+
+
+
+
+
+
+
+
+    CODEC2_DESCRIP="Codec 2 Audio Decoder/Encoder"
+    CODEC2_OPTION="codec2"
+    PBX_CODEC2=0
+
+# Check whether --with-codec2 was given.
+if test "${with_codec2+set}" = set; then :
+  withval=$with_codec2;
+	case ${withval} in
+	n|no)
+	USE_CODEC2=no
+	# -1 is a magic value used by menuselect to know that the package
+	# was disabled, other than 'not found'
+	PBX_CODEC2=-1
+	;;
+	y|ye|yes)
+	ac_mandatory_list="${ac_mandatory_list} CODEC2"
+	;;
+	*)
+	CODEC2_DIR="${withval}"
+	ac_mandatory_list="${ac_mandatory_list} CODEC2"
 	;;
 	esac
 
@@ -30529,6 +30567,111 @@ fi
 
 
 fi
+
+
+if test "x${PBX_CODEC2}" != "x1" -a "${USE_CODEC2}" != "no"; then
+   pbxlibdir=""
+   # if --with-CODEC2=DIR has been specified, use it.
+   if test "x${CODEC2_DIR}" != "x"; then
+      if test -d ${CODEC2_DIR}/lib; then
+         pbxlibdir="-L${CODEC2_DIR}/lib"
+      else
+         pbxlibdir="-L${CODEC2_DIR}"
+      fi
+   fi
+   pbxfuncname="codec2_create"
+   if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
+      AST_CODEC2_FOUND=yes
+   else
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      as_ac_Lib=`$as_echo "ac_cv_lib_codec2_${pbxfuncname}" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -lcodec2" >&5
+$as_echo_n "checking for ${pbxfuncname} in -lcodec2... " >&6; }
+if eval \${$as_ac_Lib+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lcodec2 ${pbxlibdir}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char ${pbxfuncname} ();
+int
+main ()
+{
+return ${pbxfuncname} ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  eval "$as_ac_Lib=yes"
+else
+  eval "$as_ac_Lib=no"
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+eval ac_res=\$$as_ac_Lib
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
+  AST_CODEC2_FOUND=yes
+else
+  AST_CODEC2_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+   fi
+
+   # now check for the header.
+   if test "${AST_CODEC2_FOUND}" = "yes"; then
+      CODEC2_LIB="${pbxlibdir} -lcodec2 "
+      # if --with-CODEC2=DIR has been specified, use it.
+      if test "x${CODEC2_DIR}" != "x"; then
+         CODEC2_INCLUDE="-I${CODEC2_DIR}/include"
+      fi
+      CODEC2_INCLUDE="${CODEC2_INCLUDE} "
+      if test "xcodec2/codec2.h" = "x" ; then	# no header, assume found
+         CODEC2_HEADER_FOUND="1"
+      else				# check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${CODEC2_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "codec2/codec2.h" "ac_cv_header_codec2_codec2_h" "$ac_includes_default"
+if test "x$ac_cv_header_codec2_codec2_h" = xyes; then :
+  CODEC2_HEADER_FOUND=1
+else
+  CODEC2_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+      fi
+      if test "x${CODEC2_HEADER_FOUND}" = "x0" ; then
+         CODEC2_LIB=""
+         CODEC2_INCLUDE=""
+      else
+         if test "x${pbxfuncname}" = "x" ; then		# only checking headers -> no library
+            CODEC2_LIB=""
+         fi
+         PBX_CODEC2=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_CODEC2 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
 
 
 if test "x${PBX_COROSYNC}" != "x1" -a "${USE_COROSYNC}" != "no"; then
