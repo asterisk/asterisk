@@ -64,9 +64,9 @@
 ;           PLEASE READ THIS!!!
 ;===========================================
 ;
-;---------------------------------------------------------------------
+; --------------------------------------------------------------------
 ;                                Timers
-;---------------------------------------------------------------------
+; --------------------------------------------------------------------
 ;There are three configurable timers for all types of CC: the
 ;cc_offer_timer, the ccbs_available_timer, and the ccnr_available_timer.
 ;In addition, when using a generic agent, there is a fourth timer,
@@ -98,9 +98,9 @@
 ; only affects operation when using a generic agent.
 ;
 ;cc_recall_timer = 20
-;---------------------------------------------------------------------
+; --------------------------------------------------------------------
 ;                                Policies
-;---------------------------------------------------------------------
+; --------------------------------------------------------------------
 ; Policy settings tell Asterisk how to behave and what sort of
 ; resources to allocate in order to facilitate CC. There are two
 ; settings to control the actions Asterisk will take.
@@ -153,9 +153,9 @@
 ;cc_monitor_policy=never
 ;
 ;
-;---------------------------------------------------------------------
+; --------------------------------------------------------------------
 ;                              Limits
-;---------------------------------------------------------------------
+; --------------------------------------------------------------------
 ;
 ; The use of CC requires Asterisk to potentially use more memory than
 ; some administrators would like. As such, it is a good idea to limit
@@ -175,9 +175,9 @@
 ;
 ;cc_max_monitors = 5
 ;
-;---------------------------------------------------------------------
+; --------------------------------------------------------------------
 ;                            Other
-;---------------------------------------------------------------------
+; --------------------------------------------------------------------
 ;
 ; When using a generic CC agent, the caller who requested CC will be
 ; called back when a called party becomes available. When the caller
