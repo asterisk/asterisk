@@ -2975,13 +2975,25 @@ static struct pjmedia_sdp_session *create_local_sdp(pjsip_inv_session *inv, stru
 			}
 		}
 	} else {
+		unsigned int ip6;
+
+		if (session->contact) {
+			/* IP6 addresses contain at least one colon. IP4 do not, because
+			 * a port is stored in another variable: contact->via_port
+			 */
+			ip6 = strstr(session->contact->via_addr, ":") ? 1 : 0;
+		} else {
+			ast_log(LOG_ERROR, "Cannot determine whether to use IP4 or IP6; falling back to rtp_ipv6 of endpoint. Please, report as issue!\n");
+			ip6 = session->endpoint->media.rtp.ipv6;
+		}
+
 		local->origin.net_type = STR_IN;
-		local->origin.addr_type = session->endpoint->media.rtp.ipv6 ? STR_IP6 : STR_IP4;
+		local->origin.addr_type = ip6 ? STR_IP6 : STR_IP4;
 
 		if (!ast_strlen_zero(session->endpoint->media.address)) {
 			pj_strdup2(inv->pool_prov, &local->origin.addr, session->endpoint->media.address);
 		} else {
-			pj_strdup2(inv->pool_prov, &local->origin.addr, ast_sip_get_host_ip_string(session->endpoint->media.rtp.ipv6 ? pj_AF_INET6() : pj_AF_INET()));
+			pj_strdup2(inv->pool_prov, &local->origin.addr, ast_sip_get_host_ip_string(ip6 ? pj_AF_INET6() : pj_AF_INET()));
 		}
 	}
 
