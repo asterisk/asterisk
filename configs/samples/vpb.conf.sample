@@ -199,7 +199,7 @@ grunttimeout=3600
 ;
 mode=immediate
 
-;-------------------------------------------------------------------------
+; ------------------------------------------------------------------------
 ; Channel definitions
 ;
 ; Each channel inherits the settings specified above, unless the are

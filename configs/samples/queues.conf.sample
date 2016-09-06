@@ -129,7 +129,7 @@ monitor-type = MixMonitor
 ;
 ;penaltymemberslimit = 5
 ;
-;----------------------QUEUE TIMING OPTIONS------------------------------------
+; ---------------------QUEUE TIMING OPTIONS------------------------------------
 ; A Queue has two different "timeout" values associated with it. One is the
 ; timeout parameter configured in queues.conf. This timeout specifies the
 ; amount of time to try ringing a member's phone before considering the
@@ -181,7 +181,7 @@ monitor-type = MixMonitor
 ;retry = 5
 ;timeoutpriority = app|conf
 ;
-;-----------------------END QUEUE TIMING OPTIONS---------------------------------
+; ----------------------END QUEUE TIMING OPTIONS---------------------------------
 ; Weight of queue - when compared to other queues, higher weights get
 ; first shot at available channels when the same channel is included in
 ; more than one queue.
