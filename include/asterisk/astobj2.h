@@ -368,6 +368,13 @@ enum ao2_alloc_opts {
 	AO2_ALLOC_OPT_LOCK_NOLOCK = (2 << 0),
 	/*! The ao2 object locking option field mask. */
 	AO2_ALLOC_OPT_LOCK_MASK = (3 << 0),
+	/*!
+	 * \internal The ao2 object uses a separate object for locking.
+	 *
+	 * \note This option is used internally by ao2_alloc_with_lockobj and
+	 * should never be passed directly to ao2_alloc.
+	 */
+	AO2_ALLOC_OPT_LOCK_OBJ = AO2_ALLOC_OPT_LOCK_MASK,
 };
 
 /*!
@@ -407,6 +414,26 @@ void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, unsigned in
 	const char *tag, const char *file, int line, const char *func) attribute_warn_unused_result;
 
 /*! @} */
+
+/*!
+ * \since 14.1.0
+ * \brief Allocate and initialize an object with separate locking.
+ *
+ * \param data_size The sizeof() of the user-defined structure.
+ * \param destructor_fn The destructor function (can be NULL)
+ * \param lockobj A separate ao2 object that will provide locking.
+ * \param debug_msg An ao2 object debug tracing message.
+ * \return A pointer to user-data.
+ *
+ * \see \ref ao2_alloc for additional details.
+ *
+ * \note lockobj must be a valid AO2 object.
+ */
+#define ao2_alloc_with_lockobj(data_size, destructor_fn, lockobj, tag) \
+	__ao2_alloc_with_lockobj((data_size), (destructor_fn), (lockobj), (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+void *__ao2_alloc_with_lockobj(size_t data_size, ao2_destructor_fn destructor_fn, void *lockobj,
+	const char *tag, const char *file, int line, const char *func) attribute_warn_unused_result;
 
 /*! \brief
  * Reference/unreference an object and return the old refcount.
