@@ -1658,7 +1658,8 @@ static void handle_response(struct sip_pvt *p, int resp, const char *rest, struc
 
 /*------ SRTP Support -------- */
 static int setup_srtp(struct sip_srtp **srtp);
-static int process_crypto(struct sip_pvt *p, struct ast_rtp_instance *rtp, struct sip_srtp **srtp, const char *a);
+static int process_crypto(struct sip_pvt *p, struct ast_rtp_instance *rtp, struct sip_srtp **srtp,
+		const char *a, int secure_transport);
 
 /*------ T38 Support --------- */
 static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
@@ -10339,7 +10340,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 						}
 					} else if (process_sdp_a_sendonly(value, &sendonly)) {
 						processed = TRUE;
-					} else if (!processed_crypto && process_crypto(p, p->rtp, &p->srtp, value)) {
+					} else if (!processed_crypto && process_crypto(p, p->rtp, &p->srtp, value, secure_audio)) {
 						processed_crypto = TRUE;
 						processed = TRUE;
 					} else if (process_sdp_a_audio(value, p, &newaudiortp, &last_rtpmap_codec)) {
@@ -10356,7 +10357,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 						if (p->vsrtp) {
 							ast_set_flag(p->vsrtp, SRTP_CRYPTO_OFFER_OK);
 						}
-					} else if (!processed_crypto && process_crypto(p, p->vrtp, &p->vsrtp, value)) {
+					} else if (!processed_crypto && process_crypto(p, p->vrtp, &p->vsrtp, value, secure_video)) {
 						processed_crypto = TRUE;
 						processed = TRUE;
 					} else if (process_sdp_a_video(value, p, &newvideortp, &last_rtpmap_codec)) {
@@ -10369,7 +10370,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int t38action
 						processed = TRUE;
 					} else if (process_sdp_a_text(value, p, &newtextrtp, red_fmtp, &red_num_gen, red_data_pt, &last_rtpmap_codec)) {
 						processed = TRUE;
-					} else if (!processed_crypto && process_crypto(p, p->trtp, &p->tsrtp, value)) {
+					} else if (!processed_crypto && process_crypto(p, p->trtp, &p->tsrtp, value, 1)) {
 						processed_crypto = TRUE;
 						processed = TRUE;
 					}
@@ -33549,7 +33550,8 @@ static int setup_srtp(struct sip_srtp **srtp)
 	return 0;
 }
 
-static int process_crypto(struct sip_pvt *p, struct ast_rtp_instance *rtp, struct sip_srtp **srtp, const char *a)
+static int process_crypto(struct sip_pvt *p, struct ast_rtp_instance *rtp, struct sip_srtp **srtp,
+		const char *a, int secure_transport)
 {
 	struct ast_rtp_engine_dtls *dtls;
 
@@ -33562,6 +33564,24 @@ static int process_crypto(struct sip_pvt *p, struct ast_rtp_instance *rtp, struc
 	if (strncasecmp(a, "crypto:", 7)) {
 		return FALSE;
 	}
+
+	if (!secure_transport) {
+		/* > The Secure Real-time Transport Protocol (SRTP)
+		 * > [RFC3711] provides security services for RTP media
+		 * > and is signaled by use of secure RTP transport (e.g.,
+		 * > "RTP/SAVP" or "RTP/SAVPF") in an SDP media (m=) line.
+		 * > ...
+		 * > The "crypto" attribute MUST only appear at the SDP
+		 * > media level (not at the session level).
+		 *
+		 * Ergo, we can trust RTP/(S)AVP to be read from the m=
+		 * line before we get here. If it was RTP/AVP, then this
+		 * is SNOM-specific optional SRTP. Ignore it.
+		 */
+		ast_log(LOG_WARNING, "Ignoring crypto attribute in SDP because RTP transport is insecure\n");
+		return FALSE;
+	}
+
 	if (!*srtp) {
 		if (ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 			ast_log(LOG_WARNING, "Ignoring unexpected crypto attribute in SDP answer\n");
