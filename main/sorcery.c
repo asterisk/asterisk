@@ -1736,9 +1736,26 @@ static void sorcery_object_destructor(void *object)
 	ast_free(details->object->id);
 }
 
+void *ast_sorcery_lockable_alloc(size_t size, ao2_destructor_fn destructor, void *lockobj)
+{
+	void *object = ao2_alloc_with_lockobj(size + sizeof(struct ast_sorcery_object),
+		sorcery_object_destructor, lockobj, "");
+	struct ast_sorcery_object_details *details = object;
+
+	if (!object) {
+		return NULL;
+	}
+
+	details->object = object + size;
+	details->object->destructor = destructor;
+
+	return object;
+}
+
 void *ast_sorcery_generic_alloc(size_t size, ao2_destructor_fn destructor)
 {
-	void *object = ao2_alloc_options(size + sizeof(struct ast_sorcery_object), sorcery_object_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	void *object = ao2_alloc_options(size + sizeof(struct ast_sorcery_object),
+		sorcery_object_destructor, AO2_ALLOC_OPT_LOCK_NOLOCK);
 	struct ast_sorcery_object_details *details = object;
 
 	if (!object) {

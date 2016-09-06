@@ -523,25 +523,17 @@ static int register_aor(pjsip_rx_data *rdata,
 {
 	int res;
 	struct ao2_container *contacts = NULL;
-	struct ast_named_lock *lock;
 
-	lock = ast_named_lock_get(AST_NAMED_LOCK_TYPE_MUTEX, "aor", aor_name);
-	if (!lock) {
-		return PJ_TRUE;
-	}
-
-	ao2_lock(lock);
+	ao2_lock(aor);
 	contacts = ast_sip_location_retrieve_aor_contacts_nolock(aor);
 	if (!contacts) {
-		ao2_unlock(lock);
-		ast_named_lock_put(lock);
+		ao2_unlock(aor);
 		return PJ_TRUE;
 	}
 
 	res = register_aor_core(rdata, endpoint, aor, aor_name, contacts);
 	ao2_cleanup(contacts);
-	ao2_unlock(lock);
-	ast_named_lock_put(lock);
+	ao2_unlock(aor);
 
 	return res;
 }
