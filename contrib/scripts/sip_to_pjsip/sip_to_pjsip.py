@@ -1020,7 +1020,7 @@ class Registration:
 
         if self.outbound_proxy:
             set_value('outboundproxy', self.outbound_proxy, section, pjsip,
-                      nmapped, 'registartion')
+                      nmapped, 'registration')
 
 
 def map_registrations(sip, pjsip, nmapped):
