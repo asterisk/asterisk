@@ -112,9 +112,6 @@
 ; the prefix "external_" will only apply to communication with addresses
 ; outside the range set with "local_net=".
 ;
-; IPv6: For endpoints using IPv6, remember to set "rtp_ipv6=yes" so that the RTP
-; engine will also be able to bind to an IPv6 address.
-;
 ; You can have more than one of any type of transport, as long as it doesn't
 ; use the same resources (bind address, port, etc) as the others.
 
@@ -294,8 +291,6 @@
 ; If using the TLS enabled transport, you may want the "media_encryption=sdes"
 ; option to additionally enable SRTP, though they are not mutually inclusive.
 ;
-; Use the "rtp_ipv6=yes" option if you want to utilize RTP over an ipv6 transport.
-;
 ; If this endpoint were remote, and it was using a transport configured for NAT
 ; then you likely want to use "direct_media=no" to prevent audio issues.
 
@@ -314,8 +309,6 @@
 ;
 ;transport=transport-tls
 ;media_encryption=sdes
-;transport=transport-udp-ipv6
-;rtp_ipv6=yes
 ;transport=transport-udp-nat
 ;direct_media=no
 ;
@@ -646,7 +639,6 @@
                         ; must be provided (default: "")
 ;rewrite_contact=no     ; Allow Contact header to be rewritten with the source
                         ; IP address port (default: "no")
-;rtp_ipv6=no    ; Allow use of IPv6 for RTP traffic (default: "no")
 ;rtp_symmetric=no       ; Enforce that RTP must be symmetric (default: "no")
 ;send_diversion=yes     ; Send the Diversion header conveying the diversion
                         ; information to the called user agent (default: "yes")
@@ -699,8 +691,6 @@
                         ; (default: "0")
 ;t38_udptl_nat=no       ; Whether NAT support is enabled on UDPTL sessions
                         ; (default: "no")
-;t38_udptl_ipv6=no      ; Whether IPv6 is used for UDPTL Sessions (default:
-                        ; "no")
 ;tone_zone=     ; Set which country s indications to use for channels created
                 ; for this endpoint (default: "")
 ;language=      ; Set the default language to use for channels created for this

@@ -1079,8 +1079,22 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	    (!use_override_prefs && !ast_format_cap_has_type(session->endpoint->media.codecs, media_type))) {
 		/* If no type formats are configured don't add a stream */
 		return 0;
-	} else if (!session_media->rtp && create_rtp(session, session_media, session->endpoint->media.rtp.ipv6)) {
-		return -1;
+	} else if (!session_media->rtp) {
+		unsigned int ip6;
+
+		if (session->contact) {
+			/* IP6 addresses contain at least one colon. IP4 do not, because
+			 * a port is stored in another variable: contact->via_port
+			 */
+			ip6 = strstr(session->contact->via_addr, ":") ? 1 : 0;
+		} else {
+			ast_log(LOG_ERROR, "Cannot determine whether to use IP4 or IP6; falling back to rtp_ipv6 of endpoint. Please, report as issue!\n");
+			ip6 = session->endpoint->media.rtp.ipv6;
+		}
+
+		if (create_rtp(session, session_media, ip6)) {
+			return -1;
+		}
 	}
 
 	if (!(media = pj_pool_zalloc(pool, sizeof(struct pjmedia_sdp_media))) ||
@@ -1106,10 +1120,11 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	}
 
 	/* Add connection level details */
+	ast_rtp_instance_get_local_address(session_media->rtp, &addr);
 	if (direct_media_enabled) {
 		hostip = ast_sockaddr_stringify_fmt(&session_media->direct_media_addr, AST_SOCKADDR_STR_ADDR);
 	} else if (ast_strlen_zero(session->endpoint->media.address)) {
-		hostip = ast_sip_get_host_ip_string(session->endpoint->media.rtp.ipv6 ? pj_AF_INET6() : pj_AF_INET());
+		hostip = ast_sip_get_host_ip_string((ast_sockaddr_is_ipv6(&addr)) ? pj_AF_INET6() : pj_AF_INET());
 	} else {
 		hostip = session->endpoint->media.address;
 	}
@@ -1120,9 +1135,8 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	}
 
 	media->conn->net_type = STR_IN;
-	media->conn->addr_type = session->endpoint->media.rtp.ipv6 ? STR_IP6 : STR_IP4;
+	media->conn->addr_type = (ast_sockaddr_is_ipv6(&addr)) ? STR_IP6 : STR_IP4;
 	pj_strdup2(pool, &media->conn->addr, hostip);
-	ast_rtp_instance_get_local_address(session_media->rtp, &addr);
 	media->desc.port = direct_media_enabled ? ast_sockaddr_port(&session_media->direct_media_addr) : (pj_uint16_t) ast_sockaddr_port(&addr);
 	media->desc.port_count = 1;
 
@@ -1257,8 +1271,24 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 	}
 
 	/* Create an RTP instance if need be */
-	if (!session_media->rtp && create_rtp(session, session_media, session->endpoint->media.rtp.ipv6)) {
-		return -1;
+	if (!session_media->rtp) {
+		unsigned int ip6;
+
+		if (remote_stream->conn) { /* query RTP, but c= is optional */
+			ip6 = pj_stricmp2(&remote_stream->conn->addr_type, "IP4");
+		} else if (session->contact) { /* query SIP */
+			/* IP6 addresses contain at least one colon. IP4 do not, because
+			 * a port is stored in another variable: contact->via_port
+			 */
+			ip6 = strstr(session->contact->via_addr, ":") ? 1 : 0;
+		} else {
+			ast_log(LOG_ERROR, "Cannot determine whether to use IP4 or IP6; falling back to rtp_ipv6 of endpoint. Please, report as issue!\n");
+			ip6 = session->endpoint->media.rtp.ipv6;
+		}
+
+		if (create_rtp(session, session_media, ip6)) {
+			return -1;
+		}
 	}
 
 	res = setup_media_encryption(session, session_media, remote, remote_stream);

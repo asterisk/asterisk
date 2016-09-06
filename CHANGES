@@ -79,6 +79,13 @@ res_pjsip
    configure these options then you already had to do a reload after making
    changes.
 
+ * To facilitate IPv4/IPv6 Dual Stack installations, in which the IP version of
+   the client is unknown in advance, the IP version of the underlying signaling
+   (SIP) channel is re-used for media (RTP) traffic. Therefore on ingress, the
+   client determines the IP version via its SIP-INVITE. For egress, Asterisk
+   uses the last Via= of SIP-REGISTER. Consequently, the endpoint parameters
+   rtp_ipv6 and t38_udptl_ipv6 are not required anymore in pjsip.conf.
+
 app_confbridge
 ------------------
   * Some sounds played into the bridge are played asynchronously. This, for
