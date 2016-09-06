@@ -395,6 +395,7 @@ peer_map = [
     ['session-minse',      set_value('timers_min_se')],
     ['session-expires',    set_value('timers_sess_expires')],
     # identify_by ?
+    ['canreinvite',        set_direct_media],    # direct_media alias
     ['directmedia',        set_direct_media],    # direct_media
                                                  # direct_media_method
                                                  # directed_media_glare_mitigation
