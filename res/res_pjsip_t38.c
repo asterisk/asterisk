@@ -255,12 +255,25 @@ static struct t38_state *t38_state_get_or_alloc(struct ast_sip_session *session)
 /*! \brief Initializes UDPTL support on a session, only done when actually needed */
 static int t38_initialize_session(struct ast_sip_session *session, struct ast_sip_session_media *session_media)
 {
+	unsigned int ip6;
+
 	if (session_media->udptl) {
 		return 0;
 	}
 
+	if (session->contact && !ast_strlen_zero(session->contact->via_addr)) {
+		/* IP6 addresses contain at least one colon. IP4 do not, because
+		 * a port is stored in another variable: contact->via_port
+		 */
+		ip6 = strstr(session->contact->via_addr, ":") ? 1 : 0;
+	} else {
+		ast_log(LOG_ERROR, "Cannot determine whether to use IP4 or IP6; falling back to t38_udptl_ipv6 of endpoint. Please, report as issue!\n");
+		ast_assert(0);
+		ip6 = session->endpoint->media.t38.ipv6;
+	}
+
 	if (!(session_media->udptl = ast_udptl_new_with_bindaddr(NULL, NULL, 0,
-		session->endpoint->media.t38.ipv6 ? &address_ipv6 : &address_ipv4))) {
+		ip6 ? &address_ipv6 : &address_ipv4))) {
 		return -1;
 	}
 
@@ -702,14 +715,6 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 		return -1;
 	}
 
-	/* Check the address family to make sure it matches configured */
-	if ((ast_sockaddr_is_ipv6(addrs) && !session->endpoint->media.t38.ipv6) ||
-		(ast_sockaddr_is_ipv4(addrs) && session->endpoint->media.t38.ipv6)) {
-		/* The address does not match configured */
-		ast_debug(3, "Declining, provided host does not match configured address family\n");
-		return -1;
-	}
-
 	return 1;
 }
 
@@ -733,6 +738,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	struct ast_sockaddr addr;
 	char tmp[512];
 	pj_str_t stmp;
+	unsigned int ip6;
 
 	if (!session->endpoint->media.t38.enabled) {
 		ast_debug(3, "Not creating outgoing SDP stream: T.38 not enabled\n");
@@ -756,8 +762,19 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	media->desc.media = pj_str(session_media->stream_type);
 	media->desc.transport = STR_UDPTL;
 
+	if (session->contact && !ast_strlen_zero(session->contact->via_addr)) {
+		/* IP6 addresses contain at least one colon. IP4 do not, because
+		 * a port is stored in another variable: contact->via_port
+		 */
+		ip6 = strstr(session->contact->via_addr, ":") ? 1 : 0;
+	} else {
+		ast_log(LOG_ERROR, "Cannot determine whether to use IP4 or IP6; falling back to t38_udptl_ipv6 of endpoint. Please, report as issue!\n");
+		ast_assert(0);
+		ip6 = session->endpoint->media.t38.ipv6;
+	}
+
 	if (ast_strlen_zero(session->endpoint->media.address)) {
-		hostip = ast_sip_get_host_ip_string(session->endpoint->media.t38.ipv6 ? pj_AF_INET6() : pj_AF_INET());
+		hostip = ast_sip_get_host_ip_string(ip6 ? pj_AF_INET6() : pj_AF_INET());
 	} else {
 		hostip = session->endpoint->media.address;
 	}
@@ -768,7 +785,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	}
 
 	media->conn->net_type = STR_IN;
-	media->conn->addr_type = session->endpoint->media.t38.ipv6 ? STR_IP6 : STR_IP4;
+	media->conn->addr_type = ip6 ? STR_IP6 : STR_IP4;
 	pj_strdup2(pool, &media->conn->addr, hostip);
 	ast_udptl_get_us(session_media->udptl, &addr);
 	media->desc.port = (pj_uint16_t) ast_sockaddr_port(&addr);
