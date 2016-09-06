@@ -15,7 +15,7 @@
 ;		- context - Which set of services you offer various users
 ;
 ; SIP dial strings
-;-----------------------------------------------------------
+; ----------------------------------------------------------
 ; In the dialplan (extensions.conf) you can use several
 ; syntaxes for dialing SIP devices.
 ;        SIP/devicename
@@ -76,7 +76,7 @@
 ;   sip reload                   Reload configuration file
 ;   sip show settings            Show the current channel configuration
 ;
-;------- Naming devices ------------------------------------------------------
+; ------ Naming devices ------------------------------------------------------
 ;
 ; When naming devices, make sure you understand how Asterisk matches calls
 ; that come in.
@@ -100,7 +100,7 @@
 ;       not needed at all. Check below. In later releases, it's renamed
 ;       to "defaultuser" which is a better name, since it is used in
 ;       combination with the "defaultip" setting.
-;-----------------------------------------------------------------------------
+; ----------------------------------------------------------------------------
 
 ; ** Old configuration options **
 ; The "call-limit" configuation option is considered old is replaced
@@ -559,7 +559,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                ; are not purged during SIP reloads.
 
 ;
-;------------------------ TLS settings ------------------------------------------------------------
+; ----------------------- TLS settings ------------------------------------------------------------
 ;tlscertfile=</path/to/certificate.pem> ; Certificate chain (*.pem format only) to use for TLS connections
                                         ; The certificates must be sorted starting with the subject's certificate
                                         ; and followed by intermediate CA certificates if applicable.
@@ -603,7 +603,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                            ; Your distribution might have changed that list
                            ; further.
 ;
-;--------------------------- SIP timers ----------------------------------------------------
+; -------------------------- SIP timers ----------------------------------------------------
 ; These timers are used primarily in INVITE transactions.
 ; The default for Timer T1 is 500 ms or the measured run-trip time between
 ; Asterisk and the device if you have qualify=yes for the device.
@@ -617,7 +617,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; in this amount of time, the call will autocongest
                                 ; Defaults to 64*timert1
 
-;--------------------------- RTP timers ----------------------------------------------------
+; -------------------------- RTP timers ----------------------------------------------------
 ; These timers are currently used for both audio and video streams. The RTP timeouts
 ; are only applied to the audio channel.
 ; The settings are settable in the global section as well as per device
@@ -633,7 +633,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;rtpkeepalive=<secs>            ; Send keepalives in the RTP stream to keep NAT open
                                 ; (default is off - zero)
 
-;--------------------------- SIP Session-Timers (RFC 4028)------------------------------------
+; -------------------------- SIP Session-Timers (RFC 4028)------------------------------------
 ; SIP Session-Timers provide an end-to-end keep-alive mechanism for active SIP sessions.
 ; This mechanism can detect and reclaim SIP channels that do not terminate through normal
 ; signaling procedures. Session-Timers can be configured globally or at a user/peer level.
@@ -662,7 +662,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;session-minse=90
 ;session-refresher=uac
 ;
-;--------------------------- SIP DEBUGGING ---------------------------------------------------
+; -------------------------- SIP DEBUGGING ---------------------------------------------------
 ;sipdebug = yes                 ; Turn on SIP debugging by default, from
                                 ; the moment the channel loads this configuration.
                                 ; NOTE: You cannot use the CLI to turn it off. You'll
@@ -673,7 +673,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; SIP history is output to the DEBUG logging channel
 
 
-;--------------------------- STATUS NOTIFICATIONS (SUBSCRIPTIONS) ----------------------------
+; -------------------------- STATUS NOTIFICATIONS (SUBSCRIPTIONS) ----------------------------
 ; You can subscribe to the status of extensions with a "hint" priority
 ; (See extensions.conf.sample for examples)
 ; chan_sip support two major formats for notifications: dialog-info and SIMPLE
@@ -718,7 +718,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;callcounter = yes              ; Enable call counters on devices. This can be set per
                                 ; device too.
 
-;----------------------------------------- T.38 FAX SUPPORT ----------------------------------
+; ---------------------------------------- T.38 FAX SUPPORT ----------------------------------
 ;
 ; This setting is available in the [general] section as well as in device configurations.
 ; Setting this to yes enables T.38 FAX (UDPTL) on SIP calls; it defaults to off.
@@ -751,7 +751,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; faxdetect = cng		; Enables only CNG detection
 ; faxdetect = t38		; Enables only T.38 detection
 ;
-;----------------------------------------- OUTBOUND SIP REGISTRATIONS  ------------------------
+; ---------------------------------------- OUTBOUND SIP REGISTRATIONS  ------------------------
 ; Asterisk can register as a SIP user agent to a SIP proxy (provider)
 ; Format for the register statement is:
 ;       register => [peer?][transport://]user[@domain][:secret[:authuser]]@host[:port][/extension][~expiry]
@@ -828,7 +828,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; 401 responses and continue retrying according to normal
                                 ; retry rules.
 
-;----------------------------------------- OUTBOUND MWI SUBSCRIPTIONS -------------------------
+; ---------------------------------------- OUTBOUND MWI SUBSCRIPTIONS -------------------------
 ; Asterisk can subscribe to receive the MWI from another SIP server and store it locally for retrieval
 ; by other phones. At this time, you can only subscribe using UDP as the transport.
 ; Format for the mwi register statement is:
@@ -843,7 +843,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; MWI received will be stored in the 1234 mailbox of the SIP_Remote context.
 ; It can be used by other phones by following the below:
 ; mailbox=1234@SIP_Remote
-;----------------------------------------- NAT SUPPORT ------------------------
+; ---------------------------------------- NAT SUPPORT ------------------------
 ;
 ; WARNING: SIP operation behind a NAT is tricky and you really need
 ; to read and understand well the following section.
@@ -981,7 +981,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;
 ; icesupport = yes
 
-;----------------------------------- MEDIA HANDLING --------------------------------
+; ---------------------------------- MEDIA HANDLING --------------------------------
 ; By default, Asterisk tries to re-invite media streams to an optimal path. If there's
 ; no reason for Asterisk to stay in the media path, the media will be redirected.
 ; This does not really work well in the case where Asterisk is outside and the
@@ -1063,7 +1063,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 				; option may be specified at the global or peer scope.
 ;force_avp=yes			; Force 'RTP/AVP', 'RTP/AVPF', 'RTP/SAVP', and 'RTP/SAVPF' to be used for
 				; media streams when appropriate, even if a DTLS stream is present.
-;----------------------------------------- REALTIME SUPPORT ------------------------
+; ---------------------------------------- REALTIME SUPPORT ------------------------
 ; For additional information on ARA, the Asterisk Realtime Architecture,
 ; please read https://wiki.asterisk.org/wiki/display/AST/Realtime+Database+Configuration
 ;
@@ -1101,7 +1101,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; is still in memory (due to caching or other reasons), the
                                 ; information will not be removed from realtime storage
 
-;----------------------------------------- SIP DOMAIN SUPPORT ------------------------
+; ---------------------------------------- SIP DOMAIN SUPPORT ------------------------
 ; Incoming INVITE and REFER messages can be matched against a list of 'allowed'
 ; domains, each of which can direct the call to a specific context if desired.
 ; By default, all domains are accepted and sent to the default context or the
@@ -1140,13 +1140,13 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
                                 ; destinations which do not have a prior
                                 ; account relationship with your server.
 
-;------------------------------ Advice of Charge CONFIGURATION --------------------------
+; ----------------------------- Advice of Charge CONFIGURATION --------------------------
 ; snom_aoc_enabled = yes;     ; This options turns on and off support for sending AOC-D and
                               ; AOC-E to snom endpoints.  This option can be used both in the
                               ; peer and global scope.  The default for this option is off.
 
 
-;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
+; ----------------------------- JITTER BUFFER CONFIGURATION --------------------------
 ; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of a
                               ; SIP channel. Defaults to "no". An enabled jitterbuffer will
                               ; be used only if the sending side can create and the receiving
@@ -1178,7 +1178,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 
 ; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
 
-;-----------------------------------------------------------------------------------
+; ----------------------------------------------------------------------------------
 
 [authentication]
 ; Global credentials for outbound calls, i.e. when a proxy challenges your
@@ -1197,7 +1197,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ; You may also add auth= statements to [peer] definitions
 ; Peer auth= override all other authentication settings if we match on realm
 
-;------------------------------------------------------------------------------
+; -----------------------------------------------------------------------------
 ; DEVICE CONFIGURATION
 ;
 ; SIP entities have a 'type' which determines their roles within Asterisk.
@@ -1324,7 +1324,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;						; from the peer's configuration.
 ;
 
-;------------------------------------------------------------------------------
+; -----------------------------------------------------------------------------
 ; DTLS-SRTP CONFIGURATION
 ;
 ; DTLS-SRTP support is available if the underlying RTP engine in use supports it.
@@ -1379,7 +1379,7 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 ;port=80                          ; The port number we want to connect to on the remote side
                                   ; Also used as "defaultport" in combination with "defaultip" settings
 
-;--- sample definition for a provider
+; -- sample definition for a provider
 ;[provider1]
 ;type=peer
 ;host=sip.provider1.com
