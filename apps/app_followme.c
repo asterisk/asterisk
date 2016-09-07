@@ -311,8 +311,16 @@ static struct call_followme *alloc_profile(const char *fmname)
 
 	ast_mutex_init(&f->lock);
 	ast_copy_string(f->name, fmname, sizeof(f->name));
-	f->moh[0] = '\0';
+	AST_LIST_HEAD_INIT_NOLOCK(&f->numbers);
+	AST_LIST_HEAD_INIT_NOLOCK(&f->blnumbers);
+	AST_LIST_HEAD_INIT_NOLOCK(&f->wlnumbers);
+	return f;
+}
+
+static void init_profile(struct call_followme *f, int activate)
+{
 	f->context[0] = '\0';
+	ast_copy_string(f->moh, defaultmoh, sizeof(f->moh));
 	ast_copy_string(f->takecall, takecall, sizeof(f->takecall));
 	ast_copy_string(f->nextindp, nextindp, sizeof(f->nextindp));
 	ast_copy_string(f->callfromprompt, callfromprompt, sizeof(f->callfromprompt));
@@ -321,16 +329,9 @@ static struct call_followme *alloc_profile(const char *fmname)
 	ast_copy_string(f->plsholdprompt, plsholdprompt, sizeof(f->plsholdprompt));
 	ast_copy_string(f->statusprompt, statusprompt, sizeof(f->statusprompt));
 	ast_copy_string(f->sorryprompt, sorryprompt, sizeof(f->sorryprompt));
-	AST_LIST_HEAD_INIT_NOLOCK(&f->numbers);
-	AST_LIST_HEAD_INIT_NOLOCK(&f->blnumbers);
-	AST_LIST_HEAD_INIT_NOLOCK(&f->wlnumbers);
-	return f;
-}
-
-static void init_profile(struct call_followme *f)
-{
-	f->active = 1;
-	ast_copy_string(f->moh, defaultmoh, sizeof(f->moh));
+	if (activate) {
+		f->active = 1;
+	}
 }
 
    
@@ -503,7 +504,7 @@ static int reload_followme(int reload)
 		if (!new)
 			ast_mutex_lock(&f->lock);
 		/* Re-initialize the profile */
-		init_profile(f);
+		init_profile(f, 1);
 		free_numbers(f);
 		var = ast_variable_browse(cfg, cat);
 		while (var) {
@@ -1216,6 +1217,7 @@ static struct call_followme *find_realtime(const char *name)
 		ast_free(str);
 		return NULL;
 	}
+	init_profile(new_follower, 0);
 
 	for (v = var; v; v = v->next) {
 		if (!strcasecmp(v->name, "active")) {
