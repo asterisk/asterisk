@@ -44,8 +44,8 @@ ASTERISK_REGISTER_FILE()
 /*** DOCUMENTATION
 	<configInfo name="res_resolver_unbound" language="en_US">
 		<configFile name="resolver_unbound.conf">
-			<configObject name="globals">
-				<synopsis>Options that apply globally to res_resolver_unbound</synopsis>
+			<configObject name="general">
+				<synopsis>General options for res_resolver_unbound</synopsis>
 				<configOption name="hosts">
 					<synopsis>Full path to an optional hosts file</synopsis>
 					<description><para>Hosts specified in a hosts file will be resolved within the resolver itself. If a value
@@ -142,7 +142,7 @@ static void *unbound_config_alloc(void);
 /*! \brief An aco_type structure to link the "general" category to the unbound_global_config type */
 static struct aco_type global_option = {
 	.type = ACO_GLOBAL,
-	.name = "globals",
+	.name = "general",
 	.item_offset = offsetof(struct unbound_config, global),
 	.category_match = ACO_WHITELIST,
 	.category = "^general$",
