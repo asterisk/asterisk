@@ -400,7 +400,8 @@
 									"normal",
 									"busy",
 									"congestion",
-									"no_answer"
+									"no_answer",
+									"answered_elsewhere"
 								]
 							}
 						}
