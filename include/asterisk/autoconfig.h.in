@@ -595,6 +595,9 @@
 /* Define if your system has pjsip_get_dest_info declared. */
 #undef HAVE_PJSIP_GET_DEST_INFO
 
+/* Define if your system has PJSIP_INV_SESSION_REF */
+#undef HAVE_PJSIP_INV_SESSION_REF
+
 /* Define if your system has the PJSIP_REPLACE_MEDIA_STREAM headers. */
 #undef HAVE_PJSIP_REPLACE_MEDIA_STREAM
 
