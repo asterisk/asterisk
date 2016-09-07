@@ -1947,8 +1947,6 @@ static int do_privacy(struct ast_channel *chan, struct ast_channel *peer,
 		}
 		return 0; /* the good exit path */
 	} else {
-		/* hang up on the callee -- he didn't want to talk anyway! */
-		ast_autoservice_chan_hangup_peer(chan, peer);
 		return -1;
 	}
 }
@@ -2805,6 +2803,8 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		if ( (ast_test_flag64(&opts, OPT_PRIVACY) || ast_test_flag64(&opts, OPT_SCREENING)) && pa.privdb_val == AST_PRIVACY_UNKNOWN) {
 			if (do_privacy(chan, peer, &opts, opt_args, &pa)) {
 				ast_channel_publish_dial(chan, peer, NULL, pa.status);
+				/* hang up on the callee -- he didn't want to talk anyway! */
+				ast_autoservice_chan_hangup_peer(chan, peer);
 				res = 0;
 				goto out;
 			}
