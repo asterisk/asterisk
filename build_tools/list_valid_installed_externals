@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+
+if [[ ( ${BASH_VERSINFO[0]} == 4 && ${BASH_VERSINFO[1]} > 1 ) || ${BASH_VERSINFO[0]} > 4 ]] ; then
+	shopt -s compat41
+fi
+set -e
+
+ASTTOPDIR=${ASTTOPDIR:-.}
+
+tmpdir=$(mktemp -d)
+if [[ -z "${tmpdir}" ]] ; then
+	echo "${module_name}: Unable to create temporary directory."
+	exit 1
+fi
+trap "rm -rf ${tmpdir}" EXIT
+
+sed -r -e "s/^([^ =]+)\s*=\s*(.*)$/\1=\"\2\"/g" ${ASTTOPDIR}/makeopts >${tmpdir}/makeopts
+source ${tmpdir}/makeopts
+if [[ -z "${ASTMODDIR}" ]] ; then
+	echo "${module_name}: Unable to parse ${ASTTOPDIR}/makeopts."
+	exit 1
+fi
+
+XMLSTARLET=${XMLSTARLET:-xmlstarlet}
+if [[ "${XMLSTARLET}" = ":" ]] ; then
+	echo "${module_name}: The externals downloader requires xmlstarlet to be installed."
+	exit 1
+fi
+
+version=$(${ASTTOPDIR}/build_tools/make_version ${ASTTOPDIR})
+if [[ ! ${version} =~ ^(GIT-)?([^.-]+)[.-].* ]] ; then
+	echo "${module_name}: Couldn't parse version ${version}"
+	exit 1
+fi
+major_version=${BASH_REMATCH[2]}.0
+
+if [[ "${HOST_CPU}" = "x86_64" ]] ; then
+	host_bits=64
+else
+	host_bits=32
+fi
+
+names=""
+for manifest in ${DESTDIR}${ASTMODDIR}/*.manifest.xml ; do
+	if [ ! -f "$manifest" ] ; then
+		break
+	fi
+	package_version=$(${XMLSTARLET} sel -t -v "/package/@version" ${manifest})
+	package_major_version=${package_version%_*}
+	package_arch=$(${XMLSTARLET} sel -t -v "/package/@arch" ${manifest})
+	if [[ "$package_major_version" = "$major_version" && "${package_arch}" = "x86_${host_bits}" ]] ; then
+		names+=$(${XMLSTARLET} sel -t -m "//file[@executable = 'yes']" -v "concat(@name, ' ')" ${manifest})
+	fi
+done
+echo $names
