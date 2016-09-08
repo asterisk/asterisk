@@ -1,3 +1,72 @@
+2016-09-08 15:55 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.11.1 Released.
+
+2016-09-08 10:55 +0000 [bb0fca4542]  gtjoseph <gjoseph@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-09-08 10:55 +0000 [3b9c0a4320]  gtjoseph <gjoseph@digium.com>
+
+	* .version: Update for 13.11.1
+
+2016-09-08 10:55 +0000 [cd8a1dacf7]  gtjoseph <gjoseph@digium.com>
+
+	* .lastclean: Update for 13.11.1
+
+2016-09-08 10:55 +0000 [3fd208aafc]  gtjoseph <gjoseph@digium.com>
+
+	* realtime: Add database scripts for 13.11.1
+
+2016-08-23 06:35 +0000 [58c4b9671f]  Corey Farrell <git@cfware.com> (license 5909)
+
+	* chan_sip: Don't allocate new RTP instances on top of old ones.
+
+	  In some scenarios dialog_initialize_rtp can be called multiple times on
+	  the same dialog.  This can cause RTP instances to be leaked along with
+	  multiple file descriptors for each instance.
+
+	  This change makes it so the existing RTP instances are destroyed and
+	  not overwritten, stopping the memory leak.
+
+	  ASTERISK-26272 #close
+	  patches:
+	    ASTERISK-26272-13.patch submitted by Corey Farrell (license 5909)
+
+	  Change-Id: Id529de1184c68f2f4d254ab41a1f458dafdb5f73
+
+2016-08-16 15:34 +0000 [aeb14872e2]  Mark Michelson <mmichelson@digium.com>
+
+	* res_pjsip: Do not crash on ACKs from unknown endpoints.
+
+	  The endpoint identification PJSIP module is intended to identify which
+	  endpoint an incoming request is from. If an endpoint is not identified,
+	  then an artificial endpoint is used in its place when proceeding.
+
+	  The problem is that the ACK request type is an exception to the rule.
+	  The artificial endpoint is not used when processing an ACK. This results
+	  in the possibility of having a NULL endpoint being used further on.
+
+	  The reason ACK is an exception is an attempt not to spam security logs
+	  with unidentified requests. Presumably, you've already logged the
+	  unidentified request on the preceeding INVITE.
+
+	  Up until Asterisk 13.10, retrieving a NULL endpoint in this fashion
+	  didn't cause an issue. A new change in 13.10 added endpoint ACL checking
+	  shortly after endpoint identification. Because we are accessing a NULL
+	  endpoint, this ACL check resulted in a crash.
+
+	  The fix here is to be sure to retrieve the artificial endpoint for all
+	  request types. ACKs still do not generate unidentified request security
+	  events.
+
+	  ASTERISK-26264 #close
+	  Reported by nappsoft
+
+	  AST-2016-006
+
+	  Change-Id: Ie0c795ae2d72273decb972dd74b6a1489fb6b703
+
 2016-09-01 16:23 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.11.0 Released.
