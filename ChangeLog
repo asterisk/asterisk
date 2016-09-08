@@ -1,3 +1,213 @@
+2016-09-08 16:34 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.8-cert3 Released.
+
+2016-09-08 11:34 +0000 [6cec20200b]  gtjoseph <gjoseph@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-09-08 11:34 +0000 [9c0f0eef6e]  gtjoseph <gjoseph@digium.com>
+
+	* .version: Update for certified/13.8-cert3
+
+2016-09-08 11:34 +0000 [3923b114b9]  gtjoseph <gjoseph@digium.com>
+
+	* .lastclean: Update for certified/13.8-cert3
+
+2016-09-08 11:34 +0000 [83362b5590]  gtjoseph <gjoseph@digium.com>
+
+	* realtime: Add database scripts for certified/13.8-cert3
+
+2016-08-23 06:35 +0000 [d947baa255]  Corey Farrell <git@cfware.com> (license 5909)
+
+	* chan_sip: Don't allocate new RTP instances on top of old ones.
+
+	  In some scenarios dialog_initialize_rtp can be called multiple times on
+	  the same dialog.  This can cause RTP instances to be leaked along with
+	  multiple file descriptors for each instance.
+
+	  This change makes it so the existing RTP instances are destroyed and
+	  not overwritten, stopping the memory leak.
+
+	  ASTERISK-26272 #close
+	  patches:
+	    ASTERISK-26272-13.patch submitted by Corey Farrell (license 5909)
+
+	  Change-Id: Id529de1184c68f2f4d254ab41a1f458dafdb5f73
+
+2016-08-10 15:14 +0000 [df9aa402a5]  Mark Michelson <mmichelson@digium.com>
+
+	* ConfBridge: Make some announcements asynchronous.
+
+	  Confbridge announcements tend to block a channel while they are being
+	  played. In some circumstances, this is warranted since you want that
+	  particular channel not to hear the announcement (Example: "John Doe has
+	  entered the conference"). For others it makes less sense.
+
+	  This change first introduces methods for playing sounds asynchronously
+	  into the conference. This is very similar to how synchronous sounds are
+	  played, except the channel initiating the playback does not wait for the
+	  sound to complete before moving on.
+
+	  Asynchronous announcements are used for two circumstances:
+	  * Sounds played for a user after they have left the bridge
+	  * Sounds that play first to a single user and then the rest of the
+	    conference (if the channel and conference use the same language)
+
+	  ASTERISK-26289 #close
+	  Reported by Mark Michelson
+
+	  Change-Id: Ie486bb3de1646d50894489030326a423e594ab0a
+
+2016-08-24 14:42 +0000 [b1e827d259]  gtjoseph <gjoseph@digium.com>
+
+	* res_rtp_multicast:  Fix SEGV in ast_multicast_rtp_create_options
+
+	  ast_multicast_rtp_create_options now checks for NULL or empty options
+
+	  Change-Id: Ib845eae46a67a9787e89a87ebd1027344e5e0362
+
+2016-08-10 15:14 +0000 [c218e038d7]  Mark Michelson <mmichelson@digium.com>
+
+	* ConfBridge: Rework announcer channel methodology
+
+	  NOTE: This patch was submitted earlier and reverted because of a failing
+	  test. The test has been patched so that it adjusts for the changes here,
+	  so this is being resubmitted for review.
+
+	  One feature that confbridge has is the ability to play sounds to all
+	  participants in the conference. Prior to this commit, the algorithm for
+	  this was as follows:
+
+	  * Grab the playback lock
+	  * Push the conference announcer channel into the bridge
+	  * Play back the sound
+	  * Pull the conference announcer channel from the bridge
+	  * Release the playback lock
+
+	  The issue here is that the act of adding the playback channel to the
+	  bridge and removing it for each announcement is expensive. Amongst the
+	  expenses:
+
+	  * The announcer channel is imparted into the bridge, meaning a new
+	    thread is spun up for each playback.
+	  * When the announcer is added or removed from the bridge, it results
+	    in the BRIDGEPEER channel variable being set on all channels in the
+	    bridge. This requires keeping the bridge locked and locking each
+	    individual channel in order to set it.
+	  * There's also just the general overhead of adding the channel and
+	    removing it from the bridge. The bridge potentially has to reconfigure
+	    every single time
+
+	  With this commit, the paradigm for playing back announcements has
+	  shifted.
+
+	  * The announcer channel is now added to the bridge when the conference
+	    is allocated, and it is hung up when the conference is destroyed.
+	  * A taskprocessor is used to queue playbacks onto the announcer channel.
+	    This keeps the behavior from before where playbacks do not overlap.
+	  * The announcer channel is no longer placed into the bridge as
+	    departable. Since we are not constantly removing the channel from
+	    the bridge, it is safe to add the channel using an independent thread
+	    and simply hang the channel up when it is time for the conference to
+	    be destroyed.
+
+	  The use of the taskprocessor for playbacks opens up the interesting
+	  possibility of having asynchronous announcements played. In this commit,
+	  however, the behavior is still exactly the same as it previously was.
+
+	  ASTERISK-26289
+	  Reported by Mark Michelson
+
+	  Change-Id: Ica9fa4907c2f3728cdd1cf0bc564ef4eb40754a0
+
+2016-08-23 05:53 +0000 [b82f0b7722]  Joshua Colp <jcolp@digium.com>
+
+	* Revert "ConfBridge: Rework announcer channel methodology"
+
+	  This reverts commit 4ca730127ccdc895e4d9e32cb0828c27bf74817b.
+
+	  Change-Id: I8886feb69ae2dbf521a8c0937792349b70db52b2
+
+2016-08-10 15:14 +0000 [4ca730127c]  Mark Michelson <mmichelson@digium.com>
+
+	* ConfBridge: Rework announcer channel methodology
+
+	  One feature that confbridge has is the ability to play sounds to all
+	  participants in the conference. Prior to this commit, the algorithm for
+	  this was as follows:
+
+	  * Grab the playback lock
+	  * Push the conference announcer channel into the bridge
+	  * Play back the sound
+	  * Pull the conference announcer channel from the bridge
+	  * Release the playback lock
+
+	  The issue here is that the act of adding the playback channel to the
+	  bridge and removing it for each announcement is expensive. Amongst the
+	  expenses:
+
+	  * The announcer channel is imparted into the bridge, meaning a new
+	    thread is spun up for each playback.
+	  * When the announcer is added or removed from the bridge, it results
+	    in the BRIDGEPEER channel variable being set on all channels in the
+	    bridge. This requires keeping the bridge locked and locking each
+	    individual channel in order to set it.
+	  * There's also just the general overhead of adding the channel and
+	    removing it from the bridge. The bridge potentially has to reconfigure
+	    every single time
+
+	  With this commit, the paradigm for playing back announcements has
+	  shifted.
+
+	  * The announcer channel is now added to the bridge when the conference
+	    is allocated, and it is hung up when the conference is destroyed.
+	  * A taskprocessor is used to queue playbacks onto the announcer channel.
+	    This keeps the behavior from before where playbacks do not overlap.
+	  * The announcer channel is no longer placed into the bridge as
+	    departable. Since we are not constantly removing the channel from
+	    the bridge, it is safe to add the channel using an independent thread
+	    and simply hang the channel up when it is time for the conference to
+	    be destroyed.
+
+	  The use of the taskprocessor for playbacks opens up the interesting
+	  possibility of having asynchronous announcements played. In this commit,
+	  however, the behavior is still exactly the same as it previously was.
+
+	  ASTERISK-26289
+	  Reported by Mark Michelson
+
+	  Change-Id: Ic5cd2c4b98a1eaa1715eb7a5b35d62f1a76d78a5
+
+2016-08-16 15:36 +0000 [f40c6874c6]  gtjoseph <gjoseph@digium.com>
+
+	* res_pjsip:  Add contact_user to endpoint
+
+	  contact_user, when specified on an endpoint, will override the user
+	  portion of the Contact header on outgoing requests.
+
+	  Change-Id: Icd4ebfda2f2e44d3ac749d0b4066630e988407d4
+
+2016-08-09 12:07 +0000 [78a6da0885]  Kevin Harwell <kharwell@digium.com>
+
+	* alembic/sqlalchemy: auto increment only allowed on a single column
+
+	  The extensions table defined two columns (id and priority) as primary key
+	  autoincrement columns. However only one is allowed when defining the primary
+	  key.
+
+	  This patch removes the autoincrement attribute from the priority column since
+	  it does not need to be as such and really should not have been on there in the
+	  first place.
+
+	  This patch also removes 'context', 'exten', and 'priority' from the primary key
+	  index and creates a new combined unique contraint index on them.
+
+	  ASTERISK-26183 #close
+
+	  Change-Id: Ib9c712c612a4d7ec1edb0dcb77f1bae0905a470b
+	  (cherry picked from commit f6ec94cca66addac71d566d6fa48188b407f26ba)
+
 2016-08-15 13:27 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.8-cert2 Released.
