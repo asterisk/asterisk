@@ -1,3 +1,36 @@
+2016-09-08 16:38 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/11.6-cert15 Released.
+
+2016-09-08 11:37 +0000 [1fedc0585e]  gtjoseph <gjoseph@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-09-08 11:37 +0000 [107b121ff8]  gtjoseph <gjoseph@digium.com>
+
+	* .version: Update for certified/11.6-cert15
+
+2016-09-08 11:37 +0000 [4e3297d0b0]  gtjoseph <gjoseph@digium.com>
+
+	* .lastclean: Update for certified/11.6-cert15
+
+2016-08-23 06:31 +0000 [c7cb8f7808]  Corey Farrell <git@cfware.com> (license 5909)
+
+	* chan_sip: Don't allocate new RTP instances on top of old ones.
+
+	  In some scenarios dialog_initialize_rtp can be called multiple times on
+	  the same dialog.  This can cause RTP instances to be leaked along with
+	  multiple file descriptors for each instance.
+
+	  This change makes it so the existing RTP instances are destroyed and
+	  not overwritten, stopping the memory leak.
+
+	  ASTERISK-26272 #close
+	  patches:
+	    ASTERISK-26272-11.patch submitted by Corey Farrell (license 5909)
+
+	  Change-Id: I3c1d94dea8594fe0702168cb979b898ae0f5fc5d
+
 2016-08-29 11:22 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/11.6-cert14 Released.
