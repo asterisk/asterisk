@@ -87,6 +87,14 @@ static void add_headers_to_message(struct header_list *headers, pjsip_tx_data *t
 		return;
 	}
 	AST_LIST_TRAVERSE(headers, iter, next) {
+		pj_str_t name;
+		pjsip_generic_string_hdr *hdr;
+
+		hdr = pjsip_msg_find_hdr_by_name(tdata->msg, pj_cstr(&name, iter->name), NULL);
+		if (hdr) {
+			continue;
+		}
+
 		ast_sip_add_header(tdata, iter->name, iter->value);
 	};
 	tdata->mod_data[global_header_mod.id] = &handled_id;
