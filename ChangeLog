@@ -1,6 +1,30 @@
-2016-09-08 15:55 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2016-09-08 16:16 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.11.1 Released.
+
+2016-09-08 11:16 +0000 [d8a81fec53]  gtjoseph <gjoseph@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-09-08 11:16 +0000 [badd123db6]  gtjoseph <gjoseph@digium.com>
+
+	* .version: Update for 13.11.1
+
+2016-09-08 11:16 +0000 [6cd23f388f]  gtjoseph <gjoseph@digium.com>
+
+	* .lastclean: Update for 13.11.1
+
+2016-09-08 11:16 +0000 [c8f3fffc5b]  gtjoseph <gjoseph@digium.com>
+
+	* realtime: Add database scripts for 13.11.1
+
+2016-09-08 10:55 +0000 [3e0e51e779]  gtjoseph <gjoseph@digium.com>
+
+	* ChangeLog: Updated for 13.11.1
+
+2016-09-08 10:55 +0000 [6b205cc6b2]  gtjoseph <gjoseph@digium.com>
+
+	* Release summaries: Add summaries for 13.11.1
 
 2016-09-08 10:55 +0000 [bb0fca4542]  gtjoseph <gjoseph@digium.com>
 
