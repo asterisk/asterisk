@@ -66,6 +66,16 @@ app_confbridge
     instance, allows a channel to immediately exit the ConfBridge without having
     to wait for a leave announcement to play.
 
+RTP
+------------------
+ * New setting "rtp_pt_dynamic = 96" in asterisk.conf:
+   Normally the Dynamic RTP Payload Type numbers are 96-127, which allow 32
+   formats. When you use more and receive the message "No Dynamic RTP mapping
+   available", extend the dynamic range by going for rtp_pt_dynamic = 35 (or 77)
+   instead of 96. This allows 54 (or 19) additional formats. On default this is
+   disabled and the range is 96-127 because any number below might be rejected
+   by a remote implementation; although no such broken implementation is known.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.10.0 to Asterisk 13.11.0 ----------
 ------------------------------------------------------------------------------
