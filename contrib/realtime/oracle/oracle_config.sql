@@ -555,7 +555,8 @@ CREATE TABLE extensions (
     priority INTEGER NOT NULL, 
     app VARCHAR2(40 CHAR) NOT NULL, 
     appdata VARCHAR2(256 CHAR) NOT NULL, 
-    PRIMARY KEY (id, context, exten, priority), 
+    PRIMARY KEY (id), 
+    UNIQUE (context, exten, priority), 
     UNIQUE (id)
 )
 
@@ -1309,6 +1310,16 @@ ALTER TABLE ps_endpoints ADD fax_detect_timeout INTEGER
 /
 
 UPDATE alembic_version SET version_num='4a6c67fa9b7a' WHERE alembic_version.version_num = '8d478ab86e29'
+
+/
+
+-- Running upgrade 4a6c67fa9b7a -> 4e2493ef32e6
+
+ALTER TABLE ps_endpoints ADD contact_user VARCHAR2(80 CHAR)
+
+/
+
+UPDATE alembic_version SET version_num='4e2493ef32e6' WHERE alembic_version.version_num = '4a6c67fa9b7a'
 
 /
 
