@@ -160,12 +160,9 @@ static void leave_marked(struct confbridge_user *user)
 	if (need_prompt) {
 		/* Play back the audio prompt saying the leader has left the conference */
 		if (!ast_test_flag(&user->u_profile, USER_OPT_QUIET)) {
-			ao2_unlock(user->conference);
-			ast_autoservice_start(user->chan);
-			play_sound_file(user->conference,
-				conf_get_sound(CONF_SOUND_LEADER_HAS_LEFT, user->conference->b_profile.sounds));
-			ast_autoservice_stop(user->chan);
-			ao2_lock(user->conference);
+			async_play_sound_file(user->conference,
+				conf_get_sound(CONF_SOUND_LEADER_HAS_LEFT, user->conference->b_profile.sounds),
+				NULL);
 		}
 
 		AST_LIST_TRAVERSE(&user->conference->waiting_list, user_iter, list) {
