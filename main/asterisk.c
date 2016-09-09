@@ -853,7 +853,7 @@ static char *handle_show_sysinfo(struct ast_cli_entry *e, int cmd, struct ast_cl
 #if defined(HAVE_SYSINFO)
 	ast_cli(a->fd, "  Buffer RAM:                %" PRIu64 " KiB\n", ((uint64_t) sys_info.bufferram * sys_info.mem_unit) / 1024);
 #endif
-#if defined (HAVE_SYSCTL) || defined(HAVE_SWAPCTL)
+#if defined(HAVE_SWAPCTL) || defined(HAVE_SYSINFO)
 	ast_cli(a->fd, "  Total Swap Space:          %d KiB\n", totalswap);
 	ast_cli(a->fd, "  Free Swap Space:           %" PRIu64 " KiB\n\n", freeswap);
 #endif
