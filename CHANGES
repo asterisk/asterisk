@@ -20,6 +20,13 @@ chan_sip
    a dialplan that dials with it enabled initially and if it fails fall back to
    without.
 
+res_pjsip
+------------------
+ * Added endpoint configuration parameter "preferred_codec_only".
+   This allow asterisk response to a SIP invite with the single most
+   preferred codec rather than advertising all joint codec capabilities.
+   This limits the other side's codec choice to exactly what we prefer.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 14.0.0 to Asterisk 14.1.0 ----------
 ------------------------------------------------------------------------------

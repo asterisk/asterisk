@@ -1252,7 +1252,9 @@ int ast_sip_session_create_invite(struct ast_sip_session *session, pjsip_tx_data
 	pjsip_inv_set_local_sdp(session->inv_session, offer);
 	pjmedia_sdp_neg_set_prefer_remote_codec_order(session->inv_session->neg, PJ_FALSE);
 #ifdef PJMEDIA_SDP_NEG_ANSWER_MULTIPLE_CODECS
-	pjmedia_sdp_neg_set_answer_multiple_codecs(session->inv_session->neg, PJ_TRUE);
+	if (!session->endpoint->preferred_codec_only) {
+		pjmedia_sdp_neg_set_answer_multiple_codecs(session->inv_session->neg, PJ_TRUE);
+	}
 #endif
 
 	/*
@@ -2156,7 +2158,9 @@ static int new_invite(void *data)
 		pjsip_inv_set_local_sdp(invite->session->inv_session, local);
 		pjmedia_sdp_neg_set_prefer_remote_codec_order(invite->session->inv_session->neg, PJ_FALSE);
 #ifdef PJMEDIA_SDP_NEG_ANSWER_MULTIPLE_CODECS
-		pjmedia_sdp_neg_set_answer_multiple_codecs(invite->session->inv_session->neg, PJ_TRUE);
+		if (!invite->session->endpoint->preferred_codec_only) {
+			pjmedia_sdp_neg_set_answer_multiple_codecs(invite->session->inv_session->neg, PJ_TRUE);
+		}
 #endif
 	}
 
