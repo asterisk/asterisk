@@ -22,3 +22,9 @@
 === UPGRADE-13.txt  -- Upgrade info for 12 to 13
 === UPGRADE-14.txt  -- Upgrade info for 13 to 14
 ===========================================================
+
+Queue:
+ - When reloading the members of a queue, the members added dynamically (i.e.
+   added via the CLI command "queue add" or the AMI action "QueueAdd") now have
+   their ringinuse value updated to the value of the queue. Previously, the
+   ringinuse value for dynamic members was not updated on reload.
