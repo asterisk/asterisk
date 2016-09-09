@@ -7154,7 +7154,6 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 	ao2_lock(q);
 	if ((old_member = interface_exists(q, interface)) == NULL) {
 		if ((new_member = create_queue_member(interface, membername, penalty, paused, state_interface, q->ringinuse))) {
-			new_member->ringinuse = q->ringinuse;
 			new_member->dynamic = 1;
 			if (reason_paused) {
 				ast_copy_string(new_member->reason_paused, reason_paused, sizeof(new_member->reason_paused));
@@ -9041,6 +9040,7 @@ static void reload_single_queue(struct ast_config *cfg, struct ast_flags *mask, 
 {
 	int new;
 	struct call_queue *q = NULL;
+	struct member *member;
 	/*We're defining a queue*/
 	struct call_queue tmpq = {
 		.name = queuename,
@@ -9050,6 +9050,8 @@ static void reload_single_queue(struct ast_config *cfg, struct ast_flags *mask, 
 	const int member_reload = ast_test_flag(mask, QUEUE_RELOAD_MEMBER);
 	int prev_weight = 0;
 	struct ast_variable *var;
+	struct ao2_iterator mem_iter;
+
 	if (!(q = ao2_t_find(queues, &tmpq, OBJ_POINTER, "Find queue for reload"))) {
 		if (queue_reload) {
 			/* Make one then */
@@ -9116,6 +9118,20 @@ static void reload_single_queue(struct ast_config *cfg, struct ast_flags *mask, 
 		if (member_reload && !strcasecmp(var->name, "member")) {
 			reload_single_member(var->value, q);
 		}
+	}
+
+	/* Update ringinuse for dynamic members */
+	if (member_reload) {
+		ao2_lock(q->members);
+		mem_iter = ao2_iterator_init(q->members, AO2_ITERATOR_DONTLOCK);
+		while ((member = ao2_iterator_next(&mem_iter))) {
+			if (member->dynamic) {
+				member->ringinuse = q->ringinuse;
+			}
+			ao2_ref(member, -1);
+		}
+		ao2_iterator_destroy(&mem_iter);
+		ao2_unlock(q->members);
 	}
 
 	/* At this point, we've determined if the queue has a weight, so update use_weight
