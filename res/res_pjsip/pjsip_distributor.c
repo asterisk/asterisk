@@ -583,7 +583,7 @@ static pj_bool_t endpoint_lookup(pjsip_rx_data *rdata)
 
 	rdata->endpt_info.mod_data[endpoint_mod.id] = endpoint;
 
-	if (!is_ack) {
+	if ((endpoint == artificial_endpoint) && !is_ack) {
 		char name[AST_UUID_STR_LEN] = "";
 		pjsip_uri *from = rdata->msg_info.from->uri;
 
