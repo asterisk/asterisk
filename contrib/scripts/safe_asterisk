@@ -120,13 +120,20 @@ if test -n "$TTY" && test "$TTY" != "no"; then
 		TTY=tty${TTY}
 	elif test -c /dev/vc/${TTY}; then
 		TTY=vc/${TTY}
+	elif test "$TTY" = "9"; then  # ignore default if it was untouched
+		# If there is no /dev/tty9 and not /dev/vc/9 we don't
+		# necessarily want to die at this point. Pretend that
+		# TTY wasn't set.
+		TTY=
 	else
 		message "Cannot find specified TTY (${TTY})"
 		exit 1
 	fi
-	ASTARGS="${ASTARGS} -vvvg"
-	if test "$CONSOLE" != "no"; then
-		ASTARGS="${ASTARGS} -c"
+	if test -n "$TTY"; then
+		ASTARGS="${ASTARGS} -vvvg"
+		if test "$CONSOLE" != "no"; then
+			ASTARGS="${ASTARGS} -c"
+		fi
 	fi
 fi
 
