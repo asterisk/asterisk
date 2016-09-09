@@ -1,3 +1,35 @@
+2016-09-09 16:14 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.11.2 Released.
+
+2016-09-09 11:14 +0000 [5d9c842bd2]  gtjoseph <gjoseph@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-09-09 11:14 +0000 [a05e4fbcbf]  gtjoseph <gjoseph@digium.com>
+
+	* .version: Update for 13.11.2
+
+2016-09-09 11:14 +0000 [a017f5d662]  gtjoseph <gjoseph@digium.com>
+
+	* .lastclean: Update for 13.11.2
+
+2016-09-09 11:14 +0000 [ec8e92bdbd]  gtjoseph <gjoseph@digium.com>
+
+	* realtime: Add database scripts for 13.11.2
+
+2016-09-09 05:39 +0000 [54a182b3ec]  Joshua Colp <jcolp@digium.com>
+
+	* res_pjsip: Only invoke unidentified endpoint logic when unidentified.
+
+	  The code was incorrectly invoking the unidentified logic when
+	  an endpoint had actually been identified, causing log messages
+	  to be output.
+
+	  ASTERISK-26349 #close
+
+	  Change-Id: Id8104fc9e3d138d5e8b6f6977ecc08765fd17d4f
+
 2016-09-08 16:16 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.11.1 Released.
