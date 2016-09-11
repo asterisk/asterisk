@@ -137,7 +137,7 @@ fi
 PBX_GTK2=0
 AC_CHECK_TOOL(PKGCONFIG, pkg-config, No)
 AC_MSG_CHECKING([GTK2 support])
-if test ! "x${PKGCONFIG}" = xNo; then
+if test ! "x${PKGCONFIG}" = xNo && pkg-config gtk+-2.0; then
    GTK2_INCLUDE=$(${PKGCONFIG} gtk+-2.0 --cflags 2>/dev/null)
    GTK2_LIB=$(${PKGCONFIG} gtk+-2.0 --libs)   
    PBX_GTK2=1
