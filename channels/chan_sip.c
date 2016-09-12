@@ -26113,12 +26113,15 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, str
 		copy_request(&p->initreq, req);		/* Save this INVITE as the transaction basis */
 		if (sipdebug)
 			ast_debug(1, "Initializing initreq for method %s - callid %s\n", sip_methods[req->method].text, p->callid);
+
+		/* Parse new contact both for existing (re-invite) and new calls. */
+		parse_ok_contact(p, req);
+
 		if (!p->owner) {	/* Not a re-invite */
 			if (req->debug)
 				ast_verbose("Using INVITE request as basis request - %s\n", p->callid);
 			if (newcall)
 				append_history(p, "Invite", "New call: %s", p->callid);
-			parse_ok_contact(p, req);
 		} else {	/* Re-invite on existing call */
 			ast_clear_flag(&p->flags[0], SIP_OUTGOING);	/* This is now an inbound dialog */
 			if (get_rpid(p, req)) {
