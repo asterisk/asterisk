@@ -9318,7 +9318,7 @@ static void do_print(struct mansession *s, int fd, const char *str)
 static char *__queues_show(struct mansession *s, int fd, int argc, const char * const *argv)
 {
 	struct call_queue *q;
-	struct ast_str *out = ast_str_alloca(240);
+	struct ast_str *out = ast_str_alloca(512);
 	int found = 0;
 	time_t now = time(NULL);
 	struct ao2_iterator queue_iter;
