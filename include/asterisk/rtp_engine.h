@@ -84,6 +84,9 @@ extern "C" {
 /*! First dynamic RTP payload type */
 #define AST_RTP_PT_FIRST_DYNAMIC 96
 
+/*! Last reassignable RTP payload type */
+#define AST_RTP_PT_LAST_REASSIGN 63
+
 /*! Maximum number of generations */
 #define AST_RED_MAX_GENERATION 5
 
