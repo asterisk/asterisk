@@ -1219,13 +1219,6 @@ static pjsip_module session_reinvite_module = {
 void ast_sip_session_send_request_with_cb(struct ast_sip_session *session, pjsip_tx_data *tdata,
 		ast_sip_session_response_cb on_response)
 {
-	pjsip_inv_session *inv_session = session->inv_session;
-
-	if (inv_session->state == PJSIP_INV_STATE_DISCONNECTED) {
-		/* Don't try to do anything with a hung-up call */
-		return;
-	}
-
 	ast_sip_mod_data_set(tdata->pool, tdata->mod_data, session_module.id,
 			     MOD_DATA_ON_RESPONSE, on_response);
 
