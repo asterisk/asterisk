@@ -96,6 +96,15 @@ documentation_language = en_US	; Set the language you want documentation
 				; This is currently is used by DUNDi and
 				; Exchanging Device and Mailbox State
 				; using protocols: XMPP, Corosync and PJSIP.
+;rtp_pt_dynamic = 96		; Normally the Dynamic RTP Payload Type numbers
+				; are 96-127, which allow 32 formats. When you
+				; use more and receive the message "No Dynamic
+				; RTP mapping available", extend the dynamic
+				; range by going for 35 (or 0) instead of 96.
+				; This allows 29 (or 64) more formats. 96 is the
+				; default because any number below might be
+				; rejected by a remote implementation; although
+				; no such broken implementation is known, yet.
 
 ; Changing the following lines may compromise your security.
 ;[files]
