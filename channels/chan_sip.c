@@ -3949,7 +3949,10 @@ static int retrans_pkt(const void *data)
 	 * the first transmission and now is larger than our timeout period. This is a fail safe
 	 * check in case the scheduler gets behind or the clock is changed. */
 	if ((diff <= 0) || (diff > pkt->retrans_stop_time)) {
+		/* TCP does not need retransmits as that's built in, but with
+		 * retrans_stop set, we must give it the full timer_H treatment */
 		pkt->retrans_stop = 1;
+		siptimer_a = pkt->retrans_stop_time;
 	}
 
 	/* Lock channel PVT */
