@@ -106,8 +106,9 @@ static const char *skip_sip(const char *fromto)
  *
  * Expects the given 'to' to be in one of the following formats:
  *      sip[s]:endpoint[/aor]
- *      sip[s]:endpoint[/uri]
- *      sip[s]:uri <-- will use default outbound endpoint
+ *      sip[s]:endpoint[/uri] - Where uri is: sip[s]:user@domain
+ *      sip[s]:endpoint[@domain]
+ *      sip[s]:unknown_user@domain <-- will use default outbound endpoint
  *
  * If an optional aor is given it will try to find an associated uri
  * to return.  If an optional uri is given then that will be returned,
@@ -116,50 +117,60 @@ static const char *skip_sip(const char *fromto)
  * \param to 'From' or 'To' field with possible endpoint
  * \param uri Optional uri to return
  */
-static struct ast_sip_endpoint* get_outbound_endpoint(
-	const char *to, char **uri)
+static struct ast_sip_endpoint *get_outbound_endpoint(const char *to, char **uri)
 {
-	char *name, *aor_uri;
-	struct ast_sip_endpoint* endpoint;
-	RAII_VAR(struct ast_sip_aor *, aor, NULL, ao2_cleanup);
-	RAII_VAR(struct ast_sip_contact *, contact, NULL, ao2_cleanup);
+	char *name;
+	char *aor_uri;
+	struct ast_sip_endpoint *endpoint;
 
 	name = ast_strdupa(skip_sip(to));
 
 	/* attempt to extract the endpoint name */
 	if ((aor_uri = strchr(name, '/'))) {
-		/* format was 'endpoint/' */
+		/* format was 'endpoint/(aor_name | uri)' */
 		*aor_uri++ = '\0';
 	} else if ((aor_uri = strchr(name, '@'))) {
-		/* format was 'endpoint@' - don't use the rest */
+		/* format was 'endpoint@domain' - discard the domain */
 		*aor_uri = '\0';
 	}
 
 	/* at this point, if name is not empty then it
 	   might be an endpoint, so try to retrieve it */
-	if (ast_strlen_zero(name) || !(endpoint = ast_sorcery_retrieve_by_id(
-		      ast_sip_get_sorcery(), "endpoint", name))) {
+	if (ast_strlen_zero(name)
+		|| !(endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint",
+			name))) {
 		/* an endpoint was not found, so assume sending directly
 		   to a uri and use the default outbound endpoint */
 		*uri = ast_strdup(to);
 		return ast_sip_default_outbound_endpoint();
 	}
 
-	*uri = aor_uri;
-	if (*uri) {
-		char *end = strchr(*uri, '>');
+	if (ast_strlen_zero(aor_uri)) {
+		*uri = NULL;
+	} else {
+		struct ast_sip_aor *aor;
+		struct ast_sip_contact *contact = NULL;
+		char *end;
+
+		/* Trim off any stray angle bracket that shouldn't be here */
+		end = strchr(aor_uri, '>');
 		if (end) {
-			*end++ = '\0';
+			*end = '\0';
 		}
 
-		/* if what's in 'uri' is a retrievable aor use the uri on it
-		   instead, otherwise assume what's there is already a uri*/
-		if ((aor = ast_sip_location_retrieve_aor(*uri)) &&
-			(contact = ast_sip_location_retrieve_first_aor_contact(aor))) {
-			*uri = (char*)contact->uri;
+		/*
+		 * if what's in 'uri' is a retrievable aor use the uri on it
+		 * instead, otherwise assume what's there is already a uri
+		 */
+		aor = ast_sip_location_retrieve_aor(aor_uri);
+		if (aor && (contact = ast_sip_location_retrieve_first_aor_contact(aor))) {
+			aor_uri = (char *) contact->uri;
 		}
 		/* need to copy because underlying uri goes away */
-		*uri = ast_strdup(*uri);
+		*uri = ast_strdup(aor_uri);
+
+		ao2_cleanup(contact);
+		ao2_cleanup(aor);
 	}
 
 	return endpoint;
@@ -176,16 +187,16 @@ static struct ast_sip_endpoint* get_outbound_endpoint(
  */
 static void update_to(pjsip_tx_data *tdata, char *to)
 {
-	pjsip_name_addr *name_addr = (pjsip_name_addr *)
-		PJSIP_MSG_TO_HDR(tdata->msg)->uri;
-	pjsip_uri *parsed;
+	pjsip_name_addr *parsed_name_addr;
 
-	if ((parsed = pjsip_parse_uri(tdata->pool, to, strlen(to),
-				      PJSIP_PARSE_URI_AS_NAMEADDR))) {
-		pjsip_name_addr *parsed_name_addr = (pjsip_name_addr *)parsed;
+	parsed_name_addr = (pjsip_name_addr *) pjsip_parse_uri(tdata->pool, to, strlen(to),
+		PJSIP_PARSE_URI_AS_NAMEADDR);
+	if (parsed_name_addr) {
 		if (pj_strlen(&parsed_name_addr->display)) {
-			pj_strdup(tdata->pool, &name_addr->display,
-				  &parsed_name_addr->display);
+			pjsip_name_addr *name_addr =
+				(pjsip_name_addr *) PJSIP_MSG_TO_HDR(tdata->msg)->uri;
+
+			pj_strdup(tdata->pool, &name_addr->display, &parsed_name_addr->display);
 		}
 	}
 }
@@ -204,22 +215,24 @@ static void update_to(pjsip_tx_data *tdata, char *to)
  */
 static void update_from(pjsip_tx_data *tdata, char *from)
 {
-	pjsip_name_addr *name_addr = (pjsip_name_addr *)
-		PJSIP_MSG_FROM_HDR(tdata->msg)->uri;
-	pjsip_sip_uri *uri = pjsip_uri_get_uri(name_addr);
-	pjsip_uri *parsed;
+	pjsip_name_addr *name_addr;
+	pjsip_sip_uri *uri;
+	pjsip_name_addr *parsed_name_addr;
 
 	if (ast_strlen_zero(from)) {
 		return;
 	}
 
-	if ((parsed = pjsip_parse_uri(tdata->pool, from, strlen(from),
-				      PJSIP_PARSE_URI_AS_NAMEADDR))) {
-		pjsip_name_addr *parsed_name_addr = (pjsip_name_addr *)parsed;
+	name_addr = (pjsip_name_addr *) PJSIP_MSG_FROM_HDR(tdata->msg)->uri;
+	uri = pjsip_uri_get_uri(name_addr);
+
+	parsed_name_addr = (pjsip_name_addr *) pjsip_parse_uri(tdata->pool, from,
+		strlen(from), PJSIP_PARSE_URI_AS_NAMEADDR);
+	if (parsed_name_addr) {
 		pjsip_sip_uri *parsed_uri = pjsip_uri_get_uri(parsed_name_addr->uri);
+
 		if (pj_strlen(&parsed_name_addr->display)) {
-			pj_strdup(tdata->pool, &name_addr->display,
-				  &parsed_name_addr->display);
+			pj_strdup(tdata->pool, &name_addr->display, &parsed_name_addr->display);
 		}
 
 		pj_strdup(tdata->pool, &uri->user, &parsed_uri->user);
@@ -228,11 +241,17 @@ static void update_from(pjsip_tx_data *tdata, char *from)
 	} else {
 		/* assume it is 'user[@domain]' format */
 		char *domain = strchr(from, '@');
+
 		if (domain) {
-			*domain++ = '\0';
-			pj_strdup2(tdata->pool, &uri->host, domain);
+			pj_str_t pj_from;
+
+			pj_strset3(&pj_from, from, domain);
+			pj_strdup(tdata->pool, &uri->user, &pj_from);
+
+			pj_strdup2(tdata->pool, &uri->host, domain + 1);
+		} else {
+			pj_strdup2(tdata->pool, &uri->user, from);
 		}
-		pj_strdup2(tdata->pool, &uri->user, from);
 	}
 }
 
@@ -526,7 +545,7 @@ static void msg_data_destroy(void *obj)
 	ast_msg_destroy(mdata->msg);
 }
 
-static struct msg_data* msg_data_create(const struct ast_msg *msg, const char *to, const char *from)
+static struct msg_data *msg_data_create(const struct ast_msg *msg, const char *to, const char *from)
 {
 	char *tag;
 	struct msg_data *mdata = ao2_alloc(sizeof(*mdata), msg_data_destroy);
@@ -536,17 +555,17 @@ static struct msg_data* msg_data_create(const struct ast_msg *msg, const char *t
 	}
 
 	/* typecast to suppress const warning */
-	mdata->msg = ast_msg_ref((struct ast_msg*)msg);
+	mdata->msg = ast_msg_ref((struct ast_msg *) msg);
 
-	/* starts with 'pjsip:' the 'pj' needs to be removed and maybe even
-	   the entire string. */
+	/* To starts with 'pjsip:' which needs to be removed. */
 	if (!(to = strchr(to, ':'))) {
 		ao2_ref(mdata, -1);
 		return NULL;
 	}
+	++to;/* Now skip the ':' */
 
 	/* Make sure we start with sip: */
-	mdata->to = ast_begins_with(to, "sip:") ? ast_strdup(++to) : ast_strdup(to - 3);
+	mdata->to = ast_begins_with(to, "sip:") ? ast_strdup(to) : ast_strdup(to - 4);
 	mdata->from = ast_strdup(from);
 	if (!mdata->to || !mdata->from) {
 		ao2_ref(mdata, -1);
@@ -572,12 +591,13 @@ static int msg_send(void *data)
 
 	pjsip_tx_data *tdata;
 	RAII_VAR(char *, uri, NULL, ast_free);
-	RAII_VAR(struct ast_sip_endpoint *, endpoint, get_outbound_endpoint(
-			 mdata->to, &uri), ao2_cleanup);
+	RAII_VAR(struct ast_sip_endpoint *, endpoint, NULL, ao2_cleanup);
 
+	endpoint = get_outbound_endpoint(mdata->to, &uri);
 	if (!endpoint) {
-		ast_log(LOG_ERROR, "PJSIP MESSAGE - Could not find endpoint '%s' and "
-			"no default outbound endpoint configured\n", mdata->to);
+		ast_log(LOG_ERROR,
+			"PJSIP MESSAGE - Could not find endpoint '%s' and no default outbound endpoint configured\n",
+			mdata->to);
 		return -1;
 	}
 
