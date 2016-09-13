@@ -97,6 +97,14 @@ documentation_language = en_US	; Set the language you want documentation
 				; This is currently is used by DUNDi and
 				; Exchanging Device and Mailbox State
 				; using protocols: XMPP, Corosync and PJSIP.
+;rtp_pt_dynamic = 35		; Normally the Dynamic RTP Payload Type numbers
+				; are 96-127, which allow just 32 formats. The
+				; starting point 35 enables the range 35-63 and
+				; allows 29 additional formats. When you use
+				; more than 32 formats in the dynamic range and
+				; calls are not accepted by a remote
+				; implementation, please report this and go
+				; back to value 96.
 
 ; Changing the following lines may compromise your security.
 ;[files]
