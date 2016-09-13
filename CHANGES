@@ -39,6 +39,14 @@ CLI Commands
       Enable/disable debugging of an ARI application. When debugged, verbose
       information will be sent to the Asterisk CLI.
 
+RTP
+------------------
+ * New setting "rtp_pt_dynamic = 35" in asterisk.conf:
+   Normally the Dynamic RTP Payload Type numbers are 96-127, which allow just 32
+   formats. To avoid the message "No Dynamic RTP mapping available", the range
+   was changed to 35-63,96-127. This is allowed by RFC 3551 section 3. However,
+   when you use more than 32 formats and calls are not accepted by a remote
+   implementation, please report this and go back to rtp_pt_dynamic = 96.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.11.0 to Asterisk 13.12.0 ----------
