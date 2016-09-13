@@ -249,6 +249,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/codec.h"
 #include "asterisk/format_cache.h"
 #include "asterisk/astdb.h"
+#include "asterisk/options.h"
 
 #include "../defaults.h"
 
@@ -331,6 +332,7 @@ unsigned int option_dtmfminduration;		/*!< Minimum duration of DTMF. */
 #if defined(HAVE_SYSINFO)
 long option_minmemfree;				/*!< Minimum amount of free system memory - stop accepting calls if free memory falls below this watermark */
 #endif
+unsigned int ast_option_rtpptdynamic;
 
 /*! @} */
 
@@ -669,6 +671,19 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "  Transmit silence during rec: %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_TRANSMIT_SILENCE) ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Generic PLC:                 %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_GENERIC_PLC) ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Min DTMF duration::          %u\n", option_dtmfminduration);
+
+	if (ast_option_rtpptdynamic == AST_RTP_PT_LAST_REASSIGN) {
+		ast_cli(a->fd, "  RTP dynamic payload types:   %u,%u-%u\n",
+		        ast_option_rtpptdynamic,
+		        AST_RTP_PT_FIRST_DYNAMIC, AST_RTP_MAX_PT - 1);
+	} else if (ast_option_rtpptdynamic < AST_RTP_PT_LAST_REASSIGN) {
+		ast_cli(a->fd, "  RTP dynamic payload types:   %u-%u,%u-%u\n",
+		        ast_option_rtpptdynamic, AST_RTP_PT_LAST_REASSIGN,
+		        AST_RTP_PT_FIRST_DYNAMIC, AST_RTP_MAX_PT - 1);
+	} else {
+		ast_cli(a->fd, "  RTP dynamic payload types:   %u-%u\n",
+		        AST_RTP_PT_FIRST_DYNAMIC, AST_RTP_MAX_PT - 1);
+	}
 
 	ast_cli(a->fd, "\n* Subsystems\n");
 	ast_cli(a->fd, "  -------------\n");
@@ -3606,6 +3621,7 @@ static void ast_readconfig(void)
 
 	/* Set default value */
 	option_dtmfminduration = AST_MIN_DTMF_DURATION;
+	ast_option_rtpptdynamic = AST_RTP_PT_FIRST_DYNAMIC;
 
 	if (ast_opt_override_config) {
 		cfg = ast_config_load2(ast_config_AST_CONFIG_FILE, "" /* core, can't reload */, config_flags);
@@ -3755,6 +3771,17 @@ static void ast_readconfig(void)
 			if (sscanf(v->value, "%30u", &option_dtmfminduration) != 1) {
 				option_dtmfminduration = AST_MIN_DTMF_DURATION;
 			}
+		/* http://www.iana.org/assignments/rtp-parameters
+		 * RTP dynamic payload types start at 96 normally; extend down to 0 */
+		} else if (!strcasecmp(v->name, "rtp_pt_dynamic")) {
+<<<<<<< HEAD
+			ast_parse_arg(v->value, PARSE_UINT32|PARSE_IN_RANGE,
+			              &ast_option_rtpptdynamic, 0, AST_RTP_PT_FIRST_DYNAMIC);
+=======
+			ast_parse_arg(v->value, PARSE_UINT32|PARSE_IN_RANGE|PARSE_DEFAULT,
+			              &ast_option_rtpptdynamic, AST_RTP_PT_FIRST_DYNAMIC,
+			              0, AST_RTP_PT_LAST_REASSIGN);
+>>>>>>> 47c940d... rtp_engine: Allow more than 32 dynamic payload types.
 		} else if (!strcasecmp(v->name, "maxcalls")) {
 			if ((sscanf(v->value, "%30d", &ast_option_maxcalls) != 1) || (ast_option_maxcalls < 0)) {
 				ast_option_maxcalls = 0;
