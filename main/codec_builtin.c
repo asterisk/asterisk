@@ -728,36 +728,42 @@ static struct ast_codec h261 = {
 	.name = "h261",
 	.description = "H.261 video",
 	.type = AST_MEDIA_TYPE_VIDEO,
+	.sample_rate = 1000,
 };
 
 static struct ast_codec h263 = {
 	.name = "h263",
 	.description = "H.263 video",
 	.type = AST_MEDIA_TYPE_VIDEO,
+	.sample_rate = 1000,
 };
 
 static struct ast_codec h263p = {
 	.name = "h263p",
 	.description = "H.263+ video",
 	.type = AST_MEDIA_TYPE_VIDEO,
+	.sample_rate = 1000,
 };
 
 static struct ast_codec h264 = {
 	.name = "h264",
 	.description = "H.264 video",
 	.type = AST_MEDIA_TYPE_VIDEO,
+	.sample_rate = 1000,
 };
 
 static struct ast_codec mpeg4 = {
 	.name = "mpeg4",
 	.description = "MPEG4 video",
 	.type = AST_MEDIA_TYPE_VIDEO,
+	.sample_rate = 1000,
 };
 
 static struct ast_codec vp8 = {
 	.name = "vp8",
 	.description = "VP8 video",
 	.type = AST_MEDIA_TYPE_VIDEO,
+	.sample_rate = 1000,
 };
 
 static struct ast_codec t140red = {
