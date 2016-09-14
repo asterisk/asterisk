@@ -109,8 +109,14 @@ static pj_status_t multihomed_on_tx_message(pjsip_tx_data *tdata)
 		return PJ_SUCCESS;
 	}
 
-	/* The port in the message should always be that of the original transport */
-	prm.ret_port = tdata->tp_info.transport->local_name.port;
+	/* The port in the message should always be that of the original transport (or factory) */
+	if (tdata->tp_info.transport->factory) {
+		/* For connectionful we need the listening port */
+		prm.ret_port = tdata->tp_info.transport->factory->addr_name.port;
+	} else {
+		/* Datagram based all use the same transport */
+		prm.ret_port = tdata->tp_info.transport->local_name.port;
+	}
 
 	/* If the IP source differs from the existing transport see if we need to update it */
 	if (pj_strcmp(&prm.ret_addr, &tdata->tp_info.transport->local_name.host)) {
