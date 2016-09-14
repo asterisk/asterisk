@@ -109,8 +109,11 @@ static pj_status_t multihomed_on_tx_message(pjsip_tx_data *tdata)
 		return PJ_SUCCESS;
 	}
 
-	/* The port in the message should always be that of the original transport */
-	prm.ret_port = tdata->tp_info.transport->local_name.port;
+	/* For UDP we can have multiple transports so the port needs to be maintained */
+	if (tdata->tp_info.transport->key.type == PJSIP_TRANSPORT_UDP ||
+		tdata->tp_info.transport->key.type == PJSIP_TRANSPORT_UDP6) {
+		prm.ret_port = tdata->tp_info.transport->local_name.port;
+	}
 
 	/* If the IP source differs from the existing transport see if we need to update it */
 	if (pj_strcmp(&prm.ret_addr, &tdata->tp_info.transport->local_name.host)) {
