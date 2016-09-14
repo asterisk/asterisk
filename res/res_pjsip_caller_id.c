@@ -46,10 +46,28 @@ static void set_id_from_hdr(pjsip_fromto_hdr *hdr, struct ast_party_id *id)
 	char cid_num[AST_CHANNEL_NAME];
 	pjsip_sip_uri *uri;
 	pjsip_name_addr *id_name_addr = (pjsip_name_addr *) hdr->uri;
+	char *semi;
 
 	uri = pjsip_uri_get_uri(id_name_addr);
 	ast_copy_pj_str(cid_name, &id_name_addr->display, sizeof(cid_name));
 	ast_copy_pj_str(cid_num, &uri->user, sizeof(cid_num));
+
+	/* Always truncate caller-id number at a semicolon. */
+	semi = strchr(cid_num, ';');
+	if (semi) {
+		/*
+		 * We need to be able to handle URI's looking like
+		 * "sip:1235557890;phone-context=national@x.x.x.x;user=phone"
+		 *
+		 * Where the uri->user field will result in:
+		 * "1235557890;phone-context=national"
+		 *
+		 * People don't care about anything after the semicolon
+		 * showing up on their displays even though the RFC
+		 * allows the semicolon.
+		 */
+		*semi = '\0';
+	}
 
 	ast_free(id->name.str);
 	id->name.str = ast_strdup(cid_name);

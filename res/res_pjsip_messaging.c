@@ -132,6 +132,12 @@ static struct ast_sip_endpoint *get_outbound_endpoint(const char *to, char **uri
 	} else if ((aor_uri = strchr(name, '@'))) {
 		/* format was 'endpoint@domain' - discard the domain */
 		*aor_uri = '\0';
+
+		/*
+		 * We may want to match without any user options getting
+		 * in the way.
+		 */
+		AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(name);
 	}
 
 	/* at this point, if name is not empty then it
@@ -467,6 +473,12 @@ static enum pjsip_status_code rx_data_to_ast_msg(pjsip_rx_data *rdata, struct as
 	sip_ruri = pjsip_uri_get_uri(ruri);
 	ast_copy_pj_str(exten, &sip_ruri->user, AST_MAX_EXTENSION);
 
+	/*
+	 * We may want to match in the dialplan without any user
+	 * options getting in the way.
+	 */
+	AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(exten);
+
 	endpt = ast_pjsip_rdata_get_endpoint(rdata);
 	ast_assert(endpt != NULL);
 
@@ -547,7 +559,7 @@ static void msg_data_destroy(void *obj)
 
 static struct msg_data *msg_data_create(const struct ast_msg *msg, const char *to, const char *from)
 {
-	char *tag;
+	char *uri_params;
 	struct msg_data *mdata = ao2_alloc(sizeof(*mdata), msg_data_destroy);
 
 	if (!mdata) {
@@ -572,9 +584,14 @@ static struct msg_data *msg_data_create(const struct ast_msg *msg, const char *t
 		return NULL;
 	}
 
-	/* sometimes from can still contain the tag at this point, so remove it */
-	if ((tag = strchr(mdata->from, ';'))) {
-		*tag = '\0';
+	/*
+	 * Sometimes from URI can contain URI parameters, so remove them.
+	 *
+	 * sip:user;user-options@domain;uri-parameters
+	 */
+	uri_params = strchr(mdata->from, '@');
+	if (uri_params && (uri_params = strchr(mdata->from, ';'))) {
+		*uri_params = '\0';
 	}
 	return mdata;
 }

@@ -1400,6 +1400,12 @@ static int sub_persistence_recreate(void *obj)
 	resource = ast_alloca(resource_size);
 	ast_copy_pj_str(resource, &request_uri->user, resource_size);
 
+	/*
+	 * We may want to match without any user options getting
+	 * in the way.
+	 */
+	AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(resource);
+
 	handler = subscription_get_handler_from_rdata(rdata);
 	if (!handler || !handler->notifier) {
 		ast_log(LOG_WARNING, "Failed recreating '%s' subscription: Could not get subscription handler.\n",
@@ -2815,6 +2821,12 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 	resource = ast_alloca(resource_size);
 	ast_copy_pj_str(resource, &request_uri_sip->user, resource_size);
 
+	/*
+	 * We may want to match without any user options getting
+	 * in the way.
+	 */
+	AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(resource);
+
 	expires_header = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_EXPIRES, rdata->msg_info.msg->hdr.next);
 
 	if (expires_header) {
@@ -3027,6 +3039,12 @@ static struct ast_sip_publication *publish_request_initial(struct ast_sip_endpoi
 	resource_size = pj_strlen(&request_uri_sip->user) + 1;
 	resource_name = ast_alloca(resource_size);
 	ast_copy_pj_str(resource_name, &request_uri_sip->user, resource_size);
+
+	/*
+	 * We may want to match without any user options getting
+	 * in the way.
+	 */
+	AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(resource_name);
 
 	resource = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "inbound-publication", resource_name);
 	if (!resource) {
