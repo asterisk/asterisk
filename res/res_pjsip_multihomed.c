@@ -146,9 +146,14 @@ static pj_status_t multihomed_on_tx_message(pjsip_tx_data *tdata)
 
 			/* prm.ret_addr is allocated from the tdata pool OR the transport so it is perfectly fine to just do an assignment like this */
 			pj_strassign(&uri->host, &prm.ret_addr);
-			uri->port = prm.ret_port;
-			ast_debug(4, "Re-wrote Contact URI host/port to %.*s:%d\n",
-				(int)pj_strlen(&uri->host), pj_strbuf(&uri->host), uri->port);
+			ast_debug(4, "Re-wrote Contact URI host to %.*s\n",
+				(int)pj_strlen(&uri->host), pj_strbuf(&uri->host));
+
+			if (tdata->tp_info.transport->key.type == PJSIP_TRANSPORT_UDP ||
+				tdata->tp_info.transport->key.type == PJSIP_TRANSPORT_UDP6) {
+				uri->port = prm.ret_port;
+				ast_debug(4, "Re-wrote Contact URI port to %d\n", uri->port);
+			}
 
 			pjsip_tx_data_invalidate_msg(tdata);
 		}
