@@ -443,6 +443,16 @@ chan_dahdi
    The option determines how many seconds into a call before faxdetect
    is disabled for the call.  Setting the value to zero disables the timeout.
 
+chan_sip
+------------------
+ * Session-Timers (RFC 4028) work for TCP (and TLS) transports as well now.
+   Previously Asterisk dropped calls only with UDP transports. However with
+   longer international calls via TCP, the SIP channel might break, because
+   all hops on the Internet route must stay online (have not a single power
+   outage, for example). Therefore with Session-Timers enabled (which are
+   enabled at default), you might see additional dropped calls. Consequently
+   please, consider to go for session-timers=refuse in your sip.conf.
+
 res_pjsip
 ------------------
  * Added "fax_detect_timeout" to endpoint.
