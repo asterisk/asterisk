@@ -4185,7 +4185,10 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, uint32_t seqno, in
 	pkt->retrans_stop_time = 64 * (pkt->timer_t1 ? pkt->timer_t1 : DEFAULT_TIMER_T1); /* time in ms after pkt->time_sent to stop retransmission */
 
 	if (!(p->socket.type & SIP_TRANSPORT_UDP)) {
+		/* TCP does not need retransmits as that's built in, but with
+		 * retrans_stop set, we must give it the full timer_H treatment */
 		pkt->retrans_stop = 1;
+		siptimer_a = pkt->retrans_stop_time;
 	}
 
 	/* Schedule retransmission */
