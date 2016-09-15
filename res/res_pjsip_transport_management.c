@@ -134,7 +134,7 @@ static int idle_sched_cb(const void *data)
 
 	if (!keepalive->sip_received) {
 		ast_log(LOG_NOTICE, "Shutting down transport '%s' since no request was received in %d seconds\n",
-				keepalive->transport->info, IDLE_TIMEOUT);
+				keepalive->transport->info, IDLE_TIMEOUT / 1000);
 		pjsip_transport_shutdown(keepalive->transport);
 	}
 
