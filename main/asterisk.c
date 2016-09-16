@@ -4104,7 +4104,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 #endif	/* defined(__AST_DEBUG_MALLOC) */
 
 	/* Spawning of astcanary must happen AFTER the call to daemon(3) */
-	if (isroot && ast_opt_high_priority) {
+	if (ast_opt_high_priority) {
 		snprintf(canary_filename, sizeof(canary_filename), "%s/alt.asterisk.canary.tweet.tweet.tweet", ast_config_AST_RUN_DIR);
 
 		/* Don't let the canary child kill Asterisk, if it dies immediately */
