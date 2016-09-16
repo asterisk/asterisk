@@ -178,22 +178,17 @@ int internal_is_ao2_object(void *user_data)
 void log_bad_ao2(void *user_data, const char *file, int line, const char *func)
 {
 	struct astobj2 *p;
+	char bad_magic[100];
 
 	if (!user_data) {
-		ast_log(__LOG_ERROR, file, line, func, "user_data is NULL\n");
+		__ast_assert_failed(0, "user_data is NULL", file, line, func);
 		return;
 	}
 
 	p = INTERNAL_OBJ(user_data);
-	if (p->priv_data.magic) {
-		ast_log(__LOG_ERROR, file, line, func,
-			"bad magic number 0x%x for object %p\n",
-			p->priv_data.magic, user_data);
-	} else {
-		ast_log(__LOG_ERROR, file, line, func,
-			"bad magic number for object %p. Object is likely destroyed.\n",
-			user_data);
-	}
+	snprintf(bad_magic, sizeof(bad_magic), "bad magic number 0x%x for object %p",
+		p->priv_data.magic, user_data);
+	__ast_assert_failed(0, bad_magic, file, line, func);
 }
 
 int __ao2_lock(void *user_data, enum ao2_lock_req lock_how, const char *file, const char *func, int line, const char *var)
@@ -205,7 +200,6 @@ int __ao2_lock(void *user_data, enum ao2_lock_req lock_how, const char *file, co
 	int res = 0;
 
 	if (obj == NULL) {
-		ast_assert(0);
 		return -1;
 	}
 
@@ -269,7 +263,6 @@ int __ao2_unlock(void *user_data, const char *file, const char *func, int line, 
 	int current_value;
 
 	if (obj == NULL) {
-		ast_assert(0);
 		return -1;
 	}
 
@@ -323,7 +316,6 @@ int __ao2_trylock(void *user_data, enum ao2_lock_req lock_how, const char *file,
 	int res = 0;
 
 	if (obj == NULL) {
-		ast_assert(0);
 		return -1;
 	}
 
@@ -454,7 +446,6 @@ void *ao2_object_get_lockaddr(void *user_data)
 	obj = INTERNAL_OBJ_CHECK(user_data);
 
 	if (obj == NULL) {
-		ast_assert(0);
 		return NULL;
 	}
 
@@ -486,7 +477,6 @@ int __ao2_ref(void *user_data, int delta,
 				user_data, delta, ast_get_tid(), file, line, func, tag ?: "");
 			fflush(ref_log);
 		}
-		ast_assert(0);
 		return -1;
 	}
 

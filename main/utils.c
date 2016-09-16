@@ -2467,17 +2467,16 @@ void DO_CRASH_NORETURN ast_do_crash(void)
 #endif	/* defined(DO_CRASH) */
 }
 
-#if defined(AST_DEVMODE)
 void DO_CRASH_NORETURN __ast_assert_failed(int condition, const char *condition_str, const char *file, int line, const char *function)
 {
 	/*
 	 * Attempt to put it into the logger, but hope that at least
 	 * someone saw the message on stderr ...
 	 */
-	ast_log(__LOG_ERROR, file, line, function, "FRACK!, Failed assertion %s (%d)\n",
-		condition_str, condition);
 	fprintf(stderr, "FRACK!, Failed assertion %s (%d) at line %d in %s of %s\n",
 		condition_str, condition, line, function, file);
+	ast_log(__LOG_ERROR, file, line, function, "FRACK!, Failed assertion %s (%d)\n",
+		condition_str, condition);
 
 	/* Generate a backtrace for the assert */
 	ast_log_backtrace();
@@ -2490,7 +2489,6 @@ void DO_CRASH_NORETURN __ast_assert_failed(int condition, const char *condition_
 	usleep(1);
 	ast_do_crash();
 }
-#endif	/* defined(AST_DEVMODE) */
 
 char *ast_eid_to_str(char *s, int maxlen, struct ast_eid *eid)
 {
