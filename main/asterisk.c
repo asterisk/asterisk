@@ -1778,6 +1778,41 @@ static void set_icon(char *text)
 		fprintf(stdout, "\033]1;%s\007", text);
 }
 
+/*! \brief Set priority on all known threads. */
+static int set_priority_all(int pri)
+{
+#ifdef __linux__
+	struct thread_list_t *cur;
+	struct sched_param sched;
+	char const *policy_str;
+	int policy;
+	memset(&sched, 0, sizeof(sched));
+	if (pri) {
+		policy = SCHED_RR;
+		policy_str = "realtime";
+		sched.sched_priority = 10;
+	} else {
+		policy = SCHED_OTHER;
+		policy_str = "regular";
+		sched.sched_priority = 0;
+	}
+	if (sched_setscheduler(getpid(), policy, &sched)) {
+		ast_log(LOG_WARNING, "Unable to set %s thread priority on main thread\n", policy_str);
+		return -1;
+	}
+	ast_verb(1, "Setting %s thread priority on all threads\n", policy_str);
+	AST_RWLIST_RDLOCK(&thread_list);
+	AST_RWLIST_TRAVERSE(&thread_list, cur, list) {
+		/* Don't care about the return value. It should work. */
+		sched_setscheduler(cur->lwp, policy, &sched);
+	}
+	AST_RWLIST_UNLOCK(&thread_list);
+	return 0;
+#else
+	return ast_set_priority(0);
+#endif
+}
+
 /*! \brief We set ourselves to a high priority, that we might pre-empt
  * everything else.  If your PBX has heavy activity on it, this is a
  * good thing.
@@ -3744,7 +3779,7 @@ static void *canary_thread(void *unused)
 				"He's kicked the bucket.  He's shuffled off his mortal coil, "
 				"run down the curtain, and joined the bleeding choir invisible!!  "
 				"THIS is an EX-CANARY.  (Reducing priority)\n");
-			ast_set_priority(0);
+			set_priority_all(0);
 			pthread_exit(NULL);
 		}
 
