@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2014, Digium, Inc.
+ * Copyright (C) 2014-2016, Digium, Inc.
  *
  * Joshua Colp <jcolp@digium.com>
  *
@@ -16,19 +16,78 @@
  * at the top of the source tree.
  */
 
-/*** MODULEINFO
-	<depend>pjproject</depend>
-	<depend>res_pjsip</depend>
-	<support_level>core</support_level>
- ***/
-
 #include "asterisk.h"
 
 #include <pjsip.h>
 #include <pjsip_ua.h>
 
 #include "asterisk/res_pjsip.h"
-#include "asterisk/module.h"
+#include "asterisk/res_pjsip_session.h"
+#include "include/res_pjsip_private.h"
+
+#define MOD_DATA_RESTRICTIONS "restrictions"
+
+static pj_status_t multihomed_on_tx_message(pjsip_tx_data *tdata);
+
+/*! \brief Outgoing message modification restrictions */
+struct multihomed_message_restrictions {
+	/*! \brief Disallow modification of the From domain */
+	unsigned int disallow_from_domain_modification;
+};
+
+static pjsip_module multihomed_module = {
+	.name = { "Multihomed Routing", 18 },
+	.id = -1,
+	.priority = PJSIP_MOD_PRIORITY_TSX_LAYER - 1,
+	.on_tx_request = multihomed_on_tx_message,
+	.on_tx_response = multihomed_on_tx_message,
+};
+
+/*! \brief Helper function to get (or allocate if not already present) restrictions on a message */
+static struct multihomed_message_restrictions *multihomed_get_restrictions(pjsip_tx_data *tdata)
+{
+	struct multihomed_message_restrictions *restrictions;
+
+	restrictions = ast_sip_mod_data_get(tdata->mod_data, multihomed_module.id, MOD_DATA_RESTRICTIONS);
+	if (restrictions) {
+		return restrictions;
+	}
+
+	restrictions = PJ_POOL_ALLOC_T(tdata->pool, struct multihomed_message_restrictions);
+	ast_sip_mod_data_set(tdata->pool, tdata->mod_data, multihomed_module.id, MOD_DATA_RESTRICTIONS, restrictions);
+
+	return restrictions;
+}
+
+/*! \brief Callback invoked on non-session outgoing messages */
+static void multihomed_outgoing_message(struct ast_sip_endpoint *endpoint, struct ast_sip_contact *contact, struct pjsip_tx_data *tdata)
+{
+	struct multihomed_message_restrictions *restrictions = multihomed_get_restrictions(tdata);
+
+	restrictions->disallow_from_domain_modification = !ast_strlen_zero(endpoint->fromdomain);
+}
+
+/*! \brief PJSIP Supplement for tagging messages with restrictions */
+static struct ast_sip_supplement multihomed_supplement = {
+	.priority = AST_SIP_SUPPLEMENT_PRIORITY_FIRST,
+	.outgoing_request = multihomed_outgoing_message,
+	.outgoing_response = multihomed_outgoing_message,
+};
+
+/*! \brief Callback invoked on session outgoing messages */
+static void multihomed_session_outgoing_message(struct ast_sip_session *session, struct pjsip_tx_data *tdata)
+{
+	struct multihomed_message_restrictions *restrictions = multihomed_get_restrictions(tdata);
+
+	restrictions->disallow_from_domain_modification = !ast_strlen_zero(session->endpoint->fromdomain);
+}
+
+/*! \brief PJSIP Session Supplement for tagging messages with restrictions */
+static struct ast_sip_session_supplement multihomed_session_supplement = {
+	.priority = 1,
+	.outgoing_request = multihomed_session_outgoing_message,
+	.outgoing_response = multihomed_session_outgoing_message,
+};
 
 /*! \brief Helper function which returns a UDP transport bound to the given address and port */
 static pjsip_transport *multihomed_get_udp_transport(pj_str_t *address, int port)
@@ -59,6 +118,21 @@ static pjsip_transport *multihomed_get_udp_transport(pj_str_t *address, int port
 	return sip_transport;
 }
 
+/*! \brief Helper function which determines if a transport is bound to any */
+static int multihomed_bound_any(pjsip_transport *transport)
+{
+	pj_uint32_t loop6[4] = {0, 0, 0, 0};
+
+	if ((transport->local_addr.addr.sa_family == pj_AF_INET() &&
+		transport->local_addr.ipv4.sin_addr.s_addr == PJ_INADDR_ANY) ||
+		(transport->local_addr.addr.sa_family == pj_AF_INET6() &&
+		!pj_memcmp(&transport->local_addr.ipv6.sin6_addr, loop6, sizeof(loop6)))) {
+		return 1;
+	}
+
+	return 0;
+}
+
 /*! \brief Helper function which determines if the address within SDP should be rewritten */
 static int multihomed_rewrite_sdp(struct pjmedia_sdp_session *sdp)
 {
@@ -77,26 +151,13 @@ static int multihomed_rewrite_sdp(struct pjmedia_sdp_session *sdp)
 	return 0;
 }
 
-/*! \brief Helper function which determines if a transport is bound to any */
-static int multihomed_bound_any(pjsip_transport *transport)
-{
-	pj_uint32_t loop6[4] = {0, 0, 0, 0};
-
-	if ((transport->local_addr.addr.sa_family == pj_AF_INET() &&
-		transport->local_addr.ipv4.sin_addr.s_addr == PJ_INADDR_ANY) ||
-		(transport->local_addr.addr.sa_family == pj_AF_INET6() &&
-		!pj_memcmp(&transport->local_addr.ipv6.sin6_addr, loop6, sizeof(loop6)))) {
-		return 1;
-	}
-
-	return 0;
-}
-
 static pj_status_t multihomed_on_tx_message(pjsip_tx_data *tdata)
 {
+	struct multihomed_message_restrictions *restrictions = ast_sip_mod_data_get(tdata->mod_data, multihomed_module.id, MOD_DATA_RESTRICTIONS);
 	pjsip_tpmgr_fla2_param prm;
 	pjsip_cseq_hdr *cseq;
 	pjsip_via_hdr *via;
+	pjsip_fromto_hdr *from;
 
 	/* Use the destination information to determine what local interface this message will go out on */
 	pjsip_tpmgr_fla2_param_default(&prm);
@@ -153,6 +214,13 @@ static pj_status_t multihomed_on_tx_message(pjsip_tx_data *tdata)
 			ast_debug(4, "Re-wrote Contact URI host/port to %.*s:%d\n",
 				(int)pj_strlen(&uri->host), pj_strbuf(&uri->host), uri->port);
 
+			if (tdata->tp_info.transport->key.type == PJSIP_TRANSPORT_UDP ||
+				tdata->tp_info.transport->key.type == PJSIP_TRANSPORT_UDP6) {
+				uri->transport_param.slen = 0;
+			} else {
+				pj_strdup2(tdata->pool, &uri->transport_param, pjsip_transport_get_type_name(tdata->tp_info.transport->key.type));
+			}
+
 			pjsip_tx_data_invalidate_msg(tdata);
 		}
 	}
@@ -164,17 +232,38 @@ static pj_status_t multihomed_on_tx_message(pjsip_tx_data *tdata)
 		pjsip_tx_data_invalidate_msg(tdata);
 	}
 
+	if (tdata->msg->type == PJSIP_REQUEST_MSG && (from = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_FROM, NULL)) &&
+		(restrictions && !restrictions->disallow_from_domain_modification)) {
+		pjsip_name_addr *id_name_addr = (pjsip_name_addr *)from->uri;
+		pjsip_sip_uri *uri = pjsip_uri_get_uri(id_name_addr);
+		pj_sockaddr ip;
+
+		if (pj_strcmp2(&uri->host, "localhost") && pj_sockaddr_parse(pj_AF_UNSPEC(), 0, &uri->host, &ip) == PJ_SUCCESS) {
+			pj_strassign(&uri->host, &prm.ret_addr);
+			pjsip_tx_data_invalidate_msg(tdata);
+		}
+	}
+
 	/* Update the SDP if it is present */
 	if (tdata->msg->body && ast_sip_is_content_type(&tdata->msg->body->content_type, "application", "sdp") &&
 		multihomed_rewrite_sdp(tdata->msg->body->data)) {
 		struct pjmedia_sdp_session *sdp = tdata->msg->body->data;
+		static const pj_str_t STR_IP4 = { "IP4", 3 };
+		static const pj_str_t STR_IP6 = { "IP6", 3 };
+		pj_str_t STR_IP;
 		int stream;
 
+		STR_IP = tdata->tp_info.transport->key.type & PJSIP_TRANSPORT_IPV6 ? STR_IP6 : STR_IP4;
+
+		pj_strassign(&sdp->origin.addr, &prm.ret_addr);
+		sdp->origin.addr_type = STR_IP;
 		pj_strassign(&sdp->conn->addr, &prm.ret_addr);
+		sdp->conn->addr_type = STR_IP;
 
 		for (stream = 0; stream < sdp->media_count; ++stream) {
 			if (sdp->media[stream]->conn) {
 				pj_strassign(&sdp->media[stream]->conn->addr, &prm.ret_addr);
+				sdp->media[stream]->conn->addr_type = STR_IP;
 			}
 		}
 
@@ -184,42 +273,31 @@ static pj_status_t multihomed_on_tx_message(pjsip_tx_data *tdata)
 	return PJ_SUCCESS;
 }
 
-static pjsip_module multihomed_module = {
-	.name = { "Multihomed Routing", 18 },
-	.id = -1,
-	.priority = PJSIP_MOD_PRIORITY_TSX_LAYER - 1,
-	.on_tx_request = multihomed_on_tx_message,
-	.on_tx_response = multihomed_on_tx_message,
-};
-
-static int unload_module(void)
+void ast_res_pjsip_cleanup_message_ip_updater(void)
 {
 	ast_sip_unregister_service(&multihomed_module);
-	return 0;
+	ast_sip_unregister_supplement(&multihomed_supplement);
+	ast_sip_session_unregister_supplement(&multihomed_session_supplement);
 }
 
-static int load_module(void)
+int ast_res_pjsip_init_message_ip_updater(void)
 {
-	char hostname[MAXHOSTNAMELEN] = "";
+	if (ast_sip_session_register_supplement(&multihomed_session_supplement)) {
+		ast_log(LOG_ERROR, "Could not register multihomed session supplement for outgoing requests\n");
+		return -1;
+	}
 
-	CHECK_PJSIP_MODULE_LOADED();
-
-	if (!gethostname(hostname, sizeof(hostname) - 1)) {
-		ast_verb(2, "Performing DNS resolution of local hostname '%s' to get local IPv4 and IPv6 address\n",
-			hostname);
+	if (ast_sip_register_supplement(&multihomed_supplement)) {
+		ast_log(LOG_ERROR, "Could not register multihomed supplement for outgoing requests\n");
+		ast_res_pjsip_cleanup_message_ip_updater();
+		return -1;
 	}
 
 	if (ast_sip_register_service(&multihomed_module)) {
 		ast_log(LOG_ERROR, "Could not register multihomed module for incoming and outgoing requests\n");
-		return AST_MODULE_LOAD_FAILURE;
+		ast_res_pjsip_cleanup_message_ip_updater();
+		return -1;
 	}
 
-	return AST_MODULE_LOAD_SUCCESS;
+	return 0;
 }
-
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP Multihomed Routing Support",
-	.support_level = AST_MODULE_SUPPORT_CORE,
-	.load = load_module,
-	.unload = unload_module,
-	.load_pri = AST_MODPRI_APP_DEPEND,
-);
