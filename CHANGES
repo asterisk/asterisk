@@ -9,6 +9,19 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 14.1.0 to Asterisk 14.2.0 ----------
+------------------------------------------------------------------------------
+
+res_pjsip
+------------------
+ * Automatic dual stack support is now implemented. Depending on DNS resolution
+   and the transport used for sending a message the SIP signaling and SDP will
+   be updated with the correct IP address and protocol version. This means that
+   the rtp_ipv6 and t38_udptl_ipv6 options no longer have any effect. The
+   res_pjsip_multihomed module has also been moved into core res_pjsip to ensure
+   that messages are updated with the correct address information in all cases.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 14.0.0 to Asterisk 14.1.0 ----------
 ------------------------------------------------------------------------------
 

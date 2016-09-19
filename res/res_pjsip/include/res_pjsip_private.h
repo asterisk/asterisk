@@ -184,6 +184,14 @@ void ast_sip_destroy_global_headers(void);
 int ast_res_pjsip_init_options_handling(int reload);
 
 /*!
+ * \internal Initialize message IP updating handling.
+ *
+ * \retval 0 on success
+ * \retval other on failure
+ */
+int ast_res_pjsip_init_message_ip_updater(void);
+
+/*!
  * \internal
  * \brief Initialize transport storage for contacts.
  *
@@ -233,6 +241,12 @@ int ast_sip_initialize_global(void);
  * \brief Clean up res_pjsip options handling
  */
 void ast_res_pjsip_cleanup_options_handling(void);
+
+/*!
+ * \internal
+ * \brief Clean up res_pjsip message ip updating handling
+ */
+void ast_res_pjsip_cleanup_message_ip_updater(void);
 
 /*!
  * \internal
