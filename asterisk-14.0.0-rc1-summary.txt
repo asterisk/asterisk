@@ -1,0 +1,145 @@
+                                Release Summary
+
+                              asterisk-14.0.0-rc1
+
+                                Date: 2016-09-19
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This is the first release of a major new version of Asterisk. For a list
+   of new features that have been included with this release, please see the
+   CHANGES file inside the source package. Since this is a new major release,
+   users are encouraged to do extended testing before upgrading to this
+   version in a production environment.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-14.0.0-beta2.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                   Testers                  Reporters                
+   7 Joshua Colp                                     2 Joshua Colp            
+   1 Matt Jordan                                     1 Etienne Lessard        
+   1 Mark Michelson                                  1 nappsoft               
+   1 Corey Farrell                                   1 Dmitry Melekhov        
+                                                     1 Matt Jordan            
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Channels/chan_sip/General
+
+   ASTERISK-26272: chan_sip: File descriptors leak (UDP sockets)
+   Reported by: Etienne Lessard
+     * [f877e62cc9] Corey Farrell -- chan_sip: Don't allocate new RTP
+       instances on top of old ones.
+
+    Category: Resources/res_ari_playbacks
+
+   ASTERISK-26341: ARI: Stopping a media playlist only stops the current
+   media URI being played back, and not the whole list
+   Reported by: Matt Jordan
+     * [b17ee86148] Matt Jordan -- res/res_stasis_playback: Cancel the entire
+       playlist when a stop occurs
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-26375: res_pjsip_transport_management: Log message states
+   seconds, but time value is milliseconds
+   Reported by: Joshua Colp
+     * [205e2ea351] Joshua Colp -- res_pjsip_transport_management: Convert
+       time in log message to seconds.
+   ASTERISK-26364: res_pjsip: Don't assume a request will have target
+   addresses
+   Reported by: Joshua Colp
+     * [bc085bba24] Joshua Colp -- res_pjsip: Don't assume a request will
+       have any addresses.
+   ASTERISK-26264: res_pjsip: Crash when applying ACL from non-existent
+   endpoint
+   Reported by: nappsoft
+     * [137aa2f13c] Mark Michelson -- res_pjsip: Do not crash on ACKs from
+       unknown endpoints.
+
+    Category: pjproject/pjsip
+
+   ASTERISK-26349: 13.11.1 res_pjsip/pjsip_distributor.c: Request 'REGISTER'
+   failed
+   Reported by: Dmitry Melekhov
+     * [9a800b24ac] Joshua Colp -- res_pjsip: Only invoke unidentified
+       endpoint logic when unidentified.
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author      | Summary                                     |
+   |------------+-------------+---------------------------------------------|
+   | e11354b864 | Joshua Colp | Release summaries: Remove previous versions |
+   |------------+-------------+---------------------------------------------|
+   | 24fac2271a | Joshua Colp | .version: Update for 14.0.0-rc1             |
+   |------------+-------------+---------------------------------------------|
+   | 52c101d441 | Joshua Colp | .lastclean: Update for 14.0.0-rc1           |
+   |------------+-------------+---------------------------------------------|
+   | edae56dc65 | Joshua Colp | realtime: Add database scripts for          |
+   |            |             | 14.0.0-rc1                                  |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ asterisk-14.0.0-beta2-summary.html  |   60 -----------
+ asterisk-14.0.0-beta2-summary.txt   |  181 ------------------------------------
+ b/.version                          |    2
+ b/channels/chan_sip.c               |   61 +++++++-----
+ b/res/res_pjsip.c                   |    2
+ b/res/res_pjsip/pjsip_distributor.c |    4
+ 6 files changed, 42 insertions(+), 268 deletions(-)
