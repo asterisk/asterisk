@@ -614,10 +614,9 @@ static int dev_urandom_fd = -1;
 #undef pthread_create /* For ast_pthread_create function only */
 #endif /* !__linux__ */
 
-#if !defined(LOW_MEMORY)
-
 #ifdef DEBUG_THREADS
 
+#if !defined(LOW_MEMORY)
 /*! \brief A reasonable maximum number of locks a thread would be holding ... */
 #define AST_MAX_LOCKS 64
 
@@ -720,6 +719,8 @@ static void lock_info_destroy(void *data)
  * \brief The thread storage key for per-thread lock info
  */
 AST_THREADSTORAGE_CUSTOM(thread_lock_info, NULL, lock_info_destroy);
+#endif /* ! LOW_MEMORY */
+
 #ifdef HAVE_BKTR
 void ast_store_lock_info(enum ast_lock_type type, const char *filename,
 	int line_num, const char *func, const char *lock_name, void *lock_addr, struct ast_bt *bt)
@@ -728,6 +729,7 @@ void ast_store_lock_info(enum ast_lock_type type, const char *filename,
 	int line_num, const char *func, const char *lock_name, void *lock_addr)
 #endif
 {
+#if !defined(LOW_MEMORY)
 	struct thr_lock_info *lock_info;
 	int i;
 
@@ -778,10 +780,12 @@ void ast_store_lock_info(enum ast_lock_type type, const char *filename,
 	lock_info->num_locks++;
 
 	pthread_mutex_unlock(&lock_info->lock);
+#endif /* ! LOW_MEMORY */
 }
 
 void ast_mark_lock_acquired(void *lock_addr)
 {
+#if !defined(LOW_MEMORY)
 	struct thr_lock_info *lock_info;
 
 	if (!(lock_info = ast_threadstorage_get(&thread_lock_info, sizeof(*lock_info))))
@@ -792,10 +796,12 @@ void ast_mark_lock_acquired(void *lock_addr)
 		lock_info->locks[lock_info->num_locks - 1].pending = 0;
 	}
 	pthread_mutex_unlock(&lock_info->lock);
+#endif /* ! LOW_MEMORY */
 }
 
 void ast_mark_lock_failed(void *lock_addr)
 {
+#if !defined(LOW_MEMORY)
 	struct thr_lock_info *lock_info;
 
 	if (!(lock_info = ast_threadstorage_get(&thread_lock_info, sizeof(*lock_info))))
@@ -807,10 +813,12 @@ void ast_mark_lock_failed(void *lock_addr)
 		lock_info->locks[lock_info->num_locks - 1].times_locked--;
 	}
 	pthread_mutex_unlock(&lock_info->lock);
+#endif /* ! LOW_MEMORY */
 }
 
 int ast_find_lock_info(void *lock_addr, char *filename, size_t filename_size, int *lineno, char *func, size_t func_size, char *mutex_name, size_t mutex_name_size)
 {
+#if !defined(LOW_MEMORY)
 	struct thr_lock_info *lock_info;
 	int i = 0;
 
@@ -838,10 +846,14 @@ int ast_find_lock_info(void *lock_addr, char *filename, size_t filename_size, in
 	pthread_mutex_unlock(&lock_info->lock);
 
 	return 0;
+#else /* if defined(LOW_MEMORY) */
+	return -1;
+#endif
 }
 
 void ast_suspend_lock_info(void *lock_addr)
 {
+#if !defined(LOW_MEMORY)
 	struct thr_lock_info *lock_info;
 	int i = 0;
 
@@ -865,10 +877,12 @@ void ast_suspend_lock_info(void *lock_addr)
 	lock_info->locks[i].suspended = 1;
 
 	pthread_mutex_unlock(&lock_info->lock);
+#endif /* ! LOW_MEMORY */
 }
 
 void ast_restore_lock_info(void *lock_addr)
 {
+#if !defined(LOW_MEMORY)
 	struct thr_lock_info *lock_info;
 	int i = 0;
 
@@ -891,6 +905,7 @@ void ast_restore_lock_info(void *lock_addr)
 	lock_info->locks[i].suspended = 0;
 
 	pthread_mutex_unlock(&lock_info->lock);
+#endif /* ! LOW_MEMORY */
 }
 
 
@@ -900,6 +915,7 @@ void ast_remove_lock_info(void *lock_addr, struct ast_bt *bt)
 void ast_remove_lock_info(void *lock_addr)
 #endif
 {
+#if !defined(LOW_MEMORY)
 	struct thr_lock_info *lock_info;
 	int i = 0;
 
@@ -937,8 +953,10 @@ void ast_remove_lock_info(void *lock_addr)
 	lock_info->num_locks--;
 
 	pthread_mutex_unlock(&lock_info->lock);
+#endif /* ! LOW_MEMORY */
 }
 
+#if !defined(LOW_MEMORY)
 static const char *locktype2str(enum ast_lock_type type)
 {
 	switch (type) {
@@ -1017,7 +1035,7 @@ static void append_lock_information(struct ast_str **str, struct thr_lock_info *
 	}
 	ast_reentrancy_unlock(lt);
 }
-
+#endif /* ! LOW_MEMORY */
 
 /*! This function can help you find highly temporal locks; locks that happen for a
     short time, but at unexpected times, usually at times that create a deadlock,
@@ -1040,6 +1058,7 @@ static void append_lock_information(struct ast_str **str, struct thr_lock_info *
 */
 void ast_log_show_lock(void *this_lock_addr)
 {
+#if !defined(LOW_MEMORY)
 	struct thr_lock_info *lock_info;
 	struct ast_str *str;
 
@@ -1066,11 +1085,13 @@ void ast_log_show_lock(void *this_lock_addr)
 	}
 	pthread_mutex_unlock(&lock_infos_lock.mutex);
 	ast_free(str);
+#endif /* ! LOW_MEMORY */
 }
 
 
 struct ast_str *ast_dump_locks(void)
 {
+#if !defined(LOW_MEMORY)
 	struct thr_lock_info *lock_info;
 	struct ast_str *str;
 
@@ -1137,8 +1158,12 @@ struct ast_str *ast_dump_locks(void)
 	               "\n");
 
 	return str;
+#else /* if defined(LOW_MEMORY) */
+	return NULL;
+#endif
 }
 
+#if !defined(LOW_MEMORY)
 static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_str *str;
@@ -1172,9 +1197,10 @@ static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_
 static struct ast_cli_entry utils_cli[] = {
 	AST_CLI_DEFINE(handle_show_locks, "Show which locks are held by which thread"),
 };
-
+#endif /* ! LOW_MEMORY */
 #endif /* DEBUG_THREADS */
 
+#if !defined(LOW_MEMORY)
 /*
  * support for 'show threads'. The start routine is wrapped by
  * dummy_start(), so that ast_register_thread() and
@@ -1235,6 +1261,15 @@ static void *dummy_start(void *data)
 }
 
 #endif /* !LOW_MEMORY */
+
+int ast_background_stacksize(void)
+{
+#if !defined(LOW_MEMORY)
+	return AST_STACKSIZE;
+#else
+	return AST_STACKSIZE_LOW;
+#endif
+}
 
 int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *),
 			     void *data, size_t stacksize, const char *file, const char *caller,

@@ -24,6 +24,7 @@ for x in ${TMP}; do
 			-o "${x}" = "BETTER_BACKTRACES" \
 			-o "${x}" = "LOTS_OF_SPANS" \
 			-o "${x}" = "BUILD_NATIVE" \
+			-o "${x}" = "LOW_MEMORY" \
 			-o "${x}" = "REF_DEBUG" \
 			-o "${x}" = "AO2_DEBUG" \
 			-o "${x}" = "REBUILD_PARSERS" \

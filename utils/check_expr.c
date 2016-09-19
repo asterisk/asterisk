@@ -56,7 +56,6 @@ void * attribute_malloc __ast_calloc(size_t num, size_t len, const char *file, i
 #endif
 
 #ifdef DEBUG_THREADS
-#if !defined(LOW_MEMORY)
 #ifdef HAVE_BKTR
 void ast_store_lock_info(enum ast_lock_type type, const char *filename,
 		        int line_num, const char *func, const char *lock_name, void *lock_addr, struct ast_bt *bt);
@@ -117,7 +116,6 @@ void ast_mark_lock_acquired(void *foo)
 {
     /* not a lot to do in a standalone w/o threading! */
 }
-#endif
 #endif /* DEBUG_THREADS */
 
 
@@ -161,9 +159,7 @@ void parse_file(const char *fname);
 
 void __ast_register_file(const char *file);
 void __ast_register_file(const char *file) { }
-#if !defined(LOW_MEMORY)
 int ast_add_profile(const char *x, uint64_t scale) { return 0;}
-#endif
 int ast_atomic_fetchadd_int_slow(volatile int *p, int v)
 {
         int ret;

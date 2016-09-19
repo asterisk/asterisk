@@ -98,7 +98,6 @@ void __ast_unregister_file(const char *file)
 {
 }
 
-#if !defined(LOW_MEMORY)
 int ast_add_profile(const char *, uint64_t scale);
 int ast_add_profile(const char *s, uint64_t scale)
 {
@@ -115,7 +114,6 @@ int64_t ast_mark(int key, int start1_stop0)
 {
 	return 0;
 }
-#endif /* LOW_MEMORY */
 
 /* end of dummy functions */
 

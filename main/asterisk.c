@@ -494,9 +494,11 @@ struct registered_file {
 };
 
 static AST_RWLIST_HEAD_STATIC(registered_files, registered_file);
+#endif /* ! LOW_MEMORY */
 
 void __ast_register_file(const char *file)
 {
+#if !defined(LOW_MEMORY)
 	struct registered_file *reg;
 
 	reg = ast_calloc(1, sizeof(*reg));
@@ -508,10 +510,12 @@ void __ast_register_file(const char *file)
 	AST_RWLIST_WRLOCK(&registered_files);
 	AST_RWLIST_INSERT_HEAD(&registered_files, reg, list);
 	AST_RWLIST_UNLOCK(&registered_files);
+#endif /* ! LOW_MEMORY */
 }
 
 void __ast_unregister_file(const char *file)
 {
+#if !defined(LOW_MEMORY)
 	struct registered_file *find;
 
 	AST_RWLIST_WRLOCK(&registered_files);
@@ -527,10 +531,12 @@ void __ast_unregister_file(const char *file)
 	if (find) {
 		ast_free(find);
 	}
+#endif /* ! LOW_MEMORY */
 }
 
 char *ast_complete_source_filename(const char *partial, int n)
 {
+#if !defined(LOW_MEMORY)
 	struct registered_file *find;
 	size_t len = strlen(partial);
 	int count = 0;
@@ -545,8 +551,12 @@ char *ast_complete_source_filename(const char *partial, int n)
 	}
 	AST_RWLIST_UNLOCK(&registered_files);
 	return res;
+#else /* if defined(LOW_MEMORY) */
+	return NULL;
+#endif
 }
 
+#if !defined(LOW_MEMORY)
 struct thread_list_t {
 	AST_RWLIST_ENTRY(thread_list_t) list;
 	char *name;
@@ -872,12 +882,14 @@ struct profile_data {
 };
 
 static struct profile_data *prof_data;
+#endif /* ! LOW_MEMORY */
 
 /*! \brief allocates a counter with a given name and scale.
  * \return Returns the identifier of the counter.
  */
 int ast_add_profile(const char *name, uint64_t scale)
 {
+#if !defined(LOW_MEMORY)
 	int l = sizeof(struct profile_data);
 	int n = 10;	/* default entries */
 
@@ -904,10 +916,14 @@ int ast_add_profile(const char *name, uint64_t scale)
 	prof_data->e[n].mark = 0;
 	prof_data->e[n].scale = scale;
 	return n;
+#else /* if defined(LOW_MEMORY) */
+	return 0;
+#endif
 }
 
 int64_t ast_profile(int i, int64_t delta)
 {
+#if !defined(LOW_MEMORY)
 	if (!prof_data || i < 0 || i > prof_data->entries)	/* invalid index */
 		return 0;
 	if (prof_data->e[i].scale > 1)
@@ -915,8 +931,12 @@ int64_t ast_profile(int i, int64_t delta)
 	prof_data->e[i].value += delta;
 	prof_data->e[i].events++;
 	return prof_data->e[i].value;
+#else /* if defined(LOW_MEMORY) */
+	return 0;
+#endif
 }
 
+#if !defined(LOW_MEMORY)
 /* The RDTSC instruction was introduced on the Pentium processor and is not
  * implemented on certain clones, like the Cyrix 586. Hence, the previous
  * expectation of __i386__ was in error. */
@@ -940,9 +960,11 @@ rdtsc(void)
 	return 0;
 }
 #endif
+#endif /* ! LOW_MEMORY */
 
 int64_t ast_mark(int i, int startstop)
 {
+#if !defined(LOW_MEMORY)
 	if (!prof_data || i < 0 || i > prof_data->entries) /* invalid index */
 		return 0;
 	if (startstop == 1)
@@ -955,8 +977,12 @@ int64_t ast_mark(int i, int startstop)
 		prof_data->e[i].events++;
 	}
 	return prof_data->e[i].mark;
+#else /* if defined(LOW_MEMORY) */
+	return 0;
+#endif
 }
 
+#if !defined(LOW_MEMORY)
 #define DEFINE_PROFILE_MIN_MAX_VALUES min = 0; \
 	max = prof_data->entries;\
 	if  (a->argc > 3) { /* specific entries */ \
