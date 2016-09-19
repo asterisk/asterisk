@@ -152,7 +152,6 @@ int ast_shutting_down(void);
  */
 int ast_shutdown_final(void);
 
-#if !defined(LOW_MEMORY)
 /*!
  * \brief Register the version of a source code file with the core.
  * \param file the source file name
@@ -225,11 +224,7 @@ char *ast_complete_source_filename(const char *partial, int n);
 		__ast_unregister_file(__FILE__); \
 	}
 #endif /* !MTX_PROFILE */
-#else /* LOW_MEMORY */
-#define ASTERISK_REGISTER_FILE()
-#endif /* LOW_MEMORY */
 
-#if !defined(LOW_MEMORY)
 /*!
  * \brief support for event profiling
  *
@@ -248,11 +243,6 @@ char *ast_complete_source_filename(const char *partial, int n);
 int ast_add_profile(const char *, uint64_t scale);
 int64_t ast_profile(int, int64_t);
 int64_t ast_mark(int, int start1_stop0);
-#else /* LOW_MEMORY */
-#define ast_add_profile(a, b) 0
-#define ast_profile(a, b) do { } while (0)
-#define ast_mark(a, b) do { } while (0)
-#endif /* LOW_MEMORY */
 
 /*! \brief
  * Definition of various structures that many asterisk files need,

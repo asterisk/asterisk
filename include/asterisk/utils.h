@@ -423,13 +423,12 @@ int ast_careful_fwrite(FILE *f, int fd, const char *s, size_t len, int timeoutms
  * Thread management support (should be moved to lock.h or a different header)
  */
 
-#define AST_STACKSIZE (((sizeof(void *) * 8 * 8) - 16) * 1024)
+#define AST_STACKSIZE     (((sizeof(void *) * 8 * 8) - 16) * 1024)
+#define AST_STACKSIZE_LOW (((sizeof(void *) * 8 * 2) - 16) * 1024)
 
-#if defined(LOW_MEMORY)
-#define AST_BACKGROUND_STACKSIZE (((sizeof(void *) * 8 * 2) - 16) * 1024)
-#else
-#define AST_BACKGROUND_STACKSIZE AST_STACKSIZE
-#endif
+int ast_background_stacksize(void);
+
+#define AST_BACKGROUND_STACKSIZE ast_background_stacksize()
 
 void ast_register_thread(char *name);
 void ast_unregister_thread(void *id);
