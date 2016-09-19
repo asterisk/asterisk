@@ -1,3 +1,130 @@
+2016-09-19 14:18 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 14.0.0-rc1 Released.
+
+2016-09-19 09:17 +0000 [a23b33576f]  Joshua Colp <jcolp@digium.com>
+
+	* Release summaries: Add summaries for 14.0.0-rc1
+
+2016-09-19 09:17 +0000 [e11354b864]  Joshua Colp <jcolp@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-09-19 09:17 +0000 [24fac2271a]  Joshua Colp <jcolp@digium.com>
+
+	* .version: Update for 14.0.0-rc1
+
+2016-09-19 09:17 +0000 [52c101d441]  Joshua Colp <jcolp@digium.com>
+
+	* .lastclean: Update for 14.0.0-rc1
+
+2016-09-19 09:17 +0000 [edae56dc65]  Joshua Colp <jcolp@digium.com>
+
+	* realtime: Add database scripts for 14.0.0-rc1
+
+2016-09-14 09:51 +0000 [205e2ea351]  Joshua Colp <jcolp@digium.com>
+
+	* res_pjsip_transport_management: Convert time in log message to seconds.
+
+	  ASTERISK-26375 #close
+
+	  Change-Id: I46496af5cae41413e76d44d2068a7431279f09dc
+
+2016-09-13 06:08 +0000 [bc085bba24]  Joshua Colp <jcolp@digium.com>
+
+	* res_pjsip: Don't assume a request will have any addresses.
+
+	  When performing DNS resolution the failover code present in
+	  res_pjsip currently assumes that a request will always have
+	  at least one viable address. In practice this is not true.
+	  A domain may be used that has no records.
+
+	  The code now checks that at least one address exists on the
+	  request which prevents looping.
+
+	  ASTERISK-26364 #close
+
+	  Change-Id: Ic0761b0264864acd85915c94d878a81624940f4c
+
+2016-09-09 05:39 +0000 [9a800b24ac]  Joshua Colp <jcolp@digium.com>
+
+	* res_pjsip: Only invoke unidentified endpoint logic when unidentified.
+
+	  The code was incorrectly invoking the unidentified logic when
+	  an endpoint had actually been identified, causing log messages
+	  to be output.
+
+	  ASTERISK-26349 #close
+
+	  Change-Id: Id8104fc9e3d138d5e8b6f6977ecc08765fd17d4f
+
+2016-08-16 15:34 +0000 [137aa2f13c]  Mark Michelson <mmichelson@digium.com>
+
+	* res_pjsip: Do not crash on ACKs from unknown endpoints.
+
+	  The endpoint identification PJSIP module is intended to identify which
+	  endpoint an incoming request is from. If an endpoint is not identified,
+	  then an artificial endpoint is used in its place when proceeding.
+
+	  The problem is that the ACK request type is an exception to the rule.
+	  The artificial endpoint is not used when processing an ACK. This results
+	  in the possibility of having a NULL endpoint being used further on.
+
+	  The reason ACK is an exception is an attempt not to spam security logs
+	  with unidentified requests. Presumably, you've already logged the
+	  unidentified request on the preceeding INVITE.
+
+	  Up until Asterisk 13.10, retrieving a NULL endpoint in this fashion
+	  didn't cause an issue. A new change in 13.10 added endpoint ACL checking
+	  shortly after endpoint identification. Because we are accessing a NULL
+	  endpoint, this ACL check resulted in a crash.
+
+	  The fix here is to be sure to retrieve the artificial endpoint for all
+	  request types. ACKs still do not generate unidentified request security
+	  events.
+
+	  ASTERISK-26264 #close
+	  Reported by nappsoft
+
+	  AST-2016-006
+
+	  Change-Id: Ie0c795ae2d72273decb972dd74b6a1489fb6b703
+
+2016-08-23 06:35 +0000 [f877e62cc9]  Corey Farrell <git@cfware.com> (license 5909)
+
+	* chan_sip: Don't allocate new RTP instances on top of old ones.
+
+	  In some scenarios dialog_initialize_rtp can be called multiple times on
+	  the same dialog.  This can cause RTP instances to be leaked along with
+	  multiple file descriptors for each instance.
+
+	  This change makes it so the existing RTP instances are destroyed and
+	  not overwritten, stopping the memory leak.
+
+	  ASTERISK-26272 #close
+	  patches:
+	    ASTERISK-26272-13.patch submitted by Corey Farrell (license 5909)
+
+	  Change-Id: Id529de1184c68f2f4d254ab41a1f458dafdb5f73
+
+2016-09-06 15:25 +0000 [b17ee86148]  Matt Jordan <mjordan@digium.com>
+
+	* res/res_stasis_playback: Cancel the entire playlist when a stop occurs
+
+	  Prior to this patch, a stop issued by a delete of a Playback resource
+	  (indicated by the control frame AST_CONTROL_STREAM_STOP) would only stop
+	  the current media URI playing. Subsequent URIs specified by a playback
+	  operation would then proceed on, even though we had just indicated to
+	  the User that the Playback was finished *and* after they had just
+	  'deleted' the resource. Whoops.
+
+	  This patch corrects it by bailing out of the sequence of URIs to play if
+	  one of them is terminated with an AST_CONTROL_STREAM_STOP indication.
+
+	  ASTERISK-26341 #close
+
+	  Change-Id: I2da9ec43545ba46cdfffe287c7e4907eae7fca42
+
 2016-08-29 12:30 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 14.0.0-beta2 Released.
