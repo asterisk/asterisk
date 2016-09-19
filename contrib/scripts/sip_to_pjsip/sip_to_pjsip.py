@@ -374,7 +374,7 @@ def from_dtlsenable(key, val, section, pjsip, nmapped):
 ###############################################################################
 
 # options in pjsip.conf on an endpoint that have no sip.conf equivalent:
-# type, rtp_ipv6, 100rel, trust_id_outbound, aggregate_mwi,
+# type, 100rel, trust_id_outbound, aggregate_mwi,
 # connected_line_method
 
 # known sip.conf peer keys that can be mapped to a pjsip.conf section/key
