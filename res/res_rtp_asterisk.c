@@ -4902,6 +4902,15 @@ static int ast_rtp_fd(struct ast_rtp_instance *instance, int rtcp)
 static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct ast_sockaddr *addr)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
+	struct ast_sockaddr local, us;
+
+	if (!ast_sockaddr_isnull(addr)) {
+		/* Update the local RTP address with what is being used */
+		ast_ouraddrfor(addr, &us);
+		ast_rtp_instance_get_local_address(instance, &local);
+		ast_sockaddr_set_port(&us, ast_sockaddr_port(&local));
+		ast_rtp_instance_set_local_address(instance, &us);
+	}
 
 	if (rtp->rtcp) {
 		ast_debug(1, "Setting RTCP address on RTP instance '%p'\n", instance);
@@ -4909,6 +4918,15 @@ static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct
 		if (!ast_sockaddr_isnull(addr)) {
 			ast_sockaddr_set_port(&rtp->rtcp->them,
 					      ast_sockaddr_port(addr) + 1);
+		}
+
+		if (!ast_sockaddr_isnull(addr)) {
+			/* Update the local RTCP address with what is being used */
+			ast_sockaddr_set_port(&us, ast_sockaddr_port(&local) + 1);
+			ast_sockaddr_copy(&rtp->rtcp->us, &us);
+
+			ast_free(rtp->rtcp->local_addr_str);
+			rtp->rtcp->local_addr_str = ast_strdup(ast_sockaddr_stringify(&us));
 		}
 	}
 
