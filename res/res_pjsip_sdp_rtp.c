@@ -59,11 +59,8 @@ ASTERISK_REGISTER_FILE()
 /*! \brief Scheduler for RTCP purposes */
 static struct ast_sched_context *sched;
 
-/*! \brief Address for IPv4 RTP */
-static struct ast_sockaddr address_ipv4;
-
-/*! \brief Address for IPv6 RTP */
-static struct ast_sockaddr address_ipv6;
+/*! \brief Address for RTP */
+static struct ast_sockaddr address_rtp;
 
 static const char STR_AUDIO[] = "audio";
 static const int FD_AUDIO = 0;
@@ -173,11 +170,11 @@ static int rtp_check_timeout(const void *data)
 }
 
 /*! \brief Internal function which creates an RTP instance */
-static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_media *session_media, unsigned int ipv6)
+static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_media *session_media)
 {
 	struct ast_rtp_engine_ice *ice;
 	struct ast_sockaddr temp_media_address;
-	struct ast_sockaddr *media_address =  ipv6 ? &address_ipv6 : &address_ipv4;
+	struct ast_sockaddr *media_address =  &address_rtp;
 
 	if (session->endpoint->media.bind_rtp_to_media_address && !ast_strlen_zero(session->endpoint->media.address)) {
 		ast_sockaddr_parse(&temp_media_address, session->endpoint->media.address, 0);
@@ -903,7 +900,7 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 	}
 
 	/* Using the connection information create an appropriate RTP instance */
-	if (!session_media->rtp && create_rtp(session, session_media, ast_sockaddr_is_ipv6(addrs))) {
+	if (!session_media->rtp && create_rtp(session, session_media)) {
 		return -1;
 	}
 
@@ -1055,7 +1052,6 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	pj_pool_t *pool = session->inv_session->pool_prov;
 	static const pj_str_t STR_IN = { "IN", 2 };
 	static const pj_str_t STR_IP4 = { "IP4", 3};
-	static const pj_str_t STR_IP6 = { "IP6", 3};
 	static const pj_str_t STR_SENDRECV = { "sendrecv", 8 };
 	static const pj_str_t STR_SENDONLY = { "sendonly", 8 };
 	pjmedia_sdp_media *media;
@@ -1079,7 +1075,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	    (!use_override_prefs && !ast_format_cap_has_type(session->endpoint->media.codecs, media_type))) {
 		/* If no type formats are configured don't add a stream */
 		return 0;
-	} else if (!session_media->rtp && create_rtp(session, session_media, session->endpoint->media.rtp.ipv6)) {
+	} else if (!session_media->rtp && create_rtp(session, session_media)) {
 		return -1;
 	}
 
@@ -1120,7 +1116,8 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	}
 
 	media->conn->net_type = STR_IN;
-	media->conn->addr_type = session->endpoint->media.rtp.ipv6 ? STR_IP6 : STR_IP4;
+	/* Connection information will be updated by the multihomed module */
+	media->conn->addr_type = STR_IP4;
 	pj_strdup2(pool, &media->conn->addr, hostip);
 	ast_rtp_instance_get_local_address(session_media->rtp, &addr);
 	media->desc.port = direct_media_enabled ? ast_sockaddr_port(&session_media->direct_media_addr) : (pj_uint16_t) ast_sockaddr_port(&addr);
@@ -1257,7 +1254,7 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 	}
 
 	/* Create an RTP instance if need be */
-	if (!session_media->rtp && create_rtp(session, session_media, session->endpoint->media.rtp.ipv6)) {
+	if (!session_media->rtp && create_rtp(session, session_media)) {
 		return -1;
 	}
 
@@ -1493,8 +1490,7 @@ static int load_module(void)
 {
 	CHECK_PJSIP_SESSION_MODULE_LOADED();
 
-	ast_sockaddr_parse(&address_ipv4, "0.0.0.0", 0);
-	ast_sockaddr_parse(&address_ipv6, "::", 0);
+	ast_sockaddr_parse(&address_rtp, "::", 0);
 
 	if (!(sched = ast_sched_context_create())) {
 		ast_log(LOG_ERROR, "Unable to create scheduler context.\n");
