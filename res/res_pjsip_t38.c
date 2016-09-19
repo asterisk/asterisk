@@ -51,11 +51,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! \brief The number of seconds after receiving a T.38 re-invite before automatically rejecting it */
 #define T38_AUTOMATIC_REJECTION_SECONDS 5
 
-/*! \brief Address for IPv4 UDPTL */
-static struct ast_sockaddr address_ipv4;
-
-/*! \brief Address for IPv6 UDPTL */
-static struct ast_sockaddr address_ipv6;
+/*! \brief Address for UDPTL */
+static struct ast_sockaddr address;
 
 /*! \brief T.38 state information */
 struct t38_state {
@@ -259,8 +256,7 @@ static int t38_initialize_session(struct ast_sip_session *session, struct ast_si
 		return 0;
 	}
 
-	if (!(session_media->udptl = ast_udptl_new_with_bindaddr(NULL, NULL, 0,
-		session->endpoint->media.t38.ipv6 ? &address_ipv6 : &address_ipv4))) {
+	if (!(session_media->udptl = ast_udptl_new_with_bindaddr(NULL, NULL, 0, &address))) {
 		return -1;
 	}
 
@@ -922,8 +918,7 @@ static int load_module(void)
 {
 	CHECK_PJSIP_SESSION_MODULE_LOADED();
 
-	ast_sockaddr_parse(&address_ipv4, "0.0.0.0", 0);
-	ast_sockaddr_parse(&address_ipv6, "::", 0);
+	ast_sockaddr_parse(&address, "::", 0);
 
 	if (ast_sip_session_register_supplement(&t38_supplement)) {
 		ast_log(LOG_ERROR, "Unable to register T.38 session supplement\n");
