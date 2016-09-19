@@ -1778,6 +1778,18 @@ static void set_icon(char *text)
 		fprintf(stdout, "\033]1;%s\007", text);
 }
 
+/*! \brief Check whether we were set to high(er) priority.
+ */
+static int get_priority(void)
+{
+	/* Neither of these calls should fail with these arguments. */
+#ifdef __linux__
+	return sched_getscheduler(0);
+#else
+	return getpriority(PRIO_PROCESS, 0);
+#endif
+}
+
 /*! \brief We set ourselves to a high priority, that we might pre-empt
  * everything else.  If your PBX has heavy activity on it, this is a
  * good thing.
@@ -3756,8 +3768,11 @@ static void *canary_thread(void *unused)
 /* Used by libc's atexit(3) function */
 static void canary_exit(void)
 {
-	if (canary_pid > 0)
+	if (canary_pid > 0) {
+		int status;
 		kill(canary_pid, SIGKILL);
+		waitpid(canary_pid, &status, 0);
+	}
 }
 
 /* Execute CLI commands on startup.  Run by main() thread. */
@@ -4300,8 +4315,16 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	__ast_mm_init_phase_1();
 #endif	/* defined(__AST_DEBUG_MALLOC) */
 
+	/* Check whether high prio was succesfully set by us or some
+	 * other incantation. */
+	if (get_priority()) {
+		ast_set_flag(&ast_options, AST_OPT_FLAG_HIGH_PRIORITY);
+	} else {
+		ast_clear_flag(&ast_options, AST_OPT_FLAG_HIGH_PRIORITY);
+	}
+
 	/* Spawning of astcanary must happen AFTER the call to daemon(3) */
-	if (isroot && ast_opt_high_priority) {
+	if (ast_opt_high_priority) {
 		snprintf(canary_filename, sizeof(canary_filename), "%s/alt.asterisk.canary.tweet.tweet.tweet", ast_config_AST_RUN_DIR);
 
 		/* Don't let the canary child kill Asterisk, if it dies immediately */
