@@ -71,6 +71,11 @@ res_pjsip
    Note: The caller-id and redirecting number strings obtained from incoming
    SIP URI user fields are now always truncated at the first semicolon.
 
+ * Automatic dual stack support is now implemented. Depending on DNS resolution
+   and the transport used for sending a message the SIP signaling and SDP will
+   be updated with the correct IP address and protocol version. This means that
+   the rtp_ipv6 and t38_udptl_ipv6 options no longer have any effect.
+
 app_confbridge
 ------------------
   * Some sounds played into the bridge are played asynchronously. This, for
