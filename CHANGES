@@ -12,6 +12,13 @@
 --- Functionality changes from Asterisk 14 to Asterisk 15 --------------------
 ------------------------------------------------------------------------------
 
+Build System
+------------------
+ * LOW_MEMORY no longer has an effect on Asterisk ABI.  Symbols that were
+   previously suppressed by LOW_MEMORY are now replaced by stub functions.
+   Asterisk built with LOW_MEMORY can now successfully load binary modules
+   built without LOW_MEMORY and vice versa.
+
 chan_sip
 ------------------
  * If an offer is received with optional SRTP (a media stream with RTP/AVP but

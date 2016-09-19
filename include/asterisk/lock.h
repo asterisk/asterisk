@@ -240,7 +240,6 @@ enum ast_lock_type {
  * lock info struct.  The lock is marked as pending as the thread is waiting
  * on the lock.  ast_mark_lock_acquired() will mark it as held by this thread.
  */
-#if !defined(LOW_MEMORY)
 #ifdef HAVE_BKTR
 void ast_store_lock_info(enum ast_lock_type type, const char *filename,
 	int line_num, const char *func, const char *lock_name, void *lock_addr, struct ast_bt *bt);
@@ -249,32 +248,15 @@ void ast_store_lock_info(enum ast_lock_type type, const char *filename,
 	int line_num, const char *func, const char *lock_name, void *lock_addr);
 #endif /* HAVE_BKTR */
 
-#else
-
-#ifdef HAVE_BKTR
-#define ast_store_lock_info(I,DONT,CARE,ABOUT,THE,PARAMETERS,BUD)
-#else
-#define ast_store_lock_info(I,DONT,CARE,ABOUT,THE,PARAMETERS)
-#endif /* HAVE_BKTR */
-#endif /* !defined(LOW_MEMORY) */
-
 /*!
  * \brief Mark the last lock as acquired
  */
-#if !defined(LOW_MEMORY)
 void ast_mark_lock_acquired(void *lock_addr);
-#else
-#define ast_mark_lock_acquired(ignore)
-#endif
 
 /*!
  * \brief Mark the last lock as failed (trylock)
  */
-#if !defined(LOW_MEMORY)
 void ast_mark_lock_failed(void *lock_addr);
-#else
-#define ast_mark_lock_failed(ignore)
-#endif
 
 /*!
  * \brief remove lock info for the current thread
@@ -282,7 +264,6 @@ void ast_mark_lock_failed(void *lock_addr);
  * this gets called by ast_mutex_unlock so that information on the lock can
  * be removed from the current thread's lock info struct.
  */
-#if !defined(LOW_MEMORY)
 #ifdef HAVE_BKTR
 void ast_remove_lock_info(void *lock_addr, struct ast_bt *bt);
 #else
@@ -290,15 +271,6 @@ void ast_remove_lock_info(void *lock_addr);
 #endif /* HAVE_BKTR */
 void ast_suspend_lock_info(void *lock_addr);
 void ast_restore_lock_info(void *lock_addr);
-#else
-#ifdef HAVE_BKTR
-#define ast_remove_lock_info(ignore,me)
-#else
-#define ast_remove_lock_info(ignore)
-#endif /* HAVE_BKTR */
-#define ast_suspend_lock_info(ignore);
-#define ast_restore_lock_info(ignore);
-#endif /* !defined(LOW_MEMORY) */
 
 /*!
  * \brief log info for the current lock with ast_log().
@@ -333,11 +305,7 @@ struct ast_str *ast_dump_locks(void);
  * this gets called during deadlock avoidance, so that the information may
  * be preserved as to what location originally acquired the lock.
  */
-#if !defined(LOW_MEMORY)
 int ast_find_lock_info(void *lock_addr, char *filename, size_t filename_size, int *lineno, char *func, size_t func_size, char *mutex_name, size_t mutex_name_size);
-#else
-#define ast_find_lock_info(a,b,c,d,e,f,g,h) -1
-#endif
 
 /*!
  * \brief Unlock a lock briefly
