@@ -5197,13 +5197,28 @@ static void destroy_mailbox(struct sip_mailbox *mailbox)
 	ast_free(mailbox);
 }
 
+#define REMOVE_MAILBOX_WITH_LOCKED_PEER(__peer) \
+({\
+	struct sip_mailbox *__mailbox;\
+	ao2_lock(__peer);\
+	__mailbox = AST_LIST_REMOVE_HEAD(&(__peer->mailboxes), entry);\
+	ao2_unlock(__peer);\
+	__mailbox;\
+})
+
 /*! Destroy all peer-related mailbox subscriptions */
 static void clear_peer_mailboxes(struct sip_peer *peer)
 {
 	struct sip_mailbox *mailbox;
 
-	while ((mailbox = AST_LIST_REMOVE_HEAD(&peer->mailboxes, entry)))
+	if (AST_LIST_EMPTY(&peer->mailboxes)) {
+		return;
+	}
+
+	/* Lock the peer while accessing/updating the linked list but NOT while destroying the mailbox */
+	while ((mailbox = REMOVE_MAILBOX_WITH_LOCKED_PEER(peer))) {
 		destroy_mailbox(mailbox);
+	}
 }
 
 static void sip_destroy_peer_fn(void *peer)
@@ -17195,19 +17210,16 @@ static void sip_peer_hold(struct sip_pvt *p, int hold)
 /*! \brief Receive MWI events that we have subscribed to */
 static void mwi_event_cb(void *userdata, struct stasis_subscription *sub, struct stasis_message *msg)
 {
-	char *peer_name = userdata;
-	struct sip_peer *peer = sip_find_peer(peer_name, NULL, TRUE, FINDALLDEVICES, FALSE, 0);
+	struct sip_peer *peer = userdata;
 
 	if (stasis_subscription_final_message(sub, msg)) {
 		/* peer can be non-NULL during reload. */
-		ao2_cleanup(peer);
-		ast_free(peer_name);
 		return;
 	}
+
 	if (peer && ast_mwi_state_type() == stasis_message_type(msg)) {
 		sip_send_mwi_to_peer(peer, 0);
 	}
-	ao2_cleanup(peer);
 }
 
 static void network_change_stasis_subscribe(void)
@@ -27932,15 +27944,14 @@ static void add_peer_mwi_subs(struct sip_peer *peer)
 
 	AST_LIST_TRAVERSE(&peer->mailboxes, mailbox, entry) {
 		struct stasis_topic *mailbox_specific_topic;
-		mailbox->event_sub = stasis_unsubscribe(mailbox->event_sub);
+
+		if (mailbox->status != SIP_MAILBOX_STATUS_NEW) {
+			continue;
+		}
 
 		mailbox_specific_topic = ast_mwi_topic(mailbox->id);
 		if (mailbox_specific_topic) {
-			char *peer_name = ast_strdup(peer->name);
-			if (!peer_name) {
-				return;
-			}
-			mailbox->event_sub = stasis_subscribe_pool(mailbox_specific_topic, mwi_event_cb, peer_name);
+			mailbox->event_sub = stasis_subscribe_pool(mailbox_specific_topic, mwi_event_cb, peer);
 		}
 	}
 }
@@ -29165,7 +29176,9 @@ static int get_cached_mwi(struct sip_peer *peer, int *new, int *old)
 }
 
 /*! \brief Send message waiting indication to alert peer that they've got voicemail
- *  \note Both peer and associated sip_pvt must be unlocked prior to calling this function
+ *  \note Both peer and associated sip_pvt must be unlocked prior to calling this function.
+ *  It's possible that this function will get called during peer destruction as final messages
+ *  are processed.  The peer will still be valid however.
  *  \returns -1 on failure, 0 on success
  */
 static int sip_send_mwi_to_peer(struct sip_peer *peer, int cache_only)
@@ -30988,6 +31001,7 @@ static void add_peer_mailboxes(struct sip_peer *peer, const char *value)
 		AST_LIST_TRAVERSE(&peer->mailboxes, mailbox, entry) {
 			if (!strcmp(mailbox->id, mbox)) {
 				duplicate = 1;
+				mailbox->status = SIP_MAILBOX_STATUS_EXISTING;
 				break;
 			}
 		}
@@ -31000,14 +31014,18 @@ static void add_peer_mailboxes(struct sip_peer *peer, const char *value)
 			continue;
 		}
 		strcpy(mailbox->id, mbox); /* SAFE */
+		mailbox->status = SIP_MAILBOX_STATUS_NEW;
+		mailbox->peer = peer;
 
 		AST_LIST_INSERT_TAIL(&peer->mailboxes, mailbox, entry);
 	}
 }
 
 /*! \brief Build peer from configuration (file or realtime static/dynamic) */
-static struct sip_peer *build_peer(const char *name, struct ast_variable *v, struct ast_variable *alt, int realtime, int devstate_only)
+static struct sip_peer *build_peer(const char *name, struct ast_variable *v_head, struct ast_variable *alt, int realtime, int devstate_only)
 {
+	/* We preserve the original value of v_head to make analyzing backtraces easier */
+	struct ast_variable *v = v_head;
 	struct sip_peer *peer = NULL;
 	struct ast_acl_list *oldacl = NULL;
 	struct ast_acl_list *olddirectmediaacl = NULL;
@@ -31071,6 +31089,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			return NULL;
 		}
 
+
 		if (realtime && !ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS)) {
 			ast_atomic_fetchadd_int(&rpeerobjs, 1);
 			ast_debug(3, "-REALTIME- peer built. Name: %s. Peer objects: %d\n", name, rpeerobjs);
@@ -31120,7 +31139,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	if (!devstate_only) {
 		struct sip_mailbox *mailbox;
 		AST_LIST_TRAVERSE(&peer->mailboxes, mailbox, entry) {
-			mailbox->delme = 1;
+			mailbox->status = SIP_MAILBOX_STATUS_UNKNOWN;
 		}
 	}
 
@@ -31569,7 +31588,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	if (!devstate_only) {
 		struct sip_mailbox *mailbox;
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&peer->mailboxes, mailbox, entry) {
-			if (mailbox->delme) {
+			if (mailbox->status == SIP_MAILBOX_STATUS_UNKNOWN) {
 				AST_LIST_REMOVE_CURRENT(entry);
 				destroy_mailbox(mailbox);
 			}
@@ -31702,7 +31721,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		if (!sip_cfg.ignore_regexpire && peer->host_dynamic) {
 			time_t nowtime = time(NULL);
 
-			if ((nowtime - regseconds) > 0) {
+			if (regseconds > 0 && ((nowtime - regseconds) > 0)) {
 				destroy_association(peer);
 				memset(&peer->addr, 0, sizeof(peer->addr));
 				peer->lastms = -1;
