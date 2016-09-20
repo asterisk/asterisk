@@ -4454,11 +4454,6 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 
 	aco_init();
 
-	if (init_logger()) {		/* Start logging subsystem */
-		printf("Failed: init_logger\n%s", term_quit());
-		exit(1);
-	}
-
 	if (ast_bucket_init()) {
 		printf("Failed: ast_bucket_init\n%s", term_quit());
 		exit(1);
@@ -4502,6 +4497,11 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	initstate((unsigned int) getpid() * 65536 + (unsigned int) time(NULL), randompool, sizeof(randompool));
 
 	threadstorage_init();
+
+	if (init_logger()) {		/* Start logging subsystem */
+		printf("Failed: init_logger\n%s", term_quit());
+		exit(1);
+	}
 
 	if (ast_rtp_engine_init()) {
 		printf("Failed: ast_rtp_engine_init\n%s", term_quit());
