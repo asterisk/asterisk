@@ -139,6 +139,16 @@ int ast_restore_tty(int fd, int oldstatus);
 
 int ast_get_termcols(int fd);
 
+/*!
+ * \brief a wrapper for sd_notify(): notify systemd of any state changes.
+ * \param state a string that states the changes. See sd_notify(3).
+ * The wrapper does nothing if systemd ('s development headers) was not
+ * detected on the system.
+ * \returns >=0 on success, negative value on error.
+ */
+int ast_sd_notify(const char *state);
+
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
