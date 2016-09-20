@@ -471,7 +471,7 @@ static int init_logger_chain(int locked, const char *altconf)
 			return -1;
 		}
 		chan->type = LOGTYPE_CONSOLE;
-		chan->logmask = __LOG_WARNING | __LOG_NOTICE | __LOG_ERROR;
+		chan->logmask = (1 << __LOG_WARNING) | (1 << __LOG_NOTICE) | (1 << __LOG_ERROR);
 
 		if (!locked) {
 			AST_RWLIST_WRLOCK(&logchannels);
