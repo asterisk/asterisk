@@ -1230,6 +1230,12 @@ struct sip_pkt {
 	struct ast_str *data;
 };
 
+enum sip_mailbox_status {
+	SIP_MAILBOX_STATUS_UNKNOWN = 0,
+	SIP_MAILBOX_STATUS_EXISTING,
+	SIP_MAILBOX_STATUS_NEW,
+};
+
 /*!
  * \brief A peer's mailbox
  *
@@ -1240,7 +1246,8 @@ struct sip_mailbox {
 	/*! Associated MWI subscription */
 	struct stasis_subscription *event_sub;
 	AST_LIST_ENTRY(sip_mailbox) entry;
-	unsigned int delme:1;
+	struct sip_peer *peer;
+	enum sip_mailbox_status status;
 	char id[1];
 };
 
