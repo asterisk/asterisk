@@ -479,6 +479,7 @@ static void make_components(struct logchannel *chan)
 		 * with calculating the ast_verb_sys_level value.
 		 */
 		chan->verbosity = -1;
+		logmask |= (1 << __LOG_VERBOSE);
 	} else {
 		chan->verbosity = verb_level;
 	}
@@ -663,7 +664,8 @@ static int init_logger_chain(const char *altconf)
 			return -1;
 		}
 		chan->type = LOGTYPE_CONSOLE;
-		chan->logmask = (1 << __LOG_WARNING) | (1 << __LOG_NOTICE) | (1 << __LOG_ERROR);
+		chan->logmask = (1 << __LOG_WARNING) | (1 << __LOG_NOTICE) | (1 << __LOG_ERROR)
+			| (1 << __LOG_VERBOSE);
 		memcpy(&chan->formatter, &logformatter_default, sizeof(chan->formatter));
 
 		AST_RWLIST_INSERT_HEAD(&logchannels, chan, list);

@@ -4482,7 +4482,6 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	check_init(ast_format_cache_init(), "Format Cache");
 	check_init(ast_codec_builtin_init(), "Built-in Codecs");
 	check_init(aco_init(), "Configuration Option Framework");
-	check_init(init_logger(), "Logger");
 	check_init(ast_bucket_init(), "Bucket API");
 	check_init(stasis_init(), "Stasis");
 	check_init(ast_stasis_system_init(), "Stasis system-level information");
@@ -4512,6 +4511,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 
 	threadstorage_init();
 
+	check_init(init_logger(), "Logger");
 	check_init(ast_rtp_engine_init(), "RTP Engine");
 
 	ast_autoservice_init();
