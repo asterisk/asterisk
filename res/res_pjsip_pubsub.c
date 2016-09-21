@@ -1802,6 +1802,7 @@ static int sip_subscription_send_request(struct sip_subscription_tree *sub_tree,
 
 	if (allocate_tdata_buffer(tdata)) {
 		ast_log(LOG_ERROR, "SIP request %s is too large to send.\n", tdata->info);
+		pjsip_tx_data_dec_ref(tdata);
 		return -1;
 	}
 
@@ -2912,7 +2913,6 @@ static struct ast_sip_publication *sip_create_publication(struct ast_sip_endpoin
 static int sip_publication_respond(struct ast_sip_publication *pub, int status_code,
 		pjsip_rx_data *rdata)
 {
-	pj_status_t status;
 	pjsip_tx_data *tdata;
 	pjsip_transaction *tsx;
 
@@ -2921,26 +2921,24 @@ static int sip_publication_respond(struct ast_sip_publication *pub, int status_c
 	}
 
 	if (PJSIP_IS_STATUS_IN_CLASS(status_code, 200)) {
-		RAII_VAR(char *, entity_tag, NULL, ast_free_ptr);
-		RAII_VAR(char *, expires, NULL, ast_free_ptr);
+		char buf[30];
 
-		if ((ast_asprintf(&entity_tag, "%d", pub->entity_tag) < 0) ||
-			(ast_asprintf(&expires, "%d", pub->expires) < 0)) {
-			pjsip_tx_data_dec_ref(tdata);
-			return -1;
-		}
+		snprintf(buf, sizeof(buf), "%d", pub->entity_tag);
+		ast_sip_add_header(tdata, "SIP-ETag", buf);
 
-		ast_sip_add_header(tdata, "SIP-ETag", entity_tag);
-		ast_sip_add_header(tdata, "Expires", expires);
+		snprintf(buf, sizeof(buf), "%d", pub->expires);
+		ast_sip_add_header(tdata, "Expires", buf);
 	}
 
-	if ((status = pjsip_tsx_create_uas(&pubsub_module, rdata, &tsx)) != PJ_SUCCESS) {
+	if (pjsip_tsx_create_uas(&pubsub_module, rdata, &tsx) != PJ_SUCCESS) {
+		pjsip_tx_data_dec_ref(tdata);
 		return -1;
 	}
 
 	pjsip_tsx_recv_msg(tsx, rdata);
 
 	if (pjsip_tsx_send_msg(tsx, tdata) != PJ_SUCCESS) {
+		pjsip_tx_data_dec_ref(tdata);
 		return -1;
 	}
 
