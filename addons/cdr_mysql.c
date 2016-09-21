@@ -250,7 +250,7 @@ db_reconnect:
 					struct ast_tm tm;
 					char timestr[128];
 					ast_localtime(&tv, &tm, ast_str_strlen(cdrzone) ? ast_str_buffer(cdrzone) : NULL);
-					ast_strftime(timestr, sizeof(timestr), "%Y-%m-%d %T", &tm);
+					ast_strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
 					value = ast_strdupa(timestr);
 					cdrname = "calldate";
 				} else {
@@ -265,8 +265,7 @@ db_reconnect:
 			/* Need the type and value to determine if we want the raw value or not */
 			if (entry->staticvalue) {
 				value = ast_strdupa(entry->staticvalue);
-			} else if ((!strcmp(cdrname, "start") ||
-				 !strcmp(cdrname, "answer") ||
+			} else if ((!strcmp(cdrname, "answer") ||
 				 !strcmp(cdrname, "end") ||
 				 !strcmp(cdrname, "disposition") ||
 				 !strcmp(cdrname, "amaflags")) &&
@@ -278,6 +277,12 @@ db_reconnect:
 				 strstr(entry->type, "numeric") ||
 				 strstr(entry->type, "fixed"))) {
 				ast_cdr_format_var(cdr, cdrname, &value, workspace, sizeof(workspace), 1);
+			} else if (!strcmp(cdrname, "start")) {
+				struct ast_tm tm;
+				char timestr[128];
+				ast_localtime(&cdr->start, &tm, ast_str_strlen(cdrzone) ? ast_str_buffer(cdrzone) : NULL);
+				ast_strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
+				value = ast_strdupa(timestr);
 			} else if (!strcmp(cdrname, "calldate")) {
 				/* Skip calldate - the value has already been dup'd */
 			} else {
