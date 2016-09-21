@@ -1778,6 +1778,26 @@ static void set_icon(char *text)
 		fprintf(stdout, "\033]1;%s\007", text);
 }
 
+/*! \brief Check whether we were set to high(er) priority. */
+static int has_priority(void)
+{
+	/* Neither of these calls should fail with these arguments. */
+#ifdef __linux__
+	/* For SCHED_OTHER, SCHED_BATCH and SCHED_IDLE, this will return
+	 * 0. For the realtime priorities SCHED_RR and SCHED_FIFO, it
+	 * will return something >= 1. */
+	return sched_getscheduler(0);
+#else
+	/* getpriority() can return a value in -20..19 (or even -INF..20)
+	 * where negative numbers are high priority. We don't bother
+	 * checking errno. If the query fails and it returns -1, we'll
+	 * assume that we're running at high prio; a safe assumption
+	 * that will enable the resource starvation monitor (canary)
+	 * just in case. */
+	return (getpriority(PRIO_PROCESS, 0) < 0);
+#endif
+}
+
 /*! \brief Set priority on all known threads. */
 static int set_priority_all(int pri)
 {
@@ -3799,8 +3819,11 @@ static void *canary_thread(void *unused)
 /* Used by libc's atexit(3) function */
 static void canary_exit(void)
 {
-	if (canary_pid > 0)
+	if (canary_pid > 0) {
+		int status;
 		kill(canary_pid, SIGKILL);
+		waitpid(canary_pid, &status, 0);
+	}
 }
 
 /* Execute CLI commands on startup.  Run by main() thread. */
@@ -4343,8 +4366,16 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 	__ast_mm_init_phase_1();
 #endif	/* defined(__AST_DEBUG_MALLOC) */
 
+	/* Check whether high prio was succesfully set by us or some
+	 * other incantation. */
+	if (has_priority()) {
+		ast_set_flag(&ast_options, AST_OPT_FLAG_HIGH_PRIORITY);
+	} else {
+		ast_clear_flag(&ast_options, AST_OPT_FLAG_HIGH_PRIORITY);
+	}
+
 	/* Spawning of astcanary must happen AFTER the call to daemon(3) */
-	if (isroot && ast_opt_high_priority) {
+	if (ast_opt_high_priority) {
 		snprintf(canary_filename, sizeof(canary_filename), "%s/alt.asterisk.canary.tweet.tweet.tweet", ast_config_AST_RUN_DIR);
 
 		/* Don't let the canary child kill Asterisk, if it dies immediately */
