@@ -601,11 +601,6 @@ void ast_unregister_thread(void *id)
 	}
 }
 
-int ast_pbx_uuid_get(char *pbx_uuid, int length)
-{
-	return ast_db_get("pbx", "UUID", pbx_uuid, length);
-}
-
 /*! \brief Give an overview of core settings */
 static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -1131,6 +1126,11 @@ static char *handle_show_version_files(struct ast_cli_entry *e, int cmd, struct 
 }
 
 #endif /* ! LOW_MEMORY */
+
+int ast_pbx_uuid_get(char *pbx_uuid, int length)
+{
+	return ast_db_get("pbx", "UUID", pbx_uuid, length);
+}
 
 static void publish_fully_booted(void)
 {
