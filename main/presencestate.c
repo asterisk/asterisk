@@ -161,6 +161,9 @@ static enum ast_presence_state ast_presence_state_helper(const char *presence_pr
 		[AST_PRESENCE_DND]         = 7
 	};
 
+	*subtype = NULL;
+	*message = NULL;
+
 	while ((label = strsep(&labels, "&"))) {
 		enum ast_presence_state next_state = AST_PRESENCE_INVALID;
 		char *next_subtype = NULL;
