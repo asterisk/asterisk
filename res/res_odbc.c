@@ -523,7 +523,7 @@ static int load_odbc_config(void)
 						!strncasecmp(v->name, "share", 5) ||
 						!strcasecmp(v->name, "limit") ||
 						!strcasecmp(v->name, "idlecheck")) {
-					ast_log(LOG_WARNING, "The 'pooling', 'shared_connections', 'limit', and 'idlecheck' options are deprecated. Please see UPGRADE.txt for information\n");
+					ast_log(LOG_WARNING, "The 'pooling', 'shared_connections', 'limit', and 'idlecheck' options are deprecated. Please consider using the max_connections option as documented in the sample res_odbc.conf for connection pooling.\n");
 				} else if (!strcasecmp(v->name, "enabled")) {
 					enabled = ast_true(v->value);
 				} else if (!strcasecmp(v->name, "pre-connect")) {
