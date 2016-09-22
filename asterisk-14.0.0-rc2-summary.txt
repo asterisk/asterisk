@@ -1,0 +1,155 @@
+                                Release Summary
+
+                              asterisk-14.0.0-rc2
+
+                                Date: 2016-09-22
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This is the first release of a major new version of Asterisk. For a list
+   of new features that have been included with this release, please see the
+   CHANGES file inside the source package. Since this is a new major release,
+   users are encouraged to do extended testing before upgrading to this
+   version in a production environment.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-14.0.0-rc1.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                   Testers                  Reporters                
+   9 Joshua Colp                                     4 Joshua Colp            
+   3 Corey Farrell                                   1 Andrew Nagy            
+                                                     1 Marcelo Terres         
+                                                     1 Anthony Messina        
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: . I did not set the category correctly.
+
+   ASTERISK-26391: Consoles do not display verbose logger messages even when
+   requested.
+   Reported by: Marcelo Terres
+     * [cab2e4514e] Corey Farrell -- logger: Always enable verbose for
+       console channel.
+
+    Category: Core/General
+
+   ASTERISK-26273: core: Won't compile when LOW_MEMORY is enabled
+   Reported by: Anthony Messina
+     * [6e78b5c257] Corey Farrell -- core: Fix LOW_MEMORY missing symbol
+       ast_pbx_uuid_get.
+
+    Category: Core/ManagerInterface
+
+   ASTERISK-26397: manager: PresenceState action crashes Asterisk 14
+   Reported by: Andrew Nagy
+     * [31fa14264b] Joshua Colp -- core: Ensure presencestate subtype and
+       message are NULL.
+
+    Category: Core/RTP
+
+   ASTERISK-26365: rtp: Offer with multiple payloads for same codec is
+   incorrectly handled
+   Reported by: Joshua Colp
+     * [a2b03cf0b4] Joshua Colp -- rtp: Only accept the first payload for a
+       format in SDP.
+
+    Category: Resources/res_odbc
+
+   ASTERISK-26389: res_odbc: Clean up pooling options
+   Reported by: Joshua Colp
+     * [3facd0febb] Joshua Colp -- res_odbc: Make pooling option deprecation
+       notice more useful.
+     * [27dcb25612] Joshua Colp -- odbc: Remove options that are no longer
+       applicable.
+
+    Category: Resources/res_pjsip_multihomed
+
+   ASTERISK-26374: res_pjsip_multihomed: Contact port is rewritten for
+   connectionful protocols
+   Reported by: Joshua Colp
+     * [7244ff1ccd] Joshua Colp -- res_pjsip_multihomed: Change Contact port
+       to listening port.
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author        | Summary                                   |
+   |------------+---------------+-------------------------------------------|
+   | fc8ac2fd17 | Joshua Colp   | Release summaries: Remove previous        |
+   |            |               | versions                                  |
+   |------------+---------------+-------------------------------------------|
+   | 75acfb0168 | Joshua Colp   | .version: Update for 14.0.0-rc2           |
+   |------------+---------------+-------------------------------------------|
+   | 169bfc9b55 | Joshua Colp   | .lastclean: Update for 14.0.0-rc2         |
+   |------------+---------------+-------------------------------------------|
+   | d5ea628298 | Joshua Colp   | realtime: Add database scripts for        |
+   |            |               | 14.0.0-rc2                                |
+   |------------+---------------+-------------------------------------------|
+   | c4ef22b5f7 | Corey Farrell | logger: Fix default console settings.     |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ asterisk-14.0.0-rc1-summary.html       |   34 -------
+ asterisk-14.0.0-rc1-summary.txt        |  145 ---------------------------------
+ b/.version                             |    2
+ b/configs/samples/res_odbc.conf.sample |   13 --
+ b/main/asterisk.c                      |   20 ++--
+ b/main/logger.c                        |    4
+ b/main/presencestate.c                 |    3
+ b/main/rtp_engine.c                    |   91 ++++++++++++--------
+ 8 files changed, 74 insertions(+), 238 deletions(-)
