@@ -151,6 +151,9 @@ static enum ast_presence_state ast_presence_state_helper(const char *presence_pr
 	char *label = ast_strdupa(presence_provider);
 	int res = AST_PRESENCE_INVALID;
 
+	*subtype = NULL;
+	*message = NULL;
+
 	if (check_cache) {
 		res = presence_state_cached(presence_provider, subtype, message);
 		if (res != AST_PRESENCE_INVALID) {
