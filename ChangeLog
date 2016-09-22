@@ -1,3 +1,144 @@
+2016-09-22 15:26 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 14.0.0-rc2 Released.
+
+2016-09-22 10:25 +0000 [35de18d636]  Joshua Colp <jcolp@digium.com>
+
+	* Release summaries: Add summaries for 14.0.0-rc2
+
+2016-09-22 10:25 +0000 [fc8ac2fd17]  Joshua Colp <jcolp@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-09-22 10:25 +0000 [75acfb0168]  Joshua Colp <jcolp@digium.com>
+
+	* .version: Update for 14.0.0-rc2
+
+2016-09-22 10:25 +0000 [169bfc9b55]  Joshua Colp <jcolp@digium.com>
+
+	* .lastclean: Update for 14.0.0-rc2
+
+2016-09-22 10:25 +0000 [d5ea628298]  Joshua Colp <jcolp@digium.com>
+
+	* realtime: Add database scripts for 14.0.0-rc2
+
+2016-09-21 14:24 +0000 [31fa14264b]  Joshua Colp <jcolp@digium.com>
+
+	* core: Ensure presencestate subtype and message are NULL.
+
+	  When retrieving presence state information there is no
+	  guarantee that the subtype and message passed in are
+	  set to NULL. This change ensures they are.
+
+	  ASTERISK-26397 #close
+
+	  Change-Id: If38cd730e409e9a9b6eb9adef6591d15a9e61f86
+
+2016-09-21 10:48 +0000 [3facd0febb]  Joshua Colp <jcolp@digium.com>
+
+	* res_odbc: Make pooling option deprecation notice more useful.
+
+	  This changes the notice for the deprecation of the old
+	  pooling options to point to the new option for doing
+	  pooling. This gives a clearer direction as to what to
+	  look into.
+
+	  ASTERISK-26389 #close
+
+	  Change-Id: I2ca9cdfdcd75aec170a7db9d5ff69a4cd25b7c10
+
+2016-09-21 08:46 +0000 [27dcb25612]  Joshua Colp <jcolp@digium.com>
+
+	* odbc: Remove options that are no longer applicable.
+
+	  The pooling, shared_connection, limit, and idlecheck options
+	  are no longer used in res_odbc.
+
+	  ASTERISK-26389
+
+	  Change-Id: I2fde7b467d01f9d1c82cc0a339bb4f7e1dd6bbe6
+
+2016-09-20 09:22 +0000 [cab2e4514e]  Corey Farrell <git@cfware.com>
+
+	* logger: Always enable verbose for console channel.
+
+	  Previous versions of Asterisk did not require verbose to be specified in
+	  logger.conf for the console channel, if it was requested by command line
+	  or asterisk.conf it just worked.  This change causes Asterisk to always
+	  enable verbose in the console channel level mask.  Verbose is displayed
+	  on consoles if requested by command line, option_verbose or 'core set
+	  verbose'.
+
+	  This also delays initialization of the logger until after threadstorage
+	  is initialized.  Initializing too early can cause messages to be printed
+	  multiple times to the console (stdout).
+
+	  ASTERISK-26391 #close
+
+	  Change-Id: I52187d67c2fcb3efd5561bf04b3e5e23e5ee8a04
+
+2016-09-20 10:16 +0000 [c4ef22b5f7]  Corey Farrell <git@cfware.com>
+
+	* logger: Fix default console settings.
+
+	  When logger.conf is missing or invalid we should be printing notices,
+	  warnings and errors to the console.  The logmask was incorrectly
+	  calculated.
+
+	  Change-Id: Ibaa9465a8682854bc1a5e9ba07079bea1bfb6bb3
+
+2016-09-20 15:17 +0000 [6e78b5c257]  Corey Farrell <git@cfware.com>
+
+	* core: Fix LOW_MEMORY missing symbol ast_pbx_uuid_get.
+
+	  Move the function outside the conditional block that excludes
+	  LOW_MEMORY.
+
+	  ASTERISK-26273 #close
+
+	  Change-Id: Ic290fa128222c410c3531107e30efacabc8493b4
+
+2016-09-14 06:53 +0000 [a2b03cf0b4]  Joshua Colp <jcolp@digium.com>
+
+	* rtp: Only accept the first payload for a format in SDP.
+
+	  When receiving an SDP offer with multiple payloads for
+	  the same format we would generate an answer with the first
+	  payload, but during the payload crossover operation
+	  (to set the payloads for receiving) we would remove all
+	  payloads but the last. This would result in incoming
+	  traffic being matched against the wrong format and outgoing
+	  traffic being sent using the wrong payload.
+
+	  This change makes it so that once a format has a payload
+	  number put into the mapping all subsequent ones are ignored.
+	  This ensures there is only ever one payload in the mapping
+	  and that it is the payload placed into the answer SDP.
+
+	  ASTERISK-26365 #close
+
+	  Change-Id: I1e8150860a3518cab36d00b1fab50f9352b64e60
+
+2016-09-14 08:42 +0000 [7244ff1ccd]  Joshua Colp <jcolp@digium.com>
+
+	* res_pjsip_multihomed: Change Contact port to listening port.
+
+	  The res_pjsip_multihomed module determines what interface and transport
+	  a request is going out on and updates the SIP message accordingly with
+	  the address information. This currently incorrectly updates the Contact
+	  header for connectionful protocols to the ephemeral connection port,
+	  instead of the bound address for the listening socket which can actually
+	  accept the connection back. If the remote side attempts to connect back on
+	  the epehemeral port it will fail.
+
+	  This change makes it so the port is updated to the bound port on
+	  connectionful protocols and is maintained on UDP (as there can be
+	  multiple of those).
+
+	  ASTERISK-26374 #close
+
+	  Change-Id: I50f8dab65b9f75117d73ba5f6bbcf6c9871854ab
+
 2016-09-19 14:18 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 14.0.0-rc1 Released.
