@@ -18,7 +18,10 @@
 ;user=asteriskcdruser
 ;port=3306
 ;sock=/tmp/mysql.sock
-;timezone=UTC ; Previously called usegmtime
+; By default CDRs are logged in the system's time zone
+;cdrzone=UTC               ; log CDRs with UTC
+;usegmtime=yes ;log date/time in GMT.  Default is "no"
+;cdrzone=America/New_York  ; or use a specific time zone
 ;
 ; If your system's locale differs from mysql database character set,
 ; cdr_mysql can damage non-latin characters in CDR variables. Use this
