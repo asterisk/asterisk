@@ -1,0 +1,9 @@
+Code-Review+1: Richard Mudgett <rmudgett@digium.com>
+Code-Review+1: Corey Farrell <git@cfware.com>
+Code-Review+2: Joshua Colp <jcolp@digium.com>
+Verified+1: Joshua Colp <jcolp@digium.com>
+Submitted-by: Joshua Colp <jcolp@digium.com>
+Submitted-at: Thu, 22 Sep 2016 08:56:23 -0500
+Reviewed-on: https://gerrit.asterisk.org/3958
+Project: asterisk
+Branch: refs/heads/14.0
