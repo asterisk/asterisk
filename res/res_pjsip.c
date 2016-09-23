@@ -3390,6 +3390,7 @@ struct send_request_wrapper {
 static void endpt_send_request_cb(void *token, pjsip_event *e)
 {
 	struct send_request_wrapper *req_wrapper = token;
+	unsigned int cb_called;
 
 	if (e->body.tsx_state.type == PJSIP_EVENT_TIMER) {
 		ast_debug(2, "%p: PJSIP tsx timer expired\n", req_wrapper);
@@ -3419,7 +3420,6 @@ static void endpt_send_request_cb(void *token, pjsip_event *e)
 		timers_cancelled = pj_timer_heap_cancel_if_active(
 			pjsip_endpt_get_timer_heap(ast_sip_get_pjsip_endpoint()),
 			req_wrapper->timeout_timer, TIMER_INACTIVE);
-
 		if (timers_cancelled > 0) {
 			/* If the timer was cancelled the callback will never run so
 			 * clean up its reference to the wrapper.
@@ -3427,25 +3427,27 @@ static void endpt_send_request_cb(void *token, pjsip_event *e)
 			ast_debug(3, "%p: Timer cancelled\n", req_wrapper);
 			ao2_ref(req_wrapper, -1);
 		} else {
-			/* If it wasn't cancelled, it MAY be in the callback already
-			 * waiting on the lock so set the id to INACTIVE so
-			 * when the callback comes out of the lock, it knows to not
-			 * proceed.
+			/*
+			 * If it wasn't cancelled, it MAY be in the callback already
+			 * waiting on the lock.  When we release the lock, it will
+			 * now know not to proceed.
 			 */
 			ast_debug(3, "%p: Timer already expired\n", req_wrapper);
-			req_wrapper->timeout_timer->id = TIMER_INACTIVE;
 		}
 	}
+
+	cb_called = req_wrapper->cb_called;
+	req_wrapper->cb_called = 1;
+	ao2_unlock(req_wrapper);
 
 	/* It's possible that our own timer expired and called the callbacks
 	 * so no need to call them again.
 	 */
-	if (!req_wrapper->cb_called && req_wrapper->callback) {
+	if (!cb_called && req_wrapper->callback) {
 		req_wrapper->callback(req_wrapper->token, e);
-		req_wrapper->cb_called = 1;
 		ast_debug(2, "%p: Callbacks executed\n", req_wrapper);
 	}
-	ao2_unlock(req_wrapper);
+
 	ao2_ref(req_wrapper, -1);
 }
 
@@ -3456,15 +3458,16 @@ static void endpt_send_request_cb(void *token, pjsip_event *e)
  */
 static void send_request_timer_callback(pj_timer_heap_t *theap, pj_timer_entry *entry)
 {
-	pjsip_event event;
 	struct send_request_wrapper *req_wrapper = entry->user_data;
+	unsigned int cb_called;
 
 	ast_debug(2, "%p: Internal tsx timer expired after %d msec\n",
 		req_wrapper, req_wrapper->timeout);
 
 	ao2_lock(req_wrapper);
-	/* If the id is not TIMEOUT_TIMER2 then the timer was cancelled above
-	 * while the lock was being held so just clean up.
+	/*
+	 * If the id is not TIMEOUT_TIMER2 then the timer was cancelled
+	 * before we got the lock or it was already handled so just clean up.
 	 */
 	if (entry->id != TIMEOUT_TIMER2) {
 		ao2_unlock(req_wrapper);
@@ -3472,20 +3475,24 @@ static void send_request_timer_callback(pj_timer_heap_t *theap, pj_timer_entry *
 		ao2_ref(req_wrapper, -1);
 		return;
 	}
+	entry->id = TIMER_INACTIVE;
 
 	ast_debug(3, "%p: Timer handled here\n", req_wrapper);
 
-	PJSIP_EVENT_INIT_TX_MSG(event, req_wrapper->tdata);
-	event.body.tsx_state.type = PJSIP_EVENT_TIMER;
-	entry->id = TIMER_INACTIVE;
+	cb_called = req_wrapper->cb_called;
+	req_wrapper->cb_called = 1;
+	ao2_unlock(req_wrapper);
 
-	if (!req_wrapper->cb_called && req_wrapper->callback) {
+	if (!cb_called && req_wrapper->callback) {
+		pjsip_event event;
+
+		PJSIP_EVENT_INIT_TX_MSG(event, req_wrapper->tdata);
+		event.body.tsx_state.type = PJSIP_EVENT_TIMER;
+
 		req_wrapper->callback(req_wrapper->token, &event);
-		req_wrapper->cb_called = 1;
 		ast_debug(2, "%p: Callbacks executed\n", req_wrapper);
 	}
 
-	ao2_unlock(req_wrapper);
 	ao2_ref(req_wrapper, -1);
 }
 
@@ -3505,6 +3512,11 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 	pjsip_endpoint *endpt = ast_sip_get_pjsip_endpoint();
 	pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
 
+	if (!cb && token) {
+		/* Silly.  Without a callback we cannot do anything with token. */
+		return PJ_EINVAL;
+	}
+
 	/* Create wrapper to detect if the callback was actually called on an error. */
 	req_wrapper = ao2_alloc(sizeof(*req_wrapper), send_request_wrapper_destructor);
 	if (!req_wrapper) {
@@ -3522,7 +3534,10 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 	/* Add a reference to tdata.  The wrapper destructor cleans it up. */
 	pjsip_tx_data_add_ref(tdata);
 
-	ao2_lock(req_wrapper);
+	if (endpoint) {
+		sip_get_tpselector_from_endpoint(endpoint, &selector);
+		pjsip_tx_data_set_transport(tdata, &selector);
+	}
 
 	if (timeout > 0) {
 		pj_time_val timeout_timer_val = { timeout / 1000, timeout % 1000 };
@@ -3534,9 +3549,6 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 		pj_timer_entry_init(req_wrapper->timeout_timer, TIMEOUT_TIMER2,
 			req_wrapper, send_request_timer_callback);
 
-		pj_timer_heap_cancel_if_active(pjsip_endpt_get_timer_heap(endpt),
-			req_wrapper->timeout_timer, TIMER_INACTIVE);
-
 		/* We need to insure that the wrapper and tdata are available if/when the
 		 * timer callback is executed.
 		 */
@@ -3544,7 +3556,6 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 		ret_val = pj_timer_heap_schedule(pjsip_endpt_get_timer_heap(endpt),
 			req_wrapper->timeout_timer, &timeout_timer_val);
 		if (ret_val != PJ_SUCCESS) {
-			ao2_unlock(req_wrapper);
 			ast_log(LOG_ERROR,
 				"Failed to set timer.  Not sending %.*s request to endpoint %s.\n",
 				(int) pj_strlen(&tdata->msg->line.req.method.name),
@@ -3553,33 +3564,22 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 			ao2_t_ref(req_wrapper, -2, "Drop timer and routine ref");
 			return ret_val;
 		}
-
-		req_wrapper->timeout_timer->id = TIMEOUT_TIMER2;
-	} else {
-		req_wrapper->timeout_timer = NULL;
 	}
 
 	/* We need to insure that the wrapper and tdata are available when the
 	 * transaction callback is executed.
 	 */
 	ao2_ref(req_wrapper, +1);
-
-	if (endpoint) {
-		sip_get_tpselector_from_endpoint(endpoint, &selector);
-		pjsip_tx_data_set_transport(tdata, &selector);
-	}
-
 	ret_val = pjsip_endpt_send_request(endpt, tdata, -1, req_wrapper, endpt_send_request_cb);
 	if (ret_val != PJ_SUCCESS) {
 		char errmsg[PJ_ERR_MSG_SIZE];
 
-		if (timeout > 0) {
-			int timers_cancelled = pj_timer_heap_cancel_if_active(pjsip_endpt_get_timer_heap(endpt),
-				req_wrapper->timeout_timer, TIMER_INACTIVE);
-			if (timers_cancelled > 0) {
-				ao2_ref(req_wrapper, -1);
-			}
-		}
+		/*
+		 * endpt_send_request_cb is not expected to ever be called
+		 * because the request didn't get far enough to attempt
+		 * sending.
+		 */
+		ao2_ref(req_wrapper, -1);
 
 		/* Complain of failure to send the request. */
 		pj_strerror(ret_val, errmsg, sizeof(errmsg));
@@ -3588,20 +3588,37 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 			pj_strbuf(&tdata->msg->line.req.method.name),
 			endpoint ? ast_sorcery_object_get_id(endpoint) : "<unknown>");
 
-		/* Was the callback called? */
-		if (req_wrapper->cb_called) {
-			/*
-			 * Yes so we cannot report any error.  The callback
-			 * has already freed any resources associated with
-			 * token.
-			 */
-			ret_val = PJ_SUCCESS;
-		} else {
-			/* No and it is not expected to ever be called. */
-			ao2_ref(req_wrapper, -1);
+		if (timeout > 0) {
+			int timers_cancelled;
+
+			ao2_lock(req_wrapper);
+			timers_cancelled = pj_timer_heap_cancel_if_active(
+				pjsip_endpt_get_timer_heap(endpt),
+				req_wrapper->timeout_timer, TIMER_INACTIVE);
+			if (timers_cancelled > 0) {
+				ao2_ref(req_wrapper, -1);
+			}
+
+			/* Was the callback called? */
+			if (req_wrapper->cb_called) {
+				/*
+				 * Yes so we cannot report any error.  The callback
+				 * has already freed any resources associated with
+				 * token.
+				 */
+				ret_val = PJ_SUCCESS;
+			} else {
+				/*
+				 * No so we claim it is called so our caller can free
+				 * any resources associated with token because of
+				 * failure.
+				 */
+				req_wrapper->cb_called = 1;
+			}
+			ao2_unlock(req_wrapper);
 		}
 	}
-	ao2_unlock(req_wrapper);
+
 	ao2_ref(req_wrapper, -1);
 	return ret_val;
 }
