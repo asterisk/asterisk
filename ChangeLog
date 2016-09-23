@@ -1,3 +1,27 @@
+2016-09-23 18:43 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 14.0.0 Released.
+
+2016-09-23 13:43 +0000 [9d2c6bf0f5]  Kevin Harwell <kharwell@digium.com>
+
+	* Release summaries: Add summaries for 14.0.0
+
+2016-09-23 12:34 +0000 [7b52be6019]  Kevin Harwell <kharwell@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-09-23 12:34 +0000 [97d18e8649]  Kevin Harwell <kharwell@digium.com>
+
+	* .version: Update for 14.0.0
+
+2016-09-23 12:34 +0000 [0f4f2c6884]  Kevin Harwell <kharwell@digium.com>
+
+	* .lastclean: Update for 14.0.0
+
+2016-09-23 12:34 +0000 [67da18293f]  Kevin Harwell <kharwell@digium.com>
+
+	* realtime: Add database scripts for 14.0.0
+
 2016-09-22 15:26 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 14.0.0-rc2 Released.
