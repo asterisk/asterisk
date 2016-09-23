@@ -3838,7 +3838,7 @@ static void ast_sip_ouraddrfor(const struct ast_sockaddr *them, struct ast_socka
 	    (!sip_cfg.matchexternaddrlocally || !ast_apply_ha(localaddr, us)) ) {
 		/* if we used externhost, see if it is time to refresh the info */
 		if (externexpire && time(NULL) >= externexpire) {
-			if (ast_sockaddr_resolve_first(&externaddr, externhost, 0)) {
+			if (ast_sockaddr_resolve_first_af(&externaddr, externhost, 0, AST_AF_INET)) {
 				ast_log(LOG_NOTICE, "Warning: Re-lookup of '%s' failed!\n", externhost);
 			}
 			externexpire = time(NULL) + externrefresh;
@@ -32455,7 +32455,7 @@ static int reload_config(enum channelreloadreason reason)
 			externexpire = 0;
 		} else if (!strcasecmp(v->name, "externhost")) {
 			ast_copy_string(externhost, v->value, sizeof(externhost));
-			if (ast_sockaddr_resolve_first(&externaddr, externhost, 0)) {
+			if (ast_sockaddr_resolve_first_af(&externaddr, externhost, 0, AST_AF_INET)) {
 				ast_log(LOG_WARNING, "Invalid address for externhost keyword: %s\n", externhost);
 			}
 			externexpire = time(NULL);
