@@ -218,7 +218,7 @@ lt_cleanup:
 		lt->lineno[0] = lineno;
 		lt->func[0] = func;
 		lt->reentrancy = 0;
-		lt->thread[0] = 0;
+		lt->thread_id[0] = 0;
 #ifdef HAVE_BKTR
 		memset(&lt->backtrace[0], 0, sizeof(lt->backtrace[0]));
 #endif
@@ -322,7 +322,7 @@ int __ast_pthread_mutex_lock(const char *filename, int lineno, const char *func,
 			lt->file[lt->reentrancy] = filename;
 			lt->lineno[lt->reentrancy] = lineno;
 			lt->func[lt->reentrancy] = func;
-			lt->thread[lt->reentrancy] = pthread_self();
+			lt->thread_id[lt->reentrancy] = pthread_self();
 			lt->reentrancy++;
 		} else {
 			__ast_mutex_logger("%s line %d (%s): '%s' really deep reentrancy!\n",
@@ -402,7 +402,7 @@ int __ast_pthread_mutex_trylock(const char *filename, int lineno, const char *fu
 			lt->file[lt->reentrancy] = filename;
 			lt->lineno[lt->reentrancy] = lineno;
 			lt->func[lt->reentrancy] = func;
-			lt->thread[lt->reentrancy] = pthread_self();
+			lt->thread_id[lt->reentrancy] = pthread_self();
 			lt->reentrancy++;
 		} else {
 			__ast_mutex_logger("%s line %d (%s): '%s' really deep reentrancy!\n",
@@ -445,7 +445,7 @@ int __ast_pthread_mutex_unlock(const char *filename, int lineno, const char *fun
 
 	if (lt) {
 		ast_reentrancy_lock(lt);
-		if (lt->reentrancy && (lt->thread[ROFFSET] != pthread_self())) {
+		if (lt->reentrancy && (lt->thread_id[ROFFSET] != pthread_self())) {
 			__ast_mutex_logger("%s line %d (%s): attempted unlock mutex '%s' without owning it!\n",
 					   filename, lineno, func, mutex_name);
 			__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
@@ -466,7 +466,7 @@ int __ast_pthread_mutex_unlock(const char *filename, int lineno, const char *fun
 			lt->file[lt->reentrancy] = NULL;
 			lt->lineno[lt->reentrancy] = 0;
 			lt->func[lt->reentrancy] = NULL;
-			lt->thread[lt->reentrancy] = 0;
+			lt->thread_id[lt->reentrancy] = 0;
 		}
 
 #ifdef HAVE_BKTR
@@ -536,7 +536,7 @@ static void restore_lock_tracking(struct ast_lock_track *lt, struct ast_lock_tra
 	memcpy(lt->lineno, lt_saved->lineno, sizeof(lt->lineno));
 	lt->reentrancy = lt_saved->reentrancy;
 	memcpy(lt->func, lt_saved->func, sizeof(lt->func));
-	memcpy(lt->thread, lt_saved->thread, sizeof(lt->thread));
+	memcpy(lt->thread_id, lt_saved->thread_id, sizeof(lt->thread_id));
 #ifdef HAVE_BKTR
 	memcpy(lt->backtrace, lt_saved->backtrace, sizeof(lt->backtrace));
 #endif
@@ -571,7 +571,7 @@ int __ast_cond_wait(const char *filename, int lineno, const char *func,
 
 	if (lt) {
 		ast_reentrancy_lock(lt);
-		if (lt->reentrancy && (lt->thread[ROFFSET] != pthread_self())) {
+		if (lt->reentrancy && (lt->thread_id[ROFFSET] != pthread_self())) {
 			__ast_mutex_logger("%s line %d (%s): attempted wait using mutex '%s' without owning it!\n",
 					   filename, lineno, func, mutex_name);
 			__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
@@ -639,7 +639,7 @@ int __ast_cond_timedwait(const char *filename, int lineno, const char *func,
 
 	if (lt) {
 		ast_reentrancy_lock(lt);
-		if (lt->reentrancy && (lt->thread[ROFFSET] != pthread_self())) {
+		if (lt->reentrancy && (lt->thread_id[ROFFSET] != pthread_self())) {
 			__ast_mutex_logger("%s line %d (%s): attempted wait using mutex '%s' without owning it!\n",
 					   filename, lineno, func, mutex_name);
 			__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
@@ -747,7 +747,7 @@ lt_cleanup:
 		lt->lineno[0] = lineno;
 		lt->func[0] = func;
 		lt->reentrancy = 0;
-		lt->thread[0] = 0;
+		lt->thread_id[0] = 0;
 #ifdef HAVE_BKTR
 		memset(&lt->backtrace[0], 0, sizeof(lt->backtrace[0]));
 #endif
@@ -790,13 +790,13 @@ int __ast_rwlock_unlock(const char *filename, int line, const char *func, ast_rw
 			int i;
 			pthread_t self = pthread_self();
 			for (i = lt->reentrancy - 1; i >= 0; --i) {
-				if (lt->thread[i] == self) {
+				if (lt->thread_id[i] == self) {
 					lock_found = 1;
 					if (i != lt->reentrancy - 1) {
 						lt->file[i] = lt->file[lt->reentrancy - 1];
 						lt->lineno[i] = lt->lineno[lt->reentrancy - 1];
 						lt->func[i] = lt->func[lt->reentrancy - 1];
-						lt->thread[i] = lt->thread[lt->reentrancy - 1];
+						lt->thread_id[i] = lt->thread_id[lt->reentrancy - 1];
 					}
 #ifdef HAVE_BKTR
 					bt = &lt->backtrace[i];
@@ -804,7 +804,7 @@ int __ast_rwlock_unlock(const char *filename, int line, const char *func, ast_rw
 					lt->file[lt->reentrancy - 1] = NULL;
 					lt->lineno[lt->reentrancy - 1] = 0;
 					lt->func[lt->reentrancy - 1] = NULL;
-					lt->thread[lt->reentrancy - 1] = AST_PTHREADT_NULL;
+					lt->thread_id[lt->reentrancy - 1] = AST_PTHREADT_NULL;
 					break;
 				}
 			}
@@ -918,7 +918,7 @@ int __ast_rwlock_rdlock(const char *filename, int line, const char *func, ast_rw
 			lt->file[lt->reentrancy] = filename;
 			lt->lineno[lt->reentrancy] = line;
 			lt->func[lt->reentrancy] = func;
-			lt->thread[lt->reentrancy] = pthread_self();
+			lt->thread_id[lt->reentrancy] = pthread_self();
 			lt->reentrancy++;
 		}
 		ast_reentrancy_unlock(lt);
@@ -1027,7 +1027,7 @@ int __ast_rwlock_wrlock(const char *filename, int line, const char *func, ast_rw
 			lt->file[lt->reentrancy] = filename;
 			lt->lineno[lt->reentrancy] = line;
 			lt->func[lt->reentrancy] = func;
-			lt->thread[lt->reentrancy] = pthread_self();
+			lt->thread_id[lt->reentrancy] = pthread_self();
 			lt->reentrancy++;
 		}
 		ast_reentrancy_unlock(lt);
@@ -1120,7 +1120,7 @@ int __ast_rwlock_timedrdlock(const char *filename, int line, const char *func, a
 			lt->file[lt->reentrancy] = filename;
 			lt->lineno[lt->reentrancy] = line;
 			lt->func[lt->reentrancy] = func;
-			lt->thread[lt->reentrancy] = pthread_self();
+			lt->thread_id[lt->reentrancy] = pthread_self();
 			lt->reentrancy++;
 		}
 		ast_reentrancy_unlock(lt);
@@ -1213,7 +1213,7 @@ int __ast_rwlock_timedwrlock(const char *filename, int line, const char *func, a
 			lt->file[lt->reentrancy] = filename;
 			lt->lineno[lt->reentrancy] = line;
 			lt->func[lt->reentrancy] = func;
-			lt->thread[lt->reentrancy] = pthread_self();
+			lt->thread_id[lt->reentrancy] = pthread_self();
 			lt->reentrancy++;
 		}
 		ast_reentrancy_unlock(lt);
@@ -1288,7 +1288,7 @@ int __ast_rwlock_tryrdlock(const char *filename, int line, const char *func, ast
 			lt->file[lt->reentrancy] = filename;
 			lt->lineno[lt->reentrancy] = line;
 			lt->func[lt->reentrancy] = func;
-			lt->thread[lt->reentrancy] = pthread_self();
+			lt->thread_id[lt->reentrancy] = pthread_self();
 			lt->reentrancy++;
 		}
 		ast_reentrancy_unlock(lt);
@@ -1347,7 +1347,7 @@ int __ast_rwlock_trywrlock(const char *filename, int line, const char *func, ast
 			lt->file[lt->reentrancy] = filename;
 			lt->lineno[lt->reentrancy] = line;
 			lt->func[lt->reentrancy] = func;
-			lt->thread[lt->reentrancy] = pthread_self();
+			lt->thread_id[lt->reentrancy] = pthread_self();
 			lt->reentrancy++;
 		}
 		ast_reentrancy_unlock(lt);
