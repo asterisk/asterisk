@@ -7,7 +7,12 @@ set -e
 
 ASTTOPDIR=${ASTTOPDIR:-.}
 
-module_name=$1
+module_name=${1%%-*}
+variant=${1##*-}
+
+if [[ "${variant}" = "${module_name}" ]] ; then
+	unset variant
+fi
 
 if [[ -z ${module_name} ]] ; then
 	echo "You must supply a module name."
@@ -59,12 +64,35 @@ else
 	host_bits=32
 fi
 
-remote_url=$(${XMLSTARLET} sel -t -v "/menu/category/member[@name = '${module_name}']/member_data/downloader/@remote_url" ${ASTTOPDIR}/menuselect-tree || :)
-if [[ -n "${remote_url}" ]] ; then
-	remote_url="${remote_url}/asterisk-${major_version}/x86-${host_bits}"
+if [[ -z "${variant}" ]] ; then
+	variants=$(${XMLSTARLET} sel -t -m "/menu/category/member[@name = '${module_name}']/member_data/downloader/variants/variant" -v "@tag" -n ${ASTTOPDIR}/menuselect-tree || :)
+	member_name=${module_name}
+	for tag in ${variants} ; do
+		condition=$(${XMLSTARLET} sel -t -v "/menu/category/member[@name = '${module_name}']/member_data/downloader/variants/variant[@tag = '${tag}']/@condition" ${ASTTOPDIR}/menuselect-tree || :)
+		variant=$(eval "if $condition ; then echo $tag ; fi")
+		if [[ -n "${variant}" ]] ; then
+			break
+		fi
+	done
 else
-	directory_name=$(${XMLSTARLET} sel -t -v "/menu/category/member[@name = '${module_name}']/member_data/downloader/@directory_name" ${ASTTOPDIR}/menuselect-tree || :)
-	remote_url="http://downloads.digium.com/pub/telephony/${directory_name:-${module_name}}/asterisk-${major_version}/x86-${host_bits}"
+	member_name=${module_name}${variant:+-${variant}}
+fi
+
+full_name=${module_name}${variant:+-${variant}}
+variant_manifest=manifest${variant:+-${variant}}.xml
+
+# Override the remote base for all packages
+# useful for testing
+remote_url=${REMOTE_BASE:+${REMOTE_BASE}/asterisk-${major_version}/x86-${host_bits}}
+
+if [[ -z "${remote_url}" ]] ; then
+	remote_url=$(${XMLSTARLET} sel -t -v "/menu/category/member[@name = '${member_name}']/member_data/downloader/@remote_url" ${ASTTOPDIR}/menuselect-tree || :)
+	if [[ -n "${remote_url}" ]] ; then
+		remote_url="${remote_url}/asterisk-${major_version}/x86-${host_bits}"
+	else
+		directory_name=$(${XMLSTARLET} sel -t -v "/menu/category/member[@name = '${member_name}']/member_data/downloader/@directory_name" ${ASTTOPDIR}/menuselect-tree || :)
+		remote_url="http://downloads.digium.com/pub/telephony/${directory_name:-${module_name}}/asterisk-${major_version}/x86-${host_bits}"
+	fi
 fi
 
 version_convert() {
@@ -75,44 +103,60 @@ version_convert() {
 	echo ${v}
 }
 
-${WGET} -q -O ${tmpdir}/manifest.xml ${remote_url}/manifest.xml || {
-	echo "${module_name}: Unable to fetch ${remote_url}/manifest.xml"
+${WGET} -q -O ${tmpdir}/${variant_manifest} ${remote_url}/${variant_manifest} || {
+	echo "${full_name}: Unable to fetch ${remote_url}/${variant_manifest}"
 	exit 1
 }
 
-rpv=$(${XMLSTARLET} sel -t -v "/package/@version" ${tmpdir}/manifest.xml)
+rpv=$(${XMLSTARLET} sel -t -v "/package/@version" ${tmpdir}/${variant_manifest})
 rpvi=$(version_convert ${rpv})
-echo "${module_name}: Remote package version ${rpv} (${rpvi})"
+echo "${full_name}: Remote package version ${rpv} (${rpvi})"
 
-module_dir=${module_name}-${rpv}-x86_${host_bits}
+module_dir=${full_name}-${rpv}-x86_${host_bits}
 tarball=${module_dir}.tar.gz
+
 export need_install=0
 
 if [[ -f ${DESTDIR}${ASTMODDIR}/${module_name}.manifest.xml ]] ; then
 	package_arch=$(${XMLSTARLET} sel -t -v "/package/@arch" ${DESTDIR}${ASTMODDIR}/${module_name}.manifest.xml)
 	ipv=$(${XMLSTARLET} sel -t -v "/package/@version" ${DESTDIR}${ASTMODDIR}/${module_name}.manifest.xml)
+	package_variant=$(${XMLSTARLET} sel -t -v "/package/@variant" ${DESTDIR}${ASTMODDIR}/${module_name}.manifest.xml || :)
 	ipvi=$(version_convert ${ipv})
 	ip_major=${ipv%_*}
-	echo "${module_name}: Installed package version ${ipv} (${ipvi})"
-	if [[ "${ip_major}" != "${major_version}" || "${package_arch}" != "x86_${host_bits}" ]] ; then
-		echo "${module_name}: The installed package is not for this version of Asterisk.  Reinstalling."
+	echo "${full_name}: Installed package version ${ipv} (${ipvi})"
+	if [[ "${ip_major}" != "${major_version}" || "${package_arch}" != "x86_${host_bits}" || "${package_variant}" != "${variant}" ]] ; then
+		echo "${full_name}: The installed package is not for this version of Asterisk.  Reinstalling."
 		need_install=1
 	elif [[ ${rpvi} > ${ipvi} ]] ; then
-		echo "${module_name}: A newer package is available"
+		echo "${full_name}: A newer package is available"
 		need_install=1
 	else
 		sums=$(${XMLSTARLET} sel -t -m "//file" -v "@md5sum" -n ${DESTDIR}${ASTMODDIR}/${module_name}.manifest.xml)
 		for sum in ${sums} ; do
 			install_path=$(${XMLSTARLET} sel -t -v "//file[@md5sum = '${sum}']/@install_path" ${DESTDIR}${ASTMODDIR}/${module_name}.manifest.xml )
+			executable=$(${XMLSTARLET} sel -t -v "//file[@md5sum = '${sum}']/@executable" ${DESTDIR}${ASTMODDIR}/${module_name}.manifest.xml )
 			f=${DESTDIR}$(eval echo ${install_path})
 			if [[ ! -f ${f} ]] ; then
 				echo Not found: ${f}
 				need_install=1
+				break
 			else
+				if [[ "$executable" = "yes" ]] ; then
+					# There are easier ways of doing this (objcopy --dump-section) but not in older bunutils
+					length_offset=$(objdump -h $f | sed -n -r -e "s/^\s+[0-9]+\s+.ast_manifest\s+([0-9a-fA-F]+)\s+[0-9a-fA-F]+\s+[0-9a-fA-F]+\s+([0-9a-fA-F]+)\s+.*$/0x\1 0x\2/p")
+					tags=$($(eval 'printf "dd if=$f bs=1 count=%d skip=%d\n" $length_offset') 2>/dev/null)
+					if [[ -n "${tags}" && "${tags}" != "${module_name},${variant},${rpv}" ]] ; then
+						echo Tag mismatch: ${f} File: "${tags}" Manifest: "${module_name},${variant},${rpv}"
+						need_install=1
+						break
+					fi
+				fi
+
 				cs=$(md5sum ${f} | cut -b1-32)
 				if [[ "${cs}" !=  "${sum}" ]] ; then
 					echo Checksum mismatch: ${f}
 					need_install=1
+					break
 				fi
 			fi
 		done
@@ -123,38 +167,38 @@ fi
 
 if [[ ${need_install} == 1 ]] ; then
 	if [[ ( -n "${ipvi}" ) && ${ipvi} > ${rpvi} ]] ; then
-		echo "${module_name}: Installed package is newer than that available for download."
+		echo "${full_name}: Installed package is newer than that available for download."
 		exit 0
 	fi
 else
-	echo "${module_name} is up to date."
+	echo "${full_name} is up to date."
 	exit 0;
 fi
 
 need_download=1
-if [[ -f ${cache_dir}/${module_name}.manifest.xml ]] ; then
-	cpv=$(${XMLSTARLET} sel -t -v "/package/@version" ${cache_dir}/${module_name}.manifest.xml)
+if [[ -f ${cache_dir}/${full_name}.manifest.xml ]] ; then
+	cpv=$(${XMLSTARLET} sel -t -v "/package/@version" ${cache_dir}/${full_name}.manifest.xml)
 	cpvi=$(version_convert ${cpv})
-	echo "${module_name}: Cached package version ${cpv} (${cpvi})"
+	echo "${full_name}: Cached package version ${cpv} (${cpvi})"
 	if [[ ${cpvi} == ${rpvi} && ( -f ${cache_dir}/${tarball} ) ]] ; then
-		echo "${module_name}: Cached version is available."
+		echo "${full_name}: Cached version is available."
 		need_download=0
 	fi
 fi
 
 if [[ ${need_download} = 1 ]] ; then
-	echo "${module_name}: Downloading ${remote_url}/${tarball}"
+	echo "${full_name}: Downloading ${remote_url}/${tarball}"
 	${WGET} -q -O ${cache_dir}/${tarball} ${remote_url}/${tarball} || {
-		echo "${module_name}: Unable to fetch ${remote_url}/${tarball}"
+		echo "${full_name}: Unable to fetch ${remote_url}/${tarball}"
 		exit 1
 	}
-	cp ${tmpdir}/manifest.xml  ${cache_dir}/${module_name}.manifest.xml
+	cp ${tmpdir}/${variant_manifest}  ${cache_dir}/${full_name}.manifest.xml
 fi
 
 tar -xzf ${cache_dir}/${tarball} -C ${cache_dir}
 trap "rm -rf ${cache_dir}/${module_dir} ; rm -rf ${tmpdir}" EXIT
 
-echo "${module_name}: Installing."
+echo "${full_name}: Installing."
 
 if [[ $EUID == 0 ]] ; then
 	install_params="--group=0 --owner=0"
@@ -177,4 +221,4 @@ for name in ${names} ; do
 done
 ${INSTALL} -Dp ${install_params} --mode=0644 ${cache_dir}/${module_dir}/manifest.xml ${DESTDIR}${ASTMODDIR}/${module_name}.manifest.xml
 
-echo "${module_name}: Installed."
+echo "${full_name}: Installed."
