@@ -3,4 +3,11 @@
 	<depend>xmlstarlet</depend>
 	<depend>bash</depend>
 	<defaultenabled>no</defaultenabled>
+	<member_data>
+		<downloader>
+			<variants>
+				<variant tag="bundled" condition='[[ "$PJPROJECT_BUNDLED" = "yes" ]]'/>
+			</variants>
+		</downloader>
+	</member_data>
 </member>
