@@ -1,3 +1,165 @@
+2016-09-27 18:43 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 14.0.1 Released.
+
+2016-09-27 13:43 +0000 [80b3a952e0]  Kevin Harwell <kharwell@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-09-27 13:43 +0000 [404c4a6820]  Kevin Harwell <kharwell@digium.com>
+
+	* .version: Update for 14.0.1
+
+2016-09-27 13:43 +0000 [8e0f992505]  Kevin Harwell <kharwell@digium.com>
+
+	* .lastclean: Update for 14.0.1
+
+2016-09-27 13:43 +0000 [801966afa9]  Kevin Harwell <kharwell@digium.com>
+
+	* realtime: Add database scripts for 14.0.1
+
+2016-09-22 09:49 +0000 [d3d8257106]  gtjoseph <gjoseph@digium.com>
+
+	* codec_opus: Add download ability to menuselect
+
+	  Updated codecs/codecs.xml to add codec_opus to the external
+	  download list.
+
+	  ASTERISK-26409
+
+	  Change-Id: Ia07b36539f30e852125fb2b94147dc9774df31a4
+	  (cherry picked from commit 2cdab0e36eec4997ca3bd85aa09efc477038e31c)
+
+2016-07-23 14:50 +0000 [1e98c8d5c8]  gtjoseph <gjoseph@digium.com>
+
+	* codec_opus: Replace res_format_attr_opus with the one from codec_opus
+
+	  Preparation
+
+	  ASTERISK-26409
+
+	  Change-Id: I9f20e7cce00c32464d9a180e81283d49d199d0a3
+
+2016-07-23 15:56 +0000 [a091e15985]  gtjoseph <gjoseph@digium.com>
+
+	* format_ogg_opus: New format
+
+	  Add Ogg/Opus playback support.
+
+	  This uses libopusfile in order to be able to read .opus files and play
+	  them back.
+
+	  Writing/recording support is not present at this time.
+
+	  ASTERISK-26409
+
+	  Change-Id: I8815d23345108d8ca7c0bd640f6a1ce6b4f56955
+
+2016-09-24 19:05 +0000 [a13b54df83]  gtjoseph <gjoseph@digium.com>
+
+	* build_tools:  Add ability to download variants to download_externals
+
+	  Some external packages have multiple variants that apply to different
+	  builds of asterisk.  The DPMA for instance has a "bundled" variant that
+	  needs to be downloaded if asterisk was configured with
+	  --with-pjproject-bundled.
+
+	  There are 2 ways to specify variants:
+
+	  If you need the user to make the decision about which variant to
+	  download, simply create multiple menuselect "member" entries like so...
+
+	  <member name="res_digium_phone" displayname="..snipped..">
+	    <support_level>external</support_level>
+	    <depend>xmlstarlet</depend>
+	    <depend>bash</depend>
+	    <defaultenabled>no</defaultenabled>
+	  </member>
+
+	  <member name="res_digium_phone-bundled" displayname="..snipped..">
+	    <support_level>external</support_level>
+	    <depend>xmlstarlet</depend>
+	    <depend>bash</depend>
+	    <defaultenabled>no</defaultenabled>
+	  </member>
+
+	  Note that the second entry has "-<variant>" appended to the name.
+	  You can then use the existing menuselect facilities to restrict which
+	  members to enable or disable.  Youy probably don't want the user to
+	  enable multiple at the same time.
+
+	  If you want to hide the details of the variants, the better way to
+	  do it is to create 1 member with "variant" elements.
+
+	  <member name="res_digium_phone" displayname="..snipped..">
+	    <support_level>external</support_level>
+	    <depend>xmlstarlet</depend>
+	    <depend>bash</depend>
+	    <defaultenabled>no</defaultenabled>
+	    <member_data>
+	      <downloader>
+	        <variants>
+	          <variant tag="bundled"
+	            condition='[[ "$PJPROJECT_BUNDLED" = "yes" ]]'/>
+	        </variants>
+	      </downloader>
+	    </member_data>
+	  </member>
+
+	  The condition must be a bash expression suitable for use with an "if"
+	  statement.  Any environment variable can be used plus those available
+	  in makeopts.
+
+	  In this case, if asterisk was configured with --with-pjproject-bundled
+	  the bundled variant will be automatically downloaded.  Otherwise the
+	  normal version will be downloaded.
+
+	  Change-Id: I4de23e06d4492b0a65e105c8369966547d0faa3e
+
+2016-08-01 20:55 +0000 [13cae45bb5]  gtjoseph <gjoseph@digium.com>
+
+	* build: Add download capability for external packages
+
+	  The DPMA and g729a, silk, siren7 and siren14 codecs hosted at
+	  http://downloads.digium.com/pub/telephony/ are now listed in the
+	  "External" sections of the "Resource Modules" and "Codec Translators"
+	  pages in menuselect.  Any that are selected will automatically be
+	  downloaded and installed when "make install" is run.  Their LICENSE and
+	  README (if avaialble) files will be installed to
+	  ASTVARLIBDIR/documentation/thirdparty/<product_name>.
+
+	  Example use with codecs:
+
+	  The codecs/codecs.xml file is a menuselect style xml file that lists
+	  the codecs to be included.  Their support levels are 'external', which
+	  triggers the download and install, and defaultenabled is no.  Also
+	  because codec_g729a is actually in a directory named codec_g729 on the
+	  download server, the newly added 'member_data' element is used to
+	  override the default of the directory name being the package name.  You
+	  can use the 'directory_name' attribute to keep default base URL
+	  (http://downloads.digium.com/pub/telephony/) but use the new directory,
+	  or you use the 'remote_url' attribute to specify a full URL to the
+	  download directory.  In this case, you must still follow the same
+	  subdirectory naming conventions as that used for the packages located
+	  at 'http://downloads.digium.com/pub/telephony'.
+
+	  A new configure option '--with-externals-cache' was added and like
+	  '--with-sounds-cache' it allows the installer to cache tarballs so
+	  they're not downloaded every time.
+
+	  To assist with the download and install process, each external package
+	  now has a manifest.xml file that, among other things, contains a package
+	  version and checksums for each file in the tarball.  The manifest is
+	  saved to both the cache directory and ASTMODDIR and together with the
+	  manifest.xml on the downloads site, tells the install scripts whether
+	  a download and/or update is needed.
+
+	  bash and xmlstarlet are required for downloader operation.  If they're
+	  not installed, the external items in menuselect will be unavailable.
+
+	  Change-Id: Id3dcf1289ffd3cb0bbd7dfab3cafbb87be60323a
+	  (cherry picked from commit 8b6f9dde14d5ff30dd63c83ed20fb04dcda07e3e)
+
 2016-09-23 20:38 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 14.0.0 Released.
