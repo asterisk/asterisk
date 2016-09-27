@@ -33,9 +33,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/module.h"
 #include "asterisk/format.h"
-#include "asterisk/logger.h"            /* for ast_log, LOG_WARNING */
-#include "asterisk/strings.h"           /* for ast_str_append */
-#include "asterisk/utils.h"             /* for MIN, ast_malloc, ast_free */
+#include "asterisk/logger.h"
+#include "asterisk/strings.h"
+#include "asterisk/utils.h"
+#include "asterisk/opus.h"
 
 /*!
  * \brief Opus attribute structure.
@@ -43,32 +44,42 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * \note http://tools.ietf.org/html/rfc7587#section-6
  */
 struct opus_attr {
-	unsigned int maxbitrate;
-	unsigned int maxplayrate;
-	unsigned int unused; /* was minptime, kept for binary compatibility */
-	unsigned int stereo;
-	unsigned int cbr;
-	unsigned int fec;
-	unsigned int dtx;
-	unsigned int spropmaxcapturerate;
-	unsigned int spropstereo;
+	int maxbitrate;
+	int maxplayrate;
+	int ptime;
+	int stereo;
+	int cbr;
+	int fec;
+	int dtx;
+	int spropmaxcapturerate;
+	int spropstereo;
+	int maxptime;
+	/* Note data is expected to be an ao2_object type */
+	void *data;
 };
 
 static struct opus_attr default_opus_attr = {
-	.maxplayrate         = 48000,
-	.spropmaxcapturerate = 48000,
-	.maxbitrate          = 510000,
-	.stereo              = 0,
-	.spropstereo         = 0,
-	.cbr                 = 0,
-	.fec                 = 1,
-	.dtx                 = 0,
+	.maxbitrate = CODEC_OPUS_DEFAULT_BITRATE,
+	.maxplayrate = CODEC_OPUS_DEFAULT_SAMPLE_RATE,
+	.ptime = CODEC_OPUS_DEFAULT_PTIME,
+	.stereo = CODEC_OPUS_DEFAULT_STEREO,
+	.cbr = CODEC_OPUS_DEFAULT_CBR,
+	.fec = CODEC_OPUS_DEFAULT_FEC,
+	.dtx = CODEC_OPUS_DEFAULT_DTX,
+	.spropmaxcapturerate = CODEC_OPUS_DEFAULT_SAMPLE_RATE,
+	.spropstereo = CODEC_OPUS_DEFAULT_STEREO,
+	.maxptime = CODEC_OPUS_DEFAULT_MAX_PTIME
 };
 
 static void opus_destroy(struct ast_format *format)
 {
 	struct opus_attr *attr = ast_format_get_attribute_data(format);
 
+	if (!attr) {
+		return;
+	}
+
+	ao2_cleanup(attr->data);
 	ast_free(attr);
 }
 
@@ -81,81 +92,65 @@ static int opus_clone(const struct ast_format *src, struct ast_format *dst)
 		return -1;
 	}
 
-	if (original) {
-		*attr = *original;
-	} else {
-		*attr = default_opus_attr;
-	}
+	*attr = original ? *original : default_opus_attr;
+	ao2_bump(attr->data);
 
 	ast_format_set_attribute_data(dst, attr);
 
 	return 0;
 }
 
+static void sdp_fmtp_get(const char *attributes, const char *name, int *attr)
+{
+	const char *kvp = "";
+	int val;
+
+	if (attributes && !(kvp = strstr(attributes, name))) {
+		return;
+	}
+
+	/*
+	 * If the named attribute is not at the start of the given attributes, and
+	 * the preceding character is not a space or semicolon then it's not the
+	 * attribute we are looking for. It's an attribute with the name embedded
+	 * within it (e.g. ptime in maxptime, stereo in sprop-stereo).
+	 */
+	if (kvp != attributes && *(kvp - 1) != ' ' && *(kvp - 1) != ';') {
+		/* Keep searching as it might still be in the attributes string */
+		sdp_fmtp_get(strchr(kvp, ';'), name, attr);
+	/*
+	 * Otherwise it's a match, so retrieve the value and set the attribute.
+	 */
+	} else if (sscanf(kvp, "%*[^=]=%30d", &val) == 1) {
+		*attr = val;
+	}
+}
+
 static struct ast_format *opus_parse_sdp_fmtp(const struct ast_format *format, const char *attributes)
 {
 	struct ast_format *cloned;
 	struct opus_attr *attr;
-	const char *kvp;
-	unsigned int val;
 
 	cloned = ast_format_clone(format);
 	if (!cloned) {
 		return NULL;
 	}
+
 	attr = ast_format_get_attribute_data(cloned);
 
-	if ((kvp = strstr(attributes, "maxplaybackrate")) && sscanf(kvp, "maxplaybackrate=%30u", &val) == 1) {
-		attr->maxplayrate = val;
-	} else {
-		attr->maxplayrate = 48000;
-	}
-
-	if ((kvp = strstr(attributes, "sprop-maxcapturerate")) && sscanf(kvp, "sprop-maxcapturerate=%30u", &val) == 1) {
-		attr->spropmaxcapturerate = val;
-	} else {
-		attr->spropmaxcapturerate = 48000;
-	}
-
-	if ((kvp = strstr(attributes, "maxaveragebitrate")) && sscanf(kvp, "maxaveragebitrate=%30u", &val) == 1) {
-		attr->maxbitrate = val;
-	} else {
-		attr->maxbitrate = 510000;
-	}
-
-	if (!strncmp(attributes, "stereo=1", 8)) {
-		attr->stereo = 1;
-	} else if (strstr(attributes, " stereo=1")) {
-		attr->stereo = 1;
-	} else if (strstr(attributes, ";stereo=1")) {
-		attr->stereo = 1;
-	} else {
-		attr->stereo = 0;
-	}
-
-	if (strstr(attributes, "sprop-stereo=1")) {
-		attr->spropstereo = 1;
-	} else {
-		attr->spropstereo = 0;
-	}
-
-	if (strstr(attributes, "cbr=1")) {
-		attr->cbr = 1;
-	} else {
-		attr->cbr = 0;
-	}
-
-	if (strstr(attributes, "useinbandfec=1")) {
-		attr->fec = 1;
-	} else {
-		attr->fec = 0;
-	}
-
-	if (strstr(attributes, "usedtx=1")) {
-		attr->dtx = 1;
-	} else {
-		attr->dtx = 0;
-	}
+	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_MAX_PLAYBACK_RATE, &attr->maxplayrate);
+	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_MAX_CODED_AUDIO_BANDWIDTH,
+		&attr->maxplayrate);
+	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_SPROP_MAX_CAPTURE_RATE,
+		&attr->spropmaxcapturerate);
+	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_MAX_PTIME, &attr->maxptime);
+	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_PTIME, &attr->ptime);
+	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_MAX_AVERAGE_BITRATE, &attr->maxbitrate);
+	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_STEREO, &attr->stereo);
+	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_SPROP_STEREO, &attr->spropstereo);
+	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_CBR, &attr->cbr);
+	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_FEC, &attr->fec);
+	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_DTX, &attr->dtx);
 
 	return cloned;
 }
@@ -163,7 +158,7 @@ static struct ast_format *opus_parse_sdp_fmtp(const struct ast_format *format, c
 static void opus_generate_sdp_fmtp(const struct ast_format *format, unsigned int payload, struct ast_str **str)
 {
 	struct opus_attr *attr = ast_format_get_attribute_data(format);
-	int added = 0;
+	int size;
 
 	if (!attr) {
 		/*
@@ -174,79 +169,52 @@ static void opus_generate_sdp_fmtp(const struct ast_format *format, unsigned int
 		attr = &default_opus_attr;
 	}
 
-	if (48000 != attr->maxplayrate) {
-		if (added) {
-			ast_str_append(str, 0, ";");
-		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {
-			added = 1;
-		}
-		ast_str_append(str, 0, "maxplaybackrate=%u", attr->maxplayrate);
+	size = ast_str_append(str, 0, "a=fmtp:%u ", payload);
+
+	if (CODEC_OPUS_DEFAULT_SAMPLE_RATE != attr->maxplayrate) {
+		ast_str_append(str, 0, "%s=%d;",
+			CODEC_OPUS_ATTR_MAX_PLAYBACK_RATE, attr->maxplayrate);
 	}
 
-	if (48000 != attr->spropmaxcapturerate) {
-		if (added) {
-			ast_str_append(str, 0, ";");
-		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {
-			added = 1;
-		}
-		ast_str_append(str, 0, "sprop-maxcapturerate=%u", attr->spropmaxcapturerate);
+	if (CODEC_OPUS_DEFAULT_SAMPLE_RATE != attr->spropmaxcapturerate) {
+		ast_str_append(str, 0, "%s=%d;",
+			CODEC_OPUS_ATTR_SPROP_MAX_CAPTURE_RATE, attr->spropmaxcapturerate);
 	}
 
-	if (510000 != attr->maxbitrate) {
-		if (added) {
-			ast_str_append(str, 0, ";");
-		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {
-			added = 1;
-		}
-		ast_str_append(str, 0, "maxaveragebitrate=%u", attr->maxbitrate);
+	if (CODEC_OPUS_DEFAULT_BITRATE != attr->maxbitrate || attr->maxbitrate > 0) {
+		ast_str_append(str, 0, "%s=%d;",
+			CODEC_OPUS_ATTR_MAX_AVERAGE_BITRATE, attr->maxbitrate);
 	}
 
-	if (0 != attr->stereo) {
-		if (added) {
-			ast_str_append(str, 0, ";");
-		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {
-			added = 1;
-		}
-		ast_str_append(str, 0, "stereo=%u", attr->stereo);
+	if (CODEC_OPUS_DEFAULT_STEREO != attr->stereo) {
+		ast_str_append(str, 0, "%s=%d;",
+			CODEC_OPUS_ATTR_STEREO, attr->stereo);
 	}
 
-	if (0 != attr->spropstereo) {
-		if (added) {
-			ast_str_append(str, 0, ";");
-		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {
-			added = 1;
-		}
-		ast_str_append(str, 0, "sprop-stereo=%u", attr->spropstereo);
+	if (CODEC_OPUS_DEFAULT_STEREO != attr->spropstereo) {
+		ast_str_append(str, 0, "%s=%d;",
+			CODEC_OPUS_ATTR_SPROP_STEREO, attr->spropstereo);
 	}
 
-	if (0 != attr->cbr) {
-		if (added) {
-			ast_str_append(str, 0, ";");
-		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {
-			added = 1;
-		}
-		ast_str_append(str, 0, "cbr=%u", attr->cbr);
+	if (CODEC_OPUS_DEFAULT_CBR != attr->cbr) {
+		ast_str_append(str, 0, "%s=%d;",
+			CODEC_OPUS_ATTR_CBR, attr->cbr);
 	}
 
-	if (0 != attr->fec) {
-		if (added) {
-			ast_str_append(str, 0, ";");
-		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {
-			added = 1;
-		}
-		ast_str_append(str, 0, "useinbandfec=%u", attr->fec);
+	if (CODEC_OPUS_DEFAULT_FEC!= attr->fec) {
+		ast_str_append(str, 0, "%s=%d;",
+		       CODEC_OPUS_ATTR_FEC, attr->fec);
 	}
 
-	if (0 != attr->dtx) {
-		if (added) {
-			ast_str_append(str, 0, ";");
-		} else if (0 < ast_str_append(str, 0, "a=fmtp:%u ", payload)) {
-			added = 1;
-		}
-		ast_str_append(str, 0, "usedtx=%u", attr->dtx);
+	if (CODEC_OPUS_DEFAULT_DTX != attr->dtx) {
+		ast_str_append(str, 0, "%s=%d;",
+			CODEC_OPUS_ATTR_DTX, attr->dtx);
 	}
 
-	if (added) {
+	if (size == ast_str_strlen(*str)) {
+		ast_str_reset(*str);
+	} else {
+		ast_str_truncate(*str, -1);
 		ast_str_append(str, 0, "\r\n");
 	}
 }
@@ -285,54 +253,111 @@ static struct ast_format *opus_getjoint(const struct ast_format *format1, const 
 	 * to receive stereo signals, it may be a waste of bandwidth. */
 	attr_res->stereo = attr1->stereo && attr2->stereo ? 1 : 0;
 
-	attr_res->maxbitrate = MIN(attr1->maxbitrate, attr2->maxbitrate);
+	if (attr1->maxbitrate < 0) {
+		attr_res->maxbitrate = attr2->maxbitrate;
+	} else if (attr2->maxbitrate < 0) {
+		attr_res->maxbitrate = attr1->maxbitrate;
+	} else {
+		attr_res->maxbitrate = MIN(attr1->maxbitrate, attr2->maxbitrate);
+	}
+
 	attr_res->spropmaxcapturerate = MIN(attr1->spropmaxcapturerate, attr2->spropmaxcapturerate);
 	attr_res->maxplayrate = MIN(attr1->maxplayrate, attr2->maxplayrate);
 
 	return jointformat;
 }
 
-static struct ast_format *opus_set(const struct ast_format *format, const char *name, const char *value)
+static struct ast_format *opus_set(const struct ast_format *format,
+	const char *name, const char *value)
 {
 	struct ast_format *cloned;
 	struct opus_attr *attr;
-	unsigned int val;
+	int val;
 
-	if (sscanf(value, "%30u", &val) != 1) {
-		ast_log(LOG_WARNING, "Unknown value '%s' for attribute type '%s'\n",
-			value, name);
+	if (!(cloned = ast_format_clone(format))) {
 		return NULL;
 	}
 
-	cloned = ast_format_clone(format);
-	if (!cloned) {
-		return NULL;
-	}
 	attr = ast_format_get_attribute_data(cloned);
 
-	if (!strcasecmp(name, "max_bitrate")) {
-		attr->maxbitrate = val;
-	} else if (!strcasecmp(name, "max_playrate")) {
+	if (!strcmp(name, CODEC_OPUS_ATTR_DATA)) {
+		ao2_cleanup(attr->data);
+		attr->data = ao2_bump((void*)value);
+		return cloned;
+	}
+
+	if (sscanf(value, "%30d", &val) != 1) {
+		ast_log(LOG_WARNING, "Unknown value '%s' for attribute type '%s'\n",
+			value, name);
+		ao2_ref(cloned, -1);
+		return NULL;
+	}
+
+	if (!strcasecmp(name, CODEC_OPUS_ATTR_MAX_PLAYBACK_RATE)) {
 		attr->maxplayrate = val;
-	} else if (!strcasecmp(name, "minptime")) {
-		attr->unused = val;
-	} else if (!strcasecmp(name, "stereo")) {
-		attr->stereo = val;
-	} else if (!strcasecmp(name, "cbr")) {
-		attr->cbr = val;
-	} else if (!strcasecmp(name, "fec")) {
-		attr->fec = val;
-	} else if (!strcasecmp(name, "dtx")) {
-		attr->dtx = val;
-	} else if (!strcasecmp(name, "sprop_capture_rate")) {
+	} else if (!strcasecmp(name, CODEC_OPUS_ATTR_MAX_CODED_AUDIO_BANDWIDTH)) {
+		attr->maxplayrate = val;
+	} else if (!strcasecmp(name, CODEC_OPUS_ATTR_SPROP_MAX_CAPTURE_RATE)) {
 		attr->spropmaxcapturerate = val;
-	} else if (!strcasecmp(name, "sprop_stereo")) {
+	} else if (!strcasecmp(name, CODEC_OPUS_ATTR_MAX_PTIME)) {
+		attr->maxptime = val;
+	} else if (!strcasecmp(name, CODEC_OPUS_ATTR_PTIME)) {
+		attr->ptime = val;
+	} else if (!strcasecmp(name, CODEC_OPUS_ATTR_MAX_AVERAGE_BITRATE)) {
+		attr->maxbitrate = val;
+	} else if (!strcasecmp(name, CODEC_OPUS_ATTR_STEREO)) {
+		attr->stereo = val;
+	} else if (!strcasecmp(name, CODEC_OPUS_ATTR_SPROP_STEREO)) {
 		attr->spropstereo = val;
+	} else if (!strcasecmp(name, CODEC_OPUS_ATTR_CBR)) {
+		attr->cbr = val;
+	} else if (!strcasecmp(name, CODEC_OPUS_ATTR_FEC)) {
+		attr->fec = val;
+	} else if (!strcasecmp(name, CODEC_OPUS_ATTR_DTX)) {
+		attr->dtx = val;
 	} else {
 		ast_log(LOG_WARNING, "unknown attribute type %s\n", name);
 	}
 
 	return cloned;
+}
+
+static const void *opus_get(const struct ast_format *format, const char *name)
+{
+	struct opus_attr *attr = ast_format_get_attribute_data(format);
+	int *val = NULL;
+
+	if (!attr) {
+		return NULL;
+	}
+
+	if (!strcasecmp(name, CODEC_OPUS_ATTR_DATA)) {
+		return ao2_bump(attr->data);
+	} else if (!strcasecmp(name, CODEC_OPUS_ATTR_MAX_PLAYBACK_RATE)) {
+		val = &attr->maxplayrate;
+	} else if (!strcasecmp(name, CODEC_OPUS_ATTR_SPROP_MAX_CAPTURE_RATE)) {
+		val = &attr->spropmaxcapturerate;
+	} else if (!strcasecmp(name, CODEC_OPUS_ATTR_MAX_PTIME)) {
+		val = &attr->maxptime;
+	} else if (!strcasecmp(name, CODEC_OPUS_ATTR_PTIME)) {
+		val = &attr->ptime;
+	} else if (!strcasecmp(name, CODEC_OPUS_ATTR_MAX_AVERAGE_BITRATE)) {
+		val = &attr->maxbitrate;
+	} else if (!strcasecmp(name, CODEC_OPUS_ATTR_STEREO)) {
+		val = &attr->stereo;
+	} else if (!strcasecmp(name, CODEC_OPUS_ATTR_SPROP_STEREO)) {
+		val = &attr->spropstereo;
+	} else if (!strcasecmp(name, CODEC_OPUS_ATTR_CBR)) {
+		val = &attr->cbr;
+	} else if (!strcasecmp(name, CODEC_OPUS_ATTR_FEC)) {
+		val = &attr->fec;
+	} else if (!strcasecmp(name, CODEC_OPUS_ATTR_DTX)) {
+		val = &attr->dtx;
+	} else {
+		ast_log(LOG_WARNING, "unknown attribute type %s\n", name);
+	}
+
+	return val;
 }
 
 static struct ast_format_interface opus_interface = {
@@ -342,11 +367,12 @@ static struct ast_format_interface opus_interface = {
 	.format_attribute_set = opus_set,
 	.format_parse_sdp_fmtp = opus_parse_sdp_fmtp,
 	.format_generate_sdp_fmtp = opus_generate_sdp_fmtp,
+	.format_attribute_get = opus_get
 };
 
 static int load_module(void)
 {
-	if (ast_format_interface_register("opus", &opus_interface)) {
+	if (__ast_format_interface_register("opus", &opus_interface, ast_module_info->self)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -358,9 +384,9 @@ static int unload_module(void)
 	return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "Opus Format Attribute Module",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS | AST_MODFLAG_LOAD_ORDER, "Opus Format Attribute Module",
 	.support_level = AST_MODULE_SUPPORT_CORE,
 	.load = load_module,
 	.unload = unload_module,
-	.load_pri = AST_MODPRI_CHANNEL_DEPEND,
+	.load_pri = AST_MODPRI_REALTIME_DRIVER /* Needs to load before codec_opus */
 );
