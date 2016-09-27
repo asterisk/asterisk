@@ -1572,7 +1572,7 @@ static void logger_print_normal(struct logmsg *logmsg)
 				break;
 			}
 		}
-	} else if (logmsg->level != __LOG_VERBOSE) {
+	} else if (logmsg->level != __LOG_VERBOSE || option_verbose >= logmsg->sublevel) {
 		fputs(logmsg->message, stdout);
 	}
 
