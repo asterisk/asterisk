@@ -134,7 +134,7 @@ if [[ -f ${DESTDIR}${ASTMODDIR}/${module_name}.manifest.xml ]] ; then
 		sums=$(${XMLSTARLET} sel -t -m "//file" -v "@md5sum" -n ${DESTDIR}${ASTMODDIR}/${module_name}.manifest.xml)
 		for sum in ${sums} ; do
 			install_path=$(${XMLSTARLET} sel -t -v "//file[@md5sum = '${sum}']/@install_path" ${DESTDIR}${ASTMODDIR}/${module_name}.manifest.xml )
-			executable=$(${XMLSTARLET} sel -t -v "//file[@md5sum = '${sum}']/@executable" ${DESTDIR}${ASTMODDIR}/${module_name}.manifest.xml )
+			executable=$(${XMLSTARLET} sel -t -v "//file[@md5sum = '${sum}']/@executable" ${DESTDIR}${ASTMODDIR}/${module_name}.manifest.xml || : )
 			f=${DESTDIR}$(eval echo ${install_path})
 			if [[ ! -f ${f} ]] ; then
 				echo Not found: ${f}
