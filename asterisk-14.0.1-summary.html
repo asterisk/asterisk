@@ -1,0 +1,41 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-14.0.1</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-14.0.1</h3><h3 align="center">Date: 2016-09-27</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#open_issues">Open Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-14.0.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">5 gtjoseph <gjoseph@digium.com><br/>4 Kevin Harwell <kharwell@digium.com><br/></td><td width="33%"><td width="33%">3 Kevin Harwell <kharwell@digium.com><br/></td></tr>
+</table><hr><a name="open_issues"><h2 align="center">Open Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all open issues from the issue tracker that were referenced by changes that went into this release.</p><h3>Improvement</h3><h4>Category: Resources/res_format_attr_opus</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26409">ASTERISK-26409</a>: codec_opus: Update Asterisk to support the translation codec.<br/>Reported by: Kevin Harwell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d3d82571068f6830604201c2b7aff86305e97760">[d3d8257106]</a> gtjoseph -- codec_opus: Add download ability to menuselect</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1e98c8d5c868e433efd2c0521bd3eb9e0162baaa">[1e98c8d5c8]</a> gtjoseph -- codec_opus: Replace res_format_attr_opus with the one from codec_opus</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a091e15985794539d120795e7b4dbf2bc7f449ea">[a091e15985]</a> gtjoseph -- format_ogg_opus: New format</li>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=80b3a952e038be199abd6de0a7f5cb5a524e4b2b">80b3a952e0</a></td><td>Kevin Harwell</td><td>Release summaries: Remove previous versions</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=404c4a6820ce1748389832927a429eb3c655174a">404c4a6820</a></td><td>Kevin Harwell</td><td>.version: Update for 14.0.1</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8e0f992505d58f7dec99bb828c9be5af8530d602">8e0f992505</a></td><td>Kevin Harwell</td><td>.lastclean: Update for 14.0.1</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=801966afa9d5b188deaeaa29e6e1fe3e5cbe912e">801966afa9</a></td><td>Kevin Harwell</td><td>realtime: Add database scripts for 14.0.1</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a13b54df83a352dece6f2750c61b9399b78c8968">a13b54df83</a></td><td>gtjoseph</td><td>build_tools:  Add ability to download variants to download_externals</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=13cae45bb5aa072780bb6645f2146fce7edb9935">13cae45bb5</a></td><td>gtjoseph</td><td>build: Add download capability for external packages</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>asterisk-14.0.0-summary.html                 | 4318 -----------
+asterisk-14.0.0-summary.txt                  |10112 ---------------------------
+b/.version                                   |    2
+b/CHANGES                                    |   15
+b/Makefile                                   |    7
+b/Makefile.moddir_rules                      |   12
+b/build_tools/download_externals             |  224
+b/build_tools/list_valid_installed_externals |   55
+b/build_tools/make_version                   |    4
+b/build_tools/menuselect-deps.in             |    3
+b/codecs/codecs.xml                          |   32
+b/configure                                  |  234
+b/configure.ac                               |   24
+b/formats/format_ogg_opus.c                  |  229
+b/include/asterisk/autoconfig.h.in           |    3
+b/include/asterisk/opus.h                    |   51
+b/makeopts.in                                |    5
+b/res/res.xml                                |   13
+b/res/res_format_attr_opus.c                 |  304
+19 files changed, 1040 insertions(+), 14607 deletions(-)</pre><br></html>
