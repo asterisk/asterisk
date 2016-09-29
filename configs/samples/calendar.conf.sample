@@ -6,6 +6,8 @@
 ;refresh = 15             ; refresh calendar every n minutes
 ;timeframe = 60           ; number of minutes of calendar data to pull for each refresh period
 ;                         ; should always be >= refresh
+;fetch_again_at_reload = no ; to reload the calendar content when the module is reloaded
+;
 ;
 ; You can set up res_calendar to execute a call upon an upcoming busy status
 ; The following fields are available from the ${CALENDAR_EVENT(<field>)} dialplan function:
