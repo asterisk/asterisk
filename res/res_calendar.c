@@ -436,6 +436,7 @@ static struct ast_calendar *build_calendar(struct ast_config *cfg, const char *c
 	cal->refresh = 3600;
 	cal->timeframe = 60;
 	cal->notify_waittime = 30000;
+	cal->fetch_again_at_reload = 0;
 
 	for (v = ast_variable_browse(cfg, cat); v; v = v->next) {
 		if (!strcasecmp(v->name, "autoreminder")) {
@@ -457,6 +458,8 @@ static struct ast_calendar *build_calendar(struct ast_config *cfg, const char *c
 			ast_string_field_set(cal, notify_appdata, v->value);
 		} else if (!strcasecmp(v->name, "refresh")) {
 			cal->refresh = atoi(v->value);
+		} else if (!strcasecmp(v->name, "fetch_again_at_reload")) {
+			cal->fetch_again_at_reload = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "timeframe")) {
 			cal->timeframe = atoi(v->value);
 		} else if (!strcasecmp(v->name, "setvar")) {
@@ -482,7 +485,7 @@ static struct ast_calendar *build_calendar(struct ast_config *cfg, const char *c
 		}
 	}
 
-	if (new_calendar) {
+	if (new_calendar || cal->fetch_again_at_reload) {
 		cal->thread = AST_PTHREADT_NULL;
 		ast_cond_init(&cal->unload, NULL);
 		ao2_link(calendars, cal);
