@@ -1344,6 +1344,13 @@ static int generic_fax_exec(struct ast_channel *chan, struct ast_fax_session_det
 	ast_format_clear(&orig_read_format);
 	chancount = 1;
 
+	/* Make sure one or the other is set to avoid race condition */
+	if (t38negotiated) {
+		details->caps |= AST_FAX_TECH_T38;
+	} else {
+		details->caps |= AST_FAX_TECH_AUDIO;
+	}
+
 	/* create the FAX session */
 	if (!(fax = fax_session_new(details, chan, reserved, token))) {
 		ast_log(LOG_ERROR, "Can't create a FAX session, FAX attempt failed.\n");
