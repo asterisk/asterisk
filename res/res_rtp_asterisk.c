@@ -3254,7 +3254,11 @@ static int ast_rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame
 		pred = rtp->lastts + frame->samples;
 
 		/* Re-calculate last TS */
-		rtp->lastts = rtp->lastts + ms * rate;
+		if (ast_test_flag(frame, AST_FRFLAG_HAS_TIMING_INFO) && frame->ts * rate > rtp->lastts) {
+			rtp->lastts = frame->ts * rate;
+		} else {
+			rtp->lastts = rtp->lastts + ms * rate;
+		}
 		if (ast_tvzero(frame->delivery)) {
 			/* If this isn't an absolute delivery time, Check if it is close to our prediction,
 			   and if so, go with our prediction */
@@ -3269,7 +3273,11 @@ static int ast_rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame
 		mark = ast_format_get_video_mark(&frame->subclass.format);
 		pred = rtp->lastovidtimestamp + frame->samples;
 		/* Re-calculate last TS */
-		rtp->lastts = rtp->lastts + ms * 90;
+		if (ast_test_flag(frame, AST_FRFLAG_HAS_TIMING_INFO) && frame->ts * rate > rtp->lastts) {
+			rtp->lastts = frame->ts * rate;
+		} else {
+			rtp->lastts = rtp->lastts + ms * 90;
+		}
 		/* If it's close to our prediction, go for it */
 		if (ast_tvzero(frame->delivery)) {
 			if (abs((int)rtp->lastts - pred) < 7200) {
@@ -3283,7 +3291,11 @@ static int ast_rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame
 	} else {
 		pred = rtp->lastotexttimestamp + frame->samples;
 		/* Re-calculate last TS */
-		rtp->lastts = rtp->lastts + ms;
+		if (ast_test_flag(frame, AST_FRFLAG_HAS_TIMING_INFO) && frame->ts * rate > rtp->lastts) {
+			rtp->lastts = frame->ts * rate;
+		} else {
+			rtp->lastts = rtp->lastts + ms;
+		}
 		/* If it's close to our prediction, go for it */
 		if (ast_tvzero(frame->delivery)) {
 			if (abs((int)rtp->lastts - pred) < 7200) {
@@ -3305,10 +3317,6 @@ static int ast_rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame
 	/* If the timestamp for non-digt packets has moved beyond the timestamp for digits, update the digit timestamp */
 	if (rtp->lastts > rtp->lastdigitts) {
 		rtp->lastdigitts = rtp->lastts;
-	}
-
-	if (ast_test_flag(frame, AST_FRFLAG_HAS_TIMING_INFO)) {
-		rtp->lastts = frame->ts * rate;
 	}
 
 	ast_rtp_instance_get_remote_address(instance, &remote_address);
