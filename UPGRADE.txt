@@ -22,3 +22,7 @@
 === UPGRADE-13.txt  -- Upgrade info for 12 to 13
 === UPGRADE-14.txt  -- Upgrade info for 13 to 14
 ===========================================================
+
+Build System:
+ - The LOW_MEMORY compile option no longer disables inline API.  To disable
+   inline API you must use the DISABLE_INLINE option.
