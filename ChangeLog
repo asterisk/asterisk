@@ -1,3 +1,56 @@
+2016-09-30 20:36 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 14.0.2 Released.
+
+2016-09-30 15:36 +0000 [f2a0f14d76]  Kevin Harwell <kharwell@digium.com>
+
+	* Release summaries: Remove previous versions
+
+2016-09-30 15:36 +0000 [e79517fd20]  Kevin Harwell <kharwell@digium.com>
+
+	* .version: Update for 14.0.2
+
+2016-09-30 15:36 +0000 [57d5d669f6]  Kevin Harwell <kharwell@digium.com>
+
+	* .lastclean: Update for 14.0.2
+
+2016-09-30 15:36 +0000 [c6a6565f24]  Kevin Harwell <kharwell@digium.com>
+
+	* realtime: Add database scripts for 14.0.2
+
+2016-09-27 15:35 +0000 [6dc61291f5]  Corey Farrell <git@cfware.com>
+
+	* logger: Output early verbose messages to console.
+
+	  Verbose messages should be printed to the console if the sublevel is
+	  less than option_verbose.  This fix ensures the welcome message with
+	  copyright and license are printed at daemon and interactive rasterisk
+	  startup.
+
+	  ASTERISK-26410 #close
+
+	  Change-Id: Ia44235e30ec328aba92ea2c8a837b094e65c9a03
+	  (cherry picked from commit 013414ca4b32fa4f25ec37076b537d0bb130be9f)
+
+2016-09-29 14:02 +0000 [0646e40a1e]  Kevin Harwell <kharwell@digium.com>
+
+	* Remove "format_ogg_opus: New format"
+
+	  This reverts commit 40aa28131bc30b4516da2b20eb1a1e043920169c.
+
+	  ASTERISK-26426 #close
+
+	  Change-Id: I81e55c3c512f1dd6f49896f0c6b97a07d74fd8f5
+
+2016-09-27 16:10 +0000 [5692ea49fa]  gtjoseph <gjoseph@digium.com>
+
+	* download_externals: Fix issue with re-install
+
+	  Needed to ignore an xmlstarlet return code for optional element.
+
+	  Change-Id: I6a96f709b4b38c9a3f3dda4e8b07903787e16873
+	  Reported-by: Dan Jenkins
+
 2016-09-27 18:43 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 14.0.1 Released.
