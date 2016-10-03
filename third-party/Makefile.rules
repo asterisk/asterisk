@@ -13,18 +13,6 @@ QUIET_CONFIGURE=
 REALLY_QUIET=
 endif
 
-DOWNLOAD := $(shell which wget 2>/dev/null)
-DOWNLOAD := $(if $(DOWNLOAD),$(DOWNLOAD) -O- ,)
-
-ifeq ($(DOWNLOAD),)
-DOWNLOAD := $(shell which curl 2>/dev/null)
-DOWNLOAD := $(if $(DOWNLOAD), $(DOWNLOAD) -L ,)
-endif
-
-ifeq ($(DOWNLOAD),)
-DOWNLOAD := echo "No download program available" ; exit 1;
-endif
-
 export SUBMAKE
 export ECHO_PREFIX
 export CMD_PREFIX
@@ -34,3 +22,8 @@ export ASTTOPDIR
 export ASTSBINDIR
 export DESTDIR
 export ASTDATADIR
+export TAR
+export PATCH
+export SED
+export NM
+export DOWNLOAD
