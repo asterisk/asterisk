@@ -1197,6 +1197,10 @@ SHA1SUM
 LDCONFIG
 DOWNLOAD
 FETCH
+NM
+PATCH
+TAR
+BZIP2
 ALEMBIC
 GIT
 BASH
@@ -1301,7 +1305,6 @@ infodir
 docdir
 oldincludedir
 includedir
-runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -1481,7 +1484,6 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
-runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1734,15 +1736,6 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
-  -runstatedir | --runstatedir | --runstatedi | --runstated \
-  | --runstate | --runstat | --runsta | --runst | --runs \
-  | --run | --ru | --r)
-    ac_prev=runstatedir ;;
-  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
-  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
-  | --run=* | --ru=* | --r=*)
-    runstatedir=$ac_optarg ;;
-
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1880,7 +1873,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir runstatedir
+		libdir localedir mandir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -2033,7 +2026,6 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
-  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -7613,6 +7605,212 @@ else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 fi
+
+
+# Extract the first word of "bzip2", so it can be a program name with args.
+set dummy bzip2; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_BZIP2+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $BZIP2 in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_BZIP2="$BZIP2" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_BZIP2="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  test -z "$ac_cv_path_BZIP2" && ac_cv_path_BZIP2=":"
+  ;;
+esac
+fi
+BZIP2=$ac_cv_path_BZIP2
+if test -n "$BZIP2"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $BZIP2" >&5
+$as_echo "$BZIP2" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+# Extract the first word of "tar", so it can be a program name with args.
+set dummy tar; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_TAR+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $TAR in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_TAR="$TAR" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_TAR="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  test -z "$ac_cv_path_TAR" && ac_cv_path_TAR=":"
+  ;;
+esac
+fi
+TAR=$ac_cv_path_TAR
+if test -n "$TAR"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $TAR" >&5
+$as_echo "$TAR" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+# Extract the first word of "patch", so it can be a program name with args.
+set dummy patch; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_PATCH+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $PATCH in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_PATCH="$PATCH" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_PATCH="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  test -z "$ac_cv_path_PATCH" && ac_cv_path_PATCH=":"
+  ;;
+esac
+fi
+PATCH=$ac_cv_path_PATCH
+if test -n "$PATCH"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PATCH" >&5
+$as_echo "$PATCH" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+# Extract the first word of "sed", so it can be a program name with args.
+set dummy sed; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_SED+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $SED in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_SED="$SED" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_SED="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  test -z "$ac_cv_path_SED" && ac_cv_path_SED=":"
+  ;;
+esac
+fi
+SED=$ac_cv_path_SED
+if test -n "$SED"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $SED" >&5
+$as_echo "$SED" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+# Extract the first word of "nm", so it can be a program name with args.
+set dummy nm; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_NM+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $NM in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_NM="$NM" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_NM="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  test -z "$ac_cv_path_NM" && ac_cv_path_NM=":"
+  ;;
+esac
+fi
+NM=$ac_cv_path_NM
+if test -n "$NM"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $NM" >&5
+$as_echo "$NM" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
 
 
 if test "${WGET}" != ":" ; then
@@ -24753,6 +24951,22 @@ if test "$USE_PJPROJECT" != "no" ; then
 $as_echo_n "checking for embedded pjproject (may have to download)... " >&6; }
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: configuring" >&5
 $as_echo "configuring" >&6; }
+	if test "${BZIP2}" = ":" ; then
+		as_fn_error $? "bzip2 is required to extract the pjproject tar file" "$LINENO" 5
+	fi
+	if test "${TAR}" = ":" ; then
+		as_fn_error $? "tar is required to extract the pjproject tar file" "$LINENO" 5
+	fi
+	if test "${PATCH}" = ":" ; then
+		as_fn_error $? "patch is required to configure bundled pjproject" "$LINENO" 5
+	fi
+	if test "${SED}" = ":" ; then
+		as_fn_error $? "sed is required to configure bundled pjproject" "$LINENO" 5
+	fi
+	if test "${NM}" = ":" ; then
+		as_fn_error $? "nm is required to build bundled pjproject" "$LINENO" 5
+	fi
+	export TAR PATCH SED NM EXTERNALS_CACHE_DIR DOWNLOAD
 	${GNU_MAKE} --quiet --no-print-directory -C $PJPROJECT_DIR configure
 	if test $? -ne 0 ; then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: failed" >&5
@@ -24778,208 +24992,22 @@ $as_echo_n "checking for embedded pjproject... " >&6; }
 $as_echo "yes" >&6; }
 
 
-	PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_INCLUDE="$PJPROJECT_INCLUDE"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pjsip_dlg_create_uas_and_inc_lock declared in pjsip.h" >&5
-$as_echo_n "checking for pjsip_dlg_create_uas_and_inc_lock declared in pjsip.h... " >&6; }
-
-	saved_cpp="$CPPFLAGS"
-	CPPFLAGS="$PJPROJECT_INCLUDE"
-	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <pjsip.h>
-
-_ACEOF
-if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  $EGREP "pjsip_dlg_create_uas_and_inc_lock" >/dev/null 2>&1; then :
-
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-		PBX_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK=1
-
 $as_echo "#define HAVE_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK 1" >>confdefs.h
 
-
-else
-
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-fi
-rm -f conftest*
-
-
-	CPPGLAGS="$saved_cpp"
-	PJSIP_DLG_CREATE_UAS_AND_INC_LOCK_INCLUDE="$PJPROJECT_INCLUDE"
-
-
-	PJ_TRANSACTION_GRP_LOCK_INCLUDE="$PJPROJECT_INCLUDE"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pjsip_tsx_create_uac2 declared in pjsip.h" >&5
-$as_echo_n "checking for pjsip_tsx_create_uac2 declared in pjsip.h... " >&6; }
-
-	saved_cpp="$CPPFLAGS"
-	CPPFLAGS="$PJPROJECT_INCLUDE"
-	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <pjsip.h>
-
-_ACEOF
-if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  $EGREP "pjsip_tsx_create_uac2" >/dev/null 2>&1; then :
-
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-		PBX_PJ_TRANSACTION_GRP_LOCK=1
 
 $as_echo "#define HAVE_PJ_TRANSACTION_GRP_LOCK 1" >>confdefs.h
 
 
-else
-
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-fi
-rm -f conftest*
-
-
-	CPPGLAGS="$saved_cpp"
-	PJ_TRANSACTION_GRP_LOCK_INCLUDE="$PJPROJECT_INCLUDE"
-
-
-	PJSIP_REPLACE_MEDIA_STREAM_INCLUDE="$PJPROJECT_INCLUDE"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE declared in pjmedia.h" >&5
-$as_echo_n "checking for PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE declared in pjmedia.h... " >&6; }
-
-	saved_cpp="$CPPFLAGS"
-	CPPFLAGS="$PJPROJECT_INCLUDE"
-	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <pjmedia.h>
-
-_ACEOF
-if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  $EGREP "PJMEDIA_SDP_NEG_ALLOW_MEDIA_CHANGE" >/dev/null 2>&1; then :
-
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-		PBX_PJSIP_REPLACE_MEDIA_STREAM=1
-
 $as_echo "#define HAVE_PJSIP_REPLACE_MEDIA_STREAM 1" >>confdefs.h
 
-
-else
-
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-fi
-rm -f conftest*
-
-
-	CPPGLAGS="$saved_cpp"
-	PJSIP_REPLACE_MEDIA_STREAM_INCLUDE="$PJPROJECT_INCLUDE"
-
-
-	PJSIP_GET_DEST_INFO_INCLUDE="$PJPROJECT_INCLUDE"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pjsip_get_dest_info declared in pjsip.h" >&5
-$as_echo_n "checking for pjsip_get_dest_info declared in pjsip.h... " >&6; }
-
-	saved_cpp="$CPPFLAGS"
-	CPPFLAGS="$PJPROJECT_INCLUDE"
-	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <pjsip.h>
-
-_ACEOF
-if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  $EGREP "pjsip_get_dest_info" >/dev/null 2>&1; then :
-
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-		PBX_PJSIP_GET_DEST_INFO=1
 
 $as_echo "#define HAVE_PJSIP_GET_DEST_INFO 1" >>confdefs.h
 
 
-else
-
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-fi
-rm -f conftest*
-
-
-	CPPGLAGS="$saved_cpp"
-	PJSIP_GET_DEST_INFO_INCLUDE="$PJPROJECT_INCLUDE"
-
-
-	PJ_SSL_CERT_LOAD_FROM_FILES2_INCLUDE="$PJPROJECT_INCLUDE"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pj_ssl_cert_load_from_files2 declared in pjlib.h" >&5
-$as_echo_n "checking for pj_ssl_cert_load_from_files2 declared in pjlib.h... " >&6; }
-
-	saved_cpp="$CPPFLAGS"
-	CPPFLAGS="$PJPROJECT_INCLUDE"
-	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <pjlib.h>
-
-_ACEOF
-if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  $EGREP "pj_ssl_cert_load_from_files2" >/dev/null 2>&1; then :
-
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-		PBX_PJ_SSL_CERT_LOAD_FROM_FILES2=1
-
 $as_echo "#define HAVE_PJ_SSL_CERT_LOAD_FROM_FILES2 1" >>confdefs.h
 
 
-else
-
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-fi
-rm -f conftest*
-
-
-	CPPGLAGS="$saved_cpp"
-	PJ_SSL_CERT_LOAD_FROM_FILES2_INCLUDE="$PJPROJECT_INCLUDE"
-
-
-	PJSIP_EXTERNAL_RESOLVER_INCLUDE="$PJPROJECT_INCLUDE"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pjsip_endpt_set_ext_resolver declared in pjsip.h" >&5
-$as_echo_n "checking for pjsip_endpt_set_ext_resolver declared in pjsip.h... " >&6; }
-
-	saved_cpp="$CPPFLAGS"
-	CPPFLAGS="$PJPROJECT_INCLUDE"
-	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <pjsip.h>
-
-_ACEOF
-if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  $EGREP "pjsip_endpt_set_ext_resolver" >/dev/null 2>&1; then :
-
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-		PBX_PJSIP_EXTERNAL_RESOLVER=1
-
 $as_echo "#define HAVE_PJSIP_EXTERNAL_RESOLVER 1" >>confdefs.h
-
-
-else
-
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-fi
-rm -f conftest*
-
-
-	CPPGLAGS="$saved_cpp"
-	PJSIP_EXTERNAL_RESOLVER_INCLUDE="$PJPROJECT_INCLUDE"
 
 
 $as_echo "#define HAVE_PJSIP_TLS_TRANSPORT_PROTO 1" >>confdefs.h
