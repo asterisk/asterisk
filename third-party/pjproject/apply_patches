@@ -5,6 +5,8 @@ if [ "$1" = "-q" ] ; then
 	shift
 fi
 
+PATCH=${PATCH:-patch}
+
 patchdir=${1:?You must supply a patches directory}
 sourcedir=${2?:You must supply a source directory}
 
@@ -27,12 +29,12 @@ if [ ! "$(ls -A $patchdir/*.patch 2>/dev/null)" ] ; then
 fi
 
 for patchfile in $patchdir/*.patch ; do
-	patch -d $sourcedir -p1 -s -r- -f -N --dry-run -i "$patchfile" || (echo "Patchfile $(basename $patchfile) failed to apply" >&2 ; exit 1) || exit 1
+	${PATCH} -d $sourcedir -p1 -s -r- -f -N --dry-run -i "$patchfile" || (echo "Patchfile $(basename $patchfile) failed to apply" >&2 ; exit 1) || exit 1
 done
 
 for patchfile in "$patchdir"/*.patch ; do
 	[ -z $quiet ] && echo "Applying patch $(basename $patchfile)"
-	patch -d "$sourcedir" -p1 -s -i "$patchfile" || exit 1
+	${PATCH} -d "$sourcedir" -p1 -s -i "$patchfile" || exit 1
 done
 
 exit 0

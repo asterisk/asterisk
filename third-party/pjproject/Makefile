@@ -59,13 +59,7 @@ endif
 
 ECHO_PREFIX := $(ECHO_PREFIX) echo '[pjproject] '
 
-ifndef $(TMPDIR)
-    ifneq ($(wildcard /tmp),)
-        TMPDIR=/tmp
-    else
-        TMPDIR=.
-    endif
-endif
+TMPDIR ?= $(or $(EXTERNALS_CACHE_DIR),$(wildcard /tmp),.)
 
 $(TMPDIR)/pjproject-$(PJPROJECT_VERSION).tar.bz2 : ../versions.mak
 	$(ECHO_PREFIX) Downloading $@ with $(DOWNLOAD)
@@ -75,7 +69,7 @@ source/.unpacked: $(TMPDIR)/pjproject-$(PJPROJECT_VERSION).tar.bz2
 	$(ECHO_PREFIX) Unpacking $<
 	-@rm -rf source &>/dev/null
 	-@mkdir source &>/dev/null
-	$(CMD_PREFIX) tar --strip-components=1 -C source -xjf $<
+	$(CMD_PREFIX) $(TAR) --strip-components=1 -C source -xjf $<
 	$(ECHO_PREFIX) Applying patches
 	$(CMD_PREFIX) ./apply_patches $(QUIET_CONFIGURE) ./patches ./source
 	-@touch source/.unpacked
@@ -90,8 +84,8 @@ source/pjlib/include/pj/config_site.h: source/.unpacked ./patches/config_site.h
 
 build.mak: source/.unpacked source/pjlib/include/pj/config_site.h source/user.mak Makefile.rules
 	$(ECHO_PREFIX) Configuring with $(PJPROJECT_CONFIG_OPTS)
-	$(CMD_PREFIX) (cd source ; autoconf aconfigure.ac > aconfigure && ./aconfigure $(QUIET_CONFIGURE) $(PJPROJECT_CONFIG_OPTS))
-	@sed -r -e "/prefix|export PJ_SHARED_LIBRARIES|MACHINE_NAME|OS_NAME|HOST_NAME|CC_NAME|CROSS_COMPILE|LINUX_POLL/d" source/build.mak > build.mak
+	$(CMD_PREFIX) (cd source ; ./aconfigure $(QUIET_CONFIGURE) $(PJPROJECT_CONFIG_OPTS))
+	@$(SED) -r -e "/prefix|export PJ_SHARED_LIBRARIES|MACHINE_NAME|OS_NAME|HOST_NAME|CC_NAME|CROSS_COMPILE|LINUX_POLL/d" source/build.mak > build.mak
 
 configure: build.mak
 
@@ -112,7 +106,7 @@ source/pjlib/lib/libpj-$(TARGET_NAME).a: menuselect source/pjlib/build/.pjlib-$(
 
 pjproject.symbols: source/pjlib/lib/libpj-$(TARGET_NAME).a
 	$(ECHO_PREFIX) Generating symbols
-	$(CMD_PREFIX) nm -Pog $(PJ_LIB_FILES) | sed -n -r -e "s/.+: ([pP][jJ][^ ]+) .+/\1/gp" | sort -u > pjproject.symbols
+	$(CMD_PREFIX) $(NM) -Pog $(PJ_LIB_FILES) | $(SED) -n -r -e "s/.+: ([pP][jJ][^ ]+) .+/\1/gp" | sort -u > pjproject.symbols
 
 source/pjsip-apps/bin/pjsua-$(TARGET_NAME): source/pjlib/lib/libpj-$(TARGET_NAME).a
 	$(ECHO_PREFIX) Compiling apps
@@ -151,4 +145,3 @@ clean:
 distclean:
 	$(ECHO_PREFIX) Distcleaning
 	-$(CMD_PREFIX) rm -rf source pjproject.symbols pjproject-*.tar.bz2 build.mak
-
