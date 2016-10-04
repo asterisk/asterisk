@@ -51,6 +51,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <pjlib.h>
 #include <pjlib-util.h>
 #include <pjnath.h>
+#include <ifaddrs.h>
 #endif
 
 #include "asterisk/stun.h"
@@ -145,6 +146,9 @@ static pj_str_t turnaddr;
 static int turnport = DEFAULT_TURN_PORT;
 static pj_str_t turnusername;
 static pj_str_t turnpassword;
+static struct ast_ha *blackice = NULL;    /*!< Blacklisted ICE networks */
+static ast_rwlock_t blackice_lock = AST_RWLOCK_INIT_VALUE;
+
 
 /*! \brief Pool factory used by pjlib to allocate memory. */
 static pj_caching_pool cachingpool;
@@ -2446,11 +2450,34 @@ static int rtp_learning_rtp_seq_update(struct rtp_learning_info *info, uint16_t 
 }
 
 #ifdef HAVE_PJPROJECT
+/*!
+ * \internal
+ * \brief Checks an address against the blackice list (aka ICE blacklist)
+ * \note If there is no blackice list, always returns 0
+ *
+ * \param address The address to consider
+ * \retval 0 if address is not blackice listed
+ * \retval 1 if address is blackice listed
+ */
+static int rtp_address_is_blackice(const pj_sockaddr_t *address) {
+	char buf[PJ_INET6_ADDRSTRLEN];
+	struct ast_sockaddr saddr;
+	int result = 1;
+	ast_sockaddr_parse(&saddr, pj_sockaddr_print(address, buf, sizeof(buf), 0), 0);
+	ast_rwlock_rdlock(&blackice_lock);
+	if ((blackice == NULL) || (ast_apply_ha(blackice, &saddr) == AST_SENSE_ALLOW)) {
+		result = 0;
+	}
+	ast_rwlock_unlock(&blackice_lock);
+	return result;
+}
+
 static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct ast_rtp *rtp, struct ast_sockaddr *addr, int port, int component,
 				      int transport)
 {
 	pj_sockaddr address[16];
 	unsigned int count = PJ_ARRAY_SIZE(address), pos = 0;
+	int basepos = -1;
 
 	/* Add all the local interface IP addresses */
 	if (ast_sockaddr_is_ipv4(addr)) {
@@ -2464,9 +2491,18 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 	host_candidate_overrides_apply(count, address);
 
 	for (pos = 0; pos < count; pos++) {
-		pj_sockaddr_set_port(&address[pos], port);
-		ast_rtp_ice_add_cand(rtp, component, transport, PJ_ICE_CAND_TYPE_HOST, 65535, &address[pos], &address[pos], NULL,
+		if (!rtp_address_is_blackice(&address[pos])) {
+			if (basepos == -1) {
+				basepos = pos;
+			}
+			pj_sockaddr_set_port(&address[pos], port);
+			ast_rtp_ice_add_cand(rtp, component, transport, PJ_ICE_CAND_TYPE_HOST, 65535, &address[pos], &address[pos], NULL,
 				     pj_sockaddr_get_len(&address[pos]));
+		}
+	}
+	if (basepos == -1) {
+		/* start with first address unless excluded above */
+		basepos = 0;
 	}
 
 	/* If configured to use a STUN server to get our external mapped address do so */
@@ -2475,15 +2511,27 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 
 		if (!ast_stun_request(component == AST_RTP_ICE_COMPONENT_RTCP ? rtp->rtcp->s : rtp->s, &stunaddr, NULL, &answer)) {
 			pj_sockaddr base;
+			pj_sockaddr ext;
 			pj_str_t mapped = pj_str(ast_strdupa(ast_inet_ntoa(answer.sin_addr)));
+			int srflx = 1;
 
 			/* Use the first local host candidate as the base */
-			pj_sockaddr_cp(&base, &address[0]);
+			pj_sockaddr_cp(&base, &address[basepos]);
 
-			pj_sockaddr_init(pj_AF_INET(), &address[0], &mapped, ntohs(answer.sin_port));
+			pj_sockaddr_init(pj_AF_INET(), &ext, &mapped, ntohs(answer.sin_port));
 
-			ast_rtp_ice_add_cand(rtp, component, transport, PJ_ICE_CAND_TYPE_SRFLX, 65535, &address[0], &base,
-					     &base, pj_sockaddr_get_len(&address[0]));
+			/* If the returned address is the same as one of our host candidates, don't send the srflx */
+			for (pos = 0; pos < count; pos++) {
+				if ((pj_sockaddr_cmp(&address[pos], &ext) == 0) && !rtp_address_is_blackice(&address[pos])) {
+					srflx = 0;
+					break;
+				}
+			}
+
+			if (srflx) {
+				ast_rtp_ice_add_cand(rtp, component, transport, PJ_ICE_CAND_TYPE_SRFLX, 65535, &ext, &base,
+							 &base, pj_sockaddr_get_len(&ext));
+			}
 		}
 	}
 
@@ -5377,6 +5425,10 @@ static int rtp_reload(int reload)
 	turnusername = pj_str(NULL);
 	turnpassword = pj_str(NULL);
 	host_candidate_overrides_clear();
+	ast_rwlock_wrlock(&blackice_lock);
+	ast_free_ha(blackice);
+	blackice = NULL;
+	ast_rwlock_unlock(&blackice_lock);
 #endif
 
 	if (cfg) {
@@ -5486,6 +5538,25 @@ static int rtp_reload(int reload)
 			AST_RWLIST_INSERT_TAIL(&host_candidates, candidate, next);
 		}
 		AST_RWLIST_UNLOCK(&host_candidates);
+
+		/* Read blackice configuration lines */
+		ast_rwlock_wrlock(&blackice_lock);
+		for (var = ast_variable_browse(cfg, "general"); var; var = var->next) {
+			if (!strcasecmp(var->name, "blackice")) {
+				struct ast_ha *na;
+				int ha_error = 0;
+				if (!(na = ast_append_ha("d", var->value, blackice, &ha_error))) {
+					ast_log(LOG_WARNING, "Invalid blackice value: %s\n", var->value);
+				} else {
+					blackice = na;
+				}
+				if (ha_error) {
+					ast_log(LOG_ERROR, "Bad blackice configuration value line %d : %s\n", var->lineno, var->value);
+				}
+			}
+		}
+		ast_rwlock_unlock(&blackice_lock);
+
 #endif
 		ast_config_destroy(cfg);
 	}
