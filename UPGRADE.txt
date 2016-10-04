@@ -26,3 +26,9 @@
 Build System:
  - The LOW_MEMORY compile option no longer disables inline API.  To disable
    inline API you must use the DISABLE_INLINE option.
+
+Queue:
+ - When reloading the members of a queue, the members added dynamically (i.e.
+   added via the CLI command "queue add" or the AMI action "QueueAdd") now have
+   their ringinuse value updated to the value of the queue. Previously, the
+   ringinuse value for dynamic members was not updated on reload.
