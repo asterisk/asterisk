@@ -1,7 +1,10 @@
 from __future__ import with_statement
 from alembic import context
+from alembic.script import ScriptDirectory
+from alembic.operations import Operations
 from sqlalchemy import engine_from_config, pool
 from logging.config import fileConfig
+import logging
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -14,6 +17,7 @@ try:
 except:
     pass
 
+logger = logging.getLogger('alembic.runtime.setup')
 # add your model's MetaData object here
 # for 'autogenerate' support
 # from myapp import mymodel
@@ -55,17 +59,68 @@ def run_migrations_online():
                 prefix='sqlalchemy.',
                 poolclass=pool.NullPool)
 
+    logger.info('Testing for an old alembic_version table.')
+
     connection = engine.connect()
     context.configure(
                 connection=connection,
-                target_metadata=target_metadata
+                target_metadata=target_metadata,
+                version_table='alembic_version'
                 )
+
+    script_location = config.get_main_option('script_location')
+    found = False
+    mc = context.get_context()
+    current_db_revision = mc.get_current_revision()
+    script = ScriptDirectory.from_config(config)
+    """ If there was an existing alembic_version table, we we need to
+    check that it's current revision is in the history for the tree we're
+    working with.
+    """
+    for x in script.iterate_revisions('head', 'base'):
+        if x.revision == current_db_revision:
+            """ An alembic_versions table was found and it belongs to this alembic tree """
+            logger.info('An old alembic_version table at revision %s was found for %s.  Renaming to alembic_version_%s.',
+                        current_db_revision, script_location, script_location)
+            op = Operations(mc)
+            try:
+                with context.begin_transaction():
+                    op.rename_table('alembic_version', 'alembic_version_%s' % script_location)
+                found = True
+            except:
+                logger.error('Unable to rename alembic_version to alembic_version_%s.',
+                            script_location)
+                connection.close()
+                return
+
+            break
+
+    if not found:
+        logger.info('Didn\'t find an old alembic_version table.  Good.')
+    logger.info('Trying alembic_version_%s.' % script_location)
+
+    """ We MAY have an alembic_version table that doesn't belong to this tree but if
+    we still don't have an alembic_version_<tree> table, alembic will create it.
+    """
+    context.configure(
+                connection=connection,
+                target_metadata=target_metadata,
+                version_table='alembic_version_' + script_location
+                )
+    mc = context.get_context()
+    current_db_revision = mc.get_current_revision()
+    if current_db_revision:
+        logger.info('Using the alembic_version_%s table at revision %s.',
+                    script_location, current_db_revision)
+    else:
+        logger.info('Creating new alembic_version_%s table.', script_location)
 
     try:
         with context.begin_transaction():
             context.run_migrations()
     finally:
         connection.close()
+
 
 if context.is_offline_mode():
     run_migrations_offline()
