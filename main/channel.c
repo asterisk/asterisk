@@ -3914,6 +3914,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		struct ast_frame *readq_tail = AST_LIST_LAST(ast_channel_readq(chan));
 		struct ast_control_read_action_payload *read_action_payload;
 		struct ast_party_connected_line connected;
+		int hooked = 0;
 
 		/* if the channel driver returned more than one frame, stuff the excess
 		   into the readq for the next ast_read call
@@ -4191,15 +4192,21 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					break;
 				}
 			}
-			/* Send frame to audiohooks if present */
-			if (ast_channel_audiohooks(chan)) {
+			/*
+			 * Send frame to audiohooks if present, if frametype is linear, to preserve
+			 * functional compatibility with previous behavior. If not linear, hold off
+			 * until transcoding is done where we are more likely to have a linear frame
+			 */
+			if (ast_channel_audiohooks(chan) && ast_format_cache_is_slinear(f->subclass.format)) {
 				struct ast_frame *old_frame = f;
+				hooked = 1;
 
 				f = ast_audiohook_write_list(chan, ast_channel_audiohooks(chan), AST_AUDIOHOOK_DIRECTION_READ, f);
 				if (old_frame != f) {
 					ast_frfree(old_frame);
 				}
 			}
+
 			if (ast_channel_monitor(chan) && ast_channel_monitor(chan)->read_stream) {
 				/* XXX what does this do ? */
 #ifndef MONITOR_CONSTANT_DELAY
@@ -4239,6 +4246,16 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				f = ast_translate(ast_channel_readtrans(chan), f, 1);
 				if (!f) {
 					f = &ast_null_frame;
+				}
+			}
+
+			/* Second chance at hooking a linear frame, also the last chance */
+			if (ast_channel_audiohooks(chan) && !hooked) {
+				struct ast_frame *old_frame = f;
+
+				f = ast_audiohook_write_list(chan, ast_channel_audiohooks(chan), AST_AUDIOHOOK_DIRECTION_READ, f);
+				if (old_frame != f) {
+					ast_frfree(old_frame);
 				}
 			}
 
@@ -5032,6 +5049,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	int res = -1;
 	struct ast_frame *f = NULL;
 	int count = 0;
+	int hooked = 0;
 
 	/*Deadlock avoidance*/
 	while(ast_channel_trylock(chan)) {
@@ -5149,6 +5167,22 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			apply_plc(chan, fr);
 		}
 
+		/*
+		 * Send frame to audiohooks if present, if frametype is linear (else, later as per
+		 * previous behavior)
+		 */
+		if (ast_channel_audiohooks(chan)) {
+			if (ast_format_cache_is_slinear(fr->subclass.format)) {
+				struct ast_frame *old_frame;
+				hooked = 1;
+				old_frame = fr;
+				fr = ast_audiohook_write_list(chan, ast_channel_audiohooks(chan), AST_AUDIOHOOK_DIRECTION_WRITE, fr);
+				if (old_frame != fr) {
+					ast_frfree(old_frame);
+				}
+			}
+		}
+
 		/* If the frame is in the raw write format, then it's easy... just use the frame - otherwise we will have to translate */
 		if (ast_format_cmp(fr->subclass.format, ast_channel_rawwriteformat(chan)) == AST_FORMAT_CMP_EQUAL) {
 			f = fr;
@@ -5186,7 +5220,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			break;
 		}
 
-		if (ast_channel_audiohooks(chan)) {
+		if (ast_channel_audiohooks(chan) && !hooked) {
 			struct ast_frame *prev = NULL, *new_frame, *cur, *dup;
 			int freeoldlist = 0;
 
