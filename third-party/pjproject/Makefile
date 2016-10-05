@@ -43,8 +43,6 @@ ifeq ($(SPECIAL_TARGETS),)
         include build.mak
         CF := $(filter-out -W%,$(CC_CFLAGS))
         CF := $(filter-out -I%,$(CF))
-        export CFLAGS += $(CF)
-        export LDFLAGS += $(CC_LDFLAGS)
         TARGETS := pjproject.symbols
         ifeq ($(findstring TEST_FRAMEWORK,$(MENUSELECT_CFLAGS)),TEST_FRAMEWORK)
             TARGETS += source/pjsip-apps/bin/pjsua-$(TARGET_NAME)
@@ -52,12 +50,18 @@ ifeq ($(SPECIAL_TARGETS),)
                 TARGETS += source/pjsip-apps/src/python/build/_pjsua.so
             endif
         endif
+        ifeq ($(findstring MALLOC_DEBUG,$(MENUSELECT_CFLAGS)),MALLOC_DEBUG)
+            CF += -DMALLOC_DEBUG
+        endif
+        export CFLAGS += $(CF)
+        export LDFLAGS += $(CC_LDFLAGS)
     else
         all install:
     endif
 endif
 
 ECHO_PREFIX := $(ECHO_PREFIX) echo '[pjproject] '
+MULDEFS=-Wl,-z,muldefs
 
 ifndef $(TMPDIR)
     ifneq ($(wildcard /tmp),)
@@ -84,11 +88,11 @@ source/user.mak: source/.unpacked ./patches/user.mak
 	$(ECHO_PREFIX) Applying user.mak
 	$(CMD_PREFIX) cp -f ./patches/user.mak ./source/
 
-source/pjlib/include/pj/config_site.h: source/.unpacked ./patches/config_site.h
-	$(ECHO_PREFIX) Applying config_site.h
-	$(CMD_PREFIX) cp -f ./patches/config_site.h ./source/pjlib/include/pj/
+source/pjlib/include/pj/%.h : ./patches/%.h
+	$(ECHO_PREFIX) Applying custom include file $<
+	$(CMD_PREFIX) cp -f $< ./source/pjlib/include/pj/
 
-build.mak: source/.unpacked source/pjlib/include/pj/config_site.h source/user.mak Makefile.rules
+build.mak: source/.unpacked $(addprefix source/pjlib/include/pj/,$(notdir $(wildcard ./patches/*.h))) source/user.mak Makefile.rules
 	$(ECHO_PREFIX) Configuring with $(PJPROJECT_CONFIG_OPTS)
 	$(CMD_PREFIX) (cd source ; autoconf aconfigure.ac > aconfigure && ./aconfigure $(QUIET_CONFIGURE) $(PJPROJECT_CONFIG_OPTS))
 	@sed -r -e "/prefix|export PJ_SHARED_LIBRARIES|MACHINE_NAME|OS_NAME|HOST_NAME|CC_NAME|CROSS_COMPILE|LINUX_POLL/d" source/build.mak > build.mak
@@ -114,6 +118,7 @@ pjproject.symbols: source/pjlib/lib/libpj-$(TARGET_NAME).a
 	$(ECHO_PREFIX) Generating symbols
 	$(CMD_PREFIX) nm -Pog $(PJ_LIB_FILES) | sed -n -r -e "s/.+: ([pP][jJ][^ ]+) .+/\1/gp" | sort -u > pjproject.symbols
 
+source/pjsip-apps/bin/pjsua-$(TARGET_NAME): LDFLAGS += $(if $(findstring MALLOC_DEBUG,$(MENUSELECT_CFLAGS)),$(MULDEFS))
 source/pjsip-apps/bin/pjsua-$(TARGET_NAME): source/pjlib/lib/libpj-$(TARGET_NAME).a
 	$(ECHO_PREFIX) Compiling apps
 	$(CMD_PREFIX) $(SUBMAKE) -C source/pjsip-apps/build pjsua pjsystest $(REALLY_QUIET)
