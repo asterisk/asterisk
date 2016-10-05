@@ -4,7 +4,7 @@ SUBMAKE?=$(MAKE) --quiet --no-print-directory
 ECHO_PREFIX?=@
 CMD_PREFIX?=@
 QUIET_CONFIGURE=-q
-REALLY_QUIET=&>/dev/null
+REALLY_QUIET=>/dev/null 2>&1
 else
 SUBMAKE?=$(MAKE)
 ECHO_PREFIX?=@\#
