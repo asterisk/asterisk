@@ -21,6 +21,11 @@ Core
    Asterisk is compiled with the LOW_MEMORY compile time option enabled because
    the cache code does not exist.
 
+chan_sip
+------------------
+ * Calls to invalid extensions are now reported as an ACL failure security event
+   "no_extension_match".
+
 res_pjsip
 ------------------
  * The "identify_by" on endpoints can now be set to "ip" to restrict an endpoint
