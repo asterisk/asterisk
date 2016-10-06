@@ -103,6 +103,12 @@ app_confbridge
     instance, allows a channel to immediately exit the ConfBridge without having
     to wait for a leave announcement to play.
 
+app_dial
+------------------
+ * Added the "Q" option which sets the Q.850/Q.931 cause on unanswered channels
+   when another channel answers the call.  The default of ANSWERED_ELSEWHERE
+   is unchanged.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13 to Asterisk 14 --------------------
 ------------------------------------------------------------------------------
