@@ -83,6 +83,12 @@ Core
     notify systemd of its state using sd_notify. Use 'Type=notify' in
     asterisk.service.
 
+app_dial
+------------------
+ * Added the "Q" option which sets the Q.850/Q.931 cause on unanswered channels
+   when another channel answers the call.  The default of ANSWERED_ELSEWHERE
+   is unchanged.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13 to Asterisk 14 --------------------
 ------------------------------------------------------------------------------
