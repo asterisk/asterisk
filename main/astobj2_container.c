@@ -103,8 +103,11 @@ static int internal_ao2_link(struct ao2_container *self, void *obj_new, int flag
 	enum ao2_lock_req orig_lock;
 	struct ao2_container_node *node;
 
-	if (!is_ao2_object(obj_new) || !is_ao2_object(self)
-		|| !self->v_table || !self->v_table->new_node || !self->v_table->insert) {
+	if (!is_ao2_object(obj_new) || !is_ao2_object(self)) {
+		return 0;
+	}
+
+	if (!self->v_table || !self->v_table->new_node || !self->v_table->insert) {
 		/* Sanity checks. */
 		ast_assert(0);
 		return 0;
@@ -187,8 +190,6 @@ void *__ao2_unlink_debug(struct ao2_container *c, void *user_data, int flags,
 	const char *tag, const char *file, int line, const char *func)
 {
 	if (!is_ao2_object(user_data)) {
-		/* Sanity checks. */
-		ast_assert(0);
 		return NULL;
 	}
 
@@ -202,8 +203,6 @@ void *__ao2_unlink_debug(struct ao2_container *c, void *user_data, int flags,
 void *__ao2_unlink(struct ao2_container *c, void *user_data, int flags)
 {
 	if (!is_ao2_object(user_data)) {
-		/* Sanity checks. */
-		ast_assert(0);
 		return NULL;
 	}
 
@@ -268,7 +267,11 @@ static void *internal_ao2_traverse(struct ao2_container *self, enum search_flags
 	struct ao2_container *multi_container = NULL;
 	struct ao2_iterator *multi_iterator = NULL;
 
-	if (!is_ao2_object(self) || !self->v_table || !self->v_table->traverse_first
+	if (!is_ao2_object(self)) {
+		return NULL;
+	}
+
+	if (!self->v_table || !self->v_table->traverse_first
 		|| !self->v_table->traverse_next) {
 		/* Sanity checks. */
 		ast_assert(0);
@@ -512,7 +515,6 @@ void ao2_iterator_restart(struct ao2_iterator *iter)
 {
 	if (!is_ao2_object(iter->c)) {
 		ast_log(LOG_ERROR, "Iterator container is not valid.\n");
-		ast_assert(0);
 		return;
 	}
 
@@ -577,7 +579,11 @@ static void *internal_ao2_iterator_next(struct ao2_iterator *iter, const char *t
 	struct ao2_container_node *node;
 	void *ret;
 
-	if (!is_ao2_object(iter->c) || !iter->c->v_table || !iter->c->v_table->iterator_next) {
+	if (!is_ao2_object(iter->c)) {
+		return NULL;
+	}
+
+	if (!iter->c->v_table || !iter->c->v_table->iterator_next) {
 		/* Sanity checks. */
 		ast_assert(0);
 		return NULL;
@@ -748,7 +754,11 @@ struct ao2_container *__ao2_container_clone(struct ao2_container *orig, enum sea
 	int failed;
 
 	/* Create the clone container with the same properties as the original. */
-	if (!is_ao2_object(orig) || !orig->v_table || !orig->v_table->alloc_empty_clone) {
+	if (!is_ao2_object(orig)) {
+		return NULL;
+	}
+
+	if (!orig->v_table || !orig->v_table->alloc_empty_clone) {
 		/* Sanity checks. */
 		ast_assert(0);
 		return NULL;
@@ -779,7 +789,11 @@ struct ao2_container *__ao2_container_clone_debug(struct ao2_container *orig, en
 	int failed;
 
 	/* Create the clone container with the same properties as the original. */
-	if (!is_ao2_object(orig) || !orig->v_table || !orig->v_table->alloc_empty_clone_debug) {
+	if (!is_ao2_object(orig)) {
+		return NULL;
+	}
+
+	if (!orig->v_table || !orig->v_table->alloc_empty_clone_debug) {
 		/* Sanity checks. */
 		ast_assert(0);
 		return NULL;
