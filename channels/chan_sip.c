@@ -16819,7 +16819,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	}
 
 	if ((transport_type != AST_TRANSPORT_WS) && (transport_type != AST_TRANSPORT_WSS) &&
-	    (!ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) && !ast_test_flag(&peer->flags[0], SIP_NAT_RPORT_PRESENT))) {
+	    (!ast_test_flag(&peer->flags[0], SIP_NAT_FORCE_RPORT) && !ast_test_flag(&pvt->flags[0], SIP_NAT_RPORT_PRESENT))) {
 		/* use the data provided in the Contact header for call routing */
 		ast_debug(1, "Store REGISTER's Contact header for call routing.\n");
 		/* XXX This could block for a long time XXX */
