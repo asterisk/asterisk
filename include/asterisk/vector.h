@@ -371,6 +371,9 @@
 		if (cmp((vec)->elems[idx], __value)) {			\
 			cleanup((vec)->elems[idx]);			\
 			AST_VECTOR_REMOVE_UNORDERED((vec), idx);	\
+			if (idx > 0) {					\
+				--idx;					\
+			}						\
 			++count;					\
 		}							\
 	}								\
@@ -420,7 +423,10 @@
 	for (idx = 0; idx < (vec)->current; ++idx) {			\
 		if (cmp((vec)->elems[idx], __value)) {			\
 			cleanup((vec)->elems[idx]);			\
-			AST_VECTOR_REMOVE_ORDERED((vec), idx);	\
+			AST_VECTOR_REMOVE_ORDERED((vec), idx);		\
+			if (idx > 0) {					\
+				--idx;					\
+			}						\
 			++count;					\
 		}							\
 	}								\
@@ -445,7 +451,7 @@
 	for (idx = 0; idx < (vec)->current; ++idx) {			\
 		if (cmp((vec)->elems[idx], __value)) {			\
 			cleanup((vec)->elems[idx]);			\
-			AST_VECTOR_REMOVE_ORDERED((vec), idx);	\
+			AST_VECTOR_REMOVE_ORDERED((vec), idx);		\
 			res = 0;					\
 			break;						\
 		}							\
