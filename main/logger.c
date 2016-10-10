@@ -1867,6 +1867,10 @@ static void __attribute__((format(printf, 7, 0))) ast_log_full(int level, int su
 	int res = 0;
 	char datestring[256];
 
+	if (level == __LOG_VERBOSE && ast_opt_remote && ast_opt_exec) {
+		return;
+	}
+
 	if (!(buf = ast_str_thread_get(&log_buf, LOG_BUF_INIT_SIZE)))
 		return;
 
