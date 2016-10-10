@@ -91,6 +91,8 @@ static const char desc[] = "RADIUS CDR Backend";
 static const char name[] = "radius";
 static const char cdr_config[] = "cdr.conf";
 
+static const char *rc_cdr_log_name = "asterisk";
+
 #ifdef FREERADIUS_CLIENT
 static char radiuscfg[PATH_MAX] = "/etc/radiusclient/radiusclient.conf";
 #else
@@ -265,17 +267,7 @@ static int load_module(void)
 	} else
 		return AST_MODULE_LOAD_DECLINE;
 
-	/*
-	 * start logging
-	 *
-	 * NOTE: Yes this causes a slight memory leak if the module is
-	 * unloaded.  However, it is better than a crash if cdr_radius
-	 * and cel_radius are both loaded.
-	 */
-	tmp = ast_strdup("asterisk");
-	if (tmp) {
-		rc_openlog((char *) tmp);
-	}
+	rc_openlog(rc_cdr_log_name);
 
 	/* read radiusclient-ng config file */
 	if (!(rh = rc_read_config(radiuscfg))) {

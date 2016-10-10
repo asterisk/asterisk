@@ -89,6 +89,8 @@ static char radiuscfg[PATH_MAX] = "/etc/radiusclient/radiusclient.conf";
 static char radiuscfg[PATH_MAX] = "/etc/radiusclient-ng/radiusclient.conf";
 #endif
 
+static const char *rc_cel_log_name = "asterisk";
+
 static struct ast_flags global_flags = { RADIUS_FLAG_USEGMTIME | RADIUS_FLAG_LOGUNIQUEID | RADIUS_FLAG_LOGUSERFIELD };
 
 static rc_handle *rh = NULL;
@@ -237,17 +239,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	/*
-	 * start logging
-	 *
-	 * NOTE: Yes this causes a slight memory leak if the module is
-	 * unloaded.  However, it is better than a crash if cdr_radius
-	 * and cel_radius are both loaded.
-	 */
-	tmp = ast_strdup("asterisk");
-	if (tmp) {
-		rc_openlog((char *) tmp);
-	}
+	rc_openlog(rc_cel_log_name);
 
 	/* read radiusclient-ng config file */
 	if (!(rh = rc_read_config(radiuscfg))) {
