@@ -1293,6 +1293,16 @@ static int unload_module(void)
 {
 	ast_cli_unregister_multiple(config_wizard_cli, ARRAY_LEN(config_wizard_cli));
 	ast_sorcery_global_observer_remove(&global_observer);
+		
+	AST_VECTOR_RW_RDLOCK(&object_type_wizards);
+	for(int idx = 0; idx < AST_VECTOR_SIZE(&object_type_wizards); ++idx) {
+		struct object_type_wizard *otw = AST_VECTOR_GET(&object_type_wizards, idx);
+		if (otw){
+			ast_free(otw);
+		}		
+	}
+	AST_VECTOR_RW_UNLOCK(&object_type_wizards);
+
 	AST_VECTOR_REMOVE_CMP_UNORDERED(&object_type_wizards, NULL, NOT_EQUALS, OTW_DELETE_CB);
 	AST_VECTOR_RW_FREE(&object_type_wizards);
 
