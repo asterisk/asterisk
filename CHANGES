@@ -34,6 +34,16 @@ res_pjsip
    preferred codec rather than advertising all joint codec capabilities.
    This limits the other side's codec choice to exactly what we prefer.
 
+cdr_radius
+------------------
+ * To fix a memory leak the syslog channel is now empty if it has not been set
+   and used by a syslog channel in the logger.
+
+cel_radius
+------------------
+ * To fix a memory leak the syslog channel is now empty if it has not been set
+   and used by a syslog channel in the logger.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 14.1.0 to Asterisk 14.2.0 ----------
 ------------------------------------------------------------------------------
