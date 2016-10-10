@@ -76,6 +76,8 @@ int __ast_fdleak_dup(int oldfd, const char *file, int line, const char *func);
 #endif
 #endif
 
+static const char *ast_openlog_name = "asterisk"; /*!< Const string to use by rc_openlog(), openlog() and other syslog calls */
+
 int ast_set_priority(int);			/*!< Provided by asterisk.c */
 int ast_fd_init(void);				/*!< Provided by astfd.c */
 int ast_pbx_init(void);				/*!< Provided by pbx.c */

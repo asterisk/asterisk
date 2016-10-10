@@ -237,17 +237,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
-	/*
-	 * start logging
-	 *
-	 * NOTE: Yes this causes a slight memory leak if the module is
-	 * unloaded.  However, it is better than a crash if cdr_radius
-	 * and cel_radius are both loaded.
-	 */
-	tmp = ast_strdup("asterisk");
-	if (tmp) {
-		rc_openlog((char *) tmp);
-	}
+	rc_openlog(ast_openlog_name);
 
 	/* read radiusclient-ng config file */
 	if (!(rh = rc_read_config(radiuscfg))) {
