@@ -63,13 +63,13 @@ rtpend=20000
 ; to optimize the ICE process where a system has multiple host address ranges
 ; and/or physical interfaces and certain of them are not expected to be used
 ; for RTP. For example, VPNs and local interconnections may not be suitable or
-; necessary for ICE. Multiple subnets may be listed. If left unconfigured, 
+; necessary for ICE. Multiple subnets may be listed. If left unconfigured,
 ; all discovered host addresses are used.
-; 
+;
 ; e.g. blackice = 192.168.1.0/255.255.255.0
 ;      blackice = 10.32.77.0/255.255.255.0
 ;
-; blackice = 
+; blackice =
 ;
 [ice_host_candidates]
 ;

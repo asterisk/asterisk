@@ -2450,13 +2450,33 @@ static int rtp_learning_rtp_seq_update(struct rtp_learning_info *info, uint16_t 
 }
 
 #ifdef HAVE_PJPROJECT
+/*!
+ * \internal
+ * \brief Checks an address against the blackice list (aka ICE blacklist)
+ * \note If there is no blackice list, always returns 0
+ *
+ * \param address The address to consider
+ * \retval 0 if address is not blackice listed
+ * \retval 1 if address is blackice listed
+ */
+static int rtp_address_is_blackice(const pj_sockaddr_t *address) {
+	char buf[PJ_INET6_ADDRSTRLEN];
+	struct ast_sockaddr saddr;
+	int result = 1;
+	ast_sockaddr_parse(&saddr, pj_sockaddr_print(address, buf, sizeof(buf), 0), 0);
+	ast_rwlock_rdlock(&blackice_lock);
+	if ((blackice == NULL) || (ast_apply_ha(blackice, &saddr) == AST_SENSE_ALLOW)) {
+		result = 0;
+	}
+	ast_rwlock_unlock(&blackice_lock);
+	return result;
+}
+
 static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct ast_rtp *rtp, struct ast_sockaddr *addr, int port, int component,
 				      int transport)
 {
 	pj_sockaddr address[16];
 	unsigned int count = PJ_ARRAY_SIZE(address), pos = 0;
-	struct ast_sockaddr saddr;
-	char buf[PJ_INET6_ADDRSTRLEN];
 	int basepos = -1;
 
 	/* Add all the local interface IP addresses */
@@ -2471,19 +2491,13 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 	host_candidate_overrides_apply(count, address);
 
 	for (pos = 0; pos < count; pos++) {
-		ast_sockaddr_parse(&saddr, pj_sockaddr_print(&address[pos], buf, sizeof(buf), 0), 0);
-		/* Remove blacklisted addresses by testing against blackice subnet list */
-		ast_rwlock_rdlock(&blackice_lock);
-		if ((blackice == NULL) || (ast_apply_ha(blackice, &saddr) == AST_SENSE_ALLOW)) {
-			ast_rwlock_unlock(&blackice_lock);
+		if (!rtp_address_is_blackice(&address[pos])) {
 			if (basepos == -1) {
 				basepos = pos;
 			}
 			pj_sockaddr_set_port(&address[pos], port);
 			ast_rtp_ice_add_cand(rtp, component, transport, PJ_ICE_CAND_TYPE_HOST, 65535, &address[pos], &address[pos], NULL,
 				     pj_sockaddr_get_len(&address[pos]));
-		} else {
-			ast_rwlock_unlock(&blackice_lock);
 		}
 	}
 	if (basepos == -1) {
@@ -2506,18 +2520,11 @@ static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct 
 
 			pj_sockaddr_init(pj_AF_INET(), &ext, &mapped, ntohs(answer.sin_port));
 
-			/* If the returned address is the same as one of our local candidates, don't send the srflx */
+			/* If the returned address is the same as one of our host candidates, don't send the srflx */
 			for (pos = 0; pos < count; pos++) {
-				if (pj_sockaddr_cmp(&address[pos], &ext) == 0) {
-					ast_sockaddr_parse(&saddr, pj_sockaddr_print(&address[pos], buf, sizeof(buf), 0), 0);
-					ast_rwlock_rdlock(&blackice_lock);
-					if ((blackice == NULL) || (ast_apply_ha(blackice, &saddr) == AST_SENSE_ALLOW)) {
-						ast_rwlock_unlock(&blackice_lock);
-						srflx = 0;
-						break;
-					} else {
-						ast_rwlock_unlock(&blackice_lock);
-					}
+				if ((pj_sockaddr_cmp(&address[pos], &ext) == 0) && !rtp_address_is_blackice(&address[pos])) {
+					srflx = 0;
+					break;
 				}
 			}
 
