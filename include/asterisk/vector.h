@@ -366,11 +366,17 @@
 #define AST_VECTOR_REMOVE_ALL_CMP_UNORDERED(vec, value, cmp, cleanup) ({	\
 	int count = 0;							\
 	size_t idx;							\
+	bool deleted = false;						\
 	typeof(value) __value = (value);				\
 	for (idx = 0; idx < (vec)->current; ++idx) {			\
+		if (deleted) {						\
+			deleted = false;				\
+			--idx;						\
+		}							\
 		if (cmp((vec)->elems[idx], __value)) {			\
 			cleanup((vec)->elems[idx]);			\
 			AST_VECTOR_REMOVE_UNORDERED((vec), idx);	\
+			deleted = true;					\
 			++count;					\
 		}							\
 	}								\
@@ -416,11 +422,17 @@
 #define AST_VECTOR_REMOVE_ALL_CMP_ORDERED(vec, value, cmp, cleanup) ({	\
 	int count = 0;							\
 	size_t idx;							\
+	bool deleted = false;						\
 	typeof(value) __value = (value);				\
 	for (idx = 0; idx < (vec)->current; ++idx) {			\
+		if (deleted) {						\
+			deleted = false;				\
+			--idx;						\
+		}							\
 		if (cmp((vec)->elems[idx], __value)) {			\
 			cleanup((vec)->elems[idx]);			\
-			AST_VECTOR_REMOVE_ORDERED((vec), idx);	\
+			AST_VECTOR_REMOVE_ORDERED((vec), idx);		\
+			deleted = true;					\
 			++count;					\
 		}							\
 	}								\
@@ -445,7 +457,7 @@
 	for (idx = 0; idx < (vec)->current; ++idx) {			\
 		if (cmp((vec)->elems[idx], __value)) {			\
 			cleanup((vec)->elems[idx]);			\
-			AST_VECTOR_REMOVE_ORDERED((vec), idx);	\
+			AST_VECTOR_REMOVE_ORDERED((vec), idx);		\
 			res = 0;					\
 			break;						\
 		}							\
