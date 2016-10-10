@@ -285,6 +285,7 @@ static int load_config(void)
 
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		ast_odbc_release_obj(obj);
+		ast_config_destroy(cfg);
 
 		if (AST_LIST_FIRST(&(tableptr->columns)))
 			AST_RWLIST_INSERT_TAIL(&odbc_tables, tableptr, list);
