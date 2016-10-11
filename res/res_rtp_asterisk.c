@@ -4284,6 +4284,7 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance, unsigned int 
 	int reconstruct = ntohl(rtpheader[0]);
 	struct ast_sockaddr remote_address = { {0,} };
 	int ice;
+	unsigned int timestamp = ntohl(rtpheader[1]);
 
 	/* Get fields from packet */
 	payload = (reconstruct & 0x7f0000) >> 16;
@@ -4310,6 +4311,22 @@ static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance, unsigned int 
 	/* If the payload coming in is not one of the negotiated ones then send it to the core, this will cause formats to change and the bridge to break */
 	if (ast_rtp_codecs_find_payload_code(ast_rtp_instance_get_codecs(instance1), bridged_payload) == -1) {
 		ast_debug(1, "Unsupported payload type received \n");
+		return -1;
+	}
+
+	/* If bridged peer is in dtmf, feed all packets to core until it finishes to avoid infinite dtmf */
+	if (bridged->sending_digit) {
+		ast_debug(1, "Feeding packets to core until DTMF finishes\n");
+		return -1;
+	}
+
+	/*
+	 * Even if we are no longer in dtmf, we could still be receiving
+	 * re-transmissions of the last dtmf end still.  Feed those to the
+	 * core so they can be filtered accordingly.
+	 */
+	if (rtp->last_end_timestamp == timestamp) {
+		ast_debug(1, "Feeding packet with duplicate timestamp to core\n");
 		return -1;
 	}
 
