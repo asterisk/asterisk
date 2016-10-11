@@ -269,6 +269,127 @@ const char *ast_json_typename(enum ast_json_type type)
 	return "?";
 }
 
+/* Ported from libjansson utf.c:utf8_check_first() */
+static size_t json_utf8_check_first(char byte)
+{
+	unsigned char ch = (unsigned char) byte;
+
+	if (ch < 0x80) {
+		return 1;
+	}
+
+	if (0x80 <= ch && ch <= 0xBF) {
+		/* second, third or fourth byte of a multi-byte
+		   sequence, i.e. a "continuation byte" */
+		return 0;
+	} else if (ch == 0xC0 || ch == 0xC1) {
+		/* overlong encoding of an ASCII byte */
+		return 0;
+	} else if (0xC2 <= ch && ch <= 0xDF) {
+		/* 2-byte sequence */
+		return 2;
+	} else if (0xE0 <= ch && ch <= 0xEF) {
+		/* 3-byte sequence */
+		return 3;
+	} else if (0xF0 <= ch && ch <= 0xF4) {
+		/* 4-byte sequence */
+		return 4;
+	} else { /* ch >= 0xF5 */
+		/* Restricted (start of 4-, 5- or 6-byte sequence) or invalid
+		   UTF-8 */
+		return 0;
+	}
+}
+
+/* Ported from libjansson utf.c:utf8_check_full() */
+static size_t json_utf8_check_full(const char *str, size_t len)
+{
+	size_t pos;
+	int32_t value;
+	unsigned char ch = (unsigned char) str[0];
+
+	if (len == 2) {
+		value = ch & 0x1F;
+	} else if (len == 3) {
+		value = ch & 0xF;
+	} else if (len == 4) {
+		value = ch & 0x7;
+	} else {
+		return 0;
+	}
+
+	for (pos = 1; pos < len; ++pos) {
+		ch = (unsigned char) str[pos];
+		if (ch < 0x80 || ch > 0xBF) {
+			/* not a continuation byte */
+			return 0;
+		}
+
+		value = (value << 6) + (ch & 0x3F);
+	}
+
+	if (value > 0x10FFFF) {
+		/* not in Unicode range */
+		return 0;
+	} else if (0xD800 <= value && value <= 0xDFFF) {
+		/* invalid code point (UTF-16 surrogate halves) */
+		return 0;
+	} else if ((len == 2 && value < 0x80)
+		|| (len == 3 && value < 0x800)
+		|| (len == 4 && value < 0x10000)) {
+		/* overlong encoding */
+		return 0;
+	}
+
+	return 1;
+}
+
+int ast_json_utf8_check_len(const char *str, size_t len)
+{
+	size_t pos;
+	size_t count;
+	int res = 1;
+
+	if (!str) {
+		return 0;
+	}
+
+	/*
+	 * Since the json library does not make the check function
+	 * public we recreate/copy the function in our interface
+	 * module.
+	 *
+	 * Loop ported from libjansson utf.c:utf8_check_string()
+	 */
+	for (pos = 0; pos < len; pos += count) {
+		count = json_utf8_check_first(str[pos]);
+		if (count == 0) {
+			res = 0;
+			break;
+		} else if (count > 1) {
+			if (count > len - pos) {
+				/* UTF-8 needs more than we have left in the string. */
+				res = 0;
+				break;
+			}
+
+			if (!json_utf8_check_full(&str[pos], count)) {
+				res = 0;
+				break;
+			}
+		}
+	}
+
+	if (!res) {
+		ast_debug(1, "String '%.*s' is not UTF-8 for json conversion\n", (int) len, str);
+	}
+	return res;
+}
+
+int ast_json_utf8_check(const char *str)
+{
+	return str ? ast_json_utf8_check_len(str, strlen(str)) : 0;
+}
 
 struct ast_json *ast_json_true(void)
 {
