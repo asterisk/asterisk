@@ -217,6 +217,33 @@ const char *ast_json_typename(enum ast_json_type type);
 /*!@{*/
 
 /*!
+ * \brief Check the string of the given length for UTF-8 format.
+ * \since 13.12.0
+ *
+ * \param str String to check.
+ * \param len Length of string to check.
+ *
+ * \retval 0 if not UTF-8 encoded or str is NULL.
+ * \retval 1 if UTF-8 encoded.
+ */
+int ast_json_utf8_check_len(const char *str, size_t len);
+
+/*!
+ * \brief Check the nul terminated string for UTF-8 format.
+ * \since 13.12.0
+ *
+ * \param str String to check.
+ *
+ * \retval 0 if not UTF-8 encoded or str is NULL.
+ * \retval 1 if UTF-8 encoded.
+ */
+int ast_json_utf8_check(const char *str);
+
+/*!@}*/
+
+/*!@{*/
+
+/*!
  * \brief Get the JSON true value.
  * \since 12.0.0
  *
