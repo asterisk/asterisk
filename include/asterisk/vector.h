@@ -367,11 +367,13 @@
 	int count = 0;							\
 	size_t idx;							\
 	typeof(value) __value = (value);				\
-	for (idx = 0; idx < (vec)->current; ++idx) {			\
+	for (idx = 0; idx < (vec)->current; ) {				\
 		if (cmp((vec)->elems[idx], __value)) {			\
 			cleanup((vec)->elems[idx]);			\
 			AST_VECTOR_REMOVE_UNORDERED((vec), idx);	\
 			++count;					\
+		} else {						\
+			++idx;						\
 		}							\
 	}								\
 	count;								\
@@ -417,14 +419,16 @@
 	int count = 0;							\
 	size_t idx;							\
 	typeof(value) __value = (value);				\
-	for (idx = 0; idx < (vec)->current; ++idx) {			\
+	for (idx = 0; idx < (vec)->current; ) {				\
 		if (cmp((vec)->elems[idx], __value)) {			\
 			cleanup((vec)->elems[idx]);			\
-			AST_VECTOR_REMOVE_ORDERED((vec), idx);	\
+			AST_VECTOR_REMOVE_ORDERED((vec), idx);		\
 			++count;					\
+		} else {						\
+			++idx;						\
 		}							\
 	}								\
-	oount;								\
+	count;								\
 })
 
 /*!
@@ -445,7 +449,7 @@
 	for (idx = 0; idx < (vec)->current; ++idx) {			\
 		if (cmp((vec)->elems[idx], __value)) {			\
 			cleanup((vec)->elems[idx]);			\
-			AST_VECTOR_REMOVE_ORDERED((vec), idx);	\
+			AST_VECTOR_REMOVE_ORDERED((vec), idx);		\
 			res = 0;					\
 			break;						\
 		}							\
