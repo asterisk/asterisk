@@ -849,8 +849,10 @@ int ast_parse_digest(const char *digest, struct ast_http_digest *d, int request,
 #define DO_CRASH_NORETURN
 #endif
 
+void DO_CRASH_NORETURN __ast_assert_failed(int condition, const char *condition_str,
+	const char *file, int line, const char *function);
+
 #ifdef AST_DEVMODE
-void DO_CRASH_NORETURN __ast_assert_failed(int condition, const char *condition_str, const char *file, int line, const char *function);
 #define ast_assert(a) _ast_assert(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
 static void force_inline _ast_assert(int condition, const char *condition_str, const char *file, int line, const char *function)
 {
