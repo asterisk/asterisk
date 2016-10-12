@@ -7199,12 +7199,10 @@ static void set_queue_member_pause(struct call_queue *q, struct member *mem, con
 	}
 
 	mem->paused = paused;
-	if (paused) {
-		if (!ast_strlen_zero(reason)) {
-			ast_copy_string(mem->reason_paused, reason, sizeof(mem->reason_paused));
-		}
+	if (paused && !ast_strlen_zero(reason)) {
+		ast_copy_string(mem->reason_paused, reason, sizeof(mem->reason_paused));
 	} else {
-		ast_copy_string(mem->reason_paused, "", sizeof(mem->reason_paused));
+		mem->reason_paused[0] = '\0';
 	}
 
 	ast_devstate_changed(mem->paused ? QUEUE_PAUSED_DEVSTATE : QUEUE_UNPAUSED_DEVSTATE,
