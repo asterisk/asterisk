@@ -1656,8 +1656,10 @@ static struct ast_json *units_to_json(const struct ast_aoc_decoded *decoded)
 static struct ast_json *currency_to_json(const char *name, int cost,
 					 enum ast_aoc_currency_multiplier mult)
 {
-	return ast_json_pack("{s:s, s:i, s:s}",	"Name", name,
-			     "Cost", cost, "Multiplier", aoc_multiplier_str(mult));
+	return ast_json_pack("{s:s, s:i, s:s}",
+		"Name", AST_JSON_UTF8_VALIDATE(name),
+		"Cost", cost,
+		"Multiplier", aoc_multiplier_str(mult));
 }
 
 static struct ast_json *charge_to_json(const struct ast_aoc_decoded *decoded)
@@ -1692,9 +1694,8 @@ static struct ast_json *association_to_json(const struct ast_aoc_decoded *decode
 {
 	switch (decoded->charging_association.charging_type) {
 	case AST_AOC_CHARGING_ASSOCIATION_NUMBER:
-		return ast_json_pack(
-			"{s:s, s:i}",
-			"Number", decoded->charging_association.charge.number.number,
+		return ast_json_pack("{s:s, s:i}",
+			"Number", AST_JSON_UTF8_VALIDATE(decoded->charging_association.charge.number.number),
 			"Plan", decoded->charging_association.charge.number.plan);
 	case AST_AOC_CHARGING_ASSOCIATION_ID:
 		return ast_json_pack(
@@ -1740,14 +1741,12 @@ static struct ast_json *s_to_json(const struct ast_aoc_decoded *decoded)
 				decoded->aoc_s_entries[i].rate.duration.amount,
 				decoded->aoc_s_entries[i].rate.duration.multiplier);
 
-			time = ast_json_pack(
-				"{s:i, s:s}",
+			time = ast_json_pack("{s:i, s:i}",
 				"Length", decoded->aoc_s_entries[i].rate.duration.time,
 				"Scale", decoded->aoc_s_entries[i].rate.duration.time_scale);
 
 			if (decoded->aoc_s_entries[i].rate.duration.granularity_time) {
-				granularity = ast_json_pack(
-					"{s:i, s:s}",
+				granularity = ast_json_pack("{s:i, s:i}",
 					"Length", decoded->aoc_s_entries[i].rate.duration.granularity_time,
 					"Scale", decoded->aoc_s_entries[i].rate.duration.granularity_time_scale);
 			}
