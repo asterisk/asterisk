@@ -1597,11 +1597,26 @@ AST_TEST_DEFINE(json_test_clever_circle)
 	return AST_TEST_PASS;
 }
 
+static int test_name_number(const char *name, const char *number)
+{
+	int res;
+	struct ast_json *uut;
+	struct ast_json *expected;
+
+	expected = ast_json_pack("{s: s, s: s}",
+		"name", name ?: "",
+		"number", number ?: "");
+	uut = ast_json_name_number(name, number);
+
+	res = ast_json_equal(expected, uut);
+
+	ast_json_unref(expected);
+	ast_json_unref(uut);
+	return res;
+}
+
 AST_TEST_DEFINE(json_test_name_number)
 {
-	RAII_VAR(struct ast_json *, uut, NULL, ast_json_unref);
-	RAII_VAR(struct ast_json *, expected, NULL, ast_json_unref);
-
 	switch (cmd) {
 	case TEST_INIT:
 		info->name = "name_number";
@@ -1613,15 +1628,10 @@ AST_TEST_DEFINE(json_test_name_number)
 		break;
 	}
 
-	ast_test_validate(test, NULL == ast_json_name_number("name", NULL));
-	ast_test_validate(test, NULL == ast_json_name_number(NULL, "1234"));
-	ast_test_validate(test, NULL == ast_json_name_number(NULL, NULL));
-
-	expected = ast_json_pack("{s: s, s: s}",
-				 "name", "Jenny",
-				 "number", "867-5309");
-	uut = ast_json_name_number("Jenny", "867-5309");
-	ast_test_validate(test, ast_json_equal(expected, uut));
+	ast_test_validate(test, test_name_number("name", NULL));
+	ast_test_validate(test, test_name_number(NULL, "1234"));
+	ast_test_validate(test, test_name_number(NULL, NULL));
+	ast_test_validate(test, test_name_number("Jenny", "867-5309"));
 
 	return AST_TEST_PASS;
 }
