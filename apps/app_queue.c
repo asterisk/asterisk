@@ -5584,12 +5584,12 @@ static void send_agent_complete(const char *queuename, struct ast_channel_snapsh
 	}
 
 	blob = ast_json_pack("{s: s, s: s, s: s, s: i, s: i, s: s}",
-			     "Queue", queuename,
-			     "Interface", member->interface,
-			     "MemberName", member->membername,
-			     "HoldTime", (long)(callstart - holdstart),
-			     "TalkTime", (long)(time(NULL) - callstart),
-			     "Reason", reason);
+		"Queue", queuename,
+		"Interface", member->interface,
+		"MemberName", member->membername,
+		"HoldTime", (long)(callstart - holdstart),
+		"TalkTime", (long)(time(NULL) - callstart),
+		"Reason", reason ?: "");
 
 	queue_publish_multi_channel_snapshot_blob(ast_queue_topic(queuename), caller, peer,
 			queue_agent_complete_type(), blob);
