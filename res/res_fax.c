@@ -1415,11 +1415,13 @@ static int report_fax_status(struct ast_channel *chan, struct ast_fax_session_de
 	}
 
 	json_object = ast_json_pack("{s: s, s: s, s: s, s: s, s: o}",
-			"type", "status",
-			"operation", (details->caps & AST_FAX_TECH_GATEWAY) ? "gateway" : (details->caps & AST_FAX_TECH_RECEIVE) ? "receive" : "send",
-			"status", status,
-			"local_station_id", details->localstationid,
-			"filenames", json_filenames);
+		"type", "status",
+		"operation", (details->caps & AST_FAX_TECH_GATEWAY)
+			? "gateway"
+			: (details->caps & AST_FAX_TECH_RECEIVE) ? "receive" : "send",
+		"status", status,
+		"local_station_id", AST_JSON_UTF8_VALIDATE(details->localstationid),
+		"filenames", json_filenames);
 	if (!json_object) {
 		return -1;
 	}
