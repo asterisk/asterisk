@@ -1853,10 +1853,10 @@ static int notify_new_message(struct ast_channel *chan, const char *templatename
 	}
 	mwi_state->snapshot = ast_channel_snapshot_get_latest(ast_channel_uniqueid(chan));
 
-	json_object = ast_json_pack("{s: s, s: s}",
-			"Event", "MiniVoiceMail"
-			"Action", "SentNotification",
-			"Counter", counter);
+	json_object = ast_json_pack("{s: s, s: s, s: s}",
+		"Event", "MiniVoiceMail",
+		"Action", "SentNotification",
+		"Counter", counter ?: "");
 	if (!json_object) {
 		goto notify_cleanup;
 	}
