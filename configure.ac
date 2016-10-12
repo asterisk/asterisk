@@ -284,16 +284,27 @@ AC_PATH_PROG([XMLSTARLET], [xmlstarlet], :)
 AC_PATH_PROG([BASH], [bash], :)
 AC_PATH_PROG([GIT], [git], :)
 AC_PATH_PROG([ALEMBIC], [alembic], :)
+AC_PATH_PROG([BZIP2], [bzip2], :)
+AC_PATH_PROG([TAR], [tar], :)
+AC_PATH_PROG([PATCH], [patch], :)
+AC_PATH_PROG([SED], [sed], :)
+AC_PATH_PROG([NM], [nm], :)
+
 if test "${WGET}" != ":" ; then
   DOWNLOAD=${WGET}
+  DOWNLOAD_TO_STDOUT="${WGET} -O-"
 else if test "${CURL}" != ":" ; then
   DOWNLOAD="${CURL} -O --progress-bar -w \"%{url_effective}\n\""
+  DOWNLOAD_TO_STDOUT="${CURL} -L --progress-bar -w \"%{url_effective}\n\""
 else
   AC_PATH_PROG([FETCH], [fetch], [:])
   DOWNLOAD=${FETCH}
+  DOWNLOAD_TO_STDOUT="${FETCH} -o-"
 fi
 fi
+
 AC_SUBST(DOWNLOAD)
+AC_SUBST(DOWNLOAD_TO_STDOUT)
 AC_PATH_PROG([LDCONFIG], [ldconfig], :)
 AC_PATH_PROG([SHA1SUM], [sha1sum], $ac_aux_dir/build_tools/sha1sum-sh)
 AC_PATH_PROG([OPENSSL], [openssl], :)
@@ -404,6 +415,19 @@ AC_SUBST(AST_CODE_COVERAGE)
 AST_CHECK_RAII()
 AST_CHECK_STRSEP_ARRAY_BOUNDS()
 
+PJPROJECT_BUNDLED=no
+AH_TEMPLATE(m4_bpatsubst([[HAVE_PJPROJECT_BUNDLED]], [(.*)]), [Define to 1 when using the bundled pjproject.])
+
+AC_ARG_WITH([pjproject-bundled],
+	[AS_HELP_STRING([--with-pjproject-bundled],
+		[Use bundled pjproject libraries])],
+	[case "${enableval}" in
+	      n|no) PJPROJECT_BUNDLED=no ;;
+	      *) PJPROJECT_BUNDLED=yes ;;
+	esac])
+
+THIRD_PARTY_CONFIGURE()
+
 # AST_EXT_LIB_SETUP is used to tell configure to handle variables for
 # various packages.
 # $1 is the prefix for the variables in makeopts and autoconfig.h
@@ -472,28 +496,8 @@ AST_EXT_LIB_SETUP([OSPTK], [OSP Toolkit], [osptk])
 AST_EXT_LIB_SETUP([OSS], [Open Sound System], [oss])
 AST_EXT_LIB_SETUP([PGSQL], [PostgreSQL], [postgres])
 
+if test "x${PBX_PJPROJECT}" != "x1" ; then
 AST_EXT_LIB_SETUP([PJPROJECT], [PJPROJECT], [pjproject])
-PJPROJECT_BUNDLED=no
-AH_TEMPLATE(m4_bpatsubst([[HAVE_PJPROJECT_BUNDLED]], [(.*)]), [Define to 1 when using the bundled pjproject.])
-
-AC_ARG_WITH([pjproject-bundled],
-	[AS_HELP_STRING([--with-pjproject-bundled],
-		[Use bundled pjproject libraries])],
-	[case "${enableval}" in
-	      n|no) PJPROJECT_BUNDLED=no ;;
-	      *) PJPROJECT_BUNDLED=yes ;;
-	esac])
-AC_SUBST(PJPROJECT_BUNDLED)
-
-if test "$PJPROJECT_BUNDLED" = "yes" -a "${ac_mandatory_list#*PJPROJECT*}" != "$ac_mandatory_list" ; then
-   AC_MSG_ERROR(--with-pjproject and --with-pjproject-bundled can't both be specified)
-fi
-
-if test "$PJPROJECT_BUNDLED" = "yes" ; then
-   ac_mandatory_list="$ac_mandatory_list PJPROJECT"
-   PJPROJECT_DIR="${ac_top_build_prefix}third-party/pjproject"
-fi
-
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_DLG_CREATE_UAS_AND_INC_LOCK], [PJSIP Dialog Create UAS with Incremented Lock], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJ_TRANSACTION_GRP_LOCK], [PJSIP Transaction Group Lock Support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_REPLACE_MEDIA_STREAM], [PJSIP Media Stream Replacement Support], [PJPROJECT], [pjsip])
@@ -503,6 +507,7 @@ AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_EXTERNAL_RESOLVER], [PJSIP External Resolver S
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_TLS_TRANSPORT_PROTO], [PJSIP TLS Transport proto field support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_EVSUB_GRP_LOCK], [PJSIP EVSUB Group Lock support], [PJPROJECT], [pjsip])
 AST_EXT_LIB_SETUP_OPTIONAL([PJSIP_INV_SESSION_REF], [PJSIP INVITE Session Reference Count support], [PJPROJECT], [pjsip])
+fi
 
 AST_EXT_LIB_SETUP([POPT], [popt], [popt])
 AST_EXT_LIB_SETUP([PORTAUDIO], [PortAudio], [portaudio])
@@ -2198,9 +2203,7 @@ if test "${PG_CONFIG}" != No; then
 fi
 
 if test "$USE_PJPROJECT" != "no" ; then
-   if test "$PJPROJECT_BUNDLED" = "yes" ; then
-       PJPROJECT_CONFIGURE([$PJPROJECT_DIR])
-   else
+   if test "$PJPROJECT_BUNDLED" = "no" ; then
       AST_PKG_CONFIG_CHECK([PJPROJECT], [libpjproject])
 
       AST_EXT_LIB_CHECK([PJSIP_DLG_CREATE_UAS_AND_INC_LOCK], [pjsip], [pjsip_dlg_create_uas_and_inc_lock], [pjsip.h], [$PJPROJECT_LIBS], [$PJPROJECT_CFLAGS])

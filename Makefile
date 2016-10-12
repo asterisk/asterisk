@@ -99,6 +99,10 @@ export WGET_EXTRA_ARGS
 export LDCONFIG
 export LDCONFIG_FLAGS
 export PYTHON
+export TAR
+export PATCH
+export SED
+export NM
 
 # makeopts is required unless the goal is clean or distclean
 ifeq ($(findstring clean,$(MAKECMDGOALS)),)
