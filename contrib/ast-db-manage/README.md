@@ -9,6 +9,7 @@ This is implemented as a set of repositories that contain database schema
 migrations, using [Alembic](http://alembic.readthedocs.org).  The existing
 repositories include:
 
+ * `cdr` - Table used for Asterisk to store CDR records
  * `config` - Tables used for Asterisk realtime configuration
  * `voicemail` - Tables used for `ODBC_STOARGE` of voicemail messages
 
