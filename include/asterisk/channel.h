@@ -2017,6 +2017,16 @@ int ast_set_write_format_from_cap(struct ast_channel *chan, struct ast_format_ca
 int ast_set_write_format(struct ast_channel *chan, struct ast_format *format);
 
 /*!
+ * \brief Sets write format for a channel.
+ * All internal data will than be handled in an interleaved format. (needed by binaural opus)
+ *
+ * \param chan channel to change
+ * \param format format to set for writing
+ * \return Returns 0 on success, -1 on failure
+ */
+int ast_set_write_format_interleaved_stereo(struct ast_channel *chan, struct ast_format *format);
+
+/*!
  * \brief Sends text to a channel
  *
  * \param chan channel to act upon
