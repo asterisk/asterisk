@@ -262,13 +262,13 @@ static void phase_e_handler(t30_state_t *f, void *user_data, int result)
 	}
 	ast_json_ref(json_filenames);
 	json_object = ast_json_pack("{s: s, s: s, s: s, s: i, s: i, s: i, s: o}",
-			"type", s->direction ? "send" : "receive",
-			"remote_station_id", far_ident,
-			"local_station_id", local_ident,
-			"fax_pages", pages_transferred,
-			"fax_resolution", stat.y_resolution,
-			"fax_bitrate", stat.bit_rate,
-			"filenames", json_filenames);
+		"type", s->direction ? "send" : "receive",
+		"remote_station_id", AST_JSON_UTF8_VALIDATE(far_ident),
+		"local_station_id", AST_JSON_UTF8_VALIDATE(local_ident),
+		"fax_pages", pages_transferred,
+		"fax_resolution", stat.y_resolution,
+		"fax_bitrate", stat.bit_rate,
+		"filenames", json_filenames);
 	message = ast_channel_blob_create_from_cache(ast_channel_uniqueid(s->chan), ast_channel_fax_type(), json_object);
 	if (!message) {
 		return;
