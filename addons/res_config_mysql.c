@@ -126,7 +126,6 @@ static char *handle_cli_realtime_mysql_status(struct ast_cli_entry *e, int cmd, 
 static char *handle_cli_realtime_mysql_cache(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static int load_mysql_config(struct ast_config *config, const char *category, struct mysql_conn *conn);
 static int require_mysql(const char *database, const char *tablename, va_list ap);
-static int internal_require(const char *database, const char *table, ...) attribute_sentinel;
 
 static struct ast_cli_entry cli_realtime_mysql_status[] = {
 	AST_CLI_DEFINE(handle_cli_realtime_mysql_status, "Shows connection information for the MySQL RealTime driver"),
@@ -164,16 +163,6 @@ static struct mysql_conn *find_database(const char *database, int for_write)
 }
 
 #define release_database(a)	ast_mutex_unlock(&(a)->lock)
-
-static int internal_require(const char *database, const char *table, ...)
-{
-	va_list ap;
-	int res;
-	va_start(ap, table);
-	res = require_mysql(database, table, ap);
-	va_end(ap);
-	return res;
-}
 
 static void destroy_table(struct tables *table)
 {
@@ -600,11 +589,6 @@ static int update_mysql(const char *database, const char *tablename, const char 
 	ESCAPE_STRING(buf, field->value);
 	ast_str_set(&sql, 0, "UPDATE %s SET `%s` = '%s'", tablename, field->name, ast_str_buffer(buf));
 
-	/* If the column length isn't long enough, give a chance to lengthen it. */
-	if (strncmp(column->type, "char", 4) == 0 || strncmp(column->type, "varchar", 7) == 0) {
-		internal_require(database, tablename, field->name, RQ_CHAR, ast_str_strlen(buf), SENTINEL);
-	}
-
 	while ((field = field->next)) {
 		/* If the column is not within the table, then skip it */
 		if (!(column = find_column(table, field->name))) {
@@ -614,11 +598,6 @@ static int update_mysql(const char *database, const char *tablename, const char 
 
 		ESCAPE_STRING(buf, field->value);
 		ast_str_append(&sql, 0, ", `%s` = '%s'", field->name, ast_str_buffer(buf));
-
-		/* If the column length isn't long enough, give a chance to lengthen it. */
-		if (strncmp(column->type, "char", 4) == 0 || strncmp(column->type, "varchar", 7) == 0) {
-			internal_require(database, tablename, field->name, RQ_CHAR, ast_str_strlen(buf), SENTINEL);
-		}
 	}
 
 	ESCAPE_STRING(buf, lookup);
@@ -703,11 +682,6 @@ static int update2_mysql(const char *database, const char *tablename, const stru
 		ESCAPE_STRING(buf, field->value);
 		ast_str_append(&where, 0, "%s `%s` = '%s'", first ? "" : " AND", field->name, ast_str_buffer(buf));
 		first = 0;
-
-		/* If the column length isn't long enough, give a chance to lengthen it. */
-		if (strncmp(column->type, "char", 4) == 0 || strncmp(column->type, "varchar", 7) == 0) {
-			internal_require(database, tablename, field->name, RQ_CHAR, ast_str_strlen(buf), SENTINEL);
-		}
 	}
 
 	first = 1;
@@ -721,11 +695,6 @@ static int update2_mysql(const char *database, const char *tablename, const stru
 		ESCAPE_STRING(buf, field->value);
 		ast_str_append(&sql, 0, "%s `%s` = '%s'", first ? "" : ",", field->name, ast_str_buffer(buf));
 		first = 0;
-
-		/* If the column length isn't long enough, give a chance to lengthen it. */
-		if (strncmp(column->type, "char", 4) == 0 || strncmp(column->type, "varchar", 7) == 0) {
-			internal_require(database, tablename, field->name, RQ_CHAR, ast_str_strlen(buf), SENTINEL);
-		}
 	}
 
 	release_table(table);
@@ -759,7 +728,6 @@ static int update2_mysql(const char *database, const char *tablename, const stru
 static int store_mysql(const char *database, const char *table, const struct ast_variable *rt_fields)
 {
 	struct mysql_conn *dbh;
-	my_ulonglong insertid;
 	struct ast_str *sql = ast_str_thread_get(&sql_buf, 16);
 	struct ast_str *sql2 = ast_str_thread_get(&sql2_buf, 16);
 	struct ast_str *buf = ast_str_thread_get(&scratch_buf, 16);
@@ -792,15 +760,11 @@ static int store_mysql(const char *database, const char *table, const struct ast
 	ast_str_set(&sql, 0, "INSERT INTO %s (`%s`", table, field->name);
 	ast_str_set(&sql2, 0, ") VALUES ('%s'", ast_str_buffer(buf));
 
-	internal_require(database, table, field->name, RQ_CHAR, ast_str_strlen(buf), SENTINEL);
-
 	while ((field = field->next)) {
 		ESCAPE_STRING(buf, field->value);
 
-		if (internal_require(database, table, field->name, RQ_CHAR, ast_str_strlen(buf), SENTINEL) == 0) {
-			ast_str_append(&sql, 0, ", `%s`", field->name);
-			ast_str_append(&sql2, 0, ", '%s'", ast_str_buffer(buf));
-		}
+		ast_str_append(&sql, 0, ", `%s`", field->name);
+		ast_str_append(&sql2, 0, ", '%s'", ast_str_buffer(buf));
 	}
 	ast_str_append(&sql, 0, "%s)", ast_str_buffer(sql2));
 	ast_debug(1,"MySQL RealTime: Insert SQL: %s\n", ast_str_buffer(sql));
@@ -812,18 +776,11 @@ static int store_mysql(const char *database, const char *table, const struct ast
 		return -1;
 	}
 
-	/*!\note The return value is non-portable and may change in future versions. */
-	insertid = mysql_insert_id(&dbh->handle);
 	release_database(dbh);
 
-	ast_debug(1, "MySQL RealTime: row inserted on table: %s, id: %llu\n", table, insertid);
+	ast_debug(1, "MySQL RealTime: row inserted on table: %s\n", table);
 
-	/* From http://dev.mysql.com/doc/mysql/en/mysql-affected-rows.html
-	 * An integer greater than zero indicates the number of rows affected
-	 * Zero indicates that no records were updated
-	 * -1 indicates that the query returned an error (although, if the query failed, it should have been caught above.)
-	*/
-	return (int)insertid;
+	return 1;
 }
 
 static int destroy_mysql(const char *database, const char *table, const char *keyfield, const char *lookup, const struct ast_variable *rt_fields)
@@ -989,105 +946,14 @@ static int unload_mysql(const char *database, const char *tablename)
 	return cur ? 0 : -1;
 }
 
-static int modify_mysql(const char *database, const char *tablename, struct columns *column, require_type type, int len)
-{
-	/*!\note Cannot use ANY of the same scratch space as is used in other functions, as this one is interspersed. */
-	struct ast_str *sql = ast_str_thread_get(&modify_buf, 100), *escbuf = ast_str_thread_get(&modify2_buf, 100);
-	struct ast_str *typestr = ast_str_thread_get(&modify3_buf, 30);
-	int waschar = strncasecmp(column->type, "char", 4) == 0 ? 1 : 0;
-	int wasvarchar = strncasecmp(column->type, "varchar", 7) == 0 ? 1 : 0;
-	int res = 0;
-	struct mysql_conn *dbh;
-
-	if (!(dbh = find_database(database, 1))) {
-		return -1;
-	}
-
-	do {
-		if (type == RQ_CHAR || waschar || wasvarchar) {
-			if (wasvarchar) {
-				ast_str_set(&typestr, 0, "VARCHAR(%d)", len);
-			} else {
-				ast_str_set(&typestr, 0, "CHAR(%d)", len);
-			}
-		} else if (type == RQ_UINTEGER1) {
-			ast_str_set(&typestr, 0, "tinyint(3) unsigned");
-		} else if (type == RQ_INTEGER1) {
-			ast_str_set(&typestr, 0, "tinyint(4)");
-		} else if (type == RQ_UINTEGER2) {
-			ast_str_set(&typestr, 0, "smallint(5) unsigned");
-		} else if (type == RQ_INTEGER2) {
-			ast_str_set(&typestr, 0, "smallint(6)");
-		} else if (type == RQ_UINTEGER3) {
-			ast_str_set(&typestr, 0, "mediumint(8) unsigned");
-		} else if (type == RQ_INTEGER3) {
-			ast_str_set(&typestr, 0, "mediumint(8)");
-		} else if (type == RQ_UINTEGER4) {
-			ast_str_set(&typestr, 0, "int(10) unsigned");
-		} else if (type == RQ_INTEGER4) {
-			ast_str_set(&typestr, 0, "int(11)");
-		} else if (type == RQ_UINTEGER8) {
-			ast_str_set(&typestr, 0, "bigint(19) unsigned");
-		} else if (type == RQ_INTEGER8) {
-			ast_str_set(&typestr, 0, "bigint(20)");
-		} else if (type == RQ_DATETIME) {
-			ast_str_set(&typestr, 0, "datetime");
-		} else if (type == RQ_DATE) {
-			ast_str_set(&typestr, 0, "date");
-		} else if (type == RQ_FLOAT) {
-			ast_str_set(&typestr, 0, "FLOAT(%d,2)", len);
-		} else {
-			ast_log(LOG_ERROR, "Unknown type (should NEVER happen)\n");
-			res = -1;
-			break;
-		}
-		ast_str_set(&sql, 0, "ALTER TABLE %s MODIFY `%s` %s", tablename, column->name, ast_str_buffer(typestr));
-		if (!column->null) {
-			ast_str_append(&sql, 0, " NOT NULL");
-		}
-		if (!ast_strlen_zero(column->dflt)) {
-			ESCAPE_STRING(escbuf, column->dflt);
-			ast_str_append(&sql, 0, " DEFAULT '%s'", ast_str_buffer(escbuf));
-		}
-
-		if (!mysql_reconnect(dbh)) {
-			ast_log(LOG_ERROR, "Unable to add column: %s\n", ast_str_buffer(sql));
-			res = -1;
-			break;
-		}
-
-		/* Execution. */
-		if (mysql_real_query(&dbh->handle, ast_str_buffer(sql), ast_str_strlen(sql))) {
-			ast_log(LOG_WARNING, "MySQL RealTime: Failed to modify database: %s\n", mysql_error(&dbh->handle));
-			ast_debug(1, "MySQL RealTime: Query: %s\n", ast_str_buffer(sql));
-			res = -1;
-		}
-	} while (0);
-
-	release_database(dbh);
-	return res;
-}
-
-#define PICK_WHICH_ALTER_ACTION(stringtype) \
-	if (table->database->requirements == RQ_WARN) {                                                                       \
-		ast_log(LOG_WARNING, "Realtime table %s@%s: column '%s' may not be large enough for "            \
-			"the required data length: %d (detected stringtype)\n",                                      \
-			tablename, database, column->name, size);                                                    \
-		res = -1;                                                                                        \
-	} else if (table->database->requirements == RQ_CREATECLOSE && modify_mysql(database, tablename, column, type, size) == 0) {     \
-		table_altered = 1;                                                                               \
-	} else if (table->database->requirements == RQ_CREATECHAR && modify_mysql(database, tablename, column, RQ_CHAR, size) == 0) {   \
-		table_altered = 1;                                                                               \
-	} else {                                                                                             \
-		res = -1;                                                                                        \
-	}
-
 static int require_mysql(const char *database, const char *tablename, va_list ap)
 {
 	struct columns *column;
 	struct tables *table = find_table(database, tablename);
 	char *elm;
-	int type, size, res = 0, table_altered = 0;
+	int type;
+	int size;
+	int res = 0;
 
 	if (!table) {
 		ast_log(LOG_WARNING, "Table %s not found in database.  This table should exist if you're using realtime.\n", tablename);
@@ -1097,55 +963,54 @@ static int require_mysql(const char *database, const char *tablename, va_list ap
 	while ((elm = va_arg(ap, char *))) {
 		type = va_arg(ap, require_type);
 		size = va_arg(ap, int);
+
 		AST_LIST_TRAVERSE(&table->columns, column, list) {
 			if (strcmp(column->name, elm) == 0) {
 				/* Char can hold anything, as long as it is large enough */
 				if (strncmp(column->type, "char", 4) == 0 || strncmp(column->type, "varchar", 7) == 0) {
 					if ((size > column->len) && column->len != -1) {
-						if (table->database->requirements == RQ_WARN) {
-							ast_log(LOG_WARNING, "Realtime table %s@%s: Column '%s' should be at least %d long, but is only %d long.\n", database, tablename, column->name, size, column->len);
-							res = -1;
-						} else if (modify_mysql(database, tablename, column, type, size) == 0) {
-							table_altered = 1;
-						} else {
-							res = -1;
-						}
+						ast_log(LOG_WARNING, "Realtime table %s@%s: Column '%s' should be at least %d long, but is only %d long.\n", database, tablename, column->name, size, column->len);
+						res = -1;
 					}
 				} else if (strcasestr(column->type, "unsigned")) {
 					if (!ast_rq_is_int(type)) {
-						if (table->database->requirements == RQ_WARN) {
-							ast_log(LOG_WARNING, "Realtime table %s@%s: column '%s' cannot be type '%s' (need %s)\n",
-								database, tablename, column->name, column->type,
-								type == RQ_CHAR ? "char" : type == RQ_FLOAT ? "float" :
-								type == RQ_DATETIME ? "datetime" : type == RQ_DATE ? "date" : "a rather stiff drink");
-							res = -1;
-						} else if (table->database->requirements == RQ_CREATECLOSE && modify_mysql(database, tablename, column, type, size) == 0) {
-							table_altered = 1;
-						} else if (table->database->requirements == RQ_CREATECHAR && modify_mysql(database, tablename, column, RQ_CHAR, size) == 0) {
-							table_altered = 1;
-						} else {
-							res = -1;
-						}
+						ast_log(LOG_WARNING, "Realtime table %s@%s: column '%s' cannot be type '%s' (need %s)\n",
+							database, tablename, column->name, column->type,
+							type == RQ_CHAR ? "char" : type == RQ_FLOAT ? "float" :
+							type == RQ_DATETIME ? "datetime" : type == RQ_DATE ? "date" : "a rather stiff drink");
+						res = -1;
 					} else if (strncasecmp(column->type, "tinyint", 1) == 0) {
 						if (type != RQ_UINTEGER1) {
-							PICK_WHICH_ALTER_ACTION(unsigned tinyint)
+							ast_log(LOG_WARNING, "Realtime table %s@%s: column '%s' may not be large enough for "            \
+								"the required data length: %d (detected stringtype)\n",                                      \
+								tablename, database, column->name, size);                                                    \
+							res = -1;                                                                                        \
 						}
 					} else if (strncasecmp(column->type, "smallint", 1) == 0) {
 						if (type != RQ_UINTEGER1 && type != RQ_INTEGER1 && type != RQ_UINTEGER2) {
-							PICK_WHICH_ALTER_ACTION(unsigned smallint)
+							ast_log(LOG_WARNING, "Realtime table %s@%s: column '%s' may not be large enough for "            \
+								"the required data length: %d (detected stringtype)\n",                                      \
+								tablename, database, column->name, size);                                                    \
+							res = -1;                                                                                        \
 						}
 					} else if (strncasecmp(column->type, "mediumint", 1) == 0) {
 						if (type != RQ_UINTEGER1 && type != RQ_INTEGER1 &&
 							type != RQ_UINTEGER2 && type != RQ_INTEGER2 &&
 							type != RQ_UINTEGER3) {
-							PICK_WHICH_ALTER_ACTION(unsigned mediumint)
+							ast_log(LOG_WARNING, "Realtime table %s@%s: column '%s' may not be large enough for "            \
+								"the required data length: %d (detected stringtype)\n",                                      \
+								tablename, database, column->name, size);                                                    \
+							res = -1;                                                                                        \
 						}
 					} else if (strncasecmp(column->type, "int", 1) == 0) {
 						if (type != RQ_UINTEGER1 && type != RQ_INTEGER1 &&
 							type != RQ_UINTEGER2 && type != RQ_INTEGER2 &&
 							type != RQ_UINTEGER3 && type != RQ_INTEGER3 &&
 							type != RQ_UINTEGER4) {
-							PICK_WHICH_ALTER_ACTION(unsigned int)
+							ast_log(LOG_WARNING, "Realtime table %s@%s: column '%s' may not be large enough for "            \
+								"the required data length: %d (detected stringtype)\n",                                      \
+								tablename, database, column->name, size);                                                    \
+							res = -1;                                                                                        \
 						}
 					} else if (strncasecmp(column->type, "bigint", 1) == 0) {
 						if (type != RQ_UINTEGER1 && type != RQ_INTEGER1 &&
@@ -1153,45 +1018,52 @@ static int require_mysql(const char *database, const char *tablename, va_list ap
 							type != RQ_UINTEGER3 && type != RQ_INTEGER3 &&
 							type != RQ_UINTEGER4 && type != RQ_INTEGER4 &&
 							type != RQ_UINTEGER8) {
-							PICK_WHICH_ALTER_ACTION(unsigned bigint)
+							ast_log(LOG_WARNING, "Realtime table %s@%s: column '%s' may not be large enough for "            \
+								"the required data length: %d (detected stringtype)\n",                                      \
+								tablename, database, column->name, size);                                                    \
+							res = -1;                                                                                        \
 						}
 					}
 				} else if (strcasestr(column->type, "int")) {
 					if (!ast_rq_is_int(type)) {
-						if (table->database->requirements == RQ_WARN) {
-							ast_log(LOG_WARNING, "Realtime table %s@%s: column '%s' cannot be type '%s' (need %s)\n",
-								database, tablename, column->name, column->type,
-								type == RQ_CHAR ? "char" : type == RQ_FLOAT ? "float" :
-								type == RQ_DATETIME ? "datetime" : type == RQ_DATE ? "date" :
-								"to get a life, rather than writing silly error messages");
-							res = -1;
-						} else if (table->database->requirements == RQ_CREATECLOSE && modify_mysql(database, tablename, column, type, size) == 0) {
-							table_altered = 1;
-						} else if (table->database->requirements == RQ_CREATECHAR && modify_mysql(database, tablename, column, RQ_CHAR, size) == 0) {
-							table_altered = 1;
-						} else {
-							res = -1;
-						}
+						ast_log(LOG_WARNING, "Realtime table %s@%s: column '%s' cannot be type '%s' (need %s)\n",
+							database, tablename, column->name, column->type,
+							type == RQ_CHAR ? "char" : type == RQ_FLOAT ? "float" :
+							type == RQ_DATETIME ? "datetime" : type == RQ_DATE ? "date" :
+							"to get a life, rather than writing silly error messages");
+						res = -1;
 					} else if (strncasecmp(column->type, "tinyint", 1) == 0) {
 						if (type != RQ_INTEGER1) {
-							PICK_WHICH_ALTER_ACTION(tinyint)
+							ast_log(LOG_WARNING, "Realtime table %s@%s: column '%s' may not be large enough for "            \
+								"the required data length: %d (detected stringtype)\n",                                      \
+								tablename, database, column->name, size);                                                    \
+							res = -1;                                                                                        \
 						}
 					} else if (strncasecmp(column->type, "smallint", 1) == 0) {
 						if (type != RQ_UINTEGER1 && type != RQ_INTEGER1 && type != RQ_INTEGER2) {
-							PICK_WHICH_ALTER_ACTION(smallint)
+							ast_log(LOG_WARNING, "Realtime table %s@%s: column '%s' may not be large enough for "            \
+								"the required data length: %d (detected stringtype)\n",                                      \
+								tablename, database, column->name, size);                                                    \
+							res = -1;                                                                                        \
 						}
 					} else if (strncasecmp(column->type, "mediumint", 1) == 0) {
 						if (type != RQ_UINTEGER1 && type != RQ_INTEGER1 &&
 							type != RQ_UINTEGER2 && type != RQ_INTEGER2 &&
 							type != RQ_INTEGER3) {
-							PICK_WHICH_ALTER_ACTION(mediumint)
+							ast_log(LOG_WARNING, "Realtime table %s@%s: column '%s' may not be large enough for "            \
+								"the required data length: %d (detected stringtype)\n",                                      \
+								tablename, database, column->name, size);                                                    \
+							res = -1;                                                                                        \
 						}
 					} else if (strncasecmp(column->type, "int", 1) == 0) {
 						if (type != RQ_UINTEGER1 && type != RQ_INTEGER1 &&
 							type != RQ_UINTEGER2 && type != RQ_INTEGER2 &&
 							type != RQ_UINTEGER3 && type != RQ_INTEGER3 &&
 							type != RQ_INTEGER4) {
-							PICK_WHICH_ALTER_ACTION(int)
+							ast_log(LOG_WARNING, "Realtime table %s@%s: column '%s' may not be large enough for "            \
+								"the required data length: %d (detected stringtype)\n",                                      \
+								tablename, database, column->name, size);                                                    \
+							res = -1;                                                                                        \
 						}
 					} else if (strncasecmp(column->type, "bigint", 1) == 0) {
 						if (type != RQ_UINTEGER1 && type != RQ_INTEGER1 &&
@@ -1199,137 +1071,41 @@ static int require_mysql(const char *database, const char *tablename, va_list ap
 							type != RQ_UINTEGER3 && type != RQ_INTEGER3 &&
 							type != RQ_UINTEGER4 && type != RQ_INTEGER4 &&
 							type != RQ_INTEGER8) {
-							PICK_WHICH_ALTER_ACTION(bigint)
+							ast_log(LOG_WARNING, "Realtime table %s@%s: column '%s' may not be large enough for "            \
+								"the required data length: %d (detected stringtype)\n",                                      \
+								tablename, database, column->name, size);                                                    \
+							res = -1;                                                                                        \
 						}
 					}
 				} else if (strncmp(column->type, "float", 5) == 0) {
 					if (!ast_rq_is_int(type) && type != RQ_FLOAT) {
-						if (table->database->requirements == RQ_WARN) {
-							ast_log(LOG_WARNING, "Realtime table %s@%s: Column %s cannot be a %s\n", tablename, database, column->name, column->type);
-							res = -1;
-						} else if (table->database->requirements == RQ_CREATECLOSE && modify_mysql(database, tablename, column, type, size) == 0) {
-							table_altered = 1;
-						} else if (table->database->requirements == RQ_CREATECHAR && modify_mysql(database, tablename, column, RQ_CHAR, size) == 0) {
-							table_altered = 1;
-						} else {
-							res = -1;
-						}
+						ast_log(LOG_WARNING, "Realtime table %s@%s: Column %s cannot be a %s\n", tablename, database, column->name, column->type);
+						res = -1;
 					}
 				} else if (strncmp(column->type, "datetime", 8) == 0 || strncmp(column->type, "timestamp", 9) == 0) {
 					if (type != RQ_DATETIME) {
-						if (table->database->requirements == RQ_WARN) {
-							ast_log(LOG_WARNING, "Realtime table %s@%s: Column %s cannot be a %s\n", tablename, database, column->name, column->type);
-							res = -1;
-						} else if (table->database->requirements == RQ_CREATECLOSE && modify_mysql(database, tablename, column, type, size) == 0) {
-							table_altered = 1;
-						} else if (table->database->requirements == RQ_CREATECHAR && modify_mysql(database, tablename, column, RQ_CHAR, size) == 0) {
-							table_altered = 1;
-						} else {
-							res = -1;
-						}
+						ast_log(LOG_WARNING, "Realtime table %s@%s: Column %s cannot be a %s\n", tablename, database, column->name, column->type);
+						res = -1;
 					}
 				} else if (strncmp(column->type, "date", 4) == 0) {
 					if (type != RQ_DATE) {
-						if (table->database->requirements == RQ_WARN) {
-							ast_log(LOG_WARNING, "Realtime table %s@%s: Column %s cannot be a %s\n", tablename, database, column->name, column->type);
-							res = -1;
-						} else if (table->database->requirements == RQ_CREATECLOSE && modify_mysql(database, tablename, column, type, size) == 0) {
-							table_altered = 1;
-						} else if (table->database->requirements == RQ_CREATECHAR && modify_mysql(database, tablename, column, RQ_CHAR, size) == 0) {
-							table_altered = 1;
-						} else {
-							res = -1;
-						}
+						ast_log(LOG_WARNING, "Realtime table %s@%s: Column %s cannot be a %s\n", tablename, database, column->name, column->type);
+						res = -1;
 					}
 				} else { /* Other, possibly unsupported types? */
-					if (table->database->requirements == RQ_WARN) {
-						ast_log(LOG_WARNING, "Possibly unsupported column type '%s' on column '%s'\n", column->type, column->name);
-						res = -1;
-					} else if (table->database->requirements == RQ_CREATECLOSE && modify_mysql(database, tablename, column, type, size) == 0) {
-						table_altered = 1;
-					} else if (table->database->requirements == RQ_CREATECHAR && modify_mysql(database, tablename, column, RQ_CHAR, size) == 0) {
-						table_altered = 1;
-					} else {
-					}
+					ast_log(LOG_WARNING, "Possibly unsupported column type '%s' on column '%s'\n", column->type, column->name);
+					res = -1;
 				}
 				break;
 			}
 		}
 
 		if (!column) {
-			if (table->database->requirements == RQ_WARN) {
-				ast_log(LOG_WARNING, "Table %s requires a column '%s' of size '%d', but no such column exists.\n", tablename, elm, size);
-			} else {
-				struct ast_str *sql = ast_str_thread_get(&modify_buf, 100), *fieldtype = ast_str_thread_get(&modify3_buf, 16);
-
-				if (table->database->requirements == RQ_CREATECHAR || type == RQ_CHAR) {
-					ast_str_set(&fieldtype, 0, "CHAR(%d)", size);
-				} else if (type == RQ_UINTEGER1 || type == RQ_UINTEGER2 || type == RQ_UINTEGER3 || type == RQ_UINTEGER4 || type == RQ_UINTEGER8) {
-					if (type == RQ_UINTEGER1) {
-						ast_str_set(&fieldtype, 0, "TINYINT(3) UNSIGNED");
-					} else if (type == RQ_UINTEGER2) {
-						ast_str_set(&fieldtype, 0, "SMALLINT(5) UNSIGNED");
-					} else if (type == RQ_UINTEGER3) {
-						ast_str_set(&fieldtype, 0, "MEDIUMINT(8) UNSIGNED");
-					} else if (type == RQ_UINTEGER4) {
-						ast_str_set(&fieldtype, 0, "INT(10) UNSIGNED");
-					} else if (type == RQ_UINTEGER8) {
-						ast_str_set(&fieldtype, 0, "BIGINT(20) UNSIGNED");
-					} else {
-						ast_log(LOG_WARNING, "Somebody should check this code for a rather large bug... it's about to squash Tokyo.\n");
-						continue;
-					}
-				} else if (ast_rq_is_int(type)) {
-					if (type == RQ_INTEGER1) {
-						ast_str_set(&fieldtype, 0, "TINYINT(3)");
-					} else if (type == RQ_INTEGER2) {
-						ast_str_set(&fieldtype, 0, "SMALLINT(5)");
-					} else if (type == RQ_INTEGER3) {
-						ast_str_set(&fieldtype, 0, "MEDIUMINT(8)");
-					} else if (type == RQ_INTEGER4) {
-						ast_str_set(&fieldtype, 0, "INT(10)");
-					} else if (type == RQ_INTEGER8) {
-						ast_str_set(&fieldtype, 0, "BIGINT(20)");
-					} else {
-						ast_log(LOG_WARNING, "Somebody should check this code for a rather large bug... it's about to eat Cincinnati.\n");
-						continue;
-					}
-				} else if (type == RQ_FLOAT) {
-					ast_str_set(&fieldtype, 0, "FLOAT");
-				} else if (type == RQ_DATE) {
-					ast_str_set(&fieldtype, 0, "DATE");
-				} else if (type == RQ_DATETIME) {
-					ast_str_set(&fieldtype, 0, "DATETIME");
-				} else {
-					continue;
-				}
-				ast_str_set(&sql, 0, "ALTER TABLE %s ADD COLUMN %s %s", tablename, elm, ast_str_buffer(fieldtype));
-
-				ast_mutex_lock(&table->database->lock);
-				if (!mysql_reconnect(table->database)) {
-					ast_mutex_unlock(&table->database->lock);
-					ast_log(LOG_ERROR, "Unable to add column: %s\n", ast_str_buffer(sql));
-					continue;
-				}
-
-				/* Execution. */
-				if (mysql_real_query(&table->database->handle, ast_str_buffer(sql), ast_str_strlen(sql))) {
-					ast_log(LOG_WARNING, "MySQL RealTime: Failed to query database. Check debug for more info.\n");
-					ast_debug(1, "MySQL RealTime: Query: %s\n", ast_str_buffer(sql));
-					ast_debug(1, "MySQL RealTime: Query Failed because: %s\n", mysql_error(&table->database->handle));
-				} else {
-					table_altered = 1;
-				}
-			}
+			ast_log(LOG_WARNING, "Table %s requires a column '%s' of size '%d', but no such column exists.\n", tablename, elm, size);
 		}
 	}
 	release_table(table);
 
-	/* If we altered the table, we must refresh the cache */
-	if (table_altered) {
-		unload_mysql(database, tablename);
-		release_table(find_table(database, tablename));
-	}
 	return res;
 }
 
