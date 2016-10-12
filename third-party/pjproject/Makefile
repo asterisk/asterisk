@@ -7,8 +7,6 @@ SPECIAL_TARGETS :=
 ifneq ($(findstring configure,$(MAKECMDGOALS))$(findstring echo_cflags,$(MAKECMDGOALS)),)
 # Run from $(ASTTOPDIR)/configure
     SPECIAL_TARGETS += configure
-    include ../Makefile.rules
-    include Makefile.rules
 endif
 
 ifeq ($(findstring echo_cflags,$(MAKECMDGOALS)),echo_cflags)
@@ -19,8 +17,10 @@ endif
 ifeq ($(findstring clean,$(MAKECMDGOALS)),clean)
 # clean or distclean
     SPECIAL_TARGETS += clean
-    include ../Makefile.rules
-    include Makefile.rules
+endif
+
+ifneq ($(wildcard ../../makeopts),)
+    include ../../makeopts
 endif
 
 ifeq ($(SPECIAL_TARGETS),)
@@ -28,17 +28,17 @@ ifeq ($(SPECIAL_TARGETS),)
     ifeq ($(wildcard ../../makeopts),)
         $(error ASTTOPDIR/configure hasn't been run)
     endif
-    include ../../makeopts
 
     ifeq ($(PJPROJECT_BUNDLED),yes)
-        -include ../../menuselect.makeopts
-        include ../Makefile.rules
+        ifneq ($(wildcard ../../menuselect.makeopts),)
+            include ../../menuselect.makeopts
+        else
+            $(warning ASTTOPDIR/menuselect hasn't been run yet.  Can't find debug options.)
+        endif
 
         all: _all
         install: _install
 
-        include ../../Makefile.rules
-        include Makefile.rules
         include source/user.mak
         include source/build.mak
         CF := $(filter-out -W%,$(CC_CFLAGS))
@@ -66,25 +66,25 @@ ifeq ($(SPECIAL_TARGETS),)
     endif
 endif
 
+include ../../Makefile.rules
+include ../Makefile.rules
+include Makefile.rules
+
 ECHO_PREFIX := $(ECHO_PREFIX) echo '[pjproject] '
 
-ifndef $(TMPDIR)
-    ifneq ($(wildcard /tmp),)
-        TMPDIR=/tmp
-    else
-        TMPDIR=.
-    endif
-endif
+_all: $(TARGETS)
+
+TMPDIR ?= $(or $(EXTERNALS_CACHE_DIR),$(wildcard /tmp),.)
 
 $(TMPDIR)/pjproject-$(PJPROJECT_VERSION).tar.bz2 : ../versions.mak
-	$(ECHO_PREFIX) Downloading $@ with $(DOWNLOAD)
-	$(CMD_PREFIX) $(DOWNLOAD) $(PJPROJECT_URL)/$(@F) > $@
+	$(ECHO_PREFIX) Downloading $(PJPROJECT_URL)/$(@F) to $@
+	$(CMD_PREFIX) $(DOWNLOAD_TO_STDOUT) $(PJPROJECT_URL)/$(@F) > $@
 
 source/.unpacked: $(TMPDIR)/pjproject-$(PJPROJECT_VERSION).tar.bz2
 	$(ECHO_PREFIX) Unpacking $<
 	-@rm -rf source >/dev/null 2>&1
 	-@mkdir source >/dev/null 2>&1
-	$(CMD_PREFIX) tar --strip-components=1 -C source -xjf $<
+	$(CMD_PREFIX) $(TAR) --strip-components=1 -C source -xjf $<
 	$(ECHO_PREFIX) Applying patches
 	$(CMD_PREFIX) ./apply_patches $(QUIET_CONFIGURE) ./patches ./source
 	-@touch source/.unpacked
@@ -99,8 +99,8 @@ source/pjlib/include/pj/%.h : ./patches/%.h
 
 build.mak: source/.unpacked $(addprefix source/pjlib/include/pj/,$(notdir $(wildcard ./patches/*.h))) source/user.mak Makefile.rules
 	$(ECHO_PREFIX) Configuring with $(PJPROJECT_CONFIG_OPTS)
-	$(CMD_PREFIX) (cd source ; autoconf aconfigure.ac > aconfigure && ./aconfigure $(QUIET_CONFIGURE) $(PJPROJECT_CONFIG_OPTS))
-	@sed -r -e "/prefix|export PJ_SHARED_LIBRARIES|MACHINE_NAME|OS_NAME|HOST_NAME|CC_NAME|CROSS_COMPILE|LINUX_POLL/d" source/build.mak > build.mak
+	$(CMD_PREFIX) (cd source ; ./aconfigure $(QUIET_CONFIGURE) $(PJPROJECT_CONFIG_OPTS))
+	$(SED) -r -e "/prefix|export PJ_SHARED_LIBRARIES|MACHINE_NAME|OS_NAME|HOST_NAME|CC_NAME|CROSS_COMPILE|LINUX_POLL/d" source/build.mak > build.mak
 
 configure: build.mak
 
@@ -128,7 +128,7 @@ $(LIB_FILES): $(PJLIB_UTIL_LIB_FILES)
 
 pjproject.symbols: $(ALL_LIB_FILES)
 	$(ECHO_PREFIX) Generating symbols
-	$(CMD_PREFIX) nm -Pog $(ALL_LIB_FILES) | sed -n -r -e "s/.+: ([pP][jJ][^ ]+) .+/\1/gp" | sort -u > pjproject.symbols
+	$(CMD_PREFIX) $(NM) -Pog $(PJ_LIB_FILES) | $(SED) -n -r -e "s/.+: ([pP][jJ][^ ]+) .+/\1/gp" | sort -u > pjproject.symbols
 
 source/pjsip-apps/src/asterisk_malloc_debug.c: patches/asterisk_malloc_debug.c
 	$(ECHO_PREFIX) Copying $< to $@
@@ -154,8 +154,6 @@ source/pjsip-apps/src/python/_pjsua.o: source/pjsip-apps/src/python/_pjsua.c $(a
 source/pjsip-apps/src/python/_pjsua.so: source/pjsip-apps/src/python/_pjsua.o
 	$(ECHO_PREFIX) Linking python bindings $(@F)
 	$(CMD_PREFIX) gcc -shared -pthread -o $@ $< $(LDFLAGS) $(PJ_LDFLAGS) $(APP_LDLIBS) $(PYTHONDEV_LIB) $(REALLY_QUIET)
-
-_all: $(TARGETS)
 
 _install: _all
 	@if [ ! -d "$(DESTDIR)$(ASTDATADIR)/third-party/pjproject" ]; then \
@@ -188,4 +186,3 @@ clean:
 distclean:
 	$(ECHO_PREFIX) Distcleaning
 	-$(CMD_PREFIX) rm -rf source pjproject.symbols pjproject-*.tar.bz2 build.mak .rebuild_needed
-
