@@ -1847,14 +1847,21 @@ static int hangup(void *data)
 {
 	struct hangup_data *h_data = data;
 	struct ast_channel *ast = h_data->chan;
-	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
-	struct chan_pjsip_pvt *pvt = channel->pvt;
-	struct ast_sip_session *session = channel->session;
+	struct ast_sip_channel_pvt *channel;
 	int cause = h_data->cause;
 
-	ast_sip_session_terminate(session, cause);
-	clear_session_and_channel(session, ast, pvt);
-	ao2_cleanup(channel);
+	if (ast) {
+		channel = ast_channel_tech_pvt(ast);
+		if (channel) {
+			if (channel->session) {
+				ast_sip_session_terminate(channel->session, cause);
+				if (channel->pvt) {
+					clear_session_and_channel(channel->session, ast, channel->pvt);
+				}
+			}
+			ao2_cleanup(channel);
+		}
+	}
 	ao2_cleanup(h_data);
 
 	return 0;
