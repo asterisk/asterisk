@@ -807,8 +807,6 @@ PBX_SPANDSP
 SPANDSP_DIR
 SPANDSP_INCLUDE
 SPANDSP_LIB
-EXTERNALS_CACHE_DIR
-SOUNDS_CACHE_DIR
 PBX_SDL_IMAGE
 SDL_IMAGE_DIR
 SDL_IMAGE_INCLUDE
@@ -1179,6 +1177,8 @@ AST_CLANG_BLOCKS
 AST_CLANG_BLOCKS_LIBS
 AST_NESTED_FUNCTIONS
 AST_CODE_COVERAGE
+EXTERNALS_CACHE_DIR
+SOUNDS_CACHE_DIR
 AST_DEVMODE_STRICT
 AST_DEVMODE
 NOISY_BUILD
@@ -1330,6 +1330,8 @@ ac_user_opts='
 enable_option_checking
 with_gnu_ld
 enable_dev_mode
+with_sounds_cache
+with_externals_cache
 enable_coverage
 with_pjproject_bundled
 with_asound
@@ -1390,8 +1392,6 @@ with_radius
 with_resample
 with_sdl
 with_SDL_image
-with_sounds_cache
-with_externals_cache
 with_spandsp
 with_ss7
 with_speex
@@ -2072,6 +2072,10 @@ Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-gnu-ld           assume the C compiler uses GNU ld [default=no]
+  --with-sounds-cache=PATH
+                          use cached sound tarfiles in PATH
+  --with-externals-cache=PATH
+                          use cached external module tarfiles in PATH
   --with-pjproject-bundled
                           Use bundled pjproject libraries
   --with-asound=PATH      use Advanced Linux Sound Architecture files in PATH
@@ -2136,10 +2140,6 @@ Optional Packages:
   --with-resample=PATH    use LIBRESAMPLE files in PATH
   --with-sdl=PATH         use Sdl files in PATH
   --with-SDL_image=PATH   use Sdl Image files in PATH
-  --with-sounds-cache=PATH
-                          use cached sound tarfiles in PATH
-  --with-externals-cache=PATH
-                          use cached external module tarfiles in PATH
   --with-spandsp=PATH     use SPANDSP files in PATH
   --with-ss7=PATH         use ISDN SS7 files in PATH
   --with-speex=PATH       use Speex files in PATH
@@ -8942,6 +8942,55 @@ fi
 
 
 
+
+
+# Check whether --with-sounds-cache was given.
+if test "${with_sounds_cache+set}" = set; then :
+  withval=$with_sounds_cache;
+	case ${withval} in
+	n|no)
+		unset SOUNDS_CACHE_DIR
+		;;
+	*)
+		if test "x${withval}" = "x"; then
+			:
+		else
+			SOUNDS_CACHE_DIR="${withval}"
+		fi
+		;;
+	esac
+
+else
+  :
+fi
+
+
+
+
+
+# Check whether --with-externals-cache was given.
+if test "${with_externals_cache+set}" = set; then :
+  withval=$with_externals_cache;
+	case ${withval} in
+	n|no)
+		unset EXTERNALS_CACHE_DIR
+		;;
+	*)
+		if test "x${withval}" = "x"; then
+			:
+		else
+			EXTERNALS_CACHE_DIR="${withval}"
+		fi
+		;;
+	esac
+
+else
+  :
+fi
+
+
+
+
 AST_CODE_COVERAGE=no
 # Check whether --enable-coverage was given.
 if test "${enable_coverage+set}" = set; then :
@@ -11831,54 +11880,6 @@ fi
 
 
 
-
-
-
-
-
-# Check whether --with-sounds-cache was given.
-if test "${with_sounds_cache+set}" = set; then :
-  withval=$with_sounds_cache;
-	case ${withval} in
-	n|no)
-		unset SOUNDS_CACHE_DIR
-		;;
-	*)
-		if test "x${withval}" = "x"; then
-			:
-		else
-			SOUNDS_CACHE_DIR="${withval}"
-		fi
-		;;
-	esac
-
-else
-  :
-fi
-
-
-
-
-
-# Check whether --with-externals-cache was given.
-if test "${with_externals_cache+set}" = set; then :
-  withval=$with_externals_cache;
-	case ${withval} in
-	n|no)
-		unset EXTERNALS_CACHE_DIR
-		;;
-	*)
-		if test "x${withval}" = "x"; then
-			:
-		else
-			EXTERNALS_CACHE_DIR="${withval}"
-		fi
-		;;
-	esac
-
-else
-  :
-fi
 
 
 
