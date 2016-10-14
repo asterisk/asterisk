@@ -9,7 +9,7 @@ AC_DEFUN([_PJPROJECT_CONFIGURE],
 
 	AC_MSG_CHECKING(for embedded pjproject (may have to download))
 	AC_MSG_RESULT(configuring)
-	
+
 	if test "x${DOWNLOAD_TO_STDOUT}" = "x" ; then
 		AC_MSG_ERROR(A download utility (wget, curl or fetch) is required to download bundled pjproject)
 	fi
@@ -28,7 +28,7 @@ AC_DEFUN([_PJPROJECT_CONFIGURE],
 	if test "${NM}" = ":" ; then
 		AC_MSG_ERROR(nm is required to build bundled pjproject)
 	fi
-	
+
 	export TAR PATCH SED NM EXTERNALS_CACHE_DIR DOWNLOAD_TO_STDOUT
 	${GNU_MAKE} --quiet --no-print-directory -C ${PJPROJECT_DIR} configure
 	if test $? -ne 0 ; then
@@ -42,7 +42,7 @@ AC_DEFUN([_PJPROJECT_CONFIGURE],
 	PJPROJECT_INCLUDE=$(${GNU_MAKE} --quiet --no-print-directory -C ${PJPROJECT_DIR} echo_cflags)
 	PJPROJECT_CFLAGS="$PJPROJECT_INCLUDE"
 	PBX_PJPROJECT=1
-	
+
 	AC_DEFINE([HAVE_PJPROJECT], 1, [Define if your system has PJPROJECT])
 	AC_DEFINE([HAVE_PJPROJECT_BUNDLED], 1, [Define if your system has PJPROJECT_BUNDLED])
 
@@ -70,4 +70,3 @@ AC_DEFUN([PJPROJECT_CONFIGURE],
 		_PJPROJECT_CONFIGURE()
 	fi
 ])
-	
