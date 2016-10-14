@@ -74,13 +74,13 @@ ECHO_PREFIX := $(ECHO_PREFIX) echo '[pjproject] '
 
 _all: $(TARGETS)
 
-TMPDIR ?= $(or $(EXTERNALS_CACHE_DIR),$(wildcard /tmp),.)
+EXTERNALS_CACHE_DIR ?= $(or $(TMPDIR),$(wildcard /tmp),.)
 
-$(TMPDIR)/pjproject-$(PJPROJECT_VERSION).tar.bz2 : ../versions.mak
+$(EXTERNALS_CACHE_DIR)/pjproject-$(PJPROJECT_VERSION).tar.bz2 : ../versions.mak
 	$(ECHO_PREFIX) Downloading $(PJPROJECT_URL)/$(@F) to $@
 	$(CMD_PREFIX) $(DOWNLOAD_TO_STDOUT) $(PJPROJECT_URL)/$(@F) > $@
 
-source/.unpacked: $(TMPDIR)/pjproject-$(PJPROJECT_VERSION).tar.bz2
+source/.unpacked: $(EXTERNALS_CACHE_DIR)/pjproject-$(PJPROJECT_VERSION).tar.bz2
 	$(ECHO_PREFIX) Unpacking $<
 	-@rm -rf source >/dev/null 2>&1
 	-@mkdir source >/dev/null 2>&1
