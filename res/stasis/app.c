@@ -456,7 +456,7 @@ static struct ast_json *channel_dialplan(
 		"type", "ChannelDialplan",
 		"timestamp", ast_json_timeval(*tv, NULL),
 		"dialplan_app", new_snapshot->appl,
-		"dialplan_app_data", new_snapshot->data,
+		"dialplan_app_data", AST_JSON_UTF8_VALIDATE(new_snapshot->data),
 		"channel", json_channel);
 }
 
