@@ -842,16 +842,16 @@ struct ast_json *ast_json_deep_copy(const struct ast_json *value)
 struct ast_json *ast_json_name_number(const char *name, const char *number)
 {
 	return ast_json_pack("{s: s, s: s}",
-			     "name", name,
-			     "number", number);
+		"name", AST_JSON_UTF8_VALIDATE(name),
+		"number", AST_JSON_UTF8_VALIDATE(number));
 }
 
 struct ast_json *ast_json_dialplan_cep(const char *context, const char *exten, int priority)
 {
 	return ast_json_pack("{s: o, s: o, s: o}",
-			     "context", context ? ast_json_string_create(context) : ast_json_null(),
-			     "exten", exten ? ast_json_string_create(exten) : ast_json_null(),
-			     "priority", priority != -1 ? ast_json_integer_create(priority) : ast_json_null());
+		"context", context ? ast_json_string_create(context) : ast_json_null(),
+		"exten", exten ? ast_json_string_create(exten) : ast_json_null(),
+		"priority", priority != -1 ? ast_json_integer_create(priority) : ast_json_null());
 }
 
 struct ast_json *ast_json_timeval(const struct timeval tv, const char *zone)
@@ -942,7 +942,7 @@ static struct ast_json *json_party_number(struct ast_party_number *number)
 		return NULL;
 	}
 	return ast_json_pack("{s: s, s: i, s: i, s: s}",
-		"number", number->str,
+		"number", AST_JSON_UTF8_VALIDATE(number->str),
 		"plan", number->plan,
 		"presentation", number->presentation,
 		"presentation_txt", ast_describe_caller_presentation(number->presentation));
@@ -954,7 +954,7 @@ static struct ast_json *json_party_name(struct ast_party_name *name)
 		return NULL;
 	}
 	return ast_json_pack("{s: s, s: s, s: i, s: s}",
-		"name", name->str,
+		"name", AST_JSON_UTF8_VALIDATE(name->str),
 		"character_set", ast_party_name_charset_describe(name->char_set),
 		"presentation", name->presentation,
 		"presentation_txt", ast_describe_caller_presentation(name->presentation));
@@ -966,7 +966,7 @@ static struct ast_json *json_party_subaddress(struct ast_party_subaddress *subad
 		return NULL;
 	}
 	return ast_json_pack("{s: s, s: i, s: b}",
-		"subaddress", subaddress->str,
+		"subaddress", AST_JSON_UTF8_VALIDATE(subaddress->str),
 		"type", subaddress->type,
 		"odd", subaddress->odd_even_indicator);
 }
@@ -986,17 +986,20 @@ struct ast_json *ast_json_party_id(struct ast_party_id *party)
 	}
 
 	/* Party number */
-	if (party->number.valid && ast_json_object_set(json_party_id, "number", json_party_number(&party->number))) {
+	if (party->number.valid
+		&& ast_json_object_set(json_party_id, "number", json_party_number(&party->number))) {
 		return NULL;
 	}
 
 	/* Party name */
-	if (party->name.valid && ast_json_object_set(json_party_id, "name", json_party_name(&party->name))) {
+	if (party->name.valid
+		&& ast_json_object_set(json_party_id, "name", json_party_name(&party->name))) {
 		return NULL;
 	}
 
 	/* Party subaddress */
-	if (party->subaddress.valid && ast_json_object_set(json_party_id, "subaddress", json_party_subaddress(&party->subaddress))) {
+	if (party->subaddress.valid
+		&& ast_json_object_set(json_party_id, "subaddress", json_party_subaddress(&party->subaddress))) {
 		return NULL;
 	}
 
