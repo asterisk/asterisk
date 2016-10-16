@@ -89,6 +89,13 @@ app_dial
    when another channel answers the call.  The default of ANSWERED_ELSEWHERE
    is unchanged.
 
+res_ari
+------------------
+ * ARI events will all now include a new field in the root of the JSON message,
+   'asterisk_id'.  This will be the unique ID for the Asterisk system
+   transmitting the event.  The value can be overridden using the 'entityid'
+   setting in asterisk.conf.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13 to Asterisk 14 --------------------
 ------------------------------------------------------------------------------
