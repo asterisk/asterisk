@@ -137,6 +137,7 @@ AST_TEST_DEFINE(app_replaced)
 	RAII_VAR(struct ast_json *, expected_message1, NULL, ast_json_unref);
 	RAII_VAR(struct ast_json *, message, NULL, ast_json_unref);
 	RAII_VAR(struct ast_json *, expected_message2, NULL, ast_json_unref);
+	char eid[20];
 	int res;
 
 	switch (cmd) {
@@ -157,9 +158,10 @@ AST_TEST_DEFINE(app_replaced)
 
 	stasis_app_register(app_name, test_handler, app_data1);
 	stasis_app_register(app_name, test_handler, app_data2);
-	expected_message1 = ast_json_pack("[{s: s, s: s}]",
+	expected_message1 = ast_json_pack("[{s: s, s: s, s: s}]",
 		"type", "ApplicationReplaced",
-		"application", app_name);
+		"application", app_name,
+		"asterisk_id", ast_eid_to_str(eid, sizeof(eid), &ast_eid_default));
 	message = ast_json_pack("{ s: o }", "test-message", ast_json_null());
 	expected_message2 = ast_json_pack("[o]", ast_json_ref(message));
 
