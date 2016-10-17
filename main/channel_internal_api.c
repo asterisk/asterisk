@@ -1481,9 +1481,35 @@ static int pvt_cause_cmp_fn(void *obj, void *vstr, int flags)
 
 #define DIALED_CAUSES_BUCKETS 37
 
+static int does_id_conflict(const char *uniqueid)
+{
+	struct ast_channel *conflict;
+
+	if (ast_strlen_zero(uniqueid)) {
+		return 0;
+	}
+
+	conflict = ast_channel_get_by_name(uniqueid);
+	if (conflict) {
+		ast_log(LOG_ERROR, "Channel Unique ID '%s' already in use by channel %s(%p)\n",
+			uniqueid, ast_channel_name(conflict), conflict);
+		ast_channel_unref(conflict);
+		return 1;
+	}
+
+	return 0;
+}
+
 struct ast_channel *__ast_channel_internal_alloc(void (*destructor)(void *obj), const struct ast_assigned_ids *assignedids, const struct ast_channel *requestor, const char *file, int line, const char *function)
 {
 	struct ast_channel *tmp;
+
+	/* Take care of id conflicts early so we don't do unnecessary allocations */
+	if (assignedids && (does_id_conflict(assignedids->uniqueid) || does_id_conflict(assignedids->uniqueid2))) {
+		ast_channel_internal_errno_set(AST_CHANNEL_ERROR_ID_EXISTS);
+		return NULL;
+	}
+
 #if defined(REF_DEBUG)
 	tmp = __ao2_alloc_debug(sizeof(*tmp), destructor,
 		AO2_ALLOC_OPT_LOCK_MUTEX, "", file, line, function, 1);
@@ -1674,4 +1700,26 @@ int ast_channel_internal_setup_topics(struct ast_channel *chan)
 	}
 
 	return 0;
+}
+
+AST_THREADSTORAGE(channel_errno);
+
+void ast_channel_internal_errno_set(enum ast_channel_error error)
+{
+	enum ast_channel_error *error_code = ast_threadstorage_get(&channel_errno, sizeof(*error_code));
+	if (!error_code) {
+		return;
+	}
+
+	*error_code = error;
+}
+
+enum ast_channel_error ast_channel_internal_errno(void)
+{
+	enum ast_channel_error *error_code = ast_threadstorage_get(&channel_errno, sizeof(*error_code));
+	if (!error_code) {
+		return AST_CHANNEL_ERROR_UNKNOWN;
+	}
+
+	return *error_code;
 }

@@ -1109,7 +1109,12 @@ static void ari_channels_handle_originate_with_id(const char *args_endpoint,
 	}
 
 	if (ast_dial_prerun(dial, other, format_cap)) {
-		ast_ari_response_alloc_failed(response);
+		if (ast_channel_errno() == AST_CHANNEL_ERROR_ID_EXISTS) {
+			ast_ari_response_error(response, 409, "Conflict",
+				"Channel with given unique ID already exists");
+		} else {
+			ast_ari_response_alloc_failed(response);
+		}
 		ast_dial_destroy(dial);
 		ast_free(origination);
 		ast_channel_cleanup(other);
