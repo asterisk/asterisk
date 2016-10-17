@@ -1,0 +1,202 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><title>Release Summary - asterisk-11.24.0-rc1</title><h1 align="center"><a name="top">Release Summary</a></h1><h3 align="center">asterisk-11.24.0-rc1</h3><h3 align="center">Date: 2016-10-17</h3><h3 align="center">&lt;asteriskteam@digium.com&gt;</h3><hr><h2 align="center">Table of Contents</h2><ol>
+<li><a href="#summary">Summary</a></li>
+<li><a href="#contributors">Contributors</a></li>
+<li><a href="#closed_issues">Closed Issues</a></li>
+<li><a href="#open_issues">Open Issues</a></li>
+<li><a href="#commits">Other Changes</a></li>
+<li><a href="#diffstat">Diffstat</a></li>
+</ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release is a point release of an existing major version. The changes included were made to address problems that have been identified in this release series, or are minor, backwards compatible new features or improvements. Users should be able to safely upgrade to this version if this release series is already in use. Users considering upgrading from a previous version are strongly encouraged to review the UPGRADE.txt document as well as the CHANGES document for information about upgrading to this release series.</p><p>The data in this summary reflects changes that have been made since the previous release, asterisk-11.23.0.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
+<tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
+<tr valign="top"><td width="33%">13 Richard Mudgett <rmudgett@digium.com><br/>10 Alexander Traud <pabstraud@compuserve.com><br/>10 Corey Farrell <git@cfware.com><br/>5 Walter Doekes <walter+github@wjd.nu><br/>3 Tzafrir Cohen <tzafrir.cohen@xorcom.com><br/>2 Torrey Searle <torrey@voxbone.com><br/>2 Michael Kuron <m.kuron@gmx.de><br/>2 gtjoseph <gjoseph@digium.com><br/>2 Joshua Colp <jcolp@digium.com><br/>1 Etienne Lessard <elessard@proformatique.com><br/>1 Richard Miller (license 5685)<br/>1 chris de rock <chris@derock.de><br/>1 Alessandro Crespi<br/>1 Timo Teräs <timo.teras@iki.fi><br/>1 Badalyan Vyacheslav <v.badalyan@open-bs.ru><br/>1 Alexander Traud <pabstraud@compuserve.com><br/>1 Steve Davies <steve@one47.co.uk><br/>1 Eugene Voityuk <eugene@thirdlane.com><br/></td><td width="33%">1 Eugene Voityuk <eugene@thirdlane.com><br/>1 Alexander Traud<br/>1 Alexander Traud <pabstraud@compuserve.com><br/></td><td width="33%">7 Corey Farrell <git@cfware.com><br/>6 Alexander Traud <pabstraud@compuserve.com><br/>6 Etienne Lessard <elessard@proformatique.com><br/>5 Richard Mudgett <rmudgett@digium.com><br/>3 Etienne Lessard<br/>3 Tzafrir Cohen <tzafrir.cohen@xorcom.com><br/>3 David Brillert <david_brillert@scopserv.com><br/>2 Walter Doekes <walter+asterisk@wjd.nu><br/>2 Richard Mudgett<br/>2 Aaron Hamstra <ahamstra@carnegietechnologies.com><br/>1 Alexei Gradinari <alex2grad@gmail.com><br/>1 Richard Miller <rich@ndpcci.com><br/>1 Andrew Nagy<br/>1 Ben Smithurst <ben.smithurst@gradwell.com><br/>1 effie mouzeli <manjiki@gmail.com><br/>1 Jacek Kowalski<br/>1 Jens Bürger <jbuerger@arcor.de><br/>1 Edwin Vandamme <edwin.vandamme@telenet.be><br/>1 Xavier Hienne<br/>1 abelbeck <lonnie@abelbeck.com><br/>1 Jacek <asterisk_J1R4@jacekk.info><br/>1 Xavier Hienne <xhienne@celya.fr><br/>1 Joshua Colp <jcolp@digium.com><br/>1 Matt Jordan <mjordan@digium.com><br/>1 Alexei Gradinari <alex2grad@gmail.com><br/>1 Krzysztof Trempala <k.trempala@slican.pl><br/>1 Olle Johansson <oej@edvina.net><br/>1 chris de rock <chris@derock.de><br/>1 Olle Johansson<br/>1 Andrew Nagy <andrew.nagy@the159.com><br/>1 Jeffrey Walton <noloader@gmail.com><br/>1 George Joseph <gjoseph@digium.com><br/>1 StefanEng86, urbaniak, pay123<br/></td></tr>
+</table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Bug</h3><h4>Category: Addons/cdr_mysql</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26359">ASTERISK-26359</a>: [patch] cdr_mysql: fails to use UTC if so instructed<br/>Reported by: Tzafrir Cohen<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c5a420d5d7ed67e5c918f66d1fafb4bd3602b362">[c5a420d5d7]</a> Tzafrir Cohen -- cdr_mysql: fix UTC support</li>
+</ul><br><h4>Category: Applications/app_confbridge</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24841">ASTERISK-24841</a>: ConfBridge: Strange sampling rates chosen when channels have multiple native formats<br/>Reported by: Matt Jordan<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=258705cfcd9608964da464af9c9bc495ba6e06dc">[258705cfcd]</a> Richard Mudgett -- res_fax: Fix latent bug exposed by ASTERISK-24841 changes.</li>
+</ul><br><h4>Category: Applications/app_dial</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26282">ASTERISK-26282</a>: AEL: macro-call in Dial application, macro "lacks 's' extension"<br/>Reported by: chris de rock<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7041f9ca96a68df79c4f85fbb0d43f71865edad4">[7041f9ca96]</a> chris de rock -- app_macro: Consider '~~s~~' as a macro start extension.</li>
+</ul><br><h4>Category: Applications/app_followme</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26288">ASTERISK-26288</a>: followme: fails to reset config items to default values on reload<br/>Reported by: Tzafrir Cohen<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=d25391e11a328ef1dda1afe822cfb6dc7bc2e3c7">[d25391e11a]</a> Tzafrir Cohen -- followme: initialize all config items on reload</li>
+</ul><br><h4>Category: Applications/app_macro</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26282">ASTERISK-26282</a>: AEL: macro-call in Dial application, macro "lacks 's' extension"<br/>Reported by: chris de rock<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7041f9ca96a68df79c4f85fbb0d43f71865edad4">[7041f9ca96]</a> chris de rock -- app_macro: Consider '~~s~~' as a macro start extension.</li>
+</ul><br><h4>Category: Applications/app_queue</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26360">ASTERISK-26360</a>: app_queue: "queue show" output gets "failed to extend from 240 to 327" msgs.<br/>Reported by: Richard Mudgett<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b1b406cb12ece5ac9435a6b9e15abb1230b7debf">[b1b406cb12]</a> Richard Mudgett -- app_queue: Fix CLI "queue show" and AMI Queues action output truncation.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26299">ASTERISK-26299</a>: app_queue: Queue application sometimes stops calling members with Local interface<br/>Reported by: Etienne Lessard<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f7303ac63362ee17ff1f2a84c8143adce7209cae">[f7303ac633]</a> Joshua Colp -- app_queue: Ensure member is removed from pending when hanging up.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26133">ASTERISK-26133</a>: app_queue: Queue members receive multiple calls<br/>Reported by: Richard Miller<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8a4546146542e867e085d201e5cf164e9d6532a4">[8a45461465]</a> Richard Miller -- app_queue: Only remove queue member from pending when state changes.</li>
+</ul><br><h4>Category: Applications/app_voicemail</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26211">ASTERISK-26211</a>: Unit tests: AST_TEST_DEFINE should be used in conditional code.<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=238a55b1269d32ca243dd715b196856778632feb">[238a55b126]</a> Corey Farrell -- Unit tests: Use AST_TEST_DEFINE in conditional code only.</li>
+</ul><br><h4>Category: Channels/chan_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26306">ASTERISK-26306</a>: channel: Hang-up crashes, chan_pjsip not cleaning up properly<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3cf76eaf45b2af807a1522e51a34591455181ad0">[3cf76eaf45]</a> Alexander Traud -- channel: No hung-up on failing security requirements.</li>
+</ul><br><h4>Category: Channels/chan_sip/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26272">ASTERISK-26272</a>: chan_sip: File descriptors leak (UDP sockets)<br/>Reported by: Etienne Lessard<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e5c409da6e9a0651fa4041e5a02d916aadec858f">[e5c409da6e]</a> Corey Farrell -- chan_sip: Don't allocate new RTP instances on top of old ones.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24822">ASTERISK-24822</a>: Deadlock: Fax Gateway framehook creates locking inversion in T.38 query option with features bridging code<br/>Reported by: David Brillert<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=76e5c36c29fc18d630697235afd1c0448d09e211">[76e5c36c29]</a> Richard Mudgett -- res_fax: Fix deadlock in ast_channel_get_t38_state().</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2e7ad40f4181287fbc648ef21ba0a0a0229f64dc">[2e7ad40f41]</a> Richard Mudgett -- res_fax.c, res_fax_spandsp.c: Misc deadlock fixes.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8015550116c65b94f11419f95e121d9d85b40889">[8015550116]</a> Richard Mudgett -- res_fax.c: Fix deadlock in fax_gateway_indicate_t38().</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-23013">ASTERISK-23013</a>: [patch] Deadlock between 'sip show channels' command and attended transfer handling<br/>Reported by: Ben Smithurst<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4dc56691cb6b59811e7472bf7f3f9d105e1b82b7">[4dc56691cb]</a> gtjoseph -- chan_sip: Prevent deadlock when issuing "sip show channels"</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26211">ASTERISK-26211</a>: Unit tests: AST_TEST_DEFINE should be used in conditional code.<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=238a55b1269d32ca243dd715b196856778632feb">[238a55b126]</a> Corey Farrell -- Unit tests: Use AST_TEST_DEFINE in conditional code only.</li>
+</ul><br><h4>Category: Channels/chan_sip/IPv6</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26438">ASTERISK-26438</a>: [patch] chan_sip: auto_force_rport: No NAT = No Symmetric Response.<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=94bcc8b705175226fa592b664adf72886c399e38">[94bcc8b705]</a> Alexander Traud -- chan_sip: Honor support of Symmetric Response (rport) for SIP requests.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-18232">ASTERISK-18232</a>: Broken REGISTER sent to IPv4 server when bindaddr=[::]<br/>Reported by: Jacek<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=69fb4428901a4045c17a86ac630383c0f2fbfba8">[69fb442890]</a> Alessandro Crespi -- chan_sip: Resolve externhost not to IPv6; instead go for IPv4.</li>
+</ul><br><h4>Category: Channels/chan_sip/Registration</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-18232">ASTERISK-18232</a>: Broken REGISTER sent to IPv4 server when bindaddr=[::]<br/>Reported by: Jacek<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=69fb4428901a4045c17a86ac630383c0f2fbfba8">[69fb442890]</a> Alessandro Crespi -- chan_sip: Resolve externhost not to IPv6; instead go for IPv4.</li>
+</ul><br><h4>Category: Channels/chan_sip/T.38</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26179">ASTERISK-26179</a>: chan_sip: Second T.38 request fails<br/>Reported by: Joshua Colp<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=dddca49615fb403939cf36e95f5c31b4c4c53d56">[dddca49615]</a> Joshua Colp -- chan_sip: Handle a request to negotiate T.38 after it is enabled.</li>
+</ul><br><h4>Category: Channels/chan_sip/TCP-TLS</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19968">ASTERISK-19968</a>: TCP Session-Timers not dropping call<br/>Reported by: Aaron Hamstra<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c53dcd2c50109e09d3f674eb40377ae921a6a314">[c53dcd2c50]</a> Steve Davies -- chan_sip: Fix session timeout on retransmit of non-UDP packets</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c87e7bebea1a0a984e356ef566cd63d7ce124fe0">[c87e7bebea]</a> Alexander Traud -- chan_sip: Enable Session-Timers for SIP over TCP (and TLS).</li>
+</ul><br><h4>Category: Core/BuildSystem</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26038">ASTERISK-26038</a>: 'make install' doesn't seem to install OS/X init files<br/>Reported by: Tzafrir Cohen<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e9326d92fb4fab9c4576541e7017bdd125492b5e">[e9326d92fb]</a> Alexander Traud -- Makefile: Suppress echoing of target 'config' again.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26046">ASTERISK-26046</a>: [patch] Avoid obsolete warnings on autoconf.<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7e3dd7e7263800d2895d9cf97df81c630a9eb3e3">[7e3dd7e726]</a> Alexander Traud -- BuildSystem: Avoid obsolete warning with pthread.m4 on autoconf.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=90c93bb23a148d4e915f3de15545e8cb3ae0787c">[90c93bb23a]</a> Alexander Traud -- BuildSystem: Avoid obsolete warning with libcurl.m4 on autoconf.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a9cd0f6738b7e705af1bf2b6dcc6258c7ca929b7">[a9cd0f6738]</a> Alexander Traud -- BuildSystem: Avoid obsolete warning with AC_TYPE_SIGNAL on autoconf.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25289">ASTERISK-25289</a>: Build System does not respect CFLAGS and CXXFLAGS when building menuselect<br/>Reported by: Jeffrey Walton<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1a409c4d10e8ec5f76d1312b75986cacab34a9fe">[1a409c4d10]</a> Alexander Traud -- BuildSystem: Allow own CFLAGS on ./configure.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26157">ASTERISK-26157</a>: Build:   Fix errors highlighted by GCC 6.x<br/>Reported by: George Joseph<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=95d8b057602e35f2469f7c1d568677b29178ccdf">[95d8b05760]</a> gtjoseph -- BuildSystem:  Fix a few issues hightlighted by gcc 6.x</li>
+</ul><br><h4>Category: Core/CallCompletionSupplementaryServices</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-22732">ASTERISK-22732</a>: Deadlock potential in res_fax and CCSS with local channels.<br/>Reported by: Richard Mudgett<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=76e5c36c29fc18d630697235afd1c0448d09e211">[76e5c36c29]</a> Richard Mudgett -- res_fax: Fix deadlock in ast_channel_get_t38_state().</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2e7ad40f4181287fbc648ef21ba0a0a0229f64dc">[2e7ad40f41]</a> Richard Mudgett -- res_fax.c, res_fax_spandsp.c: Misc deadlock fixes.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8015550116c65b94f11419f95e121d9d85b40889">[8015550116]</a> Richard Mudgett -- res_fax.c: Fix deadlock in fax_gateway_indicate_t38().</li>
+</ul><br><h4>Category: Core/Channels</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26306">ASTERISK-26306</a>: channel: Hang-up crashes, chan_pjsip not cleaning up properly<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3cf76eaf45b2af807a1522e51a34591455181ad0">[3cf76eaf45]</a> Alexander Traud -- channel: No hung-up on failing security requirements.</li>
+</ul><br><h4>Category: Core/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26267">ASTERISK-26267</a>: ast_register_atexit callbacks should be run on failed startup.<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4725de7aae80f03d994eee0086f9de75437005e3">[4725de7aae]</a> Corey Farrell -- Run mandatory cleanup when startup fails.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26265">ASTERISK-26265</a>: Errors ignored from some parts of system initialization.<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=52bd5e9eeb13e57188af0e6cbf82fb9c44727409">[52bd5e9eeb]</a> Corey Farrell -- Add missing checks during startup.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25996">ASTERISK-25996</a>: Remove "live_dangerously" requirement on DB(read)<br/>Reported by: Andrew Nagy<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6c332e1dd7e2dade0b79a3675cabf7a11687d92b">[6c332e1dd7]</a> Richard Mudgett -- pbx.c: Allow dangerous functions when adding a hint to dialplan.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26237">ASTERISK-26237</a>: Fax is detected on regular calls.<br/>Reported by: Richard Mudgett<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6e2976002d8b7d22e232a760d82cfc7d52727ec7">[6e2976002d]</a> Richard Mudgett -- dsp.c: Fix erroneous fax tone detection.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26119">ASTERISK-26119</a>: [patch] fix: memory leaks, resource leaks, out of bounds and bugs<br/>Reported by: Alexei Gradinari<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0bc1206299e0be15aedd38f50421b439dc1f14f4">[0bc1206299]</a> Richard Mudgett -- ast_expr2: Fix off-nominal memory leak.</li>
+</ul><br><h4>Category: Core/PBX</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26226">ASTERISK-26226</a>: pbx: Asterisk crash on AMI action "ShowDialplan" when there's a circular dependency between contexts<br/>Reported by: Etienne Lessard<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=1819cbebf3ec1c04c05b780326c3f1170459a94b">[1819cbebf3]</a> Etienne Lessard -- pbx.c: Prevent infinite recursion in manager_show_dialplan_helper.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25706">ASTERISK-25706</a>: pbx: Abort asterisk on features reload (handle_hint_change)<br/>Reported by: Krzysztof Trempala<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7b4db45cb7aaa9c9569d8e7e7804ee28a805b8f4">[7b4db45cb7]</a> Tzafrir Cohen -- pbx.c: Crash in handle_hint_change due to uninitialized values</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26233">ASTERISK-26233</a>: pbx: Failure to remove inconsistent extension names<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3e0eafa710f792a47426f21eeb46a8296224ce49">[3e0eafa710]</a> Corey Farrell -- pbx.c: Additional fixes to ast_context_remove_extension_callerid2.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=f0e8af0487fcdef907eee861a3e1f11fec83be19">[f0e8af0487]</a> Corey Farrell -- pbx.c: Fix handling of '-' in extension name and callerid</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26196">ASTERISK-26196</a>: pbx: Time based includes can leak timezone string<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=877c23222d1d93c3cecc0b267c14155851a96d4b">[877c23222d]</a> Corey Farrell -- pbx: Fix leak of timezone for time based includes.</li>
+</ul><br><h4>Category: Core/SQLite3</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25996">ASTERISK-25996</a>: Remove "live_dangerously" requirement on DB(read)<br/>Reported by: Andrew Nagy<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6c332e1dd7e2dade0b79a3675cabf7a11687d92b">[6c332e1dd7]</a> Richard Mudgett -- pbx.c: Allow dangerous functions when adding a hint to dialplan.</li>
+</ul><br><h4>Category: Functions/func_curl</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26211">ASTERISK-26211</a>: Unit tests: AST_TEST_DEFINE should be used in conditional code.<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=238a55b1269d32ca243dd715b196856778632feb">[238a55b126]</a> Corey Farrell -- Unit tests: Use AST_TEST_DEFINE in conditional code only.</li>
+</ul><br><h4>Category: Resources/res_fax</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26203">ASTERISK-26203</a>: res_fax: Deadlock when using FAXOPT(gateway)=yes with Local channels<br/>Reported by: Etienne Lessard<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=76e5c36c29fc18d630697235afd1c0448d09e211">[76e5c36c29]</a> Richard Mudgett -- res_fax: Fix deadlock in ast_channel_get_t38_state().</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2e7ad40f4181287fbc648ef21ba0a0a0229f64dc">[2e7ad40f41]</a> Richard Mudgett -- res_fax.c, res_fax_spandsp.c: Misc deadlock fixes.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8015550116c65b94f11419f95e121d9d85b40889">[8015550116]</a> Richard Mudgett -- res_fax.c: Fix deadlock in fax_gateway_indicate_t38().</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-22732">ASTERISK-22732</a>: Deadlock potential in res_fax and CCSS with local channels.<br/>Reported by: Richard Mudgett<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=76e5c36c29fc18d630697235afd1c0448d09e211">[76e5c36c29]</a> Richard Mudgett -- res_fax: Fix deadlock in ast_channel_get_t38_state().</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2e7ad40f4181287fbc648ef21ba0a0a0229f64dc">[2e7ad40f41]</a> Richard Mudgett -- res_fax.c, res_fax_spandsp.c: Misc deadlock fixes.</li>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8015550116c65b94f11419f95e121d9d85b40889">[8015550116]</a> Richard Mudgett -- res_fax.c: Fix deadlock in fax_gateway_indicate_t38().</li>
+</ul><br><h4>Category: Resources/res_jabber</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24425">ASTERISK-24425</a>: [patch] jabber/xmpp to use TLS instead of SSLv3, security fix POODLE (CVE-2014-3566)<br/>Reported by: abelbeck<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0296b90b29cc8870edfb0ff518509c809e7d5b49">[0296b90b29]</a> Alexander Traud -- sip.conf: tlsclientmethod is using sslv23 as default.</li>
+</ul><br><h4>Category: Resources/res_phoneprov</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26119">ASTERISK-26119</a>: [patch] fix: memory leaks, resource leaks, out of bounds and bugs<br/>Reported by: Alexei Gradinari<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0bc1206299e0be15aedd38f50421b439dc1f14f4">[0bc1206299]</a> Richard Mudgett -- ast_expr2: Fix off-nominal memory leak.</li>
+</ul><br><h4>Category: Resources/res_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26211">ASTERISK-26211</a>: Unit tests: AST_TEST_DEFINE should be used in conditional code.<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=238a55b1269d32ca243dd715b196856778632feb">[238a55b126]</a> Corey Farrell -- Unit tests: Use AST_TEST_DEFINE in conditional code only.</li>
+</ul><br><h4>Category: Resources/res_pjsip_sdp_rtp</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26119">ASTERISK-26119</a>: [patch] fix: memory leaks, resource leaks, out of bounds and bugs<br/>Reported by: Alexei Gradinari<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0bc1206299e0be15aedd38f50421b439dc1f14f4">[0bc1206299]</a> Richard Mudgett -- ast_expr2: Fix off-nominal memory leak.</li>
+</ul><br><h4>Category: Resources/res_rtp_asterisk</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26207">ASTERISK-26207</a>: [patch] sRTP: Count a roll-over of the sequence number even on lost packets.<br/>Reported by: Alexander Traud<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=cdc1af48e63ad3558c385b2741aa7fa5f3e96099">[cdc1af48e6]</a> Alexander Traud -- res_rtp_asterisk: Count a roll-over of the sequence number even on lost packets.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-25659">ASTERISK-25659</a>: res_rtp_asterisk: ECDH not negotiated causing DTLS failure occurred on RTP instance<br/>Reported by: Edwin Vandamme<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=8653da4fa228e1e289e09e5d024e11d24da87d94">[8653da4fa2]</a> Eugene Voityuk,Alexander Traud -- res_rtp_asterisk: Enable Forward Secrecy (PFS) for DTLS.</li>
+</ul><br><h4>Category: Resources/res_xmpp</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-24425">ASTERISK-24425</a>: [patch] jabber/xmpp to use TLS instead of SSLv3, security fix POODLE (CVE-2014-3566)<br/>Reported by: abelbeck<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=0296b90b29cc8870edfb0ff518509c809e7d5b49">[0296b90b29]</a> Alexander Traud -- sip.conf: tlsclientmethod is using sslv23 as default.</li>
+</ul><br><h4>Category: Tests/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26211">ASTERISK-26211</a>: Unit tests: AST_TEST_DEFINE should be used in conditional code.<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=238a55b1269d32ca243dd715b196856778632feb">[238a55b126]</a> Corey Farrell -- Unit tests: Use AST_TEST_DEFINE in conditional code only.</li>
+</ul><br><h3>Improvement</h3><h4>Category: Core/BuildSystem</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26220">ASTERISK-26220</a>: Add support for noreturn function attributes.<br/>Reported by: Corey Farrell<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c9a1e7815d725e7faac25828b3ed92d55459528e">[c9a1e7815d]</a> Corey Farrell -- Add conditional support for noreturn functions.</li>
+</ul><br><hr><a name="open_issues"><h2 align="center">Open Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all open issues from the issue tracker that were referenced by changes that went into this release.</p><h3>Bug</h3><h4>Category: Applications/app_mp3</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26085">ASTERISK-26085</a>: app_mp3: results in timeout for streams<br/>Reported by: Jens Bürger<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=428c9643738679ee9ae0342ee6ee48d3943fbc48">[428c964373]</a> Michael Kuron -- app_mp3: Use correct buffer size and the same sample rate as the channel</li>
+</ul><br><h4>Category: Channels/chan_sip/General</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26358">ASTERISK-26358</a>: chan_sip: Contact is updated on re-200, but not on re-INVITE<br/>Reported by: Walter Doekes<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=53cb0f9e84835d4a650262498ef14d4a550b2a12">[53cb0f9e84]</a> Walter Doekes -- chan_sip: Allow target refresh (Contact update) on re-INVITE.</li>
+</ul><br><h4>Category: Channels/chan_sip/SRTP</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-23989">ASTERISK-23989</a>: [patch]SDP offer/answer fails if crypto keys added to non-crypto offer<br/>Reported by: Olle Johansson<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6581cd54049a70015702da0ca4e29d80212fbb6d">[6581cd5404]</a> Walter Doekes -- chan_sip: Don't refuse calls with "optional crypto"; fall back to RTP.</li>
+</ul><br><h4>Category: Channels/chan_sip/Video</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-17470">ASTERISK-17470</a>: [patch] - When videosupport=yes, asterisk  allows one end peer to send video, even though the other end supports only audio.<br/>Reported by: effie mouzeli<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=3f1df969ee97d636ec19ea997b56a874654deec2">[3f1df969ee]</a> Michael Kuron -- chan_sip: Only send video on outgoing channel if incoming channel supports it</li>
+</ul><br><h4>Category: Utilities/astcanary</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26352">ASTERISK-26352</a>: Astcanary dies when doing "core restart"<br/>Reported by: Walter Doekes<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b4ed4e7654da53b16e553c3ecd5a0be168d2c655">[b4ed4e7654]</a> Walter Doekes -- asterisk.c: Non-root users also get the astcanary after core restart.</li>
+</ul><a href="https://issues.asterisk.org/jira/browse/ASTERISK-19867">ASTERISK-19867</a>: asterisk fails to lower its priority when astcanary dies<br/>Reported by: Xavier Hienne<ul>
+<li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=899546979acd7ec880fd06aca11a67b26b91650f">[899546979a]</a> Walter Doekes -- asterisk.c: When astcanary dies on linux, reset priority on all threads.</li>
+</ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
+<tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c0c041d9c7b3196344342adbda062046806e874a">c0c041d9c7</a></td><td>Torrey Searle</td><td>res_fax: Fix a tight race condition causing fax to crash in audio fallback</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=847ead5a9af514b1cfc1dcf5216d1317f206343e">847ead5a9a</a></td><td>Torrey Searle</td><td>res_rtp_asterisk: Fix infinite DTMF issue when switching to P2P bridge</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=b39763c6d5488d8bec707b904b76ca10285a0df5">b39763c6d5</a></td><td>Badalyan Vyacheslav</td><td>cel_odbc: Fix memory leak on module unload</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=86c72602f3600a7fccc9186d7ce813c5b94457ac">86c72602f3</a></td><td>Corey Farrell</td><td>logger: Fix default console settings.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=63d3d393b2ff4c1c172e0f7f375deaf41c597480">63d3d393b2</a></td><td>Timo Teräs</td><td>Fix showing of swap details when sysinfo() is available</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7be40a2091b13d467007b551e52f4dcfda52c2c9">7be40a2091</a></td><td>Walter Doekes</td><td>contrib: Let safe_asterisk script continue without /dev/tty9.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=e79bf5539f3d2560083103281d7131aabc11bdb0">e79bf5539f</a></td><td>Richard Mudgett</td><td>res_fax.c: Add chan locked precondition comments.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=6429a27b88769e30259b55779418a616e1d44311">6429a27b88</a></td><td>Richard Mudgett</td><td>ast_framehook_detach() must be called with the channel locked.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=dd600f60be854fc8d2cc4408e03761318c16d698">dd600f60be</a></td><td>Richard Mudgett</td><td>res_fax.c: Remove redundant locking.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=350c866eb57fa1156f5b8a2663a684f178c422c0">350c866eb5</a></td><td>Richard Mudgett</td><td>res_fax: Fix some curlies on the end of function definitions.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=fec12a91d2e807c6a68667c153bd156afe222fff">fec12a91d2</a></td><td>Corey Farrell</td><td>Fix checks for allocation debugging.</td></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=5a494b5e1dbacc01f66edbc0557156641ae6193c">5a494b5e1d</a></td><td>Richard Mudgett</td><td>dsp.c: Correct DTMF twist dsp.conf documentation.</td></tr>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>.lastclean                         |    1
+.version                           |    1
+ChangeLog                          |38099 -------------------------------------
+asterisk-11.23.0-summary.html      |  134
+asterisk-11.23.0-summary.txt       |  428
+autoconf/acx_pthread.m4            |  243
+b/CHANGES                          |   32
+b/Makefile                         |    2
+b/addons/cdr_mysql.c               |   13
+b/apps/app_followme.c              |   26
+b/apps/app_macro.c                 |   36
+b/apps/app_mp3.c                   |   53
+b/apps/app_queue.c                 |   27
+b/apps/app_voicemail.c             |    2
+b/autoconf/ax_pthread.m4           |  485
+b/autoconf/libcurl.m4              |   49
+b/cel/cel_odbc.c                   |    1
+b/channels/chan_agent.c            |    6
+b/channels/chan_motif.c            |    1
+b/channels/chan_sip.c              |  194
+b/channels/sip/config_parser.c     |    7
+b/channels/sip/reqresp_parser.c    |   24
+b/configs/cdr_mysql.conf.sample    |    5
+b/configs/dsp.conf.sample          |   28
+b/configs/sip.conf.sample          |   11
+b/configure                        |  793
+b/configure.ac                     |   21
+b/contrib/scripts/safe_asterisk    |   13
+b/funcs/func_curl.c                |    2
+b/funcs/func_env.c                 |    4
+b/include/asterisk/_private.h      |    2
+b/include/asterisk/autoconfig.h.in |   24
+b/include/asterisk/channel.h       |    6
+b/include/asterisk/chanvars.h      |    2
+b/include/asterisk/compiler.h      |    6
+b/include/asterisk/config.h        |    2
+b/include/asterisk/hashtab.h       |   14
+b/include/asterisk/heap.h          |    4
+b/include/asterisk/pbx.h           |   12
+b/include/asterisk/strings.h       |    6
+b/include/asterisk/utils.h         |    9
+b/main/ast_expr2.c                 |    2
+b/main/ast_expr2.y                 |    2
+b/main/asterisk.c                  |  273
+b/main/channel.c                   |    9
+b/main/chanvars.c                  |    4
+b/main/config.c                    |    4
+b/main/dsp.c                       |    8
+b/main/hashtab.c                   |   40
+b/main/heap.c                      |   14
+b/main/logger.c                    |    2
+b/main/pbx.c                       |  279
+b/main/say.c                       |   16
+b/main/stdtime/localtime.c         |   11
+b/main/strings.c                   |    4
+b/main/utils.c                     |    4
+b/res/res_fax.c                    |  197
+b/res/res_fax_spandsp.c            |   23
+b/res/res_rtp_asterisk.c           |    9
+59 files changed, 2039 insertions(+), 39690 deletions(-)</pre><br></html>

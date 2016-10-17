@@ -1,0 +1,596 @@
+                                Release Summary
+
+                              asterisk-11.24.0-rc1
+
+                                Date: 2016-10-17
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Open Issues
+    5. Other Changes
+    6. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-11.23.0.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                          Testers           Reporters                
+   13 Richard Mudgett              1 Eugene Voityuk  7 Corey Farrell          
+   10 Alexander Traud              1 Alexander Traud 6 Alexander Traud        
+   10 Corey Farrell                1 Alexander Traud 6 Etienne Lessard        
+   5 Walter Doekes                                   5 Richard Mudgett        
+   3 Tzafrir Cohen                                   3 Etienne Lessard        
+   2 Torrey Searle                                   3 Tzafrir Cohen          
+   2 Michael Kuron                                   3 David Brillert         
+   2 gtjoseph                                        2 Walter Doekes          
+   2 Joshua Colp                                     2 Richard Mudgett        
+   1 Etienne Lessard                                 2 Aaron Hamstra          
+   1 Richard Miller (license 5685)                   1 Alexei Gradinari       
+   1 chris de rock                                   1 Richard Miller         
+   1 Alessandro Crespi                               1 Andrew Nagy            
+   1 Timo TerACURs                                   1 Ben Smithurst          
+   1 Badalyan Vyacheslav                             1 effie mouzeli          
+   1 Alexander Traud                                 1 Jacek Kowalski         
+   1 Steve Davies                                    1 Jens BA 1/4rger        
+   1 Eugene Voityuk                                  1 Edwin Vandamme         
+                                                     1 Xavier Hienne          
+                                                     1 abelbeck               
+                                                     1 Jacek                  
+                                                     1 Xavier Hienne          
+                                                     1 Joshua Colp            
+                                                     1 Matt Jordan            
+                                                     1 Alexei Gradinari       
+                                                     1 Krzysztof Trempala     
+                                                     1 Olle Johansson         
+                                                     1 chris de rock          
+                                                     1 Olle Johansson         
+                                                     1 Andrew Nagy            
+                                                     1 Jeffrey Walton         
+                                                     1 George Joseph          
+                                                     1 StefanEng86, urbaniak, 
+                                                     pay123                   
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Addons/cdr_mysql
+
+   ASTERISK-26359: [patch] cdr_mysql: fails to use UTC if so instructed
+   Reported by: Tzafrir Cohen
+     * [c5a420d5d7] Tzafrir Cohen -- cdr_mysql: fix UTC support
+
+    Category: Applications/app_confbridge
+
+   ASTERISK-24841: ConfBridge: Strange sampling rates chosen when channels
+   have multiple native formats
+   Reported by: Matt Jordan
+     * [258705cfcd] Richard Mudgett -- res_fax: Fix latent bug exposed by
+       ASTERISK-24841 changes.
+
+    Category: Applications/app_dial
+
+   ASTERISK-26282: AEL: macro-call in Dial application, macro "lacks 's'
+   extension"
+   Reported by: chris de rock
+     * [7041f9ca96] chris de rock -- app_macro: Consider '~~s~~' as a macro
+       start extension.
+
+    Category: Applications/app_followme
+
+   ASTERISK-26288: followme: fails to reset config items to default values on
+   reload
+   Reported by: Tzafrir Cohen
+     * [d25391e11a] Tzafrir Cohen -- followme: initialize all config items on
+       reload
+
+    Category: Applications/app_macro
+
+   ASTERISK-26282: AEL: macro-call in Dial application, macro "lacks 's'
+   extension"
+   Reported by: chris de rock
+     * [7041f9ca96] chris de rock -- app_macro: Consider '~~s~~' as a macro
+       start extension.
+
+    Category: Applications/app_queue
+
+   ASTERISK-26360: app_queue: "queue show" output gets "failed to extend from
+   240 to 327" msgs.
+   Reported by: Richard Mudgett
+     * [b1b406cb12] Richard Mudgett -- app_queue: Fix CLI "queue show" and
+       AMI Queues action output truncation.
+   ASTERISK-26299: app_queue: Queue application sometimes stops calling
+   members with Local interface
+   Reported by: Etienne Lessard
+     * [f7303ac633] Joshua Colp -- app_queue: Ensure member is removed from
+       pending when hanging up.
+   ASTERISK-26133: app_queue: Queue members receive multiple calls
+   Reported by: Richard Miller
+     * [8a45461465] Richard Miller -- app_queue: Only remove queue member
+       from pending when state changes.
+
+    Category: Applications/app_voicemail
+
+   ASTERISK-26211: Unit tests: AST_TEST_DEFINE should be used in conditional
+   code.
+   Reported by: Corey Farrell
+     * [238a55b126] Corey Farrell -- Unit tests: Use AST_TEST_DEFINE in
+       conditional code only.
+
+    Category: Channels/chan_pjsip
+
+   ASTERISK-26306: channel: Hang-up crashes, chan_pjsip not cleaning up
+   properly
+   Reported by: Alexander Traud
+     * [3cf76eaf45] Alexander Traud -- channel: No hung-up on failing
+       security requirements.
+
+    Category: Channels/chan_sip/General
+
+   ASTERISK-26272: chan_sip: File descriptors leak (UDP sockets)
+   Reported by: Etienne Lessard
+     * [e5c409da6e] Corey Farrell -- chan_sip: Don't allocate new RTP
+       instances on top of old ones.
+   ASTERISK-24822: Deadlock: Fax Gateway framehook creates locking inversion
+   in T.38 query option with features bridging code
+   Reported by: David Brillert
+     * [76e5c36c29] Richard Mudgett -- res_fax: Fix deadlock in
+       ast_channel_get_t38_state().
+     * [2e7ad40f41] Richard Mudgett -- res_fax.c, res_fax_spandsp.c: Misc
+       deadlock fixes.
+     * [8015550116] Richard Mudgett -- res_fax.c: Fix deadlock in
+       fax_gateway_indicate_t38().
+   ASTERISK-23013: [patch] Deadlock between 'sip show channels' command and
+   attended transfer handling
+   Reported by: Ben Smithurst
+     * [4dc56691cb] gtjoseph -- chan_sip: Prevent deadlock when issuing "sip
+       show channels"
+   ASTERISK-26211: Unit tests: AST_TEST_DEFINE should be used in conditional
+   code.
+   Reported by: Corey Farrell
+     * [238a55b126] Corey Farrell -- Unit tests: Use AST_TEST_DEFINE in
+       conditional code only.
+
+    Category: Channels/chan_sip/IPv6
+
+   ASTERISK-26438: [patch] chan_sip: auto_force_rport: No NAT = No Symmetric
+   Response.
+   Reported by: Alexander Traud
+     * [94bcc8b705] Alexander Traud -- chan_sip: Honor support of Symmetric
+       Response (rport) for SIP requests.
+   ASTERISK-18232: Broken REGISTER sent to IPv4 server when bindaddr=[::]
+   Reported by: Jacek
+     * [69fb442890] Alessandro Crespi -- chan_sip: Resolve externhost not to
+       IPv6; instead go for IPv4.
+
+    Category: Channels/chan_sip/Registration
+
+   ASTERISK-18232: Broken REGISTER sent to IPv4 server when bindaddr=[::]
+   Reported by: Jacek
+     * [69fb442890] Alessandro Crespi -- chan_sip: Resolve externhost not to
+       IPv6; instead go for IPv4.
+
+    Category: Channels/chan_sip/T.38
+
+   ASTERISK-26179: chan_sip: Second T.38 request fails
+   Reported by: Joshua Colp
+     * [dddca49615] Joshua Colp -- chan_sip: Handle a request to negotiate
+       T.38 after it is enabled.
+
+    Category: Channels/chan_sip/TCP-TLS
+
+   ASTERISK-19968: TCP Session-Timers not dropping call
+   Reported by: Aaron Hamstra
+     * [c53dcd2c50] Steve Davies -- chan_sip: Fix session timeout on
+       retransmit of non-UDP packets
+     * [c87e7bebea] Alexander Traud -- chan_sip: Enable Session-Timers for
+       SIP over TCP (and TLS).
+
+    Category: Core/BuildSystem
+
+   ASTERISK-26038: 'make install' doesn't seem to install OS/X init files
+   Reported by: Tzafrir Cohen
+     * [e9326d92fb] Alexander Traud -- Makefile: Suppress echoing of target
+       'config' again.
+   ASTERISK-26046: [patch] Avoid obsolete warnings on autoconf.
+   Reported by: Alexander Traud
+     * [7e3dd7e726] Alexander Traud -- BuildSystem: Avoid obsolete warning
+       with pthread.m4 on autoconf.
+     * [90c93bb23a] Alexander Traud -- BuildSystem: Avoid obsolete warning
+       with libcurl.m4 on autoconf.
+     * [a9cd0f6738] Alexander Traud -- BuildSystem: Avoid obsolete warning
+       with AC_TYPE_SIGNAL on autoconf.
+   ASTERISK-25289: Build System does not respect CFLAGS and CXXFLAGS when
+   building menuselect
+   Reported by: Jeffrey Walton
+     * [1a409c4d10] Alexander Traud -- BuildSystem: Allow own CFLAGS on
+       ./configure.
+   ASTERISK-26157: Build: Fix errors highlighted by GCC 6.x
+   Reported by: George Joseph
+     * [95d8b05760] gtjoseph -- BuildSystem: Fix a few issues hightlighted by
+       gcc 6.x
+
+    Category: Core/CallCompletionSupplementaryServices
+
+   ASTERISK-22732: Deadlock potential in res_fax and CCSS with local
+   channels.
+   Reported by: Richard Mudgett
+     * [76e5c36c29] Richard Mudgett -- res_fax: Fix deadlock in
+       ast_channel_get_t38_state().
+     * [2e7ad40f41] Richard Mudgett -- res_fax.c, res_fax_spandsp.c: Misc
+       deadlock fixes.
+     * [8015550116] Richard Mudgett -- res_fax.c: Fix deadlock in
+       fax_gateway_indicate_t38().
+
+    Category: Core/Channels
+
+   ASTERISK-26306: channel: Hang-up crashes, chan_pjsip not cleaning up
+   properly
+   Reported by: Alexander Traud
+     * [3cf76eaf45] Alexander Traud -- channel: No hung-up on failing
+       security requirements.
+
+    Category: Core/General
+
+   ASTERISK-26267: ast_register_atexit callbacks should be run on failed
+   startup.
+   Reported by: Corey Farrell
+     * [4725de7aae] Corey Farrell -- Run mandatory cleanup when startup
+       fails.
+   ASTERISK-26265: Errors ignored from some parts of system initialization.
+   Reported by: Corey Farrell
+     * [52bd5e9eeb] Corey Farrell -- Add missing checks during startup.
+   ASTERISK-25996: Remove "live_dangerously" requirement on DB(read)
+   Reported by: Andrew Nagy
+     * [6c332e1dd7] Richard Mudgett -- pbx.c: Allow dangerous functions when
+       adding a hint to dialplan.
+   ASTERISK-26237: Fax is detected on regular calls.
+   Reported by: Richard Mudgett
+     * [6e2976002d] Richard Mudgett -- dsp.c: Fix erroneous fax tone
+       detection.
+   ASTERISK-26119: [patch] fix: memory leaks, resource leaks, out of bounds
+   and bugs
+   Reported by: Alexei Gradinari
+     * [0bc1206299] Richard Mudgett -- ast_expr2: Fix off-nominal memory
+       leak.
+
+    Category: Core/PBX
+
+   ASTERISK-26226: pbx: Asterisk crash on AMI action "ShowDialplan" when
+   there's a circular dependency between contexts
+   Reported by: Etienne Lessard
+     * [1819cbebf3] Etienne Lessard -- pbx.c: Prevent infinite recursion in
+       manager_show_dialplan_helper.
+   ASTERISK-25706: pbx: Abort asterisk on features reload
+   (handle_hint_change)
+   Reported by: Krzysztof Trempala
+     * [7b4db45cb7] Tzafrir Cohen -- pbx.c: Crash in handle_hint_change due
+       to uninitialized values
+   ASTERISK-26233: pbx: Failure to remove inconsistent extension names
+   Reported by: Corey Farrell
+     * [3e0eafa710] Corey Farrell -- pbx.c: Additional fixes to
+       ast_context_remove_extension_callerid2.
+     * [f0e8af0487] Corey Farrell -- pbx.c: Fix handling of '-' in extension
+       name and callerid
+   ASTERISK-26196: pbx: Time based includes can leak timezone string
+   Reported by: Corey Farrell
+     * [877c23222d] Corey Farrell -- pbx: Fix leak of timezone for time based
+       includes.
+
+    Category: Core/SQLite3
+
+   ASTERISK-25996: Remove "live_dangerously" requirement on DB(read)
+   Reported by: Andrew Nagy
+     * [6c332e1dd7] Richard Mudgett -- pbx.c: Allow dangerous functions when
+       adding a hint to dialplan.
+
+    Category: Functions/func_curl
+
+   ASTERISK-26211: Unit tests: AST_TEST_DEFINE should be used in conditional
+   code.
+   Reported by: Corey Farrell
+     * [238a55b126] Corey Farrell -- Unit tests: Use AST_TEST_DEFINE in
+       conditional code only.
+
+    Category: Resources/res_fax
+
+   ASTERISK-26203: res_fax: Deadlock when using FAXOPT(gateway)=yes with
+   Local channels
+   Reported by: Etienne Lessard
+     * [76e5c36c29] Richard Mudgett -- res_fax: Fix deadlock in
+       ast_channel_get_t38_state().
+     * [2e7ad40f41] Richard Mudgett -- res_fax.c, res_fax_spandsp.c: Misc
+       deadlock fixes.
+     * [8015550116] Richard Mudgett -- res_fax.c: Fix deadlock in
+       fax_gateway_indicate_t38().
+   ASTERISK-22732: Deadlock potential in res_fax and CCSS with local
+   channels.
+   Reported by: Richard Mudgett
+     * [76e5c36c29] Richard Mudgett -- res_fax: Fix deadlock in
+       ast_channel_get_t38_state().
+     * [2e7ad40f41] Richard Mudgett -- res_fax.c, res_fax_spandsp.c: Misc
+       deadlock fixes.
+     * [8015550116] Richard Mudgett -- res_fax.c: Fix deadlock in
+       fax_gateway_indicate_t38().
+
+    Category: Resources/res_jabber
+
+   ASTERISK-24425: [patch] jabber/xmpp to use TLS instead of SSLv3, security
+   fix POODLE (CVE-2014-3566)
+   Reported by: abelbeck
+     * [0296b90b29] Alexander Traud -- sip.conf: tlsclientmethod is using
+       sslv23 as default.
+
+    Category: Resources/res_phoneprov
+
+   ASTERISK-26119: [patch] fix: memory leaks, resource leaks, out of bounds
+   and bugs
+   Reported by: Alexei Gradinari
+     * [0bc1206299] Richard Mudgett -- ast_expr2: Fix off-nominal memory
+       leak.
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-26211: Unit tests: AST_TEST_DEFINE should be used in conditional
+   code.
+   Reported by: Corey Farrell
+     * [238a55b126] Corey Farrell -- Unit tests: Use AST_TEST_DEFINE in
+       conditional code only.
+
+    Category: Resources/res_pjsip_sdp_rtp
+
+   ASTERISK-26119: [patch] fix: memory leaks, resource leaks, out of bounds
+   and bugs
+   Reported by: Alexei Gradinari
+     * [0bc1206299] Richard Mudgett -- ast_expr2: Fix off-nominal memory
+       leak.
+
+    Category: Resources/res_rtp_asterisk
+
+   ASTERISK-26207: [patch] sRTP: Count a roll-over of the sequence number
+   even on lost packets.
+   Reported by: Alexander Traud
+     * [cdc1af48e6] Alexander Traud -- res_rtp_asterisk: Count a roll-over of
+       the sequence number even on lost packets.
+   ASTERISK-25659: res_rtp_asterisk: ECDH not negotiated causing DTLS failure
+   occurred on RTP instance
+   Reported by: Edwin Vandamme
+     * [8653da4fa2] Eugene Voityuk,Alexander Traud -- res_rtp_asterisk:
+       Enable Forward Secrecy (PFS) for DTLS.
+
+    Category: Resources/res_xmpp
+
+   ASTERISK-24425: [patch] jabber/xmpp to use TLS instead of SSLv3, security
+   fix POODLE (CVE-2014-3566)
+   Reported by: abelbeck
+     * [0296b90b29] Alexander Traud -- sip.conf: tlsclientmethod is using
+       sslv23 as default.
+
+    Category: Tests/General
+
+   ASTERISK-26211: Unit tests: AST_TEST_DEFINE should be used in conditional
+   code.
+   Reported by: Corey Farrell
+     * [238a55b126] Corey Farrell -- Unit tests: Use AST_TEST_DEFINE in
+       conditional code only.
+
+  Improvement
+
+    Category: Core/BuildSystem
+
+   ASTERISK-26220: Add support for noreturn function attributes.
+   Reported by: Corey Farrell
+     * [c9a1e7815d] Corey Farrell -- Add conditional support for noreturn
+       functions.
+
+     ----------------------------------------------------------------------
+
+                                  Open Issues
+
+                                 [Back to Top]
+
+   This is a list of all open issues from the issue tracker that were
+   referenced by changes that went into this release.
+
+  Bug
+
+    Category: Applications/app_mp3
+
+   ASTERISK-26085: app_mp3: results in timeout for streams
+   Reported by: Jens BA 1/4rger
+     * [428c964373] Michael Kuron -- app_mp3: Use correct buffer size and the
+       same sample rate as the channel
+
+    Category: Channels/chan_sip/General
+
+   ASTERISK-26358: chan_sip: Contact is updated on re-200, but not on
+   re-INVITE
+   Reported by: Walter Doekes
+     * [53cb0f9e84] Walter Doekes -- chan_sip: Allow target refresh (Contact
+       update) on re-INVITE.
+
+    Category: Channels/chan_sip/SRTP
+
+   ASTERISK-23989: [patch]SDP offer/answer fails if crypto keys added to
+   non-crypto offer
+   Reported by: Olle Johansson
+     * [6581cd5404] Walter Doekes -- chan_sip: Don't refuse calls with
+       "optional crypto"; fall back to RTP.
+
+    Category: Channels/chan_sip/Video
+
+   ASTERISK-17470: [patch] - When videosupport=yes, asterisk allows one end
+   peer to send video, even though the other end supports only audio.
+   Reported by: effie mouzeli
+     * [3f1df969ee] Michael Kuron -- chan_sip: Only send video on outgoing
+       channel if incoming channel supports it
+
+    Category: Utilities/astcanary
+
+   ASTERISK-26352: Astcanary dies when doing "core restart"
+   Reported by: Walter Doekes
+     * [b4ed4e7654] Walter Doekes -- asterisk.c: Non-root users also get the
+       astcanary after core restart.
+   ASTERISK-19867: asterisk fails to lower its priority when astcanary dies
+   Reported by: Xavier Hienne
+     * [899546979a] Walter Doekes -- asterisk.c: When astcanary dies on
+       linux, reset priority on all threads.
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author          | Summary                                 |
+   |------------+-----------------+-----------------------------------------|
+   | c0c041d9c7 | Torrey Searle   | res_fax: Fix a tight race condition     |
+   |            |                 | causing fax to crash in audio fallback  |
+   |------------+-----------------+-----------------------------------------|
+   | 847ead5a9a | Torrey Searle   | res_rtp_asterisk: Fix infinite DTMF     |
+   |            |                 | issue when switching to P2P bridge      |
+   |------------+-----------------+-----------------------------------------|
+   | b39763c6d5 | Badalyan        | cel_odbc: Fix memory leak on module     |
+   |            | Vyacheslav      | unload                                  |
+   |------------+-----------------+-----------------------------------------|
+   | 86c72602f3 | Corey Farrell   | logger: Fix default console settings.   |
+   |------------+-----------------+-----------------------------------------|
+   | 63d3d393b2 | Timo TerACURs   | Fix showing of swap details when        |
+   |            |                 | sysinfo() is available                  |
+   |------------+-----------------+-----------------------------------------|
+   | 7be40a2091 | Walter Doekes   | contrib: Let safe_asterisk script       |
+   |            |                 | continue without /dev/tty9.             |
+   |------------+-----------------+-----------------------------------------|
+   | e79bf5539f | Richard Mudgett | res_fax.c: Add chan locked precondition |
+   |            |                 | comments.                               |
+   |------------+-----------------+-----------------------------------------|
+   | 6429a27b88 | Richard Mudgett | ast_framehook_detach() must be called   |
+   |            |                 | with the channel locked.                |
+   |------------+-----------------+-----------------------------------------|
+   | dd600f60be | Richard Mudgett | res_fax.c: Remove redundant locking.    |
+   |------------+-----------------+-----------------------------------------|
+   | 350c866eb5 | Richard Mudgett | res_fax: Fix some curlies on the end of |
+   |            |                 | function definitions.                   |
+   |------------+-----------------+-----------------------------------------|
+   | fec12a91d2 | Corey Farrell   | Fix checks for allocation debugging.    |
+   |------------+-----------------+-----------------------------------------|
+   | 5a494b5e1d | Richard Mudgett | dsp.c: Correct DTMF twist dsp.conf      |
+   |            |                 | documentation.                          |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ .lastclean                         |    1
+ .version                           |    1
+ ChangeLog                          |38099 -------------------------------------
+ asterisk-11.23.0-summary.html      |  134
+ asterisk-11.23.0-summary.txt       |  428
+ autoconf/acx_pthread.m4            |  243
+ b/CHANGES                          |   32
+ b/Makefile                         |    2
+ b/addons/cdr_mysql.c               |   13
+ b/apps/app_followme.c              |   26
+ b/apps/app_macro.c                 |   36
+ b/apps/app_mp3.c                   |   53
+ b/apps/app_queue.c                 |   27
+ b/apps/app_voicemail.c             |    2
+ b/autoconf/ax_pthread.m4           |  485
+ b/autoconf/libcurl.m4              |   49
+ b/cel/cel_odbc.c                   |    1
+ b/channels/chan_agent.c            |    6
+ b/channels/chan_motif.c            |    1
+ b/channels/chan_sip.c              |  194
+ b/channels/sip/config_parser.c     |    7
+ b/channels/sip/reqresp_parser.c    |   24
+ b/configs/cdr_mysql.conf.sample    |    5
+ b/configs/dsp.conf.sample          |   28
+ b/configs/sip.conf.sample          |   11
+ b/configure                        |  793
+ b/configure.ac                     |   21
+ b/contrib/scripts/safe_asterisk    |   13
+ b/funcs/func_curl.c                |    2
+ b/funcs/func_env.c                 |    4
+ b/include/asterisk/_private.h      |    2
+ b/include/asterisk/autoconfig.h.in |   24
+ b/include/asterisk/channel.h       |    6
+ b/include/asterisk/chanvars.h      |    2
+ b/include/asterisk/compiler.h      |    6
+ b/include/asterisk/config.h        |    2
+ b/include/asterisk/hashtab.h       |   14
+ b/include/asterisk/heap.h          |    4
+ b/include/asterisk/pbx.h           |   12
+ b/include/asterisk/strings.h       |    6
+ b/include/asterisk/utils.h         |    9
+ b/main/ast_expr2.c                 |    2
+ b/main/ast_expr2.y                 |    2
+ b/main/asterisk.c                  |  273
+ b/main/channel.c                   |    9
+ b/main/chanvars.c                  |    4
+ b/main/config.c                    |    4
+ b/main/dsp.c                       |    8
+ b/main/hashtab.c                   |   40
+ b/main/heap.c                      |   14
+ b/main/logger.c                    |    2
+ b/main/pbx.c                       |  279
+ b/main/say.c                       |   16
+ b/main/stdtime/localtime.c         |   11
+ b/main/strings.c                   |    4
+ b/main/utils.c                     |    4
+ b/res/res_fax.c                    |  197
+ b/res/res_fax_spandsp.c            |   23
+ b/res/res_rtp_asterisk.c           |    9
+ 59 files changed, 2039 insertions(+), 39690 deletions(-)
