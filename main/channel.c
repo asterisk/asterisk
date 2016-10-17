@@ -771,6 +771,25 @@ static const struct ast_channel_tech null_tech = {
 static void ast_channel_destructor(void *obj);
 static void ast_dummy_channel_destructor(void *obj);
 
+static int does_id_conflict(const char *uniqueid)
+{
+	struct ast_channel *conflict;
+
+	if (ast_strlen_zero(uniqueid)) {
+		return 0;
+	}
+
+	conflict = ast_channel_get_by_name(uniqueid);
+	if (conflict) {
+		ast_log(LOG_ERROR, "Channel Unique ID '%s' already in use by channel %s(%p)\n",
+			uniqueid, ast_channel_name(conflict), conflict);
+		ast_channel_unref(conflict);
+		return 1;
+	}
+
+	return 0;
+}
+
 /*! \brief Create a new channel structure */
 static struct ast_channel * attribute_malloc __attribute__((format(printf, 15, 0)))
 __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char *cid_name,
@@ -945,16 +964,33 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		ast_channel_tech_set(tmp, &null_tech);
 	}
 
-	ast_channel_internal_finalize(tmp);
-
-	ast_atomic_fetchadd_int(&chancount, +1);
-
 	/* You might scream "locking inversion" at seeing this but it is actually perfectly fine.
 	 * Since the channel was just created nothing can know about it yet or even acquire it.
 	 */
 	ast_channel_lock(tmp);
 
-	ao2_link(channels, tmp);
+	ao2_lock(channels);
+
+	if (assignedids && (does_id_conflict(assignedids->uniqueid) || does_id_conflict(assignedids->uniqueid2))) {
+		ast_channel_internal_errno_set(AST_CHANNEL_ERROR_ID_EXISTS);
+		ao2_unlock(channels);
+		/* This is a bit unorthodox, but we can't just call ast_channel_stage_snapshot_done()
+		 * because that will result in attempting to publish the channel snapshot. That causes
+		 * badness in some places, such as CDRs. So we need to manually clear the flag on the
+		 * channel that says that a snapshot is being cleared.
+		 */
+		ast_clear_flag(ast_channel_flags(tmp), AST_FLAG_SNAPSHOT_STAGE);
+		ast_channel_unlock(tmp);
+		return ast_channel_unref(tmp);
+	}
+
+	ast_channel_internal_finalize(tmp);
+
+	ast_atomic_fetchadd_int(&chancount, +1);
+
+	ao2_link_flags(channels, tmp, OBJ_NOLOCK);
+
+	ao2_unlock(channels);
 
 	if (endpoint) {
 		ast_endpoint_add_channel(endpoint, tmp);
@@ -10841,4 +10877,9 @@ int ast_channel_feature_hooks_append(struct ast_channel *chan, struct ast_bridge
 int ast_channel_feature_hooks_replace(struct ast_channel *chan, struct ast_bridge_features *features)
 {
 	return channel_feature_hooks_set_full(chan, features, 1);
+}
+
+enum ast_channel_error ast_channel_errno(void)
+{
+	return ast_channel_internal_errno();
 }

@@ -4649,4 +4649,16 @@ int ast_channel_feature_hooks_append(struct ast_channel *chan, struct ast_bridge
  */
 int ast_channel_feature_hooks_replace(struct ast_channel *chan, struct ast_bridge_features *features);
 
+enum ast_channel_error {
+	/* Unable to determine what error occurred. */
+	AST_CHANNEL_ERROR_UNKNOWN,
+	/* Channel with this ID already exists */
+	AST_CHANNEL_ERROR_ID_EXISTS,
+};
+
+/*!
+ * \brief Get error code for latest channel operation.
+ */
+enum ast_channel_error ast_channel_errno(void);
+
 #endif /* _ASTERISK_CHANNEL_H */
