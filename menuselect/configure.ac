@@ -136,11 +136,15 @@ fi
 
 PBX_GTK2=0
 AC_CHECK_TOOL(PKGCONFIG, pkg-config, No)
+AC_MSG_CHECKING([GTK2 support])
 if test ! "x${PKGCONFIG}" = xNo; then
    GTK2_INCLUDE=$(${PKGCONFIG} gtk+-2.0 --cflags 2>/dev/null)
    GTK2_LIB=$(${PKGCONFIG} gtk+-2.0 --libs)   
    PBX_GTK2=1
    AC_DEFINE([HAVE_GTK2], 1, [Define if your system has the GTK2 libraries.])
+   AC_MSG_RESULT([yes])
+else
+   AC_MSG_RESULT([no])
 fi
 AC_SUBST(PBX_GTK2)
 AC_SUBST(GTK2_INCLUDE)
