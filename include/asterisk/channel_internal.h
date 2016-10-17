@@ -25,3 +25,5 @@ int ast_channel_internal_is_finalized(struct ast_channel *chan);
 void ast_channel_internal_cleanup(struct ast_channel *chan);
 int ast_channel_internal_setup_topics(struct ast_channel *chan);
 
+void ast_channel_internal_errno_set(enum ast_channel_error error);
+enum ast_channel_error ast_channel_internal_errno(void);
