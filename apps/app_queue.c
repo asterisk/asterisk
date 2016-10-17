@@ -2671,6 +2671,9 @@ static void init_queue(struct call_queue *q)
 	q->retry = DEFAULT_RETRY;
 	q->timeout = DEFAULT_TIMEOUT;
 	q->maxlen = 0;
+
+	ast_string_field_set(q, context, "");
+
 	q->announcefrequency = 0;
 	q->minannouncefrequency = DEFAULT_MIN_ANNOUNCE_FREQUENCY;
 	q->announceholdtime = 1;
