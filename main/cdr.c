@@ -1374,6 +1374,8 @@ static int base_process_party_a(struct cdr_object *cdr, struct ast_channel_snaps
 {
 	RAII_VAR(struct module_config *, mod_cfg, ao2_global_obj_ref(module_configs), ao2_cleanup);
 
+	ast_log(LOG_NOTICE, "!!! snapshot->name is %s, cdr->party_a.snapshot->name is %s\n",
+		snapshot->name, cdr->party_a.snapshot->name);
 	ast_assert(strcasecmp(snapshot->name, cdr->party_a.snapshot->name) == 0);
 
 	/* Finalize the CDR if we're in hangup logic and we're set to do so */
