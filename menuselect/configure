@@ -4845,6 +4845,8 @@ else
   PKGCONFIG="$ac_cv_prog_PKGCONFIG"
 fi
 
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking GTK2 support" >&5
+$as_echo_n "checking GTK2 support... " >&6; }
 if test ! "x${PKGCONFIG}" = xNo; then
    GTK2_INCLUDE=$(${PKGCONFIG} gtk+-2.0 --cflags 2>/dev/null)
    GTK2_LIB=$(${PKGCONFIG} gtk+-2.0 --libs)
@@ -4852,6 +4854,11 @@ if test ! "x${PKGCONFIG}" = xNo; then
 
 $as_echo "#define HAVE_GTK2 1" >>confdefs.h
 
+   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+else
+   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
 fi
 
 
