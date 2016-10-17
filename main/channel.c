@@ -10866,3 +10866,8 @@ int ast_channel_feature_hooks_replace(struct ast_channel *chan, struct ast_bridg
 {
 	return channel_feature_hooks_set_full(chan, features, 1);
 }
+
+enum ast_channel_error ast_channel_errno(void)
+{
+	return ast_channel_internal_errno();
+}
