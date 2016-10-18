@@ -11979,38 +11979,6 @@ static int sigtype_to_signalling(int sigtype)
 
 /*!
  * \internal
- * \brief Get file name and channel number from (subdir,number)
- *
- * \param subdir name of the subdirectory under /dev/dahdi/
- * \param channel name of device file under /dev/dahdi/<subdir>/
- * \param path buffer to put file name in
- * \param pathlen maximal length of path
- *
- * \retval minor number of dahdi channel.
- * \retval -errno on error.
- */
-static int device2chan(const char *subdir, int channel, char *path, int pathlen)
-{
-	struct stat	stbuf;
-	int		num;
-
-	snprintf(path, pathlen, "/dev/dahdi/%s/%d", subdir, channel);
-	if (stat(path, &stbuf) < 0) {
-		ast_log(LOG_ERROR, "stat(%s) failed: %s\n", path, strerror(errno));
-		return -errno;
-	}
-	if (!S_ISCHR(stbuf.st_mode)) {
-		ast_log(LOG_ERROR, "%s: Not a character device file\n", path);
-		return -EINVAL;
-	}
-	num = minor(stbuf.st_rdev);
-	ast_debug(1, "%s -> %d\n", path, num);
-	return num;
-
-}
-
-/*!
- * \internal
  * \brief Initialize/create a channel interface.
  *
  * \param channel Channel interface number to initialize/create.
@@ -17426,33 +17394,9 @@ static int unload_module(void)
 	return __unload_module();
 }
 
-static void string_replace(char *str, int char1, int char2)
-{
-	for (; *str; str++) {
-		if (*str == char1) {
-			*str = char2;
-		}
-	}
-}
-
-static char *parse_spanchan(char *chanstr, char **subdir)
-{
-	char *p;
-
-	if ((p = strrchr(chanstr, '!')) == NULL) {
-		*subdir = NULL;
-		return chanstr;
-	}
-	*p++ = '\0';
-	string_replace(chanstr, '!', '/');
-	*subdir = chanstr;
-	return p;
-}
-
 static int build_channels(struct dahdi_chan_conf *conf, const char *value, int reload, int lineno)
 {
 	char *c, *chan;
-	char *subdir;
 	int x, start, finish;
 	struct dahdi_pvt *tmp;
 
@@ -17462,7 +17406,6 @@ static int build_channels(struct dahdi_chan_conf *conf, const char *value, int r
 	}
 
 	c = ast_strdupa(value);
-	c = parse_spanchan(c, &subdir);
 
 	while ((chan = strsep(&c, ","))) {
 		if (sscanf(chan, "%30d-%30d", &start, &finish) == 2) {
@@ -17484,39 +17427,22 @@ static int build_channels(struct dahdi_chan_conf *conf, const char *value, int r
 		}
 
 		for (x = start; x <= finish; x++) {
-			char fn[PATH_MAX];
-			int real_channel = x;
-
-			if (!ast_strlen_zero(subdir)) {
-				real_channel = device2chan(subdir, x, fn, sizeof(fn));
-				if (real_channel < 0) {
-					if (conf->ignore_failed_channels) {
-						ast_log(LOG_WARNING, "Failed configuring %s!%d, (got %d). But moving on to others.\n",
-								subdir, x, real_channel);
-						continue;
-					} else {
-						ast_log(LOG_ERROR, "Failed configuring %s!%d, (got %d).\n",
-								subdir, x, real_channel);
-						return -1;
-					}
-				}
-			}
 			if (conf->wanted_channels_start &&
-				(real_channel < conf->wanted_channels_start ||
-				 real_channel > conf->wanted_channels_end)
+				(x < conf->wanted_channels_start ||
+				 x > conf->wanted_channels_end)
 			   ) {
 				continue;
 			}
-			tmp = mkintf(real_channel, conf, reload);
+			tmp = mkintf(x, conf, reload);
 
 			if (tmp) {
-				ast_verb(3, "%s channel %d, %s signalling\n", reload ? "Reconfigured" : "Registered", real_channel, sig2str(tmp->sig));
+				ast_verb(3, "%s channel %d, %s signalling\n", reload ? "Reconfigured" : "Registered", x, sig2str(tmp->sig));
 			} else {
 				ast_log(LOG_ERROR, "Unable to %s channel '%s'\n",
 						(reload == 1) ? "reconfigure" : "register", value);
 				return -1;
 			}
-			if (real_channel == CHAN_PSEUDO) {
+			if (x == CHAN_PSEUDO) {
 				has_pseudo = 1;
 			}
 		}
