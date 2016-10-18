@@ -559,6 +559,12 @@ static int answer(void *data)
 	struct ast_sip_session *session = data;
 
 	if (session->inv_session->state == PJSIP_INV_STATE_DISCONNECTED) {
+		ast_log(LOG_ERROR, "Session already DISCONNECTED [reason=%d (%s)]\n",
+			session->inv_session->cause,
+			pjsip_get_status_text(session->inv_session->cause)->ptr);
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+		pjsip_inv_dec_ref(session->inv_session);
+#endif
 		return 0;
 	}
 
@@ -574,6 +580,10 @@ static int answer(void *data)
 	if (status == PJ_SUCCESS && packet) {
 		ast_sip_session_send_response(session, packet);
 	}
+
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+	pjsip_inv_dec_ref(session->inv_session);
+#endif
 
 	return (status == PJ_SUCCESS) ? 0 : -1;
 }
@@ -591,12 +601,23 @@ static int chan_pjsip_answer(struct ast_channel *ast)
 	ast_setstate(ast, AST_STATE_UP);
 	session = ao2_bump(channel->session);
 
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+	if (pjsip_inv_add_ref(session->inv_session) != PJ_SUCCESS) {
+		ast_log(LOG_ERROR, "Can't increase the session reference counter\n");
+		ao2_ref(session, -1);
+		return -1;
+	}
+#endif
+
 	/* the answer task needs to be pushed synchronously otherwise a race condition
 	   can occur between this thread and bridging (specifically when native bridging
 	   attempts to do direct media) */
 	ast_channel_unlock(ast);
 	if (ast_sip_push_task_synchronous(session->serializer, answer, session)) {
 		ast_log(LOG_WARNING, "Unable to push answer task to the threadpool. Cannot answer call\n");
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+		pjsip_inv_dec_ref(session->inv_session);
+#endif
 		ao2_ref(session, -1);
 		ast_channel_lock(ast);
 		return -1;
@@ -1105,6 +1126,9 @@ static int indicate(void *data)
 		ast_sip_session_send_response(session, packet);
 	}
 
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+	pjsip_inv_dec_ref(session->inv_session);
+#endif
 	ao2_ref(ind_data, -1);
 
 	return 0;
@@ -1132,17 +1156,35 @@ static int transmit_info_with_vidupdate(void *data)
 	RAII_VAR(struct ast_sip_session *, session, data, ao2_cleanup);
 	struct pjsip_tx_data *tdata;
 
+	if (session->inv_session->state == PJSIP_INV_STATE_DISCONNECTED) {
+		ast_log(LOG_ERROR, "Session already DISCONNECTED [reason=%d (%s)]\n",
+			session->inv_session->cause,
+			pjsip_get_status_text(session->inv_session->cause)->ptr);
+		goto failure;
+	}
+
 	if (ast_sip_create_request("INFO", session->inv_session->dlg, session->endpoint, NULL, NULL, &tdata)) {
 		ast_log(LOG_ERROR, "Could not create text video update INFO request\n");
-		return -1;
+		goto failure;
 	}
 	if (ast_sip_add_body(tdata, &body)) {
 		ast_log(LOG_ERROR, "Could not add body to text video update INFO request\n");
-		return -1;
+		goto failure;
 	}
 	ast_sip_session_send_request(session, tdata);
 
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+	pjsip_inv_dec_ref(session->inv_session);
+#endif
+
 	return 0;
+
+failure:
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+	pjsip_inv_dec_ref(session->inv_session);
+#endif
+	return -1;
+
 }
 
 /*!
@@ -1185,6 +1227,17 @@ static int update_connected_line_information(void *data)
 {
 	struct ast_sip_session *session = data;
 
+	if (session->inv_session->state == PJSIP_INV_STATE_DISCONNECTED) {
+		ast_log(LOG_ERROR, "Session already DISCONNECTED [reason=%d (%s)]\n",
+			session->inv_session->cause,
+			pjsip_get_status_text(session->inv_session->cause)->ptr);
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+		pjsip_inv_dec_ref(session->inv_session);
+#endif
+		ao2_ref(session, -1);
+		return -1;
+	}
+
 	if (ast_channel_state(session->channel) == AST_STATE_UP
 		|| session->inv_session->role == PJSIP_ROLE_UAC) {
 		if (is_colp_update_allowed(session)) {
@@ -1221,6 +1274,10 @@ static int update_connected_line_information(void *data)
 			}
 		}
 	}
+
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+	pjsip_inv_dec_ref(session->inv_session);
+#endif
 
 	ao2_ref(session, -1);
 	return 0;
@@ -1302,10 +1359,18 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 				res = ast_rtp_instance_write(media->rtp, &fr);
 			} else {
 				ao2_ref(channel->session, +1);
-
-				if (ast_sip_push_task(channel->session->serializer, transmit_info_with_vidupdate, channel->session)) {
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+				if (pjsip_inv_add_ref(channel->session->inv_session) != PJ_SUCCESS) {
+					ast_log(LOG_ERROR, "Can't increase the session reference counter\n");
 					ao2_cleanup(channel->session);
+				} else {
+#endif
+					if (ast_sip_push_task(channel->session->serializer, transmit_info_with_vidupdate, channel->session)) {
+						ao2_cleanup(channel->session);
+					}
+#ifdef HAVE_PJSIP_INV_SESSION_REF
 				}
+#endif
 			}
 			ast_test_suite_event_notify("AST_CONTROL_VIDUPDATE", "Result: Success");
 		} else {
@@ -1315,7 +1380,17 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 		break;
 	case AST_CONTROL_CONNECTED_LINE:
 		ao2_ref(channel->session, +1);
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+		if (pjsip_inv_add_ref(channel->session->inv_session) != PJ_SUCCESS) {
+			ast_log(LOG_ERROR, "Can't increase the session reference counter\n");
+			ao2_cleanup(channel->session);
+			return -1;
+		}
+#endif
 		if (ast_sip_push_task(channel->session->serializer, update_connected_line_information, channel->session)) {
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+			pjsip_inv_dec_ref(channel->session->inv_session);
+#endif
 			ao2_cleanup(channel->session);
 		}
 		break;
@@ -1392,9 +1467,23 @@ static int chan_pjsip_indicate(struct ast_channel *ast, int condition, const voi
 
 	if (response_code) {
 		struct indicate_data *ind_data = indicate_data_alloc(channel->session, condition, response_code, data, datalen);
-		if (!ind_data || ast_sip_push_task(channel->session->serializer, indicate, ind_data)) {
+
+		if (!ind_data) {
+			return -1;
+		}
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+		if (pjsip_inv_add_ref(ind_data->session->inv_session) != PJ_SUCCESS) {
+			ast_log(LOG_ERROR, "Can't increase the session reference counter\n");
+			ao2_cleanup(ind_data);
+			return -1;
+		}
+#endif
+		if (ast_sip_push_task(channel->session->serializer, indicate, ind_data)) {
 			ast_log(LOG_NOTICE, "Cannot send response code %d to endpoint %s. Could not queue task properly\n",
 					response_code, ast_sorcery_object_get_id(channel->session->endpoint));
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+			pjsip_inv_dec_ref(ind_data->session->inv_session);
+#endif
 			ao2_cleanup(ind_data);
 			res = -1;
 		}
@@ -1515,20 +1604,30 @@ static int transfer(void *data)
 	struct ast_sip_contact *contact = NULL;
 	const char *target = trnf_data->target;
 
-	/* See if we have an endpoint; if so, use its contact */
-	endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", target);
-	if (endpoint) {
-		contact = ast_sip_location_retrieve_contact_from_aor_list(endpoint->aors);
-		if (contact && !ast_strlen_zero(contact->uri)) {
-			target = contact->uri;
+	if (trnf_data->session->inv_session->state == PJSIP_INV_STATE_DISCONNECTED) {
+		ast_log(LOG_ERROR, "Session already DISCONNECTED [reason=%d (%s)]\n",
+			trnf_data->session->inv_session->cause,
+			pjsip_get_status_text(trnf_data->session->inv_session->cause)->ptr);
+	} else {
+		/* See if we have an endpoint; if so, use its contact */
+		endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", target);
+		if (endpoint) {
+			contact = ast_sip_location_retrieve_contact_from_aor_list(endpoint->aors);
+			if (contact && !ast_strlen_zero(contact->uri)) {
+				target = contact->uri;
+			}
+		}
+
+		if (ast_channel_state(trnf_data->session->channel) == AST_STATE_RING) {
+			transfer_redirect(trnf_data->session, target);
+		} else {
+			transfer_refer(trnf_data->session, target);
 		}
 	}
 
-	if (ast_channel_state(trnf_data->session->channel) == AST_STATE_RING) {
-		transfer_redirect(trnf_data->session, target);
-	} else {
-		transfer_refer(trnf_data->session, target);
-	}
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+	pjsip_inv_dec_ref(trnf_data->session->inv_session);
+#endif
 
 	ao2_ref(trnf_data, -1);
 	ao2_cleanup(endpoint);
@@ -1546,8 +1645,19 @@ static int chan_pjsip_transfer(struct ast_channel *chan, const char *target)
 		return -1;
 	}
 
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+	if (pjsip_inv_add_ref(trnf_data->session->inv_session) != PJ_SUCCESS) {
+		ast_log(LOG_ERROR, "Can't increase the session reference counter\n");
+		ao2_cleanup(trnf_data);
+		return -1;
+	}
+#endif
+
 	if (ast_sip_push_task(channel->session->serializer, transfer, trnf_data)) {
 		ast_log(LOG_WARNING, "Error requesting transfer\n");
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+		pjsip_inv_dec_ref(trnf_data->session->inv_session);
+#endif
 		ao2_cleanup(trnf_data);
 		return -1;
 	}
@@ -1629,9 +1739,16 @@ static int transmit_info_dtmf(void *data)
 		.subtype = "dtmf-relay",
 	};
 
+	if (session->inv_session->state == PJSIP_INV_STATE_DISCONNECTED) {
+		ast_log(LOG_ERROR, "Session already DISCONNECTED [reason=%d (%s)]\n",
+			session->inv_session->cause,
+			pjsip_get_status_text(session->inv_session->cause)->ptr);
+		goto failure;
+	}
+
 	if (!(body_text = ast_str_create(32))) {
 		ast_log(LOG_ERROR, "Could not allocate buffer for INFO DTMF.\n");
-		return -1;
+		goto failure;
 	}
 	ast_str_set(&body_text, 0, "Signal=%c\r\nDuration=%u\r\n", dtmf_data->digit, dtmf_data->duration);
 
@@ -1639,16 +1756,27 @@ static int transmit_info_dtmf(void *data)
 
 	if (ast_sip_create_request("INFO", session->inv_session->dlg, session->endpoint, NULL, NULL, &tdata)) {
 		ast_log(LOG_ERROR, "Could not create DTMF INFO request\n");
-		return -1;
+		goto failure;
 	}
 	if (ast_sip_add_body(tdata, &body)) {
 		ast_log(LOG_ERROR, "Could not add body to DTMF INFO request\n");
 		pjsip_tx_data_dec_ref(tdata);
-		return -1;
+		goto failure;
 	}
 	ast_sip_session_send_request(session, tdata);
 
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+	pjsip_inv_dec_ref(session->inv_session);
+#endif
+
 	return 0;
+
+failure:
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+	pjsip_inv_dec_ref(session->inv_session);
+#endif
+	return -1;
+
 }
 
 /*! \brief Function called by core to stop a DTMF digit */
@@ -1668,8 +1796,19 @@ static int chan_pjsip_digit_end(struct ast_channel *ast, char digit, unsigned in
 			return -1;
 		}
 
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+		if (pjsip_inv_add_ref(dtmf_data->session->inv_session) != PJ_SUCCESS) {
+			ast_log(LOG_ERROR, "Can't increase the session reference counter\n");
+			ao2_cleanup(dtmf_data);
+			return -1;
+		}
+#endif
+
 		if (ast_sip_push_task(channel->session->serializer, transmit_info_dtmf, dtmf_data)) {
 			ast_log(LOG_WARNING, "Error sending DTMF via INFO.\n");
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+			pjsip_inv_dec_ref(dtmf_data->session->inv_session);
+#endif
 			ao2_cleanup(dtmf_data);
 			return -1;
 		}
@@ -2015,11 +2154,21 @@ static int sendtext(void *obj)
 		.body_text = data->text
 	};
 
-	ast_debug(3, "Sending in dialog SIP message\n");
+	if (data->session->inv_session->state == PJSIP_INV_STATE_DISCONNECTED) {
+		ast_log(LOG_ERROR, "Session already DISCONNECTED [reason=%d (%s)]\n",
+			data->session->inv_session->cause,
+			pjsip_get_status_text(data->session->inv_session->cause)->ptr);
+	} else {
+		ast_debug(3, "Sending in dialog SIP message\n");
 
-	ast_sip_create_request("MESSAGE", data->session->inv_session->dlg, data->session->endpoint, NULL, NULL, &tdata);
-	ast_sip_add_body(tdata, &body);
-	ast_sip_send_request(tdata, data->session->inv_session->dlg, data->session->endpoint, NULL, NULL);
+		ast_sip_create_request("MESSAGE", data->session->inv_session->dlg, data->session->endpoint, NULL, NULL, &tdata);
+		ast_sip_add_body(tdata, &body);
+		ast_sip_send_request(tdata, data->session->inv_session->dlg, data->session->endpoint, NULL, NULL);
+	}
+
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+	pjsip_inv_dec_ref(data->session->inv_session);
+#endif
 
 	return 0;
 }
@@ -2030,7 +2179,22 @@ static int chan_pjsip_sendtext(struct ast_channel *ast, const char *text)
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
 	struct sendtext_data *data = sendtext_data_create(channel->session, text);
 
-	if (!data || ast_sip_push_task(channel->session->serializer, sendtext, data)) {
+	if (!data) {
+		return -1;
+	}
+
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+	if (pjsip_inv_add_ref(data->session->inv_session) != PJ_SUCCESS) {
+		ast_log(LOG_ERROR, "Can't increase the session reference counter\n");
+		ao2_ref(data, -1);
+		return -1;
+	}
+#endif
+
+	if (ast_sip_push_task(channel->session->serializer, sendtext, data)) {
+#ifdef HAVE_PJSIP_INV_SESSION_REF
+		pjsip_inv_dec_ref(data->session->inv_session);
+#endif
 		ao2_ref(data, -1);
 		return -1;
 	}
