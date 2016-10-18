@@ -5510,6 +5510,15 @@ int ast_ari_validate_playback_continuing(struct ast_json *json)
 	int has_playback = 0;
 
 	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI PlaybackContinuing field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
 		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
 			int prop_is_valid;
 			has_type = 1;
