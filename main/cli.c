@@ -450,19 +450,11 @@ static char *handle_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	case CLI_INIT:
 		e->command = "core set debug";
 		e->usage =
-#if !defined(LOW_MEMORY)
 			"Usage: core set debug [atleast] <level> [module]\n"
-#else
-			"Usage: core set debug [atleast] <level>\n"
-#endif
 			"       core set debug off\n"
 			"\n"
-#if !defined(LOW_MEMORY)
 			"       Sets level of debug messages to be displayed or\n"
 			"       sets a module name to display debug messages from.\n"
-#else
-			"       Sets level of debug messages to be displayed.\n"
-#endif
 			"       0 or off means no messages should be displayed.\n"
 			"       Equivalent to -d[d[...]] on startup\n";
 		return NULL;
@@ -490,13 +482,9 @@ static char *handle_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 			} else if (a->n == (22 - numbermatch) && a->pos == 3 && ast_strlen_zero(argv3)) {
 				return ast_strdup("atleast");
 			}
-#if !defined(LOW_MEMORY)
 		} else if ((a->pos == 4 && !atleast && strcasecmp(argv3, "off") && strcasecmp(argv3, "channel"))
 			|| (a->pos == 5 && atleast)) {
-			const char *pos = S_OR(a->argv[a->pos], "");
-
-			return ast_complete_source_filename(pos, a->n);
-#endif
+			return ast_module_helper(a->line, a->word, a->pos, a->n, a->pos, 0);
 		}
 		return NULL;
 	}
