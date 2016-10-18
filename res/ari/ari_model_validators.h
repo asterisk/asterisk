@@ -1720,6 +1720,7 @@ ari_validator ast_ari_validate_application_fn(void);
  * - endpoint: Endpoint (required)
  * - peer: Peer (required)
  * PlaybackContinuing
+ * - asterisk_id: string
  * - type: string (required)
  * - application: string (required)
  * - timestamp: Date
