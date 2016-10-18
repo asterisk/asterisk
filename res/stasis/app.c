@@ -929,7 +929,14 @@ struct stasis_topic *ast_app_get_topic(struct stasis_app *app)
 void app_send(struct stasis_app *app, struct ast_json *message)
 {
 	stasis_app_cb handler;
+	char eid[20];
 	RAII_VAR(void *, data, NULL, ao2_cleanup);
+
+	if (ast_json_object_set(message, "asterisk_id", ast_json_string_create(
+			ast_eid_to_str(eid, sizeof(eid), &ast_eid_default)))) {
+		ast_log(AST_LOG_WARNING, "Failed to append EID to outgoing event %s\n",
+			ast_json_string_get(ast_json_object_get(message, "type")));
+	}
 
 	/* Copy off mutable state with lock held */
 	{
