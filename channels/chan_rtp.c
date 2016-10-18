@@ -314,7 +314,7 @@ static struct ast_channel *unicast_rtp_request(const char *type, struct ast_form
 	}
 
 	engine_name = S_COR(ast_test_flag(&opts, OPT_RTP_ENGINE),
-		opt_args[OPT_ARG_RTP_ENGINE], NULL);
+		opt_args[OPT_ARG_RTP_ENGINE], "asterisk");
 
 	ast_ouraddrfor(&address, &local_address);
 	instance = ast_rtp_instance_new(engine_name, NULL, &local_address, NULL);
