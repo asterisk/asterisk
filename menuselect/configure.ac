@@ -134,14 +134,7 @@ if test "${PBX_LIBXML2}" != 1; then
   AC_MSG_ERROR([Could not find required 'Libxml2' development package])
 fi
 
-PBX_GTK2=0
-AC_CHECK_TOOL(PKGCONFIG, pkg-config, No)
-if test ! "x${PKGCONFIG}" = xNo; then
-   GTK2_INCLUDE=$(${PKGCONFIG} gtk+-2.0 --cflags 2>/dev/null)
-   GTK2_LIB=$(${PKGCONFIG} gtk+-2.0 --libs)   
-   PBX_GTK2=1
-   AC_DEFINE([HAVE_GTK2], 1, [Define if your system has the GTK2 libraries.])
-fi
+AST_PKG_CONFIG_CHECK([GTK2], [gtk+-2.0])
 AC_SUBST(PBX_GTK2)
 AC_SUBST(GTK2_INCLUDE)
 AC_SUBST(GTK2_LIB)
