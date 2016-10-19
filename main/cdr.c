@@ -695,6 +695,7 @@ struct cdr_object {
 	);
 	struct cdr_object *next;                /*!< The next CDR object in the chain */
 	struct cdr_object *last;                /*!< The last CDR object in the chain */
+	int is_root;                            /*!< True if this is the first CDR in the chain */
 };
 
 /*!
@@ -850,7 +851,22 @@ static void cdr_object_dtor(void *obj)
 	}
 	ast_string_field_free_memory(cdr);
 
-	ao2_cleanup(cdr->next);
+	/* CDR destruction used to work by calling ao2_cleanup(next) and
+	 * allowing the chain to destroy itself neatly. Unfortunately, for
+	 * really long chains, this can result in a stack overflow. So now
+	 * when the root CDR is destroyed, it is responsible for unreffing
+	 * all CDRs in the chain
+	 */
+	if (cdr->is_root) {
+		struct cdr_object *curr = cdr->next;
+		struct cdr_object *next;
+
+		while (curr) {
+			next = curr->next;
+			ao2_cleanup(curr);
+			curr = next;
+		}
+	}
 }
 
 /*!
@@ -2094,6 +2110,7 @@ static void handle_channel_cache_message(void *data, struct stasis_subscription 
 		if (!cdr) {
 			return;
 		}
+		cdr->is_root = 1;
 		ao2_link(active_cdrs_by_channel, cdr);
 	}
 
