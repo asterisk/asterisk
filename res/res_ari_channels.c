@@ -385,6 +385,7 @@ static void ast_ari_channels_create_cb(
 		break;
 	case 500: /* Internal Server Error */
 	case 501: /* Not Implemented */
+	case 409: /* Channel with given unique ID already exists. */
 		is_valid = 1;
 		break;
 	default:

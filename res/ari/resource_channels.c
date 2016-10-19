@@ -1823,7 +1823,12 @@ void ast_ari_channels_create(struct ast_variable *headers,
 	ao2_cleanup(request_cap);
 
 	if (!chan_data->chan) {
-		ast_ari_response_alloc_failed(response);
+		if (ast_channel_errno() == AST_CHANNEL_ERROR_ID_EXISTS) {
+			ast_ari_response_error(response, 409, "Conflict",
+				"Channel with given unique ID already exists");
+		} else {
+			ast_ari_response_alloc_failed(response);
+		}
 		ast_channel_cleanup(originator);
 		chan_data_destroy(chan_data);
 		return;
