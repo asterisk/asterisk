@@ -59,6 +59,18 @@ rtpend=20000
 ; Password used to authenticate with TURN relay server.
 ; turnpassword=
 ;
+; Subnets to exclude from ICE host, srflx and relay discovery. This is useful
+; to optimize the ICE process where a system has multiple host address ranges
+; and/or physical interfaces and certain of them are not expected to be used
+; for RTP. For example, VPNs and local interconnections may not be suitable or
+; necessary for ICE. Multiple subnets may be listed. If left unconfigured,
+; all discovered host addresses are used.
+;
+; e.g. ice_blacklist = 192.168.1.0/255.255.255.0
+;      ice_blacklist = 10.32.77.0/255.255.255.0
+;
+; ice_blacklist =
+;
 [ice_host_candidates]
 ;
 ; When Asterisk is behind a static one-to-one NAT and ICE is in use, ICE will

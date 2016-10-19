@@ -97,6 +97,11 @@ res_pjsip
    Note: The caller-id and redirecting number strings obtained from incoming
    SIP URI user fields are now always truncated at the first semicolon.
 
+res_rtp_asterisk
+------------------
+  * An option, ice_blacklist, has been added which allows certain subnets to be
+    excluded from local ICE candidates.
+
 app_confbridge
 ------------------
   * Some sounds played into the bridge are played asynchronously. This, for
