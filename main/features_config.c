@@ -1949,8 +1949,6 @@ static char *handle_feature_show(struct ast_cli_entry *e, int cmd, struct ast_cl
 		ao2_callback(cfg->featuregroups, 0, print_featuregroups, a);
 	}
 
-	ast_cli(a->fd, "\n");
-
 	return CLI_SUCCESS;
 }
 
