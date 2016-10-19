@@ -30216,9 +30216,10 @@ static struct ast_channel *sip_request_call(const char *type, struct ast_format_
 	if (p->relatedpeer) {
 
 		if (!ast_strlen_zero(p->relatedpeer->fullcontact) && !p->natdetected &&
-			(ast_test_flag(&p->flags[2], SIP_PAGE3_NAT_AUTO_RPORT) && !ast_test_flag(&p->flags[0], SIP_NAT_FORCE_RPORT))) {
+		    ((ast_test_flag(&p->flags[2], SIP_PAGE3_NAT_AUTO_RPORT) && !ast_test_flag(&p->flags[0], SIP_NAT_FORCE_RPORT)) ||
+		     (ast_test_flag(&p->flags[2], SIP_PAGE3_NAT_AUTO_COMEDIA) && !ast_test_flag(&p->flags[1], SIP_PAGE2_SYMMETRICRTP)))) {
 			/* We need to make an attempt to determine if a peer is behind NAT
-			   if the peer has the auto_force_rport flag set. */
+			   if the peer has the flags auto_force_rport or auto_comedia set. */
 			struct ast_sockaddr tmpaddr;
 
 			__set_address_from_contact(p->relatedpeer->fullcontact, &tmpaddr, 0);
