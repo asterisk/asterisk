@@ -67,6 +67,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "stasis/app.h"
 #include "stasis/control.h"
 #include "stasis/messaging.h"
+#include "stasis/cli.h"
 #include "stasis/stasis_bridge.h"
 #include "asterisk/core_unreal.h"
 #include "asterisk/musiconhold.h"
@@ -1475,6 +1476,11 @@ static struct stasis_app *find_app_by_name(const char *app_name)
 	return res;
 }
 
+struct stasis_app *stasis_app_get_by_name(const char *name)
+{
+	return find_app_by_name(name);
+}
+
 static int append_name(void *obj, void *arg, int flags)
 {
 	struct stasis_app *app = obj;
@@ -1947,6 +1953,8 @@ static int unload_module(void)
 {
 	stasis_app_unregister_event_sources();
 
+	cli_cleanup();
+
 	messaging_cleanup();
 
 	cleanup();
@@ -2100,6 +2108,11 @@ static int load_module(void)
 	}
 
 	if (messaging_init()) {
+		unload_module();
+		return AST_MODULE_LOAD_FAILURE;
+	}
+
+	if (cli_init()) {
 		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
