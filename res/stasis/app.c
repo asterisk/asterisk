@@ -30,6 +30,7 @@
 #include "messaging.h"
 
 #include "asterisk/callerid.h"
+#include "asterisk/cli.h"
 #include "asterisk/stasis_app.h"
 #include "asterisk/stasis_bridges.h"
 #include "asterisk/stasis_channels.h"
@@ -59,6 +60,8 @@ struct stasis_app {
 	void *data;
 	/*! Subscription model for the application */
 	enum stasis_app_subscription_model subscription_model;
+	/*! Whether or not someone wants to see debug messages about this app */
+	int debug;
 	/*! Name of the Stasis application */
 	char name[];
 };
@@ -830,6 +833,18 @@ static void bridge_default_handler(void *data, struct stasis_subscription *sub,
 	}
 }
 
+void app_set_debug(struct stasis_app *app, int debug)
+{
+	if (!app) {
+		return;
+	}
+
+	{
+		SCOPED_AO2LOCK(lock, app);
+		app->debug = debug;
+	}
+}
+
 struct stasis_app *app_create(const char *name, stasis_app_cb handler, void *data, enum stasis_app_subscription_model subscription_model)
 {
 	RAII_VAR(struct stasis_app *, app, NULL, ao2_cleanup);
@@ -927,6 +942,7 @@ struct stasis_topic *ast_app_get_topic(struct stasis_app *app)
 void app_send(struct stasis_app *app, struct ast_json *message)
 {
 	stasis_app_cb handler;
+	int debug;
 	char eid[20];
 	RAII_VAR(void *, data, NULL, ao2_cleanup);
 
@@ -939,12 +955,20 @@ void app_send(struct stasis_app *app, struct ast_json *message)
 	/* Copy off mutable state with lock held */
 	{
 		SCOPED_AO2LOCK(lock, app);
+		debug = app->debug;
 		handler = app->handler;
 		if (app->data) {
 			ao2_ref(app->data, +1);
 			data = app->data;
 		}
 		/* Name is immutable; no need to copy */
+	}
+
+	if (debug) {
+		char *dump = ast_json_dump_string_format(message, AST_JSON_PRETTY);
+		ast_verb(0, "Dispatching message to Stasis app '%s':\n%s\n",
+			app->name, dump);
+		ast_json_free(dump);
 	}
 
 	if (!handler) {
@@ -1022,6 +1046,73 @@ void app_update(struct stasis_app *app, stasis_app_cb handler, void *data)
 const char *app_name(const struct stasis_app *app)
 {
 	return app->name;
+}
+
+static int forwards_filter_by_type(void *obj, void *arg, int flags)
+{
+	struct app_forwards *forward = obj;
+	enum forward_type *forward_type = arg;
+
+	if (forward->forward_type == *forward_type) {
+		return CMP_MATCH;
+	}
+
+	return 0;
+}
+
+void app_to_cli(const struct stasis_app *app, struct ast_cli_args *a)
+{
+	struct ao2_iterator *channels;
+	struct ao2_iterator *endpoints;
+	struct ao2_iterator *bridges;
+	struct app_forwards *forward;
+	enum forward_type forward_type;
+
+	ast_cli(a->fd, "Name: %s\n"
+		"  Debug: %s\n"
+		"  Subscription Model: %s\n",
+		app->name,
+		app->debug ? "Yes" : "No",
+		app->subscription_model == STASIS_APP_SUBSCRIBE_ALL ?
+			"Global Resource Subscription" :
+			"Application/Explicit Resource Subscription");
+	ast_cli(a->fd, "  Subscriptions: %d\n", ao2_container_count(app->forwards));
+
+	ast_cli(a->fd, "    Channels:\n");
+	forward_type = FORWARD_CHANNEL;
+	channels = ao2_callback(app->forwards, OBJ_MULTIPLE,
+		forwards_filter_by_type, &forward_type);
+	if (channels) {
+		while ((forward = ao2_iterator_next(channels))) {
+			ast_cli(a->fd, "      %s (%d)\n", forward->id, forward->interested);
+			ao2_ref(forward, -1);
+		}
+		ao2_iterator_destroy(channels);
+	}
+
+	ast_cli(a->fd, "    Bridges:\n");
+	forward_type = FORWARD_BRIDGE;
+	bridges = ao2_callback(app->forwards, OBJ_MULTIPLE,
+		forwards_filter_by_type, &forward_type);
+	if (bridges) {
+		while ((forward = ao2_iterator_next(bridges))) {
+			ast_cli(a->fd, "      %s (%d)\n", forward->id, forward->interested);
+			ao2_ref(forward, -1);
+		}
+		ao2_iterator_destroy(bridges);
+	}
+
+	ast_cli(a->fd, "    Endpoints:\n");
+	forward_type = FORWARD_ENDPOINT;
+	endpoints = ao2_callback(app->forwards, OBJ_MULTIPLE,
+		forwards_filter_by_type, &forward_type);
+	if (endpoints) {
+		while ((forward = ao2_iterator_next(endpoints))) {
+			ast_cli(a->fd, "      %s (%d)\n", forward->id, forward->interested);
+			ao2_ref(forward, -1);
+		}
+		ao2_iterator_destroy(endpoints);
+	}
 }
 
 struct ast_json *app_to_json(const struct stasis_app *app)
