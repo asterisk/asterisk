@@ -753,6 +753,8 @@ struct ast_sip_endpoint {
 	unsigned int faxdetect_timeout;
 	/*! Override the user on the outgoing Contact header with this value. */
 	char *contact_user;
+	/*! Do we allow an asymmetric RTP codec? */
+	unsigned int asymmetric_rtp_codec;
 };
 
 /*!
