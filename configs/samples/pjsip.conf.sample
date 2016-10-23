@@ -755,6 +755,8 @@
                    ; "0" or not enabled)
 ;contact_user= ; On outgoing requests, force the user portion of the Contact
                ; header to this value (default: "")
+;asymmetric_rtp_codec= ; Allow the sending and receiving codec to differ and
+                       ; not be automatically matched (default: "no")
 
 ;==========================AUTH SECTION OPTIONS=========================
 ;[auth]

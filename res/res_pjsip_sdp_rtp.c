@@ -380,6 +380,11 @@ static int set_caps(struct ast_sip_session *session,
 				session->dsp = NULL;
 			}
 		}
+
+		if (ast_channel_is_bridged(session->channel)) {
+			ast_channel_set_unbridged_nolock(session->channel, 1);
+		}
+
 		ast_channel_unlock(session->channel);
 	}
 
