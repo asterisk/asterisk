@@ -219,9 +219,7 @@ static enum ast_rtp_glue_result chan_pjsip_get_vrtp_peer(struct ast_channel *cha
 /*! \brief Function called by RTP engine to get peer capabilities */
 static void chan_pjsip_get_codec(struct ast_channel *chan, struct ast_format_cap *result)
 {
-	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(chan);
-
-	ast_format_cap_append_from_cap(result, channel->session->endpoint->media.codecs, AST_MEDIA_TYPE_UNKNOWN);
+	ast_format_cap_append_from_cap(result, ast_channel_nativeformats(chan), AST_MEDIA_TYPE_UNKNOWN);
 }
 
 /*! \brief Destructor function for \ref transport_info_data */
@@ -704,13 +702,26 @@ static struct ast_frame *chan_pjsip_read(struct ast_channel *ast)
 
 	session = channel->session;
 
-	if (ast_format_cap_iscompatible_format(session->endpoint->media.codecs, f->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
-		ast_debug(1, "Oooh, got a frame with format of %s on channel '%s' when endpoint '%s' is not configured for it\n",
-			ast_format_get_name(f->subclass.format), ast_channel_name(ast),
-			ast_sorcery_object_get_id(session->endpoint));
+	if (ast_format_cap_iscompatible_format(ast_channel_nativeformats(ast), f->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
+		ast_debug(1, "Oooh, got a frame with format of %s on channel '%s' when it has not been negotiated\n",
+			ast_format_get_name(f->subclass.format), ast_channel_name(ast));
 
 		ast_frfree(f);
 		return &ast_null_frame;
+	}
+
+	if (!session->endpoint->asymmetric_rtp_codec &&
+		ast_format_cmp(ast_channel_rawwriteformat(ast), f->subclass.format) == AST_FORMAT_CMP_NOT_EQUAL) {
+		/* For maximum compatibility we ensure that the write format matches that of the received media */
+		ast_debug(1, "Oooh, got a frame with format of %s on channel '%s' when we're sending '%s', switching to match\n",
+			ast_format_get_name(f->subclass.format), ast_channel_name(ast),
+			ast_format_get_name(ast_channel_rawwriteformat(ast)));
+		ast_channel_set_rawwriteformat(ast, f->subclass.format);
+		ast_set_write_format(ast, ast_channel_writeformat(ast));
+
+		if (ast_channel_is_bridged(ast)) {
+			ast_channel_set_unbridged_nolock(ast, 1);
+		}
 	}
 
 	if (session->dsp) {

@@ -759,6 +759,8 @@ struct ast_sip_endpoint {
 	char *contact_user;
 	/*! Whether to response SDP offer with single most preferred codec. */
 	unsigned int preferred_codec_only;
+	/*! Do we allow an asymmetric RTP codec? */
+	unsigned int asymmetric_rtp_codec;
 };
 
 /*!
