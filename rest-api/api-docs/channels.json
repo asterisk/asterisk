@@ -142,6 +142,10 @@
 						{
 							"code": 400,
 							"reason": "Invalid parameters for originating a channel."
+						},
+						{
+							"code": 409,
+							"reason": "Channel with given unique ID already exists."
 						}
 					]
 				}
@@ -298,6 +302,10 @@
 						{
 							"code": 400,
 							"reason": "Invalid parameters for originating a channel."
+						},
+						{
+							"code": 409,
+							"reason": "Channel with given unique ID already exists."
 						}
 					]
 				},
