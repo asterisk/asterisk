@@ -28,7 +28,7 @@ PJPROJECT_CONFIG_OPTS = --prefix=/opt/pjproject \
 	--disable-openh264 \
 	--disable-ipp \
 	--without-external-pa \
-	--with-external-srtp
+	--without-external-srtp
 
 ifeq ($(shell uname -s),Linux)
    PJPROJECT_CONFIG_OPTS +=  --enable-epoll
