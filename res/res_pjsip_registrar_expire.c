@@ -82,7 +82,7 @@ static void *check_expiration_thread(void *data)
 
 		ast_variables_destroy(var);
 		if (contacts) {
-			ast_debug(3, "Expiring %d contacts\n\n", ao2_container_count(contacts));
+			ast_debug(3, "Expiring %d contacts\n", ao2_container_count(contacts));
 			ao2_callback(contacts, OBJ_NODATA, expire_contact, NULL);
 			ao2_ref(contacts, -1);
 		}
