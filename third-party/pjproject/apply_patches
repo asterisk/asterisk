@@ -28,8 +28,14 @@ if [ ! "$(ls -A $patchdir/*.patch 2>/dev/null)" ] ; then
 	exit 0
 fi
 
+if patch --dry-run </dev/null >/dev/null 2>&1 ; then
+	DRY_RUN=--dry-run
+else
+	DRY_RUN=-C
+fi
+
 for patchfile in $patchdir/*.patch ; do
-	${PATCH} -d $sourcedir -p1 -s -r- -f -N --dry-run -i "$patchfile" || (echo "Patchfile $(basename $patchfile) failed to apply" >&2 ; exit 1) || exit 1
+	${PATCH} -d $sourcedir -p1 -s -r- -f -N $DRY_RUN -i "$patchfile" || (echo "Patchfile $(basename $patchfile) failed to apply" >&2 ; exit 1) || exit 1
 done
 
 for patchfile in "$patchdir"/*.patch ; do
