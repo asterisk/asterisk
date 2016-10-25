@@ -8505,24 +8505,17 @@ static int iax2_do_register_s(const void *data)
 
 static int try_transfer(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 {
-	int newcall = 0;
-	char newip[256];
-	struct iax_ie_data ied;
-	struct sockaddr_in new = { 0, };
+	struct iax_ie_data ied = { 0, };
 
 	memset(&ied, 0, sizeof(ied));
-	if (ies->apparent_addr)
-		memmove(&new, ies->apparent_addr, sizeof(new));
-	if (ies->callno)
-		newcall = ies->callno;
-	if (!newcall || !new.sin_addr.s_addr || !new.sin_port) {
+	if (!ies->callno || !ies->apparent_addr ||
+			!ies->apparent_addr->sin_addr.s_addr ||
+			!ies->apparent_addr->sin_port) {
 		ast_log(LOG_WARNING, "Invalid transfer request\n");
 		return -1;
 	}
-	pvt->transfercallno = newcall;
-	memcpy(&pvt->transfer, &new, sizeof(pvt->transfer));
-	inet_aton(newip, &pvt->transfer.sin_addr);
-	pvt->transfer.sin_family = AF_INET;
+	pvt->transfercallno = ies->callno;
+	memcpy(&pvt->transfer, ies->apparent_addr, sizeof(pvt->transfer));
 	pvt->transferid = ies->transferid;
 	/* only store by transfercallno if this is a new transfer,
 	 * just in case we get a duplicate TXREQ */
