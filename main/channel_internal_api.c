@@ -1661,3 +1661,25 @@ int ast_channel_internal_setup_topics(struct ast_channel *chan)
 
 	return 0;
 }
+
+AST_THREADSTORAGE(channel_errno);
+
+void ast_channel_internal_errno_set(enum ast_channel_error error)
+{
+	enum ast_channel_error *error_code = ast_threadstorage_get(&channel_errno, sizeof(*error_code));
+	if (!error_code) {
+		return;
+	}
+
+	*error_code = error;
+}
+
+enum ast_channel_error ast_channel_internal_errno(void)
+{
+	enum ast_channel_error *error_code = ast_threadstorage_get(&channel_errno, sizeof(*error_code));
+	if (!error_code) {
+		return AST_CHANNEL_ERROR_UNKNOWN;
+	}
+
+	return *error_code;
+}
