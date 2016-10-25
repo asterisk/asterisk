@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-14.1.0-rc1
+                                asterisk-14.1.0
 
-                                Date: 2016-10-17
+                                Date: 2016-10-25
 
                            <asteriskteam@digium.com>
 
@@ -59,7 +59,7 @@
    13 Matt Jordan                                     7 Kevin Harwell         
    9 Kevin Harwell                                    6 Alexander Traud       
    8 Alexei Gradinari                                 6 Richard Mudgett       
-   7 Mark Michelson                                   6 George Joseph         
+   8 Mark Michelson                                   6 George Joseph         
    5 Walter Doekes                                    5 Alexei Gradinari      
    4 David M. Lee                                     4 Mark Michelson        
    3 Torrey Searle                                    4 Mark Michelson        
@@ -186,6 +186,13 @@
    Reported by: chris de rock
      * [a637e2c301] chris de rock -- app_macro: Consider '~~s~~' as a macro
        start extension.
+
+    Category: Applications/app_mp3
+
+   ASTERISK-26085: app_mp3: results in timeout for streams
+   Reported by: Jens BA 1/4rger
+     * [dd408708c9] Michael Kuron -- app_mp3: Use correct buffer size and the
+       same sample rate as the channel
 
     Category: Applications/app_queue
 
@@ -765,13 +772,6 @@
 
   Bug
 
-    Category: Applications/app_mp3
-
-   ASTERISK-26085: app_mp3: results in timeout for streams
-   Reported by: Jens BA 1/4rger
-     * [dd408708c9] Michael Kuron -- app_mp3: Use correct buffer size and the
-       same sample rate as the channel
-
     Category: Channels/chan_pjsip
 
    ASTERISK-26396: chan_pjsip: HANGUPCAUSE return the wrong code when dialed
@@ -898,6 +898,8 @@
 
    +------------------------------------------------------------------------+
    | Revision   | Author          | Summary                                 |
+   |------------+-----------------+-----------------------------------------|
+   | 44ae8c24fd | Mark Michelson  | Update for 14.1.0-rc1                   |
    |------------+-----------------+-----------------------------------------|
    | b288b8b997 | Richard Mudgett | aoc.c: Whitespace cleanup               |
    |------------+-----------------+-----------------------------------------|
@@ -1131,12 +1133,11 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                                                                      |    1
- .version                                                                                        |    1
- ChangeLog                                                                                       |54314 ----------
- asterisk-14.0.0-summary.html                                                                    | 4318
- asterisk-14.0.0-summary.txt                                                                     |10112 -
+ asterisk-14.0.0-summary.html                                                                    | 4318 ----
+ asterisk-14.0.0-summary.txt                                                                     |10112 ----------
+ b/.version                                                                                      |    2
  b/CHANGES                                                                                       |   92
+ b/ChangeLog                                                                                     | 2922 ++
  b/Makefile                                                                                      |   11
  b/Makefile.moddir_rules                                                                         |   12
  b/addons/cdr_mysql.c                                                                            |   11
@@ -1155,6 +1156,8 @@
  b/apps/confbridge/conf_chan_announce.c                                                          |   30
  b/apps/confbridge/conf_state_multi_marked.c                                                     |    9
  b/apps/confbridge/include/confbridge.h                                                          |   43
+ b/asterisk-14.1.0-rc1-summary.html                                                              |  577
+ b/asterisk-14.1.0-rc1-summary.txt                                                               | 1364 +
  b/build_tools/download_externals                                                                |  224
  b/build_tools/list_valid_installed_externals                                                    |   55
  b/build_tools/make_version                                                                      |    4
@@ -1202,6 +1205,10 @@
  b/contrib/ast-db-manage/config/versions/c7a44a5a0851_pjsip_add_global_mwi_options.py            |   35
  b/contrib/ast-db-manage/env.py                                                                  |  140
  b/contrib/ast-db-manage/voicemail/env.py                                                        |    1
+ b/contrib/realtime/mssql/mssql_config.sql                                                       |   50
+ b/contrib/realtime/mysql/mysql_config.sql                                                       |   26
+ b/contrib/realtime/oracle/oracle_config.sql                                                     |   50
+ b/contrib/realtime/postgresql/postgresql_config.sql                                             |   26
  b/contrib/scripts/safe_asterisk                                                                 |   13
  b/contrib/scripts/sip_to_pjsip/astconfigparser.py                                               |   27
  b/contrib/scripts/sip_to_pjsip/sip_to_pjsip.py                                                  |  497
@@ -1346,19 +1353,8 @@
  b/third-party/pjproject/patches/0005-Re-1969-Fix-crash-on-using-an-already-destroyed-SSL-.patch |  164
  b/third-party/pjproject/patches/asterisk_malloc_debug.c                                         |   72
  b/third-party/pjproject/patches/asterisk_malloc_debug.h                                         |   78
+ b/third-party/pjproject/patches/config_site.h                                                   |    5
  contrib/ast-db-manage/cdr/env.py                                                                |   74
  contrib/ast-db-manage/config/env.py                                                             |   74
  contrib/ast-db-manage/voicemail/env.py                                                          |   74
- contrib/realtime/mssql/mssql_cdr.sql                                                            |   58
- contrib/realtime/mssql/mssql_config.sql                                                         | 1529
- contrib/realtime/mssql/mssql_voicemail.sql                                                      |   54
- contrib/realtime/mysql/mysql_cdr.sql                                                            |   40
- contrib/realtime/mysql/mysql_config.sql                                                         |  946
- contrib/realtime/mysql/mysql_voicemail.sql                                                      |   34
- contrib/realtime/oracle/oracle_cdr.sql                                                          |   52
- contrib/realtime/oracle/oracle_config.sql                                                       | 1523
- contrib/realtime/oracle/oracle_voicemail.sql                                                    |   48
- contrib/realtime/postgresql/postgresql_cdr.sql                                                  |   44
- contrib/realtime/postgresql/postgresql_config.sql                                               | 1024
- contrib/realtime/postgresql/postgresql_voicemail.sql                                            |   38
- 230 files changed, 8276 insertions(+), 77411 deletions(-)
+ 224 files changed, 13240 insertions(+), 17763 deletions(-)
