@@ -46,6 +46,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 
 #define MAX_HASH_ENTRIES 15000
+/*
+ * Use one of the online calculators to find the first prime number
+ * greater than MAX_HASH_ENTRIES / 100.
+ */
+#define HASH_BUCKETS 151
+
+#define COUNT_SLEEP_US 500
 #define MAX_TEST_SECONDS 60
 
 struct hash_test {
@@ -207,7 +214,7 @@ static void *hash_test_count(void *d)
 
 		if (last_count == count) {
 			/* Allow other threads to run. */
-			sched_yield();
+			usleep(COUNT_SLEEP_US);
 		} else if (last_count > count) {
 			/* Make sure the ao2 container never shrinks */
 			return "ao2 container unexpectedly shrank";
@@ -261,7 +268,7 @@ AST_TEST_DEFINE(hash_test)
 	data.preload = MAX_HASH_ENTRIES / 2;
 	data.max_grow = MAX_HASH_ENTRIES - data.preload;
 	data.deadline = ast_tvadd(ast_tvnow(), ast_tv(MAX_TEST_SECONDS, 0));
-	data.to_be_thrashed = ao2_container_alloc(MAX_HASH_ENTRIES / 100, hash_string,
+	data.to_be_thrashed = ao2_container_alloc(HASH_BUCKETS, hash_string,
 		compare_strings);
 
 	if (data.to_be_thrashed == NULL) {
