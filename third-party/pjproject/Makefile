@@ -23,6 +23,8 @@ ifneq ($(wildcard ../../makeopts),)
     include ../../makeopts
 endif
 
+TARGETS = build.mak
+
 ifeq ($(SPECIAL_TARGETS),)
 # Run locally or from $(ASTTOPDIR)/Makefile.  All include files should be present
     ifeq ($(wildcard ../../makeopts),)
@@ -40,6 +42,7 @@ ifeq ($(SPECIAL_TARGETS),)
         install: _install
 
         include source/user.mak
+        include source/version.mak
         include source/build.mak
         CF := $(filter-out -W%,$(CC_CFLAGS))
         CF := $(filter-out -I%,$(CF))
@@ -74,67 +77,72 @@ ECHO_PREFIX := $(ECHO_PREFIX) echo '[pjproject] '
 
 _all: $(TARGETS)
 
-EXTERNALS_CACHE_DIR ?= $(or $(TMPDIR),$(wildcard /tmp),.)
+DOWNLOAD_DIR := $(or $(EXTERNALS_CACHE_DIR),$(TMPDIR),$(wildcard /tmp),.)
 
-$(EXTERNALS_CACHE_DIR)/pjproject-$(PJPROJECT_VERSION).tar.bz2 : ../versions.mak
+$(DOWNLOAD_DIR)/pjproject-$(PJPROJECT_VERSION).tar.bz2: ../versions.mak
 	$(ECHO_PREFIX) Downloading $(PJPROJECT_URL)/$(@F) to $@
 	$(CMD_PREFIX) $(DOWNLOAD_TO_STDOUT) $(PJPROJECT_URL)/$(@F) > $@
 
-source/.unpacked: $(EXTERNALS_CACHE_DIR)/pjproject-$(PJPROJECT_VERSION).tar.bz2
+source/.unpacked: $(DOWNLOAD_DIR)/pjproject-$(PJPROJECT_VERSION).tar.bz2
 	$(ECHO_PREFIX) Unpacking $<
 	-@rm -rf source >/dev/null 2>&1
 	-@mkdir source >/dev/null 2>&1
 	$(CMD_PREFIX) $(TAR) --strip-components=1 -C source -xjf $<
 	$(ECHO_PREFIX) Applying patches
-	$(CMD_PREFIX) ./apply_patches $(QUIET_CONFIGURE) ./patches ./source
+	$(CMD_PREFIX) ./apply_patches $(QUIET_CONFIGURE) patches source
 	-@touch source/.unpacked
 
-source/user.mak: source/.unpacked ./patches/user.mak
+source/version.mak: source/.unpacked
+
+source/user.mak: source/.unpacked patches/user.mak
 	$(ECHO_PREFIX) Applying user.mak
-	$(CMD_PREFIX) cp -f ./patches/user.mak ./source/
+	$(CMD_PREFIX) cp -f patches/user.mak source/
 
-source/pjlib/include/pj/%.h : ./patches/%.h
+source/pjlib/include/pj/%.h: patches/%.h
 	$(ECHO_PREFIX) Applying custom include file $<
-	$(CMD_PREFIX) cp -f $< ./source/pjlib/include/pj/
+	$(CMD_PREFIX) cp -f $< source/pjlib/include/pj/
 
-build.mak: source/.unpacked $(addprefix source/pjlib/include/pj/,$(notdir $(wildcard ./patches/*.h))) source/user.mak Makefile.rules
+source/build.mak: Makefile.rules source/version.mak source/user.mak $(addprefix source/pjlib/include/pj/,$(notdir $(wildcard patches/*.h)))
 	$(ECHO_PREFIX) Configuring with $(PJPROJECT_CONFIG_OPTS)
 	$(CMD_PREFIX) (cd source ; ./aconfigure $(QUIET_CONFIGURE) $(PJPROJECT_CONFIG_OPTS))
-	$(SED) -r -e "/prefix|export PJ_SHARED_LIBRARIES|MACHINE_NAME|OS_NAME|HOST_NAME|CC_NAME|CROSS_COMPILE|LINUX_POLL/d" source/build.mak > build.mak
 
-configure: build.mak
+build.mak: source/build.mak
+	$(CMD_PREFIX) $(SED) -r -e "/prefix|export PJ_SHARED_LIBRARIES|MACHINE_NAME|OS_NAME|HOST_NAME|CC_NAME|CROSS_COMPILE|LINUX_POLL/d" source/build.mak > build.mak
 
-echo_cflags: build.mak
+configure: source/build.mak
+
+echo_cflags: source/build.mak
 	@echo $(PJ_CFLAGS)
 
-.rebuild_needed: ../../menuselect.makeopts
+.rebuild_needed: ../../makeopts ../../menuselect.makeopts
 	$(ECHO_PREFIX) Rebuilding
-	$(CMD_PREFIX)$(MAKE) clean $(REALLY_QUIET)
+	$(CMD_PREFIX) $(MAKE) clean $(REALLY_QUIET)
 	@touch  .rebuild_needed
 
-libpj%.a:  .rebuild_needed  build.mak
+libpj%.a: .rebuild_needed source/build.mak
 	$(ECHO_PREFIX) Compiling lib $(@F)
-	$(CMD_PREFIX)$(MAKE) -C $(dir $(shell dirname $@))/build $(@F) $(REALLY_QUIET)
+	$(CMD_PREFIX) $(MAKE) -C $(dir $(shell dirname $@))/build $(@F) $(REALLY_QUIET)
+	-@rm -rf .rebuild_needed
 
 # We need to compile pjlib, then pjlib-util, then the rest
 # so we separate them out and create the dependencies
 PJLIB_LIB_FILES = $(foreach lib,$(PJ_LIB_FILES),$(if $(findstring libpj-,$(lib)),$(lib),))
 PJLIB_UTIL_LIB_FILES = $(foreach lib,$(PJ_LIB_FILES),$(if $(findstring libpjlib-util,$(lib)),$(lib),))
-LIB_FILES = $(filter-out $(PJLIB_LIB_FILES) $(PJLIB_UTIL_LIB_FILES),$(PJ_LIB_FILES))
-ALL_LIB_FILES = $(PJLIB_LIB_FILES) $(PJLIB_UTIL_LIB_FILES) $(LIB_FILES)
+PJSIP_LIB_FILES = $(filter-out $(PJLIB_LIB_FILES) $(PJLIB_UTIL_LIB_FILES),$(PJ_LIB_FILES))
+ALL_LIB_FILES = $(PJLIB_LIB_FILES) $(PJLIB_UTIL_LIB_FILES) $(PJSIP_LIB_FILES)
 
 $(PJLIB_UTIL_LIB_FILES): $(PJLIB_LIB_FILES)
-$(LIB_FILES): $(PJLIB_UTIL_LIB_FILES)
+$(PJSIP_LIB_FILES): $(PJLIB_UTIL_LIB_FILES)
 
 pjproject.symbols: $(ALL_LIB_FILES)
 	$(ECHO_PREFIX) Generating symbols
-	$(CMD_PREFIX) $(NM) -Pog $(PJ_LIB_FILES) | $(SED) -n -r -e "s/.+: ([pP][jJ][^ ]+) .+/\1/gp" | sort -u > pjproject.symbols
+	$(CMD_PREFIX) $(NM) -Pog $(ALL_LIB_FILES) | $(SED) -n -r -e "s/.+: ([pP][jJ][^ ]+) .+/\1/gp" | sort -u > pjproject.symbols
 
 source/pjsip-apps/src/asterisk_malloc_debug.c: patches/asterisk_malloc_debug.c
 	$(ECHO_PREFIX) Copying $< to $@
 	$(CMD_PREFIX) cp -f $< $@
 
-source/pjsip-apps/lib/asterisk_malloc_debug.o: source/pjsip-apps/src/asterisk_malloc_debug.c  .rebuild_needed
+source/pjsip-apps/lib/asterisk_malloc_debug.o: source/pjsip-apps/src/asterisk_malloc_debug.c .rebuild_needed
 	$(ECHO_PREFIX) Compiling asterisk debug malloc stubs
 	$(CMD_PREFIX) $(CC) -fPIC  $(PJ_CFLAGS) -c $< -o $@
 
