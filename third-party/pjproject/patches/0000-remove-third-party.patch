@@ -1,0 +1,146 @@
+diff --git a/build.mak.in b/build.mak.in
+index 802211c..006d887 100644
+--- a/build.mak.in
++++ b/build.mak.in
+@@ -9,7 +9,7 @@ export HOST_NAME := unix
+ export CC_NAME := gcc
+ export TARGET_NAME := @target@
+ export CROSS_COMPILE := @ac_cross_compile@
+-export LINUX_POLL := @ac_linux_poll@ 
++export LINUX_POLL := @ac_linux_poll@
+ export SHLIB_SUFFIX := @ac_shlib_suffix@
+ 
+ export prefix := @prefix@
+@@ -28,114 +28,6 @@ export APP_THIRD_PARTY_EXT :=
+ export APP_THIRD_PARTY_LIBS :=
+ export APP_THIRD_PARTY_LIB_FILES :=
+ 
+-ifeq (@ac_external_srtp@,1)
+-# External SRTP library
+-APP_THIRD_PARTY_EXT += -lsrtp
+-else
+-APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libsrtp-$(LIB_SUFFIX)
+-ifeq ($(PJ_SHARED_LIBRARIES),)
+-APP_THIRD_PARTY_LIBS += -lsrtp-$(TARGET_NAME)
+-else
+-APP_THIRD_PARTY_LIBS += -lsrtp
+-APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libsrtp.$(SHLIB_SUFFIX).$(PJ_VERSION_MAJOR) $(PJ_DIR)/third_party/lib/libsrtp.$(SHLIB_SUFFIX)
+-endif
+-endif
+-
+-ifeq (@ac_pjmedia_resample@,libresample)
+-APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libresample-$(LIB_SUFFIX)
+-ifeq ($(PJ_SHARED_LIBRARIES),)
+-ifeq (@ac_resample_dll@,1)
+-export PJ_RESAMPLE_DLL := 1
+-APP_THIRD_PARTY_LIBS += -lresample
+-APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libresample.$(SHLIB_SUFFIX).$(PJ_VERSION_MAJOR) $(PJ_DIR)/third_party/lib/libresample.$(SHLIB_SUFFIX)
+-else
+-APP_THIRD_PARTY_LIBS += -lresample-$(TARGET_NAME)
+-endif
+-else
+-APP_THIRD_PARTY_LIBS += -lresample
+-APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libresample.$(SHLIB_SUFFIX).$(PJ_VERSION_MAJOR) $(PJ_DIR)/third_party/lib/libresample.$(SHLIB_SUFFIX)
+-endif
+-endif
+-
+-ifneq (@ac_no_gsm_codec@,1)
+-ifeq (@ac_external_gsm@,1)
+-# External GSM library
+-APP_THIRD_PARTY_EXT += -lgsm
+-else
+-APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libgsmcodec-$(LIB_SUFFIX)
+-ifeq ($(PJ_SHARED_LIBRARIES),)
+-APP_THIRD_PARTY_LIBS += -lgsmcodec-$(TARGET_NAME)
+-else
+-APP_THIRD_PARTY_LIBS += -lgsmcodec
+-APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libgsmcodec.$(SHLIB_SUFFIX).$(PJ_VERSION_MAJOR) $(PJ_DIR)/third_party/lib/libgsmcodec.$(SHLIB_SUFFIX)
+-endif
+-endif
+-endif
+-
+-ifneq (@ac_no_speex_codec@,1)
+-ifeq (@ac_external_speex@,1)
+-APP_THIRD_PARTY_EXT += -lspeex -lspeexdsp
+-else
+-APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libspeex-$(LIB_SUFFIX)
+-ifeq ($(PJ_SHARED_LIBRARIES),)
+-APP_THIRD_PARTY_LIBS += -lspeex-$(TARGET_NAME)
+-else
+-APP_THIRD_PARTY_LIBS += -lspeex
+-APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libspeex.$(SHLIB_SUFFIX).$(PJ_VERSION_MAJOR) $(PJ_DIR)/third_party/lib/libspeex.$(SHLIB_SUFFIX)
+-endif
+-endif
+-endif
+-
+-ifneq (@ac_no_ilbc_codec@,1)
+-APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libilbccodec-$(LIB_SUFFIX)
+-ifeq ($(PJ_SHARED_LIBRARIES),)
+-APP_THIRD_PARTY_LIBS += -lilbccodec-$(TARGET_NAME)
+-else
+-APP_THIRD_PARTY_LIBS += -lilbccodec
+-APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libilbccodec.$(SHLIB_SUFFIX).$(PJ_VERSION_MAJOR) $(PJ_DIR)/third_party/lib/libilbccodec.$(SHLIB_SUFFIX)
+-endif
+-endif
+-
+-ifneq (@ac_no_g7221_codec@,1)
+-APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libg7221codec-$(LIB_SUFFIX)
+-ifeq ($(PJ_SHARED_LIBRARIES),)
+-APP_THIRD_PARTY_LIBS += -lg7221codec-$(TARGET_NAME)
+-else
+-APP_THIRD_PARTY_LIBS += -lg7221codec
+-APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libg7221codec.$(SHLIB_SUFFIX).$(PJ_VERSION_MAJOR) $(PJ_DIR)/third_party/lib/libg7221codec.$(SHLIB_SUFFIX)
+-endif
+-endif
+-
+-ifneq ($(findstring pa,@ac_pjmedia_snd@),)
+-ifeq (@ac_external_pa@,1)
+-# External PA
+-APP_THIRD_PARTY_EXT += -lportaudio
+-else
+-APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libportaudio-$(LIB_SUFFIX)
+-ifeq ($(PJ_SHARED_LIBRARIES),)
+-APP_THIRD_PARTY_LIBS += -lportaudio-$(TARGET_NAME)
+-else
+-APP_THIRD_PARTY_LIBS += -lportaudio
+-APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libportaudio.$(SHLIB_SUFFIX).$(PJ_VERSION_MAJOR) $(PJ_DIR)/third_party/lib/libportaudio.$(SHLIB_SUFFIX)
+-endif
+-endif
+-endif
+-
+-ifneq (@ac_no_yuv@,1)
+-ifeq (@ac_external_yuv@,1)
+-APP_THIRD_PARTY_EXT += -lyuv
+-else
+-APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libyuv-$(LIB_SUFFIX)
+-ifeq ($(PJ_SHARED_LIBRARIES),)
+-APP_THIRD_PARTY_LIBS += -lyuv-$(TARGET_NAME)
+-else
+-APP_THIRD_PARTY_LIBS += -lyuv
+-APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libyuv.$(SHLIB_SUFFIX).$(PJ_VERSION_MAJOR) $(PJ_DIR)/third_party/lib/libyuv.$(SHLIB_SUFFIX)
+-endif
+-endif
+-endif
+-
+-
+ # Additional flags
+ @ac_build_mak_vars@
+ 
+@@ -149,7 +41,7 @@ SDL_CFLAGS = @ac_sdl_cflags@
+ SDL_LDFLAGS = @ac_sdl_ldflags@
+ 
+ # FFMPEG flags
+-FFMPEG_CFLAGS = @ac_ffmpeg_cflags@ 
++FFMPEG_CFLAGS = @ac_ffmpeg_cflags@
+ FFMPEG_LDFLAGS =  @ac_ffmpeg_ldflags@
+ 
+ # Video4Linux2
+@@ -157,7 +49,7 @@ V4L2_CFLAGS = @ac_v4l2_cflags@
+ V4L2_LDFLAGS = @ac_v4l2_ldflags@
+ 
+ # OPENH264 flags
+-OPENH264_CFLAGS = @ac_openh264_cflags@ 
++OPENH264_CFLAGS = @ac_openh264_cflags@
+ OPENH264_LDFLAGS =  @ac_openh264_ldflags@
+ 
+ # QT
