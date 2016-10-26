@@ -1052,6 +1052,7 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	pj_pool_t *pool = session->inv_session->pool_prov;
 	static const pj_str_t STR_IN = { "IN", 2 };
 	static const pj_str_t STR_IP4 = { "IP4", 3};
+	static const pj_str_t STR_IP6 = { "IP6", 3};
 	static const pj_str_t STR_SENDRECV = { "sendrecv", 8 };
 	static const pj_str_t STR_SENDONLY = { "sendonly", 8 };
 	pjmedia_sdp_media *media;
@@ -1116,9 +1117,19 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	}
 
 	media->conn->net_type = STR_IN;
-	/* Connection information will be updated by the multihomed module */
+	/* Assume that the connection will use IPv4 until proven otherwise */
 	media->conn->addr_type = STR_IP4;
 	pj_strdup2(pool, &media->conn->addr, hostip);
+
+	if (!ast_strlen_zero(session->endpoint->media.address)) {
+		pj_sockaddr ip;
+
+		if ((pj_sockaddr_parse(pj_AF_UNSPEC(), 0, &media->conn->addr, &ip) == PJ_SUCCESS) &&
+			(ip.addr.sa_family == pj_AF_INET6())) {
+			media->conn->addr_type = STR_IP6;
+		}
+	}
+
 	ast_rtp_instance_get_local_address(session_media->rtp, &addr);
 	media->desc.port = direct_media_enabled ? ast_sockaddr_port(&session_media->direct_media_addr) : (pj_uint16_t) ast_sockaddr_port(&addr);
 	media->desc.port_count = 1;
