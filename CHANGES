@@ -21,6 +21,13 @@ res_pjsip
    res_pjsip_multihomed module has also been moved into core res_pjsip to ensure
    that messages are updated with the correct address information in all cases.
 
+chan_pjsip
+------------------
+ * The default behavior for RTP codecs has been changed. The sending codec will
+   now match the receiving codec. This can be turned off and behavior reverted
+   to asymmetric using the "asymmetric_rtp_codec" endpoint option. If this
+   option is set then the sending and received codec are allowed to differ.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.11.0 to Asterisk 13.12.0 ----------
 ------------------------------------------------------------------------------
