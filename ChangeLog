@@ -1,3 +1,19 @@
+2016-10-27 18:34 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 11.24.1 Released.
+
+2016-10-26 07:51 +0000 [a31addea32]  Joshua Colp <jcolp@digium.com>
+
+	* app_voicemail: Clear voice mailbox in MailboxExists and MAILBOX_EXISTS.
+
+	  When executing the MailboxExists dialplan application and
+	  MAILBOX_EXISTS dialplan function the passed in temporary voice
+	  mailbox was not cleared, causing it to try to free garbage.
+
+	  ASTERISK-26503 #close
+
+	  Change-Id: Ie21ccfa1b80b9c59318e596f6b8e17da2b5a7cb3
+
 2016-10-25 18:53 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 11.24.0 Released.
