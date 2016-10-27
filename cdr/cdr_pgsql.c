@@ -49,8 +49,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <libpq-fe.h>
 
 #include "asterisk/config.h"

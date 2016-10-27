@@ -32,8 +32,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "../sig_analog.h"
 #if defined(HAVE_PRI)
 #include "../sig_pri.h"

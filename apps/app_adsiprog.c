@@ -41,8 +41,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <netinet/in.h>
 #include <ctype.h>
 

@@ -60,8 +60,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #ifdef HAVE_URIPARSER
 #include <uriparser/Uri.h>
 #endif

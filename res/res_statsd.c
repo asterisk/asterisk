@@ -52,8 +52,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/config_options.h"
 #include "asterisk/module.h"
 #include "asterisk/netsock2.h"

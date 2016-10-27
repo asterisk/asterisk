@@ -31,8 +31,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif

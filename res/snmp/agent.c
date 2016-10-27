@@ -22,8 +22,6 @@
 #define ASTMM_LIBC ASTMM_IGNORE
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 /*
  * There is some collision collision between netsmp and asterisk names,
  * causing build under AST_DEVMODE to fail.

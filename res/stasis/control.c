@@ -25,8 +25,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stasis_app.h"
 

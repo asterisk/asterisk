@@ -520,9 +520,7 @@ static yyconst flex_int16_t yy_chk[159] =
 #include <sys/types.h>
 #include <stdio.h>
 
-#if !defined(STANDALONE)
-ASTERISK_REGISTER_FILE()
-#else
+#if defined(STANDALONE)
 #ifndef __USE_ISOC99
 #define __USE_ISOC99 1
 #endif

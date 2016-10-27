@@ -41,8 +41,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <sqlite3.h>
 
 #include "asterisk/paths.h"

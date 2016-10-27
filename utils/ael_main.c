@@ -18,8 +18,6 @@
 #include <regex.h>
 #include <limits.h>
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/backtrace.h"
 #include "asterisk/channel.h"
 #include "asterisk/ast_expr.h"

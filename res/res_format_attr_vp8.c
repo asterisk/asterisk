@@ -31,8 +31,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/module.h"
 #include "asterisk/format.h"
 #include "asterisk/logger.h"            /* for ast_log, LOG_WARNING */

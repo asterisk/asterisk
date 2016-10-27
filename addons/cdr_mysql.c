@@ -42,8 +42,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <mysql/mysql.h>
 #include <mysql/errmsg.h>
 

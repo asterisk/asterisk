@@ -28,8 +28,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <libical/ical.h>
 #include <ne_session.h>
 #include <ne_uri.h>

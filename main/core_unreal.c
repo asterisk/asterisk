@@ -32,8 +32,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/causes.h"
 #include "asterisk/channel.h"
 #include "asterisk/stasis_channels.h"

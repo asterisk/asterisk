@@ -29,8 +29,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "ari/ari_model_validators.h"
 #include "asterisk/logger.h"
 #include "asterisk/module.h"

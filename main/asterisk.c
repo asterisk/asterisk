@@ -149,8 +149,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/_private.h"
 
 #undef sched_setscheduler
@@ -486,75 +484,6 @@ static struct {
 	 unsigned int need_quit:1;
 	 unsigned int need_quit_handler:1;
 } sig_flags;
-
-#if !defined(LOW_MEMORY)
-struct registered_file {
-	AST_RWLIST_ENTRY(registered_file) list;
-	const char *file;
-};
-
-static AST_RWLIST_HEAD_STATIC(registered_files, registered_file);
-#endif /* ! LOW_MEMORY */
-
-void __ast_register_file(const char *file)
-{
-#if !defined(LOW_MEMORY)
-	struct registered_file *reg;
-
-	reg = ast_calloc(1, sizeof(*reg));
-	if (!reg) {
-		return;
-	}
-
-	reg->file = file;
-	AST_RWLIST_WRLOCK(&registered_files);
-	AST_RWLIST_INSERT_HEAD(&registered_files, reg, list);
-	AST_RWLIST_UNLOCK(&registered_files);
-#endif /* ! LOW_MEMORY */
-}
-
-void __ast_unregister_file(const char *file)
-{
-#if !defined(LOW_MEMORY)
-	struct registered_file *find;
-
-	AST_RWLIST_WRLOCK(&registered_files);
-	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&registered_files, find, list) {
-		if (!strcasecmp(find->file, file)) {
-			AST_RWLIST_REMOVE_CURRENT(list);
-			break;
-		}
-	}
-	AST_RWLIST_TRAVERSE_SAFE_END;
-	AST_RWLIST_UNLOCK(&registered_files);
-
-	if (find) {
-		ast_free(find);
-	}
-#endif /* ! LOW_MEMORY */
-}
-
-char *ast_complete_source_filename(const char *partial, int n)
-{
-#if !defined(LOW_MEMORY)
-	struct registered_file *find;
-	size_t len = strlen(partial);
-	int count = 0;
-	char *res = NULL;
-
-	AST_RWLIST_RDLOCK(&registered_files);
-	AST_RWLIST_TRAVERSE(&registered_files, find, list) {
-		if (!strncasecmp(find->file, partial, len) && ++count > n) {
-			res = ast_strdup(find->file);
-			break;
-		}
-	}
-	AST_RWLIST_UNLOCK(&registered_files);
-	return res;
-#else /* if defined(LOW_MEMORY) */
-	return NULL;
-#endif
-}
 
 #if !defined(LOW_MEMORY)
 struct thread_list_t {

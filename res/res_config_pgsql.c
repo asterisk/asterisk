@@ -29,8 +29,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <libpq-fe.h>			/* PostgreSQL */
 
 #include "asterisk/file.h"

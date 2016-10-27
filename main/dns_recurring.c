@@ -29,8 +29,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/astobj2.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/sched.h"

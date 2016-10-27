@@ -42,8 +42,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <curl/curl.h>
 
 #include "asterisk/module.h"

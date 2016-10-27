@@ -33,8 +33,6 @@
 
 #if defined(__AST_DEBUG_MALLOC)
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/paths.h"	/* use ast_config_AST_LOG_DIR */
 #include <stddef.h>
 #include <time.h>

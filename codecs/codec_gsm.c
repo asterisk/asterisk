@@ -33,8 +33,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/translate.h"
 #include "asterisk/config.h"
 #include "asterisk/module.h"

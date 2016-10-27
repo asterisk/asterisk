@@ -42,8 +42,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <limits.h>
 
 #include <jack/jack.h>

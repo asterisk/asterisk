@@ -28,7 +28,6 @@
  ***/
 
 #include "asterisk.h"
-ASTERISK_REGISTER_FILE()
 
 #include "asterisk/paths.h"	/* CONFIG_DIR */
 #include <locale.h>

@@ -77,8 +77,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <stdarg.h>
 #include <pjlib.h>
 #include <pjsip.h>

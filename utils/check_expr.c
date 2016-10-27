@@ -21,7 +21,6 @@
  ***/
 
 #include "asterisk.h"
-ASTERISK_REGISTER_FILE()
 
 #include "asterisk/ast_expr.h"
 

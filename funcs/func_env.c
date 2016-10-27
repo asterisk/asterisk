@@ -27,8 +27,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <sys/stat.h>   /* stat(2) */
 
 #include "asterisk/module.h"

@@ -25,8 +25,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "res_parking.h"
 #include "asterisk/utils.h"
 #include "asterisk/module.h"

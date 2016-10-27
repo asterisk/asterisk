@@ -34,8 +34,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <stdio.h>
 
 #include "asterisk/fskmodem.h"

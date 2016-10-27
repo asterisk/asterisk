@@ -58,8 +58,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <sys/mman.h>
 #include <dirent.h>
 #include <sys/socket.h>

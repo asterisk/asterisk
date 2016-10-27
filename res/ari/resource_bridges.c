@@ -31,8 +31,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "resource_bridges.h"
 #include "asterisk/stasis.h"
 #include "asterisk/stasis_bridges.h"

@@ -32,8 +32,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "chan_misdn_config.h"
 
 #include "asterisk/config.h"

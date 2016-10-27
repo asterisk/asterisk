@@ -31,8 +31,6 @@
 
 #ifdef DEBUG_FD_LEAKS
 
-ASTERISK_REGISTER_FILE()
-
 #include <stdio.h>
 #include <string.h>
 #include <stddef.h>

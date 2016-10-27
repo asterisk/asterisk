@@ -33,8 +33,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <pjsip.h>
 #include "asterisk/test.h"
 #include "asterisk/module.h"

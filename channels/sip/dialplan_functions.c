@@ -107,8 +107,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <math.h>
 
 #include "asterisk/channel.h"

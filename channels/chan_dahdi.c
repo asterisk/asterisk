@@ -54,8 +54,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #if defined(__NetBSD__) || defined(__FreeBSD__)
 #include <pthread.h>
 #endif

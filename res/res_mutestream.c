@@ -35,8 +35,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/options.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"

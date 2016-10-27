@@ -39,8 +39,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/linkedlists.h"
 #include "asterisk/module.h"
 #include "asterisk/config.h"

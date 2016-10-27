@@ -25,8 +25,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "include/sip.h"
 #include "include/config_parser.h"
 #include "include/sip_utils.h"

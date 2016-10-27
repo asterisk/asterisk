@@ -30,8 +30,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/dsp.h"
 #include "asterisk/file.h"
 #include "asterisk/module.h"

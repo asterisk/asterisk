@@ -45,8 +45,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <time.h>
 
 #include "asterisk/paths.h"	/* use ast_config_AST_LOG_DIR */

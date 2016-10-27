@@ -33,8 +33,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/lock.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/module.h"

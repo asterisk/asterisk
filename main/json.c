@@ -33,8 +33,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/json.h"
 #include "asterisk/localtime.h"
 #include "asterisk/module.h"

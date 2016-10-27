@@ -21,8 +21,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>

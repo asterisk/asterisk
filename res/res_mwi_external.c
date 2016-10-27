@@ -54,8 +54,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/app.h"
 #include "asterisk/module.h"
 #include "asterisk/res_mwi_external.h"

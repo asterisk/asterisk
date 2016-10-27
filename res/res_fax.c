@@ -65,8 +65,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/io.h"
 #include "asterisk/file.h"
 #include "asterisk/logger.h"

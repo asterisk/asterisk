@@ -29,8 +29,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/config.h"
 #include "asterisk/netsock2.h"
 #include "asterisk/utils.h"

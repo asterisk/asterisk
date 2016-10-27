@@ -29,8 +29,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/bridge.h"
 #include "asterisk/bridge_after.h"
 #include "asterisk/bridge_internal.h"

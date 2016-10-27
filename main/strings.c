@@ -37,8 +37,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <regex.h>
 #include "asterisk/strings.h"
 #include "asterisk/pbx.h"
