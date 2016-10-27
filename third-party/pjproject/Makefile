@@ -1,6 +1,7 @@
 .PHONY: _all all _install install clean distclean echo_cflags configure
 
 include ../versions.mak
+export PJDIR := $(shell pwd -P)/source
 
 SPECIAL_TARGETS :=
 
@@ -85,9 +86,9 @@ $(DOWNLOAD_DIR)/pjproject-$(PJPROJECT_VERSION).tar.bz2: ../versions.mak
 
 source/.unpacked: $(DOWNLOAD_DIR)/pjproject-$(PJPROJECT_VERSION).tar.bz2
 	$(ECHO_PREFIX) Unpacking $<
-	-@rm -rf source >/dev/null 2>&1
-	-@mkdir source >/dev/null 2>&1
-	$(CMD_PREFIX) $(TAR) --strip-components=1 -C source -xjf $<
+	-@rm -rf source pjproject-* >/dev/null 2>&1
+	$(CMD_PREFIX) $(TAR) -xjf $<
+	@mv pjproject-$(PJPROJECT_VERSION) source
 	$(ECHO_PREFIX) Applying patches
 	$(CMD_PREFIX) ./apply_patches $(QUIET_CONFIGURE) patches source
 	-@touch source/.unpacked
