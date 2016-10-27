@@ -523,8 +523,11 @@ static void add_pai_header(const struct ast_sip_session *session, pjsip_tx_data 
 		}
 	}
 
-	base = tdata->msg->type == PJSIP_REQUEST_MSG ? session->saved_from_hdr :
-		PJSIP_MSG_TO_HDR(tdata->msg);
+	if (tdata->msg->type == PJSIP_REQUEST_MSG) {
+		base = session->saved_from_hdr ? session->saved_from_hdr : PJSIP_MSG_FROM_HDR(tdata->msg);
+	} else {
+		base = PJSIP_MSG_TO_HDR(tdata->msg);
+	}
 
 	pai_hdr = create_new_id_hdr(&pj_pai_name, base, tdata, id);
 	if (!pai_hdr) {
@@ -629,8 +632,11 @@ static void add_rpid_header(const struct ast_sip_session *session, pjsip_tx_data
 		}
 	}
 
-	base = tdata->msg->type == PJSIP_REQUEST_MSG ? session->saved_from_hdr :
-		PJSIP_MSG_TO_HDR(tdata->msg);
+	if (tdata->msg->type == PJSIP_REQUEST_MSG) {
+		base = session->saved_from_hdr ? session->saved_from_hdr : PJSIP_MSG_FROM_HDR(tdata->msg);
+	} else {
+		base = PJSIP_MSG_TO_HDR(tdata->msg);
+	}
 
 	rpid_hdr = create_new_id_hdr(&pj_rpid_name, base, tdata, id);
 	if (!rpid_hdr) {
