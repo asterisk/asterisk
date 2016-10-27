@@ -32,8 +32,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE();
-
 #include <corosync/cpg.h>
 #include <corosync/cfg.h>
 

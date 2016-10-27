@@ -38,8 +38,6 @@
 #include <pjsip_ua.h>
 #include <pjlib.h>
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/lock.h"
 #include "asterisk/channel.h"
 #include "asterisk/module.h"

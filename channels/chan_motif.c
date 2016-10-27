@@ -44,8 +44,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <sys/socket.h>
 #include <fcntl.h>
 #include <netdb.h>

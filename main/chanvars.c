@@ -29,8 +29,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/chanvars.h"
 #include "asterisk/strings.h"
 #include "asterisk/utils.h"

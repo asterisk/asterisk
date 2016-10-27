@@ -829,7 +829,6 @@ static yyconst flex_int16_t yy_chk[1073] =
  */
 #line 71 "ael.flex"
 #include "asterisk.h"
-ASTERISK_REGISTER_FILE()
 
 #include <sys/types.h>
 #include <sys/stat.h>

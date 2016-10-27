@@ -35,8 +35,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/network.h"
 #include <arpa/nameser.h>	/* res_* functions */
 #include <resolv.h>

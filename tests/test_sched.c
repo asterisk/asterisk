@@ -32,8 +32,6 @@
 
 #include <inttypes.h>
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/module.h"
 #include "asterisk/utils.h"
 #include "asterisk/sched.h"

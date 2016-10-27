@@ -31,8 +31,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/linkedlists.h"       /* for AST_LIST_NEXT, etc */
 #include "asterisk/logger.h"            /* for ast_log, LOG_ERROR, etc */
 #include "asterisk/sdp_srtp.h"          /* for ast_sdp_srtp, etc */

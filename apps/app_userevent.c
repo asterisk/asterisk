@@ -27,8 +27,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/manager.h"

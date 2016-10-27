@@ -37,7 +37,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
 #include "asterisk/json.h"
 #include "asterisk/module.h"
 #include "asterisk/test.h"

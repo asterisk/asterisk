@@ -30,8 +30,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/frame.h"
 #include "asterisk/format_cache.h"
 #include "asterisk/slinfactory.h"

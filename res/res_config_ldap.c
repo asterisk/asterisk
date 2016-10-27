@@ -53,8 +53,6 @@
 #include <stdio.h>
 #include <ldap.h>
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/channel.h"
 #include "asterisk/logger.h"
 #include "asterisk/config.h"

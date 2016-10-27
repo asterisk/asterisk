@@ -30,8 +30,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "resource_device_states.h"
 #include "asterisk/stasis_app_device_state.h"
 

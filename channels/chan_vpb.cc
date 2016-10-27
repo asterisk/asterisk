@@ -59,8 +59,6 @@ extern "C" {
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
 #include "asterisk/channel.h"

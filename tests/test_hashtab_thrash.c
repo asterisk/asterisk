@@ -35,7 +35,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
 #include <pthread.h>
 #include "asterisk/hashtab.h"
 #include "asterisk/lock.h"

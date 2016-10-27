@@ -30,8 +30,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #ifdef DEBUG_SCHEDULER
 #define DEBUG(a) do { \
 	if (option_debug) \

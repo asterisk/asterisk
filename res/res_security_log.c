@@ -33,8 +33,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE();
-
 #include "asterisk/module.h"
 #include "asterisk/logger.h"
 #include "asterisk/threadstorage.h"

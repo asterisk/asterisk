@@ -46,8 +46,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <termios.h>
 #include <sys/time.h>
 #include <time.h>

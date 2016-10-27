@@ -40,8 +40,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <ctype.h>
 #include <sys/socket.h>
 #include <sys/time.h>

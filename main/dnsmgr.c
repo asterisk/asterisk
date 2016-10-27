@@ -45,8 +45,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/_private.h"
 #include <regex.h>
 #include <signal.h>

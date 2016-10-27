@@ -35,8 +35,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <netinet/in.h>
 #include <arpa/nameser.h>
 #ifdef __APPLE__

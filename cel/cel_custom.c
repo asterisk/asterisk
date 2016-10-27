@@ -35,8 +35,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/paths.h"
 #include "asterisk/channel.h"
 #include "asterisk/cel.h"

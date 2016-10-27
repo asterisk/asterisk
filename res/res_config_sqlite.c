@@ -86,7 +86,6 @@
  ***/
 
 #include "asterisk.h"
-ASTERISK_REGISTER_FILE()
 
 #include <sqlite.h>
 

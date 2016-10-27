@@ -31,8 +31,6 @@
 #include "asterisk/utils.h"
 #include "asterisk/autoconfig.h"
 
-ASTERISK_REGISTER_FILE()
-
 #if defined(HAVE_LIBXML2)
 #include <libxml/parser.h>
 #include <libxml/tree.h>

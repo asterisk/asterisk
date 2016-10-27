@@ -152,78 +152,9 @@ int ast_shutting_down(void);
  */
 int ast_shutdown_final(void);
 
-/*!
- * \brief Register the version of a source code file with the core.
- * \param file the source file name
- * \return nothing
- *
- * This function should not be called directly, but instead the
- * ASTERISK_REGISTER_FILE macro should be used to register a file with the core.
- */
-void __ast_register_file(const char *file);
-
-/*!
- * \brief Unregister a source code file from the core.
- * \param file the source file name
- * \return nothing
- *
- * This function should not be called directly, but instead the
- * ASTERISK_REGISTER_FILE macro should be used to automatically unregister
- * the file when the module is unloaded.
- */
-void __ast_unregister_file(const char *file);
-
-/*!
- * \brief Complete a source file name
- * \param partial The partial name of the file to look up.
- * \param n The n-th match to return.
- *
- * \retval NULL if there is no match for partial at the n-th position
- * \retval Matching source file name
- *
- * \note A matching source file is allocataed on the heap, and must be
- * free'd by the caller.
- */
-char *ast_complete_source_filename(const char *partial, int n);
-
-/*!
- * \brief Register/unregister a source code file with the core.
- *
- * This macro will place a file-scope constructor and destructor into the
- * source of the module using it; this will cause the file to be
- * registered with the Asterisk core (and unregistered) at the appropriate
- * times.
- *
- * Example:
- *
- * \code
- * ASTERISK_REGISTER_FILE()
- * \endcode
- */
 #ifdef MTX_PROFILE
 #define	HAVE_MTX_PROFILE	/* used in lock.h */
-#define ASTERISK_REGISTER_FILE() \
-	static int mtx_prof = -1;       /* profile mutex */	\
-	static void __attribute__((constructor)) __register_file_version(void) \
-	{ \
-		mtx_prof = ast_add_profile("mtx_lock_" __FILE__, 0);	\
-		__ast_register_file(__FILE__); \
-	} \
-	static void __attribute__((destructor)) __unregister_file_version(void) \
-	{ \
-		__ast_unregister_file(__FILE__); \
-	}
-#else /* !MTX_PROFILE */
-#define ASTERISK_REGISTER_FILE() \
-	static void __attribute__((constructor)) __register_file_version(void) \
-	{ \
-		__ast_register_file(__FILE__); \
-	} \
-	static void __attribute__((destructor)) __unregister_file_version(void) \
-	{ \
-		__ast_unregister_file(__FILE__); \
-	}
-#endif /* !MTX_PROFILE */
+#endif /* MTX_PROFILE */
 
 /*!
  * \brief support for event profiling

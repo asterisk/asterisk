@@ -30,8 +30,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/stasis_app_recording.h"
 #include "resource_recordings.h"
 

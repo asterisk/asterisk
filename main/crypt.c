@@ -28,8 +28,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <unistd.h>
 #if defined(HAVE_CRYPT_R)
 #include <crypt.h>

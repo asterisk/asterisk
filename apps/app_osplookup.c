@@ -36,8 +36,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <osp/osp.h>
 #include <osp/osputils.h>
 #include <osp/ospb64.h>

@@ -28,7 +28,6 @@
  ***/
 
 #include "asterisk.h"
-ASTERISK_REGISTER_FILE();
 
 #include "asterisk/aoc.h"
 #include "asterisk/utils.h"

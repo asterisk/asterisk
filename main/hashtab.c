@@ -29,8 +29,6 @@
 #define ASTMM_LIBC ASTMM_REDIRECT
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <ctype.h>
 
 #include "asterisk/lock.h"

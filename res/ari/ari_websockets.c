@@ -18,8 +18,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/ari.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/http_websocket.h"

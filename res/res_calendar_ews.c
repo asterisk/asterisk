@@ -27,8 +27,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <ne_request.h>
 #include <ne_session.h>
 #include <ne_uri.h>

@@ -31,8 +31,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/test.h"
 #include "asterisk/module.h"
 #include "asterisk/sorcery.h"

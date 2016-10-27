@@ -27,7 +27,14 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
+#ifdef HAVE_MTX_PROFILE
+/* profile mutex */
+static int mtx_prof = -1;
+static void __attribute__((constructor)) __mtx_init(void)
+{
+	mtx_prof = ast_add_profile("mtx_lock_" __FILE__, 0);
+}
+#endif
 
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"

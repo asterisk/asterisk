@@ -34,8 +34,6 @@
 #include "asterisk.h"
 #include <stdbool.h>
 
-ASTERISK_REGISTER_FILE()
-
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <sys/ioctl.h>

@@ -30,8 +30,6 @@
 #include "asterisk/utils.h"
 #include "asterisk/syslog.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <syslog.h>
 
 static const struct {

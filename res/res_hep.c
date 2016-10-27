@@ -85,8 +85,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/module.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/config_options.h"

@@ -37,8 +37,6 @@
 #include <pjmedia.h>
 #include <pjlib.h>
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/module.h"
 #include "asterisk/udptl.h"
 #include "asterisk/netsock2.h"

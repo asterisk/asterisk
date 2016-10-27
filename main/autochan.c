@@ -29,8 +29,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/autochan.h"
 #include "asterisk/utils.h"
 #include "asterisk/linkedlists.h"

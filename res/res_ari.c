@@ -140,8 +140,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "ari/internal.h"
 #include "asterisk/ari.h"
 #include "asterisk/astobj2.h"

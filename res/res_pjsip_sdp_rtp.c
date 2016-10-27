@@ -38,8 +38,6 @@
 #include <pjmedia.h>
 #include <pjlib.h>
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/module.h"
 #include "asterisk/format.h"
 #include "asterisk/format_cap.h"

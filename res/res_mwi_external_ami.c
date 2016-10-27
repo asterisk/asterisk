@@ -127,8 +127,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/module.h"
 #include "asterisk/res_mwi_external.h"
 #include "asterisk/manager.h"

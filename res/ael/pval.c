@@ -30,8 +30,6 @@
 #define ASTMM_LIBC ASTMM_REDIRECT
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <sys/types.h>
 #include <stdlib.h>
 #include <unistd.h>

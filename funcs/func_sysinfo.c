@@ -31,8 +31,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #if defined(HAVE_SYSINFO)
 #include <sys/sysinfo.h>
 #endif

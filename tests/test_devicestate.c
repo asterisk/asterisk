@@ -32,8 +32,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/utils.h"
 #include "asterisk/module.h"
 #include "asterisk/test.h"

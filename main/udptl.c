@@ -63,8 +63,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <sys/time.h>
 #include <signal.h>
 #include <fcntl.h>

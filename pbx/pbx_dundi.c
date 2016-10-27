@@ -38,8 +38,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/network.h"
 #include <sys/ioctl.h>
 #include <zlib.h>

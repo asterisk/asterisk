@@ -31,8 +31,6 @@
  
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <fcntl.h>
 #include <sys/time.h>
 #include <sys/socket.h>

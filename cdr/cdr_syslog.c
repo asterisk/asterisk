@@ -43,8 +43,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/module.h"
 #include "asterisk/lock.h"
 #include "asterisk/cdr.h"
