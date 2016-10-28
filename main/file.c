@@ -1093,6 +1093,154 @@ int ast_filecopy(const char *filename, const char *filename2, const char *fmt)
 	return filehelper(filename, filename2, fmt, ACTION_COPY);
 }
 
+static int __ast_file_read_dirs(struct ast_str **path, ast_file_on_file on_file,
+				void *obj, int max_depth)
+{
+	DIR *dir;
+	struct dirent *entry;
+	size_t size;
+	int res;
+
+	if (!(dir = opendir(ast_str_buffer(*path)))) {
+		ast_log(LOG_ERROR, "Error opening directory - %s: %s\n",
+			ast_str_buffer(*path), strerror(errno));
+		return -1;
+	}
+	size = ast_str_strlen(*path);
+
+	--max_depth;
+
+	res = 0;
+
+	while ((entry = readdir(dir)) != NULL && !errno) {
+		int is_file, is_dir, used_stat = 0;
+
+		if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, "..")) {
+			continue;
+		}
+
+/*
+ * If the dirent structure has a d_type use it to determine if we are dealing with
+ * a file or directory. Unfortunately if it doesn't have it, or if the type is
+ * unknown, or a link then we'll need to use the stat function instead.
+ */
+#ifdef _DIRENT_HAVE_D_TYPE
+		if (entry->d_type != DT_UNKNOWN && entry->d_type != DT_LNK) {
+			is_file = entry->d_type == DT_REG;
+			is_dir = entry->d_type == DT_DIR;
+			ast_log(LOG_VERBOSE, "!###### d_name=%s, path=%s, NO USE STAT used_stat=%d\n", entry->d_name, ast_str_buffer(*path), used_stat);
+		} else
+#endif
+		{
+			struct stat statbuf;
+
+			/*
+			 * If using the stat function the file needs to be appended to the
+			 * path so it can be found. However, before appending make sure the
+			 * path contains only the directory for this depth level.
+			 */
+			ast_str_truncate(*path, size);
+			ast_str_append(path, 0, "/%s", entry->d_name);
+
+			if (stat(ast_str_buffer(*path), &statbuf)) {
+				ast_log(LOG_ERROR, "Error reading path stats - %s: %s\n",
+					ast_str_buffer(*path), strerror(errno));
+				/*
+				 * Output an error, but keep going. It could just be
+				 * a broken link and other files could be fine.
+				 */
+				continue;
+			}
+
+			is_file = S_ISREG(statbuf.st_mode);
+			is_dir = S_ISDIR(statbuf.st_mode);
+			used_stat = 1;
+			ast_log(LOG_VERBOSE, "!###### d_name=%s, path=%s, WE USED IT YO used_stat=%d\n", entry->d_name, ast_str_buffer(*path), used_stat);
+		}
+
+		if (is_file) {
+			/* If the handler returns non-zero then stop */
+			if ((res = on_file(ast_str_buffer(*path), entry->d_name, obj))) {
+				break;
+			}
+			/* Otherwise move on to next item in directory */
+			continue;
+		}
+
+		if (!is_dir) {
+			ast_debug(5, "Skipping %s: not a regular file or directory\n",
+				  ast_str_buffer(*path));
+			continue;
+		}
+
+		/* Only re-curse into sub-directories if not at the max depth */
+		if (max_depth != 0) {
+			/*
+			 * If the stat function was used then the sub-directory has
+			 * already been appended, otherwise append it.
+			 */
+			ast_log(LOG_VERBOSE, "!###### do dir d_name=%s, path=%s, used_stat=%d\n", entry->d_name, ast_str_buffer(*path), used_stat);
+			if (!used_stat) {
+				ast_str_truncate(*path, size);
+				ast_str_append(path, 0, "/%s", entry->d_name);
+				ast_log(LOG_VERBOSE, "!###### d_name=%s, path=%s\n", entry->d_name, ast_str_buffer(*path));
+			}
+
+			if ((res = __ast_file_read_dirs(path, on_file, obj, max_depth))) {
+				break;
+			}
+		}
+	}
+
+	closedir(dir);
+
+	if (!res && errno) {
+		ast_log(LOG_ERROR, "Error while reading directories - %s: %s\n",
+			ast_str_buffer(*path), strerror(errno));
+		res = -1;
+	}
+
+	return res;
+}
+
+#if !defined(__GLIBC__)
+/*!
+ * \brief Lock to hold when iterating over directories.
+ *
+ * Currently, 'readdir' is not required to be thread-safe. In most modern implementations
+ * it should be safe to make concurrent calls into 'readdir' that specify different directory
+ * streams (glibc would be one of these). However, since it is potentially unsafe for some
+ * implementations we'll use our own locking in order to achieve synchronization for those.
+ */
+AST_MUTEX_DEFINE_STATIC(read_dirs_lock);
+#endif
+
+int ast_file_read_dirs(const char *dir_name, ast_file_on_file on_file, void *obj, int max_depth)
+{
+	struct ast_str *path;
+	int res;
+
+	if (!(path = ast_str_create(256))) {
+		return -1;
+	}
+
+	ast_str_set(&path, 0, "%s", dir_name);
+	errno = 0;
+
+#if !defined(__GLIBC__)
+	ast_mutex_lock(&read_dirs_lock);
+#endif
+
+	res = __ast_file_read_dirs(&path, on_file, obj, max_depth);
+
+#if !defined(__GLIBC__)
+	ast_mutex_unlock(&read_dirs_lock);
+#endif
+
+	ast_free(path);
+	return res;
+}
+
 int ast_streamfile(struct ast_channel *chan, const char *filename, const char *preflang)
 {
 	struct ast_filestream *fs;
