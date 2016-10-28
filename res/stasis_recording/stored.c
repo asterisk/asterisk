@@ -31,7 +31,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/paths.h"
 #include "asterisk/stasis_app_recording.h"
 
-#include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -122,12 +121,47 @@ static int split_path(const char *path, char **dir, char **file)
 	return 0;
 }
 
-static void safe_closedir(DIR *dirp)
+struct match_recording_data {
+	const char *file;
+	char *file_with_ext;
+};
+
+static int is_recording(const char *filename)
 {
-	if (!dirp) {
-		return;
+	const char *ext = strrchr(filename, '.');
+
+	if (!ext) {
+		/* No file extension; not us */
+		return 0;
 	}
-	closedir(dirp);
+	++ext;
+
+	if (!ast_get_format_for_file_ext(ext)) {
+		ast_debug(5, "Recording %s: unrecognized format %s\n",
+			filename, ext);
+		/* Keep looking */
+		return 0;
+	}
+
+	/* Return the index to the .ext */
+	return ext - filename - 1;
+}
+
+static int handle_find_recording(const char *dir_name, const char *filename, void *obj)
+{
+	struct match_recording_data *data = obj;
+	int num;
+
+	/* If not a recording or the names do not match the keep searching */
+	if (!(num = is_recording(filename)) || strncmp(data->file, filename, num)) {
+		return 0;
+	}
+
+	if (ast_asprintf(&data->file_with_ext, "%s/%s", dir_name, filename)) {
+		return -1;
+	}
+
+	return 1;
 }
 
 /*!
@@ -143,46 +177,15 @@ static void safe_closedir(DIR *dirp)
  */
 static char *find_recording(const char *dir_name, const char *file)
 {
-	RAII_VAR(DIR *, dir, NULL, safe_closedir);
-	struct dirent entry;
-	struct dirent *result = NULL;
-	char *ext = NULL;
-	char *file_with_ext = NULL;
+	struct match_recording_data data = {
+		.file = file,
+		.file_with_ext = NULL
+	};
 
-	dir = opendir(dir_name);
-	if (!dir) {
-		return NULL;
-	}
+	ast_file_read_dir(dir_name, handle_find_recording, &data);
 
-	while (readdir_r(dir, &entry, &result) == 0 && result != NULL) {
-		ext = strrchr(result->d_name, '.');
-
-		if (!ext) {
-			/* No file extension; not us */
-			continue;
-		}
-		*ext++ = '\0';
-
-		if (strcmp(file, result->d_name) == 0) {
-			if (!ast_get_format_for_file_ext(ext)) {
-				ast_log(LOG_WARNING,
-					"Recording %s: unrecognized format %s\n",
-					result->d_name,
-					ext);
-				/* Keep looking */
-				continue;
-			}
-			/* We have a winner! */
-			break;
-		}
-	}
-
-	if (!result) {
-		return NULL;
-	}
-
-	ast_asprintf(&file_with_ext, "%s/%s.%s", dir_name, file, ext);
-	return file_with_ext;
+	/* Note, string potentially allocated in handle_file_recording */
+	return data.file_with_ext;
 }
 
 /*!
@@ -238,43 +241,33 @@ static int recording_sort(const void *obj_left, const void *obj_right, int flags
 	return cmp;
 }
 
-static int scan(struct ao2_container *recordings,
-	const char *base_dir, const char *subdir, struct dirent *entry);
-
-static int scan_file(struct ao2_container *recordings,
-	const char *base_dir, const char *subdir, const char *filename,
-	const char *path)
+static int handle_scan_file(const char *dir_name, const char *filename, void *obj)
 {
-	RAII_VAR(struct stasis_app_stored_recording *, recording, NULL,
-		ao2_cleanup);
-	const char *ext;
-	char *dot;
+	struct ao2_container *recordings = obj;
+	struct stasis_app_stored_recording *recording;
+	char *dot, *filepath;
 
-	ext = strrchr(filename, '.');
-
-	if (!ext) {
-		ast_verb(4, "  Ignore file without extension: %s\n",
-			filename);
-		/* No file extension; not us */
+	/* Skip if it is not a recording */
+	if (!is_recording(filename)) {
 		return 0;
 	}
-	++ext;
 
-	if (!ast_get_format_for_file_ext(ext)) {
-		ast_verb(4, "  Not a media file: %s\n", filename);
-		/* Not a media file */
-		return 0;
+	if (ast_asprintf(&filepath, "%s/%s", dir_name, filename)) {
+		return -1;
 	}
 
 	recording = recording_alloc();
 	if (!recording) {
+		ast_free(filepath);
 		return -1;
 	}
 
-	ast_string_field_set(recording, file_with_ext, path);
-
+	ast_string_field_set(recording, file_with_ext, filepath);
 	/* Build file and format from full path */
-	ast_string_field_set(recording, file, path);
+	ast_string_field_set(recording, file, filepath);
+
+	ast_free(filepath);
+
 	dot = strrchr(recording->file, '.');
 	*dot = '\0';
 	recording->format = dot + 1;
@@ -285,92 +278,14 @@ static int scan_file(struct ao2_container *recordings,
 
 	/* Add it to the recordings container */
 	ao2_link(recordings, recording);
-
-	return 0;
-}
-
-static int scan_dir(struct ao2_container *recordings,
-	const char *base_dir, const char *subdir, const char *dirname,
-	const char *path)
-{
-	RAII_VAR(DIR *, dir, NULL, safe_closedir);
-	RAII_VAR(struct ast_str *, rel_dirname, NULL, ast_free);
-	struct dirent entry;
-	struct dirent *result = NULL;
-
-	if (strcmp(dirname, ".") == 0 ||
-		strcmp(dirname, "..") == 0) {
-		ast_verb(4, "  Ignoring self/parent dir\n");
-		return 0;
-	}
-
-	/* Build relative dirname */
-	rel_dirname = ast_str_create(80);
-	if (!rel_dirname) {
-		return -1;
-	}
-	if (!ast_strlen_zero(subdir)) {
-		ast_str_append(&rel_dirname, 0, "%s/", subdir);
-	}
-	if (!ast_strlen_zero(dirname)) {
-		ast_str_append(&rel_dirname, 0, "%s", dirname);
-	}
-
-	/* Read the directory */
-	dir = opendir(path);
-	if (!dir) {
-		ast_log(LOG_WARNING, "Error reading dir '%s'\n", path);
-		return -1;
-	}
-	while (readdir_r(dir, &entry, &result) == 0 && result != NULL) {
-		scan(recordings, base_dir, ast_str_buffer(rel_dirname), result);
-	}
-
-	return 0;
-}
-
-static int scan(struct ao2_container *recordings,
-	const char *base_dir, const char *subdir, struct dirent *entry)
-{
-	RAII_VAR(struct ast_str *, path, NULL, ast_free);
-
-	path = ast_str_create(255);
-	if (!path) {
-		return -1;
-	}
-
-	/* Build file path */
-	ast_str_append(&path, 0, "%s", base_dir);
-	if (!ast_strlen_zero(subdir)) {
-		ast_str_append(&path, 0, "/%s", subdir);
-	}
-	if (entry) {
-		ast_str_append(&path, 0, "/%s", entry->d_name);
-	}
-	ast_verb(4, "Scanning '%s'\n", ast_str_buffer(path));
-
-	/* Handle this file */
-	switch (entry->d_type) {
-	case DT_REG:
-		scan_file(recordings, base_dir, subdir, entry->d_name,
-			ast_str_buffer(path));
-		break;
-	case DT_DIR:
-		scan_dir(recordings, base_dir, subdir, entry->d_name,
-			ast_str_buffer(path));
-		break;
-	default:
-		ast_log(LOG_WARNING, "Skipping %s: not a regular file\n",
-			ast_str_buffer(path));
-		break;
-	}
+	ao2_ref(recording, -1);
 
 	return 0;
 }
 
 struct ao2_container *stasis_app_stored_recording_find_all(void)
 {
-	RAII_VAR(struct ao2_container *, recordings, NULL, ao2_cleanup);
+	struct ao2_container *recordings;
 	int res;
 
 	recordings = ao2_container_alloc_rbtree(AO2_ALLOC_OPT_LOCK_NOLOCK,
@@ -379,13 +294,13 @@ struct ao2_container *stasis_app_stored_recording_find_all(void)
 		return NULL;
 	}
 
-	res = scan_dir(recordings, ast_config_AST_RECORDING_DIR, "", "",
-		ast_config_AST_RECORDING_DIR);
-	if (res != 0) {
+	res = ast_file_read_dirs(ast_config_AST_RECORDING_DIR,
+				 handle_scan_file, recordings, -1);
+	if (res) {
+		ao2_ref(recordings, -1);
 		return NULL;
 	}
 
-	ao2_ref(recordings, +1);
 	return recordings;
 }
 
