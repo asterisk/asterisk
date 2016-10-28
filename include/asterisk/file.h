@@ -138,6 +138,44 @@ int ast_filedelete(const char *filename, const char *fmt);
 int ast_filecopy(const char *oldname, const char *newname, const char *fmt);
 
 /*!
+ * \brief Given a filepath retrieve the base filename
+ *
+ * Attempts to retrieve the string following the final '/'. If no '/' is
+ * found then the original filepath is returned.
+ *
+ * \param filepath filename with path
+ * \return a pointer to the base filename
+ */
+const char *ast_file_basename(const char *filepath);
+
+/*!
+ * \brief Callback called for each file found when reading directories
+ * \param filepath the filname with full path
+ * \param obj user data object
+ * \return non-zero to stop reading, otherwise zero to continue
+ */
+typedef int (*ast_file_on_file)(const char *filepath, void *obj);
+
+/*!
+ * \brief Recursively iterate through files and directories up to max_depth
+ * \param dir_name the name of the directory to search
+ * \param on_file callback called on each file
+ * \param obj user data object
+ * \param max_depth re-curse into sub-directories up to a given maximum (-1 = infinite)
+ * \return -1 or errno on failure, otherwise 0
+ */
+int ast_file_read_dirs(const char *dir_name, ast_file_on_file on_file, void *obj, int max_depth);
+
+/*!
+ * \brief Iterate over each file in a given directory
+ * \param dir_name the name of the directory to search
+ * \param on_file callback called on each file
+ * \param obj user data object
+ * \return -1 or errno on failure, otherwise 0
+ */
+#define ast_file_read_dir(dir_name, on_file, obj) ast_file_read_dirs(dir_name, on_file, obj, 1)
+
+/*!
  * \brief Waits for a stream to stop or digit to be pressed
  * \param c channel to waitstream on
  * \param breakon string of DTMF digits to break upon
