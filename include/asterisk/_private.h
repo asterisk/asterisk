@@ -16,6 +16,7 @@
 #define _ASTERISK__PRIVATE_H
 
 int load_modules(unsigned int);		/*!< Provided by loader.c */
+int modules_shutdown(void);		/*!< Provided by loader.c */
 int load_pbx(void);			/*!< Provided by pbx.c */
 int load_pbx_builtins(void);	/*!< Provided by pbx_builtins.c */
 int load_pbx_functions_cli(void);	/*!< Provided by pbx_functions.c */
