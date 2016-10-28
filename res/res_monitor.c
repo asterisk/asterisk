@@ -29,8 +29,6 @@
  
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <sys/stat.h>
 #include <libgen.h>
 

@@ -50,8 +50,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <signal.h>
 #include <sys/stat.h>
 #include <fcntl.h>

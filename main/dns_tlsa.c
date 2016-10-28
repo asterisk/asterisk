@@ -29,8 +29,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/dns_core.h"
 #include "asterisk/dns_tlsa.h"
 

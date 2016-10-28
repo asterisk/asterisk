@@ -32,8 +32,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <sys/types.h>
 #include <dirent.h>
 #ifndef __USE_GNU

@@ -432,8 +432,6 @@
 #include <pjlib.h>
 #include <pjsip_ua.h>
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/astobj2.h"
 #include "asterisk/module.h"
 #include "asterisk/acl.h"

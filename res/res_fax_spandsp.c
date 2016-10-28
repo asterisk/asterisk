@@ -52,8 +52,6 @@
 #define ASTMM_LIBC ASTMM_IGNORE
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/logger.h"
 #include "asterisk/module.h"
 #include "asterisk/strings.h"

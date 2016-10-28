@@ -32,8 +32,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <dahdi/user.h>
 
 #include "asterisk/lock.h"

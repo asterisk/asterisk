@@ -62,8 +62,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <signal.h>  /* SIGURG */
 
 #include <portaudio.h>

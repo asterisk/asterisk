@@ -29,8 +29,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/localtime.h"
 #include "asterisk/logger.h"
 #include "asterisk/pbx.h"

@@ -30,8 +30,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <math.h>
 #include <signal.h>
 #include <sys/time.h>

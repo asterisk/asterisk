@@ -195,8 +195,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/channel.h"
 #include "asterisk/cel.h"
 #include "asterisk/module.h"

@@ -29,8 +29,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/global_datastores.h"
 
 static void secure_call_store_destroy(void *data)

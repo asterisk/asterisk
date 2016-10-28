@@ -82,8 +82,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <ctype.h>
 
 #include "asterisk/paths.h"	/* ast_config_AST_CONFIG_DIR */

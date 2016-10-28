@@ -37,8 +37,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <netinet/in.h>
 #include <time.h>
 #include <ctype.h>

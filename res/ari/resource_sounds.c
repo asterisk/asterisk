@@ -25,8 +25,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "resource_sounds.h"
 #include "asterisk/media_index.h"
 #include "asterisk/sounds_index.h"

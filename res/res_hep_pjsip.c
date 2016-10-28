@@ -34,8 +34,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <pjsip.h>
 #include <pjsip_ua.h>
 #include <pjlib.h>

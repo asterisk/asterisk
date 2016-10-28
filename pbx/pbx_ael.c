@@ -29,19 +29,10 @@
 
 #include "asterisk.h"
 
-#if !defined(STANDALONE)
-ASTERISK_REGISTER_FILE()
-#endif
-
 #include <ctype.h>
 #include <regex.h>
 #include <sys/stat.h>
 
-#ifdef STANDALONE
-#ifdef HAVE_MTX_PROFILE
-static int mtx_prof = -1; /* helps the standalone compile with the mtx_prof flag on */
-#endif
-#endif
 #include "asterisk/pbx.h"
 #include "asterisk/config.h"
 #include "asterisk/module.h"

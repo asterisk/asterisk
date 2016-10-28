@@ -38,8 +38,6 @@ void threadstorage_init(void)
 
 #else /* !defined(DEBUG_THREADLOCALS) */
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/strings.h"
 #include "asterisk/utils.h"
 #include "asterisk/threadstorage.h"

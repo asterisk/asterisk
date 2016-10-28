@@ -29,8 +29,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <arpa/nameser.h>
 #include <resolv.h>
 #include <regex.h>

@@ -33,8 +33,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "jitterbuf.h"
 #include "asterisk/utils.h"
 

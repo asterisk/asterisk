@@ -25,8 +25,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "resource_events.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/stasis_app.h"

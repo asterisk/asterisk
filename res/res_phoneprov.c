@@ -52,7 +52,6 @@
 #ifdef SOLARIS
 #include <sys/sockio.h>
 #endif
-ASTERISK_REGISTER_FILE()
 
 #include "asterisk/channel.h"
 #include "asterisk/file.h"

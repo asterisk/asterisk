@@ -33,8 +33,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/cli.h"
 #include "asterisk/app.h"
 #include "asterisk/pbx.h"

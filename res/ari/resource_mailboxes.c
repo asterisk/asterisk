@@ -31,8 +31,6 @@
 #include "asterisk.h"
 #include "asterisk/stasis_app_mailbox.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "resource_mailboxes.h"
 
 void ast_ari_mailboxes_list(struct ast_variable *headers,

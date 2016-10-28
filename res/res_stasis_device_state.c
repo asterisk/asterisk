@@ -23,8 +23,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/astdb.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/module.h"

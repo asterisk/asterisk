@@ -42,7 +42,6 @@
  ***/
 
 #include "asterisk.h"	/* ast_strdupa */
-ASTERISK_REGISTER_FILE()
 #include "asterisk/utils.h"	/* ast_strdupa */
 #include "console_video.h"	/* ast_strdupa */
 

@@ -19,6 +19,11 @@ Build System
    Asterisk built with LOW_MEMORY can now successfully load binary modules
    built without LOW_MEMORY and vice versa.
 
+Core
+------------------
+ * ASTERISK_REGISTER_FILE was no longer useful and has been removed.  Sources
+   which use mtx_prof must now manually declare and initialize the variable.
+
 chan_sip
 ------------------
  * If an offer is received with optional SRTP (a media stream with RTP/AVP but

@@ -37,8 +37,6 @@
 
 #include "asterisk.h"                   /* for NULL, size_t, memcpy, etc */
 
-ASTERISK_REGISTER_FILE()
-
 #include <math.h>                       /* for pow */
 #include <srtp/srtp.h>
 #ifdef HAVE_OPENSSL

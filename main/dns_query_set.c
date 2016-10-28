@@ -29,8 +29,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/vector.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/utils.h"

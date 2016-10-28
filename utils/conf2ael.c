@@ -28,7 +28,6 @@
  ***/
 
 #include "asterisk.h"
-ASTERISK_REGISTER_FILE()
 
 #include "asterisk/paths.h"	/* CONFIG_DIR */
 #include <locale.h>
@@ -79,15 +78,6 @@ char ast_config_AST_SYSTEM_NAME[20] = ""; */
 int option_debug = 0;
 int option_verbose = 0;
 
-void __ast_register_file(const char *file);
-void __ast_register_file(const char *file)
-{
-}
-
-void __ast_unregister_file(const char *file);
-void __ast_unregister_file(const char *file)
-{
-}
 int ast_add_profile(const char *x, uint64_t scale) { return 0;}
 /* Our own version of ast_log, since the expr parser uses it. -- stolen from utils/check_expr.c */
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__((format(printf,5,6)));

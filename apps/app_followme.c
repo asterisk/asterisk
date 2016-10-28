@@ -41,8 +41,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <signal.h>
 
 #include "asterisk/paths.h"	/* use ast_config_AST_SPOOL_DIR */

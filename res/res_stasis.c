@@ -53,8 +53,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/astobj2.h"
 #include "asterisk/callerid.h"
 #include "asterisk/module.h"

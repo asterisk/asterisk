@@ -33,8 +33,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #ifdef FREERADIUS_CLIENT
 #include <freeradius-client.h>
 #else

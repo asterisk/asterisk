@@ -27,7 +27,6 @@
  ***/
 
 #include "asterisk.h"
-ASTERISK_REGISTER_FILE();
 
 #include "asterisk/backtrace.h"
 #include "asterisk/utils.h"

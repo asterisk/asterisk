@@ -29,8 +29,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>

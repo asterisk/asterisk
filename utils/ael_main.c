@@ -18,8 +18,6 @@
 #include <regex.h>
 #include <limits.h>
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/backtrace.h"
 #include "asterisk/channel.h"
 #include "asterisk/ast_expr.h"
@@ -32,8 +30,6 @@ ASTERISK_REGISTER_FILE()
 
 int option_debug = 0;
 int option_verbose = 0;
-void __ast_register_file(const char *file) { }
-void __ast_unregister_file(const char *file) { }
 
 /*** MODULEINFO
   	<depend>res_ael_share</depend>

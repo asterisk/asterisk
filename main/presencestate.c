@@ -57,8 +57,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/_private.h"
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"

@@ -18,8 +18,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/optional_api.h"
 #include "asterisk/utils.h"
 

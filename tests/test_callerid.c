@@ -34,8 +34,6 @@
 #include "asterisk.h"
 #include "asterisk/callerid.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/utils.h"
 #include "asterisk/module.h"
 #include "asterisk/test.h"

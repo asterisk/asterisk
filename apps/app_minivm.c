@@ -146,8 +146,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include <ctype.h>
 #include <sys/time.h>
 #include <sys/stat.h>

@@ -22,8 +22,6 @@
 
 #include "asterisk.h"
 
-ASTERISK_REGISTER_FILE()
-
 #include "asterisk/endian.h"
 #include "asterisk/md5.h"
 
