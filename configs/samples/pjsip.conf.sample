@@ -759,6 +759,8 @@
                                 ; rather than advertising all joint codec capabilities. This
                                 ; limits the other side's codec choice to exactly what we prefer.
                                 ; default is no.
+;asymmetric_rtp_codec= ; Allow the sending and receiving codec to differ and
+                       ; not be automatically matched (default: "no")
 
 ;==========================AUTH SECTION OPTIONS=========================
 ;[auth]
