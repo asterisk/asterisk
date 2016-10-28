@@ -786,6 +786,7 @@ static int publisher_client_send(void *obj, void *arg, void *data, int flags)
 	struct sip_outbound_publish_message *message;
 	size_t type_len = 0, subtype_len = 0, body_text_len = 0;
 	int *res = data;
+	SCOPED_AO2LOCK(lock, publisher);
 
 	*res = -1;
 	if (!publisher->client) {
