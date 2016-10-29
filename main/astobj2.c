@@ -52,8 +52,10 @@ static FILE *ref_log;
 struct __priv_data {
 	int ref_counter;
 	ao2_destructor_fn destructor_fn;
+#if defined(AO2_DEBUG)
 	/*! User data size for stats */
 	size_t data_size;
+#endif
 	/*! The ao2 object option flags */
 	uint32_t options;
 	/*! magic number.  This is used to verify that a pointer passed in is a
@@ -570,11 +572,11 @@ static void *internal_ao2_alloc(size_t data_size, ao2_destructor_fn destructor_f
 	/* Initialize common ao2 values. */
 	obj->priv_data.ref_counter = 1;
 	obj->priv_data.destructor_fn = destructor_fn;	/* can be NULL */
-	obj->priv_data.data_size = data_size;
 	obj->priv_data.options = options;
 	obj->priv_data.magic = AO2_MAGIC;
 
 #ifdef AO2_DEBUG
+	obj->priv_data.data_size = data_size;
 	ast_atomic_fetchadd_int(&ao2.total_objects, 1);
 	ast_atomic_fetchadd_int(&ao2.total_mem, data_size);
 	ast_atomic_fetchadd_int(&ao2.total_refs, 1);
