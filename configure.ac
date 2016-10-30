@@ -1106,6 +1106,38 @@ AST_GCC_ATTRIBUTE(constructor)
 AST_GCC_ATTRIBUTE(destructor)
 AST_GCC_ATTRIBUTE(noreturn,noreturn)
 
+AC_MSG_CHECKING(for --std=c11 support)
+saved_c_c11_CFLAGS="${CFLAGS}"
+saved_c_c11_LDFLAGS="${LDFLAGS}"
+CFLAGS="--std=c11"
+LDFLAGS=""
+AC_COMPILE_IFELSE(
+	[AC_LANG_PROGRAM([], [int x = 1;])],
+	AC_MSG_RESULT(yes)
+	[AST_HAVE_C_C11=1],
+	[AST_HAVE_C_C11=0]
+	AC_MSG_RESULT(no)
+)
+CFLAGS="${saved_c_c11_CFLAGS}"
+LDFLAGS="${saved_c_c11_LDFLAGS}"
+AC_SUBST(AST_HAVE_C_C11)
+
+AC_MSG_CHECKING(for --std=c14 support)
+saved_c_c14_CFLAGS="${CFLAGS}"
+saved_c_c14_LDFLAGS="${LDFLAGS}"
+CFLAGS="--std=c14"
+LDFLAGS=""
+AC_COMPILE_IFELSE(
+	[AC_LANG_PROGRAM([], [int x = 1;])],
+	AC_MSG_RESULT(yes)
+	[AST_HAVE_C_C14=1],
+	[AST_HAVE_C_C14=0]
+	AC_MSG_RESULT(no)
+)
+CFLAGS="${saved_c_c14_CFLAGS}"
+LDFLAGS="${saved_c_c14_LDFLAGS}"
+AC_SUBST(AST_HAVE_C_C14)
+
 AC_MSG_CHECKING(for -fsanitize=address support)
 saved_sanitize_CFLAGS="${CFLAGS}"
 saved_sanitize_LDFLAGS="${LDFLAGS}"
@@ -1115,7 +1147,7 @@ AC_COMPILE_IFELSE(
 	[AC_LANG_PROGRAM([], [int x = 1;])],
 	AC_MSG_RESULT(yes)
 	[AST_ADDRESS_SANITIZER=1],
-	[AST_ADDRESS_SANITIZER=]
+	[AST_ADDRESS_SANITIZER=0]
 	AC_MSG_RESULT(no)
 )
 CFLAGS="${saved_sanitize_CFLAGS}"
@@ -1131,7 +1163,7 @@ AC_COMPILE_IFELSE(
 	[AC_LANG_PROGRAM([], [int x = 1;])],
 	AC_MSG_RESULT(yes)
 	[AST_THREAD_SANITIZER=1],
-	[AST_THREAD_SANITIZER=]
+	[AST_THREAD_SANITIZER=0]
 	AC_MSG_RESULT(no)
 )
 CFLAGS="${saved_sanitize_CFLAGS}"

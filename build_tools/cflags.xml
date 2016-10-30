@@ -1,4 +1,22 @@
 <category name="MENUSELECT_CFLAGS" displayname="Compiler Flags" positive_output="yes" remove_on_change=".lastclean">
+		<member name="COMPILE_C_DEFAULT" displayname="Compile using Default (C99) standart">
+			<defaultenabled>yes</defaultenabled>
+			<support_level>extended</support_level>
+			<conflict>COMPILE_C_C11</conflict>
+			<conflict>COMPILE_C_C14</conflict>
+		</member>
+		<member name="COMPILE_C_C11" displayname="Compile using GNU C11 standart">
+			<depend>HAVE_C_C11</depend>
+			<support_level>extended</support_level>
+			<conflict>COMPILE_C_DEFAULT</conflict>
+			<conflict>COMPILE_C_C14</conflict>
+		</member>
+		<member name="COMPILE_C_C14" displayname="Compile using GNU C14 standart">
+			<depend>HAVE_C_C14</depend>
+			<support_level>extended</support_level>
+			<conflict>COMPILE_C_DEFAULT</conflict>
+			<conflict>COMPILE_C_C11</conflict>
+		</member>
 		<member name="DONT_OPTIMIZE" displayname="Disable Optimizations by the Compiler">
 			<use autoselect="yes">COMPILE_DOUBLE</use>
 			<support_level>core</support_level>
