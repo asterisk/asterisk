@@ -31,6 +31,14 @@ tolower = $(shell echo $(1) | tr '[:upper:]' '[:lower:]')
 # extra cflags to build dependencies. Recursively expanded.
 MAKE_DEPS=-MD -MT $@ -MF .$(subst /,_,$@).d -MP
 
+ifeq ($(findstring COMPILE_C_C11,$(MENUSELECT_CFLAGS)),COMPILE_C_C11)
+    _ASTCFLAGS+=-std=gnu11
+endif
+
+ifeq ($(findstring COMPILE_C_C14,$(MENUSELECT_CFLAGS)),COMPILE_C_C14)
+    _ASTCFLAGS+=-std=gnu14
+endif
+
 ifeq ($(findstring ADDRESS_SANITIZER,$(MENUSELECT_CFLAGS)),ADDRESS_SANITIZER)
     _ASTLDFLAGS+=-fsanitize=address
     _ASTCFLAGS+=-fno-omit-frame-pointer -fsanitize=address
