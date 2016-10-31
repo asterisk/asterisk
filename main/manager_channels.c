@@ -141,6 +141,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</see-also>
 		</managerEventInstance>
 	</managerEvent>
+	<managerEvent language="en_US" name="NewConnectedLine">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when a channel's connected line information is changed.</synopsis>
+			<syntax>
+				<channel_snapshot/>
+			</syntax>
+			<see-also>
+				<ref type="function">CONNECTEDLINE</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
 	<managerEvent language="en_US" name="NewAccountCode">
 		<managerEventInstance class="EVENT_FLAG_CALL">
 			<synopsis>Raised when a Channel's AccountCode is changed.</synopsis>
