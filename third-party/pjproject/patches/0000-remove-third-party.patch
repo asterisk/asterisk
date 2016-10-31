@@ -1,5 +1,5 @@
 diff --git a/build.mak.in b/build.mak.in
-index 802211c..006d887 100644
+index 802211c..25fd05e 100644
 --- a/build.mak.in
 +++ b/build.mak.in
 @@ -1,4 +1,3 @@
@@ -7,7 +7,7 @@ index 802211c..006d887 100644
  include $(PJDIR)/version.mak
  export PJ_DIR := $(PJDIR)
  
-@@ -9,7 +9,7 @@ export HOST_NAME := unix
+@@ -9,7 +8,7 @@ export HOST_NAME := unix
  export CC_NAME := gcc
  export TARGET_NAME := @target@
  export CROSS_COMPILE := @ac_cross_compile@
@@ -16,7 +16,7 @@ index 802211c..006d887 100644
  export SHLIB_SUFFIX := @ac_shlib_suffix@
  
  export prefix := @prefix@
-@@ -28,114 +28,6 @@ export APP_THIRD_PARTY_EXT :=
+@@ -28,19 +27,6 @@ export APP_THIRD_PARTY_EXT :=
  export APP_THIRD_PARTY_LIBS :=
  export APP_THIRD_PARTY_LIB_FILES :=
  
@@ -33,22 +33,13 @@ index 802211c..006d887 100644
 -endif
 -endif
 -
--ifeq (@ac_pjmedia_resample@,libresample)
--APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libresample-$(LIB_SUFFIX)
--ifeq ($(PJ_SHARED_LIBRARIES),)
--ifeq (@ac_resample_dll@,1)
--export PJ_RESAMPLE_DLL := 1
--APP_THIRD_PARTY_LIBS += -lresample
--APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libresample.$(SHLIB_SUFFIX).$(PJ_VERSION_MAJOR) $(PJ_DIR)/third_party/lib/libresample.$(SHLIB_SUFFIX)
--else
--APP_THIRD_PARTY_LIBS += -lresample-$(TARGET_NAME)
--endif
--else
--APP_THIRD_PARTY_LIBS += -lresample
--APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libresample.$(SHLIB_SUFFIX).$(PJ_VERSION_MAJOR) $(PJ_DIR)/third_party/lib/libresample.$(SHLIB_SUFFIX)
--endif
--endif
--
+ ifeq (@ac_pjmedia_resample@,libresample)
+ APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libresample-$(LIB_SUFFIX)
+ ifeq ($(PJ_SHARED_LIBRARIES),)
+@@ -57,85 +43,6 @@ APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libresample.$(SHLIB_SUFFI
+ endif
+ endif
+ 
 -ifneq (@ac_no_gsm_codec@,1)
 -ifeq (@ac_external_gsm@,1)
 -# External GSM library
@@ -131,7 +122,7 @@ index 802211c..006d887 100644
  # Additional flags
  @ac_build_mak_vars@
  
-@@ -149,7 +41,7 @@ SDL_CFLAGS = @ac_sdl_cflags@
+@@ -149,7 +56,7 @@ SDL_CFLAGS = @ac_sdl_cflags@
  SDL_LDFLAGS = @ac_sdl_ldflags@
  
  # FFMPEG flags
@@ -140,7 +131,7 @@ index 802211c..006d887 100644
  FFMPEG_LDFLAGS =  @ac_ffmpeg_ldflags@
  
  # Video4Linux2
-@@ -157,7 +49,7 @@ V4L2_CFLAGS = @ac_v4l2_cflags@
+@@ -157,7 +64,7 @@ V4L2_CFLAGS = @ac_v4l2_cflags@
  V4L2_LDFLAGS = @ac_v4l2_ldflags@
  
  # OPENH264 flags
