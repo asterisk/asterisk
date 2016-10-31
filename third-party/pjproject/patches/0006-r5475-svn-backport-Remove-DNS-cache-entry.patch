@@ -1,0 +1,70 @@
+From 46e1cfa18853a38b7fcdebad782710c5db676657 Mon Sep 17 00:00:00 2001
+From: Richard Mudgett <rmudgett@digium.com>
+Date: Fri, 28 Oct 2016 12:15:44 -0500
+Subject: [PATCH 3/3] r5475 svn backport Remove DNS cache entry
+
+Re #1974: Remove DNS cache entry from resolver's hash table when app callback has a reference.
+
+Thanks to Richard Mudgett for the patch.
+---
+ pjlib-util/src/pjlib-util/resolver.c |   29 +++++++++++++++--------------
+ 1 file changed, 15 insertions(+), 14 deletions(-)
+
+diff --git a/pjlib-util/src/pjlib-util/resolver.c b/pjlib-util/src/pjlib-util/resolver.c
+index fe687b7..52b7655 100644
+--- a/pjlib-util/src/pjlib-util/resolver.c
++++ b/pjlib-util/src/pjlib-util/resolver.c
+@@ -1444,10 +1444,12 @@ static void update_res_cache(pj_dns_resolver *resolver,
+     if (ttl > resolver->settings.cache_max_ttl)
+ 	ttl = resolver->settings.cache_max_ttl;
+ 
++    /* Get a cache response entry */
++    cache = (struct cached_res *) pj_hash_get(resolver->hrescache, key,
++    					      sizeof(*key), &hval);
++
+     /* If TTL is zero, clear the same entry in the hash table */
+     if (ttl == 0) {
+-	cache = (struct cached_res *) pj_hash_get(resolver->hrescache, key, 
+-						  sizeof(*key), &hval);
+ 	/* Remove the entry before releasing its pool (see ticket #1710) */
+ 	pj_hash_set(NULL, resolver->hrescache, key, sizeof(*key), hval, NULL);
+ 
+@@ -1457,24 +1459,23 @@ static void update_res_cache(pj_dns_resolver *resolver,
+ 	return;
+     }
+ 
+-    /* Get a cache response entry */
+-    cache = (struct cached_res *) pj_hash_get(resolver->hrescache, key, 
+-    					      sizeof(*key), &hval);
+     if (cache == NULL) {
+ 	cache = alloc_entry(resolver);
+-    } else if (cache->ref_cnt > 1) {
+-	/* When cache entry is being used by callback (to app), just decrement
+-	 * ref_cnt so it will be freed after the callback returns and allocate
+-	 * new entry.
+-	 */
+-	cache->ref_cnt--;
+-	cache = alloc_entry(resolver);
+     } else {
+ 	/* Remove the entry before resetting its pool (see ticket #1710) */
+ 	pj_hash_set(NULL, resolver->hrescache, key, sizeof(*key), hval, NULL);
+ 
+-	/* Reset cache to avoid bloated cache pool */
+-	reset_entry(&cache);
++	if (cache->ref_cnt > 1) {
++	    /* When cache entry is being used by callback (to app),
++	     * just decrement ref_cnt so it will be freed after
++	     * the callback returns and allocate new entry.
++	     */
++	    cache->ref_cnt--;
++	    cache = alloc_entry(resolver);
++	} else {
++	    /* Reset cache to avoid bloated cache pool */
++	    reset_entry(&cache);
++	}
+     }
+ 
+     /* Duplicate the packet.
+-- 
+1.7.9.5
+
