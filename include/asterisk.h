@@ -36,6 +36,15 @@
 #define AST_FILE_MODE 0666
 #endif
 
+/* Make sure PATH_MAX is defined on platforms (HURD) that don't define it.
+ * Also be sure to handle the case of a path larger than PATH_MAX
+ * (err safely) in the code.
+ */
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+
+
 #define DEFAULT_LANGUAGE "en"
 
 #define DEFAULT_SAMPLE_RATE 8000
