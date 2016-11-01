@@ -69,6 +69,18 @@ chan_pjsip
    to asymmetric using the "asymmetric_rtp_codec" endpoint option. If this
    option is set then the sending and received codec are allowed to differ.
 
+CLI Commands
+------------------
+ * Three new CLI commands have been added for ARI:
+   - ari show apps:
+      Displays a listing of all registered ARI applications.
+   - ari show app <name>:
+      Display detailed information about a registered ARI application.
+   - ari set debug <name> <on|off>:
+      Enable/disable debugging of an ARI application. When debugged, verbose
+      information will be sent to the Asterisk CLI.
+
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 14.0.0 to Asterisk 14.1.0 ----------
 ------------------------------------------------------------------------------

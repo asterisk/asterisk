@@ -77,6 +77,16 @@ typedef void (*stasis_app_cb)(void *data, const char *app_name,
 struct ao2_container *stasis_app_get_all(void);
 
 /*!
+ * \brief Retrieve a handle to a Stasis application by its name
+ *
+ * \param name The name of the registered Stasis application
+ *
+ * \return \c stasis_app on success.
+ * \return \c NULL on error.
+ */
+struct stasis_app *stasis_app_get_by_name(const char *name);
+
+/*!
  * \brief Register a new Stasis application.
  *
  * If an application is already registered with the given name, the old
