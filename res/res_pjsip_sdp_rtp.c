@@ -1162,10 +1162,14 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 			max_packet_size = ast_format_get_maximum_ms(format);
 		}
 		ao2_ref(format, -1);
+
+		if (media->desc.fmt_count == PJMEDIA_MAX_SDP_FMT) {
+			break;
+		}
 	}
 
 	/* Add non-codec formats */
-	if (media_type != AST_MEDIA_TYPE_VIDEO) {
+	if (media_type != AST_MEDIA_TYPE_VIDEO && media->desc.fmt_count < PJMEDIA_MAX_SDP_FMT) {
 		for (index = 1LL; index <= AST_RTP_MAX; index <<= 1) {
 			if (!(noncodec & index)) {
 				continue;
@@ -1186,6 +1190,10 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 				snprintf(tmp, sizeof(tmp), "%d 0-16", rtp_code);
 				attr = pjmedia_sdp_attr_create(pool, "fmtp", pj_cstr(&stmp, tmp));
 				media->attr[media->attr_count++] = attr;
+			}
+
+			if (media->desc.fmt_count == PJMEDIA_MAX_SDP_FMT) {
+				break;
 			}
 		}
 	}
