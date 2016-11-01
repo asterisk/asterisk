@@ -1,0 +1,33 @@
+From 732a997010d60fe93a7453e809672386749b0afc Mon Sep 17 00:00:00 2001
+From: Richard Mudgett <rmudgett@digium.com>
+Date: Tue, 1 Nov 2016 12:55:31 -0500
+Subject: [PATCH] r5477 svn backport Fix DNS write on freed memory.
+
+Re #1974: Fix DNS write on freed memory.
+Thanks to Richard Mudgett for the patch.
+---
+ pjlib-util/src/pjlib-util/resolver.c |    8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/pjlib-util/src/pjlib-util/resolver.c b/pjlib-util/src/pjlib-util/resolver.c
+index 52b7655..365772e 100644
+--- a/pjlib-util/src/pjlib-util/resolver.c
++++ b/pjlib-util/src/pjlib-util/resolver.c
+@@ -908,7 +908,13 @@ PJ_DEF(pj_status_t) pj_dns_resolver_start_query( pj_dns_resolver *resolver,
+ 	    /* Must return PJ_SUCCESS */
+ 	    status = PJ_SUCCESS;
+ 
+-	    goto on_return;
++	    /*
++	     * We cannot write to *p_query after calling cb because what
++	     * p_query points to may have been freed by cb.
++             * Refer to ticket #1974.
++	     */
++	    pj_mutex_unlock(resolver->mutex);
++	    return status;
+ 	}
+ 
+ 	/* At this point, we have a cached entry, but this entry has expired.
+-- 
+1.7.9.5
+
