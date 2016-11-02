@@ -125,11 +125,17 @@ libpj%.a: .rebuild_needed source/build.mak
 	$(CMD_PREFIX) $(MAKE) -C $(dir $(shell dirname $@))/build $(@F) $(REALLY_QUIET)
 	-@rm -rf .rebuild_needed
 
+# pjsua needs resample and g711 to successfully run the testsuite
+libresample%.a: .rebuild_needed source/build.mak
+	$(ECHO_PREFIX) Compiling lib $(@F)
+	$(CMD_PREFIX) $(MAKE) -C $(dir $(shell dirname $@))/build/resample all $(REALLY_QUIET)
+	-@rm -rf .rebuild_needed
+
 # We need to compile pjlib, then pjlib-util, then the rest
 # so we separate them out and create the dependencies
 PJLIB_LIB_FILES = $(foreach lib,$(PJ_LIB_FILES),$(if $(findstring libpj-,$(lib)),$(lib),))
 PJLIB_UTIL_LIB_FILES = $(foreach lib,$(PJ_LIB_FILES),$(if $(findstring libpjlib-util,$(lib)),$(lib),))
-PJSIP_LIB_FILES = $(filter-out $(PJLIB_LIB_FILES) $(PJLIB_UTIL_LIB_FILES),$(PJ_LIB_FILES))
+PJSIP_LIB_FILES = $(filter-out $(PJLIB_LIB_FILES) $(PJLIB_UTIL_LIB_FILES) $(APP_THIRD_PARTY_LIB_FILES),$(PJ_LIB_FILES))
 ALL_LIB_FILES = $(PJLIB_LIB_FILES) $(PJLIB_UTIL_LIB_FILES) $(PJSIP_LIB_FILES)
 
 $(PJLIB_UTIL_LIB_FILES): $(PJLIB_LIB_FILES)
@@ -152,7 +158,7 @@ source/pjsip-apps/lib/libasterisk_malloc_debug.a: source/pjsip-apps/lib/asterisk
 	$(CMD_PREFIX) ar qs $@ $< >/dev/null 2>&1
 
 $(apps): APP = $(filter pj%,$(subst -, ,$(notdir $@)))
-$(apps): pjproject.symbols
+$(apps): pjproject.symbols $(APP_THIRD_PARTY_LIB_FILES)
 	$(ECHO_PREFIX) Compiling $(APP)
 	$(CMD_PREFIX) +$(MAKE) -C source/pjsip-apps/build $(filter pj%,$(subst -, ,$(notdir $@))) $(REALLY_QUIET)
 
