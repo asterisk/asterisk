@@ -1301,6 +1301,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						}
 					}
 					peer = c;
+					publish_dial_end_event(in, out_chans, peer, "CANCEL");
 					ast_copy_flags64(peerflags, o,
 						OPT_CALLEE_TRANSFER | OPT_CALLER_TRANSFER |
 						OPT_CALLEE_HANGUP | OPT_CALLER_HANGUP |
