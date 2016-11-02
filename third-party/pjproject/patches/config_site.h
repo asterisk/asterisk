@@ -57,3 +57,9 @@
 /* Defaults too low for WebRTC */
 #define PJ_ICE_MAX_CAND 32
 #define PJ_ICE_MAX_CHECKS (PJ_ICE_MAX_CAND * 2)
+
+/* Increase limits to allow more formats */
+#define	PJMEDIA_MAX_SDP_FMT   64
+#define	PJMEDIA_MAX_SDP_BANDW   4
+#define	PJMEDIA_MAX_SDP_ATTR   (PJMEDIA_MAX_SDP_FMT*2 + 4)
+#define	PJMEDIA_MAX_SDP_MEDIA   16
