@@ -20129,7 +20129,9 @@ static struct sip_peer *_sip_show_peers_one(int fd, struct mansession *s, struct
 		"ACL: %s\r\n"
 		"Status: %s\r\n"
 		"RealtimeDevice: %s\r\n"
-		"Description: %s\r\n\r\n",
+		"Description: %s\r\n"
+		"Accountcode: %s\r\n"
+		"\r\n",
 		cont->idtext,
 		peer->name,
 		ast_sockaddr_isnull(&peer->addr) ? "-none-" : tmp_host,
@@ -20144,7 +20146,8 @@ static struct sip_peer *_sip_show_peers_one(int fd, struct mansession *s, struct
 		ast_acl_list_is_empty(peer->acl) ? "no" : "yes",       /* permit/deny/acl */
 		status,
 		cont->realtimepeers ? (peer->is_realtime ? "yes" : "no") : "no",
-		peer->description);
+		peer->description,
+		peer->accountcode);
 	}
 	ao2_unlock(peer);
 
