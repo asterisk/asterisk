@@ -4251,8 +4251,6 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 				buf[buflen - 1] = '\0';
 			}
 
-			queue_deferred_frames(&deferred_frames, chan);
-
 			if (agidebug)
 				ast_verbose("<%s>AGI Rx << %s\n", ast_channel_name(chan), buf);
 			cmd_status = agi_handle_command(chan, agi, buf, dead);
