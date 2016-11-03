@@ -103,7 +103,12 @@ source/pjlib/include/pj/%.h: patches/%.h
 	$(ECHO_PREFIX) Applying custom include file $<
 	$(CMD_PREFIX) cp -f $< source/pjlib/include/pj/
 
-source/build.mak: Makefile.rules source/version.mak source/user.mak $(addprefix source/pjlib/include/pj/,$(notdir $(wildcard patches/*.h)))
+.rebuild_needed: $(wildcard ../../makeopts) $(wildcard ../../menuselect.makeopts)
+	$(ECHO_PREFIX) Rebuilding
+	$(CMD_PREFIX) $(MAKE) clean $(REALLY_QUIET)
+	@touch  .rebuild_needed
+
+source/build.mak: Makefile.rules source/version.mak source/user.mak $(addprefix source/pjlib/include/pj/,$(notdir $(wildcard patches/*.h))) .rebuild_needed
 	$(ECHO_PREFIX) Configuring with $(PJPROJECT_CONFIG_OPTS)
 	$(CMD_PREFIX) (cd source ; ./aconfigure $(QUIET_CONFIGURE) $(PJPROJECT_CONFIG_OPTS))
 
@@ -115,12 +120,7 @@ configure: source/build.mak
 echo_cflags: source/build.mak
 	@echo $(PJ_CFLAGS)
 
-.rebuild_needed: ../../makeopts ../../menuselect.makeopts
-	$(ECHO_PREFIX) Rebuilding
-	$(CMD_PREFIX) $(MAKE) clean $(REALLY_QUIET)
-	@touch  .rebuild_needed
-
-libpj%.a: .rebuild_needed source/build.mak
+libpj%.a: source/build.mak
 	$(ECHO_PREFIX) Compiling lib $(@F)
 	$(CMD_PREFIX) $(MAKE) -C $(dir $(shell dirname $@))/build $(@F) $(REALLY_QUIET)
 	-@rm -rf .rebuild_needed
