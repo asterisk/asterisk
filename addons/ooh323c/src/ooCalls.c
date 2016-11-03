@@ -224,7 +224,8 @@ int ooEndCall(OOH323CallData *call)
       call->callState = OO_CALL_CLEARED;
    }
 
-   if(call->callState == OO_CALL_CLEARED || call->callState == OO_CALL_CLEAR_RELEASESENT)
+   if(call->callState == OO_CALL_CLEARED || ((strcmp(call->callType, "incoming")) &&
+     call->callState == OO_CALL_CLEAR_RELEASESENT))
    {
       ooCleanCall(call); 
       call->callState = OO_CALL_REMOVED;

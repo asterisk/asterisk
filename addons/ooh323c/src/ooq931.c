@@ -2124,9 +2124,6 @@ int ooSendReleaseComplete(OOH323CallData *call)
       return OO_FAILED;
    }
    memset(releaseComplete, 0, sizeof(H225ReleaseComplete_UUIE));
-   q931msg->userInfo->h323_uu_pdu.m.h245TunnelingPresent=1; 
-   q931msg->userInfo->h323_uu_pdu.h245Tunneling = OO_TESTFLAG(call->flags, 
-                                                              OO_M_TUNNELING); 
    q931msg->userInfo->h323_uu_pdu.h323_message_body.t = 
          T_H225H323_UU_PDU_h323_message_body_releaseComplete;
    
@@ -2143,8 +2140,6 @@ int ooSendReleaseComplete(OOH323CallData *call)
    releaseComplete->reason.t = h225ReasonCode;
 
    /* Add user-user ie */
-   q931msg->userInfo->h323_uu_pdu.m.h245TunnelingPresent=TRUE; 
-   q931msg->userInfo->h323_uu_pdu.h245Tunneling = OO_TESTFLAG (call->flags, OO_M_TUNNELING);
    q931msg->userInfo->h323_uu_pdu.h323_message_body.t = 
            T_H225H323_UU_PDU_h323_message_body_releaseComplete;
    
