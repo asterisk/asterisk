@@ -1059,11 +1059,6 @@ int ooH2250Receive(OOH323CallData *call)
    while(total < len)
    {
       struct pollfd pfds;
-      recvLen = ooSocketRecv (call->pH225Channel->sock, message1, len-total);
-      memcpy(message+total, message1, recvLen);
-      total = total + recvLen;
-
-      if(total == len) break; /* Complete message is received */
       
       pfds.fd = call->pH225Channel->sock;
       pfds.events = POLLIN;
@@ -1083,8 +1078,9 @@ int ooH2250Receive(OOH323CallData *call)
          }
          return OO_FAILED;
       }
-      /* If remaining part of the message is not received in 3 seconds 
-         exit */
+
+      /* exit If remaining part of the message is not received in 3 seconds */
+
       if(!ooPDRead(&pfds, 1, call->pH225Channel->sock))
       {
          OOTRACEERR3("Error: Incomplete H.2250 message received - clearing "
@@ -1097,6 +1093,23 @@ int ooH2250Receive(OOH323CallData *call)
          }
          return OO_FAILED;
       }
+
+      recvLen = ooSocketRecv (call->pH225Channel->sock, message1, len-total);
+      if (recvLen == 0) {
+         OOTRACEERR3("Error in read while receiving H.2250 message - "
+                     "clearing call (%s, %s)\n", call->callType, 
+                     call->callToken);
+         ooFreeQ931Message(pctxt, pmsg);
+         if(call->callState < OO_CALL_CLEAR)
+         {
+            call->callEndReason = OO_REASON_TRANSPORTFAILURE;
+            call->callState = OO_CALL_CLEAR;
+         }
+         return OO_FAILED;
+      }
+      memcpy(message+total, message1, recvLen);
+      total = total + recvLen;
+
    }
 
    OOTRACEDBGC3("Received Q.931 message: (%s, %s)\n", 
