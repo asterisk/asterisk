@@ -223,6 +223,7 @@ struct ast_channel {
 	struct stasis_cp_single *topics;		/*!< Topic for all channel's events */
 	struct stasis_forward *endpoint_forward;	/*!< Subscription for event forwarding to endpoint's topic */
 	struct stasis_forward *endpoint_cache_forward; /*!< Subscription for cache updates to endpoint's topic */
+	struct ast_readq_list deferred_readq;
 };
 
 /*! \brief The monotonically increasing integer counter for channel uniqueids */
@@ -1697,4 +1698,9 @@ enum ast_channel_error ast_channel_internal_errno(void)
 	}
 
 	return *error_code;
+}
+
+struct ast_readq_list *ast_channel_deferred_readq(struct ast_channel *chan)
+{
+	return &chan->deferred_readq;
 }
