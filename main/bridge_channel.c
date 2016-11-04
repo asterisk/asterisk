@@ -2743,6 +2743,9 @@ int bridge_channel_internal_join(struct ast_bridge_channel *bridge_channel)
 	bridge_channel_settle_owed_events(bridge_channel->bridge, bridge_channel);
 	bridge_reconfigured(bridge_channel->bridge, 1);
 
+	/* Remove ourselves if we are the video source */
+	ast_bridge_remove_video_src(bridge_channel->bridge, bridge_channel->chan);
+
 	ast_bridge_unlock(bridge_channel->bridge);
 
 	/* Must release any swap ref after unlocking the bridge. */
