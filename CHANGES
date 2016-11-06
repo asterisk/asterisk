@@ -68,6 +68,11 @@ app_originate
    created channel using options parameter (like app_dial) B() and b().  This
    allows for adding variables to newly created channel or, e.g. setting callerid.
 
+app_queue
+------------------
+ * Added QueueUpdate application which can be used to write to the queue_log file
+   for outbound calls and to update realtime data.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 14.2.0 to Asterisk 14.3.0 ------------
 ------------------------------------------------------------------------------
