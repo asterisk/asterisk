@@ -259,7 +259,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			any of the join options cause the caller to not enter the queue.</para>
 			<para>This application does not automatically answer and should be preceeded
 			by an application such as Answer(), Progress(), or Ringing().</para>
-			<para>This application sets the following channel variable upon completion:</para>
+			<para>This application sets the following channel variables upon completion:</para>
 			<variablelist>
 				<variable name="QUEUESTATUS">
 					<para>The status of the call as a text string.</para>
@@ -270,6 +270,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<value name="JOINUNAVAIL" />
 					<value name="LEAVEUNAVAIL" />
 					<value name="CONTINUE" />
+				</variable>
+				<variable name="ABANDONED">
+					<para>If the call was not answered by an agent this variable will be TRUE.</para>
+					<value name="TRUE" />
 				</variable>
 			</variablelist>
 		</description>
@@ -4593,6 +4597,8 @@ static int say_periodic_announcement(struct queue_ent *qe, int ringing)
 static void record_abandoned(struct queue_ent *qe)
 {
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+
+	pbx_builtin_setvar_helper(qe->chan, "ABANDONED", "TRUE");
 
 	set_queue_variables(qe->parent, qe->chan);
 	ao2_lock(qe->parent);
