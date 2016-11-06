@@ -4593,6 +4593,7 @@ static int say_periodic_announcement(struct queue_ent *qe, int ringing)
 static void record_abandoned(struct queue_ent *qe)
 {
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
+	pbx_builtin_setvar_helper(qe->chan, "ABANDONED", "TRUE");
 
 	set_queue_variables(qe->parent, qe->chan);
 	ao2_lock(qe->parent);
