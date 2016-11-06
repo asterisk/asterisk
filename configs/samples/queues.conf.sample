@@ -113,8 +113,10 @@ monitor-type = MixMonitor
 ;strategy = ringall
 ;
 ; Second settings for service level (default 0)
-; Used for service level statistics (calls answered within service level time
-; frame)
+; Used for service level statistics (calls answered within service level time frame)
+; There are 2 Service Level Performance Calculations SL and SL2
+; SL = (total calls answered within threshold / total calls answered) * 100
+; SL2 = ((calls answered within threshold + calls abandoned within threshold) / (answered calls + abandoned calls)) * 100
 ;servicelevel = 60
 ;
 ; A context may be specified, in which if the user types a SINGLE
