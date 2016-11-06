@@ -1668,6 +1668,7 @@ struct call_queue {
 	int talktime;                       /*!< Current avg talktime, based on the same exponential average */
 	int callscompleted;                 /*!< Number of queue calls completed */
 	int callsabandoned;                 /*!< Number of queue calls abandoned */
+	int callsabandonedinsl;             /*!< Number of queue calls abandoned in servicelevel */
 	int servicelevel;                   /*!< seconds setting for servicelevel*/
 	int callscompletedinsl;             /*!< Number of calls answered with servicelevel*/
 	char monfmt[8];                     /*!< Format to use when recording calls */
@@ -4621,6 +4622,9 @@ static int say_periodic_announcement(struct queue_ent *qe, int ringing)
 /*! \brief Record that a caller gave up on waiting in queue */
 static void record_abandoned(struct queue_ent *qe)
 {
+	int callabandonedinsl = 0;
+	time_t now;
+
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
 	pbx_builtin_setvar_helper(qe->chan, "ABANDONED", "TRUE");
@@ -4633,6 +4637,13 @@ static void record_abandoned(struct queue_ent *qe)
 			     "OriginalPosition", qe->opos,
 			     "HoldTime", (int)(time(NULL) - qe->start));
 
+
+	time(&now);
+	callabandonedinsl = ((now - qe->start) <= qe->parent->servicelevel);
+	if (callabandonedinsl) {
+		qe->parent->callsabandonedinsl++;
+	}
+	
 	qe->parent->callsabandoned++;
 	ao2_unlock(qe->parent);
 
@@ -9379,6 +9390,8 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
 	queue_iter = ao2_iterator_init(queues, AO2_ITERATOR_DONTLOCK);
 	while ((q = ao2_t_iterator_next(&queue_iter, "Iterate through queues"))) {
 		float sl;
+		float sl2;
+
 		struct call_queue *realtime_queue = NULL;
 
 		ao2_lock(q);
@@ -9411,12 +9424,16 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
 			ast_str_append(&out, 0, "unlimited");
 		}
 		sl = 0;
+		sl2 = 0;
 		if (q->callscompleted > 0) {
 			sl = 100 * ((float) q->callscompletedinsl / (float) q->callscompleted);
 		}
-		ast_str_append(&out, 0, ") in '%s' strategy (%ds holdtime, %ds talktime), W:%d, C:%d, A:%d, SL:%2.1f%% within %ds",
-			int2strat(q->strategy), q->holdtime, q->talktime, q->weight,
-			q->callscompleted, q->callsabandoned,sl,q->servicelevel);
+		if (q->callscompleted + q->callsabandoned > 0) {
+			sl2 =100 * (((float)q->callsabandonedinsl + (float)q->callscompletedinsl) / ((float)q->callsabandoned + (float)q->callscompleted));
+		}
+
+		ast_str_append(&out, 0, ") in '%s' strategy (%ds holdtime, %ds talktime), W:%d, C:%d, A:%d, SL:%2.1f%%, SL2:%2.1f%% within %ds",
+			int2strat(q->strategy), q->holdtime, q->talktime, q->weight, q->callscompleted, q->callsabandoned, sl, sl2, q->servicelevel);
 		do_print(s, fd, ast_str_buffer(out));
 		if (!ao2_container_count(q->members)) {
 			do_print(s, fd, "   No Members");
@@ -9773,6 +9790,7 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 	struct call_queue *q;
 	struct queue_ent *qe;
 	float sl = 0;
+	float sl2 = 0;
 	struct member *mem;
 	struct ao2_iterator queue_iter;
 	struct ao2_iterator mem_iter;
@@ -9791,6 +9809,8 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 		/* List queue properties */
 		if (ast_strlen_zero(queuefilter) || !strcasecmp(q->name, queuefilter)) {
 			sl = ((q->callscompleted > 0) ? 100 * ((float)q->callscompletedinsl / (float)q->callscompleted) : 0);
+			sl2 = (((q->callscompleted + q->callsabandoned) > 0) ? 100 * (((float)q->callsabandonedinsl + (float)q->callscompletedinsl) / ((float)q->callsabandoned + (float)q->callscompleted)) : 0);
+
 			astman_append(s, "Event: QueueParams\r\n"
 				"Queue: %s\r\n"
 				"Max: %d\r\n"
@@ -9802,11 +9822,12 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 				"Abandoned: %d\r\n"
 				"ServiceLevel: %d\r\n"
 				"ServicelevelPerf: %2.1f\r\n"
+				"ServicelevelPerf2: %2.1f\r\n"
 				"Weight: %d\r\n"
 				"%s"
 				"\r\n",
 				q->name, q->maxlen, int2strat(q->strategy), q->count, q->holdtime, q->talktime, q->callscompleted,
-				q->callsabandoned, q->servicelevel, sl, q->weight, idText);
+				q->callsabandoned, q->servicelevel, sl, sl2, q->weight, idText);
 			++q_items;
 
 			/* List Queue Members */
