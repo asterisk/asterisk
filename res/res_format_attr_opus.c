@@ -94,6 +94,7 @@ static int opus_clone(const struct ast_format *src, struct ast_format *dst)
 	ao2_bump(attr->data);
 
 	ast_format_set_attribute_data(dst, attr);
+	ast_format_set_channel_count(dst, ast_format_get_channel_count(src));
 
 	return 0;
 }
@@ -145,6 +146,9 @@ static struct ast_format *opus_parse_sdp_fmtp(const struct ast_format *format, c
 	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_PTIME, &attr->ptime);
 	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_MAX_AVERAGE_BITRATE, &attr->maxbitrate);
 	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_STEREO, &attr->stereo);
+	if (attr->stereo) {
+		ast_format_set_channel_count(cloned, 2);
+	}
 	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_SPROP_STEREO, &attr->spropstereo);
 	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_CBR, &attr->cbr);
 	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_FEC, &attr->fec);
@@ -235,6 +239,10 @@ static struct ast_format *opus_getjoint(const struct ast_format *format1, const 
 	jointformat = ast_format_clone(format1);
 	if (!jointformat) {
 		return NULL;
+	}
+
+	if (ast_format_get_channel_count(format1) == 2 || ast_format_get_channel_count(format2) == 2) {
+		ast_format_set_channel_count(jointformat, 2);
 	}
 	attr_res = ast_format_get_attribute_data(jointformat);
 

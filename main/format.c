@@ -49,6 +49,8 @@ struct ast_format {
 	void *attribute_data;
 	/*! \brief Pointer to the optional format interface */
 	const struct ast_format_interface *interface;
+	/*! \brief The number if audio channels used, if more than one an interleaved format is required */
+	unsigned int channel_count;
 };
 
 /*! \brief Structure used when registering a format interface */
@@ -175,6 +177,16 @@ void ast_format_set_attribute_data(struct ast_format *format, void *attribute_da
 	format->attribute_data = attribute_data;
 }
 
+unsigned int ast_format_get_channel_count(const struct ast_format *format)
+{
+	return format->channel_count;
+}
+
+void ast_format_set_channel_count(struct ast_format *format, unsigned int channel_count)
+{
+	format->channel_count = channel_count;
+}
+
 /*! \brief Destructor for media formats */
 static void format_destroy(void *obj)
 {
@@ -199,6 +211,7 @@ struct ast_format *ast_format_create_named(const char *format_name, struct ast_c
 	}
 	format->name = format_name;
 	format->codec = ao2_bump(codec);
+	format->channel_count = 1;
 
 	format_interface = ao2_find(interfaces, codec->name, OBJ_SEARCH_KEY);
 	if (format_interface) {
