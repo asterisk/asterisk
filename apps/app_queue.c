@@ -2735,7 +2735,6 @@ static void clear_queue(struct call_queue *q)
 	q->callscompleted = 0;
 	q->callsabandoned = 0;
 	q->callscompletedinsl = 0;
-	q->callsabandonedinsl = 0;
 	q->talktime = 0;
 
 	if (q->members) {
@@ -4594,6 +4593,9 @@ static int say_periodic_announcement(struct queue_ent *qe, int ringing)
 /*! \brief Record that a caller gave up on waiting in queue */
 static void record_abandoned(struct queue_ent *qe)
 {
+	int callabandonedinsl = 0;
+	time_t now;
+
 	RAII_VAR(struct ast_json *, blob, NULL, ast_json_unref);
 
 	set_queue_variables(qe->parent, qe->chan);
@@ -4604,9 +4606,9 @@ static void record_abandoned(struct queue_ent *qe)
 			     "OriginalPosition", qe->opos,
 			     "HoldTime", (int)(time(NULL) - qe->start));
 
-	time_t now;
+
 	time(&now);
-	int callabandonedinsl = ((now - qe->start) <= qe->parent->servicelevel);
+	callabandonedinsl = ((now - qe->start) <= qe->parent->servicelevel);
 	if(callabandonedinsl)
 		qe->parent->callsabandonedinsl++;
 
