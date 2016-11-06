@@ -483,6 +483,24 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<ref type="function">QUEUE_MEMBER_PENALTY</ref>
 		</see-also>
 	</application>
+	<application name="QueueUpdate" language="en_US">
+		<synopsis>
+			Writes to the queue_log file for OutBound calls and updates Realtime Data.
+            Is used at h extension to be able to have all the parameters.
+		</synopsis>
+		<syntax>
+			<parameter name="queuename" required="true" />
+			<parameter name="uniqueid" required="true" />
+			<parameter name="agent" required="true" />
+			<parameter name="status" required="true" />
+            <parameter name="talktime" required="true" />
+            <parameter name="params" required="false" />
+		</syntax>
+		<description>
+			<para>Allows you to write Outbound events into the queue log.</para>
+			<para>Example: exten => h,1,QueueUpdate(${QUEUE}, ${UNIQUEID}, ${AGENT}, ${DIALSTATUS}, ${ANSWEREDTIME}, ${DIALEDTIME} | ${DIALEDNUMBER})</para>
+		</description>
+	</application>
 	<function name="QUEUE_VARIABLES" language="en_US">
 		<synopsis>
 			Return Queue information in variables.
@@ -1357,6 +1375,8 @@ static char *app_pqm = "PauseQueueMember" ;
 static char *app_upqm = "UnpauseQueueMember" ;
 
 static char *app_ql = "QueueLog" ;
+
+static char *app_qupd = "QueueUpdate";
 
 /*! \brief Persistent Members astdb family */
 static const char * const pm_family = "Queue/PersistentMembers";
@@ -10545,6 +10565,85 @@ static char *handle_queue_reload(struct ast_cli_entry *e, int cmd, struct ast_cl
 	return CLI_SUCCESS;
 }
 
+//QueueUpdate application
+static int qupd_exec(struct ast_channel *chan, const char *data)
+{
+    int oldtalktime;
+    char *parse;
+    struct call_queue *q;
+    struct member *mem;
+    int newtalktime = 0;
+
+    AST_DECLARE_APP_ARGS(args,
+			 AST_APP_ARG(queuename);
+			 AST_APP_ARG(uniqueid);
+			 AST_APP_ARG(membername);
+			 AST_APP_ARG(status);
+			 AST_APP_ARG(talktime);
+			 AST_APP_ARG(params););
+
+    if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "UpdateQueue requires arguments (queuename,uniqueid,membername,status,talktime,params[totaltime,callednumber])\n");
+		return -1;
+    }
+
+    parse = ast_strdupa(data);
+
+    AST_STANDARD_APP_ARGS(args, parse);
+
+    if (ast_strlen_zero(args.queuename) || ast_strlen_zero(args.uniqueid) || ast_strlen_zero(args.membername) || ast_strlen_zero(args.status)) {
+		ast_log(LOG_WARNING, "Missing argument to UpdateQueue (queuename,uniqueid,membername,status,talktime,params[totaltime|callednumber])\n");
+		return -1;
+    }
+
+    if (!ast_strlen_zero(args.talktime)) {
+		newtalktime = atoi(args.talktime);
+    }
+
+    q = find_load_queue_rt_friendly(args.queuename);
+
+    if (q == NULL) {
+		return 0;
+    }
+
+    ao2_lock(q);
+    if (q->members) {
+		struct ao2_iterator mem_iter = ao2_iterator_init(q->members, 0);
+		while ((mem = ao2_iterator_next(&mem_iter))) {
+	    	if (!strcasecmp(mem->membername, args.membername)) {
+				if (!strcasecmp(args.status, "ANSWER"))	{
+					oldtalktime = q->talktime;
+					q->talktime = (((oldtalktime << 2) - oldtalktime) + newtalktime) >> 2;
+					time(&mem->lastcall);
+					mem->calls++;
+					mem->lastqueue = q;
+					q->callscompleted++;
+
+					if (newtalktime <= q->servicelevel)	{
+						q->callscompletedinsl++;
+					}
+				} else {
+
+					time(&mem->lastcall);
+					q->callsabandoned++;
+				}
+
+				ast_queue_log(args.queuename, args.uniqueid, args.membername, "OUTCALL", "%s|%s|%s", args.status, args.talktime, args.params);
+	    	}
+
+	    	ao2_ref(mem, -1);
+		}
+
+	ao2_iterator_destroy(&mem_iter);
+    
+	}
+	
+    ao2_unlock(q);
+    queue_t_unref(q, "Done with temporary pointer");
+
+    return 0;
+}
+
 static struct ast_cli_entry cli_queue[] = {
 	AST_CLI_DEFINE(queue_show, "Show status of a specified queue"),
 	AST_CLI_DEFINE(handle_queue_rule_show, "Show the rules defined in queuerules.conf"),
@@ -10862,6 +10961,7 @@ static int unload_module(void)
 	ast_manager_unregister("QueueRemove");
 	ast_manager_unregister("QueuePause");
 	ast_manager_unregister("QueueLog");
+	ast_manager_unregister("QueueUpdate");
 	ast_manager_unregister("QueuePenalty");
 	ast_manager_unregister("QueueReload");
 	ast_manager_unregister("QueueReset");
@@ -10871,6 +10971,7 @@ static int unload_module(void)
 	ast_unregister_application(app_pqm);
 	ast_unregister_application(app_upqm);
 	ast_unregister_application(app_ql);
+	ast_unregister_application(app_qupd);
 	ast_unregister_application(app);
 	ast_custom_function_unregister(&queueexists_function);
 	ast_custom_function_unregister(&queuevar_function);
@@ -10969,6 +11070,7 @@ static int load_module(void)
 	err |= ast_register_application_xml(app_pqm, pqm_exec);
 	err |= ast_register_application_xml(app_upqm, upqm_exec);
 	err |= ast_register_application_xml(app_ql, ql_exec);
+	err |= ast_register_application_xml(app_qupd, qupd_exec);
 	err |= ast_manager_register_xml("Queues", 0, manager_queues_show);
 	err |= ast_manager_register_xml("QueueStatus", 0, manager_queues_status);
 	err |= ast_manager_register_xml("QueueSummary", 0, manager_queues_summary);
