@@ -637,6 +637,10 @@ int ast_format_cap_get_compatible(const struct ast_format_cap *cap1, const struc
 			continue;
 		}
 
+		if (ast_format_get_channel_count(framed->format) > 1) {
+			ast_format_set_channel_count(format, ast_format_get_channel_count(framed->format));
+		}
+
 		res = ast_format_cap_append(result, format, framed->framing);
 		ao2_ref(format, -1);
 

@@ -269,6 +269,7 @@ static void get_codecs(struct ast_sip_session *session, const struct pjmedia_sdp
 
 				format_parsed = ast_format_parse_sdp_fmtp(format, fmt_param);
 				if (format_parsed) {
+					ast_format_set_channel_count(format, ast_format_get_channel_count(format_parsed));
 					ast_rtp_codecs_payload_replace_format(codecs, num, format_parsed);
 					ao2_ref(format_parsed, -1);
 				}

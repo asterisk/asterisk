@@ -145,6 +145,8 @@ static struct ast_format *opus_parse_sdp_fmtp(const struct ast_format *format, c
 	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_PTIME, &attr->ptime);
 	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_MAX_AVERAGE_BITRATE, &attr->maxbitrate);
 	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_STEREO, &attr->stereo);
+	if (attr->stereo)
+		ast_format_set_channel_count(cloned, 2);
 	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_SPROP_STEREO, &attr->spropstereo);
 	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_CBR, &attr->cbr);
 	sdp_fmtp_get(attributes, CODEC_OPUS_ATTR_FEC, &attr->fec);

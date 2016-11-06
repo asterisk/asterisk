@@ -299,6 +299,24 @@ void ast_format_set_attribute_data(struct ast_format *format, void *attribute_da
 const char *ast_format_get_name(const struct ast_format *format);
 
 /*!
+ * \brief Get the channel count on a format
+ *
+ * \param The media format
+ *
+ * \return Currently set channel count
+ */
+unsigned int ast_format_get_channel_count(const struct ast_format *format);
+
+/*!
+ * \brief Set the channel count on a format
+ *
+ * \param format The media format
+ * \param channel_count The number of audio channels used
+ *
+ */
+void ast_format_set_channel_count(struct ast_format *format, unsigned int channel_count);
+
+/*!
  * \brief Get the codec associated with a format
  *
  * \param format The media format
