@@ -802,6 +802,7 @@ static struct ast_bridge *bridge_create_common(const char *type, const char *nam
 
 	bridge = bridge_stasis_new(capabilities, flags, name, id);
 	if (bridge) {
+		ast_bridge_set_talker_src_video_mode(bridge);
 		if (!ao2_link(app_bridges, bridge)) {
 			ast_bridge_destroy(bridge, 0);
 			bridge = NULL;
