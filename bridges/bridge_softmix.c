@@ -442,21 +442,6 @@ static void softmix_bridge_unsuspend(struct ast_bridge *bridge, struct ast_bridg
 	}
 }
 
-/*!
- * \internal
- * \brief Indicate a source change to the channel.
- * \since 12.0.0
- *
- * \param bridge_channel Which channel source is changing.
- *
- * \retval 0 on success.
- * \retval -1 on error.
- */
-static int softmix_src_change(struct ast_bridge_channel *bridge_channel)
-{
-	return ast_bridge_channel_queue_control_data(bridge_channel, AST_CONTROL_SRCCHANGE, NULL, 0);
-}
-
 /*! \brief Function called when a channel is joined into the bridge */
 static int softmix_bridge_join(struct ast_bridge *bridge, struct ast_bridge_channel *bridge_channel)
 {
@@ -472,8 +457,6 @@ static int softmix_bridge_join(struct ast_bridge *bridge, struct ast_bridge_chan
 	if (!(sc = ast_calloc(1, sizeof(*sc)))) {
 		return -1;
 	}
-
-	softmix_src_change(bridge_channel);
 
 	/* Can't forget the lock */
 	ast_mutex_init(&sc->lock);
@@ -500,8 +483,6 @@ static void softmix_bridge_leave(struct ast_bridge *bridge, struct ast_bridge_ch
 		return;
 	}
 	bridge_channel->tech_pvt = NULL;
-
-	softmix_src_change(bridge_channel);
 
 	/* Drop mutex lock */
 	ast_mutex_destroy(&sc->lock);
@@ -696,6 +677,15 @@ static int softmix_bridge_write_control(struct ast_bridge *bridge, struct ast_br
 	 * XXX Softmix needs to use channel roles to determine what to
 	 * do with control frames.
 	 */
+
+	switch (frame->subclass.integer) {
+	case AST_CONTROL_VIDUPDATE:
+		ast_bridge_queue_everyone_else(bridge, NULL, frame);
+		break;
+	default:
+		break;
+	}
+
 	return 0;
 }
 
