@@ -165,7 +165,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			<xi:include xpointer="xpointer(/docs/manager[@name='Login']/syntax/parameter[@name='ActionID'])" />
 		</syntax>
 		<description>
-			<para>Will list info about all defined agents.</para>
+			<para>Will list info about all defined agents. Requires app_agent_pool module to be loaded and incorporated into dial plan</para>
 		</description>
 		<see-also>
 			<ref type="managerEvent">Agents</ref>
