@@ -51,16 +51,29 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! \brief Number of buckets for registered protocols */
 #define MAX_PROTOCOL_BUCKETS 7
 
+#ifdef LOW_MEMORY
 /*! \brief Size of the pre-determined buffer for WebSocket frames */
-#define MAXIMUM_FRAME_SIZE 16384
+#define MAXIMUM_FRAME_SIZE 8192
 
 /*! \brief Default reconstruction size for multi-frame payload reconstruction. If exceeded the next frame will start a
  *         payload.
  */
-#define DEFAULT_RECONSTRUCTION_CEILING 16384
+#define DEFAULT_RECONSTRUCTION_CEILING 8192
 
 /*! \brief Maximum reconstruction size for multi-frame payload reconstruction. */
-#define MAXIMUM_RECONSTRUCTION_CEILING 16384
+#define MAXIMUM_RECONSTRUCTION_CEILING 8192
+#else
+/*! \brief Size of the pre-determined buffer for WebSocket frames */
+#define MAXIMUM_FRAME_SIZE 32768
+
+/*! \brief Default reconstruction size for multi-frame payload reconstruction. If exceeded the next frame will start a
+ *         payload.
+ */
+#define DEFAULT_RECONSTRUCTION_CEILING 32768
+
+/*! \brief Maximum reconstruction size for multi-frame payload reconstruction. */
+#define MAXIMUM_RECONSTRUCTION_CEILING 32768
+#endif
 
 /*! \brief Maximum size of a websocket frame header
  * 1 byte flags and opcode
