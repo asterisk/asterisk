@@ -679,9 +679,9 @@ int ooProcessCallFDSETsAndTimers
     if (0 != call->pH245Channel && 0 != call->pH245Channel->sock)
     {
      if(ooPDWrite(pfds, nfds, call->pH245Channel->sock)) {
-      while (call->pH245Channel->outQueue.count>0) {
+      if (call->pH245Channel->outQueue.count>0) {
        if (ooSendMsg(call, OOH245MSG) != OO_OK)
-	break;
+	OOTRACEERR1("Error in sending h245 message\n");
       }
      }
     }
@@ -699,26 +699,24 @@ int ooProcessCallFDSETsAndTimers
     {
      if(ooPDWrite(pfds, nfds, call->pH225Channel->sock))
      {
-      while (call->pH225Channel->outQueue.count>0)
+      if (call->pH225Channel->outQueue.count>0)
       {
        OOTRACEDBGC3("Sending H225 message (%s, %s)\n", 
                         call->callType, call->callToken);
        if (ooSendMsg(call, OOQ931MSG) != OO_OK)
-	break;
+	OOTRACEERR1("Error in sending h225 message\n");
       }
       if(call->pH245Channel && 
          call->pH245Channel->outQueue.count>0 && 
         OO_TESTFLAG (call->flags, OO_M_TUNNELING)) {
-       while (call->pH245Channel->outQueue.count>0) {
         OOTRACEDBGC3("H245 message needs to be tunneled. "
                           "(%s, %s)\n", call->callType, 
                                call->callToken);
         if (ooSendMsg(call, OOH245MSG) != OO_OK)
-	 break;
+	  OOTRACEERR1("Error in sending h245 message\n");
        }
-      }
-     }                                
-    }
+      }                                
+     }
 
      if(ooTimerNextTimeout(&call->timerList, &toNext))
      {
