@@ -200,6 +200,34 @@ int ast_ari_bridges_remove_channel_parse_body(
  * \param[out] response HTTP response
  */
 void ast_ari_bridges_remove_channel(struct ast_variable *headers, struct ast_ari_bridges_remove_channel_args *args, struct ast_ari_response *response);
+/*! Argument struct for ast_ari_bridges_set_video_source() */
+struct ast_ari_bridges_set_video_source_args {
+	/*! Bridge's id */
+	const char *bridge_id;
+	/*! Channel's id */
+	const char *channel_id;
+};
+/*!
+ * \brief Set a channel as the video source in a multi-party mixing bridge. This operation has no effect on bridges with two or fewer participants.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_bridges_set_video_source(struct ast_variable *headers, struct ast_ari_bridges_set_video_source_args *args, struct ast_ari_response *response);
+/*! Argument struct for ast_ari_bridges_clear_video_source() */
+struct ast_ari_bridges_clear_video_source_args {
+	/*! Bridge's id */
+	const char *bridge_id;
+};
+/*!
+ * \brief Removes any explicit video source in a multi-party mixing bridge. This operation has no effect on bridges with two or fewer participants. When no explicit video source is set, talk detection will be used to determine the active video stream.
+ *
+ * \param headers HTTP headers
+ * \param args Swagger parameters
+ * \param[out] response HTTP response
+ */
+void ast_ari_bridges_clear_video_source(struct ast_variable *headers, struct ast_ari_bridges_clear_video_source_args *args, struct ast_ari_response *response);
 /*! Argument struct for ast_ari_bridges_start_moh() */
 struct ast_ari_bridges_start_moh_args {
 	/*! Bridge's id */
