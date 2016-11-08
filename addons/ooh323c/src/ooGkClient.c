@@ -1272,6 +1272,7 @@ int ooGkClientHandleRegistrationConfirm
       }
    }
    pGkClient->state = GkClientRegistered;
+   pGkClient->rrqRetries = 0;
    if(pGkClient->callbacks.onReceivedRegistrationConfirm)
       pGkClient->callbacks.onReceivedRegistrationConfirm(pRegistrationConfirm,
                                                               gH323ep.aliases);
