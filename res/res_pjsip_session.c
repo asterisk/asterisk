@@ -60,7 +60,6 @@ static int handle_incoming(struct ast_sip_session *session, pjsip_rx_data *rdata
 		enum ast_sip_session_response_priority response_priority);
 static void handle_outgoing_request(struct ast_sip_session *session, pjsip_tx_data *tdata);
 static void handle_outgoing_response(struct ast_sip_session *session, pjsip_tx_data *tdata);
-static void handle_outgoing(struct ast_sip_session *session, pjsip_tx_data *tdata);
 
 /*! \brief NAT hook for modifying outgoing messages with SDP */
 static struct ast_sip_nat_hook *nat_hook;
@@ -2436,17 +2435,6 @@ static void handle_outgoing_response(struct ast_sip_session *session, pjsip_tx_d
 	}
 }
 
-static void handle_outgoing(struct ast_sip_session *session, pjsip_tx_data *tdata)
-{
-	ast_debug(3, "Sending %s\n", tdata->msg->type == PJSIP_REQUEST_MSG ?
-			"request" : "response");
-	if (tdata->msg->type == PJSIP_REQUEST_MSG) {
-		handle_outgoing_request(session, tdata);
-	} else {
-		handle_outgoing_response(session, tdata);
-	}
-}
-
 static void session_end(struct ast_sip_session *session)
 {
 	struct ast_sip_session_supplement *iter;
@@ -2502,7 +2490,6 @@ static void session_inv_on_state_changed(pjsip_inv_session *inv, pjsip_event *e)
 
 	switch(type) {
 	case PJSIP_EVENT_TX_MSG:
-		handle_outgoing(session, e->body.tx_msg.tdata);
 		break;
 	case PJSIP_EVENT_RX_MSG:
 		handle_incoming(session, e->body.rx_msg.rdata, type,
@@ -2513,7 +2500,6 @@ static void session_inv_on_state_changed(pjsip_inv_session *inv, pjsip_event *e)
 		/* Transaction state changes are prompted by some other underlying event. */
 		switch(e->body.tsx_state.type) {
 		case PJSIP_EVENT_TX_MSG:
-			handle_outgoing(session, e->body.tsx_state.src.tdata);
 			break;
 		case PJSIP_EVENT_RX_MSG:
 			handle_incoming(session, e->body.tsx_state.src.rdata, type,
@@ -2559,7 +2545,6 @@ static void session_inv_on_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
 	}
 	switch (e->body.tsx_state.type) {
 	case PJSIP_EVENT_TX_MSG:
-		handle_outgoing(session, e->body.tsx_state.src.tdata);
 		/* When we create an outgoing request, we do not have access to the transaction that
 		 * is created. Instead, We have to place transaction-specific data in the tdata. Here,
 		 * we transfer the data into the transaction. This way, when we receive a response, we
