@@ -1330,7 +1330,9 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 		bridge = ao2_bump(stasis_app_get_bridge(control));
 
 		if (bridge != last_bridge) {
-			app_unsubscribe_bridge(app, last_bridge);
+			if (last_bridge) {
+				app_unsubscribe_bridge(app, last_bridge);
+			}
 			if (bridge) {
 				app_subscribe_bridge(app, bridge);
 			}
@@ -1391,7 +1393,9 @@ int stasis_app_exec(struct ast_channel *chan, const char *app_name, int argc,
 		ast_bridge_depart(chan);
 	}
 
-	app_unsubscribe_bridge(app, stasis_app_get_bridge(control));
+	if (stasis_app_get_bridge(control)) {
+		app_unsubscribe_bridge(app, stasis_app_get_bridge(control));
+	}
 	ao2_cleanup(bridge);
 
 	/* Only publish a stasis_end event if it hasn't already been published */
