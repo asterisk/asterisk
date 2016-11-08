@@ -1360,6 +1360,24 @@ int ast_ari_validate_bridge(struct ast_json *json)
 				res = 0;
 			}
 		} else
+		if (strcmp("video_mode", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Bridge field video_mode failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("video_source_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI Bridge field video_source_id failed validation\n");
+				res = 0;
+			}
+		} else
 		{
 			ast_log(LOG_ERROR,
 				"ARI Bridge has undocumented field %s\n",
@@ -2713,6 +2731,103 @@ int ast_ari_validate_bridge_merged(struct ast_json *json)
 ari_validator ast_ari_validate_bridge_merged_fn(void)
 {
 	return ast_ari_validate_bridge_merged;
+}
+
+int ast_ari_validate_bridge_video_source_changed(struct ast_json *json)
+{
+	int res = 1;
+	struct ast_json_iter *iter;
+	int has_type = 0;
+	int has_application = 0;
+	int has_bridge = 0;
+
+	for (iter = ast_json_object_iter(json); iter; iter = ast_json_object_iter_next(json, iter)) {
+		if (strcmp("asterisk_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI BridgeVideoSourceChanged field asterisk_id failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("type", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_type = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI BridgeVideoSourceChanged field type failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("application", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_application = 1;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI BridgeVideoSourceChanged field application failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("timestamp", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_date(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI BridgeVideoSourceChanged field timestamp failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("bridge", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			has_bridge = 1;
+			prop_is_valid = ast_ari_validate_bridge(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI BridgeVideoSourceChanged field bridge failed validation\n");
+				res = 0;
+			}
+		} else
+		if (strcmp("old_video_source_id", ast_json_object_iter_key(iter)) == 0) {
+			int prop_is_valid;
+			prop_is_valid = ast_ari_validate_string(
+				ast_json_object_iter_value(iter));
+			if (!prop_is_valid) {
+				ast_log(LOG_ERROR, "ARI BridgeVideoSourceChanged field old_video_source_id failed validation\n");
+				res = 0;
+			}
+		} else
+		{
+			ast_log(LOG_ERROR,
+				"ARI BridgeVideoSourceChanged has undocumented field %s\n",
+				ast_json_object_iter_key(iter));
+			res = 0;
+		}
+	}
+
+	if (!has_type) {
+		ast_log(LOG_ERROR, "ARI BridgeVideoSourceChanged missing required field type\n");
+		res = 0;
+	}
+
+	if (!has_application) {
+		ast_log(LOG_ERROR, "ARI BridgeVideoSourceChanged missing required field application\n");
+		res = 0;
+	}
+
+	if (!has_bridge) {
+		ast_log(LOG_ERROR, "ARI BridgeVideoSourceChanged missing required field bridge\n");
+		res = 0;
+	}
+
+	return res;
+}
+
+ari_validator ast_ari_validate_bridge_video_source_changed_fn(void)
+{
+	return ast_ari_validate_bridge_video_source_changed;
 }
 
 int ast_ari_validate_channel_caller_id(struct ast_json *json)
@@ -4921,6 +5036,9 @@ int ast_ari_validate_event(struct ast_json *json)
 	if (strcmp("BridgeMerged", discriminator) == 0) {
 		return ast_ari_validate_bridge_merged(json);
 	} else
+	if (strcmp("BridgeVideoSourceChanged", discriminator) == 0) {
+		return ast_ari_validate_bridge_video_source_changed(json);
+	} else
 	if (strcmp("ChannelCallerId", discriminator) == 0) {
 		return ast_ari_validate_channel_caller_id(json);
 	} else
@@ -5115,6 +5233,9 @@ int ast_ari_validate_message(struct ast_json *json)
 	} else
 	if (strcmp("BridgeMerged", discriminator) == 0) {
 		return ast_ari_validate_bridge_merged(json);
+	} else
+	if (strcmp("BridgeVideoSourceChanged", discriminator) == 0) {
+		return ast_ari_validate_bridge_video_source_changed(json);
 	} else
 	if (strcmp("ChannelCallerId", discriminator) == 0) {
 		return ast_ari_validate_channel_caller_id(json);

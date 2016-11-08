@@ -241,6 +241,78 @@
 			]
 		},
 		{
+			"path": "/bridges/{bridgeId}/videoSource/{channelId}",
+			"description": "Set a channel as the video source in a multi-party bridge",
+			"operations": [
+				{
+					"httpMethod": "POST",
+					"summary": "Set a channel as the video source in a multi-party mixing bridge. This operation has no effect on bridges with two or fewer participants.",
+					"nickname": "setVideoSource",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "bridgeId",
+							"description": "Bridge's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						},
+						{
+							"name": "channelId",
+							"description": "Channel's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Bridge or Channel not found"
+						},
+						{
+							"code": 409,
+							"reason": "Channel not in Stasis application"
+						},
+						{
+							"code": 422,
+							"reason": "Channel not in this Bridge"
+						}
+					]
+				}
+			]
+		},
+		{
+			"path": "/bridges/{bridgeId}/videoSource",
+			"description": "Removes any explicit video source",
+			"operations": [
+				{
+					"httpMethod": "DELETE",
+					"summary": "Removes any explicit video source in a multi-party mixing bridge. This operation has no effect on bridges with two or fewer participants. When no explicit video source is set, talk detection will be used to determine the active video stream.",
+					"nickname": "clearVideoSource",
+					"responseClass": "void",
+					"parameters": [
+						{
+							"name": "bridgeId",
+							"description": "Bridge's id",
+							"paramType": "path",
+							"required": true,
+							"allowMultiple": false,
+							"dataType": "string"
+						}
+					],
+					"errorResponses": [
+						{
+							"code": 404,
+							"reason": "Bridge not found"
+						}
+					]
+				}
+			]
+		},
+		{
 			"path": "/bridges/{bridgeId}/moh",
 			"description": "Play music on hold to a bridge",
 			"operations": [
@@ -649,6 +721,16 @@
 					"type": "List[string]",
 					"description": "Ids of channels participating in this bridge",
 					"required": true
+				},
+				"video_mode": {
+					"type": "string",
+					"description": "The video mode the bridge is using. One of 'none', 'talker', or 'single'.",
+					"required": false
+				},
+				"video_source_id": {
+					"type": "string",
+					"description": "The ID of the channel that is the source of video in this bridge, if one exists.",
+					"required": false
 				}
 			}
 		}

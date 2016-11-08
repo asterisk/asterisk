@@ -12,6 +12,37 @@
 --- Functionality changes from Asterisk 14.1.0 to Asterisk 14.2.0 ----------
 ------------------------------------------------------------------------------
 
+AMI
+------------------
+ * Events that reference a bridge may now contain two new optional fields:
+   - 'BridgeVideoSourceMode': the video source mode for the bridge.
+     Can be one of 'none', 'talker', or 'single'.
+   - 'BridgeVideoSource': the unique ID of the channel that is the video
+     source in this bridge, if one exists.
+
+ * A new event, BridgeVideoSourceUpdate, has been added with a class
+   authorization of CALL. The event is raised when the video source changes
+   in a multi-party mixing bridge.
+
+ARI
+------------------
+ * The bridges resource now exposes two new operations:
+   - POST /bridges/{bridgeId}/videoSource/{channelId}: Set a video source in a
+     multi-party mixing bridge
+   - DELETE /bridges/{bridgeId}/videoSource: Remove the set video source,
+     reverting to talk detection for the video source
+
+ * The bridge model in any returned response or event now contains the following
+   optional fields:
+   - video_mode: the video source mode for the bridge. Can be one of 'none',
+     'talker', or 'single'.
+   - video_source_id: the unique ID of the channel that is the video source
+     in this bridge, if one exists.
+
+ * A new event, BridgeVideoSourceChanged, has been added for bridges.
+   Applications subscribed to a bridge will receive this event when the source
+   of video changes in a mixing bridge.
+
 res_pjsip
 ------------------
  * Automatic dual stack support is now implemented. Depending on DNS resolution
