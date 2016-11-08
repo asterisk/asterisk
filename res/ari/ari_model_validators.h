@@ -717,6 +717,24 @@ int ast_ari_validate_bridge_merged(struct ast_json *json);
 ari_validator ast_ari_validate_bridge_merged_fn(void);
 
 /*!
+ * \brief Validator for BridgeVideoSourceChanged.
+ *
+ * Notification that the source of video in a bridge has changed.
+ *
+ * \param json JSON object to validate.
+ * \returns True (non-zero) if valid.
+ * \returns False (zero) if invalid.
+ */
+int ast_ari_validate_bridge_video_source_changed(struct ast_json *json);
+
+/*!
+ * \brief Function pointer to ast_ari_validate_bridge_video_source_changed().
+ *
+ * See \ref ast_ari_model_validators.h for more details.
+ */
+ari_validator ast_ari_validate_bridge_video_source_changed_fn(void);
+
+/*!
  * \brief Validator for ChannelCallerId.
  *
  * Channel changed Caller ID.
@@ -1434,6 +1452,8 @@ ari_validator ast_ari_validate_application_fn(void);
  * - id: string (required)
  * - name: string (required)
  * - technology: string (required)
+ * - video_mode: string
+ * - video_source_id: string
  * LiveRecording
  * - cause: string
  * - duration: int
@@ -1524,6 +1544,13 @@ ari_validator ast_ari_validate_application_fn(void);
  * - timestamp: Date
  * - bridge: Bridge (required)
  * - bridge_from: Bridge (required)
+ * BridgeVideoSourceChanged
+ * - asterisk_id: string
+ * - type: string (required)
+ * - application: string (required)
+ * - timestamp: Date
+ * - bridge: Bridge (required)
+ * - old_video_source_id: string
  * ChannelCallerId
  * - asterisk_id: string
  * - type: string (required)

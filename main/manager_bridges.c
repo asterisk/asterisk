@@ -93,6 +93,21 @@ static struct stasis_message_router *bridge_state_router;
 			</see-also>
 		</managerEventInstance>
 	</managerEvent>
+	<managerEvent language="en_US" name="BridgeVideoSourceUpdate">
+		<managerEventInstance class="EVENT_FLAG_CALL">
+			<synopsis>Raised when the channel that is the source of video in a bridge changes.</synopsis>
+			<syntax>
+				<bridge_snapshot/>
+				<parameter name="BridgePreviousVideoSource">
+					<para>The unique ID of the channel that was the video source.</para>
+				</parameter>
+			</syntax>
+			<see-also>
+				<ref type="managerEvent">BridgeCreate</ref>
+				<ref type="managerEvent">BridgeDestroy</ref>
+			</see-also>
+		</managerEventInstance>
+	</managerEvent>
 	<manager name="BridgeList" language="en_US">
 		<synopsis>
 			Get a list of bridges in the system.
@@ -224,16 +239,28 @@ struct ast_str *ast_manager_build_bridge_state_string_prefix(
 		"%sBridgeTechnology: %s\r\n"
 		"%sBridgeCreator: %s\r\n"
 		"%sBridgeName: %s\r\n"
-		"%sBridgeNumChannels: %u\r\n",
+		"%sBridgeNumChannels: %u\r\n"
+		"%sBridgeVideoSourceMode: %s\r\n",
 		prefix, snapshot->uniqueid,
 		prefix, snapshot->subclass,
 		prefix, snapshot->technology,
 		prefix, ast_strlen_zero(snapshot->creator) ? "<unknown>": snapshot->creator,
 		prefix, ast_strlen_zero(snapshot->name) ? "<unknown>": snapshot->name,
-		prefix, snapshot->num_channels);
+		prefix, snapshot->num_channels,
+		prefix, ast_bridge_video_mode_to_string(snapshot->video_mode));
 	if (!res) {
 		ast_free(out);
 		return NULL;
+	}
+
+	if (snapshot->video_mode != AST_BRIDGE_VIDEO_MODE_NONE
+		&& !ast_strlen_zero(snapshot->video_source_id)) {
+		res = ast_str_append(&out, 0, "%sBridgeVideoSource: %s\r\n",
+			prefix, snapshot->video_source_id);
+		if (!res) {
+			ast_free(out);
+			return NULL;
+		}
 	}
 
 	return out;
@@ -263,6 +290,25 @@ static struct ast_manager_event_blob *bridge_create(
 		EVENT_FLAG_CALL, "BridgeCreate", NO_EXTRA_FIELDS);
 }
 
+/* \brief Handle video source updates */
+static struct ast_manager_event_blob *bridge_video_update(
+	struct ast_bridge_snapshot *old_snapshot,
+	struct ast_bridge_snapshot *new_snapshot)
+{
+	if (!new_snapshot || !old_snapshot) {
+		return NULL;
+	}
+
+	if (!strcmp(old_snapshot->video_source_id, new_snapshot->video_source_id)) {
+		return NULL;
+	}
+
+	return ast_manager_event_blob_create(
+		EVENT_FLAG_CALL, "BridgeVideoSourceUpdate",
+		"BridgePreviousVideoSource: %s\r\n",
+		old_snapshot->video_source_id);
+}
+
 /*! \brief Handle bridge destruction */
 static struct ast_manager_event_blob *bridge_destroy(
 	struct ast_bridge_snapshot *old_snapshot,
@@ -276,9 +322,9 @@ static struct ast_manager_event_blob *bridge_destroy(
 		EVENT_FLAG_CALL, "BridgeDestroy", NO_EXTRA_FIELDS);
 }
 
-
 bridge_snapshot_monitor bridge_monitors[] = {
 	bridge_create,
+	bridge_video_update,
 	bridge_destroy,
 };
 

@@ -701,6 +701,13 @@ static void sub_bridge_update_handler(void *data,
 		json = simple_bridge_event("BridgeDestroyed", old_snapshot, tv);
 	} else if (!old_snapshot) {
 		json = simple_bridge_event("BridgeCreated", new_snapshot, tv);
+	} else if (new_snapshot && old_snapshot
+		&& strcmp(new_snapshot->video_source_id, old_snapshot->video_source_id)) {
+		json = simple_bridge_event("BridgeVideoSourceChanged", new_snapshot, tv);
+		if (json && !ast_strlen_zero(old_snapshot->video_source_id)) {
+			ast_json_object_set(json, "old_video_source_id",
+				ast_json_string_create(old_snapshot->video_source_id));
+		}
 	}
 
 	if (json) {

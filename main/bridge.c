@@ -3774,8 +3774,7 @@ void ast_bridge_set_single_src_video_mode(struct ast_bridge *bridge, struct ast_
 		bridge->name, bridge->uniqueid,
 		ast_channel_name(video_src_chan),
 		ast_channel_uniqueid(video_src_chan));
-	ast_test_suite_event_notify("BRIDGE_VIDEO_MODE", "Message: video mode set to single source\r\nVideo Mode: %u\r\nVideo Channel: %s",
-		bridge->softmix.video_mode.mode, ast_channel_name(video_src_chan));
+	ast_bridge_publish_state(bridge);
 	ast_indicate(video_src_chan, AST_CONTROL_VIDUPDATE);
 	ast_bridge_unlock(bridge);
 }
@@ -3785,8 +3784,6 @@ void ast_bridge_set_talker_src_video_mode(struct ast_bridge *bridge)
 	ast_bridge_lock(bridge);
 	cleanup_video_mode(bridge);
 	bridge->softmix.video_mode.mode = AST_BRIDGE_VIDEO_MODE_TALKER_SRC;
-	ast_test_suite_event_notify("BRIDGE_VIDEO_MODE", "Message: video mode set to talker source\r\nVideo Mode: %u",
-		bridge->softmix.video_mode.mode);
 	ast_bridge_unlock(bridge);
 }
 
@@ -3818,7 +3815,7 @@ void ast_bridge_update_talker_src_video_mode(struct ast_bridge *bridge, struct a
 			bridge->name, bridge->uniqueid,
 			ast_channel_name(data->chan_vsrc),
 			ast_channel_uniqueid(data->chan_vsrc));
-		ast_test_suite_event_notify("BRIDGE_VIDEO_SRC", "Message: video source updated\r\nVideo Channel: %s", ast_channel_name(data->chan_vsrc));
+		ast_bridge_publish_state(bridge);
 		ast_indicate(data->chan_vsrc, AST_CONTROL_VIDUPDATE);
 	} else if ((data->average_talking_energy < talker_energy) && !is_keyframe) {
 		ast_indicate(chan, AST_CONTROL_VIDUPDATE);
@@ -3829,7 +3826,7 @@ void ast_bridge_update_talker_src_video_mode(struct ast_bridge *bridge, struct a
 			bridge->name, bridge->uniqueid,
 			ast_channel_name(data->chan_vsrc),
 			ast_channel_uniqueid(data->chan_vsrc));
-		ast_test_suite_event_notify("BRIDGE_VIDEO_SRC", "Message: video source updated\r\nVideo Channel: %s", ast_channel_name(data->chan_vsrc));
+		ast_bridge_publish_state(bridge);
 		ast_indicate(chan, AST_CONTROL_VIDUPDATE);
 	} else if (!data->chan_old_vsrc && is_keyframe) {
 		data->chan_old_vsrc = ast_channel_ref(chan);
@@ -3918,6 +3915,19 @@ void ast_bridge_remove_video_src(struct ast_bridge *bridge, struct ast_channel *
 		}
 	}
 	ast_bridge_unlock(bridge);
+}
+
+const char *ast_bridge_video_mode_to_string(enum ast_bridge_video_mode_type video_mode)
+{
+	switch (video_mode) {
+	case AST_BRIDGE_VIDEO_MODE_TALKER_SRC:
+		return "talker";
+	case AST_BRIDGE_VIDEO_MODE_SINGLE_SRC:
+		return "single";
+	case AST_BRIDGE_VIDEO_MODE_NONE:
+	default:
+		return "none";
+	}
 }
 
 static int channel_hash(const void *obj, int flags)

@@ -240,7 +240,13 @@ struct ast_bridge_snapshot *ast_bridge_snapshot_create(struct ast_bridge *bridge
 
 	snapshot = ao2_alloc_options(sizeof(*snapshot), bridge_snapshot_dtor,
 		AO2_ALLOC_OPT_LOCK_NOLOCK);
-	if (!snapshot || ast_string_field_init(snapshot, 128)) {
+	if (!snapshot) {
+		return NULL;
+	}
+
+	if (ast_string_field_init(snapshot, 128)
+		|| ast_string_field_init_extended(snapshot, video_source_id)) {
+		ao2_ref(snapshot, -1);
 		return NULL;
 	}
 
@@ -266,6 +272,16 @@ struct ast_bridge_snapshot *ast_bridge_snapshot_create(struct ast_bridge *bridge
 	snapshot->capabilities = bridge->technology->capabilities;
 	snapshot->num_channels = bridge->num_channels;
 	snapshot->num_active = bridge->num_active;
+	snapshot->video_mode = bridge->softmix.video_mode.mode;
+	if (snapshot->video_mode == AST_BRIDGE_VIDEO_MODE_SINGLE_SRC
+		&& bridge->softmix.video_mode.mode_data.single_src_data.chan_vsrc) {
+		ast_string_field_set(snapshot, video_source_id,
+			ast_channel_uniqueid(bridge->softmix.video_mode.mode_data.single_src_data.chan_vsrc));
+	} else if (snapshot->video_mode == AST_BRIDGE_VIDEO_MODE_TALKER_SRC
+		&& bridge->softmix.video_mode.mode_data.talker_src_data.chan_vsrc) {
+		ast_string_field_set(snapshot, video_source_id,
+			ast_channel_uniqueid(bridge->softmix.video_mode.mode_data.talker_src_data.chan_vsrc));
+	}
 
 	ao2_ref(snapshot, +1);
 	return snapshot;
@@ -579,16 +595,23 @@ struct ast_json *ast_bridge_snapshot_to_json(
 		return NULL;
 	}
 
-	json_bridge = ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: s, s: o}",
+	json_bridge = ast_json_pack("{s: s, s: s, s: s, s: s, s: s, s: s, s: o, s: s}",
 		"id", snapshot->uniqueid,
 		"technology", snapshot->technology,
 		"bridge_type", capability2str(snapshot->capabilities),
 		"bridge_class", snapshot->subclass,
 		"creator", snapshot->creator,
 		"name", snapshot->name,
-		"channels", json_channels);
+		"channels", json_channels,
+		"video_mode", ast_bridge_video_mode_to_string(snapshot->video_mode));
 	if (!json_bridge) {
 		return NULL;
+	}
+
+	if (snapshot->video_mode != AST_BRIDGE_VIDEO_MODE_NONE
+		&& !ast_strlen_zero(snapshot->video_source_id)) {
+		ast_json_object_set(json_bridge, "video_source_id",
+			ast_json_string_create(snapshot->video_source_id));
 	}
 
 	return ast_json_ref(json_bridge);
