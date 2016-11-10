@@ -1064,25 +1064,6 @@ struct ast_channel *__ast_dummy_channel_alloc(const char *file, int line, const 
 	return tmp;
 }
 
-void ast_channel_start_defer_frames(struct ast_channel *chan)
-{
-	ast_set_flag(ast_channel_flags(chan), AST_FLAG_DEFER_FRAMES);
-}
-
-void ast_channel_stop_defer_frames(struct ast_channel *chan)
-{
-	ast_clear_flag(ast_channel_flags(chan), AST_FLAG_DEFER_FRAMES);
-
-	/* Move the deferred frames onto the channel read queue, ahead of other queued frames */
-	ast_queue_frame_head(chan, AST_LIST_FIRST(ast_channel_deferred_readq(chan)));
-	/* ast_frfree will mosey down the list and free them all */
-	if (!AST_LIST_EMPTY(ast_channel_deferred_readq(chan))) {
-		ast_frfree(AST_LIST_FIRST(ast_channel_deferred_readq(chan)));
-	}
-	/* Reset the list to be empty */
-	AST_LIST_HEAD_INIT_NOLOCK(ast_channel_deferred_readq(chan));
-}
-
 static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, int head, struct ast_frame *after)
 {
 	struct ast_frame *f;
@@ -3903,32 +3884,6 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	/* Check for pending read queue */
 	if (!AST_LIST_EMPTY(ast_channel_readq(chan))) {
 		int skip_dtmf = should_skip_dtmf(chan);
-
-		if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_DEFER_FRAMES)) {
-			AST_LIST_TRAVERSE_SAFE_BEGIN(ast_channel_readq(chan), f, frame_list) {
-				if (ast_is_deferrable_frame(f)) {
-					if (f->frametype == AST_FRAME_CONTROL && f->subclass.integer == AST_CONTROL_HANGUP) {
-						struct ast_frame *dup;
-
-						/* Hangup is a special case. We want to defer the frame, but we also do not
-						 * want to remove it from the frame queue. So rather than just moving the frame
-						 * over, we duplicate it and move the copy to the deferred readq.
-						 *
-						 * The reason for this? This way, whoever calls ast_read() will get a NULL return
-						 * immediately and can tell the channel has hung up and do what it needs to. Also,
-						 * when frame deferral finishes, then whoever calls ast_read() next will also get
-						 * the hangup.
-						 */
-						dup = ast_frdup(f);
-						AST_LIST_INSERT_TAIL(ast_channel_deferred_readq(chan), dup, frame_list);
-					} else {
-						AST_LIST_INSERT_TAIL(ast_channel_deferred_readq(chan), f, frame_list);
-						AST_LIST_REMOVE_CURRENT(frame_list);
-					}
-				}
-			}
-			AST_LIST_TRAVERSE_SAFE_END;
-		}
 
 		AST_LIST_TRAVERSE_SAFE_BEGIN(ast_channel_readq(chan), f, frame_list) {
 			/* We have to be picky about which frame we pull off of the readq because
