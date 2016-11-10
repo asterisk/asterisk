@@ -909,9 +909,11 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 
 	res = setup_media_encryption(session, session_media, sdp, stream);
 	if (res) {
-		if (!session->endpoint->media.rtp.encryption_optimistic) {
+		if (!session->endpoint->media.rtp.encryption_optimistic ||
+			!pj_strncmp2(&stream->desc.transport, "RTP/SAVP", 8)) {
 			/* If optimistic encryption is disabled and crypto should have been enabled
-			 * but was not this session must fail.
+			 * but was not this session must fail. This must also fail if crypto was
+			 * required in the offer but could not be set up.
 			 */
 			return -1;
 		}
