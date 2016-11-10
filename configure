@@ -18374,7 +18374,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
 $as_echo "yes" >&6; }
 	AST_ADDRESS_SANITIZER=1
 else
-  AST_ADDRESS_SANITIZER=
+  AST_ADDRESS_SANITIZER=0
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
@@ -18406,7 +18406,7 @@ if ac_fn_c_try_compile "$LINENO"; then :
 $as_echo "yes" >&6; }
 	AST_THREAD_SANITIZER=1
 else
-  AST_THREAD_SANITIZER=
+  AST_THREAD_SANITIZER=0
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
