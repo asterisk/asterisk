@@ -10283,15 +10283,9 @@ int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struc
 
 		ast_party_connected_line_copy(ast_channel_connected(macro_chan), connected);
 	}
-	ast_channel_start_defer_frames(macro_chan);
 	ast_channel_unlock(macro_chan);
 
 	retval = ast_app_run_macro(autoservice_chan, macro_chan, macro, macro_args);
-
-	ast_channel_lock(macro_chan);
-	ast_channel_stop_defer_frames(macro_chan);
-	ast_channel_unlock(macro_chan);
-
 	if (!retval) {
 		struct ast_party_connected_line saved_connected;
 
@@ -10339,15 +10333,9 @@ int ast_channel_redirecting_macro(struct ast_channel *autoservice_chan, struct a
 
 		ast_party_redirecting_copy(ast_channel_redirecting(macro_chan), redirecting);
 	}
-	ast_channel_start_defer_frames(macro_chan);
 	ast_channel_unlock(macro_chan);
 
 	retval = ast_app_run_macro(autoservice_chan, macro_chan, macro, macro_args);
-
-	ast_channel_lock(macro_chan);
-	ast_channel_stop_defer_frames(macro_chan);
-	ast_channel_unlock(macro_chan);
-
 	if (!retval) {
 		struct ast_party_redirecting saved_redirecting;
 
@@ -10388,15 +10376,9 @@ int ast_channel_connected_line_sub(struct ast_channel *autoservice_chan, struct 
 
 		ast_party_connected_line_copy(ast_channel_connected(sub_chan), connected);
 	}
-	ast_channel_start_defer_frames(sub_chan);
 	ast_channel_unlock(sub_chan);
 
 	retval = ast_app_run_sub(autoservice_chan, sub_chan, sub, sub_args, 0);
-
-	ast_channel_lock(sub_chan);
-	ast_channel_stop_defer_frames(sub_chan);
-	ast_channel_unlock(sub_chan);
-
 	if (!retval) {
 		struct ast_party_connected_line saved_connected;
 
@@ -10437,15 +10419,9 @@ int ast_channel_redirecting_sub(struct ast_channel *autoservice_chan, struct ast
 
 		ast_party_redirecting_copy(ast_channel_redirecting(sub_chan), redirecting);
 	}
-	ast_channel_start_defer_frames(sub_chan);
 	ast_channel_unlock(sub_chan);
 
 	retval = ast_app_run_sub(autoservice_chan, sub_chan, sub, sub_args, 0);
-
-	ast_channel_lock(sub_chan);
-	ast_channel_stop_defer_frames(sub_chan);
-	ast_channel_unlock(sub_chan);
-
 	if (!retval) {
 		struct ast_party_redirecting saved_redirecting;
 
