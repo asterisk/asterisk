@@ -199,23 +199,29 @@
 	The session-timers parameter in sip.conf defines the mode of operation of SIP session-timers feature in
 	Asterisk. The Asterisk can be configured in one of the following three modes:
 
-	1. Accept :: In the "accept" mode, the Asterisk server honors session-timers requests
-		made by remote end-points. A remote end-point can request Asterisk to engage
-		session-timers by either sending it an INVITE request with a "Supported: timer"
-		header in it or by responding to Asterisk's INVITE with a 200 OK that contains
-		Session-Expires: header in it. In this mode, the Asterisk server does not
-		request session-timers from remote end-points. This is the default mode.
-	2. Originate :: In the "originate" mode, the Asterisk server requests the remote
-		end-points to activate session-timers in addition to honoring such requests
-		made by the remote end-pints. In order to get as much protection as possible
-		against hanging SIP channels due to network or end-point failures, Asterisk
-		resends periodic re-INVITEs even if a remote end-point does not support
-		the session-timers feature.
-	3. Refuse :: In the "refuse" mode, Asterisk acts as if it does not support session-
-		timers for inbound or outbound requests. If a remote end-point requests
-		session-timers in a dialog, then Asterisk ignores that request unless it's
-		noted as a requirement (Require: header), in which case the INVITE is
-		rejected with a 420 Bad Extension response.
+	1. Accept :: In the "accept" mode, the Asterisk server honors
+		session-timers requests made by remote end-points. A remote
+		end-point can request Asterisk to engage session-timers by either
+		sending it an INVITE request with a "Supported: timer" header in
+		it or by responding to Asterisk's INVITE with a 200 OK that
+		contains Session-Expires: header in it. In this mode, the Asterisk
+		server does not request session-timers from remote
+		end-points. This is the default mode.
+
+	2. Originate :: In the "originate" mode, the Asterisk server
+		requests the remote end-points to activate session-timers in
+		addition to honoring such requests made by the remote
+		end-points. In order to get as much protection as possible against
+		hanging SIP channels due to network or end-point failures,
+		Asterisk resends periodic re-INVITEs even if a remote end-point
+		does not support the session-timers feature.
+
+	3. Refuse :: In the "refuse" mode, Asterisk acts as if it does not
+		support session- timers for inbound or outbound requests. If a
+		remote end-point requests session-timers in a dialog, then
+		Asterisk ignores that request unless it's noted as a requirement
+		(Require: header), in which case the INVITE is rejected with a 420
+		Bad Extension response.
 
 */
 
