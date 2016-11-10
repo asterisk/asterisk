@@ -1,3 +1,21 @@
+2016-11-10 19:34 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.12.2 Released.
+
+2016-11-04 10:57 +0000 [a3614d75f6]  Kevin Harwell <kharwell@digium.com>
+
+	* Revert "chan_sip: Fix lastrtprx always updated"
+
+	  This reverts commit 93332cb1d0eea18021ea6538237297e627d6e2fc.
+
+	  Unfortunately, the aforementioned commit caused a regression (incoming calls
+	  would eventually disconnect). Thus it is being removed.
+
+	  ASTERISK-26523 #close
+	  ASTERISK-25270
+
+	  Change-Id: Ibf5586adc303073a8eac667a4cbfdb6be184a64d
+
 2016-10-27 18:48 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.12.1 Released.
