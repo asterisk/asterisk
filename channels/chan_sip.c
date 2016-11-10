@@ -207,7 +207,7 @@
 		request session-timers from remote end-points. This is the default mode.
 	2. Originate :: In the "originate" mode, the Asterisk server requests the remote
 		end-points to activate session-timers in addition to honoring such requests
-		made by the remote end-pints. In order to get as much protection as possible
+		made by the remote end-points. In order to get as much protection as possible
 		against hanging SIP channels due to network or end-point failures, Asterisk
 		resends periodic re-INVITEs even if a remote end-point does not support
 		the session-timers feature.
