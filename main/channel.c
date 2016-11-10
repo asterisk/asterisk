@@ -1527,18 +1527,19 @@ int ast_safe_sleep_conditional(struct ast_channel *chan, int timeout_ms, int (*c
 	int res = 0;
 	struct timeval start;
 	int ms;
+	AST_LIST_HEAD_NOLOCK(, ast_frame) deferred_frames;
+
+	AST_LIST_HEAD_INIT_NOLOCK(&deferred_frames);
 
 	/* If no other generator is present, start silencegen while waiting */
 	if (ast_opt_transmit_silence && !ast_channel_generatordata(chan)) {
 		silgen = ast_channel_start_silence_generator(chan);
 	}
 
-	ast_channel_lock(chan);
-	ast_channel_start_defer_frames(chan);
-	ast_channel_unlock(chan);
-
 	start = ast_tvnow();
 	while ((ms = ast_remaining_ms(start, timeout_ms))) {
+		struct ast_frame *dup_f = NULL;
+
 		if (cond && ((*cond)(data) == 0)) {
 			break;
 		}
@@ -1553,7 +1554,18 @@ int ast_safe_sleep_conditional(struct ast_channel *chan, int timeout_ms, int (*c
 				res = -1;
 				break;
 			}
-			ast_frfree(f);
+
+			if (!ast_is_deferrable_frame(f)) {
+				ast_frfree(f);
+				continue;
+			}
+
+			if ((dup_f = ast_frisolate(f))) {
+				if (dup_f != f) {
+					ast_frfree(f);
+				}
+				AST_LIST_INSERT_HEAD(&deferred_frames, dup_f, frame_list);
+			}
 		}
 	}
 
@@ -1562,8 +1574,17 @@ int ast_safe_sleep_conditional(struct ast_channel *chan, int timeout_ms, int (*c
 		ast_channel_stop_silence_generator(chan, silgen);
 	}
 
+	/* We need to free all the deferred frames, but we only need to
+	 * queue the deferred frames if there was no error and no
+	 * hangup was received
+	 */
 	ast_channel_lock(chan);
-	ast_channel_stop_defer_frames(chan);
+	while ((f = AST_LIST_REMOVE_HEAD(&deferred_frames, frame_list))) {
+		if (!res) {
+			ast_queue_frame_head(chan, f);
+		}
+		ast_frfree(f);
+	}
 	ast_channel_unlock(chan);
 
 	return res;
