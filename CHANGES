@@ -49,6 +49,11 @@ RTP
    disabled and the range is 96-127 because any number below might be rejected
    by a remote implementation; although no such broken implementation is known.
 
+Queue
+------------------
+ * A new dialplan variable, ABANDONED, is set when the call is not answered
+   by an agent.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.11.0 to Asterisk 13.12.0 ----------
 ------------------------------------------------------------------------------
