@@ -4020,9 +4020,9 @@ static int update_rtt_stats(struct ast_rtp *rtp, unsigned int lsr, unsigned int 
 	lsr_a = ((msw & 0x0000ffff) << 16) | ((lsw & 0xffff0000) >> 16);
 	rtt = lsr_a - lsr - dlsr;
 	rtt_msw = (rtt & 0xffff0000) >> 16;
-	rtt_lsw = (rtt & 0x0000ffff) << 16;
+	rtt_lsw = (rtt & 0x0000ffff);
 	rtt_tv.tv_sec = rtt_msw;
-	rtt_tv.tv_usec = ((rtt_lsw << 6) / 3650) - (rtt_lsw >> 12) - (rtt_lsw >> 8);
+	rtt_tv.tv_usec = ((rtt_lsw*999985)/65535);
 	rtp->rtcp->rtt = (double)rtt_tv.tv_sec + ((double)rtt_tv.tv_usec / 1000000);
 	if (lsr_a - dlsr < lsr) {
 		return 1;
