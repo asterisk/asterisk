@@ -7756,35 +7756,48 @@ struct manager_channel_variable {
 	char name[];
 };
 
-static AST_RWLIST_HEAD_STATIC(channelvars, manager_channel_variable);
+AST_RWLIST_HEAD(external_vars, manager_channel_variable);
 
-static void free_channelvars(void)
+static struct external_vars ami_vars;
+static struct external_vars ari_vars;
+
+static void free_external_channelvars(struct external_vars *channelvars)
 {
 	struct manager_channel_variable *var;
-	AST_RWLIST_WRLOCK(&channelvars);
-	while ((var = AST_RWLIST_REMOVE_HEAD(&channelvars, entry))) {
+	AST_RWLIST_WRLOCK(channelvars);
+	while ((var = AST_RWLIST_REMOVE_HEAD(channelvars, entry))) {
 		ast_free(var);
 	}
-	AST_RWLIST_UNLOCK(&channelvars);
+	AST_RWLIST_UNLOCK(channelvars);
 }
 
-int ast_channel_has_manager_vars(void)
+static int channel_has_external_vars(struct external_vars *channelvars)
 {
 	int vars_present;
 
-	AST_RWLIST_RDLOCK(&channelvars);
-	vars_present = !AST_LIST_EMPTY(&channelvars);
-	AST_RWLIST_UNLOCK(&channelvars);
+	AST_RWLIST_RDLOCK(channelvars);
+	vars_present = !AST_LIST_EMPTY(channelvars);
+	AST_RWLIST_UNLOCK(channelvars);
 
 	return vars_present;
 }
 
-void ast_channel_set_manager_vars(size_t varc, char **vars)
+int ast_channel_has_manager_vars(void)
+{
+	return channel_has_external_vars(&ami_vars);
+}
+
+int ast_channel_has_ari_vars(void)
+{
+	return channel_has_external_vars(&ari_vars);
+}
+
+static void channel_set_external_vars(struct external_vars *channelvars, size_t varc, char **vars)
 {
 	size_t i;
 
-	free_channelvars();
-	AST_RWLIST_WRLOCK(&channelvars);
+	free_external_channelvars(channelvars);
+	AST_RWLIST_WRLOCK(channelvars);
 	for (i = 0; i < varc; ++i) {
 		const char *var = vars[i];
 		struct manager_channel_variable *mcv;
@@ -7795,9 +7808,20 @@ void ast_channel_set_manager_vars(size_t varc, char **vars)
 		if (strchr(var, '(')) {
 			mcv->isfunc = 1;
 		}
-		AST_RWLIST_INSERT_TAIL(&channelvars, mcv, entry);
+		AST_RWLIST_INSERT_TAIL(channelvars, mcv, entry);
 	}
-	AST_RWLIST_UNLOCK(&channelvars);
+	AST_RWLIST_UNLOCK(channelvars);
+
+}
+
+void ast_channel_set_manager_vars(size_t varc, char **vars)
+{
+	channel_set_external_vars(&ami_vars, varc, vars);
+}
+
+void ast_channel_set_ari_vars(size_t varc, char **vars)
+{
+	channel_set_external_vars(&ari_vars, varc, vars);
 }
 
 /*!
@@ -7839,14 +7863,15 @@ struct varshead *ast_channel_get_vars(struct ast_channel *chan)
 	return ret;
 }
 
-struct varshead *ast_channel_get_manager_vars(struct ast_channel *chan)
+static struct varshead *channel_get_external_vars(struct external_vars *channelvars,
+	struct ast_channel *chan)
 {
 	RAII_VAR(struct varshead *, ret, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_str *, tmp, NULL, ast_free);
 	struct manager_channel_variable *mcv;
-	SCOPED_LOCK(lock, &channelvars, AST_RWLIST_RDLOCK, AST_RWLIST_UNLOCK);
+	SCOPED_LOCK(lock, channelvars, AST_RWLIST_RDLOCK, AST_RWLIST_UNLOCK);
 
-	if (AST_LIST_EMPTY(&channelvars)) {
+	if (AST_LIST_EMPTY(channelvars)) {
 		return NULL;
 	}
 
@@ -7857,7 +7882,7 @@ struct varshead *ast_channel_get_manager_vars(struct ast_channel *chan)
 		return NULL;
 	}
 
-	AST_LIST_TRAVERSE(&channelvars, mcv, entry) {
+	AST_LIST_TRAVERSE(channelvars, mcv, entry) {
 		const char *val = NULL;
 		struct ast_var_t *var;
 
@@ -7882,11 +7907,23 @@ struct varshead *ast_channel_get_manager_vars(struct ast_channel *chan)
 
 	ao2_ref(ret, +1);
 	return ret;
+
+}
+
+struct varshead *ast_channel_get_manager_vars(struct ast_channel *chan)
+{
+	return channel_get_external_vars(&ami_vars, chan);
+}
+
+struct varshead *ast_channel_get_ari_vars(struct ast_channel *chan)
+{
+	return channel_get_external_vars(&ari_vars, chan);
 }
 
 static void channels_shutdown(void)
 {
-	free_channelvars();
+	free_external_channelvars(&ami_vars);
+	free_external_channelvars(&ari_vars);
 
 	ast_data_unregister(NULL);
 	ast_cli_unregister_multiple(cli_channel, ARRAY_LEN(cli_channel));
@@ -7918,6 +7955,9 @@ int ast_channels_init(void)
 	ast_plc_reload();
 
 	ast_register_cleanup(channels_shutdown);
+
+	AST_RWLIST_HEAD_INIT(&ami_vars);
+	AST_RWLIST_HEAD_INIT(&ari_vars);
 
 	return 0;
 }
