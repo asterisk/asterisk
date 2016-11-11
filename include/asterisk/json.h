@@ -1076,6 +1076,9 @@ enum ast_json_to_ast_vars_code {
  */
 enum ast_json_to_ast_vars_code ast_json_to_ast_variables(struct ast_json *json_variables, struct ast_variable **variables);
 
+struct varshead;
+struct ast_json *ast_json_channel_vars(struct varshead *channelvars);
+
 /*!@}*/
 
 #endif /* _ASTERISK_JSON_H */

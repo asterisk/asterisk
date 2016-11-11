@@ -1760,6 +1760,11 @@
 					"required": true,
 					"type": "string",
 					"description": "The default spoken language"
+				},
+				"channelvars": {
+					"required": false,
+					"type": "object",
+					"description": "Channel variables"
 				}
 			}
 		}
