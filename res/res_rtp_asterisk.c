@@ -3086,7 +3086,26 @@ static void timeval2ntp(struct timeval tv, unsigned int *msw, unsigned int *lsw)
 	unsigned int sec, usec, frac;
 	sec = tv.tv_sec + 2208988800u; /* Sec between 1900 and 1970 */
 	usec = tv.tv_usec;
-	frac = (usec << 12) + (usec << 8) - ((usec * 3650) >> 6);
+	/*
+	 * Convert usec to 0.32 bit fixed point without overflow.
+	 *
+	 * = usec * 2^32 / 10^6
+	 * = usec * 2^32 / (2^6 * 5^6)
+	 * = usec * 2^26 / 5^6
+	 *
+	 * The usec value needs 20 bits to represent 999999 usec.  So
+	 * splitting the 2^26 to get the most precision using 32 bit
+	 * values gives:
+	 *
+	 * = ((usec * 2^12) / 5^6) * 2^14
+	 *
+	 * Splitting the division into two stages preserves all the
+	 * available significant bits of usec over doing the division
+	 * all at once.
+	 *
+	 * = ((((usec * 2^12) / 5^3) * 2^7) / 5^3) * 2^7
+	 */
+	frac = ((((usec << 12) / 125) << 7) / 125) << 7;
 	*msw = sec;
 	*lsw = frac;
 }
@@ -3094,7 +3113,8 @@ static void timeval2ntp(struct timeval tv, unsigned int *msw, unsigned int *lsw)
 static void ntp2timeval(unsigned int msw, unsigned int lsw, struct timeval *tv)
 {
 	tv->tv_sec = msw - 2208988800u;
-	tv->tv_usec = ((lsw << 6) / 3650) - (lsw >> 12) - (lsw >> 8);
+	/* Reverse the sequence in timeval2ntp() */
+	tv->tv_usec = ((((lsw >> 7) * 125) >> 7) * 125) >> 12;
 }
 
 static void calculate_lost_packet_statistics(struct ast_rtp *rtp,
@@ -3279,9 +3299,9 @@ static int ast_rtcp_write_report(struct ast_rtp_instance *instance, int sr)
 				ast_sockaddr_stringify(&remote_address), ice ? " (via ICE)" : "");
 		ast_verbose("  Our SSRC: %u\n", rtcp_report->ssrc);
 		if (sr) {
-			ast_verbose("  Sent(NTP): %u.%010u\n",
+			ast_verbose("  Sent(NTP): %u.%06u\n",
 				(unsigned int)rtcp_report->sender_information.ntp_timestamp.tv_sec,
-				(unsigned int)rtcp_report->sender_information.ntp_timestamp.tv_usec * 4096);
+				(unsigned int)rtcp_report->sender_information.ntp_timestamp.tv_usec);
 			ast_verbose("  Sent(RTP): %u\n", rtcp_report->sender_information.rtp_timestamp);
 			ast_verbose("  Sent packets: %u\n", rtcp_report->sender_information.packet_count);
 			ast_verbose("  Sent octets: %u\n", rtcp_report->sender_information.octet_count);
@@ -4020,9 +4040,22 @@ static int update_rtt_stats(struct ast_rtp *rtp, unsigned int lsr, unsigned int 
 	lsr_a = ((msw & 0x0000ffff) << 16) | ((lsw & 0xffff0000) >> 16);
 	rtt = lsr_a - lsr - dlsr;
 	rtt_msw = (rtt & 0xffff0000) >> 16;
-	rtt_lsw = (rtt & 0x0000ffff) << 16;
+	rtt_lsw = (rtt & 0x0000ffff);
 	rtt_tv.tv_sec = rtt_msw;
-	rtt_tv.tv_usec = ((rtt_lsw << 6) / 3650) - (rtt_lsw >> 12) - (rtt_lsw >> 8);
+	/*
+	 * Convert 16.16 fixed point rtt_lsw to usec without
+	 * overflow.
+	 *
+	 * = rtt_lsw * 10^6 / 2^16
+	 * = rtt_lsw * (2^6 * 5^6) / 2^16
+	 * = rtt_lsw * 5^6 / 2^10
+	 *
+	 * The rtt_lsw value is in 16.16 fixed point format and 5^6
+	 * requires 14 bits to represent.  We have enough space to
+	 * directly do the conversion because there is no integer
+	 * component in rtt_lsw.
+	 */
+	rtt_tv.tv_usec = (rtt_lsw * 15625) >> 10;
 	rtp->rtcp->rtt = (double)rtt_tv.tv_sec + ((double)rtt_tv.tv_usec / 1000000);
 	if (lsr_a - dlsr < lsr) {
 		return 1;
@@ -4218,9 +4251,9 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 					&rtcp_report->sender_information.ntp_timestamp);
 			rtcp_report->sender_information.rtp_timestamp = ntohl(rtcpheader[i + 2]);
 			if (rtcp_debug_test_addr(&addr)) {
-				ast_verbose("NTP timestamp: %u.%010u\n",
+				ast_verbose("NTP timestamp: %u.%06u\n",
 						(unsigned int)rtcp_report->sender_information.ntp_timestamp.tv_sec,
-						(unsigned int)rtcp_report->sender_information.ntp_timestamp.tv_usec * 4096);
+						(unsigned int)rtcp_report->sender_information.ntp_timestamp.tv_usec);
 				ast_verbose("RTP timestamp: %u\n", rtcp_report->sender_information.rtp_timestamp);
 				ast_verbose("SPC: %u\tSOC: %u\n",
 						rtcp_report->sender_information.packet_count,

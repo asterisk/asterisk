@@ -1987,7 +1987,7 @@ static struct ast_manager_event_blob *rtcp_report_to_ami(struct stasis_message *
 	if (type == AST_RTP_RTCP_SR) {
 		ast_str_append(&packet_string, 0, "SentNTP: %lu.%06lu\r\n",
 			(unsigned long)payload->report->sender_information.ntp_timestamp.tv_sec,
-			(unsigned long)payload->report->sender_information.ntp_timestamp.tv_usec * 4096);
+			(unsigned long)payload->report->sender_information.ntp_timestamp.tv_usec);
 		ast_str_append(&packet_string, 0, "SentRTP: %u\r\n",
 				payload->report->sender_information.rtp_timestamp);
 		ast_str_append(&packet_string, 0, "SentPackets: %u\r\n",
