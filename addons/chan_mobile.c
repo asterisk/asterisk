@@ -3853,10 +3853,7 @@ static void *do_monitor_phone(void *data)
 		}
 
 		if ((at_msg = at_read_full(hfp->rsock, buf, sizeof(buf))) < 0) {
-			/* XXX gnu specific strerror_r is assummed here, this
-			 * is not really safe.  See the strerror(3) man page
-			 * for more info. */
-			ast_debug(1, "[%s] error reading from device: %s (%d)\n", pvt->id, strerror_r(errno, buf, sizeof(buf)), errno);
+			ast_debug(1, "[%s] error reading from device: %s (%d)\n", pvt->id, strerror(errno), errno);
 			break;
 		}
 
@@ -3993,7 +3990,7 @@ static void *do_monitor_phone(void *data)
 			ast_debug(1, "[%s] error parsing message\n", pvt->id);
 			goto e_cleanup;
 		case AT_READ_ERROR:
-			ast_debug(1, "[%s] error reading from device: %s (%d)\n", pvt->id, strerror_r(errno, buf, sizeof(buf)), errno);
+			ast_debug(1, "[%s] error reading from device: %s (%d)\n", pvt->id, strerror(errno), errno);
 			goto e_cleanup;
 		default:
 			break;
@@ -4071,11 +4068,7 @@ static void *do_monitor_headset(void *data)
 			continue;
 
 		if ((at_msg = at_read_full(pvt->rfcomm_socket, buf, sizeof(buf))) < 0) {
-			if (strerror_r(errno, buf, sizeof(buf)))
-				ast_debug(1, "[%s] error reading from device\n", pvt->id);
-			else
-				ast_debug(1, "[%s] error reading from device: %s (%d)\n", pvt->id, buf, errno);
-
+			ast_debug(1, "[%s] error reading from device: %s (%d)\n", pvt->id, strerror(errno), errno);
 			goto e_cleanup;
 		}
 		ast_debug(1, "[%s] %s\n", pvt->id, buf);
