@@ -1076,6 +1076,18 @@ enum ast_json_to_ast_vars_code {
  */
 enum ast_json_to_ast_vars_code ast_json_to_ast_variables(struct ast_json *json_variables, struct ast_variable **variables);
 
+struct varshead;
+
+/*!
+ * \brief Construct a JSON object from a \c ast_var_t list
+ * \since 14.2.0
+ *
+ * \param channelvars The list of \c ast_var_t to represent as JSON
+ *
+ * \return JSON object with variable names as keys and variable values as values
+ */
+struct ast_json *ast_json_channel_vars(struct varshead *channelvars);
+
 /*!@}*/
 
 #endif /* _ASTERISK_JSON_H */

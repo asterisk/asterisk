@@ -1432,6 +1432,7 @@ ari_validator ast_ari_validate_application_fn(void);
  * Channel
  * - accountcode: string (required)
  * - caller: CallerID (required)
+ * - channelvars: object
  * - connected: CallerID (required)
  * - creationtime: Date (required)
  * - dialplan: DialplanCEP (required)
