@@ -1048,3 +1048,16 @@ enum ast_json_to_ast_vars_code ast_json_to_ast_variables(struct ast_json *json_v
 
 	return AST_JSON_TO_AST_VARS_CODE_SUCCESS;
 }
+
+struct ast_json *ast_json_channel_vars(struct varshead *channelvars)
+{
+	struct ast_json *ret;
+	struct ast_var_t *var;
+
+	ret = ast_json_object_create();
+	AST_LIST_TRAVERSE(channelvars, var, entries) {
+		ast_json_object_set(ret, var->name, ast_json_string_create(var->value));
+	}
+
+	return ret;
+}
