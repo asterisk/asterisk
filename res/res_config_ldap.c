@@ -1239,11 +1239,18 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 	ldap_mods = ldap_memcalloc(sizeof(LDAPMod *), mods_size);
 	ldap_mods[0] = ldap_memcalloc(1, sizeof(LDAPMod));
 
-	ldap_mods[0]->mod_op = LDAP_MOD_REPLACE;
-	ldap_mods[0]->mod_type = ldap_strdup(newparam);
+	/* If newval is empty we need to delete instead of modify the attribute. */
+	if (strlen(newval) == 0) {
+		ldap_mods[0]->mod_op = LDAP_MOD_DELETE;
+	} else {
 
-	ldap_mods[0]->mod_values = ast_calloc(sizeof(char *), 2);
-	ldap_mods[0]->mod_values[0] = ldap_strdup(newval);
+		ldap_mods[0]->mod_op = LDAP_MOD_REPLACE;
+
+		ldap_mods[0]->mod_values = ast_calloc(sizeof(char *), 2);
+		ldap_mods[0]->mod_values[0] = ldap_strdup(newval);
+	}	
+	
+	ldap_mods[0]->mod_type = ldap_strdup(newparam);
 
 	while ((newparam = va_arg(ap, const char *))) {
 		newparam = convert_attribute_name_to_ldap(table_config, newparam);
