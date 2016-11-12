@@ -19,6 +19,10 @@ Build System
    Asterisk built with LOW_MEMORY can now successfully load binary modules
    built without LOW_MEMORY and vice versa.
 
+ * RADIUS backends for CEL and CDR can now also be built using the radcli
+   client library, in addition to the existing support for building them
+   using either freeradius or radiusclient-ng.
+
 Core
 ------------------
  * ASTERISK_REGISTER_FILE was no longer useful and has been removed.  Sources
