@@ -514,6 +514,7 @@ static pj_status_t registration_client_send(struct sip_outbound_registration_cli
 
 	callback_invoked = ast_threadstorage_get(&register_callback_invoked, sizeof(int));
 	if (!callback_invoked) {
+		pjsip_tx_data_dec_ref(tdata);
 		return PJ_ENOMEM;
 	}
 	*callback_invoked = 0;
@@ -567,6 +568,7 @@ static int handle_client_registration(void *data)
 			/* insert a new Supported header */
 			hdr = pjsip_supported_hdr_create(tdata->pool);
 			if (!hdr) {
+				pjsip_tx_data_dec_ref(tdata);
 				return -1;
 			}
 

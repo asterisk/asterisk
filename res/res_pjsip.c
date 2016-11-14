@@ -3555,6 +3555,7 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 				pj_strbuf(&tdata->msg->line.req.method.name),
 				endpoint ? ast_sorcery_object_get_id(endpoint) : "<unknown>");
 			ao2_t_ref(req_wrapper, -2, "Drop timer and routine ref");
+			pjsip_tx_data_dec_ref(tdata);
 			return ret_val;
 		}
 
