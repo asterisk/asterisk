@@ -584,6 +584,9 @@
 /* Define if your system has PJPROJECT_BUNDLED */
 #undef HAVE_PJPROJECT_BUNDLED
 
+/* Define to 1 if PJPROJECT has the pjsip_auth_clt_deinit support feature. */
+#undef HAVE_PJSIP_AUTH_CLT_DEINIT
+
 /* Define to 1 if PJPROJECT has the PJSIP Dialog Create UAS with Incremented
    Lock feature. */
 #undef HAVE_PJSIP_DLG_CREATE_UAS_AND_INC_LOCK
