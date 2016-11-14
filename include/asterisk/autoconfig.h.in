@@ -393,6 +393,9 @@
 /* Define if your system has the LIBEDIT libraries. */
 #undef HAVE_LIBEDIT
 
+/* Define if your system has the LIBEDIT_IS_UNICODE headers. */
+#undef HAVE_LIBEDIT_IS_UNICODE
+
 /* Define to 1 if you have the <libintl.h> header file. */
 #undef HAVE_LIBINTL_H
 
