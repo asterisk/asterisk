@@ -106,6 +106,7 @@ static int digest_create_request_with_auth(const struct ast_sip_auth_vector *aut
 {
 	pjsip_auth_clt_sess auth_sess;
 	pjsip_cseq_hdr *cseq;
+	pj_status_t status;
 
 	if (pjsip_auth_clt_init(&auth_sess, ast_sip_get_pjsip_endpoint(),
 				old_request->pool, 0) != PJ_SUCCESS) {
@@ -118,8 +119,12 @@ static int digest_create_request_with_auth(const struct ast_sip_auth_vector *aut
 		return -1;
 	}
 
-	switch (pjsip_auth_clt_reinit_req(&auth_sess, challenge,
-				old_request, new_request)) {
+	status = pjsip_auth_clt_reinit_req(&auth_sess, challenge, old_request, new_request);
+#if defined(HAVE_PJSIP_AUTH_CLT_DEINIT)
+	/* Release any cached auths */
+	pjsip_auth_clt_deinit(&auth_sess);
+#endif
+	switch (status) {
 	case PJ_SUCCESS:
 		/* PJSIP creates a new transaction for new_request (meaning it creates a new
 		 * branch). However, it recycles the Call-ID, from-tag, and CSeq from the
