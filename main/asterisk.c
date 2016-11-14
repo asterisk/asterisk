@@ -2834,7 +2834,11 @@ static void send_rasterisk_connect_commands(void)
 	}
 }
 
+#ifdef HAVE_LIBEDIT_IS_UNICODE
+static int ast_el_read_char(EditLine *editline, wchar_t *cp)
+#else
 static int ast_el_read_char(EditLine *editline, char *cp)
+#endif
 {
 	int num_read = 0;
 	int lastpos = 0;
@@ -2864,10 +2868,16 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 		}
 
 		if (!ast_opt_exec && fds[1].revents) {
-			num_read = read(STDIN_FILENO, cp, 1);
+			char c = '\0';
+			num_read = read(STDIN_FILENO, &c, 1);
 			if (num_read < 1) {
 				break;
 			} else {
+#ifdef 	HAVE_LIBEDIT_IS_UNICODE
+				*cp = btowc(c);
+#else
+				*cp = c;
+#endif
 				return (num_read);
 			}
 		}
@@ -2911,7 +2921,11 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 			console_print(buf, 0);
 
 			if ((res < EL_BUF_SIZE - 1) && ((buf[res-1] == '\n') || (res >= 2 && buf[res-2] == '\n'))) {
+#ifdef 	HAVE_LIBEDIT_IS_UNICODE
+				*cp = btowc(CC_REFRESH);
+#else
 				*cp = CC_REFRESH;
+#endif
 				return(1);
 			} else {
 				lastpos = 1;
@@ -2919,7 +2933,12 @@ static int ast_el_read_char(EditLine *editline, char *cp)
 		}
 	}
 
+#ifdef 	HAVE_LIBEDIT_IS_UNICODE
+	*cp = btowc('\0');
+#else
 	*cp = '\0';
+#endif
+
 	return (0);
 }
 
