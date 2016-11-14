@@ -1557,10 +1557,6 @@ int ast_safe_sleep_conditional(struct ast_channel *chan, int timeout_ms, int (*c
 	ast_channel_start_defer_frames(chan, 0);
 	ast_channel_unlock(chan);
 
-	ast_channel_lock(chan);
-	ast_channel_start_defer_frames(chan);
-	ast_channel_unlock(chan);
-
 	start = ast_tvnow();
 	while ((ms = ast_remaining_ms(start, timeout_ms))) {
 		if (cond && ((*cond)(data) == 0)) {
@@ -10293,6 +10289,11 @@ int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struc
 	ast_channel_unlock(macro_chan);
 
 	retval = ast_app_run_macro(autoservice_chan, macro_chan, macro, macro_args);
+
+	ast_channel_lock(macro_chan);
+	ast_channel_stop_defer_frames(macro_chan);
+	ast_channel_unlock(macro_chan);
+
 	if (!retval) {
 		struct ast_party_connected_line saved_connected;
 
@@ -10344,6 +10345,11 @@ int ast_channel_redirecting_macro(struct ast_channel *autoservice_chan, struct a
 	ast_channel_unlock(macro_chan);
 
 	retval = ast_app_run_macro(autoservice_chan, macro_chan, macro, macro_args);
+
+	ast_channel_lock(macro_chan);
+	ast_channel_stop_defer_frames(macro_chan);
+	ast_channel_unlock(macro_chan);
+
 	if (!retval) {
 		struct ast_party_redirecting saved_redirecting;
 
@@ -10388,6 +10394,11 @@ int ast_channel_connected_line_sub(struct ast_channel *autoservice_chan, struct 
 	ast_channel_unlock(sub_chan);
 
 	retval = ast_app_run_sub(autoservice_chan, sub_chan, sub, sub_args, 0);
+
+	ast_channel_lock(sub_chan);
+	ast_channel_stop_defer_frames(sub_chan);
+	ast_channel_unlock(sub_chan);
+
 	if (!retval) {
 		struct ast_party_connected_line saved_connected;
 
@@ -10432,6 +10443,11 @@ int ast_channel_redirecting_sub(struct ast_channel *autoservice_chan, struct ast
 	ast_channel_unlock(sub_chan);
 
 	retval = ast_app_run_sub(autoservice_chan, sub_chan, sub, sub_args, 0);
+
+	ast_channel_lock(sub_chan);
+	ast_channel_stop_defer_frames(sub_chan);
+	ast_channel_unlock(sub_chan);
+
 	if (!retval) {
 		struct ast_party_redirecting saved_redirecting;
 
