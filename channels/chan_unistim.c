@@ -4128,7 +4128,7 @@ static void show_main_page(struct unistimsession *pte)
 			send_date_time2(pte);
 			send_idle_clock(pte);
 			if (strlen(pte->device->maintext0)) {
-				send_text(TEXT_LINE0, TEXT_NORMAL, pte, pte->device->maintext0);
+				send_text(TEXT_LINE0, TEXT_NORMAL, pte, ustmtext(pte->device->maintext0, pte));
 			}
 		} else {
 			if (pte->device->missed_call == 1) {
@@ -4147,11 +4147,11 @@ static void show_main_page(struct unistimsession *pte)
 			strcat(tmpbuf, ast_inet_ntoa(pte->sin.sin_addr));
 			send_text(TEXT_LINE2, TEXT_NORMAL, pte, tmpbuf);
 		} else {
-			send_text(TEXT_LINE2, TEXT_NORMAL, pte, pte->device->maintext2);
+			send_text(TEXT_LINE2, TEXT_NORMAL, pte, ustmtext(pte->device->maintext2, pte));
 		}
 	}
 
-	send_texttitle(pte, pte->device->titledefault);
+	send_texttitle(pte, ustmtext(pte->device->titledefault, pte));
 	change_favorite_icon(pte, FAV_LINE_ICON);
 }
 
@@ -4406,7 +4406,7 @@ static void init_phone_step2(struct unistimsession *pte)
 			strcat(tmp, pte->macaddr);
 			send_text(TEXT_LINE2, TEXT_NORMAL, pte, tmp);
 			send_text_status(pte, "");
-			send_texttitle(pte, "UNISTIM for*");
+			send_texttitle(pte, ustmtext("UNISTIM for*", pte));
 			return;
 		}
 	}
@@ -4896,14 +4896,15 @@ static int unistim_hangup_clean(struct ast_channel *ast, struct unistim_subchann
 	ast_channel_tech_pvt_set(ast, NULL);
 	unistim_set_owner(sub, NULL);
 	sub->alreadygone = 0;
-	ast_mutex_unlock(&sub->lock);
 	if (sub->rtp) {
 		if (unistimdebug) {
 			ast_verb(0, "Destroying RTP session\n");
 		}
+		ast_rtp_instance_stop(sub->rtp);
 		ast_rtp_instance_destroy(sub->rtp);
 		sub->rtp = NULL;
 	}
+	ast_mutex_unlock(&sub->lock);
 	return 0;
 }
 
