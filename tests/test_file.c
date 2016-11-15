@@ -21,7 +21,10 @@
 	<support_level>core</support_level>
  ***/
 
+
 #include "asterisk.h"
+#include <sys/stat.h>
+#include <stdio.h>
 
 ASTERISK_REGISTER_FILE()
 
@@ -117,6 +120,17 @@ static char *test_files_get_one(struct _filenames *filenames, int num)
 
 static int handle_find_file(const char *dir_name, const char *filename, void *obj)
 {
+	struct stat statbuf;
+	char *full_path = ast_alloca(strlen(dir_name) + strlen(filename) + 2);
+
+	sprintf(full_path, "%s/%s", dir_name, filename);
+
+	errno = 0;
+	if (stat(full_path, &statbuf)) {
+		ast_log(LOG_ERROR, "Error reading path stats - %s: %s\n",
+			full_path, strerror(errno));
+		return 0;
+	}
 	/* obj contains the name of the file we are looking for */
 	return strcmp(obj, filename) ? 0 : FOUND;
 }
