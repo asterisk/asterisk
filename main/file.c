@@ -1138,7 +1138,8 @@ static int __ast_file_read_dirs(struct ast_str **path, ast_file_on_file on_file,
 			/*
 			 * If using the stat function the file needs to be appended to the
 			 * path so it can be found. However, before appending make sure the
-			 * path contains only the directory for this depth level.
+			 * path contains only the directory for this depth level.  Then
+			 * we need to truncate it again after the stat.
 			 */
 			ast_str_truncate(*path, size);
 			ast_str_append(path, 0, "/%s", entry->d_name);
@@ -1159,6 +1160,13 @@ static int __ast_file_read_dirs(struct ast_str **path, ast_file_on_file on_file,
 		}
 
 		if (is_file) {
+			/*
+			 * If the stat function was used then the file has
+			 * been appended so truncate it back to just the dir.
+			 */
+			if (used_stat) {
+				ast_str_truncate(*path, size);
+			}
 			/* If the handler returns non-zero then stop */
 			if ((res = on_file(ast_str_buffer(*path), entry->d_name, obj))) {
 				break;
@@ -1180,7 +1188,6 @@ static int __ast_file_read_dirs(struct ast_str **path, ast_file_on_file on_file,
 			 * already been appended, otherwise append it.
 			 */
 			if (!used_stat) {
-				ast_str_truncate(*path, size);
 				ast_str_append(path, 0, "/%s", entry->d_name);
 			}
 
