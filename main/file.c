@@ -1138,7 +1138,8 @@ static int __ast_file_read_dirs(struct ast_str **path, ast_file_on_file on_file,
 			/*
 			 * If using the stat function the file needs to be appended to the
 			 * path so it can be found. However, before appending make sure the
-			 * path contains only the directory for this depth level.
+			 * path contains only the directory for this depth level.  Then
+			 * we need to truncate it again after the stat.
 			 */
 			ast_str_truncate(*path, size);
 			ast_str_append(path, 0, "/%s", entry->d_name);
@@ -1146,12 +1147,14 @@ static int __ast_file_read_dirs(struct ast_str **path, ast_file_on_file on_file,
 			if (stat(ast_str_buffer(*path), &statbuf)) {
 				ast_log(LOG_ERROR, "Error reading path stats - %s: %s\n",
 					ast_str_buffer(*path), strerror(errno));
+				ast_str_truncate(*path, size);
 				/*
 				 * Output an error, but keep going. It could just be
 				 * a broken link and other files could be fine.
 				 */
 				continue;
 			}
+			ast_str_truncate(*path, size);
 
 			is_file = S_ISREG(statbuf.st_mode);
 			is_dir = S_ISDIR(statbuf.st_mode);
