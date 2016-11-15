@@ -36,6 +36,7 @@
 #endif
 
 #include <signal.h>
+#include <sys/stat.h>
 
 #include "asterisk/compat.h"
 #include "asterisk/tcptls.h"
@@ -46,6 +47,7 @@
 #include "asterisk/manager.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/pbx.h"
+#include "asterisk/app.h"
 
 static void session_instance_destructor(void *obj)
 {
@@ -588,9 +590,60 @@ void ast_tcptls_server_start(struct ast_tcptls_session_args *desc)
 {
 	int flags;
 	int x = 1;
+	int tls_changed = 0;
+
+	if (desc->tls_cfg) {
+		char hash[41];
+		char *str = NULL;
+		struct stat st;
+
+		/* Store the hashes of the TLS certificate etc. */
+		if (stat(desc->tls_cfg->certfile, &st) || NULL == (str = ast_read_textfile(desc->tls_cfg->certfile)))
+			memset(hash, 0, 41);
+		else
+			ast_sha1_hash(hash, str);
+		ast_free(str);
+		str = NULL;
+		memcpy(desc->tls_cfg->certhash, hash, 41);
+		if (stat(desc->tls_cfg->pvtfile, &st) || NULL == (str = ast_read_textfile(desc->tls_cfg->pvtfile)))
+			memset(hash, 0, 41);
+		else
+			ast_sha1_hash(hash, str);
+		ast_free(str);
+		str = NULL;
+		memcpy(desc->tls_cfg->pvthash, hash, 41);
+		if (stat(desc->tls_cfg->cafile, &st) || NULL == (str = ast_read_textfile(desc->tls_cfg->cafile)))
+			memset(hash, 0, 41);
+		else
+			ast_sha1_hash(hash, str);
+		ast_free(str);
+		str = NULL;
+		memcpy(desc->tls_cfg->cahash, hash, 41);
+
+		/* Check whether TLS configuration has changed */
+		if (!desc->old_tls_cfg) { /* No previous configuration */
+			tls_changed = 1;
+			desc->old_tls_cfg = ast_calloc(1, sizeof(struct ast_tls_config));
+		}
+		else if (memcmp(desc->tls_cfg->certhash, desc->old_tls_cfg->certhash, 41))
+			tls_changed = 1;
+		else if (memcmp(desc->tls_cfg->pvthash, desc->old_tls_cfg->pvthash, 41))
+			tls_changed = 1;
+		else if (strcmp(desc->tls_cfg->cipher, desc->old_tls_cfg->cipher))
+			tls_changed = 1;
+		else if (memcmp(desc->tls_cfg->cahash, desc->old_tls_cfg->cahash, 41))
+			tls_changed = 1;
+		else if (strcmp(desc->tls_cfg->capath, desc->old_tls_cfg->capath))
+			tls_changed = 1;
+		else if (memcmp(&desc->tls_cfg->flags, &desc->old_tls_cfg->flags, sizeof(struct ast_flags)))
+			tls_changed = 1;
+
+		if (tls_changed)
+			ast_debug(1, "Changed parameters for %s found\n", desc->name);
+	}
 
 	/* Do nothing if nothing has changed */
-	if (!ast_sockaddr_cmp(&desc->old_address, &desc->local_address)) {
+	if (!tls_changed && !ast_sockaddr_cmp(&desc->old_address, &desc->local_address)) {
 		ast_debug(1, "Nothing changed in %s\n", desc->name);
 		return;
 	}
@@ -646,6 +699,22 @@ void ast_tcptls_server_start(struct ast_tcptls_session_args *desc)
 
 	/* Set current info */
 	ast_sockaddr_copy(&desc->old_address, &desc->local_address);
+	if (desc->old_tls_cfg) {
+		ast_free(desc->old_tls_cfg->certfile);
+		ast_free(desc->old_tls_cfg->pvtfile);
+		ast_free(desc->old_tls_cfg->cipher);
+		ast_free(desc->old_tls_cfg->cafile);
+		ast_free(desc->old_tls_cfg->capath);
+		desc->old_tls_cfg->certfile = strdup(desc->tls_cfg->certfile);
+		desc->old_tls_cfg->pvtfile = strdup(desc->tls_cfg->pvtfile);
+		desc->old_tls_cfg->cipher = strdup(desc->tls_cfg->cipher);
+		desc->old_tls_cfg->cafile = strdup(desc->tls_cfg->cafile);
+		desc->old_tls_cfg->capath = strdup(desc->tls_cfg->capath);
+		memcpy(desc->old_tls_cfg->certhash, desc->tls_cfg->certhash, 41);
+		memcpy(desc->old_tls_cfg->pvthash, desc->tls_cfg->pvthash, 41);
+		memcpy(desc->old_tls_cfg->cahash, desc->tls_cfg->cahash, 41);
+		memcpy(&desc->old_tls_cfg->flags, &desc->tls_cfg->flags, sizeof(struct ast_flags));
+	}
 
 	return;
 
@@ -676,6 +745,17 @@ void ast_tcptls_server_stop(struct ast_tcptls_session_args *desc)
 		close(desc->accept_fd);
 	}
 	desc->accept_fd = -1;
+
+	if (desc->old_tls_cfg) {
+		ast_free(desc->old_tls_cfg->certfile);
+		ast_free(desc->old_tls_cfg->pvtfile);
+		ast_free(desc->old_tls_cfg->cipher);
+		ast_free(desc->old_tls_cfg->cafile);
+		ast_free(desc->old_tls_cfg->capath);
+		ast_free(desc->old_tls_cfg);
+		desc->old_tls_cfg = NULL;
+	}
+
 	ast_debug(2, "Stopped server :: %s\n", desc->name);
 }
 
