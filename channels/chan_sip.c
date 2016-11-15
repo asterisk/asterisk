@@ -35408,6 +35408,13 @@ static int unload_module(void)
 	ast_free(default_tls_cfg.cipher);
 	ast_free(default_tls_cfg.cafile);
 	ast_free(default_tls_cfg.capath);
+	ast_free(sip_tls_desc.old_tls_cfg->certfile);
+	ast_free(sip_tls_desc.old_tls_cfg->pvtfile);
+	ast_free(sip_tls_desc.old_tls_cfg->cipher);
+	ast_free(sip_tls_desc.old_tls_cfg->cafile);
+	ast_free(sip_tls_desc.old_tls_cfg->capath);
+	ast_free(sip_tls_desc.old_tls_cfg);
+	sip_tls_desc.old_tls_cfg = NULL;
 
 	/*
 	 * Wait awhile for the TCP/TLS thread container to become empty.

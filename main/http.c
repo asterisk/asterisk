@@ -2325,6 +2325,11 @@ static void http_shutdown(void)
 	ast_free(http_tls_cfg.certfile);
 	ast_free(http_tls_cfg.pvtfile);
 	ast_free(http_tls_cfg.cipher);
+	ast_free(https_desc.old_tls_cfg->certfile);
+	ast_free(https_desc.old_tls_cfg->pvtfile);
+	ast_free(https_desc.old_tls_cfg->cipher);
+	ast_free(https_desc.old_tls_cfg);
+	https_desc.old_tls_cfg = NULL;
 
 	ast_http_uri_unlink(&statusuri);
 	ast_http_uri_unlink(&staticuri);

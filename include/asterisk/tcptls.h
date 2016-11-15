@@ -106,6 +106,9 @@ struct ast_tls_config {
 	char *capath;
 	struct ast_flags flags;
 	SSL_CTX *ssl_ctx;
+	char certhash[41];
+	char pvthash[41];
+	char cahash[41];
 };
 
 /*! \page AstTlsOverview TLS Implementation Overview
@@ -142,6 +145,7 @@ struct ast_tcptls_session_args {
 	struct ast_sockaddr remote_address;
 	char hostname[MAXHOSTNAMELEN]; /*!< only necessary for SSL clients so we can compare to common name */
 	struct ast_tls_config *tls_cfg; /*!< points to the SSL configuration if any */
+	struct ast_tls_config *old_tls_cfg; /*!< copy of the SSL configuration to determine whether changes have been made */
 	int accept_fd;
 	int poll_timeout;
 	/*! Server accept_fn thread ID used for external shutdown requests. */

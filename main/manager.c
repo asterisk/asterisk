@@ -8709,6 +8709,11 @@ static void manager_shutdown(void)
 	ami_tls_cfg.pvtfile = NULL;
 	ast_free(ami_tls_cfg.cipher);
 	ami_tls_cfg.cipher = NULL;
+	ast_free(amis_desc.old_tls_cfg->certfile);
+	ast_free(amis_desc.old_tls_cfg->pvtfile);
+	ast_free(amis_desc.old_tls_cfg->cipher);
+	ast_free(amis_desc.old_tls_cfg);
+	amis_desc.old_tls_cfg = NULL;
 
 	ao2_global_obj_release(mgr_sessions);
 
