@@ -13,6 +13,11 @@ enabled = yes       ; When set to no, ARI support is disabled.
 ; receiving clients are slow to process the received information. Value is in
 ; milliseconds; default is 100 ms.
 ;websocket_write_timeout = 100
+;
+; Display certain channel variables every time a channel-oriented
+; event is emitted:
+;
+;channelvars = var1,var2,var3
 
 ;[username]
 ;type = user        ; Specifies user configuration
