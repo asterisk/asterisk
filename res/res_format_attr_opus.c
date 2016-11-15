@@ -102,27 +102,35 @@ static int opus_clone(const struct ast_format *src, struct ast_format *dst)
 
 static void sdp_fmtp_get(const char *attributes, const char *name, int *attr)
 {
-	const char *kvp = "";
+	const char *kvp = attributes;
 	int val;
 
-	if (attributes && !(kvp = strstr(attributes, name))) {
+	if (ast_strlen_zero(attributes)) {
 		return;
 	}
 
-	/*
-	 * If the named attribute is not at the start of the given attributes, and
-	 * the preceding character is not a space or semicolon then it's not the
-	 * attribute we are looking for. It's an attribute with the name embedded
-	 * within it (e.g. ptime in maxptime, stereo in sprop-stereo).
+	/* This logic goes through each attribute in the fmtp line looking for the
+	 * requested named attribute.
 	 */
-	if (kvp != attributes && *(kvp - 1) != ' ' && *(kvp - 1) != ';') {
-		/* Keep searching as it might still be in the attributes string */
-		sdp_fmtp_get(strchr(kvp, ';'), name, attr);
-	/*
-	 * Otherwise it's a match, so retrieve the value and set the attribute.
-	 */
-	} else if (sscanf(kvp, "%*[^=]=%30d", &val) == 1) {
-		*attr = val;
+	while (*kvp) {
+		/* Skip any preceeding blanks as some implementations separate attributes using spaces too */
+		kvp = ast_skip_blanks(kvp);
+
+		/* If we are at at the requested attribute get its value and return */
+		if (!strncmp(kvp, name, strlen(name)) && kvp[strlen(name)] == '=') {
+			if (sscanf(kvp, "%*[^=]=%30d", &val) == 1) {
+				*attr = val;
+				break;
+			}
+		}
+
+		/* Move on to the next attribute if possible */
+		kvp = strchr(kvp, ';');
+		if (!kvp) {
+			break;
+		}
+
+		kvp++;
 	}
 }
 
