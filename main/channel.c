@@ -5447,6 +5447,42 @@ int ast_set_read_format_path(struct ast_channel *chan, struct ast_format *raw_fo
 	return 0;
 }
 
+int ast_set_write_format_path(struct ast_channel *chan, struct ast_format *raw_format, struct ast_format *core_format)
+{
+	struct ast_trans_pvt *trans_old;
+	struct ast_trans_pvt *trans_new;
+
+	if (ast_format_cmp(ast_channel_rawwriteformat(chan), raw_format) == AST_FORMAT_CMP_EQUAL
+		&& ast_format_cmp(ast_channel_writeformat(chan), core_format) == AST_FORMAT_CMP_EQUAL) {
+		/* Nothing to setup */
+		return 0;
+	}
+
+	ast_debug(1, "Channel %s setting write format path: %s -> %s\n",
+		ast_channel_name(chan),
+		ast_format_get_name(core_format),
+		ast_format_get_name(raw_format));
+
+	/* Setup new translation path. */
+	if (ast_format_cmp(raw_format, core_format) != AST_FORMAT_CMP_EQUAL) {
+		trans_new = ast_translator_build_path(raw_format, core_format);
+		if (!trans_new) {
+			return -1;
+		}
+	} else {
+		/* No translation needed. */
+		trans_new = NULL;
+	}
+	trans_old = ast_channel_writetrans(chan);
+	if (trans_old) {
+		ast_translator_free_path(trans_old);
+	}
+	ast_channel_writetrans_set(chan, trans_new);
+	ast_channel_set_rawwriteformat(chan, raw_format);
+	ast_channel_set_writeformat(chan, core_format);
+	return 0;
+}
+
 struct set_format_access {
 	const char *direction;
 	struct ast_trans_pvt *(*get_trans)(const struct ast_channel *chan);
