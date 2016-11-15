@@ -107,6 +107,9 @@ struct ast_tls_config {
 	char *capath;
 	struct ast_flags flags;
 	SSL_CTX *ssl_ctx;
+	char certhash[41];
+	char pvthash[41];
+	char cahash[41];
 };
 
 /*! \page AstTlsOverview TLS Implementation Overview
@@ -151,6 +154,7 @@ struct ast_tcptls_session_args {
 	void (*periodic_fn)(void *);/*!< something we may want to run before after select on the accept socket */
 	void *(*worker_fn)(void *); /*!< the function in charge of doing the actual work */
 	const char *name;
+	struct ast_tls_config *old_tls_cfg; /*!< copy of the SSL configuration to determine whether changes have been made */
 };
 
 struct ast_tcptls_stream;
