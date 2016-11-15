@@ -4330,6 +4330,36 @@ void ast_channel_set_manager_vars(size_t varc, char **vars);
 struct varshead *ast_channel_get_manager_vars(struct ast_channel *chan);
 
 /*!
+ * \since 14.2.0
+ * \brief Return whether or not any ARI variables have been set
+ *
+ * \retval 0 if no ARI variables are expected
+ * \retval 1 if ARI variables are expected
+ */
+int ast_channel_has_ari_vars(void);
+
+/*!
+ * \since 14.2.0
+ * \brief Sets the variables to be stored in the \a ari_vars field of all
+ * snapshots.
+ * \param varc Number of variable names.
+ * \param vars Array of variable names.
+ */
+void ast_channel_set_ari_vars(size_t varc, char **vars);
+
+/*!
+ * \since 14.2.0
+ * \brief Gets the variables for a given channel, as specified by ast_channel_set_ari_vars().
+ *
+ * The returned variable list is an AO2 object, so ao2_cleanup() to free it.
+ *
+ * \param chan Channel to get variables for.
+ * \return List of channel variables.
+ * \return \c NULL on error
+ */
+struct varshead *ast_channel_get_ari_vars(struct ast_channel *chan);
+
+/*!
  * \since 12
  * \brief Gets the variables for a given channel, as set using pbx_builtin_setvar_helper().
  *

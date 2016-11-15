@@ -54,6 +54,12 @@ Queue
  * A new dialplan variable, ABANDONED, is set when the call is not answered
    by an agent.
 
+res_ari
+------------------
+ * The configuration file ari.conf now supports a channelvars option, which
+   specifies a list of channel variables to include in each channel-oriented
+   ARI event.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 14.0.0 to Asterisk 14.1.0 ----------
 ------------------------------------------------------------------------------
