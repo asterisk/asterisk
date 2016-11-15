@@ -971,6 +971,11 @@ enum {
 	 * frames should be deferred.
 	 */
 	AST_FLAG_DEFER_FRAMES = (1 << 28),
+	/*!
+	 * The channel is currently deferring hangup frames
+	 * in addition to other frame types.
+	 */
+	AST_FLAG_DEFER_HANGUP_FRAMES = (1 << 29),
 };
 
 /*! \brief ast_bridge_config flags */
@@ -4700,11 +4705,17 @@ struct ast_readq_list *ast_channel_deferred_readq(struct ast_channel *chan);
  * drop important frames. This function can be called so that important frames
  * will be deferred, rather than placed in the channel frame queue as normal.
  *
+ * Hangups are an interesting frame type. Hangups will always be detectable by
+ * a reader when a channel is deferring frames. If the defer_hangups parameter
+ * is non-zero, then the hangup frame will also be duplicated and deferred, so
+ * that the next reader of the channel will get the hangup frame, too.
+ *
  * \pre chan MUST be locked before calling
  *
  * \param chan The channel on which frames should be deferred
+ * \param defer_hangups Defer hangups in addition to other deferrable frames
  */
-void ast_channel_start_defer_frames(struct ast_channel *chan);
+void ast_channel_start_defer_frames(struct ast_channel *chan, int defer_hangups);
 
 /*!
  * \brief Stop deferring deferrable frames on this channel
