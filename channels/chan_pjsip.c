@@ -738,7 +738,6 @@ static struct ast_frame *chan_pjsip_read(struct ast_channel *ast)
 			ast_format_get_name(f->subclass.format), ast_channel_name(ast),
 			ast_format_get_name(ast_channel_rawwriteformat(ast)));
 		ast_channel_set_rawwriteformat(ast, f->subclass.format);
-		ast_set_write_format(ast, ast_channel_writeformat(ast));
 
 		if (ast_channel_is_bridged(ast)) {
 			ast_channel_set_unbridged_nolock(ast, 1);
