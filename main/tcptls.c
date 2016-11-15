@@ -1103,8 +1103,9 @@ void ast_tcptls_server_start(struct ast_tcptls_session_args *desc)
 	int flags;
 	int x = 1;
 
-	/* Do nothing if nothing has changed */
-	if (!ast_sockaddr_cmp(&desc->old_address, &desc->local_address)) {
+	/* For TCP, do nothing if nothing has changed. For TLS, reload unconditionally
+	   because the certificate or cipher settings may have changed. */
+	if (!desc->tls_cfg && !ast_sockaddr_cmp(&desc->old_address, &desc->local_address)) {
 		ast_debug(1, "Nothing changed in %s\n", desc->name);
 		return;
 	}
