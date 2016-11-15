@@ -707,6 +707,80 @@ static struct ast_codec g719 = {
 	.get_length = g719_length,
 };
 
+/* Code lifted from opus library with formatting and name changes. */
+static int opus_get_nb_frames(const unsigned char packet[], int len)
+{
+	int count;
+
+	if (len < 1) {
+		return -1;
+	}
+	count = packet[0] & 0x3;
+	if (count == 0) {
+		return 1;
+	} else if (count != 3) {
+		return 2;
+	} else if (len < 2) {
+		return -1;
+	} else {
+		return packet[1] & 0x3F;
+	}
+}
+
+/* Code lifted from opus library with formatting and name changes. */
+static int opus_get_samples_per_frame(const unsigned char *data, int Fs)
+{
+	int audiosize;
+
+	if (data[0] & 0x80) {
+		audiosize = ((data[0] >> 3) & 0x3);
+		audiosize = (Fs << audiosize) / 400;
+	} else if ((data[0] & 0x60) == 0x60) {
+		audiosize = (data[0] & 0x08) ? Fs / 50 : Fs / 100;
+	} else {
+		audiosize = ((data[0] >> 3) & 0x3);
+		if (audiosize == 3) {
+			audiosize = Fs * 60 / 1000;
+		} else {
+			audiosize = (Fs << audiosize) / 100;
+		}
+	}
+	return audiosize;
+}
+
+/* Code lifted from opus library with formatting and name changes. */
+static int opus_get_nb_samples(const unsigned char packet[], int len, int Fs)
+{
+	int samples;
+	int count;
+
+	count = opus_get_nb_frames(packet, len);
+	if (count < 0) {
+		return count;
+	}
+
+	samples = count * opus_get_samples_per_frame(packet, Fs);
+	/* Can't have more than 120 ms */
+	if (samples * 25 > Fs * 3) {
+		return -1;
+	} else {
+		return samples;
+	}
+}
+
+static int opus_samples(struct ast_frame *frame)
+{
+	int samples;
+
+	samples = opus_get_nb_samples(frame->data.ptr, frame->datalen,
+		ast_format_get_sample_rate(frame->subclass.format));
+	if (samples < 0) {
+		ast_log(LOG_WARNING, "Invalid Opus packet\n");
+		samples = 0;
+	}
+	return samples;
+}
+
 static struct ast_codec opus = {
 	.name = "opus",
 	.description = "Opus Codec",
@@ -715,6 +789,7 @@ static struct ast_codec opus = {
 	.minimum_ms = 20,
 	.maximum_ms = 60,
 	.default_ms = 20,
+	.samples_count = opus_samples,
 	.minimum_bytes = 10,
 };
 
