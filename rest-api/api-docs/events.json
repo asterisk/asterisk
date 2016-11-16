@@ -162,6 +162,7 @@
 				"BridgeMerged",
 				"BridgeBlindTransfer",
 				"BridgeAttendedTransfer",
+				"BridgeVideoSourceChanged",
 				"ChannelCreated",
 				"ChannelDestroyed",
 				"ChannelEnteredBridge",
@@ -367,6 +368,20 @@
 				"bridge_from": {
 					"required": true,
 					"type": "Bridge"
+				}
+			}
+		},
+		"BridgeVideoSourceChanged": {
+			"id": "BridgeVideoSourceChanged",
+			"description": "Notification that the source of video in a bridge has changed.",
+			"properties": {
+				"bridge": {
+					"required": true,
+					"type": "Bridge"
+				},
+				"old_video_source_id": {
+					"required": false,
+					"type": "string"
 				}
 			}
 		},

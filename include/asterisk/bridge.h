@@ -903,6 +903,15 @@ int ast_bridge_is_video_src(struct ast_bridge *bridge, struct ast_channel *chan)
  */
 void ast_bridge_remove_video_src(struct ast_bridge *bridge, struct ast_channel *chan);
 
+/*!
+ * \brief Converts an enum representation of a bridge video mode to string
+ *
+ * \param video_mode The video mode
+ *
+ * \retval A string representation of \c video_mode
+ */
+const char *ast_bridge_video_mode_to_string(enum ast_bridge_video_mode_type video_mode);
+
 enum ast_transfer_result {
 	/*! The transfer completed successfully */
 	AST_BRIDGE_TRANSFER_SUCCESS,
