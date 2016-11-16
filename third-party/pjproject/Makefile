@@ -75,14 +75,31 @@ include ../Makefile.rules
 include Makefile.rules
 
 ECHO_PREFIX := $(ECHO_PREFIX) echo '[pjproject] '
+SHELL_ECHO_PREFIX := echo '[pjproject] '
 
 _all: $(TARGETS)
 
-DOWNLOAD_DIR := $(or $(EXTERNALS_CACHE_DIR),$(TMPDIR),$(wildcard /tmp),.)
+define download_from_pjproject
+	($(SHELL_ECHO_PREFIX) Downloading $(PJPROJECT_URL)/$(@F) to $@ ;\
+	$(DOWNLOAD_TO_STDOUT) $(call DOWNLOAD_TIMEOUT,5,10) $(PJPROJECT_URL)/$(@F) > $@ &&\
+	$(SHELL_ECHO_PREFIX) Downloading $(PJPROJECT_URL)/MD5SUM to $(PJMD5SUM) &&\
+	$(DOWNLOAD_TO_STDOUT) $(call DOWNLOAD_TIMEOUT,5,10) $(PJPROJECT_URL)/MD5SUM.TXT > $(PJMD5SUM) &&\
+	($(SHELL_ECHO_PREFIX) Verifying $@ &&\
+	tarball_sum=$$($(CAT) $@ | $(MD5) | $(SED) -n -r -e "s/^([^ ]+)\s+.*/\1/gp") ;\
+	required_sum=$$($(SED) -n -r -e "s/^([^ ]+)\s+$(@F)/\1/gp" $(PJMD5SUM)) ;\
+	if [ "$$tarball_sum" != "$$required_sum" ] ; then $(SHELL_ECHO_PREFIX) Verify failed ; exit 1 ; fi) &&\
+	$(SHELL_ECHO_PREFIX) Verify successful ; exit 0)
+endef
 
-$(DOWNLOAD_DIR)/pjproject-$(PJPROJECT_VERSION).tar.bz2: ../versions.mak
-	$(ECHO_PREFIX) Downloading $(PJPROJECT_URL)/$(@F) to $@
-	$(CMD_PREFIX) $(DOWNLOAD_TO_STDOUT) $(PJPROJECT_URL)/$(@F) > $@
+.DELETE_ON_ERROR:
+
+DOWNLOAD_DIR := $(or $(EXTERNALS_CACHE_DIR),$(TMPDIR),$(wildcard /tmp),.)
+TARBALL = $(DOWNLOAD_DIR)/pjproject-$(PJPROJECT_VERSION).tar.bz2
+PJMD5SUM = $(patsubst %.tar.bz2,%.md5,$(TARBALL))
+
+$(TARBALL): ../versions.mak
+	$(CMD_PREFIX) $(download_from_pjproject) || (rm -rf $@ ;\
+	$(SHELL_ECHO_PREFIX) Retrying download ; sleep 3 ; $(download_from_pjproject))
 
 source/.unpacked: $(DOWNLOAD_DIR)/pjproject-$(PJPROJECT_VERSION).tar.bz2
 	$(ECHO_PREFIX) Unpacking $<

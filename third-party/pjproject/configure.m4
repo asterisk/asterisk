@@ -28,8 +28,14 @@ AC_DEFUN([_PJPROJECT_CONFIGURE],
 	if test "${NM}" = ":" ; then
 		AC_MSG_ERROR(nm is required to build bundled pjproject)
 	fi
+	if test "${MD5}" = ":" ; then
+		AC_MSG_ERROR(md5sum is required to build bundled pjproject)
+	fi
+	if test "${CAT}" = ":" ; then
+		AC_MSG_ERROR(cat is required to build bundled pjproject)
+	fi
 
-	export TAR PATCH SED NM EXTERNALS_CACHE_DIR DOWNLOAD_TO_STDOUT
+	export TAR PATCH SED NM EXTERNALS_CACHE_DIR DOWNLOAD_TO_STDOUT DOWNLOAD_TIMEOUT DOWNLOAD MD5 CAT
 	${GNU_MAKE} --quiet --no-print-directory -C ${PJPROJECT_DIR} EXTERNALS_CACHE_DIR=${EXTERNALS_CACHE_DIR} configure
 	if test $? -ne 0 ; then
 		AC_MSG_RESULT(failed)
