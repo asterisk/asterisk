@@ -1031,6 +1031,10 @@ PBX_LIBXML2
 LIBXML2_DIR
 LIBXML2_INCLUDE
 LIBXML2_LIB
+PBX_LIBEDIT_IS_UNICODE
+LIBEDIT_IS_UNICODE_DIR
+LIBEDIT_IS_UNICODE_INCLUDE
+LIBEDIT_IS_UNICODE_LIB
 PBX_LIBEDIT
 LIBEDIT_DIR
 LIBEDIT_INCLUDE
@@ -10645,6 +10649,18 @@ if test "${with_libedit+set}" = set; then :
 
 fi
 
+
+
+
+
+
+
+
+LIBEDIT_IS_UNICODE_DESCRIP="Libedit compiled for unicode"
+LIBEDIT_IS_UNICODE_OPTION=libedit
+LIBEDIT_IS_UNICODE_DIR=${LIBEDIT_DIR}
+
+PBX_LIBEDIT_IS_UNICODE=0
 
 
 
@@ -20828,11 +20844,58 @@ fi
    fi
 
       if test "$PBX_LIBEDIT" = "1"; then
-	 LIBEDIT_INTERNAL="no"
+      LIBEDIT_INTERNAL="no"
       fi
    fi
    if test "${LIBEDIT_INTERNAL}" = "yes"; then
       PBX_LIBEDIT=1
+      LIBEDIT_IS_UNICODE=no
+   else
+
+    if test "x${PBX_LIBEDIT_IS_UNICODE}" != "x1" -a "${USE_LIBEDIT_IS_UNICODE}" != "no"; then
+        if test "xTesting for libedit unicode support" != "x"; then
+            { $as_echo "$as_me:${as_lineno-$LINENO}: checking for Testing for libedit unicode support" >&5
+$as_echo_n "checking for Testing for libedit unicode support... " >&6; }
+	else
+            { $as_echo "$as_me:${as_lineno-$LINENO}: checking if \"el_rfunc_t *callback;\" compiles using histedit.h" >&5
+$as_echo_n "checking if \"el_rfunc_t *callback;\" compiles using histedit.h... " >&6; }
+	fi
+	saved_cppflags="${CPPFLAGS}"
+	if test "x${LIBEDIT_IS_UNICODE_DIR}" != "x"; then
+	    LIBEDIT_IS_UNICODE_INCLUDE="-I${LIBEDIT_IS_UNICODE_DIR}/include"
+	fi
+	CPPFLAGS="${CPPFLAGS} ${LIBEDIT_IS_UNICODE_INCLUDE}"
+
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ #include <histedit.h>
+int
+main ()
+{
+ el_rfunc_t *callback;;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		PBX_LIBEDIT_IS_UNICODE=1
+
+$as_echo "#define HAVE_LIBEDIT_IS_UNICODE 1" >>confdefs.h
+
+
+
+else
+         { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+	CPPFLAGS="${saved_cppflags}"
+    fi
+
    fi
 fi
 
