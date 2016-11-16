@@ -58,6 +58,10 @@ struct ast_bridge_snapshot {
 	unsigned int num_channels;
 	/*! Number of active channels in the bridge. */
 	unsigned int num_active;
+	/*! The video mode of the bridge */
+	enum ast_bridge_video_mode_type video_mode;
+	/*! Unique ID of the channel providing video, if one exists */
+	AST_STRING_FIELD_EXTENDED(video_source_id);
 };
 
 /*!
