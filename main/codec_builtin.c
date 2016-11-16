@@ -701,6 +701,21 @@ static struct ast_codec g719 = {
 	.get_length = g719_length,
 };
 
+static int opus_samples(struct ast_frame *frame)
+{
+	/*
+	 * XXX This is likely not at all what's intended from this
+	 * callback.  If you have codec_opus.so loaded then this
+	 * function is overridden anyway.  However, since opus is
+	 * variable bit rate and I cannot extract the calculation code
+	 * from the opus library, I am going to punt and assume 20ms
+	 * worth of samples.  In testing, this has worked just fine.
+	 * Pass through support doesn't seem to care about the value
+	 * returned anyway.
+	 */
+	return ast_format_get_sample_rate(frame->subclass.format) / 50;
+}
+
 static struct ast_codec opus = {
 	.name = "opus",
 	.description = "Opus Codec",
@@ -709,6 +724,7 @@ static struct ast_codec opus = {
 	.minimum_ms = 20,
 	.maximum_ms = 60,
 	.default_ms = 20,
+	.samples_count = opus_samples,
 	.minimum_bytes = 10,
 };
 
