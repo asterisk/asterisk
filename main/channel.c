@@ -1061,9 +1061,10 @@ struct ast_channel *ast_dummy_channel_alloc(void)
 	return tmp;
 }
 
-void ast_channel_start_defer_frames(struct ast_channel *chan)
+void ast_channel_start_defer_frames(struct ast_channel *chan, int defer_hangups)
 {
 	ast_set_flag(ast_channel_flags(chan), AST_FLAG_DEFER_FRAMES);
+	ast_set2_flag(ast_channel_flags(chan), defer_hangups, AST_FLAG_DEFER_HANGUP_FRAMES);
 }
 
 void ast_channel_stop_defer_frames(struct ast_channel *chan)
@@ -1550,7 +1551,7 @@ int ast_safe_sleep_conditional(struct ast_channel *chan, int timeout_ms, int (*c
 	}
 
 	ast_channel_lock(chan);
-	ast_channel_start_defer_frames(chan);
+	ast_channel_start_defer_frames(chan, 0);
 	ast_channel_unlock(chan);
 
 	start = ast_tvnow();
@@ -3886,9 +3887,9 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_DEFER_FRAMES)) {
 			AST_LIST_TRAVERSE_SAFE_BEGIN(ast_channel_readq(chan), f, frame_list) {
 				if (ast_is_deferrable_frame(f)) {
-					if (f->frametype == AST_FRAME_CONTROL && f->subclass.integer == AST_CONTROL_HANGUP) {
-						struct ast_frame *dup;
-
+					if(f->frametype == AST_FRAME_CONTROL && 
+						(f->subclass.integer == AST_CONTROL_HANGUP ||
+						 f->subclass.integer == AST_CONTROL_END_OF_Q)) {
 						/* Hangup is a special case. We want to defer the frame, but we also do not
 						 * want to remove it from the frame queue. So rather than just moving the frame
 						 * over, we duplicate it and move the copy to the deferred readq.
@@ -3898,8 +3899,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 						 * when frame deferral finishes, then whoever calls ast_read() next will also get
 						 * the hangup.
 						 */
-						dup = ast_frdup(f);
-						AST_LIST_INSERT_TAIL(ast_channel_deferred_readq(chan), dup, frame_list);
+						if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_DEFER_HANGUP_FRAMES)) {
+							struct ast_frame *dup;
+
+							dup = ast_frdup(f);
+							AST_LIST_INSERT_TAIL(ast_channel_deferred_readq(chan), dup, frame_list);
+						}
 					} else {
 						AST_LIST_INSERT_TAIL(ast_channel_deferred_readq(chan), f, frame_list);
 						AST_LIST_REMOVE_CURRENT(frame_list);
@@ -10240,7 +10245,7 @@ int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struc
 
 		ast_party_connected_line_copy(ast_channel_connected(macro_chan), connected);
 	}
-	ast_channel_start_defer_frames(macro_chan);
+	ast_channel_start_defer_frames(macro_chan, 0);
 	ast_channel_unlock(macro_chan);
 
 	retval = ast_app_run_macro(autoservice_chan, macro_chan, macro, macro_args);
@@ -10296,7 +10301,7 @@ int ast_channel_redirecting_macro(struct ast_channel *autoservice_chan, struct a
 
 		ast_party_redirecting_copy(ast_channel_redirecting(macro_chan), redirecting);
 	}
-	ast_channel_start_defer_frames(macro_chan);
+	ast_channel_start_defer_frames(macro_chan, 0);
 	ast_channel_unlock(macro_chan);
 
 	retval = ast_app_run_macro(autoservice_chan, macro_chan, macro, macro_args);
@@ -10345,7 +10350,7 @@ int ast_channel_connected_line_sub(struct ast_channel *autoservice_chan, struct 
 
 		ast_party_connected_line_copy(ast_channel_connected(sub_chan), connected);
 	}
-	ast_channel_start_defer_frames(sub_chan);
+	ast_channel_start_defer_frames(sub_chan, 0);
 	ast_channel_unlock(sub_chan);
 
 	retval = ast_app_run_sub(autoservice_chan, sub_chan, sub, sub_args, 0);
@@ -10394,7 +10399,7 @@ int ast_channel_redirecting_sub(struct ast_channel *autoservice_chan, struct ast
 
 		ast_party_redirecting_copy(ast_channel_redirecting(sub_chan), redirecting);
 	}
-	ast_channel_start_defer_frames(sub_chan);
+	ast_channel_start_defer_frames(sub_chan, 0);
 	ast_channel_unlock(sub_chan);
 
 	retval = ast_app_run_sub(autoservice_chan, sub_chan, sub, sub_args, 0);
