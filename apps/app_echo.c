@@ -68,7 +68,8 @@ static int echo_exec(struct ast_channel *chan, const char *data)
 		f->delivery.tv_sec = 0;
 		f->delivery.tv_usec = 0;
 		if (f->frametype == AST_FRAME_CONTROL
-			&& f->subclass.integer == AST_CONTROL_VIDUPDATE) {
+			&& f->subclass.integer == AST_CONTROL_VIDUPDATE
+			&& !fir_sent) {
 			if (ast_write(chan, f) < 0) {
 				ast_frfree(f);
 				goto end;
