@@ -65,6 +65,7 @@
 #ifdef DO_SSL
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/x509v3.h>
 #else
 /* declare dummy types so we can define a pointer to them */
 typedef struct {} SSL;

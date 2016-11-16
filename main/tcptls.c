@@ -555,6 +555,34 @@ static void session_instance_destructor(void *obj)
 	ao2_cleanup(i->private_data);
 }
 
+#ifdef DO_SSL
+static int check_tcptls_cert_name(ASN1_STRING *cert_str, const char *hostname, const char *desc)
+{
+	unsigned char *str;
+	int ret;
+
+	ret = ASN1_STRING_to_UTF8(&str, cert_str);
+	if (ret < 0 || !str) {
+		return -1;
+	}
+
+	if (strlen((char *) str) != ret) {
+		ast_log(LOG_WARNING, "Invalid certificate %s length (contains NULL bytes?)\n", desc);
+
+		ret = -1;
+	} else if (!strcasecmp(hostname, (char *) str)) {
+		ret = 0;
+	} else {
+		ret = -1;
+	}
+
+	ast_debug(3, "SSL %s compare s1='%s' s2='%s'\n", desc, hostname, str);
+	OPENSSL_free(str);
+
+	return ret;
+}
+#endif
+
 /*! \brief
 * creates a FILE * from the fd passed by the accept thread.
 * This operation is potentially expensive (certificate verification),
@@ -631,8 +659,8 @@ static void *handle_tcptls_connection(void *data)
 				}
 				if (!ast_test_flag(&tcptls_session->parent->tls_cfg->flags, AST_SSL_IGNORE_COMMON_NAME)) {
 					ASN1_STRING *str;
-					unsigned char *str2;
 					X509_NAME *name = X509_get_subject_name(peer);
+					STACK_OF(GENERAL_NAME) *alt_names;
 					int pos = -1;
 					int found = 0;
 
@@ -643,25 +671,36 @@ static void *handle_tcptls_connection(void *data)
 						if (pos < 0) {
 							break;
 						}
-						str = X509_NAME_ENTRY_get_data(X509_NAME_get_entry(name, pos));
-						ret = ASN1_STRING_to_UTF8(&str2, str);
-						if (ret < 0) {
-							continue;
-						}
 
-						if (str2) {
-							if (strlen((char *) str2) != ret) {
-								ast_log(LOG_WARNING, "Invalid certificate common name length (contains NULL bytes?)\n");
-							} else if (!strcasecmp(tcptls_session->parent->hostname, (char *) str2)) {
-								found = 1;
-							}
-							ast_debug(3, "SSL Common Name compare s1='%s' s2='%s'\n", tcptls_session->parent->hostname, str2);
-							OPENSSL_free(str2);
-						}
-						if (found) {
+						str = X509_NAME_ENTRY_get_data(X509_NAME_get_entry(name, pos));
+						if (!check_tcptls_cert_name(str, tcptls_session->parent->hostname, "common name")) {
+							found = 1;
 							break;
 						}
 					}
+
+					if (!found) {
+						alt_names = X509_get_ext_d2i(peer, NID_subject_alt_name, NULL, NULL);
+						if (alt_names != NULL) {
+							int alt_names_count = sk_GENERAL_NAME_num(alt_names);
+
+							for (pos = 0; pos < alt_names_count; pos++) {
+								const GENERAL_NAME *alt_name = sk_GENERAL_NAME_value(alt_names, pos);
+
+								if (alt_name->type != GEN_DNS) {
+									continue;
+								}
+
+								if (!check_tcptls_cert_name(alt_name->d.dNSName, tcptls_session->parent->hostname, "alt name")) {
+									found = 1;
+									break;
+								}
+							}
+
+							sk_GENERAL_NAME_pop_free(alt_names, GENERAL_NAME_free);
+						}
+					}
+
 					if (!found) {
 						ast_log(LOG_ERROR, "Certificate common name did not match (%s)\n", tcptls_session->parent->hostname);
 						X509_free(peer);

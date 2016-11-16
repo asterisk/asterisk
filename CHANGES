@@ -54,6 +54,12 @@ Queue
  * A new dialplan variable, ABANDONED, is set when the call is not answered
    by an agent.
 
+Core
+------------------
+ * The TLS core in Asterisk now supports X.509 certificate subject alternative
+   names. This way one X.509 certificate can be used for hosts that can be
+   reached under multiple DNS names or for multiple hosts.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.11.0 to Asterisk 13.12.0 ----------
 ------------------------------------------------------------------------------
