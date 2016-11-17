@@ -36,11 +36,11 @@
 
 ASTERISK_REGISTER_FILE()
 
+#include <poll.h>
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <sys/poll.h>
 #include <dahdi/user.h>
 
 #include "asterisk/lock.h"
