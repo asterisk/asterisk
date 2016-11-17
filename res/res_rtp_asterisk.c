@@ -1365,7 +1365,7 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 		return 0;
 	}
 
-#if OPENSSL_VERSION_NUMBER < 0x10002000L
+#if OPENSSL_VERSION_NUMBER < 0x10002000L || defined(LIBRESSL_VERSION_NUMBER)
 	rtp->ssl_ctx = SSL_CTX_new(DTLSv1_method());
 #else
 	rtp->ssl_ctx = SSL_CTX_new(DTLS_method());
