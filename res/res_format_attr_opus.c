@@ -158,7 +158,8 @@ static struct ast_format *opus_parse_sdp_fmtp(const struct ast_format *format, c
 static void opus_generate_sdp_fmtp(const struct ast_format *format, unsigned int payload, struct ast_str **str)
 {
 	struct opus_attr *attr = ast_format_get_attribute_data(format);
-	int size;
+	int base_fmtp_size;
+	int original_size;
 
 	if (!attr) {
 		/*
@@ -169,7 +170,8 @@ static void opus_generate_sdp_fmtp(const struct ast_format *format, unsigned int
 		attr = &default_opus_attr;
 	}
 
-	size = ast_str_append(str, 0, "a=fmtp:%u ", payload);
+	original_size = ast_str_strlen(*str);
+	base_fmtp_size = ast_str_append(str, 0, "a=fmtp:%u ", payload);
 
 	if (CODEC_OPUS_DEFAULT_SAMPLE_RATE != attr->maxplayrate) {
 		ast_str_append(str, 0, "%s=%d;",
@@ -211,8 +213,8 @@ static void opus_generate_sdp_fmtp(const struct ast_format *format, unsigned int
 			CODEC_OPUS_ATTR_DTX, attr->dtx);
 	}
 
-	if (size == ast_str_strlen(*str)) {
-		ast_str_reset(*str);
+	if (base_fmtp_size == ast_str_strlen(*str) - original_size) {
+		ast_str_truncate(*str, original_size);
 	} else {
 		ast_str_truncate(*str, -1);
 		ast_str_append(str, 0, "\r\n");
