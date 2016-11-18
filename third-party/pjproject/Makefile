@@ -193,9 +193,9 @@ clean:
 	$(ECHO_PREFIX) Cleaning
 	+-$(CMD_PREFIX) test -d source && ($(SUBMAKE) -C source clean || : ;\
 		rm -rf source/pjsip-apps/bin/* || : ;\
-		find source -name *.a -delete ;\
-		find source -name *.o -delete ;\
-		find source -name *.so -delete ; ) || :
+		find source -name *.a | xargs rm -rf  ;\
+		find source -name *.o | xargs rm -rf  ;\
+		find source -name *.so  | xargs rm -rf ; ) || :
 	-$(CMD_PREFIX) rm -rf pjproject.symbols
 
 distclean:

@@ -279,15 +279,15 @@ ASTPJ_LIB:=libasteriskpj.so
 libasteriskpj.exports: $(ASTTOPDIR)/$(PJPROJECT_DIR)/pjproject.symbols
 	$(ECHO_PREFIX) echo "   [GENERATE] libasteriskpj.exports"
 ifeq ($(GNU_LD),1)
-	$(CMD_PREFIX) echo -e "{\n\tglobal:" > libasteriskpj.exports
-	$(CMD_PREFIX) sed -r -e "s/.*/\t\t$(LINKER_SYMBOL_PREFIX)&;/" $(ASTTOPDIR)/$(PJPROJECT_DIR)/pjproject.symbols >> libasteriskpj.exports
-	$(CMD_PREFIX) echo -e "\t\t$(LINKER_SYMBOL_PREFIX)ast_pj_init;\n" >> libasteriskpj.exports
-	$(CMD_PREFIX) echo -e "\tlocal:\n\t\t*;\n};" >> libasteriskpj.exports
+	$(CMD_PREFIX) echo -e "{\nglobal:" > libasteriskpj.exports
+	$(CMD_PREFIX) sed -r -e "s/.*/$(LINKER_SYMBOL_PREFIX)&;/" $(ASTTOPDIR)/$(PJPROJECT_DIR)/pjproject.symbols >> libasteriskpj.exports
+	$(CMD_PREFIX) echo -e "$(LINKER_SYMBOL_PREFIX)ast_pj_init;\n" >> libasteriskpj.exports
+	$(CMD_PREFIX) echo -e "local:\n*;\n};" >> libasteriskpj.exports
 endif
 
 $(ASTPJ_LIB).$(ASTPJ_SO_VERSION): _ASTLDFLAGS+=-Wl,-soname=$(ASTPJ_LIB) $(PJ_LDFLAGS)
 $(ASTPJ_LIB).$(ASTPJ_SO_VERSION): _ASTCFLAGS+=-fPIC -DAST_MODULE=\"asteriskpj\" $(PJ_CFLAGS)
-$(ASTPJ_LIB).$(ASTPJ_SO_VERSION): LIBS+=$(PJPROJECT_LDLIBS) -lssl -lcrypto -luuid -lm -lrt -lpthread
+$(ASTPJ_LIB).$(ASTPJ_SO_VERSION): LIBS+=$(PJPROJECT_LDLIBS) -lssl -lcrypto -luuid -lm -lpthread
 ifeq ($(GNU_LD),1)
     $(ASTPJ_LIB).$(ASTPJ_SO_VERSION): SO_SUPPRESS_SYMBOLS=-Wl,--version-script,libasteriskpj.exports,--warn-common
 endif
