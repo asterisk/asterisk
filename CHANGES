@@ -43,6 +43,12 @@ ARI
    Applications subscribed to a bridge will receive this event when the source
    of video changes in a mixing bridge.
 
+ * The ARI major version has been bumped. There are not any known breaking changes
+   in ARI. The major version has been bumped because otherwise we can end up with
+   overlapping version numbers between different Asterisk versions. Now each major
+   version of Asterisk will bring with it a change in the major version of ARI.
+   The ARI version in Asterisk 14 is now 2.0.0.
+
 res_pjsip
 ------------------
  * Automatic dual stack support is now implemented. Depending on DNS resolution
