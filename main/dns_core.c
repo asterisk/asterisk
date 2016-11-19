@@ -112,7 +112,7 @@ int ast_dns_result_get_lowest_ttl(const struct ast_dns_result *result)
 	int ttl = 0;
 	const struct ast_dns_record *record;
 
-	if (ast_dns_result_get_rcode(result) == ns_r_nxdomain) {
+	if (ast_dns_result_get_rcode(result) == NXDOMAIN) {
 		return 0;
 	}
 
@@ -195,7 +195,7 @@ struct ast_dns_query *dns_query_alloc(const char *name, int rr_type, int rr_clas
 	if (ast_strlen_zero(name)) {
 		ast_log(LOG_WARNING, "Could not perform asynchronous resolution, no name provided\n");
 		return NULL;
-	} else if (rr_type > ns_t_max) {
+	} else if (rr_type > 65536) {
 		ast_log(LOG_WARNING, "Could not perform asynchronous resolution of '%s', resource record type '%d' exceeds maximum\n",
 			name, rr_type);
 		return NULL;
@@ -203,7 +203,7 @@ struct ast_dns_query *dns_query_alloc(const char *name, int rr_type, int rr_clas
 		ast_log(LOG_WARNING, "Could not perform asynchronous resolution of '%s', invalid resource record type '%d'\n",
 			name, rr_type);
 		return NULL;
-	} else if (rr_class > ns_c_max) {
+	} else if (rr_class > 65536) {
 		ast_log(LOG_WARNING, "Could not perform asynchronous resolution of '%s', resource record class '%d' exceeds maximum\n",
 			name, rr_class);
 		return NULL;
@@ -317,7 +317,7 @@ int ast_dns_resolve(const char *name, int rr_type, int rr_class, struct ast_dns_
 	if (ast_strlen_zero(name)) {
 		ast_log(LOG_WARNING, "Could not perform synchronous resolution, no name provided\n");
 		return -1;
-	} else if (rr_type > ns_t_max) {
+	} else if (rr_type > 65536) {
 		ast_log(LOG_WARNING, "Could not perform synchronous resolution of '%s', resource record type '%d' exceeds maximum\n",
 			name, rr_type);
 		return -1;
@@ -325,7 +325,7 @@ int ast_dns_resolve(const char *name, int rr_type, int rr_class, struct ast_dns_
 		ast_log(LOG_WARNING, "Could not perform synchronous resolution of '%s', invalid resource record type '%d'\n",
 			name, rr_type);
 		return -1;
-	} else if (rr_class > ns_c_max) {
+	} else if (rr_class > 65536) {
 		ast_log(LOG_WARNING, "Could not perform synchronous resolution of '%s', resource record class '%d' exceeds maximum\n",
 			name, rr_class);
 		return -1;
@@ -443,8 +443,8 @@ static struct ast_dns_record *generic_record_alloc(struct ast_dns_query *query, 
 typedef struct ast_dns_record *(*dns_alloc_fn)(struct ast_dns_query *query, const char *data, const size_t size);
 
 static dns_alloc_fn dns_alloc_table [] = {
-	[ns_t_naptr] = dns_naptr_alloc,
-	[ns_t_srv] = dns_srv_alloc,
+	[T_NAPTR] = dns_naptr_alloc,
+	[T_SRV] = dns_srv_alloc,
 };
 
 static struct ast_dns_record *allocate_dns_record(int rr_type, struct ast_dns_query *query, const char *data, const size_t size)
@@ -462,7 +462,7 @@ int ast_dns_resolver_add_record(struct ast_dns_query *query, int rr_type, int rr
 		ast_debug(2, "Query '%p': Could not add record, invalid resource record type '%d'\n",
 			query, rr_type);
 		return -1;
-	} else if (rr_type > ns_t_max) {
+	} else if (rr_type > 65536) {
 		ast_debug(2, "Query '%p': Could not add record, resource record type '%d' exceeds maximum\n",
 			query, rr_type);
 		return -1;
@@ -470,7 +470,7 @@ int ast_dns_resolver_add_record(struct ast_dns_query *query, int rr_type, int rr
 		ast_debug(2, "Query '%p': Could not add record, invalid resource record class '%d'\n",
 			query, rr_class);
 		return -1;
-	} else if (rr_class > ns_c_max) {
+	} else if (rr_class > 65536) {
 		ast_debug(2, "Query '%p': Could not add record, resource record class '%d' exceeds maximum\n",
 			query, rr_class);
 		return -1;
@@ -507,8 +507,8 @@ int ast_dns_resolver_add_record(struct ast_dns_query *query, int rr_type, int rr
 typedef void (*dns_sort_fn)(struct ast_dns_result *result);
 
 static dns_sort_fn dns_sort_table [] = {
-	[ns_t_naptr] = dns_naptr_sort,
-	[ns_t_srv] = dns_srv_sort,
+	[T_NAPTR] = dns_naptr_sort,
+	[T_SRV] = dns_srv_sort,
 };
 
 static void sort_result(int rr_type, struct ast_dns_result *result)

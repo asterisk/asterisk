@@ -253,7 +253,7 @@ static int sip_resolve_handle_naptr(struct sip_resolve *resolve, const struct as
 		return -1;
 	}
 
-	return sip_resolve_add(resolve, ast_dns_naptr_get_replacement(record), ns_t_srv, ns_c_in,
+	return sip_resolve_add(resolve, ast_dns_naptr_get_replacement(record), T_SRV, C_IN,
 		transport, 0);
 }
 
@@ -304,12 +304,12 @@ static void sip_resolve_callback(const struct ast_dns_query_set *query_set)
 		target = AST_VECTOR_GET_ADDR(&resolving, idx);
 		for (record = ast_dns_result_get_records(result); record; record = ast_dns_record_get_next(record)) {
 
-			if (ast_dns_record_get_rr_type(record) == ns_t_a ||
-				ast_dns_record_get_rr_type(record) == ns_t_aaaa) {
+			if (ast_dns_record_get_rr_type(record) == T_A ||
+				ast_dns_record_get_rr_type(record) == T_AAAA) {
 				/* If NAPTR or SRV records exist the subsequent results from them take preference */
 				if (have_naptr || have_srv) {
 					ast_debug(2, "[%p] %s record being skipped on target '%s' because NAPTR or SRV record exists\n",
-						resolve, ast_dns_record_get_rr_type(record) == ns_t_a ? "A" : "AAAA",
+						resolve, ast_dns_record_get_rr_type(record) == T_A ? "A" : "AAAA",
 						ast_dns_query_get_name(query));
 					continue;
 				}
@@ -322,7 +322,7 @@ static void sip_resolve_callback(const struct ast_dns_query_set *query_set)
 				resolve->addresses.entry[address_count].type = target->transport;
 
 				/* Populate address information for the new address entry */
-				if (ast_dns_record_get_rr_type(record) == ns_t_a) {
+				if (ast_dns_record_get_rr_type(record) == T_A) {
 					ast_debug(2, "[%p] A record received on target '%s'\n", resolve, ast_dns_query_get_name(query));
 					resolve->addresses.entry[address_count].addr_len = sizeof(pj_sockaddr_in);
 					pj_sockaddr_init(pj_AF_INET(), &resolve->addresses.entry[address_count].addr, NULL,
@@ -338,7 +338,7 @@ static void sip_resolve_callback(const struct ast_dns_query_set *query_set)
 				}
 
 				address_count++;
-			} else if (ast_dns_record_get_rr_type(record) == ns_t_srv) {
+			} else if (ast_dns_record_get_rr_type(record) == T_SRV) {
 				if (have_naptr) {
 					ast_debug(2, "[%p] SRV record being skipped on target '%s' because NAPTR record exists\n",
 						resolve, ast_dns_query_get_name(query));
@@ -350,22 +350,22 @@ static void sip_resolve_callback(const struct ast_dns_query_set *query_set)
 
 				/* If an explicit IPv6 target transport has been requested look for only AAAA records */
 				if (target->transport & PJSIP_TRANSPORT_IPV6) {
-					sip_resolve_add(resolve, ast_dns_srv_get_host(record), ns_t_aaaa, ns_c_in, target->transport,
+					sip_resolve_add(resolve, ast_dns_srv_get_host(record), T_AAAA, C_IN, target->transport,
 						ast_dns_srv_get_port(record));
 					have_srv = 1;
 				} else if (sip_transport_is_available(target->transport + PJSIP_TRANSPORT_IPV6)) {
-					sip_resolve_add(resolve, ast_dns_srv_get_host(record), ns_t_aaaa, ns_c_in, target->transport + PJSIP_TRANSPORT_IPV6,
+					sip_resolve_add(resolve, ast_dns_srv_get_host(record), T_AAAA, C_IN, target->transport + PJSIP_TRANSPORT_IPV6,
 						ast_dns_srv_get_port(record));
 					have_srv = 1;
 				}
 
 				if (!(target->transport & PJSIP_TRANSPORT_IPV6) &&
 					sip_transport_is_available(target->transport)) {
-					sip_resolve_add(resolve, ast_dns_srv_get_host(record), ns_t_a, ns_c_in, target->transport,
+					sip_resolve_add(resolve, ast_dns_srv_get_host(record), T_A, C_IN, target->transport,
 						ast_dns_srv_get_port(record));
 					have_srv = 1;
 				}
-			} else if (ast_dns_record_get_rr_type(record) == ns_t_naptr) {
+			} else if (ast_dns_record_get_rr_type(record) == T_NAPTR) {
 				int added = -1;
 
 				ast_debug(2, "[%p] NAPTR record received on target '%s'\n", resolve, ast_dns_query_get_name(query));
@@ -561,39 +561,39 @@ static void sip_resolve(pjsip_resolver_t *resolver, pj_pool_t *pool, const pjsip
 		 * explicitly and only looks for IPv6 records.
 		 */
 
-		res |= sip_resolve_add(resolve, host, ns_t_naptr, ns_c_in, type, 0);
+		res |= sip_resolve_add(resolve, host, T_NAPTR, C_IN, type, 0);
 
 		if (type == PJSIP_TRANSPORT_UNSPECIFIED ||
 			(type == PJSIP_TRANSPORT_TLS && sip_transport_is_available(PJSIP_TRANSPORT_TLS)) ||
 			(type == PJSIP_TRANSPORT_TLS6 && sip_transport_is_available(PJSIP_TRANSPORT_TLS6))) {
 			snprintf(srv, sizeof(srv), "_sips._tcp.%s", host);
-			res |= sip_resolve_add(resolve, srv, ns_t_srv, ns_c_in,
+			res |= sip_resolve_add(resolve, srv, T_SRV, C_IN,
 				type == PJSIP_TRANSPORT_UNSPECIFIED ? PJSIP_TRANSPORT_TLS : type, 0);
 		}
 		if (type == PJSIP_TRANSPORT_UNSPECIFIED ||
 			(type == PJSIP_TRANSPORT_TCP && sip_transport_is_available(PJSIP_TRANSPORT_TCP)) ||
 			(type == PJSIP_TRANSPORT_TCP6 && sip_transport_is_available(PJSIP_TRANSPORT_TCP6))) {
 			snprintf(srv, sizeof(srv), "_sip._tcp.%s", host);
-			res |= sip_resolve_add(resolve, srv, ns_t_srv, ns_c_in,
+			res |= sip_resolve_add(resolve, srv, T_SRV, C_IN,
 				type == PJSIP_TRANSPORT_UNSPECIFIED ? PJSIP_TRANSPORT_TCP : type, 0);
 		}
 		if (type == PJSIP_TRANSPORT_UNSPECIFIED ||
 			(type == PJSIP_TRANSPORT_UDP && sip_transport_is_available(PJSIP_TRANSPORT_UDP)) ||
 			(type == PJSIP_TRANSPORT_UDP6 && sip_transport_is_available(PJSIP_TRANSPORT_UDP6))) {
 			snprintf(srv, sizeof(srv), "_sip._udp.%s", host);
-			res |= sip_resolve_add(resolve, srv, ns_t_srv, ns_c_in,
+			res |= sip_resolve_add(resolve, srv, T_SRV, C_IN,
 				type == PJSIP_TRANSPORT_UNSPECIFIED ? PJSIP_TRANSPORT_UDP : type, 0);
 		}
 	}
 
 	if ((type == PJSIP_TRANSPORT_UNSPECIFIED && sip_transport_is_available(PJSIP_TRANSPORT_UDP6)) ||
 		sip_transport_is_available(type + PJSIP_TRANSPORT_IPV6)) {
-		res |= sip_resolve_add(resolve, host, ns_t_aaaa, ns_c_in, (type == PJSIP_TRANSPORT_UNSPECIFIED ? PJSIP_TRANSPORT_UDP6 : type + PJSIP_TRANSPORT_IPV6), target->addr.port);
+		res |= sip_resolve_add(resolve, host, T_AAAA, C_IN, (type == PJSIP_TRANSPORT_UNSPECIFIED ? PJSIP_TRANSPORT_UDP6 : type + PJSIP_TRANSPORT_IPV6), target->addr.port);
 	}
 
 	if ((type == PJSIP_TRANSPORT_UNSPECIFIED && sip_transport_is_available(PJSIP_TRANSPORT_UDP)) ||
 		sip_transport_is_available(type)) {
-		res |= sip_resolve_add(resolve, host, ns_t_a, ns_c_in, (type == PJSIP_TRANSPORT_UNSPECIFIED ? PJSIP_TRANSPORT_UDP : type), target->addr.port);
+		res |= sip_resolve_add(resolve, host, T_A, C_IN, (type == PJSIP_TRANSPORT_UNSPECIFIED ? PJSIP_TRANSPORT_UDP : type), target->addr.port);
 	}
 
 	if (res) {
