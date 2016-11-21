@@ -1176,6 +1176,12 @@ int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const c
 	const char *account, struct ast_channel **locked_channel, int early_media,
 	const struct ast_assigned_ids *assignedids);
 
+int ast_pbx_outgoing_exten_predial(const char *type, struct ast_format_cap *cap, const char *addr,
+	int timeout, const char *context, const char *exten, int priority, int *reason,
+	int synchronous, const char *cid_num, const char *cid_name, struct ast_variable *vars,
+	const char *account, struct ast_channel **locked_channel, int early_media,
+	const struct ast_assigned_ids *assignedids, const char *predial_callee);
+
 /*!
  * \brief Synchronously or asynchronously make an outbound call and execute an
  *  application on the channel.
@@ -1210,6 +1216,12 @@ int ast_pbx_outgoing_app(const char *type, struct ast_format_cap *cap, const cha
 	const char *cid_num, const char *cid_name, struct ast_variable *vars,
 	const char *account, struct ast_channel **locked_channel,
 	const struct ast_assigned_ids *assignedids);
+
+int ast_pbx_outgoing_app_predial(const char *type, struct ast_format_cap *cap, const char *addr,
+	int timeout, const char *app, const char *appdata, int *reason, int synchronous,
+	const char *cid_num, const char *cid_name, struct ast_variable *vars,
+	const char *account, struct ast_channel **locked_channel,
+	const struct ast_assigned_ids *assignedids, const char *predial_callee);
 
 /*!
  * \brief Evaluate a condition
