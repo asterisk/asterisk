@@ -2366,9 +2366,17 @@ AST_EXT_LIB_CHECK([LUA], [lua], [luaL_openlib], [lua.h], [-lm])
 # just different header filenames and different SONAMEs
 AST_EXT_LIB_CHECK([RADIUS], [freeradius-client], [rc_read_config], [freeradius-client.h])
 if test "x${PBX_RADIUS}" = "x1"; then
-	AC_DEFINE(FREERADIUS_CLIENT, [], [Use the FreeRADIUS-client library])
+	AC_DEFINE(RADIUS_HEADER_STR, [<freeradius-client.h>], [Name of RADIUS library include header])
 else
 	AST_EXT_LIB_CHECK([RADIUS], [radiusclient-ng], [rc_read_config], [radiusclient-ng.h])
+	if test "x${PBX_RADIUS}" = "x1"; then
+		AC_DEFINE(RADIUS_HEADER_STR, [<radiusclient-ng.h>], [Name of RADIUS library include header])
+	else
+		AST_EXT_LIB_CHECK([RADIUS], [radcli], [rc_read_config], [radcli/radcli.h])
+		if test "x${PBX_RADIUS}" = "x1"; then
+			AC_DEFINE(RADIUS_HEADER_STR, [<radcli/radcli.h>], [Name of RADIUS library include header])
+		fi
+	fi
 fi
 
 AST_EXT_LIB_CHECK([CODEC2], [codec2], [codec2_create], [codec2/codec2.h])
