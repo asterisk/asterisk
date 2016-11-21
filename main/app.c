@@ -1073,6 +1073,7 @@ static int control_streamfile(struct ast_channel *chan,
 	int res;
 	long pause_restart_point = 0;
 	long offset = 0;
+	struct ast_silence_generator *silgen = NULL;
 
 	if (!file) {
 		return -1;
@@ -1161,6 +1162,10 @@ static int control_streamfile(struct ast_channel *chan,
 
 		if ((suspend && strchr(suspend, res)) || res == AST_CONTROL_STREAM_SUSPEND) {
 			pause_restart_point = ast_tellstream(ast_channel_stream(chan));
+
+			if (ast_opt_transmit_silence) {
+				silgen = ast_channel_start_silence_generator(chan);
+			}
 			ast_test_suite_event_notify("PLAYBACK","Channel: %s\r\n"
 				"Control: %s\r\n",
 				ast_channel_name(chan),
@@ -1174,6 +1179,11 @@ static int control_streamfile(struct ast_channel *chan,
 					break;
 				}
 			}
+			if (silgen) {
+				ast_channel_stop_silence_generator(chan, silgen);
+				silgen = NULL;
+			}
+
 			if ((suspend && (res == *suspend)) || res == AST_CONTROL_STREAM_SUSPEND) {
 				res = 0;
 				ast_test_suite_event_notify("PLAYBACK","Channel: %s\r\n"
