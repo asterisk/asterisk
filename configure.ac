@@ -264,6 +264,7 @@ AC_SUBST(GNU_LD)
 
 AC_PATH_PROG([BISON], [bison], :)
 AC_PATH_PROG([CMP], [cmp], :)
+AC_PATH_PROG([CAT], [cat], :)
 AC_PATH_PROG([FLEX], [flex], :)
 AC_PATH_PROG([GREP], [grep], :)
 AC_PATH_PROG([PYTHON], [python], :)
@@ -294,18 +295,23 @@ AC_PATH_PROG([NM], [nm], :)
 if test "${WGET}" != ":" ; then
   DOWNLOAD=${WGET}
   DOWNLOAD_TO_STDOUT="${WGET} -O-"
+  DOWNLOAD_TIMEOUT='--timeout=$1'
 else if test "${CURL}" != ":" ; then
   DOWNLOAD="${CURL} -O --progress-bar -w \"%{url_effective}\n\""
   DOWNLOAD_TO_STDOUT="${CURL} -L --progress-bar -w \"%{url_effective}\n\""
+  DOWNLOAD_TIMEOUT='--max-time $(or $2,$1)'
 else
   AC_PATH_PROG([FETCH], [fetch], [:])
   DOWNLOAD=${FETCH}
   DOWNLOAD_TO_STDOUT="${FETCH} -o-"
+  DOWNLOAD_TIMEOUT='--timeout=$(or $2,$1)'
 fi
 fi
 
 AC_SUBST(DOWNLOAD)
 AC_SUBST(DOWNLOAD_TO_STDOUT)
+AC_SUBST(DOWNLOAD_TIMEOUT)
+
 AC_PATH_PROG([LDCONFIG], [ldconfig], :)
 AC_PATH_PROG([SHA1SUM], [sha1sum], $ac_aux_dir/build_tools/sha1sum-sh)
 AC_PATH_PROG([OPENSSL], [openssl], :)
