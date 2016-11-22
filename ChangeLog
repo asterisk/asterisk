@@ -1,3 +1,17 @@
+2016-11-22 18:52 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 14.2.0-rc2 Released.
+
+2016-11-21 09:49 +0000 [fc5e21ec67]  gtjoseph <gjoseph@digium.com>
+
+	* pjproject_bundled:  Use $(LIB_RT) for link of libasteriskpj
+
+	  libasteriskpj was hard coded to use -lrt but librt is linux specific
+	  so we now use the LIB_RT variable which gets set by configure.
+
+	  Change-Id: I41148884517e3031f7675a413d524c86e8614694
+	  (cherry picked from commit 34a763415f77f4cb17edc728fb51347e979d2fb5)
+
 2016-11-18 19:05 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 14.2.0-rc1 Released.
