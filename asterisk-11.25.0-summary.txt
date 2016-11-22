@@ -13,9 +13,8 @@
     1. Summary
     2. Contributors
     3. Closed Issues
-    4. Open Issues
-    5. Other Changes
-    6. Diffstat
+    4. Other Changes
+    5. Diffstat
 
      ----------------------------------------------------------------------
 
@@ -51,11 +50,12 @@
    this release.
 
    Coders                   Testers                  Reporters                
-   2 Alexander Traud                                 2 Alexander Traud        
-   2 Joshua Colp                                     1 Tzafrir Cohen          
+   2 Joshua Colp                                     2 Alexander Traud        
+   2 Alexander Traud                                 1 Tzafrir Cohen          
    1 Leandro Dardini                                 1 Leandro Dardini        
-   1 Tzafrir Cohen                                   1 Doug Lytle             
-   1 Walter Doekes          
+   1 Walter Doekes                                   1 Doug Lytle             
+   1 Kevin Harwell          
+   1 Tzafrir Cohen          
 
      ----------------------------------------------------------------------
 
@@ -67,6 +67,14 @@
    changes that went into this release.
 
   Bug
+
+    Category: Applications/app_queue
+
+   ASTERISK-26462: [patch] app_queue: While using queues with realtime,
+   setting back to an empty context doesn't stop the exit key usage
+   Reported by: Leandro Dardini
+     * [32d63e016f] Leandro Dardini -- app_queue: Added initialization for
+       "context" parameter
 
     Category: Applications/app_voicemail
 
@@ -83,6 +91,12 @@
      * [68c8373a0e] Alexander Traud -- chan_sip: Support nat=auto_comedia or
        nat=force_rport,auto_comedia.
 
+    Category: Core/BuildSystem
+
+   ASTERISK-26356: menuselect: invalid test for GTK2
+   Reported by: Tzafrir Cohen
+     * [4e2c7776ee] Tzafrir Cohen -- menuselect: invalid test for GTK2
+
     Category: General
 
    ASTERISK-26480: [patch] CLI: core set debug: Auto-completes File not
@@ -90,31 +104,6 @@
    Reported by: Alexander Traud
      * [bce0fd4179] Alexander Traud -- cli: Auto-complete File not Module for
        core set debug.
-
-     ----------------------------------------------------------------------
-
-                                  Open Issues
-
-                                 [Back to Top]
-
-   This is a list of all open issues from the issue tracker that were
-   referenced by changes that went into this release.
-
-  Bug
-
-    Category: Applications/app_queue
-
-   ASTERISK-26462: [patch] app_queue: While using queues with realtime,
-   setting back to an empty context doesn't stop the exit key usage
-   Reported by: Leandro Dardini
-     * [32d63e016f] Leandro Dardini -- app_queue: Added initialization for
-       "context" parameter
-
-    Category: Core/BuildSystem
-
-   ASTERISK-26356: menuselect: invalid test for GTK2
-   Reported by: Tzafrir Cohen
-     * [4e2c7776ee] Tzafrir Cohen -- menuselect: invalid test for GTK2
 
      ----------------------------------------------------------------------
 
@@ -127,6 +116,8 @@
 
    +------------------------------------------------------------------------+
    | Revision   | Author        | Summary                                   |
+   |------------+---------------+-------------------------------------------|
+   | 5df2b89cb4 | Kevin Harwell | Update for 11.25.0                        |
    |------------+---------------+-------------------------------------------|
    | fb7114f7ec | Joshua Colp   | Update for 11.25.0-rc1                    |
    |------------+---------------+-------------------------------------------|
@@ -143,17 +134,17 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- asterisk-11.24.0-summary.html       |  204 ------------
- asterisk-11.24.0-summary.txt        |  599 ------------------------------------
- b/.version                          |    2
- b/ChangeLog                         |   82 ++++
- b/apps/app_queue.c                  |    3
- b/apps/app_voicemail.c              |    2
- b/asterisk-11.25.0-rc1-summary.html |   36 ++
- b/asterisk-11.25.0-rc1-summary.txt  |  156 +++++++++
- b/channels/chan_iax2.c              |   17 -
- b/channels/chan_sip.c               |    5
- b/main/cli.c                        |   14
- b/menuselect/aclocal.m4             |  281 ++++++++++++++++
- b/menuselect/configure              |   95 +++--
- 13 files changed, 628 insertions(+), 868 deletions(-)
+ asterisk-11.24.0-summary.html   |  204 -------------
+ asterisk-11.24.0-summary.txt    |  599 ----------------------------------------
+ b/.version                      |    2
+ b/ChangeLog                     |   86 +++++
+ b/apps/app_queue.c              |    3
+ b/apps/app_voicemail.c          |    2
+ b/asterisk-11.25.0-summary.html |   38 ++
+ b/asterisk-11.25.0-summary.txt  |  159 ++++++++++
+ b/channels/chan_iax2.c          |   17 -
+ b/channels/chan_sip.c           |    5
+ b/main/cli.c                    |   14
+ b/menuselect/aclocal.m4         |  281 ++++++++++++++++++
+ b/menuselect/configure          |  197 ++++++++++---
+ 13 files changed, 735 insertions(+), 872 deletions(-)
