@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-13.13.0-rc1
+                                asterisk-13.13.0
 
-                                Date: 2016-11-18
+                                Date: 2016-11-22
 
                            <asteriskteam@digium.com>
 
@@ -51,34 +51,38 @@
    this release.
 
    Coders                   Testers           Reporters                       
-   20 George Joseph         1 Dmitry Melekhov 7 Matt Jordan                   
-   10 Joshua Colp                             5 Alexander Traud               
+   20 gtjoseph              1 Dmitry Melekhov 7 Matt Jordan                   
+   11 Joshua Colp                             5 Alexander Traud               
    10 Matt Jordan                             4 Morten Tryfoss                
    10 Mark Michelson                          4 scgm11                        
    7 Richard Mudgett                          4 Joshua Colp                   
    3 Kevin Harwell                            3 George Joseph                 
-   3 Alexander Traud                          3 Richard Mudgett               
-   3 Corey Farrell                            2 Andrew Nagy                   
-   3 Tzafrir Cohen                            2 Gabriele Giacone              
-   3 Alexander Anikin                         <1o5g4r8o@gmail.com>            
+   3 Tzafrir Cohen                            3 Richard Mudgett               
+   3 Alexander Traud                          2 Gabriele Giacone              
+   3 Corey Farrell                            <1o5g4r8o@gmail.com>            
+   3 Alexander Anikin                         2 Andrew Nagy                   
    2 Sebastian Gutierrez                      1 Rusty Newton                  
-   1 Rusty Newton                             1 Andreas Wetzel                
-   1 Alexei Gradinari                         1 Alexei Gradinari              
-   1 Pascal Cadotte Michaud                   1 Bill Brigden                  
-   1 snuffy                                   1 Sergey Grachev                
-   1 Igor Goncharovsky                        1 snuffy                        
-   1 Leandro Dardini                          1 Daniele Pallastrelli          
-   1 Grachev Sergey                           1 Kevin Harwell                 
-   1 Moises Silva                             1 Kayode                        
-   1 Michael Kuron                            1 Michael Keuter                
    1 Michael Walton                           1 Dmitry Melekhov               
-   1 Maciej Szmigiero                         1 Harley Peters                 
-   1 Etienne Lessard                          1 Corey Farrell                 
+   1 Etienne Lessard                          1 Andreas Wetzel                
+   1 Leandro Dardini                          1 Ian Gilmour                   
+   1 snuffy                                   1 Alexei Gradinari              
+   1 Pascal Cadotte Michaud                   1 Bill Brigden                  
+   1 Maciej Szmigiero                         1 Andrew Nagy                   
+   1 Michael Kuron                            1 Sergey Grachev                
+   1 Rusty Newton                             1 snuffy                        
+   1 Grachev Sergey                           1 Daniele Pallastrelli          
+   1 Alexei Gradinari                         1 Kevin Harwell                 
+   1 Igor Goncharovskiy                       1 Kayode                        
+   1 Moises Silva                             1 Michael Keuter                
+                                              1 Dmitry Melekhov               
+                                              1 Harley Peters                 
+                                              1 Corey Farrell                 
                                               1 Leandro Dardini               
                                               1 Jonathan Harris               
                                               1 Badalian Vyacheslav           
                                               1 Doug Lytle                    
-                                              1 Michael Walton                
+                                              1 scgm11                        
+                                              1 Richard Mudgett               
                                               1 Maciej Szmigiero              
                                               1 Etienne Lessard               
                                               1 Tzafrir Cohen                 
@@ -86,6 +90,7 @@
                                               1 Jason                         
                                               1 Florian Loyau                 
                                               1 Ian Gilmour                   
+                                              1 Michael Walton                
                                               1 Morton Tryfoss                
 
      ----------------------------------------------------------------------
@@ -127,6 +132,14 @@
    Reported by: Joshua Colp
      * [d971647949] Joshua Colp -- app_dial: Fix incorrect device state when
        channel is picked up.
+
+    Category: Applications/app_queue
+
+   ASTERISK-26462: [patch] app_queue: While using queues with realtime,
+   setting back to an empty context doesn't stop the exit key usage
+   Reported by: Leandro Dardini
+     * [0306869399] Leandro Dardini -- app_queue: Added initialization for
+       "context" parameter
 
     Category: Applications/app_voicemail
 
@@ -242,6 +255,9 @@
    Reported by: Matt Jordan
      * [61a5c3460e] gtjoseph -- pjproject_bundled: Remove usage of tar's
        --strip-components option
+   ASTERISK-26356: menuselect: invalid test for GTK2
+   Reported by: Tzafrir Cohen
+     * [6f5880913f] Tzafrir Cohen -- menuselect: invalid test for GTK2
 
     Category: Core/CodecInterface
 
@@ -465,26 +481,12 @@
 
   Bug
 
-    Category: Applications/app_queue
-
-   ASTERISK-26462: [patch] app_queue: While using queues with realtime,
-   setting back to an empty context doesn't stop the exit key usage
-   Reported by: Leandro Dardini
-     * [0306869399] Leandro Dardini -- app_queue: Added initialization for
-       "context" parameter
-
     Category: Channels/chan_multicast_rtp
 
    ASTERISK-26439: chan_rtp: Crash when originating
    Reported by: Kayode
      * [644fad7477] Moises Silva -- chan_rtp: Set a sane default rtp engine
        for unicast.
-
-    Category: Core/BuildSystem
-
-   ASTERISK-26356: menuselect: invalid test for GTK2
-   Reported by: Tzafrir Cohen
-     * [6f5880913f] Tzafrir Cohen -- menuselect: invalid test for GTK2
 
     Category: Core/Jitterbuffer
 
@@ -520,6 +522,8 @@
 
    +------------------------------------------------------------------------+
    | Revision   | Author          | Summary                                 |
+   |------------+-----------------+-----------------------------------------|
+   | 751d43e8e4 | Joshua Colp     | Update for 13.13.0-rc1                  |
    |------------+-----------------+-----------------------------------------|
    | cb624b10ae | Mark Michelson  | Bump ARI version to 1.10.0              |
    |------------+-----------------+-----------------------------------------|
@@ -622,12 +626,11 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                                                                                  |    1
- .version                                                                                    |    1
- ChangeLog                                                                                   |44858 ----------
- asterisk-13.12.0-summary.html                                                               |  543
- asterisk-13.12.0-summary.txt                                                                | 1275
+ asterisk-13.12.0-summary.html                                                               |  543 ----
+ asterisk-13.12.0-summary.txt                                                                | 1275 ---------
+ b/.version                                                                                  |    2
  b/CHANGES                                                                                   |   95
+ b/ChangeLog                                                                                 | 1293 +++++++++-
  b/addons/ooh323c/src/ooCalls.c                                                              |    3
  b/addons/ooh323c/src/ooGkClient.c                                                           |    1
  b/addons/ooh323c/src/oochannels.c                                                           |   43
@@ -636,9 +639,11 @@
  b/apps/app_echo.c                                                                           |    3
  b/apps/app_queue.c                                                                          |   13
  b/apps/app_voicemail.c                                                                      |    2
+ b/asterisk-13.13.0-rc1-summary.html                                                         |  308 ++
+ b/asterisk-13.13.0-rc1-summary.txt                                                          |  764 +++++
  b/bridges/bridge_builtin_features.c                                                         |    2
  b/bridges/bridge_softmix.c                                                                  |   28
- b/channels/chan_pjsip.c                                                                     |  237
+ b/channels/chan_pjsip.c                                                                     |  237 +
  b/channels/chan_rtp.c                                                                       |    2
  b/channels/chan_sip.c                                                                       |   18
  b/channels/chan_unistim.c                                                                   |   11
@@ -647,9 +652,13 @@
  b/configs/samples/codecs.conf.sample                                                        |   54
  b/configs/samples/pjsip.conf.sample                                                         |   11
  b/configs/samples/rtp.conf.sample                                                           |   12
- b/configure                                                                                 |  220
+ b/configure                                                                                 |  220 +
  b/configure.ac                                                                              |   12
  b/contrib/ast-db-manage/config/versions/4468b4a91372_add_pjsip_asymmetric_rtp_codec.py      |   31
+ b/contrib/realtime/mssql/mssql_config.sql                                                   |   14
+ b/contrib/realtime/mysql/mysql_config.sql                                                   |    6
+ b/contrib/realtime/oracle/oracle_config.sql                                                 |   14
+ b/contrib/realtime/postgresql/postgresql_config.sql                                         |    6
  b/contrib/scripts/sip_to_pjsip/sip_to_pjsip.py                                              |    2
  b/doc/appdocsxml.xslt                                                                       |   20
  b/include/asterisk.h                                                                        |    9
@@ -675,12 +684,12 @@
  b/main/bridge.c                                                                             |   34
  b/main/bridge_channel.c                                                                     |    3
  b/main/cdr.c                                                                                |   19
- b/main/channel.c                                                                            |  160
+ b/main/channel.c                                                                            |  160 -
  b/main/channel_internal_api.c                                                               |   29
  b/main/cli.c                                                                                |   14
  b/main/codec_builtin.c                                                                      |   16
  b/main/features_config.c                                                                    |    2
- b/main/file.c                                                                               |  137
+ b/main/file.c                                                                               |  137 +
  b/main/format_cap.c                                                                         |    2
  b/main/loader.c                                                                             |    5
  b/main/manager_bridges.c                                                                    |   52
@@ -689,25 +698,25 @@
  b/main/rtp_engine.c                                                                         |   87
  b/main/stasis_bridges.c                                                                     |   29
  b/main/tcptls.c                                                                             |   67
- b/main/utils.c                                                                              |  244
- b/menuselect/aclocal.m4                                                                     |  281
- b/menuselect/configure                                                                      |  197
+ b/main/utils.c                                                                              |  244 +
+ b/menuselect/aclocal.m4                                                                     |  281 ++
+ b/menuselect/configure                                                                      |  197 +
  b/menuselect/configure.ac                                                                   |    9
- b/res/ari/ari_model_validators.c                                                            |  463
+ b/res/ari/ari_model_validators.c                                                            |  463 +++
  b/res/ari/ari_model_validators.h                                                            |   65
  b/res/ari/ari_websockets.c                                                                  |    2
  b/res/ari/resource_bridges.c                                                                |   66
  b/res/ari/resource_bridges.h                                                                |   28
  b/res/ari/resource_channels.c                                                               |    7
  b/res/res_agi.c                                                                             |   38
- b/res/res_ari_bridges.c                                                                     |  146
+ b/res/res_ari_bridges.c                                                                     |  146 +
  b/res/res_ari_channels.c                                                                    |    2
  b/res/res_format_attr_opus.c                                                                |   10
  b/res/res_http_websocket.c                                                                  |   19
- b/res/res_pjsip.c                                                                           |  137
+ b/res/res_pjsip.c                                                                           |  137 -
  b/res/res_pjsip/include/res_pjsip_private.h                                                 |   14
  b/res/res_pjsip/pjsip_configuration.c                                                       |    1
- b/res/res_pjsip/pjsip_message_ip_updater.c                                                  |  303
+ b/res/res_pjsip/pjsip_message_ip_updater.c                                                  |  303 ++
  b/res/res_pjsip_caller_id.c                                                                 |   14
  b/res/res_pjsip_outbound_authenticator_digest.c                                             |   13
  b/res/res_pjsip_outbound_registration.c                                                     |    2
@@ -720,9 +729,9 @@
  b/res/res_stasis.c                                                                          |   22
  b/res/stasis/app.c                                                                          |  105
  b/res/stasis/app.h                                                                          |   26
- b/res/stasis/cli.c                                                                          |  216
+ b/res/stasis/cli.c                                                                          |  216 +
  b/res/stasis/cli.h                                                                          |   43
- b/res/stasis_recording/stored.c                                                             |  217
+ b/res/stasis_recording/stored.c                                                             |  217 -
  b/rest-api/api-docs/applications.json                                                       |    2
  b/rest-api/api-docs/asterisk.json                                                           |    2
  b/rest-api/api-docs/bridges.json                                                            |   84
@@ -736,29 +745,16 @@
  b/rest-api/api-docs/sounds.json                                                             |    2
  b/rest-api/resources.json                                                                   |    2
  b/tests/test_astobj2_thrash.c                                                               |   11
- b/tests/test_file.c                                                                         |  197
+ b/tests/test_file.c                                                                         |  197 +
  b/tests/test_res_stasis.c                                                                   |    6
  b/third-party/pjproject/Makefile                                                            |   75
  b/third-party/pjproject/Makefile.rules                                                      |   10
  b/third-party/pjproject/apply_patches                                                       |    4
  b/third-party/pjproject/configure.m4                                                        |    5
- b/third-party/pjproject/patches/0000-remove-third-party.patch                               |  142
- b/third-party/pjproject/patches/0006-r5471-svn-backport-Various-fixes-for-DNS-IPv6.patch    |  134
+ b/third-party/pjproject/patches/0000-remove-third-party.patch                               |  142 +
+ b/third-party/pjproject/patches/0006-r5471-svn-backport-Various-fixes-for-DNS-IPv6.patch    |  134 +
  b/third-party/pjproject/patches/0006-r5473-svn-backport-Fix-pending-query.patch             |   28
  b/third-party/pjproject/patches/0006-r5475-svn-backport-Remove-DNS-cache-entry.patch        |   70
  b/third-party/pjproject/patches/0006-r5477-svn-backport-Fix-DNS-write-on-freed-memory.patch |   33
- b/third-party/pjproject/patches/config_site.h                                               |    1
- contrib/realtime/mssql/mssql_cdr.sql                                                        |   44
- contrib/realtime/mssql/mssql_config.sql                                                     | 1543
- contrib/realtime/mssql/mssql_voicemail.sql                                                  |   54
- contrib/realtime/mysql/mysql_cdr.sql                                                        |   32
- contrib/realtime/mysql/mysql_config.sql                                                     |  952
- contrib/realtime/mysql/mysql_voicemail.sql                                                  |   34
- contrib/realtime/oracle/oracle_cdr.sql                                                      |   38
- contrib/realtime/oracle/oracle_config.sql                                                   | 1537
- contrib/realtime/oracle/oracle_voicemail.sql                                                |   48
- contrib/realtime/postgresql/postgresql_cdr.sql                                              |   36
- contrib/realtime/postgresql/postgresql_config.sql                                           | 1030
- contrib/realtime/postgresql/postgresql_voicemail.sql                                        |   38
- res/res_pjsip_multihomed.c                                                                  |  225
- 139 files changed, 4786 insertions(+), 53045 deletions(-)
+ res/res_pjsip_multihomed.c                                                                  |  225 -
+ 131 files changed, 7190 insertions(+), 2801 deletions(-)
