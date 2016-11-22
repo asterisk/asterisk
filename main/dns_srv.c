@@ -183,7 +183,7 @@ const char *ast_dns_srv_get_host(const struct ast_dns_record *record)
 {
 	struct ast_dns_srv_record *srv = (struct ast_dns_srv_record *) record;
 
-	ast_assert(ast_dns_record_get_rr_type(record) == ns_t_srv);
+	ast_assert(ast_dns_record_get_rr_type(record) == T_SRV);
 	return srv->host;
 }
 
@@ -191,7 +191,7 @@ unsigned short ast_dns_srv_get_priority(const struct ast_dns_record *record)
 {
 	struct ast_dns_srv_record *srv = (struct ast_dns_srv_record *) record;
 
-	ast_assert(ast_dns_record_get_rr_type(record) == ns_t_srv);
+	ast_assert(ast_dns_record_get_rr_type(record) == T_SRV);
 	return srv->priority;
 }
 
@@ -199,7 +199,7 @@ unsigned short ast_dns_srv_get_weight(const struct ast_dns_record *record)
 {
 	struct ast_dns_srv_record *srv = (struct ast_dns_srv_record *) record;
 
-	ast_assert(ast_dns_record_get_rr_type(record) == ns_t_srv);
+	ast_assert(ast_dns_record_get_rr_type(record) == T_SRV);
 	return srv->weight;
 }
 
@@ -207,6 +207,6 @@ unsigned short ast_dns_srv_get_port(const struct ast_dns_record *record)
 {
 	struct ast_dns_srv_record *srv = (struct ast_dns_srv_record *) record;
 
-	ast_assert(ast_dns_record_get_rr_type(record) == ns_t_srv);
+	ast_assert(ast_dns_record_get_rr_type(record) == T_SRV);
 	return srv->port;
 }

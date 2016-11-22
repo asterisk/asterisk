@@ -30,6 +30,7 @@
 #include "asterisk.h"
 
 #include <arpa/nameser.h>
+#include <netinet/in.h>
 #include <resolv.h>
 #include <regex.h>
 
@@ -590,7 +591,7 @@ const char *ast_dns_naptr_get_flags(const struct ast_dns_record *record)
 {
 	struct ast_dns_naptr_record *naptr = (struct ast_dns_naptr_record *) record;
 
-	ast_assert(ast_dns_record_get_rr_type(record) == ns_t_naptr);
+	ast_assert(ast_dns_record_get_rr_type(record) == T_NAPTR);
 	return naptr->flags;
 }
 
@@ -598,7 +599,7 @@ const char *ast_dns_naptr_get_service(const struct ast_dns_record *record)
 {
 	struct ast_dns_naptr_record *naptr = (struct ast_dns_naptr_record *) record;
 
-	ast_assert(ast_dns_record_get_rr_type(record) == ns_t_naptr);
+	ast_assert(ast_dns_record_get_rr_type(record) == T_NAPTR);
 	return naptr->service;
 }
 
@@ -606,7 +607,7 @@ const char *ast_dns_naptr_get_regexp(const struct ast_dns_record *record)
 {
 	struct ast_dns_naptr_record *naptr = (struct ast_dns_naptr_record *) record;
 
-	ast_assert(ast_dns_record_get_rr_type(record) == ns_t_naptr);
+	ast_assert(ast_dns_record_get_rr_type(record) == T_NAPTR);
 	return naptr->regexp;
 }
 
@@ -614,7 +615,7 @@ const char *ast_dns_naptr_get_replacement(const struct ast_dns_record *record)
 {
 	struct ast_dns_naptr_record *naptr = (struct ast_dns_naptr_record *) record;
 
-	ast_assert(ast_dns_record_get_rr_type(record) == ns_t_naptr);
+	ast_assert(ast_dns_record_get_rr_type(record) == T_NAPTR);
 	return naptr->replacement;
 }
 
@@ -622,7 +623,7 @@ unsigned short ast_dns_naptr_get_order(const struct ast_dns_record *record)
 {
 	struct ast_dns_naptr_record *naptr = (struct ast_dns_naptr_record *) record;
 
-	ast_assert(ast_dns_record_get_rr_type(record) == ns_t_naptr);
+	ast_assert(ast_dns_record_get_rr_type(record) == T_NAPTR);
 	return naptr->order;
 }
 
@@ -630,6 +631,6 @@ unsigned short ast_dns_naptr_get_preference(const struct ast_dns_record *record)
 {
 	struct ast_dns_naptr_record *naptr = (struct ast_dns_naptr_record *) record;
 
-	ast_assert(ast_dns_record_get_rr_type(record) == ns_t_naptr);
+	ast_assert(ast_dns_record_get_rr_type(record) == T_NAPTR);
 	return naptr->preference;
 }
