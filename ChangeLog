@@ -1,6 +1,23 @@
-2016-11-22 17:20 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2016-11-22 18:02 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
-	* asterisk 13.13.0 Released.
+	* asterisk 13.13.0-rc2 Released.
+
+2016-11-21 09:40 +0000 [e246b36a3c]  gtjoseph <gjoseph@digium.com>
+
+	* build:  Backport addition of librt check to configure.ac
+
+	  A while back, a master-only change was made to check for librt which
+	  should probably have been cherry-picked to 13 at that time.  Sometime
+	  between then and now, part of that change did make it into 13 but it
+	  was incomplete and non-functional.  This patch backports the rest
+	  of the librt check and allows the link of libasteriskpj to use the
+	  results.
+
+	  Change-Id: I1424008fd8c90f389dda53162ec4a340b253a3c1
+
+2016-11-22 11:20 +0000 [855f05e525]  Kevin Harwell <kharwell@digium.com>
+
+	* Update for 13.13.0
 
 2016-11-18 18:59 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
