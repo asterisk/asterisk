@@ -38,6 +38,7 @@
 #include <pjmedia.h>
 #include <pjlib.h>
 
+#include "asterisk/utils.h"
 #include "asterisk/module.h"
 #include "asterisk/format.h"
 #include "asterisk/format_cap.h"
@@ -1514,7 +1515,11 @@ static int load_module(void)
 {
 	CHECK_PJSIP_SESSION_MODULE_LOADED();
 
-	ast_sockaddr_parse(&address_rtp, "::", 0);
+	if (ast_check_ipv6()) {
+		ast_sockaddr_parse(&address_rtp, "::", 0);
+	} else {
+		ast_sockaddr_parse(&address_rtp, "0.0.0.0", 0);
+	}
 
 	if (!(sched = ast_sched_context_create())) {
 		ast_log(LOG_ERROR, "Unable to create scheduler context.\n");
