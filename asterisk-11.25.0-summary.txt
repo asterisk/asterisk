@@ -1,8 +1,8 @@
                                 Release Summary
 
-                              asterisk-11.25.0-rc1
+                                asterisk-11.25.0
 
-                                Date: 2016-11-18
+                                Date: 2016-11-22
 
                            <asteriskteam@digium.com>
 
@@ -52,10 +52,10 @@
 
    Coders                   Testers                  Reporters                
    2 Alexander Traud                                 2 Alexander Traud        
-   1 Joshua Colp                                     1 Tzafrir Cohen          
-   1 Walter Doekes                                   1 Leandro Dardini        
-   1 Leandro Dardini                                 1 Doug Lytle             
-   1 Tzafrir Cohen          
+   2 Joshua Colp                                     1 Tzafrir Cohen          
+   1 Leandro Dardini                                 1 Leandro Dardini        
+   1 Tzafrir Cohen                                   1 Doug Lytle             
+   1 Walter Doekes          
 
      ----------------------------------------------------------------------
 
@@ -128,6 +128,8 @@
    +------------------------------------------------------------------------+
    | Revision   | Author        | Summary                                   |
    |------------+---------------+-------------------------------------------|
+   | fb7114f7ec | Joshua Colp   | Update for 11.25.0-rc1                    |
+   |------------+---------------+-------------------------------------------|
    | 304f3278b5 | Walter Doekes | chan_iax2: Fix use of uninited memory in  |
    |            |               | try_transfer.                             |
    +------------------------------------------------------------------------+
@@ -141,16 +143,17 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- .lastclean                    |    1
- .version                      |    1
- ChangeLog                     |39007 ------------------------------------------
- asterisk-11.24.0-summary.html |  204
- asterisk-11.24.0-summary.txt  |  599
- b/apps/app_queue.c            |    3
- b/apps/app_voicemail.c        |    2
- b/channels/chan_iax2.c        |   17
- b/channels/chan_sip.c         |    5
- b/main/cli.c                  |   14
- b/menuselect/aclocal.m4       |  281
- b/menuselect/configure        |  196
- 12 files changed, 452 insertions(+), 39878 deletions(-)
+ asterisk-11.24.0-summary.html       |  204 ------------
+ asterisk-11.24.0-summary.txt        |  599 ------------------------------------
+ b/.version                          |    2
+ b/ChangeLog                         |   82 ++++
+ b/apps/app_queue.c                  |    3
+ b/apps/app_voicemail.c              |    2
+ b/asterisk-11.25.0-rc1-summary.html |   36 ++
+ b/asterisk-11.25.0-rc1-summary.txt  |  156 +++++++++
+ b/channels/chan_iax2.c              |   17 -
+ b/channels/chan_sip.c               |    5
+ b/main/cli.c                        |   14
+ b/menuselect/aclocal.m4             |  281 ++++++++++++++++
+ b/menuselect/configure              |   95 +++--
+ 13 files changed, 628 insertions(+), 868 deletions(-)
