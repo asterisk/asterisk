@@ -1037,8 +1037,17 @@ struct ast_udptl *ast_udptl_new_with_bindaddr(struct ast_sched_context *sched, s
 		udptl->tx[i].buf_len = -1;
 	}
 
-	if ((udptl->fd = socket(ast_sockaddr_is_ipv6(addr) ?
-					AF_INET6 : AF_INET, SOCK_DGRAM, 0)) < 0) {
+#if defined(__FreeBSD__)
+	udptl->fd = socket(AF_INET6, SOCK_DGRAM, 0);
+	if (udptl->fd < 0) {
+		ast_sockaddr_parse(addr, "0.0.0.0", 0);
+		udptl->fd = socket(AF_INET, SOCK_DGRAM, 0);
+	}
+#else
+	udptl->fd = socket(ast_sockaddr_is_ipv6(addr) ?
+			AF_INET6 : AF_INET, SOCK_DGRAM, 0)) < 0) {
+#endif
+	if (udptl->fd < 0) {
 		ast_free(udptl);
 		ast_log(LOG_WARNING, "Unable to allocate socket: %s\n", strerror(errno));
 		return NULL;
