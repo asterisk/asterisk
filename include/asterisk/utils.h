@@ -842,6 +842,13 @@ struct ast_http_digest {
  */
 int ast_parse_digest(const char *digest, struct ast_http_digest *d, int request, int pedantic);
 
+/*!
+ * \brief Check if IPv6 transport is available.
+ *
+ * \return 0 if IPv6 is no available, otherwise true (non-zero)
+ */
+int ast_check_ipv6(void);
+
 #ifdef DO_CRASH
 #define DO_CRASH_NORETURN attribute_noreturn
 #else
