@@ -914,9 +914,27 @@ static int unload_module(void)
  */
 static int load_module(void)
 {
+	pj_pool_t *pool;
+	pjsip_tpmgr_fla2_param prm;
+
 	CHECK_PJSIP_SESSION_MODULE_LOADED();
 
-	ast_sockaddr_parse(&address, "::", 0);
+	pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "Transport Availability", 256, 256);
+	if (!pool) {
+		ast_log(LOG_ERROR, "Unable to create poll.\n");
+		goto end;
+	}
+
+	pjsip_tpmgr_fla2_param_default(&prm);
+	prm.tp_type = PJSIP_TRANSPORT_UDP6;
+	if (pjsip_tpmgr_find_local_addr2(pjsip_endpt_get_tpmgr(ast_sip_get_pjsip_endpoint()),
+		pool, &prm) == PJ_SUCCESS) {
+		ast_sockaddr_parse(&address, "::", 0);
+	} else {
+		ast_sockaddr_parse(&address, "0.0.0.0", 0);
+	}
+
+	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
 
 	if (ast_sip_session_register_supplement(&t38_supplement)) {
 		ast_log(LOG_ERROR, "Unable to register T.38 session supplement\n");
