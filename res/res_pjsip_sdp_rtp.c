@@ -1500,6 +1500,45 @@ static int unload_module(void)
 	return 0;
 }
 
+/*! \brief Used below to find out which transports are available */
+static int check_transport(pjsip_transport_type_e transport)
+{
+	pj_pool_t *pool;
+	pjsip_tpmgr_fla2_param prm;
+	int res = -1;
+
+	pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "Transport Availability", 256, 256);
+	if (!pool) {
+		return -1;
+	}
+
+	pjsip_tpmgr_fla2_param_default(&prm);
+	prm.tp_type = transport;
+
+	if (pjsip_tpmgr_find_local_addr2(pjsip_endpt_get_tpmgr(ast_sip_get_pjsip_endpoint()),
+		pool, &prm) == PJ_SUCCESS) {
+			res = 0;
+	}
+
+	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+
+	return res;
+}
+
+/*! \brief Defines sockaddr structure for the transport in use */
+static int determine_bind_address(void *ignore)
+{
+	if (check_transport(PJSIP_TRANSPORT_UDP6) == 0 ||
+	    check_transport(PJSIP_TRANSPORT_TCP6) == 0 ||
+	    check_transport(PJSIP_TRANSPORT_TLS6) == 0) {
+		ast_sockaddr_parse(&address_rtp, "::", 0);
+	} else {
+		ast_sockaddr_parse(&address_rtp, "0.0.0.0", 0);
+	}
+
+	return 0;
+}
+
 /*!
  * \brief Load the module
  *
@@ -1514,7 +1553,7 @@ static int load_module(void)
 {
 	CHECK_PJSIP_SESSION_MODULE_LOADED();
 
-	ast_sockaddr_parse(&address_rtp, "::", 0);
+	ast_sip_push_task_synchronous(NULL, determine_bind_address, NULL);
 
 	if (!(sched = ast_sched_context_create())) {
 		ast_log(LOG_ERROR, "Unable to create scheduler context.\n");
