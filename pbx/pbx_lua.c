@@ -1625,13 +1625,13 @@ static int load_or_reload_lua_stuff(void)
 	lua_State *L = luaL_newstate();
 	if (!L) {
 		ast_log(LOG_ERROR, "Error allocating lua_State, no memory\n");
-		return AST_MODULE_LOAD_DECLINE;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (lua_reload_extensions(L)) {
 		const char *error = lua_tostring(L, -1);
 		ast_log(LOG_ERROR, "Error loading extensions.lua: %s\n", error);
-		res = AST_MODULE_LOAD_DECLINE;
+		res = AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (!res) {
@@ -1664,7 +1664,7 @@ static int load_module(void)
 
 	if (ast_register_switch(&lua_switch)) {
 		ast_log(LOG_ERROR, "Unable to register LUA PBX switch\n");
-		return AST_MODULE_LOAD_DECLINE;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
