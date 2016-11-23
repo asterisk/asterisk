@@ -176,6 +176,7 @@
 /*** MODULEINFO
 	<use type="module">res_crypto</use>
 	<use type="module">res_http_websocket</use>
+	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
  ***/
 
