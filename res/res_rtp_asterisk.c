@@ -54,6 +54,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <ifaddrs.h>
 #endif
 
+#include "asterisk/options.h"
 #include "asterisk/stun.h"
 #include "asterisk/pbx.h"
 #include "asterisk/frame.h"
@@ -5635,6 +5636,7 @@ static int load_module(void)
 #ifdef HAVE_PJPROJECT
 	pj_lock_t *lock;
 
+	pj_log_set_level(ast_option_pjproject_log_level);
 	if (pj_init() != PJ_SUCCESS) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
