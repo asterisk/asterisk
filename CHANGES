@@ -43,6 +43,13 @@ ARI
    Applications subscribed to a bridge will receive this event when the source
    of video changes in a mixing bridge.
 
+res_pjproject
+------------------
+ * Add new CLI command "pjproject set log level".  The new command allows the
+   generated PJPROJECT logging levels to be adjusted dynamically and independently
+   from the set debug logging level like many other similar module debug logging
+   commands.
+
 res_pjsip
 ------------------
  * Automatic dual stack support is now implemented. Depending on DNS resolution
@@ -90,6 +97,11 @@ Core
  * The TLS core in Asterisk now supports X.509 certificate subject alternative
    names. This way one X.509 certificate can be used for hosts that can be
    reached under multiple DNS names or for multiple hosts.
+
+ * Added new asterisk.conf pjproject_log_level option to set the initial
+   PJPROJECT logging level when Asterisk starts.  The CLI "core show settings"
+   command output now lists the current value of pjproject_log_level set from
+   the initial startup or the last CLI "pjproject set log level" change.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.11.0 to Asterisk 13.12.0 ----------
