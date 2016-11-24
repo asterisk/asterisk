@@ -9,7 +9,23 @@
 ==============================================================================
 
 ------------------------------------------------------------------------------
---- Functionality changes from Asterisk 14.1.0 to Asterisk 14.2.0 ----------
+--- Functionality changes from Asterisk 14.2.0 to Asterisk 14.3.0 ------------
+------------------------------------------------------------------------------
+
+res_pjproject
+------------------
+ * Add new CLI command "pjproject set log level".  The new command allows the
+   generated PJPROJECT logging levels to be adjusted dynamically and independently
+   from the set debug logging level like many other similar module debug logging
+   commands.
+
+ * Added new pjproject.conf boot section "log_level' option to set the initial
+   PJPROJECT logging level when Asterisk starts.  The CLI "core show settings"
+   command output now lists the current value of log_level set from the initial
+   startup or the last CLI "pjproject set log level" change.
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 14.1.0 to Asterisk 14.2.0 ------------
 ------------------------------------------------------------------------------
 
 AMI
@@ -98,7 +114,7 @@ res_ari
    ARI event.
 
 ------------------------------------------------------------------------------
---- Functionality changes from Asterisk 14.0.0 to Asterisk 14.1.0 ----------
+--- Functionality changes from Asterisk 14.0.0 to Asterisk 14.1.0 ------------
 ------------------------------------------------------------------------------
 
 Build System
