@@ -14,6 +14,10 @@ astsbindir => /usr/sbin
 [options]
 ;verbose = 3
 ;debug = 3
+;pjproject_log_level=default	; Initial pjproject logging level
+				; Valid values are: 0-6, and default
+				; See pjproject.conf.sample for additional information
+				; about the various levels pjproject uses.
 ;alwaysfork = yes		; Same as -F at startup.
 ;nofork = yes			; Same as -f at startup.
 ;quiet = yes			; Same as -q at startup.

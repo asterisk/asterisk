@@ -325,6 +325,7 @@ int ast_verb_sys_level;
 
 int option_verbose;				/*!< Verbosity level */
 int option_debug;				/*!< Debug level */
+int ast_option_pjproject_log_level = DEFAULT_PJ_LOG_MAX_LEVEL;
 double ast_option_maxload;			/*!< Max load avg on system */
 int ast_option_maxcalls;			/*!< Max number of active calls */
 int ast_option_maxfiles;			/*!< Max number of open file handles (files, sockets) */
@@ -647,6 +648,7 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "  Root console verbosity:      %d\n", option_verbose);
 	ast_cli(a->fd, "  Current console verbosity:   %d\n", ast_verb_console_get());
 	ast_cli(a->fd, "  Debug level:                 %d\n", option_debug);
+	ast_cli(a->fd, "  Pjproject log level:         %d\n", ast_option_pjproject_log_level);
 	ast_cli(a->fd, "  Maximum load average:        %lf\n", ast_option_maxload);
 #if defined(HAVE_SYSINFO)
 	ast_cli(a->fd, "  Minimum free memory:         %ld MB\n", option_minmemfree);
@@ -3737,6 +3739,14 @@ static void ast_readconfig(void)
 			option_debug = 0;
 			if (sscanf(v->value, "%30d", &option_debug) != 1) {
 				option_debug = ast_true(v->value) ? 1 : 0;
+			}
+		} else if (!strcasecmp(v->name, "pjproject_log_level")) {
+			if (sscanf(v->value, "%30d", &ast_option_pjproject_log_level) != 1) {
+				ast_option_pjproject_log_level = DEFAULT_PJ_LOG_MAX_LEVEL;
+			} else if (ast_option_pjproject_log_level < 0) {
+				ast_option_pjproject_log_level = 0;
+			} else if (MAX_PJ_LOG_MAX_LEVEL < ast_option_pjproject_log_level) {
+				ast_option_pjproject_log_level = MAX_PJ_LOG_MAX_LEVEL;
 			}
 #if HAVE_WORKING_FORK
 		/* Disable forking (-f at startup) */
