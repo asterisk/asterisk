@@ -63,6 +63,24 @@ RTP
    implementation, please report this and go back to rtp_pt_dynamic = 96.
 
 ------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 14.2.0 to Asterisk 14.3.0 ----------
+------------------------------------------------------------------------------
+
+Core
+------------------
+ * Added new asterisk.conf pjproject_log_level option to set the initial
+   PJPROJECT logging level when Asterisk starts.  The CLI "core show settings"
+   command output now lists the current value of pjproject_log_level set from
+   the initial startup or the last CLI "pjproject set log level" change.
+
+res_pjproject
+------------------
+ * Add new CLI command "pjproject set log level".  The new command allows the
+   generated PJPROJECT logging levels to be adjusted dynamically and independently
+   from the set debug logging level like many other similar module debug logging
+   commands.
+
+------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 14.1.0 to Asterisk 14.2.0 ----------
 ------------------------------------------------------------------------------
 
