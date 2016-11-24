@@ -325,6 +325,7 @@ int ast_verb_sys_level;
 
 int option_verbose;				/*!< Verbosity level */
 int option_debug;				/*!< Debug level */
+int ast_option_pjproject_log_level;
 double ast_option_maxload;			/*!< Max load avg on system */
 int ast_option_maxcalls;			/*!< Max number of active calls */
 int ast_option_maxfiles;			/*!< Max number of open file handles (files, sockets) */
@@ -647,6 +648,7 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "  Root console verbosity:      %d\n", option_verbose);
 	ast_cli(a->fd, "  Current console verbosity:   %d\n", ast_verb_console_get());
 	ast_cli(a->fd, "  Debug level:                 %d\n", option_debug);
+	ast_cli(a->fd, "  Pjproject log level:         %d\n", ast_option_pjproject_log_level);
 	ast_cli(a->fd, "  Maximum load average:        %lf\n", ast_option_maxload);
 #if defined(HAVE_SYSINFO)
 	ast_cli(a->fd, "  Minimum free memory:         %ld MB\n", option_minmemfree);
@@ -3892,6 +3894,37 @@ static void ast_readconfig(void)
 	ast_config_destroy(cfg);
 }
 
+static void read_pjproject_boot_options(void)
+{
+	struct ast_config *cfg;
+	struct ast_variable *v;
+	struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE | CONFIG_FLAG_NOREALTIME };
+
+	ast_option_pjproject_log_level = DEFAULT_PJ_LOG_MAX_LEVEL;
+
+	cfg = ast_config_load2("pjproject.conf", "" /* core, can't reload */, config_flags);
+	if (!cfg
+		|| cfg == CONFIG_STATUS_FILEUNCHANGED
+		|| cfg == CONFIG_STATUS_FILEINVALID) {
+		/* We'll have to use defaults */
+		return;
+	}
+
+	for (v = ast_variable_browse(cfg, "boot"); v; v = v->next) {
+		if (!strcasecmp(v->name, "log_level")) {
+			if (sscanf(v->value, "%30d", &ast_option_pjproject_log_level) != 1) {
+				ast_option_pjproject_log_level = DEFAULT_PJ_LOG_MAX_LEVEL;
+			} else if (ast_option_pjproject_log_level < 0) {
+				ast_option_pjproject_log_level = 0;
+			} else if (MAX_PJ_LOG_MAX_LEVEL < ast_option_pjproject_log_level) {
+				ast_option_pjproject_log_level = MAX_PJ_LOG_MAX_LEVEL;
+			}
+		}
+	}
+
+	ast_config_destroy(cfg);
+}
+
 static void *monitor_sig_flags(void *unused)
 {
 	for (;;) {
@@ -4613,6 +4646,7 @@ static void asterisk_daemon(int isroot, const char *runuser, const char *rungrou
 
 	check_init(ast_timing_init(), "Timing");
 	check_init(ast_ssl_init(), "SSL");
+	read_pjproject_boot_options();
 	check_init(ast_pj_init(), "Embedded PJProject");
 	check_init(app_init(), "App Core");
 	check_init(devstate_init(), "Device State Core");
