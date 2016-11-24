@@ -1,14 +1,35 @@
 ; Common pjproject options
 ;
 
+;[startup]
+;  NOTES: The name of this section in the pjproject.conf configuration file must
+;         remain startup or the configuration will not be applied.
+;
+;log_level=default   ; Initial maximum pjproject logging level to log
+                     ; Valid values are: 0-6, and default
+                     ;
+                     ; Note: This option is needed very early in the startup
+                     ; process so it can only be read from config files because
+                     ; the modules for other methods have not been loaded yet.
+;type=               ; Must be of type startup (default: "")
+
 ;========================LOG_MAPPINGS SECTION OPTIONS===============================
 ;[log_mappings]
 ;  SYNOPSIS: Provides pjproject to Asterisk log level mappings.
 ;  NOTES: The name of this section in the pjproject.conf configuration file must
 ;         remain log_mappings or the configuration will not be applied.
 ;         The defaults mentioned below only apply if this file or the 'log_mappings'
-;         object can'tbe found.  If the object is found, there are no defaults. If
+;         object can't be found.  If the object is found, there are no defaults. If
 ;         you don't specify an entry, nothing will be logged for that level.
+;
+; These logging level meanings are typically used by pjproject:
+;  - 0: fatal error
+;  - 1: error
+;  - 2: warning
+;  - 3: info
+;  - 4: debug
+;  - 5: trace
+;  - 6: more detailed trace
 ;
 ;asterisk_error =    ; A comma separated list of pjproject log levels to map to
                      ; Asterisk errors.
@@ -24,5 +45,5 @@
                      ; (default: "")
 ;asterisk_debug =    ; A comma separated list of pjproject log levels to map to
                      ; Asterisk debug
-                     ; (default: "3,4,5")
+                     ; (default: "3,4,5,6")
 ;type=               ; Must be of type log_mappings (default: "")

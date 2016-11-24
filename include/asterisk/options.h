@@ -132,6 +132,20 @@ enum ast_option_flags {
 #define ast_opt_generic_plc         ast_test_flag(&ast_options, AST_OPT_FLAG_GENERIC_PLC)
 #define ast_opt_ref_debug           ast_test_flag(&ast_options, AST_OPT_FLAG_REF_DEBUG)
 
+/*! Maximum log level defined by PJPROJECT. */
+#define MAX_PJ_LOG_MAX_LEVEL		6
+/*!
+ * Normal PJPROJECT active log level used by Asterisk.
+ *
+ * These levels are usually mapped to Error and
+ * Warning Asterisk log levels which shouldn't
+ * normally be suppressed.
+ */
+#define DEFAULT_PJ_LOG_MAX_LEVEL	2
+
+/*! Current pjproject logging level */
+extern int ast_option_pjproject_log_level;
+
 extern struct ast_flags ast_options;
 
 extern int option_verbose;

@@ -41,6 +41,27 @@
 	<configInfo name="res_pjproject" language="en_US">
 		<synopsis>pjproject common configuration</synopsis>
 		<configFile name="pjproject.conf">
+			<configObject name="startup">
+				<synopsis>Asterisk startup time options for PJPROJECT</synopsis>
+				<description>
+					<note><para>The id of this object, as well as its type, must be
+					'startup' or it won't be found.</para></note>
+				</description>
+				<configOption name="type">
+					<synopsis>Must be of type 'startup'.</synopsis>
+				</configOption>
+				<configOption name="log_level" default="2">
+					<synopsis>Initial maximum pjproject logging level to log.</synopsis>
+					<description>
+						<para>Valid values are: 0-6, and default</para>
+					<note><para>
+						This option is needed very early in the startup process
+						so it can only be read from config files because the
+						modules for other methods have not been loaded yet.
+					</para></note>
+					</description>
+				</configOption>
+			</configObject>
 			<configObject name="log_mappings">
 				<synopsis>PJPROJECT to Asterisk Log Level Mapping</synopsis>
 				<description><para>Warnings and errors in the pjproject libraries are generally handled
@@ -64,7 +85,7 @@
 				<configOption name="asterisk_notice" default="">
 					<synopsis>A comma separated list of pjproject log levels to map to Asterisk LOG_NOTICE.</synopsis>
 				</configOption>
-				<configOption name="asterisk_debug" default="3,4,5">
+				<configOption name="asterisk_debug" default="3,4,5,6">
 					<synopsis>A comma separated list of pjproject log levels to map to Asterisk LOG_DEBUG.</synopsis>
 				</configOption>
 				<configOption name="asterisk_verbose" default="">
@@ -82,6 +103,7 @@
 #include <pjsip.h>
 #include <pj/log.h>
 
+#include "asterisk/options.h"
 #include "asterisk/logger.h"
 #include "asterisk/module.h"
 #include "asterisk/cli.h"
@@ -144,9 +166,11 @@ static struct log_mappings *get_log_mappings(void)
 
 static int get_log_level(int pj_level)
 {
-	RAII_VAR(struct log_mappings *, mappings, get_log_mappings(), ao2_cleanup);
+	int mapped_level;
 	unsigned char l;
+	struct log_mappings *mappings;
 
+	mappings = get_log_mappings();
 	if (!mappings) {
 		return __LOG_ERROR;
 	}
@@ -154,18 +178,21 @@ static int get_log_level(int pj_level)
 	l = '0' + fmin(pj_level, 9);
 
 	if (strchr(mappings->asterisk_error, l)) {
-		return __LOG_ERROR;
+		mapped_level = __LOG_ERROR;
 	} else if (strchr(mappings->asterisk_warning, l)) {
-		return __LOG_WARNING;
+		mapped_level = __LOG_WARNING;
 	} else if (strchr(mappings->asterisk_notice, l)) {
-		return __LOG_NOTICE;
+		mapped_level = __LOG_NOTICE;
 	} else if (strchr(mappings->asterisk_verbose, l)) {
-		return __LOG_VERBOSE;
+		mapped_level = __LOG_VERBOSE;
 	} else if (strchr(mappings->asterisk_debug, l)) {
-		return __LOG_DEBUG;
+		mapped_level = __LOG_DEBUG;
+	} else {
+		mapped_level = __LOG_SUPPRESS;
 	}
 
-	return __LOG_SUPPRESS;
+	ao2_ref(mappings, -1);
+	return mapped_level;
 }
 
 static void log_forwarder(int level, const char *data, int len)
@@ -190,13 +217,6 @@ static void log_forwarder(int level, const char *data, int len)
 
 	if (ast_level == __LOG_SUPPRESS) {
 		return;
-	}
-
-	if (ast_level == __LOG_DEBUG) {
-		/* Obey the debug level for res_pjproject */
-		if (!DEBUG_ATLEAST(level)) {
-			return;
-		}
 	}
 
 	/* PJPROJECT uses indention to indicate function call depth. We'll prepend
@@ -349,9 +369,95 @@ static char *handle_pjproject_show_log_mappings(struct ast_cli_entry *e, int cmd
 	return CLI_SUCCESS;
 }
 
+struct max_pjproject_log_level_check {
+	/*!
+	 * Compile time sanity check to determine if
+	 * MAX_PJ_LOG_MAX_LEVEL matches CLI syntax.
+	 */
+	char check[1 / (6 == MAX_PJ_LOG_MAX_LEVEL)];
+};
+
+static char *handle_pjproject_set_log_level(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int level_new;
+	int level_old;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "pjproject set log level {default|0|1|2|3|4|5|6}";
+		e->usage =
+			"Usage: pjproject set log level {default|<level>}\n"
+			"\n"
+			"       Set the maximum active pjproject logging level.\n"
+			"       See pjproject.conf.sample for additional information\n"
+			"       about the various levels pjproject uses.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 5) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (!strcasecmp(a->argv[4], "default")) {
+		level_new = DEFAULT_PJ_LOG_MAX_LEVEL;
+	} else {
+		if (sscanf(a->argv[4], "%30d", &level_new) != 1
+			|| level_new < 0 || MAX_PJ_LOG_MAX_LEVEL < level_new) {
+			return CLI_SHOWUSAGE;
+		}
+	}
+
+	/* Update pjproject logging level */
+	level_old = ast_option_pjproject_log_level;
+	if (level_old == level_new) {
+		ast_cli(a->fd, "pjproject log level is still %d.\n", level_old);
+	} else {
+		ast_cli(a->fd, "pjproject log level was %d and is now %d.\n",
+			level_old, level_new);
+		pj_log_set_level(level_new);
+	}
+	ast_option_pjproject_log_level = pj_log_get_level();
+	if (ast_option_pjproject_log_level != level_new) {
+		ast_log(LOG_WARNING, "Asterisk built with pjproject PJ_LOG_MAX_LEVEL set too low.\n");
+	}
+
+	return CLI_SUCCESS;
+}
+
+static char *handle_pjproject_show_log_level(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "pjproject show log level";
+		e->usage =
+			"Usage: pjproject show log level\n"
+			"\n"
+			"       Show the current maximum active pjproject logging level.\n"
+			"       See pjproject.conf.sample for additional information\n"
+			"       about the various levels pjproject uses.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	ast_cli(a->fd, "pjproject log level is %d.%s\n",
+		ast_option_pjproject_log_level,
+		ast_option_pjproject_log_level == DEFAULT_PJ_LOG_MAX_LEVEL ? " (default)" : "");
+
+	return CLI_SUCCESS;
+}
+
 static struct ast_cli_entry pjproject_cli[] = {
+	AST_CLI_DEFINE(handle_pjproject_set_log_level, "Set the maximum active pjproject logging level"),
 	AST_CLI_DEFINE(handle_pjproject_show_buildopts, "Show the compiled config of the pjproject in use"),
 	AST_CLI_DEFINE(handle_pjproject_show_log_mappings, "Show pjproject to Asterisk log mappings"),
+	AST_CLI_DEFINE(handle_pjproject_show_log_level, "Show the maximum active pjproject logging level"),
 };
 
 static int load_module(void)
@@ -385,10 +491,11 @@ static int load_module(void)
 	}
 	ast_string_field_set(default_log_mappings, asterisk_error, "0,1");
 	ast_string_field_set(default_log_mappings, asterisk_warning, "2");
-	ast_string_field_set(default_log_mappings, asterisk_debug, "3,4,5");
+	ast_string_field_set(default_log_mappings, asterisk_debug, "3,4,5,6");
 
 	ast_sorcery_load(pjproject_sorcery);
 
+	pj_log_set_level(ast_option_pjproject_log_level);
 	pj_init();
 
 	decor_orig = pj_log_get_decor();
@@ -403,9 +510,15 @@ static int load_module(void)
 	 */
 	pj_log_set_log_func(capture_buildopts_cb);
 	pj_log_set_decor(0);
+	pj_log_set_level(MAX_PJ_LOG_MAX_LEVEL);/* Set level to guarantee the dump output. */
 	pj_dump_config();
+	pj_log_set_level(ast_option_pjproject_log_level);
 	pj_log_set_decor(PJ_LOG_HAS_SENDER | PJ_LOG_HAS_INDENT);
 	pj_log_set_log_func(log_forwarder);
+	if (!AST_VECTOR_SIZE(&buildopts)
+		|| ast_option_pjproject_log_level != pj_log_get_level()) {
+		ast_log(LOG_WARNING, "Asterisk built or linked with pjproject PJ_LOG_MAX_LEVEL set too low.\n");
+	}
 
 	ast_cli_register_multiple(pjproject_cli, ARRAY_LEN(pjproject_cli));
 
