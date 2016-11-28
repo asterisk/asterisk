@@ -919,14 +919,14 @@
 						On outbound requests, force the user portion of the Contact header to this value.
 					</para></description>
 				</configOption>
-                                <configOption name="asymmetric_rtp_codec" default="no">
-                                        <synopsis>Allow the sending and receiving RTP codec to differ</synopsis>
-                                        <description><para>
-                                                When set to "yes" the codec in use for sending will be allowed to differ from
-                                                that of the received one. PJSIP will not automatically switch the sending one
-                                                to the receiving one.
-                                        </para></description>
-                                </configOption>
+				<configOption name="asymmetric_rtp_codec" default="no">
+					<synopsis>Allow the sending and receiving RTP codec to differ</synopsis>
+					<description><para>
+						When set to "yes" the codec in use for sending will be allowed to differ from
+						that of the received one. PJSIP will not automatically switch the sending one
+						to the receiving one.
+					</para></description>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<synopsis>Authentication type</synopsis>
