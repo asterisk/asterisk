@@ -45,11 +45,11 @@ if [[ -z ${cache_dir} ]] ; then
 fi
 
 version=$(${ASTTOPDIR}/build_tools/make_version ${ASTTOPDIR})
-if [[ ! ${version} =~ ^(GIT-)?([^.-]+)[.-].* ]] ; then
+if [[ ! ${version} =~ ^(GIT-)?(certified/)?([^.-]+)[.-].* ]] ; then
 	echo "${module_name}: Couldn't parse version ${version}"
 	exit 1
 fi
-major_version=${BASH_REMATCH[2]}
+major_version=${BASH_REMATCH[3]}
 
 if [[ "${major_version}" == "master" ]] ; then
 	echo "${module_name}: External module downloading is not available in the 'master' git branch.  Please disable in menuselect and download manually."
