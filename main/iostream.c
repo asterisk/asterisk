@@ -16,10 +16,11 @@
  * at the top of the source tree.
  */
 
+#include "asterisk.h"
+
 #include <fcntl.h>
 #include <stdarg.h>
 
-#include "asterisk.h"
 #include "asterisk/utils.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/iostream.h"
