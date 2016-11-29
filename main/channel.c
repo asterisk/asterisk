@@ -1531,6 +1531,7 @@ int ast_is_deferrable_frame(const struct ast_frame *frame)
 	case AST_FRAME_IAX:
 	case AST_FRAME_CNG:
 	case AST_FRAME_MODEM:
+	case AST_FRAME_RTCP:
 		return 0;
 	}
 	return 0;
@@ -2866,6 +2867,7 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay)
 				case AST_FRAME_IMAGE:
 				case AST_FRAME_HTML:
 				case AST_FRAME_MODEM:
+				case AST_FRAME_RTCP:
 					done = 1;
 					break;
 				case AST_FRAME_CONTROL:
@@ -4348,6 +4350,14 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			 */
 			ast_read_generator_actions(chan, f);
 			break;
+		case AST_FRAME_RTCP:
+			/* Incoming RTCP feedback needs to get to the translator for
+			 * outgoing media, which means we treat it as an ast_write */
+			if (ast_channel_writetrans(chan)) {
+				ast_translate(ast_channel_writetrans(chan), f, 0);
+			}
+			ast_frfree(f);
+			f = &ast_null_frame;
 		default:
 			/* Just pass it on! */
 			break;
