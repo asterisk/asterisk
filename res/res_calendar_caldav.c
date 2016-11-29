@@ -480,7 +480,7 @@ static void handle_start_element(void *data, const xmlChar *fullname, const xmlC
 {
 	struct xmlstate *state = data;
 
-	if (!xmlStrcasecmp(fullname, BAD_CAST "C:calendar-data")) {
+	if (!xmlStrcasecmp(fullname, BAD_CAST "C:calendar-data") || !xmlStrcasecmp(fullname, BAD_CAST "caldav:calendar-data")) {
 		state->in_caldata = 1;
 		ast_str_reset(state->cdata);
 	}
@@ -495,7 +495,9 @@ static void handle_end_element(void *data, const xmlChar *name)
 	icalcomponent *comp;
 
 	if (xmlStrcasecmp(name, BAD_CAST "C:calendar-data")) {
-		return;
+		if (xmlStrcasecmp(name, BAD_CAST "caldav:calendar-data")) {
+			return;
+		}
 	}
 
 	state->in_caldata = 0;
