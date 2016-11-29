@@ -372,6 +372,9 @@ static void print_frame(struct ast_frame *frame)
 		}
 		ast_verbose("Bytes: %d\n", frame->datalen);
 		break;
+	case AST_FRAME_RTCP:
+		ast_verbose("FrameType: RTCP\n");
+		break;
 	case AST_FRAME_NULL:
 		ast_verbose("FrameType: NULL\n");
 		break;

@@ -121,7 +121,7 @@ enum ast_trans_cost_table {
  *
  * As a minimum, a translator should supply name, srcfmt and dstfmt,
  * the required buf_size (in bytes) and buffer_samples (in samples),
- * and a few callbacks (framein, frameout, sample).
+ * and a few callbacks (framein, frameout, feedback, sample).
  * The outbuf is automatically prepended by AST_FRIENDLY_OFFSET
  * spare bytes so generic routines can place data in there.
  *
@@ -158,6 +158,10 @@ struct ast_translator {
 	struct ast_frame * (*frameout)(struct ast_trans_pvt *pvt);
 	                                       /*!< Output frame callback. Generate a frame 
 	                                        *   with outbuf content. */
+
+	void (*feedback)(struct ast_trans_pvt *pvt, struct ast_frame *feedback);
+	                                       /*!< Feedback frame callback. Handle
+	                                        *   input frame. */
 
 	void (*destroy)(struct ast_trans_pvt *pvt);
 	                                       /*!< cleanup private data, if needed 
