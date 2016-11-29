@@ -4321,6 +4321,28 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 					rtcp_report,
 					message_blob);
 			ast_json_unref(message_blob);
+
+			/* Return an AST_FRAME_RTCP frame with the ast_rtp_rtcp_report
+			 * object as a its data */
+			rtp->f.frametype = AST_FRAME_RTCP;
+			rtp->f.data.ptr = rtp->rawdata + AST_FRIENDLY_OFFSET;
+			memcpy(rtp->f.data.ptr, rtcp_report, sizeof(struct ast_rtp_rtcp_report));
+			rtp->f.datalen = sizeof(struct ast_rtp_rtcp_report);
+			if(rc > 0) {
+				/* There's always a single report block stored, here */
+				report_block = rtp->f.data.ptr + rtp->f.datalen + sizeof(struct ast_rtp_rtcp_report_block *);
+				memcpy(report_block, rtcp_report->report_block[0], sizeof(struct ast_rtp_rtcp_report_block));
+				struct ast_rtp_rtcp_report *rtcp_report2 = (struct ast_rtp_rtcp_report *)rtp->f.data.ptr;
+				rtcp_report2->report_block[0] = report_block;
+				rtp->f.datalen += sizeof(struct ast_rtp_rtcp_report_block);
+			}
+			rtp->f.offset = AST_FRIENDLY_OFFSET;
+			rtp->f.samples = 0;
+			rtp->f.mallocd = 0;
+			rtp->f.delivery.tv_sec = 0;
+			rtp->f.delivery.tv_usec = 0;
+			rtp->f.src = "RTP";
+			f = &rtp->f;
 			break;
 		case RTCP_PT_FUR:
 		/* Handle RTCP FIR as FUR */
