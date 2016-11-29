@@ -530,6 +530,17 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 	long len;
 	int seqno;
 
+	if (f->frametype == AST_FRAME_RTCP) {
+		/* Just pass the feedback to the right callback, if it exists.
+		 * This "translation" does nothing so return a null frame. */
+		struct ast_trans_pvt *tp;
+		for (tp = p; tp; tp = tp->next) {
+			if (tp->t->feedback)
+				tp->t->feedback(tp, f);
+		}
+		return &ast_null_frame;
+	}
+
 	has_timing_info = ast_test_flag(f, AST_FRFLAG_HAS_TIMING_INFO);
 	ts = f->ts;
 	len = f->len;

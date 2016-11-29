@@ -55,6 +55,9 @@
 #include "asterisk/frame.h"
 #include "asterisk/linkedlists.h"
 
+/* For struct ast_rtp_rtcp_report and struct ast_rtp_rtcp_report_block */
+#include "asterisk/rtp_engine.h"
+
 /* codec variables */
 static int quality = 3;
 static int complexity = 2;
@@ -91,6 +94,11 @@ struct speex_coder_pvt {
 	SpeexBits bits;
 	int framesize;
 	int silent_state;
+
+	int fraction_lost;
+	int quality;
+	int default_quality;
+
 #ifdef _SPEEX_TYPES_H
 	SpeexPreprocessState *pp;
 	spx_int16_t buf[BUFFER_SAMPLES];
@@ -136,6 +144,11 @@ static int speex_encoder_construct(struct ast_trans_pvt *pvt, const SpeexMode *p
 	if (dtx)
 		speex_encoder_ctl(tmp->speex, SPEEX_SET_DTX, &dtx); 
 	tmp->silent_state = 0;
+
+	tmp->fraction_lost = 0;
+	tmp->default_quality = vbr ? vbr_quality : quality;
+	tmp->quality = tmp->default_quality;
+	ast_debug(3, "Default quality (%s): %d\n", vbr ? "vbr" : "cbr", tmp->default_quality);
 
 	return 0;
 }
@@ -342,6 +355,66 @@ static struct ast_frame *lintospeex_frameout(struct ast_trans_pvt *pvt)
 	return result;
 }
 
+/*! \brief handle incoming RTCP feedback and possibly edit encoder settings */
+static void lintospeex_feedback(struct ast_trans_pvt *pvt, struct ast_frame *feedback)
+{
+	struct speex_coder_pvt *tmp = pvt->pvt;
+
+	struct ast_rtp_rtcp_report *rtcp_report;
+	struct ast_rtp_rtcp_report_block *report_block;
+
+	int fraction_lost;
+	int percent;
+	int bitrate;
+	int q;
+
+	rtcp_report = (struct ast_rtp_rtcp_report *)feedback->data.ptr;
+	if (rtcp_report->reception_report_count == 0)
+		return;
+	report_block = rtcp_report->report_block[0];
+	fraction_lost = report_block->lost_count.fraction;
+	if (fraction_lost == tmp->fraction_lost)
+		return;
+	/* Per RFC3550, fraction lost is defined to be the number of packets lost
+	 * divided by the number of packets expected. Since it's a 8-bit value,
+	 * and we want a percentage value, we multiply by 100 and divide by 256. */
+	percent = (fraction_lost*100)/256;
+	bitrate = 0;
+	q = -1;
+	ast_debug(3, "Fraction lost changed: %d --> %d percent loss\n", fraction_lost, percent);
+	/* Handle change */
+	speex_encoder_ctl(tmp->speex, SPEEX_GET_BITRATE, &bitrate);
+	ast_debug(3, "Current bitrate: %d\n", bitrate);
+	ast_debug(3, "Current quality: %d/%d\n", tmp->quality, tmp->default_quality);
+	/* FIXME BADLY Very ugly example of how this could be handled: probably sucks */
+	if (percent < 10) {
+		/* Not that bad, default quality is fine */
+		q = tmp->default_quality;
+	} else if (percent < 20) {
+		/* Quite bad, let's go down a bit */
+		q = tmp->default_quality-1;
+	} else if (percent < 30) {
+		/* Very bad, let's go down even more */
+		q = tmp->default_quality-2;
+	} else {
+		/* Really bad, use the lowest quality possible */
+		q = 0;
+	}
+	if (q < 0)
+		q = 0;
+	if (q != tmp->quality) {
+		ast_debug(3, "  -- Setting to %d\n", q);
+		if (vbr) {
+			float vbr_q = q;
+			speex_encoder_ctl(tmp->speex, SPEEX_SET_VBR_QUALITY, &vbr_q);
+		} else {
+			speex_encoder_ctl(tmp->speex, SPEEX_SET_QUALITY, &q);
+		}
+		tmp->quality = q;
+	}
+	tmp->fraction_lost = fraction_lost;
+}
+
 static void speextolin_destroy(struct ast_trans_pvt *arg)
 {
 	struct speex_coder_pvt *pvt = arg->pvt;
@@ -400,6 +473,7 @@ static struct ast_translator lintospeex = {
 	.newpvt = lintospeex_new,
 	.framein = lintospeex_framein,
 	.frameout = lintospeex_frameout,
+	.feedback = lintospeex_feedback,
 	.destroy = lintospeex_destroy,
 	.sample = slin8_sample,
 	.desc_size = sizeof(struct speex_coder_pvt),
@@ -446,6 +520,7 @@ static struct ast_translator lin16tospeexwb = {
 	.newpvt = lin16tospeexwb_new,
 	.framein = lintospeex_framein,
 	.frameout = lintospeex_frameout,
+	.feedback = lintospeex_feedback,
 	.destroy = lintospeex_destroy,
 	.sample = slin16_sample,
 	.desc_size = sizeof(struct speex_coder_pvt),
@@ -491,6 +566,7 @@ static struct ast_translator lin32tospeexuwb = {
 	.newpvt = lin32tospeexuwb_new,
 	.framein = lintospeex_framein,
 	.frameout = lintospeex_frameout,
+	.feedback = lintospeex_feedback,
 	.destroy = lintospeex_destroy,
 	.desc_size = sizeof(struct speex_coder_pvt),
 	.buffer_samples = BUFFER_SAMPLES,
