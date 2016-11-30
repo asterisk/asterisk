@@ -2957,6 +2957,7 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 		if (!(me = sip_threadinfo_create(tcptls_session, ast_iostream_get_ssl(tcptls_session->stream) ? AST_TRANSPORT_TLS : AST_TRANSPORT_TCP))) {
 			goto cleanup;
 		}
+		me->threadid = pthread_self();
 		ao2_t_ref(me, +1, "Adding threadinfo ref for tcp_helper_thread");
 	} else {
 		struct sip_threadinfo tmp = {
@@ -2964,8 +2965,13 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 		};
 
 		if ((!(ca = tcptls_session->parent)) ||
-			(!(me = ao2_t_find(threadt, &tmp, OBJ_POINTER, "ao2_find, getting sip_threadinfo in tcp helper thread"))) ||
-			(!(tcptls_session = ast_tcptls_client_start(tcptls_session)))) {
+			(!(me = ao2_t_find(threadt, &tmp, OBJ_POINTER, "ao2_find, getting sip_threadinfo in tcp helper thread")))) {
+			goto cleanup;
+		}
+
+		me->threadid = pthread_self();
+
+		if (!(tcptls_session = ast_tcptls_client_start(tcptls_session))) {
 			goto cleanup;
 		}
 	}
@@ -2976,7 +2982,6 @@ static void *_sip_tcp_helper_thread(struct ast_tcptls_session_instance *tcptls_s
 		goto cleanup;
 	}
 
-	me->threadid = pthread_self();
 	ast_debug(2, "Starting thread for %s server\n", ast_iostream_get_ssl(tcptls_session->stream) ? "TLS" : "TCP");
 
 	/* set up pollfd to watch for reads on both the socket and the alert_pipe */
