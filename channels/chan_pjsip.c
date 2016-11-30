@@ -679,7 +679,11 @@ static struct ast_frame *chan_pjsip_cng_tone_detected(struct ast_sip_session *se
 	return f;
 }
 
-/*! \brief Function called by core to read any waiting frames */
+/*!
+ * \brief Function called by core to read any waiting frames 
+ *
+ * \note The channel is already locked.
+ */
 static struct ast_frame *chan_pjsip_read(struct ast_channel *ast)
 {
 	struct ast_sip_channel_pvt *channel = ast_channel_tech_pvt(ast);
@@ -737,8 +741,7 @@ static struct ast_frame *chan_pjsip_read(struct ast_channel *ast)
 		ast_debug(1, "Oooh, got a frame with format of %s on channel '%s' when we're sending '%s', switching to match\n",
 			ast_format_get_name(f->subclass.format), ast_channel_name(ast),
 			ast_format_get_name(ast_channel_rawwriteformat(ast)));
-		ast_channel_set_rawwriteformat(ast, f->subclass.format);
-		ast_set_write_format(ast, ast_channel_writeformat(ast));
+		ast_set_write_format_path(ast, ast_channel_writeformat(ast), f->subclass.format);
 
 		if (ast_channel_is_bridged(ast)) {
 			ast_channel_set_unbridged_nolock(ast, 1);
