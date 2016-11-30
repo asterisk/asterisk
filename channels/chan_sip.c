@@ -1774,7 +1774,10 @@ static void destroy_escs(void)
 {
 	int i;
 	for (i = 0; i < ARRAY_LEN(event_state_compositors); i++) {
-		ao2_cleanup(event_state_compositors[i].compositor);
+		if (event_state_compositors[i].compositor) {
+			ao2_cleanup(event_state_compositors[i].compositor);
+			event_state_compositors[i].compositor = NULL;
+		}
 	}
 }
 
@@ -35102,7 +35105,9 @@ static int load_module(void)
 	dialogs = ao2_t_container_alloc(HASH_DIALOG_SIZE, dialog_hash_cb, dialog_cmp_cb, "allocate dialogs");
 	dialogs_needdestroy = ao2_t_container_alloc(1, NULL, NULL, "allocate dialogs_needdestroy");
 	dialogs_rtpcheck = ao2_t_container_alloc(HASH_DIALOG_SIZE, dialog_hash_cb, dialog_cmp_cb, "allocate dialogs for rtpchecks");
-	threadt = ao2_t_container_alloc(HASH_DIALOG_SIZE, threadt_hash_cb, threadt_cmp_cb, "allocate threadt table");
+	if (!threadt) {
+		threadt = ao2_t_container_alloc(HASH_DIALOG_SIZE, threadt_hash_cb, threadt_cmp_cb, "allocate threadt table");
+	}
 	if (!peers || !peers_by_ip || !dialogs || !dialogs_needdestroy || !dialogs_rtpcheck
 		|| !threadt) {
 		ast_log(LOG_ERROR, "Unable to create primary SIP container(s)\n");
@@ -35276,7 +35281,7 @@ static int unload_module(void)
 	struct sip_pvt *p;
 	struct sip_threadinfo *th;
 	struct ao2_iterator i;
-	struct timeval start;
+	struct timeval start, start2;
 
 	ast_sip_api_provider_unregister();
 
@@ -35287,7 +35292,9 @@ static int unload_module(void)
 	network_change_stasis_unsubscribe();
 	acl_change_event_stasis_unsubscribe();
 
-	ast_sched_dump(sched);
+	if (sched) {
+		ast_sched_dump(sched);
+	}
 
 	/* First, take us out of the channel type list */
 	ast_channel_unregister(&sip_tech);
@@ -35338,25 +35345,31 @@ static int unload_module(void)
 	ast_ssl_teardown(sip_tls_desc.tls_cfg);
 
 	/* Kill all existing TCP/TLS threads */
-	i = ao2_iterator_init(threadt, 0);
-	while ((th = ao2_t_iterator_next(&i, "iterate through tcp threads for 'sip show tcp'"))) {
-		pthread_t thread = th->threadid;
-		th->stop = 1;
-		pthread_kill(thread, SIGURG);
-		ao2_t_ref(th, -1, "decrement ref from iterator");
+	if (threadt) {
+		i = ao2_iterator_init(threadt, 0);
+		while ((th = ao2_t_iterator_next(&i, "iterate through tcp threads for 'sip show tcp'"))) {
+			pthread_t thread = th->threadid;
+			th->stop = 1;
+			pthread_kill(thread, SIGURG);
+			ao2_t_ref(th, -1, "decrement ref from iterator");
+		}
+		ao2_iterator_destroy(&i);
 	}
-	ao2_iterator_destroy(&i);
 
 	/* Hangup all dialogs if they have an owner */
-	i = ao2_iterator_init(dialogs, 0);
-	while ((p = ao2_t_iterator_next(&i, "iterate thru dialogs"))) {
-		if (p->owner)
-			ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
-		ao2_t_ref(p, -1, "toss dialog ptr from iterator_next");
+	if (dialogs) {
+		i = ao2_iterator_init(dialogs, 0);
+		while ((p = ao2_t_iterator_next(&i, "iterate thru dialogs"))) {
+			if (p->owner)
+				ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
+			ao2_t_ref(p, -1, "toss dialog ptr from iterator_next");
+		}
+		ao2_iterator_destroy(&i);
 	}
-	ao2_iterator_destroy(&i);
 
-	unlink_all_peers_from_tables();
+	if (peers) {
+		unlink_all_peers_from_tables();
+	}
 
 	ast_mutex_lock(&monlock);
 	if (monitor_thread && (monitor_thread != AST_PTHREADT_STOP) && (monitor_thread != AST_PTHREADT_NULL)) {
@@ -35371,8 +35384,11 @@ static int unload_module(void)
 		ast_mutex_unlock(&monlock);
 	}
 
-	cleanup_all_regs();
+	if (registry_list) {
+		cleanup_all_regs();
+	}
 
+	if (subscription_mwi_list)
 	{
 		struct ao2_iterator iter;
 		struct sip_subscription_mwi *mwi;
@@ -35386,19 +35402,23 @@ static int unload_module(void)
 	}
 
 	/* Destroy all the dialogs and free their memory */
-	i = ao2_iterator_init(dialogs, 0);
-	while ((p = ao2_t_iterator_next(&i, "iterate thru dialogs"))) {
-		dialog_unlink_all(p);
-		ao2_t_ref(p, -1, "throw away iterator result");
+	if (dialogs) {
+		i = ao2_iterator_init(dialogs, 0);
+		while ((p = ao2_t_iterator_next(&i, "iterate thru dialogs"))) {
+			dialog_unlink_all(p);
+			ao2_t_ref(p, -1, "throw away iterator result");
+		}
+		ao2_iterator_destroy(&i);
 	}
-	ao2_iterator_destroy(&i);
 
 	/*
 	 * Since the monitor thread runs the scheduled events and we
 	 * just stopped the monitor thread above, we have to run any
 	 * pending scheduled immediate events in this thread.
 	 */
-	ast_sched_runq(sched);
+	if (sched) {
+		ast_sched_runq(sched);
+	}
 
 	/* Free memory for local network address mask */
 	ast_free_ha(localaddr);
@@ -35418,34 +35438,47 @@ static int unload_module(void)
 	ast_free(default_tls_cfg.cipher);
 	ast_free(default_tls_cfg.cafile);
 	ast_free(default_tls_cfg.capath);
+	default_tls_cfg.certfile = ast_strdup("");
+	default_tls_cfg.pvtfile = ast_strdup("");
+	default_tls_cfg.cipher = ast_strdup("");
+	default_tls_cfg.cafile = ast_strdup("");
+	default_tls_cfg.capath = ast_strdup("");
 
-	/*
-	 * Wait awhile for the TCP/TLS thread container to become empty.
-	 *
-	 * XXX This is a hack, but the worker threads cannot be created
-	 * joinable.  They can die on their own and remove themselves
-	 * from the container thus resulting in a huge memory leak.
-	 */
-	start = ast_tvnow();
-	while (ao2_container_count(threadt) && (ast_tvdiff_sec(ast_tvnow(), start) < 5)) {
-		sched_yield();
+	if (registry_list) {
+		ao2_cleanup(registry_list);
+		registry_list = NULL;
 	}
-	if (ao2_container_count(threadt)) {
-		ast_debug(2, "TCP/TLS thread container did not become empty :(\n");
+	if (subscription_mwi_list) {
+		ao2_cleanup(subscription_mwi_list);
+		subscription_mwi_list = NULL;
 	}
-
-	ao2_cleanup(registry_list);
-	ao2_cleanup(subscription_mwi_list);
 
 	ao2_t_global_obj_release(g_bogus_peer, "Release the bogus peer.");
 
-	ao2_t_cleanup(peers, "unref the peers table");
-	ao2_t_cleanup(peers_by_ip, "unref the peers_by_ip table");
-	ao2_t_cleanup(dialogs, "unref the dialogs table");
-	ao2_t_cleanup(dialogs_needdestroy, "unref dialogs_needdestroy");
-	ao2_t_cleanup(dialogs_rtpcheck, "unref dialogs_rtpcheck");
-	ao2_t_cleanup(threadt, "unref the thread table");
-	ao2_t_cleanup(sip_monitor_instances, "unref the sip_monitor_instances table");
+	if (peers) {
+		ao2_t_cleanup(peers, "unref the peers table");
+		peers = NULL;
+	}
+	if (peers_by_ip) {
+		ao2_t_cleanup(peers_by_ip, "unref the peers_by_ip table");
+		peers_by_ip = NULL;
+	}
+	if (dialogs) {
+		ao2_t_cleanup(dialogs, "unref the dialogs table");
+		dialogs = NULL;
+	}
+	if (dialogs_needdestroy) {
+		ao2_t_cleanup(dialogs_needdestroy, "unref dialogs_needdestroy");
+		dialogs_needdestroy = NULL;
+	}
+	if (dialogs_rtpcheck) {
+		ao2_t_cleanup(dialogs_rtpcheck, "unref dialogs_rtpcheck");
+		dialogs_rtpcheck = NULL;
+	}
+	if (sip_monitor_instances) {
+		ao2_t_cleanup(sip_monitor_instances, "unref the sip_monitor_instances table");
+		sip_monitor_instances = NULL;
+	}
 
 	clear_sip_domains();
 	sip_cfg.contact_acl = ast_free_acl_list(sip_cfg.contact_acl);
@@ -35455,8 +35488,10 @@ static int unload_module(void)
 	}
 	close(sipsock);
 	io_context_destroy(io);
-	ast_sched_context_destroy(sched);
-	sched = NULL;
+	if (sched) {
+		ast_sched_context_destroy(sched);
+		sched = NULL;
+	}
 	ast_context_destroy_by_name(used_context, "SIP");
 	ast_unload_realtime("sipregs");
 	ast_unload_realtime("sippeers");
@@ -35477,6 +35512,44 @@ static int unload_module(void)
 	sip_cfg.caps = NULL;
 
 	STASIS_MESSAGE_TYPE_CLEANUP(session_timeout_type);
+
+	/*
+	 * Wait until the TCP/TLS thread container becomes empty.
+	 *
+	 * We must not unload the module while a thread is still running,
+	 * otherwise we can get segfaults due to functions called from
+	 * the thread trying to return to their caller, which is no longer
+	 * in memory.
+	 *
+	 * XXX This is a hack, but the worker threads cannot be created
+	 * joinable.  They can die on their own and remove themselves
+	 * from the container thus resulting in a huge memory leak.
+	 */
+	start = ast_tvnow();
+	while (ao2_container_count(threadt) && (ast_tvdiff_sec(ast_tvnow(), start) < 2)) {
+		start2 = ast_tvnow();
+
+		/* Try again to kill all TCP/TLS threads that haven't terminated yet */
+		i = ao2_iterator_init(threadt, 0);
+		while ((th = ao2_t_iterator_next(&i, "iterate through tcp threads for 'sip show tcp'"))) {
+			pthread_t thread = th->threadid;
+			th->stop = 1;
+			pthread_kill(thread, SIGURG);
+			ao2_t_ref(th, -1, "decrement ref from iterator");
+		}
+		ao2_iterator_destroy(&i);
+
+		while (ao2_container_count(threadt) && (ast_tvdiff_sec(ast_tvnow(), start2) < 1)) {
+			sched_yield();
+		}
+	}
+
+	if (ao2_container_count(threadt)) {
+		ast_log(LOG_ERROR, "TCP/TLS thread container did not become empty\n");
+		return -1;
+	}
+	ao2_t_cleanup(threadt, "unref the thread table");
+	threadt = NULL;
 
 	return 0;
 }
