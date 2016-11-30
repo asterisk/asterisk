@@ -35531,18 +35531,23 @@ static int unload_module(void)
 	ast_rtp_dtls_cfg_free(&default_dtls_cfg);
 
 	/*
-	 * Wait awhile for the TCP/TLS thread container to become empty.
+	 * Wait until the TCP/TLS thread container becomes empty.
+	 *
+	 * We must not unload the module while a thread is still running,
+	 * otherwise we can get segfaults due to functions called from
+	 * the thread trying to return to their caller, which is no longer
+	 * in memory.
 	 *
 	 * XXX This is a hack, but the worker threads cannot be created
 	 * joinable.  They can die on their own and remove themselves
 	 * from the container thus resulting in a huge memory leak.
 	 */
-	start = ast_tvnow();
-	while (ao2_container_count(threadt) && (ast_tvdiff_sec(ast_tvnow(), start) < 5)) {
-		sched_yield();
-	}
-	if (ao2_container_count(threadt)) {
-		ast_debug(2, "TCP/TLS thread container did not become empty :(\n");
+	while (ao2_container_count(threadt)) {
+		start = ast_tvnow();
+		ast_log(LOG_WARNING, "TCP/TLS thread container did not become empty, waiting 5 seconds\n");
+		while (ao2_container_count(threadt) && (ast_tvdiff_sec(ast_tvnow(), start) < 5)) {
+			sched_yield();
+		}
 	}
 
 	ao2_cleanup(registry_list);
