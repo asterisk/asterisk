@@ -8137,8 +8137,6 @@ static const char *__get_header(const struct sip_request *req, const char *name,
 	 * one afterwards.  If you shouldn't do it, what absolute idiot decided it was
 	 * a good idea to say you can do it, and if you can do it, why in the hell would.
 	 * you say you shouldn't.
-	 * Anyways, pedanticsipchecking controls whether we allow spaces before ':',
-	 * and we always allow spaces after that for compatibility.
 	 */
 	const char *sname = find_alias(name, NULL);
 	int x, len = strlen(name), slen = (sname ? 1 : 0);
@@ -8151,10 +8149,10 @@ static const char *__get_header(const struct sip_request *req, const char *name,
 		if (match || smatch) {
 			/* skip name */
 			const char *r = header + (match ? len : slen );
-			if (sip_cfg.pedanticsipchecking) {
-				r = ast_skip_blanks(r);
+			/* HCOLON has optional SP/HTAB; skip past those */
+			while (*r == ' ' || *r == '\t') {
+				++r;
 			}
-
 			if (*r == ':') {
 				*start = x+1;
 				return ast_skip_blanks(r+1);
