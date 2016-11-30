@@ -1993,6 +1993,21 @@ int ast_prod(struct ast_channel *chan);
 int ast_set_read_format_path(struct ast_channel *chan, struct ast_format *raw_format, struct ast_format *core_format);
 
 /*!
+ * \brief Set specific write path on channel.
+ * \since 13.13.0
+ *
+ * \param chan Channel to setup write path.
+ * \param core_format What the core wants to write.
+ * \param raw_format Raw write format.
+ *
+ * \pre chan is locked
+ *
+ * \retval 0 on success.
+ * \retval -1 on error.
+ */
+int ast_set_write_format_path(struct ast_channel *chan, struct ast_format *core_format, struct ast_format *raw_format);
+
+/*!
  * \brief Sets read format on channel chan from capabilities
  * Set read format for channel to whichever component of "format" is best.
  * \param chan channel to change
