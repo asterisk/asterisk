@@ -1714,7 +1714,6 @@ static void _urg_handler(int num)
 
 static struct sigaction urg_handler = {
 	.sa_handler = _urg_handler,
-	.sa_flags = SA_RESTART,
 };
 
 static void _hup_handler(int num)
