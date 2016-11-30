@@ -35419,18 +35419,34 @@ static int unload_module(void)
 	ast_free(default_tls_cfg.capath);
 
 	/*
-	 * Wait awhile for the TCP/TLS thread container to become empty.
+	 * Wait until the TCP/TLS thread container becomes empty.
+	 *
+	 * We must not unload the module while a thread is still running,
+	 * otherwise we can get segfaults due to functions called from
+	 * the thread trying to return to their caller, which is no longer
+	 * in memory.
 	 *
 	 * XXX This is a hack, but the worker threads cannot be created
 	 * joinable.  They can die on their own and remove themselves
 	 * from the container thus resulting in a huge memory leak.
 	 */
-	start = ast_tvnow();
-	while (ao2_container_count(threadt) && (ast_tvdiff_sec(ast_tvnow(), start) < 5)) {
-		sched_yield();
-	}
-	if (ao2_container_count(threadt)) {
-		ast_debug(2, "TCP/TLS thread container did not become empty :(\n");
+	while (ao2_container_count(threadt)) {
+		start = ast_tvnow();
+		ast_log(LOG_WARNING, "TCP/TLS thread container did not become empty, waiting 5 seconds\n");
+
+		/* Kill all TCP/TLS threads that haven't terminated yet */
+		i = ao2_iterator_init(threadt, 0);
+		while ((th = ao2_t_iterator_next(&i, "iterate through tcp threads for 'sip show tcp'"))) {
+			pthread_t thread = th->threadid;
+			th->stop = 1;
+			pthread_kill(thread, SIGURG);
+			ao2_t_ref(th, -1, "decrement ref from iterator");
+		}
+		ao2_iterator_destroy(&i);
+
+		while (ao2_container_count(threadt) && (ast_tvdiff_sec(ast_tvnow(), start) < 5)) {
+			sched_yield();
+		}
 	}
 
 	ao2_cleanup(registry_list);
