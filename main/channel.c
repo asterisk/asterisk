@@ -1072,16 +1072,15 @@ void ast_channel_start_defer_frames(struct ast_channel *chan, int defer_hangups)
 
 void ast_channel_stop_defer_frames(struct ast_channel *chan)
 {
+	struct ast_frame *f;
+
 	ast_clear_flag(ast_channel_flags(chan), AST_FLAG_DEFER_FRAMES);
 
 	/* Move the deferred frames onto the channel read queue, ahead of other queued frames */
-	ast_queue_frame_head(chan, AST_LIST_FIRST(ast_channel_deferred_readq(chan)));
-	/* ast_frfree will mosey down the list and free them all */
-	if (!AST_LIST_EMPTY(ast_channel_deferred_readq(chan))) {
-		ast_frfree(AST_LIST_FIRST(ast_channel_deferred_readq(chan)));
+	while ((f = AST_LIST_REMOVE_HEAD(ast_channel_deferred_readq(chan), frame_list))) {
+		ast_queue_frame_head(chan, f);
+		ast_frfree(f);
 	}
-	/* Reset the list to be empty */
-	AST_LIST_HEAD_INIT_NOLOCK(ast_channel_deferred_readq(chan));
 }
 
 static int __ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, int head, struct ast_frame *after)
@@ -3903,10 +3902,10 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 							struct ast_frame *dup;
 
 							dup = ast_frdup(f);
-							AST_LIST_INSERT_TAIL(ast_channel_deferred_readq(chan), dup, frame_list);
+							AST_LIST_INSERT_HEAD(ast_channel_deferred_readq(chan), dup, frame_list);
 						}
 					} else {
-						AST_LIST_INSERT_TAIL(ast_channel_deferred_readq(chan), f, frame_list);
+						AST_LIST_INSERT_HEAD(ast_channel_deferred_readq(chan), f, frame_list);
 						AST_LIST_REMOVE_CURRENT(frame_list);
 					}
 				}
