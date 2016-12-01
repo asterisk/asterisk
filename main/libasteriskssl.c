@@ -67,13 +67,14 @@ static void ssl_lock(int mode, int n, const char *file, int line)
 		return;
 	}
 
-	if (mode & CRYPTO_LOCK) {
+	if (mode & 0x1) {
 		ast_mutex_lock(&ssl_locks[n]);
 	} else {
 		ast_mutex_unlock(&ssl_locks[n]);
 	}
 }
 
+#if !defined(OPENSSL_API_COMPAT) || OPENSSL_API_COMPAT < 0x10100000L
 int SSL_library_init(void)
 {
 #if defined(AST_DEVMODE)
@@ -115,6 +116,7 @@ void ERR_free_strings(void)
 {
 	/* we can't allow this to be called, ever */
 }
+#endif /* !defined(OPENSSL_API_COMPAT) || OPENSSL_API_COMPAT < 0x10100000L */
 
 #endif /* HAVE_OPENSSL */
 
