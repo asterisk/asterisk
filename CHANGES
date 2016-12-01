@@ -25,6 +25,12 @@ res_pjproject
  * Added new pjproject.conf startup section "log_level' option to set the
    initial maximum PJPROJECT logging level.
 
+res_pjsip_outbound_registration
+------------------
+ * Statsd no longer logs redundant status PJSIP.registrations.state changes
+   for internal state transitions that don't change the reported public status
+   state.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.12.0 to Asterisk 13.13.0 ----------
 ------------------------------------------------------------------------------
