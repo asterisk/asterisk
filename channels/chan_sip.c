@@ -14157,6 +14157,7 @@ static void build_contact(struct sip_pvt *p, struct sip_request *req, int incomi
 	char tmp[SIPBUFSIZE];
 	char *user = ast_uri_encode(p->exten, tmp, sizeof(tmp), ast_uri_sip_user);
 	int use_sips;
+	char *transport = ast_strdupa(sip_get_transport(p->socket.type));
 
 	if (incoming) {
 		use_sips = uas_sips_contact(req);
@@ -14171,7 +14172,7 @@ static void build_contact(struct sip_pvt *p, struct sip_request *req, int incomi
 	} else {
 		ast_string_field_build(p, our_contact, "<%s:%s%s%s;transport=%s>",
 			use_sips ? "sips" : "sip", user, ast_strlen_zero(user) ? "" : "@",
-			ast_sockaddr_stringify_remote(&p->ourip), sip_get_transport(p->socket.type));
+			ast_sockaddr_stringify_remote(&p->ourip), ast_str_to_lower(transport));
 	}
 }
 

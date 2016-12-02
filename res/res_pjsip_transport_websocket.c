@@ -378,7 +378,6 @@ static void websocket_cb(struct ast_websocket *session, struct ast_variable *par
 static pj_bool_t websocket_on_rx_msg(pjsip_rx_data *rdata)
 {
 	static const pj_str_t STR_WS = { "ws", 2 };
-	static const pj_str_t STR_WSS = { "wss", 3 };
 	pjsip_contact_hdr *contact;
 
 	long type = rdata->tp_info.transport->key.type;
@@ -395,7 +394,7 @@ static pj_bool_t websocket_on_rx_msg(pjsip_rx_data *rdata)
 		uri->port = rdata->pkt_info.src_port;
 		ast_debug(4, "Re-wrote Contact URI host/port to %.*s:%d\n",
 			(int)pj_strlen(&uri->host), pj_strbuf(&uri->host), uri->port);
-		pj_strdup(rdata->tp_info.pool, &uri->transport_param, (type == (long)transport_type_ws) ? &STR_WS : &STR_WSS);
+		pj_strdup(rdata->tp_info.pool, &uri->transport_param, &STR_WS);
 	}
 
 	rdata->msg_info.via->rport_param = 0;
@@ -431,7 +430,7 @@ static int load_module(void)
 	CHECK_PJSIP_MODULE_LOADED();
 
 	pjsip_transport_register_type(PJSIP_TRANSPORT_RELIABLE, "WS", 5060, &transport_type_ws);
-	pjsip_transport_register_type(PJSIP_TRANSPORT_RELIABLE | PJSIP_TRANSPORT_SECURE, "WSS", 5060, &transport_type_wss);
+	pjsip_transport_register_type(PJSIP_TRANSPORT_RELIABLE | PJSIP_TRANSPORT_SECURE, "WS", 5060, &transport_type_wss);
 
 	if (ast_sip_register_service(&websocket_module) != PJ_SUCCESS) {
 		return AST_MODULE_LOAD_DECLINE;
