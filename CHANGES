@@ -63,7 +63,24 @@ RTP
    implementation, please report this and go back to rtp_pt_dynamic = 96.
 
 ------------------------------------------------------------------------------
---- Functionality changes from Asterisk 14.1.0 to Asterisk 14.2.0 ----------
+--- Functionality changes from Asterisk 14.2.0 to Asterisk 14.3.0 ------------
+------------------------------------------------------------------------------
+
+res_pjproject
+------------------
+ * Added new CLI command "pjproject set log level".  The new command allows
+   the maximum PJPROJECT log levels to be adjusted dynamically and
+   independently from the set debug logging level like many other similar
+   module debug logging commands.
+
+ * Added new companion CLI command "pjproject show log level" to allow the
+   user to see the current maximum pjproject logging level.
+
+ * Added new pjproject.conf startup section "log_level' option to set the
+   initial maximum PJPROJECT logging level.
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 14.1.0 to Asterisk 14.2.0 ------------
 ------------------------------------------------------------------------------
 
 AMI
@@ -143,7 +160,7 @@ res_ari
    ARI event.
 
 ------------------------------------------------------------------------------
---- Functionality changes from Asterisk 14.0.0 to Asterisk 14.1.0 ----------
+--- Functionality changes from Asterisk 14.0.0 to Asterisk 14.1.0 ------------
 ------------------------------------------------------------------------------
 
 Build System
