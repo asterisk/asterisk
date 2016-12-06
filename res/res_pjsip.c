@@ -2102,10 +2102,31 @@
 					<para>Absolute time that this contact is no longer valid after</para>
 				</parameter>
 				<parameter name="ViaAddress">
-					<para>IP address:port of the last Via header in REGISTER request</para>
+					<para>IP address:port of the last Via header in REGISTER request.
+					Will only appear in the event if available.</para>
 				</parameter>
 				<parameter name="CallID">
-					<para>Content of the Call-ID header in REGISTER request</para>
+					<para>Content of the Call-ID header in REGISTER request.
+					Will only appear in the event if available.</para>
+				</parameter>
+				<parameter name="ID">
+					<para>The sorcery ID of the contact.</para>
+				</parameter>
+				<parameter name="AuthenticateQualify">
+					<para>A boolean indicating whether a qualify should be authenticated.</para>
+				</parameter>
+				<parameter name="OutboundProxy">
+					<para>The contact's outbound proxy.</para>
+				</parameter>
+				<parameter name="Path">
+					<para>The Path header received on the REGISTER.</para>
+				</parameter>
+				<parameter name="QualifyFrequency">
+					<para>The interval in seconds at which the contact will be qualified.</para>
+				</parameter>
+				<parameter name="QualifyTimeout">
+					<para>The elapsed time in decimal seconds after which an OPTIONS
+					message is sent before the contact is considered unavailable.</para>
 				</parameter>
 			</syntax>
 		</managerEventInstance>
