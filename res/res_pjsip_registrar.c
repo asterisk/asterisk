@@ -46,11 +46,11 @@
 		<syntax />
 		<description>
 			<para>
-			In response <literal>InboundRegistrationDetail</literal> events showing configuration and status
-			information are raised for each inbound registration object.  As well as <literal>AuthDetail</literal>
-			events for each associated auth object.  Once all events are completed an
-			<literal>InboundRegistrationDetailComplete</literal> is issued.
-                        </para>
+			In response, <literal>ContactStatusDetail</literal> events showing
+			configuration and status information are raised for each inbound
+			registration (contact) object.  Once all events are completed a
+			<literal>ContactStatusDetailComplete</literal> is issued.
+            </para>
 		</description>
 	</manager>
  ***/
@@ -729,66 +729,37 @@ static pj_bool_t registrar_on_rx_request(struct pjsip_rx_data *rdata)
 	return PJ_TRUE;
 }
 
-/* function pointer to callback needs to be within the module
-   in order to avoid problems with an undefined symbol */
-static int sip_contact_to_str(void *acp, void *arg, int flags)
-{
-	return ast_sip_contact_to_str(acp, arg, flags);
-}
-
-static int ami_registrations_aor(void *obj, void *arg, int flags)
-{
-	struct ast_sip_aor *aor = obj;
-	struct ast_sip_ami *ami = arg;
-	int *count = ami->arg;
-	RAII_VAR(struct ast_str *, buf,
-		 ast_sip_create_ami_event("InboundRegistrationDetail", ami), ast_free);
-
-	if (!buf) {
-		return -1;
-	}
-
-	ast_sip_sorcery_object_to_ami(aor, &buf);
-	ast_str_append(&buf, 0, "Contacts: ");
-	ast_sip_for_each_contact(aor, sip_contact_to_str, &buf);
-	ast_str_append(&buf, 0, "\r\n");
-
-	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
-	(*count)++;
-	return 0;
-}
-
-static int ami_registrations_endpoint(void *obj, void *arg, int flags)
-{
-	struct ast_sip_endpoint *endpoint = obj;
-	return ast_sip_for_each_aor(
-		endpoint->aors, ami_registrations_aor, arg);
-}
-
-static int ami_registrations_endpoints(void *arg)
-{
-	RAII_VAR(struct ao2_container *, endpoints,
-		 ast_sip_get_endpoints(), ao2_cleanup);
-
-	if (!endpoints) {
-		return 0;
-	}
-
-	ao2_callback(endpoints, OBJ_NODATA, ami_registrations_endpoint, arg);
-	return 0;
-}
-
 static int ami_show_registrations(struct mansession *s, const struct message *m)
 {
 	int count = 0;
-	struct ast_sip_ami ami = { .s = s, .m = m, .arg = &count, .action_id = astman_get_header(m, "ActionID"), };
+	struct ast_sip_ami ami = { .s = s, .m = m, .arg = NULL, .action_id = astman_get_header(m, "ActionID"), };
+	struct ao2_container *contacts = ast_sorcery_retrieve_by_fields(
+		ast_sip_get_sorcery(), "contact", AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
+	struct ao2_iterator i;
+	struct ast_sip_contact *contact;
 
-	astman_send_listack(s, m, "Following are Events for each Inbound "
+	astman_send_listack(s, m, "Following are ContactStatusEvents for each Inbound "
 			    "registration", "start");
 
-	ami_registrations_endpoints(&ami);
+	if (contacts) {
+		i = ao2_iterator_init(contacts, 0);
+		while ((contact = ao2_iterator_next(&i))) {
+			struct ast_sip_contact_wrapper wrapper;
 
-	astman_send_list_complete_start(s, m, "InboundRegistrationDetailComplete", count);
+			wrapper.aor_id = contact->aor;
+			wrapper.contact = contact;
+			wrapper.contact_id = (char *)ast_sorcery_object_get_id(contact);
+
+			ast_sip_format_contact_ami(&wrapper, &ami, 0);
+			count++;
+
+			ao2_ref(contact, -1);
+		}
+		ao2_iterator_destroy(&i);
+		ao2_ref(contacts, -1);
+	}
+
+	astman_send_list_complete_start(s, m, "ContactStatusDetailComplete", count);
 	astman_send_list_complete_end(s);
 	return 0;
 }
