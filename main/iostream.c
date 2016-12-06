@@ -413,12 +413,15 @@ ssize_t ast_iostream_printf(struct ast_iostream *stream, const void *fmt, ...)
 	va_end(va);
 
 	if (len > sizeof(sbuf)) {
-		buf = ast_malloc(len);
+		/* Add one to the string length to accommodate the NULL byte */
+		size_t buf_len = len + 1;
+
+		buf = ast_malloc(buf_len);
 		if (!buf) {
 			return -1;
 		}
 		va_start(va, fmt);
-		len2 = vsnprintf(buf, len, fmt, va);
+		len2 = vsnprintf(buf, buf_len, fmt, va);
 		va_end(va);
 		if (len2 > len) {
 			goto error;
