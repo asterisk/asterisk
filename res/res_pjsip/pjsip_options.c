@@ -1227,7 +1227,7 @@ static void qualify_and_schedule_all(void)
 
 }
 
-static int format_contact_status(void *obj, void *arg, int flags)
+int ast_sip_format_contact_ami(void *obj, void *arg, int flags)
 {
 	struct ast_sip_contact_wrapper *wrapper = obj;
 	struct ast_sip_contact *contact = wrapper->contact;
@@ -1266,7 +1266,15 @@ static int format_contact_status(void *obj, void *arg, int flags)
 		ast_str_append(&buf, 0, "RoundtripUsec: %" PRId64 "\r\n", status->rtt);
 	}
 	ast_str_append(&buf, 0, "EndpointName: %s\r\n",
-			ast_sorcery_object_get_id(endpoint));
+			endpoint ? ast_sorcery_object_get_id(endpoint) : S_OR(contact->endpoint_name, ""));
+
+	ast_str_append(&buf, 0, "ID: %s\r\n", ast_sorcery_object_get_id(contact));
+	ast_str_append(&buf, 0, "AuthenticateQualify: %d\r\n", contact->authenticate_qualify);
+	ast_str_append(&buf, 0, "OutboundProxy: %s\r\n", contact->outbound_proxy);
+	ast_str_append(&buf, 0, "Path: %s\r\n", contact->path);
+	ast_str_append(&buf, 0, "QualifyFrequency: %u\r\n", contact->qualify_frequency);
+	ast_str_append(&buf, 0, "QualifyTimeout: %.3f\r\n", contact->qualify_timeout);
+
 	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
 	ami->count++;
 	
@@ -1279,7 +1287,7 @@ static int format_contact_status_for_aor(void *obj, void *arg, int flags)
 {
 	struct ast_sip_aor *aor = obj;
 
-	return ast_sip_for_each_contact(aor, format_contact_status, arg);
+	return ast_sip_for_each_contact(aor, ast_sip_format_contact_ami, arg);
 }
 
 static int format_ami_contact_status(const struct ast_sip_endpoint *endpoint,
