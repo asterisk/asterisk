@@ -404,7 +404,7 @@ ssize_t ast_iostream_write(struct ast_iostream *stream, const void *buf, size_t 
 
 ssize_t ast_iostream_printf(struct ast_iostream *stream, const void *fmt, ...)
 {
-	char sbuf[256], *buf = sbuf;
+	char sbuf[512], *buf = sbuf;
 	int len, len2, ret = -1;
 	va_list va;
 
@@ -412,15 +412,18 @@ ssize_t ast_iostream_printf(struct ast_iostream *stream, const void *fmt, ...)
 	len = vsnprintf(buf, sizeof(sbuf), fmt, va);
 	va_end(va);
 
-	if (len > sizeof(sbuf)) {
-		buf = ast_malloc(len);
+	if (len > sizeof(sbuf) - 1) {
+		/* Add one to the string length to accommodate the NULL byte */
+		size_t buf_len = len + 1;
+
+		buf = ast_malloc(buf_len);
 		if (!buf) {
 			return -1;
 		}
 		va_start(va, fmt);
-		len2 = vsnprintf(buf, len, fmt, va);
+		len2 = vsnprintf(buf, buf_len, fmt, va);
 		va_end(va);
-		if (len2 > len) {
+		if (len2 != len) {
 			goto error;
 		}
 	}
