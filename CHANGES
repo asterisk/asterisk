@@ -62,6 +62,12 @@ RTP
    when you use more than 32 formats and calls are not accepted by a remote
    implementation, please report this and go back to rtp_pt_dynamic = 96.
 
+app_originate
+------------------
+ * Added support to gosub predial routines on both original channel and on the
+   created channel using options parameter (like app_dial) B() and b().  This
+   allows for adding variables to newly created channel or, e.g. setting callerid.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 14.2.0 to Asterisk 14.3.0 ------------
 ------------------------------------------------------------------------------
