@@ -31,6 +31,19 @@ res_pjsip_outbound_registration
    for internal state transitions that don't change the reported public status
    state.
 
+res_pjsip_registrar
+------------------
+ * The PJSIPShowRegistrationInboundContactStatuses AMI command has been added
+   to return ContactStatusDetail events as opposed to
+   PJSIPShowRegistrationsInbound which just a dumps every defined AOR.
+
+res_pjsip
+------------------
+ * Six existing contact fields have been added to the end of the
+   ContactStatusDetail AMI event:
+   ID, AuthenticateQualify, OutboundProxy, Path, QualifyFrequency and
+   QualifyTimeout.  Existing fields have not been disturbed.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.12.0 to Asterisk 13.13.0 ----------
 ------------------------------------------------------------------------------
