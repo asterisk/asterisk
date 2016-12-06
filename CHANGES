@@ -43,6 +43,13 @@ ARI
    Applications subscribed to a bridge will receive this event when the source
    of video changes in a mixing bridge.
 
+res_pjsip_registrar
+------------------
+ * The PJSIPShowRegistrationsInbound AMI command has been changed to return
+   ContactStatusDetail events instead of just a dump of every defined AOR.
+   This is being done in the 13 branch as well as 14 and master since the
+   original behavior was unusable for the intended purpose.
+
 res_pjsip
 ------------------
  * Automatic dual stack support is now implemented. Depending on DNS resolution
@@ -51,6 +58,11 @@ res_pjsip
    the rtp_ipv6 and t38_udptl_ipv6 options no longer have any effect. The
    res_pjsip_multihomed module has also been moved into core res_pjsip to ensure
    that messages are updated with the correct address information in all cases.
+
+ * 6 existing contact fields have been added to the end of the
+   ContactStatusDetail AMI event:
+   ID, AuthenticateQualify, OutboundProxy, Path, QualifyFrequency and
+   QualifyTimeout.  Existing fields have not been disturbed.
 
 chan_pjsip
 ------------------
