@@ -2276,6 +2276,11 @@ int ast_sip_sorcery_object_to_ami(const void *obj, struct ast_str **buf);
 int ast_sip_format_endpoint_ami(struct ast_sip_endpoint *endpoint,
 				struct ast_sip_ami *ami, int *count);
 
+
+int ast_sip_format_contact_ami(void *obj, void *arg, int flags);
+
+
+
 /*!
  * \brief Format auth details for AMI.
  *
