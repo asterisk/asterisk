@@ -20,6 +20,11 @@ ifeq ($(findstring clean,$(MAKECMDGOALS)),clean)
     SPECIAL_TARGETS += clean
 endif
 
+ifeq ($(findstring uninstall,$(MAKECMDGOALS)),uninstall)
+    SPECIAL_TARGETS += uninstall
+endif
+
+
 ifneq ($(wildcard ../../makeopts),)
     include ../../makeopts
 endif
@@ -62,9 +67,12 @@ ifeq ($(SPECIAL_TARGETS),)
             source/pjsip-apps/src/python/_pjsua.so: LDFLAGS += -L$(PJDIR)/pjsip-apps/lib -Wl,-whole-archive -lasterisk_malloc_debug -Wl,-no-whole-archive
             source/pjsip-apps/src/python/_pjsua.so: source/pjsip-apps/lib/libasterisk_malloc_debug.a
         endif
-        TARGETS += pjproject.symbols
-        export CFLAGS += $(CF)
+        ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS)),)
+            CF += -O3
+        endif
+        export CFLAGS += $(CF) -g3
         export LDFLAGS += $(CC_LDFLAGS)
+        TARGETS += pjproject.symbols
     else
         all install:
     endif
