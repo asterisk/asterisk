@@ -454,6 +454,7 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 	int content_length = 0;
 	int close_connection;
 	struct ast_str *server_header_field = ast_str_create(MAX_SERVER_NAME_LENGTH);
+	int send_content;
 
 	if (!ser || !server_header_field) {
 		/* The connection is not open. */
@@ -504,6 +505,8 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 		lseek(fd, 0, SEEK_SET);
 	}
 
+	send_content = method != AST_HTTP_HEAD || status_code >= 400;
+
 	/* send http header */
 	ast_iostream_printf(ser->stream,
 		"HTTP/1.1 %d %s\r\n"
@@ -513,33 +516,25 @@ void ast_http_send(struct ast_tcptls_session_instance *ser,
 		"%s"
 		"%s"
 		"Content-Length: %d\r\n"
-		"\r\n",
+		"\r\n"
+		"%s",
 		status_code, status_title ? status_title : "OK",
 		ast_str_buffer(server_header_field),
 		timebuf,
 		close_connection ? "Connection: close\r\n" : "",
 		static_content ? "" : "Cache-Control: no-cache, no-store\r\n",
 		http_header ? ast_str_buffer(http_header) : "",
-		content_length
+		content_length,
+		send_content && out && ast_str_strlen(out) ? ast_str_buffer(out) : ""
 		);
 
 	/* send content */
-	if (method != AST_HTTP_HEAD || status_code >= 400) {
-		if (out && ast_str_strlen(out)) {
-			len = ast_str_strlen(out);
-			if (ast_iostream_write(ser->stream, ast_str_buffer(out), len) != len) {
-				ast_log(LOG_ERROR, "fwrite() failed: %s\n", strerror(errno));
+	if (send_content && fd) {
+		while ((len = read(fd, buf, sizeof(buf))) > 0) {
+			if (ast_iostream_write(ser->stream, buf, len) != len) {
+				ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
 				close_connection = 1;
-			}
-		}
-
-		if (fd) {
-			while ((len = read(fd, buf, sizeof(buf))) > 0) {
-				if (ast_iostream_write(ser->stream, buf, len) != len) {
-					ast_log(LOG_WARNING, "fwrite() failed: %s\n", strerror(errno));
-					close_connection = 1;
-					break;
-				}
+				break;
 			}
 		}
 	}
