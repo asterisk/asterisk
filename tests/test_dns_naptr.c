@@ -116,14 +116,14 @@ static void *naptr_thread(void *dns_query)
 	ans_size = ast_dns_test_generate_result(query, test_records, num_test_records,
 			sizeof(struct naptr_record), generate_naptr_record, ans_buffer);
 
-	ast_dns_resolver_set_result(query, 0, 0, ns_r_noerror, "goose.feathers", ans_buffer, ans_size);
+	ast_dns_resolver_set_result(query, 0, 0, NOERROR, "goose.feathers", ans_buffer, ans_size);
 
 	for (i = 0; i < num_test_records; ++i) {
 		char record[128];
 		int naptr_size;
 
 		naptr_size = generate_naptr_record(&test_records[i], record);
-		ast_dns_resolver_add_record(query, ns_t_naptr, ns_c_in, 12345, record, naptr_size);
+		ast_dns_resolver_add_record(query, T_NAPTR, C_IN, 12345, record, naptr_size);
 	}
 
 	ast_dns_resolver_completed(query);
@@ -209,7 +209,7 @@ AST_TEST_DEFINE(naptr_resolve_nominal)
 
 	ast_dns_resolver_register(&naptr_resolver);
 
-	if (ast_dns_resolve("goose.feathers", ns_t_naptr, ns_c_in, &result)) {
+	if (ast_dns_resolve("goose.feathers", T_NAPTR, C_IN, &result)) {
 		ast_test_status_update(test, "DNS resolution failed\n");
 		res = AST_TEST_FAIL;
 		goto cleanup;
@@ -284,7 +284,7 @@ static enum ast_test_result_state off_nominal_test(struct ast_test *test, struct
 
 	ast_dns_resolver_register(&naptr_resolver);
 
-	if (ast_dns_resolve("goose.feathers", ns_t_naptr, ns_c_in, &result)) {
+	if (ast_dns_resolve("goose.feathers", T_NAPTR, C_IN, &result)) {
 		ast_test_status_update(test, "Failed to perform DNS resolution, despite using valid inputs\n");
 		res = AST_TEST_FAIL;
 		goto cleanup;

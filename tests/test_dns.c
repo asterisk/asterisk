@@ -304,10 +304,10 @@ AST_TEST_DEFINE(resolver_set_result)
 		unsigned int bogus;
 		unsigned int rcode;
 	} results[] = {
-		{ 0, 0, ns_r_noerror, },
-		{ 0, 1, ns_r_noerror, },
-		{ 1, 0, ns_r_noerror, },
-		{ 0, 0, ns_r_nxdomain, },
+		{ 0, 0, NOERROR, },
+		{ 0, 1, NOERROR, },
+		{ 1, 0, NOERROR, },
+		{ 0, 0, NXDOMAIN, },
 	};
 	int i;
 	enum ast_test_result_state res = AST_TEST_PASS;
@@ -373,7 +373,7 @@ AST_TEST_DEFINE(resolver_set_result_off_nominal)
 
 	memset(&some_query, 0, sizeof(some_query));
 
-	if (!ast_dns_resolver_set_result(&some_query, 1, 1, ns_r_noerror, "asterisk.org",
+	if (!ast_dns_resolver_set_result(&some_query, 1, 1, NOERROR, "asterisk.org",
 				DNS_ANSWER, DNS_ANSWER_SIZE)) {
 		ast_test_status_update(test, "Successfully added a result that was both secure and bogus\n");
 		result = ast_dns_query_get_result(&some_query);
@@ -381,7 +381,7 @@ AST_TEST_DEFINE(resolver_set_result_off_nominal)
 		return AST_TEST_FAIL;
 	}
 
-	if (!ast_dns_resolver_set_result(&some_query, 0, 0, ns_r_noerror, NULL,
+	if (!ast_dns_resolver_set_result(&some_query, 0, 0, NOERROR, NULL,
 				DNS_ANSWER, DNS_ANSWER_SIZE)) {
 		ast_test_status_update(test, "Successfully added result with no canonical name\n");
 		result = ast_dns_query_get_result(&some_query);
@@ -440,8 +440,8 @@ AST_TEST_DEFINE(resolver_add_record)
 		const size_t size;
 		int visited;
 	} records[] = {
-		{ ns_t_a, ns_c_in, 12345, v4_buf, V4_BUFSIZE, 0, },
-		{ ns_t_aaaa, ns_c_in, 12345, v6_buf, V6_BUFSIZE, 0, },
+		{ T_A, C_IN, 12345, v4_buf, V4_BUFSIZE, 0, },
+		{ T_AAAA, C_IN, 12345, v6_buf, V6_BUFSIZE, 0, },
 	};
 
 	int num_records_visited = 0;
@@ -464,7 +464,7 @@ AST_TEST_DEFINE(resolver_add_record)
 
 	memset(&some_query, 0, sizeof(some_query));
 
-	if (ast_dns_resolver_set_result(&some_query, 0, 0, ns_r_noerror, "asterisk.org",
+	if (ast_dns_resolver_set_result(&some_query, 0, 0, NOERROR, "asterisk.org",
 				DNS_ANSWER, DNS_ANSWER_SIZE)) {
 		ast_test_status_update(test, "Unable to set result for DNS query\n");
 		return AST_TEST_FAIL;
@@ -578,12 +578,12 @@ AST_TEST_DEFINE(resolver_add_record_off_nominal)
 	inet_ntop(AF_INET, V4, v4_buf, V4_BUFSIZE);
 
 	/* Add record before setting result */
-	if (!ast_dns_resolver_add_record(&some_query, ns_t_a, ns_c_in, 12345, v4_buf, V4_BUFSIZE)) {
+	if (!ast_dns_resolver_add_record(&some_query, T_A, C_IN, 12345, v4_buf, V4_BUFSIZE)) {
 		ast_test_status_update(test, "Successfully added DNS record to query before setting a result\n");
 		return AST_TEST_FAIL;
 	}
 
-	if (ast_dns_resolver_set_result(&some_query, 0, 0, ns_r_noerror, "asterisk.org",
+	if (ast_dns_resolver_set_result(&some_query, 0, 0, NOERROR, "asterisk.org",
 				DNS_ANSWER, DNS_ANSWER_SIZE)) {
 		ast_test_status_update(test, "Unable to set result for DNS query\n");
 		return AST_TEST_FAIL;
@@ -593,41 +593,41 @@ AST_TEST_DEFINE(resolver_add_record_off_nominal)
 	result = ast_dns_query_get_result(&some_query);
 
 	/* Invalid RR types */
-	if (!ast_dns_resolver_add_record(&some_query, -1, ns_c_in, 12345, v4_buf, V4_BUFSIZE)) {
+	if (!ast_dns_resolver_add_record(&some_query, -1, C_IN, 12345, v4_buf, V4_BUFSIZE)) {
 		ast_test_status_update(test, "Successfully added DNS record with negative RR type\n");
 		return AST_TEST_FAIL;
 	}
 
-	if (!ast_dns_resolver_add_record(&some_query, ns_t_max + 1, ns_c_in, 12345, v4_buf, V4_BUFSIZE)) {
+	if (!ast_dns_resolver_add_record(&some_query, 65536 + 1, C_IN, 12345, v4_buf, V4_BUFSIZE)) {
 		ast_test_status_update(test, "Successfully added DNS record with too large RR type\n");
 		return AST_TEST_FAIL;
 	}
 
 	/* Invalid RR classes */
-	if (!ast_dns_resolver_add_record(&some_query, ns_t_a, -1, 12345, v4_buf, V4_BUFSIZE)) {
+	if (!ast_dns_resolver_add_record(&some_query, T_A, -1, 12345, v4_buf, V4_BUFSIZE)) {
 		ast_test_status_update(test, "Successfully added DNS record with negative RR class\n");
 		return AST_TEST_FAIL;
 	}
 
-	if (!ast_dns_resolver_add_record(&some_query, ns_t_a, ns_c_max + 1, 12345, v4_buf, V4_BUFSIZE)) {
+	if (!ast_dns_resolver_add_record(&some_query, T_A, 65536 + 1, 12345, v4_buf, V4_BUFSIZE)) {
 		ast_test_status_update(test, "Successfully added DNS record with too large RR class\n");
 		return AST_TEST_FAIL;
 	}
 
 	/* Invalid TTL */
-	if (!ast_dns_resolver_add_record(&some_query, ns_t_a, ns_c_in, -1, v4_buf, V4_BUFSIZE)) {
+	if (!ast_dns_resolver_add_record(&some_query, T_A, C_IN, -1, v4_buf, V4_BUFSIZE)) {
 		ast_test_status_update(test, "Successfully added DNS record with negative TTL\n");
 		return AST_TEST_FAIL;
 	}
 
 	/* No data */
-	if (!ast_dns_resolver_add_record(&some_query, ns_t_a, ns_c_in, 12345, NULL, 0)) {
+	if (!ast_dns_resolver_add_record(&some_query, T_A, C_IN, 12345, NULL, 0)) {
 		ast_test_status_update(test, "Successfully added a DNS record with no data\n");
 		return AST_TEST_FAIL;
 	}
 
 	/* Lie about the length */
-	if (!ast_dns_resolver_add_record(&some_query, ns_t_a, ns_c_in, 12345, v4_buf, 0)) {
+	if (!ast_dns_resolver_add_record(&some_query, T_A, C_IN, 12345, v4_buf, 0)) {
 		ast_test_status_update(test, "Successfully added a DNS record with length zero\n");
 		return AST_TEST_FAIL;
 	}
@@ -693,10 +693,10 @@ static void *resolution_thread(void *dns_query)
 		return NULL;
 	}
 
-	ast_dns_resolver_set_result(query, 0, 0, ns_r_noerror, "asterisk.org", DNS_ANSWER, DNS_ANSWER_SIZE);
+	ast_dns_resolver_set_result(query, 0, 0, NOERROR, "asterisk.org", DNS_ANSWER, DNS_ANSWER_SIZE);
 
 	inet_pton(AF_INET, V4, v4_buf);
-	ast_dns_resolver_add_record(query, ns_t_a, ns_c_in, 12345, v4_buf, V4_BUFSIZE);
+	ast_dns_resolver_add_record(query, T_A, C_IN, 12345, v4_buf, V4_BUFSIZE);
 
 	test_resolver_data.resolution_complete = 1;
 	ast_dns_resolver_completed(query);
@@ -806,7 +806,7 @@ AST_TEST_DEFINE(resolver_resolve_sync)
 
 	resolver_data_init();
 
-	if (ast_dns_resolve("asterisk.org", ns_t_a, ns_c_in, &result)) {
+	if (ast_dns_resolve("asterisk.org", T_A, C_IN, &result)) {
 		ast_test_status_update(test, "Resolution of address failed\n");
 		res = AST_TEST_FAIL;
 		goto cleanup;
@@ -876,12 +876,12 @@ AST_TEST_DEFINE(resolver_resolve_sync_off_nominal)
 		int rr_class;
 		struct ast_dns_result **result;
 	} resolves [] = {
-		{ NULL,           ns_t_a,       ns_c_in,      &result },
-		{ "asterisk.org", -1,           ns_c_in,      &result },
-		{ "asterisk.org", ns_t_max + 1, ns_c_in,      &result },
-		{ "asterisk.org", ns_t_a,       -1,           &result },
-		{ "asterisk.org", ns_t_a,       ns_c_max + 1, &result },
-		{ "asterisk.org", ns_t_a,       ns_c_in,      NULL },
+		{ NULL,           T_A,       C_IN,      &result },
+		{ "asterisk.org", -1,        C_IN,      &result },
+		{ "asterisk.org", 65536 + 1, C_IN,      &result },
+		{ "asterisk.org", T_A,       -1,        &result },
+		{ "asterisk.org", T_A,       65536 + 1, &result },
+		{ "asterisk.org", T_A,       C_IN,      NULL },
 	};
 
 	int i;
@@ -929,7 +929,7 @@ AST_TEST_DEFINE(resolver_resolve_sync_off_nominal)
 		return AST_TEST_FAIL;
 	}
 
-	if (!ast_dns_resolve("asterisk.org", ns_t_a, ns_c_in, &result)) {
+	if (!ast_dns_resolve("asterisk.org", T_A, C_IN, &result)) {
 		ast_test_status_update(test, "DNS resolution succeeded when we expected it not to\n");
 		ast_dns_resolver_unregister(&terrible_resolver);
 		return AST_TEST_FAIL;
@@ -1052,7 +1052,7 @@ AST_TEST_DEFINE(resolver_resolve_async)
 		goto cleanup;
 	}
 
-	active = ast_dns_resolve_async("asterisk.org", ns_t_a, ns_c_in, async_callback, async_data);
+	active = ast_dns_resolve_async("asterisk.org", T_A, C_IN, async_callback, async_data);
 	if (!active) {
 		ast_test_status_update(test, "Asynchronous resolution of address failed\n");
 		res = AST_TEST_FAIL;
@@ -1133,12 +1133,12 @@ AST_TEST_DEFINE(resolver_resolve_async_off_nominal)
 		int rr_class;
 		ast_dns_resolve_callback callback;
 	} resolves [] = {
-		{ NULL,           ns_t_a,       ns_c_in,      stub_callback },
-		{ "asterisk.org", -1,           ns_c_in,      stub_callback },
-		{ "asterisk.org", ns_t_max + 1, ns_c_in,      stub_callback },
-		{ "asterisk.org", ns_t_a,       -1,           stub_callback },
-		{ "asterisk.org", ns_t_a,       ns_c_max + 1, stub_callback },
-		{ "asterisk.org", ns_t_a,       ns_c_in,      NULL },
+		{ NULL,           T_A,       C_IN,      stub_callback },
+		{ "asterisk.org", -1,        C_IN,      stub_callback },
+		{ "asterisk.org", 65536 + 1, C_IN,      stub_callback },
+		{ "asterisk.org", T_A,       -1,        stub_callback },
+		{ "asterisk.org", T_A,       65536 + 1, stub_callback },
+		{ "asterisk.org", T_A,       C_IN,      NULL },
 	};
 
 	struct ast_dns_query_active *active;
@@ -1184,7 +1184,7 @@ AST_TEST_DEFINE(resolver_resolve_async_off_nominal)
 		return AST_TEST_FAIL;
 	}
 
-	active = ast_dns_resolve_async("asterisk.org", ns_t_a, ns_c_in, stub_callback, NULL);
+	active = ast_dns_resolve_async("asterisk.org", T_A, C_IN, stub_callback, NULL);
 
 	ast_dns_resolver_unregister(&terrible_resolver);
 
@@ -1234,7 +1234,7 @@ AST_TEST_DEFINE(resolver_resolve_async_cancel)
 		goto cleanup;
 	}
 
-	active = ast_dns_resolve_async("asterisk.org", ns_t_a, ns_c_in, async_callback, async_data);
+	active = ast_dns_resolve_async("asterisk.org", T_A, C_IN, async_callback, async_data);
 	if (!active) {
 		ast_test_status_update(test, "Asynchronous resolution of address failed\n");
 		res = AST_TEST_FAIL;
