@@ -94,7 +94,7 @@ static void *resolution_thread(void *dns_query)
 
 	ast_assert(qsdata != NULL);
 
-	ast_dns_resolver_set_result(query, 0, 0, ns_r_noerror, "asterisk.org", DNS_ANSWER, DNS_ANSWER_SIZE);
+	ast_dns_resolver_set_result(query, 0, 0, NOERROR, "asterisk.org", DNS_ANSWER, DNS_ANSWER_SIZE);
 	ast_dns_resolver_completed(query);
 
 	ao2_ref(query, -1);
@@ -210,7 +210,7 @@ static enum ast_test_result_state query_set_test(struct ast_test *test, int reso
 	qsdata->cancel_allowed = cancel;
 
 	for (idx = 0; idx < total; ++idx) {
-		if (ast_dns_query_set_add(query_set, "asterisk.org", ns_t_a, ns_c_in)) {
+		if (ast_dns_query_set_add(query_set, "asterisk.org", T_A, C_IN)) {
 			ast_test_status_update(test, "Failed to add query to DNS query set\n");
 			res = AST_TEST_FAIL;
 			goto cleanup;
@@ -269,11 +269,11 @@ static enum ast_test_result_state query_set_test(struct ast_test *test, int reso
 			ast_test_status_update(test, "Query did not have expected name\n");
 			res = AST_TEST_FAIL;
 		}
-		if (ast_dns_query_get_rr_type(query) != ns_t_a) {
+		if (ast_dns_query_get_rr_type(query) != T_A) {
 			ast_test_status_update(test, "Query did not have expected type\n");
 			res = AST_TEST_FAIL;
 		}
-		if (ast_dns_query_get_rr_class(query) != ns_c_in) {
+		if (ast_dns_query_get_rr_class(query) != C_IN) {
 			ast_test_status_update(test, "Query did not have expected class\n");
 			res = AST_TEST_FAIL;
 		}
