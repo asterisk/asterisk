@@ -1455,18 +1455,18 @@ static int ast_rtp_dtls_set_configuration(struct ast_rtp_instance *instance, con
 			return -1;
 		}
 
-		if (!(certbio = BIO_new(BIO_s_file()))) {
-			ast_log(LOG_ERROR, "Failed to allocate memory for certificate fingerprinting on RTP instance '%p'\n",
-				instance);
-			return -1;
-		}
-
 		if (rtp->local_hash == AST_RTP_DTLS_HASH_SHA1) {
 			type = EVP_sha1();
 		} else if (rtp->local_hash == AST_RTP_DTLS_HASH_SHA256) {
 			type = EVP_sha256();
 		} else {
 			ast_log(LOG_ERROR, "Unsupported fingerprint hash type on RTP instance '%p'\n",
+				instance);
+			return -1;
+		}
+
+		if (!(certbio = BIO_new(BIO_s_file()))) {
+			ast_log(LOG_ERROR, "Failed to allocate memory for certificate fingerprinting on RTP instance '%p'\n",
 				instance);
 			return -1;
 		}
