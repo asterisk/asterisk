@@ -1323,3 +1323,17 @@ UPDATE alembic_version SET version_num='4e2493ef32e6' WHERE alembic_version.vers
 
 /
 
+-- Running upgrade 4e2493ef32e6 -> a6ef36f1309
+
+ALTER TABLE ps_globals ADD ignore_uri_user_options VARCHAR(3 CHAR)
+
+/
+
+ALTER TABLE ps_globals ADD CONSTRAINT yesno_values CHECK (ignore_uri_user_options IN ('yes', 'no'))
+
+/
+
+UPDATE alembic_version SET version_num='a6ef36f1309' WHERE alembic_version.version_num = '4e2493ef32e6'
+
+/
+

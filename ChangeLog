@@ -1,3 +1,251 @@
+2016-12-08 17:40 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.8-cert4 Released.
+
+2016-11-30 09:31 +0000 [4fece22836]  Walter Doekes <walter+asterisk@wjd.nu>
+
+	* chan_sip: Do not allow non-SP/HTAB between header key and colon.
+
+	  RFC says SIP headers look like:
+
+	      HCOLON  =  *( SP / HTAB ) ":" SWS
+	      SWS     =  [LWS]                    ; sep whitespace
+	      LWS     =  [*WSP CRLF] 1*WSP        ; linear whitespace
+	      WSP     =  SP / HTAB                ; from rfc2234
+
+	  chan_sip implemented this:
+
+	      HCOLON  =  *( LOWCTL / SP ) ":" SWS
+	      LOWCTL  = %x00-1F                   ; CTL without DEL
+
+	  This discrepancy meant that SIP proxies in front of Asterisk with
+	  chan_sip could pass on unknown headers with \x00-\x1F in them, which
+	  would be treated by Asterisk as a different (known) header.  For
+	  example, the "To\x01:" header would gladly be forwarded by some proxies
+	  as irrelevant, but chan_sip would treat it as the relevant "To:" header.
+
+	  Those relying on a SIP proxy to scrub certain headers could mistakenly
+	  get unexpected and unvalidated data fed to Asterisk.
+
+	  This change fixes so chan_sip only considers SP/HTAB as valid tokens
+	  before the colon, making it agree on the headers with other speakers of
+	  SIP.
+
+	  ASTERISK-26433 #close
+	  AST-2016-009
+
+	  Change-Id: I78086fbc524ac733b8f7f78cb423c91075fd489b
+
+2016-08-06 10:57 +0000 [016d20ce12]  Alexei Gradinari <alex2grad@gmail.com>
+
+	* pjsip: Fix deadlock with suspend taskprocessor on masquerade
+
+	  If both channels which should be masqueraded
+	  are in the same serializer:
+	  1st channel will be locked waiting condition 'complete'
+	  2nd channel will be locked waiting condition 'suspended'
+
+	  On heavy load system a chance that both channels will be in
+	  the same serializer 'pjsip/distibutor' is very high.
+
+	  To reproduce compile res_pjsip/pjsip_distributor.c with
+	  DISTRIBUTOR_POOL_SIZE=1
+
+	  Steps to reproduce:
+	  1. Party A calls Party B (bridged call 'AB')
+	  2. Party B places Party A on hold
+	  3. Party B calls Voicemail app (non-bridged call 'BV')
+	  4. Party B attended transfers Party A to voicemail using REFER.
+	  5. When asterisk masquerades calls 'AB' and 'BV',
+	     a deadlock is happened.
+
+	  This patch adds a suspension indicator to the taskprocessor.
+	  When a session suspends/unsuspends the serializer
+	  it sets the indicator to the appropriate state.
+	  The session checks the suspension indicator before
+	  suspend the serializer.
+
+	  ASTERISK-26145 #close
+
+	  Change-Id: Iaaebee60013a58c942ba47b1b4930a63e686663b
+
+2016-11-08 10:48 +0000 [87e1ebc91a]  Mark Michelson <mmichelson@digium.com>
+
+	* res_pjsip_session: Do not call session supplements when it's too late.
+
+	  res_pjsip_sesssion was hooking into transaction and invite state
+	  changes. One of the reasons for doing so was due to the
+	  PJSIP_EVENT_TX_MSG event. The idea was that we were hooking into the
+	  message sending process, and so we should call session supplements to
+	  alter the outgoing message.
+
+	  In reality, this event was meant to indicate that the message either
+	  a) had already been sent, or
+	  b) required a DNS lookup and would be sent when the DNS query
+	  completed.
+
+	  In case (a), this meant we were altering an already-sent
+	  request/response for no reason. In case (b), this potentially meant we
+	  could be trying to alter a request/response at the same time that the
+	  DNS resolution completed. In this case, it meant we might be stomping on
+	  memory being used by the thread actually sending the message. This
+	  caused potential crashes and memory corruption.
+
+	  This patch removes the calls to session supplements from the case where
+	  the PJSIP_EVENT_TX_MSG event occurs. In all of these cases, trying to
+	  alter the message at this point is too late, and it can cause nothing
+	  but harm to try to do it. Because there were no longer any calls to the
+	  handle_outgoing() function, it has been removed.
+
+	  Change-Id: Ibcc223fb1c3a237927f38754e0429e80ee301e92
+	  (cherry picked from commit e043d1a55cf356066b3b39ebac8b4bbb612ce807)
+
+2016-11-02 09:15 +0000 [c8df727502]  Joshua Colp <jcolp@digium.com>
+
+	* app_dial: Fix incorrect device state when channel is picked up.
+
+	  Given the scenario where multiple channels are dialed using Dial()
+	  but the caller is picked up using PickupChan() all outgoing channels
+	  except the channel specified to PickupChan() would be marked
+	  as ringing until the call had been hung up.
+
+	  When using the PickupChan application the channel executing the
+	  application is swapped into place of another channel. As part
+	  of this process the channel is answered. The Dial application
+	  has explicit logic which checks if the channel is answered,
+	  cancels all other outgoing channels, and bridges. This logic is
+	  different than the normal logic that is executed when an outgoing
+	  channel is answered. This different logic failed to publish dial
+	  events stating that the other outgoing channels had been canceled.
+	  As a result references to the outgoing channels were held onto by
+	  the dial masquerade process until the call had been ended and
+	  the channels had gone away. This would result in the channels
+	  appearing in the "core show channels" list despite not being present
+	  anymore and would also result in incorrect device state.
+
+	  This change makes it so that this logic also publishes
+	  dial events stating that the other outgoing channels have been
+	  canceled.
+
+	  ASTERISK-26549
+
+	  Change-Id: Iea7168e6e82f7d4609ec0366153804e4f55ea64f
+
+2016-10-18 16:50 +0000 [4c50689d09]  Joshua Colp <jcolp@digium.com>
+
+	* Revert "pjproject_bundled:  Add patch to address SSL crash"
+
+	  This reverts commit 28cc8a9dff2fb9210726cfa6274ae683fbfa4a01.
+
+	  Change-Id: I777cf8173f7a88273090bed72bfe57fb0e72b84f
+
+2016-10-17 11:39 +0000 [28cc8a9dff]  gtjoseph <gjoseph@digium.com>
+
+	* pjproject_bundled:  Add patch to address SSL crash
+
+	  Addresses crashes when an attempt is made to operate on an SSL socket
+	  after the socket has been closed.
+
+	  ASTERISK-26477 #close
+
+	  Change-Id: I421305b357558b4f9e690210dc0f4831ef4b3002
+	  (cherry picked from commit 546ec4b038ac3d750c5138d7fbb8e3ce93f482df)
+
+2016-10-12 16:24 +0000 [7c2bd702fd]  Richard Mudgett <rmudgett@digium.com>
+
+	* Audit ast_json_pack() calls for needed UTF-8 checks.
+
+	  Added needed UTF-8 checks before constructing json objects in various
+	  files for strings obtained outside the system.  In this case string values
+	  from a channel driver's peer and not from the user setting channel
+	  variables.
+
+	  * aoc.c: Fixed type mismatch in s_to_json() for time and granularity json
+	  object construction.
+
+	  ASTERISK-26466
+	  Reported by: Richard Mudgett
+
+	  Change-Id: Iac2d867fa598daba5c5dbc619b5464625a7f2096
+
+2016-10-12 16:20 +0000 [3b1b2fc1d5]  Richard Mudgett <rmudgett@digium.com>
+
+	* json: Check party id name, number, subaddresses for UTF-8.
+
+	  * Updated unit test as ast_json_name_number() is now NULL tolerant.
+
+	  ASTERISK-26466 #close
+	  Reported by: Richard Mudgett
+
+	  Change-Id: I7d4e14194f8f81f24a1dc34d1b8602c0950265a6
+
+2016-10-11 18:14 +0000 [a835adfa92]  Richard Mudgett <rmudgett@digium.com>
+
+	* json: Add UTF-8 check call.
+
+	  Since the json library does not make the check function public we
+	  recreate/copy the function in our interface module.
+
+	  ASTERISK-26466
+	  Reported by: Richard Mudgett
+
+	  Change-Id: I36d3d750b6f5f1a110bc69ea92b435ecdeeb2a99
+
+2016-07-19 15:22 +0000 [7baedd9ecd]  Alexei Gradinari <alex2grad@gmail.com>
+
+	* res_pjsip_pubsub: fixed a bug when pjsip_tx_data_dec_ref is called twice.
+
+	  This patch removed call of pjsip_tx_data_dec_ref in send_notify
+	  if send_request failed.
+	  The pjsip_dlg_send_request deletes the message on error by itself.
+
+	  It seems this patch fixes next issues:
+	  ASTERISK-26199
+	  ASTERISK-26166
+	  ASTERISK-26174
+
+	  Change-Id: I8b05917c93d993f95d604c042ace5f1a5500f59a
+
+2016-10-05 14:53 +0000 [a8e37c3d06]  gtjoseph <gjoseph@digium.com>
+
+	* pjproject_bundled:  Add MALLOC_DEBUG capability
+
+	  pjproject_bundled will now use the asterisk memory debugging APIs
+	  if MALLOC_DEBUG is turned on in menuselect.
+
+	  Because this required stubs for the executable programs and the python
+	  bindings, some Makefile reorganization was needed to properly handle
+	  the dependencies.  As a result, the makefile now individually makes
+	  each of the pjproject libraries separately instead of making them all
+	  in 1 shot.  The only visible change is that there are separate status
+	  lines printed for each library instead oif 1 for all libs.  Also, the
+	  making of the pjproject dependency files was eliminated.  They're not
+	  needed for building unless you're actively modifying pjproject source
+	  files and it makes the build process faster.  Finally, any issues with
+	  parallel builds should be resolved again making the build faster.
+
+	  NOTE:  The certified/13.8 version of this patch also builds libresample
+	  which is needed by pjsua.  Later versions do not need libresample.
+
+	  Change-Id: Icc5e3d658fbfb00e0a46b44c66dcc2522d5171b0
+
+2016-08-29 18:08 +0000 [adcdecd47f]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_pjsip: Add ignore_uri_user_options option.
+
+	  This implements the chan_sip legacy_useroption_parsing option but with a
+	  better name.
+
+	  * Made the caller-id number and redirecting number strings obtained from
+	  incoming SIP URI user fields always truncated at the first semicolon.
+	  People don't care about anything after the semicolon showing up on their
+	  displays even though the RFC allows the semicolon.
+
+	  ASTERISK-26316 #close
+	  Reported by: Kevin Harwell
+
+	  Change-Id: Ib42b0e940dd34d84c7b14bc2e90d1ba392624f62
+
 2016-09-08 16:34 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.8-cert3 Released.

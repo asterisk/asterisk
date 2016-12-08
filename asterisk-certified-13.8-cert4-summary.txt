@@ -1,0 +1,221 @@
+                                Release Summary
+
+                         asterisk-certified/13.8-cert4
+
+                                Date: 2016-12-08
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release has been made to address one or more security vulnerabilities
+   that have been identified. A security advisory document has been published
+   for each vulnerability that includes additional information. Users of
+   versions of Asterisk that are affected are strongly encouraged to review
+   the advisories and determine what action they should take to protect their
+   systems from these issues.
+
+   Security Advisories:
+
+     * AST-2016-008,AST-2016-009
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-certified/13.8-cert3.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                   Testers                  Reporters                
+   4 Richard Mudgett                                 3 Richard Mudgett        
+   2 Alexei Gradinari                                3 Richard Mudgett        
+   2 Joshua Colp                                     2 Ross Beer              
+   2 gtjoseph                                        1 Walter Doekes          
+   1 Walter Doekes                                   1 George Joseph          
+   1 Mark Michelson                                  1 Kevin Harwell          
+                                                     1 Scott Griepentrog      
+                                                     1 Joshua Colp            
+                                                     1 Kevin Harwell          
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Applications/app_dial
+
+   ASTERISK-26549: app_dial: When PickupChan() is used some channels may have
+   incorrect device state
+   Reported by: Joshua Colp
+     * [c8df727502] Joshua Colp -- app_dial: Fix incorrect device state when
+       channel is picked up.
+
+    Category: Channels/chan_pjsip
+
+   ASTERISK-26145: pjsip: Deadlock with suspend + masquerade + indicate
+   Reported by: Ross Beer
+     * [016d20ce12] Alexei Gradinari -- pjsip: Fix deadlock with suspend
+       taskprocessor on masquerade
+
+    Category: Channels/chan_sip/Interoperability
+
+   ASTERISK-26433: chan_sip: Allows To-tag checks to be bypassed, setting up
+   new calls
+   Reported by: Walter Doekes
+     * [4fece22836] Walter Doekes -- chan_sip: Do not allow non-SP/HTAB
+       between header key and colon.
+
+    Category: Core/General
+
+   ASTERISK-26466: core: Be forgiving on external callerid that may be flawed
+   so we don't drop events
+   Reported by: Richard Mudgett
+     * [7c2bd702fd] Richard Mudgett -- Audit ast_json_pack() calls for needed
+       UTF-8 checks.
+     * [3b1b2fc1d5] Richard Mudgett -- json: Check party id name, number,
+       subaddresses for UTF-8.
+     * [a835adfa92] Richard Mudgett -- json: Add UTF-8 check call.
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-26145: pjsip: Deadlock with suspend + masquerade + indicate
+   Reported by: Ross Beer
+     * [016d20ce12] Alexei Gradinari -- pjsip: Fix deadlock with suspend
+       taskprocessor on masquerade
+   ASTERISK-26174: res_pjsip: Crash when freeing cloned message in
+   distributor
+   Reported by: Ross Beer
+     * [7baedd9ecd] Alexei Gradinari -- res_pjsip_pubsub: fixed a bug when
+       pjsip_tx_data_dec_ref is called twice.
+
+    Category: Resources/res_pjsip_caller_id
+
+   ASTERISK-26316: res_pjsip_callerid: Irregular URI causes unexpected
+   callerid
+   Reported by: Kevin Harwell
+     * [adcdecd47f] Richard Mudgett -- res_pjsip: Add ignore_uri_user_options
+       option.
+
+    Category: Resources/res_pjsip_pubsub
+
+   ASTERISK-26166: res_pjsip_pubsub: Crash when decrementing reference count
+   of message
+   Reported by: Ross Beer
+     * [7baedd9ecd] Alexei Gradinari -- res_pjsip_pubsub: fixed a bug when
+       pjsip_tx_data_dec_ref is called twice.
+
+    Category: Third-Party/pjproject
+
+   ASTERISK-26477: pjproject: SEGV during SSL operations
+   Reported by: George Joseph
+     * [28cc8a9dff] gtjoseph -- pjproject_bundled: Add patch to address SSL
+       crash
+
+    Category: pjproject/pjsip
+
+   ASTERISK-26477: pjproject: SEGV during SSL operations
+   Reported by: George Joseph
+     * [28cc8a9dff] gtjoseph -- pjproject_bundled: Add patch to address SSL
+       crash
+   ASTERISK-26199: PJSIP: tx_data_destroy called twice
+   Reported by: Scott Griepentrog
+     * [7baedd9ecd] Alexei Gradinari -- res_pjsip_pubsub: fixed a bug when
+       pjsip_tx_data_dec_ref is called twice.
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author         | Summary                                  |
+   |------------+----------------+------------------------------------------|
+   | 87e1ebc91a | Mark Michelson | res_pjsip_session: Do not call session   |
+   |            |                | supplements when it's too late.          |
+   |------------+----------------+------------------------------------------|
+   | 4c50689d09 | Joshua Colp    | Revert "pjproject_bundled: Add patch to  |
+   |            |                | address SSL crash"                       |
+   |------------+----------------+------------------------------------------|
+   | a8e37c3d06 | gtjoseph       | pjproject_bundled: Add MALLOC_DEBUG      |
+   |            |                | capability                               |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ CHANGES                                                                                     |   17 +
+ apps/app_dial.c                                                                             |    1
+ apps/app_fax.c                                                                              |   14
+ apps/app_queue.c                                                                            |   12
+ channels/chan_sip.c                                                                         |    8
+ configs/samples/pjsip.conf.sample                                                           |   16 +
+ contrib/ast-db-manage/config/versions/a6ef36f1309_ps_globals_add_ignore_uri_user_options.py |   32 ++
+ include/asterisk/json.h                                                                     |   35 ++
+ include/asterisk/res_pjsip.h                                                                |   32 ++
+ include/asterisk/taskprocessor.h                                                            |   32 ++
+ main/aoc.c                                                                                  |   17 -
+ main/cel.c                                                                                  |    4
+ main/json.c                                                                                 |  146 +++++++++-
+ main/taskprocessor.c                                                                        |   29 +
+ res/res_fax.c                                                                               |   12
+ res/res_pjsip.c                                                                             |   24 +
+ res/res_pjsip/config_global.c                                                               |   21 +
+ res/res_pjsip/pjsip_options.c                                                               |   12
+ res/res_pjsip_caller_id.c                                                                   |   18 +
+ res/res_pjsip_diversion.c                                                                   |   25 +
+ res/res_pjsip_endpoint_identifier_user.c                                                    |    7
+ res/res_pjsip_messaging.c                                                                   |   25 +
+ res/res_pjsip_path.c                                                                        |   22 +
+ res/res_pjsip_pubsub.c                                                                      |   20 +
+ res/res_pjsip_refer.c                                                                       |    7
+ res/res_pjsip_registrar.c                                                                   |   15 -
+ res/res_pjsip_session.c                                                                     |   37 +-
+ res/stasis/app.c                                                                            |    2
+ tests/test_json.c                                                                           |   34 +-
+ third-party/Makefile.rules                                                                  |    2
+ third-party/pjproject/.gitignore                                                            |    1
+ third-party/pjproject/Makefile                                                              |  110 +++++--
+ third-party/pjproject/patches/asterisk_malloc_debug.c                                       |   72 ++++
+ third-party/pjproject/patches/asterisk_malloc_debug.h                                       |   11
+ 34 files changed, 749 insertions(+), 123 deletions(-)

@@ -910,5 +910,11 @@ ALTER TABLE ps_endpoints ADD COLUMN contact_user VARCHAR(80);
 
 UPDATE alembic_version SET version_num='4e2493ef32e6' WHERE alembic_version.version_num = '4a6c67fa9b7a';
 
+-- Running upgrade 4e2493ef32e6 -> a6ef36f1309
+
+ALTER TABLE ps_globals ADD COLUMN ignore_uri_user_options yesno_values;
+
+UPDATE alembic_version SET version_num='a6ef36f1309' WHERE alembic_version.version_num = '4e2493ef32e6';
+
 COMMIT;
 
