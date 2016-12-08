@@ -1659,7 +1659,7 @@ static struct sip_epa_entry *create_epa_entry (const char * const event_package,
 static enum ast_cc_service_type service_string_to_service_type(const char * const service_string)
 {
 	enum ast_cc_service_type service;
-	for (service = AST_CC_CCBS; service <= AST_CC_CCNL; ++service) {
+	for (service = AST_CC_CCBS; service < AST_CC_CCNL; ++service) {
 		if (!strcasecmp(service_string, sip_cc_service_map[service].service_string)) {
 			return service;
 		}
