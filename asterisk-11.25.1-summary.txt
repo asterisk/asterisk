@@ -13,7 +13,8 @@
     1. Summary
     2. Contributors
     3. Closed Issues
-    4. Diffstat
+    4. Other Changes
+    5. Diffstat
 
      ----------------------------------------------------------------------
 
@@ -30,7 +31,7 @@
 
    Security Advisories:
 
-     * AST-2016-008,
+     * AST-2016-009
 
    The data in this summary reflects changes that have been made since the
    previous release, asterisk-11.25.0.
@@ -51,7 +52,8 @@
    this release.
 
    Coders                   Testers                  Reporters                
-   1 Walter Doekes                                   1 Walter Doekes          
+   1 Kevin Harwell                                   1 Walter Doekes          
+   1 Walter Doekes          
 
      ----------------------------------------------------------------------
 
@@ -74,6 +76,21 @@
 
      ----------------------------------------------------------------------
 
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision           | Author                | Summary                   |
+   |--------------------+-----------------------+---------------------------|
+   | 370f5cdc46         | Kevin Harwell         | Update for 11.25.1        |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
                                 Diffstat Results
 
                                  [Back to Top]
@@ -81,4 +98,10 @@
    This is a summary of the changes to the source code that went into this
    release that was generated using the diffstat utility.
 
- 0 files changed
+ asterisk-11.25.0-summary.html   |   38 ----------
+ asterisk-11.25.0-summary.txt    |  150 ----------------------------------------
+ b/.version                      |    2
+ b/ChangeLog                     |   39 ++++++++++
+ b/asterisk-11.25.1-summary.html |   13 +++
+ b/asterisk-11.25.1-summary.txt  |   35 +++++++++
+ 6 files changed, 88 insertions(+), 189 deletions(-)
