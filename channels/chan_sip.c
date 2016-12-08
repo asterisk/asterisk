@@ -2503,7 +2503,7 @@ static void sip_threadinfo_destructor(void *obj)
 	struct sip_threadinfo *th = obj;
 	struct tcptls_packet *packet;
 
-	if (th->alert_pipe[1] > -1) {
+	if (th->alert_pipe[0] > -1) {
 		close(th->alert_pipe[0]);
 	}
 	if (th->alert_pipe[1] > -1) {
