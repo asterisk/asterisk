@@ -1,3 +1,57 @@
+2016-12-08 17:26 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 13.13.1 Released.
+
+2016-11-30 09:31 +0000 [e80603b6d6]  Walter Doekes <walter+asterisk@wjd.nu>
+
+	* chan_sip: Do not allow non-SP/HTAB between header key and colon.
+
+	  RFC says SIP headers look like:
+
+	      HCOLON  =  *( SP / HTAB ) ":" SWS
+	      SWS     =  [LWS]                    ; sep whitespace
+	      LWS     =  [*WSP CRLF] 1*WSP        ; linear whitespace
+	      WSP     =  SP / HTAB                ; from rfc2234
+
+	  chan_sip implemented this:
+
+	      HCOLON  =  *( LOWCTL / SP ) ":" SWS
+	      LOWCTL  = %x00-1F                   ; CTL without DEL
+
+	  This discrepancy meant that SIP proxies in front of Asterisk with
+	  chan_sip could pass on unknown headers with \x00-\x1F in them, which
+	  would be treated by Asterisk as a different (known) header.  For
+	  example, the "To\x01:" header would gladly be forwarded by some proxies
+	  as irrelevant, but chan_sip would treat it as the relevant "To:" header.
+
+	  Those relying on a SIP proxy to scrub certain headers could mistakenly
+	  get unexpected and unvalidated data fed to Asterisk.
+
+	  This change fixes so chan_sip only considers SP/HTAB as valid tokens
+	  before the colon, making it agree on the headers with other speakers of
+	  SIP.
+
+	  ASTERISK-26433 #close
+	  AST-2016-009
+
+	  Change-Id: I78086fbc524ac733b8f7f78cb423c91075fd489b
+	  (cherry picked from commit 41c6319c4e1261f40813e60017e3b65f4115c94d)
+
+2016-11-14 18:18 +0000 [fa52ecb9fb]  Joshua Colp <jcolp@digium.com>
+
+	* res_format_attr_opus: Fix crash when fmtp contains spaces.
+
+	  When an opus offer or answer was received that contained an
+	  fmtp line with spaces between the attributes the module would
+	  fail to properly parse it and crash due to recursion.
+
+	  This change makes the module handle the space properly and
+	  also removes the recursion requirement.
+
+	  ASTERISK-26579
+
+	  Change-Id: I01f53e5d9fa9f1925a7365f8d25071b5b3ac2dc3
+
 2016-11-23 15:26 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 13.13.0 Released.
