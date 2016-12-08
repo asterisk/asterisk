@@ -1,6 +1,10 @@
-2016-12-08 17:32 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2016-12-08 17:33 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 14.2.1 Released.
+
+2016-12-08 11:32 +0000 [c3f94de2be]  Kevin Harwell <kharwell@digium.com>
+
+	* Update for 14.2.1
 
 2016-11-30 09:31 +0000 [dad046539e]  Walter Doekes <walter+asterisk@wjd.nu>
 
