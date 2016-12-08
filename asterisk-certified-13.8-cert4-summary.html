@@ -5,10 +5,10 @@
 <li><a href="#commits">Other Changes</a></li>
 <li><a href="#diffstat">Diffstat</a></li>
 </ol><hr><a name="summary"><h2 align="center">Summary</h2></a><center><a href="#top">[Back to Top]</a></center><p>This release has been made to address one or more security vulnerabilities that have been identified. A security advisory document has been published for each vulnerability that includes additional information. Users of versions of Asterisk that are affected are strongly encouraged to review the advisories and determine what action they should take to protect their systems from these issues.</p><p>Security Advisories:</p><ul>
-<li><a href="http://downloads.asterisk.org/pub/security/AST-2016-008,AST-2016-009.html">AST-2016-008,AST-2016-009</a></li>
+<li><a href="http://downloads.asterisk.org/pub/security/AST-2016-009.html">AST-2016-009</a></li>
 </ul><p>The data in this summary reflects changes that have been made since the previous release, asterisk-certified/13.8-cert3.</p><hr><a name="contributors"><h2 align="center">Contributors</h2></a><center><a href="#top">[Back to Top]</a></center><p>This table lists the people who have submitted code, those that have tested patches, as well as those that reported issues on the issue tracker that were resolved in this release. For coders, the number is how many of their patches (of any size) were committed into this release. For testers, the number is the number of times their name was listed as assisting with testing a patch. Finally, for reporters, the number is the number of issues that they reported that were affected by commits that went into this release.</p><table width="100%" border="0">
 <tr><th width="33%">Coders</th><th width="33%">Testers</th><th width="33%">Reporters</th></tr>
-<tr valign="top"><td width="33%">4 Richard Mudgett <rmudgett@digium.com><br/>2 Alexei Gradinari <alex2grad@gmail.com><br/>2 Joshua Colp <jcolp@digium.com><br/>2 gtjoseph <gjoseph@digium.com><br/>1 Walter Doekes <walter+asterisk@wjd.nu><br/>1 Mark Michelson <mmichelson@digium.com><br/></td><td width="33%"><td width="33%">3 Richard Mudgett <rmudgett@digium.com><br/>3 Richard Mudgett<br/>2 Ross Beer <ross.beer@voicehost.co.uk><br/>1 Walter Doekes <walter+asterisk@wjd.nu><br/>1 George Joseph <gjoseph@digium.com><br/>1 Kevin Harwell<br/>1 Scott Griepentrog <sgriepentrog@digium.com><br/>1 Joshua Colp <jcolp@digium.com><br/>1 Kevin Harwell <kharwell@digium.com><br/></td></tr>
+<tr valign="top"><td width="33%">4 Richard Mudgett <rmudgett@digium.com><br/>2 Alexei Gradinari <alex2grad@gmail.com><br/>2 Joshua Colp <jcolp@digium.com><br/>2 gtjoseph <gjoseph@digium.com><br/>1 Walter Doekes <walter+asterisk@wjd.nu><br/>1 Kevin Harwell <kharwell@digium.com><br/>1 Mark Michelson <mmichelson@digium.com><br/></td><td width="33%"><td width="33%">3 Richard Mudgett <rmudgett@digium.com><br/>3 Richard Mudgett<br/>2 Ross Beer <ross.beer@voicehost.co.uk><br/>1 Walter Doekes <walter+asterisk@wjd.nu><br/>1 George Joseph <gjoseph@digium.com><br/>1 Kevin Harwell<br/>1 Scott Griepentrog <sgriepentrog@digium.com><br/>1 Joshua Colp <jcolp@digium.com><br/>1 Kevin Harwell <kharwell@digium.com><br/></td></tr>
 </table><hr><a name="closed_issues"><h2 align="center">Closed Issues</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all issues from the issue tracker that were closed by changes that went into this release.</p><h3>Bug</h3><h4>Category: Applications/app_dial</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26549">ASTERISK-26549</a>: app_dial: When PickupChan() is used some channels may have incorrect device state<br/>Reported by: Joshua Colp<ul>
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=c8df7275027ba1bad7dabd1cbcbc3aa1c4ec976d">[c8df727502]</a> Joshua Colp -- app_dial: Fix incorrect device state when channel is picked up.</li>
 </ul><br><h4>Category: Channels/chan_pjsip</h4><a href="https://issues.asterisk.org/jira/browse/ASTERISK-26145">ASTERISK-26145</a>: pjsip: Deadlock with suspend + masquerade + indicate<br/>Reported by: Ross Beer<ul>
@@ -35,41 +35,53 @@
 <li><a href="https://code.asterisk.org/code/changelog/asterisk?cs=7baedd9ecd3cd4f3d1463f3e6f0f694bd56237d7">[7baedd9ecd]</a> Alexei Gradinari -- res_pjsip_pubsub: fixed a bug when pjsip_tx_data_dec_ref is called twice.</li>
 </ul><br><hr><a name="commits"><h2 align="center">Commits Not Associated with an Issue</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a list of all changes that went into this release that did not reference a JIRA issue.</p><table width="100%" border="1">
 <tr><th>Revision</th><th>Author</th><th>Summary</th></tr>
+<tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=2e0239c28c75e579ca4eff6aff632c979d2dab9f">2e0239c28c</a></td><td>Kevin Harwell</td><td>Update for certified/13.8-cert4</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=87e1ebc91a46d1b0e6c2d8fc793f8bdd10f06b54">87e1ebc91a</a></td><td>Mark Michelson</td><td>res_pjsip_session: Do not call session supplements when it's too late.</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=4c50689d09494cd295d1ff00251a2e5557721f2e">4c50689d09</a></td><td>Joshua Colp</td><td>Revert "pjproject_bundled:  Add patch to address SSL crash"</td></tr>
 <tr><td><a href="https://code.asterisk.org/code/changelog/asterisk?cs=a8e37c3d06f9b4dbede3e98dbad29ffe17b2f273">a8e37c3d06</a></td><td>gtjoseph</td><td>pjproject_bundled:  Add MALLOC_DEBUG capability</td></tr>
-</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>CHANGES                                                                                     |   17 +
-apps/app_dial.c                                                                             |    1
-apps/app_fax.c                                                                              |   14
-apps/app_queue.c                                                                            |   12
-channels/chan_sip.c                                                                         |    8
-configs/samples/pjsip.conf.sample                                                           |   16 +
-contrib/ast-db-manage/config/versions/a6ef36f1309_ps_globals_add_ignore_uri_user_options.py |   32 ++
-include/asterisk/json.h                                                                     |   35 ++
-include/asterisk/res_pjsip.h                                                                |   32 ++
-include/asterisk/taskprocessor.h                                                            |   32 ++
-main/aoc.c                                                                                  |   17 -
-main/cel.c                                                                                  |    4
-main/json.c                                                                                 |  146 +++++++++-
-main/taskprocessor.c                                                                        |   29 +
-res/res_fax.c                                                                               |   12
-res/res_pjsip.c                                                                             |   24 +
-res/res_pjsip/config_global.c                                                               |   21 +
-res/res_pjsip/pjsip_options.c                                                               |   12
-res/res_pjsip_caller_id.c                                                                   |   18 +
-res/res_pjsip_diversion.c                                                                   |   25 +
-res/res_pjsip_endpoint_identifier_user.c                                                    |    7
-res/res_pjsip_messaging.c                                                                   |   25 +
-res/res_pjsip_path.c                                                                        |   22 +
-res/res_pjsip_pubsub.c                                                                      |   20 +
-res/res_pjsip_refer.c                                                                       |    7
-res/res_pjsip_registrar.c                                                                   |   15 -
-res/res_pjsip_session.c                                                                     |   37 +-
-res/stasis/app.c                                                                            |    2
-tests/test_json.c                                                                           |   34 +-
-third-party/Makefile.rules                                                                  |    2
-third-party/pjproject/.gitignore                                                            |    1
-third-party/pjproject/Makefile                                                              |  110 +++++--
-third-party/pjproject/patches/asterisk_malloc_debug.c                                       |   72 ++++
-third-party/pjproject/patches/asterisk_malloc_debug.h                                       |   11
-34 files changed, 749 insertions(+), 123 deletions(-)</pre><br></html>
+</table><hr><a name="diffstat"><h2 align="center">Diffstat Results</h2></a><center><a href="#top">[Back to Top]</a></center><p>This is a summary of the changes to the source code that went into this release that was generated using the diffstat utility.</p><pre>asterisk-certified-13.8-cert3-summary.html                                                    |   47 -
+asterisk-certified-13.8-cert3-summary.txt                                                     |  156 ------
+b/.version                                                                                    |    2
+b/CHANGES                                                                                     |   17
+b/ChangeLog                                                                                   |  248 ++++++++++
+b/apps/app_dial.c                                                                             |    1
+b/apps/app_fax.c                                                                              |   14
+b/apps/app_queue.c                                                                            |   12
+b/asterisk-certified-13.8-cert4-summary.html                                                  |   75 +++
+b/asterisk-certified-13.8-cert4-summary.txt                                                   |  221 ++++++++
+b/channels/chan_sip.c                                                                         |    8
+b/configs/samples/pjsip.conf.sample                                                           |   16
+b/contrib/ast-db-manage/config/versions/a6ef36f1309_ps_globals_add_ignore_uri_user_options.py |   32 +
+b/contrib/realtime/mssql/mssql_config.sql                                                     |   14
+b/contrib/realtime/mysql/mysql_config.sql                                                     |    6
+b/contrib/realtime/oracle/oracle_config.sql                                                   |   14
+b/contrib/realtime/postgresql/postgresql_config.sql                                           |    6
+b/include/asterisk/json.h                                                                     |   35 +
+b/include/asterisk/res_pjsip.h                                                                |   32 +
+b/include/asterisk/taskprocessor.h                                                            |   32 +
+b/main/aoc.c                                                                                  |   17
+b/main/cel.c                                                                                  |    4
+b/main/json.c                                                                                 |  146 +++++
+b/main/taskprocessor.c                                                                        |   29 +
+b/res/res_fax.c                                                                               |   12
+b/res/res_pjsip.c                                                                             |   24
+b/res/res_pjsip/config_global.c                                                               |   21
+b/res/res_pjsip/pjsip_options.c                                                               |   12
+b/res/res_pjsip_caller_id.c                                                                   |   18
+b/res/res_pjsip_diversion.c                                                                   |   25 -
+b/res/res_pjsip_endpoint_identifier_user.c                                                    |    7
+b/res/res_pjsip_messaging.c                                                                   |   25 -
+b/res/res_pjsip_path.c                                                                        |   22
+b/res/res_pjsip_pubsub.c                                                                      |   20
+b/res/res_pjsip_refer.c                                                                       |    7
+b/res/res_pjsip_registrar.c                                                                   |   15
+b/res/res_pjsip_session.c                                                                     |   37 -
+b/res/stasis/app.c                                                                            |    2
+b/tests/test_json.c                                                                           |   34 -
+b/third-party/Makefile.rules                                                                  |    2
+b/third-party/pjproject/.gitignore                                                            |    1
+b/third-party/pjproject/Makefile                                                              |  110 +++-
+b/third-party/pjproject/patches/asterisk_malloc_debug.c                                       |   72 ++
+b/third-party/pjproject/patches/asterisk_malloc_debug.h                                       |   78 +++
+b/third-party/pjproject/patches/config_site.h                                                 |   11
+45 files changed, 1412 insertions(+), 327 deletions(-)</pre><br></html>
