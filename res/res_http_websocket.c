@@ -490,7 +490,7 @@ const char * AST_OPTIONAL_API_NAME(ast_websocket_session_id)(struct ast_websocke
  */
 static inline int ws_safe_read(struct ast_websocket *session, char *buf, int len, enum ast_websocket_opcode *opcode)
 {
-	size_t rlen;
+	ssize_t rlen;
 	int xlen = len;
 	char *rbuf = buf;
 	int sanity = 10;
