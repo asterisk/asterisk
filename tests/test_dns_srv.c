@@ -87,14 +87,14 @@ static void *srv_thread(void *dns_query)
 	ans_size = ast_dns_test_generate_result(query, test_records, num_test_records,
 			sizeof(struct srv_record), generate_srv_record, ans_buffer);
 
-	ast_dns_resolver_set_result(query, 0, 0, ns_r_noerror, "goose.feathers", ans_buffer, ans_size);
+	ast_dns_resolver_set_result(query, 0, 0, NOERROR, "goose.feathers", ans_buffer, ans_size);
 
 	for (i = 0; i < num_test_records; ++i) {
 		char record[128];
 		int srv_size;
 
 		srv_size = generate_srv_record(&test_records[i], record);
-		ast_dns_resolver_add_record(query, ns_t_srv, ns_c_in, 12345, record, srv_size);
+		ast_dns_resolver_add_record(query, T_SRV, C_IN, 12345, record, srv_size);
 	}
 
 	ast_dns_resolver_completed(query);
@@ -136,7 +136,7 @@ static enum ast_test_result_state nominal_test(struct ast_test *test, struct srv
 
 	ast_dns_resolver_register(&srv_resolver);
 
-	if (ast_dns_resolve("goose.feathers", ns_t_srv, ns_c_in, &result)) {
+	if (ast_dns_resolve("goose.feathers", T_SRV, C_IN, &result)) {
 		ast_test_status_update(test, "DNS resolution failed\n");
 		res = AST_TEST_FAIL;
 		goto cleanup;
@@ -295,7 +295,7 @@ AST_TEST_DEFINE(srv_resolve_same_priority_different_weights)
 
 		memset(ans_buffer, 0, sizeof(ans_buffer));
 
-		if (ast_dns_resolve("goose.feathers", ns_t_srv, ns_c_in, &result)) {
+		if (ast_dns_resolve("goose.feathers", T_SRV, C_IN, &result)) {
 			ast_test_status_update(test, "DNS resolution failed\n");
 			res = AST_TEST_FAIL;
 			goto cleanup;
@@ -385,7 +385,7 @@ AST_TEST_DEFINE(srv_resolve_different_priorities_different_weights)
 
 		memset(ans_buffer, 0, sizeof(ans_buffer));
 
-		if (ast_dns_resolve("goose.feathers", ns_t_srv, ns_c_in, &result)) {
+		if (ast_dns_resolve("goose.feathers", T_SRV, C_IN, &result)) {
 			ast_test_status_update(test, "DNS resolution failed\n");
 			res = AST_TEST_FAIL;
 			goto cleanup;
@@ -462,7 +462,7 @@ static enum ast_test_result_state invalid_record_test(struct ast_test *test, str
 
 	ast_dns_resolver_register(&srv_resolver);
 
-	if (ast_dns_resolve("goose.feathers", ns_t_srv, ns_c_in, &result)) {
+	if (ast_dns_resolve("goose.feathers", T_SRV, C_IN, &result)) {
 		ast_test_status_update(test, "DNS resolution failed\n");
 		res = AST_TEST_FAIL;
 		goto cleanup;

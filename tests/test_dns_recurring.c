@@ -129,13 +129,13 @@ static void *resolution_thread(void *dns_query)
 	/* When the query isn't canceled, we set the TTL of the results based on what
 	 * we've been told to set it to
 	 */
-	ast_dns_resolver_set_result(query, 0, 0, ns_r_noerror, "asterisk.org", DNS_ANSWER, DNS_ANSWER_SIZE);
+	ast_dns_resolver_set_result(query, 0, 0, NOERROR, "asterisk.org", DNS_ANSWER, DNS_ANSWER_SIZE);
 
 	inet_pton(AF_INET, ADDR1, addr1_buf);
-	ast_dns_resolver_add_record(query, ns_t_a, ns_c_in, rdata->ttl1, addr1_buf, ADDR1_BUFSIZE);
+	ast_dns_resolver_add_record(query, T_A, C_IN, rdata->ttl1, addr1_buf, ADDR1_BUFSIZE);
 
 	inet_pton(AF_INET, ADDR2, addr2_buf);
-	ast_dns_resolver_add_record(query, ns_t_a, ns_c_in, rdata->ttl2, addr2_buf, ADDR2_BUFSIZE);
+	ast_dns_resolver_add_record(query, T_A, C_IN, rdata->ttl2, addr2_buf, ADDR2_BUFSIZE);
 
 	++rdata->complete_resolutions;
 
@@ -308,7 +308,7 @@ AST_TEST_DEFINE(recurring_query)
 	rdata->ttl1 = 5;
 	rdata->ttl2 = 20;
 
-	recurring_query = ast_dns_resolve_recurring("asterisk.org", ns_t_a, ns_c_in, async_callback, rdata);
+	recurring_query = ast_dns_resolve_recurring("asterisk.org", T_A, C_IN, async_callback, rdata);
 	if (!recurring_query) {
 		ast_test_status_update(test, "Failed to create recurring DNS query\n");
 		res = AST_TEST_FAIL;
@@ -382,12 +382,12 @@ AST_TEST_DEFINE(recurring_query_off_nominal)
 		int rr_class;
 		ast_dns_resolve_callback callback;
 	} resolves [] = {
-		{ NULL,           ns_t_a,       ns_c_in,      stub_callback },
-		{ "asterisk.org", -1,           ns_c_in,      stub_callback },
-		{ "asterisk.org", ns_t_max + 1, ns_c_in,      stub_callback },
-		{ "asterisk.org", ns_t_a,       -1,           stub_callback },
-		{ "asterisk.org", ns_t_a,       ns_c_max + 1, stub_callback },
-		{ "asterisk.org", ns_t_a,       ns_c_in,      NULL },
+		{ NULL,           T_A,       C_IN,      stub_callback },
+		{ "asterisk.org", -1,        C_IN,      stub_callback },
+		{ "asterisk.org", 65536 + 1, C_IN,      stub_callback },
+		{ "asterisk.org", T_A,       -1,        stub_callback },
+		{ "asterisk.org", T_A,       65536 + 1, stub_callback },
+		{ "asterisk.org", T_A,       C_IN,      NULL },
 	};
 	int i;
 	enum ast_test_result_state res = AST_TEST_PASS;
@@ -432,7 +432,7 @@ AST_TEST_DEFINE(recurring_query_off_nominal)
 		return AST_TEST_FAIL;
 	}
 
-	recurring = ast_dns_resolve_recurring("asterisk.org", ns_t_a, ns_c_in, stub_callback, NULL);
+	recurring = ast_dns_resolve_recurring("asterisk.org", T_A, C_IN, stub_callback, NULL);
 
 	ast_dns_resolver_unregister(&terrible_resolver);
 
@@ -483,7 +483,7 @@ AST_TEST_DEFINE(recurring_query_cancel_between)
 	rdata->ttl1 = 5;
 	rdata->ttl2 = 20;
 
-	recurring_query = ast_dns_resolve_recurring("asterisk.org", ns_t_a, ns_c_in, async_callback, rdata);
+	recurring_query = ast_dns_resolve_recurring("asterisk.org", T_A, C_IN, async_callback, rdata);
 	if (!recurring_query) {
 		ast_test_status_update(test, "Unable to make recurring query\n");
 		res = AST_TEST_FAIL;
@@ -566,7 +566,7 @@ AST_TEST_DEFINE(recurring_query_cancel_during)
 	rdata->ttl1 = 5;
 	rdata->ttl2 = 20;
 
-	recurring_query = ast_dns_resolve_recurring("asterisk.org", ns_t_a, ns_c_in, async_callback, rdata);
+	recurring_query = ast_dns_resolve_recurring("asterisk.org", T_A, C_IN, async_callback, rdata);
 	if (!recurring_query) {
 		ast_test_status_update(test, "Failed to make recurring DNS query\n");
 		res = AST_TEST_FAIL;
