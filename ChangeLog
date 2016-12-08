@@ -1,6 +1,10 @@
-2016-12-08 20:28 +0000  Asterisk Development Team <asteriskteam@digium.com>
+2016-12-08 20:29 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/11.6-cert16 Released.
+
+2016-12-08 14:28 +0000 [c54d57a9f6]  Kevin Harwell <kharwell@digium.com>
+
+	* Update for certified/11.6-cert16
 
 2016-11-30 09:31 +0000 [93dfe39642]  Walter Doekes <walter+asterisk@wjd.nu>
 
