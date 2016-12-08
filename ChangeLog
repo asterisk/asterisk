@@ -1,3 +1,42 @@
+2016-12-08 17:22 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 11.25.1 Released.
+
+2016-11-30 09:31 +0000 [7c01f1977a]  Walter Doekes <walter+asterisk@wjd.nu>
+
+	* chan_sip: Do not allow non-SP/HTAB between header key and colon.
+
+	  RFC says SIP headers look like:
+
+	      HCOLON  =  *( SP / HTAB ) ":" SWS
+	      SWS     =  [LWS]                    ; sep whitespace
+	      LWS     =  [*WSP CRLF] 1*WSP        ; linear whitespace
+	      WSP     =  SP / HTAB                ; from rfc2234
+
+	  chan_sip implemented this:
+
+	      HCOLON  =  *( LOWCTL / SP ) ":" SWS
+	      LOWCTL  = %x00-1F                   ; CTL without DEL
+
+	  This discrepancy meant that SIP proxies in front of Asterisk with
+	  chan_sip could pass on unknown headers with \x00-\x1F in them, which
+	  would be treated by Asterisk as a different (known) header.  For
+	  example, the "To\x01:" header would gladly be forwarded by some proxies
+	  as irrelevant, but chan_sip would treat it as the relevant "To:" header.
+
+	  Those relying on a SIP proxy to scrub certain headers could mistakenly
+	  get unexpected and unvalidated data fed to Asterisk.
+
+	  This change fixes so chan_sip only considers SP/HTAB as valid tokens
+	  before the colon, making it agree on the headers with other speakers of
+	  SIP.
+
+	  ASTERISK-26433 #close
+	  AST-2016-009
+
+	  Change-Id: I78086fbc524ac733b8f7f78cb423c91075fd489b
+	  (cherry picked from commit 26dd464dbd0ad7439bc29ce59ec55903d518ec6e)
+
 2016-11-22 17:16 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 11.25.0 Released.
