@@ -1776,7 +1776,7 @@ static void destroy_escs(void)
 {
 	int i;
 	for (i = 0; i < ARRAY_LEN(event_state_compositors); i++) {
-		ao2_cleanup(event_state_compositors[i].compositor);
+		ao2_replace(event_state_compositors[i].compositor, NULL);
 	}
 }
 
@@ -35383,6 +35383,8 @@ static int unload_module(void)
 	struct ao2_iterator i;
 	struct timeval start;
 
+	ast_sched_dump(sched);
+
 	ast_sip_api_provider_unregister();
 
 	if (sip_cfg.websocket_enabled) {
@@ -35392,12 +35394,11 @@ static int unload_module(void)
 	network_change_stasis_unsubscribe();
 	acl_change_event_stasis_unsubscribe();
 
-	ast_sched_dump(sched);
-
 	/* First, take us out of the channel type list */
 	ast_channel_unregister(&sip_tech);
-
 	ast_msg_tech_unregister(&sip_msg_tech);
+	ast_cc_monitor_unregister(&sip_cc_monitor_callbacks);
+	ast_cc_agent_unregister(&sip_cc_agent_callbacks);
 
 	/* Unregister dial plan functions */
 	ast_custom_function_unregister(&sippeer_function);
@@ -35461,8 +35462,6 @@ static int unload_module(void)
 	}
 	ao2_iterator_destroy(&i);
 
-	unlink_all_peers_from_tables();
-
 	ast_mutex_lock(&monlock);
 	if (monitor_thread && (monitor_thread != AST_PTHREADT_STOP) && (monitor_thread != AST_PTHREADT_NULL)) {
 		pthread_t th = monitor_thread;
@@ -35476,7 +35475,19 @@ static int unload_module(void)
 		ast_mutex_unlock(&monlock);
 	}
 
+	if (sipsock_read_id) {
+		ast_io_remove(io, sipsock_read_id);
+		sipsock_read_id = NULL;
+	}
+	close(sipsock);
+	io_context_destroy(io);
+
+	/* Clear containers */
+	unlink_all_peers_from_tables();
 	cleanup_all_regs();
+	sip_epa_unregister_all();
+	destroy_escs();
+	clear_sip_domains();
 
 	{
 		struct ao2_iterator iter;
@@ -35505,27 +35516,6 @@ static int unload_module(void)
 	 */
 	ast_sched_runq(sched);
 
-	/* Free memory for local network address mask */
-	ast_free_ha(localaddr);
-
-	ast_mutex_lock(&authl_lock);
-	if (authl) {
-		ao2_t_cleanup(authl, "Removing global authentication");
-		authl = NULL;
-	}
-	ast_mutex_unlock(&authl_lock);
-
-	sip_epa_unregister_all();
-	destroy_escs();
-
-	ast_free(default_tls_cfg.certfile);
-	ast_free(default_tls_cfg.pvtfile);
-	ast_free(default_tls_cfg.cipher);
-	ast_free(default_tls_cfg.cafile);
-	ast_free(default_tls_cfg.capath);
-
-	ast_rtp_dtls_cfg_free(&default_dtls_cfg);
-
 	/*
 	 * Wait awhile for the TCP/TLS thread container to become empty.
 	 *
@@ -35539,7 +35529,27 @@ static int unload_module(void)
 	}
 	if (ao2_container_count(threadt)) {
 		ast_debug(2, "TCP/TLS thread container did not become empty :(\n");
+
+		return -1;
 	}
+
+	/* Free memory for local network address mask */
+	ast_free_ha(localaddr);
+
+	ast_mutex_lock(&authl_lock);
+	if (authl) {
+		ao2_t_cleanup(authl, "Removing global authentication");
+		authl = NULL;
+	}
+	ast_mutex_unlock(&authl_lock);
+
+	ast_free(default_tls_cfg.certfile);
+	ast_free(default_tls_cfg.pvtfile);
+	ast_free(default_tls_cfg.cipher);
+	ast_free(default_tls_cfg.cafile);
+	ast_free(default_tls_cfg.capath);
+
+	ast_rtp_dtls_cfg_free(&default_dtls_cfg);
 
 	ao2_cleanup(registry_list);
 	ao2_cleanup(subscription_mwi_list);
@@ -35554,21 +35564,13 @@ static int unload_module(void)
 	ao2_t_cleanup(threadt, "unref the thread table");
 	ao2_t_cleanup(sip_monitor_instances, "unref the sip_monitor_instances table");
 
-	clear_sip_domains();
 	sip_cfg.contact_acl = ast_free_acl_list(sip_cfg.contact_acl);
-	if (sipsock_read_id) {
-		ast_io_remove(io, sipsock_read_id);
-		sipsock_read_id = NULL;
-	}
-	close(sipsock);
-	io_context_destroy(io);
+
 	ast_sched_context_destroy(sched);
 	sched = NULL;
 	ast_context_destroy_by_name(used_context, "SIP");
 	ast_unload_realtime("sipregs");
 	ast_unload_realtime("sippeers");
-	ast_cc_monitor_unregister(&sip_cc_monitor_callbacks);
-	ast_cc_agent_unregister(&sip_cc_agent_callbacks);
 
 	sip_reqresp_parser_exit();
 	sip_unregister_tests();
