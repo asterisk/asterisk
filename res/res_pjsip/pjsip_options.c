@@ -711,7 +711,8 @@ static pj_status_t send_options_response(pjsip_rx_data *rdata, int code)
 	pj_status_t status;
 
 	/* Make the response object */
-	if ((status = ast_sip_create_response(rdata, code, NULL, &tdata) != PJ_SUCCESS)) {
+	status = ast_sip_create_response(rdata, code, NULL, &tdata);
+	if (status != PJ_SUCCESS) {
 		ast_log(LOG_ERROR, "Unable to create response (%d)\n", status);
 		return status;
 	}
