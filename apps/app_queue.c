@@ -2353,6 +2353,7 @@ static int pending_members_cmp(void *obj, void *arg, int flags)
 
 static void pending_members_remove(struct member *mem)
 {
+	ast_debug(3, "Removed %s from pending_members\n", mem->membername);
 	ao2_find(pending_members, mem, OBJ_POINTER | OBJ_NODATA | OBJ_UNLINK);
 }
 
@@ -4209,6 +4210,7 @@ static void do_hang(struct callattempt *o)
 {
 	o->stillgoing = 0;
 	ast_hangup(o->chan);
+	pending_members_remove(o->member);
 	o->chan = NULL;
 }
 
@@ -4289,6 +4291,7 @@ static int can_ring_entry(struct queue_ent *qe, struct callattempt *call)
 		 * If not found add it to the container so another queue
 		 * won't attempt to call this member at the same time.
 		 */
+		ast_debug(3, "Add %s to pending_members\n", call->member->membername);
 		ao2_link(pending_members, call->member);
 		ao2_unlock(pending_members);
 
