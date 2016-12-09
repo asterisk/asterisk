@@ -87,29 +87,37 @@ SHELL_ECHO_PREFIX := echo '[pjproject] '
 
 _all: $(TARGETS)
 
+define verify_tarball
+	($(SHELL_ECHO_PREFIX) Verifying $(TARBALL) &&\
+	tarball_sum=$$($(CAT) $(TARBALL) | $(MD5) | $(SED) -n -r -e "s/^([^ ]+)\s+.*/\1/gp") ;\
+	required_sum=$$($(SED) -n -r -e "s/^([^ ]+)\s+$(TARBALL_FILE)/\1/gp" $(PJMD5SUM)) ;\
+	if [ "$$tarball_sum" != "$$required_sum" ] ; then $(SHELL_ECHO_PREFIX) Verify failed ; exit 1 ;\
+	else $(SHELL_ECHO_PREFIX) Verify successful ; exit 0 ; fi; )
+endef
+
 define download_from_pjproject
-	($(SHELL_ECHO_PREFIX) Downloading $(PJPROJECT_URL)/$(@F) to $@ ;\
-	$(DOWNLOAD_TO_STDOUT) $(call DOWNLOAD_TIMEOUT,5,10) $(PJPROJECT_URL)/$(@F) > $@ &&\
+	($(SHELL_ECHO_PREFIX) Downloading $(TARBALL_URL) to $(TARBALL) ;\
+	$(DOWNLOAD_TO_STDOUT) $(call DOWNLOAD_TIMEOUT,5,10) $(TARBALL_URL) > $(TARBALL) &&\
 	$(SHELL_ECHO_PREFIX) Downloading $(PJPROJECT_URL)/MD5SUM to $(PJMD5SUM) &&\
 	$(DOWNLOAD_TO_STDOUT) $(call DOWNLOAD_TIMEOUT,5,10) $(PJPROJECT_URL)/MD5SUM.TXT > $(PJMD5SUM) &&\
-	($(SHELL_ECHO_PREFIX) Verifying $@ &&\
-	tarball_sum=$$($(CAT) $@ | $(MD5) | $(SED) -n -r -e "s/^([^ ]+)\s+.*/\1/gp") ;\
-	required_sum=$$($(SED) -n -r -e "s/^([^ ]+)\s+$(@F)/\1/gp" $(PJMD5SUM)) ;\
-	if [ "$$tarball_sum" != "$$required_sum" ] ; then $(SHELL_ECHO_PREFIX) Verify failed ; exit 1 ; fi) &&\
-	$(SHELL_ECHO_PREFIX) Verify successful ; exit 0)
+	$(verify_tarball))
 endef
 
 .DELETE_ON_ERROR:
 
 DOWNLOAD_DIR := $(or $(EXTERNALS_CACHE_DIR),$(TMPDIR),$(wildcard /tmp),.)
-TARBALL = $(DOWNLOAD_DIR)/pjproject-$(PJPROJECT_VERSION).tar.bz2
+TARBALL_FILE = pjproject-$(PJPROJECT_VERSION).tar.bz2
+TARBALL = $(DOWNLOAD_DIR)/$(TARBALL_FILE)
+TARBALL_URL = $(PJPROJECT_URL)/$(TARBALL_FILE)
 PJMD5SUM = $(patsubst %.tar.bz2,%.md5,$(TARBALL))
 
 $(TARBALL): ../versions.mak
 	$(CMD_PREFIX) $(download_from_pjproject) || (rm -rf $@ ;\
-	$(SHELL_ECHO_PREFIX) Retrying download ; sleep 3 ; $(download_from_pjproject))
+	$(SHELL_ECHO_PREFIX) Retrying download ; $(download_from_pjproject))
 
 source/.unpacked: $(DOWNLOAD_DIR)/pjproject-$(PJPROJECT_VERSION).tar.bz2
+	($(verify_tarball)) || (rm -rf $@ ;\
+	$(SHELL_ECHO_PREFIX) Retrying download ; $(download_from_pjproject))
 	$(ECHO_PREFIX) Unpacking $<
 	-@rm -rf source pjproject-* >/dev/null 2>&1
 	$(CMD_PREFIX) $(TAR) -xjf $<
