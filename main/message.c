@@ -777,10 +777,19 @@ static void chan_cleanup(struct ast_channel *chan)
 	if (msg_ds) {
 		ast_channel_datastore_add(chan, msg_ds);
 	}
+
 	/*
 	 * Clear softhangup flags.
 	 */
 	ast_channel_clear_softhangup(chan, AST_SOFTHANGUP_ALL);
+
+	/*
+	 * Flush the alert pipe in case we miscounted somewhere when
+	 * messing with frames on the read queue, we had to flush the
+	 * read queue above, or we had an "Exceptionally long queue
+	 * length" event.
+	 */
+	ast_channel_internal_alert_flush(chan);
 
 	ast_channel_unlock(chan);
 }
