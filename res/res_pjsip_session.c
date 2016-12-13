@@ -1736,6 +1736,8 @@ struct ast_sip_session *ast_sip_session_create_outgoing(struct ast_sip_endpoint 
 
 	/* If we still have no URI to dial fail to create the session */
 	if (ast_strlen_zero(uri)) {
+		ast_log(LOG_ERROR, "Endpoint '%s': No URI available.  Is endpoint registered?\n",
+			ast_sorcery_object_get_id(endpoint));
 		return NULL;
 	}
 
