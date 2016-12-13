@@ -1555,7 +1555,7 @@ static int sorcery_memory_cache_delete(const struct ast_sorcery *sorcery, void *
 	ao2_unlock(cache->objects);
 
 	if (res) {
-		ast_log(LOG_ERROR, "Unable to delete object '%s' from sorcery cache\n", ast_sorcery_object_get_id(object));
+		ast_debug(1, "Unable to delete object '%s' from sorcery cache\n", ast_sorcery_object_get_id(object));
 	}
 
 	return res;
