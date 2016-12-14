@@ -33,7 +33,6 @@ import sqlalchemy as sa
 
 
 def upgrade():
-    context = op.get_context()
     # Was unable to find a way to use op.alter_column() to add the unique
     # index property.
     op.drop_column('queue_members', 'uniqueid')
