@@ -52,7 +52,6 @@ class Transform(object):
         dest_exists = os.path.exists(dest_file)
         if dest_exists and not self.overwrite:
             return
-        tmp_file = tempfile.mkstemp()
         with tempfile.NamedTemporaryFile() as out:
             out.write(renderer.render(self.template, model))
             out.flush()

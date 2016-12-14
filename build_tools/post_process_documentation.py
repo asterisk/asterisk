@@ -9,11 +9,9 @@ the GNU General Public License Version 2.
 '''
 
 import sys
-import os
 import optparse
-import xml.dom.minidom
 
-from xml.dom.minidom import Element, parse
+from xml.dom.minidom import parse
 
 
 def merge_parameter_information(managerEvent):

@@ -737,7 +737,7 @@ class ResourceListing(Stringify):
         self.swagger_version = resources_json.get('swaggerVersion')
         if not self.swagger_version in SWAGGER_VERSIONS:
             raise SwaggerError(
-                "Unsupported Swagger version %s" % swagger_version, context)
+                "Unsupported Swagger version %s" % self.swagger_version, context)
 
         validate_required_fields(resources_json, self.required_fields, context)
         self.api_version = resources_json['apiVersion']
