@@ -1855,6 +1855,7 @@ process_extension:
 
 				appl = ast_skip_blanks(appl);
 				if (ipri) {
+					const char *registrar_file;
 					if (plus) {
 						ipri += atoi(plus);
 					}
@@ -1864,7 +1865,14 @@ process_extension:
 							"The use of '%s' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X%c' instead at line %d of %s\n",
 							realext, realext[1], v->lineno, vfile);
 					}
-					if (ast_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, ast_strdup(data), ast_free_ptr, registrar)) {
+					/* Don't include full path if the configuration file includes slashes */
+					registrar_file = strrchr(vfile, '/');
+					if (!registrar_file) {
+						registrar_file = vfile;
+					} else {
+						registrar_file++; /* Skip past the end slash */
+					}
+					if (ast_add_extension2_with_lines(con, 0, realext, ipri, label, cidmatch, appl, ast_strdup(data), ast_free_ptr, registrar, registrar_file, v->lineno)) {
 						ast_log(LOG_WARNING,
 							"Unable to register extension at line %d of %s\n",
 							v->lineno, vfile);

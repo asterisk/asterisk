@@ -512,6 +512,26 @@ int ast_add_extension2(struct ast_context *con, int replace, const char *extensi
 	const char *application, void *data, void (*datad)(void *), const char *registrar);
 
 /*!
+ * \brief Add an extension as with ast_add_extension2, but include file name and line number
+ *        to help users track the origin of extensions. Recommended for config files that add
+ *        PBX extensions.
+ * \since 15.0.0
+ *
+ * \param registrar_file Configuration file name which will appear in dialplan show cli output
+ *                       for this extension. It's recommended for consumers of this function to
+ *                       strip full paths to just filenames.
+ *
+ * \param registrar_line Line number indicating what line of the configuration file is responsible
+ *                       for adding this extension.
+ *
+ * \note For details about the rest of the arguments, check ast_add_extension()
+ */
+int ast_add_extension2_with_lines(struct ast_context *con, int replace, const char *extension,
+	int priority, const char *label, const char *callerid,
+	const char *application, void *data, void (*datad)(void *), const char *registrar,
+	const char *registrar_file, int registrar_line);
+
+/*!
  * \brief Same as ast_add_extension2, but assumes you have already locked context
  * \since 12.0.0
  *
@@ -521,6 +541,19 @@ int ast_add_extension2(struct ast_context *con, int replace, const char *extensi
 int ast_add_extension2_nolock(struct ast_context *con, int replace, const char *extension,
 	int priority, const char *label, const char *callerid,
 	const char *application, void *data, void (*datad)(void *), const char *registrar);
+
+/*!
+ * \brief Sames as ast_add_extension2_nolock, but includes file name and line number in the
+ *        same manner as ast_add_extension2_with_lines.
+ * \since 15.0.0
+ *
+ * \note con must be write locked prior to calling. For details about hte arguments,
+ *       check ast_add_extension() and ast_add_extension2_with_lines()
+ */
+int ast_add_extension2_nolock_with_lines(struct ast_context *con, int replace,
+	const char *extension, int priority, const char *label, const char *callerid,
+	const char *application, void *data, void (*datad)(void *), const char *registrar,
+	const char *registrar_file, int registrar_line);
 
 /*!
  * \brief Map devstate to an extension state.
@@ -1265,6 +1298,23 @@ const char *ast_get_include_registrar(const struct ast_include *i);
 const char *ast_get_ignorepat_registrar(const struct ast_ignorepat *ip);
 const char *ast_get_switch_registrar(const struct ast_sw *sw);
 /*! @} */
+
+/*! 
+ * \brief Get name of configuration file used by registrar to register this extension
+ *
+ * \retval NULL if registrar did not indicate config file when registering the extension
+ * \retval name of the file used to register the extension
+ */
+const char *ast_get_extension_registrar_file(struct ast_exten *e);
+
+/*!
+ * \brief Get line number of configuration file used by registrar to register this extension
+ *
+ * \retval -1 if the line wasn't indicated when the extension was registered
+ * \retval 0 or positive integer indicating what line in the config file was responsible for
+ *           registering the extension.
+ */
+int ast_get_extension_registrar_line(struct ast_exten *e);
 
 /*! @name Walking functions ... */
 /*! @{ */
