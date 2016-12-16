@@ -9296,7 +9296,7 @@ PJPROJECT_BUNDLED=no
 
 # Check whether --with-pjproject-bundled was given.
 if test "${with_pjproject_bundled+set}" = set; then :
-  withval=$with_pjproject_bundled; case "${enableval}" in
+  withval=$with_pjproject_bundled; case "${withval}" in
 	      n|no) PJPROJECT_BUNDLED=no ;;
 	      *) PJPROJECT_BUNDLED=yes ;;
 	esac
