@@ -430,7 +430,7 @@ AH_TEMPLATE(m4_bpatsubst([[HAVE_PJPROJECT_BUNDLED]], [(.*)]), [Define to 1 when 
 AC_ARG_WITH([pjproject-bundled],
 	[AS_HELP_STRING([--with-pjproject-bundled],
 		[Use bundled pjproject libraries])],
-	[case "${enableval}" in
+	[case "${withval}" in
 	      n|no) PJPROJECT_BUNDLED=no ;;
 	      *) PJPROJECT_BUNDLED=yes ;;
 	esac])
