@@ -1,5 +1,7 @@
 .PHONY: _all all _install install clean distclean echo_cflags configure
 
+.NOTPARALLEL:
+
 include ../versions.mak
 export PJDIR := $(shell pwd -P)/source
 
@@ -139,7 +141,6 @@ source/pjlib/include/pj/%.h: patches/%.h
 .rebuild_needed: $(wildcard ../../makeopts) $(wildcard ../../menuselect.makeopts)
 	$(ECHO_PREFIX) Rebuilding
 	$(CMD_PREFIX) $(MAKE) clean $(REALLY_QUIET)
-	@touch  .rebuild_needed
 
 source/build.mak: Makefile.rules source/version.mak source/user.mak $(addprefix source/pjlib/include/pj/,$(notdir $(wildcard patches/*.h))) .rebuild_needed
 	$(ECHO_PREFIX) Configuring with $(PJPROJECT_CONFIG_OPTS)
@@ -156,13 +157,11 @@ echo_cflags: source/build.mak
 libpj%.a: source/build.mak
 	$(ECHO_PREFIX) Compiling lib $(@F)
 	$(CMD_PREFIX) $(MAKE) -C $(dir $(shell dirname $@))/build $(@F) $(REALLY_QUIET)
-	-@rm -rf .rebuild_needed
 
 # pjsua needs resample and g711 to successfully run the testsuite
-libresample%.a: .rebuild_needed source/build.mak
+libresample%.a: source/build.mak
 	$(ECHO_PREFIX) Compiling lib $(@F)
 	$(CMD_PREFIX) $(MAKE) -C $(dir $(shell dirname $@))/build/resample all $(REALLY_QUIET)
-	-@rm -rf .rebuild_needed
 
 # We need to compile pjlib, then pjlib-util, then the rest
 # so we separate them out and create the dependencies
