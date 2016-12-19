@@ -1240,7 +1240,7 @@ static int manager_dialplan_extension_add(struct mansession *s, const struct mes
 	}
 
 	if (ast_add_extension2(add_context, replace, exten, ipriority, NULL, cidmatch,
-			application, ast_strdup(application_data), ast_free_ptr, registrar)) {
+			application, ast_strdup(application_data), ast_free_ptr, registrar, NULL, 0)) {
 		ast_unlock_contexts();
 		switch (errno) {
 		case ENOMEM:
@@ -1855,6 +1855,7 @@ process_extension:
 
 				appl = ast_skip_blanks(appl);
 				if (ipri) {
+					const char *registrar_file;
 					if (plus) {
 						ipri += atoi(plus);
 					}
@@ -1864,7 +1865,14 @@ process_extension:
 							"The use of '%s' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X%c' instead at line %d of %s\n",
 							realext, realext[1], v->lineno, vfile);
 					}
-					if (ast_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, ast_strdup(data), ast_free_ptr, registrar)) {
+					/* Don't include full path if the configuration file includes slashes */
+					registrar_file = strrchr(vfile, '/');
+					if (!registrar_file) {
+						registrar_file = vfile;
+					} else {
+						registrar_file++; /* Skip past the end slash */
+					}
+					if (ast_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, ast_strdup(data), ast_free_ptr, registrar, registrar_file, v->lineno)) {
 						ast_log(LOG_WARNING,
 							"Unable to register extension at line %d of %s\n",
 							v->lineno, vfile);
@@ -2031,19 +2039,19 @@ static void pbx_load_users(void)
 			}
 
 			/* Add hint */
-			ast_add_extension2(con, 0, cat, -1, NULL, NULL, iface, NULL, NULL, registrar);
+			ast_add_extension2(con, 0, cat, -1, NULL, NULL, iface, NULL, NULL, registrar, NULL, 0);
 			/* If voicemail, use "stdexten" else use plain old dial */
 			if (hasvoicemail) {
 				if (ast_opt_stdexten_macro) {
 					/* Use legacy stdexten macro method. */
 					snprintf(tmp, sizeof(tmp), "stdexten,%s,${HINT}", cat);
-					ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Macro", ast_strdup(tmp), ast_free_ptr, registrar);
+					ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Macro", ast_strdup(tmp), ast_free_ptr, registrar, NULL, 0);
 				} else {
 					snprintf(tmp, sizeof(tmp), "%s,stdexten(${HINT})", cat);
-					ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Gosub", ast_strdup(tmp), ast_free_ptr, registrar);
+					ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Gosub", ast_strdup(tmp), ast_free_ptr, registrar, NULL, 0);
 				}
 			} else {
-				ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Dial", ast_strdup("${HINT}"), ast_free_ptr, registrar);
+				ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Dial", ast_strdup("${HINT}"), ast_free_ptr, registrar, NULL, 0);
 			}
 			altexts = ast_variable_retrieve(cfg, cat, "alternateexts");
 			if (!ast_strlen_zero(altexts)) {
@@ -2052,7 +2060,7 @@ static void pbx_load_users(void)
 				c = altcopy;
 				ext = strsep(&c, ",");
 				while (ext) {
-					ast_add_extension2(con, 0, ext, 1, NULL, NULL, "Goto", ast_strdup(tmp), ast_free_ptr, registrar);
+					ast_add_extension2(con, 0, ext, 1, NULL, NULL, "Goto", ast_strdup(tmp), ast_free_ptr, registrar, NULL, 0);
 					ext = strsep(&c, ",");
 				}
 			}

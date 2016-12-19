@@ -1026,7 +1026,7 @@ static int lua_register_hints(lua_State *L)
 				continue;
 			}
 
-			if (ast_add_extension2(con, 0, hint_name, PRIORITY_HINT, NULL, NULL, hint_value, NULL, NULL, registrar)) {
+			if (ast_add_extension2(con, 0, hint_name, PRIORITY_HINT, NULL, NULL, hint_value, NULL, NULL, registrar, NULL, 0)) {
 				/* remove hints table, hint name, hint value,
 				 * key copy, context name, and contex table */
 				lua_pop(L, 6);
