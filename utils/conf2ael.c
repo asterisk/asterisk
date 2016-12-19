@@ -561,7 +561,7 @@ void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char 
 int ast_add_extension2(struct ast_context *con,
 					   int replace, const char *extension, int priority, const char *label, const char *callerid,
 					   const char *application, void *data, void (*datad)(void *),
-					   const char *registrar)
+					   const char *registrar, const char *registrar_file, int registrar_line)
 {
 	return localized_add_extension2(con, replace, extension, priority, label, callerid, application, data, datad, registrar);
 }
