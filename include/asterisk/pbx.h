@@ -505,11 +505,15 @@ int ast_add_extension(const char *context, int replace, const char *extension,
 /*!
  * \brief Add an extension to an extension context, this time with an ast_context *.
  *
- * \note For details about the arguments, check ast_add_extension()
+ * \param registrar_file optional configuration file that defines this extension
+ * \param registrar_line optional line number of configuration file that defines extension
+ *
+ * \note For details about the other arguments, check ast_add_extension()
  */
 int ast_add_extension2(struct ast_context *con, int replace, const char *extension,
 	int priority, const char *label, const char *callerid,
-	const char *application, void *data, void (*datad)(void *), const char *registrar);
+	const char *application, void *data, void (*datad)(void *), const char *registrar,
+	const char *registrar_file, int registrar_line);
 
 /*!
  * \brief Same as ast_add_extension2, but assumes you have already locked context
@@ -520,7 +524,8 @@ int ast_add_extension2(struct ast_context *con, int replace, const char *extensi
  */
 int ast_add_extension2_nolock(struct ast_context *con, int replace, const char *extension,
 	int priority, const char *label, const char *callerid,
-	const char *application, void *data, void (*datad)(void *), const char *registrar);
+	const char *application, void *data, void (*datad)(void *), const char *registrar,
+	const char *registrar_file, int registrar_line);
 
 /*!
  * \brief Map devstate to an extension state.
@@ -1265,6 +1270,23 @@ const char *ast_get_include_registrar(const struct ast_include *i);
 const char *ast_get_ignorepat_registrar(const struct ast_ignorepat *ip);
 const char *ast_get_switch_registrar(const struct ast_sw *sw);
 /*! @} */
+
+/*! 
+ * \brief Get name of configuration file used by registrar to register this extension
+ *
+ * \retval NULL if registrar did not indicate config file when registering the extension
+ * \retval name of the file used to register the extension
+ */
+const char *ast_get_extension_registrar_file(struct ast_exten *e);
+
+/*!
+ * \brief Get line number of configuration file used by registrar to register this extension
+ *
+ * \retval -1 if the line wasn't indicated when the extension was registered
+ * \retval 0 or positive integer indicating what line in the config file was responsible for
+ *           registering the extension.
+ */
+int ast_get_extension_registrar_line(struct ast_exten *e);
 
 /*! @name Walking functions ... */
 /*! @{ */
