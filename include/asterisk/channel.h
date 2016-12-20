@@ -4224,6 +4224,7 @@ typedef enum {
 } ast_alert_status_t;
 int ast_channel_alert_write(struct ast_channel *chan);
 int ast_channel_alert_writable(struct ast_channel *chan);
+ast_alert_status_t ast_channel_internal_alert_flush(struct ast_channel *chan);
 ast_alert_status_t ast_channel_internal_alert_read(struct ast_channel *chan);
 int ast_channel_internal_alert_readable(struct ast_channel *chan);
 void ast_channel_internal_alertpipe_clear(struct ast_channel *chan);
