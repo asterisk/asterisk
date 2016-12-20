@@ -18905,8 +18905,8 @@ static int process_dahdi(struct dahdi_chan_conf *confp, const char *cat, struct 
 				}
 
 				/* This check is only needed to satisfy the compiler that element_count can't cause an out of bounds */
-				if (element_count >= ARRAY_LEN(c)) {
-					element_count = ARRAY_LEN(c) - 1;
+				if (element_count > ARRAY_LEN(c)) {
+					element_count = ARRAY_LEN(c);
 				}
 
 				/* Ring cadences cannot be negative */
