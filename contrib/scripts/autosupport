@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Autosupport Version 2.1.0
+# Autosupport Version 2.1.3
 # Collect support information
 #
 # Copyright (C) 2005-2016, Digium, Inc.
@@ -187,7 +187,7 @@ echo >> $OUTPUT;
 # Add check to see if asterisk is running.
 if [ -e /var/run/asterisk.ctl ] || [ -e /var/run/asterisk/asterisk.ctl ]; then
   for command in "core show version" "pri show version" "dahdi show version" \
-      "pjsip show version" "pjsip show buildopts" \
+      "pjsip show version" "pjsip show buildopts" "pjproject show buildopts" \
       "core show translation" \
       "core show uptime" "core show settings" "core show sysinfo" "core show channels" \
       "pri show spans" "dahdi show status" "dahdi show channels" "dahdi show channel 1" \
