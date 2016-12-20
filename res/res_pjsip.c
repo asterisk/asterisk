@@ -2911,7 +2911,8 @@ pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
 	res = pjsip_dlg_create_uac(pjsip_ua_instance(), &local_uri, NULL, &remote_uri, &target_uri, &dlg);
 	if (res != PJ_SUCCESS) {
 		if (res == PJSIP_EINVALIDURI) {
-			ast_log(LOG_ERROR, "Could not create dialog to endpoint '%s' as URI '%s' is not valid\n",
+			ast_log(LOG_ERROR,
+				"Endpoint '%s': Could not create dialog to invalid URI '%s'.  Is endpoint registered?\n",
 				ast_sorcery_object_get_id(endpoint), uri);
 		}
 		return NULL;
