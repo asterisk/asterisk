@@ -914,39 +914,47 @@ int ast_get_ip(struct ast_sockaddr *addr, const char *hostname)
 
 int ast_ouraddrfor(const struct ast_sockaddr *them, struct ast_sockaddr *us)
 {
+	/*
+	 * We must create the errno string before creating the address
+	 * string because it could wipe out errno on the error return
+	 * paths.
+	 */
+	const char *sock_err;
 	int port;
 	int s;
 
+	/* Preserve our original address port */
 	port = ast_sockaddr_port(us);
 
-	if ((s = socket(ast_sockaddr_is_ipv6(them) ? AF_INET6 : AF_INET,
-			SOCK_DGRAM, 0)) < 0) {
-		ast_log(LOG_ERROR, "Cannot create socket\n");
+	s = socket(ast_sockaddr_is_ipv6(them) ? AF_INET6 : AF_INET, SOCK_DGRAM, 0);
+	if (s < 0) {
+		sock_err = ast_strdupa(strerror(errno));
+		ast_log(LOG_ERROR, "Cannot create socket to %s: %s\n",
+			ast_sockaddr_stringify_addr(them), sock_err);
 		return -1;
 	}
 
 	if (ast_connect(s, them)) {
-		ast_log(LOG_WARNING, "Cannot connect\n");
+		sock_err = ast_strdupa(strerror(errno));
+		ast_log(LOG_WARNING, "Cannot connect to %s: %s\n",
+			ast_sockaddr_stringify_addr(them), sock_err);
 		close(s);
 		return -1;
 	}
 	if (ast_getsockname(s, us)) {
-
-		ast_log(LOG_WARNING, "Cannot get socket name\n");
+		sock_err = ast_strdupa(strerror(errno));
+		ast_log(LOG_WARNING, "Cannot get socket name for connection to %s: %s\n",
+			ast_sockaddr_stringify_addr(them), sock_err);
 		close(s);
 		return -1;
 	}
 	close(s);
 
-	{
-		const char *them_addr = ast_strdupa(ast_sockaddr_stringify_addr(them));
-		const char *us_addr = ast_strdupa(ast_sockaddr_stringify_addr(us));
-
-		ast_debug(3, "For destination '%s', our source address is '%s'.\n",
-				them_addr, us_addr);
-	}
-
 	ast_sockaddr_set_port(us, port);
+
+	ast_debug(3, "For destination '%s', our source address is '%s'.\n",
+		ast_strdupa(ast_sockaddr_stringify_addr(them)),
+		ast_strdupa(ast_sockaddr_stringify_addr(us)));
 
 	return 0;
 }
