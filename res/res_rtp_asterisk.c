@@ -4881,9 +4881,11 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 			ast_sockaddr_set_port(&rtp->rtcp->us,
 					      ast_sockaddr_port(&rtp->rtcp->us) + 1);
 
+			ast_sockaddr_copy(&local_addr, &rtp->rtcp->us);
 			if (!ast_find_ourip(&local_addr, &rtp->rtcp->us, 0)) {
 				ast_sockaddr_set_port(&local_addr, ast_sockaddr_port(&rtp->rtcp->us));
 			} else {
+				/* Failed to get local address reset to use default. */
 				ast_sockaddr_copy(&local_addr, &rtp->rtcp->us);
 			}
 
