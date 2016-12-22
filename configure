@@ -835,6 +835,10 @@ PBX_SDL
 SDL_DIR
 SDL_INCLUDE
 SDL_LIB
+PBX_SNDFILE
+SNDFILE_DIR
+SNDFILE_INCLUDE
+SNDFILE_LIB
 PBX_RESAMPLE
 RESAMPLE_DIR
 RESAMPLE_INCLUDE
@@ -1258,7 +1262,6 @@ COMPRESS
 FIND
 PYTHON
 FLEX
-CUT
 CAT
 CMP
 BISON
@@ -1345,7 +1348,6 @@ infodir
 docdir
 oldincludedir
 includedir
-runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -1432,6 +1434,7 @@ with_pwlib
 with_radius
 with_fftw3
 with_resample
+with_sndfile
 with_sdl
 with_SDL_image
 with_spandsp
@@ -1528,7 +1531,6 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
-runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1781,15 +1783,6 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
-  -runstatedir | --runstatedir | --runstatedi | --runstated \
-  | --runstate | --runstat | --runsta | --runst | --runs \
-  | --run | --ru | --r)
-    ac_prev=runstatedir ;;
-  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
-  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
-  | --run=* | --ru=* | --r=*)
-    runstatedir=$ac_optarg ;;
-
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1927,7 +1920,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir runstatedir
+		libdir localedir mandir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -2080,7 +2073,6 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
-  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -2194,6 +2186,7 @@ Optional Packages:
   --with-radius=PATH      use Radius Client files in PATH
   --with-fftw3=PATH       use LIBFFTW3 files in PATH
   --with-resample=PATH    use LIBRESAMPLE files in PATH
+  --with-sndfile=PATH     use libsndfile files in PATH
   --with-sdl=PATH         use Sdl files in PATH
   --with-SDL_image=PATH   use Sdl Image files in PATH
   --with-spandsp=PATH     use SPANDSP files in PATH
@@ -6848,47 +6841,6 @@ $as_echo "no" >&6; }
 fi
 
 
-# Extract the first word of "cut", so it can be a program name with args.
-set dummy cut; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_path_CUT+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  case $CUT in
-  [\\/]* | ?:[\\/]*)
-  ac_cv_path_CUT="$CUT" # Let the user override the test with a path.
-  ;;
-  *)
-  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_path_CUT="$as_dir/$ac_word$ac_exec_ext"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-  test -z "$ac_cv_path_CUT" && ac_cv_path_CUT=":"
-  ;;
-esac
-fi
-CUT=$ac_cv_path_CUT
-if test -n "$CUT"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $CUT" >&5
-$as_echo "$CUT" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
 # Extract the first word of "flex", so it can be a program name with args.
 set dummy flex; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
@@ -9338,7 +9290,7 @@ $as_echo "configuring" >&6; }
 		as_fn_error $? "nm is required to build bundled pjproject" "$LINENO" 5
 	fi
 	if test "${MD5}" = ":" ; then
-		as_fn_error $? "md5dum is required to build bundled pjproject" "$LINENO" 5
+		as_fn_error $? "md5sum is required to build bundled pjproject" "$LINENO" 5
 	fi
 	if test "${CAT}" = ":" ; then
 		as_fn_error $? "cat is required to build bundled pjproject" "$LINENO" 5
@@ -12052,6 +12004,38 @@ if test "${with_resample+set}" = set; then :
 	*)
 	RESAMPLE_DIR="${withval}"
 	ac_mandatory_list="${ac_mandatory_list} RESAMPLE"
+	;;
+	esac
+
+fi
+
+
+
+
+
+
+
+
+    SNDFILE_DESCRIP="libsndfile"
+    SNDFILE_OPTION="sndfile"
+    PBX_SNDFILE=0
+
+# Check whether --with-sndfile was given.
+if test "${with_sndfile+set}" = set; then :
+  withval=$with_sndfile;
+	case ${withval} in
+	n|no)
+	USE_SNDFILE=no
+	# -1 is a magic value used by menuselect to know that the package
+	# was disabled, other than 'not found'
+	PBX_SNDFILE=-1
+	;;
+	y|ye|yes)
+	ac_mandatory_list="${ac_mandatory_list} SNDFILE"
+	;;
+	*)
+	SNDFILE_DIR="${withval}"
+	ac_mandatory_list="${ac_mandatory_list} SNDFILE"
 	;;
 	esac
 
@@ -14838,7 +14822,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -14884,7 +14868,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -14908,7 +14892,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -14953,7 +14937,7 @@ else
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -14977,7 +14961,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     We can't simply define LARGE_OFF_T to be 9223372036854775807,
     since some C++ compilers masquerading as C compilers
     incorrectly reject 9223372036854775807.  */
-#define LARGE_OFF_T ((((off_t) 1 << 31) << 31) - 1 + (((off_t) 1 << 31) << 31))
+#define LARGE_OFF_T (((off_t) 1 << 62) - 1 + ((off_t) 1 << 62))
   int off_t_is_large[(LARGE_OFF_T % 2147483629 == 721
 		       && LARGE_OFF_T % 2147483647 == 1)
 		      ? 1 : -1];
@@ -17084,21 +17068,6 @@ else
   AST_ASTERISKSSL=yes
 fi
 
-
-
-# https support (in main/http.c) uses funopen on BSD systems,
-# fopencookie on linux
-for ac_func in funopen fopencookie
-do :
-  as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
-ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
-if eval test \"x\$"$as_ac_var"\" = x"yes"; then :
-  cat >>confdefs.h <<_ACEOF
-#define `$as_echo "HAVE_$ac_func" | $as_tr_cpp` 1
-_ACEOF
-
-fi
-done
 
 
 for ac_func in inet_aton
@@ -29412,6 +29381,112 @@ if test "$PBX_FFTW3" = "1"; then
 $as_echo "#define HAVE_FFTW 1" >>confdefs.h
 
 fi
+
+if test "x${PBX_SNDFILE}" != "x1" -a "${USE_SNDFILE}" != "no"; then
+   pbxlibdir=""
+   # if --with-SNDFILE=DIR has been specified, use it.
+   if test "x${SNDFILE_DIR}" != "x"; then
+      if test -d ${SNDFILE_DIR}/lib; then
+         pbxlibdir="-L${SNDFILE_DIR}/lib"
+      else
+         pbxlibdir="-L${SNDFILE_DIR}"
+      fi
+   fi
+   pbxfuncname="sf_open"
+   if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
+      AST_SNDFILE_FOUND=yes
+   else
+      ast_ext_lib_check_save_CFLAGS="${CFLAGS}"
+      CFLAGS="${CFLAGS} "
+      as_ac_Lib=`$as_echo "ac_cv_lib_sndfile_${pbxfuncname}" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${pbxfuncname} in -lsndfile" >&5
+$as_echo_n "checking for ${pbxfuncname} in -lsndfile... " >&6; }
+if eval \${$as_ac_Lib+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lsndfile ${pbxlibdir} -lsndfile $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char ${pbxfuncname} ();
+int
+main ()
+{
+return ${pbxfuncname} ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  eval "$as_ac_Lib=yes"
+else
+  eval "$as_ac_Lib=no"
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+eval ac_res=\$$as_ac_Lib
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
+  AST_SNDFILE_FOUND=yes
+else
+  AST_SNDFILE_FOUND=no
+fi
+
+      CFLAGS="${ast_ext_lib_check_save_CFLAGS}"
+   fi
+
+   # now check for the header.
+   if test "${AST_SNDFILE_FOUND}" = "yes"; then
+      SNDFILE_LIB="${pbxlibdir} -lsndfile -lsndfile"
+      # if --with-SNDFILE=DIR has been specified, use it.
+      if test "x${SNDFILE_DIR}" != "x"; then
+         SNDFILE_INCLUDE="-I${SNDFILE_DIR}/include"
+      fi
+      SNDFILE_INCLUDE="${SNDFILE_INCLUDE} "
+      if test "xsndfile.h" = "x" ; then	# no header, assume found
+         SNDFILE_HEADER_FOUND="1"
+      else				# check for the header
+         ast_ext_lib_check_saved_CPPFLAGS="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${SNDFILE_INCLUDE}"
+         ac_fn_c_check_header_mongrel "$LINENO" "sndfile.h" "ac_cv_header_sndfile_h" "$ac_includes_default"
+if test "x$ac_cv_header_sndfile_h" = xyes; then :
+  SNDFILE_HEADER_FOUND=1
+else
+  SNDFILE_HEADER_FOUND=0
+fi
+
+
+         CPPFLAGS="${ast_ext_lib_check_saved_CPPFLAGS}"
+      fi
+      if test "x${SNDFILE_HEADER_FOUND}" = "x0" ; then
+         SNDFILE_LIB=""
+         SNDFILE_INCLUDE=""
+      else
+         if test "x${pbxfuncname}" = "x" ; then		# only checking headers -> no library
+            SNDFILE_LIB=""
+         fi
+         PBX_SNDFILE=1
+         cat >>confdefs.h <<_ACEOF
+#define HAVE_SNDFILE 1
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+
+
 
 
     if test "x${PBX_SPANDSP}" != "x1" -a "${USE_SPANDSP}" != "no"; then
