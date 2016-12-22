@@ -4737,6 +4737,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 #endif
 	char *inchan_name;
 	struct timeval start_time_tv = ast_tvnow();
+	int canceled_by_caller = 0; /* 1 when caller hangs up or press digit or press * */
 
 	ast_channel_lock(qe->chan);
 	inchan_name = ast_strdupa(ast_channel_name(qe->chan));
@@ -5171,29 +5172,33 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 			if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass.integer == AST_CONTROL_HANGUP))) {
 				/* Got hung up */
 				*to = -1;
-				publish_dial_end_event(in, outgoing, NULL, "CANCEL");
 				if (f) {
 					if (f->data.uint32) {
 						ast_channel_hangupcause_set(in, f->data.uint32);
 					}
 					ast_frfree(f);
 				}
-				return NULL;
-			}
-
-			if ((f->frametype == AST_FRAME_DTMF) && caller_disconnect && (f->subclass.integer == '*')) {
+				canceled_by_caller = 1;
+			} else if ((f->frametype == AST_FRAME_DTMF) && caller_disconnect && (f->subclass.integer == '*')) {
 				ast_verb(3, "User hit %c to disconnect call.\n", f->subclass.integer);
 				*to = 0;
-				publish_dial_end_event(in, outgoing, NULL, "CANCEL");
 				ast_frfree(f);
-				return NULL;
-			}
-			if ((f->frametype == AST_FRAME_DTMF) && valid_exit(qe, f->subclass.integer)) {
+				canceled_by_caller = 1;
+			} else if ((f->frametype == AST_FRAME_DTMF) && valid_exit(qe, f->subclass.integer)) {
 				ast_verb(3, "User pressed digit: %c\n", f->subclass.integer);
 				*to = 0;
-				publish_dial_end_event(in, outgoing, NULL, "CANCEL");
 				*digit = f->subclass.integer;
 				ast_frfree(f);
+				canceled_by_caller = 1;
+			}
+			/* When caller hung up or pressed digit or * - handle as Ring No Answer (without autopause)*/
+			if (canceled_by_caller) {
+				publish_dial_end_event(in, outgoing, NULL, "CANCEL");
+				for (o = start; o; o = o->call_next) {
+					if (o->chan) {
+						rna(ast_tvdiff_ms(ast_tvnow(), start_time_tv), qe, o->chan, o->interface, o->member->membername, 0);
+					}
+				}
 				return NULL;
 			}
 
