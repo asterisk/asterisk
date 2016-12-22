@@ -33,6 +33,11 @@ Queue:
    their ringinuse value updated to the value of the queue. Previously, the
    ringinuse value for dynamic members was not updated on reload.
 
+Queue log:
+ - The RINGNOANSWER event is now logged every time the caller hangs up,
+   not only after queue timeout. The data1 field still contains number of
+   miliseconds since start of ringing (for examples see issue ASTERISK-26665).
+
 Channel Drivers:
 
 chan_dahdi:
