@@ -33,6 +33,10 @@ Queue:
    their ringinuse value updated to the value of the queue. Previously, the
    ringinuse value for dynamic members was not updated on reload.
 
+Queue log:
+ - New RINGCANCELED event is logged when the caller hangs up while ringing.
+   The data1 field contains number of miliseconds since start of ringing.
+
 Channel Drivers:
 
 chan_dahdi:
