@@ -20,6 +20,7 @@
 Asterisk RESTful HTTP binding code.
 """
 
+import os
 import re
 
 from swagger_model import *

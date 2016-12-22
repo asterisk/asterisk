@@ -11,7 +11,6 @@ revision = '4c573e7135bd'
 down_revision = '28887f25a46f'
 
 from alembic import op
-from alembic import context
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import ENUM
 

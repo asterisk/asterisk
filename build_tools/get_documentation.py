@@ -9,10 +9,7 @@ the GNU General Public License Version 2.
 '''
 
 import sys
-import os
 import xml.dom.minidom
-
-from xml.dom.minidom import Element
 
 
 def get_manager_event_method_type(candidate_string):
