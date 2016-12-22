@@ -551,6 +551,7 @@ AST_EXT_LIB_SETUP([PWLIB], [PWlib], [pwlib])
 AST_EXT_LIB_SETUP([RADIUS], [Radius Client], [radius])
 AST_EXT_LIB_SETUP([FFTW3], [LIBFFTW3], [fftw3])
 AST_EXT_LIB_SETUP([RESAMPLE], [LIBRESAMPLE], [resample])
+AST_EXT_LIB_SETUP([SNDFILE], [libsndfile], [sndfile])
 AST_EXT_LIB_SETUP([SDL], [Sdl], [sdl])
 AST_EXT_LIB_SETUP([SDL_IMAGE], [Sdl Image], [SDL_image])
 AST_EXT_LIB_SETUP([SPANDSP], [SPANDSP], [spandsp])
@@ -2284,6 +2285,9 @@ AST_EXT_LIB_CHECK([FFTW3], [fftw3], [fftw_alloc_real], [fftw3.h], [-lfftw3])
 if test "$PBX_FFTW3" = "1"; then
 	AC_DEFINE([HAVE_FFTW], 1, [Define 1 if your system has fftw.])
 fi
+AST_EXT_LIB_CHECK([SNDFILE], [sndfile], [sf_open], [sndfile.h], [-lsndfile])
+
+
 
 AST_C_COMPILE_CHECK([SPANDSP], [
 		#if SPANDSP_RELEASE_DATE < 20080516
