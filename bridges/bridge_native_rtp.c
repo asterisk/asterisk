@@ -310,10 +310,8 @@ static int native_rtp_bridge_capable(struct ast_channel *chan)
 	return !ast_channel_has_hook_requiring_audio(chan);
 }
 
-static int native_rtp_bridge_compatible(struct ast_bridge *bridge)
+static int native_rtp_bridge_compatible_check(struct ast_bridge *bridge, struct ast_bridge_channel *bc0, struct ast_bridge_channel *bc1)
 {
-	struct ast_bridge_channel *bc0 = AST_LIST_FIRST(&bridge->channels);
-	struct ast_bridge_channel *bc1 = AST_LIST_LAST(&bridge->channels);
 	enum ast_rtp_glue_result native_type;
 	struct ast_rtp_glue *glue0, *glue1;
 	RAII_VAR(struct ast_rtp_instance *, instance0, NULL, ao2_cleanup);
@@ -323,13 +321,6 @@ static int native_rtp_bridge_compatible(struct ast_bridge *bridge)
 	RAII_VAR(struct ast_format_cap *, cap0, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_format_cap *, cap1, NULL, ao2_cleanup);
 	int read_ptime0, read_ptime1, write_ptime0, write_ptime1;
-
-	/* We require two channels before even considering native bridging */
-	if (bridge->num_channels != 2) {
-		ast_debug(1, "Bridge '%s' can not use native RTP bridge as two channels are required\n",
-			bridge->uniqueid);
-		return 0;
-	}
 
 	if (!native_rtp_bridge_capable(bc0->chan)) {
 		ast_debug(1, "Bridge '%s' can not use native RTP bridge as channel '%s' has features which prevent it\n",
@@ -404,6 +395,30 @@ static int native_rtp_bridge_compatible(struct ast_bridge *bridge)
 	}
 
 	return 1;
+}
+
+static int native_rtp_bridge_compatible(struct ast_bridge *bridge)
+{
+	struct ast_bridge_channel *bc0;
+	struct ast_bridge_channel *bc1;
+	int is_compatible;
+
+	/* We require two channels before even considering native bridging */
+	if (bridge->num_channels != 2) {
+		ast_debug(1, "Bridge '%s' can not use native RTP bridge as two channels are required\n",
+			bridge->uniqueid);
+		return 0;
+	}
+
+	bc0 = AST_LIST_FIRST(&bridge->channels);
+	bc1 = AST_LIST_LAST(&bridge->channels);
+
+	ast_channel_lock_both(bc0->chan, bc1->chan);
+	is_compatible = native_rtp_bridge_compatible_check(bridge, bc0, bc1);
+	ast_channel_unlock(bc0->chan);
+	ast_channel_unlock(bc1->chan);
+
+	return is_compatible;
 }
 
 /*! \brief Helper function which adds frame hook to bridge channel */
