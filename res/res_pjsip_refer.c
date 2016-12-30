@@ -1006,6 +1006,7 @@ static int refer_incoming_refer_request(struct ast_sip_session *session, struct 
 	int response;
 
 	static const pj_str_t str_refer_to = { "Refer-To", 8 };
+	static const pj_str_t str_refer_to_s = { "r", 1 };
 	static const pj_str_t str_replaces = { "Replaces", 8 };
 
 	if (!session->channel) {
@@ -1024,7 +1025,7 @@ static int refer_incoming_refer_request(struct ast_sip_session *session, struct 
 	}
 
 	/* A Refer-To header is required */
-	refer_to = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &str_refer_to, NULL);
+	refer_to = pjsip_msg_find_hdr_by_names(rdata->msg_info.msg, &str_refer_to, &str_refer_to_s, NULL);
 	if (!refer_to) {
 		pjsip_dlg_respond(session->inv_session->dlg, rdata, 400, NULL, NULL, NULL);
 		ast_debug(3, "Received a REFER without Refer-To on channel '%s' from endpoint '%s'\n",
