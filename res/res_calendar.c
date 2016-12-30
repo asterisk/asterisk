@@ -406,7 +406,13 @@ static struct ast_calendar *build_calendar(struct ast_config *cfg, const char *c
 	struct ast_variable *v, *last = NULL;
 	int new_calendar = 0;
 
-	if (!(cal = find_calendar(cat))) {
+	cal = find_calendar(cat);
+	if (cal && cal->fetch_again_at_reload) {
+		/** remove old calendar. New will be created */
+		cal->pending_deletion = 1;
+		cal = unref_calendar(cal);
+	}
+	if (!cal) {
 		new_calendar = 1;
 		if (!(cal = ao2_alloc(sizeof(*cal), calendar_destructor))) {
 			ast_log(LOG_ERROR, "Could not allocate calendar structure. Stopping.\n");
@@ -483,7 +489,7 @@ static struct ast_calendar *build_calendar(struct ast_config *cfg, const char *c
 		}
 	}
 
-	if (new_calendar || cal->fetch_again_at_reload) {
+	if (new_calendar) {
 		cal->thread = AST_PTHREADT_NULL;
 		ast_cond_init(&cal->unload, NULL);
 		ao2_link(calendars, cal);
