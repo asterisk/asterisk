@@ -141,18 +141,18 @@ static int digest_create_request_with_auth_from_old(const struct ast_sip_auth_ve
 		++cseq->cseq;
 		return 0;
 	case PJSIP_ENOCREDENTIAL:
-		ast_log(LOG_WARNING, "Unable to create request with auth."
-				"No auth credentials for any realms in challenge.\n");
+		ast_log(LOG_WARNING,
+			"Unable to create request with auth.  No auth credentials for any realms in challenge.\n");
 		break;
 	case PJSIP_EAUTHSTALECOUNT:
-		ast_log(LOG_WARNING, "Unable to create request with auth."
-				"Number of stale retries exceeded\n");
+		ast_log(LOG_WARNING,
+			"Unable to create request with auth.  Number of stale retries exceeded.\n");
 		break;
 	case PJSIP_EFAILEDCREDENTIAL:
-		ast_log(LOG_WARNING, "Authentication credentials not accepted by server\n");
+		ast_log(LOG_WARNING, "Authentication credentials not accepted by server.\n");
 		break;
 	default:
-		ast_log(LOG_WARNING, "Unable to create request with auth. Unknown failure\n");
+		ast_log(LOG_WARNING, "Unable to create request with auth. Unknown failure.\n");
 		break;
 	}
 
