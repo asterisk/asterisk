@@ -3240,8 +3240,9 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 		pjsip_contact_hdr *contact_hdr;
 		pjsip_sip_uri *contact_uri;
 		static const pj_str_t HCONTACT = { "Contact", 7 };
+		static const pj_str_t HCONTACTSHORT = { "m", 1 };
 
-		contact_hdr = pjsip_msg_find_hdr_by_name((*tdata)->msg, &HCONTACT, NULL);
+		contact_hdr = pjsip_msg_find_hdr_by_names((*tdata)->msg, &HCONTACT, &HCONTACTSHORT, NULL);
 		if (contact_hdr) {
 			contact_uri = pjsip_uri_get_uri(contact_hdr->uri);
 			pj_strdup2(pool, &contact_uri->user, endpoint->contact_user);
