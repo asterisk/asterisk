@@ -54,7 +54,18 @@
 					<synopsis>Expiration time for publications in seconds</synopsis>
 				</configOption>
 				<configOption name="outbound_auth" default="">
-					<synopsis>Authentication object to be used for outbound publishes.</synopsis>
+					<synopsis>Authentication object(s) to be used for outbound publishes.</synopsis>
+					<description><para>
+						This is a comma-delimited list of <replaceable>auth</replaceable>
+						sections defined in <filename>pjsip.conf</filename> used to respond
+						to outbound authentication challenges.</para>
+						<note><para>
+						Using the same auth section for inbound and outbound
+						authentication is not recommended.  There is a difference in
+						meaning for an empty realm setting between inbound and outbound
+						authentication uses.  See the auth realm description for details.
+						</para></note>
+					</description>
 				</configOption>
 				<configOption name="outbound_proxy" default="">
 					<synopsis>SIP URI of the outbound proxy used to send publishes</synopsis>
