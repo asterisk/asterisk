@@ -277,6 +277,7 @@ static int diversion_incoming_request(struct ast_sip_session *session, pjsip_rx_
 static void diversion_incoming_response(struct ast_sip_session *session, pjsip_rx_data *rdata)
 {
 	static const pj_str_t contact_name = { "Contact", 7 };
+	static const pj_str_t contact_name_s = { "m", 1 };
 
 	pjsip_status_line status = rdata->msg_info.msg->line.status;
 	pjsip_fromto_hdr *div_hdr;
@@ -292,7 +293,7 @@ static void diversion_incoming_response(struct ast_sip_session *session, pjsip_r
 		div_hdr = PJSIP_MSG_TO_HDR(rdata->msg_info.msg);
 	}
 
-	contact_hdr = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &contact_name, NULL);
+	contact_hdr = pjsip_msg_find_hdr_by_names(rdata->msg_info.msg, &contact_name, &contact_name_s, NULL);
 
 	set_redirecting(session, div_hdr, contact_hdr ?	(pjsip_name_addr*)contact_hdr->uri :
 			(pjsip_name_addr*)PJSIP_MSG_FROM_HDR(rdata->msg_info.msg)->uri);
