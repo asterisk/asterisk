@@ -21,7 +21,11 @@
 #define PJMEDIA_HAS_SRTP 0
 
 #define PJ_HAS_IPV6 1
+
+#ifndef NDEBUG
 #define NDEBUG 1
+#endif
+
 #define PJ_MAX_HOSTNAME (256)
 #define PJSIP_MAX_URL_SIZE (512)
 #ifdef PJ_HAS_LINUX_EPOLL
@@ -34,13 +38,21 @@
 
 #define PJ_SCANNER_USE_BITWISE	0
 #define PJ_OS_HAS_CHECK_STACK	0
+
+#ifndef PJ_LOG_MAX_LEVEL
 #define PJ_LOG_MAX_LEVEL		6
+#endif
+
 #define PJ_ENABLE_EXTRA_CHECK	1
 #define PJSIP_MAX_TSX_COUNT		((64*1024)-1)
 #define PJSIP_MAX_DIALOG_COUNT	((64*1024)-1)
 #define PJSIP_UDP_SO_SNDBUF_SIZE	(512*1024)
 #define PJSIP_UDP_SO_RCVBUF_SIZE	(512*1024)
+
+#ifndef PJ_DEBUG
 #define PJ_DEBUG			0
+#endif
+
 #define PJSIP_SAFE_MODULE		0
 #define PJ_HAS_STRICMP_ALNUM		0
 
