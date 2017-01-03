@@ -190,10 +190,12 @@ source/pjsip-apps/lib/libasterisk_malloc_debug.a: source/pjsip-apps/lib/asterisk
 	$(CMD_PREFIX) ar qs $@ $< >/dev/null 2>&1
 
 $(apps): APP = $(filter pj%,$(subst -, ,$(notdir $@)))
+$(apps): CFLAGS += -DPJ_LOG_MAX_LEVEL=2
 $(apps): pjproject.symbols $(APP_THIRD_PARTY_LIB_FILES)
 	$(ECHO_PREFIX) Compiling $(APP)
 	$(CMD_PREFIX) +$(MAKE) -C source/pjsip-apps/build $(filter pj%,$(subst -, ,$(notdir $@))) $(REALLY_QUIET)
 
+source/pjsip-apps/src/python/_pjsua.o: CFLAGS += -DPJ_LOG_MAX_LEVEL=2
 source/pjsip-apps/src/python/_pjsua.o: source/pjsip-apps/src/python/_pjsua.c $(apps)
 	$(ECHO_PREFIX) Compiling python bindings
 	$(CMD_PREFIX) $(CC) -o $@ -c $< $(PYTHONDEV_INCLUDE) $(CFLAGS) $(PJ_CFLAGS)
