@@ -722,7 +722,7 @@ static int channel_read_pjsip(struct ast_channel *chan, const char *type, const 
 
 /*! \brief Struct used to push function arguments to task processor */
 struct pjsip_func_args {
-	struct ast_channel *chan;
+	struct ast_sip_session *session;
 	const char *param;
 	const char *type;
 	const char *field;
@@ -737,49 +737,31 @@ static int read_pjsip(void *data)
 	struct pjsip_func_args *func_args = data;
 
 	if (!strcmp(func_args->param, "rtp")) {
-		func_args->ret = channel_read_rtp(func_args->chan, func_args->type,
+		func_args->ret = channel_read_rtp(func_args->session->channel, func_args->type,
 		                                  func_args->field, func_args->buf,
 		                                  func_args->len);
 	} else if (!strcmp(func_args->param, "rtcp")) {
-		func_args->ret = channel_read_rtcp(func_args->chan, func_args->type,
+		func_args->ret = channel_read_rtcp(func_args->session->channel, func_args->type,
 		                                   func_args->field, func_args->buf,
 		                                   func_args->len);
 	} else if (!strcmp(func_args->param, "endpoint")) {
-		struct ast_sip_channel_pvt *pvt = ast_channel_tech_pvt(func_args->chan);
-
-		if (!pvt) {
-			ast_log(AST_LOG_WARNING, "Channel %s has no pvt!\n", ast_channel_name(func_args->chan));
+		if (!func_args->session->endpoint) {
+			ast_log(AST_LOG_WARNING, "Channel %s has no endpoint!\n", ast_channel_name(func_args->session->channel));
 			return -1;
 		}
-		if (!pvt->session || !pvt->session->endpoint) {
-			ast_log(AST_LOG_WARNING, "Channel %s has no endpoint!\n", ast_channel_name(func_args->chan));
-			return -1;
-		}
-		snprintf(func_args->buf, func_args->len, "%s", ast_sorcery_object_get_id(pvt->session->endpoint));
+		snprintf(func_args->buf, func_args->len, "%s", ast_sorcery_object_get_id(func_args->session->endpoint));
 	} else if (!strcmp(func_args->param, "contact")) {
-		struct ast_sip_channel_pvt *pvt = ast_channel_tech_pvt(func_args->chan);
-
-		if (!pvt) {
-			ast_log(AST_LOG_WARNING, "Channel %s has no pvt!\n", ast_channel_name(func_args->chan));
-			return -1;
-		}
-		if (!pvt->session || !pvt->session->contact) {
+		if (!func_args->session->contact) {
 			return 0;
 		}
-		snprintf(func_args->buf, func_args->len, "%s", ast_sorcery_object_get_id(pvt->session->contact));
+		snprintf(func_args->buf, func_args->len, "%s", ast_sorcery_object_get_id(func_args->session->contact));
 	} else if (!strcmp(func_args->param, "aor")) {
-		struct ast_sip_channel_pvt *pvt = ast_channel_tech_pvt(func_args->chan);
-
-		if (!pvt) {
-			ast_log(AST_LOG_WARNING, "Channel %s has no pvt!\n", ast_channel_name(func_args->chan));
-			return -1;
-		}
-		if (!pvt->session || !pvt->session->aor) {
+		if (!func_args->session->aor) {
 			return 0;
 		}
-		snprintf(func_args->buf, func_args->len, "%s", ast_sorcery_object_get_id(pvt->session->aor));
+		snprintf(func_args->buf, func_args->len, "%s", ast_sorcery_object_get_id(func_args->session->aor));
 	} else if (!strcmp(func_args->param, "pjsip")) {
-		func_args->ret = channel_read_pjsip(func_args->chan, func_args->type,
+		func_args->ret = channel_read_pjsip(func_args->session->channel, func_args->type,
 		                                    func_args->field, func_args->buf,
 		                                    func_args->len);
 	} else {
@@ -806,7 +788,6 @@ int pjsip_acf_channel_read(struct ast_channel *chan, const char *cmd, char *data
 		ast_log(LOG_WARNING, "No channel was provided to %s function.\n", cmd);
 		return -1;
 	}
-	channel = ast_channel_tech_pvt(chan);
 
 	/* Check for zero arguments */
 	if (ast_strlen_zero(parse)) {
@@ -816,29 +797,44 @@ int pjsip_acf_channel_read(struct ast_channel *chan, const char *cmd, char *data
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
+	ast_channel_lock(chan);
+
 	/* Sanity check */
 	if (strcmp(ast_channel_tech(chan)->type, "PJSIP")) {
 		ast_log(LOG_WARNING, "Cannot call %s on a non-PJSIP channel\n", cmd);
+		ast_channel_unlock(chan);
 		return 0;
 	}
 
+	channel = ast_channel_tech_pvt(chan);
 	if (!channel) {
-		ast_log(AST_LOG_WARNING, "Channel %s has no pvt!\n", ast_channel_name(chan));
+		ast_log(LOG_WARNING, "Channel %s has no pvt!\n", ast_channel_name(chan));
+		ast_channel_unlock(chan);
 		return -1;
 	}
 
+	if (!channel->session) {
+		ast_log(LOG_WARNING, "Channel %s has no session\n", ast_channel_name(chan));
+		ast_channel_unlock(chan);
+		return -1;
+	}
+
+	func_args.session = ao2_bump(channel->session);
+	ast_channel_unlock(chan);
+
 	memset(buf, 0, len);
 
-	func_args.chan = chan;
 	func_args.param = args.param;
 	func_args.type = args.type;
 	func_args.field = args.field;
 	func_args.buf = buf;
 	func_args.len = len;
-	if (ast_sip_push_task_synchronous(channel->session->serializer, read_pjsip, &func_args)) {
+	if (ast_sip_push_task_synchronous(func_args.session->serializer, read_pjsip, &func_args)) {
 		ast_log(LOG_WARNING, "Unable to read properties of channel %s: failed to push task\n", ast_channel_name(chan));
+		ao2_ref(func_args.session, -1);
 		return -1;
 	}
+	ao2_ref(func_args.session, -1);
 
 	return func_args.ret;
 }
