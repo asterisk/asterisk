@@ -51,6 +51,13 @@
 						mask with a slash ('/')
 					</para></description>
 				</configOption>
+				<configOption name="srv_lookups" default="yes">
+					<synopsis>Perform SRV lookups for provided hostnames.</synopsis>
+					<description><para>When enabled, <replaceable>srv_lookups</replaceable> will
+					perform SRV lookups for _sip._udp, _sip._tcp, and _sips._tcp of the given
+					hostnames to determine additional addresses that traffic may originate from.
+					</para></description>
+                                </configOption>
 				<configOption name="type">
 					<synopsis>Must be of type 'identify'.</synopsis>
 				</configOption>
@@ -70,6 +77,8 @@ struct ip_identify_match {
 	);
 	/*! \brief Networks or addresses that should match this */
 	struct ast_ha *matches;
+	/*! \brief Perform SRV resolution of hostnames */
+	unsigned int srv_lookups;
 };
 
 /*! \brief Destructor function for a matching object */
@@ -153,6 +162,72 @@ static struct ast_sip_endpoint_identifier ip_identifier = {
 	.identify_endpoint = ip_identify,
 };
 
+/*! \brief Helper function which performs a host lookup and adds result to identify match */
+static int ip_identify_match_host_lookup(struct ip_identify_match *identify, const char *host)
+{
+	struct ast_sockaddr *addrs;
+	int num_addrs = 0, error = 0, i;
+	int results = 0;
+
+	num_addrs = ast_sockaddr_resolve(&addrs, host, PARSE_PORT_FORBID, AST_AF_UNSPEC);
+	if (!num_addrs) {
+		return -1;
+	}
+
+	for (i = 0; i < num_addrs; ++i) {
+		/* Check if the address is already in the list, if so don't bother adding it again */
+		if (identify->matches && (ast_apply_ha(identify->matches, &addrs[i]) != AST_SENSE_ALLOW)) {
+			continue;
+		}
+
+		/* We deny what we actually want to match because there is an implicit permit all rule for ACLs */
+		identify->matches = ast_append_ha("d", ast_sockaddr_stringify_addr(&addrs[i]), identify->matches, &error);
+
+		if (!identify->matches || error) {
+			results = -1;
+			break;
+		}
+
+		results += 1;
+	}
+
+	ast_free(addrs);
+
+	return results;
+}
+
+/*! \brief Helper function which performs an SRV lookup and then resolves the hostname */
+static int ip_identify_match_srv_lookup(struct ip_identify_match *identify, const char *prefix, const char *host)
+{
+	char service[NI_MAXHOST];
+	struct srv_context *context = NULL;
+	int srv_ret;
+	const char *srvhost;
+	unsigned short srvport;
+	int results = 0;
+
+	snprintf(service, sizeof(service), "%s.%s", prefix, host);
+
+	while (!(srv_ret = ast_srv_lookup(&context, service, &srvhost, &srvport))) {
+		int hosts;
+
+		/* In the case of the SRV lookup we don't care if it fails, we will output a log message
+		 * when we fallback to a normal lookup.
+		 */
+		hosts = ip_identify_match_host_lookup(identify, srvhost);
+		if (hosts == -1) {
+			results = -1;
+			break;
+		} else {
+			results += hosts;
+		}
+	}
+
+	ast_srv_cleanup(&context);
+
+	return results;
+}
+
 /*! \brief Custom handler for match field */
 static int ip_identify_match_handler(const struct aco_option *opt, struct ast_variable *var, void *obj)
 {
@@ -165,9 +240,9 @@ static int ip_identify_match_handler(const struct aco_option *opt, struct ast_va
 	}
 
 	while ((current_string = ast_strip(strsep(&input_string, ",")))) {
-		struct ast_sockaddr *addrs;
-		int num_addrs = 0, error = 0, i;
 		char *mask = strrchr(current_string, '/');
+		struct ast_sockaddr address;
+		int error, results = 0;
 
 		if (ast_strlen_zero(current_string)) {
 			continue;
@@ -185,28 +260,28 @@ static int ip_identify_match_handler(const struct aco_option *opt, struct ast_va
 			continue;
 		}
 
-		num_addrs = ast_sockaddr_resolve(&addrs, current_string, PARSE_PORT_FORBID, AST_AF_UNSPEC);
-		if (!num_addrs) {
-			ast_log(LOG_ERROR, "Address '%s' provided on ip endpoint identifier '%s' did not resolve to any address\n",
-				var->value, ast_sorcery_object_get_id(obj));
-			return -1;
-		}
-
-		for (i = 0; i < num_addrs; ++i) {
-			/* We deny what we actually want to match because there is an implicit permit all rule for ACLs */
-			identify->matches = ast_append_ha("d", ast_sockaddr_stringify_addr(&addrs[i]), identify->matches, &error);
-
-			if (!identify->matches || error) {
-				ast_log(LOG_ERROR, "Failed to add address '%s' to ip endpoint identifier '%s'\n",
-					ast_sockaddr_stringify_addr(&addrs[i]), ast_sorcery_object_get_id(obj));
-				error = -1;
-				break;
+		/* If the provided string is not an IP address perform SRV resolution on it */
+		if (identify->srv_lookups && !ast_sockaddr_parse(&address, current_string, 0)) {
+			results = ip_identify_match_srv_lookup(identify, "_sip._udp", current_string);
+			if (results != -1) {
+				results += ip_identify_match_srv_lookup(identify, "_sip._tcp", current_string);
+			}
+			if (results != -1) {
+				results += ip_identify_match_srv_lookup(identify, "_sips._tcp", current_string);
 			}
 		}
 
-		ast_free(addrs);
+		/* If SRV falls fall back to a normal lookup on the host itself */
+		if (!results) {
+			results = ip_identify_match_host_lookup(identify, current_string);
+		}
 
-		if (error) {
+		if (results == 0) {
+			ast_log(LOG_ERROR, "Address '%s' provided on ip endpoint identifier '%s' did not resolve to any address\n",
+				current_string, ast_sorcery_object_get_id(obj));
+		} else if (results == -1) {
+			ast_log(LOG_ERROR, "An error occurred when adding resolution results of '%s' on '%s'\n",
+				current_string, ast_sorcery_object_get_id(obj));
 			return -1;
 		}
 	}
@@ -469,6 +544,7 @@ static int load_module(void)
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "identify", "type", "", OPT_NOOP_T, 0, 0);
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "identify", "endpoint", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ip_identify_match, endpoint_name));
 	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "identify", "match", "", ip_identify_match_handler, match_to_str, match_to_var_list, 0, 0);
+	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "identify", "srv_lookups", "yes", OPT_BOOL_T, 1, FLDSET(struct ip_identify_match, srv_lookups));
 	ast_sorcery_load_object(ast_sip_get_sorcery(), "identify");
 
 	ast_sip_register_endpoint_identifier_with_name(&ip_identifier, "ip");
