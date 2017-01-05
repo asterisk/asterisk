@@ -270,7 +270,6 @@ static struct ast_frame *native_rtp_framehook(struct ast_channel *chan, struct a
 	}
 
 	bridge = ast_channel_get_bridge(chan);
-
 	if (bridge) {
 		/* native_rtp_bridge_start/stop are not being called from bridging
 		   core so we need to lock the bridge prior to calling these functions
@@ -315,14 +314,18 @@ static int native_rtp_bridge_capable(struct ast_channel *chan)
 static int native_rtp_bridge_compatible_check(struct ast_bridge *bridge, struct ast_bridge_channel *bc0, struct ast_bridge_channel *bc1)
 {
 	enum ast_rtp_glue_result native_type;
-	struct ast_rtp_glue *glue0, *glue1;
+	struct ast_rtp_glue *glue0;
+	struct ast_rtp_glue *glue1;
 	RAII_VAR(struct ast_rtp_instance *, instance0, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_rtp_instance *, instance1, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_rtp_instance *, vinstance0, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_rtp_instance *, vinstance1, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_format_cap *, cap0, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_format_cap *, cap1, NULL, ao2_cleanup);
-	int read_ptime0, read_ptime1, write_ptime0, write_ptime1;
+	int read_ptime0;
+	int read_ptime1;
+	int write_ptime0;
+	int write_ptime1;
 
 	if (!native_rtp_bridge_capable(bc0->chan)) {
 		ast_debug(1, "Bridge '%s' can not use native RTP bridge as channel '%s' has features which prevent it\n",
@@ -336,29 +339,34 @@ static int native_rtp_bridge_compatible_check(struct ast_bridge *bridge, struct 
 		return 0;
 	}
 
-	if ((native_type = native_rtp_bridge_get(bc0->chan, bc1->chan, &glue0, &glue1, &instance0, &instance1, &vinstance0, &vinstance1))
-		== AST_RTP_GLUE_RESULT_FORBID) {
+	native_type = native_rtp_bridge_get(bc0->chan, bc1->chan, &glue0, &glue1,
+		&instance0, &instance1, &vinstance0, &vinstance1);
+	if (native_type == AST_RTP_GLUE_RESULT_FORBID) {
 		ast_debug(1, "Bridge '%s' can not use native RTP bridge as it was forbidden while getting details\n",
 			bridge->uniqueid);
 		return 0;
 	}
 
-	if (ao2_container_count(bc0->features->dtmf_hooks) && ast_rtp_instance_dtmf_mode_get(instance0)) {
+	if (ao2_container_count(bc0->features->dtmf_hooks)
+		&& ast_rtp_instance_dtmf_mode_get(instance0)) {
 		ast_debug(1, "Bridge '%s' can not use native RTP bridge as channel '%s' has DTMF hooks\n",
 			bridge->uniqueid, ast_channel_name(bc0->chan));
 		return 0;
 	}
 
-	if (ao2_container_count(bc1->features->dtmf_hooks) && ast_rtp_instance_dtmf_mode_get(instance1)) {
+	if (ao2_container_count(bc1->features->dtmf_hooks)
+		&& ast_rtp_instance_dtmf_mode_get(instance1)) {
 		ast_debug(1, "Bridge '%s' can not use native RTP bridge as channel '%s' has DTMF hooks\n",
 			bridge->uniqueid, ast_channel_name(bc1->chan));
 		return 0;
 	}
 
-	if ((native_type == AST_RTP_GLUE_RESULT_LOCAL) && ((ast_rtp_instance_get_engine(instance0)->local_bridge !=
-		ast_rtp_instance_get_engine(instance1)->local_bridge) ||
-		(ast_rtp_instance_get_engine(instance0)->dtmf_compatible &&
-			!ast_rtp_instance_get_engine(instance0)->dtmf_compatible(bc0->chan, instance0, bc1->chan, instance1)))) {
+	if (native_type == AST_RTP_GLUE_RESULT_LOCAL
+		&& (ast_rtp_instance_get_engine(instance0)->local_bridge
+			!= ast_rtp_instance_get_engine(instance1)->local_bridge
+			|| (ast_rtp_instance_get_engine(instance0)->dtmf_compatible
+				&& !ast_rtp_instance_get_engine(instance0)->dtmf_compatible(bc0->chan,
+					instance0, bc1->chan, instance1)))) {
 		ast_debug(1, "Bridge '%s' can not use local native RTP bridge as local bridge or DTMF is not compatible\n",
 			bridge->uniqueid);
 		return 0;
@@ -377,11 +385,16 @@ static int native_rtp_bridge_compatible_check(struct ast_bridge *bridge, struct 
 	if (glue1->get_codec) {
 		glue1->get_codec(bc1->chan, cap1);
 	}
-	if (ast_format_cap_count(cap0) != 0 && ast_format_cap_count(cap1) != 0 && !ast_format_cap_iscompatible(cap0, cap1)) {
+	if (ast_format_cap_count(cap0) != 0
+		&& ast_format_cap_count(cap1) != 0
+		&& !ast_format_cap_iscompatible(cap0, cap1)) {
 		struct ast_str *codec_buf0 = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
 		struct ast_str *codec_buf1 = ast_str_alloca(AST_FORMAT_CAP_NAMES_LEN);
-		ast_debug(1, "Channel codec0 = %s is not codec1 = %s, cannot native bridge in RTP.\n",
-			ast_format_cap_get_names(cap0, &codec_buf0), ast_format_cap_get_names(cap1, &codec_buf1));
+
+		ast_debug(1, "Bridge '%s': Channel codec0 = %s is not codec1 = %s, cannot native bridge in RTP.\n",
+			bridge->uniqueid,
+			ast_format_cap_get_names(cap0, &codec_buf0),
+			ast_format_cap_get_names(cap1, &codec_buf1));
 		return 0;
 	}
 
@@ -391,8 +404,9 @@ static int native_rtp_bridge_compatible_check(struct ast_bridge *bridge, struct 
 	write_ptime1 = ast_format_cap_get_format_framing(cap1, ast_channel_rawwriteformat(bc1->chan));
 
 	if (read_ptime0 != write_ptime1 || read_ptime1 != write_ptime0) {
-		ast_debug(1, "Packetization differs between RTP streams (%d != %d or %d != %d). Cannot native bridge in RTP\n",
-				read_ptime0, write_ptime1, read_ptime1, write_ptime0);
+		ast_debug(1, "Bridge '%s': Packetization differs between RTP streams (%d != %d or %d != %d). Cannot native bridge in RTP\n",
+			bridge->uniqueid,
+			read_ptime0, write_ptime1, read_ptime1, write_ptime0);
 		return 0;
 	}
 
