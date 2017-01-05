@@ -1711,9 +1711,7 @@ static int cli_endpoint_print_body(void *obj, void *arg, int flags)
 
 	if (number) {
 		print_name_len = strlen(id) + strlen(number) + 2;
-		if (!(print_name = alloca(print_name_len))) {
-			return -1;
-		}
+		print_name = ast_alloca(print_name_len);
 		snprintf(print_name, print_name_len, "%s/%s", id, number);
 	}
 
