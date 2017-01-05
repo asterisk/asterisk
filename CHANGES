@@ -44,6 +44,12 @@ res_pjsip
    ID, AuthenticateQualify, OutboundProxy, Path, QualifyFrequency and
    QualifyTimeout.  Existing fields have not been disturbed.
 
+res_pjsip_endpoint_identifier_ip
+------------------
+ * SRV lookups can now be done on provided hostnames to determine additional
+   source IP addresses for requests. This is configurable using the
+   "srv_lookups" option on the identify and defaults to "yes".
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.12.0 to Asterisk 13.13.0 ----------
 ------------------------------------------------------------------------------
