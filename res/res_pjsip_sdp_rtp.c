@@ -600,6 +600,26 @@ static void process_ice_attributes(struct ast_sip_session *session, struct ast_s
 	ice->start(session_media->rtp);
 }
 
+/*! \brief figure out if media stream has fingerprint line for dtls */
+static int media_stream_has_fingerprint(const struct pjmedia_sdp_media *stream)
+{
+        int i;
+
+        for (i = 0; i < stream->attr_count; i++) {
+                pjmedia_sdp_attr *attr;
+
+                /* check the stream for the required fingerprint attribute */
+                attr = stream->attr[i];
+                if (pj_strcmp2(&attr->name, "fingerprint")) {
+                        continue;
+                }
+
+                return 1;
+        }
+
+        return 0;
+}
+
 /*! \brief figure out if media stream has crypto lines for sdes */
 static int media_stream_has_crypto(const struct pjmedia_sdp_media *stream)
 {
@@ -638,6 +658,9 @@ static enum ast_sip_session_media_encryption get_media_encryption_type(pj_str_t 
 	} else if (media_stream_has_crypto(stream)) {
 		*optimistic = 1;
 		return AST_SIP_MEDIA_ENCRYPT_SDES;
+	} else if (media_stream_has_fingerprint(stream)) {
+		*optimistic = 1;
+		return AST_SIP_MEDIA_ENCRYPT_DTLS;
 	} else {
 		return AST_SIP_MEDIA_ENCRYPT_NONE;
 	}
