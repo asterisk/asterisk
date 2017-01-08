@@ -63,11 +63,8 @@ ifeq ($(SPECIAL_TARGETS),)
         endif
         ifeq ($(findstring MALLOC_DEBUG,$(MENUSELECT_CFLAGS)),MALLOC_DEBUG)
             CF += -DMALLOC_DEBUG
-            MALLOC_DEBUG = yes
-            $(apps): export LDFLAGS += -L$(PJDIR)/pjsip-apps/lib -Wl,-whole-archive -lasterisk_malloc_debug -Wl,-no-whole-archive
-            $(apps): source/pjsip-apps/lib/libasterisk_malloc_debug.a
-            source/pjsip-apps/src/python/_pjsua.so: LDFLAGS += -L$(PJDIR)/pjsip-apps/lib -Wl,-whole-archive -lasterisk_malloc_debug -Wl,-no-whole-archive
-            source/pjsip-apps/src/python/_pjsua.so: source/pjsip-apps/lib/libasterisk_malloc_debug.a
+            MALLOC_DEBUG_LIBS = source/pjsip-apps/lib/libasterisk_malloc_debug.a
+            MALLOC_DEBUG_LDFLAGS = -L$(PJDIR)/pjsip-apps/lib -Wl,-whole-archive -lasterisk_malloc_debug -Wl,-no-whole-archive
         endif
         ifeq ($(findstring DONT_OPTIMIZE,$(MENUSELECT_CFLAGS)),)
             CF += -O3
@@ -191,7 +188,8 @@ source/pjsip-apps/lib/libasterisk_malloc_debug.a: source/pjsip-apps/lib/asterisk
 
 $(apps): APP = $(filter pj%,$(subst -, ,$(notdir $@)))
 $(apps): CFLAGS += -DPJ_LOG_MAX_LEVEL=2
-$(apps): pjproject.symbols $(APP_THIRD_PARTY_LIB_FILES)
+$(apps): LDFLAGS += $(MALLOC_DEBUG_LDFLAGS)
+$(apps): $(MALLOC_DEBUG_LIBS) pjproject.symbols $(APP_THIRD_PARTY_LIB_FILES)
 	$(ECHO_PREFIX) Compiling $(APP)
 	$(CMD_PREFIX) +$(MAKE) -C source/pjsip-apps/build $(filter pj%,$(subst -, ,$(notdir $@))) $(REALLY_QUIET)
 
@@ -200,6 +198,7 @@ source/pjsip-apps/src/python/_pjsua.o: source/pjsip-apps/src/python/_pjsua.c $(a
 	$(ECHO_PREFIX) Compiling python bindings
 	$(CMD_PREFIX) $(CC) -o $@ -c $< $(PYTHONDEV_INCLUDE) $(CFLAGS) $(PJ_CFLAGS)
 
+source/pjsip-apps/src/python/_pjsua.so: LDFLAGS += $(MALLOC_DEBUG_LDFLAGS) 
 source/pjsip-apps/src/python/_pjsua.so: source/pjsip-apps/src/python/_pjsua.o
 	$(ECHO_PREFIX) Linking python bindings $(@F)
 	$(CMD_PREFIX) gcc -shared -pthread -o $@ $< $(LDFLAGS) $(PJ_LDFLAGS) $(APP_LDLIBS) $(PYTHONDEV_LIB) $(REALLY_QUIET)
