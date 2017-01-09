@@ -4912,9 +4912,11 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 			ast_sockaddr_set_port(&rtp->rtcp->us,
 					      ast_sockaddr_port(&rtp->rtcp->us) + 1);
 
+			ast_sockaddr_copy(&local_addr, &rtp->rtcp->us);
 			if (!ast_find_ourip(&local_addr, &rtp->rtcp->us, 0)) {
 				ast_sockaddr_set_port(&local_addr, ast_sockaddr_port(&rtp->rtcp->us));
 			} else {
+				/* Failed to get local address reset to use default. */
 				ast_sockaddr_copy(&local_addr, &rtp->rtcp->us);
 			}
 
@@ -5003,31 +5005,31 @@ static int ast_rtp_fd(struct ast_rtp_instance *instance, int rtcp)
 static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct ast_sockaddr *addr)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-	struct ast_sockaddr local, us;
+	struct ast_sockaddr local;
 
+	ast_rtp_instance_get_local_address(instance, &local);
 	if (!ast_sockaddr_isnull(addr)) {
 		/* Update the local RTP address with what is being used */
-		ast_ouraddrfor(addr, &us);
-		ast_rtp_instance_get_local_address(instance, &local);
-		ast_sockaddr_set_port(&us, ast_sockaddr_port(&local));
-		ast_rtp_instance_set_local_address(instance, &us);
+		if (ast_ouraddrfor(addr, &local)) {
+			/* Failed to update our address so reuse old local address */
+			ast_rtp_instance_get_local_address(instance, &local);
+		} else {
+			ast_rtp_instance_set_local_address(instance, &local);
+		}
 	}
 
 	if (rtp->rtcp) {
 		ast_debug(1, "Setting RTCP address on RTP instance '%p'\n", instance);
 		ast_sockaddr_copy(&rtp->rtcp->them, addr);
 		if (!ast_sockaddr_isnull(addr)) {
-			ast_sockaddr_set_port(&rtp->rtcp->them,
-					      ast_sockaddr_port(addr) + 1);
-		}
+			ast_sockaddr_set_port(&rtp->rtcp->them, ast_sockaddr_port(addr) + 1);
 
-		if (!ast_sockaddr_isnull(addr)) {
 			/* Update the local RTCP address with what is being used */
-			ast_sockaddr_set_port(&us, ast_sockaddr_port(&local) + 1);
-			ast_sockaddr_copy(&rtp->rtcp->us, &us);
+			ast_sockaddr_set_port(&local, ast_sockaddr_port(&local) + 1);
+			ast_sockaddr_copy(&rtp->rtcp->us, &local);
 
 			ast_free(rtp->rtcp->local_addr_str);
-			rtp->rtcp->local_addr_str = ast_strdup(ast_sockaddr_stringify(&us));
+			rtp->rtcp->local_addr_str = ast_strdup(ast_sockaddr_stringify(&local));
 		}
 	}
 
@@ -5037,8 +5039,6 @@ static void ast_rtp_remote_address_set(struct ast_rtp_instance *instance, struct
 		rtp->strict_rtp_state = STRICT_RTP_LEARN;
 		rtp_learning_seq_init(&rtp->rtp_source_learn, rtp->seqno);
 	}
-
-	return;
 }
 
 /*! \brief Write t140 redundacy frame
