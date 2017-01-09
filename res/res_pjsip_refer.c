@@ -573,6 +573,7 @@ static void refer_blind_callback(struct ast_channel *chan, struct transfer_chann
 	pjsip_generic_string_hdr *referred_by;
 
 	static const pj_str_t str_referred_by = { "Referred-By", 11 };
+	static const pj_str_t str_referred_by_s = { "b", 1 };
 
 	pbx_builtin_setvar_helper(chan, "SIPTRANSFER", "yes");
 
@@ -651,8 +652,8 @@ static void refer_blind_callback(struct ast_channel *chan, struct transfer_chann
 
 	pbx_builtin_setvar_helper(chan, "SIPREFERRINGCONTEXT", S_OR(refer->context, NULL));
 
-	referred_by = pjsip_msg_find_hdr_by_name(refer->rdata->msg_info.msg,
-		&str_referred_by, NULL);
+	referred_by = pjsip_msg_find_hdr_by_names(refer->rdata->msg_info.msg,
+		&str_referred_by, &str_referred_by_s, NULL);
 	if (referred_by) {
 		size_t uri_size = pj_strlen(&referred_by->hvalue) + 1;
 		char *uri = ast_alloca(uri_size);
