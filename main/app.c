@@ -1422,22 +1422,20 @@ static struct ast_frame *make_silence(const struct ast_frame *orig)
 	size_t size;
 	size_t datalen;
 	size_t samples = 0;
-	struct ast_frame *next;
 
 	if (!orig) {
 		return NULL;
 	}
+	do {
+		if (ast_format_cmp(orig->subclass.format, ast_format_slin) == AST_FORMAT_CMP_NOT_EQUAL) {
+			ast_log(LOG_WARNING, "Attempting to silence non-slin frame\n");
+			return NULL;
+		}
 
-	if (ast_format_cmp(orig->subclass.format, ast_format_slin) == AST_FORMAT_CMP_NOT_EQUAL) {
-		ast_log(LOG_WARNING, "Attempting to silence non-slin frame\n");
-		return NULL;
-	}
-
-	for (next = AST_LIST_NEXT(orig, frame_list);
-		 orig;
-		 orig = next, next = orig ? AST_LIST_NEXT(orig, frame_list) : NULL) {
 		samples += orig->samples;
-	}
+
+		orig = AST_LIST_NEXT(orig, frame_list);
+	} while (orig);
 
 	ast_verb(4, "Silencing %zu samples\n", samples);
 
@@ -1455,7 +1453,7 @@ static struct ast_frame *make_silence(const struct ast_frame *orig)
 	silence->samples = samples;
 	silence->datalen = datalen;
 
-	silence->subclass.format = ast_format_slin;
+	silence->subclass.format = ao2_bump(ast_format_slin);
 
 	return silence;
 }
@@ -1661,14 +1659,13 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 					/* It's all good */
 					res = 0;
 				} else {
-					RAII_VAR(struct ast_frame *, silence, NULL, ast_frame_dtor);
+					struct ast_frame *silence = NULL;
 					struct ast_frame *orig = f;
 
 					if (muted) {
 						silence = make_silence(orig);
 						if (!silence) {
-							ast_log(LOG_WARNING,
-								"Error creating silence\n");
+							ast_log(LOG_WARNING, "Error creating silence\n");
 							break;
 						}
 						f = silence;
@@ -1679,6 +1676,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 						}
 						res = ast_writestream(others[x], f);
 					}
+					ast_frame_dtor(silence);
 					f = orig;
 				}
 
