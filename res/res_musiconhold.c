@@ -1060,13 +1060,14 @@ static void moh_parse_options(struct ast_variable *var, struct mohclass *mohclas
 				ast_set_flag(mohclass, MOH_RANDSTART);
 			}
 		} else if (!strcasecmp(var->name, "format")) {
+			ao2_cleanup(mohclass->format);
 			mohclass->format = ast_format_cache_get(var->value);
 			if (!mohclass->format) {
 				ast_log(LOG_WARNING, "Unknown format '%s' -- defaulting to SLIN\n", var->value);
 				mohclass->format = ao2_bump(ast_format_slin);
 			}
-               }
-       }
+		}
+	}
 }
 
 static int moh_add_file(struct mohclass *class, const char *filepath)
