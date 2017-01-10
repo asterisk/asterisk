@@ -264,10 +264,10 @@ struct ast_format *ast_format_compatibility_bitfield2format(uint64_t bitfield)
 
 	/*! T.140 RED Text format RFC 4103 */
 	case AST_FORMAT_T140_RED:
-		return ast_format_t140;
+		return ast_format_t140_red;
 	/*! T.140 Text format - ITU T.140, RFC 4103 */
 	case AST_FORMAT_T140:
-		return ast_format_t140_red;
+		return ast_format_t140;
 	}
 	return NULL;
 }
