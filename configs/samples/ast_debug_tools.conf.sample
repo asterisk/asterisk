@@ -1,0 +1,40 @@
+#
+# This file is used by the Asterisk debug tools.
+# Unlike other Asterisk config files, this one is
+# "sourced" by bash and must adhere to bash semantics.
+#
+
+# A list of coredumps and/or coredump search patterns.
+# Bash extended globs are enabled and any resulting files
+# that aren't actually coredumps are silently ignored
+# so you can be liberal with the globs.
+#
+# If your patterns contains spaces be sure to only quote
+# the portion of the pattern that DOESN'T contain wildcard
+# expressions.  If you quote the whole pattern, it won't
+# be expanded and the glob characters will be treated as
+# literals.
+#
+# The exclusion of files ending ".txt" is just for
+# demonstration purposes as non-coredumps will be ignored
+# anyway.
+COREDUMPS=(/tmp/core[-._]asterisk!(*.txt) /tmp/core[-._]$(hostname)!(*.txt))
+
+# Date command for the "running" coredump and tarballs.
+# DATEFORMAT will be executed to get the timestamp.
+# Don't put quotes around the format string or they'll be
+# treated as literal characters.  Also be aware of colons
+# in the output as you can't upload files with colons in
+# the name to Jira.
+#
+# Unix timestamp
+#DATEFORMAT='date +%s.%N'
+#
+# Unix timestamp on *BSD/MacOS after installing coreutils
+#DATEFORMAT='gdate +%s.%N'
+#
+# Readable GMT
+#DATEFORMAT='date -u +%FT%H-%M-%S%z'
+#
+# Readable Local time
+DATEFORMAT='date +%FT%H-%M-%S%z'
