@@ -22,6 +22,8 @@ include $(ASTTOPDIR)/Makefile.rules
 install:
 	$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/scripts"; \
 	$(INSTALL) -m 755 scripts/refcounter.py "$(DESTDIR)$(ASTDATADIR)/scripts/refcounter.py"; \
+	$(INSTALL) -m 755 scripts/ast_coredumper "$(DESTDIR)$(ASTDATADIR)/scripts/ast_coredumper"
 
 uninstall:
 	rm -f "$(DESTDIR)$(ASTDATADIR)/scripts/refcounter.py"
+	rm -f "$(DESTDIR)$(ASTDATADIR)/scripts/ast_coredumper"
