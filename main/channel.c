@@ -4335,12 +4335,19 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			 * at the end of the queue.
 			 */
 			if (AST_LIST_NEXT(f, frame_list)) {
-				if (!readq_tail) {
-					ast_queue_frame_head(chan, AST_LIST_NEXT(f, frame_list));
-				} else {
-					__ast_queue_frame(chan, AST_LIST_NEXT(f, frame_list), 0, readq_tail);
+				struct ast_frame *cur, *multi_frame = AST_LIST_NEXT(f, frame_list);
+
+				/* Mark these frames as being re-queued */
+				for (cur = multi_frame; cur; cur = AST_LIST_NEXT(cur, frame_list)) {
+					ast_set2_flag(cur, 1, AST_FRFLAG_REQUEUED);
 				}
-				ast_frfree(AST_LIST_NEXT(f, frame_list));
+
+				if (!readq_tail) {
+					ast_queue_frame_head(chan, multi_frame);
+				} else {
+					__ast_queue_frame(chan, multi_frame, 0, readq_tail);
+				}
+				ast_frfree(multi_frame);
 				AST_LIST_NEXT(f, frame_list) = NULL;
 			}
 
