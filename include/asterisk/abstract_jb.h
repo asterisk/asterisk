@@ -109,6 +109,8 @@ typedef int (*jb_remove_impl)(void *jb, struct ast_frame **fout);
 typedef void (*jb_force_resynch_impl)(void *jb);
 /*! \brief Empty and reset jb */
 typedef void (*jb_empty_and_reset_impl)(void *jb);
+/*! \brief Check if late */
+typedef int (*jb_is_late_impl)(void *jb, long ts);
 
 
 /*!
@@ -127,6 +129,7 @@ struct ast_jb_impl
 	jb_remove_impl remove;
 	jb_force_resynch_impl force_resync;
 	jb_empty_and_reset_impl empty_and_reset;
+	jb_is_late_impl is_late;
 };
 
 /*!
