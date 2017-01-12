@@ -133,6 +133,8 @@ enum ast_frame_type {
 enum {
 	/*! This frame contains valid timing information */
 	AST_FRFLAG_HAS_TIMING_INFO = (1 << 0),
+	/*! This frame has been requeued */
+	AST_FRFLAG_REQUEUED = (1 << 1),
 };
 
 struct ast_frame_subclass {

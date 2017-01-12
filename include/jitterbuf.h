@@ -166,6 +166,9 @@ enum jb_return_code jb_setconf(jitterbuf *jb, jb_conf *conf);
 typedef void __attribute__((format(printf, 1, 2))) (*jb_output_function_t)(const char *fmt, ...);
 void jb_setoutput(jb_output_function_t err, jb_output_function_t warn, jb_output_function_t dbg);
 
+/*! \brief Checks if the given time stamp is late */
+int jb_is_late(jitterbuf *jb, long ts);
+
 #ifdef __cplusplus
 }
 #endif
