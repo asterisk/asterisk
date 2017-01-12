@@ -67,6 +67,7 @@ static long jb_next_fixed(void *jb);
 static int jb_remove_fixed(void *jb, struct ast_frame **fout);
 static void jb_force_resynch_fixed(void *jb);
 static void jb_empty_and_reset_fixed(void *jb);
+static int jb_is_late_fixed(void *jb, long ts);
 /* adaptive */
 static void * jb_create_adaptive(struct ast_jb_conf *general_config);
 static void jb_destroy_adaptive(void *jb);
@@ -77,6 +78,7 @@ static long jb_next_adaptive(void *jb);
 static int jb_remove_adaptive(void *jb, struct ast_frame **fout);
 static void jb_force_resynch_adaptive(void *jb);
 static void jb_empty_and_reset_adaptive(void *jb);
+static int jb_is_late_adaptive(void *jb, long ts);
 
 /* Available jb implementations */
 static const struct ast_jb_impl avail_impl[] = {
@@ -92,6 +94,7 @@ static const struct ast_jb_impl avail_impl[] = {
 		.remove = jb_remove_fixed,
 		.force_resync = jb_force_resynch_fixed,
 		.empty_and_reset = jb_empty_and_reset_fixed,
+		.is_late = jb_is_late_fixed,
 	},
 	{
 		.name = "adaptive",
@@ -105,6 +108,7 @@ static const struct ast_jb_impl avail_impl[] = {
 		.remove = jb_remove_adaptive,
 		.force_resync = jb_force_resynch_adaptive,
 		.empty_and_reset = jb_empty_and_reset_adaptive,
+		.is_late = jb_is_late_adaptive,
 	}
 };
 
@@ -706,6 +710,11 @@ static void jb_empty_and_reset_fixed(void *jb)
 	}
 }
 
+static int jb_is_late_fixed(void *jb, long ts)
+{
+	return fixed_jb_is_late(jb, ts);
+}
+
 /* adaptive */
 
 static void *jb_create_adaptive(struct ast_jb_conf *general_config)
@@ -812,6 +821,11 @@ const struct ast_jb_impl *ast_jb_get_impl(enum ast_jb_type type)
 	return NULL;
 }
 
+static int jb_is_late_adaptive(void *jb, long ts)
+{
+	return jb_is_late(jb, ts);
+}
+
 #define DEFAULT_TIMER_INTERVAL 20
 #define DEFAULT_SIZE  200
 #define DEFAULT_TARGET_EXTRA  40
@@ -895,7 +909,22 @@ static struct ast_frame *hook_event_cb(struct ast_channel *chan, struct ast_fram
 		}
 	}
 
-	if (!frame) {
+	/*
+	 * If the frame has been requeued (for instance when the translate core returns
+	 * more than one frame) then if the frame is late we want to immediately return
+	 * it. Otherwise attempt to insert it into the jitterbuffer.
+	 *
+	 * If the frame is requeued and late then in all likely hood it's a frame that
+	 * that was previously retrieved from the jitterbuffer, passed to the translate
+	 * core, and then put back into the channel read queue. Even if it had not been
+	 * in the jitterbuffer prior to now it needs to be the next frame "out".
+	 *
+	 * However late arriving frames that have not been requeued (i.e. regular frames)
+	 * need to be passed to the jitterbuffer so they can be appropriately dropped. As
+	 * well any requeued frames that are not late should be put into the jitterbuffer.
+	 */
+	if (!frame || (ast_test_flag(frame, AST_FRFLAG_REQUEUED) &&
+		       framedata->jb_impl->is_late(framedata->jb_obj, frame->ts))) {
 		return frame;
 	}
 

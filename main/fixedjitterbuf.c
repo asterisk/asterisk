@@ -196,7 +196,6 @@ int fixed_jb_put_first(struct fixed_jb *jb, void *data, long ms, long ts, long n
 	return fixed_jb_put(jb, data, ms, ts, now);
 }
 
-
 int fixed_jb_put(struct fixed_jb *jb, void *data, long ms, long ts, long now)
 {
 	struct fixed_jb_frame *frame, *next, *newframe;
@@ -348,4 +347,9 @@ int fixed_jb_remove(struct fixed_jb *jb, struct fixed_jb_frame *frameout)
 	get_jb_head(jb, frameout);
 
 	return FIXED_JB_OK;
+}
+
+int fixed_jb_is_late(struct fixed_jb *jb, long ts)
+{
+	return jb->rxcore + jb->delay + ts < jb->next_delivery;
 }
