@@ -15,6 +15,7 @@ SYNOPSIS
 	$prog [ --help ] [ --running | --RUNNING ] [ --latest ]
 		[ --tarball-coredumps ] [ --delete-coredumps-after ]
 		[ --tarball-results ] [ --delete-results-after ]
+		[ --tarball-uniqueid="<uniqueid>" ]
 		[ --no-default-search ] [ --append-coredumps ]
 		[ <coredump> | <pattern> ... ]
 
@@ -81,6 +82,11 @@ DESCRIPTION
 		to use this option unless you have also specified
 		--tarball-results.
 
+	--taraball-uniqueid="<uniqueid>"
+		Normally DATEFORMAT is used to make the tarballs unique
+		but if you may want to use your own unique id in the
+		tarball names such as the Jira issue id.
+
 	--no-default-search
 		Ignore COREDUMPS from the config files and process only
 		coredumps listed on the command line (if any) and/or
@@ -111,6 +117,8 @@ DESCRIPTION
 		/tmp/core[-._]\$(hostname)!(*.txt)
 
 NOTES
+	You must be root to use $prog.
+
 	The script relies on not only bash, but also recent GNU date and
 	gdb with python support.  *BSD operating systems may require
 	installation of the 'coreutils' and 'devel/gdb' packagess and minor
@@ -170,6 +178,11 @@ FILES
 EOF
 	exit 1
 }
+
+if [ $EUID -ne 0 ] ; then
+	echo "You must be root to use $prog."
+	exit 1
+fi
 
 running=false
 RUNNING=false
@@ -245,6 +258,9 @@ for a in "$@" ; do
 	--append-coredumps)
 		append_coredumps=true
 		;;
+	--tarball-uniqueid=*)
+		tarball_uniqueid=${a#*=}
+		;;
 	--help|-*)
 		print_help
 		;;
@@ -294,7 +310,7 @@ if [ ${#COREDUMPS[@]} -gt 0 ] && $latest ; then
 fi
 
 # Timestamp to use for output files
-df=$(${DATEFORMAT})
+df=${tarball_uniqueid:-$(${DATEFORMAT})}
 
 if $running || $RUNNING ; then
 	# We need to go through some gyrations to find the pid of the running
@@ -321,12 +337,9 @@ if $running || $RUNNING ; then
 			read -p "WARNING:  Taking a core dump of the running asterisk instance will suspend call processing while the dump is saved.  Do you wish to continue? (y/N) " answer
 		fi
 		if [[ "$answer" =~ ^[Yy] ]] ; then
-			cf="/tmp/core.asterisk.running.$df"
-			# We want a consistent coredump so stop the process
-			# and continue it after the dump is complete.
-			# kill -STOP $pid
+			cf="/tmp/core-asterisk-running-$df"
+			echo "Dumping running asterisk process to $cf"
 			${GDB} -p $pid -q --batch --ex "gcore $cf" >/dev/null 2>&1
-			# kill -CONT $pid
 			COREDUMPS+=("$cf")
 		else
 			echo "Skipping dump of running process"
@@ -343,17 +356,17 @@ fi
 # and save them to /tmp/.gdbinit
 
 ss=`egrep -n "^#@@@SCRIPTSTART@@@" $0 |cut -f1 -d:`
-tail -n +${ss} $0 >/tmp/.gdbinit
+tail -n +${ss} $0 >/tmp/.ast_coredumper.gdbinit
 
 # Now iterate over the coredumps and dump the debugging info
 for i in ${!COREDUMPS[@]} ; do
 	cf=${COREDUMPS[$i]}
 	echo "Processing $cf"
-	${GDB} -n --batch -q --ex "source /tmp/.gdbinit" $(which asterisk) "$cf" 2>/dev/null | (
+	${GDB} -n --batch -q --ex "source /tmp/.ast_coredumper.gdbinit" $(which asterisk) "$cf" 2>/dev/null | (
 		of=/dev/null
 		while IFS= read line ; do
 			if [[ "$line" =~ !@!@!@!\ ([^\ ]+)\ !@!@!@! ]] ; then
-				of=$cf.${BASH_REMATCH[1]}
+				of=${cf}-${BASH_REMATCH[1]}
 				of=${of//:/-}
 				rm -f "$of"
 				echo "Creating $of"
@@ -364,7 +377,7 @@ for i in ${!COREDUMPS[@]} ; do
 done
 
 if $tarball_coredumps ; then
-	tf=/tmp/asterisk.$df.coredumps.tar
+	tf=/tmp/asterisk-$df.coredumps.tar
 	echo "Creating $tf.gz"
 	for i in ${!COREDUMPS[@]} ; do
 		tar -uvf $tf "${COREDUMPS[@]}" 2>/dev/null
@@ -379,17 +392,17 @@ if $delete_coredumps_after ; then
 fi
 
 if $tarball_results ; then
-	tf=/tmp/asterisk.$df.results.tar
+	tf=/tmp/asterisk-$df-results.tar
 	echo "Creating $tf.gz"
 	for i in ${!COREDUMPS[@]} ; do
-		tar -uvf $tf "${COREDUMPS[$i]//:/-}".{brief,full,thread1,locks}.txt 2>/dev/null
+		tar -uvf $tf "${COREDUMPS[$i]//:/-}"-{brief,full,thread1,locks}.txt 2>/dev/null
 	done
 	gzip $tf
 fi
 
 if $delete_results_after ; then
 	for i in ${!COREDUMPS[@]} ; do
-		rm -rf "${COREDUMPS[$i]//:/-}".{brief,full,thread1,locks}.txt
+		rm -rf "${COREDUMPS[$i]//:/-}"-{brief,full,thread1,locks}.txt
 	done
 fi
 
