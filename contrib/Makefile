@@ -21,11 +21,11 @@ include $(ASTTOPDIR)/Makefile.rules
 
 install:
 	$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/scripts"
+	$(INSTALL) -m 755 scripts/ast_loggrabber "$(DESTDIR)$(ASTDATADIR)/scripts/ast_loggrabber"
 	$(INSTALL) -m 755 scripts/ast_coredumper "$(DESTDIR)$(ASTDATADIR)/scripts/ast_coredumper"
-	if [ -n "$(findstring REF_DEBUG,$(MENUSELECT_CFLAGS))" ]; then \
-		$(INSTALL) -m 755 scripts/refcounter.py "$(DESTDIR)$(ASTDATADIR)/scripts/refcounter.py"; \
-	fi
+	$(INSTALL) -m 755 scripts/refcounter.py "$(DESTDIR)$(ASTDATADIR)/scripts/refcounter.py"
 
 uninstall:
-	rm -f "$(DESTDIR)$(ASTDATADIR)/scripts/ast_coredumper"
-	rm -f "$(DESTDIR)$(ASTDATADIR)/scripts/refcounter.py"
+	-rm -f "$(DESTDIR)$(ASTDATADIR)/scripts/ast_loggrabber"
+	-rm -f "$(DESTDIR)$(ASTDATADIR)/scripts/ast_coredumper"
+	-rm -f "$(DESTDIR)$(ASTDATADIR)/scripts/refcounter.py"
