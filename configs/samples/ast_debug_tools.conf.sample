@@ -38,3 +38,20 @@ COREDUMPS=(/tmp/core[-._]asterisk!(*.txt) /tmp/core[-._]$(hostname)!(*.txt))
 #
 # Readable Local time
 DATEFORMAT='date +%FT%H-%M-%S%z'
+
+# A list of log files and/or log file search patterns using the
+# same syntax as COREDUMPS.
+#
+LOGFILES=(/var/log/asterisk/messages* /var/log/asterisk/queue* \
+	/var/log/asterisk/debug* /var/log/asterisk/security*)
+
+# ast_loggrabber converts POSIX timestamps to readable format
+# using this Python strftime format string.  If not specified
+# or an empty string, no format covnersion is done.
+LOG_DATEFORMAT="%m/%d-%H:%M:%S.%f"
+
+# The timezone to use when converting POSIX timestamps to
+# readable format.  It can be specified in "<continent>/<city>"
+# format or in abbreviation format such as "CST6CDT".  If not
+# specified, the "local" timezone is used.
+# LOG_TIMEZONE=
