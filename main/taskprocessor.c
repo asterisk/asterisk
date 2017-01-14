@@ -884,12 +884,10 @@ static int taskprocessor_push(struct ast_taskprocessor *tps, struct tps_task *t)
 	previous_size = tps->tps_queue_size++;
 
 	if (tps->tps_queue_high <= tps->tps_queue_size) {
-		if (!tps->high_water_warned) {
-			tps->high_water_warned = 1;
-			ast_log(LOG_WARNING, "The '%s' task processor queue reached %ld scheduled tasks.\n",
-				tps->name, tps->tps_queue_size);
-		}
 		if (!tps->high_water_alert) {
+			ast_log(LOG_WARNING, "The '%s' task processor queue reached %ld scheduled tasks%s.\n",
+				tps->name, tps->tps_queue_size, tps->high_water_warned ? " again" : "");
+			tps->high_water_warned = 1;
 			tps->high_water_alert = 1;
 			tps_alert_add(tps, +1);
 		}
