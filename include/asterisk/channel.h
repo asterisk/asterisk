@@ -971,11 +971,6 @@ enum {
 	 * frames should be deferred.
 	 */
 	AST_FLAG_DEFER_FRAMES = (1 << 28),
-	/*!
-	 * The channel is currently deferring hangup frames
-	 * in addition to other frame types.
-	 */
-	AST_FLAG_DEFER_HANGUP_FRAMES = (1 << 29),
 };
 
 /*! \brief ast_bridge_config flags */
@@ -4721,17 +4716,11 @@ struct ast_readq_list *ast_channel_deferred_readq(struct ast_channel *chan);
  * drop important frames. This function can be called so that important frames
  * will be deferred, rather than placed in the channel frame queue as normal.
  *
- * Hangups are an interesting frame type. Hangups will always be detectable by
- * a reader when a channel is deferring frames. If the defer_hangups parameter
- * is non-zero, then the hangup frame will also be duplicated and deferred, so
- * that the next reader of the channel will get the hangup frame, too.
- *
  * \pre chan MUST be locked before calling
  *
  * \param chan The channel on which frames should be deferred
- * \param defer_hangups Defer hangups in addition to other deferrable frames
  */
-void ast_channel_start_defer_frames(struct ast_channel *chan, int defer_hangups);
+void ast_channel_start_defer_frames(struct ast_channel *chan);
 
 /*!
  * \brief Stop deferring deferrable frames on this channel
@@ -4745,5 +4734,22 @@ void ast_channel_start_defer_frames(struct ast_channel *chan, int defer_hangups)
  * \param chan The channel on which to stop deferring frames.
  */
 void ast_channel_stop_defer_frames(struct ast_channel *chan);
+
+/*!
+ * \brief Am I currently running an intercept dialplan routine.
+ * \since 13.14.0
+ *
+ * \details
+ * A dialplan intercept routine is equivalent to an interrupt
+ * routine.  As such, the routine must be done quickly and you
+ * do not have access to the media stream.  These restrictions
+ * are necessary because the media stream is the responsibility
+ * of some other code and interfering with or delaying that
+ * processing is bad.
+ *
+ * \retval 0 Not in an intercept routine.
+ * \retval 1 In an intercept routine.
+ */
+int ast_channel_get_intercept_mode(void);
 
 #endif /* _ASTERISK_CHANNEL_H */

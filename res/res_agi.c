@@ -4075,7 +4075,7 @@ static enum agi_result agi_handle_command(struct ast_channel *chan, AGI *agi, ch
 			break;
 		}
 	} else if (c) {
-		ami_res = "Command Not Permitted on a dead channel";
+		ami_res = "Command Not Permitted on a dead channel or intercept routine";
 		resultcode = 511;
 
 		ast_agi_send(agi->fd, chan, "%d %s\n", resultcode, ami_res);
@@ -4111,6 +4111,8 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 	const char *sighup_str;
 	const char *exit_on_hangup_str;
 	int exit_on_hangup;
+	/*! Running in an interception routine is like DeadAGI mode.  No touchy the channel frames. */
+	int in_intercept = ast_channel_get_intercept_mode();
 
 	ast_channel_lock(chan);
 	sighup_str = pbx_builtin_getvar_helper(chan, "AGISIGHUP");
@@ -4145,7 +4147,7 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 			}
 		}
 		ms = -1;
-		if (dead) {
+		if (dead || in_intercept) {
 			c = ast_waitfor_nandfds(&chan, 0, &agi->ctrl, 1, NULL, &outfd, &ms);
 		} else if (!ast_check_hangup(chan)) {
 			c = ast_waitfor_nandfds(&chan, 1, &agi->ctrl, 1, NULL, &outfd, &ms);
@@ -4223,10 +4225,10 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 
 			if (agidebug)
 				ast_verbose("<%s>AGI Rx << %s\n", ast_channel_name(chan), buf);
-			cmd_status = agi_handle_command(chan, agi, buf, dead);
+			cmd_status = agi_handle_command(chan, agi, buf, dead || in_intercept);
 			switch (cmd_status) {
 			case AGI_RESULT_FAILURE:
-				if (dead || !ast_check_hangup(chan)) {
+				if (dead || in_intercept || !ast_check_hangup(chan)) {
 					/* The failure was not because of a hangup. */
 					returnstatus = AGI_RESULT_FAILURE;
 				}
