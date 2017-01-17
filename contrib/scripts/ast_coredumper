@@ -1,0 +1,520 @@
+#!/usr/bin/env bash
+# Turn on extended globbing
+shopt -s extglob
+# Bail on any error
+set -e
+
+prog=$(basename $0)
+
+print_help() {
+cat <<EOF
+NAME
+	$prog - Dump and/or format asterisk coredump files
+
+SYNOPSIS
+	$prog [ --help ] [ --running | --RUNNING ] [ --latest ]
+		[ --tarball-coredumps ] [ --delete-coredumps-after ]
+		[ --tarball-results ] [ --delete-results-after ]
+		[ --no-default-search ] [ --append-coredumps ]
+		[ <coredump> | <pattern> ... ]
+
+DESCRIPTION
+
+	Extracts backtraces and lock tables from Asterisk coredump files.
+	For each coredump found, 4 new result files are created:
+	- <coredump>.brief.txt: The output of "thread apply all bt".
+
+	- <coredump>.thread1.txt: The output of "thread apply 1 bt full".
+
+	- <coredump>.full.txt: The output of "thread apply all bt full".
+
+	- <coredump>.locks.txt: If asterisk was compiled with
+		"DEBUG_THREADS", this file will contain a dump of the locks
+		table similar to doing a "core show locks" from the asterisk
+		CLI.
+
+	Optional features:
+	- The running asterisk process can be suspended and dumped.
+	- The coredumps can be merged into a tarball.
+	- The coredumps can be deleted after processing.
+	- The results files can be merged into a tarball.
+	- The results files can be deleted after processing.
+
+	Options:
+
+	--help
+		Print this help.
+
+	--running
+		Create a coredump from the running asterisk instance and
+		process it along with any other coredumps found (if any).
+		WARNING: This WILL interrupt call processing.  You will be
+		asked to confirm.
+
+	--RUNNING
+		Same as --running but without the confirmation prompt.
+		DANGEROUS!!
+
+	--latest
+		Process only the latest coredump from those specified (based
+		on last-modified time).  If a dump of the running process was
+		requested, it is always included in addition to the latest
+		from the existing coredumps.
+
+	--tarball-coredumps
+		Creates a gzipped tarball of all coredumps processed.
+		The tarball name will be:
+		/tmp/asterisk.<timestamp>.coredumps.tar.gz
+
+	--delete-coredumps-after
+		Deletes all processed coredumps regardless of whether
+		a tarball was created.
+
+	--tarball-results
+		Creates a gzipped tarball of all result files produced.
+		The tarball name will be:
+		/tmp/asterisk.<timestamp>.results.tar.gz
+
+	--delete-results-after
+		Deletes all processed results regardless of whether
+		a tarball was created.  It probably doesn't make sense
+		to use this option unless you have also specified
+		--tarball-results.
+
+	--no-default-search
+		Ignore COREDUMPS from the config files and process only
+		coredumps listed on the command line (if any) and/or
+		the running asterisk instance (if requested).
+
+	--append-coredumps
+		Append any coredumps specified on the command line to the
+		config file specified ones instead of overriding them.
+
+	<coredump> | <pattern>
+		A list of coredumps or coredump search patterns.  Unless
+		--append-coredumps was specified, these entries will override
+		those specified in the config files.
+
+		Any resulting file that isn't actually a coredump is silently
+		ignored.  If your patterns contains spaces be sure to only
+		quote the portion of the pattern that DOESN'T contain wildcard
+		expressions.  If you quote the whole pattern, it won't be
+		expanded.
+
+		If --no-default-search is specified and no files are specified
+		on the command line, then the only the running asterisk process
+		will be dumped (if requested).  Otherwise if no files are
+		specified on the command line the value of COREDUMPS from
+		ast_debug_tools.conf will be used.  Failing that, the following
+		patterns will be used:
+		/tmp/core[-._]asterisk!(*.txt)
+		/tmp/core[-._]\$(hostname)!(*.txt)
+
+NOTES
+	The script relies on not only bash, but also recent GNU date and
+	gdb with python support.  *BSD operating systems may require
+	installation of the 'coreutils' and 'devel/gdb' packagess and minor
+	tweaking of the ast_debug_tools.conf file.
+
+	Any files output will have ':' characters changed to '-'.  This is
+	to facilitate uploading those files to Jira which doesn't like the
+	colons.
+
+FILES
+	/etc/asterisk/ast_debug_tools.conf
+	~/ast_debug_tools.conf
+	./ast_debug_tools.conf
+
+	#
+	# This file is used by the Asterisk debug tools.
+	# Unlike other Asterisk config files, this one is
+	# "sourced" by bash and must adhere to bash semantics.
+	#
+
+	# A list of coredumps and/or coredump search patterns.
+	# Bash extended globs are enabled and any resulting files
+	# that aren't actually coredumps are silently ignored
+	# so you can be liberal with the globs.
+	#
+	# If your patterns contains spaces be sure to only quote
+	# the portion of the pattern that DOESN'T contain wildcard
+	# expressions.  If you quote the whole pattern, it won't
+	# be expanded and the glob characters will be treated as
+	# literals.
+	#
+	# The exclusion of files ending ".txt" is just for
+	# demonstration purposes as non-coredumps will be ignored
+	# anyway.
+	COREDUMPS=(/tmp/core[-._]asterisk!(*.txt) /tmp/core[-._]\$(hostname)!(*.txt))
+
+	# Date command for the "running" coredump and tarballs.
+	# DATEFORMAT will be executed to get the timestamp.
+	# Don't put quotes around the format string or they'll be
+	# treated as literal characters.  Also be aware of colons
+	# in the output as you can't upload files with colons in
+	# the name to Jira.
+	#
+	# Unix timestamp
+	#DATEFORMAT='date +%s.%N'
+	#
+	# *BSD/MacOS doesn't support %N but after installing GNU
+	# coreutils...
+	#DATEFORMAT='gdate +%s.%N'
+	#
+	# Readable GMT
+	#DATEFORMAT='date -u +%FT%H-%M-%S%z'
+	#
+	# Readable Local time
+	DATEFORMAT='date +%FT%H-%M-%S%z'
+
+EOF
+	exit 1
+}
+
+running=false
+RUNNING=false
+latest=false
+tarball_coredumps=false
+delete_coredumps_after=false
+tarball_results=false
+delete_results_after=false
+append_coredumps=false
+
+declare -a COREDUMPS
+declare -a ARGS_COREDUMPS
+
+# Read config files from least important to most important
+[ -f /etc/asterisk/ast_debug_tools.conf ] && source /etc/asterisk/ast_debug_tools.conf
+[ -f ~/ast_debug_tools.conf ] && source ~/ast_debug_tools.conf
+[ -f ./ast_debug_tools.conf ] && source ./ast_debug_tools.conf
+
+# For *BSD, the preferred gdb may be in /usr/local/bin so we
+# need to search for one that supports python.
+for g in $(which -a gdb) ; do
+	result=$($g --batch --ex "python print('hello')" 2>/dev/null || : )
+	if [[ "$result" =~ ^hello$ ]] ; then
+		GDB=$g
+		break
+	fi
+done
+
+if [ -z "$GDB" ] ; then
+	echo "No suitable gdb was found in $PATH"
+	exit 1
+fi
+
+if [ ${#COREDUMPS[@]} -eq 0 ] ; then
+	COREDUMPS+=(/tmp/core[-._]asterisk!(*.txt) /tmp/core[-._]$(hostname)!(*.txt))
+fi
+
+DATEFORMAT=${DATEFORMAT:-'date +%FT%H-%M-%S%z'}
+
+# Use "$@" (with the quotes) so spaces in patterns or
+# file names are preserved.
+# Later on when we have to iterate over COREDUMPS, we always
+# use the indexes rather than trying to expand the values of COREDUMPS
+# just in case.
+
+for a in "$@" ; do
+	case "$a" in
+	--running)
+		running=true
+		;;
+	--RUNNING)
+		RUNNING=true
+		;;
+	--no-default-search)
+		# Clean out COREDUMPS from config files
+		COREDUMPS=()
+		;;
+	--latest)
+		latest=true
+		;;
+	--tarball-coredumps)
+		tarball_coredumps=true
+		;;
+	--delete-coredumps-after)
+		delete_coredumps_after=true
+		;;
+	--tarball-results)
+		tarball_results=true
+		;;
+	--delete-results-after)
+		delete_results_after=true
+		;;
+	--append-coredumps)
+		append_coredumps=true
+		;;
+	--help|-*)
+		print_help
+		;;
+	*)
+		ARGS_COREDUMPS+=("$a")
+		# If any files are specified on the command line, ignore those
+		# specified in the config files unless append-coredumps was specified.
+		if ! $append_coredumps ; then
+			COREDUMPS=()
+		fi
+	esac
+done
+
+# append coredumps/patterns specified as command line arguments to COREDUMPS.
+for i in ${!ARGS_COREDUMPS[@]} ; do
+	COREDUMPS+=("${ARGS_COREDUMPS[$i]}")
+done
+
+# At this point, all glob entries that match files should be expanded.
+# Any entries that don't exist are probably globs that didn't match anything
+# and need to be pruned.  Any non coredumps are also pruned.
+
+for i in ${!COREDUMPS[@]} ; do
+	if [ ! -f "${COREDUMPS[$i]}" ] ; then
+		unset COREDUMPS[$i]
+		continue
+	fi
+	# Some versions of 'file' don't allow only the first n bytes of the
+	# file to be processed so we use dd to grab just the first 32 bytes.
+	mimetype=$(dd if="${COREDUMPS[$i]}" bs=32 count=1 2>/dev/null | file -bi -)
+	if [[ ! "$mimetype" =~ coredump ]] ; then
+		unset COREDUMPS[$i]
+		continue
+	fi
+done
+
+# Sort and weed out any dups
+IFS=$'\x0a'
+readarray -t COREDUMPS < <(echo -n "${COREDUMPS[*]}" | sort -u )
+unset IFS
+
+# If --latest, get the last modified timestamp of each file,
+# sort them, then return the latest.
+if [ ${#COREDUMPS[@]} -gt 0 ] && $latest ; then
+	lf=$(find "${COREDUMPS[@]}" -printf '%T@ %p\n' | sort -n | tail -1)
+	COREDUMPS=("${lf#* }")
+fi
+
+# Timestamp to use for output files
+df=$(${DATEFORMAT})
+
+if $running || $RUNNING ; then
+	# We need to go through some gyrations to find the pid of the running
+	# MAIN asterisk process and not someone or something running asterisk -r.
+	# The pid file may NOT be in /var/run/asterisk so we need to find any
+	# running asterisk process and see if -C was specified on the command
+	# line.  The chances of more than 1 asterisk instance running with
+	# different -C options is so unlikely that we're going to ignore it.
+	#
+	# 'ps axo command' should work on Linux (back to CentOS6) and FreeBSD.
+	# If asterisk was started with -C, get the asterisk.conf file.
+	# If it wasn't, assume /etc/asterisk/asterisk.conf
+	astetcconf=`ps axo command | sed -n -r -e "s/.*asterisk\s+.*-C\s+([^ ]+).*/\1/gp" | tail -1`
+	[ x$astetcconf = x ] && astetcconf=/etc/asterisk/asterisk.conf
+	# Now parse out astrundir and cat asterisk.pid
+	astrundir=$(sed -n -r -e "s/astrundir\s+[=>]+\s+(.*)/\1/gp" $astetcconf)
+	pid=$(cat $astrundir/asterisk.pid 2>/dev/null || : )
+	if [ x$pid = x ] ; then
+		echo "Asterisk is not running"
+	else
+		if $RUNNING ; then
+			answer=Y
+		else
+			read -p "WARNING:  Taking a core dump of the running asterisk instance will suspend call processing while the dump is saved.  Do you wish to continue? (y/N) " answer
+		fi
+		if [[ "$answer" =~ ^[Yy] ]] ; then
+			cf="/tmp/core.asterisk.running.$df"
+			# We want a consistent coredump so stop the process
+			# and continue it after the dump is complete.
+			# kill -STOP $pid
+			${GDB} -p $pid -q --batch --ex "gcore $cf" >/dev/null 2>&1
+			# kill -CONT $pid
+			COREDUMPS+=("$cf")
+		else
+			echo "Skipping dump of running process"
+		fi
+	fi
+fi
+
+if [ "${#COREDUMPS[@]}" -eq 0 ] ; then
+	echo "No coredumps found"
+	print_help
+fi
+
+# Extract the gdb scripts from the end of this script
+# and save them to /tmp/.gdbinit
+
+ss=`egrep -n "^#@@@SCRIPTSTART@@@" $0 |cut -f1 -d:`
+tail -n +${ss} $0 >/tmp/.gdbinit
+
+# Now iterate over the coredumps and dump the debugging info
+for i in ${!COREDUMPS[@]} ; do
+	cf=${COREDUMPS[$i]}
+	echo "Processing $cf"
+	${GDB} -n --batch -q --ex "source /tmp/.gdbinit" $(which asterisk) "$cf" 2>/dev/null | (
+		of=/dev/null
+		while IFS= read line ; do
+			if [[ "$line" =~ !@!@!@!\ ([^\ ]+)\ !@!@!@! ]] ; then
+				of=$cf.${BASH_REMATCH[1]}
+				of=${of//:/-}
+				rm -f "$of"
+				echo "Creating $of"
+			fi
+			echo -e $"$line" >> "$of"
+		done
+	)
+done
+
+if $tarball_coredumps ; then
+	tf=/tmp/asterisk.$df.coredumps.tar
+	echo "Creating $tf.gz"
+	for i in ${!COREDUMPS[@]} ; do
+		tar -uvf $tf "${COREDUMPS[@]}" 2>/dev/null
+	done
+	gzip $tf
+fi
+
+if $delete_coredumps_after ; then
+	for i in ${!COREDUMPS[@]} ; do
+		rm -rf "${COREDUMPS[$i]}"
+	done
+fi
+
+if $tarball_results ; then
+	tf=/tmp/asterisk.$df.results.tar
+	echo "Creating $tf.gz"
+	for i in ${!COREDUMPS[@]} ; do
+		tar -uvf $tf "${COREDUMPS[$i]//:/-}".{brief,full,thread1,locks}.txt 2>/dev/null
+	done
+	gzip $tf
+fi
+
+if $delete_results_after ; then
+	for i in ${!COREDUMPS[@]} ; do
+		rm -rf "${COREDUMPS[$i]//:/-}".{brief,full,thread1,locks}.txt
+	done
+fi
+
+exit
+
+# Be careful editng the inline scripts.
+# They're space-indented.
+
+# We need the python bit because lock_infos isn't
+# a valid symbol in asterisk unless DEBUG_THREADS was
+# used during the compile.  Also, interrupt and continue
+# are only valid for a running program.
+
+#@@@SCRIPTSTART@@@
+python
+class DumpAsteriskCommand(gdb.Command):
+
+    def __init__(self):
+        super(DumpAsteriskCommand, self).__init__ ("dump-asterisk",
+            gdb.COMMAND_OBSCURE, gdb.COMPLETE_COMMAND)
+
+    def invoke(self, arg, from_tty):
+        try:
+            gdb.execute("interrupt", from_tty)
+        except:
+            pass
+        print("!@!@!@! thread1.txt !@!@!@!\n")
+        try:
+            gdb.execute("thread apply 1 bt full", from_tty)
+        except:
+            pass
+        print("!@!@!@! brief.txt !@!@!@!\n")
+        try:
+            gdb.execute("thread apply all bt", from_tty)
+        except:
+            pass
+        print("!@!@!@! full.txt !@!@!@!\n")
+        try:
+            gdb.execute("thread apply all bt full", from_tty)
+        except:
+            pass
+        print("!@!@!@! locks.txt !@!@!@!\n")
+        try:
+            gdb.execute("show_locks", from_tty)
+        except:
+            pass
+        try:
+            gdb.execute("continue", from_tty)
+        except:
+            pass
+
+DumpAsteriskCommand ()
+end
+
+define show_locks
+   set $n = lock_infos.first
+
+   if $argc == 0
+      printf "                                                                                                                    where_held count-|\n"
+      printf "                                                                                                                         suspended-| |\n"
+      printf "                                                                                                        type- |     times locked-| | |\n"
+      printf "thread         status   file                   line function                             lock name            | lock addr        | | |\n"
+   else
+      printf "thread,status,file,line,function,lock_name,lock_type,lock_addr,times_locked,suspended,where_held_count,where_held_file,where_held_line,where_held_function,there_held_thread\n"
+   end
+
+   while $n
+      if $n->num_locks > 0
+      set $i = 0
+      while $i < $n->num_locks
+         if $n->locks[$i]->suspended == 0
+            if ((ast_mutex_t *)$n->locks[$i]->lock_addr)->tracking
+               if $n->locks[$i]->type > 0
+                  set $track = ((ast_rwlock_t *)$n->locks[$i]->lock_addr)->track
+               else
+                  set $track = ((ast_mutex_t *)$n->locks[$i]->lock_addr)->track
+               end
+            end
+            set $reentrancy = $track->reentrancy
+            set $pending = $n->locks[$i]->pending
+            if $argc > 0
+               printf "%p,%d,%s,%d,%s,%s,%d,%p,%d,%d,%d",\
+                  $n->thread_id, $n->locks[$i]->pending, $n->locks[$i]->file, $n->locks[$i]->line_num, $n->locks[$i]->func,\
+                  $n->locks[$i]->lock_name, $n->locks[$i]->type, $n->locks[$i]->lock_addr, $n->locks[$i]->times_locked,\
+                  $n->locks[$i]->suspended, $track->reentrancy
+               if $reentrancy
+                  if $pending
+                     printf ",%s,%d,%s,%p", $track->file[0], $track->lineno[0], $track->func[0], $track->thread[0]
+                  end
+               end
+            else
+               if $n->locks[$i]->pending < 0
+                  printf "%p failed   %-20s %6d %-36s %-20s %d %14p %3d %d %d",\
+                     $n->thread_id,\
+                     $n->locks[$i]->file, $n->locks[$i]->line_num, $n->locks[$i]->func,\
+                     $n->locks[$i]->lock_name, $n->locks[$i]->type, $n->locks[$i]->lock_addr, $n->locks[$i]->times_locked,\
+                     $n->locks[$i]->suspended, $track->reentrancy
+               end
+               if $n->locks[$i]->pending == 0
+                  printf "%p holding  %-20s %6d %-36s %-20s %d %14p %3d %d %d",\
+                     $n->thread_id,\
+                     $n->locks[$i]->file, $n->locks[$i]->line_num, $n->locks[$i]->func,\
+                     $n->locks[$i]->lock_name, $n->locks[$i]->type, $n->locks[$i]->lock_addr, $n->locks[$i]->times_locked,\
+                     $n->locks[$i]->suspended, $track->reentrancy
+               end
+               if $n->locks[$i]->pending > 0
+                  printf "%p waiting  %-20s %6d %-36s %-20s %d %14p %3d %d %d",\
+                     $n->thread_id,\
+                     $n->locks[$i]->file, $n->locks[$i]->line_num, $n->locks[$i]->func,\
+                     $n->locks[$i]->lock_name, $n->locks[$i]->type, $n->locks[$i]->lock_addr, $n->locks[$i]->times_locked,\
+                     $n->locks[$i]->suspended, $track->reentrancy
+               end
+               if $reentrancy
+                  if $pending
+                     printf "\n               held at: %-20s %6d %-36s by 0x%08lx", $track->file[0], $track->lineno[0], $track->func[0], $track->thread_id[0]
+                  end
+               end
+            end
+            printf "\n"
+         end
+         set $i = $i + 1
+      end
+    end
+    set $n = $n->entry->next
+  end
+end
+
+dump-asterisk
