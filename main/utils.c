@@ -1453,7 +1453,7 @@ int ast_careful_fwrite(FILE *f, int fd, const char *src, size_t len, int timeout
 
 		if (ferror(f) && errno != EINTR && errno != EAGAIN) {
 			/* fatal error from fwrite() */
-			if (!feof(f)) {
+			if (!feof(f) && errno != EPIPE) {
 				/* Don't spam the logs if it was just that the connection is closed. */
 				ast_log(LOG_ERROR, "fwrite() returned error: %s\n", strerror(errno));
 			}
@@ -1485,7 +1485,7 @@ int ast_careful_fwrite(FILE *f, int fd, const char *src, size_t len, int timeout
 			usleep(1);
 			continue;
 		}
-		if (errno && !feof(f)) {
+		if (errno && !feof(f) && errno != EPIPE) {
 			/* Don't spam the logs if it was just that the connection is closed. */
 			ast_log(LOG_ERROR, "fflush() returned error: %s\n", strerror(errno));
 		}
