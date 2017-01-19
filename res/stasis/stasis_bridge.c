@@ -157,13 +157,13 @@ static int bridge_stasis_push_peek(struct ast_bridge *self, struct ast_bridge_ch
 	}
 	to_be_replaced = ast_channel_snapshot_get_latest(ast_channel_uniqueid(swap->chan));
 
-	ast_debug(3, "Copying stasis app name %s from %s to %s\n", app_name(control_app(swap_control)),
+	ast_debug(3, "Copying stasis app name %s from %s to %s\n", stasis_app_name(control_app(swap_control)),
 		ast_channel_name(swap->chan), ast_channel_name(bridge_channel->chan));
 
 	ast_channel_lock(bridge_channel->chan);
 
 	/* copy the app name from the swap channel */
-	app_set_replace_channel_app(bridge_channel->chan, app_name(control_app(swap_control)));
+	app_set_replace_channel_app(bridge_channel->chan, stasis_app_name(control_app(swap_control)));
 
 	/* set the replace channel snapshot */
 	app_set_replace_channel_snapshot(bridge_channel->chan, to_be_replaced);

@@ -29,6 +29,7 @@ ASTERISK_REGISTER_FILE()
 
 #include "resource_events.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/http_websocket.h"
 #include "asterisk/stasis_app.h"
 #include "asterisk/vector.h"
 
@@ -110,6 +111,15 @@ static void stasis_app_message_handler(
 				msg_type,
 				msg_application);
 	} else {
+		if (stasis_app_get_debug_by_name(app_name)) {
+			char *str = ast_json_dump_string_format(message, ast_ari_json_format());
+
+			ast_verbose("<--- Sending ARI event to %s --->\n%s\n",
+				ast_sockaddr_stringify(ast_ari_websocket_session_get_remote_addr(session->ws_session)),
+				str);
+			ast_json_free(str);
+		}
+
 		/* We are ready to publish the message */
 		ast_ari_websocket_session_write(session->ws_session, message);
 	}
