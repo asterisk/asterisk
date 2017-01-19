@@ -891,6 +891,55 @@ int stasis_app_channel_unreal_set_internal(struct ast_channel *chan);
  */
 int stasis_app_channel_set_internal(struct ast_channel *chan);
 
+/*!
+ * \brief Enable/disable request/response and event logging on an application
+ *
+ * \param app The app to debug
+ * \param debug If non-zero, enable debugging. If zero, disable.
+ */
+void stasis_app_set_debug(struct stasis_app *app, int debug);
+
+/*!
+ * \brief Enable/disable request/response and event logging on an application
+ *
+ * \param app_name The app name to debug
+ * \param debug If non-zero, enable debugging. If zero, disable.
+ */
+void stasis_app_set_debug_by_name(const char *app_name, int debug);
+
+/*!
+ * \brief Get debug status of an application
+ *
+ * \param app The app to check
+ * \return The debug flag for the app || the global debug flag
+ */
+int stasis_app_get_debug(struct stasis_app *app);
+
+/*!
+ * \brief Get debug status of an application
+ *
+ * \param app_name The app_name to check
+ * \return The debug flag for the app || the global debug flag
+ */
+int stasis_app_get_debug_by_name(const char *app_name);
+
+/*!
+ * \brief Enable/disable request/response and event logging on all applications
+ *
+ * \param debug If non-zero, enable debugging. If zero, disable.
+ */
+void stasis_app_set_global_debug(int debug);
+
+struct ast_cli_args;
+
+/*!
+ * \brief Dump properties of a \c stasis_app to the CLI
+ *
+ * \param app The application
+ * \param a The CLI arguments
+ */
+void stasis_app_to_cli(const struct stasis_app *app, struct ast_cli_args *a);
+
 /*! @} */
 
 #endif /* _ASTERISK_STASIS_APP_H */
