@@ -61,6 +61,7 @@ static void handler(const char *name,
 		    struct ast_variable *get_params,
 		    struct ast_variable *path_vars,
 		    struct ast_variable *headers,
+		    struct ast_json *body,
 		    struct ast_ari_response *response)
 {
 	struct ast_json *message = ast_json_pack("{s: s, s: {}, s: {}, s: {}}",
@@ -98,9 +99,10 @@ static void handler(const char *name,
 		struct ast_variable *get_params,			\
 		struct ast_variable *path_vars,				\
 		struct ast_variable *headers,				\
+		struct ast_json *body,						\
 		struct ast_ari_response *response)			\
 	{								\
-		handler(#name, response_code, get_params, path_vars, headers, response); \
+		handler(#name, response_code, get_params, path_vars, headers, body, response); \
 	}
 
 HANDLER(bang_get, 200)
@@ -343,7 +345,8 @@ AST_TEST_DEFINE(invoke_get)
 				 "head2", "head-two",
 				 "path_vars");
 
-	ast_ari_invoke(NULL, "foo", AST_HTTP_GET, get_params, headers, response);
+	ast_ari_invoke(NULL, "foo", AST_HTTP_GET, get_params, headers,
+		ast_json_null(), response);
 
 	ast_test_validate(test, 1 == invocation_count);
 	ast_test_validate(test, 200 == response->response_code);
@@ -380,7 +383,8 @@ AST_TEST_DEFINE(invoke_wildcard)
 				 "path_vars",
 				 "bam", "foshizzle");
 
-	ast_ari_invoke(NULL, "foo/foshizzle", AST_HTTP_GET, get_params, headers, response);
+	ast_ari_invoke(NULL, "foo/foshizzle", AST_HTTP_GET, get_params, headers,
+		ast_json_null(), response);
 
 	ast_test_validate(test, 1 == invocation_count);
 	ast_test_validate(test, 200 == response->response_code);
@@ -417,7 +421,8 @@ AST_TEST_DEFINE(invoke_delete)
 				 "path_vars",
 				 "bam", "foshizzle");
 
-	ast_ari_invoke(NULL, "foo/foshizzle/bang", AST_HTTP_DELETE, get_params, headers, response);
+	ast_ari_invoke(NULL, "foo/foshizzle/bang", AST_HTTP_DELETE, get_params, headers,
+		ast_json_null(), response);
 
 	ast_test_validate(test, 1 == invocation_count);
 	ast_test_validate(test, 204 == response->response_code);
@@ -467,7 +472,8 @@ AST_TEST_DEFINE(invoke_post)
 				 "head2", "head-two",
 				 "path_vars");
 
-	ast_ari_invoke(NULL, "foo/bar", AST_HTTP_POST, get_params, headers, response);
+	ast_ari_invoke(NULL, "foo/bar", AST_HTTP_POST, get_params, headers,
+		ast_json_null(), response);
 
 	ast_test_validate(test, 1 == invocation_count);
 	ast_test_validate(test, 200 == response->response_code);
@@ -496,7 +502,8 @@ AST_TEST_DEFINE(invoke_bad_post)
 
 	fixture = setup_invocation_test();
 	response = response_alloc();
-	ast_ari_invoke(NULL, "foo", AST_HTTP_POST, get_params, headers, response);
+	ast_ari_invoke(NULL, "foo", AST_HTTP_POST, get_params, headers,
+		ast_json_null(), response);
 
 	ast_test_validate(test, 0 == invocation_count);
 	ast_test_validate(test, 405 == response->response_code);
@@ -524,7 +531,8 @@ AST_TEST_DEFINE(invoke_not_found)
 
 	fixture = setup_invocation_test();
 	response = response_alloc();
-	ast_ari_invoke(NULL, "foo/fizzle/i-am-not-a-resource", AST_HTTP_GET, get_params, headers, response);
+	ast_ari_invoke(NULL, "foo/fizzle/i-am-not-a-resource", AST_HTTP_GET, get_params, headers,
+		ast_json_null(), response);
 
 	ast_test_validate(test, 0 == invocation_count);
 	ast_test_validate(test, 404 == response->response_code);
