@@ -67,7 +67,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "stasis/app.h"
 #include "stasis/control.h"
 #include "stasis/messaging.h"
-#include "stasis/cli.h"
 #include "stasis/stasis_bridge.h"
 #include "asterisk/core_unreal.h"
 #include "asterisk/musiconhold.h"
@@ -177,11 +176,6 @@ static struct ast_json *stasis_start_to_json(struct stasis_message *message,
 
 STASIS_MESSAGE_TYPE_DEFN_LOCAL(start_message_type,
 	.to_json = stasis_start_to_json);
-
-const char *stasis_app_name(const struct stasis_app *app)
-{
-	return app_name(app);
-}
 
 /*! AO2 hash function for \ref app */
 static int app_hash(const void *obj, const int flags)
@@ -944,7 +938,7 @@ static int send_start_msg_snapshots(struct ast_channel *chan, struct stasis_app 
 
 	if (app_subscribe_channel(app, chan)) {
 		ast_log(LOG_ERROR, "Error subscribing app '%s' to channel '%s'\n",
-			app_name(app), ast_channel_name(chan));
+			stasis_app_name(app), ast_channel_name(chan));
 		return -1;
 	}
 
@@ -958,7 +952,7 @@ static int send_start_msg_snapshots(struct ast_channel *chan, struct stasis_app 
 	payload->replace_channel = ao2_bump(replace_channel_snapshot);
 
 	json_blob = ast_json_pack("{s: s, s: o, s: []}",
-		"app", app_name(app),
+		"app", stasis_app_name(app),
 		"timestamp", ast_json_timeval(ast_tvnow(), NULL),
 		"args");
 	if (!json_blob) {
@@ -1028,7 +1022,7 @@ int app_send_end_msg(struct stasis_app *app, struct ast_channel *chan)
 		return 0;
 	}
 
-	blob = ast_json_pack("{s: s}", "app", app_name(app));
+	blob = ast_json_pack("{s: s}", "app", stasis_app_name(app));
 	if (!blob) {
 		ast_log(LOG_ERROR, "Error packing JSON for StasisEnd message\n");
 		return -1;
@@ -1474,10 +1468,6 @@ static struct stasis_app *find_app_by_name(const char *app_name)
 		res = ao2_find(apps_registry, app_name, OBJ_SEARCH_KEY);
 	}
 
-	if (!res) {
-		ast_log(LOG_WARNING, "Could not find app '%s'\n",
-			app_name ? : "(null)");
-	}
 	return res;
 }
 
@@ -1958,8 +1948,6 @@ static int unload_module(void)
 {
 	stasis_app_unregister_event_sources();
 
-	cli_cleanup();
-
 	messaging_cleanup();
 
 	cleanup();
@@ -2113,11 +2101,6 @@ static int load_module(void)
 	}
 
 	if (messaging_init()) {
-		unload_module();
-		return AST_MODULE_LOAD_FAILURE;
-	}
-
-	if (cli_init()) {
 		unload_module();
 		return AST_MODULE_LOAD_FAILURE;
 	}
