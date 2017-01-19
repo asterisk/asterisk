@@ -109,15 +109,6 @@ int app_is_finished(struct stasis_app *app);
 void app_update(struct stasis_app *app, stasis_app_cb handler, void *data);
 
 /*!
- * \brief Return an application's name.
- *
- * \param app Application.
- * \return Name of the application.
- * \return \c NULL is \a app is \c NULL.
- */
-const char *app_name(const struct stasis_app *app);
-
-/*!
  * \brief Send a message to an application.
  *
  * \param app Application.
@@ -136,16 +127,6 @@ struct app_forwards;
  * \return \c NULL on error
  */
 struct ast_json *app_to_json(const struct stasis_app *app);
-
-struct ast_cli_args;
-
-/*!
- * \brief Dump properties of a \c stasis_app to the CLI
- *
- * \param app The application
- * \param a The CLI arguments
- */
-void app_to_cli(const struct stasis_app *app, struct ast_cli_args *a);
 
 /*!
  * \brief Subscribes an application to a channel.
@@ -299,13 +280,5 @@ char *app_get_replace_channel_app(struct ast_channel *chan);
  * \return non-zero on failure
  */
 int app_send_end_msg(struct stasis_app *app, struct ast_channel *chan);
-
-/*!
- * \brief Enable/disable debugging on an application
- *
- * \param app The app to debug
- * \param debug If non-zero, enable debugging. If zero, disable.
- */
-void app_set_debug(struct stasis_app *app, int debug);
 
 #endif /* _ASTERISK_RES_STASIS_APP_H */
