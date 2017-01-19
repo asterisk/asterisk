@@ -139,6 +139,15 @@ static void app_handler(void *data, const char *app_name,
 
 	ao2_lock(session);
 	if (session->ws_session) {
+		if (stasis_app_get_debug_by_name(app_name)) {
+			char *str = ast_json_dump_string_format(message, ast_ari_json_format());
+
+			ast_verbose("<--- Sending ARI event to %s --->\n%s\n",
+				ast_sockaddr_stringify(ast_ari_websocket_session_get_remote_addr(session->ws_session)),
+				str);
+			ast_json_free(str);
+		}
+
 		ast_ari_websocket_session_write(session->ws_session, message);
 	}
 	ao2_unlock(session);
