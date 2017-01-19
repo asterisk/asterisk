@@ -1,0 +1,284 @@
+                                Release Summary
+
+                       asterisk-certified/13.13-cert1-rc2
+
+                                Date: 2017-01-19
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Other Changes
+    5. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-certified/13.13-cert1-rc1.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                   Testers                  Reporters                
+   10 Richard Mudgett                                5 Richard Mudgett        
+   8 gtjoseph                                        2 George Joseph          
+   2 Joshua Colp                                     1 Rusty Newton           
+   1 Mark Michelson                                  1 Walter Doekes          
+   1 Walter Doekes                                   1 Juris Breicis          
+                                                     1 JA,rgen H              
+                                                     1 Jonathan Rose          
+                                                     1 Joshua Colp            
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Applications/app_dial
+
+   ASTERISK-24499: Need more explicit debug when PJSIP dialstring is invalid
+   Reported by: Rusty Newton
+     * [1bb47bc3b0] Richard Mudgett -- res_pjsip: Add/update ERROR msg if
+       invalid URI.
+
+    Category: Channels/chan_dahdi
+
+   ASTERISK-25494: build: GCC 5.1.x catches some new const, array bounds and
+   missing paren issues
+   Reported by: George Joseph
+     * [a3da3bb406] Richard Mudgett -- chan_dahdi.c: Fix bounds check
+       regression.
+
+    Category: Channels/chan_pjsip
+
+   ASTERISK-26673: chan_pjsip: Crash when using CHANNEL dialplan function
+   around masquerade
+   Reported by: Joshua Colp
+     * [cedf8a21a1] Joshua Colp -- chan_pjsip: Use session for retrieving
+       CHANNEL() information.
+
+    Category: Channels/chan_rtp
+
+   ASTERISK-26672: Crash when setting remote address on RTP instance
+   Reported by: Richard Mudgett
+     * [d8747659f0] Richard Mudgett -- res_rtp_asterisk.c: Fix uninitialized
+       memory crash.
+     * [a9400da2d3] Richard Mudgett -- chan_rtp.c: Fix uninitialized memory
+       crash.
+     * [a2c695cd18] Richard Mudgett -- res_rtp_asterisk.c: Initialize ourip
+       passed to ast_find_ourip().
+     * [a3502c1885] Richard Mudgett -- acl.c: Improve ast_ouraddrfor()
+       diagnostic messages.
+
+    Category: Channels/chan_sip/General
+
+   ASTERISK-25494: build: GCC 5.1.x catches some new const, array bounds and
+   missing paren issues
+   Reported by: George Joseph
+     * [a3da3bb406] Richard Mudgett -- chan_dahdi.c: Fix bounds check
+       regression.
+
+    Category: Channels/chan_sip/Interoperability
+
+   ASTERISK-26433: chan_sip: Allows To-tag checks to be bypassed, setting up
+   new calls
+   Reported by: Walter Doekes
+     * [2021b5380d] Walter Doekes -- chan_sip: Do not allow non-SP/HTAB
+       between header key and colon.
+
+    Category: Channels/chan_skinny
+
+   ASTERISK-25494: build: GCC 5.1.x catches some new const, array bounds and
+   missing paren issues
+   Reported by: George Joseph
+     * [a3da3bb406] Richard Mudgett -- chan_dahdi.c: Fix bounds check
+       regression.
+
+    Category: Core/General
+
+   ASTERISK-25083: Message.c: Message channel becomes saturated with frames
+   leading to spammy log messages
+   Reported by: Jonathan Rose
+     * [ee9c8d0c97] Richard Mudgett -- MESSAGE: Flush Message/ast_msg_queue
+       channel alert pipe.
+
+    Category: Resources/res_format_attr_opus
+
+   ASTERISK-26579: codec_opus: Recursiveness when parsing fmtp line
+   Reported by: JA,rgen H
+     * [d27eae001d] Joshua Colp -- res_format_attr_opus: Fix crash when fmtp
+       contains spaces.
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-24499: Need more explicit debug when PJSIP dialstring is invalid
+   Reported by: Rusty Newton
+     * [1bb47bc3b0] Richard Mudgett -- res_pjsip: Add/update ERROR msg if
+       invalid URI.
+   ASTERISK-26490: res_pjsip: sends 481 Call/Transaction Does Not Exist when
+   transaction branch parameter contains "_"
+   Reported by: Juris Breicis
+     * [c7c2db5a29] Richard Mudgett -- Bundled pjproject: Fix finding SIP
+       transactions.
+
+    Category: Resources/res_pjsip_registrar
+
+   ASTERISK-26644: PJSIPShowRegistrationsInbound just dumps all aors
+   Reported by: George Joseph
+     * [f243f7fb4b] gtjoseph -- res_pjsip_registrar: AMI Add
+       RegistrationInboundContactStatuses command
+
+    Category: Resources/res_rtp_asterisk
+
+   ASTERISK-26672: Crash when setting remote address on RTP instance
+   Reported by: Richard Mudgett
+     * [d8747659f0] Richard Mudgett -- res_rtp_asterisk.c: Fix uninitialized
+       memory crash.
+     * [a9400da2d3] Richard Mudgett -- chan_rtp.c: Fix uninitialized memory
+       crash.
+     * [a2c695cd18] Richard Mudgett -- res_rtp_asterisk.c: Initialize ourip
+       passed to ast_find_ourip().
+     * [a3502c1885] Richard Mudgett -- acl.c: Improve ast_ouraddrfor()
+       diagnostic messages.
+
+    Category: pjproject/pjsip
+
+   ASTERISK-26490: res_pjsip: sends 481 Call/Transaction Does Not Exist when
+   transaction branch parameter contains "_"
+   Reported by: Juris Breicis
+     * [c7c2db5a29] Richard Mudgett -- Bundled pjproject: Fix finding SIP
+       transactions.
+
+  New Feature
+
+    Category: Core/General
+
+   ASTERISK-26630: Make logging PJPROJECT messages a bit easier
+   Reported by: Richard Mudgett
+     * [3a8a42b404] Richard Mudgett -- PJPROJECT logging: Made easier to get
+       available logging levels.
+
+    Category: Resources/res_pjsip/Bundling
+
+   ASTERISK-26630: Make logging PJPROJECT messages a bit easier
+   Reported by: Richard Mudgett
+     * [3a8a42b404] Richard Mudgett -- PJPROJECT logging: Made easier to get
+       available logging levels.
+
+     ----------------------------------------------------------------------
+
+                      Commits Not Associated with an Issue
+
+                                 [Back to Top]
+
+   This is a list of all changes that went into this release that did not
+   reference a JIRA issue.
+
+   +------------------------------------------------------------------------+
+   | Revision   | Author          | Summary                                 |
+   |------------+-----------------+-----------------------------------------|
+   | 52bee5df9e | gtjoseph        | pjproject_bundled: Fix compilation with |
+   |            |                 | MALLOC_DEBUG                            |
+   |------------+-----------------+-----------------------------------------|
+   | 08857b6e0e | gtjoseph        | pjproject_bundled: Compile pjsua with   |
+   |            |                 | max log level = 2                       |
+   |------------+-----------------+-----------------------------------------|
+   | 7aacc0fc7f | gtjoseph        | pjproject_bundled: Make build single    |
+   |            |                 | threaded                                |
+   |------------+-----------------+-----------------------------------------|
+   | 8e5e3c2b0c | gtjoseph        | debug_utilities: Create the             |
+   |            |                 | ast_coredumper utility                  |
+   |------------+-----------------+-----------------------------------------|
+   | 92235dba88 | Richard Mudgett | bridge_native_rtp.c: Fix native rtp     |
+   |            |                 | bridge data race.                       |
+   |------------+-----------------+-----------------------------------------|
+   | a209faa94f | gtjoseph        | res_sorcery_memory_cache: Change an     |
+   |            |                 | error to a debug message                |
+   |------------+-----------------+-----------------------------------------|
+   | 221e838b26 | gtjoseph        | pjproject_bundled: Fix missing          |
+   |            |                 | inclusion of symbols                    |
+   |------------+-----------------+-----------------------------------------|
+   | 492b37429c | Mark Michelson  | Frame deferral: Re-queue deferred       |
+   |            |                 | frames one-at-a-time.                   |
+   |------------+-----------------+-----------------------------------------|
+   | d4d1909077 | gtjoseph        | build_tools: Fix download_externals to  |
+   |            |                 | handle certified branches               |
+   +------------------------------------------------------------------------+
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ CHANGES                                     |   30 +
+ bridges/bridge_native_rtp.c                 |   35 +
+ build_tools/download_externals              |    4
+ channels/chan_dahdi.c                       |    4
+ channels/chan_rtp.c                         |    7
+ channels/chan_sip.c                         |    8
+ channels/pjsip/dialplan_functions.c         |   62 +--
+ configs/samples/ast_debug_tools.conf.sample |   40 ++
+ configs/samples/pjproject.conf.sample       |   25 +
+ contrib/Makefile                            |    4
+ contrib/scripts/ast_coredumper              |  520 ++++++++++++++++++++++++++++
+ include/asterisk/channel.h                  |    1
+ include/asterisk/options.h                  |   14
+ include/asterisk/res_pjsip.h                |   10
+ main/Makefile                               |    8
+ main/acl.c                                  |   36 +
+ main/asterisk.c                             |   33 +
+ main/channel.c                              |   15
+ main/channel_internal_api.c                 |   62 ++-
+ main/libasteriskpj.c                        |    2
+ main/message.c                              |    9
+ res/res_format_attr_opus.c                  |   38 +-
+ res/res_pjproject.c                         |  145 ++++++-
+ res/res_pjsip.c                             |   28 +
+ res/res_pjsip/pjsip_options.c               |   14
+ res/res_pjsip_registrar.c                   |   70 +++
+ res/res_pjsip_session.c                     |    2
+ res/res_rtp_asterisk.c                      |   30 -
+ res/res_sorcery_memory_cache.c              |    2
+ third-party/Makefile                        |    2
+ third-party/pjproject/Makefile              |   32 +
+ 31 files changed, 1135 insertions(+), 157 deletions(-)

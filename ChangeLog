@@ -1,3 +1,402 @@
+2017-01-19 19:18 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.13-cert1-rc2 Released.
+
+2017-01-08 10:29 +0000 [52bee5df9e]  gtjoseph <gjoseph@digium.com>
+
+	* pjproject_bundled:  Fix compilation with MALLOC_DEBUG
+
+	  When MALLOC_DEBUG was specified, make was failing.  Immediately
+	  remaking would work.  The issues was in the ordering of the make
+	  dependencies.
+
+	  Change-Id: If6030b54fc693f3179f32bfd20c6b5d5f1b3f7cd
+	  (cherry picked from commit f8cd73ec3c159f2e6c464952c92d8fdb69394371)
+
+2017-01-03 15:14 +0000 [08857b6e0e]  gtjoseph <gjoseph@digium.com>
+
+	* pjproject_bundled:  Compile pjsua with max log level = 2
+
+	  A while back, we changed config_site.h to set PJ_LOG_MAX_LEVEL = 6.
+	  This allowed us to control the log level better from inside Asterisk.
+	  An unfortunate side effect of this was that the pjsua binary and
+	  python bindings were also compiled with log level set to 6 so whenever
+	  a testsuite test that uses pjsua runs, it spits out 6795 lines of
+	  debug in an instant even before the test starts.  I believe this
+	  overruns the Jenkins capture buffer and prevents the test from
+	  properly terminating.  In turn, this results in the testsuite just
+	  hanging until the job is killed.  It's more frequent on the higher
+	  end agents because they can spit out the messages faster.
+
+	  Unfortunately, the messages are all spit out before we have control
+	  of the python pj.Lib instance where we can set logging levels so the
+	  only alternative was to actually compile pjsua and _pjsua.so with an
+	  overridden PJ_LOG_MAX_LEVEL.  Although defining a lower max level was
+	  done in the Makefile, the define in config_site.h had to be wrapped
+	  with "#ifndef" so the change would take effect.
+
+	  Change-Id: I2af9e7d48dde1927279c586c9c725d868fe6f3ff
+	  (cherry picked from commit d7e5a747c312de18647213359103ce6022776864)
+
+2016-12-18 15:23 +0000 [7aacc0fc7f]  gtjoseph <gjoseph@digium.com>
+
+	* pjproject_bundled:  Make build single threaded
+
+	  There were just too many issues in various environments with
+	  multi threaded building of pjproject.  It doesn't really speed
+	  things up anyway since asterisk is already being compiled in
+	  parallel.
+
+	  Change-Id: Ie5648fb91bb89b4224b6bf43a0daa1af793c4ce1
+	  (cherry picked from commit 815f7551550908c83220196ba08742af0c745772)
+
+2016-11-23 18:27 +0000 [3a8a42b404]  Richard Mudgett <rmudgett@digium.com>
+
+	* PJPROJECT logging: Made easier to get available logging levels.
+
+	  Use of the new logging is as simple as issuing the new CLI command or
+	  setting the new pjproject.conf option.
+
+	  Other options that can affect the logging are how you have the pjproject
+	  log levels mapped to Asterisk log types in pjproject.conf and if you have
+	  configured Asterisk to log the DEBUG type messages.  Altering the
+	  pjproject.conf level mapping shouldn't be necessary for most installations
+	  as the default mapping is sensible.  Configuring Asterisk to log the DEBUG
+	  message type is standard practice for collecting debug information.
+
+	  * Added CLI "pjproject set log level" command to dynamically adjust the
+	  maximum pjproject log message level.
+
+	  * Added CLI "pjproject show log level" command to see the currently set
+	  maximum pjproject log message level.
+
+	  * Added pjproject.conf startup section "log_level" option to set the
+	  initial maximum pjproject log message level so all messages could be
+	  captured from initialization.
+
+	  * Set PJ_LOG_MAX_LEVEL to 6 to compile in all defined logging levels into
+	  bundled pjproject.  Pjproject will use the currently set run time log
+	  level to determine if a log message is generated just like Asterisk
+	  verbose and debug logging levels.
+
+	  * In log_forwarder(), made always log enabled and mapped pjproject log
+	  messages.  DEBUG mapped log messages are no longer gated by the current
+	  Asterisk debug logging level.
+
+	  * Removed RAII_VAR() from res_pjproject.c:get_log_level().
+
+	  ASTERISK-26630 #close
+
+	  Change-Id: I6dca12979f482ffb0450aaf58db0fe0f6d2e5389
+
+2017-01-10 18:10 +0000 [8e5e3c2b0c]  gtjoseph <gjoseph@digium.com>
+
+	* debug_utilities:  Create the ast_coredumper utility
+
+	  This utility allows easy manipulation of asterisk coredumps.
+
+	  * Configurable search paths and patterns for existing coredumps
+	  * Can generate a consistent coredump from the running instance
+	  * Can dump the lock_infos table from a coredump
+	  * Dumps backtraces to separate files...
+	    - thread apply 1 bt full -> <coredump>.thread1.txt
+	    - thread apply all bt -> <coredump>.brief.txt
+	    - thread apply all bt full -> <coredump>.full.txt
+	    - lock_infos table -> <coredump>.locks.txt
+	  * Can tarball corefiles and optionally delete them after processing
+	  * Can tarball results files and optionally delete them after processing
+	  * Converts ':' in coredump and results file names '-' to facilitate
+	    uploading.  Jira for instance, won't accept file names with colons
+	    in them.
+
+	  Tested on Fedora24+, Ubuntu14+, Debian6+, CentOS6+ and FreeBSD9+[1].
+
+	  [1] For *BSDs, the "devel/gdb" package might have to be installed to
+	  get a recent gdb.  The utility will check all instances of gdb
+	  it finds in $PATH and if one isn't found that can run python, it
+	  prints a friendly error.
+
+	  Change-Id: I935d37ab9db85ef923f32b05579897f0893d33cd
+	  (cherry picked from commit 47474cfd54a9185c1433464ccfd6301427a03957)
+
+2016-12-22 16:00 +0000 [cedf8a21a1]  Joshua Colp <jcolp@digium.com>
+
+	* chan_pjsip: Use session for retrieving CHANNEL() information.
+
+	  The CHANNEL() dialplan function implementation for PJSIP allows
+	  querying of PJSIP specific information. This used the channel
+	  passed in to get the PJSIP session and associated information.
+	  It is possible for this channel to be masqueraded and end
+	  up as a different channel type by the time the information
+	  request is actually acted upon.
+
+	  This change retrieves the PJSIP session safely and accesses
+	  data from it (including channel). This provides a guarantee
+	  that the session and channel will not be altered when the
+	  request is being acted upon.
+
+	  ASTERISK-26673
+
+	  Change-Id: I335e12b89e1820cafdd92b3e7526b8ba649eb7e6
+
+2016-12-23 12:10 +0000 [92235dba88]  Richard Mudgett <rmudgett@digium.com>
+
+	* bridge_native_rtp.c: Fix native rtp bridge data race.
+
+	  native_rtp_bridge_compatible() didn't lock the bridge channels before
+	  checking the channels for native bridging ability.  As a result, one of
+	  the channel's native format capabilities structure got replaced out from
+	  under the native bridge check.  Use of a stale pointer to freed memory
+	  causes bad things to happen.
+
+	  MALLOC_DEBUG, DO_CRASH, and the
+	  tests/channels/pjsip/transfers/blind_transfer/caller_direct_media
+	  testsuite test caught this.
+
+	  * Add missing channel locking in native_rtp_bridge_compatible().
+
+	  Change-Id: If25fdb3ac8e85563c4857fb8216b3d9dc3d0fa53
+
+2016-12-21 16:28 +0000 [d8747659f0]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_rtp_asterisk.c: Fix uninitialized memory crash.
+
+	  ast_rtp_remote_address_set() could pass an uninitialized 'us' parameter to
+	  ast_ouraddrfor().  If ast_ouraddrfor() returns an error then the 'us'
+	  parameter may not get initialized.  Thus when the code tries to save the
+	  'us' parameter to the local address we could try to copy a ridiculous
+	  sized memory buffer and segfault.
+
+	  * Made pass an initialized 'us' parameter to ast_ouraddrfor().
+
+	  * Optimized out the 'us' struct variable.
+
+	  ASTERISK-26672 #close
+
+	  Change-Id: I4acea5dcdf0813da2c7d3e11c2d6067d160d17dc
+
+2016-12-21 17:54 +0000 [a9400da2d3]  Richard Mudgett <rmudgett@digium.com>
+
+	* chan_rtp.c: Fix uninitialized memory crash.
+
+	  unicast_rtp_request() could pass an uninitialized 'us' parameter to
+	  ast_ouraddrfor().  If ast_ouraddrfor() returns an error then the 'us'
+	  parameter may not get initialized.  Thus when the code tries to save the
+	  'us' parameter to the local address we could try to copy a ridiculous
+	  sized memory buffer and segfault.
+
+	  * Made pass an initialized 'us' parameter to ast_ouraddrfor() and abort
+	  the UnicastRTP channel request if it fails.
+
+	  ASTERISK-26672
+
+	  Change-Id: I1ef7a7c09f4da4f15dcb6de660d2bcac5f2a95c0
+
+2016-12-21 17:55 +0000 [a2c695cd18]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_rtp_asterisk.c: Initialize ourip passed to ast_find_ourip().
+
+	  We access uninitialized memory when the 'ourip' parameter does not
+	  have an initial guess to our IP address.
+
+	  ASTERISK-26672
+
+	  Change-Id: I35507ea1ad7455d2be188f6ccdd4add7bd150e15
+
+2016-12-21 16:25 +0000 [a3502c1885]  Richard Mudgett <rmudgett@digium.com>
+
+	* acl.c: Improve ast_ouraddrfor() diagnostic messages.
+
+	  * Made not generate strings unless they will actually be used.
+
+	  ASTERISK-26672
+
+	  Change-Id: I155fbe7fdff5ce47dfe5326f3baf5446849702c3
+
+2016-12-14 14:21 +0000 [a3da3bb406]  Richard Mudgett <rmudgett@digium.com>
+
+	* chan_dahdi.c: Fix bounds check regression.
+
+	  Caused by ASTERISK-25494
+
+	  Change-Id: I1fc408c1a083745ff59da5c4113041bbfce54bcb
+
+2016-12-13 14:34 +0000 [1bb47bc3b0]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_pjsip: Add/update ERROR msg if invalid URI.
+
+	  ASTERISK-24499
+
+	  Change-Id: Ie305153e47e922233b2ff24715e0e326e5fa3a6c
+
+2016-12-12 18:38 +0000 [ee9c8d0c97]  Richard Mudgett <rmudgett@digium.com>
+
+	* MESSAGE: Flush Message/ast_msg_queue channel alert pipe.
+
+	  ASTERISK-25083
+
+	  Change-Id: Id54baa57a8dbca84e29f28bcd2ffc0a5ac12d8b2
+
+2016-12-13 14:06 +0000 [a209faa94f]  gtjoseph <gjoseph@digium.com>
+
+	* res_sorcery_memory_cache:  Change an error to a debug message
+
+	  When a sorcery user calls ast_sorcery_delete on an object that
+	  may have already expired from the cache, res_sorcery_memory_cache
+	  spits out an ERROR.  Since this can happen frequently and validly when
+	  an inbound registration expires after the cache entry expired, the
+	  errors are unnecessary and misleading.  Changed to a debug/1.
+
+	  Change-Id: Idf3a67038c16e3da814cf612ff4d6d18ad29ecd7
+
+2016-11-30 09:31 +0000 [2021b5380d]  Walter Doekes <walter+asterisk@wjd.nu>
+
+	* chan_sip: Do not allow non-SP/HTAB between header key and colon.
+
+	  RFC says SIP headers look like:
+
+	      HCOLON  =  *( SP / HTAB ) ":" SWS
+	      SWS     =  [LWS]                    ; sep whitespace
+	      LWS     =  [*WSP CRLF] 1*WSP        ; linear whitespace
+	      WSP     =  SP / HTAB                ; from rfc2234
+
+	  chan_sip implemented this:
+
+	      HCOLON  =  *( LOWCTL / SP ) ":" SWS
+	      LOWCTL  = %x00-1F                   ; CTL without DEL
+
+	  This discrepancy meant that SIP proxies in front of Asterisk with
+	  chan_sip could pass on unknown headers with \x00-\x1F in them, which
+	  would be treated by Asterisk as a different (known) header.  For
+	  example, the "To\x01:" header would gladly be forwarded by some proxies
+	  as irrelevant, but chan_sip would treat it as the relevant "To:" header.
+
+	  Those relying on a SIP proxy to scrub certain headers could mistakenly
+	  get unexpected and unvalidated data fed to Asterisk.
+
+	  This change fixes so chan_sip only considers SP/HTAB as valid tokens
+	  before the colon, making it agree on the headers with other speakers of
+	  SIP.
+
+	  ASTERISK-26433 #close
+	  AST-2016-009
+
+	  Change-Id: I78086fbc524ac733b8f7f78cb423c91075fd489b
+
+2016-11-14 18:18 +0000 [d27eae001d]  Joshua Colp <jcolp@digium.com>
+
+	* res_format_attr_opus: Fix crash when fmtp contains spaces.
+
+	  When an opus offer or answer was received that contained an
+	  fmtp line with spaces between the attributes the module would
+	  fail to properly parse it and crash due to recursion.
+
+	  This change makes the module handle the space properly and
+	  also removes the recursion requirement.
+
+	  ASTERISK-26579
+
+	  Change-Id: I01f53e5d9fa9f1925a7365f8d25071b5b3ac2dc3
+
+2016-12-06 14:54 +0000 [f243f7fb4b]  gtjoseph <gjoseph@digium.com>
+
+	* res_pjsip_registrar: AMI Add RegistrationInboundContactStatuses command
+
+	  The PJSIPShowRegistrationsInbound AMI command was just dumping out
+	  all AORs which was pretty useless and resource heavy since it had
+	  to get all endpoints, then all aors for each endpoint, then all
+	  contacts for each aor.
+
+	  PJSIPShowRegistrationInboundContactStatuses sends ContactStatusDetail
+	  events which meets the intended purpose of the other command and has
+	  significantly less overhead.  Also, some additional fields that were
+	  added to Contact since the original creation of the ContactStatusDetail
+	  event have been added to the end of the event.
+
+	  For compatibility purposes, PJSIPShowRegistrationsInbound is left
+	  intact.
+
+	  ASTERISK-26644 #close
+
+	  Change-Id: I326f12c9ecb52bf37ba03f0748749de4da01490a
+
+2016-12-06 16:45 +0000 [c7c2db5a29]  Richard Mudgett <rmudgett@digium.com>
+
+	* Bundled pjproject:  Fix finding SIP transactions.
+
+	  Occasionally SIP message transactions are not found when they should be.
+	  In the particular case an incoming INVITE transaction is CANCELed but the
+	  INVITE transaction cannot be found so a 481 response is returned for the
+	  CANCEL.  The problematic calls have a '_' character in the Via branch
+	  parameter.
+
+	  The problem is in the pjproject PJ_HASH_USE_OWN_TOLOWER feature's code.
+	  The problem with the "own tolower" code is that it does not calculate the
+	  same hash value as when the pj_tolower() function is used.  The "own
+	  tolower" code will erroneously modify the ASCII characters '@', '[', '\\',
+	  ']', '^', and '_'.  Calls to pj_hash_calc_tolower() can use the
+	  PJ_HASH_USE_OWN_TOLOWER substitute algorithm when enabled.  Calls to
+	  pj_hash_get_lower(), pj_hash_set_lower(), and pj_hash_set_np_lower() call
+	  find_entry() which never uses the PJ_HASH_USE_OWN_TOLOWER algorithm.  As a
+	  result you may not be able to find a hash tabled entry because the
+	  calculated hash values would differ.
+
+	  * Simply disable PJ_HASH_USE_OWN_TOLOWER.
+
+	  ASTERISK-26490 #close
+
+	  Change-Id: If89bfdb5f301b8b685881a9a2a6e0c3c5af32253
+
+2016-12-06 12:06 +0000 [221e838b26]  gtjoseph <gjoseph@digium.com>
+
+	* pjproject_bundled:  Fix missing inclusion of symbols
+
+	  Added back in a -g3, and an -O3 when DONT_OPTIMIZE is not set, to
+	  the CFLAGS.  Not sure how they went missing.
+
+	  Also fixed an uninstall problem where we weren't removing the
+	  symlink from libasteriskpj.so.2 to libasteriskpj.so.  While I was
+	  there, I fixed it for libasteriskssl as well.
+
+	  Change-Id: I9e00873b1e9082d05b5549d974534b48a2142556
+
+2016-11-30 10:48 +0000 [492b37429c]  Mark Michelson <mmichelson@digium.com>
+
+	* Frame deferral: Re-queue deferred frames one-at-a-time.
+
+	  The recent change that made frame deferral into an API had a behavior
+	  change to it. When frame deferral was completed, we would take all of
+	  the deferred frames and queue them all onto the channel in one call to
+	  ast_queue_frame_head(). Before frame deferral was API-ized, places that
+	  performed manual frame deferral would actually take each deferred frame
+	  and queue them onto the channel.
+
+	  This change in behavior caused the confbridge_recording test to start
+	  failing consistently. Without going too crazily deep into the details,
+	  a channel was getting "stuck" in an ast_safe_sleep(). An AMI redirect
+	  was attempting to break it out of the sleep, but because there were more
+	  frames in the channel read queue than expected, the channel ended up
+	  being unable to break from its sleep loop.
+
+	  By restoring the behavior of individual frame queuing after deferral,
+	  the test starts passing again.
+
+	  Note, this points to a potential underlying issue pointing to an
+	  "unbalance" that can occur when queuing multiple frames at once,
+	  and so a follow-up issue is being created to investigate that
+	  possibility.
+
+	  Change-Id: Ied5dacacda06d343dea751ed5814a03364fe5a7d
+
+2016-11-28 11:03 +0000 [d4d1909077]  gtjoseph <gjoseph@digium.com>
+
+	* build_tools:  Fix download_externals to handle certified branches
+
+	  download_externals wasn't handling the "certified/13.x" version
+	  correctly.
+
+	  Change-Id: I124d195bb117ca36fd7bf1150c630f3b474a9d9a
+
 2016-11-23 21:58 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.13-cert1-rc1 Released.
