@@ -1,0 +1,255 @@
+#!/usr/bin/env bash
+# Turn on extended globbing
+shopt -s extglob
+# Bail on any error
+set -e
+
+prog=$(basename $0)
+
+print_help() {
+cat <<EOF
+NAME
+$prog - Gather asterisk log files
+
+SYNOPSIS
+	$prog [ --help ] [ --dateformat="<dateformat>" ]
+		[ --timezone="<timezone>" ] [ --append-logfiles ]
+		[ --tarball-uniqueid="<uniqueid>" ]
+		[ <logfiles> | <pattern> ... ]
+
+DESCRIPTION
+
+	Gathers log files, optionally converts POSIX timestamps
+	to readable format. and creates a tarball.
+
+	Options:
+
+	--help
+		Print this help.
+
+	--dateformat="<dateformat>"
+		A Python strftime format string to be used when converting
+		POSIX timestamps in log files to readable format.  If not
+		specified as an argument or in the config file, no conversion
+		is done.
+
+	--timezone="<timezone>"
+		The timezone to use when converting POSIX timestamps to
+		readable format.  It can be specified in "<continent>/<city>"
+		format or in abbreviation format such as "CST6CDT".  If not
+		specified as an argument or in the config file, the "local"
+		timezone is used.
+
+	--append-logfiles
+		Append any log files specified on the command line to the
+		config file specified ones instead of overriding them.
+
+	--tarball-uniqueid="<uniqueid>"
+		Normally DATEFORMAT is used to make the tarballs unique
+		but you can use your own unique id in the tarball names
+		such as a Jira issue id.
+
+	<logfiles> | <pattern>
+		A list of log files or log file search patterns.  Unless
+		--append-logfiles was specified, these entries will override
+		those specified in the config files.
+
+		If no files are specified on the command line the, value of
+		LOGFILES from ast_debug_tools.conf will be used.  Failing
+		that, the following patterns will be used:
+		/var/log/asterisk/messages*
+		/var/log/asterisk/queue*
+		/var/log/asterisk/debug*
+		/var/log/asterisk/security*
+
+NOTES
+	Any files output will have ':' characters changed to '-'.  This is
+	to facilitate uploading those files to Jira which doesn't like the
+	colons.
+
+FILES
+	/etc/asterisk/ast_debug_tools.conf
+	~/ast_debug_tools.conf
+	./ast_debug_tools.conf
+
+	# Readable Local time for the tarball names
+	DATEFORMAT='date +%FT%H-%M-%S%z'
+
+	# A list of log files and/or log file search patterns using the
+	# same syntax as COREDUMPS.
+	#
+	LOGFILES=(/var/log/asterisk/messages* /var/log/asterisk/queue* \\
+		/var/log/asterisk/debug* /var/log/asterisk/security*)
+
+	# $prog converts POSIX timestamps to readable format
+	# using this Python strftime format string.  If not specified
+	# or an empty string, no format covnersion is done.
+	LOG_DATEFORMAT="%m/%d %H:%M:%S.%f"
+
+	# The timezone to use when converting POSIX timestamps to
+	# readable format.  It can be specified in "<continent>/<city>"
+	# format or in abbreviation format such as "CST6CDT".  If not
+	# specified, the "local" timezone is used.
+	# LOG_TIMEZONE=
+
+EOF
+	exit 1
+}
+
+append_logfiles=false
+
+declare -a LOGFILES
+declare -a ARGS_LOGFILES
+
+# Read config files from least important to most important
+[ -f /etc/asterisk/ast_debug_tools.conf ] && source /etc/asterisk/ast_debug_tools.conf
+[ -f ~/ast_debug_tools.conf ] && source ~/ast_debug_tools.conf
+[ -f ./ast_debug_tools.conf ] && source ./ast_debug_tools.conf
+
+if [ ${#LOGFILES[@]} -eq 0 ] ; then
+	LOGFILES+=(/var/log/asterisk/messages* /var/log/asterisk/queue* \
+	/var/log/asterisk/debug* /var/log/asterisk/security*)
+fi
+
+DATEFORMAT=${DATEFORMAT:-'date +%FT%H-%M-%S%z'}
+
+# Use "$@" (with the quotes) so spaces in patterns or
+# file names are preserved.
+# Later on when we have to iterate over LOGFILES, we always
+# use the indexes rather than trying to expand the values of LOGFILES
+# just in case.
+
+for a in "$@" ; do
+	case "$a" in
+	--dateformat=*)
+		LOG_DATEFORMAT=${a#*=}
+		;;
+	--timezone=*)
+		LOG_TIMEZONE=${a#*=}
+		;;
+	--append-logfiles)
+		append_logfiles=true
+		;;
+	--tarball-uniqueid=*)
+		tarball_uniqueid=${a#*=}
+		;;
+	--help|-*)
+		print_help
+		;;
+	*)
+		ARGS_LOGFILES+=("$a")
+		# If any files are specified on the command line, ignore those
+		# specified in the config files unless append-logfiles was specified.
+		if ! $append_logfiles ; then
+			LOGFILES=()
+		fi
+	esac
+done
+
+# append logfiles/patterns specified as command line arguments to LOGFILES.
+for i in ${!ARGS_LOGFILES[@]} ; do
+	LOGFILES+=("${ARGS_LOGFILES[$i]}")
+done
+
+# At this point, all glob entries that match files should be expanded.
+# Any entries that don't exist are probably globs that didn't match anything
+# and need to be pruned.
+
+for i in ${!LOGFILES[@]} ; do
+	if [ ! -f "${LOGFILES[$i]}" ] ; then
+		unset LOGFILES[$i]
+		continue
+	fi
+done
+
+# Sort and weed out any dups
+IFS=$'\x0a'
+readarray -t LOGFILES < <(echo -n "${LOGFILES[*]}" | sort -u )
+unset IFS
+
+if [ "${#LOGFILES[@]}" -eq 0 ] ; then
+	echo "No log files found"
+	print_help
+fi
+
+# Timestamp to use for output files
+df=${tarball_uniqueid:-$(${DATEFORMAT})}
+
+# Extract the Python timestamp conver script from the end of this
+# script and save it to /tmp/.ast_tsconvert.py
+
+ss=`egrep -n "^#@@@SCRIPTSTART@@@" $0 |cut -f1 -d:`
+tail -n +${ss} $0 >/tmp/.ast_tsconvert.py
+
+tmpdir=$(mktemp -d)
+if [ -z "$tmpdir" ] ; then
+	echo "${prog}: Unable to create temporary directory."
+	exit 1
+fi
+trap "rm -rf $tmpdir" EXIT
+tardir=asterisk-${df}.logfiles
+
+# Now iterate over the logfiles
+for i in ${!LOGFILES[@]} ; do
+	lf=${LOGFILES[$i]}
+	destdir="$tmpdir/$tardir/$(dirname $lf)"
+	destfile="$tmpdir/$tardir/$lf"
+	mkdir -p "$destdir" 2>/dev/null || :
+	if [ -n "$LOG_DATEFORMAT" ] ; then
+		echo "Converting $lf"
+		cat "$lf" | python /tmp/.ast_tsconvert.py --format="$LOG_DATEFORMAT" --timezone="$LOG_TIMEZONE" > "${destfile}"
+	else
+		echo "Copying $lf"
+		cp "$lf" "${destfile}"
+	fi
+done
+
+echo "Creating /tmp/$tardir.tar.gz"
+tar -czvf /tmp/$tardir.tar.gz -C $tmpdir $tardir 2>/dev/null
+
+exit
+
+# Be careful editng the inline scripts.
+# They're space-indented.
+
+# We need the python bit because lock_infos isn't
+# a valid symbol in asterisk unless DEBUG_THREADS was
+# used during the compile.  Also, interrupt and continue
+# are only valid for a running program.
+
+#@@@SCRIPTSTART@@@
+import argparse
+import datetime as dt
+import dateutil.tz as tz
+import re
+import sys
+import time
+
+parser = argparse.ArgumentParser(description="Make POSIX timestamps readable")
+parser.add_argument('--format', action='store', required=True)
+parser.add_argument('--timezone', action='store', required=False)
+args=parser.parse_args()
+
+# We only convert timestamps that are at the beginning of a line
+# or are preceeded by a whilespace character or a '['
+rets = re.compile(r'(^|(?<=\s|\[))\d+(\.\d+)?', flags=re.M)
+if args.timezone and len(args.timezone) > 0:
+   tzf = tz.tzfile('/usr/share/zoneinfo/' + args.timezone)
+else:
+   tzf = tz.tzfile('/etc/localtime')
+
+now = time.time()
+a_year_ago = now - (86400.0 * 365)
+
+def convert(match):
+   ts = float(match.group(0))
+   if ts <= now and ts > a_year_ago and len(args.format) > 0:
+      return dt.datetime.fromtimestamp(ts, tzf).strftime(args.format)
+   else:
+      return match.group(0)
+
+while 1:
+   line = sys.stdin.readline()
+   if not line:
+      break
+   print(rets.sub(convert, line))
