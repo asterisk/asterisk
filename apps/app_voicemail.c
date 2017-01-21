@@ -14316,7 +14316,7 @@ AST_TEST_DEFINE(test_voicemail_vmsayname)
 				ast_log(AST_LOG_WARNING, "Failed to make test directory\n");
 				goto exit_vmsayname_test;
 			}
-			snprintf(dir, sizeof(dir), "%s/sounds/beep.gsm", ast_config_AST_VAR_DIR);
+			snprintf(dir, sizeof(dir), "%s/sounds/beep.gsm", ast_config_AST_DATA_DIR);
 			snprintf(dir2, sizeof(dir2), "%s%s/%s/greet.gsm", VM_SPOOL_DIR, TEST_CONTEXT, TEST_EXTENSION);
 			/* we're not going to hear the sound anyway, just use a valid gsm audio file */
 			if ((res = symlink(dir, dir2))) {
@@ -14562,8 +14562,8 @@ AST_TEST_DEFINE(test_voicemail_notify_endl)
 		break;
 	}
 
-	snprintf(attach, sizeof(attach), "%s/sounds/en/tt-weasels", ast_config_AST_VAR_DIR);
-	snprintf(attach2, sizeof(attach2), "%s/sounds/en/tt-somethingwrong", ast_config_AST_VAR_DIR);
+	snprintf(attach, sizeof(attach), "%s/sounds/en/tt-weasels", ast_config_AST_DATA_DIR);
+	snprintf(attach2, sizeof(attach2), "%s/sounds/en/tt-somethingwrong", ast_config_AST_DATA_DIR);
 
 	if (!(vmu = find_user(&vmus, testcontext, testmailbox)) &&
 		!(vmu = find_or_create(testcontext, testmailbox))) {

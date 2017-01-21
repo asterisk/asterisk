@@ -462,7 +462,7 @@ static int test_vm_api_create_voicemail_files(const char *context, const char *m
 		folder_path, snapshot->msg_number);
 	snprintf(snd_path, sizeof(snd_path), "%s/msg%04u.gsm",
 		folder_path, snapshot->msg_number);
-	snprintf(beep_path, sizeof(beep_path), "%s/sounds/en/beep.gsm", ast_config_AST_VAR_DIR);
+	snprintf(beep_path, sizeof(beep_path), "%s/sounds/en/beep.gsm", ast_config_AST_DATA_DIR);
 
 	if (test_vm_api_create_voicemail_folder(folder_path)) {
 		return 1;
