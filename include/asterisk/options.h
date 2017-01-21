@@ -143,6 +143,22 @@ enum ast_option_flags {
  */
 #define DEFAULT_PJ_LOG_MAX_LEVEL	2
 
+/*!
+ * Determine the maximum log level the pjproject we linked with supports.
+ *
+ * This must be done before we ever try to change the level.
+ */
+#define AST_PJPROJECT_INIT_LOG_LEVEL()							\
+	do {														\
+		if (!ast_pjproject_max_log_level) {						\
+			ast_pjproject_max_log_level = pj_log_get_level();	\
+		}														\
+		pj_log_set_level(ast_option_pjproject_log_level);		\
+	} while (0)
+
+/*! Current linked pjproject maximum logging level */
+extern int ast_pjproject_max_log_level;
+
 /*! Current pjproject logging level */
 extern int ast_option_pjproject_log_level;
 
