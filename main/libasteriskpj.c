@@ -45,7 +45,7 @@
 int ast_pj_init(void)
 {
 #ifdef HAVE_PJPROJECT_BUNDLED
-	pj_log_set_level(ast_option_pjproject_log_level);
+	AST_PJPROJECT_INIT_LOG_LEVEL();
 	pj_init();
 #endif
 	return 0;
