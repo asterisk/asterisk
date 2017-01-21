@@ -833,12 +833,16 @@ static int __ssl_setup(struct ast_tls_config *cfg, int client)
 			cfg->ssl_ctx = SSL_CTX_new(SSLv3_client_method());
 		} else
 #endif
+#if defined(OPENSSL_VERSION_NUMBER) && (OPENSSL_VERSION_NUMBER  >= 0x10100000L)
+		cfg->ssl_ctx = SSL_CTX_new(TLS_client_method());
+#else
 		if (ast_test_flag(&cfg->flags, AST_SSL_TLSV1_CLIENT)) {
 			cfg->ssl_ctx = SSL_CTX_new(TLSv1_client_method());
 		} else {
 			disable_ssl = 1;
 			cfg->ssl_ctx = SSL_CTX_new(SSLv23_client_method());
 		}
+#endif
 	} else {
 		disable_ssl = 1;
 		cfg->ssl_ctx = SSL_CTX_new(SSLv23_server_method());
