@@ -242,7 +242,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 		return AST_TEST_FAIL; \
 	} \
 	VM_API_SNAPSHOT_CREATE((mailbox), (context), (folder), 0, AST_VM_SNAPSHOT_SORT_BY_TIME, 0); \
-	VM_API_INT_VERIFY(test_mbox_snapshot->total_msg_num, 0); \
+	VM_API_INT_VERIFY(0, test_mbox_snapshot->total_msg_num); \
 	test_mbox_snapshot = ast_vm_mailbox_snapshot_destroy(test_mbox_snapshot); \
 } while (0)
 
@@ -1004,10 +1004,10 @@ AST_TEST_DEFINE(voicemail_api_nominal_move)
 	test_vm_api_update_test_snapshots(test_mbox_snapshot);
 	test_mbox_snapshot = ast_vm_mailbox_snapshot_destroy(test_mbox_snapshot);
 
-	VM_API_STRING_FIELD_VERIFY(test_snapshots[0]->folder_name, "Family");
-	VM_API_STRING_FIELD_VERIFY(test_snapshots[1]->folder_name, "Family");
-	VM_API_INT_VERIFY(test_snapshots[1]->msg_number, 0);
-	VM_API_INT_VERIFY(test_snapshots[0]->msg_number, 1);
+	VM_API_STRING_FIELD_VERIFY("Family", test_snapshots[0]->folder_name);
+	VM_API_STRING_FIELD_VERIFY("Family", test_snapshots[1]->folder_name);
+	VM_API_INT_VERIFY(0, test_snapshots[1]->msg_number);
+	VM_API_INT_VERIFY(1, test_snapshots[0]->msg_number);
 
 	/* Move both of the 2345 messages to Family */
 	ast_test_status_update(test, "Test move of test_vm_api_2345 messages from Inbox to Family\n");
@@ -1018,8 +1018,8 @@ AST_TEST_DEFINE(voicemail_api_nominal_move)
 	test_vm_api_update_test_snapshots(test_mbox_snapshot);
 	test_mbox_snapshot = ast_vm_mailbox_snapshot_destroy(test_mbox_snapshot);
 
-	VM_API_STRING_FIELD_VERIFY(test_snapshots[2]->folder_name, "Family");
-	VM_API_STRING_FIELD_VERIFY(test_snapshots[3]->folder_name, "Family");
+	VM_API_STRING_FIELD_VERIFY("Family", test_snapshots[2]->folder_name);
+	VM_API_STRING_FIELD_VERIFY("Family", test_snapshots[3]->folder_name);
 
 	ast_test_status_update(test, "Test move of test_vm_api_2345 message from Family to INBOX\n");
 	VM_API_MOVE_MESSAGE("test_vm_api_2345", "default", 2, "Family", multi_msg_ids, "INBOX");
@@ -1028,8 +1028,8 @@ AST_TEST_DEFINE(voicemail_api_nominal_move)
 	test_vm_api_update_test_snapshots(test_mbox_snapshot);
 	test_mbox_snapshot = ast_vm_mailbox_snapshot_destroy(test_mbox_snapshot);
 
-	VM_API_STRING_FIELD_VERIFY(test_snapshots[2]->folder_name, "INBOX");
-	VM_API_STRING_FIELD_VERIFY(test_snapshots[3]->folder_name, "INBOX");
+	VM_API_STRING_FIELD_VERIFY("INBOX", test_snapshots[2]->folder_name);
+	VM_API_STRING_FIELD_VERIFY("INBOX", test_snapshots[3]->folder_name);
 
 	VM_API_TEST_CLEANUP;
 
@@ -1250,12 +1250,12 @@ AST_TEST_DEFINE(voicemail_api_nominal_forward)
 
 	/* Make sure we didn't delete the message */
 	VM_API_SNAPSHOT_CREATE("test_vm_api_1234", "default", "INBOX", 0, AST_VM_SNAPSHOT_SORT_BY_TIME, 0);
-	VM_API_INT_VERIFY(test_mbox_snapshot->total_msg_num, 1);
+	VM_API_INT_VERIFY(1, test_mbox_snapshot->total_msg_num);
 	test_mbox_snapshot = ast_vm_mailbox_snapshot_destroy(test_mbox_snapshot);
 
 	/* We should now have a total of 3 messages in test_vm_api_2345 INBOX */
 	VM_API_SNAPSHOT_CREATE("test_vm_api_2345", "default", "INBOX", 0, AST_VM_SNAPSHOT_SORT_BY_TIME, 0);
-	VM_API_INT_VERIFY(test_mbox_snapshot->total_msg_num, 3);
+	VM_API_INT_VERIFY(3, test_mbox_snapshot->total_msg_num);
 	test_mbox_snapshot = ast_vm_mailbox_snapshot_destroy(test_mbox_snapshot);
 
 	ast_test_status_update(test, "Test forwarding message 0 from test_vm_api_1234 INBOX with default context to test_vm_api_2345 INBOX\n");
@@ -1263,12 +1263,12 @@ AST_TEST_DEFINE(voicemail_api_nominal_forward)
 
 	/* Make sure we didn't delete the message */
 	VM_API_SNAPSHOT_CREATE("test_vm_api_1234", "default", "INBOX", 0, AST_VM_SNAPSHOT_SORT_BY_TIME, 0);
-	VM_API_INT_VERIFY(test_mbox_snapshot->total_msg_num, 1);
+	VM_API_INT_VERIFY(1, test_mbox_snapshot->total_msg_num);
 	test_mbox_snapshot = ast_vm_mailbox_snapshot_destroy(test_mbox_snapshot);
 
 	/* We should now have a total of 4 messages in test_vm_api_2345 INBOX */
 	VM_API_SNAPSHOT_CREATE("test_vm_api_2345", "default", "INBOX", 0, AST_VM_SNAPSHOT_SORT_BY_TIME, 0);
-	VM_API_INT_VERIFY(test_mbox_snapshot->total_msg_num, 4);
+	VM_API_INT_VERIFY(4, test_mbox_snapshot->total_msg_num);
 	test_mbox_snapshot = ast_vm_mailbox_snapshot_destroy(test_mbox_snapshot);
 
 	ast_test_status_update(test, "Test forwarding message 0 from test_vm_api_1234 INBOX to test_vm_api_2345 INBOX with default context\n");
@@ -1276,12 +1276,12 @@ AST_TEST_DEFINE(voicemail_api_nominal_forward)
 
 	/* Make sure we didn't delete the message */
 	VM_API_SNAPSHOT_CREATE("test_vm_api_1234", "default", "INBOX", 0, AST_VM_SNAPSHOT_SORT_BY_TIME, 0);
-	VM_API_INT_VERIFY(test_mbox_snapshot->total_msg_num, 1);
+	VM_API_INT_VERIFY(1, test_mbox_snapshot->total_msg_num);
 	test_mbox_snapshot = ast_vm_mailbox_snapshot_destroy(test_mbox_snapshot);
 
 	/* We should now have a total of 5 messages in test_vm_api_2345 INBOX */
 	VM_API_SNAPSHOT_CREATE("test_vm_api_2345", "default", "INBOX", 0, AST_VM_SNAPSHOT_SORT_BY_TIME, 0);
-	VM_API_INT_VERIFY(test_mbox_snapshot->total_msg_num, 5);
+	VM_API_INT_VERIFY(5, test_mbox_snapshot->total_msg_num);
 	test_mbox_snapshot = ast_vm_mailbox_snapshot_destroy(test_mbox_snapshot);
 
 	ast_test_status_update(test, "Test forwarding message 0 from test_vm_api_1234 INBOX to test_vm_api_2345 INBOX, deleting original\n");
@@ -1289,12 +1289,12 @@ AST_TEST_DEFINE(voicemail_api_nominal_forward)
 
 	/* Make sure we deleted the message */
 	VM_API_SNAPSHOT_CREATE("test_vm_api_1234", "default", "INBOX", 0, AST_VM_SNAPSHOT_SORT_BY_TIME, 0);
-	VM_API_INT_VERIFY(test_mbox_snapshot->total_msg_num, 0);
+	VM_API_INT_VERIFY(0, test_mbox_snapshot->total_msg_num);
 	test_mbox_snapshot = ast_vm_mailbox_snapshot_destroy(test_mbox_snapshot);
 
 	/* We should now have a total of 6 messages in test_vm_api_2345 INBOX */
 	VM_API_SNAPSHOT_CREATE("test_vm_api_2345", "default", "INBOX", 0, AST_VM_SNAPSHOT_SORT_BY_TIME, 0);
-	VM_API_INT_VERIFY(test_mbox_snapshot->total_msg_num, 6);
+	VM_API_INT_VERIFY(6, test_mbox_snapshot->total_msg_num);
 	test_mbox_snapshot = ast_vm_mailbox_snapshot_destroy(test_mbox_snapshot);
 
 	ast_test_status_update(test, "Test forwarding 2 messages from test_vm_api_2345 INBOX to test_vm_api_1234 INBOX");
@@ -1302,24 +1302,24 @@ AST_TEST_DEFINE(voicemail_api_nominal_forward)
 
 	/* Make sure we didn't delete the messages */
 	VM_API_SNAPSHOT_CREATE("test_vm_api_2345", "default", "INBOX", 0, AST_VM_SNAPSHOT_SORT_BY_TIME, 0);
-	VM_API_INT_VERIFY(test_mbox_snapshot->total_msg_num, 6);
+	VM_API_INT_VERIFY(6, test_mbox_snapshot->total_msg_num);
 	test_mbox_snapshot = ast_vm_mailbox_snapshot_destroy(test_mbox_snapshot);
 
 	/* We should now have a total of 2 messages in test_vm_api_1234 INBOX */
 	VM_API_SNAPSHOT_CREATE("test_vm_api_1234", "default", "INBOX", 0, AST_VM_SNAPSHOT_SORT_BY_TIME, 0);
-	VM_API_INT_VERIFY(test_mbox_snapshot->total_msg_num, 2);
+	VM_API_INT_VERIFY(2, test_mbox_snapshot->total_msg_num);
 	test_mbox_snapshot = ast_vm_mailbox_snapshot_destroy(test_mbox_snapshot);
 
 	ast_test_status_update(test, "Test forwarding 2 messages from test_vm_api_2345 INBOX to test_vm_api_1234 Family, deleting original\n");
 	VM_API_FORWARD_MESSAGE("test_vm_api_2345", "default", "INBOX", "test_vm_api_1234", "default", "Family", 2, multi_msg_ids, 1);
 	/* Make sure we deleted the messages */
 	VM_API_SNAPSHOT_CREATE("test_vm_api_2345", "default", "INBOX", 0, AST_VM_SNAPSHOT_SORT_BY_TIME, 0);
-	VM_API_INT_VERIFY(test_mbox_snapshot->total_msg_num, 4);
+	VM_API_INT_VERIFY(4, test_mbox_snapshot->total_msg_num);
 	test_mbox_snapshot = ast_vm_mailbox_snapshot_destroy(test_mbox_snapshot);
 
 	/* We should now have a total of 2 messages in test_vm_api_1234 Family */
 	VM_API_SNAPSHOT_CREATE("test_vm_api_1234", "default", "Family", 0, AST_VM_SNAPSHOT_SORT_BY_TIME, 0);
-	VM_API_INT_VERIFY(test_mbox_snapshot->total_msg_num, 2);
+	VM_API_INT_VERIFY(2, test_mbox_snapshot->total_msg_num);
 	test_mbox_snapshot = ast_vm_mailbox_snapshot_destroy(test_mbox_snapshot);
 
 	VM_API_TEST_CLEANUP;
@@ -1449,20 +1449,20 @@ AST_TEST_DEFINE(voicemail_api_nominal_msg_playback)
 
 	ast_test_status_update(test, "Playing back message from test_vm_api_2345 to callback function\n");
 	VM_API_PLAYBACK_MESSAGE(test_channel, "test_vm_api_2345", "default", "INBOX", message_id_2345[0], &message_playback_callback_fn);
-	VM_API_INT_VERIFY(global_entered_playback_callback, 1);
+	VM_API_INT_VERIFY(1, global_entered_playback_callback);
 	global_entered_playback_callback = 0;
 
 	ast_test_status_update(test, "Playing back message from test_vm_api_2345 to callback function with default context\n");
 	VM_API_PLAYBACK_MESSAGE(test_channel, "test_vm_api_2345", NULL, "INBOX", message_id_2345[1], &message_playback_callback_fn);
-	VM_API_INT_VERIFY(global_entered_playback_callback, 1);
+	VM_API_INT_VERIFY(1, global_entered_playback_callback);
 	global_entered_playback_callback = 0;
 
 	VM_API_SNAPSHOT_CREATE("test_vm_api_1234", "default", "Old", 0, AST_VM_SNAPSHOT_SORT_BY_TIME, 0);
-	VM_API_INT_VERIFY(test_mbox_snapshot->total_msg_num, 2);
+	VM_API_INT_VERIFY(2, test_mbox_snapshot->total_msg_num);
 	test_mbox_snapshot = ast_vm_mailbox_snapshot_destroy(test_mbox_snapshot);
 
 	VM_API_SNAPSHOT_CREATE("test_vm_api_2345", "default", "Old", 0, AST_VM_SNAPSHOT_SORT_BY_TIME, 0);
-	VM_API_INT_VERIFY(test_mbox_snapshot->total_msg_num, 2);
+	VM_API_INT_VERIFY(2, test_mbox_snapshot->total_msg_num);
 	test_mbox_snapshot = ast_vm_mailbox_snapshot_destroy(test_mbox_snapshot);
 
 	ast_hangup(test_channel);
