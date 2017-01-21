@@ -143,6 +143,33 @@ enum ast_option_flags {
  */
 #define DEFAULT_PJ_LOG_MAX_LEVEL	2
 
+/*!
+ * \brief Get maximum log level pjproject was compiled with.
+ *
+ * \details
+ * Determine the maximum log level the pjproject we are running
+ * with supports.
+ *
+ * When pjproject is initially loaded the default log level in
+ * effect is the maximum log level the library was compiled to
+ * generate.  We must save this value off somewhere before we
+ * change it to what we want to use as the default level.
+ *
+ * \note This must be done before calling pj_init() so the level
+ * we want to use as the default level is in effect while the
+ * library initializes.
+ */
+#define AST_PJPROJECT_INIT_LOG_LEVEL()							\
+	do {														\
+		if (ast_pjproject_max_log_level < 0) {					\
+			ast_pjproject_max_log_level = pj_log_get_level();	\
+		}														\
+		pj_log_set_level(ast_option_pjproject_log_level);		\
+	} while (0)
+
+/*! Current linked pjproject maximum logging level */
+extern int ast_pjproject_max_log_level;
+
 /*! Current pjproject logging level */
 extern int ast_option_pjproject_log_level;
 
