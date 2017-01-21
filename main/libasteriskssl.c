@@ -72,7 +72,7 @@ static void ssl_lock(int mode, int n, const char *file, int line)
 	}
 }
 
-#if !defined(OPENSSL_API_COMPAT) || OPENSSL_API_COMPAT < 0x10100000L
+#if !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER < 0x10100000L
 int SSL_library_init(void)
 {
 #if defined(AST_DEVMODE)
@@ -114,7 +114,7 @@ void ERR_free_strings(void)
 {
 	/* we can't allow this to be called, ever */
 }
-#endif /* !defined(OPENSSL_API_COMPAT) || OPENSSL_API_COMPAT < 0x10100000L */
+#endif /* !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER < 0x10100000L */
 
 #endif /* HAVE_OPENSSL */
 
