@@ -410,17 +410,21 @@ static char *handle_pjproject_set_log_level(struct ast_cli_entry *e, int cmd, st
 	}
 
 	/* Update pjproject logging level */
+	if (ast_pjproject_max_log_level < level_new) {
+		level_new = ast_pjproject_max_log_level;
+		ast_cli(a->fd,
+			"Asterisk built or linked with pjproject PJ_LOG_MAX_LEVEL=%d.\n"
+			"Lowering request to the max supported level.\n",
+			ast_pjproject_max_log_level);
+	}
 	level_old = ast_option_pjproject_log_level;
 	if (level_old == level_new) {
 		ast_cli(a->fd, "pjproject log level is still %d.\n", level_old);
 	} else {
 		ast_cli(a->fd, "pjproject log level was %d and is now %d.\n",
 			level_old, level_new);
+		ast_option_pjproject_log_level = level_new;
 		pj_log_set_level(level_new);
-	}
-	ast_option_pjproject_log_level = pj_log_get_level();
-	if (ast_option_pjproject_log_level != level_new) {
-		ast_log(LOG_WARNING, "Asterisk built with pjproject PJ_LOG_MAX_LEVEL set too low.\n");
 	}
 
 	return CLI_SUCCESS;
@@ -495,7 +499,7 @@ static int load_module(void)
 
 	ast_sorcery_load(pjproject_sorcery);
 
-	pj_log_set_level(ast_option_pjproject_log_level);
+	AST_PJPROJECT_INIT_LOG_LEVEL();
 	pj_init();
 
 	decor_orig = pj_log_get_decor();
@@ -512,12 +516,19 @@ static int load_module(void)
 	pj_log_set_decor(0);
 	pj_log_set_level(MAX_PJ_LOG_MAX_LEVEL);/* Set level to guarantee the dump output. */
 	pj_dump_config();
-	pj_log_set_level(ast_option_pjproject_log_level);
 	pj_log_set_decor(PJ_LOG_HAS_SENDER | PJ_LOG_HAS_INDENT);
 	pj_log_set_log_func(log_forwarder);
-	if (!AST_VECTOR_SIZE(&buildopts)
-		|| ast_option_pjproject_log_level != pj_log_get_level()) {
-		ast_log(LOG_WARNING, "Asterisk built or linked with pjproject PJ_LOG_MAX_LEVEL set too low.\n");
+	if (ast_pjproject_max_log_level < ast_option_pjproject_log_level) {
+		ast_log(LOG_WARNING,
+			"Asterisk built or linked with pjproject PJ_LOG_MAX_LEVEL=%d which is too low for startup level: %d.\n",
+			ast_pjproject_max_log_level, ast_option_pjproject_log_level);
+		ast_option_pjproject_log_level = ast_pjproject_max_log_level;
+	}
+	pj_log_set_level(ast_option_pjproject_log_level);
+	if (!AST_VECTOR_SIZE(&buildopts)) {
+		ast_log(LOG_NOTICE,
+			"Asterisk built or linked with pjproject PJ_LOG_MAX_LEVEL=%d which is too low to get buildopts.\n",
+			ast_pjproject_max_log_level);
 	}
 
 	ast_cli_register_multiple(pjproject_cli, ARRAY_LEN(pjproject_cli));
