@@ -619,7 +619,6 @@ static int listfilter(struct ast_channel *chan, const char *cmd, char *parse, ch
 	}
 	ast_str_substitute_variables(&orig_list, 0, chan, varsubst);
 	if (!ast_str_strlen(orig_list)) {
-		ast_log(LOG_ERROR, "List variable '%s' not found\n", args.listname);
 		if (chan) {
 			ast_channel_unlock(chan);
 		}

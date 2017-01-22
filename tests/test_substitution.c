@@ -287,7 +287,16 @@ AST_TEST_DEFINE(test_substitution)
 	TEST(test_expected_result(test, c, "A${${baz}o:-2:1}A", "A2A"));
 	TEST(test_expected_result(test, c, "A${${baz}o:-2:-1}A", "A2A"));
 	pbx_builtin_setvar_helper(c, "list1", "ab&cd&ef");
+	TEST(test_expected_result(test, c, "${LISTFILTER(list1,&,ab)}", "cd&ef"));
 	TEST(test_expected_result(test, c, "${LISTFILTER(list1,&,cd)}", "ab&ef"));
+	TEST(test_expected_result(test, c, "${LISTFILTER(list1,&,ef)}", "ab&cd"));
+	TEST(test_expected_result(test, c, "${LISTFILTER(list1,&,gh)}", "ab&cd&ef"));
+	TEST(test_expected_result(test, c, "${LISTFILTER(list1,&,c)}", "ab&cd&ef"));
+	TEST(test_expected_result(test, c, "${LISTFILTER(list1,&,d)}", "ab&cd&ef"));
+	pbx_builtin_setvar_helper(c, "list2", "ab");
+	TEST(test_expected_result(test, c, "${LISTFILTER(list2,&,ab)}", ""));
+	pbx_builtin_setvar_helper(c, "list_empty", "");
+	TEST(test_expected_result(test, c, "${LISTFILTER(list_empty,&,ab)}", ""));
 	TEST(test_expected_result(test, c, "${SHELL(printf '%d' 123)},${SHELL(printf '%d' 456)}", "123,456"));
 	TEST(test_expected_result(test, c, "${foo},${CDR(answer)},${SHELL(printf '%d' 456)}", "123,,456"));
 	TEST(test_expected_result(test, c, "${foo},${CDR(answer,u)},${SHELL(printf '%d' 456)}", "123,0.000000,456"));
