@@ -889,8 +889,9 @@ static void build_node_children(struct ast_sip_endpoint *endpoint, const struct 
 			if (PJSIP_IS_STATUS_IN_CLASS(resp, 200)) {
 				current = tree_node_alloc(resource, visited, 0);
 				if (!current) {
-					ast_debug(1, "Subscription to leaf resource %s was successful, but encountered"
-							"allocation error afterwards\n", resource);
+					ast_debug(1,
+						"Subscription to leaf resource %s was successful, but encountered allocation error afterwards\n",
+						resource);
 					continue;
 				}
 				ast_debug(2, "Subscription to leaf resource %s resulted in success. Adding to parent %s\n",
@@ -2574,8 +2575,9 @@ int ast_sip_register_subscription_handler(struct ast_sip_subscription_handler *h
 
 	existing = find_sub_handler_for_event_name(handler->event_name);
 	if (existing) {
-		ast_log(LOG_ERROR, "Unable to register subscription handler for event %s."
-				"A handler is already registered\n", handler->event_name);
+		ast_log(LOG_ERROR,
+			"Unable to register subscription handler for event %s.  A handler is already registered\n",
+			handler->event_name);
 		return -1;
 	}
 
@@ -2775,7 +2777,6 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 	AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(resource);
 
 	expires_header = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_EXPIRES, rdata->msg_info.msg->hdr.next);
-
 	if (expires_header) {
 		if (expires_header->ivalue == 0) {
 			ast_log(LOG_WARNING, "Subscription request from endpoint %s rejected. Expiration of 0 is invalid\n",
