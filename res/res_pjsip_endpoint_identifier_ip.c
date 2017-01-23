@@ -66,6 +66,9 @@
 	</configInfo>
  ***/
 
+/*! \brief The number of buckets for storing hosts for resolution */
+#define HOSTS_BUCKETS 53
+
 /*! \brief Structure for an IP identification matching object */
 struct ip_identify_match {
 	/*! \brief Sorcery object details */
@@ -79,6 +82,8 @@ struct ip_identify_match {
 	struct ast_ha *matches;
 	/*! \brief Perform SRV resolution of hostnames */
 	unsigned int srv_lookups;
+	/*! \brief Hosts to be resolved after applying configuration */
+	struct ao2_container *hosts;
 };
 
 /*! \brief Destructor function for a matching object */
@@ -88,6 +93,7 @@ static void ip_identify_destroy(void *obj)
 
 	ast_string_field_free_memory(identify);
 	ast_free_ha(identify->matches);
+	ao2_cleanup(identify->hosts);
 }
 
 /*! \brief Allocator function for a matching object */
@@ -241,8 +247,7 @@ static int ip_identify_match_handler(const struct aco_option *opt, struct ast_va
 
 	while ((current_string = ast_strip(strsep(&input_string, ",")))) {
 		char *mask = strrchr(current_string, '/');
-		struct ast_sockaddr address;
-		int error, results = 0;
+		int error;
 
 		if (ast_strlen_zero(current_string)) {
 			continue;
@@ -259,6 +264,42 @@ static int ip_identify_match_handler(const struct aco_option *opt, struct ast_va
 
 			continue;
 		}
+
+		if (!identify->hosts) {
+			identify->hosts = ast_str_container_alloc_options(AO2_ALLOC_OPT_LOCK_NOLOCK, HOSTS_BUCKETS);
+			if (!identify->hosts) {
+				ast_log(LOG_ERROR, "Failed to create container to store hosts on ip endpoint identifier '%s'\n",
+					ast_sorcery_object_get_id(obj));
+				return -1;
+			}
+		}
+
+		error = ast_str_container_add(identify->hosts, current_string);
+		if (error) {
+			ast_log(LOG_ERROR, "Failed to store host '%s' for resolution on ip endpoint identifier '%s'\n",
+				current_string, ast_sorcery_object_get_id(obj));
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+/*! \brief Apply handler for identify type */
+static int ip_identify_apply(const struct ast_sorcery *sorcery, void *obj)
+{
+	struct ip_identify_match *identify = obj;
+	char *current_string;
+	struct ao2_iterator i;
+
+	if (!identify->hosts) {
+		return 0;
+	}
+
+	i = ao2_iterator_init(identify->hosts, 0);
+	while ((current_string = ao2_iterator_next(&i))) {
+		struct ast_sockaddr address;
+		int results = 0;
 
 		/* If the provided string is not an IP address perform SRV resolution on it */
 		if (identify->srv_lookups && !ast_sockaddr_parse(&address, current_string, 0)) {
@@ -286,9 +327,11 @@ static int ip_identify_match_handler(const struct aco_option *opt, struct ast_va
 		}
 	}
 
+	ao2_ref(identify->hosts, -1);
+	identify->hosts = NULL;
+
 	return 0;
 }
-
 
 static int match_to_str(const void *obj, const intptr_t *args, char **buf)
 {
@@ -537,7 +580,7 @@ static int load_module(void)
 	ast_sorcery_apply_config(ast_sip_get_sorcery(), "res_pjsip_endpoint_identifier_ip");
 	ast_sorcery_apply_default(ast_sip_get_sorcery(), "identify", "config", "pjsip.conf,criteria=type=identify");
 
-	if (ast_sorcery_object_register(ast_sip_get_sorcery(), "identify", ip_identify_alloc, NULL, NULL)) {
+	if (ast_sorcery_object_register(ast_sip_get_sorcery(), "identify", ip_identify_alloc, NULL, ip_identify_apply)) {
 		return AST_MODULE_LOAD_DECLINE;
 	}
 
