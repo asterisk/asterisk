@@ -3600,6 +3600,8 @@ static int ami_subscription_detail(struct sip_subscription_tree *sub_tree,
 	sip_subscription_to_ami(sub_tree, &buf);
 	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
 	ast_free(buf);
+
+	++ami->count;
 	return 0;
 }
 
@@ -3618,14 +3620,13 @@ static int ami_subscription_detail_outbound(struct sip_subscription_tree *sub_tr
 static int ami_show_subscriptions_inbound(struct mansession *s, const struct message *m)
 {
 	struct ast_sip_ami ami = { .s = s, .m = m, .action_id = astman_get_header(m, "ActionID"), };
-	int num;
 
 	astman_send_listack(s, m, "Following are Events for each inbound Subscription",
 		"start");
 
-	num = for_each_subscription(ami_subscription_detail_inbound, &ami);
+	for_each_subscription(ami_subscription_detail_inbound, &ami);
 
-	astman_send_list_complete_start(s, m, "InboundSubscriptionDetailComplete", num);
+	astman_send_list_complete_start(s, m, "InboundSubscriptionDetailComplete", ami.count);
 	astman_send_list_complete_end(s);
 	return 0;
 }
@@ -3633,14 +3634,13 @@ static int ami_show_subscriptions_inbound(struct mansession *s, const struct mes
 static int ami_show_subscriptions_outbound(struct mansession *s, const struct message *m)
 {
 	struct ast_sip_ami ami = { .s = s, .m = m, .action_id = astman_get_header(m, "ActionID"), };
-	int num;
 
 	astman_send_listack(s, m, "Following are Events for each outbound Subscription",
 		"start");
 
-	num = for_each_subscription(ami_subscription_detail_outbound, &ami);
+	for_each_subscription(ami_subscription_detail_outbound, &ami);
 
-	astman_send_list_complete_start(s, m, "OutboundSubscriptionDetailComplete", num);
+	astman_send_list_complete_start(s, m, "OutboundSubscriptionDetailComplete", ami.count);
 	astman_send_list_complete_end(s);
 	return 0;
 }
@@ -3661,21 +3661,21 @@ static int format_ami_resource_lists(void *obj, void *arg, int flags)
 		return CMP_STOP;
 	}
 	astman_append(ami->s, "%s\r\n", ast_str_buffer(buf));
-
 	ast_free(buf);
+
+	++ami->count;
 	return 0;
 }
 
 static int ami_show_resource_lists(struct mansession *s, const struct message *m)
 {
 	struct ast_sip_ami ami = { .s = s, .m = m, .action_id = astman_get_header(m, "ActionID"), };
-	int num;
 	struct ao2_container *lists;
 
 	lists = ast_sorcery_retrieve_by_fields(ast_sip_get_sorcery(), "resource_list",
 			AST_RETRIEVE_FLAG_MULTIPLE | AST_RETRIEVE_FLAG_ALL, NULL);
 
-	if (!lists || !(num = ao2_container_count(lists))) {
+	if (!lists || !ao2_container_count(lists)) {
 		astman_send_error(s, m, "No resource lists found\n");
 		return 0;
 	}
@@ -3685,7 +3685,7 @@ static int ami_show_resource_lists(struct mansession *s, const struct message *m
 
 	ao2_callback(lists, OBJ_NODATA, format_ami_resource_lists, &ami);
 
-	astman_send_list_complete_start(s, m, "ResourceListDetailComplete", num);
+	astman_send_list_complete_start(s, m, "ResourceListDetailComplete", ami.count);
 	astman_send_list_complete_end(s);
 	return 0;
 }
