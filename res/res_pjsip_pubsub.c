@@ -1017,14 +1017,16 @@ static int build_resource_tree(struct ast_sip_endpoint *endpoint, const struct a
 
 static void add_subscription(struct sip_subscription_tree *obj)
 {
-	SCOPED_LOCK(lock, &subscriptions, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
+	AST_RWLIST_WRLOCK(&subscriptions);
 	AST_RWLIST_INSERT_TAIL(&subscriptions, obj, next);
+	AST_RWLIST_UNLOCK(&subscriptions);
 }
 
 static void remove_subscription(struct sip_subscription_tree *obj)
 {
 	struct sip_subscription_tree *i;
-	SCOPED_LOCK(lock, &subscriptions, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
+
+	AST_RWLIST_WRLOCK(&subscriptions);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&subscriptions, i, next) {
 		if (i == obj) {
 			AST_RWLIST_REMOVE_CURRENT(next);
@@ -1036,6 +1038,7 @@ static void remove_subscription(struct sip_subscription_tree *obj)
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
+	AST_RWLIST_UNLOCK(&subscriptions);
 }
 
 static void destroy_subscription(struct ast_sip_subscription *sub)
@@ -1578,18 +1581,19 @@ static int for_each_subscription(on_subscription_t on_subscription, void *arg)
 {
 	int num = 0;
 	struct sip_subscription_tree *i;
-	SCOPED_LOCK(lock, &subscriptions, AST_RWLIST_RDLOCK, AST_RWLIST_UNLOCK);
 
 	if (!on_subscription) {
 		return num;
 	}
 
+	AST_RWLIST_RDLOCK(&subscriptions);
 	AST_RWLIST_TRAVERSE(&subscriptions, i, next) {
 		if (on_subscription(i, arg)) {
 			break;
 		}
 		++num;
 	}
+	AST_RWLIST_UNLOCK(&subscriptions);
 	return num;
 }
 
@@ -2489,8 +2493,9 @@ static int publication_cmp_fn(void *obj, void *arg, int flags)
 
 static void publish_add_handler(struct ast_sip_publish_handler *handler)
 {
-	SCOPED_LOCK(lock, &publish_handlers, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
+	AST_RWLIST_WRLOCK(&publish_handlers);
 	AST_RWLIST_INSERT_TAIL(&publish_handlers, handler, next);
+	AST_RWLIST_UNLOCK(&publish_handlers);
 }
 
 int ast_sip_register_publish_handler(struct ast_sip_publish_handler *handler)
@@ -2517,7 +2522,8 @@ int ast_sip_register_publish_handler(struct ast_sip_publish_handler *handler)
 void ast_sip_unregister_publish_handler(struct ast_sip_publish_handler *handler)
 {
 	struct ast_sip_publish_handler *iter;
-	SCOPED_LOCK(lock, &publish_handlers, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
+
+	AST_RWLIST_WRLOCK(&publish_handlers);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&publish_handlers, iter, next) {
 		if (handler == iter) {
 			AST_RWLIST_REMOVE_CURRENT(next);
@@ -2527,27 +2533,30 @@ void ast_sip_unregister_publish_handler(struct ast_sip_publish_handler *handler)
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
+	AST_RWLIST_UNLOCK(&publish_handlers);
 }
 
 AST_RWLIST_HEAD_STATIC(subscription_handlers, ast_sip_subscription_handler);
 
 static void sub_add_handler(struct ast_sip_subscription_handler *handler)
 {
-	SCOPED_LOCK(lock, &subscription_handlers, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
+	AST_RWLIST_WRLOCK(&subscription_handlers);
 	AST_RWLIST_INSERT_TAIL(&subscription_handlers, handler, next);
 	ast_module_ref(ast_module_info->self);
+	AST_RWLIST_UNLOCK(&subscription_handlers);
 }
 
 static struct ast_sip_subscription_handler *find_sub_handler_for_event_name(const char *event_name)
 {
 	struct ast_sip_subscription_handler *iter;
-	SCOPED_LOCK(lock, &subscription_handlers, AST_RWLIST_RDLOCK, AST_RWLIST_UNLOCK);
 
+	AST_RWLIST_RDLOCK(&subscription_handlers);
 	AST_RWLIST_TRAVERSE(&subscription_handlers, iter, next) {
 		if (!strcmp(iter->event_name, event_name)) {
 			break;
 		}
 	}
+	AST_RWLIST_UNLOCK(&subscription_handlers);
 	return iter;
 }
 
@@ -2586,7 +2595,8 @@ int ast_sip_register_subscription_handler(struct ast_sip_subscription_handler *h
 void ast_sip_unregister_subscription_handler(struct ast_sip_subscription_handler *handler)
 {
 	struct ast_sip_subscription_handler *iter;
-	SCOPED_LOCK(lock, &subscription_handlers, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
+
+	AST_RWLIST_WRLOCK(&subscription_handlers);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&subscription_handlers, iter, next) {
 		if (handler == iter) {
 			AST_RWLIST_REMOVE_CURRENT(next);
@@ -2595,6 +2605,7 @@ void ast_sip_unregister_subscription_handler(struct ast_sip_subscription_handler
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
+	AST_RWLIST_UNLOCK(&subscription_handlers);
 }
 
 static struct ast_sip_pubsub_body_generator *find_body_generator_type_subtype_nolock(const char *type, const char *subtype)
@@ -2823,8 +2834,8 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 static struct ast_sip_publish_handler *find_pub_handler(const char *event)
 {
 	struct ast_sip_publish_handler *iter = NULL;
-	SCOPED_LOCK(lock, &publish_handlers, AST_RWLIST_RDLOCK, AST_RWLIST_UNLOCK);
 
+	AST_RWLIST_RDLOCK(&publish_handlers);
 	AST_RWLIST_TRAVERSE(&publish_handlers, iter, next) {
 		if (strcmp(event, iter->event_name)) {
 			ast_debug(3, "Event %s does not match %s\n", event, iter->event_name);
@@ -2833,6 +2844,7 @@ static struct ast_sip_publish_handler *find_pub_handler(const char *event)
 		ast_debug(3, "Event name match: %s = %s\n", event, iter->event_name);
 		break;
 	}
+	AST_RWLIST_UNLOCK(&publish_handlers);
 
 	return iter;
 }
@@ -3201,8 +3213,8 @@ int ast_sip_pubsub_register_body_generator(struct ast_sip_pubsub_body_generator 
 void ast_sip_pubsub_unregister_body_generator(struct ast_sip_pubsub_body_generator *generator)
 {
 	struct ast_sip_pubsub_body_generator *iter;
-	SCOPED_LOCK(lock, &body_generators, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
 
+	AST_RWLIST_WRLOCK(&body_generators);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&body_generators, iter, list) {
 		if (iter == generator) {
 			AST_LIST_REMOVE_CURRENT(list);
@@ -3210,6 +3222,7 @@ void ast_sip_pubsub_unregister_body_generator(struct ast_sip_pubsub_body_generat
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
+	AST_RWLIST_UNLOCK(&body_generators);
 }
 
 int ast_sip_pubsub_register_body_supplement(struct ast_sip_pubsub_body_supplement *supplement)
@@ -3224,8 +3237,8 @@ int ast_sip_pubsub_register_body_supplement(struct ast_sip_pubsub_body_supplemen
 void ast_sip_pubsub_unregister_body_supplement(struct ast_sip_pubsub_body_supplement *supplement)
 {
 	struct ast_sip_pubsub_body_supplement *iter;
-	SCOPED_LOCK(lock, &body_supplements, AST_RWLIST_WRLOCK, AST_RWLIST_UNLOCK);
 
+	AST_RWLIST_WRLOCK(&body_supplements);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&body_supplements, iter, list) {
 		if (iter == supplement) {
 			AST_LIST_REMOVE_CURRENT(list);
@@ -3233,6 +3246,7 @@ void ast_sip_pubsub_unregister_body_supplement(struct ast_sip_pubsub_body_supple
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
+	AST_RWLIST_UNLOCK(&body_supplements);
 }
 
 const char *ast_sip_subscription_get_body_type(struct ast_sip_subscription *sub)
