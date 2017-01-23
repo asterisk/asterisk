@@ -205,7 +205,7 @@ ASTSSL_LDLIBS=-L. -lasteriskssl
 ifeq ($(findstring darwin,$(OSARCH)),) # not Darwin
 ASTSSL_LIB:=libasteriskssl.so
 
-$(ASTSSL_LIB).$(ASTSSL_SO_VERSION): _ASTLDFLAGS+=-Wl,-soname=$(ASTSSL_LIB)
+$(ASTSSL_LIB).$(ASTSSL_SO_VERSION): _ASTLDFLAGS+=-Wl,-soname=$(ASTSSL_LIB).$(ASTSSL_SO_VERSION)
 $(ASTSSL_LIB).$(ASTSSL_SO_VERSION): _ASTCFLAGS+=-fPIC -DAST_MODULE=\"asteriskssl\"
 $(ASTSSL_LIB).$(ASTSSL_SO_VERSION): LIBS+=$(ASTSSL_LIBS)
 ifeq ($(GNU_LD),1)
