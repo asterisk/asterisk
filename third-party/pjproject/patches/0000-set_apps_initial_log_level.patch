@@ -1,0 +1,39 @@
+diff --git a/pjsip-apps/src/pjsua/main.c b/pjsip-apps/src/pjsua/main.c
+index 2baaf82..11831f2 100644
+--- a/pjsip-apps/src/pjsua/main.c
++++ b/pjsip-apps/src/pjsua/main.c
+@@ -126,5 +126,7 @@ int main_func(int argc, char *argv[])
+ 
+ int main(int argc, char *argv[])
+ {
++    pj_log_set_level(1);
++
+     return pj_run_app(&main_func, argc, argv, 0);
+ }
+diff --git a/pjsip-apps/src/pjsystest/main_console.c b/pjsip-apps/src/pjsystest/main_console.c
+index 122cdc7..dc79eab 100644
+--- a/pjsip-apps/src/pjsystest/main_console.c
++++ b/pjsip-apps/src/pjsystest/main_console.c
+@@ -133,6 +133,8 @@ void gui_sleep(unsigned sec)
+ 
+ int main()
+ {
++    pj_log_set_level(1);
++
+     if (systest_init() != PJ_SUCCESS)
+ 	return 1;
+ 
+diff --git a/pjsip-apps/src/python/_pjsua.c b/pjsip-apps/src/python/_pjsua.c
+index fb80e23..c9b21d8 100644
+--- a/pjsip-apps/src/python/_pjsua.c
++++ b/pjsip-apps/src/python/_pjsua.c
+@@ -4437,7 +4437,8 @@ init_pjsua(void)
+     PyObject* m = NULL;
+ #define ADD_CONSTANT(mod,name)	PyModule_AddIntConstant(mod,#name,name)
+ 
+-    
++    pj_log_set_level(1);
++
+     PyEval_InitThreads();
+ 
+     if (PyType_Ready(&PyTyp_pjsua_callback) < 0)
