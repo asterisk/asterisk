@@ -2068,6 +2068,8 @@ static void endpoint_destructor(void* obj)
 	ast_variables_destroy(endpoint->channel_vars);
 	AST_VECTOR_FREE(&endpoint->ident_method_order);
 	ast_free(endpoint->contact_user);
+	ast_free_acl_list(endpoint->contact_acl);
+	ast_free_acl_list(endpoint->acl);
 }
 
 static int init_subscription_configuration(struct ast_sip_endpoint_subscription_configuration *subscription)
