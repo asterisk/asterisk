@@ -247,7 +247,7 @@ static int ip_identify_match_handler(const struct aco_option *opt, struct ast_va
 
 	while ((current_string = ast_strip(strsep(&input_string, ",")))) {
 		char *mask = strrchr(current_string, '/');
-		int error;
+		int error = 0;
 
 		if (ast_strlen_zero(current_string)) {
 			continue;
