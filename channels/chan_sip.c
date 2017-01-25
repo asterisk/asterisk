@@ -610,6 +610,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 	</managerEvent>
  ***/
 
+static int log_level = -1;
+
 static int min_expiry = DEFAULT_MIN_EXPIRY;        /*!< Minimum accepted registration time */
 static int max_expiry = DEFAULT_MAX_EXPIRY;        /*!< Maximum accepted registration time */
 static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
@@ -3930,6 +3932,9 @@ static __attribute__((format(printf, 2, 0))) void append_history_va(struct sip_p
 	}
 	AST_LIST_INSERT_TAIL(p->history, hist, list);
 	p->history_entries++;
+	if (log_level != -1) {
+		ast_log_dynamic_level(log_level, "%s\n", buf);
+	}
 }
 
 /*! \brief Append to SIP dialog history with arg list  */
@@ -35072,6 +35077,10 @@ static int load_module(void)
 	struct sip_peer *bogus_peer;
 
 	ast_verbose("SIP channel loading...\n");
+	log_level = ast_logger_register_level("SIP_HISTORY");
+	if (log_level < 0) {
+		ast_log(LOG_WARNING, "Unable to register history log level\n");
+	}
 
 	if (STASIS_MESSAGE_TYPE_INIT(session_timeout_type)) {
 		unload_module();
@@ -35470,6 +35479,9 @@ static int unload_module(void)
 	sip_cfg.caps = NULL;
 
 	STASIS_MESSAGE_TYPE_CLEANUP(session_timeout_type);
+	if (log_level != -1) {
+		ast_logger_unregister_level("SIP_HISTORY");
+	}
 
 	return 0;
 }
