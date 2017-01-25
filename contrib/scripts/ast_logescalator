@@ -1,0 +1,399 @@
+#!/usr/bin/env bash
+# Turn on extended globbing
+shopt -s extglob
+# Bail on any error
+set -e
+
+prog=$(basename $0)
+
+print_help() {
+cat <<EOF
+NAME
+	$prog - Escalate Asterisk logging levels
+
+SYNOPSIS
+	$prog [ --help ] | [ [ --reset ] | [
+		[ --uniqueid="<uniqueid>" ]
+
+		[ --pjsip-debug=<on|off> ] [ --sip-debug=<on|off> ]
+		[ --iax2-debug=<on|off> ]
+
+		[ --agi-debug=<on|off> ] [ --ami-debug=<on|off> ]
+		[ --ari-debug=<on|off> ] [ --cdr-debug=<on|off> ]
+		[ --channel-debug=<on|off> ] [ --rtp-debug=<on|off> ]
+		[ --rtcp-debug=<on|off> ]
+
+		[ --dtmf-debug=<on|off> ] [ --fax-debug=<on|off> ]
+		[ --security-debug=<on|off> ]
+
+		[ --pjsip-history=<on|off> ] [ --sip-history=<on|off> ]
+
+		[ --verbose=<level> ] [ --debug=<level> ]
+		] ]
+
+DESCRIPTION
+
+	Escalates log and/or debug levels on Asterisk subsystems.
+
+	Options:
+
+	--help
+		Print this help.
+
+	--reset
+		Resets logging to the pre-escalation state.
+
+	--uniqueid="<uniqueid>"
+		Normally DATEFORMAT from ast_debug_tools.conf is used to make
+		the log files unique but you can set the unique id to
+		something else such as the Jira issue.  Once any logging
+		is enabled, the uniqueid is stored in cli.conf so any future
+		on/off commands will use the same uniqueid.  Use the --reset
+		option to reset it (and everything else).
+
+	--pjsip-debug  --sip-debug --iax2-debug --agi-debug --ami-debug
+	--ari-debug --cdr-debug --channel-debug --rtp-debug --rtcp-debug
+		Issues the subsystem appropriate command to turn on
+		or off debugging.  These are usually functional debug messages
+		such as packet dumps as opposed to code level messages and usually
+		go to the VERBOSE log channel.
+
+	--dtmf-debug --fax-debug --security-debug
+		These subsystems set up their own log channels so if turned
+		on, log files will be created in \$astlogdir for them.
+
+	--pjsip-history  --sip-history
+		The pjsip and sip channels have the ability to output an
+		abbreviated, one-line, packet summary.  If enabled, the summaries
+		will be written to \$astlogdir/pjsip_history.\$UNIQUEID and
+		\$astlogdir/sip_history.\$UNIQUEID.
+
+	--verbose-level --debug-level
+		Sets the levels for their respective messages.
+
+NOTES
+
+	The escalator works by creating a set of startup commands in cli.conf
+	that set up logger channels and issue the debug commands.  If asterisk
+	is running when $prog is executed, the same commands will be issued
+	to the running instance.  The original cli.conf is saved before any
+	changes are made and can be restored by executing '$prog --reset'.
+
+	The log output will be stored in...
+	\$astlogdir/message.\$uniqueid
+	\$astlogdir/debug.\$uniqueid
+	\$astlogdir/dtmf.\$uniqueid
+	\$astlogdir/fax.\$uniqueid
+	\$astlogdir/security.\$uniqueid
+	\$astlogdir/pjsip_history.\$uniqueid
+	\$astlogdir/sip_history.\$uniqueid
+
+EOF
+	exit 1
+}
+
+PJSIP_DEBUG_SPECIFIED=false
+PJSIP_HISTORY_SPECIFIED=false
+SIP_DEBUG_SPECIFIED=false
+SIP_HISTORY_SPECIFIED=false
+IAX2_DEBUG_SPECIFIED=false
+ARI_DEBUG_SPECIFIED=false
+AMI_DEBUG_SPECIFIED=false
+AGI_DEBUG_SPECIFIED=false
+CDR_DEBUG_SPECIFIED=false
+CHANNEL_DEBUG_SPECIFIED=false
+RTP_DEBUG_SPECIFIED=false
+RTCP_DEBUG_SPECIFIED=false
+DTMF_DEBUG_SPECIFIED=false
+FAX_DEBUG_SPECIFIED=false
+SECURITY_DEBUG_SPECIFIED=false
+DEBUG_LEVEL_SPECIFIED=false
+VERBOSE_LEVEL_SPECIFIED=false
+DEBUGS=false
+RESET=false
+
+declare -A DEBUG_COMMANDS=(
+[PJSIP,on]="pjsip set logger on" [PJSIP,off]="pjsip set logger off"
+[SIP,on]="sip set debug on" [SIP,off]="sip set debug off"
+[IAX2,on]="iax2 set debug on" [IAX2,off]="iax2 set debug off"
+[ARI,on]="ari set debug all on" [ARI,off]="ari set debug all off"
+[AMI,on]="manager set debug on" [AMI,off]="manager set debug off"
+[AGI,on]="agi set debug on" [AGI,off]="agi set debug off"
+[CDR,on]="cdr set debug on" [CDR,off]="cdr set debug off"
+[CHANNEL,on]="core set debug channel all" [CHANNEL,off]="core set debug channel all off"
+[RTP,on]="rtp set debug on" [RTP,on]="rtp set debug off"
+[RTCP,on]="rtcp set debug on" [RTCP,off]="rtcp set debug off"
+)
+
+VERBOSE_LEVELS="NOTICE,WARNING,ERROR,VERBOSE"
+DEBUG_LEVELS="DEBUG"
+
+# Read config files from least important to most important
+[ -f /etc/asterisk/ast_debug_tools.conf ] && source /etc/asterisk/ast_debug_tools.conf
+[ -f ~/ast_debug_tools.conf ] && source ~/ast_debug_tools.conf
+[ -f ./ast_debug_tools.conf ] && source ./ast_debug_tools.conf
+
+DATEFORMAT=${DATEFORMAT:-'date +%FT%H-%M-%S%z'}
+UNIQUEID=$($DATEFORMAT)
+UNIQUEID_SPECIFIED=false
+
+for a in "$@" ; do
+	case "$a" in
+	--*-debug=*)
+		subsystem=${a%-debug=*}
+		subsystem=${subsystem#--}
+		flag=${a#*=}
+		if [[ ${flag,,} =~ ^y(es)?|on ]] ; then
+			eval ${subsystem^^}_DEBUG=true
+		else
+			eval ${subsystem^^}_DEBUG=false
+		fi
+		eval ${subsystem^^}_DEBUG_SPECIFIED=true
+		DEBUGS=true
+		;;
+	--pjsip-history=*)
+		;&
+	--sip-history=*)
+		subsystem=${a%-history=*}
+		subsystem=${subsystem#--}
+		if [[ ${a#*=} =~ ^[Yy].* ]] ; then
+			eval ${subsystem^^}_HISTORY=true
+		else
+			eval ${subsystem^^}_HISTORY=false
+		fi
+		eval ${subsystem^^}_HISTORY_SPECIFIED=true
+		DEBUGS=true
+		;;
+	--verbose=*)
+		VERBOSE_LEVEL=${a#*=}
+		VERBOSE_LEVEL_SPECIFIED=true
+		DEBUGS=true
+		;;
+	--debug=*)
+		DEBUG_LEVEL=${a#*=}
+		DEBUG_LEVEL_SPECIFIED=true
+		DEBUGS=true
+		;;
+	--reset)
+		RESET=true
+		;;
+	--uniqueid=*)
+		UNIQUEID=${a#*=}
+		UNIQUEID_SPECIFIED=true
+		DEBUGS=true
+		;;
+	--help|*)
+		print_help
+		;;
+	esac
+done
+
+if $DEBUGS && $RESET ; then
+	echo "--reset must be specified by itself"
+	print_help
+fi
+
+if ! $DEBUGS && ! $RESET ; then
+	echo "No options specified."
+	print_help
+fi
+
+ASTERISK_IS_RUNNING=false
+CONFIG_DIR=/etc/asterisk
+LOG_DIR=/var/log/asterisk
+
+if [ "$(pidof asterisk)" != "" ] ; then
+	CONFIG_DIR=`asterisk -rx "core show settings" | sed -n -r -e "s/^\s*Configuration\s+directory:\s+(.*)$/\1/gp"`
+	LOG_DIR=`asterisk -rx "core show settings" | sed -n -r -e "s/^\s*Log\s+directory:\s+(.*)$/\1/gp"`
+	ASTERISK_IS_RUNNING=true
+fi
+CLI_CONF="$CONFIG_DIR/cli.conf"
+
+if [ ! -f "$CLI_CONF" ] ; then
+	echo "The location of cli.conf could not be determined."
+	exit 1
+fi
+
+if $RESET ; then
+	if [ -f "$CLI_CONF.unescalated" ] ; then
+		mv "$CLI_CONF.unescalated" "$CLI_CONF"
+	fi
+	if $ASTERISK_IS_RUNNING ; then
+		(
+		asterisk -rx "core set verbose 0"
+		asterisk -rx "core set debug 0"
+		asterisk -rx "pjsip set logger off"
+		asterisk -rx "pjsip set history off"
+		asterisk -rx "sip set debug off"
+		asterisk -rx "sip set history off"
+		asterisk -rx "iax2 set debug off"
+		asterisk -rx "manager set debug off"
+		asterisk -rx "ari set debug all off"
+		asterisk -rx "agi set debug off"
+		asterisk -rx "rtp set debug off"
+		asterisk -rx "rtcp set debug off"
+		asterisk -rx "cdr set debug off"
+		asterisk -rx "core set debug channel all off"
+		asterisk -rx "logger reload"
+		)  >/dev/null 2>&1 || :
+	fi
+	exit 1
+fi
+
+if ! grep -q "; --START DEBUG_LOGGING-- ;" $CLI_CONF ; then
+	VERBOSE_LOG="$LOG_DIR/message.${UNIQUEID}"
+	DEBUG_LOG="$LOG_DIR/debug.${UNIQUEID}"
+	PJSIP_HISTORY_LOG="$LOG_DIR/pjsip_history.${UNIQUEID}"
+	SIP_HISTORY_LOG="$LOG_DIR/sip_history.${UNIQUEID}"
+	DTMF_LOG="$LOG_DIR/dtmf.${UNIQUEID}"
+	FAX_LOG="$LOG_DIR/fax.${UNIQUEID}"
+	SECURITY_LOG="$LOG_DIR/security.${UNIQUEID}"
+
+	cp "$CLI_CONF" "$CLI_CONF.unescalated"
+
+	sed -i -r -e "s/\[startup_commands\]/[startup_commands_original](!)/g" "$CLI_CONF"
+
+	cat >> "$CLI_CONF" <<-EOF
+	; --START DEBUG_LOGGING-- ;
+
+	[pjsip_debug](!)
+	pjsip set logger on = yes
+
+	[sip_debug](!)
+	sip set debug on = yes
+
+	[iax2_debug](!)
+	iax2 set debug on = yes
+
+	[ari_debug](!)
+	ari set debug all on = yes
+
+	[ami_debug](!)
+	manager set debug on = yes
+
+	[agi_debug](!)
+	agi set debug on = yes
+
+	[cdr_debug](!)
+	cdr set debug on = yes
+
+	[channel_debug](!)
+	core set debug channel all = yes
+
+	[rtp_debug](!)
+	rtp set debug on = yes
+
+	[rtcp_debug](!)
+	rtcp set debug on = yes
+
+	[dtmf_debug](!)
+	logger add channel $DTMF_LOG DTMF = yes
+
+	[fax_debug](!)
+	logger add channel $FAX_LOG FAX = yes
+
+	[security_debug](!)
+	logger add channel $SECURITY_LOG SECURITY = yes
+
+	[pjsip_history](!)
+	logger add channel $PJSIP_HISTORY_LOG PJSIP_HISTORY = yes
+	pjsip set history on = yes
+
+	[sip_history](!)
+	logger add channel $SIP_HISTORY_LOG SIP_HISTORY = yes
+	sip set history on = yes
+
+	[verbose_level](!)
+	core set verbose 3 = yes
+
+	[debug_level](!)
+	core set debug 3 = yes
+
+	[log_channels](!)
+	logger add channel $VERBOSE_LOG NOTICE,WARNING,ERROR,VERBOSE = yes
+	logger add channel $DEBUG_LOG DEBUG = yes
+
+	[startup_commands](startup_commands_original,log_channels)
+
+	; --END DEBUG_LOGGING-- ;
+	EOF
+
+else
+	if $UNIQUEID_SPECIFIED ; then
+		echo "Debug logging is already active.  Either rerun $prog without --uniqueid or with --reset to start over."
+		exit 1
+	fi
+
+	VERBOSE_LOG=$(sed -n -r -e "s@logger add channel ($LOG_DIR/message\..+)\s+NOTICE.*@\1@p" "$CLI_CONF")
+	DEBUG_LOG=$(sed -n -r -e "s@logger add channel ($LOG_DIR/debug\..+)\s+DEBUG.*@\1@p" "$CLI_CONF")
+	PJSIP_HISTORY_LOG=$(sed -n -r -e "s@logger add channel ($LOG_DIR/pjsip_history\..+)\s+PJSIP.*@\1@p" "$CLI_CONF")
+	SIP_HISTORY_LOG=$(sed -n -r -e "s@logger add channel ($LOG_DIR/sip_history\..+)\s+SIP.*@\1@p" "$CLI_CONF")
+	DTMF_LOG=$(sed -n -r -e "s@logger add channel ($LOG_DIR/dtmf\..+)\s+DTMF.*@\1@p" "$CLI_CONF")
+	FAX_LOG=$(sed -n -r -e "s@logger add channel ($LOG_DIR/fax\..+)\s+FAX.*@\1@p" "$CLI_CONF")
+	SECURITY_LOG=$(sed -n -r -e "s@logger add channel ($LOG_DIR/security\..+)\s+SECURITY.*@\1@p" "$CLI_CONF")
+fi
+
+for x in PJSIP SIP ARI AMI AGI ARI IAX2 CDR RTP RTCP ; do
+	if eval \$${x}_DEBUG_SPECIFIED ; then
+		if eval \$${x}_DEBUG ; then
+			if $ASTERISK_IS_RUNNING ; then
+				asterisk -rx "${DEBUG_COMMANDS[$x,on]}"
+			fi
+			egrep -q "^\[startup_commands\].*${x,,}_debug.*" "$CLI_CONF" ||
+				sed -i -r -e "/\[startup_commands\]/ s/\((.*)\)/(\1,${x,,}_debug)/g" "$CLI_CONF"
+		else
+			if $ASTERISK_IS_RUNNING ; then
+				asterisk -rx "${DEBUG_COMMANDS[$x,off]}"
+			fi
+			sed -i -r -e "/\[startup_commands\].*${x,,}_debug.*/ s/,${x,,}_debug//g" "$CLI_CONF"
+		fi
+	fi
+done
+
+for x in DTMF FAX SECURITY ; do
+	if eval \$${x}_DEBUG_SPECIFIED ; then
+		if eval \$${x}_DEBUG ; then
+			if $ASTERISK_IS_RUNNING ; then
+				asterisk -rx "$(eval "echo logger add channel \$${x}_LOG ${x}")" >/dev/null 2>&1
+			fi
+			egrep -q "^\[startup_commands\].*${x,,}_debug.*" "$CLI_CONF" ||
+				sed -i -r -e "/\[startup_commands\]/ s/\((.*)\)/(\1,${x,,}_debug)/g" "$CLI_CONF"
+		else
+			if $ASTERISK_IS_RUNNING ; then
+				asterisk -rx "$(eval "echo logger remove channel \$${x}_LOG")"
+			fi
+			sed -i -r -e "/\[startup_commands\].*${x,,}_debug.*/ s/,${x,,}_debug//g" "$CLI_CONF"
+		fi
+	fi
+done
+
+for x in PJSIP SIP ; do
+	if eval \$${x}_HISTORY_SPECIFIED ; then
+		if eval \$${x}_HISTORY ; then
+			if $ASTERISK_IS_RUNNING ; then
+				asterisk -rx "$(eval "echo logger add channel \$${x}_HISTORY_LOG ${x}_HISTORY")"
+				asterisk -rx "${x,,} set history on"
+			fi
+			egrep -q "^\[startup_commands\].*${x,,}_history.*" "$CLI_CONF" ||
+				sed -i -r -e "/\[startup_commands\]/ s/\((.*)\)/(\1,${x,,}_history)/g" "$CLI_CONF"
+		else
+			if $ASTERISK_IS_RUNNING ; then
+				asterisk -rx "$(eval "echo logger remove channel \$${x}_HISTORY_LOG")"
+				asterisk -rx "${x,,} set history off"
+			fi
+			sed -i -r -e "/\[startup_commands\].*${x,,}_history.*/ s/,${x,,}_history//g" "$CLI_CONF"
+		fi
+	fi
+done
+
+for x in VERBOSE DEBUG ; do
+	if eval \$${x}_LEVEL_SPECIFIED ; then
+		if $ASTERISK_IS_RUNNING ; then
+			asterisk -rx "$(eval "echo logger add channel \$${x}_LOG \$${x}_LEVELS")"
+			asterisk -rx "$(eval "echo core set ${x,,} \$${x}_LEVEL")"
+		fi
+		sed -i -r -e "$(eval "echo s/core set ${x,,} .*/core set ${x,,} \$${x}_LEVEL/g")" "$CLI_CONF"
+		egrep -q "^\[startup_commands\].*${x,,}_level.*" "$CLI_CONF" ||
+			sed -i -r -e "/\[startup_commands\]/ s/\((.*)\)/(\1,${x,,}_level)/g" "$CLI_CONF"
+	fi
+done
