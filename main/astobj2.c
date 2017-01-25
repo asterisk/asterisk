@@ -524,6 +524,20 @@ int __ao2_ref(void *user_data, int delta,
 
 	if (0 < current_value) {
 		/* The object still lives. */
+#define EXCESSIVE_REF_COUNT		100000
+
+		if (EXCESSIVE_REF_COUNT <= current_value && ret < EXCESSIVE_REF_COUNT) {
+			char excessive_ref_buf[100];
+
+			/* We just reached or went over the excessive ref count trigger */
+			snprintf(excessive_ref_buf, sizeof(excessive_ref_buf),
+				"Excessive refcount %d reached on ao2 object %p",
+				current_value, user_data);
+			ast_log(__LOG_ERROR, file, line, func, "%s\n", excessive_ref_buf);
+
+			__ast_assert_failed(0, excessive_ref_buf, file, line, func);
+		}
+
 		if (ref_log && tag) {
 			fprintf(ref_log, "%p,%s%d,%d,%s,%d,%s,%d,%s\n", user_data,
 				(delta < 0 ? "" : "+"), delta, ast_get_tid(),
