@@ -11127,7 +11127,6 @@ static int play_message_by_id_helper(struct ast_channel *chan,
 	/* Found the msg, so play it back */
 
 	make_file(vms->fn, sizeof(vms->fn), vms->curdir, vms->curmsg);
-	make_file(vms->fn, sizeof(vms->fn), vms->curdir, vms->curmsg);
 
 #ifdef IMAP_STORAGE
 	/*IMAP storage stores any prepended message from a forward
@@ -11137,6 +11136,8 @@ static int play_message_by_id_helper(struct ast_channel *chan,
 		wait_file(chan, vms, vms->introfn);
 	}
 #endif
+	RETRIEVE(vms->curdir,vms->curmsg,vmu->mailbox, vmu->context);
+
 	if ((wait_file(chan, vms, vms->fn)) < 0) {
 		ast_log(AST_LOG_WARNING, "Playback of message %s failed\n", vms->fn);
 	} else {
@@ -11148,7 +11149,7 @@ static int play_message_by_id_helper(struct ast_channel *chan,
 		ast_mutex_unlock(&vms->lock);
 #endif
 	}
-
+	DISPOSE(vms->curdir, vms->curmsg);
 	return 0;
 }
 
