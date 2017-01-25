@@ -215,6 +215,7 @@ static int bridge_stasis_push(struct ast_bridge *self, struct ast_bridge_channel
 		 */
 		return -1;
 	}
+	ao2_cleanup(control);
 
 	/*
 	 * If going into a holding bridge, default the role to participant, if
@@ -234,7 +235,6 @@ static int bridge_stasis_push(struct ast_bridge *self, struct ast_bridge_channel
 		}
 	}
 
-	ao2_cleanup(control);
 	if (self->allowed_capabilities & STASIS_BRIDGE_MIXING_CAPABILITIES) {
 		ast_bridge_channel_update_linkedids(bridge_channel, swap);
 		if (ast_test_flag(&self->feature_flags, AST_BRIDGE_FLAG_SMART)) {
