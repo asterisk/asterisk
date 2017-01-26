@@ -60,10 +60,9 @@
 static void ast_ari_bridges_list_cb(
 	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
-	struct ast_variable *headers, struct ast_ari_response *response)
+	struct ast_variable *headers, struct ast_json *body, struct ast_ari_response *response)
 {
 	struct ast_ari_bridges_list_args args = {};
-	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -132,11 +131,10 @@ int ast_ari_bridges_create_parse_body(
 static void ast_ari_bridges_create_cb(
 	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
-	struct ast_variable *headers, struct ast_ari_response *response)
+	struct ast_variable *headers, struct ast_json *body, struct ast_ari_response *response)
 {
 	struct ast_ari_bridges_create_args args = {};
 	struct ast_variable *i;
-	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -153,21 +151,6 @@ static void ast_ari_bridges_create_cb(
 			args.name = (i->value);
 		} else
 		{}
-	}
-	/* Look for a JSON request entity */
-	body = ast_http_get_json(ser, headers);
-	if (!body) {
-		switch (errno) {
-		case EFBIG:
-			ast_ari_response_error(response, 413, "Request Entity Too Large", "Request body too large");
-			goto fin;
-		case ENOMEM:
-			ast_ari_response_error(response, 500, "Internal Server Error", "Error processing request");
-			goto fin;
-		case EIO:
-			ast_ari_response_error(response, 400, "Bad Request", "Error parsing request body");
-			goto fin;
-		}
 	}
 	if (ast_ari_bridges_create_parse_body(body, &args)) {
 		ast_ari_response_alloc_failed(response);
@@ -232,11 +215,10 @@ int ast_ari_bridges_create_with_id_parse_body(
 static void ast_ari_bridges_create_with_id_cb(
 	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
-	struct ast_variable *headers, struct ast_ari_response *response)
+	struct ast_variable *headers, struct ast_json *body, struct ast_ari_response *response)
 {
 	struct ast_ari_bridges_create_with_id_args args = {};
 	struct ast_variable *i;
-	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -256,21 +238,6 @@ static void ast_ari_bridges_create_with_id_cb(
 			args.bridge_id = (i->value);
 		} else
 		{}
-	}
-	/* Look for a JSON request entity */
-	body = ast_http_get_json(ser, headers);
-	if (!body) {
-		switch (errno) {
-		case EFBIG:
-			ast_ari_response_error(response, 413, "Request Entity Too Large", "Request body too large");
-			goto fin;
-		case ENOMEM:
-			ast_ari_response_error(response, 500, "Internal Server Error", "Error processing request");
-			goto fin;
-		case EIO:
-			ast_ari_response_error(response, 400, "Bad Request", "Error parsing request body");
-			goto fin;
-		}
 	}
 	if (ast_ari_bridges_create_with_id_parse_body(body, &args)) {
 		ast_ari_response_alloc_failed(response);
@@ -318,11 +285,10 @@ fin: __attribute__((unused))
 static void ast_ari_bridges_get_cb(
 	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
-	struct ast_variable *headers, struct ast_ari_response *response)
+	struct ast_variable *headers, struct ast_json *body, struct ast_ari_response *response)
 {
 	struct ast_ari_bridges_get_args args = {};
 	struct ast_variable *i;
-	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -377,11 +343,10 @@ fin: __attribute__((unused))
 static void ast_ari_bridges_destroy_cb(
 	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
-	struct ast_variable *headers, struct ast_ari_response *response)
+	struct ast_variable *headers, struct ast_json *body, struct ast_ari_response *response)
 {
 	struct ast_ari_bridges_destroy_args args = {};
 	struct ast_variable *i;
-	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -478,11 +443,10 @@ int ast_ari_bridges_add_channel_parse_body(
 static void ast_ari_bridges_add_channel_cb(
 	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
-	struct ast_variable *headers, struct ast_ari_response *response)
+	struct ast_variable *headers, struct ast_json *body, struct ast_ari_response *response)
 {
 	struct ast_ari_bridges_add_channel_args args = {};
 	struct ast_variable *i;
-	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -542,21 +506,6 @@ static void ast_ari_bridges_add_channel_cb(
 			args.bridge_id = (i->value);
 		} else
 		{}
-	}
-	/* Look for a JSON request entity */
-	body = ast_http_get_json(ser, headers);
-	if (!body) {
-		switch (errno) {
-		case EFBIG:
-			ast_ari_response_error(response, 413, "Request Entity Too Large", "Request body too large");
-			goto fin;
-		case ENOMEM:
-			ast_ari_response_error(response, 500, "Internal Server Error", "Error processing request");
-			goto fin;
-		case EIO:
-			ast_ari_response_error(response, 400, "Bad Request", "Error parsing request body");
-			goto fin;
-		}
 	}
 	if (ast_ari_bridges_add_channel_parse_body(body, &args)) {
 		ast_ari_response_alloc_failed(response);
@@ -648,11 +597,10 @@ int ast_ari_bridges_remove_channel_parse_body(
 static void ast_ari_bridges_remove_channel_cb(
 	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
-	struct ast_variable *headers, struct ast_ari_response *response)
+	struct ast_variable *headers, struct ast_json *body, struct ast_ari_response *response)
 {
 	struct ast_ari_bridges_remove_channel_args args = {};
 	struct ast_variable *i;
-	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -710,21 +658,6 @@ static void ast_ari_bridges_remove_channel_cb(
 		} else
 		{}
 	}
-	/* Look for a JSON request entity */
-	body = ast_http_get_json(ser, headers);
-	if (!body) {
-		switch (errno) {
-		case EFBIG:
-			ast_ari_response_error(response, 413, "Request Entity Too Large", "Request body too large");
-			goto fin;
-		case ENOMEM:
-			ast_ari_response_error(response, 500, "Internal Server Error", "Error processing request");
-			goto fin;
-		case EIO:
-			ast_ari_response_error(response, 400, "Bad Request", "Error parsing request body");
-			goto fin;
-		}
-	}
 	if (ast_ari_bridges_remove_channel_parse_body(body, &args)) {
 		ast_ari_response_alloc_failed(response);
 		goto fin;
@@ -777,11 +710,10 @@ fin: __attribute__((unused))
 static void ast_ari_bridges_set_video_source_cb(
 	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
-	struct ast_variable *headers, struct ast_ari_response *response)
+	struct ast_variable *headers, struct ast_json *body, struct ast_ari_response *response)
 {
 	struct ast_ari_bridges_set_video_source_args args = {};
 	struct ast_variable *i;
-	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -841,11 +773,10 @@ fin: __attribute__((unused))
 static void ast_ari_bridges_clear_video_source_cb(
 	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
-	struct ast_variable *headers, struct ast_ari_response *response)
+	struct ast_variable *headers, struct ast_json *body, struct ast_ari_response *response)
 {
 	struct ast_ari_bridges_clear_video_source_args args = {};
 	struct ast_variable *i;
-	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -913,11 +844,10 @@ int ast_ari_bridges_start_moh_parse_body(
 static void ast_ari_bridges_start_moh_cb(
 	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
-	struct ast_variable *headers, struct ast_ari_response *response)
+	struct ast_variable *headers, struct ast_json *body, struct ast_ari_response *response)
 {
 	struct ast_ari_bridges_start_moh_args args = {};
 	struct ast_variable *i;
-	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -934,21 +864,6 @@ static void ast_ari_bridges_start_moh_cb(
 			args.bridge_id = (i->value);
 		} else
 		{}
-	}
-	/* Look for a JSON request entity */
-	body = ast_http_get_json(ser, headers);
-	if (!body) {
-		switch (errno) {
-		case EFBIG:
-			ast_ari_response_error(response, 413, "Request Entity Too Large", "Request body too large");
-			goto fin;
-		case ENOMEM:
-			ast_ari_response_error(response, 500, "Internal Server Error", "Error processing request");
-			goto fin;
-		case EIO:
-			ast_ari_response_error(response, 400, "Bad Request", "Error parsing request body");
-			goto fin;
-		}
 	}
 	if (ast_ari_bridges_start_moh_parse_body(body, &args)) {
 		ast_ari_response_alloc_failed(response);
@@ -998,11 +913,10 @@ fin: __attribute__((unused))
 static void ast_ari_bridges_stop_moh_cb(
 	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
-	struct ast_variable *headers, struct ast_ari_response *response)
+	struct ast_variable *headers, struct ast_json *body, struct ast_ari_response *response)
 {
 	struct ast_ari_bridges_stop_moh_args args = {};
 	struct ast_variable *i;
-	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -1112,11 +1026,10 @@ int ast_ari_bridges_play_parse_body(
 static void ast_ari_bridges_play_cb(
 	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
-	struct ast_variable *headers, struct ast_ari_response *response)
+	struct ast_variable *headers, struct ast_json *body, struct ast_ari_response *response)
 {
 	struct ast_ari_bridges_play_args args = {};
 	struct ast_variable *i;
-	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -1185,21 +1098,6 @@ static void ast_ari_bridges_play_cb(
 			args.bridge_id = (i->value);
 		} else
 		{}
-	}
-	/* Look for a JSON request entity */
-	body = ast_http_get_json(ser, headers);
-	if (!body) {
-		switch (errno) {
-		case EFBIG:
-			ast_ari_response_error(response, 413, "Request Entity Too Large", "Request body too large");
-			goto fin;
-		case ENOMEM:
-			ast_ari_response_error(response, 500, "Internal Server Error", "Error processing request");
-			goto fin;
-		case EIO:
-			ast_ari_response_error(response, 400, "Bad Request", "Error parsing request body");
-			goto fin;
-		}
 	}
 	if (ast_ari_bridges_play_parse_body(body, &args)) {
 		ast_ari_response_alloc_failed(response);
@@ -1301,11 +1199,10 @@ int ast_ari_bridges_play_with_id_parse_body(
 static void ast_ari_bridges_play_with_id_cb(
 	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
-	struct ast_variable *headers, struct ast_ari_response *response)
+	struct ast_variable *headers, struct ast_json *body, struct ast_ari_response *response)
 {
 	struct ast_ari_bridges_play_with_id_args args = {};
 	struct ast_variable *i;
-	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -1374,21 +1271,6 @@ static void ast_ari_bridges_play_with_id_cb(
 			args.playback_id = (i->value);
 		} else
 		{}
-	}
-	/* Look for a JSON request entity */
-	body = ast_http_get_json(ser, headers);
-	if (!body) {
-		switch (errno) {
-		case EFBIG:
-			ast_ari_response_error(response, 413, "Request Entity Too Large", "Request body too large");
-			goto fin;
-		case ENOMEM:
-			ast_ari_response_error(response, 500, "Internal Server Error", "Error processing request");
-			goto fin;
-		case EIO:
-			ast_ari_response_error(response, 400, "Bad Request", "Error parsing request body");
-			goto fin;
-		}
 	}
 	if (ast_ari_bridges_play_with_id_parse_body(body, &args)) {
 		ast_ari_response_alloc_failed(response);
@@ -1477,11 +1359,10 @@ int ast_ari_bridges_record_parse_body(
 static void ast_ari_bridges_record_cb(
 	struct ast_tcptls_session_instance *ser,
 	struct ast_variable *get_params, struct ast_variable *path_vars,
-	struct ast_variable *headers, struct ast_ari_response *response)
+	struct ast_variable *headers, struct ast_json *body, struct ast_ari_response *response)
 {
 	struct ast_ari_bridges_record_args args = {};
 	struct ast_variable *i;
-	RAII_VAR(struct ast_json *, body, NULL, ast_json_unref);
 #if defined(AST_DEVMODE)
 	int is_valid;
 	int code;
@@ -1516,21 +1397,6 @@ static void ast_ari_bridges_record_cb(
 			args.bridge_id = (i->value);
 		} else
 		{}
-	}
-	/* Look for a JSON request entity */
-	body = ast_http_get_json(ser, headers);
-	if (!body) {
-		switch (errno) {
-		case EFBIG:
-			ast_ari_response_error(response, 413, "Request Entity Too Large", "Request body too large");
-			goto fin;
-		case ENOMEM:
-			ast_ari_response_error(response, 500, "Internal Server Error", "Error processing request");
-			goto fin;
-		case EIO:
-			ast_ari_response_error(response, 400, "Bad Request", "Error parsing request body");
-			goto fin;
-		}
 	}
 	if (ast_ari_bridges_record_parse_body(body, &args)) {
 		ast_ari_response_alloc_failed(response);
