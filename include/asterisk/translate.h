@@ -208,7 +208,7 @@ struct ast_translator {
  */
 struct ast_trans_pvt {
 	struct ast_translator *t;
-	struct ast_frame f;         /*!< used in frameout */
+	struct ast_frame f;         /*!< used in frameout.  This frame holds a f.subclass.format ref. */
 	int samples;                /*!< samples available in outbuf */
 	/*! \brief actual space used in outbuf */
 	int datalen;

@@ -114,7 +114,11 @@ struct ast_filestream {
 	int lasttimeout;
 	struct ast_channel *owner;
 	FILE *f;
-	struct ast_frame fr;	/*!< frame produced by read, typically */
+	/*!
+	 * \brief frame produced by read, typically
+	 * \note This frame holds a fr.subclass.format ref.
+	 */
+	struct ast_frame fr;
 	char *buf;		/*!< buffer pointed to by ast_frame; */
 	void *_private;	/*!< pointer to private buffer */
 	const char *orig_chan_name;
