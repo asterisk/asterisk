@@ -323,8 +323,11 @@ static int ip_identify_apply(const struct ast_sorcery *sorcery, void *obj)
 		} else if (results == -1) {
 			ast_log(LOG_ERROR, "An error occurred when adding resolution results of '%s' on '%s'\n",
 				current_string, ast_sorcery_object_get_id(obj));
+			ao2_ref(current_string, -1);
 			return -1;
 		}
+
+		ao2_ref(current_string, -1);
 	}
 
 	ao2_ref(identify->hosts, -1);
