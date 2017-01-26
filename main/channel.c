@@ -4889,16 +4889,18 @@ int ast_sendtext(struct ast_channel *chan, const char *text)
 	if (ast_channel_tech(chan)->write_text && (ast_format_cap_has_type(ast_channel_nativeformats(chan), AST_MEDIA_TYPE_TEXT))) {
 		struct ast_frame f;
 
+		memset(&f, 0, sizeof(f));
 		f.frametype = AST_FRAME_TEXT;
 		f.src = "DIALPLAN";
 		f.mallocd = AST_MALLOCD_DATA;
 		f.datalen = strlen(text);
 		f.data.ptr = ast_strdup(text);
-		f.offset = 0;
-		f.seqno = 0;
-
 		f.subclass.format = ast_format_t140;
-		res = ast_channel_tech(chan)->write_text(chan, &f);
+
+		if (f.data.ptr) {
+			res = ast_channel_tech(chan)->write_text(chan, &f);
+			ast_frfree(&f);
+		}
 	} else if (ast_channel_tech(chan)->send_text) {
 		res = ast_channel_tech(chan)->send_text(chan, text);
 	}
