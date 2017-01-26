@@ -230,6 +230,7 @@ struct dtls_details {
 /*! \brief RTP session description */
 struct ast_rtp {
 	int s;
+	/*! \note The f.subclass.format holds a ref. */
 	struct ast_frame f;
 	unsigned char rawdata[8192 + AST_FRIENDLY_OFFSET];
 	unsigned int ssrc;		/*!< Synchronization source, RFC 3550, page 10. */
@@ -2765,6 +2766,7 @@ static int ast_rtp_destroy(struct ast_rtp_instance *instance)
 	if (rtp->red) {
 		AST_SCHED_DEL(rtp->sched, rtp->red->schedid);
 		ast_free(rtp->red);
+		rtp->red = NULL;
 	}
 
 #ifdef HAVE_PJPROJECT
@@ -3485,7 +3487,8 @@ static int ast_rtp_raw_write(struct ast_rtp_instance *instance, struct ast_frame
 	return 0;
 }
 
-static struct ast_frame *red_t140_to_red(struct rtp_red *red) {
+static struct ast_frame *red_t140_to_red(struct rtp_red *red)
+{
 	unsigned char *data = red->t140red.data.ptr;
 	int len = 0;
 	int i;
@@ -5059,22 +5062,21 @@ static int rtp_red_init(struct ast_rtp_instance *instance, int buffer_time, int 
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
 	int x;
 
-	if (!(rtp->red = ast_calloc(1, sizeof(*rtp->red)))) {
+	rtp->red = ast_calloc(1, sizeof(*rtp->red));
+	if (!rtp->red) {
 		return -1;
 	}
 
 	rtp->red->t140.frametype = AST_FRAME_TEXT;
-	ao2_replace(rtp->red->t140.subclass.format, ast_format_t140_red);
+	rtp->red->t140.subclass.format = ast_format_t140_red;
 	rtp->red->t140.data.ptr = &rtp->red->buf_data;
 
-	rtp->red->t140.ts = 0;
 	rtp->red->t140red = rtp->red->t140;
 	rtp->red->t140red.data.ptr = &rtp->red->t140red_data;
-	rtp->red->t140red.datalen = 0;
+
 	rtp->red->ti = buffer_time;
 	rtp->red->num_gen = generations;
 	rtp->red->hdrlen = generations * 4 + 1;
-	rtp->red->prev_ts = 0;
 
 	for (x = 0; x < generations; x++) {
 		rtp->red->pt[x] = payloads[x];
@@ -5083,8 +5085,6 @@ static int rtp_red_init(struct ast_rtp_instance *instance, int buffer_time, int 
 	}
 	rtp->red->t140red_data[x*4] = rtp->red->pt[x] = payloads[x]; /* primary pt */
 	rtp->red->schedid = ast_sched_add(rtp->sched, generations, red_write, instance);
-
-	rtp->red->t140.datalen = 0;
 
 	return 0;
 }
