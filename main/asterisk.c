@@ -332,6 +332,7 @@ int ast_verb_sys_level;
 
 int option_verbose;				/*!< Verbosity level */
 int option_debug;				/*!< Debug level */
+int ast_pjproject_max_log_level = -1;/* Default to -1 to know if we have read the level from pjproject yet. */
 int ast_option_pjproject_log_level;
 double ast_option_maxload;			/*!< Max load avg on system */
 int ast_option_maxcalls;			/*!< Max number of active calls */
