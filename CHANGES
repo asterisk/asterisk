@@ -50,6 +50,14 @@ res_pjsip_endpoint_identifier_ip
    source IP addresses for requests. This is configurable using the
    "srv_lookups" option on the identify and defaults to "yes".
 
+ARI
+------------------
+ * The 'ari set debug' command has been enhanced to accept 'all' as an
+   application name.  This allows dumping of all apps even if an app
+   hasn't registered yet.
+
+ * 'ari set debug' now displays requests and responses as well as events.
+ 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.12.0 to Asterisk 13.13.0 ----------
 ------------------------------------------------------------------------------

@@ -23,6 +23,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/ari.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/http_websocket.h"
+#include "asterisk/stasis_app.h"
 #include "internal.h"
 
 /*! \file
@@ -139,6 +140,7 @@ struct ast_json *ast_ari_websocket_session_read(
 				ast_log(LOG_WARNING,
 					"WebSocket input failed to parse\n");
 			}
+
 			break;
 		default:
 			/* Ignore all other message types */
@@ -174,14 +176,18 @@ int ast_ari_websocket_session_write(struct ast_ari_websocket_session *session,
 		return -1;
 	}
 
-#ifdef AST_DEVMODE
-	ast_debug(3, "Examining ARI event (length %u): \n%s\n", (unsigned int) strlen(str), str);
-#endif
 	if (ast_websocket_write_string(session->ws_session, str)) {
-		ast_log(LOG_NOTICE, "Problem occurred during websocket write, websocket closed\n");
+		ast_log(LOG_NOTICE, "Problem occurred during websocket write to %s, websocket closed\n",
+			ast_sockaddr_stringify(ast_ari_websocket_session_get_remote_addr(session)));
 		return -1;
 	}
 	return 0;
+}
+
+struct ast_sockaddr *ast_ari_websocket_session_get_remote_addr(
+	struct ast_ari_websocket_session *session)
+{
+	return ast_websocket_remote_address(session->ws_session);
 }
 
 void ari_handle_websocket(struct ast_websocket_server *ws_server,

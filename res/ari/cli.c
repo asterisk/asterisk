@@ -28,6 +28,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/astobj2.h"
 #include "asterisk/cli.h"
+#include "asterisk/stasis_app.h"
 #include "internal.h"
 
 static char *ari_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -251,11 +252,185 @@ static char *ari_mkpasswd(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	return CLI_SUCCESS;
 }
 
+static char *ari_show_apps(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct ao2_container *apps;
+	struct ao2_iterator it_apps;
+	char *app;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "ari show apps";
+		e->usage =
+			"Usage: ari show apps\n"
+			"       Lists all registered applications.\n"
+			;
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	default:
+		break;
+	}
+
+	if (a->argc != 3) {
+		return CLI_SHOWUSAGE;
+	}
+
+	apps = stasis_app_get_all();
+	if (!apps) {
+		ast_cli(a->fd, "Unable to retrieve registered applications!\n");
+		return CLI_FAILURE;
+	}
+
+	ast_cli(a->fd, "Application Name         \n");
+	ast_cli(a->fd, "=========================\n");
+	it_apps = ao2_iterator_init(apps, 0);
+	while ((app = ao2_iterator_next(&it_apps))) {
+		ast_cli(a->fd, "%-25.25s\n", app);
+		ao2_ref(app, -1);
+	}
+
+	ao2_iterator_destroy(&it_apps);
+	ao2_ref(apps, -1);
+
+	return CLI_SUCCESS;
+}
+
+struct app_complete {
+	/*! Nth app to search for */
+	int state;
+	/*! Which app currently on */
+	int which;
+};
+
+static int complete_ari_app_search(void *obj, void *arg, void *data, int flags)
+{
+	struct app_complete *search = data;
+
+	if (++search->which > search->state) {
+		return CMP_MATCH;
+	}
+	return 0;
+}
+
+static char *complete_ari_app(struct ast_cli_args *a, int include_all)
+{
+	RAII_VAR(struct ao2_container *, apps, stasis_app_get_all(), ao2_cleanup);
+	RAII_VAR(char *, app, NULL, ao2_cleanup);
+
+	struct app_complete search = {
+		.state = a->n,
+	};
+
+	if (a->pos != 3) {
+		return NULL;
+	}
+
+	if (!apps) {
+		ast_cli(a->fd, "Error getting ARI applications\n");
+		return CLI_FAILURE;
+	}
+
+	if (include_all && ast_strlen_zero(a->word)) {
+		ast_str_container_add(apps, " all");
+	}
+
+	app = ao2_callback_data(apps,
+		ast_strlen_zero(a->word) ? 0 : OBJ_SEARCH_PARTIAL_KEY,
+		complete_ari_app_search, (char*)a->word, &search);
+
+	return app ? ast_strdup(app) : NULL;
+}
+
+static char *ari_show_app(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	void *app;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "ari show app";
+		e->usage =
+			"Usage: ari show app <application>\n"
+			"       Provide detailed information about a registered application.\n"
+			;
+		return NULL;
+	case CLI_GENERATE:
+		return complete_ari_app(a, 0);
+	default:
+		break;
+	}
+
+	if (a->argc != 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	app = stasis_app_get_by_name(a->argv[3]);
+	if (!app) {
+		return CLI_FAILURE;
+	}
+
+	stasis_app_to_cli(app, a);
+
+	ao2_ref(app, -1);
+
+	return CLI_SUCCESS;
+}
+
+static char *ari_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	void *app;
+	int debug;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "ari set debug";
+		e->usage =
+			"Usage: ari set debug <application|all> <on|off>\n"
+			"       Enable or disable debugging on a specific application.\n"
+			;
+		return NULL;
+	case CLI_GENERATE:
+		return complete_ari_app(a, 1);
+	default:
+		break;
+	}
+
+	if (a->argc != 5) {
+		return CLI_SHOWUSAGE;
+	}
+
+	debug = !strcmp(a->argv[4], "on");
+
+	if (!strcmp(a->argv[3], "all")) {
+		stasis_app_set_global_debug(debug);
+		ast_cli(a->fd, "Debugging on all applications %s\n",
+			debug ? "enabled" : "disabled");
+		return CLI_SUCCESS;
+	}
+
+	app = stasis_app_get_by_name(a->argv[3]);
+	if (!app) {
+		return CLI_FAILURE;
+	}
+
+	stasis_app_set_debug(app, debug);
+	ast_cli(a->fd, "Debugging on '%s' %s\n",
+		stasis_app_name(app),
+		debug ? "enabled" : "disabled");
+
+	ao2_ref(app, -1);
+
+	return CLI_SUCCESS;
+}
+
 static struct ast_cli_entry cli_ari[] = {
 	AST_CLI_DEFINE(ari_show, "Show ARI settings"),
 	AST_CLI_DEFINE(ari_show_users, "List ARI users"),
 	AST_CLI_DEFINE(ari_show_user, "List single ARI user"),
 	AST_CLI_DEFINE(ari_mkpasswd, "Encrypts a password"),
+	AST_CLI_DEFINE(ari_show_apps, "List registered ARI applications"),
+	AST_CLI_DEFINE(ari_show_app, "Display details of a registered ARI application"),
+	AST_CLI_DEFINE(ari_set_debug, "Enable/disable debugging of an ARI application"),
 };
 
 int ast_ari_cli_register(void) {

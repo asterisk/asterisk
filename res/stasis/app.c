@@ -43,6 +43,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define CHANNEL_ALL "__AST_CHANNEL_ALL_TOPIC"
 #define ENDPOINT_ALL "__AST_ENDPOINT_ALL_TOPIC"
 
+/*! Global debug flag.  No need for locking */
+int global_debug;
+
 static int unsubscribe(struct stasis_app *app, const char *kind, const char *id, int terminate);
 
 struct stasis_app {
@@ -843,15 +846,64 @@ static void bridge_default_handler(void *data, struct stasis_subscription *sub,
 	}
 }
 
-void app_set_debug(struct stasis_app *app, int debug)
+void stasis_app_set_debug(struct stasis_app *app, int debug)
 {
 	if (!app) {
 		return;
 	}
 
-	{
-		SCOPED_AO2LOCK(lock, app);
-		app->debug = debug;
+	app->debug = debug;
+}
+
+void stasis_app_set_debug_by_name(const char *app_name, int debug)
+{
+	struct stasis_app *app = stasis_app_get_by_name(app_name);
+
+	if (!app) {
+		return;
+	}
+
+	app->debug = debug;
+	ao2_cleanup(app);
+}
+
+int stasis_app_get_debug(struct stasis_app *app)
+{
+	return (app ? app->debug : 0) || global_debug;
+}
+
+int stasis_app_get_debug_by_name(const char *app_name)
+{
+	RAII_VAR(struct stasis_app *, app, stasis_app_get_by_name(app_name), ao2_cleanup);
+
+	return (app ? app->debug : 0) || global_debug;
+}
+
+void stasis_app_set_global_debug(int debug)
+{
+	global_debug = debug;
+	if (!global_debug) {
+		struct ao2_container *app_names = stasis_app_get_all();
+		struct ao2_iterator it_app_names;
+		char *app_name;
+		struct stasis_app *app;
+
+		if (!app_names || !ao2_container_count(app_names)) {
+			ao2_cleanup(app_names);
+			return;
+		}
+
+		it_app_names = ao2_iterator_init(app_names, 0);
+		while ((app_name = ao2_iterator_next(&it_app_names))) {
+			if ((app = stasis_app_get_by_name(app_name))) {
+				stasis_app_set_debug(app, 0);
+			}
+
+			ao2_cleanup(app_name);
+			ao2_cleanup(app);
+		}
+		ao2_iterator_cleanup(&it_app_names);
+		ao2_cleanup(app_names);
 	}
 }
 
@@ -952,7 +1004,6 @@ struct stasis_topic *ast_app_get_topic(struct stasis_app *app)
 void app_send(struct stasis_app *app, struct ast_json *message)
 {
 	stasis_app_cb handler;
-	int debug;
 	char eid[20];
 	RAII_VAR(void *, data, NULL, ao2_cleanup);
 
@@ -965,20 +1016,12 @@ void app_send(struct stasis_app *app, struct ast_json *message)
 	/* Copy off mutable state with lock held */
 	{
 		SCOPED_AO2LOCK(lock, app);
-		debug = app->debug;
 		handler = app->handler;
 		if (app->data) {
 			ao2_ref(app->data, +1);
 			data = app->data;
 		}
 		/* Name is immutable; no need to copy */
-	}
-
-	if (debug) {
-		char *dump = ast_json_dump_string_format(message, AST_JSON_PRETTY);
-		ast_verb(0, "Dispatching message to Stasis app '%s':\n%s\n",
-			app->name, dump);
-		ast_json_free(dump);
 	}
 
 	if (!handler) {
@@ -1053,7 +1096,7 @@ void app_update(struct stasis_app *app, stasis_app_cb handler, void *data)
 	app->data = data;
 }
 
-const char *app_name(const struct stasis_app *app)
+const char *stasis_app_name(const struct stasis_app *app)
 {
 	return app->name;
 }
@@ -1070,7 +1113,7 @@ static int forwards_filter_by_type(void *obj, void *arg, int flags)
 	return 0;
 }
 
-void app_to_cli(const struct stasis_app *app, struct ast_cli_args *a)
+void stasis_app_to_cli(const struct stasis_app *app, struct ast_cli_args *a)
 {
 	struct ao2_iterator *channels;
 	struct ao2_iterator *endpoints;
