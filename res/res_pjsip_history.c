@@ -159,6 +159,9 @@ struct expression_token {
 	char field[];
 };
 
+/*! \brief Log level for history output */
+static int log_level = -1;
+
 /*!
  * \brief Operator callback for determining equality
  */
@@ -646,6 +649,41 @@ static struct pjsip_history_entry *pjsip_history_entry_alloc(pjsip_msg *msg)
 	return entry;
 }
 
+/*! \brief Format single line history entry */
+static void sprint_list_entry(struct pjsip_history_entry *entry, char *line, int len)
+{
+	char addr[64];
+
+	if (entry->transmitted) {
+		pj_sockaddr_print(&entry->dst, addr, sizeof(addr), 3);
+	} else {
+		pj_sockaddr_print(&entry->src, addr, sizeof(addr), 3);
+	}
+
+	if (entry->msg->type == PJSIP_REQUEST_MSG) {
+		char uri[128];
+
+		pjsip_uri_print(PJSIP_URI_IN_REQ_URI, entry->msg->line.req.uri, uri, sizeof(uri));
+		snprintf(line, len, "%-5.5d %-10.10ld %-5.5s %-24.24s %.*s %s SIP/2.0",
+			entry->number,
+			entry->timestamp.tv_sec,
+			entry->transmitted ? "* ==>" : "* <==",
+			addr,
+			(int)pj_strlen(&entry->msg->line.req.method.name),
+			pj_strbuf(&entry->msg->line.req.method.name),
+			uri);
+	} else {
+		snprintf(line, len, "%-5.5d %-10.10ld %-5.5s %-24.24s SIP/2.0 %u %.*s",
+			entry->number,
+			entry->timestamp.tv_sec,
+			entry->transmitted ? "* ==>" : "* <==",
+			addr,
+			entry->msg->line.status.code,
+			(int)pj_strlen(&entry->msg->line.status.reason),
+			pj_strbuf(&entry->msg->line.status.reason));
+	}
+}
+
 /*! \brief PJSIP callback when a SIP message is transmitted */
 static pj_status_t history_on_tx_msg(pjsip_tx_data *tdata)
 {
@@ -666,6 +704,13 @@ static pj_status_t history_on_tx_msg(pjsip_tx_data *tdata)
 	ast_mutex_lock(&history_lock);
 	AST_VECTOR_APPEND(&vector_history, entry);
 	ast_mutex_unlock(&history_lock);
+
+	if (log_level != -1) {
+		char line[256];
+
+		sprint_list_entry(entry, line, sizeof(line));
+		ast_log_dynamic_level(log_level, "%s\n", line);
+	}
 
 	return PJ_SUCCESS;
 }
@@ -699,6 +744,13 @@ static pj_bool_t history_on_rx_msg(pjsip_rx_data *rdata)
 	ast_mutex_lock(&history_lock);
 	AST_VECTOR_APPEND(&vector_history, entry);
 	ast_mutex_unlock(&history_lock);
+
+	if (log_level != -1) {
+		char line[256];
+
+		sprint_list_entry(entry, line, sizeof(line));
+		ast_log_dynamic_level(log_level, "%s\n", line);
+	}
 
 	return PJ_FALSE;
 }
@@ -1120,38 +1172,12 @@ static void display_entry_list(struct ast_cli_args *a, struct vector_history_t *
 
 	for (i = 0; i < AST_VECTOR_SIZE(vec); i++) {
 		struct pjsip_history_entry *entry;
-		char addr[64];
 		char line[256];
 
 		entry = AST_VECTOR_GET(vec, i);
+		sprint_list_entry(entry, line, sizeof(line));
 
-		if (entry->transmitted) {
-			pj_sockaddr_print(&entry->dst, addr, sizeof(addr), 3);
-		} else {
-			pj_sockaddr_print(&entry->src, addr, sizeof(addr), 3);
-		}
-
-		if (entry->msg->type == PJSIP_REQUEST_MSG) {
-			char uri[128];
-
-			pjsip_uri_print(PJSIP_URI_IN_REQ_URI, entry->msg->line.req.uri, uri, sizeof(uri));
-			snprintf(line, sizeof(line), "%.*s %s SIP/2.0",
-				(int)pj_strlen(&entry->msg->line.req.method.name),
-				pj_strbuf(&entry->msg->line.req.method.name),
-				uri);
-		} else {
-			snprintf(line, sizeof(line), "SIP/2.0 %u %.*s",
-				entry->msg->line.status.code,
-				(int)pj_strlen(&entry->msg->line.status.reason),
-				pj_strbuf(&entry->msg->line.status.reason));
-		}
-
-		ast_cli(a->fd, "%-5.5d %-10.10ld %-5.5s %-24.24s %s\n",
-			entry->number,
-			entry->timestamp.tv_sec,
-			entry->transmitted ? "* ==>" : "* <==",
-			addr,
-			line);
+		ast_cli(a->fd, "%s\n", line);
 	}
 }
 
@@ -1321,6 +1347,11 @@ static int load_module(void)
 {
 	CHECK_PJSIP_MODULE_LOADED();
 
+	log_level = ast_logger_register_level("PJSIP_HISTORY");
+	if (log_level < 0) {
+		ast_log(LOG_WARNING, "Unable to register history log level\n");
+	}
+
 	pj_caching_pool_init(&cachingpool, &pj_pool_factory_default_policy, 0);
 
 	AST_VECTOR_INIT(&vector_history, HISTORY_INITIAL_SIZE);
@@ -1340,6 +1371,10 @@ static int unload_module(void)
 	AST_VECTOR_FREE(&vector_history);
 
 	pj_caching_pool_destroy(&cachingpool);
+
+	if (log_level != -1) {
+		ast_logger_unregister_level("PJSIP_HISTORY");
+	}
 
 	return 0;
 }
