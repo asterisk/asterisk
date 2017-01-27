@@ -57,6 +57,9 @@ pp_dereverb => false
 pp_dereverb_decay => 0.4
 pp_dereverb_level => 0.3
 
+; experimental bitrate changes depending on RTCP feedback [true / false]
+experimental_rtcp_feedback => false
+
 
 [plc]
 ; for all codecs which do not support native PLC
