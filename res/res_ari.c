@@ -147,6 +147,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj2.h"
 #include "asterisk/module.h"
 #include "asterisk/paths.h"
+#include "asterisk/stasis_app.h"
 
 #include <string.h>
 #include <sys/stat.h>
@@ -490,7 +491,7 @@ static void handle_options(struct stasis_rest_handlers *handler,
 void ast_ari_invoke(struct ast_tcptls_session_instance *ser,
 	const char *uri, enum ast_http_method method,
 	struct ast_variable *get_params, struct ast_variable *headers,
-	struct ast_ari_response *response)
+	struct ast_json *body, struct ast_ari_response *response)
 {
 	RAII_VAR(struct stasis_rest_handlers *, root, NULL, ao2_cleanup);
 	struct stasis_rest_handlers *handler;
@@ -505,8 +506,10 @@ void ast_ari_invoke(struct ast_tcptls_session_instance *ser,
 	while ((path_segment = strsep(&path, "/")) && (strlen(path_segment) > 0)) {
 		struct stasis_rest_handlers *found_handler = NULL;
 		int i;
+
 		ast_uri_decode(path_segment, ast_uri_http_legacy);
 		ast_debug(3, "Finding handler for %s\n", path_segment);
+
 		for (i = 0; found_handler == NULL && i < handler->num_children; ++i) {
 			struct stasis_rest_handlers *child = handler->children[i];
 
@@ -568,7 +571,7 @@ void ast_ari_invoke(struct ast_tcptls_session_instance *ser,
 		return;
 	}
 
-	callback(ser, get_params, path_vars, headers, response);
+	callback(ser, get_params, path_vars, headers, body, response);
 	if (response->message == NULL && response->response_code == 0) {
 		/* Really should not happen */
 		ast_log(LOG_ERROR, "ARI %s %s not implemented\n",
@@ -878,6 +881,10 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 	RAII_VAR(struct ast_ari_conf_user *, user, NULL, ao2_cleanup);
 	struct ast_ari_response response = {};
 	RAII_VAR(struct ast_variable *, post_vars, NULL, ast_variables_destroy);
+	struct ast_variable *var;
+	const char *app_name = NULL;
+	RAII_VAR(struct ast_json *, body, ast_json_null(), ast_json_free);
+	int debug_app = 0;
 
 	if (!response_body) {
 		ast_http_request_close_on_completion(ser);
@@ -925,6 +932,25 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 				"Bad Request", "Error parsing request body");
 			goto request_failed;
 		}
+
+		/* Look for a JSON request entity only if there were no post_vars.
+		 * If there were post_vars, then the request body would already have
+		 * been consumed and can not be read again.
+		 */
+		body = ast_http_get_json(ser, headers);
+		if (!body) {
+			switch (errno) {
+			case EFBIG:
+				ast_ari_response_error(&response, 413, "Request Entity Too Large", "Request body too large");
+				goto request_failed;
+			case ENOMEM:
+				ast_ari_response_error(&response, 500, "Internal Server Error", "Error processing request");
+				goto request_failed;
+			case EIO:
+				ast_ari_response_error(&response, 400, "Bad Request", "Error parsing request body");
+				goto request_failed;
+			}
+		}
 	}
 	if (get_params == NULL) {
 		get_params = post_vars;
@@ -939,6 +965,41 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 		 */
 		last_var->next = ast_variables_dup(get_params);
 		get_params = post_vars;
+	}
+
+	/* At this point, get_params will contain post_vars (if any) */
+	app_name = ast_variable_find_in_list(get_params, "app");
+	if (!app_name) {
+		struct ast_json *app = ast_json_object_get(body, "app");
+
+		app_name = (app ? ast_json_string_get(app) : NULL);
+	}
+
+	/* stasis_app_get_debug_by_name returns an "||" of the app's debug flag
+	 * and the global debug flag.
+	 */
+	debug_app = stasis_app_get_debug_by_name(app_name);
+	if (debug_app) {
+		struct ast_str *buf = ast_str_create(512);
+		char *str = ast_json_dump_string_format(body, ast_ari_json_format());
+
+		if (!buf) {
+			ast_http_request_close_on_completion(ser);
+			ast_http_error(ser, 500, "Server Error", "Out of memory");
+			goto request_failed;
+		}
+
+		ast_str_append(&buf, 0, "<--- ARI request received from: %s --->\n",
+			ast_sockaddr_stringify(&ser->remote_address));
+		for (var = headers; var; var = var->next) {
+			ast_str_append(&buf, 0, "%s: %s\n", var->name, var->value);
+		}
+		for (var = get_params; var; var = var->next) {
+			ast_str_append(&buf, 0, "%s: %s\n", var->name, var->value);
+		}
+		ast_verbose("%sbody:\n%s\n\n", ast_str_buffer(buf), str);
+		ast_json_free(str);
+		ast_free(buf);
 	}
 
 	user = authenticate_user(get_params, headers);
@@ -979,7 +1040,7 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 		}
 	} else {
 		/* Other RESTful resources */
-		ast_ari_invoke(ser, uri, method, get_params, headers,
+		ast_ari_invoke(ser, uri, method, get_params, headers, body,
 			&response);
 	}
 
@@ -991,6 +1052,7 @@ static int ast_ari_callback(struct ast_tcptls_session_instance *ser,
 	}
 
 request_failed:
+
 	/* If you explicitly want to have no content, set message to
 	 * ast_json_null().
 	 */
@@ -1013,8 +1075,13 @@ request_failed:
 		}
 	}
 
-	ast_debug(3, "Examining ARI response:\n%d %s\n%s\n%s\n", response.response_code,
-		response.response_text, ast_str_buffer(response.headers), ast_str_buffer(response_body));
+	if (debug_app) {
+		ast_verbose("<--- Sending ARI response to %s --->\n%d %s\n%s%s\n\n",
+			ast_sockaddr_stringify(&ser->remote_address), response.response_code,
+			response.response_text, ast_str_buffer(response.headers),
+			ast_str_buffer(response_body));
+	}
+
 	ast_http_send(ser, method, response.response_code,
 		      response.response_text, response.headers, response_body,
 		      0, 0);
