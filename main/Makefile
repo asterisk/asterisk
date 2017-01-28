@@ -205,7 +205,7 @@ ASTSSL_LDLIBS=-L. -lasteriskssl
 ifeq ($(findstring darwin,$(OSARCH)),) # not Darwin
 ASTSSL_LIB:=libasteriskssl.so
 
-$(ASTSSL_LIB).$(ASTSSL_SO_VERSION): _ASTLDFLAGS+=-Wl,-soname=$(ASTSSL_LIB)
+$(ASTSSL_LIB).$(ASTSSL_SO_VERSION): _ASTLDFLAGS+=-Wl,-soname=$(ASTSSL_LIB).$(ASTSSL_SO_VERSION)
 $(ASTSSL_LIB).$(ASTSSL_SO_VERSION): _ASTCFLAGS+=-fPIC -DAST_MODULE=\"asteriskssl\" -DAST_NOT_MODULE
 $(ASTSSL_LIB).$(ASTSSL_SO_VERSION): LIBS+=$(ASTSSL_LIBS)
 ifeq ($(GNU_LD),1)
@@ -285,7 +285,7 @@ ifeq ($(GNU_LD),1)
 	$(CMD_PREFIX) echo -e "local:\n*;\n};" >> libasteriskpj.exports
 endif
 
-$(ASTPJ_LIB).$(ASTPJ_SO_VERSION): _ASTLDFLAGS+=-Wl,-soname=$(ASTPJ_LIB) $(PJ_LDFLAGS)
+$(ASTPJ_LIB).$(ASTPJ_SO_VERSION): _ASTLDFLAGS+=-Wl,-soname=$(ASTPJ_LIB).$(ASTPJ_SO_VERSION) $(PJ_LDFLAGS)
 $(ASTPJ_LIB).$(ASTPJ_SO_VERSION): _ASTCFLAGS+=-fPIC -DAST_MODULE=\"asteriskpj\" -DAST_NOT_MODULE $(PJ_CFLAGS)
 $(ASTPJ_LIB).$(ASTPJ_SO_VERSION): LIBS+=$(PJPROJECT_LDLIBS) -lssl -lcrypto -luuid -lm -lpthread $(RT_LIB)
 ifeq ($(GNU_LD),1)
