@@ -36,6 +36,7 @@
 #include "asterisk/format.h"
 #include "asterisk/format_cache.h"
 #include "asterisk/frame.h"
+#include "asterisk/smoother.h"
 
 int __ast_codec_register_with_format(struct ast_codec *codec, const char *format_name,
 	struct ast_module *mod);
@@ -288,6 +289,7 @@ static struct ast_codec slin8 = {
 	.samples_count = slin_samples,
 	.get_length = slin_length,
 	.smooth = 1,
+	.smoother_flags = AST_SMOOTHER_FLAG_BE | AST_SMOOTHER_FLAG_FORCED,
 };
 
 static struct ast_codec slin12 = {
@@ -302,6 +304,7 @@ static struct ast_codec slin12 = {
 	.samples_count = slin_samples,
 	.get_length = slin_length,
 	.smooth = 1,
+	.smoother_flags = AST_SMOOTHER_FLAG_BE | AST_SMOOTHER_FLAG_FORCED,
 };
 
 static struct ast_codec slin16 = {
@@ -316,6 +319,7 @@ static struct ast_codec slin16 = {
 	.samples_count = slin_samples,
 	.get_length = slin_length,
 	.smooth = 1,
+	.smoother_flags = AST_SMOOTHER_FLAG_BE | AST_SMOOTHER_FLAG_FORCED,
 };
 
 static struct ast_codec slin24 = {
@@ -330,6 +334,7 @@ static struct ast_codec slin24 = {
 	.samples_count = slin_samples,
 	.get_length = slin_length,
 	.smooth = 1,
+	.smoother_flags = AST_SMOOTHER_FLAG_BE | AST_SMOOTHER_FLAG_FORCED,
 };
 
 static struct ast_codec slin32 = {
@@ -344,6 +349,7 @@ static struct ast_codec slin32 = {
 	.samples_count = slin_samples,
 	.get_length = slin_length,
 	.smooth = 1,
+	.smoother_flags = AST_SMOOTHER_FLAG_BE | AST_SMOOTHER_FLAG_FORCED,
 };
 
 static struct ast_codec slin44 = {
@@ -358,6 +364,7 @@ static struct ast_codec slin44 = {
 	.samples_count = slin_samples,
 	.get_length = slin_length,
 	.smooth = 1,
+	.smoother_flags = AST_SMOOTHER_FLAG_BE | AST_SMOOTHER_FLAG_FORCED,
 };
 
 static struct ast_codec slin48 = {
@@ -372,6 +379,7 @@ static struct ast_codec slin48 = {
 	.samples_count = slin_samples,
 	.get_length = slin_length,
 	.smooth = 1,
+	.smoother_flags = AST_SMOOTHER_FLAG_BE | AST_SMOOTHER_FLAG_FORCED,
 };
 
 static struct ast_codec slin96 = {
@@ -386,6 +394,7 @@ static struct ast_codec slin96 = {
 	.samples_count = slin_samples,
 	.get_length = slin_length,
 	.smooth = 1,
+	.smoother_flags = AST_SMOOTHER_FLAG_BE | AST_SMOOTHER_FLAG_FORCED,
 };
 
 static struct ast_codec slin192 = {
@@ -400,6 +409,7 @@ static struct ast_codec slin192 = {
 	.samples_count = slin_samples,
 	.get_length = slin_length,
 	.smooth = 1,
+	.smoother_flags = AST_SMOOTHER_FLAG_BE | AST_SMOOTHER_FLAG_FORCED,
 };
 
 static int lpc10_samples(struct ast_frame *frame)
