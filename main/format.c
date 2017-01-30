@@ -380,6 +380,11 @@ int ast_format_can_be_smoothed(const struct ast_format *format)
 	return format->codec->smooth;
 }
 
+int ast_format_get_smoother_flags(const struct ast_format *format)
+{
+	return AST_UNPACK_SMOOTHER_FLAGS(format->codec->smooth);
+}
+
 enum ast_media_type ast_format_get_type(const struct ast_format *format)
 {
 	return format->codec->type;
