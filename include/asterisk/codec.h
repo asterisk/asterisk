@@ -74,7 +74,9 @@ struct ast_codec {
 	 */
 	int (*get_length)(unsigned int samples);
 	/*! \brief Whether the media can be smoothed or not */
-	unsigned int smooth;
+	unsigned int smooth:1;
+	/*! \brief Flags for the smoother */
+	unsigned int smoother_flags:3;
 	/*! \brief The module that registered this codec */
 	struct ast_module *mod;
 };
