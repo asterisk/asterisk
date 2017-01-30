@@ -9033,33 +9033,22 @@ static void reload_single_queue(struct ast_config *cfg, struct ast_flags *mask, 
 	queue_t_unref(q, "Expiring creation reference");
 }
 
-static int remove_members_and_mark_unfound(void *obj, void *arg, int flags)
+static int mark_unfound(void *obj, void *arg, int flags)
 {
 	struct call_queue *q = obj;
 	char *queuename = arg;
 	if (!q->realtime && (ast_strlen_zero(queuename) || !strcasecmp(queuename, q->name))) {
 		q->found = 0;
-
 	}
 	return 0;
 }
 
-static int mark_dead_and_unfound(void *obj, void *arg, int flags)
+static int kill_if_unfound(void *obj, void *arg, int flags)
 {
 	struct call_queue *q = obj;
 	char *queuename = arg;
-	if (!q->realtime && (ast_strlen_zero(queuename) || !strcasecmp(queuename, q->name))) {
+	if (!q->realtime && !q->found && (ast_strlen_zero(queuename) || !strcasecmp(queuename, q->name))) {
 		q->dead = 1;
-		q->found = 0;
-	}
-	return 0;
-}
-
-static int kill_dead_queues(void *obj, void *arg, int flags)
-{
-	struct call_queue *q = obj;
-	char *queuename = arg;
-	if ((ast_strlen_zero(queuename) || !strcasecmp(queuename, q->name)) && q->dead) {
 		return CMP_MATCH;
 	} else {
 		return 0;
@@ -9084,7 +9073,6 @@ static int reload_queues(int reload, struct ast_flags *mask, const char *queuena
 	char *cat;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	const int queue_reload = ast_test_flag(mask, QUEUE_RELOAD_PARAMETERS);
-	const int member_reload = ast_test_flag(mask, QUEUE_RELOAD_MEMBER);
 
 	if (!(cfg = ast_config_load("queues.conf", config_flags))) {
 		ast_log(LOG_NOTICE, "No call queueing config file (queues.conf), so no call queues\n");
@@ -9099,18 +9087,10 @@ static int reload_queues(int reload, struct ast_flags *mask, const char *queuena
 	/* We've made it here, so it looks like we're doing operations on all queues. */
 	ao2_lock(queues);
 
-	/* Mark all queues as dead for the moment if we're reloading queues.
-	 * For clarity, we could just be reloading members, in which case we don't want to mess
-	 * with the other queue parameters at all*/
-	if (queue_reload) {
-		ao2_callback(queues, OBJ_NODATA | OBJ_NOLOCK, mark_dead_and_unfound, (char *) queuename);
-	}
+	/* Mark non-realtime queues not found at the beginning. */
+	ao2_callback(queues, OBJ_NODATA, mark_unfound, (char *) queuename);
 
-	if (member_reload) {
-		ao2_callback(queues, OBJ_NODATA, remove_members_and_mark_unfound, (char *) queuename);
-	}
-
-	/* Chug through config file */
+	/* Chug through config file. */
 	cat = NULL;
 	while ((cat = ast_category_browse(cfg, cat)) ) {
 		if (!strcasecmp(cat, "general") && queue_reload) {
@@ -9122,9 +9102,9 @@ static int reload_queues(int reload, struct ast_flags *mask, const char *queuena
 	}
 
 	ast_config_destroy(cfg);
-	/* Unref all the dead queues if we were reloading queues */
 	if (queue_reload) {
-		ao2_callback(queues, OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK | OBJ_NOLOCK, kill_dead_queues, (char *) queuename);
+		/* Unlink and mark dead all non-realtime queues that were not found in the configuration file. */
+		ao2_callback(queues, OBJ_NODATA | OBJ_MULTIPLE | OBJ_UNLINK | OBJ_NOLOCK, kill_if_unfound, (char *) queuename);
 	}
 	ao2_unlock(queues);
 	return 0;
