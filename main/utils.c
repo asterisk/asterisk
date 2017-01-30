@@ -1453,7 +1453,9 @@ int ast_careful_fwrite(FILE *f, int fd, const char *src, size_t len, int timeout
 
 		if (ferror(f) && errno != EINTR && errno != EAGAIN) {
 			/* fatal error from fwrite() */
-			if (!feof(f)) {
+			if (errno == EPIPE) {
+				ast_debug(1, "fwrite() failed due to reading end being closed: EPIPE\n");
+			} else if (!feof(f)) {
 				/* Don't spam the logs if it was just that the connection is closed. */
 				ast_log(LOG_ERROR, "fwrite() returned error: %s\n", strerror(errno));
 			}
@@ -1486,8 +1488,12 @@ int ast_careful_fwrite(FILE *f, int fd, const char *src, size_t len, int timeout
 			continue;
 		}
 		if (errno && !feof(f)) {
-			/* Don't spam the logs if it was just that the connection is closed. */
-			ast_log(LOG_ERROR, "fflush() returned error: %s\n", strerror(errno));
+			if (errno == EPIPE) {
+				ast_debug(1, "fflush() failed due to reading end being closed: EPIPE\n");
+			} else {
+				/* Don't spam the logs if it was just that the connection is closed. */
+				ast_log(LOG_ERROR, "fflush() returned error: %s\n", strerror(errno));
+			}
 		}
 		n = -1;
 		break;
