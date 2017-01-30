@@ -3668,6 +3668,10 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 			f = frame;
 		}
 		if (f->data.ptr) {
+			/* L16 is network byte order, slinear is not */
+			if (ast_format_cache_is_slinear(f->subclass.format)) {
+				ast_frame_byteswap_be(f);
+			}
 			ast_rtp_raw_write(instance, f, codec);
 		}
 		if (f != frame) {
