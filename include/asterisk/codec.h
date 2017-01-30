@@ -26,6 +26,9 @@
 #ifndef _AST_CODEC_H_
 #define _AST_CODEC_H_
 
+#define AST_PACK_SMOOTHER_FLAGS(x) ((x) << 1)
+#define AST_UNPACK_SMOOTHER_FLAGS(x) ((x) >> 1)
+
 /*! \brief Types of media */
 enum ast_media_type {
 	AST_MEDIA_TYPE_UNKNOWN = 0,
