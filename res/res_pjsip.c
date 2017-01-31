@@ -3534,6 +3534,7 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 	pj_status_t ret_val;
 	pjsip_endpoint *endpt = ast_sip_get_pjsip_endpoint();
 	pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
+	char errmsg[PJ_ERR_MSG_SIZE];
 
 	if (!cb && token) {
 		/* Silly.  Without a callback we cannot do anything with token. */
@@ -3595,14 +3596,20 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 	 */
 	ao2_ref(req_wrapper, +1);
 	ret_val = pjsip_endpt_send_request(endpt, tdata, -1, req_wrapper, endpt_send_request_cb);
-	if (ret_val != PJ_SUCCESS) {
-		char errmsg[PJ_ERR_MSG_SIZE];
+	if (req_wrapper->cb_called) {
+		pj_strerror(ret_val, errmsg, sizeof(errmsg));
+		ast_log(LOG_ERROR, "Error %d '%s' sending %.*s request to endpoint %s\n",
+			(int) ret_val, errmsg, (int) pj_strlen(&tdata->msg->line.req.method.name),
+			pj_strbuf(&tdata->msg->line.req.method.name),
+			endpoint ? ast_sorcery_object_get_id(endpoint) : "<unknown>");
 
 		/*
-		 * endpt_send_request_cb is not expected to ever be called
-		 * because the request didn't get far enough to attempt
-		 * sending.
+		 * If the callback has been invoked absorb any failure and turn it into a success
+		 * so the caller of this function does not try to perform any cleanup.
 		 */
+		ret_val = PJ_SUCCESS;
+	} else if (ret_val != PJ_SUCCESS) {
+		/* The callback was never invoked so we drop its reference */
 		ao2_ref(req_wrapper, -1);
 
 		/* Complain of failure to send the request. */
