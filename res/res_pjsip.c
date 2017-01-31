@@ -3598,13 +3598,6 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 	if (ret_val != PJ_SUCCESS) {
 		char errmsg[PJ_ERR_MSG_SIZE];
 
-		/*
-		 * endpt_send_request_cb is not expected to ever be called
-		 * because the request didn't get far enough to attempt
-		 * sending.
-		 */
-		ao2_ref(req_wrapper, -1);
-
 		/* Complain of failure to send the request. */
 		pj_strerror(ret_val, errmsg, sizeof(errmsg));
 		ast_log(LOG_ERROR, "Error %d '%s' sending %.*s request to endpoint %s\n",
@@ -3640,6 +3633,12 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 				req_wrapper->cb_called = 1;
 			}
 			ao2_unlock(req_wrapper);
+		} else if (!req_wrapper->cb_called) {
+			/* The callback was never invoked */
+			ao2_ref(req_wrapper, -1);
+		} else {
+			/* Callback was called so cannot return failure */
+			ret_val = PJ_SUCCESS;
 		}
 	}
 
