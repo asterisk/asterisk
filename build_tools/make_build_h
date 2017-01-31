@@ -1,13 +1,13 @@
 #!/bin/sh
-HOSTNAME=`uname -n`
-KERNEL=`uname -r`
-MACHINE=`uname -m`
+HOSTNAME=`uname -n | sed 's/\\\\/\\\\\\\\/g'`
+KERNEL=`uname -r   | sed 's/\\\\/\\\\\\\\/g'`
+MACHINE=`uname -m  | sed 's/\\\\/\\\\\\\\/g'`
 OS=`uname -s`
-USER=`id | awk -F")" '{print $1}'| awk -F"(" '{print $2}'`
+USER=`id | awk -F")" '{print $1}'| awk -F"(" '{print $2}' | sed 's/\\\\/\\\\\\\\/g'`
 DATE=`date -u "+%Y-%m-%d %H:%M:%S"`
 cat << END
 /*
- * build.h 
+ * build.h
  * Automatically generated
  */
 #define BUILD_HOSTNAME "${HOSTNAME}"
