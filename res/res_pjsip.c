@@ -3402,6 +3402,8 @@ struct send_request_wrapper {
 	void (*callback)(void *token, pjsip_event *e);
 	/*! Non-zero when the callback is called. */
 	unsigned int cb_called;
+	/*! Non-zero if endpt_send_request_cb() was called. */
+	unsigned int send_cb_called;
 	/*! Timeout timer. */
 	pj_timer_entry *timeout_timer;
 	/*! Original timeout. */
@@ -3418,6 +3420,12 @@ static void endpt_send_request_cb(void *token, pjsip_event *e)
 {
 	struct send_request_wrapper *req_wrapper = token;
 	unsigned int cb_called;
+
+	/*
+	 * Needed because we cannot otherwise tell if this callback was
+	 * called when pjsip_endpt_send_request() returns error.
+	 */
+	req_wrapper->send_cb_called = 1;
 
 	if (e->body.tsx_state.type == PJSIP_EVENT_TIMER) {
 		ast_debug(2, "%p: PJSIP tsx timer expired\n", req_wrapper);
@@ -3602,12 +3610,10 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 	if (ret_val != PJ_SUCCESS) {
 		char errmsg[PJ_ERR_MSG_SIZE];
 
-		/*
-		 * endpt_send_request_cb is not expected to ever be called
-		 * because the request didn't get far enough to attempt
-		 * sending.
-		 */
-		ao2_ref(req_wrapper, -1);
+		if (!req_wrapper->send_cb_called) {
+			/* endpt_send_request_cb is not expected to ever be called now. */
+			ao2_ref(req_wrapper, -1);
+		}
 
 		/* Complain of failure to send the request. */
 		pj_strerror(ret_val, errmsg, sizeof(errmsg));
@@ -3644,6 +3650,13 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 				req_wrapper->cb_called = 1;
 			}
 			ao2_unlock(req_wrapper);
+		} else if (req_wrapper->cb_called) {
+			/*
+			 * We cannot report any error.  The callback has
+			 * already freed any resources associated with
+			 * token.
+			 */
+			ret_val = PJ_SUCCESS;
 		}
 	}
 
