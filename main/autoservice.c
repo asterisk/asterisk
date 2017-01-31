@@ -61,6 +61,10 @@ struct asent {
 	unsigned int use_count;
 	unsigned int orig_end_dtmf_flag:1;
 	unsigned int ignore_frame_types;
+	/*! Frames go on at the head of deferred_frames, so we have the frames
+	 *  from newest to oldest.  As we put them at the head of the readq, we'll
+	 *  end up with them in the right order for the channel's readq. */
+	AST_LIST_HEAD_NOLOCK(, ast_frame) deferred_frames;
 	AST_LIST_ENTRY(asent) list;
 };
 
@@ -75,13 +79,19 @@ static int as_chan_list_state;
 static void *autoservice_run(void *ign)
 {
 	struct ast_callid *callid = NULL;
+	struct ast_frame hangup_frame = {
+		.frametype = AST_FRAME_CONTROL,
+		.subclass.integer = AST_CONTROL_HANGUP,
+	};
 
 	while (!asexit) {
 		struct ast_channel *mons[MAX_AUTOMONS];
+		struct asent *ents[MAX_AUTOMONS];
 		struct ast_channel *chan;
 		struct asent *as;
-		int x = 0, ms = 50;
+		int i, x = 0, ms = 50;
 		struct ast_frame *f = NULL;
+		struct ast_frame *defer_frame = NULL;
 
 		AST_LIST_LOCK(&aslist);
 
@@ -96,6 +106,7 @@ static void *autoservice_run(void *ign)
 		AST_LIST_TRAVERSE(&aslist, as, list) {
 			if (!ast_check_hangup(as->chan)) {
 				if (x < MAX_AUTOMONS) {
+					ents[x] = as;
 					mons[x++] = as->chan;
 				} else {
 					ast_log(LOG_WARNING, "Exceeded maximum number of automatic monitoring events.  Fix autoservice.c\n");
@@ -126,9 +137,51 @@ static void *autoservice_run(void *ign)
 		}
 
 		f = ast_read(chan);
-		if (f) {
+
+		if (!f) {
+			/* No frame means the channel has been hung up.
+			 * A hangup frame needs to be queued here as ast_waitfor() may
+			 * never return again for the condition to be detected outside
+			 * of autoservice.  So, we'll leave a HANGUP queued up so the
+			 * thread in charge of this channel will know. */
+
+			defer_frame = &hangup_frame;
+		} else if (ast_is_deferrable_frame(f)) {
+			defer_frame = f;
+		} else {
+			/* Can't defer. Discard and continue with next. */
 			ast_frfree(f);
+			continue;
 		}
+
+		for (i = 0; i < x; i++) {
+			struct ast_frame *dup_f;
+
+			if (mons[i] != chan) {
+				continue;
+			}
+
+			if (!f) { /* defer_frame == &hangup_frame */
+				if ((dup_f = ast_frdup(defer_frame))) {
+					AST_LIST_INSERT_HEAD(&ents[i]->deferred_frames, dup_f, frame_list);
+				}
+			} else {
+				if ((dup_f = ast_frisolate(defer_frame))) {
+					AST_LIST_INSERT_HEAD(&ents[i]->deferred_frames, dup_f, frame_list);
+				}
+				if (dup_f != defer_frame) {
+					ast_frfree(defer_frame);
+				}
+			}
+
+			break;
+		}
+		/* The ast_waitfor_n() call will only read frames from
+		 * the channels' file descriptors. If ast_waitfor_n()
+		 * returns non-NULL, then one of the channels in the
+		 * mons array must have triggered the return. It's
+		 * therefore impossible that we got here while (i >= x).
+		 * If we did, we'd need to ast_frfree(f) if (f). */
 	}
 
 	ast_callid_threadassoc_change(NULL);
@@ -167,7 +220,6 @@ int ast_autoservice_start(struct ast_channel *chan)
 	as->orig_end_dtmf_flag = ast_test_flag(ast_channel_flags(chan), AST_FLAG_END_DTMF_ONLY) ? 1 : 0;
 	if (!as->orig_end_dtmf_flag)
 		ast_set_flag(ast_channel_flags(chan), AST_FLAG_END_DTMF_ONLY);
-	ast_channel_start_defer_frames(chan, 1);
 	ast_channel_unlock(chan);
 
 	AST_LIST_LOCK(&aslist);
@@ -201,6 +253,7 @@ int ast_autoservice_stop(struct ast_channel *chan)
 {
 	int res = -1;
 	struct asent *as, *removed = NULL;
+	struct ast_frame *f;
 	int chan_list_state;
 
 	AST_LIST_LOCK(&aslist);
@@ -252,7 +305,12 @@ int ast_autoservice_stop(struct ast_channel *chan)
 	}
 
 	ast_channel_lock(chan);
-	ast_channel_stop_defer_frames(chan);
+	while ((f = AST_LIST_REMOVE_HEAD(&as->deferred_frames, frame_list))) {
+		if (!((1 << f->frametype) & as->ignore_frame_types)) {
+			ast_queue_frame_head(chan, f);
+		}
+		ast_frfree(f);
+	}
 	ast_channel_unlock(chan);
 
 	free(as);
