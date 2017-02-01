@@ -502,6 +502,7 @@ static int send_unsolicited_mwi_notify_to_contact(void *obj, void *arg, int flag
 	body.subtype = MWI_SUBTYPE;
 	body_text = ast_str_create(64);
 	if (!body_text) {
+		pjsip_tx_data_dec_ref(tdata);
 		return 0;
 	}
 
@@ -517,6 +518,7 @@ static int send_unsolicited_mwi_notify_to_contact(void *obj, void *arg, int flag
 	if (ast_sip_pubsub_generate_body_content(body.type, body.subtype, &body_data, &body_text)) {
 		ast_log(LOG_WARNING, "Unable to generate SIP MWI NOTIFY body.\n");
 		ast_free(body_text);
+		pjsip_tx_data_dec_ref(tdata);
 		return 0;
 	}
 

@@ -3545,6 +3545,7 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 
 	if (!cb && token) {
 		/* Silly.  Without a callback we cannot do anything with token. */
+		pjsip_tx_data_dec_ref(tdata);
 		return PJ_EINVAL;
 	}
 
