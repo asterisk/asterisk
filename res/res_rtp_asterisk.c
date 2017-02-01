@@ -3632,6 +3632,11 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 	/* If no smoother is present see if we have to set one up */
 	if (!rtp->smoother && ast_format_can_be_smoothed(format)) {
 		unsigned int framing_ms = ast_rtp_codecs_get_framing(ast_rtp_instance_get_codecs(instance));
+		int is_slinear = ast_format_cache_is_slinear(format);
+
+		if (!framing_ms && is_slinear) {
+			framing_ms = ast_format_get_default_ms(format);
+		}
 
 		if (framing_ms) {
 			rtp->smoother = ast_smoother_new((framing_ms * ast_format_get_minimum_bytes(format)) / ast_format_get_minimum_ms(format));
@@ -3639,6 +3644,9 @@ static int ast_rtp_write(struct ast_rtp_instance *instance, struct ast_frame *fr
 				ast_log(LOG_WARNING, "Unable to create smoother: format %s ms: %u len: %u\n",
 					ast_format_get_name(format), framing_ms, ast_format_get_minimum_bytes(format));
 				return -1;
+			}
+			if (is_slinear) {
+				ast_smoother_set_flags(rtp->smoother, AST_SMOOTHER_FLAG_BE);
 			}
 		}
 	}
