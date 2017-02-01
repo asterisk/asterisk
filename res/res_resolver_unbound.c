@@ -286,13 +286,21 @@ static void unbound_resolver_callback(void *data, int err, struct ub_result *ub_
 	ub_resolve_free(ub_result);
 }
 
+static void unbound_resolver_data_dtor(void *vdoomed)
+{
+	struct unbound_resolver_data *doomed = vdoomed;
+
+	ao2_cleanup(doomed->resolver);
+}
+
 static int unbound_resolver_resolve(struct ast_dns_query *query)
 {
 	struct unbound_config *cfg = ao2_global_obj_ref(globals);
 	struct unbound_resolver_data *data;
 	int res;
 
-	data = ao2_alloc_options(sizeof(*data), NULL, AO2_ALLOC_OPT_LOCK_NOLOCK);
+	data = ao2_alloc_options(sizeof(*data), unbound_resolver_data_dtor,
+		AO2_ALLOC_OPT_LOCK_NOLOCK);
 	if (!data) {
 		ast_log(LOG_ERROR, "Failed to allocate resolver data for resolution of '%s'\n",
 			ast_dns_query_get_name(query));
