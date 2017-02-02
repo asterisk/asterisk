@@ -74,13 +74,11 @@ password => mypass
 pre-connect => yes
 
 ; Certain servers, such as MS SQL Server and Sybase use the TDS protocol, which
-; limits the number of active queries per connection to 1.  By telling res_odbc
-; not to share connections, Asterisk can be made to work with these servers.
+; limits the number of active queries per connection to 1.
 [sqlserver]
 enabled => no
 dsn => mickeysoft
-share_connections => no
-limit => 5
+max_connections => 5
 username => oscar
 password => thegrouch
 pre-connect => yes
