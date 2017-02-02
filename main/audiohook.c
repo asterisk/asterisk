@@ -157,6 +157,11 @@ int ast_audiohook_destroy(struct ast_audiohook *audiohook)
 	return 0;
 }
 
+#define SHOULD_MUTE(hook, dir) \
+	((ast_test_flag(hook, AST_AUDIOHOOK_MUTE_READ) && (dir == AST_AUDIOHOOK_DIRECTION_READ)) || \
+	(ast_test_flag(hook, AST_AUDIOHOOK_MUTE_WRITE) && (dir == AST_AUDIOHOOK_DIRECTION_WRITE)) || \
+	(ast_test_flag(hook, AST_AUDIOHOOK_MUTE_READ | AST_AUDIOHOOK_MUTE_WRITE) == (AST_AUDIOHOOK_MUTE_READ | AST_AUDIOHOOK_MUTE_WRITE)))
+
 /*! \brief Writes a frame into the audiohook structure
  * \param audiohook Audiohook structure
  * \param direction Direction the audio frame came from
@@ -172,7 +177,6 @@ int ast_audiohook_write_frame(struct ast_audiohook *audiohook, enum ast_audiohoo
 	int our_factory_ms;
 	int other_factory_samples;
 	int other_factory_ms;
-	int muteme = 0;
 
 	/* Update last feeding time to be current */
 	*rwtime = ast_tvnow();
@@ -192,17 +196,6 @@ int ast_audiohook_write_frame(struct ast_audiohook *audiohook, enum ast_audiohoo
 		ast_debug(1, "Audiohook %p has stale audio in its factories. Flushing them both\n", audiohook);
 		ast_slinfactory_flush(factory);
 		ast_slinfactory_flush(other_factory);
-	}
-
-	/* swap frame data for zeros if mute is required */
-	if ((ast_test_flag(audiohook, AST_AUDIOHOOK_MUTE_READ) && (direction == AST_AUDIOHOOK_DIRECTION_READ)) ||
-		(ast_test_flag(audiohook, AST_AUDIOHOOK_MUTE_WRITE) && (direction == AST_AUDIOHOOK_DIRECTION_WRITE)) ||
-		(ast_test_flag(audiohook, AST_AUDIOHOOK_MUTE_READ | AST_AUDIOHOOK_MUTE_WRITE) == (AST_AUDIOHOOK_MUTE_READ | AST_AUDIOHOOK_MUTE_WRITE))) {
-			muteme = 1;
-	}
-
-	if (muteme && frame->datalen > 0) {
-		ast_frame_clear(frame);
 	}
 
 	/* Write frame out to respective factory */
@@ -243,8 +236,11 @@ static struct ast_frame *audiohook_read_frame_single(struct ast_audiohook *audio
 		return NULL;
 	}
 
-	/* If a volume adjustment needs to be applied apply it */
-	if (vol) {
+	if (SHOULD_MUTE(audiohook, direction)) {
+		/* Swap frame data for zeros if mute is required */
+		ast_frame_clear(&frame);
+	} else if (vol) {
+		/* If a volume adjustment needs to be applied apply it */
 		ast_frame_adjust_volume(&frame, vol);
 	}
 
@@ -293,8 +289,12 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 	if (usable_read) {
 		if (ast_slinfactory_read(&audiohook->read_factory, buf1, samples)) {
 			read_buf = buf1;
-			/* Adjust read volume if need be */
-			if (audiohook->options.read_volume) {
+
+			if ((ast_test_flag(audiohook, AST_AUDIOHOOK_MUTE_READ))) {
+				/* Clear the frame data if we are muting */
+				memset(buf1, 0, sizeof(buf1));
+			} else if (audiohook->options.read_volume) {
+				/* Adjust read volume if need be */
 				adjust_value = abs(audiohook->options.read_volume);
 				for (count = 0; count < samples; count++) {
 					if (audiohook->options.read_volume > 0) {
@@ -313,8 +313,12 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 	if (usable_write) {
 		if (ast_slinfactory_read(&audiohook->write_factory, buf2, samples)) {
 			write_buf = buf2;
-			/* Adjust write volume if need be */
-			if (audiohook->options.write_volume) {
+
+			if ((ast_test_flag(audiohook, AST_AUDIOHOOK_MUTE_WRITE))) {
+				/* Clear the frame data if we are muting */
+				memset(buf2, 0, sizeof(buf2));
+			} else if (audiohook->options.write_volume) {
+				/* Adjust write volume if need be */
 				adjust_value = abs(audiohook->options.write_volume);
 				for (count = 0; count < samples; count++) {
 					if (audiohook->options.write_volume > 0) {
