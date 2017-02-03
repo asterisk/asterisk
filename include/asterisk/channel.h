@@ -4697,4 +4697,21 @@ enum ast_channel_error {
  */
 enum ast_channel_error ast_channel_errno(void);
 
+/*!
+ * \brief Am I currently running an intercept dialplan routine.
+ * \since 13.14.0
+ *
+ * \details
+ * A dialplan intercept routine is equivalent to an interrupt
+ * routine.  As such, the routine must be done quickly and you
+ * do not have access to the media stream.  These restrictions
+ * are necessary because the media stream is the responsibility
+ * of some other code and interfering with or delaying that
+ * processing is bad.
+ *
+ * \retval 0 Not in an intercept routine.
+ * \retval 1 In an intercept routine.
+ */
+int ast_channel_get_intercept_mode(void);
+
 #endif /* _ASTERISK_CHANNEL_H */
