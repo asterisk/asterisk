@@ -1,3 +1,320 @@
+2017-02-03 19:58 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.13-cert1-rc3 Released.
+
+2017-01-31 18:28 +0000 [5c90c1e9f5]  Richard Mudgett <rmudgett@digium.com>
+
+	* channel.c: Fix unbalanced read queue deadlocking local channels.
+
+	  Using the timerfd timing module can cause channel freezing, lingering, or
+	  deadlock issues.  The problem is because this is the only timing module
+	  that uses an associated alert-pipe.  When the alert-pipe becomes
+	  unbalanced with respect to the number of frames in the read queue bad
+	  things can happen.  If the alert-pipe has fewer alerts queued than the
+	  read queue then nothing might wake up the thread to handle received frames
+	  from the channel driver.  For local channels this is the only way to wake
+	  up the thread to handle received frames.  Being unbalanced in the other
+	  direction is less of an issue as it will cause unnecessary reads into the
+	  channel driver.
+
+	  ASTERISK-26716 is an example of this deadlock which was indirectly fixed
+	  by the change that found the need for this patch.
+
+	  * In channel.c:__ast_queue_frame(): Adding frame lists to the read queue
+	  did not add the same number of alerts to the alert-pipe.  Correspondingly,
+	  when there is an exceptionally long queue event, any removed frames did
+	  not also remove the corresponding number of alerts from the alert-pipe.
+
+	  ASTERISK-26632 #close
+
+	  Change-Id: Ia98137c5bf6e9d6d202ce0eb36441851875863f6
+
+2017-01-31 16:38 +0000 [5c2b7e34ff]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_agi: Prevent an AGI from eating frames it should not. (Re-do)
+
+	  A dialplan intercept routine is equivalent to an interrupt routine.  As
+	  such, the routine must be done quickly and you do not have access to the
+	  media stream.  These restrictions are necessary because the media stream
+	  is the responsibility of some other code and interfering with or delaying
+	  that processing is bad.  A possible future dialplan processing
+	  architecture change may allow the interception routine to run in a
+	  different thread from the main thread handling the media and remove the
+	  execution time restriction.
+
+	  * Made res_agi.c:run_agi() running an AGI in an interception routine run
+	  in DeadAGI mode.  No touchy channel frames.
+
+	  ASTERISK-25951
+
+	  ASTERISK-26343
+
+	  ASTERISK-26716
+
+	  Change-Id: I638f147ca7a7f2590d7194a8ef4090eb191e4e43
+
+2017-01-31 16:32 +0000 [7d291e9ef7]  Richard Mudgett <rmudgett@digium.com>
+
+	* Frame deferral: Revert API refactoring.
+
+	  There are several issues with deferring frames that are caused by the
+	  refactoring.
+
+	  1) The code deferring frames mishandles adding a deferred frame to the
+	  deferred queue.  As a result the deferred queue can only be one frame
+	  long.
+
+	  2) Deferrable frames can come directly from the channel driver as well as
+	  the read queue.  These frames need to be added to the deferred queue.
+
+	  3) Whoever is deferring frames is really only doing the __ast_read() to
+	  collect deferred frames and doesn't care about the returned frames except
+	  to detect a hangup event.  When frame deferral is completed we must make
+	  the normal frame processing see the hangup as a frame anyway.  As such,
+	  there is no need to have varying hangup frame deferral methods.  We also
+	  need to be aware of the AST_SOFTHANGUP_ASYNCGOTO hangup that isn't real.
+	  That fake hangup is to cause the PBX thread to break out of loops to go
+	  execute a new dialplan location.
+
+	  4) To properly deal with deferrable frames from the channel driver as
+	  pointed out by (2) above, means that it is possible to process a dialplan
+	  interception routine while frames are deferred because of the
+	  AST_CONTROL_READ_ACTION control frame.  Deferring frames is not
+	  implemented as a re-entrant operation so you could have the unsupported
+	  case of two sections of code thinking they have control of the media
+	  stream.
+
+	  A worse problem is because of the bad implementation of the AMI PlayDTMF
+	  action.  It can cause two threads to be deferring frames on the same
+	  channel at the same time.  (ASTERISK_25940)
+
+	  * Rather than fix all these problems simply revert the API refactoring as
+	  there is going to be only autoservice and safe_sleep deferring frames
+	  anyway.
+
+	  ASTERISK-26343
+
+	  ASTERISK-26716 #close
+
+	  Change-Id: I45069c779aa3a35b6c863f65245a6df2c7865496
+
+2017-01-10 17:37 +0000 [640d3b21d1]  Richard Mudgett <rmudgett@digium.com>
+
+	* astobj2.c: Add excessive ref count trap.
+
+	  Change-Id: I32e6a589cf9009450e4ff7cb85c07c9d9ef7fe4a
+
+2017-01-31 11:17 +0000 [107c8a7e19]  Joshua Colp <jcolp@digium.com>
+
+	* res_pjsip: Handle invocation of callback on outgoing request when error occurs.
+
+	  There are some error cases in PJSIP when sending a request that will
+	  result in the callback for the request being invoked.  The code did not
+	  handle this case and assumed on every error case that the callback was not
+	  invoked.
+
+	  The code has been changed to check whether the callback has been invoked
+	  and if so to absorb the error and treat it as a success.
+
+	  ASTERISK-26679
+	  ASTERISK-26699
+
+	  Change-Id: I563982ba204da5aa1428989a11c06dd9087fea91
+
+2017-02-01 13:54 +0000 [3eb5f42090]  Mark Michelson <mmichelson@digium.com>
+
+	* Update qualifies when AOR configuration changes.
+
+	  Prior to this change, qualifies would only update in the following
+	  cases:
+	  * A reload of res_pjsip.so was issued.
+	  * A dynamic contact was re-registered after its AOR's qualify_frequency
+	    had been changed
+	  This does not work well if you are using realtime for your AORs. You can
+	  update your database to have a new qualify_frequency, but the permanent
+	  contacts on that AOR will not have their qualifies updated. And the
+	  dynamic contacts on that AOR will not have their qualifies updated until
+	  the next registration, which could be a long time.
+
+	  This change seeks to fix this problem by making it so that whenever AOR
+	  configuration is applied, the contacts pertaining to that AOR have their
+	  qualifies updated.
+
+	  Additions from this patch:
+	  * AOR sorcery objects now have an apply handler that calls into a newly
+	    added function in the OPTIONS code. This causes all contacts
+	    associated with that AOR to re-schedule qualifies.
+	  * When it is time to qualify a contact, the OPTIONS code checks to see
+	    if the AOR can still be retrieved. If not, then qualification is
+	    canceled on the contact.
+
+	  Alterations from this patch:
+	  * The registrar code no longer updates contact's qualify_frequence and
+	    qualify_timeout. There is no point to this since those values already
+	    get updated when the AOR changes.
+	  * Reloading res_pjsip.so no longer calls the OPTIONS initialization
+	    function. Reloading res_pjsip.so results in re-loading AORs, which
+	    results in re-scheduling qualifies.
+
+	  Change-Id: I2e7c3316da28f389c45954f24c4e9389abac1121
+
+2017-01-31 12:46 +0000 [0611290911]  gtjoseph <gjoseph@digium.com>
+
+	* debug_utilities: Install ast_logescalator to /var/lib/asterisk/scripts
+
+	  Forgot to install it with the original patch
+
+	  Change-Id: I8bdb540a6694971ae5fe21f48d532332c6482e4c
+
+2017-01-25 06:50 +0000 [805928c98b]  gtjoseph <gjoseph@digium.com>
+
+	* debug_utilities:  Add ast_logescalator
+
+	  The escalator works by creating a set of startup commands in cli.conf
+	  that set up logger channels and issue the debug commands for the
+	  subsystems specified.  If asterisk is running when it is executed,
+	  the same commands will be issued to the running instance.  The original
+	  cli.conf is saved before any changes are made and can be restored by
+	  executing '$prog --reset'.
+
+	  The log output will be stored in...
+	  $astlogdir/message.$uniqueid
+	  $astlogdir/debug.$uniqueid
+	  $astlogdir/dtmf.$uniqueid
+	  $astlogdir/fax.$uniqueid
+	  $astlogdir/security.$uniqueid
+	  $astlogdir/pjsip_history.$uniqueid
+	  $astlogdir/sip_history.$uniqueid
+
+	  Some minor tweaks were made to chan_sip, and res_pjsip_history
+	  so their history output could be send to a log channel as packets
+	  are captured.
+
+	  A minor tweak was also made to manager so events are output to verbose
+	  when "manager set debug on" is issued.
+
+	  Change-Id: I799f8e5013b86dc5282961b27383d134bf09e543
+
+2017-01-25 15:26 +0000 [1997157e7e]  Mark Michelson <mmichelson@digium.com>
+
+	* Add reload options to CLI/AMI stale object commands.
+
+	  Marking an object as stale in a memory cache is supposed to prime the
+	  cache so that the next time the item is retrieved, the stale item is
+	  deleted from the cache and a background task is run to re-populate the
+	  cache with a fresh version of the object.
+
+	  The problem is, there are some object types out there for which there is
+	  no natural reason that they would be retrieved from the backend with any
+	  regularity. Outbound PJSIP registrations are a good example of this. At
+	  startup, they are read, and an object-specific state is created that
+	  refers to the initially-retrieved object for all time.
+
+	  Adding the "reload" option to the CLI/AMI commands gives the cache the
+	  opportunity to manually re-retrieve the object from the backend, both
+	  storing the new object in the cache and applying the new object's
+	  configuration to the module that uses that object.
+
+	  Change-Id: Ieb1fe7270ceed491f057ec5cbf0e097bde96c5c8
+
+2016-12-09 12:23 +0000 [92bdcfd57e]  Martin Tomec <tomec@ipex.cz>
+
+	* app_queue: Ensure member is removed from pending when hanging up.
+
+	  In some cases member is added to pending_members, and the channel
+	  is hung up before any extension state change. So the member would
+	  stay in pending_members forever. So when we call do_hang, we
+	  should also remove member from pending.
+
+	  ASTERISK-26621 #close
+
+	  Change-Id: Iae476b5c06481db18ebe0fa594b3e80fdc9a7d54
+	  (cherry picked from commit d13be4eff699449172efbd9fed0ee97f6a790b6a)
+
+2017-01-20 21:13 +0000 [9a4434eb74]  Richard Mudgett <rmudgett@digium.com>
+
+	* PJPROJECT logging: Fix detection of max supported log level.
+
+	  The mechanism used for detecting the maximum log level compiled into the
+	  linked pjproject did not work.  The API call simply stores the requested
+	  level into an integer and does no range checking.  Asterisk was assuming
+	  that there was range checking and limited the new value to the allowable
+	  range.  To get the actual maximum log level compiled into the linked
+	  pjproject we need to get and save off the initial set log level from
+	  pjproject.  This is the maximum log level supported.
+
+	  * Get and save off the initial log level setting before altering it to the
+	  desired level on startup.  This has to be done by a macro rather than
+	  calling a core function to avoid incorrectly linking pjproject.
+
+	  * Split the initial log level warning messages to warn if the linked
+	  pjproject cannot support the requested startup level and if it is too low
+	  to get the pjproject buildopts for "pjproject show buildopts".
+
+	  * Adjust the CLI "pjproject set log level" to check the saved max log
+	  level and to generate normal output messages instead of a warning message.
+
+	  ASTERISK-26743 #close
+
+	  Change-Id: I40aa76653e2a1dece66c3f8734594b4f0471cfb4
+
+2017-01-19 09:05 +0000 [6b0d734312]  gtjoseph <gjoseph@digium.com>
+
+	* ari: Implement 'debug all' and request/response logging
+
+	  The 'ari set debug' command has been enhanced to accept 'all' as an
+	  application name.  This allows dumping of all apps even if an app
+	  hasn't registered yet.  To accomplish this, a new global_debug global
+	  variable was added to res/stasis/app.c and new APIs were added to
+	  set and query the value.
+
+	  'ari set debug' now displays requests and responses as well as events.
+	  This required refactoring the existing debug code.
+
+	  * The implementation for 'ari set debug' was moved from stasis/cli.{c,h}
+	    to ari/cli.{c,h}, and stasis/cli.{c,h} were deleted.
+	  * In order to print the body of incoming requests even if a request
+	    failed, the consumption of the body was moved from the ari stubs
+	    to ast_ari_callback in res_ari.c and the moustache templates were
+	    then regenerated.  The body is now passed to ast_ari_invoke and then
+	    on to the handlers.  This results in code savings since that template
+	    was inserted multiple times into all the stubs.
+
+	  An additional change was made to the ao2_str_container implementation
+	  to add partial key searching and a sort function.  The existing cli
+	  code assumed it was already there when it wasn't so the tab completion
+	  was never working.
+
+	  Change-Id: Ief936f747ce47f1fb14035fbe61152cf766406bf
+
+2017-01-23 09:10 +0000 [28733bb0ab]  gtjoseph <gjoseph@digium.com>
+
+	* pjproject_bundled: Fix setting max log level
+
+	  An earlier attempt to prevent pjsua from spitting out an extra 6795
+	  lines of debug output every time the testsuite called it was also
+	  turning off the ability for asterisk to output debug info when it
+	  needed to.  This patch reverts the earlier fix and instead adds
+	  a pjproject patch that sets the startup log level to 1 for pjsua
+	  pjsystest and the pjsua python binding.  This is an asterisk-only
+	  patch that does not affect pjproject functionality and will not be
+	  submitted upstream.
+
+	  Change-Id: I347a8b58b2626f2906ccfc1d339e907627a0c9e8
+
+2017-01-13 11:03 +0000 [0d2f17b22c]  gtjoseph <gjoseph@digium.com>
+
+	* debug_utilities:  Create ast_loggrabber
+
+	  ast_loggrabber gathers log files from customizable search patterns,
+	  optionally converts POSIX timestamps to a readable format and
+	  tarballs the results.
+
+	  Also a few tweaks were made to ast_coredumper.
+
+	  Change-Id: I8bfe1468ada24c1344ce4abab7b002a59a659495
+	  (cherry picked from commit 5fa1c56d7e76999aa14f133a33f6b168e7c3b99c)
+
 2017-01-19 19:18 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.13-cert1-rc2 Released.
