@@ -10268,6 +10268,36 @@ void ast_channel_queue_redirecting_update(struct ast_channel *chan, const struct
 	ast_queue_control_data(chan, AST_CONTROL_REDIRECTING, data, datalen);
 }
 
+/*!
+ * Storage to determine if the current thread is running an intercept dialplan routine.
+ */
+AST_THREADSTORAGE_RAW(in_intercept_routine);
+
+/*!
+ * \internal
+ * \brief Set the current intercept dialplan routine status mode.
+ * \since 13.14.0
+ *
+ * \param in_intercept_mode New intercept mode.  (Non-zero if in intercept mode)
+ *
+ * \return Nothing
+ */
+static void channel_set_intercept_mode(int in_intercept_mode)
+{
+	int status;
+
+	status = ast_threadstorage_set_ptr(&in_intercept_routine,
+		in_intercept_mode ? (void *) 1 : (void *) 0);
+	if (status) {
+		ast_log(LOG_ERROR, "Failed to set dialplan intercept mode\n");
+	}
+}
+
+int ast_channel_get_intercept_mode(void)
+{
+	return ast_threadstorage_get_ptr(&in_intercept_routine) ? 1 : 0;
+}
+
 int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struct ast_channel *macro_chan, const void *connected_info, int is_caller, int is_frame)
 {
 	static int deprecation_warning = 0;
@@ -10303,7 +10333,9 @@ int ast_channel_connected_line_macro(struct ast_channel *autoservice_chan, struc
 	}
 	ast_channel_unlock(macro_chan);
 
+	channel_set_intercept_mode(1);
 	retval = ast_app_run_macro(autoservice_chan, macro_chan, macro, macro_args);
+	channel_set_intercept_mode(0);
 	if (!retval) {
 		struct ast_party_connected_line saved_connected;
 
@@ -10353,7 +10385,9 @@ int ast_channel_redirecting_macro(struct ast_channel *autoservice_chan, struct a
 	}
 	ast_channel_unlock(macro_chan);
 
+	channel_set_intercept_mode(1);
 	retval = ast_app_run_macro(autoservice_chan, macro_chan, macro, macro_args);
+	channel_set_intercept_mode(0);
 	if (!retval) {
 		struct ast_party_redirecting saved_redirecting;
 
@@ -10396,7 +10430,9 @@ int ast_channel_connected_line_sub(struct ast_channel *autoservice_chan, struct 
 	}
 	ast_channel_unlock(sub_chan);
 
+	channel_set_intercept_mode(1);
 	retval = ast_app_run_sub(autoservice_chan, sub_chan, sub, sub_args, 0);
+	channel_set_intercept_mode(0);
 	if (!retval) {
 		struct ast_party_connected_line saved_connected;
 
@@ -10439,7 +10475,9 @@ int ast_channel_redirecting_sub(struct ast_channel *autoservice_chan, struct ast
 	}
 	ast_channel_unlock(sub_chan);
 
+	channel_set_intercept_mode(1);
 	retval = ast_app_run_sub(autoservice_chan, sub_chan, sub, sub_args, 0);
+	channel_set_intercept_mode(0);
 	if (!retval) {
 		struct ast_party_redirecting saved_redirecting;
 
