@@ -1137,6 +1137,12 @@ static int contact_apply_handler(const struct ast_sorcery *sorcery, void *object
 	return status ? 0 : -1;
 }
 
+static int aor_apply_handler(const struct ast_sorcery *sorcery, void *object)
+{
+	ast_res_pjsip_update_options(object);
+	return 0;
+}
+
 /*! \brief Initialize sorcery with location support */
 int ast_sip_initialize_sorcery_location(void)
 {
@@ -1153,7 +1159,7 @@ int ast_sip_initialize_sorcery_location(void)
 	ast_sorcery_apply_default(sorcery, "aor", "config", "pjsip.conf,criteria=type=aor");
 
 	if (ast_sorcery_object_register(sorcery, "contact", contact_alloc, NULL, contact_apply_handler) ||
-		ast_sorcery_object_register(sorcery, "aor", aor_alloc, NULL, NULL)) {
+		ast_sorcery_object_register(sorcery, "aor", aor_alloc, NULL, aor_apply_handler)) {
 		return -1;
 	}
 
