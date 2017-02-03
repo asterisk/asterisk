@@ -197,6 +197,7 @@ static void channel_snapshot_dtor(void *obj)
 
 	ast_string_field_free_memory(snapshot);
 	ao2_cleanup(snapshot->manager_vars);
+	ao2_cleanup(snapshot->ari_vars);
 }
 
 struct ast_channel_snapshot *ast_channel_snapshot_create(struct ast_channel *chan)
