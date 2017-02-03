@@ -967,16 +967,6 @@ enum {
 	 * The channel is executing a subroutine or macro
 	 */
 	AST_FLAG_SUBROUTINE_EXEC = (1 << 27),
-	/*!
-	 * The channel is currently in an operation where
-	 * frames should be deferred.
-	 */
-	AST_FLAG_DEFER_FRAMES = (1 << 28),
-	/*!
-	 * The channel is currently deferring hangup frames
-	 * in addition to other frame types.
-	 */
-	AST_FLAG_DEFER_HANGUP_FRAMES = (1 << 29),
 };
 
 /*! \brief ast_bridge_config flags */
@@ -4716,44 +4706,5 @@ enum ast_channel_error {
  * \brief Get error code for latest channel operation.
  */
 enum ast_channel_error ast_channel_errno(void);
-
-/*!
- * \brief Retrieve the deferred read queue.
- */
-struct ast_readq_list *ast_channel_deferred_readq(struct ast_channel *chan);
-
-/*!
- * \brief Start deferring deferrable frames on this channel
- *
- * Sometimes, a channel gets entered into a mode where a "main" application
- * is tasked with servicing frames on the channel, but that application does
- * not need to act on those frames. However, it would be imprudent to simply
- * drop important frames. This function can be called so that important frames
- * will be deferred, rather than placed in the channel frame queue as normal.
- *
- * Hangups are an interesting frame type. Hangups will always be detectable by
- * a reader when a channel is deferring frames. If the defer_hangups parameter
- * is non-zero, then the hangup frame will also be duplicated and deferred, so
- * that the next reader of the channel will get the hangup frame, too.
- *
- * \pre chan MUST be locked before calling
- *
- * \param chan The channel on which frames should be deferred
- * \param defer_hangups Defer hangups in addition to other deferrable frames
- */
-void ast_channel_start_defer_frames(struct ast_channel *chan, int defer_hangups);
-
-/*!
- * \brief Stop deferring deferrable frames on this channel
- *
- * When it is time to stop deferring frames on the channel, all deferred frames
- * will be queued onto the channel's read queue so that the next servicer of
- * the channel can handle those frames as necessary.
- *
- * \pre chan MUST be locked before calling
- *
- * \param chan The channel on which to stop deferring frames.
- */
-void ast_channel_stop_defer_frames(struct ast_channel *chan);
 
 #endif /* _ASTERISK_CHANNEL_H */
