@@ -29,12 +29,11 @@
 
 static int distribute(void *data);
 static pj_bool_t distributor(pjsip_rx_data *rdata);
-static pj_status_t record_serializer(pjsip_tx_data *tdata);
 
 static pjsip_module distributor_mod = {
 	.name = {"Request Distributor", 19},
 	.priority = PJSIP_MOD_PRIORITY_TSX_LAYER - 6,
-	.on_tx_request = record_serializer,
+	.on_tx_request = ast_sip_record_request_serializer,
 	.on_rx_request = distributor,
 	.on_rx_response = distributor,
 };
@@ -65,16 +64,7 @@ struct unidentified_request{
 /*! Pool of serializers to use if not supplied. */
 static struct ast_taskprocessor *distributor_pool[DISTRIBUTOR_POOL_SIZE];
 
-/*!
- * \internal
- * \brief Record the task's serializer name on the tdata structure.
- * \since 14.0.0
- *
- * \param tdata The outgoing message.
- *
- * \retval PJ_SUCCESS.
- */
-static pj_status_t record_serializer(pjsip_tx_data *tdata)
+pj_status_t ast_sip_record_request_serializer(pjsip_tx_data *tdata)
 {
 	struct ast_taskprocessor *serializer;
 

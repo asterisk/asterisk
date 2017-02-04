@@ -3601,6 +3601,8 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 		}
 	}
 
+	ast_sip_record_request_serializer(tdata);
+
 	/* We need to insure that the wrapper and tdata are available when the
 	 * transaction callback is executed.
 	 */
