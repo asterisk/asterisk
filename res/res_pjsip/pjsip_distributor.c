@@ -43,7 +43,6 @@ struct ast_sched_context *prune_context;
 
 /* From the auth/realm realtime column size */
 #define MAX_REALM_LENGTH 40
-static char default_realm[MAX_REALM_LENGTH + 1];
 
 #define DEFAULT_SUSPECTS_BUCKETS 53
 
@@ -462,35 +461,54 @@ static pj_bool_t distributor(pjsip_rx_data *rdata)
 	return PJ_TRUE;
 }
 
-static struct ast_sip_auth *artificial_auth;
+static struct ast_sip_auth *alloc_artificial_auth(char *default_realm)
+{
+	struct ast_sip_auth *fake_auth;
+
+	fake_auth = ast_sorcery_alloc(ast_sip_get_sorcery(), SIP_SORCERY_AUTH_TYPE,
+		"artificial");
+	if (!fake_auth) {
+		return NULL;
+	}
+
+	ast_string_field_set(fake_auth, realm, default_realm);
+	ast_string_field_set(fake_auth, auth_user, "");
+	ast_string_field_set(fake_auth, auth_pass, "");
+	fake_auth->type = AST_SIP_AUTH_TYPE_ARTIFICIAL;
+
+	return fake_auth;
+}
+
+static AO2_GLOBAL_OBJ_STATIC(artificial_auth);
 
 static int create_artificial_auth(void)
 {
-	if (!(artificial_auth = ast_sorcery_alloc(
-		      ast_sip_get_sorcery(), SIP_SORCERY_AUTH_TYPE, "artificial"))) {
+	char default_realm[MAX_REALM_LENGTH + 1];
+	struct ast_sip_auth *fake_auth;
+
+	ast_sip_get_default_realm(default_realm, sizeof(default_realm));
+	fake_auth = alloc_artificial_auth(default_realm);
+	if (!fake_auth) {
 		ast_log(LOG_ERROR, "Unable to create artificial auth\n");
 		return -1;
 	}
 
-	ast_string_field_set(artificial_auth, realm, default_realm);
-	ast_string_field_set(artificial_auth, auth_user, "");
-	ast_string_field_set(artificial_auth, auth_pass, "");
-	artificial_auth->type = AST_SIP_AUTH_TYPE_ARTIFICIAL;
+	ao2_global_obj_replace_unref(artificial_auth, fake_auth);
+	ao2_ref(fake_auth, -1);
 	return 0;
 }
 
 struct ast_sip_auth *ast_sip_get_artificial_auth(void)
 {
-	ao2_ref(artificial_auth, +1);
-	return artificial_auth;
+	return ao2_global_obj_ref(artificial_auth);
 }
 
 static struct ast_sip_endpoint *artificial_endpoint = NULL;
 
 static int create_artificial_endpoint(void)
 {
-	if (!(artificial_endpoint = ast_sorcery_alloc(
-		      ast_sip_get_sorcery(), "endpoint", NULL))) {
+	artificial_endpoint = ast_sorcery_alloc(ast_sip_get_sorcery(), "endpoint", NULL);
+	if (!artificial_endpoint) {
 		return -1;
 	}
 
@@ -968,20 +986,40 @@ static int clean_task(const void *data)
 
 static void global_loaded(const char *object_type)
 {
-	char *identifier_order = ast_sip_get_endpoint_identifier_order();
-	char *io_copy = identifier_order ? ast_strdupa(identifier_order) : NULL;
-	char *identify_method;
+	char default_realm[MAX_REALM_LENGTH + 1];
+	struct ast_sip_auth *fake_auth;
+	char *identifier_order;
 
-	ast_free(identifier_order);
-	using_auth_username = 0;
-	while ((identify_method = ast_strip(strsep(&io_copy, ",")))) {
-		if (!strcmp(identify_method, "auth_username")) {
-			using_auth_username = 1;
-			break;
+	/* Update using_auth_username */
+	identifier_order = ast_sip_get_endpoint_identifier_order();
+	if (identifier_order) {
+		char *identify_method;
+		char *io_copy = ast_strdupa(identifier_order);
+		int new_using = 0;
+
+		ast_free(identifier_order);
+		while ((identify_method = ast_strip(strsep(&io_copy, ",")))) {
+			if (!strcmp(identify_method, "auth_username")) {
+				new_using = 1;
+				break;
+			}
+		}
+		using_auth_username = new_using;
+	}
+
+	/* Update default_realm of artificial_auth */
+	ast_sip_get_default_realm(default_realm, sizeof(default_realm));
+	fake_auth = ast_sip_get_artificial_auth();
+	if (!fake_auth || strcmp(fake_auth->realm, default_realm)) {
+		ao2_cleanup(fake_auth);
+
+		fake_auth = alloc_artificial_auth(default_realm);
+		if (fake_auth) {
+			ao2_global_obj_replace_unref(artificial_auth, fake_auth);
+			ao2_ref(fake_auth, -1);
 		}
 	}
 
-	ast_sip_get_default_realm(default_realm, sizeof(default_realm));
 	ast_sip_get_unidentified_request_thresholds(&unidentified_count, &unidentified_period, &unidentified_prune_interval);
 
 	/* Clean out the old task, if any */
@@ -1114,7 +1152,7 @@ void ast_sip_destroy_distributor(void)
 	internal_sip_unregister_service(&endpoint_mod);
 	internal_sip_unregister_service(&distributor_mod);
 
-	ao2_cleanup(artificial_auth);
+	ao2_global_obj_release(artificial_auth);
 	ao2_cleanup(artificial_endpoint);
 
 	ast_sorcery_observer_remove(ast_sip_get_sorcery(), "global", &global_observer);
