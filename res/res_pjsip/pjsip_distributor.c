@@ -120,12 +120,12 @@ static struct ast_taskprocessor *find_request_serializer(pjsip_rx_data *rdata)
 
 	tsx = pjsip_tsx_layer_find_tsx(&tsx_key, PJ_TRUE);
 	if (!tsx) {
-		ast_debug(1, "Could not find %.*s transaction for %d response.\n",
-			(int) pj_strlen(&rdata->msg_info.cseq->method.name),
-			pj_strbuf(&rdata->msg_info.cseq->method.name),
-			rdata->msg_info.msg->line.status.code);
+		ast_debug(1, "Could not find transaction for %s.\n",
+			pjsip_rx_data_get_info(rdata));
 		return NULL;
 	}
+	ast_debug(3, "Found transaction %s for %s.\n",
+		tsx->obj_name, pjsip_rx_data_get_info(rdata));
 
 	if (tsx->last_tx) {
 		const char *serializer_name;
@@ -402,21 +402,14 @@ static pj_bool_t distributor(pjsip_rx_data *rdata)
 	if (serializer) {
 		/* We have a serializer so we know where to send the message. */
 	} else if (rdata->msg_info.msg->type == PJSIP_RESPONSE_MSG) {
-		ast_debug(3, "No dialog serializer for response %s. Using request transaction as basis\n",
+		ast_debug(3, "No dialog serializer for %s.  Using request transaction as basis.\n",
 			pjsip_rx_data_get_info(rdata));
 		serializer = find_request_serializer(rdata);
 		if (!serializer) {
-			if (ast_taskprocessor_alert_get()) {
-				/* We're overloaded, ignore the unmatched response. */
-				ast_debug(3, "Taskprocessor overload alert: Ignoring unmatched '%s'.\n",
-					pjsip_rx_data_get_info(rdata));
-				return PJ_TRUE;
-			}
-
 			/*
-			 * Pick a serializer for the unmatched response.  Maybe
-			 * the stack can figure out what it is for, or we really
-			 * should just toss it regardless.
+			 * Pick a serializer for the unmatched response.
+			 * We couldn't determine what serializer originally
+			 * sent the request or the serializer is gone.
 			 */
 			serializer = ast_sip_get_distributor_serializer(rdata);
 		}
@@ -760,7 +753,7 @@ static int distribute(void *data)
 		.start_mod = &distributor_mod,
 		.idx_after_start = 1,
 	};
-	pj_bool_t handled;
+	pj_bool_t handled = PJ_FALSE;
 	pjsip_rx_data *rdata = data;
 	int is_request = rdata->msg_info.msg->type == PJSIP_REQUEST_MSG;
 	int is_ack = is_request ? rdata->msg_info.msg->line.req.method.id == PJSIP_ACK_METHOD : 0;
