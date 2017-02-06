@@ -146,13 +146,13 @@ static struct device_state_subscription *find_device_state_subscription(
 		.device_name = name
 	};
 
-	return ao2_find(device_state_subscriptions, &dummy_sub, OBJ_SEARCH_OBJECT);
+	return ao2_find(device_state_subscriptions, &dummy_sub, OBJ_SEARCH_OBJECT | OBJ_NOLOCK);
 }
 
 static void remove_device_state_subscription(
 	struct device_state_subscription *sub)
 {
-	ao2_unlink(device_state_subscriptions, sub);
+	ao2_unlink_flags(device_state_subscriptions, sub, OBJ_NOLOCK);
 }
 
 struct ast_json *stasis_app_device_state_to_json(
@@ -362,7 +362,10 @@ static int subscribe_device_state(struct stasis_app *app, void *obj)
 		topic = ast_device_state_topic_all();
 	}
 
+	ao2_lock(device_state_subscriptions);
+
 	if (is_subscribed_device_state(app, sub->device_name)) {
+		ao2_unlock(device_state_subscriptions);
 		ast_debug(3, "App %s is already subscribed to %s\n", stasis_app_name(app), sub->device_name);
 		return 0;
 	}
@@ -371,6 +374,7 @@ static int subscribe_device_state(struct stasis_app *app, void *obj)
 
 	sub->sub = stasis_subscribe_pool(topic, device_state_cb, ao2_bump(sub));
 	if (!sub->sub) {
+		ao2_unlock(device_state_subscriptions);
 		ast_log(LOG_ERROR, "Unable to subscribe to device %s\n",
 			sub->device_name);
 		/* Reference we added when attempting to stasis_subscribe_pool */
@@ -378,15 +382,23 @@ static int subscribe_device_state(struct stasis_app *app, void *obj)
 		return -1;
 	}
 
-	ao2_link(device_state_subscriptions, sub);
+	ao2_link_flags(device_state_subscriptions, sub, OBJ_NOLOCK);
+	ao2_unlock(device_state_subscriptions);
+
 	return 0;
 }
 
 static int unsubscribe_device_state(struct stasis_app *app, const char *name)
 {
-	RAII_VAR(struct device_state_subscription *, sub,
-		 find_device_state_subscription(app, name), ao2_cleanup);
+	struct device_state_subscription *sub;
+
+	ao2_lock(device_state_subscriptions);
+	sub = find_device_state_subscription(app, name);
 	remove_device_state_subscription(sub);
+	ao2_unlock(device_state_subscriptions);
+
+	ao2_cleanup(sub);
+
 	return 0;
 }
 
