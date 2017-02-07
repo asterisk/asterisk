@@ -375,7 +375,7 @@ static char *cli_show_tasks(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	struct ast_tm tm;
 	char queued[32];
 	char last_start[32];
-	char last_end[32];
+	char next_start[32];
 	int datelen;
 	struct timeval now = ast_tvnow();
 	const char *separator = "======================================";
@@ -399,19 +399,21 @@ static char *cli_show_tasks(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 	ast_cli(a->fd, "PJSIP Scheduled Tasks:\n\n");
 
-	ast_cli(a->fd, " %1$-24s %2$-8s %3$-9s %4$-7s  %6$-*5$s  %7$-*5$s  %8$-*5$s\n",
+	ast_cli(a->fd, " %1$-24s %2$-9s %3$-9s %4$-5s  %6$-*5$s  %7$-*5$s  %8$-*5$s %9$7s\n",
 		"Task Name", "Interval", "Times Run", "State",
-		datelen, "Queued", "Last Started", "Last Ended");
+		datelen, "Queued", "Last Started", "Next Start", "( secs)");
 
-	ast_cli(a->fd, " %1$-24.24s %2$-8.8s %3$-9.9s %4$-7.7s  %6$-*5$.*5$s  %7$-*5$.*5$s  %8$-*5$.*5$s\n",
+	ast_cli(a->fd, " %1$-24.24s %2$-9.9s %3$-9.9s %4$-5.5s  %6$-*5$.*5$s  %7$-*5$.*5$s  %9$-*8$.*8$s\n",
 		separator, separator, separator, separator,
-		datelen, separator, separator, separator);
+		datelen, separator, separator, datelen + 8, separator);
 
 
 	ao2_ref(tasks, +1);
 	ao2_rdlock(tasks);
 	i = ao2_iterator_init(tasks, 0);
 	while ((schtd = ao2_iterator_next(&i))) {
+		int next_run_sec = ast_sip_sched_task_get_next_run(schtd) / 1000;
+		struct timeval next = ast_tvadd(now, (struct timeval) {next_run_sec, 0});
 
 		ast_localtime(&schtd->when_queued, &tm, NULL);
 		ast_strftime(queued, sizeof(queued), log_format, &tm);
@@ -423,23 +425,17 @@ static char *cli_show_tasks(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 			ast_strftime(last_start, sizeof(last_start), log_format, &tm);
 		}
 
-		if (ast_tvzero(schtd->last_end)) {
-			if (ast_tvzero(schtd->last_start)) {
-				strcpy(last_end, "not yet started");
-			} else {
-				strcpy(last_end, "running");
-			}
-		} else {
-			ast_localtime(&schtd->last_end, &tm, NULL);
-			ast_strftime(last_end, sizeof(last_end), log_format, &tm);
-		}
+		ast_localtime(&next, &tm, NULL);
+		ast_strftime(next_start, sizeof(next_start), log_format, &tm);
 
-		ast_cli(a->fd, " %1$-24.24s %2$-8.3f %3$-9d %4$-7s  %6$-*5$s  %7$-*5$s  %8$-*5$s\n",
+		ast_cli(a->fd, " %1$-24.24s %2$9.3f %3$9d %4$-5s  %6$-*5$s  %7$-*5$s  %8$-*5$s (%9$5d)\n",
 			schtd->name,
 			schtd->interval / 1000.0,
 			schtd->run_count,
-			schtd->is_running ? "running" : "waiting",
-			datelen, queued, last_start, last_end);
+			schtd->is_running ? "run" : "wait",
+			datelen, queued, last_start,
+			next_start,
+			next_run_sec);
 		ao2_cleanup(schtd);
 	}
 	ao2_iterator_destroy(&i);
