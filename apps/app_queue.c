@@ -2739,6 +2739,7 @@ static void clear_queue(struct call_queue *q)
 	q->callscompleted = 0;
 	q->callsabandoned = 0;
 	q->callscompletedinsl = 0;
+	q->callsabandonedinsl = 0;
 	q->talktime = 0;
 
 	if (q->members) {
