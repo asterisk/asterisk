@@ -392,6 +392,13 @@ enum sip_subscription_tree_state {
 	SIP_SUB_TREE_TERMINATED,
 };
 
+static char *sub_tree_state_description[] = {
+	"Normal",
+	"TerminatePending",
+	"TerminateInProgress",
+	"Terminated"
+};
+
 /*!
  * \brief A tree of SIP subscriptions
  *
@@ -428,6 +435,11 @@ struct sip_subscription_tree {
 	AST_LIST_ENTRY(sip_subscription_tree) next;
 	/*! Subscription tree state */
 	enum sip_subscription_tree_state state;
+	/*! On asterisk restart, this is the task data used
+	 * to restart the expiration timer if pjproject isn't
+	 * capable of restarting the timer.
+	 */
+	struct ast_sip_sched_task *expiration_task;
 };
 
 /*!
@@ -480,6 +492,13 @@ struct ast_sip_publication_resource {
 static const char *sip_subscription_roles_map[] = {
 	[AST_SIP_SUBSCRIBER] = "Subscriber",
 	[AST_SIP_NOTIFIER] = "Notifier"
+};
+
+enum sip_persistence_update_flags {
+	/*! When updating persistence, leave the packet buffer alone */
+	PERSISTENCE_DONT_UPDATE_PACKET = 0,
+	/*! When updating persistence, update the packet buffer from the rdata */
+	PERSISTENCE_UPDATE_PACKET = 1 << 0,
 };
 
 AST_RWLIST_HEAD_STATIC(subscriptions, sip_subscription_tree);
@@ -560,7 +579,7 @@ static struct subscription_persistence *subscription_persistence_create(struct s
 
 /*! \brief Function which updates persistence information of a subscription in sorcery */
 static void subscription_persistence_update(struct sip_subscription_tree *sub_tree,
-	pjsip_rx_data *rdata)
+	pjsip_rx_data *rdata, enum sip_persistence_update_flags flags)
 {
 	pjsip_dialog *dlg;
 
@@ -584,12 +603,14 @@ static void subscription_persistence_update(struct sip_subscription_tree *sub_tr
 		 * persistence that is pulled from persistent storage, though, the rdata->pkt_info.packet will
 		 * only ever have a single SIP message on it, and so we base persistence on that.
 		 */
-		if (rdata->msg_info.msg_buf) {
-			ast_copy_string(sub_tree->persistence->packet, rdata->msg_info.msg_buf,
-					MIN(sizeof(sub_tree->persistence->packet), rdata->msg_info.len));
-		} else {
-			ast_copy_string(sub_tree->persistence->packet, rdata->pkt_info.packet,
-					sizeof(sub_tree->persistence->packet));
+		if (flags & PERSISTENCE_UPDATE_PACKET) {
+			if (rdata->msg_info.msg_buf) {
+				ast_copy_string(sub_tree->persistence->packet, rdata->msg_info.msg_buf,
+						MIN(sizeof(sub_tree->persistence->packet), rdata->msg_info.len));
+			} else {
+				ast_copy_string(sub_tree->persistence->packet, rdata->pkt_info.packet,
+						sizeof(sub_tree->persistence->packet));
+			}
 		}
 		ast_copy_string(sub_tree->persistence->src_name, rdata->pkt_info.src_name,
 				sizeof(sub_tree->persistence->src_name));
@@ -1199,6 +1220,9 @@ static void subscription_tree_destructor(void *obj)
 
 	ast_debug(3, "Destroying subscription tree %p\n", sub_tree);
 
+	if (sub_tree->expiration_task) {
+		ao2_cleanup(sub_tree->expiration_task);
+	}
 	ao2_cleanup(sub_tree->endpoint);
 
 	destroy_subscriptions(sub_tree->root);
@@ -1345,6 +1369,12 @@ static struct sip_subscription_tree *create_subscription_tree(const struct ast_s
 	return sub_tree;
 }
 
+/*! Wrapper structure for initial_notify_task */
+struct initial_notify_data {
+	struct sip_subscription_tree *sub_tree;
+	int expires;
+};
+
 static int initial_notify_task(void *obj);
 static int send_notify(struct sip_subscription_tree *sub_tree, unsigned int force_full_state);
 
@@ -1433,9 +1463,12 @@ static int sub_persistence_recreate(void *obj)
 		}
 		pjsip_msg_add_hdr(rdata->msg_info.msg, (pjsip_hdr *) expires_header);
 	}
+
 	expires_header->ivalue = (ast_tvdiff_ms(persistence->expires, ast_tvnow()) / 1000);
 	if (expires_header->ivalue <= 0) {
 		/* The subscription expired since we started recreating the subscription. */
+		ast_debug(3, "Expired subscription retrived from persistent store '%s' %s\n",
+			persistence->endpoint, persistence->tag);
 		ast_sorcery_delete(ast_sip_get_sorcery(), persistence);
 		ao2_ref(endpoint, -1);
 		return 0;
@@ -1456,18 +1489,31 @@ static int sub_persistence_recreate(void *obj)
 				ast_sorcery_delete(ast_sip_get_sorcery(), persistence);
 			}
 		} else {
+			struct initial_notify_data *ind = ast_malloc(sizeof(*ind));
+
+			if (!ind) {
+				pjsip_evsub_terminate(sub_tree->evsub, PJ_TRUE);
+				ao2_ref(sub_tree, -1);
+				goto error;
+			}
+
+			ind->sub_tree = ao2_bump(sub_tree);
+			ind->expires = expires_header->ivalue;
+
 			sub_tree->persistence = ao2_bump(persistence);
-			subscription_persistence_update(sub_tree, rdata);
-			if (ast_sip_push_task(sub_tree->serializer, initial_notify_task,
-				ao2_bump(sub_tree))) {
+			subscription_persistence_update(sub_tree, rdata, PERSISTENCE_UPDATE_PACKET);
+			if (ast_sip_push_task(sub_tree->serializer, initial_notify_task, ind)) {
 				/* Could not send initial subscribe NOTIFY */
 				pjsip_evsub_terminate(sub_tree->evsub, PJ_TRUE);
 				ao2_ref(sub_tree, -1);
+				ast_free(ind);
 			}
 		}
 	} else {
 		ast_sorcery_delete(ast_sip_get_sorcery(), persistence);
 	}
+
+error:
 	resource_tree_destroy(&tree);
 	ao2_ref(endpoint, -1);
 
@@ -1485,6 +1531,8 @@ static int subscription_persistence_recreate(void *obj, void *arg, int flags)
 
 	/* If this subscription has already expired remove it */
 	if (ast_tvdiff_ms(persistence->expires, ast_tvnow()) <= 0) {
+		ast_debug(3, "Expired subscription retrived from persistent store '%s' %s\n",
+			persistence->endpoint, persistence->tag);
 		ast_sorcery_delete(ast_sip_get_sorcery(), persistence);
 		return 0;
 	}
@@ -1814,7 +1862,7 @@ static int sip_subscription_send_request(struct sip_subscription_tree *sub_tree,
 
 	res = internal_pjsip_evsub_send_request(sub_tree, tdata);
 
-	subscription_persistence_update(sub_tree, NULL);
+	subscription_persistence_update(sub_tree, NULL, PERSISTENCE_DONT_UPDATE_PACKET);
 
 	ast_test_suite_event_notify("SUBSCRIPTION_STATE_SET",
 		"StateText: %s\r\n"
@@ -2713,21 +2761,47 @@ static int generate_initial_notify(struct ast_sip_subscription *sub)
 	return res;
 }
 
+static int serialized_pubsub_on_refresh_timeout(void *userdata);
+
 static int initial_notify_task(void * obj)
 {
-	struct sip_subscription_tree *sub_tree;
+	struct initial_notify_data *ind = obj;
 
-	sub_tree = obj;
-	if (generate_initial_notify(sub_tree->root)) {
-		pjsip_evsub_terminate(sub_tree->evsub, PJ_TRUE);
+	if (generate_initial_notify(ind->sub_tree->root)) {
+		pjsip_evsub_terminate(ind->sub_tree->evsub, PJ_TRUE);
 	} else {
-		send_notify(sub_tree, 1);
+		send_notify(ind->sub_tree, 1);
 		ast_test_suite_event_notify("SUBSCRIPTION_ESTABLISHED",
 			"Resource: %s",
-			sub_tree->root->resource);
+			ind->sub_tree->root->resource);
 	}
 
-	ao2_ref(sub_tree, -1);
+	if (ind->expires > -1) {
+#ifdef HAVE_PJSIP_EVSUB_SET_UAS_TIMEOUTXXX
+		pjsip_evsub_set_uas_timeout(ind->sub_tree->evsub, ind->expires);
+#else
+		char *name = ast_alloca(strlen("->/ ") +
+			strlen(ind->sub_tree->persistence->endpoint) +
+			strlen(ind->sub_tree->root->resource) +
+			strlen(ind->sub_tree->root->handler->event_name) +
+			ind->sub_tree->dlg->call_id->id.slen + 1);
+
+		sprintf(name, "%s->%s/%s %.*s", ind->sub_tree->persistence->endpoint,
+			ind->sub_tree->root->resource, ind->sub_tree->root->handler->event_name,
+			(int)ind->sub_tree->dlg->call_id->id.slen, ind->sub_tree->dlg->call_id->id.ptr);
+		ind->sub_tree->expiration_task = ast_sip_schedule_task(ind->sub_tree->serializer,
+			ind->expires * 1000, serialized_pubsub_on_refresh_timeout, name,
+			ao2_bump(ind->sub_tree), AST_SIP_SCHED_TASK_FIXED);
+		if (!ind->sub_tree->expiration_task) {
+			ast_log(LOG_ERROR, "Unable to create expiration timer of %d seconds for %s\n",
+				ind->expires, name);
+		}
+#endif
+	}
+
+	ao2_ref(ind->sub_tree, -1);
+	ast_free(ind);
+
 	return 0;
 }
 
@@ -2820,12 +2894,25 @@ static pj_bool_t pubsub_on_rx_subscribe_request(pjsip_rx_data *rdata)
 			pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
 		}
 	} else {
+		struct initial_notify_data *ind = ast_malloc(sizeof(*ind));
+
+		if (!ind) {
+			pjsip_evsub_terminate(sub_tree->evsub, PJ_TRUE);
+			resource_tree_destroy(&tree);
+			return PJ_TRUE;
+		}
+
+		ind->sub_tree = ao2_bump(sub_tree);
+		/* Since this is a normal subscribe, pjproject takes care of the timer */
+		ind->expires = -1;
+
 		sub_tree->persistence = subscription_persistence_create(sub_tree);
-		subscription_persistence_update(sub_tree, rdata);
+		subscription_persistence_update(sub_tree, rdata, PERSISTENCE_UPDATE_PACKET);
 		sip_subscription_accept(sub_tree, rdata, resp);
-		if (ast_sip_push_task(sub_tree->serializer, initial_notify_task, ao2_bump(sub_tree))) {
+		if (ast_sip_push_task(sub_tree->serializer, initial_notify_task, ind)) {
 			pjsip_evsub_terminate(sub_tree->evsub, PJ_TRUE);
 			ao2_ref(sub_tree, -1);
+			ast_free(ind);
 		}
 	}
 
@@ -3360,7 +3447,7 @@ static void set_state_terminated(struct ast_sip_subscription *sub)
  *           send_notify ultimately calls pjsip_evsub_send_request
  *               pjsip_evsub_send_request calls evsub's set_state
  *                   set_state calls pubsub_evsub_set_state
- *                       pubsub_evsub_set_state checks state == TERMINATE_IN_PROGRESS
+ *                       pubsub_on_evsub_state checks state == TERMINATE_IN_PROGRESS
  *                       removes the subscriptions
  *                       cleans up references to evsub
  *                       sets state = TERMINATED
@@ -3378,6 +3465,15 @@ static void set_state_terminated(struct ast_sip_subscription *sub)
  *     serialized_pubsub_on_refresh_timeout starts
  *         See (1) Above
  *
+ * * Transmission failure sending NOTIFY or error response from client
+ *     pjproject transaction timer expires or non OK response
+ *         pjproject locks dialog
+ *         calls pubsub_on_evsub_state with event TSX_STATE
+ *             pubsub_on_evsub_state checks event == TSX_STATE
+ *             removes the subscriptions
+ *             cleans up references to evsub
+ *             sets state = TERMINATED
+ *         pjproject unlocks dialog
  *
  * * ast_sip_subscription_notify is called
  *       checks state == NORMAL
@@ -3403,23 +3499,33 @@ static void set_state_terminated(struct ast_sip_subscription *sub)
  *
  * Although this function is called for every state change, we only care
  * about the TERMINATED state, and only when we're actually processing the final
- * notify (SIP_SUB_TREE_TERMINATE_IN_PROGRESS).  In this case, we do all
- * the subscription tree cleanup tasks and decrement the evsub reference.
+ * notify (SIP_SUB_TREE_TERMINATE_IN_PROGRESS) OR when a transmission failure
+ * occurs (PJSIP_EVENT_TSX_STATE).  In this case, we do all the subscription tree
+ * cleanup tasks and decrement the evsub reference.
  */
 static void pubsub_on_evsub_state(pjsip_evsub *evsub, pjsip_event *event)
 {
-	struct sip_subscription_tree *sub_tree;
+	struct sip_subscription_tree *sub_tree =
+		pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
 
-	ast_debug(3, "on_evsub_state called with state %s\n", pjsip_evsub_get_state_name(evsub));
+	ast_debug(3, "evsub %p state %s event %s sub_tree %p sub_tree state %s\n", evsub,
+		pjsip_evsub_get_state_name(evsub), pjsip_event_str(event->type), sub_tree,
+		(sub_tree ? sub_tree_state_description[sub_tree->state] : "UNKNOWN"));
 
-	if (pjsip_evsub_get_state(evsub) != PJSIP_EVSUB_STATE_TERMINATED) {
+	if (!sub_tree || pjsip_evsub_get_state(evsub) != PJSIP_EVSUB_STATE_TERMINATED) {
 		return;
 	}
 
-	sub_tree = pjsip_evsub_get_mod_data(evsub, pubsub_module.id);
-	if (!sub_tree || sub_tree->state != SIP_SUB_TREE_TERMINATE_IN_PROGRESS) {
-		ast_debug(1, "Possible terminate race prevented %p\n", sub_tree);
+	if (sub_tree->state == SIP_SUB_TREE_TERMINATE_IN_PROGRESS
+		|| (event->type == PJSIP_EVENT_TSX_STATE && sub_tree->state != SIP_SUB_TREE_NORMAL)) {
+		ast_debug(1, "Possible terminate race prevented %p %p\n", sub_tree, evsub);
 		return;
+	}
+
+	if (sub_tree->expiration_task) {
+		ast_sip_sched_task_cancel(sub_tree->expiration_task);
+		ao2_cleanup(sub_tree->expiration_task);
+		sub_tree->expiration_task = NULL;
 	}
 
 	remove_subscription(sub_tree);
@@ -3450,7 +3556,7 @@ static int serialized_pubsub_on_refresh_timeout(void *userdata)
 
 	pjsip_dlg_inc_lock(dlg);
 	if (sub_tree->state >= SIP_SUB_TREE_TERMINATE_IN_PROGRESS) {
-		ast_debug(1, "Possible terminate race prevented %p %d\n", sub_tree->evsub, sub_tree->state);
+		ast_log(LOG_ERROR, "Possible terminate race prevented %p %d\n", sub_tree->evsub, sub_tree->state);
 		pjsip_dlg_dec_lock(dlg);
 		ao2_cleanup(sub_tree);
 		return 0;
@@ -3492,6 +3598,12 @@ static void pubsub_on_rx_refresh(pjsip_evsub *evsub, pjsip_rx_data *rdata,
 		return;
 	}
 
+	if (sub_tree->expiration_task) {
+		ast_sip_sched_task_cancel(sub_tree->expiration_task);
+		ao2_cleanup(sub_tree->expiration_task);
+		sub_tree->expiration_task = NULL;
+	}
+
 	/* PJSIP will set the evsub's state to terminated before calling into this function
 	 * if the Expires value of the incoming SUBSCRIBE is 0.
 	 */
@@ -3499,6 +3611,8 @@ static void pubsub_on_rx_refresh(pjsip_evsub *evsub, pjsip_rx_data *rdata,
 	if (pjsip_evsub_get_state(sub_tree->evsub) == PJSIP_EVSUB_STATE_TERMINATED) {
 		sub_tree->state = SIP_SUB_TREE_TERMINATE_PENDING;
 	}
+
+	subscription_persistence_update(sub_tree, rdata, PERSISTENCE_DONT_UPDATE_PACKET);
 
 	if (ast_sip_push_task(sub_tree->serializer, serialized_pubsub_on_refresh_timeout, ao2_bump(sub_tree))) {
 		/* If we can't push the NOTIFY refreshing task...we'll just go with it. */
