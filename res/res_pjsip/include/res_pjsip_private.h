@@ -184,18 +184,6 @@ void ast_sip_destroy_global_headers(void);
 int ast_res_pjsip_init_options_handling(int reload);
 
 /*!
- * \internal
- * \brief Indicate OPTIONS handling for this AOR needs updating.
- *
- * When AOR configuration is retrieved, it is possible that the
- * qualify frequency has changed. The OPTIONs code needs to update
- * its qualifies to reflect these changes.
- *
- * \param aor The AOR that has been retrieved
- */
-void ast_res_pjsip_update_options(struct ast_sip_aor *aor);
-
-/*!
  * \internal Initialize message IP updating handling.
  *
  * \retval 0 on success

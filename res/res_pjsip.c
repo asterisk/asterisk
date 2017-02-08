@@ -4340,6 +4340,7 @@ AST_TEST_DEFINE(xml_sanitization_exceeds_buffer)
 static int reload_configuration_task(void *obj)
 {
 	ast_res_pjsip_reload_configuration();
+	ast_res_pjsip_init_options_handling(1);
 	ast_sip_initialize_dns();
 	return 0;
 }
