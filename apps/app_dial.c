@@ -2538,16 +2538,14 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			continue;
 		}
 
-		ast_channel_lock(tc);
-		ast_channel_stage_snapshot(tc);
-		ast_channel_unlock(tc);
-
 		ast_channel_get_device_name(tc, device_name, sizeof(device_name));
 		if (!ignore_cc) {
 			ast_cc_extension_monitor_add_dialstring(chan, tmp->interface, device_name);
 		}
 
 		ast_channel_lock_both(tc, chan);
+		ast_channel_stage_snapshot(tc);
+
 		pbx_builtin_setvar_helper(tc, "DIALEDPEERNUMBER", tmp->number);
 
 		/* Setup outgoing SDP to match incoming one */
@@ -2563,7 +2561,6 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 
 		ast_channel_appl_set(tc, "AppDial");
 		ast_channel_data_set(tc, "(Outgoing Line)");
-		ast_channel_publish_snapshot(tc);
 
 		memset(ast_channel_whentohangup(tc), 0, sizeof(*ast_channel_whentohangup(tc)));
 
@@ -2788,15 +2785,14 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		}
 	} else {
 		const char *number;
+		const char *name;
 		int dial_end_raised = 0;
 		int cause = -1;
 
-		if (ast_test_flag64(&opts, OPT_CALLER_ANSWER))
+		if (ast_test_flag64(&opts, OPT_CALLER_ANSWER)) {
 			ast_answer(chan);
+		}
 
-		strcpy(pa.status, "ANSWER");
-		ast_channel_stage_snapshot(chan);
-		pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this
 		   we will always return with -1 so that it is hung up properly after the
 		   conversation.  */
@@ -2818,10 +2814,10 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 		hanguptree(&out_chans, peer, cause >= 0 ? cause : AST_CAUSE_ANSWERED_ELSEWHERE);
 
 		/* If appropriate, log that we have a destination channel and set the answer time */
-		if (ast_channel_name(peer))
-			pbx_builtin_setvar_helper(chan, "DIALEDPEERNAME", ast_channel_name(peer));
 
 		ast_channel_lock(peer);
+		name = ast_strdupa(ast_channel_name(peer));
+
 		number = pbx_builtin_getvar_helper(peer, "DIALEDPEERNUMBER");
 		if (ast_strlen_zero(number)) {
 			number = NULL;
@@ -2829,8 +2825,16 @@ static int dial_exec_full(struct ast_channel *chan, const char *data, struct ast
 			number = ast_strdupa(number);
 		}
 		ast_channel_unlock(peer);
+
 		ast_channel_lock(chan);
+		ast_channel_stage_snapshot(chan);
+
+		strcpy(pa.status, "ANSWER");
+		pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
+
+		pbx_builtin_setvar_helper(chan, "DIALEDPEERNAME", name);
 		pbx_builtin_setvar_helper(chan, "DIALEDPEERNUMBER", number);
+
 		ast_channel_stage_snapshot_done(chan);
 		ast_channel_unlock(chan);
 

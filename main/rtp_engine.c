@@ -1394,16 +1394,16 @@ void ast_rtp_instance_set_stats_vars(struct ast_channel *chan, struct ast_rtp_in
 {
 	char quality_buf[AST_MAX_USER_FIELD];
 	char *quality;
-	struct ast_channel *bridge = ast_channel_bridge_peer(chan);
+	struct ast_channel *bridge;
 
-	ast_channel_lock(chan);
-	ast_channel_stage_snapshot(chan);
-	ast_channel_unlock(chan);
+	bridge = ast_channel_bridge_peer(chan);
 	if (bridge) {
-		ast_channel_lock(bridge);
+		ast_channel_lock_both(chan, bridge);
 		ast_channel_stage_snapshot(bridge);
-		ast_channel_unlock(bridge);
+	} else {
+		ast_channel_lock(chan);
 	}
+	ast_channel_stage_snapshot(chan);
 
 	quality = ast_rtp_instance_get_quality(instance, AST_RTP_INSTANCE_STAT_FIELD_QUALITY,
 		quality_buf, sizeof(quality_buf));
@@ -1441,11 +1441,9 @@ void ast_rtp_instance_set_stats_vars(struct ast_channel *chan, struct ast_rtp_in
 		}
 	}
 
-	ast_channel_lock(chan);
 	ast_channel_stage_snapshot_done(chan);
 	ast_channel_unlock(chan);
 	if (bridge) {
-		ast_channel_lock(bridge);
 		ast_channel_stage_snapshot_done(bridge);
 		ast_channel_unlock(bridge);
 		ast_channel_unref(bridge);
