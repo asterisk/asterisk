@@ -1,3 +1,19 @@
+2017-02-08 18:57 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.13-cert1-rc4 Released.
+
+2017-02-08 11:50 +0000 [7603c4f32b]  Mark Michelson <mmichelson@digium.com>
+
+	* Revert "Update qualifies when AOR configuration changes."
+
+	  This reverts commit 6492e91392b8fd394193e411c6eb64b45486093f.
+
+	  The change in question was intended to prevent the need to reload in
+	  order to update qualifies on contacts when an AOR changes. However, this
+	  ended up causing a deadlock instead.
+
+	  Change-Id: I1a835c90a5bb65b6dc3a1e94cddc12a4afc3d71e
+
 2017-02-03 19:58 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.13-cert1-rc3 Released.
