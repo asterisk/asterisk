@@ -518,18 +518,6 @@ static int qualify_contact_task(void *obj)
 static int qualify_contact_sched(const void *obj)
 {
 	struct sched_data *data = (struct sched_data *) obj;
-	struct ast_sip_aor *aor;
-
-	/* This helps us to determine if an AOR has been removed
-	 * from configuration, and if so, stop qualifying the
-	 * contact
-	 */
-	aor = ast_sip_location_retrieve_aor(data->contact->aor);
-	if (!aor) {
-		ao2_ref(data, -1);
-		return 0;
-	}
-	ao2_ref(aor, -1);
 
 	ao2_ref(data->contact, +1);
 	if (ast_sip_push_task(NULL, qualify_contact_task, data->contact)) {
@@ -1176,10 +1164,12 @@ static int qualify_and_schedule_all_cb(void *obj, void *arg, int flags)
 	struct ast_sip_aor *aor = obj;
 	struct ao2_container *contacts;
 
-	contacts = ast_sip_location_retrieve_aor_contacts(aor);
-	if (contacts) {
-		ao2_callback(contacts, OBJ_NODATA, qualify_and_schedule_cb_with_aor, aor);
-		ao2_ref(contacts, -1);
+	if (aor->permanent_contacts) {
+		contacts = ast_sip_location_retrieve_aor_contacts(aor);
+		if (contacts) {
+			ao2_callback(contacts, OBJ_NODATA, qualify_and_schedule_cb_with_aor, aor);
+			ao2_ref(contacts, -1);
+		}
 	}
 
 	return 0;
@@ -1504,29 +1494,6 @@ int ast_res_pjsip_init_options_handling(int reload)
 	qualify_and_schedule_all();
 
 	return 0;
-}
-
-static int unschedule_for_aor_cb(void *obj, void *arg, int flags)
-{
-	struct sched_data *data = obj;
-	struct ast_sip_aor *aor = arg;
-
-	if (!strcmp(ast_sorcery_object_get_id(aor), data->contact->aor)) {
-		AST_SCHED_DEL_UNREF(sched, data->id, ao2_ref(data, -1));
-	}
-
-	return 0;
-}
-
-void ast_res_pjsip_update_options(struct ast_sip_aor *aor)
-{
-	/* This can happen if an AOR is created and applied before OPTIONs code has been initialized */
-	if (!sched_qualifies) {
-		return;
-	}
-
-	ao2_callback(sched_qualifies, OBJ_NODATA | OBJ_UNLINK, unschedule_for_aor_cb, aor);
-	qualify_and_schedule_all_cb(aor, NULL, 0);
 }
 
 void ast_res_pjsip_cleanup_options_handling(void)
