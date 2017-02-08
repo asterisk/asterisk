@@ -211,7 +211,8 @@ int ast_srv_lookup(struct srv_context **context, const char *service, const char
 		}
 		AST_LIST_HEAD_INIT_NOLOCK(&(*context)->entries);
 
-		if ((ast_search_dns(*context, service, C_IN, T_SRV, srv_callback)) < 0) {
+		if (((ast_search_dns(*context, service, C_IN, T_SRV, srv_callback)) < 1) ||
+			AST_LIST_EMPTY(&(*context)->entries)) {
 			ast_free(*context);
 			*context = NULL;
 			return -1;
