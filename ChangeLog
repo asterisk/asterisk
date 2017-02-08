@@ -1,3 +1,37 @@
+2017-02-08 19:16 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk 14.3.0-rc2 Released.
+
+2017-02-08 11:50 +0000 [4b725d9be6]  Mark Michelson <mmichelson@digium.com>
+
+	* Revert "Update qualifies when AOR configuration changes."
+
+	  This reverts commit 6492e91392b8fd394193e411c6eb64b45486093f.
+
+	  The change in question was intended to prevent the need to reload in
+	  order to update qualifies on contacts when an AOR changes. However, this
+	  ended up causing a deadlock instead.
+
+	  Change-Id: I1a835c90a5bb65b6dc3a1e94cddc12a4afc3d71e
+
+2017-02-07 12:01 +0000 [01a4f25701]  nappsoft <infos@nappsoft.com> (license 6822)
+
+	* srv: Fix crash when ast_srv_lookup is used and 0 records are returned.
+
+	  When performing an SRV lookup using the ast_srv_lookup function it
+	  did not properly handle the situation where 0 records are returned.
+	  If this happened it would wrongly assume that at least one record
+	  was present.
+
+	  This change fixes the code so it will exit early if an error occurs
+	  or if 0 records are returned.
+
+	  ASTERISK-26772
+	  patches:
+	    srv_lookup.patch submitted by nappsoft (license 6822)
+
+	  Change-Id: I09b19081c74e0ad11c12bf54a257243b1bcb2351
+
 2017-02-06 16:52 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk 14.3.0-rc1 Released.
