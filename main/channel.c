@@ -825,7 +825,12 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	ast_channel_stage_snapshot(tmp);
 
 	if (!(nativeformats = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
-		/* format capabilities structure allocation failure */
+		/*
+		 * Aborting the channel creation.  We do not need to complete staging
+		 * the channel snapshot because the channel has not been finalized or
+		 * linked into the channels container yet.  Nobody else knows about
+		 * this channel nor will anybody ever know about it.
+		 */
 		return ast_channel_unref(tmp);
 	}
 	ast_format_cap_append(nativeformats, ast_format_none, 0);
@@ -851,6 +856,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 
 	if (!(schedctx = ast_sched_context_create())) {
 		ast_log(LOG_WARNING, "Channel allocation failed: Unable to create schedule context\n");
+		/* See earlier channel creation abort comment above. */
 		return ast_channel_unref(tmp);
 	}
 	ast_channel_sched_set(tmp, schedctx);
@@ -865,6 +871,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		ast_channel_caller(tmp)->id.name.valid = 1;
 		ast_channel_caller(tmp)->id.name.str = ast_strdup(cid_name);
 		if (!ast_channel_caller(tmp)->id.name.str) {
+			/* See earlier channel creation abort comment above. */
 			return ast_channel_unref(tmp);
 		}
 	}
@@ -872,6 +879,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		ast_channel_caller(tmp)->id.number.valid = 1;
 		ast_channel_caller(tmp)->id.number.str = ast_strdup(cid_num);
 		if (!ast_channel_caller(tmp)->id.number.str) {
+			/* See earlier channel creation abort comment above. */
 			return ast_channel_unref(tmp);
 		}
 	}
@@ -885,6 +893,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	}
 
 	if (needqueue && ast_channel_internal_alertpipe_init(tmp)) {
+		/* See earlier channel creation abort comment above. */
 		return ast_channel_unref(tmp);
 	}
 
@@ -976,20 +985,14 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	if (assignedids && (does_id_conflict(assignedids->uniqueid) || does_id_conflict(assignedids->uniqueid2))) {
 		ast_channel_internal_errno_set(AST_CHANNEL_ERROR_ID_EXISTS);
 		ao2_unlock(channels);
-		/* This is a bit unorthodox, but we can't just call ast_channel_stage_snapshot_done()
-		 * because that will result in attempting to publish the channel snapshot. That causes
-		 * badness in some places, such as CDRs. So we need to manually clear the flag on the
-		 * channel that says that a snapshot is being cleared.
-		 */
-		ast_clear_flag(ast_channel_flags(tmp), AST_FLAG_SNAPSHOT_STAGE);
 		ast_channel_unlock(tmp);
+		/* See earlier channel creation abort comment above. */
 		return ast_channel_unref(tmp);
 	}
 
+	/* Finalize and link into the channels container. */
 	ast_channel_internal_finalize(tmp);
-
 	ast_atomic_fetchadd_int(&chancount, +1);
-
 	ao2_link_flags(channels, tmp, OBJ_NOLOCK);
 
 	ao2_unlock(channels);
