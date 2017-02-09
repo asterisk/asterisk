@@ -1139,6 +1139,10 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
  */
 int ast_async_goto_by_name(const char *chan, const char *context, const char *exten, int priority);
 
+#define AST_OUTGOING_EXT_NO_WAIT          0
+#define AST_OUTGOING_EXT_WAIT             1
+#define AST_OUTGOING_EXT_WAIT_GOTO_FAILED 2
+
 /*!
  * \brief Synchronously or asynchronously make an outbound call and send it to a
  * particular extension
@@ -1175,6 +1179,10 @@ int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const c
 	int synchronous, const char *cid_num, const char *cid_name, struct ast_variable *vars,
 	const char *account, struct ast_channel **locked_channel, int early_media,
 	const struct ast_assigned_ids *assignedids);
+
+#define AST_OUTGOING_APP_NO_WAIT       0
+#define AST_OUTGOING_APP_WAIT          1
+#define AST_OUTGOING_APP_WAIT_COMPLETE 2
 
 /*!
  * \brief Synchronously or asynchronously make an outbound call and execute an
