@@ -183,8 +183,8 @@ static void *hook_launch_thread(void *data)
 	};
 
 	ast_pbx_outgoing_exten("Local", NULL, full_exten_name, 60,
-			arg->context, arg->exten, 1, NULL, 0, NULL, NULL, &chan_name_var,
-			NULL, NULL, 1, NULL);
+			arg->context, arg->exten, 1, NULL, AST_OUTGOING_NO_WAIT,
+			NULL, NULL, &chan_name_var, NULL, NULL, 1, NULL);
 
 	hook_thread_arg_destroy(arg);
 

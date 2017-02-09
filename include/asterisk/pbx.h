@@ -1139,6 +1139,12 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
  */
 int ast_async_goto_by_name(const char *chan, const char *context, const char *exten, int priority);
 
+enum ast_pbx_outgoing_sync {
+	AST_OUTGOING_NO_WAIT = 0,       /*! Don't wait for originated call to answer */
+	AST_OUTGOING_WAIT = 1,          /*! Wait for originated call to answer */
+	AST_OUTGOING_WAIT_COMPLETE = 2, /*! Wait for originated call to answer and hangup */
+};
+
 /*!
  * \brief Synchronously or asynchronously make an outbound call and send it to a
  * particular extension
@@ -1152,11 +1158,11 @@ int ast_async_goto_by_name(const char *chan, const char *context, const char *ex
  * \param priority The destination priority for the outbound channel
  * \param reason Optional.  If provided, the dialed status of the outgoing channel.
  *        Codes are AST_CONTROL_xxx values.  Valid only if synchronous is non-zero.
- * \param synchronous If zero then don't wait for anything.
- *        If one then block until the outbound channel answers or the call fails.
- *        If greater than one then wait for the call to complete or if the call doesn't
- *        answer and failed@context exists then run a channel named OutgoingSpoolFailed
- *        at failed@context.
+ * \param synchronous defined by the ast_pbx_outgoing_sync enum. If zero then don't
+ *        wait for anything. If one then block until the outbound channel answers
+ *        or the call fails. If greater than one then wait for the call to complete
+ *        or if the call doesn't answer and failed@context exists then run a
+ *        channel named OutgoingSpoolFailed at failed@context.
  * \param cid_num The caller ID number to set on the outbound channel
  * \param cid_name The caller ID name to set on the outbound channel
  * \param vars Variables to set on the outbound channel
@@ -1190,9 +1196,9 @@ int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const c
  * \param appdata Data to pass to the application
  * \param reason Optional.  If provided, the dialed status of the outgoing channel.
  *        Codes are AST_CONTROL_xxx values.  Valid only if synchronous is non-zero.
- * \param synchronous If zero then don't wait for anything.
- *        If one then block until the outbound channel answers or the call fails.
- *        If greater than one then wait for the call to complete.
+ * \param synchronous defined by the ast_pbx_outgoing_sync enum. If zero then don't
+ *        wait for anything. If one then block until the outbound channel answers
+ *        or the call fails. If greater than one then wait for the call to complete.
  * \param cid_num The caller ID number to set on the outbound channel
  * \param cid_name The caller ID name to set on the outbound channel
  * \param vars Variables to set on the outbound channel
