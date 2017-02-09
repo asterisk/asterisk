@@ -242,15 +242,17 @@ static int originate_exec(struct ast_channel *chan, const char *data)
 				chantech, chandata, args.arg1, exten, priority);
 
 		ast_pbx_outgoing_exten_predial(chantech, cap_slin, chandata,
-				timeout * 1000, args.arg1, exten, priority, &outgoing_status, 1, NULL,
-				NULL, NULL, NULL, NULL, 0, NULL, predial_callee);
+				timeout * 1000, args.arg1, exten, priority, &outgoing_status,
+				AST_OUTGOING_EXT_WAIT, NULL, NULL, NULL, NULL, NULL, 0, NULL,
+				predial_callee);
 	} else if (!strcasecmp(args.type, "app")) {
 		ast_debug(1, "Originating call to '%s/%s' and connecting them to %s(%s)\n",
 				chantech, chandata, args.arg1, S_OR(args.arg2, ""));
 
 		ast_pbx_outgoing_app_predial(chantech, cap_slin, chandata,
-				timeout * 1000, args.arg1, args.arg2, &outgoing_status, 1, NULL,
-				NULL, NULL, NULL, NULL, NULL, predial_callee);
+				timeout * 1000, args.arg1, args.arg2, &outgoing_status,
+				AST_OUTGOING_APP_WAIT, NULL, NULL, NULL, NULL, NULL, NULL,
+				predial_callee);
 	} else {
 		ast_log(LOG_ERROR, "Incorrect type, it should be 'exten' or 'app': %s\n",
 				args.type);
