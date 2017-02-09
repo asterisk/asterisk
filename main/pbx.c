@@ -7876,7 +7876,7 @@ int ast_pbx_outgoing_exten_predial(const char *type, struct ast_format_cap *cap,
 		early_media, assignedids, predial_callee);
 
 	if (res < 0 /* Call failed to get connected for some reason. */
-		&& 1 < synchronous
+		&& 0 < synchronous
 		&& ast_exists_extension(NULL, context, "failed", 1, NULL)) {
 		struct ast_channel *failed;
 
