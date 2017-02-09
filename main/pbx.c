@@ -7768,7 +7768,7 @@ int ast_pbx_outgoing_exten(const char *type, struct ast_format_cap *cap, const c
 		early_media, assignedids);
 
 	if (res < 0 /* Call failed to get connected for some reason. */
-		&& 1 < synchronous
+		&& 0 < synchronous
 		&& ast_exists_extension(NULL, context, "failed", 1, NULL)) {
 		struct ast_channel *failed;
 
