@@ -5136,13 +5136,15 @@ static void *fast_originate(void *data)
 
 	if (!ast_strlen_zero(in->app)) {
 		res = ast_pbx_outgoing_app(in->tech, in->cap, in->data,
-			in->timeout, in->app, in->appdata, &reason, 1,
+			in->timeout, in->app, in->appdata, &reason,
+			AST_OUTGOING_WAIT,
 			S_OR(in->cid_num, NULL),
 			S_OR(in->cid_name, NULL),
 			in->vars, in->account, &chan, &assignedids);
 	} else {
 		res = ast_pbx_outgoing_exten(in->tech, in->cap, in->data,
-			in->timeout, in->context, in->exten, in->priority, &reason, 1,
+			in->timeout, in->context, in->exten, in->priority, &reason,
+			AST_OUTGOING_WAIT,
 			S_OR(in->cid_num, NULL),
 			S_OR(in->cid_name, NULL),
 			in->vars, in->account, &chan, in->early_media, &assignedids);
@@ -5613,11 +5615,16 @@ static int action_originate(struct mansession *s, const struct message *m)
 			}
 		}
 	} else if (!ast_strlen_zero(app)) {
-		res = ast_pbx_outgoing_app(tech, cap, data, to, app, appdata, &reason, 1, l, n, vars, account, NULL, assignedids.uniqueid ? &assignedids : NULL);
+		res = ast_pbx_outgoing_app(tech, cap, data, to, app, appdata, &reason,
+				AST_OUTGOING_WAIT, l, n, vars, account, NULL,
+				assignedids.uniqueid ? &assignedids : NULL);
 		ast_variables_destroy(vars);
 	} else {
 		if (exten && context && pi) {
-			res = ast_pbx_outgoing_exten(tech, cap, data, to, context, exten, pi, &reason, 1, l, n, vars, account, NULL, bridge_early, assignedids.uniqueid ? &assignedids : NULL);
+			res = ast_pbx_outgoing_exten(tech, cap, data, to,
+					context, exten, pi, &reason, AST_OUTGOING_WAIT,
+					l, n, vars, account, NULL, bridge_early,
+					assignedids.uniqueid ? &assignedids : NULL);
 			ast_variables_destroy(vars);
 		} else {
 			astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");
