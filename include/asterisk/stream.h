@@ -39,6 +39,11 @@ struct ast_stream;
 struct ast_format_cap;
 
 /*!
+ * \brief The topology of a set of streams
+ */
+struct ast_stream_topology;
+
+/*!
  * \brief States that a stream may be in
  */
 enum ast_stream_state {
@@ -91,11 +96,24 @@ struct ast_stream *ast_stream_create(const char *name, enum ast_media_type type)
 void ast_stream_destroy(struct ast_stream *stream);
 
 /*!
+ * \brief Create a deep clone of an existing stream
+ *
+ * \param stream The existing stream
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ *
+ * \since 15
+ */
+struct ast_stream *ast_stream_clone(const struct ast_stream *stream);
+
+/*!
  * \brief Get the name of a stream
  *
  * \param stream The media stream
  *
- * \return The name of the stream
+ * \retval non-NULL success
+ * \retval NULL failure
  *
  * \since 15
  */
@@ -106,7 +124,7 @@ const char *ast_stream_get_name(const struct ast_stream *stream);
  *
  * \param stream The media stream
  *
- * \return The media type of the stream
+ * \return The media type of the stream (AST_MEDIA_TYPE_UNKNOWN on error)
  *
  * \since 15
  */
@@ -127,7 +145,8 @@ void ast_stream_set_type(struct ast_stream *stream, enum ast_media_type type);
  *
  * \param stream The media stream
  *
- * \return The negotiated media formats
+ * \retval non-NULL success
+ * \retval NULL failure
  *
  * \note The reference count is not increased
  *
@@ -141,6 +160,9 @@ struct ast_format_cap *ast_stream_get_formats(const struct ast_stream *stream);
  * \param stream The media stream
  * \param caps The current negotiated formats
  *
+ * \note The new format capabilities structure has its refcount bumped and
+ * any existing format capabilities structure has its refcount decremented.
+ *
  * \since 15
  */
 void ast_stream_set_formats(struct ast_stream *stream, struct ast_format_cap *caps);
@@ -150,7 +172,7 @@ void ast_stream_set_formats(struct ast_stream *stream, struct ast_format_cap *ca
  *
  * \param stream The media stream
  *
- * \return The state of the stream
+ * \return The state of the stream (AST_STREAM_STATE_UNKNOWN on error)
  *
  * \since 15
  */
@@ -169,14 +191,129 @@ enum ast_stream_state ast_stream_get_state(const struct ast_stream *stream);
 void ast_stream_set_state(struct ast_stream *stream, enum ast_stream_state state);
 
 /*!
- * \brief Get the number of the stream
+ * \brief Get the position of the stream in the topology
  *
  * \param stream The media stream
  *
- * \return The number of the stream
+ * \return The position of the stream (-1 on error)
  *
  * \since 15
  */
-unsigned int ast_stream_get_num(const struct ast_stream *stream);
+int ast_stream_get_position(const struct ast_stream *stream);
+
+/*!
+ * \brief Create a stream topology
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ *
+ * \since 15
+ */
+struct ast_stream_topology *ast_stream_topology_create(void);
+
+/*!
+ * \brief Create a deep clone of an existing stream topology
+ *
+ * \param topology The existing topology of streams
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ *
+ * \since 15
+ */
+struct ast_stream_topology *ast_stream_topology_clone(
+	const struct ast_stream_topology *topology);
+
+/*!
+ * \brief Destroy a stream topology
+ *
+ * \param topology The topology of streams
+ *
+ * \note All streams contained within the topology will be destroyed
+ *
+ * \since 15
+ */
+void ast_stream_topology_destroy(struct ast_stream_topology *topology);
+
+/*!
+ * \brief Append a stream to the topology
+ *
+ * \param topology The topology of streams
+ * \param stream The stream to append
+ *
+ * \returns the position of the stream in the topology (-1 on error)
+ *
+ * \since 15
+ */
+int ast_stream_topology_append_stream(struct ast_stream_topology *topology,
+	struct ast_stream *stream);
+
+/*!
+ * \brief Get the number of streams in a topology
+ *
+ * \param topology The topology of streams
+ *
+ * \return the number of streams (-1 on error)
+ *
+ * \since 15
+ */
+int ast_stream_topology_get_count(const struct ast_stream_topology *topology);
+
+/*!
+ * \brief Get a specific stream from the topology
+ *
+ * \param topology The topology of streams
+ * \param position The topology position to get
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ *
+ * \since 15
+ */
+struct ast_stream *ast_stream_topology_get_stream(
+	const struct ast_stream_topology *topology, unsigned int position);
+
+/*!
+ * \brief Set a specific position in a topology
+ *
+ * \param topology The topology of streams
+ * \param position The topology position to set
+ * \param stream The stream to put in its place
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ *
+ * \note If an existing stream exists it will be destroyed
+ *
+ * \note You can overwrite an existing position in the topology or set
+ * the first unused position.  You can't set positions beyond that.
+ *
+ * \since 15
+ */
+int ast_stream_topology_set_stream(struct ast_stream_topology *topology,
+	unsigned int position, struct ast_stream *stream);
+
+/*!
+ * \brief A helper function that, given a format capabilities structure,
+ * creates a topology and separates the media types in format_cap into
+ * separate streams.
+ *
+ * \param caps The format capabilities structure
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ *
+ * \note The format capabilities reference is NOT altered by this function
+ * since a new format capabilities structure is created for each media type.
+ *
+ * \note Each stream will have its name set to the corresponding media type.
+ * For example: "AST_MEDIA_TYPE_AUDIO".
+ *
+ * \note Each stream will be set to the sendrecv state.
+ *
+ * \since 15
+ */
+struct ast_stream_topology *ast_stream_topology_create_from_format_cap(
+	struct ast_format_cap *cap);
 
 #endif /* _AST_STREAM_H */
