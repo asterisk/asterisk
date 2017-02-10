@@ -1055,7 +1055,16 @@ static void rtp_ioqueue_thread_destroy(struct ast_rtp_ioqueue_thread *ioqueue)
 		pj_thread_destroy(ioqueue->thread);
 	}
 
-	pj_pool_release(ioqueue->pool);
+	if (ioqueue->pool) {
+		/* This mimics the behavior of pj_pool_safe_release
+		 * which was introduced in pjproject 2.6.
+		 */
+		pj_pool_t *temp_pool = ioqueue->pool;
+
+		ioqueue->pool = NULL;
+		pj_pool_release(temp_pool);
+	}
+
 	ast_free(ioqueue);
 }
 
