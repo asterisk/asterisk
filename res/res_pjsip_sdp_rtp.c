@@ -87,7 +87,8 @@ static int media_type_to_fdno(enum ast_media_type media_type)
 	case AST_MEDIA_TYPE_VIDEO: return FD_VIDEO;
 	case AST_MEDIA_TYPE_TEXT:
 	case AST_MEDIA_TYPE_UNKNOWN:
-	case AST_MEDIA_TYPE_IMAGE: break;
+	case AST_MEDIA_TYPE_IMAGE:
+	case AST_MEDIA_TYPE_END: break;
 	}
 	return -1;
 }
