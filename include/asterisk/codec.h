@@ -33,6 +33,7 @@ enum ast_media_type {
 	AST_MEDIA_TYPE_VIDEO,
 	AST_MEDIA_TYPE_IMAGE,
 	AST_MEDIA_TYPE_TEXT,
+	AST_MEDIA_TYPE_END,
 };
 
 struct ast_module;
@@ -61,6 +62,9 @@ struct ast_codec {
 	 * \brief Retrieve the number of samples in a frame
 	 *
 	 * \param frame The frame to examine
+	}
+
+	 *
 	 *
 	 * \return the number of samples
 	 */
