@@ -64,4 +64,6 @@ test=memory
 ;auth=realtime,ps_auths
 ;aor=realtime,ps_aors
 ;domain_alias=realtime,ps_domain_aliases
+
+;[res_pjsip_endpoint_identifier_ip]
 ;identify=realtime,ps_endpoint_id_ips
