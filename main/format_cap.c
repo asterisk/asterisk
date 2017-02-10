@@ -268,6 +268,7 @@ int ast_format_cap_append_from_cap(struct ast_format_cap *dst, const struct ast_
 {
 	int idx, res = 0;
 
+	/* NOTE:  The streams API is dependent on the formats being in "preference" order */
 	for (idx = 0; (idx < AST_VECTOR_SIZE(&src->preference_order)) && !res; ++idx) {
 		struct format_cap_framed *framed = AST_VECTOR_GET(&src->preference_order, idx);
 
