@@ -1,0 +1,32 @@
+From 8d136413a550c59ec3662854a71a9d491053502e Mon Sep 17 00:00:00 2001
+From: Richard Mudgett <rmudgett@digium.com>
+Date: Tue, 14 Feb 2017 17:44:14 -0600
+Subject: [PATCH] sip_transport.c: Fix tdata object name to actually contain
+ the pointer.
+
+It helps if the logs referencint a tdata object buffer actually have
+a name that includes the correct pointer as part of the name.  Also
+since the tdata has its own pool it helps if any logs referencing the
+pool have the same name as the tdata object.  This change brings tdata
+logging in line with how tsx objects are named.
+---
+ pjsip/src/pjsip/sip_transport.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/pjsip/src/pjsip/sip_transport.c b/pjsip/src/pjsip/sip_transport.c
+index d672a6d..6dd14d1 100644
+--- a/pjsip/src/pjsip/sip_transport.c
++++ b/pjsip/src/pjsip/sip_transport.c
+@@ -422,7 +422,8 @@ PJ_DEF(pj_status_t) pjsip_tx_data_create( pjsip_tpmgr *mgr,
+     tdata = PJ_POOL_ZALLOC_T(pool, pjsip_tx_data);
+     tdata->pool = pool;
+     tdata->mgr = mgr;
+-    pj_memcpy(tdata->obj_name, pool->obj_name, PJ_MAX_OBJ_NAME);
++    pj_ansi_snprintf(tdata->obj_name, sizeof(tdata->obj_name), "tdta%p", tdata);
++    pj_memcpy(pool->obj_name, tdata->obj_name, sizeof(pool->obj_name));
+ 
+     status = pj_atomic_create(tdata->pool, 0, &tdata->ref_cnt);
+     if (status != PJ_SUCCESS) {
+-- 
+2.7.4
+
