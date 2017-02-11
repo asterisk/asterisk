@@ -3924,24 +3924,40 @@ static char *complete_skinny_show_device(const char *line, const char *word, int
 
 static char *complete_skinny_reset(const char *line, const char *word, int pos, int state)
 {
-	return (pos == 2 ? complete_skinny_devices(word, state) : NULL);
+	if (pos == 2) {
+		static const char * const completions[] = { "all", NULL };
+		char *ret = ast_cli_complete(word, completions, state);
+		if (!ret) {
+			ret = complete_skinny_devices(word, state - 1);
+		}
+		return ret;
+	} else if (pos == 3) {
+		static const char * const completions[] = { "restart", NULL };
+		return ast_cli_complete(word, completions, state);
+	}
+
+	return NULL;
 }
 
 static char *complete_skinny_show_line(const char *line, const char *word, int pos, int state)
 {
-	struct skinny_device *d;
-	struct skinny_line *l;
-	int wordlen = strlen(word), which = 0;
+	if (pos == 3) {
+		struct skinny_device *d;
+		struct skinny_line *l;
+		int wordlen = strlen(word), which = 0;
 
-	if (pos != 3)
-		return NULL;
-
-	AST_LIST_TRAVERSE(&devices, d, list) {
-		AST_LIST_TRAVERSE(&d->lines, l, list) {
-			if (!strncasecmp(word, l->name, wordlen) && ++which > state) {
-				return ast_strdup(l->name);
+		AST_LIST_TRAVERSE(&devices, d, list) {
+			AST_LIST_TRAVERSE(&d->lines, l, list) {
+				if (!strncasecmp(word, l->name, wordlen) && ++which > state) {
+					return ast_strdup(l->name);
+				}
 			}
 		}
+	} else if (pos == 4) {
+		static const char * const completions[] = { "on", NULL };
+		return ast_cli_complete(word, completions, state);
+	} else if (pos == 5) {
+		return complete_skinny_devices(word, state);
 	}
 
 	return NULL;
@@ -4583,7 +4599,7 @@ static char *handle_skinny_show_line(struct ast_cli_entry *e, int cmd, struct as
 	case CLI_INIT:
 		e->command = "skinny show line";
 		e->usage =
-			"Usage: skinny show line <Line> [ on <DeviceID|DeviceName> ]\n"
+			"Usage: skinny show line <Line> [on <DeviceID|DeviceName>]\n"
 			"       List all lineinformation of a specific line known to the Skinny subsystem.\n";
 		return NULL;
 	case CLI_GENERATE:

@@ -639,29 +639,13 @@ static struct ast_channel *alsa_request(const char *type, struct ast_format_cap 
 	return tmp;
 }
 
-static char *autoanswer_complete(const char *line, const char *word, int pos, int state)
-{
-	switch (state) {
-		case 0:
-			if (!ast_strlen_zero(word) && !strncasecmp(word, "on", MIN(strlen(word), 2)))
-				return ast_strdup("on");
-		case 1:
-			if (!ast_strlen_zero(word) && !strncasecmp(word, "off", MIN(strlen(word), 3)))
-				return ast_strdup("off");
-		default:
-			return NULL;
-	}
-
-	return NULL;
-}
-
 static char *console_autoanswer(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char *res = CLI_SUCCESS;
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "console autoanswer";
+		e->command = "console autoanswer [on|off]";
 		e->usage =
 			"Usage: console autoanswer [on|off]\n"
 			"       Enables or disables autoanswer feature.  If used without\n"
@@ -669,7 +653,7 @@ static char *console_autoanswer(struct ast_cli_entry *e, int cmd, struct ast_cli
 			"       The default value of autoanswer is in 'alsa.conf'.\n";
 		return NULL;
 	case CLI_GENERATE:
-		return autoanswer_complete(a->line, a->word, a->pos, a->n);
+		return NULL;
 	}
 
 	if ((a->argc != 2) && (a->argc != 3))

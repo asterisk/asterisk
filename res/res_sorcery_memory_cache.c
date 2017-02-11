@@ -1866,6 +1866,7 @@ static char *sorcery_memory_cache_expire(struct ast_cli_entry *e, int cmd, struc
 static char *sorcery_memory_cache_stale(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct sorcery_memory_cache *cache;
+	int reload = 0;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -1881,6 +1882,9 @@ static char *sorcery_memory_cache_stale(struct ast_cli_entry *e, int cmd, struct
 			return sorcery_memory_cache_complete_name(a->word, a->n);
 		} else if (a->pos == 5) {
 			return sorcery_memory_cache_complete_object_name(a->argv[4], a->word, a->n);
+		} else if (a->pos == 6) {
+			static const char * const completions[] = { "reload", NULL };
+			return ast_cli_complete(a->word, completions, a->n);
 		} else {
 			return NULL;
 		}
@@ -1888,6 +1892,14 @@ static char *sorcery_memory_cache_stale(struct ast_cli_entry *e, int cmd, struct
 
 	if (a->argc < 5 || a->argc > 7) {
 		return CLI_SHOWUSAGE;
+	}
+
+	if (a->argc == 7) {
+		if (!strcasecmp(a->argv[6], "reload")) {
+			reload = 1;
+		} else {
+			return CLI_SHOWUSAGE;
+		}
 	}
 
 	cache = ao2_find(caches, a->argv[4], OBJ_SEARCH_KEY);
@@ -1910,7 +1922,7 @@ static char *sorcery_memory_cache_stale(struct ast_cli_entry *e, int cmd, struct
 		if (!mark_object_as_stale_in_cache(cache, a->argv[5])) {
 			ast_cli(a->fd, "Successfully marked object '%s' in memory cache '%s' as stale\n",
 				a->argv[5], a->argv[4]);
-			if (a->argc == 7 && ast_true(a->argv[6])) {
+			if (reload) {
 				struct sorcery_memory_cached_object *cached;
 
 				cached = ao2_find(cache->objects, a->argv[5], OBJ_SEARCH_KEY | OBJ_NOLOCK);
