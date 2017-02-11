@@ -729,8 +729,7 @@ static pj_bool_t authenticate(pjsip_rx_data *rdata)
 				ao2_ref(unid, -1);
 			}
 			ast_sip_report_auth_success(endpoint, rdata);
-			pjsip_tx_data_dec_ref(tdata);
-			return PJ_FALSE;
+			break;
 		case AST_SIP_AUTHENTICATION_FAILED:
 			log_failed_request(rdata, "Failed to authenticate", 0, 0);
 			ast_sip_report_auth_failed_challenge_response(endpoint, rdata);
@@ -743,6 +742,7 @@ static pj_bool_t authenticate(pjsip_rx_data *rdata)
 			pjsip_endpt_respond_stateless(ast_sip_get_pjsip_endpoint(), rdata, 500, NULL, NULL, NULL);
 			return PJ_TRUE;
 		}
+		pjsip_tx_data_dec_ref(tdata);
 	}
 
 	return PJ_FALSE;
