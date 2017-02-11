@@ -1365,7 +1365,7 @@ static char *handle_cli_confbridge_show_user_profiles(struct ast_cli_entry *e, i
 	case CLI_INIT:
 		e->command = "confbridge show profile users";
 		e->usage =
-			"Usage confbridge show profile users\n";
+			"Usage: confbridge show profile users\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
@@ -1395,7 +1395,7 @@ static char *handle_cli_confbridge_show_user_profile(struct ast_cli_entry *e, in
 	case CLI_INIT:
 		e->command = "confbridge show profile user";
 		e->usage =
-			"Usage confbridge show profile user [<profile name>]\n";
+			"Usage: confbridge show profile user [<profile name>]\n";
 		return NULL;
 	case CLI_GENERATE:
 		if (a->pos == 4) {
@@ -1516,7 +1516,7 @@ static char *handle_cli_confbridge_show_bridge_profiles(struct ast_cli_entry *e,
 	case CLI_INIT:
 		e->command = "confbridge show profile bridges";
 		e->usage =
-			"Usage confbridge show profile bridges\n";
+			"Usage: confbridge show profile bridges\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
@@ -1548,7 +1548,7 @@ static char *handle_cli_confbridge_show_bridge_profile(struct ast_cli_entry *e, 
 	case CLI_INIT:
 		e->command = "confbridge show profile bridge";
 		e->usage =
-			"Usage confbridge show profile bridge <profile name>\n";
+			"Usage: confbridge show profile bridge <profile name>\n";
 		return NULL;
 	case CLI_GENERATE:
 		if (a->pos == 4) {
@@ -1700,7 +1700,7 @@ static char *handle_cli_confbridge_show_menus(struct ast_cli_entry *e, int cmd, 
 	case CLI_INIT:
 		e->command = "confbridge show menus";
 		e->usage =
-			"Usage confbridge show profile menus\n";
+			"Usage: confbridge show profile menus\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
@@ -1734,7 +1734,7 @@ static char *handle_cli_confbridge_show_menu(struct ast_cli_entry *e, int cmd, s
 	case CLI_INIT:
 		e->command = "confbridge show menu";
 		e->usage =
-			"Usage confbridge show menu [<menu name>]\n";
+			"Usage: confbridge show menu [<menu name>]\n";
 		return NULL;
 	case CLI_GENERATE:
 		if (a->pos == 3) {

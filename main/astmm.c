@@ -693,17 +693,12 @@ static char *handle_memory_atexit_list(struct ast_cli_entry *e, int cmd, struct 
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "memory atexit list";
+		e->command = "memory atexit list {on|off}";
 		e->usage =
 			"Usage: memory atexit list {on|off}\n"
 			"       Enable dumping a list of still allocated memory segments at exit.\n";
 		return NULL;
 	case CLI_GENERATE:
-		if (a->pos == 3) {
-			const char * const options[] = { "off", "on", NULL };
-
-			return ast_cli_complete(a->word, options, a->n);
-		}
 		return NULL;
 	}
 
@@ -730,7 +725,7 @@ static char *handle_memory_atexit_summary(struct ast_cli_entry *e, int cmd, stru
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "memory atexit summary";
+		e->command = "memory atexit summary {off|byline|byfunc|byfile}";
 		e->usage =
 			"Usage: memory atexit summary {off|byline|byfunc|byfile}\n"
 			"       Summary of still allocated memory segments at exit options.\n"
@@ -742,11 +737,6 @@ static char *handle_memory_atexit_summary(struct ast_cli_entry *e, int cmd, stru
 			"       Note: byline, byfunc, and byfile are cumulative enables.\n";
 		return NULL;
 	case CLI_GENERATE:
-		if (a->pos == 3) {
-			const char * const options[] = { "off", "byline", "byfunc", "byfile", NULL };
-
-			return ast_cli_complete(a->word, options, a->n);
-		}
 		return NULL;
 	}
 
@@ -1045,7 +1035,7 @@ static char *handle_memory_backtrace(struct ast_cli_entry *e, int cmd, struct as
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "memory backtrace";
+		e->command = "memory backtrace {on|off}";
 		e->usage =
 			"Usage: memory backtrace {on|off}\n"
 			"       Enable dumping an allocation backtrace with memory diagnostics.\n"
@@ -1053,11 +1043,6 @@ static char *handle_memory_backtrace(struct ast_cli_entry *e, int cmd, struct as
 			"       can be CPU intensive.\n";
 		return NULL;
 	case CLI_GENERATE:
-		if (a->pos == 2) {
-			const char * const options[] = { "off", "on", NULL };
-
-			return ast_cli_complete(a->word, options, a->n);
-		}
 		return NULL;
 	}
 

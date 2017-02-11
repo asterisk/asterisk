@@ -5172,12 +5172,6 @@ static char *complete_bridge_participant(const char *bridge_name, const char *li
 		return NULL;
 	}
 
-	if (!state) {
-		ao2_ref(bridge, -1);
-		return ast_strdup("all");
-	}
-	state--;
-
 	{
 		SCOPED_LOCK(bridge_lock, bridge, ast_bridge_lock, ast_bridge_unlock);
 
@@ -5199,6 +5193,8 @@ static char *complete_bridge_participant(const char *bridge_name, const char *li
 
 static char *handle_bridge_kick_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
+	static const char * const completions[] = { "all", NULL };
+	char *complete;
 	struct ast_bridge *bridge;
 
 	switch (cmd) {
@@ -5215,7 +5211,11 @@ static char *handle_bridge_kick_channel(struct ast_cli_entry *e, int cmd, struct
 			return complete_bridge_live(a->word, a->n);
 		}
 		if (a->pos == 3) {
-			return complete_bridge_participant(a->argv[2], a->line, a->word, a->pos, a->n);
+			complete = ast_cli_complete(a->word, completions, a->n);
+			if (!complete) {
+				complete = complete_bridge_participant(a->argv[2], a->line, a->word, a->pos, a->n - 1);
+			}
+			return complete;
 		}
 		return NULL;
 	}

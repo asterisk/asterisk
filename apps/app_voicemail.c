@@ -12747,11 +12747,9 @@ static char *complete_voicemail_show_users(const char *line, const char *word, i
 	struct ast_vm_user *vmu;
 	const char *context = "";
 
-	/* 0 - show; 1 - voicemail; 2 - users; 3 - for; 4 - <context> */
+	/* 0 - voicemail; 1 - show; 2 - users; 3 - for; 4 - <context> */
 	if (pos > 4)
 		return NULL;
-	if (pos == 3)
-		return (state == 0) ? ast_strdup("for") : NULL;
 	wordlen = strlen(word);
 	AST_LIST_TRAVERSE(&users, vmu, list) {
 		if (!strncasecmp(word, vmu->context, wordlen)) {
@@ -12774,7 +12772,7 @@ static char *handle_voicemail_show_users(struct ast_cli_entry *e, int cmd, struc
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "voicemail show users";
+		e->command = "voicemail show users [for]";
 		e->usage =
 			"Usage: voicemail show users [for <context>]\n"
 			"       Lists all mailboxes currently set up\n";

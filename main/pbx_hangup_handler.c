@@ -260,7 +260,7 @@ static char *handle_show_hangup_all(struct ast_cli_entry *e, int cmd, struct ast
 			"       Show hangup handlers for all channels.\n";
 		return NULL;
 	case CLI_GENERATE:
-		return ast_complete_channels(a->line, a->word, a->pos, a->n, e->args);
+		return NULL;
 	}
 
 	if (a->argc < 4) {
