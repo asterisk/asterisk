@@ -313,7 +313,6 @@ static char *handle_show_applications(struct ast_cli_entry *e, int cmd, struct a
 	int like = 0, describing = 0;
 	int total_match = 0;    /* Number of matches in like clause */
 	int total_apps = 0;     /* Number of apps registered */
-	static const char * const choices[] = { "like", "describing", NULL };
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -325,7 +324,7 @@ static char *handle_show_applications(struct ast_cli_entry *e, int cmd, struct a
 			"       If 'describing', <text> will be a substring of the description\n";
 		return NULL;
 	case CLI_GENERATE:
-		return (a->pos != 3) ? NULL : ast_cli_complete(a->word, choices, a->n);
+		return NULL;
 	}
 
 	AST_RWLIST_RDLOCK(&apps);
