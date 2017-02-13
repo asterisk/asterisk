@@ -2125,22 +2125,53 @@ static int request(void *obj)
 
 	AST_NONSTANDARD_APP_ARGS(args, tmp, '/');
 
-	/* If a request user has been specified extract it from the endpoint name portion */
-	if ((endpoint_name = strchr(args.endpoint, '@'))) {
-		request_user = args.endpoint;
-		*endpoint_name++ = '\0';
-	} else {
-		endpoint_name = args.endpoint;
-	}
+	if (ast_sip_get_disable_multi_domain()) {
+		/* If a request user has been specified extract it from the endpoint name portion */
+		if ((endpoint_name = strchr(args.endpoint, '@'))) {
+			request_user = args.endpoint;
+			*endpoint_name++ = '\0';
+		} else {
+			endpoint_name = args.endpoint;
+		}
 
-	if (ast_strlen_zero(endpoint_name)) {
-		ast_log(LOG_ERROR, "Unable to create PJSIP channel with empty endpoint name\n");
-		req_data->cause = AST_CAUSE_CHANNEL_UNACCEPTABLE;
-		return -1;
-	} else if (!(endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", endpoint_name))) {
-		ast_log(LOG_ERROR, "Unable to create PJSIP channel - endpoint '%s' was not found\n", endpoint_name);
-		req_data->cause = AST_CAUSE_NO_ROUTE_DESTINATION;
-		return -1;
+		if (ast_strlen_zero(endpoint_name)) {
+			ast_log(LOG_ERROR, "Unable to create PJSIP channel with empty endpoint name\n");
+			req_data->cause = AST_CAUSE_CHANNEL_UNACCEPTABLE;
+			return -1;
+		} else if (!(endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", endpoint_name))) {
+			ast_log(LOG_ERROR, "Unable to create PJSIP channel - endpoint '%s' was not found\n", endpoint_name);
+			req_data->cause = AST_CAUSE_NO_ROUTE_DESTINATION;
+			return -1;
+		}
+	} else {
+		/* First try to find an exact endpoint match, for single (user) or multi-domain (user@domain) */
+		endpoint_name = args.endpoint;
+		if (ast_strlen_zero(endpoint_name)) {
+			ast_log(LOG_ERROR, "Unable to create PJSIP channel with empty endpoint name\n");
+			req_data->cause = AST_CAUSE_CHANNEL_UNACCEPTABLE;
+			return -1;
+		} else if (!(endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", endpoint_name))) {
+			/* It seems it's not a multi-domain endpoint or single endpoint exact match,
+			 * it's possible that it's a SIP trunk with a specified user (user@trunkname),
+			 * so extract the user before @ sign.
+			 */
+			if ((endpoint_name = strchr(args.endpoint, '@'))) {
+				request_user = args.endpoint;
+				*endpoint_name++ = '\0';
+			}
+
+			if (ast_strlen_zero(endpoint_name)) {
+				ast_log(LOG_ERROR, "Unable to create PJSIP channel with empty endpoint name\n");
+				req_data->cause = AST_CAUSE_CHANNEL_UNACCEPTABLE;
+				return -1;
+			}
+
+			if (!(endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", endpoint_name))) {
+				ast_log(LOG_ERROR, "Unable to create PJSIP channel - endpoint '%s' was not found\n", endpoint_name);
+				req_data->cause = AST_CAUSE_NO_ROUTE_DESTINATION;
+				return -1;
+			}
+		}
 	}
 
 	if (!(session = ast_sip_session_create_outgoing(endpoint, NULL, args.aor, request_user, req_data->caps))) {
