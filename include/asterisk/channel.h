@@ -884,6 +884,10 @@ enum {
 	 * world
 	 */
 	AST_CHAN_TP_INTERNAL = (1 << 2),
+	/*!
+	 * \brief Channels with this particular technology support multiple simultaneous streams
+	 */
+	AST_CHAN_TP_MULTISTREAM = (1 << 3),
 };
 
 /*! \brief ast_channel flags */
@@ -4733,5 +4737,35 @@ enum ast_channel_error ast_channel_errno(void);
  * \retval 1 In an intercept routine.
  */
 int ast_channel_get_intercept_mode(void);
+
+/*!
+ * \brief Retrieve the topology of streams on a channel
+ *
+ * \param chan The channel to get the stream topology of
+ *
+ * \pre chan is locked
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ */
+struct ast_stream_topology *ast_channel_get_stream_topology(
+	const struct ast_channel *chan);
+
+/*!
+ * \brief Set the topology of streams on a channel
+ *
+ * \param chan The channel to set the stream topology on
+ * \param topology The stream topology to set
+ *
+ * \pre chan is locked
+ *
+ * \note If topology is NULL a new empty topology will be created
+ * and returned.
+ *
+ * \retval non-NULL Success
+ * \retval NULL failure
+ */
+struct ast_stream_topology *ast_channel_set_stream_topology(
+	struct ast_channel *chan, struct ast_stream_topology *topology);
 
 #endif /* _ASTERISK_CHANNEL_H */
