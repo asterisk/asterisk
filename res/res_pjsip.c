@@ -2362,7 +2362,7 @@ enum ast_sip_check_auth_result ast_sip_check_authentication(struct ast_sip_endpo
 {
 	if (!registered_authenticator) {
 		ast_log(LOG_WARNING, "No SIP authenticator registered. Assuming authentication is successful\n");
-		return 0;
+		return AST_SIP_AUTHENTICATION_SUCCESS;
 	}
 	return registered_authenticator->check_authentication(endpoint, rdata, tdata);
 }
