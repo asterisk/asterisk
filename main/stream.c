@@ -332,3 +332,22 @@ struct ast_stream_topology *ast_stream_topology_create_from_format_cap(
 
 	return topology;
 }
+
+struct ast_stream *ast_stream_topology_get_first_stream_by_type(
+	const struct ast_stream_topology *topology,
+	enum ast_media_type type)
+{
+	int i;
+
+	ast_assert(topology != NULL);
+
+	for (i = 0; i < AST_VECTOR_SIZE(&topology->streams); i++) {
+		struct ast_stream *stream = AST_VECTOR_GET(&topology->streams, i);
+
+		if (stream->type == type) {
+			return stream;
+		}
+	}
+
+	return NULL;
+}
