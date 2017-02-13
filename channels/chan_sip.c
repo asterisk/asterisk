@@ -8148,7 +8148,9 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		if (!fmt) {
 			ast_log(LOG_WARNING, "No compatible formats could be found for %s\n", ast_channel_name(tmp));
 			ao2_ref(caps, -1);
-			tmp = ast_channel_unref(tmp);
+			ast_channel_stage_snapshot_done(tmp);
+			ast_channel_unlock(tmp);
+			ast_hangup(tmp);
 			return NULL;
 		}
 	}
