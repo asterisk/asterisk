@@ -886,6 +886,11 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		return ast_channel_unref(tmp);
 	}
 
+	tmp->stream_topology = ast_stream_topology_create();
+	if (!tmp->stream_topology) {
+		return ast_channel_unref(tmp);
+	}
+
 	/* Always watch the alertpipe */
 	ast_channel_set_fd(tmp, AST_ALERT_FD, ast_channel_internal_alert_readfd(tmp));
 	/* And timing pipe */

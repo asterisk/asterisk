@@ -46,6 +46,7 @@
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stasis_endpoints.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/stream.h"
 #include "asterisk/test.h"
 
 /*!
@@ -221,6 +222,8 @@ struct ast_channel {
 	struct stasis_cp_single *topics;		/*!< Topic for all channel's events */
 	struct stasis_forward *endpoint_forward;	/*!< Subscription for event forwarding to endpoint's topic */
 	struct stasis_forward *endpoint_cache_forward; /*!< Subscription for cache updates to endpoint's topic */
+	struct ast_stream_topology *stream_topology; /*!< Stream topology */
+	struct ast_stream *default_streams[AST_MEDIA_TYPE_END]; /*!< Default streams indexed by media type */
 };
 
 /*! \brief The monotonically increasing integer counter for channel uniqueids */
@@ -825,10 +828,57 @@ struct ast_format_cap *ast_channel_nativeformats(const struct ast_channel *chan)
 {
 	return chan->nativeformats;
 }
-void ast_channel_nativeformats_set(struct ast_channel *chan, struct ast_format_cap *value)
+
+static void channel_set_default_streams(struct ast_channel *chan)
 {
-	ao2_replace(chan->nativeformats, value);
+	enum ast_media_type type;
+
+	ast_assert(chan != NULL);
+
+	for (type = AST_MEDIA_TYPE_UNKNOWN; type < AST_MEDIA_TYPE_END; type++) {
+		if (chan->stream_topology) {
+			chan->default_streams[type] =
+				ast_stream_topology_get_first_stream_by_type(chan->stream_topology, type);
+		} else {
+			chan->default_streams[type] = NULL;
+		}
+	}
 }
+
+static void channel_set_stream_topology(struct ast_channel *chan,
+	struct ast_stream_topology *topology)
+{
+	ast_stream_topology_destroy(chan->stream_topology);
+	chan->stream_topology = topology;
+	channel_set_default_streams(chan);
+}
+
+void ast_channel_nativeformats_set(struct ast_channel *chan,
+	struct ast_format_cap *value)
+{
+	ast_assert(chan != NULL);
+
+	ao2_replace(chan->nativeformats, value);
+
+	/* If chan->stream_topology is NULL, the channel is being destroyed
+	 * and topology is destroyed.
+	 */
+	if (!chan->stream_topology) {
+		return;
+	}
+
+	if (!chan->tech || !(chan->tech->properties & AST_CHAN_TP_MULTISTREAM) || !value) {
+		struct ast_stream_topology *new_topology;
+
+		if (!value) {
+			new_topology = ast_stream_topology_create();
+		} else {
+			new_topology = ast_stream_topology_create_from_format_cap(value);
+		}
+		channel_set_stream_topology(chan);
+	}
+}
+
 struct ast_framehook_list *ast_channel_framehooks(const struct ast_channel *chan)
 {
 	return chan->framehooks;
@@ -1637,6 +1687,8 @@ void ast_channel_internal_cleanup(struct ast_channel *chan)
 
 	stasis_cp_single_unsubscribe(chan->topics);
 	chan->topics = NULL;
+
+	channel_set_stream_topology(chan, NULL);
 }
 
 void ast_channel_internal_finalize(struct ast_channel *chan)
@@ -1728,4 +1780,43 @@ enum ast_channel_error ast_channel_internal_errno(void)
 	}
 
 	return *error_code;
+}
+
+struct ast_stream_topology *ast_channel_get_stream_topology(
+	const struct ast_channel *chan)
+{
+	ast_assert(chan != NULL);
+
+	return chan->stream_topology;
+}
+
+void ast_channel_set_stream_topology(struct ast_channel *chan,
+	struct ast_stream_topology *topology)
+{
+	struct ast_stream_topology *new_topology;
+
+	ast_assert(chan != NULL);
+
+	/* If chan->stream_topology is NULL, the channel is being destroyed and
+	 * the topology is destroyed.  Still let the developer know that they shouldn't
+	 * have called us in this state.
+	 */
+	if (!chan->stream_topology) {
+		ast_assert(chan->stream_topology != NULL);
+		return;
+	}
+
+	/* A non-MULTISTREAM channel can't manipulate topology directly */
+	ast_assert(chan->tech != NULL && (chan->tech->properties & AST_CHAN_TP_MULTISTREAM));
+
+	/* Unless the channel is being destroyed, we always want a topology on
+	 * it even if its empty.
+	 */
+	if (!topology) {
+		new_topology = ast_stream_topology_create();
+	} else {
+		new_topology = topology;
+	}
+
+	channel_set_stream_topology(chan, topology);
 }
