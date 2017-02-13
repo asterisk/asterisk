@@ -333,6 +333,13 @@ sendvoicemail=yes ; Allow the user to compose and send a voicemail while inside
                     ; The default is "no".
 ; minpassword=0 ; Enforce minimum password length
 
+; vm-login=custom_sound
+			;     Customize which sound file is used instead of the default
+			;     prompt that says: "Comedian Mail. Mailbox?"
+; vm-newuser=custom_sound
+			;     Customize which sound file is used instead of the default
+			;     prompt that says: "Welcome to Comedian Mail. First, I will
+			;     guide you through a short setup process."
 ; vm-password=custom_sound
 			;     Customize which sound file is used instead of the default
 			;     prompt that says: "password"
