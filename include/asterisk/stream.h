@@ -316,4 +316,19 @@ int ast_stream_topology_set_stream(struct ast_stream_topology *topology,
 struct ast_stream_topology *ast_stream_topology_create_from_format_cap(
 	struct ast_format_cap *cap);
 
+/*!
+ * \brief Gets the first stream of a specific type from the topology
+ *
+ * \param topology The topology of streams
+ * \param type The media type
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ *
+ * \since 15
+ */
+struct ast_stream *ast_stream_topology_get_first_stream_by_type(
+	const struct ast_stream_topology *topology,
+	enum ast_media_type type);
+
 #endif /* _AST_STREAM_H */

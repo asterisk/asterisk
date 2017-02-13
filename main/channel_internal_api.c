@@ -46,6 +46,7 @@
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stasis_endpoints.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/stream.h"
 #include "asterisk/test.h"
 
 /*!
@@ -221,6 +222,8 @@ struct ast_channel {
 	struct stasis_cp_single *topics;		/*!< Topic for all channel's events */
 	struct stasis_forward *endpoint_forward;	/*!< Subscription for event forwarding to endpoint's topic */
 	struct stasis_forward *endpoint_cache_forward; /*!< Subscription for cache updates to endpoint's topic */
+	struct ast_stream_topology *stream_topology; /*!< Stream topology */
+	struct ast_stream *default_streams[AST_MEDIA_TYPE_END]; /*!< Default streams indexed by media type */
 };
 
 /*! \brief The monotonically increasing integer counter for channel uniqueids */
@@ -825,10 +828,29 @@ struct ast_format_cap *ast_channel_nativeformats(const struct ast_channel *chan)
 {
 	return chan->nativeformats;
 }
-void ast_channel_nativeformats_set(struct ast_channel *chan, struct ast_format_cap *value)
+
+static void channel_set_default_streams(struct ast_channel *chan)
 {
-	ao2_replace(chan->nativeformats, value);
+	enum ast_media_type type;
+
+	for (type = AST_MEDIA_TYPE_UNKNOWN; type < AST_MEDIA_TYPE_END; type++) {
+		chan->default_streams[type] =
+			ast_stream_topology_get_first_stream_by_type(chan->stream_topology, type);
+	}
 }
+
+void ast_channel_nativeformats_set(struct ast_channel *chan,
+	struct ast_format_cap *value)
+{
+	ast_assert(chan != NULL);
+	ao2_replace(chan->nativeformats, value);
+	if (chan->tech->properties & AST_CHAN_TP_MULTISTREAM) {
+		ast_stream_topology_destroy(chan->stream_topology);
+		chan->stream_topology = ast_stream_topology_create_from_format_cap(value);
+		channel_set_default_streams(chan);
+	}
+}
+
 struct ast_framehook_list *ast_channel_framehooks(const struct ast_channel *chan)
 {
 	return chan->framehooks;
@@ -1728,4 +1750,12 @@ enum ast_channel_error ast_channel_internal_errno(void)
 	}
 
 	return *error_code;
+}
+
+struct ast_stream_topology *ast_channel_get_stream_topology(
+	const struct ast_channel *chan)
+{
+	ast_assert(chan != NULL);
+
+	return chan->stream_topology;
 }
