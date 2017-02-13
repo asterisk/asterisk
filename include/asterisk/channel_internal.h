@@ -27,3 +27,5 @@ int ast_channel_internal_setup_topics(struct ast_channel *chan);
 
 void ast_channel_internal_errno_set(enum ast_channel_error error);
 enum ast_channel_error ast_channel_internal_errno(void);
+void ast_channel_internal_set_stream_topology(struct ast_channel *chan,
+	struct ast_stream_topology *topology);
