@@ -1036,6 +1036,8 @@ static char listen_control_restart_key[12];
 static char listen_control_stop_key[12];
 
 /* custom password sounds */
+static char vm_login[80] = "vm-login";
+static char vm_newuser[80] = "vm-newuser";
 static char vm_password[80] = "vm-password";
 static char vm_newpassword[80] = "vm-newpassword";
 static char vm_passchanged[80] = "vm-passchanged";
@@ -10406,7 +10408,7 @@ static int vm_instructions(struct ast_channel *chan, struct ast_vm_user *vmu, st
 }
 
 
-static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, char *fmtc, signed char record_gain)
+static int vm_newuser_setup(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, char *fmtc, signed char record_gain)
 {
 	int cmd = 0;
 	int duration = 0;
@@ -10996,7 +10998,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 	adsi_begin(chan, &useadsi);
 	if (!skipuser && useadsi)
 		adsi_login(chan);
-	if (!silent && !skipuser && ast_streamfile(chan, "vm-login", ast_channel_language(chan))) {
+	if (!silent && !skipuser && ast_streamfile(chan, vm_login, ast_channel_language(chan))) {
 		ast_log(AST_LOG_WARNING, "Couldn't stream login file\n");
 		return -1;
 	}
@@ -11494,9 +11496,9 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 	/* Check to see if this is a new user */
 	if (!strcasecmp(vmu->mailbox, vmu->password) && 
 		(ast_test_flag(vmu, VM_FORCENAME | VM_FORCEGREET))) {
-		if (ast_play_and_wait(chan, "vm-newuser") == -1)
+		if (ast_play_and_wait(chan, vm_newuser) == -1)
 			ast_log(AST_LOG_WARNING, "Couldn't stream new user file\n");
-		cmd = vm_newuser(chan, vmu, &vms, vmfmts, record_gain);
+		cmd = vm_newuser_setup(chan, vmu, &vms, vmfmts, record_gain);
 		if ((cmd == 't') || (cmd == '#')) {
 			/* Timeout */
 			ast_test_suite_event_notify("TIMEOUT", "Message: response from user timed out");
@@ -13913,6 +13915,10 @@ static int actual_load_config(int reload, struct ast_config *cfg, struct ast_con
 		}
 
 		/* load password sounds configuration */
+		if ((val = ast_variable_retrieve(cfg, "general", "vm-login")))
+			ast_copy_string(vm_login, val, sizeof(vm_login));
+		if ((val = ast_variable_retrieve(cfg, "general", "vm-newuser")))
+			ast_copy_string(vm_newuser, val, sizeof(vm_newuser));
 		if ((val = ast_variable_retrieve(cfg, "general", "vm-password")))
 			ast_copy_string(vm_password, val, sizeof(vm_password));
 		if ((val = ast_variable_retrieve(cfg, "general", "vm-newpassword")))
