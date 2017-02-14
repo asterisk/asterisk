@@ -239,6 +239,8 @@ int ast_stream_topology_append_stream(struct ast_stream_topology *topology, stru
 		return -1;
 	}
 
+	stream->position = AST_VECTOR_SIZE(&topology->streams) - 1;
+
 	return AST_VECTOR_SIZE(&topology->streams) - 1;
 }
 
@@ -268,15 +270,18 @@ int ast_stream_topology_set_stream(struct ast_stream_topology *topology,
 		return -1;
 	}
 
-	existing_stream = AST_VECTOR_GET(&topology->streams, position);
-	ast_stream_destroy(existing_stream);
+	if (position < AST_VECTOR_SIZE(&topology->streams)) {
+		existing_stream = AST_VECTOR_GET(&topology->streams, position);
+		ast_stream_destroy(existing_stream);
+	}
+
+	stream->position = position;
 
 	if (position == AST_VECTOR_SIZE(&topology->streams)) {
 		AST_VECTOR_APPEND(&topology->streams, stream);
 		return 0;
 	}
 
-	stream->position = position;
 	return AST_VECTOR_REPLACE(&topology->streams, position, stream);
 }
 
@@ -323,7 +328,7 @@ struct ast_stream_topology *ast_stream_topology_create_from_format_cap(
 		/* We're transferring the initial ref so no bump needed */
 		stream->formats = new_cap;
 		stream->state = AST_STREAM_STATE_SENDRECV;
-		if (!ast_stream_topology_append_stream(topology, stream)) {
+		if (ast_stream_topology_append_stream(topology, stream) == -1) {
 			ast_stream_destroy(stream);
 			ast_stream_topology_destroy(topology);
 			return NULL;
