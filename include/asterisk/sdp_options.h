@@ -108,6 +108,8 @@ enum ast_sdp_options_repr {
 	AST_SDP_REPR_STRING,
 	/*! SDP is represented as a pjmedia_sdp_session */
 	AST_SDP_REPR_PJMEDIA,
+	/*! End of the list */
+	AST_SDP_REPR_END,
 };
 
 /*!
