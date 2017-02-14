@@ -3133,7 +3133,9 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 			fdmap[max].chan = x;  /* channel x is linked to this pfds */
 			max += ast_add_fd(&pfds[max], ast_channel_fd(c[x], y));
 		}
+		ast_channel_lock(c[x]);
 		CHECK_BLOCKING(c[x]);
+		ast_channel_unlock(c[x]);
 	}
 	/* Add the individual fds */
 	for (x = 0; x < nfds; x++) {
@@ -3160,7 +3162,9 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 		res = ast_poll(pfds, max, rms);
 	}
 	for (x = 0; x < n; x++) {
+		ast_channel_lock(c[x]);
 		ast_clear_flag(ast_channel_flags(c[x]), AST_FLAG_BLOCKING);
+		ast_channel_unlock(c[x]);
 	}
 	if (res < 0) { /* Simulate a timeout if we were interrupted */
 		if (errno != EINTR) {
@@ -3196,12 +3200,14 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 		}
 		if (fdmap[x].chan >= 0) {	/* this is a channel */
 			winner = c[fdmap[x].chan];	/* override previous winners */
+			ast_channel_lock(winner);
 			if (res & POLLPRI) {
 				ast_set_flag(ast_channel_flags(winner), AST_FLAG_EXCEPTION);
 			} else {
 				ast_clear_flag(ast_channel_flags(winner), AST_FLAG_EXCEPTION);
 			}
 			ast_channel_fdno_set(winner, fdmap[x].fdno);
+			ast_channel_unlock(winner);
 		} else {			/* this is an fd */
 			if (outfd) {
 				*outfd = pfds[x].fd;
