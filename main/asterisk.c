@@ -1064,35 +1064,30 @@ static char *handle_clear_profile(struct ast_cli_entry *e, int cmd, struct ast_c
 static char *handle_show_version_files(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 #define FORMAT "%-25.25s %-40.40s\n"
+	static const char * const completions[] = { "like", NULL };
 	struct registered_file *iterator;
 	regex_t regexbuf;
 	int havepattern = 0;
 	int havename = 0;
 	int count_files = 0;
 	char *ret = NULL;
-	int matchlen, which = 0;
-	struct registered_file *find;
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "core show file version [like]";
+		e->command = "core show file version";
 		e->usage =
-			"Usage: core show file version [like <pattern>]\n"
+			"Usage: core show file version [<filename>|like <pattern>]\n"
 			"       Lists the files along with the Asterisk version.\n"
 			"       Optional regular expression pattern is used to filter the file list.\n";
 		return NULL;
 	case CLI_GENERATE:
-		matchlen = strlen(a->word);
-		if (a->pos != 3)
+		if (a->pos != 4) {
 			return NULL;
-		AST_RWLIST_RDLOCK(&registered_files);
-		AST_RWLIST_TRAVERSE(&registered_files, find, list) {
-			if (!strncasecmp(a->word, find->file, matchlen) && ++which > a->n) {
-				ret = ast_strdup(find->file);
-				break;
-			}
 		}
-		AST_RWLIST_UNLOCK(&registered_files);
+		ret = ast_cli_complete(a->word, completions, a->n);
+		if (!ret) {
+			ret = ast_complete_source_filename(a->word, a->n - 1);
+		}
 		return ret;
 	}
 
@@ -1107,6 +1102,9 @@ static char *handle_show_version_files(struct ast_cli_entry *e, int cmd, struct 
 			return CLI_SHOWUSAGE;
 		break;
 	case 5:
+		if (!strcasecmp(a->argv[4], "like")) {
+			return CLI_SHOWUSAGE;
+		}
 		havename = 1;
 		break;
 	case 4:

@@ -1419,7 +1419,8 @@ static char *cli_odbc_read(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 			AST_RWLIST_UNLOCK(&queries);
 			return NULL;
 		} else if (a->pos == 4) {
-			return a->n == 0 ? ast_strdup("exec") : NULL;
+			static const char * const completions[] = { "exec", NULL };
+			return ast_cli_complete(a->word, completions, a->n);
 		} else {
 			return NULL;
 		}
@@ -1625,7 +1626,8 @@ static char *cli_odbc_write(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 			AST_RWLIST_UNLOCK(&queries);
 			return NULL;
 		} else if (a->pos == 5) {
-			return a->n == 0 ? ast_strdup("exec") : NULL;
+			static const char * const completions[] = { "exec", NULL };
+			return ast_cli_complete(a->word, completions, a->n);
 		} else {
 			return NULL;
 		}
