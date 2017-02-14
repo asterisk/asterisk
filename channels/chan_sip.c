@@ -19587,7 +19587,7 @@ static char *sip_show_inuse(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "sip show inuse";
+		e->command = "sip show inuse [all]";
 		e->usage =
 			"Usage: sip show inuse [all]\n"
 			"       List all SIP devices usage counters and limits.\n"
@@ -19777,7 +19777,7 @@ static char *sip_show_users(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "sip show users";
+		e->command = "sip show users [like]";
 		e->usage =
 			"Usage: sip show users [like <pattern>]\n"
 			"       Lists all known SIP users.\n"
@@ -19916,7 +19916,7 @@ static char *sip_show_peers(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 {
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "sip show peers";
+		e->command = "sip show peers [like]";
 		e->usage =
 			"Usage: sip show peers [like <pattern>]\n"
 			"       Lists all known SIP peers.\n"
@@ -20630,7 +20630,12 @@ static char *sip_show_peer(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 			"       Option \"load\" forces lookup of peer in realtime storage.\n";
 		return NULL;
 	case CLI_GENERATE:
-		return complete_sip_show_peer(a->line, a->word, a->pos, a->n);
+		if (a->pos == 4) {
+			static const char * const completions[] = { "load", NULL };
+			return ast_cli_complete(a->word, completions, a->n);
+		} else {
+			return complete_sip_show_peer(a->line, a->word, a->pos, a->n);
+		}
 	}
 	return _sip_show_peer(0, a->fd, NULL, NULL, a->argc, (const char **) a->argv);
 }
@@ -20800,7 +20805,12 @@ static char *sip_qualify_peer(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 			"       Option \"load\" forces lookup of peer in realtime storage.\n";
 		return NULL;
 	case CLI_GENERATE:
-		return complete_sip_show_peer(a->line, a->word, a->pos, a->n);
+		if (a->pos == 4) {
+			static const char * const completions[] = { "load", NULL };
+			return ast_cli_complete(a->word, completions, a->n);
+		} else {
+			return complete_sip_show_peer(a->line, a->word, a->pos, a->n);
+		}
 	}
 	return _sip_qualify_peer(0, a->fd, NULL, NULL, a->argc, (const char **) a->argv);
 }
@@ -21171,7 +21181,12 @@ static char *sip_show_user(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 			"       Option \"load\" forces lookup of peer in realtime storage.\n";
 		return NULL;
 	case CLI_GENERATE:
-		return complete_sip_show_user(a->line, a->word, a->pos, a->n);
+		if (a->pos == 4) {
+			static const char * const completions[] = { "load", NULL };
+			return ast_cli_complete(a->word, completions, a->n);
+		} else {
+			return complete_sip_show_user(a->line, a->word, a->pos, a->n);
+		}
 	}
 
 	if (a->argc < 4)
