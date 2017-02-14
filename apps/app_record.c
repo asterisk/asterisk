@@ -81,6 +81,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<option name="t">
 						<para>use alternate '*' terminator key (DTMF) instead of default '#'</para>
 					</option>
+					<option name="u">
+						<para>Don't truncate recorded silence.</para>
+					</option>
 					<option name="x">
 						<para>Ignore all terminator keys (DTMF) and keep recording until hangup.</para>
 					</option>
@@ -133,6 +136,7 @@ enum {
 	FLAG_HAS_PERCENT = (1 << 7),
 	OPTION_ANY_TERMINATE = (1 << 8),
 	OPTION_OPERATOR_EXIT = (1 << 9),
+	OPTION_NO_TRUNCATE = (1 << 10),
 };
 
 AST_APP_OPTIONS(app_opts,{
@@ -143,6 +147,7 @@ AST_APP_OPTIONS(app_opts,{
 	AST_APP_OPTION('q', OPTION_QUIET),
 	AST_APP_OPTION('s', OPTION_SKIP),
 	AST_APP_OPTION('t', OPTION_STAR_TERMINATE),
+	AST_APP_OPTION('u', OPTION_NO_TRUNCATE),
 	AST_APP_OPTION('y', OPTION_ANY_TERMINATE),
 	AST_APP_OPTION('x', OPTION_IGNORE_TERMINATE),
 });
@@ -194,6 +199,7 @@ static int record_exec(struct ast_channel *chan, const char *data)
 	int dspsilence = 0;
 	int silence = 0;		/* amount of silence to allow */
 	int gotsilence = 0;		/* did we timeout for silence? */
+	int truncate_silence = 1;	/* truncate on complete silence recording */
 	int maxduration = 0;		/* max duration of recording in milliseconds */
 	int gottimeout = 0;		/* did we timeout for maxduration exceeded? */
 	int terminator = '#';
@@ -245,7 +251,10 @@ static int record_exec(struct ast_channel *chan, const char *data)
 			ast_log(LOG_WARNING, "'%s' is not a valid silence duration\n", args.silence);
 		}
 	}
-	
+
+	if (ast_test_flag(&flags, OPTION_NO_TRUNCATE))
+		truncate_silence = 0;
+
 	if (args.maxduration) {
 		if ((sscanf(args.maxduration, "%30d", &i) == 1) && (i > -1))
 			/* Convert duration to milliseconds */
@@ -445,7 +454,7 @@ static int record_exec(struct ast_channel *chan, const char *data)
 		}
 	}
 
-	if (gotsilence) {
+	if (gotsilence && truncate_silence) {
 		ast_stream_rewind(s, silence - 1000);
 		ast_truncstream(s);
 	} else if (!gottimeout && f) {
