@@ -37,6 +37,7 @@
 #include "asterisk/format.h"
 #include "asterisk/format_cap.h"
 #include "asterisk/format_cache.h"
+#include "asterisk/channel.h"
 
 AST_TEST_DEFINE(stream_create)
 {
@@ -611,6 +612,206 @@ AST_TEST_DEFINE(stream_topology_create_from_format_cap)
 	return AST_TEST_PASS;
 }
 
+AST_TEST_DEFINE(stream_topology_get_first_stream_by_type)
+{
+	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_destroy);
+	struct ast_stream *first_stream, *second_stream, *third_stream, *fourth_stream;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "stream_topology_get_first_stream_by_type";
+		info->category = "/main/stream/";
+		info->summary = "stream topology getting first stream by type unit test";
+		info->description =
+			"Test that getting the first stream by type from a topology actually returns the first stream";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	topology = ast_stream_topology_create();
+	if (!topology) {
+		ast_test_status_update(test, "Failed to create media stream topology\n");
+		return AST_TEST_FAIL;
+	}
+
+	first_stream = ast_stream_create("audio", AST_MEDIA_TYPE_AUDIO);
+	if (!first_stream) {
+		ast_test_status_update(test, "Failed to create an audio stream for testing stream topology\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_stream_topology_append_stream(topology, first_stream) == -1) {
+		ast_test_status_update(test, "Failed to append a perfectly good stream to a topology\n");
+		ast_stream_destroy(first_stream);
+		return AST_TEST_FAIL;
+	}
+
+	second_stream = ast_stream_create("audio2", AST_MEDIA_TYPE_AUDIO);
+	if (!second_stream) {
+		ast_test_status_update(test, "Failed to create a second audio stream for testing stream topology\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_stream_topology_append_stream(topology, second_stream) == -1) {
+		ast_test_status_update(test, "Failed to append a perfectly good stream to a topology\n");
+		ast_stream_destroy(second_stream);
+		return AST_TEST_FAIL;
+	}
+
+	third_stream = ast_stream_create("video", AST_MEDIA_TYPE_VIDEO);
+	if (!third_stream) {
+		ast_test_status_update(test, "Failed to create a video stream for testing stream topology\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_stream_topology_append_stream(topology, third_stream) == -1) {
+		ast_test_status_update(test, "Failed to append a perfectly good stream to a topology\n");
+		ast_stream_destroy(third_stream);
+		return AST_TEST_FAIL;
+	}
+
+	fourth_stream = ast_stream_create("video2", AST_MEDIA_TYPE_VIDEO);
+	if (!fourth_stream) {
+		ast_test_status_update(test, "Failed to create a second video stream for testing stream topology\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_stream_topology_append_stream(topology, fourth_stream) == -1) {
+		ast_test_status_update(test, "Failed to append a perfectly good stream to a topology\n");
+		ast_stream_destroy(fourth_stream);
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_stream_topology_get_first_stream_by_type(topology, AST_MEDIA_TYPE_AUDIO) != first_stream) {
+		ast_test_status_update(test, "Retrieved first audio stream from topology but it is not the correct one\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_stream_topology_get_first_stream_by_type(topology, AST_MEDIA_TYPE_VIDEO) != third_stream) {
+		ast_test_status_update(test, "Retrieved first video stream from topology but it is not the correct one\n");
+		return AST_TEST_FAIL;
+	}
+
+	return AST_TEST_PASS;
+}
+
+static const struct ast_channel_tech mock_channel_tech = {
+};
+
+AST_TEST_DEFINE(stream_topology_create_from_channel_nativeformats)
+{
+	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_destroy);
+	RAII_VAR(struct ast_format_cap *, caps, NULL, ao2_cleanup);
+	struct ast_channel *mock_channel;
+	enum ast_test_result_state res = AST_TEST_PASS;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "stream_topology_create_from_channel_nativeformats";
+		info->category = "/main/stream/";
+		info->summary = "stream topology creation from channel native formats unit test";
+		info->description =
+			"Test that creating a stream topology from the setting of channel nativeformats results in the expected streams";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!caps) {
+		ast_test_status_update(test, "Could not allocate an empty format capabilities structure\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_format_cap_append(caps, ast_format_ulaw, 0)) {
+		ast_test_status_update(test, "Failed to append a ulaw format to capabilities for channel nativeformats\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_format_cap_append(caps, ast_format_alaw, 0)) {
+		ast_test_status_update(test, "Failed to append an alaw format to capabilities for channel nativeformats\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_format_cap_append(caps, ast_format_h264, 0)) {
+		ast_test_status_update(test, "Failed to append an h264 format to capabilities for channel nativeformats\n");
+		return AST_TEST_FAIL;
+	}
+
+	mock_channel = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, "TestChannel");
+	if (!mock_channel) {
+		ast_test_status_update(test, "Failed to create a mock channel for testing\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_channel_tech_set(mock_channel, &mock_channel_tech);
+	ast_channel_nativeformats_set(mock_channel, caps);
+
+	if (!ast_channel_get_stream_topology(mock_channel)) {
+		ast_test_status_update(test, "Set nativeformats with ulaw, alaw, and h264 on channel but it did not create a topology\n");
+		res = AST_TEST_FAIL;
+	} else if (ast_stream_topology_get_count(ast_channel_get_stream_topology(mock_channel)) != 2) {
+		ast_test_status_update(test, "Set nativeformats on a channel to ulaw, alaw, and h264 and received '%d' streams instead of expected 2\n",
+			ast_stream_topology_get_count(ast_channel_get_stream_topology(mock_channel)));
+		res = AST_TEST_FAIL;
+	}
+
+	ast_channel_unlock(mock_channel);
+	ast_hangup(mock_channel);
+
+	return res;
+}
+
+static const struct ast_channel_tech mock_stream_channel_tech = {
+	.properties = AST_CHAN_TP_MULTISTREAM,
+};
+
+AST_TEST_DEFINE(stream_topology_channel_set)
+{
+	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_destroy);
+	struct ast_channel *mock_channel;
+	enum ast_test_result_state res = AST_TEST_PASS;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "stream_topology_channel_set";
+		info->category = "/main/stream/";
+		info->summary = "stream topology setting on a channel unit test";
+		info->description =
+			"Test that setting a stream topology on a channel works";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	topology = ast_stream_topology_create();
+	if (!topology) {
+		ast_test_status_update(test, "Failed to create media stream topology\n");
+		return AST_TEST_FAIL;
+	}
+
+	mock_channel = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, "TestChannel");
+	if (!mock_channel) {
+		ast_test_status_update(test, "Failed to create a mock channel for testing\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_channel_tech_set(mock_channel, &mock_stream_channel_tech);
+	ast_channel_set_stream_topology(mock_channel, topology);
+
+	if (ast_channel_get_stream_topology(mock_channel) != topology) {
+		ast_test_status_update(test, "Set an explicit stream topology on a channel but the returned one did not match it\n");
+		res = AST_TEST_FAIL;
+	}
+
+	topology = NULL;
+	ast_channel_unlock(mock_channel);
+	ast_hangup(mock_channel);
+
+	return res;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(stream_create);
@@ -624,6 +825,9 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(stream_topology_append_stream);
 	AST_TEST_UNREGISTER(stream_topology_set_stream);
 	AST_TEST_UNREGISTER(stream_topology_create_from_format_cap);
+	AST_TEST_UNREGISTER(stream_topology_get_first_stream_by_type);
+	AST_TEST_UNREGISTER(stream_topology_create_from_channel_nativeformats);
+	AST_TEST_UNREGISTER(stream_topology_channel_set);
 	return 0;
 }
 
@@ -639,6 +843,9 @@ static int load_module(void)
 	AST_TEST_REGISTER(stream_topology_append_stream);
 	AST_TEST_REGISTER(stream_topology_set_stream);
 	AST_TEST_REGISTER(stream_topology_create_from_format_cap);
+	AST_TEST_REGISTER(stream_topology_get_first_stream_by_type);
+	AST_TEST_REGISTER(stream_topology_create_from_channel_nativeformats);
+	AST_TEST_REGISTER(stream_topology_channel_set);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
