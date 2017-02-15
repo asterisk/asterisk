@@ -17,6 +17,11 @@ app_record
  * Added new 'u' option to Record() application which prevents Asterisk from
    truncating silence from the end of recorded files.
 
+app_voicemail
+------------------
+ * The 'Comedian Mail' prompts can now be overriden using the 'vm-login' and
+   'vm-newuser' configuration options in voicemail.conf.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 14.2.0 to Asterisk 14.3.0 ------------
 ------------------------------------------------------------------------------
