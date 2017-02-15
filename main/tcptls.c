@@ -412,7 +412,7 @@ static int tcptls_stream_close(void *cookie)
 #else
 				ERR_remove_state(0);
 #endif	/* openssl == 1.0 */
-#endif  /* openssl >= 1.1 */
+#endif  /* openssl < 1.1 */
 			}
 
 			SSL_free(stream->ssl);
