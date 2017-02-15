@@ -2098,6 +2098,7 @@ static int __ast_http_load(int reload)
 		ast_free(http_tls_cfg.certfile);
 	}
 	http_tls_cfg.certfile = ast_strdup(AST_CERTFILE);
+        http_tls_cfg.capath = ast_strdup("");
 
 	if (http_tls_cfg.pvtfile) {
 		ast_free(http_tls_cfg.pvtfile);
