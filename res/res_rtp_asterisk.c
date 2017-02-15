@@ -2481,7 +2481,7 @@ static int rtp_address_is_ice_blacklisted(const pj_sockaddr_t *address)
 static void rtp_add_candidates_to_ice(struct ast_rtp_instance *instance, struct ast_rtp *rtp, struct ast_sockaddr *addr, int port, int component,
 				      int transport)
 {
-	pj_sockaddr address[16];
+	pj_sockaddr address[PJ_ICE_MAX_CAND];
 	unsigned int count = PJ_ARRAY_SIZE(address), pos = 0;
 	int basepos = -1;
 
