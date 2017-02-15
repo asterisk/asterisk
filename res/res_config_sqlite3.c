@@ -1122,12 +1122,19 @@ static int parse_config(int reload)
 		return 0;
 	}
 
-	ast_mutex_lock(&config_lock);
+	if (config == CONFIG_STATUS_FILEINVALID) {
+		ast_log(LOG_ERROR, "Invalid config file '%s'\n", config_filename);
+		return 1;
+	}
 
-	if (config == CONFIG_STATUS_FILEMISSING || config == CONFIG_STATUS_FILEINVALID) {
-		ast_log(LOG_ERROR, "%s config file '%s'\n",
-			config == CONFIG_STATUS_FILEMISSING ? "Missing" : "Invalid", config_filename);
-	} else {
+	if (config == CONFIG_STATUS_FILEMISSING) {
+		ast_log(LOG_ERROR, "Missing config file '%s'\n", config_filename);
+		ast_config_destroy(config);
+		return 1;
+	}
+
+	ast_mutex_lock(&config_lock);
+	{
 		const char *cat;
 		struct realtime_sqlite3_db *db;
 
