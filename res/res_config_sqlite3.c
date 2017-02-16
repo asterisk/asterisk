@@ -58,6 +58,8 @@
 /*** DOCUMENTATION
  ***/
 
+static int has_explicit_like_escaping;
+
 static struct ast_config *realtime_sqlite3_load(const char *database, const char *table, const char *configfile, struct ast_config *config, struct ast_flags flags, const char *suggested_include_file, const char *who_asked);
 static struct ast_variable *realtime_sqlite3(const char *database, const char *table, const struct ast_variable *fields);
 static struct ast_config *realtime_sqlite3_multi(const char *database, const char *table, const struct ast_variable *fields);
@@ -658,6 +660,8 @@ static struct ast_config *realtime_sqlite3_load(const char *database, const char
 	return config;
 }
 
+#define IS_SQL_LIKE_CLAUSE(x) ((x) && ast_ends_with(x, " LIKE"))
+
 /*! \brief Helper function for single and multi-row realtime load functions */
 static int realtime_sqlite3_helper(const char *database, const char *table, const struct ast_variable *fields, int is_multi, void *arg)
 {
@@ -682,6 +686,15 @@ static int realtime_sqlite3_helper(const char *database, const char *table, cons
 		} else {
 			ast_str_append(&sql, 0, " AND %s %s", sqlite3_escape_column_op(field->name),
 					sqlite3_escape_value(field->value));
+		}
+
+		if (has_explicit_like_escaping && IS_SQL_LIKE_CLAUSE(field->name)) {
+			/*
+			 * The realtime framework is going to pre-escape these
+			 * for us with a backslash. We just need to make sure
+			 * to tell SQLite about it
+			 */
+			ast_str_append(&sql, 0, " ESCAPE '\\'");
 		}
 	}
 
@@ -1182,6 +1195,29 @@ static int unload_module(void)
 	return 0;
 }
 
+static void discover_sqlite3_caps(void)
+{
+	/*
+	 * So we cheat a little bit here. SQLite3 added support for the
+	 * 'ESCAPE' keyword in 3.1.0. They added SQLITE_VERSION_NUMBER
+	 * in 3.1.2. So if we run into 3.1.0 or 3.1.1 in the wild, we
+	 * just treat it like < 3.1.0.
+	 *
+	 * For reference: 3.1.0, 3.1.1, and 3.1.2 were all released
+	 * within 30 days of each other in Jan/Feb 2005, so I don't
+	 * imagine we'll be finding something pre-3.1.2 that often in
+	 * practice.
+	 */
+#if defined(SQLITE_VERSION_NUMBER)
+	has_explicit_like_escaping = 1;
+#else
+	has_explicit_like_escaping = 0;
+#endif
+
+	ast_debug(3, "SQLite3 has 'LIKE ... ESCAPE ...' support? %s\n",
+			has_explicit_like_escaping ? "Yes" : "No");
+}
+
 /*!
  * \brief Load the module
  *
@@ -1194,6 +1230,8 @@ static int unload_module(void)
  */
 static int load_module(void)
 {
+	discover_sqlite3_caps();
+
 	if (!((databases = ao2_container_alloc(DB_BUCKETS, db_hash_fn, db_cmp_fn)))) {
 		return AST_MODULE_LOAD_FAILURE;
 	}
