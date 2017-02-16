@@ -38,7 +38,6 @@
 #include "asterisk/res_pjsip_session.h"
 #include "asterisk/taskprocessor.h"
 
-static int transport_type_ws;
 static int transport_type_wss;
 
 /*!
@@ -149,6 +148,7 @@ static int transport_create(void *data)
 	pjsip_endpoint *endpt = ast_sip_get_pjsip_endpoint();
 	struct pjsip_tpmgr *tpmgr = pjsip_endpt_get_tpmgr(endpt);
 
+	char *ws_addr_str;
 	pj_pool_t *pool;
 	pj_str_t buf;
 	pj_status_t status;
@@ -183,9 +183,23 @@ static int transport_create(void *data)
 		goto on_error;
 	}
 
-	pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&buf, ast_sockaddr_stringify(ast_websocket_remote_address(newtransport->ws_session))), &newtransport->transport.key.rem_addr);
+	/*
+	 * The type_name here is mostly used by log messages eihter in
+	 * pjproject or Asterisk.  Other places are reconstituting subscriptions
+	 * after a restart (which could never work for a websocket connection anyway),
+	 * received MESSAGE requests to set PJSIP_TRANSPORT, and most importantly
+	 * by pjproject when generating the Via header.
+	 */
+	newtransport->transport.type_name = ast_websocket_is_secure(newtransport->ws_session)
+		? "WSS" : "WS";
+
+	ws_addr_str = ast_sockaddr_stringify(ast_websocket_remote_address(newtransport->ws_session));
+	ast_debug(4, "Creating websocket transport for %s:%s\n",
+		newtransport->transport.type_name, ws_addr_str);
+
+	pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&buf, ws_addr_str), &newtransport->transport.key.rem_addr);
 	newtransport->transport.key.rem_addr.addr.sa_family = pj_AF_INET();
-	newtransport->transport.key.type = ast_websocket_is_secure(newtransport->ws_session) ? transport_type_wss : transport_type_ws;
+	newtransport->transport.key.type = transport_type_wss;
 
 	newtransport->transport.addr_len = pj_sockaddr_get_len(&newtransport->transport.key.rem_addr);
 
@@ -196,7 +210,6 @@ static int transport_create(void *data)
 	newtransport->transport.local_name.host.slen = pj_ansi_strlen(newtransport->transport.local_name.host.ptr);
 	newtransport->transport.local_name.port = pj_sockaddr_get_port(&newtransport->transport.key.rem_addr);
 
-	newtransport->transport.type_name = (char *)pjsip_transport_get_type_name(newtransport->transport.key.type);
 	newtransport->transport.flag = pjsip_transport_get_flag_from_type((pjsip_transport_type_e)newtransport->transport.key.type);
 	newtransport->transport.info = (char *)pj_pool_alloc(newtransport->transport.pool, 64);
 
@@ -382,19 +395,27 @@ static pj_bool_t websocket_on_rx_msg(pjsip_rx_data *rdata)
 
 	long type = rdata->tp_info.transport->key.type;
 
-	if (type != (long)transport_type_ws && type != (long)transport_type_wss) {
+	if (type != (long) transport_type_wss) {
 		return PJ_FALSE;
 	}
 
-	if ((contact = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, NULL)) && !contact->star &&
-		(PJSIP_URI_SCHEME_IS_SIP(contact->uri) || PJSIP_URI_SCHEME_IS_SIPS(contact->uri))) {
+	contact = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, NULL);
+	if (contact
+		&& !contact->star
+		&& (PJSIP_URI_SCHEME_IS_SIP(contact->uri) || PJSIP_URI_SCHEME_IS_SIPS(contact->uri))) {
 		pjsip_sip_uri *uri = pjsip_uri_get_uri(contact->uri);
+		const pj_str_t *txp_str = &STR_WS;
+
+		ast_debug(4, "%s re-writing Contact URI from %.*s:%d%s%.*s to %s:%d;transport=%s\n",
+			pjsip_rx_data_get_info(rdata),
+			(int)pj_strlen(&uri->host), pj_strbuf(&uri->host), uri->port,
+			pj_strlen(&uri->transport_param) ? ";transport=" : "",
+			(int)pj_strlen(&uri->transport_param), pj_strbuf(&uri->transport_param),
+			rdata->pkt_info.src_name ?: "", rdata->pkt_info.src_port, pj_strbuf(txp_str));
 
 		pj_cstr(&uri->host, rdata->pkt_info.src_name);
 		uri->port = rdata->pkt_info.src_port;
-		ast_debug(4, "Re-wrote Contact URI host/port to %.*s:%d\n",
-			(int)pj_strlen(&uri->host), pj_strbuf(&uri->host), uri->port);
-		pj_strdup(rdata->tp_info.pool, &uri->transport_param, &STR_WS);
+		pj_strdup(rdata->tp_info.pool, &uri->transport_param, txp_str);
 	}
 
 	rdata->msg_info.via->rport_param = 0;
@@ -429,7 +450,15 @@ static int load_module(void)
 {
 	CHECK_PJSIP_MODULE_LOADED();
 
-	pjsip_transport_register_type(PJSIP_TRANSPORT_RELIABLE, "WS", 5060, &transport_type_ws);
+	/*
+	 * We only need one transport type defined.  Firefox and Chrome
+	 * do not support anything other than secure websockets anymore.
+	 *
+	 * Also we really cannot have two transports with the same name
+	 * because it would be ambiguous.  Outgoing requests may try to
+	 * find the transport by name and pjproject only finds the first
+	 * one registered.
+	 */
 	pjsip_transport_register_type(PJSIP_TRANSPORT_RELIABLE | PJSIP_TRANSPORT_SECURE, "WS", 5060, &transport_type_wss);
 
 	if (ast_sip_register_service(&websocket_module) != PJ_SUCCESS) {
