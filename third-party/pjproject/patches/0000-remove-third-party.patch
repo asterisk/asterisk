@@ -7,7 +7,7 @@ index 802211c..25fd05e 100644
  include $(PJDIR)/version.mak
  export PJ_DIR := $(PJDIR)
  
-@@ -9,7 +8,7 @@ export HOST_NAME := unix
+@@ -9,7 +8,7 @@
  export CC_NAME := gcc
  export TARGET_NAME := @target@
  export CROSS_COMPILE := @ac_cross_compile@
@@ -16,7 +16,7 @@ index 802211c..25fd05e 100644
  export SHLIB_SUFFIX := @ac_shlib_suffix@
  
  export prefix := @prefix@
-@@ -28,19 +27,6 @@ export APP_THIRD_PARTY_EXT :=
+@@ -28,19 +27,6 @@
  export APP_THIRD_PARTY_LIBS :=
  export APP_THIRD_PARTY_LIB_FILES :=
  
@@ -36,7 +36,7 @@ index 802211c..25fd05e 100644
  ifeq (@ac_pjmedia_resample@,libresample)
  APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libresample-$(LIB_SUFFIX)
  ifeq ($(PJ_SHARED_LIBRARIES),)
-@@ -57,85 +43,6 @@ APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libresample.$(SHLIB_SUFFI
+@@ -57,99 +43,6 @@
  endif
  endif
  
@@ -118,11 +118,25 @@ index 802211c..25fd05e 100644
 -endif
 -endif
 -
+-ifneq (@ac_no_webrtc@,1)
+-ifeq (@ac_external_webrtc@,1)
+-APP_THIRD_PARTY_EXT += -lwebrtc
+-else
+-APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libwebrtc-$(LIB_SUFFIX)
+-ifeq ($(PJ_SHARED_LIBRARIES),)
+-APP_THIRD_PARTY_LIBS += -lwebrtc-$(TARGET_NAME)
+-else
+-APP_THIRD_PARTY_LIBS += -lwebrtc
+-APP_THIRD_PARTY_LIB_FILES += $(PJ_DIR)/third_party/lib/libwebrtc.$(SHLIB_SUFFIX).$(PJ_VERSION_MAJOR) $(PJ_DIR)/third_party/lib/libwebrtc.$(SHLIB_SUFFIX)
+-endif
+-endif
+-endif
+-
 -
  # Additional flags
  @ac_build_mak_vars@
  
-@@ -149,7 +56,7 @@ SDL_CFLAGS = @ac_sdl_cflags@
+@@ -163,7 +56,7 @@
  SDL_LDFLAGS = @ac_sdl_ldflags@
  
  # FFMPEG flags
@@ -131,7 +145,7 @@ index 802211c..25fd05e 100644
  FFMPEG_LDFLAGS =  @ac_ffmpeg_ldflags@
  
  # Video4Linux2
-@@ -157,7 +64,7 @@ V4L2_CFLAGS = @ac_v4l2_cflags@
+@@ -171,7 +64,7 @@
  V4L2_LDFLAGS = @ac_v4l2_ldflags@
  
  # OPENH264 flags
