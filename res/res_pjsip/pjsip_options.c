@@ -1236,6 +1236,12 @@ int ast_sip_format_contact_ami(void *obj, void *arg, int flags)
 		ast_sip_get_sorcery(), CONTACT_STATUS,
 		ast_sorcery_object_get_id(contact));
 
+	if (!status) {
+		ast_free(buf);
+		return -1;
+	}
+
+
 	ast_str_append(&buf, 0, "AOR: %s\r\n", wrapper->aor_id);
 	ast_str_append(&buf, 0, "URI: %s\r\n", contact->uri);
 	ast_str_append(&buf, 0, "UserAgent: %s\r\n", contact->user_agent);
