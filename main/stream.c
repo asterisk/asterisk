@@ -69,7 +69,7 @@ struct ast_stream_topology {
 	AST_VECTOR(, struct ast_stream *) streams;
 };
 
-struct ast_stream *ast_stream_create(const char *name, enum ast_media_type type)
+struct ast_stream *ast_stream_alloc(const char *name, enum ast_media_type type)
 {
 	struct ast_stream *stream;
 
@@ -108,7 +108,7 @@ struct ast_stream *ast_stream_clone(const struct ast_stream *stream)
 	return new_stream;
 }
 
-void ast_stream_destroy(struct ast_stream *stream)
+void ast_stream_free(struct ast_stream *stream)
 {
 	if (!stream) {
 		return;
@@ -176,7 +176,7 @@ int ast_stream_get_position(const struct ast_stream *stream)
 }
 
 #define TOPOLOGY_INITIAL_STREAM_COUNT 2
-struct ast_stream_topology *ast_stream_topology_create(void)
+struct ast_stream_topology *ast_stream_topology_alloc(void)
 {
 	struct ast_stream_topology *topology;
 
@@ -201,7 +201,7 @@ struct ast_stream_topology *ast_stream_topology_clone(
 
 	ast_assert(topology != NULL);
 
-	new_topology = ast_stream_topology_create();
+	new_topology = ast_stream_topology_alloc();
 	if (!new_topology) {
 		return NULL;
 	}
@@ -211,8 +211,8 @@ struct ast_stream_topology *ast_stream_topology_clone(
 			ast_stream_clone(AST_VECTOR_GET(&topology->streams, i));
 
 		if (!stream || AST_VECTOR_APPEND(&new_topology->streams, stream)) {
-			ast_stream_destroy(stream);
-			ast_stream_topology_destroy(new_topology);
+			ast_stream_free(stream);
+			ast_stream_topology_free(new_topology);
 			return NULL;
 		}
 	}
@@ -220,13 +220,13 @@ struct ast_stream_topology *ast_stream_topology_clone(
 	return new_topology;
 }
 
-void ast_stream_topology_destroy(struct ast_stream_topology *topology)
+void ast_stream_topology_free(struct ast_stream_topology *topology)
 {
 	if (!topology) {
 		return;
 	}
 
-	AST_VECTOR_CALLBACK_VOID(&topology->streams, ast_stream_destroy);
+	AST_VECTOR_CALLBACK_VOID(&topology->streams, ast_stream_free);
 	AST_VECTOR_FREE(&topology->streams);
 	ast_free(topology);
 }
@@ -272,7 +272,7 @@ int ast_stream_topology_set_stream(struct ast_stream_topology *topology,
 
 	if (position < AST_VECTOR_SIZE(&topology->streams)) {
 		existing_stream = AST_VECTOR_GET(&topology->streams, position);
-		ast_stream_destroy(existing_stream);
+		ast_stream_free(existing_stream);
 	}
 
 	stream->position = position;
@@ -293,7 +293,7 @@ struct ast_stream_topology *ast_stream_topology_create_from_format_cap(
 
 	ast_assert(cap != NULL);
 
-	topology = ast_stream_topology_create();
+	topology = ast_stream_topology_alloc();
 	if (!topology) {
 		return NULL;
 	}
@@ -308,29 +308,29 @@ struct ast_stream_topology *ast_stream_topology_create_from_format_cap(
 
 		new_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
 		if (!new_cap) {
-			ast_stream_topology_destroy(topology);
+			ast_stream_topology_free(topology);
 			return NULL;
 		}
 
 		ast_format_cap_set_framing(new_cap, ast_format_cap_get_framing(cap));
 		if (ast_format_cap_append_from_cap(new_cap, cap, type)) {
 			ao2_cleanup(new_cap);
-			ast_stream_topology_destroy(topology);
+			ast_stream_topology_free(topology);
 			return NULL;
 		}
 
-		stream = ast_stream_create(ast_codec_media_type2str(type), type);
+		stream = ast_stream_alloc(ast_codec_media_type2str(type), type);
 		if (!stream) {
 			ao2_cleanup(new_cap);
-			ast_stream_topology_destroy(topology);
+			ast_stream_topology_free(topology);
 			return NULL;
 		}
 		/* We're transferring the initial ref so no bump needed */
 		stream->formats = new_cap;
 		stream->state = AST_STREAM_STATE_SENDRECV;
 		if (ast_stream_topology_append_stream(topology, stream) == -1) {
-			ast_stream_destroy(stream);
-			ast_stream_topology_destroy(topology);
+			ast_stream_free(stream);
+			ast_stream_topology_free(topology);
 			return NULL;
 		}
 	}
