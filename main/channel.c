@@ -897,7 +897,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		return ast_channel_unref(tmp);
 	}
 
-	if (!(topology = ast_stream_topology_create())) {
+	if (!(topology = ast_stream_topology_alloc())) {
 		return ast_channel_unref(tmp);
 	}
 	ast_channel_internal_set_stream_topology(tmp, topology);

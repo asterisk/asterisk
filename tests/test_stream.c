@@ -41,7 +41,7 @@
 
 AST_TEST_DEFINE(stream_create)
 {
-	RAII_VAR(struct ast_stream *, stream, NULL, ast_stream_destroy);
+	RAII_VAR(struct ast_stream *, stream, NULL, ast_stream_free);
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -55,7 +55,7 @@ AST_TEST_DEFINE(stream_create)
 		break;
 	}
 
-	stream = ast_stream_create("test", AST_MEDIA_TYPE_AUDIO);
+	stream = ast_stream_alloc("test", AST_MEDIA_TYPE_AUDIO);
 	if (!stream) {
 		ast_test_status_update(test, "Failed to create media stream given proper arguments\n");
 		return AST_TEST_FAIL;
@@ -81,7 +81,7 @@ AST_TEST_DEFINE(stream_create)
 
 AST_TEST_DEFINE(stream_create_no_name)
 {
-	RAII_VAR(struct ast_stream *, stream, NULL, ast_stream_destroy);
+	RAII_VAR(struct ast_stream *, stream, NULL, ast_stream_free);
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -95,7 +95,7 @@ AST_TEST_DEFINE(stream_create_no_name)
 		break;
 	}
 
-	stream = ast_stream_create(NULL, AST_MEDIA_TYPE_AUDIO);
+	stream = ast_stream_alloc(NULL, AST_MEDIA_TYPE_AUDIO);
 	if (!stream) {
 		ast_test_status_update(test, "Failed to create media stream given proper arguments\n");
 		return AST_TEST_FAIL;
@@ -106,7 +106,7 @@ AST_TEST_DEFINE(stream_create_no_name)
 
 AST_TEST_DEFINE(stream_set_type)
 {
-	RAII_VAR(struct ast_stream *, stream, NULL, ast_stream_destroy);
+	RAII_VAR(struct ast_stream *, stream, NULL, ast_stream_free);
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -120,7 +120,7 @@ AST_TEST_DEFINE(stream_set_type)
 		break;
 	}
 
-	stream = ast_stream_create("test", AST_MEDIA_TYPE_AUDIO);
+	stream = ast_stream_alloc("test", AST_MEDIA_TYPE_AUDIO);
 	if (!stream) {
 		ast_test_status_update(test, "Failed to create media stream given proper arguments\n");
 		return AST_TEST_FAIL;
@@ -143,7 +143,7 @@ AST_TEST_DEFINE(stream_set_type)
 
 AST_TEST_DEFINE(stream_set_formats)
 {
-	RAII_VAR(struct ast_stream *, stream, NULL, ast_stream_destroy);
+	RAII_VAR(struct ast_stream *, stream, NULL, ast_stream_free);
 	RAII_VAR(struct ast_format_cap *, caps, NULL, ao2_cleanup);
 
 	switch (cmd) {
@@ -164,7 +164,7 @@ AST_TEST_DEFINE(stream_set_formats)
 		return AST_TEST_FAIL;
 	}
 
-	stream = ast_stream_create("test", AST_MEDIA_TYPE_AUDIO);
+	stream = ast_stream_alloc("test", AST_MEDIA_TYPE_AUDIO);
 	if (!stream) {
 		ast_test_status_update(test, "Failed to create media stream given proper arguments\n");
 		return AST_TEST_FAIL;
@@ -189,7 +189,7 @@ AST_TEST_DEFINE(stream_set_formats)
 
 AST_TEST_DEFINE(stream_set_state)
 {
-	RAII_VAR(struct ast_stream *, stream, NULL, ast_stream_destroy);
+	RAII_VAR(struct ast_stream *, stream, NULL, ast_stream_free);
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -203,7 +203,7 @@ AST_TEST_DEFINE(stream_set_state)
 		break;
 	}
 
-	stream = ast_stream_create("test", AST_MEDIA_TYPE_AUDIO);
+	stream = ast_stream_alloc("test", AST_MEDIA_TYPE_AUDIO);
 	if (!stream) {
 		ast_test_status_update(test, "Failed to create media stream given proper arguments\n");
 		return AST_TEST_FAIL;
@@ -226,7 +226,7 @@ AST_TEST_DEFINE(stream_set_state)
 
 AST_TEST_DEFINE(stream_topology_create)
 {
-	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_destroy);
+	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_free);
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -240,7 +240,7 @@ AST_TEST_DEFINE(stream_topology_create)
 		break;
 	}
 
-	topology = ast_stream_topology_create();
+	topology = ast_stream_topology_alloc();
 	if (!topology) {
 		ast_test_status_update(test, "Failed to create media stream topology\n");
 		return AST_TEST_FAIL;
@@ -251,8 +251,8 @@ AST_TEST_DEFINE(stream_topology_create)
 
 AST_TEST_DEFINE(stream_topology_clone)
 {
-	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_destroy);
-	RAII_VAR(struct ast_stream_topology *, cloned, NULL, ast_stream_topology_destroy);
+	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_free);
+	RAII_VAR(struct ast_stream_topology *, cloned, NULL, ast_stream_topology_free);
 	struct ast_stream *audio_stream, *video_stream;
 
 	switch (cmd) {
@@ -267,13 +267,13 @@ AST_TEST_DEFINE(stream_topology_clone)
 		break;
 	}
 
-	topology = ast_stream_topology_create();
+	topology = ast_stream_topology_alloc();
 	if (!topology) {
 		ast_test_status_update(test, "Failed to create media stream topology\n");
 		return AST_TEST_FAIL;
 	}
 
-	audio_stream = ast_stream_create("audio", AST_MEDIA_TYPE_AUDIO);
+	audio_stream = ast_stream_alloc("audio", AST_MEDIA_TYPE_AUDIO);
 	if (!audio_stream) {
 		ast_test_status_update(test, "Failed to create an audio stream for testing stream topology\n");
 		return AST_TEST_FAIL;
@@ -281,11 +281,11 @@ AST_TEST_DEFINE(stream_topology_clone)
 
 	if (ast_stream_topology_append_stream(topology, audio_stream) == -1) {
 		ast_test_status_update(test, "Failed to append valid audio stream to stream topology\n");
-		ast_stream_destroy(audio_stream);
+		ast_stream_free(audio_stream);
 		return AST_TEST_FAIL;
 	}
 
-	video_stream = ast_stream_create("video", AST_MEDIA_TYPE_VIDEO);
+	video_stream = ast_stream_alloc("video", AST_MEDIA_TYPE_VIDEO);
 	if (!video_stream) {
 		ast_test_status_update(test, "Failed to create a video stream for testing stream topology\n");
 		return AST_TEST_FAIL;
@@ -293,7 +293,7 @@ AST_TEST_DEFINE(stream_topology_clone)
 
 	if (ast_stream_topology_append_stream(topology, video_stream) == -1) {
 		ast_test_status_update(test, "Failed to append valid video stream to stream topology\n");
-		ast_stream_destroy(video_stream);
+		ast_stream_free(video_stream);
 		return AST_TEST_FAIL;
 	}
 
@@ -323,7 +323,7 @@ AST_TEST_DEFINE(stream_topology_clone)
 
 AST_TEST_DEFINE(stream_topology_append_stream)
 {
-	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_destroy);
+	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_free);
 	struct ast_stream *audio_stream, *video_stream;
 	int position;
 
@@ -339,13 +339,13 @@ AST_TEST_DEFINE(stream_topology_append_stream)
 		break;
 	}
 
-	topology = ast_stream_topology_create();
+	topology = ast_stream_topology_alloc();
 	if (!topology) {
 		ast_test_status_update(test, "Failed to create media stream topology\n");
 		return AST_TEST_FAIL;
 	}
 
-	audio_stream = ast_stream_create("audio", AST_MEDIA_TYPE_AUDIO);
+	audio_stream = ast_stream_alloc("audio", AST_MEDIA_TYPE_AUDIO);
 	if (!audio_stream) {
 		ast_test_status_update(test, "Failed to create an audio stream for testing stream topology\n");
 		return AST_TEST_FAIL;
@@ -354,7 +354,7 @@ AST_TEST_DEFINE(stream_topology_append_stream)
 	position = ast_stream_topology_append_stream(topology, audio_stream);
 	if (position == -1) {
 		ast_test_status_update(test, "Failed to append valid audio stream to stream topology\n");
-		ast_stream_destroy(audio_stream);
+		ast_stream_free(audio_stream);
 		return AST_TEST_FAIL;
 	} else if (position != 0) {
 		ast_test_status_update(test, "Appended audio stream to stream topology but position is '%d' instead of 0\n",
@@ -379,7 +379,7 @@ AST_TEST_DEFINE(stream_topology_append_stream)
 		return AST_TEST_FAIL;
 	}
 
-	video_stream = ast_stream_create("video", AST_MEDIA_TYPE_VIDEO);
+	video_stream = ast_stream_alloc("video", AST_MEDIA_TYPE_VIDEO);
 	if (!video_stream) {
 		ast_test_status_update(test, "Failed to create a video stream for testing stream topology\n");
 		return AST_TEST_FAIL;
@@ -388,7 +388,7 @@ AST_TEST_DEFINE(stream_topology_append_stream)
 	position = ast_stream_topology_append_stream(topology, video_stream);
 	if (position == -1) {
 		ast_test_status_update(test, "Failed to append valid video stream to stream topology\n");
-		ast_stream_destroy(video_stream);
+		ast_stream_free(video_stream);
 		return AST_TEST_FAIL;
 	} else if (position != 1) {
 		ast_test_status_update(test, "Appended video stream to stream topology but position is '%d' instead of 1\n",
@@ -418,7 +418,7 @@ AST_TEST_DEFINE(stream_topology_append_stream)
 
 AST_TEST_DEFINE(stream_topology_set_stream)
 {
-	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_destroy);
+	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_free);
 	struct ast_stream *audio_stream, *video_stream;
 
 	switch (cmd) {
@@ -433,13 +433,13 @@ AST_TEST_DEFINE(stream_topology_set_stream)
 		break;
 	}
 
-	topology = ast_stream_topology_create();
+	topology = ast_stream_topology_alloc();
 	if (!topology) {
 		ast_test_status_update(test, "Failed to create media stream topology\n");
 		return AST_TEST_FAIL;
 	}
 
-	audio_stream = ast_stream_create("audio", AST_MEDIA_TYPE_AUDIO);
+	audio_stream = ast_stream_alloc("audio", AST_MEDIA_TYPE_AUDIO);
 	if (!audio_stream) {
 		ast_test_status_update(test, "Failed to create an audio stream for testing stream topology\n");
 		return AST_TEST_FAIL;
@@ -447,7 +447,7 @@ AST_TEST_DEFINE(stream_topology_set_stream)
 
 	if (ast_stream_topology_set_stream(topology, 0, audio_stream)) {
 		ast_test_status_update(test, "Failed to set an audio stream to a position where it is permitted\n");
-		ast_stream_destroy(audio_stream);
+		ast_stream_free(audio_stream);
 		return AST_TEST_FAIL;
 	}
 
@@ -468,7 +468,7 @@ AST_TEST_DEFINE(stream_topology_set_stream)
 		return AST_TEST_FAIL;
 	}
 
-	video_stream = ast_stream_create("video", AST_MEDIA_TYPE_VIDEO);
+	video_stream = ast_stream_alloc("video", AST_MEDIA_TYPE_VIDEO);
 	if (!video_stream) {
 		ast_test_status_update(test, "Failed to create a video stream for testing stream topology\n");
 		return AST_TEST_FAIL;
@@ -476,7 +476,7 @@ AST_TEST_DEFINE(stream_topology_set_stream)
 
 	if (ast_stream_topology_set_stream(topology, 0, video_stream)) {
 		ast_test_status_update(test, "Failed to set a video stream to a position where it is permitted\n");
-		ast_stream_destroy(video_stream);
+		ast_stream_free(video_stream);
 		return AST_TEST_FAIL;
 	}
 
@@ -497,7 +497,7 @@ AST_TEST_DEFINE(stream_topology_set_stream)
 		return AST_TEST_FAIL;
 	}
 
-	audio_stream = ast_stream_create("audio", AST_MEDIA_TYPE_AUDIO);
+	audio_stream = ast_stream_alloc("audio", AST_MEDIA_TYPE_AUDIO);
 	if (!audio_stream) {
 		ast_test_status_update(test, "Failed to create an audio stream for testing stream topology\n");
 		return AST_TEST_FAIL;
@@ -505,7 +505,7 @@ AST_TEST_DEFINE(stream_topology_set_stream)
 
 	if (ast_stream_topology_set_stream(topology, 1, audio_stream)) {
 		ast_test_status_update(test, "Failed to set an audio stream to a position where it is permitted\n");
-		ast_stream_destroy(audio_stream);
+		ast_stream_free(audio_stream);
 		return AST_TEST_FAIL;
 	}
 
@@ -531,7 +531,7 @@ AST_TEST_DEFINE(stream_topology_set_stream)
 
 AST_TEST_DEFINE(stream_topology_create_from_format_cap)
 {
-	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_destroy);
+	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_free);
 	RAII_VAR(struct ast_format_cap *, caps, NULL, ao2_cleanup);
 
 	switch (cmd) {
@@ -580,7 +580,7 @@ AST_TEST_DEFINE(stream_topology_create_from_format_cap)
 		return AST_TEST_FAIL;
 	}
 
-	ast_stream_topology_destroy(topology);
+	ast_stream_topology_free(topology);
 	topology = NULL;
 
 	ast_format_cap_append(caps, ast_format_h264, 0);
@@ -614,7 +614,7 @@ AST_TEST_DEFINE(stream_topology_create_from_format_cap)
 
 AST_TEST_DEFINE(stream_topology_get_first_stream_by_type)
 {
-	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_destroy);
+	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_free);
 	struct ast_stream *first_stream, *second_stream, *third_stream, *fourth_stream;
 
 	switch (cmd) {
@@ -629,13 +629,13 @@ AST_TEST_DEFINE(stream_topology_get_first_stream_by_type)
 		break;
 	}
 
-	topology = ast_stream_topology_create();
+	topology = ast_stream_topology_alloc();
 	if (!topology) {
 		ast_test_status_update(test, "Failed to create media stream topology\n");
 		return AST_TEST_FAIL;
 	}
 
-	first_stream = ast_stream_create("audio", AST_MEDIA_TYPE_AUDIO);
+	first_stream = ast_stream_alloc("audio", AST_MEDIA_TYPE_AUDIO);
 	if (!first_stream) {
 		ast_test_status_update(test, "Failed to create an audio stream for testing stream topology\n");
 		return AST_TEST_FAIL;
@@ -643,11 +643,11 @@ AST_TEST_DEFINE(stream_topology_get_first_stream_by_type)
 
 	if (ast_stream_topology_append_stream(topology, first_stream) == -1) {
 		ast_test_status_update(test, "Failed to append a perfectly good stream to a topology\n");
-		ast_stream_destroy(first_stream);
+		ast_stream_free(first_stream);
 		return AST_TEST_FAIL;
 	}
 
-	second_stream = ast_stream_create("audio2", AST_MEDIA_TYPE_AUDIO);
+	second_stream = ast_stream_alloc("audio2", AST_MEDIA_TYPE_AUDIO);
 	if (!second_stream) {
 		ast_test_status_update(test, "Failed to create a second audio stream for testing stream topology\n");
 		return AST_TEST_FAIL;
@@ -655,11 +655,11 @@ AST_TEST_DEFINE(stream_topology_get_first_stream_by_type)
 
 	if (ast_stream_topology_append_stream(topology, second_stream) == -1) {
 		ast_test_status_update(test, "Failed to append a perfectly good stream to a topology\n");
-		ast_stream_destroy(second_stream);
+		ast_stream_free(second_stream);
 		return AST_TEST_FAIL;
 	}
 
-	third_stream = ast_stream_create("video", AST_MEDIA_TYPE_VIDEO);
+	third_stream = ast_stream_alloc("video", AST_MEDIA_TYPE_VIDEO);
 	if (!third_stream) {
 		ast_test_status_update(test, "Failed to create a video stream for testing stream topology\n");
 		return AST_TEST_FAIL;
@@ -667,11 +667,11 @@ AST_TEST_DEFINE(stream_topology_get_first_stream_by_type)
 
 	if (ast_stream_topology_append_stream(topology, third_stream) == -1) {
 		ast_test_status_update(test, "Failed to append a perfectly good stream to a topology\n");
-		ast_stream_destroy(third_stream);
+		ast_stream_free(third_stream);
 		return AST_TEST_FAIL;
 	}
 
-	fourth_stream = ast_stream_create("video2", AST_MEDIA_TYPE_VIDEO);
+	fourth_stream = ast_stream_alloc("video2", AST_MEDIA_TYPE_VIDEO);
 	if (!fourth_stream) {
 		ast_test_status_update(test, "Failed to create a second video stream for testing stream topology\n");
 		return AST_TEST_FAIL;
@@ -679,7 +679,7 @@ AST_TEST_DEFINE(stream_topology_get_first_stream_by_type)
 
 	if (ast_stream_topology_append_stream(topology, fourth_stream) == -1) {
 		ast_test_status_update(test, "Failed to append a perfectly good stream to a topology\n");
-		ast_stream_destroy(fourth_stream);
+		ast_stream_free(fourth_stream);
 		return AST_TEST_FAIL;
 	}
 
@@ -701,7 +701,7 @@ static const struct ast_channel_tech mock_channel_tech = {
 
 AST_TEST_DEFINE(stream_topology_create_from_channel_nativeformats)
 {
-	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_destroy);
+	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_free);
 	RAII_VAR(struct ast_format_cap *, caps, NULL, ao2_cleanup);
 	struct ast_channel *mock_channel;
 	enum ast_test_result_state res = AST_TEST_FAIL;
@@ -810,7 +810,7 @@ static const struct ast_channel_tech mock_stream_channel_tech = {
 
 AST_TEST_DEFINE(stream_topology_channel_set)
 {
-	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_destroy);
+	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_free);
 	struct ast_channel *mock_channel;
 	enum ast_test_result_state res = AST_TEST_PASS;
 
@@ -826,7 +826,7 @@ AST_TEST_DEFINE(stream_topology_channel_set)
 		break;
 	}
 
-	topology = ast_stream_topology_create();
+	topology = ast_stream_topology_alloc();
 	if (!topology) {
 		ast_test_status_update(test, "Failed to create media stream topology\n");
 		return AST_TEST_FAIL;
