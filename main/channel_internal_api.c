@@ -848,7 +848,7 @@ static void channel_set_default_streams(struct ast_channel *chan)
 void ast_channel_internal_set_stream_topology(struct ast_channel *chan,
 	struct ast_stream_topology *topology)
 {
-	ast_stream_topology_destroy(chan->stream_topology);
+	ast_stream_topology_free(chan->stream_topology);
 	chan->stream_topology = topology;
 	channel_set_default_streams(chan);
 }
@@ -871,7 +871,7 @@ void ast_channel_nativeformats_set(struct ast_channel *chan,
 		struct ast_stream_topology *new_topology;
 
 		if (!value) {
-			new_topology = ast_stream_topology_create();
+			new_topology = ast_stream_topology_alloc();
 		} else {
 			new_topology = ast_stream_topology_create_from_format_cap(value);
 		}
@@ -1804,7 +1804,7 @@ struct ast_stream_topology *ast_channel_set_stream_topology(struct ast_channel *
 	 * it even if its empty.
 	 */
 	if (!topology) {
-		new_topology = ast_stream_topology_create();
+		new_topology = ast_stream_topology_alloc();
 	} else {
 		new_topology = topology;
 	}

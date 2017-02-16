@@ -84,7 +84,7 @@ enum ast_stream_state {
  *
  * \since 15
  */
-struct ast_stream *ast_stream_create(const char *name, enum ast_media_type type);
+struct ast_stream *ast_stream_alloc(const char *name, enum ast_media_type type);
 
 /*!
  * \brief Destroy a media stream representation
@@ -93,7 +93,7 @@ struct ast_stream *ast_stream_create(const char *name, enum ast_media_type type)
  *
  * \since 15
  */
-void ast_stream_destroy(struct ast_stream *stream);
+void ast_stream_free(struct ast_stream *stream);
 
 /*!
  * \brief Create a deep clone of an existing stream
@@ -209,7 +209,7 @@ int ast_stream_get_position(const struct ast_stream *stream);
  *
  * \since 15
  */
-struct ast_stream_topology *ast_stream_topology_create(void);
+struct ast_stream_topology *ast_stream_topology_alloc(void);
 
 /*!
  * \brief Create a deep clone of an existing stream topology
@@ -233,7 +233,7 @@ struct ast_stream_topology *ast_stream_topology_clone(
  *
  * \since 15
  */
-void ast_stream_topology_destroy(struct ast_stream_topology *topology);
+void ast_stream_topology_free(struct ast_stream_topology *topology);
 
 /*!
  * \brief Append a stream to the topology
