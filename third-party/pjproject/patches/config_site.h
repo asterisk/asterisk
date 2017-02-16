@@ -21,6 +21,7 @@
 #define PJMEDIA_HAS_SRTP 0
 
 #define PJ_HAS_IPV6 1
+#define PJ_SOCK_HAS_IPV6_V6ONLY 1
 #define NDEBUG 1
 #define PJ_MAX_HOSTNAME (256)
 #define PJSIP_MAX_URL_SIZE (512)
