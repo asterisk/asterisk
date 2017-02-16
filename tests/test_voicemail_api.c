@@ -825,12 +825,12 @@ static struct ast_channel *test_vm_api_create_mock_channel(void)
 	}
 
 	ast_channel_set_writeformat(mock_channel, ast_format_gsm);
-	native_formats = ast_channel_nativeformats(mock_channel);
-	ast_format_cap_append(native_formats, ast_channel_writeformat(mock_channel), 0);
 	ast_channel_set_rawwriteformat(mock_channel, ast_format_gsm);
 	ast_channel_set_readformat(mock_channel, ast_format_gsm);
 	ast_channel_set_rawreadformat(mock_channel, ast_format_gsm);
 	ast_channel_tech_set(mock_channel, &mock_channel_tech);
+	native_formats = ast_channel_nativeformats(mock_channel);
+	ast_format_cap_append(native_formats, ast_channel_writeformat(mock_channel), 0);
 
 	ast_channel_unlock(mock_channel);
 

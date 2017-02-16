@@ -73,6 +73,7 @@
 #include "asterisk/test.h"
 #include "asterisk/stasis_channels.h"
 #include "asterisk/max_forwards.h"
+#include "asterisk/stream.h"
 
 /*** DOCUMENTATION
  ***/
@@ -806,6 +807,7 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	struct ast_timer *timer;
 	struct timeval now;
 	const struct ast_channel_tech *channel_tech;
+	struct ast_stream_topology *topology;
 
 	/* If shutting down, don't allocate any new channels */
 	if (ast_shutting_down()) {
@@ -894,6 +896,11 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 		/* See earlier channel creation abort comment above. */
 		return ast_channel_unref(tmp);
 	}
+
+	if (!(topology = ast_stream_topology_create())) {
+		return ast_channel_unref(tmp);
+	}
+	ast_channel_internal_set_stream_topology(tmp, topology);
 
 	/* Always watch the alertpipe */
 	ast_channel_set_fd(tmp, AST_ALERT_FD, ast_channel_internal_alert_readfd(tmp));
@@ -7082,6 +7089,8 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 		ast_log(LOG_WARNING, "Channel type '%s' could not fixup channel %s, strange things may happen. (original)\n",
 			ast_channel_tech(clonechan)->type, ast_channel_name(clonechan));
 	}
+
+	ast_channel_internal_swap_stream_topology(original, clonechan);
 
 	/*
 	 * Now, at this point, the "clone" channel is totally F'd up.
