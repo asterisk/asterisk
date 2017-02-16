@@ -22,6 +22,14 @@ app_voicemail
  * The 'Comedian Mail' prompts can now be overriden using the 'vm-login' and
    'vm-newuser' configuration options in voicemail.conf.
 
+res_pjsip_transport_websocket
+------------------
+ * Removed non-secure websocket support.  Firefox and Chrome have not allowed
+   non-secure websockets for quite some time so this shouldn't be an issue
+   for people.  Attempting to use a non-secure websocket may or may not work
+   when Asterisk attempts to send SIP requests to do something like initiate
+   call hangup.
+
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 13.13.0 to Asterisk 13.14.0 ----------
 ------------------------------------------------------------------------------
