@@ -1260,8 +1260,8 @@ int ast_sip_format_contact_ami(void *obj, void *arg, int flags)
 	if (!ast_strlen_zero(contact->call_id)) {
 		ast_str_append(&buf, 0, "CallID: %s\r\n", contact->call_id);
 	}
-	ast_str_append(&buf, 0, "Status: %s\r\n", ast_sip_get_contact_status_label(status->status));
-	if (status->status == UNKNOWN) {
+	ast_str_append(&buf, 0, "Status: %s\r\n", ast_sip_get_contact_status_label(status ? status->status : UNKNOWN));
+	if (!status || status->status == UNKNOWN) {
 		ast_str_append(&buf, 0, "RoundtripUsec: N/A\r\n");
 	} else {
 		ast_str_append(&buf, 0, "RoundtripUsec: %" PRId64 "\r\n", status->rtt);
