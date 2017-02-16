@@ -35,10 +35,15 @@
 static void rewrite_uri(pjsip_rx_data *rdata, pjsip_sip_uri *uri)
 {
 	pj_cstr(&uri->host, rdata->pkt_info.src_name);
-	if (strcasecmp("udp", rdata->tp_info.transport->type_name)) {
-		uri->transport_param = pj_str(rdata->tp_info.transport->type_name);
-	} else {
+	if (!strcasecmp("udp", rdata->tp_info.transport->type_name)) {
 		uri->transport_param.slen = 0;
+	} else if (!strcasecmp("wss", rdata->tp_info.transport->type_name)) {
+		/* Should set as WS since this is for a URI transport parameter. */
+		ast_debug(4, "Forcing wss transport name to ws\n");
+		uri->transport_param.ptr = rdata->tp_info.transport->type_name;
+		uri->transport_param.slen = 2;
+	} else {
+		uri->transport_param = pj_str(rdata->tp_info.transport->type_name);
 	}
 	uri->port = rdata->pkt_info.src_port;
 }
