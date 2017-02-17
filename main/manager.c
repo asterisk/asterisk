@@ -6629,7 +6629,6 @@ static void *session_do(void *data)
 	struct ast_sockaddr ser_remote_address_tmp;
 
 	if (ast_atomic_fetchadd_int(&unauth_sessions, +1) >= authlimit) {
-		ast_iostream_close(ser->stream);
 		ast_atomic_fetchadd_int(&unauth_sessions, -1);
 		goto done;
 	}
@@ -6638,7 +6637,6 @@ static void *session_do(void *data)
 	session = build_mansession(&ser_remote_address_tmp);
 
 	if (session == NULL) {
-		ast_iostream_close(ser->stream);
 		ast_atomic_fetchadd_int(&unauth_sessions, -1);
 		goto done;
 	}
