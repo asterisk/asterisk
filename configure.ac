@@ -298,7 +298,7 @@ if test "${WGET}" != ":" ; then
   DOWNLOAD_TIMEOUT='--timeout=$1'
 else if test "${CURL}" != ":" ; then
   DOWNLOAD="${CURL} -O --progress-bar -w \"%{url_effective}\n\""
-  DOWNLOAD_TO_STDOUT="${CURL} -L --progress-bar -w \"%{url_effective}\n\""
+  DOWNLOAD_TO_STDOUT="${CURL} -L --progress-bar"
   DOWNLOAD_TIMEOUT='--max-time $(or $2,$1)'
 else
   AC_PATH_PROG([FETCH], [fetch], [:])
