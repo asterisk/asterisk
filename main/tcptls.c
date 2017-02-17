@@ -240,20 +240,23 @@ void *ast_tcptls_server_root(void *data)
 		}
 		tcptls_session = ao2_alloc(sizeof(*tcptls_session), session_instance_destructor);
 		if (!tcptls_session) {
-			ast_log(LOG_WARNING, "No memory for new session: %s\n", strerror(errno));
-			if (close(fd)) {
-				ast_log(LOG_ERROR, "close() failed: %s\n", strerror(errno));
-			}
+			close(fd);
 			continue;
 		}
 
 		tcptls_session->overflow_buf = ast_str_create(128);
+		if (!tcptls_session->overflow_buf) {
+			ao2_ref(tcptls_session, -1);
+			close(fd);
+			continue;
+		}
 		flags = fcntl(fd, F_GETFL);
 		fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
 
 		tcptls_session->stream = ast_iostream_from_fd(&fd);
 		if (!tcptls_session->stream) {
-			ast_log(LOG_WARNING, "No memory for new session iostream\n");
+			ao2_ref(tcptls_session, -1);
+			close(fd);
 			continue;
 		}
 
@@ -265,7 +268,6 @@ void *ast_tcptls_server_root(void *data)
 		/* This thread is now the only place that controls the single ref to tcptls_session */
 		if (ast_pthread_create_detached_background(&launched, NULL, handle_tcptls_connection, tcptls_session)) {
 			ast_log(LOG_ERROR, "Unable to launch helper thread: %s\n", strerror(errno));
-			ast_tcptls_close_session_file(tcptls_session);
 			ao2_ref(tcptls_session, -1);
 		}
 	}
@@ -561,11 +563,15 @@ struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_s
 		}
 	}
 
-	if (!(tcptls_session = ao2_alloc(sizeof(*tcptls_session), session_instance_destructor))) {
+	tcptls_session = ao2_alloc(sizeof(*tcptls_session), session_instance_destructor);
+	if (!tcptls_session) {
 		goto error;
 	}
 
 	tcptls_session->overflow_buf = ast_str_create(128);
+	if (!tcptls_session->overflow_buf) {
+		goto error;
+	}
 	tcptls_session->client = 1;
 	tcptls_session->stream = ast_iostream_from_fd(&fd);
 	if (!tcptls_session->stream) {
@@ -584,9 +590,7 @@ struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_s
 error:
 	close(desc->accept_fd);
 	desc->accept_fd = -1;
-	if (tcptls_session) {
-		ao2_ref(tcptls_session, -1);
-	}
+	ao2_cleanup(tcptls_session);
 	return NULL;
 }
 
