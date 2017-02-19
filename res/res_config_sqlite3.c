@@ -1127,6 +1127,8 @@ static int parse_config(int reload)
 	if (config == CONFIG_STATUS_FILEMISSING || config == CONFIG_STATUS_FILEINVALID) {
 		ast_log(LOG_ERROR, "%s config file '%s'\n",
 			config == CONFIG_STATUS_FILEMISSING ? "Missing" : "Invalid", config_filename);
+		ast_mutex_unlock(&config_lock);
+		return 0;
 	} else {
 		const char *cat;
 		struct realtime_sqlite3_db *db;
