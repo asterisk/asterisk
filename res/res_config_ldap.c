@@ -1684,6 +1684,21 @@ static int reload(void)
 	return 0;
 }
 
+static int config_can_be_inherited(const char *key)
+{
+	int i;
+	static const char * const config[] = {
+		"basedn", "host", "pass", "port", "protocol", "url", "user", "version", NULL
+	};
+
+	for (i = 0; config[i]; i++) {
+		if (!strcasecmp(key, config[i])) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
 /*! \brief parse the configuration file
  */
 static int parse_config(void)
@@ -1774,7 +1789,9 @@ static int parse_config(void)
 				if (!strcasecmp(var->name, "additionalFilter")) {
 					table_config->additional_filter = ast_strdup(var->value);
 				} else {
-					ldap_table_config_add_attribute(table_config, var->name, var->value);
+					if (!is_general || config_can_be_inherited(var->name)) {
+						ldap_table_config_add_attribute(table_config, var->name, var->value);
+					}
 				}
 			}
 		}
