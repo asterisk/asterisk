@@ -254,9 +254,6 @@
 /* Define to 1 if you have the `fmodl' function. */
 #undef HAVE_FMODL
 
-/* Define to 1 if you have the `fopencookie' function. */
-#undef HAVE_FOPENCOOKIE
-
 /* Define to 1 if you have the `fork' function. */
 #undef HAVE_FORK
 
@@ -268,9 +265,6 @@
 
 /* Define to 1 if you have the `ftruncate' function. */
 #undef HAVE_FTRUNCATE
-
-/* Define to 1 if you have the `funopen' function. */
-#undef HAVE_FUNOPEN
 
 /* Define to 1 if your GCC C compiler provides atomic operations. */
 #undef HAVE_GCC_ATOMICS
@@ -831,6 +825,9 @@
 
 /* Define to 1 if you have the `sinl' function. */
 #undef HAVE_SINL
+
+/* Define to 1 if you have the libsndfile library. */
+#undef HAVE_SNDFILE
 
 /* Define to 1 if you have the `socket' function. */
 #undef HAVE_SOCKET

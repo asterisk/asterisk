@@ -70,6 +70,10 @@ ifneq ($(filter pbx_ael,$(MENUSELECT_PBX)),)
   UTILS:=$(filter-out conf2ael,$(UTILS))
 endif
 
+ifeq ($(SNDFILE_LIB),)
+  UTILS:=$(filter-out conf_bridge_binaural_hrir_importer,$(UTILS))
+endif
+
 all: $(UTILS)
 
 install:
@@ -92,6 +96,7 @@ clean:
 	rm -f utils.c strings.c poll.c version.c sha1.c astobj2.c refcounter
 	rm -f db1-ast/.*.d
 	@$(MAKE) -C db1-ast clean
+
 
 md5.c: $(ASTTOPDIR)/main/md5.c
 	$(ECHO_PREFIX) echo "   [CP] $(subst $(ASTTOPDIR)/,,$<) -> $@"
@@ -187,6 +192,10 @@ smsq: smsq.o strcompat.o
 smsq: LIBS+=$(POPT_LIB)
 
 streamplayer: streamplayer.o
+
+conf_bridge_binaural_hrir_importer: LIBS+=$(SNDFILE_LIB)
+conf_bridge_binaural_hrir_importer: _ASTCFLAGS+=$(SNDFILE_INCLUDE)
+conf_bridge_binaural_hrir_importer: conf_bridge_binaural_hrir_importer.o
 
 muted: muted.o
 muted: LIBS+=$(AUDIO_LIBS)
