@@ -1214,6 +1214,90 @@ static struct ast_config *config_ldap(const char *basedn, const char *table_name
 	return cfg;
 }
 
+/*!
+ * \internal
+ * \brief Remove LDAP_MOD_DELETE modifications that will not succeed
+ *
+ * \details
+ * A LDAP_MOD_DELETE operation will fail if the LDAP entry does not already have
+ * the corresponding attribute. Because we may be updating multiple LDAP entries
+ * in a single call to update_ldap(), we may need our own copy of the
+ * modifications array for each one.
+ *
+ * \note
+ * This function dynamically allocates memory. If it returns a non-NULL pointer,
+ * it is up to the caller to free it with ldap_mods_free()
+ *
+ * \returns an LDAPMod * if modifications needed to be removed, NULL otherwise.
+ */
+static LDAPMod **massage_mods_for_entry(LDAPMessage *entry, LDAPMod **mods, size_t count)
+{
+	size_t i;
+	int remove[count];
+	size_t remove_count = 0;
+
+	for (i = 0; i < count; i++) {
+		BerElement *ber = NULL;
+		char *attribute;
+		int exists = 0;
+
+		if (mods[i]->mod_op != LDAP_MOD_DELETE) {
+			continue;
+		}
+
+		/* If we are deleting something, it has to exist */
+		attribute = ldap_first_attribute(ldapConn, entry, &ber);
+		while (attribute) {
+			if (!strcasecmp(attribute, mods[i]->mod_type)) {
+				/* OK, we have the attribute */
+				exists = 1;
+				ldap_memfree(attribute);
+				break;
+			}
+
+			ldap_memfree(attribute);
+			attribute = ldap_next_attribute(ldapConn, entry, ber);
+		}
+
+		if (!exists) {
+			remove[remove_count++] = i;
+		}
+	}
+
+	if (remove_count) {
+		size_t k, remove_index;
+		LDAPMod **x = ldap_memcalloc(count - remove_count + 1, sizeof(LDAPMod *));
+		for (i = 0, k = 0; i < count; i++) {
+			int skip = 0;
+			/* Is this one we have to remove? */
+			for (remove_index = 0; !skip && remove_index < remove_count; remove_index++) {
+				skip = (remove[remove_index] == i);
+			}
+
+			if (skip) {
+				ast_debug(3, "Skipping %s deletion because it doesn't exist\n",
+						mods[i]->mod_type);
+				continue;
+			}
+
+			x[k] = ldap_memcalloc(1, sizeof(LDAPMod));
+			x[k]->mod_op = mods[i]->mod_op;
+			x[k]->mod_type = ldap_strdup(mods[i]->mod_type);
+			if (mods[i]->mod_values) {
+				x[k]->mod_values = ldap_memcalloc(2, sizeof(char *));
+				x[k]->mod_values[0] = ldap_strdup(mods[i]->mod_values[0]);
+			}
+			k++;
+		}
+		/* NULL terminate */
+		x[k] = NULL;
+		return x;
+	}
+
+	return NULL;
+}
+
+
 /* \brief Function to update a set of values in ldap static mode
  */
 static int update_ldap(const char *basedn, const char *table_name, const char *attribute,
@@ -1378,12 +1462,30 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 		}
 		ldap_entry = ldap_first_entry(ldapConn, ldap_result_msg);
 
-		for (i = 0; ldap_entry; i++) { 
+		for (i = 0; ldap_entry; i++) {
+			LDAPMod **working = ldap_mods;
+			LDAPMod **massaged = massage_mods_for_entry(ldap_entry, ldap_mods, mods_size - 1);
+
+			if (massaged) {
+				/* Did we massage everything out of the list? */
+				if (massaged[0] == NULL) {
+					ast_debug(3, "Nothing left to modify - skipping\n");
+					ldap_mods_free(massaged, 1);
+					continue;
+				}
+				working = massaged;
+			}
+
 			dn = ldap_get_dn(ldapConn, ldap_entry);
-			if ((error = ldap_modify_ext_s(ldapConn, dn, ldap_mods, NULL, NULL)) != LDAP_SUCCESS)  {
+			if ((error = ldap_modify_ext_s(ldapConn, dn, working, NULL, NULL)) != LDAP_SUCCESS)  {
 				ast_log(LOG_ERROR, "Couldn't modify '%s'='%s', dn:%s because %s\n",
 						attribute, lookup, dn, ldap_err2string(error));
 			}
+
+			if (massaged) {
+				ldap_mods_free(massaged, 1);
+			}
+
 			ldap_memfree(dn);
 			ldap_entry = ldap_next_entry(ldapConn, ldap_entry);
 		}
