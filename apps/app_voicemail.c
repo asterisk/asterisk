@@ -11192,7 +11192,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 		return -1;
 	}
 	if (vmu && !skipuser) {
-		memcpy(res_vmu, vmu, sizeof(struct ast_vm_user));
+		*res_vmu = *vmu;
 	}
 	return 0;
 }
@@ -11355,7 +11355,7 @@ static int vm_execmain(struct ast_channel *chan, const char *data)
 	int useadsi = 0;
 	int skipuser = 0;
 	struct vm_state vms;
-	struct ast_vm_user *vmu = NULL, vmus;
+	struct ast_vm_user *vmu = NULL, vmus = {0,};
 	char *context = NULL;
 	int silentexit = 0;
 	struct ast_flags flags = { 0 };
@@ -12666,7 +12666,7 @@ static struct ast_custom_function vm_info_acf = {
 static int vmauthenticate(struct ast_channel *chan, const char *data)
 {
 	char *s, *user = NULL, *context = NULL, mailbox[AST_MAX_EXTENSION] = "";
-	struct ast_vm_user vmus;
+	struct ast_vm_user vmus = {0,};
 	char *options = NULL;
 	int silent = 0, skipuser = 0;
 	int res = -1;
