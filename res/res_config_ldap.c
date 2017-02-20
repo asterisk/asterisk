@@ -422,7 +422,7 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 	 * value in \a variable_value; otherwise, we keep \a vars static and increase the length of the linked list of variables in the array element.
 	 * This memory must be freed outside of this function.
 	 */
-	vars = ast_calloc(sizeof(struct ast_variable *), tot_count + 1);
+	vars = ast_calloc(tot_count + 1, sizeof(struct ast_variable *));
 
 	ldap_entry = ldap_first_entry(ldapConn, ldap_result_msg);
 
@@ -926,13 +926,8 @@ static struct ast_variable **realtime_ldap_base_ap(unsigned int *entries_count_p
 		}
 	}
 
-	if (filter) {
-		ast_free(filter);
-	}
-
-	if (clean_basedn) {
-		ast_free(clean_basedn);
-	}
+	ast_free(filter);
+	ast_free(clean_basedn);
 
 	ast_mutex_unlock(&ldap_lock);
 
@@ -1136,7 +1131,7 @@ static struct ast_config *config_ldap(const char *basedn, const char *table_name
 	 * first, and since the data could easily exceed stack size, this is
 	 * allocated from the heap.
 	 */
-	if (!(categories = ast_calloc(sizeof(*categories), vars_count))) {
+	if (!(categories = ast_calloc(vars_count, sizeof(*categories)))) {
 		return NULL;
 	}
 
@@ -1290,7 +1285,7 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 	}
 
 	mods_size = 2; /* one for the first param/value pair and one for the the terminating NULL */
-	ldap_mods = ldap_memcalloc(sizeof(LDAPMod *), mods_size);
+	ldap_mods = ldap_memcalloc(mods_size, sizeof(LDAPMod *));
 	ldap_mods[0] = ldap_memcalloc(1, sizeof(LDAPMod));
 	ldap_mods[0]->mod_type = ldap_strdup(newparam);
 
@@ -1298,7 +1293,7 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 		ldap_mods[0]->mod_op = LDAP_MOD_DELETE;
 	} else {
 		ldap_mods[0]->mod_op = LDAP_MOD_REPLACE;
-		ldap_mods[0]->mod_values = ast_calloc(sizeof(char *), 2);
+		ldap_mods[0]->mod_values = ldap_memcalloc(2, sizeof(char *));
 		ldap_mods[0]->mod_values[0] = ldap_strdup(field->value);
 	}
 
@@ -1312,7 +1307,7 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 				ldap_mods[i]->mod_values[0] = ldap_memrealloc(ldap_mods[i]->mod_values[0], sizeof(char) * (strlen(ldap_mods[i]->mod_values[0]) + strlen(field->value) + 2));
 				strcat(ldap_mods[i]->mod_values[0], ";");
 				strcat(ldap_mods[i]->mod_values[0], field->value);
-				mod_exists = 1;	
+				mod_exists = 1;
 				break;
 			}
 		}
@@ -1321,22 +1316,19 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 		if (!mod_exists) {
 			mods_size++;
 			ldap_mods = ldap_memrealloc(ldap_mods, sizeof(LDAPMod *) * mods_size);
-			ldap_mods[mods_size - 1] = NULL;
-			
 			ldap_mods[mods_size - 2] = ldap_memcalloc(1, sizeof(LDAPMod));
-
-			ldap_mods[mods_size - 2]->mod_type = ldap_memcalloc(sizeof(char), strlen(newparam) + 1);
-			strcpy(ldap_mods[mods_size - 2]->mod_type, newparam);
+			ldap_mods[mods_size - 2]->mod_type = ldap_strdup(newparam);
 
 			if (strlen(field->value) == 0) {
 				ldap_mods[mods_size - 2]->mod_op = LDAP_MOD_DELETE;
 			} else {
 				ldap_mods[mods_size - 2]->mod_op = LDAP_MOD_REPLACE;
-
-				ldap_mods[mods_size - 2]->mod_values = ldap_memcalloc(sizeof(char *), 2);
-				ldap_mods[mods_size - 2]->mod_values[0] = ldap_memcalloc(sizeof(char), strlen(field->value) + 1);
-				strcpy(ldap_mods[mods_size - 2]->mod_values[0], field->value);
+				ldap_mods[mods_size - 2]->mod_values = ldap_memcalloc(2, sizeof(char *));
+				ldap_mods[mods_size - 2]->mod_values[0] = ldap_strdup(field->value);
 			}
+
+			/* NULL terminate */
+			ldap_mods[mods_size - 1] = NULL;
 		}
 	}
 	/* freeing ldap_mods further down */
@@ -1369,7 +1361,7 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 		ast_free(filter);
 		ast_free(clean_basedn);
 		ldap_msgfree(ldap_result_msg);
-		ldap_mods_free(ldap_mods, 0);
+		ldap_mods_free(ldap_mods, 1);
 		return -1;
 	}
 	/* Ready to update */
@@ -1399,7 +1391,7 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 	ast_free(filter);
 	ast_free(clean_basedn);
 	ldap_msgfree(ldap_result_msg);
-	ldap_mods_free(ldap_mods, 0);
+	ldap_mods_free(ldap_mods, 1);
 	return num_entries;
 }
 
@@ -1479,16 +1471,12 @@ static int update2_ldap(const char *basedn, const char *table_name, const struct
 	}
 
 	mods_size = 2; /* one for the first param/value pair and one for the the terminating NULL */
-	ldap_mods = ast_calloc(sizeof(LDAPMod *), mods_size);
-	ldap_mods[0] = ast_calloc(1, sizeof(LDAPMod));
-
+	ldap_mods = ldap_memcalloc(mods_size, sizeof(LDAPMod *));
+	ldap_mods[0] = ldap_memcalloc(1, sizeof(LDAPMod));
 	ldap_mods[0]->mod_op = LDAP_MOD_REPLACE;
-	ldap_mods[0]->mod_type = ast_calloc(sizeof(char), strlen(newparam) + 1);
-	strcpy(ldap_mods[0]->mod_type, newparam);
-
-	ldap_mods[0]->mod_values = ast_calloc(sizeof(char), 2);
-	ldap_mods[0]->mod_values[0] = ast_calloc(sizeof(char), strlen(field->value) + 1);
-	strcpy(ldap_mods[0]->mod_values[0], field->value);
+	ldap_mods[0]->mod_type = ldap_strdup(newparam);
+	ldap_mods[0]->mod_values = ldap_memcalloc(2, sizeof(char *));
+	ldap_mods[0]->mod_values[0] = ldap_strdup(field->value);
 
 	while ((field = field->next)) {
 		newparam = convert_attribute_name_to_ldap(table_config, field->name);
@@ -1508,18 +1496,15 @@ static int update2_ldap(const char *basedn, const char *table_name, const struct
 		/* create new mod */
 		if (!mod_exists) {
 			mods_size++;
-			ldap_mods = ast_realloc(ldap_mods, sizeof(LDAPMod *) * mods_size);
-			ldap_mods[mods_size - 1] = NULL;
-			ldap_mods[mods_size - 2] = ast_calloc(1, sizeof(LDAPMod));
-
+			ldap_mods = ldap_memrealloc(ldap_mods, sizeof(LDAPMod *) * mods_size);
+			ldap_mods[mods_size - 2] = ldap_memcalloc(1, sizeof(LDAPMod));
 			ldap_mods[mods_size - 2]->mod_op = LDAP_MOD_REPLACE;
+			ldap_mods[mods_size - 2]->mod_type = ldap_strdup(newparam);
+			ldap_mods[mods_size - 2]->mod_values = ldap_memcalloc(2, sizeof(char *));
+			ldap_mods[mods_size - 2]->mod_values[0] = ldap_strdup(field->value);
 
-			ldap_mods[mods_size - 2]->mod_type = ast_calloc(sizeof(char), strlen(newparam) + 1);
-			strcpy(ldap_mods[mods_size - 2]->mod_type, newparam);
-
-			ldap_mods[mods_size - 2]->mod_values = ast_calloc(sizeof(char *), 2);
-			ldap_mods[mods_size - 2]->mod_values[0] = ast_calloc(sizeof(char), strlen(field->value) + 1);
-			strcpy(ldap_mods[mods_size - 2]->mod_values[0], field->value);
+			/* NULL terminate */
+			ldap_mods[mods_size - 1] = NULL;
 		}
 	}
 	/* freeing ldap_mods further down */
@@ -1553,7 +1538,7 @@ static int update2_ldap(const char *basedn, const char *table_name, const struct
 		ast_free(filter);
 		ast_free(clean_basedn);
 		ldap_msgfree(ldap_result_msg);
-		ldap_mods_free(ldap_mods, 0);
+		ldap_mods_free(ldap_mods, 1);
 		return -1;
 	}
 	/* Ready to update */
@@ -1575,14 +1560,10 @@ static int update2_ldap(const char *basedn, const char *table_name, const struct
 	}
 
 	ast_mutex_unlock(&ldap_lock);
-	if (filter) {
-		ast_free(filter);
-	}
-	if (clean_basedn) {
-		ast_free(clean_basedn);
-	}
+	ast_free(filter);
+	ast_free(clean_basedn);
 	ldap_msgfree(ldap_result_msg);
-	ldap_mods_free(ldap_mods, 0);
+	ldap_mods_free(ldap_mods, 1);
 	return num_entries;
 }
 
