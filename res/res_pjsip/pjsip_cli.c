@@ -221,6 +221,8 @@ char *ast_sip_cli_traverse_objects(struct ast_cli_entry *e, int cmd, struct ast_
 			return CLI_SUCCESS;
 		}
 		ao2_callback(container, OBJ_NODATA, formatter_entry->print_body, &context);
+		ast_str_append(&context.output_buffer, 0, "\nObjects found: %d\n", ao2_container_count(container));
+
 	} else {
 		if (ast_strlen_zero(object_id)) {
 			ast_free(context.output_buffer);
