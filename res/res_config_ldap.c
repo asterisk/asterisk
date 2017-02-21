@@ -1044,9 +1044,8 @@ static struct ast_config *realtime_multi_ldap(const char *basedn,
 
 			while (*p) {
 				struct ast_category *cat = NULL;
-				cat = ast_category_new("", table_name, -1);
-				if (!cat) {
-					ast_log(LOG_ERROR, "Unable to create a new category!\n");
+				if (!(cat = ast_category_new_anonymous())) {
+					ast_log(LOG_ERROR, "Out of memory allocating new category\n");
 					break;
 				} else {
 					struct ast_variable *var = *p;
@@ -1195,8 +1194,8 @@ static struct ast_config *config_ldap(const char *basedn, const char *table_name
 		if (!last_category || strcmp(last_category, categories[i].name) ||
 			last_category_metric != categories[i].metric) {
 
-			cur_cat = ast_category_new(categories[i].name, table_name, -1);
-			if (!cur_cat) {
+			if (!(cur_cat = ast_category_new_dynamic(categories[i].name))) {
+				ast_log(LOG_ERROR, "Out of memory allocating new category\n");
 				break;
 			}
 			last_category = categories[i].name;

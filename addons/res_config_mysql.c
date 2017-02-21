@@ -523,9 +523,8 @@ static struct ast_config *realtime_multi_mysql(const char *database, const char 
 
 		while ((row = mysql_fetch_row(result))) {
 			var = NULL;
-			cat = ast_category_new("", "", -1);
-			if (!cat) {
-				ast_log(LOG_WARNING, "Out of memory!\n");
+			if (!(cat = ast_category_new_anonymous())) {
+				ast_log(LOG_ERROR, "Out of memory allocating new category\n");
 				continue;
 			}
 			for (i = 0; i < numFields; i++) {
@@ -934,8 +933,8 @@ static struct ast_config *config_mysql(const char *database, const char *table, 
 			}
 
 			if (strcmp(last, row[0]) || last_cat_metric != atoi(row[3])) {
-				if (!(cur_cat = ast_category_new(row[0], "", -1))) {
-					ast_log(LOG_WARNING, "Out of memory!\n");
+				if (!(cur_cat = ast_category_new_dynamic(row[0]))) {
+					ast_log(LOG_ERROR, "Out of memory allocating new category\n");
 					break;
 				}
 				strcpy(last, row[0]);

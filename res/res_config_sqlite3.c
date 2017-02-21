@@ -503,7 +503,8 @@ static int append_row_to_cfg(void *arg, int num_columns, char **values, char **c
 	struct ast_category *cat;
 	int i;
 
-	if (!(cat = ast_category_new("", "", 99999))) {
+	if (!(cat = ast_category_new_anonymous())) {
+		ast_log(LOG_ERROR, "Out of memory allocating new category\n");
 		return SQLITE_ABORT;
 	}
 
@@ -723,8 +724,8 @@ static int static_realtime_cb(void *arg, int num_columns, char **values, char **
 	}
 
 	if (!args->cat_name || strcmp(args->cat_name, values[COL_CATEGORY])) {
-		if (!(args->cat = ast_category_new(values[COL_CATEGORY], "", 99999))) {
-			ast_log(LOG_WARNING, "Unable to allocate category\n");
+		if (!(args->cat = ast_category_new_dynamic(values[COL_CATEGORY]))) {
+			ast_log(LOG_ERROR, "Out of memory allocating new category\n");
 			return SQLITE_ABORT;
 		}
 
