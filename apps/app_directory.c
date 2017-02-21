@@ -466,7 +466,7 @@ static struct ast_config *realtime_directory(char *context)
 	struct ast_config *rtdata = NULL;
 	struct ast_category *cat;
 	struct ast_variable *var;
-	char *mailbox;
+	char *category = NULL;
 	const char *fullname;
 	const char *hidefromdir, *searchcontexts = NULL;
 	struct ast_flags config_flags = { 0 };
@@ -507,13 +507,12 @@ static struct ast_config *realtime_directory(char *context)
 		return cfg;
 	}
 
-	mailbox = NULL;
-	while ( (mailbox = ast_category_browse(rtdata, mailbox)) ) {
-		struct ast_variable *alias;
-		const char *ctx = ast_variable_retrieve(rtdata, mailbox, "context");
+	while ((category = ast_category_browse(rtdata, category))) {
+		const char *mailbox = ast_variable_retrieve(rtdata, category, "mailbox");
+		const char *ctx = ast_variable_retrieve(rtdata, category, "context");
 
-		fullname = ast_variable_retrieve(rtdata, mailbox, "fullname");
-		hidefromdir = ast_variable_retrieve(rtdata, mailbox, "hidefromdir");
+		fullname = ast_variable_retrieve(rtdata, category, "fullname");
+		hidefromdir = ast_variable_retrieve(rtdata, category, "hidefromdir");
 		if (ast_true(hidefromdir)) {
 			/* Skip hidden */
 			continue;
@@ -521,8 +520,9 @@ static struct ast_config *realtime_directory(char *context)
 
 		/* password,Full Name,email,pager,options */
 		ast_str_set(&tmp, 0, "no-password,%s,,,", S_OR(fullname, ""));
-		if (ast_variable_retrieve(rtdata, mailbox, "alias")) {
-			for (alias = ast_variable_browse(rtdata, mailbox); alias; alias = alias->next) {
+		if (ast_variable_retrieve(rtdata, category, "alias")) {
+			struct ast_variable *alias;
+			for (alias = ast_variable_browse(rtdata, category); alias; alias = alias->next) {
 				if (!strcasecmp(alias->name, "alias")) {
 					ast_str_append(&tmp, 0, "|alias=%s", alias->value);
 				}
