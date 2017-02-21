@@ -184,7 +184,8 @@ static struct ast_config *realtime_multi_curl(const char *url, const char *unuse
 			continue;
 		}
 
-		if (!(cat = ast_category_new("", "", 99999))) {
+		cat = ast_category_new_anonymous();
+		if (!cat) {
 			continue;
 		}
 
@@ -571,8 +572,10 @@ static struct ast_config *config_curl(const char *url, const char *unused, const
 		}
 
 		if (!cat || strcmp(category, cur_cat) || last_cat_metric != cat_metric) {
-			if (!(cat = ast_category_new(category, "", 99999)))
+			cat = ast_category_new_dynamic(category);
+			if (!cat) {
 				break;
+			}
 			cur_cat = category;
 			last_cat_metric = cat_metric;
 			ast_category_append(cfg, cat);
