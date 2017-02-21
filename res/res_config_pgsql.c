@@ -417,6 +417,9 @@ static struct columns *find_column(struct tables *t, const char *colname)
 	return NULL;
 }
 
+#define IS_SQL_LIKE_CLAUSE(x) ((x) && ast_ends_with(x, " LIKE"))
+static char *ESCAPE_CLAUSE = " ESCAPE '\\'";
+
 static struct ast_variable *realtime_pgsql(const char *database, const char *tablename, const struct ast_variable *fields)
 {
 	RAII_VAR(PGresult *, result, NULL, PQclear);
@@ -426,6 +429,7 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 	char *stringp;
 	char *chunk;
 	char *op;
+	char *escape = "";
 	const struct ast_variable *field = fields;
 	struct ast_variable *var = NULL, *prev = NULL;
 
@@ -453,7 +457,14 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 
 	/* Create the first part of the query using the first parameter/value pairs we just extracted
 	   If there is only 1 set, then we have our query. Otherwise, loop thru the list and concat */
-	op = strchr(field->name, ' ') ? "" : " =";
+	if (!strchr(field->name, ' ')) {
+		op = " =";
+	} else {
+		op = "";
+		if (IS_SQL_LIKE_CLAUSE(field->name)) {
+			escape = ESCAPE_CLAUSE;
+		}
+	}
 
 	ESCAPE_STRING(escapebuf, field->value);
 	if (pgresult) {
@@ -461,12 +472,17 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 		return NULL;
 	}
 
-	ast_str_set(&sql, 0, "SELECT * FROM %s WHERE %s%s '%s'", tablename, field->name, op, ast_str_buffer(escapebuf));
+	ast_str_set(&sql, 0, "SELECT * FROM %s WHERE %s%s '%s'%s", tablename, field->name, op, ast_str_buffer(escapebuf), escape);
 	while ((field = field->next)) {
-		if (!strchr(field->name, ' '))
+		escape = "";
+		if (!strchr(field->name, ' ')) {
 			op = " =";
-		else
+		} else {
 			op = "";
+			if (IS_SQL_LIKE_CLAUSE(field->name)) {
+				escape = ESCAPE_CLAUSE;
+			}
+		}
 
 		ESCAPE_STRING(escapebuf, field->value);
 		if (pgresult) {
@@ -474,7 +490,7 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 			return NULL;
 		}
 
-		ast_str_append(&sql, 0, " AND %s%s '%s'", field->name, op, ast_str_buffer(escapebuf));
+		ast_str_append(&sql, 0, " AND %s%s '%s'%s", field->name, op, ast_str_buffer(escapebuf), escape);
 	}
 
 	/* We now have our complete statement; Lets connect to the server and execute it. */
@@ -540,6 +556,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 	char *stringp;
 	char *chunk;
 	char *op;
+	char *escape = "";
 	struct ast_variable *var = NULL;
 	struct ast_config *cfg = NULL;
 	struct ast_category *cat = NULL;
@@ -578,10 +595,15 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 	/* Create the first part of the query using the first parameter/value pairs we just extracted
 	   If there is only 1 set, then we have our query. Otherwise, loop thru the list and concat */
 
-	if (!strchr(field->name, ' '))
+	if (!strchr(field->name, ' ')) {
 		op = " =";
-	else
+		escape = "";
+	} else {
 		op = "";
+		if (IS_SQL_LIKE_CLAUSE(field->name)) {
+			escape = ESCAPE_CLAUSE;
+		}
+	}
 
 	ESCAPE_STRING(escapebuf, field->value);
 	if (pgresult) {
@@ -590,12 +612,18 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 		return NULL;
 	}
 
-	ast_str_set(&sql, 0, "SELECT * FROM %s WHERE %s%s '%s'", table, field->name, op, ast_str_buffer(escapebuf));
+	ast_str_set(&sql, 0, "SELECT * FROM %s WHERE %s%s '%s'%s", table, field->name, op, ast_str_buffer(escapebuf), escape);
 	while ((field = field->next)) {
-		if (!strchr(field->name, ' '))
+		escape = "";
+		if (!strchr(field->name, ' ')) {
 			op = " =";
-		else
+			escape = "";
+		} else {
 			op = "";
+			if (IS_SQL_LIKE_CLAUSE(field->name)) {
+				escape = ESCAPE_CLAUSE;
+			}
+		}
 
 		ESCAPE_STRING(escapebuf, field->value);
 		if (pgresult) {
@@ -604,7 +632,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 			return NULL;
 		}
 
-		ast_str_append(&sql, 0, " AND %s%s '%s'", field->name, op, ast_str_buffer(escapebuf));
+		ast_str_append(&sql, 0, " AND %s%s '%s'%s", field->name, op, ast_str_buffer(escapebuf), escape);
 	}
 
 	if (initfield) {
