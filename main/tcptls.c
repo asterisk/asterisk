@@ -773,14 +773,16 @@ void *ast_tcptls_server_root(void *data)
 		}
 		tcptls_session = ao2_alloc(sizeof(*tcptls_session), session_instance_destructor);
 		if (!tcptls_session) {
-			ast_log(LOG_WARNING, "No memory for new session: %s\n", strerror(errno));
-			if (close(fd)) {
-				ast_log(LOG_ERROR, "close() failed: %s\n", strerror(errno));
-			}
+			close(fd);
 			continue;
 		}
 
 		tcptls_session->overflow_buf = ast_str_create(128);
+		if (!tcptls_session->overflow_buf) {
+			ao2_ref(tcptls_session, -1);
+			close(fd);
+			continue;
+		}
 		flags = fcntl(fd, F_GETFL);
 		fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
 		tcptls_session->fd = fd;
@@ -1059,11 +1061,15 @@ struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_s
 		}
 	}
 
-	if (!(tcptls_session = ao2_alloc(sizeof(*tcptls_session), session_instance_destructor))) {
+	tcptls_session = ao2_alloc(sizeof(*tcptls_session), session_instance_destructor);
+	if (!tcptls_session) {
 		goto error;
 	}
 
 	tcptls_session->overflow_buf = ast_str_create(128);
+	if (!tcptls_session->overflow_buf) {
+		goto error;
+	}
 	tcptls_session->client = 1;
 	tcptls_session->fd = desc->accept_fd;
 	tcptls_session->parent = desc;
@@ -1078,9 +1084,7 @@ struct ast_tcptls_session_instance *ast_tcptls_client_create(struct ast_tcptls_s
 error:
 	close(desc->accept_fd);
 	desc->accept_fd = -1;
-	if (tcptls_session) {
-		ao2_ref(tcptls_session, -1);
-	}
+	ao2_cleanup(tcptls_session);
 	return NULL;
 }
 
