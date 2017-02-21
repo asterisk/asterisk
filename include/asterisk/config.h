@@ -834,6 +834,18 @@ const char *ast_config_option(struct ast_config *cfg, const char *cat, const cha
 struct ast_category *ast_category_new(const char *name, const char *in_file, int lineno);
 
 /*!
+ * \brief Create a category that is not backed by a file
+ *
+ * \param name name of new category
+ */
+#define ast_category_new_dynamic(name) ast_category_new(name, "", -1)
+
+/*!
+ * \brief Create a nameless category that is not backed by a file
+ */
+#define ast_category_new_anonymous() ast_category_new_dynamic("")
+
+/*!
  * \brief Create a category making it a template
  *
  * \param name name of new template

@@ -683,8 +683,10 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 
 		for (rowIndex = 0; rowIndex < num_rows; rowIndex++) {
 			var = NULL;
-			if (!(cat = ast_category_new("","",99999)))
+			cat = ast_category_new_anonymous();
+			if (!cat) {
 				continue;
+			}
 			for (i = 0; i < numFields; i++) {
 				stringp = PQgetvalue(result, rowIndex, i);
 				while (stringp) {
@@ -1164,9 +1166,10 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 			}
 
 			if (strcmp(last, field_category) || last_cat_metric != atoi(field_cat_metric)) {
-				cur_cat = ast_category_new(field_category, "", 99999);
-				if (!cur_cat)
+				cur_cat = ast_category_new_dynamic(field_category);
+				if (!cur_cat) {
 					break;
+				}
 				ast_copy_string(last, field_category, sizeof(last));
 				last_cat_metric = atoi(field_cat_metric);
 				ast_category_append(cfg, cur_cat);
