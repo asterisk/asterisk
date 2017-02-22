@@ -360,6 +360,7 @@ static int send_unpublish_task(void *data)
 			pjsip_tx_data_set_transport(tdata, &selector);
 		}
 
+		ast_sip_record_request_serializer(tdata);
 		pjsip_publishc_send(client->client, tdata);
 	}
 
@@ -609,6 +610,7 @@ static int sip_publish_client_service_queue(void *data)
 		pjsip_tx_data_set_transport(tdata, &selector);
 	}
 
+	ast_sip_record_request_serializer(tdata);
 	status = pjsip_publishc_send(client->client, tdata);
 	if (status == PJ_EBUSY) {
 		/* We attempted to send the message but something else got there first */
@@ -921,6 +923,7 @@ static void sip_outbound_publish_callback(struct pjsip_publishc_cbparam *param)
 				pjsip_tx_data_set_transport(tdata, &selector);
 			}
 
+			ast_sip_record_request_serializer(tdata);
 			pjsip_publishc_send(client->client, tdata);
 		}
 		client->auth_attempts++;

@@ -539,6 +539,7 @@ static pj_status_t registration_client_send(struct sip_outbound_registration_cli
 	 */
 	ast_sip_set_tpselector_from_transport_name(client_state->transport_name, &selector);
 	pjsip_regc_set_transport(client_state->client, &selector);
+	ast_sip_record_request_serializer(tdata);
 	status = pjsip_regc_send(client_state->client, tdata);
 
 	/* If the attempt to send the message failed and the callback was not invoked we need to

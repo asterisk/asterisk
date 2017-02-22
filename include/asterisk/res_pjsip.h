@@ -1368,6 +1368,16 @@ struct ast_taskprocessor *ast_sip_create_serializer_group_named(const char *name
 struct ast_taskprocessor *ast_sip_get_distributor_serializer(pjsip_rx_data *rdata);
 
 /*!
+ * \brief Record the task's serializer name on the tdata structure.
+ * \since 13.15.0
+ *
+ * \param tdata The outgoing message.
+ *
+ * \retval PJ_SUCCESS.
+ */
+pj_status_t ast_sip_record_request_serializer(pjsip_tx_data *tdata);
+
+/*!
  * \brief Set a serializer on a SIP dialog so requests and responses are automatically serialized
  *
  * Passing a NULL serializer is a way to remove a serializer from a dialog.
