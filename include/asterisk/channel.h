@@ -670,6 +670,9 @@ struct ast_channel_tech {
 	/*! \brief Write a frame, in standard format (see frame.h) */
 	int (* const write)(struct ast_channel *chan, struct ast_frame *frame);
 
+	/*! \brief Write a frame on a specific stream, in standard format (see frame.h) */
+	int (* const write_stream)(struct ast_channel *chan, int stream_num, struct ast_frame *frame);
+
 	/*! \brief Display or transmit text */
 	int (* const send_text)(struct ast_channel *chan, const char *text);
 
@@ -1967,6 +1970,16 @@ int ast_write_video(struct ast_channel *chan, struct ast_frame *frame);
  * \return It returns 1 on success, 0 if not implemented, and -1 on failure.
  */
 int ast_write_text(struct ast_channel *chan, struct ast_frame *frame);
+
+/*!
+ * \brief Write a frame to a stream
+ * This function writes the given frame to the indicated stream on the channel.
+ * \param chan destination channel of the frame
+ * \param stream_num destination stream on the channel
+ * \param frame frame that will be written
+ * \return It returns 0 on success, -1 on failure.
+ */
+int ast_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame *frame);
 
 /*! \brief Send empty audio to prime a channel driver */
 int ast_prod(struct ast_channel *chan);
@@ -4767,5 +4780,18 @@ struct ast_stream_topology *ast_channel_get_stream_topology(
  */
 struct ast_stream_topology *ast_channel_set_stream_topology(
 	struct ast_channel *chan, struct ast_stream_topology *topology);
+
+/*!
+ * \brief Retrieve the default stream of a specific media type on a channel
+ *
+ * \param channel The channel to get the stream from
+ * \param type The media type of the default stream
+ *
+ * \pre chan is locked
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ */
+struct ast_stream *ast_channel_get_default_stream(struct ast_channel *chan, enum ast_media_type type);
 
 #endif /* _ASTERISK_CHANNEL_H */

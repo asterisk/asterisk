@@ -853,6 +853,421 @@ AST_TEST_DEFINE(stream_topology_channel_set)
 	return res;
 }
 
+struct mock_channel_pvt {
+	unsigned int wrote;
+	unsigned int wrote_stream;
+	int stream_num;
+};
+
+static int mock_channel_write(struct ast_channel *chan, struct ast_frame *fr)
+{
+	struct mock_channel_pvt *pvt = ast_channel_tech_pvt(chan);
+
+	pvt->wrote = 1;
+
+	return 0;
+}
+
+static int mock_channel_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame *fr)
+{
+	struct mock_channel_pvt *pvt = ast_channel_tech_pvt(chan);
+
+	pvt->wrote_stream = 1;
+	pvt->stream_num = stream_num;
+
+	return 0;
+}
+
+static int mock_channel_hangup(struct ast_channel *chan)
+{
+	ast_channel_tech_pvt_set(chan, NULL);
+	return 0;
+}
+
+static const struct ast_channel_tech mock_channel_old_write_tech = {
+	.write = mock_channel_write,
+	.write_video = mock_channel_write,
+	.hangup = mock_channel_hangup,
+};
+
+AST_TEST_DEFINE(stream_write_non_multistream)
+{
+	RAII_VAR(struct ast_format_cap *, caps, NULL, ao2_cleanup);
+	struct ast_channel *mock_channel;
+	struct mock_channel_pvt pvt;
+	enum ast_test_result_state res = AST_TEST_FAIL;
+	struct ast_frame frame = { 0, };
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "stream_write_non_multistream";
+		info->category = "/main/stream/";
+		info->summary = "stream writing to non-multistream capable channel test";
+		info->description =
+			"Test that writing frames to a non-multistream channel works as expected";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!caps) {
+		ast_test_status_update(test, "Could not allocate an empty format capabilities structure\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_format_cap_append(caps, ast_format_ulaw, 0)) {
+		ast_test_status_update(test, "Failed to append a ulaw format to capabilities for channel nativeformats\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_format_cap_append(caps, ast_format_h264, 0)) {
+		ast_test_status_update(test, "Failed to append an h264 format to capabilities for channel nativeformats\n");
+		return AST_TEST_FAIL;
+	}
+
+	mock_channel = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, "TestChannel");
+	if (!mock_channel) {
+		ast_test_status_update(test, "Failed to create a mock channel for testing\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_channel_tech_set(mock_channel, &mock_channel_old_write_tech);
+	ast_channel_nativeformats_set(mock_channel, caps);
+
+	pvt.wrote = 0;
+	ast_channel_tech_pvt_set(mock_channel, &pvt);
+	ast_channel_unlock(mock_channel);
+
+	frame.frametype = AST_FRAME_VOICE;
+	frame.subclass.format = ast_format_ulaw;
+
+	if (ast_write(mock_channel, &frame)) {
+		ast_test_status_update(test, "Failed to write a ulaw frame to the mock channel when it should be fine\n");
+		goto end;
+	}
+
+	if (!pvt.wrote) {
+		ast_test_status_update(test, "Successfully wrote a frame of ulaw but it never reached the channel driver\n");
+		goto end;
+	}
+
+	pvt.wrote = 0;
+
+	if (!ast_write_stream(mock_channel, 2, &frame) || pvt.wrote) {
+		ast_test_status_update(test, "Successfully wrote a frame of ulaw to a non-existent stream\n");
+		goto end;
+	}
+
+	frame.frametype = AST_FRAME_VIDEO;
+	frame.subclass.format = ast_format_h264;
+
+	if (ast_write(mock_channel, &frame)) {
+		ast_test_status_update(test, "Failed to write an h264 frame to the mock channel when it should be fine\n");
+		goto end;
+	}
+
+	if (!pvt.wrote) {
+		ast_test_status_update(test, "Successfully wrote a frame of h264 but it never reached the channel driver\n");
+		goto end;
+	}
+
+	res = AST_TEST_PASS;
+
+end:
+	ast_hangup(mock_channel);
+
+	return res;
+}
+
+static const struct ast_channel_tech mock_channel_write_stream_tech = {
+	.properties = AST_CHAN_TP_MULTISTREAM,
+	.write = mock_channel_write,
+	.write_video = mock_channel_write,
+	.write_stream = mock_channel_write_stream,
+	.hangup = mock_channel_hangup,
+};
+
+AST_TEST_DEFINE(stream_write_multistream)
+{
+	RAII_VAR(struct ast_format_cap *, caps, NULL, ao2_cleanup);
+	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_free);
+	struct ast_stream *stream;
+	struct ast_channel *mock_channel;
+	struct mock_channel_pvt pvt = { 0, };
+	enum ast_test_result_state res = AST_TEST_FAIL;
+	struct ast_frame frame = { 0, };
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "stream_write_multistream";
+		info->category = "/main/stream/";
+		info->summary = "stream writing to multistream capable channel test";
+		info->description =
+			"Test that writing frames to a multistream channel works as expected";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	topology = ast_stream_topology_alloc();
+	if (!topology) {
+		ast_test_status_update(test, "Failed to create media stream topology\n");
+		return AST_TEST_FAIL;
+	}
+
+	stream = ast_stream_alloc("audio", AST_MEDIA_TYPE_AUDIO);
+	if (!stream) {
+		ast_test_status_update(test, "Failed to create an audio stream for testing multistream writing\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_stream_topology_append_stream(topology, stream) == -1) {
+		ast_test_status_update(test, "Failed to append a perfectly good stream to a topology\n");
+		ast_stream_free(stream);
+		return AST_TEST_FAIL;
+	}
+
+	stream = ast_stream_alloc("audio2", AST_MEDIA_TYPE_AUDIO);
+	if (!stream) {
+		ast_test_status_update(test, "Failed to create an audio stream for testing multistream writing\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_stream_topology_append_stream(topology, stream) == -1) {
+		ast_test_status_update(test, "Failed to append a perfectly good stream to a topology\n");
+		ast_stream_free(stream);
+		return AST_TEST_FAIL;
+	}
+
+	stream = ast_stream_alloc("video", AST_MEDIA_TYPE_VIDEO);
+	if (!stream) {
+		ast_test_status_update(test, "Failed to create a video stream for testing multistream writing\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_stream_topology_append_stream(topology, stream) == -1) {
+		ast_test_status_update(test, "Failed to append a perfectly good stream to a topology\n");
+		ast_stream_free(stream);
+		return AST_TEST_FAIL;
+	}
+
+	stream = ast_stream_alloc("video2", AST_MEDIA_TYPE_VIDEO);
+	if (!stream) {
+		ast_test_status_update(test, "Failed to create a video stream for testing multistream writing\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_stream_topology_append_stream(topology, stream) == -1) {
+		ast_test_status_update(test, "Failed to append a perfectly good stream to a topology\n");
+		ast_stream_free(stream);
+		return AST_TEST_FAIL;
+	}
+
+	caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+	if (!caps) {
+		ast_test_status_update(test, "Could not allocate an empty format capabilities structure\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_format_cap_append(caps, ast_format_ulaw, 0)) {
+		ast_test_status_update(test, "Failed to append a ulaw format to capabilities for channel nativeformats\n");
+		return AST_TEST_FAIL;
+	}
+
+	if (ast_format_cap_append(caps, ast_format_h264, 0)) {
+		ast_test_status_update(test, "Failed to append an h264 format to capabilities for channel nativeformats\n");
+		return AST_TEST_FAIL;
+	}
+
+	mock_channel = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, "TestChannel");
+	if (!mock_channel) {
+		ast_test_status_update(test, "Failed to create a mock channel for testing\n");
+		return AST_TEST_FAIL;
+	}
+
+	ast_channel_tech_set(mock_channel, &mock_channel_write_stream_tech);
+	ast_channel_set_stream_topology(mock_channel, topology);
+	ast_channel_nativeformats_set(mock_channel, caps);
+	topology = NULL;
+
+	ast_channel_tech_pvt_set(mock_channel, &pvt);
+	ast_channel_unlock(mock_channel);
+
+	frame.frametype = AST_FRAME_VOICE;
+	frame.subclass.format = ast_format_ulaw;
+	pvt.stream_num = -1;
+
+	if (ast_write(mock_channel, &frame)) {
+		ast_test_status_update(test, "Failed to write a ulaw frame to the mock channel when it should be fine\n");
+		goto end;
+	}
+
+	if (pvt.wrote) {
+		ast_test_status_update(test, "Successfully wrote a frame of ulaw but it ended up on the old write callback instead of write_stream\n");
+		goto end;
+	}
+
+	if (!pvt.wrote_stream) {
+		ast_test_status_update(test, "Successfully wrote a frame of ulaw but it never reached the channel driver\n");
+		goto end;
+	}
+
+	if (pvt.stream_num != 0) {
+		ast_test_status_update(test, "Successfully wrote a frame of ulaw to the default stream but it ended up on stream %d and not 0\n",
+			pvt.stream_num);
+		goto end;
+	}
+
+	pvt.wrote_stream = 0;
+	pvt.stream_num = -1;
+
+	if (ast_write_stream(mock_channel, 0, &frame)) {
+		ast_test_status_update(test, "Failed to write a ulaw frame to the first audio stream\n");
+		goto end;
+	}
+
+	if (pvt.wrote) {
+		ast_test_status_update(test, "Successfully wrote a frame of ulaw to the first audio stream but it ended up on the old write callback instead of write_stream\n");
+		goto end;
+	}
+
+	if (!pvt.wrote_stream) {
+		ast_test_status_update(test, "Successfully wrote a frame of ulaw to the first audio stream but it never reached the channel driver\n");
+		goto end;
+	}
+
+	if (pvt.stream_num != 0) {
+		ast_test_status_update(test, "Successfully wrote a frame of ulaw to the first audio stream but it ended up on stream %d and not 0\n",
+			pvt.stream_num);
+		goto end;
+	}
+
+	pvt.wrote_stream = 0;
+	pvt.stream_num = -1;
+
+	if (ast_write_stream(mock_channel, 1, &frame)) {
+		ast_test_status_update(test, "Failed to write a ulaw frame to the second audio stream\n");
+		goto end;
+	}
+
+	if (pvt.wrote) {
+		ast_test_status_update(test, "Successfully wrote a frame of ulaw to the second audio stream but it ended up on the old write callback instead of write_stream\n");
+		goto end;
+	}
+
+	if (!pvt.wrote_stream) {
+		ast_test_status_update(test, "Successfully wrote a frame of ulaw to the second audio stream but it never reached the channel driver\n");
+		goto end;
+	}
+
+	if (pvt.stream_num != 1) {
+		ast_test_status_update(test, "Successfully wrote a frame of ulaw to the second audio stream but it ended up on stream %d and not 1\n",
+			pvt.stream_num);
+		goto end;
+	}
+
+	pvt.wrote_stream = 0;
+	pvt.stream_num = -1;
+
+	frame.frametype = AST_FRAME_VIDEO;
+	frame.subclass.format = ast_format_h264;
+
+	if (ast_write(mock_channel, &frame)) {
+		ast_test_status_update(test, "Failed to write an h264 frame to the mock channel when it should be fine\n");
+		goto end;
+	}
+
+	if (pvt.wrote) {
+		ast_test_status_update(test, "Successfully wrote a frame of h264 but it ended up on the old write callback instead of write_stream\n");
+		goto end;
+	}
+
+	if (!pvt.wrote_stream) {
+		ast_test_status_update(test, "Successfully wrote a frame of h264 but it never reached the channel driver\n");
+		goto end;
+	}
+
+	if (pvt.stream_num != 2) {
+		ast_test_status_update(test, "Successfully wrote a frame of h264 to the default stream but it ended up on stream %d and not 2\n",
+			pvt.stream_num);
+		goto end;
+	}
+
+	pvt.wrote_stream = 0;
+	pvt.stream_num = -1;
+
+	if (ast_write_stream(mock_channel, 2, &frame)) {
+		ast_test_status_update(test, "Failed to write an h264 frame to the first video stream\n");
+		goto end;
+	}
+
+	if (pvt.wrote) {
+		ast_test_status_update(test, "Successfully wrote a frame of h264 to the first video stream but it ended up on the old write callback instead of write_stream\n");
+		goto end;
+	}
+
+	if (!pvt.wrote_stream) {
+		ast_test_status_update(test, "Successfully wrote a frame of h264 to the first video stream but it never reached the channel driver\n");
+		goto end;
+	}
+
+	if (pvt.stream_num != 2) {
+		ast_test_status_update(test, "Successfully wrote a frame of h264 to the first video stream but it ended up on stream %d and not 2\n",
+			pvt.stream_num);
+		goto end;
+	}
+
+	pvt.wrote_stream = 0;
+	pvt.stream_num = -1;
+
+	if (ast_write_stream(mock_channel, 3, &frame)) {
+		ast_test_status_update(test, "Failed to write an h264 frame to the second video stream\n");
+		goto end;
+	}
+
+	if (pvt.wrote) {
+		ast_test_status_update(test, "Successfully wrote a frame of h264 to the second video stream but it ended up on the old write callback instead of write_stream\n");
+		goto end;
+	}
+
+	if (!pvt.wrote_stream) {
+		ast_test_status_update(test, "Successfully wrote a frame of h264 to the second video stream but it never reached the channel driver\n");
+		goto end;
+	}
+
+	if (pvt.stream_num != 3) {
+		ast_test_status_update(test, "Successfully wrote a frame of h264 to the second video stream but it ended up on stream %d and not 3\n",
+			pvt.stream_num);
+		goto end;
+	}
+
+	pvt.wrote_stream = 0;
+	pvt.stream_num = -1;
+
+	if (!ast_write_stream(mock_channel, 9, &frame)) {
+		ast_test_status_update(test, "Successfully wrote a frame of h264 to a non-existent stream\n");
+		goto end;
+	}
+
+	if (pvt.wrote) {
+		ast_test_status_update(test, "Successfully wrote a frame of h264 to a non-existent stream and it ended up on the old write callback\n");
+		goto end;
+	}
+
+	if (pvt.wrote_stream) {
+		ast_test_status_update(test, "Successfully wrote a frame of h264 to a non-existent stream and it ended up on the write_stream callback\n");
+		goto end;
+	}
+
+	res = AST_TEST_PASS;
+
+end:
+	ast_hangup(mock_channel);
+
+	return res;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(stream_create);
@@ -869,6 +1284,8 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(stream_topology_get_first_stream_by_type);
 	AST_TEST_UNREGISTER(stream_topology_create_from_channel_nativeformats);
 	AST_TEST_UNREGISTER(stream_topology_channel_set);
+	AST_TEST_UNREGISTER(stream_write_non_multistream);
+	AST_TEST_UNREGISTER(stream_write_multistream);
 	return 0;
 }
 
@@ -887,6 +1304,8 @@ static int load_module(void)
 	AST_TEST_REGISTER(stream_topology_get_first_stream_by_type);
 	AST_TEST_REGISTER(stream_topology_create_from_channel_nativeformats);
 	AST_TEST_REGISTER(stream_topology_channel_set);
+	AST_TEST_REGISTER(stream_write_non_multistream);
+	AST_TEST_REGISTER(stream_write_multistream);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
