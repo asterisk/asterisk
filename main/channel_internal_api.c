@@ -1816,6 +1816,15 @@ struct ast_stream_topology *ast_channel_set_stream_topology(struct ast_channel *
 	return new_topology;
 }
 
+struct ast_stream *ast_channel_get_default_stream(struct ast_channel *chan,
+	enum ast_media_type type)
+{
+	ast_assert(chan != NULL);
+	ast_assert(type < AST_MEDIA_TYPE_END);
+
+	return chan->default_streams[type];
+}
+
 void ast_channel_internal_swap_stream_topology(struct ast_channel *chan1,
 	struct ast_channel *chan2)
 {
