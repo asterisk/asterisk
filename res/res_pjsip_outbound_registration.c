@@ -368,6 +368,9 @@ static struct ast_serializer_shutdown_group *shutdown_group;
 #define DEFAULT_STATE_BUCKETS 53
 static AO2_GLOBAL_OBJ_STATIC(current_states);
 
+/*! subscription id for network change events */
+static struct stasis_subscription *network_change_sub;
+
 /*! \brief hashing function for state objects */
 static int registration_state_hash(const void *obj, const int flags)
 {
@@ -1949,9 +1952,40 @@ static const struct ast_sorcery_observer registration_observer = {
 	.deleted = registration_deleted_observer,
 };
 
+static int reload_module(void)
+{
+	struct ao2_container *states;
+
+	states = ao2_global_obj_ref(current_states);
+	if (!states) {
+		/* Global container has gone.  Likely shutting down. */
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	ao2_callback(states, OBJ_UNLINK | OBJ_NODATA | OBJ_MULTIPLE, NULL, NULL);
+	ao2_ref(states, -1);
+
+	ast_sorcery_load_object(ast_sip_get_sorcery(), "registration");
+
+	return 0;
+}
+
+static void network_change_stasis_cb(void *data, struct stasis_subscription *sub, struct stasis_message *message)
+{
+	/* This callback is only concerned with network change messages from the system topic. */
+	if (stasis_message_type(message) != ast_network_change_type()) {
+		return;
+	}
+	ast_debug(3, "Received network change event\n");
+
+	reload_module();
+}
+
 static int unload_module(void)
 {
 	int remaining;
+
+	network_change_sub = stasis_unsubscribe_and_join(network_change_sub);
 
 	ast_manager_unregister("PJSIPShowRegistrationsOutbound");
 	ast_manager_unregister("PJSIPUnregister");
@@ -2090,13 +2124,10 @@ static int load_module(void)
 	/* Load configuration objects */
 	ast_sorcery_load_object(ast_sip_get_sorcery(), "registration");
 
-	return AST_MODULE_LOAD_SUCCESS;
-}
+	network_change_sub = stasis_subscribe(ast_system_topic(),
+		network_change_stasis_cb, NULL);
 
-static int reload_module(void)
-{
-	ast_sorcery_reload_object(ast_sip_get_sorcery(), "registration");
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_LOAD_ORDER, "PJSIP Outbound Registration Support",
