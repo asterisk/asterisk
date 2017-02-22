@@ -355,11 +355,7 @@ else # Darwin
 endif
 endif
 ifneq ($(LDCONFIG),)
-ifneq ($(DESTDIR),)
 	$(LDCONFIG) $(LDCONFIG_FLAGS) "$(DESTDIR)$(ASTLIBDIR)/"
-else
-	$(LDCONFIG)
-endif
 endif
 	$(LN) -sf asterisk "$(DESTDIR)$(ASTSBINDIR)/rasterisk"
 
@@ -377,11 +373,7 @@ ifneq ($(ASTPJ_LIB).$(ASTPJ_SO_VERSION),.)
 	rm -f "$(DESTDIR)$(ASTLIBDIR)/$(ASTPJ_LIB)"
 endif
 ifneq ($(LDCONFIG),)
-ifneq ($(DESTDIR),)
 	$(LDCONFIG) $(LDCONFIG_FLAGS) "$(DESTDIR)$(ASTLIBDIR)/"
-else
-	$(LDCONFIG)
-endif
 endif
 
 clean::
