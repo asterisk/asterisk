@@ -5125,6 +5125,12 @@ static void apply_plc(struct ast_channel *chan, struct ast_frame *frame)
 
 int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 {
+	return ast_write_stream(chan, -1, fr);
+}
+
+int ast_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame *fr)
+{
+	struct ast_stream *stream = NULL, *default_stream = NULL;
 	int res = -1;
 	struct ast_frame *f = NULL;
 	int count = 0;
@@ -5139,13 +5145,25 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		}
 		usleep(1);
 	}
+
 	/* Stop if we're a zombie or need a soft hangup */
-	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE) || ast_check_hangup(chan))
+	if (ast_test_flag(ast_channel_flags(chan), AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
 		goto done;
+	}
+
+	/* If this frame is writing an audio or video frame get the stream information */
+	if (fr->frametype == AST_FRAME_VOICE || fr->frametype == AST_FRAME_VIDEO) {
+		/* Initially use the default stream unless an explicit stream is provided */
+		stream = default_stream = ast_channel_get_default_stream(chan, ast_format_get_type(fr->subclass.format));
+
+		if (stream_num >= 0) {
+			stream = ast_stream_topology_get_stream(ast_channel_get_stream_topology(chan), stream_num);
+		}
+	}
 
 	/* Perform the framehook write event here. After the frame enters the framehook list
 	 * there is no telling what will happen, how awesome is that!!! */
-	if (!(fr = ast_framehook_list_write_event(ast_channel_framehooks(chan), fr))) {
+	if ((stream == default_stream) && !(fr = ast_framehook_list_write_event(ast_channel_framehooks(chan), fr))) {
 		res = 0;
 		goto done;
 	}
@@ -5231,17 +5249,20 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		break;
 	case AST_FRAME_VIDEO:
 		/* XXX Handle translation of video codecs one day XXX */
-		res = (ast_channel_tech(chan)->write_video == NULL) ? 0 :
-			ast_channel_tech(chan)->write_video(chan, fr);
+		if (ast_channel_tech(chan)->write_stream) {
+			res = ast_channel_tech(chan)->write_stream(chan, ast_stream_get_position(stream), fr);
+		} else if ((stream == default_stream) && ast_channel_tech(chan)->write) {
+			res = ast_channel_tech(chan)->write(chan, fr);
+		} else {
+			res = 0;
+
+		}
 		break;
 	case AST_FRAME_MODEM:
 		res = (ast_channel_tech(chan)->write == NULL) ? 0 :
 			ast_channel_tech(chan)->write(chan, fr);
 		break;
 	case AST_FRAME_VOICE:
-		if (ast_channel_tech(chan)->write == NULL)
-			break;	/*! \todo XXX should return 0 maybe ? */
-
 		if (ast_opt_generic_plc && ast_format_cmp(fr->subclass.format, ast_format_slin) == AST_FORMAT_CMP_EQUAL) {
 			apply_plc(chan, fr);
 		}
@@ -5250,7 +5271,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		 * Send frame to audiohooks if present, if frametype is linear (else, later as per
 		 * previous behavior)
 		 */
-		if (ast_channel_audiohooks(chan)) {
+		if ((stream == default_stream) && ast_channel_audiohooks(chan)) {
 			if (ast_format_cache_is_slinear(fr->subclass.format)) {
 				struct ast_frame *old_frame;
 				hooked = 1;
@@ -5263,7 +5284,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		}
 
 		/* If the frame is in the raw write format, then it's easy... just use the frame - otherwise we will have to translate */
-		if (ast_format_cmp(fr->subclass.format, ast_channel_rawwriteformat(chan)) == AST_FORMAT_CMP_EQUAL) {
+		if ((stream != default_stream) || ast_format_cmp(fr->subclass.format, ast_channel_rawwriteformat(chan)) == AST_FORMAT_CMP_EQUAL) {
 			f = fr;
 		} else {
 			if (ast_format_cmp(ast_channel_writeformat(chan), fr->subclass.format) != AST_FORMAT_CMP_EQUAL) {
@@ -5299,7 +5320,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			break;
 		}
 
-		if (ast_channel_audiohooks(chan) && !hooked) {
+		if ((stream == default_stream) && ast_channel_audiohooks(chan) && !hooked) {
 			struct ast_frame *prev = NULL, *new_frame, *cur, *dup;
 			int freeoldlist = 0;
 
@@ -5348,7 +5369,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		/* the translator on chan->writetrans may have returned multiple frames
 		   from the single frame we passed in; if so, feed each one of them to the
 		   monitor */
-		if (ast_channel_monitor(chan) && ast_channel_monitor(chan)->write_stream) {
+		if ((stream == default_stream) && ast_channel_monitor(chan) && ast_channel_monitor(chan)->write_stream) {
 			struct ast_frame *cur;
 
 			for (cur = f; cur; cur = AST_LIST_NEXT(cur, frame_list)) {
@@ -5415,7 +5436,13 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			/* reset f so the code below doesn't attempt to free it */
 			f = NULL;
 		} else {
-			res = ast_channel_tech(chan)->write(chan, f);
+			if (ast_channel_tech(chan)->write_stream) {
+				res = ast_channel_tech(chan)->write_stream(chan, ast_stream_get_position(stream), f);
+			} else if ((stream == default_stream) && ast_channel_tech(chan)->write) {
+				res = ast_channel_tech(chan)->write(chan, f);
+			} else {
+				res = 0;
+			}
 		}
 		break;
 	case AST_FRAME_NULL:
