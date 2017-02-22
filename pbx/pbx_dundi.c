@@ -994,9 +994,9 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 					sizeof(trans->parent->dr[trans->parent->respcount].tech));
 				trans->parent->respcount++;
 				ast_clear_flag_nonstd(trans->parent->hmd, DUNDI_HINT_DONT_ASK);
-			} else if (trans->parent->dr[z].weight > ies->answers[x]->weight) {
+			} else if (trans->parent->dr[z].weight > ntohs(ies->answers[x]->weight)) {
 				/* Update weight if appropriate */
-				trans->parent->dr[z].weight = ies->answers[x]->weight;
+				trans->parent->dr[z].weight = ntohs(ies->answers[x]->weight);
 			}
 		} else
 			ast_log(LOG_NOTICE, "Dropping excessive answers in precache for %s@%s\n",
@@ -1764,9 +1764,9 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 									sizeof(trans->parent->dr[trans->parent->respcount].tech));
 								trans->parent->respcount++;
 								ast_clear_flag_nonstd(trans->parent->hmd, DUNDI_HINT_DONT_ASK);
-							} else if (trans->parent->dr[z].weight > ies.answers[x]->weight) {
+							} else if (trans->parent->dr[z].weight > ntohs(ies.answers[x]->weight)) {
 								/* Update weight if appropriate */
-								trans->parent->dr[z].weight = ies.answers[x]->weight;
+								trans->parent->dr[z].weight = ntohs(ies.answers[x]->weight);
 							}
 						} else
 							ast_log(LOG_NOTICE, "Dropping excessive answers to request for %s@%s\n",
