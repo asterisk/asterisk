@@ -409,9 +409,8 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 			ast_log(LOG_WARNING, "SQL Fetch error! [%s]\n", ast_str_buffer(sql));
 			continue;
 		}
-		cat = ast_category_new("","",99999);
+		cat = ast_category_new_anonymous();
 		if (!cat) {
-			ast_log(LOG_WARNING, "Out of memory!\n");
 			continue;
 		}
 		for (x=0;x<colcount;x++) {
@@ -1018,9 +1017,8 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 			continue;
 		} 
 		if (strcmp(last, q.category) || last_cat_metric != q.cat_metric) {
-			cur_cat = ast_category_new(q.category, "", 99999);
+			cur_cat = ast_category_new_dynamic(q.category);
 			if (!cur_cat) {
-				ast_log(LOG_WARNING, "Out of memory!\n");
 				break;
 			}
 			strcpy(last, q.category);
