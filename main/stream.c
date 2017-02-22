@@ -168,6 +168,24 @@ void ast_stream_set_state(struct ast_stream *stream, enum ast_stream_state state
 	stream->state = state;
 }
 
+const char *ast_stream_state2str(enum ast_stream_state state)
+{
+	switch (state) {
+	case AST_STREAM_STATE_REMOVED:
+		return "removed";
+	case AST_STREAM_STATE_SENDRECV:
+		return "sendrecv";
+	case AST_STREAM_STATE_SENDONLY:
+		return "sendonly";
+	case AST_STREAM_STATE_RECVONLY:
+		return "recvonly";
+	case AST_STREAM_STATE_INACTIVE:
+		return "inactive";
+	default:
+		return "<unknown>";
+	}
+}
+
 int ast_stream_get_position(const struct ast_stream *stream)
 {
 	ast_assert(stream != NULL);

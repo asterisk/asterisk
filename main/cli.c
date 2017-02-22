@@ -61,6 +61,7 @@
 #include "asterisk/stasis_channels.h"
 #include "asterisk/stasis_bridges.h"
 #include "asterisk/vector.h"
+#include "asterisk/stream.h"
 
 /*!
  * \brief List of restrictions per user.
@@ -1542,6 +1543,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	struct ast_bridge *bridge;
 	ast_callid callid;
 	char callid_buf[32];
+	int stream_num;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -1668,6 +1670,7 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 		S_OR(ast_channel_data(chan), "(Empty)"),
 		S_OR(callid_buf, "(None)")
 		);
+
 	ast_str_append(&output, 0, "      Variables:\n");
 
 	AST_LIST_TRAVERSE(ast_channel_varshead(chan), var, entries) {
@@ -1677,6 +1680,22 @@ static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 	if (!(ast_channel_tech(chan)->properties & AST_CHAN_TP_INTERNAL)
 		&& ast_cdr_serialize_variables(ast_channel_name(chan), &obuf, '=', '\n')) {
 		ast_str_append(&output, 0, "  CDR Variables:\n%s\n", ast_str_buffer(obuf));
+	}
+
+	ast_str_append(&output, 0, " -- Streams --\n");
+	for (stream_num = 0; stream_num < ast_stream_topology_get_count(ast_channel_get_stream_topology(chan)); stream_num++) {
+		struct ast_stream *stream = ast_stream_topology_get_stream(ast_channel_get_stream_topology(chan), stream_num);
+
+		ast_str_append(&output, 0,
+			"Name: %s\n"
+			"    Type: %s\n"
+			"    State: %s\n"
+			"    Formats: %s\n",
+			ast_stream_get_name(stream),
+			ast_codec_media_type2str(ast_stream_get_type(stream)),
+			ast_stream_state2str(ast_stream_get_state(stream)),
+			ast_format_cap_get_names(ast_stream_get_formats(stream), &codec_buf)
+			);
 	}
 
 	ast_channel_unlock(chan);
