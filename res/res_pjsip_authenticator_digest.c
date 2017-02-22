@@ -87,46 +87,46 @@ static void auth_store_cleanup(void *data)
 AST_THREADSTORAGE_CUSTOM(auth_store, NULL, auth_store_cleanup);
 
 /*!
- * \brief Store authentication information in thread-local storage
+ * \brief Store shallow copy authentication information in thread-local storage
  */
-static int store_auth(struct ast_sip_auth *auth)
+static int store_auth(const struct ast_sip_auth *auth)
 {
-	struct ast_sip_auth **pointing;
-	pointing = ast_threadstorage_get(&auth_store, sizeof(pointing));
-	if (!pointing || *pointing) {
-		return -1;
-	}
+	const struct ast_sip_auth **pointing;
 
-	ao2_ref(auth, +1);
-	*pointing = auth;
-	return 0;
-}
-
-/*!
- * \brief Remove authentication information from thread-local storage
- */
-static int remove_auth(void)
-{
-	struct ast_sip_auth **pointing;
 	pointing = ast_threadstorage_get(&auth_store, sizeof(pointing));
 	if (!pointing) {
 		return -1;
 	}
 
-	ao2_cleanup(*pointing);
+	*pointing = auth;
+	return 0;
+}
+
+/*!
+ * \brief Remove shallow copy authentication information from thread-local storage
+ */
+static int remove_auth(void)
+{
+	struct ast_sip_auth **pointing;
+
+	pointing = ast_threadstorage_get(&auth_store, sizeof(pointing));
+	if (!pointing) {
+		return -1;
+	}
+
 	*pointing = NULL;
 	return 0;
 }
 
 /*!
- * \brief Retrieve authentication information from thread-local storage
+ * \brief Retrieve shallow copy authentication information from thread-local storage
  */
-static struct ast_sip_auth *get_auth(void)
+static const struct ast_sip_auth *get_auth(void)
 {
 	struct ast_sip_auth **auth;
+
 	auth = ast_threadstorage_get(&auth_store, sizeof(auth));
-	if (auth && *auth) {
-		ao2_ref(*auth, +1);
+	if (auth) {
 		return *auth;
 	}
 	return NULL;
@@ -150,7 +150,9 @@ static struct ast_sip_auth *get_auth(void)
 static pj_status_t digest_lookup(pj_pool_t *pool, const pj_str_t *realm,
 		const pj_str_t *acc_name, pjsip_cred_info *info)
 {
-	RAII_VAR(struct ast_sip_auth *, auth, get_auth(), ao2_cleanup);
+	const struct ast_sip_auth *auth;
+
+	auth = get_auth();
 	if (!auth) {
 		return PJSIP_SC_FORBIDDEN;
 	}
@@ -312,7 +314,7 @@ enum digest_verify_result {
  * \return CMP_MATCH on successful authentication
  * \return 0 on failed authentication
  */
-static int verify(struct ast_sip_auth *auth, pjsip_rx_data *rdata, pj_pool_t *pool)
+static int verify(const struct ast_sip_auth *auth, pjsip_rx_data *rdata, pj_pool_t *pool)
 {
 	pj_status_t authed;
 	int response_code;
@@ -329,9 +331,7 @@ static int verify(struct ast_sip_auth *auth, pjsip_rx_data *rdata, pj_pool_t *po
 	setup_auth_srv(pool, &auth_server, auth->realm);
 
 	store_auth(auth);
-
 	authed = pjsip_auth_srv_verify(&auth_server, rdata, &response_code);
-
 	remove_auth();
 
 	if (authed == PJ_SUCCESS) {
@@ -389,47 +389,88 @@ static enum ast_sip_check_auth_result digest_check_auth(struct ast_sip_endpoint 
 		pjsip_rx_data *rdata, pjsip_tx_data *tdata)
 {
 	struct ast_sip_auth **auths;
+	struct ast_sip_auth **auths_shallow;
 	enum digest_verify_result *verify_res;
+	struct ast_sip_endpoint *artificial_endpoint;
 	enum ast_sip_check_auth_result res;
-	int i;
+	int idx;
+	int is_artificial;
 	int failures = 0;
 	size_t auth_size;
 
-	RAII_VAR(struct ast_sip_endpoint *, artificial_endpoint,
-		 ast_sip_get_artificial_endpoint(), ao2_cleanup);
-
 	auth_size = AST_VECTOR_SIZE(&endpoint->inbound_auths);
+	ast_assert(0 < auth_size);
 
 	auths = ast_alloca(auth_size * sizeof(*auths));
 	verify_res = ast_alloca(auth_size * sizeof(*verify_res));
 
-	if (!auths) {
+	artificial_endpoint = ast_sip_get_artificial_endpoint();
+	if (!artificial_endpoint) {
+		/* Should not happen except possibly if we are shutting down. */
 		return AST_SIP_AUTHENTICATION_ERROR;
 	}
 
-	if (endpoint == artificial_endpoint) {
+	is_artificial = endpoint == artificial_endpoint;
+	ao2_ref(artificial_endpoint, -1);
+	if (is_artificial) {
+		ast_assert(auth_size == 1);
 		auths[0] = ast_sip_get_artificial_auth();
-	} else if (ast_sip_retrieve_auths(&endpoint->inbound_auths, auths)) {
-		res = AST_SIP_AUTHENTICATION_ERROR;
-		goto cleanup;
+		if (!auths[0]) {
+			/* Should not happen except possibly if we are shutting down. */
+			return AST_SIP_AUTHENTICATION_ERROR;
+		}
+	} else {
+		memset(auths, 0, auth_size * sizeof(*auths));
+		if (ast_sip_retrieve_auths(&endpoint->inbound_auths, auths)) {
+			res = AST_SIP_AUTHENTICATION_ERROR;
+			goto cleanup;
+		}
 	}
 
-	for (i = 0; i < auth_size; ++i) {
-		if (ast_strlen_zero(auths[i]->realm)) {
-			ast_string_field_set(auths[i], realm, default_realm);
+	/* Setup shallow copy of auths */
+	if (ast_strlen_zero(default_realm)) {
+		auths_shallow = auths;
+	} else {
+		/*
+		 * Set default realm on a shallow copy of the authentication
+		 * objects that don't have a realm set.
+		 */
+		auths_shallow = ast_alloca(auth_size * sizeof(*auths_shallow));
+		for (idx = 0; idx < auth_size; ++idx) {
+			if (ast_strlen_zero(auths[idx]->realm)) {
+				/*
+				 * Make a shallow copy and set the default realm on it.
+				 *
+				 * The stack allocation is OK here.  Normally this will
+				 * loop one time.  If you have multiple auths then you
+				 * shouldn't need more auths than the normal complement
+				 * of fingers and toes.  Otherwise, you should check
+				 * your sanity for setting up your system up that way.
+				 */
+				auths_shallow[idx] = ast_alloca(sizeof(**auths_shallow));
+				memcpy(auths_shallow[idx], auths[idx], sizeof(**auths_shallow));
+				*((char **) (&auths_shallow[idx]->realm)) = default_realm;
+				ast_debug(3, "Using default realm '%s' on incoming auth '%s'.\n",
+					default_realm, ast_sorcery_object_get_id(auths_shallow[idx]));
+			} else {
+				auths_shallow[idx] = auths[idx];
+			}
 		}
-		verify_res[i] = verify(auths[i], rdata, tdata->pool);
-		if (verify_res[i] == AUTH_SUCCESS) {
+	}
+
+	for (idx = 0; idx < auth_size; ++idx) {
+		verify_res[idx] = verify(auths_shallow[idx], rdata, tdata->pool);
+		if (verify_res[idx] == AUTH_SUCCESS) {
 			res = AST_SIP_AUTHENTICATION_SUCCESS;
 			goto cleanup;
 		}
-		if (verify_res[i] == AUTH_FAIL) {
+		if (verify_res[idx] == AUTH_FAIL) {
 			failures++;
 		}
 	}
 
-	for (i = 0; i < auth_size; ++i) {
-		challenge(auths[i]->realm, tdata, rdata, verify_res[i] == AUTH_STALE);
+	for (idx = 0; idx < auth_size; ++idx) {
+		challenge(auths_shallow[idx]->realm, tdata, rdata, verify_res[idx] == AUTH_STALE);
 	}
 
 	if (failures == auth_size) {
