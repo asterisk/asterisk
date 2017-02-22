@@ -143,6 +143,13 @@ static void *cleanup(void *unused)
 	return NULL;
 }
 
+static int extension_length_comparator(struct ast_category *p, struct ast_category *q)
+{
+	const char *extenp = S_OR(ast_variable_find(p, "exten"), "");
+	const char *extenq = S_OR(ast_variable_find(q, "exten"), "");
+
+	return strlen(extenp) - strlen(extenq);
+}
 
 /* Realtime switch looks up extensions in the supplied realtime table.
 
@@ -192,6 +199,9 @@ static struct ast_variable *realtime_switch_common(const char *table, const char
 		cfg = ast_load_realtime_multientry(table, "exten LIKE", "\\_%", "context", context, "priority", pri, SENTINEL);	
 		if (cfg) {
 			char *cat = NULL;
+
+			/* Sort so that longer patterns are checked first */
+			ast_config_sort_categories(cfg, 1, extension_length_comparator);
 
 			while ((cat = ast_category_browse(cfg, cat))) {
 				const char *realtime_exten = ast_variable_retrieve(cfg, cat, "exten");
