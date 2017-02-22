@@ -190,7 +190,7 @@ static int semicolon_count_var(struct ast_variable *var)
 		return 0;
 	}
 
-	ast_debug(2, "LINE(%d) semicolon_count_var: %s\n", __LINE__, var_value->value);
+	ast_debug(2, "semicolon_count_var: %s\n", var_value->value);
 
 	return semicolon_count_str(var_value->value);
 }
@@ -330,7 +330,7 @@ static struct ast_variable *realtime_ldap_entry_to_var(struct ldap_table_config 
 			for (v = values; *v; v++) {
 				value = *v;
 				valptr = value->bv_val;
-				ast_debug(2, "LINE(%d) attribute_name: %s LDAP value: %s\n", __LINE__, attribute_name, valptr);
+				ast_debug(2, "attribute_name: %s LDAP value: %s\n", attribute_name, valptr);
 				if (is_realmed_password_attribute) {
 					if (!strncasecmp(valptr, "{md5}", 5)) {
 						valptr += 5;
@@ -467,7 +467,7 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 								delim_value = ast_strdup(valptr);
 
 								if ((delim_tot_count = semicolon_count_str(delim_value)) > 0) {
-									ast_debug(4, "LINE(%d) is delimited %d times: %s\n", __LINE__, delim_tot_count, delim_value);
+									ast_debug(4, "is delimited %d times: %s\n", delim_tot_count, delim_value);
 									is_delimited = 1;
 								}
 							}
@@ -477,11 +477,11 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 								/* for non-Static RealTime, first */
 
 								for (i = pos; !ast_strlen_zero(valptr + i); i++) {
-									ast_debug(4, "LINE(%d) DELIM pos: %d i: %d\n", __LINE__, pos, i);
+									ast_debug(4, "DELIM pos: %d i: %d\n", pos, i);
 									if (delim_value[i] == ';') {
 										delim_value[i] = '\0';
 
-										ast_debug(2, "LINE(%d) DELIM - attribute_name: %s value: %s pos: %d\n", __LINE__, attribute_name, &delim_value[pos], pos);
+										ast_debug(2, "DELIM - attribute_name: %s value: %s pos: %d\n", attribute_name, &delim_value[pos], pos);
 
 										if (prev) {
 											prev->next = ast_variable_new(attribute_name, &delim_value[pos], table_config->table_name);
@@ -499,9 +499,9 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 									}
 								}
 								if (ast_strlen_zero(valptr + i)) {
-									ast_debug(4, "LINE(%d) DELIM pos: %d i: %d delim_count: %d\n", __LINE__, pos, i, delim_count);
+									ast_debug(4, "DELIM pos: %d i: %d delim_count: %d\n", pos, i, delim_count);
 									/* Last delimited value */
-									ast_debug(4, "LINE(%d) DELIM - attribute_name: %s value: %s pos: %d\n", __LINE__, attribute_name, &delim_value[pos], pos);
+									ast_debug(4, "DELIM - attribute_name: %s value: %s pos: %d\n", attribute_name, &delim_value[pos], pos);
 									if (prev) {
 										prev->next = ast_variable_new(attribute_name, &delim_value[pos], table_config->table_name);
 										if (prev->next) {
@@ -517,14 +517,14 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 								ast_free(delim_value);
 								delim_value = NULL;
 
-								ast_debug(4, "LINE(%d) DELIM pos: %d i: %d\n", __LINE__, pos, i);
+								ast_debug(4, "DELIM pos: %d i: %d\n", pos, i);
 							} else {
 								/* not delimited */
 								if (delim_value) {
 									ast_free(delim_value);
 									delim_value = NULL;
 								}
-								ast_debug(2, "LINE(%d) attribute_name: %s value: %s\n", __LINE__, attribute_name, valptr);
+								ast_debug(2, "attribute_name: %s value: %s\n", attribute_name, valptr);
 
 								if (prev) {
 									prev->next = ast_variable_new(attribute_name, valptr, table_config->table_name);
@@ -548,7 +548,7 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 					const struct ast_variable *tmpdebug = variable_named(var, "variable_name");
 					const struct ast_variable *tmpdebug2 = variable_named(var, "variable_value");
 					if (tmpdebug && tmpdebug2) {
-						ast_debug(3, "LINE(%d) Added to vars - %s = %s\n", __LINE__, tmpdebug->value, tmpdebug2->value);
+						ast_debug(3, "Added to vars - %s = %s\n", tmpdebug->value, tmpdebug2->value);
 					}
 				}
 				vars[entry_index++] = var;
@@ -559,7 +559,7 @@ static struct ast_variable **realtime_ldap_result_to_vars(struct ldap_table_conf
 		} while (delim_count <= delim_tot_count && static_table_config == table_config);
 
 		if (static_table_config != table_config) {
-			ast_debug(3, "LINE(%d) Added to vars - non static\n", __LINE__);
+			ast_debug(3, "Added to vars - non static\n");
 
 			vars[entry_index++] = var;
 			prev = NULL;
@@ -1244,7 +1244,7 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 	}
 
 	if (!attribute || !lookup) {
-		ast_log(LOG_WARNING, "LINE(%d): search parameters are empty.\n", __LINE__);
+		ast_log(LOG_WARNING, "Search parameters are empty.\n");
 		return -1;
 	}
 	ast_mutex_lock(&ldap_lock);
@@ -1280,7 +1280,7 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 	 * one parameter/value pair and delimit them with a semicolon */
 	newparam = convert_attribute_name_to_ldap(table_config, field->name);
 	if (!newparam) {
-		ast_log(LOG_WARNING, "LINE(%d): need at least one parameter to modify.\n", __LINE__);
+		ast_log(LOG_WARNING, "Need at least one parameter to modify.\n");
 		return -1;
 	}
 
@@ -1366,12 +1366,12 @@ static int update_ldap(const char *basedn, const char *table_name, const char *a
 	}
 	/* Ready to update */
 	if ((num_entries = ldap_count_entries(ldapConn, ldap_result_msg)) > 0) {
-		ast_debug(3, "LINE(%d) Modifying %s=%s hits: %d\n", __LINE__, attribute, lookup, num_entries);
+		ast_debug(3, "Modifying %s=%s hits: %d\n", attribute, lookup, num_entries);
 		for (i = 0; option_debug > 2 && i < mods_size - 1; i++) {
 			if (ldap_mods[i]->mod_op != LDAP_MOD_DELETE) {
-				ast_debug(3, "LINE(%d) %s=%s \n", __LINE__, ldap_mods[i]->mod_type, ldap_mods[i]->mod_values[0]);
+				ast_debug(3, "%s=%s\n", ldap_mods[i]->mod_type, ldap_mods[i]->mod_values[0]);
 			} else {
-				ast_debug(3, "LINE(%d) deleting %s \n", __LINE__, ldap_mods[i]->mod_type);
+				ast_debug(3, "deleting %s\n", ldap_mods[i]->mod_type);
 			}
 		}
 		ldap_entry = ldap_first_entry(ldapConn, ldap_result_msg);
@@ -1464,7 +1464,7 @@ static int update2_ldap(const char *basedn, const char *table_name, const struct
 	field = update_fields;
 	newparam = convert_attribute_name_to_ldap(table_config, field->name);
 	if (!newparam) {
-		ast_log(LOG_WARNING, "LINE(%d): need at least one parameter to modify.\n", __LINE__);
+		ast_log(LOG_WARNING, "Need at least one parameter to modify.\n");
 		ast_free(filter);
 		ast_free(clean_basedn);
 		return -1;
@@ -1544,7 +1544,7 @@ static int update2_ldap(const char *basedn, const char *table_name, const struct
 	/* Ready to update */
 	if ((num_entries = ldap_count_entries(ldapConn, ldap_result_msg)) > 0) {
 		for (i = 0; option_debug > 2 && i < mods_size - 1; i++) {
-			ast_debug(3, "LINE(%d) %s=%s \n", __LINE__, ldap_mods[i]->mod_type, ldap_mods[i]->mod_values[0]);
+			ast_debug(3, "%s=%s\n", ldap_mods[i]->mod_type, ldap_mods[i]->mod_values[0]);
 		}
 
 		ldap_entry = ldap_first_entry(ldapConn, ldap_result_msg);
