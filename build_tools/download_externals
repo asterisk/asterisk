@@ -103,7 +103,7 @@ version_convert() {
 	echo ${v}
 }
 
-${WGET} -q -O ${tmpdir}/${variant_manifest} ${remote_url}/${variant_manifest} || {
+${DOWNLOAD_TO_STDOUT} ${remote_url}/${variant_manifest} > ${tmpdir}/${variant_manifest} || {
 	echo "${full_name}: Unable to fetch ${remote_url}/${variant_manifest}"
 	exit 1
 }
@@ -188,7 +188,7 @@ fi
 
 if [[ ${need_download} = 1 ]] ; then
 	echo "${full_name}: Downloading ${remote_url}/${tarball}"
-	${WGET} -q -O ${cache_dir}/${tarball} ${remote_url}/${tarball} || {
+	${DOWNLOAD_TO_STDOUT} ${remote_url}/${tarball} > ${cache_dir}/${tarball} || {
 		echo "${full_name}: Unable to fetch ${remote_url}/${tarball}"
 		exit 1
 	}
