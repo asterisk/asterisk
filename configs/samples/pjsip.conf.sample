@@ -12,6 +12,12 @@
 ; If you want to see more detail please check the documentation sources
 ; mentioned at the top of this file.
 
+; ============================================================================
+; NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE
+;
+; This file does not maintain the complete option documentation.
+; ============================================================================
+
 ; Documentation
 ;
 ; The official documentation is at http://wiki.asterisk.org
@@ -759,6 +765,14 @@
 ;==========================AUTH SECTION OPTIONS=========================
 ;[auth]
 ;  SYNOPSIS: Authentication type
+;
+;  Note: Using the same auth section for inbound and outbound
+;  authentication is not recommended.  There is a difference in
+;  meaning for an empty realm setting between inbound and outbound
+;  authentication uses.  Look to the CLI config help
+;  "config show help res_pjsip auth realm" or on the wiki for the
+;  difference.
+;
 ;auth_type=userpass     ; Authentication type (default: "userpass")
 ;nonce_lifetime=32      ; Lifetime of a nonce associated with this
                         ; authentication config (default: "32")
@@ -947,9 +961,9 @@
                                 ; From header username will be set to this value if
                                 ; there is no better option (such as CallerID or
                                 ; endpoint/from_user) to be used
-;default_realm=asterisk         ; When Asterisk generates a challenge, the realm will be
-                                ; set to this value if there is no better option (such as
-                                ; auth/realm) to be used
+;default_realm=asterisk         ; When Asterisk generates a challenge, the digest realm
+                                ; will be set to this value if there is no better option
+                                ; (such as auth/realm) to be used.
 
                     ; Asterisk Task Processor Queue Size
                     ; On heavy loaded system with DB storage you may need to increase

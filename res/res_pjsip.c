@@ -112,9 +112,15 @@
 						This is a comma-delimited list of <replaceable>auth</replaceable> sections defined
 						in <filename>pjsip.conf</filename> to be used to verify inbound connection attempts.
 						</para><para>
-						Endpoints without an <literal>authentication</literal> object
-						configured will allow connections without vertification.
-					</para></description>
+						Endpoints without an authentication object
+						configured will allow connections without verification.</para>
+						<note><para>
+						Using the same auth section for inbound and outbound
+						authentication is not recommended.  There is a difference in
+						meaning for an empty realm setting between inbound and outbound
+						authentication uses.  See the auth realm description for details.
+						</para></note>
+					</description>
 				</configOption>
 				<configOption name="callerid">
 					<synopsis>CallerID information for the endpoint</synopsis>
@@ -329,7 +335,18 @@
 					<synopsis>Default Music On Hold class</synopsis>
 				</configOption>
 				<configOption name="outbound_auth">
-					<synopsis>Authentication object used for outbound requests</synopsis>
+					<synopsis>Authentication object(s) used for outbound requests</synopsis>
+					<description><para>
+						This is a comma-delimited list of <replaceable>auth</replaceable>
+						sections defined in <filename>pjsip.conf</filename> used to respond
+						to outbound connection authentication challenges.</para>
+						<note><para>
+						Using the same auth section for inbound and outbound
+						authentication is not recommended.  There is a difference in
+						meaning for an empty realm setting between inbound and outbound
+						authentication uses.  See the auth realm description for details.
+						</para></note>
+					</description>
 				</configOption>
 				<configOption name="outbound_proxy">
 					<synopsis>Proxy through which to send requests, a full SIP URI must be provided</synopsis>
@@ -961,8 +978,30 @@
 					<synopsis>PlainText password used for authentication.</synopsis>
 					<description><para>Only used when auth_type is <literal>userpass</literal>.</para></description>
 				</configOption>
-				<configOption name="realm" default="asterisk">
+				<configOption name="realm">
 					<synopsis>SIP realm for endpoint</synopsis>
+					<description><para>
+						The treatment of this value depends upon how the authentication
+						object is used.
+						</para><para>
+						When used as an inbound authentication object, the realm is sent
+						as part of the challenge so the peer can know which key to use
+						when responding.  An empty value will use the
+						<replaceable>global</replaceable> section's
+						<literal>default_realm</literal> value when issuing a challenge.
+						</para><para>
+						When used as an outbound authentication object, the realm is
+						matched with the received challenge realm to determine which
+						authentication object to use when responding to the challenge.  An
+						empty value matches any challenging realm when determining
+						which authentication object matches a received challenge.
+						</para>
+						<note><para>
+						Using the same auth section for inbound and outbound
+						authentication is not recommended.  There is a difference in
+						meaning for an empty realm setting between inbound and outbound
+						authentication uses.</para></note>
+					</description>
 				</configOption>
 				<configOption name="type">
 					<synopsis>Must be 'auth'</synopsis>
@@ -1506,7 +1545,7 @@
 						used.</synopsis>
 				</configOption>
 				<configOption name="default_realm" default="asterisk">
-					<synopsis>When Asterisk generates an challenge, the digest will be
+					<synopsis>When Asterisk generates a challenge, the digest realm will be
 						set to this value if there is no better option (such as auth/realm) to be
 						used.</synopsis>
 				</configOption>
