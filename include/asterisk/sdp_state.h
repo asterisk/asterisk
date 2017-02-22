@@ -55,4 +55,43 @@ struct ast_rtp_instance *ast_sdp_state_get_rtp_instance(struct ast_sdp_state *sd
  */
 struct ast_stream_topology *ast_sdp_state_get_joint_topology(struct ast_sdp_state *sdp_state);
 
+/*!
+ * \brief Get the local SDP.
+ *
+ * If we have not received a remote SDP yet, this will be an SDP offer based
+ * on known streams and options If we have received a remote SDP, this will
+ * be the negotiated SDP based on the joint capabilities. The return type is
+ * a void pointer because the representation of the SDP is going to be determined based
+ * on the SDP options when allocating the SDP state.
+ *
+ * This function will allocate RTP instances if RTP instances have not already
+ * been allocated for the streams.
+ *
+ * The return here is const. The use case for this is so that a channel can add the SDP to an outgoing
+ * message. The API user should not attempt to modify the SDP. SDP modification should only be done through
+ * the API.
+ */
+void *ast_sdp_state_get_local(struct ast_sdp_state *sdp_state);
+
+/*!
+ * \brief Set the remote SDP.
+ *
+ * This can be used for either a remote offer or answer.
+ * This can also be used whenever an UPDATE, re-INVITE, etc. arrives.
+ * The type of the "remote" parameter is dictated by whatever SDP representation
+ * was set in the ast_sdp_options used during ast_sdp_state allocation
+ *
+ * This function will NOT allocate RTP instances.
+ */
+int ast_sdp_state_set_remote(struct ast_sdp_state *sdp_state, void *remote);
+
+/*!
+ * \brief Reset the SDP state and stream capabilities as if the SDP state had just been allocated.
+ *
+ * This is most useful for when a channel driver is sending a session refresh message
+ * and needs to re-advertise its initial capabilities instead of the previously-negotiated
+ * joint capabilities.
+ */
+int ast_sdp_state_reset(struct ast_sdp_state *sdp_state);
+
 #endif /* _ASTERISK_SDP_STATE_H */
