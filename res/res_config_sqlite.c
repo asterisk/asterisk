@@ -874,10 +874,8 @@ static int add_cfg_entry(void *arg, int argc, char **argv, char **columnNames)
 	}
 
 	if (!args->cat_name || strcmp(args->cat_name, argv[RES_CONFIG_SQLITE_CONFIG_CATEGORY])) {
-		args->cat = ast_category_new(argv[RES_CONFIG_SQLITE_CONFIG_CATEGORY], "", 99999);
-
+		args->cat = ast_category_new_dynamic(argv[RES_CONFIG_SQLITE_CONFIG_CATEGORY]);
 		if (!args->cat) {
-			ast_log(LOG_WARNING, "Unable to allocate category\n");
 			return 1;
 		}
 
@@ -1086,8 +1084,8 @@ static int add_rt_multi_cfg_entry(void *arg, int argc, char **argv, char **colum
 		return 1;
 	}
 
-	if (!(cat = ast_category_new(cat_name, "", 99999))) {
-		ast_log(LOG_WARNING, "Unable to allocate category\n");
+	cat = ast_category_new_dynamic(cat_name);
+	if (!cat) {
 		return 1;
 	}
 
