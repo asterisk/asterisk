@@ -2914,13 +2914,19 @@ static int load_realtime_rules(void)
 		ast_log(LOG_WARNING, "Failed to load queue rules from realtime\n");
 		return 0;
 	}
-	while ((rulecat = ast_category_browse(cfg, rulecat)) && !ast_strlen_zero(rulecat)) {
-		const char *timestr, *maxstr, *minstr;
+	while ((rulecat = ast_category_browse(cfg, rulecat))) {
+		const char *timestr, *maxstr, *minstr, *rule_name;
 		int penaltychangetime, rule_exists = 0, inserted = 0;
 		int max_penalty = 0, min_penalty = 0, min_relative = 0, max_relative = 0;
 		struct penalty_rule *new_penalty_rule = NULL;
+
+		rule_name = ast_variable_retrieve(cfg, rulecat, "rule_name");
+		if (ast_strlen_zero(rule_name)) {
+			continue;
+		}
+
 		AST_LIST_TRAVERSE(&rule_lists, rl_iter, list) {
-			if (!(strcasecmp(rl_iter->name, rulecat))) {
+			if (!(strcasecmp(rl_iter->name, rule_name))) {
 				rule_exists = 1;
 				new_rl = rl_iter;
 				break;
@@ -2931,13 +2937,13 @@ static int load_realtime_rules(void)
 				ast_config_destroy(cfg);
 				return -1;
 			}
-			ast_copy_string(new_rl->name, rulecat, sizeof(new_rl->name));
+			ast_copy_string(new_rl->name, rule_name, sizeof(new_rl->name));
 			AST_LIST_INSERT_TAIL(&rule_lists, new_rl, list);
 		}
 		timestr = ast_variable_retrieve(cfg, rulecat, "time");
 		if (!(timestr) || sscanf(timestr, "%30d", &penaltychangetime) != 1) {
 			ast_log(LOG_NOTICE, "Failed to parse time (%s) for one of the %s rules,	skipping it\n",
-				(ast_strlen_zero(timestr) ? "invalid value" : timestr), rulecat);
+				(ast_strlen_zero(timestr) ? "invalid value" : timestr), rule_name);
 			continue;
 		}
 		if (!(new_penalty_rule = ast_calloc(1, sizeof(*new_penalty_rule)))) {
@@ -3272,7 +3278,7 @@ static void member_remove_from_queue(struct call_queue *queue, struct member *me
  * Search for member in queue, if found update penalty/paused state,
  * if no member exists create one flag it as a RT member and add to queue member list.
 */
-static void rt_handle_member_record(struct call_queue *q, char *interface, struct ast_config *member_config)
+static void rt_handle_member_record(struct call_queue *q, char *category, struct ast_config *member_config)
 {
 	struct member *m;
 	struct ao2_iterator mem_iter;
@@ -3282,11 +3288,12 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, struc
 	int ringinuse = q->ringinuse;
 
 	const char *config_val;
-	const char *rt_uniqueid = ast_variable_retrieve(member_config, interface, "uniqueid");
-	const char *membername = S_OR(ast_variable_retrieve(member_config, interface, "membername"), interface);
-	const char *state_interface = S_OR(ast_variable_retrieve(member_config, interface, "state_interface"), interface);
-	const char *penalty_str = ast_variable_retrieve(member_config, interface, "penalty");
-	const char *paused_str = ast_variable_retrieve(member_config, interface, "paused");
+	const char *interface = ast_variable_retrieve(member_config, category, "interface");
+	const char *rt_uniqueid = ast_variable_retrieve(member_config, category, "uniqueid");
+	const char *membername = S_OR(ast_variable_retrieve(member_config, category, "membername"), interface);
+	const char *state_interface = S_OR(ast_variable_retrieve(member_config, category, "state_interface"), interface);
+	const char *penalty_str = ast_variable_retrieve(member_config, category, "penalty");
+	const char *paused_str = ast_variable_retrieve(member_config, category, "paused");
 
 	if (ast_strlen_zero(rt_uniqueid)) {
 		ast_log(LOG_WARNING, "Realtime field uniqueid is empty for member %s\n", S_OR(membername, "NULL"));
@@ -3309,7 +3316,7 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, struc
 		}
 	}
 
-	if ((config_val = ast_variable_retrieve(member_config, interface, realtime_ringinuse_field))) {
+	if ((config_val = ast_variable_retrieve(member_config, category, realtime_ringinuse_field))) {
 		if (ast_true(config_val)) {
 			ringinuse = 1;
 		} else if (ast_false(config_val)) {
@@ -3425,7 +3432,7 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 	};
 	struct member *m;
 	struct ao2_iterator mem_iter;
-	char *interface = NULL;
+	char *category = NULL;
 	const char *tmp_name;
 	char *tmp;
 	char tmpbuf[64];	/* Must be longer than the longest queue param name. */
@@ -3526,8 +3533,8 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 	}
 	ao2_iterator_destroy(&mem_iter);
 
-	while ((interface = ast_category_browse(member_config, interface))) {
-		rt_handle_member_record(q, interface, member_config);
+	while ((category = ast_category_browse(member_config, category))) {
+		rt_handle_member_record(q, category, member_config);
 	}
 
 	/* Delete all realtime members that have been deleted in DB. */
@@ -3636,7 +3643,7 @@ static void update_realtime_members(struct call_queue *q)
 {
 	struct ast_config *member_config = NULL;
 	struct member *m;
-	char *interface = NULL;
+	char *category = NULL;
 	struct ao2_iterator mem_iter;
 
 	if (!(member_config = ast_load_realtime_multientry("queue_members", "interface LIKE", "%", "queue_name", q->name , SENTINEL))) {
@@ -3669,8 +3676,8 @@ static void update_realtime_members(struct call_queue *q)
 	}
 	ao2_iterator_destroy(&mem_iter);
 
-	while ((interface = ast_category_browse(member_config, interface))) {
-		rt_handle_member_record(q, interface, member_config);
+	while ((category = ast_category_browse(member_config, category))) {
+		rt_handle_member_record(q, category, member_config);
 	}
 
 	/* Delete all realtime members that have been deleted in DB. */
@@ -7471,12 +7478,11 @@ static int set_member_value(const char *queuename, const char *interface, int pr
 
 	if (ast_strlen_zero(queuename)) { /* This means we need to iterate through all the queues. */
 		if (ast_check_realtime("queues")) {
-			char *name;
 			queue_config = ast_load_realtime_multientry("queues", "name LIKE", "%", SENTINEL);
 			if (queue_config) {
-				for (name = ast_category_browse(queue_config, NULL);
-					 !ast_strlen_zero(name);
-					 name = ast_category_browse(queue_config, name)) {
+				char *category = NULL;
+				while ((category = ast_category_browse(queue_config, category))) {
+					const char *name = ast_variable_retrieve(queue_config, category, "name");
 					if ((q = find_load_queue_rt_friendly(name))) {
 						foundqueue++;
 						foundinterface += set_member_value_help_members(q, interface, property, value);
@@ -9381,9 +9387,10 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
 		 * which have not yet been added to the in-core container
 		 */
 		struct ast_config *cfg = ast_load_realtime_multientry("queues", "name LIKE", "%", SENTINEL);
-		char *queuename;
 		if (cfg) {
-			for (queuename = ast_category_browse(cfg, NULL); !ast_strlen_zero(queuename); queuename = ast_category_browse(cfg, queuename)) {
+			char *category = NULL;
+			while ((category = ast_category_browse(cfg, category))) {
+				const char *queuename = ast_variable_retrieve(cfg, category, "name");
 				if ((q = find_load_queue_rt_friendly(queuename))) {
 					queue_t_unref(q, "Done with temporary pointer");
 				}
@@ -9452,7 +9459,8 @@ static char *__queues_show(struct mansession *s, int fd, int argc, const char * 
 				ast_str_set(&out, 0, "      %s", mem->membername);
 				if (strcasecmp(mem->membername, mem->interface)) {
 					ast_str_append(&out, 0, " (%s", mem->interface);
-					if (!ast_strlen_zero(mem->state_interface)) {
+					if (!ast_strlen_zero(mem->state_interface)
+						&& strcmp(mem->state_interface, mem->interface)) {
 						ast_str_append(&out, 0, " from %s", mem->state_interface);
 					}
 					ast_str_append(&out, 0, ")");
@@ -11044,14 +11052,13 @@ static int queues_data_provider_get(const struct ast_data_search *search,
 	struct ao2_iterator i;
 	struct call_queue *queue, *queue_realtime = NULL;
 	struct ast_config *cfg;
-	char *queuename;
 
 	/* load realtime queues. */
 	cfg = ast_load_realtime_multientry("queues", "name LIKE", "%", SENTINEL);
 	if (cfg) {
-		for (queuename = ast_category_browse(cfg, NULL);
-				!ast_strlen_zero(queuename);
-				queuename = ast_category_browse(cfg, queuename)) {
+		char *category = NULL;
+		while ((category = ast_category_browse(cfg, category))) {
+			const char *queuename = ast_variable_retrieve(cfg, category, "name");
 			if ((queue = find_load_queue_rt_friendly(queuename))) {
 				queue_unref(queue);
 			}
