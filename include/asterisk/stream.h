@@ -191,6 +191,17 @@ enum ast_stream_state ast_stream_get_state(const struct ast_stream *stream);
 void ast_stream_set_state(struct ast_stream *stream, enum ast_stream_state state);
 
 /*!
+ * \brief Convert the state of a stream into a string
+ *
+ * \param state The stream state
+ *
+ * \return The state of the stream in string format
+ *
+ * \since 15
+ */
+const char *ast_stream_state2str(enum ast_stream_state state);
+
+/*!
  * \brief Get the position of the stream in the topology
  *
  * \param stream The media stream
