@@ -664,8 +664,11 @@ struct ast_channel_tech {
 	/*! \brief Answer the channel */
 	int (* const answer)(struct ast_channel *chan);
 
-	/*! \brief Read a frame, in standard format (see frame.h) */
+	/*! \brief Read a frame (or chain of frames from the same stream), in standard format (see frame.h) */
 	struct ast_frame * (* const read)(struct ast_channel *chan);
+
+	/*! \brief Read a frame (or chain of frames from the same stream), in standard format (see frame.h), from all streams */
+	struct ast_frame * (* const read_stream)(struct ast_channel *chan);
 
 	/*! \brief Write a frame, in standard format (see frame.h) */
 	int (* const write)(struct ast_channel *chan, struct ast_frame *frame);
@@ -1932,6 +1935,15 @@ int ast_waitfor_n_fd(int *fds, int n, int *ms, int *exception);
  * disconnected.
  */
 struct ast_frame *ast_read(struct ast_channel *chan);
+
+/*!
+ * \brief Reads a frame, but does not filter to just the default streams
+ * \param chan channel to read a frame from
+ * \return Returns a frame, or NULL on error.  If it returns NULL, you
+ * best just stop reading frames and assume the channel has been
+ * disconnected.
+ */
+struct ast_frame *ast_read_stream(struct ast_channel *chan);
 
 /*!
  * \brief Reads a frame, returning AST_FRAME_NULL frame if audio.

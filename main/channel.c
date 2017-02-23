@@ -3782,11 +3782,12 @@ static inline int calc_monitor_jump(int samples, int sample_rate, int seek_rate)
 	return samples;
 }
 
-static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
+static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int dropnondefault)
 {
 	struct ast_frame *f = NULL;	/* the return value */
 	int prestate;
 	int cause = 0;
+	struct ast_stream *stream = NULL, *default_stream = NULL;
 
 	/* this function is very long so make sure there is only one return
 	 * point at the end (there are only two exceptions to this).
@@ -3943,6 +3944,13 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			default:
 				break;
 			}
+		} else if (!(ast_channel_tech(chan)->properties & AST_CHAN_TP_MULTISTREAM) && (
+			f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO)) {
+			/* Since this channel driver does not support multistream determine the default stream this frame
+			 * originated from and update the frame to include it.
+			 */
+			stream = default_stream = ast_channel_get_default_stream(chan, ast_format_get_type(f->subclass.format));
+			f->stream_num = ast_stream_get_position(stream);
 		}
 	} else {
 		ast_channel_blocker_set(chan, pthread_self());
@@ -3955,15 +3963,43 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			}
 			/* Clear the exception flag */
 			ast_clear_flag(ast_channel_flags(chan), AST_FLAG_EXCEPTION);
-		} else if (ast_channel_tech(chan) && ast_channel_tech(chan)->read)
+		} else if (ast_channel_tech(chan) && ast_channel_tech(chan)->read_stream) {
+			f = ast_channel_tech(chan)->read_stream(chan);
+
+			/* This channel driver supports multistream so the stream_num on the frame is valid, the only
+			 * thing different is that we need to find the default stream so we know whether to invoke the
+			 * default stream logic or not (such as transcoding).
+			 */
+			if (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO) {
+				stream = ast_stream_topology_get_stream(ast_channel_get_stream_topology(chan), f->stream_num);
+				default_stream = ast_channel_get_default_stream(chan, ast_format_get_type(f->subclass.format));
+			}
+		} else if (ast_channel_tech(chan) && ast_channel_tech(chan)->read) {
 			f = ast_channel_tech(chan)->read(chan);
+
+			/* Since this channel driver does not support multistream determine the default stream this frame
+			 * originated from and update the frame to include it.
+			 */
+			if (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO) {
+				stream = default_stream = ast_channel_get_default_stream(chan, ast_format_get_type(f->subclass.format));
+				f->stream_num = ast_stream_get_position(stream);
+			}
+		}
 		else
 			ast_log(LOG_WARNING, "No read routine on channel %s\n", ast_channel_name(chan));
 	}
 
-	/* Perform the framehook read event here. After the frame enters the framehook list
-	 * there is no telling what will happen, <insert mad scientist laugh here>!!! */
-	f = ast_framehook_list_read_event(ast_channel_framehooks(chan), f);
+	if (dropnondefault && stream != default_stream) {
+		/* If the frame originates from a non-default stream and the caller can not handle other streams
+		 * absord the frame and replace it with a null one instead.
+		 */
+		ast_frfree(f);
+		f = &ast_null_frame;
+	} else if (stream == default_stream) {
+		/* Perform the framehook read event here. After the frame enters the framehook list
+		 * there is no telling what will happen, <insert mad scientist laugh here>!!! */
+		f = ast_framehook_list_read_event(ast_channel_framehooks(chan), f);
+	}
 
 	/*
 	 * Reset the recorded file descriptor that triggered this read so that we can
@@ -4162,6 +4198,11 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			}
 			break;
 		case AST_FRAME_VOICE:
+			/* If media was received from a non-default stream don't perform any actions, let it just go through */
+			if (stream != default_stream) {
+				break;
+			}
+
 			/* The EMULATE_DTMF flag must be cleared here as opposed to when the duration
 			 * is reached , because we want to make sure we pass at least one
 			 * voice frame through before starting the next digit, to ensure a gap
@@ -4396,12 +4437,17 @@ done:
 
 struct ast_frame *ast_read(struct ast_channel *chan)
 {
-	return __ast_read(chan, 0);
+	return __ast_read(chan, 0, 1);
+}
+
+struct ast_frame *ast_read_stream(struct ast_channel *chan)
+{
+	return __ast_read(chan, 0, 0);
 }
 
 struct ast_frame *ast_read_noaudio(struct ast_channel *chan)
 {
-	return __ast_read(chan, 1);
+	return __ast_read(chan, 1, 1);
 }
 
 int ast_indicate(struct ast_channel *chan, int condition)

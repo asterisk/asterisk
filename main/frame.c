@@ -222,6 +222,7 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 			out->len = fr->len;
 			out->seqno = fr->seqno;
 		}
+		out->stream_num = fr->stream_num;
 	} else {
 		out = fr;
 	}
@@ -370,6 +371,7 @@ struct ast_frame *ast_frdup(const struct ast_frame *f)
 	out->ts = f->ts;
 	out->len = f->len;
 	out->seqno = f->seqno;
+	out->stream_num = f->stream_num;
 	return out;
 }
 
