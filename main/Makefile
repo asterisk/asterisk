@@ -354,9 +354,6 @@ else # Darwin
 	$(INSTALL) -m 755 $(ASTPJ_LIB) "$(DESTDIR)$(ASTLIBDIR)/"
 endif
 endif
-ifneq ($(LDCONFIG),)
-	$(LDCONFIG) $(LDCONFIG_FLAGS) "$(DESTDIR)$(ASTLIBDIR)/"
-endif
 	$(LN) -sf asterisk "$(DESTDIR)$(ASTSBINDIR)/rasterisk"
 
 binuninstall:
@@ -371,9 +368,6 @@ ifneq ($(ASTPJ_LIB).$(ASTPJ_SO_VERSION),.)
 #   ASTSSL_SO_VERSION may not exist on Darwin
 	rm -f "$(DESTDIR)$(ASTLIBDIR)/$(ASTPJ_LIB).$(ASTPJ_SO_VERSION)" || :
 	rm -f "$(DESTDIR)$(ASTLIBDIR)/$(ASTPJ_LIB)"
-endif
-ifneq ($(LDCONFIG),)
-	$(LDCONFIG) $(LDCONFIG_FLAGS) "$(DESTDIR)$(ASTLIBDIR)/"
 endif
 
 clean::
