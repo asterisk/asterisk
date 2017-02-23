@@ -754,6 +754,47 @@ static void append_var_and_value_to_filter(struct ast_str **filter,
 	ast_str_append(filter, 0, "(%s=%s)", name, value);
 }
 
+/*!
+ * \internal
+ * \brief Create an LDAP filter using search fields
+ *
+ * \param config the \c ldap_table_config for this search
+ * \param fields the \c ast_variable criteria to include
+ *
+ * \returns an \c ast_str pointer on success, NULL otherwise.
+ */
+static struct ast_str *create_lookup_filter(struct ldap_table_config *config, const struct ast_variable *fields)
+{
+	struct ast_str *filter;
+	const struct ast_variable *field;
+
+	filter = ast_str_create(80);
+	if (!filter) {
+		return NULL;
+	}
+
+	/*
+	 * Create the filter with the table additional filter and the
+	 * parameter/value pairs we were given
+	 */
+	ast_str_append(&filter, 0, "(&");
+	if (config && config->additional_filter) {
+		ast_str_append(&filter, 0, "%s", config->additional_filter);
+	}
+	if (config != base_table_config
+		&& base_table_config
+		&& base_table_config->additional_filter) {
+		ast_str_append(&filter, 0, "%s", base_table_config->additional_filter);
+	}
+	/* Append the lookup fields */
+	for (field = fields; field; field = field->next) {
+		append_var_and_value_to_filter(&filter, config, field->name, field->value);
+	}
+	ast_str_append(&filter, 0, ")");
+
+	return filter;
+}
+
 /*! \brief LDAP base function 
  * \return a null terminated array of ast_variable (one per entry) or NULL if no entry is found or if an error occured
  * caller should free the returned array and ast_variables
@@ -780,16 +821,9 @@ static struct ast_variable **realtime_ldap_base_ap(unsigned int *entries_count_p
 		return NULL;
 	} 
 
-	if (!(filter = ast_str_create(80))) {
-		ast_log(LOG_ERROR, "Can't initialize data structures.n");
-		ast_free(clean_basedn);
-		return NULL;
-	}
-
 	if (!field) {
 		ast_log(LOG_ERROR, "Realtime retrieval requires at least 1 parameter"
 			" and 1 value to search on.\n");
-		ast_free(filter);
 		ast_free(clean_basedn);
 		return NULL;
 	}
@@ -799,7 +833,6 @@ static struct ast_variable **realtime_ldap_base_ap(unsigned int *entries_count_p
 	/* We now have our complete statement; Lets connect to the server and execute it.  */
 	if (!ldap_reconnect()) {
 		ast_mutex_unlock(&ldap_lock);
-		ast_free(filter);
 		ast_free(clean_basedn);
 		return NULL;
 	}
@@ -808,30 +841,16 @@ static struct ast_variable **realtime_ldap_base_ap(unsigned int *entries_count_p
 	if (!table_config) {
 		ast_log(LOG_WARNING, "No table named '%s'.\n", table_name);
 		ast_mutex_unlock(&ldap_lock);
-		ast_free(filter);
 		ast_free(clean_basedn);
 		return NULL;
 	}
 
-	ast_str_append(&filter, 0, "(&");
-
-	if (table_config && table_config->additional_filter) {
-		ast_str_append(&filter, 0, "%s", table_config->additional_filter);
+	filter = create_lookup_filter(table_config, fields);
+	if (!filter) {
+		ast_mutex_unlock(&ldap_lock);
+		ast_free(clean_basedn);
+		return NULL;
 	}
-	if (table_config != base_table_config && base_table_config && 
-		base_table_config->additional_filter) {
-		ast_str_append(&filter, 0, "%s", base_table_config->additional_filter);
-	}
-
-	/* Create the first part of the query using the first parameter/value pairs we just extracted.
-	 * If there is only 1 set, then we have our query. Otherwise, loop thru the list and concat
-	 */
-
-	append_var_and_value_to_filter(&filter, table_config, field->name, field->value);
-	while ((field = field->next)) {
-		append_var_and_value_to_filter(&filter, table_config, field->name, field->value);
-	}
-	ast_str_append(&filter, 0, ")");
 
 	do {
 		/* freeing ldap_result further down */
@@ -1212,6 +1231,186 @@ static struct ast_config *config_ldap(const char *basedn, const char *table_name
 
 /*!
  * \internal
+ * \brief Create an LDAP modification structure (LDAPMod)
+ *
+ * \param attribute the name of the LDAP attribute to modify
+ * \param new_value the new value of the LDAP attribute
+ *
+ * \returns an LDAPMod * if successful, NULL otherwise.
+ */
+static LDAPMod *ldap_mod_create(const char *attribute, const char *new_value)
+{
+	LDAPMod *mod;
+	char *type;
+
+	mod = ldap_memcalloc(1, sizeof(LDAPMod));
+	type = ldap_strdup(attribute);
+
+	if (!(mod && type)) {
+		ast_log(LOG_ERROR, "Memory allocation failure creating LDAP modification\n");
+		ldap_memfree(type);
+		ldap_memfree(mod);
+		return NULL;
+	}
+
+	mod->mod_type = type;
+
+	if (strlen(new_value)) {
+		char **values, *value;
+		values = ldap_memcalloc(2, sizeof(char *));
+		value = ldap_strdup(new_value);
+
+		if (!(values && value)) {
+			ast_log(LOG_ERROR, "Memory allocation failure creating LDAP modification\n");
+			ldap_memfree(value);
+			ldap_memfree(values);
+			ldap_memfree(type);
+			ldap_memfree(mod);
+			return NULL;
+		}
+
+		mod->mod_op = LDAP_MOD_REPLACE;
+		mod->mod_values = values;
+		mod->mod_values[0] = value;
+	} else {
+		mod->mod_op = LDAP_MOD_DELETE;
+	}
+
+	return mod;
+}
+
+/*!
+ * \internal
+ * \brief Append a value to an existing LDAP modification structure
+ *
+ * \param src the LDAPMod to update
+ * \param new_value the new value to append to the LDAPMod
+ *
+ * \returns the \c src original passed in if successful, NULL otherwise.
+ */
+static LDAPMod *ldap_mod_append(LDAPMod *src, const char *new_value)
+{
+	char *new_buffer;
+
+	if (src->mod_op != LDAP_MOD_REPLACE) {
+		return src;
+	}
+
+	new_buffer = ldap_memrealloc(
+			src->mod_values[0],
+			strlen(src->mod_values[0]) + strlen(new_value) + sizeof(";"));
+
+	if (!new_buffer) {
+		ast_log(LOG_ERROR, "Memory allocation failure creating LDAP modification\n");
+		return NULL;
+	}
+
+	strcat(new_buffer, ";");
+	strcat(new_buffer, new_value);
+
+	src->mod_values[0] = new_buffer;
+
+	return src;
+}
+
+/*!
+ * \internal
+ * \brief Duplicates an LDAP modification structure
+ *
+ * \param src the LDAPMod to duplicate
+ *
+ * \returns a deep copy of \c src if successful, NULL otherwise.
+ */
+static LDAPMod *ldap_mod_duplicate(const LDAPMod *src)
+{
+	LDAPMod *mod;
+	char *type, **values = NULL;
+
+	mod = ldap_memcalloc(1, sizeof(LDAPMod));
+	type = ldap_strdup(src->mod_type);
+
+	if (!(mod && type)) {
+		ast_log(LOG_ERROR, "Memory allocation failure creating LDAP modification\n");
+		ldap_memfree(type);
+		ldap_memfree(mod);
+		return NULL;
+	}
+
+	if (src->mod_op == LDAP_MOD_REPLACE) {
+		char *value;
+
+		values = ldap_memcalloc(2, sizeof(char *));
+		value = ldap_strdup(src->mod_values[0]);
+
+		if (!(values && value)) {
+			ast_log(LOG_ERROR, "Memory allocation failure creating LDAP modification\n");
+			ldap_memfree(value);
+			ldap_memfree(values);
+			ldap_memfree(type);
+			ldap_memfree(mod);
+			return NULL;
+		}
+
+		values[0] = value;
+	}
+
+	mod->mod_op = src->mod_op;
+	mod->mod_type = type;
+	mod->mod_values = values;
+	return mod;
+}
+
+/*!
+ * \internal
+ * \brief Search for an existing LDAP modification structure
+ *
+ * \param modifications a NULL terminated array of LDAP modification structures
+ * \param lookup the attribute name to search for
+ *
+ * \returns an LDAPMod * if successful, NULL otherwise.
+ */
+static LDAPMod *ldap_mod_find(LDAPMod **modifications, const char *lookup)
+{
+	size_t i;
+	for (i = 0; modifications[i]; i++) {
+		if (modifications[i]->mod_op == LDAP_MOD_REPLACE &&
+			!strcasecmp(modifications[i]->mod_type, lookup)) {
+			return modifications[i];
+		}
+	}
+	return NULL;
+}
+
+/*!
+ * \internal
+ * \brief Determine if an LDAP entry has the specified attribute
+ *
+ * \param entry the LDAP entry to examine
+ * \param lookup the attribute name to search for
+ *
+ * \returns 1 if the attribute was found, 0 otherwise.
+ */
+static int ldap_entry_has_attribute(LDAPMessage *entry, const char *lookup)
+{
+	BerElement *ber = NULL;
+	char *attribute;
+
+	attribute = ldap_first_attribute(ldapConn, entry, &ber);
+	while (attribute) {
+		if (!strcasecmp(attribute, lookup)) {
+			ldap_memfree(attribute);
+			ber_free(ber, 0);
+			return 1;
+		}
+		ldap_memfree(attribute);
+		attribute = ldap_next_attribute(ldapConn, entry, ber);
+	}
+	ber_free(ber, 0);
+	return 0;
+}
+
+/*!
+ * \internal
  * \brief Remove LDAP_MOD_DELETE modifications that will not succeed
  *
  * \details
@@ -1226,301 +1425,89 @@ static struct ast_config *config_ldap(const char *basedn, const char *table_name
  *
  * \returns an LDAPMod * if modifications needed to be removed, NULL otherwise.
  */
-static LDAPMod **massage_mods_for_entry(LDAPMessage *entry, LDAPMod **mods, size_t count)
+static LDAPMod **massage_mods_for_entry(LDAPMessage *entry, LDAPMod **mods)
 {
-	size_t i;
-	int remove[count];
-	size_t remove_count = 0;
+	size_t k, i, remove_count;
+	LDAPMod **copies;
 
-	for (i = 0; i < count; i++) {
-		BerElement *ber = NULL;
-		char *attribute;
-		int exists = 0;
-
-		if (mods[i]->mod_op != LDAP_MOD_DELETE) {
-			continue;
-		}
-
-		/* If we are deleting something, it has to exist */
-		attribute = ldap_first_attribute(ldapConn, entry, &ber);
-		while (attribute) {
-			if (!strcasecmp(attribute, mods[i]->mod_type)) {
-				/* OK, we have the attribute */
-				exists = 1;
-				ldap_memfree(attribute);
-				break;
-			}
-
-			ldap_memfree(attribute);
-			attribute = ldap_next_attribute(ldapConn, entry, ber);
-		}
-
-		if (!exists) {
-			remove[remove_count++] = i;
+	for (i = remove_count = 0; mods[i]; i++) {
+		if (mods[i]->mod_op == LDAP_MOD_DELETE
+			&& !ldap_entry_has_attribute(entry, mods[i]->mod_type)) {
+			remove_count++;
 		}
 	}
 
-	if (remove_count) {
-		size_t k, remove_index;
-		LDAPMod **x = ldap_memcalloc(count - remove_count + 1, sizeof(LDAPMod *));
-		for (i = 0, k = 0; i < count; i++) {
-			int skip = 0;
-			/* Is this one we have to remove? */
-			for (remove_index = 0; !skip && remove_index < remove_count; remove_index++) {
-				skip = (remove[remove_index] == i);
-			}
+	if (!remove_count) {
+		return NULL;
+	}
 
-			if (skip) {
-				ast_debug(3, "Skipping %s deletion because it doesn't exist\n",
-						mods[i]->mod_type);
-				continue;
-			}
+	copies = ldap_memcalloc(i - remove_count + 1, sizeof(LDAPMod *));
+	if (!copies) {
+		ast_log(LOG_ERROR, "Memory allocation failure massaging LDAP modification\n");
+		return NULL;
+	}
 
-			x[k] = ldap_memcalloc(1, sizeof(LDAPMod));
-			x[k]->mod_op = mods[i]->mod_op;
-			x[k]->mod_type = ldap_strdup(mods[i]->mod_type);
-			if (mods[i]->mod_values) {
-				x[k]->mod_values = ldap_memcalloc(2, sizeof(char *));
-				x[k]->mod_values[0] = ldap_strdup(mods[i]->mod_values[0]);
+	for (i = k = 0; mods[i]; i++) {
+		if (mods[i]->mod_op != LDAP_MOD_DELETE
+			|| ldap_entry_has_attribute(entry, mods[i]->mod_type)) {
+			copies[k] = ldap_mod_duplicate(mods[i]);
+			if (!copies[k]) {
+				ast_log(LOG_ERROR, "Memory allocation failure massaging LDAP modification\n");
+				ldap_mods_free(copies, 1);
+				return NULL;
 			}
 			k++;
+		} else {
+			ast_debug(3, "Skipping %s deletion because it doesn't exist\n",
+					mods[i]->mod_type);
 		}
-		/* NULL terminate */
-		x[k] = NULL;
-		return x;
 	}
 
-	return NULL;
+	return copies;
 }
 
-
-/* \brief Function to update a set of values in ldap static mode
+/*!
+ * \internal
+ * \brief Count the number of variables in an ast_variables list
+ *
+ * \param vars the list of variables to count
+ *
+ * \returns the number of variables in the specified list
  */
-static int update_ldap(const char *basedn, const char *table_name, const char *attribute,
-	const char *lookup, const struct ast_variable *fields)
+static size_t variables_count(const struct ast_variable *vars)
 {
-	int error = 0;
-	LDAPMessage *ldap_entry = NULL;
-	LDAPMod **ldap_mods;
-	const char *newparam;
-	const struct ast_variable *field = fields;
-	char *dn;
-	int num_entries = 0;
-	int i = 0;
-	int mods_size = 0;
-	int mod_exists = 0;
-	struct ldap_table_config *table_config = NULL;
-	char *clean_basedn = NULL;
-	struct ast_str *filter = NULL;
-	int tries = 0;
-	int result = 0;
-	LDAPMessage *ldap_result_msg = NULL;
-
-	if (!table_name) {
-		ast_log(LOG_ERROR, "No table_name specified.\n");
-		return -1;
-	} 
-
-	if (!(filter = ast_str_create(80))) {
-		return -1;
+	const struct ast_variable *var;
+	size_t count = 0;
+	for (var = vars; var; var = var->next) {
+		count++;
 	}
-
-	if (!attribute || !lookup) {
-		ast_log(LOG_WARNING, "Search parameters are empty.\n");
-		return -1;
-	}
-	ast_mutex_lock(&ldap_lock);
-
-	/* We now have our complete statement; Lets connect to the server and execute it.  */
-	if (!ldap_reconnect()) {
-		ast_mutex_unlock(&ldap_lock);
-		return -1;
-	}
-
-	table_config = table_config_for_table_name(table_name);
-	if (!table_config) {
-		ast_log(LOG_ERROR, "No table named '%s'.\n", table_name);
-		ast_mutex_unlock(&ldap_lock);
-		return -1;
-	}
-
-	clean_basedn = cleaned_basedn(NULL, basedn);
-
-	/* Create the filter with the table additional filter and the parameter/value pairs we were given */
-	ast_str_append(&filter, 0, "(&");
-	if (table_config && table_config->additional_filter) {
-		ast_str_append(&filter, 0, "%s", table_config->additional_filter);
-	}
-	if (table_config != base_table_config && base_table_config && base_table_config->additional_filter) {
-		ast_str_append(&filter, 0, "%s", base_table_config->additional_filter);
-	}
-	append_var_and_value_to_filter(&filter, table_config, attribute, lookup);
-	ast_str_append(&filter, 0, ")");
-
-	/* Create the modification array with the parameter/value pairs we were given, 
-	 * if there are several parameters with the same name, we collect them into 
-	 * one parameter/value pair and delimit them with a semicolon */
-	newparam = convert_attribute_name_to_ldap(table_config, field->name);
-	if (!newparam) {
-		ast_log(LOG_WARNING, "Need at least one parameter to modify.\n");
-		return -1;
-	}
-
-	mods_size = 2; /* one for the first param/value pair and one for the the terminating NULL */
-	ldap_mods = ldap_memcalloc(mods_size, sizeof(LDAPMod *));
-	ldap_mods[0] = ldap_memcalloc(1, sizeof(LDAPMod));
-	ldap_mods[0]->mod_type = ldap_strdup(newparam);
-
-	if (strlen(field->value) == 0) {
-		ldap_mods[0]->mod_op = LDAP_MOD_DELETE;
-	} else {
-		ldap_mods[0]->mod_op = LDAP_MOD_REPLACE;
-		ldap_mods[0]->mod_values = ldap_memcalloc(2, sizeof(char *));
-		ldap_mods[0]->mod_values[0] = ldap_strdup(field->value);
-	}
-
-	while ((field = field->next)) {
-		newparam = convert_attribute_name_to_ldap(table_config, field->name);
-		mod_exists = 0;
-
-		for (i = 0; i < mods_size - 1; i++) {
-			if (ldap_mods[i]&& !strcmp(ldap_mods[i]->mod_type, newparam)) {
-				/* We have the parameter allready, adding the value as a semicolon delimited value */
-				ldap_mods[i]->mod_values[0] = ldap_memrealloc(ldap_mods[i]->mod_values[0], sizeof(char) * (strlen(ldap_mods[i]->mod_values[0]) + strlen(field->value) + 2));
-				strcat(ldap_mods[i]->mod_values[0], ";");
-				strcat(ldap_mods[i]->mod_values[0], field->value);
-				mod_exists = 1;
-				break;
-			}
-		}
-
-		/* create new mod */
-		if (!mod_exists) {
-			mods_size++;
-			ldap_mods = ldap_memrealloc(ldap_mods, sizeof(LDAPMod *) * mods_size);
-			ldap_mods[mods_size - 2] = ldap_memcalloc(1, sizeof(LDAPMod));
-			ldap_mods[mods_size - 2]->mod_type = ldap_strdup(newparam);
-
-			if (strlen(field->value) == 0) {
-				ldap_mods[mods_size - 2]->mod_op = LDAP_MOD_DELETE;
-			} else {
-				ldap_mods[mods_size - 2]->mod_op = LDAP_MOD_REPLACE;
-				ldap_mods[mods_size - 2]->mod_values = ldap_memcalloc(2, sizeof(char *));
-				ldap_mods[mods_size - 2]->mod_values[0] = ldap_strdup(field->value);
-			}
-
-			/* NULL terminate */
-			ldap_mods[mods_size - 1] = NULL;
-		}
-	}
-	/* freeing ldap_mods further down */
-
-	do {
-		/* freeing ldap_result further down */
-		result = ldap_search_ext_s(ldapConn, clean_basedn,
-				  LDAP_SCOPE_SUBTREE, ast_str_buffer(filter), NULL, 0, NULL, NULL, NULL, LDAP_NO_LIMIT,
-				  &ldap_result_msg);
-		if (result != LDAP_SUCCESS && is_ldap_connect_error(result)) {
-			ast_log(LOG_WARNING, "Failed to query directory. Try %d/3\n", tries + 1);
-			tries++;
-			if (tries < 3) {
-				usleep(500000L * tries);
-				if (ldapConn) {
-					ldap_unbind_ext_s(ldapConn, NULL, NULL);
-					ldapConn = NULL;
-				}
-				if (!ldap_reconnect())
-					break;
-			}
-		}
-	} while (result != LDAP_SUCCESS && tries < 3 && is_ldap_connect_error(result));
-
-	if (result != LDAP_SUCCESS) {
-		ast_log(LOG_WARNING, "Failed to query directory. Error: %s.\n", ldap_err2string(result));
-		ast_log(LOG_WARNING, "Query: %s\n", ast_str_buffer(filter));
-
-		ast_mutex_unlock(&ldap_lock);
-		ast_free(filter);
-		ast_free(clean_basedn);
-		ldap_msgfree(ldap_result_msg);
-		ldap_mods_free(ldap_mods, 1);
-		return -1;
-	}
-	/* Ready to update */
-	if ((num_entries = ldap_count_entries(ldapConn, ldap_result_msg)) > 0) {
-		ast_debug(3, "Modifying %s=%s hits: %d\n", attribute, lookup, num_entries);
-		for (i = 0; option_debug > 2 && i < mods_size - 1; i++) {
-			if (ldap_mods[i]->mod_op != LDAP_MOD_DELETE) {
-				ast_debug(3, "%s=%s\n", ldap_mods[i]->mod_type, ldap_mods[i]->mod_values[0]);
-			} else {
-				ast_debug(3, "deleting %s\n", ldap_mods[i]->mod_type);
-			}
-		}
-		ldap_entry = ldap_first_entry(ldapConn, ldap_result_msg);
-
-		for (i = 0; ldap_entry; i++) {
-			LDAPMod **working = ldap_mods;
-			LDAPMod **massaged = massage_mods_for_entry(ldap_entry, ldap_mods, mods_size - 1);
-
-			if (massaged) {
-				/* Did we massage everything out of the list? */
-				if (massaged[0] == NULL) {
-					ast_debug(3, "Nothing left to modify - skipping\n");
-					ldap_mods_free(massaged, 1);
-					continue;
-				}
-				working = massaged;
-			}
-
-			dn = ldap_get_dn(ldapConn, ldap_entry);
-			if ((error = ldap_modify_ext_s(ldapConn, dn, working, NULL, NULL)) != LDAP_SUCCESS)  {
-				ast_log(LOG_ERROR, "Couldn't modify '%s'='%s', dn:%s because %s\n",
-						attribute, lookup, dn, ldap_err2string(error));
-			}
-
-			if (massaged) {
-				ldap_mods_free(massaged, 1);
-			}
-
-			ldap_memfree(dn);
-			ldap_entry = ldap_next_entry(ldapConn, ldap_entry);
-		}
-	}
-
-	ast_mutex_unlock(&ldap_lock);
-	ast_free(filter);
-	ast_free(clean_basedn);
-	ldap_msgfree(ldap_result_msg);
-	ldap_mods_free(ldap_mods, 1);
-	return num_entries;
+	return count;
 }
 
 static int update2_ldap(const char *basedn, const char *table_name, const struct ast_variable *lookup_fields, const struct ast_variable *update_fields)
 {
-	int error = 0;
-	LDAPMessage *ldap_entry = NULL;
-	LDAPMod **ldap_mods;
-	const char *newparam;
 	const struct ast_variable *field;
-	char *dn;
-	int num_entries = 0;
-	int i = 0;
-	int mods_size = 0;
-	int mod_exists = 0;
 	struct ldap_table_config *table_config = NULL;
 	char *clean_basedn = NULL;
 	struct ast_str *filter = NULL;
+	int search_result = 0;
+	int res = -1;
 	int tries = 0;
-	int result = 0;
+	size_t update_count, update_index, entry_count;
+
+	LDAPMessage *ldap_entry = NULL;
+	LDAPMod **modifications;
 	LDAPMessage *ldap_result_msg = NULL;
 
 	if (!table_name) {
 		ast_log(LOG_ERROR, "No table_name specified.\n");
-		return -1;
-	} 
+		return res;
+	}
 
-	if (!(filter = ast_str_create(80))) {
-		return -1;
+	update_count = variables_count(update_fields);
+	if (!update_count) {
+		ast_log(LOG_WARNING, "Need at least one parameter to modify.\n");
+		return res;
 	}
 
 	ast_mutex_lock(&ldap_lock);
@@ -1528,93 +1515,40 @@ static int update2_ldap(const char *basedn, const char *table_name, const struct
 	/* We now have our complete statement; Lets connect to the server and execute it.  */
 	if (!ldap_reconnect()) {
 		ast_mutex_unlock(&ldap_lock);
-		ast_free(filter);
-		return -1;
+		return res;
 	}
 
 	table_config = table_config_for_table_name(table_name);
 	if (!table_config) {
 		ast_log(LOG_ERROR, "No table named '%s'.\n", table_name);
 		ast_mutex_unlock(&ldap_lock);
-		ast_free(filter);
-		return -1;
+		return res;
 	}
 
 	clean_basedn = cleaned_basedn(NULL, basedn);
 
-	/* Create the filter with the table additional filter and the parameter/value pairs we were given */
-	ast_str_append(&filter, 0, "(&");
-	if (table_config && table_config->additional_filter) {
-		ast_str_append(&filter, 0, "%s", table_config->additional_filter);
-	}
-	if (table_config != base_table_config && base_table_config
-		&& base_table_config->additional_filter) {
-		ast_str_append(&filter, 0, "%s", base_table_config->additional_filter);
-	}
-
-	/* Get multiple lookup keyfields and values */
-	for (field = lookup_fields; field; field = field->next) {
-		append_var_and_value_to_filter(&filter, table_config, field->name, field->value);
-	}
-	ast_str_append(&filter, 0, ")");
-
-	/* Create the modification array with the parameter/value pairs we were given, 
-	 * if there are several parameters with the same name, we collect them into 
-	 * one parameter/value pair and delimit them with a semicolon */
-	field = update_fields;
-	newparam = convert_attribute_name_to_ldap(table_config, field->name);
-	if (!newparam) {
-		ast_log(LOG_WARNING, "Need at least one parameter to modify.\n");
-		ast_free(filter);
+	filter = create_lookup_filter(table_config, lookup_fields);
+	if (!filter) {
+		ast_mutex_unlock(&ldap_lock);
 		ast_free(clean_basedn);
-		return -1;
+		return res;
 	}
 
-	mods_size = 2; /* one for the first param/value pair and one for the the terminating NULL */
-	ldap_mods = ldap_memcalloc(mods_size, sizeof(LDAPMod *));
-	ldap_mods[0] = ldap_memcalloc(1, sizeof(LDAPMod));
-	ldap_mods[0]->mod_op = LDAP_MOD_REPLACE;
-	ldap_mods[0]->mod_type = ldap_strdup(newparam);
-	ldap_mods[0]->mod_values = ldap_memcalloc(2, sizeof(char *));
-	ldap_mods[0]->mod_values[0] = ldap_strdup(field->value);
-
-	while ((field = field->next)) {
-		newparam = convert_attribute_name_to_ldap(table_config, field->name);
-		mod_exists = 0;
-
-		for (i = 0; i < mods_size - 1; i++) {
-			if (ldap_mods[i]&& !strcmp(ldap_mods[i]->mod_type, newparam)) {
-				/* We have the parameter allready, adding the value as a semicolon delimited value */
-				ldap_mods[i]->mod_values[0] = ast_realloc(ldap_mods[i]->mod_values[0], sizeof(char) * (strlen(ldap_mods[i]->mod_values[0]) + strlen(field->value) + 2));
-				strcat(ldap_mods[i]->mod_values[0], ";");
-				strcat(ldap_mods[i]->mod_values[0], field->value);
-				mod_exists = 1;	
-				break;
-			}
-		}
-
-		/* create new mod */
-		if (!mod_exists) {
-			mods_size++;
-			ldap_mods = ldap_memrealloc(ldap_mods, sizeof(LDAPMod *) * mods_size);
-			ldap_mods[mods_size - 2] = ldap_memcalloc(1, sizeof(LDAPMod));
-			ldap_mods[mods_size - 2]->mod_op = LDAP_MOD_REPLACE;
-			ldap_mods[mods_size - 2]->mod_type = ldap_strdup(newparam);
-			ldap_mods[mods_size - 2]->mod_values = ldap_memcalloc(2, sizeof(char *));
-			ldap_mods[mods_size - 2]->mod_values[0] = ldap_strdup(field->value);
-
-			/* NULL terminate */
-			ldap_mods[mods_size - 1] = NULL;
-		}
-	}
-	/* freeing ldap_mods further down */
+	/*
+	 * Find LDAP records that match our lookup filter. If there are none, then
+	 * we don't go through the hassle of building our modifications list.
+	 */
 
 	do {
-		/* freeing ldap_result further down */
-		result = ldap_search_ext_s(ldapConn, clean_basedn,
-				  LDAP_SCOPE_SUBTREE, ast_str_buffer(filter), NULL, 0, NULL, NULL, NULL, LDAP_NO_LIMIT,
-				  &ldap_result_msg);
-		if (result != LDAP_SUCCESS && is_ldap_connect_error(result)) {
+		search_result = ldap_search_ext_s(
+				ldapConn,
+				clean_basedn,
+				LDAP_SCOPE_SUBTREE,
+				ast_str_buffer(filter),
+				NULL, 0, NULL, NULL, NULL,
+				LDAP_NO_LIMIT,
+				&ldap_result_msg);
+		if (search_result != LDAP_SUCCESS && is_ldap_connect_error(search_result)) {
 			ast_log(LOG_WARNING, "Failed to query directory. Try %d/3\n", tries + 1);
 			tries++;
 			if (tries < 3) {
@@ -1628,43 +1562,128 @@ static int update2_ldap(const char *basedn, const char *table_name, const struct
 				}
 			}
 		}
-	} while (result != LDAP_SUCCESS && tries < 3 && is_ldap_connect_error(result));
+	} while (search_result != LDAP_SUCCESS && tries < 3 && is_ldap_connect_error(search_result));
 
-	if (result != LDAP_SUCCESS) {
-		ast_log(LOG_WARNING, "Failed to query directory. Error: %s.\n", ldap_err2string(result));
+	if (search_result != LDAP_SUCCESS) {
+		ast_log(LOG_WARNING, "Failed to query directory. Error: %s.\n", ldap_err2string(search_result));
 		ast_log(LOG_WARNING, "Query: %s\n", ast_str_buffer(filter));
-
-		ast_mutex_unlock(&ldap_lock);
-		ast_free(filter);
-		ast_free(clean_basedn);
-		ldap_msgfree(ldap_result_msg);
-		ldap_mods_free(ldap_mods, 1);
-		return -1;
+		goto early_bailout;
 	}
-	/* Ready to update */
-	if ((num_entries = ldap_count_entries(ldapConn, ldap_result_msg)) > 0) {
-		for (i = 0; option_debug > 2 && i < mods_size - 1; i++) {
-			ast_debug(3, "%s=%s\n", ldap_mods[i]->mod_type, ldap_mods[i]->mod_values[0]);
-		}
 
-		ldap_entry = ldap_first_entry(ldapConn, ldap_result_msg);
+	entry_count = ldap_count_entries(ldapConn, ldap_result_msg);
+	if (!entry_count) {
+		/* Nothing found, nothing to update */
+		res = 0;
+		goto early_bailout;
+	}
 
-		for (i = 0; ldap_entry; i++) {
-			dn = ldap_get_dn(ldapConn, ldap_entry);
-			if ((error = ldap_modify_ext_s(ldapConn, dn, ldap_mods, NULL, NULL)) != LDAP_SUCCESS)  {
-				ast_log(LOG_ERROR, "Couldn't modify dn:%s because %s", dn, ldap_err2string(error));
+	/* We need to NULL terminate, so we allocate one more than we need */
+	modifications = ldap_memcalloc(update_count + 1, sizeof(LDAPMod *));
+	if (!modifications) {
+		ast_log(LOG_ERROR, "Memory allocation failure\n");
+		goto early_bailout;
+	}
+
+	/*
+	 * Create the modification array with the parameter/value pairs we were given,
+	 * if there are several parameters with the same name, we collect them into
+	 * one parameter/value pair and delimit them with a semicolon
+	 */
+	for (field = update_fields, update_index = 0; field; field = field->next) {
+		LDAPMod *mod;
+
+		const char *ldap_attribute_name = convert_attribute_name_to_ldap(
+				table_config,
+				field->name);
+
+		/* See if we already have it */
+		mod = ldap_mod_find(modifications, ldap_attribute_name);
+		if (mod) {
+			mod = ldap_mod_append(mod, field->value);
+			if (!mod) {
+				goto late_bailout;
 			}
-			ldap_memfree(dn);
-			ldap_entry = ldap_next_entry(ldapConn, ldap_entry);
+		} else {
+			mod = ldap_mod_create(ldap_attribute_name, field->value);
+			if (!mod) {
+				goto late_bailout;
+			}
+			modifications[update_index++] = mod;
 		}
 	}
 
-	ast_mutex_unlock(&ldap_lock);
+	/* Ready to update */
+	ast_debug(3, "Modifying %zu matched entries\n", entry_count);
+	if (option_debug > 2) {
+		size_t i;
+		for (i = 0; modifications[i]; i++) {
+			if (modifications[i]->mod_op != LDAP_MOD_DELETE) {
+				ast_debug(3, "%s => %s\n", modifications[i]->mod_type,
+						modifications[i]->mod_values[0]);
+			} else {
+				ast_debug(3, "deleting %s\n", modifications[i]->mod_type);
+			}
+		}
+	}
+
+	for (ldap_entry = ldap_first_entry(ldapConn, ldap_result_msg);
+		ldap_entry;
+		ldap_entry = ldap_next_entry(ldapConn, ldap_entry)) {
+		int error;
+		LDAPMod **massaged, **working;
+
+		char *dn = ldap_get_dn(ldapConn, ldap_entry);
+		if (!dn) {
+			ast_log(LOG_ERROR, "Memory allocation failure\n");
+			goto late_bailout;
+		}
+
+		working = modifications;
+
+		massaged = massage_mods_for_entry(ldap_entry, modifications);
+		if (massaged) {
+			/* Did we massage everything out of the list? */
+			if (!massaged[0]) {
+				ast_debug(3, "Nothing left to modify - skipping\n");
+				ldap_mods_free(massaged, 1);
+				ldap_memfree(dn);
+				continue;
+			}
+			working = massaged;
+		}
+
+		if ((error = ldap_modify_ext_s(ldapConn, dn, working, NULL, NULL)) != LDAP_SUCCESS)  {
+			ast_log(LOG_ERROR, "Couldn't modify dn:%s because %s", dn, ldap_err2string(error));
+		}
+
+		if (massaged) {
+			ldap_mods_free(massaged, 1);
+		}
+
+		ldap_memfree(dn);
+	}
+
+	res = entry_count;
+
+late_bailout:
+	ldap_mods_free(modifications, 1);
+
+early_bailout:
+	ldap_msgfree(ldap_result_msg);
 	ast_free(filter);
 	ast_free(clean_basedn);
-	ldap_msgfree(ldap_result_msg);
-	ldap_mods_free(ldap_mods, 1);
-	return num_entries;
+	ast_mutex_unlock(&ldap_lock);
+
+	return res;
+}
+
+static int update_ldap(const char *basedn, const char *table_name, const char *attribute, const char *lookup, const struct ast_variable *fields)
+{
+	int res;
+	struct ast_variable *lookup_fields = ast_variable_new(attribute, lookup, "");
+	res = update2_ldap(basedn, table_name, lookup_fields, fields);
+	ast_variables_destroy(lookup_fields);
+	return res;
 }
 
 static struct ast_config_engine ldap_engine = {
