@@ -181,6 +181,8 @@ struct ast_frame {
 	long len;
 	/*! Sequence number */
 	int seqno;
+	/*! Stream number the frame originated from */
+	int stream_num;
 };
 
 /*!
