@@ -664,8 +664,32 @@ struct ast_channel_tech {
 	/*! \brief Answer the channel */
 	int (* const answer)(struct ast_channel *chan);
 
-	/*! \brief Read a frame, in standard format (see frame.h) */
+	/*!
+	 * \brief Read a frame (or chain of frames from the same stream), in standard format (see frame.h)
+	 *
+	 * \param chan channel to read frames from
+	 *
+	 * \retval non-NULL on success
+	 * \retval NULL on failure
+	 *
+	 * \note Each media frame from this callback will have the stream_num of it changed to the default
+	 *       stream num based on the type of media returned. As a result a multistream capable channel
+	 *       should not implement this callback.
+	 */
 	struct ast_frame * (* const read)(struct ast_channel *chan);
+
+	/*!
+	 * \brief Read a frame (or chain of frames from the same stream), in standard format (see frame.h), with stream num
+	 *
+	 * \param chan channel to read frames from
+	 *
+	 * \retval non-NULL on success
+	 * \retval NULL on failure
+	 *
+	 * \note Each media frame from this callback should contain a stream_num value which is set to the
+	 *       stream that the media frame originated from.
+	 */
+	struct ast_frame * (* const read_stream)(struct ast_channel *chan);
 
 	/*! \brief Write a frame, in standard format (see frame.h) */
 	int (* const write)(struct ast_channel *chan, struct ast_frame *frame);
@@ -1926,12 +1950,35 @@ int ast_waitfor_n_fd(int *fds, int n, int *ms, int *exception);
 
 /*!
  * \brief Reads a frame
+ *
  * \param chan channel to read a frame from
+ *
  * \return Returns a frame, or NULL on error.  If it returns NULL, you
  * best just stop reading frames and assume the channel has been
  * disconnected.
+ *
+ * \note This function will filter frames received from the channel so
+ *       that only frames from the default streams are returned. All
+ *       other media frames from other streams will be absorbed internally
+ *       and a NULL frame returned instead.
  */
 struct ast_frame *ast_read(struct ast_channel *chan);
+
+/*!
+ * \brief Reads a frame, but does not filter to just the default streams
+ *
+ * \param chan channel to read a frame from
+ *
+ * \return Returns a frame, or NULL on error.  If it returns NULL, you
+ * best just stop reading frames and assume the channel has been
+ * disconnected.
+ *
+ * \note This function will not perform any filtering and will return
+ *       media frames from all streams on the channel. To determine which
+ *       stream a frame originated from the stream_num on it can be
+ *       examined.
+ */
+struct ast_frame *ast_read_stream(struct ast_channel *chan);
 
 /*!
  * \brief Reads a frame, returning AST_FRAME_NULL frame if audio.
