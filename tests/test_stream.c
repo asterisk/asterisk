@@ -804,8 +804,75 @@ end:
 	return res;
 }
 
+struct mock_channel_pvt {
+	int mallocd;
+	unsigned int wrote;
+	unsigned int wrote_stream;
+	int stream_num;
+	int frame_limit;
+	int frame_count;
+	int streams;
+	int frames_per_read;
+};
+
+static struct ast_frame *mock_channel_read(struct ast_channel *chan)
+{
+	struct mock_channel_pvt *pvt = ast_channel_tech_pvt(chan);
+	struct ast_frame f = { 0, };
+	struct ast_frame *head_frame = NULL;
+	struct ast_frame *tail_frame = NULL;
+	int i;
+
+	if (pvt->frames_per_read == 0) {
+		pvt->frames_per_read = 1;
+	}
+	for (i = 0; i < pvt->frames_per_read && pvt->frame_count < pvt->frame_limit; i++) {
+		struct ast_frame *fr;
+
+		if (pvt->frame_count % 2 == 0) {
+			f.frametype = AST_FRAME_VOICE;
+			f.subclass.format = ast_format_ulaw;
+		} else {
+			f.frametype = AST_FRAME_VIDEO;
+			f.subclass.format = ast_format_h264;
+		}
+		f.seqno = pvt->frame_count;
+		f.stream_num = pvt->frame_count % pvt->streams;
+		pvt->frame_count++;
+		fr = ast_frdup(&f);
+		if (!head_frame) {
+			head_frame = fr;
+		} else  {
+			tail_frame->frame_list.next = fr;
+		}
+		tail_frame = fr;
+	}
+
+	return(head_frame);
+}
+
+static int mock_channel_write(struct ast_channel *chan, struct ast_frame *fr)
+{
+	struct mock_channel_pvt *pvt = ast_channel_tech_pvt(chan);
+
+	pvt->wrote = 1;
+
+	return 0;
+}
+
+static int mock_channel_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame *fr)
+{
+	struct mock_channel_pvt *pvt = ast_channel_tech_pvt(chan);
+
+	pvt->wrote_stream = 1;
+	pvt->stream_num = stream_num;
+
+	return 0;
+}
+
 static const struct ast_channel_tech mock_stream_channel_tech = {
-	.properties = AST_CHAN_TP_MULTISTREAM,
+	.read_stream = mock_channel_read,
+	.write_stream = mock_channel_write_stream,
 };
 
 AST_TEST_DEFINE(stream_topology_channel_set)
@@ -853,33 +920,14 @@ AST_TEST_DEFINE(stream_topology_channel_set)
 	return res;
 }
 
-struct mock_channel_pvt {
-	unsigned int wrote;
-	unsigned int wrote_stream;
-	int stream_num;
-};
-
-static int mock_channel_write(struct ast_channel *chan, struct ast_frame *fr)
-{
-	struct mock_channel_pvt *pvt = ast_channel_tech_pvt(chan);
-
-	pvt->wrote = 1;
-
-	return 0;
-}
-
-static int mock_channel_write_stream(struct ast_channel *chan, int stream_num, struct ast_frame *fr)
-{
-	struct mock_channel_pvt *pvt = ast_channel_tech_pvt(chan);
-
-	pvt->wrote_stream = 1;
-	pvt->stream_num = stream_num;
-
-	return 0;
-}
-
 static int mock_channel_hangup(struct ast_channel *chan)
 {
+	struct mock_channel_pvt *pvt = ast_channel_tech_pvt(chan);
+
+	if (pvt->mallocd) {
+		ast_free(pvt);
+	}
+
 	ast_channel_tech_pvt_set(chan, NULL);
 	return 0;
 }
@@ -894,7 +942,7 @@ AST_TEST_DEFINE(stream_write_non_multistream)
 {
 	RAII_VAR(struct ast_format_cap *, caps, NULL, ao2_cleanup);
 	struct ast_channel *mock_channel;
-	struct mock_channel_pvt pvt;
+	struct mock_channel_pvt pvt = { 0, };
 	enum ast_test_result_state res = AST_TEST_FAIL;
 	struct ast_frame frame = { 0, };
 
@@ -981,10 +1029,10 @@ end:
 }
 
 static const struct ast_channel_tech mock_channel_write_stream_tech = {
-	.properties = AST_CHAN_TP_MULTISTREAM,
 	.write = mock_channel_write,
 	.write_video = mock_channel_write,
 	.write_stream = mock_channel_write_stream,
+	.read_stream = mock_channel_read,
 	.hangup = mock_channel_hangup,
 };
 
@@ -1268,6 +1316,232 @@ end:
 	return res;
 }
 
+static int load_stream_readqueue(struct ast_channel *chan, int frames)
+{
+	struct mock_channel_pvt *pvt = ast_channel_tech_pvt(chan);
+	struct ast_frame f = { 0, };
+	struct ast_frame *frame = NULL;
+	int i;
+
+	while ((frame = AST_LIST_REMOVE_HEAD(ast_channel_readq(chan), frame_list)))
+			ast_frfree(frame);
+
+	for (i = 0; i < frames; i++) {
+		if (pvt->frame_count % 2 == 0) {
+			f.frametype = AST_FRAME_VOICE;
+			f.subclass.format = ast_format_ulaw;
+		} else {
+			f.frametype = AST_FRAME_VIDEO;
+			f.subclass.format = ast_format_h264;
+		}
+		f.stream_num = pvt->frame_count % pvt->streams;
+		f.seqno = pvt->frame_count;
+		ast_queue_frame(chan, ast_frdup(&f));
+		pvt->frame_count++;
+	}
+
+	return 0;
+}
+
+static struct ast_channel *make_channel(struct ast_test *test, int streams,
+		struct ast_channel_tech *tech)
+{
+	RAII_VAR(struct ast_format_cap *, caps, NULL, ao2_cleanup);
+	struct ast_channel *mock_channel = NULL;
+	struct mock_channel_pvt *pvt = NULL;
+	struct ast_stream_topology *topology = NULL;
+	struct ast_stream *stream;
+	enum ast_test_result_state res = AST_TEST_PASS;
+	int i;
+
+	mock_channel = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, "TestChannel");
+	ast_test_validate_cleanup(test, mock_channel, res, done);
+	ast_channel_tech_set(mock_channel, tech);
+
+	if (tech->read_stream) {
+		topology = ast_stream_topology_alloc();
+		ast_test_validate_cleanup(test, topology, res, done);
+
+		for (i = 0; i < streams; i++) {
+			stream = ast_stream_alloc((i % 2 ? "video": "audio"), (i % 2 ? AST_MEDIA_TYPE_VIDEO : AST_MEDIA_TYPE_AUDIO));
+			ast_test_validate_cleanup(test, stream, res, done);
+			ast_test_validate_cleanup(test, ast_stream_topology_append_stream(topology, stream) == i, res, done);
+		}
+		ast_test_validate_cleanup(test, ast_stream_topology_get_count(topology) == streams, res, done);
+		ast_channel_set_stream_topology(mock_channel, topology);
+		topology = NULL;
+	} else {
+		caps = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+		ast_test_validate_cleanup(test, caps, res, done);
+
+		ast_test_validate_cleanup(test, ast_format_cap_append(caps, ast_format_ulaw, 0) == 0, res, done);
+		ast_test_validate_cleanup(test, ast_format_cap_append(caps, ast_format_h264, 0) == 0, res, done);
+		ast_channel_nativeformats_set(mock_channel, caps);
+	}
+
+	pvt = ast_calloc(1, sizeof(*pvt));
+	ast_test_validate_cleanup(test, pvt, res, done);
+	pvt->mallocd = 1;
+	ast_channel_tech_pvt_set(mock_channel, pvt);
+
+	ast_channel_unlock(mock_channel);
+
+done:
+	ast_stream_topology_free(topology);
+	if (res == AST_TEST_FAIL && mock_channel) {
+		ast_hangup(mock_channel);
+	}
+
+	return mock_channel;
+}
+
+enum CHANNEL_READ_TYPE {
+	CHANNEL_READ,
+	CHANNEL_READ_STREAM
+};
+
+static struct ast_frame *read_from_chan(enum CHANNEL_READ_TYPE rt, struct ast_channel *chan)
+{
+	if (rt == CHANNEL_READ_STREAM) {
+		return ast_read_stream(chan);
+	} else {
+		return ast_read(chan);
+	}
+}
+
+static enum ast_test_result_state read_test(struct ast_test *test, struct ast_channel_tech *tech,
+		enum CHANNEL_READ_TYPE rt, int streams, int frames, int frames_per_read, int expected_nulls)
+{
+	struct ast_channel *mock_channel;
+	struct mock_channel_pvt *pvt;
+	struct ast_frame *fr = NULL;
+	enum ast_test_result_state res = AST_TEST_PASS;
+	int i = 0;
+	int null_frames = 0;
+
+	ast_test_status_update(test, "ChanType: %s ReadType: %s Streams: %d Frames: %d Frames per read: %d Expected Nulls: %d\n",
+			tech->read_stream ? "MULTI" : "NON-MULTI",
+			rt == CHANNEL_READ_STREAM ? "STREAM" : "NON-STREAM",
+			streams, frames, frames_per_read, expected_nulls);
+	mock_channel = make_channel(test, 4, tech);
+	ast_test_validate_cleanup(test, mock_channel, res, done);
+
+	pvt = ast_channel_tech_pvt(mock_channel);
+	pvt->frame_count = 0;
+	pvt->frame_limit = frames;
+	pvt->streams = streams;
+	pvt->frames_per_read = frames_per_read;
+
+	load_stream_readqueue(mock_channel, frames / 2);
+	ast_channel_fdno_set(mock_channel, 0);
+
+	while ((fr = read_from_chan(rt, mock_channel))) {
+		ast_channel_fdno_set(mock_channel, 0);
+		if (fr->frametype != AST_FRAME_NULL) {
+			ast_test_validate_cleanup(test, i == fr->seqno, res, done);
+			ast_test_validate_cleanup(test, fr->frametype == ( i % 2 ? AST_FRAME_VIDEO : AST_FRAME_VOICE), res, done);
+			ast_test_validate_cleanup(test, fr->stream_num == ( i % streams ), res, done);
+			ast_frfree(fr);
+		} else {
+			null_frames++;
+		}
+		fr = NULL;
+		i++;
+	}
+	ast_test_validate_cleanup(test, i == frames, res, done);
+	ast_test_validate_cleanup(test, null_frames == expected_nulls, res, done);
+
+done:
+	ast_test_status_update(test, "    Frames read: %d NULL frames: %d\n", i, null_frames);
+	ast_hangup(mock_channel);
+
+	return res;
+}
+
+AST_TEST_DEFINE(stream_read_non_multistream)
+{
+	struct ast_channel_tech tech = {
+		.read = mock_channel_read,
+		.hangup = mock_channel_hangup,
+	};
+
+	enum ast_test_result_state res = AST_TEST_PASS;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "stream_read_non_multistream";
+		info->category = "/main/stream/";
+		info->summary = "stream reading from non-multistream capable channel test";
+		info->description =
+			"Test that reading frames from a non-multistream channel works as expected";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	res = read_test(test, &tech, CHANNEL_READ, 2, 16, 1, 0);
+	ast_test_validate(test, res == AST_TEST_PASS, "non multi, non read stream, 2 stream");
+
+	res = read_test(test, &tech, CHANNEL_READ_STREAM, 2, 16, 1, 0);
+	ast_test_validate(test, res == AST_TEST_PASS, "non multi, read stream, 2 stream");
+
+	res = read_test(test, &tech, CHANNEL_READ, 2, 16, 3, 0);
+	ast_test_validate(test, res == AST_TEST_PASS, "non multi, non read stream, 2 stream, 3 frames per read");
+
+	res = read_test(test, &tech, CHANNEL_READ_STREAM, 2, 16, 3, 0);
+	ast_test_validate(test, res == AST_TEST_PASS, "non multi, read stream, 2 stream, 3 frames per read");
+
+	return res;
+}
+
+AST_TEST_DEFINE(stream_read_multistream)
+{
+	struct ast_channel_tech tech = {
+		.read_stream = mock_channel_read,
+		.write_stream = mock_channel_write_stream,
+		.hangup = mock_channel_hangup,
+	};
+	enum ast_test_result_state res = AST_TEST_PASS;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "stream_read_multistream";
+		info->category = "/main/stream/";
+		info->summary = "stream reading from multistream capable channel test";
+		info->description =
+			"Test that reading frames from a multistream channel works as expected";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	res = read_test(test, &tech, CHANNEL_READ, 2, 16, 1, 0);
+	ast_test_validate(test, res == AST_TEST_PASS, "multi, non read stream, 2 stream");
+
+	res = read_test(test, &tech, CHANNEL_READ_STREAM, 2, 16, 1, 0);
+	ast_test_validate(test, res == AST_TEST_PASS, "multi, read stream, 2 stream");
+
+	res = read_test(test, &tech, CHANNEL_READ, 4, 16, 1, 8);
+	ast_test_validate(test, res == AST_TEST_PASS, "multi, non read stream, 4 stream");
+
+	res = read_test(test, &tech, CHANNEL_READ_STREAM, 4, 16, 1, 0);
+	ast_test_validate(test, res == AST_TEST_PASS, "multi, read stream, 4 stream");
+
+	res = read_test(test, &tech, CHANNEL_READ, 2, 16, 3, 0);
+	ast_test_validate(test, res == AST_TEST_PASS, "multi, non read stream, 2 stream, 3 frames per read");
+
+	res = read_test(test, &tech, CHANNEL_READ_STREAM, 2, 16, 3, 0);
+	ast_test_validate(test, res == AST_TEST_PASS, "multi, read stream, 2 stream, 3 frames per read");
+
+	res = read_test(test, &tech, CHANNEL_READ, 4, 16, 3, 8);
+	ast_test_validate(test, res == AST_TEST_PASS, "multi, non read stream, 4 stream, 3 frames per read");
+
+	res = read_test(test, &tech, CHANNEL_READ_STREAM, 4, 16, 3, 0);
+	ast_test_validate(test, res == AST_TEST_PASS, "multi, read stream, 4 stream, 3 frames per read");
+
+	return res;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(stream_create);
@@ -1286,6 +1560,8 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(stream_topology_channel_set);
 	AST_TEST_UNREGISTER(stream_write_non_multistream);
 	AST_TEST_UNREGISTER(stream_write_multistream);
+	AST_TEST_UNREGISTER(stream_read_non_multistream);
+	AST_TEST_UNREGISTER(stream_read_multistream);
 	return 0;
 }
 
@@ -1306,6 +1582,8 @@ static int load_module(void)
 	AST_TEST_REGISTER(stream_topology_channel_set);
 	AST_TEST_REGISTER(stream_write_non_multistream);
 	AST_TEST_REGISTER(stream_write_multistream);
+	AST_TEST_REGISTER(stream_read_non_multistream);
+	AST_TEST_REGISTER(stream_read_multistream);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
