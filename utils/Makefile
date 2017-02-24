@@ -70,10 +70,6 @@ ifneq ($(filter pbx_ael,$(MENUSELECT_PBX)),)
   UTILS:=$(filter-out conf2ael,$(UTILS))
 endif
 
-ifeq ($(SNDFILE_LIB),)
-  UTILS:=$(filter-out conf_bridge_binaural_hrir_importer,$(UTILS))
-endif
-
 all: $(UTILS)
 
 install:
@@ -193,10 +189,6 @@ smsq: LIBS+=$(POPT_LIB)
 
 streamplayer: streamplayer.o
 
-conf_bridge_binaural_hrir_importer: LIBS+=$(SNDFILE_LIB)
-conf_bridge_binaural_hrir_importer: _ASTCFLAGS+=$(SNDFILE_INCLUDE)
-conf_bridge_binaural_hrir_importer: conf_bridge_binaural_hrir_importer.o
-
 muted: muted.o
 muted: LIBS+=$(AUDIO_LIBS)
 muted: _ASTCFLAGS:=$(filter-out -Werror,$(_ASTCFLAGS))
@@ -212,6 +204,9 @@ astdb2sqlite3: db1-ast/libdb1.a
 astdb2bdb: LIBS+=$(SQLITE3_LIB)
 astdb2bdb: _ASTCFLAGS+=$(SQLITE3_INCLUDE)
 astdb2bdb: db1-ast/libdb1.a
+
+conf_bridge_binaural_hrir_importer: LIBS+=$(SNDFILE_LIB)
+conf_bridge_binaural_hrir_importer.o: _ASTCFLAGS+=$(SNDFILE_INCLUDE)
 
 ifneq ($(wildcard .*.d),)
    include .*.d

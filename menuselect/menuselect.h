@@ -108,7 +108,8 @@ enum support_level_values {
 	SUPPORT_DEPRECATED = 2,
 	SUPPORT_UNSPECIFIED = 3,
 	SUPPORT_EXTERNAL = 4,
-	SUPPORT_COUNT = 5, /* Keep this item at the end of the list. Tracks total number of support levels. */
+	SUPPORT_OPTION = 5,
+	SUPPORT_COUNT = 6, /* Keep this item at the end of the list. Tracks total number of support levels. */
 };
 
 AST_LIST_HEAD_NOLOCK(support_level_bucket, member);

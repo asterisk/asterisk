@@ -20,11 +20,6 @@
 	<depend>newt</depend>
 	<support_level>extended</support_level>
   </member>
-  <member name="conf_bridge_binaural_hrir_importer">
-	<defaultenabled>no</defaultenabled>
-	<depend>sndfile</depend>
-	<support_level>extended</support_level>
-  </member>
   <member name="check_expr">
 	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
@@ -53,5 +48,13 @@
   <member name="streamplayer">
 	<defaultenabled>no</defaultenabled>
 	<support_level>extended</support_level>
+  </member>
+  <member name="conf_bridge_binaural_hrir_importer"
+    displayname="Impulse Noise wav to hrirs.h generator"
+    remove_on_change="conf_bridge_binaural_hrir_importer">
+    <defaultenabled>no</defaultenabled>
+    <depend>sndfile</depend>
+    <support_level>extended</support_level>
+    <defaultenabled>no</defaultenabled>
   </member>
 </category>

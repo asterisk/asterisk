@@ -2304,13 +2304,8 @@ AST_EXT_LIB_CHECK([PRI_REVERSE_CHARGE], [pri], [pri_sr_set_reversecharge], [libp
 # ------------------------------------^
 
 AST_EXT_LIB_CHECK([RESAMPLE], [resample], [resample_open], [libresample.h], [-lm])
-AST_EXT_LIB_CHECK([FFTW3], [fftw3], [fftw_alloc_real], [fftw3.h], [-lfftw3])
-if test "$PBX_FFTW3" = "1"; then
-	AC_DEFINE([HAVE_FFTW], 1, [Define 1 if your system has fftw.])
-fi
-AST_EXT_LIB_CHECK([SNDFILE], [sndfile], [sf_open], [sndfile.h], [-lsndfile])
-
-
+AST_EXT_LIB_CHECK([FFTW3], [fftw3], [fftw_alloc_real], [fftw3.h])
+AST_EXT_LIB_CHECK([SNDFILE], [sndfile], [sf_open], [sndfile.h])
 
 AST_C_COMPILE_CHECK([SPANDSP], [
 		#if SPANDSP_RELEASE_DATE < 20080516
@@ -2712,6 +2707,9 @@ if test -f makeopts; then
 else
 	touch makeopts.acbak
 fi
+
+# conf_bridge (binaural rendering): check if HRIRs are available
+AC_CHECK_FILES([bridges/bridge_softmix/include/hrirs.h])
 
 AC_CONFIG_FILES([build_tools/menuselect-deps makeopts])
 AST_CHECK_MANDATORY
