@@ -608,8 +608,13 @@ static void pjsip_history_entry_dtor(void *obj)
 	struct pjsip_history_entry *entry = obj;
 
 	if (entry->pool) {
-		pj_pool_release(entry->pool);
+		/* This mimics the behavior of pj_pool_safe_release
+		 * which was introduced in pjproject 2.6.
+		 */
+		pj_pool_t *temp_pool = entry->pool;
+
 		entry->pool = NULL;
+		pj_pool_release(temp_pool);
 	}
 }
 
