@@ -4448,8 +4448,13 @@ static int unload_pjsip(void *data)
 	}
 
 	if (memory_pool) {
-		pj_pool_release(memory_pool);
+		/* This mimics the behavior of pj_pool_safe_release
+		 * which was introduced in pjproject 2.6.
+		 */
+		pj_pool_t *temp_pool = memory_pool;
+
 		memory_pool = NULL;
+		pj_pool_release(temp_pool);
 	}
 
 	ast_pjsip_endpoint = NULL;

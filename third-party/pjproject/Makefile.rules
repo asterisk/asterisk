@@ -12,7 +12,6 @@ PJPROJECT_CONFIG_OPTS = --prefix=/opt/pjproject \
 	--disable-g722-codec \
 	--disable-g7221-codec \
 	--disable-opencore-amr \
-	--disable-webrtc \
 	--disable-silk \
 	--disable-opus \
 	--disable-video \
@@ -26,7 +25,8 @@ PJPROJECT_CONFIG_OPTS = --prefix=/opt/pjproject \
 	--disable-openh264 \
 	--disable-ipp \
 	--without-external-pa \
-	--without-external-srtp
+	--without-external-srtp \
+	--without-external-webrtc
 
 ifeq ($(findstring TEST_FRAMEWORK,$(MENUSELECT_CFLAGS)),)
     PJPROJECT_CONFIG_OPTS += --disable-resample --disable-g711-codec

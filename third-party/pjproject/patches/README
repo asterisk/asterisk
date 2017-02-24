@@ -1,0 +1,7 @@
+The 0000-* patches in this directory should not be removed or
+reordered when upgrading to a new version of pjproject.  They
+MAY need to be updated to apply cleanly however.
+
+New patches should be numbered in ascending order with no
+duplicates.  Leave 10 slots open after the last patch to
+allow others to be inserted.
