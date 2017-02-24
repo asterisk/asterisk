@@ -182,11 +182,6 @@ OTHER_SUBDIR_CFLAGS="-I$(ASTTOPDIR)/include"
 # Create OPTIONS variable, but probably we can assign directly to ASTCFLAGS
 OPTIONS=
 
-ifeq ($(OSARCH),linux-gnu)
-  # flag to tell 'ldconfig' to only process specified directories
-  LDCONFIG_FLAGS=-n
-endif
-
 ifeq ($(findstring -save-temps,$(_ASTCFLAGS) $(ASTCFLAGS)),)
   ifeq ($(findstring -pipe,$(_ASTCFLAGS) $(ASTCFLAGS)),)
     _ASTCFLAGS+=-pipe
@@ -222,8 +217,6 @@ ifeq ($(OSARCH),FreeBSD)
   # -V is understood by BSD Make, not by GNU make.
   BSDVERSION=$(shell make -V OSVERSION -f /usr/share/mk/bsd.port.subdir.mk)
   _ASTCFLAGS+=$(shell if test $(BSDVERSION) -lt 500016 ; then echo "-D_THREAD_SAFE"; fi)
-  # flag to tell 'ldconfig' to only process specified directories
-  LDCONFIG_FLAGS=-m
 endif
 
 ifeq ($(OSARCH),NetBSD)
@@ -642,6 +635,23 @@ oldmodcheck:
 		echo " WARNING WARNING WARNING" ;\
 	fi
 
+ld-cache-update:
+ifneq ($(LDCONFIG),)
+	@if [ $${EUID} -eq 0 ] ; then \
+		$(LDCONFIG) "$(DESTDIR)$(ASTLIBDIR)/" ; \
+	else \
+		echo " WARNING WARNING WARNING" ;\
+		echo "" ;\
+		echo " You cannot rebuild the system linker cache unless you are root. " ;\
+		echo " You MUST do one of the follwing..." ;\
+		echo "  * Re-run 'make install' as root. " ;\
+		echo "  * Run 'ldconfig $(DESTDIR)$(ASTLIBDIR)' as root. " ;\
+		echo "  * Run asterisk with 'LD_LIBRARY_PATH=$(DESTDIR)$(ASTLIBDIR) asterisk' " ;\
+		echo "" ;\
+		echo " WARNING WARNING WARNING" ;\
+	fi
+endif
+
 badshell:
 ifneq ($(filter ~%,$(DESTDIR)),)
 	@echo "Your shell doesn't do ~ expansion when expected (specifically, when doing \"make install DESTDIR=~/path\")."
@@ -680,6 +690,7 @@ install: badshell bininstall datafiles
 	@echo " + doxygen installed on your local system    +"
 	@echo " +-------------------------------------------+"
 	@$(MAKE) -s oldmodcheck
+	@$(MAKE) -s ld-cache-update
 
 isntall: install
 
@@ -912,6 +923,9 @@ ifeq ($(HAVE_DAHDI),1)
 	rm -f $(DESTDIR)$(DAHDI_UDEV_HOOK_DIR)/40-asterisk
 endif
 	$(MAKE) -C sounds uninstall
+ifneq ($(LDCONFIG),)
+	$(LDCONFIG) || :
+endif
 
 uninstall: _uninstall
 	@echo " +--------- Asterisk Uninstall Complete -----+"
@@ -1042,6 +1056,7 @@ check-alembic: makeopts
 .PHONY: ari-stubs
 .PHONY: basic-pbx
 .PHONY: check-alembic
+.PHONY: ld-cache-update
 .PHONY: $(SUBDIRS_INSTALL)
 .PHONY: $(SUBDIRS_DIST_CLEAN)
 .PHONY: $(SUBDIRS_CLEAN)
