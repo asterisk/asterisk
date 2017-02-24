@@ -349,7 +349,7 @@
 					</description>
 				</configOption>
 				<configOption name="outbound_proxy">
-					<synopsis>Proxy through which to send requests, a full SIP URI must be provided</synopsis>
+					<synopsis>Full SIP URI of the outbound proxy used to send requests</synopsis>
 				</configOption>
 				<configOption name="rewrite_contact">
 					<synopsis>Allow Contact header to be rewritten with the source IP address-port</synopsis>
