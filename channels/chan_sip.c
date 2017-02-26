@@ -31104,6 +31104,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v_head
 			firstpass = 0;
 		} else {
 			ast_format_cap_remove_by_type(peer->caps, AST_MEDIA_TYPE_UNKNOWN);
+			ast_rtp_dtls_cfg_free(&peer->dtls_cfg);
+			memset(&peer->dtls_cfg, 0, sizeof(peer->dtls_cfg));
 		}
 	} else {
 		if (!(peer = ao2_t_alloc(sizeof(*peer), sip_destroy_peer_fn, "allocate a peer struct"))) {
