@@ -359,16 +359,8 @@ endif
 binuninstall:
 	rm -f "$(DESTDIR)$(ASTSBINDIR)/$(MAIN_TGT)"
 	rm -f "$(DESTDIR)$(ASTSBINDIR)/rasterisk"
-ifneq ($(ASTSSL_LIB).$(ASTSSL_SO_VERSION),.)
-#   ASTSSL_SO_VERSION may not exist on Darwin
-	rm -f "$(DESTDIR)$(ASTLIBDIR)/$(ASTSSL_LIB).$(ASTSSL_SO_VERSION)" || :
-	rm -f "$(DESTDIR)$(ASTLIBDIR)/$(ASTSSL_LIB)"
-endif
-ifneq ($(ASTPJ_LIB).$(ASTPJ_SO_VERSION),.)
-#   ASTSSL_SO_VERSION may not exist on Darwin
-	rm -f "$(DESTDIR)$(ASTLIBDIR)/$(ASTPJ_LIB).$(ASTPJ_SO_VERSION)" || :
-	rm -f "$(DESTDIR)$(ASTLIBDIR)/$(ASTPJ_LIB)"
-endif
+	rm -f "$(DESTDIR)$(ASTLIBDIR)/libasterisk"* || :
+	rm -f "$(subst lib64,lib,$(DESTDIR)$(ASTLIBDIR))/libasterisk"* || :
 
 clean::
 	rm -f asterisk libasteriskssl.o
