@@ -652,6 +652,37 @@ ifneq ($(LDCONFIG),)
 	fi
 endif
 
+ifeq ($(and $(findstring 64,$(HOST_CPU)),$(findstring lib64,$(DESTDIR)$(ASTLIBDIR))),lib64)
+_oldlibdir = $(subst lib64,lib,$(DESTDIR)$(ASTLIBDIR))
+
+check-old-libdir:
+	@oldfiles=`find "$(_oldlibdir)" -name libasterisk* -print -quit -o \( -path *asterisk/modules/* -a -name *.so \) -print -quit` ;\
+	if [ "x$$oldfiles" != "x" ] ; then \
+		echo " WARNING WARNING WARNING" ;\
+		echo "" ;\
+		echo " Installation is to: " ;\
+		echo "   $(DESTDIR)$(ASTLIBDIR)" ;\
+		echo " but there are asterisk shared libraries in: " ;\
+		echo "   $(_oldlibdir)" ;\
+		echo " or" ;\
+		echo "   $(_oldlibdir)/asterisk/modules" ;\
+		echo "" ;\
+		echo " It is unlikely that asterisk will start." ;\
+		echo "" ;\
+		echo " You should do one of the following..." ;\
+		echo "  * Run 'make uninstall' to remove the incorrect libraries" ;\
+		echo "    then run 'make install' again." ;\
+		echo "  * Manually remove the libraries from" ;\
+		echo "   $(_oldlibdir)" ;\
+		echo "   and run 'ldconfig' to rebuild the linker cache." ;\
+		echo "" ;\
+		echo " WARNING WARNING WARNING" ;\
+	fi
+else
+check-old-libdir:
+
+endif
+
 badshell:
 ifneq ($(filter ~%,$(DESTDIR)),)
 	@echo "Your shell doesn't do ~ expansion when expected (specifically, when doing \"make install DESTDIR=~/path\")."
@@ -691,6 +722,7 @@ install: badshell bininstall datafiles
 	@echo " +-------------------------------------------+"
 	@$(MAKE) -s oldmodcheck
 	@$(MAKE) -s ld-cache-update
+	@$(MAKE) -s check-old-libdir
 
 isntall: install
 
@@ -911,6 +943,7 @@ main-binuninstall:
 
 _uninstall: $(SUBDIRS_UNINSTALL) main-binuninstall
 	rm -f "$(DESTDIR)$(ASTMODDIR)/"*
+	rm -f "$(subst lib64,lib,$(DESTDIR)$(ASTMODDIR))/"*
 	rm -f "$(DESTDIR)$(ASTSBINDIR)/astgenkey"
 	rm -f "$(DESTDIR)$(ASTSBINDIR)/autosupport"
 	rm -rf "$(DESTDIR)$(ASTHEADERDIR)"
@@ -943,6 +976,7 @@ uninstall: _uninstall
 
 uninstall-all: _uninstall
 	rm -rf "$(DESTDIR)$(ASTMODDIR)"
+	rm -rf "$(subst lib64,lib,$(DESTDIR)$(ASTMODDIR))"
 	rm -rf "$(DESTDIR)$(ASTVARLIBDIR)"
 	rm -rf "$(DESTDIR)$(ASTDATADIR)"
 	rm -rf "$(DESTDIR)$(ASTSPOOLDIR)"
@@ -1057,6 +1091,7 @@ check-alembic: makeopts
 .PHONY: basic-pbx
 .PHONY: check-alembic
 .PHONY: ld-cache-update
+.PHONY: check-old-libdir
 .PHONY: $(SUBDIRS_INSTALL)
 .PHONY: $(SUBDIRS_DIST_CLEAN)
 .PHONY: $(SUBDIRS_CLEAN)
