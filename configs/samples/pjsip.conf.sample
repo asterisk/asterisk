@@ -898,11 +898,10 @@
 ;max_forwards=70        ; Value used in Max Forwards header for SIP requests
                         ; (default: "70")
 ;type=  ; Must be of type global (default: "")
-;user_agent=Asterisk PBX SVN-branch-12-r404375  ; Value used in User Agent
-                                                ; header for SIP requests and
-                                                ; Server header for SIP
-                                                ; responses (default: "Asterisk
-                                                ; PBX SVN-branch-12-r404375")
+;user_agent=Asterisk PBX        ; Allows you to change the user agent string
+                                ; The default user agent string also contains
+                                ; the Asterisk version. If you don't want to
+                                ; expose this, change the user_agent string.
 ;default_outbound_endpoint=default_outbound_endpoint    ; Endpoint to use when
                                                         ; sending an outbound
                                                         ; request to a URI
