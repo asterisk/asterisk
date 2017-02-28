@@ -733,6 +733,7 @@ static int update_pgsql(const char *database, const char *tablename, const char 
 	ast_mutex_lock(&pgsql_lock);
 	if (!pgsql_reconnect(database)) {
 		ast_mutex_unlock(&pgsql_lock);
+		release_table(table);
 		return -1;
 	}
 
@@ -878,6 +879,7 @@ static int update2_pgsql(const char *database, const char *tablename, const stru
 	ast_mutex_lock(&pgsql_lock);
 	if (!pgsql_reconnect(database)) {
 		ast_mutex_unlock(&pgsql_lock);
+		release_table(table);
 		return -1;
 	}
 
@@ -1322,6 +1324,7 @@ static int require_pgsql(const char *database, const char *tablename, va_list ap
 
 			        if (pgsql_exec(database, tablename, ast_str_buffer(sql), &result) != 0) {
 					ast_mutex_unlock(&pgsql_lock);
+					release_table(table);
 				        return -1;
 			        }
 
