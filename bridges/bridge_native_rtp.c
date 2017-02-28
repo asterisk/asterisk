@@ -131,7 +131,7 @@ static void native_rtp_bridge_start(struct ast_bridge *bridge, struct ast_channe
 {
 	struct ast_bridge_channel *bc0 = AST_LIST_FIRST(&bridge->channels);
 	struct ast_bridge_channel *bc1 = AST_LIST_LAST(&bridge->channels);
-	enum ast_rtp_glue_result native_type;
+	enum ast_rtp_glue_result native_type = AST_RTP_GLUE_RESULT_FORBID;
 	struct ast_rtp_glue *glue0, *glue1;
 	RAII_VAR(struct ast_rtp_instance *, instance0, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_rtp_instance *, instance1, NULL, ao2_cleanup);
@@ -147,7 +147,9 @@ static void native_rtp_bridge_start(struct ast_bridge *bridge, struct ast_channe
 	}
 
 	ast_channel_lock_both(bc0->chan, bc1->chan);
-	native_type = native_rtp_bridge_get(bc0->chan, bc1->chan, &glue0, &glue1, &instance0, &instance1, &vinstance0, &vinstance1);
+	if (!bc0->suspended && !bc1->suspended) {
+		native_type = native_rtp_bridge_get(bc0->chan, bc1->chan, &glue0, &glue1, &instance0, &instance1, &vinstance0, &vinstance1);
+	}
 
 	switch (native_type) {
 	case AST_RTP_GLUE_RESULT_LOCAL:
