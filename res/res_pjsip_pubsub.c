@@ -1478,7 +1478,6 @@ static int sub_persistence_recreate(void *obj)
 		ast_log(LOG_WARNING, "Failed recreating '%s' subscription: The endpoint was not found\n",
 			persistence->endpoint);
 		ast_sorcery_delete(ast_sip_get_sorcery(), persistence);
-		ao2_ref(endpoint, -1);
 		return 0;
 	}
 
