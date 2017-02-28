@@ -68,7 +68,7 @@
 					</description>
 				</configOption>
 				<configOption name="outbound_proxy" default="">
-					<synopsis>SIP URI of the outbound proxy used to send publishes</synopsis>
+					<synopsis>Full SIP URI of the outbound proxy used to send publishes</synopsis>
 				</configOption>
 				<configOption name="server_uri">
 					<synopsis>SIP URI of the server and entity to publish to</synopsis>

@@ -96,7 +96,7 @@
 					</description>
 				</configOption>
 				<configOption name="outbound_proxy" default="">
-					<synopsis>Outbound Proxy used to send registrations</synopsis>
+					<synopsis>Full SIP URI of the outbound proxy used to send registrations</synopsis>
 				</configOption>
 				<configOption name="retry_interval" default="60">
 					<synopsis>Interval in seconds between retries if outbound registration is unsuccessful</synopsis>
@@ -1208,6 +1208,17 @@ static int sip_outbound_registration_regc_alloc(void *data)
 			registration->client_uri, ast_sorcery_object_get_id(registration));
 		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
 		return -1;
+	}
+
+	if (!ast_strlen_zero(registration->outbound_proxy)) {
+		pj_strdup2_with_null(pool, &tmp, registration->outbound_proxy);
+		uri = pjsip_parse_uri(pool, tmp.ptr, tmp.slen, 0);
+		if (!uri) {
+			ast_log(LOG_ERROR, "Invalid outbound proxy URI '%s' specified on outbound registration '%s'\n",
+				registration->outbound_proxy, ast_sorcery_object_get_id(registration));
+			pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
+			return -1;
+		}
 	}
 
 	pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
