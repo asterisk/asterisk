@@ -642,7 +642,7 @@
                         ; when placing on hold and sendrecv when taking off hold
 ;outbound_auth= ; Authentication object used for outbound requests (default:
                 ; "")
-;outbound_proxy=        ; Proxy through which to send requests a full SIP URI
+;outbound_proxy=        ; Proxy through which to send requests, a full SIP URI
                         ; must be provided (default: "")
 ;rewrite_contact=no     ; Allow Contact header to be rewritten with the source
                         ; IP address port (default: "no")
@@ -873,8 +873,8 @@
 ;qualify_timeout=3.0      ; Qualify timeout in fractional seconds (default: "3.0")
 ;authenticate_qualify=no        ; Authenticates a qualify request if needed
                                 ; (default: "no")
-;outbound_proxy=        ; Outbound proxy used when sending OPTIONS request
-                        ; (default: "")
+;outbound_proxy=        ; Proxy through which to send OPTIONS requests, a full SIP URI
+                        ; must be provided (default: "")
 
 
 ;==========================SYSTEM SECTION OPTIONS=========================
@@ -1040,8 +1040,8 @@
 ;max_retries=10 ; Maximum number of registration attempts (default: "10")
 ;outbound_auth= ; Authentication object to be used for outbound registrations
                 ; (default: "")
-;outbound_proxy=        ; Outbound Proxy used to send registrations (default:
-                        ; "")
+;outbound_proxy=        ; Proxy through which to send registrations, a full SIP URI
+                        ; must be provided (default: "")
 ;retry_interval=60      ; Interval in seconds between retries if outbound
                         ; registration is unsuccessful (default: "60")
 ;forbidden_retry_interval=0     ; Interval used when receiving a 403 Forbidden
