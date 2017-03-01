@@ -17,6 +17,14 @@ app_record
  * Added new 'u' option to Record() application which prevents Asterisk from
    truncating silence from the end of recorded files.
 
+res_pjsip_outbound_registration
+------------------
+ * Outbound registrations are now refreshed when res_stun_monitor detects
+   a network change event has happened.
+   The 'pjsip send (un)register' CLI commands were updated to accept '*all'
+   as an argument to operate on all registrations.
+   The 'PJSIP(Un)Register' AMI commands were updated to also accept '*all'.
+
 app_voicemail
 ------------------
  * The 'Comedian Mail' prompts can now be overriden using the 'vm-login' and
