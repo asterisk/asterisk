@@ -1284,6 +1284,7 @@ static int require_pgsql(const char *database, const char *tablename, va_list ap
 		if (!column) {
 			if (requirements == RQ_WARN) {
 				ast_log(LOG_WARNING, "Table %s requires a column '%s' of size '%d', but no such column exists.\n", tablename, elm, size);
+				res = -1;
 			} else {
 				struct ast_str *sql = ast_str_create(100);
 				char fieldtype[15];
