@@ -3944,13 +3944,17 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 			default:
 				break;
 			}
-		} else if (!(ast_channel_tech(chan)->properties & AST_CHAN_TP_MULTISTREAM) && (
-			f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO)) {
-			/* Since this channel driver does not support multistream determine the default stream this frame
-			 * originated from and update the frame to include it.
-			 */
-			stream = default_stream = ast_channel_get_default_stream(chan, ast_format_get_type(f->subclass.format));
-			f->stream_num = ast_stream_get_position(stream);
+		} else if (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO) {
+			if (ast_channel_tech(chan) && ast_channel_tech(chan)->read_stream) {
+				stream = ast_stream_topology_get_stream(ast_channel_get_stream_topology(chan), f->stream_num);
+				default_stream = ast_channel_get_default_stream(chan, ast_format_get_type(f->subclass.format));
+			} else {
+				/* Since this channel driver does not support multistream determine the default stream this frame
+				 * originated from and update the frame to include it.
+				 */
+				stream = default_stream = ast_channel_get_default_stream(chan, ast_format_get_type(f->subclass.format));
+				f->stream_num = ast_stream_get_position(stream);
+			}
 		}
 	} else {
 		ast_channel_blocker_set(chan, pthread_self());
@@ -3970,7 +3974,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 			 * thing different is that we need to find the default stream so we know whether to invoke the
 			 * default stream logic or not (such as transcoding).
 			 */
-			if (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO) {
+			if (f && (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO)) {
 				stream = ast_stream_topology_get_stream(ast_channel_get_stream_topology(chan), f->stream_num);
 				default_stream = ast_channel_get_default_stream(chan, ast_format_get_type(f->subclass.format));
 			}
@@ -3980,7 +3984,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 			/* Since this channel driver does not support multistream determine the default stream this frame
 			 * originated from and update the frame to include it.
 			 */
-			if (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO) {
+			if (f && (f->frametype == AST_FRAME_VOICE || f->frametype == AST_FRAME_VIDEO)) {
 				stream = default_stream = ast_channel_get_default_stream(chan, ast_format_get_type(f->subclass.format));
 				f->stream_num = ast_stream_get_position(stream);
 			}
@@ -3989,13 +3993,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 			ast_log(LOG_WARNING, "No read routine on channel %s\n", ast_channel_name(chan));
 	}
 
-	if (dropnondefault && stream != default_stream) {
-		/* If the frame originates from a non-default stream and the caller can not handle other streams
-		 * absord the frame and replace it with a null one instead.
-		 */
-		ast_frfree(f);
-		f = &ast_null_frame;
-	} else if (stream == default_stream) {
+	if (stream == default_stream) {
 		/* Perform the framehook read event here. After the frame enters the framehook list
 		 * there is no telling what will happen, <insert mad scientist laugh here>!!! */
 		f = ast_framehook_list_read_event(ast_channel_framehooks(chan), f);
@@ -4020,6 +4018,14 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 			ast_queue_frame(chan, AST_LIST_NEXT(f, frame_list));
 			ast_frfree(AST_LIST_NEXT(f, frame_list));
 			AST_LIST_NEXT(f, frame_list) = NULL;
+		}
+
+		if (dropnondefault && stream != default_stream) {
+			/* If the frame originates from a non-default stream and the caller can not handle other streams
+			 * absorb the frame and replace it with a null one instead.
+			 */
+			ast_frfree(f);
+			f = &ast_null_frame;
 		}
 
 		switch (f->frametype) {

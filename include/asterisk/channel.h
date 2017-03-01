@@ -911,10 +911,6 @@ enum {
 	 * world
 	 */
 	AST_CHAN_TP_INTERNAL = (1 << 2),
-	/*!
-	 * \brief Channels with this particular technology support multiple simultaneous streams
-	 */
-	AST_CHAN_TP_MULTISTREAM = (1 << 3),
 };
 
 /*! \brief ast_channel flags */
@@ -4842,5 +4838,16 @@ struct ast_stream_topology *ast_channel_set_stream_topology(
  * \retval NULL failure
  */
 struct ast_stream *ast_channel_get_default_stream(struct ast_channel *chan, enum ast_media_type type);
+
+/*!
+ * \brief Determine if a channel is multi-stream capable
+ *
+ * \param channel The channel to test
+ *
+ * \pre chan is locked
+ *
+ * \return Returns true if the channel is multi-stream capable.
+ */
+int ast_channel_is_multistream(struct ast_channel *chan);
 
 #endif /* _ASTERISK_CHANNEL_H */

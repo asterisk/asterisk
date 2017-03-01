@@ -867,7 +867,7 @@ void ast_channel_nativeformats_set(struct ast_channel *chan,
 		return;
 	}
 
-	if (!chan->tech || !(chan->tech->properties & AST_CHAN_TP_MULTISTREAM) || !value) {
+	if ((!ast_channel_is_multistream(chan)) || !value) {
 		struct ast_stream_topology *new_topology;
 
 		if (!value) {
@@ -949,6 +949,10 @@ const struct ast_channel_tech *ast_channel_tech(const struct ast_channel *chan)
 }
 void ast_channel_tech_set(struct ast_channel *chan, const struct ast_channel_tech *value)
 {
+	if (value->read_stream || value->write_stream) {
+		ast_assert(value->read_stream && value->write_stream);
+	}
+
 	chan->tech = value;
 }
 enum ast_channel_adsicpe ast_channel_adsicpe(const struct ast_channel *chan)
@@ -1798,7 +1802,7 @@ struct ast_stream_topology *ast_channel_set_stream_topology(struct ast_channel *
 	ast_assert(chan != NULL);
 
 	/* A non-MULTISTREAM channel can't manipulate topology directly */
-	ast_assert(chan->tech != NULL && (chan->tech->properties & AST_CHAN_TP_MULTISTREAM));
+	ast_assert(ast_channel_is_multistream(chan));
 
 	/* Unless the channel is being destroyed, we always want a topology on
 	 * it even if its empty.
@@ -1838,4 +1842,9 @@ void ast_channel_internal_swap_stream_topology(struct ast_channel *chan1,
 
 	channel_set_default_streams(chan1);
 	channel_set_default_streams(chan2);
+}
+
+int ast_channel_is_multistream(struct ast_channel *chan)
+{
+	return (chan->tech && chan->tech->read_stream && chan->tech->write_stream);
 }
