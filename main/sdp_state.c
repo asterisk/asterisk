@@ -20,9 +20,10 @@
 #include "asterisk/sdp_state.h"
 #include "asterisk/sdp_options.h"
 #include "asterisk/sdp_translator.h"
-#include "asterisk/sdp_priv.h"
 #include "asterisk/vector.h"
 #include "asterisk/utils.h"
+
+#include "../include/asterisk/sdp.h"
 #include "asterisk/stream.h"
 
 enum ast_sdp_state_machine {
@@ -77,13 +78,12 @@ struct ast_sdp_state {
 	struct ast_sdp_options *options;
 	/*! Translator that puts SDPs into the expected representation */
 	struct ast_sdp_translator *translator;
-	/*! RTP instance for each media stream */
-	AST_VECTOR(, struct ast_rtp_instance *) rtp;
 	/*! The current state machine state that we are in */
 	enum ast_sdp_state_machine state;
 };
 
-struct ast_sdp_state *ast_sdp_state_alloc(struct ast_stream_topology *streams, struct ast_sdp_options *options)
+struct ast_sdp_state *ast_sdp_state_alloc(struct ast_stream_topology *streams,
+	struct ast_sdp_options *options)
 {
 	struct ast_sdp_state *sdp_state;
 
@@ -94,7 +94,7 @@ struct ast_sdp_state *ast_sdp_state_alloc(struct ast_stream_topology *streams, s
 
 	sdp_state->options = options;
 
-	sdp_state->translator = ast_sdp_translator_new(ast_sdp_options_get_repr(sdp_state->options));
+	sdp_state->translator = ast_sdp_translator_new(ast_sdp_options_get_impl(sdp_state->options));
 	if (!sdp_state->translator) {
 		ast_sdp_state_free(sdp_state);
 		return NULL;
@@ -126,18 +126,23 @@ void ast_sdp_state_free(struct ast_sdp_state *sdp_state)
 	ast_sdp_translator_free(sdp_state->translator);
 }
 
-struct ast_rtp_instance *ast_sdp_state_get_rtp_instance(struct ast_sdp_state *sdp_state, int stream_index)
+struct ast_rtp_instance *ast_sdp_state_get_rtp_instance(
+	const struct ast_sdp_state *sdp_state, int stream_index)
 {
+	struct ast_stream *stream;
+
 	ast_assert(sdp_state != NULL);
 
-	if (stream_index >= AST_VECTOR_SIZE(&sdp_state->rtp)) {
+	stream = ast_stream_topology_get_stream(sdp_state->local_capabilities, stream_index);
+	if (!stream) {
 		return NULL;
 	}
 
-	return AST_VECTOR_GET(&sdp_state->rtp, stream_index);
+	return (struct ast_rtp_instance *)ast_stream_get_data(stream, AST_STREAM_DATA_RTP_INSTANCE);
 }
 
-struct ast_stream_topology *ast_sdp_state_get_joint_topology(struct ast_sdp_state *sdp_state)
+const struct ast_stream_topology *ast_sdp_state_get_joint_topology(
+	const struct ast_sdp_state *sdp_state)
 {
 	ast_assert(sdp_state != NULL);
 	if (sdp_state->state == SDP_STATE_NEGOTIATED) {
@@ -147,6 +152,23 @@ struct ast_stream_topology *ast_sdp_state_get_joint_topology(struct ast_sdp_stat
 	}
 }
 
+const struct ast_stream_topology *ast_sdp_state_get_local_topology(
+	const struct ast_sdp_state *sdp_state)
+{
+	ast_assert(sdp_state != NULL);
+
+	return sdp_state->local_capabilities;
+}
+
+const struct ast_sdp_options *ast_sdp_state_get_options(
+	const struct ast_sdp_state *sdp_state)
+{
+	ast_assert(sdp_state != NULL);
+
+	return sdp_state->options;
+}
+
+#if 0
 static int merge_sdps(struct ast_sdp_state *sdp_state)
 {
 	ast_assert(sdp_state->local_sdp != NULL);
@@ -169,37 +191,38 @@ static int merge_sdps(struct ast_sdp_state *sdp_state)
 
 	return 0;
 }
+#endif
 
-const void *ast_sdp_state_get_local(struct ast_sdp_state *sdp_state)
+const struct ast_sdp *ast_sdp_state_get_local_sdp(struct ast_sdp_state *sdp_state)
 {
-	struct ast_sdp *sdp;
-
 	ast_assert(sdp_state != NULL);
 
-	/*TODO Create RTP instances based on local topology and SDP options (if not already created) */
-	/*TODO Create local SDP based on local topology, SDP options, and RTP ports (if not already created) */
+	if (!sdp_state->local_sdp) {
+		sdp_state->local_sdp = ast_sdp_create_from_state(sdp_state);
+	}
 
-	switch (sdp_state->state) {
-	case SDP_STATE_INITIAL:
-		sdp_state->state = SDP_STATE_OFFERER;
-		/* Fall through */
-	case SDP_STATE_OFFERER:
-	default:
-		sdp = sdp_state->local_sdp;
-		break;
-	case SDP_STATE_ANSWERER:
-		sdp_state->state = SDP_STATE_NEGOTIATED;
-		merge_sdps(sdp_state);
-		/* Fall through */
-	case SDP_STATE_NEGOTIATED:
-		sdp = sdp_state->joint_sdp;
-		break;
+	return sdp_state->local_sdp;
+}
+
+const void *ast_sdp_state_get_local_sdp_impl(struct ast_sdp_state *sdp_state)
+{
+	const struct ast_sdp *sdp = ast_sdp_state_get_local_sdp(sdp_state);
+
+	if (!sdp) {
+		return NULL;
 	}
 
 	return ast_sdp_translator_from_sdp(sdp_state->translator, sdp);
 }
 
-int ast_sdp_state_set_remote(struct ast_sdp_state *sdp_state, void *remote)
+void ast_sdp_state_set_remote_sdp(struct ast_sdp_state *sdp_state, struct ast_sdp *sdp)
+{
+	ast_assert(sdp_state != NULL);
+
+	sdp_state->remote_sdp = sdp;
+}
+
+int ast_sdp_state_set_remote_sdp_from_impl(struct ast_sdp_state *sdp_state, void *remote)
 {
 	struct ast_sdp *sdp;
 
@@ -210,29 +233,7 @@ int ast_sdp_state_set_remote(struct ast_sdp_state *sdp_state, void *remote)
 		return -1;
 	}
 
-	sdp_state->remote_sdp = remote;
-	/* TODO Convert the remote SDP into a topology and store that in 
-	 * sdp_state->remote_capabilities
-	 */
-
-	switch (sdp_state->state) {
-	case SDP_STATE_ANSWERER:
-	default:
-		break;
-	case SDP_STATE_INITIAL:
-		sdp_state->state = SDP_STATE_ANSWERER;
-		break;
-	case SDP_STATE_OFFERER:
-		sdp_state->state = SDP_STATE_NEGOTIATED;
-		/* Fall through */
-	case SDP_STATE_NEGOTIATED:
-		/* If state is already negotiated, and we receive a new
-		 * remote SDP, we need to re-create the joint SDP and joint
-		 * capabilities
-		 */
-		merge_sdps(sdp_state);
-		break;
-	}
+	sdp_state->remote_sdp = sdp;
 
 	return 0;
 }

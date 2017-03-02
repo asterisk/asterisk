@@ -1432,7 +1432,8 @@ unsigned int ast_rtp_codecs_get_framing(struct ast_rtp_codecs *codecs);
  *
  * \since 1.8
  */
-unsigned int ast_rtp_lookup_sample_rate2(int asterisk_format, struct ast_format *format, int code);
+unsigned int ast_rtp_lookup_sample_rate2(int asterisk_format,
+	const struct ast_format *format, int code);
 
 /*!
  * \brief Retrieve all formats that were found
@@ -1537,7 +1538,8 @@ int ast_rtp_codecs_find_payload_code(struct ast_rtp_codecs *codecs, int payload)
  *
  * \since 1.8
  */
-const char *ast_rtp_lookup_mime_subtype2(const int asterisk_format, struct ast_format *format, int code, enum ast_rtp_options options);
+const char *ast_rtp_lookup_mime_subtype2(const int asterisk_format,
+	const struct ast_format *format, int code, enum ast_rtp_options options);
 
 /*!
  * \brief Convert formats into a string and put them into a buffer
