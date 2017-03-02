@@ -44,9 +44,9 @@ static enum ast_transport security_event_get_transport(pjsip_rx_data *rdata)
 	} else if (rdata->tp_info.transport->key.type == PJSIP_TRANSPORT_TLS ||
 		rdata->tp_info.transport->key.type == PJSIP_TRANSPORT_TLS6) {
 		return AST_TRANSPORT_TLS;
-	} else if (!strcmp(rdata->tp_info.transport->type_name, "WS")) {
+	} else if (!strcasecmp(rdata->tp_info.transport->type_name, "WS")) {
 		return AST_TRANSPORT_WS;
-	} else if (!strcmp(rdata->tp_info.transport->type_name, "WSS")) {
+	} else if (!strcasecmp(rdata->tp_info.transport->type_name, "WSS")) {
 		return AST_TRANSPORT_WSS;
 	} else {
 		return 0;
