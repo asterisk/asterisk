@@ -5680,8 +5680,9 @@ static int action_extensionstate(struct mansession *s, const struct message *m)
 {
 	const char *exten = astman_get_header(m, "Exten");
 	const char *context = astman_get_header(m, "Context");
-	char hint[256] = "";
+	char hint[256];
 	int status;
+
 	if (ast_strlen_zero(exten)) {
 		astman_send_error(s, m, "Extension not specified");
 		return 0;
@@ -5690,16 +5691,18 @@ static int action_extensionstate(struct mansession *s, const struct message *m)
 		context = "default";
 	}
 	status = ast_extension_state(NULL, context, exten);
-	ast_get_hint(hint, sizeof(hint) - 1, NULL, 0, NULL, context, exten);
+	hint[0] = '\0';
+	ast_get_hint(hint, sizeof(hint), NULL, 0, NULL, context, exten);
 	astman_start_ack(s, m);
-	astman_append(s,   "Message: Extension Status\r\n"
-			   "Exten: %s\r\n"
-			   "Context: %s\r\n"
-			   "Hint: %s\r\n"
-			   "Status: %d\r\n"
-		           "StatusText: %s\r\n\r\n",
-		      exten, context, hint, status,
-		      ast_extension_state2str(status));
+	astman_append(s, "Message: Extension Status\r\n"
+		"Exten: %s\r\n"
+		"Context: %s\r\n"
+		"Hint: %s\r\n"
+		"Status: %d\r\n"
+		"StatusText: %s\r\n"
+		"\r\n",
+		exten, context, hint, status,
+		ast_extension_state2str(status));
 	return 0;
 }
 
@@ -6973,6 +6976,7 @@ static int manager_state_cb(const char *context, const char *exten, struct ast_s
 	/* Notify managers of change */
 	char hint[512];
 
+	hint[0] = '\0';
 	ast_get_hint(hint, sizeof(hint), NULL, 0, NULL, context, exten);
 
 	switch(info->reason) {
