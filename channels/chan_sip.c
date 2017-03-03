@@ -18363,10 +18363,11 @@ static enum sip_get_dest_result get_destination(struct sip_pvt *p, struct sip_re
 
 	/* If this is a subscription we actually just need to see if a hint exists for the extension */
 	if (req->method == SIP_SUBSCRIBE) {
-		char hint[AST_MAX_EXTENSION];
 		int which = 0;
-		if (ast_get_hint(hint, sizeof(hint), NULL, 0, NULL, p->context, uri) ||
-		    (ast_get_hint(hint, sizeof(hint), NULL, 0, NULL, p->context, decoded_uri) && (which = 1))) {
+
+		if (ast_get_hint(NULL, 0, NULL, 0, NULL, p->context, uri)
+			|| (ast_get_hint(NULL, 0, NULL, 0, NULL, p->context, decoded_uri)
+				&& (which = 1))) {
 			if (!oreq) {
 				ast_string_field_set(p, exten, which ? decoded_uri : uri);
 			}

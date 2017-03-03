@@ -3966,7 +3966,6 @@ static int ast_add_hint(struct ast_exten *e)
 			hint_new->last_presence_state = presence_state;
 			hint_new->last_presence_subtype = subtype;
 			hint_new->last_presence_message = message;
-			message = subtype = NULL;
 		}
 	}
 
