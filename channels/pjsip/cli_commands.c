@@ -346,11 +346,10 @@ static int cli_channelstats_print_body(void *obj, void *arg, int flags)
 	struct ast_sip_channel_pvt *cpvt = channel ? ast_channel_tech_pvt(channel) : NULL;
 	struct chan_pjsip_pvt *pvt = cpvt ? cpvt->pvt : NULL;
 	struct ast_sip_session_media *media = pvt ? pvt->media[SIP_MEDIA_AUDIO] : NULL;
-	struct ast_rtp_codecs *codecs = media && media->rtp ? ast_rtp_instance_get_codecs(media->rtp) : NULL;
-	struct ast_format *format = codecs ? ast_rtp_codecs_get_payload_format(codecs, 0) : NULL;
 	struct ast_rtp_instance_stats stats;
 	char *print_name = NULL;
 	char *print_time = alloca(32);
+	char codec_in_use[7];
 
 	ast_assert(context->output_buffer != NULL);
 
@@ -358,6 +357,16 @@ static int cli_channelstats_print_body(void *obj, void *arg, int flags)
 		ast_str_append(&context->output_buffer, 0, " %s not valid\n", snapshot->name);
 		ao2_cleanup(channel);
 		return -1;
+	}
+
+	codec_in_use[0] = '\0';
+
+	if (channel) {
+		ast_channel_lock(channel);
+		if (ast_channel_rawreadformat(channel)) {
+			ast_copy_string(codec_in_use, ast_format_get_name(ast_channel_rawreadformat(channel)), sizeof(codec_in_use));
+		}
+		ast_channel_unlock(channel);
 	}
 
 	print_name = ast_strdupa(snapshot->name);
@@ -374,7 +383,7 @@ static int cli_channelstats_print_body(void *obj, void *arg, int flags)
 			snapshot->bridgeid,
 			print_name,
 			print_time,
-			format ? ast_format_get_name(format) : "",
+			codec_in_use,
 			stats.rxcount > 100000 ? stats.rxcount / 1000 : stats.rxcount,
 			stats.rxcount > 100000 ? "K": " ",
 			stats.rxploss > 100000 ? stats.rxploss / 1000 : stats.rxploss,
@@ -391,7 +400,6 @@ static int cli_channelstats_print_body(void *obj, void *arg, int flags)
 		);
 	}
 
-	ao2_cleanup(format);
 	ao2_cleanup(channel);
 
 	return 0;
