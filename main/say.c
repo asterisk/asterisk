@@ -993,7 +993,7 @@ static int ast_say_number_full_de(struct ast_channel *chan, int num, const char 
 
 /*! \brief  ast_say_number_full_en_GB: British syntax
  New files:
-  - In addition to American English, the following sounds are required:  "and"
+  - In addition to American English, the following sounds are required:  "vm-and"
  */
 static int ast_say_number_full_en_GB(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd)
 {
@@ -1016,7 +1016,7 @@ static int ast_say_number_full_en_GB(struct ast_channel *chan, int num, const ch
 			ast_copy_string(fn, "digits/hundred", sizeof(fn));
 			playh = 0;
 		} else if (playa) {
-			ast_copy_string(fn, "digits/and", sizeof(fn));
+			ast_copy_string(fn, "vm-and", sizeof(fn));
 			playa = 0;
 		} else if (num < 20) {
 			snprintf(fn, sizeof(fn), "digits/%d", num);
