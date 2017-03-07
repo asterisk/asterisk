@@ -28,6 +28,7 @@
 #define MOD_DATA_RESTRICTIONS "restrictions"
 
 static pj_status_t multihomed_on_tx_message(pjsip_tx_data *tdata);
+static pj_bool_t multihomed_on_rx_message(pjsip_rx_data *rdata);
 
 /*! \brief Outgoing message modification restrictions */
 struct multihomed_message_restrictions {
@@ -41,6 +42,7 @@ static pjsip_module multihomed_module = {
 	.priority = PJSIP_MOD_PRIORITY_TSX_LAYER - 1,
 	.on_tx_request = multihomed_on_tx_message,
 	.on_tx_response = multihomed_on_tx_message,
+	.on_rx_request = multihomed_on_rx_message,
 };
 
 /*! \brief Helper function to get (or allocate if not already present) restrictions on a message */
@@ -151,6 +153,44 @@ static int multihomed_rewrite_sdp(struct pjmedia_sdp_session *sdp)
 	return 0;
 }
 
+static void sanitize_tdata(pjsip_tx_data *tdata)
+{
+	static const pj_str_t x_name = { AST_SIP_X_AST_TXP, AST_SIP_X_AST_TXP_LEN };
+	pjsip_param *x_transport;
+	pjsip_sip_uri *uri;
+	pjsip_fromto_hdr *fromto;
+	pjsip_contact_hdr *contact;
+	pjsip_hdr *hdr;
+
+	if (tdata->msg->type == PJSIP_REQUEST_MSG) {
+		uri = pjsip_uri_get_uri(tdata->msg->line.req.uri);
+		x_transport = pjsip_param_find(&uri->other_param, &x_name);
+		if (x_transport) {
+			pj_list_erase(x_transport);
+		}
+	}
+
+	for (hdr = tdata->msg->hdr.next; hdr != &tdata->msg->hdr; hdr = hdr->next) {
+		if (hdr->type == PJSIP_H_TO || hdr->type == PJSIP_H_FROM) {
+			fromto = (pjsip_fromto_hdr *) hdr;
+			uri = pjsip_uri_get_uri(fromto->uri);
+			x_transport = pjsip_param_find(&uri->other_param, &x_name);
+			if (x_transport) {
+				pj_list_erase(x_transport);
+			}
+		} else if (hdr->type == PJSIP_H_CONTACT) {
+			contact = (pjsip_contact_hdr *) hdr;
+			uri = pjsip_uri_get_uri(contact->uri);
+			x_transport = pjsip_param_find(&uri->other_param, &x_name);
+			if (x_transport) {
+				pj_list_erase(x_transport);
+			}
+		}
+	}
+
+	pjsip_tx_data_invalidate_msg(tdata);
+}
+
 static pj_status_t multihomed_on_tx_message(pjsip_tx_data *tdata)
 {
 	struct multihomed_message_restrictions *restrictions = ast_sip_mod_data_get(tdata->mod_data, multihomed_module.id, MOD_DATA_RESTRICTIONS);
@@ -158,6 +198,8 @@ static pj_status_t multihomed_on_tx_message(pjsip_tx_data *tdata)
 	pjsip_cseq_hdr *cseq;
 	pjsip_via_hdr *via;
 	pjsip_fromto_hdr *from;
+
+	sanitize_tdata(tdata);
 
 	/* Use the destination information to determine what local interface this message will go out on */
 	pjsip_tpmgr_fla2_param_default(&prm);
@@ -271,6 +313,47 @@ static pj_status_t multihomed_on_tx_message(pjsip_tx_data *tdata)
 	}
 
 	return PJ_SUCCESS;
+}
+
+static pj_bool_t multihomed_on_rx_message(pjsip_rx_data *rdata)
+{
+	pjsip_contact_hdr *contact;
+	pjsip_sip_uri *uri;
+	const char *transport_id;
+	struct ast_sip_transport *transport;
+	pjsip_param *x_transport;
+
+	if (rdata->msg_info.msg->type != PJSIP_REQUEST_MSG) {
+		return PJ_FALSE;
+	}
+
+	contact = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, NULL);
+	if (!(contact && contact->uri
+		&& ast_begins_with(rdata->tp_info.transport->info, AST_SIP_X_AST_TXP ":"))) {
+		return PJ_FALSE;
+	}
+
+	uri = pjsip_uri_get_uri(contact->uri);
+
+	transport_id = rdata->tp_info.transport->info + AST_SIP_X_AST_TXP_LEN + 1;
+	transport = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport", transport_id);
+
+	if (!(transport && transport->symmetric_transport)) {
+		return PJ_FALSE;
+	}
+
+	x_transport = PJ_POOL_ALLOC_T(rdata->tp_info.pool, pjsip_param);
+	x_transport->name = pj_strdup3(rdata->tp_info.pool, AST_SIP_X_AST_TXP);
+	x_transport->value = pj_strdup3(rdata->tp_info.pool, transport_id);
+
+	pj_list_insert_before(&uri->other_param, x_transport);
+
+	ast_debug(1, "Set transport '%s' on %.*s from %.*s:%d\n", transport_id,
+		(int)rdata->msg_info.msg->line.req.method.name.slen,
+		rdata->msg_info.msg->line.req.method.name.ptr,
+		(int)uri->host.slen, uri->host.ptr, uri->port);
+
+	return PJ_FALSE;
 }
 
 void ast_res_pjsip_cleanup_message_ip_updater(void)

@@ -1193,6 +1193,22 @@
 						in-progress calls.</para>
 					</description>
 				</configOption>
+				<configOption name="symmetric_transport" default="no">
+					<synopsis>Use the same transport for outgoing reqests as incoming ones.</synopsis>
+					<description>
+						<para>When a request from a dynamic contact
+							comes in on a transport with this option set to 'yes',
+							the transport name will be saved and used for subsequent
+							outgoing requests like OPTIONS, NOTIFY and INVITE.  It's
+							saved as a contact uri parameter named 'x-ast-txp' and will
+							display with the contact uri in CLI, AMI, and ARI output.
+							On the outgoing request, if a transport wasn't explicitly
+							set on the endpoint AND the request URI is not a hostname,
+							the saved transport will be used and the 'x-ast-txp'
+							parameter stripped from the outgoing packet.
+						</para>
+					</description>
+				</configOption>
 			</configObject>
 			<configObject name="contact">
 				<synopsis>A way of creating an aliased name to a SIP URI</synopsis>
@@ -2762,7 +2778,54 @@ pjsip_endpoint *ast_sip_get_pjsip_endpoint(void)
 	return ast_pjsip_endpoint;
 }
 
-static int sip_dialog_create_from(pj_pool_t *pool, pj_str_t *from, const char *user, const char *domain, const pj_str_t *target, pjsip_tpselector *selector)
+int ast_sip_get_transport_name(const struct ast_sip_endpoint *endpoint,
+	pjsip_sip_uri *sip_uri, char *buf, size_t buf_len)
+{
+	char *host = NULL;
+	static const pj_str_t x_name = { AST_SIP_X_AST_TXP, AST_SIP_X_AST_TXP_LEN };
+	pjsip_param *x_transport;
+
+	if (!ast_strlen_zero(endpoint->transport)) {
+		ast_copy_string(buf, endpoint->transport, buf_len);
+		return 0;
+	}
+
+	x_transport = pjsip_param_find(&sip_uri->other_param, &x_name);
+	if (!x_transport) {
+		return -1;
+	}
+
+	/* Only use x_transport if the uri host is an ip (4 or 6) address */
+	host = ast_alloca(sip_uri->host.slen + 1);
+	ast_copy_pj_str(host, &sip_uri->host, sip_uri->host.slen + 1);
+	if (!ast_sockaddr_parse(NULL, host, PARSE_PORT_FORBID)) {
+		return -1;
+	}
+
+	ast_copy_pj_str(buf, &x_transport->value, buf_len);
+
+	return 0;
+}
+
+int ast_sip_dlg_set_transport(const struct ast_sip_endpoint *endpoint, pjsip_dialog *dlg,
+	pjsip_tpselector *selector)
+{
+	pjsip_sip_uri *uri;
+	pjsip_tpselector sel = { .type = PJSIP_TPSELECTOR_NONE, };
+
+	uri = pjsip_uri_get_uri(dlg->target);
+	if (!selector) {
+		selector = &sel;
+	}
+
+	ast_sip_set_tpselector_from_ep_or_uri(endpoint, uri, selector);
+	pjsip_dlg_set_transport(dlg, selector);
+
+	return 0;
+}
+
+static int sip_dialog_create_from(pj_pool_t *pool, pj_str_t *from, const char *user,
+	const char *domain, const pj_str_t *target, pjsip_tpselector *selector)
 {
 	pj_str_t tmp, local_addr;
 	pjsip_uri *uri;
@@ -2892,15 +2955,16 @@ int ast_sip_set_tpselector_from_transport_name(const char *transport_name, pjsip
 	return ast_sip_set_tpselector_from_transport(transport, selector);
 }
 
-static int sip_get_tpselector_from_endpoint(const struct ast_sip_endpoint *endpoint, pjsip_tpselector *selector)
+int ast_sip_set_tpselector_from_ep_or_uri(const struct ast_sip_endpoint *endpoint,
+	pjsip_sip_uri *sip_uri, pjsip_tpselector *selector)
 {
-	const char *transport_name = endpoint->transport;
+	char transport_name[128];
 
-	if (ast_strlen_zero(transport_name)) {
+	if (ast_sip_get_transport_name(endpoint, sip_uri, transport_name, sizeof(transport_name))) {
 		return 0;
 	}
 
-	return ast_sip_set_tpselector_from_transport_name(endpoint->transport, selector);
+	return ast_sip_set_tpselector_from_transport_name(transport_name, selector);
 }
 
 void ast_sip_add_usereqphone(const struct ast_sip_endpoint *endpoint, pj_pool_t *pool, pjsip_uri *uri)
@@ -2908,8 +2972,8 @@ void ast_sip_add_usereqphone(const struct ast_sip_endpoint *endpoint, pj_pool_t 
 	pjsip_sip_uri *sip_uri;
 	int i = 0;
 	pjsip_param *param;
-	const pj_str_t STR_USER = { "user", 4 };
-	const pj_str_t STR_PHONE = { "phone", 5 };
+	static const pj_str_t STR_USER = { "user", 4 };
+	static const pj_str_t STR_PHONE = { "phone", 5 };
 
 	if (!endpoint || !endpoint->usereqphone || (!PJSIP_URI_SCHEME_IS_SIP(uri) && !PJSIP_URI_SCHEME_IS_SIPS(uri))) {
 		return;
@@ -2942,7 +3006,8 @@ void ast_sip_add_usereqphone(const struct ast_sip_endpoint *endpoint, pj_pool_t 
 	pj_list_insert_before(&sip_uri->other_param, param);
 }
 
-pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint, const char *uri, const char *request_user)
+pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
+	const char *uri, const char *request_user)
 {
 	char enclosed_uri[PJSIP_MAX_URL_SIZE];
 	pj_str_t local_uri = { "sip:temp@temp", 13 }, remote_uri, target_uri;
@@ -2967,12 +3032,13 @@ pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
 		return NULL;
 	}
 
-	if (sip_get_tpselector_from_endpoint(endpoint, &selector)) {
-		pjsip_dlg_terminate(dlg);
-		return NULL;
-	}
+	/* We have to temporarily bump up the sess_count here so the dialog is not prematurely destroyed */
+	dlg->sess_count++;
+
+	ast_sip_dlg_set_transport(endpoint, dlg, &selector);
 
 	if (sip_dialog_create_from(dlg->pool, &local_uri, endpoint->fromuser, endpoint->fromdomain, &remote_uri, &selector)) {
+		dlg->sess_count--;
 		pjsip_dlg_terminate(dlg);
 		return NULL;
 	}
@@ -3007,11 +3073,6 @@ pjsip_dialog *ast_sip_create_dialog_uac(const struct ast_sip_endpoint *endpoint,
 	/* Add the user=phone parameter if applicable */
 	ast_sip_add_usereqphone(endpoint, dlg->pool, dlg->target);
 	ast_sip_add_usereqphone(endpoint, dlg->pool, dlg->remote.info->uri);
-
-	/* We have to temporarily bump up the sess_count here so the dialog is not prematurely destroyed */
-	dlg->sess_count++;
-
-	pjsip_dlg_set_transport(dlg, &selector);
 
 	if (!ast_strlen_zero(outbound_proxy)) {
 		pjsip_route_hdr route_set, *route;
@@ -3081,10 +3142,13 @@ pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint,
 	pjsip_transport_type_e type = rdata->tp_info.transport->key.type;
 	pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
 	pjsip_transport *transport;
+	pjsip_contact_hdr *contact_hdr;
 
 	ast_assert(status != NULL);
 
-	if (sip_get_tpselector_from_endpoint(endpoint, &selector)) {
+	contact_hdr = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, NULL);
+	if (ast_sip_set_tpselector_from_ep_or_uri(endpoint, pjsip_uri_get_uri(contact_hdr->uri),
+		&selector)) {
 		return NULL;
 	}
 
@@ -3130,8 +3194,8 @@ pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint,
 	return dlg;
 }
 
-int ast_sip_create_rdata(pjsip_rx_data *rdata, char *packet, const char *src_name, int src_port,
-	char *transport_type, const char *local_name, int local_port)
+int ast_sip_create_rdata_with_contact(pjsip_rx_data *rdata, char *packet, const char *src_name, int src_port,
+	char *transport_type, const char *local_name, int local_port, const char *contact)
 {
 	pj_str_t tmp;
 
@@ -3155,6 +3219,16 @@ int ast_sip_create_rdata(pjsip_rx_data *rdata, char *packet, const char *src_nam
 		return -1;
 	}
 
+	if (!ast_strlen_zero(contact)) {
+		pjsip_contact_hdr *contact_hdr;
+
+		contact_hdr = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, NULL);
+		if (contact_hdr) {
+			contact_hdr->uri = pjsip_parse_uri(rdata->tp_info.pool, (char *)contact,
+				strlen(contact), PJSIP_PARSE_URI_AS_NAMEADDR);
+		}
+	}
+
 	pj_strdup2(rdata->tp_info.pool, &rdata->msg_info.via->recvd_param, rdata->pkt_info.src_name);
 	rdata->msg_info.via->rport_param = -1;
 
@@ -3164,6 +3238,13 @@ int ast_sip_create_rdata(pjsip_rx_data *rdata, char *packet, const char *src_nam
 	rdata->tp_info.transport->local_name.port = local_port;
 
 	return 0;
+}
+
+int ast_sip_create_rdata(pjsip_rx_data *rdata, char *packet, const char *src_name, int src_port,
+	char *transport_type, const char *local_name, int local_port)
+{
+	return ast_sip_create_rdata_with_contact(rdata, packet, src_name, src_port, transport_type,
+		local_name, local_port, NULL);
 }
 
 /* PJSIP doesn't know about the INFO method, so we have to define it ourselves */
@@ -3247,14 +3328,6 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 		pj_cstr(&remote_uri, uri);
 	}
 
-	if (endpoint) {
-		if (sip_get_tpselector_from_endpoint(endpoint, &selector)) {
-			ast_log(LOG_ERROR, "Unable to retrieve PJSIP transport selector for endpoint %s\n",
-				ast_sorcery_object_get_id(endpoint));
-			return -1;
-		}
-	}
-
 	pool = pjsip_endpt_create_pool(ast_sip_get_pjsip_endpoint(), "Outbound request", 256, 256);
 
 	if (!pool) {
@@ -3271,6 +3344,8 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
 		return -1;
 	}
+
+	ast_sip_set_tpselector_from_ep_or_uri(endpoint, pjsip_uri_get_uri(sip_uri), &selector);
 
 	fromuser = endpoint ? (!ast_strlen_zero(endpoint->fromuser) ? endpoint->fromuser : ast_sorcery_object_get_id(endpoint)) : NULL;
 	if (sip_dialog_create_from(pool, &from, fromuser,
@@ -3290,6 +3365,8 @@ static int create_out_of_dialog_request(const pjsip_method *method, struct ast_s
 		pjsip_endpt_release_pool(ast_sip_get_pjsip_endpoint(), pool);
 		return -1;
 	}
+
+	pjsip_tx_data_set_transport(*tdata, &selector);
 
 	if (endpoint && !ast_strlen_zero(endpoint->contact_user)){
 		pjsip_contact_hdr *contact_hdr;
@@ -3331,6 +3408,8 @@ int ast_sip_create_request(const char *method, struct pjsip_dialog *dlg,
 		struct ast_sip_contact *contact, pjsip_tx_data **tdata)
 {
 	const pjsip_method *pmethod = get_pjsip_method(method);
+
+	ast_assert(endpoint != NULL);
 
 	if (!pmethod) {
 		ast_log(LOG_WARNING, "Unknown method '%s'. Cannot send request\n", method);
@@ -3596,7 +3675,6 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 	struct send_request_wrapper *req_wrapper;
 	pj_status_t ret_val;
 	pjsip_endpoint *endpt = ast_sip_get_pjsip_endpoint();
-	pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
 
 	if (!cb && token) {
 		/* Silly.  Without a callback we cannot do anything with token. */
@@ -3620,11 +3698,6 @@ static pj_status_t endpt_send_request(struct ast_sip_endpoint *endpoint,
 	req_wrapper->tdata = tdata;
 	/* Add a reference to tdata.  The wrapper destructor cleans it up. */
 	pjsip_tx_data_add_ref(tdata);
-
-	if (endpoint) {
-		sip_get_tpselector_from_endpoint(endpoint, &selector);
-		pjsip_tx_data_set_transport(tdata, &selector);
-	}
 
 	if (timeout > 0) {
 		pj_time_val timeout_timer_val = { timeout / 1000, timeout % 1000 };

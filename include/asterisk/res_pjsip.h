@@ -194,6 +194,8 @@ struct ast_sip_transport {
 	int write_timeout;
 	/*! Allow reload */
 	int allow_reload;
+	/*! Automatically send requests out the same transport requests have come in on */
+	int symmetric_transport;
 };
 
 #define SIP_SORCERY_DOMAIN_ALIAS_TYPE "domain_alias"
@@ -764,6 +766,10 @@ struct ast_sip_endpoint {
 	/*! Do we allow an asymmetric RTP codec? */
 	unsigned int asymmetric_rtp_codec;
 };
+
+/*! URI parameter for symmetric transport */
+#define AST_SIP_X_AST_TXP "x-ast-txp"
+#define AST_SIP_X_AST_TXP_LEN 9
 
 /*!
  * \brief Initialize an auth vector with the configured values.
@@ -1659,6 +1665,26 @@ pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint,
 
 /*!
  * \brief General purpose method for creating an rdata structure using specific information
+ * \since 13.15.0
+ *
+ * \param rdata[out] The rdata structure that will be populated
+ * \param packet A SIP message
+ * \param src_name The source IP address of the message
+ * \param src_port The source port of the message
+ * \param transport_type The type of transport the message was received on
+ * \param local_name The local IP address the message was received on
+ * \param local_port The local port the message was received on
+ * \param contact_uri The contact URI of the message
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_sip_create_rdata_with_contact(pjsip_rx_data *rdata, char *packet,
+	const char *src_name, int src_port, char *transport_type, const char *local_name,
+	int local_port, const char *contact_uri);
+
+/*!
+ * \brief General purpose method for creating an rdata structure using specific information
  *
  * \param rdata[out] The rdata structure that will be populated
  * \param packet A SIP message
@@ -1671,8 +1697,8 @@ pjsip_dialog *ast_sip_create_dialog_uas(const struct ast_sip_endpoint *endpoint,
  * \retval 0 success
  * \retval -1 failure
  */
-int ast_sip_create_rdata(pjsip_rx_data *rdata, char *packet, const char *src_name, int src_port, char *transport_type,
-	const char *local_name, int local_port);
+int ast_sip_create_rdata(pjsip_rx_data *rdata, char *packet, const char *src_name,
+	int src_port, char *transport_type, const char *local_name, int local_port);
 
 /*!
  * \brief General purpose method for creating a SIP request
@@ -2708,5 +2734,55 @@ void ast_sip_modify_id_header(pj_pool_t *pool, pjsip_fromto_hdr *id_hdr,
  */
 void ast_sip_get_unidentified_request_thresholds(unsigned int *count, unsigned int *period,
 	unsigned int *prune_interval);
+
+/*!
+ * \brief Get the transport name from an endpoint or request uri
+ * \since 13.15.0
+ *
+ * \param endpoint
+ * \param sip_uri
+ * \param buf Buffer to receive transport name
+ * \param buf_len Buffer length
+ *
+ * \retval 0 Success
+ * \retval -1 Failure
+ *
+ * \note
+ * If endpoint->transport is not NULL, it is returned in buf.
+ * Otherwise if sip_uri has an 'x-ast-txp' parameter AND the sip_uri host is
+ * an ip4 or ip6 address, its value is returned,
+ */
+int ast_sip_get_transport_name(const struct ast_sip_endpoint *endpoint,
+	pjsip_sip_uri *sip_uri, char *buf, size_t buf_len);
+
+/*!
+ * \brief Sets pjsip_tpselector from an endpoint or uri
+ * \since 13.15.0
+ *
+ * \param endpoint If endpoint->transport is set, it's used
+ * \param sip_uri If sip_uri contains a x-ast-txp parameter, it's used
+ * \param selector The selector to be populated
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ */
+int ast_sip_set_tpselector_from_ep_or_uri(const struct ast_sip_endpoint *endpoint,
+	pjsip_sip_uri *sip_uri, pjsip_tpselector *selector);
+
+/*!
+ * \brief Set the transport on a dialog
+ * \since 13.15.0
+ *
+ * \param endpoint
+ * \param dlg
+ * \param selector (optional)
+ *
+ * \note
+ * This API calls ast_sip_get_transport_name(endpoint, dlg->target) and if the result is
+ * non-NULL, calls pjsip_dlg_set_transport.  If 'selector' is non-NULL, it is updated with
+ * the selector used.
+ */
+int ast_sip_dlg_set_transport(const struct ast_sip_endpoint *endpoint, pjsip_dialog *dlg,
+	pjsip_tpselector *selector);
 
 #endif /* _RES_PJSIP_H */
