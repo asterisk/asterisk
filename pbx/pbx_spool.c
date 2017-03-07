@@ -161,6 +161,19 @@ static struct outgoing *new_outgoing(const char *fn)
 	return o;
 }
 
+static void append_variable(struct outgoing *o, const char *name, const char *value)
+{
+	struct ast_variable *var = ast_variable_new(name, value, o->fn);
+
+	if (!var) {
+		return;
+	}
+
+	/* Always insert at the end, because some people want to treat the spool
+	 * file as a script */
+	ast_variable_list_append(&o->vars, var);
+}
+
 static void parse_line(char *line, unsigned int lineno, struct outgoing *o)
 {
 	char *c;
@@ -261,20 +274,7 @@ static void parse_line(char *line, unsigned int lineno, struct outgoing *o)
 
 		strsep(&c2, "=");
 		if (c2) {
-			struct ast_variable *var = ast_variable_new(c, c2, o->fn);
-
-			if (var) {
-				/*
-				 * Always insert at the end, because some people
-				 * want to treat the spool file as a script
-				 */
-				struct ast_variable **tail = &o->vars;
-
-				while (*tail) {
-					tail = &(*tail)->next;
-				}
-				*tail = var;
-			}
+			append_variable(o, c, c2);
 		} else {
 			ast_log(LOG_WARNING, "Malformed \"%s\" argument.  Should be \"%s: variable=value\"\n", line, line);
 		}
@@ -328,6 +328,11 @@ static int apply_outgoing(struct outgoing *o, FILE *f)
 			"along with tech and dest in file %s\n", o->fn);
 		return -1;
 	}
+
+	if (snprintf(buf, sizeof(buf), "%d", o->retries + 1) < sizeof(buf)) {
+		append_variable(o, "AST_OUTGOING_ATTEMPT", buf);
+	}
+
 	return 0;
 }
 
