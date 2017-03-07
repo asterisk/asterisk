@@ -39,6 +39,7 @@
 #include "asterisk/taskprocessor.h"
 
 static int transport_type_wss;
+static int transport_type_wss_ipv6;
 
 /*!
  * \brief Wrapper for pjsip_transport, for storing the WebSocket session
@@ -198,15 +199,20 @@ static int transport_create(void *data)
 		newtransport->transport.type_name, ws_addr_str);
 
 	pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&buf, ws_addr_str), &newtransport->transport.key.rem_addr);
-	newtransport->transport.key.rem_addr.addr.sa_family = pj_AF_INET();
-	newtransport->transport.key.type = transport_type_wss;
+	if (newtransport->transport.key.rem_addr.addr.sa_family == pj_AF_INET6()) {
+		newtransport->transport.key.type = transport_type_wss_ipv6;
+		newtransport->transport.local_name.host.ptr = (char *)pj_pool_alloc(pool, PJ_INET6_ADDRSTRLEN);
+		pj_sockaddr_print(&newtransport->transport.key.rem_addr, newtransport->transport.local_name.host.ptr, PJ_INET6_ADDRSTRLEN, 0);
+	} else {
+		newtransport->transport.key.type = transport_type_wss;
+		newtransport->transport.local_name.host.ptr = (char *)pj_pool_alloc(pool, PJ_INET_ADDRSTRLEN);
+		pj_sockaddr_print(&newtransport->transport.key.rem_addr, newtransport->transport.local_name.host.ptr, PJ_INET_ADDRSTRLEN, 0);
+	}
 
 	newtransport->transport.addr_len = pj_sockaddr_get_len(&newtransport->transport.key.rem_addr);
 
 	pj_sockaddr_cp(&newtransport->transport.local_addr, &newtransport->transport.key.rem_addr);
 
-	newtransport->transport.local_name.host.ptr = (char *)pj_pool_alloc(pool, newtransport->transport.addr_len+4);
-	pj_sockaddr_print(&newtransport->transport.key.rem_addr, newtransport->transport.local_name.host.ptr, newtransport->transport.addr_len+4, 0);
 	newtransport->transport.local_name.host.slen = pj_ansi_strlen(newtransport->transport.local_name.host.ptr);
 	newtransport->transport.local_name.port = pj_sockaddr_get_port(&newtransport->transport.key.rem_addr);
 
@@ -271,8 +277,6 @@ static int transport_read(void *data)
 	rdata->pkt_info.zero = 0;
 
 	pj_sockaddr_parse(pj_AF_UNSPEC(), 0, pj_cstr(&buf, ast_sockaddr_stringify(ast_websocket_remote_address(session))), &rdata->pkt_info.src_addr);
-	rdata->pkt_info.src_addr.addr.sa_family = pj_AF_INET();
-
 	rdata->pkt_info.src_addr_len = sizeof(rdata->pkt_info.src_addr);
 
 	pj_ansi_strcpy(rdata->pkt_info.src_name, ast_sockaddr_stringify_host(ast_websocket_remote_address(session)));
@@ -395,7 +399,7 @@ static pj_bool_t websocket_on_rx_msg(pjsip_rx_data *rdata)
 
 	long type = rdata->tp_info.transport->key.type;
 
-	if (type != (long) transport_type_wss) {
+	if (type != (long) transport_type_wss && type != (long) transport_type_wss_ipv6) {
 		return PJ_FALSE;
 	}
 
@@ -451,15 +455,17 @@ static int load_module(void)
 	CHECK_PJSIP_MODULE_LOADED();
 
 	/*
-	 * We only need one transport type defined.  Firefox and Chrome
-	 * do not support anything other than secure websockets anymore.
+	 * We only need one transport type name (ws) defined.  Firefox
+	 * and Chrome do not support anything other than secure websockets
+	 * anymore.
 	 *
 	 * Also we really cannot have two transports with the same name
-	 * because it would be ambiguous.  Outgoing requests may try to
-	 * find the transport by name and pjproject only finds the first
-	 * one registered.
+	 * and address family because it would be ambiguous.  Outgoing
+	 * requests may try to find the transport by name and pjproject
+	 * only finds the first one registered.
 	 */
 	pjsip_transport_register_type(PJSIP_TRANSPORT_RELIABLE | PJSIP_TRANSPORT_SECURE, "ws", 5060, &transport_type_wss);
+	pjsip_transport_register_type(PJSIP_TRANSPORT_RELIABLE | PJSIP_TRANSPORT_SECURE | PJSIP_TRANSPORT_IPV6, "ws", 5060, &transport_type_wss_ipv6);
 
 	if (ast_sip_register_service(&websocket_module) != PJ_SUCCESS) {
 		return AST_MODULE_LOAD_DECLINE;
