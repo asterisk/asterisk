@@ -23,9 +23,23 @@
 === UPGRADE-14.txt  -- Upgrade info for 13 to 14
 ===========================================================
 
-Build System:
- - The LOW_MEMORY compile option no longer disables inline API.  To disable
-   inline API you must use the DISABLE_INLINE option.
+From 14.3.0 to 14.4.0:
+
+res_rtp_asterisk:
+ - The RTP layer of Asterisk now has support for RFC 5761: "Multiplexing RTP
+   Data and Control Packets on a Single Port." So far, the only channel driver
+   that supports this feature is chan_pjsip. You can set "rtcp_mux = yes" on
+   a PJSIP endpoint in pjsip.conf to enable the feature.
+
+New in 14.0.0
+
+ARI:
+ - The policy for when to send "Dial" events has changed. Previously, "Dial"
+   events were sent on the calling channel's topic. However, starting in Asterisk
+   14, if there is no calling channel on which to send the event, the event is
+   instead sent on the called channel's topic. Note that for the ARI channels
+   resource's dial operation, this means that the "Dial" events will always be
+   sent on the called channel's topic.
 
 Queue:
  - When reloading the members of a queue, the members added dynamically (i.e.
