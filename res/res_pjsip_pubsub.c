@@ -123,6 +123,9 @@
 				<configOption name="expires">
 					<synopsis>The time at which the subscription expires</synopsis>
 				</configOption>
+				<configOption name="contact_uri">
+					<synopsis>The Contact URI of the dialog for the subscription</synopsis>
+				</configOption>
 			</configObject>
 			<configObject name="resource_list">
 				<synopsis>Resource list configuration parameters.</synopsis>
@@ -376,6 +379,8 @@ struct subscription_persistence {
 	char *tag;
 	/*! When this subscription expires */
 	struct timeval expires;
+	/*! Contact URI */
+	char contact_uri[PJSIP_MAX_URL_SIZE];
 };
 
 /*!
@@ -591,8 +596,8 @@ static void subscription_persistence_update(struct sip_subscription_tree *sub_tr
 		return;
 	}
 
-	ast_debug(3, "Updating persistence for '%s->%s'\n",
-		ast_sorcery_object_get_id(sub_tree->endpoint), sub_tree->root->resource);
+	ast_debug(3, "Updating persistence for '%s->%s'\n", sub_tree->persistence->endpoint,
+		sub_tree->root->resource);
 
 	dlg = sub_tree->dlg;
 	sub_tree->persistence->cseq = dlg->local.cseq;
@@ -600,9 +605,13 @@ static void subscription_persistence_update(struct sip_subscription_tree *sub_tr
 	if (rdata) {
 		int expires;
 		pjsip_expires_hdr *expires_hdr = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_EXPIRES, NULL);
+		pjsip_contact_hdr *contact_hdr = pjsip_msg_find_hdr(rdata->msg_info.msg, PJSIP_H_CONTACT, NULL);
 
 		expires = expires_hdr ? expires_hdr->ivalue : DEFAULT_PUBLISH_EXPIRES;
 		sub_tree->persistence->expires = ast_tvadd(ast_tvnow(), ast_samp2tv(expires, 1));
+
+		pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, contact_hdr->uri,
+			sub_tree->persistence->contact_uri, sizeof(sub_tree->persistence->contact_uri));
 
 		/* When receiving a packet on an streaming transport, it's possible to receive more than one SIP
 		 * message at a time into the rdata->pkt_info.packet buffer. However, the rdata->msg_info.msg_buf
@@ -1572,8 +1581,9 @@ static int subscription_persistence_recreate(void *obj, void *arg, int flags)
 	pj_pool_reset(pool);
 	rdata.tp_info.pool = pool;
 
-	if (ast_sip_create_rdata(&rdata, persistence->packet, persistence->src_name, persistence->src_port,
-		persistence->transport_key, persistence->local_name, persistence->local_port)) {
+	if (ast_sip_create_rdata_with_contact(&rdata, persistence->packet, persistence->src_name,
+		persistence->src_port, persistence->transport_key, persistence->local_name,
+		persistence->local_port, persistence->contact_uri)) {
 		ast_log(LOG_WARNING, "Failed recreating '%s' subscription: The message could not be parsed\n",
 			persistence->endpoint);
 		ast_sorcery_delete(ast_sip_get_sorcery(), persistence);
@@ -1725,28 +1735,6 @@ void *ast_sip_subscription_get_header(const struct ast_sip_subscription *sub, co
 	return pjsip_msg_find_hdr_by_name(msg, &name, NULL);
 }
 
-/*!
- * \internal
- * \brief Wrapper for pjsip_evsub_send_request
- *
- * This function (re)sets the transport before sending to catch cases
- * where the transport might have changed.
- *
- * If pjproject gives us the ability to resend, we'll only reset the transport
- * if PJSIP_ETPNOTAVAIL is returned from send.
- *
- * \returns pj_status_t
- */
-static pj_status_t internal_pjsip_evsub_send_request(struct sip_subscription_tree *sub_tree, pjsip_tx_data *tdata)
-{
-	pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
-
-	ast_sip_set_tpselector_from_transport_name(sub_tree->endpoint->transport, &selector);
-	pjsip_dlg_set_transport(sub_tree->dlg, &selector);
-
-	return pjsip_evsub_send_request(sub_tree->evsub, tdata);
-}
-
 /* XXX This function is not used. */
 struct ast_sip_subscription *ast_sip_create_subscription(const struct ast_sip_subscription_handler *handler,
 		struct ast_sip_endpoint *endpoint, const char *resource)
@@ -1794,7 +1782,7 @@ struct ast_sip_subscription *ast_sip_create_subscription(const struct ast_sip_su
 	evsub = sub_tree->evsub;
 
 	if (pjsip_evsub_initiate(evsub, NULL, -1, &tdata) == PJ_SUCCESS) {
-		internal_pjsip_evsub_send_request(sub_tree, tdata);
+		pjsip_evsub_send_request(sub_tree->evsub, tdata);
 	} else {
 		/* pjsip_evsub_terminate will result in pubsub_on_evsub_state,
 		 * being called and terminating the subscription. Therefore, we don't
@@ -1891,7 +1879,7 @@ static int sip_subscription_send_request(struct sip_subscription_tree *sub_tree,
 		return -1;
 	}
 
-	res = internal_pjsip_evsub_send_request(sub_tree, tdata);
+	res = pjsip_evsub_send_request(sub_tree->evsub, tdata);
 
 	subscription_persistence_update(sub_tree, NULL, SUBSCRIPTION_PERSISTENCE_SEND_REQUEST);
 
@@ -5343,6 +5331,8 @@ static int load_module(void)
 		persistence_tag_str2struct, persistence_tag_struct2str, NULL, 0, 0);
 	ast_sorcery_object_field_register_custom(sorcery, "subscription_persistence", "expires", "",
 		persistence_expires_str2struct, persistence_expires_struct2str, NULL, 0, 0);
+	ast_sorcery_object_field_register(sorcery, "subscription_persistence", "contact_uri", "", OPT_CHAR_ARRAY_T, 0,
+		CHARFLDSET(struct subscription_persistence, contact_uri));
 
 	if (apply_list_configuration(sorcery)) {
 		ast_sip_unregister_service(&pubsub_module);

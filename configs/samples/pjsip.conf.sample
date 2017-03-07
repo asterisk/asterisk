@@ -841,6 +841,17 @@
                     ; this option is set to 'no' (the default) changes to the
                     ; particular transport will be ignored. If set to 'yes',
                     ; changes (if any) will be applied.
+;symmetric_transport=no ; When a request from a dynamic contact comes in on a
+                        ; transport with this option set to 'yes', the transport
+                        ; name will be saved and used for subsequent outgoing
+                        ; requests like OPTIONS, NOTIFY and INVITE.  It's saved
+                        ; as a contact uri parameter named 'x-ast-txp' and will
+                        ; display with the contact uri in CLI, AMI, and ARI
+                        ; output.  On the outgoing request, if a transport
+                        ; wasn't explicitly set on the endpoint AND the request
+                        ; URI is not a hostname, the saved transport will be
+                        ; used and the 'x-ast-txp' parameter stripped from the
+                        ; outgoing packet.
 
 ;==========================AOR SECTION OPTIONS=========================
 ;[aor]

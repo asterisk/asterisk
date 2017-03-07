@@ -552,13 +552,20 @@ static int transport_apply(const struct ast_sorcery *sorcery, void *obj)
 			}
 		}
 
-		if (res == PJ_SUCCESS && (transport->tos || transport->cos)) {
-			pj_sock_t sock;
-			pj_qos_params qos_params;
-			sock = pjsip_udp_transport_get_socket(temp_state->state->transport);
-			pj_sock_get_qos_params(sock, &qos_params);
-			set_qos(transport, &qos_params);
-			pj_sock_set_qos_params(sock, &qos_params);
+		if (res == PJ_SUCCESS) {
+			temp_state->state->transport->info = pj_pool_alloc(temp_state->state->transport->pool,
+				(AST_SIP_X_AST_TXP_LEN + strlen(transport_id) + 2));
+
+			sprintf(temp_state->state->transport->info, "%s:%s", AST_SIP_X_AST_TXP, transport_id);
+
+			if (transport->tos || transport->cos) {
+				pj_sock_t sock;
+				pj_qos_params qos_params;
+				sock = pjsip_udp_transport_get_socket(temp_state->state->transport);
+				pj_sock_get_qos_params(sock, &qos_params);
+				set_qos(transport, &qos_params);
+				pj_sock_set_qos_params(sock, &qos_params);
+			}
 		}
 	} else if (transport->type == AST_TRANSPORT_TCP) {
 		pjsip_tcp_transport_cfg cfg;
@@ -1375,6 +1382,7 @@ int ast_sip_initialize_sorcery_transport(void)
 	ast_sorcery_object_field_register(sorcery, "transport", "cos", "0", OPT_UINT_T, 0, FLDSET(struct ast_sip_transport, cos));
 	ast_sorcery_object_field_register(sorcery, "transport", "websocket_write_timeout", AST_DEFAULT_WEBSOCKET_WRITE_TIMEOUT_STR, OPT_INT_T, PARSE_IN_RANGE, FLDSET(struct ast_sip_transport, write_timeout), 1, INT_MAX);
 	ast_sorcery_object_field_register(sorcery, "transport", "allow_reload", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_transport, allow_reload));
+	ast_sorcery_object_field_register(sorcery, "transport", "symmetric_transport", "no", OPT_BOOL_T, 1, FLDSET(struct ast_sip_transport, symmetric_transport));
 
 	internal_sip_register_endpoint_formatter(&endpoint_transport_formatter);
 
