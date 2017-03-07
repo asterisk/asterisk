@@ -83,6 +83,8 @@ struct ast_sip_session_media {
 	int timeout_sched_id;
 	/*! \brief Stream is on hold */
 	unsigned int held:1;
+	/*! \brief Does remote support rtcp_mux */
+	unsigned int remote_rtcp_mux:1;
 	/*! \brief Stream type this session media handles */
 	char stream_type[1];
 };
