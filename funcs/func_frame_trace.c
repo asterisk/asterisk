@@ -336,6 +336,12 @@ static void print_frame(struct ast_frame *frame)
 			/* Should never happen. */
 			ast_assert(0);
 			break;
+		case AST_CONTROL_STREAM_TOPOLOGY_REQUEST_CHANGE:
+			ast_verbose("SubClass: STREAM_TOPOLOGY_REQUEST_CHANGE\n");
+			break;
+		case AST_CONTROL_STREAM_TOPOLOGY_CHANGED:
+			ast_verbose("SubClass: STREAM_TOPOLOGY_CHANGED\n");
+			break;
 		case AST_CONTROL_STREAM_STOP:
 			ast_verbose("SubClass: STREAM_STOP\n");
 			break;

@@ -297,6 +297,8 @@ enum ast_control_frame_type {
 	AST_CONTROL_UPDATE_RTP_PEER = 32, /*!< Interrupt the bridge and have it update the peer */
 	AST_CONTROL_PVT_CAUSE_CODE = 33, /*!< Contains an update to the protocol-specific cause-code stored for branching dials */
 	AST_CONTROL_MASQUERADE_NOTIFY = 34,	/*!< A masquerade is about to begin/end. (Never sent as a frame but directly with ast_indicate_data().) */
+	AST_CONTROL_STREAM_TOPOLOGY_REQUEST_CHANGE = 35,    /*!< Channel indication that a stream topology change has been requested */
+	AST_CONTROL_STREAM_TOPOLOGY_CHANGED = 36,           /*!< Channel indication that a stream topology change has occurred */
 
 	/*
 	 * WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING

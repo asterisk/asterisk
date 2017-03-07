@@ -813,6 +813,8 @@ struct mock_channel_pvt {
 	int frame_count;
 	int streams;
 	int frames_per_read;
+	unsigned int indicated_change_request;
+	unsigned int indicated_changed;
 };
 
 static struct ast_frame *mock_channel_read(struct ast_channel *chan)
@@ -856,6 +858,19 @@ static int mock_channel_write(struct ast_channel *chan, struct ast_frame *fr)
 	struct mock_channel_pvt *pvt = ast_channel_tech_pvt(chan);
 
 	pvt->wrote = 1;
+
+	return 0;
+}
+
+static int mock_channel_indicate(struct ast_channel *chan, int condition, const void *data, size_t datalen)
+{
+	struct mock_channel_pvt *pvt = ast_channel_tech_pvt(chan);
+
+	if (condition == AST_CONTROL_STREAM_TOPOLOGY_REQUEST_CHANGE) {
+		pvt->indicated_change_request = 1;
+	} else if (condition == AST_CONTROL_STREAM_TOPOLOGY_CHANGED) {
+		pvt->indicated_changed = 1;
+	}
 
 	return 0;
 }
@@ -1542,6 +1557,222 @@ AST_TEST_DEFINE(stream_read_multistream)
 	return res;
 }
 
+AST_TEST_DEFINE(stream_topology_change_request_from_application_non_multistream)
+{
+	struct ast_channel_tech tech = {
+		.read = mock_channel_read,
+		.indicate = mock_channel_indicate,
+		.hangup = mock_channel_hangup,
+	};
+	struct ast_channel *mock_channel;
+	struct mock_channel_pvt *pvt;
+	enum ast_test_result_state res = AST_TEST_PASS;
+	int change_res;
+	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_free);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "stream_topology_change_request_from_application_non_multistream";
+		info->category = "/main/stream/";
+		info->summary = "stream topology changing on non-multistream channel test";
+		info->description =
+			"Test that an application trying to change the stream topology of a non-multistream channel gets a failure";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	mock_channel = make_channel(test, 1, &tech);
+	ast_test_validate_cleanup(test, mock_channel, res, done);
+
+	pvt = ast_channel_tech_pvt(mock_channel);
+	pvt->indicated_change_request = 0;
+	pvt->indicated_changed = 0;
+
+	topology = ast_stream_topology_alloc();
+	ast_test_validate_cleanup(test, topology, res, done);
+
+	change_res = ast_channel_request_stream_topology_change(mock_channel, topology);
+
+	ast_test_validate_cleanup(test, change_res == -1, res, done);
+	ast_test_validate_cleanup(test, !pvt->indicated_change_request, res, done);
+
+	change_res = ast_channel_stream_topology_changed(mock_channel, topology);
+
+	ast_test_validate_cleanup(test, change_res == -1, res, done);
+	ast_test_validate_cleanup(test, !pvt->indicated_changed, res, done);
+
+done:
+	ast_hangup(mock_channel);
+
+	return res;
+}
+
+AST_TEST_DEFINE(stream_topology_change_request_from_channel_non_multistream)
+{
+	struct ast_channel_tech tech = {
+		.read_stream = mock_channel_read,
+		.write_stream = mock_channel_write_stream,
+		.indicate = mock_channel_indicate,
+		.hangup = mock_channel_hangup,
+	};
+	struct ast_channel *mock_channel;
+	struct mock_channel_pvt *pvt;
+	enum ast_test_result_state res = AST_TEST_PASS;
+	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_free);
+	struct ast_frame request_change = {
+		.frametype = AST_FRAME_CONTROL,
+		.subclass.integer = AST_CONTROL_STREAM_TOPOLOGY_REQUEST_CHANGE,
+	};
+	struct ast_frame *fr = NULL;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "stream_topology_change_request_from_channel_non_multistream";
+		info->category = "/main/stream/";
+		info->summary = "channel requesting stream topology change to non-multistream application test";
+		info->description =
+			"Test that a channel requesting a stream topology change from a non-multistream application does not work";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	mock_channel = make_channel(test, 1, &tech);
+	ast_test_validate_cleanup(test, mock_channel, res, done);
+
+	pvt = ast_channel_tech_pvt(mock_channel);
+	pvt->indicated_changed = 0;
+
+	topology = ast_stream_topology_alloc();
+	ast_test_validate_cleanup(test, topology, res, done);
+
+	request_change.data.ptr = topology;
+	ast_queue_frame(mock_channel, &request_change);
+
+	fr = ast_read(mock_channel);
+	ast_test_validate_cleanup(test, fr, res, done);
+	ast_test_validate_cleanup(test, fr == &ast_null_frame, res, done);
+	ast_test_validate_cleanup(test, pvt->indicated_changed, res, done);
+
+done:
+	if (fr) {
+		ast_frfree(fr);
+	}
+	ast_hangup(mock_channel);
+
+	return res;
+}
+
+AST_TEST_DEFINE(stream_topology_change_request_from_application)
+{
+	struct ast_channel_tech tech = {
+		.read_stream = mock_channel_read,
+		.write_stream = mock_channel_write_stream,
+		.indicate = mock_channel_indicate,
+		.hangup = mock_channel_hangup,
+	};
+	struct ast_channel *mock_channel;
+	struct mock_channel_pvt *pvt;
+	enum ast_test_result_state res = AST_TEST_PASS;
+	int change_res;
+	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_free);
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "stream_topology_change_request_from_application";
+		info->category = "/main/stream/";
+		info->summary = "stream topology change request from application test";
+		info->description =
+			"Test that an application changing the stream topology of a multistream capable channel receives success";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	mock_channel = make_channel(test, 1, &tech);
+	ast_test_validate_cleanup(test, mock_channel, res, done);
+
+	pvt = ast_channel_tech_pvt(mock_channel);
+	pvt->indicated_change_request = 0;
+	pvt->indicated_changed = 0;
+
+	topology = ast_stream_topology_alloc();
+	ast_test_validate_cleanup(test, topology, res, done);
+
+	change_res = ast_channel_request_stream_topology_change(mock_channel, topology);
+
+	ast_test_validate_cleanup(test, !change_res, res, done);
+	ast_test_validate_cleanup(test, pvt->indicated_change_request, res, done);
+
+	change_res = ast_channel_stream_topology_changed(mock_channel, topology);
+
+	ast_test_validate_cleanup(test, !change_res, res, done);
+	ast_test_validate_cleanup(test, pvt->indicated_changed, res, done);
+
+done:
+	ast_hangup(mock_channel);
+
+	return res;
+}
+
+AST_TEST_DEFINE(stream_topology_change_request_from_channel)
+{
+	struct ast_channel_tech tech = {
+		.read_stream = mock_channel_read,
+		.write_stream = mock_channel_write_stream,
+		.indicate = mock_channel_indicate,
+		.hangup = mock_channel_hangup,
+	};
+	struct ast_channel *mock_channel;
+	struct mock_channel_pvt *pvt;
+	enum ast_test_result_state res = AST_TEST_PASS;
+	RAII_VAR(struct ast_stream_topology *, topology, NULL, ast_stream_topology_free);
+	struct ast_frame request_change = {
+		.frametype = AST_FRAME_CONTROL,
+		.subclass.integer = AST_CONTROL_STREAM_TOPOLOGY_REQUEST_CHANGE,
+	};
+	struct ast_frame *fr = NULL;
+
+	switch (cmd) {
+	case TEST_INIT:
+		info->name = "stream_topology_change_request_from_channel";
+		info->category = "/main/stream/";
+		info->summary = "channel requesting stream topology change to multistream application test";
+		info->description =
+			"Test that a channel requesting a stream topology change from a multistream application works";
+		return AST_TEST_NOT_RUN;
+	case TEST_EXECUTE:
+		break;
+	}
+
+	mock_channel = make_channel(test, 1, &tech);
+	ast_test_validate_cleanup(test, mock_channel, res, done);
+
+	pvt = ast_channel_tech_pvt(mock_channel);
+	pvt->indicated_changed = 0;
+
+	topology = ast_stream_topology_alloc();
+	ast_test_validate_cleanup(test, topology, res, done);
+
+	request_change.data.ptr = topology;
+	ast_queue_frame(mock_channel, &request_change);
+
+	fr = ast_read_stream(mock_channel);
+	ast_test_validate_cleanup(test, fr, res, done);
+	ast_test_validate_cleanup(test, fr->frametype == AST_FRAME_CONTROL, res, done);
+	ast_test_validate_cleanup(test, fr->subclass.integer == AST_CONTROL_STREAM_TOPOLOGY_REQUEST_CHANGE, res, done);
+	ast_test_validate_cleanup(test, !pvt->indicated_changed, res, done);
+
+done:
+	if (fr) {
+		ast_frfree(fr);
+	}
+	ast_hangup(mock_channel);
+
+	return res;
+}
+
 static int unload_module(void)
 {
 	AST_TEST_UNREGISTER(stream_create);
@@ -1562,6 +1793,10 @@ static int unload_module(void)
 	AST_TEST_UNREGISTER(stream_write_multistream);
 	AST_TEST_UNREGISTER(stream_read_non_multistream);
 	AST_TEST_UNREGISTER(stream_read_multistream);
+	AST_TEST_UNREGISTER(stream_topology_change_request_from_application_non_multistream);
+	AST_TEST_UNREGISTER(stream_topology_change_request_from_channel_non_multistream);
+	AST_TEST_UNREGISTER(stream_topology_change_request_from_application);
+	AST_TEST_UNREGISTER(stream_topology_change_request_from_channel);
 	return 0;
 }
 
@@ -1584,6 +1819,10 @@ static int load_module(void)
 	AST_TEST_REGISTER(stream_write_multistream);
 	AST_TEST_REGISTER(stream_read_non_multistream);
 	AST_TEST_REGISTER(stream_read_multistream);
+	AST_TEST_REGISTER(stream_topology_change_request_from_application_non_multistream);
+	AST_TEST_REGISTER(stream_topology_change_request_from_channel_non_multistream);
+	AST_TEST_REGISTER(stream_topology_change_request_from_application);
+	AST_TEST_REGISTER(stream_topology_change_request_from_channel);
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
