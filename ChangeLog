@@ -1,3 +1,105 @@
+2017-03-07 18:43 +0000  Asterisk Development Team <asteriskteam@digium.com>
+
+	* asterisk certified/13.13-cert2 Released.
+
+2016-11-15 15:01 +0000 [44cac45610]  Alexei Gradinari <alex2grad@gmail.com>
+
+	* chan_pjsip: fix switching sending codec when asymmetric_rtp_codec=no
+
+	  The sending codec is switched to the receiving codec and then
+	  is switched back to the best native codec on EVERY receiving RTP packets.
+	  This is because after call of ast_channel_set_rawwriteformat there is call
+	  of ast_set_write_format which calls set_format which sets rawwriteformat
+	  to the best native format.
+
+	  This patch adds a new function ast_set_write_format_path which set
+	  specific write path on channel and uses this function to switch
+	  the sending codec.
+
+	  ASTERISK-26603 #close
+
+	  Change-Id: I5b7d098f8b254ce8f45546e6c36e5d324737f71d
+	  (cherry picked from commit cf6d13180effc92a2483dccc68f2f188689a40fa)
+
+2017-02-13 17:11 +0000 [0d7f99a087]  Richard Mudgett <rmudgett@digium.com>
+
+	* pjproject: Fixes to resolve DNS SRV crashes.
+
+	  * Re #1945 (misc): Don't trigger SRV complete callback when there is a
+	  parse error.
+
+	  * srv_resolver.c: Don't try to send query if already considered resolved.
+
+	  ** In resolve_hostnames() don't try to resolve a query that is already
+	  considered resolved.
+
+	  ** In resolve_hostnames() fix DNS typo in comments.
+
+	  ** In build_server_entries() move a common expression assigning to cnt
+	  earlier.
+
+	  * sip_transport.c: Fix tdata object name to actually contain the pointer.
+
+	  It helps if the logs referencing a tdata object buffer actually have a
+	  name that includes the correct pointer as part of the name.  Also since
+	  the tdata has its own pool it helps if any logs referencing the pool have
+	  the same name as the tdata object.  This change brings tdata logging in
+	  line with how tsx objects are named.
+
+	  ASTERISK-26669 #close
+	  ASTERISK-26738 #close
+
+	  Change-Id: I56af2ded25476b3e870ca586ee69ed6954ef75af
+
+2017-02-20 13:38 +0000 [35881858db]  Richard Mudgett <rmudgett@digium.com>
+
+	* pjproject: Increase SENDER_WIDTH column size for 64-bit system logs.
+
+	  ASTERISK-26669
+	  ASTERISK-26738
+
+	  Change-Id: Ibae6fc8cae69a1f04df0c577c4c11200499d6fe0
+
+2017-02-06 14:26 +0000 [0d4412f2b3]  Richard Mudgett <rmudgett@digium.com>
+
+	* pjsip_distributor.c: Update some debug messages to get transaction name.
+
+	  * Removed overloaded unmatched response ignore.  We obviously sent the
+	  request so we shouldn't ignore it because it isn't new work.
+
+	  ASTERISK-26669
+	  ASTERISK-26738
+
+	  Change-Id: I55fb5cadc83a8e6699b347c6dc7fa32c5a617d37
+
+2017-02-04 16:00 +0000 [4af241ab60]  Richard Mudgett <rmudgett@digium.com>
+
+	* res_pjsip: Record the serializer earlier on the tdata.
+
+	  When PJPROJECT needs to do a DNS resolution and there is not a cached
+	  entry available, the SIP request message goes out on the PJSIP monitor
+	  thread instead of the original serializer thread.  Thus when the response
+	  comes back it does not get processed by the original sending serializer.
+
+	  This patch records the serializer on tdata before passing a request
+	  message to PJPROJECT where it can in Asterisk code.  There are several
+	  places in PJPROJECT for outbound registration and publishing support that
+	  would need to record the serializer.  Unfortunately, without replacing the
+	  PJPROJECT DNS resolver as was done in v14 we cannot fix those without
+	  modifying PJPROJECT.
+
+	  Even if we backported the DNS resolver from v14, the outbound registration
+	  refresh timer does not go out on a serializer thread but the PJSIP monitor
+	  thread.  Fortunately, Asterisk's outbound publish support doesn't use the
+	  auto refresh timer that would also not go out under the serializer thread.
+
+	  This patch is v13 only.
+
+	  ASTERISK-26669
+	  ASTERISK-26738
+
+	  Change-Id: I9997b9ed6dbcebd2c37d6a67dc6dcee9c78914a4
+
 2017-02-13 19:25 +0000  Asterisk Development Team <asteriskteam@digium.com>
 
 	* asterisk certified/13.13-cert1 Released.

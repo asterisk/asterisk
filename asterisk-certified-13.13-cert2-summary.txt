@@ -1,0 +1,123 @@
+                                Release Summary
+
+                         asterisk-certified/13.13-cert2
+
+                                Date: 2017-03-07
+
+                           <asteriskteam@digium.com>
+
+     ----------------------------------------------------------------------
+
+                               Table of Contents
+
+    1. Summary
+    2. Contributors
+    3. Closed Issues
+    4. Diffstat
+
+     ----------------------------------------------------------------------
+
+                                    Summary
+
+                                 [Back to Top]
+
+   This release is a point release of an existing major version. The changes
+   included were made to address problems that have been identified in this
+   release series, or are minor, backwards compatible new features or
+   improvements. Users should be able to safely upgrade to this version if
+   this release series is already in use. Users considering upgrading from a
+   previous version are strongly encouraged to review the UPGRADE.txt
+   document as well as the CHANGES document for information about upgrading
+   to this release series.
+
+   The data in this summary reflects changes that have been made since the
+   previous release, asterisk-certified/13.13-cert1.
+
+     ----------------------------------------------------------------------
+
+                                  Contributors
+
+                                 [Back to Top]
+
+   This table lists the people who have submitted code, those that have
+   tested patches, as well as those that reported issues on the issue tracker
+   that were resolved in this release. For coders, the number is how many of
+   their patches (of any size) were committed into this release. For testers,
+   the number is the number of times their name was listed as assisting with
+   testing a patch. Finally, for reporters, the number is the number of
+   issues that they reported that were affected by commits that went into
+   this release.
+
+   Coders                   Testers                  Reporters                
+   4 Richard Mudgett                                 4 Nic Colledge           
+   1 Alexei Gradinari                                4 Michael Maier          
+                                                     1 Alexei Gradinari       
+
+     ----------------------------------------------------------------------
+
+                                 Closed Issues
+
+                                 [Back to Top]
+
+   This is a list of all issues from the issue tracker that were closed by
+   changes that went into this release.
+
+  Bug
+
+    Category: Channels/chan_pjsip
+
+   ASTERISK-26603: [patch] chan_pjsip: not switching sending codec to
+   receiving codec when asymmetric_rtp_codec=no
+   Reported by: Alexei Gradinari
+     * [44cac45610] Alexei Gradinari -- chan_pjsip: fix switching sending
+       codec when asymmetric_rtp_codec=no
+
+    Category: Resources/res_pjsip
+
+   ASTERISK-26738: Frequent segfaults since activation of DNS SRV, in
+   pjsip_auth_clt_reinit_req at /pjsip/sip_auth_client.c, and
+   pj_atomic_inc_and_get at pj/os_core_unix.c
+   Reported by: Michael Maier
+     * [0d7f99a087] Richard Mudgett -- pjproject: Fixes to resolve DNS SRV
+       crashes.
+     * [35881858db] Richard Mudgett -- pjproject: Increase SENDER_WIDTH
+       column size for 64-bit system logs.
+     * [0d4412f2b3] Richard Mudgett -- pjsip_distributor.c: Update some debug
+       messages to get transaction name.
+     * [4af241ab60] Richard Mudgett -- res_pjsip: Record the serializer
+       earlier on the tdata.
+
+    Category: pjproject/pjsip
+
+   ASTERISK-26669: PJSIP Segfault 13.13.1 (Bundled PJSIP)
+   Reported by: Nic Colledge
+     * [0d7f99a087] Richard Mudgett -- pjproject: Fixes to resolve DNS SRV
+       crashes.
+     * [35881858db] Richard Mudgett -- pjproject: Increase SENDER_WIDTH
+       column size for 64-bit system logs.
+     * [0d4412f2b3] Richard Mudgett -- pjsip_distributor.c: Update some debug
+       messages to get transaction name.
+     * [4af241ab60] Richard Mudgett -- res_pjsip: Record the serializer
+       earlier on the tdata.
+
+     ----------------------------------------------------------------------
+
+                                Diffstat Results
+
+                                 [Back to Top]
+
+   This is a summary of the changes to the source code that went into this
+   release that was generated using the diffstat utility.
+
+ channels/chan_pjsip.c                                                                         |    9 -
+ include/asterisk/channel.h                                                                    |   15 +
+ include/asterisk/res_pjsip.h                                                                  |   10 +
+ main/channel.c                                                                                |   36 ++++
+ res/res_pjsip.c                                                                               |    2
+ res/res_pjsip/pjsip_distributor.c                                                             |   39 +----
+ res/res_pjsip_outbound_publish.c                                                              |    3
+ res/res_pjsip_outbound_registration.c                                                         |    1
+ third-party/pjproject/patches/0011-r5554-svn-backport-Increase-SENDER_WIDTH-column-size.patch |   77 ++++++++++
+ third-party/pjproject/patches/0012-Re-1945-misc-Don-t-trigger-SRV-complete-callback-whe.patch |   59 +++++++
+ third-party/pjproject/patches/0013-r5559-svn-backport-Fix-to-resolve-DNS-SRV-crashes.patch    |   24 +++
+ 11 files changed, 244 insertions(+), 31 deletions(-)
