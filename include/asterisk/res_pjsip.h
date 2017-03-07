@@ -759,6 +759,8 @@ struct ast_sip_endpoint {
 	char *contact_user;
 	/*! Do we allow an asymmetric RTP codec? */
 	unsigned int asymmetric_rtp_codec;
+	/*! Use RTCP-MUX */
+	unsigned int rtcp_mux;
 };
 
 /*!
