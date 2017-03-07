@@ -161,139 +161,171 @@ static struct outgoing *new_outgoing(const char *fn)
 	return o;
 }
 
-static int apply_outgoing(struct outgoing *o, FILE *f)
+static void parse_line(char *line, unsigned int lineno, struct outgoing *o)
 {
-	char buf[256];
-	char *c, *c2;
-	int lineno = 0;
-	struct ast_variable *var, *last = o->vars;
+	char *c;
 
-	while (last && last->next) {
-		last = last->next;
+	/* Trim comments */
+	c = line;
+	while ((c = strchr(c, '#'))) {
+		if ((c == line) || (*(c-1) == ' ') || (*(c-1) == '\t')) {
+			*c = '\0';
+			break;
+		}
+		c++;
 	}
 
-	while(fgets(buf, sizeof(buf), f)) {
+	c = line;
+	while ((c = strchr(c, ';'))) {
+		if ((c > line) && (c[-1] == '\\')) {
+			memmove(c - 1, c, strlen(c) + 1);
+		} else {
+			*c = '\0';
+			break;
+		}
+	}
+
+	/* Trim trailing white space */
+	ast_trim_blanks(line);
+	if (ast_strlen_zero(line)) {
+		return;
+	}
+	c = strchr(line, ':');
+	if (!c) {
+		ast_log(LOG_NOTICE, "Syntax error at line %d of %s\n", lineno, o->fn);
+		return;
+	}
+	*c = '\0';
+	c = ast_skip_blanks(c + 1);
+#if 0
+	printf("'%s' is '%s' at line %d\n", line, c, lineno);
+#endif
+	if (!strcasecmp(line, "channel")) {
+		char *c2;
+		if ((c2 = strchr(c, '/'))) {
+			*c2 = '\0';
+			c2++;
+			ast_string_field_set(o, tech, c);
+			ast_string_field_set(o, dest, c2);
+		} else {
+			ast_log(LOG_NOTICE, "Channel should be in form Tech/Dest at line %d of %s\n", lineno, o->fn);
+		}
+	} else if (!strcasecmp(line, "callerid")) {
+		char cid_name[80] = {0}, cid_num[80] = {0};
+		ast_callerid_split(c, cid_name, sizeof(cid_name), cid_num, sizeof(cid_num));
+		ast_string_field_set(o, cid_num, cid_num);
+		ast_string_field_set(o, cid_name, cid_name);
+	} else if (!strcasecmp(line, "application")) {
+		ast_string_field_set(o, app, c);
+	} else if (!strcasecmp(line, "data")) {
+		ast_string_field_set(o, data, c);
+	} else if (!strcasecmp(line, "maxretries")) {
+		if (sscanf(c, "%30d", &o->maxretries) != 1) {
+			ast_log(LOG_WARNING, "Invalid max retries at line %d of %s\n", lineno, o->fn);
+			o->maxretries = 0;
+		}
+	} else if (!strcasecmp(line, "codecs")) {
+		ast_format_cap_update_by_allow_disallow(o->capabilities, c, 1);
+	} else if (!strcasecmp(line, "context")) {
+		ast_string_field_set(o, context, c);
+	} else if (!strcasecmp(line, "extension")) {
+		ast_string_field_set(o, exten, c);
+	} else if (!strcasecmp(line, "priority")) {
+		if ((sscanf(c, "%30d", &o->priority) != 1) || (o->priority < 1)) {
+			ast_log(LOG_WARNING, "Invalid priority at line %d of %s\n", lineno, o->fn);
+			o->priority = 1;
+		}
+	} else if (!strcasecmp(line, "retrytime")) {
+		if ((sscanf(c, "%30d", &o->retrytime) != 1) || (o->retrytime < 1)) {
+			ast_log(LOG_WARNING, "Invalid retrytime at line %d of %s\n", lineno, o->fn);
+			o->retrytime = 300;
+		}
+	} else if (!strcasecmp(line, "waittime")) {
+		if ((sscanf(c, "%30d", &o->waittime) != 1) || (o->waittime < 1)) {
+			ast_log(LOG_WARNING, "Invalid waittime at line %d of %s\n", lineno, o->fn);
+			o->waittime = 45;
+		}
+	} else if (!strcasecmp(line, "retry")) {
+		o->retries++;
+	} else if (!strcasecmp(line, "startretry")) {
+		if (sscanf(c, "%30ld", &o->callingpid) != 1) {
+			ast_log(LOG_WARNING, "Unable to retrieve calling PID!\n");
+			o->callingpid = 0;
+		}
+	} else if (!strcasecmp(line, "endretry") || !strcasecmp(line, "abortretry")) {
+		o->callingpid = 0;
+		o->retries++;
+	} else if (!strcasecmp(line, "delayedretry")) {
+	} else if (!strcasecmp(line, "setvar") || !strcasecmp(line, "set")) {
+		char *c2 = c;
+
+		strsep(&c2, "=");
+		if (c2) {
+			struct ast_variable *var = ast_variable_new(c, c2, o->fn);
+
+			if (var) {
+				/*
+				 * Always insert at the end, because some people
+				 * want to treat the spool file as a script
+				 */
+				struct ast_variable **tail = &o->vars;
+
+				while (*tail) {
+					tail = &(*tail)->next;
+				}
+				*tail = var;
+			}
+		} else {
+			ast_log(LOG_WARNING, "Malformed \"%s\" argument.  Should be \"%s: variable=value\"\n", line, line);
+		}
+	} else if (!strcasecmp(line, "account")) {
+		ast_string_field_set(o, account, c);
+	} else if (!strcasecmp(line, "alwaysdelete")) {
+		ast_set2_flag(&o->options, ast_true(c), SPOOL_FLAG_ALWAYS_DELETE);
+	} else if (!strcasecmp(line, "archive")) {
+		ast_set2_flag(&o->options, ast_true(c), SPOOL_FLAG_ARCHIVE);
+	} else if (!strcasecmp(line, "early_media")) {
+		ast_set2_flag(&o->options, ast_true(c), SPOOL_FLAG_EARLY_MEDIA);
+	} else {
+		ast_log(LOG_WARNING, "Unknown keyword '%s' at line %d of %s\n", line, lineno, o->fn);
+	}
+}
+
+#define LINE_BUFFER_SIZE 1024
+
+static int apply_outgoing(struct outgoing *o, FILE *f)
+{
+	char buf[LINE_BUFFER_SIZE];
+	unsigned int lineno = 0;
+
+	while (fgets(buf, sizeof(buf), f)) {
+		size_t len = strlen(buf);
+
 		lineno++;
-		/* Trim comments */
-		c = buf;
-		while ((c = strchr(c, '#'))) {
-			if ((c == buf) || (*(c-1) == ' ') || (*(c-1) == '\t'))
-				*c = '\0';
-			else
-				c++;
+
+		if (buf[len - 1] == '\n' || feof(f)) {
+			/* We have a line, parse it */
+			parse_line(buf, lineno, o);
+			continue;
 		}
 
-		c = buf;
-		while ((c = strchr(c, ';'))) {
-			if ((c > buf) && (c[-1] == '\\')) {
-				memmove(c - 1, c, strlen(c) + 1);
-				c++;
-			} else {
-				*c = '\0';
+		/* Crazy long line, skip it */
+		ast_log(LOG_WARNING, "Skipping extremely long line at line %d of %s\n", lineno, o->fn);
+
+		/* Consume the rest of the problematic line */
+		while (fgets(buf, sizeof(buf), f)) {
+			len = strlen(buf);
+			if (buf[len - 1] == '\n' || feof(f)) {
 				break;
 			}
 		}
-
-		/* Trim trailing white space */
-		ast_trim_blanks(buf);
-		if (ast_strlen_zero(buf)) {
-			continue;
-		}
-		c = strchr(buf, ':');
-		if (!c) {
-			ast_log(LOG_NOTICE, "Syntax error at line %d of %s\n", lineno, o->fn);
-			continue;
-		}
-		*c = '\0';
-		c = ast_skip_blanks(c + 1);
-#if 0
-		printf("'%s' is '%s' at line %d\n", buf, c, lineno);
-#endif
-		if (!strcasecmp(buf, "channel")) {
-			if ((c2 = strchr(c, '/'))) {
-				*c2 = '\0';
-				c2++;
-				ast_string_field_set(o, tech, c);
-				ast_string_field_set(o, dest, c2);
-			} else {
-				ast_log(LOG_NOTICE, "Channel should be in form Tech/Dest at line %d of %s\n", lineno, o->fn);
-			}
-		} else if (!strcasecmp(buf, "callerid")) {
-			char cid_name[80] = {0}, cid_num[80] = {0};
-			ast_callerid_split(c, cid_name, sizeof(cid_name), cid_num, sizeof(cid_num));
-			ast_string_field_set(o, cid_num, cid_num);
-			ast_string_field_set(o, cid_name, cid_name);
-		} else if (!strcasecmp(buf, "application")) {
-			ast_string_field_set(o, app, c);
-		} else if (!strcasecmp(buf, "data")) {
-			ast_string_field_set(o, data, c);
-		} else if (!strcasecmp(buf, "maxretries")) {
-			if (sscanf(c, "%30d", &o->maxretries) != 1) {
-				ast_log(LOG_WARNING, "Invalid max retries at line %d of %s\n", lineno, o->fn);
-				o->maxretries = 0;
-			}
-		} else if (!strcasecmp(buf, "codecs")) {
-			ast_format_cap_update_by_allow_disallow(o->capabilities, c, 1);
-		} else if (!strcasecmp(buf, "context")) {
-			ast_string_field_set(o, context, c);
-		} else if (!strcasecmp(buf, "extension")) {
-			ast_string_field_set(o, exten, c);
-		} else if (!strcasecmp(buf, "priority")) {
-			if ((sscanf(c, "%30d", &o->priority) != 1) || (o->priority < 1)) {
-				ast_log(LOG_WARNING, "Invalid priority at line %d of %s\n", lineno, o->fn);
-				o->priority = 1;
-			}
-		} else if (!strcasecmp(buf, "retrytime")) {
-			if ((sscanf(c, "%30d", &o->retrytime) != 1) || (o->retrytime < 1)) {
-				ast_log(LOG_WARNING, "Invalid retrytime at line %d of %s\n", lineno, o->fn);
-				o->retrytime = 300;
-			}
-		} else if (!strcasecmp(buf, "waittime")) {
-			if ((sscanf(c, "%30d", &o->waittime) != 1) || (o->waittime < 1)) {
-				ast_log(LOG_WARNING, "Invalid waittime at line %d of %s\n", lineno, o->fn);
-				o->waittime = 45;
-			}
-		} else if (!strcasecmp(buf, "retry")) {
-			o->retries++;
-		} else if (!strcasecmp(buf, "startretry")) {
-			if (sscanf(c, "%30ld", &o->callingpid) != 1) {
-				ast_log(LOG_WARNING, "Unable to retrieve calling PID!\n");
-				o->callingpid = 0;
-			}
-		} else if (!strcasecmp(buf, "endretry") || !strcasecmp(buf, "abortretry")) {
-			o->callingpid = 0;
-			o->retries++;
-		} else if (!strcasecmp(buf, "delayedretry")) {
-		} else if (!strcasecmp(buf, "setvar") || !strcasecmp(buf, "set")) {
-			c2 = c;
-			strsep(&c2, "=");
-			if (c2) {
-				var = ast_variable_new(c, c2, o->fn);
-				if (var) {
-					/* Always insert at the end, because some people want to treat the spool file as a script */
-					if (last) {
-						last->next = var;
-					} else {
-						o->vars = var;
-					}
-					last = var;
-				}
-			} else
-				ast_log(LOG_WARNING, "Malformed \"%s\" argument.  Should be \"%s: variable=value\"\n", buf, buf);
-		} else if (!strcasecmp(buf, "account")) {
-			ast_string_field_set(o, account, c);
-		} else if (!strcasecmp(buf, "alwaysdelete")) {
-			ast_set2_flag(&o->options, ast_true(c), SPOOL_FLAG_ALWAYS_DELETE);
-		} else if (!strcasecmp(buf, "archive")) {
-			ast_set2_flag(&o->options, ast_true(c), SPOOL_FLAG_ARCHIVE);
-		} else if (!strcasecmp(buf, "early_media")) {
-			ast_set2_flag(&o->options, ast_true(c), SPOOL_FLAG_EARLY_MEDIA);
-		} else {
-			ast_log(LOG_WARNING, "Unknown keyword '%s' at line %d of %s\n", buf, lineno, o->fn);
-		}
 	}
-	if (ast_strlen_zero(o->tech) || ast_strlen_zero(o->dest) || (ast_strlen_zero(o->app) && ast_strlen_zero(o->exten))) {
-		ast_log(LOG_WARNING, "At least one of app or extension must be specified, along with tech and dest in file %s\n", o->fn);
+
+	if (ast_strlen_zero(o->tech)
+		|| ast_strlen_zero(o->dest)
+		|| (ast_strlen_zero(o->app) && ast_strlen_zero(o->exten))) {
+		ast_log(LOG_WARNING, "At least one of app or extension must be specified, "
+			"along with tech and dest in file %s\n", o->fn);
 		return -1;
 	}
 	return 0;
