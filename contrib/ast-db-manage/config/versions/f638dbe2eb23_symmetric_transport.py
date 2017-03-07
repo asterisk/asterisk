@@ -1,14 +1,14 @@
-"""empty message
+"""symmetric_transport
 
-Revision ID: 15db7b91a97a
-Revises: 465e70e8c337
-Create Date: 2017-03-08 16:56:38.108162
+Revision ID: f638dbe2eb23
+Revises: 15db7b91a97a
+Create Date: 2017-03-09 09:38:59.513479
 
 """
 
 # revision identifiers, used by Alembic.
-revision = '15db7b91a97a'
-down_revision = '465e70e8c337'
+revision = 'f638dbe2eb23'
+down_revision = '15db7b91a97a'
 
 from alembic import op
 import sqlalchemy as sa
@@ -24,8 +24,9 @@ def upgrade():
     # type to get around "already created" issue - works okay with mysql
     yesno_values = ENUM(*YESNO_VALUES, name=YESNO_NAME, create_type=False)
 
-    op.add_column('ps_endpoints', sa.Column('rtcp_mux', yesno_values))
-
+    op.add_column('ps_transports', sa.Column('symmetric_transport', yesno_values))
+    op.add_column('ps_subscription_persistence', sa.Column('contact_uri', sa.String(256)))
 
 def downgrade():
-    op.drop_column('ps_endpoints', 'rtcp_mux')
+    op.drop_column('ps_subscription_persistence', 'contact_uri')
+    op.drop_column('ps_transports', 'symmetric_transport')
