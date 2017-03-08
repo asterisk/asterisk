@@ -48,6 +48,7 @@
 #include "asterisk/stringfields.h"
 #include "asterisk/stream.h"
 #include "asterisk/test.h"
+#include "asterisk/vector.h"
 
 /*!
  * \brief Channel UniqueId structure
@@ -96,9 +97,6 @@ struct ast_channel {
 							 *   in the CHANNEL dialplan function */
 	struct ast_channel_monitor *monitor;		/*!< Channel monitoring */
 	ast_callid callid;			/*!< Bound call identifier pointer */
-#ifdef HAVE_EPOLL
-	struct ast_epoll_data *epfd_data[AST_MAX_FDS];
-#endif
 	struct ao2_container *dialed_causes;		/*!< Contains tech-specific and Asterisk cause data from dialed channels */
 
 	AST_DECLARE_STRING_FIELDS(
@@ -167,7 +165,7 @@ struct ast_channel {
 	unsigned long insmpl;				/*!< Track the read/written samples for monitor use */
 	unsigned long outsmpl;				/*!< Track the read/written samples for monitor use */
 
-	int fds[AST_MAX_FDS];				/*!< File descriptors for channel -- Drivers will poll on
+	AST_VECTOR(, int) fds;				/*!< File descriptors for channel -- Drivers will poll on
 							 *   these file descriptors, so at least one must be non -1.
 							 *   See \arg \ref AstFileDesc */
 	int softhangup;				/*!< Whether or not we have been hung up...  Do not set this value
@@ -197,9 +195,6 @@ struct ast_channel {
 	struct ast_format *rawreadformat;         /*!< Raw read format (before translation) */
 	struct ast_format *rawwriteformat;        /*!< Raw write format (after translation) */
 	unsigned int emulate_dtmf_duration;		/*!< Number of ms left to emulate DTMF for */
-#ifdef HAVE_EPOLL
-	int epfd;
-#endif
 	int visible_indication;                         /*!< Indication currently playing on the channel */
 	int hold_state;							/*!< Current Hold/Unhold state */
 
@@ -597,17 +592,6 @@ void ast_channel_amaflags_set(struct ast_channel *chan, enum ama_flags value)
 	chan->amaflags = value;
 	ast_channel_publish_snapshot(chan);
 }
-
-#ifdef HAVE_EPOLL
-int ast_channel_epfd(const struct ast_channel *chan)
-{
-	return chan->epfd;
-}
-void ast_channel_epfd_set(struct ast_channel *chan, int value)
-{
-	chan->epfd = value;
-}
-#endif
 int ast_channel_fdno(const struct ast_channel *chan)
 {
 	return chan->fdno;
@@ -1432,38 +1416,55 @@ void ast_channel_internal_alertpipe_swap(struct ast_channel *chan1, struct ast_c
 /* file descriptor array accessors */
 void ast_channel_internal_fd_set(struct ast_channel *chan, int which, int value)
 {
-	chan->fds[which] = value;
+	int pos;
+
+	/* This ensures that if the vector has to grow with unused positions they will be
+	 * initialized to -1.
+	 */
+	for (pos = AST_VECTOR_SIZE(&chan->fds); pos < which; pos++) {
+		AST_VECTOR_REPLACE(&chan->fds, pos, -1);
+	}
+
+	AST_VECTOR_REPLACE(&chan->fds, which, value);
 }
 void ast_channel_internal_fd_clear(struct ast_channel *chan, int which)
 {
-	ast_channel_internal_fd_set(chan, which, -1);
+	if (which >= AST_VECTOR_SIZE(&chan->fds)) {
+		return;
+	}
+
+	AST_VECTOR_REPLACE(&chan->fds, which, -1);
 }
 void ast_channel_internal_fd_clear_all(struct ast_channel *chan)
 {
-	int i;
-	for (i = 0; i < AST_MAX_FDS; i++) {
-		ast_channel_internal_fd_clear(chan, i);
-	}
+	AST_VECTOR_RESET(&chan->fds, AST_VECTOR_ELEM_CLEANUP_NOOP);
 }
 int ast_channel_fd(const struct ast_channel *chan, int which)
 {
-	return chan->fds[which];
+	return (which >= AST_VECTOR_SIZE(&chan->fds)) ? -1 : AST_VECTOR_GET(&chan->fds, which);
 }
 int ast_channel_fd_isset(const struct ast_channel *chan, int which)
 {
 	return ast_channel_fd(chan, which) > -1;
 }
 
-#ifdef HAVE_EPOLL
-struct ast_epoll_data *ast_channel_internal_epfd_data(const struct ast_channel *chan, int which)
+int ast_channel_fd_count(const struct ast_channel *chan)
 {
-	return chan->epfd_data[which];
+	return AST_VECTOR_SIZE(&chan->fds);
 }
-void ast_channel_internal_epfd_data_set(struct ast_channel *chan, int which , struct ast_epoll_data *value)
+
+int ast_channel_fd_add(struct ast_channel *chan, int value)
 {
-	chan->epfd_data[which] = value;
+	int pos = AST_EXTENDED_FDS;
+
+	while (ast_channel_fd_isset(chan, pos)) {
+		pos += 1;
+	}
+
+	AST_VECTOR_REPLACE(&chan->fds, pos, value);
+
+	return pos;
 }
-#endif
 
 pthread_t ast_channel_blocker(const struct ast_channel *chan)
 {
@@ -1617,6 +1618,8 @@ struct ast_channel *__ast_channel_internal_alloc(void (*destructor)(void *obj), 
 		tmp->linkedid = tmp->uniqueid;
 	}
 
+	AST_VECTOR_INIT(&tmp->fds, AST_MAX_FDS);
+
 	return tmp;
 }
 
@@ -1693,6 +1696,8 @@ void ast_channel_internal_cleanup(struct ast_channel *chan)
 	chan->topics = NULL;
 
 	ast_channel_internal_set_stream_topology(chan, NULL);
+
+	AST_VECTOR_FREE(&chan->fds);
 }
 
 void ast_channel_internal_finalize(struct ast_channel *chan)

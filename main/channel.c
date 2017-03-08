@@ -78,20 +78,11 @@
 /*** DOCUMENTATION
  ***/
 
-#ifdef HAVE_EPOLL
-#include <sys/epoll.h>
-#endif
-
 #if defined(KEEP_TILL_CHANNEL_PARTY_NUMBER_INFO_NEEDED)
 #if defined(HAVE_PRI)
 #include "libpri.h"
 #endif	/* defined(HAVE_PRI) */
 #endif	/* defined(KEEP_TILL_CHANNEL_PARTY_NUMBER_INFO_NEEDED) */
-
-struct ast_epoll_data {
-	struct ast_channel *chan;
-	int which;
-};
 
 /* uncomment if you have problems with 'monitoring' synchronized files */
 #if 0
@@ -850,10 +841,6 @@ __ast_channel_alloc_ap(int needqueue, int state, const char *cid_num, const char
 	ast_channel_internal_alertpipe_clear(tmp);
 	ast_channel_internal_fd_clear_all(tmp);
 
-#ifdef HAVE_EPOLL
-	ast_channel_epfd_set(tmp, epoll_create(25));
-#endif
-
 	if (!(schedctx = ast_sched_context_create())) {
 		ast_log(LOG_WARNING, "Channel allocation failed: Unable to create schedule context\n");
 		/* See earlier channel creation abort comment above. */
@@ -1058,9 +1045,6 @@ struct ast_channel *__ast_dummy_channel_alloc(const char *file, int line, const 
 	ast_channel_timingfd_set(tmp, -1);
 	ast_channel_internal_alertpipe_clear(tmp);
 	ast_channel_internal_fd_clear_all(tmp);
-#ifdef HAVE_EPOLL
-	ast_channel_epfd_set(tmp, -1);
-#endif
 
 	ast_channel_hold_state_set(tmp, AST_CONTROL_UNHOLD);
 
@@ -2223,9 +2207,6 @@ void ast_party_redirecting_free(struct ast_party_redirecting *doomed)
 static void ast_channel_destructor(void *obj)
 {
 	struct ast_channel *chan = obj;
-#ifdef HAVE_EPOLL
-	int i;
-#endif
 	struct ast_var_t *vardata;
 	struct ast_frame *f;
 	struct varshead *headp;
@@ -2323,14 +2304,6 @@ static void ast_channel_destructor(void *obj)
 		ast_timer_close(ast_channel_timer(chan));
 		ast_channel_timer_set(chan, NULL);
 	}
-#ifdef HAVE_EPOLL
-	for (i = 0; i < AST_MAX_FDS; i++) {
-		if (ast_channel_internal_epfd_data(chan, i)) {
-			ast_free(ast_channel_internal_epfd_data(chan, i));
-		}
-	}
-	close(ast_channel_epfd(chan));
-#endif
 	while ((f = AST_LIST_REMOVE_HEAD(ast_channel_readq(chan), frame_list)))
 		ast_frfree(f);
 
@@ -2481,79 +2454,7 @@ struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const
 /*! Set the file descriptor on the channel */
 void ast_channel_set_fd(struct ast_channel *chan, int which, int fd)
 {
-#ifdef HAVE_EPOLL
-	struct epoll_event ev;
-	struct ast_epoll_data *aed = NULL;
-
-	if (ast_channel_fd_isset(chan, which)) {
-		epoll_ctl(ast_channel_epfd(chan), EPOLL_CTL_DEL, ast_channel_fd(chan, which), &ev);
-		aed = ast_channel_internal_epfd_data(chan, which);
-	}
-
-	/* If this new fd is valid, add it to the epoll */
-	if (fd > -1) {
-		if (!aed && (!(aed = ast_calloc(1, sizeof(*aed)))))
-			return;
-
-		ast_channel_internal_epfd_data_set(chan, which, aed);
-		aed->chan = chan;
-		aed->which = which;
-
-		ev.events = EPOLLIN | EPOLLPRI | EPOLLERR | EPOLLHUP;
-		ev.data.ptr = aed;
-		epoll_ctl(ast_channel_epfd(chan), EPOLL_CTL_ADD, fd, &ev);
-	} else if (aed) {
-		/* We don't have to keep around this epoll data structure now */
-		ast_free(aed);
-		ast_channel_epfd_data_set(chan, which, NULL);
-	}
-#endif
 	ast_channel_internal_fd_set(chan, which, fd);
-	return;
-}
-
-/*! Add a channel to an optimized waitfor */
-void ast_poll_channel_add(struct ast_channel *chan0, struct ast_channel *chan1)
-{
-#ifdef HAVE_EPOLL
-	struct epoll_event ev;
-	int i = 0;
-
-	if (ast_channel_epfd(chan0) == -1)
-		return;
-
-	/* Iterate through the file descriptors on chan1, adding them to chan0 */
-	for (i = 0; i < AST_MAX_FDS; i++) {
-		if (!ast_channel_fd_isset(chan1, i)) {
-			continue;
-		}
-		ev.events = EPOLLIN | EPOLLPRI | EPOLLERR | EPOLLHUP;
-		ev.data.ptr = ast_channel_internal_epfd_data(chan1, i);
-		epoll_ctl(ast_channel_epfd(chan0), EPOLL_CTL_ADD, ast_channel_fd(chan1, i), &ev);
-	}
-
-#endif
-	return;
-}
-
-/*! Delete a channel from an optimized waitfor */
-void ast_poll_channel_del(struct ast_channel *chan0, struct ast_channel *chan1)
-{
-#ifdef HAVE_EPOLL
-	struct epoll_event ev;
-	int i = 0;
-
-	if (ast_channel_epfd(chan0) == -1)
-		return;
-
-	for (i = 0; i < AST_MAX_FDS; i++) {
-		if (!ast_channel_fd_isset(chan1, i)) {
-			continue;
-		}
-		epoll_ctl(ast_channel_epfd(chan0), EPOLL_CTL_DEL, ast_channel_fd(chan1, i), &ev);
-	}
-
-#endif
 	return;
 }
 
@@ -3061,20 +2962,15 @@ int ast_waitfor_n_fd(int *fds, int n, int *ms, int *exception)
 }
 
 /*! \brief Wait for x amount of time on a file descriptor to have input.  */
-#ifdef HAVE_EPOLL
-static struct ast_channel *ast_waitfor_nandfds_classic(struct ast_channel **c, int n, int *fds, int nfds,
-					int *exception, int *outfd, int *ms)
-#else
 struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds, int nfds,
 					int *exception, int *outfd, int *ms)
-#endif
 {
 	struct timeval start = { 0 , 0 };
 	struct pollfd *pfds = NULL;
 	int res;
 	long rms;
 	int x, y, max;
-	int sz;
+	int sz = nfds;
 	struct timeval now = { 0, 0 };
 	struct timeval whentohangup = { 0, 0 }, diff;
 	struct ast_channel *winner = NULL;
@@ -3088,14 +2984,6 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	}
 	if (exception) {
 		*exception = 0;
-	}
-
-	if ((sz = n * AST_MAX_FDS + nfds)) {
-		pfds = ast_alloca(sizeof(*pfds) * sz);
-		fdmap = ast_alloca(sizeof(*fdmap) * sz);
-	} else {
-		/* nothing to allocate and no FDs to check */
-		return NULL;
 	}
 
 	for (x = 0; x < n; x++) {
@@ -3114,8 +3002,17 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 			if (ast_tvzero(whentohangup) || ast_tvcmp(diff, whentohangup) < 0)
 				whentohangup = diff;
 		}
+		sz += ast_channel_fd_count(c[x]);
 		ast_channel_unlock(c[x]);
 	}
+
+	if (!sz) {
+		return NULL;
+	}
+
+	pfds = ast_alloca(sizeof(*pfds) * sz);
+	fdmap = ast_alloca(sizeof(*fdmap) * sz);
+
 	/* Wait full interval */
 	rms = *ms;
 	/* INT_MAX, not LONG_MAX, because it matters on 64-bit */
@@ -3135,12 +3032,12 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	 */
 	max = 0;
 	for (x = 0; x < n; x++) {
-		for (y = 0; y < AST_MAX_FDS; y++) {
+		ast_channel_lock(c[x]);
+		for (y = 0; y < ast_channel_fd_count(c[x]); y++) {
 			fdmap[max].fdno = y;  /* fd y is linked to this pfds */
 			fdmap[max].chan = x;  /* channel x is linked to this pfds */
 			max += ast_add_fd(&pfds[max], ast_channel_fd(c[x], y));
 		}
-		ast_channel_lock(c[x]);
 		CHECK_BLOCKING(c[x]);
 		ast_channel_unlock(c[x]);
 	}
@@ -3233,205 +3130,6 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	}
 	return winner;
 }
-
-#ifdef HAVE_EPOLL
-static struct ast_channel *ast_waitfor_nandfds_simple(struct ast_channel *chan, int *ms)
-{
-	struct timeval start = { 0 , 0 };
-	int res = 0;
-	struct epoll_event ev[1];
-	long diff, rms = *ms;
-	struct ast_channel *winner = NULL;
-	struct ast_epoll_data *aed = NULL;
-
-	ast_channel_lock(chan);
-	/* Figure out their timeout */
-	if (!ast_tvzero(*ast_channel_whentohangup(chan))) {
-		if ((diff = ast_tvdiff_ms(*ast_channel_whentohangup(chan), ast_tvnow())) < 0) {
-			/* They should already be hungup! */
-			ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_TIMEOUT);
-			ast_channel_unlock(chan);
-			return NULL;
-		}
-		/* If this value is smaller then the current one... make it priority */
-		if (rms > diff) {
-			rms = diff;
-		}
-	}
-
-	ast_channel_unlock(chan);
-
-	/* Time to make this channel block... */
-	CHECK_BLOCKING(chan);
-
-	if (*ms > 0) {
-		start = ast_tvnow();
-	}
-
-	/* We don't have to add any file descriptors... they are already added, we just have to wait! */
-	res = epoll_wait(ast_channel_epfd(chan), ev, 1, rms);
-
-	/* Stop blocking */
-	ast_clear_flag(ast_channel_flags(chan), AST_FLAG_BLOCKING);
-
-	/* Simulate a timeout if we were interrupted */
-	if (res < 0) {
-		if (errno != EINTR) {
-			*ms = -1;
-		}
-		return NULL;
-	}
-
-	/* If this channel has a timeout see if it expired */
-	if (!ast_tvzero(*ast_channel_whentohangup(chan))) {
-		if (ast_tvdiff_ms(ast_tvnow(), *ast_channel_whentohangup(chan)) >= 0) {
-			ast_channel_softhangup_internal_flag_add(chan, AST_SOFTHANGUP_TIMEOUT);
-			winner = chan;
-		}
-	}
-
-	/* No fd ready, reset timeout and be done for now */
-	if (!res) {
-		*ms = 0;
-		return winner;
-	}
-
-	/* See what events are pending */
-	aed = ev[0].data.ptr;
-	ast_channel_fdno_set(chan, aed->which);
-	if (ev[0].events & EPOLLPRI) {
-		ast_set_flag(ast_channel_flags(chan), AST_FLAG_EXCEPTION);
-	} else {
-		ast_clear_flag(ast_channel_flags(chan), AST_FLAG_EXCEPTION);
-	}
-
-	if (*ms > 0) {
-		*ms -= ast_tvdiff_ms(ast_tvnow(), start);
-		if (*ms < 0) {
-			*ms = 0;
-		}
-	}
-
-	return chan;
-}
-
-static struct ast_channel *ast_waitfor_nandfds_complex(struct ast_channel **c, int n, int *ms)
-{
-	struct timeval start = { 0 , 0 };
-	int res = 0, i;
-	struct epoll_event ev[25] = { { 0, } };
-	struct timeval now = { 0, 0 };
-	long whentohangup = 0, diff = 0, rms = *ms;
-	struct ast_channel *winner = NULL;
-
-	for (i = 0; i < n; i++) {
-		ast_channel_lock(c[i]);
-		if (!ast_tvzero(*ast_channel_whentohangup(c[i]))) {
-			if (whentohangup == 0) {
-				now = ast_tvnow();
-			}
-			if ((diff = ast_tvdiff_ms(*ast_channel_whentohangup(c[i]), now)) < 0) {
-				ast_channel_softhangup_internal_flag_add(c[i], AST_SOFTHANGUP_TIMEOUT);
-				ast_channel_unlock(c[i]);
-				return c[i];
-			}
-			if (!whentohangup || whentohangup > diff) {
-				whentohangup = diff;
-			}
-		}
-		ast_channel_unlock(c[i]);
-		CHECK_BLOCKING(c[i]);
-	}
-
-	rms = *ms;
-	if (whentohangup) {
-		rms = whentohangup;
-		if (*ms >= 0 && *ms < rms) {
-			rms = *ms;
-		}
-	}
-
-	if (*ms > 0) {
-		start = ast_tvnow();
-	}
-
-	res = epoll_wait(ast_channel_epfd(c[0]), ev, 25, rms);
-
-	for (i = 0; i < n; i++) {
-		ast_clear_flag(ast_channel_flags(c[i]), AST_FLAG_BLOCKING);
-	}
-
-	if (res < 0) {
-		if (errno != EINTR) {
-			*ms = -1;
-		}
-		return NULL;
-	}
-
-	if (whentohangup) {
-		now = ast_tvnow();
-		for (i = 0; i < n; i++) {
-			if (!ast_tvzero(*ast_channel_whentohangup(c[i])) && ast_tvdiff_ms(now, *ast_channel_whentohangup(c[i])) >= 0) {
-				ast_channel_softhangup_internal_flag_add(c[i], AST_SOFTHANGUP_TIMEOUT);
-				if (!winner) {
-					winner = c[i];
-				}
-			}
-		}
-	}
-
-	if (!res) {
-		*ms = 0;
-		return winner;
-	}
-
-	for (i = 0; i < res; i++) {
-		struct ast_epoll_data *aed = ev[i].data.ptr;
-
-		if (!ev[i].events || !aed) {
-			continue;
-		}
-
-		winner = aed->chan;
-		if (ev[i].events & EPOLLPRI) {
-			ast_set_flag(ast_channel_flags(winner), AST_FLAG_EXCEPTION);
-		} else {
-			ast_clear_flag(ast_channel_flags(winner), AST_FLAG_EXCEPTION);
-		}
-		ast_channel_fdno_set(winner, aed->which);
-	}
-
-	if (*ms > 0) {
-		*ms -= ast_tvdiff_ms(ast_tvnow(), start);
-		if (*ms < 0) {
-			*ms = 0;
-		}
-	}
-
-	return winner;
-}
-
-struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds, int nfds,
-					int *exception, int *outfd, int *ms)
-{
-	/* Clear all provided values in one place. */
-	if (outfd) {
-		*outfd = -99999;
-	}
-	if (exception) {
-		*exception = 0;
-	}
-
-	/* If no epoll file descriptor is available resort to classic nandfds */
-	if (!n || nfds || ast_channel_epfd(c[0]) == -1) {
-		return ast_waitfor_nandfds_classic(c, n, fds, nfds, exception, outfd, ms);
-	} else if (!nfds && n == 1) {
-		return ast_waitfor_nandfds_simple(c[0], ms);
-	} else {
-		return ast_waitfor_nandfds_complex(c, n, ms);
-	}
-}
-#endif
 
 struct ast_channel *ast_waitfor_n(struct ast_channel **c, int n, int *ms)
 {
@@ -6852,6 +6550,7 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	int origstate;
 	unsigned int orig_disablestatecache;
 	unsigned int clone_disablestatecache;
+	int generator_fd;
 	int visible_indication;
 	int clone_hold_state;
 	int moh_is_playing;
@@ -7042,8 +6741,13 @@ static void channel_do_masquerade(struct ast_channel *original, struct ast_chann
 	/* Keep the same parkinglot. */
 	ast_channel_parkinglot_set(original, ast_channel_parkinglot(clonechan));
 
-	/* Copy the FD's other than the generator fd */
-	for (x = 0; x < AST_MAX_FDS; x++) {
+	/* Clear all existing file descriptors but retain the generator */
+	generator_fd = ast_channel_fd(original, AST_GENERATOR_FD);
+	ast_channel_internal_fd_clear_all(original);
+	ast_channel_set_fd(original, AST_GENERATOR_FD, generator_fd);
+
+	/* Copy all file descriptors present on clonechan to original, skipping generator */
+	for (x = 0; x < ast_channel_fd_count(clonechan); x++) {
 		if (x != AST_GENERATOR_FD)
 			ast_channel_set_fd(original, x, ast_channel_fd(clonechan, x));
 	}
