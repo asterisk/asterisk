@@ -225,7 +225,7 @@ int ast_media_cache_retrieve(const char *uri, const char *preferred_file_name,
 	bucket_file = ao2_find(media_cache, uri, OBJ_SEARCH_KEY | OBJ_NOLOCK);
 	if (bucket_file) {
 		if (!ast_bucket_file_is_stale(bucket_file)
-			&& !access(bucket_file->path, R_OK)) {
+			&& ast_file_is_readable(bucket_file->path)) {
 			ast_copy_string(file_path, bucket_file->path, len);
 			if ((ext = strrchr(file_path, '.'))) {
 				*ext = '\0';
