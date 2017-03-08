@@ -803,6 +803,7 @@ struct ast_vm_user {
 	char *emailbody;                 /*!< E-mail body */
 	char pager[80];                  /*!< E-mail address to pager (no attachment) */
 	char serveremail[80];            /*!< From: Mail address */
+	char fromstring[100];            /*!< From: Username */
 	char language[MAX_LANGUAGE];     /*!< Config: Language setting */
 	char zonetag[80];                /*!< Time zone */
 	char locale[20];                 /*!< The locale (for presentation of date/time) */
@@ -811,7 +812,7 @@ struct ast_vm_user {
 	char uniqueid[80];               /*!< Unique integer identifier */
 	char exit[80];
 	char attachfmt[20];              /*!< Attachment format */
-	unsigned int flags;              /*!< VM_ flags */	
+	unsigned int flags;              /*!< VM_ flags */
 	int saydurationm;
 	int minsecs;                     /*!< Minimum number of seconds per message for this mailbox */
 	int maxmsg;                      /*!< Maximum number of msgs per folder for this mailbox */
@@ -1308,6 +1309,8 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 		ast_copy_string(vmu->attachfmt, value, sizeof(vmu->attachfmt));
 	} else if (!strcasecmp(var, "serveremail")) {
 		ast_copy_string(vmu->serveremail, value, sizeof(vmu->serveremail));
+	} else if (!strcasecmp(var, "fromstring")) {
+		ast_copy_string(vmu->fromstring, value, sizeof(vmu->fromstring));
 	} else if (!strcasecmp(var, "emailbody")) {
 		ast_free(vmu->emailbody);
 		vmu->emailbody = ast_strdup(substitute_escapes(value));
@@ -5114,12 +5117,13 @@ static void make_email_file(FILE *p,
 	/* Set date format for voicemail mail */
 	ast_strftime_locale(date, sizeof(date), emaildateformat, &tm, S_OR(vmu->locale, NULL));
 
-	if (!ast_strlen_zero(fromstring)) {
+	if (!ast_strlen_zero(fromstring) || !ast_strlen_zero(vmu->fromstring)) {
 		struct ast_channel *ast;
+		char *e_fromstring = !ast_strlen_zero(vmu->fromstring) ? vmu->fromstring : fromstring;
 		if ((ast = ast_dummy_channel_alloc())) {
 			char *ptr;
 			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, fromfolder, enc_cidnum, enc_cidname, dur, date, category, flag);
-			ast_str_substitute_variables(&str1, 0, ast, fromstring);
+			ast_str_substitute_variables(&str1, 0, ast, e_fromstring);
 
 			if (check_mime(ast_str_buffer(str1))) {
 				first_line = 1;
@@ -12311,7 +12315,7 @@ AST_TEST_DEFINE(test_voicemail_vmuser)
 	struct ast_vm_user *vmu;
 	/* language parameter seems to only be used for display in manager action */
 	static const char options_string[] = "attach=yes|attachfmt=wav49|"
-		"serveremail=someguy@digium.com|tz=central|delete=yes|saycid=yes|"
+		"serveremail=someguy@digium.com|fromstring=Voicemail System|tz=central|delete=yes|saycid=yes|"
 		"sendvoicemail=yes|review=yes|tempgreetwarn=yes|messagewrap=yes|operator=yes|"
 		"envelope=yes|moveheard=yes|sayduration=yes|saydurationm=5|forcename=yes|"
 		"forcegreetings=yes|callback=somecontext|dialout=somecontext2|"
@@ -12350,6 +12354,10 @@ AST_TEST_DEFINE(test_voicemail_vmuser)
 	}
 	if (strcasecmp(vmu->attachfmt, "wav49")) {
 		ast_test_status_update(test, "Parse failure for attachftm option\n");
+		res = 1;
+	}
+	if (strcasecmp(vmu->fromstring, "Voicemail System")) {
+		ast_test_status_update(test, "Parse failure for fromstring option\n");
 		res = 1;
 	}
 	if (strcasecmp(vmu->serveremail, "someguy@digium.com")) {
@@ -12911,6 +12919,7 @@ static struct ast_cli_entry cli_voicemail[] = {
 		USER(ast_vm_user, emailbody, AST_DATA_STRING)			\
 		USER(ast_vm_user, pager, AST_DATA_STRING)			\
 		USER(ast_vm_user, serveremail, AST_DATA_STRING)			\
+		USER(ast_vm_user, fromstring, AST_DATA_STRING)			\
 		USER(ast_vm_user, language, AST_DATA_STRING)			\
 		USER(ast_vm_user, zonetag, AST_DATA_STRING)			\
 		USER(ast_vm_user, callback, AST_DATA_STRING)			\
@@ -12938,6 +12947,7 @@ static struct ast_cli_entry cli_voicemail[] = {
 		USER(ast_vm_user, emailbody, AST_DATA_STRING)			\
 		USER(ast_vm_user, pager, AST_DATA_STRING)			\
 		USER(ast_vm_user, serveremail, AST_DATA_STRING)			\
+		USER(ast_vm_user, fromstring, AST_DATA_STRING)			\
 		USER(ast_vm_user, language, AST_DATA_STRING)			\
 		USER(ast_vm_user, zonetag, AST_DATA_STRING)			\
 		USER(ast_vm_user, callback, AST_DATA_STRING)			\
@@ -13327,6 +13337,7 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 			"Email: %s\r\n"
 			"Pager: %s\r\n"
 			"ServerEmail: %s\r\n"
+			"FromString: %s\r\n"
 			"MailCommand: %s\r\n"
 			"Language: %s\r\n"
 			"TimeZone: %s\r\n"
@@ -13361,6 +13372,7 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 			vmu->email,
 			vmu->pager,
 			ast_strlen_zero(vmu->serveremail) ? serveremail : vmu->serveremail,
+			ast_strlen_zero(vmu->fromstring) ? fromstring : vmu->fromstring,
 			mailcmd,
 			vmu->language,
 			vmu->zonetag,

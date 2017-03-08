@@ -101,6 +101,9 @@ app_voicemail
  * The 'Comedian Mail' prompts can now be overriden using the 'vm-login' and
    'vm-newuser' configuration options in voicemail.conf.
 
+ * Added 'fromstring' field to the voicemail boxes. If set, it will override
+   the global 'fromstring' field on a per-mailbox basis.
+
 res_pjsip_transport_websocket
 ------------------
  * Removed non-secure websocket support.  Firefox and Chrome have not allowed
