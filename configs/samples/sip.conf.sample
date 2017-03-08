@@ -1063,6 +1063,8 @@ srvlookup=yes                   ; Enable DNS SRV lookups on outbound calls
 				; option may be specified at the global or peer scope.
 ;force_avp=yes			; Force 'RTP/AVP', 'RTP/AVPF', 'RTP/SAVP', and 'RTP/SAVPF' to be used for
 				; media streams when appropriate, even if a DTLS stream is present.
+;rtcp_mux=yes			; Enable support for RFC 5761 RTCP multiplexing which is required for
+				; WebRTC support
 ; ---------------------------------------- REALTIME SUPPORT ------------------------
 ; For additional information on ARA, the Asterisk Realtime Architecture,
 ; please read https://wiki.asterisk.org/wiki/display/AST/Realtime+Database+Configuration
