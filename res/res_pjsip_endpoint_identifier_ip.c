@@ -57,7 +57,7 @@
 					perform SRV lookups for _sip._udp, _sip._tcp, and _sips._tcp of the given
 					hostnames to determine additional addresses that traffic may originate from.
 					</para></description>
-                                </configOption>
+				</configOption>
 				<configOption name="type">
 					<synopsis>Must be of type 'identify'.</synopsis>
 				</configOption>
