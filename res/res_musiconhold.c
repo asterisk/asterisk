@@ -1750,6 +1750,7 @@ static int load_moh_classes(int reload)
 					ast_log(LOG_WARNING, "Unknown option '%s' in [general] section of musiconhold.conf\n", var->name);
 				}
 			}
+			continue;
 		}
 
 		if (!(class = moh_class_malloc())) {
