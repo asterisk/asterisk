@@ -5931,6 +5931,67 @@ static void handle_bridge_enter(void *userdata, struct stasis_subscription *sub,
 }
 
 /*!
+ * \internal
+ * \brief Handle a stasis bridge leave event.
+ *
+ * We track this event to determine if the caller has left the bridge
+ * as the result of a redirect. Transfers and hangups are handled in
+ * separate functions.
+ *
+ * \param userdata Data pertaining to the particular call in the queue.
+ * \param sub The stasis subscription on which the message occurred.
+ * \param msg The stasis message for the bridge leave event
+ */
+static void handle_bridge_left(void *userdata, struct stasis_subscription *sub,
+		struct stasis_message *msg)
+{
+	struct queue_stasis_data *queue_data = userdata;
+	struct ast_bridge_blob *left_blob = stasis_message_data(msg);
+	struct ast_channel_snapshot *caller_snapshot, *member_snapshot;
+
+	ao2_lock(queue_data);
+
+	if (queue_data->dying) {
+		ao2_unlock(queue_data);
+		return;
+	}
+
+	if (ast_strlen_zero(queue_data->bridge_uniqueid)) {
+		ao2_unlock(queue_data);
+		return;
+	}
+
+	/* Correct channel, correct bridge? */
+	if (strcmp(left_blob->channel->uniqueid, queue_data->caller_uniqueid)
+		|| strcmp(left_blob->bridge->uniqueid, queue_data->bridge_uniqueid)) {
+		ao2_unlock(queue_data);
+		return;
+	}
+
+	caller_snapshot = ast_channel_snapshot_get_latest(queue_data->caller_uniqueid);
+	member_snapshot = ast_channel_snapshot_get_latest(queue_data->member_uniqueid);
+
+	ao2_unlock(queue_data);
+
+	ast_debug(3, "Detected redirect of queue caller channel %s\n",
+		caller_snapshot->name);
+
+	ast_queue_log(queue_data->queue->name, queue_data->caller_uniqueid, queue_data->member->membername,
+		"COMPLETECALLER", "%ld|%ld|%d",
+		(long) (queue_data->starttime - queue_data->holdstart),
+		(long) (time(NULL) - queue_data->starttime), queue_data->caller_pos);
+
+	send_agent_complete(queue_data->queue->name, caller_snapshot, member_snapshot, queue_data->member,
+			queue_data->holdstart, queue_data->starttime, CALLER);
+	update_queue(queue_data->queue, queue_data->member, queue_data->callcompletedinsl,
+			time(NULL) - queue_data->starttime);
+	remove_stasis_subscriptions(queue_data);
+
+	ao2_cleanup(member_snapshot);
+	ao2_cleanup(caller_snapshot);
+}
+
+/*!
  * \brief Handle a blind transfer event
  *
  * This event is important in order to be able to log the end of the
@@ -6297,6 +6358,8 @@ static int setup_stasis_subs(struct queue_ent *qe, struct ast_channel *peer, str
 
 	stasis_message_router_add(queue_data->bridge_router, ast_channel_entered_bridge_type(),
 			handle_bridge_enter, queue_data);
+	stasis_message_router_add(queue_data->bridge_router, ast_channel_left_bridge_type(),
+			handle_bridge_left, queue_data);
 	stasis_message_router_add(queue_data->bridge_router, ast_blind_transfer_type(),
 			handle_blind_transfer, queue_data);
 	stasis_message_router_add(queue_data->bridge_router, ast_attended_transfer_type(),
