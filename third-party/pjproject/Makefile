@@ -135,7 +135,7 @@ source/pjlib/include/pj/%.h: patches/%.h
 	$(ECHO_PREFIX) Applying custom include file $<
 	$(CMD_PREFIX) cp -f $< source/pjlib/include/pj/
 
-.rebuild_needed: $(wildcard ../../makeopts) $(wildcard ../../menuselect.makeopts)
+.rebuild_needed: $(wildcard ../../.lastclean)
 	$(ECHO_PREFIX) Rebuilding
 	$(CMD_PREFIX) $(MAKE) clean $(REALLY_QUIET)
 
