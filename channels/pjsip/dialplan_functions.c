@@ -735,17 +735,27 @@ static int read_pjsip(void *data)
 	struct pjsip_func_args *func_args = data;
 
 	if (!strcmp(func_args->param, "rtp")) {
+		if (!func_args->session->channel) {
+			func_args->ret = -1;
+			return 0;
+		}
 		func_args->ret = channel_read_rtp(func_args->session->channel, func_args->type,
 		                                  func_args->field, func_args->buf,
 		                                  func_args->len);
 	} else if (!strcmp(func_args->param, "rtcp")) {
+		if (!func_args->session->channel) {
+			func_args->ret = -1;
+			return 0;
+		}
 		func_args->ret = channel_read_rtcp(func_args->session->channel, func_args->type,
 		                                   func_args->field, func_args->buf,
 		                                   func_args->len);
 	} else if (!strcmp(func_args->param, "endpoint")) {
 		if (!func_args->session->endpoint) {
-			ast_log(AST_LOG_WARNING, "Channel %s has no endpoint!\n", ast_channel_name(func_args->session->channel));
-			return -1;
+			ast_log(AST_LOG_WARNING, "Channel %s has no endpoint!\n", func_args->session->channel ?
+				ast_channel_name(func_args->session->channel) : "<unknown>");
+			func_args->ret = -1;
+			return 0;
 		}
 		snprintf(func_args->buf, func_args->len, "%s", ast_sorcery_object_get_id(func_args->session->endpoint));
 	} else if (!strcmp(func_args->param, "contact")) {
@@ -759,6 +769,10 @@ static int read_pjsip(void *data)
 		}
 		snprintf(func_args->buf, func_args->len, "%s", ast_sorcery_object_get_id(func_args->session->aor));
 	} else if (!strcmp(func_args->param, "pjsip")) {
+		if (!func_args->session->channel) {
+			func_args->ret = -1;
+			return 0;
+		}
 		func_args->ret = channel_read_pjsip(func_args->session->channel, func_args->type,
 		                                    func_args->field, func_args->buf,
 		                                    func_args->len);
