@@ -1087,7 +1087,7 @@ static int sip_dialog_create_contact(pj_pool_t *pool, pj_str_t *contact, const c
 	pj_str_t tmp, local_addr;
 	pjsip_uri *uri;
 	pjsip_sip_uri *sip_uri;
-	pjsip_transport_type_e type = PJSIP_TRANSPORT_UNSPECIFIED;
+	pjsip_transport_type_e type;
 	int local_port;
 
 	pj_strdup_with_null(pool, &tmp, target);
@@ -1099,20 +1099,20 @@ static int sip_dialog_create_contact(pj_pool_t *pool, pj_str_t *contact, const c
 
 	sip_uri = pjsip_uri_get_uri(uri);
 
+	type = pjsip_transport_get_type_from_name(&sip_uri->transport_param);
 	if (PJSIP_URI_SCHEME_IS_SIPS(sip_uri)) {
-		type = PJSIP_TRANSPORT_TLS;
+		if (type == PJSIP_TRANSPORT_UNSPECIFIED
+			|| !(pjsip_transport_get_flag_from_type(type) & PJSIP_TRANSPORT_SECURE)) {
+			type = PJSIP_TRANSPORT_TLS;
+		}
 	} else if (!sip_uri->transport_param.slen) {
 		type = PJSIP_TRANSPORT_UDP;
-	} else {
-		type = pjsip_transport_get_type_from_name(&sip_uri->transport_param);
-	}
-
-	if (type == PJSIP_TRANSPORT_UNSPECIFIED) {
+	} else if (type == PJSIP_TRANSPORT_UNSPECIFIED) {
 		return -1;
 	}
 
 	if (pj_strchr(&sip_uri->host, ':')) {
-		type = (pjsip_transport_type_e)(((int)type) + PJSIP_TRANSPORT_IPV6);
+		type |= PJSIP_TRANSPORT_IPV6;
 	}
 
 	if (pjsip_tpmgr_find_local_addr(pjsip_endpt_get_tpmgr(ast_sip_get_pjsip_endpoint()),
@@ -1121,7 +1121,7 @@ static int sip_dialog_create_contact(pj_pool_t *pool, pj_str_t *contact, const c
 	}
 
 	if (!pj_strchr(&sip_uri->host, ':') && pj_strchr(&local_addr, ':')) {
-		type = (pjsip_transport_type_e)(((int)type) + PJSIP_TRANSPORT_IPV6);
+		type |= PJSIP_TRANSPORT_IPV6;
 	}
 
 	contact->ptr = pj_pool_alloc(pool, PJSIP_MAX_URL_SIZE);
