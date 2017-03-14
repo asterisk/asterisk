@@ -197,6 +197,20 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 	if (session->endpoint->media.bind_rtp_to_media_address && !ast_strlen_zero(session->endpoint->media.address)) {
 		ast_sockaddr_parse(&temp_media_address, session->endpoint->media.address, 0);
 		media_address = &temp_media_address;
+	} else {
+		struct ast_sip_transport *transport =
+			ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "transport",
+									   session->endpoint->transport);
+
+		if (transport && transport->state) {
+			char hoststr[PJ_INET6_ADDRSTRLEN];
+
+			pj_sockaddr_print(&transport->state->host, hoststr, sizeof(hoststr), 0);
+			ast_debug(1, "Transport: %s bound to host: %s, using this for media.\n",
+					  session->endpoint->transport, hoststr);
+			ast_sockaddr_parse(media_address, hoststr, 0);
+		}
+		ao2_cleanup(transport);
 	}
 
 	if (!(session_media->rtp = ast_rtp_instance_new(session->endpoint->media.rtp.engine, sched, media_address, NULL))) {
