@@ -1986,10 +1986,17 @@ static enum sip_get_destination_result get_destination(struct ast_sip_session *s
 
 		return SIP_GET_DEST_EXTEN_FOUND;
 	}
-	/* XXX In reality, we'll likely have further options so that partial matches
-	 * can be indicated here, but for getting something up and running, we're going
-	 * to return a "not exists" error here.
+
+	/*
+	 * Check for partial match via overlap dialling (if enabled)
 	 */
+	if (session->endpoint->allow_overlap && (
+		!strncmp(session->exten, pickupexten, strlen(session->exten)) ||
+		ast_canmatch_extension(NULL, session->endpoint->context, session->exten, 1, NULL))) {
+		/* Overlap partial match */
+		return SIP_GET_DEST_EXTEN_PARTIAL;
+	}
+
 	return SIP_GET_DEST_EXTEN_NOT_FOUND;
 }
 
@@ -2106,8 +2113,17 @@ static int new_invite(void *data)
 			pjsip_inv_terminate(invite->session->inv_session, 416, PJ_TRUE);
 		}
 		goto end;
-	case SIP_GET_DEST_EXTEN_NOT_FOUND:
 	case SIP_GET_DEST_EXTEN_PARTIAL:
+		ast_debug(1, "Call from '%s' (%s:%s:%d) to extension '%s' - partial match\n", ast_sorcery_object_get_id(invite->session->endpoint),
+			invite->rdata->tp_info.transport->type_name, invite->rdata->pkt_info.src_name, invite->rdata->pkt_info.src_port, invite->session->exten);
+
+		if (pjsip_inv_initial_answer(invite->session->inv_session, invite->rdata, 484, NULL, NULL, &tdata) == PJ_SUCCESS) {
+			ast_sip_session_send_response(invite->session, tdata);
+		} else  {
+			pjsip_inv_terminate(invite->session->inv_session, 484, PJ_TRUE);
+		}
+		goto end;
+	case SIP_GET_DEST_EXTEN_NOT_FOUND:
 	default:
 		ast_log(LOG_NOTICE, "Call from '%s' (%s:%s:%d) to extension '%s' rejected because extension not found in context '%s'.\n",
 			ast_sorcery_object_get_id(invite->session->endpoint), invite->rdata->tp_info.transport->type_name, invite->rdata->pkt_info.src_name,
