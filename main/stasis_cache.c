@@ -842,7 +842,7 @@ static void caching_topic_exec(void *data, struct stasis_subscription *sub,
 			}
 			ao2_cleanup(update);
 		} else {
-			ast_log(LOG_ERROR,
+			ast_debug(1,
 				"Attempting to remove an item from the %s cache that isn't there: %s %s\n",
 				stasis_topic_name(caching_topic->topic),
 				stasis_message_type_name(msg_type), msg_id);
