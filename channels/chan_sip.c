@@ -23979,6 +23979,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, const char *rest
 	case 422: /* Session-Timers: Session interval too small */
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		ast_string_field_set(p, theirtag, NULL);
+		p->invitestate = INV_CALLING;
 		proc_422_rsp(p, req);
 		break;
 
