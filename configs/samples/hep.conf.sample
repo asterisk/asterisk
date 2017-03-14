@@ -2,6 +2,15 @@
 ; res_hep Module configuration for Asterisk
 ;
 
+;
+; Note that this configuration file is consumed by res_hep, which is responsible
+; for the HEPv3 protocol manipulation and managing the connection to the Homer
+; capture server. Additional modules provide specific messages to be sent to
+; the Homer server:
+;  - res_hep_pjsip: Send SIP messages transmitted/received by the PJSIP stack
+;  - res_hep_rtcp: Send RTCP information (all channels)
+;
+
 ; All settings are currently set in the general section.
 [general]
 enabled = no                       ; Enable/disable forwarding of packets to a
@@ -17,4 +26,3 @@ uuid_type = call-id                ; Specify the preferred source for the Homer
                                    ; correlation UUID. Valid options are:
                                    ; - 'call-id' for the PJSIP SIP Call-ID
                                    ; - 'channel' for the Asterisk channel name
-
