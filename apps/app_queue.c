@@ -5503,6 +5503,13 @@ static int update_queue(struct call_queue *q, struct member *member, int callcom
 			member->membername, (long)member->lastcall);
 		ao2_unlock(q);
 	}
+	/* Member might never experience any direct status change (local
+	 * channel with forwarding in particular). If that's the case,
+	 * this is the last chance to remove it from pending or subsequent
+	 * calls will not occur.
+	 */
+	pending_members_remove(member);
+
 	ao2_lock(q);
 	q->callscompleted++;
 	if (callcompletedinsl) {
