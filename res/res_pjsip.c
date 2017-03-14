@@ -100,6 +100,9 @@
 				<configOption name="allow">
 					<synopsis>Media Codec(s) to allow</synopsis>
 				</configOption>
+				<configOption name="allow_overlap" default="yes">
+					<synopsis>Enable RFC3578 overlap dialing support.</synopsis>
+				</configOption>
 				<configOption name="aors">
 					<synopsis>AoR(s) to be used with the endpoint</synopsis>
 					<description><para>
@@ -2127,6 +2130,9 @@
 				</parameter>
 				<parameter name="SubscribeContext">
 					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='subscribe_context']/synopsis/node())"/></para>
+				</parameter>
+				<parameter name="Allowoverlap">
+					<para><xi:include xpointer="xpointer(/docs/configInfo[@name='res_pjsip']/configFile[@name='pjsip.conf']/configObject[@name='endpoint']/configOption[@name='allow_overlap']/synopsis/node())"/></para>
 				</parameter>
 			</syntax>
 		</managerEventInstance>

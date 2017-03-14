@@ -763,6 +763,8 @@ struct ast_sip_endpoint {
 	unsigned int asymmetric_rtp_codec;
 	/*! Use RTCP-MUX */
 	unsigned int rtcp_mux;
+	/*! Do we allow overlap dialling? */
+	unsigned int allow_overlap;
 };
 
 /*! URI parameter for symmetric transport */
