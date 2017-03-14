@@ -616,7 +616,7 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 static struct ast_context *find_context_locked(const char *context);
 static struct ast_context *find_context(const char *context);
 static void get_device_state_causing_channels(struct ao2_container *c);
-static int ext_strncpy(char *dst, const char *src, int len, int nofluff);
+static unsigned int ext_strncpy(char *dst, const char *src, size_t dst_size, int nofluff);
 
 /*!
  * \internal
@@ -6907,32 +6907,51 @@ int ast_async_goto_by_name(const char *channame, const char *context, const char
 	return res;
 }
 
-/*! \brief copy a string skipping whitespace and dashes */
-static int ext_strncpy(char *dst, const char *src, int len, int nofluff)
+/*!
+ * \internal
+ * \brief Copy a string skipping whitespace and optionally dashes.
+ *
+ * \param dst Destination buffer to copy src string.
+ * \param src Null terminated string to copy.
+ * \param dst_size Number of bytes in the dst buffer.
+ * \param nofluf Nonzero if '-' chars are not copied.
+ *
+ * \return Number of bytes written to dst including null terminator.
+ */
+static unsigned int ext_strncpy(char *dst, const char *src, size_t dst_size, int nofluff)
 {
-	int count = 0;
-	int insquares = 0;
+	unsigned int count;
+	unsigned int insquares;
+	unsigned int is_pattern;
 
-	while (*src && (count < len - 1)) {
+	if (!dst_size--) {
+		/* There really is no dst buffer */
+		return 0;
+	}
+
+	count = 0;
+	insquares = 0;
+	is_pattern = *src == '_';
+	while (*src && count < dst_size) {
 		if (*src == '[') {
-			insquares = 1;
+			if (is_pattern) {
+				insquares = 1;
+			}
 		} else if (*src == ']') {
 			insquares = 0;
 		} else if (*src == ' ' && !insquares) {
-			src++;
+			++src;
 			continue;
 		} else if (*src == '-' && !insquares && nofluff) {
-			src++;
+			++src;
 			continue;
 		}
-		*dst = *src;
-		dst++;
-		src++;
-		count++;
+		*dst++ = *src++;
+		++count;
 	}
 	*dst = '\0';
 
-	return count;
+	return count + 1;
 }
 
 /*!
@@ -7246,10 +7265,10 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 		p += strlen(label) + 1;
 	}
 	tmp->name = p;
-	p += ext_strncpy(p, extension, strlen(extension) + 1, 0) + 1;
+	p += ext_strncpy(p, extension, strlen(extension) + 1, 0);
 	if (exten_fluff) {
 		tmp->exten = p;
-		p += ext_strncpy(p, extension, strlen(extension) + 1, 1) + 1;
+		p += ext_strncpy(p, extension, strlen(extension) + 1 - exten_fluff, 1);
 	} else {
 		/* no fluff, we don't need a copy. */
 		tmp->exten = tmp->name;
@@ -7259,10 +7278,10 @@ static int ast_add_extension2_lockopt(struct ast_context *con,
 
 	/* Blank callerid and NULL callerid are two SEPARATE things.  Do NOT confuse the two!!! */
 	if (callerid) {
-		p += ext_strncpy(p, callerid, strlen(callerid) + 1, 0) + 1;
+		p += ext_strncpy(p, callerid, strlen(callerid) + 1, 0);
 		if (callerid_fluff) {
 			tmp->cidmatch = p;
-			p += ext_strncpy(p, callerid, strlen(callerid) + 1, 1) + 1;
+			p += ext_strncpy(p, callerid, strlen(callerid) + 1 - callerid_fluff, 1);
 		}
 		tmp->matchcid = AST_EXT_MATCHCID_ON;
 	} else {
