@@ -57,6 +57,10 @@ res_pjsip
    added to both transport and subscription_persistence, an alembic upgrade
    should be run to bring the database tables up to date.
 
+ * A new option, allow_overlap, has been added to endpoints which allows
+   overlap dialing functionality to be enabled or disabled. The option defaults
+   to enabled.
+
 res_pjsip_transport_websocket
 ------------------
  * Removed non-secure websocket support.  Firefox and Chrome have not allowed
