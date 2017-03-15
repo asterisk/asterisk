@@ -2751,7 +2751,7 @@ static int sip_dialog_create_from(pj_pool_t *pool, pj_str_t *from, const char *u
 	pj_str_t tmp, local_addr;
 	pjsip_uri *uri;
 	pjsip_sip_uri *sip_uri;
-	pjsip_transport_type_e type = PJSIP_TRANSPORT_UNSPECIFIED;
+	pjsip_transport_type_e type;
 	int local_port;
 	char default_user[PJSIP_MAX_URL_SIZE];
 
@@ -2771,21 +2771,21 @@ static int sip_dialog_create_from(pj_pool_t *pool, pj_str_t *from, const char *u
 	sip_uri = pjsip_uri_get_uri(uri);
 
 	/* Determine the transport type to use */
+	type = pjsip_transport_get_type_from_name(&sip_uri->transport_param);
 	if (PJSIP_URI_SCHEME_IS_SIPS(sip_uri)) {
-		type = PJSIP_TRANSPORT_TLS;
+		if (type == PJSIP_TRANSPORT_UNSPECIFIED
+			|| !(pjsip_transport_get_flag_from_type(type) & PJSIP_TRANSPORT_SECURE)) {
+			type = PJSIP_TRANSPORT_TLS;
+		}
 	} else if (!sip_uri->transport_param.slen) {
 		type = PJSIP_TRANSPORT_UDP;
-	} else {
-		type = pjsip_transport_get_type_from_name(&sip_uri->transport_param);
-	}
-
-	if (type == PJSIP_TRANSPORT_UNSPECIFIED) {
+	} else if (type == PJSIP_TRANSPORT_UNSPECIFIED) {
 		return -1;
 	}
 
 	/* If the host is IPv6 turn the transport into an IPv6 version */
-	if (pj_strchr(&sip_uri->host, ':') && type < PJSIP_TRANSPORT_START_OTHER) {
-		type = (pjsip_transport_type_e)(((int)type) + PJSIP_TRANSPORT_IPV6);
+	if (pj_strchr(&sip_uri->host, ':')) {
+		type |= PJSIP_TRANSPORT_IPV6;
 	}
 
 	if (!ast_strlen_zero(domain)) {
@@ -2809,8 +2809,8 @@ static int sip_dialog_create_from(pj_pool_t *pool, pj_str_t *from, const char *u
 	}
 
 	/* If IPv6 was specified in the transport, set the proper type */
-	if (pj_strchr(&local_addr, ':') && type < PJSIP_TRANSPORT_START_OTHER) {
-		type = (pjsip_transport_type_e)(((int)type) + PJSIP_TRANSPORT_IPV6);
+	if (pj_strchr(&local_addr, ':')) {
+		type |= PJSIP_TRANSPORT_IPV6;
 	}
 
 	from->ptr = pj_pool_alloc(pool, PJSIP_MAX_URL_SIZE);
