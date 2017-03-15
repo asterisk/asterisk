@@ -187,7 +187,7 @@ int ast_audiohook_write_frame(struct ast_audiohook *audiohook, enum ast_audiohoo
 	other_factory_samples = ast_slinfactory_available(other_factory);
 	other_factory_ms = other_factory_samples / (audiohook->hook_internal_samp_rate / 1000);
 
-	if (ast_test_flag(audiohook, AST_AUDIOHOOK_TRIGGER_SYNC) && other_factory_samples && (our_factory_ms - other_factory_ms > AST_AUDIOHOOK_SYNC_TOLERANCE)) {
+	if (ast_test_flag(audiohook, AST_AUDIOHOOK_TRIGGER_SYNC) && (our_factory_ms - other_factory_ms > AST_AUDIOHOOK_SYNC_TOLERANCE)) {
 		ast_debug(1, "Flushing audiohook %p so it remains in sync\n", audiohook);
 		ast_slinfactory_flush(factory);
 		ast_slinfactory_flush(other_factory);
