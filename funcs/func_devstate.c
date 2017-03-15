@@ -341,7 +341,7 @@ static int load_module(void)
 		if (dev_name <= (const char *) 1)
 			continue;
 		ast_devstate_changed(ast_devstate_val(db_entry->data),
-			AST_DEVSTATE_CACHABLE, "Custom:%s\n", dev_name);
+			AST_DEVSTATE_CACHABLE, "Custom:%s", dev_name);
 	}
 	ast_db_freetree(db_tree);
 	db_tree = NULL;
