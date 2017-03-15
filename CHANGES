@@ -89,6 +89,14 @@ pbx_spool
 --- Functionality changes from Asterisk 14.3.0 to Asterisk 14.4.0 ------------
 ------------------------------------------------------------------------------
 
+AMI
+------------------
+ * The 'PJSIPShowEndpoint' command's respone event of 'IdentifyDetail' now
+   contains a new optional parameter, 'MatchHeader', mapping to the new
+   configuration option 'match_header' for the corresponding 'identify' object.
+   It should be noted that since 'match_header' takes in a key: value pair, the
+   event parameter will contain a ':' as well.
+
 app_record
 ------------------
  * Added new 'u' option to Record() application which prevents Asterisk from
@@ -117,6 +125,20 @@ res_pjsip_transport_websocket
    for people.  Attempting to use a non-secure websocket may or may not work
    when Asterisk attempts to send SIP requests to do something like initiate
    call hangup.
+
+res_pjsip_endpoint_identifier_ip
+------------------
+ * A new option has been added to the 'identify' configuration object,
+   'match_header'. The 'match_header' attribute should contain a SIP
+   header: value pair that, When set, will cause inbound requests that contain
+   the matching SIP header/value pair to be associated with the corresponding
+   endpoint. This option is cumulative with the 'match' option, so that if
+   either option matches the request, the request is associated with the
+   endpoint.
+
+   In a future release, this module will be renamed to something more
+   appropriate, as it now matches inbound requests on more than just IP
+   address.
 
 ------------------------------------------------------------------------------
 --- Functionality changes from Asterisk 14.2.0 to Asterisk 14.3.0 ------------
