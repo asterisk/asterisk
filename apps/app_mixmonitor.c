@@ -622,6 +622,16 @@ static void mixmonitor_save_prep(struct mixmonitor *mixmonitor, char *filename, 
 	}
 }
 
+static int mixmonitor_autochan_is_bridged(struct ast_autochan *autochan)
+{
+	int is_bridged;
+
+	ast_autochan_channel_lock(autochan);
+	is_bridged = ast_channel_is_bridged(autochan->chan);
+	ast_autochan_channel_unlock(autochan);
+	return is_bridged;
+}
+
 static void *mixmonitor_thread(void *obj)
 {
 	struct mixmonitor *mixmonitor = obj;
@@ -679,8 +689,7 @@ static void *mixmonitor_thread(void *obj)
 		ast_audiohook_unlock(&mixmonitor->audiohook);
 
 		if (!ast_test_flag(mixmonitor, MUXFLAG_BRIDGED)
-			|| (mixmonitor->autochan->chan
-				&& ast_channel_is_bridged(mixmonitor->autochan->chan))) {
+			|| mixmonitor_autochan_is_bridged(mixmonitor->autochan)) {
 			ast_mutex_lock(&mixmonitor->mixmonitor_ds->lock);
 
 			/* Write out the frame(s) */
@@ -729,11 +738,11 @@ static void *mixmonitor_thread(void *obj)
 
 	ast_audiohook_unlock(&mixmonitor->audiohook);
 
-	ast_autochan_channel_lock(mixmonitor->autochan);
 	if (ast_test_flag(mixmonitor, MUXFLAG_BEEP_STOP)) {
+		ast_autochan_channel_lock(mixmonitor->autochan);
 		ast_stream_and_wait(mixmonitor->autochan->chan, "beep", "");
+		ast_autochan_channel_unlock(mixmonitor->autochan);
 	}
-	ast_autochan_channel_unlock(mixmonitor->autochan);
 
 	ast_autochan_destroy(mixmonitor->autochan);
 
@@ -805,11 +814,11 @@ static int setup_mixmonitor_ds(struct mixmonitor *mixmonitor, struct ast_channel
 		return -1;
 	}
 
-	ast_autochan_channel_lock(mixmonitor->autochan);
 	if (ast_test_flag(mixmonitor, MUXFLAG_BEEP_START)) {
+		ast_autochan_channel_lock(mixmonitor->autochan);
 		ast_stream_and_wait(mixmonitor->autochan->chan, "beep", "");
+		ast_autochan_channel_unlock(mixmonitor->autochan);
 	}
-	ast_autochan_channel_unlock(mixmonitor->autochan);
 
 	mixmonitor_ds->samp_rate = 8000;
 	mixmonitor_ds->audiohook = &mixmonitor->audiohook;
