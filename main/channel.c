@@ -4068,6 +4068,19 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio, int
 				}
 				ast_frfree(f);
 				f = &ast_null_frame;
+			} else if (f->subclass.integer == AST_CONTROL_STREAM_TOPOLOGY_REQUEST_CHANGE && dropnondefault) {
+				/* The caller of this function is incapable of handling streams so we don't accept the change request
+				 * and stick to the streams currently on the channel.
+				 */
+				ast_channel_stream_topology_changed(chan, ast_channel_get_stream_topology(chan));
+				ast_frfree(f);
+				f = &ast_null_frame;
+			} else if (f->subclass.integer == AST_CONTROL_STREAM_TOPOLOGY_CHANGED && dropnondefault) {
+				/* The caller of this function is incapable of handling streams so we absord the notification that the
+				 * stream topology has changed.
+				 */
+				ast_frfree(f);
+				f = &ast_null_frame;
 			}
 			break;
 		case AST_FRAME_DTMF_END:
@@ -4494,6 +4507,8 @@ static int attribute_const is_visible_indication(enum ast_control_frame_type con
 	case AST_CONTROL_UPDATE_RTP_PEER:
 	case AST_CONTROL_PVT_CAUSE_CODE:
 	case AST_CONTROL_MASQUERADE_NOTIFY:
+	case AST_CONTROL_STREAM_TOPOLOGY_REQUEST_CHANGE:
+	case AST_CONTROL_STREAM_TOPOLOGY_CHANGED:
 	case AST_CONTROL_STREAM_STOP:
 	case AST_CONTROL_STREAM_SUSPEND:
 	case AST_CONTROL_STREAM_REVERSE:
@@ -4792,6 +4807,8 @@ static int indicate_data_internal(struct ast_channel *chan, int _condition, cons
 	case AST_CONTROL_MCID:
 	case AST_CONTROL_MASQUERADE_NOTIFY:
 	case AST_CONTROL_UPDATE_RTP_PEER:
+	case AST_CONTROL_STREAM_TOPOLOGY_REQUEST_CHANGE:
+	case AST_CONTROL_STREAM_TOPOLOGY_CHANGED:
 	case AST_CONTROL_STREAM_STOP:
 	case AST_CONTROL_STREAM_SUSPEND:
 	case AST_CONTROL_STREAM_REVERSE:
@@ -11146,4 +11163,28 @@ int ast_channel_feature_hooks_replace(struct ast_channel *chan, struct ast_bridg
 enum ast_channel_error ast_channel_errno(void)
 {
 	return ast_channel_internal_errno();
+}
+
+int ast_channel_request_stream_topology_change(struct ast_channel *chan, struct ast_stream_topology *topology)
+{
+	ast_assert(chan != NULL);
+	ast_assert(topology != NULL);
+
+	if (!ast_channel_is_multistream(chan) || !ast_channel_tech(chan)->indicate) {
+		return -1;
+	}
+
+	return ast_channel_tech(chan)->indicate(chan, AST_CONTROL_STREAM_TOPOLOGY_REQUEST_CHANGE, topology, sizeof(topology));
+}
+
+int ast_channel_stream_topology_changed(struct ast_channel *chan, struct ast_stream_topology *topology)
+{
+	ast_assert(chan != NULL);
+	ast_assert(topology != NULL);
+
+	if (!ast_channel_is_multistream(chan) || !ast_channel_tech(chan)->indicate) {
+		return -1;
+	}
+
+	return ast_channel_tech(chan)->indicate(chan, AST_CONTROL_STREAM_TOPOLOGY_CHANGED, topology, sizeof(topology));
 }

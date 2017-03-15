@@ -4850,4 +4850,41 @@ struct ast_stream *ast_channel_get_default_stream(struct ast_channel *chan, enum
  */
 int ast_channel_is_multistream(struct ast_channel *chan);
 
+/*!
+ * \brief Request that the stream topology of a channel change
+ *
+ * \param chan The channel to change
+ * \param topology The new stream topology
+ *
+ * \pre chan is locked
+ *
+ * \retval 0 request has been accepted to be attempted
+ * \retval -1 request could not be attempted
+ *
+ * \note This function initiates an asynchronous request to change the stream topology. It is not
+ *       guaranteed that the topology will change and until an AST_CONTROL_STREAM_TOPOLOGY_CHANGED
+ *       frame is received from the channel the current handler of the channel must tolerate the
+ *       stream topology as it currently exists.
+ *
+ * \note This interface is provided for applications and resources to request that the topology change.
+ *       It is not for use by the channel driver itself.
+ */
+int ast_channel_request_stream_topology_change(struct ast_channel *chan, struct ast_stream_topology *topology);
+
+/*!
+ * \brief Provide notice to a channel that the stream topology has changed
+ *
+ * \param chan The channel to provide notice to
+ * \param topology The new stream topology
+ *
+ * \pre chan is locked
+ *
+ * \retval 0 success
+ * \retval -1 failure
+ *
+ * \note This interface is provided for applications and resources to accept a topology change.
+ *       It is not for use by the channel driver itself.
+ */
+int ast_channel_stream_topology_changed(struct ast_channel *chan, struct ast_stream_topology *topology);
+
 #endif /* _ASTERISK_CHANNEL_H */
