@@ -140,9 +140,14 @@ static int header_identify_match_check(void *obj, void *arg, int flags)
 	pjsip_generic_string_hdr *header;
 	pj_str_t pj_header_name;
 	pj_str_t pj_header_value;
-	char *c_header = ast_strdupa(identify->match_header);
+	char *c_header;
 	char *c_value;
 
+	if (ast_strlen_zero(identify->match_header)) {
+		return 0;
+	}
+
+	c_header = ast_strdupa(identify->match_header);
 	c_value = strchr(c_header, ':');
 	if (!c_value) {
 		ast_log(LOG_WARNING, "Identify '%s' has invalid header_match: No ':' separator found!\n",
