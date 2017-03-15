@@ -35,20 +35,33 @@
 
 /*** DOCUMENTATION
 	<configInfo name="res_pjsip_endpoint_identifier_ip" language="en_US">
-		<synopsis>Module that identifies endpoints via source IP address</synopsis>
+		<synopsis>Module that identifies endpoints</synopsis>
 		<configFile name="pjsip.conf">
 			<configObject name="identify">
-				<synopsis>Identifies endpoints via source IP address</synopsis>
+				<synopsis>Identifies endpoints via some criteria.</synopsis>
+				<description>
+					<para>This module provides alternatives to matching inbound requests to
+					a configured endpoint. At least one of the matching mechanisms
+					must be provided, or the object configuration will be invalid.</para>
+					<para>If multiple criteria are provided, an inbound request will
+					be matched if it matches <emphasis>any</emphasis> of the criteria.</para>
+					<para>The matching mechanisms are provided by the following
+					configuration options:</para>
+					<enumlist>
+						<enum name="match"><para>Match by source IP address.</para></enum>
+						<enum name="match_header"><para>Match by SIP header.</para></enum>
+					</enumlist>
+				</description>
 				<configOption name="endpoint">
 					<synopsis>Name of Endpoint</synopsis>
 				</configOption>
 				<configOption name="match">
-					<synopsis>IP addresses or networks to match against</synopsis>
+					<synopsis>IP addresses or networks to match against.</synopsis>
 					<description><para>
 						The value is a comma-delimited list of IP addresses. IP addresses may
 						have a subnet mask appended. The subnet mask may be written in either
 						CIDR or dot-decimal notation. Separate the IP address and subnet
-						mask with a slash ('/')
+						mask with a slash ('/').
 					</para></description>
 				</configOption>
 				<configOption name="srv_lookups" default="yes">
@@ -57,7 +70,15 @@
 					perform SRV lookups for _sip._udp, _sip._tcp, and _sips._tcp of the given
 					hostnames to determine additional addresses that traffic may originate from.
 					</para></description>
-                                </configOption>
+				</configOption>
+				<configOption name="match_header">
+					<synopsis>Header/value pair to match against.</synopsis>
+					<description><para>A SIP header who value is used to match against. SIP
+					requests containing the header, along with the specified value, will be
+					mapped to the specified endpoint. The header must be specified with a
+					<literal>:</literal>, as in <literal>match_header = SIPHeader: value</literal>.
+					</para></description>
+				</configOption>
 				<configOption name="type">
 					<synopsis>Must be of type 'identify'.</synopsis>
 				</configOption>
@@ -77,6 +98,8 @@ struct ip_identify_match {
 	AST_DECLARE_STRING_FIELDS(
 		/*! The name of the endpoint */
 		AST_STRING_FIELD(endpoint_name);
+		/*! If matching by header, the header/value to match against */
+		AST_STRING_FIELD(match_header);
 	);
 	/*! \brief Networks or addresses that should match this */
 	struct ast_ha *matches;
@@ -109,7 +132,48 @@ static void *ip_identify_alloc(const char *name)
 	return identify;
 }
 
-/*! \brief Comparator function for a matching object */
+/*! \brief Comparator function for matching an object by header */
+static int header_identify_match_check(void *obj, void *arg, int flags)
+{
+	struct ip_identify_match *identify = obj;
+	struct pjsip_rx_data *rdata = arg;
+	pjsip_generic_string_hdr *header;
+	pj_str_t pj_header_name;
+	pj_str_t pj_header_value;
+	char *c_header = ast_strdupa(identify->match_header);
+	char *c_value;
+
+	c_value = strchr(c_header, ':');
+	if (!c_value) {
+		ast_log(LOG_WARNING, "Identify '%s' has invalid header_match: No ':' separator found!\n",
+			ast_sorcery_object_get_id(identify));
+		return 0;
+	}
+	*c_value = '\0';
+	c_value++;
+	c_value = ast_strip(c_value);
+
+	pj_header_name = pj_str(c_header);
+	header = pjsip_msg_find_hdr_by_name(rdata->msg_info.msg, &pj_header_name, NULL);
+	if (!header) {
+		ast_debug(3, "SIP message does not contain header '%s'\n", c_header);
+		return 0;
+	}
+
+	pj_header_value = pj_str(c_value);
+	if (pj_strcmp(&pj_header_value, &header->hvalue)) {
+		ast_debug(3, "SIP message contains header '%s' but value '%.*s' does not match value '%s' for endpoint '%s'\n",
+			c_header,
+			(int) pj_strlen(&header->hvalue), pj_strbuf(&header->hvalue),
+			c_value,
+			identify->endpoint_name);
+		return 0;
+	}
+
+	return CMP_MATCH | CMP_STOP;
+}
+
+/*! \brief Comparator function for matching an object by IP address */
 static int ip_identify_match_check(void *obj, void *arg, int flags)
 {
 	struct ip_identify_match *identify = obj;
@@ -147,10 +211,14 @@ static struct ast_sip_endpoint *ip_identify(pjsip_rx_data *rdata)
 	ast_sockaddr_parse(&addr, rdata->pkt_info.src_name, PARSE_PORT_FORBID);
 	ast_sockaddr_set_port(&addr, rdata->pkt_info.src_port);
 
-	if (!(match = ao2_callback(candidates, 0, ip_identify_match_check, &addr))) {
-		ast_debug(3, "'%s' did not match any identify section rules\n",
+	match = ao2_callback(candidates, 0, ip_identify_match_check, &addr);
+	if (!match) {
+		ast_debug(3, "Identify checks by IP address failed to find match: '%s' did not match any identify section rules\n",
 				ast_sockaddr_stringify(&addr));
-		return NULL;
+		match = ao2_callback(candidates, 0, header_identify_match_check, rdata);
+		if (!match) {
+			return NULL;
+		}
 	}
 
 	endpoint = ast_sorcery_retrieve_by_id(ast_sip_get_sorcery(), "endpoint", match->endpoint_name);
@@ -495,7 +563,7 @@ static int cli_print_header(void *obj, void *arg, int flags)
 		filler = CLI_LAST_TABSTOP - indent - 24;
 
 		ast_str_append(&context->output_buffer, 0,
-			"%*s:  <ip/cidr%*.*s>\n",
+			"%*s:  <criteria%*.*s>\n",
 			indent, "Match", filler, filler, CLI_HEADER_FILLER);
 
 		context->indent_level--;
@@ -530,6 +598,13 @@ static int cli_print_body(void *obj, void *arg, int flags)
 				"Match",
 				match->sense == AST_SENSE_ALLOW ? "!" : "",
 				addr, ast_sockaddr_cidr_bits(&match->netmask));
+		}
+
+		if (!ast_strlen_zero(ident->match_header)) {
+			ast_str_append(&context->output_buffer, 0, "%*s: %s\n",
+				indent,
+				"Match",
+				ident->match_header);
 		}
 
 		context->indent_level--;
@@ -592,6 +667,7 @@ static int load_module(void)
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "identify", "type", "", OPT_NOOP_T, 0, 0);
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "identify", "endpoint", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ip_identify_match, endpoint_name));
 	ast_sorcery_object_field_register_custom(ast_sip_get_sorcery(), "identify", "match", "", ip_identify_match_handler, match_to_str, match_to_var_list, 0, 0);
+	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "identify", "match_header", "", OPT_STRINGFIELD_T, 0, STRFLDSET(struct ip_identify_match, match_header));
 	ast_sorcery_object_field_register(ast_sip_get_sorcery(), "identify", "srv_lookups", "yes", OPT_BOOL_T, 1, FLDSET(struct ip_identify_match, srv_lookups));
 	ast_sorcery_load_object(ast_sip_get_sorcery(), "identify");
 
