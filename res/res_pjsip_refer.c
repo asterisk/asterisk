@@ -822,6 +822,13 @@ static int refer_incoming_blind_request(struct ast_sip_session *session, pjsip_r
 	 */
 	AST_SIP_USER_OPTIONS_TRUNCATE_CHECK(exten);
 
+	/* Uri without exten */
+	if (ast_strlen_zero(exten)) {
+		ast_copy_string(exten, "s", sizeof(exten));
+		ast_debug(3, "Channel '%s' from endpoint '%s' attempted blind transfer to a target without extension. Target was set to 's@%s'\n",
+			ast_channel_name(session->channel), ast_sorcery_object_get_id(session->endpoint), context);
+	}
+
 	if (!ast_exists_extension(NULL, context, exten, 1, NULL)) {
 		ast_log(LOG_ERROR, "Channel '%s' from endpoint '%s' attempted blind transfer to '%s@%s' but target does not exist\n",
 			ast_channel_name(session->channel), ast_sorcery_object_get_id(session->endpoint), exten, context);
