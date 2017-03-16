@@ -676,6 +676,8 @@ struct ast_sip_endpoint_media_configuration {
 	unsigned int g726_non_standard;
 	/*! Bind the RTP instance to the media_address */
 	unsigned int bind_rtp_to_media_address;
+	/*! Use RTCP-MUX */
+	unsigned int rtcp_mux;
 };
 
 /*!

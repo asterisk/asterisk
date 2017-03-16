@@ -950,6 +950,16 @@
 						to the receiving one.
 					</para></description>
 				</configOption>
+				<configOption name="rtcp_mux" default="no">
+					<synopsis>Enable RFC 5761 RTCP multiplexing on the RTP port</synopsis>
+					<description><para>
+						With this option enabled, Asterisk will attempt to negotiate the use of the "rtcp-mux"
+						attribute on all media streams. This will result in RTP and RTCP being sent and received
+						on the same port. This shifts the demultiplexing logic to the application rather than
+						the transport layer. This option is useful when interoperating with WebRTC endpoints
+						since they mandate this option's use.
+					</para></description>
+				</configOption>
 			</configObject>
 			<configObject name="auth">
 				<synopsis>Authentication type</synopsis>

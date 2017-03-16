@@ -169,6 +169,23 @@ static int rtp_check_timeout(const void *data)
 	return 0;
 }
 
+/*!
+ * \brief Enable RTCP on an RTP session.
+ */
+static void enable_rtcp(struct ast_sip_session *session, struct ast_sip_session_media *session_media,
+	const struct pjmedia_sdp_media *remote_media)
+{
+	enum ast_rtp_instance_rtcp rtcp_type;
+
+	if (session->endpoint->media.rtcp_mux && session_media->remote_rtcp_mux) {
+		rtcp_type = AST_RTP_INSTANCE_RTCP_MUX;
+	} else {
+		rtcp_type = AST_RTP_INSTANCE_RTCP_STANDARD;
+	}
+
+	ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_RTCP, rtcp_type);
+}
+
 /*! \brief Internal function which creates an RTP instance */
 static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_media *session_media)
 {
@@ -186,7 +203,6 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 		return -1;
 	}
 
-	ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_RTCP, 1);
 	ast_rtp_instance_set_prop(session_media->rtp, AST_RTP_PROPERTY_NAT, session->endpoint->media.rtp.symmetric);
 
 	if (!session->endpoint->media.rtp.ice_support && (ice = ast_rtp_instance_get_ice(session_media->rtp))) {
@@ -569,6 +585,13 @@ static void process_ice_attributes(struct ast_sip_session *session, struct ast_s
 			continue;
 		}
 
+		if (session->endpoint->media.rtcp_mux && session_media->remote_rtcp_mux && candidate.id > 1) {
+			/* Remote side may have offered RTP and RTCP candidates. However, if we're using RTCP MUX,
+			 * then we should ignore RTCP candidates.
+			 */
+			continue;
+		}
+
 		candidate.foundation = foundation;
 		candidate.transport = transport;
 
@@ -865,6 +888,26 @@ static int setup_media_encryption(struct ast_sip_session *session,
 	return 0;
 }
 
+static void set_ice_components(struct ast_sip_session *session, struct ast_sip_session_media *session_media)
+{
+	struct ast_rtp_engine_ice *ice;
+
+	ast_assert(session_media->rtp != NULL);
+
+	ice = ast_rtp_instance_get_ice(session_media->rtp);
+	if (!session->endpoint->media.rtp.ice_support || !ice) {
+		return;
+	}
+
+	if (session->endpoint->media.rtcp_mux && session_media->remote_rtcp_mux) {
+		/* We both support RTCP mux. Only one ICE component necessary */
+		ice->change_components(session_media->rtp, 1);
+	} else {
+		/* They either don't support RTCP mux or we don't know if they do yet. */
+		ice->change_components(session_media->rtp, 2);
+	}
+}
+
 /*! \brief Function which negotiates an incoming media stream */
 static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct ast_sip_session_media *session_media,
 					 const struct pjmedia_sdp_session *sdp, const struct pjmedia_sdp_media *stream)
@@ -908,6 +951,11 @@ static int negotiate_incoming_sdp_stream(struct ast_sip_session *session, struct
 	if (!session_media->rtp && create_rtp(session, session_media)) {
 		return -1;
 	}
+
+	session_media->remote_rtcp_mux = (pjmedia_sdp_media_find_attr2(stream, "rtcp-mux", NULL) != NULL);
+	set_ice_components(session, session_media);
+
+	enable_rtcp(session, session_media, stream);
 
 	res = setup_media_encryption(session, session_media, sdp, stream);
 	if (res) {
@@ -1087,6 +1135,9 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 		return -1;
 	}
 
+	set_ice_components(session, session_media);
+	enable_rtcp(session, session_media, NULL);
+
 	if (!(media = pj_pool_zalloc(pool, sizeof(struct pjmedia_sdp_media))) ||
 		!(media->conn = pj_pool_zalloc(pool, sizeof(struct pjmedia_sdp_conn)))) {
 		return -1;
@@ -1250,6 +1301,12 @@ static int create_outgoing_sdp_stream(struct ast_sip_session *session, struct as
 	attr->name = !session_media->locally_held ? STR_SENDRECV : STR_SENDONLY;
 	media->attr[media->attr_count++] = attr;
 
+	/* If we've got rtcp-mux enabled, just unconditionally offer it in all SDPs */
+	if (session->endpoint->media.rtcp_mux) {
+		attr = pjmedia_sdp_attr_create(pool, "rtcp-mux", NULL);
+		pjmedia_sdp_attr_add(&media->attr_count, media->attr, attr);
+	}
+
 	/* Add the media stream to the SDP */
 	sdp->media[sdp->media_count++] = media;
 
@@ -1284,6 +1341,11 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 		return -1;
 	}
 
+	session_media->remote_rtcp_mux = (pjmedia_sdp_media_find_attr2(remote_stream, "rtcp-mux", NULL) != NULL);
+	set_ice_components(session, session_media);
+
+	enable_rtcp(session, session_media, remote_stream);
+
 	res = setup_media_encryption(session, session_media, remote, remote_stream);
 	if (!session->endpoint->media.rtp.encryption_optimistic && res) {
 		/* If optimistic encryption is disabled and crypto should have been enabled but was not
@@ -1315,7 +1377,9 @@ static int apply_negotiated_sdp_stream(struct ast_sip_session *session, struct a
 		return -1;
 	}
 	ast_channel_set_fd(session->channel, fdno, ast_rtp_instance_fd(session_media->rtp, 0));
-	ast_channel_set_fd(session->channel, fdno + 1, ast_rtp_instance_fd(session_media->rtp, 1));
+	if (!session->endpoint->media.rtcp_mux || !session_media->remote_rtcp_mux) {
+		ast_channel_set_fd(session->channel, fdno + 1, ast_rtp_instance_fd(session_media->rtp, 1));
+	}
 
 	/* If ICE support is enabled find all the needed attributes */
 	process_ice_attributes(session, session_media, remote, remote_stream);
