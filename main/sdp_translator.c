@@ -24,13 +24,13 @@
 #include "asterisk/lock.h"
 
 AST_RWLOCK_DEFINE_STATIC(registered_ops_lock);
-static struct ast_sdp_translator_ops *registered_ops[AST_SDP_REPR_END];
+static struct ast_sdp_translator_ops *registered_ops[AST_SDP_IMPL_END];
 
 int ast_sdp_register_translator(struct ast_sdp_translator_ops *ops)
 {
 	SCOPED_WRLOCK(lock, &registered_ops_lock);
 
-	if (ops->repr >= AST_SDP_REPR_END) {
+	if (ops->repr >= AST_SDP_IMPL_END) {
 		ast_log(LOG_ERROR, "SDP translator has unrecognized representation\n");
 		return -1;
 	}
@@ -49,14 +49,14 @@ void ast_sdp_unregister_translator(struct ast_sdp_translator_ops *ops)
 {
 	SCOPED_WRLOCK(lock, &registered_ops_lock);
 
-	if (ops->repr >= AST_SDP_REPR_END) {
+	if (ops->repr >= AST_SDP_IMPL_END) {
 		return;
 	}
 
 	registered_ops[ops->repr] = NULL;
 }
 
-struct ast_sdp_translator *ast_sdp_translator_new(enum ast_sdp_options_repr repr)
+struct ast_sdp_translator *ast_sdp_translator_new(enum ast_sdp_options_impl repr)
 {
 	struct ast_sdp_translator *translator;
 	SCOPED_RDLOCK(lock, &registered_ops_lock);
@@ -88,12 +88,14 @@ void ast_sdp_translator_free(struct ast_sdp_translator *translator)
 	ast_free(translator);
 }
 
-struct ast_sdp *ast_sdp_translator_to_sdp(struct ast_sdp_translator *translator, void *native_sdp)
+struct ast_sdp *ast_sdp_translator_to_sdp(struct ast_sdp_translator *translator,
+	void *native_sdp)
 {
 	return translator->ops->to_sdp(native_sdp, translator->translator_priv);
 }
 
-void *ast_sdp_translator_from_sdp(struct ast_sdp_translator *translator, struct ast_sdp *ast_sdp)
+void *ast_sdp_translator_from_sdp(struct ast_sdp_translator *translator,
+	const struct ast_sdp *ast_sdp)
 {
 	return translator->ops->from_sdp(ast_sdp, translator->translator_priv);
 }

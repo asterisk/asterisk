@@ -43,6 +43,8 @@ struct ast_format_cap;
  */
 struct ast_stream_topology;
 
+typedef void (*ast_stream_data_free_fn)(void *);
+
 /*!
  * \brief States that a stream may be in
  */
@@ -67,6 +69,20 @@ enum ast_stream_state {
      * \brief Set when the stream is not sending OR receiving media
      */
     AST_STREAM_STATE_INACTIVE,
+};
+
+/*!
+ * \brief Stream data slots
+ */
+enum ast_stream_data_slot {
+    /*!
+     * \brief Data slot for RTP instance
+     */
+	AST_STREAM_DATA_RTP_INSTANCE = 0,
+    /*!
+     * \brief Controls the size of the data pointer array
+     */
+	AST_STREAM_DATA_SLOT_MAX
 };
 
 /*!
@@ -102,6 +118,9 @@ void ast_stream_free(struct ast_stream *stream);
  *
  * \retval non-NULL success
  * \retval NULL failure
+ *
+ * \note Opaque data pointers set with ast_stream_set_data() are not part
+ * of the deep clone.  The pointers are simply copied.
  *
  * \since 15
  */
@@ -200,6 +219,34 @@ void ast_stream_set_state(struct ast_stream *stream, enum ast_stream_state state
  * \since 15
  */
 const char *ast_stream_state2str(enum ast_stream_state state);
+
+/*!
+ * \brief Get the opaque stream data
+ *
+ * \param stream The media stream
+ * \param slot The data slot to retrieve
+ *
+ * \retval non-NULL success
+ * \retval NULL failure
+ *
+ * \since 15
+ */
+void *ast_stream_get_data(struct ast_stream *stream, enum ast_stream_data_slot slot);
+
+/*!
+ * \brief Set the opaque stream data
+ *
+ * \param stream The media stream
+ * \param slot The data slot to set
+ * \param data Opaque data
+ * \param data_free_fn Callback to free data when stream is freed. May be NULL for no action.
+ *
+ * \return data
+ *
+ * \since 15
+ */
+void *ast_stream_set_data(struct ast_stream *stream, enum ast_stream_data_slot slot,
+	void *data, ast_stream_data_free_fn data_free_fn);
 
 /*!
  * \brief Get the position of the stream in the topology

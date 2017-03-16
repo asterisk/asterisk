@@ -19,13 +19,14 @@
 #include "asterisk.h"
 #include "asterisk/sdp_translator.h"
 #include "asterisk/sdp_options.h"
-#include "asterisk/sdp_priv.h"
 #include "asterisk/vector.h"
 #include "asterisk/netsock2.h"
 #include "asterisk/utils.h"
 #include "asterisk/config.h"
 #include "asterisk/test.h"
 #include "asterisk/module.h"
+
+#include "../include/asterisk/sdp.h"
 #ifdef HAVE_PJPROJECT
 #include <pjlib.h>
 #include <pjmedia.h>
@@ -55,93 +56,56 @@ static void pjmedia_free(void *translator_priv)
 	pj_pool_release(pool);
 }
 
-static void copy_pj_str(char *dest, const pj_str_t *src, size_t size)
-{
-	memcpy(dest, pj_strbuf(src), size);
-	dest[size] = '\0';
-}
+#define dupa_pj_str(pjstr) \
+({ \
+	char *dest = ast_alloca(pjstr.slen + 1); \
+	memcpy(dest, pjstr.ptr, pjstr.slen); \
+	dest[pjstr.slen] = '\0'; \
+	dest; \
+})
 
-static void dup_pj_str(char **dest, const pj_str_t *src)
-{
-	*dest = ast_malloc(pj_strlen(src) + 1);
-	copy_pj_str(*dest, src, pj_strlen(src));
-}
-
-static void pjmedia_copy_o_line(struct ast_sdp *new_sdp, struct pjmedia_sdp_session * pjmedia_sdp)
-{
-	dup_pj_str(&new_sdp->o_line.user, &pjmedia_sdp->origin.user);
-	new_sdp->o_line.id = pjmedia_sdp->origin.id;
-	new_sdp->o_line.version = pjmedia_sdp->origin.version;
-	dup_pj_str(&new_sdp->o_line.family, &pjmedia_sdp->origin.addr_type);
-	dup_pj_str(&new_sdp->o_line.addr, &pjmedia_sdp->origin.addr);
-}
-
-static void pjmedia_copy_s_line(struct ast_sdp *new_sdp, struct pjmedia_sdp_session *pjmedia_sdp)
-{
-	dup_pj_str(&new_sdp->s_line, &pjmedia_sdp->name);
-}
-
-static void pjmedia_copy_t_line(struct ast_sdp_t_line *new_t_line, struct pjmedia_sdp_session *pjmedia_sdp)
-{
-	new_t_line->start = pjmedia_sdp->time.start;
-	new_t_line->end = pjmedia_sdp->time.stop;
-}
-
-static void pjmedia_copy_c_line(struct ast_sdp_c_line *new_c_line, struct pjmedia_sdp_conn *conn)
-{
-	/* It's perfectly reasonable for a c line not to be present, especially within a media description */
-	if (!conn) {
-		return;
-	}
-
-	dup_pj_str(&new_c_line->family, &conn->addr_type);
-	dup_pj_str(&new_c_line->addr, &conn->addr);
-}
-
-static void pjmedia_copy_m_line(struct ast_sdp_m_line *new_m_line, struct pjmedia_sdp_media *pjmedia_m_line)
+static struct ast_sdp_m_line *pjmedia_copy_m_line(struct pjmedia_sdp_media *pjmedia_m_line)
 {
 	int i;
 
-	dup_pj_str(&new_m_line->type, &pjmedia_m_line->desc.media);
-	new_m_line->port = pjmedia_m_line->desc.port;
-	new_m_line->port_count = pjmedia_m_line->desc.port_count;
-	dup_pj_str(&new_m_line->profile, &pjmedia_m_line->desc.transport);
-	pjmedia_copy_c_line(&new_m_line->c_line, pjmedia_m_line->conn);
+	struct ast_sdp_c_line *c_line = pjmedia_m_line->conn ?
+		ast_sdp_c_alloc(dupa_pj_str(pjmedia_m_line->conn->addr_type),
+		dupa_pj_str(pjmedia_m_line->conn->addr)) : NULL;
 
-	AST_VECTOR_INIT(&new_m_line->payloads, pjmedia_m_line->desc.fmt_count);
+	struct ast_sdp_m_line *m_line = ast_sdp_m_alloc(dupa_pj_str(pjmedia_m_line->desc.media),
+		pjmedia_m_line->desc.port, pjmedia_m_line->desc.port_count,
+		dupa_pj_str(pjmedia_m_line->desc.transport), c_line);
+
 	for (i = 0; i < pjmedia_m_line->desc.fmt_count; ++i) {
-		++new_m_line->payloads.current;
-		dup_pj_str(AST_VECTOR_GET_ADDR(&new_m_line->payloads, i), &pjmedia_m_line->desc.fmt[i]);
+		ast_sdp_m_add_payload(m_line,
+			ast_sdp_payload_alloc(dupa_pj_str(pjmedia_m_line->desc.fmt[i])));
 	}
+
+	for (i = 0; i < pjmedia_m_line->attr_count; ++i) {
+		ast_sdp_m_add_a(m_line, ast_sdp_a_alloc(dupa_pj_str(pjmedia_m_line->attr[i]->name),
+			dupa_pj_str(pjmedia_m_line->attr[i]->value)));
+	}
+
+	return m_line;
 }
 
-static void pjmedia_copy_a_lines(struct ast_sdp_a_line_vector *new_a_lines, pjmedia_sdp_attr **attr, unsigned int attr_count)
+static void pjmedia_copy_a_lines(struct ast_sdp *new_sdp, pjmedia_sdp_session *pjmedia_sdp)
 {
 	int i;
 
-	AST_VECTOR_INIT(new_a_lines, attr_count);
-
-	for (i = 0; i < attr_count; ++i) {
-		struct ast_sdp_a_line *a_line;
-
-		++new_a_lines->current;
-		a_line = AST_VECTOR_GET_ADDR(new_a_lines, i);
-		dup_pj_str(&a_line->name, &attr[i]->name);
-		dup_pj_str(&a_line->value, &attr[i]->value);
+	for (i = 0; i < pjmedia_sdp->attr_count; ++i) {
+		ast_sdp_add_a(new_sdp, ast_sdp_a_alloc(dupa_pj_str(pjmedia_sdp->attr[i]->name),
+			dupa_pj_str(pjmedia_sdp->attr[i]->value)));
 	}
 }
 
-static void pjmedia_copy_m_lines(struct ast_sdp *new_sdp, struct pjmedia_sdp_session *pjmedia_sdp)
+static void pjmedia_copy_m_lines(struct ast_sdp *new_sdp,
+	struct pjmedia_sdp_session *pjmedia_sdp)
 {
 	int i;
-
-	AST_VECTOR_INIT(&new_sdp->m_lines, pjmedia_sdp->media_count);
 
 	for (i = 0; i < pjmedia_sdp->media_count; ++i) {
-		++new_sdp->m_lines.current;
-
-		pjmedia_copy_m_line(AST_VECTOR_GET_ADDR(&new_sdp->m_lines, i), pjmedia_sdp->media[i]);
-		pjmedia_copy_a_lines(&AST_VECTOR_GET_ADDR(&new_sdp->m_lines, i)->a_lines, pjmedia_sdp->media[i]->attr, pjmedia_sdp->media[i]->attr_count);
+		ast_sdp_add_m(new_sdp, pjmedia_copy_m_line(pjmedia_sdp->media[i]));
 	}
 }
 
@@ -149,128 +113,149 @@ static struct ast_sdp *pjmedia_to_sdp(void *in, void *translator_priv)
 {
 	struct pjmedia_sdp_session *pjmedia_sdp = in;
 
-	struct ast_sdp *new_sdp = ast_sdp_alloc();
+	struct ast_sdp_o_line *o_line = ast_sdp_o_alloc(dupa_pj_str(pjmedia_sdp->origin.user),
+		pjmedia_sdp->origin.id, pjmedia_sdp->origin.version,
+		dupa_pj_str(pjmedia_sdp->origin.addr_type), dupa_pj_str(pjmedia_sdp->origin.addr));
 
-	pjmedia_copy_o_line(new_sdp, pjmedia_sdp);
-	pjmedia_copy_s_line(new_sdp, pjmedia_sdp);
-	pjmedia_copy_t_line(&new_sdp->t_line, pjmedia_sdp);
-	pjmedia_copy_c_line(&new_sdp->c_line, pjmedia_sdp->conn);
-	pjmedia_copy_a_lines(&new_sdp->a_lines, pjmedia_sdp->attr, pjmedia_sdp->attr_count);
+	struct ast_sdp_c_line *c_line = pjmedia_sdp->conn ?
+		ast_sdp_c_alloc(dupa_pj_str(pjmedia_sdp->conn->addr_type),
+			dupa_pj_str(pjmedia_sdp->conn->addr)) : NULL;
+
+	struct ast_sdp_s_line *s_line = ast_sdp_s_alloc(dupa_pj_str(pjmedia_sdp->name));
+
+	struct ast_sdp_t_line *t_line = ast_sdp_t_alloc(pjmedia_sdp->time.start,
+		pjmedia_sdp->time.stop);
+
+	struct ast_sdp *new_sdp = ast_sdp_alloc(o_line, c_line, s_line, t_line);
+
+	pjmedia_copy_a_lines(new_sdp, pjmedia_sdp);
 	pjmedia_copy_m_lines(new_sdp, pjmedia_sdp);
 
 	return new_sdp;
 }
 
-static void copy_o_line_pjmedia(pj_pool_t *pool, pjmedia_sdp_session *pjmedia_sdp, struct ast_sdp *sdp)
+static void copy_o_line_pjmedia(pj_pool_t *pool, pjmedia_sdp_session *pjmedia_sdp,
+	struct ast_sdp_o_line *o_line)
 {
-	pjmedia_sdp->origin.id = sdp->o_line.id;
-	pjmedia_sdp->origin.version = sdp->o_line.version;
-	pj_strdup2(pool, &pjmedia_sdp->origin.user, sdp->o_line.user);
-	pj_strdup2(pool, &pjmedia_sdp->origin.addr_type, sdp->o_line.family);
-	pj_strdup2(pool, &pjmedia_sdp->origin.addr, sdp->o_line.addr);
+	pjmedia_sdp->origin.id = o_line->session_id;
+	pjmedia_sdp->origin.version = o_line->session_version;
+	pj_strdup2(pool, &pjmedia_sdp->origin.user, o_line->username);
+	pj_strdup2(pool, &pjmedia_sdp->origin.addr_type, o_line->address_type);
+	pj_strdup2(pool, &pjmedia_sdp->origin.addr, o_line->address);
 	pj_strdup2(pool, &pjmedia_sdp->origin.net_type, "IN");
 }
 
-static void copy_s_line_pjmedia(pj_pool_t *pool, pjmedia_sdp_session *pjmedia_sdp, struct ast_sdp *sdp)
+static void copy_s_line_pjmedia(pj_pool_t *pool, pjmedia_sdp_session *pjmedia_sdp,
+	struct ast_sdp_s_line *s_line)
 {
-	pj_strdup2(pool, &pjmedia_sdp->name, sdp->s_line);
+	pj_strdup2(pool, &pjmedia_sdp->name, s_line->session_name);
 }
 
-static void copy_t_line_pjmedia(pj_pool_t *pool, pjmedia_sdp_session *pjmedia_sdp, struct ast_sdp_t_line *t_line)
+static void copy_t_line_pjmedia(pj_pool_t *pool, pjmedia_sdp_session *pjmedia_sdp,
+	struct ast_sdp_t_line *t_line)
 {
-	pjmedia_sdp->time.start = t_line->start;
-	pjmedia_sdp->time.stop = t_line->end;
+	pjmedia_sdp->time.start = t_line->start_time;
+	pjmedia_sdp->time.stop = t_line->stop_time;
 }
 
-static void copy_c_line_pjmedia(pj_pool_t *pool, pjmedia_sdp_conn **conn, struct ast_sdp_c_line *c_line)
+static void copy_c_line_pjmedia(pj_pool_t *pool, pjmedia_sdp_conn **conn,
+	struct ast_sdp_c_line *c_line)
 {
 	pjmedia_sdp_conn *local_conn;
 	local_conn = PJ_POOL_ZALLOC_T(pool, pjmedia_sdp_conn);
-	pj_strdup2(pool, &local_conn->addr_type, c_line->family);
-	pj_strdup2(pool, &local_conn->addr, c_line->addr);
+	pj_strdup2(pool, &local_conn->addr_type, c_line->address_type);
+	pj_strdup2(pool, &local_conn->addr, c_line->address);
 	pj_strdup2(pool, &local_conn->net_type, "IN");
 
 	*conn = local_conn;
 }
 
-static void copy_a_lines_pjmedia(pj_pool_t *pool, pjmedia_sdp_session *pjmedia_sdp, struct ast_sdp_a_line_vector *a_lines)
+static void copy_a_lines_pjmedia(pj_pool_t *pool, pjmedia_sdp_session *pjmedia_sdp,
+	const struct ast_sdp *sdp)
 {
 	int i;
 
-	for (i = 0; i < AST_VECTOR_SIZE(a_lines); ++i) {
+	for (i = 0; i < ast_sdp_get_a_count(sdp); ++i) {
 		pjmedia_sdp_attr *attr;
 		pj_str_t value;
+		struct ast_sdp_a_line *a_line;
 
-		pj_strdup2(pool, &value, AST_VECTOR_GET(a_lines, i).value);
-		attr = pjmedia_sdp_attr_create(pool, AST_VECTOR_GET(a_lines, i).name, &value);
+		a_line = ast_sdp_get_a(sdp, i);
+		pj_strdup2(pool, &value, a_line->value);
+		attr = pjmedia_sdp_attr_create(pool, a_line->name, &value);
 		pjmedia_sdp_session_add_attr(pjmedia_sdp, attr);
 	}
 }
 
-static void copy_a_lines_pjmedia_media(pj_pool_t *pool, pjmedia_sdp_media *media, struct ast_sdp_a_line_vector *a_lines)
+static void copy_a_lines_pjmedia_media(pj_pool_t *pool, pjmedia_sdp_media *media,
+	struct ast_sdp_m_line *m_line)
 {
 	int i;
 
-	for (i = 0; i < AST_VECTOR_SIZE(a_lines); ++i) {
+	for (i = 0; i < ast_sdp_m_get_a_count(m_line); ++i) {
 		pjmedia_sdp_attr *attr;
 		pj_str_t value;
+		struct ast_sdp_a_line *a_line;
 
-		pj_strdup2(pool, &value, AST_VECTOR_GET(a_lines, i).value);
-		attr = pjmedia_sdp_attr_create(pool, AST_VECTOR_GET(a_lines, i).name, &value);
+		a_line = ast_sdp_m_get_a(m_line, i);
+		pj_strdup2(pool, &value, a_line->value);
+		attr = pjmedia_sdp_attr_create(pool, a_line->name, &value);
 		pjmedia_sdp_media_add_attr(media, attr);
 	}
 }
 
-static void copy_m_line_pjmedia(pj_pool_t *pool, pjmedia_sdp_media *media, struct ast_sdp_m_line *m_line)
+static void copy_m_line_pjmedia(pj_pool_t *pool, pjmedia_sdp_media *media,
+	struct ast_sdp_m_line *m_line)
 {
 	int i;
 
 	media->desc.port = m_line->port;
 	media->desc.port_count = m_line->port_count;
-	pj_strdup2(pool, &media->desc.transport, m_line->profile);
+	pj_strdup2(pool, &media->desc.transport, m_line->proto);
 	pj_strdup2(pool, &media->desc.media, m_line->type);
 
-	for (i = 0; i < AST_VECTOR_SIZE(&m_line->payloads); ++i) {
-		pj_strdup2(pool, &media->desc.fmt[i], AST_VECTOR_GET(&m_line->payloads, i));
+	for (i = 0; i < ast_sdp_m_get_payload_count(m_line); ++i) {
+		pj_strdup2(pool, &media->desc.fmt[i], ast_sdp_m_get_payload(m_line, i)->fmt);
 		++media->desc.fmt_count;
 	}
-	if (m_line->c_line.addr) {
-		copy_c_line_pjmedia(pool, &media->conn, &m_line->c_line);
+	if (m_line->c_line && m_line->c_line->address) {
+		copy_c_line_pjmedia(pool, &media->conn, m_line->c_line);
 	}
-	copy_a_lines_pjmedia_media(pool, media, &m_line->a_lines);
+	copy_a_lines_pjmedia_media(pool, media, m_line);
 }
 
-static void copy_m_lines_pjmedia(pj_pool_t *pool, pjmedia_sdp_session *pjmedia_sdp, struct ast_sdp *sdp)
+static void copy_m_lines_pjmedia(pj_pool_t *pool, pjmedia_sdp_session *pjmedia_sdp,
+	const struct ast_sdp *sdp)
 {
 	int i;
 
-	for (i = 0; i < AST_VECTOR_SIZE(&sdp->m_lines); ++i) {
+	for (i = 0; i < ast_sdp_get_m_count(sdp); ++i) {
 		pjmedia_sdp_media *media;
 
 		media = PJ_POOL_ZALLOC_T(pool, pjmedia_sdp_media);
-		copy_m_line_pjmedia(pool, media, AST_VECTOR_GET_ADDR(&sdp->m_lines, i));
+		copy_m_line_pjmedia(pool, media, ast_sdp_get_m(sdp, i));
 		pjmedia_sdp->media[pjmedia_sdp->media_count] = media;
 		++pjmedia_sdp->media_count;
 	}
 }
 
-static void *sdp_to_pjmedia(struct ast_sdp *sdp, void *translator_priv)
+static void *sdp_to_pjmedia(const struct ast_sdp *sdp, void *translator_priv)
 {
 	pj_pool_t *pool = translator_priv;
 	pjmedia_sdp_session *pjmedia_sdp;
 
 	pjmedia_sdp = PJ_POOL_ZALLOC_T(pool, pjmedia_sdp_session);
-	copy_o_line_pjmedia(pool, pjmedia_sdp, sdp);
-	copy_s_line_pjmedia(pool, pjmedia_sdp, sdp);
-	copy_t_line_pjmedia(pool, pjmedia_sdp, &sdp->t_line);
-	copy_c_line_pjmedia(pool, &pjmedia_sdp->conn, &sdp->c_line);
-	copy_a_lines_pjmedia(pool, pjmedia_sdp, &sdp->a_lines);
+	copy_o_line_pjmedia(pool, pjmedia_sdp, sdp->o_line);
+	copy_s_line_pjmedia(pool, pjmedia_sdp, sdp->s_line);
+	copy_t_line_pjmedia(pool, pjmedia_sdp, sdp->t_line);
+	copy_c_line_pjmedia(pool, &pjmedia_sdp->conn, sdp->c_line);
+	copy_a_lines_pjmedia(pool, pjmedia_sdp, sdp);
 	copy_m_lines_pjmedia(pool, pjmedia_sdp, sdp);
 	return pjmedia_sdp;
 }
 
 static struct ast_sdp_translator_ops pjmedia_translator = {
-	.repr = AST_SDP_REPR_PJMEDIA,
+	.repr = AST_SDP_IMPL_PJMEDIA,
 	.translator_new = pjmedia_new,
 	.translator_free = pjmedia_free,
 	.to_sdp = pjmedia_to_sdp,
@@ -279,37 +264,38 @@ static struct ast_sdp_translator_ops pjmedia_translator = {
 
 #ifdef TEST_FRAMEWORK
 
-static int verify_s_line(char *s_line, char *expected)
+static int verify_s_line(struct ast_sdp_s_line *s_line, char *expected)
 {
-	return strcmp(s_line, expected) == 0;
+	return strcmp(s_line->session_name, expected) == 0;
 }
 
 static int verify_c_line(struct ast_sdp_c_line *c_line, char *family, char *addr)
 {
-	return strcmp(c_line->family, family) == 0 && strcmp(c_line->addr, addr) == 0;
+	return strcmp(c_line->address_type, family) == 0 && strcmp(c_line->address, addr) == 0;
 }
 
 static int verify_t_line(struct ast_sdp_t_line *t_line, uint32_t start, uint32_t end)
 {
-	return t_line->start == start && t_line->end == end;
+	return t_line->start_time == start && t_line->stop_time == end;
 }
 
-static int verify_m_line(struct ast_sdp *sdp, int index, char *type, int port, int port_count, char *profile, ...)
+static int verify_m_line(struct ast_sdp *sdp, int index, char *type, int port,
+	int port_count, char *profile, ...)
 {
 	struct ast_sdp_m_line *m_line;
 	int res;
 	va_list ap;
 	int i;
 
-	m_line = AST_VECTOR_GET_ADDR(&sdp->m_lines, index);
+	m_line = ast_sdp_get_m(sdp, index);
 
 	res = strcmp(m_line->type, type) == 0;
 	res |= m_line->port == port;
 	res |= m_line->port_count == port_count;
-	res |= strcmp(m_line->profile, profile) == 0;
+	res |= strcmp(m_line->proto, profile) == 0;
 
 	va_start(ap, profile);
-	for (i = 0; i < AST_VECTOR_SIZE(&m_line->payloads); ++i) {
+	for (i = 0; i < ast_sdp_m_get_payload_count(m_line); ++i) {
 		char *payload;
 
 		payload = va_arg(ap, char *);
@@ -317,19 +303,20 @@ static int verify_m_line(struct ast_sdp *sdp, int index, char *type, int port, i
 			res = -1;
 			break;
 		}
-		res |= strcmp(AST_VECTOR_GET(&m_line->payloads, i), payload) == 0;
+		res |= strcmp(ast_sdp_m_get_payload(m_line, i)->fmt, payload) == 0;
 	}
 	va_end(ap);
 	return res;
 }
 
-static int verify_a_line(struct ast_sdp *sdp, int m_index, int a_index, char *name, char *value)
+static int verify_a_line(struct ast_sdp *sdp, int m_index, int a_index, char *name,
+	char *value)
 {
 	struct ast_sdp_m_line *m_line;
 	struct ast_sdp_a_line *a_line;
 
-	m_line = AST_VECTOR_GET_ADDR(&sdp->m_lines, m_index);
-	a_line = AST_VECTOR_GET_ADDR(&m_line->a_lines, a_index);
+	m_line = ast_sdp_get_m(sdp, m_index);
+	a_line = ast_sdp_m_get_a(m_line, a_index);
 
 	return strcmp(a_line->name, name) == 0 && strcmp(a_line->value, value) == 0;
 }
@@ -340,10 +327,10 @@ AST_TEST_DEFINE(pjmedia_to_sdp_test)
 	pj_pool_t *pool;
 	char *sdp_str =
       "v=0\r\n"
-      "o=alice 2890844526 2890844526 IN IP4 host.atlanta.example.com\r\n"
+      "o=alice 2890844526 2890844527 IN IP4 host.atlanta.example.com\r\n"
       "s= \r\n"
       "c=IN IP4 host.atlanta.example.com\r\n"
-      "t=0 0\r\n"
+      "t=123 456\r\n"
       "m=audio 49170 RTP/AVP 0 8 97\r\n"
       "a=rtpmap:0 PCMU/8000\r\n"
       "a=rtpmap:8 PCMA/8000\r\n"
@@ -371,7 +358,7 @@ AST_TEST_DEFINE(pjmedia_to_sdp_test)
 
 	pool = pj_pool_create(&sdp_caching_pool.factory, "pjmedia to sdp test", 1024, 1024, NULL);
 
-	translator = ast_sdp_translator_new(AST_SDP_REPR_PJMEDIA);
+	translator = ast_sdp_translator_new(AST_SDP_IMPL_PJMEDIA);
 	if (!translator) {
 		ast_test_status_update(test, "Failed to create SDP translator\n");
 		res = AST_TEST_FAIL;
@@ -387,24 +374,24 @@ AST_TEST_DEFINE(pjmedia_to_sdp_test)
 
 	sdp = ast_sdp_translator_to_sdp(translator, pjmedia_sdp);
 
-	if (strcmp(sdp->o_line.user, "alice")) {
-		ast_test_status_update(test, "Unexpected SDP user '%s'\n", sdp->o_line.user);
+	if (strcmp(sdp->o_line->username, "alice")) {
+		ast_test_status_update(test, "Unexpected SDP user '%s'\n", sdp->o_line->username);
 		res = AST_TEST_FAIL;
 		goto cleanup;
-	} else if (sdp->o_line.id != 2890844526u) {
-		ast_test_status_update(test, "Unexpected SDP id '%u'\n", sdp->o_line.id);
+	} else if (sdp->o_line->session_id != 2890844526UL) {
+		ast_test_status_update(test, "Unexpected SDP id '%" PRId64 "lu'\n", sdp->o_line->session_id);
 		res = AST_TEST_FAIL;
 		goto cleanup;
-	} else if (sdp->o_line.version != 2890844526u) {
-		ast_test_status_update(test, "Unexpected SDP version '%u'\n", sdp->o_line.version);
+	} else if (sdp->o_line->session_version != 2890844527UL) {
+		ast_test_status_update(test, "Unexpected SDP version '%" PRId64 "'\n", sdp->o_line->session_version);
 		res = AST_TEST_FAIL;
 		goto cleanup;
-	} else if (strcmp(sdp->o_line.family, "IP4")) {
-		ast_test_status_update(test, "Unexpected address family '%s'\n", sdp->o_line.family);
+	} else if (strcmp(sdp->o_line->address_type, "IP4")) {
+		ast_test_status_update(test, "Unexpected address family '%s'\n", sdp->o_line->address_type);
 		res = AST_TEST_FAIL;
 		goto cleanup;
-	} else if (strcmp(sdp->o_line.addr, "host.atlanta.example.com")) {
-		ast_test_status_update(test, "Unexpected address '%s'\n", sdp->o_line.addr);
+	} else if (strcmp(sdp->o_line->address, "host.atlanta.example.com")) {
+		ast_test_status_update(test, "Unexpected address '%s'\n", sdp->o_line->address);
 		res = AST_TEST_FAIL;
 		goto cleanup;
 	}
@@ -413,11 +400,11 @@ AST_TEST_DEFINE(pjmedia_to_sdp_test)
 		ast_test_status_update(test, "Bad s line\n");
 		res = AST_TEST_FAIL;
 		goto cleanup;
-	} else if (!verify_c_line(&sdp->c_line, "IP4", "host.atlanta.example.com")) {
+	} else if (!verify_c_line(sdp->c_line, "IP4", "host.atlanta.example.com")) {
 		ast_test_status_update(test, "Bad c line\n");
 		res = AST_TEST_FAIL;
 		goto cleanup;
-	} else if (!verify_t_line(&sdp->t_line, 0, 0)) {
+	} else if (!verify_t_line(sdp->t_line, 123, 456)) {
 		ast_test_status_update(test, "Bad t line\n");
 		res = AST_TEST_FAIL;
 		goto cleanup;
@@ -472,7 +459,7 @@ AST_TEST_DEFINE(sdp_to_pjmedia_test)
       "o=alice 2890844526 2890844526 IN IP4 host.atlanta.example.com\r\n"
       "s= \r\n"
       "c=IN IP4 host.atlanta.example.com\r\n"
-      "t=0 0\r\n"
+      "t=123 456\r\n"
       "m=audio 49170 RTP/AVP 0 8 97\r\n"
       "a=rtpmap:0 PCMU/8000\r\n"
       "a=rtpmap:8 PCMA/8000\r\n"
@@ -487,6 +474,8 @@ AST_TEST_DEFINE(sdp_to_pjmedia_test)
 	struct ast_sdp *sdp = NULL;
 	pj_status_t status;
 	enum ast_test_result_state res = AST_TEST_PASS;
+	char buf[2048];
+	char errbuf[256];
 
 	switch (cmd) {
 	case TEST_INIT:
@@ -502,7 +491,7 @@ AST_TEST_DEFINE(sdp_to_pjmedia_test)
 
 	pool = pj_pool_create(&sdp_caching_pool.factory, "pjmedia to sdp test", 1024, 1024, NULL);
 
-	translator = ast_sdp_translator_new(AST_SDP_REPR_PJMEDIA);
+	translator = ast_sdp_translator_new(AST_SDP_IMPL_PJMEDIA);
 	if (!translator) {
 		ast_test_status_update(test, "Failed to create SDP translator\n");
 		res = AST_TEST_FAIL;
@@ -520,15 +509,13 @@ AST_TEST_DEFINE(sdp_to_pjmedia_test)
 	pjmedia_sdp_dup = ast_sdp_translator_from_sdp(translator, sdp);
 
 	if ((status = pjmedia_sdp_session_cmp(pjmedia_sdp_orig, pjmedia_sdp_dup, 0)) != PJ_SUCCESS) {
-		char buf[2048];
-		char errbuf[256];
 		ast_test_status_update(test, "SDPs aren't equal\n");
 		pjmedia_sdp_print(pjmedia_sdp_orig, buf, sizeof(buf));
-		ast_log(LOG_NOTICE, "Original SDP is %s\n", buf);
+		ast_test_status_update(test, "Original SDP is %s\n", buf);
 		pjmedia_sdp_print(pjmedia_sdp_dup, buf, sizeof(buf));
-		ast_log(LOG_NOTICE, "New SDP is %s\n", buf);
+		ast_test_status_update(test, "New SDP is %s\n", buf);
 		pjmedia_strerror(status, errbuf, sizeof(errbuf));
-		ast_log(LOG_NOTICE, "PJMEDIA says %d: '%s'\n", status, errbuf);
+		ast_test_status_update(test, "PJMEDIA says %d: '%s'\n", status, errbuf);
 		res = AST_TEST_FAIL;
 		goto cleanup;
 	}

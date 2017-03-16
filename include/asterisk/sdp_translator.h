@@ -28,7 +28,7 @@ struct sdp;
  */
 struct ast_sdp_translator_ops {
 	/*! The SDP representation on which this translator operates */
-	enum ast_sdp_options_repr repr;
+	enum ast_sdp_options_impl repr;
 	/*! Allocate new translator private data for a translator */
 	void *(*translator_new)(void);
 	/*! Free translator private data */
@@ -36,7 +36,7 @@ struct ast_sdp_translator_ops {
 	/*! Convert the channel-native SDP into an internal Asterisk SDP */
 	struct ast_sdp *(*to_sdp)(void *repr_sdp, void *translator_priv);
 	/*! Convert an internal Asterisk SDP into a channel-native SDP */
-	void *(*from_sdp)(struct ast_sdp *sdp, void *translator_priv);
+	void *(*from_sdp)(const struct ast_sdp *sdp, void *translator_priv);
 };
 
 /*!
@@ -72,7 +72,7 @@ void ast_sdp_unregister_translator(struct ast_sdp_translator_ops *ops);
  * \retval NULL FAIL
  * \retval non-NULL New SDP translator
  */
-struct ast_sdp_translator *ast_sdp_translator_new(enum ast_sdp_options_repr repr);
+struct ast_sdp_translator *ast_sdp_translator_new(enum ast_sdp_options_impl repr);
 
 /*!
  * \brief Free an SDP translator
@@ -97,6 +97,7 @@ struct ast_sdp *ast_sdp_translator_to_sdp(struct ast_sdp_translator *translator,
  * \retval NULL FAIL
  * \retval non-NULL The translated SDP
  */
-void *ast_sdp_translator_from_sdp(struct ast_sdp_translator *translator, struct ast_sdp *ast_sdp);
+void *ast_sdp_translator_from_sdp(struct ast_sdp_translator *translator,
+	const struct ast_sdp *ast_sdp);
 
 #endif /* _ASTERISK_SDP_TRANSLATOR_H */

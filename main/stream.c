@@ -57,6 +57,16 @@ struct ast_stream {
 	enum ast_stream_state state;
 
 	/*!
+	 * \brief Opaque stream data
+	 */
+	void *data[AST_STREAM_DATA_SLOT_MAX];
+
+	/*!
+	 * \brief What to do with data when the stream is freed
+	 */
+	ast_stream_data_free_fn data_free_fn[AST_STREAM_DATA_SLOT_MAX];
+
+	/*!
 	 * \brief Name for the stream within the context of the channel it is on
 	 */
 	char name[0];
@@ -110,8 +120,16 @@ struct ast_stream *ast_stream_clone(const struct ast_stream *stream)
 
 void ast_stream_free(struct ast_stream *stream)
 {
+	int i;
+
 	if (!stream) {
 		return;
+	}
+
+	for (i = 0; i < AST_STREAM_DATA_SLOT_MAX; i++) {
+		if (stream->data_free_fn[i]) {
+			stream->data_free_fn[i](stream->data[i]);
+		}
 	}
 
 	ao2_cleanup(stream->formats);
@@ -184,6 +202,24 @@ const char *ast_stream_state2str(enum ast_stream_state state)
 	default:
 		return "<unknown>";
 	}
+}
+
+void *ast_stream_get_data(struct ast_stream *stream, enum ast_stream_data_slot slot)
+{
+	ast_assert(stream != NULL);
+
+	return stream->data[slot];
+}
+
+void *ast_stream_set_data(struct ast_stream *stream, enum ast_stream_data_slot slot,
+	void *data, ast_stream_data_free_fn data_free_fn)
+{
+	ast_assert(stream != NULL);
+
+	stream->data[slot] = data;
+	stream->data_free_fn[slot] = data_free_fn;
+
+	return data;
 }
 
 int ast_stream_get_position(const struct ast_stream *stream)
