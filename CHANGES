@@ -118,6 +118,22 @@ app_voicemail
  * Added 'fromstring' field to the voicemail boxes. If set, it will override
    the global 'fromstring' field on a per-mailbox basis.
 
+res_pjsip
+------------------
+ * A new transport parameter 'symmetric_transport' has been added.
+   When a request from a dynamic contact comes in on a transport with this
+   option set to 'yes', the transport name will be saved and used for
+   subsequent outgoing requests like OPTIONS, NOTIFY and INVITE.  It's
+   saved as a contact uri parameter named 'x-ast-txp' and will display with
+   the contact uri in CLI, AMI, and ARI output.  On the outgoing request,
+   if a transport wasn't explicitly set on the endpoint AND the request URI
+   is not a hostname, the saved transport will be used and the 'x-ast-txp'
+   parameter stripped from the outgoing packet.  To facilitate recreation of
+   subscriptions on asterisk restart, a new column 'contact_uri' needed to be
+   added to the ps_subcsription_persistence table.  Since new columns were
+   added to both transport and subscription_persistence, an alembic upgrade
+   should be run to bring the database tables up to date.
+
 res_pjsip_transport_websocket
 ------------------
  * Removed non-secure websocket support.  Firefox and Chrome have not allowed

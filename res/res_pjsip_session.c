@@ -973,32 +973,10 @@ int ast_sip_session_refresh(struct ast_sip_session *session,
 	return 0;
 }
 
-/*!
- * \internal
- * \brief Wrapper for pjsip_inv_send_msg
- *
- * This function (re)sets the transport before sending to catch cases
- * where the transport might have changed.
- *
- * If pjproject gives us the ability to resend, we'll only reset the transport
- * if PJSIP_ETPNOTAVAIL is returned from send.
- *
- * \returns pj_status_t
- */
-static pj_status_t internal_pjsip_inv_send_msg(pjsip_inv_session *inv, const char *transport_name, pjsip_tx_data *tdata)
-{
-	pjsip_tpselector selector = { .type = PJSIP_TPSELECTOR_NONE, };
-
-	ast_sip_set_tpselector_from_transport_name(transport_name, &selector);
-	pjsip_dlg_set_transport(inv->dlg, &selector);
-
-	return pjsip_inv_send_msg(inv, tdata);
-}
-
 void ast_sip_session_send_response(struct ast_sip_session *session, pjsip_tx_data *tdata)
 {
 	handle_outgoing_response(session, tdata);
-	internal_pjsip_inv_send_msg(session->inv_session, session->endpoint->transport, tdata);
+	pjsip_inv_send_msg(session->inv_session, tdata);
 	return;
 }
 
@@ -1229,7 +1207,7 @@ void ast_sip_session_send_request_with_cb(struct ast_sip_session *session, pjsip
 			     MOD_DATA_ON_RESPONSE, on_response);
 
 	handle_outgoing_request(session, tdata);
-	internal_pjsip_inv_send_msg(session->inv_session, session->endpoint->transport, tdata);
+	pjsip_inv_send_msg(session->inv_session, tdata);
 
 	return;
 }
@@ -2051,7 +2029,7 @@ static pjsip_inv_session *pre_session_setup(pjsip_rx_data *rdata, const struct a
 		if (pjsip_inv_initial_answer(inv_session, rdata, 500, NULL, NULL, &tdata) != PJ_SUCCESS) {
 			pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
 		}
-		internal_pjsip_inv_send_msg(inv_session, endpoint->transport, tdata);
+		pjsip_inv_send_msg(inv_session, tdata);
 		return NULL;
 	}
 	return inv_session;
@@ -2222,7 +2200,7 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 			if (pjsip_inv_initial_answer(inv_session, rdata, 500, NULL, NULL, &tdata) == PJ_SUCCESS) {
 				pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
 			} else {
-				internal_pjsip_inv_send_msg(inv_session, endpoint->transport, tdata);
+				pjsip_inv_send_msg(inv_session, tdata);
 			}
 		}
 		return;
@@ -2234,7 +2212,7 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 		if (pjsip_inv_initial_answer(inv_session, rdata, 500, NULL, NULL, &tdata) == PJ_SUCCESS) {
 			pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
 		} else {
-			internal_pjsip_inv_send_msg(inv_session, endpoint->transport, tdata);
+			pjsip_inv_send_msg(inv_session, tdata);
 		}
 #ifdef HAVE_PJSIP_INV_SESSION_REF
 		pjsip_inv_dec_ref(inv_session);
@@ -2247,7 +2225,7 @@ static void handle_new_invite_request(pjsip_rx_data *rdata)
 		if (pjsip_inv_initial_answer(inv_session, rdata, 500, NULL, NULL, &tdata) == PJ_SUCCESS) {
 			pjsip_inv_terminate(inv_session, 500, PJ_FALSE);
 		} else {
-			internal_pjsip_inv_send_msg(inv_session, endpoint->transport, tdata);
+			pjsip_inv_send_msg(inv_session, tdata);
 		}
 #ifdef HAVE_PJSIP_INV_SESSION_REF
 		pjsip_inv_dec_ref(inv_session);
