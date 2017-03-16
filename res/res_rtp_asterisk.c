@@ -1577,7 +1577,7 @@ static int ast_rtp_dtls_active(struct ast_rtp_instance *instance)
 static void ast_rtp_dtls_stop(struct ast_rtp_instance *instance)
 {
 	struct ast_rtp *rtp = ast_rtp_instance_get_data(instance);
-	int rtcp_dtls_unique = (rtp->dtls.ssl != rtp->rtcp->dtls.ssl);
+	SSL *ssl = rtp->dtls.ssl;
 
 	dtls_srtp_stop_timeout_timer(instance, rtp, 0);
 
@@ -1595,7 +1595,7 @@ static void ast_rtp_dtls_stop(struct ast_rtp_instance *instance)
 	if (rtp->rtcp) {
 		dtls_srtp_stop_timeout_timer(instance, rtp, 1);
 
-		if (rtp->rtcp->dtls.ssl && rtcp_dtls_unique) {
+		if (rtp->rtcp->dtls.ssl && (rtp->rtcp->dtls.ssl != ssl)) {
 			SSL_free(rtp->rtcp->dtls.ssl);
 			rtp->rtcp->dtls.ssl = NULL;
 			ast_mutex_destroy(&rtp->rtcp->dtls.lock);
