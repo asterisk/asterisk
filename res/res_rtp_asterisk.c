@@ -5040,7 +5040,9 @@ static void ast_rtp_prop_set(struct ast_rtp_instance *instance, enum ast_rtp_pro
 					return;
 				}
 				rtp->rtcp->s = -1;
+#ifdef HAVE_OPENSSL_SRTP
 				rtp->rtcp->dtls.timeout_timer = -1;
+#endif
 				rtp->rtcp->schedid = -1;
 			}
 
