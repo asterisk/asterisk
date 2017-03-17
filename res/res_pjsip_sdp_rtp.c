@@ -231,7 +231,7 @@ static int create_rtp(struct ast_sip_session *session, struct ast_sip_session_me
 	}
 
 	if (!strcmp(session_media->stream_type, STR_AUDIO) &&
-			(session->endpoint->media.tos_audio || session->endpoint->media.cos_video)) {
+			(session->endpoint->media.tos_audio || session->endpoint->media.cos_audio)) {
 		ast_rtp_instance_set_qos(session_media->rtp, session->endpoint->media.tos_audio,
 				session->endpoint->media.cos_audio, "SIP RTP Audio");
 	} else if (!strcmp(session_media->stream_type, STR_VIDEO) &&
