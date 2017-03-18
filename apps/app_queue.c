@@ -5884,6 +5884,7 @@ static void handle_bridge_enter(void *userdata, struct stasis_subscription *sub,
 {
 	struct queue_stasis_data *queue_data = userdata;
 	struct ast_bridge_blob *enter_blob = stasis_message_data(msg);
+	SCOPED_AO2LOCK(lock, queue_data);
 
 	if (queue_data->dying) {
 		return;
@@ -5947,7 +5948,7 @@ static void handle_bridge_left(void *userdata, struct stasis_subscription *sub,
 	ast_debug(3, "Detected redirect of queue caller channel %s\n",
 		caller_snapshot->name);
 
-	ast_queue_log(queue_data->queue->name, queue_data->caller_uniqueid, queue_data->member->membername,
+	ast_queue_log(queue_data->queue->name, caller_snapshot->uniqueid, queue_data->member->membername,
 		"COMPLETECALLER", "%ld|%ld|%d",
 		(long) (queue_data->starttime - queue_data->holdstart),
 		(long) (time(NULL) - queue_data->starttime), queue_data->caller_pos);
@@ -5983,15 +5984,16 @@ static void handle_blind_transfer(void *userdata, struct stasis_subscription *su
 	RAII_VAR(struct ast_channel_snapshot *, caller_snapshot, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_channel_snapshot *, member_snapshot, NULL, ao2_cleanup);
 
-	if (queue_data->dying) {
-		return;
-	}
-
 	if (transfer_msg->result != AST_BRIDGE_TRANSFER_SUCCESS) {
 		return;
 	}
 
 	ao2_lock(queue_data);
+
+	if (queue_data->dying) {
+		ao2_unlock(queue_data);
+		return;
+	}
 
 	if (ast_strlen_zero(queue_data->bridge_uniqueid) ||
 			strcmp(queue_data->bridge_uniqueid, transfer_msg->bridge->uniqueid)) {
@@ -6040,16 +6042,17 @@ static void handle_attended_transfer(void *userdata, struct stasis_subscription 
 	RAII_VAR(struct ast_channel_snapshot *, caller_snapshot, NULL, ao2_cleanup);
 	RAII_VAR(struct ast_channel_snapshot *, member_snapshot, NULL, ao2_cleanup);
 
-	if (queue_data->dying) {
-		return;
-	}
-
 	if (atxfer_msg->result != AST_BRIDGE_TRANSFER_SUCCESS ||
 			atxfer_msg->dest_type == AST_ATTENDED_TRANSFER_DEST_THREEWAY) {
 		return;
 	}
 
 	ao2_lock(queue_data);
+
+	if (queue_data->dying) {
+		ao2_unlock(queue_data);
+		return;
+	}
 
 	if (ast_strlen_zero(queue_data->bridge_uniqueid)) {
 		ao2_unlock(queue_data);
@@ -6234,11 +6237,12 @@ static void handle_hangup(void *userdata, struct stasis_subscription *sub,
 	RAII_VAR(struct ast_channel *, chan, NULL, ao2_cleanup);
 	enum agent_complete_reason reason;
 
+	ao2_lock(queue_data);
+
 	if (queue_data->dying) {
+		ao2_unlock(queue_data);
 		return;
 	}
-
-	ao2_lock(queue_data);
 
 	if (!strcmp(channel_blob->snapshot->uniqueid, queue_data->caller_uniqueid)) {
 		reason = CALLER;
@@ -6268,7 +6272,7 @@ static void handle_hangup(void *userdata, struct stasis_subscription *sub,
 	ast_debug(3, "Detected hangup of queue %s channel %s\n", reason == CALLER ? "caller" : "member",
 			channel_blob->snapshot->name);
 
-	ast_queue_log(queue_data->queue->name, queue_data->caller_uniqueid, queue_data->member->membername,
+	ast_queue_log(queue_data->queue->name, caller_snapshot->uniqueid, queue_data->member->membername,
 			reason == CALLER ? "COMPLETECALLER" : "COMPLETEAGENT", "%ld|%ld|%d",
 		(long) (queue_data->starttime - queue_data->holdstart),
 		(long) (time(NULL) - queue_data->starttime), queue_data->caller_pos);
