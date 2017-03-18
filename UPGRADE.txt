@@ -26,9 +26,10 @@ From 14.3.0 to 14.4.0:
 
 res_rtp_asterisk:
  - The RTP layer of Asterisk now has support for RFC 5761: "Multiplexing RTP
-   Data and Control Packets on a Single Port." So far, the only channel driver
-   that supports this feature is chan_pjsip. You can set "rtcp_mux = yes" on
-   a PJSIP endpoint in pjsip.conf to enable the feature.
+   Data and Control Packets on a Single Port." For the PJSIP channel driver,
+   chan_pjsip, you can set "rtcp_mux = yes" on a PJSIP endpoint in pjsip.conf
+   to enable the feature. For chan_sip you can set "rtcp_mux = yes" either
+   globally or on a per-peer basis in sip.conf.
 
 New in 14.0.0
 
