@@ -7639,7 +7639,6 @@ static void *accept_thread(void *ignore)
 	struct sockaddr_in sin;
 	socklen_t sinlen;
 	struct skinnysession *s;
-	struct protoent *p;
 	int arg = 1;
 
 	for (;;) {
@@ -7656,12 +7655,10 @@ static void *accept_thread(void *ignore)
 			continue;
 		}
 
-		p = getprotobyname("tcp");
-		if(p) {
-			if( setsockopt(as, p->p_proto, TCP_NODELAY, (char *)&arg, sizeof(arg) ) < 0 ) {
-				ast_log(LOG_WARNING, "Failed to set Skinny tcp connection to TCP_NODELAY mode: %s\n", strerror(errno));
-			}
+		if (setsockopt(as, IPPROTO_TCP, TCP_NODELAY, (char *) &arg, sizeof(arg)) < 0) {
+			ast_log(LOG_WARNING, "Failed to set TCP_NODELAY on Skinny TCP connection: %s\n", strerror(errno));
 		}
+
 		if (!(s = ast_calloc(1, sizeof(struct skinnysession)))) {
 			close(as);
 			ast_atomic_fetchadd_int(&unauth_sessions, -1);
