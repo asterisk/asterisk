@@ -1915,8 +1915,7 @@ static int httpd_process_request(struct ast_tcptls_session_instance *ser)
 static void *httpd_helper_thread(void *data)
 {
 	struct ast_tcptls_session_instance *ser = data;
-	struct protoent *p;
-	int flags;
+	int flags = 1;
 	int timeout;
 
 	if (!ser || !ser->f) {
@@ -1936,17 +1935,8 @@ static void *httpd_helper_thread(void *data)
 	 * This is necessary to prevent delays (caused by buffering) as we
 	 * write to the socket in bits and pieces.
 	 */
-	p = getprotobyname("tcp");
-	if (p) {
-		int arg = 1;
-
-		if (setsockopt(ser->fd, p->p_proto, TCP_NODELAY, (char *) &arg, sizeof(arg) ) < 0) {
-			ast_log(LOG_WARNING, "Failed to set TCP_NODELAY on HTTP connection: %s\n", strerror(errno));
-			ast_log(LOG_WARNING, "Some HTTP requests may be slow to respond.\n");
-		}
-	} else {
-		ast_log(LOG_WARNING, "Failed to set TCP_NODELAY on HTTP connection, getprotobyname(\"tcp\") failed\n");
-		ast_log(LOG_WARNING, "Some HTTP requests may be slow to respond.\n");
+	if (setsockopt(ser->fd, IPPROTO_TCP, TCP_NODELAY, (char *) &flags, sizeof(flags)) < 0) {
+		ast_log(LOG_WARNING, "Failed to set TCP_NODELAY on HTTP connection: %s\n", strerror(errno));
 	}
 
 	/* make sure socket is non-blocking */
