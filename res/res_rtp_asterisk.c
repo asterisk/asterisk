@@ -4426,7 +4426,7 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 		return &ast_null_frame;
 	}
 
-	if (!*(read_area)) {
+	if (!*read_area) {
 		struct sockaddr_in addr_tmp;
 		struct ast_sockaddr addr_v4;
 
@@ -4448,7 +4448,7 @@ static struct ast_frame *ast_rtcp_read(struct ast_rtp_instance *instance)
 		return &ast_null_frame;
 	}
 
-	return ast_rtcp_interpret(instance, read_area, read_area_size, &addr);
+	return ast_rtcp_interpret(instance, read_area, res, &addr);
 }
 
 static int bridge_p2p_rtp_write(struct ast_rtp_instance *instance, unsigned int *rtpheader, int len, int hdrlen)
@@ -4633,7 +4633,7 @@ static struct ast_frame *ast_rtp_read(struct ast_rtp_instance *instance, int rtc
 
 	/* This could be a multiplexed RTCP packet. If so, be sure to interpret it correctly */
 	if (rtcp_mux(rtp, read_area)) {
-		return ast_rtcp_interpret(instance, read_area, read_area_size, &addr);
+		return ast_rtcp_interpret(instance, read_area, res, &addr);
 	}
 
 	/* Make sure the data that was read in is actually enough to make up an RTP packet */
