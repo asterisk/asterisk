@@ -86,6 +86,11 @@ const char *ast_inet_ntoa(struct in_addr ia);
 #endif
 #define inet_ntoa __dont__use__inet_ntoa__use__ast_inet_ntoa__instead__
 
+#ifdef getprotobyname
+#undef getprotobyname
+#endif
+#define getprotobyname __getprotobyname_is_not_threadsafe__do_not_use__
+
 /*! \brief Compares the source address and port of two sockaddr_in */
 static force_inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockaddr_in *sin2)
 {
