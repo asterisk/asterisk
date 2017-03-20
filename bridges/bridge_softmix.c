@@ -306,7 +306,8 @@ static void softmix_process_write_audio(struct softmix_translate_helper *trans_h
 		if (entry->trans_pvt && !entry->out_frame) {
 			entry->out_frame = ast_translate(entry->trans_pvt, &sc->write_frame, 0);
 		}
-		if (entry->out_frame && (entry->out_frame->datalen < MAX_DATALEN)) {
+		if (entry->out_frame && entry->out_frame->frametype == AST_FRAME_VOICE
+				&& entry->out_frame->datalen < MAX_DATALEN) {
 			ao2_replace(sc->write_frame.subclass.format, entry->out_frame->subclass.format);
 			memcpy(sc->final_buf, entry->out_frame->data.ptr, entry->out_frame->datalen);
 			sc->write_frame.datalen = entry->out_frame->datalen;
