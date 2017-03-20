@@ -268,14 +268,28 @@ static void rtp_payload_type_dtor(void *obj)
 	ao2_cleanup(payload->format);
 }
 
+static struct ast_rtp_payload_type *rtp_payload_type_alloc(struct ast_format *format,
+	int payload, int rtp_code, int primary_mapping)
+{
+	struct ast_rtp_payload_type *type = ao2_alloc_options(
+		sizeof(*type), rtp_payload_type_dtor, AO2_ALLOC_OPT_LOCK_NOLOCK);
+
+	if (!type) {
+		return NULL;
+	}
+
+	type->format = ao2_bump(format);
+	type->asterisk_format = type->format != NULL;
+	type->payload = payload;
+	type->rtp_code = rtp_code;
+	type->primary_mapping = primary_mapping;
+
+	return type;
+}
+
 struct ast_rtp_payload_type *ast_rtp_engine_alloc_payload_type(void)
 {
-	struct ast_rtp_payload_type *payload;
-
-	payload = ao2_alloc_options(sizeof(*payload), rtp_payload_type_dtor,
-		AO2_ALLOC_OPT_LOCK_NOLOCK);
-
-	return payload;
+	return rtp_payload_type_alloc(NULL, 0, 0, 0);
 }
 
 int ast_rtp_engine_register2(struct ast_rtp_engine *engine, struct ast_module *module)
@@ -1252,31 +1266,112 @@ static int find_static_payload_type(int asterisk_format, const struct ast_format
 
 /*!
  * \internal
- * \brief Find the first unused dynamic rx payload type.
- * \since 14.0.0
+ * \brief Find the first unused payload type in a given range
  *
- * \param codecs Codecs structure to look in
+ * \param codecs The codec structure to look in
+ * \param start Starting index
+ * \param end Ending index
+ * \param ignore Skip these payloads types
  *
- * \note It is assumed that codecs is at least read locked before calling.
+ * \note The static_RTP_PT_lock object must be locked before calling
  *
  * \retval Numerical payload type
  * \retval -1 if not found.
  */
-static int rtp_codecs_find_empty_dynamic_rx(struct ast_rtp_codecs *codecs)
+static int find_unused_payload_in_range(const struct ast_rtp_codecs *codecs,
+		int start, int end, struct ast_rtp_payload_type *ignore[])
 {
-	struct ast_rtp_payload_type *type;
-	int idx;
-	int payload = -1;
+	int x;
 
-	idx = AST_RTP_PT_FIRST_DYNAMIC;
-	for (; idx < AST_VECTOR_SIZE(&codecs->payload_mapping_rx); ++idx) {
-		type = AST_VECTOR_GET(&codecs->payload_mapping_rx, idx);
+	for (x = start; x < end; ++x) {
+		struct ast_rtp_payload_type *type;
+
+		if (ignore[x]) {
+			continue;
+		} else if (!codecs || x >= AST_VECTOR_SIZE(&codecs->payload_mapping_rx)) {
+			return x;
+		}
+
+		type = AST_VECTOR_GET(&codecs->payload_mapping_rx, x);
 		if (!type) {
-			payload = idx;
-			break;
+			return x;
 		}
 	}
-	return payload;
+	return -1;
+}
+
+/*!
+ * \internal
+ * \brief Find an unused payload type
+ *
+ * \param codecs Codecs structure to look in
+ *
+ * \note Both static_RTP_PT_lock and codecs (if given) must be at least
+ *       read locked before calling.
+ *
+ * \retval Numerical payload type
+ * \retval -1 if not found.
+ */
+static int find_unused_payload(const struct ast_rtp_codecs *codecs)
+{
+	int res;
+
+	/* find next available dynamic payload slot */
+	res = find_unused_payload_in_range(
+		codecs, AST_RTP_PT_FIRST_DYNAMIC, AST_RTP_MAX_PT, static_RTP_PT);
+	if (res != -1) {
+		return res;
+	}
+
+	if (ast_option_rtpusedynamic) {
+		/*
+		 * We're using default values for some dynamic types. So if an unused
+		 * slot was not found try again, but this time ignore the default
+		 * values declared for dynamic types (except for 101 and 121) .
+		 */
+		static struct ast_rtp_payload_type *ignore[AST_RTP_MAX_PT] = {0};
+
+		ignore[101] = static_RTP_PT[101];
+		ignore[121] = static_RTP_PT[121];
+
+		res = find_unused_payload_in_range(
+			codecs, AST_RTP_PT_FIRST_DYNAMIC, AST_RTP_MAX_PT, ignore);
+		if (res != -1) {
+			return res;
+		}
+	}
+
+	/* http://www.iana.org/assignments/rtp-parameters
+	 * RFC 3551, Section 3: "[...] applications which need to define more
+	 * than 32 dynamic payload types MAY bind codes below 96, in which case
+	 * it is RECOMMENDED that unassigned payload type numbers be used
+	 * first". Updated by RFC 5761, Section 4: "[...] values in the range
+	 * 64-95 MUST NOT be used [to avoid conflicts with RTCP]". Summaries:
+	 * https://tools.ietf.org/html/draft-roach-mmusic-unified-plan#section-3.2.1.2
+	 * https://tools.ietf.org/html/draft-wu-avtcore-dynamic-pt-usage#section-3
+	 */
+	res = find_unused_payload_in_range(codecs, MAX(ast_option_rtpptdynamic, 35),
+		AST_RTP_PT_LAST_REASSIGN, static_RTP_PT);
+	if (res != -1) {
+		return res;
+	}
+
+	/* Yet, reusing mappings below 35 is not supported in Asterisk because
+	 * when Compact Headers are activated, no rtpmap is send for those below
+	 * 35. If you want to use 35 and below
+	 * A) do not use Compact Headers,
+	 * B) remove that code in chan_sip/res_pjsip, or
+	 * C) add a flag that this RTP Payload Type got reassigned dynamically
+	 *    and requires a rtpmap even with Compact Headers enabled.
+	 */
+	res = find_unused_payload_in_range(
+		codecs, MAX(ast_option_rtpptdynamic, 20), 35, static_RTP_PT);
+	if (res != -1) {
+		return res;
+	}
+
+	return find_unused_payload_in_range(
+		codecs, MAX(ast_option_rtpptdynamic, 0), 20, static_RTP_PT);
 }
 
 /*!
@@ -1333,30 +1428,26 @@ static int rtp_codecs_assign_payload_code_rx(struct ast_rtp_codecs *codecs, int 
 	struct ast_rtp_payload_type *new_type;
 
 	payload = find_static_payload_type(asterisk_format, format, code);
-	if (payload < 0) {
+
+	if (payload < 0 && (!asterisk_format || ast_option_rtpusedynamic)) {
 		return payload;
 	}
 
-	new_type = ast_rtp_engine_alloc_payload_type();
+	new_type = rtp_payload_type_alloc(format, payload, code, 1);
 	if (!new_type) {
 		return -1;
 	}
-	new_type->format = ao2_bump(format);
-	new_type->asterisk_format = asterisk_format;
-	new_type->rtp_code = code;
-	new_type->payload = payload;
-	new_type->primary_mapping = 1;
 
 	ast_rwlock_wrlock(&codecs->codecs_lock);
-	if (payload < AST_RTP_PT_FIRST_DYNAMIC
+	if (payload > -1 && (payload < AST_RTP_PT_FIRST_DYNAMIC
 		|| AST_VECTOR_SIZE(&codecs->payload_mapping_rx) <= payload
-		|| !AST_VECTOR_GET(&codecs->payload_mapping_rx, payload)) {
+		|| !AST_VECTOR_GET(&codecs->payload_mapping_rx, payload))) {
 		/*
 		 * The payload type is a static assignment
 		 * or our default dynamic position is available.
 		 */
-		rtp_codecs_payload_replace_rx(codecs, payload, new_type);
-	} else if (-1 < (payload = rtp_codecs_find_empty_dynamic_rx(codecs))
+               rtp_codecs_payload_replace_rx(codecs, payload, new_type);
+	} else if (-1 < (payload = find_unused_payload(codecs))
 		|| -1 < (payload = rtp_codecs_find_non_primary_dynamic_rx(codecs))) {
 		/*
 		 * We found the first available empty dynamic position
@@ -1372,7 +1463,8 @@ static int rtp_codecs_assign_payload_code_rx(struct ast_rtp_codecs *codecs, int 
 		 *
 		 * I don't think this is really possible.
 		 */
-		ast_log(LOG_WARNING, "No dynamic RTP payload type values available!\n");
+		ast_log(LOG_WARNING, "No dynamic RTP payload type values available "
+			"for %s - %d!\n", format ? ast_format_get_name(format) : "", code);
 	}
 	ast_rwlock_unlock(&codecs->codecs_lock);
 
@@ -2293,95 +2385,47 @@ static void set_next_mime_type(struct ast_format *format, int rtp_code, const ch
 	ast_rwlock_unlock(&mime_types_lock);
 }
 
-static void add_static_payload(int map, struct ast_format *format, int rtp_code)
+static void add_static_payload(int payload, struct ast_format *format, int rtp_code)
 {
-	int x;
 	struct ast_rtp_payload_type *type;
 
 	/*
 	 * ARRAY_LEN's result is cast to an int so 'map' is not autocast to a size_t,
 	 * which if negative would cause an assertion.
 	 */
-	ast_assert(map < (int)ARRAY_LEN(static_RTP_PT));
+	ast_assert(payload < (int)ARRAY_LEN(static_RTP_PT));
 
+	if (ast_option_rtpusedynamic && payload < 0) {
+		/*
+		 * We're going to build dynamic payloads dynamically. An RTP code is
+		 * required otherwise one will be dynamically allocated per instance.
+		 */
+		return;
+	}
+
+	/*
+	 * Either the given payload is truly a static type, or Asterisk is
+	 * globally storing the dynamic payloads in the static_RTP_PT object.
+	 */
 	ast_rwlock_wrlock(&static_RTP_PT_lock);
-	if (map < 0) {
-		/* find next available dynamic payload slot */
-		for (x = AST_RTP_PT_FIRST_DYNAMIC; x < AST_RTP_MAX_PT; ++x) {
-			if (!static_RTP_PT[x]) {
-				map = x;
-				break;
-			}
-		}
 
-		/* http://www.iana.org/assignments/rtp-parameters
-		 * RFC 3551, Section 3: "[...] applications which need to define more
-		 * than 32 dynamic payload types MAY bind codes below 96, in which case
-		 * it is RECOMMENDED that unassigned payload type numbers be used
-		 * first". Updated by RFC 5761, Section 4: "[...] values in the range
-		 * 64-95 MUST NOT be used [to avoid conflicts with RTCP]". Summaries:
-		 * https://tools.ietf.org/html/draft-roach-mmusic-unified-plan#section-3.2.1.2
-		 * https://tools.ietf.org/html/draft-wu-avtcore-dynamic-pt-usage#section-3
+	if (payload < 0) {
+		/*
+		 * This is a dynamic payload that will be stored globally,
+		 * so find the next available empty slot.
 		 */
-		if (map < 0) {
-			for (x = MAX(ast_option_rtpptdynamic, 35); x <= AST_RTP_PT_LAST_REASSIGN; ++x) {
-				if (!static_RTP_PT[x]) {
-					map = x;
-					break;
-				}
-			}
-		}
-		/* Yet, reusing mappings below 35 is not supported in Asterisk because
-		 * when Compact Headers are activated, no rtpmap is send for those below
-		 * 35. If you want to use 35 and below
-		 * A) do not use Compact Headers,
-		 * B) remove that code in chan_sip/res_pjsip, or
-		 * C) add a flag that this RTP Payload Type got reassigned dynamically
-		 *    and requires a rtpmap even with Compact Headers enabled.
-		 */
-		if (map < 0) {
-			for (x = MAX(ast_option_rtpptdynamic, 20); x < 35; ++x) {
-				if (!static_RTP_PT[x]) {
-					map = x;
-					break;
-				}
-			}
-		}
-		if (map < 0) {
-			for (x = MAX(ast_option_rtpptdynamic, 0); x < 20; ++x) {
-				if (!static_RTP_PT[x]) {
-					map = x;
-					break;
-				}
-			}
-		}
-
-		if (map < 0) {
-			if (format) {
-				ast_log(LOG_WARNING, "No Dynamic RTP mapping available for format %s\n",
-					ast_format_get_name(format));
-			} else {
-				ast_log(LOG_WARNING, "No Dynamic RTP mapping available for RTP code %d\n",
-					rtp_code);
-			}
-			ast_rwlock_unlock(&static_RTP_PT_lock);
+		payload = find_unused_payload(NULL);
+		if (payload < 0) {
+			ast_log(LOG_WARNING, "No dynamic RTP payload type values available "
+				"for %s - %d!\n", format ? ast_format_get_name(format) : "", rtp_code);
 			return;
 		}
 	}
 
-	type = ast_rtp_engine_alloc_payload_type();
+	type = rtp_payload_type_alloc(format, payload, rtp_code, 1);
 	if (type) {
-		if (format) {
-			ao2_ref(format, +1);
-			type->format = format;
-			type->asterisk_format = 1;
-		} else {
-			type->rtp_code = rtp_code;
-		}
-		type->payload = map;
-		type->primary_mapping = 1;
-		ao2_cleanup(static_RTP_PT[map]);
-		static_RTP_PT[map] = type;
+		ao2_cleanup(static_RTP_PT[payload]);
+		static_RTP_PT[payload] = type;
 	}
 	ast_rwlock_unlock(&static_RTP_PT_lock);
 }
@@ -2797,23 +2841,34 @@ int ast_rtp_engine_init(void)
 	add_static_payload(26, ast_format_jpeg, 0);
 	add_static_payload(31, ast_format_h261, 0);
 	add_static_payload(34, ast_format_h263, 0);
+
+	/*
+	 * Dynamic payload types - Even when dynamically assigning them we'll fall
+	 * back to using the statically declared values as the default number.
+	 */
+	add_static_payload(96, ast_format_slin192, 0);
 	add_static_payload(97, ast_format_ilbc, 0);
 	add_static_payload(98, ast_format_h263p, 0);
 	add_static_payload(99, ast_format_h264, 0);
+	add_static_payload(100, ast_format_vp8, 0);
 	add_static_payload(101, NULL, AST_RTP_DTMF);
 	add_static_payload(102, ast_format_siren7, 0);
 	add_static_payload(103, ast_format_h263p, 0);
 	add_static_payload(104, ast_format_mp4, 0);
 	add_static_payload(105, ast_format_t140_red, 0);   /* Real time text chat (with redundancy encoding) */
 	add_static_payload(106, ast_format_t140, 0);     /* Real time text chat */
+	add_static_payload(107, ast_format_opus, 0);
+
 	add_static_payload(110, ast_format_speex, 0);
 	add_static_payload(111, ast_format_g726, 0);
 	add_static_payload(112, ast_format_g726_aal2, 0);
+
 	add_static_payload(115, ast_format_siren14, 0);
 	add_static_payload(116, ast_format_g719, 0);
 	add_static_payload(117, ast_format_speex16, 0);
 	add_static_payload(118, ast_format_slin16, 0); /* 16 Khz signed linear */
 	add_static_payload(119, ast_format_speex32, 0);
+
 	add_static_payload(121, NULL, AST_RTP_CISCO_DTMF);   /* Must be type 121 */
 	add_static_payload(122, ast_format_slin12, 0);
 	add_static_payload(123, ast_format_slin24, 0);
@@ -2822,10 +2877,6 @@ int ast_rtp_engine_init(void)
 	add_static_payload(126, ast_format_slin48, 0);
 	add_static_payload(127, ast_format_slin96, 0);
 	/* payload types above 127 are not valid */
-	add_static_payload(96, ast_format_slin192, 0);
-	/* Opus and VP8 */
-	add_static_payload(100, ast_format_vp8, 0);
-	add_static_payload(107, ast_format_opus, 0);
 
 	return 0;
 }
