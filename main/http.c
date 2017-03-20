@@ -1917,9 +1917,8 @@ static void *httpd_helper_thread(void *data)
 	 * This is necessary to prevent delays (caused by buffering) as we
 	 * write to the socket in bits and pieces.
 	 */
-	if (setsockopt(ast_iostream_get_fd(ser->stream), IPPROTO_TCP, TCP_NODELAY, (char *) &arg, sizeof(arg) ) < 0) {
+	if (setsockopt(ast_iostream_get_fd(ser->stream), IPPROTO_TCP, TCP_NODELAY, (char *) &arg, sizeof(arg)) < 0) {
 		ast_log(LOG_WARNING, "Failed to set TCP_NODELAY on HTTP connection: %s\n", strerror(errno));
-		ast_log(LOG_WARNING, "Some HTTP requests may be slow to respond.\n");
 	}
 	ast_iostream_nonblock(ser->stream);
 
