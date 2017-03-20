@@ -97,6 +97,10 @@ documentation_language = en_US	; Set the language you want documentation
 				; This is currently is used by DUNDi and
 				; Exchanging Device and Mailbox State
 				; using protocols: XMPP, Corosync and PJSIP.
+;rtp_use_dynamic = yes          ; When set to "yes" RTP dynamic payload types
+                                ; are assigned dynamically per RTP instance vs.
+                                ; allowing Asterisk to globally initialize them
+                                ; to pre-designated numbers (defaults to "yes").
 ;rtp_pt_dynamic = 35		; Normally the Dynamic RTP Payload Type numbers
 				; are 96-127, which allow just 32 formats. The
 				; starting point 35 enables the range 35-63 and
