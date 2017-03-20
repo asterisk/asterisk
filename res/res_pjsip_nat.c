@@ -262,32 +262,33 @@ static pj_status_t nat_on_tx_message(pjsip_tx_data *tdata)
 		return PJ_SUCCESS;
 	}
 
-	if ( !transport_state->localnet || 	ast_sockaddr_isnull(&transport_state->external_address)) {
-		return PJ_SUCCESS;
-	}
+	if (transport_state->localnet) {
+		ast_sockaddr_parse(&addr, tdata->tp_info.dst_name, PARSE_PORT_FORBID);
+		ast_sockaddr_set_port(&addr, tdata->tp_info.dst_port);
 
-	ast_sockaddr_parse(&addr, tdata->tp_info.dst_name, PARSE_PORT_FORBID);
-	ast_sockaddr_set_port(&addr, tdata->tp_info.dst_port);
-
-	/* See if where we are sending this request is local or not, and if not that we can get a Contact URI to modify */
-	if (ast_apply_ha(transport_state->localnet, &addr) != AST_SENSE_ALLOW) {
-		return PJ_SUCCESS;
-	}
-
-	/* Update the contact header with the external address */
-	if (uri || (uri = nat_get_contact_sip_uri(tdata))) {
-		pj_strdup2(tdata->pool, &uri->host, ast_sockaddr_stringify_host(&transport_state->external_address));
-		if (transport->external_signaling_port) {
-			uri->port = transport->external_signaling_port;
-			ast_debug(4, "Re-wrote Contact URI port to %d\n", uri->port);
+		/* See if where we are sending this request is local or not, and if not that we can get a Contact URI to modify */
+		if (ast_apply_ha(transport_state->localnet, &addr) != AST_SENSE_ALLOW) {
+			ast_debug(5, "Request is being sent to local address, skipping NAT manipulation\n");
+			return PJ_SUCCESS;
 		}
 	}
 
-	/* Update the via header if relevant */
-	if ((tdata->msg->type == PJSIP_REQUEST_MSG) && (via || (via = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_VIA, NULL)))) {
-		pj_strdup2(tdata->pool, &via->sent_by.host, ast_sockaddr_stringify_host(&transport_state->external_address));
-		if (transport->external_signaling_port) {
-			via->sent_by.port = transport->external_signaling_port;
+	if (!ast_sockaddr_isnull(&transport_state->external_address)) {
+		/* Update the contact header with the external address */
+		if (uri || (uri = nat_get_contact_sip_uri(tdata))) {
+			pj_strdup2(tdata->pool, &uri->host, ast_sockaddr_stringify_host(&transport_state->external_address));
+			if (transport->external_signaling_port) {
+				uri->port = transport->external_signaling_port;
+				ast_debug(4, "Re-wrote Contact URI port to %d\n", uri->port);
+			}
+		}
+
+		/* Update the via header if relevant */
+		if ((tdata->msg->type == PJSIP_REQUEST_MSG) && (via || (via = pjsip_msg_find_hdr(tdata->msg, PJSIP_H_VIA, NULL)))) {
+			pj_strdup2(tdata->pool, &via->sent_by.host, ast_sockaddr_stringify_host(&transport_state->external_address));
+			if (transport->external_signaling_port) {
+				via->sent_by.port = transport->external_signaling_port;
+			}
 		}
 	}
 
