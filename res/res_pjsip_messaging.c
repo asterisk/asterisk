@@ -235,7 +235,15 @@ static void update_from(pjsip_tx_data *tdata, char *from)
 	parsed_name_addr = (pjsip_name_addr *) pjsip_parse_uri(tdata->pool, from,
 		strlen(from), PJSIP_PARSE_URI_AS_NAMEADDR);
 	if (parsed_name_addr) {
-		pjsip_sip_uri *parsed_uri = pjsip_uri_get_uri(parsed_name_addr->uri);
+		pjsip_sip_uri *parsed_uri;
+
+		if (!PJSIP_URI_SCHEME_IS_SIP(parsed_name_addr->uri)
+				&& !PJSIP_URI_SCHEME_IS_SIPS(parsed_name_addr->uri)) {
+			ast_log(LOG_WARNING, "From address '%s' is not a valid SIP/SIPS URI\n", from);
+			return;
+		}
+
+		parsed_uri = pjsip_uri_get_uri(parsed_name_addr->uri);
 
 		if (pj_strlen(&parsed_name_addr->display)) {
 			pj_strdup(tdata->pool, &name_addr->display, &parsed_name_addr->display);
