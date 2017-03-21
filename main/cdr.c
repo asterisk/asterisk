@@ -3227,7 +3227,7 @@ static int cdr_object_update_party_b_userfield_cb(void *obj, void *arg, int flag
 	struct party_b_userfield_update *info = arg;
 	struct cdr_object *it_cdr;
 	for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
-		if (it_cdr->fn_table == &finalized_state_fn_table) {
+		if (it_cdr->fn_table == &finalized_state_fn_table && it_cdr->next != NULL) {
 			continue;
 		}
 		if (it_cdr->party_b.snapshot
@@ -3251,7 +3251,7 @@ void ast_cdr_setuserfield(const char *channel_name, const char *userfield)
 	if (cdr) {
 		ao2_lock(cdr);
 		for (it_cdr = cdr; it_cdr; it_cdr = it_cdr->next) {
-			if (it_cdr->fn_table == &finalized_state_fn_table) {
+			if (it_cdr->fn_table == &finalized_state_fn_table && it_cdr->next != NULL) {
 				continue;
 			}
 			strcpy(it_cdr->party_a.userfield, userfield);
