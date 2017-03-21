@@ -72,6 +72,8 @@ struct hepv3_capture_info {
 	size_t len;
 	/*! If non-zero, the payload accompanying this capture info will be compressed */
 	unsigned int zipped:1;
+	/*! The IPPROTO_* protocol where we captured the packet */
+	int protocol_id;
 };
 
 /*!
