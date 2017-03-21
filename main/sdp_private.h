@@ -40,6 +40,7 @@ struct ast_sdp_options {
 		unsigned int rtp_ipv6 : 1;
 		unsigned int g726_non_standard : 1;
 		unsigned int locally_held : 1;
+		unsigned int rtcp_mux: 1;
 	};
 	struct {
 		unsigned int tos_audio;

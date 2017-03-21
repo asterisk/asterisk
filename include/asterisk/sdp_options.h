@@ -106,7 +106,7 @@ void ast_sdp_options_set_media_address(struct ast_sdp_options *options,
  *
  * \returns media_address
  */
-const char *ast_sdp_options_get_media_address(struct ast_sdp_options *options);
+const char *ast_sdp_options_get_media_address(const struct ast_sdp_options *options);
 
 /*!
  * \since 15.0.0
@@ -126,7 +126,7 @@ void ast_sdp_options_set_sdpowner(struct ast_sdp_options *options,
  *
  * \returns sdpowner
  */
-const char *ast_sdp_options_get_sdpowner(struct ast_sdp_options *options);
+const char *ast_sdp_options_get_sdpowner(const struct ast_sdp_options *options);
 
 /*!
  * \since 15.0.0
@@ -146,7 +146,7 @@ void ast_sdp_options_set_sdpsession(struct ast_sdp_options *options,
  *
  * \returns sdpsession
  */
-const char *ast_sdp_options_get_sdpsession(struct ast_sdp_options *options);
+const char *ast_sdp_options_get_sdpsession(const struct ast_sdp_options *options);
 
 /*!
  * \since 15.0.0
@@ -166,7 +166,7 @@ void ast_sdp_options_set_rtp_engine(struct ast_sdp_options *options,
  *
  * \returns rtp_engine
  */
-const char *ast_sdp_options_get_rtp_engine(struct ast_sdp_options *options);
+const char *ast_sdp_options_get_rtp_engine(const struct ast_sdp_options *options);
 
 /*!
  * \since 15.0.0
@@ -186,7 +186,7 @@ void ast_sdp_options_set_bind_rtp_to_media_address(struct ast_sdp_options *optio
  *
  * \returns bind_rtp_to_media_address
  */
-unsigned int ast_sdp_options_get_bind_rtp_to_media_address(struct ast_sdp_options *options);
+unsigned int ast_sdp_options_get_bind_rtp_to_media_address(const struct ast_sdp_options *options);
 
 /*!
  * \since 15.0.0
@@ -206,7 +206,7 @@ void ast_sdp_options_set_rtp_symmetric(struct ast_sdp_options *options,
  *
  * \returns rtp_symmetric
  */
-unsigned int ast_sdp_options_get_rtp_symmetric(struct ast_sdp_options *options);
+unsigned int ast_sdp_options_get_rtp_symmetric(const struct ast_sdp_options *options);
 
 /*!
  * \since 15.0.0
@@ -226,7 +226,7 @@ void ast_sdp_options_set_telephone_event(struct ast_sdp_options *options,
  *
  * \returns telephone_event
  */
-unsigned int ast_sdp_options_get_telephone_event(struct ast_sdp_options *options);
+unsigned int ast_sdp_options_get_telephone_event(const struct ast_sdp_options *options);
 
 /*!
  * \since 15.0.0
@@ -246,7 +246,7 @@ void ast_sdp_options_set_rtp_ipv6(struct ast_sdp_options *options,
  *
  * \returns rtp_ipv6
  */
-unsigned int ast_sdp_options_get_rtp_ipv6(struct ast_sdp_options *options);
+unsigned int ast_sdp_options_get_rtp_ipv6(const struct ast_sdp_options *options);
 
 /*!
  * \since 15.0.0
@@ -266,7 +266,7 @@ void ast_sdp_options_set_g726_non_standard(struct ast_sdp_options *options,
  *
  * \returns g726_non_standard
  */
-unsigned int ast_sdp_options_get_g726_non_standard(struct ast_sdp_options *options);
+unsigned int ast_sdp_options_get_g726_non_standard(const struct ast_sdp_options *options);
 
 /*!
  * \since 15.0.0
@@ -286,7 +286,7 @@ void ast_sdp_options_set_tos_audio(struct ast_sdp_options *options,
  *
  * \returns tos_audio
  */
-unsigned int ast_sdp_options_get_tos_audio(struct ast_sdp_options *options);
+unsigned int ast_sdp_options_get_tos_audio(const struct ast_sdp_options *options);
 
 /*!
  * \since 15.0.0
@@ -306,7 +306,7 @@ void ast_sdp_options_set_cos_audio(struct ast_sdp_options *options,
  *
  * \returns cos_audio
  */
-unsigned int ast_sdp_options_get_cos_audio(struct ast_sdp_options *options);
+unsigned int ast_sdp_options_get_cos_audio(const struct ast_sdp_options *options);
 
 /*!
  * \since 15.0.0
@@ -326,7 +326,7 @@ void ast_sdp_options_set_tos_video(struct ast_sdp_options *options,
  *
  * \returns tos_video
  */
-unsigned int ast_sdp_options_get_tos_video(struct ast_sdp_options *options);
+unsigned int ast_sdp_options_get_tos_video(const struct ast_sdp_options *options);
 
 /*!
  * \since 15.0.0
@@ -346,7 +346,7 @@ void ast_sdp_options_set_cos_video(struct ast_sdp_options *options,
  *
  * \returns cos_video
  */
-unsigned int ast_sdp_options_get_cos_video(struct ast_sdp_options *options);
+unsigned int ast_sdp_options_get_cos_video(const struct ast_sdp_options *options);
 
 /*!
  * \since 15.0.0
@@ -366,7 +366,7 @@ void ast_sdp_options_set_ice(struct ast_sdp_options *options,
  *
  * \returns ice
  */
-enum ast_sdp_options_ice ast_sdp_options_get_ice(struct ast_sdp_options *options);
+enum ast_sdp_options_ice ast_sdp_options_get_ice(const struct ast_sdp_options *options);
 
 /*!
  * \since 15.0.0
@@ -386,7 +386,7 @@ void ast_sdp_options_set_impl(struct ast_sdp_options *options,
  *
  * \returns impl
  */
-enum ast_sdp_options_impl ast_sdp_options_get_impl(struct ast_sdp_options *options);
+enum ast_sdp_options_impl ast_sdp_options_get_impl(const struct ast_sdp_options *options);
 
 /*!
  * \since 15.0.0
@@ -406,6 +406,25 @@ void ast_sdp_options_set_encryption(struct ast_sdp_options *options,
  *
  * \returns encryption
  */
-enum ast_sdp_options_encryption ast_sdp_options_get_encryption(struct ast_sdp_options *options);
+enum ast_sdp_options_encryption ast_sdp_options_get_encryption(const struct ast_sdp_options *options);
+
+/*!
+ * \since 15.0.0
+ * \brief Get SDP Options RTCP MUX
+ *
+ * \param options SDP Options
+ *
+ * \returns Boolean indicating if RTCP MUX is enabled.
+ */
+unsigned int ast_sdp_options_get_rtcp_mux(const struct ast_sdp_options *options);
+
+/*!
+ * \since 15.0.0
+ * \brief Set SDP Options RTCP MUX
+ *
+ * \param options SDP Options
+ * \param value Boolean that indicates if RTCP MUX should be enabled.
+ */
+void ast_sdp_options_set_rtcp_mux(struct ast_sdp_options *options, unsigned int value);
 
 #endif /* _ASTERISK_SDP_OPTIONS_H */

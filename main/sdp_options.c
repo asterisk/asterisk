@@ -36,7 +36,7 @@ void ast_sdp_options_set_##field(struct ast_sdp_options *options, const char *va
 	if (!strcmp(value, options->field)) return; \
 	ast_string_field_set(options, field, value); \
 } \
-const char *ast_sdp_options_get_##field(struct ast_sdp_options *options) \
+const char *ast_sdp_options_get_##field(const struct ast_sdp_options *options) \
 { \
 	ast_assert(options != NULL); \
 	return options->field; \
@@ -48,7 +48,7 @@ void ast_sdp_options_set_##field(struct ast_sdp_options *options, type value) \
 	ast_assert(options != NULL); \
 	options->field = value; \
 } \
-type ast_sdp_options_get_##field(struct ast_sdp_options *options) \
+type ast_sdp_options_get_##field(const struct ast_sdp_options *options) \
 { \
 	ast_assert(options != NULL); \
 	return options->field; \
@@ -64,6 +64,7 @@ DEFINE_GETTERS_SETTERS_FOR(unsigned int, rtp_symmetric);
 DEFINE_GETTERS_SETTERS_FOR(unsigned int, telephone_event);
 DEFINE_GETTERS_SETTERS_FOR(unsigned int, rtp_ipv6);
 DEFINE_GETTERS_SETTERS_FOR(unsigned int, g726_non_standard);
+DEFINE_GETTERS_SETTERS_FOR(unsigned int, rtcp_mux);
 DEFINE_GETTERS_SETTERS_FOR(unsigned int, tos_audio);
 DEFINE_GETTERS_SETTERS_FOR(unsigned int, cos_audio);
 DEFINE_GETTERS_SETTERS_FOR(unsigned int, tos_video);

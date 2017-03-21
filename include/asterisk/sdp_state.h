@@ -138,7 +138,7 @@ const void *ast_sdp_state_get_local_sdp_impl(struct ast_sdp_state *sdp_state);
  *
  * \since 15
  */
-void ast_sdp_state_set_remote_sdp(struct ast_sdp_state *sdp_state, struct ast_sdp *sdp);
+void ast_sdp_state_set_remote_sdp(struct ast_sdp_state *sdp_state, const struct ast_sdp *sdp);
 
 /*!
  * \brief Set the remote SDP from an Implementation

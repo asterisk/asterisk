@@ -147,6 +147,22 @@ struct ast_sdp {
 };
 
 /*!
+ * \brief A structure representing an SDP rtpmap attribute
+ */
+struct ast_sdp_rtpmap {
+	/*! The RTP payload number for the rtpmap */
+	int payload;
+	/*! The Name of the codec */
+	char *encoding_name;
+	/*! The clock rate of the codec */
+	int clock_rate;
+	/*! Optional encoding parameters */
+	char *encoding_parameters;
+	/*! Area where strings are stored */
+	char buf[0];
+};
+
+/*!
  * \brief Free an SDP Attribute
  *
  * \param a_line The attribute to free
@@ -545,15 +561,88 @@ struct ast_sdp *ast_sdp_alloc(struct ast_sdp_o_line *o_line,
 	struct ast_sdp_t_line *t_line);
 
 /*!
- * \brief Create an SDP from an existing SDP State local topology
+ * \brief Find an attribute on the top-level SDP
  *
- * \param sdp_state SDP State
+ * \note This will not search within streams for the given attribute.
  *
- * \retval non-NULL Success
- * \retval NULL Failure
+ * \param sdp The SDP in which to search
+ * \param attr_name The name of the attribute to search for
+ * \param payload Optional payload number to search for. If irrelevant, set to -1
  *
- * \since 15
+ * \retval NULL Could not find the given attribute
+ * \retval Non-NULL The attribute to find
+ *
+ * \since 15.0.0
  */
-struct ast_sdp *ast_sdp_create_from_state(const struct ast_sdp_state *sdp_state);
+struct ast_sdp_a_line *ast_sdp_find_attribute(const struct ast_sdp *sdp,
+	const char *attr_name, int payload);
 
+/*!
+ * \brief Find an attribute on an SDP stream (m-line)
+ *
+ * \param sdp The SDP in which to search
+ * \param attr_name The name of the attribute to search for
+ * \param payload Optional payload number to search for. If irrelevant, set to -1
+ *
+ * \retval NULL Could not find the given attribute
+ * \retval Non-NULL The attribute to find
+ *
+ * \since 15.0.0
+ */
+struct ast_sdp_a_line *ast_sdp_m_find_attribute(const struct ast_sdp_m_line *m_line,
+	const char *attr_name, int payload);
+
+/*!
+ * \brief Convert an SDP a_line into an rtpmap
+ *
+ * The returned value is heap-allocated and must be freed with
+ * ast_sdp_rtpmap_free()
+ *
+ * \param a_line The SDP a_line to convert
+ *
+ * \retval NULL Fail
+ * \retval non-NULL Success
+ *
+ * \since 15.0.0
+ */
+struct ast_sdp_rtpmap *ast_sdp_a_get_rtpmap(const struct ast_sdp_a_line *a_line);
+
+
+/*!
+ * \brief Allocate a new SDP rtpmap
+ *
+ * \param payload The RTP payload number
+ * \param encoding_name The human-readable name for the codec
+ * \param clock_rate The rate of the codec, in cycles per second
+ * \param encoding_parameters Optional codec-specific parameters (such as number of channels)
+ *
+ * \retval NULL Fail
+ * \retval non-NULL Success
+ *
+ * \since 15.0.0
+ */
+struct ast_sdp_rtpmap *ast_sdp_rtpmap_alloc(int payload, const char *encoding_name,
+	int clock_rate, const char *encoding_parameters);
+
+/*!
+ * \brief Free an SDP rtpmap
+ *
+ * \since 15.0.0
+ */
+void ast_sdp_rtpmap_free(struct ast_sdp_rtpmap *rtpmap);
+
+/*!
+ * \brief Turn an SDP into a stream topology
+ *
+ * This traverses the m-lines of the SDP and creates a stream topology, with
+ * each m-line corresponding to a stream in the created topology.
+ *
+ * \param sdp The SDP to convert
+ *
+ * \retval NULL An error occurred when converting
+ * \retval non-NULL The generated stream topology
+ *
+ * \since 15.0.0
+ */
+struct ast_stream_topology *ast_get_topology_from_sdp(const struct ast_sdp *sdp);
 #endif /* _SDP_PRIV_H */
