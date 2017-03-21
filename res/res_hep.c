@@ -441,6 +441,9 @@ struct hepv3_capture_info *hepv3_create_capture_info(const void *payload, size_t
 	memcpy(info->payload, payload, len);
 	info->len = len;
 
+	/* Set a reasonable default */
+	info->protocol_id = IPPROTO_UDP;
+
 	return info;
 }
 
@@ -472,7 +475,7 @@ static int hep_queue_cb(void *data)
 	/* Build HEPv3 header, capture info, and calculate the total packet size */
 	memcpy(hg_pkt.header.id, "\x48\x45\x50\x33", 4);
 
-	INITIALIZE_GENERIC_HEP_CHUNK_DATA(&hg_pkt.ip_proto, CHUNK_TYPE_IP_PROTOCOL_ID, 0x11);
+	INITIALIZE_GENERIC_HEP_CHUNK_DATA(&hg_pkt.ip_proto, CHUNK_TYPE_IP_PROTOCOL_ID, capture_info->protocol_id);
 	INITIALIZE_GENERIC_HEP_CHUNK_DATA(&hg_pkt.src_port, CHUNK_TYPE_SRC_PORT, htons(ast_sockaddr_port(&capture_info->src_addr)));
 	INITIALIZE_GENERIC_HEP_CHUNK_DATA(&hg_pkt.dst_port, CHUNK_TYPE_DST_PORT, htons(ast_sockaddr_port(&capture_info->dst_addr)));
 	INITIALIZE_GENERIC_HEP_CHUNK_DATA(&hg_pkt.time_sec, CHUNK_TYPE_TIMESTAMP_SEC, htonl(capture_info->capture_time.tv_sec));
