@@ -3754,12 +3754,12 @@ static void *xmpp_client_thread(void *data)
 
 	do {
 		if (client->state == XMPP_STATE_DISCONNECTING) {
-			ast_debug(1, "JABBER: Disconnecting client '%s'\n", client->name);
+			ast_debug(1, "[%s] Disconnecting\n", client->name);
 			break;
 		}
 
 		if (res == IKS_NET_RWERR || client->timeout == 0) {
-			ast_debug(3, "Connecting client '%s'\n", client->name);
+			ast_debug(3, "[%s] Connecting\n", client->name);
 			if ((res = xmpp_client_reconnect(client)) != IKS_OK) {
 				sleep(4);
 				res = IKS_NET_RWERR;
@@ -3776,9 +3776,9 @@ static void *xmpp_client_thread(void *data)
 		}
 
 		if (res == IKS_HOOK) {
-			ast_debug(2, "JABBER: Got hook event.\n");
+			ast_debug(2, "[%s] Got hook event\n", client->name);
 		} else if (res == IKS_NET_TLSFAIL) {
-			ast_log(LOG_ERROR, "JABBER:  Failure in TLS.\n");
+			ast_log(LOG_ERROR, "[%s] TLS failure\n", client->name);
 		} else if (!client->timeout && client->state == XMPP_STATE_CONNECTED) {
 			RAII_VAR(struct xmpp_config *, cfg, ao2_global_obj_ref(globals), ao2_cleanup);
 			RAII_VAR(struct ast_xmpp_client_config *, clientcfg, NULL, ao2_cleanup);
@@ -3796,22 +3796,22 @@ static void *xmpp_client_thread(void *data)
 			if (res == IKS_OK) {
 				client->timeout = 50;
 			} else {
-				ast_log(LOG_WARNING, "JABBER: Network Timeout\n");
+				ast_log(LOG_WARNING, "[%s] Network timeout\n", client->name);
 			}
 		} else if (res == IKS_NET_RWERR) {
-			ast_log(LOG_WARNING, "JABBER: socket read error\n");
+			ast_log(LOG_WARNING, "[%s] Socket read error\n", client->name);
 		} else if (res == IKS_NET_NOSOCK) {
-			ast_log(LOG_WARNING, "JABBER: No Socket\n");
+			ast_log(LOG_WARNING, "[%s] No socket\n", client->name);
 		} else if (res == IKS_NET_NOCONN) {
-			ast_log(LOG_WARNING, "JABBER: No Connection\n");
+			ast_log(LOG_WARNING, "[%s] No connection\n", client->name);
 		} else if (res == IKS_NET_NODNS) {
-			ast_log(LOG_WARNING, "JABBER: No DNS\n");
+			ast_log(LOG_WARNING, "[%s] No DNS\n", client->name);
 		} else if (res == IKS_NET_NOTSUPP) {
-			ast_log(LOG_WARNING, "JABBER: Not Supported\n");
+			ast_log(LOG_WARNING, "[%s] Not supported\n", client->name);
 		} else if (res == IKS_NET_DROPPED) {
-			ast_log(LOG_WARNING, "JABBER: Dropped?\n");
+			ast_log(LOG_WARNING, "[%s] Dropped?\n", client->name);
 		} else if (res == IKS_NET_UNKNOWN) {
-			ast_debug(5, "JABBER: Unknown\n");
+			ast_debug(5, "[%s] Unknown\n", client->name);
 		}
 
 	} while (1);
