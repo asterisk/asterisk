@@ -73,6 +73,15 @@ static char *assign_uuid(const pj_str_t *call_id, const pj_str_t *local_tag, con
 	return uuid;
 }
 
+static int transport_to_protocol_id(pjsip_transport *tp)
+{
+	/* XXX If we ever add SCTP support, we'll need to revisit */
+	if (tp->flag & PJSIP_TRANSPORT_RELIABLE) {
+		return IPPROTO_TCP;
+	}
+	return IPPROTO_UDP;
+}
+
 static pj_status_t logging_on_tx_msg(pjsip_tx_data *tdata)
 {
 	char local_buf[256];
@@ -126,6 +135,7 @@ static pj_status_t logging_on_tx_msg(pjsip_tx_data *tdata)
 	ast_sockaddr_parse(&capture_info->src_addr, local_buf, PARSE_PORT_REQUIRE);
 	ast_sockaddr_parse(&capture_info->dst_addr, remote_buf, PARSE_PORT_REQUIRE);
 
+	capture_info->protocol_id = transport_to_protocol_id(tdata->tp_info.transport);
 	capture_info->capture_time = ast_tvnow();
 	capture_info->capture_type = HEPV3_CAPTURE_TYPE_SIP;
 	capture_info->uuid = uuid;
@@ -185,6 +195,8 @@ static pj_bool_t logging_on_rx_msg(pjsip_rx_data *rdata)
 
 	ast_sockaddr_parse(&capture_info->src_addr, remote_buf, PARSE_PORT_REQUIRE);
 	ast_sockaddr_parse(&capture_info->dst_addr, local_buf, PARSE_PORT_REQUIRE);
+
+	capture_info->protocol_id = transport_to_protocol_id(rdata->tp_info.transport);
 	capture_info->capture_time.tv_sec = rdata->pkt_info.timestamp.sec;
 	capture_info->capture_time.tv_usec = rdata->pkt_info.timestamp.msec * 1000;
 	capture_info->capture_type = HEPV3_CAPTURE_TYPE_SIP;
