@@ -498,10 +498,15 @@ static struct ast_generator spygen = {
 
 static int start_spying(struct ast_autochan *autochan, const char *spychan_name, struct ast_audiohook *audiohook)
 {
+	int res;
+
+	ast_autochan_channel_lock(autochan);
 	ast_log(LOG_NOTICE, "Attaching %s to %s\n", spychan_name, ast_channel_name(autochan->chan));
 
 	ast_set_flag(audiohook, AST_AUDIOHOOK_TRIGGER_SYNC | AST_AUDIOHOOK_SMALL_QUEUE);
-	return ast_audiohook_attach(autochan->chan, audiohook);
+	res = ast_audiohook_attach(autochan->chan, audiohook);
+	ast_autochan_channel_unlock(autochan);
+	return res;
 }
 
 static void change_spy_mode(const char digit, struct ast_flags *flags)
@@ -585,8 +590,14 @@ static int attach_barge(struct ast_autochan *spyee_autochan,
 {
 	int retval = 0;
 	struct ast_autochan *internal_bridge_autochan;
-	RAII_VAR(struct ast_channel *, bridged, ast_channel_bridge_peer(spyee_autochan->chan), ast_channel_cleanup);
+	struct ast_channel *spyee_chan;
+	RAII_VAR(struct ast_channel *, bridged, NULL, ast_channel_cleanup);
 
+	ast_autochan_channel_lock(spyee_autochan);
+	spyee_chan = ast_channel_ref(spyee_autochan->chan);
+	ast_autochan_channel_unlock(spyee_autochan);
+	bridged = ast_channel_bridge_peer(spyee_chan);
+	ast_channel_unref(spyee_chan);
 	if (!bridged) {
 		return -1;
 	}
@@ -598,12 +609,10 @@ static int attach_barge(struct ast_autochan *spyee_autochan,
 		return -1;
 	}
 
-	ast_autochan_channel_lock(internal_bridge_autochan);
 	if (start_spying(internal_bridge_autochan, spyer_name, bridge_whisper_audiohook)) {
 		ast_log(LOG_WARNING, "Unable to attach barge audiohook on spyee '%s'. Barge mode disabled.\n", name);
 		retval = -1;
 	}
-	ast_autochan_channel_unlock(internal_bridge_autochan);
 
 	*spyee_bridge_autochan = internal_bridge_autochan;
 
@@ -623,21 +632,25 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 	struct ast_autochan *spyee_bridge_autochan = NULL;
 	const char *spyer_name;
 
-	if (ast_check_hangup(chan) || ast_check_hangup(spyee_autochan->chan) ||
-			ast_test_flag(ast_channel_flags(spyee_autochan->chan), AST_FLAG_ZOMBIE)) {
+	ast_channel_lock(chan);
+	if (ast_check_hangup(chan)) {
+		ast_channel_unlock(chan);
 		return 0;
 	}
-
-	ast_channel_lock(chan);
 	spyer_name = ast_strdupa(ast_channel_name(chan));
 	ast_channel_unlock(chan);
 
 	ast_autochan_channel_lock(spyee_autochan);
+	if (ast_check_hangup(spyee_autochan->chan)
+		|| ast_test_flag(ast_channel_flags(spyee_autochan->chan), AST_FLAG_ZOMBIE)) {
+		ast_autochan_channel_unlock(spyee_autochan);
+		return 0;
+	}
 	name = ast_strdupa(ast_channel_name(spyee_autochan->chan));
-	ast_autochan_channel_unlock(spyee_autochan);
 
 	ast_verb(2, "Spying on channel %s\n", name);
 	publish_chanspy_message(chan, spyee_autochan->chan, 1);
+	ast_autochan_channel_unlock(spyee_autochan);
 
 	memset(&csth, 0, sizeof(csth));
 	ast_copy_flags(&csth.flags, flags, AST_FLAGS_ALL);
@@ -829,7 +842,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_autochan *spyee_auto
 }
 
 static struct ast_autochan *next_channel(struct ast_channel_iterator *iter,
-		struct ast_autochan *autochan, struct ast_channel *chan)
+	struct ast_channel *chan)
 {
 	struct ast_channel *next;
 	struct ast_autochan *autochan_store;
@@ -966,11 +979,12 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 		waitms = 100;
 		num_spyed_upon = 0;
 
-		for (autochan = next_channel(iter, autochan, chan);
-		     autochan;
-			 prev = autochan->chan, ast_autochan_destroy(autochan),
-		     autochan = next_autochan ? next_autochan : 
-				next_channel(iter, autochan, chan), next_autochan = NULL) {
+		for (autochan = next_channel(iter, chan);
+			autochan;
+			prev = autochan->chan,
+				ast_autochan_destroy(autochan),
+				autochan = next_autochan ?: next_channel(iter, chan),
+				next_autochan = NULL) {
 			int igrp = !mygroup;
 			int ienf = !myenforced;
 
@@ -984,13 +998,19 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 				break;
 			}
 
-			if (ast_test_flag(flags, OPTION_BRIDGED) && !ast_channel_is_bridged(autochan->chan)) {
+			ast_autochan_channel_lock(autochan);
+			if (ast_test_flag(flags, OPTION_BRIDGED)
+				&& !ast_channel_is_bridged(autochan->chan)) {
+				ast_autochan_channel_unlock(autochan);
 				continue;
 			}
 
-			if (ast_check_hangup(autochan->chan) || ast_test_flag(ast_channel_flags(autochan->chan), AST_FLAG_SPYING)) {
+			if (ast_check_hangup(autochan->chan)
+				|| ast_test_flag(ast_channel_flags(autochan->chan), AST_FLAG_SPYING)) {
+				ast_autochan_channel_unlock(autochan);
 				continue;
 			}
+			ast_autochan_channel_unlock(autochan);
 
 			if (mygroup) {
 				int num_groups = 0;
@@ -1008,11 +1028,13 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 
 				/* Before dahdi scan was part of chanspy, it would use the "GROUP" variable 
 				 * rather than "SPYGROUP", this check is done to preserve expected behavior */
+				ast_autochan_channel_lock(autochan);
 				if (ast_test_flag(flags, OPTION_DAHDI_SCAN)) {
 					group = pbx_builtin_getvar_helper(autochan->chan, "GROUP");
 				} else {
 					group = pbx_builtin_getvar_helper(autochan->chan, "SPYGROUP");
 				}
+				ast_autochan_channel_unlock(autochan);
 
 				if (!ast_strlen_zero(group)) {
 					ast_copy_string(dup_group, group, sizeof(dup_group));
@@ -1040,7 +1062,9 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 
 				snprintf(buffer, sizeof(buffer) - 1, ":%s:", myenforced);
 
+				ast_autochan_channel_lock(autochan);
 				ast_copy_string(ext + 1, ast_channel_name(autochan->chan), sizeof(ext) - 1);
+				ast_autochan_channel_unlock(autochan);
 				if ((end = strchr(ext, '-'))) {
 					*end++ = ':';
 					*end = '\0';
@@ -1062,7 +1086,9 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 				char *ptr, *s;
 
 				strcpy(peer_name, "spy-");
+				ast_autochan_channel_lock(autochan);
 				strncat(peer_name, ast_channel_name(autochan->chan), AST_NAME_STRLEN - 4 - 1);
+				ast_autochan_channel_unlock(autochan);
 				if ((ptr = strchr(peer_name, '/'))) {
 					*ptr++ = '\0';
 					for (s = peer_name; s < ptr; s++) {
@@ -1127,12 +1153,14 @@ static int common_exec(struct ast_channel *chan, struct ast_flags *flags,
 					next = ast_channel_unref(next);
 				} else {
 					/* stay on this channel, if it is still valid */
+					ast_autochan_channel_lock(autochan);
 					if (!ast_check_hangup(autochan->chan)) {
 						next_autochan = ast_autochan_setup(autochan->chan);
 					} else {
 						/* the channel is gone */
 						next_autochan = NULL;
 					}
+					ast_autochan_channel_unlock(autochan);
 				}
 			} else if (res == 0 && ast_test_flag(flags, OPTION_EXITONHANGUP)) {
 				ast_autochan_destroy(autochan);
