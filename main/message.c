@@ -127,8 +127,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 			</parameter>
 			<parameter name="from" required="false">
 				<para>A From URI for the message if needed for the
-				message technology being used to send this message.</para>
-				<xi:include xpointer="xpointer(/docs/info[@name='MessageFromInfo'])" />
+				message technology being used to send this message. This can be a
+				SIP(S) URI, such as <literal>Alice &lt;sip:alice@atlanta.com&gt;</literal>,
+				a string in the format <literal>alice@atlanta.com</literal>, or simply
+				a username such as <literal>alice</literal>.</para>
 			</parameter>
 		</syntax>
 		<description>
