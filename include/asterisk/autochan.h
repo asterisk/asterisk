@@ -32,6 +32,7 @@
 struct ast_autochan {
 	struct ast_channel *chan;
 	AST_LIST_ENTRY(ast_autochan) list;
+	ast_mutex_t lock;
 };
 
 /*! 
@@ -61,19 +62,24 @@ struct ast_autochan {
  * ast_autochan_channel_lock and ast_autochan_channel_unlock. An attempt to lock
  * the autochan->chan directly may result in it being changed after you've
  * retrieved the value of chan, but before you've had a chance to lock it.
- * First when chan is locked, the autochan structure is guaranteed to keep the
+ * While chan is locked, the autochan structure is guaranteed to keep the
  * same channel.
  */
 
+/*!
+ * \brief Lock the autochan's channel lock.
+ *
+ * \note We must do deadlock avoidance because the channel lock is
+ * superior to the autochan lock in locking order.
+ */
 #define ast_autochan_channel_lock(autochan) \
 	do { \
-		struct ast_channel *autochan_chan = autochan->chan; \
-		ast_channel_lock(autochan_chan); \
-		if (autochan->chan == autochan_chan) { \
-			break; \
+		ast_mutex_lock(&(autochan)->lock); \
+		while (ast_channel_trylock((autochan)->chan)) { \
+			DEADLOCK_AVOIDANCE(&(autochan)->lock); \
 		} \
-		ast_channel_unlock(autochan_chan); \
-	} while (1)
+		ast_mutex_unlock(&(autochan)->lock); \
+	} while (0)
 
 #define ast_autochan_channel_unlock(autochan) \
 	ast_channel_unlock(autochan->chan)
