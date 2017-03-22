@@ -232,6 +232,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<enum name="max_forwards">
 						<para>R/W The maximum number of forwards allowed.</para>
 					</enum>
+					<enum name="callid">
+						<para>R/O Call identifier log tag associated with the channel
+						e.g., <literal>[C-00000000]</literal>.</para>
+					</enum>
 				</enumlist>
 				<xi:include xpointer="xpointer(/docs/info[@name='CHANNEL'])" />
 			</parameter>
@@ -445,6 +449,17 @@ static int func_channel_read(struct ast_channel *chan, const char *function,
 	} else if (!strcasecmp(data, "max_forwards")) {
 		ast_channel_lock(chan);
 		snprintf(buf, len, "%d", ast_max_forwards_get(chan));
+		ast_channel_unlock(chan);
+	} else if (!strcasecmp(data, "callid")) {
+		struct ast_callid *callid;
+
+		buf[0] = '\0';
+		ast_channel_lock(chan);
+		callid = ast_channel_callid(chan);
+		if (callid) {
+			ast_callid_strnprint(buf, len, callid);
+			ast_callid_unref(callid);
+		}
 		ast_channel_unlock(chan);
 	} else if (!ast_channel_tech(chan) || !ast_channel_tech(chan)->func_channel_read || ast_channel_tech(chan)->func_channel_read(chan, function, data, buf, len)) {
 		ast_log(LOG_WARNING, "Unknown or unavailable item requested: '%s'\n", data);

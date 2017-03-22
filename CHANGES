@@ -41,6 +41,13 @@ app_voicemail
  * Added 'fromstring' field to the voicemail boxes. If set, it will override
    the global 'fromstring' field on a per-mailbox basis.
 
+func_channel
+------------------
+ * Added CHANNEL(callid) to retrieve the call log tag associated with the
+   channel.  e.g., [C-00000000]  Dialplan now has access to the call log
+   search key associated with the channel so it can be saved in case there
+   is a problem with the call.
+
 res_pjsip
 ------------------
  * A new transport parameter 'symmetric_transport' has been added.
