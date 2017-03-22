@@ -376,9 +376,14 @@ static void instance_destructor(void *obj)
 	struct ast_rtp_instance *instance = obj;
 
 	/* Pass us off to the engine to destroy */
-	if (instance->data && instance->engine->destroy(instance)) {
-		ast_debug(1, "Engine '%s' failed to destroy RTP instance '%p'\n", instance->engine->name, instance);
-		return;
+	if (instance->data) {
+		/*
+		 * Lock in case the RTP engine has other threads that
+		 * need synchronization with the destruction.
+		 */
+		ao2_lock(instance);
+		instance->engine->destroy(instance);
+		ao2_unlock(instance);
 	}
 
 	if (instance->srtp) {
@@ -453,12 +458,20 @@ struct ast_rtp_instance *ast_rtp_instance_new(const char *engine_name,
 
 	ast_debug(1, "Using engine '%s' for RTP instance '%p'\n", engine->name, instance);
 
-	/* And pass it off to the engine to setup */
+	/*
+	 * And pass it off to the engine to setup
+	 *
+	 * Lock in case the RTP engine has other threads that
+	 * need synchronization with the construction.
+	 */
+	ao2_lock(instance);
 	if (instance->engine->new(instance, sched, &address, data)) {
 		ast_debug(1, "Engine '%s' failed to setup RTP instance '%p'\n", engine->name, instance);
+		ao2_unlock(instance);
 		ao2_ref(instance, -1);
 		return NULL;
 	}
+	ao2_unlock(instance);
 
 	ast_debug(1, "RTP instance '%p' is setup and ready to go\n", instance);
 
@@ -487,31 +500,48 @@ void *ast_rtp_instance_get_data(struct ast_rtp_instance *instance)
 
 int ast_rtp_instance_write(struct ast_rtp_instance *instance, struct ast_frame *frame)
 {
-	return instance->engine->write(instance, frame);
+	int res;
+
+	ao2_lock(instance);
+	res = instance->engine->write(instance, frame);
+	ao2_unlock(instance);
+	return res;
 }
 
 struct ast_frame *ast_rtp_instance_read(struct ast_rtp_instance *instance, int rtcp)
 {
-	return instance->engine->read(instance, rtcp);
+	struct ast_frame *frame;
+
+	ao2_lock(instance);
+	frame = instance->engine->read(instance, rtcp);
+	ao2_unlock(instance);
+	return frame;
 }
 
 int ast_rtp_instance_set_local_address(struct ast_rtp_instance *instance,
 		const struct ast_sockaddr *address)
 {
+	ao2_lock(instance);
 	ast_sockaddr_copy(&instance->local_address, address);
+	ao2_unlock(instance);
 	return 0;
 }
 
-int ast_rtp_instance_set_incoming_source_address(struct ast_rtp_instance *instance,
-						 const struct ast_sockaddr *address)
+static void rtp_instance_set_incoming_source_address_nolock(struct ast_rtp_instance *instance,
+	const struct ast_sockaddr *address)
 {
 	ast_sockaddr_copy(&instance->incoming_source_address, address);
-
-	/* moo */
-
 	if (instance->engine->remote_address_set) {
 		instance->engine->remote_address_set(instance, &instance->incoming_source_address);
 	}
+}
+
+int ast_rtp_instance_set_incoming_source_address(struct ast_rtp_instance *instance,
+	const struct ast_sockaddr *address)
+{
+	ao2_lock(instance);
+	rtp_instance_set_incoming_source_address_nolock(instance, address);
+	ao2_unlock(instance);
 
 	return 0;
 }
@@ -519,18 +549,26 @@ int ast_rtp_instance_set_incoming_source_address(struct ast_rtp_instance *instan
 int ast_rtp_instance_set_requested_target_address(struct ast_rtp_instance *instance,
 						  const struct ast_sockaddr *address)
 {
-	ast_sockaddr_copy(&instance->requested_target_address, address);
+	ao2_lock(instance);
 
-	return ast_rtp_instance_set_incoming_source_address(instance, address);
+	ast_sockaddr_copy(&instance->requested_target_address, address);
+	rtp_instance_set_incoming_source_address_nolock(instance, address);
+
+	ao2_unlock(instance);
+
+	return 0;
 }
 
 int ast_rtp_instance_get_and_cmp_local_address(struct ast_rtp_instance *instance,
 		struct ast_sockaddr *address)
 {
+	ao2_lock(instance);
 	if (ast_sockaddr_cmp(address, &instance->local_address) != 0) {
 		ast_sockaddr_copy(address, &instance->local_address);
+		ao2_unlock(instance);
 		return 1;
 	}
+	ao2_unlock(instance);
 
 	return 0;
 }
@@ -538,16 +576,21 @@ int ast_rtp_instance_get_and_cmp_local_address(struct ast_rtp_instance *instance
 void ast_rtp_instance_get_local_address(struct ast_rtp_instance *instance,
 		struct ast_sockaddr *address)
 {
+	ao2_lock(instance);
 	ast_sockaddr_copy(address, &instance->local_address);
+	ao2_unlock(instance);
 }
 
 int ast_rtp_instance_get_and_cmp_requested_target_address(struct ast_rtp_instance *instance,
 		struct ast_sockaddr *address)
 {
+	ao2_lock(instance);
 	if (ast_sockaddr_cmp(address, &instance->requested_target_address) != 0) {
 		ast_sockaddr_copy(address, &instance->requested_target_address);
+		ao2_unlock(instance);
 		return 1;
 	}
+	ao2_unlock(instance);
 
 	return 0;
 }
@@ -555,43 +598,63 @@ int ast_rtp_instance_get_and_cmp_requested_target_address(struct ast_rtp_instanc
 void ast_rtp_instance_get_incoming_source_address(struct ast_rtp_instance *instance,
 						  struct ast_sockaddr *address)
 {
+	ao2_lock(instance);
 	ast_sockaddr_copy(address, &instance->incoming_source_address);
+	ao2_unlock(instance);
 }
 
 void ast_rtp_instance_get_requested_target_address(struct ast_rtp_instance *instance,
 						   struct ast_sockaddr *address)
 {
+	ao2_lock(instance);
 	ast_sockaddr_copy(address, &instance->requested_target_address);
+	ao2_unlock(instance);
 }
 
 void ast_rtp_instance_set_extended_prop(struct ast_rtp_instance *instance, int property, void *value)
 {
 	if (instance->engine->extended_prop_set) {
+		ao2_lock(instance);
 		instance->engine->extended_prop_set(instance, property, value);
+		ao2_unlock(instance);
 	}
 }
 
 void *ast_rtp_instance_get_extended_prop(struct ast_rtp_instance *instance, int property)
 {
+	void *prop;
+
 	if (instance->engine->extended_prop_get) {
-		return instance->engine->extended_prop_get(instance, property);
+		ao2_lock(instance);
+		prop = instance->engine->extended_prop_get(instance, property);
+		ao2_unlock(instance);
+	} else {
+		prop = NULL;
 	}
 
-	return NULL;
+	return prop;
 }
 
 void ast_rtp_instance_set_prop(struct ast_rtp_instance *instance, enum ast_rtp_property property, int value)
 {
+	ao2_lock(instance);
 	instance->properties[property] = value;
 
 	if (instance->engine->prop_set) {
 		instance->engine->prop_set(instance, property, value);
 	}
+	ao2_unlock(instance);
 }
 
 int ast_rtp_instance_get_prop(struct ast_rtp_instance *instance, enum ast_rtp_property property)
 {
-	return instance->properties[property];
+	int prop;
+
+	ao2_lock(instance);
+	prop = instance->properties[property];
+	ao2_unlock(instance);
+
+	return prop;
 }
 
 struct ast_rtp_codecs *ast_rtp_instance_get_codecs(struct ast_rtp_instance *instance)
@@ -632,9 +695,12 @@ void ast_rtp_codecs_payloads_clear(struct ast_rtp_codecs *codecs, struct ast_rtp
 
 	if (instance && instance->engine && instance->engine->payload_set) {
 		int i;
+
+		ao2_lock(instance);
 		for (i = 0; i < AST_RTP_MAX_PT; i++) {
 			instance->engine->payload_set(instance, i, 0, NULL, 0);
 		}
+		ao2_unlock(instance);
 	}
 }
 
@@ -660,7 +726,9 @@ void ast_rtp_codecs_payloads_copy(struct ast_rtp_codecs *src, struct ast_rtp_cod
 		AST_VECTOR_REPLACE(&dest->payloads, i, type);
 
 		if (instance && instance->engine && instance->engine->payload_set) {
+			ao2_lock(instance);
 			instance->engine->payload_set(instance, i, type->asterisk_format, type->format, type->rtp_code);
+			ao2_unlock(instance);
 		}
 	}
 	dest->framing = src->framing;
@@ -696,7 +764,9 @@ void ast_rtp_codecs_payloads_set_m_type(struct ast_rtp_codecs *codecs, struct as
 	AST_VECTOR_REPLACE(&codecs->payloads, payload, new_type);
 
 	if (instance && instance->engine && instance->engine->payload_set) {
+		ao2_lock(instance);
 		instance->engine->payload_set(instance, payload, new_type->asterisk_format, new_type->format, new_type->rtp_code);
+		ao2_unlock(instance);
 	}
 
 	ast_rwlock_unlock(&codecs->codecs_lock);
@@ -764,7 +834,9 @@ int ast_rtp_codecs_payloads_set_rtpmap_type_rate(struct ast_rtp_codecs *codecs, 
 		AST_VECTOR_REPLACE(&codecs->payloads, pt, new_type);
 
 		if (instance && instance->engine && instance->engine->payload_set) {
+			ao2_lock(instance);
 			instance->engine->payload_set(instance, pt, new_type->asterisk_format, new_type->format, new_type->rtp_code);
+			ao2_unlock(instance);
 		}
 
 		break;
@@ -798,7 +870,9 @@ void ast_rtp_codecs_payloads_unset(struct ast_rtp_codecs *codecs, struct ast_rtp
 	}
 
 	if (instance && instance->engine && instance->engine->payload_set) {
+		ao2_lock(instance);
 		instance->engine->payload_set(instance, payload, 0, NULL, 0);
+		ao2_unlock(instance);
 	}
 
 	ast_rwlock_unlock(&codecs->codecs_lock);
@@ -1077,57 +1151,127 @@ char *ast_rtp_lookup_mime_multiple2(struct ast_str *buf, struct ast_format_cap *
 
 int ast_rtp_instance_dtmf_begin(struct ast_rtp_instance *instance, char digit)
 {
-	return instance->engine->dtmf_begin ? instance->engine->dtmf_begin(instance, digit) : -1;
+	int res;
+
+	if (instance->engine->dtmf_begin) {
+		ao2_lock(instance);
+		res = instance->engine->dtmf_begin(instance, digit);
+		ao2_unlock(instance);
+	} else {
+		res = -1;
+	}
+	return res;
 }
 
 int ast_rtp_instance_dtmf_end(struct ast_rtp_instance *instance, char digit)
 {
-	return instance->engine->dtmf_end ? instance->engine->dtmf_end(instance, digit) : -1;
+	int res;
+
+	if (instance->engine->dtmf_end) {
+		ao2_lock(instance);
+		res = instance->engine->dtmf_end(instance, digit);
+		ao2_unlock(instance);
+	} else {
+		res = -1;
+	}
+	return res;
 }
+
 int ast_rtp_instance_dtmf_end_with_duration(struct ast_rtp_instance *instance, char digit, unsigned int duration)
 {
-	return instance->engine->dtmf_end_with_duration ? instance->engine->dtmf_end_with_duration(instance, digit, duration) : -1;
+	int res;
+
+	if (instance->engine->dtmf_end_with_duration) {
+		ao2_lock(instance);
+		res = instance->engine->dtmf_end_with_duration(instance, digit, duration);
+		ao2_unlock(instance);
+	} else {
+		res = -1;
+	}
+	return res;
 }
 
 int ast_rtp_instance_dtmf_mode_set(struct ast_rtp_instance *instance, enum ast_rtp_dtmf_mode dtmf_mode)
 {
-	return (!instance->engine->dtmf_mode_set || instance->engine->dtmf_mode_set(instance, dtmf_mode)) ? -1 : 0;
+	int res;
+
+	if (instance->engine->dtmf_mode_set) {
+		ao2_lock(instance);
+		res = instance->engine->dtmf_mode_set(instance, dtmf_mode);
+		ao2_unlock(instance);
+	} else {
+		res = -1;
+	}
+	return res;
 }
 
 enum ast_rtp_dtmf_mode ast_rtp_instance_dtmf_mode_get(struct ast_rtp_instance *instance)
 {
-	return instance->engine->dtmf_mode_get ? instance->engine->dtmf_mode_get(instance) : 0;
+	int res;
+
+	if (instance->engine->dtmf_mode_get) {
+		ao2_lock(instance);
+		res = instance->engine->dtmf_mode_get(instance);
+		ao2_unlock(instance);
+	} else {
+		res = 0;
+	}
+	return res;
 }
 
 void ast_rtp_instance_update_source(struct ast_rtp_instance *instance)
 {
 	if (instance->engine->update_source) {
+		ao2_lock(instance);
 		instance->engine->update_source(instance);
+		ao2_unlock(instance);
 	}
 }
 
 void ast_rtp_instance_change_source(struct ast_rtp_instance *instance)
 {
 	if (instance->engine->change_source) {
+		ao2_lock(instance);
 		instance->engine->change_source(instance);
+		ao2_unlock(instance);
 	}
 }
 
 int ast_rtp_instance_set_qos(struct ast_rtp_instance *instance, int tos, int cos, const char *desc)
 {
-	return instance->engine->qos ? instance->engine->qos(instance, tos, cos, desc) : -1;
+	int res;
+
+	if (instance->engine->qos) {
+		ao2_lock(instance);
+		res = instance->engine->qos(instance, tos, cos, desc);
+		ao2_unlock(instance);
+	} else {
+		res = -1;
+	}
+	return res;
 }
 
 void ast_rtp_instance_stop(struct ast_rtp_instance *instance)
 {
 	if (instance->engine->stop) {
+		ao2_lock(instance);
 		instance->engine->stop(instance);
+		ao2_unlock(instance);
 	}
 }
 
 int ast_rtp_instance_fd(struct ast_rtp_instance *instance, int rtcp)
 {
-	return instance->engine->fd ? instance->engine->fd(instance, rtcp) : -1;
+	int res;
+
+	if (instance->engine->fd) {
+		ao2_lock(instance);
+		res = instance->engine->fd(instance, rtcp);
+		ao2_unlock(instance);
+	} else {
+		res = -1;
+	}
+	return res;
 }
 
 struct ast_rtp_glue *ast_rtp_instance_get_glue(const char *type)
@@ -1160,12 +1304,19 @@ static void unref_instance_cond(struct ast_rtp_instance **instance)
 
 struct ast_rtp_instance *ast_rtp_instance_get_bridged(struct ast_rtp_instance *instance)
 {
-	return instance->bridged;
+	struct ast_rtp_instance *bridged;
+
+	ao2_lock(instance);
+	bridged = instance->bridged;
+	ao2_unlock(instance);
+	return bridged;
 }
 
 void ast_rtp_instance_set_bridged(struct ast_rtp_instance *instance, struct ast_rtp_instance *bridged)
 {
+	ao2_lock(instance);
 	instance->bridged = bridged;
+	ao2_unlock(instance);
 }
 
 void ast_rtp_instance_early_bridge_make_compatible(struct ast_channel *c_dst, struct ast_channel *c_src)
@@ -1337,17 +1488,44 @@ done:
 
 int ast_rtp_red_init(struct ast_rtp_instance *instance, int buffer_time, int *payloads, int generations)
 {
-	return instance->engine->red_init ? instance->engine->red_init(instance, buffer_time, payloads, generations) : -1;
+	int res;
+
+	if (instance->engine->red_init) {
+		ao2_lock(instance);
+		res = instance->engine->red_init(instance, buffer_time, payloads, generations);
+		ao2_unlock(instance);
+	} else {
+		res = -1;
+	}
+	return res;
 }
 
 int ast_rtp_red_buffer(struct ast_rtp_instance *instance, struct ast_frame *frame)
 {
-	return instance->engine->red_buffer ? instance->engine->red_buffer(instance, frame) : -1;
+	int res;
+
+	if (instance->engine->red_buffer) {
+		ao2_lock(instance);
+		res = instance->engine->red_buffer(instance, frame);
+		ao2_unlock(instance);
+	} else {
+		res = -1;
+	}
+	return res;
 }
 
 int ast_rtp_instance_get_stats(struct ast_rtp_instance *instance, struct ast_rtp_instance_stats *stats, enum ast_rtp_instance_stat stat)
 {
-	return instance->engine->get_stat ? instance->engine->get_stat(instance, stats, stat) : -1;
+	int res;
+
+	if (instance->engine->get_stat) {
+		ao2_lock(instance);
+		res = instance->engine->get_stat(instance, stats, stat);
+		ao2_unlock(instance);
+	} else {
+		res = -1;
+	}
+	return res;
 }
 
 char *ast_rtp_instance_get_quality(struct ast_rtp_instance *instance, enum ast_rtp_instance_stat_field field, char *buf, size_t size)
@@ -1452,14 +1630,33 @@ void ast_rtp_instance_set_stats_vars(struct ast_channel *chan, struct ast_rtp_in
 
 int ast_rtp_instance_set_read_format(struct ast_rtp_instance *instance, struct ast_format *format)
 {
-	return instance->engine->set_read_format ? instance->engine->set_read_format(instance, format) : -1;
+	int res;
+
+	if (instance->engine->set_read_format) {
+		ao2_lock(instance);
+		res = instance->engine->set_read_format(instance, format);
+		ao2_unlock(instance);
+	} else {
+		res = -1;
+	}
+	return res;
 }
 
 int ast_rtp_instance_set_write_format(struct ast_rtp_instance *instance, struct ast_format *format)
 {
-	return instance->engine->set_write_format ? instance->engine->set_write_format(instance, format) : -1;
+	int res;
+
+	if (instance->engine->set_read_format) {
+		ao2_lock(instance);
+		res = instance->engine->set_write_format(instance, format);
+		ao2_unlock(instance);
+	} else {
+		res = -1;
+	}
+	return res;
 }
 
+/* XXX Nothing calls this */
 int ast_rtp_instance_make_compatible(struct ast_channel *chan, struct ast_rtp_instance *instance, struct ast_channel *peer)
 {
 	struct ast_rtp_glue *glue;
@@ -1490,6 +1687,10 @@ int ast_rtp_instance_make_compatible(struct ast_channel *chan, struct ast_rtp_in
 		return -1;
 	}
 
+	/*
+	 * XXX Good thing nothing calls this function because we would need
+	 * deadlock avoidance to get the two instance locks.
+	 */
 	res = instance->engine->make_compatible(chan, instance, peer, peer_instance);
 
 	ast_channel_unlock(peer);
@@ -1503,7 +1704,9 @@ int ast_rtp_instance_make_compatible(struct ast_channel *chan, struct ast_rtp_in
 void ast_rtp_instance_available_formats(struct ast_rtp_instance *instance, struct ast_format_cap *to_endpoint, struct ast_format_cap *to_asterisk, struct ast_format_cap *result)
 {
 	if (instance->engine->available_formats) {
+		ao2_lock(instance);
 		instance->engine->available_formats(instance, to_endpoint, to_asterisk, result);
+		ao2_unlock(instance);
 		if (ast_format_cap_count(result)) {
 			return;
 		}
@@ -1514,7 +1717,16 @@ void ast_rtp_instance_available_formats(struct ast_rtp_instance *instance, struc
 
 int ast_rtp_instance_activate(struct ast_rtp_instance *instance)
 {
-	return instance->engine->activate ? instance->engine->activate(instance) : 0;
+	int res;
+
+	if (instance->engine->activate) {
+		ao2_lock(instance);
+		res = instance->engine->activate(instance);
+		ao2_unlock(instance);
+	} else {
+		res = 0;
+	}
+	return res;
 }
 
 void ast_rtp_instance_stun_request(struct ast_rtp_instance *instance,
@@ -1620,29 +1832,250 @@ struct ast_srtp *ast_rtp_instance_get_srtp(struct ast_rtp_instance *instance, in
 {
 	if (rtcp && instance->rtcp_srtp) {
 		return instance->rtcp_srtp;
-	}
-	else {
+	} else {
 		return instance->srtp;
 	}
 }
 
 int ast_rtp_instance_sendcng(struct ast_rtp_instance *instance, int level)
 {
-	if (instance->engine->sendcng) {
-		return instance->engine->sendcng(instance, level);
-	}
+	int res;
 
-	return -1;
+	if (instance->engine->sendcng) {
+		ao2_lock(instance);
+		res = instance->engine->sendcng(instance, level);
+		ao2_unlock(instance);
+	} else {
+		res = -1;
+	}
+	return res;
 }
+
+static void rtp_ice_wrap_set_authentication(struct ast_rtp_instance *instance, const char *ufrag, const char *password)
+{
+	ao2_lock(instance);
+	instance->engine->ice->set_authentication(instance, ufrag, password);
+	ao2_unlock(instance);
+}
+
+static void rtp_ice_wrap_add_remote_candidate(struct ast_rtp_instance *instance, const struct ast_rtp_engine_ice_candidate *candidate)
+{
+	ao2_lock(instance);
+	instance->engine->ice->add_remote_candidate(instance, candidate);
+	ao2_unlock(instance);
+}
+
+static void rtp_ice_wrap_start(struct ast_rtp_instance *instance)
+{
+	ao2_lock(instance);
+	instance->engine->ice->start(instance);
+	ao2_unlock(instance);
+}
+
+static void rtp_ice_wrap_stop(struct ast_rtp_instance *instance)
+{
+	ao2_lock(instance);
+	instance->engine->ice->stop(instance);
+	ao2_unlock(instance);
+}
+
+static const char *rtp_ice_wrap_get_ufrag(struct ast_rtp_instance *instance)
+{
+	const char *ufrag;
+
+	ao2_lock(instance);
+	ufrag = instance->engine->ice->get_ufrag(instance);
+	ao2_unlock(instance);
+	return ufrag;
+}
+
+static const char *rtp_ice_wrap_get_password(struct ast_rtp_instance *instance)
+{
+	const char *password;
+
+	ao2_lock(instance);
+	password = instance->engine->ice->get_password(instance);
+	ao2_unlock(instance);
+	return password;
+}
+
+static struct ao2_container *rtp_ice_wrap_get_local_candidates(struct ast_rtp_instance *instance)
+{
+	struct ao2_container *local_candidates;
+
+	ao2_lock(instance);
+	local_candidates = instance->engine->ice->get_local_candidates(instance);
+	ao2_unlock(instance);
+	return local_candidates;
+}
+
+static void rtp_ice_wrap_ice_lite(struct ast_rtp_instance *instance)
+{
+	ao2_lock(instance);
+	instance->engine->ice->ice_lite(instance);
+	ao2_unlock(instance);
+}
+
+static void rtp_ice_wrap_set_role(struct ast_rtp_instance *instance,
+	enum ast_rtp_ice_role role)
+{
+	ao2_lock(instance);
+	instance->engine->ice->set_role(instance, role);
+	ao2_unlock(instance);
+}
+
+static void rtp_ice_wrap_turn_request(struct ast_rtp_instance *instance,
+	enum ast_rtp_ice_component_type component, enum ast_transport transport,
+	const char *server, unsigned int port, const char *username, const char *password)
+{
+	ao2_lock(instance);
+	instance->engine->ice->turn_request(instance, component, transport, server, port,
+		username, password);
+	ao2_unlock(instance);
+}
+
+static void rtp_ice_wrap_change_components(struct ast_rtp_instance *instance,
+	int num_components)
+{
+	ao2_lock(instance);
+	instance->engine->ice->change_components(instance, num_components);
+	ao2_unlock(instance);
+}
+
+static struct ast_rtp_engine_ice rtp_ice_wrappers = {
+	.set_authentication = rtp_ice_wrap_set_authentication,
+	.add_remote_candidate = rtp_ice_wrap_add_remote_candidate,
+	.start = rtp_ice_wrap_start,
+	.stop = rtp_ice_wrap_stop,
+	.get_ufrag = rtp_ice_wrap_get_ufrag,
+	.get_password = rtp_ice_wrap_get_password,
+	.get_local_candidates = rtp_ice_wrap_get_local_candidates,
+	.ice_lite = rtp_ice_wrap_ice_lite,
+	.set_role = rtp_ice_wrap_set_role,
+	.turn_request = rtp_ice_wrap_turn_request,
+	.change_components = rtp_ice_wrap_change_components,
+};
 
 struct ast_rtp_engine_ice *ast_rtp_instance_get_ice(struct ast_rtp_instance *instance)
 {
-	return instance->engine->ice;
+	if (instance->engine->ice) {
+		return &rtp_ice_wrappers;
+	}
+	/* ICE not available */
+	return NULL;
 }
+
+static int rtp_dtls_wrap_set_configuration(struct ast_rtp_instance *instance,
+	const struct ast_rtp_dtls_cfg *dtls_cfg)
+{
+	int set_configuration;
+
+	ao2_lock(instance);
+	set_configuration = instance->engine->dtls->set_configuration(instance, dtls_cfg);
+	ao2_unlock(instance);
+	return set_configuration;
+}
+
+static int rtp_dtls_wrap_active(struct ast_rtp_instance *instance)
+{
+	int active;
+
+	ao2_lock(instance);
+	active = instance->engine->dtls->active(instance);
+	ao2_unlock(instance);
+	return active;
+}
+
+static void rtp_dtls_wrap_stop(struct ast_rtp_instance *instance)
+{
+	ao2_lock(instance);
+	instance->engine->dtls->stop(instance);
+	ao2_unlock(instance);
+}
+
+static void rtp_dtls_wrap_reset(struct ast_rtp_instance *instance)
+{
+	ao2_lock(instance);
+	instance->engine->dtls->reset(instance);
+	ao2_unlock(instance);
+}
+
+static enum ast_rtp_dtls_connection rtp_dtls_wrap_get_connection(struct ast_rtp_instance *instance)
+{
+	enum ast_rtp_dtls_connection get_connection;
+
+	ao2_lock(instance);
+	get_connection = instance->engine->dtls->get_connection(instance);
+	ao2_unlock(instance);
+	return get_connection;
+}
+
+static enum ast_rtp_dtls_setup rtp_dtls_wrap_get_setup(struct ast_rtp_instance *instance)
+{
+	enum ast_rtp_dtls_setup get_setup;
+
+	ao2_lock(instance);
+	get_setup = instance->engine->dtls->get_setup(instance);
+	ao2_unlock(instance);
+	return get_setup;
+}
+
+static void rtp_dtls_wrap_set_setup(struct ast_rtp_instance *instance,
+	enum ast_rtp_dtls_setup setup)
+{
+	ao2_lock(instance);
+	instance->engine->dtls->set_setup(instance, setup);
+	ao2_unlock(instance);
+}
+
+static void rtp_dtls_wrap_set_fingerprint(struct ast_rtp_instance *instance,
+	enum ast_rtp_dtls_hash hash, const char *fingerprint)
+{
+	ao2_lock(instance);
+	instance->engine->dtls->set_fingerprint(instance, hash, fingerprint);
+	ao2_unlock(instance);
+}
+
+static enum ast_rtp_dtls_hash rtp_dtls_wrap_get_fingerprint_hash(struct ast_rtp_instance *instance)
+{
+	enum ast_rtp_dtls_hash get_fingerprint_hash;
+
+	ao2_lock(instance);
+	get_fingerprint_hash = instance->engine->dtls->get_fingerprint_hash(instance);
+	ao2_unlock(instance);
+	return get_fingerprint_hash;
+}
+
+static const char *rtp_dtls_wrap_get_fingerprint(struct ast_rtp_instance *instance)
+{
+	const char *get_fingerprint;
+
+	ao2_lock(instance);
+	get_fingerprint = instance->engine->dtls->get_fingerprint(instance);
+	ao2_unlock(instance);
+	return get_fingerprint;
+}
+
+static struct ast_rtp_engine_dtls rtp_dtls_wrappers = {
+	.set_configuration = rtp_dtls_wrap_set_configuration,
+	.active = rtp_dtls_wrap_active,
+	.stop = rtp_dtls_wrap_stop,
+	.reset = rtp_dtls_wrap_reset,
+	.get_connection = rtp_dtls_wrap_get_connection,
+	.get_setup = rtp_dtls_wrap_get_setup,
+	.set_setup = rtp_dtls_wrap_set_setup,
+	.set_fingerprint = rtp_dtls_wrap_set_fingerprint,
+	.get_fingerprint_hash = rtp_dtls_wrap_get_fingerprint_hash,
+	.get_fingerprint = rtp_dtls_wrap_get_fingerprint,
+};
 
 struct ast_rtp_engine_dtls *ast_rtp_instance_get_dtls(struct ast_rtp_instance *instance)
 {
-	return instance->engine->dtls;
+	if (instance->engine->dtls) {
+		return &rtp_dtls_wrappers;
+	}
+	/* DTLS not available */
+	return NULL;
 }
 
 int ast_rtp_dtls_cfg_parse(struct ast_rtp_dtls_cfg *dtls_cfg, const char *name, const char *value)
