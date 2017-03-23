@@ -1630,6 +1630,35 @@ static int xmpp_resource_immediate(void *obj, void *arg, int flags)
 	return CMP_MATCH | CMP_STOP;
 }
 
+#define BUDDY_OFFLINE 6
+#define BUDDY_NOT_IN_ROSTER 7
+
+static int get_buddy_status(struct ast_xmpp_client_config *clientcfg, char *screenname, char *resource)
+{
+	int status = BUDDY_OFFLINE;
+	struct ast_xmpp_resource *res;
+	struct ast_xmpp_buddy *buddy = ao2_find(clientcfg->client->buddies, screenname, OBJ_KEY);
+
+	if (!buddy) {
+		return BUDDY_NOT_IN_ROSTER;
+	}
+
+	res = ao2_callback(
+		buddy->resources,
+		0,
+		ast_strlen_zero(resource) ? xmpp_resource_immediate : xmpp_resource_cmp,
+		resource);
+
+	if (res) {
+		status = res->status;
+	}
+
+	ao2_cleanup(res);
+	ao2_cleanup(buddy);
+
+	return status;
+}
+
 /*
  * \internal
  * \brief Dial plan function status(). puts the status of watched user
@@ -1643,10 +1672,7 @@ static int xmpp_status_exec(struct ast_channel *chan, const char *data)
 {
 	RAII_VAR(struct xmpp_config *, cfg, ao2_global_obj_ref(globals), ao2_cleanup);
 	RAII_VAR(struct ast_xmpp_client_config *, clientcfg, NULL, ao2_cleanup);
-	struct ast_xmpp_buddy *buddy;
-	struct ast_xmpp_resource *resource;
 	char *s = NULL, status[2];
-	int stat = 7;
 	static int deprecation_warning = 0;
 	AST_DECLARE_APP_ARGS(args,
 			     AST_APP_ARG(sender);
@@ -1685,25 +1711,7 @@ static int xmpp_status_exec(struct ast_channel *chan, const char *data)
 		return -1;
 	}
 
-	if (!(buddy = ao2_find(clientcfg->client->buddies, jid.screenname, OBJ_KEY))) {
-		ast_log(LOG_WARNING, "Could not find buddy in list: '%s'\n", jid.screenname);
-		return -1;
-	}
-
-	if (ast_strlen_zero(jid.resource) || !(resource = ao2_callback(buddy->resources, 0, xmpp_resource_cmp, jid.resource))) {
-		resource = ao2_callback(buddy->resources, OBJ_NODATA, xmpp_resource_immediate, NULL);
-	}
-
-	ao2_ref(buddy, -1);
-
-	if (resource) {
-		stat = resource->status;
-		ao2_ref(resource, -1);
-	} else {
-		ast_log(LOG_NOTICE, "Resource '%s' of buddy '%s' was not found\n", jid.resource, jid.screenname);
-	}
-
-	snprintf(status, sizeof(status), "%d", stat);
+	snprintf(status, sizeof(status), "%d", get_buddy_status(clientcfg, jid.screenname, jid.resource));
 	pbx_builtin_setvar_helper(chan, args.variable, status);
 
 	return 0;
@@ -1722,9 +1730,6 @@ static int acf_jabberstatus_read(struct ast_channel *chan, const char *name, cha
 {
 	RAII_VAR(struct xmpp_config *, cfg, ao2_global_obj_ref(globals), ao2_cleanup);
 	RAII_VAR(struct ast_xmpp_client_config *, clientcfg, NULL, ao2_cleanup);
-	struct ast_xmpp_buddy *buddy;
-	struct ast_xmpp_resource *resource;
-	int stat = 7;
 	AST_DECLARE_APP_ARGS(args,
 			     AST_APP_ARG(sender);
 			     AST_APP_ARG(jid);
@@ -1756,25 +1761,7 @@ static int acf_jabberstatus_read(struct ast_channel *chan, const char *name, cha
 		return -1;
 	}
 
-	if (!(buddy = ao2_find(clientcfg->client->buddies, jid.screenname, OBJ_KEY))) {
-		ast_log(LOG_WARNING, "Could not find buddy in list: '%s'\n", jid.screenname);
-		return -1;
-	}
-
-	if (ast_strlen_zero(jid.resource) || !(resource = ao2_callback(buddy->resources, 0, xmpp_resource_cmp, jid.resource))) {
-		resource = ao2_callback(buddy->resources, OBJ_NODATA, xmpp_resource_immediate, NULL);
-	}
-
-	ao2_ref(buddy, -1);
-
-	if (resource) {
-		stat = resource->status;
-		ao2_ref(resource, -1);
-	} else {
-		ast_log(LOG_NOTICE, "Resource %s of buddy %s was not found.\n", jid.resource, jid.screenname);
-	}
-
-	snprintf(buf, buflen, "%d", stat);
+	snprintf(buf, buflen, "%d", get_buddy_status(clientcfg, jid.screenname, jid.resource));
 
 	return 0;
 }
