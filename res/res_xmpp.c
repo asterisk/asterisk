@@ -561,7 +561,6 @@ static void xmpp_client_destructor(void *obj)
 	ast_xmpp_client_disconnect(client);
 
 	ast_endpoint_shutdown(client->endpoint);
-	ao2_cleanup(client->endpoint);
 	client->endpoint = NULL;
 
 	if (client->filter) {
