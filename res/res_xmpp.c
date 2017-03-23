@@ -2623,12 +2623,31 @@ static int xmpp_client_request_tls(struct ast_xmpp_client *client, struct ast_xm
 #endif
 }
 
+#ifdef HAVE_OPENSSL
+static char *openssl_error_string(void)
+{
+	char *buf = NULL, *ret;
+	size_t len;
+	BIO *bio = BIO_new(BIO_s_mem());
+
+	ERR_print_errors(bio);
+	len = BIO_get_mem_data(bio, &buf);
+	ret = ast_calloc(1, len + 1);
+	if (ret) {
+		memcpy(ret, buf, len);
+	}
+	BIO_free(bio);
+	return ret;
+}
+#endif
+
 /*! \brief Internal function called when we receive a response to our TLS initiation request */
 static int xmpp_client_requested_tls(struct ast_xmpp_client *client, struct ast_xmpp_client_config *cfg, int type, iks *node)
 {
 #ifdef HAVE_OPENSSL
 	int sock;
 	long ssl_opts;
+	char *err;
 #endif
 
 	if (!strcmp(iks_name(node), "success")) {
@@ -2684,7 +2703,10 @@ static int xmpp_client_requested_tls(struct ast_xmpp_client *client, struct ast_
 	return 0;
 
 failure:
-	ast_log(LOG_ERROR, "TLS connection for client '%s' cannot be established. OpenSSL initialization failed.\n", client->name);
+	err = openssl_error_string();
+	ast_log(LOG_ERROR, "TLS connection for client '%s' cannot be established. "
+		"OpenSSL initialization failed: %s\n", client->name, err);
+	ast_free(err);
 	return -1;
 #endif
 }
