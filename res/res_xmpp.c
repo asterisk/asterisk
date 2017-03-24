@@ -2691,7 +2691,7 @@ static int xmpp_client_requested_tls(struct ast_xmpp_client *client, struct ast_
 		goto failure;
 	}
 
-	if (!SSL_connect(client->ssl_session)) {
+	if (SSL_connect(client->ssl_session) <= 0) {
 		goto failure;
 	}
 
