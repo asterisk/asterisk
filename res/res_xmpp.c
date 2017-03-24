@@ -2562,10 +2562,16 @@ static void xmpp_log_hook(void *data, const char *xmpp, size_t size, int incomin
 static int xmpp_client_send_raw_message(struct ast_xmpp_client *client, const char *message)
 {
 	int ret;
-#ifdef HAVE_OPENSSL
-	int len = strlen(message);
 
+	if (client->state == XMPP_STATE_DISCONNECTED) {
+		/* iks_send_raw will crash without a connection */
+		return IKS_NET_NOCONN;
+	}
+
+#ifdef HAVE_OPENSSL
 	if (xmpp_is_secure(client)) {
+		int len = strlen(message);
+
 		ret = SSL_write(client->ssl_session, message, len);
 		if (ret) {
 			/* Log the message here, because iksemel's logHook is
