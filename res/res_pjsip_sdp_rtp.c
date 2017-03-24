@@ -164,6 +164,10 @@ static int rtp_check_timeout(const void *data)
 	ast_log(LOG_NOTICE, "Disconnecting channel '%s' for lack of RTP activity in %d seconds\n",
 		ast_channel_name(chan), elapsed);
 
+	ast_channel_lock(chan);
+	ast_channel_hangupcause_set(chan, AST_CAUSE_REQUESTED_CHAN_UNAVAIL);
+	ast_channel_unlock(chan);
+
 	ast_softhangup(chan, AST_SOFTHANGUP_DEV);
 	ast_channel_unref(chan);
 
