@@ -59,7 +59,7 @@ endif
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
-$(if $(filter chan_ooh323,$(EMBEDDED_MODS)),modules.link,chan_ooh323.so): _ASTCFLAGS+=$(H323CFLAGS)
+chan_ooh323.so: _ASTCFLAGS+=$(H323CFLAGS)
 $(call MOD_ADD_C,chan_ooh323,$(H323SOURCE))
 
 $(call MOD_ADD_C,format_mp3,mp3/common.c mp3/dct64_i386.c mp3/decode_ntom.c mp3/layer3.c mp3/tabinit.c mp3/interface.c)
