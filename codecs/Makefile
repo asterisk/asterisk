@@ -38,7 +38,7 @@ include $(ASTTOPDIR)/Makefile.moddir_rules
 ifneq ($(GSM_INTERNAL),no)
 GSM_INCLUDE := -I$(SUB_GSM)/inc
 
-$(if $(filter codec_gsm,$(EMBEDDED_MODS)),modules.link,codec_gsm.so): $(SUB_GSM)/lib/libgsm.a
+codec_gsm.so: $(SUB_GSM)/lib/libgsm.a
 endif
 
 # Don't run the implicit rules for this target.
@@ -57,7 +57,7 @@ clean::
 .PHONY: $(SUB_DIRS)
 
 
-$(if $(filter codec_lpc10,$(EMBEDDED_MODS)),modules.link,codec_lpc10.so): $(LIBLPC10)
+codec_lpc10.so: $(LIBLPC10)
 
 # Don't run the implicit rules for this target.
 $(LIBLPC10): $(SUB_LPC10) ;
@@ -67,7 +67,7 @@ $(SUB_LPC10):
 
 
 ifneq ($(ILBC_INTERNAL),no)
-$(if $(filter codec_ilbc,$(EMBEDDED_MODS)),modules.link,codec_ilbc.so): $(LIBILBC)
+codec_ilbc.so: $(LIBILBC)
 else
 ILBC_INCLUDE += -DILBC_WEBRTC
 endif

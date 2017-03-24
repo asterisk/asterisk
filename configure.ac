@@ -1197,29 +1197,6 @@ CFLAGS="${saved_sanitize_CFLAGS}"
 LDFLAGS="${saved_sanitize_LDFLAGS}"
 AC_SUBST(AST_UNDEFINED_SANITIZER)
 
-AC_MSG_CHECKING(for -ffunction-sections support)
-saved_CFLAGS="${CFLAGS}"
-CFLAGS="${CFLAGS} -ffunction-sections"
-AC_COMPILE_IFELSE(
-	[AC_LANG_PROGRAM([], [int x = 1;])],
-	AC_MSG_RESULT(yes)
-	[saved_LDFLAGS="${LDFLAGS}"]
-	[LDFLAGS="${LDFLAGS} -Wl,--gc-sections"]
-	AC_MSG_CHECKING(for --gc-sections support)
-	AC_LINK_IFELSE(
-		[AC_LANG_PROGRAM([], [int x = 1;])],
-		AC_MSG_RESULT(yes)
-		[GC_CFLAGS="-ffunction-sections"]
-		[[GC_LDFLAGS="-Wl,--gc-sections"]],
-		AC_MSG_RESULT(no)
-	)
-	[LDFLAGS="${saved_LDFLAGS}"],
-	AC_MSG_RESULT(no)
-)
-CFLAGS="${saved_CFLAGS}"
-AC_SUBST(GC_CFLAGS)
-AC_SUBST(GC_LDFLAGS)
-
 AC_MSG_CHECKING(for -Wdeclaration-after-statement support)
 if $(${CC} -Wdeclaration-after-statement -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
 	AC_MSG_RESULT(yes)

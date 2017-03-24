@@ -109,10 +109,6 @@ static const unsigned char expected_key[] =
 
 static char buildopt_sum[33] = AST_BUILDOPT_SUM;
 
-static unsigned int embedding = 1; /* we always start out by registering embedded modules,
-				      since they are here before we dlopen() any
-				   */
-
 /*!
  * \brief Internal flag to indicate all modules have been initially loaded.
  */
@@ -146,14 +142,6 @@ const char *ast_module_name(const struct ast_module *mod)
 	return mod->info->name;
 }
 
-/*
- * module_list is cleared by its constructor possibly after
- * we start accumulating embedded modules, so we need to
- * use another list (without the lock) to accumulate them.
- * Then we update the main list when embedding is done.
- */
-static struct module_list embedded_module_list;
-
 struct loadupdate {
 	int (*updater)(void);
 	AST_LIST_ENTRY(loadupdate) entry;
@@ -182,15 +170,7 @@ static struct ast_module *resource_being_loaded;
 
 void ast_module_register(const struct ast_module_info *info)
 {
-	struct ast_module *mod;
-
-	if (embedding) {
-		if (!(mod = ast_calloc(1, sizeof(*mod) + strlen(info->name) + 1)))
-			return;
-		strcpy(mod->resource, info->name);
-	} else {
-		mod = resource_being_loaded;
-	}
+	struct ast_module *mod = resource_being_loaded;
 
 	ast_debug(5, "Registering module %s\n", info->name);
 
@@ -206,18 +186,14 @@ void ast_module_register(const struct ast_module_info *info)
 	   might be unsafe to use the list lock at that point... so
 	   let's avoid it altogether
 	*/
-	if (embedding) {
-		AST_DLLIST_INSERT_TAIL(&embedded_module_list, mod, entry);
-	} else {
-		AST_DLLIST_LOCK(&module_list);
-		/* it is paramount that the new entry be placed at the tail of
-		   the list, otherwise the code that uses dlopen() to load
-		   dynamic modules won't be able to find out if the module it
-		   just opened was registered or failed to load
-		*/
-		AST_DLLIST_INSERT_TAIL(&module_list, mod, entry);
-		AST_DLLIST_UNLOCK(&module_list);
-	}
+	AST_DLLIST_LOCK(&module_list);
+	/* it is paramount that the new entry be placed at the tail of
+	   the list, otherwise the code that uses dlopen() to load
+	   dynamic modules won't be able to find out if the module it
+	   just opened was registered or failed to load
+	*/
+	AST_DLLIST_INSERT_TAIL(&module_list, mod, entry);
+	AST_DLLIST_UNLOCK(&module_list);
 
 	/* give the module a copy of its own handle, for later use in registrations and the like */
 	*((struct ast_module **) &(info->self)) = mod;
@@ -431,8 +407,6 @@ static struct ast_module *find_resource(const char *resource, int do_lock)
 	return cur;
 }
 
-#ifdef LOADABLE_MODULES
-
 /*!
  * \brief dlclose(), with failure logging.
  */
@@ -605,8 +579,6 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 	return AST_DLLIST_LAST(&module_list);
 }
 
-#endif
-
 int modules_shutdown(void)
 {
 	struct ast_module *mod;
@@ -721,18 +693,11 @@ int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode f
 
 	AST_DLLIST_UNLOCK(&module_list);
 
-	if (!error && !mod->lib && mod->info && mod->info->restore_globals)
-		mod->info->restore_globals();
-
-#ifdef LOADABLE_MODULES
 	if (!error) {
 		unload_dynamic_module(mod);
 		ast_test_suite_event_notify("MODULE_UNLOAD", "Message: %s", resource_name);
-	}
-#endif
-
-	if (!error)
 		ast_update_use_count();
+	}
 
 	return res;
 }
@@ -1072,7 +1037,6 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 		if (global_symbols_only && !ast_test_flag(mod->info, AST_MODFLAG_GLOBAL_SYMBOLS))
 			return AST_MODULE_LOAD_SKIP;
 	} else {
-#ifdef LOADABLE_MODULES
 		mod = load_dynamic_module(resource_name, global_symbols_only, suppress_logging, resource_heap);
 		if (mod == MODULE_LOCAL_ONLY) {
 				return AST_MODULE_LOAD_SKIP;
@@ -1083,22 +1047,11 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 			}
 			return required ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_DECLINE;
 		}
-#else
-		ast_log(LOG_WARNING, "Module support is not available. Module '%s' could not be loaded.\n", resource_name);
-		return required ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_DECLINE;
-#endif
 	}
 
 	if (inspect_module(mod)) {
 		ast_log(LOG_WARNING, "Module '%s' could not be loaded.\n", resource_name);
-#ifdef LOADABLE_MODULES
 		unload_dynamic_module(mod);
-#endif
-		return required ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_DECLINE;
-	}
-
-	if (!mod->lib && mod->info->backup_globals && mod->info->backup_globals()) {
-		ast_log(LOG_WARNING, "Module '%s' was unable to backup its global data.\n", resource_name);
 		return required ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_DECLINE;
 	}
 
@@ -1316,7 +1269,6 @@ done:
 int load_modules(unsigned int preload_only)
 {
 	struct ast_config *cfg;
-	struct ast_module *mod;
 	struct load_order_entry *order;
 	struct ast_variable *v;
 	unsigned int load_count;
@@ -1324,26 +1276,14 @@ int load_modules(unsigned int preload_only)
 	int res = 0;
 	struct ast_flags config_flags = { 0 };
 	int modulecount = 0;
-
-#ifdef LOADABLE_MODULES
 	struct dirent *dirent;
 	DIR *dir;
-#endif
-
-	/* all embedded modules have registered themselves by now */
-	embedding = 0;
 
 	ast_verb(1, "Asterisk Dynamic Loader Starting:\n");
 
 	AST_LIST_HEAD_INIT_NOLOCK(&load_order);
 
 	AST_DLLIST_LOCK(&module_list);
-
-	if (embedded_module_list.first) {
-		module_list.first = embedded_module_list.first;
-		module_list.last = embedded_module_list.last;
-		embedded_module_list.first = NULL;
-	}
 
 	cfg = ast_config_load2(AST_MODULE_CONFIG, "" /* core, can't reload */, config_flags);
 	if (cfg == CONFIG_STATUS_FILEMISSING || cfg == CONFIG_STATUS_FILEINVALID) {
@@ -1366,19 +1306,6 @@ int load_modules(unsigned int preload_only)
 
 	/* check if 'autoload' is on */
 	if (!preload_only && ast_true(ast_variable_retrieve(cfg, "modules", "autoload"))) {
-		/* if so, first add all the embedded modules that are not already running to the load order */
-		AST_DLLIST_TRAVERSE(&module_list, mod, entry) {
-			/* if it's not embedded, skip it */
-			if (mod->lib)
-				continue;
-
-			if (mod->flags.running)
-				continue;
-
-			add_to_load_order(mod->resource, &load_order, 0);
-		}
-
-#ifdef LOADABLE_MODULES
 		/* if we are allowed to load dynamic modules, scan the directory for
 		   for all available modules and add them as well */
 		if ((dir = opendir(ast_config_AST_MODULE_DIR))) {
@@ -1407,7 +1334,6 @@ int load_modules(unsigned int preload_only)
 				ast_log(LOG_WARNING, "Unable to open modules directory '%s'.\n",
 					ast_config_AST_MODULE_DIR);
 		}
-#endif
 	}
 
 	/* now scan the config for any modules we are prohibited from loading and

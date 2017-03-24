@@ -185,18 +185,6 @@ endif
 	$(ECHO_PREFIX) echo "   [LDXX] $^ -> $@"
 	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(CXX_LDFLAGS_SO) $^ $(CXX_LIBS)
 
-%.eo: %.o
-	$(ECHO_PREFIX) echo "   [EMBED] $< -> $@"
-	$(CMD_PREFIX) $(ASTTOPDIR)/build_tools/make_linker_eo_script $* > .$@.ld
-	$(CMD_PREFIX) $(LD) -r -T .$@.ld -o $@ $<
-	$(CMD_PREFIX) rm -f .$@.ld
-
-%.eo: %.oo
-	$(ECHO_PREFIX) echo "   [EMBED] $< -> $@"
-	$(CMD_PREFIX) $(ASTTOPDIR)/build_tools/make_linker_eo_script $* > .$@.ld
-	$(CMD_PREFIX) $(LD) -r -T .$@.ld -o $@ $<
-	$(CMD_PREFIX) rm -f .$@.ld
-
 %: %.o
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
 	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(PTHREAD_CFLAGS) $(_ASTLDFLAGS) $^ $(CXX_LIBS) $(ASTLDFLAGS)

@@ -704,8 +704,6 @@ AST_NO_STRICT_OVERFLOW
 AST_FORTIFY_SOURCE
 AST_TRAMPOLINES
 AST_DECLARATION_AFTER_STATEMENT
-GC_LDFLAGS
-GC_CFLAGS
 AST_UNDEFINED_SANITIZER
 AST_LEAK_SANITIZER
 AST_THREAD_SANITIZER
@@ -18918,62 +18916,6 @@ fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 CFLAGS="${saved_sanitize_CFLAGS}"
 LDFLAGS="${saved_sanitize_LDFLAGS}"
-
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for -ffunction-sections support" >&5
-$as_echo_n "checking for -ffunction-sections support... " >&6; }
-saved_CFLAGS="${CFLAGS}"
-CFLAGS="${CFLAGS} -ffunction-sections"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-int x = 1;
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-	saved_LDFLAGS="${LDFLAGS}"
-	LDFLAGS="${LDFLAGS} -Wl,--gc-sections"
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for --gc-sections support" >&5
-$as_echo_n "checking for --gc-sections support... " >&6; }
-	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-int
-main ()
-{
-int x = 1;
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-		GC_CFLAGS="-ffunction-sections"
-		GC_LDFLAGS="-Wl,--gc-sections"
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-	LDFLAGS="${saved_LDFLAGS}"
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-CFLAGS="${saved_CFLAGS}"
-
 
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for -Wdeclaration-after-statement support" >&5
