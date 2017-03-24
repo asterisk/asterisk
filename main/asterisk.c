@@ -341,6 +341,7 @@ unsigned int option_dtmfminduration;		/*!< Minimum duration of DTMF. */
 #if defined(HAVE_SYSINFO)
 long option_minmemfree;				/*!< Minimum amount of free system memory - stop accepting calls if free memory falls below this watermark */
 #endif
+int ast_option_rtpusedynamic;
 unsigned int ast_option_rtpptdynamic;
 
 /*! @} */
@@ -663,6 +664,7 @@ static char *handle_show_settings(struct ast_cli_entry *e, int cmd, struct ast_c
 	ast_cli(a->fd, "  Transmit silence during rec: %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_TRANSMIT_SILENCE) ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Generic PLC:                 %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_GENERIC_PLC) ? "Enabled" : "Disabled");
 	ast_cli(a->fd, "  Min DTMF duration::          %u\n", option_dtmfminduration);
+	ast_cli(a->fd, "  RTP use dynamic payloads:    %u\n", ast_option_rtpusedynamic);
 
 	if (ast_option_rtpptdynamic == AST_RTP_PT_LAST_REASSIGN) {
 		ast_cli(a->fd, "  RTP dynamic payload types:   %u,%u-%u\n",
@@ -3544,6 +3546,7 @@ static void ast_readconfig(void)
 
 	/* Set default value */
 	option_dtmfminduration = AST_MIN_DTMF_DURATION;
+	ast_option_rtpusedynamic = 0;
 	ast_option_rtpptdynamic = AST_RTP_PT_FIRST_DYNAMIC;
 
 	/* init with buildtime config */
@@ -3700,6 +3703,8 @@ static void ast_readconfig(void)
 			if (sscanf(v->value, "%30u", &option_dtmfminduration) != 1) {
 				option_dtmfminduration = AST_MIN_DTMF_DURATION;
 			}
+		} else if (!strcasecmp(v->name, "rtp_use_dynamic")) {
+			ast_option_rtpusedynamic = ast_true(v->value);
 		/* http://www.iana.org/assignments/rtp-parameters
 		 * RTP dynamic payload types start at 96 normally; extend down to 0 */
 		} else if (!strcasecmp(v->name, "rtp_pt_dynamic")) {

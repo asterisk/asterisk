@@ -12,6 +12,13 @@
 --- Functionality changes from Asterisk 14.3.0 to Asterisk 14.4.0 ------------
 ------------------------------------------------------------------------------
 
+RTP
+------------------
+ * A new setting, "rtp_use_dynamic", has been added in asterisk.conf". When set
+   to "yes" RTP dynamic payload types are assigned dynamically per RTP instance.
+   When set to "no" RTP dynamic payload types are globally initialized to pre-
+   designated numbers and function similar to static payload types.
+
 AMI
 ------------------
  * The 'PJSIPShowEndpoint' command's respone event of 'IdentifyDetail' now

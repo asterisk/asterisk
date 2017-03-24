@@ -196,6 +196,7 @@ extern int dahdi_chan_name_len;
 
 extern int ast_language_is_prefix;
 
+extern int ast_option_rtpusedynamic;
 extern unsigned int ast_option_rtpptdynamic;
 
 #if defined(__cplusplus) || defined(c_plusplus)
