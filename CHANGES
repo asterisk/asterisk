@@ -62,6 +62,11 @@ RTP
    when you use more than 32 formats and calls are not accepted by a remote
    implementation, please report this and go back to rtp_pt_dynamic = 96.
 
+ * A new setting, "rtp_use_dynamic", has been added in asterisk.conf". When set
+   to "yes" RTP dynamic payload types are assigned dynamically per RTP instance.
+   When set to "no" RTP dynamic payload types are globally initialized to pre-
+   designated numbers and function similar to static payload types.
+
 app_originate
 ------------------
  * Added support to gosub predial routines on both original channel and on the
