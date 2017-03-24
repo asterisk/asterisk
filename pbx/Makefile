@@ -31,5 +31,5 @@ dundi-parser.o: _ASTCFLAGS+=-I.
 
 pbx_gtkconsole.o: _ASTCFLAGS+=-Wno-strict-prototypes
 
-$(if $(filter pbx_dundi,$(EMBEDDED_MODS)),modules.link,pbx_dundi.so): dundi-parser.o
+pbx_dundi.so: dundi-parser.o
 dundi-parser.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,pbx_dundi)

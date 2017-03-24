@@ -61,12 +61,11 @@ clean::
 	if [ -f mp3/Makefile ] ; then $(MAKE) -C mp3 clean ; fi
 	rm -f $(addprefix ooh323c/src/,$(H323OBJS))
 
-$(if $(filter format_mp3,$(EMBEDDED_MODS)),modules.link,format_mp3.so): mp3/common.o mp3/dct64_i386.o mp3/decode_ntom.o mp3/layer3.o mp3/tabinit.o mp3/interface.o
+format_mp3.so: mp3/common.o mp3/dct64_i386.o mp3/decode_ntom.o mp3/layer3.o mp3/tabinit.o mp3/interface.o
 
 chan_ooh323.o: _ASTCFLAGS+=$(H323CFLAGS)
-
-$(if $(filter chan_ooh323,$(EMBEDDED_MODS)),modules.link,chan_ooh323.so): _ASTCFLAGS+=$(H323CFLAGS)
-$(if $(filter chan_ooh323,$(EMBEDDED_MODS)),modules.link,chan_ooh323.so): $(addprefix ooh323c/src/,$(H323OBJS)) chan_ooh323.o ooh323cDriver.o
+chan_ooh323.so: _ASTCFLAGS+=$(H323CFLAGS)
+chan_ooh323.so: $(addprefix ooh323c/src/,$(H323OBJS)) chan_ooh323.o ooh323cDriver.o
 $(addprefix ooh323c/src/,$(H323OBJS)) chan_ooh323.o ooh323cDriver.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,chan_ooh323)
 
 .PHONY: check_mp3
