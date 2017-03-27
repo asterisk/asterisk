@@ -395,20 +395,20 @@ struct ast_sdp_a_line *ast_sdp_get_a(const struct ast_sdp *sdp, int index);
 int ast_sdp_add_m(struct ast_sdp *sdp, struct ast_sdp_m_line *m_line);
 
 /*!
- * \brief Add a Media Description to an SDP
+ * \brief Add an RTP Media Description to an SDP
  *
  * \param sdp SDP
+ * \param sdp_state SDP state information
  * \param options SDP Options
- * \param rtp ast_rtp_instance
- * \param stream stream
+ * \param stream_index stream
  *
  * \retval 0 Success
  * \retval non-0 Failure
  *
  * \since 15
  */
-int ast_sdp_add_m_from_stream(struct ast_sdp *sdp, const struct ast_sdp_options *options,
-	struct ast_rtp_instance *rtp, const struct ast_stream *stream);
+int ast_sdp_add_m_from_rtp_stream(struct ast_sdp *sdp, const struct ast_sdp_state *sdp_state,
+	const struct ast_sdp_options *options, int stream_index);
 
 /*!
  * \brief Get the count of Media Descriptions on an SDP

@@ -270,26 +270,6 @@ unsigned int ast_sdp_options_get_g726_non_standard(struct ast_sdp_options *optio
 
 /*!
  * \since 15.0.0
- * \brief Set SDP Options locally_held
- *
- * \param options SDP Options
- * \param locally_held
- */
-void ast_sdp_options_set_locally_held(struct ast_sdp_options *options,
-	unsigned int locally_held);
-
-/*!
- * \since 15.0.0
- * \brief Get SDP Options locally_held
- *
- * \param options SDP Options
- *
- * \returns locally_held
- */
-unsigned int ast_sdp_options_get_locally_held(struct ast_sdp_options *options);
-
-/*!
- * \since 15.0.0
  * \brief Set SDP Options tos_audio
  *
  * \param options SDP Options
