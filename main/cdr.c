@@ -3254,7 +3254,7 @@ void ast_cdr_setuserfield(const char *channel_name, const char *userfield)
 			if (it_cdr->fn_table == &finalized_state_fn_table) {
 				continue;
 			}
-			strcpy(it_cdr->party_a.userfield, userfield);
+			ast_copy_string(it_cdr->party_a.userfield, userfield, AST_MAX_USER_FIELD);
 		}
 		ao2_unlock(cdr);
 	}
