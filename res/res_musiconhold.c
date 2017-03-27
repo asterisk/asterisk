@@ -1112,16 +1112,13 @@ static int moh_scan_files(struct mohclass *class) {
 	DIR *files_DIR;
 	struct dirent *files_dirent;
 	char dir_path[PATH_MAX];
-	char path[PATH_MAX];
 	char filepath[PATH_MAX];
 	char *ext;
 	struct stat statbuf;
 	int i;
 
 	if (class->dir[0] != '/') {
-		ast_copy_string(dir_path, ast_config_AST_DATA_DIR, sizeof(dir_path));
-		strncat(dir_path, "/", sizeof(dir_path) - 1);
-		strncat(dir_path, class->dir, sizeof(dir_path) - 1);
+		snprintf(dir_path, sizeof(dir_path), "%s/%s", ast_config_AST_DATA_DIR, class->dir);
 	} else {
 		ast_copy_string(dir_path, class->dir, sizeof(dir_path));
 	}
@@ -1137,16 +1134,6 @@ static int moh_scan_files(struct mohclass *class) {
 	}
 	class->total_files = 0;
 
-	if (!getcwd(path, sizeof(path))) {
-		ast_log(LOG_WARNING, "getcwd() failed: %s\n", strerror(errno));
-		closedir(files_DIR);
-		return -1;
-	}
-	if (chdir(dir_path) < 0) {
-		ast_log(LOG_WARNING, "chdir() failed: %s\n", strerror(errno));
-		closedir(files_DIR);
-		return -1;
-	}
 	while ((files_dirent = readdir(files_DIR))) {
 		/* The file name must be at least long enough to have the file type extension */
 		if ((strlen(files_dirent->d_name) < 4))
@@ -1183,10 +1170,6 @@ static int moh_scan_files(struct mohclass *class) {
 	}
 
 	closedir(files_DIR);
-	if (chdir(path) < 0) {
-		ast_log(LOG_WARNING, "chdir() failed: %s\n", strerror(errno));
-		return -1;
-	}
 	if (ast_test_flag(class, MOH_SORTALPHA))
 		qsort(&class->filearray[0], class->total_files, sizeof(char *), moh_sort_compare);
 	return class->total_files;
