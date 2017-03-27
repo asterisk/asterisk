@@ -79,7 +79,11 @@ directory=moh
 ;[ulawstream]
 ;mode=custom
 ;application=/usr/bin/streamplayer 192.168.100.52 888
-;format=ulaw
+;format=ulaw    ; The 'format' option specifies the audio format that the
+;               ; 'application' will provide to Asterisk. In this example,
+;               ; streamplayer will output ulaw samples so we need to set the
+;               ; format to ulaw so that Asterisk knows how to interpret the
+;               ; incoming audio.
 
 ; mpg123 on Solaris does not always exit properly; madplay may be a better
 ; choice
