@@ -360,7 +360,7 @@ binuninstall:
 	rm -f "$(DESTDIR)$(ASTSBINDIR)/$(MAIN_TGT)"
 	rm -f "$(DESTDIR)$(ASTSBINDIR)/rasterisk"
 	rm -f "$(DESTDIR)$(ASTLIBDIR)/libasterisk"* || :
-	rm -f "$(subst lib64,lib,$(DESTDIR)$(ASTLIBDIR))/libasterisk"* || :
+	test -n "$(_oldlibdir)" -a -d "$(_oldlibdir)" && rm -f "$(_oldlibdir)/libasterisk"* || :
 
 clean::
 	rm -f asterisk libasteriskssl.o
