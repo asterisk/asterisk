@@ -141,6 +141,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					entry in the list.  If send_registrations is also set, a registration will
 					also be created for each.</para></description>
 				</configOption>
+				<configOption name="outbound_proxy">
+					<synopsis>Shortcut for specifying proxy on individual objects.</synopsis>
+					<description><para>Shortcut for specifying endpoint/outbound_proxy,
+					aor/outbound_proxy, and registration/outbound_proxy individually.
+					</para></description>
+				</configOption>
 				<configOption name="sends_auth" default="no">
 					<synopsis>Send outbound authentication to remote hosts.</synopsis>
 					<description><para>At least outbound_auth/username is required.</para></description>
@@ -154,6 +160,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 					<description><para>remote_hosts is required and a registration object will
 					be created for each host in the remote _hosts string.  If authentication is required,
 					sends_auth and an outbound_auth/username must also be supplied.</para></description>
+				</configOption>
+				<configOption name="sends_line_with_registrations" default="no">
+					<synopsis>Sets "line" and "endpoint parameters on registrations.</synopsis>
+					<description><para>Setting this to true will cause the wizard to skip the
+					creation of an identify object to match incoming requests to the endpoint and
+					instead add the line and endpoint parameters to the outbound registration object.
+					</para></description>
 				</configOption>
 				<configOption name="accepts_registrations" default="no">
 					<synopsis>Accept inbound registration from remote hosts.</synopsis>
@@ -597,10 +610,15 @@ static int handle_aor(const struct ast_sorcery *sorcery, struct object_type_wiza
 	struct ast_sorcery_object *obj = NULL;
 	const char *id = ast_category_get_name(wiz);
 	const char *contact_pattern;
+	const char *outbound_proxy = ast_variable_find_last_in_list(wizvars, "outbound_proxy");
 	int host_count = AST_VECTOR_SIZE(remote_hosts_vector);
 	RAII_VAR(struct ast_variable *, vars, get_object_variables(wizvars, "aor/"), ast_variables_destroy);
 
 	variable_list_append(&vars, "@pjsip_wizard", id);
+
+	if (!ast_strlen_zero(outbound_proxy)) {
+		variable_list_append_return(&vars, "outbound_proxy", outbound_proxy);
+	}
 
 	/* If the user explicitly specified an aor/contact, don't use remote hosts. */
 	if (!ast_variable_find_last_in_list(vars, "contact")) {
@@ -649,6 +667,7 @@ static int handle_endpoint(const struct ast_sorcery *sorcery, struct object_type
 	struct ast_variable *wizvars = ast_category_first(wiz);
 	struct ast_sorcery_object *obj = NULL;
 	const char *id = ast_category_get_name(wiz);
+	const char *outbound_proxy = ast_variable_find_last_in_list(wizvars, "outbound_proxy");
 	const char *transport = ast_variable_find_last_in_list(wizvars, "transport");
 	const char *hint_context = hint_context = ast_variable_find_last_in_list(wizvars, "hint_context");
 	const char *hint_exten = ast_variable_find_last_in_list(wizvars, "hint_exten");
@@ -658,6 +677,10 @@ static int handle_endpoint(const struct ast_sorcery *sorcery, struct object_type
 
 	variable_list_append_return(&vars, "@pjsip_wizard", id);
 	variable_list_append_return(&vars, "aors", id);
+
+	if (!ast_strlen_zero(outbound_proxy)) {
+		variable_list_append_return(&vars, "outbound_proxy", outbound_proxy);
+	}
 
 	if (ast_strlen_zero(hint_context)) {
 		hint_context = ast_variable_find_last_in_list(vars, "context");
@@ -721,8 +744,9 @@ static int handle_identify(const struct ast_sorcery *sorcery, struct object_type
 
 	snprintf(new_id, sizeof(new_id), "%s-identify", id);
 
-	/* If accepting registrations, we don't need an identify. */
-	if (is_variable_true(wizvars, "accepts_registrations")) {
+	/* If accepting registrations or we're sending line, we don't need an identify. */
+	if (is_variable_true(wizvars, "accepts_registrations")
+		|| is_variable_true(wizvars, "sends_line_with_registrations")) {
 		/* If one exists, delete it. */
 		obj = otw->wizard->retrieve_id(sorcery, otw->wizard_data, "identify", new_id);
 		if (obj) {
@@ -838,6 +862,7 @@ static int handle_registrations(const struct ast_sorcery *sorcery, struct object
 	const char *id = ast_category_get_name(wiz);
 	const char *server_uri_pattern;
 	const char *client_uri_pattern;
+	const char *outbound_proxy = ast_variable_find_last_in_list(wizvars, "outbound_proxy");
 	const char *transport = ast_variable_find_last_in_list(wizvars, "transport");
 	const char *username;
 	char new_id[strlen(id) + MAX_ID_SUFFIX];
@@ -855,6 +880,10 @@ static int handle_registrations(const struct ast_sorcery *sorcery, struct object
 	search = ast_variable_new("@pjsip_wizard", id, "");
 	if (!search) {
 		return -1;
+	}
+
+	if (!ast_strlen_zero(outbound_proxy)) {
+		variable_list_append_return(&vars, "outbound_proxy", outbound_proxy);
 	}
 
 	otw->wizard->retrieve_multiple(sorcery, otw->wizard_data, "registration", existing, search);
@@ -925,6 +954,11 @@ static int handle_registrations(const struct ast_sorcery *sorcery, struct object
 
 		if (!ast_strlen_zero(transport)) {
 			variable_list_append_return(&registration_vars, "transport", transport);
+		}
+
+		if (is_variable_true(wizvars, "sends_line_with_registrations")) {
+			variable_list_append_return(&registration_vars, "line", "yes");
+			variable_list_append_return(&registration_vars, "endpoint", id);
 		}
 
 		snprintf(new_id, sizeof(new_id), "%s-reg-%d", id, host_counter);
