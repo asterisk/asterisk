@@ -79,6 +79,13 @@
                          ; sends_auth must also be specified.
                          ; (default: "no")
 
+;sends_line_with_registrations=  ; Setting this to true will cause the wizard to
+                         ; skip the creation of an identify object to match
+                         ; incoming requests to the endpoint and instead add the
+                         ; line and endpoint parameters to the outbound
+                         ; registration object.
+                         ; (default: "no")
+
 ;accepts_registrations=  ; Will create an aor with dynamic contacts which will
                          ; accept registrations.
                          ; accepts_auth must also be specified.
@@ -95,6 +102,11 @@
                  ; Hostnames must resolve to A, AAAA or CNAME records.
                  ; SRV records are not currently supported.
                  ; (default: "")
+
+;outbound_proxy= ; Setting this is a shortcut for setting
+                 ; endpoint/outbound_proxy
+                 ; aor/outbound_proxy
+                 ; registration/outbound_proxy
 
 ;transport=      ; The transport to use for the endpoint and registrations
                  ; (default: the pjsip default)
