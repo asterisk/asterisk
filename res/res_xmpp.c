@@ -3580,6 +3580,7 @@ int ast_xmpp_client_disconnect(struct ast_xmpp_client *client)
 {
 	if ((client->thread != AST_PTHREADT_NULL) && !pthread_equal(pthread_self(), client->thread)) {
 		xmpp_client_change_state(client, XMPP_STATE_DISCONNECTING);
+		pthread_cancel(client->thread);
 		pthread_join(client->thread, NULL);
 		client->thread = AST_PTHREADT_NULL;
 	}
@@ -3759,11 +3760,26 @@ static int xmpp_client_receive(struct ast_xmpp_client *client, unsigned int time
 	return IKS_OK;
 }
 
+static void sleep_with_backoff(unsigned int *sleep_time)
+{
+	/* We're OK with our thread dying here */
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+	sleep(*sleep_time);
+	*sleep_time = MIN(60, *sleep_time * 2);
+
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+}
+
 /*! \brief XMPP client connection thread */
 static void *xmpp_client_thread(void *data)
 {
 	struct ast_xmpp_client *client = data;
 	int res = IKS_NET_RWERR;
+	unsigned int sleep_time = 1;
+
+	/* We only allow cancellation while sleeping */
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
 	do {
 		if (client->state == XMPP_STATE_DISCONNECTING) {
@@ -3774,7 +3790,7 @@ static void *xmpp_client_thread(void *data)
 		if (res == IKS_NET_RWERR || client->timeout == 0) {
 			ast_debug(3, "[%s] Connecting\n", client->name);
 			if ((res = xmpp_client_reconnect(client)) != IKS_OK) {
-				sleep(4);
+				sleep_with_backoff(&sleep_time);
 				res = IKS_NET_RWERR;
 			}
 			continue;
@@ -3813,6 +3829,8 @@ static void *xmpp_client_thread(void *data)
 			}
 		} else if (res == IKS_NET_RWERR) {
 			ast_log(LOG_WARNING, "[%s] Socket read error\n", client->name);
+			ast_xmpp_client_disconnect(client);
+			sleep_with_backoff(&sleep_time);
 		} else if (res == IKS_NET_NOSOCK) {
 			ast_log(LOG_WARNING, "[%s] No socket\n", client->name);
 		} else if (res == IKS_NET_NOCONN) {
@@ -3825,6 +3843,8 @@ static void *xmpp_client_thread(void *data)
 			ast_log(LOG_WARNING, "[%s] Dropped?\n", client->name);
 		} else if (res == IKS_NET_UNKNOWN) {
 			ast_debug(5, "[%s] Unknown\n", client->name);
+		} else if (res == IKS_OK) {
+			sleep_time = 1;
 		}
 
 	} while (1);
