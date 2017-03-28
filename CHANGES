@@ -12,6 +12,25 @@
 --- Functionality changes from Asterisk 14 to Asterisk 15 --------------------
 ------------------------------------------------------------------------------
 
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 14.4.0 to Asterisk 14.5.0 ------------
+------------------------------------------------------------------------------
+
+res_pjsip_config_wizard
+------------------
+ * Two new parameters have been added to the pjsip config wizard.
+   Setting 'sends_line_with_registrations' to true will cause the wizard
+   to skip the creation of an identify object to match incoming requests
+   to the endpoint and instead add the line and endpoint parameters to
+   the outbound registration object.
+   Setting 'outbound_proxy' is a shortcut for adding individual
+   endpoint/outbound_proxy, aor/outbound_proxy and registration/outbound_proxy
+   parameters.
+
+------------------------------------------------------------------------------
+--- Functionality changes from Asterisk 14.3.0 to Asterisk 14.4.0 ------------
+------------------------------------------------------------------------------
+
 Build System
 ------------------
  * LOW_MEMORY no longer has an effect on Asterisk ABI.  Symbols that were
