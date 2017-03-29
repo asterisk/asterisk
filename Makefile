@@ -253,9 +253,6 @@ SUBDIRS_INSTALL:=$(SUBDIRS:%=%-install)
 SUBDIRS_CLEAN:=$(SUBDIRS:%=%-clean)
 SUBDIRS_DIST_CLEAN:=$(SUBDIRS:%=%-dist-clean)
 SUBDIRS_UNINSTALL:=$(SUBDIRS:%=%-uninstall)
-MOD_SUBDIRS_EMBED_LDSCRIPT:=$(MOD_SUBDIRS:%=%-embed-ldscript)
-MOD_SUBDIRS_EMBED_LDFLAGS:=$(MOD_SUBDIRS:%=%-embed-ldflags)
-MOD_SUBDIRS_EMBED_LIBS:=$(MOD_SUBDIRS:%=%-embed-libs)
 MOD_SUBDIRS_MENUSELECT_TREE:=$(MOD_SUBDIRS:%=%-menuselect-tree)
 
 ifneq ($(findstring darwin,$(OSARCH)),)
@@ -344,41 +341,14 @@ ifeq ($(filter %.menuselect,$(MAKECMDGOALS)),)
 	menuselect/menuselect --check-deps $@ $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS)
 endif
 
-$(MOD_SUBDIRS_EMBED_LDSCRIPT):
-	+@echo "EMBED_LDSCRIPTS+="`$(SILENTMAKE) -C $(@:-embed-ldscript=) SUBDIR=$(@:-embed-ldscript=) __embed_ldscript` >> makeopts.embed_rules
-
-$(MOD_SUBDIRS_EMBED_LDFLAGS):
-	+@echo "EMBED_LDFLAGS+="`$(SILENTMAKE) -C $(@:-embed-ldflags=) SUBDIR=$(@:-embed-ldflags=) __embed_ldflags` >> makeopts.embed_rules
-
-$(MOD_SUBDIRS_EMBED_LIBS):
-	+@echo "EMBED_LIBS+="`$(SILENTMAKE) -C $(@:-embed-libs=) SUBDIR=$(@:-embed-libs=) __embed_libs` >> makeopts.embed_rules
-
 $(MOD_SUBDIRS_MENUSELECT_TREE):
 	+@$(SUBMAKE) -C $(@:-menuselect-tree=) SUBDIR=$(@:-menuselect-tree=) moduleinfo
 	+@$(SUBMAKE) -C $(@:-menuselect-tree=) SUBDIR=$(@:-menuselect-tree=) makeopts
 
-makeopts.embed_rules: menuselect.makeopts
-	@echo "Generating embedded module rules ..."
-	@rm -f $@
-	+@$(SUBMAKE) $(MOD_SUBDIRS_EMBED_LDSCRIPT)
-	+@$(SUBMAKE) $(MOD_SUBDIRS_EMBED_LDFLAGS)
-	+@$(SUBMAKE) $(MOD_SUBDIRS_EMBED_LIBS)
-
-$(SUBDIRS): makeopts .lastclean main/version.c include/asterisk/build.h include/asterisk/buildopts.h defaults.h makeopts.embed_rules
+$(SUBDIRS): makeopts .lastclean main/version.c include/asterisk/build.h include/asterisk/buildopts.h defaults.h
 
 ifeq ($(findstring $(OSARCH), mingw32 cygwin ),)
-  ifeq ($(shell grep ^MENUSELECT_EMBED=$$ menuselect.makeopts 2>/dev/null),)
-    # Non-windows:
-    # ensure that all module subdirectories are processed before 'main' during
-    # a parallel build, since if there are modules selected to be embedded the
-    # directories containing them must be completed before the main Asterisk
-    # binary can be built.
-    # If MENUSELECT_EMBED is empty, we don't need this and allow 'main' to be
-    # be built with only third_party first.
-main: $(filter-out main,$(MOD_SUBDIRS))
-  else
 main: third-party
-  endif
 else
     # Windows: we need to build main (i.e. the asterisk dll) first,
     # followed by res, followed by the other directories, because
@@ -443,7 +413,6 @@ distclean: $(SUBDIRS_DIST_CLEAN) _clean
 	@$(MAKE) -C menuselect dist-clean
 	@$(MAKE) -C sounds dist-clean
 	rm -f menuselect.makeopts makeopts menuselect-tree menuselect.makedeps
-	rm -f makeopts.embed_rules
 	rm -f config.log config.status config.cache
 	rm -rf autom4te.cache
 	rm -f include/asterisk/autoconfig.h
@@ -1033,7 +1002,7 @@ menuselect/nmenuselect: menuselect/makeopts .lastclean
 menuselect/makeopts: makeopts .lastclean
 	+$(MAKE_MENUSELECT) makeopts
 
-menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(dir)/*.c) $(wildcard $(dir)/*.cc) $(wildcard $(dir)/*.xml)) build_tools/cflags.xml build_tools/cflags-devmode.xml sounds/sounds.xml build_tools/embed_modules.xml utils/utils.xml agi/agi.xml configure makeopts
+menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(dir)/*.c) $(wildcard $(dir)/*.cc) $(wildcard $(dir)/*.xml)) build_tools/cflags.xml build_tools/cflags-devmode.xml sounds/sounds.xml utils/utils.xml agi/agi.xml configure makeopts
 	@echo "Generating input for menuselect ..."
 	@echo "<?xml version=\"1.0\"?>" > $@
 	@echo >> $@
@@ -1046,7 +1015,6 @@ menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(di
 	fi
 	@cat utils/utils.xml >> $@
 	@cat agi/agi.xml >> $@
-	@cat build_tools/embed_modules.xml >> $@
 	@cat sounds/sounds.xml >> $@
 	@echo "</menu>" >> $@
 
@@ -1097,9 +1065,6 @@ check-alembic: makeopts
 .PHONY: $(SUBDIRS_CLEAN)
 .PHONY: $(SUBDIRS_UNINSTALL)
 .PHONY: $(SUBDIRS)
-.PHONY: $(MOD_SUBDIRS_EMBED_LDSCRIPT)
-.PHONY: $(MOD_SUBDIRS_EMBED_LDFLAGS)
-.PHONY: $(MOD_SUBDIRS_EMBED_LIBS)
 
 FORCE:
 

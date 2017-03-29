@@ -6,7 +6,7 @@ TP_SUBDIRS := pjproject
 # to prevent accidentally running the package's default install target.
 TP_INSTALL_SUBDIRS := pjproject
 
-.PHONY: all dist-clean distclean install clean moduleinfo makeopts uninstall __embed_libs __embed_ldscript __embed_ldflags $(TP_SUBDIRS)
+.PHONY: all dist-clean distclean install clean moduleinfo makeopts uninstall $(TP_SUBDIRS)
 
 override MAKECMDGOALS?=all
 
