@@ -777,7 +777,7 @@ static void apply_dtls_attrib(struct ast_sip_session_media *session_media,
 	struct ast_rtp_engine_dtls *dtls = ast_rtp_instance_get_dtls(session_media->rtp);
 	pj_str_t *value;
 
-	if (!attr->value.ptr) {
+	if (!attr->value.ptr || !dtls) {
 		return;
 	}
 
