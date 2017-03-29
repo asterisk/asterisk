@@ -784,8 +784,8 @@ static int res_sdp_crypto_parse_offer(struct ast_rtp_instance *rtp, struct ast_s
 		return -1;
 	}
 
-	/* RFC4568 9.1 - tag is 1-9 digits, greater than zero */
-	if (sscanf(tag, "%30d", &tag_from_sdp) != 1 || tag_from_sdp <= 0 || tag_from_sdp > 999999999) {
+	/* RFC4568 9.1 - tag is 1-9 digits */
+	if (sscanf(tag, "%30d", &tag_from_sdp) != 1 || tag_from_sdp < 0 || tag_from_sdp > 999999999) {
 		ast_log(LOG_WARNING, "Unacceptable a=crypto tag: %s\n", tag);
 		return -1;
 	}
