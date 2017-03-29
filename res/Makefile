@@ -37,19 +37,19 @@ ael/ael.tab.o: _ASTCFLAGS+=-I. -Iael -DYYENABLE_NLS=0
 		_ASTCFLAGS+=-Wno-parentheses-equality
 	endif
 
-$(if $(filter res_ais,$(EMBEDDED_MODS)),modules.link,res_ais.so): ais/clm.o ais/evt.o
+res_ais.so: ais/clm.o ais/evt.o
 ais/clm.o ais/evt.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ais)
 
-$(if $(filter res_snmp,$(EMBEDDED_MODS)),modules.link,res_snmp.so): snmp/agent.o
+res_snmp.so: snmp/agent.o
 snmp/agent.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_snmp)
 
-$(if $(filter res_ael_share,$(EMBEDDED_MODS)),modules.link,res_ael_share.so): ael/ael_lex.o ael/ael.tab.o ael/pval.o
+res_ael_share.so: ael/ael_lex.o ael/ael.tab.o ael/pval.o
 ael/ael_lex.o ael/ael.tab.o ael/pval.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_ael_share)
 
-$(if $(filter res_pjsip,$(EMBEDDED_MODS)),modules.link,res_pjsip.so): $(subst .c,.o,$(wildcard res_pjsip/*.c))
+res_pjsip.so: $(subst .c,.o,$(wildcard res_pjsip/*.c))
 $(subst .c,.o,$(wildcard res_pjsip/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_pjsip)
 
-$(if $(filter res_stasis,$(EMBEDDED_MODS)),modules.link,res_stasis.so): $(subst .c,.o,$(wildcard stasis/*.c))
+res_stasis.so: $(subst .c,.o,$(wildcard stasis/*.c))
 $(subst .c,.o,$(wildcard stasis/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_stasis)
 
 ifneq ($(findstring REBUILD_PARSERS,$(MENUSELECT_CFLAGS)),)
@@ -83,7 +83,7 @@ clean::
 	rm -f stasis_recording/*.[oi] stasis_recording/*.gcda stasis_recording/*.gcno
 	rm -f ari/*.[oi] ari/*.gcda ari/*.gcno
 
-$(if $(filter res_parking,$(EMBEDDED_MODS)),modules.link,res_parking.so): $(subst .c,.o,$(wildcard parking/*.c))
+res_parking.so: $(subst .c,.o,$(wildcard parking/*.c))
 $(subst .c,.o,$(wildcard parking/*.c)): _ASTCFLAGS+=$(call MOD_ASTCFLAGS,res_parking)
 
 res_ari.so: ari/cli.o ari/config.o ari/ari_websockets.o

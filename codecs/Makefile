@@ -38,7 +38,7 @@ include $(ASTTOPDIR)/Makefile.moddir_rules
 ifneq ($(GSM_INTERNAL),no)
 GSM_INCLUDE := -I$(SUB_GSM)/inc
 
-$(if $(filter codec_gsm,$(EMBEDDED_MODS)),modules.link,codec_gsm.so): $(SUB_GSM)/lib/libgsm.a
+codec_gsm.so: $(SUB_GSM)/lib/libgsm.a
 endif
 
 # Don't run the implicit rules for this target.
@@ -59,7 +59,7 @@ clean::
 .PHONY: $(SUB_DIRS)
 
 
-$(if $(filter codec_lpc10,$(EMBEDDED_MODS)),modules.link,codec_lpc10.so): $(LIBLPC10)
+codec_lpc10.so: $(LIBLPC10)
 
 # Don't run the implicit rules for this target.
 $(LIBLPC10): $(SUB_LPC10) ;
@@ -69,7 +69,7 @@ $(SUB_LPC10):
 
 
 ifneq ($(ILBC_INTERNAL),no)
-$(if $(filter codec_ilbc,$(EMBEDDED_MODS)),modules.link,codec_ilbc.so): $(LIBILBC)
+codec_ilbc.so: $(LIBILBC)
 else
 ILBC_INCLUDE += -DILBC_WEBRTC
 endif
@@ -81,7 +81,7 @@ $(SUB_ILBC):
 	@$(MAKE) -C $(SUB_ILBC) all _ASTCFLAGS="$(filter-out -Wmissing-prototypes -Wmissing-declarations -Wshadow,$(_ASTCFLAGS)) $(AST_NO_STRICT_OVERFLOW)"
 
 
-$(if $(filter codec_g722,$(EMBEDDED_MODS)),modules.link,codec_g722.so): g722/g722_encode.o g722/g722_decode.o
+codec_g722.so: g722/g722_encode.o g722/g722_decode.o
 
 g722/g722_encode.o g722/g722_decode.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,codec_g722)
 
@@ -92,6 +92,6 @@ else
 SPEEX_RESAMPLE_CFLAGS:=
 endif
 
-$(if $(filter codec_resample,$(EMBEDDED_MODS)),modules.link,codec_resample.so): speex/resample.o
+codec_resample.so: speex/resample.o
 
 speex/resample.o: _ASTCFLAGS+=$(call MOD_ASTCFLAGS,codec_resample) $(SPEEX_RESAMPLE_CFLAGS)
