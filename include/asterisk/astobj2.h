@@ -741,16 +741,16 @@ struct ao2_global_obj {
  */
 #ifdef REF_DEBUG
 #define ao2_t_global_obj_release(holder, tag)	\
-	__ao2_global_obj_release(&holder, (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+	__ao2_global_obj_replace_unref(&holder, NULL, (tag), __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
 #define ao2_global_obj_release(holder)	\
-	__ao2_global_obj_release(&holder, "", __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+	__ao2_global_obj_replace_unref(&holder, NULL, "", __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
 
 #else
 
 #define ao2_t_global_obj_release(holder, tag)	\
-	__ao2_global_obj_release(&holder, NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+	__ao2_global_obj_replace_unref(&holder, NULL, NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
 #define ao2_global_obj_release(holder)	\
-	__ao2_global_obj_release(&holder, NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
+	__ao2_global_obj_replace_unref(&holder, NULL, NULL, __FILE__, __LINE__, __PRETTY_FUNCTION__, #holder)
 #endif
 
 void __ao2_global_obj_release(struct ao2_global_obj *holder, const char *tag, const char *file, int line, const char *func, const char *name);

@@ -635,29 +635,7 @@ void *__ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn, unsigned in
 
 void __ao2_global_obj_release(struct ao2_global_obj *holder, const char *tag, const char *file, int line, const char *func, const char *name)
 {
-	if (!holder) {
-		/* For sanity */
-		ast_log(LOG_ERROR, "Must be called with a global object!\n");
-		ast_assert(0);
-		return;
-	}
-	if (__ast_rwlock_wrlock(file, line, func, &holder->lock, name)) {
-		/* Could not get the write lock. */
-		ast_assert(0);
-		return;
-	}
-
-	/* Release the held ao2 object. */
-	if (holder->obj) {
-		if (tag) {
-			__ao2_ref_debug(holder->obj, -1, tag, file, line, func);
-		} else {
-			__ao2_ref(holder->obj, -1);
-		}
-		holder->obj = NULL;
-	}
-
-	__ast_rwlock_unlock(file, line, func, &holder->lock, name);
+	__ao2_global_obj_replace_unref(holder, NULL, tag, file, line, func, name);
 }
 
 void *__ao2_global_obj_replace(struct ao2_global_obj *holder, void *obj, const char *tag, const char *file, int line, const char *func, const char *name)
