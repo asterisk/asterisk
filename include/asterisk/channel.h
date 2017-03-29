@@ -183,7 +183,8 @@ extern "C" {
 
 #define DATASTORE_INHERIT_FOREVER	INT_MAX
 
-#define AST_MAX_FDS		11
+#define AST_MAX_FDS		11	/*!< original maximum number of file descriptors */
+#define AST_EXTENDED_FDS	12	/*!< the start of extended file descriptor positions */
 /*
  * We have AST_MAX_FDS file descriptors in a channel.
  * Some of them have a fixed use:
@@ -2402,12 +2403,6 @@ void ast_channel_set_caller_event(struct ast_channel *chan, const struct ast_par
 /*! Set the file descriptor on the channel */
 void ast_channel_set_fd(struct ast_channel *chan, int which, int fd);
 
-/*! Add a channel to an optimized waitfor */
-void ast_poll_channel_add(struct ast_channel *chan0, struct ast_channel *chan1);
-
-/*! Delete a channel from an optimized waitfor */
-void ast_poll_channel_del(struct ast_channel *chan0, struct ast_channel *chan1);
-
 /*! Start a tone going */
 int ast_tonepair_start(struct ast_channel *chan, int freq1, int freq2, int duration, int vol);
 /*! Stop a tone from playing */
@@ -4300,11 +4295,30 @@ void ast_channel_internal_fd_set(struct ast_channel *chan, int which, int value)
 int ast_channel_fd(const struct ast_channel *chan, int which);
 int ast_channel_fd_isset(const struct ast_channel *chan, int which);
 
-/* epoll data internal accessors */
-#ifdef HAVE_EPOLL
-struct ast_epoll_data *ast_channel_internal_epfd_data(const struct ast_channel *chan, int which);
-void ast_channel_internal_epfd_data_set(struct ast_channel *chan, int which , struct ast_epoll_data *value);
-#endif
+/*!
+ * \since 15
+ * \brief Retrieve the number of file decriptor positions present on the channel
+ *
+ * \param chan The channel to get the count of
+ *
+ * \pre chan is locked
+ *
+ * \return The number of file descriptor positions
+ */
+int ast_channel_fd_count(const struct ast_channel *chan);
+
+/*!
+ * \since 15
+ * \brief Add a file descriptor to the channel without a fixed position
+ *
+ * \param chan The channel to add the file descriptor to
+ * \param value The file descriptor
+ *
+ * \pre chan is locked
+ *
+ * \return The position of the file descriptor
+ */
+int ast_channel_fd_add(struct ast_channel *chan, int value);
 
 pthread_t ast_channel_blocker(const struct ast_channel *chan);
 void ast_channel_blocker_set(struct ast_channel *chan, pthread_t value);

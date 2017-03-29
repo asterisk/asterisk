@@ -1186,9 +1186,6 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	int prestart = num.busy + num.congestion + num.nochan;
 	int orig = *to;
 	struct ast_channel *peer = NULL;
-#ifdef HAVE_EPOLL
-	struct chanlist *epollo;
-#endif
 	struct chanlist *outgoing = AST_LIST_FIRST(out_chans);
 	/* single is set if only one destination is enabled */
 	int single = outgoing && !AST_LIST_NEXT(outgoing, node);
@@ -1226,12 +1223,6 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	}
 
 	is_cc_recall = ast_cc_is_recall(in, &cc_recall_core_id, NULL);
-
-#ifdef HAVE_EPOLL
-	AST_LIST_TRAVERSE(out_chans, epollo, node) {
-		ast_poll_channel_add(in, epollo->chan);
-	}
-#endif
 
 	while ((*to = ast_remaining_ms(start, orig)) && !peer) {
 		struct chanlist *o;
@@ -1359,9 +1350,6 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 			f = ast_read(winner);
 			if (!f) {
 				ast_channel_hangupcause_set(in, ast_channel_hangupcause(c));
-#ifdef HAVE_EPOLL
-				ast_poll_channel_del(in, c);
-#endif
 				ast_channel_publish_dial(in, c, NULL, ast_hangup_cause_to_dial_status(ast_channel_hangupcause(c)));
 				ast_hangup(c);
 				c = o->chan = NULL;
@@ -1785,13 +1773,6 @@ skip_frame:;
 		ast_verb(3, "Nobody picked up in %d ms\n", orig);
 		publish_dial_end_event(in, out_chans, NULL, "NOANSWER");
 	}
-
-#ifdef HAVE_EPOLL
-	AST_LIST_TRAVERSE(out_chans, epollo, node) {
-		if (epollo->chan)
-			ast_poll_channel_del(in, epollo->chan);
-	}
-#endif
 
 	if (is_cc_recall) {
 		ast_cc_completed(in, "Recall completed!");

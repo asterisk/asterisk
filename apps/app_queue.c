@@ -4794,9 +4794,6 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 	char membername[80] = "";
 	long starttime = 0;
 	long endtime = 0;
-#ifdef HAVE_EPOLL
-	struct callattempt *epollo;
-#endif
 	char *inchan_name;
 	struct timeval start_time_tv = ast_tvnow();
 	int canceled_by_caller = 0; /* 1 when caller hangs up or press digit or press * */
@@ -4806,13 +4803,6 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 	ast_channel_unlock(qe->chan);
 
 	starttime = (long) time(NULL);
-#ifdef HAVE_EPOLL
-	for (epollo = outgoing; epollo; epollo = epollo->q_next) {
-		if (epollo->chan) {
-			ast_poll_channel_add(in, epollo->chan);
-		}
-	}
-#endif
 
 	while ((*to = ast_remaining_ms(start_time_tv, orig)) && !peer) {
 		int numlines, retry, pos = 1;
@@ -5324,14 +5314,6 @@ skip_frame:;
 
 		publish_dial_end_event(qe->chan, outgoing, NULL, "NOANSWER");
 	}
-
-#ifdef HAVE_EPOLL
-	for (epollo = outgoing; epollo; epollo = epollo->q_next) {
-		if (epollo->chan) {
-			ast_poll_channel_del(in, epollo->chan);
-		}
-	}
-#endif
 
 	return peer;
 }
