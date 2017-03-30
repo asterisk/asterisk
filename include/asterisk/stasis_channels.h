@@ -22,7 +22,6 @@
 
 #include "asterisk/stringfields.h"
 #include "asterisk/stasis.h"
-#include "asterisk/json.h"
 #include "asterisk/channel.h"
 
 /*! \addtogroup StasisTopicsAndMessages
