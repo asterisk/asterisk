@@ -87,29 +87,6 @@ enum ast_cel_event_type {
  */
 unsigned int ast_cel_check_enabled(void);
 
-/*! 
- * \brief Allocate a CEL record 
- *
- * \since 1.8
- *
- * \note The CEL record must be destroyed with ast_cel_destroy().
- *
- * \retval non-NULL an allocated ast_cel structure
- * \retval NULL error
- */
-struct ast_cel *ast_cel_alloc(void);
-
-/*! 
- * \brief Destroy a CEL record.
- *
- * \param cel the record to destroy
- *
- * \since 1.8
- *
- * \return nothing.
- */
-void ast_cel_destroy(struct ast_cel *cel);
-
 /*!
  * \brief Get the name of a CEL event type
  *
