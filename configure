@@ -718,6 +718,7 @@ PBX_DYNAMIC_LIST
 POW_LIB
 PBX_WORKING_FORK
 LIBOBJS
+DISABLE_XMLDOC
 CONFIG_LIBXML2
 UUID_LIB
 UUID_INCLUDE
@@ -14430,16 +14431,20 @@ fi
 # Check whether --enable-xmldoc was given.
 if test "${enable_xmldoc+set}" = set; then :
   enableval=$enable_xmldoc; case "${enableval}" in
-		y|ye|yes) disable_xmldoc=no ;;
-		n|no)  disable_xmldoc=yes ;;
+		y|ye|yes) DISABLE_XMLDOC=no ;;
+		n|no)  DISABLE_XMLDOC=yes ;;
 		*) as_fn_error $? "bad value ${enableval} for --disable-xmldoc" "$LINENO" 5  ;;
 	esac
 else
-  disable_xmldoc=no
+  DISABLE_XMLDOC=no
 fi
 
 
-if test "${disable_xmldoc}" != "yes"; then
+
+if test "${DISABLE_XMLDOC}" != "yes"; then
+
+$as_echo "#define AST_XML_DOCS 1" >>confdefs.h
+
 
 if test "x${PBX_LIBXSLT}" != "x1" -a "${USE_LIBXSLT}" != "no"; then
    pbxlibdir=""
