@@ -690,12 +690,14 @@ AC_ARG_ENABLE([xmldoc],
 	[AS_HELP_STRING([--disable-xmldoc],
 		[Explicitly disable XML documentation])],
 	[case "${enableval}" in
-		y|ye|yes) disable_xmldoc=no ;;
-		n|no)  disable_xmldoc=yes ;;
+		y|ye|yes) DISABLE_XMLDOC=no ;;
+		n|no)  DISABLE_XMLDOC=yes ;;
 		*) AC_MSG_ERROR(bad value ${enableval} for --disable-xmldoc)  ;;
-	esac], [disable_xmldoc=no])
+	esac], [DISABLE_XMLDOC=no])
 
-if test "${disable_xmldoc}" != "yes"; then
+AC_SUBST([DISABLE_XMLDOC])
+if test "${DISABLE_XMLDOC}" != "yes"; then
+        AC_DEFINE([AST_XML_DOCS], 1, [Define to enable XML documentation.])
         AST_EXT_LIB_CHECK([LIBXSLT], [xslt], [xsltLoadStylesheetPI], [libxslt/xsltInternals.h], [${LIBXML2_LIB}], [${LIBXML2_INCLUDE}])
         AST_EXT_LIB_CHECK([LIBXSLT_CLEANUP], [xslt], [xsltCleanupGlobals], [libxslt/xsltInternals.h], [${LIBXML2_LIB}], [${LIBXML2_INCLUDE}])
 
