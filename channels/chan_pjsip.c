@@ -2193,6 +2193,8 @@ static struct ast_channel *chan_pjsip_request(const char *type, struct ast_forma
 
 	req_data.caps = cap;
 	req_data.dest = data;
+	/* Default failure value in case ast_sip_push_task_synchronous() itself fails. */
+	req_data.cause = AST_CAUSE_FAILURE;
 
 	if (ast_sip_push_task_synchronous(NULL, request, &req_data)) {
 		*cause = req_data.cause;
