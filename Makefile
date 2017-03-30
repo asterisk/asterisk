@@ -209,7 +209,9 @@ ifeq ($(AST_DEVMODE),yes)
   ifeq ($(AST_DEVMODE_STRICT),yes)
     _ASTCFLAGS+=-Wshadow
   endif
-  ADDL_TARGETS+=validate-docs
+  ifneq ($(DISABLE_XMLDOC),yes)
+    ADDL_TARGETS+=validate-docs
+  endif
 endif
 
 ifneq ($(findstring BSD,$(OSARCH)),)
@@ -245,6 +247,14 @@ endif
 
 ifneq ($(wildcard .svn),)
   ASTERISKVERSIONNUM:=999999
+endif
+
+ifneq ($(DISABLE_XMLDOC),yes)
+  CORE_XMLDOC=doc/core-en_US.xml
+  FULL_XMLDOC=doc/full-en_US.xml
+else
+  CORE_XMLDOC=
+  FULL_XMLDOC=
 endif
 
 _ASTCFLAGS+=$(OPTIONS)
@@ -327,9 +337,9 @@ full: _full
 	@echo " +-------------------------------------------+"
 
 
-_all: makeopts $(SUBDIRS) doc/core-en_US.xml $(ADDL_TARGETS)
+_all: makeopts $(SUBDIRS) $(CORE_XMLDOC) $(ADDL_TARGETS)
 
-_full: makeopts $(SUBDIRS) doc/full-en_US.xml $(ADDL_TARGETS)
+_full: makeopts $(SUBDIRS) $(FULL_XMLDOC) $(ADDL_TARGETS)
 
 makeopts: configure
 	@echo "****"
@@ -424,7 +434,7 @@ distclean: $(SUBDIRS_DIST_CLEAN) _clean
 	rm -f doc/asterisk-ng-doxygen
 	rm -f build_tools/menuselect-deps
 
-datafiles: _all doc/core-en_US.xml
+datafiles: _all $(CORE_XMLDOC)
 	CFLAGS="$(_ASTCFLAGS) $(ASTCFLAGS)" build_tools/mkpkgconfig "$(DESTDIR)$(libdir)/pkgconfig";
 
 #	# Recursively install contents of the static-http directory, in case
@@ -436,8 +446,10 @@ datafiles: _all doc/core-en_US.xml
 			$(INSTALL) -m 644 $$x "$(DESTDIR)$(ASTDATADIR)/$$x" ; \
 		fi \
 	done
+ifneq ($(DISABLE_XMLDOC),yes)
 	$(INSTALL) -m 644 doc/core-en_US.xml "$(DESTDIR)$(ASTDATADIR)/static-http";
 	$(INSTALL) -m 644 doc/appdocsxml.xslt "$(DESTDIR)$(ASTDATADIR)/static-http";
+endif
 	if [ -d doc/tex/asterisk ] ; then \
 		$(INSTALL) -d "$(DESTDIR)$(ASTDATADIR)/static-http/docs" ; \
 		for n in doc/tex/asterisk/* ; do \
@@ -566,9 +578,11 @@ bininstall: _all installdirs $(SUBDIRS_INSTALL) main-bininstall
 		for h in $(OLDHEADERS); do rm -f "$(DESTDIR)$(ASTHEADERDIR)/$$h"; done \
 	fi
 
+ifneq ($(DISABLE_XMLDOC),yes)
 	$(INSTALL) -m 644 doc/core-*.xml "$(DESTDIR)$(ASTDATADIR)/documentation"
 	$(INSTALL) -m 644 doc/appdocsxml.xslt "$(DESTDIR)$(ASTDATADIR)/documentation"
 	$(INSTALL) -m 644 doc/appdocsxml.dtd "$(DESTDIR)$(ASTDATADIR)/documentation"
+endif
 	$(INSTALL) -m 644 doc/asterisk.8 "$(DESTDIR)$(ASTMANDIR)/man8"
 	$(INSTALL) -m 644 doc/astdb*.8 "$(DESTDIR)$(ASTMANDIR)/man8"
 	$(INSTALL) -m 644 contrib/scripts/astgenkey.8 "$(DESTDIR)$(ASTMANDIR)/man8"
