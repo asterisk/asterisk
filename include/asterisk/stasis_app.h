@@ -51,7 +51,6 @@
  */
 
 #include "asterisk/channel.h"
-#include "asterisk/json.h"
 
 /*! @{ */
 

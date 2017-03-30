@@ -178,7 +178,6 @@ extern "C" {
 #include "asterisk/ccss.h"
 #include "asterisk/framehook.h"
 #include "asterisk/stasis.h"
-#include "asterisk/json.h"
 #include "asterisk/endpoints.h"
 
 #define DATASTORE_INHERIT_FOREVER	INT_MAX
